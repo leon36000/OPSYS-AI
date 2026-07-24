@@ -63,14 +63,15 @@ OPSYS-AI — core d'entreprise autonome clé en main, 10 modules (M1..M10), prem
 | Rôle | Modèle | Mécanisme |
 |---|---|---|
 | Orchestrateur (code le plus dur, signe sur pièces) | Modèle actif Claude Code | session lead |
-| Architecte — revue AVANT code structurel | GLM-5.2 | subagent `model: crew-architect` |
+| Architecte — revue AVANT code structurel | Kimi-K3 (GLM-5.2 RETIRÉ — fuit son raisonnement, ADR-0003 R-038) | dispatch `--difficulty difficile` |
 | Codeur missions longues / multi-fichiers | Kimi K2.7 Code | subagent `model: crew-coder-long` |
 | Codeur bulk / tâches mécaniques | DeepSeek V4 Pro | subagent `model: crew-coder-bulk` |
 | Codeur TUI/UX · Codeur parallèle | Composer 2.5 · Grok 4.5 | sessions/worktrees dédiés |
 | Reviewers aveugles ×3 | DeepSeek V4 Pro · Gemini 3.1 Pro · LongCat 2.0 | `civ_review.py` hors session |
 | Pool rotation (route instable, journalisée) | Kimi K2.7 · Qwen 3.7 Max · MiMo 2.5 Pro | idem |
 | Sentinelle qualité (jamais codeuse; peut ROUVRIR) | DeepSeek + Qwen3.7-Max tandem (ADR-0003) | script / CI |
-| Synthétiseur de preuves (rapports d'étape) | MiMo 2.5 Pro (1M ctx) | script |
+| Synthétiseur de preuves (rapports d'étape) | MiMo 2.5 Pro (= MiMo-Pro-V2, nom canonique) | script |
+| Documentaliste / canon | Qwen3.8-Max (ADR-0003 ; ex-Gemini-3.6-Flash) | `doc_keeper.py` |
 Contraintes : reviewer jamais du même vendor que le codeur de la story — si conflit (ex. story
 codée par haiku/DeepSeek), swap automatique vers le pool (vendor distinct), journalisé; Composer
 et Grok (même vendor xAI) jamais appariés en review; le code de l'Orchestrateur relu par 3 vendors

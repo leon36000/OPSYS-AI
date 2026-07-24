@@ -6,7 +6,7 @@ La constitution globale (`~/.claude/CLAUDE.md`) et les hooks globaux s'appliquen
 Ici : uniquement le spécifique projet.
 
 - Profil PROOF : voir `AGENTS.md` (PROOF-Team). Team ⇒ CIV_MODELS 3 vendors.
-- Subagents (noms LiteLLM dédiés, jamais opus/sonnet/haiku) : crew-architect=GLM-5.2 · crew-coder-long=Kimi K2.7 Code · crew-coder-bulk=DeepSeek V4 Pro. opus/sonnet/haiku = passthrough Claude réel réservé à l'Orchestrateur (toi, cette session).
+- Subagents (noms LiteLLM dédiés, jamais opus/sonnet/haiku) : crew-coder-long=Kimi K2.7 Code · crew-coder-bulk=DeepSeek V4 Pro. Architecte = **Kimi-K3** via `--difficulty difficile` (l'alias crew-architect→GLM-5.2 est RETIRÉ pour ce rôle — GLM fuit son raisonnement, ADR-0003 R-038). opus/sonnet/haiku = passthrough Claude réel réservé à l'Orchestrateur (toi, cette session).
 - Packs : `pack_build.sh` (doc compressée si `PROOF_COMPRESS=1` ; diff toujours verbatim ; revue = 0).
 
 ## Arrêts durs projet
