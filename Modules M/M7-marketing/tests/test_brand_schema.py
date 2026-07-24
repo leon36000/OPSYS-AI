@@ -66,3 +66,18 @@ def test_non_dict_input_raises_racine_error(obj):
         brand_schema.validate_profile(obj)
     assert exc_info.value.field == "racine"
     assert "racine" in exc_info.value.message
+
+
+def test_unknown_non_json_field_raises_profile_error():
+    data = {**MINIMAL_PROFILE, "created": datetime.date(2026, 7, 24)}
+    with pytest.raises(brand_schema.ProfileError) as exc_info:
+        brand_schema.validate_profile(data)
+    assert exc_info.value.field == "created"
+    assert "date" in exc_info.value.message
+
+
+def test_unknown_json_serializable_field_is_tolerated():
+    data = {**MINIMAL_PROFILE, "extra": "surprise"}
+    result = brand_schema.validate_profile(data)
+    assert result["extra"] == "surprise"
+

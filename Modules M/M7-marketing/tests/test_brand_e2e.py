@@ -144,3 +144,36 @@ def test_python_object_tag_is_rejected_not_executed(tmp_path, monkeypatch):
         srv.shutdown()
         srv.server_close()
         thread.join(timeout=5)
+
+
+def test_unknown_date_yaml_field_returns_500_problem_json(tmp_path):
+    profile_path = tmp_path / "profile.yaml"
+    profile_path.write_text(
+        "name: OPSYS-AI\n"
+        "tagline: Systèmes complets d'automatisation d'entreprise par intelligence artificielle\n"
+        "tone: professionnel, factuel, français d'abord\n"
+        "colors:\n  - '#000000'\n  - '#FFFFFF'\n"
+        "langue: fr\n"
+        "created: 2026-07-24\n",
+        encoding="utf-8",
+    )
+
+    srv = build_server(str(profile_path), host="127.0.0.1", port=0)
+    thread = threading.Thread(target=srv.serve_forever, daemon=True)
+    thread.start()
+    try:
+        status, headers, body = _request(srv)
+        _assert_problem(status, headers, body, 500)
+    finally:
+        srv.shutdown()
+        srv.server_close()
+        thread.join(timeout=5)
+
+
+def test_get_brand_with_query_string_returns_200(server):
+    status, headers, body = _request(server, path="/brand?x=1")
+    assert status == 200
+    assert headers.get("Content-Type") == "application/json; charset=utf-8"
+    payload = json.loads(body.decode("utf-8"))
+    assert payload["name"] == "OPSYS-AI"
+

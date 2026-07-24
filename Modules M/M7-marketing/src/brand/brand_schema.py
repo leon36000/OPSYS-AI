@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 
@@ -24,7 +25,8 @@ def validate_profile(obj: Any) -> dict:
     """Valide et normalise un profil de marque.
 
     Le dictionnaire retourné est une copie JSON-sérialisable par construction :
-    les champs requis sont des chaînes (ou liste de chaînes pour colors).
+    les champs requis sont des chaînes (ou liste de chaînes pour colors), et
+    tout champ supplémentaire doit également être JSON-sérialisable.
     """
     if not isinstance(obj, dict):
         raise ProfileError("racine", "l'objet racine doit être un mapping")
@@ -62,5 +64,25 @@ def validate_profile(obj: Any) -> dict:
     result["tone"] = str(tone)
     result["langue"] = str(langue)
     result["colors"] = [str(color) for color in colors]
+
+    try:
+        json.dumps(result)
+    except TypeError:
+        for key in result:
+            if key in REQUIRED_FIELDS:
+                continue
+            value = result[key]
+            try:
+                json.dumps(value)
+            except TypeError:
+                raise ProfileError(
+                    key,
+                    f"valeur non JSON-sérialisable (type {type(value).__name__})",
+                ) from None
+        raise ProfileError(
+            "inconnu",
+            "valeur non JSON-sérialisable dans le profil",
+        ) from None
+
     return result
 

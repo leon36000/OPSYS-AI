@@ -19,6 +19,9 @@ Le fichier `src/brand/profile.yaml` est un **GABARIT initial** ; les valeurs pro
 - **404** — `application/problem+json` : chemin inconnu ou `/brand/`.
 - **405** — `application/problem+json` : méthode non autorisée ; l'en-tête
   `Allow: GET` est renvoyé.
+- Les champs inconnus du profil sont tolérés SEULEMENT s'ils sont JSON-sérialisables
+  (sinon 500).
+- Les query strings sont ignorées sur `/brand`.
 
 ### Lancement manuel
 
