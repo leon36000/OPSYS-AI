@@ -1,0 +1,34 @@
+---
+description: ForgeAI PROOF IDE System — adaptateur Cursor
+alwaysApply: true
+---
+
+# Cursor — ForgeAI PROOF IDE System
+
+Ce fichier ne duplique pas la méthode. Lis `AGENTS.md` (racine) d'abord — c'est la source
+canonique. Ce fichier ajoute seulement ce qui est propre à Cursor.
+
+## Ton rôle spécifique dans cet IDE
+
+Modèle natif : Grok 4.5 ou Composer 2.5 (inclus abonnement — ne route JAMAIS ces modèles via
+LiteLLM, ce sont les modèles natifs de l'IDE, pas des alias `forge-*`).
+
+Pairing supervisé : tu peux éditer en dehors d'une story dispatchée par l'Orchestrateur SEULEMENT
+si Nathan est présent en temps réel à la manette. Sans présence active : lecture, revue de diff,
+navigation seulement.
+
+## Note CIV — Grok 4.5
+
+Si Grok 4.5 est ton modèle natif ET qu'il sert aussi via le rôle passerelle `forge-parallel`
+(voir config.ini), toute PR co-écrite avec Grok — peu importe la porte d'entrée — EXCLUT Grok
+de sa propre revue (`forge-reviewer-*`).
+
+## Préflight avant écriture (FORGE_METHOD.md §6)
+
+Story active, claim obtenu, branche/worktree correct, chemins autorisés compris, contexte critique
+chargé. Un élément manquant = `BLOCKED` avant écriture.
+
+## Interdits (identiques à AGENTS.md)
+
+Commit direct main, `--no-verify`, stub, TODO en diff, `DONE` sans preuve, auto-review présentée
+comme indépendante.

@@ -1,140 +1,118 @@
-# AGENTS.md — ForgeAI PROOF IDE System
+# AGENTS.md — Méthode PROOF v2.0 — OPSYS-AI
+<!-- Canonique cross-outils (Claude Code, OpenCode, Codex...). Claude Code l'importe via @AGENTS.md
+     dans CLAUDE.md. ≤150 lignes. Consultatif ici; ENFORCEMENT dans hooks/scripts/CI; constitution
+     longue dans CANON/ et PROTOCOLE-PROOF. -->
 
-**Statut :** conception consolidée, avant implémentation  
-**Autorité humaine :** Nathan  
-**Sorties autorisées :** `DONE`, `BLOCKED`, `REOPENED`, `CANCELLED`
+## Profil PROOF de ce projet : PROOF-Team
 
-## Lecture obligatoire
+## La méthode PROOF
+- **P — Preuve avant DONE** : DONE-avec-preuve ou BLOCKED-avec-raison. Rien d'autre.
+- **R — Revue indépendante scellée** : Solo = 1 reviewer vendor ≠ codeur; Team = 3 reviewers /
+  3 vendors, verdicts scellés, dépouillement par script (`~/proof-method/scripts/civ_review.py` →
+  `tally_reviews.py`). Le tally VÉRIFIE mécaniquement (pas seulement compte) : **sceau** — tous les
+  verdicts portent le même `prompt_sha256` (les reviewers ont vu le prompt byte-identique, sinon
+  INVALIDE) ; **décorrélation** — N vendors DISTINCTS (`vendor_of`, anti-Sybil : deux modèles du
+  même fournisseur ne comptent que pour un). Livraison par le script, JAMAIS à la main (le copier-
+  coller change le prompt → sceau rompu).
+- **O — Orchestrateur unique** : le modèle actif en session lead; ne se relit JAMAIS lui-même.
+- **O — Outils déterministes = autorité** : hooks/gates bloquent; aucun LLM n'écrit un score.
+- **C — CLAIMS UNVERIFIED** : toute sortie d'un modèle de l'équipe est une AFFIRMATION non vérifiée
+  jusqu'à preuve par source objective (`gh api`/exécution réelle > mémoire de modèle). Un vote
+  « fabrication/inventé » d'un reviewer sans navigation est de la mémoire, pas une preuve — arbitrer
+  par la source. Vérifier avant de relayer ou merger.
+- **F — Frontières humaines (T3)** : paiements, secrets prod, suppressions définitives,
+  publication/déploiement public, engagements externes = humain seul.
+Philosophie : liberté sur le chemin, rigueur sur les sorties. Le blocage honnête est un résultat
+acceptable; l'exception silencieuse jamais.
 
-Avant toute proposition ou modification, lire :
+## Projet
+OPSYS-AI — core d'entreprise autonome clé en main, 10 modules (M1..M10), premier module M7 Marketing (D-008). Stack : Python 3.12 (stdlib d'abord ; PyYAML pour M7-S000).
 
-1. `VISION.md`
-2. `FORGE_METHOD.md`
-3. `IMPLEMENTATION_SPEC.md`
-4. `config.ini.example`
+## Commandes
+- Tests : `python3 -m pytest scripts/tests -q` (TDD : RED → GREEN → REFACTOR — tests d'abord, toujours) ; les tests des modules s'ajoutent au fil des stories.
+- Lint : `python3 scripts/structure_lint.py` — exporté en `PROOF_LINT_CMD` pour le pre-commit.
+- Jamais de commit direct sur main. PR uniquement. Jamais `--no-verify` (hook le bloque).
 
-Ne code pas si ces fichiers sont absents, contradictoires ou non approuvés pour la phase courante.
+## Couches d'exécution (qui fait quoi)
+1. **LiteLLM** (routing) : `opus`/`sonnet`/`haiku` → passthrough Claude réel (Orchestrateur);
+   `crew-*` → équipe; reviewers appelés en direct par script, hors alias. Logs = preuve.
+2. **Claude Code** (cockpit) : Orchestrateur + dispatch des codeurs. Hooks = gates en session.
 
-## Produit
+## Dispatch des codeurs crew-* — DEUX modes (choisir selon le passthrough)
+- **Mode natif (subagent)** : `subagent_type: codeur-bulk|codeur-longues` — EXIGE le passthrough
+  Bloc A câblé (`ANTHROPIC_BASE_URL`→LiteLLM + clé Anthropic). Sinon Claude Code envoie « crew-* » à
+  api.anthropic.com qui répond « model may not exist » (prouvé 2026-07-16).
+  ⚠️ COÛT : câbler le Bloc A reroute TOUTE la session par la clé API = facturation AU TOKEN, ce qui
+  contourne un abonnement Max/Pro. Sur abonnement Claude Code → NE PAS câbler ; utiliser l'appel-direct.
+- **Mode appel-direct (défaut sans Bloc A)** : `~/proof-method/scripts/crew_dispatch.py --model
+  crew-coder-bulk --spec <tâche> --out <fichier>` — appelle LiteLLM en HTTP direct (comme
+  civ_review pour la revue). Le codeur crew GÉNÈRE, l'Orchestrateur APPLIQUE + exécute les tests
+  (TDD/gates inchangés). Les implémentations partent RÉELLEMENT sur crew-* (prouvable Langfuse :
+  deepseek/kimi/glm, jamais Claude).
+3. **Superpowers** (colonne workflow) : brainstorming → writing-plans → subagent-driven → TDD.
+4. **Couche PROOF projet** (ce repo) : `skills/` overrident Superpowers là où PROOF diffère;
+   hooks/scripts = enforcement. Priorité skills : projet > perso > vendor. Fichiers vendor JAMAIS édités.
 
-Nous construisons un système intégré à Claude Code, Codex, Cursor et VS Code/Copilot qui applique automatiquement :
+## Overrides PROOF sur Superpowers (non négociables)
+- Revue : JAMAIS de self-review inline. Fin d'implémentation ⇒ skill `proof-review`
+  (revue aveugle scellée multi-vendor HORS session, dépouillée par script).
+- Complétion : skill `proof-done` — preuve d'exécution réelle + entrée registre, sinon BLOCKED.
+- Subagents : toute sortie se termine par `PREUVE:` ou `BLOCKED:` (hook SubagentStop renvoie sinon).
 
-- PROOF pour la gouvernance et les preuves;
-- Forge Design, inspiré de BMAD mais sans framework BMAD;
-- le framework Superpowers réel, modifié par ForgeAI;
-- des mini-agents automatiques;
-- Headroom et LLMLingua-2 pour le contexte;
-- DSPy et GEPA dans un laboratoire contrôlé;
-- un mode autonome et un mode LiteLLM connecté.
+## Équipe (défauts roster — confirmer en Phase 0; Team = reviewers TOUJOURS 3 vendors distincts)
+| Rôle | Modèle | Mécanisme |
+|---|---|---|
+| Orchestrateur (code le plus dur, signe sur pièces) | Modèle actif Claude Code | session lead |
+| Architecte — revue AVANT code structurel | GLM-5.2 | subagent `model: crew-architect` |
+| Codeur missions longues / multi-fichiers | Kimi K2.7 Code | subagent `model: crew-coder-long` |
+| Codeur bulk / tâches mécaniques | DeepSeek V4 Pro | subagent `model: crew-coder-bulk` |
+| Codeur TUI/UX · Codeur parallèle | Composer 2.5 · Grok 4.5 | sessions/worktrees dédiés |
+| Reviewers aveugles ×3 | DeepSeek V4 Pro · Gemini 3.1 Pro · LongCat 2.0 | `civ_review.py` hors session |
+| Pool rotation (route instable, journalisée) | Kimi K2.7 · Qwen 3.7 Max · MiMo 2.5 Pro | idem |
+| Sentinelle qualité (jamais codeuse; peut ROUVRIR) | DeepSeek + Qwen3.7-Max tandem (ADR-0003) | script / CI |
+| Synthétiseur de preuves (rapports d'étape) | MiMo 2.5 Pro (1M ctx) | script |
+Contraintes : reviewer jamais du même vendor que le codeur de la story — si conflit (ex. story
+codée par haiku/DeepSeek), swap automatique vers le pool (vendor distinct), journalisé; Composer
+et Grok (même vendor xAI) jamais appariés en review; le code de l'Orchestrateur relu par 3 vendors
+≠ le sien. Équipe d'exécution = 100 % cloud (protocole Phase 2); locaux = infra seulement.
+opus/sonnet/haiku = réservés au passthrough Claude réel (Orchestrateur); jamais réutilisés pour un
+poste d'équipe (collision CIV directe sinon). JAMAIS CLAUDE_CODE_SUBAGENT_MODEL en global.
 
-ForgeAI Toolkit reste un produit distinct.
+## Choix du codeur par DIFFICULTÉ (qualité) × COÛT — pas seulement par coût
+La qualité finale est garantie par les GATES + la revue scellée, pas par le codeur ; mais le bon
+codeur réduit les allers-retours. Assignation (abonnement Max = subagents Claude inclus, forfait) :
+- **Tâche dure / structurelle / multi-fichiers / exploratoire → subagent `general-purpose` (Claude,
+  Max, outils complets, TDD itératif) ou l'Orchestrateur.** Haute qualité, coût forfait, pas de
+  clé API. Reviewers = 3 vendors NON-Anthropic (indépendance intacte : codeur Claude ≠ reviewers).
+- **Tâche mécanique / bien spécifiée / bulk → `crew_dispatch.py` (DeepSeek/Kimi).** Bon marché ;
+  génération single-shot, l'Orchestrateur applique + teste. Réserver au code sans exploration.
+- **Story critique (T2/T3) → skill `proof-tdad`** (Spec→RED→GREEN→vérif exécution) + revue archi
+  (`architecte`) AVANT code.
+- **TOUJOURS → revue scellée 3 vendors** = l'autorité qualité réelle (un mauvais code échoue aux
+  tests ou est REJETÉ). Ne jamais confondre « pas cher » et « bon » : le tier de difficulté décide.
 
-## Règle fondamentale
+## Pipeline par story (le seul chemin autorisé)
+Story → context pack scopé → architecte si structurel → codeur assigné PAR DIFFICULTÉ (voir ci-dessus ;
+PAS l'Orchestrateur par défaut pour le bulk, MAIS Claude/Max pour le dur) → TDD RED/GREEN/REFACTOR
+→ gates locaux (lint, secrets, no-stub, sweep des symboles touchés)
+→ PR → gates CI → `proof-review` (scellée) → tally script → [pas de consensus : Delphi anonymisé,
+max 2 rounds, puis arbitrage sur pièces journalisé] → signature Orchestrateur SUR PIÈCES → merge
+→ registre horodaté → doc à jour (gate BLOQUANT pre-commit docs-drift-scan : tout changement d'outil exige un artefact doc).
 
-La conversation n'est jamais la mémoire du projet. Stories, claims, décisions, context manifests, état et preuves vivent dans des artefacts structurés et versionnés.
+## Interdits absolus (hooks et no-stub-scan les bloquent)
+Stubs (pass, NotImplementedError, ..., corps vides), TODO/FIXME/HACK dans un diff, tests sans
+assertion, `assert True`, skip sans justification au registre, données inventées, DONE partiel,
+affirmation factuelle sans source vérifiable, `--no-verify`, commit direct sur main, force-push
+main, auto-approbation. Mocks : tests/ seulement, services externes seulement.
 
-## Préflight avant écriture
+## Registres & périmètre
+Registres append-only hash-chaînés dans `Registres/` via `scripts/ledger_append.py` (jamais à la
+main); toute entrée DONE porte sa preuve (le gate rejette sinon). Confinement au workspace du repo.
+Secrets : jamais dans Git ni registres. Sources contenu : web public + documents fournis explicitement.
+Coexistence des registres : `registries/ledger/*.jsonl` = registre PROJET OPSYS-AI, vérifié en CI ; `Registres/*.jsonl` = registre MÉTHODE proof-method. Cf. ADR-0002.
 
-Confirmer :
+## Méthodologie-as-code
+Les métriques de gouvernance au registre (taux de rejet en revue par modèle, bugs introduits par
+poste) sont la suite de tests de la méthode : réassignations pilotées par les DONNÉES. Amendements :
+PR sur le repo proof-method + circuit de revue Team. Jamais de fork silencieux de la méthode.
 
-- story, objectif et critères;
-- tier T0-T3;
-- claim, branche et worktree;
-- dépendances;
-- code existant et travail similaire recherchés;
-- chemins autorisés;
-- tests et preuves attendus;
-- contexte critique chargé.
-
-Un élément manquant = `BLOCKED` avant écriture.
-
-## Pipeline obligatoire
-
-```text
-CALIBRATE → DESIGN → SPEC → STORY → CLAIM → CONTEXT → RED
-→ IMPLEMENT → VERIFY → REVIEW → TALLY → APPROVE → MERGE
-→ LEDGER → DONE
-```
-
-Aucune étape ne peut être sautée silencieusement.
-
-## Mini-agents automatiques
-
-- `forge-context-scout` : zone inconnue ou reprise;
-- `forge-design-analyst` : besoin ambigu ou non trivial;
-- `forge-architect` : structure, schéma, interface ou T2;
-- `forge-hard-coder` : tâche difficile, longue ou multi-fichiers;
-- `forge-test-runner` : après modification;
-- `forge-drift-checker` : après compactage et avant merge;
-- `forge-docs-canon` : après changement fonctionnel ou documentaire;
-- `forge-security-reviewer` : auth, secrets, réseau, T2/T3;
-- reviewers indépendants : avant approbation;
-- `forge-evidence-synthesizer` : avant `DONE`.
-
-Ne simule jamais une délégation non exécutée.
-
-## Modèles
-
-Les rôles sont des alias configurables. Profil interne déclaré (roster complet — voir
-RECONCILIATION.md pour la traçabilité de chaque assignation) :
-
-- architecte : GLM-5.2;
-- code compliqué/long/1M ctx : Kimi K3;
-- code facile/standard : Kimi Code 2.7;
-- documentation/canon : Gemini Flash 3.6, proposition uniquement (ne pas sous-estimer);
-- reviewer 1 : DeepSeek V4 Pro;
-- reviewer 2 : Gemini 3.1 Pro;
-- reviewer 3 / sécurité : LongCat 2.0;
-- sentinelle (tandem) : DeepSeek V4 Pro + GLM-5.2;
-- parallélisme/worktrees : Grok 4.5 (double rôle possible avec Cursor natif — CIV);
-- synthèse de preuves : MiMo 2.5 Pro;
-- pool rotation : Kimi, Qwen 3.7 Max, MiMo 2.5 Pro, MiniMax M3;
-- autres rôles : modèles configurés et vérifiés par vendor.
-
-Aucun identifiant de modèle en dur dans le noyau. Aucune indépendance multi-vendor sans preuve de routage.
-
-## Contexte
-
-Le contexte est rare. Ne jamais compresser avec perte : canon, règles, story, critères, code, diff, tests, erreurs exactes, reviews, verdicts et preuves.
-
-Headroom cible d'abord sorties d'outils et logs. LLMLingua-2 cible seulement les documents longs autorisés. Pas de double compression sans benchmark.
-
-## Superpowers
-
-Utiliser le framework Superpowers réel. Conserver les parties utiles; remplacer ou renforcer le routage, l'auto-review, la propagation des règles, les context packs, les hooks, les gates et les preuves. Toute modification amont est isolée, testée et réversible.
-
-## DSPy et GEPA
-
-Ils proposent des optimisations testées. Ils ne modifient jamais automatiquement canon, invariants, gates, critères `DONE`, T3 ou indépendance. Aucune promotion sans benchmark, holdout, revue, canary et rollback.
-
-## Interdits
-
-- commit direct sur la branche principale ou `--no-verify`;
-- stub ou marqueur de travail inachevé destiné au merge;
-- test sans assertion utile;
-- donnée inventée présentée comme réelle;
-- modification hors story;
-- secret dans Git, prompt, log ou diagnostic;
-- auto-review présentée comme indépendante;
-- `DONE` sans preuve;
-- modification silencieuse du canon;
-- second orchestrateur concurrent.
-
-## Sorties
-
-Pour `DONE`, fournir critères, commandes, codes de sortie, tests, gates, diff/commit, reviews, preuves/hashes, état docs/canon et risques résiduels.
-
-Pour `BLOCKED`, fournir cause exacte, preuve, impact, prochaine action minimale et décision humaine requise.
-
-## Ordre immédiat
-
-1. valider les documents;
-2. vérifier les capacités réelles;
-3. construire PROOF Core;
-4. prouver une tranche verticale Claude Code;
-5. intégrer LiteLLM et Superpowers;
-6. ajouter Context Plane;
-7. porter vers Codex, Cursor et VS Code/Copilot;
-8. ajouter DSPy/GEPA après les benchmarks de référence.
-
-**Échoue fermé plutôt que dériver silencieusement.**
