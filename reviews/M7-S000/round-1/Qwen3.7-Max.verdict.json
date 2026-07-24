@@ -1,0 +1,14 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M7-marketing/src/brand/brand_schema.py",
+   "description": "La garantie « JSON-sérialisable par construction » (A3/R1) est violée pour les champs inconnus. `dict(obj)` copie les champs inconnus tels quels. Si un champ inconnu contient un type non-sérialisable (ex: `datetime.date` issu de `safe_load` sur une date YAML), `json.dumps` dans `brand_server.py` lèvera `TypeError`, crashant le handler sans renvoyer de RFC 9457.",
+   "preuve": "Ligne `result = dict(obj)` dans `validate_profile` ; `json.dumps(profile, ...)` sans `try/except` dans `brand_server.py` (ligne 96)."
+  }
+ ],
+ "date_heure": "2026-07-24T11:04:22.737755+00:00",
+ "prompt_sha256": "0a2e5ea5b993557c728d8748ea07b71b8ac747c7e6713b4e5f79e463444c9d1d",
+ "reviewer_model": "Qwen3.7-Max"
+}
