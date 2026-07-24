@@ -26,7 +26,10 @@ require_worktree_for_parallel = true
 litellm_base_url =
 key_source = os_keyring
 key_name = forgeai-litellm
-api_key_env = sk-forge-67d8efa5267dcadb8cd7d10715bee7db1bc908b3cc1c408607f3d4d466b40b19
+; SECURITE (ADR-0002 pt 7) : la valeur precedente de ce champ etait une cle reelle (commit 48d66ba,
+; historique GitHub) — expurgee ; rotation R-002 imperative (P0-4, T3 Nathan). Ce champ attend un
+; NOM de variable d'environnement, jamais une cle.
+api_key_env = LITELLM_API_KEY
 verify_tls = true
 timeout_seconds = 120
 max_retries = 2

@@ -1,0 +1,21 @@
+modules:
+  - name: M1-front-office
+    statut: STUB
+  - name: M2-revenue-crm
+    statut: STUB
+  - name: M3-estimation
+    statut: STUB
+  - name: M4-field-ops
+    statut: STUB
+  - name: M5-financecore
+    statut: STUB
+  - name: M6-material-control
+    statut: STUB
+  - name: M7-marketing
+    statut: STUB
+  - name: M8-analytics
+    statut: STUB
+  - name: M9-strategic-intelligence
+    statut: STUB
+  - name: M10-memoire
+    statut: STUB

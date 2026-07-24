@@ -1,25 +1,34 @@
-# ForgeAI PROOF IDE System — paquet de fondation v0.2 DRAFT
+# OPSYS-AI / Systèmes complets d'automatisation d'entreprise par intelligence artificielle
 
-Ce paquet contient les fichiers maîtres à placer à la racine du dépôt qui servira à développer le système.
+Core d'entreprise autonome, clé en main. Ce repo exécute la méthode **PROOF STACK v1.1** (kit `GRS_KIT_DEMARRAGE_v1.0`, ratifié D-039). Source de vérité : le plan maître `docs/GRS_Plan_Squelette_Maitre_v1.1_PERFECTION.pdf`.
 
-## Fichiers
+## Profils d'installation (D-043)
 
-- `VISION.md` — pourquoi le produit existe, son périmètre et ses principes.
-- `FORGE_METHOD.md` — méthode complète et autorité de fonctionnement proposée.
-- `IMPLEMENTATION_SPEC.md` — architecture, modules, phases, tests et critères de sortie.
-- `AGENTS.md` — point d'entrée court pour Claude Code, Codex, Cursor, Copilot et autres agents.
-- `config.ini.example` — configuration sûre des modes, rôles, fournisseurs, LiteLLM et contexte.
+- **infra-existante** : branchement sur passerelle LLM, Langfuse, base vectorielle et PostgreSQL fournis par l'hôte.
+- **starter** : auto-déploiement des prérequis en conteneurs (à venir en Phase 0/P0-2).
 
-## Ce que Nathan doit faire
+## Démarrage
 
-1. Lire et corriger les décisions métier ou les noms qui ne conviennent pas.
-2. Valider explicitement le statut canonique de `VISION.md` et `FORGE_METHOD.md`.
-3. Choisir les décisions ouvertes listées dans `IMPLEMENTATION_SPEC.md`, surtout le nom, la licence et la stratégie Superpowers.
-4. Placer les anciens fichiers PROOF dans `docs/history/` plutôt que de les donner comme instructions actives en parallèle.
-5. Ouvrir le dépôt dans l'IDE choisi et envoyer :
+Le repo est déjà câblé, `main` est protégée. Ordre d'exécution :
 
-> Lis `AGENTS.md`, puis les documents qu'il exige. Commence par la Phase 0 de `IMPLEMENTATION_SPEC.md`. N'écris aucun code avant d'avoir produit l'état des lieux, la matrice de capacités vérifiée et les décisions bloquantes.
+1. Phase C — consensus outillé (`python3 scripts/consensus_run.py --mock`, puis mode live après configuration de la passerelle et rotation de la clef).
+2. Phase 0 — dans l'ordre v1.1 (P0-1 → P0-4 → P0-2 → P0-3/P0-6 → tests des scripts de méthode → harnais e2e → … → P0-10).
+3. Story pilote **M7-S000** (mode ombre, ≤ 1 h).
+4. M7 vague 1 — fondations sans dépendances.
 
-## Important
+Suivre `PROMPT_BOOTSTRAP_CLAUDE_CODE.md` sans sauter d'étape.
 
-Ce paquet est VALIDÉ par Nathan (23 juillet 2026) et remplace les fichiers PROOF multi-IDE antérieurs (GRS_IDE_CONFIGS_v1..v6), archivés dans `docs/history/`. Il intègre le roster complet réconcilié — GLM-5.2, Kimi K3, Kimi Code 2.7, Gemini Flash 3.6, DeepSeek V4 Pro, Gemini 3.1 Pro, LongCat 2.0, Grok 4.5, MiMo 2.5 Pro, Qwen 3.7 Max, MiniMax M3 —, Headroom, LLMLingua-2, DSPy, GEPA, multi-IDE et mode LiteLLM. Voir RECONCILIATION.md pour la traçabilité complète des corrections.
+## Sources de vérité
+
+- Plan maître : `docs/GRS_Plan_Squelette_Maitre_v1.1_PERFECTION.pdf` (28 p., nom historique GRS).
+- Pack Phase C : `PACK_CONSENSUS_GRS_v2.md`.
+- Constitution d'exécution : `00-DIGEST.md` + `docs/canon/REGLES.md`.
+
+## ForgeAI PROOF IDE System
+
+Les fichiers `VISION.md`, `FORGE_METHOD.md`, `IMPLEMENTATION_SPEC.md`, `RECONCILIATION.md`, `START_HERE.md` et `config.ini.example` présents à la racine sont le référentiel d'un **produit-méthode distinct** (chantier séparé). Ils ne gouvernent pas l'exécution de ce repo, qui suit PROOF STACK v1.1 du kit (cf. ADR-0002).
+
+## Licence
+
+Apache-2.0
+

@@ -1,0 +1,3 @@
+# Registre des frameworks — bijection disque<->registre (D-038, lint CI)
+# format: - name / path (chemin exact du dossier)
+frameworks: []

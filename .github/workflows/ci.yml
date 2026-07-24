@@ -1,0 +1,16 @@
+name: gates
+on: [pull_request, push]
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5 — pin SHA (D-035)
+      - name: Installer les dépendances de test
+        run: python3 -m pip install --quiet pytest pyyaml
+      - name: Structure lint (D-038)
+        run: python3 scripts/structure_lint.py
+      - name: Ledger integrity (D-042)
+        run: python3 scripts/ledger_append.py verify
+      - name: Tests des scripts de methode (R-030)
+        run: python3 -m pytest scripts/tests -q
+
