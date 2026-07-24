@@ -1,0 +1,23 @@
+ {
+  "verdict": "APPROVE",
+  "objections": [
+    {
+      "severite": "majeure",
+      "fichier": "docs/GRS_Plan_Squelette_Maitre_v1.1_PERFECTION.pdf (§10bis, D-040)",
+      "description": "Risque résiduel sur les routes non prouvées du roster PROOF-Team : GLM-5.2, Grok 4.5 et MiMo 2.5 Pro ne figurent pas dans la preuve d'exécution P0-2, et les conditions d'utilisation, quotas, SLAs et disponibilité commerciale de l'ensemble des modèles ne sont pas documentés. Le profil d'équipe est ratifié Nathan (D-040) — ce point signale un risque, ne revote pas la décision.",
+      "preuve": "PIÈCE 3 prouve 7 routes actives (Kimi-2.7, Kimi-K3, DeepSeek-V4-Pro, Gemini-3.1-Pro, LongCat-2.0, Qwen3.7-Max, Gemini-3.6-Flash) mais omet GLM-5.2, Grok 4.5 et MiMo 2.5 Pro ; le PDF §10bis liste ces postes sans preuve d'activation ni fiche commerciale."
+    },
+    {
+      "severite": "mineure",
+      "fichier": "ops/litellm / P0-2b",
+      "description": "Le hash de l'image LiteLLM courante est journalisé, mais le SBOM complet, le lockfile et la configuration proxy durcie (failover, hardening, liste blanche) ne sont pas encore fournis ; le proxy central reste un SPOF critique tant que la story P0-2b n'est pas clôturée.",
+      "preuve": "PIÈCE 5 : image sha256:f792e404f0db3b8c8d841e25e8c7b373df6079b74d660068a6d4974345c8d43d ; épinglage digest + SBOM = story P0-2b DRAFT au repo, reconnue ouverte et planifiée."
+    },
+    {
+      "severite": "mineure",
+      "fichier": "docs/GRS_Plan_Squelette_Maitre_v1.1_PERFECTION.pdf (Q9)",
+      "description": "La classe 'stories triviales' à profil de revue réduit n'est pas encore formalisée : seuil N non précisé, critères de détection ('docs/config-only, <=N lignes, zero logique') sans règle automatique, et profil de revue réduit non défini. Sa ratification (Q9) conditionne un risque de contournement des gates de preuve.",
+      "preuve": "PIÈCE 5 : Q9 est la question soumise au vote ; aucun seuil, algorithme de détection ou garde-fou automatique n'est fourni dans le pack."
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "reviewer": "RevueurIndépendant",
+  "vendor": "OpenAI",
+  "verdict": "REJECT",
+  "objections": [
+    {
+      "severite": "critique",
+      "fichier": "PACK_CONSENSUS_GRS_v2.1 — sections 1, 6, 8",
+      "description": "Le pack affirme que les passes 01-05 sont 'preuves' et qu'une revue PERFECTION a produit 16 correctifs, mais il ne fournit que des renvois à un PDF externe. Aucun hash de ledger, aucune entrée append-only, aucune donnée brute ni annexe n'est présente dans le paquet déposé, ce qui empêche la vérification des déclarations et contrevient à REG-01 (preuve avant déclaration).",
+      "preuve": "BLOCKED: GRS_Plan_Squelette_Maitre_v1.1_PERFECTION.pdf et les annexes C-G ne sont pas incluses dans le pack déposé."
+    },
+    {
+      "severite": "majeure",
+      "fichier": "PACK_CONSENSUS_GRS_v2.1 — section 4, D-040",
+      "description": "Le roster d'exécution PROOF-Team repose sur des modèles et versions (GLM-5.2, Kimi K2.7, Kimi K3 1M, DeepSeek V4 Pro, Grok 4.5, LongCat 2.0, MiMo 2.5 Pro) dont l'existence commerciale, les conditions d'utilisation, les quotas et la disponibilité API ne sont pas établies. Cela constitue un stub de faisabilité contraire à REG-02 (zero fake done/stub).",
+      "preuve": "BLOCKED: aucun contrat, SLA, résultat d'évaluation ou certificat d'accès aux modèles cités n'est fourni dans le pack."
+    },
+    {
+      "severite": "majeure",
+      "fichier": "PACK_CONSENSUS_GRS_v2.1 — section 4 (REGISTRES, D-042), section 7 R-030",
+      "description": "consensus_run.py et ledger_append.py sont des points de confiance absolus pour les verdicts scellés et l'immuabilité du ledger. Leur code source, leurs tests et les empreintes de déploiement ne sont pas fournis. Sans audit indépendant, le principe 'dépouillement PAR SCRIPT' n'est pas vérifiable et R-030 (scripts = points de confiance) reste ouvert.",
+      "preuve": "BLOCKED: aucun fichier .py, hash SHA ou exécution CI montrée dans le paquet déposé."
+    },
+    {
+      "severite": "majeure",
+      "fichier": "PACK_CONSENSUS_GRS_v2.1 — section 6 D-035, section 7 R-028",
+      "description": "Le pack mentionne un compromis PyPI de LiteLLM en 03/2026 et propose une version épinglée+hash, mais il ne fournit ni le hash, ni le SBOM, ni le lockfile. De plus, le proxy LiteLLM centralise toutes les routes IA, ce qui en fait un SPOF critique si sa version ou sa configuration n'est pas vérifiable.",
+      "preuve": "BLOCKED: aucun hash de version, lockfile ou attestation de scan fourni dans le pack."
+    },
+    {
+      "severite": "mineure",
+      "fichier": "PACK_CONSENSUS_GRS_v2.1 — section 9 Q9",
+      "description": "La proposition d'une classe 'stories triviales' à profil de revue réduit repose sur un seuil N non précisé et sur des critères ('docs/config-only, <=N lignes, zero logique') sans règle automatique de détection. Cela crée un risque de contournement des gates de preuve et d'injection de stubs.",
+      "preuve": "PREUVE: section 9 Q9 laisse N et les critères à proposer, sans mécanisme de lint ni de registry."
+    }
+  ],
+  "dimensions": {
+    "1_EXACTITUDE": {
+      "verdict": "REJETE",
+      "justification": "Le pack avance des chiffres (Recall@5 0,816, 41 frameworks, 15 composants, 4 simulations internes, 16 correctifs) sans source ni entrée de ledger visible, et renvoie à un PDF absent. BLOCKED: PDF et ledger jsonl non fournis."
+    },
+    "2_FAISABILITE": {
+      "verdict": "REJETE",
+      "justification": "Le roster D-040 repose sur des modèles/APIs non attestés de disponibilité, tarification ou SLA. BLOCKED: aucun contrat, éval métrique ou preuve d'accès fourni."
+    },
+    "3_SECURITE": {
+      "verdict": "APPROUVE",
+      "justification": "Les contrôles listés (OpenFGA, Zitadel, Presidio, STRIDE/LINDDUN, Firecracker, épinglage SHA, mode ombre) sont cohérents avec l'état de l'art. PREUVE: sections 6 (D-022, D-026, D-031, D-035, D-036) et REG-13."
+    },
+    "4_COMPLETUDE": {
+      "verdict": "REJETE",
+      "justification": "Neuf questions de conception (Q1-Q9), dont l'ordre des modules, la licence, l'équipe et les outils M7, restent ouvertes et les annexes C-G ne sont pas jointes. BLOCKED: résolutions et annexes absentes du paquet déposé."
+    },
+    "5_RISQUES": {
+      "verdict": "APPROUVE",
+      "justification": "Le registre R-001..R-030 couvre correlation de vendor, rotation de clés, injection indirecte, latence vocale, SPOF, adoption terrain et supply chain; R-030 identifie correctement les scripts de méthode comme points de confiance. PREUVE: section 7 et D-035/R-028."
+    }
+  },
+  "verdict_final": "REJETE",
+  "reserves": "1. Requiert le PDF complet + annexes C-G avec les hashes de ledger pour valider les passes PERFECTION.\n2. Requiert des preuves d'accès/contrats/SLA pour chaque modèle/API du roster D-040.\n3. Requiert le code source, les tests et les empreintes SHA des scripts consensus_run.py et ledger_append.py.\n4. Requiert un SBOM/lockfile avec les hashes de LiteLLM et des actions GitHub.\n5. Requiert la résolution des questions ouvertes Q1-Q9 avant tout ordre d'exécution.",
+  "reponses_Q": {
+    "Q1": "REJETE en l'état. La table D-040 doit être reassignée sur des modèles documentés et accessibles; conserver les règles CIV, SWAP et 'aucun Kimi en revue de Kimi', mais avec des vendors réels et des évals pilotes. HYPOTHESE: remplacement proposé en l'absence de preuves d'accès. BLOCKED: contrats et évals des modèles cités non fournis.",
+    "Q2": "APPROUVE la proposition M7 -> M1 -> M2(rehaussé) -> M4 -> M3 -> M6 -> M8 -> M5 -> M9. M10 en shim dès la Phase 0 puis module complet après M8, avant M9. PREUVE: section 5 M7 premier, D-014 shim M10, section 9 Q2.",
+    "Q3": "a) WhatsApp/SMS : API officielle payante uniquement; exclure tout automate non officiel. b) NAP : campagne ponctuelle + audit trimestriel avec preuve de mise à jour. c) Local Falcon/OneGlanse : Local Falcon comme principal, OneGlanse en audit secondaire. d) Dashboards : M7.12 embarqué léger en priorité; Metabase reporté en option M8. e) PostHog : reporté; utiliser un collecteur léger type Plausible/own-events jusqu'à validation des ressources. HYPOTHESE: choix basés sur les contraintes de ressources et de Loi 25. PREUVE: section 5 M7, section 7 R-012.",
+    "Q4": "Propositions additionnelles : Bandit/Safety/PyPI-scan pour l'hygiène Python; Great Expectations ou Soda pour la qualité des snapshots M8; Temporal/Cadence pour les workflows longs (M4/M6); Promptfoo déjà cité pour les évals. HYPOTHESE: compléments sans évaluation de coût détaillée. BLOCKED: aucun cahier des charges détaillé fourni.",
+    "Q5": "Risques manquants ou sous-traits : verrouillage propriétaire sur Zitadel/OpenFGA; complexité opérationnelle d'OpenFGA; compromission des clés de signature offline mobile; dépassement de coûts/quota API; réidentification PII par corrélation inter-modules; hallucination de citations juridiques en M5. HYPOTHESE: liste indicative. PREUVE: sections 5 (M5/M8/M10) et 6 (D-031/D-022).",
+    "Q6": "APPROUVE le shim M10 pour la Phase 0, à condition d'ajouter : schéma durable du bus d'événements, politique de compaction, alignement de rétention avec Revenu Québec/Loi 25, tests de replay, et matrice de contrôle d'accès. HYPOTHESE: ajouts nécessaires. PREUVE: section 5 M10 et D-014.",
+    "Q7": "Licence propriétaire par défaut pour protéger le SaaS et l'IP; envisager une licence duale seulement après revue juridique par Nathan/CPA et validation du modèle d'affaires. HYPOTHESE: position conservatrice. PREUVE: section 9 Q7 et section 5 M5 (engagements juridiques réservés à Nathan).",
+    "Q8": "PROOF-Team confirmé en principe, mais UNIQUEMENT si le roster est re-basé sur des modèles vérifiables. Le repli Solo n'est pas acceptable car il annonce une baisse de rigueur incompatible avec REG-05 et REG-06. PREUVE: section 4 D-040, section 9 Q8, REG-05/06.",
+    "Q9": "ACCEPTE à condition de critères stricts : docs/config-only, ≤50 lignes, zéro logique métier, langage limité (md/yaml/toml), détection par lint, entrée obligatoire dans le registry, et journalisation du profil réduit. N=50 proposé comme seuil initial. HYPOTHESE: seuil à calibrer. PREUVE: section 9 Q9."
+  }
+}
