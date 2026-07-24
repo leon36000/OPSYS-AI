@@ -40,7 +40,9 @@ l'exécution du repo.
 4. `diff` byte-exact des deux jsonl du ledger vs kit → aucune différence.
 5. `git status --ignored` : `.pytest_cache`, `__pycache__`, `.coverage`, `.claude/worktrees/`
    uniquement en ignoré — jamais en staged.
-6. Aucune occurrence de la clé `sk-forge-` dans l'arbre de la branche (`git grep sk-forge-` vide).
+6. Aucun MATÉRIAU de clé réelle dans l'arbre de la branche : `git grep -E "sk-forge-[0-9a-f]{16}"`
+   vide. (Précision issue de la revue scellée round 1 : le préfixe `sk-forge-` cité comme motif dans
+   le présent critère n'est pas un secret ; seul le préfixe suivi d'hexadécimal constitue une clé.)
 7. Grep « GRS » dans les docs modifiables : uniquement les mentions historiques légitimes
    (nom de code, noms de fichiers des pièces, ADR-0001, ledger).
 8. CI GitHub verte sur la PR (job `gates`).
