@@ -12,7 +12,7 @@ modules:
   - name: M6-material-control
     statut: STUB
   - name: M7-marketing
-    statut: STUB
+    statut: PILOTE
   - name: M8-analytics
     statut: STUB
   - name: M9-strategic-intelligence

@@ -13,4 +13,6 @@ jobs:
         run: python3 scripts/ledger_append.py verify
       - name: Tests des scripts de methode (R-030)
         run: python3 -m pytest scripts/tests -q
+      - name: Tests module M7 (M7-S000)
+        run: python3 -m pytest "Modules M/M7-marketing/tests" -q
 
