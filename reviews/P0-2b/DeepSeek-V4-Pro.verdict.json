@@ -1,0 +1,14 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "docs/infra/PROVENANCE-litellm.md",
+   "description": "Fence de code markdown ouverte sans fermeture : la section 'SBOM CycloneDX formel' est accidentellement placée dans un bloc de code non fermé, ce qui l'empêche d'être interprétée comme un titre de section.",
+   "preuve": "Ligne du diff : '+```' après la ligne vide, suivie de '+## SBOM CycloneDX formel …' sans nouveau triple backtick de fermeture avant la fin du fichier."
+  }
+ ],
+ "date_heure": "2026-07-25T00:06:37.603497+00:00",
+ "prompt_sha256": "b5afda604ee20402d9a79cbcf27dcfa342f75e962ebb0a88105d9d61a7e85dae",
+ "reviewer_model": "DeepSeek-V4-Pro"
+}

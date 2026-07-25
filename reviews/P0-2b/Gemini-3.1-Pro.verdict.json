@@ -1,0 +1,14 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "docs/infra/PROVENANCE-litellm.md",
+   "description": "Un bloc de code Markdown est ouvert mais jamais fermé à la fin du fichier, ce qui englobe le titre '## SBOM CycloneDX formel' et le texte suivant dans un bloc de code.",
+   "preuve": "Ligne `+``` ` juste avant `+## SBOM CycloneDX formel — SUITE (non bloquant)`"
+  }
+ ],
+ "date_heure": "2026-07-25T00:05:59.944005+00:00",
+ "prompt_sha256": "b5afda604ee20402d9a79cbcf27dcfa342f75e962ebb0a88105d9d61a7e85dae",
+ "reviewer_model": "Gemini-3.1-Pro"
+}

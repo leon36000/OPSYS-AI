@@ -1,0 +1,20 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "docs/policies/POLITIQUE-consentement-sms.md",
+   "description": "Le diff de la politique SMS conserve la mention « Collecte limitée : les numéros sont collectés uniquement dans le cadre des heures de travail et des interactions professionnelles. », alors que la correction #3 acceptée lors du triage impose de distinguer les technologies clients en supprimant la notion d'heures de travail (remplacement par heures d'ouverture/interactions). Cette incohérence avec le gabarit EFVP et la doctrine de la story crée un risque juridique pour le consentement SMS client.",
+   "preuve": "Diff ligne : « Collecte limitée : les numéros sont collectés uniquement dans le cadre des heures de travail et des interactions professionnelles. » ; correction #3 acceptée : « Modifier le GABARIT-EFVP.md et les politiques (SMS, Replay) pour distinguer ... SMS = heures d'ouverture/interactions »."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "docs/efvp/GABARIT-EFVP.md",
+   "description": "Le gabarit EFVP redéfinit les technologies clients (tracking, session replay, SMS) comme n'ayant pas de notion d'heures de travail, alors que la source de vérité §14.2 liste ces technologies avec l'exigence « collecte limitée aux heures de travail ». La conformité de cette interprétation à la loi n'est pas vérifiable dans le cadre de la revue.",
+   "preuve": "Diff GABARIT-EFVP.md section 4 : « Technologies clients (consentement ... pas de notion d'heures de travail) » et POLITIQUE-session-replay.md : « Pas de notion d'heures de travail : le session replay est une technologie côté client » ; source §14.2 : « collecte limitée aux heures de travail »."
+  }
+ ],
+ "date_heure": "2026-07-25T03:11:26.807370+00:00",
+ "prompt_sha256": "f873ca27fb91dcf990c4248f0d827eda6ed1d5d2ddc0f269700a6db26911a182",
+ "reviewer_model": "DeepSeek-V4-Pro"
+}
