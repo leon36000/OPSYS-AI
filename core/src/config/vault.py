@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import logging
 from abc import ABC, abstractmethod
+from redaction import safe_traceback
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +28,12 @@ class SecretRef:
     def __format__(self, format_spec: str) -> str:
         return "***REDIGE***"
 
-    def reveal(self, context: str = "") -> str:
-        """Retourne la valeur secrète après journalisation d'audit (sans la valeur)."""
+    def reveal(self, context: str) -> str:
+        """Retourne la valeur secrète après journalisation d'audit.
+        context obligatoire pour traçabilité (A2).
+        """
+        if not context or not context.strip():
+            raise ValueError("contexte d'accès obligatoire pour reveal (traçabilité A2)")
         logger.info(
             "SecretRef.reveal() called for '%s' with context '%s'",
             self._name,
@@ -63,6 +68,10 @@ class SecretProvider(ABC):
         """Retourne un SecretRef ou None si le secret est introuvable."""
         ...
 
+    def known_secret_values(self) -> list[str]:
+        """Retourne la liste des valeurs de secrets déjà résolues (pour redaction)."""
+        return []
+
 
 class EnvSecretProvider(SecretProvider):
     """Fournisseur lisant les secrets depuis des variables d'environnement
@@ -71,10 +80,21 @@ class EnvSecretProvider(SecretProvider):
 
     def __init__(self, prefix: str = "OPSYS_") -> None:
         self._prefix = prefix
+        self._cache: dict[str, str] = {}  # name -> value
 
     def get_secret(self, name: str) -> SecretRef | None:
         env_var = f"{self._prefix}{name.upper()}"
-        value = os.environ.get(env_var)
-        if value is None:
-            return None
-        return SecretRef(name, value)
+        try:
+            value = os.environ.get(env_var)
+            if value is None:
+                return None
+            # cache for later redaction
+            self._cache[name] = value
+            return SecretRef(name, value)
+        except Exception as exc:
+            # A4: redact traceback before re-raising
+            tb_text = safe_traceback(exc, secrets=list(self._cache.values()))
+            raise RuntimeError(tb_text) from exc
+
+    def known_secret_values(self) -> list[str]:
+        return list(self._cache.values())

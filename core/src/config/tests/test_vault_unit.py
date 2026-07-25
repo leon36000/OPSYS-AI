@@ -26,6 +26,10 @@ def cfg():
     return SimpleNamespace(vault=vault, settings=settings, redaction=redaction)
 
 
+# ---------------------------------------------------------------------------
+# Tests existants (adaptés aux nouvelles signatures)
+# ---------------------------------------------------------------------------
+
 def test_secret_ref_str_repr_fstring_json_redacted(cfg):
     ref = cfg.vault.SecretRef("api_key", "shhh-12345")
     assert str(ref) == "***REDIGE***"
@@ -67,6 +71,7 @@ def test_secret_ref_copy_pickle_yaml_blocked_or_redacted(cfg):
 def test_secret_ref_reveal_audits_without_value(cfg, caplog):
     caplog.set_level(logging.INFO)
     ref = cfg.vault.SecretRef("api_key", "shhh-12345")
+    # Contexte obligatoire (A2)
     assert ref.reveal("audit-context") == "shhh-12345"
     log_text = caplog.text.lower()
     assert "reveal" in log_text or "acces_secret" in log_text
@@ -88,10 +93,12 @@ def test_env_secret_provider_respects_prefix_and_absence(cfg, monkeypatch):
     provider = cfg.vault.EnvSecretProvider(prefix="OPSYS_")
     ref = provider.get_secret("litellm_key")
     assert isinstance(ref, cfg.vault.SecretRef)
-    assert ref.reveal() == "env-secret-value"
+    # Contexte obligatoire ajouté
+    assert ref.reveal("test-context") == "env-secret-value"
     assert provider.get_secret("missing") is None
     assert provider.get_secret("OTHER_SECRET") is None
 
+    # Aucune exposition d'os.environ
     if hasattr(provider, "environ"):
         assert provider.environ is not os.environ
 
@@ -171,7 +178,7 @@ def test_redaction_masks_known_secrets_patterns_and_partial_leaks(cfg):
         "use known-secret and sk-ABCDEF0123456789 "
         "with Bearer xyz.jwt.token and abcdef"
     )
-    result = cfg.redaction.redact(text, secrets)
+    result = cfg.redaction.redact(text, secrets=secrets)
 
     assert "known-secret" not in result
     assert "sk-ABCDEF0123456789" not in result
@@ -204,3 +211,56 @@ def test_settings_no_secret_leak_in_json_or_logs(cfg, monkeypatch, tmp_path, cap
     raw = json.dumps(settings, default=str)
     assert "real-litellm-secret" not in raw
     assert "real-litellm-secret" not in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# Nouveaux tests (A2, A3, A4)
+# ---------------------------------------------------------------------------
+
+def test_reveal_requires_non_empty_context(cfg):
+    ref = cfg.vault.SecretRef("key", "val")
+    with pytest.raises(ValueError, match="contexte d'accès obligatoire"):
+        ref.reveal("")
+    with pytest.raises(ValueError, match="contexte d'accès obligatoire"):
+        ref.reveal("   ")
+
+
+def test_redact_auto_collects_secrets_from_provider(cfg, monkeypatch):
+    monkeypatch.setenv("OPSYS_SECRET1", "alpha-beta-gamma")
+    provider = cfg.vault.EnvSecretProvider()
+    # Charge le secret dans le cache du provider
+    ref = provider.get_secret("secret1")
+    assert ref is not None
+    text_with_secret = "this is alpha-beta-gamma token"  # proof:allow — fixture/message de test
+    result = cfg.redaction.redact(text_with_secret, provider=provider)
+    assert "alpha-beta-gamma" not in result
+    assert "***REDIGE***" in result
+
+
+def test_exception_in_load_settings_redacts_secrets_in_message(cfg, monkeypatch, tmp_path):
+    monkeypatch.setenv("OPSYS_LITELLM_KEY", "super-secret-value")
+    yaml_path = tmp_path / "valid.yaml"
+    yaml_path.write_text(
+        "mode: dev\n"
+        "endpoint: http://localhost:8000\n"
+        "timeout: 30\n"
+        "litellm_key: litellm_key\n"
+    )
+
+    provider = cfg.vault.EnvSecretProvider()
+
+    # Patch Settings.__init__ pour qu'il lève une exception contenant la valeur
+    original_init = cfg.settings.Settings.__init__
+    def leaking_init(self, *args, **kwargs):
+        # La valeur est déjà dans le cache du provider
+        leaked = provider.known_secret_values()[0]  # "super-secret-value"
+        raise ValueError(leaked)
+
+    monkeypatch.setattr(cfg.settings.Settings, "__init__", leaking_init)
+
+    with pytest.raises(cfg.settings.SettingsError) as exc_info:
+        cfg.settings.load_settings(yaml_path, provider)
+
+    assert "super-secret-value" not in str(exc_info.value)
+    # Confirmation que la redaction a bien eu lieu
+    assert "***REDIGE***" in str(exc_info.value)
