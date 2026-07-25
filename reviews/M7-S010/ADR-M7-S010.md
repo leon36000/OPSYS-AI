@@ -16,3 +16,14 @@ Chaque fixture doit porter `fictif: true` sous peine de rejet immédiat par le v
 
 ## 5. Stratégie de tests RED/GREEN
 Pour chaque règle, des tests positifs (données conformes) et négatifs (données non conformes) seront écrits. Tests spécifiques : refus d'une fixture sans `fictif: true`, vérification du zéro-réseau via instrumentation, test de déterminisme (deux appels identiques donnent le même rapport hors timestamp), et test de robustesse face aux erreurs de parsing. Les tests résideront dans le chemin CI existant `tests/competitive/`, exécutés par le job `gates`.
+
+---
+> **NOTE D'ÉCART D'IMPLÉMENTATION (R1, journalisée)** : le §3 prévoyait d'invoquer les fonctions
+> privées `_audit_page`/`_audit_robots` de seo_audit ; l'implémentation retient une réimplémentation
+> locale testée (25 tests dédiés). Motif : un nom préfixé `_` n'est pas une interface stable — le
+> couplage inter-modules à des privés créerait une fragilité que S003 n'a jamais promis de tenir.
+> L'esprit du §3 (mêmes faits mesurés, pas de duplication non testée) est conservé. Source de
+> l'écart : spec d'implémentation de l'orchestrateur (« l'ADR permet l'un ou l'autre ») — attribution
+> transparente ; le trio scellé arbitre au round 2. De même, `calculate_coverage` prend des TEXTES
+> BRUTS (l'appelant extrait) — la cible d'extraction ADR (title+meta+h1+500 premiers caractères) est
+> appliquée par `report.py` (correctif R1).

@@ -239,3 +239,31 @@ class TestReglesSEO:
                 assert "verdict" in verdict, f"Verdict sans clé 'verdict': {verdict}"
                 assert verdict["verdict"] in ("conforme", "non_conforme", "candidat_a_verifier", "KO"), \
                     f"Valeur de verdict invalide: {verdict['verdict']}"
+
+
+def test_site_reel_compare():
+    notre = (_M7 / "src" / "site" / "static" / "index.html").read_text(encoding="utf-8")
+    rapport = report.generate_report(
+        ["fort"],
+        notre_site=notre,
+        base_fixtures=str(_M7 / "fixtures" / "concurrents"),
+        stopwords_path="",
+        timestamp="2026-07-25T00:00:00+00:00"
+    )
+    assert len(rapport.get("concurrents", [])) == 1
+    verdicts = rapport["concurrents"][0].get("verdicts", [])
+    assert len(verdicts) > 0
+    for v in verdicts:
+        assert v["verdict"] in {"conforme", "non_conforme", "candidat_a_verifier", "KO"}
+    regles = [v["regle"] for v in verdicts]
+    assert "C-08" in regles
+    couverture = rapport["concurrents"][0]["couverture"]
+    assert 0.0 <= couverture <= 1.0
+
+
+def test_fixture_casse_reelle_parse_error():
+    data = loader.load_fixture("casse", base_fixtures=str(_M7 / "fixtures" / "concurrents"))
+    res = analyzers.analyze_sitemap(data["sitemap_xml"])
+    assert res.get("C-07") == "KO"
+    detail = res.get("detail_C-07", "")
+    assert "parse_error" in detail.lower()
