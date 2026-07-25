@@ -30,6 +30,8 @@ jobs:
         run: python3 -m pip install --quiet pytest==9.1.1 PyYAML==6.0.1
       - name: Run e2e harness
         run: bash scripts/run-e2e.sh e2e
+      - name: Tests dashboard (P0-5a)
+        run: python3 -m pytest "surfaces/dashboard/tests" -q
 
   e2e-load:
     runs-on: ubuntu-latest
@@ -56,4 +58,3 @@ jobs:
           echo "${HOME}/k6" >> "${GITHUB_PATH}"
       - name: Run k6 smoke
         run: bash scripts/run-e2e.sh load
-
