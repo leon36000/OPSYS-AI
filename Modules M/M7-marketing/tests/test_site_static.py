@@ -3,32 +3,29 @@
 from __future__ import annotations
 
 import json
-import os
 import re
+from pathlib import Path
 
-STATIC_DIR = os.path.join(
-    os.path.dirname(__file__), "..", "src", "site", "static"
-)
-INDEX_PATH = os.path.join(STATIC_DIR, "index.html")
-ROBOTS_PATH = os.path.join(STATIC_DIR, "robots.txt")
+_TESTS_DIR = Path(__file__).parent.resolve()
+STATIC_DIR = (_TESTS_DIR.parent / "src" / "site" / "static").resolve()
+INDEX_PATH = STATIC_DIR / "index.html"
+ROBOTS_PATH = STATIC_DIR / "robots.txt"
 
 
 def _html() -> str:
-    with open(INDEX_PATH, encoding="utf-8") as f:
-        return f.read()
+    return INDEX_PATH.read_text(encoding="utf-8")
 
 
 def _robots() -> str:
-    with open(ROBOTS_PATH, encoding="utf-8") as f:
-        return f.read()
+    return ROBOTS_PATH.read_text(encoding="utf-8")
 
 
 def test_index_file_exists():
-    assert os.path.isfile(INDEX_PATH), f"index.html absent : {INDEX_PATH}"
+    assert INDEX_PATH.is_file(), f"index.html absent : {INDEX_PATH}"
 
 
 def test_robots_file_exists():
-    assert os.path.isfile(ROBOTS_PATH), f"robots.txt absent : {ROBOTS_PATH}"
+    assert ROBOTS_PATH.is_file(), f"robots.txt absent : {ROBOTS_PATH}"
 
 
 def test_lang_fr():
@@ -77,7 +74,9 @@ def test_json_ld_parses_and_type_organization():
 
 
 def test_no_external_script():
-    assert "<script src" not in _html(), "JavaScript externe (<script src) interdit"
+    assert not re.search(r"<script\s+src", _html(), re.IGNORECASE), (
+        "JavaScript externe (<script src) interdit"
+    )
 
 
 def test_robots_user_agent_star():
