@@ -1,0 +1,14 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/src/seo/seo_audit.py",
+   "description": "Le commentaire indique '# JSON-LD présent et valide' mais le code accepte l'absence de JSON-LD comme un succès (json_ok = True par défaut).",
+   "preuve": "Lignes 131-133 : `json_ok = True` et `json_detail = \"aucun bloc JSON-LD détecté\"`. Si `auditor.json_ld_blocks` est vide, le verdict reste OK."
+  }
+ ],
+ "date_heure": "2026-07-25T05:16:23.045631+00:00",
+ "prompt_sha256": "cdc7a274cb2be3ab230d9610c1c94cab831c783e8d28103c962b6d07da2db1b7",
+ "reviewer_model": "Gemini-3.1-Pro"
+}

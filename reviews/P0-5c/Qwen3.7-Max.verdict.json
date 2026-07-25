@@ -1,0 +1,14 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "core/src/authz/domain_api.py",
+   "description": "Le fallback défensif `obj.object_id[:8] + '…'` dans `_log_decision` pourrait théoriquement exposer l'ID complet dans les logs si l'ID fait <= 8 caractères et que `object_id_tronque` est évalué comme falsy (bien que `__post_init__` de `ObjectRef` rende ce cas quasi-impossible en pratique, cela contredit l'esprit du principe 'JAMAIS l'id complet').",
+   "preuve": "object_id_trunc = (obj.object_id_tronque if obj and obj.object_id_tronque else (obj.object_id[:8] + '…' if obj else 'unknown'))"
+  }
+ ],
+ "date_heure": "2026-07-25T06:32:19.450909+00:00",
+ "prompt_sha256": "12ae2a5135ca5c71bda3b1a5ee4f54b26b4894242511e3ea1889f8a354befe80",
+ "reviewer_model": "Qwen3.7-Max"
+}

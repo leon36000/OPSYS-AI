@@ -1,0 +1,44 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "core/src/config/redaction.py",
+   "description": "A3 non respecté : redact() n'auto-alimente PAS secrets_connus depuis le provider courant. La fonction est purement passive : elle n'accepte qu'une liste explicite `secrets` en paramètre. Aucun mécanisme ne récupère les SecretRef actifs du provider, contrairement à l'exigence architecturale « auto-alimenter secrets_connus depuis le provider courant ».",
+   "preuve": "core/src/config/redaction.py ligne 17 : signature `def redact(text: Optional[str], secrets: Optional[List[str]] = None) -> str:`. Aucun paramètre provider, aucun appel à SecretProvider.get_secret() pour auto-alimenter la liste. La fonction est totalement agnostique du contexte d'appel."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "core/src/config/vault.py",
+   "description": "A2 non respecté : reveal() accepte un contexte VIDE par défaut (`context: str = \"\"`), ce qui rend le token de contexte NON obligatoire. L'exigence dit explicitement « token de contexte obligatoire (traçabilité) ». Un appel reveal() sans contexte est traçable uniquement via le nom du secret, pas via l'intention d'usage.",
+   "preuve": "core/src/config/vault.py ligne 31 : `def reveal(self, context: str = \"\") -> str:` (default vide). Pire : le test core/src/config/tests/test_vault_unit.py ligne ~65 invoque explicitement `ref.reveal()` SANS aucun argument : `assert ref.reveal() == \"env-secret-value\"` — preuve que l'API est utilisée sans contexte dans la base de tests elle-même."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "core/src/config/settings.py",
+   "description": "A4 non respecté : load_settings ne wrappe PAS ses exceptions via safe_traceback. L'exigence demande « Wrappers d'exception dans get_secret/load_settings pour purge des valeurs sensibles dans les tracebacks ». La fonction safe_traceback() existe dans redaction.py mais n'est jamais importée ni appelée. Une exception RuntimeError contenant le nom du secret (`f\"Secret '{secret_name}' not found through provider; fail-closed.\"`) remonte avec un traceback Python natif non purgé.",
+   "preuve": "core/src/config/settings.py lignes 56-83 : successions de `raise ValueError(...)`, `raise TypeError(...)`, `raise RuntimeError(...)` natifs. Aucune occurrence de `safe_traceback` ni import de redaction dans settings.py. grep confirmerait l'absence totale."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "core/src/config/vault.py",
+   "description": "SecretRef.__hash__ et __eq__ utilisent self._value (le secret en clair). Hasher la valeur prolonge sa durée de vie en mémoire (tables de hash), peut créer des collisions observables, et permet des comparaisons d'égalité qui retournent un booléen exploitable (timing). Risque résiduel faible mais违反 principe de minimisation.",
+   "preuve": "core/src/config/vault.py lignes 55-61 : `def __eq__(self, other): ... return self._name == other._name and self._value == other._value` et `def __hash__(self): return hash((self._name, self._value))`."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "core/src/config/tests/test_vault_unit.py",
+   "description": "T4 (secret substring d'un token plus long → fuite partielle) n'est pas explicitement testé. Le redact remplace intégralement la sous-chaîne par ***REDIGE*** mais ne signale pas qu'une fuite résiduelle (le reste du token plus long) demeure. Le test actuel mélange secrets explicites et patterns mais ne valide pas le scénario 'secret = préfixe d'un autre secret plus long'.",
+   "preuve": "test_vault_unit.py lignes 132-145 (test_redaction_masks_known_secrets_patterns_and_partial_leaks) : les secrets=['known-secret', 'abcdef'] sont testés en isolation ; aucun cas de chevauchement de secrets ou de secret = sous-chaîne d'un token plus long. La docstring A4 demande explicitement « secret substring d'un token plus long → fuite partielle détectée » (i.e. le mécanisme doit DÉTECTER et non seulement masquer)."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "core/src/config/vault.py",
+   "description": "SecretRef.__eq__ retourne `NotImplemented` pour les non-SecretRef au lieu de `False`. Combiné avec le fait que SecretRef n'est pas dans __slots__, un attaquant pourrait créer un mock ou sous-classe. Mineur car la sérialisation est bloquée.",
+   "preuve": "core/src/config/vault.py lignes 55-58 : `def __eq__(self, other): if isinstance(other, SecretRef): ... return NotImplemented`."
+  }
+ ],
+ "date_heure": "2026-07-25T06:50:57.459698+00:00",
+ "prompt_sha256": "2538f1b6579584b4d0697b353725c02a59ef457b9276d0e69fd02a5b5c18a06b",
+ "reviewer_model": "MiniMax-M3"
+}

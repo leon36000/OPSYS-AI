@@ -1,0 +1,14 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "registries/ledger/preuves.jsonl",
+   "description": "Le ledger round 2 affirme « 8 tests verts » alors que le fichier test_seo_audit.py contient 10 méthodes de test (test_real_site_no_score_field, test_real_site_all_green, test_page_sans_title, test_page_sans_h1, test_page_deux_h1, test_json_ld_casse, test_robots_sans_allow, test_robots_absent, test_script_externe_ko, test_site_dir_absent). Le code est cohérent et exécutable ; seule la métrique du ledger est sous-estimée.",
+   "preuve": "test_seo_audit.py lignes 32/37/49/58/67/77/89/98/107/119 (10 méthodes def test_*) vs preuves.jsonl tache=M7-S003 « 8 tests verts »"
+  }
+ ],
+ "date_heure": "2026-07-25T05:20:11.110379+00:00",
+ "prompt_sha256": "29d47ea49453334bab2ae2bcee6c384e789be305b678f9bfc7aee5fc3eb36f42",
+ "reviewer_model": "MiniMax-M3"
+}

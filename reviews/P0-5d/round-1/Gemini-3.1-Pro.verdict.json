@@ -1,0 +1,26 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "core/src/config/vault.py",
+   "description": "L'exigence A2 impose un token de contexte obligatoire pour reveal(). L'implémentation fournit une valeur par défaut, rendant le paramètre optionnel, et les tests l'appellent d'ailleurs sans argument.",
+   "preuve": "def reveal(self, context: str = \"\") -> str:"
+  },
+  {
+   "severite": "critique",
+   "fichier": "core/src/config/settings.py",
+   "description": "L'exigence A4 exige des wrappers d'exception dans get_secret/load_settings pour purger les tracebacks. La fonction safe_traceback est définie mais n'est jamais appelée dans le code de production pour intercepter et nettoyer les exceptions.",
+   "preuve": "Absence d'appel à safe_traceback ou de bloc try...except dédié dans load_settings et get_secret."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "core/src/config/redaction.py",
+   "description": "L'exigence A3 demande d'auto-alimenter secrets_connus depuis le provider courant. L'implémentation actuelle de redact() ne prend qu'une liste statique optionnelle et n'est pas liée au SecretProvider.",
+   "preuve": "def redact(text: Optional[str], secrets: Optional[List[str]] = None) -> str:"
+  }
+ ],
+ "date_heure": "2026-07-25T06:50:32.216632+00:00",
+ "prompt_sha256": "2538f1b6579584b4d0697b353725c02a59ef457b9276d0e69fd02a5b5c18a06b",
+ "reviewer_model": "Gemini-3.1-Pro"
+}

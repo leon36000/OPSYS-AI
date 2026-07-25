@@ -1,20 +1,26 @@
 {
- "verdict": "REJECT",
+ "verdict": "APPROVE",
  "objections": [
-  {
-   "severite": "critique",
-   "fichier": "Modules M/M7-marketing/src/site/guardrail.py",
-   "description": "Le fichier guardrail.py est gravement corrompu. Le contenu d'une ancienne version de generator.py et d'un fichier de tests (tests_append.py) a été concaténé directement à la fin du code de guardrail.py. Cela inclut du code de production redondant, des imports circulaires (import guardrail) et des tests dans le code source.",
-   "preuve": "Dans le diff de guardrail.py, la dernière fonction se termine par `raise GuardrailViolation(code, detail)# generator.py`, suivi immédiatement par `import html`, la redéfinition de `def generate(...)`, puis `# tests_append.py` et des fonctions de test comme `def test_positive_G_16_liens_nav():`."
-  },
   {
    "severite": "mineure",
    "fichier": "Modules M/M7-marketing/src/site/static/index.html",
    "description": "Le fichier HTML généré ne se termine pas par un saut de ligne (newline final).",
-   "preuve": "Présence de `\\ No newline at end of file` à la fin du diff de static/index.html."
+   "preuve": "Présence de '\\ No newline at end of file' à la fin du diff de static/index.html."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/src/site/static/index.html",
+   "description": "Le champ 'inLanguage' a été supprimé du bloc JSON-LD par rapport à la version canonique précédente.",
+   "preuve": "Le nouveau JSON-LD ne contient plus '\"inLanguage\": \"fr\"'."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/src/site/content.yaml",
+   "description": "Le contenu transcrit diverge légèrement du contenu canonique original (ex: 'Approche' devenu 'Notre approche', h1 combiné avec la tagline).",
+   "preuve": "heading: 'Notre approche' dans content.yaml au lieu de 'Approche'."
   }
  ],
- "date_heure": "2026-07-25T08:03:16.803520+00:00",
- "prompt_sha256": "98f0eb1f571ded40a8c5924ce287f6d47e5d2a85c0bcc7e2dc03fb6ddd67c2dd",
+ "date_heure": "2026-07-25T08:06:43.993113+00:00",
+ "prompt_sha256": "5ba7e493e4b949c9daab63307db078d77b5e3f2bce84b0c15b5421455ea4f624",
  "reviewer_model": "Gemini-3.1-Pro"
 }
