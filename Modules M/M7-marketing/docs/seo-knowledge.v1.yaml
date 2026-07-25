@@ -1,0 +1,41 @@
+# Base ANCRÉE — toute nouvelle tactique = source + statut, jamais d'ajout sans source (REG-08/Q1-Q6).
+schema_version: 1
+surfaces:
+  google:
+    position: "SEO classique"
+    faits:
+      - "llms.txt et mentions inauthentiques sont ignorés par Google (position officielle juillet 2026, source plan)"
+    tactiques:
+      - tactique: "crawlabilité bots autorisée"
+        statut: "candidat_a_verifier"
+        source: "D-013 (nuance Cloudflare bloque par défaut — à vérifier)"
+      - tactique: "rendu côté serveur"
+        statut: "valide"
+        source: "D-013"
+      - tactique: "requêtes fan-out"
+        statut: "valide"
+        source: "D-013"
+
+  assistants_ia:
+    position: "tactiques Princeton validées"
+    faits:
+      - "citations, statistiques et citations d'experts augmentent la visibilité de 30 à 40 % (source plan)"
+      - "la cohérence NAP multi-plateformes crée l'effet moteur de consensus ; l'incohérence entraîne l'omission de l'information"
+    tactiques:
+      - tactique: "citations"
+        statut: "valide"
+        source: "D-013"
+      - tactique: "statistiques"
+        statut: "valide"
+        source: "D-013"
+      - tactique: "citations d'experts"
+        statut: "valide"
+        source: "D-013"
+      - tactique: "cohérence NAP multi-plateformes"
+        statut: "valide"
+        source: "D-013"
+
+regles:
+  - "fraîcheur et autorité pour Google AIO"
+  - "citations et consensus pour les assistants IA"
+  - "une tactique par surface, jamais globale"
