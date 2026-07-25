@@ -1,44 +1,38 @@
 {
- "verdict": "REJECT",
+ "verdict": "APPROVE",
  "objections": [
   {
-   "severite": "majeure",
-   "fichier": "diff (malformation entre guardrail.py et favicon.svg)",
-   "description": "Le diff est malformé : après la dernière ligne de guardrail.py (`raise GuardrailViolation(code, detail)`), apparaît un bloc `# generator.py` suivi d'une seconde copie de generator.py (cette fois SANS le correctif assets_dir — `guardrail.assert_valid(html_out, content=content)`), puis un bloc `# tests_append.py` contenant test_positive_G_16_liens_nav et test_negative_G_16_liens_nav (doublons exacts de test_site_guardrail.py). Aucun de ces deux blocs ne porte d'en-tête `diff --git`. Le reviewer ne peut pas déterminer s'il s'agit (a) de fichiers stray réellement présents dans le dépôt, (b) d'artefacts de formatage du diff, ou (c) d'une corruption du patch. Dans les trois cas, le diff n'est pas vérifiable de manière déterministe.",
-   "preuve": "Diff : après `+        raise GuardrailViolation(code, detail)` apparaissent consécutivement `# generator.py` + `import html` + ... + `def generate(...)` (version non corrigée) + `# tests_append.py` + `import sys` + `def test_positive_G_16_liens_nav()` + `def test_negative_G_16_liens_nav()`, sans aucun `diff --git` intercalé. Le generator.py correct (avec assets_dir) figure bien plus haut dans le diff avec son en-tête propre."
-  },
-  {
-   "severite": "majeure",
-   "fichier": "stories/M7-S004-site-quadruple-a.md + reviews/M7-S004/ADR-M7-S004.md + reviews/M7-S004/*.verdict.json + reviews/M7-S004/round-1/*.verdict.json",
-   "description": "Le manifeste de la story déclare `allowed_paths: [Modules M/M7-marketing/src/site/, Modules M/M7-marketing/tests/]`. Le diff crée 8 fichiers hors de ces chemins : la story elle-même, l'ADR, 3 verdicts round-2 et 3 verdicts round-1. La réfutation argue que ces artefacts sont « EXIGÉS par la méthode PROOF » et cite `git log origin/main -- reviews/ compte 5 commits` comme preuve déterministe. Cependant : (1) le reviewer n'a pas accès au git log pour vérifier ce comptage ; (2) la story ne contient aucune clause d'exemption explicite pour stories/ ou reviews/ ; (3) la story elle-même est créée dans le même diff que le code, ce qui est inhabituel et suggère que allowed_paths n'a pas été pensé pour couvrir le périmètre réel. La réfutation est plausible mais non prouvable depuis le diff seul.",
-   "preuve": "stories/M7-S004-site-quadruple-a.md ligne 6 : `allowed_paths: [Modules M/M7-marketing/src/site/, Modules M/M7-marketing/tests/]`. Diff : `new file mode 100644` pour stories/M7-S004-site-quadruple-a.md, reviews/M7-S004/ADR-M7-S004.md, reviews/M7-S004/{Gemini-3.1-Pro,MiniMax-M3,Qwen3.7-Max}.verdict.json, reviews/M7-S004/round-1/{Gemini-3.1-Pro,MiniMax-M3,Qwen3.7-Max}.verdict.json."
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/src/site/static/index.html",
+   "description": "Le fichier HTML régénéré ne se termine pas par un saut de ligne (newline final).",
+   "preuve": "Diff static/index.html : '\\ No newline at end of file' en pied de diff (ligne 62 du nouveau fichier)."
   },
   {
    "severite": "mineure",
    "fichier": "Modules M/M7-marketing/src/site/static/index.html",
-   "description": "Régression JSON-LD : le champ `inLanguage: \"fr\"` présent dans la version précédente du fichier a été supprimé dans la version régénérée. Le garde-fou G-15 ne vérifie pas ce champ (donc pas de violation), mais c'est une perte de complétude schema.org et de cohérence avec le contenu francophone. Objection du round 1 non corrigée.",
-   "preuve": "Diff static/index.html : ancienne version JSON-LD contient `\"inLanguage\": \"fr\"` ; nouvelle version JSON-LD ne contient que @context, @type, name, url, description."
+   "description": "Régression schema.org : le champ 'inLanguage' a été supprimé du bloc JSON-LD par rapport à la version précédente. Le garde-fou G-15 ne vérifie pas ce champ (donc pas de violation), mais perte de complétude.",
+   "preuve": "Diff static/index.html : ancienne version JSON-LD contient '\"inLanguage\": \"fr\"' ; nouvelle version JSON-LD ne contient que @context, @type, name, url, description."
   },
   {
    "severite": "mineure",
-   "fichier": "Modules M/M7-marketing/src/site/content.yaml + static/index.html",
-   "description": "Le contenu canonique M7-S004a a été modifié, pas seulement transcrit. Les headings `Approche` → `Notre approche` et `Modules disponibles` → `Modules` diffèrent de la version précédente. Le h1 est passé de `OPSYS-AI` (avec tagline séparée en `<p>`) à `OPSYS-AI — Automatisation d'entreprise par IA` (combiné dans le h1). La story dit « contenu canonique M7-S004a transcrit » mais le contenu diverge sensiblement. Objection du round 1 non corrigée.",
-   "preuve": "Diff content.yaml : heading `Notre approche` (vs ancien `Approche`), heading `Modules` (vs ancien `Modules disponibles`). Diff static/index.html : h1 `OPSYS-AI — Automatisation d&#x27;entreprise par IA` (vs ancien `OPSYS-AI` + `<p>` tagline séparé)."
+   "fichier": "Modules M/M7-marketing/src/site/content.yaml",
+   "description": "Le contenu canonique M7-S004a a été modifié, pas seulement transcrit. Les headings 'Approche' → 'Notre approche' et 'Modules disponibles' → 'Modules' diffèrent de la version précédente. Le h1 est passé de 'OPSYS-AI' (avec tagline séparée en <p>) à 'OPSYS-AI — Automatisation d'entreprise par IA' (combiné dans le h1).",
+   "preuve": "Diff content.yaml : heading 'Notre approche' (vs ancien 'Approche'), heading 'Modules' (vs ancien 'Modules disponibles'). Diff static/index.html : h1 'OPSYS-AI — Automatisation d&#x27;entreprise par IA' (vs ancien 'OPSYS-AI' + <p> tagline séparé)."
   },
   {
    "severite": "mineure",
-   "fichier": "Modules M/M7-marketing/src/site/static/index.html",
-   "description": "Le fichier régénéré n'a pas de newline final. Le diff affiche `\\ No newline at end of file`. Les fichiers HTML servis sont généralement attendus avec un newline final (POSIX, robustesse des outils de diff et de concaténation). Objection du round 1 non corrigée.",
-   "preuve": "Diff static/index.html : `\\ No newline at end of file` en pied de diff."
+   "fichier": "reviews/M7-S004/ADR-M7-S004.md",
+   "description": "L'ADR est toujours tronqué à la fin de la section G-08 (phrase inachevée), bien que l'Annexe A matérialise les sections 3-5 sous forme de contrat d'interface exécutoire.",
+   "preuve": "Diff ADR-M7-S004.md : dernière ligne de la section principale '+  l'asset référencé existe dans l'' — phrase incomplète ; Annexe A présente avec spécification G-01…G-18, A.4 interfaces, A.5 risques."
   },
   {
    "severite": "mineure",
-   "fichier": "Modules M/M7-marketing/src/site/guardrail.py (dernière ligne du diff)",
-   "description": "La dernière ligne de guardrail.py dans le diff se termine par `raise GuardrailViolation(code, detail)# generator.py` — le commentaire `# generator.py` est appended directement à la fin de l'instruction raise sans espace. Si c'est un artefact de formatage du diff (le `# generator.py` étant l'en-tête du fichier suivant mal concaténé), le fichier réel est probablement correct ; si c'est le contenu réel, guardrail.py contient un commentaire parasite. Le reviewer ne peut pas trancher sans accès au fichier final sur disque. Cette objection est liée à la malformation majeure du diff signalée ci-dessus.",
-   "preuve": "Diff guardrail.py ligne 709 : `+        raise GuardrailViolation(code, detail)# generator.py` — concaténation inhabituelle."
+   "fichier": "stories/M7-S004-site-quadruple-a.md + reviews/M7-S004/*",
+   "description": "Le manifeste de la story déclare allowed_paths = [Modules M/M7-marketing/src/site/, Modules M/M7-marketing/tests/]. Le diff crée des fichiers hors de ces chemins (story, ADR, verdicts round-1/round-2/round-3). La réfutation argue que ces artefacts sont exigés par la méthode PROOF et cite 5 commits sur main touchant reviews/, mais je ne peux pas vérifier ce git log depuis le diff seul.",
+   "preuve": "stories/M7-S004-site-quadruple-a.md ligne 6 : allowed_paths limité à src/site/ et tests/. Diff : new file mode pour stories/M7-S004-site-quadruple-a.md, reviews/M7-S004/ADR-M7-S004.md, reviews/M7-S004/{Gemini-3.1-Pro,MiniMax-M3,Qwen3.7-Max}.verdict.json, reviews/M7-S004/round-1/*.verdict.json, reviews/M7-S004/round-2/*.verdict.json."
   }
  ],
- "date_heure": "2026-07-25T08:04:08.650777+00:00",
- "prompt_sha256": "98f0eb1f571ded40a8c5924ce287f6d47e5d2a85c0bcc7e2dc03fb6ddd67c2dd",
+ "date_heure": "2026-07-25T08:07:09.412335+00:00",
+ "prompt_sha256": "5ba7e493e4b949c9daab63307db078d77b5e3f2bce84b0c15b5421455ea4f624",
  "reviewer_model": "MiniMax-M3"
 }

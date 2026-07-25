@@ -1,0 +1,20 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "core/src/authz/domain_api.py",
+   "description": "Violation de l'exigence A4 : le logger omet 'object_id_truncated' (et le scope). L'architecte a explicitement averti qu'un log sans tenant/objet-id rend la détection 'opérationnellement aveugle'.",
+   "preuve": "logger.info(\"decision=%s user_hash=%s object_type=%s perm=%s reason_code=%s\", allowed, user_hash, object_type, perm, reason_code)"
+  },
+  {
+   "severite": "majeure",
+   "fichier": "core/src/authz/engine.py",
+   "description": "Violation de l'exigence de sécurité 'Race condition sur list_objects' : l'itération se fait directement sur le set 'self._tuples' sans copie (snapshot). Une modification concurrente lèvera un RuntimeError (Set changed size during iteration). Le test d'abus correspondant est également manquant.",
+   "preuve": "for (u, rel_str, ot, oid, tid) in self._tuples: (lignes 88 et 118)"
+  }
+ ],
+ "date_heure": "2026-07-25T06:23:18.716411+00:00",
+ "prompt_sha256": "02280e24fb57d4e4f01beb9062f4d8a8f69ec83237112769b1400070370b1261",
+ "reviewer_model": "Gemini-3.1-Pro"
+}

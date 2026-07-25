@@ -1,0 +1,32 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "core/src/authz/engine.py",
+   "description": "Le moteur ne couvre pas le cas 'race condition sur list_objects' exigé par l'architecte (A3 / tests d'abus). Si un appel concurrent modifie self._tuples pendant l'itération, l'énumération n'est pas snapshot-consistent : le set Python n'est pas une copie atomique, et un crash RuntimeError (Set changed size during iteration) est possible. Le code ne capture pas de vue cohérente du set avant l'itération, ce qui viole la préparation OpenFGA mentionnée dans l'avis.",
+   "preuve": "engine.py lignes 100-118 : `for (u, rel_str, ot, oid, tid) in self._tuples:` itère directement sur le set partagé sans snapshot préalable"
+  },
+  {
+   "severite": "critique",
+   "fichier": "core/src/authz/engine.py",
+   "description": "Le contrat `RELATION_IMPLIES` expose `OWNER -> {OWNER, EDITOR, VIEWER}` mais le commentaire dit 'Admin ne fait pas partie de la hiérarchie d'implication'. Or la transitivité de `ADMIN` n'est pas testée par le contract-test : si une politique future ajoute ADMIN -> VIEWER (scénarios hiérarchiques), le code supportera mais sans couverture. Surtout, l'exigence A2 'couverture de chaque transition dans les tests' n'est PAS respectée : `test_authz_contract.py` couvre OWNER/EDITOR/VIEWER/ADMIN en isolation mais ne valide pas l'implication ADMIN → ADMIN explicitement dans RELATION_IMPLIES ni la transition ADMIN → permissions.",
+   "preuve": "engine.py ligne 23 RELATION_IMPLIES ; test_authz_contract.py lignes 47-66 testent check() par permission, mais aucune assertion que RELATION_IMPLIES[ADMIN] contient bien {ADMIN} et que la résolution effective le propage"
+  },
+  {
+   "severite": "critique",
+   "fichier": "core/src/authz/tests/test_authz_unit.py",
+   "description": "Le test 'test_list_objects_returns_object_listing' exige 'no raw-ids' selon A3 (architecte), mais le code retourne `ObjectRef(object_type=ot, object_id=oid)` avec l'object_id COMPLET en clair dans `listing.objects`. L'exigence A3 stipule explicitement 'no raw-ids' pour limiter le vecteur d'énumération. Le diff livre l'inverse de l'exigence.",
+   "preuve": "engine.py ligne 116 `ObjectRef(object_type=ot, object_id=oid)` ; test_authz_unit.py ligne 175 `assert obj_a in objects` (utilise l'object_id en clair)"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "core/src/authz/domain_api.py",
+   "description": "La journalisation A4 demande un schéma structuré `(decision, user_hash, object_type, object_id_truncated, perm, reason_code)`. Or le code ne loggue PAS `object_id_truncated` : le champ `object_type` est présent mais l'identifiant d'objet est absent du log. Le test 'test_logging_contains_decision_and_reason_but_no_sensitive_data' vérifie au contraire que `obj_a.object_id not in log_text` — ce qui contredit l'exigence A4 de l'architecte (truncated ≠ absent).",
+   "preuve": "domain_api.py lignes 24-28 (loguru ne contient pas object_id) ; test_authz_unit.py ligne 220 `assert obj_a.object_id not in log_text` vs avis A4 `object_id_truncated`"
+  }
+ ],
+ "date_heure": "2026-07-25T06:22:51.362008+00:00",
+ "prompt_sha256": "02280e24fb57d4e4f01beb9062f4d8a8f69ec83237112769b1400070370b1261",
+ "reviewer_model": "MiniMax-M3"
+}

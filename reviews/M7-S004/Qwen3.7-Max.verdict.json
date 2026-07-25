@@ -1,12 +1,6 @@
 {
- "verdict": "REJECT",
+ "verdict": "APPROVE",
  "objections": [
-  {
-   "severite": "critique",
-   "fichier": "Modules M/M7-marketing/src/site/guardrail.py",
-   "description": "Le diff est malformé et corrompt le fichier guardrail.py : les contenus de generator.py (une ancienne version sans le correctif R2 pour assets_dir) et de tests_append.py sont concaténés à la suite du code de guardrail.py sans en-tête 'diff --git'. Cela injecte des imports circulaires ('import guardrail'), des redéfinitions de fonctions et du code de test directement dans le module guardrail, ce qui provoquera des erreurs d'exécution ou de chargement.",
-   "preuve": "Fin du diff de guardrail.py : '+        raise GuardrailViolation(code, detail)# generator.py' suivi de '+import html', '+import guardrail', puis '+    return html_out# tests_append.py'."
-  },
   {
    "severite": "mineure",
    "fichier": "Modules M/M7-marketing/src/site/static/index.html",
@@ -16,11 +10,23 @@
   {
    "severite": "mineure",
    "fichier": "Modules M/M7-marketing/src/site/static/index.html",
-   "description": "Régression schema.org : le champ 'inLanguage' a été supprimé du bloc JSON-LD par rapport à la version précédente.",
+   "description": "Régression schema.org : le champ 'inLanguage' a été supprimé du bloc JSON-LD par rapport à la version précédente de la page statique.",
    "preuve": "Diff static/index.html : l'ancien JSON-LD contenait '\"inLanguage\": \"fr\"', le nouveau ne contient plus ce champ."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/src/site/content.yaml",
+   "description": "Divergence de contenu par rapport à l'ancienne version statique : les titres de sections ont changé ('Notre approche' au lieu de 'Approche', 'Modules' au lieu de 'Modules disponibles').",
+   "preuve": "Diff content.yaml : heading 'Notre approche' et 'Modules'. Diff static/index.html ancien : 'Approche' et 'Modules disponibles'."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "stories/M7-S004-site-quadruple-a.md, reviews/",
+   "description": "Création de fichiers hors des allowed_paths du manifeste (stories/, reviews/). La réfutation mentionne 5 commits précédents sur main exigeant ces artefacts pipeline, mais ce fait n'est pas vérifiable déterministement depuis le diff seul.",
+   "preuve": "Manifeste : allowed_paths: [Modules M/M7-marketing/src/site/, Modules M/M7-marketing/tests/]. Diff : new file mode 100644 pour stories/... et reviews/..."
   }
  ],
- "date_heure": "2026-07-25T08:04:36.748790+00:00",
- "prompt_sha256": "98f0eb1f571ded40a8c5924ce287f6d47e5d2a85c0bcc7e2dc03fb6ddd67c2dd",
+ "date_heure": "2026-07-25T08:07:32.485307+00:00",
+ "prompt_sha256": "5ba7e493e4b949c9daab63307db078d77b5e3f2bce84b0c15b5421455ea4f624",
  "reviewer_model": "Qwen3.7-Max"
 }
