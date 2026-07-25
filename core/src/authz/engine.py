@@ -24,10 +24,13 @@ class AuthzEngine(ABC):
         ...
 
 
-# Hiérarchie explicite : owner -> editor -> viewer
-# Admin n'est pas dans la chaîne naturelle mais doit pouvoir lire/écrire/administrer dans son tenant.
-# L'implication ci-dessous garantit que la relation ADMIN confère éditeur et lecteur, ce qui
-# permet de bénéficier de toutes les permissions (sauf voir_couts qui est explicite dans _PERMISSION_RELATIONS).
+# SOURCE DE VÉRITÉ de l'autorisation (à lire ensemble) :
+#  (a) RELATION_IMPLIES = hiérarchie de rôles. owner ⊃ editor ⊃ viewer. ADMIN EST une clé de cette
+#      table (admin ⊃ editor ⊃ viewer) ; ADMIN est borné au tenant (check() filtre sur scope.tenant_id
+#      -> aucune élévation horizontale cross-tenant).
+#  (b) _PERMISSION_RELATIONS = permission -> rôles qui l'accordent (résolus via RELATION_IMPLIES).
+#  (c) voir_couts = {OWNER, ADMIN} DÉLIBÉRÉMENT (D-010) : « owner » = propriétaire d'affaires (pas un
+#      employé) et admin voient les coûts ; les EMPLOYÉS (viewer/editor) ne voient JAMAIS les coûts.
 RELATION_IMPLIES: dict[Relation, set[Relation]] = {
     Relation.OWNER:  {Relation.OWNER, Relation.EDITOR, Relation.VIEWER},
     Relation.EDITOR: {Relation.EDITOR, Relation.VIEWER},
