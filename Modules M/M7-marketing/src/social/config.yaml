@@ -1,0 +1,3 @@
+enabled: false  # ADR-0003 Q3a : OFF par défaut, activation = décision explicite + Approval Engine
+dry_run: true
+base_url: ""    # fourni par l'hôte (portabilité ADR-0003) — jamais d'URL en dur
