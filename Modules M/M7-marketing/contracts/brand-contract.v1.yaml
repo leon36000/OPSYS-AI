@@ -1,0 +1,33 @@
+# CONTRAT GELÉ D-015 — modification interdite ; évolution = nouveau fichier v2.
+schema_version: 1
+profile_schema:
+  required_fields:
+    - name: name
+      type: string
+      non_empty: true
+    - name: tagline
+      type: string
+    - name: tone
+      type: string
+    - name: colors
+      type: array
+      items: string
+      min_items: 1
+    - name: langue
+      type: string
+responses:
+  success:
+    content_type: "application/json; charset=utf-8"
+  errors:
+    404:
+      content_type: "application/problem+json; charset=utf-8"
+      body: RFC 9457
+    405:
+      content_type: "application/problem+json; charset=utf-8"
+      body: RFC 9457
+      allow: GET
+    500:
+      content_type: "application/problem+json; charset=utf-8"
+      body: RFC 9457
+  headers:
+    X-Contract-Version: "1"

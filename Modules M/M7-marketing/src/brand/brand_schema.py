@@ -1,14 +1,75 @@
-"""Validation du profil de marque OPSYS-AI."""
+"""Validation du profil de marque OPSYS-AI — pilotée par le contrat gelé v1."""
 
 from __future__ import annotations
 
 import json
-from typing import Any
+import os
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import yaml
+
+# ---------------------------------------------------------------------------
+# Chargement unique du contrat (source de vérité UNIQUE)
+# ---------------------------------------------------------------------------
+_CONTRACT: Optional[Dict[str, Any]] = None
 
 
-REQUIRED_FIELDS = ("name", "tagline", "tone", "colors", "langue")
+def _load_contract() -> Dict[str, Any]:
+    """Charge brand-contract.v1.yaml depuis le dossier contracts/ (relatif à ce fichier).
+
+    Lève OSError si le fichier est introuvable. Le résultat est mis en cache au niveau module.
+    """
+    global _CONTRACT
+    if _CONTRACT is not None:
+        return _CONTRACT
+
+    contract_path = (
+        Path(__file__).resolve().parents[2] / "contracts" / "brand-contract.v1.yaml"
+    )
+    try:
+        with open(contract_path, "r", encoding="utf-8") as fh:
+            raw = yaml.safe_load(fh)
+    except FileNotFoundError:
+        raise OSError(
+            f"Contrat introuvable à l'emplacement attendu : {contract_path}"
+        ) from None
+
+    if not isinstance(raw, dict):
+        raise OSError("Le contrat doit être un mapping YAML")
+    _CONTRACT = raw
+    return _CONTRACT
 
 
+# ---------------------------------------------------------------------------
+# Constantes dérivées EXCLUSIVEMENT du contrat
+# ---------------------------------------------------------------------------
+def _contract_profile_schema() -> Dict[str, Any]:
+    return _load_contract()["profile_schema"]
+
+
+def contract_version() -> str:
+    """Version du contrat gelé en cours (champ `schema_version`)."""
+    return str(_load_contract()["schema_version"])
+
+
+REQUIRED_FIELDS: tuple = tuple(
+    field["name"] for field in _contract_profile_schema()["required_fields"]
+)
+
+# Messages d'erreur préservés (compatibilité exacte avec les tests existants)
+_FIELD_MESSAGES: Dict[str, str] = {
+    "name": "name doit être une chaîne non vide",
+    "tagline": "tagline doit être une chaîne",
+    "tone": "tone doit être une chaîne",
+    "colors": "colors doit être une liste non vide de chaînes",
+    "langue": "langue doit être une chaîne",
+}
+
+
+# ---------------------------------------------------------------------------
+# Exception
+# ---------------------------------------------------------------------------
 class ProfileError(Exception):
     """Erreur de validation d'un profil de marque."""
 
@@ -21,6 +82,9 @@ class ProfileError(Exception):
         return f"{self.field}: {self.message}"
 
 
+# ---------------------------------------------------------------------------
+# Validation
+# ---------------------------------------------------------------------------
 def validate_profile(obj: Any) -> dict:
     """Valide et normalise un profil de marque.
 
@@ -31,45 +95,61 @@ def validate_profile(obj: Any) -> dict:
     if not isinstance(obj, dict):
         raise ProfileError("racine", "l'objet racine doit être un mapping")
 
-    for field in REQUIRED_FIELDS:
-        if field not in obj:
-            raise ProfileError(field, f"champ requis manquant : {field}")
+    schema = _contract_profile_schema()
+    required_fields_defs = schema["required_fields"]
 
-    name = obj["name"]
-    if not isinstance(name, str) or not name:
-        raise ProfileError("name", "name doit être une chaîne non vide")
+    # Vérification de la présence des champs requis
+    for field_def in required_fields_defs:
+        field_name = field_def["name"]
+        if field_name not in obj:
+            raise ProfileError(field_name, f"champ requis manquant : {field_name}")
 
-    tagline = obj["tagline"]
-    if not isinstance(tagline, str):
-        raise ProfileError("tagline", "tagline doit être une chaîne")
+    # Dictionnaire des définitions pour un accès rapide
+    field_defs = {fd["name"]: fd for fd in required_fields_defs}
 
-    tone = obj["tone"]
-    if not isinstance(tone, str):
-        raise ProfileError("tone", "tone doit être une chaîne")
+    # Validation de chaque champ requis selon le contrat
+    for field_def in required_fields_defs:
+        field_name = field_def["name"]
+        value = obj[field_name]
 
-    langue = obj["langue"]
-    if not isinstance(langue, str):
-        raise ProfileError("langue", "langue doit être une chaîne")
+        # Détermination du message d'erreur selon le champ (exactement comme avant)
+        msg = _FIELD_MESSAGES[field_name]
 
-    colors = obj["colors"]
-    if not isinstance(colors, list) or len(colors) == 0:
-        raise ProfileError("colors", "colors doit être une liste non vide de chaînes")
-    for color in colors:
-        if not isinstance(color, str):
-            raise ProfileError("colors", "colors doit être une liste non vide de chaînes")
+        # Validation type + contraintes
+        ftype = field_def.get("type")
+        if ftype == "string":
+            non_empty = field_def.get("non_empty", False)
+            if not isinstance(value, str) or (non_empty and not value):
+                raise ProfileError(field_name, msg)
+        elif ftype == "array":
+            min_items = field_def.get("min_items", 0)
+            items_type = field_def.get("items")
+            if (
+                not isinstance(value, list)
+                or len(value) < min_items
+                or not all(isinstance(i, str) for i in value)
+            ):
+                raise ProfileError(field_name, msg)
+        else:
+            # Par prudence, on conserve le comportement historique
+            if not isinstance(value, str):
+                raise ProfileError(field_name, msg)
 
+    # Copie et normalisation (forçage en str pour garantir JSON sérialisable)
     result = dict(obj)
-    result["name"] = str(name)
-    result["tagline"] = str(tagline)
-    result["tone"] = str(tone)
-    result["langue"] = str(langue)
-    result["colors"] = [str(color) for color in colors]
+    for field_def in required_fields_defs:
+        field_name = field_def["name"]
+        if field_def["type"] == "array":
+            result[field_name] = [str(color) for color in obj[field_name]]
+        else:
+            result[field_name] = str(obj[field_name])
 
+    # Vérification JSON pour les champs supplémentaires (post-condition inchangée)
     try:
         json.dumps(result)
     except TypeError:
         for key in result:
-            if key in REQUIRED_FIELDS:
+            if key in field_defs:
                 continue
             value = result[key]
             try:
@@ -85,4 +165,3 @@ def validate_profile(obj: Any) -> dict:
         ) from None
 
     return result
-
