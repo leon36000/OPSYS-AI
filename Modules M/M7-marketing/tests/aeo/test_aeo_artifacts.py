@@ -78,10 +78,7 @@ def test_html_malforme_ko():
 
 
 def test_zero_reseau():
-    try:
-        src = inspect.getsource(aeo_engine)
-    except Exception:
-        pytest.skip("aeo_engine not yet implemented")
+    src = inspect.getsource(aeo_engine)
     forbidden = ['urllib', 'socket', 'http.client', 'requests', 'httpx']
     for mod in forbidden:
         assert mod not in src, f"Forbidden import {mod} found in aeo_engine"
