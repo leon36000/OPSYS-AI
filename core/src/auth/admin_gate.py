@@ -38,6 +38,12 @@ class AdminGate:
         # failure_tracker : dict ip -> liste des timestamps d'echecs (dans la fenetre)
         self._failure_tracker: Dict[str, List[float]] = {}
 
+    def est_configure(self) -> bool:
+        """Retourne True si le secret MFA est present dans l'environnement.
+        Lecture seule : aucun etat mutable n'est modifie, aucun log n'est ecrit.
+        """
+        return bool(os.environ.get(self.secret_env))
+
     def verifier(self, code: str, ip: str) -> Dict[str, Any]:
         """Verifie un code TOTP pour l'IP donnee.
         Retourne {"autorise": bool, "raison": str}.

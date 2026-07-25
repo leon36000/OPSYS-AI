@@ -185,14 +185,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
     def _handle_admin(self) -> None:
         gate: AdminGate = self.server.admin_gate
-
-        # 1. Vérifier l'état de configuration AVANT tout contrôle d'en-tête
-        # On utilise un code vide pour interroger le gate sur sa configuration.
-        # Si le secret est absent, verifier renvoie raison='mfa_non_configure'.
         client_ip = self.client_address[0]
-        # Appel diagnostique avec un code qui ne peut pas être valide
-        diag = gate.verifier("", client_ip)
-        if diag.get("raison") == "mfa_non_configure":
+
+        # 1. Vérifier l'état de configuration en lecture seule (pas de sonde TOTP).
+        # Tant qu'aucun vrai code n'est fourni, verifier() n'est jamais appelé.
+        if not gate.est_configure():
             self._send_problem(503, "MFA non configuré (fail-closed)", detail="mfa_non_configure")
             return
 
