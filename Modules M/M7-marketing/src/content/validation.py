@@ -111,4 +111,18 @@ def validate_content_item(item: dict) -> bool:
         if "source" not in entry:
             raise ValueError("source manquant dans tactics_applied")
 
+        # Règle 7 : les trois valeurs doivent être des str non vides
+        if not isinstance(entry["tactique"], str) or entry["tactique"] == "":
+            raise ValueError(
+                "tactique dans tactics_applied doit être une chaîne non vide"
+            )
+        if not isinstance(entry["statut"], str) or entry["statut"] == "":
+            raise ValueError(
+                "statut dans tactics_applied doit être une chaîne non vide"
+            )
+        if not isinstance(entry["source"], str) or entry["source"] == "":
+            raise ValueError(
+                "source dans tactics_applied doit être une chaîne non vide"
+            )
+
     return True

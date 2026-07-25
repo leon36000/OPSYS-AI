@@ -103,3 +103,33 @@ def test_statut_initial():
     )
     assert item["approval_status"] == "PROPOSE"
     assert item["approver"] == ""
+
+
+def test_surface_inconnue_rejetee():
+    """build_content_item(..., surface='tiktok', ...) → ValueError."""
+    import factory
+    import pytest
+    brand = {"name": "TestBrand", "tagline": "Tag", "tone": "neutre", "langue": "fr"}
+    sujet = {"titre": "Titre", "description": "Desc"}
+    with pytest.raises(ValueError, match="surface invalide"):
+        factory.build_content_item(
+            brand=brand,
+            surface="tiktok",
+            type="post_social",
+            sujet=sujet,
+            timestamp="2026-07-25T00:00:00+00:00",
+        )
+
+
+def test_gabarit_variable_inconnue_rejetee():
+    """Un template contenant {hack} doit lever ValueError 'non autorisée'."""
+    import factory
+    import pytest
+
+    with pytest.raises(ValueError, match="non autorisée"):
+        factory._verifier_gabarit({"title_template": "{hack}", "body_template": "ok"})
+
+    # cas légitime
+    factory._verifier_gabarit(
+        {"title_template": "{brand_name} - {sujet_titre}", "body_template": "{brand_tagline}"}
+    )

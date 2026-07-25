@@ -1,11 +1,52 @@
 import hashlib
 import json
+import string
 import uuid
 from pathlib import Path
 import yaml
 
 # Import plat du module validation situé dans le même dossier (ajouté au sys.path par les tests)
 import validation
+
+
+# Constante des surfaces autorisées
+SURFACES_AUTORISEES = {"google_aio", "perplexity", "assistants_ia"}
+
+# Constante des types autorisés
+TYPES_AUTORISES = {"post_social", "page_seo", "fiche_gbp", "article_blog"}
+
+# Variables de gabarit autorisées
+VARIABLES_GABARIT_AUTORISEES = {
+    "brand_name",
+    "brand_tagline",
+    "brand_tone",
+    "brand_langue",
+    "sujet_titre",
+    "sujet_description",
+    "sujet_mots_cles",
+    "tactiques",
+}
+
+
+def _extraire_placeholders(template_str: str) -> set:
+    """Extrait les placeholders {nom} d'une chaîne de gabarit Python."""
+    placeholders = set()
+    for _, field_name, _, _ in string.Formatter().parse(template_str):
+        if field_name is not None:
+            placeholders.add(field_name)
+    return placeholders
+
+
+def _verifier_gabarit(template: dict) -> None:
+    """Vérifie que tous les placeholders du gabarit sont autorisés."""
+    for cle in ("title_template", "body_template"):
+        template_str = template.get(cle, "")
+        placeholders = _extraire_placeholders(template_str)
+        inconnus = placeholders - VARIABLES_GABARIT_AUTORISEES
+        if inconnus:
+            raise ValueError(
+                f"variable de gabarit non autorisée : {', '.join(sorted(inconnus))}"
+            )
 
 
 def build_content_item(
@@ -19,6 +60,18 @@ def build_content_item(
 
     Retourne un dict déterministe (mêmes paramètres -> même id et contenu).
     """
+    # Pré-validation de surface et type (avant toute lecture de fichier)
+    if surface not in SURFACES_AUTORISEES:
+        raise ValueError(
+            f"surface invalide : '{surface}' "
+            f"(autorisées : {', '.join(sorted(SURFACES_AUTORISEES))})"
+        )
+    if type not in TYPES_AUTORISES:
+        raise ValueError(
+            f"type invalide : '{type}' "
+            f"(autorisés : {', '.join(sorted(TYPES_AUTORISES))})"
+        )
+
     base_dir = Path(__file__).resolve().parents[2]
 
     # Chemins des contrats/fichiers de connaissance
@@ -26,22 +79,38 @@ def build_content_item(
     seo_knowledge_path = base_dir / "docs" / "seo-knowledge.v1.yaml"
     templates_dir = Path(__file__).resolve().parent / "templates"
 
-    # Calcul des empreintes (brand_ref, seo_knowledge_ref)
-    brand_ref = hashlib.sha256(
-        brand_contract_path.read_bytes()
-    ).hexdigest()
-    seo_knowledge_ref = hashlib.sha256(
-        seo_knowledge_path.read_bytes()
-    ).hexdigest()
+    # Lecture des fichiers avec gestion FileNotFoundError → ValueError
+    try:
+        brand_ref = hashlib.sha256(
+            brand_contract_path.read_bytes()
+        ).hexdigest()
+    except FileNotFoundError as e:
+        raise ValueError(
+            f"fichier brand-contract.v1.yaml introuvable : {brand_contract_path}"
+        ) from e
+
+    try:
+        seo_knowledge_ref = hashlib.sha256(
+            seo_knowledge_path.read_bytes()
+        ).hexdigest()
+    except FileNotFoundError as e:
+        raise ValueError(
+            f"fichier seo-knowledge.v1.yaml introuvable : {seo_knowledge_path}"
+        ) from e
 
     # Chargement du seo-knowledge pour extraire les tactiques de la surface
-    with open(seo_knowledge_path, encoding="utf-8") as fh:
-        seo_knowledge = yaml.safe_load(fh)
+    try:
+        with open(seo_knowledge_path, encoding="utf-8") as fh:
+            seo_knowledge = yaml.safe_load(fh)
+    except FileNotFoundError as e:
+        raise ValueError(
+            f"fichier seo-knowledge.v1.yaml introuvable : {seo_knowledge_path}"
+        ) from e
+
     surface_tactics = []
     surfaces = seo_knowledge.get("surfaces", {})
     if surface in surfaces:
         for t in surfaces[surface].get("tactiques", []):
-            # On copie uniquement les clés attendues
             surface_tactics.append(
                 {
                     "tactique": t["tactique"],
@@ -65,19 +134,29 @@ def build_content_item(
         with open(template_file, encoding="utf-8") as fh:
             template = yaml.safe_load(fh)
     else:
-        # Fallback minimal pour éviter de casser si le template n'existe pas
         template = {
             "title_template": "{brand_name} - {sujet_titre}",
             "body_template": "{brand_tagline}\n{sujet_description}",
         }
 
+    # Vérification anti-dérive des gabarits
+    _verifier_gabarit(template)
+
+    # Construction du contexte enrichi avec toutes les variables autorisées
+    tactiques_noms = ", ".join(
+        t["tactique"] for t in surface_tactics
+    )
     context = {
-        "brand_name": brand["name"],
-        "brand_tagline": brand["tagline"],
-        "sujet_titre": sujet["titre"],
-        "sujet_description": sujet["description"],
-        # Pas d'usage de tactiques ici pour rester dans l'esprit de la composition sans LLM
+        "brand_name": brand.get("name", ""),
+        "brand_tagline": brand.get("tagline", ""),
+        "brand_tone": brand.get("tone", ""),
+        "brand_langue": brand.get("langue", ""),
+        "sujet_titre": sujet.get("titre", ""),
+        "sujet_description": sujet.get("description", ""),
+        "sujet_mots_cles": ", ".join(sujet.get("mots_cles", [])),
+        "tactiques": tactiques_noms,
     }
+
     title = template["title_template"].format(**context)
     body = template["body_template"].format(**context)
 

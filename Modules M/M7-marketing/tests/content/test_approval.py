@@ -112,3 +112,61 @@ def test_list_items_filtre():
     proposees = approval.list_items("PROPOSE")
     assert len(proposees) == 1
     assert proposees[0]["id"] == item1["id"]
+
+
+# CORRECTIF R1 (TDAD) — 5 tests à ajouter dans les fichiers de test correspondants.
+# Ce fichier est destiné à être lu/recopié (ou inclus) dans la suite de tests.
+
+# Les fonctions suivantes sont à ajouter dans test_approval.py
+# ------------------------------------------------------------
+
+def test_transition_enregistre_timestamp():
+    """propose alice ; approve(bob, timestamp='...') → approval_timestamp == valeur transmise."""
+    import approval
+    item = {
+        "id": "12345678-1234-4678-1234-567812345678",
+        "version": "1.0.0",
+        "brand_ref": "aaa",
+        "seo_knowledge_ref": "bbb",
+        "surface": "google_aio",
+        "pillar": "seo",
+        "type": "post_social",
+        "title": "Titre",
+        "body": "Corps",
+        "tactics_applied": [],
+        "timestamp": "2026-07-25T00:00:00+00:00",
+        "approval_status": "PROPOSE",
+        "approver": "",
+        "approval_timestamp": "",
+    }
+    ts = "2026-07-25T01:00:00+00:00"
+    item = approval.propose(item, actor="alice")
+    result = approval.approve(item, actor="bob", timestamp=ts)
+    assert result["approval_timestamp"] == ts
+    assert result["approval_status"] == "APPROVED"
+    assert result["approver"] == "bob"
+
+
+def test_auto_rejet_interdit():
+    """propose alice ; reject(alice) → ValueError."""
+    import approval
+    import pytest
+    item = {
+        "id": "12345678-1234-4678-1234-567812345678",
+        "version": "1.0.0",
+        "brand_ref": "aaa",
+        "seo_knowledge_ref": "bbb",
+        "surface": "google_aio",
+        "pillar": "seo",
+        "type": "post_social",
+        "title": "Titre",
+        "body": "Corps",
+        "tactics_applied": [],
+        "timestamp": "2026-07-25T00:00:00+00:00",
+        "approval_status": "PROPOSE",
+        "approver": "",
+        "approval_timestamp": "",
+    }
+    item = approval.propose(item, actor="alice")
+    with pytest.raises(ValueError, match="auto-rejet"):
+        approval.reject(item, actor="alice")

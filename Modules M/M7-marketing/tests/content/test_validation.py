@@ -135,3 +135,32 @@ def test_tactics_applied_element_sans_source():
     item["tactics_applied"] = [{"tactique": "mot-clé", "statut": "approuvé"}]
     with pytest.raises(ValueError, match="source"):
         validation.validate_content_item(item)
+
+
+def test_tactic_element_vide_rejete():
+    """tactics_applied avec une tactique vide doit lever ValueError."""
+    import validation
+    import pytest
+    item = {
+        "id": "12345678-1234-4678-1234-567812345678",
+        "version": "1.0.0",
+        "brand_ref": "aaa",
+        "seo_knowledge_ref": "bbb",
+        "surface": "google_aio",
+        "pillar": "seo",
+        "type": "post_social",
+        "title": "Titre",
+        "body": "Corps",
+        "tactics_applied": [
+            {"tactique": "", "statut": "valide", "source": "s"}
+        ],
+        "timestamp": "2026-07-25T00:00:00+00:00",
+        "approval_status": "PROPOSE",
+        "approver": "",
+        "approval_timestamp": "",
+    }
+    with pytest.raises(
+        ValueError,
+        match="tactique dans tactics_applied doit être une chaîne non vide",
+    ):
+        validation.validate_content_item(item)
