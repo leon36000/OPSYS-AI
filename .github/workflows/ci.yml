@@ -32,6 +32,8 @@ jobs:
         run: bash scripts/run-e2e.sh e2e
       - name: Tests dashboard (P0-5a)
         run: python3 -m pytest "surfaces/dashboard/tests" -q
+      - name: Tests authz (P0-5c)
+        run: python3 -m pytest "core/src/authz/tests" -q
 
   e2e-load:
     runs-on: ubuntu-latest
