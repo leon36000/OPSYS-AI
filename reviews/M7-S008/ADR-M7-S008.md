@@ -63,3 +63,13 @@ Test RED-7 : l'import du module ne déclenche aucun appel réseau (patch socket.
 Test RED-8 : une date hors toute fenêtre (ex. 15 avril si aucune fenêtre ne couvre avril) retourne un plan valide avec fenetres_actives=[] et items_proposes=0, sans exception.
 Test RED-9 : le timestamp passé à build_content_item est égal à date_reference, pas à l'instant courant (freeze_time ne modifie pas le résultat).
 Test RED-10 : le sha256 du calendrier S008a est épinglé dans un test consommateur (pattern D-015), toute modification du YAML casse le test et force une révision d'ADR.
+
+---
+> **ANNEXE D'ADAPTATION (R1, journalisée)** : (a) le calendrier RÉEL sépare `saisons` (données
+> descriptives, printemps 3→5) et `fenetres_marketing` (fenêtres de CAMPAGNE avec `themes` —
+> fw-creux-hivernal 12→1) : la planification consomme les fenetres_marketing SEULES ; le RED-3 de
+> l'ADR (« mars active transition ET printemps ») reposait sur une lecture fusionnée erronée — en
+> mars, seule fw-transition-hiver-printemps (2→3) est une fenêtre de campagne, le test encode la
+> réalité. (b) RED-7 (patch socket à l'import) remplacé par l'assertion getsource déterministe —
+> pattern établi S010/S011 (un patch d'import est fragile et n'apporte rien de plus). (c) La
+> validation schema_version==1 (§4) est appliquée (correctif R1, fail-closed).

@@ -29,7 +29,12 @@ def _charger_brand():
 def _charger_calendrier(chemin: str) -> dict:
     with open(chemin, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f)
-    if not isinstance(data, dict) or "fenetres_marketing" not in data:
+    if not isinstance(data, dict):
+        raise ValueError("calendrier invalide : clé 'fenetres_marketing' manquante")
+    schema_version = data.get("schema_version")
+    if schema_version != 1:
+        raise ValueError(f"schema_version invalide : {schema_version} (attendu : 1)")
+    if "fenetres_marketing" not in data:
         raise ValueError("calendrier invalide : clé 'fenetres_marketing' manquante")
     return data
 
