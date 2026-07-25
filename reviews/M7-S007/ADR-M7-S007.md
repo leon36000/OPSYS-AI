@@ -27,3 +27,14 @@ Trois compteurs sont ajoutés au dictionnaire de résultat sous la clé `metricu
 ## 5. Anti-dérive et stratégie de tests
 
 Six tests RED/GREEN couvrent la chaîne complète. Test 1 : refus d'une fixture sans `fictif: true` (ValueError levé, chantier jamais composé). Test 2 : composition réussie avec une fixture valide (content-item conforme au schéma v1 retourné). Test 3 : proposition et approbation par deux acteurs distincts (statuts `PROPOSE` puis `APPROVED` dans la file). Test 4 : rejet de l'auto-approbation (ValueError si acteur identique). Test 5 : capture de `NotAutorise` lors de la tentative de publication (preuve du gating, `publications_bloquees_gated == 1`). Test 6 : déterminisme des compteurs sur deux exécutions successives avec `reset()` entre chaque appel (résultats strictement identiques). Chaque test vérifie une étape isolée mais la suite complète valide l'intégration bout-en-bout. La contrainte « zéro réseau » est garantie par l'absence totale de fixtures binaires et par le fait que `PostizAdapter` en mode ombre n'émet jamais de requête sortante. Les fixtures `villa-nice-2024` et `appartement-lyon-2024` servent de données d'entrée partagées entre tous les tests, assurant la reproductibilité.
+
+---
+> **COMPLÉMENT D'ANNEXE (R1)** : (a) le nom public est ALIGNÉ sur le §2 :
+> `orchestrer_chantier_vers_social` (le raccourci `orchestrer` de la première implémentation a été
+> renommé partout). (b) La re-levée d'AdapterDisabled prévue au §3 n'est PAS retenue :
+> `orchestrer_chantier_vers_social` ne laisse fuir AUCUNE exception — tout est tracé en étape ECHEC
+> (statut + détail typé), contrat encodé par les tests ; un appelant M8 lit les statuts, pas des
+> exceptions. (c) Le §3 disait « NotAutorise car flag OFF » : FACTUELLEMENT FAUX vs l'API S005
+> réelle (flag OFF → AdapterDisabled ; enabled+dry_run=False → NotAutorise) — déjà corrigé en
+> annexe initiale, le code suit l'API réelle. (d) `type_travaux` : enum §1 APPLIQUÉE (validation
+> fail-closed au chargement + test négatif) ; fixtures alignées (renovation_totale, extension).

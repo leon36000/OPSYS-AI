@@ -10,6 +10,7 @@ import shutil
 from pathlib import Path
 
 import pytest
+import yaml
 
 _M7 = Path(__file__).resolve().parents[2]
 for p in (
@@ -58,7 +59,7 @@ class TestRefusFixtureSansFictif:
         }
         chemin = _creer_fixture(tmp_path, "chantier-invalide", contenu)
         with pytest.raises(ValueError, match=r".*fictif.*"):
-            chantier_social.orchestrer(
+            chantier_social.orchestrer_chantier_vers_social(
                 str(chemin),
                 TIMESTAMP,
                 ACTEUR_PROPOSE,
@@ -70,7 +71,7 @@ class TestChaineCompleteReelle:
     def test_chaine_complete_reelle(self) -> None:
         """Fixture valide -> étapes OK, NotAutorise tracé, métriques."""
         approval.reset()
-        resultat = chantier_social.orchestrer(
+        resultat = chantier_social.orchestrer_chantier_vers_social(
             str(FIXTURE_VALIDE),
             TIMESTAMP,
             ACTEUR_PROPOSE,
@@ -100,7 +101,7 @@ class TestAutoApprobationRefusee:
     def test_auto_approbation_refusee(self) -> None:
         """Même acteur proposant/approuvant -> étape approuve en ECHEC."""
         approval.reset()
-        resultat = chantier_social.orchestrer(
+        resultat = chantier_social.orchestrer_chantier_vers_social(
             str(FIXTURE_VALIDE),
             TIMESTAMP,
             "alice",
@@ -124,7 +125,7 @@ class TestGatingFlagOff:
     def test_gating_flag_off(self) -> None:
         """Adaptateur disabled -> étape publication ECHEC AdapterDisabled, métrique 0."""
         approval.reset()
-        resultat = chantier_social.orchestrer(
+        resultat = chantier_social.orchestrer_chantier_vers_social(
             str(FIXTURE_VALIDE),
             TIMESTAMP,
             ACTEUR_PROPOSE,
@@ -144,14 +145,14 @@ class TestDeterminisme:
     def test_determinisme(self) -> None:
         """Deux appels identiques -> résultats strictement identiques."""
         approval.reset()
-        resultat1 = chantier_social.orchestrer(
+        resultat1 = chantier_social.orchestrer_chantier_vers_social(
             str(FIXTURE_VALIDE),
             TIMESTAMP,
             ACTEUR_PROPOSE,
             ACTEUR_APPROUVE,
         )
         approval.reset()
-        resultat2 = chantier_social.orchestrer(
+        resultat2 = chantier_social.orchestrer_chantier_vers_social(
             str(FIXTURE_VALIDE),
             TIMESTAMP,
             ACTEUR_PROPOSE,
@@ -169,3 +170,19 @@ class TestZeroReseau:
             assert motif not in source, (
                 f"Le symbole réseau '{motif}' ne doit pas apparaître dans chantier_social"
             )
+
+
+def test_type_travaux_invalide_rejete(tmp_path):
+    """Un type_travaux hors énumération ADR doit être refusé fail-closed (comme fictif)."""
+    with open(FIXTURE_VALIDE, "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+    data["type_travaux"] = "demolition"
+    dossier = tmp_path / "chantier-invalide"
+    dossier.mkdir()
+    fixture_path = dossier / "chantier.yaml"
+    with open(fixture_path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(data, f, allow_unicode=True)
+    with pytest.raises(ValueError, match="type_travaux"):
+        chantier_social.orchestrer_chantier_vers_social(
+            str(fixture_path), TIMESTAMP, ACTEUR_PROPOSE, ACTEUR_APPROUVE
+        )

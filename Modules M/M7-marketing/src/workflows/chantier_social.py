@@ -17,7 +17,7 @@ from factory import build_content_item
 import approval
 from postiz_adapter import PostizAdapter, SocialPost, Canal, NotAutorise, AdapterDisabled
 
-__all__ = ["orchestrer"]
+__all__ = ["orchestrer_chantier_vers_social"]
 
 
 def _charger_brand():
@@ -27,7 +27,7 @@ def _charger_brand():
         return yaml.safe_load(f)
 
 
-def orchestrer(
+def orchestrer_chantier_vers_social(
     chemin_chantier: str,
     timestamp: str,
     acteur_propose: str,
@@ -58,6 +58,15 @@ def orchestrer(
 
     if not chantier.get("fictif"):
         raise ValueError("La fixture doit avoir 'fictif: true'")
+
+    # Validation de l'énumération type_travaux
+    types_valides = {"renovation_totale", "extension", "ravalement", "isolation_thermique"}
+    type_travaux = chantier.get("type_travaux")
+    if type_travaux not in types_valides:
+        raise ValueError(
+            f"type_travaux invalide : {type_travaux!r} "
+            f"(attendus : {', '.join(sorted(types_valides))})"
+        )
 
     slug = chemin.parent.name  # slug du chantier (ex: residence-quebec-2026)
 
