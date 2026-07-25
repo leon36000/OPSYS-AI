@@ -25,13 +25,14 @@ class AuthzEngine(ABC):
 
 
 # Hiérarchie explicite : owner -> editor -> viewer
-# Admin ne fait pas partie de la hiérarchie d’implication, mais est traité comme
-# une relation suffisante pour les permissions (sauf voir_couts où seules owner/admin comptent).
+# Admin n'est pas dans la chaîne naturelle mais doit pouvoir lire/écrire/administrer dans son tenant.
+# L'implication ci-dessous garantit que la relation ADMIN confère éditeur et lecteur, ce qui
+# permet de bénéficier de toutes les permissions (sauf voir_couts qui est explicite dans _PERMISSION_RELATIONS).
 RELATION_IMPLIES: dict[Relation, set[Relation]] = {
     Relation.OWNER:  {Relation.OWNER, Relation.EDITOR, Relation.VIEWER},
     Relation.EDITOR: {Relation.EDITOR, Relation.VIEWER},
     Relation.VIEWER: {Relation.VIEWER},
-    Relation.ADMIN:  {Relation.ADMIN},
+    Relation.ADMIN:  {Relation.ADMIN, Relation.EDITOR, Relation.VIEWER},
 }
 
 # Permissions → ensemble de relations de base autorisées.
@@ -40,12 +41,14 @@ _PERMISSION_RELATIONS: dict[str, set[Relation]] = {
     "lire":        {Relation.VIEWER, Relation.EDITOR, Relation.OWNER, Relation.ADMIN},
     "ecrire":      {Relation.EDITOR, Relation.OWNER, Relation.ADMIN},
     "administrer": {Relation.OWNER, Relation.ADMIN},
-    "voir_couts":  {Relation.OWNER, Relation.ADMIN},   # D-010 : employé ne voit jamais les coûts
+    "voir_couts":  {Relation.OWNER, Relation.ADMIN},
 }
 
 
 class LocalAuthzEngine(AuthzEngine):
-    """Moteur local en mémoire, deny-by-default, fail-closed."""
+    """Moteur local en mémoire, deny-by-default, fail-closed.
+    Préparation pour une migration OpenFGA : snapshot atomique des tuples lors des parcours.
+    """
 
     def __init__(self) -> None:
         self._tuples: set[tuple[str, str, str, str, str]] = set()
@@ -82,9 +85,13 @@ class LocalAuthzEngine(AuthzEngine):
         if not allowed_relations:
             return False
 
-        # Lister les relations que l’utilisateur possède sur cet objet dans ce tenant
+        # Snapshot atomique pour éviter les "set changed size during iteration"
+        # (préparation OpenFGA : copie défensive de l'état)
+        snapshot = tuple(self._tuples)
+
+        # Lister les relations que l'utilisateur possède sur cet objet dans ce tenant
         user_relations: set[Relation] = set()
-        for (u, rel_str, ot, oid, tid) in self._tuples:
+        for (u, rel_str, ot, oid, tid) in snapshot:
             if u == user and ot == obj.object_type.value and oid == obj.object_id and tid == scope.tenant_id:
                 try:
                     rel = Relation(rel_str)
@@ -113,8 +120,11 @@ class LocalAuthzEngine(AuthzEngine):
         if not allowed_relations:
             return ObjectListing(objects=[], max_results=0)
 
+        # Snapshot atomique pour éviter les modifications concurrentes
+        snapshot = tuple(self._tuples)
+
         objects_set: set[tuple[ObjectType, str]] = set()
-        for (u, rel_str, ot, oid, tid) in self._tuples:
+        for (u, rel_str, ot, oid, tid) in snapshot:
             if u == user and tid == scope.tenant_id:
                 try:
                     rel = Relation(rel_str)

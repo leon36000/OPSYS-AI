@@ -62,6 +62,7 @@ def test_owner_implies_all_permissions(engine, tenant_a, obj_a):
     assert engine.check("alice", "lire", obj_a, tenant_a) is True
     assert engine.check("alice", "ecrire", obj_a, tenant_a) is True
     assert engine.check("alice", "administrer", obj_a, tenant_a) is True
+    assert engine.check("alice", "voir_couts", obj_a, tenant_a) is True
 
 
 def test_editor_implies_read_and_write_not_admin(engine, tenant_a, obj_a):
@@ -69,6 +70,7 @@ def test_editor_implies_read_and_write_not_admin(engine, tenant_a, obj_a):
     assert engine.check("bob", "lire", obj_a, tenant_a) is True
     assert engine.check("bob", "ecrire", obj_a, tenant_a) is True
     assert engine.check("bob", "administrer", obj_a, tenant_a) is False
+    assert engine.check("bob", "voir_couts", obj_a, tenant_a) is False
 
 
 def test_viewer_implies_read_only(engine, tenant_a, obj_a):
@@ -76,6 +78,7 @@ def test_viewer_implies_read_only(engine, tenant_a, obj_a):
     assert engine.check("carol", "lire", obj_a, tenant_a) is True
     assert engine.check("carol", "ecrire", obj_a, tenant_a) is False
     assert engine.check("carol", "administrer", obj_a, tenant_a) is False
+    assert engine.check("carol", "voir_couts", obj_a, tenant_a) is False
 
 
 def test_hierarchy_loop_no_divergence(engine, tenant_a, obj_a):
@@ -179,6 +182,14 @@ def test_list_objects_returns_object_listing(engine, tenant_a, tenant_b, obj_a, 
     assert obj_a in objects
     assert obj_b not in objects
 
+    # Vérification renforcée : les identifiants sont tronqués dans l'interface publique
+    for o in objects:
+        assert hasattr(o, 'object_id_tronque')
+        assert '…' in o.object_id_tronque
+        assert o.object_id_tronque.endswith('…')
+        # L'identifiant complet reste accessible via get_full_object_id()
+        assert o.get_full_object_id() == o.object_id
+
 
 class FakeEngine(AuthzEngine):
     def __init__(self):
@@ -222,4 +233,20 @@ def test_logging_contains_decision_and_reason_but_no_sensitive_data(
     assert "reason_code" in log_text
     assert "alice" not in log_text
     assert "bob" not in log_text
+    # l'identifiant complet n'apparaît pas dans les logs (seulement la version tronquée)
     assert obj_a.object_id not in log_text
+    assert obj_a.object_id_tronque in log_text
+
+
+@pytest.mark.parametrize("rel,perms", [
+    (Relation.OWNER, {"lire": True, "ecrire": True, "administrer": True, "voir_couts": True}),
+    (Relation.EDITOR, {"lire": True, "ecrire": True, "administrer": False, "voir_couts": False}),
+    (Relation.VIEWER, {"lire": True, "ecrire": False, "administrer": False, "voir_couts": False}),
+    (Relation.ADMIN, {"lire": True, "ecrire": True, "administrer": True, "voir_couts": True}),
+])
+def test_relation_implies_correct_permissions(engine, tenant_a, obj_a, rel, perms):
+    """Couverture explicite de chaque transition d'implication, y compris ADMIN → permissions."""
+    engine.add_tuple("user", rel, obj_a, tenant_a)
+    for perm, expected in perms.items():
+        assert engine.check("user", perm, obj_a, tenant_a) == expected, \
+            f"failed for {rel.value} {perm}: expected {expected}"

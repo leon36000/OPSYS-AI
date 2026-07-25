@@ -28,9 +28,12 @@ class DomainAuthz:
                       scope: Optional[TenantScope], allowed: bool, reason_code: str) -> None:
         user_hash = self._user_hash(user)
         object_type = obj.object_type.name if obj else "unknown"
+        object_id_trunc = (obj.object_id_tronque if obj and obj.object_id_tronque
+                           else (obj.object_id[:8] + "…" if obj else "unknown"))
+        tenant = scope.tenant_id if scope else "unknown"
         logger.info(
-            "decision=%s user_hash=%s object_type=%s perm=%s reason_code=%s",
-            allowed, user_hash, object_type, perm, reason_code,
+            "decision=%s user_hash=%s object_type=%s object_id_trunc=%s tenant=%s perm=%s reason_code=%s",
+            allowed, user_hash, object_type, object_id_trunc, tenant, perm, reason_code,
         )
 
     # ------------------------------------------------------------------
