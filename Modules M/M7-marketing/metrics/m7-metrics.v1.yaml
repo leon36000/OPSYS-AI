@@ -1,0 +1,41 @@
+# metrics-as-code v1 (D-010 : chaque module livre ses métriques à SON build ; consommateur = entrepôt M8).
+# chemin d'agrégation cible : /registries/metrics/ (entrepôt central, story core ultérieure) — ce fichier est la livraison côté module.
+schema_version: 1
+module: M7-marketing
+owner_calcul: "M8 (le LLM ne calcule jamais)"
+metrics:
+  - id: m7_cpl
+    nom: "Coût par lead"
+    definition: "Coût total marketing divisé par le nombre de leads générés sur la période."
+    unite: "EUR/lead"
+    source_donnees: "Module M7 — campagnes et CRM"
+    frequence: "mensuelle"
+    consommateur: "entrepôt M8"
+  - id: m7_cout_par_soumission
+    nom: "Coût par soumission"
+    definition: "Coût total marketing divisé par le nombre de soumissions de formulaire qualifiées."
+    unite: "EUR/soumission"
+    source_donnees: "Module M7 — campagnes et CRM"
+    frequence: "mensuelle"
+    consommateur: "entrepôt M8"
+  - id: m7_roi_par_canal
+    nom: "ROI par canal"
+    definition: "Revenu attribué à un canal marketing moins le coût de ce canal, rapporté au coût de ce canal."
+    unite: "ratio"
+    source_donnees: "Module M7 — attribution et finance"
+    frequence: "mensuelle"
+    consommateur: "entrepôt M8"
+  - id: m7_part_citations_ia
+    nom: "Part des réponses d'assistants IA citant l'entreprise"
+    definition: "Proportion d'échantillons de requêtes pour lesquels un assistant IA mentionne ou cite l'entreprise, mesurée par échantillonnage indépendant et jamais auto-déclarée."
+    unite: "pourcentage"
+    source_donnees: "Module M7 — panel d'échantillonnage IA"
+    frequence: "mensuelle"
+    consommateur: "entrepôt M8"
+  - id: m7_taux_doc_none
+    nom: "Taux de documentation NONE"
+    definition: "Proportion d'artefacts du module M7 dont la documentation est absente, incomplète ou marquée NONE, conformément à la gouvernance C-06."
+    unite: "pourcentage"
+    source_donnees: "Module M7 — registre d'artefacts"
+    frequence: "mensuelle"
+    consommateur: "entrepôt M8"

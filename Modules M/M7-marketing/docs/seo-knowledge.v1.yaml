@@ -1,0 +1,54 @@
+# Base de connaissances GEO/SEO par SURFACE (D-013).
+# Base ANCRÉE — toute nouvelle tactique = source + statut, jamais d'ajout sans source (REG-08/Q1-Q6).
+schema_version: 1
+surfaces:
+  google_aio:
+    position: "SEO classique + fraîcheur/autorité"
+    faits:
+      - "Google Search et llms.txt : les mentions inauthentiques sont à ignorer (position officielle Google, juillet 2026, source plan)."
+      - "Optimiser pour l'IA générative de Google équivaut à faire du SEO classique (source plan)."
+    tactiques:
+      - tactique: "Crawlabilité des bots IA autorisée"
+        statut: valide
+        source: "D-013 / position Google AIO"
+      - tactique: "Rendu côté serveur"
+        statut: valide
+        source: "D-013 / position Google AIO"
+      - tactique: "Requêtes fan-out"
+        statut: valide
+        source: "D-013 / position Google AIO"
+      - tactique: "Fraîcheur et autorité du contenu"
+        statut: valide
+        source: "D-013 / position Google AIO"
+  perplexity:
+    position: "Fraîcheur/autorité"
+    faits:
+      - "La fraîcheur et l'autorité du contenu dominent la visibilité sur Perplexity (source plan)."
+      - "Les tactiques Princeton (citations, statistiques, citations d'experts) restent validées pour Perplexity (source plan)."
+    tactiques:
+      - tactique: "Fraîcheur et autorité du contenu"
+        statut: valide
+        source: "D-013 / position Perplexity"
+      - tactique: "Citations, statistiques et citations d'experts"
+        statut: valide
+        source: "D-013 / tactiques Princeton pour Perplexity"
+      - tactique: "Cohérence NAP multi-plateformes"
+        statut: valide
+        source: "D-013 / effet moteur de consensus"
+  assistants_ia:
+    position: "Tactiques Princeton validées + consensus NAP"
+    faits:
+      - "Citations, statistiques et citations d'experts augmentent la visibilité de 30 à 40 % sur ChatGPT/Perplexity (source plan)."
+      - "La cohérence NAP multi-plateformes crée un effet de moteur de consensus ; l'incohérence entraîne l'omission de l'information par l'IA (source plan)."
+    tactiques:
+      - tactique: "Citations, statistiques et citations d'experts"
+        statut: valide
+        source: "D-013 / tactiques Princeton pour assistants IA"
+      - tactique: "Cohérence NAP multi-plateformes"
+        statut: valide
+        source: "D-013 / effet moteur de consensus"
+regles:
+  - "Fraîcheur/autorité pour Google AIO."
+  - "Fraîcheur/autorité pour Perplexity."
+  - "Citations/consensus pour les assistants IA."
+  - "Une tactique par surface, jamais globale : chaque tactique est rattachée à une surface et documentée avec source + statut."
