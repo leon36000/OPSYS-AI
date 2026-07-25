@@ -16,3 +16,28 @@ jobs:
       - name: Tests module M7 (M7-S000)
         run: python3 -m pytest "Modules M/M7-marketing/tests" -q
 
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5 — pin SHA (D-035)
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Installer les dépendances de test
+        run: python3 -m pip install --quiet pytest pyyaml
+      - name: Installer k6 v0.54.0 (pinné avec checksum)
+        run: |
+          K6_VERSION="v0.54.0"
+          K6_TAR="k6-${K6_VERSION}-linux-amd64.tar.gz"
+          K6_URL="https://github.com/grafana/k6/releases/download/${K6_VERSION}/${K6_TAR}"
+          EXPECTED_SHA256="c7f03434854f837b6790ee81572e4b0f955241974c79a43cbb9f8d0fef069589"
+          curl -fsSL -o "${K6_TAR}" "${K6_URL}"
+          echo "${EXPECTED_SHA256}  ${K6_TAR}" | sha256sum -c -
+          mkdir -p "${HOME}/k6"
+          tar -xzf "${K6_TAR}" -C "${HOME}/k6" --strip-components=1
+          echo "${HOME}/k6" >> "${GITHUB_PATH}"
+      - name: Run e2e harness + k6 smoke
+        run: bash scripts/run-e2e.sh
