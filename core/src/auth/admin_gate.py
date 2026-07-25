@@ -21,6 +21,10 @@ class AdminGate:
     - anti-replay par hash du secret + timesteps consommes.
     - fail-closed : si secret absent -> 'mfa_non_configure'.
     - thread-safe : un verrou unique pour tout l'etat mutable.
+    - SINGLE-PROCESS : l'etat rate-limit et anti-replay est en memoire process ;
+      non partage multi-process ; un deploiement multi-worker exigerait un backend
+      partage (Redis/sqlite verrouille) — hors perimetre P0-5b, a traiter avant
+      tout scale horizontal.
     """
 
     def __init__(
@@ -44,6 +48,16 @@ class AdminGate:
         """
         return bool(os.environ.get(self.secret_env))
 
+    def _purge_expired_failures(self, now: float) -> None:
+        """Supprime les entrees de rate-limit dont la fenetre est expiree."""
+        cutoff = now - self.verrou_s
+        new_tracker: Dict[str, List[float]] = {}
+        for ip_addr, timestamps in self._failure_tracker.items():
+            kept = [t for t in timestamps if t > cutoff]
+            if kept:
+                new_tracker[ip_addr] = kept
+        self._failure_tracker = new_tracker
+
     def verifier(self, code: str, ip: str) -> Dict[str, Any]:
         """Verifie un code TOTP pour l'IP donnee.
         Retourne {"autorise": bool, "raison": str}.
@@ -55,21 +69,13 @@ class AdminGate:
 
         now = time.monotonic()
         with self._lock:
-            # --- Rate limiting par IP ---
-            if ip in self._failure_tracker:
-                # Nettoyer les entrees expirees
-                self._failure_tracker[ip] = [
-                    t
-                    for t in self._failure_tracker[ip]
-                    if now - t < self.verrou_s
-                ]
-            else:
-                self._failure_tracker[ip] = []
+            # --- Nettoyage des rate-limits expires ---
+            self._purge_expired_failures(now)
 
-            if len(self._failure_tracker[ip]) >= self.max_echecs:
-                logger.warning(
-                    "IP %s verrouillée (trop d'échecs TOTP)", ip
-                )
+            # --- Rate limiting par IP ---
+            failures = self._failure_tracker.setdefault(ip, [])
+            if len(failures) >= self.max_echecs:
+                logger.warning("IP %s verrouillée (trop d'échecs TOTP)", ip)
                 return {"autorise": False, "raison": "verrouille"}
 
             # --- Anti-replay : hash du secret courant ---
@@ -79,8 +85,8 @@ class AdminGate:
                 logger.error("Erreur lors du hash du secret")
                 return {"autorise": False, "raison": "erreur_interne"}
 
-            if secret_hash not in self._replay_state:
-                self._replay_state[secret_hash] = set()
+            # Garder uniquement le hash courant pour borner la memoire en cas de rotation
+            self._replay_state = {secret_hash: self._replay_state.get(secret_hash, set())}
 
             # --- Verification TOTP ---
             try:
@@ -90,7 +96,7 @@ class AdminGate:
                 ok, timestep = False, None
 
             if not ok:
-                self._failure_tracker[ip].append(now)
+                failures.append(now)
                 logger.info("Échec de vérification TOTP pour IP %s", ip)
                 return {"autorise": False, "raison": "invalide"}
 

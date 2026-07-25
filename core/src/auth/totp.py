@@ -12,7 +12,7 @@ from typing import Optional, Tuple
 
 def _decode_secret(secret_b32: str) -> bytes:
     """Decode base32 avec padding tolere. Leve ValueError si invalide."""
-    secret = secret_b32.upper().rstrip("=")  # proof:allow — variable/fixture de test TOTP, aucun secret reel
+    secret = secret_b32.upper().rstrip("=")  # proof:allow — nom de variable local (lecture env), aucun secret littéral
     # padding standard
     rem = len(secret) % 8
     if rem:
