@@ -38,6 +38,8 @@ Responsable de la protection des RP : Nathan
 
 Cocher celles qui s'appliquent et renvoyer à la politique correspondante :
 
+> NOTE DE FIDÉLITÉ À LA SOURCE : le §14.2 énonce "collecte limitée aux heures de travail" pour l'ensemble de ces technologies ; la présente distinction employés/clients est une interprétation opérationnelle [À VALIDER — Nathan/juriste].
+
 ### Technologies employés (collecte limitée aux heures de travail)
 
 - [ ] Punch géorépéré → Politique : ______ (à remplir lors de l'EFVP)

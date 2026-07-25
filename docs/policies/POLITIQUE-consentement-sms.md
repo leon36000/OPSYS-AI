@@ -13,7 +13,7 @@ Cette politique s'applique à l'ensemble des communications commerciales et opé
 - **Information préalable** : tout destinataire est informé, avant la collecte de son numéro, des finalités des messages et de son droit de retrait.
 - **Politique écrite** : le présent document constitue la politique écrite applicable au canal.
 - **Consentement documenté** : l'opt-in est recueilli de manière active, datée et tracée.
-- **Collecte limitée** : les numéros sont collectés uniquement dans le cadre des heures de travail et des interactions professionnelles.
+- **Collecte limitée** : collecte des numéros uniquement lors d'interactions initiées par la personne (demande, formulaire, opt-in) ou fournies dans le cadre d'une relation d'affaires documentée ; la notion d'heures de travail ne s'applique pas aux clients — les PLAGES D'ENVOI respectueuses (déjà présentes) demeurent la limite temporelle.
 - **Minimisation et confidentialité par défaut** : seul le numéro strictement nécessaire est conservé ; aucune donnée superflue n'est collectée.
 - **Accès journalisés** : tout accès aux listes de numéros et aux preuves de consentement est tracé.
 
@@ -68,4 +68,3 @@ Cette politique s'applique à l'ensemble des communications commerciales et opé
 ### 8.1 Hors périmètre Loi 25 — cadre fédéral [À VÉRIFIER — juriste]
 
 - Exigences A2P/CASL applicables : à vérifier par le juriste.
-
