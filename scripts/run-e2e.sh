@@ -49,13 +49,13 @@ PY
   deadline=$((SECONDS + 30))
   while true; do
     if command -v curl >/dev/null 2>&1; then
-      if curl -fsS "${BASE_URL}/brand" >/dev/null 2>&1; then
+      if curl -fsS -m 5 --max-time 5 "${BASE_URL}/brand" >/dev/null 2>&1; then
         break
       fi
     else
       if python3 - <<PY >/dev/null 2>&1
 import urllib.request
-urllib.request.urlopen("${BASE_URL}/brand", timeout=2)
+urllib.request.urlopen("${BASE_URL}/brand", timeout=5)
 PY
       then
         break
@@ -76,11 +76,33 @@ PY
 }
 
 main() {
-  if ! run_python_e2e; then
-    exit 10
-  fi
-  run_k6
-  exit $?
+  local mode
+  mode="${1:-}"
+
+  case "${mode}" in
+    e2e)
+      if ! run_python_e2e; then
+        exit 10
+      fi
+      ;;
+    load)
+      if ! run_k6; then
+        exit 20
+      fi
+      ;;
+    "")
+      if ! run_python_e2e; then
+        exit 10
+      fi
+      if ! run_k6; then
+        exit 20
+      fi
+      ;;
+    *)
+      echo "Usage: $0 [e2e|load]" >&2
+      exit 1
+      ;;
+  esac
 }
 
 main "$@"

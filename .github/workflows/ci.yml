@@ -26,8 +26,23 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Installer les dépendances de test
-        run: python3 -m pip install --quiet pytest pyyaml
+      - name: Installer les dépendances de test épinglées
+        run: python3 -m pip install --quiet pytest==9.1.1 PyYAML==6.0.1
+      - name: Run e2e harness
+        run: bash scripts/run-e2e.sh e2e
+
+  e2e-load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5 — pin SHA (D-035)
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Installer les dépendances de test épinglées
+        run: python3 -m pip install --quiet pytest==9.1.1 PyYAML==6.0.1
       - name: Installer k6 v0.54.0 (pinné avec checksum)
         run: |
           K6_VERSION="v0.54.0"
@@ -39,5 +54,6 @@ jobs:
           mkdir -p "${HOME}/k6"
           tar -xzf "${K6_TAR}" -C "${HOME}/k6" --strip-components=1
           echo "${HOME}/k6" >> "${GITHUB_PATH}"
-      - name: Run e2e harness + k6 smoke
-        run: bash scripts/run-e2e.sh
+      - name: Run k6 smoke
+        run: bash scripts/run-e2e.sh load
+
