@@ -1,0 +1,20 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/docs/seo-knowledge.v1.yaml",
+   "description": "La tactique sur la crawlabilité des bots IA est marquée comme 'valide' alors que le contexte précise qu'elle est 'à vérifier' (Cloudflare les bloque par défaut). Le test autorise pourtant la valeur 'candidat_a_verifier'.",
+   "preuve": "Ligne 12 : statut: valide (sous tactique: \"Crawlabilité des bots IA autorisée\")"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/docs/seo-knowledge.v1.yaml",
+   "description": "La règle pour Google AIO indique 'Fraîcheur/autorité' au lieu de 'SEO classique' comme explicitement demandé dans le contexte (Google AIO = SEO classique).",
+   "preuve": "Ligne 51 : - \"Fraîcheur/autorité pour Google AIO.\""
+  }
+ ],
+ "date_heure": "2026-07-25T05:01:00.680770+00:00",
+ "prompt_sha256": "7a2ee77c1ee2cd87b7e898e53ed93e455006adb7b3060166e72069c1a2f70288",
+ "reviewer_model": "Gemini-3.1-Pro"
+}

@@ -1,0 +1,14 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": ".github/workflows/ci.yml",
+   "description": "L'ajustement requis #5 exige explicitement que les dépendances du projet soient pinnées ('PyYAML pinné') et interdit l'usage de 'latest'. Or, l'installation via pip ne spécifie aucune version pour pytest et pyyaml, et le job utilise 'ubuntu-latest'.",
+   "preuve": "run: python3 -m pip install --quiet pytest pyyaml\n...\nruns-on: ubuntu-latest"
+  }
+ ],
+ "date_heure": "2026-07-25T01:19:34.238623+00:00",
+ "prompt_sha256": "1a2b7ea45bd6fbe668be39f10979ee42d61b29cdf59a8f436651aefdb21e24fa",
+ "reviewer_model": "Gemini-3.1-Pro"
+}

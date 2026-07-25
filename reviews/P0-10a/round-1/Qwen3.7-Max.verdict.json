@@ -1,0 +1,20 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": ".github/workflows/ci.yml",
+   "description": "Les dépendances Python (pytest, pyyaml) sont installées sans version épinglée. L'architecte a explicitement exigé 'PyYAML pinné' et 'latest interdit' dans les ajustements contractuels pour garantir la reproductibilité et la sécurité de la CI.",
+   "preuve": "Ligne 23: `run: python3 -m pip install --quiet pytest pyyaml`"
+  },
+  {
+   "severite": "mineure",
+   "fichier": ".github/workflows/ci.yml",
+   "description": "L'architecte recommande de scinder les exécutions en jobs distincts « e2e » et « e2e-load » pour ne pas lier leurs destins (k6 restant informatif plus longtemps et nécessitant un calibrage distinct). Le diff fusionne les deux dans un unique job `e2e` avec `continue-on-error: true`.",
+   "preuve": "Lignes 19-27: job unique `e2e` exécutant `run-e2e.sh` (qui lance Python puis k6) avec `continue-on-error: true`."
+  }
+ ],
+ "date_heure": "2026-07-25T01:20:56.403720+00:00",
+ "prompt_sha256": "1a2b7ea45bd6fbe668be39f10979ee42d61b29cdf59a8f436651aefdb21e24fa",
+ "reviewer_model": "Qwen3.7-Max"
+}
