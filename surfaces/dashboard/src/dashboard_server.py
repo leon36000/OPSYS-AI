@@ -1,16 +1,26 @@
 #!/usr/bin/env python3
-"""Squelette dashboard P0-5a."""
+"""Squelette dashboard P0-5a + route GET /admin (MFA TOTP)."""
 from __future__ import annotations
 
 import argparse
 import html
 import json
 import os
+import sys
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import yaml
+
+# --- Résolution portable du chemin vers core/src/auth ---
+_HERE = Path(__file__).resolve().parent
+_REPO_ROOT = _HERE.parents[2]          # surfaces/dashboard/src -> racine du dépôt
+_AUTH_DIR = _REPO_ROOT / "core" / "src" / "auth"
+if str(_AUTH_DIR) not in sys.path:
+    sys.path.insert(0, str(_AUTH_DIR))
+
+from admin_gate import AdminGate  # noqa: E402
 
 ALLOWED_MODES = {"horaire", "temps-reel"}
 
@@ -120,6 +130,21 @@ a {{ color: #005a9c; }}
     return html_content.encode("utf-8")
 
 
+_ADMIN_PAGE_HTML = (
+    "<!DOCTYPE html>\n"
+    '<html lang="fr">\n'
+    "<head>\n"
+    '<meta charset="utf-8">\n'
+    "<title>Admin OPSYS-AI</title>\n"
+    "</head>\n"
+    "<body>\n"
+    "  <header><h1>Admin OPSYS-AI</h1></header>\n"
+    "  <main><p>Accès autorisé.</p></main>\n"
+    "</body>\n"
+    "</html>"
+).encode("utf-8")
+
+
 class DashboardServer(ThreadingHTTPServer):
     allow_reuse_address = True
     daemon_threads = True
@@ -133,6 +158,7 @@ class DashboardServer(ThreadingHTTPServer):
     ):
         self.config_path = Path(config_path)
         self.modules_path = Path(modules_path)
+        self.admin_gate = AdminGate()   # initialisé avec l'environnement courant
         super().__init__((host, port), DashboardHandler)
 
 
@@ -143,9 +169,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
         pass
 
     def _send_problem(
-        self, status: int, title: str, allow: str | None = None
+        self, status: int, title: str, allow: str | None = None, detail: str | None = None
     ) -> None:
-        body = json.dumps({"status": status, "title": title}).encode("utf-8")
+        payload = {"status": status, "title": title}
+        if detail:
+            payload["detail"] = detail
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/problem+json")
         self.send_header("Content-Length", str(len(body)))
@@ -154,11 +183,54 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def do_GET(self) -> None:  # noqa: N802
-        config_path = self.server.config_path
-        modules_path = self.server.modules_path
+    def _handle_admin(self) -> None:
+        gate: AdminGate = self.server.admin_gate
+        client_ip = self.client_address[0]
 
+        # 1. Vérifier l'état de configuration en lecture seule (pas de sonde TOTP).
+        # Tant qu'aucun vrai code n'est fourni, verifier() n'est jamais appelé.
+        if not gate.est_configure():
+            self._send_problem(503, "MFA non configuré (fail-closed)", detail="mfa_non_configure")
+            return
+
+        # 2. L'en-tête TOTP est-il présent ?
+        totp_header = self.headers.get("X-Admin-Totp")
+        if totp_header is None:
+            # Répondre 401 avec WWW-Authenticate: TOTP
+            body = json.dumps({"status": 401, "title": "Authentification MFA requise"}).encode("utf-8")
+            self.send_response(401)
+            self.send_header("WWW-Authenticate", "TOTP")
+            self.send_header("Content-Type", "application/problem+json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        # 3. Vérifier le code TOTP
+        code = totp_header.strip()
+        result = gate.verifier(code, client_ip)
+
+        if result["autorise"]:
+            body = _ADMIN_PAGE_HTML
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        raison = result["raison"]
+        if raison in ("verrouille", "invalide", "rejoue"):
+            self._send_problem(403, "Accès refusé", detail=raison)
+        else:
+            # Par sécurité, toute autre raison (ne devrait pas arriver)
+            self._send_problem(403, "Accès refusé", detail=raison)
+
+    def do_GET(self) -> None:  # noqa: N802
         if self.path == "/":
+            config_path = self.server.config_path
+            modules_path = self.server.modules_path
+
             mode, mode_source = load_mode(config_path)
             modules, lisible = load_modules(modules_path)
             body = _render_html(mode, mode_source, modules)
@@ -168,6 +240,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
         elif self.path == "/health":
+            config_path = self.server.config_path
+            modules_path = self.server.modules_path
+
             mode, mode_source = load_mode(config_path)
             modules, lisible = load_modules(modules_path)
             data = {
@@ -184,6 +259,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+        elif self.path == "/admin":
+            self._handle_admin()
         else:
             self._send_problem(404, "Not Found")
 
