@@ -1,0 +1,85 @@
+name: Story PROOF
+description: Gabarit de story pour le projet OPSYS-AI (méthode PROOF)
+title: "[STORY] "
+labels: ["phase-0"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Pipeline A→G obligatoire — PREUVE: ou BLOCKED: ; T2/T3 = approbation Nathan ; jamais deux fronts sur la même story.**
+
+  - type: input
+    id: story_id
+    attributes:
+      label: Story ID
+      description: Identifiant unique de la story (ex. P0-5b, M7-S004-a)
+      placeholder: ex. P0-5b
+    validations:
+      required: true
+
+  - type: dropdown
+    id: risk_tier
+    attributes:
+      label: Risk Tier
+      description: Niveau de risque de la story
+      options:
+        - T0
+        - T1
+        - T2
+        - T3
+    validations:
+      required: true
+
+  - type: textarea
+    id: allowed_paths
+    attributes:
+      label: Allowed Paths
+      description: Chemins que la story PEUT modifier (un par ligne)
+      placeholder: ".github/ISSUE_TEMPLATE/"
+    validations:
+      required: true
+
+  - type: textarea
+    id: forbidden_paths
+    attributes:
+      label: Forbidden Paths
+      description: Chemins interdits à cette story
+      value: "registries/ledger/* ; docs/decisions/ ; secrets"
+
+  - type: input
+    id: depends_on
+    attributes:
+      label: Depends On
+      description: Numéros d'issues préalables (ex. #12, #15)
+      placeholder: ex. #12, #15
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: Critères d'acceptation testables (un par ligne)
+      placeholder: "- Le fichier X existe et est valide\n- Le test Y passe en GREEN"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: touches_ledger
+    attributes:
+      label: Touches Ledger
+      description: Cette story nécessite-t-elle une entrée dans le registre ?
+      options:
+        - "true"
+        - "false"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: front
+    attributes:
+      label: Front
+      description: Outil / front assigné à cette story
+      options:
+        - Claude Code + crew
+        - Copilot coding agent
+        - Cursor (pairing)
+        - Codex
