@@ -1,0 +1,12 @@
+fictif: true
+ville: Lévis
+type_travaux: extension
+date_fin: "2026-07-10"
+description_factuelle: >
+  Agrandissement d'un duplex existant par ajout d'une pièce de vie au
+  rez-de-chaussée. Fondations en béton coulé, charpente bois, bardage
+  extérieur en fibre-ciment, raccordement électrique et plomberie.
+  Aucune modification structurale de l'étage supérieur.
+photos:
+  - photos/avant.jpg
+  - photos/apres.jpg
