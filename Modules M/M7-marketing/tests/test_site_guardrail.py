@@ -407,3 +407,26 @@ def test_negative_G_18():
     with pytest.raises(guardrail.GuardrailViolation) as excinfo:
         guardrail.assert_valid(html, content=content)
     assert excinfo.value.code == "G-18"
+
+
+def test_positive_G_16_liens_nav():
+    """nav sombre mais avec règle nav a conforme -> aucun G-16"""
+    html = _html()
+    html = html.replace("nav { background-color: #e0e0e0; color: #000000; }",
+                        "nav { background-color: #1a1a1a; color: #ffffff; } nav a { color: #ffffff; }")
+    violations = guardrail.validate(html)
+    codes = [c for c, _ in violations]
+    assert "G-16" not in codes
+
+
+def test_negative_G_16_liens_nav():
+    """nav sombre sans règle nav a -> lien hérite a{color:#0000ee} contraste insuffisant -> G-16"""
+    html = _html()
+    html = html.replace("nav { background-color: #e0e0e0; color: #000000; }",
+                        "nav { background-color: #1a1a1a; color: #ffffff; }")
+    violations = guardrail.validate(html)
+    codes = [c for c, _ in violations]
+    assert "G-16" in codes
+    with pytest.raises(guardrail.GuardrailViolation) as excinfo:
+        guardrail.assert_valid(html)
+    assert excinfo.value.code == "G-16"

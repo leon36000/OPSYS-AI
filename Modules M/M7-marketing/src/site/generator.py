@@ -50,6 +50,7 @@ def render_html(content: dict) -> str:
     body {{ background-color: {colors['bg']}; color: {colors['fg']}; }}
     header {{ background-color: {colors['header_bg']}; color: {colors['header_fg']}; }}
     nav {{ background-color: {colors['nav_bg']}; color: {colors['nav_fg']}; }}
+    nav a {{ color: {colors['nav_fg']}; }}
     footer {{ background-color: {colors['footer_bg']}; color: {colors['footer_fg']}; }}
     a {{ color: {colors['link']}; }}"""
 

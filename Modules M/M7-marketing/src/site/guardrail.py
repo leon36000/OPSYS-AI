@@ -90,6 +90,9 @@ class _SiteValidator(html.parser.HTMLParser):
         self.script_ld_json_content: Optional[str] = None
         self.style_content: Optional[str] = None
         self.nav_aria_label_ok: bool = True   # True si tous les <nav> ont aria-label ou aria-labelledby
+        # new: anchors inside landmarks
+        self._landmark_stack: List[str] = []
+        self.anchors_in: set = set()   # noms de landmarks qui contiennent ≥1 <a>
         # temporaires pour parsing
         self._in_title: bool = False
         self._in_style: bool = False
@@ -169,6 +172,7 @@ class _SiteValidator(html.parser.HTMLParser):
         # landmarks
         elif tag_lower in ("header", "nav", "main", "footer"):
             self.landmarks.add(tag_lower)
+            self._landmark_stack.append(tag_lower)
 
         # <a>
         elif tag_lower == "a":
@@ -181,6 +185,9 @@ class _SiteValidator(html.parser.HTMLParser):
                     self.skip_link_target = href[1:]
             elif self.skip_link_target is None and href.startswith("#") and self.first_a_href_id is None:
                 self.first_a_href_id = href[1:]
+            # marquer les landmarks actuels comme contenant une ancre
+            for lm in self._landmark_stack:
+                self.anchors_in.add(lm)
 
         # <img>
         elif tag_lower == "img":
@@ -231,6 +238,10 @@ class _SiteValidator(html.parser.HTMLParser):
         elif tag_lower == "script" and self._in_script_ld:
             self._in_script_ld = False
             self.script_ld_json_content = "".join(self._script_buf).strip()
+        # dépiler landmark
+        if tag_lower in ("header", "nav", "main", "footer"):
+            if self._landmark_stack and self._landmark_stack[-1] == tag_lower:
+                self._landmark_stack.pop()
 
     def handle_data(self, data):
         if self._in_title:
@@ -264,7 +275,8 @@ class _SiteValidator(html.parser.HTMLParser):
 # ---------------------------------------------------------------------------
 def _parse_css_for_contrast(style_text: str) -> Dict[str, Dict[str, str]]:
     """
-    Extrait les propriétés color et background-color pour les sélecteurs simples.
+    Extrait les propriétés color et background-color pour les sélecteurs simples
+    et les sélecteurs composés à deux éléments (ex: nav a, header a, footer a).
     Retourne un dict: selector -> {prop: value}
     """
     if not style_text:
@@ -281,6 +293,8 @@ def _parse_css_for_contrast(style_text: str) -> Dict[str, Dict[str, str]]:
         bg_match = re.search(r'background-color\s*:\s*(#[0-9a-fA-F]{3,6})\s*;', body)
         for sel in selectors.split(","):
             sel = sel.strip().lower()
+            # normalise les espaces multiples en un seul espace
+            sel = re.sub(r'\s+', ' ', sel)
             if not sel:
                 continue
             if sel not in styles:
@@ -443,6 +457,26 @@ def validate(html_text: str, *, content: Optional[dict] = None, assets_dir: Opti
                     # couleur invalide → on ignore
                     pass
 
+        # Extended G-16: liens à l'intérieur de chaque landmark contenant des anchors
+        for landmark in ("nav", "header", "footer"):
+            if landmark not in parser.anchors_in:
+                continue
+            # couleur de lien effective : landmark a > a global
+            compound_key = f"{landmark} a"
+            simple_a = styles.get("a", {})
+            compound = styles.get(compound_key, {})
+            fg = compound.get("color") or simple_a.get("color")
+            # fond du landmark
+            lm_styles = styles.get(landmark, {})
+            bg = lm_styles.get("background-color")
+            if fg and bg:
+                try:
+                    ratio = contrast_ratio(fg, bg)
+                    if ratio < 7.0:
+                        violations.append(("G-16", f"Contraste liens {landmark}: {fg} sur {bg} → {ratio:.2f} (min 7.0 requis pour AAA)."))
+                except ValueError:
+                    pass
+
     # --- G-17 ---
     if "nav" in parser.landmarks and not parser.nav_aria_label_ok:
         violations.append(("G-17", "<nav> sans aria-label ni aria-labelledby non vide."))
@@ -461,4 +495,215 @@ def assert_valid(html_text: str, *, content: Optional[dict] = None, assets_dir: 
     vios = validate(html_text, content=content, assets_dir=assets_dir)
     if vios:
         code, detail = vios[0]
-        raise GuardrailViolation(code, detail)
+        raise GuardrailViolation(code, detail)# generator.py
+import html
+import json
+from pathlib import Path
+
+import yaml
+
+import guardrail
+
+REQUIRED_KEYS = {
+    "lang",
+    "title",
+    "description",
+    "canonical",
+    "theme_color",
+    "favicon",
+    "colors",
+    "org",
+    "nav_label",
+    "sections",
+}
+
+
+def load_content(path: str) -> dict:
+    """Charge et valide le fichier YAML, lève ValueError si une clé requise manque."""
+    with open(path, "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+    if not isinstance(data, dict):
+        raise ValueError("Le contenu YAML n'est pas un dictionnaire")
+    missing = [k for k in REQUIRED_KEYS if k not in data]
+    if missing:
+        raise ValueError(f"Clé(s) requise(s) manquante(s) : {', '.join(missing)}")
+    return data
+
+
+def render_html(content: dict) -> str:
+    """Génère un document HTML complet, conforme aux invariants du garde-fou."""
+    # Échappement de tous les textes provenant du contenu
+    title = html.escape(content["title"])
+    description = html.escape(content["description"])
+    canonical = html.escape(content["canonical"])
+    theme_color = html.escape(content["theme_color"])
+    favicon = html.escape(content["favicon"])
+    lang = html.escape(content["lang"])
+    nav_label = html.escape(content["nav_label"])
+    colors = content["colors"]
+    org = content["org"]
+
+    # Feuille de style
+    css = f"""\
+    body {{ background-color: {colors['bg']}; color: {colors['fg']}; }}
+    header {{ background-color: {colors['header_bg']}; color: {colors['header_fg']}; }}
+    nav {{ background-color: {colors['nav_bg']}; color: {colors['nav_fg']}; }}
+    nav a {{ color: {colors['nav_fg']}; }}
+    footer {{ background-color: {colors['footer_bg']}; color: {colors['footer_fg']}; }}
+    a {{ color: {colors['link']}; }}"""
+
+    # Données structurées JSON-LD
+    ld_data = {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": org["name"],
+        "url": org["url"],
+        "description": org["description"],
+    }
+    ld_json = json.dumps(ld_data, ensure_ascii=False, indent=2)
+
+    # Sections de contenu
+    sections_html = ""
+    for sec in content["sections"]:
+        sec_id = html.escape(sec["id"])
+        heading = html.escape(sec["heading"])
+        sections_html += f'    <section id="{sec_id}">\n'
+        sections_html += f'      <h2>{heading}</h2>\n'
+        for para in sec["paragraphs"]:
+            sections_html += f"      <p>{html.escape(para)}</p>\n"
+        sections_html += "    </section>\n"
+
+    # Liens de navigation
+    nav_items = ""
+    for sec in content["sections"]:
+        sec_id = html.escape(sec["id"])
+        heading = html.escape(sec["heading"])
+        nav_items += f'        <li><a href="#{sec_id}">{heading}</a></li>\n'
+
+    # Assemblage du document HTML complet
+    return f"""<!DOCTYPE html>
+<html lang="{lang}">
+<head>
+  <meta charset="utf-8">
+  <title>{title}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="{description}">
+  <link rel="canonical" href="{canonical}">
+  <meta name="theme-color" content="{theme_color}">
+  <link rel="icon" href="{favicon}">
+  <style>
+{css}
+  </style>
+  <script type="application/ld+json">
+{ld_json}
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#contenu">Aller au contenu</a>
+  <header>
+    <h1>{title}</h1>
+  </header>
+  <nav aria-label="{nav_label}">
+    <ul>
+{nav_items}    </ul>
+  </nav>
+  <main id="contenu">
+{sections_html}  </main>
+  <footer>
+    <p>© OPSYS-AI — Tous droits réservés.</p>
+  </footer>
+</body>
+</html>"""
+
+
+def generate(content_path: str, out_path: str) -> str:
+    """Charge le contenu, génère le HTML, valide avec le garde-fou et écrit le fichier en sortie."""
+    content = load_content(content_path)
+    html_out = render_html(content)
+    guardrail.assert_valid(html_out, content=content)
+    Path(out_path).write_text(html_out, encoding="utf-8")
+    return html_out# tests_append.py
+import sys
+from pathlib import Path
+_SITE = Path(__file__).resolve().parents[1] / "src" / "site"
+if str(_SITE) not in sys.path:
+    sys.path.insert(0, str(_SITE))
+import guardrail  # noqa: E402
+import pytest
+
+
+def _html(**overrides) -> str:
+    """Document HTML conforme minimal servant de référence pour les tests."""
+    return f"""<!DOCTYPE html>
+<html lang="{overrides.get('lang', 'fr')}">
+<head>
+  <meta charset="utf-8">
+  <title>{overrides.get('title', 'Site Test AAA')}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="{overrides.get('description', 'Un site de test respectant les contrats WCAG AAA avec suffisamment de texte pour valider les invariants.')}">
+  <link rel="canonical" href="{overrides.get('canonical', 'https://example.com/page')}">
+  <meta name="theme-color" content="{overrides.get('theme_color', '#0044cc')}">
+  <link rel="icon" href="{overrides.get('favicon', 'favicon.svg')}">
+  <style>
+    body {{ background-color: {overrides.get('bg', '#ffffff')}; color: {overrides.get('fg', '#000000')}; }}
+    header {{ background-color: {overrides.get('header_bg', '#f0f0f0')}; color: {overrides.get('header_fg', '#000000')}; }}
+    nav {{ background-color: {overrides.get('nav_bg', '#e0e0e0')}; color: {overrides.get('nav_fg', '#000000')}; }}
+    footer {{ background-color: {overrides.get('footer_bg', '#d0d0d0')}; color: {overrides.get('footer_fg', '#000000')}; }}
+    a {{ color: {overrides.get('link', '#0000ee')}; }}
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Aller au contenu principal</a>
+  <header>
+    <h1>{overrides.get('h1', 'Titre Principal')}</h1>
+  </header>
+  <nav aria-label="Navigation principale">
+    <ul><li><a href="#section1">Section 1</a></li></ul>
+  </nav>
+  <main id="main">
+    <h2>{overrides.get('h2', 'Section 1')}</h2>
+    <p>{overrides.get('p', 'Contenu de la section.')}</p>
+  </main>
+  <footer>
+    <p>© 2025 Organisation Test</p>
+  </footer>
+  <script type="application/ld+json">
+  {{
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Org Test",
+    "url": "https://example.com",
+    "description": "Une organisation de test"
+  }}
+  </script>
+</body>
+</html>"""
+
+
+def test_positive_G_16_liens_nav():
+    """nav a explicite conforme -> aucun G-16"""
+    html = _html()
+    # Insérer la règle nav a explicite et remplacer fond nav par sombre
+    html = html.replace(
+        'nav {{ background-color: #e0e0e0; color: #000000; }}',
+        'nav {{ background-color: #1a1a1a; color: #ffffff; }}\n    nav a {{ color: #ffffff; }}'
+    )
+    violations = guardrail.validate(html)
+    codes = [c for c, _ in violations]
+    assert "G-16" not in codes
+
+
+def test_negative_G_16_liens_nav():
+    """fond nav sombre + a global clair-faible -> G-16"""
+    html = _html()
+    # Remplacer la ligne nav par fond sombre, SANS règle nav a -> retombe sur a global #0000ee
+    html = html.replace(
+        'nav {{ background-color: #e0e0e0; color: #000000; }}',
+        'nav {{ background-color: #1a1a1a; color: #ffffff; }}'
+    )
+    violations = guardrail.validate(html)
+    codes = [c for c, _ in violations]
+    assert "G-16" in codes
+    with pytest.raises(guardrail.GuardrailViolation) as excinfo:
+        guardrail.assert_valid(html)
+    assert excinfo.value.code == "G-16"
