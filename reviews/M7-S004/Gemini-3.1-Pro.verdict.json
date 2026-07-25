@@ -1,20 +1,20 @@
 {
- "verdict": "APPROVE",
+ "verdict": "REJECT",
  "objections": [
   {
-   "severite": "mineure",
-   "fichier": "Modules M/M7-marketing/src/site/generator.py",
-   "description": "La fonction generate() appelle guardrail.assert_valid() sans fournir l'argument assets_dir. La vérification de l'existence physique du favicon sur le disque (partie de la règle G-08) est donc silencieusement ignorée lors de la génération.",
-   "preuve": "Ligne 123 : guardrail.assert_valid(html_out, content=content)"
+   "severite": "critique",
+   "fichier": "Modules M/M7-marketing/src/site/guardrail.py",
+   "description": "Le fichier guardrail.py est gravement corrompu. Le contenu d'une ancienne version de generator.py et d'un fichier de tests (tests_append.py) a été concaténé directement à la fin du code de guardrail.py. Cela inclut du code de production redondant, des imports circulaires (import guardrail) et des tests dans le code source.",
+   "preuve": "Dans le diff de guardrail.py, la dernière fonction se termine par `raise GuardrailViolation(code, detail)# generator.py`, suivi immédiatement par `import html`, la redéfinition de `def generate(...)`, puis `# tests_append.py` et des fonctions de test comme `def test_positive_G_16_liens_nav():`."
   },
   {
    "severite": "mineure",
-   "fichier": "Manifeste vs Diff",
-   "description": "Le diff inclut des fichiers en dehors des allowed_paths définis dans le manifeste de la story (qui limite à Modules M/M7-marketing/src/site/ et Modules M/M7-marketing/tests/). Bien qu'il s'agisse probablement d'artefacts générés par le pipeline (ADR, verdicts, story), cela constitue techniquement une déviation du périmètre autorisé.",
-   "preuve": "Présence de reviews/M7-S004/ADR-M7-S004.md et stories/M7-S004-site-quadruple-a.md dans le diff."
+   "fichier": "Modules M/M7-marketing/src/site/static/index.html",
+   "description": "Le fichier HTML généré ne se termine pas par un saut de ligne (newline final).",
+   "preuve": "Présence de `\\ No newline at end of file` à la fin du diff de static/index.html."
   }
  ],
- "date_heure": "2026-07-25T07:58:32.864547+00:00",
- "prompt_sha256": "151d46c2e4e8a07a73891b67ba5dd1dc29e841543a46b399040cfbb6b6286a06",
+ "date_heure": "2026-07-25T08:03:16.803520+00:00",
+ "prompt_sha256": "98f0eb1f571ded40a8c5924ce287f6d47e5d2a85c0bcc7e2dc03fb6ddd67c2dd",
  "reviewer_model": "Gemini-3.1-Pro"
 }

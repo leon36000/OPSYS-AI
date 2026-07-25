@@ -1,0 +1,62 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M7-marketing/src/site/generator.py",
+   "description": "L'appel à guardrail.assert_valid dans generate() omet le paramètre assets_dir. La règle G-08 (vérification de l'existence du favicon sur disque, branche `elif assets_dir is not None`) est donc silencieusement désactivée lors de la génération réelle, affaiblissant le garde-fou à chaque génération. Objection du round 1 (Qwen3.7-Max, mineure) non corrigée.",
+   "preuve": "generator.py fonction generate() : `guardrail.assert_valid(html_out, content=content)` — aucun paramètre assets_dir passé, alors que guardrail.py validate() lignes G-08 contient `elif assets_dir is not None: if not any(os.path.isfile(...))`."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "stories/M7-S004-site-quadruple-a.md + reviews/M7-S004/ADR-M7-S004.md + reviews/M7-S004/round-1/*.verdict.json",
+   "description": "Le manifeste de la story déclare allowed_paths = [Modules M/M7-marketing/src/site/, Modules M/M7-marketing/tests/]. Le diff crée des fichiers hors de ces chemins : reviews/M7-S004/ADR-M7-S004.md, reviews/M7-S004/round-1/Gemini-3.1-Pro.verdict.json, reviews/M7-S004/round-1/MiniMax-M3.verdict.json, reviews/M7-S004/round-1/Qwen3.7-Max.verdict.json, stories/M7-S004-site-quadruple-a.md. Ni la story ni l'ADR n'exemptent explicitement les documents méta (story, ADR, verdicts) de la contrainte allowed_paths. La note parenthétique de la story ne justifie que le chemin tests/, pas reviews/ ni stories/.",
+   "preuve": "stories/M7-S004-site-quadruple-a.md manifeste : `allowed_paths: [Modules M/M7-marketing/src/site/, Modules M/M7-marketing/tests/]`. Diff : `new file mode 100644 ... reviews/M7-S004/ADR-M7-S004.md`, `... reviews/M7-S004/round-1/*.verdict.json`, `... stories/M7-S004-site-quadruple-a.md`."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "reviews/M7-S004/ADR-M7-S004.md",
+   "description": "Le diff de l'ADR est tronqué — il se termine par 'existe dans l'' (mi-phrase). Le reviewer ne peut pas vérifier l'intégralité du document de décision architecturale, notamment les sections sur le périmètre différé T3, les critères non couverts, et les conditions de ratification.",
+   "preuve": "Diff ADR-M7-S004.md : dernière ligne `+ l'asset référencé existe dans l'` — phrase incomplète, le diff s'arrête au milieu de la section G-08."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "tests/test_site_generator.py",
+   "description": "Le test test_sortie_conforme utilise MINIMAL_CONTENT_DICT (contenu de test) et non le content.yaml réel du projet. Le critère d'acceptation 4 dit 'La sortie régénérée static/index.html passe validate() = 0 violation, contenu réel OPSYS-AI' — cela est affirmé dans le context pack (validate(assets_dir=static) = []) mais n'est pas couvert par un test automatisé reproductible. Si quelqu'un modifie content.yaml de façon à produire un index.html non conforme, la CI ne le détectera pas sans lancer generate() manuellement.",
+   "preuve": "test_site_generator.py test_sortie_conforme : utilise MINIMAL_CONTENT_DICT écrit dans un fichier temporaire tmp_path, pas src/site/content.yaml ni src/site/static/index.html."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/src/site/static/index.html",
+   "description": "Le JSON-LD de la page régénérée a perdu le champ 'inLanguage': 'fr' qui était présent dans la version précédente. Le garde-fou ne vérifie pas ce champ (donc pas de violation G-15), mais c'est une régression en termes de complétude schema.org et de cohérence avec le contenu multilingue (le site est en fr).",
+   "preuve": "Diff static/index.html : ancienne version JSON-LD contient `\"inLanguage\": \"fr\"` ; nouvelle version JSON-LD ne contient que @context, @type, name, url, description."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/src/site/content.yaml",
+   "description": "Le contenu canonique M7-S004a a été modifié, pas seulement transcrit. Les headings 'Approche' → 'Notre approche' et 'Modules disponibles' → 'Modules' diffèrent de la version précédente de static/index.html. Le h1 est passé de 'OPSYS-AI' (avec tagline séparée en <p>) à 'OPSYS-AI — Automatisation d'entreprise par IA' (combiné dans le h1). La story dit 'contenu canonique M7-S004a transcrit' mais le contenu diverge sensiblement.",
+   "preuve": "Diff content.yaml : heading 'Notre approche' (vs ancien 'Approche'), heading 'Modules' (vs ancien 'Modules disponibles'). Diff static/index.html : h1 'OPSYS-AI — Automatisation d&#x27;entreprise par IA' (vs ancien 'OPSYS-AI' + <p> tagline séparé)."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/src/site/static/index.html",
+   "description": "Le fichier régénéré n'a pas de newline final. Le diff affiche '\\ No newline at end of file'. Les fichiers HTML servis sont généralement attendus avec un newline final (POSIX, robustesse des outils de diff et de concatenation).",
+   "preuve": "Diff static/index.html : `\\ No newline at end of file` en pied de diff."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "tests_append.py (fichier stray dans le diff)",
+   "description": "Le diff contient un bloc '# tests_append.py' suivi du contenu de deux tests (test_positive_G_16_liens_nav et test_negative_G_16_liens_nav) qui dupliquent exactement les tests déjà présents dans test_site_guardrail.py. Ce bloc n'a pas d'en-tête diff --git propre et semble être un artefact de formatage ou un fichier stray qui ne devrait pas être dans le diff.",
+   "preuve": "Diff : après la dernière ligne de guardrail.py, apparaît `# tests_append.py` suivi de `import sys`, `def _html(**overrides)`, `def test_positive_G_16_liens_nav()`, `def test_negative_G_16_liens_nav()` — contenu identique à test_site_guardrail.py lignes 419-432, sans en-tête `diff --git`."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/src/site/guardrail.py",
+   "description": "La dernière ligne de guardrail.py dans le diff a '# generator.py' appended au code Python, ce qui est suspect. Si c'est un artefact de formatage du diff (séparateur entre fichiers), le fichier réel est probablement correct ; si c'est le contenu réel, guardrail.py est corrompu avec un commentaire parasite en fin de dernière ligne de code. Le reviewer ne peut pas trancher sans accès au fichier final sur disque.",
+   "preuve": "Diff guardrail.py ligne 709 : `+        raise GuardrailViolation(code, detail)# generator.py` — le commentaire `# generator.py` est appended directement à la fin de l'instruction raise, sans espace, ce qui est inhabituel pour un commentaire Python légitime."
+  }
+ ],
+ "date_heure": "2026-07-25T07:59:04.367286+00:00",
+ "prompt_sha256": "151d46c2e4e8a07a73891b67ba5dd1dc29e841543a46b399040cfbb6b6286a06",
+ "reviewer_model": "MiniMax-M3"
+}

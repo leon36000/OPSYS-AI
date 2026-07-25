@@ -2,37 +2,25 @@
  "verdict": "REJECT",
  "objections": [
   {
-   "severite": "majeure",
-   "fichier": "stories/M7-S004-site-quadruple-a.md, reviews/M7-S004/ADR-M7-S004.md",
-   "description": "Le manifeste de la story définit strictement `allowed_paths: [Modules M/M7-marketing/src/site/, Modules M/M7-marketing/tests/]`. Le diff inclut la création de fichiers en dehors de ces chemins. L'agent ne doit pas modifier ou créer des fichiers hors du périmètre autorisé sans exemption explicite.",
-   "preuve": "Manifeste ligne 6 : `allowed_paths: [Modules M/M7-marketing/src/site/, Modules M/M7-marketing/tests/]`. Diff : `new file mode 100644 ... stories/M7-S004-site-quadruple-a.md` et `reviews/M7-S004/ADR-M7-S004.md`."
-  },
-  {
-   "severite": "majeure",
-   "fichier": "Modules M/M7-marketing/src/site/generator.py",
-   "description": "L'appel à `guardrail.assert_valid` dans la fonction `generate()` omet le paramètre `assets_dir`. La règle G-08 (vérification de l'existence du favicon sur disque) est donc silencieusement désactivée lors de la génération réelle, affaiblissant le garde-fou à chaque génération.",
-   "preuve": "generator.py ligne 123 : `guardrail.assert_valid(html_out, content=content)` au lieu de passer `assets_dir`."
-  },
-  {
-   "severite": "mineure",
-   "fichier": "Modules M/M7-marketing/tests/test_site_generator.py",
-   "description": "Le test `test_sortie_conforme` utilise un contenu fictif (`MINIMAL_CONTENT_DICT`) et non le `content.yaml` réel. Le critère 4 exige que la sortie régénérée avec le contenu réel passe `validate()` sans violation, mais cela n'est pas automatisé dans la CI.",
-   "preuve": "test_site_generator.py lignes 56-67 : `test_sortie_conforme` utilise `MINIMAL_CONTENT_DICT` écrit dans un fichier temporaire, pas `src/site/content.yaml`."
-  },
-  {
-   "severite": "mineure",
-   "fichier": "reviews/M7-S004/ADR-M7-S004.md",
-   "description": "Le fichier ADR est tronqué à la fin du diff. La phrase s'arrête brutalement, empêchant la vérification de l'intégralité du document.",
-   "preuve": "Dernière ligne du diff de `ADR-M7-S004.md` : `+- **G-08** : <link rel=\"icon\"> déclaré et l'asset référencé existe dans l'`."
+   "severite": "critique",
+   "fichier": "Modules M/M7-marketing/src/site/guardrail.py",
+   "description": "Le diff est malformé et corrompt le fichier guardrail.py : les contenus de generator.py (une ancienne version sans le correctif R2 pour assets_dir) et de tests_append.py sont concaténés à la suite du code de guardrail.py sans en-tête 'diff --git'. Cela injecte des imports circulaires ('import guardrail'), des redéfinitions de fonctions et du code de test directement dans le module guardrail, ce qui provoquera des erreurs d'exécution ou de chargement.",
+   "preuve": "Fin du diff de guardrail.py : '+        raise GuardrailViolation(code, detail)# generator.py' suivi de '+import html', '+import guardrail', puis '+    return html_out# tests_append.py'."
   },
   {
    "severite": "mineure",
    "fichier": "Modules M/M7-marketing/src/site/static/index.html",
-   "description": "Le fichier régénéré ne se termine pas par un saut de ligne (newline final).",
-   "preuve": "Diff de `static/index.html` : `\\ No newline at end of file` en pied de diff."
+   "description": "Le fichier HTML régénéré ne se termine pas par un saut de ligne (newline final).",
+   "preuve": "Diff de static/index.html : '\\ No newline at end of file' en pied de fichier."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/src/site/static/index.html",
+   "description": "Régression schema.org : le champ 'inLanguage' a été supprimé du bloc JSON-LD par rapport à la version précédente.",
+   "preuve": "Diff static/index.html : l'ancien JSON-LD contenait '\"inLanguage\": \"fr\"', le nouveau ne contient plus ce champ."
   }
  ],
- "date_heure": "2026-07-25T07:59:44.762978+00:00",
- "prompt_sha256": "151d46c2e4e8a07a73891b67ba5dd1dc29e841543a46b399040cfbb6b6286a06",
+ "date_heure": "2026-07-25T08:04:36.748790+00:00",
+ "prompt_sha256": "98f0eb1f571ded40a8c5924ce287f6d47e5d2a85c0bcc7e2dc03fb6ddd67c2dd",
  "reviewer_model": "Qwen3.7-Max"
 }
