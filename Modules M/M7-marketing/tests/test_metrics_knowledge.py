@@ -39,6 +39,13 @@ class TestMetricsKnowledge(unittest.TestCase):
             "m7_roi_par_canal",
             "m7_part_citations_ia",
             "m7_taux_doc_none",
+            # M7-S009 — Reputation Engine
+            "m7_rep_total_avis",
+            "m7_rep_repartition_notes",
+            "m7_rep_note_moyenne",
+            "m7_rep_taux_reponse",
+            "m7_rep_repartition_cats",
+            "m7_rep_delai_moyen_jours",
         }
         required_fields = {
             "id",
