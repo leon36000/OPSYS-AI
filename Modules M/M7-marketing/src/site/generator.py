@@ -1,5 +1,6 @@
 import html
 import json
+import os
 from pathlib import Path
 
 import yaml
@@ -122,6 +123,10 @@ def generate(content_path: str, out_path: str) -> str:
     """Charge le contenu, génère le HTML, valide avec le garde-fou et écrit le fichier en sortie."""
     content = load_content(content_path)
     html_out = render_html(content)
-    guardrail.assert_valid(html_out, content=content)
+    guardrail.assert_valid(
+        html_out,
+        content=content,
+        assets_dir=os.path.dirname(os.path.abspath(str(out_path)))
+    )
     Path(out_path).write_text(html_out, encoding="utf-8")
     return html_out

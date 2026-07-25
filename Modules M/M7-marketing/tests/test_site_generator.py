@@ -106,3 +106,16 @@ def test_contrast_ratio_reference():
     # symétrie
     assert guardrail.contrast_ratio("#ffffff", "#000000") == r_black_white
     assert guardrail.contrast_ratio("#ffffff", "#767676") == r_grey_white
+
+
+# ---------------------------------------------------------------------------
+# Critère d'acceptation 4 : le contenu RÉEL du dépôt est conforme (R2)
+# ---------------------------------------------------------------------------
+def test_site_reel_conforme():
+    """Critère d'acceptation 4 : le content.yaml RÉEL du dépôt, rendu puis validé avec
+    assets_dir=static réel, donne zéro violation."""
+    site_dir = _SITE  # défini en tête du fichier de tests (Path vers src/site)
+    content = generator.load_content(str(site_dir / "content.yaml"))
+    html_out = generator.render_html(content)
+    violations = guardrail.validate(html_out, content=content, assets_dir=str(site_dir / "static"))
+    assert violations == [], f"Le site réel doit être conforme : {violations}"

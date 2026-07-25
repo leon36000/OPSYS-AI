@@ -56,3 +56,43 @@ Chaque règle porte un identifiant stable (G-xx) référencé dans les violation
 - **G-06** : `<link rel="canonical">` présent, URL absolue `https://`.
 - **G-07** : `<meta name="theme-color">` présent, couleur hexadécimale valide.
 - **G-08** : `<link rel="icon">` déclaré et l'asset référencé existe dans l'
+
+---
+
+> **NOTE DE COMPLÉTION (R2, journalisée)** : la génération initiale de cet ADR par l'architecte
+> (Kimi-K3) a été **tronquée ici** (plafond de tokens atteint en G-08, relevé en revue scellée
+> round 2 — objection fondée). Les sections 3 à 5 n'ont pas été régénérées ; elles sont
+> **matérialisées par le contrat d'interface exécutoire ci-dessous**, rédigé à partir des décisions
+> D1–D4 et §2 ci-dessus, qui a servi de spécification unique aux codeurs et aux 43 tests.
+> Rien dans cette annexe ne contredit les sections générées par l'architecte.
+
+## Annexe A — Contrat d'interface exécutoire (sections 3–5 matérialisées)
+
+### A.3 Invariants du garde-fou (G-01…G-18, chacun = 1 test positif + 1 négatif)
+G-01 un seul `<html lang>` non vide · G-02 un seul `<title>` [10,70] · G-03 meta charset utf-8 ·
+G-04 viewport sans `user-scalable=no` ni `maximum-scale<2` · G-05 meta description [50,300] ·
+G-06 canonical https absolu · G-07 theme-color hex valide · G-08 icon déclarée + existence disque si
+`assets_dir` · G-09 exactement un h1 · G-10 ordre des titres sans saut · G-11 landmarks
+header/nav/main/footer · G-12 skip-link vers id existant · G-13 alt non vide sur toute img ·
+G-14 zéro handler inline / `javascript:` · G-15 JSON-LD Organization valide (name/url/description) ·
+G-16 contraste ≥ 7:1 (AAA, formule WCAG exacte) pour body/header/nav/footer (fg/bg), liens vs fond
+de `body` ET liens PAR LANDMARK (nav/header/footer, sélecteur composé `nav a` ou repli `a`) —
+extension R1 sur défaut réel 2.13:1 · G-17 nav avec aria-label(ledby) · G-18 cohérence lang
+html↔content.
+
+### A.4 Structure & interfaces
+`src/site/{content.yaml, generator.py, guardrail.py, static/}` ; tests dans
+`Modules M/M7-marketing/tests/` (seul chemin découvert par le job CI protégé `gates` — condition de
+prouvabilité). API : `validate(html, *, content=None, assets_dir=None) -> list[(code, detail)]`
+trié par code, ne lève pas ; `assert_valid(...)` lève `GuardrailViolation(code, detail)` sur la
+première ; `load_content` fail-closed sur clé manquante ; `render_html` pur/déterministe
+(SHA-256 stable prouvé par test) ; `generate` refuse d'écrire à la moindre violation et passe
+`assets_dir=dirname(out_path)` (R2 — le contrôle disque G-08 est actif à CHAQUE génération).
+
+### A.5 Risques & parades
+R-M7S004-1 « proxy ≠ Lighthouse réel » → interdiction de toute mention « Lighthouse 100 » sans
+mesure Chrome headless (différée T3, session infra) ; formulation contractuelle : « sous-ensemble
+décidable statiquement vérifié à chaque génération ». R-M7S004-2 « contenu inventé par un modèle »
+→ transcription du canon M7-S004a uniquement (hallucination « ForgeAI » du 1er jet détectée et
+éliminée, cf. journal PR #46). R-M7S004-3 « dérive de ré-émission crew » → correctifs par patch
+ciblé + restauration git de la version verte (journalisé R1/R2).
