@@ -15,6 +15,9 @@ from pathlib import Path
 
 import yaml
 
+# Import plat — classifier est dans le même dossier (ajouté au sys.path par les tests)
+import classifier as _classifier
+
 # ---------------------------------------------------------------------------
 # Gabarits par catégorie (Brand Core — ton professionnel, signature nom marque)
 # ---------------------------------------------------------------------------
@@ -112,10 +115,9 @@ def construire_reponse(
     if not avis_id:
         raise ValueError("L'avis doit porter un identifiant 'id'.")
 
-    from classifier import CATEGORIES  # import plat (même dossier, ajouté au sys.path par tests)
-    if categorie not in CATEGORIES:
+    if categorie not in _classifier.CATEGORIES:
         raise ValueError(
-            f"Catégorie inconnue : {categorie!r} (attendu : {sorted(CATEGORIES)})"
+            f"Catégorie inconnue : {categorie!r} (attendu : {sorted(_classifier.CATEGORIES)})"
         )
 
     brand_name = brand.get("name", "").strip()

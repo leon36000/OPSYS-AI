@@ -21,6 +21,10 @@ for _p in (str(_REPUTATION),):
 
 import response_builder  # noqa: E402
 
+# Plage valide du niveau de validation dans la file 0-6
+_NIVEAU_VALIDATION_MIN = 0
+_NIVEAU_VALIDATION_MAX = 6
+
 # ---------------------------------------------------------------------------
 # Données de test
 # ---------------------------------------------------------------------------
@@ -102,10 +106,10 @@ def test_reponse_texte_non_vide():
 
 
 def test_reponse_niveau_validation_dans_file():
-    """niveau_validation est un int dans [0, 6]."""
+    """niveau_validation est un int dans [_NIVEAU_VALIDATION_MIN, _NIVEAU_VALIDATION_MAX]."""
     rep = response_builder.construire_reponse(_AVIS_BASE, "eloge", _BRAND)
     assert isinstance(rep["niveau_validation"], int)
-    assert 0 <= rep["niveau_validation"] <= 6
+    assert _NIVEAU_VALIDATION_MIN <= rep["niveau_validation"] <= _NIVEAU_VALIDATION_MAX
 
 
 def test_reponse_niveau_validation_personnalisable():

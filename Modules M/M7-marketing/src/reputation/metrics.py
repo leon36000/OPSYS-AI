@@ -15,6 +15,10 @@ from __future__ import annotations
 from collections import Counter
 from datetime import date
 
+# Plage valide des notes (alignée sur classifier.py)
+_NOTE_MIN: int = 1
+_NOTE_MAX: int = 5
+
 
 def calculer_repartition_notes(avis_list: list[dict]) -> dict[int, int]:
     """Retourne un dict {note: nombre} pour les notes de 1 à 5.
@@ -22,7 +26,7 @@ def calculer_repartition_notes(avis_list: list[dict]) -> dict[int, int]:
     Les notes absentes de la liste sont représentées avec la valeur 0.
     """
     compteur = Counter(a.get("note") for a in avis_list if isinstance(a.get("note"), int))
-    return {note: compteur.get(note, 0) for note in range(1, 6)}
+    return {note: compteur.get(note, 0) for note in range(_NOTE_MIN, _NOTE_MAX + 1)}
 
 
 def calculer_note_moyenne(avis_list: list[dict]) -> float:

@@ -91,6 +91,10 @@ _MOTS_ELOGE: frozenset[str] = frozenset(
 # Catégories valides exposées publiquement
 CATEGORIES = frozenset({"litige", "urgence", "eloge", "neutre"})
 
+# Plage valide des notes (contrat des fixtures S008a)
+NOTE_MIN: int = 1
+NOTE_MAX: int = 5
+
 
 def _contient_mot(texte_lower: str, mots: frozenset[str]) -> bool:
     """Retourne True si au moins un mot (ou expression) figure dans le texte."""
@@ -116,9 +120,9 @@ def classifier_avis(avis: dict) -> str:
     ValueError : si ``note`` est absente ou hors de [1, 5].
     """
     note = avis.get("note")
-    if note is None or not isinstance(note, int) or not (1 <= note <= 5):
+    if note is None or not isinstance(note, int) or not (NOTE_MIN <= note <= NOTE_MAX):
         raise ValueError(
-            f"note invalide (attendu int 1-5, reçu {note!r}) pour l'avis {avis.get('id')!r}"
+            f"note invalide (attendu int {NOTE_MIN}-{NOTE_MAX}, reçu {note!r}) pour l'avis {avis.get('id')!r}"
         )
 
     texte = (avis.get("texte") or "").lower()
