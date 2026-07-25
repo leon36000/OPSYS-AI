@@ -1,20 +1,7 @@
 {
  "verdict": "APPROVE",
- "objections": [
-  {
-   "severite": "mineure",
-   "fichier": "Modules M/M7-marketing/src/workflows/chantier_social.py",
-   "description": "Le nom de la fonction principale est 'orchestrer' au lieu de 'orchestrer_chantier_vers_social' tel que mentionné dans le texte de l'ADR.",
-   "preuve": "Ligne 30 : def orchestrer("
-  },
-  {
-   "severite": "mineure",
-   "fichier": "Modules M/M7-marketing/src/workflows/chantier_social.py",
-   "description": "L'ADR stipule que les exceptions autres que NotAutorise (ex: AdapterDisabled) doivent être 're-levées pour signaler une anomalie non prévue'. Le code les capture et retourne le dictionnaire normalement, ce qui contredit le texte de l'ADR mais s'aligne parfaitement avec le comportement attendu par le test TestGatingFlagOff.",
-   "preuve": "Lignes 174-190 : except AdapterDisabled as e: [...] except Exception as e: [...] return {...}"
-  }
- ],
- "date_heure": "2026-07-25T22:51:53.317364+00:00",
- "prompt_sha256": "293160ec6182c23b1f25fc73f9a207f08507e5fe4a73cb14efa8a8b575abb669",
+ "objections": [],
+ "date_heure": "2026-07-25T23:00:26.108250+00:00",
+ "prompt_sha256": "4d14ff6602e2d9c9a7f4601ce46e0ee62c086d2eb6d49f0399b64fd056a26e86",
  "reviewer_model": "Gemini-3.1-Pro"
 }
