@@ -1,0 +1,127 @@
+# Calendrier saisonnier — construction et rénovation résidentielle au Québec
+# Source : sens commun sectoriel, cycle climatique québécois reconnu.
+# Aucune statistique chiffrée inventée — données qualitatives uniquement.
+schema_version: 1
+module: M7-marketing
+artefact: calendrier-saisons-construction-quebec
+langue: fr
+
+saisons:
+  - id: hiver
+    nom: "Hiver"
+    mois_debut: 12
+    mois_fin: 2
+    description: >
+      Période de froid intense. Les travaux extérieurs sont limités ; la demande
+      se concentre sur les services d'urgence et la protection hivernale.
+    themes_marketing:
+      - "Déneigement résidentiel et commercial"
+      - "Déglaçage toiture et gouttières"
+      - "Urgences plomberie (gel de tuyaux)"
+      - "Chauffage et entretien systèmes CVCA"
+      - "Planification des travaux de printemps"
+
+  - id: printemps
+    nom: "Printemps"
+    mois_debut: 3
+    mois_fin: 5
+    description: >
+      Saison de reprise intense après l'hiver. La demande explose pour les
+      inspections et réparations post-hiver, notamment toiture et fondations.
+    themes_marketing:
+      - "Inspection et réparation toiture (post-hiver)"
+      - "Nettoyage et déblaiement printanier"
+      - "Réparations fondations et drainage"
+      - "Remplacement gouttières et descentes pluviales"
+      - "Terrasses et clôtures : début de saison"
+      - "Peinture extérieure et revêtements"
+
+  - id: ete
+    nom: "Été"
+    mois_debut: 6
+    mois_fin: 8
+    description: >
+      Haute saison des travaux extérieurs. Fenêtre optimale pour les projets
+      d'envergure : nouvelles constructions, aménagements paysagers, rénovations.
+    themes_marketing:
+      - "Paysagement et aménagement extérieur"
+      - "Construction de terrasses et pergolas"
+      - "Pose de revêtements de sol extérieur"
+      - "Travaux de maçonnerie et béton"
+      - "Nouvelles constructions résidentielles"
+      - "Piscines et spas : installation et entretien"
+      - "Fenêtres et portes : remplacement"
+
+  - id: automne
+    nom: "Automne"
+    mois_debut: 9
+    mois_fin: 11
+    description: >
+      Dernière fenêtre avant le gel. Priorité à la protection hivernale,
+      à l'isolation et au calfeutrage avant les températures négatives.
+    themes_marketing:
+      - "Isolation thermique (sous-sol, greniers, murs)"
+      - "Calfeutrage et imperméabilisation"
+      - "Entretien et nettoyage gouttières (feuilles)"
+      - "Inspection toiture avant hiver"
+      - "Remplacement fenêtres et portes (avant gel)"
+      - "Préparation systèmes de chauffage"
+      - "Travaux de peinture intérieure"
+
+fenetres_marketing:
+  - id: fw-transition-hiver-printemps
+    nom: "Transition hiver–printemps"
+    mois_debut: 2
+    mois_fin: 3
+    saison_reference: hiver
+    priorite: haute
+    objectif: >
+      Capter les réservations de travaux printaniers avant la haute saison ;
+      campagnes de planification et de devis anticipés.
+    themes:
+      - "Réservez votre inspection toiture dès maintenant"
+      - "Carnets de chantier : planifiez vos travaux de printemps"
+      - "Offres de pré-saison pour rénovations extérieures"
+
+  - id: fw-haute-saison-estivale
+    nom: "Haute saison estivale"
+    mois_debut: 6
+    mois_fin: 8
+    saison_reference: ete
+    priorite: haute
+    objectif: >
+      Maximiser la visibilité pour les projets d'envergure ; mettre en avant
+      les délais de livraison et la disponibilité des équipes.
+    themes:
+      - "Profitez de l'été pour vos projets extérieurs"
+      - "Terrasses, paysagement : réalisez votre projet maintenant"
+      - "Disponibilité d'équipes qualifiées cet été"
+
+  - id: fw-preparation-hivernale
+    nom: "Préparation hivernale"
+    mois_debut: 9
+    mois_fin: 11
+    saison_reference: automne
+    priorite: haute
+    objectif: >
+      Rappeler l'urgence des travaux avant le gel ; campagnes axées sur la
+      protection du patrimoine immobilier et la réduction des coûts énergétiques.
+    themes:
+      - "Isolez avant l'hiver : économisez sur le chauffage"
+      - "Dernière chance pour les travaux extérieurs"
+      - "Protégez votre toiture avant les premières neiges"
+      - "Calfeutrez pour un hiver sans mauvaises surprises"
+
+  - id: fw-creux-hivernal
+    nom: "Creux hivernal"
+    mois_debut: 12
+    mois_fin: 1
+    saison_reference: hiver
+    priorite: basse
+    objectif: >
+      Maintenir la notoriété et cibler les propriétaires en phase de planification
+      intérieure ; mettre en avant les devis gratuits et les projets intérieurs.
+    themes:
+      - "Planifiez vos rénovations intérieures cet hiver"
+      - "Devis gratuit sans engagement"
+      - "Profitez de la saison calme pour réserver votre chantier"

@@ -1,0 +1,196 @@
+# Fixtures avis clients — FICTIFS-ANONYMISÉS
+# Ces avis sont entièrement inventés à des fins de test et de développement.
+# Aucun nom réel, aucune entreprise réelle, aucune donnée personnelle identifiable.
+# Tous les enregistrements portent `fictif: true` conformément au manifeste M7-S008a.
+schema_version: 1
+module: M7-marketing
+artefact: avis-clients-fictifs-anonymises
+avertissement: "DONNÉES FICTIVES — usage test uniquement. Aucun lien avec des personnes ou entreprises réelles."
+
+avis:
+  - id: avis-001
+    fictif: true
+    note: 5
+    plateforme: google
+    date: "2025-04-12"
+    texte: >
+      Équipe très professionnelle, travaux de toiture terminés dans les délais convenus.
+      La qualité des matériaux est au rendez-vous et le chantier a été laissé propre.
+      Je recommande sans hésitation.
+
+  - id: avis-002
+    fictif: true
+    note: 4
+    plateforme: google
+    date: "2025-05-03"
+    texte: >
+      Bon service dans l'ensemble. L'inspection printanière a permis de détecter
+      une infiltration d'eau que je n'avais pas remarquée. Seul bémol : le délai
+      de rappel téléphonique un peu long, mais le travail est bien fait.
+
+  - id: avis-003
+    fictif: true
+    note: 5
+    plateforme: facebook
+    date: "2025-06-18"
+    texte: >
+      Paysagement de la cour arrière fait avec soin. L'équipe a été à l'écoute
+      de mes demandes et a proposé des alternatives intéressantes quand certains
+      matériaux n'étaient pas disponibles. Résultat final : magnifique !
+
+  - id: avis-004
+    fictif: true
+    note: 2
+    plateforme: google
+    date: "2025-07-07"
+    texte: >
+      Déçu par la prestation. La terrasse a été livrée avec deux semaines de retard
+      et plusieurs finitions étaient bâclées. Après réclamation, une équipe est
+      revenue corriger, mais ça aurait dû être fait dès le départ.
+
+  - id: avis-005
+    fictif: true
+    note: 5
+    plateforme: google
+    date: "2025-08-14"
+    texte: >
+      Travaux de maçonnerie réalisés rapidement et proprement. Le prix était
+      conforme au devis, sans surprise. L'équipe était ponctuelle chaque matin.
+      Je ferai à nouveau appel à eux pour les travaux d'automne.
+
+  - id: avis-006
+    fictif: true
+    note: 3
+    plateforme: facebook
+    date: "2025-08-29"
+    texte: >
+      Service correct mais sans plus. Les travaux ont été réalisés dans les temps,
+      mais la communication en cours de chantier aurait pu être meilleure.
+      On devait parfois les relancer pour avoir des nouvelles.
+
+  - id: avis-007
+    fictif: true
+    note: 5
+    plateforme: google
+    date: "2025-09-10"
+    texte: >
+      Isolation du sous-sol effectuée avant l'hiver : excellent travail, le confort
+      thermique est nettement amélioré. L'équipe a pris le temps d'expliquer
+      les travaux et de répondre à toutes mes questions.
+
+  - id: avis-008
+    fictif: true
+    note: 4
+    plateforme: google
+    date: "2025-09-25"
+    texte: >
+      Calfeutrage et remplacement de fenêtres bien exécutés. Installation soignée,
+      les équipes ont protégé le plancher intérieur pendant les travaux.
+      Je retire une étoile car le délai entre le devis et le début des travaux
+      était un peu long.
+
+  - id: avis-009
+    fictif: true
+    note: 1
+    plateforme: google
+    date: "2025-10-02"
+    texte: >
+      Très mauvaise expérience. Le chantier a été abandonné en cours de route
+      sans explication pendant plusieurs jours. Après de nombreuses tentatives
+      de contact, une explication a finalement été donnée, mais la confiance
+      est entamée. Je ne recommanderai pas.
+
+  - id: avis-010
+    fictif: true
+    note: 5
+    plateforme: facebook
+    date: "2025-10-20"
+    texte: >
+      Inspection et nettoyage des gouttières avant l'hiver : service rapide,
+      prix raisonnable. Le technicien a également signalé une tuile décollée
+      qu'il a réparée sur le moment sans frais supplémentaires. Excellent !
+
+  - id: avis-011
+    fictif: true
+    note: 4
+    plateforme: facebook
+    date: "2025-11-05"
+    texte: >
+      Travaux de peinture intérieure réalisés en fin d'automne. Le résultat
+      est propre et uniforme. Seule remarque : le choix de teintes proposé
+      dans le devis était limité ; il a fallu faire des recherches
+      supplémentaires de notre côté.
+
+  - id: avis-012
+    fictif: true
+    note: 5
+    plateforme: google
+    date: "2025-11-18"
+    texte: >
+      Service de déneigement souscrit pour la saison hivernale. Déjà un premier
+      passage ce mois-ci, impeccable. La plateforme de suivi en ligne est pratique
+      pour voir les interventions planifiées. Je renouvelle sans hésiter.
+
+  - id: avis-013
+    fictif: true
+    note: 3
+    plateforme: google
+    date: "2025-12-03"
+    texte: >
+      Déglaçage toiture acceptable mais l'équipe était pressée et n'a pas
+      vérifié les gouttières comme prévu dans le contrat. Après signalement,
+      ils sont revenus compléter l'intervention. Service corrigé, mais cela
+      aurait dû être fait d'emblée.
+
+  - id: avis-014
+    fictif: true
+    note: 5
+    plateforme: facebook
+    date: "2026-01-15"
+    texte: >
+      Super service en plein hiver ! Urgence plomberie (tuyaux gelés) prise en
+      charge en moins de deux heures. Le plombier était compétent et a même
+      conseillé des mesures préventives pour éviter que ça se reproduise.
+      Merci pour la réactivité.
+
+  - id: avis-015
+    fictif: true
+    note: 4
+    plateforme: google
+    date: "2026-02-08"
+    texte: >
+      Bon suivi pour la planification des travaux de toiture prévus au printemps.
+      Le conseiller a pris le temps de présenter plusieurs options et de chiffrer
+      chacune clairement. Hâte de voir le résultat au printemps.
+
+  - id: avis-016
+    fictif: true
+    note: 2
+    plateforme: facebook
+    date: "2026-03-19"
+    texte: >
+      Déçu par le nettoyage printanier : des débris ont été laissés sur la
+      propriété voisine sans être ramassés, ce qui a causé une friction avec
+      mon voisin. Le travail en lui-même était correct, mais le manque de soin
+      n'est pas acceptable.
+
+  - id: avis-017
+    fictif: true
+    note: 5
+    plateforme: google
+    date: "2026-04-05"
+    texte: >
+      Réparation fondation après l'hiver : équipe sérieuse et transparente sur
+      l'étendue des dommages. Les travaux ont été réalisés selon le plan convenu
+      et le drainage autour de la maison a été nettement amélioré.
+      Excellente prestation.
+
+  - id: avis-018
+    fictif: true
+    note: 5
+    plateforme: facebook
+    date: "2026-05-22"
+    texte: >
+      Pose de clôture et aménagement de la cour avant : travail soigné, équipe
+      agréable et respectueuse du terrain. Livraison dans les temps, au centime
+      près du devis. Je recommande chaudement pour tous travaux extérieurs.
