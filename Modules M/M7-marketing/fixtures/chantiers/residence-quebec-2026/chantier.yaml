@@ -1,0 +1,13 @@
+fictif: true
+ville: Québec
+type_travaux: renovation_totale
+date_fin: "2026-06-30"
+description_factuelle: >
+  Remplacement complet de la toiture sur une résidence unifamiliale.
+  Dépose de l'ancienne couverture, réfection du support, pose d'une
+  nouvelle membrane élastomère et remplacement des solins. Travaux
+  réalisés en conformité avec les normes de construction du Québec.
+photos:
+  - photos/avant.jpg
+  - photos/pendant.jpg
+  - photos/apres.jpg
