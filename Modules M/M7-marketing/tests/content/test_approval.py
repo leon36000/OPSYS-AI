@@ -114,7 +114,6 @@ def test_list_items_filtre():
     assert proposees[0]["id"] == item1["id"]
 
 
-# CORRECTIF R1 (TDAD) — 5 tests à ajouter dans les fichiers de test correspondants.
 # Ce fichier est destiné à être lu/recopié (ou inclus) dans la suite de tests.
 
 # Les fonctions suivantes sont à ajouter dans test_approval.py

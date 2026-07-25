@@ -1,4 +1,9 @@
-"""File d'approbation 0-6 pour les content-items."""
+"""File d'approbation 0-6 pour les content-items.
+
+Chaque transition trace acteur + timestamp :
+  propose → proposer / propose_timestamp
+  approve / reject → approver / approval_timestamp
+"""
 
 _QUEUE = {}
 
@@ -9,17 +14,18 @@ def reset():
 
 
 def propose(item: dict, actor: str, timestamp: str = "") -> dict:
-    """Propose un item à la file. Enregistre le proposer.
+    """Propose un item à la file. Enregistre le proposer et l'horodatage.
 
     Lève ValueError si actor est vide.
-    Le paramètre timestamp est optionnel ; s'il est fourni,
-    il est ignoré pour une proposition (remis à "").
+    Le timestamp de proposition est conservé dans propose_timestamp ;
+    approval_timestamp est remis à vide.
     """
     if not actor:
         raise ValueError("acteur obligatoire")
 
     item = dict(item)  # shallow copy pour éviter les effets de bord
     item["proposer"] = actor
+    item["propose_timestamp"] = timestamp
     item["approval_status"] = "PROPOSE"
     item["approval_timestamp"] = ""
     _QUEUE[item["id"]] = item

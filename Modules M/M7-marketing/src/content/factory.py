@@ -49,6 +49,64 @@ def _verifier_gabarit(template: dict) -> None:
             )
 
 
+def _valider_brand_contre_contrat(brand: dict, contrat: dict) -> None:
+    """le brand fourni est validé contre le SCHÉMA du contrat gelé (le contrat ne porte pas de
+    valeurs) ; brand_ref trace le fichier de schéma qui a gouverné la validation"""
+    # 1. Vérifier que le contrat définit bien profile_schema.required_fields
+    try:
+        required_fields = contrat["profile_schema"]["required_fields"]
+    except (KeyError, TypeError):
+        raise ValueError(
+            "contrat brand-contract.v1.yaml invalide (profile_schema.required_fields absent)"
+        )
+    if not isinstance(required_fields, list):
+        raise ValueError(
+            "contrat brand-contract.v1.yaml invalide (profile_schema.required_fields absent)"
+        )
+
+    # 2. Valider chaque champ requis
+    for field_def in required_fields:
+        if not isinstance(field_def, dict) or "name" not in field_def:
+            raise ValueError(
+                "contrat brand-contract.v1.yaml invalide (entrée de required_fields sans 'name')"
+            )
+
+        field_name: str = field_def["name"]
+        field_type: str = field_def.get("type", "")
+        non_empty: bool = field_def.get("non_empty", False)
+        items_type: str | None = field_def.get("items", None)
+        min_items: int | None = field_def.get("min_items", None)
+
+        # Présence de la clé dans brand
+        if field_name not in brand:
+            raise ValueError(f"champ requis manquant dans le brand : {field_name}")
+
+        value = brand[field_name]
+
+        # Validation selon le type
+        if field_type == "string":
+            if not isinstance(value, str):
+                raise ValueError(f"{field_name} doit être une chaîne de caractères")
+            if non_empty and value.strip() == "":
+                raise ValueError(f"{field_name} ne doit pas être vide")
+
+        elif field_type == "array":
+            if not isinstance(value, list):
+                raise ValueError(f"{field_name} doit être une liste")
+            if items_type == "string":
+                for i, item in enumerate(value):
+                    if not isinstance(item, str):
+                        raise ValueError(
+                            f"{field_name}[{i}] doit être une chaîne de caractères"
+                        )
+            if min_items is not None and len(value) < min_items:
+                raise ValueError(
+                    f"{field_name} doit contenir au moins {min_items} élément(s)"
+                )
+
+        # Les types de schéma inconnus sont ignorés (tolérance v1)
+
+
 def build_content_item(
     brand: dict,
     surface: str,
@@ -92,12 +150,9 @@ def build_content_item(
     brand_ref = hashlib.sha256(brand_bytes).hexdigest()
     brand_contract = yaml.safe_load(brand_bytes.decode("utf-8"))
 
-    # Cohérence brand fourni avec le contrat gelé
-    if isinstance(brand_contract, dict) and "name" in brand_contract:
-        if brand.get("name") != brand_contract["name"]:
-            raise ValueError(
-                "brand fourni incohérent avec le contrat gelé (name)"
-            )
+    # CORRECTIF R3.1 : le contrat gelé est un contrat de SCHÉMA — le brand fourni est
+    # validé fail-closed contre profile_schema.required_fields (cf. _valider_brand_contre_contrat).
+    _valider_brand_contre_contrat(brand, brand_contract)
 
     # Lecture unique du fichier seo-knowledge (bytes → hash + contenu)
     try:
@@ -134,8 +189,9 @@ def build_content_item(
     # Chargement et application du template pour titre et corps
     template_file = templates_dir / f"{type}.yaml"
     if template_file.is_file():
-        with open(template_file, encoding="utf-8") as fh:
-            template = yaml.safe_load(fh)
+        # CORRECTIF R3.2 : lecture uniforme via read_bytes()
+        template_bytes = template_file.read_bytes()
+        template = yaml.safe_load(template_bytes.decode("utf-8"))
     else:
         template = {
             "title_template": "{brand_name} - {sujet_titre}",
