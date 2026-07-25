@@ -30,14 +30,11 @@ def validate_content_item(item: dict) -> bool:
 
     # Validation individuelle des champs
 
-    # id : 32 hex sans tiret ou uuid canonique avec tirets
+    # id : uniquement le format canonique UUID avec tirets (8-4-4-4-12)
     id_val = item["id"]
-    if not (
-        re.fullmatch(r"^[0-9a-f]{32}$", id_val)
-        or re.fullmatch(
-            r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-            id_val,
-        )
+    if not re.fullmatch(
+        r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+        id_val,
     ):
         raise ValueError("id invalide")
 
@@ -75,7 +72,7 @@ def validate_content_item(item: dict) -> bool:
         dt = datetime.fromisoformat(item["timestamp"])
         if dt.tzinfo is None:
             raise ValueError("horodatage sans timezone")
-    except (ValueError, KeyError) as e:
+    except ValueError as e:
         raise ValueError("timestamp invalide") from e
 
     # approval_status
@@ -94,7 +91,7 @@ def validate_content_item(item: dict) -> bool:
             dt = datetime.fromisoformat(approval_ts)
             if dt.tzinfo is None:
                 raise ValueError("horodatage sans timezone")
-        except (ValueError, KeyError) as e:
+        except ValueError as e:
             raise ValueError("approval_timestamp invalide") from e
 
     # tactics_applied : liste de dicts avec les clés tactique, statut, source

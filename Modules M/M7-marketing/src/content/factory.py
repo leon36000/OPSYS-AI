@@ -59,6 +59,8 @@ def build_content_item(
     """Construit un item de contenu conforme au contrat content-item.v1.
 
     Retourne un dict déterministe (mêmes paramètres -> même id et contenu).
+    brand_ref trace le fichier contrat gelé du dépôt ; l'appelant fournit un
+    brand issu de ce fichier.
     """
     # Pré-validation de surface et type (avant toute lecture de fichier)
     if surface not in SURFACES_AUTORISEES:
@@ -79,33 +81,34 @@ def build_content_item(
     seo_knowledge_path = base_dir / "docs" / "seo-knowledge.v1.yaml"
     templates_dir = Path(__file__).resolve().parent / "templates"
 
-    # Lecture des fichiers avec gestion FileNotFoundError → ValueError
+    # Lecture unique du contrat de marque (bytes → hash + contenu)
     try:
-        brand_ref = hashlib.sha256(
-            brand_contract_path.read_bytes()
-        ).hexdigest()
+        brand_bytes = brand_contract_path.read_bytes()
     except FileNotFoundError as e:
         raise ValueError(
             f"fichier brand-contract.v1.yaml introuvable : {brand_contract_path}"
         ) from e
 
+    brand_ref = hashlib.sha256(brand_bytes).hexdigest()
+    brand_contract = yaml.safe_load(brand_bytes.decode("utf-8"))
+
+    # Cohérence brand fourni avec le contrat gelé
+    if isinstance(brand_contract, dict) and "name" in brand_contract:
+        if brand.get("name") != brand_contract["name"]:
+            raise ValueError(
+                "brand fourni incohérent avec le contrat gelé (name)"
+            )
+
+    # Lecture unique du fichier seo-knowledge (bytes → hash + contenu)
     try:
-        seo_knowledge_ref = hashlib.sha256(
-            seo_knowledge_path.read_bytes()
-        ).hexdigest()
+        seo_bytes = seo_knowledge_path.read_bytes()
     except FileNotFoundError as e:
         raise ValueError(
             f"fichier seo-knowledge.v1.yaml introuvable : {seo_knowledge_path}"
         ) from e
 
-    # Chargement du seo-knowledge pour extraire les tactiques de la surface
-    try:
-        with open(seo_knowledge_path, encoding="utf-8") as fh:
-            seo_knowledge = yaml.safe_load(fh)
-    except FileNotFoundError as e:
-        raise ValueError(
-            f"fichier seo-knowledge.v1.yaml introuvable : {seo_knowledge_path}"
-        ) from e
+    seo_knowledge_ref = hashlib.sha256(seo_bytes).hexdigest()
+    seo_knowledge = yaml.safe_load(seo_bytes.decode("utf-8"))
 
     surface_tactics = []
     surfaces = seo_knowledge.get("surfaces", {})
@@ -119,14 +122,14 @@ def build_content_item(
                 }
             )
 
-    # Pillar déduit du type
+    # Pillar déduit du type (type toujours valide grâce à la pré-validation)
     pillar_map = {
         "post_social": "social",
         "page_seo": "seo",
         "fiche_gbp": "seo",
         "article_blog": "seo",
     }
-    pillar = pillar_map.get(type, "seo")
+    pillar = pillar_map[type]
 
     # Chargement et application du template pour titre et corps
     template_file = templates_dir / f"{type}.yaml"

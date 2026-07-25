@@ -63,7 +63,7 @@ def test_surface_tracee():
         assert len(t["statut"]) > 0
 
 def test_composition_sans_invention():
-    """Le titre est une composition déterministe des données fournies."""
+    """Le titre et le corps sont une composition exacte des gabarits et données."""
     item = factory.build_content_item(
         brand=BRAND,
         surface="google_aio",
@@ -75,10 +75,14 @@ def test_composition_sans_invention():
     assert item["title"] == titre_attendu, (
         f"Titre attendu : {titre_attendu}, reçu : {item['title']}"
     )
-    # Vérifie également que le corps contient les informations essentielles
-    body = item["body"]
-    assert BRAND["tagline"] in body
-    assert SUJET["description"] in body
+    body_attendu = (
+        "Automatisation d'entreprise par IA\n"
+        "Préparer sa toiture après l'hiver québécois."
+    )
+    assert item["body"] == body_attendu, (
+        f"Corps attendu : {body_attendu!r}, reçu : {item['body']!r}"
+    )
+
 
 def test_timestamp_transmis():
     """Le timestamp fourni est repris à l'identique, sans horloge interne."""
