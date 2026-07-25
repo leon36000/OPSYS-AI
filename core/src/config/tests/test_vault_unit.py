@@ -9,14 +9,16 @@ def _import_config_modules():
     import importlib
     import sys
     here = os.path.dirname(os.path.abspath(__file__))
+    # config package is located at core/src/config, so add core/src to path
     config_dir = os.path.abspath(os.path.join(here, ".."))
-    sys.path.insert(0, config_dir)
+    core_src = os.path.dirname(config_dir)
+    sys.path.insert(0, core_src)
     try:
-        vault = importlib.import_module("vault")
-        settings = importlib.import_module("settings")
-        redaction = importlib.import_module("redaction")
+        vault = importlib.import_module("config.vault")
+        settings = importlib.import_module("config.settings")
+        redaction = importlib.import_module("config.redaction")
     finally:
-        sys.path.remove(config_dir)
+        sys.path.remove(core_src)
     return vault, settings, redaction
 
 
@@ -27,7 +29,7 @@ def cfg():
 
 
 # ---------------------------------------------------------------------------
-# Tests existants (adaptés aux nouvelles signatures)
+# Tests existants
 # ---------------------------------------------------------------------------
 
 def test_secret_ref_str_repr_fstring_json_redacted(cfg):
@@ -71,7 +73,6 @@ def test_secret_ref_copy_pickle_yaml_blocked_or_redacted(cfg):
 def test_secret_ref_reveal_audits_without_value(cfg, caplog):
     caplog.set_level(logging.INFO)
     ref = cfg.vault.SecretRef("api_key", "shhh-12345")
-    # Contexte obligatoire (A2)
     assert ref.reveal("audit-context") == "shhh-12345"
     log_text = caplog.text.lower()
     assert "reveal" in log_text or "acces_secret" in log_text
@@ -93,12 +94,10 @@ def test_env_secret_provider_respects_prefix_and_absence(cfg, monkeypatch):
     provider = cfg.vault.EnvSecretProvider(prefix="OPSYS_")
     ref = provider.get_secret("litellm_key")
     assert isinstance(ref, cfg.vault.SecretRef)
-    # Contexte obligatoire ajouté
     assert ref.reveal("test-context") == "env-secret-value"
     assert provider.get_secret("missing") is None
     assert provider.get_secret("OTHER_SECRET") is None
 
-    # Aucune exposition d'os.environ
     if hasattr(provider, "environ"):
         assert provider.environ is not os.environ
 
@@ -228,7 +227,6 @@ def test_reveal_requires_non_empty_context(cfg):
 def test_redact_auto_collects_secrets_from_provider(cfg, monkeypatch):
     monkeypatch.setenv("OPSYS_SECRET1", "alpha-beta-gamma")
     provider = cfg.vault.EnvSecretProvider()
-    # Charge le secret dans le cache du provider
     ref = provider.get_secret("secret1")
     assert ref is not None
     text_with_secret = "this is alpha-beta-gamma token"  # proof:allow — fixture/message de test
@@ -249,11 +247,9 @@ def test_exception_in_load_settings_redacts_secrets_in_message(cfg, monkeypatch,
 
     provider = cfg.vault.EnvSecretProvider()
 
-    # Patch Settings.__init__ pour qu'il lève une exception contenant la valeur
     original_init = cfg.settings.Settings.__init__
     def leaking_init(self, *args, **kwargs):
-        # La valeur est déjà dans le cache du provider
-        leaked = provider.known_secret_values()[0]  # "super-secret-value"
+        leaked = provider.known_secret_values()[0]
         raise ValueError(leaked)
 
     monkeypatch.setattr(cfg.settings.Settings, "__init__", leaking_init)
@@ -262,5 +258,4 @@ def test_exception_in_load_settings_redacts_secrets_in_message(cfg, monkeypatch,
         cfg.settings.load_settings(yaml_path, provider)
 
     assert "super-secret-value" not in str(exc_info.value)
-    # Confirmation que la redaction a bien eu lieu
     assert "***REDIGE***" in str(exc_info.value)

@@ -8,13 +8,14 @@ def _import_config_modules():
     import sys
     here = os.path.dirname(os.path.abspath(__file__))
     config_dir = os.path.abspath(os.path.join(here, ".."))
-    sys.path.insert(0, config_dir)
+    core_src = os.path.dirname(config_dir)
+    sys.path.insert(0, core_src)
     try:
-        vault = importlib.import_module("vault")
-        settings = importlib.import_module("settings")
-        redaction = importlib.import_module("redaction")
+        vault = importlib.import_module("config.vault")
+        settings = importlib.import_module("config.settings")
+        redaction = importlib.import_module("config.redaction")
     finally:
-        sys.path.remove(config_dir)
+        sys.path.remove(core_src)
     return vault, settings, redaction
 
 

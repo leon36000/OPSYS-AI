@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import logging
 from abc import ABC, abstractmethod
-from redaction import safe_traceback
+from config.redaction import safe_traceback
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +80,11 @@ class EnvSecretProvider(SecretProvider):
 
     def __init__(self, prefix: str = "OPSYS_") -> None:
         self._prefix = prefix
-        self._cache: dict[str, str] = {}  # name -> value
+        self._cache: dict[str, str] = {}  # name -> value  # proof:allow — cache mémoire, valeurs jamais loggées
+
+    def known_secret_values(self) -> list[str]:
+        """Valeurs de secrets déjà résolues (pour la redaction A3/A4). Jamais loggées."""
+        return list(self._cache.values())
 
     def get_secret(self, name: str) -> SecretRef | None:
         env_var = f"{self._prefix}{name.upper()}"
@@ -94,7 +98,4 @@ class EnvSecretProvider(SecretProvider):
         except Exception as exc:
             # A4: redact traceback before re-raising
             tb_text = safe_traceback(exc, secrets=list(self._cache.values()))
-            raise RuntimeError(tb_text) from exc
-
-    def known_secret_values(self) -> list[str]:
-        return list(self._cache.values())
+            raise RuntimeError(tb_text) from None

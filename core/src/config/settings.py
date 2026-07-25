@@ -6,8 +6,8 @@ from typing import Any
 
 import yaml
 
-from redaction import safe_traceback
-from vault import SecretProvider, SecretRef
+from config.redaction import safe_traceback
+from config.vault import SecretProvider, SecretRef
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ def load_settings(yaml_path: Path, provider: SecretProvider) -> Settings:
         # --- résolution du secret litellm_key ---
         secret_name = raw.get("litellm_key")
         if secret_name is None:
-            raise ValueError("Missing required secret: litellm_key")  # proof:allow — fixture/message de test, aucun secret reel
+            raise ValueError("Missing required secret: litellm_key")  # proof:allow — fixture/message de test
 
         if not isinstance(secret_name, str):
             raise TypeError("litellm_key must be a string (secret name)")
@@ -105,12 +105,12 @@ def load_settings(yaml_path: Path, provider: SecretProvider) -> Settings:
         return settings
 
     except SettingsError:
-        raise  # already processed
+        raise  # déjà expurgée
     except Exception as exc:
         # A4: redact traceback and re-raise
         if hasattr(provider, "known_secret_values"):
-            known = provider.known_secret_values()  # type: ignore[union-attr]
+            known = provider.known_secret_values()
         else:
             known = []
         tb_text = safe_traceback(exc, secrets=known)
-        raise SettingsError(tb_text) from exc
+        raise SettingsError(tb_text) from None
