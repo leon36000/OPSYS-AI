@@ -1,0 +1,43 @@
+schema_version: 1
+module: M7-marketing
+owner_calcul: "M8 (le LLM ne calcule jamais)"
+metrics:
+  - id: m7_cpl
+    nom: "Coût par lead"
+    definition: "Coût total du marketing divisé par le nombre de leads qualifiés générés sur la période, avant attribution multi-touch."
+    unite: "EUR / lead"
+    source_donnees: "CRM et système de facturation publicitaire"
+    frequence: "mensuelle"
+    consommateur: "M8-entrepot"
+
+  - id: m7_cout_par_soumission
+    nom: "Coût par soumission"
+    definition: "Coût total du marketing divisé par le nombre de soumissions de formulaire ou de demandes reçues sur la période."
+    unite: "EUR / soumission"
+    source_donnees: "CRM et plateformes de capture de leads"
+    frequence: "mensuelle"
+    consommateur: "M8-entrepot"
+
+  - id: m7_roi_par_canal
+    nom: "ROI par canal"
+    definition: "Rapport entre le revenu attribué à un canal marketing et le coût investi dans ce canal, exprimé sans unité."
+    unite: "ratio sans unité"
+    source_donnees: "Attribution canal et revenus trackés"
+    frequence: "mensuelle"
+    consommateur: "M8-entrepot"
+
+  - id: m7_part_citations_ia
+    nom: "Part des citations par assistants IA"
+    definition: "Part des réponses d'assistants IA qui citent l'entreprise, mesurée par échantillonnage de requêtes représentatives ; jamais auto-déclarée."
+    unite: "pourcentage"
+    source_donnees: "Échantillonnage externe de requêtes sur assistants IA"
+    frequence: "trimestrielle"
+    consommateur: "M8-entrepot"
+
+  - id: m7_taux_doc_none
+    nom: "Taux de documentation manquante"
+    definition: "Proportion d'artefacts ou de livrables pour lesquels la documentation obligatoire est absente, conformément à la gouvernance C-06."
+    unite: "pourcentage"
+    source_donnees: "Registre de gouvernance C-06"
+    frequence: "mensuelle"
+    consommateur: "M8-entrepot"
