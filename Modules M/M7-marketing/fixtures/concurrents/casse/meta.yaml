@@ -1,0 +1,5 @@
+name: Construction Cassée Fictive
+url: https://exemple-casse.example
+type: direct
+fictif: true
+description: Concurrent avec données mal formées — HTML invalide, schema.org erroné, robots.txt contradictoire.
