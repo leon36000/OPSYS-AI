@@ -152,6 +152,31 @@ class TestSEOAudit(unittest.TestCase):
             self.assertFalse(verdict["ok"])
             self.assertIn("absent", verdict["detail"])
 
+    def test_script_externe_ko(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            site = Path(tmp)
+            self._write_page(
+                site,
+                extra='<script src="https://cdn.example/x.js"></script>',
+            )
+            self._write_robots(site, "User-agent: *\nAllow: /\n")
+            rapport = audit_dir(site)
+
+            verdict = self._find_rule(rapport, "script_externe")
+            self.assertFalse(verdict["ok"])
+            self.assertIn("cdn.example", verdict["detail"])
+
+    def test_site_dir_absent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            site = Path(tmp) / "inexistant"
+            rapport = audit_dir(site)
+
+            site_verdicts = rapport["site"]["verdicts"]
+            matching = [v for v in site_verdicts if v["regle"] == "site_dir_existe"]
+            self.assertEqual(len(matching), 1)
+            self.assertFalse(matching[0]["ok"])
+            self.assertIn("inexistant", matching[0]["detail"].lower())
+
 
 if __name__ == "__main__":
     unittest.main()

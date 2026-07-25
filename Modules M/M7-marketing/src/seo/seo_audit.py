@@ -128,7 +128,7 @@ def _audit_page(page_path: Path, site_dir: Path) -> dict:
         }
     )
 
-    # JSON-LD présent et valide
+    # JSON-LD valide lorsqu'il est présent ; l'absence de bloc est un succès
     json_ok = True
     json_detail = "aucun bloc JSON-LD détecté"
     if auditor.json_ld_blocks:
@@ -230,22 +230,45 @@ def _audit_robots(site_dir: Path) -> dict:
 def audit_dir(site_dir: str | Path) -> dict:
     """Audite un répertoire de site statique et retourne le rapport JSON-serialisable."""
     site_dir = Path(site_dir).resolve()
+    site_verdicts: list[dict] = []
 
-    pages = [
-        _audit_page(path, site_dir)
-        for path in sorted(site_dir.rglob("*.html"))
-    ]
+    if not site_dir.exists():
+        site_verdicts.append(
+            {
+                "regle": "site_dir_existe",
+                "ok": False,
+                "detail": f"répertoire du site inexistant : {site_dir}",
+            }
+        )
+    elif not site_dir.is_dir():
+        site_verdicts.append(
+            {
+                "regle": "site_dir_existe",
+                "ok": False,
+                "detail": f"chemin existe mais n'est pas un répertoire : {site_dir}",
+            }
+        )
 
-    robots = _audit_robots(site_dir)
+    if site_dir.is_dir():
+        pages = [
+            _audit_page(path, site_dir)
+            for path in sorted(site_dir.rglob("*.html"))
+        ]
+        robots = _audit_robots(site_dir)
+    else:
+        pages = []
+        robots = {"fichier": "robots.txt", "verdicts": []}
 
     regles_ko = sum(
         1 for page in pages for verdict in page["verdicts"] if not verdict["ok"]
     )
     regles_ko += sum(1 for verdict in robots["verdicts"] if not verdict["ok"])
+    regles_ko += sum(1 for verdict in site_verdicts if not verdict["ok"])
 
     return {
         "pages": pages,
         "robots": robots,
+        "site": {"verdicts": site_verdicts},
         "resume": {
             "pages_auditees": len(pages),
             "regles_ko": regles_ko,
@@ -254,6 +277,17 @@ def audit_dir(site_dir: str | Path) -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Point d'entrée CLI de l'audit SEO.
+
+    Affiche le rapport JSON sur stdout.
+
+    Retourne :
+      - 0 si toutes les règles auditées sont OK ;
+      - 3 si au moins une règle est KO.
+    """
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+
     site_dir = (Path(__file__).resolve().parent / "../site/static").resolve()
     rapport = audit_dir(site_dir)
     print(json.dumps(rapport, ensure_ascii=False, indent=2))
