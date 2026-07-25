@@ -1,0 +1,2 @@
+title_template: "{brand_name} - {sujet_titre}"
+body_template: "{brand_tagline}\n{sujet_description}"
