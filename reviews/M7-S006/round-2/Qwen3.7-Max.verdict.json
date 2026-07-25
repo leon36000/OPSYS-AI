@@ -1,0 +1,14 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "reviews/M7-S006/ADR-M7-S006.md",
+   "description": "L'ADR §1 (markdown) spécifie un `id` de type `UUIDv4`, mais le contrat YAML (`content-item.v1.yaml`) et l'implémentation utilisent `uuid` / `uuid5` pour garantir le déterminisme (même entrée -> même id). La validation accepte n'importe quelle version d'UUID. Il s'agit d'un désalignement mineur entre le texte de l'ADR et le contrat YAML/code, techniquement justifié par l'exigence de déterminisme absolu.",
+   "preuve": "ADR-M7-S006.md ligne 18 : `| id | str | UUIDv4, unique |` vs content-item.v1.yaml ligne 4 : `constraints: [uuid, unique]` et factory.py ligne 147 : `uuid.uuid5`."
+  }
+ ],
+ "date_heure": "2026-07-25T18:11:32.493078+00:00",
+ "prompt_sha256": "7e847525f6d75a1b6b5f5f014130b95b9622e517e914c4ad0bda944b719e9936",
+ "reviewer_model": "Qwen3.7-Max"
+}
