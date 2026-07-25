@@ -1,0 +1,44 @@
+# CONTRAT GELÉ D-015 — modification interdite ; évolution = v2
+schema_version: 1
+id:
+  type: str
+  constraints: [uuid, unique]
+version:
+  type: str
+  constraints: [equals: "1.0.0"]
+brand_ref:
+  type: str
+  constraints: [sha256]
+seo_knowledge_ref:
+  type: str
+  constraints: [sha256]
+surface:
+  type: str
+  constraints: [enum: ["google_aio", "perplexity", "assistants_ia"]]
+pillar:
+  type: str
+  constraints: [enum: ["seo", "ppc", "social"]]
+type:
+  type: str
+  constraints: [enum: ["post_social", "page_seo", "fiche_gbp", "article_blog"]]
+title:
+  type: str
+  constraints: [min_length: 1, max_length: 100]
+body:
+  type: str
+  constraints: [min_length: 1, max_length: 5000]
+tactics_applied:
+  type: list
+  constraints: [elements: {tactique: str, statut: str, source: str}]
+timestamp:
+  type: str
+  constraints: [iso8601]
+approval_status:
+  type: str
+  constraints: [enum: ["PROPOSE", "APPROVED", "REJECTED"]]
+approver:
+  type: str
+  constraints: [non_empty_if_status_not: "PROPOSE"]
+approval_timestamp:
+  type: str
+  constraints: [iso8601]
