@@ -1,0 +1,32 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M7-marketing/src/competitive/report.py",
+   "description": "Critère d'acceptation #6 non satisfait : 'Comparaison vs NOTRE site réel (src/site/static/index.html de main)'. La fonction generate_report accepte un paramètre notre_site (chaîne vide par défaut) mais aucun code ne charge src/site/static/index.html depuis main. Aucun test ne démontre la comparaison contre le site réel — tous les appels de test utilisent notre_site=\"\". Le critère est explicitement testable et点名 le chemin du fichier.",
+   "preuve": "report.py ligne 18: def generate_report(slugs, notre_site=\"\", ...). test_rules.py lignes 220-230: tous les appels à generate_report passent notre_site=\"\". Aucun import de Path('src/site/static/index.html') ni lecture de fichier site dans le diff."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/fixtures/concurrents/fort/index.html",
+   "description": "Le titre de la fixture 'fort' dépasse 60 caractères (65 caractères comptés : 'Toitures et rénovation résidentielle à Québec | Toitures Boréales'), ce qui ferait échouer C-01 (non_conforme) et contredit la description 'concurrent fort — balisage SEO exemplaire'. Le rapport d'exécution indique 'fort→majoritairement conforme' mais C-01 serait non_conforme.",
+   "preuve": "fort/index.html ligne 4: <title>Toitures et rénovation résidentielle à Québec | Toitures Boréales</title> (65 chars). analyzers.py lignes 56-61: c01 = 'non_conforme' si len(title) > 60."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/src/competitive/compare.py",
+   "description": "Déviation d'interface par rapport à l'ADR : l'ADR spécifie calculate_coverage(html_concurrent, html_nous, stopwords_path) prenant du HTML, mais l'implémentation prend du texte brut (texte_a, texte_b). Le report.py compense en strippant le HTML avant l'appel, mais l'interface publique ne correspond pas à la spec.",
+   "preuve": "compare.py ligne 17: def calculate_coverage(texte_a: str, texte_b: str, stopwords_path: str). ADR section 3: 'calculate_coverage(html_concurrent, html_nous, stopwords_path) -> float'."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/tests/competitive/test_rules.py",
+   "description": "Le critère #3 exige que parse_error=KO soit 'prouvé sur la fixture cassée'. Le test test_c07_non_conforme_invalide utilise SITEMAP_INVALIDE = '<xml><bad>' qui n'est pas le sitemap de la fixture casse. Aucun test ne charge explicitement fixtures/concurrents/casse/sitemap.xml pour prouver le comportement KO sur la fixture prévue.",
+   "preuve": "test_rules.py ligne 53: SITEMAP_INVALIDE = '<xml><bad>'. Aucun test ne référence le slug 'casse' ni ne charge fixtures/concurrents/casse/."
+  }
+ ],
+ "date_heure": "2026-07-25T22:19:32.704439+00:00",
+ "prompt_sha256": "ee8758374c4cd5cd5de560c88e0632475495426208de86fe3d55a4b4f405e549",
+ "reviewer_model": "MiniMax-M3"
+}

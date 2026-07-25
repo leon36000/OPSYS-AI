@@ -1,0 +1,62 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M7-marketing/src/content/factory.py",
+   "description": "Incohérence brand/contrat gelé : la cohérence est vérifiée uniquement sur `brand[\"name\"]` et seulement si `isinstance(brand_contract, dict) and \"name\" in brand_contract`. Si le contrat brand-contract.v1.yaml (1) n'est pas un dict (ex: liste), ou (2) ne contient pas la clé `name`, la vérification est silencieusement sautée et un brand incohérent peut produire un item validé. Aucune exception n'est levée dans ces cas. De plus, le diff ne montre pas le contenu de `brand-contract.v1.yaml`, donc on ne peut pas vérifier que `name` y figure effectivement.",
+   "preuve": "factory.py lignes 53-58 : `if isinstance(brand_contract, dict) and \"name\" in brand_contract: if brand.get(\"name\") != brand_contract[\"name\"]: raise ValueError(...)` — pas d'`else`."
+  },
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M7-marketing/tests/content/test_factory.py",
+   "description": "Le diff du round 2 (rendu par le pipeline précédent) montrait les tests TDAD uniquement comme blocs sous commentaire \"CORRECTIF R1 (TDAD) — 5 tests à ajouter\". Le pack R3 affirme que l'état final committé les contient comme fonctions top-level, preuves à l'appui par grep. Or les fonctions `test_transition_enregistre_timestamp` et `test_auto_rejet_interdit` apparaissent TOUJOURS dans le diff actuel sous le commentaire \"# CORRECTIF R1 (TDAD) — 5 tests à ajouter dans les fichiers de test correspondants\" et \"# Les fonctions suivantes sont à ajouter dans test_approval.py\" (test_approval.py lignes ~121-127 et ~161-172) avec re-imports internes (`import approval`, `import pytest`) à l'intérieur des fonctions — preuve qu'elles n'ont pas été matérialisées comme tests top-level. La réfutation « FAUX — preuve grep » est contredite par le diff lui-même.",
+   "preuve": "test_approval.py lignes 121-127 (commentaire `# CORRECTIF R1 (TDAD)` suivi de `def test_transition_enregistre_timestamp` avec `import approval` interne ligne 130) et lignes 159-179 (commentaire `# Les fonctions suivantes sont à ajouter dans test_approval.py` suivi de `def test_auto_rejet_interdit` avec imports internes ligne 162-163)."
+  },
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M7-marketing/src/content/factory.py",
+   "description": "Le `seo_knowledge_ref` est calculé via `hashlib.sha256(seo_bytes).hexdigest()` sur `read_bytes()` du fichier, mais `seo_knowledge = yaml.safe_load(seo_bytes.decode(\"utf-8\"))` est parsé sur les mêmes octets. En revanche, le `templates_dir` (utilisé lignes 70-76) charge `templates_dir / f\"{type}.yaml\"` via `open(template_file, encoding=\"utf-8\")` SANS calcul de hash ni signature, ce qui brise la symétrie de traçabilité : pour brand et seo on a un sha256 épinglable, pour les templates (qui contiennent les gabarits et donc la composition du titre/corps) il n'y a aucune trace cryptographique. Si le gabarit change entre deux builds, le déterminisme par `uuid.uuid5` est conservé mais l'item diffère — incohérence avec le principe D-015 énoncé.",
+   "preuve": "factory.py lignes 61-68 (lecture unique brand), lignes 70-78 (lecture unique seo_knowledge), lignes 80-88 (templates chargés via `open(..., encoding=\"utf-8\")` sans hash ni `read_bytes()` parallèle)."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M7-marketing/src/content/approval.py",
+   "description": "`propose()` accepte un paramètre `timestamp` mais le remet systématiquement à `\"\"` (ligne 22). L'ADR §5 dit « Chaque transition enregistre l'acteur et un timestamp fourni par l'appelant ». Réfutation claimée : « l'instant de proposition est déjà tracé par le champ timestamp de l'item » — mais le champ `timestamp` de l'item est celui du CONTRAT DE DONNÉES (création du contenu), pas celui de l'événement d'approbation. La distinction n'est pas explicitement documentée dans le code ; la docstring dit simplement « ignoré pour une proposition (remis à \"\") ». Un appelant qui passe `timestamp=ts` à `propose` s'attend à un enregistrement, pas à un rejet silencieux. Comportement contre-intuitif et non fail-loud.",
+   "preuve": "approval.py lignes 13-25 : `def propose(item: dict, actor: str, timestamp: str = \"\")` puis `item[\"approval_timestamp\"] = \"\"` ligne 22 sans avertissement ni log."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M7-marketing/src/content/factory.py",
+   "description": "Le test `test_composition_sans_invention` (test_factory.py lignes 71-87 selon le diff R3 — soit `test_composition_sans_invention` lignes 78-95 dans le diff actuel) vérifie l'égalité EXACTE du titre et du corps, conformément au correctif R2 point 5. Cependant, le `_verifier_gabarit` n'empêche pas l'introduction de texte statique arbitraire (ex: `{brand_name} GARBAGE_TEXT`) qui passerait le test tant que `brand_name` est substitué correctement. La parade « Risque 1 » de l'ADR §4 (« Tout contenu non issu d'une substitution de variable est rejeté ») n'est pas réellement implémentée — elle est contournée par le test qui ne vérifie que la composition SANS variable inventée, pas l'absence de texte hors gabarits.",
+   "preuve": "factory.py `_verifier_gabarit` lignes 26-37 (vérifie uniquement `placeholders - VARIABLES_GABARIT_AUTORISEES`) ; test_factory.py `test_composition_sans_invention` lignes 78-95 du diff : `assert item[\"title\"] == titre_attendu` et `assert item[\"body\"] == body_attendu` — ne parcourt pas tous les chemins de gabarit possibles."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M7-marketing/src/content/factory.py",
+   "description": "L'import `import validation` (ligne 7) est plat. Réfutation : « pattern du module établi (authz/config idem), sys.path géré par les consommateurs ; hors périmètre story ». Sans `__init__.py` dans `src/content/` (non visible dans le diff), `import validation` ne fonctionnera pas depuis un appelant qui n'a pas manipulé `sys.path`. La cohérence du pattern avec authz/config n'est pas vérifiable dans le diff actuel (ces modules n'apparaissent pas).",
+   "preuve": "factory.py lignes 6-7 : `# Import plat du module validation situé dans le même dossier (ajouté au sys.path par les tests)` et `import validation` ; aucun `src/content/__init__.py` dans le diff."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/src/content/validation.py",
+   "description": "Le test `test_timestamp_non_iso8601_leve_valueerror` (test_validation.py lignes 117-121) ne couvre qu'un cas (« sans timezone »). La validation utilise `datetime.fromisoformat()` qui depuis Python 3.11 accepte `Z` comme suffixe UTC. Aucune contrainte de précision (secondes obligatoires) ni de fuseau (UTC uniquement vs offset). Couverture de test insuffisante pour une contrainte annoncée comme critique.",
+   "preuve": "validation.py lignes 70-78 (`datetime.fromisoformat` + check `dt.tzinfo is None`) ; test_validation.py `test_timestamp_non_iso8601_leve_valueerror` : un seul cas `item[\"timestamp\"] = \"2026-07-25\"`."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/tests/content/test_contract_sha.py",
+   "description": "Le test `test_contrat_sha256_epingle` compare la constante Python au sidecar ET au hash calculé — deux comparaisons internes. Si sidecar + constante sont modifiés ENSEMBLE (commit accidentel ou script de regénération), le test passe. Réfutation : « constante vit dans un TEST : toute altération est un diff de test visible en revue scellée + gates ». Cela déplace la confiance vers le processus de revue, pas vers une vérification cryptographique. Aucun hash d'une source tierce (ex: tag git annoté, registre externe) n'est utilisé.",
+   "preuve": "test_contract_sha.py lignes 15-27 : `hash_attendu = _SHA256_FILE.read_text().strip()` vs constante Python ligne 8 ; puis `sha256_calcule` vs constante."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/src/content/approval.py",
+   "description": "`_QUEUE` est un dict au niveau module avec `reset()` exposé publiquement. Si un futur test oublie la fixture `clean_approval_file`, l'état fuit entre tests (notamment les `list_items`). Le fait que la fixture soit `autouse=True` atténue le risque dans les tests actuels, mais le code reste fail-open silencieux.",
+   "preuve": "approval.py lignes 3-4 : `_QUEUE = {}` global ; `reset()` ligne 8 publique ; test_approval.py ligne 13 : `@pytest.fixture(autouse=True)` sur `clean_approval_file`."
+  }
+ ],
+ "date_heure": "2026-07-25T18:16:33.553323+00:00",
+ "prompt_sha256": "aaaa25b1942690d19bee9ef78464acd52a803acd14911188b28764be455fcc35",
+ "reviewer_model": "MiniMax-M3"
+}

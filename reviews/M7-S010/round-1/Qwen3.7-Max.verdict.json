@@ -1,0 +1,20 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/src/competitive/report.py",
+   "description": "L'extracteur de texte pour C-08 (_strip_html) utilise la totalité du HTML épuré, alors que l'ADR spécifiait 'title, meta description, h1, premiers 500 caractères du corps'. Le texte de la story mentionne 'textes bruts', ce qui crée une ambiguïté, mais l'implémentation s'écarte de la règle ADR C-08.",
+   "preuve": "def _strip_html(html: str) -> str: ... return re.sub(r\"<[^>]+>\", \" \", html).strip()"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "stories/M7-S010-competitive-engine.md",
+   "description": "Le critère 6 mentionne 'Comparaison vs NOTRE site réel (src/site/static/index.html de main)', mais aucun code ou test dans ce diff ne charge explicitement ce fichier. On suppose que l'orchestrateur externe s'en charge, mais ce n'est pas vérifiable dans le diff actuel.",
+   "preuve": "Critère 6 de la story vs absence de 'src/site/static/index.html' dans le diff."
+  }
+ ],
+ "date_heure": "2026-07-25T22:21:13.459940+00:00",
+ "prompt_sha256": "ee8758374c4cd5cd5de560c88e0632475495426208de86fe3d55a4b4f405e549",
+ "reviewer_model": "Qwen3.7-Max"
+}
