@@ -1,0 +1,45 @@
+lang: fr
+title: "OPSYS-AI — Automatisation d'entreprise par IA"
+description: >-
+  OPSYS-AI — systèmes complets d'automatisation d'entreprise par intelligence artificielle : marketing, communication, administration et suivi de la performance.
+canonical: "https://opsys-ai.ca/"
+theme_color: "#111111"
+favicon: "favicon.svg"
+colors:
+  bg: "#ffffff"
+  fg: "#111111"
+  header_bg: "#111111"
+  header_fg: "#ffffff"
+  nav_bg: "#1a1a1a"
+  nav_fg: "#ffffff"
+  footer_bg: "#111111"
+  footer_fg: "#eaeaea"
+  link: "#0a4f96"
+org:
+  name: "OPSYS-AI"
+  url: "https://opsys-ai.ca/"
+  description: >-
+    OPSYS-AI — systèmes complets d'automatisation d'entreprise par intelligence artificielle : marketing, communication, administration et suivi de la performance.
+nav_label: "Navigation principale"
+sections:
+  - id: presentation
+    heading: "Présentation"
+    paragraphs:
+      - >-
+        OPSYS-AI est un système d'exploitation d'entreprise autonome conçu pour centraliser et automatiser les processus métier grâce à l'intelligence artificielle.
+      - >-
+        La plateforme couvre l'ensemble du cycle opérationnel : marketing, communication, administration et suivi de la performance.
+  - id: approche
+    heading: "Notre approche"
+    paragraphs:
+      - >-
+        OPSYS-AI s'appuie sur des composants modulaires, indépendants et interopérables. Chaque module répond à un domaine métier précis et peut être activé progressivement selon les besoins de l'organisation.
+      - >-
+        L'architecture privilégie la transparence, la traçabilité et la maîtrise des données par l'entreprise utilisatrice.
+  - id: modules
+    heading: "Modules"
+    paragraphs:
+      - >-
+        Le premier module opérationnel est M7 — Marketing, dédié à la gestion de l'identité de marque et à la présence en ligne.
+      - >-
+        D'autres modules couvrant la gestion documentaire, la communication interne et le pilotage stratégique sont en cours de développement.
