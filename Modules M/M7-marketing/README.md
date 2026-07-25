@@ -1,4 +1,4 @@
-# M7-marketing
+M7-marketing
 
 Marketing & Croissance IA — PREMIER MODULE (D-008)
 
@@ -22,6 +22,8 @@ Le fichier `src/brand/profile.yaml` est un **GABARIT initial** ; les valeurs pro
 - Les champs inconnus du profil sont tolérés SEULEMENT s'ils sont JSON-sérialisables
   (sinon 500).
 - Les query strings sont ignorées sur `/brand`.
+- Toutes les réponses portent l'en-tête `X-Contract-Version` indiquant la version
+  du contrat gelé en vigueur (actuellement `1`).
 
 ### Lancement manuel
 
@@ -36,3 +38,18 @@ Le serveur se bind sur `127.0.0.1` et affiche le `host:port` réel.
 ```bash
 python3 -m pytest "Modules M/M7-marketing/tests" -q
 ```
+
+## Contrat gelé v1
+
+- **Source unique de vérité** : [contracts/brand-contract.v1.yaml](contracts/brand-contract.v1.yaml)
+  définit le schéma du profil, les réponses HTTP attendues et la version du contrat.
+- **Aucune duplication** : `brand_schema.py` charge le contrat pour obtenir
+  `REQUIRED_FIELDS`, les types et les contraintes. Le serveur lit la version directement
+  depuis le contrat.
+- **Évolution** : toute modification structurelle nécessite un **nouveau** fichier
+  `contracts/brand-contract.v2.yaml`, un bump de `schema_version`, la mise à jour
+  du hash de gel dans `test_contract_consumer.py` et une revue d'architecture
+  (conformément à D-015).
+- **Hash de gel** : le test `test_contract_consumer.py` épingle le SHA-256 binaire
+  du contrat. Toute altération du fichier v1 sans suivre la procédure ci-dessus
+  rendra le test **ROUGE**.

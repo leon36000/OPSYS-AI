@@ -1,4 +1,4 @@
-"""Serveur HTTP minimal du profil de marque OPSYS-AI."""
+"""Serveur HTTP minimal du profil de marque OPSYS-AI — version contrat gelé v1."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from urllib.parse import urlsplit
 import yaml
 
 import brand_schema
+from brand_schema import contract_version
 
 
 class _BrandHandler(BaseHTTPRequestHandler):
@@ -34,6 +35,7 @@ class _BrandHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         if status == 405:
             self.send_header("Allow", "GET")
+        self.send_header("X-Contract-Version", contract_version())
         self.end_headers()
         self.wfile.write(body)
 
@@ -83,6 +85,7 @@ class _BrandHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
+        self.send_header("X-Contract-Version", contract_version())
         self.end_headers()
         self.wfile.write(body)
 
@@ -112,4 +115,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
