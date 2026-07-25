@@ -9,7 +9,7 @@ surfaces:
       - "Optimiser pour l'IA générative de Google équivaut à faire du SEO classique (source plan)."
     tactiques:
       - tactique: "Crawlabilité des bots IA autorisée"
-        statut: valide
+        statut: "candidat_a_verifier"  # Cloudflare bloque les bots IA par défaut — à vérifier (source plan)
         source: "D-013 / position Google AIO"
       - tactique: "Rendu côté serveur"
         statut: valide
@@ -48,7 +48,7 @@ surfaces:
         statut: valide
         source: "D-013 / effet moteur de consensus"
 regles:
-  - "Fraîcheur/autorité pour Google AIO."
+  - "SEO classique pour Google AIO (position officielle : optimiser pour l'IA générative de Google = SEO classique)."
   - "Fraîcheur/autorité pour Perplexity."
   - "Citations/consensus pour les assistants IA."
   - "Une tactique par surface, jamais globale : chaque tactique est rattachée à une surface et documentée avec source + statut."
