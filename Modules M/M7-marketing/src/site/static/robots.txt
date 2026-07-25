@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Sitemap : à ajouter lors de la mise en production
+# Sitemap: https://example.com/sitemap.xml
