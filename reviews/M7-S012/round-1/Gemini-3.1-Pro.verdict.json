@@ -1,0 +1,20 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/contracts/utm-convention.v1.yaml",
+   "description": "La clé `caracteres_autorises_valeurs` est dupliquée dans la section `format`. Bien que le parseur YAML standard (safe_load) écrase silencieusement la première valeur par la seconde, cela reste une syntaxe YAML malformée qui pourrait causer des erreurs avec des parseurs stricts.",
+   "preuve": "Lignes 30-31 : `caracteres_autorises_valeurs: '[a-z0-9\\-_]'` immédiatement suivi de `caracteres_autorises_valeurs: '[a-z0-9\\-_]+'`"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/src/utm/utm_engine.py",
+   "description": "Dans la validation de la règle U-11 (année dans les bornes), si le dernier segment de la campagne n'est pas un entier (déclenchement de ValueError), la variable `annee` devient `None` et la règle émet un verdict 'ok' au lieu de 'fail'. Bien que ce cas soit bloqué en amont par la règle U-04 (regex stricte), U-11 devrait sémantiquement échouer si l'année est illisible.",
+   "preuve": "Lignes 261-269 : `except ValueError: annee = None`, suivi de `if annee is not None and ... else: verdicts.append((\"U-11\", \"ok\", \"\"))`"
+  }
+ ],
+ "date_heure": "2026-07-26T14:48:58.117346+00:00",
+ "prompt_sha256": "d2eaf6702364eb8e9d6938d02fb78804f61d2afb98b262d9c310e3e302d44b16",
+ "reviewer_model": "Gemini-3.1-Pro"
+}
