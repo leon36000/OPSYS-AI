@@ -1,0 +1,20 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "stories/M7-S012-convention-utm.md",
+   "description": "Le texte de la story mentionne l'ancien préfixe SHA256 '137b99e0…' pour le contrat gelé. Suite à la correction du round 3, le contrat a été re-gelé et la constante consommateur dans le test est désormais 'b62d3c6d...'. Le markdown de la story n'a pas été mis à jour pour refléter ce nouveau hash.",
+   "preuve": "stories/M7-S012-convention-utm.md ligne 4 : 'sha256 137b99e0…' vs tests/utm/test_utm_contrat_regles.py ligne 14 : 'SHA256_UTM_V1 = \"b62d3c6d063b85b4bd6e9f5800a0788c55f3799c802eb2eea7449fffef52cad2\"'."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/src/utm/utm_engine.py",
+   "description": "L'ADR (section 6) spécifie que la table de correspondance surface/pillar/type vers source/medium doit être déclarative dans un fichier séparé 'src/utm/mapping.py'. L'implémentation finale a consolidé ce mapping directement en dictionnaire Python dans 'utm_engine.py'. Bien que cela satisfasse le critère story 'déclaré hors contrat', cela diverge de l'architecture documentée.",
+   "preuve": "reviews/M7-S012/ADR-M7-S012.md section 6 : 'Une table déclarative dans src/utm/mapping.py ... mappe surface × pillar × type'. Modules M/M7-marketing/src/utm/utm_engine.py lignes 328-333 : mapping codé en dur dans la fonction utm_pour_content_item."
+  }
+ ],
+ "date_heure": "2026-07-26T15:00:48.924764+00:00",
+ "prompt_sha256": "3939f3e3af9d0a116060c2727bd91c46f60d682c505264379170e8a502cdc017",
+ "reviewer_model": "Qwen3.7-Max"
+}

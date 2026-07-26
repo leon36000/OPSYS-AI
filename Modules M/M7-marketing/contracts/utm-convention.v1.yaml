@@ -1,0 +1,36 @@
+schema_version: 1
+enums:
+  utm_source:
+    - google
+    - facebook
+    - instagram
+    - infolettre
+    - gbp
+    - site
+    - linkedin
+    - perplexity
+    - tiktok
+  utm_medium:
+    - organique
+    - cpc
+    - social
+    - courriel
+    - referral
+    - display
+format:
+  campaign:
+    regex: '^(fenetre|workflow|contenu)-[a-z0-9-]+-\d{4}$'
+    max_length: 100
+  content:
+    max_length: 80
+    alphabet: '[a-z0-9\-_]+'
+  annee:
+    min: 2020
+    max: 2099
+  caracteres_autorises_valeurs: '[a-z0-9\-_]+'
+validations:
+  parametres_obligatoires:
+    - utm_source
+    - utm_medium
+    - utm_campaign
+  url_max_length: 2048

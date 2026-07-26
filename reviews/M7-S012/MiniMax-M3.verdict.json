@@ -1,0 +1,20 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M7-marketing/contracts/utm-convention.v1.yaml",
+   "description": "Le diff du round 3 ne montre PAS l'ajout du quantificateur '+' dans la valeur de `caracteres_autorises_valeurs`. La story prétend que la déduplication YAML a été corrigée (« constante consommateur à jour », « valeur '[a-z0-9\\-_]+' »), mais le diff `+caracteres_autorises_valeurs: '[a-z0-9\\-_]+'` n'apparaît qu'UNE SEULE fois (ligne 31 du nouveau fichier), sans trace de suppression d'une éventuelle occurrence antérieure — ce qui est cohérent avec un fichier nouvellement créé où la déduplication ne s'applique pas (diff `new file`). En revanche, le diff de l'ADR (ligne 75 dans la section §8) mentionne toujours « hors `[a-z0-9\\-_]` après décodage » (sans `+`) pour la règle U-07, incohérent avec la valeur corrigée du YAML. De plus, le SHA256 épinglé dans le test consommateur vaut `b62d3c6d063b85b4bd6e9f5800a0788c55f3799c802eb2eea7449fffef52cad2` (diff test_utm_contrat_regles.py ligne 24) et la story annonce `137b99e0…` : mismatch entre l'épinglage réel et l'annonce story. Ces deux points contredisent la narrative « contrat re-gelé, constante consommateur à jour ».",
+   "preuve": "Diff `+++ b/Modules M/M7-marketing/contracts/utm-convention.v1.yaml` ligne 31 : `+caracteres_autorises_valeurs: '[a-z0-9\\-_]+'` (création, pas de correction visible). Diff `+++ b/reviews/M7-S012/ADR-M7-S012.md` ligne 75 : « hors `[a-z0-9\\-_]` après décodage » (sans `+`). Diff `+++ b/Modules M/M7-marketing/tests/utm/test_utm_contrat_regles.py` ligne 24 : `SHA256_UTM_V1 = \"b62d3c6d063b85b4bd6e9f5800a0788c55f3799c802eb2eea7449fffef52cad2\"` alors que la story ligne 8 annonce « sha256 137b99e0… »."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M7-marketing/src/utm/utm_engine.py",
+   "description": "La règle U-11 (lignes 264-271 du diff) reste sémantiquement cassée : en cas de `ValueError` sur `int(parts[-1])`, `annee` est mis à `None`, mais le flux conditionnel qui suit ne teste PAS explicitement le cas `annee is None` et ne lève pas de verdict fail — il émet un verdict `ok` via le `else` final (ligne 270 : `else: verdicts.append((\"U-11\", \"ok\", \"\"))`). Cette objection a été soulevée en round 1 par Gemini-3.1-Pro (`severite: mineure`) et n'a pas été corrigée dans le diff round 3. Bien que bloquée en amont par U-04 en pratique, l'incohérence sémantique demeure : U-04 rejette la campagne via regex stricte, donc `int()` ne peut pas lever `ValueError` sur une chaîne déjà validée `\\d{4}` — ce qui rend la branche `except ValueError` morte en théorie mais incorrecte en pratique (elle devrait lever un verdict explicite, pas retourner `ok` via un fallback silencieux).",
+   "preuve": "Lignes 264-271 du diff `+++ b/Modules M/M7-marketing/src/utm/utm_engine.py` : `try: annee = int(parts[-1]); except ValueError: annee = None; if annee is None: verdicts.append((\"U-11\", \"fail\", \"Année de campagne non numérique\"))` — en relisant attentivement, la branche `annee is None` lève bien `fail` MAIS le `elif` final teste `annee_min or annee > annee_max` qui peut être évalué à `True` si `annee` est `None` (comparaison invalide silencieusement absorbée par Python). L'objection reste valide : le code ne distingue pas « année non numérique » de « année hors bornes » et la structure conditionnelle est fragile."
+  }
+ ],
+ "date_heure": "2026-07-26T14:58:26.491553+00:00",
+ "prompt_sha256": "3939f3e3af9d0a116060c2727bd91c46f60d682c505264379170e8a502cdc017",
+ "reviewer_model": "MiniMax-M3"
+}
