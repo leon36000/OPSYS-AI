@@ -22,7 +22,6 @@ Garanties :
 """
 
 import re
-import unicodedata
 
 # ---------------------------------------------------------------------------
 # Jeton de neutralisation
@@ -58,7 +57,9 @@ _VERBES_EN = [
 ]
 
 # ---------------------------------------------------------------------------
-# Cibles communes (FR + EN, accent-insensitive)
+# Cibles communes (FR + EN)
+# Correctif R2 : retrait de previous/précédent qui sont des MODIFICATEURS
+# et non des cibles autonomes. Les cibles réelles subsistent.
 # ---------------------------------------------------------------------------
 _CIBLES = [
     r"instructions?",
@@ -68,8 +69,6 @@ _CIBLES = [
     r"rules?",
     r"prompts?",
     r"syst[èe]mes?",
-    r"previous",
-    r"précédent(?:es)?",
 ]
 
 # ---------------------------------------------------------------------------

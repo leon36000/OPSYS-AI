@@ -544,3 +544,17 @@ def test_entree_non_str():
     """Les entrées non textuelles retournent ("", True)."""
     assert _importer_filtrer()(None) == ("", True)
     assert _importer_filtrer()(123) == ("", True)
+
+@pytest.mark.parametrize("contenu", [
+    "J'ai oublié mon rendez-vous précédent, pouvez-vous me rappeler ?",
+    "Ignorez mon message précédent, je me suis trompé de numéro",
+    "Oubliez ma demande précédente, le problème est réglé",
+    "Comme dans mon courriel précédent, la toiture coule",
+    "Veuillez oublier le devis précédent, les dimensions ont changé",
+])
+def test_messages_client_precedent_intacts(contenu):
+    """« précédent » est un MODIFICATEUR, pas une cible : un client qui corrige
+    son message précédent ne doit jamais être neutralisé (aucune opportunité perdue)."""
+    contenu_filtre, sain = _importer_filtrer()(contenu)
+    assert sain is True, f"Faux positif sur un message client légitime : {contenu}"
+    assert contenu_filtre == contenu
