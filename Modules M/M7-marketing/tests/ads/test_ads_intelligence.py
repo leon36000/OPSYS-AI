@@ -124,3 +124,90 @@ def test_zero_reseau():
         source = inspect.getsource(mod)
         for token in ("urllib", "socket", "http.client", "requests", "httpx"):
             assert token not in source
+
+
+def test_ad01_chemin_conforme():
+    """Une campagne avec CTR, CPC, CPA calculables doit obtenir AD-01 conforme."""
+    report = intelligence.generate_report(str(FIXTURES), str(CALENDRIER), _date_ref())
+    campagne = next(
+        c for c in report["campagnes"] if c["campagne"] == "GA - Été visibilité"
+    )
+    ad01 = next(v for v in campagne["verdicts"] if v["regle"] == "AD-01")
+    assert ad01["verdict"] == "conforme"
+
+
+def test_ad02_plateforme_conforme():
+    """Toute campagne google_ads reçoit AD-02 conforme car la plateforme est valide."""
+    report = intelligence.generate_report(str(FIXTURES), str(CALENDRIER), _date_ref())
+    campagne = next(
+        c for c in report["campagnes"] if c["plateforme"] == "google_ads"
+    )
+    ad02 = next(v for v in campagne["verdicts"] if v["regle"] == "AD-02")
+    assert ad02["verdict"] == "conforme"
+
+
+def test_ad06_seuil_attention():
+    """La campagne 'GA - Été visibilité' consomme exactement 80 % du budget -> AD-06 attention."""
+    report = intelligence.generate_report(str(FIXTURES), str(CALENDRIER), _date_ref())
+    campagne = next(
+        c for c in report["campagnes"] if c["campagne"] == "GA - Été visibilité"
+    )
+    ad06 = next(v for v in campagne["verdicts"] if v["regle"] == "AD-06")
+    assert ad06["verdict"] == "attention"
+    assert ad06["fait_mesure"] == "consommation_budget=0.8"
+
+
+def test_ad06_budget_nul_ou_negatif(tmp_path):
+    """Avec budget=0, AD-06 doit retourner 'attention' et fait_mesure='budget=0'."""
+    f = tmp_path / "zero_budget.yaml"
+    f.write_text(
+        """fictif: true
+plateforme: google_ads
+campagnes:
+  - campagne: "Budget zero"
+    periode: "2026-07"
+    fenetre_id: "fw-haute-saison-estivale"
+    budget: 0
+    cout: 0
+    impressions: 10000
+    clics: 200
+    conversions: 5
+""",
+        encoding="utf-8",
+    )
+    report = intelligence.generate_report(str(tmp_path), str(CALENDRIER), _date_ref())
+    campagne = report["campagnes"][0]
+    ad06 = next(v for v in campagne["verdicts"] if v["regle"] == "AD-06")
+    assert ad06["verdict"] == "attention"
+    assert ad06["fait_mesure"] == "budget=0"
+
+
+def test_chemins_conformes_ad03_04_05():
+    """La campagne 'META - Remarketing été' est entièrement saine -> AD-03/04/05 conformes."""
+    report = intelligence.generate_report(str(FIXTURES), str(CALENDRIER), _date_ref())
+    campagne = next(
+        c for c in report["campagnes"]
+        if c["campagne"] == "META - Remarketing été"
+    )
+    for regle in ("AD-03", "AD-04", "AD-05"):
+        v = next(v for v in campagne["verdicts"] if v["regle"] == regle)
+        assert v["verdict"] == "conforme", f"Échec {regle}"
+
+
+def test_conforme_sans_recommandation():
+    """Les campagnes sans verdict non conforme ne génèrent aucune recommandation."""
+    report = intelligence.generate_report(str(FIXTURES), str(CALENDRIER), _date_ref())
+    # Identifier les campagnes 100 % conformes
+    campagnes_conformes = {
+        c["campagne"]
+        for c in report["campagnes"]
+        if all(v["verdict"] == "conforme" for v in c["verdicts"])
+    }
+    # Vérifier qu'aucune recommandation ne pointe vers ces campagnes
+    for rec in report["recommandations"]:
+        assert (
+            rec["campagne"] not in campagnes_conformes
+        ), f"Recommandation inattendue pour {rec['campagne']}"
+
+    # Double vérification : la campagne clean connue doit être dans l'ensemble
+    assert "META - Remarketing été" in campagnes_conformes
