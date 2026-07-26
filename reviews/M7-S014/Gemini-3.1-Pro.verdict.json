@@ -1,14 +1,7 @@
 {
- "verdict": "REJECT",
- "objections": [
-  {
-   "severite": "majeure",
-   "fichier": "Modules M/M7-marketing/tests/ads/test_ads_intelligence.py",
-   "description": "Couverture de tests insuffisante pour valider les règles AD-01 à AD-06. La branche `budget <= 0` de la règle AD-06 n'est jamais exécutée car aucune fixture ne possède de budget négatif ou nul. De plus, les tests n'effectuent aucune assertion sur les verdicts des règles AD-01, AD-02 et AD-06, ni sur les branches 'conforme' des autres règles.",
-   "preuve": "Lignes 78-85 de test_ads_intelligence.py (les assertions se limitent aux règles AD-03, AD-04 et AD-05 pour la seule campagne 'GA - Hors fenêtre estivale') et fichiers fixtures/ads/*.yaml (budgets strictement positifs : 1000, 500, 900)."
-  }
- ],
- "date_heure": "2026-07-26T15:33:00.549386+00:00",
- "prompt_sha256": "6018187a801d7c1ccba0c81f7fa26b6e5f8c94766f76890d7987d164da9482bd",
+ "verdict": "APPROVE",
+ "objections": [],
+ "date_heure": "2026-07-26T15:37:29.979368+00:00",
+ "prompt_sha256": "6c2efc305ad16960a25dde8e5db0ba8d211ef342437b18401c0b3a5db8cd5d82",
  "reviewer_model": "Gemini-3.1-Pro"
 }

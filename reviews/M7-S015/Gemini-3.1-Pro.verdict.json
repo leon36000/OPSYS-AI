@@ -1,20 +1,7 @@
 {
- "verdict": "REJECT",
- "objections": [
-  {
-   "severite": "majeure",
-   "fichier": "Modules M/M7-marketing/metrics/m7-metrics.v1.yaml",
-   "description": "La story et l'ADR exigent explicitement l'utilisation de la devise CAD ('devise CAD (Québec)'). Cependant, les nouvelles métriques m7_cout_par_lead_par_canal et m7_cout_par_lead_global sont déclarées avec l'unité 'EUR/lead'.",
-   "preuve": "Lignes 87 et 104 : unite: \"EUR/lead\""
-  },
-  {
-   "severite": "mineure",
-   "fichier": "Modules M/M7-marketing/src/roi/roi_engine.py",
-   "description": "La fonction generer_digest_fenetre exigée par l'ADR est bien définie mais n'est jamais appelée par consolider_roi (qui génère le digest en ligne). De plus, son format de retour omet la mention du coût moyen présente dans l'exemple de l'ADR.",
-   "preuve": "Ligne 126 : digest = f\"Fenêtre {fid} : {nb_campagnes} campagne(s) liée(s), {nb_leads} leads attribués\" (génération en ligne) et Ligne 178 : return f\"Fenêtre {fid} : {nb} campagne(s), {leads_attribues} leads attribués\" (absence du coût moyen)."
-  }
- ],
- "date_heure": "2026-07-26T15:54:18.532492+00:00",
- "prompt_sha256": "9d29e48516d61814185031133e9ca5e70f3c29cca1ace97ee18bef9c0c52cf87",
+ "verdict": "APPROVE",
+ "objections": [],
+ "date_heure": "2026-07-26T15:57:53.564189+00:00",
+ "prompt_sha256": "590c27d463a8b1ec96286c22787c5a6d2f89095a2133ed8db9f114b28bd94f18",
  "reviewer_model": "Gemini-3.1-Pro"
 }

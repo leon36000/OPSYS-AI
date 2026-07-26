@@ -1,0 +1,14 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "reviews/M7-S015/ADR-M7-S015.md",
+   "description": "La prose de l'ADR reste incohérente avec l'exigence CAD : §4 mentionne encore 'EUR/lead' dans les descriptions de `m7_cout_par_lead_par_canal` et `m7_cout_par_lead_global`, et §5 cite 'coût moyen 38 EUR/lead' dans l'exemple de digest. La YAML d'implémentation a bien été corrigée (CAD/lead aux 3 endroits), mais l'ADR — qui doit servir de référence architecturale — n'a pas été mis à jour et continuera d'induire en erreur un futur mainteneur. La correction R1 a été traitée côté code, pas côté prose.",
+   "preuve": "Diff reviews/M7-S015/ADR-M7-S015.md, §4 : 'm7_cout_par_lead_par_canal (coût ads du canal divisé par leads dernière touche du canal, EUR/lead)' et 'm7_cout_par_lead_global (somme des coûts ads joignables / somme des leads attribués à un canal joignable, EUR/lead)'. §5 : exemple 'Fenêtre hiver : 2 campagnes, 14 leads attribués, coût moyen 38 EUR/lead'. À comparer avec metrics/m7-metrics.v1.yaml lignes 10, ~87 et ~104 du diff où `unite: \"CAD/lead\"` est désormais appliqué systématiquement."
+  }
+ ],
+ "date_heure": "2026-07-26T15:58:12.728492+00:00",
+ "prompt_sha256": "590c27d463a8b1ec96286c22787c5a6d2f89095a2133ed8db9f114b28bd94f18",
+ "reviewer_model": "MiniMax-M3"
+}
