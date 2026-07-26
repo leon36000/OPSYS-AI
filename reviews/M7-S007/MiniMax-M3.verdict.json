@@ -1,0 +1,20 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "reviews/M7-S007/ADR-M7-S007.md",
+   "description": "Le corps de l'ADR conserve la coquille « metricues » dans §2 et §4 ; seule l'annexe R1 signale la correction vers « metriques ». Le code et les tests utilisent « metriques » (cohérent entre eux et avec l'annexe), mais le corps ADR reste factuellement faux sur ce point — un lecteur只看 le corps sans l'annexe conclurait à une divergence code/ADR.",
+   "preuve": "ADR §2 : 'metricues (dictionnaire de compteurs, cf. §4)'. ADR §4 : 'sous la clé metricues'. Annexe R1 : 'orthographe « metriques »'. src/workflows/chantier_social.py : clé 'metriques'."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/src/workflows/chantier_social.py",
+   "description": "L'ADR §1 prescrit une longueur de 50-500 caractères pour description_factuelle ; le code ne valide ni la longueur ni le contenu factuel. Aucun des 6 critères story n'exerce cette contrainte, donc non-bloquant pour les acceptance criteria, mais l'ADR reste partiellement non implémenté.",
+   "preuve": "ADR §1 : 'description_factuelle (chaîne non vide, 50-500 caractères, texte factuel)'. src/workflows/chantier_social.py : seule la clé 'fictif' et l'enum type_travaux sont validées ; aucune vérification de longueur sur description_factuelle."
+  }
+ ],
+ "date_heure": "2026-07-25T23:04:01.297442+00:00",
+ "prompt_sha256": "4d14ff6602e2d9c9a7f4601ce46e0ee62c086d2eb6d49f0399b64fd056a26e86",
+ "reviewer_model": "MiniMax-M3"
+}

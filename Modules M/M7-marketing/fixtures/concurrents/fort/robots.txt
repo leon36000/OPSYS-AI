@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://exemple-fort.example/sitemap.xml

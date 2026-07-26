@@ -1,0 +1,32 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/tests/aeo/test_aeo_rules.py",
+   "description": "API misuse dans test_propagation_candidat : aeo_engine._parse_html(html, artifact) passe un dict en deuxième argument positionnel, alors que la signature est _parse_html(html_string, strict=False). Le test passe par chance (HTML bien-formé, dict truthy) mais l'appel est incorrect et trompeur.",
+   "preuve": "ligne ~256 : data = aeo_engine._parse_html(html, artifact) — la fonction _parse_html ne prend que (html_string, strict=False), artifact n'est pas un paramètre valide"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/tests/aeo/test_aeo_artifacts.py",
+   "description": "BRAND_PROFILE_PATH est déclaré deux fois au niveau module (ligne ~13 et ligne ~30), redondance inutile.",
+   "preuve": "ligne ~13 : BRAND_PROFILE_PATH = _M7 / \"src\" / \"brand\" / \"profile.yaml\" ; ligne ~30 : BRAND_PROFILE_PATH = _M7 / \"src\" / \"brand\" / \"profile.yaml\" (répétition identique)"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/tests/aeo/test_aeo_rules.py",
+   "description": "Fonction helper build_item_artifact définie au niveau module mais jamais appelée (code mort).",
+   "preuve": "lignes ~178-181 : def build_item_artifact(item, surface, timestamp=...): ... — aucune invocation dans le fichier (seul aeo_engine.build_item_artifact est utilisé)"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/tests/aeo/test_aeo_rules.py",
+   "description": "Style : import copy est placé au milieu du fichier après plusieurs lignes vides, au lieu d'être regroupé en tête avec les autres imports.",
+   "preuve": "lignes ~188-190 : séquence de lignes vides suivie de 'import copy' après la définition de test_a09_non_conforme"
+  }
+ ],
+ "date_heure": "2026-07-25T23:48:02.629048+00:00",
+ "prompt_sha256": "780f1fa3ff81b3e5c80cd21916f76e94fb6ce254fd7722e53e1fe580e2bb0590",
+ "reviewer_model": "MiniMax-M3"
+}
