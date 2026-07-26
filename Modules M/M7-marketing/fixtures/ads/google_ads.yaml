@@ -1,0 +1,19 @@
+fictif: true
+plateforme: google_ads
+campagnes:
+  - campagne: "GA - Été visibilité"
+    periode: "2026-07"
+    fenetre_id: "fw-haute-saison-estivale"
+    budget: 1000
+    cout: 800
+    impressions: 40000
+    clics: 1200
+    conversions: 24
+  - campagne: "GA - Hiver hors saison"
+    periode: "2026-07"
+    fenetre_id: "fw-creux-hivernal"
+    budget: 500
+    cout: 650
+    impressions: 0
+    clics: 0
+    conversions: 0
