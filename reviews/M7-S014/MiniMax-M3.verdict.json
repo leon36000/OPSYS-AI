@@ -3,30 +3,24 @@
  "objections": [
   {
    "severite": "mineure",
-   "fichier": "Modules M/M7-marketing/tests/ads/test_ads_intelligence.py",
-   "description": "AD-02 n'a aucun test comportemental : seule la présence de la règle est vérifiée via test_rules_ad_01_a_ad_06_toujours_presentes, mais le verdict 'conforme' avec plateforme=n n'est jamais asserté explicitement. La règle semble triviale (toujours conforme) mais son comportement n'est pas verrouillé.",
-   "preuve": "test_generate_report_regles_et_actions_proposees lignes 71-82 : assertions sur AD-03/AD-04/AD-05 uniquement, aucune assertion sur verdicts['AD-02']"
+   "fichier": "Modules M/M7-marketing/src/ads/intelligence.py",
+   "description": "Persistance du pattern sys.path.insert au niveau du module de production (lignes 9-13). Anti-pattern Python déjà signalé sur M7-S006..S013 (mineures cumulées) ; hors périmètre de cette story selon le contexte, mais reste un risque latent pour des contextes d'import plus larges.",
+   "preuve": "intelligence.py lignes 9-13 : `_CURR = Path(__file__).resolve().parent` puis `sys.path.insert(0, str(_CURR))` avant `from ads_loader import load_fixtures`"
   },
   {
    "severite": "mineure",
-   "fichier": "Modules M/M7-marketing/tests/ads/test_ads_intelligence.py",
-   "description": "AD-06 (seuil 80% du budget) n'est testé comportementalement sur aucune branche. La campagne 'GA - Été visibilité' (cout=800, budget=1000, ratio=0.8) devrait déclencher 'attention' selon intelligence.py ligne 107 (cout >= budget * 0.8), mais aucun test ne le vérifie. Les branches budget<=0 et cout<budget*0.8 ne sont pas couvertes non plus.",
-   "preuve": "intelligence.py lignes 105-110 : trois branches AD-06 (budget<=0, cout>=budget*0.8, else) ; aucun test n'exerce la branche 'conforme' ni ne vérifie le déclenchement 'attention' pour cout/budget=0.8"
+   "fichier": "Modules M/M7-marketing/src/ads/intelligence.py",
+   "description": "Incohérence de retour de _safe_ratio selon le contexte d'appel : renvoie float arrondi à 6 décimales quand le dénominateur est non nul, mais 'n_insuffisant' (string) sinon. AD-01 teste `if 'n_insuffisant' in (ctr, cpc, cpa)` ce qui suppose un mélange de types, mais le typage de la signature `float | str` documente cette hybridation. À documenter ou à typiser via un sentinelle dédiée pour éviter une dérive future.",
+   "preuve": "intelligence.py ligne 14 : signature `_safe_ratio(numerator: float, denominator: float) -> float | str` ; ligne 65 : `if 'n_insuffisant' in (ctr, cpc, cpa)`"
   },
   {
    "severite": "mineure",
-   "fichier": "Modules M/M7-marketing/tests/ads/test_ads_intelligence.py",
-   "description": "Les chemins 'conforme' des règles AD-01, AD-03, AD-04, AD-05 ne sont pas testés. Le test test_generate_report_regles_et_actions_proposees n'examine que la campagne 'GA - Hors fenêtre estivale' (multiples anomalies). Les campagnes 'GA - Été visibilité' et 'META - Remarketing été' (toutes conformes sauf AD-06) ne sont pas vérifiées au niveau des verdicts.",
-   "preuve": "test_generate_report_regles_et_actions_proposees lignes 71-82 : 'c_hors_fenetre' est la seule campagne inspectée ; aucune assertion sur les verdicts des deux autres campagnes"
-  },
-  {
-   "severite": "mineure",
-   "fichier": "Modules M/M7-marketing/tests/ads/test_ads_intelligence.py",
-   "description": "La logique de filtrage 'conforme → pas de recommandation' (intelligence.py lignes 142-144) n'est pas testée explicitement. Le test vérifie que toutes les recommandations ont statut='PROPOSE' mais ne vérifie pas que les verdicts conformes ne génèrent pas de recommandation (ni le nombre attendu de recommandations par campagne).",
-   "preuve": "intelligence.py lignes 142-144 : 'if verdict[\"verdict\"] == \"conforme\": continue' ; test_generate_report_regles_et_actions_proposees ligne 82 : 'assert all(r[\"statut\"] == \"PROPOSE\" for r in report[\"recommandations\"])' ne vérifie pas le filtrage"
+   "fichier": "Modules M/M7-marketing/src/ads/intelligence.py",
+   "description": "Aucune vérification que `campagne['periode']` (ex. '2026-07') est cohérente avec `date_reference` (mois 7). Une campagne avec periode='2026-08' sur date_reference=2026-07-15 serait traitée comme applicable au mois de référence. Le test couvre la cohérence fenêtre/mois mais pas periode/mois.",
+   "preuve": "intelligence.py lignes 90-104 : `campagne['periode']` est propagé tel quel dans `campagnes_analyses` sans comparaison avec `d.month`"
   }
  ],
- "date_heure": "2026-07-26T15:35:03.883047+00:00",
- "prompt_sha256": "6018187a801d7c1ccba0c81f7fa26b6e5f8c94766f76890d7987d164da9482bd",
+ "date_heure": "2026-07-26T15:37:20.790029+00:00",
+ "prompt_sha256": "6c2efc305ad16960a25dde8e5db0ba8d211ef342437b18401c0b3a5db8cd5d82",
  "reviewer_model": "MiniMax-M3"
 }
