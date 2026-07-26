@@ -1,0 +1,36 @@
+fictif: true
+leads:
+  - lead_id: l-001
+    date: 2026-07-01
+    source_declaree: Google
+    statut: nouveau
+    visitor_id: v-001
+  - lead_id: l-002
+    date: 2026-07-03
+    source_declaree: bouche-à-oreille
+    statut: qualifie
+    visitor_id: v-002
+  - lead_id: l-003
+    date: 2026-07-10
+    source_declaree: Appel téléphonique
+    statut: nouveau
+  - lead_id: l-004
+    date: 2026-07-12
+    source_declaree: Site web
+    statut: qualifie
+    visitor_id: v-999
+  - lead_id: l-005
+    date: 2026-07-15
+    source_declaree: Google
+    statut: nouveau
+    visitor_id: v-005
+  - lead_id: l-006
+    date: 2026-07-11
+    source_declaree: Infolettre
+    statut: converti
+    visitor_id: v-006
+  - lead_id: l-007
+    date: 2026-07-08
+    source_declaree: Facebook
+    statut: qualifie
+    visitor_id: v-003

@@ -1,0 +1,68 @@
+fictif: true
+visites:
+  - visitor_id: v-001
+    date: 2026-06-10
+    utm_source: google
+    utm_medium: organique
+    utm_campaign: fenetre-fw-haute-saison-estivale-2026
+    landing: /services
+  - visitor_id: v-001
+    date: 2026-06-20
+    utm_source: facebook
+    utm_medium: social
+    utm_campaign: contenu-toitures-2026
+    landing: /portfolio
+  - visitor_id: v-001
+    date: 2026-06-30
+    utm_source: google
+    utm_medium: organique
+    utm_campaign: fenetre-fw-haute-saison-estivale-2026
+    landing: /contact
+  - visitor_id: v-002
+    date: 2026-07-02
+    utm_source: gbp
+    utm_medium: social
+    utm_campaign: contenu-fiche-gbp-optimisee-2026
+    landing: /gbp
+  - visitor_id: v-003
+    date: 2026-07-05
+    utm_source: facebook
+    utm_medium: social
+    utm_campaign: contenu-post-renovation-2026
+    landing: /blog/renovation
+  - visitor_id: v-003
+    date: 2026-07-06
+    utm_source: facebook
+    utm_medium: social
+    utm_campaign: contenu-post-renovation-2026
+    landing: /blog/renovation
+  - visitor_id: v-004
+    date: 2026-07-08
+    utm_source: google
+    utm_medium: organique
+    utm_campaign: contenu-seo-page-service-2026
+    landing: /services
+  - visitor_id: v-004
+    date: 2026-07-09
+    utm_source: google
+    utm_medium: organique
+    utm_campaign: contenu-seo-page-service-2026
+    landing: /contact
+  - visitor_id: v-005
+    date: 2026-05-15
+    utm_source: google
+    utm_medium: organique
+    utm_campaign: contenu-ancienne-campagne-2026
+    landing: /ancien
+  - visitor_id: v-006
+    date: 2026-07-10
+    utm_source: infolettre
+    utm_medium: courriel
+    utm_campaign: contenu-infolettre-special-2026
+    landing: /promo
+  - visitor_id: v-006
+    date: 2026-07-12
+    utm_source: infolettre
+    utm_medium: courriel
+    utm_campaign: contenu-infolettre-special-2026
+    landing: /promo
