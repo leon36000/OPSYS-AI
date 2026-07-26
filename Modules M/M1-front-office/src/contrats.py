@@ -12,16 +12,46 @@ _TYPES_TRAVAUX = {
 }
 _CANAUX = {"telephone", "courriel", "formulaire", "texte"}
 
-# Patterns de détection pour les interdits de la description
+# Détection de prix affinée
 _PRIX_REGEX = re.compile(
-    r"(\$|€|CAD|dollars|euros|à\s+partir\s+de|fourchette|/m²|/h|\d+\s*(dollars|euros|CAD|\$|€))",
-    re.IGNORECASE,
+    r"""(
+        \$\s*\d+(?:[\s,.]\d+)* |                      # $ 5 000 ou 5,000
+        \d+(?:[\s,.]\d+)*\s*\$ |                      # 5 000 $ ou 5,000$
+        €\s*\d+(?:[\s,.]\d+)* |                        # € 5 000
+        \d+(?:[\s,.]\d+)*\s*€ |                        # 5 000 €
+        \d+(?:[\s,.]\d+)*\s*(?:dollars|euros|CAD) |    # 500 dollars
+        (?:dollars|euros|CAD)\s*\d+(?:[\s,.]\d+)* |    # dollars 500
+        à\s+partir\s+de\s+\d+(?:[\s,.]\d+)* |          # à partir de 500
+        fourchette\s+\d+(?:[\s,.]\d+)*\s*-\s*\d+(?:[\s,.]\d+)* | # fourchette 100-200
+        \d+(?:[\s,.]\d+)*\s*/\s*m[²2] |                # 50/m²
+        \d+(?:[\s,.]\d+)*\s*/\s*h |                    # 50/h
+        \d+(?:[\s,.]\d+)*\s*/\s*pi[²2]                 # 50/pi²
+    )""",
+    re.IGNORECASE | re.VERBOSE,
 )
 
-_MOIS = "janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre"
+# Détection de dates élargie
+_MOIS_NOMS = (
+    "janvier|février|mars|avril|mai|juin|"
+    "juillet|août|septembre|octobre|novembre|décembre"
+)
+_JOURS_SEMAINE = "lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche"
+_RELATIF = "demain|hier|aujourd'hui"
+
 _DATE_REGEX = re.compile(
-    r"\d{1,2}\s+(?:" + _MOIS + r")|" + r"\d{1,2}[/-]\d{1,2}[/-]\d{2,4}",
-    re.IGNORECASE,
+    r"""(
+        \d{4}-\d{2}-\d{2} |                             # ISO complet AAAA-MM-JJ
+        \d{2}/\d{2} |                                   # JJ/MM
+        \d{1,2}-\d{1,2}-\d{2,4} |                       # JJ-MM-AAAA
+        \d{1,2}\s+(?:""" + _MOIS_NOMS + r""") |          # 15 janvier
+        (?:début|courant|fin)\s+(?:""" + _MOIS_NOMS + r""") |  # début mars
+        (?:en|dès|avant|après)\s+\d{4} |                 # en 2027
+        (?:""" + _JOURS_SEMAINE + r""") |                # lundi
+        (?:la\s+semaine\s+prochaine) |                   # la semaine prochaine
+        (?:dans\s+\d+\s+(?:jours|semaines|mois)) |       # dans 5 jours
+        (?:""" + _RELATIF + r""")                         # demain
+    )""",
+    re.IGNORECASE | re.VERBOSE,
 )
 
 
@@ -103,8 +133,8 @@ def valider_chiffrage(demande: dict) -> str:
 
 
 # Hash des contrats
-_ICI = Path(__file__).resolve().parent  # répertoire de contrats.py
-_CONTRACTS_DIR = _ICI / "contracts"
+_ICI = Path(__file__).resolve().parent  # répertoire src/
+_CONTRACTS_DIR = _ICI.parent / "contracts"  # ../contracts/ depuis src
 
 
 def hash_contrat(nom: str) -> str:
