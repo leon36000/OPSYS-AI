@@ -15,6 +15,8 @@ jobs:
         run: python3 -m pytest scripts/tests -q
       - name: Tests module M7 (M7-S000)
         run: python3 -m pytest "Modules M/M7-marketing/tests" -q
+      - name: Tests module M1 (EPIC E — branché avant la premiere story, exigence revue scellee)
+        run: python3 -m pytest "Modules M/M1-front-office/tests" -q
 
   e2e:
     runs-on: ubuntu-latest

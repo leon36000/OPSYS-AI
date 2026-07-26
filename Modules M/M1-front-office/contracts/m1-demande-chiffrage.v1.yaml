@@ -1,0 +1,45 @@
+schema_version: 1
+fields:
+  - name: lead_id
+    type: str
+    required: true
+  - name: conversation_id
+    type: str
+    required: true
+  - name: contact
+    type: dict
+    required: true
+    fields:
+      - name: nom
+        type: str
+      - name: telephone
+        type: str
+      - name: courriel
+        type: str
+    constraints:
+      - "Au moins un des champs (nom, telephone, courriel) doit être non vide"
+  - name: type_travaux
+    type: str
+    required: true
+    constraints:
+      - "enum fermé : renovation_totale, extension, ravalement, isolation_thermique, autre"
+  - name: ville
+    type: str
+    required: true
+    constraints:
+      - "chaîne non vide"
+  - name: urgence_declaree
+    type: bool
+    required: true
+  - name: canal
+    type: str
+    required: true
+    constraints:
+      - "enum fermé : telephone, courriel, formulaire, texte"
+  - name: description_factuelle
+    type: str
+    required: true
+    constraints:
+      - "longueur entre 50 et 500 caractères"
+      - "ne doit contenir aucun prix (symboles monétaires, chiffres suivis de /m², /h, etc.)"
+      - "ne doit contenir aucune date (jours de la semaine, mois, formats ISO, JJ/MM, etc.)"

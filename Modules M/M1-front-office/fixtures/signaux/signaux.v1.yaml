@@ -1,0 +1,52 @@
+fictif: true
+signaux:
+  - signal_id: "b1a2b3c4-d5e6-4f78-9a0b-c1d2e3f4a5b6"
+    canal: telephone
+    horodatage: "2026-07-15T14:30:00-04:00"
+    contenu_brut: "Bonjour, j'aimerais faire rénover ma cuisine à Montréal, est-ce que vous faites ça?"
+    source_fiable: false
+  - signal_id: "c2d3e4f5-a6b7-4c89-9d0e-f1a2b3c4d5e6"
+    canal: telephone
+    horodatage: "2026-07-15T15:10:00-04:00"
+    contenu_brut: "J'ai besoin d'une toiture refaite à Québec urgent."
+    source_fiable: false
+  - signal_id: "d3e4f5a6-b7c8-4d90-0e1f-2a3b4c5d6e7f"
+    canal: courriel
+    horodatage: "2026-07-16T09:05:00-04:00"
+    contenu_brut: "Objet : Demande de soumission pour agrandissement\nBonjour, je souhaite agrandir ma maison à Laval. Pouvez-vous m'envoyer une estimation?"
+    source_fiable: false
+  - signal_id: "e4f5a6b7-c8d9-4e01-1f2a-3b4c5d6e7f8a"
+    canal: courriel
+    horodatage: "2026-07-16T10:20:00-04:00"
+    contenu_brut: "Salut, je veux refaire l'isolation de mon sous-sol à Sherbrooke. Merci."
+    source_fiable: false
+  - signal_id: "f5a6b7c8-d9e0-4f12-2a3b-4c5d6e7f8a9b"
+    canal: formulaire
+    horodatage: "2026-07-16T11:45:00-04:00"
+    contenu_brut: "type_travaux: extension\nville: Gatineau\nurgent: oui\nmessage: Besoin d'un agrandissement pour bureau."
+    source_fiable: false
+  - signal_id: "a6b7c8d9-e0f1-4a23-3b4c-5d6e7f8a9b0c"
+    canal: formulaire
+    horodatage: "2026-07-16T13:00:00-04:00"
+    contenu_brut: "ravalement de façade à Trois-Rivières, pas pressé."
+    source_fiable: false
+  - signal_id: "627b91d5-18e5-4d7f-b1cb-9e30f38e8f53"
+    canal: texte
+    horodatage: "2026-07-17T08:30:00-04:00"
+    contenu_brut: "Bonjour, est-ce que vous isolez les combles? Je suis à Chicoutimi."
+    source_fiable: false
+  - signal_id: "738c02e6-29f6-4e8a-b2dc-0f41a49f9a64"
+    canal: texte
+    horodatage: "2026-07-17T09:15:00-04:00"
+    contenu_brut: "Toit coule"
+    source_fiable: false
+  - signal_id: "849d13f7-30a7-4f9b-c3ed-1a52b5af0b75"
+    canal: courriel
+    horodatage: "2026-07-17T14:00:00-04:00"
+    contenu_brut: "Nous aimerions rénover complètement notre immeuble à Longueuil. Merci de nous rappeler."
+    source_fiable: false
+  - signal_id: "95ae24a8-41b8-4f0c-d4fe-2b63c6b01c86"
+    canal: telephone
+    horodatage: "2026-07-17T16:00:00-04:00"
+    contenu_brut: "Extension garage à Repentigny, le plus tôt possible svp."
+    source_fiable: false
