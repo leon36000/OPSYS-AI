@@ -1,0 +1,14 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M7-marketing/metrics/m7-metrics.v1.yaml",
+   "description": "L'unité des métriques de coût (m7_cout_par_lead_par_canal et m7_cout_par_lead_global) est déclarée en 'EUR/lead', ce qui contredit l'exigence explicite de la story et de l'ADR d'utiliser la devise CAD (Québec).",
+   "preuve": "Lignes ajoutées dans le diff : `unite: \"EUR/lead\"` pour les métriques m7_cout_par_lead_par_canal et m7_cout_par_lead_global."
+  }
+ ],
+ "date_heure": "2026-07-26T15:54:54.742438+00:00",
+ "prompt_sha256": "9d29e48516d61814185031133e9ca5e70f3c29cca1ace97ee18bef9c0c52cf87",
+ "reviewer_model": "Qwen3.7-Max"
+}
