@@ -27,7 +27,7 @@ format:
   annee:
     min: 2020
     max: 2099
-  caracteres_autorises_valeurs: '[a-z0-9\-_]'
+  caracteres_autorises_valeurs: '[a-z0-9\-_]+'
 validations:
   parametres_obligatoires:
     - utm_source

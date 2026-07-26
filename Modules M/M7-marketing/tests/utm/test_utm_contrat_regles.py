@@ -11,7 +11,7 @@ import utm_engine  # noqa: E402
 
 CONTRAT = _M7 / "contracts" / "utm-convention.v1.yaml"
 
-SHA256_UTM_V1 = "ed51e8d81f7979e3f326c1ac10b8c524494b0d5c8a9d9580473e6fd1e6e2be4c"  # GEL 2026-07-26 (D-015)
+SHA256_UTM_V1 = "b62d3c6d063b85b4bd6e9f5800a0788c55f3799c802eb2eea7449fffef52cad2"  # GEL 2026-07-26 (D-015)
 
 
 def _lien_valide():

@@ -2,13 +2,13 @@
  "verdict": "REJECT",
  "objections": [
   {
-   "severite": "majeure",
+   "severite": "critique",
    "fichier": "Modules M/M7-marketing/contracts/utm-convention.v1.yaml",
-   "description": "Clé dupliquée 'caracteres_autorises_valeurs' dans la section 'format'. Un contrat gelé par sha256 doit être syntaxiquement propre et sans ambiguïté. PyYAML écrase silencieusement la première valeur avec la seconde, mais cela reste une erreur de modélisation/copier-coller qui fragilise l'intégrité sémantique du contrat.",
-   "preuve": "Lignes 31-32 du diff : `caracteres_autorises_valeurs: '[a-z0-9\\-_]'` suivi immédiatement de `caracteres_autorises_valeurs: '[a-z0-9\\-_]+'`."
+   "description": "Le pipeline CI rapporte 4 tests en échec ('4 failed, 69 passed'). La cause racine principale est l'absence du quantifieur '+' dans la regex `caracteres_autorises_valeurs` du contrat, ce qui fait échouer la règle U-07 pour toute valeur de plus d'un caractère (ex: 'google') et casse mécaniquement les tests positifs et d'intégration. De plus, le SHA256 épinglé dans le test consommateur (`ed51e8d8...`) ne correspond pas à celui annoncé dans la story (`137b99e0...`), ce qui génère un échec sur le test de gel du contrat.",
+   "preuve": "Section `format` du YAML : `caracteres_autorises_valeurs: '[a-z0-9\\-_]'` (au lieu de `'[a-z0-9\\-_]+'`). Sortie CI : `4 failed, 69 passed in 0.15s`. Story : `sha256 137b99e0…` vs Test `test_utm_contrat_regles.py` : `SHA256_UTM_V1 = \"ed51e8d8...\"`."
   }
  ],
- "date_heure": "2026-07-26T14:52:06.680691+00:00",
- "prompt_sha256": "d2eaf6702364eb8e9d6938d02fb78804f61d2afb98b262d9c310e3e302d44b16",
+ "date_heure": "2026-07-26T14:54:19.662949+00:00",
+ "prompt_sha256": "2881be09e4d46b917f8e3d6fce7abd0ae8a7e2610da565c3f16598d56b809b46",
  "reviewer_model": "Qwen3.7-Max"
 }

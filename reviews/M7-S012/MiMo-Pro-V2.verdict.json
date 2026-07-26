@@ -1,20 +1,14 @@
 {
- "verdict": "APPROVE",
+ "verdict": "REJECT",
  "objections": [
   {
-   "severite": "mineure",
-   "fichier": "contracts/utm-convention.v1.yaml",
-   "description": "Clé YAML 'caracteres_autorises_valeurs' définie deux fois dans le même niveau",
-   "preuve": "Ligne 35-36 : deux occurrences consécutives de 'caracteres_autorises_valeurs:' avec des valeurs différentes"
-  },
-  {
-   "severite": "mineure",
-   "fichier": "stories/M7-S012-convention-utm.md",
-   "description": "Nombre de tests déclaré incorrect (73) vs réel (68)",
-   "preuve": "Diff montre 32 tests dans test_utm_contrat_regles.py, 27 dans test_utm_generateur.py, 9 dans test_utm_integration.py = 68 tests"
+   "severite": "critique",
+   "fichier": "Modules M/M7-marketing/contracts/utm-convention.v1.yaml",
+   "description": "La clé `caracteres_autorises_valeurs` vaut `'[a-z0-9\\-_]'` (sans quantificateur `+`), alors que `content.alphabet` vaut `'[a-z0-9\\-_]+'` (avec `+`). Le pattern sans `+` ne correspond qu'à un seul caractère. La règle U-07 applique ce pattern via `_value_ok(val, alphabet_global)` avec ancres `^...$`, ce qui rejette toute valeur UTM de plus d'un caractère (source, medium, campaign, content). Cela invalide systématiquement tout lien UTM réel et provoque exactement les 4 échecs de test observés : test_u07_positif_caracteres_autorises, test_lien_valide_aucun_fail, test_item_s006_reel, test_fenetre_s008_reelle.",
+   "preuve": "YAML ligne 31 : `caracteres_autorises_valeurs: '[a-z0-9\\-_]'` — absence de `+`. utm_engine.py ligne 237 : `alphabet_global = contrat[\"format\"][\"caracteres_autorises_valeurs\"]`. Lignes 243-248 : `_value_ok` applique `^{pattern}$` → `^[a-z0-9\\-_]$` ne matche qu'un seul caractère. Sortie pytest : `4 failed, 69 passed in 0.15s` (73 collectés, 4+69=73)."
   }
  ],
- "date_heure": "2026-07-26T14:49:15.397231+00:00",
- "prompt_sha256": "d2eaf6702364eb8e9d6938d02fb78804f61d2afb98b262d9c310e3e302d44b16",
+ "date_heure": "2026-07-26T14:55:10.011516+00:00",
+ "prompt_sha256": "2881be09e4d46b917f8e3d6fce7abd0ae8a7e2610da565c3f16598d56b809b46",
  "reviewer_model": "MiMo-Pro-V2"
 }
