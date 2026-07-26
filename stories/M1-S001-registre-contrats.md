@@ -9,7 +9,7 @@ Cadrage BMAD : `Modules M/M1-front-office/docs/bmad/` (brief analyste, PRD PM, a
   (asserté par test), enum fermé des types d'entrée, fixture signaux `fictif: true` fail-closed,
   **zéro perte prouvée** (1 signal de la fixture = 1 ligne de registre).
 - **Contrats GELÉS sha256** (D-015, tests consommateurs) : M1↔M2 `m1-lead-qualifie.v1.yaml`
-  (`40433e0d…`) et M1↔M3 `m1-demande-chiffrage.v1.yaml` (`a5f42648…`) — enums fermés, contact avec
+  (`30f5acf2…`) et M1↔M3 `m1-demande-chiffrage.v1.yaml` (`15494b7e…`) — enums fermés, contact avec
   au moins un champ non vide, `description_factuelle` 50-500 caractères **sans prix ni date**
   (frontières de vérité : prix = M3, dates = M4).
 - **verdicts.py** : identifiants stables `REJ-`/`EVT-` catalogués ; **horodatage.py** exige un

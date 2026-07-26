@@ -49,7 +49,6 @@ class Registre:
 
     def ajouter(self, entree: dict) -> str:
         """Ajoute une entrée immuable. Retourne le ligne_id (SHA-256)."""
-        import copy
         entree = copy.deepcopy(entree)
 
         # Validation type_entree

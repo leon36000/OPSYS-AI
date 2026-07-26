@@ -269,3 +269,28 @@ signaux:
         assert ok_avec_ancre is False
         assert verdict["code"] == "REJ-CHAINE-ALTEREE"
         assert "ancre" in str(verdict).lower()
+
+
+def test_ingestion_immuable():
+    """Prouve que l'ingestion copie défensivement le dictionnaire d'entrée."""
+    r = registre.Registre()
+
+    entree = {
+        "type_entree": "signal",
+        "horodatage": "2026-07-15T14:30:00-04:00",
+        "payload": {"signal_id": "ABC"}
+    }
+
+    ligne_id = r.ajouter(entree)
+
+    # Mutation profonde après ingestion
+    entree["payload"]["signal_id"] = "MUTE"
+    entree["payload"]["injecte"] = "donnee extra"
+
+    entrees_stockees = r.lire()
+    assert len(entrees_stockees) == 1
+
+    stockee = entrees_stockees[0]
+    assert stockee["payload"]["signal_id"] == "ABC"
+    assert "injecte" not in stockee["payload"]
+    assert ligne_id is not None
