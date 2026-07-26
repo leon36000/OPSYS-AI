@@ -1,6 +1,7 @@
 import re
 import hashlib
 from pathlib import Path
+from verdicts import construire_verdict
 
 # Enums fermés issus des contrats
 _TYPES_TRAVAUX = {
@@ -55,8 +56,8 @@ _DATE_REGEX = re.compile(
 )
 
 
-def valider_lead(lead: dict) -> str:
-    """Valide un lead conforme au contrat M1-M2. Retourne 'OK' ou lève ValueError."""
+def valider_lead(lead: dict) -> dict:
+    """Valide un lead conforme au contrat M1-M2. Retourne un verdict structuré avec code 'EVT-CONTRAT-VALIDE' ou lève ValueError."""
     champs_oblig = [
         "lead_id",
         "conversation_id",
@@ -103,11 +104,11 @@ def valider_lead(lead: dict) -> str:
     if not isinstance(lead["urgence_declaree"], bool):
         raise ValueError("urgence_declaree doit être un booléen")
 
-    return "OK"
+    return construire_verdict("EVT-CONTRAT-VALIDE", statut="", detail="Lead valide")
 
 
-def valider_chiffrage(demande: dict) -> str:
-    """Valide une demande de chiffrage conforme au contrat M1-M3. Retourne 'OK' ou lève ValueError."""
+def valider_chiffrage(demande: dict) -> dict:
+    """Valide une demande de chiffrage conforme au contrat M1-M3. Retourne un verdict structuré avec code 'EVT-CONTRAT-VALIDE' ou lève ValueError."""
     # Valide d'abord la partie lead commune
     valider_lead(demande)
 
@@ -129,7 +130,7 @@ def valider_chiffrage(demande: dict) -> str:
     if _DATE_REGEX.search(desc):
         raise ValueError("description_factuelle contient une date")
 
-    return "OK"
+    return construire_verdict("EVT-CONTRAT-VALIDE", statut="", detail="Chiffrage valide")
 
 
 # Hash des contrats

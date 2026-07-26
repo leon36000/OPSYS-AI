@@ -49,7 +49,7 @@ class TestContratsGeles:
 class TestValiderLead:
     def test_lead_valide(self):
         verdict = contrats.valider_lead(_lead_conforme())
-        assert verdict == "OK"  # ou valeur attendue
+        assert verdict["code"] == "EVT-CONTRAT-VALIDE"
 
     def test_lead_id_manquant(self):
         lead = _lead_conforme()
@@ -86,7 +86,7 @@ class TestValiderLead:
 class TestValiderChiffrage:
     def test_chiffrage_valide(self):
         verdict = contrats.valider_chiffrage(_chiffrage_conforme())
-        assert verdict == "OK"
+        assert verdict["code"] == "EVT-CONTRAT-VALIDE"
 
     def test_description_trop_courte(self):
         chiffrage = _chiffrage_conforme()
@@ -123,3 +123,18 @@ class TestVerdictsStables:
         for attr_name in dir(verdicts):
             if attr_name.startswith("REJ") or attr_name.startswith("EVT"):
                 assert "score" not in attr_name.lower()
+
+
+def test_valider_lead_retourne_verdict_evt_contrat_valide():
+    lead = _lead_conforme()
+    verdict = contrats.valider_lead(lead)
+    assert verdict["code"] == "EVT-CONTRAT-VALIDE"
+    assert verdict["statut"] == ""
+    assert "detail" in verdict
+
+def test_valider_chiffrage_retourne_verdict_evt_contrat_valide():
+    demande = _chiffrage_conforme()
+    verdict = contrats.valider_chiffrage(demande)
+    assert verdict["code"] == "EVT-CONTRAT-VALIDE"
+    assert verdict["statut"] == ""
+    assert "detail" in verdict

@@ -294,3 +294,22 @@ def test_ingestion_immuable():
     assert stockee["payload"]["signal_id"] == "ABC"
     assert "injecte" not in stockee["payload"]
     assert ligne_id is not None
+
+
+def test_id_depend_du_predecesseur():
+    """Propriété de chaîne : le même contenu ajouté deux fois dans un même registre produit des ids différents car le prédécesseur change."""
+    r = registre.Registre()
+    entree = _entree_signal()
+    id1 = r.ajouter(entree)
+    id2 = r.ajouter(entree)
+    assert id1 != id2
+
+def test_reproductibilite_sequence():
+    """Déterminisme réel : deux registres neufs alimentés avec la même séquence de 3 entrées génèrent des ligne_id identiques deux à deux et la même tête."""
+    sequence = [_entree_signal(), _entree_signal(), _entree_signal()]
+    r1 = registre.Registre()
+    r2 = registre.Registre()
+    ids1 = [r1.ajouter(e) for e in sequence]
+    ids2 = [r2.ajouter(e) for e in sequence]
+    assert ids1 == ids2
+    assert r1.tete() == r2.tete()
