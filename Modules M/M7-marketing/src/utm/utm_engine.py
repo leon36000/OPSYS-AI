@@ -286,7 +286,9 @@ def valider_lien_utm(url: str) -> list:
                 annee = int(parts[-1])
             except ValueError:
                 annee = None
-            if annee is not None and (annee < annee_min or annee > annee_max):
+            if annee is None:
+                verdicts.append(("U-11", "fail", "Année de campagne non numérique"))
+            elif (annee < annee_min or annee > annee_max):
                 verdicts.append(
                     ("U-11", "fail",
                      f"Année hors intervalle [{annee_min}, {annee_max}] : {annee}")
