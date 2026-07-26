@@ -471,18 +471,47 @@ class TestInvariantsStructurels:
         """provenance.py ne doit pas importer de modules réseau."""
         chemin = SRC_DIR / "provenance.py"
         source = chemin.read_text(encoding="utf-8")
-        interdits = ["urllib", "socket", "http.client", "requests", "httpx"]
-        for interdit in interdits:
-            assert interdit not in source, (
-                f"provenance.py ne doit pas importer '{interdit}'."
+        # Vérifie les instructions d'import uniquement (pas les commentaires/docstrings)
+        modules_interdits = ["urllib", "socket", "http", "requests", "httpx"]
+        import_lines = [
+            ln for ln in source.splitlines()
+            if re.match(r"^\s*(import|from)\s+", ln)
+        ]
+        import_bloc = "\n".join(import_lines)
+        for module in modules_interdits:
+            assert module not in import_bloc, (
+                f"provenance.py ne doit pas importer '{module}'."
             )
 
     def test_pas_horloge_interne(self):
         """provenance.py ne doit pas appeler datetime.now() ni time.time()."""
         chemin = SRC_DIR / "provenance.py"
         source = chemin.read_text(encoding="utf-8")
-        interdits_horloge = ["datetime.now()", "time.time()", "time.monotonic()"]
+        # Vérifie les appels effectifs (exclut commentaires et docstrings)
+        code_lines = []
+        in_docstring = False
+        docstring_char = None
+        for ln in source.splitlines():
+            stripped = ln.strip()
+            # Détection grossière des docstrings (suffisant pour ce check)
+            if not in_docstring:
+                if stripped.startswith('"""') or stripped.startswith("'''"):
+                    docstring_char = stripped[:3]
+                    if stripped.count(docstring_char) >= 2 and len(stripped) > 3:
+                        continue  # Docstring sur une ligne
+                    in_docstring = True
+                    continue
+                if not stripped.startswith("#"):
+                    code_lines.append(ln)
+            else:
+                if docstring_char and docstring_char in stripped:
+                    in_docstring = False
+        code_bloc = "\n".join(code_lines)
+        interdits_horloge = [
+            "datetime.now(", "time.time(", "time.monotonic(",
+            "time.perf_counter(", "time.clock(",
+        ]
         for interdit in interdits_horloge:
-            assert interdit not in source, (
+            assert interdit not in code_bloc, (
                 f"provenance.py ne doit pas utiliser '{interdit}'."
             )
