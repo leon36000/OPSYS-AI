@@ -1,0 +1,14 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/contracts/m1-demande-chiffrage.v1.yaml",
+   "description": "Incohérence de type pour le champ `urgence_declaree` entre les deux contrats. Le contrat lead utilise `type: bool` (conforme à la story et au validateur Python), mais le contrat chiffrage utilise `type: boolean`. Les contrats étant gelés, cette divergence de schéma doit être corrigée et le hash re-gelé.",
+   "preuve": "m1-demande-chiffrage.v1.yaml L33: `type: boolean` vs m1-lead-qualifie.v1.yaml L33: `type: bool`"
+  }
+ ],
+ "date_heure": "2026-07-26T16:54:16.916028+00:00",
+ "prompt_sha256": "417bda7a83a8b53b9553352f5e57bd356b924828787e4e02171afe04c1966c38",
+ "reviewer_model": "Qwen3.7-Max"
+}

@@ -1,0 +1,44 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M1-front-office/contracts/m1-lead-qualifie.v1.yaml",
+   "description": "La correction annoncée au round 4 — « Vocabulaire de types HARMONISÉ entre les deux contrats » — n'est pas livrée : seul `bool` est aligné ; les deux contrats nouvellement gelés utilisent toujours deux vocabulaires de types distincts. Le re-gel des sha fige cette divergence dans les deux contrats.",
+   "preuve": "m1-demande-chiffrage.v1.yaml utilise `type: str` (lead_id, conversation_id, etc.) et `type: dict` (contact) ; m1-lead-qualifie.v1.yaml utilise `type: string` (lead_id, conversation_id, etc.) et `type: object` (contact)."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "stories/M1-S001-registre-contrats.md",
+   "description": "Les empreintes sha256 citées dans la story ne correspondent pas aux constantes gelées dans les tests ; la story n'a pas été mise à jour après le « re-gel des deux sha » annoncé.",
+   "preuve": "story : lead `40433e0d…`, chiffrage `a5f42648…` ; tests/test_contrats.py : SHA256_LEAD_V1=`755f6c4b1ac6…`, SHA256_CHIFFRAGE_V1=`15494b7ee41a…`."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/tests/test_registre.py",
+   "description": "Le compte de tests de la preuve d'exécution est irréconciliable avec le contenu du diff : impossible de vérifier que la sortie « 32 passed » correspond à cet état du code.",
+   "preuve": "sortie pipeline : « 32 passed in 0.05s » ; décompte dans le diff : 14 tests (test_contrats.py) + 15 tests (test_registre.py) = 29 ; la story mentionne « 23 tests verts »."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "stories/M1-S001-registre-contrats.md",
+   "description": "Contradiction non résoluble depuis le diff entre l'affirmation du round (« CI branchée avant la story », inchangé depuis round 3) et la note CI livrée dans ce même diff.",
+   "preuve": "stories/M1-S001-registre-contrats.md : « Le job gates ne découvre pas encore Modules M/M1-front-office/tests … chore T1 de branchement CI immédiatement après ce merge, sinon la story n'est pas prouvée en intégration continue »."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/tests/test_registre.py",
+   "description": "La copie défensive profonde à l'ingestion (correctement implémentée via copy.deepcopy dans ajouter()) n'est verrouillée par aucun test automatisé de la suite ; la preuve fournie est une ligne ad hoc hors pytest, donc non rejouable en CI.",
+   "preuve": "aucun des 15 tests de test_registre.py ne mute le dict passé à ajouter() puis ne relit le registre (seul test_lecture_immuable couvre la lecture) ; la sortie « copie defensive a l ingestion : True » ne correspond à aucun test du diff."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/tests/test_contrats.py",
+   "description": "Commentaire obsolète contredisant l'état gelé des contrats.",
+   "preuve": "tests/test_contrats.py : « # Sha256 fictifs (à geler plus tard) » placé directement au-dessus de constantes annotées « GEL 2026-07-26 (D-015) »."
+  }
+ ],
+ "date_heure": "2026-07-26T17:00:47.752630+00:00",
+ "prompt_sha256": "4afe29684c5a333f84e504e21c60a1e4d9ab68f63e34badf0ec839466f2ed9cb",
+ "reviewer_model": "Kimi-K3"
+}

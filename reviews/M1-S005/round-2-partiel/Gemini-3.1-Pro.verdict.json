@@ -1,0 +1,14 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/src/provenance.py",
+   "description": "Code mort : les expressions régulières _VEUILLEZ_PATTERN et _DEMANDE_PATTERN ne matcheront jamais. Étant donné qu'elles cherchent un préfixe suivi de (verbe + inter + cible), et que _PATTERN_NEUTRALISATION_FR (qui cherche exactement (verbe + inter + cible)) est exécuté juste avant, la sous-chaîne ciblée sera déjà remplacée par le jeton de neutralisation avant l'évaluation de ces patterns.",
+   "preuve": "Lignes 170-178 : _neutraliser_pattern(texte, _PATTERN_NEUTRALISATION_FR) s'exécute avant _neutraliser_pattern(texte, _VEUILLEZ_PATTERN)."
+  }
+ ],
+ "date_heure": "2026-07-26T17:42:15.567953+00:00",
+ "prompt_sha256": "7165fb56e500a08a65fb9f7a2b0448afda7ab8f344e69039a35ee1040241259a",
+ "reviewer_model": "Gemini-3.1-Pro"
+}

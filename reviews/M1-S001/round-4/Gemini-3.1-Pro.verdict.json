@@ -1,0 +1,20 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/contracts/m1-demande-chiffrage.v1.yaml et m1-lead-qualifie.v1.yaml",
+   "description": "Le vocabulaire de types n'est pas totalement harmonisé entre les deux contrats malgré l'intention déclarée : m1-demande-chiffrage utilise 'str' et 'dict', tandis que m1-lead-qualifie utilise 'string' et 'object'.",
+   "preuve": "Lignes 4 et 10 de m1-demande-chiffrage.v1.yaml ('type: str', 'type: dict') vs Lignes 4 et 10 de m1-lead-qualifie.v1.yaml ('type: string', 'type: object')."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/src/registre.py",
+   "description": "L'import du module 'copy' à l'intérieur de la méthode 'ajouter' est redondant car il est déjà importé au niveau du module.",
+   "preuve": "Ligne 52 : 'import copy' dans 'def ajouter(self, entree: dict) -> str:' alors qu'il est déjà présent à la ligne 3."
+  }
+ ],
+ "date_heure": "2026-07-26T16:57:39.984256+00:00",
+ "prompt_sha256": "4afe29684c5a333f84e504e21c60a1e4d9ab68f63e34badf0ec839466f2ed9cb",
+ "reviewer_model": "Gemini-3.1-Pro"
+}

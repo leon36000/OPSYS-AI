@@ -1,0 +1,20 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M1-front-office/src/registre.py",
+   "description": "La correction n°2 exigée explicitement stipule « plus de variable module mutable ». Or, le code introduit `_instance: Registre | None = None` et la fonction `registre_par_defaut()` qui utilise le mot-clé `global _instance`. Il s'agit bien d'une variable module mutable (pattern singleton), ce qui viole la consigne stricte de suppression de l'état global mutable au niveau du module pour forcer l'instanciation explicite.",
+   "preuve": "Lignes 166 à 175 : `_instance: Registre | None = None` et `global _instance` dans `registre_par_defaut()`."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/src/registre.py",
+   "description": "Les imports `import horodatage` et `import verdicts` supposent que le répertoire `src/` est injecté dans le `sys.path` (ce que font les tests). En production, si le code est exécuté en tant que package, cela lèvera une `ModuleNotFoundError` sans imports relatifs (`from . import ...`) ou sans fichier `__init__.py`.",
+   "preuve": "Lignes 6 et 7 : `import horodatage` et `import verdicts`."
+  }
+ ],
+ "date_heure": "2026-07-26T16:42:24.395406+00:00",
+ "prompt_sha256": "f633cbffdea62958360099e6796cc81874faa7154c79a616f367adf6d2dd5c20",
+ "reviewer_model": "Qwen3.7-Max"
+}

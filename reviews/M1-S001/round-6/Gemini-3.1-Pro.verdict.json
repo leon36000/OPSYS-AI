@@ -1,0 +1,20 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M1-front-office/src/verdicts.py",
+   "description": "Le code source de contrats.py a été accidentellement concaténé à la fin du fichier verdicts.py.",
+   "preuve": "Présence de la ligne `# FILE: src/contrats.py` suivie de tout le code de contrats.py (incluant `import re`, `import hashlib`, etc.) à la fin du diff de verdicts.py."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/src/horodatage.py",
+   "description": "Import dupliqué.",
+   "preuve": "L'instruction `from datetime import datetime` est répétée aux lignes 1 et 4."
+  }
+ ],
+ "date_heure": "2026-07-26T17:17:59.946741+00:00",
+ "prompt_sha256": "e44178fb1300b4d6cc2efafe4a35b1ac45c171fe090b7b90c99d0d56195888b8",
+ "reviewer_model": "Gemini-3.1-Pro"
+}
