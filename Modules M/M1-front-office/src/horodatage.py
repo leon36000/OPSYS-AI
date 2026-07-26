@@ -1,7 +1,6 @@
 from datetime import datetime
 
 
-from datetime import datetime
 
 
 def valider_horodatage(iso: str) -> bool:

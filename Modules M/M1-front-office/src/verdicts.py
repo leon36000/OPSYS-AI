@@ -41,4 +41,3 @@ def construire_verdict(code: str, statut: str = "", detail: str | None = None) -
     if not est_verdict(code):
         raise ValueError(f"Code verdict inconnu: {code}")
     return {"code": code, "statut": statut, "detail": detail or ""}
-# FILE: src/contrats.py
