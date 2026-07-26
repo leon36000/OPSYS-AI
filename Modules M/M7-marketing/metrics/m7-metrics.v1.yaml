@@ -7,7 +7,7 @@ metrics:
   - id: m7_cpl
     nom: "Coût par lead"
     definition: "Coût total marketing divisé par le nombre de leads générés sur la période."
-    unite: "EUR/lead"
+    unite: "CAD/lead"
     source_donnees: "Module M7 — campagnes et CRM"
     frequence: "mensuelle"
     consommateur: "entrepôt M8"
@@ -84,7 +84,7 @@ metrics:
   - id: m7_cout_par_lead_par_canal
     nom: "Coût par lead par canal"
     definition: "Coût publicitaire d'un canal divisé par le nombre de leads attribués à ce canal en dernière touche."
-    unite: "EUR/lead"
+    unite: "CAD/lead"
     source_donnees: "S013 attribution, S014 ads intelligence, contrat UTM S012"
     frequence: "mensuelle"
     consommateur: "entrepôt M8"
@@ -105,7 +105,7 @@ metrics:
   - id: m7_cout_par_lead_global
     nom: "Coût par lead global"
     definition: "Somme des coûts publicitaires joignables via le mapping déclaré divisée par la somme des leads attribués aux canaux correspondants."
-    unite: "EUR/lead"
+    unite: "CAD/lead"
     source_donnees: "S013 attribution, S014 ads intelligence, contrat UTM S012"
     frequence: "mensuelle"
     consommateur: "entrepôt M8"

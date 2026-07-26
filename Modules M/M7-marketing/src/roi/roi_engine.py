@@ -123,10 +123,7 @@ def consolider_roi(rapport_attribution, rapport_ads, mapping, calendrier, date_r
         # nb_leads_attribues n'est pas déductible sans lien campagne→lead individuel,
         # nous le laissons à 0 conformément au périmètre de S015.
         nb_leads = 0
-        if nb_campagnes == 0:
-            digest = "aucune_campagne_liee"
-        else:
-            digest = f"Fenêtre {fid} : {nb_campagnes} campagne(s) liée(s), {nb_leads} leads attribués"
+        digest = generer_digest_fenetre(f, nb_campagnes, nb_leads)
         fenetres_result.append({
             'fenetre_id': fid,
             'digest_fr': digest,
@@ -170,9 +167,9 @@ def calculer_snapshot_id(rapport):
     return hashlib.sha256(data.encode('utf-8')).hexdigest()
 
 def generer_digest_fenetre(fenetre, campagnes_liees, leads_attribues):
-    """Génère une phrase FR déterministe pour une fenêtre."""
-    if not campagnes_liees:
+    """Génère une phrase FR déterministe pour une fenêtre (compte OU liste acceptés)."""
+    nb = campagnes_liees if isinstance(campagnes_liees, int) else len(campagnes_liees or [])
+    if nb == 0:
         return "aucune_campagne_liee"
-    nb = len(campagnes_liees)
-    fid = fenetre.get('id', 'inconnue') if isinstance(fenetre, dict) else 'inconnue'
+    fid = (fenetre.get('id') or fenetre.get('fenetre_id', 'inconnue')) if isinstance(fenetre, dict) else 'inconnue'
     return f"Fenêtre {fid} : {nb} campagne(s), {leads_attribues} leads attribués"
