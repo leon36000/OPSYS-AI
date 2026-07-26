@@ -1,0 +1,26 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/tests/reputation/test_reputation_classifier.py",
+   "description": "Code mort dans test_eloge_note_5_sans_mot_cle : la première affectation de `a` (ligne ~101) est immédiatement écrasée par la seconde. Le test passe mais la ligne initiale est inutile et trompeuse.",
+   "preuve": "lignes 100-103 : `a = _avis(5, \"Travaux de maçonnerie réalisés rapidement — ah, dans les temps.\")` suivi de `a = _avis(5, \"Service de qualité, tout s'est bien passé.\")` — la première valeur n'est jamais assertée."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/src/reputation/response_builder.py",
+   "description": "Import plat `import classifier as _classifier` dépend de l'insertion préalable de `src/reputation` dans sys.path par les tests. Le module n'est pas auto-suffisant : un import direct depuis un autre contexte (ex. CLI, notebook) échouera silencieusement ou lèvera ImportError.",
+   "preuve": "ligne 17 : `import classifier as _classifier` (pas de chemin relatif ni de package marker `__init__.py` visible dans le diff pour `src/reputation/`)."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M7-marketing/metrics/m7-metrics.v1.yaml",
+   "description": "Périmètre : fichier modifié hors allowed_paths du manifeste. Tranchement : RATIFIÉ au vu de (a) la stricte additivité (6 entrées `m7_rep_*` ajoutées, aucune modification/suppression — vérifiable par le diff qui ne contient que des `+`), (b) l'exigence d'acceptance « métriques réputation alignées m7-metrics », (c) l'absence de sha-pin par un test consommateur sur main, (d) la mise à jour cohérente de test_metrics_knowledge.py. Un découpage serait un surcoût bureaucratique sans bénéfice technique.",
+   "preuve": "diff YAML : 42 lignes ajoutées (lignes 42-83), 0 ligne supprimée ou modifiée ; test_metrics_knowledge.py lignes 42-48 ajoutent les 6 ids au set attendu."
+  }
+ ],
+ "date_heure": "2026-07-26T01:14:20.502810+00:00",
+ "prompt_sha256": "af1ee86d9bd2a4981aa5704d86ba93faef0caf6571a71087e567810b905cecb2",
+ "reviewer_model": "MiniMax-M3"
+}
