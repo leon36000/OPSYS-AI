@@ -1,0 +1,16 @@
+schema_version: 1
+mappings:
+  - fenetre_id: fw-haute-saison-estivale
+    utm_campaigns:
+      - fenetre-fw-haute-saison-estivale-2026
+    plateforme_ads: google_ads
+  - fenetre_id: fw-creux-hivernal
+    utm_campaigns:
+      - contenu-ancienne-campagne-2026
+    plateforme_ads: google_ads
+  - fenetre_id: fw-transition-hiver-printemps
+    utm_campaigns: []
+    plateforme_ads: google_ads
+  - fenetre_id: fw-preparation-hivernale
+    utm_campaigns: []
+    plateforme_ads: google_ads

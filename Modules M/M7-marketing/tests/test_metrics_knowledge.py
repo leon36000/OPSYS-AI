@@ -39,6 +39,11 @@ class TestMetricsKnowledge(unittest.TestCase):
             "m7_roi_par_canal",
             "m7_part_citations_ia",
             "m7_taux_doc_none",
+            # M7-S015 — ROI minimal consolidé
+            "m7_cout_par_lead_par_canal",
+            "m7_taux_attribution",
+            "m7_part_non_attribuables",
+            "m7_cout_par_lead_global",
             # M7-S009 — Reputation Engine
             "m7_rep_total_avis",
             "m7_rep_repartition_notes",
