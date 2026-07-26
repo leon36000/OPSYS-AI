@@ -153,30 +153,6 @@ class TestRegistre:
             horodatage.valider_horodatage("2026-07-15T14:30:00")
         assert "fuseau" in str(excinfo.value) or "ISO" in str(excinfo.value)
 
-    # --- NOUVEAUX TESTS EXIGÉS PAR LA REVUE ---
-
-    def test_suppression_recousue_detectee(self):
-        r = registre.Registre()
-        e1 = _entree_signal("id1")
-        e2 = _entree_signal("id2")
-        e3 = _entree_signal("id3")
-        id1 = r.ajouter(e1)
-        r.ajouter(e2)
-        r.ajouter(e3)
-
-        # On récupère la liste interne, on supprime l'entrée du milieu
-        chaine = r._entrees
-        assert len(chaine) == 3
-        # On garde la première et la troisième, puis on recoud
-        del chaine[1]  # suppression de l'entrée centrale
-        assert len(chaine) == 2
-        # Recoudre : le precedent_ligne_id de l'ex-3e (maintenant index 1) vers la 1re (index 0)
-        chaine[1]["precedent_ligne_id"] = chaine[0]["ligne_id"]
-
-        ok, verdict = r.valider_chaine()
-        assert ok is False
-        assert verdict["code"] == "REJ-CHAINE-ALTEREE"
-
     def test_lecture_immuable(self):
         r = registre.Registre()
         e1 = _entree_signal("original")
@@ -239,3 +215,57 @@ signaux:
         with pytest.raises(ValueError) as excinfo:
             r.assert_chaine()
         assert "REJ-CHAINE-ALTEREE" in str(excinfo.value)
+
+    # --- NOUVEAUX TESTS EXIGÉS PAR LA REVUE ---
+
+    def test_recouture_naive_detectee(self):
+        """Altération partielle : suppression du maillon milieu + recouture naïve."""
+        r = registre.Registre()
+        e1 = _entree_signal("id1")
+        e2 = _entree_signal("id2")
+        e3 = _entree_signal("id3")
+        r.ajouter(e1)
+        r.ajouter(e2)
+        r.ajouter(e3)
+
+        # Suppression de l'entrée du milieu et recouture naïve
+        del r._entrees[1]  # on retire e2
+        # recouture : le precedent de l'ex-e3 (maintenant index 1) vers e1
+        r._entrees[1]["precedent_ligne_id"] = r._entrees[0]["ligne_id"]
+        # le ligne_id n'est PAS recalculé → la vérification échoue
+        ok, verdict = r.valider_chaine()
+        assert ok is False
+        assert verdict["code"] == "REJ-CHAINE-ALTEREE"
+
+    def test_reecriture_complete_detectee_par_ancre(self):
+        """La chaîne seule ne suffit pas — l'ancre externe est la preuve."""
+        r = registre.Registre()
+        e1 = _entree_signal("id1")
+        e2 = _entree_signal("id2")
+        e3 = _entree_signal("id3")
+        id1 = r.ajouter(e1)
+        id2 = r.ajouter(e2)
+        id3 = r.ajouter(e3)
+
+        # Ancre AVANT attaque
+        ancre = r.tete()
+        assert ancre == id3
+
+        # Attaque complète : supprimer l'entrée du milieu,
+        # recoudre ET recalculer le ligne_id du successeur.
+        del r._entrees[1]  # e2 disparaît, l'ex-e3 est à l'index 1
+        succ = r._entrees[1]
+        succ["precedent_ligne_id"] = id1
+        contenu = registre._canonical_material(succ)
+        new_id = registre._compute_ligne_id(contenu, id1)
+        succ["ligne_id"] = new_id
+
+        # Sans ancre, la chaîne semble intacte
+        ok_sans_ancre, _ = r.valider_chaine()
+        assert ok_sans_ancre is True
+
+        # Avec l'ancre originale, l'attaque est détectée
+        ok_avec_ancre, verdict = r.valider_chaine(ancre_attendue=ancre)
+        assert ok_avec_ancre is False
+        assert verdict["code"] == "REJ-CHAINE-ALTEREE"
+        assert "ancre" in str(verdict).lower()

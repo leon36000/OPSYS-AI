@@ -36,7 +36,13 @@ def _compute_ligne_id(contenu_json: bytes, precedent_ligne_id: str | None) -> st
 
 
 class Registre:
-    """Registre append-only hash-chaîné à état privé."""
+    """Registre append-only hash-chaîné à état privé.
+
+    valider_chaine() détecte toute altération partielle (contenu modifié,
+    maillon rompu, suppression recousue naïvement) ; contre une réécriture
+    COMPLÈTE de la suite, la détection exige la comparaison de tete() à une
+    ancre conservée à l'extérieur.
+    """
 
     def __init__(self) -> None:
         self._entrees: list[dict] = []
@@ -82,8 +88,17 @@ class Registre:
                 portion = []
         return copy.deepcopy(portion)
 
-    def valider_chaine(self):
+    def tete(self) -> str | None:
+        """Retourne le ligne_id de la dernière entrée (ancre à publier)."""
+        if not self._entrees:
+            return None
+        return self._entrees[-1]["ligne_id"]
+
+    def valider_chaine(self, ancre_attendue: str | None = None):
         """Vérifie l'intégrité de la chaîne.
+
+        Si ancre_attendue est fournie, compare avec tete() et échoue en cas de
+        différence (pour détecter une réécriture complète).
         Retourne (True, None) si ok, sinon (False, verdict REJ-CHAINE-ALTEREE).
         """
         if not self._entrees:
@@ -115,6 +130,15 @@ class Registre:
 
             precedent_ligne_id = entree.get("ligne_id")
 
+        if ancre_attendue is not None:
+            current_tete = self.tete()
+            if current_tete != ancre_attendue:
+                verdict = verdicts.construire_verdict(
+                    "REJ-CHAINE-ALTEREE",
+                    detail=f"Ancre externe attendue {ancre_attendue!r}, obtenue {current_tete!r}"
+                )
+                return False, verdict
+
         return True, None
 
     def assert_chaine(self) -> None:
@@ -126,18 +150,6 @@ class Registre:
     def taille(self) -> int:
         """Retourne le nombre d'entrées."""
         return len(self._entrees)
-
-
-# Instance partagée pour compatibilité simple, sans état global mutable implicite.
-_instance: Registre | None = None
-
-
-def registre_par_defaut() -> Registre:
-    """Retourne une instance mémorisée de Registre."""
-    global _instance
-    if _instance is None:
-        _instance = Registre()
-    return _instance
 
 
 def charger_signaux(chemin: str) -> list:

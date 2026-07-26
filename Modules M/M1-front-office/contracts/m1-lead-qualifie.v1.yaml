@@ -29,7 +29,7 @@ fields:
     constraints:
       - "chaîne non vide"
   - name: urgence_declaree
-    type: boolean
+    type: bool
     required: true
   - name: canal
     type: string

@@ -10,7 +10,7 @@ if str(_SRC) not in sys.path:
 import registre, contrats, verdicts, horodatage  # noqa: E402
 
 # Sha256 fictifs (à geler plus tard)
-SHA256_LEAD_V1 = "40433e0d9e098e869ae0032e78dd93be5e904e9fda5c41fa172a37079bc1dbaa"  # GEL 2026-07-26 (D-015)
+SHA256_LEAD_V1 = "755f6c4b1ac6d94c0919a192b20854bb2462a802cfeb3defa5a6ca231389906a"  # GEL 2026-07-26 (D-015)
 SHA256_CHIFFRAGE_V1 = "a5f42648d4b1f29a3ffd71355c53e7c3086f2ded70210178fc14daa24dab9b90"  # GEL 2026-07-26 (D-015)
 
 def _lead_conforme():
