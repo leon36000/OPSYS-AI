@@ -1,0 +1,68 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M1-front-office/src/registre.py",
+   "description": "Fuite d'état inter-tests non corrigée : le module expose `_instance` (ligne 160) et `registre_par_defaut()` qui mémoïse une instance globale de `Registre`. Malgré l'instanciation par test via `registre.Registre()`, la présence d'un singleton mutable réintroduit exactement la classe de bugs que la story prétend avoir éliminée au point 2. La note d'intention « sans état global mutable implicite » est contredite par le code.",
+   "preuve": "src/registre.py lignes ~157-168 : `_instance: Registre | None = None` + `def registre_par_defaut(): ... global _instance; if _instance is None: _instance = Registre(); return _instance`"
+  },
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M1-front-office/src/registre.py",
+   "description": "La prétendue « correction de la faille de chaînage » est contournée par le test lui-même : `test_suppression_recousue_detectee` ne reconstruit que le `precedent_ligne_id` du successeur mais ne recalcule pas le `ligne_id` du successeur après recousure. Or dans le code production, `ligne_id` est stocké figé. La détection ne fonctionne que parce que le test triche en re-validant sans reculer — ce n'est pas une preuve que la production rejette une suppression-recousure réelle, c'est un artefact de harnais.",
+   "preuve": "src/registre.py `_compute_ligne_id` (lignes ~22-25) : `ligne_id` est dérivé du contenu + precedent ; test_suppression_recousue_detectee modifie `precedent_ligne_id` du successeur mais le `ligne_id` reste l'ancien ; la détection passe par la première branche de `valider_chaine` (comparaison precedent_ligne_id) — jamais par le recompute de ligne_id"
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M1-front-office/tests/test_registre.py",
+   "description": "Le test `test_suppression_recousue_detectee` ne démontre pas la propriété annoncée : une vraie suppression-recousure en production recalculerait le `ligne_id` du successeur pour qu'il soit cohérent avec le nouveau `precedent_ligne_id` — auquel cas la vérification `expected != entree['ligne_id']` passerait. La propriété utile serait : « après recousure cohérente, la chaîne est rejetée ». Le test ne le couvre pas.",
+   "preuve": "tests/test_registre.py lignes ~217-235 : après `del chaine[1]` et `chaine[1]['precedent_ligne_id'] = chaine[0]['ligne_id']`, aucun appel ne recalcule `chaine[1]['ligne_id']`"
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M1-front-office/tests/test_contrats.py",
+   "description": "Les hashs SHA256 « gelés » dans les tests (`SHA256_LEAD_V1`, `SHA256_CHIFFRAGE_V1`) sont des constantes en dur dans le test, pas une dérivation depuis un manifeste de gel. Aucune vérification d'intégrité ne garantit que le hash annoncé correspond réellement au contenu des YAML — un attaquant (ou une erreur) modifiant à la fois les YAML et les constantes passerait le test silencieusement. Le gel est auto-référencé.",
+   "preuve": "tests/test_contrats.py lignes 14-15 : `SHA256_LEAD_V1 = \"40433e0d…\"` et `SHA256_CHIFFRAGE_V1 = \"a5f42648…\"` sans source externe ; `test_sha256_lead` compare le hash recalculé à cette constante locale"
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M1-front-office/src/contrats.py",
+   "description": "`valider_lead` exige `urgence_declaree` comme booléen Python strict, mais le contrat YAML `m1-lead-qualifie.v1.yaml` ne déclare aucune contrainte de type pour ce champ au-delà de `required: true`. Un lead sérialisé depuis JSON (où `true`/`false` sont natifs) passera, mais un lead reçu d'un formulaire HTML (`\"true\"`/`\"on\"`/`1`) sera rejeté sans message orienté intégration. La divergence contrat/code n'est pas documentée.",
+   "preuve": "src/contrats.py `valider_lead` : `if not isinstance(lead['urgence_declaree'], bool): raise` ; contracts/m1-lead-qualifie.v1.yaml champ `urgence_declaree` : uniquement `type: boolean` sans contrainte de coercition"
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M1-front-office/src/contrats.py",
+   "description": "Le regex `_PRIX_REGEX` capture mal « à partir de 5000 » mais ne capture PAS « gratuit », « offert », « sans frais », « estimation gratuite », qui sont des engagements tarifaires indirects prohibés en contexte de chiffrage impartial. La couverture « aucun prix » est partielle.",
+   "preuve": "src/contrats.py `_PRIX_REGEX` lignes ~13-26 : aucune alternance pour `gratuit|offert|sans frais|estimation gratuite`"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/src/registre.py",
+   "description": "`_canonical_material` utilise `default=str` dans `json.dumps`, ce qui sérialise silencieusement les objets non-sérialisables (datetimes, paths, décimaux) via `str()`. Deux représentations différentes d'un même datetime (ISO avec/sans microsecondes, fuseau +00:00 vs Z) produiraient des `ligne_id` différents pour un contenu sémantiquement identique — fragilité de la chaîne.",
+   "preuve": "src/registre.py `_canonical_material` ligne ~16 : `json.dumps(contenu, sort_keys=True, ensure_ascii=False, default=str)`"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/src/verdicts.py",
+   "description": "`__all__ = []` vide alors que des symboles `REJ-*` et `EVT-*` sont injectés dans le module par `setattr`. `from verdicts import REJ-CHAINE-ALTEREE` échouera silencieusement (AttributeError côté appelant), et les linters/stubs mypy ne pourront pas inférer les symboles.",
+   "preuve": "src/verdicts.py ligne 3 : `__all__ = []` ; puis `setattr(_mod, _code, _val)` injecte hors de __all__"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/src/horodatage.py",
+   "description": "`datetime.fromisoformat` en Python < 3.11 n'accepte pas tous les formats ISO-8601 (notamment « Z » pour UTC). Le code ne précise pas la version Python cible ni n'élargit la compatibilité.",
+   "preuve": "src/horodatage.py ligne 9 : `datetime.fromisoformat(iso)` ; aucun fallback ni exigence Python >= 3.11 documentée"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "stories/M1-S001-registre-contrats.md",
+   "description": "La story revendique « 23 tests verts » et « régression globale 455 + 97 verts » mais la sortie `preuve d'exécution` montre « 31 passed » + « 529 passed ». Les chiffres ne concordent pas (31 ≠ 23 ; 529 ≠ 455+97=552). Métriques auto-déclarées non vérifiables.",
+   "preuve": "Diff story lignes ~19-20 vs sortie `31 passed in 0.04s` / `529 passed in 16.97s`"
+  }
+ ],
+ "date_heure": "2026-07-26T16:40:57.058432+00:00",
+ "prompt_sha256": "f633cbffdea62958360099e6796cc81874faa7154c79a616f367adf6d2dd5c20",
+ "reviewer_model": "MiniMax-M3"
+}

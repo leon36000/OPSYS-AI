@@ -1,0 +1,44 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M1-front-office/tests/test_contrats.py",
+   "description": "Le test test_lead_valide asserte verdict == \"OK\" mais la fonction valider_lead() (contrats.py l.87) retourne explicitement la chaîne \"OK\", qui N'EST PAS dans le catalogue des verdicts de verdicts.py (l.1-20). Le code de la fonction et le test violent l'invariant énoncé dans la story 'verdicts.py : identifiants stables REJ-/EVT- catalogués' : \"OK\" est un verdict fantôme absent du catalogue. Les tests du registre (test_assert_chaine_leve) et contrats attendent un verdict structuré (dict avec code) — incohérence entre la docstring de valider_lead ('Retourne OK ou lève ValueError') et l'usage réel qui devrait retourner verdicts.construire_verdict('OK', ...).",
+   "preuve": "verdicts.py lignes 6-19 (catalogue) vs test_contrats.py ligne 50 (assert verdict == \"OK\") vs contrats.py ligne 87 (return \"OK\")"
+  },
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M1-front-office/src/registre.py",
+   "description": "Dans ajouter(), le test test_ajout_produit_ligne_id_sha256 asserte que deux appels successifs avec la même entrée produisent des id1 != id2 (ligne 38-42). Mais l'affirmation dans le commentaire 'preuve que le chaînage modifie l'id' est en réalité un échec fonctionnel : la story exige un hash déterministe (ligne_id = sha256 canonique déterministe). Or, si la même entrée logique ingérée deux fois donne deux ligne_id distincts, c'est précisément la propriété d'immutabilité qui est compromise : l'identifiant d'un contenu ne représente plus le contenu mais la position. Pour un registre append-only à chaînage, le ligne_id DOIT être fonction de (contenu, position) — ici (contenu, precedent_ligne_id) — donc déterministe pour un état de chaîne donné. Le test asserte une propriété CORRECTE pour un chaînage par position, mais cela contredit la formulation 'déterministe' de la story. À clarifier : soit le test est mal nommé, soit l'invariant est mal formulé. Le test test_ingestion_immuable passe, donc le deepcopy fonctionne, mais rien ne prouve dans le test que l'id1 != id2 vient du chaînage et non d'un bug. Mineure en soi, mais l'invariant 'déterministe' est mal protégé.",
+   "preuve": "test_registre.py lignes 31-43 (assert id1 != id2) vs story ligne 6 ('ligne_id = sha256 canonique déterministe')"
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M1-front-office/src/contrats.py",
+   "description": "Le sha256 publié dans la story (30f5acf271cdce065440ca96e103d4d3206b475b11839ba2e75acea255845f36) est déclaré GEL 2026-07-26 (D-015) mais la story ne contient pas la preuve de calcul. Le test test_sha256_lead CALCULE le sha256 à l'exécution et le compare à la constante. Or, si la constante dans le test est fausse (copiée/collée manuellement), le test échouera. La note 'sha256 de la story resynchronisés avec les constantes gelées' du round 5 affirme la correction SANS fournir le script ayant produit le sha256. Pour un gel de contrat (D-015), l'exigence de traçabilité exige : (1) le script ayant produit le sha256, (2) son horodatage, (3) la version exacte du fichier YAML. Seul l'horodatage 'GEL 2026-07-26' est mentionné. Sans reproductibilité documentée, le gel n'est pas auditable.",
+   "preuve": "test_contrats.py lignes 14-15 (constantes sha256 codées en dur) — absence de script/Makefile/commande documenté(e) dans le diff"
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M1-front-office/src/registre.py",
+   "description": "Le test test_refus_fixture_sans_fictif utilise un faux positif : 'fictif: false' devrait lever ValueError, mais la condition est 'if not data.get(\"fictif\") is True'. Or data.get(\"fictif\") retourne False pour 'fictif: false', et 'not False is True' → True → lève ValueError. OK. Mais pour un fichier sans la clé 'fictif', data.get(\"fictif\") retourne None, et 'not None is True' → True → lève ValueError. Le test passe donc pour les deux cas. Cependant, la condition 'not data.get(\"fictif\") is True' est syntaxiquement équivalente à 'not (data.get(\"fictif\") is True)' ce qui est correct mais illisible et fragile. Une reformulation en 'if data.get(\"fictif\") is not True' serait plus claire. Pas de bug fonctionnel, mais test de fail-closed mal formulé — si quelqu'un modifie la condition, le test pourrait silencieusement devenir inopérant.",
+   "preuve": "registre.py ligne 175 'if not isinstance(data, dict) or not data.get(\"fictif\") is True' vs test_registre.py lignes 119-126"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/src/horodatage.py",
+   "description": "La fonction valider_horodatage() utilise un bare except (Exception) qui capture TOUT, y compris KeyboardInterrupt dans certaines implémentations Python, et surtout masque des bugs (ex: si une refonte passe un mauvais type). Le contrat de la story dit 'ISO-8601 avec fuseau obligatoire' — un except plus ciblé (ValueError, TypeError) ou un match sur le message de datetime.fromisoformat serait plus robuste. Pas un blocker mais à noter.",
+   "preuve": "horodatage.py ligne 12 'except Exception:'"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/tests/test_registre.py",
+   "description": "Le test test_lecture_immuable mute copie[0]['ligne_id'] = 'invalide' et copie.pop(), puis asserte que relu (nouvelle copie) est intact. Mais le deepcopy dans lire() est appliqué à CHAQUE appel, donc la protection vient du deepcopy. Le test ne distingue pas 'le registre est immuable' de 'lire() fait un deepcopy'. Pour un registre append-only, l'immutabilité DOIT être garantie au niveau de ajouter() (deepcopy à l'écriture) ET au niveau de lire() (deepcopy à la lecture). test_ingestion_immuable teste le premier. test_lecture_immuable teste le second mais ne le dit pas explicitement. Le nom du test suggère que c'est la lecture qui est immuable, ce qui est correct, mais l'absence d'assertion sur le premier deepcopy (à l'écriture) ne prouve pas que ajouter() fait bien un deepcopy — or le test test_ingestion_immuable le prouve. Donc les deux aspects sont couverts, mais l'organisation des tests mériterait un commentaire explicite.",
+   "preuve": "test_registre.py lignes 188-202 (test_lecture_immuable) vs lignes 287-308 (test_ingestion_immuable)"
+  }
+ ],
+ "date_heure": "2026-07-26T17:12:36.185399+00:00",
+ "prompt_sha256": "85c3ccceb3d242223f20bb2b3525ec128ce8dcea3b5177102f852c2a00748ae7",
+ "reviewer_model": "MiniMax-M3"
+}

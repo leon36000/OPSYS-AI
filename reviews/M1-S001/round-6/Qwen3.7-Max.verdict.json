@@ -1,0 +1,20 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M1-front-office/src/verdicts.py",
+   "description": "Le fichier verdicts.py contient le code source complet de contrats.py collé à la suite, probablement suite à une erreur de concaténation du pipeline. Cela pollue le module verdicts avec des fonctions de validation de contrats et introduit une importation circulaire risquée.",
+   "preuve": "Lignes 38 à 189 du diff de verdicts.py : présence du commentaire `# FILE: src/contrats.py` suivi de `import re`, `from verdicts import construire_verdict` et des définitions de `valider_lead` et `valider_chiffrage`."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/src/horodatage.py",
+   "description": "Import dupliqué de la classe datetime.",
+   "preuve": "Lignes 1 et 4 du diff : `from datetime import datetime` apparaît deux fois séparé par des lignes vides."
+  }
+ ],
+ "date_heure": "2026-07-26T17:18:33.620510+00:00",
+ "prompt_sha256": "e44178fb1300b4d6cc2efafe4a35b1ac45c171fe090b7b90c99d0d56195888b8",
+ "reviewer_model": "Qwen3.7-Max"
+}
