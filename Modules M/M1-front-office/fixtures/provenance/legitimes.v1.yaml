@@ -1,0 +1,230 @@
+# Fixtures messages légitimes — DONNÉES FICTIVES
+# Tous les noms, adresses, numéros de téléphone sont INVENTÉS.
+# Aucun lien avec des personnes, entreprises ou adresses réelles.
+# Usage exclusif : tests unitaires du filtre de provenance M1-S005.
+# Ces messages doivent passer le filtre SANS modification (zéro faux positif).
+fictif: true
+schema_version: 1
+module: M1-front-office
+story: M1-S005
+artefact: messages-legitimes-provenance
+avertissement: >
+  DONNÉES FICTIVES — usage test uniquement.
+  Aucun lien avec des personnes, entreprises ou adresses réelles.
+  Tous les noms (Jean Tremblay, Marie Gagnon, etc.) sont inventés.
+
+cas:
+  - id: LEG-001
+    fictif: true
+    canal: courriel
+    sujet: "Soumission toiture — maison unifamiliale"
+    contenu: >
+      Bonjour,
+
+      Je m'appelle Jean-François Beaupré et j'aimerais obtenir une soumission
+      pour la réfection de la toiture de ma maison unifamiliale. Le toit a
+      environ 20 ans et il commence à présenter des signes d'usure.
+
+      Adresse : 4512 rue des Hirondelles, Laval, QC H7R 2K4.
+      Téléphone : 450-887-3322.
+
+      Merci de me rappeler en semaine entre 8h et 17h.
+    sain_attendu: true
+
+  - id: LEG-002
+    fictif: true
+    canal: voicemail
+    sujet: "Transcription voicemail — infiltration eau sous-sol"
+    contenu: >
+      Allô, bonjour. C'est Marie-Claude Gagnon, je vous appelle car j'ai
+      un problème d'infiltration d'eau dans mon sous-sol. Ça se passe
+      au niveau de la fenêtre de gauche. Mon adresse c'est le 783 chemin
+      des Patriotes, Saint-Mathias-sur-Richelieu. Mon numéro de téléphone
+      c'est le 450-334-8891. Bonne journée!
+    sain_attendu: true
+
+  - id: LEG-003
+    fictif: true
+    canal: courriel
+    sujet: "Demande d'estimation — isolation sous-sol"
+    contenu: >
+      Bonjour,
+
+      Mon nom est Alain Corriveau. Je souhaite faire isoler mon sous-sol
+      avant l'hiver. La surface à couvrir est d'environ 800 pieds carrés.
+      Pouvez-vous me faire parvenir une estimation par courriel?
+
+      Ma résidence est au 3200 avenue du Boisé, Trois-Rivières.
+      Tél. : 819-556-1234.
+
+      Cordialement.
+    sain_attendu: true
+
+  - id: LEG-004
+    fictif: true
+    canal: voicemail
+    sujet: "Transcription voicemail — remplacement fenêtres"
+    contenu: >
+      Bonjour, c'est Céline Dubois à l'appareil. Je veux remplacer mes fenêtres
+      avant l'automne. J'en ai six à changer, des fenêtres en bois d'une vieille
+      maison de 1975. Mon adresse c'est le 22 rue des Chênes, Sherbrooke.
+      Vous pouvez me rejoindre au 819-778-5566 après 16 heures.
+    sain_attendu: true
+
+  - id: LEG-005
+    fictif: true
+    canal: courriel
+    sujet: "Urgence — dégât d'eau après tempête"
+    contenu: >
+      Bonjour,
+
+      Nous avons subi un important dégât d'eau suite à la tempête d'hier soir.
+      Notre toit a été percé par une branche et il pleut à l'intérieur.
+      Il s'agit d'une urgence.
+
+      Adresse : 91 boul. Saint-Joseph, Gatineau.
+      Contact : Robert Paquin, 819-446-7788.
+
+      Pouvez-vous envoyer une équipe le plus tôt possible?
+    sain_attendu: true
+
+  - id: LEG-006
+    fictif: true
+    canal: courriel
+    sujet: "Question sur matériaux — bardage vinyle vs fibre de ciment"
+    contenu: >
+      Bonjour,
+
+      Je m'appelle Sandra Fontaine. Je cherche à remplacer le revêtement
+      extérieur de ma maison. J'hésite entre le bardage en vinyle et le
+      bardage en fibre de ciment (HardiePlank).
+
+      Pouvez-vous me donner votre avis professionnel sur ces deux options
+      en termes de durabilité et d'entretien?
+
+      Ma maison est au 4400 chemin de la Côte-de-Liesse, Montréal.
+    sain_attendu: true
+
+  - id: LEG-007
+    fictif: true
+    canal: voicemail
+    sujet: "Transcription voicemail — gouttières bouchées"
+    contenu: >
+      Ici Louis-Philippe Tremblay, j'appelle car mes gouttières sont complètement
+      bouchées et l'eau déborde sur ma façade. Ça fait deux jours que ça dure
+      et j'ai peur que ça abîme mon mur. Je suis au 1090 avenue des Brûlons,
+      Québec. Mon numéro c'est le 418-999-4455. Merci.
+    sain_attendu: true
+
+  - id: LEG-008
+    fictif: true
+    canal: courriel
+    sujet: "Demande de soumission — terrasse en composite"
+    contenu: >
+      Bonjour,
+
+      Nous souhaitons construire une terrasse de 12 × 14 pieds en bois composite
+      derrière notre maison. Nous avons un budget approximatif de construction
+      et aimerions recevoir votre soumission pour comparer.
+
+      Notre adresse est le 255 rue Champlain, Boucherville.
+      Coordonnées : Pierre et Josée Laporte, 450-665-3322.
+
+      Merci à l'avance.
+    sain_attendu: true
+
+  - id: LEG-009
+    fictif: true
+    canal: courriel
+    sujet: "Rénovation cuisine — demande de consultation"
+    contenu: >
+      Bonjour,
+
+      Je suis Mireille Bédard et j'explore la possibilité de rénover ma cuisine.
+      Je cherche un entrepreneur général pouvant coordonner les travaux de
+      plomberie, d'électricité et de menuiserie.
+
+      Mon adresse est le 38 rue Saint-Pierre, Joliette.
+      Je préfère être contactée par courriel au moyen de ce message.
+    sain_attendu: true
+
+  - id: LEG-010
+    fictif: true
+    canal: voicemail
+    sujet: "Transcription voicemail — inspection printemps"
+    contenu: >
+      Bonjour, c'est Gaston Labrecque. Chaque printemps je fais inspecter ma
+      toiture et mes gouttières. Je voudrais prendre rendez-vous pour une
+      inspection complète. Je suis au 670 rue des Pins, Drummondville.
+      Rappel au 819-474-6655. Bonne journée là!
+    sain_attendu: true
+
+  - id: LEG-011
+    fictif: true
+    canal: courriel
+    sujet: "Soumission — déneigement résidentiel saison 2026-2027"
+    contenu: >
+      Bonjour,
+
+      J'aimerais souscrire à votre forfait de déneigement résidentiel pour
+      la prochaine saison. J'ai un stationnement de deux voitures et un
+      escalier avant d'une dizaine de marches.
+
+      Adresse : 500 boul. des Laurentides, Laval.
+      Contact : Yannick Hébert, 450-222-8877.
+    sain_attendu: true
+
+  - id: LEG-012
+    fictif: true
+    canal: voicemail
+    sujet: "Transcription voicemail — plancher de bois franc"
+    contenu: >
+      Allo, je suis Thérèse Boisvert. On vient d'acheter une vieille maison et
+      on veut faire poser un plancher de bois franc dans le salon et les chambres.
+      La superficie totale c'est environ 900 pieds. On est au 14 rue de la
+      Rivière, Magog. Vous pouvez nous appeler au 819-843-3300 le soir.
+    sain_attendu: true
+
+  - id: LEG-013
+    fictif: true
+    canal: courriel
+    sujet: "Questions sur le financement de rénovations"
+    contenu: >
+      Bonjour,
+
+      Je m'appelle Nadia Desrosiers. Je veux rénover ma salle de bain et je
+      me demande si vous offrez un service d'aide au financement ou si vous
+      connaissez des programmes gouvernementaux auxquels je pourrais avoir
+      accès pour des rénovations écoénergétiques.
+
+      Adresse : 2811 avenue d'Orléans, Québec.
+    sain_attendu: true
+
+  - id: LEG-014
+    fictif: true
+    canal: courriel
+    sujet: "Appel d'offres — rénovation immeuble à logements"
+    contenu: >
+      Bonjour,
+
+      Je suis propriétaire d'un immeuble de six logements situé au
+      1400 rue Ontario Est, Montréal. Je cherche un entrepreneur pour
+      rénover les parties communes (corridor, escaliers, hall d'entrée).
+
+      Les travaux incluent : peinture, revêtement de sol, éclairage.
+      Je lance un appel d'offres et je souhaite recevoir vos soumissions
+      avant la fin du mois.
+
+      Contact : Bernard Lachance, 514-887-0011.
+    sain_attendu: true
+
+  - id: LEG-015
+    fictif: true
+    canal: voicemail
+    sujet: "Transcription voicemail — problème de moisissures"
+    contenu: >
+      Bonjour, c'est Sylviane Houde, 450-777-4411. J'ai un problème de
+      moisissures dans ma salle de bain. Je ne sais pas d'où ça vient.
+      Vous pouvez passer voir? Je suis au 66 rue des Érables, Vaudreuil-Dorion.
+      Je suis disponible en semaine en après-midi. Merci beaucoup.
+    sain_attendu: true
