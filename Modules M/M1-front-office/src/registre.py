@@ -49,6 +49,9 @@ class Registre:
 
     def ajouter(self, entree: dict) -> str:
         """Ajoute une entrée immuable. Retourne le ligne_id (SHA-256)."""
+        import copy
+        entree = copy.deepcopy(entree)
+
         # Validation type_entree
         type_entree = entree.get("type_entree")
         if type_entree not in _TYPES_ENTREE_VALIDES:
@@ -69,7 +72,7 @@ class Registre:
         contenu_bytes = _canonical_material(entree)
         ligne_id = _compute_ligne_id(contenu_bytes, precedent_ligne_id)
 
-        entree_stockee = dict(entree)
+        entree_stockee = entree
         entree_stockee["ligne_id"] = ligne_id
         entree_stockee["precedent_ligne_id"] = precedent_ligne_id
         self._entrees.append(entree_stockee)
