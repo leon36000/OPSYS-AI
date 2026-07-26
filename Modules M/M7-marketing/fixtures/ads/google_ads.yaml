@@ -9,7 +9,7 @@ campagnes:
     impressions: 40000
     clics: 1200
     conversions: 24
-  - campagne: "GA - Hiver hors saison"
+  - campagne: "GA - Hors fenêtre estivale"
     periode: "2026-07"
     fenetre_id: "fw-creux-hivernal"
     budget: 500

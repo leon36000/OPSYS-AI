@@ -28,8 +28,12 @@ def load_fixture(path: str) -> dict:
         raise ValueError("Le champ 'fictif' doit être true pour les fixtures ads")
 
     plateforme = data.get("plateforme")
-    if not isinstance(plateforme, str) or plateforme != plateforme.lower() or plateforme not in ALLOWED_PLATFORMS:
-        raise ValueError("plateforme invalide (attendu: google_ads ou meta en minuscules)")
+    if not isinstance(plateforme, str):
+        raise ValueError("plateforme invalide (attendu: string)")
+    if plateforme != plateforme.lower():
+        raise ValueError("plateforme invalide (attendu: minuscules)")
+    if plateforme not in ALLOWED_PLATFORMS:
+        raise ValueError("plateforme invalide (attendu: google_ads ou meta)")
 
     campagnes = data.get("campagnes")
     if not isinstance(campagnes, list):

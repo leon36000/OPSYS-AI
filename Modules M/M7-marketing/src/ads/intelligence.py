@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from datetime import date
 from pathlib import Path
+import sys
 
 import yaml
-
-import sys
 
 _CURR = Path(__file__).resolve().parent
 if str(_CURR) not in sys.path:
@@ -15,6 +14,7 @@ from ads_loader import load_fixtures
 
 
 RULES = ("AD-01", "AD-02", "AD-03", "AD-04", "AD-05", "AD-06")
+DEFAULT_ACTION = "surveillance"
 
 
 def _safe_ratio(numerator: float, denominator: float) -> float | str:
@@ -87,9 +87,9 @@ def _analyser_campagne(plateforme: str, campagne: dict, active_ids: set[str]) ->
         verdicts.append(_mk_verdict("AD-04", "conforme", f"conversions={conversions}"))
 
     if budget > 0 and cout > budget:
-        verdicts.append(_mk_verdict("AD-05", "action_proposee", f"depassement_budget={round(cout - budget, 2)}", "alerte dépassement budget"))
+        verdicts.append(_mk_verdict("AD-05", "action_proposee", f"dépassement_budget={round(cout - budget, 2)}", "alerte dépassement budget"))
     else:
-        verdicts.append(_mk_verdict("AD-05", "conforme", f"depassement_budget={round(max(0, cout - budget), 2)}"))
+        verdicts.append(_mk_verdict("AD-05", "conforme", f"dépassement_budget={round(cout - budget, 2)}"))
 
     if budget <= 0:
         verdicts.append(_mk_verdict("AD-06", "attention", f"budget={budget}"))
@@ -140,7 +140,7 @@ def generate_report(fixtures_dir: str, calendrier_path: str, date_reference: str
             for verdict in verdicts:
                 if verdict["verdict"] == "conforme":
                     continue
-                action = verdict["action"] if verdict["action"] else "surveillance"
+                action = verdict["action"] if verdict["action"] else DEFAULT_ACTION
                 recommandations.append(
                     {
                         "statut": "PROPOSE",

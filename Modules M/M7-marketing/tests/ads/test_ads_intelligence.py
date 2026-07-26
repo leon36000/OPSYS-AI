@@ -1,4 +1,5 @@
 import inspect
+import json
 import math
 import sys
 from pathlib import Path
@@ -73,12 +74,12 @@ def test_generate_report_regles_et_actions_proposees():
     assert report["fenetres_actives"] == ["fw-haute-saison-estivale"]
     assert len(report["campagnes"]) == 3
 
-    c_hiver = next(c for c in report["campagnes"] if c["campagne"] == "GA - Hiver hors saison")
-    assert c_hiver["faits_mesures"]["ctr"] == "n_insuffisant"
-    assert c_hiver["faits_mesures"]["cpc"] == "n_insuffisant"
-    assert c_hiver["faits_mesures"]["cpa"] == "n_insuffisant"
+    c_hors_fenetre = next(c for c in report["campagnes"] if c["campagne"] == "GA - Hors fenêtre estivale")
+    assert c_hors_fenetre["faits_mesures"]["ctr"] == "n_insuffisant"
+    assert c_hors_fenetre["faits_mesures"]["cpc"] == "n_insuffisant"
+    assert c_hors_fenetre["faits_mesures"]["cpa"] == "n_insuffisant"
 
-    verdicts = {v["regle"]: v for v in c_hiver["verdicts"]}
+    verdicts = {v["regle"]: v for v in c_hors_fenetre["verdicts"]}
     assert verdicts["AD-03"]["verdict"] == "action_proposee"
     assert verdicts["AD-03"]["action"] == "réallocation"
     assert verdicts["AD-04"]["verdict"] == "action_proposee"
@@ -106,8 +107,6 @@ def test_determinisme_et_sans_score():
     report1 = intelligence.generate_report(str(FIXTURES), str(CALENDRIER), date_ref)
     report2 = intelligence.generate_report(str(FIXTURES), str(CALENDRIER), date_ref)
     assert report1 == report2
-
-    import json
 
     report_json = json.dumps(report1).lower()
     assert "score" not in report_json
