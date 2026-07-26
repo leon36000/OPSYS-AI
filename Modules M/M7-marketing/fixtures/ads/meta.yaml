@@ -1,0 +1,11 @@
+fictif: true
+plateforme: meta
+campagnes:
+  - campagne: "META - Remarketing été"
+    periode: "2026-07"
+    fenetre_id: "fw-haute-saison-estivale"
+    budget: 900
+    cout: 700
+    impressions: 35000
+    clics: 900
+    conversions: 9
