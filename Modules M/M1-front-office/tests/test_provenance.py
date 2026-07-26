@@ -253,11 +253,10 @@ class TestSequencesControle:
 
     def test_bell_char(self):
         filtrer = _importer_filtrer()
-        _, sain = filtrer("Allô\x07 injection here")
-        # Note: le BEL seul ne suffit pas sans marqueur; on vérifie qu'il
-        # déclenche la détection de contrôle quand présent
-        _, sain2 = filtrer("\x07\x07\x07")
-        assert sain2 is False
+        # Le caractère BEL (0x07) est un caractère de contrôle non imprimable.
+        # Sa présence seule doit déclencher la détection.
+        _, sain = filtrer("\x07\x07\x07")
+        assert sain is False
 
     def test_zero_width_space(self):
         filtrer = _importer_filtrer()
@@ -309,8 +308,8 @@ class TestNeutralisation:
         assert sain is False
         assert "[CONTENU_NON_FIABLE]" in contenu_filtre
         # Aucun marqueur ne doit subsister en clair
-        assert "user:" not in contenu_filtre.lower() or "[CONTENU_NON_FIABLE]" in contenu_filtre
-        assert "system:" not in contenu_filtre.lower() or "[CONTENU_NON_FIABLE]" in contenu_filtre
+        assert "user:" not in contenu_filtre.lower()
+        assert "system:" not in contenu_filtre.lower()
 
     def test_aucun_jeton_si_contenu_sain(self):
         """Le jeton [CONTENU_NON_FIABLE] ne doit PAS apparaître sur contenu sain."""
@@ -485,33 +484,24 @@ class TestInvariantsStructurels:
 
     def test_pas_horloge_interne(self):
         """provenance.py ne doit pas appeler datetime.now() ni time.time()."""
+        import ast as _ast
         chemin = SRC_DIR / "provenance.py"
         source = chemin.read_text(encoding="utf-8")
-        # Vérifie les appels effectifs (exclut commentaires et docstrings)
-        code_lines = []
-        in_docstring = False
-        docstring_char = None
-        for ln in source.splitlines():
-            stripped = ln.strip()
-            # Détection grossière des docstrings (suffisant pour ce check)
-            if not in_docstring:
-                if stripped.startswith('"""') or stripped.startswith("'''"):
-                    docstring_char = stripped[:3]
-                    if stripped.count(docstring_char) >= 2 and len(stripped) > 3:
-                        continue  # Docstring sur une ligne
-                    in_docstring = True
-                    continue
-                if not stripped.startswith("#"):
-                    code_lines.append(ln)
-            else:
-                if docstring_char and docstring_char in stripped:
-                    in_docstring = False
-        code_bloc = "\n".join(code_lines)
-        interdits_horloge = [
-            "datetime.now(", "time.time(", "time.monotonic(",
-            "time.perf_counter(", "time.clock(",
-        ]
-        for interdit in interdits_horloge:
-            assert interdit not in code_bloc, (
-                f"provenance.py ne doit pas utiliser '{interdit}'."
-            )
+        tree = _ast.parse(source)
+        # Collecte tous les nœuds Call dont l'attribut ressemble à une horloge
+        appels_interdits = {
+            ("datetime", "now"),
+            ("time", "time"),
+            ("time", "monotonic"),
+            ("time", "perf_counter"),
+            ("time", "clock"),
+        }
+        for node in _ast.walk(tree):
+            if isinstance(node, _ast.Call):
+                func = node.func
+                if isinstance(func, _ast.Attribute):
+                    if isinstance(func.value, _ast.Name):
+                        paire = (func.value.id, func.attr)
+                        assert paire not in appels_interdits, (
+                            f"provenance.py ne doit pas appeler {paire[0]}.{paire[1]}()."
+                        )

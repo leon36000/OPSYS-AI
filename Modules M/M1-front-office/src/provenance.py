@@ -46,11 +46,12 @@ _IGNORE_PATTERNS = [
     ),
 ]
 
-# 2. Préfixes de rôle (system:, assistant:, user:) — insensibles à la casse,
-#    peuvent être précédés de caractères non imprimables ou d'espaces.
+# 2. Préfixes de rôle (system:, assistant:, user:) — insensibles à la casse.
+#    On utilise un lookbehind négatif (?<!\w) pour éviter de matcher des mots
+#    composés comme "filesystem:" ou "ecosystem:".
 _ROLE_PREFIX_PATTERN = re.compile(
-    r"(?:^|(?<=\n)|(?<=\r)|\b)[ \t]*(system|assistant|user)\s*:",
-    re.IGNORECASE | re.MULTILINE,
+    r"(?<!\w)(system|assistant|user)\s*:",
+    re.IGNORECASE,
 )
 
 # 3. Balises XML/pseudo-XML inattendues : <system>, <assistant>, <user>,
