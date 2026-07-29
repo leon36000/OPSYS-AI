@@ -219,3 +219,89 @@ class TestModulesSansReseauNiHorlogeNiLLM:
             assert motif not in source, (
                 f"Motif interdit '{motif}' trouvé dans le module {module_name}"
             )
+
+
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+import encodage
+
+
+# 1. Conteneurs vides de types différents : empreintes toutes distinctes
+@pytest.mark.parametrize("c1,c2", [
+    (set(), frozenset()),
+    (set(), list()),
+    (set(), tuple()),
+    (set(), dict()),
+    (frozenset(), list()),
+    (frozenset(), tuple()),
+    (frozenset(), dict()),
+    (list(), tuple()),
+    (list(), dict()),
+    (tuple(), dict()),
+])
+def test_conteneurs_vides_de_types_differents_ne_collisionnent_pas(c1, c2):
+    """Vérifie que deux conteneurs vides de types différents n'ont jamais la même empreinte."""
+    e1 = encodage.empreinte(c1)
+    e2 = encodage.empreinte(c2)
+    assert e1 != e2, (
+        f"Collision entre {type(c1).__name__} et {type(c2).__name__} : {e1!r} == {e2!r}"
+    )
+
+
+# 2. Déterminisme inter-processus pour une structure imbriquée hétérogène
+def test_determinisme_inter_processus_structure_imbriquee():
+    """Empreinte déterministe quelle que soit PYTHONHASHSEED pour une structure complexe."""
+    structure_literal = '{"x": {"a","b","c","d","e"}, "y": [3,1,2], "z": ({"k": {1,2}}, frozenset(["q"]))}'
+    src_dir = Path(__file__).resolve().parents[1] / "src"
+    src_dir_str = src_dir.as_posix()
+    code = (
+        f"import sys\n"
+        f"sys.path.insert(0, {src_dir_str!r})\n"
+        f"import encodage\n"
+        f"print(encodage.empreinte({structure_literal}))"
+    )
+    graines = ["0", "1", "42", "1337", "99991"]
+    sorties = []
+    for graine in graines:
+        env = os.environ.copy()
+        env["PYTHONHASHSEED"] = graine
+        res = subprocess.run(
+            [sys.executable, "-c", code],
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        assert res.returncode == 0, (
+            f"Échec subprocess avec PYTHONHASHSEED={graine} : {res.stderr}"
+        )
+        sorties.append(res.stdout.strip())
+
+    assert sorties, "Aucune sortie collectée (garde-fou de non-vacuité)"
+    unique = set(sorties)
+    assert len(unique) == 1, (
+        f"Les empreintes diffèrent selon PYTHONHASHSEED : {dict(zip(graines, sorties))}"
+    )
+
+
+# 3. Familles de collision classiques
+@pytest.mark.parametrize("v1,v2", [
+    ([[1], [2]], [1, 2]),
+    ({"a": 1}, {("a", 1)}),
+    ("1", 1),
+    (True, 1),
+    (None, "None"),
+    ([], [[]]),
+])
+def test_familles_de_collision_classiques(v1, v2):
+    """Chaque paire doit produire des empreintes distinctes (pièges d'égalité Python)."""
+    e1 = encodage.empreinte(v1)
+    e2 = encodage.empreinte(v2)
+    assert e1 != e2, (
+        f"Collision inattendue : {v1!r} (type {type(v1).__name__}) et "
+        f"{v2!r} (type {type(v2).__name__}) ont la même empreinte {e1!r}"
+    )
