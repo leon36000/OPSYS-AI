@@ -349,6 +349,100 @@ class TestMaillonEtAccuse:
         assert reg.taille() == taille_apres_ingestion + 2
         assert reg.valider_chaine(ancre=accuse2["tete_chaine"]) is True
 
+    @pytest.mark.parametrize(
+        "statut_depart, statut_cible, kwargs_transition, cle_metier, valeur_attendue",
+        [
+            (
+                "nouveau",
+                "qualifie",
+                {"owner": "Alice", "prochaine_action": {"description": "Suivi", "echeance": "2026-03-10T09:00:00+02:00"}},
+                "prochaine_action",
+                {"description": "Suivi", "echeance": "2026-03-10T09:00:00+02:00"},
+            ),
+            (
+                "qualifie",
+                "converti",
+                {"reference_devis_m3": "DEV-42"},
+                "reference_devis_m3",
+                "DEV-42",
+            ),
+            (
+                "qualifie",
+                "perdu",
+                {"motif": "budget refuse"},
+                "motif",
+                "budget refuse",
+            ),
+            (
+                "nouveau",
+                "perdu",
+                {"motif": "sans reponse"},
+                "motif",
+                "sans reponse",
+            ),
+        ],
+        ids=[
+            "nouveau->qualifie",
+            "qualifie->converti",
+            "qualifie->perdu",
+            "nouveau->perdu",
+        ],
+    )
+    def test_maillon_porte_les_donnees_metier_de_la_transition(
+        self,
+        statut_depart,
+        statut_cible,
+        kwargs_transition,
+        cle_metier,
+        valeur_attendue,
+    ):
+        """Sans ce test, supprimer l'inscription des données métier dans le maillon ne rend
+        aucun test rouge, et l'audit trail perd sa valeur probante."""
+        lead_id = "lead-test-001"
+        reg = registre_avec_lead(lead_id)
+        horodatage = "2026-03-01T10:00:00+02:00"
+        amener_a(reg, lead_id, statut_depart)
+
+        if cle_metier == "prochaine_action":
+            prochaine_action_passee = copy.deepcopy(kwargs_transition["prochaine_action"])
+            kwargs_transition_mod = copy.deepcopy(kwargs_transition)
+            kwargs_transition_mod["prochaine_action"] = prochaine_action_passee
+        else:
+            kwargs_transition_mod = kwargs_transition
+
+        accuse, verdict = statuts.transitionner(
+            lead_id,
+            statut_cible,
+            reg,
+            horodatage,
+            **kwargs_transition_mod,
+        )
+        assert verdict is None, (
+            f"Transition {statut_depart}->{statut_cible}: verdict inattendu {verdict!r}"
+        )
+        assert accuse is not None, (
+            f"Transition {statut_depart}->{statut_cible}: accusé manquant"
+        )
+
+        maillon = reg.lire()[-1]
+
+        assert maillon["statut_precedent"] == statut_depart, (
+            f"Transition {statut_depart}->{statut_cible}: statut_precedent incorrect"
+        )
+        assert cle_metier in maillon, (
+            f"Transition {statut_depart}->{statut_cible}: clé métier '{cle_metier}' absente du maillon"
+        )
+        assert maillon[cle_metier] == valeur_attendue, (
+            f"Transition {statut_depart}->{statut_cible}: valeur métier incorrecte pour '{cle_metier}'"
+        )
+
+        if cle_metier == "prochaine_action":
+            prochaine_action_passee["description"] = "MODIFIE"
+            maillon_apres_mutation = reg.lire()[-1]
+            assert maillon_apres_mutation["prochaine_action"] == valeur_attendue, (
+                "La mutation de l'argument prochaine_action après transition a modifié le maillon (leçon deepcopy non respectée)"
+            )
+
 
 # ---------------------------------------------------------------------------
 # TestInvariantsStatuts
