@@ -5,7 +5,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-SRC = Path(__file__).resolve().parents[1] / "src" / "m2_revenue_crm"
+SRC = Path(__file__).resolve().parents[1] / "src"
+# sys.path reçoit src/, PARENT du paquet : c'est lui qui rend
+# « from m2_revenue_crm import ... » résoluble, ici comme dans les sous-processus.
 sys.path.insert(0, str(SRC))
 from m2_revenue_crm import encodage as e  # noqa: E402
 
@@ -21,7 +23,7 @@ print("  COLLISIONS entre vides :", collisions or "aucune")
 print("\n=== (b) conteneurs IMBRIQUÉS hétérogènes ===")
 imbrique = {"x": {"a", "b", "c", "d", "e"}, "y": [3, 1, 2], "z": ({"k": {1, 2}}, frozenset(["q"]))}
 code = (
-    "import sys; sys.path.insert(0, %r); import encodage; "
+    "import sys; sys.path.insert(0, %r); from m2_revenue_crm import encodage; "
     "print(encodage.empreinte({'x': {'a','b','c','d','e'}, 'y': [3,1,2], "
     "'z': ({'k': {1,2}}, frozenset(['q']))}))" % str(SRC)
 )

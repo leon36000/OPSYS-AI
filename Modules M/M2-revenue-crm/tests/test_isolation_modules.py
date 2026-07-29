@@ -130,3 +130,37 @@ def test_aucun_module_a_plat_sous_src():
     assert len(paquets) == 1, (
         f"src/ doit contenir EXACTEMENT un paquet, trouvé : {paquets}"
     )
+
+@pytest.mark.parametrize(
+    "nom_script",
+    ["preuve_cas_limites.py", "preuve_manuelle.py"],
+    ids=["cas_limites", "manuelle"],
+)
+def test_scripts_de_preuve_sexecutent(nom_script):
+    """PROUVE que les scripts de preuve du dossier tests/ s'exécutent encore.
+
+    Ces fichiers ne commencent pas par ``test_``, donc pytest ne les collecte
+    pas : ils peuvent pourrir en silence. C'est exactement ce qui s'est produit
+    lors de la mise en paquet (chore #109) — les deux étaient CASSÉS
+    (ModuleNotFoundError) alors que les 1311 tests étaient verts, et seule la
+    revue scellée l'a signalé. Les exécuter ici les ramène dans la surface
+    prouvée.
+
+    On vérifie le code de retour, pas la sortie : ces scripts impriment des
+    mesures, et figer leur texte les rendrait fragiles pour rien.
+    """
+    import subprocess
+
+    chemin = Path(__file__).resolve().parent / nom_script
+    assert chemin.exists(), f"script de preuve absent : {nom_script}"
+    resultat = subprocess.run(
+        [sys.executable, str(chemin)],
+        capture_output=True, text=True,
+    )
+    assert resultat.returncode == 0, (
+        f"{nom_script} ne s'exécute plus (rc={resultat.returncode}).\n"
+        f"stdout: {resultat.stdout[-800:]}\nstderr: {resultat.stderr[-800:]}"
+    )
+    assert resultat.stdout.strip(), (
+        f"{nom_script} n'a rien imprimé : il ne prouve plus rien"
+    )
