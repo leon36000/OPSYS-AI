@@ -196,75 +196,140 @@ class TestFrontieresSurLesValeurs:
     @pytest.mark.parametrize(
         "texte",
         [
-            "devis 4500 €",
-            "4 500,00 EUR",
-            "1200$",
-            "1 200 CAD",
-            "350 dollars",
-            "tarif de 80 euros",
-            "85 €/m²",
-            "45 €/h",
-            "à partir de 900 €",
-            "travaux le 12/08",
-            "intervention le 2026-08-12",
-            "chantier terminé demain",
-            "livraison lundi prochain",
-            "finis dans 3 jours",
+            'devis 4500 €',
+            '4 500,00 EUR',
+            '1200$',
+            '1 200 CAD',
+            '350 dollars',
+            'tarif de 80 euros',
+            '85 €/m²',
+            '45 €/h',
+            'à partir de 900 €',
+            'travaux le 12/08',
+            'intervention le 2026-08-12',
+            'chantier terminé demain',
+            'livraison lundi prochain',
+            'finis dans 3 jours',
+            'devis 4500',
+            'tarif 80',
+            'prix 1200',
+            'budget 15000',
+            'livraison lundi.',
+            'prix: 9 €',
+            'tarif 80 EUR',
+            'coût 100 dollars',
+            'montant: 2000$',
+            'budget total: 15000 euros',
+            'intervention le 15/09',
+            'travaux prévus le 12/08',
+            'chantier demain',
+            'facture 3500€',
+            'total 500 dollars',
+            'livraison prévue pour le 20/09',
         ],
         ids=[
-            "devis_4500_eur",
-            "montant_4500_eur",
-            "1200_dollar_symbole",
-            "1200_cad",
+            "devis_4500",
+            "4_500_00_eur",
+            "1200",
+            "1_200_cad",
             "350_dollars",
-            "tarif_80_euros",
-            "85_eur_m2",
-            "45_eur_heure",
-            "a_partir_900_eur",
-            "travaux_12_08",
-            "intervention_2026_08_12",
+            "tarif_de_80_euros",
+            "85_m2",
+            "45_h",
+            "a_partir_de_900",
+            "travaux_le_12_08",
+            "intervention_le_2026_08_12",
             "chantier_termine_demain",
             "livraison_lundi_prochain",
             "finis_dans_3_jours",
+            "devis_4500_2",
+            "tarif_80",
+            "prix_1200",
+            "budget_15000",
+            "livraison_lundi",
+            "prix_9",
+            "tarif_80_eur",
+            "cout_100_dollars",
+            "montant_2000",
+            "budget_total_15000_euros",
+            "intervention_le_15_09",
+            "travaux_prevus_le_12_08",
+            "chantier_demain",
+            "facture_3500",
+            "total_500_dollars",
+            "livraison_prevue_pour_le_20_09",
         ],
     )
     def test_motif_interdit_detecte(self, texte):
-        """Prouve que chaque motif du corpus figé est détecté comme violation de frontière."""
+        """Prouve que chaque valeur du corpus FIGÉ de violations est détectée."""
         saine, raison = frontieres.inspecter_valeur(texte)
-        assert saine is False, f"motif interdit accepté à tort: {texte!r}"
-        assert raison, f"une raison non vide est exigée pour le rejet de {texte!r}"
+        assert saine is False, (
+            f"La valeur {texte!r} du corpus figé doit être détectée comme violation "
+            f"de frontière, raison obtenue : {raison!r}"
+        )
+        assert raison, (
+            f"La détection de {texte!r} doit être motivée, raison vide obtenue"
+        )
 
     @pytest.mark.parametrize(
         "texte",
         [
-            "Saint-Prix",
-            "Rue du Mont-de-Piété",
-            "Devismes",
-            "Prix-lès-Mézières",
-            "75011",
-            "06 12 34 56 78",
-            "appartement 3 pièces",
-            "maison des années 1200",
-            "nous vous rappelons demain",
+            'Saint-Prix',
+            'Rue du Mont-de-Piété',
+            'Devismes',
+            'Prix-lès-Mézières',
+            '75011',
+            '06 12 34 56 78',
+            'appartement 3 pièces',
+            'maison des années 1200',
+            'nous vous rappelons demain',
+            'travaux de rénovation',
+            'chantier en cours',
+            'intervention prévue',
+            'pose de fenêtres',
+            'livraison standard',
+            'nom: Jean',
+            'email: test@example.com',
+            'adresse: 123 rue de Lyon',
+            'description: peinture intérieure',
+            'type de toit: ardoise',
+            'question: devis gratuit?',
+            'pas de prix',
+            'merci',
+            'disponible rapidement',
         ],
         ids=[
             "saint_prix",
-            "mont_de_piete",
+            "rue_du_mont_de_piete",
             "devismes",
             "prix_les_mezieres",
-            "code_postal_75011",
-            "telephone",
+            "75011",
+            "06_12_34_56_78",
             "appartement_3_pieces",
-            "annees_1200",
-            "rappel_demain",
+            "maison_des_annees_1200",
+            "nous_vous_rappelons_demain",
+            "travaux_de_renovation",
+            "chantier_en_cours",
+            "intervention_prevue",
+            "pose_de_fenetres",
+            "livraison_standard",
+            "nom_jean",
+            "email_test_example_com",
+            "adresse_123_rue_de_lyon",
+            "description_peinture_interieure",
+            "type_de_toit_ardoise",
+            "question_devis_gratuit",
+            "pas_de_prix",
+            "merci",
+            "disponible_rapidement",
         ],
     )
     def test_valeur_saine_acceptee(self, texte):
-        """Prouve l'absence de faux positif sur chaque valeur saine du corpus figé."""
+        """Prouve qu'aucune valeur légitime du corpus FIGÉ ne produit de faux positif."""
         saine, raison = frontieres.inspecter_valeur(texte)
-        assert saine is True, f"faux positif interdit sur {texte!r}: {raison!r}"
-        assert raison == "", (
-            f"une valeur acceptée doit avoir une raison vide, obtenu {raison!r}"
+        assert saine is True, (
+            f"La valeur légitime {texte!r} du corpus figé ne doit pas être signalée, "
+            f"raison obtenue : {raison!r}"
         )
 
     def test_prix_dissimule_dans_ville_detecte(self):
@@ -313,6 +378,26 @@ class TestFrontieresSurLesValeurs:
         assert len(frontieres.MOTIFS_DATE_EXECUTION) > 0, (
             "MOTIFS_DATE_EXECUTION est vide: les tests d'acceptation ne prouveraient rien"
         )
+
+    @pytest.mark.parametrize("texte", [
+        "travaux de rénovation",
+        "chantier en cours",
+        "intervention prévue",
+        "nous vous rappelons demain",
+        "disponible lundi",
+        "le 12/08 nous vous rappellerons",
+    ], ids=[
+        "terme_renovation",
+        "terme_chantier",
+        "terme_intervention",
+        "date_demain",
+        "date_lundi",
+        "date_12_08",
+    ])
+    def test_terme_execution_seul_ou_date_seule_sont_acceptes(self, texte):
+        """Prouve que seul l’apparition conjointe d’un terme d’exécution et d’une date déclenche la détection."""
+        est_saine, _ = frontieres.inspecter_valeur(texte)
+        assert est_saine, f"Le texte '{texte}' doit être accepté car un seul élément (terme seul ou date seule) ne constitue pas une co-occurrence interdite"
 
 
 class TestIngestionNominale:
@@ -517,6 +602,41 @@ class TestIngestionRejets:
             assert registre_neuf.valider_chaine(), (
                 f"{description} : la chaîne doit rester valide après le rejet"
             )
+
+    def test_unicite_ignore_les_autres_types_dentree(self):
+        """Preuve que le contrôle d'unicité d'ingestion ignore les maillons de type non-lead_ingere.
+        Toute mutation qui retire le filtre sur le type rendrait ce test rouge.
+        """
+        r = registre.Registre()
+        horodatage_alarme = "2026-01-01T00:00:00+00:00"
+        entree_alerte = {
+            "type_entree": "alerte",
+            "horodatage": horodatage_alarme,
+            "lead_id": "L1",
+            "payload": {},
+        }
+        r.ajouter(entree_alerte)
+        taille_avant = r.taille()
+
+        accuse, verdict = ingestion.ingerer(
+            contrat_valide(lead_id="L1"), r, "2026-01-01T00:00:05+00:00"
+        )
+
+        assert verdict is None, (
+            f"Une alerte portant le même lead_id ne doit pas constituer une ré-ingestion. "
+            f"Verdict reçu : {verdict}"
+        )
+        assert accuse is not None, "L'ingestion doit produire un accusé non nul."
+        assert r.taille() == taille_avant + 1, (
+            f"Le registre doit contenir exactement un maillon supplémentaire. "
+            f"Taille avant : {taille_avant}, après : {r.taille()}"
+        )
+        assert r.valider_chaine() is True, "La chaîne d'audit doit rester intègre après l'ingestion."
+        assert accuse["lead_id"] == "L1", (
+            f"L'accusé doit conserver le lead_id d'origine. "
+            f"Attendu : 'L1', obtenu : {accuse['lead_id']}"
+        )
+
 
 
 class TestInvariantsIngestion:
