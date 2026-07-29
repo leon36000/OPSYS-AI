@@ -246,6 +246,23 @@ class TestInteractions:
         assert dernier["type_entree"] == "interaction", "lister : type_entree incorrect"
         assert dernier["horodatage"] == "2026-03-01T11:00:00+02:00", "lister : horodatage incorrect"
 
+    @pytest.mark.parametrize("auteur, resume, champ_attendu", [
+        ("", "resume valide", "auteur"),
+        ("auteur valide", "", "resume"),
+    ], ids=["auteur_vide", "resume_vide"])
+    def test_detail_rejet_distingue_le_champ_vide(self, auteur, resume, champ_attendu):
+        registre = registre_qualifie(lead_id="L-1")
+        _, verdict = interactions.enregistrer(
+            lead_id="L-1",
+            auteur=auteur,
+            resume=resume,
+            registre_cible=registre,
+            horodatage="2026-07-28T10:00:00Z"
+        )
+        assert verdict["code"] == "REJ-CHAMP-VIDE"
+        detail_lower = verdict["detail"].lower()
+        assert champ_attendu in detail_lower, f"Le détail doit mentionner '{champ_attendu}'"
+
 
 # --------------------------------------------------------------- TestGatePrerequis
 class TestGatePrerequis:
@@ -862,6 +879,29 @@ class TestMarqueur:
         except Exception as e:
             pytest.fail(f"verifier_marqueur a levé une exception inattendue : {e}")
         assert resultat is False, "une entrée cassée doit retourner False, fail-closed"
+
+    def test_detail_rejet_emettre_marqueur_distingue_le_motif(self):
+        registre_vide = registre.Registre()
+        _, verdict1 = readiness.emettre_marqueur(
+            registre_cible=registre_vide,
+            lead_id="INCONNU",
+            horodatage="2026-03-01T12:00:00+02:00"
+        )
+        assert verdict1["code"] == "REJ-TRANSITION-ILLEGALE"
+        detail1 = verdict1["detail"]
+        assert detail1, "Le détail ne doit pas être vide"
+
+        registre_avec_lead = registre_qualifie(lead_id="LZ")
+        _, verdict2 = readiness.emettre_marqueur(
+            registre_cible=registre_avec_lead,
+            lead_id="LZ",
+            horodatage="2026-03-01T12:00:00+02:00"
+        )
+        assert verdict2["code"] == "REJ-TRANSITION-ILLEGALE"
+        detail2 = verdict2["detail"]
+        assert detail2, "Le détail ne doit pas être vide"
+
+        assert detail1 != detail2, f"Les détails doivent être différents, reçu : '{detail1}' et '{detail2}'"
 
 
 # --------------------------------------------------------- TestInvariantsReadiness
