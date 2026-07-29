@@ -28,8 +28,11 @@ def _normaliser(obj):
         return ["__tuple__", [_normaliser(e) for e in obj]]
     if isinstance(obj, (str, int, float, bool)) or obj is None:
         return obj
-    # Dernier recours : représentation textuelle
-    return repr(obj)
+    raise TypeError(
+        f"Type non supporté : {type(obj).__name__}. "
+        f"Types supportés : dict, set, frozenset, list, tuple, str, int, float, bool, None. "
+        f"L'appelant doit sérialiser la valeur avant de l'incorporer."
+    )
 
 
 def encoder_canonique(*valeurs):

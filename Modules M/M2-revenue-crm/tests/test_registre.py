@@ -131,6 +131,39 @@ class TestValidationEntree:
             registre_vide.ajouter("pas_un_dict")
 
 
+    def test_identifiants_internes_fournis_sont_ignores(self):
+        """Les clés internes ligne_id/precedent_ligne_id fournies dans l'entrée sont purgées."""
+        r = registre.Registre()
+        entree = dict(ENTREE_VALIDE, ligne_id="FAUX", precedent_ligne_id="FAUX")
+        ligne_id = r.ajouter(entree)
+        assert ligne_id != "FAUX", (
+            "le ligne_id retourné ne doit pas reprendre la valeur falsifiée 'FAUX', "
+            f"obtenu {ligne_id!r}"
+        )
+        maillon = r.lire()[0]
+        assert maillon["ligne_id"] != "FAUX", (
+            "le maillon stocké ne doit pas conserver le ligne_id falsifié 'FAUX', "
+            f"obtenu {maillon['ligne_id']!r}"
+        )
+        assert maillon["precedent_ligne_id"] is None, (
+            "le premier maillon doit porter precedent_ligne_id=None et non la valeur "
+            f"falsifiée 'FAUX', obtenu {maillon['precedent_ligne_id']!r}"
+        )
+        assert r.valider_chaine() is True, (
+            "la chaîne doit se revalider après purge des identifiants internes falsifiés : "
+            "sans le nettoyage préventif, les clés falsifiées entreraient dans le calcul "
+            "du ligne_id puis seraient écrasées, rendant la chaîne invalide"
+        )
+        r.ajouter(dict(ENTREE_VALIDE2))
+        assert len(r.lire()) == 2, (
+            "le registre devrait contenir 2 maillons après le second ajout, "
+            f"obtenu {len(r.lire())}"
+        )
+        assert r.valider_chaine() is True, (
+            "la chaîne à 2 maillons doit rester valide après ingestion d'une entrée "
+            "contenant des identifiants internes falsifiés"
+        )
+
 # ---------------------------------------------------------------------------
 # Tests de chaîne valide et altérations (règles 4, 5)
 # ---------------------------------------------------------------------------
@@ -276,6 +309,32 @@ class TestValiditeChaine:
         with pytest.raises(registre.VerificationError, match="precedent"):
             r.assert_chaine()
 
+    def test_maillon_non_encodable_est_refuse_sans_planter(self):
+        """Un maillon falsifié non encodable invalide la chaîne sans lever d'exception."""
+
+        class _ValeurNonEncodable:
+            """Type factice qu'encoder_canonique ne sait pas encoder canoniquement."""
+
+        r = _registre_rempli(3)
+        r._chain[0]["valeur_injectee"] = _ValeurNonEncodable()
+        try:
+            resultat = r.valider_chaine()
+        except Exception as exc:
+            pytest.fail(
+                "valider_chaine() ne doit propager aucune exception sur un maillon non "
+                f"encodable, exception inattendue remontée : {type(exc).__name__}: {exc}"
+            )
+        assert resultat is False, (
+            "valider_chaine() doit retourner False sur un maillon non encodable "
+            f"(chemin fail-closed du recalcul), obtenu {resultat!r}"
+        )
+        with pytest.raises(registre.VerificationError, match="recalcul") as exc_info:
+            r.assert_chaine()
+        assert "recalcul" in str(exc_info.value), (
+            "le message de VerificationError devrait mentionner l'échec du recalcul du "
+            f"ligne_id, obtenu : {exc_info.value}"
+        )
+
 # ---------------------------------------------------------------------------
 # Déterminisme et absence d’horloge / réseau (règles 7, 8)
 # ---------------------------------------------------------------------------
@@ -361,3 +420,69 @@ class TestAucuneEcritureSaufAjouter:
         )
 
 
+# ---------------------------------------------------------------------------
+# Lecture partielle : lire(depuis=...)
+# ---------------------------------------------------------------------------
+class TestLecturePartielle:
+    """Vérifie la lecture partielle du registre via lire(depuis=...)."""
+
+    @pytest.mark.parametrize(
+        "indice",
+        [0, 1, 2],
+        ids=["premier-maillon", "second-maillon", "troisieme-maillon"],
+    )
+    def test_lire_depuis_un_maillon_retourne_la_queue(self, indice):
+        """lire(depuis=<ligne_id du maillon d'indice donné>) retourne la queue complète."""
+        r = _registre_rempli(3)
+        tous = r.lire()
+        ligne_id_cible = tous[indice]["ligne_id"]
+        attendu_ids = [m["ligne_id"] for m in tous[indice:]]
+        extrait = r.lire(depuis=ligne_id_cible)
+        assert len(extrait) == 3 - indice, (
+            f"lire(depuis=<ligne_id d'indice {indice}>) devrait retourner "
+            f"{3 - indice} maillon(s), obtenu {len(extrait)}"
+        )
+        obtenu_ids = [m["ligne_id"] for m in extrait]
+        assert obtenu_ids == attendu_ids, (
+            f"les ligne_id retournés depuis l'indice {indice} devraient être "
+            f"{attendu_ids}, obtenu {obtenu_ids}"
+        )
+
+    def test_lire_depuis_ligne_id_inconnu_leve(self):
+        """lire(depuis=<ligne_id inconnu>) lève ValueError mentionnant la valeur fournie."""
+        r = _registre_rempli(3)
+        with pytest.raises(ValueError, match="inexistant") as exc_info:
+            r.lire(depuis="inexistant")
+        assert "inexistant" in str(exc_info.value), (
+            "le message de ValueError devrait mentionner la valeur fournie 'inexistant', "
+            f"obtenu : {exc_info.value}"
+        )
+
+    def test_lire_depuis_retourne_une_copie(self):
+        """Muter le résultat de lire(depuis=...) laisse le registre interne intact."""
+        r = _registre_rempli(3)
+        etat_initial = r.lire()
+        ligne_id_cible = etat_initial[1]["ligne_id"]
+        extrait = r.lire(depuis=ligne_id_cible)
+        extrait[0]["ligne_id"] = "MUTATION_INTERDITE"
+        extrait[0]["champ_corrompu"] = "MUTATION_INTERDITE"
+        etat_apres = r.lire()
+        assert etat_apres == etat_initial, (
+            "muter la liste retournée par lire(depuis=...) ne doit pas altérer le "
+            f"registre : état initial {etat_initial}, état après mutation {etat_apres}"
+        )
+        assert r.valider_chaine() is True, (
+            "valider_chaine() doit rester True après mutation de la copie retournée"
+        )
+
+    def test_lire_sans_argument_equivaut_au_premier_maillon(self):
+        """lire() et lire(depuis=<premier ligne_id>) retournent exactement la même liste."""
+        r = _registre_rempli(3)
+        tous = r.lire()
+        premier_ligne_id = tous[0]["ligne_id"]
+        depuis_premier = r.lire(depuis=premier_ligne_id)
+        assert depuis_premier == tous, (
+            "lire(depuis=<ligne_id du premier maillon>) devrait être strictement "
+            f"identique à lire() : lire()={tous}, "
+            f"lire(depuis={premier_ligne_id!r})={depuis_premier}"
+        )

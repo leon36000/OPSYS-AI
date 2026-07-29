@@ -305,3 +305,53 @@ def test_familles_de_collision_classiques(v1, v2):
         f"Collision inattendue : {v1!r} (type {type(v1).__name__}) et "
         f"{v2!r} (type {type(v2).__name__}) ont la même empreinte {e1!r}"
     )
+
+
+class TestEncodageRefusTypesNonCanoniques:
+    def test_objet_quelconque_refuse(self):
+        class TypeNonCanonique:
+            pass
+        obj = TypeNonCanonique()
+        with pytest.raises(TypeError, match="TypeNonCanonique"):
+            encodage.encoder_canonique(obj)
+
+    @pytest.mark.parametrize("fabrique", [
+        lambda obj: [obj],
+        lambda obj: {"a": obj},
+        lambda obj: (obj,)
+    ])
+    def test_valeur_non_supportee_imbriquee_refusee(self, fabrique):
+        class ObjetNonCanonique:
+            pass
+        obj = ObjetNonCanonique()
+        structure = fabrique(obj)
+        with pytest.raises(TypeError):
+            encodage.encoder_canonique(structure)
+
+    def test_types_supportes_toujours_acceptes(self):
+        data = {
+            "str": "hello",
+            "int": 42,
+            "float": 3.14,
+            "bool": True,
+            "none": None,
+            "list": [1, "a"],
+            "tuple": (2, "b"),
+            "set": {3, 4},
+            "frozenset": frozenset([5, 6]),
+            "nested": {"inner_list": [7, 8]},
+        }
+        result = encodage.encoder_canonique(data)
+        assert isinstance(result, str), "Résultat doit être une chaîne"
+        assert len(result) == 64, "Empreinte SHA-256 a 64 caractères hex"
+        assert all(c in "0123456789abcdef" for c in result), "Caractères hexadécimaux attendus"
+
+    def test_refus_explicite_plutot_que_hash_non_reproductible(self):
+        class ObjetNonCanonique:
+            pass
+        a = ObjetNonCanonique()
+        b = ObjetNonCanonique()
+        with pytest.raises(TypeError):
+            encodage.encoder_canonique(a)
+        with pytest.raises(TypeError):
+            encodage.encoder_canonique(b)
