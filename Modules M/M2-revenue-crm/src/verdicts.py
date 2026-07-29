@@ -20,6 +20,7 @@ class CodeVerdictInconnu(Exception):
 # Identifiants stables du catalogue M2 (épinglés par des tests existants :
 # contenu et ordre inchangés)
 CODES_M2_LIST = [
+    # Groupe 1 — catalogue d'origine (M2-S001), ordre épinglé par les tests
     "REJ-FRONTIERE-VIOLEE",
     "REJ-TRANSITION-ILLEGALE",
     "REJ-OWNER-ABSENT",
@@ -28,14 +29,17 @@ CODES_M2_LIST = [
     "REJ-MOTIF-ABSENT",
     "REJ-ADAPTATEUR-INDISPONIBLE",
     "OK",
-    # repris du catalogue voisin — invariant transversal
+    # Groupe 2 — repris du catalogue voisin, invariant transversal
     "REJ-CONVERSATION-CLOSE",
     "REJ-CONTRAT-INVALIDE",
     "REJ-CHAMP-MANQUANT",
     "REJ-CHAMP-VIDE",
     "REJ-ENUM-INVALIDE",
-    # addition M2, addendum architecture
+    # Groupe 3 — addition M2, addendum architecture
     "REJ-LEAD-DEJA-INGERE",
+    # Groupe 4 — émis par les modules du présent arbre
+    "REJ-FIXTURE-NON-FICTIVE",
+    "REJ-HORODATAGE-INVALIDE",
 ]
 CODES_M2 = set(CODES_M2_LIST)
 
