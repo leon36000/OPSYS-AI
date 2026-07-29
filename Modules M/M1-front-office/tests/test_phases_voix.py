@@ -29,7 +29,7 @@ def test_transition_lineaire_complete():
     for cible in range(1, 6):
         verdict = phases_voix.transitionner(conv, cible, "2026-07-26T12:01:00Z", registre)
         assert verdict == verdicts.construire_verdict("OK")
-    # vérifier que toutes les phases 0..4 sont close_normale et 5 ouverte
+    # vérifier que toutes les phases 0..4 sont close_normale et 5 close_normale (conversation terminée)
     phases = conv["phases"]
     for i in range(5):
         p = [p for p in phases if p["numero"] == i]
@@ -37,7 +37,7 @@ def test_transition_lineaire_complete():
         assert p[0]["statut"] == "close_normale"
     p5 = [p for p in phases if p["numero"] == 5]
     assert len(p5) == 1
-    assert p5[0]["statut"] == "ouverte"
+    assert p5[0]["statut"] == "close_normale"
 
 
 def test_saut_interdit():
@@ -106,8 +106,8 @@ def test_transition_reussie_ecrit_entree_chainee():
         phases_voix.transitionner(conv, cible, "2026-07-26T12:01:00Z", registre)
     entrees = registre.lire(None)
     trans_phase = [e for e in entrees if e["type_entree"] == "transition_phase"]
-    # il doit y avoir exactement 5 transitions (0->1, 1->2, 2->3, 3->4, 4->5)
-    assert len(trans_phase) == 5
+    # Il y a l'entrée d'ouverture + les 5 transitions = 6
+    assert len(trans_phase) == 6
     # vérifier le chaînage
     for i in range(1, len(trans_phase)):
         assert trans_phase[i]["precedent_ligne_id"] == trans_phase[i-1]["ligne_id"]
@@ -224,7 +224,7 @@ def test_mille_sequences_aleatoires_zero_phase_sautee():
                 assert verdict == verdicts.construire_verdict("OK")
                 current_phase = cible
                 if current_phase == 5:
-                    # on pourrait continuer mais fin de progression possible, arrêtons la séquence
+                    # progression terminée, conversation close_normale
                     break
             except phases_voix.TransitionInterdite as exc:
                 violations_detectees += 1
@@ -246,7 +246,7 @@ def test_mille_sequences_aleatoires_zero_phase_sautee():
             statuts = {p["numero"]: p["statut"] for p in phases}
             for i in range(5):
                 assert statuts[i] == "close_normale"
-            assert statuts[5] == "ouverte"
+            assert statuts[5] == "close_normale"  # conversation close_normale
         else:
             # violation : la dernière phase est close_erreur, les précédentes close_normale
             statuts = {p["numero"]: p["statut"] for p in phases}
@@ -255,20 +255,6 @@ def test_mille_sequences_aleatoires_zero_phase_sautee():
             dernier = numeros[-1]
             assert statuts[dernier] == "close_erreur"
     assert violations_detectees > 0, "Aucune violation détectée, le test ne prouve rien"
-
-
-import sys
-from pathlib import Path
-
-# Assure que le répertoire src/ est dans le path pour importer phases_voix, registre, etc.
-_M7 = Path(__file__).resolve().parents[2]  # remonte à la racine du projet
-_SRC = _M7 / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-import phases_voix
-import verdicts
-from registre import Registre
 
 
 class TestAbandonRegistre:
@@ -281,7 +267,7 @@ class TestAbandonRegistre:
         phases_voix.transitionner(conv, 1, "2026-07-26T12:01:00Z", registre)
         phases_voix.transitionner(conv, 2, "2026-07-26T12:02:00Z", registre)
 
-        # Mémoriser la taille actuelle du registre (entrées de transition précédentes)
+        # Mémoriser la taille actuelle du registre (entrées de transition précédentes + ouverture)
         nb_avant = len(registre.lire(None))
 
         verdict = phases_voix.abandonner(conv, "2026-07-26T12:03:00Z", registre)
@@ -320,3 +306,80 @@ class TestAbandonRegistre:
 
         nb_apres = len(registre.lire(None))
         assert nb_apres == nb_avant, "Le registre ne doit pas contenir de nouvelle entrée après un abandon refusé"
+
+
+# ---- Nouveaux tests ajoutés (correctifs R3 M1-S002) ----
+
+def test_abandon_apres_completion_refuse():
+    """Après une complétion (0→5), abandonner est refusé, rien n'est modifié."""
+    registre = Registre()
+    conv = phases_voix.ouvrir_conversation("signal-comp", "2026-07-26T12:00:00Z", registre)
+    # Complétion complète
+    for cible in range(1, 6):
+        phases_voix.transitionner(conv, cible, "2026-07-26T12:01:00Z", registre)
+
+    nb_phases_avant = len(conv["phases"])
+    nb_registre_avant = len(registre.lire(None))
+    numeros_avant = [p["numero"] for p in conv["phases"]]
+
+    verdict = phases_voix.abandonner(conv, "2026-07-26T12:02:00Z", registre)
+    assert verdict["code"] == "REJ-CONVERSATION-CLOSE"
+
+    # Aucune phase ajoutée
+    assert len(conv["phases"]) == nb_phases_avant
+    # Aucun doublon dans les numéros de phase
+    numeros_apres = [p["numero"] for p in conv["phases"]]
+    assert len(numeros_apres) == len(set(numeros_apres))
+    # Registre inchangé
+    assert len(registre.lire(None)) == nb_registre_avant
+
+
+def test_completion_ferme_la_conversation():
+    """Après transition vers 5, la conversation est close_normale et la phase 5 aussi."""
+    registre = Registre()
+    conv = phases_voix.ouvrir_conversation("signal-fin", "2026-07-26T12:00:00Z", registre)
+    for cible in range(1, 6):
+        phases_voix.transitionner(conv, cible, "2026-07-26T12:01:00Z", registre)
+
+    assert conv["statut"] == "close_normale"
+    phases_5 = [p for p in conv["phases"] if p["numero"] == 5]
+    assert len(phases_5) == 1
+    assert phases_5[0]["statut"] == "close_normale"
+
+
+def test_aucun_doublon_de_phase():
+    """Séquence complète puis tentatives d'abandon/transition : aucun doublon de phase."""
+    registre = Registre()
+    conv = phases_voix.ouvrir_conversation("signal-uniq", "2026-07-26T12:00:00Z", registre)
+    for cible in range(1, 6):
+        phases_voix.transitionner(conv, cible, "2026-07-26T12:01:00Z", registre)
+
+    # Tentative d'abandon après clôture
+    phases_voix.abandonner(conv, "2026-07-26T12:02:00Z", registre)
+
+    # Tentative de transition supplémentaire (doit lever une exception ou être bloquée)
+    try:
+        phases_voix.transitionner(conv, 6, "2026-07-26T12:03:00Z", registre)
+    except phases_voix.TransitionInterdite:
+        pass
+
+    numeros = [p["numero"] for p in conv["phases"]]
+    assert len(numeros) == len(set(numeros)), f"Doublons détectés : {numeros}"
+
+
+def test_ouverture_ecrit_entree_registre():
+    """ouvrir_conversation écrit une entrée registre avec motif ouverture, valider_chaine() vraie."""
+    registre = Registre()
+    conv = phases_voix.ouvrir_conversation("signal-ouv", "2026-07-26T12:00:00Z", registre)
+
+    entrees = registre.lire(None)
+    assert len(entrees) == 1
+    entree = entrees[0]
+    assert entree["type_entree"] == "transition_phase"
+    assert entree["payload"]["motif"] == "ouverture"
+    assert entree["payload"]["phase_source"] is None
+    assert entree["payload"]["phase_cible"] == 0
+    assert entree["payload"]["conversation_id"] == conv["conversation_id"]
+
+    assert conv["dernier_ligne_id"] is not None
+    assert registre.valider_chaine()
