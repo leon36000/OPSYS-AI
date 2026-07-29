@@ -282,33 +282,23 @@ class TestValiditeChaine:
         assert r.valider_chaine(), "La chaîne est corrompue après mutation externe"
 
     def test_champ_precedent_falsifie_seul_est_detecte(self):
-        """Détecte une falsification isolée du champ precedent_ligne_id, que ni l’empreinte
-        globale (qui ne dépend que des ligne_id) ni le recalcul des ligne_id (qui exclut ce
-        champ) ne peuvent repérer."""
+        """Détecte une falsification isolée du champ precedent_ligne_id, que l'empreinte
+        globale (qui ne dépend que des ligne_id) ne peut pas repérer ; le recalcul des
+        ligne_id (qui exclut ce champ) n'est quant à lui jamais atteint pour ce maillon,
+        car le contrôle de chaînage retourne avant que le recalcul ne soit franchi."""
         r = _registre_rempli(3)
-        empreinte_avant = r._empreinte
-        ligne_ids_avant = [m["ligne_id"] for m in r._chain]
-        # Falsifier uniquement le precedent_ligne_id du deuxième maillon
         r._chain[1]["precedent_ligne_id"] = "falsifié"
-        # Prouver que le contrôle 1 (empreinte) ne détecte rien
-        assert r._empreinte == empreinte_avant, (
-            "L’empreinte globale ne doit pas changer car le chaînage est altéré "
-            "sans toucher au contenu des maillons."
+        assert registre._hash_chaine(r._chain) == r._empreinte, (
+            "Après falsification du seul champ precedent_ligne_id, l'empreinte globale "
+            "recalculée doit rester identique à l'empreinte stockée : le contrôle "
+            "d'empreinte globale est effectivement franchi et ce n'est donc pas lui qui détecte."
         )
-        # Prouver que le contrôle B (recalcul des ligne_id) ne détecte rien
-        ligne_ids_apres = [m["ligne_id"] for m in r._chain]
-        assert ligne_ids_apres == ligne_ids_avant, (
-            "Les ligne_id doivent rester identiques car les données utiles au "
-            "recalcul (entree_pure) sont inchangées."
-        )
-        # Le contrôle A (vérification de la cohérence de precedent_ligne_id) doit échouer
         assert r.valider_chaine() is False, (
-            "La chaîne doit être déclarée invalide à cause du precedent_ligne_id incohérent."
+            "valider_chaine() doit retourner False : la falsification de precedent_ligne_id "
+            "est détectée par le contrôle de chaînage, pas par l'empreinte globale."
         )
-        # L’assertion chaînée doit lever l’exception avec un message mentionnant 'precedent'
         with pytest.raises(registre.VerificationError, match="precedent"):
             r.assert_chaine()
-
     def test_maillon_non_encodable_est_refuse_sans_planter(self):
         """Un maillon falsifié non encodable invalide la chaîne sans lever d'exception."""
 
@@ -485,4 +475,25 @@ class TestLecturePartielle:
             "lire(depuis=<ligne_id du premier maillon>) devrait être strictement "
             f"identique à lire() : lire()={tous}, "
             f"lire(depuis={premier_ligne_id!r})={depuis_premier}"
+        )
+
+    def test_lire_sans_argument_retourne_une_copie(self):
+        """Muter le résultat de lire() sans argument (champ modifié et clé ajoutée) ne doit
+        pas altérer le registre : ce test rougit si lire() retourne directement self._chain."""
+        r = _registre_rempli(3)
+        lecture = r.lire()
+        assert len(lecture) == 3, (
+            f"Le registre rempli avec 3 maillons doit en exposer 3, obtenu : {len(lecture)}."
+        )
+        avant = [{cle: valeur for cle, valeur in maillon.items()} for maillon in lecture]
+        lecture[1]["ligne_id"] = "muté"
+        lecture[1]["cle_injectee"] = "injectée"
+        apres = r.lire()
+        assert apres == avant, (
+            "Muter le résultat de lire() sans argument a altéré le registre : lire() doit "
+            "retourner une copie profonde de la chaîne, jamais une référence à self._chain."
+        )
+        assert r.valider_chaine() is True, (
+            "valider_chaine() doit rester True après la mutation de la copie retournée par "
+            "lire() : le registre interne ne doit pas avoir été touché."
         )

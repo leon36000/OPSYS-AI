@@ -355,3 +355,145 @@ class TestEncodageRefusTypesNonCanoniques:
             encodage.encoder_canonique(a)
         with pytest.raises(TypeError):
             encodage.encoder_canonique(b)
+
+
+class TestEncodageTypesStandards:
+    """Vérifie le support typé explicite des types standards dans l'encodage canonique."""
+
+    @pytest.mark.parametrize(
+        "nom_type",
+        ["decimal", "datetime", "date", "time", "uuid", "bytes", "bytearray", "complex"],
+        ids=["decimal", "datetime", "date", "time", "uuid", "bytes", "bytearray", "complex"],
+    )
+    def test_types_standards_acceptes(self, nom_type):
+        """Chacun des 8 types standards supportés produit une empreinte hexadécimale de 64 caractères."""
+        from decimal import Decimal
+        from datetime import date, datetime, time
+        from uuid import UUID
+        valeurs = {
+            "decimal": Decimal("1.5"),
+            "datetime": datetime(2024, 3, 1, 12, 30, 0),
+            "date": date(2024, 3, 1),
+            "time": time(12, 30, 0),
+            "uuid": UUID("12345678-1234-5678-1234-567812345678"),
+            "bytes": b"\x00\x01\xfe\xff",
+            "bytearray": bytearray(b"\x00\x01\xfe\xff"),
+            "complex": complex(1.5, -2.25),
+        }
+        empreinte = encodage.empreinte(valeurs[nom_type])
+        assert isinstance(empreinte, str) and len(empreinte) == 64 and all(
+            c in "0123456789abcdef" for c in empreinte
+        ), (
+            f"L'empreinte pour le type {nom_type} doit être une chaîne hexadécimale "
+            f"de 64 caractères, obtenu : {empreinte!r}."
+        )
+
+    def test_injectivite_contre_la_chaine_equivalente(self):
+        """La collision de l'ancien repli repr() ne doit plus exister : la valeur typée
+        ne partage son empreinte ni avec la chaîne repr(valeur) ni avec la chaîne str(valeur)."""
+        from decimal import Decimal
+        from datetime import datetime
+        from uuid import UUID
+        valeurs = [
+            Decimal("1.5"),
+            UUID("12345678-1234-5678-1234-567812345678"),
+            datetime(2024, 3, 1, 12, 30, 0),
+        ]
+        for v in valeurs:
+            empreinte_typee = encodage.empreinte(v)
+            empreinte_repr = encodage.empreinte(repr(v))
+            empreinte_str = encodage.empreinte(str(v))
+            assert empreinte_typee != empreinte_repr, (
+                f"Collision injectivité pour {type(v).__name__} : l'empreinte de la valeur "
+                f"typée égale celle de la chaîne repr({v!r}) — la balise de type est perdue."
+            )
+            assert empreinte_typee != empreinte_str, (
+                f"Collision injectivité pour {type(v).__name__} : l'empreinte de la valeur "
+                f"typée égale celle de la chaîne str({v!r}) — la balise de type est perdue."
+            )
+
+    def test_decimal_conserve_lexposant(self):
+        """Decimal('1.50') et Decimal('1.5') sont deux valeurs distinctes pour un montant
+        et doivent produire deux empreintes différentes."""
+        from decimal import Decimal
+        empreinte_150 = encodage.empreinte(Decimal("1.50"))
+        empreinte_15 = encodage.empreinte(Decimal("1.5"))
+        assert empreinte_150 != empreinte_15, (
+            "Decimal('1.50') et Decimal('1.5') doivent avoir des empreintes distinctes : "
+            "la forme canonique str() conserve l'exposant, toute normalisation qui les "
+            "confond est une perte d'information."
+        )
+
+    def test_datetime_nest_pas_confondu_avec_date(self):
+        """Un datetime à minuit et le date correspondant donnent deux empreintes différentes :
+        datetime est une sous-classe de date, son test doit passer avant celui de date."""
+        from datetime import date, datetime
+        empreinte_datetime = encodage.empreinte(datetime(2024, 3, 1, 0, 0, 0))
+        empreinte_date = encodage.empreinte(date(2024, 3, 1))
+        assert empreinte_datetime != empreinte_date, (
+            "datetime(2024, 3, 1, 0, 0, 0) et date(2024, 3, 1) doivent avoir des empreintes "
+            "distinctes : si elles sont égales, le test isinstance(datetime) passe après "
+            "celui de date et l'heure est perdue (piège de la sous-classe)."
+        )
+
+    def test_type_reellement_non_canonique_toujours_refuse(self):
+        """Une classe locale minimale reste refusée par TypeError : le refus n'a pas été affaibli."""
+        class ObjetArbitraire:
+            """Classe locale minimale sans forme canonique stable."""
+            attribut = 1
+        with pytest.raises(TypeError, match="Type non supporté"):
+            encodage.empreinte(ObjetArbitraire())
+
+    def test_determinisme_inter_processus_types_standards(self):
+        """Une structure contenant Decimal, datetime, UUID et bytes produit la même empreinte
+        dans tous les processus, quel que soit PYTHONHASHSEED, et dans le processus courant."""
+        from decimal import Decimal
+        from datetime import datetime
+        from uuid import UUID
+        src = Path(__file__).resolve().parents[1] / "src"
+        script = (
+            "import sys\n"
+            f"sys.path.insert(0, {str(src)!r})\n"
+            "import encodage\n"
+            "from decimal import Decimal\n"
+            "from datetime import datetime\n"
+            "from uuid import UUID\n"
+            "structure = {\n"
+            "    'montant': Decimal('1.50'),\n"
+            "    'quand': datetime(2024, 3, 1, 12, 30, 0),\n"
+            "    'identifiant': UUID('12345678-1234-5678-1234-567812345678'),\n"
+            "    'brut': b'\\x00\\x01\\xfe\\xff',\n"
+            "}\n"
+            "print(encodage.empreinte(structure))\n"
+        )
+        graines = ["0", "1", "42"]
+        empreintes = []
+        for graine in graines:
+            env = dict(os.environ)
+            env["PYTHONHASHSEED"] = graine
+            resultat = subprocess.run(
+                [sys.executable, "-c", script],
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+            assert resultat.returncode == 0, (
+                f"Le sous-processus (PYTHONHASHSEED={graine}) a échoué avec le code "
+                f"{resultat.returncode} : {resultat.stderr}"
+            )
+            empreintes.append(resultat.stdout.strip())
+        assert len(set(empreintes)) == 1, (
+            f"Empreintes divergentes entre processus pour PYTHONHASHSEED={graines} : "
+            f"{empreintes} — la forme canonique des types standards n'est pas déterministe."
+        )
+        structure_locale = {
+            "montant": Decimal("1.50"),
+            "quand": datetime(2024, 3, 1, 12, 30, 0),
+            "identifiant": UUID("12345678-1234-5678-1234-567812345678"),
+            "brut": b"\x00\x01\xfe\xff",
+        }
+        empreinte_locale = encodage.empreinte(structure_locale)
+        assert empreintes[0] == empreinte_locale, (
+            f"L'empreinte du processus courant ({empreinte_locale}) diffère de celle des "
+            f"sous-processus ({empreintes[0]}) : le déterminisme inter-processus est rompu."
+        )
