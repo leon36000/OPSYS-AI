@@ -497,3 +497,152 @@ class TestEncodageTypesStandards:
             f"L'empreinte du processus courant ({empreinte_locale}) diffère de celle des "
             f"sous-processus ({empreintes[0]}) : le déterminisme inter-processus est rompu."
         )
+
+
+class TestInjectiviteExhaustive:
+    """Garantit l'injectivité permanente du balisage de types de l'encodage canonique.
+
+    Une valeur typée ne doit jamais produire la même empreinte qu'une liste ou
+    un tuple littéral de même forme fourni par l'appelant, et aucune paire de
+    valeurs distinctes d'un panel hétérogène ne doit partager une empreinte.
+    """
+
+    @pytest.mark.parametrize(
+        "type_cible, argument_brut, balise, forme_canonique, conteneur",
+        [
+            ("decimal", "1.5", "__decimal__", "1.5", "liste"),
+            ("bytes", b"\xab", "__bytes__", "ab", "liste"),
+            ("bytearray", b"\xab", "__bytearray__", "ab", "liste"),
+            ("uuid", "12345678-1234-5678-1234-567812345678", "__uuid__", "12345678-1234-5678-1234-567812345678", "liste"),
+            ("date", (2026, 7, 29), "__date__", "2026-07-29", "liste"),
+            ("datetime", (2026, 7, 29, 12, 30, 0), "__datetime__", "2026-07-29T12:30:00+00:00", "liste"),
+            ("time", (9, 15, 0), "__time__", "09:15:00", "liste"),
+            ("decimal", "1.5", "__decimal__", "1.5", "tuple"),
+        ],
+        ids=[
+            "decimal_vs_liste_meme_forme",
+            "bytes_vs_liste_meme_forme",
+            "bytearray_vs_liste_meme_forme",
+            "uuid_vs_liste_meme_forme",
+            "date_vs_liste_meme_forme",
+            "datetime_vs_liste_meme_forme",
+            "time_vs_liste_meme_forme",
+            "decimal_vs_tuple_meme_forme",
+        ],
+    )
+    def test_valeur_typee_ne_collisionne_pas_avec_la_liste_de_meme_forme(
+        self, type_cible, argument_brut, balise, forme_canonique, conteneur
+    ):
+        """Une valeur typée et la liste (ou le tuple) littérale de même forme
+        doivent produire deux empreintes différentes."""
+        from decimal import Decimal
+        from uuid import UUID
+        from datetime import date, datetime, time, timezone
+
+        if type_cible == "decimal":
+            valeur_typee = Decimal(argument_brut)
+        elif type_cible == "bytes":
+            valeur_typee = bytes(argument_brut)
+        elif type_cible == "bytearray":
+            valeur_typee = bytearray(argument_brut)
+        elif type_cible == "uuid":
+            valeur_typee = UUID(argument_brut)
+        elif type_cible == "date":
+            valeur_typee = date(*argument_brut)
+        elif type_cible == "datetime":
+            valeur_typee = datetime(*argument_brut, tzinfo=timezone.utc)
+        elif type_cible == "time":
+            valeur_typee = time(*argument_brut)
+        else:
+            raise AssertionError(f"type_cible non pris en charge : {type_cible!r}")
+
+        if conteneur == "liste":
+            forme_litterale = [balise, forme_canonique]
+        elif conteneur == "tuple":
+            forme_litterale = (balise, forme_canonique)
+        else:
+            raise AssertionError(f"conteneur non pris en charge : {conteneur!r}")
+
+        empreinte_typee = encodage.empreinte(valeur_typee)
+        empreinte_litterale = encodage.empreinte(forme_litterale)
+
+        assert empreinte_typee != empreinte_litterale, (
+            f"collision d'empreintes : la valeur typée {valeur_typee!r} et la "
+            f"forme littérale {forme_litterale!r} partagent l'empreinte "
+            f"{empreinte_typee}"
+        )
+
+    def test_panel_heterogene_sans_aucune_collision(self):
+        """Aucune paire distincte du panel hétérogène ne doit produire la même
+        empreinte ; le nombre de paires comparées doit valoir n*(n-1)/2."""
+        import itertools
+        from decimal import Decimal
+        from uuid import UUID
+        from datetime import date, datetime, time, timezone
+
+        panel = {
+            "entier_un": 1,
+            "decimal_un": Decimal("1"),
+            "decimal_un_virgule_zero": Decimal("1.0"),
+            "decimal_un_cinq": Decimal("1.5"),
+            "flottant_un": 1.0,
+            "chaine_un": "1",
+            "chaine_balise_decimal": "__decimal__",
+            "booleen_vrai": True,
+            "booleen_faux": False,
+            "valeur_none": None,
+            "bytes_ab": b"\xab",
+            "bytearray_ab": bytearray(b"\xab"),
+            "chaine_hex_ab": "ab",
+            "date_fixe": date(2026, 7, 29),
+            "datetime_minuit_naif": datetime(2026, 7, 29, 0, 0, 0),
+            "datetime_utc_apres_midi": datetime(2026, 7, 29, 12, 30, 0, tzinfo=timezone.utc),
+            "time_minuit": time(0, 0, 0),
+            "uuid_fixe": UUID("12345678-1234-5678-1234-567812345678"),
+            "chaine_uuid": "12345678-1234-5678-1234-567812345678",
+            "set_abc": {"a", "b", "c"},
+            "frozenset_abc": frozenset({"a", "b", "c"}),
+            "liste_abc": ["a", "b", "c"],
+            "tuple_abc": ("a", "b", "c"),
+            "dict_simple": {"cle": "valeur"},
+            "complexe_un_deux": complex(1, 2),
+            "liste_forme_decimal": ["__decimal__", "1.5"],
+            "liste_vide": [],
+            "tuple_vide": (),
+            "dict_vide": {},
+        }
+        assert len(panel) >= 18, (
+            f"le panel hétérogène doit contenir au moins 18 valeurs, "
+            f"il en contient {len(panel)}"
+        )
+
+        empreintes = {
+            nom: encodage.empreinte(valeur) for nom, valeur in panel.items()
+        }
+
+        collisions = []
+        paires_comparees = 0
+        for (nom_a, empreinte_a), (nom_b, empreinte_b) in itertools.combinations(
+            empreintes.items(), 2
+        ):
+            paires_comparees += 1
+            if empreinte_a == empreinte_b:
+                collisions.append((nom_a, nom_b, empreinte_a))
+
+        nombre_valeurs = len(empreintes)
+        paires_attendues = nombre_valeurs * (nombre_valeurs - 1) // 2
+        assert paires_comparees == paires_attendues, (
+            f"nombre de paires réellement comparées ({paires_comparees}) "
+            f"différent du nombre attendu n*(n-1)/2 ({paires_attendues}) "
+            f"pour n={nombre_valeurs} valeurs"
+        )
+
+        assert not collisions, (
+            f"{len(collisions)} collision(s) d'empreintes détectée(s) dans le "
+            f"panel : "
+            + "; ".join(
+                f"{nom_a}={panel[nom_a]!r} <-> {nom_b}={panel[nom_b]!r} "
+                f"(empreinte commune {empreinte_commune})"
+                for nom_a, nom_b, empreinte_commune in collisions
+            )
+        )
