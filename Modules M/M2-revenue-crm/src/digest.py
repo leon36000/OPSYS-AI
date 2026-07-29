@@ -8,7 +8,6 @@ de l'ordre d'ingestion et du fuseau horaire de la machine.
 
 from datetime import datetime, timedelta, timezone
 
-import statuts
 
 # Seuil ratifié : un lead « nouveau » sans owner n'est déclaré orphelin
 # qu'au-delà de 48 heures STRICTES, afin que la frontière soit univoque
@@ -30,8 +29,24 @@ def _normaliser_utc(valeur):
     La normalisation UTC rend la comparaison inter-fuseaux déterministe :
     deux libellés distincts désignant le même instant donnent le même
     résultat, quelle que soit la machine qui exécute le calcul.
+
+    Le fuseau est OBLIGATOIRE et son absence est un refus, jamais une
+    supposition. POURQUOI : sur une chaîne naïve, ``astimezone`` retomberait
+    sur le fuseau local de la machine, qui est une entrée AMBIANTE non
+    fournie par l'appelant. Mesuré sur un même registre avec un même
+    horodatage naïf : orphelin vrai sous TZ=UTC, faux sous
+    TZ=Pacific/Kiritimati. Cela briserait CA-M2-09 (sortie byte-identique à
+    entrées égales) et l'invariant « zéro horloge interne » du §8. Le module
+    reste donc fail-closed : il lève plutôt que de deviner.
     """
-    return datetime.fromisoformat(valeur).astimezone(timezone.utc)
+    instant = datetime.fromisoformat(valeur)
+    if instant.tzinfo is None or instant.tzinfo.utcoffset(instant) is None:
+        raise ValueError(
+            "horodatage sans fuseau refusé : le fuseau est obligatoire, sinon "
+            "la sortie dépendrait du fuseau local de la machine "
+            f"(reçu {valeur!r})"
+        )
+    return instant.astimezone(timezone.utc)
 
 
 def _est_en_attente(arbitrage):
@@ -123,7 +138,7 @@ def produire_digest(registre_cible, date_jour, horodatage):
 
     # Section [DOUBLONS_EN_ATTENTE]
     doublons_en_attente = sorted(
-        sid for sid, arb in signalement_arbitrage.items() if arb == _ARBITRAGE_EN_ATTENTE
+        sid for sid, arb in signalement_arbitrage.items() if _est_en_attente(arb)
     )
     lignes.append("[DOUBLONS_EN_ATTENTE]")
     for sid in doublons_en_attente:

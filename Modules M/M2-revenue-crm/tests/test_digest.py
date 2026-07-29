@@ -1,5 +1,4 @@
 import sys
-import copy
 import json
 import subprocess
 from pathlib import Path
@@ -454,3 +453,60 @@ class TestInvariantsDigest:
     def test_constante_seuil_orphelin(self):
         """SEUIL_ORPHELIN_HEURES vaut 48."""
         assert digest.SEUIL_ORPHELIN_HEURES == 48
+
+    def test_horodatage_production_sans_fuseau_est_refuse(self):
+        """PROUVE que produire_digest REFUSE un horodatage de production naïf.
+
+        Sans cette garde, datetime.astimezone retombe sur le fuseau LOCAL de la
+        machine — une entrée ambiante que l'appelant n'a pas fournie. Mesuré sur
+        un même registre avec le même horodatage naïf : orphelin vrai sous
+        TZ=UTC, faux sous TZ=Pacific/Kiritimati. Fail-closed : on lève."""
+        reg = registre.Registre()
+        _ingerer_lead(reg, "NAIF", "2026-03-01T00:00:00+00:00")
+        with pytest.raises(ValueError):
+            digest.produire_digest(reg, "2026-03-03", "2026-03-03T01:00:00")
+
+    def test_horodatage_production_non_parsable_est_refuse(self):
+        """Une chaîne qui n'est pas un horodatage ISO-8601 est refusée."""
+        reg = registre.Registre()
+        _ingerer_lead(reg, "NP", "2026-03-01T00:00:00+00:00")
+        with pytest.raises(ValueError):
+            digest.produire_digest(reg, "2026-03-03", "pas-une-date")
+
+    def test_sortie_identique_quel_que_soit_le_fuseau_de_la_machine(self):
+        """PROUVE le déterminisme INTER-MACHINE : le même digest calculé sous
+        trois TZ système différents est byte-identique. C'est la propriété que
+        la garde de fuseau protège ; retirer la garde ET fournir un horodatage
+        naïf ferait diverger ces sorties."""
+        reg_local = registre.Registre()
+        _ingerer_lead(reg_local, "T1", "2026-03-01T08:00:00+00:00")
+        _ingerer_lead(reg_local, "T2", "2026-03-02T09:00:00+00:00")
+        date_jour = "2026-03-04"
+        prod = "2026-03-04T12:00:00+00:00"
+        digest_local = digest.produire_digest(reg_local, date_jour, prod)
+        assert len(digest_local) > 0, "le digest local ne doit pas être vide"
+        entrees_json = json.dumps(reg_local.lire(), ensure_ascii=False)
+        prog = (
+            "import sys, json\n"
+            "from pathlib import Path\n"
+            "_SRC = Path(sys.argv[1])\n"
+            "sys.path.insert(0, str(_SRC))\n"
+            "import registre, digest\n"
+            "reg = registre.Registre()\n"
+            "for entree in json.loads(sys.argv[2]):\n"
+            "    reg.ajouter(entree)\n"
+            "print(digest.produire_digest(reg, sys.argv[3], sys.argv[4]), end='')\n"
+        )
+        for fuseau in ("UTC", "Pacific/Kiritimati", "Pacific/Midway"):
+            res = subprocess.run(
+                [sys.executable, "-c", prog, str(_SRC), entrees_json, date_jour, prod],
+                capture_output=True, text=True,
+                env={"TZ": fuseau, "PYTHONPATH": str(_SRC), "PATH": "/usr/bin:/bin"},
+            )
+            assert res.returncode == 0, (
+                f"sous-processus TZ={fuseau} échoué : {res.stderr}"
+            )
+            assert res.stdout == digest_local, (
+                f"digest différent sous TZ={fuseau} : le fuseau de la machine "
+                "ne doit JAMAIS influencer la sortie"
+            )
