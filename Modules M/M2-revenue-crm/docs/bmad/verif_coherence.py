@@ -67,6 +67,14 @@ verifie("chaque critère listé commence sa propre ligne DANS §6",
         debut_ligne == set(listes),
         f"début de ligne {sorted(debut_ligne)} vs listés {listes}")
 
+# Les ENSEMBLES dédupliquent : sans ce contrôle, un critère écrit deux fois
+# passerait inaperçu (objection de revue round 7, fondée).
+from collections import Counter
+doublons = {n: c for n, c in Counter(re.findall(r"^CA-M2-(\d+) :", sec6, re.M)).items() if c > 1}
+verifie("aucun critère défini deux fois dans §6", not doublons, str(doublons))
+hors6 = len(re.findall(r"^CA-M2-\d+ :", prd, re.M)) - len(re.findall(r"^CA-M2-\d+ :", sec6, re.M))
+verifie("aucun critère défini hors de §6", hors6 == 0, f"{hors6} définition(s) hors section")
+
 print()
 print("VERDICT :", "TOUT VERT" if not echecs else f"{len(echecs)} ÉCHEC(S) : {echecs}")
 sys.exit(1 if echecs else 0)
