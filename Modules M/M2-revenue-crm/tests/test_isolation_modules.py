@@ -16,6 +16,8 @@ from m2_revenue_crm import verdicts  # noqa: E402
 from m2_revenue_crm import fixtures_garde  # noqa: E402
 from m2_revenue_crm import registre  # noqa: E402
 
+_NOM_PAQUET = "m2_revenue_crm"
+
 # ---------------------------------------------------------------------------
 # Références en dur pour les tests paramétrés
 # ---------------------------------------------------------------------------
@@ -163,4 +165,35 @@ def test_scripts_de_preuve_sexecutent(nom_script):
     )
     assert resultat.stdout.strip(), (
         f"{nom_script} n'a rien imprimé : il ne prouve plus rien"
+    )
+
+def test_aucun_sys_path_insert_vise_le_paquet():
+    """PROUVE qu'aucun fichier de test n'insère le PAQUET dans sys.path.
+
+    Deux chemins, deux rôles, et les confondre casse l'un des deux : sys.path
+    doit recevoir src/ — le PARENT du paquet — car c'est lui qui rend
+    « from PAQUET import ... » résoluble ; le paquet lui-même ne sert qu'à
+    SCANNER les sources.
+
+    Défaut réel trouvé par la revue scellée (chore #109, round 2) : un fichier
+    insérait le paquet et échouait EXÉCUTÉ SEUL, tout en passant dans la suite
+    complète parce qu'un autre fichier avait inséré src/ avant lui — une
+    dépendance à l'ordre de collecte, précisément ce que la mise en paquet doit
+    supprimer. Le contrôle est STATIQUE parce qu'un tel défaut est invisible en
+    exécution groupée.
+    """
+    tests_dir = Path(__file__).resolve().parent
+    fautifs = []
+    for fichier in sorted(tests_dir.glob("*.py")):
+        for numero, ligne in enumerate(
+            fichier.read_text(encoding="utf-8").splitlines(), 1
+        ):
+            depouillee = ligne.strip()
+            if not depouillee.startswith("sys.path.insert"):
+                continue
+            if _NOM_PAQUET in depouillee:
+                fautifs.append(f"{fichier.name}:{numero}: {depouillee}")
+    assert not fautifs, (
+        "sys.path.insert visant le paquet au lieu de son parent :\n  "
+        + "\n  ".join(fautifs)
     )
