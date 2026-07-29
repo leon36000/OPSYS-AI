@@ -66,7 +66,7 @@ class Registre:
         precedent = self._chain[-1]["ligne_id"] if self._chain else None
         ligne_id = encodage.encoder_canonique(entree_copy, precedent)
 
-        maillon = copy.deepcopy(entree_copy)
+        maillon = dict(entree_copy)
         maillon["ligne_id"] = ligne_id
         maillon["precedent_ligne_id"] = precedent
 

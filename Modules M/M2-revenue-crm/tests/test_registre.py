@@ -8,7 +8,6 @@ _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 import registre  # noqa: E402
-import verdicts  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Constantes pour les tests
@@ -155,15 +154,19 @@ class TestValiditeChaine:
                 "troncature (suppression du dernier maillon)",
             ),
             (
-                lambda r: r._chain.__setitem__(0, r._chain[1]) or r._chain.__setitem__(1, r._chain[0]),
-                "réordonnancement de deux maillons",
+                lambda r: r._chain.__setitem__(slice(0, 2), [r._chain[1], r._chain[0]]),
+                "permutation des deux premiers maillons (ordre [m1, m0, m2])",
             ),
             (
                 lambda r: r._chain.pop(1),
                 "suppression d'un maillon au milieu",
             ),
+            (
+                lambda r: r._chain.insert(1, r._chain[1]),
+                "duplication d'un maillon",
+            ),
         ],
-        ids=["mutation", "troncature", "reordonnancement", "suppression_milieu"],
+        ids=["mutation", "troncature", "permutation", "suppression_milieu", "duplication"],
     )
     def test_alteration_casse_validation(self, altération, description):
         """
@@ -208,6 +211,71 @@ class TestValiditeChaine:
         r.assert_chaine(ancre=bonne_ancre)  # ne lève pas
 
 
+    def test_registre_vide_est_valide(self):
+        """Un registre neuf est valide au sens de toutes les vérifications."""
+        r = registre.Registre()
+        assert r.taille() == 0
+        assert r.tete() is None
+        assert r.lire() == []
+        assert r.valider_chaine() is True
+        assert r.valider_chaine(ancre=None) is True
+        # l'ancre inexistante rend la chaîne invalide sans planter
+        assert r.valider_chaine(ancre="ancre-inexistante") is False
+        with pytest.raises(registre.VerificationError):
+            r.assert_chaine(ancre="ancre-inexistante")
+
+    def test_mutation_entree_apres_ajout_sans_effet(self):
+        """Muter l'objet passé à ajouter() ne compromet pas le registre."""
+        # Entrée avec valeurs imbriquées mutables
+        entree = dict(
+            type_entree="VISITE",
+            horodatage="2023-10-01T12:00:00+02:00",
+            visitor_id="v-001",
+            landing="/accueil",
+            details={"source": "facebook", "campaign": "spring"},
+            tags=["urgent", "a-rappeler"],
+        )
+        r = registre.Registre()
+        r.ajouter(entree)
+        avant = r.lire()
+
+        # Mutations profondes sur l'objet d'origine
+        entree["visitor_id"] = "MODIFIE"
+        entree["details"]["campaign"] = "INJECTION"
+        entree["tags"].append("spam")
+
+        apres = r.lire()
+        assert apres == avant, "La mutation de l'entrée d'origine a altéré le registre"
+        assert r.valider_chaine(), "La chaîne est corrompue après mutation externe"
+
+    def test_champ_precedent_falsifie_seul_est_detecte(self):
+        """Détecte une falsification isolée du champ precedent_ligne_id, que ni l’empreinte
+        globale (qui ne dépend que des ligne_id) ni le recalcul des ligne_id (qui exclut ce
+        champ) ne peuvent repérer."""
+        r = _registre_rempli(3)
+        empreinte_avant = r._empreinte
+        ligne_ids_avant = [m["ligne_id"] for m in r._chain]
+        # Falsifier uniquement le precedent_ligne_id du deuxième maillon
+        r._chain[1]["precedent_ligne_id"] = "falsifié"
+        # Prouver que le contrôle 1 (empreinte) ne détecte rien
+        assert r._empreinte == empreinte_avant, (
+            "L’empreinte globale ne doit pas changer car le chaînage est altéré "
+            "sans toucher au contenu des maillons."
+        )
+        # Prouver que le contrôle B (recalcul des ligne_id) ne détecte rien
+        ligne_ids_apres = [m["ligne_id"] for m in r._chain]
+        assert ligne_ids_apres == ligne_ids_avant, (
+            "Les ligne_id doivent rester identiques car les données utiles au "
+            "recalcul (entree_pure) sont inchangées."
+        )
+        # Le contrôle A (vérification de la cohérence de precedent_ligne_id) doit échouer
+        assert r.valider_chaine() is False, (
+            "La chaîne doit être déclarée invalide à cause du precedent_ligne_id incohérent."
+        )
+        # L’assertion chaînée doit lever l’exception avec un message mentionnant 'precedent'
+        with pytest.raises(registre.VerificationError, match="precedent"):
+            r.assert_chaine()
+
 # ---------------------------------------------------------------------------
 # Déterminisme et absence d’horloge / réseau (règles 7, 8)
 # ---------------------------------------------------------------------------
@@ -251,10 +319,16 @@ class TestAucuneEcritureSaufAjouter:
         "ajouter",
         "lire",
         "tete",
+        "taille",
         "valider_chaine",
         "assert_chaine",
-        "taille",
     ]
+    # Expression régulière couvrant les mutateurs standards de list Python.
+    # Inclut volontairement pop car aucune autre méthode publique n'utilise .pop(
+    # (le .pop() présent dans ajouter() est un pop de dictionnaire, non visé ici).
+    MUTATEUR_RE = re.compile(
+        r"\.(append|extend|insert|remove|clear|sort|reverse|__setitem__|__delitem__|pop)\s*\("
+    )
 
     def test_ajouter_seul_a_modifier_append(self):
         """
@@ -263,6 +337,7 @@ class TestAucuneEcritureSaufAjouter:
         écrire dans la chaîne.
         """
         cls = registre.Registre
+        inspected = 0
         for nom in self.METHODES_PUBLIQUES:
             meth = getattr(cls, nom)
             try:
@@ -270,21 +345,19 @@ class TestAucuneEcritureSaufAjouter:
             except (TypeError, OSError):
                 # méthode built-in ou non accessible – toléré
                 continue
+            inspected += 1
             if nom == "ajouter":
-                # ajouter doit bien contenir un append (ou insert) – on vérifie
-                # qu'il y a au moins un appel de modification de liste
-                assert re.search(r"\.(append|extend|insert|__setitem__|__delitem__)\s*\(", src), (
+                assert self.MUTATEUR_RE.search(src), (
                     "ajouter() doit modifier la structure interne"
                 )
             else:
-                assert ".append(" not in src, (
-                    f"La méthode {nom}() ne doit pas faire d'append sur la chaîne"
+                assert not self.MUTATEUR_RE.search(src), (
+                    f"La méthode {nom}() ne doit pas écrire dans la chaîne, "
+                    f"mutateur trouvé : {self.MUTATEUR_RE.findall(src)}"
                 )
-                assert ".insert(" not in src, (
-                    f"La méthode {nom}() ne doit pas faire d'insert sur la chaîne"
-                )
-                # tolérer pop() pour certaines opérations de lecture? Non, aucun
-                # pop ne doit être présent non plus car il modifie.
-                assert ".pop(" not in src, (
-                    f"La méthode {nom}() ne doit pas faire de pop sur la chaîne"
-                )
+        assert inspected == len(self.METHODES_PUBLIQUES), (
+            f"Inspection incomplète : {inspected} méthode(s) inspectée(s) "
+            f"au lieu de {len(self.METHODES_PUBLIQUES)}"
+        )
+
+
