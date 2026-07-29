@@ -212,3 +212,83 @@ def test_zero_llm():
     interdits = ["openai", "litellm", "requests", "completion"]
     for mot in interdits:
         assert mot not in source, f"'{mot}' trouvé dans le source de garde_fou"
+
+
+# ---------------------------------------------------------------------------
+# TESTS TDAD M1-S003 — verrouillage des failles trouvées en revue scellée
+# 1) la liste blanche des verbes de contact s'évalue PAR SEGMENT, pas globalement
+# 2) la segmentation ne découpe plus les dates ISO sur le tiret (2026-08-14)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "texte",
+    [
+        pytest.param(
+            "Je vous rappelle lundi. La dalle sera coulée le 14/08.",
+            id="rappel-lundi+date-numerique",
+        ),
+        pytest.param(
+            "Un conseiller vous recontacte dans 2 jours ; installation prévue le 2026-08-14.",
+            id="recontact+date-iso",
+        ),
+        pytest.param(
+            "Nous vous rappelons demain pour confirmer que le chantier démarre lundi.",
+            id="rappel+demarrage-lundi",
+        ),
+        pytest.param(
+            "Nous vous rappelons demain, et les travaux seront finis vendredi.",
+            id="rappel+fin-vendredi",
+        ),
+    ],
+)
+def test_liste_blanche_ne_neutralise_que_son_segment(texte):
+    """Un verbe de contact ne neutralise QUE son propre segment.
+
+    Régression revue scellée : la liste blanche était appliquée GLOBALEMENT —
+    préfixer « Je vous rappelle lundi. » faisait passer n'importe quel
+    engagement de date. Chaque cas contient un verbe de contact ET un
+    engagement de date : le verdict doit rester REJ-INTERDIT-DATE.
+    """
+    verdict = garde_fou.verifier_sortie(texte)
+    assert verdict["code"] == "REJ-INTERDIT-DATE", (
+        "Contournement par verbe de contact non bloqué — la liste blanche "
+        f"doit être évaluée PAR SEGMENT, pas globalement : "
+        f"{texte!r} -> code={verdict['code']!r}"
+    )
+
+
+@pytest.mark.parametrize(
+    "texte",
+    [
+        pytest.param("Nous vous rappelons demain", id="rappel-demain"),
+        pytest.param("je vous rappelle lundi", id="rappel-lundi-seul"),
+        pytest.param(
+            "un conseiller vous recontacte dans 2 jours",
+            id="recontact-delai",
+        ),
+        pytest.param(
+            "Les délais vous seront confirmés par le responsable de chantier",
+            id="confirmation-par-responsable",
+        ),
+    ],
+)
+def test_contact_seul_reste_emissible(texte):
+    """Une relance de contact SANS engagement de date reste émissible (OK).
+
+    Garde contre le faux positif symétrique : l'évaluation par segment ne
+    doit pas bloquer les messages qui ne contiennent que du contact.
+    """
+    verdict = garde_fou.verifier_sortie(texte)
+    assert verdict["code"] == "OK", (
+        "Faux positif : un message de contact sans engagement de date doit "
+        f"rester émissible : {texte!r} -> code={verdict['code']!r}"
+    )
+
+
+def test_date_iso_non_decoupee_par_segmentation():
+    segments = garde_fou._decouper_segments(garde_fou._normaliser("installation prévue le 2026-08-14"))
+    for interdit in ("2026", "08", "14"):
+        assert interdit not in segments, f"Segments: {segments}"
+    assert any("2026-08-14" in s for s in segments)
+    assert garde_fou.verifier_sortie("Un conseiller vous recontacte dans 2 jours ; installation prévue le 2026-08-14.")["code"] == "REJ-INTERDIT-DATE"

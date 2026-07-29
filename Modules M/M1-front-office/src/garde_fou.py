@@ -182,17 +182,53 @@ VERBES_CONTACT = re.compile(
 )
 
 
+def _decouper_segments(texte: str) -> list[str]:
+    """
+    Sépare le texte en segments indépendants sur la base de :
+    - ponctuation forte : . ! ? ;
+    - ponctuation faible : , :
+    - conjonctions / mots-outils : et, puis, mais, pour, afin, que
+    Chaque segment résultant est nettoyé des espaces superflus.
+    """
+    # Pattern de séparation : les ponctuations et les mots de liaison entourés d'espaces
+    # Le tiret a été retiré de la classe de ponctuation pour ne pas découper
+    # les dates au format ISO (AAAA-MM-JJ), qui contiennent des tirets internes.
+    separateur = re.compile(
+        r'''
+        \s*                     # éventuels espaces avant le séparateur
+        (?:
+            [.!?;,:]            # ponctuation
+          |                     # OU
+            \b(?:et|puis|mais|pour|afin|que)\b   # conjonctions/mots-outils
+        )
+        \s*                     # éventuels espaces après
+        ''',
+        re.IGNORECASE | re.VERBOSE
+    )
+    parties = separateur.split(texte)
+    # Nettoyer chaque partie et ne garder que les segments non vides
+    segments = []
+    for p in parties:
+        p = p.strip()
+        if p:
+            segments.append(p)
+    return segments
+
+
 def _detecter_date(texte: str) -> bool:
-    # Étape 1 : présence d'une référence temporelle
-    if not REF_TEMPORELLE.search(texte):
-        return False
-    # Étape 2 : présence d'un verbe d'exécution (élargi)
-    if not VERBES_EXECUTION.search(texte):
-        return False
-    # Étape 3 : si un verbe de contact est présent, on ne bloque pas
-    if VERBES_CONTACT.search(texte):
-        return False
-    return True
+    """
+    Vérifie si le texte contient une proposition associant une
+    référence temporelle à un verbe d'exécution de chantier.
+    La présence d'un verbe de contact dans un segment ne neutralise
+    que ce segment, sauf si un verbe d'exécution est également présent.
+    """
+    segments = _decouper_segments(texte)
+    for seg in segments:
+        # Un segment est suspect si REF_TEMPORELLE et VERBES_EXECUTION sont présents,
+        # indépendamment de VERBES_CONTACT (l'exécution l'emporte).
+        if REF_TEMPORELLE.search(seg) and VERBES_EXECUTION.search(seg):
+            return True
+    return False
 
 
 # ----------------------------------------------------------------------
