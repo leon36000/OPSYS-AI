@@ -73,17 +73,36 @@ class AdaptateurMemoire:
         if not isinstance(charge, dict) or not charge:
             return (None, verdicts.construire_verdict('REJ-CHAMP-MANQUANT'))
 
-        # 3. Horodatage valide (avec timezone)
+        # 3. Horodatage valide (avec fuseau). Seul ValueError est capturé, et
+        #    c'est SUFFISANT : valider_horodatage normalise TOUTE erreur de type
+        #    en ValueError par conception (elle commence par
+        #    `if not isinstance(texte, str): raise ValueError`). Mesuré sur
+        #    None, entier, liste, dict, bytes et chaîne invalide : ValueError
+        #    dans les six cas. Capturer TypeError en plus serait du code mort.
         try:
             horodatage_valide = _horodatage.valider_horodatage(horodatage)
         except ValueError:
             return (None, verdicts.construire_verdict('REJ-HORODATAGE-INVALIDE'))
 
-        # Succès : construction complète de l'accusé AVANT toute mutation.
-        # Une éventuelle exception (ex. charge non sérialisable en JSON)
-        # survient avant l'append, laissant le journal intact.
+        # 4. La charge doit franchir la frontière de sérialisation.
+        #    POURQUOI ce contrôle est une VALIDATION et non un détail
+        #    d'implémentation : un adaptateur simule l'écriture vers un CRM
+        #    TIERS ; une donnée qui ne peut pas être sérialisée ne peut pas
+        #    franchir cette frontière. Un dict non vide peut être
+        #    structurellement valide tout en contenant un datetime, un set,
+        #    des bytes ou un objet quelconque — json.dumps lève alors
+        #    TypeError. Laisser remonter cette exception violerait la
+        #    convention de TOUT le module M2 : le refus est un couple
+        #    (None, verdict), jamais une exception chez l'appelant.
         charge_copiee = copy.deepcopy(charge)
-        charge_bytes = json.dumps(charge_copiee, sort_keys=True).encode('utf-8')
+        try:
+            charge_bytes = json.dumps(charge_copiee, sort_keys=True).encode('utf-8')
+        except (TypeError, ValueError):
+            return (None, verdicts.construire_verdict(
+                'REJ-FRONTIERE-VIOLEE',
+                detail="charge non sérialisable : elle ne peut pas franchir la "
+                       "frontière vers un CRM tiers",
+            ))
         empreinte = hashlib.sha256(charge_bytes).hexdigest()
         accuse = {
             "adaptateur_id": self.identifiant(),

@@ -1,4 +1,5 @@
 import sys
+import ast
 import inspect
 import subprocess
 import os
@@ -175,6 +176,65 @@ class TestFailClosed:
         )
         assert hors_mode.lire_journal() == [], "journal vide sur rejet"
 
+    @pytest.mark.parametrize("charge", [
+        {"t": {"a", "b"}},
+        {"b": b"x"},
+        {"o": object()},
+        {"f": len},
+    ], ids=["set", "bytes", "object", "function"])
+    def test_charge_non_serialisable_refusee(self, adaptateur_ombre, horodatage_valide, charge):
+        """Prouve qu'une charge dict non vide mais contenant une valeur non JSON-sérialisable
+        est refusée sans exception : (accuse=None, verdict REJ-FRONTIERE-VIOLEE), le journal
+        reste inchangé (pas d'effet de bord). Une mutation du code qui laisserait remonter
+        l'exception sera détectée ici."""
+        journal_avant = len(adaptateur_ombre.lire_journal())
+        accuse, verdict = adaptateur_ombre.ecrire(charge, horodatage_valide)
+        assert accuse is None, "L'accusé doit être None pour une charge rejetée"
+        assert verdict["code"] == "REJ-FRONTIERE-VIOLEE", (
+            f"Code attendu REJ-FRONTIERE-VIOLEE, reçu {verdict['code']!r}"
+        )
+        assert len(adaptateur_ombre.lire_journal()) == journal_avant, (
+            "Le journal ne doit pas contenir d'écriture supplémentaire"
+        )
+
+    @pytest.mark.parametrize("type_invalide", [
+        None,
+        42,
+        ["2026-03-01"],
+        {"a": 1},
+    ], ids=["None", "int", "liste", "dict"])
+    def test_horodatage_de_type_inattendu_refuse(self, adaptateur_ombre, charge_exemple, type_invalide):
+        """Prouve qu'un horodatage de type inattendu (None, int, liste, dict) est refusé
+        par un verdict REJ-HORODATAGE-INVALIDE sans exception et sans effet de bord,
+        même si valider_horodatage lève TypeError. Garantit que tout type non str
+        termine en verdict."""
+        journal_avant = len(adaptateur_ombre.lire_journal())
+        accuse, verdict = adaptateur_ombre.ecrire(charge_exemple, type_invalide)
+        assert accuse is None, "L'accusé doit être None pour un horodatage invalide"
+        assert verdict["code"] == "REJ-HORODATAGE-INVALIDE", (
+            f"Code attendu REJ-HORODATAGE-INVALIDE, reçu {verdict['code']!r}"
+        )
+        assert len(adaptateur_ombre.lire_journal()) == journal_avant, (
+            "Le journal ne doit pas être modifié"
+        )
+
+    def test_charge_serialisable_imbriquee_acceptee(self, adaptateur_ombre, horodatage_valide):
+        """Prouve qu'une charge dict non vide avec imbrication légitime de types JSON
+        (str, list, bool, int) est acceptée : accuse renvoyé, verdict None, journal
+        incrémenté de 1 et le dernier élément est la charge. Ce test empêche qu'une
+        garde de sérialisation trop stricte rejette le cas nominal."""
+        charge = {"client": {"nom": "Dupont", "tags": ["a", "b"], "actif": True, "score": 3}}
+        journal_avant = len(adaptateur_ombre.lire_journal())
+        accuse, verdict = adaptateur_ombre.ecrire(charge, horodatage_valide)
+        assert accuse is not None, "L'accusé doit être renvoyé pour une charge valide"
+        assert verdict is None, "Le verdict doit être None en cas de succès"
+        assert len(adaptateur_ombre.lire_journal()) == journal_avant + 1, (
+            "Le journal doit contenir exactement une entrée supplémentaire"
+        )
+        assert adaptateur_ombre.lire_journal()[-1] == charge, (
+            "La dernière entrée du journal doit être la charge exacte"
+        )
+
 class TestIdentifiantInjectif:
     """Identifiants injectifs et déterministes, aucun risque de collision par concaténation."""
 
@@ -335,19 +395,65 @@ class TestInvariantsAdaptateurs:
         assert adaptateurs.MODE_OMBRE == "ombre", "MODE_OMBRE doit être la chaîne 'ombre'"
         assert adaptateurs.MODES == ("ombre",), "MODES doit être le tuple ('ombre',)"
 
+    @staticmethod
+    def _modules_importes(module):
+        """Retourne les noms de modules réellement IMPORTÉS, par AST.
+
+        Une recherche textuelle ("socket" in source) produit des faux positifs
+        sur un commentaire, une docstring ou une variable nommée http_client, et
+        des faux négatifs sur un import dynamique renommé. On lit donc l'arbre
+        syntaxique et on ne retient que les vrais noeuds Import/ImportFrom.
+        """
+        arbre = ast.parse(inspect.getsource(module))
+        noms = set()
+        for noeud in ast.walk(arbre):
+            if isinstance(noeud, ast.Import):
+                for alias in noeud.names:
+                    noms.add(alias.name.split(".")[0])
+            elif isinstance(noeud, ast.ImportFrom) and noeud.module:
+                noms.add(noeud.module.split(".")[0])
+        return noms
+
     def test_aucun_reseau_dans_source(self):
-        """Prouve qu'aucun import réseau (socket, urllib, requests, http) n'est présent dans le source."""
-        src = inspect.getsource(adaptateurs)
-        interdits = ["socket", "urllib", "requests", "http"]
-        for mot in interdits:
-            assert mot not in src, f"Le module contient '{mot}' ce qui suggère un accès réseau"
+        """Prouve par AST qu'aucun module réseau n'est importé."""
+        importes = self._modules_importes(adaptateurs)
+        interdits = {"socket", "urllib", "urllib2", "requests", "http",
+                     "httplib", "ssl", "ftplib", "smtplib", "telnetlib",
+                     "asyncio", "subprocess"}
+        fautifs = importes & interdits
+        assert not fautifs, (
+            f"modules réseau/exécution importés : {sorted(fautifs)} ; "
+            "l'adaptateur v1 ne doit rien faire sortir du processus"
+        )
+        # Garde de la garde : l'AST voit bien les imports légitimes du module,
+        # sinon un ensemble vide rendrait ce test vacuement vrai.
+        assert "json" in importes or "copy" in importes, (
+            "l'analyse AST ne voit aucun import connu : elle est inopérante"
+        )
 
     def test_aucune_horloge_interne(self):
-        """Prouve que datetime.now, time.time, date.today, utcnow sont absents du source."""
-        src = inspect.getsource(adaptateurs)
-        interdits = ["datetime.now", "time.time", "date.today", "utcnow"]
-        for mot in interdits:
-            assert mot not in src, f"Le module contient '{mot}' ce qui suggère une horloge interne"
+        """Prouve par AST qu'aucun APPEL d'horloge n'est présent.
+
+        On inspecte les noeuds d'appel plutôt que le texte : un commentaire
+        mentionnant time.time ne doit pas faire échouer, et un appel réel doit
+        échouer même écrit différemment. Les horodatages sont FOURNIS par
+        l'appelant, sans exception (invariant §8)."""
+        arbre = ast.parse(inspect.getsource(adaptateurs))
+        interdits = {"now", "utcnow", "today", "time", "monotonic", "perf_counter"}
+        appels_fautifs = []
+        for noeud in ast.walk(arbre):
+            if isinstance(noeud, ast.Call):
+                cible = noeud.func
+                nom = getattr(cible, "attr", None) or getattr(cible, "id", None)
+                if nom in interdits:
+                    appels_fautifs.append(nom)
+        assert not appels_fautifs, (
+            f"appels d'horloge interne détectés : {sorted(set(appels_fautifs))}"
+        )
+        # Garde de la garde : l'AST voit bien des appels, sinon le test serait
+        # vacuement vrai.
+        tous = [n for n in ast.walk(arbre) if isinstance(n, ast.Call)]
+        assert tous, "l'analyse AST ne voit aucun appel : elle est inopérante"
 
     def test_identifiant_via_encoder_canonique(self):
         """
