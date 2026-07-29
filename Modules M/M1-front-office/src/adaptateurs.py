@@ -4,6 +4,9 @@ import hashlib
 import json
 import verdicts
 from typing import Union
+from decimal import Decimal
+from datetime import date, datetime, time
+from uuid import UUID
 
 
 def _derive_id(*parts: str) -> str:
@@ -23,7 +26,29 @@ def _normaliser_objet_deterministe(obj):
         return [_normaliser_objet_deterministe(e) for e in obj]
     if isinstance(obj, (str, int, float, bool, type(None))):
         return obj
-    return repr(obj)
+    # Types supplémentaires avec balises explicites, testés dans un ordre garantissant l'injectivité
+    if isinstance(obj, datetime):          # datetime avant date (piège d'héritage)
+        return {"__datetime__": obj.isoformat()}
+    if isinstance(obj, date):
+        return {"__date__": obj.isoformat()}
+    if isinstance(obj, time):
+        return {"__time__": obj.isoformat()}
+    if isinstance(obj, Decimal):
+        return {"__decimal__": str(obj)}
+    if isinstance(obj, UUID):
+        return {"__uuid__": str(obj)}
+    if isinstance(obj, bytes):
+        return {"__bytes__": obj.hex()}
+    if isinstance(obj, bytearray):
+        return {"__bytearray__": bytes(obj).hex()}
+    if isinstance(obj, complex):
+        return {"__complex__": [repr(obj.real), repr(obj.imag)]}
+    raise TypeError(
+        f"Type non supporté : {type(obj).__name__}. "
+        f"Types supportés : dict, set, frozenset, list, tuple, str, int, float, bool, None, "
+        f"Decimal, datetime, date, time, UUID, bytes, bytearray, complex. "
+        f"L'appelant doit sérialiser la valeur avant de l'incorporer."
+    )
 
 
 class _ApprovalEngine:
