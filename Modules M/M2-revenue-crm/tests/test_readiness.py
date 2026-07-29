@@ -342,7 +342,12 @@ class TestGatePrerequis:
         ids=["nouveau", "converti", "perdu"],
     )
     def test_evaluer_statuts_non_qualifie_faux(self, statut, lead_id_utilise):
-        """evaluer retourne faux pour tout statut different de qualifie."""
+        """Couvre le retour faux sur les statuts non qualifiés.
+
+        NOTE : ce test ne PROUVE PAS le pré-requis isolément — sans owner ni
+        interaction, les conditions échoueraient de toute façon. La preuve
+        isolante est test_prerequis_isole_lead_conditions_remplies_mais_converti.
+        """
         reg = registre.Registre()
         contrat = contrat_valide(lead_id=lead_id_utilise)
         ingestion.ingerer(contrat, reg, "2026-03-01T09:00:00+02:00")
@@ -523,6 +528,34 @@ class TestGateQuatreConditions:
         assert v1 == v2, "evaluer doit etre deterministe"
         assert reg.taille() == taille_avant, "taille ne doit pas changer"
         assert reg.tete() == tete_avant, "tete ne doit pas changer"
+
+    def test_maillon_falsifie_naif_ne_plante_pas_la_gate(self):
+        """sans ce test, remettre la comparaison hors du try ne rend aucun test rouge et un
+        maillon falsifié ferait planter evaluer/emettre_marqueur au lieu d'un refus propre."""
+        reg = registre_qualifie(lead_id="LF")
+        accusé = interactions.enregistrer("LF", "Bob", "ok", reg, "2026-03-01T11:00:00+02:00")
+        assert accusé is not None, "l'enregistrement de l'interaction doit réussir"
+        assert readiness.evaluer(reg, "LF") is True, "pré-condition du test : la gate doit être vraie avant falsification"
+        # Falsification directe du maillon (inaccessible par l'API publique, qui refuse
+        # les horodatages naïfs) pour tester la robustesse de la gate face à un état
+        # qu'elle ne contrôle pas.
+        reg._chain[-1]["horodatage"] = "2026-03-01T11:00:00"
+        # La gate ne doit pas lever.
+        résultat = None
+        try:
+            résultat = readiness.evaluer(reg, "LF")
+        except Exception as e:
+            pytest.fail(f"evaluer a levé {type(e).__name__} sur un maillon falsifié : {e}")
+        # L'interaction falsifiée est incomparable donc ne satisfait pas la condition,
+        # et c'était la seule interaction.
+        assert résultat is False, (
+            f"evaluer doit retourner False pour un maillon naïf, obtenu {résultat}"
+        )
+        # Idempotence : un second appel doit retourner la même chose.
+        second_résultat = readiness.evaluer(reg, "LF")
+        assert second_résultat is False, (
+            f"le second appel doit aussi retourner False, obtenu {second_résultat}"
+        )
 
 
 # -------------------------------------------------------------------- TestMarqueur

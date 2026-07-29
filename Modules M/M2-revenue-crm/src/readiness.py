@@ -91,13 +91,20 @@ def _extraire_conditions(registre_cible, lead_id):
             h_str = m.get("horodatage")
             if not h_str:
                 continue
+            # La comparaison est DANS le try : un maillon falsifié portant un
+            # horodatage naïf face à une transition aware lèverait TypeError et
+            # ferait planter la gate au lieu de l'ignorer (contrat fail-closed :
+            # une valeur incomparable ne satisfait pas la condition, elle ne
+            # casse pas l'évaluation). Inaccessible par l'API publique — mesuré —
+            # mais la gate est appelée sur un état de registre qu'elle ne
+            # contrôle pas.
             try:
                 dt_inter = datetime.fromisoformat(h_str)
-            except Exception:
+                if dt_inter >= dt_transition:
+                    interaction_ok = True
+                    break
+            except (ValueError, TypeError):
                 continue
-            if dt_inter >= dt_transition:
-                interaction_ok = True
-                break
 
     return {
         "owner": owner,
