@@ -231,44 +231,59 @@ class TestFailClosedHorsModeOmbre:
 class TestContratAdaptateurs:
     """Vérification que l'implémentation alternative satisfait le même contrat."""
 
-    @pytest.fixture(params=["mock_approval", "mock_bus", "adaptateurs_approval", "adaptateurs_bus"])
-    def sujet(self, request):
+    @pytest.fixture(params=["mock_approval", "adaptateurs_approval"])
+    def sujet_approval(self, request):
         if request.param == "mock_approval":
             return MockApprovalEngine()
-        elif request.param == "mock_bus":
-            return MockNotificationBus()
-        elif request.param == "adaptateurs_approval":
+        else:
             return adaptateurs.creer_approval_engine()
-        elif request.param == "adaptateurs_bus":
+
+    @pytest.fixture(params=["mock_bus", "adaptateurs_bus"])
+    def sujet_bus(self, request):
+        if request.param == "mock_bus":
+            return MockNotificationBus()
+        else:
             return adaptateurs.creer_bus()
 
-    def test_approval_engine_contrat(self):
-        engine = MockApprovalEngine()
-        # Vérification des méthodes et signatures
-        assert hasattr(engine, "proposer")
-        assert hasattr(engine, "statut")
-        id_prop = engine.proposer({"test": 1}, "testeur")
+    def test_approval_engine_contrat(self, sujet_approval):
+        # Vérification des signatures
+        assert callable(sujet_approval.proposer)
+        assert callable(sujet_approval.statut)
+
+        # proposer doit retourner un id str non vide
+        id_prop = sujet_approval.proposer({"test": 1}, "testeur")
         assert isinstance(id_prop, str) and len(id_prop) > 0
 
-        # statut sur id existant fonctionne (si on a stocké)
-        # (notre mock stocke par raw, impossible d'obtenir le statut avec l'id directement,
-        #  donc on vérifie juste que ça existe)
-        engine2 = adaptateurs.creer_approval_engine()
-        id2 = engine2.proposer({"test": 1}, "testeur")
-        assert id2  # id valide
-        # statut sur id présent ne doit pas lever d'exception (peut être "proposé" ou autre)
+        # Mode ombre déterministe : vérifié uniquement pour l'implémentation réelle
+        if not isinstance(sujet_approval, MockApprovalEngine):
+            id_prop2 = sujet_approval.proposer({"test": 1}, "testeur")
+            assert id_prop == id_prop2, "L'implémentation réelle doit produire le même id pour les mêmes entrées"
+
+        # statut sur id inconnu ne doit pas être None silencieux
+        unknown_id = "id-inexistant-xyz-123"
         try:
-            statut_res = engine2.statut(id2)
+            res = sujet_approval.statut(unknown_id)
+            assert res is not None, "Le statut d'un id inconnu ne doit pas être None"
         except Exception:
-            # Certaines implémentations lèvent si l'id n'a pas encore de statut (normal)
+            # Une exception explicite est également acceptable
             pass
 
-    def test_bus_contrat(self):
-        bus = MockNotificationBus()
-        assert hasattr(bus, "emettre")
-        id_msg = bus.emettre("courriel", "test")
+    def test_bus_contrat(self, sujet_bus):
+        assert callable(sujet_bus.emettre)
+
+        id_msg = sujet_bus.emettre("courriel", "test")
         assert isinstance(id_msg, str) and len(id_msg) > 0
 
+        # Mode ombre déterministe pour l'implémentation réelle
+        if not isinstance(sujet_bus, MockNotificationBus):
+            id_msg2 = sujet_bus.emettre("courriel", "test")
+            assert id_msg == id_msg2, "L'implémentation réelle doit produire le même id pour les mêmes entrées"
+
+        # Garde-fou de non-vacuité : plusieurs appels produisent toujours des ids valides
+        ids = [sujet_bus.emettre("c", f"m{i}") for i in range(3)]
+        assert len(ids) == 3
+        for i in ids:
+            assert isinstance(i, str) and len(i) > 0
 
 class TestZeroReseau:
     def test_adaptateurs_sans_reseau(self):
@@ -280,20 +295,6 @@ class TestZeroReseau:
         source = inspect.getsource(digest)
         for forbidden in ("urllib", "socket", "http.client"):
             assert forbidden not in source, f"digest utilise {forbidden}"
-
-
-import sys
-from pathlib import Path
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-import digest
-import adaptateurs
-import garde_fou
-
-
 
 
 # ------------------------------------------------------------------ #
