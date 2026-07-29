@@ -128,6 +128,56 @@ class TestDetectionCritere:
         result = doublons.detecter(reg, "INCONNU")
         assert result == []
 
+    @pytest.mark.parametrize(
+        "falsification",
+        ["retirer_contact", "retirer_ville_travaux", "vider_champs"],
+        ids=["contact_absent", "ville_travaux_absents", "champs_vides"],
+    )
+    def test_valeurs_absentes_ne_rapprochent_pas(self, falsification):
+        """Deux leads dépourvus de données (contact/ville/travaux absents ou
+        vides) ne doivent JAMAIS se rapprocher : sans le garde _non_vide,
+        None == None ou "" == "" déclencherait un faux critère. Inaccessible par
+        l'API (le contrat gelé garantit ces champs), donc on falsifie _chain."""
+        horodatage = "2026-08-01T10:00:00+02:00"
+        reg = registre.Registre()
+        contact = {"nom": "Meme", "telephone": "111", "courriel": ""}
+        # Deux leads réellement doublons AVANT falsification.
+        ingerer_lead(reg, "A", horodatage, contact=contact, ville="Paris",
+                     type_travaux="renovation_totale")
+        ingerer_lead(reg, "B", horodatage, contact=contact, ville="Paris",
+                     type_travaux="renovation_totale")
+        assert "B" in doublons.detecter(reg, "A"), (
+            "pré-condition : les deux leads doivent être doublons avant falsification"
+        )
+        # Falsification directe des maillons lead_ingere.
+        for m in reg._chain:
+            if m.get("type_entree") != "lead_ingere":
+                continue
+            c = m["contrat"]
+            # Dans TOUS les cas on neutralise les deux voies de rapprochement à la
+            # fois : le but est de prouver qu'une valeur ABSENTE/VIDE ne matche pas,
+            # or si l'une des voies reste intacte elle matcherait à juste titre.
+            if falsification == "retirer_contact":
+                c.pop("contact", None)
+                c.pop("type_travaux", None)  # casse aussi ville_et_travaux
+            elif falsification == "retirer_ville_travaux":
+                c.pop("ville", None)
+                c.pop("type_travaux", None)
+                c.pop("contact", None)  # casse aussi contact_identique
+            else:  # vider_champs : les trois à vide
+                c["contact"] = ""
+                c["ville"] = ""
+                c["type_travaux"] = ""
+        assert doublons.detecter(reg, "A") == [], (
+            f"falsification '{falsification}' : des valeurs absentes/vides ne "
+            "doivent jamais constituer une similitude"
+        )
+        _, verdict = doublons.signaler(reg, "A", "B", horodatage)
+        assert verdict is not None, "signaler doit rejeter deux leads sans données"
+        assert verdict["code"] == "REJ-TRANSITION-ILLEGALE", (
+            f"attendu REJ-TRANSITION-ILLEGALE, reçu {verdict['code']}"
+        )
+
 
 class TestFenetreGlissante:
     """Validation de la fenêtre glissante de 7 jours calendaires (bord inclus)."""
@@ -370,6 +420,45 @@ class TestArbitrage:
     def test_etat_fusionne_interdit(self):
         """Aucune valeur d'arbitrage ne doit contenir 'fusionne'."""
         assert "fusionne" not in doublons.ARBITRAGES, "'fusionne' ne doit pas exister dans ARBITRAGES."
+
+    def test_arbitrage_ecrit_le_contenu_semantique(self):
+        """
+        Sans ce test, le contenu métier du maillon d'arbitrage pourrait être
+        altéré sans qu'aucun test ne le voie.
+        """
+        horodatage = "2026-08-01T10:00:00+02:00"
+        reg = registre.Registre()
+
+        # Ingérer deux leads doublons
+        contact = {"nom": "Dupont", "telephone": "111", "courriel": ""}
+        ingerer_lead(reg, "A", horodatage,
+                     contact=contact, ville="Paris", type_travaux="renovation_totale")
+        ingerer_lead(reg, "B", horodatage,
+                     contact=contact, ville="Paris", type_travaux="renovation_totale")
+
+        # Signaler le duo
+        accuse_signal, verdict_signal = doublons.signaler(reg, "A", "B", horodatage)
+        assert verdict_signal is None, f"signaler inattendu erreur : {verdict_signal}"
+        signalement_id = accuse_signal["signalement_id"]
+
+        # Arbitrer
+        accuse_arb, verdict_arb = doublons.arbitrer(reg, signalement_id, "distincts_confirmes", horodatage)
+        assert verdict_arb is None, f"arbitrer inattendu erreur : {verdict_arb}"
+
+        # Vérifier le contenu du dernier maillon du registre
+        dernier = reg.lire()[-1]
+        assert dernier["arbitrage"] == "distincts_confirmes", \
+            "le maillon d'arbitrage ne contient pas la décision attendue"
+        assert dernier["signalement_id"] == signalement_id, \
+            "le signalement_id du maillon d'arbitrage ne correspond pas au signalement"
+        assert dernier["type_entree"] == "doublon_signale", \
+            f"type_entree incorrect, attend 'doublon_signale', reçu '{dernier.get('type_entree')}'"
+
+        # Vérifier l'accusé de réception d'arbitrage
+        assert accuse_arb["arbitrage"] == "distincts_confirmes", \
+            "l'accusé d'arbitrage ne porte pas la décision"
+        assert accuse_arb["signalement_id"] == signalement_id, \
+            "l'accusé d'arbitrage ne contient pas le bon signalement_id"
 
 
 class TestAntiFusionArchitecturale:

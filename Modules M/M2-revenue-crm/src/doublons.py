@@ -47,6 +47,36 @@ def _dans_fenetre(horodatage_a: str, horodatage_b: str) -> bool:
     return abs((date_b - date_a).days) <= FENETRE_JOURS
 
 
+def _non_vide(valeur) -> bool:
+    """Vrai si la valeur est une donnée exploitable (non None, non vide).
+
+    POURQUOI : deux leads dépourvus d'un champ (contact/ville/type_travaux absent
+    ou vide) ne doivent JAMAIS se rapprocher — sans ce garde, ``None == None`` ou
+    ``"" == ""`` déclencherait faussement un critère sur l'absence de données. Le
+    contrat gelé garantit ces champs à l'ingestion, mais la détection opère sur
+    des maillons qu'elle ne contrôle pas : elle reste fail-closed.
+    """
+    return valeur is not None and valeur != "" and valeur != {}
+
+
+def _critere_entre(contrat_a, contrat_b):
+    """Critère de rapprochement entre deux contrats, ou None si aucun.
+
+    Priorité figée : contact_identique > ville_et_travaux. Un critère n'est
+    retenu que si les valeurs comparées sont NON VIDES des deux côtés (voir
+    _non_vide) — l'absence de données ne constitue pas une similitude.
+    """
+    contact_a, contact_b = contrat_a.get("contact"), contrat_b.get("contact")
+    if _non_vide(contact_a) and contact_a == contact_b:
+        return "contact_identique"
+    ville_a, ville_b = contrat_a.get("ville"), contrat_b.get("ville")
+    travaux_a, travaux_b = contrat_a.get("type_travaux"), contrat_b.get("type_travaux")
+    if (_non_vide(ville_a) and ville_a == ville_b
+            and _non_vide(travaux_a) and travaux_a == travaux_b):
+        return "ville_et_travaux"
+    return None
+
+
 def detecter(registre_cible, lead_id_nouveau) -> list:
     """Liste les ``lead_id`` des autres leads doublons potentiels du lead donné.
 
@@ -71,12 +101,7 @@ def detecter(registre_cible, lead_id_nouveau) -> list:
         if lead_id == lead_id_nouveau:
             continue
         contrat = maillon["contrat"]
-        contact_identique = contrat.get("contact") == contrat_cible.get("contact")
-        ville_et_travaux = (
-            contrat.get("ville") == contrat_cible.get("ville")
-            and contrat.get("type_travaux") == contrat_cible.get("type_travaux")
-        )
-        if not (contact_identique or ville_et_travaux):
+        if _critere_entre(contrat_cible, contrat) is None:
             continue
         if not _dans_fenetre(maillon_cible["horodatage"], maillon["horodatage"]):
             continue
@@ -130,12 +155,11 @@ def signaler(registre_cible, lead_id_a, lead_id_b, horodatage) -> tuple[dict | N
             contrat_a = maillon["contrat"]
         if maillon["lead_id"] == lead_id_b:
             contrat_b = maillon["contrat"]
-    # Détermination du critère
-    if contrat_a.get("contact") == contrat_b.get("contact"):
-        critere = "contact_identique"
-    elif contrat_a.get("ville") == contrat_b.get("ville") and contrat_a.get("type_travaux") == contrat_b.get("type_travaux"):
-        critere = "ville_et_travaux"
-    else:
+    # Détermination du critère (même logique que detecter, factorisée pour ne
+    # pas diverger : un fix ponctuel non factorisé finit toujours par se
+    # désynchroniser entre les deux sites).
+    critere = _critere_entre(contrat_a, contrat_b)
+    if critere is None:
         return None, verdicts.construire_verdict(
             "REJ-TRANSITION-ILLEGALE",
             detail="les deux leads ne sont pas des doublons potentiels",
