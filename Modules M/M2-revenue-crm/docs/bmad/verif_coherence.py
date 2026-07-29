@@ -70,8 +70,17 @@ verifie("chaque critère listé commence sa propre ligne DANS §6",
 # Les ENSEMBLES dédupliquent : sans ce contrôle, un critère écrit deux fois
 # passerait inaperçu (objection de revue round 7, fondée).
 from collections import Counter
-doublons = {n: c for n, c in Counter(re.findall(r"^CA-M2-(\d+) :", sec6, re.M)).items() if c > 1}
-verifie("aucun critère défini deux fois dans §6", not doublons, str(doublons))
+# ANGLE MORT CORRIGE (objection round 8, fondee) : « ^CA-M2-NN : » ne voyait QUE
+# les definitions en debut de ligne. Une definition CONCATENEE en fin d'une autre
+# ligne restait invisible — et j'avais refute l'objection en utilisant ce meme
+# instrument aveugle. On cherche desormais N'IMPORTE OU dans la section.
+partout = re.findall(r"CA-M2-(\d+)\s*:", sec6)
+doublons = {n: c for n, c in Counter(partout).items() if c > 1}
+verifie("aucun critère défini deux fois dans §6 (recherche n'importe où)",
+        not doublons, str(doublons))
+concatenes = [m.group(1) for m in re.finditer(r"CA-M2-(\d+)\s*:", sec6)
+              if sec6.rfind("\n", 0, m.start()) + 1 != m.start()]
+verifie("aucune définition concaténée en milieu de ligne", not concatenes, str(concatenes))
 hors6 = len(re.findall(r"^CA-M2-\d+ :", prd, re.M)) - len(re.findall(r"^CA-M2-\d+ :", sec6, re.M))
 verifie("aucun critère défini hors de §6", hors6 == 0, f"{hors6} définition(s) hors section")
 
