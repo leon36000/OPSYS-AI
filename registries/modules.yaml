@@ -2,7 +2,7 @@ modules:
   - name: M1-front-office
     statut: PARTIAL
   - name: M2-revenue-crm
-    statut: STUB
+    statut: PARTIAL
   - name: M3-estimation
     statut: STUB
   - name: M4-field-ops

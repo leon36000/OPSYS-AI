@@ -15,8 +15,15 @@ jobs:
         run: python3 -m pytest scripts/tests -q
       - name: Tests module M7 (M7-S000)
         run: python3 -m pytest "Modules M/M7-marketing/tests" -q
+      # Un pytest DISTINCT par module : les modules exposent des noms de premier niveau
+      # identiques (registre, horodatage, verdicts, encodage). Dans un processus partage,
+      # sys.modules garde le premier charge et un module en exercerait un autre — mesure
+      # M2-S002 : 21 echecs, verdicts/horodatage/registre resolus vers le mauvais arbre.
+      # Le garde-fou tests/test_isolation_modules.py rend cette contamination bruyante.
       - name: Tests module M1 (EPIC E — branché avant la premiere story, exigence revue scellee)
         run: python3 -m pytest "Modules M/M1-front-office/tests" -q
+      - name: Tests module M2 (EPIC F — rattrapage, M2-S001 avait fusionne sans gate)
+        run: python3 -m pytest "Modules M/M2-revenue-crm/tests" -q
 
   e2e:
     runs-on: ubuntu-latest
