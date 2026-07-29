@@ -115,10 +115,18 @@ class TestDetectionCritere:
         contact = {"nom": "Meme", "telephone": "123", "courriel": ""}
         ingerer_lead(reg, "F1", h, contact=contact, ville="Nantes", type_travaux="extension")
         ingerer_lead(reg, "F2", h, contact=contact, ville="Nantes", type_travaux="extension")
-        signalement, verdict = doublons.signaler(reg, "F1", "F2", "contact_identique", h)
+        signalement, verdict = doublons.signaler(reg, "F1", "F2", h)
         assert signalement is not None
         assert verdict is None
         assert signalement["critere"] == "contact_identique", "Le critère le plus fort doit être retenu."
+
+    def test_detecter_lead_inconnu_retourne_vide(self):
+        """Prouve que detecter retourne une liste vide lorsque le lead cible est inexistant dans le reg."""
+        reg = registre.Registre()
+        horodatage = "2025-01-15T12:00:00+01:00"
+        ingerer_lead(reg, "real-lead", horodatage, contact={"nom": "Client", "telephone": "", "courriel": "hello@test.com"})
+        result = doublons.detecter(reg, "INCONNU")
+        assert result == []
 
 
 class TestFenetreGlissante:
@@ -163,6 +171,27 @@ class TestFenetreGlissante:
         resultat = doublons.detecter(reg, "M2")
         assert "M1" in resultat, "Même instant doit être considéré comme dans la fenêtre."
 
+    def test_fenetre_normalise_les_fuseaux(self):
+        """La fenêtre est calendaire EN UTC. Cas DISCRIMINANT : sans
+        normalisation des fuseaux, le verdict serait FAUX.
+          h1 = 2026-03-01T01:00+00:00  (UTC 03-01)
+          h2 = 2026-03-09T01:00+09:00  (UTC = 2026-03-08T16:00, soit 03-08)
+        En heure LOCALE, les dates sont 03-01 et 03-09 -> 8 jours -> HORS.
+        En UTC, 03-01 et 03-08 -> 7 jours -> DANS (bord inclus).
+        Le comportement CORRECT est : détecté (calcul UTC). Sans normalisation,
+        ce test échoue -> il épingle la normalisation des fuseaux.
+        """
+        reg = registre.Registre()
+        contact = {"nom": "Meme", "telephone": "999", "courriel": ""}
+        ingerer_lead(reg, "TZ1", "2026-03-01T01:00:00+00:00", contact=contact,
+                     ville="Metz", type_travaux="extension")
+        ingerer_lead(reg, "TZ2", "2026-03-09T01:00:00+09:00", contact=contact,
+                     ville="Metz", type_travaux="extension")
+        assert "TZ2" in doublons.detecter(reg, "TZ1"), (
+            "7 jours calendaires EN UTC : dans la fenêtre. Sans normalisation des "
+            "fuseaux, l'écart local de 8 jours exclurait à tort ce doublon."
+        )
+
 
 class TestSignalementSansFusion:
     """Signalement d'un doublon sans jamais fusionner les leads (CA-M2-07)."""
@@ -174,7 +203,7 @@ class TestSignalementSansFusion:
         ingerer_lead(reg, "S1", h)
         ingerer_lead(reg, "S2", h)
         taille_avant = reg.taille()
-        signalement, verdict = doublons.signaler(reg, "S1", "S2", "contact_identique", h)
+        signalement, verdict = doublons.signaler(reg, "S1", "S2", h)
         assert signalement is not None
         assert verdict is None
         assert reg.taille() == taille_avant + 1, "Un maillon doublon_signale a dû être ajouté."
@@ -187,13 +216,19 @@ class TestSignalementSansFusion:
         """Le SignalementDoublon contient les 6 clés obligatoires."""
         reg = registre.Registre()
         h = "2026-04-02T10:00:00+00:00"
-        ingerer_lead(reg, "S3", h)
-        ingerer_lead(reg, "S4", h)
-        signalement, _ = doublons.signaler(reg, "S3", "S4", "ville_et_travaux", h)
+        # contacts DIFFÉRENTS mais même ville+travaux : le critère déterminé est
+        # ville_et_travaux (contact_identique ne s'applique pas).
+        ingerer_lead(reg, "S3", h, contact={"nom": "Un", "telephone": "111", "courriel": ""},
+                     ville="Reims", type_travaux="extension")
+        ingerer_lead(reg, "S4", h, contact={"nom": "Deux", "telephone": "222", "courriel": ""},
+                     ville="Reims", type_travaux="extension")
+        signalement, _ = doublons.signaler(reg, "S3", "S4", h)
         cles_attendues = {"signalement_id", "lead_id_a", "lead_id_b", "critere", "horodatage", "arbitrage"}
         assert set(signalement.keys()) == cles_attendues, "Le dict doit contenir exactement les 6 clés."
         assert signalement["arbitrage"] == "en_attente"
-        assert signalement["critere"] == "ville_et_travaux"
+        assert signalement["critere"] == "ville_et_travaux", (
+            "contacts différents, même ville+travaux : le critère déterminé est ville_et_travaux"
+        )
 
     def test_signalement_id_independant_ordre(self):
         """Le signalement_id est le même quel que soit l'ordre des lead_ids."""
@@ -203,8 +238,8 @@ class TestSignalementSansFusion:
         for reg in (reg1, reg2):
             ingerer_lead(reg, "X1", h)
             ingerer_lead(reg, "X2", h)
-        sig1, _ = doublons.signaler(reg1, "X1", "X2", "contact_identique", h)
-        sig2, _ = doublons.signaler(reg2, "X2", "X1", "contact_identique", h)
+        sig1, _ = doublons.signaler(reg1, "X1", "X2", h)
+        sig2, _ = doublons.signaler(reg2, "X2", "X1", h)
         assert sig1["signalement_id"] == sig2["signalement_id"], "L'identifiant doit être indépendant de l'ordre."
 
     def test_les_deux_leads_restent_distincts(self):
@@ -213,37 +248,35 @@ class TestSignalementSansFusion:
         h = "2026-04-04T10:00:00+00:00"
         ingerer_lead(reg, "T1", h)
         ingerer_lead(reg, "T2", h)
-        doublons.signaler(reg, "T1", "T2", "contact_identique", h)
+        doublons.signaler(reg, "T1", "T2", h)
         maillons = reg.lire()
         leads = [m for m in maillons if m.get("type_entree") == "lead_ingere"]
         ids_leads = {m["lead_id"] for m in leads}
         assert ids_leads == {"T1", "T2"}, "Les deux leads doivent toujours exister après signalement."
 
     @pytest.mark.parametrize(
-        "lead_a, lead_b, critere, horodatage, code_attendu",
+        "lead_a, lead_b, horodatage, code_attendu",
         [
-            ("INEX", "S2", "contact_identique", "2026-01-01T00:00:00+00:00", "REJ-TRANSITION-ILLEGALE"),
-            ("S1", "INEX", "contact_identique", "2026-01-01T00:00:00+00:00", "REJ-TRANSITION-ILLEGALE"),
-            ("S1", "S2", "critere_invalide", "2026-01-01T00:00:00+00:00", "REJ-ENUM-INVALIDE"),
-            ("S1", "S2", "contact_identique", "mauvais_format", "REJ-HORODATAGE-INVALIDE"),
-            ("S1", "S1", "contact_identique", "2026-01-01T00:00:00+00:00", "REJ-TRANSITION-ILLEGALE"),
+            ("INEX", "S2", "2026-01-01T00:00:00+00:00", "REJ-TRANSITION-ILLEGALE"),
+            ("S1", "INEX", "2026-01-01T00:00:00+00:00", "REJ-TRANSITION-ILLEGALE"),
+            ("S1", "S2", "mauvais_format", "REJ-HORODATAGE-INVALIDE"),
+            ("S1", "S1", "2026-01-01T00:00:00+00:00", "REJ-TRANSITION-ILLEGALE"),
         ],
         ids=[
             "lead_a_inexistant",
             "lead_b_inexistant",
-            "critere_hors_enum",
             "horodatage_invalide",
             "meme_lead",
         ],
     )
-    def test_rejets_parametres(self, lead_a, lead_b, critere, horodatage, code_attendu):
+    def test_rejets_parametres(self, lead_a, lead_b, horodatage, code_attendu):
         """Les erreurs de paramètres produisent le verdict exact et aucune écriture."""
         reg = registre.Registre()
         h = "2026-04-05T10:00:00+00:00"
         ingerer_lead(reg, "S1", h)
         ingerer_lead(reg, "S2", h)
         taille_avant = reg.taille()
-        signalement, verdict = doublons.signaler(reg, lead_a, lead_b, critere, horodatage)
+        signalement, verdict = doublons.signaler(reg, lead_a, lead_b, horodatage)
         assert signalement is None
         assert verdict is not None
         assert verdict["code"] == code_attendu, f"Attendu {code_attendu}, reçu {verdict}"
@@ -255,12 +288,43 @@ class TestSignalementSansFusion:
         h = "2026-04-06T10:00:00+00:00"
         ingerer_lead(reg, "L1", h)
         ingerer_lead(reg, "L2", h)
-        sig, _ = doublons.signaler(reg, "L1", "L2", "contact_identique", h)
+        sig, _ = doublons.signaler(reg, "L1", "L2", h)
         liste = doublons.lister_signalements(reg)
         assert len(liste) == 1
         copie = liste[0]
         assert copie is not sig, "Doit retourner des copies."
         assert copie == sig
+
+    def test_contact_identique_prime_sur_ville_travaux(self):
+        """Prouve que le signalement dérive le critère contact_identique même lorsque ville_et_travaux serait faux."""
+        reg = registre.Registre()
+        horodatage = "2025-01-15T10:30:00+01:00"
+        lead1_id = "lead-1"
+        lead2_id = "lead-2"
+        ingerer_lead(reg, lead1_id, horodatage, contact={"nom": "Client", "telephone": "", "courriel": "a@b.com"}, type_travaux="isolation_thermique", ville="Paris")
+        ingerer_lead(reg, lead2_id, horodatage, contact={"nom": "Client", "telephone": "", "courriel": "a@b.com"}, type_travaux="ravalement", ville="Lyon")
+        taille_avant = reg.taille()
+        signalement, verdict = doublons.signaler(reg, lead1_id, lead2_id, horodatage)
+        assert verdict is None
+        assert signalement["critere"] == "contact_identique", (
+            "contact identique prime : le critère dérivé doit être contact_identique "
+            "même si ville et travaux diffèrent"
+        )
+        assert reg.taille() == taille_avant + 1, "un signalement réussi écrit un maillon"
+
+    def test_signaler_deux_leads_non_similaires_rejete(self):
+        """Prouve que signaler rejette deux leads sans similarité avec le verdict REJ-TRANSITION-ILLEGALE sans modifier le reg."""
+        reg = registre.Registre()
+        horodatage = "2025-01-15T11:00:00+01:00"
+        lead1_id = "lead-a"
+        lead2_id = "lead-b"
+        ingerer_lead(reg, lead1_id, horodatage, contact={"nom": "Client", "telephone": "", "courriel": "x@y.com"}, type_travaux="renovation_totale", ville="Bordeaux")
+        ingerer_lead(reg, lead2_id, horodatage, contact={"nom": "Client", "telephone": "", "courriel": "z@w.com"}, type_travaux="autre", ville="Marseille")
+        taille_avant = reg.taille()
+        signalement, verdict = doublons.signaler(reg, lead1_id, lead2_id, horodatage)
+        assert signalement is None
+        assert verdict["code"] == "REJ-TRANSITION-ILLEGALE"
+        assert reg.taille() == taille_avant
 
 
 class TestArbitrage:
@@ -272,7 +336,7 @@ class TestArbitrage:
         h = "2026-04-07T10:00:00+00:00"
         ingerer_lead(reg, "A1", h)
         ingerer_lead(reg, "A2", h)
-        signalement, _ = doublons.signaler(reg, "A1", "A2", "contact_identique", h)
+        signalement, _ = doublons.signaler(reg, "A1", "A2", h)
         sid = signalement["signalement_id"]
         accuse, verdict = doublons.arbitrer(reg, sid, "distincts_confirmes", h)
         assert accuse is not None
@@ -294,7 +358,7 @@ class TestArbitrage:
         h = "2026-04-08T10:00:00+00:00"
         ingerer_lead(reg, "B1", h)
         ingerer_lead(reg, "B2", h)
-        signalement, _ = doublons.signaler(reg, "B1", "B2", "contact_identique", h)
+        signalement, _ = doublons.signaler(reg, "B1", "B2", h)
         sid = signalement["signalement_id"]
         taille_avant = reg.taille()
         accuse, verdict = doublons.arbitrer(reg, sid, decision, h)
@@ -313,10 +377,29 @@ class TestAntiFusionArchitecturale:
 
     @staticmethod
     def _noms_fonctions_source(fichier_py):
-        """Extrait les noms des définitions de fonctions dans un fichier Python via AST."""
+        """Extrait tous les noms « appelables » introduits dans un fichier via AST.
+
+        Couvre TOUS les vecteurs d'introduction d'une fonction, pas seulement les
+        def de module (le scan naïf manquait lambdas assignées et alias d'import) :
+        - def et async def (FunctionDef, AsyncFunctionDef), y compris méthodes ;
+        - lambda assignée à une variable (le nom de la cible d'assignation) ;
+        - import ... as nom (le nom local de l'alias).
+        """
         with open(fichier_py, "r", encoding="utf-8") as f:
             arbre = ast.parse(f.read())
-        return [node.name.lower() for node in ast.walk(arbre) if isinstance(node, ast.FunctionDef)]
+        noms = []
+        for node in ast.walk(arbre):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                noms.append(node.name.lower())
+            elif isinstance(node, ast.Assign) and isinstance(node.value, ast.Lambda):
+                for cible in node.targets:
+                    if isinstance(cible, ast.Name):
+                        noms.append(cible.id.lower())
+            elif isinstance(node, (ast.Import, ast.ImportFrom)):
+                for alias in node.names:
+                    nom_local = alias.asname or alias.name
+                    noms.append(nom_local.lower())
+        return noms
 
     def test_aucune_fonction_fusion_dans_src(self):
         """Scan des fichiers src/*.py : aucun nom de fonction contenant 'fusionn', 'merge' ou 'fusion'."""
@@ -380,14 +463,14 @@ class TestInvariantsDoublons:
         ingerer_lead(reg, "P1", h)
         ingerer_lead(reg, "P2", h)
         if fonction == "signaler":
-            signalement, verdict = doublons.signaler(reg, "P1", "P2", "contact_identique", h)
+            signalement, verdict = doublons.signaler(reg, "P1", "P2", h)
             assert (signalement is None) ^ (verdict is None), "Un seul doit être non nul."
             # cas rejet
-            _, ver = doublons.signaler(reg, "P1", "P1", "contact_identique", h)
+            _, ver = doublons.signaler(reg, "P1", "P1", h)
             assert ver is not None
             assert (None is ver) is False
         else:  # arbitrer
-            sig, _ = doublons.signaler(reg, "P1", "P2", "contact_identique", h)
+            sig, _ = doublons.signaler(reg, "P1", "P2", h)
             accuse, verdict = doublons.arbitrer(reg, sig["signalement_id"], "distincts_confirmes", h)
             assert (accuse is None) ^ (verdict is None)
             _, ver2 = doublons.arbitrer(reg, sig["signalement_id"], "inexistant", h)

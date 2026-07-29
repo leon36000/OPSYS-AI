@@ -8,7 +8,7 @@ d'arbitrage existants sont ``en_attente`` et ``distincts_confirmes``.
 """
 
 import copy
-from datetime import datetime
+from datetime import datetime, timezone
 
 import encodage
 import horodatage as _horodatage
@@ -38,9 +38,12 @@ def _dans_fenetre(horodatage_a: str, horodatage_b: str) -> bool:
     comme 2026-03-01T23:00 et 2026-03-08T01:00 sont à 7 jours calendaires
     (donc dans la fenêtre) même si l'écart en heures diffère ; on compare
     donc les ``date()`` et l'écart en jours entiers, jamais les secondes.
+    La normalisation préalable en UTC garantit qu'un même instant exprimé
+    dans deux fuseaux différents donne la même date calendaire, évitant un
+    biais inter-fuseau dans le décompte des jours.
     """
-    date_a = datetime.fromisoformat(horodatage_a).date()
-    date_b = datetime.fromisoformat(horodatage_b).date()
+    date_a = datetime.fromisoformat(horodatage_a).astimezone(timezone.utc).date()
+    date_b = datetime.fromisoformat(horodatage_b).astimezone(timezone.utc).date()
     return abs((date_b - date_a).days) <= FENETRE_JOURS
 
 
@@ -81,8 +84,12 @@ def detecter(registre_cible, lead_id_nouveau) -> list:
     return resultat
 
 
-def signaler(registre_cible, lead_id_a, lead_id_b, critere, horodatage) -> tuple[dict | None, dict | None]:
+def signaler(registre_cible, lead_id_a, lead_id_b, horodatage) -> tuple[dict | None, dict | None]:
     """Inscrit un signalement de doublon potentiel à l'arbitrage ``en_attente``.
+
+    Le critère de doublon est **déterminé** par le module à partir des contrats
+    des deux leads, en suivant la priorité figée contact_identique >
+    ville_et_travaux. L'appelant ne le choisit pas.
 
     Ordre des contrôles figé par le cadrage (POURQUOI : un rejet doit porter
     le premier verdict applicable pour rester déterministe en CI) :
@@ -91,7 +98,11 @@ def signaler(registre_cible, lead_id_a, lead_id_b, critere, horodatage) -> tuple
        n'est pas son propre doublon) ;
     3. existence des deux leads via leur maillon ``lead_ingere``, sinon
        REJ-TRANSITION-ILLEGALE ;
-    4. critère dans l'énumération ``CRITERES``, sinon REJ-ENUM-INVALIDE.
+    4. les contrats des deux leads doivent présenter une similitude : si
+       les contacts sont identiques le critère est ``contact_identique``,
+       sinon si la ville ET le type de travaux sont identiques le critère
+       est ``ville_et_travaux``, sinon REJ-TRANSITION-ILLEGALE (les deux
+       leads ne sont pas des doublons potentiels).
     Aucun maillon de rejet n'est écrit : seul le succès ajoute un maillon.
     Convention du couple : succès = (signalement, None).
     """
@@ -104,19 +115,32 @@ def signaler(registre_cible, lead_id_a, lead_id_b, critere, horodatage) -> tuple
             "REJ-TRANSITION-ILLEGALE",
             detail="un lead ne peut pas être signalé comme doublon de lui-même",
         )
-    ids_ingeres = {maillon["lead_id"] for maillon in _maillons_ingeres(registre_cible)}
+    ingeres = _maillons_ingeres(registre_cible)
+    ids_ingeres = {maillon["lead_id"] for maillon in ingeres}
     if lead_id_a not in ids_ingeres or lead_id_b not in ids_ingeres:
         return None, verdicts.construire_verdict(
             "REJ-TRANSITION-ILLEGALE",
             detail=f"maillon lead_ingere absent pour {lead_id_a!r} ou {lead_id_b!r}",
         )
-    if critere not in CRITERES:
+    # Récupération des contrats des deux leads
+    contrat_a = None
+    contrat_b = None
+    for maillon in ingeres:
+        if maillon["lead_id"] == lead_id_a:
+            contrat_a = maillon["contrat"]
+        if maillon["lead_id"] == lead_id_b:
+            contrat_b = maillon["contrat"]
+    # Détermination du critère
+    if contrat_a.get("contact") == contrat_b.get("contact"):
+        critere = "contact_identique"
+    elif contrat_a.get("ville") == contrat_b.get("ville") and contrat_a.get("type_travaux") == contrat_b.get("type_travaux"):
+        critere = "ville_et_travaux"
+    else:
         return None, verdicts.construire_verdict(
-            "REJ-ENUM-INVALIDE",
-            detail=f"critère hors énumération : {critere!r}",
+            "REJ-TRANSITION-ILLEGALE",
+            detail="les deux leads ne sont pas des doublons potentiels",
         )
-    # Tri des identifiants : le signalement_id devient indépendant de l'ordre
-    # d'appel, donc signaler(a, b) et signaler(b, a) désignent le même couple.
+
     lead_id_1, lead_id_2 = sorted([lead_id_a, lead_id_b])
     signalement_id = encodage.encoder_canonique(lead_id_1, lead_id_2, critere)
     entree = {
@@ -171,8 +195,6 @@ def arbitrer(registre_cible, signalement_id, decision, horodatage) -> tuple[dict
             "REJ-TRANSITION-ILLEGALE",
             detail=f"signalement introuvable : {signalement_id!r}",
         )
-    # Le maillon d'arbitrage reprend le contexte du signalement d'origine
-    # (couple trié et critère) pour que la chaîne reste auto-porteuse.
     entree = {
         "type_entree": TYPE_ENTREE,
         "signalement_id": signalement_id,
@@ -182,7 +204,6 @@ def arbitrer(registre_cible, signalement_id, decision, horodatage) -> tuple[dict
         "horodatage": horodatage_valide,
         "arbitrage": "distincts_confirmes",
     }
-    # ajouter() retourne le ligne_id (chaîne), pas le maillon.
     ligne_id = registre_cible.ajouter(entree)
     accuse = {
         "signalement_id": signalement_id,
@@ -202,10 +223,6 @@ def lister_signalements(registre_cible) -> list:
     Les copies profondes interdisent toute mutation de l'état du registre
     par l'appelant.
     """
-    # On projette chaque maillon doublon_signale sur la forme SignalementDoublon
-    # (les six clés du contrat), sans exposer les champs internes du registre
-    # (type_entree, ligne_id, precedent_ligne_id) : lister_signalements rend des
-    # signalements, pas des maillons bruts. Copie profonde pour l'immuabilité.
     cles = ("signalement_id", "lead_id_a", "lead_id_b", "critere", "horodatage", "arbitrage")
     return [
         {c: copy.deepcopy(maillon[c]) for c in cles}
