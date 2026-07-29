@@ -96,6 +96,8 @@ Propriété prouvée par story. S001 : l'encodage est injectif (deux entrées di
 Invariants CI transversaux : zéro réseau (test d'absence d'imports socket/requests), zéro horloge interne (tout horodatage est un paramètre ; le test d'orphelin à 24h et 48h utilise une horloge injectée), zéro LLM (REJ-0040), énumérations fermées partout, aucun champ deviné, fixtures sans fictif: true refusées avant lecture (CA-M2-11), identifiants dérivés uniquement par encodage canonique injectif à préfixage par longueur. Justification : la concaténation directe est ambiguë et a causé des collisions réelles dans M1, leçon que M2 ne répétera pas.
 
 9. Découpage en stories
+## 9. Découpage en stories
+
 
 - M2-S001 (T1, dépendances : aucune) — utilitaires transversaux : encodage canonique injectif à préfixage par longueur, validation d'horodatage ISO-8601 avec timezone et refus explicite, catalogue de verdicts stables, validation fail-closed des fixtures exigeant fictif: true. Porte CA-M2-11. Porte également CA-M2-13 (empreintes sha256 attendues des fichiers dupliqués, déclarées comme constantes littérales dans les tests M2) et CA-M2-14 (suite de cas d'abus héritée de M1 rejouée contre les implémentations M2 d'encodage, d'horodatage et de registre).
 
