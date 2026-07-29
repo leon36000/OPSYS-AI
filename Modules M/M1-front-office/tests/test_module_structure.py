@@ -1,4 +1,3 @@
-import sys
 import pytest
 from pathlib import Path
 
@@ -92,4 +91,36 @@ def test_aucun_sys_path_insert_vise_le_paquet():
     assert not fautifs, (
         "sys.path.insert visant le paquet au lieu de son parent :\n  "
         + "\n  ".join(fautifs)
+    )
+
+
+def test_aucun_module_m1_a_plat_dans_sys_modules():
+    """PROUVE qu'aucun module de M1 n'occupe un nom de premier niveau.
+
+    Symétrie explicite avec la garde équivalente de M2. Signalée manquante par la
+    revue scellée (chore #109, round 3) : les gardes structurelle (aucun .py à
+    plat sous src/) et statique (aucun sys.path.insert visant le paquet) ne
+    voient PAS un test qui réenregistrerait un module sous un nom à plat dans
+    sys.modules — par exemple en aliasant le module qualifié.
+
+    La propriété était peut-être déjà couverte indirectement, mais un garde-fou
+    implicite est fragile : un refactor peut le retirer sans que personne sache
+    qu'il portait cette propriété. On la nomme donc.
+    """
+    import sys
+
+    noms_partages = ("registre", "verdicts", "horodatage", "contrats",
+                     "digest", "adaptateurs", "provenance", "qualification")
+    src = (_M1 / "src").resolve()
+    fautifs = {}
+    for nom in noms_partages:
+        module = sys.modules.get(nom)
+        if module is None:
+            continue
+        fichier = getattr(module, "__file__", None)
+        if fichier and str(src) in str(Path(fichier).resolve()):
+            fautifs[nom] = fichier
+    assert not fautifs, (
+        "des modules de M1 occupent un nom de premier niveau, ce qui rouvre la "
+        f"collision inter-modules : {fautifs}"
     )
