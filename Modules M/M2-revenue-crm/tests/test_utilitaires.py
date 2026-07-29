@@ -115,9 +115,12 @@ CODES_M2 = {
     "REJ-ADAPTATEUR-INDISPONIBLE",
     "OK",
 }
+# REJ-CONVERSATION-CLOSE a été RETIRÉ de cette liste le 2026-07-29 : le cadrage ratifié
+# (PRD et architecture) en fait un invariant transversal explicitement repris par M2, donc
+# le classer « hors M2 » encodait une croyance fausse. Le test de cohérence
+# catalogue↔cadrage empêche désormais ce genre d'écart de réapparaître.
 CODES_HORS_M2 = [
     "REJ-CONSENTEMENT-ABSENT",
-    "REJ-CONVERSATION-CLOSE",
     "REJ-QUALIF-INSUFFISANTE",
 ]
 
@@ -173,23 +176,82 @@ class TestFixturesGarde:
         assert doc["fictif"] is True
 
     @pytest.mark.parametrize(
-        "contenu,description",
+        "contenu",
         [
-            ({"data": 42}, "fictif absent"),
-            ({"fictif": False, "data": 42}, "fictif: false"),
-            ({"fictif": "true", "data": 42}, "fictif: 'true' (chaîne)"),
-            ({"fictif": 1, "data": 42}, "fictif: 1 (entier)"),
+            {"fictif": False},
+            {"fictif": "true"},
+            {"fictif": 1},
+            {},
+        ],
+        ids=[
+            "marqueur_false",
+            "marqueur_chaine_true",
+            "marqueur_entier_un",
+            "marqueur_absent",
         ],
     )
-    def test_refuse_toute_variante_non_strict_true(
+    def test_refuse_toute_variante_non_strict_true(self, ecrire_fixture, contenu):
+        """
+        Toute variante non strictement égale à True est refusée : l'exception
+        est FixtureNonFictive, son message porte le code stable reconnu par
+        verdicts.est_verdict et un détail au-delà du code, et le fichier de
+        fixture survit au refus.
+        """
+        chemin = ecrire_fixture("variante_non_strict_true.yml", contenu)
+        with pytest.raises(fixtures_garde.FixtureNonFictive) as exc_info:
+            fixtures_garde.charger_fixture(chemin)
+        message = str(exc_info.value)
+        assert "REJ-FIXTURE-NON-FICTIVE" in message, (
+            f"Le message doit contenir le code stable REJ-FIXTURE-NON-FICTIVE, "
+            f"obtenu : {message!r}"
+        )
+        assert verdicts.est_verdict("REJ-FIXTURE-NON-FICTIVE"), (
+            "verdicts.est_verdict doit reconnaître REJ-FIXTURE-NON-FICTIVE : "
+            "c'est le lien qui rend le catalogue utile à un appelant"
+        )
+        assert len(message) > len("REJ-FIXTURE-NON-FICTIVE"), (
+            f"Le message doit expliquer le refus au-delà du seul code, "
+            f"obtenu : {message!r}"
+        )
+        assert chemin.exists(), (
+            f"Le fichier de fixture doit exister encore après le refus : {chemin}"
+        )
+
+    @pytest.mark.parametrize(
+        "contenu,description",
+        [
+            ([1, 2, 3], "document liste"),
+            ("chaine nue", "document chaîne nue"),
+            (None, "document nul"),
+        ],
+        ids=["document_liste", "document_chaine_nue", "document_nul"],
+    )
+    def test_refuse_document_non_dictionnaire(
         self, ecrire_fixture, contenu, description
     ):
-        chemin = ecrire_fixture("sans_fictif.yaml", contenu)
-        with pytest.raises(Exception) as exc_info:
+        """
+        Un document YAML qui n'est pas un dictionnaire (liste, chaîne nue,
+        document nul) ne peut pas porter la clé « fictif » : le chargement
+        doit lever FixtureNonFictive, le message doit porter le code stable
+        REJ-FIXTURE-NON-FICTIVE et expliquer le refus, et le fichier doit
+        rester en place.
+        """
+        chemin = ecrire_fixture("fixture_non_dict.yaml", contenu)
+        with pytest.raises(fixtures_garde.FixtureNonFictive) as excinfo:
             fixtures_garde.charger_fixture(chemin)
-        # optionnel : vérifier que le message explicite le problème
-        assert True  # levée déjà vérifiée
-
+        message = str(excinfo.value)
+        assert "REJ-FIXTURE-NON-FICTIVE" in message, (
+            f"Cas {description} : le message de refus doit contenir le "
+            f"code stable REJ-FIXTURE-NON-FICTIVE, obtenu : {message!r}"
+        )
+        assert len(message) > len("REJ-FIXTURE-NON-FICTIVE"), (
+            f"Cas {description} : le message de refus doit expliquer et "
+            f"non se limiter au seul code stable, obtenu : {message!r}"
+        )
+        assert chemin.exists(), (
+            f"Cas {description} : le fichier de fixture doit rester en "
+            f"place après le refus : {chemin}"
+        )
 
 # ----------------------------------------------------------------------
 # 5. Zéro réseau / horloge / LLM dans les sources des modules
@@ -884,4 +946,206 @@ class TestBalisesDisjointes:
         assert not isinstance(normalise, list), (
             f"Le scalaire {valeur!r} a produit la liste balisée {normalise!r} : "
             f"seuls les conteneurs et les valeurs typées sont balisés"
+        )
+
+
+class TestCatalogueCoherentAvecLeCadrage:
+    """
+    Cale le catalogue de verdicts sur les documents de cadrage ratifiés, dans
+    les deux sens : tout identifiant prescrit doit être au catalogue, et tout
+    code du catalogue doit être prescrit ou déclaré. Sans ce double sens,
+    l'écart corrigé par la chore (identifiant transversal manquant) se
+    reproduirait en silence.
+    """
+
+    # REJ-0040 est un identifiant de RÈGLE (« zéro LLM »), pas un code de
+    # verdict : cité dans le cadrage, il ne doit jamais entrer au catalogue.
+    EXCLUSIONS_CADRAGE = frozenset({"REJ-0040"})
+
+    # Échappatoire réservée aux identifiants structurellement inextractibles du
+    # cadrage (sans préfixe REJ-, donc invisibles pour l'expression régulière) ;
+    # toute autre entrée y serait un vestige.
+    ADDITIONS_DECLAREES = frozenset({
+        "OK",
+    })
+    def _identifiants_cites_dans_le_cadrage(self):
+        """
+        Lit les fichiers Markdown de docs/bmad du module et retourne l'ensemble
+        des identifiants de la forme REJ-* qui y sont cités.
+        """
+        import re
+
+        dossier_docs = Path(__file__).resolve().parents[1] / "docs" / "bmad"
+        corpus = "\n".join(
+            chemin.read_text(encoding="utf-8")
+            for chemin in sorted(dossier_docs.glob("*.md"))
+        )
+        return set(re.findall(r"REJ-[A-Z0-9-]+", corpus))
+
+    # Le fichier du catalogue est exclu des sources inspectées : il *est* le
+    # catalogue et ne s'émet pas lui-même, sinon tout code inventé dans le
+    # catalogue s'auto-justifierait par sa seule présence dans ce fichier.
+    FICHIER_CATALOGUE = "verdicts.py"
+
+    def _identifiants_emis_par_les_sources(self):
+        """
+        Retourne le couple (ensemble des identifiants de verdict émis par
+        les sources de src/, nombre de fichiers retenus après exclusion).
+
+        Le fichier FICHIER_CATALOGUE est exclu du périmètre : il déclare le
+        catalogue au lieu d'émettre des verdicts. Sa présence parmi les
+        fichiers lus est vérifiée AVANT exclusion, afin qu'un renommage ne
+        fasse pas disparaître l'exclusion en silence.
+        """
+        import re
+
+        src = Path(__file__).resolve().parents[1] / "src"
+        fichiers = sorted(src.glob("*.py"))
+        noms_avant_exclusion = {chemin.name for chemin in fichiers}
+        assert self.FICHIER_CATALOGUE in noms_avant_exclusion, (
+            f"{self.FICHIER_CATALOGUE} introuvable parmi les sources de "
+            f"{src} : un renommage du fichier catalogue ferait disparaître "
+            "l'exclusion en silence et tout code inventé s'auto-justifierait."
+        )
+        fichiers = [
+            chemin
+            for chemin in fichiers
+            if chemin.name != self.FICHIER_CATALOGUE
+        ]
+        codes_emis = set()
+        for chemin in fichiers:
+            texte = chemin.read_text(encoding="utf-8")
+            codes_emis.update(
+                re.findall(r"REJ-[A-Z0-9]+(?:-[A-Z0-9]+)*", texte)
+            )
+        return codes_emis, len(fichiers)
+    def test_tout_code_prescrit_par_le_cadrage_est_au_catalogue(self):
+        """
+        Tout identifiant REJ-* prescrit par les documents ratifiés, hors
+        exclusions justifiées, doit figurer dans le catalogue M2.
+        """
+        extraits = self._identifiants_cites_dans_le_cadrage()
+        assert len(extraits) > 0, (
+            "Aucun identifiant REJ-* extrait de docs/bmad : le dossier a "
+            "probablement été renommé ou déplacé, et le test ne prouverait "
+            "plus rien."
+        )
+        prescrits = extraits - self.EXCLUSIONS_CADRAGE
+        manquants = sorted(code for code in prescrits if not verdicts.est_verdict(code))
+        assert manquants == [], (
+            f"Identifiants prescrits par le cadrage absents du catalogue M2 : "
+            f"{manquants}"
+        )
+
+    def test_le_catalogue_ne_contient_aucun_code_orphelin(self):
+        """
+        Un code du catalogue est justifié s'il est cité dans le cadrage, ou
+        émis par les sources du module, ou déclaré explicitement comme
+        addition. Un code ne satisfaisant aucune de ces trois justifications
+        est soit une invention, soit un vestige : il n'a pas sa place au
+        catalogue.
+        """
+        assert len(verdicts.CODES_M2_LIST) > 0, (
+            "Le catalogue M2 lu est vide : la recherche d'orphelins serait "
+            "vacuellement vraie et le test ne prouverait rien"
+        )
+        cites = self._identifiants_cites_dans_le_cadrage()
+        emis, nombre_fichiers = self._identifiants_emis_par_les_sources()
+        assert nombre_fichiers > 0, (
+            "Aucun fichier source .py lu : la justification par émission "
+            "reposerait sur une lecture vide et le test ne prouverait rien"
+        )
+        orphelins = sorted(
+            code
+            for code in verdicts.CODES_M2_LIST
+            if code not in cites
+            and code not in emis
+            and code not in self.ADDITIONS_DECLAREES
+        )
+        assert orphelins == [], (
+            "Codes du catalogue ni cités dans le cadrage, ni émis par les "
+            f"sources, ni déclarés comme additions : {orphelins}"
+        )
+    def test_aucune_addition_declaree_nest_un_vestige(self):
+        """
+        Garantit que l'échappatoire ADDITIONS_DECLAREES reste auto-nettoyante :
+        chaque entrée doit être absente du cadrage, sinon elle est périmée et
+        doit être retirée.
+
+        La non-vacuité est assertée parce qu'une échappatoire vide rendrait la
+        boucle vacuellement vraie : le test ne prouverait plus rien, et vider
+        l'échappatoire devra être une décision explicite, pas un silence. Le
+        compteur d'entrées réellement vérifiées, comparé à
+        len(ADDITIONS_DECLAREES), sert la même exigence : il prouve que la
+        boucle a effectivement parcouru chaque membre au lieu de s'arrêter
+        prématurément ou de ne jamais itérer.
+        """
+        assert self.ADDITIONS_DECLAREES, (
+            "ADDITIONS_DECLAREES est vide : le test deviendrait vacuellement "
+            "vrai ; vider l'échappatoire doit être une décision explicite, "
+            "pas un silence."
+        )
+        cites = self._identifiants_cites_dans_le_cadrage()
+        perimees = []
+        entrees_verifiees = 0
+        for code in sorted(self.ADDITIONS_DECLAREES):
+            entrees_verifiees += 1
+            if code in cites:
+                perimees.append(code)
+        assert entrees_verifiees == len(self.ADDITIONS_DECLAREES), (
+            f"Seules {entrees_verifiees} entrées vérifiées sur "
+            f"{len(self.ADDITIONS_DECLAREES)} déclarées : la boucle n'a pas "
+            "parcouru toute l'échappatoire."
+        )
+        assert not perimees, (
+            f"Entrées périmées dans ADDITIONS_DECLAREES : {perimees} — "
+            "elles sont désormais couvertes par le cadrage et doivent être "
+            "retirées de l'échappatoire."
+        )
+
+    def test_tout_code_emis_par_les_sources_est_au_catalogue(self):
+        """
+        Troisième axe de la garde de cohérence : tout identifiant REJ- émis
+        par les sources du module doit figurer au catalogue, sans quoi un
+        appelant validant un verdict authentique contre est_verdict le
+        rejetterait à tort.
+        """
+        src = Path(__file__).resolve().parents[1] / "src"
+        codes_emis, nombre_fichiers = self._identifiants_emis_par_les_sources()
+        assert nombre_fichiers > 0, (
+            f"Aucun fichier source .py lu dans {src} : la garde ne peut pas passer à vide"
+        )
+        assert len(codes_emis) > 0, (
+            f"Aucun identifiant REJ- extrait des {nombre_fichiers} sources de {src}"
+        )
+        absents = sorted(code for code in codes_emis if not verdicts.est_verdict(code))
+        assert not absents, (
+            f"Codes émis par les sources de {src} mais absents du catalogue M2 : {absents}"
+        )
+    def test_construire_verdict_leve_une_exception_dediee(self):
+        """
+        Un code inconnu doit lever CodeVerdictInconnu, et le message doit
+        nommer le code fautif pour rendre le diagnostic immédiat.
+        """
+        code_inconnu = "REJ-CE-CODE-N-EXISTE-PAS"
+        assert not verdicts.est_verdict(code_inconnu), (
+            f"Le code de test {code_inconnu!r} ne doit pas exister dans le "
+            f"catalogue, sinon ce test ne prouve plus rien."
+        )
+        with pytest.raises(verdicts.CodeVerdictInconnu) as capture:
+            verdicts.construire_verdict(code_inconnu)
+        assert code_inconnu in str(capture.value), (
+            f"Le message de CodeVerdictInconnu doit contenir le code fautif "
+            f"{code_inconnu!r}, obtenu : {capture.value!s}."
+        )
+
+    def test_exception_dediee_reste_attrapable_comme_exception(self):
+        """
+        CodeVerdictInconnu doit hériter d'Exception : les tests existants
+        attrapent Exception et doivent rester verts.
+        """
+        assert issubclass(verdicts.CodeVerdictInconnu, Exception), (
+            "CodeVerdictInconnu doit être une sous-classe d'Exception pour "
+            "rester attrapable par les tests existants qui font "
+            "pytest.raises(Exception)."
         )
