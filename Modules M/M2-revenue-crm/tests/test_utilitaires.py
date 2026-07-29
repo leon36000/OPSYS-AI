@@ -676,3 +676,212 @@ class TestInjectiviteExhaustive:
                 for nom_a, nom_b, empreinte_commune in collisions
             )
         )
+
+
+class TestBalisesDisjointes:
+    """Garantit que les balises de conteneur et les balises de type standard forment
+    deux familles disjointes dans l'encodage canonique.
+
+    Argument d'injectivité vérifié ici : toute valeur fournie par l'appelant est soit
+    un scalaire, soit un conteneur ; un conteneur reçoit toujours une balise de
+    CONTENEUR, jamais une balise de type standard. Les deux familles étant disjointes,
+    aucune valeur littérale ne peut usurper la forme normalisée d'une valeur typée.
+
+    API en boîte blanche utilisée : ``encodage._normaliser`` (fonction interne du
+    module d'encodage canonique M2). Pour une valeur typée ou un conteneur, elle
+    retourne une liste dont le premier élément est la balise ; pour un scalaire
+    (str, int, float, bool, None), elle retourne la valeur telle quelle.
+    """
+
+    BALISES_CONTENEUR = frozenset({
+        "__dict__",
+        "__set__",
+        "__frozenset__",
+        "__list__",
+        "__tuple__",
+    })
+
+    BALISES_TYPE_STANDARD = frozenset({
+        "__decimal__",
+        "__datetime__",
+        "__date__",
+        "__time__",
+        "__uuid__",
+        "__bytes__",
+        "__bytearray__",
+        "__complex__",
+    })
+
+    def test_les_deux_familles_de_balises_sont_disjointes(self):
+        """Vérifie que l'intersection des deux familles de balises est vide.
+
+        C'est le cœur de l'argument d'injectivité : si une balise appartenait aux
+        deux familles, un conteneur littéral pourrait produire la même forme
+        normalisée qu'une valeur typée. Le message d'échec liste les balises
+        fautives.
+        """
+        communes = sorted(self.BALISES_CONTENEUR & self.BALISES_TYPE_STANDARD)
+        assert not communes, (
+            f"Balises présentes dans les deux familles (collision d'encodage "
+            f"possible entre conteneur littéral et valeur typée) : {communes}"
+        )
+
+    @pytest.mark.parametrize(
+        "valeur",
+        [
+            {"cle": "valeur"},
+            {"element"},
+            frozenset({"element"}),
+            ["element"],
+            ("element",),
+        ],
+        ids=["dict", "set", "frozenset", "list", "tuple"],
+    )
+    def test_chaque_conteneur_recoit_une_balise_de_conteneur(self, valeur):
+        """Vérifie qu'un conteneur non vide est normalisé sous une balise de conteneur.
+
+        ``encodage._normaliser(valeur)[0]`` doit appartenir à ``BALISES_CONTENEUR``
+        et ne jamais appartenir à ``BALISES_TYPE_STANDARD`` : c'est la propriété qui
+        interdit à une valeur littérale d'usurper la forme d'une valeur typée.
+        """
+        balise = encodage._normaliser(valeur)[0]
+        assert balise in self.BALISES_CONTENEUR, (
+            f"Le conteneur {valeur!r} a reçu la balise {balise!r}, "
+            f"attendu parmi {sorted(self.BALISES_CONTENEUR)}"
+        )
+        assert balise not in self.BALISES_TYPE_STANDARD, (
+            f"Le conteneur {valeur!r} a reçu la balise de type standard "
+            f"{balise!r} : un littéral peut désormais usurper une valeur typée"
+        )
+
+    @pytest.mark.parametrize(
+        "type_cible, argument_brut, balise_attendue",
+        [
+            ("decimal", "1.5", "__decimal__"),
+            ("datetime", (2026, 7, 29, 12, 30, 0), "__datetime__"),
+            ("date", (2026, 7, 29), "__date__"),
+            ("time", (9, 15, 0), "__time__"),
+            ("uuid", "12345678-1234-5678-1234-567812345678", "__uuid__"),
+            ("bytes", b"\xab", "__bytes__"),
+            ("bytearray", b"\xab", "__bytearray__"),
+            ("complex", (1.0, 2.0), "__complex__"),
+        ],
+        ids=[
+            "decimal",
+            "datetime",
+            "date",
+            "time",
+            "uuid",
+            "bytes",
+            "bytearray",
+            "complex",
+        ],
+    )
+    def test_chaque_type_standard_recoit_sa_balise(self, type_cible, argument_brut, balise_attendue):
+        """Vérifie que chaque type standard est normalisé sous sa balise exacte.
+
+        Les valeurs typées sont construites dans la méthode (imports locaux
+        obligatoires) à partir d'arguments bruts ; ``encodage._normaliser`` doit
+        produire une liste dont le premier élément est exactement la balise
+        attendue, laquelle ne doit jamais être une balise de conteneur.
+        """
+        from datetime import date, datetime, time, timezone
+        from decimal import Decimal
+        from uuid import UUID
+
+        fabriques = {
+            "decimal": lambda: Decimal(argument_brut),
+            "datetime": lambda: datetime(*argument_brut, tzinfo=timezone.utc),
+            "date": lambda: date(*argument_brut),
+            "time": lambda: time(*argument_brut),
+            "uuid": lambda: UUID(argument_brut),
+            "bytes": lambda: argument_brut,
+            "bytearray": lambda: bytearray(argument_brut),
+            "complex": lambda: complex(*argument_brut),
+        }
+        valeur = fabriques[type_cible]()
+        balise = encodage._normaliser(valeur)[0]
+        assert balise == balise_attendue, (
+            f"La valeur {valeur!r} (type {type_cible}) a reçu la balise "
+            f"{balise!r}, attendu exactement {balise_attendue!r}"
+        )
+        assert balise not in self.BALISES_CONTENEUR, (
+            f"La valeur typée {valeur!r} a reçu la balise de conteneur "
+            f"{balise!r} : collision possible avec un conteneur littéral"
+        )
+
+    def test_aucune_balise_oubliee(self):
+        """Vérifie que chaque balise déclarée est réellement produite par le panel.
+
+        Test d'exhaustivité : sans lui, ajouter une balise dans le code sans
+        l'ajouter aux constantes de classe passerait inaperçu. Le panel contient
+        13 valeurs écrites en dur, une par balise ; toute balise jamais produite
+        est nommée dans le message d'échec.
+        """
+        from datetime import date, datetime, time, timezone
+        from decimal import Decimal
+        from uuid import UUID
+
+        panel = [
+            {"cle": "valeur"},
+            {"element"},
+            frozenset({"element"}),
+            ["element"],
+            ("element",),
+            Decimal("1.5"),
+            datetime(2026, 7, 29, 12, 30, 0, tzinfo=timezone.utc),
+            date(2026, 7, 29),
+            time(9, 15, 0),
+            UUID("12345678-1234-5678-1234-567812345678"),
+            b"\xab",
+            bytearray(b"\xab"),
+            complex(1.0, 2.0),
+        ]
+        assert len(panel) == 13, (
+            f"Le panel doit contenir exactement 13 valeurs (une par balise), "
+            f"il en contient {len(panel)}"
+        )
+        produites = {encodage._normaliser(valeur)[0] for valeur in panel}
+        manquantes = sorted(
+            balise
+            for balise in self.BALISES_CONTENEUR | self.BALISES_TYPE_STANDARD
+            if balise not in produites
+        )
+        assert not manquantes, (
+            f"Balises déclarées dans les constantes mais jamais produites par "
+            f"le panel de 13 valeurs : {manquantes}"
+        )
+
+    @pytest.mark.parametrize(
+        "valeur",
+        [
+            "chaine",
+            42,
+            3.14,
+            True,
+            None,
+        ],
+        ids=["str", "int", "float", "bool", "none"],
+    )
+    def test_un_scalaire_nest_pas_balise(self, valeur):
+        """Vérifie qu'un scalaire traverse ``encodage._normaliser`` sans balisage.
+
+        Le résultat doit être égal à l'entrée ET du même type exact : ``True == 1``
+        en Python, donc l'égalité seule ne suffit pas à distinguer un booléen d'un
+        entier ; la comparaison ``type(...) is ...`` lève cette ambiguïté et
+        empêche le test de passer par accident.
+        """
+        normalise = encodage._normaliser(valeur)
+        assert normalise == valeur, (
+            f"Le scalaire {valeur!r} a été transformé en {normalise!r} : "
+            f"un scalaire doit être retourné tel quel, sans balisage"
+        )
+        assert type(normalise) is type(valeur), (
+            f"Le scalaire {valeur!r} (type {type(valeur).__name__}) est ressorti "
+            f"avec le type {type(normalise).__name__} : l'égalité seule masquerait "
+            f"une confusion bool/int"
+        )
+        assert not isinstance(normalise, list), (
+            f"Le scalaire {valeur!r} a produit la liste balisée {normalise!r} : "
+            f"seuls les conteneurs et les valeurs typées sont balisés"
+        )
