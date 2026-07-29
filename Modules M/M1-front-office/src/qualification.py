@@ -117,6 +117,12 @@ def _extraire_contact(contenu: str) -> dict | None:
     return contact if contact else None
 
 
+def _materiau_lead_id(conversation_id: str, contenu: str) -> str:
+    """Encodage canonique INJECTIF (préfixage par longueur) : deux couples différents
+    ne peuvent pas produire le même matériau, contrairement à une concaténation directe."""
+    return f"{len(conversation_id)}:{conversation_id}|{len(contenu)}:{contenu}"
+
+
 def qualifier(contenu_filtre: str, canal: str, conversation_id: str) -> dict:
     """
     Extrait les informations obligatoires d'un message filtré.
@@ -141,7 +147,8 @@ def qualifier(contenu_filtre: str, canal: str, conversation_id: str) -> dict:
     if contact is None:
         return _rejet()
 
-    lead_id = hashlib.sha256((conversation_id + contenu).encode("utf-8")).hexdigest()
+    materiau = _materiau_lead_id(conversation_id, contenu)
+    lead_id = hashlib.sha256(materiau.encode("utf-8")).hexdigest()
 
     lead = {
         "lead_id": lead_id,

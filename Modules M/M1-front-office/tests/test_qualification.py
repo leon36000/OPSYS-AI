@@ -222,3 +222,33 @@ def test_lead_avec_urgence_valide_contrat(canal_texte, conv_id):
         contrats.valider_lead(lead)
     except Exception as e:
         pytest.fail(f"Lead d'urgence rejeté par contrat : {e}")
+
+
+def test_lead_id_encodage_injectif():
+    import qualification
+
+    # 1. Injectivité – concaténation naïve identique
+    assert qualification._materiau_lead_id("AB", "X") != qualification._materiau_lead_id("A", "BX"), (
+        "Les couples ('AB','X') et ('A','BX') ont produit le même matériau, "
+        "l'encodage n'est pas injectif."
+    )
+
+    # 2. Cas de l'historique
+    assert qualification._materiau_lead_id("A", " BC") != qualification._materiau_lead_id("A ", "BC"), (
+        "Les couples ('A',' BC') et ('A ','BC') ont produit le même matériau, "
+        "l'encodage n'est pas injectif."
+    )
+
+    # 3. Déterminisme du lead_id via qualifier
+    lead1 = qualification.qualifier("Extension à Montréal, téléphone 514-555-0142.", "texte", "conv-1")["lead_id"]
+    lead2 = qualification.qualifier("Extension à Montréal, téléphone 514-555-0142.", "texte", "conv-1")["lead_id"]
+    assert lead1 == lead2, (
+        f"Deux appels identiques à qualifier ont produit des lead_id différents : {lead1} vs {lead2}."
+    )
+
+    # 4. conversation_id différents => lead_id différents
+    lead_a = qualification.qualifier("Extension à Montréal, téléphone 514-555-0142.", "texte", "conv-A")["lead_id"]
+    lead_b = qualification.qualifier("Extension à Montréal, téléphone 514-555-0142.", "texte", "conv-B")["lead_id"]
+    assert lead_a != lead_b, (
+        f"Des conversations différentes (conv-A vs conv-B) ont produit le même lead_id : {lead_a}."
+    )
