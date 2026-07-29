@@ -10,9 +10,9 @@ d'arbitrage existants sont ``en_attente`` et ``distincts_confirmes``.
 import copy
 from datetime import datetime, timezone
 
-import encodage
-import horodatage as _horodatage
-import verdicts
+from . import encodage
+from . import horodatage as _horodatage
+from . import verdicts
 
 CRITERES = ("contact_identique", "ville_et_travaux")
 ARBITRAGES = ("en_attente", "distincts_confirmes")

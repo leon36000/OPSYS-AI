@@ -4,12 +4,13 @@ import json
 import pytest
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
+_PKG = _SRC / "m1_front_office"  # répertoire du paquet, pour les scans de sources
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-import consentement  # noqa: E402
-import verdicts      # noqa: E402
-from registre import Registre  # noqa: E402
+from m1_front_office import consentement  # noqa: E402
+from m1_front_office import verdicts      # noqa: E402
+from m1_front_office.registre import Registre  # noqa: E402
 
 
 # ----------------------------------------------------------------------
@@ -172,7 +173,7 @@ def test_rescue_autorise(valeur, attendu):
 # ----------------------------------------------------------------------
 def test_source_contient_zero_reseau_ni_horloge():
     """Le fichier consentement.py ne doit pas contenir d'imports réseau ou appels à l'horloge."""
-    chemin_source = _SRC / "consentement.py"
+    chemin_source = _PKG / "consentement.py"
     contenu = chemin_source.read_text(encoding="utf-8")
     motifs_interdits = [
         "urllib",
@@ -227,11 +228,12 @@ import pytest
 
 # Ajustement du PATH pour trouver les modules src
 _SRC = Path(__file__).resolve().parents[1] / "src"
+_PKG = _SRC / "m1_front_office"  # répertoire du paquet, pour les scans de sources
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-import consentement
-from registre import Registre
+from m1_front_office import consentement
+from m1_front_office.registre import Registre
 
 
 def test_registre_ne_contient_jamais_le_contenu():
@@ -306,10 +308,11 @@ import hmac
 import pytest
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
+_PKG = _SRC / "m1_front_office"  # répertoire du paquet, pour les scans de sources
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-import consentement  # noqa: E402
+from m1_front_office import consentement  # noqa: E402
 
 
 # ----------------------------------------------------------------------

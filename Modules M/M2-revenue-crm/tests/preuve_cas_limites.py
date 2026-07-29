@@ -5,9 +5,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-SRC = Path(__file__).resolve().parents[1] / "src"
+SRC = Path(__file__).resolve().parents[1] / "src" / "m2_revenue_crm"
 sys.path.insert(0, str(SRC))
-import encodage as e  # noqa: E402
+from m2_revenue_crm import encodage as e  # noqa: E402
 
 print("=== (a) conteneurs VIDES de types différents ===")
 vides = [("set()", set()), ("frozenset()", frozenset()), ("list []", []),

@@ -1,7 +1,7 @@
 import re
 import hashlib
 from pathlib import Path
-from verdicts import construire_verdict
+from .verdicts import construire_verdict
 
 # Enums fermés issus des contrats
 _TYPES_TRAVAUX = {

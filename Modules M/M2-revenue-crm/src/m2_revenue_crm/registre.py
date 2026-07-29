@@ -1,7 +1,7 @@
 """Registre chaîné, append-only, déterministe et immuable."""
 import copy
-import horodatage
-import encodage
+from . import horodatage
+from . import encodage
 
 __all__ = ["Registre", "VerificationError"]
 

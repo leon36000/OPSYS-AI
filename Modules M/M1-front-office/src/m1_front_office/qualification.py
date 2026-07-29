@@ -1,6 +1,6 @@
 import re
 import hashlib
-import verdicts
+from . import verdicts
 
 # Motifs d'extraction déterministes
 _RENOVATION_TOTALE = re.compile(

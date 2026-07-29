@@ -8,12 +8,13 @@ from pathlib import Path
 import pytest
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
+_PKG = _SRC / "m2_revenue_crm"  # répertoire du paquet, pour les scans de sources
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-import encodage  # noqa: E402
-import horodatage  # noqa: E402
-import verdicts  # noqa: E402
+from m2_revenue_crm import encodage  # noqa: E402
+from m2_revenue_crm import horodatage  # noqa: E402
+from m2_revenue_crm import verdicts  # noqa: E402
 
 # ----------------------------------------------------------------------
 # CA-M2-13 — Empreintes scellées (pas de lecture croisée avec M1)
@@ -28,7 +29,7 @@ SHA256_VERDICTS_ATTENDU = "e0e11120f29b1e2954971b7522e92eb7fe90feb6283e747b8e51e
 
 class TestCA_M2_13_Empreintes:
     def test_empreinte_horodatage_m2_conforme_au_gel(self):
-        chemin = _SRC / "horodatage.py"
+        chemin = _PKG / "horodatage.py"
         assert chemin.exists(), f"Fichier horodatage.py manquant dans {_SRC}"
         contenu = chemin.read_bytes()
         empreinte = hashlib.sha256(contenu).hexdigest()
@@ -38,7 +39,7 @@ class TestCA_M2_13_Empreintes:
         )
 
     def test_empreinte_verdicts_m2_conforme_au_gel(self):
-        chemin = _SRC / "verdicts.py"
+        chemin = _PKG / "verdicts.py"
         assert chemin.exists(), f"Fichier verdicts.py manquant dans {_SRC}"
         contenu = chemin.read_bytes()
         empreinte = hashlib.sha256(contenu).hexdigest()
@@ -115,7 +116,7 @@ class TestCA_M2_14_Abus:
         code = f"""
 import sys
 sys.path.insert(0, r'{_SRC}')
-import encodage
+from m2_revenue_crm import encodage
 donnees = {{'set': {{'a', 'b'}}, 'dict': {{'k': 'v'}}}}
 print(encodage.encoder_canonique(donnees))
 """

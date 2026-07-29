@@ -4,9 +4,9 @@ Chaque interaction est enregistrée une fois le lead qualifié et actif.
 Fonctions : enregistrer (avec contrôle d'état) et lister.
 """
 
-import horodatage as _horodatage
-from verdicts import construire_verdict
-from statuts import statut_courant, STATUTS_TERMINAUX
+from . import horodatage as _horodatage
+from .verdicts import construire_verdict
+from .statuts import statut_courant, STATUTS_TERMINAUX
 
 TYPE_ENTREE = "interaction"  # Identifiant canonique du type d'écriture
 

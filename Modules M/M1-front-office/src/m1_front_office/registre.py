@@ -3,8 +3,8 @@ import json
 import copy
 from pathlib import Path
 import yaml
-import horodatage
-import verdicts
+from . import horodatage
+from . import verdicts
 
 _TYPES_ENTREE_VALIDES = {
     "signal",

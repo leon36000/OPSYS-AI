@@ -5,14 +5,15 @@ from pathlib import Path
 import pytest
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
+_PKG = _SRC / "m2_revenue_crm"  # répertoire du paquet, pour les scans de sources
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-import encodage  # noqa: E402
-import verdicts  # noqa: E402
-import registre  # noqa: E402
-import ingestion  # noqa: E402
-import statuts  # noqa: E402
+from m2_revenue_crm import encodage  # noqa: E402
+from m2_revenue_crm import verdicts  # noqa: E402
+from m2_revenue_crm import registre  # noqa: E402
+from m2_revenue_crm import ingestion  # noqa: E402
+from m2_revenue_crm import statuts  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Helpers de module
@@ -471,7 +472,7 @@ class TestInvariantsStatuts:
 
     def test_un_seul_point_ecriture(self):
         """Le fichier statuts.py contient exactement une occurrence de .ajouter(."""
-        fichier = _SRC / "statuts.py"
+        fichier = _PKG / "statuts.py"
         assert fichier.exists(), "Fichier statuts.py introuvable"
         texte = fichier.read_text(encoding="utf-8")
         assert texte.strip(), "Fichier vide"
@@ -480,14 +481,14 @@ class TestInvariantsStatuts:
 
     def test_aucun_import_reseau(self):
         """Aucun import réseau dans statuts.py."""
-        fichier = _SRC / "statuts.py"
+        fichier = _PKG / "statuts.py"
         texte = fichier.read_text(encoding="utf-8")
         for interdit in ["socket", "urllib", "requests", "http"]:
             assert interdit not in texte, f"Import interdit trouvé: {interdit}"
 
     def test_aucune_horloge_interne(self):
         """Aucune horloge interne dans statuts.py."""
-        fichier = _SRC / "statuts.py"
+        fichier = _PKG / "statuts.py"
         texte = fichier.read_text(encoding="utf-8")
         for appel in ["datetime.now", "time.time", "date.today", "utcnow"]:
             assert appel not in texte, f"Appel horloge: {appel}"

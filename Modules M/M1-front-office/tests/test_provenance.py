@@ -17,7 +17,7 @@ import yaml
 # Chemins
 # ---------------------------------------------------------------------------
 MODULE_DIR = Path(__file__).parent.parent
-SRC_DIR = MODULE_DIR / "src"
+SRC_DIR = MODULE_DIR / "src" / "m1_front_office"
 FIXTURES_DIR = MODULE_DIR / "fixtures" / "provenance"
 
 # Ajouter src/ au chemin d'import
@@ -41,7 +41,7 @@ def _charger_fixture(nom_fichier: str) -> dict:
 
 def _importer_filtrer():
     """Importe la fonction filtrer depuis provenance.py."""
-    import provenance  # noqa: PLC0415
+    from m1_front_office import provenance  # noqa: PLC0415
     return provenance.filtrer
 
 
