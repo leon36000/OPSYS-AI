@@ -80,6 +80,26 @@ def test_aucun_sys_path_insert_vise_le_paquet():
     regardait que les lignes COMMENÇANT par « sys.path.insert », et un appel
     étalé sur plusieurs lignes lui échappait — trou confirmé par mutation au
     round 4. L'AST voit l'appel quelle que soit sa mise en forme.
+    LIMITE ASSUMÉE, mesurée et signalée par la revue (round 5) : cette garde ne
+    voit que les littéraux chaîne présents dans les arguments de l'appel. Une
+    variable intermédiaire lui échappe :
+
+        chemin = str(_SRC / "PAQUET")
+        sys.path.insert(0, chemin)      # non détecté
+
+    C'est acceptable parce que cette garde est un DÉTECTEUR PRÉCOCE, pas la
+    garantie. La garantie vient de deux mécanismes que rien n'esquive :
+
+    1. les imports RELATIFS du paquet rendent le chargement à plat
+       structurellement IMPOSSIBLE — mesuré : insérer le paquet dans sys.path
+       puis « import registre » lève
+       « ImportError: attempted relative import with no known parent package » ;
+    2. la garde sys.modules est COMPORTEMENTALE : elle constate tout nom de
+       premier niveau effectivement enregistré, quelle que soit la façon dont il
+       l'a été.
+
+    Rendre cette garde exhaustive contre un contournement délibéré demanderait un
+    suivi de flot de données, pour une propriété déjà garantie ailleurs.
     """
     tests_dir = Path(__file__).resolve().parent
     fautifs = []

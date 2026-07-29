@@ -106,6 +106,23 @@ voit l'appel quelle que soit sa mise en forme, et détecte la forme multi-ligne 
 Leçon : une garde à trou est pire que pas de garde, parce qu'elle donne une confiance imméritée.
 Toute garde doit être elle-même mutée.
 
+### Où se trouve réellement la garantie
+
+La revue du round 5 a signalé que la couche 4, même en AST, ne voit que les littéraux chaîne
+présents dans les arguments : une variable intermédiaire lui échappe (mesuré). C'est **assumé**,
+parce que la couche 4 est un **détecteur précoce** et non la garantie. Celle-ci vient de deux
+mécanismes que rien n'esquive :
+
+1. **les imports relatifs rendent le chargement à plat structurellement impossible** — mesuré sur
+   les deux modules : insérer le paquet dans `sys.path` puis `import registre` lève
+   `ImportError: attempted relative import with no known parent package` ;
+2. **la couche 2 est comportementale** : elle constate tout nom de premier niveau effectivement
+   enregistré dans `sys.modules`, quelle que soit la façon dont il y est arrivé.
+
+Rendre la couche 4 exhaustive contre un contournement délibéré demanderait un suivi de flot de
+données, pour une propriété déjà garantie ailleurs. La limite est documentée dans la docstring de
+la garde plutôt que masquée.
+
 ## Pièges rencontrés dans la migration
 
 Le script de migration était déterministe, mais trois de ses substitutions étaient fausses — et
