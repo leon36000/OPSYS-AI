@@ -184,29 +184,23 @@ VERBES_CONTACT = re.compile(
 
 def _decouper_segments(texte: str) -> list[str]:
     """
-    Sépare le texte en segments indépendants sur la base de :
-    - ponctuation forte : . ! ? ;
-    - ponctuation faible : , :
-    - conjonctions / mots-outils : et, puis, mais, pour, afin, que
+    Sépare le texte en segments indépendants sur la base de la ponctuation forte :
+    . ! ? ; et des sauts de ligne.
     Chaque segment résultant est nettoyé des espaces superflus.
     """
-    # Pattern de séparation : les ponctuations et les mots de liaison entourés d'espaces
-    # Le tiret a été retiré de la classe de ponctuation pour ne pas découper
-    # les dates au format ISO (AAAA-MM-JJ), qui contiennent des tirets internes.
     separateur = re.compile(
         r'''
         \s*                     # éventuels espaces avant le séparateur
         (?:
-            [.!?;,:]            # ponctuation
-          |                     # OU
-            \b(?:et|puis|mais|pour|afin|que)\b   # conjonctions/mots-outils
+            [.!?;]              # ponctuation forte
+            |                   # OU
+            \n                  # saut de ligne
         )
         \s*                     # éventuels espaces après
         ''',
-        re.IGNORECASE | re.VERBOSE
+        re.VERBOSE
     )
     parties = separateur.split(texte)
-    # Nettoyer chaque partie et ne garder que les segments non vides
     segments = []
     for p in parties:
         p = p.strip()

@@ -292,3 +292,19 @@ def test_date_iso_non_decoupee_par_segmentation():
         assert interdit not in segments, f"Segments: {segments}"
     assert any("2026-08-14" in s for s in segments)
     assert garde_fou.verifier_sortie("Un conseiller vous recontacte dans 2 jours ; installation prévue le 2026-08-14.")["code"] == "REJ-INTERDIT-DATE"
+
+
+@pytest.mark.parametrize("texte", [
+    "Les travaux seront finis, demain.",
+    "Le chantier démarre, lundi prochain.",
+    "L'installation est planifiée pour demain.",
+    "La dalle sera coulée, puis le 14/08 nous finissons.",
+    "Nous terminons afin que demain tout soit livré.",
+    "Nous posons les fenêtres et demain tout sera terminé.",
+])
+def test_virgule_et_conjonctions_ne_cassent_pas_le_lien_verbe_date(texte):
+    verdict = garde_fou.verifier_sortie(texte)["code"]
+    assert verdict == "REJ-INTERDIT-DATE", (
+        f"Texte: '{texte}' => verdict attendu 'REJ-INTERDIT-DATE', "
+        f"mais le verdict obtenu est '{verdict}'."
+    )
