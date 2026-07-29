@@ -29,4 +29,27 @@ R-M2-001 : lead orphelin sans owner — un lead qualifié reste en statut nouvea
 
 6. CRITÈRES DE SUCCÈS MESURABLES EN MODE OMBRE
 
-Tous les leads entrants (fixtures fictives) reçoivent un statut explicite dans les 100ms suivant l'ingestion. Zéro lead sans owner après 48h simulées (test unitaire avec horloge injectée). Zéro transition de statut illégale (test de non-régression sur la machine à états). Zéro fusion automatique de doublons (test vérifiant que la détection signale mais ne fusionne pas). Readiness gate M3 : 100% des leads transmis à M3 satisfont les critères (test d'intégration M2→M3). Frontières de vérité : zéro champ prix, date d'exécution, ou montant financier stocké dans M2 (test de validation de schéma). Digest quotidien : liste exhaustive des leads en attente d'action, horodatée, hash-chaînée. Couverture de tests : minimum 90% des chemins de transition et des rejets. Mode ombre : zéro appel réseau, zéro écriture externe, zéro donnée réelle.
+Tous les critères ci-dessous sont des propriétés booléennes vérifiables par un test unitaire ou d'intégration déterministe, sans dépendance à la machine, au runner, ou à une métrique de couverture.
+
+CS-M2-01 : toute ingestion réussie d'un contrat LeadQualifie valide produit un lead dont le statut appartient à l'énumération fermée {nouveau, qualifie, converti, perdu} ; aucune ingestion ne produit un lead sans statut.
+
+CS-M2-02 : toute ingestion d'un contrat violant les frontières de vérité est rejetée avec le verdict REJ-FRONTIERE-VIOLEE et n'inscrit aucun maillon au registre.
+
+CS-M2-03 : zéro lead sans owner après 48 heures simulées — le digest quotidien, produit avec un horodatage d'appelant postérieur de plus de 48 heures à la date d'ingestion fournie, liste exhaustivement tout lead en statut nouveau dépourvu d'owner.
+
+CS-M2-04 : zéro transition de statut illégale acceptée — tout chemin hors table reçoit REJ-TRANSITION-ILLEGALE, toute condition manquante sur un chemin autorisé reçoit le verdict spécifique (REJ-OWNER-ABSENT, REJ-DEVIS-ABSENT, REJ-MOTIF-ABSENT).
+
+CS-M2-05 : zéro fusion automatique de doublons — après signalement, le registre contient toujours les deux leads distincts ; aucune fonction de fusion n'existe dans l'arborescence du module.
+
+CS-M2-06 : readiness gate M3 — la gate retourne faux dès qu'une quelconque des quatre conditions manque, et l'interaction humaine exigée doit être strictement postérieure ou égale à l'horodatage de transition vers qualifie.
+
+CS-M2-07 : frontières de vérité — zéro champ prix, date d'exécution, montant financier, ou engagement contractuel stocké dans M2 après toute séquence d'opérations valides.
+
+CS-M2-08 : digest quotidien — la liste produite est exhaustive, triée par date d'ingestion fournie par l'appelant, et identique entre deux exécutions successives avec les mêmes entrées.
+
+CS-M2-09 : registre hash-chaîné — valider_chaine retourne vrai après toute séquence d'opérations valides et faux après altération, troncature ou réordonnancement d'un maillon.
+
+CS-M2-10 : conformité dupliquée — les fichiers dupliqués depuis M1 (encodage, horodatage, registre) portent une empreinte sha256 attendue épinglée comme constante littérale dans les tests M2, et une suite de cas d'abus héritée de M1 est rejouée contre les implémentations M2.
+
+CS-M2-11 : mode ombre — zéro appel réseau, zéro écriture externe, zéro donnée réelle, zéro horloge interne (tout horodatage est un paramètre fourni par l'appelant).
+

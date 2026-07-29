@@ -15,7 +15,23 @@ Vague 1, prouvable en CI Python sans réseau ni CRM externe : registre append-on
 
 4. Règles métier explicites
 
-Énumération fermée des statuts : nouveau, qualifie, converti, perdu. Transitions autorisées : nouveau vers qualifie (condition : owner humain assigné), qualifie vers converti (condition : décision humaine et référence devis M3), qualifie vers perdu (condition : décision humaine et motif obligatoire), nouveau vers perdu (condition : décision humaine et motif obligatoire). Transitions interdites : tout autre chemin, notamment converti vers qualifie, perdu vers qualifie, converti vers perdu, et toute transition automatique non déclenchée par une action humaine explicite. Readiness gate M3 : owner humain confirmé ET type_travaux dans l'enum fermé ET ville non vide ET au moins une interaction humaine post-qualification enregistrée. Signalement de doublon : même contact OU même combinaison ville et type_travaux dans une fenêtre de 7 jours calendaires. Prochaine action : description textuelle non vide et échéance horodatée fournie par l'appelant, jamais générée par M2.
+Énumération fermée des statuts : nouveau, qualifie, converti, perdu.
+
+Transitions autorisées et conditions :
+- nouveau vers qualifie : owner humain non vide fourni ET prochaine_action complète fournie (description non vide et échéance ISO-8601 avec timezone).
+- qualifie vers converti : décision humaine explicite ET reference_devis_m3 fournie. La reference_devis_m3 est une chaîne opaque émise par l'appelant humain (responsable commercial) qui saisit la référence du devis M3 accepté ; M2 ne la fabrique pas, ne la valide pas structurellement, et vérifie uniquement qu'elle est une chaîne non vide. M3 reste l'autorité émettrice du devis lui-même.
+- qualifie vers perdu : décision humaine explicite ET motif non vide.
+- nouveau vers perdu : décision humaine explicite ET motif non vide.
+
+Transitions interdites : tout autre chemin, notamment converti vers qualifie, perdu vers qualifie, converti vers perdu, perdu vers converti, et toute transition automatique non déclenchée par une action humaine explicite. Les statuts converti et perdu sont terminaux : le dossier est figé et tout appel d'écriture ultérieur est rejeté avec REJ-CONVERSATION-CLOSE.
+
+Readiness gate M3 : owner humain confirmé ET type_travaux appartenant à l'énumération fermée M1 ET ville non vide ET au moins une interaction humaine dont l'horodatage fourni par l'appelant est postérieur ou égal à l'horodatage de transition vers qualifie. Les quatre conditions sont conjointes ; l'absence d'une seule fait échouer la gate.
+
+Signalement de doublon potentiel : même contact OU même combinaison ville et type_travaux, dans une fenêtre glissante de 7 jours calendaires calculée sur les dates d'ingestion fournies par l'appelant. Le signalement ne fusionne jamais ; la décision de fusion ou de conservation distincte appartient exclusivement à un humain.
+
+Prochaine action : description textuelle non vide et échéance horodatée ISO-8601 avec timezone, fournie par l'appelant, jamais générée par M2.
+
+Digest quotidien : produire_digest(date_jour, horodatage) accepte deux paramètres distincts. date_jour est la date calendaire cible du digest (filtre : leads en attente à cette date). horodatage est l'horodatage ISO-8601 avec timezone de production du digest lui-même, fourni par l'appelant, servant à horodater le maillon EVT-DIGEST inscrit au registre. Aucune horloge interne n'est consultée.
 
 5. Frontières de vérité
 
@@ -23,7 +39,33 @@ M2 ne stocke jamais de prix, de montant, ou de chiffre financier : ce domaine ap
 
 6. Critères d'acceptation testables
 
-CA-M2-01 : toute ingestion réussie d'un contrat LeadQualifie valide retourne un lead portant un statut appartenant à l'énumération fermée nouveau, qualifie, converti, perdu ; aucune ingestion ne produit un lead sans statut. CA-M2-02 : toute ingestion d'un contrat violant les frontières de vérité est rejetée avec le verdict REJ-FRONTIERE-VIOLEE et n'inscrit aucun maillon au registre. CA-M2-03 : la transition nouveau vers qualifie est rejetée si aucun owner humain n'est fourni. CA-M2-04 : la transition qualifie vers converti est rejetée si aucune référence de devis M3 n'est fournie. CA-M2-05 : la transition qualifie vers perdu et nouveau vers perdu sont rejetées si aucun motif n'est fourni. CA-M2-06 : toute transition non listée dans les transitions autorisées est rejetée avec verdict REJ-TRANSITION-ILLEGALE. CA-M2-07 : la détection de doublon potentiel signale sans fusionner ; le registre contient toujours les deux leads distincts après signalement. CA-M2-08 : la readiness gate retourne faux si l'une quelconque des quatre conditions n'est pas satisfaite. CA-M2-09 : le digest quotidien liste de manière déterministe et exhaustive tous les leads en statut nouveau ou qualifie, triés par date d'ingestion fournie par l'appelant. CA-M2-10 : le registre est hash-chaîné ; la vérification de la chaîne sur l'intégralité des maillons retourne vrai après toute séquence d'opérations valides. CA-M2-11 : toute fixture utilisée en test porte le marqueur fictif: true ; une fixture sans ce marqueur ou avec fictif: false est rejetée avant toute lecture.
+CA-M2-01 : toute ingestion réussie d'un contrat LeadQualifie valide retourne un lead portant un statut appartenant à l'énumération fermée {nouveau, qualifie, converti, perdu} ; aucune ingestion ne produit un lead sans statut.
+
+CA-M2-02 : toute ingestion d'un contrat violant les frontières de vérité est rejetée avec le verdict REJ-FRONTIERE-VIOLEE et n'inscrit aucun maillon au registre.
+
+CA-M2-03 : la transition nouveau vers qualifie est rejetée avec REJ-OWNER-ABSENT si aucun owner humain non vide n'est fourni, et avec REJ-ACTION-ABSENTE si aucune prochaine_action complète n'est fournie.
+
+CA-M2-04 : la transition qualifie vers converti est rejetée avec REJ-DEVIS-ABSENT si aucune reference_devis_m3 non vide n'est fournie. M2 ne valide que la présence d'une chaîne non vide, jamais le format ni l'existence du devis sous-jacent.
+
+CA-M2-05 : les transitions qualifie vers perdu et nouveau vers perdu sont rejetées avec REJ-MOTIF-ABSENT si aucun motif non vide n'est fourni.
+
+CA-M2-06 : toute transition non listée dans les transitions autorisées est rejetée avec REJ-TRANSITION-ILLEGALE et aucun maillon n'est écrit.
+
+CA-M2-07 : la détection de doublon potentiel signale sans fusionner ; le registre contient toujours les deux leads distincts après signalement ; aucune fonction de fusion n'existe dans l'arborescence du module.
+
+CA-M2-08 : la readiness gate retourne faux si l'une quelconque des quatre conditions n'est pas satisfaite, et retourne faux spécifiquement lorsque l'unique interaction humaine enregistrée porte un horodatage strictement antérieur à l'horodatage de transition vers qualifie (l'interaction doit être post-qualification).
+
+CA-M2-09 : le digest quotidien liste de manière déterministe et exhaustive tous les leads en statut nouveau ou qualifie, triés par date d'ingestion fournie par l'appelant, et produit un résultat identique entre deux exécutions successives avec les mêmes entrées.
+
+CA-M2-10 : le registre est hash-chaîné ; valider_chaine retourne vrai après toute séquence d'opérations valides et faux après altération, troncature ou réordonnancement d'un maillon.
+
+CA-M2-11 : toute fixture utilisée en test porte le marqueur fictif: true ; une fixture sans ce marqueur ou avec fictif: false est rejetée avant toute lecture.
+
+CA-M2-12 : le digest signale comme orphelin tout lead en statut nouveau dépourvu d'owner dont la date d'ingestion fournie par l'appelant précède de plus de 48 heures l'horodatage de production du digest ; ce comportement est vérifié avec une horloge entièrement injectée par l'appelant, sans aucun appel à datetime.now ni équivalent.
+
+CA-M2-13 : chaque fichier dupliqué depuis M1 (encodage.py, horodatage.py, registre.py) porte dans les tests M2 une empreinte sha256 attendue, déclarée comme constante littérale dans le fichier de test M2 lui-même (jamais lue depuis l'arborescence M1, afin de préserver l'absence de couplage inter-modules même en test). Un test miroir côté M1 vérifie symétriquement que ses propres fichiers produisent les mêmes empreintes. Toute divergence fait échouer la CI des deux côtés.
+
+CA-M2-14 : une suite de cas d'abus héritée de M1 (collisions par concaténation directe, horodatages invalides, mutations de chaîne, réordonnancements) est rejouée intégralement contre les implémentations M2, sans partage de code de production entre M1 et M2, et chaque cas produit le même verdict déterministe des deux côtés.
 
 7. Hors périmètre v1
 

@@ -93,18 +93,25 @@ Propriété prouvée par story. S001 : l'encodage est injectif (deux entrées di
 
 Invariants CI transversaux : zéro réseau (test d'absence d'imports socket/requests), zéro horloge interne (tout horodatage est un paramètre ; le test d'orphelin à 24h et 48h utilise une horloge injectée), zéro LLM (REJ-0040), énumérations fermées partout, aucun champ deviné, fixtures sans fictif: true refusées avant lecture (CA-M2-11), identifiants dérivés uniquement par encodage canonique injectif à préfixage par longueur. Justification : la concaténation directe est ambiguë et a causé des collisions réelles dans M1, leçon que M2 ne répétera pas.
 
-## 9. Découpage en stories
+9. Découpage en stories
 
-- M2-S001 (T1, dépendances : aucune) — utilitaires transversaux : encodage injectif, horodatage fourni, verdicts, validation de fixtures.
-- M2-S002 (T1, dépend : S001) — registre append-only hash-chaîné réimplémenté sur le patron M1 avec validation de chaîne.
-- M2-S003 (T1, dépend : S001, S002) — ingestion du contrat gelé LeadQualifie, frontières de vérité, statut nouveau, accusé.
-- M2-S004 (T1, dépend : S003) — machine à états des statuts, transitions conditionnées, états terminaux figés.
-- M2-S005 (T1, dépend : S004) — interactions humaines post-qualification, readiness gate pure et marqueur signé vérifiable par M3.
-- M2-S006 (T2, dépend : S003) — détection de doublons avec signalement et arbitrage humain, sans aucune fusion.
-- M2-S007 (T2, dépend : S004, S005, S006) — digest quotidien déterministe hash-chaîné des leads en attente, orphelins et doublons.
-- M2-S008 (T2, dépend : S003) — adaptateurs in-memory fail-closed simulant l'écriture CRM tiers, GATED hors mode ombre.
+- M2-S001 (T1, dépendances : aucune) — utilitaires transversaux : encodage canonique injectif à préfixage par longueur, validation d'horodatage ISO-8601 avec timezone et refus explicite, catalogue de verdicts stables, validation fail-closed des fixtures exigeant fictif: true. Porte CA-M2-11. Porte également CA-M2-13 (empreintes sha256 attendues des fichiers dupliqués, déclarées comme constantes littérales dans les tests M2) et CA-M2-14 (suite de cas d'abus héritée de M1 rejouée contre les implémentations M2 d'encodage, d'horodatage et de registre).
 
-Justification de l'ordonnancement : chaque story ne dépend que de stories déjà prouvées, ce qui permet à la gate CI de valider le module incrémentalement sans jamais tester au-dessus d'un vide.
+- M2-S002 (T1, dépend : S001) — registre append-only hash-chaîné réimplémenté sur le patron M1, API ajouter/lire/tete/valider_chaine/assert_chaine/taille. Porte CA-M2-10. Les cas d'abus de chaîne (mutation, troncature, réordonnancement) sont rejoués ici au titre de CA-M2-14.
+
+- M2-S003 (T1, dépend : S001, S002) — ingestion du contrat gelé LeadQualifie, validation structurelle, vérification des frontières de vérité, inscription au statut nouveau, accusé de réception portant lead_id et hash du maillon. Porte CA-M2-01 et CA-M2-02.
+
+- M2-S004 (T1, dépend : S003) — machine à états des quatre statuts, transitions conditionnées avec verdicts spécifiques (REJ-OWNER-ABSENT, REJ-ACTION-ABSENTE, REJ-DEVIS-ABSENT, REJ-MOTIF-ABSENT), rejet des chemins interdits avec REJ-TRANSITION-ILLEGALE, états terminaux figés avec REJ-CONVERSATION-CLOSE. Porte CA-M2-03, CA-M2-04, CA-M2-05, CA-M2-06. La reference_devis_m3 est acceptée comme chaîne opaque non vide émise par l'appelant humain, jamais fabriquée ni validée structurellement par M2.
+
+- M2-S005 (T1, dépend : S004) — enregistrement des interactions humaines post-qualification, readiness gate comme fonction booléenne pure exigeant une interaction dont l'horodatage est postérieur ou égal à celui de la transition vers qualifie, émission du marqueur signé vérifiable par recalcul. Porte CA-M2-08.
+
+- M2-S006 (T2, dépend : S003) — détection de doublons potentiels sur le critère contact identique OU ville-et-travaux dans une fenêtre glissante de 7 jours calendaires calculée sur les dates d'ingestion fournies par l'appelant, signalement sans fusion, arbitrage humain enregistré comme décision. Porte CA-M2-07. Aucune fonction de fusion n'existe dans l'arborescence.
+
+- M2-S007 (T2, dépend : S004, S005, S006) — digest quotidien déterministe hash-chaîné des leads en attente, orphelins et doublons en attente. Sémantique des deux paramètres de produire_digest : date_jour est la date calendaire cible du digest, horodatage est l'horodatage ISO-8601 avec timezone de production du digest fourni par l'appelant. Porte CA-M2-09 et CA-M2-12 (signalement des leads orphelins après 48 heures simulées, horloge entièrement injectée).
+
+- M2-S008 (T2, dépend : S003) — adaptateurs in-memory fail-closed simulant l'écriture vers un CRM tiers, GATED hors mode ombre, tout appel hors mode ombre lève REJ-ADAPTATEUR-INDISPONIBLE.
+
+Justification de l'ordonnancement : chaque story ne dépend que de stories déjà prouvées, ce qui permet à la gate CI de valider le module incrémentalement sans jamais tester au-dessus d'un vide. Les obligations de l'addendum D3 (empreintes épinglées et suite de conformité rejouée) sont portées explicitement par S001 et S002 via CA-M2-13 et CA-M2-14, ce qui garantit leur implémentation et leur vérification en CI sans introduire de dépendance de M2 vers l'arborescence de M1, même en test : les empreintes attendues sont des constantes littérales dans les tests M2, et un test miroir côté M1 vérifie symétriquement la même propriété.
 
 ---
 
