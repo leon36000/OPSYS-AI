@@ -271,3 +271,84 @@ class TestZeroReseau:
         source = inspect.getsource(digest)
         for forbidden in ("urllib", "socket", "http.client"):
             assert forbidden not in source, f"digest utilise {forbidden}"
+
+
+import sys
+from pathlib import Path
+
+_SRC = Path(__file__).resolve().parents[1] / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
+
+import digest
+import adaptateurs
+import garde_fou
+
+
+ENTREES_SENSIBLES = [
+    {
+        "canal": "telephone",
+        "type_entree": "signal",
+        "payload": {"prix": 15000, "date_engagement": "2025-06-30"},
+    },
+    {
+        "canal": "courriel",
+        "type_entree": "lead_emis",
+        "payload": {"montant": 12345, "echeance": "2025-08-15"},
+    },
+]
+
+
+# ------------------------------------------------------------------ #
+# correctif 1 : collision d'identifiants dans le bus
+# ------------------------------------------------------------------ #
+def test_ids_bus_injectifs():
+    bus = adaptateurs.creer_bus()
+    id1 = bus.emettre('a|b', 'c')
+    id2 = bus.emettre('a', 'b|c')
+    assert id1 != id2
+
+
+# ------------------------------------------------------------------ #
+# correctif 2 : entrées non classées comptées
+# ------------------------------------------------------------------ #
+def test_entrees_non_classees_comptees():
+    entrees = [
+        {"canal": "INCONNU", "type_entree": "signal"},
+        {"canal": "telephone", "type_entree": "TYPE_INCONNU"},
+        {"canal": "formulaire", "type_entree": "alerte"},  # valide
+    ]
+    result = digest.produire_digest(entrees, "2025-01-01")
+    assert "entrées non classées : 2" in result
+
+    entrees_ok = [{"canal": "courriel", "type_entree": "transition_phase"}]
+    result_ok = digest.produire_digest(entrees_ok, "2025-01-01")
+    assert "entrées non classées : 0" in result_ok
+
+
+# ------------------------------------------------------------------ #
+# correctif 3 : objet non sérialisable
+# ------------------------------------------------------------------ #
+def test_proposer_objet_non_serialisable():
+    eng = adaptateurs.creer_approval_engine()
+    id1 = eng.proposer({'x': {1, 2}}, 'alice')
+    assert isinstance(id1, str)
+    id2 = eng.proposer({'x': {1, 2}}, 'alice')
+    assert id1 == id2
+
+
+# ------------------------------------------------------------------ #
+# correctif 5 : test d'absence des données payload + garde-fou
+# ------------------------------------------------------------------ #
+def test_prix_et_engagement_absents_du_texte_et_garde_fou():
+    digest_txt = digest.produire_digest(ENTREES_SENSIBLES, "2025-04-01")
+    # Aucune fuite de montants ou de dates issues des payloads
+    assert "15000" not in digest_txt
+    assert "12345" not in digest_txt
+    assert "2025-06-30" not in digest_txt
+    assert "2025-08-15" not in digest_txt
+    # La date de référence est bien présente dans l'en-tête
+    assert "2025-04-01" in digest_txt
+    # Le digest doit passer le garde-fou
+    verdict = garde_fou.verifier_sortie(digest_txt)
+    assert verdict["code"] == "OK"
