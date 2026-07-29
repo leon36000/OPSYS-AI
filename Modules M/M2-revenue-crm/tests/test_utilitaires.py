@@ -217,6 +217,42 @@ class TestFixturesGarde:
             f"Le fichier de fixture doit exister encore après le refus : {chemin}"
         )
 
+    @pytest.mark.parametrize(
+        "contenu,description",
+        [
+            ([1, 2, 3], "document liste"),
+            ("chaine nue", "document chaîne nue"),
+            (None, "document nul"),
+        ],
+        ids=["document_liste", "document_chaine_nue", "document_nul"],
+    )
+    def test_refuse_document_non_dictionnaire(
+        self, ecrire_fixture, contenu, description
+    ):
+        """
+        Un document YAML qui n'est pas un dictionnaire (liste, chaîne nue,
+        document nul) ne peut pas porter la clé « fictif » : le chargement
+        doit lever FixtureNonFictive, le message doit porter le code stable
+        REJ-FIXTURE-NON-FICTIVE et expliquer le refus, et le fichier doit
+        rester en place.
+        """
+        chemin = ecrire_fixture("fixture_non_dict.yaml", contenu)
+        with pytest.raises(fixtures_garde.FixtureNonFictive) as excinfo:
+            fixtures_garde.charger_fixture(chemin)
+        message = str(excinfo.value)
+        assert "REJ-FIXTURE-NON-FICTIVE" in message, (
+            f"Cas {description} : le message de refus doit contenir le "
+            f"code stable REJ-FIXTURE-NON-FICTIVE, obtenu : {message!r}"
+        )
+        assert len(message) > len("REJ-FIXTURE-NON-FICTIVE"), (
+            f"Cas {description} : le message de refus doit expliquer et "
+            f"non se limiter au seul code stable, obtenu : {message!r}"
+        )
+        assert chemin.exists(), (
+            f"Cas {description} : le fichier de fixture doit rester en "
+            f"place après le refus : {chemin}"
+        )
+
 # ----------------------------------------------------------------------
 # 5. Zéro réseau / horloge / LLM dans les sources des modules
 # ----------------------------------------------------------------------
@@ -946,26 +982,43 @@ class TestCatalogueCoherentAvecLeCadrage:
         )
         return set(re.findall(r"REJ-[A-Z0-9-]+", corpus))
 
+    # Le fichier du catalogue est exclu des sources inspectées : il *est* le
+    # catalogue et ne s'émet pas lui-même, sinon tout code inventé dans le
+    # catalogue s'auto-justifierait par sa seule présence dans ce fichier.
+    FICHIER_CATALOGUE = "verdicts.py"
+
     def _identifiants_emis_par_les_sources(self):
         """
-        Retourne le couple (ensemble des identifiants REJ- émis par les
-        sources du module, nombre de fichiers sources lus). Le compteur
-        accompagne l'ensemble pour que chaque appelant puisse asserter que
-        la lecture n'a pas été vide : sans lui, un glob silencieusement vide
-        produirait un ensemble de codes vide indistinguable d'un module qui
-        n'émettrait aucun rejet, et les gardes fondées sur cette extraction
-        passeraient à vide sans rien prouver.
+        Retourne le couple (ensemble des identifiants de verdict émis par
+        les sources de src/, nombre de fichiers retenus après exclusion).
+
+        Le fichier FICHIER_CATALOGUE est exclu du périmètre : il déclare le
+        catalogue au lieu d'émettre des verdicts. Sa présence parmi les
+        fichiers lus est vérifiée AVANT exclusion, afin qu'un renommage ne
+        fasse pas disparaître l'exclusion en silence.
         """
         import re
 
         src = Path(__file__).resolve().parents[1] / "src"
         fichiers = sorted(src.glob("*.py"))
+        noms_avant_exclusion = {chemin.name for chemin in fichiers}
+        assert self.FICHIER_CATALOGUE in noms_avant_exclusion, (
+            f"{self.FICHIER_CATALOGUE} introuvable parmi les sources de "
+            f"{src} : un renommage du fichier catalogue ferait disparaître "
+            "l'exclusion en silence et tout code inventé s'auto-justifierait."
+        )
+        fichiers = [
+            chemin
+            for chemin in fichiers
+            if chemin.name != self.FICHIER_CATALOGUE
+        ]
         codes_emis = set()
-        for fichier in fichiers:
-            texte = fichier.read_text(encoding="utf-8")
-            codes_emis.update(re.findall(r"REJ-[A-Z0-9-]+", texte))
+        for chemin in fichiers:
+            texte = chemin.read_text(encoding="utf-8")
+            codes_emis.update(
+                re.findall(r"REJ-[A-Z0-9]+(?:-[A-Z0-9]+)*", texte)
+            )
         return codes_emis, len(fichiers)
-
     def test_tout_code_prescrit_par_le_cadrage_est_au_catalogue(self):
         """
         Tout identifiant REJ-* prescrit par les documents ratifiés, hors
