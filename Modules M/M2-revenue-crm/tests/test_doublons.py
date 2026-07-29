@@ -460,6 +460,38 @@ class TestArbitrage:
         assert accuse_arb["signalement_id"] == signalement_id, \
             "l'accusé d'arbitrage ne contient pas le bon signalement_id"
 
+    def test_arbitrer_horodatage_invalide_rejete(self):
+        """arbitrer avec un horodatage invalide -> REJ-HORODATAGE-INVALIDE, rien écrit."""
+        reg = registre.Registre()
+        h = "2026-04-09T10:00:00+00:00"
+        ingerer_lead(reg, "H1", h)
+        ingerer_lead(reg, "H2", h)
+        sig, _ = doublons.signaler(reg, "H1", "H2", h)
+        taille_avant = reg.taille()
+        accuse, verdict = doublons.arbitrer(reg, sig["signalement_id"],
+                                            "distincts_confirmes", "pas-une-date")
+        assert accuse is None, "aucun accusé sur horodatage invalide"
+        assert verdict["code"] == "REJ-HORODATAGE-INVALIDE", (
+            f"attendu REJ-HORODATAGE-INVALIDE, reçu {verdict['code']}"
+        )
+        assert reg.taille() == taille_avant, "aucun maillon ne doit être écrit"
+
+    def test_arbitrer_signalement_inconnu_rejete(self):
+        """arbitrer sur un signalement_id inexistant -> REJ-TRANSITION-ILLEGALE, rien écrit."""
+        reg = registre.Registre()
+        h = "2026-04-09T11:00:00+00:00"
+        ingerer_lead(reg, "K1", h)
+        ingerer_lead(reg, "K2", h)
+        doublons.signaler(reg, "K1", "K2", h)
+        taille_avant = reg.taille()
+        accuse, verdict = doublons.arbitrer(reg, "signalement-inexistant-xyz",
+                                            "distincts_confirmes", h)
+        assert accuse is None, "aucun accusé pour un signalement inconnu"
+        assert verdict["code"] == "REJ-TRANSITION-ILLEGALE", (
+            f"attendu REJ-TRANSITION-ILLEGALE, reçu {verdict['code']}"
+        )
+        assert reg.taille() == taille_avant, "aucun maillon ne doit être écrit"
+
 
 class TestAntiFusionArchitecturale:
     """Garantie qu'aucune fonction de fusion n'existe dans le module (CA-M2-07)."""
