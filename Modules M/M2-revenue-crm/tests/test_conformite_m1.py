@@ -44,24 +44,35 @@ class TestCA_M2_13_Empreintes:
         )
 
     def test_aucune_reference_a_un_module_voisin(self):
-        contenu = Path(__file__).read_text(encoding="utf-8")
-        # Construction dynamique pour éviter toute occurrence littérale de la chaîne interdite
-        interdit = "M1" + "-" + "front" + "-" + "office"
-        assert interdit not in contenu, (
-            "Le fichier de test M2 ne doit contenir aucune chaîne interdite"
-        )
-        # Vérification supplémentaire : pas d’accès relatif (..) visant un module interdit
+        base = Path(__file__).resolve().parents[1]
+        sources = list(base.glob("src/**/*.py")) + list(base.glob("tests/**/*.py"))
+        # Construction dynamique pour eviter toute occurrence litterale des chaines interdites
+        interdit = "M1" + "-front" + "-office"
         prefixe_mod = "M" + "1"
-        for ligne in contenu.splitlines():
-            if ".." in ligne and prefixe_mod in ligne:
-                raise AssertionError(
-                    "Le fichier de test M2 ne doit pas contenir de chemin relatif "
-                    "pointant vers un module interdit"
-                )
+        remontee = "." * 2
+        inspected = 0
+        for chemin_fichier in sources:
+            contenu = chemin_fichier.read_text(encoding="utf-8")
+            inspected += 1
+            assert interdit not in contenu, (
+                f"Fichier {chemin_fichier} contient la chaine interdite"
+            )
+            for ligne in contenu.splitlines():
+                stripped = ligne.strip()
+                # Import d'un module voisin interdit
+                if stripped.startswith(("import ", "from ")) and prefixe_mod in stripped:
+                    raise AssertionError(
+                        f"Fichier {chemin_fichier} contient un import interdit {prefixe_mod}"
+                    )
+                # Import relatif parent prohibe
+                if stripped.startswith("from " + remontee):
+                    raise AssertionError(
+                        f"Fichier {chemin_fichier} contient un chemin relatif "
+                        + remontee
+                        + " interdit"
+                    )
+        assert inspected >= 4, f"Seulement {inspected} fichiers inspectes, test vide suspect"
 
-# ----------------------------------------------------------------------
-# CA-M2-14 — Suite de cas d'abus héritée de M1, rejouée contre M2
-# ----------------------------------------------------------------------
 class TestCA_M2_14_Abus:
     # 1. Collisions par concaténation directe (identique à test_utilitaires)
     def test_collision_concatenation_ab_x_vs_a_bx(self):
@@ -133,12 +144,30 @@ print(encodage.encoder_canonique(donnees))
         assert v1 == v2, "L'encodage d'un dict ne doit pas dépendre de l'ordre des clés"
 
     # 5. Cohérence supplémentaire : séquence et set produisent même résultat si trié
-    def test_set_et_liste_triee_produisent_meme_encodage(self):
-        # suppose que l'encodage accepte un set comme un argument unique,
-        # et qu'il le traite de manière canonique (triée)
-        v_set = encodage.encoder_canonique({"b", "a", "c"})
-        v_liste = encodage.encoder_canonique(["a", "b", "c"])
-        # Les deux doivent être égaux si l'encodage canonique traite le set comme une liste triée
-        assert v_set == v_liste, (
-            "L'encodage d'un set doit être identique à celui de sa liste triée"
+    def test_set_et_liste_ne_collisionnent_pas(self):
+        # Différents types ⇒ empreintes différentes
+        emp_set = encodage.encoder_canonique({"b", "a", "c"})
+        emp_list = encodage.encoder_canonique(["a", "b", "c"])
+        assert emp_set != emp_list, (
+            "Les empreintes d'un set et d'une liste doivent être distinctes"
         )
+        # L’ordre du set n’a aucun impact (canonicité préservée)
+        emp_set_alt = encodage.encoder_canonique({"c", "b", "a"})
+        assert emp_set == emp_set_alt, (
+            "L'encodage d'un set doit être indépendant de son ordre d'insertion"
+        )
+
+class TestInjectivite:
+    def test_types_distincts_ne_collisionnent_pas(self):
+        cas = [
+            ({"a"}, ["a"], "set {'a'} vs list ['a']"),
+            ({"b", "c"}, ["b", "c"], "set {'b','c'} vs list ['b','c']"),
+            ({"a": 1}, [["a", 1]], "dict {'a':1} vs list de couple [['a',1]]"),
+            ({"x": "y"}, [["x", "y"]], "dict {'x':'y'} vs list de couple [['x','y']]"),
+            ((1, 2), [1, 2], "tuple (1,2) vs list [1,2]"),
+            ((3, 4), [3, 4], "tuple (3,4) vs list [3,4]"),
+        ]
+        for entree1, entree2, desc in cas:
+            emp1 = encodage.encoder_canonique(entree1)
+            emp2 = encodage.encoder_canonique(entree2)
+            assert emp1 != emp2, f"Collision détectée pour {desc} : {emp1}"
