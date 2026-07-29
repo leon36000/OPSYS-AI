@@ -767,6 +767,102 @@ class TestMarqueur:
             "le registre ne doit pas être modifié par un horodatage invalide"
         )
 
+    def test_marqueur_forge_pour_lead_non_pret_rejete(self):
+        """
+        Verrou R-M2-004 côté vérificateur : un marqueur forgé avec une empreinte
+        auto-cohérente doit être rejeté par le recoupement des conditions RÉELLES
+        du registre. Sans ce test, retirer le bloc de recoupement ne rend aucun
+        test rouge et la forge réussit (mesuré).
+        """
+        # 1) Registre neuf, ingestion du lead LX à 09:00+02:00
+        reg = registre.Registre()
+        contrat = contrat_valide(lead_id="LX")
+        acc_i, _ = ingestion.ingerer(contrat, reg, "2026-03-01T09:00:00+02:00")
+        assert acc_i is not None, "pré-condition : ingestion du lead"
+        # 2) Transition vers qualifie à 10:00+02:00, owner "Alice", prochaine action complète.
+        #    AUCUNE interaction n'est enregistrée : la gate sera réellement fausse.
+        acc_t, _ = statuts.transitionner(
+            "LX", "qualifie", reg, "2026-03-01T10:00:00+02:00",
+            owner="Alice",
+            prochaine_action={"description": "Appeler", "echeance": "2026-03-02T09:00:00+02:00"},
+        )
+        assert acc_t is not None, "pré-condition : transition vers qualifie"
+        # Pré-condition : le lead n'est pas prêt
+        assert readiness.evaluer(reg, "LX") is False
+
+        # 3) Forger un marqueur comme un attaquant qui connaît le contrat documenté
+        conditions_forgees = {
+            "owner": "Alice",
+            "type_travaux": "renovation_totale",
+            "ville": "Paris",
+            "interaction_post_qualification": True,
+        }
+        faux = {
+            "readiness_ok": True,
+            "lead_id": "LX",
+            "hash_tete_registre": reg.tete(),
+            "horodatage": "2026-03-01T12:00:00+02:00",
+            "empreinte": encodage.encoder_canonique(
+                conditions_forgees, "LX", reg.tete()
+            ),
+        }
+
+        # 4) Vérification : doit être rejeté (False)
+        assert (
+            readiness.verifier_marqueur(faux, reg) is False
+        ), "un marqueur forgé avec une empreinte auto-cohérente doit être rejeté"
+
+    def test_detail_du_verdict_de_rejet_est_actionnable(self):
+        """
+        Sur un lead qualifié sans interaction, le rejet doit comporter un détail
+        non vide, seul garant d’un digest d’erreurs actionnable. La prose exacte
+        n’est pas testée.
+        """
+        reg = registre_qualifie(lead_id="LX")  # lead qualifié, sans interaction
+        _, verdict = readiness.emettre_marqueur(reg, "LX", "2026-03-01T12:00:00+02:00")
+        assert verdict is not None
+        assert verdict["code"] == "REJ-TRANSITION-ILLEGALE"
+        detail = verdict.get("detail", "")
+        assert isinstance(detail, str)
+        assert len(detail) > 0, "le détail du verdict doit être non vide pour être actionnable"
+
+    @pytest.mark.parametrize(
+        "marqueur_casse",
+        [
+            None,
+            [],
+            {},
+            {"readiness_ok": True, "lead_id": "LX", "hash_tete_registre": 12345},
+            {"readiness_ok": True, "lead_id": "LX", "horodatage": "2026-03-01T12:00:00+02:00", "empreinte": None},
+        ],
+        ids=[
+            "None",
+            "liste_vide",
+            "dict_sans_hash_ni_empreinte",
+            "hash_entier_type_casse",
+            "empreinte_None",
+        ],
+    )
+    def test_verifier_marqueur_fail_closed_sur_entrees_cassees(self, marqueur_casse):
+        """
+        Le vérificateur est fail-closed : toute entrée corrompue ou incomplète
+        retourne False sans lever d’exception.
+        """
+        # Construire un registre avec un lead qualifié ET une interaction
+        reg = registre_qualifie(lead_id="LX")
+        acc, _ = interactions.enregistrer(
+            "LX", "Agent", "discussion devis", reg, "2026-03-01T13:00:00+02:00"
+        )
+        assert acc is not None, "pré-condition : interaction enregistrée"
+        # Par précaution, vérifier que le lead est bien prêt
+        assert readiness.evaluer(reg, "LX") is True
+
+        try:
+            resultat = readiness.verifier_marqueur(marqueur_casse, reg)
+        except Exception as e:
+            pytest.fail(f"verifier_marqueur a levé une exception inattendue : {e}")
+        assert resultat is False, "une entrée cassée doit retourner False, fail-closed"
+
 
 # --------------------------------------------------------- TestInvariantsReadiness
 class TestInvariantsReadiness:
