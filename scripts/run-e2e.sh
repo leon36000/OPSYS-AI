@@ -6,6 +6,49 @@ E2E_DIR="${REPO_ROOT}/tests/e2e"
 K6_SCRIPT="${E2E_DIR}/k6/brand_smoke.js"
 BRAND_SERVER="${REPO_ROOT}/Modules M/M7-marketing/src/brand/brand_server.py"
 
+# Variables partagées avec le trap EXIT/INT/TERM.
+# Elles NE PEUVENT PAS être 'local' dans une fonction car le trap s'exécute
+# après le retour de cette fonction (shell exit), ce qui provoquerait une
+# erreur "unbound variable" sous 'set -u'.
+SERVER_PID=""
+SERVER_LOG=""
+
+# ----------------------------------------------------------------------
+# Nettoyage du serveur (idempotent, robuste sous set -u)
+# ----------------------------------------------------------------------
+arreter_serveur() {
+  # Si aucun serveur n'a été lancé, rien à faire.
+  if [ -z "${SERVER_PID:-}" ]; then
+    return 0
+  fi
+
+  # Tenter un kill doux puis attendre jusqu'à ~5s.
+  if kill -0 "${SERVER_PID}" 2>/dev/null; then
+    kill "${SERVER_PID}" 2>/dev/null || true
+    local waited=0
+    while kill -0 "${SERVER_PID}" 2>/dev/null && (( waited < 50 )); do
+      sleep 0.1
+      waited=$((waited + 1))
+    done
+    # Si toujours vivant, forcer.
+    kill -9 "${SERVER_PID}" 2>/dev/null || true
+    wait "${SERVER_PID}" 2>/dev/null || true
+  fi
+  SERVER_PID=""
+
+  # Nettoyer le fichier temporaire de log.
+  if [ -n "${SERVER_LOG:-}" ]; then
+    rm -f "${SERVER_LOG}"
+    SERVER_LOG=""
+  fi
+}
+
+# Poser le piège une fois pour toutes, avant toute exécution.
+trap arreter_serveur EXIT INT TERM
+
+# ----------------------------------------------------------------------
+# Fonctions utilitaires
+# ----------------------------------------------------------------------
 run_python_e2e() {
   python3 -m pytest "${E2E_DIR}" -q
 }
@@ -16,7 +59,7 @@ run_k6() {
     return 0
   fi
 
-  local PORT BASE_URL SERVER_PID SERVER_LOG
+  local PORT BASE_URL
   PORT="$(python3 - <<'PY'
 import socket
 s = socket.socket()
@@ -30,20 +73,6 @@ PY
 
   python3 "${BRAND_SERVER}" "${PORT}" >"${SERVER_LOG}" 2>&1 </dev/null &
   SERVER_PID=$!
-
-  cleanup() {
-    if kill -0 "${SERVER_PID}" 2>/dev/null; then
-      kill "${SERVER_PID}" 2>/dev/null || true
-      local waited=0
-      while kill -0 "${SERVER_PID}" 2>/dev/null && (( waited < 50 )); do
-        sleep 0.1
-        waited=$((waited + 1))
-      done
-      kill -9 "${SERVER_PID}" 2>/dev/null || true
-      wait "${SERVER_PID}" 2>/dev/null || true
-    fi
-  }
-  trap cleanup EXIT INT TERM
 
   local deadline
   deadline=$((SECONDS + 30))
@@ -63,6 +92,9 @@ PY
     fi
     if (( SECONDS >= deadline )); then
       echo "ERREUR: serveur non prêt après 30s" >&2
+      echo "--- Contenu de ${SERVER_LOG} ---" >&2
+      cat "${SERVER_LOG}" >&2
+      arreter_serveur
       return 20
     fi
     sleep 0.1
@@ -70,8 +102,13 @@ PY
 
   export BASE_URL
   if ! k6 run "${K6_SCRIPT}"; then
+    echo "--- Contenu de ${SERVER_LOG} ---" >&2
+    cat "${SERVER_LOG}" >&2
+    arreter_serveur
     return 20
   fi
+
+  arreter_serveur
   return 0
 }
 
