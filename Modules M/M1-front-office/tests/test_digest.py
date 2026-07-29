@@ -47,7 +47,10 @@ ENTREES_SENSIBLES = [
     _entree_minimale("signal", "telephone", payload="Remise 5% si signé avant le 2025-06-30"),
     _entree_minimale("lead_emis", "courriel", payload="budget 15000 euros, livraison juin 2025"),
     _entree_minimale("chiffrage_emis", "courriel", payload="prix total 12345 EUR TTC"),
+    _entree_minimale("lead_emis", "formulaire", payload="Devis 10000€ pour travaux avant 15/08/2025"),
+    _entree_minimale("signal", "sms", payload="Promotion 2000 euros pour signature avant le 30/09/2025"),
 ]
+
 
 
 # ------------------------------------------------------------------ #
@@ -145,6 +148,8 @@ class TestAgregatsCanalEtType:
 
         assert verifications == 20, f"Seulement {verifications} vérifications effectuées, 20 attendues"
 
+
+
 class TestGardeFou:
     def test_passe_garde_fou_malgre_donnees_sensibles(self):
         digest_txt = digest.produire_digest(ENTREES_SENSIBLES, "2025-04-01")
@@ -153,10 +158,14 @@ class TestGardeFou:
 
     def test_prix_et_engagement_absents_du_texte(self):
         digest_txt = digest.produire_digest(ENTREES_SENSIBLES, "2025-04-01")
-        # Vérification ultra-stricte : pas de mention numérique de montants ni de dates
-        assert "15000" not in digest_txt
-        assert "2025-06-30" not in digest_txt
-        assert "12345" not in digest_txt
+        motifs_interdits = [
+            "15000", "12345", "5%", "2025-06-30", "2025-08-15", "2025-09-30",
+            "juin 2025", "Remise", "budget", "prix total", "10000", "2000", "15/08/2025",
+            "30/09/2025", "euros"
+        ]
+        for motif in motifs_interdits:
+            assert motif not in digest_txt, f"Le motif sensible '{motif}' est présent dans le digest"
+        assert len(motifs_interdits) >= 8, "Nombre de motifs vérifiés insuffisant"
 
 
 class TestDigestVide:
@@ -285,18 +294,6 @@ import adaptateurs
 import garde_fou
 
 
-ENTREES_SENSIBLES = [
-    {
-        "canal": "telephone",
-        "type_entree": "signal",
-        "payload": {"prix": 15000, "date_engagement": "2025-06-30"},
-    },
-    {
-        "canal": "courriel",
-        "type_entree": "lead_emis",
-        "payload": {"montant": 12345, "echeance": "2025-08-15"},
-    },
-]
 
 
 # ------------------------------------------------------------------ #
