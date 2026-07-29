@@ -255,3 +255,68 @@ def test_mille_sequences_aleatoires_zero_phase_sautee():
             dernier = numeros[-1]
             assert statuts[dernier] == "close_erreur"
     assert violations_detectees > 0, "Aucune violation détectée, le test ne prouve rien"
+
+
+import sys
+from pathlib import Path
+
+# Assure que le répertoire src/ est dans le path pour importer phases_voix, registre, etc.
+_M7 = Path(__file__).resolve().parents[2]  # remonte à la racine du projet
+_SRC = _M7 / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
+
+import phases_voix
+import verdicts
+from registre import Registre
+
+
+class TestAbandonRegistre:
+
+    def test_abandon_ecrit_entree_registre_chainee(self):
+        """Après 2 transitions, un abandon écrit exactement 1 entrée transition_phase
+        avec motif=abandon, chaînée correctement, et valider_chaine() est vraie."""
+        registre = Registre()
+        conv = phases_voix.ouvrir_conversation("signal-ab", "2026-07-26T12:00:00Z", registre)
+        phases_voix.transitionner(conv, 1, "2026-07-26T12:01:00Z", registre)
+        phases_voix.transitionner(conv, 2, "2026-07-26T12:02:00Z", registre)
+
+        # Mémoriser la taille actuelle du registre (entrées de transition précédentes)
+        nb_avant = len(registre.lire(None))
+
+        verdict = phases_voix.abandonner(conv, "2026-07-26T12:03:00Z", registre)
+        assert verdict == verdicts.construire_verdict("OK")
+
+        entrees = registre.lire(None)
+        nb_apres = len(entrees)
+        assert nb_apres == nb_avant + 1
+
+        derniere_entree = entrees[-1]
+        assert derniere_entree["type_entree"] == "transition_phase"
+        assert derniere_entree["payload"]["motif"] == "abandon"
+        assert derniere_entree["payload"]["phase_source"] == 2
+        assert derniere_entree["payload"]["phase_cible"] == 5
+        assert derniere_entree["payload"]["conversation_id"] == conv["conversation_id"]
+
+        # Vérification du chaînage
+        avant_derniere = entrees[-2]
+        assert derniere_entree["precedent_ligne_id"] == avant_derniere["ligne_id"]
+
+        # L'intégrité globale doit être conservée
+        assert registre.valider_chaine()
+
+    def test_abandon_refuse_n_ecrit_rien(self):
+        """Un second abandon sur une conversation déjà close n'écrit rien."""
+        registre = Registre()
+        conv = phases_voix.ouvrir_conversation("signal-ab2", "2026-07-26T12:00:00Z", registre)
+        # Premier abandon (réussi)
+        phases_voix.abandonner(conv, "2026-07-26T12:01:00Z", registre)
+
+        nb_avant = len(registre.lire(None))
+
+        # Second abandon (doit être refusé)
+        verdict = phases_voix.abandonner(conv, "2026-07-26T12:02:00Z", registre)
+        assert verdict["code"] != "OK"
+
+        nb_apres = len(registre.lire(None))
+        assert nb_apres == nb_avant, "Le registre ne doit pas contenir de nouvelle entrée après un abandon refusé"

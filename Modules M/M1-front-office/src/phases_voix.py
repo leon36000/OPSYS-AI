@@ -148,4 +148,19 @@ def abandonner(conversation, horodatage, registre: Registre):
     conversation["phases"].append(phase_cloture)
     conversation["statut"] = "close_abandon"
 
+    # Écriture de l'entrée registre pour l'abandon
+    entree_abandon = {
+        "type_entree": "transition_phase",
+        "horodatage": horodatage,
+        "precedent_ligne_id": conversation["dernier_ligne_id"],
+        "payload": {
+            "conversation_id": conversation["conversation_id"],
+            "phase_source": phase_courante,
+            "phase_cible": 5,
+            "motif": "abandon",
+        },
+    }
+    nouveau_ligne_id = registre.ajouter(entree_abandon)
+    conversation["dernier_ligne_id"] = nouveau_ligne_id
+
     return verdicts.construire_verdict("OK")
