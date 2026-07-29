@@ -305,3 +305,583 @@ def test_familles_de_collision_classiques(v1, v2):
         f"Collision inattendue : {v1!r} (type {type(v1).__name__}) et "
         f"{v2!r} (type {type(v2).__name__}) ont la même empreinte {e1!r}"
     )
+
+
+class TestEncodageRefusTypesNonCanoniques:
+    def test_objet_quelconque_refuse(self):
+        class TypeNonCanonique:
+            pass
+        obj = TypeNonCanonique()
+        with pytest.raises(TypeError, match="TypeNonCanonique"):
+            encodage.encoder_canonique(obj)
+
+    @pytest.mark.parametrize("fabrique", [
+        lambda obj: [obj],
+        lambda obj: {"a": obj},
+        lambda obj: (obj,)
+    ])
+    def test_valeur_non_supportee_imbriquee_refusee(self, fabrique):
+        class ObjetNonCanonique:
+            pass
+        obj = ObjetNonCanonique()
+        structure = fabrique(obj)
+        with pytest.raises(TypeError):
+            encodage.encoder_canonique(structure)
+
+    def test_types_supportes_toujours_acceptes(self):
+        data = {
+            "str": "hello",
+            "int": 42,
+            "float": 3.14,
+            "bool": True,
+            "none": None,
+            "list": [1, "a"],
+            "tuple": (2, "b"),
+            "set": {3, 4},
+            "frozenset": frozenset([5, 6]),
+            "nested": {"inner_list": [7, 8]},
+        }
+        result = encodage.encoder_canonique(data)
+        assert isinstance(result, str), "Résultat doit être une chaîne"
+        assert len(result) == 64, "Empreinte SHA-256 a 64 caractères hex"
+        assert all(c in "0123456789abcdef" for c in result), "Caractères hexadécimaux attendus"
+
+    def test_refus_explicite_plutot_que_hash_non_reproductible(self):
+        class ObjetNonCanonique:
+            pass
+        a = ObjetNonCanonique()
+        b = ObjetNonCanonique()
+        with pytest.raises(TypeError):
+            encodage.encoder_canonique(a)
+        with pytest.raises(TypeError):
+            encodage.encoder_canonique(b)
+
+
+class TestEncodageTypesStandards:
+    """Vérifie le support typé explicite des types standards dans l'encodage canonique."""
+
+    @pytest.mark.parametrize(
+        "nom_type",
+        ["decimal", "datetime", "date", "time", "uuid", "bytes", "bytearray", "complex"],
+        ids=["decimal", "datetime", "date", "time", "uuid", "bytes", "bytearray", "complex"],
+    )
+    def test_types_standards_acceptes(self, nom_type):
+        """Chacun des 8 types standards supportés produit une empreinte hexadécimale de 64 caractères."""
+        from decimal import Decimal
+        from datetime import date, datetime, time
+        from uuid import UUID
+        valeurs = {
+            "decimal": Decimal("1.5"),
+            "datetime": datetime(2024, 3, 1, 12, 30, 0),
+            "date": date(2024, 3, 1),
+            "time": time(12, 30, 0),
+            "uuid": UUID("12345678-1234-5678-1234-567812345678"),
+            "bytes": b"\x00\x01\xfe\xff",
+            "bytearray": bytearray(b"\x00\x01\xfe\xff"),
+            "complex": complex(1.5, -2.25),
+        }
+        empreinte = encodage.empreinte(valeurs[nom_type])
+        assert isinstance(empreinte, str) and len(empreinte) == 64 and all(
+            c in "0123456789abcdef" for c in empreinte
+        ), (
+            f"L'empreinte pour le type {nom_type} doit être une chaîne hexadécimale "
+            f"de 64 caractères, obtenu : {empreinte!r}."
+        )
+
+    def test_injectivite_contre_la_chaine_equivalente(self):
+        """La collision de l'ancien repli repr() ne doit plus exister : la valeur typée
+        ne partage son empreinte ni avec la chaîne repr(valeur) ni avec la chaîne str(valeur)."""
+        from decimal import Decimal
+        from datetime import datetime
+        from uuid import UUID
+        valeurs = [
+            Decimal("1.5"),
+            UUID("12345678-1234-5678-1234-567812345678"),
+            datetime(2024, 3, 1, 12, 30, 0),
+        ]
+        for v in valeurs:
+            empreinte_typee = encodage.empreinte(v)
+            empreinte_repr = encodage.empreinte(repr(v))
+            empreinte_str = encodage.empreinte(str(v))
+            assert empreinte_typee != empreinte_repr, (
+                f"Collision injectivité pour {type(v).__name__} : l'empreinte de la valeur "
+                f"typée égale celle de la chaîne repr({v!r}) — la balise de type est perdue."
+            )
+            assert empreinte_typee != empreinte_str, (
+                f"Collision injectivité pour {type(v).__name__} : l'empreinte de la valeur "
+                f"typée égale celle de la chaîne str({v!r}) — la balise de type est perdue."
+            )
+
+    def test_decimal_conserve_lexposant(self):
+        """Decimal('1.50') et Decimal('1.5') sont deux valeurs distinctes pour un montant
+        et doivent produire deux empreintes différentes."""
+        from decimal import Decimal
+        empreinte_150 = encodage.empreinte(Decimal("1.50"))
+        empreinte_15 = encodage.empreinte(Decimal("1.5"))
+        assert empreinte_150 != empreinte_15, (
+            "Decimal('1.50') et Decimal('1.5') doivent avoir des empreintes distinctes : "
+            "la forme canonique str() conserve l'exposant, toute normalisation qui les "
+            "confond est une perte d'information."
+        )
+
+    def test_datetime_nest_pas_confondu_avec_date(self):
+        """Un datetime à minuit et le date correspondant donnent deux empreintes différentes :
+        datetime est une sous-classe de date, son test doit passer avant celui de date."""
+        from datetime import date, datetime
+        empreinte_datetime = encodage.empreinte(datetime(2024, 3, 1, 0, 0, 0))
+        empreinte_date = encodage.empreinte(date(2024, 3, 1))
+        assert empreinte_datetime != empreinte_date, (
+            "datetime(2024, 3, 1, 0, 0, 0) et date(2024, 3, 1) doivent avoir des empreintes "
+            "distinctes : si elles sont égales, le test isinstance(datetime) passe après "
+            "celui de date et l'heure est perdue (piège de la sous-classe)."
+        )
+
+    def test_type_reellement_non_canonique_toujours_refuse(self):
+        """Une classe locale minimale reste refusée par TypeError : le refus n'a pas été affaibli."""
+        class ObjetArbitraire:
+            """Classe locale minimale sans forme canonique stable."""
+            attribut = 1
+        with pytest.raises(TypeError, match="Type non supporté"):
+            encodage.empreinte(ObjetArbitraire())
+
+    def test_determinisme_inter_processus_types_standards(self):
+        """Une structure contenant Decimal, datetime, UUID et bytes produit la même empreinte
+        dans tous les processus, quel que soit PYTHONHASHSEED, et dans le processus courant."""
+        from decimal import Decimal
+        from datetime import datetime
+        from uuid import UUID
+        src = Path(__file__).resolve().parents[1] / "src"
+        script = (
+            "import sys\n"
+            f"sys.path.insert(0, {str(src)!r})\n"
+            "import encodage\n"
+            "from decimal import Decimal\n"
+            "from datetime import datetime\n"
+            "from uuid import UUID\n"
+            "structure = {\n"
+            "    'montant': Decimal('1.50'),\n"
+            "    'quand': datetime(2024, 3, 1, 12, 30, 0),\n"
+            "    'identifiant': UUID('12345678-1234-5678-1234-567812345678'),\n"
+            "    'brut': b'\\x00\\x01\\xfe\\xff',\n"
+            "}\n"
+            "print(encodage.empreinte(structure))\n"
+        )
+        graines = ["0", "1", "42"]
+        empreintes = []
+        for graine in graines:
+            env = dict(os.environ)
+            env["PYTHONHASHSEED"] = graine
+            resultat = subprocess.run(
+                [sys.executable, "-c", script],
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+            assert resultat.returncode == 0, (
+                f"Le sous-processus (PYTHONHASHSEED={graine}) a échoué avec le code "
+                f"{resultat.returncode} : {resultat.stderr}"
+            )
+            empreintes.append(resultat.stdout.strip())
+        assert len(set(empreintes)) == 1, (
+            f"Empreintes divergentes entre processus pour PYTHONHASHSEED={graines} : "
+            f"{empreintes} — la forme canonique des types standards n'est pas déterministe."
+        )
+        structure_locale = {
+            "montant": Decimal("1.50"),
+            "quand": datetime(2024, 3, 1, 12, 30, 0),
+            "identifiant": UUID("12345678-1234-5678-1234-567812345678"),
+            "brut": b"\x00\x01\xfe\xff",
+        }
+        empreinte_locale = encodage.empreinte(structure_locale)
+        assert empreintes[0] == empreinte_locale, (
+            f"L'empreinte du processus courant ({empreinte_locale}) diffère de celle des "
+            f"sous-processus ({empreintes[0]}) : le déterminisme inter-processus est rompu."
+        )
+
+
+class TestInjectiviteExhaustive:
+    """Garantit l'injectivité permanente du balisage de types de l'encodage canonique.
+
+    Une valeur typée ne doit jamais produire la même empreinte qu'une liste ou
+    un tuple littéral de même forme fourni par l'appelant, et aucune paire de
+    valeurs distinctes d'un panel hétérogène ne doit partager une empreinte.
+    """
+
+    @pytest.mark.parametrize(
+        "type_cible, argument_brut, balise, forme_canonique, conteneur",
+        [
+            ("decimal", "1.5", "__decimal__", "1.5", "liste"),
+            ("bytes", b"\xab", "__bytes__", "ab", "liste"),
+            ("bytearray", b"\xab", "__bytearray__", "ab", "liste"),
+            ("uuid", "12345678-1234-5678-1234-567812345678", "__uuid__", "12345678-1234-5678-1234-567812345678", "liste"),
+            ("date", (2026, 7, 29), "__date__", "2026-07-29", "liste"),
+            ("datetime", (2026, 7, 29, 12, 30, 0), "__datetime__", "2026-07-29T12:30:00+00:00", "liste"),
+            ("time", (9, 15, 0), "__time__", "09:15:00", "liste"),
+            ("decimal", "1.5", "__decimal__", "1.5", "tuple"),
+            ("complex", (1.0, 2.0), "__complex__", ["1.0", "2.0"], "liste"),
+            ("complex", (1.0, 2.0), "__complex__", ["1.0", "2.0"], "tuple"),
+            ("complex", (1.0, 2.0), "__complex__", ["1.0", "2.0"], "mixte"),
+        ],
+        ids=[
+            "decimal_vs_liste_meme_forme",
+            "bytes_vs_liste_meme_forme",
+            "bytearray_vs_liste_meme_forme",
+            "uuid_vs_liste_meme_forme",
+            "date_vs_liste_meme_forme",
+            "datetime_vs_liste_meme_forme",
+            "time_vs_liste_meme_forme",
+            "decimal_vs_tuple_meme_forme",
+            "complex_vs_liste_meme_forme",
+            "complex_vs_tuple_meme_forme",
+            "complex_vs_mixte_liste_exterieure_tuple_interieur",
+        ],
+    )
+    def test_valeur_typee_ne_collisionne_pas_avec_la_liste_de_meme_forme(
+        self, type_cible, argument_brut, balise, forme_canonique, conteneur
+    ):
+        """Une valeur typée et la valeur littérale de même forme (liste, tuple,
+        ou forme mixte liste extérieure / tuple intérieur) doivent produire deux
+        formes normalisées distinctes, et donc deux empreintes distinctes.
+
+        Boîte blanche : l'usage de ``encodage._normaliser`` est volontaire et
+        documenté — le test prouve que la non-collision provient de la
+        normalisation elle-même (balisage récursif des conteneurs), et non d'un
+        hasard de hachage. ``forme_canonique`` est une chaîne pour les types
+        scalaires, et une séquence pour ``complex`` dont la forme canonique est
+        ``[repr(partie_reelle), repr(partie_imaginaire)]``.
+        """
+        from decimal import Decimal
+        from uuid import UUID
+        from datetime import date, datetime, time, timezone
+
+        if type_cible == "decimal":
+            valeur_typee = Decimal(argument_brut)
+        elif type_cible == "bytes":
+            valeur_typee = bytes(argument_brut)
+        elif type_cible == "bytearray":
+            valeur_typee = bytearray(argument_brut)
+        elif type_cible == "uuid":
+            valeur_typee = UUID(argument_brut)
+        elif type_cible == "date":
+            valeur_typee = date(*argument_brut)
+        elif type_cible == "datetime":
+            valeur_typee = datetime(*argument_brut, tzinfo=timezone.utc)
+        elif type_cible == "time":
+            valeur_typee = time(*argument_brut)
+        elif type_cible == "complex":
+            valeur_typee = complex(*argument_brut)
+        else:
+            raise AssertionError(f"type_cible non pris en charge : {type_cible!r}")
+
+        if isinstance(forme_canonique, str):
+            contenu_litteral = forme_canonique
+        elif conteneur == "liste":
+            contenu_litteral = list(forme_canonique)
+        else:
+            contenu_litteral = tuple(forme_canonique)
+
+        if conteneur == "tuple":
+            valeur_litterale = (balise, contenu_litteral)
+        elif conteneur in ("liste", "mixte"):
+            valeur_litterale = [balise, contenu_litteral]
+        else:
+            raise AssertionError(f"conteneur non pris en charge : {conteneur!r}")
+
+        forme_typee = encodage._normaliser(valeur_typee)
+        forme_litterale = encodage._normaliser(valeur_litterale)
+        assert forme_typee != forme_litterale, (
+            f"les formes normalisées devraient différer : "
+            f"_normaliser({valeur_typee!r}) = {forme_typee!r} contre "
+            f"_normaliser({valeur_litterale!r}) = {forme_litterale!r}"
+        )
+
+        empreinte_typee = encodage.empreinte(valeur_typee)
+        empreinte_litterale = encodage.empreinte(valeur_litterale)
+        assert empreinte_typee != empreinte_litterale, (
+            f"collision d'empreintes entre la valeur typée {valeur_typee!r} "
+            f"et la valeur littérale {valeur_litterale!r} : "
+            f"{empreinte_typee} == {empreinte_litterale}"
+        )
+    def test_panel_heterogene_sans_aucune_collision(self):
+        """Aucune paire distincte du panel hétérogène ne doit produire la même
+        empreinte ; le nombre de paires comparées doit valoir n*(n-1)/2."""
+        import itertools
+        from decimal import Decimal
+        from uuid import UUID
+        from datetime import date, datetime, time, timezone
+
+        panel = {
+            "entier_un": 1,
+            "decimal_un": Decimal("1"),
+            "decimal_un_virgule_zero": Decimal("1.0"),
+            "decimal_un_cinq": Decimal("1.5"),
+            "flottant_un": 1.0,
+            "chaine_un": "1",
+            "chaine_balise_decimal": "__decimal__",
+            "booleen_vrai": True,
+            "booleen_faux": False,
+            "valeur_none": None,
+            "bytes_ab": b"\xab",
+            "bytearray_ab": bytearray(b"\xab"),
+            "chaine_hex_ab": "ab",
+            "date_fixe": date(2026, 7, 29),
+            "datetime_minuit_naif": datetime(2026, 7, 29, 0, 0, 0),
+            "datetime_utc_apres_midi": datetime(2026, 7, 29, 12, 30, 0, tzinfo=timezone.utc),
+            "time_minuit": time(0, 0, 0),
+            "uuid_fixe": UUID("12345678-1234-5678-1234-567812345678"),
+            "chaine_uuid": "12345678-1234-5678-1234-567812345678",
+            "set_abc": {"a", "b", "c"},
+            "frozenset_abc": frozenset({"a", "b", "c"}),
+            "liste_abc": ["a", "b", "c"],
+            "tuple_abc": ("a", "b", "c"),
+            "dict_simple": {"cle": "valeur"},
+            "complexe_un_deux": complex(1, 2),
+            "liste_forme_decimal": ["__decimal__", "1.5"],
+            "liste_vide": [],
+            "tuple_vide": (),
+            "dict_vide": {},
+        }
+        assert len(panel) >= 18, (
+            f"le panel hétérogène doit contenir au moins 18 valeurs, "
+            f"il en contient {len(panel)}"
+        )
+
+        empreintes = {
+            nom: encodage.empreinte(valeur) for nom, valeur in panel.items()
+        }
+
+        collisions = []
+        paires_comparees = 0
+        for (nom_a, empreinte_a), (nom_b, empreinte_b) in itertools.combinations(
+            empreintes.items(), 2
+        ):
+            paires_comparees += 1
+            if empreinte_a == empreinte_b:
+                collisions.append((nom_a, nom_b, empreinte_a))
+
+        nombre_valeurs = len(empreintes)
+        paires_attendues = nombre_valeurs * (nombre_valeurs - 1) // 2
+        assert paires_comparees == paires_attendues, (
+            f"nombre de paires réellement comparées ({paires_comparees}) "
+            f"différent du nombre attendu n*(n-1)/2 ({paires_attendues}) "
+            f"pour n={nombre_valeurs} valeurs"
+        )
+
+        assert not collisions, (
+            f"{len(collisions)} collision(s) d'empreintes détectée(s) dans le "
+            f"panel : "
+            + "; ".join(
+                f"{nom_a}={panel[nom_a]!r} <-> {nom_b}={panel[nom_b]!r} "
+                f"(empreinte commune {empreinte_commune})"
+                for nom_a, nom_b, empreinte_commune in collisions
+            )
+        )
+
+
+class TestBalisesDisjointes:
+    """Garantit que les balises de conteneur et les balises de type standard forment
+    deux familles disjointes dans l'encodage canonique.
+
+    Argument d'injectivité vérifié ici : toute valeur fournie par l'appelant est soit
+    un scalaire, soit un conteneur ; un conteneur reçoit toujours une balise de
+    CONTENEUR, jamais une balise de type standard. Les deux familles étant disjointes,
+    aucune valeur littérale ne peut usurper la forme normalisée d'une valeur typée.
+
+    API en boîte blanche utilisée : ``encodage._normaliser`` (fonction interne du
+    module d'encodage canonique M2). Pour une valeur typée ou un conteneur, elle
+    retourne une liste dont le premier élément est la balise ; pour un scalaire
+    (str, int, float, bool, None), elle retourne la valeur telle quelle.
+    """
+
+    BALISES_CONTENEUR = frozenset({
+        "__dict__",
+        "__set__",
+        "__frozenset__",
+        "__list__",
+        "__tuple__",
+    })
+
+    BALISES_TYPE_STANDARD = frozenset({
+        "__decimal__",
+        "__datetime__",
+        "__date__",
+        "__time__",
+        "__uuid__",
+        "__bytes__",
+        "__bytearray__",
+        "__complex__",
+    })
+
+    def test_les_deux_familles_de_balises_sont_disjointes(self):
+        """Vérifie que l'intersection des deux familles de balises est vide.
+
+        C'est le cœur de l'argument d'injectivité : si une balise appartenait aux
+        deux familles, un conteneur littéral pourrait produire la même forme
+        normalisée qu'une valeur typée. Le message d'échec liste les balises
+        fautives.
+        """
+        communes = sorted(self.BALISES_CONTENEUR & self.BALISES_TYPE_STANDARD)
+        assert not communes, (
+            f"Balises présentes dans les deux familles (collision d'encodage "
+            f"possible entre conteneur littéral et valeur typée) : {communes}"
+        )
+
+    @pytest.mark.parametrize(
+        "valeur",
+        [
+            {"cle": "valeur"},
+            {"element"},
+            frozenset({"element"}),
+            ["element"],
+            ("element",),
+        ],
+        ids=["dict", "set", "frozenset", "list", "tuple"],
+    )
+    def test_chaque_conteneur_recoit_une_balise_de_conteneur(self, valeur):
+        """Vérifie qu'un conteneur non vide est normalisé sous une balise de conteneur.
+
+        ``encodage._normaliser(valeur)[0]`` doit appartenir à ``BALISES_CONTENEUR``
+        et ne jamais appartenir à ``BALISES_TYPE_STANDARD`` : c'est la propriété qui
+        interdit à une valeur littérale d'usurper la forme d'une valeur typée.
+        """
+        balise = encodage._normaliser(valeur)[0]
+        assert balise in self.BALISES_CONTENEUR, (
+            f"Le conteneur {valeur!r} a reçu la balise {balise!r}, "
+            f"attendu parmi {sorted(self.BALISES_CONTENEUR)}"
+        )
+        assert balise not in self.BALISES_TYPE_STANDARD, (
+            f"Le conteneur {valeur!r} a reçu la balise de type standard "
+            f"{balise!r} : un littéral peut désormais usurper une valeur typée"
+        )
+
+    @pytest.mark.parametrize(
+        "type_cible, argument_brut, balise_attendue",
+        [
+            ("decimal", "1.5", "__decimal__"),
+            ("datetime", (2026, 7, 29, 12, 30, 0), "__datetime__"),
+            ("date", (2026, 7, 29), "__date__"),
+            ("time", (9, 15, 0), "__time__"),
+            ("uuid", "12345678-1234-5678-1234-567812345678", "__uuid__"),
+            ("bytes", b"\xab", "__bytes__"),
+            ("bytearray", b"\xab", "__bytearray__"),
+            ("complex", (1.0, 2.0), "__complex__"),
+        ],
+        ids=[
+            "decimal",
+            "datetime",
+            "date",
+            "time",
+            "uuid",
+            "bytes",
+            "bytearray",
+            "complex",
+        ],
+    )
+    def test_chaque_type_standard_recoit_sa_balise(self, type_cible, argument_brut, balise_attendue):
+        """Vérifie que chaque type standard est normalisé sous sa balise exacte.
+
+        Les valeurs typées sont construites dans la méthode (imports locaux
+        obligatoires) à partir d'arguments bruts ; ``encodage._normaliser`` doit
+        produire une liste dont le premier élément est exactement la balise
+        attendue, laquelle ne doit jamais être une balise de conteneur.
+        """
+        from datetime import date, datetime, time, timezone
+        from decimal import Decimal
+        from uuid import UUID
+
+        fabriques = {
+            "decimal": lambda: Decimal(argument_brut),
+            "datetime": lambda: datetime(*argument_brut, tzinfo=timezone.utc),
+            "date": lambda: date(*argument_brut),
+            "time": lambda: time(*argument_brut),
+            "uuid": lambda: UUID(argument_brut),
+            "bytes": lambda: argument_brut,
+            "bytearray": lambda: bytearray(argument_brut),
+            "complex": lambda: complex(*argument_brut),
+        }
+        valeur = fabriques[type_cible]()
+        balise = encodage._normaliser(valeur)[0]
+        assert balise == balise_attendue, (
+            f"La valeur {valeur!r} (type {type_cible}) a reçu la balise "
+            f"{balise!r}, attendu exactement {balise_attendue!r}"
+        )
+        assert balise not in self.BALISES_CONTENEUR, (
+            f"La valeur typée {valeur!r} a reçu la balise de conteneur "
+            f"{balise!r} : collision possible avec un conteneur littéral"
+        )
+
+    def test_aucune_balise_oubliee(self):
+        """Vérifie que chaque balise déclarée est réellement produite par le panel.
+
+        Test d'exhaustivité : sans lui, ajouter une balise dans le code sans
+        l'ajouter aux constantes de classe passerait inaperçu. Le panel contient
+        13 valeurs écrites en dur, une par balise ; toute balise jamais produite
+        est nommée dans le message d'échec.
+        """
+        from datetime import date, datetime, time, timezone
+        from decimal import Decimal
+        from uuid import UUID
+
+        panel = [
+            {"cle": "valeur"},
+            {"element"},
+            frozenset({"element"}),
+            ["element"],
+            ("element",),
+            Decimal("1.5"),
+            datetime(2026, 7, 29, 12, 30, 0, tzinfo=timezone.utc),
+            date(2026, 7, 29),
+            time(9, 15, 0),
+            UUID("12345678-1234-5678-1234-567812345678"),
+            b"\xab",
+            bytearray(b"\xab"),
+            complex(1.0, 2.0),
+        ]
+        assert len(panel) == 13, (
+            f"Le panel doit contenir exactement 13 valeurs (une par balise), "
+            f"il en contient {len(panel)}"
+        )
+        produites = {encodage._normaliser(valeur)[0] for valeur in panel}
+        manquantes = sorted(
+            balise
+            for balise in self.BALISES_CONTENEUR | self.BALISES_TYPE_STANDARD
+            if balise not in produites
+        )
+        assert not manquantes, (
+            f"Balises déclarées dans les constantes mais jamais produites par "
+            f"le panel de 13 valeurs : {manquantes}"
+        )
+
+    @pytest.mark.parametrize(
+        "valeur",
+        [
+            "chaine",
+            42,
+            3.14,
+            True,
+            None,
+        ],
+        ids=["str", "int", "float", "bool", "none"],
+    )
+    def test_un_scalaire_nest_pas_balise(self, valeur):
+        """Vérifie qu'un scalaire traverse ``encodage._normaliser`` sans balisage.
+
+        Le résultat doit être égal à l'entrée ET du même type exact : ``True == 1``
+        en Python, donc l'égalité seule ne suffit pas à distinguer un booléen d'un
+        entier ; la comparaison ``type(...) is ...`` lève cette ambiguïté et
+        empêche le test de passer par accident.
+        """
+        normalise = encodage._normaliser(valeur)
+        assert normalise == valeur, (
+            f"Le scalaire {valeur!r} a été transformé en {normalise!r} : "
+            f"un scalaire doit être retourné tel quel, sans balisage"
+        )
+        assert type(normalise) is type(valeur), (
+            f"Le scalaire {valeur!r} (type {type(valeur).__name__}) est ressorti "
+            f"avec le type {type(normalise).__name__} : l'égalité seule masquerait "
+            f"une confusion bool/int"
+        )
+        assert not isinstance(normalise, list), (
+            f"Le scalaire {valeur!r} a produit la liste balisée {normalise!r} : "
+            f"seuls les conteneurs et les valeurs typées sont balisés"
+        )
