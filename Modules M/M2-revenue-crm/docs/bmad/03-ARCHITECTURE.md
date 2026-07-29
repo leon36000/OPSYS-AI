@@ -80,7 +80,7 @@ La garantie anti-fusion est architecturale, pas procédurale : aucune fonction d
 
 ## 7. Interfaces publiques par story
 
-S001 : `encoder_canonique(valeurs) -> octets — encodage injectif préfixé par longueur` ; `valider_horodatage(texte) -> str — accepte ISO-8601 avec timezone, refuse sinon` ; `valider_fixture(doc) -> dict — refuse toute fixture sans fictif: true`.
+S001 : `encoder_canonique(valeurs) -> octets — encodage injectif préfixé par longueur` ; `valider_horodatage(texte) -> str — accepte ISO-8601 avec timezone, refuse sinon` ; `valider_fixture(doc) -> dict — refuse toute fixture sans fictif: true` ; `construire_verdict(code, statut, detail) -> dict — construit un verdict structuré stable pour un code d’erreur ou un succès` ; `est_verdict(code) -> bool — vérifie si un code figure dans le catalogue officiel des verdicts M2`.
 S002 : `ajouter(entree) -> str — append et retourne le hash du maillon` ; `lire(depuis) -> list — lecture depuis un hash` ; `tete() -> str|None` ; `valider_chaine(ancre) -> bool` ; `assert_chaine(ancre) -> None — lève si valider_chaine retourne faux` ; `taille() -> int`.
 S003 : `ingerer_lead(contrat, horodatage) -> dict — valide schéma et frontières, inscrit au statut nouveau, retourne l'accusé {lead_id, hash_maillon}`.
 S004 : `assigner_owner(lead_id, owner, prochaine_action, horodatage) -> dict — transitionne nouveau vers qualifie` ; `convertir_lead(lead_id, reference_devis_m3, horodatage) -> dict` ; `perdre_lead(lead_id, motif, horodatage) -> dict`.
@@ -95,7 +95,6 @@ Propriété prouvée par story. S001 : l'encodage est injectif (deux entrées di
 
 Invariants CI transversaux : zéro réseau (test d'absence d'imports socket/requests), zéro horloge interne (tout horodatage est un paramètre ; le test d'orphelin à 24h et 48h utilise une horloge injectée), zéro LLM (REJ-0040), énumérations fermées partout, aucun champ deviné, fixtures sans fictif: true refusées avant lecture (CA-M2-11), identifiants dérivés uniquement par encodage canonique injectif à préfixage par longueur. Justification : la concaténation directe est ambiguë et a causé des collisions réelles dans M1, leçon que M2 ne répétera pas.
 
-9. Découpage en stories
 ## 9. Découpage en stories
 
 
