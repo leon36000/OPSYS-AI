@@ -88,9 +88,46 @@ avant/après** avec filtrage sur `/proc/<pid>/cmdline` exigeant `python` **et** 
 `PATH`, d'où un `FileNotFoundError` au lieu du test attendu. `bash` est désormais résolu en
 absolu, et `PATH` ne contrôle plus que la découverte de `k6`.
 
+## Second défaut, trouvé par la revue : le signal était absorbé, pas honoré
+
+La revue T1 a rejeté la première version en objectant que le test SIGTERM était une **course**.
+La mesure a confirmé l'intermittence — le même test prenait **2,28 s** puis **29,94 s** — mais la
+cause était plus profonde que le test : **`trap arreter_serveur INT TERM` ne faisait que
+nettoyer**, sans sortir. Un handler qui se contente de nettoyer laisse le script **reprendre là où
+il en était** : une interruption pendant la boucle d'attente du serveur tuait bien le serveur,
+puis la boucle continuait à sonder un serveur mort jusqu'à son échéance de 30 s.
+
+Le signal était donc **absorbé** au lieu d'être honoré, et le script mettait 30 s à mourir de
+façon intermittente. Correctif :
+
+```bash
+trap arreter_serveur EXIT                 # ne fait que nettoyer : le script sort de lui-même
+trap 'arreter_serveur; exit 130' INT      # nettoyer PUIS sortir (128 + 2)
+trap 'arreter_serveur; exit 143' TERM     # nettoyer PUIS sortir (128 + 15)
+```
+
+Le test exige désormais le code de sortie **143** et une durée bornée par la durée du `k6`
+factice. **8 exécutions consécutives** : plus aucune occurrence à 30 s, durées entre 0,28 s et
+2,29 s selon le moment où le signal arrive.
+
+C'est la leçon la plus utile de ce correctif : l'objection portait sur le test, la cause était
+dans le script. Mesurer avant d'appliquer aurait été insuffisant — il fallait mesurer, constater
+que le mécanisme annoncé n'expliquait pas tout, puis chercher pourquoi.
+
 ## Redondances défensives déclarées
 
 Non isolables par mutation, et volontaires : `${SERVER_PID:-}` est redondant avec
-l'initialisation à vide au niveau du script, et l'appel explicite d'`arreter_serveur` sur le
-chemin d'échec est redondant avec le trap. Les deux sont conservés en ceinture-et-bretelles :
-il s'agit de nettoyage de processus, où une fuite silencieuse coûte plus qu'une ligne en trop.
+l'initialisation à vide au niveau du script, et l'appel explicite d'`arreter_serveur` sur les
+chemins de retour rend le `trap EXIT` redondant. Les deux sont conservés en
+ceinture-et-bretelles : il s'agit de nettoyage de processus, où une fuite silencieuse coûte plus
+qu'une ligne en trop.
+
+## Mutations, état final
+
+| Mutation | Verdict |
+|---|---|
+| ancien script de `main` restauré | DÉTECTÉ |
+| `SERVER_PID` redevient `local` | DÉTECTÉ |
+| `TERM` nettoie sans sortir | DÉTECTÉ |
+| traps `INT`/`TERM` retirés | DÉTECTÉ |
+| trap `EXIT` retiré | non détecté — redondance déclarée ci-dessus |

@@ -183,18 +183,29 @@ def test_echec_k6_rend_20_et_nettoie():
 
 
 def test_trap_nettoie_sur_signal_term():
-    """Prouve que le TRAP nettoie quand le script est INTERROMPU par un signal.
+    """Prouve que le TRAP nettoie quand le script est INTERROMPU par SIGTERM.
 
-    C'est le seul chemin où le trap est réellement indispensable : sur les
-    chemins nominal et d'erreur, arreter_serveur est appelée explicitement. On
-    lance donc le script avec un k6 factice qui dort, on lui envoie SIGTERM, et
-    on vérifie qu'aucun serveur ne survit. Rend rouge la suppression du trap.
+    C'est le seul chemin où le trap est indispensable : sur les chemins nominal
+    et d'erreur, arreter_serveur est appelée explicitement.
+
+    DÉTERMINISME — le point délicat. bash n'exécute un trap qu'APRÈS la fin de la
+    commande de premier plan en cours. Avec un k6 factice qui dort longtemps, le
+    trap différé et l'expiration du timeout côté Python arrivent au même instant :
+    c'est une COURSE, et une première version de ce test la gagnait par chance
+    (mesuré : 30,1 s d'attente, SIGKILL, puis zéro survivant — le trap avait
+    gagné de justesse). On donne donc au k6 factice une durée COURTE et au
+    communicate une marge LARGE : SIGTERM arrive pendant le sommeil, k6 rend la
+    main vite, bash exécute alors le trap, et tout se termine bien avant le
+    timeout. Le test assert d'ailleurs que la durée reste petite, pour qu'un
+    retour au comportement de course soit détecté.
     """
     avant = _pids_brand_server()
     if avant is None:
         pytest.skip("pgrep absent : impossible d'observer les processus")
+    _SOMMEIL_K6 = 2
+    _MARGE_COMMUNICATE = 60
     with tempfile.TemporaryDirectory() as tmpdir:
-        _ecrire_k6_factice(tmpdir, "sleep 30\n")
+        _ecrire_k6_factice(tmpdir, f"sleep {_SOMMEIL_K6}\n")
         env = {**os.environ, "PATH": f"{tmpdir}:/usr/bin:/bin"}
         proc = subprocess.Popen(
             [_BASH, str(SCRIPT), "load"],
@@ -202,7 +213,7 @@ def test_trap_nettoie_sur_signal_term():
             cwd=REPO_ROOT, env=env, text=True,
         )
         # Attendre que le serveur soit effectivement lancé avant d'interrompre,
-        # sinon on testerait un script qui n'a rien à nettoyer.
+        # sinon le trap n'aurait rien à nettoyer et le test ne prouverait rien.
         lance = False
         for _ in range(100):
             time.sleep(0.1)
@@ -210,15 +221,33 @@ def test_trap_nettoie_sur_signal_term():
             if courant is not None and courant - avant:
                 lance = True
                 break
-        proc.terminate()
-        try:
-            proc.communicate(timeout=30)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.communicate()
         assert lance, (
             "pré-condition : le serveur doit avoir démarré avant l'interruption, "
             "sinon le trap n'a rien à nettoyer et le test ne prouve rien"
+        )
+        debut = time.monotonic()
+        proc.terminate()
+        try:
+            proc.communicate(timeout=_MARGE_COMMUNICATE)
+            tue_de_force = False
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.communicate()
+            tue_de_force = True
+        duree = time.monotonic() - debut
+        assert not tue_de_force, (
+            f"le script n'a pas rendu la main en {_MARGE_COMMUNICATE}s après SIGTERM : "
+            "il a fallu un SIGKILL, donc le trap n'a PAS pu s'exécuter et ce test "
+            "ne prouverait rien"
+        )
+        assert proc.returncode == 143, (
+            f"SIGTERM doit être HONORÉ (sortie 143 = 128+15), reçu {proc.returncode} : "
+            "un handler qui nettoie sans sortir laisse le script reprendre son cours"
+        )
+        assert duree < _SOMMEIL_K6 + 5, (
+            f"le script a mis {duree:.1f}s à sortir après SIGTERM alors que le k6 "
+            f"factice ne dort que {_SOMMEIL_K6}s : le signal n'est pas honoré "
+            "immédiatement (comportement de course mesuré à 30 s)"
         )
     for _ in range(50):
         if not (_pids_brand_server() - avant):

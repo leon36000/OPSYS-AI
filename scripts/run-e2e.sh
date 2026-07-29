@@ -43,8 +43,21 @@ arreter_serveur() {
   fi
 }
 
-# Poser le piège une fois pour toutes, avant toute exécution.
-trap arreter_serveur EXIT INT TERM
+# Poser les pièges une fois pour toutes, avant toute exécution.
+#
+# EXIT ne fait que nettoyer : le script sort de lui-même, il n'y a rien à
+# interrompre.
+#
+# INT et TERM doivent NETTOYER *PUIS SORTIR*. Un handler qui se contente de
+# nettoyer laisse le script REPRENDRE là où il en était : mesuré, une
+# interruption pendant la boucle d'attente du serveur tuait bien le serveur,
+# puis la boucle continuait à le sonder jusqu'à son échéance de 30 s avant de
+# rendre la main. Le signal était donc absorbé au lieu d'être honoré, et le
+# script mettait 30 s à mourir de façon intermittente. Les codes 130 et 143
+# sont les conventions POSIX (128 + numéro du signal).
+trap arreter_serveur EXIT
+trap 'arreter_serveur; exit 130' INT
+trap 'arreter_serveur; exit 143' TERM
 
 # ----------------------------------------------------------------------
 # Fonctions utilitaires
