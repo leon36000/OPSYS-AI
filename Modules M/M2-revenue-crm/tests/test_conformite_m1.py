@@ -30,7 +30,7 @@ SHA256_VERDICTS_ATTENDU = "e0e11120f29b1e2954971b7522e92eb7fe90feb6283e747b8e51e
 class TestCA_M2_13_Empreintes:
     def test_empreinte_horodatage_m2_conforme_au_gel(self):
         chemin = _PKG / "horodatage.py"
-        assert chemin.exists(), f"Fichier horodatage.py manquant dans {_SRC}"
+        assert chemin.exists(), f"Fichier horodatage.py manquant dans {_PKG}"
         contenu = chemin.read_bytes()
         empreinte = hashlib.sha256(contenu).hexdigest()
         assert empreinte == SHA256_HORODATAGE_ATTENDU, (
@@ -40,7 +40,7 @@ class TestCA_M2_13_Empreintes:
 
     def test_empreinte_verdicts_m2_conforme_au_gel(self):
         chemin = _PKG / "verdicts.py"
-        assert chemin.exists(), f"Fichier verdicts.py manquant dans {_SRC}"
+        assert chemin.exists(), f"Fichier verdicts.py manquant dans {_PKG}"
         contenu = chemin.read_bytes()
         empreinte = hashlib.sha256(contenu).hexdigest()
         assert empreinte == SHA256_VERDICTS_ATTENDU, (

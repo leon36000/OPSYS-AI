@@ -1,3 +1,4 @@
+import ast
 import pytest
 from pathlib import Path
 
@@ -70,29 +71,45 @@ def test_aucun_sys_path_insert_vise_le_paquet():
     « from PAQUET import ... » résoluble ; le paquet lui-même ne sert qu'à
     SCANNER les sources.
 
-    Défaut réel trouvé par la revue scellée (chore #109, round 2) : un fichier
-    insérait le paquet et échouait EXÉCUTÉ SEUL, tout en passant dans la suite
-    complète parce qu'un autre fichier avait inséré src/ avant lui — une
-    dépendance à l'ordre de collecte, précisément ce que la mise en paquet doit
-    supprimer. Le contrôle est STATIQUE parce qu'un tel défaut est invisible en
-    exécution groupée.
+    Défaut réel trouvé par la revue scellée (round 2) : un fichier insérait le
+    paquet et échouait EXÉCUTÉ SEUL, tout en passant dans la suite complète
+    parce qu'un autre fichier avait inséré src/ avant lui — une dépendance à
+    l'ordre de collecte, précisément ce que la mise en paquet doit supprimer.
+
+    L'analyse est faite par AST et non sur le texte : une première version ne
+    regardait que les lignes COMMENÇANT par « sys.path.insert », et un appel
+    étalé sur plusieurs lignes lui échappait — trou confirmé par mutation au
+    round 4. L'AST voit l'appel quelle que soit sa mise en forme.
     """
     tests_dir = Path(__file__).resolve().parent
     fautifs = []
     for fichier in sorted(tests_dir.glob("*.py")):
-        for numero, ligne in enumerate(
-            fichier.read_text(encoding="utf-8").splitlines(), 1
-        ):
-            depouillee = ligne.strip()
-            if not depouillee.startswith("sys.path.insert"):
+        source = fichier.read_text(encoding="utf-8")
+        arbre = ast.parse(source)
+        for noeud in ast.walk(arbre):
+            if not isinstance(noeud, ast.Call):
                 continue
-            if _NOM_PAQUET in depouillee:
-                fautifs.append(f"{fichier.name}:{numero}: {depouillee}")
+            cible = noeud.func
+            # sys.path.insert(...) ou path.insert(...) après un alias
+            if not (isinstance(cible, ast.Attribute) and cible.attr in ("insert", "append")):
+                continue
+            recepteur = cible.value
+            if not (isinstance(recepteur, ast.Attribute) and recepteur.attr == "path"):
+                continue
+            # le nom du paquet apparaît-il dans les arguments, où qu'il soit ?
+            for argument in noeud.args:
+                for litteral in ast.walk(argument):
+                    if (isinstance(litteral, ast.Constant)
+                            and isinstance(litteral.value, str)
+                            and _NOM_PAQUET in litteral.value):
+                        fautifs.append(
+                            f"{fichier.name}:{noeud.lineno}: sys.path.{cible.attr} "
+                            f"avec {litteral.value!r}"
+                        )
     assert not fautifs, (
-        "sys.path.insert visant le paquet au lieu de son parent :\n  "
+        "sys.path visant le paquet au lieu de son parent :\n  "
         + "\n  ".join(fautifs)
     )
-
 
 def test_aucun_module_m1_a_plat_dans_sys_modules():
     """PROUVE qu'aucun module de M1 n'occupe un nom de premier niveau.

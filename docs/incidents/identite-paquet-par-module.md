@@ -61,11 +61,11 @@ Critère d'acceptation de l'issue — tout en **un seul processus** :
 ```
 pytest scripts/tests tests/e2e "Modules M/M7-marketing/tests" \
        "Modules M/M1-front-office/tests" "Modules M/M2-revenue-crm/tests"
--> 1311 passed
+-> 1316 passed
 ```
 
 Et chaque module reste vert **isolément** (ce que fait la CI) : `scripts/tests` 10,
-`tests/e2e` 10, M7 432, M1 328, M2 529.
+`tests/e2e` 10, M7 432, M1 331, M2 533.
 
 Identités après correctif, les deux arbres chargés dans le même processus :
 
@@ -82,17 +82,29 @@ Le détecteur existant (`test_isolation_modules.py`, livré avec M2-S002) est **
 prouve plus la même chose de la même façon, mais il prouve toujours l'**appartenance**. Il a été
 étendu : chaque module doit provenir du paquet, et son `__name__` doit être qualifié.
 
-Deux gardes ont été **ajoutées après mesure** :
+**Cinq couches au total, symétriques sur les deux modules. Aucune n'a été écrite par
+anticipation** : les couches 2 à 5 viennent chacune d'une mesure ou d'une objection de revue.
 
-- `test_aucun_module_m2_a_plat_dans_sys_modules` — aucun module de M2 n'occupe un nom de premier
-  niveau ;
-- `test_aucun_module_a_plat_sous_src` (M1 et M2) — contrôle **structurel** : aucun `.py`
-  directement sous `src/`, exactement un paquet.
+| # | Garde | Origine |
+|---|---|---|
+| 1 | provenance du paquet + `__name__` qualifié | détecteur de M2-S002, conservé et étendu |
+| 2 | aucun module sur un nom de premier niveau dans `sys.modules` | M2 dès la migration, M1 après objection du round 3 |
+| 3 | **structurel** : aucun `.py` à plat sous `src/`, exactement un paquet | un NON-DÉTECTÉ en mutation |
+| 4 | **statique (AST)** : aucun `sys.path` visant le paquet | objection critique du round 2 |
+| 5 | exécution des scripts de preuve non collectés par pytest | objection critique du round 1 |
 
-Ce dernier vient d'un **NON-DÉTECTÉ** en mutation : copier `verdicts.py` à plat sous `src/` ne
+La couche 3 vient d'un **NON-DÉTECTÉ** en mutation : copier `verdicts.py` à plat sous `src/` ne
 faisait rougir aucun test, parce qu'un fichier que personne n'importe est inerte, donc invisible
 pour un test qui n'observe que les modules chargés. Après ajout, la mutation est détectée sur les
 deux modules.
+
+La couche 4 a elle-même été **corrigée après mutation** : sa première version ne regardait que les
+lignes *commençant* par `sys.path.insert`, et un appel étalé sur plusieurs lignes lui échappait —
+trou confirmé par une mutation compile-vérifiée au round 4. Elle analyse désormais l'**AST**, qui
+voit l'appel quelle que soit sa mise en forme, et détecte la forme multi-ligne sur M1 comme sur M2.
+
+Leçon : une garde à trou est pire que pas de garde, parce qu'elle donne une confiance imméritée.
+Toute garde doit être elle-même mutée.
 
 ## Pièges rencontrés dans la migration
 
