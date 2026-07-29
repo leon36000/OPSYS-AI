@@ -37,8 +37,6 @@ Entités de données produites par M2. Le dossier commercial LeadM2 est une enve
 
 Adaptateurs CRM tiers (story S008). Les adaptateurs d'écriture vers un CRM tiers sont des Protocols implémentés en v1 uniquement par un adaptateur in-memory fail-closed. Tout appel à un adaptateur hors mode ombre lève le verdict REJ-ADAPTATEUR-INDISPONIBLE. Les identifiants d'adaptateurs sont dérivés par encodage canonique injectif et sont déterministes entre deux exécutions. Cette capacité est couverte par le critère d'acceptation
 
-CA-M2-15 : tout appel d'écriture vers un CRM tiers hors mode ombre est rejeté avec REJ-ADAPTATEUR-INDISPONIBLE sans effet de bord, et les identifiants d'adaptateurs sont stables et dérivés uniquement par encodage canonique injectif. CA-M2-15 est porté par la story S008.
-
 Production pour M5 — hors périmètre v1. Le brief §4 évoque la production par M2 d'un résumé du lead converti à destination de M5, portant la référence au devis M3 accepté sans jamais stocker de montant. Cette capacité est explicitement reportée hors périmètre v1 : M5 n'existe pas encore en mode ombre, la structure du résumé consommé par M5 n'est pas définie, et sa validation nécessiterait un contrat gelé M5 qui n'existe pas. La référence au devis M3 est déjà stockée dans le dossier LeadM2 au statut converti et suffira, le jour venu, à alimenter le résumé M5 sans modification du schéma M2.
 
 Invariant transversal REJ-CONVERSATION-CLOSE. L'identifiant de verdict REJ-CONVERSATION-CLOSE, émis lorsqu'un appel d'écriture tente de modifier un lead en statut terminal (converti ou perdu), est repris tel quel du catalogue M1. Cette reprise est un invariant transversal de stabilité des identifiants de verdict entre modules, et non une dépendance de code : M2 déclare cet identifiant dans son propre catalogue verdicts.py comme constante littérale, sans importer M1. La même valeur littérale est épinglée des deux côtés en test, conformément à la logique de l'addendum D3.
@@ -76,6 +74,8 @@ CA-M2-12 : le digest signale comme orphelin tout lead en statut nouveau dépourv
 CA-M2-13 : chaque fichier dupliqué depuis M1 (encodage.py, horodatage.py, registre.py) porte dans les tests M2 une empreinte sha256 attendue, déclarée comme constante littérale dans le fichier de test M2 lui-même (jamais lue depuis l'arborescence M1, afin de préserver l'absence de couplage inter-modules même en test). Un test miroir côté M1 vérifie symétriquement que ses propres fichiers produisent les mêmes empreintes. Toute divergence fait échouer la CI des deux côtés.
 
 CA-M2-14 : une suite de cas d'abus héritée de M1 (collisions par concaténation directe, horodatages invalides, mutations de chaîne, réordonnancements) est rejouée intégralement contre les implémentations M2, sans partage de code de production entre M1 et M2, et chaque cas produit le même verdict déterministe des deux côtés. CA-M2-15 : tout appel d'écriture vers un CRM tiers hors mode ombre est rejeté avec REJ-ADAPTATEUR-INDISPONIBLE sans aucun effet de bord ; les identifiants d'adaptateurs sont déterministes entre deux exécutions et dérivés uniquement par encodage canonique injectif. Porté par la story S008.
+
+CA-M2-15 : tout appel d'écriture vers un CRM tiers hors mode ombre est rejeté avec REJ-ADAPTATEUR-INDISPONIBLE sans effet de bord, et les identifiants d'adaptateurs sont stables et dérivés uniquement par encodage canonique injectif. CA-M2-15 est porté par la story S008.
 
 7. Hors périmètre v1
 
