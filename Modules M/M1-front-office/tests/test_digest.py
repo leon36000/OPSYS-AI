@@ -1,3 +1,7 @@
+import json
+import os
+import subprocess
+import random
 import sys
 from pathlib import Path
 import hashlib
@@ -11,7 +15,6 @@ if str(_SRC) not in sys.path:
 import digest  # noqa: E402
 import adaptateurs  # noqa: E402
 import garde_fou  # noqa: E402
-from registre import Registre  # noqa: E402
 import verdicts  # noqa: E402
 
 
@@ -60,34 +63,36 @@ ENTREES_SENSIBLES = [
 class MockApprovalEngine:
     """Implémentation alternative minimale du protocole ApprovalEngine."""
     def __init__(self):
-        self._store = {}
+        self._store: dict[str, str] = {}
 
-    def proposer(self, objet, acteur):
-        raw = f"{objet}::{acteur}"
-        self._store[raw] = "proposé"
-        return hashlib.sha256(raw.encode()).hexdigest()
+    def proposer(self, objet, acteur: str) -> str:
+        normalise = adaptateurs._normaliser_objet_deterministe(objet)
+        serialized = json.dumps(normalise, sort_keys=True, ensure_ascii=False)
+        id_ = adaptateurs._derive_id(serialized, acteur)
+        self._store[id_] = "proposé"
+        return id_
 
-    def statut(self, identifiant):
-        for raw, statut_val in self._store.items():
-            if hashlib.sha256(raw.encode()).hexdigest() == identifiant:
-                return statut_val
+    def statut(self, identifiant: str) -> str:
+        if identifiant in self._store:
+            return self._store[identifiant]
         raise LookupError(f"Identifiant inconnu : {identifiant}")
 
 
 class MockNotificationBus:
     """Implémentation alternative minimale du protocole NotificationBus."""
     def __init__(self):
-        self._sent = {}
+        self._sent: dict[str, bool] = {}
 
-    def emettre(self, canal, message):
-        raw = f"{canal}::{message}"
-        self._sent[raw] = True
-        return hashlib.sha256(raw.encode()).hexdigest()
+    def emettre(self, canal: str, message: str) -> str:
+        id_ = adaptateurs._derive_id(canal, message)
+        self._sent[id_] = True
+        return id_
 
 
 # ------------------------------------------------------------------ #
 # tests
 # ------------------------------------------------------------------ #
+
 
 class TestDigestByteIdentique:
     @pytest.mark.parametrize("entrees", [ENTREES_REGLABLES, ENTREES_SENSIBLES, []])
@@ -98,12 +103,55 @@ class TestDigestByteIdentique:
         assert hashlib.sha256(d1.encode()).hexdigest() == hashlib.sha256(d2.encode()).hexdigest()
 
     def test_ordre_independant(self):
-        import random
-        entrees = list(ENTREES_REGLABLES)
-        random.shuffle(entrees)
-        d_shuffle = digest.produire_digest(entrees, "2025-04-01")
+        rng1 = random.Random(20260726)
+        entrees1 = list(ENTREES_REGLABLES)
+        rng1.shuffle(entrees1)
+        d_shuffle1 = digest.produire_digest(entrees1, "2025-04-01")
+
+        rng2 = random.Random(20260727)
+        entrees2 = list(ENTREES_REGLABLES)
+        rng2.shuffle(entrees2)
+        d_shuffle2 = digest.produire_digest(entrees2, "2025-04-01")
+
         d_original = digest.produire_digest(ENTREES_REGLABLES, "2025-04-01")
-        assert d_shuffle == d_original
+        assert d_shuffle1 == d_original
+        assert d_shuffle2 == d_original
+
+    def test_determinisme_inter_processus(self, tmp_path):
+        """Vérifie que l'id produit par l'ApprovalEngine est identique quelle que soit PYTHONHASHSEED."""
+        engine = adaptateurs.creer_approval_engine(mode_ombre=True)
+        objet_test = {"valeurs": {3, 1, 2}}
+        acteur = "testeur"
+        id_local = engine.proposer(objet_test, acteur)
+
+        # Chemin du répertoire contenant le module adaptateurs
+        adaptateurs_dir = os.path.dirname(inspect.getfile(adaptateurs))
+
+        script = tmp_path / "id_test.py"
+        script.write_text(f"""
+import sys, json, hashlib
+sys.path.insert(0, {adaptateurs_dir!r})
+import adaptateurs
+engine = adaptateurs.creer_approval_engine(mode_ombre=True)
+objet = {{"valeurs": {{3, 1, 2}}}}
+print(engine.proposer(objet, "testeur"))
+""")
+        seeds = ["0", "1", "42"]
+        ids = []
+        for seed in seeds:
+            env = os.environ.copy()
+            env["PYTHONHASHSEED"] = seed
+            result = subprocess.run(
+                [sys.executable, str(script)],
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+            assert result.returncode == 0, f"seed={seed} stderr: {result.stderr}"
+            ids.append(result.stdout.strip())
+
+        assert len(set(ids)) == 1, f"IDs divergents selon PYTHONHASHSEED: {list(zip(seeds, ids))}"
+        assert id_local == ids[0]
 
 
 class TestZeroHorloge:

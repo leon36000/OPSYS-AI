@@ -12,31 +12,35 @@ def _derive_id(*parts: str) -> str:
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
+def _normaliser_objet_deterministe(obj):
+    """Retourne une représentation normalisée déterministe de l'objet, prête pour sérialisation JSON."""
+    if isinstance(obj, (set, frozenset)):
+        elems = sorted(_normaliser_objet_deterministe(e) for e in obj)
+        return {"__set__": elems}
+    if isinstance(obj, dict):
+        return {k: _normaliser_objet_deterministe(v) for k, v in sorted(obj.items())}
+    if isinstance(obj, (list, tuple)):
+        return [_normaliser_objet_deterministe(e) for e in obj]
+    if isinstance(obj, (str, int, float, bool, type(None))):
+        return obj
+    return repr(obj)
+
+
 class _ApprovalEngine:
     def __init__(self, mode_ombre: bool):
         self._mode_ombre = mode_ombre
         self._store: dict[str, str] = {}
 
     def proposer(self, objet, acteur: str) -> Union[str, dict]:
-        """Propose un objet pour approbation.
-
-        En mode ombre : retourne un identifiant (str) déterministe.
-        Hors mode ombre : retourne un verdict de rejet (dict).
-        Tous les types d'objets sont acceptés via sérialisation robuste.
-        """
         if not self._mode_ombre:
             return verdicts.construire_verdict("REJ-ADAPTATEUR-INDISPONIBLE")
-        serialized = json.dumps(objet, sort_keys=True, ensure_ascii=True, default=repr)
+        normalise = _normaliser_objet_deterministe(objet)
+        serialized = json.dumps(normalise, sort_keys=True, ensure_ascii=False)
         id_ = _derive_id(serialized, acteur)
         self._store[id_] = "proposé"
         return id_
 
     def statut(self, id_: str) -> Union[str, dict]:
-        """Retourne le statut d'une proposition.
-
-        En mode ombre : retourne le statut stocké ou 'STATUT_INCONNU' (str).
-        Hors mode ombre : retourne un verdict de rejet (dict).
-        """
         if not self._mode_ombre:
             return verdicts.construire_verdict("REJ-ADAPTATEUR-INDISPONIBLE")
         if id_ in self._store:
@@ -49,11 +53,6 @@ class _NotificationBus:
         self._mode_ombre = mode_ombre
 
     def emettre(self, canal: str, message: str) -> Union[str, dict]:
-        """Émet une notification.
-
-        En mode ombre : retourne un identifiant (str) de l'émission.
-        Hors mode ombre : retourne un verdict de rejet (dict).
-        """
         if not self._mode_ombre:
             return verdicts.construire_verdict("REJ-ADAPTATEUR-INDISPONIBLE")
         return _derive_id(canal, message)
