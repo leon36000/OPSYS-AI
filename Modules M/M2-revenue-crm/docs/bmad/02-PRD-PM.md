@@ -73,7 +73,7 @@ CA-M2-12 : le digest signale comme orphelin tout lead en statut nouveau dépourv
 
 CA-M2-13 : chaque fichier dupliqué depuis M1 (encodage.py, horodatage.py, registre.py) porte dans les tests M2 une empreinte sha256 attendue, déclarée comme constante littérale dans le fichier de test M2 lui-même (jamais lue depuis l'arborescence M1, afin de préserver l'absence de couplage inter-modules même en test). Un test miroir côté M1 vérifie symétriquement que ses propres fichiers produisent les mêmes empreintes. Toute divergence fait échouer la CI des deux côtés.
 
-CA-M2-14 : une suite de cas d'abus héritée de M1 (collisions par concaténation directe, horodatages invalides, mutations de chaîne, réordonnancements) est rejouée intégralement contre les implémentations M2, sans partage de code de production entre M1 et M2, et chaque cas produit le même verdict déterministe des deux côtés.
+CA-M2-14 : une suite de cas d'abus héritée de M1 (collisions par concaténation directe, horodatages invalides, mutations de chaîne, réordonnancements) est rejouée intégralement contre les implémentations M2, sans partage de code de production entre M1 et M2, et chaque cas produit le même verdict déterministe des deux côtés. CA-M2-15 : tout appel d'écriture vers un CRM tiers hors mode ombre est rejeté avec REJ-ADAPTATEUR-INDISPONIBLE sans aucun effet de bord ; les identifiants d'adaptateurs sont déterministes entre deux exécutions et dérivés uniquement par encodage canonique injectif. Porté par la story S008.
 
 7. Hors périmètre v1
 

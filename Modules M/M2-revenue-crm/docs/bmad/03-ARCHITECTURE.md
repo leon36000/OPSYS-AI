@@ -99,7 +99,7 @@ Invariants CI transversaux : zéro réseau (test d'absence d'imports socket/requ
 
 - M2-S001 (T1, dépendances : aucune) — utilitaires transversaux : encodage canonique injectif à préfixage par longueur, validation d'horodatage ISO-8601 avec timezone et refus explicite, catalogue de verdicts stables, validation fail-closed des fixtures exigeant fictif: true. Porte CA-M2-11. Porte également CA-M2-13 (empreintes sha256 attendues des fichiers dupliqués, déclarées comme constantes littérales dans les tests M2) et CA-M2-14 (suite de cas d'abus héritée de M1 rejouée contre les implémentations M2 d'encodage, d'horodatage et de registre).
 
-S002 : `ajouter(entree) -> str — append et retourne le hash du maillon` ; `lire(depuis) -> list — lecture depuis un hash` ; `tete() -> str|None` ; `valider_chaine(ancre) -> bool` ; `assert_chaine(ancre) -> None — lève si valider_chaine retourne faux` ; `taille() -> int`.
+- M2-S002 (T1, dépend : S001) — registre append-only hash-chaîné réimplémenté sur le patron M1, API ajouter/lire/tete/valider_chaine/assert_chaine/taille. Porte CA-M2-10. Les cas d'abus de chaîne (mutation, troncature, réordonnancement) sont rejoués ici au titre de CA-M2-14.
 
 - M2-S003 (T1, dépend : S001, S002) — ingestion du contrat gelé LeadQualifie, validation structurelle, vérification des frontières de vérité, inscription au statut nouveau, accusé de réception portant lead_id et hash du maillon. Porte CA-M2-01 et CA-M2-02.
 
