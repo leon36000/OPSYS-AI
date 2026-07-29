@@ -4,12 +4,13 @@ import inspect
 import pytest
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
+_PKG = _SRC / "m1_front_office"  # répertoire du paquet, pour les scans de sources
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-import qualification  # noqa: E402 (module inexistant → RED attendu)
-import verdicts        # noqa: E402
-import contrats        # noqa: E402
+from m1_front_office import qualification  # noqa: E402 (module inexistant → RED attendu)
+from m1_front_office import verdicts        # noqa: E402
+from m1_front_office import contrats        # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -225,7 +226,7 @@ def test_lead_avec_urgence_valide_contrat(canal_texte, conv_id):
 
 
 def test_lead_id_encodage_injectif():
-    import qualification
+    from m1_front_office import qualification
 
     # 1. Injectivité – concaténation naïve identique
     assert qualification._materiau_lead_id("AB", "X") != qualification._materiau_lead_id("A", "BX"), (

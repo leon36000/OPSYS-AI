@@ -11,9 +11,9 @@ _M1 = Path(__file__).resolve().parents[1]
 _SRC = _M1 / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
-import registre
-import horodatage
-import verdicts
+from m1_front_office import registre
+from m1_front_office import horodatage
+from m1_front_office import verdicts
 
 # Fixture pour charger les signaux réels
 @pytest.fixture

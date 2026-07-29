@@ -1,7 +1,7 @@
 import re
 import unicodedata
-import verdicts
-from registre import Registre
+from . import verdicts
+from .registre import Registre
 
 __all__ = ["verifier_sortie"]
 

@@ -1,8 +1,8 @@
 import copy
-import horodatage as _horodatage
-import registre
-import verdicts
-import encodage
+from . import horodatage as _horodatage
+from . import registre
+from . import verdicts
+from . import encodage
 
 STATUTS = ("nouveau", "qualifie", "converti", "perdu")
 STATUTS_TERMINAUX = ("converti", "perdu")

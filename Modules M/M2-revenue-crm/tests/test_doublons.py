@@ -6,14 +6,15 @@ from pathlib import Path
 import pytest
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
+_PKG = _SRC / "m2_revenue_crm"  # répertoire du paquet, pour les scans de sources
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-import encodage  # noqa: E402
-import verdicts  # noqa: E402
-import registre  # noqa: E402
-import ingestion  # noqa: E402
-import doublons  # noqa: E402
+from m2_revenue_crm import encodage  # noqa: E402
+from m2_revenue_crm import verdicts  # noqa: E402
+from m2_revenue_crm import registre  # noqa: E402
+from m2_revenue_crm import ingestion  # noqa: E402
+from m2_revenue_crm import doublons  # noqa: E402
 
 
 # ------------------------------------------------------------------- helpers
@@ -524,7 +525,7 @@ class TestAntiFusionArchitecturale:
 
     def test_aucune_fonction_fusion_dans_src(self):
         """Scan des fichiers src/*.py : aucun nom de fonction contenant 'fusionn', 'merge' ou 'fusion'."""
-        fichiers = list(_SRC.glob("*.py"))
+        fichiers = list(_PKG.glob("*.py"))
         assert len(fichiers) > 0, "Aucun fichier source trouvé dans le module."
         noms_suspects = []
         for fp in fichiers:

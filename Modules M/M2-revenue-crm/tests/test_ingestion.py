@@ -7,15 +7,16 @@ from pathlib import Path
 import pytest
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
+_PKG = _SRC / "m2_revenue_crm"  # répertoire du paquet, pour les scans de sources
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-import encodage  # noqa: E402
-import verdicts  # noqa: E402
-import registre  # noqa: E402
-import contrats  # noqa: E402
-import frontieres  # noqa: E402
-import ingestion  # noqa: E402
+from m2_revenue_crm import encodage  # noqa: E402
+from m2_revenue_crm import verdicts  # noqa: E402
+from m2_revenue_crm import registre  # noqa: E402
+from m2_revenue_crm import contrats  # noqa: E402
+from m2_revenue_crm import frontieres  # noqa: E402
+from m2_revenue_crm import ingestion  # noqa: E402
 
 SUPPRIMER = object()
 
@@ -661,7 +662,7 @@ class TestInvariantsIngestion:
 
     def test_un_seul_point_ecriture(self):
         """Le fichier ingestion.py n'utilise .ajouter( qu'à un seul endroit."""
-        chemin_ingestion = Path(__file__).resolve().parents[1] / "src" / "ingestion.py"
+        chemin_ingestion = Path(__file__).resolve().parents[1] / "src" / "m2_revenue_crm" / "ingestion.py"
         contenu = chemin_ingestion.read_text(encoding="utf-8")
         assert contenu, "Fichier ingestion.py vide"
         occurrences = contenu.count(".ajouter(")
@@ -672,7 +673,7 @@ class TestInvariantsIngestion:
     @pytest.mark.parametrize("nom_fichier", ["contrats.py", "frontieres.py", "ingestion.py"])
     def test_aucun_reseau(self, nom_fichier):
         """Les sources n'importent aucun module réseau (socket, urllib, requests, http)."""
-        chemin = Path(__file__).resolve().parents[1] / "src" / nom_fichier
+        chemin = Path(__file__).resolve().parents[1] / "src" / "m2_revenue_crm" / nom_fichier
         contenu = chemin.read_text(encoding="utf-8").lower()
         assert contenu, f"Fichier {nom_fichier} vide"
         for motif in ("import socket", "from urllib", "import requests", "import http"):
@@ -681,7 +682,7 @@ class TestInvariantsIngestion:
     @pytest.mark.parametrize("nom_fichier", ["contrats.py", "frontieres.py", "ingestion.py"])
     def test_aucune_horloge_interne(self, nom_fichier):
         """Les sources n'utilisent pas datetime.now, time.time, date.today ni utcnow."""
-        chemin = Path(__file__).resolve().parents[1] / "src" / nom_fichier
+        chemin = Path(__file__).resolve().parents[1] / "src" / "m2_revenue_crm" / nom_fichier
         contenu = chemin.read_text(encoding="utf-8").lower()
         assert contenu, f"Fichier {nom_fichier} vide"
         for appel in ("datetime.now", "time.time", "date.today", "utcnow"):
@@ -689,11 +690,11 @@ class TestInvariantsIngestion:
 
     def test_determinisme_inter_processus(self):
         """La même ingestion exécutée dans des processus distincts produit le même ligne_id."""
-        src_path = Path(__file__).resolve().parents[1] / "src"
+        src_path = Path(__file__).resolve().parents[1] / "src" / "m2_revenue_crm"
         script = (
             "import sys, os, json\n"
-            f"sys.path.insert(0, {str(src_path)!r})\n"
-            "import encodage, registre, contrats, frontieres, ingestion\n"
+            f"sys.path.insert(0, {str(src_path.parent)!r})\n"
+            "from m2_revenue_crm import encodage, registre, contrats, frontieres, ingestion\n"
             "contrat = {\n"
             '    "lead_id": "det-001",\n'
             '    "conversation_id": "conv-001",\n'

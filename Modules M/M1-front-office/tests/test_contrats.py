@@ -7,7 +7,7 @@ _M1 = Path(__file__).resolve().parents[1]
 _SRC = _M1 / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
-import registre, contrats, verdicts, horodatage  # noqa: E402
+from m1_front_office import registre, contrats, verdicts, horodatage  # noqa: E402
 
 # Sha256 fictifs (à geler plus tard)
 SHA256_LEAD_V1 = "30f5acf271cdce065440ca96e103d4d3206b475b11839ba2e75acea255845f36"  # GEL 2026-07-26 (D-015)

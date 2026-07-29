@@ -6,15 +6,16 @@ from pathlib import Path
 import pytest
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
+_PKG = _SRC / "m2_revenue_crm"  # répertoire du paquet, pour les scans de sources
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-import encodage  # noqa: E402
-import registre  # noqa: E402
-import ingestion  # noqa: E402
-import statuts  # noqa: E402
-import doublons  # noqa: E402
-import digest  # noqa: E402
+from m2_revenue_crm import encodage  # noqa: E402
+from m2_revenue_crm import registre  # noqa: E402
+from m2_revenue_crm import ingestion  # noqa: E402
+from m2_revenue_crm import statuts  # noqa: E402
+from m2_revenue_crm import doublons  # noqa: E402
+from m2_revenue_crm import digest  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -128,7 +129,7 @@ class TestDeterminisme:
             "    sys.exit(2)\n"
             "if str(_SRC) not in sys.path:\n"
             "    sys.path.insert(0, str(_SRC))\n"
-            "import registre, digest\n"
+            "from m2_revenue_crm import registre, digest\n"
             "reg = registre.Registre()\n"
             "for entree in json.loads(sys.argv[1]):\n"
             "    reg.ajouter(entree)\n"
@@ -435,7 +436,7 @@ class TestInvariantsDigest:
 
     def test_aucun_reseau_dans_digest(self):
         """Le fichier digest.py ne contient aucun import réseau."""
-        fichier = _SRC / "digest.py"
+        fichier = _PKG / "digest.py"
         assert fichier.exists(), "digest.py doit exister"
         contenu = fichier.read_text(encoding="utf-8")
         interdits = ["socket", "urllib", "requests", "http"]
@@ -444,7 +445,7 @@ class TestInvariantsDigest:
 
     def test_aucune_horloge_interne(self):
         """Aucune horloge système (datetime.now/time.time...) n'est utilisée dans digest.py."""
-        fichier = _SRC / "digest.py"
+        fichier = _PKG / "digest.py"
         contenu = fichier.read_text(encoding="utf-8")
         horloges = ["datetime.now", "time.time", "date.today", "utcnow"]
         for mot in horloges:
@@ -491,7 +492,7 @@ class TestInvariantsDigest:
             "from pathlib import Path\n"
             "_SRC = Path(sys.argv[1])\n"
             "sys.path.insert(0, str(_SRC))\n"
-            "import registre, digest\n"
+            "from m2_revenue_crm import registre, digest\n"
             "reg = registre.Registre()\n"
             "for entree in json.loads(sys.argv[2]):\n"
             "    reg.ajouter(entree)\n"

@@ -6,18 +6,19 @@ import pytest
 
 # noinspection PyUnresolvedReferences
 _SRC = Path(__file__).resolve().parents[1] / "src"
+_PKG = _SRC / "m2_revenue_crm"  # répertoire du paquet, pour les scans de sources
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 # Les imports suivants échoueront en phase RED car les modules n'existent pas encore.
 # C'est le comportement attendu pour ces tests.
-import encodage
-import verdicts
-import registre
-import ingestion
-import statuts
-import interactions   # Fichier manquant → ImportError attendu
-import readiness     # Fichier manquant → ImportError attendu
+from m2_revenue_crm import encodage
+from m2_revenue_crm import verdicts
+from m2_revenue_crm import registre
+from m2_revenue_crm import ingestion
+from m2_revenue_crm import statuts
+from m2_revenue_crm import interactions  # Fichier manquant → ImportError attendu
+from m2_revenue_crm import readiness  # Fichier manquant → ImportError attendu
 
 
 # ------------------------------------------------------------------ helpers de module
@@ -910,14 +911,14 @@ class TestInvariantsReadiness:
 
     def test_readiness_pas_d_appel_ajouter(self):
         """Le fichier readiness.py ne contient aucun appel a .ajouter(."""
-        chemin_readiness = _SRC / "readiness.py"
+        chemin_readiness = _PKG / "readiness.py"
         contenu = chemin_readiness.read_text(encoding="utf-8")
         assert ".ajouter(" not in contenu, \
             "readiness.py ne doit pas contenir .ajouter("
 
     def test_interactions_un_seul_appel_ajouter(self):
         """Le fichier interactions.py contient exactement un appel .ajouter(."""
-        chemin_interactions = _SRC / "interactions.py"
+        chemin_interactions = _PKG / "interactions.py"
         contenu = chemin_interactions.read_text(encoding="utf-8")
         nb = contenu.count(".ajouter(")
         assert nb == 1, f"Attendu 1 appel .ajouter(, trouve {nb}"
@@ -925,7 +926,7 @@ class TestInvariantsReadiness:
     @pytest.mark.parametrize("nom_fichier", ["interactions.py", "readiness.py"])
     def test_absence_de_horloge_ou_reseau(self, nom_fichier):
         """Aucun usage de time.sleep, socket, requests, etc. dans les deux fichiers."""
-        chemin = _SRC / nom_fichier
+        chemin = _PKG / nom_fichier
         contenu = chemin.read_text(encoding="utf-8").lower()
         motifs_interdits = [
             "time.sleep", "datetime.now", "datetime.utcnow",
@@ -937,7 +938,7 @@ class TestInvariantsReadiness:
 
     def test_absence_reference_M1_dans_les_sources(self):
         """Aucun fichier source du module M2 ne fait reference a 'M1-'."""
-        for fichier in _SRC.glob("*.py"):
+        for fichier in _PKG.glob("*.py"):
             contenu = fichier.read_text(encoding="utf-8")
             assert "M1-" not in contenu, \
                 f"Le fichier {fichier.name} contient la chaine interdite 'M1-'"

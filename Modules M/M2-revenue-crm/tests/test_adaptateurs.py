@@ -7,13 +7,14 @@ from pathlib import Path
 import pytest
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
+_PKG = _SRC / "m2_revenue_crm"  # répertoire du paquet, pour les scans de sources
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-import encodage  # noqa: E402
-import verdicts  # noqa: E402
-import registre  # noqa: E402
-import adaptateurs  # noqa: E402
+from m2_revenue_crm import encodage  # noqa: E402
+from m2_revenue_crm import verdicts  # noqa: E402
+from m2_revenue_crm import registre  # noqa: E402
+from m2_revenue_crm import adaptateurs  # noqa: E402
 
 
 class TestFailClosed:
@@ -361,7 +362,7 @@ class TestIdentifiantInjectif:
         code_template = (
             "import sys\n"
             f"sys.path.insert(0, {repr(src_path)})\n"
-            "from adaptateurs import AdaptateurMemoire\n"
+            "from m2_revenue_crm.adaptateurs import AdaptateurMemoire\n"
             "inst = AdaptateurMemoire('inter_proc', 'ombre')\n"
             "print(inst.identifiant())\n"
         )

@@ -1,7 +1,7 @@
 import hashlib
-import horodatage as _horodatage
-import verdicts
-from registre import Registre
+from . import horodatage as _horodatage
+from . import verdicts
+from .registre import Registre
 
 class TransitionInterdite(Exception):
     """Levée lorsqu'une tentative de transition n'est pas autorisée."""

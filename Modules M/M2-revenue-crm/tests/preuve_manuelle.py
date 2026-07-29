@@ -5,9 +5,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-RACINE = Path("/media/pc1/Storage/Repo/OPSYS-AI/Modules M/M2-revenue-crm")
+# Chemin déduit du fichier, jamais absolu : le dépôt doit rester déplaçable.
+RACINE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RACINE / "src"))
-import encodage, horodatage, verdicts, fixtures_garde  # noqa: E402
+from m2_revenue_crm import encodage, horodatage, verdicts, fixtures_garde  # noqa: E402
 
 print("=== injectivité (les collisions mesurées dans M1 ne se reproduisent pas) ===")
 for a, b in ((("AB", "X"), ("A", "BX")), (("A", " BC"), ("A ", "BC"))):
@@ -15,7 +16,7 @@ for a, b in ((("AB", "X"), ("A", "BX")), (("A", " BC"), ("A ", "BC"))):
 
 print("\n=== déterminisme INTER-PROCESSUS (PYTHONHASHSEED) ===")
 code = (
-    "import sys; sys.path.insert(0, %r); import encodage; "
+    "import sys; sys.path.insert(0, %r); from m2_revenue_crm import encodage; "
     "print(encodage.encoder_canonique({'x': {'a','b','c','d','e'}, 'y': [3,1,2]}, 'acteur'))"
     % str(RACINE / "src")
 )

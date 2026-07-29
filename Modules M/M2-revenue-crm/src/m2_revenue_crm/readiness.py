@@ -10,10 +10,10 @@ Fonctions pures (evaluer) ou produisant un marqueur horodaté signé.
 """
 
 from datetime import datetime
-import horodatage as _horodatage
-from encodage import encoder_canonique
-from verdicts import construire_verdict
-from statuts import statut_courant
+from . import horodatage as _horodatage
+from .encodage import encoder_canonique
+from .verdicts import construire_verdict
+from .statuts import statut_courant
 
 
 # Types de travaux autorisés (énumération fermée)

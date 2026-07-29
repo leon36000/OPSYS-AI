@@ -17,11 +17,19 @@ import yaml
 # Chemins
 # ---------------------------------------------------------------------------
 MODULE_DIR = Path(__file__).parent.parent
-SRC_DIR = MODULE_DIR / "src"
+# DEUX chemins, DEUX rôles distincts — les confondre casse l'un des deux :
+#   _SRC  = src/, PARENT du paquet : c'est lui qui va dans sys.path et qui rend
+#           « from m1_front_office import ... » résoluble ;
+#   SRC_DIR = le paquet lui-même : c'est lui qu'on scanne pour lire les sources.
+# Mesuré : avec le paquet dans sys.path, ce fichier exécuté SEUL échouait, et ne
+# passait dans la suite complète que parce qu'un autre fichier avait inséré src/
+# avant lui — une dépendance à l'ordre de collecte, précisément ce que la mise en
+# paquet doit supprimer.
+_SRC = MODULE_DIR / "src"
+SRC_DIR = _SRC / "m1_front_office"
 FIXTURES_DIR = MODULE_DIR / "fixtures" / "provenance"
 
-# Ajouter src/ au chemin d'import
-sys.path.insert(0, str(SRC_DIR))
+sys.path.insert(0, str(_SRC))
 
 
 # ---------------------------------------------------------------------------
@@ -41,7 +49,7 @@ def _charger_fixture(nom_fichier: str) -> dict:
 
 def _importer_filtrer():
     """Importe la fonction filtrer depuis provenance.py."""
-    import provenance  # noqa: PLC0415
+    from m1_front_office import provenance  # noqa: PLC0415
     return provenance.filtrer
 
 

@@ -5,9 +5,10 @@ import inspect
 import re
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
+_PKG = _SRC / "m2_revenue_crm"  # répertoire du paquet, pour les scans de sources
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
-import registre  # noqa: E402
+from m2_revenue_crm import registre  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Constantes pour les tests

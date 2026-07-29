@@ -2,11 +2,11 @@
 # Respecte l'ordre canonique : horodatage → structure → frontières → unicité → écriture → accusé.
 import copy
 
-import encodage
-import horodatage as _horodatage
-import verdicts
-import contrats
-import frontieres
+from . import encodage
+from . import horodatage as _horodatage
+from . import verdicts
+from . import contrats
+from . import frontieres
 
 STATUT_INITIAL = "nouveau"
 TYPE_ENTREE = "lead_ingere"

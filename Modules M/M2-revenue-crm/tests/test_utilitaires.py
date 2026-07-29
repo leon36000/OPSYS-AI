@@ -8,13 +8,14 @@ import pytest
 import yaml
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
+_PKG = _SRC / "m2_revenue_crm"  # répertoire du paquet, pour les scans de sources
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-import encodage  # noqa: E402
-import horodatage  # noqa: E402
-import verdicts  # noqa: E402
-import fixtures_garde  # noqa: E402
+from m2_revenue_crm import encodage  # noqa: E402
+from m2_revenue_crm import horodatage  # noqa: E402
+from m2_revenue_crm import verdicts  # noqa: E402
+from m2_revenue_crm import fixtures_garde  # noqa: E402
 
 
 # ----------------------------------------------------------------------
@@ -40,7 +41,7 @@ class TestEncoderCanonique:
         code = f"""
 import sys
 sys.path.insert(0, r'{_SRC}')
-import encodage
+from m2_revenue_crm import encodage
 donnees = {{'set': {{'a', 'b'}}, 'dict': {{'k': 'v'}}}}
 print(encodage.encoder_canonique(donnees))
 """
@@ -262,10 +263,17 @@ class TestModulesSansReseauNiHorlogeNiLLM:
         ["encodage", "horodatage", "verdicts", "fixtures_garde"],
     )
     def test_source_sans_motifs_interdits(self, module_name):
+        # Nom QUALIFIÉ par le paquet : un nom de premier niveau ne résout plus,
+        # et c'est précisément la propriété apportée par la mise en paquet
+        # (chore #109) — deux arbres ne peuvent plus se recouvrir dans
+        # sys.modules.
         try:
-            mod = importlib.import_module(module_name)
+            mod = importlib.import_module(f"m2_revenue_crm.{module_name}")
         except ImportError:
-            pytest.fail(f"Module {module_name} introuvable, impossible de vérifier la source")
+            pytest.fail(
+                f"Module m2_revenue_crm.{module_name} introuvable, impossible de "
+                "vérifier la source"
+            )
         source = inspect.getsource(mod)
         motifs_interdits = [
             "urllib",
@@ -290,7 +298,7 @@ from pathlib import Path
 
 import pytest
 
-import encodage
+from m2_revenue_crm import encodage
 
 
 # 1. Conteneurs vides de types différents : empreintes toutes distinctes
@@ -319,12 +327,14 @@ def test_conteneurs_vides_de_types_differents_ne_collisionnent_pas(c1, c2):
 def test_determinisme_inter_processus_structure_imbriquee():
     """Empreinte déterministe quelle que soit PYTHONHASHSEED pour une structure complexe."""
     structure_literal = '{"x": {"a","b","c","d","e"}, "y": [3,1,2], "z": ({"k": {1,2}}, frozenset(["q"]))}'
-    src_dir = Path(__file__).resolve().parents[1] / "src"
-    src_dir_str = src_dir.as_posix()
+    src_dir = Path(__file__).resolve().parents[1] / "src" / "m2_revenue_crm"
+    # sys.path doit recevoir le PARENT du paquet : c'est lui qui rend
+    # « from m2_revenue_crm import ... » résoluble dans le sous-processus.
+    src_dir_str = src_dir.parent.as_posix()
     code = (
         f"import sys\n"
         f"sys.path.insert(0, {src_dir_str!r})\n"
-        f"import encodage\n"
+        f"from m2_revenue_crm import encodage\n"
         f"print(encodage.empreinte({structure_literal}))"
     )
     graines = ["0", "1", "42", "1337", "99991"]
@@ -512,11 +522,13 @@ class TestEncodageTypesStandards:
         from decimal import Decimal
         from datetime import datetime
         from uuid import UUID
-        src = Path(__file__).resolve().parents[1] / "src"
+        src = Path(__file__).resolve().parents[1] / "src" / "m2_revenue_crm"
         script = (
             "import sys\n"
-            f"sys.path.insert(0, {str(src)!r})\n"
-            "import encodage\n"
+            # sys.path doit recevoir le PARENT du paquet : c'est lui qui rend
+            # « from m2_revenue_crm import ... » résoluble.
+            f"sys.path.insert(0, {str(src.parent)!r})\n"
+            "from m2_revenue_crm import encodage\n"
             "from decimal import Decimal\n"
             "from datetime import datetime\n"
             "from uuid import UUID\n"
@@ -999,7 +1011,7 @@ class TestCatalogueCoherentAvecLeCadrage:
         """
         import re
 
-        src = Path(__file__).resolve().parents[1] / "src"
+        src = Path(__file__).resolve().parents[1] / "src" / "m2_revenue_crm"
         fichiers = sorted(src.glob("*.py"))
         noms_avant_exclusion = {chemin.name for chemin in fichiers}
         assert self.FICHIER_CATALOGUE in noms_avant_exclusion, (
@@ -1110,7 +1122,7 @@ class TestCatalogueCoherentAvecLeCadrage:
         appelant validant un verdict authentique contre est_verdict le
         rejetterait à tort.
         """
-        src = Path(__file__).resolve().parents[1] / "src"
+        src = Path(__file__).resolve().parents[1] / "src" / "m2_revenue_crm"
         codes_emis, nombre_fichiers = self._identifiants_emis_par_les_sources()
         assert nombre_fichiers > 0, (
             f"Aucun fichier source .py lu dans {src} : la garde ne peut pas passer à vide"

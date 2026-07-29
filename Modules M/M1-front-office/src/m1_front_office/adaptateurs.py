@@ -2,7 +2,7 @@
 
 import hashlib
 import json
-import verdicts
+from . import verdicts
 from typing import Union
 from decimal import Decimal
 from datetime import date, datetime, time

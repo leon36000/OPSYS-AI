@@ -8,9 +8,9 @@ _RACINE = Path(__file__).resolve().parents[1]
 _SRC = _RACINE / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
-import garde_fou  # noqa: E402
-import verdicts  # noqa: E402
-from registre import Registre  # noqa: E402
+from m1_front_office import garde_fou  # noqa: E402
+from m1_front_office import verdicts  # noqa: E402
+from m1_front_office.registre import Registre  # noqa: E402
 
 _FIXTURES = _RACINE / "fixtures" / "interdits"
 

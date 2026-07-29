@@ -9,13 +9,14 @@ import inspect
 import pytest
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
+_PKG = _SRC / "m1_front_office"  # répertoire du paquet, pour les scans de sources
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-import digest  # noqa: E402
-import adaptateurs  # noqa: E402
-import garde_fou  # noqa: E402
-import verdicts  # noqa: E402
+from m1_front_office import digest  # noqa: E402
+from m1_front_office import adaptateurs  # noqa: E402
+from m1_front_office import garde_fou  # noqa: E402
+from m1_front_office import verdicts  # noqa: E402
 
 
 # ------------------------------------------------------------------ #
@@ -125,13 +126,17 @@ class TestDigestByteIdentique:
         id_local = engine.proposer(objet_test, acteur)
 
         # Chemin du répertoire contenant le module adaptateurs
-        adaptateurs_dir = os.path.dirname(inspect.getfile(adaptateurs))
+        # dirname donne le dossier DU PAQUET ; sys.path doit recevoir son
+        # PARENT pour que « from m1_front_office import ... » résolve.
+        adaptateurs_dir = os.path.dirname(
+            os.path.dirname(inspect.getfile(adaptateurs))
+        )
 
         script = tmp_path / "id_test.py"
         script.write_text(f"""
 import sys, json, hashlib
 sys.path.insert(0, {adaptateurs_dir!r})
-import adaptateurs
+from m1_front_office import adaptateurs
 engine = adaptateurs.creer_approval_engine(mode_ombre=True)
 objet = {{"valeurs": {{3, 1, 2}}}}
 print(engine.proposer(objet, "testeur"))
