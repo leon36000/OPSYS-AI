@@ -206,64 +206,29 @@ class TestIdentifiantInjectif:
         )
 
     def test_injectivite_contre_concatenation(self):
-        """
-        Prouve que les couples ("ab","ombre") et ("a","bombre")
-        produisent des identifiants distincts, contrairement à une concaténation naïve.
-        """
-        obj1, _ = adaptateurs.construire_adaptateur("ab", "ombre")
-        obj2, _ = adaptateurs.construire_adaptateur("a", "bombre")
-        # Note: le second mode est artificiel, il n'est pas ombre, mais la fabrique
-        # doit construire quand même car le mode est passé à l'identifiant (pas de validation ici)
-        # Pour garantir que la fabrique accepte "bombre", on peut directement instancier AdaptateurMemoire.
-        # Pour rester dans l'interface publique, on peut se contenter de deux noms dont
-        # la concaténation serait identique si on utilisait nom+mode.
-        # Exemple : ("ab", "ombre") et ("a", "bombre") via la fabrique, si elle refuse
-        # "bombre" comme mode, on doit pouvoir les construire autrement.
-        # On peut contourner en créant directement AdaptateurMemoire avec ces paramètres
-        # (si exposé). Mais l'interface ne le garantit pas. Utilisons plutôt deux noms avec
-        # le même mode.
-        # En réalité, le test demande explicitement ces couples, donc supposons que la
-        # fabrique accepte n'importe quelle chaîne pour le mode (seul l'identifiant est
-        # impacté). Adaptons : on passe le mode "ombre" pour les deux et on nomme
-        # les cibles de manière à ce qu'une concaténation nom+mode serait identique.
-        # C'est plus sûr.
-        pass
+        """Prouve que l'identifiant est INJECTIF : deux couples distincts dont la
+        concaténation naïve serait IDENTIQUE donnent des identifiants distincts.
 
-    # Version corrigée pour respecter strictement le cahier des charges
-    def test_injectivite_contre_concatenation_v2(self):
-        """
-        Prouve que deux instances dont les tuples de champs diffèrent mais dont la
-        concaténation naïve serait identique produisent des identifiants distincts.
-        Utilise ("ab", "ombre") et ("a", "bombre") en passant par la fabrique avec
-        les modes correspondants. La fabrique accepte n'importe quelle chaîne pour le
-        paramètre mode afin de permettre ce test.
-        """
-        # On s'attend à ce que la fabrique laisse passer "bombre" car elle ne filtre que
-        # pour la sémantique métier (modes autorisés) mais le paramètre mode est une chaîne
-        # passée à encoder_canonique. L'identifiant est donc construit.
-        # En cas de refus par la fabrique, on utilise la construction directe.
-        # On va d'abord tenter avec la fabrique.
-        obj1 = None
-        obj2 = None
-        try:
-            obj1, _ = adaptateurs.construire_adaptateur("ab", "ombre")
-            # "bombre" n'est pas un mode autorisé, donc la fabrique va probablement
-            # retourner (None, verdict). Le test serait bloqué. Donc il faut une
-            # autre approche.
-        except Exception:
-            pass
+        ("ab", "ombre") et ("a", "bombre") se concatènent tous deux en
+        "abombre". Une implémentation utilisant nom + mode les confondrait — et
+        deux adaptateurs distincts partageraient un identifiant. C'est la
+        collision par concaténation réellement observée dans un module voisin,
+        que le préfixage par longueur de encoder_canonique écarte.
 
-        # Pour garantir le test, nous allons construire directement l'objet si la classe
-        # est accessible. C'est la seule manière fiable pour ce test spécifique.
-        # On vérifie que l'implémentation expose AdaptateurMemoire.
-        assert hasattr(adaptateurs, "AdaptateurMemoire"), "AdaptateurMemoire doit être exposé"
-        instance1 = adaptateurs.AdaptateurMemoire("ab", "ombre")
-        instance2 = adaptateurs.AdaptateurMemoire("a", "bombre")
-        id1 = instance1.identifiant()
-        id2 = instance2.identifiant()
-        assert id1 != id2, (
-            f"Les identifiants doivent être distincts pour ('ab','ombre') et ('a','bombre'), "
-            f"reçu {id1} pour les deux ?"
+        Instanciation DIRECTE assumée : __init__ ne valide pas (par conception,
+        pour que le verrou de ecrire reste testable), et ce test porte sur
+        identifiant(), pas sur la garde de mode. L'objet reste inerte.
+        """
+        instance_a = adaptateurs.AdaptateurMemoire("ab", "ombre")
+        instance_b = adaptateurs.AdaptateurMemoire("a", "bombre")
+        # Pré-condition : la concaténation naïve produit bien la MÊME chaîne,
+        # sans quoi le test ne discriminerait rien.
+        assert "ab" + "ombre" == "a" + "bombre", (
+            "pré-condition : les deux couples doivent collisionner par concatenation"
+        )
+        assert instance_a.identifiant() != instance_b.identifiant(), (
+            "deux couples distincts doivent donner des identifiants distincts ; "
+            "une concatenation directe les confondrait"
         )
 
     def test_determinisme_inter_processus(self, tmp_path):
