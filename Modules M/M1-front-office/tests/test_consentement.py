@@ -236,8 +236,9 @@ from registre import Registre
 
 def test_registre_ne_contient_jamais_le_contenu():
     """Lorsque le consentement est ACCORDÉ, le contenu secret n'est pas présent
-    dans le registre. Seules les métadonnées non identifiantes (empreinte,
-    longueur) sont enregistrées."""
+    dans le registre. Seules les métadonnées non identifiantes (longueur,
+    marqueur) sont enregistrées, SANS empreinte quand aucune clé n'est fournie.
+    """
     # Préparation
     reg = Registre()
     secret = "ENREGISTREMENT_CONFIDENTIEL_DU_CLIENT"  # proof:allow — fixture de test, aucun secret réel
@@ -259,12 +260,15 @@ def test_registre_ne_contient_jamais_le_contenu():
     assert entree["marqueur"] == "conservation_acceptee"
     # Le JSON complet ne doit contenir nulle part le secret en clair
     serialized = json.dumps(reg.lire())
-    assert secret not in serialized, "Le contenu secret ne doit pas apparaître dans le registre"
-    # Empreinte correcte
-    empreinte_attendue = hashlib.sha256(secret.encode('utf-8')).hexdigest()  # proof:allow — fixture de test, aucun secret réel
-    assert entree["payload"]["empreinte_contenu"] == empreinte_attendue
-    assert entree["payload"]["longueur_contenu"] == len(secret.encode('utf-8'))  # proof:allow — fixture de test, aucun secret réel
-    assert entree["payload"]["conversation_id"] == "abc-123"
+    assert secret not in serialized, "Le contenu secret ne doit pas apparaître dans le registre"  # proof:allow — fixture de test
+    # Aucune empreinte (ni SHA-256 nu, ni autre) sans clé
+    payload = entree["payload"]
+    assert "empreinte_contenu" not in payload, (
+        "Sans cle_empreinte, le payload ne doit pas contenir d'empreinte_contenu"
+    )
+    # Métadonnées attendues
+    assert payload["longueur_contenu"] == len(secret.encode("utf-8"))  # proof:allow — fixture de test, aucun secret réel
+    assert payload["conversation_id"] == "abc-123"
 
 
 def test_registre_ne_contient_pas_le_contenu_sur_refus():
@@ -290,3 +294,114 @@ def test_registre_ne_contient_pas_le_contenu_sur_refus():
     # Le registre ne contient pas le secret
     serialized = json.dumps(reg.lire())
     assert secret not in serialized, "Le contenu secret ne doit pas apparaître dans le registre après refus"
+
+
+"""Tests additionnels pour le module consentement (M1-S006)."""
+import sys
+from pathlib import Path
+import json
+import hashlib
+import hmac
+
+import pytest
+
+_SRC = Path(__file__).resolve().parents[1] / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
+
+import consentement  # noqa: E402
+
+
+# ----------------------------------------------------------------------
+# Registre minimal pour les tests
+# ----------------------------------------------------------------------
+class RegistreFactice:
+    """Registre factice qui accumule les entrées dans une liste."""
+
+    def __init__(self):
+        self.entrees: list[dict] = []
+
+    def ajouter(self, entree: dict) -> None:
+        self.entrees.append(entree)
+
+
+# ----------------------------------------------------------------------
+# helpers de test
+# ----------------------------------------------------------------------
+def _conversation(consentement_value="accorde", exclude_field=False):
+    """Crée un dict conversation minimal, avec ou sans le champ consentement_enregistrement."""
+    conv = {
+        "id": "abc-123",
+        "horodatage": "2027-08-01T12:00:00Z",
+    }
+    if not exclude_field:
+        conv["consentement_enregistrement"] = consentement_value
+    return conv
+
+
+# ----------------------------------------------------------------------
+# Tests exigés
+# ----------------------------------------------------------------------
+def test_empreinte_absente_sans_cle():
+    """Sans cle_empreinte, le payload ne contient AUCUNE empreinte."""
+    registre = RegistreFactice()
+    conv = _conversation()
+    contenu = "transcription courte"
+    horodatage = "2027-08-01T12:00:00Z"
+
+    verdict = consentement.conserver_enregistrement(
+        conv, contenu, registre=registre, horodatage=horodatage
+    )
+    assert verdict["code"] == "OK"
+    assert len(registre.entrees) == 1
+    entree = registre.entrees[0]
+    assert "empreinte_contenu" not in entree["payload"], (
+        "Le payload ne doit pas contenir d'empreinte sans clé"
+    )
+    assert entree["payload"]["longueur_contenu"] == len(contenu.encode("utf-8"))
+
+
+def test_empreinte_hmac_avec_cle():
+    """Avec cle_empreinte, le payload contient un HMAC-SHA256 distinct d'un SHA-256 nu."""
+    cle = b"cle-de-test"
+    registre = RegistreFactice()
+    conv = _conversation()
+    contenu = "transcription courte"
+    horodatage = "2027-08-01T12:00:00Z"
+
+    verdict = consentement.conserver_enregistrement(
+        conv, contenu, registre=registre, horodatage=horodatage, cle_empreinte=cle
+    )
+    assert verdict["code"] == "OK"
+    entree = registre.entrees[0]
+    payload = entree["payload"]
+    assert "empreinte_contenu" in payload
+
+    # Calcul attendu
+    attendu = hmac.new(cle, contenu.encode("utf-8"), hashlib.sha256).hexdigest()
+    assert payload["empreinte_contenu"] == attendu
+
+    # Vérifier que ce n'est pas un SHA-256 nu
+    sha_nu = hashlib.sha256(contenu.encode("utf-8")).hexdigest()
+    assert payload["empreinte_contenu"] != sha_nu, (
+        "L'empreinte doit être un HMAC, pas un SHA-256 nu"
+    )
+
+
+def test_contenu_jamais_au_registre_avec_ou_sans_cle():
+    """Le contenu original n'apparaît jamais dans le registre (JSON)."""
+    cle = b"cle-de-test"
+    for cle_option in (None, cle):
+        registre = RegistreFactice()
+        conv = _conversation()
+        contenu = "information sensible"
+        horodatage = "2027-08-01T12:00:00Z"
+
+        consentement.conserver_enregistrement(
+            conv, contenu, registre=registre, horodatage=horodatage,
+            cle_empreinte=cle_option
+        )
+        serialisee = json.dumps(registre.entrees, ensure_ascii=False)
+        assert contenu not in serialisee, (
+            "Le contenu ne doit jamais apparaître dans la sérialisation du registre"
+        )

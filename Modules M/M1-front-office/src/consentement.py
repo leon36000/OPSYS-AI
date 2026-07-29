@@ -4,8 +4,9 @@ FAIL-CLOSED : toute absence ou valeur non explicitement "accorde" est refusée.
 Aucune horloge ni réseau n'est utilisé.
 """
 
-import hashlib
 from typing import Any
+import hashlib
+import hmac
 
 # ----------------------------------------------------------------------
 # helpers
@@ -67,17 +68,25 @@ def conserver_enregistrement(
     contenu: Any,
     registre: Any = None,
     horodatage: str | None = None,
+    cle_empreinte: bytes | None = None,
 ) -> dict[str, str]:
     """Conserve un enregistrement si le consentement est accordé.
 
     Si le consentement est refusé, aucune trace du contenu n'est conservée
     et une alerte est écrite dans le registre (si fourni).
 
+    L'intégrité du contenu est attestée par une empreinte HMAC-SHA256 lorsque
+    la clé est fournie. La clé provient d'un coffre (module config), n'est ni
+    journalisée ni stockée. Si aucune clé n'est fournie, l'entrée reste valide
+    mais sans preuve d'intégrité (FAIL-CLOSED : pas d'empreinte faible).
+
     Args:
         conversation: dict avec la clé 'consentement_enregistrement'.
         contenu: contenu à conserver.
         registre: instance Registre (optionnelle).
         horodatage: horodatage fourni par l'appelant.
+        cle_empreinte: clé secrète (bytes) pour l'empreinte HMAC-SHA256.
+                       Si absente, aucune empreinte n'est écrite.
 
     Returns:
         Verdict OK si conservation réussie, REJ-CONSENTEMENT-ABSENT sinon.
@@ -92,21 +101,24 @@ def conserver_enregistrement(
 
     # Consentement accordé : conservation sans écriture du contenu dans le registre
     if registre is not None:
-        # Métadonnées non identifiantes uniquement
         contenu_bytes = contenu.encode('utf-8') if isinstance(contenu, str) else str(contenu).encode('utf-8')
-        empreinte = hashlib.sha256(contenu_bytes).hexdigest()
         entree = {
             "type_entree": "alerte",
             "marqueur": "conservation_acceptee",
             "horodatage": horodatage,
             "payload": {
-                "empreinte_contenu": empreinte,
                 "longueur_contenu": len(contenu_bytes),
             },
         }
-        # Ajout de l'identifiant conversation si présent
+        # Ajout de l'identifiant conversation si présent (sans empreinte à ce stade)
         if "id" in conversation:
             entree["payload"]["conversation_id"] = conversation["id"]
+
+        # Empreinte avec clé uniquement si fournie
+        if cle_empreinte is not None:
+            empreinte = hmac.new(cle_empreinte, contenu_bytes, hashlib.sha256).hexdigest()
+            entree["payload"]["empreinte_contenu"] = empreinte
+
         registre.ajouter(entree)
 
     return _construire_verdict("OK")
