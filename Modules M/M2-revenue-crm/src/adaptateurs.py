@@ -1,0 +1,141 @@
+import copy
+import hashlib
+import json
+from typing import Protocol, runtime_checkable
+
+import encodage
+import verdicts
+import horodatage as _horodatage
+
+MODE_OMBRE = "ombre"
+MODES = ("ombre",)
+
+
+@runtime_checkable
+class AdaptateurCRM(Protocol):
+    """Protocol exigé par l'architecte : toute implémentation d'écriture CRM doit
+    exposer ecrire(charge, horodatage) et être reconnue par isinstance."""
+
+    def ecrire(self, charge, horodatage) -> tuple[dict | None, dict | None]:
+        ...
+
+
+class AdaptateurMemoire:
+    """Adaptateur d'écriture vers un CRM en mémoire (mode ombre).
+
+    Journal non borné : aucune éviction silencieuse n'est appliquée,
+    car cela détruirait l'auditabilité.  Toute future politique de
+    rétention devra être fail-closed (refus d'écriture) et non une
+    purge automatique.
+
+    L'objet est inerte si instancié avec un mode autre que MODES :
+    la méthode ecrire refusera toute opération et le journal
+    restera vide.  Ce choix garantit la prouvabilité de CA-M2-15.
+    """
+
+    def __init__(self, nom_cible, mode):
+        # Pas de validation ici : l'objet peut être hors mode,
+        # il sera simplement inerte (voir R1, avis architecte).
+        self._nom_cible = nom_cible
+        self._mode = mode
+        self._journal = []
+
+    def identifiant(self):
+        """Identifiant stable, dérivé de (nom_cible, mode) par encodage
+        canonique injectif.
+
+        L'inclusion du mode garantit qu'un adaptateur ombre et un
+        futur adaptateur réel pour une même cible possèdent des
+        identifiants distincts. Le préfixage par longueur écarte
+        les collisions de concaténation naïve."""
+        return encodage.encoder_canonique(self._nom_cible, self._mode)
+
+    def ecrire(self, charge, horodatage):
+        """Valide et enregistre une écriture.
+
+        Ordre des contrôles figé et déterministe (R4) :
+        1. mode supporté (MODES),
+        2. charge structurellement utilisable (dict non vide),
+        3. horodatage valide (avec fuseau horaire, via _horodatage).
+
+        En cas de succès, la mutation du journal a lieu en tout
+        dernier ressort, après construction complète de l'accusé,
+        afin qu'aucune exception ultérieure ne laisse un maillon
+        orphelin (R2)."""
+        # 1. Mode dans MODES → sinon REJ-ADAPTATEUR-INDISPONIBLE
+        if self._mode not in MODES:
+            return (None, verdicts.construire_verdict('REJ-ADAPTATEUR-INDISPONIBLE'))
+
+        # 2. Charge structurellement utilisable : nous exigeons un dict
+        #    non vide.  Aucun schéma de charge n'étant gelé dans le PRD,
+        #    nous n'effectuons aucune validation par champ ; toute
+        #    validation métier doit être réalisée en amont (R3).
+        if not isinstance(charge, dict) or not charge:
+            return (None, verdicts.construire_verdict('REJ-CHAMP-MANQUANT'))
+
+        # 3. Horodatage valide (avec timezone)
+        try:
+            horodatage_valide = _horodatage.valider_horodatage(horodatage)
+        except ValueError:
+            return (None, verdicts.construire_verdict('REJ-HORODATAGE-INVALIDE'))
+
+        # Succès : construction complète de l'accusé AVANT toute mutation.
+        # Une éventuelle exception (ex. charge non sérialisable en JSON)
+        # survient avant l'append, laissant le journal intact.
+        charge_copiee = copy.deepcopy(charge)
+        charge_bytes = json.dumps(charge_copiee, sort_keys=True).encode('utf-8')
+        empreinte = hashlib.sha256(charge_bytes).hexdigest()
+        accuse = {
+            "adaptateur_id": self.identifiant(),
+            "horodatage": horodatage_valide,
+            "charge_hash": empreinte,
+            "rang": len(self._journal),
+        }
+        # Mutation unique, en dernière instruction (R2)
+        self._journal.append(charge_copiee)
+        return (accuse, None)
+
+    def lire_journal(self):
+        """Retourne les CHARGES simulées, en copies profondes, dans l'ordre.
+
+        Le journal conserve la charge elle-même et non son empreinte :
+        l'intérêt du mode ombre est de pouvoir auditer CE QUI SERAIT
+        écrit vers le CRM tiers. Ne garder que le sha256 rendrait la
+        simulation invérifiable — on saurait qu'une écriture a été
+        simulée, jamais laquelle. L'empreinte reste dans l'accusé pour
+        permettre à l'appelant de recouper sans relire le journal.
+
+        La copie profonde interdit à l'appelant d'altérer l'état interne
+        (R5/R6) ; symétriquement ``ecrire`` copie la charge à l'entrée,
+        de sorte qu'une mutation ultérieure de la charge appelante ne se
+        propage pas au journal.
+
+        Le journal n'est pas borné : à l'échelle des fixtures et de la CI
+        la croissance est négligeable, et une éviction silencieuse
+        détruirait l'auditabilité. Si une borne devient nécessaire, elle
+        devra être fail-closed (refus d'écriture), jamais une purge.
+        """
+        return copy.deepcopy(self._journal)
+
+
+def construire_adaptateur(nom_cible, mode):
+    """Fabrique nominale d'adaptateur, FAIL-CLOSED sur le mode.
+
+    Un mode hors de l'énumération fermée MODES est refusé et AUCUN
+    adaptateur n'est construit : la fabrique est la porte nominale et
+    doit rejeter, sinon un appelant obtiendrait un objet en mode
+    interdit et le refus ne surviendrait qu'au premier ``ecrire``.
+
+    POURQUOI la double garde (ici ET dans ``ecrire``) : ``__init__`` ne
+    valide pas — c'est délibéré, sinon le contrôle de mode d'``ecrire``
+    deviendrait du code mort intestable (avis architecte R1). Un objet
+    instancié directement en mode interdit reste donc possible, mais il
+    est INERTE : ``ecrire`` le revérifie et refuse. Les deux chemins
+    sont testés séparément.
+    """
+    if mode not in MODES:
+        return None, verdicts.construire_verdict(
+            "REJ-ADAPTATEUR-INDISPONIBLE",
+            detail=f"mode hors énumération v1 {MODES!r} : {mode!r}",
+        )
+    return AdaptateurMemoire(nom_cible, mode), None
