@@ -518,6 +518,9 @@ class TestInjectiviteExhaustive:
             ("datetime", (2026, 7, 29, 12, 30, 0), "__datetime__", "2026-07-29T12:30:00+00:00", "liste"),
             ("time", (9, 15, 0), "__time__", "09:15:00", "liste"),
             ("decimal", "1.5", "__decimal__", "1.5", "tuple"),
+            ("complex", (1.0, 2.0), "__complex__", ["1.0", "2.0"], "liste"),
+            ("complex", (1.0, 2.0), "__complex__", ["1.0", "2.0"], "tuple"),
+            ("complex", (1.0, 2.0), "__complex__", ["1.0", "2.0"], "mixte"),
         ],
         ids=[
             "decimal_vs_liste_meme_forme",
@@ -528,13 +531,25 @@ class TestInjectiviteExhaustive:
             "datetime_vs_liste_meme_forme",
             "time_vs_liste_meme_forme",
             "decimal_vs_tuple_meme_forme",
+            "complex_vs_liste_meme_forme",
+            "complex_vs_tuple_meme_forme",
+            "complex_vs_mixte_liste_exterieure_tuple_interieur",
         ],
     )
     def test_valeur_typee_ne_collisionne_pas_avec_la_liste_de_meme_forme(
         self, type_cible, argument_brut, balise, forme_canonique, conteneur
     ):
-        """Une valeur typée et la liste (ou le tuple) littérale de même forme
-        doivent produire deux empreintes différentes."""
+        """Une valeur typée et la valeur littérale de même forme (liste, tuple,
+        ou forme mixte liste extérieure / tuple intérieur) doivent produire deux
+        formes normalisées distinctes, et donc deux empreintes distinctes.
+
+        Boîte blanche : l'usage de ``encodage._normaliser`` est volontaire et
+        documenté — le test prouve que la non-collision provient de la
+        normalisation elle-même (balisage récursif des conteneurs), et non d'un
+        hasard de hachage. ``forme_canonique`` est une chaîne pour les types
+        scalaires, et une séquence pour ``complex`` dont la forme canonique est
+        ``[repr(partie_reelle), repr(partie_imaginaire)]``.
+        """
         from decimal import Decimal
         from uuid import UUID
         from datetime import date, datetime, time, timezone
@@ -553,25 +568,40 @@ class TestInjectiviteExhaustive:
             valeur_typee = datetime(*argument_brut, tzinfo=timezone.utc)
         elif type_cible == "time":
             valeur_typee = time(*argument_brut)
+        elif type_cible == "complex":
+            valeur_typee = complex(*argument_brut)
         else:
             raise AssertionError(f"type_cible non pris en charge : {type_cible!r}")
 
-        if conteneur == "liste":
-            forme_litterale = [balise, forme_canonique]
-        elif conteneur == "tuple":
-            forme_litterale = (balise, forme_canonique)
+        if isinstance(forme_canonique, str):
+            contenu_litteral = forme_canonique
+        elif conteneur == "liste":
+            contenu_litteral = list(forme_canonique)
+        else:
+            contenu_litteral = tuple(forme_canonique)
+
+        if conteneur == "tuple":
+            valeur_litterale = (balise, contenu_litteral)
+        elif conteneur in ("liste", "mixte"):
+            valeur_litterale = [balise, contenu_litteral]
         else:
             raise AssertionError(f"conteneur non pris en charge : {conteneur!r}")
 
-        empreinte_typee = encodage.empreinte(valeur_typee)
-        empreinte_litterale = encodage.empreinte(forme_litterale)
-
-        assert empreinte_typee != empreinte_litterale, (
-            f"collision d'empreintes : la valeur typée {valeur_typee!r} et la "
-            f"forme littérale {forme_litterale!r} partagent l'empreinte "
-            f"{empreinte_typee}"
+        forme_typee = encodage._normaliser(valeur_typee)
+        forme_litterale = encodage._normaliser(valeur_litterale)
+        assert forme_typee != forme_litterale, (
+            f"les formes normalisées devraient différer : "
+            f"_normaliser({valeur_typee!r}) = {forme_typee!r} contre "
+            f"_normaliser({valeur_litterale!r}) = {forme_litterale!r}"
         )
 
+        empreinte_typee = encodage.empreinte(valeur_typee)
+        empreinte_litterale = encodage.empreinte(valeur_litterale)
+        assert empreinte_typee != empreinte_litterale, (
+            f"collision d'empreintes entre la valeur typée {valeur_typee!r} "
+            f"et la valeur littérale {valeur_litterale!r} : "
+            f"{empreinte_typee} == {empreinte_litterale}"
+        )
     def test_panel_heterogene_sans_aucune_collision(self):
         """Aucune paire distincte du panel hétérogène ne doit produire la même
         empreinte ; le nombre de paires comparées doit valoir n*(n-1)/2."""
