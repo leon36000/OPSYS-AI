@@ -1,6 +1,24 @@
-__all__ = ["CODES_M2_LIST", "est_verdict", "construire_verdict"]
+"""Catalogue des identifiants de verdicts stables du module M2."""
 
-# Identifiants stables du catalogue M2 (ceux utilisés par les tests)
+__all__ = [
+    "CODES_M2_LIST",
+    "CODES_M2",
+    "CodeVerdictInconnu",
+    "est_verdict",
+    "construire_verdict",
+]
+
+
+class CodeVerdictInconnu(Exception):
+    """
+    Levée par construire_verdict lorsque le code demandé ne figure pas dans
+    le catalogue M2. Hérite d'Exception pour rester attrapable par les tests
+    existants qui font pytest.raises(Exception).
+    """
+
+
+# Identifiants stables du catalogue M2 (épinglés par des tests existants :
+# contenu et ordre inchangés)
 CODES_M2_LIST = [
     "REJ-FRONTIERE-VIOLEE",
     "REJ-TRANSITION-ILLEGALE",
@@ -10,6 +28,14 @@ CODES_M2_LIST = [
     "REJ-MOTIF-ABSENT",
     "REJ-ADAPTATEUR-INDISPONIBLE",
     "OK",
+    # repris du catalogue voisin — invariant transversal
+    "REJ-CONVERSATION-CLOSE",
+    "REJ-CONTRAT-INVALIDE",
+    "REJ-CHAMP-MANQUANT",
+    "REJ-CHAMP-VIDE",
+    "REJ-ENUM-INVALIDE",
+    # addition M2, addendum architecture
+    "REJ-LEAD-DEJA-INGERE",
 ]
 CODES_M2 = set(CODES_M2_LIST)
 
@@ -22,8 +48,8 @@ def est_verdict(code):
 def construire_verdict(code, statut="", detail=""):
     """
     Construit un verdict dictionnaire si le code est reconnu.
-    Lève une exception dans le cas contraire.
+    Lève CodeVerdictInconnu dans le cas contraire.
     """
     if not est_verdict(code):
-        raise Exception(f"Code verdict invalide : {code!r}")
+        raise CodeVerdictInconnu(f"Code verdict invalide : {code!r}")
     return {"code": code, "statut": statut, "detail": detail}

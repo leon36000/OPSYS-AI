@@ -19,7 +19,11 @@ import verdicts  # noqa: E402
 # CA-M2-13 — Empreintes scellées (pas de lecture croisée avec M1)
 # ----------------------------------------------------------------------
 SHA256_HORODATAGE_ATTENDU = "7168dc81de0d37f0e7160b96e9df14c9a1bf5ef594a791f25745b07d7108e867"
-SHA256_VERDICTS_ATTENDU = "fd5320a3dccf1a441519e99ed96240fca9f93bb55d3d0503bdd2fd529c3124fd"
+# Gel RESCELLÉ le 2026-07-29 : le catalogue a été aligné sur l'architecture ratifiée
+# (REJ-CONVERSATION-CLOSE, invariant transversal, manquait ; quatre identifiants stables
+# repris pour l'écart structurel ; REJ-LEAD-DEJA-INGERE ajouté par addendum). Le gel a joué
+# son rôle — il a forcé cette décision à être explicite au lieu de passer inaperçue.
+SHA256_VERDICTS_ATTENDU = "4a6d9636cd04af0d8898d6f0d385b824eea6a67007312e4b7c9dbd9635cc1639"
 
 
 class TestCA_M2_13_Empreintes:

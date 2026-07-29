@@ -115,9 +115,12 @@ CODES_M2 = {
     "REJ-ADAPTATEUR-INDISPONIBLE",
     "OK",
 }
+# REJ-CONVERSATION-CLOSE a été RETIRÉ de cette liste le 2026-07-29 : le cadrage ratifié
+# (PRD et architecture) en fait un invariant transversal explicitement repris par M2, donc
+# le classer « hors M2 » encodait une croyance fausse. Le test de cohérence
+# catalogue↔cadrage empêche désormais ce genre d'écart de réapparaître.
 CODES_HORS_M2 = [
     "REJ-CONSENTEMENT-ABSENT",
-    "REJ-CONVERSATION-CLOSE",
     "REJ-QUALIF-INSUFFISANTE",
 ]
 
@@ -884,4 +887,113 @@ class TestBalisesDisjointes:
         assert not isinstance(normalise, list), (
             f"Le scalaire {valeur!r} a produit la liste balisée {normalise!r} : "
             f"seuls les conteneurs et les valeurs typées sont balisés"
+        )
+
+
+class TestCatalogueCoherentAvecLeCadrage:
+    """
+    Cale le catalogue de verdicts sur les documents de cadrage ratifiés, dans
+    les deux sens : tout identifiant prescrit doit être au catalogue, et tout
+    code du catalogue doit être prescrit ou déclaré. Sans ce double sens,
+    l'écart corrigé par la chore (identifiant transversal manquant) se
+    reproduirait en silence.
+    """
+
+    # REJ-0040 est un identifiant de RÈGLE (« zéro LLM »), pas un code de
+    # verdict : cité dans le cadrage, il ne doit jamais entrer au catalogue.
+    EXCLUSIONS_CADRAGE = frozenset({"REJ-0040"})
+
+    # Additions déclarées, non nécessairement citées dans le cadrage du module :
+    # - REJ-LEAD-DEJA-INGERE : addition M2 actée par l'addendum d'architecture ;
+    # - les cinq identifiants repris du catalogue du module voisin relèvent de
+    #   l'invariant transversal de stabilité des verdicts, leur présence au
+    #   catalogue ne dépend pas d'une citation locale ;
+    # - OK : verdict de succès sans préfixe REJ-, jamais extractible du cadrage
+    #   par l'expression régulière, déclaré ici pour n'être ni invention ni
+    #   vestige.
+    ADDITIONS_DECLAREES = frozenset({
+        "REJ-LEAD-DEJA-INGERE",
+        "REJ-CONVERSATION-CLOSE",
+        "REJ-CONTRAT-INVALIDE",
+        "REJ-CHAMP-MANQUANT",
+        "REJ-CHAMP-VIDE",
+        "REJ-ENUM-INVALIDE",
+        "OK",
+    })
+
+    def _identifiants_cites_dans_le_cadrage(self):
+        """
+        Lit les fichiers Markdown de docs/bmad du module et retourne l'ensemble
+        des identifiants de la forme REJ-* qui y sont cités.
+        """
+        import re
+
+        dossier_docs = Path(__file__).resolve().parents[1] / "docs" / "bmad"
+        corpus = "\n".join(
+            chemin.read_text(encoding="utf-8")
+            for chemin in sorted(dossier_docs.glob("*.md"))
+        )
+        return set(re.findall(r"REJ-[A-Z0-9-]+", corpus))
+
+    def test_tout_code_prescrit_par_le_cadrage_est_au_catalogue(self):
+        """
+        Tout identifiant REJ-* prescrit par les documents ratifiés, hors
+        exclusions justifiées, doit figurer dans le catalogue M2.
+        """
+        extraits = self._identifiants_cites_dans_le_cadrage()
+        assert len(extraits) > 0, (
+            "Aucun identifiant REJ-* extrait de docs/bmad : le dossier a "
+            "probablement été renommé ou déplacé, et le test ne prouverait "
+            "plus rien."
+        )
+        prescrits = extraits - self.EXCLUSIONS_CADRAGE
+        manquants = sorted(code for code in prescrits if not verdicts.est_verdict(code))
+        assert manquants == [], (
+            f"Identifiants prescrits par le cadrage absents du catalogue M2 : "
+            f"{manquants}"
+        )
+
+    def test_le_catalogue_ne_contient_aucun_code_orphelin(self):
+        """
+        Un code jamais prescrit ni déclaré est soit une invention, soit un
+        vestige : chaque code du catalogue doit être cité dans le cadrage ou
+        figurer dans les additions déclarées.
+        """
+        cites = self._identifiants_cites_dans_le_cadrage()
+        orphelins = sorted(
+            code
+            for code in verdicts.CODES_M2_LIST
+            if code not in cites and code not in self.ADDITIONS_DECLAREES
+        )
+        assert orphelins == [], (
+            "Codes du catalogue ni cités dans le cadrage ni déclarés comme "
+            f"additions : {orphelins}"
+        )
+
+    def test_construire_verdict_leve_une_exception_dediee(self):
+        """
+        Un code inconnu doit lever CodeVerdictInconnu, et le message doit
+        nommer le code fautif pour rendre le diagnostic immédiat.
+        """
+        code_inconnu = "REJ-CE-CODE-N-EXISTE-PAS"
+        assert not verdicts.est_verdict(code_inconnu), (
+            f"Le code de test {code_inconnu!r} ne doit pas exister dans le "
+            f"catalogue, sinon ce test ne prouve plus rien."
+        )
+        with pytest.raises(verdicts.CodeVerdictInconnu) as capture:
+            verdicts.construire_verdict(code_inconnu)
+        assert code_inconnu in str(capture.value), (
+            f"Le message de CodeVerdictInconnu doit contenir le code fautif "
+            f"{code_inconnu!r}, obtenu : {capture.value!s}."
+        )
+
+    def test_exception_dediee_reste_attrapable_comme_exception(self):
+        """
+        CodeVerdictInconnu doit hériter d'Exception : les tests existants
+        attrapent Exception et doivent rester verts.
+        """
+        assert issubclass(verdicts.CodeVerdictInconnu, Exception), (
+            "CodeVerdictInconnu doit être une sous-classe d'Exception pour "
+            "rester attrapable par les tests existants qui font "
+            "pytest.raises(Exception)."
         )
