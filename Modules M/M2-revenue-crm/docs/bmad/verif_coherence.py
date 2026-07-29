@@ -9,7 +9,9 @@ import re
 import sys
 from pathlib import Path
 
-D = Path("/media/pc1/Storage/Repo/OPSYS-AI/Modules M/M2-revenue-crm/docs/bmad")
+# Chemin RELATIF au fichier lui-meme : rejouable en CI et sur tout poste
+# (ADR-0003 portabilite : zero chemin absolu local).
+D = Path(__file__).resolve().parent
 DOCS = {n: (D / n).read_text(encoding="utf-8")
         for n in ("01-BRIEF-ANALYSTE.md", "02-PRD-PM.md", "03-ARCHITECTURE.md")}
 brief, prd, arch = DOCS["01-BRIEF-ANALYSTE.md"], DOCS["02-PRD-PM.md"], DOCS["03-ARCHITECTURE.md"]
