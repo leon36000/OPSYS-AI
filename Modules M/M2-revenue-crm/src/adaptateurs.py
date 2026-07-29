@@ -87,21 +87,36 @@ class AdaptateurMemoire:
         # 4. La charge doit franchir la frontière de sérialisation.
         #    POURQUOI ce contrôle est une VALIDATION et non un détail
         #    d'implémentation : un adaptateur simule l'écriture vers un CRM
-        #    TIERS ; une donnée qui ne peut pas être sérialisée ne peut pas
-        #    franchir cette frontière. Un dict non vide peut être
-        #    structurellement valide tout en contenant un datetime, un set,
-        #    des bytes ou un objet quelconque — json.dumps lève alors
-        #    TypeError. Laisser remonter cette exception violerait la
-        #    convention de TOUT le module M2 : le refus est un couple
-        #    (None, verdict), jamais une exception chez l'appelant.
-        charge_copiee = copy.deepcopy(charge)
+        #    TIERS ; une donnée qui ne peut ni être copiée ni être sérialisée
+        #    ne peut pas franchir cette frontière. Un dict non vide peut être
+        #    structurellement valide tout en contenant un verrou, un
+        #    générateur, un module, un set, des bytes ou un objet quelconque.
+        #    Laisser remonter l'exception violerait la convention de TOUT le
+        #    module M2 : le refus est un couple (None, verdict), jamais une
+        #    exception chez l'appelant.
+        #
+        #    La COPIE est DANS le try, pas avant : deepcopy lève TypeError sur
+        #    un objet non picklable (mesuré : threading.Lock, générateur,
+        #    module) et cette exception s'échappait tant qu'elle était hors du
+        #    bloc — le même défaut que celui corrigé pour json.dumps, une ligne
+        #    plus haut.
+        #
+        #    allow_nan=False est ESSENTIEL et n'est pas un détail : par défaut
+        #    json.dumps ACCEPTE inf et nan et produit {"v": Infinity}, qui
+        #    n'est pas du JSON conforme. Mesuré : sans ce drapeau, une charge
+        #    contenant inf/nan était acceptée et l'écriture simulée avec
+        #    succès — un fail-OPEN silencieux, pire qu'une exception, car
+        #    aucun CRM réel n'accepterait cette charge.
         try:
-            charge_bytes = json.dumps(charge_copiee, sort_keys=True).encode('utf-8')
-        except (TypeError, ValueError):
+            charge_copiee = copy.deepcopy(charge)
+            charge_bytes = json.dumps(
+                charge_copiee, sort_keys=True, allow_nan=False
+            ).encode('utf-8')
+        except (TypeError, ValueError, AttributeError, copy.Error, RecursionError):
             return (None, verdicts.construire_verdict(
                 'REJ-FRONTIERE-VIOLEE',
-                detail="charge non sérialisable : elle ne peut pas franchir la "
-                       "frontière vers un CRM tiers",
+                detail="charge non copiable ou non sérialisable : elle ne peut "
+                       "pas franchir la frontière vers un CRM tiers",
             ))
         empreinte = hashlib.sha256(charge_bytes).hexdigest()
         accuse = {

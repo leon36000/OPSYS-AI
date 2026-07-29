@@ -235,6 +235,66 @@ class TestFailClosed:
             "La dernière entrée du journal doit être la charge exacte"
         )
 
+    @pytest.mark.parametrize(
+        "fabrique_valeur",
+        ["verrou", "generateur", "module", "fichier"],
+        ids=["verrou", "generateur", "module", "fichier"],
+    )
+    def test_charge_non_copiable_refusee(
+        self, adaptateur_ombre, horodatage_valide, fabrique_valeur
+    ):
+        """PROUVE qu'une charge NON COPIABLE est refusée par un verdict, pas par
+        une exception.
+
+        Défaut trouvé par deux reviewers convergents : copy.deepcopy était placé
+        HORS du bloc try qui n'encadrait que json.dumps. Mesuré : un verrou, un
+        générateur ou un module lèvent TypeError « cannot pickle ». Rend rouge
+        toute sortie de deepcopy hors du bloc try."""
+        if fabrique_valeur == "verrou":
+            import threading
+            valeur = threading.Lock()
+        elif fabrique_valeur == "generateur":
+            valeur = (n for n in [1, 2])
+        elif fabrique_valeur == "module":
+            valeur = ast
+        else:
+            import io
+            valeur = io.StringIO("contenu")
+        taille_avant = len(adaptateur_ombre.lire_journal())
+        accuse, verdict = adaptateur_ombre.ecrire({"v": valeur}, horodatage_valide)
+        assert accuse is None, f"aucun accusé pour une charge {fabrique_valeur}"
+        assert verdict["code"] == "REJ-FRONTIERE-VIOLEE", (
+            f"attendu REJ-FRONTIERE-VIOLEE, reçu {verdict['code']}"
+        )
+        assert len(adaptateur_ombre.lire_journal()) == taille_avant, (
+            "un rejet ne doit rien ajouter au journal"
+        )
+
+    @pytest.mark.parametrize(
+        "non_fini",
+        [float("inf"), float("-inf"), float("nan")],
+        ids=["inf", "moins_inf", "nan"],
+    )
+    def test_charge_float_non_fini_refusee(
+        self, adaptateur_ombre, horodatage_valide, non_fini
+    ):
+        """PROUVE qu'un float non fini est REFUSÉ, et non silencieusement accepté.
+
+        Défaut FAIL-OPEN mesuré : par défaut json.dumps ACCEPTE inf et nan et
+        produit {"v": Infinity}, qui n'est PAS du JSON conforme. L'adaptateur
+        simulait donc avec succès une écriture qu'aucun CRM réel n'accepterait —
+        pire qu'une exception, car silencieux. Rend rouge la suppression de
+        allow_nan=False."""
+        taille_avant = len(adaptateur_ombre.lire_journal())
+        accuse, verdict = adaptateur_ombre.ecrire({"v": non_fini}, horodatage_valide)
+        assert accuse is None, "un float non fini ne doit pas être accepté"
+        assert verdict["code"] == "REJ-FRONTIERE-VIOLEE", (
+            f"attendu REJ-FRONTIERE-VIOLEE, reçu {verdict['code']}"
+        )
+        assert len(adaptateur_ombre.lire_journal()) == taille_avant, (
+            "un rejet ne doit rien ajouter au journal"
+        )
+
 class TestIdentifiantInjectif:
     """Identifiants injectifs et déterministes, aucun risque de collision par concaténation."""
 
