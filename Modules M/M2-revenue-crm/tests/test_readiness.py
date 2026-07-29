@@ -557,6 +557,56 @@ class TestGateQuatreConditions:
             f"le second appel doit aussi retourner False, obtenu {second_résultat}"
         )
 
+    @pytest.mark.parametrize("cas, cible", [
+        ("owner_falsifie", "owner"),
+        ("type_travaux_falsifie", "type_travaux"),
+        ("ville_falsifiee", "ville"),
+    ], ids=["owner_falsifie", "type_travaux_falsifie", "ville_falsifiee"])
+    def test_chaque_condition_metier_en_echec_isole(self, cas, cible):
+        """chaque condition doit être LE facteur isolé d'échec ; sans ce test, forcer les trois conditions à vrai ne rend aucun test rouge."""
+        lead_id = f"L-cond-{cible}"
+        reg = registre_qualifie(lead_id=lead_id)
+        accusé = interactions.enregistrer(lead_id, "Bob", "Appel", reg, "2026-03-02T11:00:00+02:00")
+        assert accusé is not None, "l'enregistrement de l'interaction doit réussir"
+        assert readiness.evaluer(reg, lead_id) is True, "pré-condition : la gate doit être vraie avant falsification"
+
+        # Falsification directe
+        maillon = None
+        if cible == "owner":
+            for m in reg._chain:
+                if m.get("statut") == "qualifie":
+                    maillon = m
+                    break
+            assert maillon is not None, "maillon transition_statut contenant 'qualifie' non trouvé"
+            maillon["owner"] = ""
+        elif cible == "type_travaux":
+            for m in reg._chain:
+                if isinstance(m.get("contrat"), dict):
+                    maillon = m
+                    break
+            assert maillon is not None, "maillon lead_ingere avec contrat non trouvé"
+            maillon["contrat"]["type_travaux"] = "jardinage"
+        elif cible == "ville":
+            for m in reg._chain:
+                if isinstance(m.get("contrat"), dict):
+                    maillon = m
+                    break
+            assert maillon is not None, "maillon lead_ingere avec contrat non trouvé"
+            maillon["contrat"]["ville"] = ""
+
+        # Après falsification, la gate doit échouer
+        assert readiness.evaluer(reg, lead_id) is False, (
+            f"evaluer doit retourner False après falsification de {cible}"
+        )
+
+        # emettre_marqueur doit rejeter la transition
+        résultat, verdict = readiness.emettre_marqueur(reg, lead_id, "2026-03-02T12:00:00+02:00")
+        assert résultat is None, "emettre_marqueur ne doit pas produire de résultat sur échec"
+        assert verdict is not None, "un verdict de rejet est attendu"
+        assert verdict["code"] == "REJ-TRANSITION-ILLEGALE", (
+            f"verdict attendu REJ-TRANSITION-ILLEGALE, obtenu {verdict['code']}"
+        )
+
 
 # -------------------------------------------------------------------- TestMarqueur
 class TestMarqueur:
@@ -691,6 +741,31 @@ class TestMarqueur:
         )
         assert empreinte_reconstruite == marqueur["empreinte"], \
             "L'empreinte reconstruite doit correspondre exactement"
+
+    @pytest.mark.parametrize("horodatage_invalide", [
+        "2026-13-45",
+        "",
+        None,
+        "2026-03-01T12:00:00"
+    ], ids=["mois_invalide", "vide", "none", "sans_fuseau"])
+    def test_emettre_marqueur_horodatage_invalide(self, horodatage_invalide):
+        """Comportement mesuré : le code retourné est bien REJ-HORODATAGE-INVALIDE."""
+        lead_id = "L-horo"
+        reg = registre_qualifie(lead_id=lead_id)
+        accusé = interactions.enregistrer(lead_id, "Bob", "Appel", reg, "2026-03-02T11:00:00+02:00")
+        assert accusé is not None, "l'enregistrement de l'interaction doit réussir"
+        assert readiness.evaluer(reg, lead_id) is True, "pré-condition : la gate doit être vraie"
+
+        taille_avant = len(reg._chain)
+        résultat, verdict = readiness.emettre_marqueur(reg, lead_id, horodatage_invalide)
+        assert résultat is None, "emettre_marqueur ne doit pas produire de résultat sur échec"
+        assert verdict is not None, "un verdict est attendu"
+        assert verdict["code"] == "REJ-HORODATAGE-INVALIDE", (
+            f"verdict attendu REJ-HORODATAGE-INVALIDE, obtenu {verdict['code']}"
+        )
+        assert len(reg._chain) == taille_avant, (
+            "le registre ne doit pas être modifié par un horodatage invalide"
+        )
 
 
 # --------------------------------------------------------- TestInvariantsReadiness
