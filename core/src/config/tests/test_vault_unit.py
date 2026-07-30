@@ -151,11 +151,19 @@ def test_settings_rejects_or_redacts_inline_secret_values(cfg, monkeypatch, tmp_
     provider = cfg.vault.EnvSecretProvider()
     leaked = False
     settings = None
+    rejete = False
     try:
         settings = cfg.settings.load_settings(yaml_path, provider)
-    except Exception:
-        pass
+    except cfg.settings.SettingsError:
+        # Rejet explicite : première issue acceptable du contrat « rejette OU
+        # caviarde ». Toute AUTRE exception remonte et fait échouer le test —
+        # l'ancien « except Exception: pass » le faisait passer sur un crash
+        # quelconque (test qui avale l'échec de l'appel testé).
+        rejete = True
 
+    assert rejete or settings is not None, (
+        "load_settings doit rejeter (SettingsError) ou retourner des settings caviardés"
+    )
     if settings is not None:
         raw = json.dumps(settings, default=str)
         if "sk-live-inline-secret" in raw:

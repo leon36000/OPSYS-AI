@@ -221,7 +221,9 @@ def live(models, transport, outdir, vendor_auteur, pack_path):
                 ):
                     reused.append(alias)
                     continue
-            except Exception:
+            except (OSError, ValueError):
+                # Cache illisible ou JSON invalide : on retombe sur le rappel
+                # du modèle. Rétréci pour ne plus masquer le reste.
                 pass
         to_call.append(alias)
 
@@ -238,8 +240,14 @@ def live(models, transport, outdir, vendor_auteur, pack_path):
             raw = transport(alias, prompt)
             try:
                 (raw_dir / f"{alias}.txt").write_text(raw, encoding="utf-8")
-            except Exception:
-                pass
+            except OSError as exc:
+                # L'archive brute est un ARTEFACT DE PREUVE : sa perte doit
+                # être visible, jamais silencieuse. Best-effort conservé.
+                print(
+                    f"AVERTISSEMENT: archive brute {alias}.txt non écrite ({exc}) — "
+                    "artefact de preuve manquant",
+                    file=sys.stderr,
+                )
             data = _parse_response(raw)
             verdict = {
                 **data,
