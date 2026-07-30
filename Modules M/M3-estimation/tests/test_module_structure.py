@@ -38,13 +38,17 @@ def test_le_gate_de_coherence_bmad_est_execute_et_vert():
 
 
 def test_aucun_paquet_source_avant_la_premiere_story():
-    """M3 est déclaré STUB au registre tant qu'aucune story n'a été livrée.
+    """M3 est déclaré CADRE au registre : cadré et gardé, mais sans code encore.
 
-    La gate statut_lint (#152) exige la réciproque : un STUB ne doit porter
-    aucun module source ni aucun test... or CE fichier est un test. Le module
-    reste donc STUB tant que src/ est vide, et ce test documente l'état attendu
-    au moment du cadrage ; il sera retiré par la première story qui livrera du
-    code, en même temps que le passage du registre à PARTIAL.
+    Ce test a lui-même RÉVÉLÉ le statut manquant. La gate statut_lint (#152)
+    exigeait qu'un STUB ne porte ni module source ni test — or ce fichier EST un
+    test, et le brancher avant la première story est la pratique prouvée (leçon
+    M1 puis M4). Le seul choix était de mentir en STUB ou de relâcher la règle :
+    un statut manquant force le mensonge. D'où CADRE, qui exige exactement cet
+    état — zéro module source ET au moins un fichier de test.
+
+    Ce test sera retiré par la première story qui livrera du code, en même temps
+    que le passage du registre à PARTIAL.
     """
     src = _MODULE / "src"
     modules = [p for p in src.rglob("*.py") if p.name != "__init__.py"] if src.exists() else []

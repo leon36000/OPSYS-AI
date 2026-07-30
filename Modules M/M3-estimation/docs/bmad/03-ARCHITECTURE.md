@@ -98,7 +98,7 @@ EstimationV1:
     # Enum NiveauConfiance : REFERENCE_ECHELLE | MULTI_VUES | MONO_VUE_BORNES_LARGES | INDETERMINE
 
   verdict_blocage: str
-    # Enum VerdictBlocage : AUCUN_BLOCAGE | QUALITE_ENTREE_INSUFFISANTE |
+    # Enum VerdictEstimation : AUCUN_BLOCAGE | QUALITE_ENTREE_INSUFFISANTE |
     # REFERENCE_ECHELLE_ABSENTE | PLANCHER_RENTABILITE_FRANCHI |
     # CONTRAT_ENTREE_INVALIDE | INDETERMINE
 
@@ -148,7 +148,7 @@ Copié mot pour mot du PRD section 4.1.
 | `MONO_VUE_BORNES_LARGES` | 1 ou 2 photos, résolution ≥ seuil configurable, éclairage suffisant (métadonnées `eclairage` ≥ seuil), sans référence d'échelle, sans multi-vues. MAE ~0,45 m au mieux. |
 | `INDETERMINE` | **Échappatoire D-032** — les métadonnées fournies ne permettent de classifier dans aucun des trois niveaux précédents. Ce verdict signale « on ne sait pas » et force un blocage du prix. |
 
-#### VerdictBlocage
+#### VerdictEstimation
 
 Copié mot pour mot du PRD section 4.2.
 
@@ -169,7 +169,7 @@ MaillonEstimation:
   devis_id: str             # Référence au devis émis.
   lead_id: str              # Référence au lead source.
   niveau_confiance: str     # Enum NiveauConfiance.
-  verdict_blocage: str      # Enum VerdictBlocage.
+  verdict_blocage: str      # Enum VerdictEstimation.
   prix_bloque: bool         # Copie du champ du contrat de sortie.
   borne_basse: float | null # Copie du champ du contrat de sortie.
   borne_haute: float | null # Copie du champ du contrat de sortie.
@@ -279,7 +279,7 @@ Le registre append-only est conçu pour recevoir ultérieurement le coût réel 
 
 ### DA-M3-06 — Échappatoire INDETERMINE obligatoire sur tout enum (D-032)
 
-**Décision** : Chaque enum du module (`NiveauConfiance`, `VerdictBlocage`) porte une valeur `INDETERMINE` comme échappatoire obligatoire. Quand les métadonnées ne permettent aucune classification, M3 choisit `INDETERMINE` et bloque le prix, plutôt que de forcer une valeur optimiste.
+**Décision** : Chaque enum du module (`NiveauConfiance`, `VerdictEstimation`) porte une valeur `INDETERMINE` comme échappatoire obligatoire. Quand les métadonnées ne permettent aucune classification, M3 choisit `INDETERMINE` et bloque le prix, plutôt que de forcer une valeur optimiste.
 
 **Justification** : D-032 — « un schéma sans issue force la fabrication ». Si un enum n'a pas d'échappatoire, le code sera tenté de choisir la valeur la plus proche, produisant une estimation non défendable. L'échappatoire force la transparence : « on ne sait pas » est un verdict valide.
 
@@ -296,6 +296,16 @@ Le registre append-only est conçu pour recevoir ultérieurement le coût réel 
 **Justification** : R-020 — aucune formulation accusatoire. Les raisons de blocage sont des constats factuels, pas des jugements. Cette règle est appliquée dans `qualite_photos.py` et `estimation.py` lors de la construction du champ `raison_blocage`.
 
 ---
+
+### Décision — le barème de coûts est une ENTRÉE, jamais une donnée du module
+
+Le module ne porte aucune valeur monétaire en dur. Le barème est fourni par l'appelant, exactement
+comme la graine du Monte Carlo et comme le référentiel géographique l'est pour le module voisin.
+Parce que : une simulation sans modèle sous-jacent produit des bornes arbitraires, et un barème
+codé en dur deviendrait faux au premier changement de tarif sans que rien ne le signale. Piège
+écarté : émettre un intervalle d'apparence rigoureuse — le Monte Carlo est déterministe et
+reproductible — alors que ses paramètres sont inventés. Sans barème utilisable pour le
+`type_travaux` demandé, l'estimation est BLOQUÉE avec `INDETERMINE` (CA-M3-21).
 
 ## 5. CE QUE CHAQUE STORY PROUVE
 

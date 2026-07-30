@@ -97,7 +97,7 @@ def verifier_presence(dossier: Path) -> List[str]:
 def verifier_enumeres(prd: str, archi: str) -> List[str]:
     """Contrôle 2 : les valeurs d'énuméré du PRD et de l'architecture sont identiques."""
     erreurs = []
-    for enum_nom in ("NiveauConfiance", "VerdictBlocage"):
+    for enum_nom in ("NiveauConfiance", "VerdictEstimation"):
         valeurs_prd = extraire_enum_val(prd, enum_nom)
         valeurs_archi = extraire_enum_architecture(archi, enum_nom)
         set_prd = set(valeurs_prd)
@@ -114,7 +114,7 @@ def verifier_enumeres(prd: str, archi: str) -> List[str]:
 def verifier_echappatoire(prd: str) -> List[str]:
     """Contrôle 3 : chaque énuméré contient une valeur avec 'INDETERMINE'."""
     erreurs = []
-    for enum_nom in ("NiveauConfiance", "VerdictBlocage"):
+    for enum_nom in ("NiveauConfiance", "VerdictEstimation"):
         valeurs = extraire_enum_val(prd, enum_nom)
         if not any("INDETERMINE" in v for v in valeurs):
             erreurs.append(
@@ -222,7 +222,15 @@ def verifier_stories_couvertes(stories_prd: Dict[str, str], archi: str) -> List[
     return erreurs
 
 
-MOTS_INTERDITS = {"date", "echeance", "facture", "paiement", "montant_facture", "tva", "acompte"}
+# Frontières RATIFIÉES : les dates appartiennent à M4, la finance à M5.
+# Liste ÉLARGIE après revue scellée : la version initiale laissait passer
+# montant, creneau, duree et engagement — le contrôle affichait « OK » sur un
+# contrat qui violait la frontière.
+MOTS_INTERDITS = {
+    "date", "echeance", "creneau", "duree", "planning", "calendrier",
+    "montant", "facture", "paiement", "tva", "acompte", "encaissement",
+    "solde", "engagement", "remise", "escompte",
+}
 
 
 def extraire_cles_yaml(bloc_yaml: str) -> Set[str]:
@@ -242,19 +250,34 @@ def extraire_cles_yaml(bloc_yaml: str) -> Set[str]:
     return cles
 
 
-def verifier_contrat_sans_date_finance(prd: str) -> List[str]:
-    """Contrôle 7 : le contrat gelé (bloc YAML du PRD) ne contient aucun champ interdit."""
+def verifier_contrat_sans_date_finance(prd: str, archi: str = "") -> List[str]:
+    """Contrôle 7 : aucun champ interdit dans le contrat gelé, des DEUX côtés.
+
+    Le contrat est décrit dans le PRD ET dans l'architecture : ne contrôler que
+    le PRD laissait passer un champ interdit ajouté du seul côté architecture
+    (objection de revue scellée). Seuls les NOMS DE CHAMPS des blocs YAML sont
+    inspectés — le mot « date » apparaît légitimement en prose.
+    """
     erreurs = []
-    # Trouver le bloc YAML sous ## 5. CONTRAT GELÉ
-    match_section = re.search(r"^## 5\. CONTRAT GELÉ.*$", prd, re.MULTILINE)
+    erreurs.extend(_champs_interdits_du_bloc(prd, r"^## 5\. CONTRAT GELÉ.*$", "PRD"))
+    if archi:
+        erreurs.extend(_champs_interdits_du_bloc(archi, r"^.*EstimationV1.*$", "ARCHITECTURE"))
+    return erreurs
+
+
+def _champs_interdits_du_bloc(texte: str, motif_section: str, etiquette: str) -> List[str]:
+    """Extrait les clés du premier bloc YAML sous la section et les confronte aux interdits."""
+    erreurs = []
+    match_section = re.search(motif_section, texte, re.MULTILINE)
     if not match_section:
-        erreurs.append("Section ## 5. CONTRAT GELÉ absente du PRD.")
+        erreurs.append(f"Section du contrat gelé absente ({etiquette}).")
         return erreurs
-    section = prd[match_section.start():]
+    section = texte[match_section.start():]
     # Extraire le bloc de code yaml
     bloc_match = re.search(r"```yaml\s*(.*?)\s*```", section, re.DOTALL)
     if not bloc_match:
-        erreurs.append("Bloc YAML introuvable dans la section Contrat Gelé.")
+        erreurs.append(f"Bloc YAML du contrat gelé introuvable ({etiquette}) — "
+                       f"un extracteur qui ne trouve rien rend le contrôle vide.")
         return erreurs
     bloc = bloc_match.group(1)
     cles = extraire_cles_yaml(bloc)
@@ -266,17 +289,37 @@ def verifier_contrat_sans_date_finance(prd: str) -> List[str]:
                 break
     if fautives:
         erreurs.append(
-            f"Champ(s) interdit(s) dans le contrat gelé : {', '.join(sorted(fautives))}. "
+            f"Champ(s) interdit(s) dans le contrat gelé ({etiquette}) : {', '.join(sorted(fautives))}. "
             f"Fragments exclus : {sorted(MOTS_INTERDITS)}"
         )
     return erreurs
 
 
 def verifier_anti_derive(prd: str) -> List[str]:
-    """Contrôle 8 : le PRD doit contenir 'HORS PÉRIMÈTRE'."""
-    if "HORS PÉRIMÈTRE" not in prd:
-        return ["Section 'HORS PÉRIMÈTRE' absente du PRD (anti-dérive non déclarée)."]
-    return []
+    """Contrôle 8 : les DEUX déclarations exigées sont présentes, distinctement.
+
+    L'ancrage initial sur le seul fragment « HORS PÉRIMÈTRE » était satisfait par
+    le titre de la section des ajouts du PM : supprimer la section du périmètre
+    GATED laissait le contrôle vert (objection de revue scellée). Un contrôle
+    satisfait par autre chose que ce qu'il prétend vérifier ne prouve rien.
+    """
+    erreurs = []
+    if "HORS PÉRIMÈTRE" not in prd.upper():
+        erreurs.append(
+            "Aucune section déclarant les ajouts hors du périmètre de l'analyste : "
+            "une extension non déclarée est une dérive."
+        )
+    if not re.search(r"GATED", prd):
+        erreurs.append(
+            "Aucune mention du périmètre GATED : ce qui est repoussé hors du mode "
+            "ombre doit être nommé, sinon il sera tenté en v1."
+        )
+    if not re.search(r"(?im)^#+\s*3\.2\b.*GATED", prd):
+        erreurs.append(
+            "La section dédiée au périmètre GATED (3.2) est absente : la seule "
+            "mention du mot dans une phrase ne suffit pas à délimiter le périmètre."
+        )
+    return erreurs
 
 
 def main(dossier_str: str = None) -> int:
@@ -359,7 +402,7 @@ def main(dossier_str: str = None) -> int:
         print("OK : Les stories du PRD et de l'architecture sont exactement les mêmes.")
 
     # Contrôle 7 : contrat sans date ni finance
-    errs = verifier_contrat_sans_date_finance(prd)
+    errs = verifier_contrat_sans_date_finance(prd, archi)
     if errs:
         erreurs.extend(errs)
         for e in errs:

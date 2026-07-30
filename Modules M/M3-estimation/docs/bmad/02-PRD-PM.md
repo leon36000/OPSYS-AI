@@ -116,7 +116,13 @@ Ces deux ajouts restent en mode ombre (logique pure, déterministe, zéro résea
 | `MONO_VUE_BORNES_LARGES` | 1 ou 2 photos, résolution ≥ seuil configurable, éclairage suffisant (métadonnées `eclairage` ≥ seuil), sans référence d'échelle, sans multi-vues. MAE ~0,45 m au mieux. |
 | `INDETERMINE` | **Échappatoire D-032** — les métadonnées fournies ne permettent de classifier dans aucun des trois niveaux précédents. Ce verdict signale « on ne sait pas » et force un blocage du prix. |
 
-### 4.2 VerdictBlocage
+### 4.2 VerdictEstimation
+
+> **Renommé** (revue scellée du cadrage, 3 relecteurs sur 3) : l'énuméré s'appelait
+> `VerdictBlocage`, or trois de ses six valeurs portent `prix_bloque: False`. Un nom qui
+> affirme un blocage que le booléen contredit est la même classe de défaut qu'une docstring
+> contredisant son code. La sémantique de blocage est portée par le champ `prix_bloque`, seul
+> et sans ambiguïté ; l'énuméré, lui, qualifie l'ISSUE de l'estimation.
 
 Énuméré fermé des verdicts émis par M3 concernant le statut de l'estimation. Le champ booléen `prix_bloque` indique l'effectivité du blocage. Conformément à D-032, une échappatoire obligatoire est prévue.
 
@@ -132,6 +138,12 @@ Ces deux ajouts restent en mode ombre (logique pure, déterministe, zéro résea
 ---
 
 ## 5. CONTRAT GELÉ `EstimationV1`
+
+> **Barème de coûts (ajout après revue scellée)** : le module ne porte AUCUNE valeur de coût.
+> Le barème est un paramètre d'ENTRÉE fourni par l'appelant, au même titre que la graine du
+> Monte Carlo et que le référentiel géographique de M4. Sans barème couvrant le `type_travaux`
+> demandé, l'estimation est bloquée avec `INDETERMINE` : produire des bornes sans modèle serait
+> une précision inventée, ce que ce module existe précisément pour empêcher.
 
 Conformément à D-015, ce contrat est un pacte exécutable. Tout champ est obligatoire sauf mention explicite. Aucun champ de date ni de finance ne figure dans ce contrat.
 
@@ -153,7 +165,7 @@ EstimationV1:
     # Enum NiveauConfiance : REFERENCE_ECHELLE | MULTI_VUES | MONO_VUE_BORNES_LARGES | INDETERMINE
 
   verdict_blocage: str
-    # Enum VerdictBlocage : AUCUN_BLOCAGE | QUALITE_ENTREE_INSUFFISANTE |
+    # Enum VerdictEstimation : AUCUN_BLOCAGE | QUALITE_ENTREE_INSUFFISANTE |
     # REFERENCE_ECHELLE_ABSENTE | PLANCHER_RENTABILITE_FRANCHI |
     # CONTRAT_ENTREE_INVALIDE | INDETERMINE
 
@@ -216,8 +228,9 @@ EstimationV1:
 | CA-M3-16 | Le contrat de sortie `EstimationV1` ne contient aucun champ de date (ni `date_execution`, ni `creneau`, ni `duree`) ni aucun champ financier (ni `tva`, ni `montant_ttc`, ni `conditions_paiement`). | Inspection du schéma de sortie : assertion absence des clés interdites. | S007 |
 | CA-M3-17 | L'ajout d'une estimation au registre append-only préserve la chaîne de hash : le `hash_maillon` du nouveau maillon inclut le hash du maillon précédent. | Test unitaire : ajout de deux maillons successifs, assertion que le hash du second inclut le hash du premier. | S008 |
 | CA-M3-18 | La validation de la chaîne complète du registre réussit quand aucun maillon n'a été altéré, et échoue quand un maillon est altéré. | Test unitaire : validation sur chaîne intacte (assertion succès), altération d'un maillon, re-validation (assertion échec). | S008 |
-| CA-M3-19 | Tout enum du module (`NiveauConfiance`, `VerdictBlocage`) possède une valeur `INDETERMINE` comme échappatoire obligatoire (D-032). | Inspection des définitions d'enum : assertion présence de `INDETERMINE` dans chaque enum. | S009 |
+| CA-M3-19 | Tout enum du module (`NiveauConfiance`, `VerdictEstimation`) possède une valeur `INDETERMINE` comme échappatoire obligatoire (D-032). | Inspection des définitions d'enum : assertion présence de `INDETERMINE` dans chaque enum. | S009 |
 | CA-M3-20 | Le module n'appelle jamais `random` sans graine, jamais d'horloge interne (`time.time`, `datetime.now`), jamais de réseau (`socket`, `urllib`, `requests`). | Analyse statique du code (AST Python) : assertion absence d'appels interdits dans tout le module M3. | S009 |
+| CA-M3-21 | Le barème de coûts est **fourni par l'appelant** et jamais inventé par le module : sans barème, ou avec un barème incomplet pour le `type_travaux` demandé, l'estimation est BLOQUÉE (`INDETERMINE`) au lieu de produire des bornes arbitraires. Aucune valeur de coût n'est codée en dur dans M3. | Appel sans barème et avec barème incomplet : assertion `prix_bloque is True` et bornes `null` ; balayage AST du module : aucun littéral numérique de coût. | S005 |
 
 ---
 
@@ -263,8 +276,8 @@ EstimationV1:
 
 | Attribut | Valeur |
 |---|---|
-| **Périmètre** | Simulation Monte Carlo pour produire l'intervalle de confiance. La graine est fournie par l'appelant (jamais `random` non ensemencé, jamais d'horloge). Reproductibilité bit-à-bit garantie pour les mêmes entrées et la même graine. |
-| **Critères portés** | CA-M3-10, CA-M3-11 |
+| **Périmètre** | Simulation Monte Carlo pour produire l'intervalle de confiance. La graine ET le **barème de coûts** sont fournis par l'appelant (jamais `random` non ensemencé, jamais d'horloge, jamais de coût codé en dur). Reproductibilité bit-à-bit pour les mêmes entrées, la même graine et le même barème. Sans barème utilisable, l'estimation est bloquée plutôt qu'inventée — objection de revue scellée : une simulation sans modèle sous-jacent produit des bornes arbitraires, soit exactement la précision inventée que le module doit empêcher. |
+| **Critères portés** | CA-M3-10, CA-M3-11, CA-M3-21 |
 | **Tier** | T1 |
 | **Dépendances** | S003 |
 
@@ -310,7 +323,7 @@ EstimationV1:
 
 | Décision | Application dans M3 |
 |---|---|
-| **D-032** — Échappatoire obligatoire sur tout enum | `NiveauConfiance.INDETERMINE` et `VerdictBlocage.INDETERMINE` — un schéma sans issue force la fabrication |
+| **D-032** — Échappatoire obligatoire sur tout enum | `NiveauConfiance.INDETERMINE` et `VerdictEstimation.INDETERMINE` — un schéma sans issue force la fabrication |
 | **D-015** — Contrats gelés = pactes exécutables | `LeadQualifie` (entrée) et `EstimationV1` (sortie) sont des schémas stricts, validés avant tout traitement |
 | **Loi 25** — Minimisation | M3 ne collecte que les métadonnées photo nécessaires à la classification, jamais les blobs binaires en v1 |
 | **Loi 96** — Français d'abord | Tous les verdicts, raisons de blocage, et messages d'erreur sont en français |
