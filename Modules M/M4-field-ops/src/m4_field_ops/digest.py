@@ -33,7 +33,11 @@ CHAMPS_DIGEST = (
 SEUIL_BLOCAGE_HEURES = 24  # heures *simulées*, comptées depuis l'horodatage_reference fourni, jamais depuis une horloge système.
 
 FONCTIONS_HORLOGE_INTERDITES = (
+    # Toute fonction qui INTERROGE une horloge, quelle que soit sa bibliothèque.
+    # Complétée après objection de revue (liste non exhaustive au premier jet).
     "now", "utcnow", "today", "time", "monotonic", "perf_counter", "fromtimestamp",
+    "time_ns", "monotonic_ns", "perf_counter_ns", "process_time", "thread_time",
+    "clock_gettime", "gmtime", "localtime", "mktime", "timegm", "times",
 )
 
 TERMES_INTERDITS_R020 = (
@@ -62,11 +66,20 @@ def produire_digest(registre_cible, date_cible, horodatage_reference):
         return None, verdicts.construire_verdict(
             "REJ-CONTRAT-INVALIDE", detail="date_cible invalide"
         )
+    # fromisoformat SEUL ne suffit pas : il accepte « 2025-06-02T12:00:00+00:00 »,
+    # ce qui fausserait le filtre par préfixe des interventions terminées (mesuré,
+    # objection de revue). La date doit être EXACTEMENT AAAA-MM-JJ, ce que prouve
+    # la ré-émission à l'identique.
     try:
-        datetime.fromisoformat(date_cible)   # lève ValueError si format non AAAA-MM-JJ
+        jour = datetime.fromisoformat(date_cible).date()
     except (ValueError, TypeError):
         return None, verdicts.construire_verdict(
             "REJ-CONTRAT-INVALIDE", detail="date_cible mal formée"
+        )
+    if jour.isoformat() != date_cible:
+        return None, verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE",
+            detail="date_cible doit être exactement AAAA-MM-JJ, sans heure ni fuseau",
         )
 
     # 2. Valider horodatage_reference
@@ -191,8 +204,6 @@ def garde_absence_horloge(chemin_source=None):
 
     violations = []
     for path in Path(chemin_source).glob("*.py"):
-        if path.name == "__init__.py":
-            continue
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"))
         except SyntaxError:
@@ -246,8 +257,6 @@ def garde_conformite_r020(chemin_source=None):
     termes_lower = [t.lower() for t in TERMES_INTERDITS_R020]
 
     for path in Path(chemin_source).glob("*.py"):
-        if path.name == "__init__.py":
-            continue
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"))
         except SyntaxError:
@@ -269,7 +278,7 @@ def garde_conformite_r020(chemin_source=None):
 
             def visit_Name(self, node):
                 # Ignorer les noms tout en majuscules (constantes)
-                if node.id != node.id.upper() and self._contient_terme(node.id):
+                if self._contient_terme(node.id):
                     violations.append(
                         f"{path.name}: nom '{node.id}' contient un terme interdit"
                     )
@@ -277,7 +286,7 @@ def garde_conformite_r020(chemin_source=None):
 
             def visit_Attribute(self, node):
                 if hasattr(node, 'attr') and isinstance(node.attr, str):
-                    if node.attr != node.attr.upper() and self._contient_terme(node.attr):
+                    if self._contient_terme(node.attr):
                         violations.append(
                             f"{path.name}: attribut '{node.attr}' contient un terme interdit"
                         )

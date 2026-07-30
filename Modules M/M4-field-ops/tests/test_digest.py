@@ -534,3 +534,83 @@ def test_digest_sans_termes_scoring():
     representation = str(digest).lower()
     for terme in digest_mod.TERMES_INTERDITS_R020:
         assert terme not in representation
+
+@pytest.mark.parametrize("date_hors_contrat", [
+    "2025-06-02T12:00:00+00:00",
+    "2025-06-02T12:00:00",
+    "2025-06-02 12:00:00+00:00",
+])
+def test_date_cible_avec_heure_refusee(date_hors_contrat):
+    """fromisoformat SEUL accepte une date-heure, ce qui fausserait le filtre par
+    préfixe des interventions terminées (objection de revue, mesurée : le digest
+    était produit sans broncher). La date doit être EXACTEMENT AAAA-MM-JJ."""
+    reg = registre_mod.Registre()
+    digest, verdict = digest_mod.produire_digest(reg, date_hors_contrat, H_REFERENCE)
+    assert digest is None, "une date_cible portant une heure doit être REFUSÉE"
+    assert verdict["code"] == "REJ-CONTRAT-INVALIDE"
+    assert "AAAA-MM-JJ" in verdict["detail"]
+
+
+@pytest.mark.parametrize("identifiant_majuscule, fabrique", [
+    ("SCORE_TECHNICIEN", "SCORE_TECHNICIEN = 5\n"),
+    ("NOTE_TECHNICIEN", "NOTE_TECHNICIEN = {'a': 1}\n"),
+    ("PERFORMANCE", "def f():\n    PERFORMANCE = 1\n    return PERFORMANCE\n"),
+])
+def test_garde_r020_ne_laisse_pas_passer_les_majuscules(tmp_path, identifiant_majuscule, fabrique):
+    """Objection de revue trouvée par DEUX relecteurs indépendamment : la garde
+    exemptait les identifiants tout en majuscules, échappatoire discrète. Cette
+    exemption n'était même pas nécessaire — le nom de la liste de termes ne
+    contient aucun terme interdit, et les valeurs chaînes sont déjà hors portée."""
+    (tmp_path / "faux.py").write_text(fabrique, encoding="utf-8")
+    ok, msg = digest_mod.garde_conformite_r020(chemin_source=str(tmp_path))
+    assert not ok, f"{identifiant_majuscule} en majuscules doit être DÉTECTÉ"
+    assert msg
+
+
+def test_gardes_inspectent_aussi_init(tmp_path):
+    """Objection de revue : les gardes sautaient __init__.py — un fichier exempté
+    est un fichier où l'on peut tout cacher."""
+    (tmp_path / "__init__.py").write_text(
+        "def calculer_score(x):\n    return x\n", encoding="utf-8"
+    )
+    ok, msg = digest_mod.garde_conformite_r020(chemin_source=str(tmp_path))
+    assert not ok, "un terme interdit caché dans __init__.py doit être DÉTECTÉ"
+    (tmp_path / "__init__.py").write_text(
+        "import datetime\ndef maintenant():\n    return datetime.datetime.now()\n",
+        encoding="utf-8",
+    )
+    ok2, msg2 = digest_mod.garde_absence_horloge(chemin_source=str(tmp_path))
+    assert not ok2, "une horloge cachée dans __init__.py doit être DÉTECTÉE"
+
+
+@pytest.mark.parametrize("appel_horloge", [
+    "import time\ndef f():\n    return time.time_ns()\n",
+    "import time\ndef f():\n    return time.process_time()\n",
+    "import calendar\ndef f():\n    return calendar.timegm(())\n",
+    "import os\ndef f():\n    return os.times()\n",
+])
+def test_garde_horloge_liste_completee(tmp_path, appel_horloge):
+    """Objection de revue : la liste des fonctions d'horloge n'était pas
+    exhaustive. Ces quatre appels interrogent bien une horloge et doivent être
+    refusés."""
+    (tmp_path / "faux.py").write_text(appel_horloge, encoding="utf-8")
+    ok, msg = digest_mod.garde_absence_horloge(chemin_source=str(tmp_path))
+    assert not ok, f"appel d'horloge non détecté : {appel_horloge!r}"
+    assert msg
+
+@pytest.mark.parametrize("attribut_interdit, fabrique", [
+    ("SCORE_TECHNICIEN", "def f(obj):\n    obj.SCORE_TECHNICIEN = 1\n"),
+    ("note_technicien", "def f(obj):\n    return obj.note_technicien\n"),
+    ("PERFORMANCE", "def f(obj):\n    return obj.PERFORMANCE\n"),
+])
+def test_garde_r020_inspecte_aussi_les_attributs(tmp_path, attribut_interdit, fabrique):
+    """La garde a DEUX branches : les identifiants et les noms d'ATTRIBUT. Mes
+    premiers tests de durcissement ne couvraient que la première — la mutation
+    « exemption des majuscules réintroduite » sur la branche attribut ne mordait
+    donc pas. Un terme interdit passé par un attribut est aussi efficace qu'un
+    passé par une variable."""
+    (tmp_path / "faux.py").write_text(fabrique, encoding="utf-8")
+    ok, msg = digest_mod.garde_conformite_r020(chemin_source=str(tmp_path))
+    assert not ok, f"attribut {attribut_interdit} non détecté"
+    assert msg
+
