@@ -16,7 +16,7 @@ Le module verdicts catalogue les identifiants stables de rejet et de succès pro
 Le module registre implémente la structure append-only hash-chaînée pour les interventions et l'outbox.
 Le module contrats valide structurellement le contrat gelé du lead qualifié et les entités internes.
 Le module frontieres détecte les champs interdits tels que les prix ou les engagements financiers.
-Le module etats modélise l'énuméré fermé des les statuts de l'énuméré fermé et la table des transitions conditionnées.
+Le module etats modélise l'énuméré fermé des statuts et la table des transitions conditionnées.
 Le module cedule applique les règles pures de tri pour générer la planification déterministe.
 Le module pointage traite les événements de terrain en vérifiant la cohérence temporelle et géographique.
 Le module ecarts gère la détection des anomalies et la file d'attente de revue.
