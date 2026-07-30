@@ -261,7 +261,13 @@ def verifier_contrat_sans_date_finance(prd: str, archi: str = "") -> List[str]:
     erreurs = []
     erreurs.extend(_champs_interdits_du_bloc(prd, r"^## 5\. CONTRAT GELÉ.*$", "PRD"))
     if archi:
-        erreurs.extend(_champs_interdits_du_bloc(archi, r"^.*EstimationV1.*$", "ARCHITECTURE"))
+        # Ancrage sur le TITRE DE SECTION du contrat de SORTIE. Un ancrage large
+        # (« toute ligne citant EstimationV1 ») attrapait une ligne de tableau
+        # bien plus haut, et le premier bloc YAML qui suivait était celui du
+        # contrat d'ENTRÉE : le contrôle validait le mauvais bloc et passait au
+        # vert quel que soit le contenu réel (mutation mesurée non détectée).
+        erreurs.extend(_champs_interdits_du_bloc(
+            archi, r"^#+\s*2\.2\s+Contrat de sortie.*$", "ARCHITECTURE"))
     return erreurs
 
 
@@ -280,6 +286,15 @@ def _champs_interdits_du_bloc(texte: str, motif_section: str, etiquette: str) ->
                        f"un extracteur qui ne trouve rien rend le contrôle vide.")
         return erreurs
     bloc = bloc_match.group(1)
+    # Un extracteur doit prouver qu'il a attrapé le BON bloc : sans ce contrôle,
+    # pointer par erreur sur un autre contrat rendait le gate vert à tort.
+    if not bloc.lstrip().startswith("EstimationV1:"):
+        premiere = bloc.lstrip().splitlines()[0] if bloc.strip() else "(vide)"
+        erreurs.append(
+            f"Bloc YAML capturé ({etiquette}) n'est PAS le contrat EstimationV1 "
+            f"mais « {premiere} » — ancrage erroné, contrôle non probant."
+        )
+        return erreurs
     cles = extraire_cles_yaml(bloc)
     fautives = []
     for cle in cles:
