@@ -51,8 +51,14 @@ class TestInjectivite:
 
     def test_interprocessus_determinisme(self):
         """Lance trois sous-processus avec des PYTHONHASHSEED différentes et
-        vérifie que l'encodage d'une valeur composite (dict, set, Decimal,
-        datetime, bytes) reste identique.
+        vérifie que l'encodage d'une valeur composite reste identique.
+
+        Le composite contient des ensembles de CHAÎNES (set ET frozenset) : les
+        hash de chaînes sont salés par la graine, donc l'ordre d'itération varie
+        entre processus — c'est LE cas qui rend les tris des ensembles
+        observables. Des ensembles d'entiers seraient aveugles (hash non salés,
+        ordre stable), mesuré : le retrait du tri du frozenset passait inaperçu
+        avec des entiers.
         """
         # Script exécuté dans le sous-processus ; il doit modifier sys.path
         # pour atteindre le paquet m4_field_ops de la même manière que le test.
@@ -67,6 +73,8 @@ import decimal, datetime, uuid
 
 valeur = {{
     "ensemble": {{decimal.Decimal("1.1"), 2, 3}},
+    "etiquettes": {{"beta", "alpha", "gamma", "delta"}},
+    "fige": frozenset({{"nord", "sud", "est", "ouest"}}),
     "instant": datetime.datetime(2025, 7, 30, 12, 0, 0, tzinfo=datetime.timezone.utc),
     "octets": b'\\x00\\xff\\xab',
     "identifiant": uuid.UUID("12345678-1234-5678-1234-567812345678"),
