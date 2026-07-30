@@ -479,7 +479,7 @@ def verifier_contrat_consomme_existe_vraiment(archi: str) -> List[str]:
     if not bloc:
         return ["Constante CHAMPS_CONTRAT_GELE introuvable dans la source de M2 — "
                 "extracteur vide, contrôle non probant."]
-    cles_m2 = set(re.findall(r'"([a-z_]+)"', bloc.group(1)))
+    cles_m2 = set(re.findall(r'"([a-z_][a-z0-9_]*)"', bloc.group(1)))
 
     titre = re.search(r"^#### `LeadQualifie`.*$", archi, re.MULTILINE)
     if not titre:
@@ -493,7 +493,9 @@ def verifier_contrat_consomme_existe_vraiment(archi: str) -> List[str]:
     if not corps.lstrip().startswith("LeadQualifie:"):
         return [f"Bloc YAML capturé n'est pas LeadQualifie mais « {corps.lstrip().splitlines()[0]} » "
                 f"— ancrage erroné, contrôle non probant."]
-    cles_m3 = set(re.findall(r"^  ([a-z_]+):", corps, re.MULTILINE))
+    # [a-z_][a-z0-9_]* et non [a-z_]+ : le champ fantôme s'appelait « sha256 »,
+    # qu'une classe sans chiffres aurait laissé passer (objection de revue).
+    cles_m3 = set(re.findall(r"^  ([a-z_][a-z0-9_]*):", corps, re.MULTILINE))
 
     if not cles_m3:
         return ["Aucune clé extraite du contrat LeadQualifie de M3 — contrôle vide."]
@@ -502,6 +504,58 @@ def verifier_contrat_consomme_existe_vraiment(archi: str) -> List[str]:
                 f"que M2 émet réellement {sorted(cles_m2)} — écart {sorted(cles_m3 ^ cles_m2)}. "
                 f"Un consommateur qui décrit une entrée que le producteur n'émet pas valide un "
                 f"chemin inexistant en production."]
+
+    # Les NOMS de clés identiques ne suffisent pas : un énuméré divergent produirait
+    # une sémantique de rejet différente entre voisins, invisible au gate (objection
+    # de revue scellée). On confronte donc aussi les valeurs de TYPES_TRAVAUX.
+    bloc_types = re.search(r"TYPES_TRAVAUX\s*=\s*\((.*?)\)", texte_m2, re.DOTALL)
+    if not bloc_types:
+        return ["Constante TYPES_TRAVAUX introuvable dans la source de M2 — "
+                "extracteur vide, contrôle non probant."]
+    types_m2 = set(re.findall(r'"([a-z_]+)"', bloc_types.group(1)))
+    # L'architecture cite les types dans le bloc du barème (postes) et en prose.
+    # L'extracteur précédent ne ramassait RIEN : un contrôle qui ne compare rien
+    # passe toujours (mesuré). On confronte donc l'ensemble des types M2 à leur
+    # présence effective dans le document.
+    # Cibler la DÉCLARATION de l'énuméré, pas une présence quelconque : une simple
+    # mention en prose satisfaisait le contrôle et masquait le retrait d'une valeur
+    # de la liste (mutation mesurée non détectée).
+    titre_enum = re.search(r"^#### `type_travaux`.*$", archi, re.MULTILINE)
+    if not titre_enum:
+        return ["Déclaration de l'énuméré type_travaux introuvable dans l'architecture M3 — "
+                "contrôle non probant."]
+    zone = archi[titre_enum.end():titre_enum.end() + 400]
+    types_m3 = set(re.findall(r"`([a-z_][a-z0-9_]*)`", zone))
+    if not types_m3:
+        return ["Aucune valeur extraite de la déclaration type_travaux — extracteur vide."]
+    if types_m3 != types_m2:
+        return [f"Énuméré type_travaux divergent : M3 déclare {sorted(types_m3)}, "
+                f"M2 émet {sorted(types_m2)} — écart {sorted(types_m3 ^ types_m2)}."]
+    if False:
+        return [f"Énuméré type_travaux divergent : M3 cite {sorted(types_m3)}, "
+                f"M2 émet {sorted(types_m2)} — écart {sorted(types_m3 ^ types_m2)}."]
+    return []
+
+
+def verifier_ca_cites_existent(prd: str) -> List[str]:
+    """Contrôle 14 : tout critère cité par une story existe dans la table des CA.
+
+    Retirer le DERNIER critère de la table laisse une séquence 01..N parfaitement
+    valide, et les stories continuent de le citer : la story promet alors un
+    critère qui n'existe plus (mutation mesurée non détectée par les contrôles
+    de séquence et de propriétaire).
+    """
+    table = prd.split("## 6.")[1].split("## 7.")[0] if "## 6." in prd and "## 7." in prd else ""
+    if not table:
+        return ["Table des critères introuvable — contrôle non probant."]
+    definis = set(re.findall(r"\| (CA-M3-\d{2}) \|", table))
+    if not definis:
+        return ["Aucun critère extrait de la table — extracteur vide, contrôle non probant."]
+    cites = set(re.findall(r"CA-M3-\d{2}", prd.split("## 7.")[1])) if "## 7." in prd else set()
+    fantomes = cites - definis
+    if fantomes:
+        return [f"Critères cités par une story mais ABSENTS de la table : {sorted(fantomes)} — "
+                f"une story ne peut pas porter un critère qui n'existe pas."]
     return []
 
 
@@ -660,6 +714,14 @@ def main(dossier_str: str = None) -> int:
             print(f"ECHEC : {e}")
     else:
         print("OK : Le contrat consommé correspond à celui que le module producteur émet.")
+
+    errs = verifier_ca_cites_existent(prd)
+    if errs:
+        erreurs.extend(errs)
+        for e in errs:
+            print(f"ECHEC : {e}")
+    else:
+        print("OK : Tout critère cité par une story existe dans la table.")
 
     errs = verifier_anti_derive(prd)
     if errs:

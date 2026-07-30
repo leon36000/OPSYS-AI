@@ -242,6 +242,7 @@ EstimationV1:
 | CA-M3-19 | Tout enum du module (`NiveauConfiance`, `VerdictEstimation`) possède une valeur `INDETERMINE` comme échappatoire obligatoire (D-032). | Inspection des définitions d'enum : assertion présence de `INDETERMINE` dans chaque enum. | S009 |
 | CA-M3-20 | Le module n'appelle jamais `random` sans graine, jamais d'horloge interne (`time.time`, `datetime.now`), jamais de réseau (`socket`, `urllib`, `requests`), et ne porte **aucun littéral numérique de coût** — les coûts viennent du barème fourni, jamais du code. | Analyse statique du code (AST Python) : assertion absence d'appels interdits dans tout le module M3. | S009 |
 | CA-M3-21 | Le barème de coûts est **fourni par l'appelant** et jamais inventé : sans barème, ou avec un barème ne couvrant pas le `type_travaux` demandé, l'estimation est BLOQUÉE (`INDETERMINE`, `prix_bloque` vrai, bornes nulles) au lieu de produire des bornes arbitraires. | Appel sans barème puis avec barème incomplet : assertion `prix_bloque is True`, bornes `null`, `bareme_version` nul. | S005 |
+| CA-M3-22 | Toute clé interdite (`prix`, `montant`, `date_execution`, `engagement`, `tva`, `montant_ttc`, `conditions_paiement`, `creneau`, `duree`) présente à N'IMPORTE quel niveau d'une entrée — contrat, marqueur ou photos — provoque un rejet EXPLICITE et DISTINCT du rejet générique de schéma. Rétabli après revue scellée : ma réécriture des critères d'entrée l'avait fait disparaître, alors que la détection récursive restait dans le périmètre — un contrôle sans critère se perd à l'implémentation. | Test unitaire : une clé interdite au sommet, une imbriquée dans `contact`, une dans un objet de `photos` ; assertion que le verdict est celui des clés interdites, PAS celui du schéma. | S001 |
 
 ---
 
@@ -251,8 +252,8 @@ EstimationV1:
 
 | Attribut | Valeur |
 |---|---|
-| **Périmètre** | Validation conjointe du contrat gelé `LeadQualifie` (les SEPT clés que M2 émet réellement), du marqueur de readiness signé par M2, et des photos fournies séparément par l'appelant. Détection récursive des clés interdites sur toutes les entrées. La readiness est CONSTATÉE via le marqueur, jamais re-déduite : M3 ne possède pas le registre de M2 (limite déclarée). |
-| **Critères portés** | CA-M3-01, CA-M3-02, CA-M3-03 |
+| **Périmètre** | Validation conjointe du contrat gelé `LeadQualifie` (les SEPT clés que M2 émet réellement), du marqueur de readiness signé par M2, et des photos fournies séparément par l'appelant. Détection récursive des clés interdites sur toutes les entrées. La readiness est CONSTATÉE via le marqueur, jamais re-déduite : M3 ne possède pas le registre de M2 (limite déclarée). FRONTIÈRE AVEC S002, explicite : S001 valide la STRUCTURE des photos (liste, types, bornes des champs, clés fermées) et rien de plus ; la QUALITÉ — résolution et éclairage sous les seuils, absence de référence d'échelle, blocage du prix — appartient à S002, la story de qualification des entrées visuelles. Une structure valide n'est pas une qualité suffisante, et S001 ne se prononce jamais sur le prix. |
+| **Critères portés** | CA-M3-01, CA-M3-02, CA-M3-03, CA-M3-22 |
 | **Tier** | T2 (contrat gelé consommé) |
 | **Dépendances** | Aucune |
 

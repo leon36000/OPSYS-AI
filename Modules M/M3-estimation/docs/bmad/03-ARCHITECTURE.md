@@ -225,6 +225,21 @@ non numériques ou `min > max` -> estimation bloquée avec `INDETERMINE`.
 
 ### 2.4 Énumérés fermés
 
+#### `type_travaux` — copie ÉPINGLÉE de l'énuméré fermé de M2
+
+Cinq valeurs, reprises telles quelles du contrat gelé que M2 émet :
+`renovation_totale`, `extension`, `ravalement`, `isolation_thermique`, `autre`.
+
+`autre` est l'échappatoire D-032 qui rend la fermeture légitime : sans elle, un type de travaux
+non prévu forcerait la fabrication d'une valeur.
+
+Cette copie fait foi pour la validation d'entrée de M3 (décision #109 : jamais d'import
+inter-modules). La divergence ne peut pas passer inaperçue — le contrôle de cohérence confronte
+cette liste à la constante que M2 déclare dans sa source, et **deux valeurs manquaient ici**
+(`ravalement`, `isolation_thermique`) avant que ce contrôle ne l'établisse : le consommateur
+ignorait des valeurs que le producteur émet. Filet secondaire déjà ratifié : le barème étant indexé
+par `type_travaux`, un type accepté mais absent du barème bloque l'estimation en aval (CA-M3-21).
+
 #### NiveauConfiance
 
 Copié mot pour mot du PRD section 4.1.
@@ -389,6 +404,17 @@ Le registre append-only est conçu pour recevoir ultérieurement le coût réel 
 
 ---
 
+### DA-M3-10 — un GATE peut lire la source d'un module voisin, le code de production non
+
+Le contrôle de cohérence confronte le contrat consommé par M3 à la constante que M2 déclare dans sa
+SOURCE. Parce que : la décision #109 interdit les imports inter-modules pour empêcher le couplage
+du CODE DE PRODUCTION — aucun module de M3 n'importe M2, et cette propriété reste vérifiable. Une
+vérification, elle, doit précisément confronter un consommateur à son producteur : c'est sa raison
+d'être, et s'en priver a laissé passer un contrat fantôme pendant tout un cadrage (issue #166).
+Piège écarté : rouvrir ce débat à chaque revue faute de décision écrite — objection de revue
+scellée. Le mécanisme est fail-closed et prouvé : source absente ou constante renommée font ROUGIR
+le gate, jamais passer en silence.
+
 ### DA-M3-09 — le barème de coûts est une ENTRÉE, jamais une donnée du module
 
 Le module ne porte aucune valeur monétaire en dur. Le barème est fourni par l'appelant, exactement
@@ -403,7 +429,7 @@ reproductible — alors que ses paramètres sont inventés. Sans barème utilisa
 
 | Story | Ce qu'elle prouve |
 |---|---|
-| **S001** — Validation du contrat d'entrée LeadQualifie | Prouve que M3 accepte un contrat valide et rejette explicitement tout contrat invalide ou contenant un champ interdit, avec verdict nommé (CA-M3-01, CA-M3-02, CA-M3-03). |
+| **S001** — Validation du contrat d'entrée LeadQualifie | Prouve que M3 accepte un contrat valide et rejette explicitement tout contrat invalide ou contenant un champ interdit, avec verdict nommé (CA-M3-01, CA-M3-02, CA-M3-03, CA-M3-22). |
 | **S002** — Qualification de la qualité des entrées visuelles | Prouve que des photos faibles (résolution sous seuil, éclairage insuffisant, ou liste vide) produisent un blocage du prix avec verdict explicite et signal de relance vers M2 (CA-M3-04). |
 | **S003** — Hiérarchie des références d'échelle | Prouve que la classification des niveaux de confiance (REFERENCE_ECHELLE, MULTI_VUES, MONO_VUE_BORNES_LARGES, INDETERMINE) est appliquée comme logique de décision pure sur les métadonnées, sans aucun modèle d'inférence (CA-M3-05, CA-M3-06, CA-M3-07, CA-M3-08). |
 | **S004** — Garde anti-précision-inventée et prix bloqué | Prouve que lorsque le prix est bloqué, les bornes de l'intervalle sont null et la raison de blocage est non vide — aucun chiffre ne quitte M3 (CA-M3-09). |
