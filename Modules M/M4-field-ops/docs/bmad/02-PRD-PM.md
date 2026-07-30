@@ -64,6 +64,17 @@ Le contrat d'événement de cascade est nommé WorkCompletionTriggerV1. Ses cham
 - technicien_id : identifiant du technicien ayant réalisé l'intervention.
 - horodatage_completion : horodatage ISO-8601 avec fuseau explicite du dernier pointage valide.
 - fix_gps_completion : latitude et longitude du dernier pointage valide.
+
+  > **RATIFICATION T3 (Nathan, 2026-07-30, issue #149) — option A : statu quo.** La revue scellée
+  > de M4-S008 avait soulevé que ce champ est une localisation PRÉCISE diffusée aux six modules
+  > aval, alors que CA-M4-13 ne mentionne que l'absence d'adresse résidentielle en clair. Trois
+  > options avaient été documentées (statu quo ; retrait du WCT diffusé ; tokenisation ou
+  > dégradation de précision) sans qu'aucune soit appliquée unilatéralement, le contrat
+  > `WorkCompletionTriggerV1` étant un artefact ratifié. Nathan tranche : le champ RESTE tel quel.
+  > Il est opérationnellement nécessaire aux modules aval (preuve de présence, arbitrage de
+  > litige), et il est déjà borné par CA-M4-19 — le fix provient du dernier pointage VALIDE, donc
+  > d'un pointage situé dans la fenêtre de travail déclarée. Aucune donnée de localisation hors
+  > heures de travail n'entre jamais dans un WCT.
 - duree_reelle_minutes : durée effective en minutes calculée déterministement depuis les pointages d'arrivée et de départ.
 - ecart_signale : booléen indiquant si un écart a été détecté et validé par revue humaine.
 - revue_id : référence vers la demande de revue si ecart_signale est vrai, champ nul sinon.
@@ -97,7 +108,7 @@ CA-M4-11 : Le système écrit la transition vers terminee et l'événement WCT p
 
 CA-M4-12 : Le système refuse tout pointage si aucune intervention n'est au statut en_route ou sur_site pour le technicien concerné, vérifié par le rejet explicite avec le verdict REJ-PUNCH-SANS-INTERVENTION.
 
-CA-M4-13 : Le système tokenise systématiquement le lien vers le client final dans tout événement de cascade, vérifié par l'absence d'adresse résidentielle en clair dans le WCT et les événements outbox.
+CA-M4-13 : Le système tokenise systématiquement le lien vers le client final dans tout événement de cascade, vérifié par l'absence d'adresse résidentielle en clair dans le WCT et les événements outbox. Portée PRÉCISÉE par la ratification T3 du 2026-07-30 (#149) : le `fix_gps_completion`, borné aux heures de travail par CA-M4-19, n'est pas visé par ce critère — la tokenisation porte sur le LIEN CLIENT (identité, adresse), pas sur la preuve de présence terrain.
 
 CA-M4-14 : Le système expose dans le digest quotidien la volumétrie de la file pending_review, vérifié par la présence du champ count_pending_review dans le digest hash-chaîné.
 
