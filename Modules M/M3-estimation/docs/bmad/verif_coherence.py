@@ -1,3 +1,4 @@
+import ast
 import re
 import sys
 from pathlib import Path
@@ -559,6 +560,116 @@ def verifier_ca_cites_existent(prd: str) -> List[str]:
     return []
 
 
+def verifier_ancres_de_docstring(prd: str, archi: str, racine_module: Path) -> List[str]:
+    """Contrôle 15 : les promesses de docstring du PRD sont ancrées, puis tenues.
+
+    Vérifie trois choses : (1) l'architecture déclare une section ANCRES DE
+    DOCSTRING avec une table non vide associant chaque critère à l'ancre exacte
+    promise ; (2) cette table est synchronisée avec le PRD — tout critère dont la
+    ligne de table mentionne une docstring y figure, et aucune ancre n'existe
+    pour un critère qui ne promet rien ; (3) dès que le paquet source existe,
+    chaque ancre est écrite dans au moins une docstring réelle (module, classe ou
+    fonction), lue par ast.get_docstring sur l'arbre ast.parse — jamais par
+    recherche textuelle, qui trouverait l'ancre dans un commentaire ou une
+    chaîne quelconque.
+
+    Quand le paquet ne contient aucun module Python, le module est au statut
+    CADRE : l'exigence d'écriture dans le code n'est donc pas encore applicable, et le contrôle retourne conforme sur cette
+    étape — seules les erreurs de déclaration et de synchronisation (étapes 1
+    et 2) sont alors rapportées.
+
+    Ce sont précisément les étapes 1 et 2 qui empêchent un vert-par-vacuité :
+    sans table d'ancres déclarée, non vide et synchronisée avec le PRD, le
+    contrôle échoue avant même de regarder le code. Sa suppression ou son vidage
+    serait donc détecté immédiatement, et la promesse faite au cadrage ne peut
+    pas se perdre silencieusement entre le cadrage et l'implémentation.
+    """
+
+    def normaliser(texte: str) -> str:
+        """Réduit espaces multiples et retours à la ligne à une seule espace."""
+        return re.sub(r"\s+", " ", texte).strip()
+
+    erreurs: List[str] = []
+
+    # Étape 1 — la table d'ancres doit exister et être non vide.
+    titre = re.search(r"^###\s+ANCRES DE DOCSTRING\s*$", archi, re.MULTILINE)
+    if not titre:
+        return ["Section ANCRES DE DOCSTRING absente de l'architecture — "
+                "contrôle non probant."]
+    ancres: Dict[str, str] = {}
+    for ligne in archi[titre.end():].splitlines():
+        if re.match(r"^#{1,6}\s", ligne):
+            break
+        if not ligne.lstrip().startswith("|"):
+            continue
+        cellules = [c.strip() for c in ligne.strip().strip("|").split("|")]
+        if len(cellules) < 2:
+            continue
+        m_critere = re.search(r"CA-M3-\d{2}", cellules[0])
+        m_ancre = re.search(r"`([^`]+)`", cellules[1])
+        if m_critere and m_ancre:
+            ancres[m_critere.group(0)] = m_ancre.group(1)
+    if not ancres:
+        return ["Aucune ancre extraite — extracteur vide, contrôle non probant."]
+
+    # Étape 2 — aucune promesse ne doit échapper à la table, et réciproquement.
+    prometteurs: Set[str] = set()
+    for ligne in prd.splitlines():
+        if not ligne.lstrip().startswith("|"):
+            continue
+        if "docstring" not in ligne.lower():
+            continue
+        for m in re.finditer(r"CA-M3-\d{2}", ligne):
+            prometteurs.add(m.group(0))
+    manquants = sorted(prometteurs - set(ancres))
+    if manquants:
+        erreurs.append(f"Critères promettant une docstring mais sans ancre déclarée : "
+                       f"{manquants} — une promesse sans ancre est invérifiable.")
+    orphelines = sorted(set(ancres) - prometteurs)
+    if orphelines:
+        erreurs.append(f"Ancre déclarée pour {orphelines} qui ne promet aucune docstring — "
+                       f"table désynchronisée.")
+
+    # Étape 3 — exigence conditionnelle au paquet source (statut CADRE : src absent).
+    # Le paquet existe quand il contient au moins un module Python : un dossier src
+    # réduit à un .gitkeep est l'état CADRE, pas un paquet vide à contrôler (mesuré :
+    # le contrôle échouait sur l'ancre « absente » d'un paquet qui n'existe pas).
+    src = racine_module / "src"
+    fichiers = sorted(src.rglob("*.py")) if src.is_dir() else []
+    if not fichiers:
+        return erreurs
+    docstrings: List[str] = []
+    for chemin in fichiers:
+        try:
+            source = chemin.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            erreurs.append(f"Fichier illisible : {chemin} ({exc}) — aucun .py du paquet "
+                           f"source ne peut être ignoré silencieusement.")
+            continue
+        try:
+            arbre = ast.parse(source, filename=str(chemin))
+        except SyntaxError as exc:
+            erreurs.append(f"Fichier non parsable : {chemin} ({exc}) — aucun .py du paquet "
+                           f"source ne peut être ignoré silencieusement.")
+            continue
+        doc_module = ast.get_docstring(arbre)
+        if doc_module:
+            docstrings.append(doc_module)
+        for noeud in ast.walk(arbre):
+            if isinstance(noeud, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+                doc = ast.get_docstring(noeud)
+                if doc:
+                    docstrings.append(doc)
+    docs_plates = [normaliser(d) for d in docstrings]
+    for critere in sorted(ancres):
+        ancre_brute = ancres[critere]
+        if not any(normaliser(ancre_brute) in d for d in docs_plates):
+            erreurs.append(f"Ancre de {critere} absente de toute docstring du paquet : "
+                           f"\"{ancre_brute}\" — la limite promise au cadrage n'est pas "
+                           f"écrite dans le code.")
+    return erreurs
+
+
 def verifier_anti_derive(prd: str) -> List[str]:
     """Contrôle 8 : les DEUX déclarations exigées sont présentes, distinctement.
 
@@ -722,6 +833,15 @@ def main(dossier_str: str = None) -> int:
             print(f"ECHEC : {e}")
     else:
         print("OK : Tout critère cité par une story existe dans la table.")
+
+    errs = verifier_ancres_de_docstring(prd, archi, dossier.parent.parent)
+    if errs:
+        erreurs.extend(errs)
+        for e in errs:
+            print(f"ECHEC : {e}")
+    else:
+        print("OK : Les ancres de docstring sont déclarées, synchronisées avec le "
+              "PRD, et tenues dès que le paquet source existe.")
 
     errs = verifier_anti_derive(prd)
     if errs:

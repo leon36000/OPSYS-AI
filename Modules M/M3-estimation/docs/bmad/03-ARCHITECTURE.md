@@ -415,6 +415,31 @@ Piège écarté : rouvrir ce débat à chaque revue faute de décision écrite �
 scellée. Le mécanisme est fail-closed et prouvé : source absente ou constante renommée font ROUGIR
 le gate, jamais passer en silence.
 
+### ANCRES DE DOCSTRING
+
+Un critère qui promet « c'est écrit dans la docstring » n'est vérifiable que si la phrase attendue
+est épinglée. Le contrôle 15 exige cette table, refuse qu'une promesse du PRD n'y figure pas, et
+impose l'ancre dans une docstring RÉELLE (`ast.get_docstring`) dès que le paquet source existe.
+
+| Critère | Ancre exacte |
+|---|---|
+| CA-M3-03 | `validation STRUCTURELLE du marqueur : M3 ne recalcule pas l'empreinte, qui couvre des conditions extraites du registre de M2` |
+
+L'ancre est MESURÉE, pas supposée : `emettre_marqueur` de M2 calcule
+`empreinte = encoder_canonique(conditions, lead_id, tete)` où `conditions` sortent de
+`_extraire_conditions(registre_cible, lead_id)` — du REGISTRE, pas du contrat. M3, qui ne possède
+pas ce registre (DA-M3-05), n'a donc pas les entrées du calcul : le non-recalcul n'est pas une
+facilité, c'est une impossibilité.
+
+### DA-M3-11 — l'avis d'architecte antérieur au correctif du contrat est PÉRIMÉ sur l'empreinte
+
+L'avis rendu avant #166 décidait que « M3 recalcule l'empreinte du contrat complet MOINS le champ
+`sha256` ». Les deux moitiés sont fausses sur le contrat réel, et la mesure le montre : le contrat
+`LeadQualifie` émis par M2 a SEPT clés dont aucune n'est une empreinte — il n'y a pas de `sha256` à
+exclure ; et l'empreinte qui existe, celle du marqueur, couvre des conditions extraites du registre
+de M2, hors de portée de M3. L'avis raisonnait sur le contrat fantôme que ce correctif supprime.
+La story S001 repart donc de la mesure, jamais de cet avis, qui reste au journal comme réfutation.
+
 ### DA-M3-09 — le barème de coûts est une ENTRÉE, jamais une donnée du module
 
 Le module ne porte aucune valeur monétaire en dur. Le barème est fourni par l'appelant, exactement
