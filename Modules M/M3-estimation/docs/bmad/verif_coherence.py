@@ -310,6 +310,44 @@ def _champs_interdits_du_bloc(texte: str, motif_section: str, etiquette: str) ->
     return erreurs
 
 
+def verifier_ca_par_story_coherents(prd: str, archi: str) -> List[str]:
+    """Contrôle 9 : pour CHAQUE story, les CA cités par l'architecture sont ceux du PRD.
+
+    Le gate vérifiait que les mêmes stories existent des deux côtés, mais pas que
+    chacune y porte les MÊMES critères : après l'ajout de CA-M3-21 au PRD, la
+    ligne S005 de l'architecture n'en citait que deux sur trois et rien ne le
+    voyait (objection de revue scellée). Deux documents peuvent s'accorder sur la
+    LISTE des stories tout en divergeant sur ce que chacune prouve.
+    """
+    erreurs = []
+    stories_prd = decouper_stories(prd)
+    parties = archi.split("## 5. CE QUE CHAQUE STORY PROUVE")
+    if len(parties) < 2:
+        return ["Section '## 5. CE QUE CHAQUE STORY PROUVE' absente de l'architecture."]
+    vues = 0
+    for ligne in parties[1].splitlines():
+        m = re.search(r"\*\*(S\d{3})\*\*", ligne)
+        if not m:
+            continue
+        story = m.group(1)
+        ca_prd = set(re.findall(r"CA-M3-\d{2}", stories_prd.get(story, "")))
+        if not ca_prd:
+            continue
+        vues += 1
+        ca_archi = set(re.findall(r"CA-M3-\d{2}", ligne))
+        if ca_archi != ca_prd:
+            erreurs.append(
+                f"Story {story} : critères divergents — PRD {sorted(ca_prd)} vs "
+                f"architecture {sorted(ca_archi)} (écart {sorted(ca_prd ^ ca_archi)})."
+            )
+    if vues == 0:
+        erreurs.append(
+            "Aucune story confrontée : l'extracteur n'a rien trouvé, le contrôle "
+            "serait vide — un contrôle qui ne compare rien passe toujours."
+        )
+    return erreurs
+
+
 def verifier_anti_derive(prd: str) -> List[str]:
     """Contrôle 8 : les DEUX déclarations exigées sont présentes, distinctement.
 
@@ -426,6 +464,14 @@ def main(dossier_str: str = None) -> int:
         print("OK : Aucun champ interdit (date/finance) dans le contrat gelé.")
 
     # Contrôle 8 : anti-dérive
+    errs = verifier_ca_par_story_coherents(prd, archi)
+    if errs:
+        erreurs.extend(errs)
+        for e in errs:
+            print(f"ECHEC : {e}")
+    else:
+        print("OK : Chaque story porte les mêmes critères dans le PRD et l'architecture.")
+
     errs = verifier_anti_derive(prd)
     if errs:
         erreurs.extend(errs)

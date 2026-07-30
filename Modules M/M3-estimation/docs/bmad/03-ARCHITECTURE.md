@@ -214,6 +214,32 @@ DigestEstimationsBloquees:
 
 ## 3. INTERFACES ET CONTRATS
 
+### 2.3 Contrat d'entrée gelé — `BaremeCouts` (fourni par l'appelant)
+
+Liste FERMÉE de clés. Le module ne porte aucune valeur monétaire en dur : le barème est une
+donnée d'entrée, au même titre que la graine du Monte Carlo.
+
+```yaml
+BaremeCouts:
+  version: str
+    # Identifiant de version du barème, épinglé dans l'estimation pour traçabilité.
+  unite: str
+    # Unité monétaire, énumérée et fermée par l'appelant.
+  postes:
+    # Dictionnaire type_travaux -> paramètres de coût. Un type_travaux absent
+    # rend l'estimation IMPOSSIBLE : blocage INDETERMINE, jamais d'extrapolation.
+    <type_travaux>:
+      cout_unitaire_min: float
+      cout_unitaire_max: float
+      # Bornes du coût par unité d'ouvrage. Le Monte Carlo tire DANS ces bornes :
+      # sans elles il tirerait dans le vide et produirait des bornes arbitraires.
+```
+
+Validation fail-closed : barème absent, `postes` vide, type_travaux non couvert, bornes
+non numériques ou `min > max` -> estimation bloquée avec `INDETERMINE`.
+
+---
+
 ### 3.1 Interface d'entrée — ce que M3 reçoit de M2
 
 M3 reçoit un contrat gelé `LeadQualifie` ayant franchi la **readiness gate M2** :
@@ -223,7 +249,12 @@ M3 reçoit un contrat gelé `LeadQualifie` ayant franchi la **readiness gate M2*
 - Au moins une interaction humaine post-qualification dans `interactions`.
 - `sha256` cohérent avec le contenu du contrat.
 
-M3 reçoit également deux paramètres d'appel hors contrat :
+M3 reçoit également TROIS paramètres d'appel hors contrat :
+- `bareme_couts: dict` — **contrat d'entrée gelé** décrit en 2.3. Le module ne porte AUCUNE
+  valeur monétaire : sans barème couvrant le `type_travaux` demandé, l'estimation est BLOQUÉE
+  avec `INDETERMINE` (CA-M3-21, DA-M3-09). Exiger le barème ici, et non en prose, est ce qui rend
+  le critère implémentable — objection critique de revue scellée : un critère qui exige ce que
+  l'interface ne déclare pas est improuvable.
 - `graine_monte_carlo: int` — graine pour la simulation déterministe.
 - `plancher_rentable: float` — seuil d'alerte rouge.
 
@@ -297,7 +328,7 @@ Le registre append-only est conçu pour recevoir ultérieurement le coût réel 
 
 ---
 
-### Décision — le barème de coûts est une ENTRÉE, jamais une donnée du module
+### DA-M3-09 — le barème de coûts est une ENTRÉE, jamais une donnée du module
 
 Le module ne porte aucune valeur monétaire en dur. Le barème est fourni par l'appelant, exactement
 comme la graine du Monte Carlo et comme le référentiel géographique l'est pour le module voisin.
@@ -315,7 +346,7 @@ reproductible — alors que ses paramètres sont inventés. Sans barème utilisa
 | **S002** — Qualification de la qualité des entrées visuelles | Prouve que des photos faibles (résolution sous seuil, éclairage insuffisant, ou liste vide) produisent un blocage du prix avec verdict explicite et signal de relance vers M2 (CA-M3-04). |
 | **S003** — Hiérarchie des références d'échelle | Prouve que la classification des niveaux de confiance (REFERENCE_ECHELLE, MULTI_VUES, MONO_VUE_BORNES_LARGES, INDETERMINE) est appliquée comme logique de décision pure sur les métadonnées, sans aucun modèle d'inférence (CA-M3-05, CA-M3-06, CA-M3-07, CA-M3-08). |
 | **S004** — Garde anti-précision-inventée et prix bloqué | Prouve que lorsque le prix est bloqué, les bornes de l'intervalle sont null et la raison de blocage est non vide — aucun chiffre ne quitte M3 (CA-M3-09). |
-| **S005** — Monte Carlo déterministe à graine fournie | Prouve la reproductibilité bit-à-bit pour la même graine et la divergence pour des graines différentes, sans aucun appel à random non ensemencé (CA-M3-10, CA-M3-11). |
+| **S005** — Monte Carlo déterministe à graine fournie | Prouve la reproductibilité bit-à-bit pour la même graine et la divergence pour des graines différentes, sans aucun appel à random non ensemencé, et le BLOCAGE lorsque le barème fourni ne couvre pas le type de travaux demandé — un tirage sans bornes produirait des valeurs arbitraires (CA-M3-10, CA-M3-11, CA-M3-21). |
 | **S006** — Plancher rentable et alerte rouge | Prouve que l'alerte plancher est émise quand la borne basse est strictement inférieure au plancher, et absente sinon, sans bloquer l'estimation (CA-M3-12, CA-M3-13). |
 | **S007** — Contrat de sortie EstimationV1 et devis_id | Prouve que le devis_id est injectif et reproductible, que deux leads distincts produisent des devis distincts, et que le contrat de sortie ne contient aucun champ de date ni de finance (CA-M3-14, CA-M3-15, CA-M3-16). |
 | **S008** — Registre append-only estimé-vs-réel | Prouve que la chaîne de hash est préservée à l'ajout et que toute altération d'un maillon est détectée par validation (CA-M3-17, CA-M3-18). |
@@ -332,6 +363,7 @@ reproductible — alors que ses paramètres sont inventés. Sans barème utilisa
 | `niveau_confiance_defaut` | Niveau de confiance de l'intervalle Monte Carlo. | 0.90 |
 | `plancher_rentable` | Coût minimal en dessous duquel l'alerte rouge est émise. | Fourni par l'appelant à chaque estimation. |
 | `nb_iterations_monte_carlo` | Nombre d'itérations de la simulation Monte Carlo. | Défini par le PM. |
+| `bareme_couts` | Contrat gelé `BaremeCouts` (2.3) : versions, unité, postes par type de travaux. | **Fourni par l'appelant à chaque estimation. Aucune valeur par défaut : un barème par défaut serait un coût inventé.** |
 
 ---
 
