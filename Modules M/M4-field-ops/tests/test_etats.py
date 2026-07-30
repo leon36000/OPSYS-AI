@@ -8,11 +8,50 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 import m4_field_ops.etats as etats_mod
+import m4_field_ops.cedule as cedule_mod
+import m4_field_ops.outbox as outbox_mod
+import m4_field_ops.pointage as pointage_mod
 import m4_field_ops.registre as registre_mod
 
 # ------------------------------------------------------------------ constantes de test
 H_VALIDE = "2025-06-02T08:00:00+00:00"
 SEL = "sel-de-test-m4"
+
+# Chemin RÉEL de complétion (S008) : seule l'outbox écrit vers terminee, et elle
+# calcule la durée depuis les pointages — d'où ces constantes ici.
+VILLE_TEST = "Montreal"
+REFERENTIEL_TEST = {
+    cedule_mod.tokeniser_ville(SEL, VILLE_TEST): {
+        "latitude": 45.5017, "longitude": -73.5673, "rayon_km": 25.0,
+    }
+}
+GPS_PROCHE_TEST = {"latitude": 45.5088, "longitude": -73.5878}
+ATTESTATION_TEST = {"fictif": True, "appareil_id": "APP-1"}
+FENETRE_TEST = {"debut": "2025-06-02T07:00:00+00:00", "fin": "2025-06-02T19:00:00+00:00"}
+
+
+def _completer_par_outbox(registre, intervention_id, horodatage):
+    """Amène une intervention à `terminee` par le chemin RÉEL de production.
+
+    Depuis S008, `transitionner` REFUSE la cible terminee : la transition et
+    l'événement WCT doivent être écrits par UNE SEULE opération d'ajout
+    (CA-M4-11), donc par l'outbox. Fabriquer le maillon à la main validerait un
+    chemin qui n'existe pas en production.
+    """
+    assert etats_mod.statut_courant(registre, intervention_id) == "en_route", (
+        "ce helper part de en_route : le pointage d'arrivée l'exige"
+    )
+    assign = {"intervention_id": intervention_id, "technicien_id": "T1"}
+    for action, horo in (("arrivee", "2025-06-02T09:00:00+00:00"),
+                         ("depart", "2025-06-02T11:30:00+00:00")):
+        acc, verd = pointage_mod.enregistrer_pointage(
+            intervention_id, "T1", action, horo, GPS_PROCHE_TEST, ATTESTATION_TEST,
+            assign, FENETRE_TEST, REFERENTIEL_TEST, VILLE_TEST, SEL, registre,
+        )
+        assert acc is not None, f"pointage {action} refusé : {verd}"
+    acc, verd = outbox_mod.completer_intervention(intervention_id, horodatage, registre)
+    assert acc is not None, f"complétion refusée : {verd}"
+    return acc
 H_VALIDE2 = "2025-06-02T10:00:00+00:00"
 H_VALIDE3 = "2025-06-03T08:00:00+00:00"
 
@@ -23,7 +62,7 @@ def contrat_valide():
         "lead_id": "L1",
         "conversation_id": "C1",
         "type_travaux": "renovation_totale",
-        "ville": "Paris",
+        "ville": VILLE_TEST,
         "canal": "telephone",
         "contact": {"nom": "Dupont", "telephone": "0102030405"},
         "urgence_declaree": True,
@@ -51,7 +90,7 @@ CHEMINS = {
     "sur_site": [("en_route", None), ("sur_site", None)],
     "en_revue": [("en_route", None), ("sur_site", None), ("en_revue", None)],
     "reportee": [("reportee", "meteo")],
-    "terminee": [("en_route", None), ("sur_site", None), ("terminee", None)],
+    # terminee est ABSENT : il n'est plus atteignable par transitionner (S008).
     "annulee": [("annulee", None)],
 }
 
@@ -63,6 +102,15 @@ def preparer_chemin(registre, contrat, marqueur, etat_cible, horodatage_inscript
     , SEL)
     assert accuse is not None, f"Échec d'inscription : {verdict}"
     intervention_id = accuse["intervention_id"]
+    if etat_cible == "terminee":
+        # Chemin RÉEL : en_route, puis pointages, puis outbox (transitionner
+        # refuse terminee depuis S008).
+        acc, verd = etats_mod.transitionner(
+            intervention_id, "en_route", registre, "2025-06-02T08:30:00+00:00"
+        )
+        assert acc is not None, f"transition en_route refusée : {verd}"
+        _completer_par_outbox(registre, intervention_id, "2025-06-02T12:00:00+00:00")
+        return intervention_id, registre
     chemin = CHEMINS.get(etat_cible, [])
     horo = horodatage_inscription
     # On ajoute 1 heure à chaque étape pour éviter collision d'horodatage
@@ -196,8 +244,6 @@ COUPLES_LEGAUX = [
     ("en_route", "reportee"),
     ("en_route", "annulee"),
     ("sur_site", "en_revue"),
-    ("sur_site", "terminee"),
-    ("en_revue", "terminee"),
     ("en_revue", "annulee"),
     ("en_revue", "sur_site"),
     ("en_route", "en_revue"),
@@ -318,12 +364,21 @@ def test_statut_courant_independant(contrat_valide, marqueur_valide, registre_vi
 def test_parcours_complet_valider(contrat_valide, marqueur_valide, registre_vide):
     accuse, _ = etats_mod.inscrire_intervention(contrat_valide, marqueur_valide, registre_vide, H_VALIDE, SEL)
     i_id = accuse["intervention_id"]
-    for cible, horo in (("en_route", "2025-06-02T09:00:00+00:00"),
-                        ("sur_site", "2025-06-02T10:00:00+00:00"),
-                        ("terminee", "2025-06-02T11:00:00+00:00")):
-        acc, verd = etats_mod.transitionner(i_id, cible, registre_vide, horo)
+    # Les transitions que la machine à états ÉCRIT elle-même.
+    for cible, horo in (("en_route", "2025-06-02T08:30:00+00:00"),
+                        ("reportee", "2025-06-02T08:40:00+00:00"),
+                        ("planifiee", "2025-06-02T08:50:00+00:00"),
+                        ("en_route", "2025-06-02T08:55:00+00:00")):
+        motif = "meteo" if cible == "reportee" else None
+        acc, verd = etats_mod.transitionner(i_id, cible, registre_vide, horo, motif=motif)
         assert acc is not None, f"transition {cible} échouée : {verd}"
         assert acc["statut"] == cible
+    # La complétion, elle, appartient à l'outbox (S008) : le parcours se termine
+    # par le chemin RÉEL, ce qui prouve que les deux écrivains composent sans
+    # rompre la chaîne.
+    accuse_wct = _completer_par_outbox(registre_vide, i_id, "2025-06-02T12:00:00+00:00")
+    assert accuse_wct["statut"] == "terminee"
+    assert etats_mod.statut_courant(registre_vide, i_id) == "terminee"
     assert registre_vide.valider_chaine() is True
     # assert_chaine ne lève pas
     registre_vide.assert_chaine()   # doit passer sans exception

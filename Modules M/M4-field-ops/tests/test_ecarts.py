@@ -12,7 +12,9 @@ if str(_SRC) not in sys.path:
 
 import m4_field_ops.ecarts as ecarts_mod
 import m4_field_ops.etats as etats_mod
+import m4_field_ops.outbox as outbox_mod
 import m4_field_ops.registre as registre_mod
+import m4_field_ops.cedule as cedule_mod
 import m4_field_ops.pointage as pointage_mod
 
 
@@ -43,16 +45,43 @@ MARQUEUR_VALIDE = {
 }
 
 
+VILLE = CONTRAT_VALIDE["ville"]
+REFERENTIEL = {
+    cedule_mod.tokeniser_ville(SEL, VILLE): {
+        "latitude": 45.5017, "longitude": -73.5673, "rayon_km": 25.0,
+    }
+}
+GPS_PROCHE = {"latitude": 45.5088, "longitude": -73.5878}
+ATTESTATION = {"fictif": True, "appareil_id": "APP-1"}
+FENETRE = {"debut": "2025-06-02T07:00:00+00:00", "fin": "2025-06-02T19:00:00+00:00"}
+
+
 def _registre_sur_site():
-    """Cree un registre neuf avec une intervention sur_site."""
+    """Registre neuf avec une intervention sur_site ET ses deux pointages.
+
+    Les pointages ne sont pas décoratifs : depuis S008, la complétion calcule la
+    durée réelle depuis les pointages et REFUSE fail-closed sans eux. Une
+    intervention terrain ne peut donc pas être complétée sans ses pointages —
+    conséquence assumée, et c'est le chemin RÉEL de production.
+    """
     reg = registre_mod.Registre()
     acc, ver = etats_mod.inscrire_intervention(CONTRAT_VALIDE, MARQUEUR_VALIDE, reg, H1, SEL)
     assert acc is not None, f"Inscription echouee: {ver}"
     i_id = acc["intervention_id"]
     acc2, ver2 = etats_mod.transitionner(i_id, "en_route", reg, H2)
     assert acc2 is not None, f"Transition en_route echouee: {ver2}"
-    acc3, ver3 = etats_mod.transitionner(i_id, "sur_site", reg, H3)
-    assert acc3 is not None, f"Transition sur_site echouee: {ver3}"
+    assign = {"intervention_id": i_id, "technicien_id": "T1"}
+    acc3, ver3 = pointage_mod.enregistrer_pointage(
+        i_id, "T1", "arrivee", H2, GPS_PROCHE, ATTESTATION,
+        assign, FENETRE, REFERENTIEL, VILLE, SEL, reg,
+    )
+    assert acc3 is not None, f"Pointage arrivee echoue: {ver3}"
+    assert etats_mod.statut_courant(reg, i_id) == "sur_site"
+    acc4, ver4 = pointage_mod.enregistrer_pointage(
+        i_id, "T1", "depart", H3, GPS_PROCHE, ATTESTATION,
+        assign, FENETRE, REFERENTIEL, VILLE, SEL, reg,
+    )
+    assert acc4 is not None, f"Pointage depart echoue: {ver4}"
     return reg, i_id
 
 
@@ -197,7 +226,8 @@ def test_intervention_inexistante():
 def test_intervention_terminale():
     reg, i_id = _registre_sur_site()
     # amener a terminee
-    acc, _ = etats_mod.transitionner(i_id, "terminee", reg, H4)
+    # Depuis S008, seule l'outbox écrit vers terminee (maillon composite, CA-M4-11).
+    acc, _ = outbox_mod.completer_intervention(i_id, H4, reg)
     assert acc is not None
     statut = etats_mod.statut_courant(reg, i_id)
     assert statut in etats_mod.ETATS_TERMINAUX
