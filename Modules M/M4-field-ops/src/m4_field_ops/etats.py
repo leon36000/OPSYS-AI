@@ -227,6 +227,22 @@ def transitionner(
             detail=f"transition non autorisée : {courant} -> {statut_cible}",
         )
 
+    # 5 bis. La cible terminee est REFUSÉE ici : la transition vers terminee et
+    # l'événement WCT doivent être écrits par UNE SEULE opération d'ajout
+    # (CA-M4-11), donc par l'outbox seul. La table conserve les couples légaux
+    # (sur_site, terminee) et (en_revue, terminee) : elle dit ce qui est LÉGAL,
+    # l'outbox est le seul qui ÉCRIT.
+    if statut_cible == "terminee":
+        return None, verdicts.construire_verdict(
+            "REJ-TRANSITION-ILLEGALE",
+            statut=courant,
+            detail=(
+                "la complétion passe exclusivement par l'outbox : la transition vers "
+                "terminee et l'événement WCT doivent être écrits par UNE SEULE opération "
+                "d'ajout (CA-M4-11)"
+            ),
+        )
+
     # 6. Contrôle du motif
     if statut_cible == "reportee":
         if motif not in MOTIFS_REPORT:

@@ -9,6 +9,7 @@ import copy
 from . import encodage
 from . import etats
 from . import horodatage
+from . import outbox
 from . import pointage
 from . import verdicts
 
@@ -318,15 +319,19 @@ def resoudre_demande(
                 ),
             )
 
-    # 6. transition
-    cible = "terminee" if decision == "validee" else "annulee"
-    # La machine à états est la SEULE autorité sur la légalité d'une transition :
-    # elle refuse toute cible hors table avec un diagnostic plus riche et sans
-    # rien écrire (mesuré). Un pré-contrôle ici serait du code mort — et deux
-    # gardes sur le même invariant divergent tôt ou tard.
-    acc_trans, ver_trans = etats.transitionner(
-        intervention_id, cible, registre_cible, horodatage_arg
-    )
+    # 6. suite d'état
+    # Un écart VALIDÉ mène à la complétion, qui doit émettre le WCT dans le même
+    # maillon (CA-M4-10 + CA-M4-11) : ce chemin passe donc par l'outbox, seul
+    # écrivain autorisé vers terminee. Un écart REJETÉ annule l'intervention, et
+    # la machine à états reste l'autorité de ce chemin.
+    if decision == "validee":
+        acc_trans, ver_trans = outbox.completer_intervention(
+            intervention_id, horodatage_arg, registre_cible, revue_id=demande_id
+        )
+    else:
+        acc_trans, ver_trans = etats.transitionner(
+            intervention_id, "annulee", registre_cible, horodatage_arg
+        )
     if acc_trans is None:
         return (None, ver_trans)
 
