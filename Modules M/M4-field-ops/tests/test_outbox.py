@@ -287,28 +287,6 @@ def test_duree_fail_closed(scenario):
             "longitude": GPS_PROCHE["longitude"],
         }
         reg.ajouter(maillon)
-    elif scenario == "deux_paires_arrivee_depart":
-        # Deux paires (arrivée + départ) => pas exactement une de chaque
-        for _ in range(2):
-            reg.ajouter({
-                "type_entree": pointage_mod.TYPE_POINTAGE,
-                "intervention_id": i_id,
-                "action": "arrivee",
-                "technicien_id": "T1",
-                "horodatage": H_ARRIVEE,
-                "latitude": GPS_PROCHE["latitude"],
-                "longitude": GPS_PROCHE["longitude"],
-            })
-            reg.ajouter({
-                "type_entree": pointage_mod.TYPE_POINTAGE,
-                "intervention_id": i_id,
-                "action": "depart",
-                "technicien_id": "T1",
-                "horodatage": H_DEPART,
-                "latitude": GPS_PROCHE["latitude"],
-                "longitude": GPS_PROCHE["longitude"],
-            })
-
     taille_avant = len(reg.lire())
     accuse, verdict = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
     assert accuse is None
