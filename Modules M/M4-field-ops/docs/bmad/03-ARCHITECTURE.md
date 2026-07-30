@@ -60,6 +60,12 @@ Sixièmement, les patrons de M2 sont copiés et adaptés avec le préfixe M4, et
 
 Septièmement, les invariants de CI interdisent tout réseau, toute horloge interne, et tout modèle de langage, tout en imposant des énumérés fermés et un fuseau horaire obligatoire. Ces contraintes garantissent la reproductibilité absolue et préviennent les dérives temporelles.
 
+## 4 bis. Énuméré des états (repris VERBATIM du PRD — cohérence vérifiée par gate)
+
+L'énuméré fermé des états de l'intervention est strictement celui du PRD : planifiee, en_route,
+sur_site, en_revue, terminee, annulee. Toute divergence entre les deux documents est un écart
+bloquant détecté par verif_coherence.py.
+
 ## 5. Anti-dérive et stratégie de preuve
 
 La story S001 prouve la propriété d'injectivité de l'encodage canonique, garantissant qu'aucune collision d'identifiant n'est possible.

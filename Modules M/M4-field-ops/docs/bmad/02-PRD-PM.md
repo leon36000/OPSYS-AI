@@ -1,5 +1,11 @@
 # PRD PM — MODULE M4 (FIELD OPS)
 
+> Arbitrage Orchestrateur (post-gate verif_coherence) : les mentions « (partiel) » fragmentaient
+> cinq CA sur deux stories chacun — un CA sans propriétaire unique n'est prouvé par personne
+> (leçon M2). Propriétaires tranchés : CA-M4-03->S002, CA-M4-08 et CA-M4-12->S006 (la logique y
+> vit, S007 fournit la mécanique de file), CA-M4-11->S008, CA-M4-14->S009. Le gate a aussi révélé
+> que l'INJECTIVITÉ n'était portée par aucun CA : CA-M4-18 créé, porté par S001.
+
 Rédigé par : PM BMAD | Statut : PROPOSÉ | Date : 2025-01-XX
 
 ## 1. Personas
@@ -97,17 +103,19 @@ CA-M4-16 : Le système refuse tout scoring punitif ou profilage comportemental d
 
 CA-M4-17 : Le système produit un digest quotidien déterministe et hash-chaîné listant les interventions complétées, les interventions en revue, et la volumétrie de la file d'attente, vérifié par l'exécution de deux appels identiques produisant exactement le même digest.
 
+CA-M4-18 : Le système dérive tout identifiant (intervention, pointage, événement outbox, jeton client) uniquement par encodage canonique injectif à préfixage par longueur : deux tuples distincts, y compris les cas de collision par concaténation, produisent des identifiants distincts, vérifié de manière déterministe inter-processus.
+
 ## 7. Stories
 
 ### S001 — Encodage canonique et identifiants M4
 Périmètre : Fournir l'encodage canonique injectif (préfixage par longueur) pour dériver les identifiants d'interventions, de pointages, et d'événements outbox, ainsi que les empreintes sha256 associées.
-Critères portés : CA-M4-03 (partiel, fondation).
+Critères portés : CA-M4-18.
 Tier : T1.
 Dépendances : Aucune (socle).
 
 ### S002 — Registre append-only hash-chaîné des interventions
 Périmètre : Implémenter le registre des interventions avec les opérations ajouter, lire, tete, valider_chaine, assert_chaine, et taille, garantissant l'immutabilité et la traçabilité de chaque maillon.
-Critères portés : CA-M4-03, CA-M4-11 (partiel).
+Critères portés : CA-M4-03.
 Tier : T1.
 Dépendances : S001.
 
@@ -119,7 +127,7 @@ Dépendances : S001.
 
 ### S004 — Machine à états de l'intervention
 Périmètre : Modéliser l'énuméré fermé des six états et la table des transitions conditionnées, rejeter toute transition illégale avec le verdict REJ-TRANSITION-ILLEGALE.
-Critères portés : CA-M4-04, CA-M4-12 (partiel).
+Critères portés : CA-M4-04.
 Tier : T1.
 Dépendances : S002, S003.
 
@@ -137,7 +145,7 @@ Dépendances : S004, S005.
 
 ### S007 — Gestion des écarts et file pending_review
 Périmètre : Détecter les écarts entre le prévu et le réalisé, créer les demandes d'arbitrage avec les deux versions des faits, gérer la file pending_review, et exposer la volumétrie.
-Critères portés : CA-M4-08 (partiel), CA-M4-09, CA-M4-14.
+Critères portés : CA-M4-09.
 Tier : T1.
 Dépendances : S006.
 
@@ -149,7 +157,7 @@ Dépendances : S002, S004, S006, S007.
 
 ### S009 — Digest quotidien et conformité horodatage
 Périmètre : Produire le digest quotidien déterministe et hash-chaîné des interventions complétées, en revue, et de la volumétrie de la file d'attente, et garantir l'absence d'inférence d'horloge système.
-Critères portés : CA-M4-14 (partiel), CA-M4-15, CA-M4-16, CA-M4-17.
+Critères portés : CA-M4-14, CA-M4-15, CA-M4-16, CA-M4-17.
 Tier : T1.
 Dépendances : S002, S007, S008.
 
