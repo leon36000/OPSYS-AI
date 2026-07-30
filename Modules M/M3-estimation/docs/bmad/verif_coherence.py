@@ -451,6 +451,60 @@ def verifier_contrats_ont_un_proprietaire(archi: str) -> List[str]:
     return erreurs
 
 
+def verifier_contrat_consomme_existe_vraiment(archi: str) -> List[str]:
+    """Contrôle 13 : le contrat consommé est celui que le module PRODUCTEUR émet.
+
+    Le gate ne vérifiait que la cohérence INTERNE des trois documents de M3. Un
+    cadrage peut être parfaitement cohérent avec lui-même et décrire une entrée
+    qui n'existe pas : c'est arrivé (issue #166). Le `LeadQualifie` décrit portait
+    huit clés dont `sha256`, `owner`, `interactions` et `photos` ; le module M2,
+    livré et couvert par 533 tests, en émet SEPT, et ne transporte aucune photo.
+    Valider le contrat fantôme aurait rejeté tout lead réel, avec des tests au
+    vert puisqu'ils auraient fabriqué l'entrée — un chemin inexistant en
+    production, propagé aux neuf stories.
+
+    Ce contrôle confronte donc la liste de clés déclarée dans l'architecture de M3
+    à la constante `CHAMPS_CONTRAT_GELE` du module M2, lue dans sa SOURCE. Lire
+    la source d'un voisin depuis un GATE n'est pas un import inter-modules
+    (décision #109) : aucun code de production ne dépend de M2, seule la
+    vérification le fait.
+    """
+    depot = Path(__file__).resolve().parents[4]
+    source_m2 = depot / "Modules M" / "M2-revenue-crm" / "src" / "m2_revenue_crm" / "contrats.py"
+    if not source_m2.is_file():
+        return [f"Source du module producteur introuvable ({source_m2}) — "
+                f"contrôle non probant, jamais silencieusement vert."]
+    texte_m2 = source_m2.read_text(encoding="utf-8")
+    bloc = re.search(r"CHAMPS_CONTRAT_GELE\s*=\s*\((.*?)\)", texte_m2, re.DOTALL)
+    if not bloc:
+        return ["Constante CHAMPS_CONTRAT_GELE introuvable dans la source de M2 — "
+                "extracteur vide, contrôle non probant."]
+    cles_m2 = set(re.findall(r'"([a-z_]+)"', bloc.group(1)))
+
+    titre = re.search(r"^#### `LeadQualifie`.*$", archi, re.MULTILINE)
+    if not titre:
+        return ["Section du contrat LeadQualifie introuvable dans l'architecture M3."]
+    # Depuis le titre, le PREMIER bloc yaml COMPLET (ouvrant ET fermant) : s'arrêter
+    # à la première clôture rencontrée capturerait la fence ouvrante, donc du vide.
+    bloc_m3 = re.search(r"```yaml\s*\n(.*?)\n```", archi[titre.end():], re.DOTALL)
+    if not bloc_m3:
+        return ["Bloc YAML du contrat LeadQualifie introuvable dans l'architecture M3."]
+    corps = bloc_m3.group(1)
+    if not corps.lstrip().startswith("LeadQualifie:"):
+        return [f"Bloc YAML capturé n'est pas LeadQualifie mais « {corps.lstrip().splitlines()[0]} » "
+                f"— ancrage erroné, contrôle non probant."]
+    cles_m3 = set(re.findall(r"^  ([a-z_]+):", corps, re.MULTILINE))
+
+    if not cles_m3:
+        return ["Aucune clé extraite du contrat LeadQualifie de M3 — contrôle vide."]
+    if cles_m3 != cles_m2:
+        return [f"Le contrat LeadQualifie consommé par M3 {sorted(cles_m3)} DIFFÈRE de celui "
+                f"que M2 émet réellement {sorted(cles_m2)} — écart {sorted(cles_m3 ^ cles_m2)}. "
+                f"Un consommateur qui décrit une entrée que le producteur n'émet pas valide un "
+                f"chemin inexistant en production."]
+    return []
+
+
 def verifier_anti_derive(prd: str) -> List[str]:
     """Contrôle 8 : les DEUX déclarations exigées sont présentes, distinctement.
 
@@ -598,6 +652,14 @@ def main(dossier_str: str = None) -> int:
             print(f"ECHEC : {e}")
     else:
         print("OK : Chaque contrat gelé a un module propriétaire déclaré.")
+
+    errs = verifier_contrat_consomme_existe_vraiment(archi)
+    if errs:
+        erreurs.extend(errs)
+        for e in errs:
+            print(f"ECHEC : {e}")
+    else:
+        print("OK : Le contrat consommé correspond à celui que le module producteur émet.")
 
     errs = verifier_anti_derive(prd)
     if errs:

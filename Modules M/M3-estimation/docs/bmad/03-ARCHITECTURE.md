@@ -45,36 +45,76 @@ Le paquet `m3_estimation` est autonome. Il réutilise le patron prouvé des modu
 
 ## 2. SCHÉMAS DE DONNÉES
 
-### 2.1 Contrat d'entrée — `LeadQualifie` (reçu de M2)
+### 2.1 Contrats d'entrée reçus de M2 — `LeadQualifie` et le marqueur de readiness
 
-Schéma gelé, liste FERMÉE de clés. Tout champ absent ou supplémentaire provoque le rejet `CONTRAT_ENTREE_INVALIDE`.
+> **CORRIGÉ (issue #166) — le contrat décrit ici était un FANTÔME.** Le cadrage initial décrivait
+> un `LeadQualifie` à huit champs (`sha256`, `owner`, `interactions`, `photos`, `contexte`) que M2
+> **n'émet pas**. Mesuré sur le module livré, 533 tests verts : le contrat gelé de M2 porte SEPT
+> champs, et le mot « photos » n'apparaît nulle part dans M2. Valider le contrat fantôme aurait
+> rejeté tout contrat réel, et les tests seraient passés au vert en fabriquant l'entrée — un
+> chemin inexistant en production, propagé aux neuf stories. La description ci-dessous est celle
+> de l'interface RÉELLE, celle que M4 consomme déjà depuis 427 tests.
+
+#### `LeadQualifie` — contrat gelé émis par M2 (liste FERMÉE de sept clés)
 
 ```yaml
 LeadQualifie:
   lead_id: str              # Identifiant stable du lead, attribué par M2.
-  sha256: str               # Empreinte sha256 du contrat gelé, épinglée pour traçabilité.
-  owner: str                # Owner humain confirmé (prénom + nom ou identifiant interne).
-  type_travaux: str         # Type de travaux validé (enum fermé M2).
+  conversation_id: str      # Référence de la conversation d'origine.
+  type_travaux: str         # Énuméré fermé (voir 2.4).
   ville: str                # Ville renseignée, non vide.
-  interactions:             # Au moins une interaction humaine post-qualification.
-    - type: str             # Type d'interaction (appel, visite, courriel, message).
-      horodatage: str       # ISO 8601 avec fuseau obligatoire.
-      resume: str           # Résumé factuel, sans engagement.
-  photos:                   # Liste des entrées visuelles (métadonnées uniquement, pas de blobs).
-    - photo_id: str         # Identifiant stable de la photo.
-      resolution_largeur: int   # Largeur en pixels.
-      resolution_hauteur: int   # Hauteur en pixels.
-      eclairage: float      # Niveau d'éclairage (échelle 0-10).
-      angle: str            # Identifiant d'angle (ex: "face", "gauche_45", "droite_45").
-      reference_echelle:    # Optionnel — objet de dimensions certifiées visible.
-        type: str           # Type d'objet (porte_standard, brique, carreau, metre_ruban).
-        dimensions_connues: bool  # True si les dimensions sont certifiées.
-  contexte:                 # Informations contextuelles additionnelles.
-    urgence_declaree: str   # Niveau d'urgence déclaré par le client (basse, moyenne, haute).
-    canal_entree: str       # Canal d'entrée du lead (telephone, courriel, formulaire, message).
+  canal: str                # Canal d'entrée : telephone | courriel | formulaire | texte.
+  contact: dict             # Clés autorisées : nom, telephone, courriel — au moins une non vide.
+  urgence_declaree: bool    # Booléen STRICT (1 et 0 sont refusés).
 ```
 
-**Clés interdites** (rejet immédiat si présentes) : `prix`, `montant`, `date_execution`, `engagement`, `tva`, `montant_ttc`, `conditions_paiement`, `creneau`, `duree`.
+M3 valide ce contrat **à l'identique** de ce que fait M4 : mêmes clés, mêmes énumérés, même
+sémantique de rejet. Un consommateur qui durcit unilatéralement un contrat gelé rejetterait des
+leads que son voisin accepte.
+
+#### Marqueur de readiness — émis et signé par M2
+
+```yaml
+MarqueurReadiness:
+  readiness_ok: bool        # DOIT valoir True par IDENTITÉ (l'entier 1 est refusé).
+  lead_id: str              # DOIT correspondre au lead_id du contrat.
+  hash_tete_registre: str | null   # Ancre du registre M2 : hex 64 minuscules, ou null.
+  horodatage: str           # ISO-8601 à fuseau obligatoire.
+  empreinte: str            # Hex 64 minuscules — l'empreinte que le cadrage cherchait sous
+                            # le nom « sha256 » : elle est PRODUITE PAR M2, jamais recalculée ici.
+```
+
+**C'est le marqueur qui ATTESTE la readiness**, pas une re-déduction depuis des champs du contrat.
+`owner` et « au moins une interaction post-qualification » sont des **conditions vérifiées par M2
+avant de signer** ; elles ne figurent pas dans le contrat et M3 ne peut ni ne doit les revalider.
+
+**Limite DÉCLARÉE** : la validation du marqueur est STRUCTURELLE. M3 ne possède pas le registre de
+M2 et ne peut donc pas recalculer l'empreinte — la vérification cryptographique de bout en bout
+appartient à la couche d'intégration qui possède les deux arbres. Ce constat vaut pour M4, qui
+procède exactement ainsi ; M3 ne prétend pas mieux.
+
+#### `PhotosFournies` — entrée SÉPARÉE, fournie par l'appelant
+
+M2 ne transporte **aucune** photo (mesuré : zéro occurrence dans tout le module). Les métadonnées
+visuelles sont donc une entrée à part entière, au même titre que le barème de coûts et la graine du
+Monte Carlo — trois entrées fournies par l'appelant, jamais devinées.
+
+```yaml
+PhotosFournies:
+  - photo_id: str                 # Identifiant stable.
+    resolution_largeur: int       # Pixels, > 0.
+    resolution_hauteur: int       # Pixels, > 0.
+    eclairage: float              # Échelle 0-10.
+    angle: str                    # Identifiant d'angle (face, gauche_45, droite_45, ...).
+    reference_echelle: dict|null  # OPTIONNEL. Si présent : {type: str, dimensions_connues: bool}.
+```
+
+Une liste VIDE est un cas légitime — et le prix est alors bloqué faute d'entrée visuelle, jamais
+estimé au jugé.
+
+**Clés interdites**, contrôlées récursivement sur TOUTES les entrées : `prix`, `montant`,
+`date_execution`, `engagement`, `tva`, `montant_ttc`, `conditions_paiement`, `creneau`, `duree`.
+La frontière ratifiée ne dépend pas de la provenance de la donnée.
 
 ### 2.2 Contrat de sortie — `EstimationV1` (émis vers M4)
 
@@ -84,15 +124,17 @@ Schéma gelé, liste FERMÉE de clés. Copié mot pour mot du PRD section 5.
 EstimationV1:
   devis_id: str
     # Dérivé par encodage canonique injectif :
-    # encodage = f"{len(lead_id):04d}{lead_id}{len(lead_sha256):04d}{lead_sha256}"
+    # encodage = f"{len(lead_id):04d}{lead_id}{len(empreinte_marqueur_m2):04d}{empreinte_marqueur_m2}"
     # devis_id = "M3-DEVIS-" + sha256(encodage).hexdigest()[:16]
-    # Injectif car lead_id est unique et lead_sha256 est unique par contrat gelé.
+    # Injectif car lead_id est unique et empreinte_marqueur_m2 est unique par contrat gelé.
 
   lead_id: str
     # Identifiant stable du lead source, transmis par M2.
 
-  lead_sha256: str
-    # Empreinte sha256 du contrat gelé LeadQualifie d'entrée, épinglée pour traçabilité.
+  empreinte_marqueur_m2: str
+    # Empreinte du MARQUEUR de readiness signé par M2, épinglée pour traçabilité.
+    # C'est M2 qui la produit ; M3 la transporte sans la recalculer (il ne possède
+    # pas le registre de M2). Le cadrage initial la cherchait à tort dans le contrat.
 
   niveau_confiance: str
     # Enum NiveauConfiance : REFERENCE_ECHELLE | MULTI_VUES | MONO_VUE_BORNES_LARGES | INDETERMINE
@@ -260,19 +302,15 @@ DigestEstimationsBloquees:
 
 ## 3. INTERFACES ET CONTRATS
 
-### 3.1 Interface d'entrée — ce que M3 reçoit de M2
+### 3.1 Interface d'entrée — ce que M3 reçoit
 
-M3 reçoit un contrat gelé `LeadQualifie` ayant franchi la **readiness gate M2** :
-- `owner` humain confirmé (non vide, non null).
-- `type_travaux` validé (appartient à l'enum fermé M2).
-- `ville` renseignée (non vide).
-- Au moins une interaction humaine post-qualification dans `interactions`.
-- `sha256` cohérent avec le contenu du contrat.
+M3 reçoit de **M2** deux artefacts, décrits en 2.1 : le contrat gelé `LeadQualifie` (sept clés) et
+le **marqueur de readiness** signé par M2. C'est le marqueur qui atteste la traversée de la
+readiness gate ; M3 le valide structurellement sans prétendre le recalculer.
 
-M3 reçoit également TROIS entrées hors du contrat `LeadQualifie` — dont l'une est elle-même un
-contrat GELÉ (le barème, décrit en 2.3). « Hors contrat » signifie ici « hors du contrat reçu de
-M2 », jamais « non spécifié » : la formulation précédente laissait croire que le barème échappait
-au gel alors qu'il est validé fail-closed comme les deux autres pactes (objection de revue).
+M3 reçoit de son **appelant** trois entrées supplémentaires, toutes fournies, jamais devinées :
+
+- `photos: list` — métadonnées visuelles (2.1). M2 n'en transporte aucune. Liste vide = prix bloqué.
 - `bareme_couts: dict` — **contrat d'entrée gelé** décrit en 2.3, rangé avec les autres contrats gelés. Le module ne porte AUCUNE
   valeur monétaire : sans barème couvrant le `type_travaux` demandé, l'estimation est BLOQUÉE
   avec `INDETERMINE` (CA-M3-21, DA-M3-09). Exiger le barème ici, et non en prose, est ce qui rend
@@ -339,7 +377,7 @@ Le registre append-only est conçu pour recevoir ultérieurement le coût réel 
 
 ### DA-M3-07 — Encodage canonique injectif pour devis_id
 
-**Décision** : Le `devis_id` est dérivé par encodage canonique injectif : `encodage = f"{len(lead_id):04d}{lead_id}{len(lead_sha256):04d}{lead_sha256}"`, puis `devis_id = "M3-DEVIS-" + sha256(encodage).hexdigest()[:16]`. Le préfixage par longueur garantit l'injectivité (pas de collision par concaténation ambiguë).
+**Décision** : Le `devis_id` est dérivé par encodage canonique injectif : `encodage = f"{len(lead_id):04d}{lead_id}{len(empreinte_marqueur_m2):04d}{empreinte_marqueur_m2}"`, puis `devis_id = "M3-DEVIS-" + sha256(encodage).hexdigest()[:16]`. Le préfixage par longueur garantit l'injectivité (pas de collision par concaténation ambiguë).
 
 **Justification** : Copie-adaptation du patron d'encodage canonique prouvé dans les modules voisins. L'injectivité garantit que deux leads différents produisent toujours des `devis_id` distincts (CA-M3-15), et que le même lead produit toujours le même `devis_id` (CA-M3-14).
 

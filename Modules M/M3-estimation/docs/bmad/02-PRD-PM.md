@@ -33,7 +33,7 @@ Ces deux ajouts restent en mode ombre (logique pure, déterministe, zéro résea
 **Précondition** : un lead a franchi la readiness gate M2 (owner humain confirmé, type de travaux validé, ville renseignée, au moins une interaction humaine post-qualification).
 
 **Déroulement** :
-1. M3 reçoit le contrat gelé `LeadQualifie` avec son `sha256` épinglé.
+1. M3 reçoit de M2 le contrat gelé `LeadQualifie` (sept clés) ET le marqueur de readiness signé, dont l'`empreinte` est l'épinglage de traçabilité — le cadrage initial la cherchait à tort sous le nom `sha256` dans le contrat (issue #166).
 2. M3 valide la structure du contrat (rejet explicite si non conforme).
 3. M3 analyse les métadonnées des photos fournies.
 4. M3 applique la hiérarchie des références d'échelle : référence > multi-vues > mono-vue à bornes larges.
@@ -151,15 +151,17 @@ Conformément à D-015, ce contrat est un pacte exécutable. Tout champ est obli
 EstimationV1:
   devis_id: str
     # Dérivé par encodage canonique injectif :
-    # encodage = f"{len(lead_id):04d}{lead_id}{len(lead_sha256):04d}{lead_sha256}"
+    # encodage = f"{len(lead_id):04d}{lead_id}{len(empreinte_marqueur_m2):04d}{empreinte_marqueur_m2}"
     # devis_id = "M3-DEVIS-" + sha256(encodage).hexdigest()[:16]
-    # Injectif car lead_id est unique et lead_sha256 est unique par contrat gelé.
+    # Injectif car lead_id est unique et empreinte_marqueur_m2 est unique par contrat gelé.
 
   lead_id: str
     # Identifiant stable du lead source, transmis par M2.
 
-  lead_sha256: str
-    # Empreinte sha256 du contrat gelé LeadQualifie d'entrée, épinglée pour traçabilité.
+  empreinte_marqueur_m2: str
+    # Empreinte du MARQUEUR de readiness signé par M2, épinglée pour traçabilité.
+    # C'est M2 qui la produit ; M3 la transporte sans la recalculer (il ne possède
+    # pas le registre de M2). Le cadrage initial la cherchait à tort dans le contrat.
 
   niveau_confiance: str
     # Enum NiveauConfiance : REFERENCE_ECHELLE | MULTI_VUES | MONO_VUE_BORNES_LARGES | INDETERMINE
@@ -219,9 +221,9 @@ EstimationV1:
 
 | ID | Critère | Moyen de vérification | Story |
 |---|---|---|---|
-| CA-M3-01 | Un contrat `LeadQualifie` valide (tous champs obligatoires présents, types corrects, sha256 cohérent) est accepté et retourne un accusé de réception structuré. | Test unitaire : appel avec fixture YAML valide, assertion sur le retour. | S001 |
-| CA-M3-02 | Un contrat `LeadQualifie` invalide (champ obligatoire manquant ou type incorrect) est rejeté avec un verdict `CONTRAT_ENTREE_INVALIDE` nommant le champ en faute. | Test unitaire : appel avec fixture YAML invalide, assertion sur le verdict et le message. | S001 |
-| CA-M3-03 | Un contrat d'entrée contenant un champ interdit (`prix`, `montant`, `date_execution`, `engagement`) est rejeté avec le verdict `CONTRAT_ENTREE_INVALIDE` et la mention `REJ-CHAMP-INTERDIT`. | Test unitaire : appel avec fixture contenant un champ interdit, assertion sur le verdict. | S001 |
+| CA-M3-01 | Le contrat gelé `LeadQualifie` de M2 (SEPT clés) et le marqueur de readiness signé par M2 sont validés ensemble ; une entrée conforme retourne un accusé structuré. | Test unitaire : contrat et marqueur valides -> acceptation ; le contrat validé est celui que M2 émet RÉELLEMENT, pas une variante durcie. | S001 |
+| CA-M3-02 | Toute entrée non conforme est rejetée avec un verdict nommant la faute : contrat malformé, marqueur absent ou structurellement invalide, `readiness_ok` non vrai par identité, ou `lead_id` du marqueur différent de celui du contrat. | Test unitaire, un cas par classe de faute, chacun isolant SA faute. | S001 |
+| CA-M3-03 | La readiness M2 est constatée par le MARQUEUR, jamais re-déduite : `owner` et « au moins une interaction post-qualification » sont des conditions vérifiées par M2 avant signature et absentes du contrat. La limite — validation STRUCTURELLE, sans recalcul de l'empreinte, M3 ne possédant pas le registre de M2 — est écrite dans la docstring du module et à côté du verdict. | Test unitaire : marqueur valide accepté ; assertion que la docstring déclare la limite. | S001 |
 | CA-M3-04 | Des photos qualifiées « faibles » (résolution sous le seuil configurable, ou éclairage insuffisant, ou liste de photos vide) produisent `verdict_estimation = QUALITE_ENTREE_INSUFFISANTE` et `prix_bloque = True`. | Test unitaire : appel avec fixture photos faibles, assertion sur `verdict_estimation` et `prix_bloque`. | S002 |
 | CA-M3-05 | Au moins une photo avec référence d'échelle déclarée dans les métadonnées (objet de dimensions certifiées) produit `niveau_confiance = REFERENCE_ECHELLE`. | Test unitaire : appel avec fixture référence échelle, assertion sur `niveau_confiance`. | S003 |
 | CA-M3-06 | Au moins 3 photos sous angles différents (métadonnées `angle` distincts), résolution ≥ seuil, sans référence d'échelle, produisent `niveau_confiance = MULTI_VUES`. | Test unitaire : appel avec fixture multi-vues, assertion sur `niveau_confiance`. | S003 |
@@ -232,7 +234,7 @@ EstimationV1:
 | CA-M3-11 | Deux appels Monte Carlo avec des graines différentes et les mêmes entrées produisent des intervalles différents (au moins une borne diffère). | Test unitaire : deux appels avec graines distinctes, assertion `borne_basse_1 != borne_basse_2` ou `borne_haute_1 != borne_haute_2`. | S005 |
 | CA-M3-12 | Quand la borne basse de l'intervalle est strictement inférieure au plancher rentable fourni en entrée, `alerte_plancher = True`. | Test unitaire : appel avec plancher élevé, assertion `alerte_plancher == True`. | S006 |
 | CA-M3-13 | Quand la borne basse de l'intervalle est supérieure ou égale au plancher rentable fourni en entrée, `alerte_plancher = False`. | Test unitaire : appel avec plancher bas, assertion `alerte_plancher == False`. | S006 |
-| CA-M3-14 | `devis_id` est dérivé par encodage canonique injectif (préfixage par longueur + sha256) à partir de `lead_id` et `lead_sha256`, et est reproductible pour les mêmes entrées. | Test unitaire : appel, vérification du format `M3-DEVIS-` + 16 hex, et reproductibilité sur deux appels. | S007 |
+| CA-M3-14 | `devis_id` est dérivé par encodage canonique injectif (préfixage par longueur + sha256) à partir de `lead_id` et `empreinte_marqueur_m2`, et est reproductible pour les mêmes entrées. | Test unitaire : appel, vérification du format `M3-DEVIS-` + 16 hex, et reproductibilité sur deux appels. | S007 |
 | CA-M3-15 | Deux leads différents (`lead_id` distincts) produisent des `devis_id` distincts. | Test unitaire : deux appels avec `lead_id` différents, assertion `devis_id_1 != devis_id_2`. | S007 |
 | CA-M3-16 | Le contrat de sortie `EstimationV1` ne contient aucun champ de date (ni `date_execution`, ni `creneau`, ni `duree`) ni aucun champ financier (ni `tva`, ni `montant_ttc`, ni `conditions_paiement`). | Inspection du schéma de sortie : assertion absence des clés interdites. | S007 |
 | CA-M3-17 | L'ajout d'une estimation au registre append-only préserve la chaîne de hash : le `hash_maillon` du nouveau maillon inclut le hash du maillon précédent. | Test unitaire : ajout de deux maillons successifs, assertion que le hash du second inclut le hash du premier. | S008 |
@@ -245,11 +247,11 @@ EstimationV1:
 
 ## 7. STORIES
 
-### S001 — Validation du contrat d'entrée LeadQualifie
+### S001 — Validation des entrées : contrat M2, marqueur de readiness, photos
 
 | Attribut | Valeur |
 |---|---|
-| **Périmètre** | Réception du contrat gelé `LeadQualifie` transmis par M2, validation structurelle (champs obligatoires, types, cohérence du sha256), détection des champs interdits (prix, montant, date d'exécution, engagement), rejet explicite avec verdict nommé. |
+| **Périmètre** | Validation conjointe du contrat gelé `LeadQualifie` (les SEPT clés que M2 émet réellement), du marqueur de readiness signé par M2, et des photos fournies séparément par l'appelant. Détection récursive des clés interdites sur toutes les entrées. La readiness est CONSTATÉE via le marqueur, jamais re-déduite : M3 ne possède pas le registre de M2 (limite déclarée). |
 | **Critères portés** | CA-M3-01, CA-M3-02, CA-M3-03 |
 | **Tier** | T2 (contrat gelé consommé) |
 | **Dépendances** | Aucune |
