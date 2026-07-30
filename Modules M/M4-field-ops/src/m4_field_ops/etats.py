@@ -9,6 +9,7 @@ pas les faits de terrain.
 """
 
 import copy
+from . import cedule
 from . import contrats
 from . import horodatage
 from . import verdicts
@@ -85,7 +86,7 @@ def statut_courant(registre_cible, intervention_id):
     return dernier_statut
 
 
-def inscrire_intervention(contrat, marqueur, registre_cible, horodatage_arg):
+def inscrire_intervention(contrat, marqueur, registre_cible, horodatage_arg, sel):
     """
     Enregistre une nouvelle intervention (transition vide → planifiee).
 
@@ -94,6 +95,7 @@ def inscrire_intervention(contrat, marqueur, registre_cible, horodatage_arg):
         marqueur: dict de readiness.
         registre_cible: instance de Registre.
         horodatage_arg: horodatage chaîne (RFC 3339 avec fuseau).
+        sel: sel de tokenisation de la ville, fourni par l’appelant (obligatoire).
 
     Returns:
         (accusé, None) en cas de succès, ou (None, verdict) en cas d’échec.
@@ -102,6 +104,13 @@ def inscrire_intervention(contrat, marqueur, registre_cible, horodatage_arg):
     ok, verdict = contrats.valider_entree(contrat, marqueur)
     if not ok:
         return None, verdict  # verdict déjà construit
+
+    # 1 bis. Le sel de tokenisation est OBLIGATOIRE : une empreinte nue de nom de
+    # ville est attaquable par dictionnaire (quelques milliers de villes).
+    if not isinstance(sel, str) or sel == "":
+        return None, verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE", detail="sel de tokenisation absent"
+        )
 
     # 2. Validation de l’horodatage
     try:
@@ -132,7 +141,9 @@ def inscrire_intervention(contrat, marqueur, registre_cible, horodatage_arg):
         "lead_id": copy.deepcopy(contrat["lead_id"]),
         "conversation_id": copy.deepcopy(contrat["conversation_id"]),
         "type_travaux": copy.deepcopy(contrat["type_travaux"]),
-        "ville": copy.deepcopy(contrat["ville"]),
+        # Architecture §2 : l'entité Intervention porte la ville TOKENISÉE.
+        # Le registre est immuable : une ville en clair y serait irrattrapable.
+        "ville_tokenisee": cedule.tokeniser_ville(sel, contrat["ville"]),
         "urgence_declaree": copy.deepcopy(contrat["urgence_declaree"]),
         "statut": "planifiee",
         "horodatage": horodatage_arg,
