@@ -1,4 +1,4 @@
-# ===== FICHIER: src/m4_field_ops/ecarts.py =====
+# Tests de m4_field_ops.ecarts — M4-S007 (écarts, file pending_review, arbitrage).
 import copy
 import json
 import sys
@@ -307,34 +307,6 @@ def test_double_resolution_refus():
     assert len(reg.lire()) == taille_avant
 
 
-# ------------------------------------------------------------------ 10. Rejets args resoudre_demande
-@pytest.mark.parametrize("decision, horodatage, demande_id, motif, code_attendu, detail_partiel", [
-    ("inconnue", H5, "fake", None, "REJ-ENUM-INVALIDE", None),
-    ("validee", "2025-06-02", "fake", None, "REJ-HORODATAGE-INVALIDE", None),
-    ("validee", H5, "INCONNUE", None, "REJ-CONTRAT-INVALIDE", "introuvable"),
-    ("validee", H5, "fake", "", "REJ-CONTRAT-INVALIDE", None),
-])
-def test_rejets_args_resolution(decision, horodatage, demande_id, motif, code_attendu, detail_partiel):
-    reg, i_id = _registre_sur_site()
-    # créer une vraie demande pour obtenir un ID valide si nécessaire
-    if demande_id != "INCONNUE":
-        acc, _ = ecarts_mod.creer_demande_ecart(i_id, VERSION_PREVUE, VERSION_DECLAREE, H4, reg)
-        demande_id = acc["demande_id"]
-    taille_avant = len(reg.lire())
-    accuse, verdict = ecarts_mod.resoudre_demande(
-        demande_id, decision, horodatage, reg, motif=moif
-    )
-    assert accuse is None
-    assert verdict["code"] == code_attendu
-    if detail_partiel:
-        assert detail_partiel in verdict["detail"].lower()
-    assert len(reg.lire()) == taille_avant
-
-
-# Correction: need to define `moif` -> `motif`. Fixed below.
-# But we'll include correct code in file, removing this comment.
-# We'll just write the parametrize with proper variable name.
-
 # ------------------------------------------------------------------ 11. lister_pending_review
 def test_lister_vide_au_depart():
     reg, i_id = _registre_sur_site()
@@ -501,7 +473,6 @@ def test_whitelist_cles_resolution():
 
 
 # ------------------------------------------------------------------ 10 suite (motif vide) => on doit avoir un test specific: nous l'avons dans parametrize, mais il faut corriger parametrize bug
-# On va recrire le parametrize proprement:
 
 @pytest.mark.parametrize("decision, horodatage, demande_id_prov, motif, code_attendu, detail_partiel", [
     ("inconnue", H5, "fake", None, "REJ-ENUM-INVALIDE", None),
