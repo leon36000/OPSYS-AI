@@ -229,7 +229,9 @@ class TestChainage:
         reg = registre_avec_chainon
         # ancre totalement fausse
         fausse_ancre = "0123456789abcdef"
-        with pytest.raises(VerificationError, match="ancre" or "réécriture"):
+        # Alternance REGEX (revue M4-S002-r1, Grok-4.5) : `"a" or "b"` en Python
+        # s'évalue en la seule chaîne "a" — le second littéral était mort.
+        with pytest.raises(VerificationError, match="ancre|réécriture"):
             reg.assert_chaine(ancre=fausse_ancre)
 
     def test_corruption_interne_leve_verificationerror_pas_reecriture(self, registre_avec_chainon):
