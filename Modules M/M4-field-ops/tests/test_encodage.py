@@ -264,3 +264,39 @@ class TestEmpreinteLieeALaForme:
             "dérivation parallèle"
         )
 
+class TestCouvertureRestante:
+    """Couverture exigée par la revue T1 round 1 : frozenset, bool, None."""
+
+    def test_frozenset_tague_et_trie(self):
+        """Un frozenset est tagué __frozenset__ et ses éléments sont triés : deux
+        frozensets égaux construits dans des ordres différents donnent la même
+        forme, et frozenset != set pour un même contenu (tags distincts)."""
+        fa = frozenset([3, 1, 2])
+        fb = frozenset([2, 3, 1])
+        forme = encodage.encoder_canonique(fa)
+        assert "__frozenset__" in forme, "tag __frozenset__ absent"
+        assert forme == encodage.encoder_canonique(fb), (
+            "deux frozensets égaux doivent donner la même forme (tri des éléments)"
+        )
+        assert forme != encodage.encoder_canonique({3, 1, 2}), (
+            "frozenset et set de même contenu doivent rester distincts (injectivité des tags)"
+        )
+
+    def test_bool_distinct_de_int(self):
+        """bool est une SOUS-CLASSE d'int (True == 1) : la forme canonique doit
+        pourtant les distinguer, sinon deux identifiants différents en intention
+        collisionnent."""
+        assert encodage.encoder_canonique(True) != encodage.encoder_canonique(1), (
+            "True et 1 doivent produire des formes distinctes"
+        )
+        assert encodage.encoder_canonique(False) != encodage.encoder_canonique(0), (
+            "False et 0 doivent produire des formes distinctes"
+        )
+
+    def test_none_supporte_et_distinct(self):
+        """None est encodable, stable, et distinct de la chaîne 'None' et de 0."""
+        forme = encodage.encoder_canonique(None)
+        assert forme == encodage.encoder_canonique(None), "None doit être stable"
+        assert forme != encodage.encoder_canonique("None"), "None != 'None'"
+        assert forme != encodage.encoder_canonique(0), "None != 0"
+
