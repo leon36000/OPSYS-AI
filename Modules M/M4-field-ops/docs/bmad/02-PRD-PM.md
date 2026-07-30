@@ -135,7 +135,7 @@ Tier : T1.
 Dépendances : S001.
 
 ### S004 — Machine à états de l'intervention
-Périmètre : Modéliser l'énuméré fermé des six états et la table des transitions conditionnées, rejeter toute transition illégale avec le verdict REJ-TRANSITION-ILLEGALE.
+Périmètre : Modéliser l'énuméré fermé des les états de l'énuméré fermé et la table des transitions conditionnées, rejeter toute transition illégale avec le verdict REJ-TRANSITION-ILLEGALE.
 Critères portés : CA-M4-04.
 Tier : T1.
 Dépendances : S002, S003.
