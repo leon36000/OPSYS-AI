@@ -419,11 +419,14 @@ le gate, jamais passer en silence.
 
 Un critère qui promet « c'est écrit dans la docstring » n'est vérifiable que si la phrase attendue
 est épinglée. Le contrôle 15 exige cette table, refuse qu'une promesse du PRD n'y figure pas, et
-impose l'ancre dans une docstring RÉELLE (`ast.get_docstring`) dès que le paquet source existe.
+impose chaque ancre À L'EMPLACEMENT DÉCLARÉ dès que le paquet source existe. CA-M3-03
+promet la limite à DEUX endroits — la docstring du module et à côté du verdict : chacun
+porte donc sa ligne, et la promesse n'est tenue que si les deux moitiés sont écrites.
 
-| Critère | Ancre exacte |
-|---|---|
-| CA-M3-03 | `validation STRUCTURELLE du marqueur : M3 ne recalcule pas l'empreinte, qui couvre des conditions extraites du registre de M2` |
+| Critère | Ancre exacte | Emplacement |
+|---|---|---|
+| CA-M3-03 | `validation STRUCTURELLE du marqueur : M3 ne recalcule pas l'empreinte, qui couvre des conditions extraites du registre de M2` | docstring de module |
+| CA-M3-03 | `seul le registre hash-chaîné de M2 fait foi sur la traversée réelle de la gate` | catalogue de verdicts |
 
 L'ancre est MESURÉE, pas supposée : `emettre_marqueur` de M2 calcule
 `empreinte = encoder_canonique(conditions, lead_id, tete)` où `conditions` sortent de

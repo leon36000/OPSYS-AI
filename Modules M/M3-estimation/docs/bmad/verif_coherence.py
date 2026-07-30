@@ -151,7 +151,10 @@ def decouper_stories(prd_text: str) -> Dict[str, str]:
     ## 7. STORIES du PRD. Les story_id sont extraits des titres ### S00N.
     """
     # Trouver la section STORIES
-    match = re.search(r"^## 7\. STORIES\s*$", prd_text, re.MULTILINE)
+    # Ancrage sur le NOM de la section, jamais sur son numéro : une renumérotation
+    # rendait cet extracteur vide EN SILENCE, et les contrôles qui en dépendent
+    # échouaient alors pour une raison sans rapport avec ce qu'ils vérifient.
+    match = re.search(r"^##\s+\d+\.\s+STORIES\s*$", prd_text, re.MULTILINE)
     if not match:
         return {}
     section = prd_text[match.start():]
@@ -190,12 +193,13 @@ def verifier_proprietaire_unique(stories: Dict[str, str], prd: str) -> List[str]
     return erreurs
 
 
-def extraire_s00n_depuis_architecture(archi: str, section_titre: str = "## 5. CE QUE CHAQUE STORY PROUVE") -> Set[str]:
+def extraire_s00n_depuis_architecture(archi: str,
+                                      motif_section: str = r"^##\s+\d+\.\s+CE QUE CHAQUE STORY PROUVE\s*$") -> Set[str]:
     """
     Extrait les identifiants S00N mentionnés dans la section spécifiée de l'architecture.
     Cherche les titres de niveau ### S00N.
     """
-    match = re.search(re.escape(section_titre), archi)
+    match = re.search(motif_section, archi, re.MULTILINE)
     if not match:
         return set()
     contenu = archi[match.start():]
@@ -322,9 +326,10 @@ def verifier_ca_par_story_coherents(prd: str, archi: str) -> List[str]:
     """
     erreurs = []
     stories_prd = decouper_stories(prd)
-    parties = archi.split("## 5. CE QUE CHAQUE STORY PROUVE")
-    if len(parties) < 2:
-        return ["Section '## 5. CE QUE CHAQUE STORY PROUVE' absente de l'architecture."]
+    sec = re.search(r"^##\s+\d+\.\s+CE QUE CHAQUE STORY PROUVE\s*$", archi, re.MULTILINE)
+    if not sec:
+        return ["Section « CE QUE CHAQUE STORY PROUVE » absente de l'architecture."]
+    parties = [archi[:sec.start()], archi[sec.end():]]
     vues = 0
     for ligne in parties[1].splitlines():
         m = re.search(r"\*\*(S\d{3})\*\*", ligne)
@@ -442,7 +447,11 @@ def verifier_contrats_ont_un_proprietaire(archi: str) -> List[str]:
     declares = set(re.findall(r"^#+\s*2\.\d+\s+Contrat[^`]*`([A-Za-z0-9_]+)`", archi, re.MULTILINE))
     if not declares:
         return ["Aucun contrat gelé détecté en section 2 — extracteur vide, contrôle non probant."]
-    table = archi.split("## 2.")[0]
+    sec2 = re.search(r"^##\s+\d+\.\s+SCHÉMAS DE DONNÉES\s*$", archi, re.MULTILINE)
+    table = archi[:sec2.start()] if sec2 else ""
+    if not table.strip():
+        return ["Table des modules introuvable avant la section des contrats — "
+                "contrôle non probant."]
     for contrat in sorted(declares):
         if contrat not in table:
             erreurs.append(
@@ -621,13 +630,21 @@ def verifier_ca_cites_existent(prd: str) -> List[str]:
     critère qui n'existe plus (mutation mesurée non détectée par les contrôles
     de séquence et de propriétaire).
     """
-    table = prd.split("## 6.")[1].split("## 7.")[0] if "## 6." in prd and "## 7." in prd else ""
-    if not table:
-        return ["Table des critères introuvable — contrôle non probant."]
+    # Ancrage sur le NOM des sections, pas sur leur numéro : une renumérotation
+    # cassait l'extraction et le contrôle échouait pour une raison sans rapport
+    # avec ce qu'il vérifie (objection de revue scellée).
+    debut = re.search(r"^##\s+\d+\.\s+CRITÈRES D'ACCEPTATION\s*$", prd, re.MULTILINE)
+    fin = re.search(r"^##\s+\d+\.\s+STORIES\s*$", prd, re.MULTILINE)
+    if not debut or not fin or fin.start() <= debut.end():
+        return ["Sections « CRITÈRES D'ACCEPTATION » et « STORIES » introuvables ou dans un "
+                "ordre inattendu — contrôle non probant."]
+    table = prd[debut.end():fin.start()]
+    if not table.strip():
+        return ["Table des critères vide — contrôle non probant."]
     definis = set(re.findall(r"\| (CA-M3-\d{2}) \|", table))
     if not definis:
         return ["Aucun critère extrait de la table — extracteur vide, contrôle non probant."]
-    cites = set(re.findall(r"CA-M3-\d{2}", prd.split("## 7.")[1])) if "## 7." in prd else set()
+    cites = set(re.findall(r"CA-M3-\d{2}", prd[fin.end():]))
     fantomes = cites - definis
     if fantomes:
         return [f"Critères cités par une story mais ABSENTS de la table : {sorted(fantomes)} — "
@@ -636,17 +653,28 @@ def verifier_ca_cites_existent(prd: str) -> List[str]:
 
 
 def verifier_ancres_de_docstring(prd: str, archi: str, racine_module: Path) -> List[str]:
-    """Contrôle 15 : les promesses de docstring du PRD sont ancrées, puis tenues.
+    """Contrôle 15 : les promesses de docstring du PRD sont ancrées, puis tenues
+    à l'emplacement promis.
 
     Vérifie trois choses : (1) l'architecture déclare une section ANCRES DE
-    DOCSTRING avec une table non vide associant chaque critère à l'ancre exacte
-    promise ; (2) cette table est synchronisée avec le PRD — tout critère dont la
-    ligne de table mentionne une docstring y figure, et aucune ancre n'existe
-    pour un critère qui ne promet rien ; (3) dès que le paquet source existe,
-    chaque ancre est écrite dans au moins une docstring réelle (module, classe ou
-    fonction), lue par ast.get_docstring sur l'arbre ast.parse — jamais par
-    recherche textuelle, qui trouverait l'ancre dans un commentaire ou une
-    chaîne quelconque.
+    DOCSTRING avec une table non vide à TROIS colonnes — critère, ancre exacte
+    promise, emplacement — où chaque ligne de critère porte l'un des deux seuls
+    emplacements admis, « docstring de module » ou « catalogue de verdicts » ;
+    (2) cette table est synchronisée avec le PRD — tout critère dont la ligne de
+    table mentionne une docstring y figure sur au moins une ligne, et aucune
+    ligne n'existe pour un critère qui ne promet rien ; (3) dès que le paquet
+    source existe, chaque ancre est tenue À L'EMPLACEMENT DÉCLARÉ : pour
+    « docstring de module », dans une docstring de module lue par
+    ast.get_docstring sur l'arbre ast.parse du fichier — une docstring de classe
+    ou de fonction ne tient pas une promesse qui vise le module ; pour
+    « catalogue de verdicts », dans le source d'un .py du paquet dont le nom
+    contient « verdict », et l'absence même d'un tel fichier est une erreur.
+
+    Un même critère peut figurer sur DEUX lignes, une par emplacement : la table
+    est une liste de triplets (critère, ancre, emplacement) et chaque ligne est
+    vérifiée séparément — une promesse qui engage à la fois la docstring du
+    module et le catalogue de verdicts n'est tenue que si les deux moitiés sont
+    écrites.
 
     Quand le paquet ne contient aucun module Python, le module est au statut
     CADRE : l'exigence d'écriture dans le code n'est donc pas encore applicable, et le contrôle retourne conforme sur cette
@@ -664,28 +692,46 @@ def verifier_ancres_de_docstring(prd: str, archi: str, racine_module: Path) -> L
         """Réduit espaces multiples et retours à la ligne à une seule espace."""
         return re.sub(r"\s+", " ", texte).strip()
 
+    EMPLACEMENTS_ADMIS = ("docstring de module", "catalogue de verdicts")
+
     erreurs: List[str] = []
 
-    # Étape 1 — la table d'ancres doit exister et être non vide.
+    # Étape 1 — la table d'ancres doit exister, être non vide, et chaque ligne
+    # de critère doit porter une ancre exacte et un emplacement admis.
     titre = re.search(r"^###\s+ANCRES DE DOCSTRING\s*$", archi, re.MULTILINE)
     if not titre:
         return ["Section ANCRES DE DOCSTRING absente de l'architecture — "
                 "contrôle non probant."]
-    ancres: Dict[str, str] = {}
+    triplets: List[tuple] = []
     for ligne in archi[titre.end():].splitlines():
         if re.match(r"^#{1,6}\s", ligne):
             break
         if not ligne.lstrip().startswith("|"):
             continue
         cellules = [c.strip() for c in ligne.strip().strip("|").split("|")]
-        if len(cellules) < 2:
-            continue
         m_critere = re.search(r"CA-M3-\d{2}", cellules[0])
-        m_ancre = re.search(r"`([^`]+)`", cellules[1])
-        if m_critere and m_ancre:
-            ancres[m_critere.group(0)] = m_ancre.group(1)
-    if not ancres:
-        return ["Aucune ancre extraite — extracteur vide, contrôle non probant."]
+        if not m_critere:
+            # Ligne d'en-tête ou de séparation : elle ne porte aucun critère,
+            # il n'y a rien à y vérifier.
+            continue
+        critere = m_critere.group(0)
+        m_ancre = re.search(r"`([^`]+)`", cellules[1]) if len(cellules) > 1 else None
+        if not m_ancre:
+            erreurs.append(f"Ligne de {critere} sans ancre entre backticks — une "
+                           f"promesse déclarée sans ancre exacte est invérifiable.")
+            continue
+        if len(cellules) < 3 or not cellules[2]:
+            erreurs.append(f"Ligne de {critere} sans emplacement déclaré — la table "
+                           f"exige trois colonnes : critère, ancre, emplacement.")
+            continue
+        emplacement = cellules[2].strip("`").strip()
+        if emplacement not in EMPLACEMENTS_ADMIS:
+            erreurs.append(f"Emplacement « {emplacement} » lu pour {critere} — seules "
+                           f"les valeurs {list(EMPLACEMENTS_ADMIS)} sont admises.")
+            continue
+        triplets.append((critere, m_ancre.group(1), emplacement))
+    if not triplets:
+        return erreurs + ["Aucune ancre extraite — extracteur vide, contrôle non probant."]
 
     # Étape 2 — aucune promesse ne doit échapper à la table, et réciproquement.
     prometteurs: Set[str] = set()
@@ -696,11 +742,12 @@ def verifier_ancres_de_docstring(prd: str, archi: str, racine_module: Path) -> L
             continue
         for m in re.finditer(r"CA-M3-\d{2}", ligne):
             prometteurs.add(m.group(0))
-    manquants = sorted(prometteurs - set(ancres))
+    declares: Set[str] = {t[0] for t in triplets}
+    manquants = sorted(prometteurs - declares)
     if manquants:
         erreurs.append(f"Critères promettant une docstring mais sans ancre déclarée : "
                        f"{manquants} — une promesse sans ancre est invérifiable.")
-    orphelines = sorted(set(ancres) - prometteurs)
+    orphelines = sorted(declares - prometteurs)
     if orphelines:
         erreurs.append(f"Ancre déclarée pour {orphelines} qui ne promet aucune docstring — "
                        f"table désynchronisée.")
@@ -713,7 +760,8 @@ def verifier_ancres_de_docstring(prd: str, archi: str, racine_module: Path) -> L
     fichiers = sorted(src.rglob("*.py")) if src.is_dir() else []
     if not fichiers:
         return erreurs
-    docstrings: List[str] = []
+    docs_modules: List[str] = []
+    sources_lues: Dict[Path, str] = {}
     for chemin in fichiers:
         try:
             source = chemin.read_text(encoding="utf-8")
@@ -721,6 +769,7 @@ def verifier_ancres_de_docstring(prd: str, archi: str, racine_module: Path) -> L
             erreurs.append(f"Fichier illisible : {chemin} ({exc}) — aucun .py du paquet "
                            f"source ne peut être ignoré silencieusement.")
             continue
+        sources_lues[chemin] = source
         try:
             arbre = ast.parse(source, filename=str(chemin))
         except SyntaxError as exc:
@@ -729,19 +778,32 @@ def verifier_ancres_de_docstring(prd: str, archi: str, racine_module: Path) -> L
             continue
         doc_module = ast.get_docstring(arbre)
         if doc_module:
-            docstrings.append(doc_module)
-        for noeud in ast.walk(arbre):
-            if isinstance(noeud, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
-                doc = ast.get_docstring(noeud)
-                if doc:
-                    docstrings.append(doc)
-    docs_plates = [normaliser(d) for d in docstrings]
-    for critere in sorted(ancres):
-        ancre_brute = ancres[critere]
-        if not any(normaliser(ancre_brute) in d for d in docs_plates):
-            erreurs.append(f"Ancre de {critere} absente de toute docstring du paquet : "
-                           f"\"{ancre_brute}\" — la limite promise au cadrage n'est pas "
-                           f"écrite dans le code.")
+            docs_modules.append(doc_module)
+    docs_modules_plates = [normaliser(d) for d in docs_modules]
+    # L'ancre « catalogue de verdicts » se lit dans le source du fichier verdict :
+    # un catalogue de verdicts est une structure de données, pas une docstring,
+    # et ast.get_docstring n'y lirait rien.
+    fichiers_verdict = [c for c in fichiers if "verdict" in c.name]
+    sources_verdict = [normaliser(sources_lues[c]) for c in fichiers_verdict
+                       if c in sources_lues]
+    requiert_catalogue = sorted({t[0] for t in triplets
+                                 if t[2] == "catalogue de verdicts"})
+    if requiert_catalogue and not fichiers_verdict:
+        erreurs.append(f"Aucun .py dont le nom contient « verdict » dans le paquet, "
+                       f"alors que {requiert_catalogue} y promettent une ancre — "
+                       f"l'emplacement déclaré n'existe pas.")
+    for critere, ancre_brute, emplacement in sorted(triplets):
+        ancre_plate = normaliser(ancre_brute)
+        if emplacement == "docstring de module":
+            if not any(ancre_plate in d for d in docs_modules_plates):
+                erreurs.append(f"Ancre de {critere} absente de toute docstring de module "
+                               f"du paquet : \"{ancre_brute}\" — la limite promise au "
+                               f"cadrage n'est pas écrite dans la docstring du module.")
+        elif fichiers_verdict and not any(ancre_plate in s for s in sources_verdict):
+            erreurs.append(f"Ancre de {critere} absente du catalogue de verdicts "
+                           f"{[c.name for c in fichiers_verdict]} : \"{ancre_brute}\" — "
+                           f"la limite promise au cadrage n'est pas écrite à côté du "
+                           f"verdict.")
     return erreurs
 
 
@@ -834,6 +896,18 @@ def main(dossier_str: str = None) -> int:
 
     # Contrôle 5 : propriétaire unique
     stories = decouper_stories(prd)
+    # Garde d'extractibilité : decouper_stories retourne un dict VIDE quand la section
+    # est introuvable, et les contrôles qui en dépendent échouent alors en accusant les
+    # critères (« CA-M3-08 n'est cité dans aucune story ») au lieu de nommer la cause.
+    # Un diagnostic qui désigne la mauvaise pièce coûte plus qu'une absence de contrôle.
+    if not stories:
+        msg = ("Aucune story extraite du PRD — la section « STORIES » est introuvable ou vide. "
+               "Les contrôles de couverture qui suivent seraient non probants.")
+        erreurs.append(msg)
+        print(f"ECHEC : {msg}")
+    else:
+        print("OK : La section des stories est extractible.")
+
     errs = verifier_proprietaire_unique(stories, prd)
     if errs:
         erreurs.extend(errs)
