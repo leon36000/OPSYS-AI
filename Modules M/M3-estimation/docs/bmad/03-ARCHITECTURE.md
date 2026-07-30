@@ -29,8 +29,8 @@ Le paquet `m3_estimation` est autonome. Il réutilise le patron prouvé des modu
 | Fichier | Responsabilité | Justification |
 |---|---|---|
 | `__init__.py` | Point d'entrée public du paquet ; expose `estimer()` et `valider_registre()`. | Un seul point d'entrée garantit que l'orchestration ne peut être contournée. |
-| `contrats.py` | Définition des schémas gelés `LeadQualifie` (entrée) et `EstimationV1` (sortie) avec leurs listes fermées de clés. | D-015 : les contrats gelés sont des pactes exécutables, leur schéma doit être figé dans un fichier dédié. |
-| `validation.py` | Validation structurelle du contrat d'entrée `LeadQualifie` : champs obligatoires, types, cohérence du sha256, détection des champs interdits. | Séparé de l'orchestration pour permettre un rejet précoce avant tout traitement coûteux. |
+| `contrats.py` | Définition des schémas gelés `LeadQualifie` (entrée), `BaremeCouts` (entrée) et `EstimationV1` (sortie) avec leurs listes fermées de clés. | D-015 : les contrats gelés sont des pactes exécutables, leur schéma doit être figé dans un fichier dédié. |
+| `validation.py` | Validation structurelle des DEUX contrats d'entrée : `LeadQualifie` (champs obligatoires, types, cohérence du sha256, champs interdits) ET `BaremeCouts` (postes non vide, type_travaux demandé couvert, bornes numériques avec min ≤ max). Un contrat gelé sans propriétaire de validation est une promesse que personne ne tient. | Séparé de l'orchestration pour permettre un rejet précoce avant tout traitement coûteux. |
 | `qualite_photos.py` | Qualification binaire de la qualité des entrées visuelles à partir des métadonnées photo. | Logique isolée car elle détermine le branchement fail-closed / estimation. |
 | `hierarchie_echelle.py` | Application de la hiérarchie ratifiée comme logique de décision pure : référence > multi-vues > mono-vue à bornes larges > indéterminé. | Séparé pour garantir qu'aucun modèle d'inférence ne puisse s'y glisser en v1. |
 | `monte_carlo.py` | Simulation Monte Carlo déterministe à graine fournie par l'appelant, production de l'intervalle de confiance. | Isolé pour garantir l'auditabilité du déterminisme (CA-M3-10, CA-M3-11, CA-M3-20). |
@@ -39,7 +39,7 @@ Le paquet `m3_estimation` est autonome. Il réutilise le patron prouvé des modu
 | `registre.py` | Registre append-only hash-chaîné des estimations émises ; API ajouter / lire / valider chaîne. | Copie-adaptation du patron de registre hash-chaîné prouvé dans M2. |
 | `digest.py` | Production du digest quotidien déterministe des estimations bloquées et des alertes de plancher vers Nathan. | Isolé car consommateur en lecture seule du registre, sans effet sur l'estimation. |
 | `signaux.py` | Émission du signal de relance structuré vers M2 sur photos faibles (max 1 par estimation). | Isolé pour garantir la contrainte de fréquence et l'absence de boucle. |
-| `estimation.py` | Orchestrateur principal : séquence validation → qualité → hiérarchie → Monte Carlo → plancher → contrat de sortie → registre. | Un seul orchestrateur garantit que l'ordre des étapes ne peut être altéré. |
+| `estimation.py` | Orchestrateur principal : séquence validation du lead → **validation du barème** → qualité → hiérarchie → Monte Carlo → plancher → contrat de sortie → registre. La validation du barème précède TOUTE production de bornes (CA-M3-21) : un tirage sans bornes de coût produirait des valeurs arbitraires. | Un seul orchestrateur garantit que l'ordre des étapes ne peut être altéré. |
 
 ---
 
@@ -97,15 +97,16 @@ EstimationV1:
   niveau_confiance: str
     # Enum NiveauConfiance : REFERENCE_ECHELLE | MULTI_VUES | MONO_VUE_BORNES_LARGES | INDETERMINE
 
-  verdict_blocage: str
+  verdict_estimation: str
     # Enum VerdictEstimation : AUCUN_BLOCAGE | QUALITE_ENTREE_INSUFFISANTE |
     # REFERENCE_ECHELLE_ABSENTE | PLANCHER_RENTABILITE_FRANCHI |
     # CONTRAT_ENTREE_INVALIDE | INDETERMINE
 
-  bareme_version: str
-    # Version du barème utilisé, épinglée pour traçabilité : sans ce champ, la
-    # promesse « le barème est versionné » n'a nulle part où atterrir dans le
-    # pacte de sortie (objection de revue scellée).
+  bareme_version: str | null
+    # Version du barème utilisé, épinglée pour traçabilité. VAUT null lorsque
+    # l'estimation est bloquée faute de barème utilisable : la traçabilité n'a
+    # rien à tracer, et inventer un jeton serait une donnée fabriquée
+    # (objection de revue scellée).
   prix_bloque: bool
     # True si le prix est bloqué (aucun chiffre émis).
 
@@ -201,7 +202,7 @@ MaillonEstimation:
   devis_id: str             # Référence au devis émis.
   lead_id: str              # Référence au lead source.
   niveau_confiance: str     # Enum NiveauConfiance.
-  verdict_blocage: str      # Enum VerdictEstimation.
+  verdict_estimation: str      # Enum VerdictEstimation.
   prix_bloque: bool         # Copie du champ du contrat de sortie.
   borne_basse: float | null # Copie du champ du contrat de sortie.
   borne_haute: float | null # Copie du champ du contrat de sortie.
@@ -232,7 +233,7 @@ DigestEstimationsBloquees:
   estimations_bloquees:
     - devis_id: str
       lead_id: str
-      verdict_blocage: str
+      verdict_estimation: str
       raison_blocage: str
   alertes_plancher:
     - devis_id: str

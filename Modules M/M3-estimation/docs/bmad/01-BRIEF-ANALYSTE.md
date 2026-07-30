@@ -57,6 +57,11 @@ M3 maintient un registre append-only des estimations émises, conçu pour permet
 - **Inférence visuelle réelle** — M3 n'exécute aucun modèle de vision par ordinateur en v1 (Depth Pro, DA-V2, Metric3D sont repoussés en GATED/T3). Le module applique la logique de décision de la hiérarchie des références d'échelle sans exécuter d'inférence.
 - **Capture guidée** — M3 ne guide pas la capture photo sur l'appareil du technicien ou du client. Le guidage de capture est identifié comme levier mais repoussé en GATED/T3.
 
+> **Avertissement de portée (ajouté après revue scellée)** : les esquisses de contrat figurant
+> dans ce brief sont des PROPOSITIONS d'analyste, antérieures au gel. Le pacte qui fait foi est
+> `EstimationV1` tel que scellé au PRD §5 et à l'architecture §2.2 ; toute divergence entre ce
+> brief et ces deux documents se tranche en faveur des seconds.
+
 ## 4. CONTRAT D'ENTRÉE
 
 M3 consomme le contrat gelé `LeadQualifie` transmis par M2, portant :

@@ -164,15 +164,16 @@ EstimationV1:
   niveau_confiance: str
     # Enum NiveauConfiance : REFERENCE_ECHELLE | MULTI_VUES | MONO_VUE_BORNES_LARGES | INDETERMINE
 
-  verdict_blocage: str
+  verdict_estimation: str
     # Enum VerdictEstimation : AUCUN_BLOCAGE | QUALITE_ENTREE_INSUFFISANTE |
     # REFERENCE_ECHELLE_ABSENTE | PLANCHER_RENTABILITE_FRANCHI |
     # CONTRAT_ENTREE_INVALIDE | INDETERMINE
 
-  bareme_version: str
-    # Version du barème utilisé, épinglée pour traçabilité : sans ce champ, la
-    # promesse « le barème est versionné » n'a nulle part où atterrir dans le
-    # pacte de sortie (objection de revue scellée).
+  bareme_version: str | null
+    # Version du barème utilisé, épinglée pour traçabilité. VAUT null lorsque
+    # l'estimation est bloquée faute de barème utilisable : la traçabilité n'a
+    # rien à tracer, et inventer un jeton serait une donnée fabriquée
+    # (objection de revue scellée).
   prix_bloque: bool
     # True si le prix est bloqué (aucun chiffre émis).
 
@@ -217,7 +218,7 @@ EstimationV1:
 | CA-M3-01 | Un contrat `LeadQualifie` valide (tous champs obligatoires présents, types corrects, sha256 cohérent) est accepté et retourne un accusé de réception structuré. | Test unitaire : appel avec fixture YAML valide, assertion sur le retour. | S001 |
 | CA-M3-02 | Un contrat `LeadQualifie` invalide (champ obligatoire manquant ou type incorrect) est rejeté avec un verdict `CONTRAT_ENTREE_INVALIDE` nommant le champ en faute. | Test unitaire : appel avec fixture YAML invalide, assertion sur le verdict et le message. | S001 |
 | CA-M3-03 | Un contrat d'entrée contenant un champ interdit (`prix`, `montant`, `date_execution`, `engagement`) est rejeté avec le verdict `CONTRAT_ENTREE_INVALIDE` et la mention `REJ-CHAMP-INTERDIT`. | Test unitaire : appel avec fixture contenant un champ interdit, assertion sur le verdict. | S001 |
-| CA-M3-04 | Des photos qualifiées « faibles » (résolution sous le seuil configurable, ou éclairage insuffisant, ou liste de photos vide) produisent `verdict_blocage = QUALITE_ENTREE_INSUFFISANTE` et `prix_bloque = True`. | Test unitaire : appel avec fixture photos faibles, assertion sur `verdict_blocage` et `prix_bloque`. | S002 |
+| CA-M3-04 | Des photos qualifiées « faibles » (résolution sous le seuil configurable, ou éclairage insuffisant, ou liste de photos vide) produisent `verdict_estimation = QUALITE_ENTREE_INSUFFISANTE` et `prix_bloque = True`. | Test unitaire : appel avec fixture photos faibles, assertion sur `verdict_estimation` et `prix_bloque`. | S002 |
 | CA-M3-05 | Au moins une photo avec référence d'échelle déclarée dans les métadonnées (objet de dimensions certifiées) produit `niveau_confiance = REFERENCE_ECHELLE`. | Test unitaire : appel avec fixture référence échelle, assertion sur `niveau_confiance`. | S003 |
 | CA-M3-06 | Au moins 3 photos sous angles différents (métadonnées `angle` distincts), résolution ≥ seuil, sans référence d'échelle, produisent `niveau_confiance = MULTI_VUES`. | Test unitaire : appel avec fixture multi-vues, assertion sur `niveau_confiance`. | S003 |
 | CA-M3-07 | Une seule photo sans référence d'échelle, résolution ≥ seuil, éclairage suffisant, produit `niveau_confiance = MONO_VUE_BORNES_LARGES`. | Test unitaire : appel avec fixture mono-vue, assertion sur `niveau_confiance`. | S003 |
@@ -233,8 +234,8 @@ EstimationV1:
 | CA-M3-17 | L'ajout d'une estimation au registre append-only préserve la chaîne de hash : le `hash_maillon` du nouveau maillon inclut le hash du maillon précédent. | Test unitaire : ajout de deux maillons successifs, assertion que le hash du second inclut le hash du premier. | S008 |
 | CA-M3-18 | La validation de la chaîne complète du registre réussit quand aucun maillon n'a été altéré, et échoue quand un maillon est altéré. | Test unitaire : validation sur chaîne intacte (assertion succès), altération d'un maillon, re-validation (assertion échec). | S008 |
 | CA-M3-19 | Tout enum du module (`NiveauConfiance`, `VerdictEstimation`) possède une valeur `INDETERMINE` comme échappatoire obligatoire (D-032). | Inspection des définitions d'enum : assertion présence de `INDETERMINE` dans chaque enum. | S009 |
-| CA-M3-20 | Le module n'appelle jamais `random` sans graine, jamais d'horloge interne (`time.time`, `datetime.now`), jamais de réseau (`socket`, `urllib`, `requests`). | Analyse statique du code (AST Python) : assertion absence d'appels interdits dans tout le module M3. | S009 |
-| CA-M3-21 | Le barème de coûts est **fourni par l'appelant** et jamais inventé par le module : sans barème, ou avec un barème incomplet pour le `type_travaux` demandé, l'estimation est BLOQUÉE (`INDETERMINE`) au lieu de produire des bornes arbitraires. Aucune valeur de coût n'est codée en dur dans M3. | Appel sans barème et avec barème incomplet : assertion `prix_bloque is True` et bornes `null` ; balayage AST du module : aucun littéral numérique de coût. | S005 |
+| CA-M3-20 | Le module n'appelle jamais `random` sans graine, jamais d'horloge interne (`time.time`, `datetime.now`), jamais de réseau (`socket`, `urllib`, `requests`), et ne porte **aucun littéral numérique de coût** — les coûts viennent du barème fourni, jamais du code. | Analyse statique du code (AST Python) : assertion absence d'appels interdits dans tout le module M3. | S009 |
+| CA-M3-21 | Le barème de coûts est **fourni par l'appelant** et jamais inventé : sans barème, ou avec un barème ne couvrant pas le `type_travaux` demandé, l'estimation est BLOQUÉE (`INDETERMINE`, `prix_bloque` vrai, bornes nulles) au lieu de produire des bornes arbitraires. | Appel sans barème puis avec barème incomplet : assertion `prix_bloque is True`, bornes `null`, `bareme_version` nul. | S005 |
 
 ---
 

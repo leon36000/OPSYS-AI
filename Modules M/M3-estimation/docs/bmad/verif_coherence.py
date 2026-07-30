@@ -386,6 +386,63 @@ def verifier_numerotation_des_sections(prd: str, archi: str) -> List[str]:
     return erreurs
 
 
+def verifier_cles_du_contrat_gele(prd: str, archi: str) -> List[str]:
+    """Contrôle 11 : les clés d'EstimationV1 sont IDENTIQUES dans les deux documents.
+
+    Le gate comparait les valeurs des énumérés entre PRD et architecture, mais
+    jamais les CLÉS du pacte gelé lui-même. Deux renommages successifs ont
+    traversé ce trou (`verdict_blocage` renommé d'un seul côté, `bareme_version`
+    ajouté d'un seul côté) : un contrat gelé qui diverge entre ses deux
+    descriptions n'est plus gelé.
+    """
+    cles_prd = _cles_contrat(prd, r"^## 5\. CONTRAT GELÉ.*$")
+    cles_arc = _cles_contrat(archi, r"^#+\s*2\.2\s+Contrat de sortie.*$")
+    if not cles_prd or not cles_arc:
+        return ["Clés du contrat gelé introuvables d'un côté au moins — "
+                "un extracteur qui ne trouve rien rend le contrôle vide."]
+    if cles_prd != cles_arc:
+        return [f"Clés d'EstimationV1 divergentes : PRD {sorted(cles_prd)} vs "
+                f"architecture {sorted(cles_arc)} (écart {sorted(cles_prd ^ cles_arc)})."]
+    return []
+
+
+def _cles_contrat(texte: str, motif_section: str) -> set:
+    """Clés de premier niveau du bloc YAML du contrat gelé, ou ensemble vide."""
+    m = re.search(motif_section, texte, re.MULTILINE)
+    if not m:
+        return set()
+    bloc = re.search(r"```yaml\s*(.*?)\s*```", texte[m.start():], re.DOTALL)
+    if not bloc or not bloc.group(1).lstrip().startswith("EstimationV1:"):
+        return set()
+    cles = set()
+    for ligne in bloc.group(1).splitlines():
+        m2 = re.match(r"^  ([a-z_]+):", ligne)
+        if m2:
+            cles.add(m2.group(1))
+    return cles
+
+
+def verifier_contrats_ont_un_proprietaire(archi: str) -> List[str]:
+    """Contrôle 12 : tout contrat gelé déclaré en §2 a un module propriétaire en §1.
+
+    Un contrat gelé sans fichier chargé de son schéma et de sa validation est une
+    promesse que personne ne tient — objection de revue scellée sur `BaremeCouts`,
+    élevé au rang de contrat d'entrée sans qu'aucun module ne s'en charge.
+    """
+    erreurs = []
+    declares = set(re.findall(r"^#+\s*2\.\d+\s+Contrat[^`]*`([A-Za-z0-9_]+)`", archi, re.MULTILINE))
+    if not declares:
+        return ["Aucun contrat gelé détecté en section 2 — extracteur vide, contrôle non probant."]
+    table = archi.split("## 2.")[0]
+    for contrat in sorted(declares):
+        if contrat not in table:
+            erreurs.append(
+                f"Contrat gelé '{contrat}' déclaré en section 2 mais cité par aucun "
+                f"module de la table des modules : promesse sans propriétaire."
+            )
+    return erreurs
+
+
 def verifier_anti_derive(prd: str) -> List[str]:
     """Contrôle 8 : les DEUX déclarations exigées sont présentes, distinctement.
 
@@ -517,6 +574,22 @@ def main(dossier_str: str = None) -> int:
             print(f"ECHEC : {e}")
     else:
         print("OK : Numérotation des sous-sections cohérente et sans doublon.")
+
+    errs = verifier_cles_du_contrat_gele(prd, archi)
+    if errs:
+        erreurs.extend(errs)
+        for e in errs:
+            print(f"ECHEC : {e}")
+    else:
+        print("OK : Les clés du contrat gelé sont identiques dans les deux documents.")
+
+    errs = verifier_contrats_ont_un_proprietaire(archi)
+    if errs:
+        erreurs.extend(errs)
+        for e in errs:
+            print(f"ECHEC : {e}")
+    else:
+        print("OK : Chaque contrat gelé a un module propriétaire déclaré.")
 
     errs = verifier_anti_derive(prd)
     if errs:
