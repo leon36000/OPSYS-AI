@@ -51,6 +51,7 @@ Table des transitions conditionnées :
 - planifiee ou en_route vers reportee : conditionnée à un motif du enum fermé (client_absent, meteo, decision_admin) ; reportee vers planifiee lors de la re-cédule ; reportee vers annulee sur décision administrative.
 - en_route vers annulee : conditionnée à une annulation client ou administrative pendant le déplacement (le pointage de départ reste au registre).
 - en_revue vers sur_site : conditionnée à la résolution d'une anomalie de pointage par l'administrateur, l'intervention reprend.
+- en_route vers en_revue : conditionnée à une anomalie de pointage à l'arrivée (fix GPS incohérent avec la ville tokenisée) ; la présence sur site n'étant pas attestée, l'intervention ne peut pas passer sur_site et attend l'arbitrage administratif. AMENDEMENT (2026-07-30, issue #145) : sans cette entrée, CA-M4-08 était insatisfiable pour l'arrivée — les trois branches (sur_site, en_revue, statu quo) étaient fermées. Le retour en_revue vers sur_site existait déjà : seule l'entrée manquait.
 - Toute autre transition est illégale et rejetée avec le verdict REJ-TRANSITION-ILLEGALE.
 
 ## 5. Contrat du Work Completion Trigger

@@ -97,6 +97,7 @@ def test_constantes_epinglage():
         ("en_revue", "terminee"),
         ("en_revue", "annulee"),
         ("en_revue", "sur_site"),
+        ("en_route", "en_revue"),
         ("reportee", "planifiee"),
         ("reportee", "annulee"),
     )
@@ -199,6 +200,7 @@ COUPLES_LEGAUX = [
     ("en_revue", "terminee"),
     ("en_revue", "annulee"),
     ("en_revue", "sur_site"),
+    ("en_route", "en_revue"),
     ("reportee", "planifiee"),
     ("reportee", "annulee"),
 ]
@@ -435,3 +437,26 @@ def test_sels_differents_donnent_des_tokens_differents(contrat_valide, marqueur_
         assert accuse is not None
         tokens.append(reg.lire()[-1]["ville_tokenisee"])
     assert tokens[0] != tokens[1]
+
+def test_en_route_vers_en_revue_est_legale(contrat_valide, marqueur_valide, registre_vide):
+    """AMENDEMENT #145 : une anomalie de pointage à l'arrivée doit pouvoir router
+    l'intervention en revue. Sans cette entrée, CA-M4-08 était insatisfiable pour
+    l'arrivée — passer sur_site aurait menti sur la présence (le PRD la conditionne
+    à un fix GPS COHÉRENT), en_revue violait la table, et ne rien faire laissait
+    l'anomalie sans arbitrage."""
+    accuse, verdict = etats_mod.inscrire_intervention(
+        contrat_valide, marqueur_valide, registre_vide, H_VALIDE, SEL
+    )
+    assert accuse is not None, f"inscription refusée : {verdict}"
+    i_id = accuse["intervention_id"]
+    acc, v = etats_mod.transitionner(i_id, "en_route", registre_vide, H_VALIDE2)
+    assert acc is not None, f"transition en_route refusée : {v}"
+    acc, v = etats_mod.transitionner(i_id, "en_revue", registre_vide, H_VALIDE3)
+    assert acc is not None, f"en_route -> en_revue doit être légale : {v}"
+    assert acc["statut"] == "en_revue"
+    assert acc["statut_precedent"] == "en_route"
+    # le chemin de sortie ratifié reste ouvert : l'arbitrage peut relancer le travail
+    acc, v = etats_mod.transitionner(i_id, "sur_site", registre_vide, "2025-06-02T14:00:00+00:00")
+    assert acc is not None, f"en_revue -> sur_site doit rester légale : {v}"
+    assert registre_vide.valider_chaine() is True
+
