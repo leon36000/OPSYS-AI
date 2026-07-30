@@ -12,6 +12,7 @@ import m4_field_ops.registre as registre_mod
 
 # ------------------------------------------------------------------ constantes de test
 H_VALIDE = "2025-06-02T08:00:00+00:00"
+SEL = "sel-de-test-m4"
 H_VALIDE2 = "2025-06-02T10:00:00+00:00"
 H_VALIDE3 = "2025-06-03T08:00:00+00:00"
 
@@ -59,7 +60,7 @@ def preparer_chemin(registre, contrat, marqueur, etat_cible, horodatage_inscript
     Retourne l'intervention_id et le registre (modifié sur place)."""
     accuse, verdict = etats_mod.inscrire_intervention(
         contrat, marqueur, registre, horodatage_inscription
-    )
+    , SEL)
     assert accuse is not None, f"Échec d'inscription : {verdict}"
     intervention_id = accuse["intervention_id"]
     chemin = CHEMINS.get(etat_cible, [])
@@ -121,7 +122,7 @@ def test_coherence_table():
 def test_inscription_valide(contrat_valide, marqueur_valide, registre_vide):
     accuse, verdict = etats_mod.inscrire_intervention(
         contrat_valide, marqueur_valide, registre_vide, H_VALIDE
-    )
+    , SEL)
     assert verdict is None
     # accusé contient toutes les clés
     expected_keys = {"intervention_id", "ligne_id", "statut", "empreinte_maillon", "tete_chaine", "horodatage"}
@@ -136,7 +137,7 @@ def test_inscription_valide(contrat_valide, marqueur_valide, registre_vide):
 
 # 4. Loi 25 – pas de contact ni ses valeurs dans le registre
 def test_inscription_loi25(contrat_valide, marqueur_valide, registre_vide):
-    etats_mod.inscrire_intervention(contrat_valide, marqueur_valide, registre_vide, H_VALIDE)
+    etats_mod.inscrire_intervention(contrat_valide, marqueur_valide, registre_vide, H_VALIDE, SEL)
     for maillon in registre_vide.lire():
         # Pas la clé 'contact'
         assert "contact" not in maillon, f"Clé 'contact' trouvée dans {maillon}"
@@ -164,24 +165,24 @@ def test_inscription_rejet_validation(contrat_valide, marqueur_valide, registre_
     if modif_marqueur:
         m.update(modif_marqueur)
     taille_avant = len(registre_vide.lire())
-    accuse, verdict = etats_mod.inscrire_intervention(c, m, registre_vide, H_VALIDE)
+    accuse, verdict = etats_mod.inscrire_intervention(c, m, registre_vide, H_VALIDE, SEL)
     assert accuse is None
     assert verdict["code"] == code_attendu
     assert len(registre_vide.lire()) == taille_avant
 
 # 6. Ré-inscription : même contrat/horo -> rejet, horo différent -> accepté
 def test_reinscription_meme_horodatage(contrat_valide, marqueur_valide, registre_vide):
-    accuse1, _ = etats_mod.inscrire_intervention(contrat_valide, marqueur_valide, registre_vide, H_VALIDE)
+    accuse1, _ = etats_mod.inscrire_intervention(contrat_valide, marqueur_valide, registre_vide, H_VALIDE, SEL)
     taille_avant = len(registre_vide.lire())
-    accuse2, verdict2 = etats_mod.inscrire_intervention(contrat_valide, marqueur_valide, registre_vide, H_VALIDE)
+    accuse2, verdict2 = etats_mod.inscrire_intervention(contrat_valide, marqueur_valide, registre_vide, H_VALIDE, SEL)
     assert accuse2 is None
     assert verdict2["code"] == "REJ-TRANSITION-ILLEGALE"
     assert "déjà inscrite" in verdict2["detail"].lower()
     assert len(registre_vide.lire()) == taille_avant
 
 def test_reinscription_horodatage_different(contrat_valide, marqueur_valide, registre_vide):
-    accuse1, _ = etats_mod.inscrire_intervention(contrat_valide, marqueur_valide, registre_vide, H_VALIDE)
-    accuse2, verdict2 = etats_mod.inscrire_intervention(contrat_valide, marqueur_valide, registre_vide, H_VALIDE2)
+    accuse1, _ = etats_mod.inscrire_intervention(contrat_valide, marqueur_valide, registre_vide, H_VALIDE, SEL)
+    accuse2, verdict2 = etats_mod.inscrire_intervention(contrat_valide, marqueur_valide, registre_vide, H_VALIDE2, SEL)
     assert accuse2 is not None
     assert accuse2["intervention_id"] != accuse1["intervention_id"]
 
@@ -291,19 +292,19 @@ def test_statut_courant_inexistant(registre_vide):
     assert etats_mod.statut_courant(registre_vide, "i-inexistant") is None
 
 def test_statut_courant_apres_inscription(contrat_valide, marqueur_valide, registre_vide):
-    accuse, _ = etats_mod.inscrire_intervention(contrat_valide, marqueur_valide, registre_vide, H_VALIDE)
+    accuse, _ = etats_mod.inscrire_intervention(contrat_valide, marqueur_valide, registre_vide, H_VALIDE, SEL)
     statut = etats_mod.statut_courant(registre_vide, accuse["intervention_id"])
     assert statut == "planifiee"
 
 def test_statut_courant_independant(contrat_valide, marqueur_valide, registre_vide):
     # Deux interventions distinctes
-    accuse1, _ = etats_mod.inscrire_intervention(contrat_valide, marqueur_valide, registre_vide, H_VALIDE)
+    accuse1, _ = etats_mod.inscrire_intervention(contrat_valide, marqueur_valide, registre_vide, H_VALIDE, SEL)
     # Changer lead_id pour seconde intervention
     contrat2 = contrat_valide.copy()
     contrat2["lead_id"] = "L2"
     marqueur2 = marqueur_valide.copy()
     marqueur2["lead_id"] = "L2"
-    accuse2, _ = etats_mod.inscrire_intervention(contrat2, marqueur2, registre_vide, H_VALIDE2)
+    accuse2, _ = etats_mod.inscrire_intervention(contrat2, marqueur2, registre_vide, H_VALIDE2, SEL)
     assert etats_mod.statut_courant(registre_vide, accuse1["intervention_id"]) == "planifiee"
     assert etats_mod.statut_courant(registre_vide, accuse2["intervention_id"]) == "planifiee"
     # Transition sur la première
@@ -313,7 +314,7 @@ def test_statut_courant_independant(contrat_valide, marqueur_valide, registre_vi
 
 # 14. Parcours complet, valider_chaine et assert_chaine
 def test_parcours_complet_valider(contrat_valide, marqueur_valide, registre_vide):
-    accuse, _ = etats_mod.inscrire_intervention(contrat_valide, marqueur_valide, registre_vide, H_VALIDE)
+    accuse, _ = etats_mod.inscrire_intervention(contrat_valide, marqueur_valide, registre_vide, H_VALIDE, SEL)
     i_id = accuse["intervention_id"]
     for cible, horo in (("en_route", "2025-06-02T09:00:00+00:00"),
                         ("sur_site", "2025-06-02T10:00:00+00:00"),
@@ -346,13 +347,13 @@ def test_deux_leads_meme_horodatage_ids_distincts(contrat_valide, marqueur_valid
     """L'intervention_id incorpore le lead_id : deux leads distincts inscrits au
     MÊME horodatage obtiennent des ids distincts (mutation « dérivation sans
     lead_id » mesurée non détectée avec des horodatages différents)."""
-    accuse1, verdict1 = etats_mod.inscrire_intervention(contrat_valide, marqueur_valide, registre_vide, H_VALIDE)
+    accuse1, verdict1 = etats_mod.inscrire_intervention(contrat_valide, marqueur_valide, registre_vide, H_VALIDE, SEL)
     assert accuse1 is not None, f"première inscription : {verdict1}"
     contrat2 = contrat_valide.copy()
     contrat2["lead_id"] = "L2"
     marqueur2 = marqueur_valide.copy()
     marqueur2["lead_id"] = "L2"
-    accuse2, verdict2 = etats_mod.inscrire_intervention(contrat2, marqueur2, registre_vide, H_VALIDE)
+    accuse2, verdict2 = etats_mod.inscrire_intervention(contrat2, marqueur2, registre_vide, H_VALIDE, SEL)
     assert accuse2 is not None, (
         f"deuxième lead au même horodatage rejeté à tort : {verdict2}"
     )
@@ -365,14 +366,16 @@ def test_maillon_inscription_porte_traceabilite(contrat_valide, marqueur_valide,
     et champs métier repris du contrat — sans jamais le contact (mutation
     « empreinte_contrat retirée » mesurée non détectée sans cet épinglage)."""
     import m4_field_ops.encodage as encodage_mod
-    accuse, _ = etats_mod.inscrire_intervention(contrat_valide, marqueur_valide, registre_vide, H_VALIDE)
+    accuse, _ = etats_mod.inscrire_intervention(contrat_valide, marqueur_valide, registre_vide, H_VALIDE, SEL)
     maillon = registre_vide.lire()[-1]
     assert maillon["empreinte_contrat"] == encodage_mod.empreinte(contrat_valide)
     assert maillon["empreinte_marqueur"] == encodage_mod.empreinte(marqueur_valide)
     assert maillon["lead_id"] == contrat_valide["lead_id"]
     assert maillon["conversation_id"] == contrat_valide["conversation_id"]
     assert maillon["type_travaux"] == contrat_valide["type_travaux"]
-    assert maillon["ville"] == contrat_valide["ville"]
+    import m4_field_ops.cedule as cedule_mod
+    assert "ville" not in maillon, "la ville en clair ne doit JAMAIS entrer au registre"
+    assert maillon["ville_tokenisee"] == cedule_mod.tokeniser_ville(SEL, contrat_valide["ville"])
     assert maillon["urgence_declaree"] is contrat_valide["urgence_declaree"]
     assert maillon["statut"] == "planifiee"
 
@@ -391,3 +394,44 @@ def test_maillon_transition_porte_statut_precedent(contrat_valide, marqueur_vali
         "le maillon doit consigner l'état d'origine réel de la transition"
     )
 
+def test_aucune_ville_en_clair_dans_le_registre(contrat_valide, marqueur_valide, registre_vide):
+    """Architecture §2 : l'entité Intervention porte la ville TOKENISÉE. Le
+    registre étant immuable, une ville en clair y serait irrattrapable — d'où
+    l'assertion globale sur TOUS les maillons, et pas seulement sur celui de
+    l'inscription (défaut trouvé par le test Loi 25 de la story de pointage)."""
+    accuse, verdict = etats_mod.inscrire_intervention(
+        contrat_valide, marqueur_valide, registre_vide, H_VALIDE, SEL
+    )
+    assert accuse is not None, f"inscription refusée : {verdict}"
+    etats_mod.transitionner(accuse["intervention_id"], "en_route", registre_vide, H_VALIDE2)
+    for maillon in registre_vide.lire():
+        assert contrat_valide["ville"] not in str(maillon), (
+            f"ville en clair trouvée dans un maillon : {maillon}"
+        )
+
+
+def test_sel_de_tokenisation_obligatoire(contrat_valide, marqueur_valide, registre_vide):
+    """Sans sel, l'empreinte d'un nom de ville est attaquable par dictionnaire
+    (quelques milliers de villes) : le sel est donc EXIGÉ, pas optionnel."""
+    for sel_invalide in ("", None, 42):
+        accuse, verdict = etats_mod.inscrire_intervention(
+            contrat_valide, marqueur_valide, registre_vide, H_VALIDE, sel_invalide
+        )
+        assert accuse is None
+        assert verdict["code"] == "REJ-CONTRAT-INVALIDE"
+        assert registre_vide.taille() == 0, "aucune écriture sur sel invalide"
+
+
+def test_sels_differents_donnent_des_tokens_differents(contrat_valide, marqueur_valide):
+    """Le token dépend du sel : deux déploiements aux sels distincts ne
+    produisent pas le même token pour la même ville (pas de table arc-en-ciel
+    partagée entre installations)."""
+    tokens = []
+    for sel in ("sel-A", "sel-B"):
+        reg = registre_mod.Registre()
+        accuse, _ = etats_mod.inscrire_intervention(
+            contrat_valide, marqueur_valide, reg, H_VALIDE, sel
+        )
+        assert accuse is not None
+        tokens.append(reg.lire()[-1]["ville_tokenisee"])
+    assert tokens[0] != tokens[1]
