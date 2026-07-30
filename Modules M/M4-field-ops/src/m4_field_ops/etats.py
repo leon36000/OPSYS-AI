@@ -42,6 +42,7 @@ TRANSITIONS_AUTORISEES = (
     ("en_revue", "terminee"),
     ("en_revue", "annulee"),
     ("en_revue", "sur_site"),
+    ("en_route", "en_revue"),
     ("reportee", "planifiee"),
     ("reportee", "annulee"),
 )
