@@ -39,7 +39,9 @@ def load_mode(config_path: Path | str) -> tuple[str, str]:
             if data["mode"] in ALLOWED_MODES:
                 return data["mode"], "config"
             return "horaire", "config"
-    except Exception:
+    except (OSError, yaml.YAMLError):
+        # Config absente/illisible ou YAML invalide : repli explicite ; rétréci
+        # pour ne plus masquer les erreurs de programmation.
         pass
     return "horaire", "default"
 

@@ -106,7 +106,10 @@ class _ArtifactParser(HTMLParser):
                 parsed = None
                 try:
                     parsed = json.loads(script_text)
-                except Exception:
+                except ValueError:
+                    # Fail-soft voulu (parsed=None, brut conservé) ; rétréci à
+                    # ValueError (JSONDecodeError) pour ne plus masquer les
+                    # erreurs de programmation.
                     pass
                 self.jsonld_scripts.append({"raw": script_text, "parsed": parsed})
             self._in_script = False

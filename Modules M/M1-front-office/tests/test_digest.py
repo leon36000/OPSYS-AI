@@ -312,14 +312,19 @@ class TestContratAdaptateurs:
             id_prop2 = sujet_approval.proposer({"test": 1}, "testeur")
             assert id_prop == id_prop2, "L'implémentation réelle doit produire le même id pour les mêmes entrées"
 
-        # statut sur id inconnu ne doit pas être None silencieux
+        # statut sur id inconnu : les DEUX contrats mesurés, chacun asserté
+        # EXPLICITEMENT — l'ancien try/except Exception faisait passer le test
+        # quel que soit le comportement (il avalait l'échec de l'appel testé).
         unknown_id = "id-inexistant-xyz-123"
-        try:
+        if isinstance(sujet_approval, MockApprovalEngine):
+            with pytest.raises(LookupError):
+                sujet_approval.statut(unknown_id)
+        else:
             res = sujet_approval.statut(unknown_id)
-            assert res is not None, "Le statut d'un id inconnu ne doit pas être None"
-        except Exception:
-            # Une exception explicite est également acceptable
-            pass
+            assert res == "STATUT_INCONNU", (
+                "contrat mesuré de l'implémentation réelle : la chaîne "
+                f"'STATUT_INCONNU', reçu {res!r}"
+            )
 
     def test_bus_contrat(self, sujet_bus):
         assert callable(sujet_bus.emettre)
