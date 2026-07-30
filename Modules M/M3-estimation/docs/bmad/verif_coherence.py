@@ -525,16 +525,91 @@ def verifier_contrat_consomme_existe_vraiment(archi: str) -> List[str]:
     if not titre_enum:
         return ["Déclaration de l'énuméré type_travaux introuvable dans l'architecture M3 — "
                 "contrôle non probant."]
-    zone = archi[titre_enum.end():titre_enum.end() + 400]
-    types_m3 = set(re.findall(r"`([a-z_][a-z0-9_]*)`", zone))
+    # La déclaration de l'énuméré est la PREMIÈRE ligne non vide après le titre
+    # qui porte au moins une valeur entre backticks : une fenêtre fixe englobait
+    # la prose voisine et y retrouvait une valeur retirée de la liste (mutation
+    # mesurée non détectée). La recherche s'arrête au prochain titre markdown.
+    ligne_declaration = None
+    for ligne in archi[titre_enum.end():].splitlines():
+        if re.match(r"^#", ligne):
+            break
+        if not ligne.strip():
+            continue
+        if re.search(r"`[a-z_][a-z0-9_]*`", ligne):
+            ligne_declaration = ligne
+            break
+    if ligne_declaration is None:
+        return ["Déclaration de l'énuméré type_travaux introuvable — contrôle non probant."]
+    types_m3 = set(re.findall(r"`([a-z_][a-z0-9_]*)`", ligne_declaration))
     if not types_m3:
         return ["Aucune valeur extraite de la déclaration type_travaux — extracteur vide."]
     if types_m3 != types_m2:
         return [f"Énuméré type_travaux divergent : M3 déclare {sorted(types_m3)}, "
                 f"M2 émet {sorted(types_m2)} — écart {sorted(types_m3 ^ types_m2)}."]
-    if False:
-        return [f"Énuméré type_travaux divergent : M3 cite {sorted(types_m3)}, "
-                f"M2 émet {sorted(types_m2)} — écart {sorted(types_m3 ^ types_m2)}."]
+    return []
+
+
+def verifier_marqueur_consomme_existe_vraiment(archi: str) -> List[str]:
+    """Contrôle 13 bis : le marqueur de readiness consommé est celui que M2 émet.
+
+    L'interface M2 → M3 a deux moitiés : le contrat `LeadQualifie`, confronté
+    par le contrôle 13, et le marqueur de readiness qui autorise le passage à
+    l'estimation. Ce second contrat consommé doit être confronté à la source du
+    producteur avec la même rigueur : une architecture peut décrire un marqueur
+    cohérent avec elle-même que M2 n'émettra jamais, et un tel marqueur fantôme
+    validerait un chemin inexistant en production — le défaut exact de l'issue
+    #166, déplacé sur l'autre moitié de l'interface.
+
+    Ce contrôle lit l'ensemble `cles_attendues` dans la SOURCE de
+    `readiness.py` de M2 et le compare aux clés du bloc `MarqueurReadiness:`
+    déclaré dans l'architecture de M3. Lire la source d'un voisin depuis un
+    GATE n'est pas un import inter-modules (décision #109) : aucun code de
+    production ne dépend de M2, seule la vérification le fait. Tout repli est
+    fail-closed : source absente ou illisible, extracteur vide, bloc absent ou
+    ensembles divergents produisent une erreur explicite, jamais un vert par
+    vacuité.
+    """
+    depot = Path(__file__).resolve().parents[4]
+    source_m2 = depot / "Modules M" / "M2-revenue-crm" / "src" / "m2_revenue_crm" / "readiness.py"
+    if not source_m2.is_file():
+        return [f"Source du module producteur introuvable ({source_m2}) — "
+                f"contrôle non probant, jamais silencieusement vert."]
+    try:
+        texte_m2 = source_m2.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        return [f"Source du module producteur illisible ({source_m2}) : {exc} — "
+                f"contrôle non probant, jamais silencieusement vert."]
+    bloc = re.search(r"cles_attendues\s*=\s*\{([^}]*)\}", texte_m2)
+    if not bloc:
+        return ["Ensemble cles_attendues introuvable dans la source readiness de M2 — "
+                "extracteur vide, contrôle non probant."]
+    cles_m2 = set(re.findall(r'"([a-z_][a-z0-9_]*)"', bloc.group(1)))
+    if not cles_m2:
+        return ["Aucune clé extraite de cles_attendues — contrôle non probant."]
+
+    titre = re.search(r"^#### Marqueur de readiness\b.*$", archi, re.MULTILINE)
+    if not titre:
+        return ["Section « Marqueur de readiness » introuvable dans l'architecture M3."]
+    # Depuis le titre, le PREMIER bloc yaml COMPLET (ouvrant ET fermant), comme
+    # pour le contrat LeadQualifie : s'arrêter à la première clôture rencontrée
+    # capturerait la fence ouvrante, donc du vide.
+    bloc_m3 = re.search(r"```yaml\s*\n(.*?)\n```", archi[titre.end():], re.DOTALL)
+    if not bloc_m3:
+        return ["Bloc YAML du marqueur MarqueurReadiness introuvable dans l'architecture M3."]
+    corps = bloc_m3.group(1).lstrip()
+    if not corps.startswith("MarqueurReadiness:"):
+        tete = corps.splitlines()[0] if corps else "<bloc vide>"
+        return [f"Bloc YAML capturé n'est pas MarqueurReadiness mais « {tete} » "
+                f"— ancrage erroné, contrôle non probant."]
+    cles_m3 = set(re.findall(r"^  ([a-z_][a-z0-9_]*):", corps, re.MULTILINE))
+    if not cles_m3:
+        return ["Aucune clé extraite du marqueur MarqueurReadiness de M3 — contrôle vide."]
+    if cles_m3 != cles_m2:
+        return [f"Le marqueur de readiness consommé par M3 {sorted(cles_m3)} DIFFÈRE de "
+                f"celui que M2 émet réellement {sorted(cles_m2)} — attendues par M3 mais "
+                f"jamais émises : {sorted(cles_m3 - cles_m2)} ; émises par M2 mais non "
+                f"déclarées par M3 : {sorted(cles_m2 - cles_m3)}. Le producteur et le "
+                f"consommateur ne parlent pas du même marqueur."]
     return []
 
 
@@ -824,7 +899,17 @@ def main(dossier_str: str = None) -> int:
         for e in errs:
             print(f"ECHEC : {e}")
     else:
-        print("OK : Le contrat consommé correspond à celui que le module producteur émet.")
+        print("OK : Le contrat LeadQualifie consommé correspond à celui que le module "
+              "producteur émet.")
+
+    errs = verifier_marqueur_consomme_existe_vraiment(archi)
+    if errs:
+        erreurs.extend(errs)
+        for e in errs:
+            print(f"ECHEC : {e}")
+    else:
+        print("OK : Le marqueur de readiness consommé correspond à celui que le module "
+              "producteur émet.")
 
     errs = verifier_ca_cites_existent(prd)
     if errs:
