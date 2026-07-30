@@ -1,0 +1,73 @@
+import sys
+from pathlib import Path
+
+import pytest
+
+_SRC = Path(__file__).resolve().parents[1] / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
+
+import m4_field_ops.verdicts as verdicts_mod
+
+
+EXPECTED_CODES_M4_LIST = [
+    # Groupe 1 — verdicts ratifiés par le PRD M4 (CA-M4-01 à CA-M4-21)
+    "REJ-READINESS-NON-FRANCHIE",
+    "REJ-FRONTIERE-VIOLEE",
+    "REJ-TRANSITION-ILLEGALE",
+    "REJ-FENETRE-INVALIDE",
+    "REJ-HORODATAGE-ANTERIEUR",
+    "REJ-PUNCH-HORS-HEURES",
+    "REJ-PUNCH-SANS-INTERVENTION",
+    # Groupe 2 — invariants transversaux de validation structurelle
+    "REJ-CONTRAT-INVALIDE",
+    "REJ-CHAMP-MANQUANT",
+    "REJ-CHAMP-VIDE",
+    "REJ-ENUM-INVALIDE",
+    "REJ-HORODATAGE-INVALIDE",
+    # Groupe 3 — succès
+    "OK",
+]
+
+
+def test_codes_m4_list_epingle_exact():
+    assert verdicts_mod.CODES_M4_LIST == EXPECTED_CODES_M4_LIST
+
+
+def test_codes_m4_list_sans_doublon():
+    assert len(verdicts_mod.CODES_M4_LIST) == len(set(verdicts_mod.CODES_M4_LIST))
+
+
+def test_codes_m4_est_set_de_la_liste():
+    assert isinstance(verdicts_mod.CODES_M4, set)
+    assert verdicts_mod.CODES_M4 == set(verdicts_mod.CODES_M4_LIST)
+
+
+def test_est_verdict_vrai_pour_tous_les_codes_catalogue():
+    for code in verdicts_mod.CODES_M4_LIST:
+        assert verdicts_mod.est_verdict(code) is True
+
+
+def test_est_verdict_faux_hors_catalogue():
+    assert verdicts_mod.est_verdict("REJ-INCONNU") is False
+    assert verdicts_mod.est_verdict("") is False
+    assert verdicts_mod.est_verdict(None) is False
+
+
+def test_construire_verdict_ok_structure_exacte():
+    resultat = verdicts_mod.construire_verdict("OK")
+    assert resultat == {"code": "OK", "statut": "", "detail": ""}
+
+
+def test_construire_verdict_avec_statut_et_detail():
+    resultat = verdicts_mod.construire_verdict("OK", statut="succès", detail="tout va bien")
+    assert resultat == {"code": "OK", "statut": "succès", "detail": "tout va bien"}
+
+
+def test_construire_verdict_code_inconnu_leve_exception():
+    with pytest.raises(verdicts_mod.CodeVerdictInconnu):
+        verdicts_mod.construire_verdict("REJ-INCONNU")
+
+
+def test_code_verdict_inconnu_herite_exception():
+    assert issubclass(verdicts_mod.CodeVerdictInconnu, Exception)
