@@ -24,6 +24,8 @@ jobs:
         run: python3 -m pytest "Modules M/M1-front-office/tests" -q
       - name: Tests module M2 (EPIC F — rattrapage, M2-S001 avait fusionne sans gate)
         run: python3 -m pytest "Modules M/M2-revenue-crm/tests" -q
+      - name: Tests module M4 (EPIC G — branché avant la première story, leçon M1)
+        run: python3 -m pytest "Modules M/M4-field-ops/tests" -q
 
   e2e:
     runs-on: ubuntu-latest
