@@ -89,7 +89,13 @@ def produire_digest(registre_cible, date_cible, horodatage_reference):
     except ValueError:
         return None, verdicts.construire_verdict("REJ-HORODATAGE-INVALIDE")
 
-    # 3. Lecture *unique* du registre
+    # 3. Balayage principal. Le commentaire précédent annonçait une lecture
+    #    « unique » du registre : c'était faux (objection de revue r3). Les
+    #    appels délégués qui suivent — statut_courant, lister_pending_review,
+    #    tete — relisent chacun le registre. Ce n'est pas un défaut : le
+    #    registre est en mémoire et lire() retourne des copies profondes, donc
+    #    chaque lecture voit le même état ; mais l'affirmer « unique » aurait
+    #    laissé croire à une garantie d'atomicité que ce code ne donne pas.
     maillons = list(registre_cible.lire())
 
     # ---- interventions_terminees ----
