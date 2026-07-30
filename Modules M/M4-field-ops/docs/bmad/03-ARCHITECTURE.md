@@ -32,7 +32,10 @@ L'entité Pointage capture l'action du technicien. Elle inclut l'identifiant du 
 
 L'entité DemandeRevue matérialise un écart. Elle stocke l'identifiant de la revue, la référence à l'intervention, la version prévue des faits, la version déclarée par le technicien, le motif de l'écart, et le statut de l'arbitrage (en attente, validé, rejeté).
 
-L'entité DemandeRevue porte un type fermé — ecart_metier ou anomalie_pointage — car les deux concepts appellent des arbitrages différents (revue de faits déclarés contre revue de cohérence d'un événement de terrain) et ne doivent jamais confluer ; la file est append-only, une résolution est une nouvelle entrée liée. L'entité EvenementOutbox représente le Work Completion Trigger. Elle porte l'identifiant de l'événement, la référence à l'intervention, le lead, le technicien, l'horodatage de complétion, le fix GPS final, la durée réelle, le booléen d'écart signalé, la référence à la revue, le hash du maillon, la liste des consommateurs cibles, et le devis nul en version un. Le lien client y est strictement tokenisé.
+Clarification levant toute ambiguïté de représentation : l'entité EvenementOutbox est la CHARGE
+UTILE portée PAR le maillon composite — une représentation logique, pas un registre séparé ; le
+schéma gelé du WCT décrit cette charge utile et rien d'autre ; il n'existe AUCUN second registre
+ni fichier d'outbox distinct. L'entité DemandeRevue porte un type fermé — ecart_metier ou anomalie_pointage — car les deux concepts appellent des arbitrages différents (revue de faits déclarés contre revue de cohérence d'un événement de terrain) et ne doivent jamais confluer ; la file est append-only, une résolution est une nouvelle entrée liée. L'entité EvenementOutbox représente le Work Completion Trigger. Elle porte l'identifiant de l'événement, la référence à l'intervention, le lead, le technicien, l'horodatage de complétion, le fix GPS final, la durée réelle, le booléen d'écart signalé, la référence à la revue, le hash du maillon, la liste des consommateurs cibles, et le devis nul en version un. Le lien client y est strictement tokenisé.
 
 ## 3. Interfaces et contrats
 
@@ -78,10 +81,10 @@ La story S004 prouve la fermeture de la machine à états, vérifiée par le rej
 
 La story S005 prouve le déterminisme de la cédule, démontré par l'exécution de deux appels identiques produisant une sortie strictement égale.
 
-La story S006 prouve la rigueur temporelle et géographique du pointage, vérifiée par le rejet des horodatages sans fuseau et la détection des incohérences de localisation.
+La story S006 prouve la rigueur temporelle et géographique du pointage, vérifiée par le rejet des horodatages sans fuseau, la détection des incohérences de localisation, le rejet des pointages hors fenêtre de travail sans conservation de localisation (CA-M4-19, Loi 25) et la validation de la fenêtre elle-même.
 
 La story S007 prouve la transparence des écarts, démontrée par la conservation intacte des deux versions des faits dans la file de revue, sans jamais d'écrasement silencieux.
 
-La story S008 prouve l'atomicité de la cascade du Work Completion Trigger, vérifiée par la présence corrélée du maillon de transition et de l'événement outbox dans le registre unique.
+La story S008 prouve l'atomicité de la cascade du Work Completion Trigger — écriture en UNE opération d'ajout, invariants de balayage, consommateur de référence idempotent — ainsi que la tokenisation du lien client dans la charge utile (CA-M4-13).
 
 La story S009 prouve l'indépendance temporelle du digest quotidien, démontrée par l'absence d'appel à l'horloge système et la reproductibilité du hash de synthèse.

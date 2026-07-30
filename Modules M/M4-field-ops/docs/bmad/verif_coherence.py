@@ -121,6 +121,13 @@ def check_etats(c_prd, c_arch):
         ecarts.append(f"États dans PRD: {etats_prd}, attendu {ETATS_ATTENDUS}")
     if etats_arch != ETATS_ATTENDUS:
         ecarts.append(f"États dans ARCH: {etats_arch}, attendu {ETATS_ATTENDUS}")
+    # Objection r2 : un état inventé DANS LA TABLE des transitions (mot suivi/précédé
+    # de « vers ») doit être détecté même s'il n'est pas dans la constante.
+    for gauche, droite in re.findall(r'^- ([a-z_ ]+?) vers ([a-z_]+)', c_prd, re.MULTILINE):
+        for morceau in re.split(r'\bou\b', gauche) + [droite]:
+            nom = morceau.strip()
+            if nom and nom not in ETATS_ATTENDUS:
+                ecarts.append(f"Transition citant un état hors énuméré : {nom!r}")
     return ecarts
 
 def check_mots_interdits(c_brief, c_prd, c_arch):
