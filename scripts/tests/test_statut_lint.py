@@ -363,3 +363,38 @@ def test_entree_de_registre_sans_dossier(tmp_path):
     assert anomalies, "une entrée de registre sans dossier doit être signalée"
     assert any("declare" in a for a in anomalies)
 
+def test_statut_cadre_exige_une_sentinelle_sans_code(tmp_path):
+    """CADRE encode en règle une pratique prouvée : le cadrage et la sentinelle
+    précèdent la première story (leçon M1 puis M4 — une CI branchée après coup
+    laisse passer des stories non gardées). Sans ce statut, un module cadré
+    devait mentir en STUB ou faire relâcher la règle : un statut manquant force
+    le mensonge."""
+    reg, root = _faux_depot(tmp_path, [
+        {"nom": "cadre_ok", "statut_registre": "CADRE", "statut_readme": "CADRE",
+         "modules_source": 0, "fichiers_test": 1},
+    ])
+    assert statut_lint.verifier(reg, root) == []
+
+
+def test_statut_cadre_sans_aucun_test_est_refuse(tmp_path):
+    """Un CADRE sans sentinelle n'a pas de sens : c'est un STUB qui se prétend cadré."""
+    reg, root = _faux_depot(tmp_path, [
+        {"nom": "cadre_nu", "statut_registre": "CADRE", "statut_readme": "CADRE",
+         "modules_source": 0, "fichiers_test": 0},
+    ])
+    anomalies = statut_lint.verifier(reg, root)
+    assert len(anomalies) == 1
+    assert "CADRE" in anomalies[0]
+    assert "sentinelle" in anomalies[0].lower() or "test" in anomalies[0].lower()
+
+
+def test_statut_cadre_portant_du_code_est_refuse(tmp_path):
+    """Dès qu'une story livre du code, le registre doit passer à PARTIAL."""
+    reg, root = _faux_depot(tmp_path, [
+        {"nom": "cadre_code", "statut_registre": "CADRE", "statut_readme": "CADRE",
+         "modules_source": 3, "fichiers_test": 2},
+    ])
+    anomalies = statut_lint.verifier(reg, root)
+    assert len(anomalies) == 1
+    assert "PARTIAL" in anomalies[0]
+

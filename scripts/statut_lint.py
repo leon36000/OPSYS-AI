@@ -4,6 +4,11 @@ import re
 import yaml
 
 STATUTS_VIDES = ("STUB",)
+# CADRE : cadrage BMAD livré et sentinelle branchée, mais AUCUN code source encore.
+# Ce statut encode une pratique prouvée (leçon M1 puis M4 : brancher la CI AVANT la
+# première story) en règle vérifiable — sans lui, le seul choix était de mentir en
+# STUB ou de relâcher la règle. Un statut manquant force le mensonge.
+STATUTS_CADRES = ("CADRE",)
 STATUTS_AVEC_CODE = ("PILOTE", "PARTIAL", "COMPLET")
 
 
@@ -83,7 +88,9 @@ def verifier(chemin_registre: Path, racine_modules: Path) -> list:
         statut_readme = lire_statut_readme(dossier_module)
 
         # 1. Statut inconnu
-        if statut_registre not in STATUTS_VIDES and statut_registre not in STATUTS_AVEC_CODE:
+        if (statut_registre not in STATUTS_VIDES
+                and statut_registre not in STATUTS_CADRES
+                and statut_registre not in STATUTS_AVEC_CODE):
             anomalies.append(
                 f"Module '{nom_module}' : statut '{statut_registre}' inconnu "
                 f"(hors listes STATUTS_VIDES / STATUTS_AVEC_CODE)."
@@ -99,6 +106,18 @@ def verifier(chemin_registre: Path, racine_modules: Path) -> list:
                 )
 
         # 3. AVEC_CODE sans code ou sans tests
+        if statut_registre in STATUTS_CADRES:
+            if mesure["modules_source"] > 0:
+                anomalies.append(
+                    f"Module '{nom_module}' déclaré CADRE mais porte "
+                    f"{mesure['modules_source']} modules source : passer à PARTIAL."
+                )
+            if mesure["fichiers_test"] == 0:
+                anomalies.append(
+                    f"Module '{nom_module}' déclaré CADRE mais ne porte AUCUN fichier de "
+                    f"test : la sentinelle doit être branchée avant la première story."
+                )
+
         if statut_registre in STATUTS_AVEC_CODE:
             if mesure["modules_source"] == 0 or mesure["fichiers_test"] == 0:
                 anomalies.append(
