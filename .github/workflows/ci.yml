@@ -11,6 +11,8 @@ jobs:
         run: python3 scripts/structure_lint.py
       - name: Ledger integrity (D-042)
         run: python3 scripts/ledger_append.py verify
+      - name: Statut lint (cohérence statut déclaré / réalité mesurée, #152)
+        run: python3 scripts/statut_lint.py
       - name: Tests des scripts de methode (R-030)
         run: python3 -m pytest scripts/tests -q
       - name: Tests module M7 (M7-S000)

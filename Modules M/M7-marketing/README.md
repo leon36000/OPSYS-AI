@@ -2,7 +2,9 @@ M7-marketing
 
 Marketing & Croissance IA — PREMIER MODULE (D-008)
 
-Statut: PILOTE (M7-S000 — mode ombre)
+Statut: PARTIAL (mode ombre : le pilote M7-S000 a été suivi des vagues 2 et 3 — site Quadruple A,
+content factory, données saisonnières, competitive engine, grille AEO/GEO, convention UTM,
+attribution, ROI. 432 tests. Le statut du registre est la source de vérité, gate statut_lint.)
 
 ## M7-S000 — Brand Core minimal
 
