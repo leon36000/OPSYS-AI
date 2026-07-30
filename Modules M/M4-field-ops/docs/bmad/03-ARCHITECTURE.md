@@ -32,7 +32,7 @@ L'entité Pointage capture l'action du technicien. Elle inclut l'identifiant du 
 
 L'entité DemandeRevue matérialise un écart. Elle stocke l'identifiant de la revue, la référence à l'intervention, la version prévue des faits, la version déclarée par le technicien, le motif de l'écart, et le statut de l'arbitrage (en attente, validé, rejeté).
 
-L'entité EvenementOutbox représente le Work Completion Trigger. Elle porte l'identifiant de l'événement, la référence à l'intervention, le lead, le technicien, l'horodatage de complétion, le fix GPS final, la durée réelle, le booléen d'écart signalé, la référence à la revue, le hash du maillon, la liste des consommateurs cibles, et le devis nul en version un. Le lien client y est strictement tokenisé.
+L'entité DemandeRevue porte un type fermé — ecart_metier ou anomalie_pointage — car les deux concepts appellent des arbitrages différents (revue de faits déclarés contre revue de cohérence d'un événement de terrain) et ne doivent jamais confluer ; la file est append-only, une résolution est une nouvelle entrée liée. L'entité EvenementOutbox représente le Work Completion Trigger. Elle porte l'identifiant de l'événement, la référence à l'intervention, le lead, le technicien, l'horodatage de complétion, le fix GPS final, la durée réelle, le booléen d'écart signalé, la référence à la revue, le hash du maillon, la liste des consommateurs cibles, et le devis nul en version un. Le lien client y est strictement tokenisé.
 
 ## 3. Interfaces et contrats
 
@@ -63,7 +63,7 @@ Septièmement, les invariants de CI interdisent tout réseau, toute horloge inte
 ## 4 bis. Énuméré des états (repris VERBATIM du PRD — cohérence vérifiée par gate)
 
 L'énuméré fermé des états de l'intervention est strictement celui du PRD : planifiee, en_route,
-sur_site, en_revue, terminee, annulee. Toute divergence entre les deux documents est un écart
+sur_site, en_revue, reportee, terminee, annulee. Toute divergence entre les deux documents est un écart
 bloquant détecté par verif_coherence.py.
 
 ## 5. Anti-dérive et stratégie de preuve

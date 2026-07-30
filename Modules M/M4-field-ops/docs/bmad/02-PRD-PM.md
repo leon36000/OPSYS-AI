@@ -36,7 +36,7 @@ Sont explicitement repoussés en phase GATED/T3 : le routage routier réel (API 
 
 ## 4. Enum des états de l'intervention
 
-L'énuméré fermé des états de l'intervention est tranché ainsi : planifiee, en_route, sur_site, en_revue, terminee, annulee.
+L'énuméré fermé des états de l'intervention est tranché ainsi : planifiee, en_route, sur_site, en_revue, reportee, terminee, annulee. L'état reportee couvre le report terrain quel qu'en soit le motif — enum fermé de motifs : client_absent, meteo, decision_admin — et retourne vers planifiee lors de la re-cédule.
 
 Écarts par rapport à la proposition de l'analyste : en_cours est renommé sur_site pour lever l'ambiguïté entre le transit et le travail effectif sur le lieu d'intervention ; completed_pending_review est renommé en_revue pour assurer la cohérence lexicale avec le registre pending_review et éviter le mélange anglais-français dans les identifiants d'état.
 
@@ -48,6 +48,9 @@ Table des transitions conditionnées :
 - en_revue vers terminee : conditionnée à la validation humaine de l'écart.
 - en_revue vers annulee : conditionnée au rejet humain de l'écart.
 - planifiee vers annulee : conditionnée à une décision administrative avant tout pointage.
+- planifiee ou en_route vers reportee : conditionnée à un motif du enum fermé (client_absent, meteo, decision_admin) ; reportee vers planifiee lors de la re-cédule ; reportee vers annulee sur décision administrative.
+- en_route vers annulee : conditionnée à une annulation client ou administrative pendant le déplacement (le pointage de départ reste au registre).
+- en_revue vers sur_site : conditionnée à la résolution d'une anomalie de pointage par l'administrateur, l'intervention reprend.
 - Toute autre transition est illégale et rejetée avec le verdict REJ-TRANSITION-ILLEGALE.
 
 ## 5. Contrat du Work Completion Trigger
@@ -89,7 +92,7 @@ CA-M4-09 : Le système ne procède jamais à un écrasement silencieux d'un éca
 
 CA-M4-10 : Le système émet le Work Completion Trigger dans l'outbox transactionnel uniquement lorsque l'intervention atteint le statut terminee, vérifié par la présence de l'événement dans l'outbox et l'absence d'événement pour tout statut intermédiaire.
 
-CA-M4-11 : Le système garantit l'atomicité entre le changement d'état vers terminee et l'écriture du WCT dans l'outbox, vérifié par la validation de la chaîne de hash du registre et la présence corrélée du maillon et de l'événement outbox.
+CA-M4-11 : Le système rend l'atomicité de la complétion OBSERVABLE par deux invariants : tout maillon de transition vers terminee PORTE en son sein l'événement WCT complet, et aucun événement WCT n'existe hors d'un maillon terminee ; vérifié en balayant le registre entier après scénarios (dont une resoumission idempotente du curseur consommateur). La preuve par injection de panne réelle est GATED (hors CI Python).
 
 CA-M4-12 : Le système refuse tout pointage si aucune intervention n'est au statut en_route ou sur_site pour le technicien concerné, vérifié par le rejet explicite avec le verdict REJ-PUNCH-SANS-INTERVENTION.
 
@@ -102,6 +105,12 @@ CA-M4-15 : Le système n'infère jamais l'heure à partir de l'horloge ambiante 
 CA-M4-16 : Le système refuse tout scoring punitif ou profilage comportemental des techniciens, vérifié par l'absence de tout champ ou calcul de score dans les entités et événements M4.
 
 CA-M4-17 : Le système produit un digest quotidien déterministe et hash-chaîné listant les interventions complétées, les interventions en revue, et la volumétrie de la file d'attente, vérifié par l'exécution de deux appels identiques produisant exactement le même digest.
+
+CA-M4-19 : Le système rejette tout pointage dont l'horodatage est hors de la fenêtre de travail déclarée du technicien avec le verdict REJ-PUNCH-HORS-HEURES, sans conserver AUCUNE donnée de localisation de l'événement rejeté, vérifié par le rejet explicite et l'absence de tout champ GPS dans le registre pour ces tentatives (GPS strictement borné aux heures de travail, Loi 25).
+
+CA-M4-20 : Le système ne formule jamais d'accusation : toute anomalie de pointage produit une demande de revue de type anomalie_pointage listant des causes possibles neutres, et aucune entité ni aucun événement M4 ne comporte de champ de culpabilité ou de fraude, vérifié par l'inspection des demandes produites et l'absence structurelle de tels champs (conformité R-020).
+
+CA-M4-21 : Le système traite la file pending_review en append-only : une résolution est une NOUVELLE entrée liée à la demande d'origine, jamais une mutation ou une suppression, vérifié par la validation de la chaîne et la présence simultanée de la demande et de sa résolution.
 
 CA-M4-18 : Le système dérive tout identifiant (intervention, pointage, événement outbox, jeton client) uniquement par encodage canonique injectif à préfixage par longueur : deux tuples distincts, y compris les cas de collision par concaténation, produisent des identifiants distincts, vérifié de manière déterministe inter-processus.
 
@@ -139,13 +148,13 @@ Dépendances : S004.
 
 ### S006 — Pointage horodaté et géolocalisé
 Périmètre : Accepter et valider les événements de pointage (arrivée, départ) en vérifiant le format ISO-8601 avec fuseau explicite, la cohérence temporelle, et la cohérence géographique minimale avec la ville tokenisée.
-Critères portés : CA-M4-06, CA-M4-07, CA-M4-08, CA-M4-12.
+Critères portés : CA-M4-06, CA-M4-07, CA-M4-08, CA-M4-12, CA-M4-19.
 Tier : T1.
 Dépendances : S004, S005.
 
 ### S007 — Gestion des écarts et file pending_review
 Périmètre : Détecter les écarts entre le prévu et le réalisé, créer les demandes d'arbitrage avec les deux versions des faits, gérer la file pending_review, et exposer la volumétrie.
-Critères portés : CA-M4-09.
+Critères portés : CA-M4-09, CA-M4-20, CA-M4-21. Les demandes de revue portent un type fermé (ecart_metier, anomalie_pointage) : les deux concepts ne confluent jamais dans une même sémantique.
 Tier : T1.
 Dépendances : S006.
 

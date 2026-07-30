@@ -16,7 +16,7 @@ FICHIERS = {
     "arch":  BASE / "03-ARCHITECTURE.md",
 }
 
-ETATS_ATTENDUS = {"planifiee", "en_route", "sur_site", "en_revue", "terminee", "annulee"}
+ETATS_ATTENDUS = {"planifiee", "en_route", "sur_site", "en_revue", "reportee", "terminee", "annulee"}
 MOTS_INTERDITS = {"prix", "facture", "montant"}
 # Négatifs valant garde
 NEG_PATTERNS = [re.compile(r'\b' + re.escape(w) + r'\b', re.IGNORECASE) for w in
@@ -57,12 +57,12 @@ def check_numerotation_ca(contenu_prd):
     nums = {int(n) for n in re.findall(r'\bCA-M4-(\d{2})\b', contenu_prd)}
     # Borne ÉPINGLÉE volontairement (comme le catalogue gelé M2) : étendre la
     # plage des CA doit être un acte conscient, tracé dans ce fichier.
-    attendus = set(range(1, 19))
+    attendus = set(range(1, 22))
     ecarts = []
     if manquants := attendus - nums:
         ecarts.append(f"Numéros CA manquants: {sorted(manquants)}")
     if extra := nums - attendus:
-        ecarts.append(f"Numéros CA hors plage 01-18: {sorted(extra)}")
+        ecarts.append(f"Numéros CA hors plage 01-21: {sorted(extra)}")
     return ecarts
 
 def check_ca_portes_par_stories(contenu_prd):
@@ -110,10 +110,13 @@ def check_etats(c_prd, c_arch):
     if c_arch is None:
         ecarts.append("Architecture manquante, vérification des états impossible")
         return ecarts
-    etats_prd = set(re.findall(r'\b(planifiee|en_route|sur_site|en_revue|terminee|annulee)\b',
-                               c_prd))
-    etats_arch = set(re.findall(r'\b(planifiee|en_route|sur_site|en_revue|terminee|annulee)\b',
-                                c_arch))
+    # UNE SEULE source de vérité : le motif est dérivé de ETATS_ATTENDUS.
+    # (Une alternation codée en dur ici avait divergé de la constante lors de
+    # l'ajout d'un état — la duplication d'un enum dans son propre vérificateur
+    # est exactement la classe d'écart que ce fichier existe pour détecter.)
+    motif_etats = r'\b(' + '|'.join(sorted(ETATS_ATTENDUS)) + r')\b'
+    etats_prd = set(re.findall(motif_etats, c_prd))
+    etats_arch = set(re.findall(motif_etats, c_arch))
     if etats_prd != ETATS_ATTENDUS:
         ecarts.append(f"États dans PRD: {etats_prd}, attendu {ETATS_ATTENDUS}")
     if etats_arch != ETATS_ATTENDUS:
@@ -144,7 +147,7 @@ def main():
     controles = [
         ("Existence et sections obligatoires",
          check_existence_et_sections(c_brief, c_prd, c_arch)),
-        ("Numérotation CA-M4-01..18 continue",
+        ("Numérotation CA-M4-01..21 continue",
          check_numerotation_ca(c_prd) if c_prd else ["PRD manquant"]),
         ("Chaque CA porté par exactement une story",
          check_ca_portes_par_stories(c_prd) if c_prd else ["PRD manquant"]),
