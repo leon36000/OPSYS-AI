@@ -103,10 +103,14 @@ EstimationV1:
     # CONTRAT_ENTREE_INVALIDE | INDETERMINE
 
   bareme_version: str | null
-    # Version du barème utilisé, épinglée pour traçabilité. VAUT null lorsque
-    # l'estimation est bloquée faute de barème utilisable : la traçabilité n'a
-    # rien à tracer, et inventer un jeton serait une donnée fabriquée
-    # (objection de revue scellée).
+    # Version du barème utilisé, épinglée pour traçabilité.
+    # Vaut null SI ET SEULEMENT SI l'estimation est bloquée faute de barème
+    # utilisable (absent, ou ne couvrant pas le type_travaux demandé) : il n'y a
+    # alors aucune version à tracer, et inventer un jeton serait une donnée
+    # fabriquée. Dans tous les autres cas — y compris un blocage pour une AUTRE
+    # cause, par exemple des photos faibles — le barème a bien été fourni et sa
+    # version est épinglée. L'équivalence est donc : bareme_version null <=>
+    # verdict_estimation vaut INDETERMINE pour cause de barème.
   prix_bloque: bool
     # True si le prix est bloqué (aucun chiffre émis).
 
@@ -159,12 +163,21 @@ BaremeCouts:
       cout_unitaire_max: float
       # Bornes du coût par unité d'ouvrage. Le Monte Carlo tire DANS ces bornes :
       # sans elles il tirerait dans le vide et produirait des bornes arbitraires.
+      #
+      # COMPLÉTUDE : aucune exigence de couvrir TOUS les types de travaux — le
+      # barème peut être partiel. C'est le type_travaux DEMANDÉ qui doit être
+      # couvert, sinon blocage. Exiger un barème exhaustif interdirait de
+      # démarrer avec un catalogue réduit ; ne rien exiger produirait des bornes
+      # inventées. Exemple minimal valide :
+      #
+      #   postes:
+      #     renovation_totale: {cout_unitaire_min: 850.0, cout_unitaire_max: 1400.0}
+      #
+      # Un appel portant type_travaux = "extension" sur CE barème est BLOQUÉ.
 ```
 
 Validation fail-closed : barème absent, `postes` vide, type_travaux non couvert, bornes
 non numériques ou `min > max` -> estimation bloquée avec `INDETERMINE`.
-
----
 
 ---
 
@@ -256,7 +269,10 @@ M3 reçoit un contrat gelé `LeadQualifie` ayant franchi la **readiness gate M2*
 - Au moins une interaction humaine post-qualification dans `interactions`.
 - `sha256` cohérent avec le contenu du contrat.
 
-M3 reçoit également TROIS paramètres d'appel hors contrat :
+M3 reçoit également TROIS entrées hors du contrat `LeadQualifie` — dont l'une est elle-même un
+contrat GELÉ (le barème, décrit en 2.3). « Hors contrat » signifie ici « hors du contrat reçu de
+M2 », jamais « non spécifié » : la formulation précédente laissait croire que le barème échappait
+au gel alors qu'il est validé fail-closed comme les deux autres pactes (objection de revue).
 - `bareme_couts: dict` — **contrat d'entrée gelé** décrit en 2.3, rangé avec les autres contrats gelés. Le module ne porte AUCUNE
   valeur monétaire : sans barème couvrant le `type_travaux` demandé, l'estimation est BLOQUÉE
   avec `INDETERMINE` (CA-M3-21, DA-M3-09). Exiger le barème ici, et non en prose, est ce qui rend

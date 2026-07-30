@@ -170,10 +170,14 @@ EstimationV1:
     # CONTRAT_ENTREE_INVALIDE | INDETERMINE
 
   bareme_version: str | null
-    # Version du barème utilisé, épinglée pour traçabilité. VAUT null lorsque
-    # l'estimation est bloquée faute de barème utilisable : la traçabilité n'a
-    # rien à tracer, et inventer un jeton serait une donnée fabriquée
-    # (objection de revue scellée).
+    # Version du barème utilisé, épinglée pour traçabilité.
+    # Vaut null SI ET SEULEMENT SI l'estimation est bloquée faute de barème
+    # utilisable (absent, ou ne couvrant pas le type_travaux demandé) : il n'y a
+    # alors aucune version à tracer, et inventer un jeton serait une donnée
+    # fabriquée. Dans tous les autres cas — y compris un blocage pour une AUTRE
+    # cause, par exemple des photos faibles — le barème a bien été fourni et sa
+    # version est épinglée. L'équivalence est donc : bareme_version null <=>
+    # verdict_estimation vaut INDETERMINE pour cause de barème.
   prix_bloque: bool
     # True si le prix est bloqué (aucun chiffre émis).
 

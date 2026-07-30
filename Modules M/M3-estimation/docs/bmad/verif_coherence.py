@@ -425,6 +425,14 @@ def _cles_contrat(texte: str, motif_section: str) -> set:
 def verifier_contrats_ont_un_proprietaire(archi: str) -> List[str]:
     """Contrôle 12 : tout contrat gelé déclaré en §2 a un module propriétaire en §1.
 
+    LIMITE DÉCLARÉE (objection de revue scellée) : ce contrôle lit une TABLE de
+    documentation, pas du code — au stade du cadrage il n'existe aucun code à
+    inspecter, le module étant au statut CADRE. Il prouve donc que la
+    responsabilité est ASSIGNÉE, jamais qu'elle est honorée. La preuve
+    d'exécution appartient aux tests des stories qui livreront ces modules, et
+    c'est là qu'elle sera exigée. Le dire ici évite qu'un lecteur prenne cette
+    assignation pour une garantie.
+
     Un contrat gelé sans fichier chargé de son schéma et de sa validation est une
     promesse que personne ne tient — objection de revue scellée sur `BaremeCouts`,
     élevé au rang de contrat d'entrée sans qu'aucun module ne s'en charge.
