@@ -143,8 +143,12 @@ def test_arrivee_incoherente():
     assert accusé is not None
     assert accusé["gps_coherent"] is False
     assert accusé["demande_id"] is not None
-    # statut ne doit PAS avoir changé, reste en_route
-    assert etats_mod.statut_courant(reg, i_id) == "en_route"
+    # CA-M4-08 littéral : toute incohérence GPS route en revue. L'entrée
+    # en_route -> en_revue vient de l'amendement de cadrage #145 — avant lui,
+    # une anomalie à l'ARRIVÉE n'avait aucune issue légale (sur_site aurait
+    # menti sur la présence, en_revue violait la table, ne rien faire laissait
+    # l'anomalie sans arbitrage).
+    assert etats_mod.statut_courant(reg, i_id) == "en_revue"
     # présence demande_revue
     maillons = reg.lire()
     demande = None
@@ -519,3 +523,46 @@ def test_chaine_intacte():
     assert acc2 is not None
     assert reg2.valider_chaine() is True
     reg2.assert_chaine()  # ne doit pas lever
+
+@pytest.mark.parametrize("ref_bad, cas", [
+    ({"latitude": "45.5", "longitude": -73.5, "rayon_km": 25.0}, "latitude non numérique"),
+    ({"latitude": 45.5, "longitude": "-73.5", "rayon_km": 25.0}, "longitude non numérique"),
+    ({"latitude": True, "longitude": -73.5, "rayon_km": 25.0}, "latitude booléenne"),
+    ({"latitude": 91.0, "longitude": -73.5, "rayon_km": 25.0}, "latitude hors bornes"),
+    ({"latitude": 45.5, "longitude": -181.0, "rayon_km": 25.0}, "longitude hors bornes"),
+])
+def test_referentiel_coordonnees_invalides(ref_bad, cas):
+    """Objection de revue r1 (Grok-4.5), RÉELLE : sans validation des coordonnées
+    du RÉFÉRENTIEL, un référentiel mal typé lève TypeError dans distance_km au
+    lieu de produire un verdict — le fail-closed était rompu sur le chemin le
+    plus sensible, celui de la cohérence géographique."""
+    reg, i_id = _registre_en_route()
+    token = cedule_mod.tokeniser_ville(SEL, VILLE)
+    taille_avant = len(reg.lire())
+    accuse, verdict = pointage_mod.enregistrer_pointage(
+        i_id, "T1", "arrivee", H_VALIDE3,
+        GPS_PROCHE, ATTESTATION, ASSIGNATION(i_id), FENETRE,
+        {token: ref_bad}, VILLE, SEL, reg,
+    )
+    assert accuse is None, f"référentiel invalide accepté ({cas})"
+    assert verdict["code"] == "REJ-CONTRAT-INVALIDE"
+    assert "référentiel" in verdict["detail"]
+    assert len(reg.lire()) == taille_avant
+
+
+def test_arrivee_incoherente_puis_reprise_apres_arbitrage():
+    """Le chemin complet ouvert par l'amendement #145 : anomalie à l'arrivée ->
+    en_revue -> reprise sur_site après arbitrage administratif. Prouve que
+    l'anomalie ne piège pas l'intervention dans un état sans issue."""
+    reg, i_id = _registre_en_route()
+    accuse, verdict = pointage_mod.enregistrer_pointage(
+        i_id, "T1", "arrivee", H_VALIDE3,
+        GPS_LOIN, ATTESTATION, ASSIGNATION(i_id), FENETRE, REFERENTIEL, VILLE, SEL, reg,
+    )
+    assert accuse is not None, f"pointage refusé : {verdict}"
+    assert accuse["statut"] == "en_revue"
+    acc, v = etats_mod.transitionner(i_id, "sur_site", reg, H_VALIDE4)
+    assert acc is not None, f"reprise après arbitrage refusée : {v}"
+    assert etats_mod.statut_courant(reg, i_id) == "sur_site"
+    assert reg.valider_chaine() is True
+

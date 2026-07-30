@@ -191,6 +191,22 @@ def enregistrer_pointage(
     if not isinstance(ref, dict) or set(ref.keys()) != {"latitude", "longitude", "rayon_km"}:
         return (None, verdicts.construire_verdict("REJ-CONTRAT-INVALIDE",
                                                    detail="entrée référentiel invalide"))
+    # Objection de revue (r1, Grok-4.5) : sans ce contrôle, un référentiel mal typé
+    # lève TypeError dans distance_km au lieu de produire un verdict — fail-closed
+    # rompu sur le chemin le plus sensible (la cohérence géographique).
+    for cle_ref in ("latitude", "longitude"):
+        valeur_ref = ref[cle_ref]
+        if isinstance(valeur_ref, bool) or not isinstance(valeur_ref, (int, float)):
+            return (None, verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE",
+                detail=f"référentiel : {cle_ref} non numérique"))
+    if not (-90 <= ref["latitude"] <= 90):
+        return (None, verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE", detail="référentiel : latitude hors [-90, 90]"))
+    if not (-180 <= ref["longitude"] <= 180):
+        return (None, verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE", detail="référentiel : longitude hors [-180, 180]"))
+
     rayon = ref["rayon_km"]
     if isinstance(rayon, bool) or not isinstance(rayon, (int, float)):
         return (None, verdicts.construire_verdict("REJ-CONTRAT-INVALIDE",
@@ -225,25 +241,23 @@ def enregistrer_pointage(
     # 13. Suite d'état selon la table ratifiée
     transition_verdict = None
     if action == "arrivee" and coherent:
-        # transition autorisée vers sur_site
+        # Le PRD conditionne en_route -> sur_site à un fix GPS COHÉRENT.
+        cible = "sur_site"
+    elif not coherent:
+        # CA-M4-08 : toute incohérence GPS route l'intervention en revue.
+        # L'entrée en_route -> en_revue vient de l'amendement de cadrage #145 :
+        # sans elle, une anomalie à l'ARRIVÉE n'avait aucune issue légale.
+        cible = "en_revue"
+    else:
+        # Départ cohérent : aucune transition — la complétion et le WCT
+        # appartiennent à la story suivante.
+        cible = None
+    if cible is not None:
         acc, v = etats.transitionner(
-            intervention_id, "sur_site", registre_cible,
-            horodatage_arg,
+            intervention_id, cible, registre_cible, horodatage_arg,
         )
-        if acc is None:  # théoriquement impossible, mais on propage
+        if acc is None:  # théoriquement impossible, mais on propage sans masquer
             return (None, v)
-    elif action == "depart" and not coherent:
-        # départ incohérent → en_revue
-        acc, v = etats.transitionner(
-            intervention_id, "en_revue", registre_cible,
-            horodatage_arg,
-        )
-        if acc is None:
-            return (None, v)
-    # Les autres cas (arrivee incohérent, depart cohérent) ne déclenchent
-    # aucune transition : la table ne les permet pas car le PRD impose
-    # qu'un fix GPS cohérent soit nécessaire pour passer sur_site,
-    # et la complétion après un départ cohérent relève de la story suivante.
 
     # 14. Demande de revue si non cohérent
     demande_id = None
