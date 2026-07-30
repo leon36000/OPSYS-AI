@@ -169,6 +169,10 @@ EstimationV1:
     # REFERENCE_ECHELLE_ABSENTE | PLANCHER_RENTABILITE_FRANCHI |
     # CONTRAT_ENTREE_INVALIDE | INDETERMINE
 
+  bareme_version: str
+    # Version du barème utilisé, épinglée pour traçabilité : sans ce champ, la
+    # promesse « le barème est versionné » n'a nulle part où atterrir dans le
+    # pacte de sortie (objection de revue scellée).
   prix_bloque: bool
     # True si le prix est bloqué (aucun chiffre émis).
 
@@ -206,7 +210,7 @@ EstimationV1:
 
 ## 6. CRITÈRES D'ACCEPTATION
 
-20 critères numérotés, chacun testable déterministiquement, chacun porté par une story unique.
+21 critères numérotés, chacun testable déterministiquement, chacun porté par une story unique.
 
 | ID | Critère | Moyen de vérification | Story |
 |---|---|---|---|
@@ -340,5 +344,6 @@ EstimationV1:
 | `niveau_confiance_defaut` | Niveau de confiance de l'intervalle Monte Carlo | 0.90 |
 | `plancher_rentable` | Coût minimal en dessous duquel l'alerte rouge est émise | Fourni par l'appelant à chaque estimation |
 | `nb_iterations_monte_carlo` | Nombre d'itérations de la simulation Monte Carlo | Défini par le PM |
+| `bareme_couts` | Contrat gelé `BaremeCouts` : version, unité, postes par type de travaux avec bornes de coût | **Fourni par l'appelant à chaque estimation. Aucune valeur par défaut : un barème par défaut serait un coût inventé** |
 
 ---

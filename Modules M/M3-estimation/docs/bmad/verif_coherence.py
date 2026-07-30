@@ -348,6 +348,44 @@ def verifier_ca_par_story_coherents(prd: str, archi: str) -> List[str]:
     return erreurs
 
 
+def verifier_numerotation_des_sections(prd: str, archi: str) -> List[str]:
+    """Contrôle 10 : aucune sous-section dupliquée, aucune hors de sa section mère.
+
+    Trois dérapages successifs de numérotation pendant les rounds de revue — un
+    contrat rangé sous la mauvaise section, puis une collision créée par mon
+    propre renumérotage — ont montré qu'un humain relit mal une table des
+    matières. Une machine, non : les renvois « décrit en 2.3 » deviennent
+    ambigus dès qu'il existe deux 2.3, et le lecteur suit le mauvais.
+    """
+    erreurs = []
+    for etiquette, texte in (("PRD", prd), ("ARCHITECTURE", archi)):
+        numeros = re.findall(r"^###\s+(\d+)\.(\d+)", texte, re.MULTILINE)
+        vus = {}
+        for majeur, mineur in numeros:
+            cle = f"{majeur}.{mineur}"
+            vus[cle] = vus.get(cle, 0) + 1
+        for cle, n in sorted(vus.items()):
+            if n > 1:
+                erreurs.append(
+                    f"{etiquette} : sous-section {cle} définie {n} fois — tout renvoi "
+                    f"« voir {cle} » devient ambigu."
+                )
+        # chaque sous-section doit tomber sous SA section mère
+        mere = None
+        for ligne in texte.splitlines():
+            m2 = re.match(r"^##\s+(\d+)\.", ligne)
+            if m2:
+                mere = m2.group(1)
+                continue
+            m3 = re.match(r"^###\s+(\d+)\.(\d+)", ligne)
+            if m3 and mere is not None and m3.group(1) != mere:
+                erreurs.append(
+                    f"{etiquette} : sous-section {m3.group(1)}.{m3.group(2)} placée sous "
+                    f"la section {mere} — rangement incohérent."
+                )
+    return erreurs
+
+
 def verifier_anti_derive(prd: str) -> List[str]:
     """Contrôle 8 : les DEUX déclarations exigées sont présentes, distinctement.
 
@@ -471,6 +509,14 @@ def main(dossier_str: str = None) -> int:
             print(f"ECHEC : {e}")
     else:
         print("OK : Chaque story porte les mêmes critères dans le PRD et l'architecture.")
+
+    errs = verifier_numerotation_des_sections(prd, archi)
+    if errs:
+        erreurs.extend(errs)
+        for e in errs:
+            print(f"ECHEC : {e}")
+    else:
+        print("OK : Numérotation des sous-sections cohérente et sans doublon.")
 
     errs = verifier_anti_derive(prd)
     if errs:

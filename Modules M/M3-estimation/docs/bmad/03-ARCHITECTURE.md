@@ -102,6 +102,10 @@ EstimationV1:
     # REFERENCE_ECHELLE_ABSENTE | PLANCHER_RENTABILITE_FRANCHI |
     # CONTRAT_ENTREE_INVALIDE | INDETERMINE
 
+  bareme_version: str
+    # Version du barème utilisé, épinglée pour traçabilité : sans ce champ, la
+    # promesse « le barème est versionné » n'a nulle part où atterrir dans le
+    # pacte de sortie (objection de revue scellée).
   prix_bloque: bool
     # True si le prix est bloqué (aucun chiffre émis).
 
@@ -135,85 +139,6 @@ EstimationV1:
 - Aucun champ financier (ni `tva`, ni `montant_ttc`, ni `conditions_paiement`) — domaine de M5.
 - Aucun identifiant de stock ou de matériau — domaine de M6.
 
-### 2.3 Énumérés fermés
-
-#### NiveauConfiance
-
-Copié mot pour mot du PRD section 4.1.
-
-| Valeur | Condition d'obtention |
-|---|---|
-| `REFERENCE_ECHELLE` | Au moins une photo dont les métadonnées déclarent un objet de dimensions certifiées visible dans le cadre (porte standard, brique, carreau de carrelage, mètre ruban déployé). Condition nécessaire et suffisante pour une estimation précise. |
-| `MULTI_VUES` | Au moins 3 photos sous angles différents (métadonnées `angle` distincts), résolution ≥ seuil configurable, sans référence d'échelle déclarée. Précision moindre, bornes explicites. |
-| `MONO_VUE_BORNES_LARGES` | 1 ou 2 photos, résolution ≥ seuil configurable, éclairage suffisant (métadonnées `eclairage` ≥ seuil), sans référence d'échelle, sans multi-vues. MAE ~0,45 m au mieux. |
-| `INDETERMINE` | **Échappatoire D-032** — les métadonnées fournies ne permettent de classifier dans aucun des trois niveaux précédents. Ce verdict signale « on ne sait pas » et force un blocage du prix. |
-
-#### VerdictEstimation
-
-Copié mot pour mot du PRD section 4.2.
-
-| Valeur | Signification | `prix_bloque` |
-|---|---|---|
-| `AUCUN_BLOCAGE` | Estimation émise normalement, intervalle de confiance calculé. | `False` |
-| `QUALITE_ENTREE_INSUFFISANTE` | Photos faibles : résolution sous le seuil, éclairage insuffisant, ou aucune photo fournie. Le prix ne peut pas être estimé. | `True` |
-| `REFERENCE_ECHELLE_ABSENTE` | Aucune référence d'échelle identifiée dans les photos. Signalé comme alerte, mais ne bloque pas si le niveau de confiance est `MULTI_VUES` ou `MONO_VUE_BORNES_LARGES`. | `False` |
-| `PLANCHER_RENTABILITE_FRANCHI` | La borne basse de l'intervalle de confiance est strictement inférieure au plancher rentable fourni. Alerte rouge : marge négative ou nulle possible. Ne bloque pas l'estimation. | `False` |
-| `CONTRAT_ENTREE_INVALIDE` | Le contrat `LeadQualifie` d'entrée ne respecte pas le schéma gelé (champ manquant, type incorrect, champ interdit présent). | `True` |
-| `INDETERMINE` | **Échappatoire D-032** — la raison du blocage ne peut être classifiée dans les valeurs précédentes. Signale « on ne sait pas pourquoi ça bloque » et force une revue humaine. | `True` |
-
-### 2.4 Maillon du registre append-only
-
-```yaml
-MaillonEstimation:
-  index: int                # Position séquentielle dans le registre (0, 1, 2, ...).
-  devis_id: str             # Référence au devis émis.
-  lead_id: str              # Référence au lead source.
-  niveau_confiance: str     # Enum NiveauConfiance.
-  verdict_blocage: str      # Enum VerdictEstimation.
-  prix_bloque: bool         # Copie du champ du contrat de sortie.
-  borne_basse: float | null # Copie du champ du contrat de sortie.
-  borne_haute: float | null # Copie du champ du contrat de sortie.
-  alerte_plancher: bool     # Copie du champ du contrat de sortie.
-  hash_precedent: str       # sha256 du maillon précédent (chaîne vide pour index 0).
-  hash_maillon: str         # sha256 de ce maillon (inclut hash_precedent).
-```
-
-### 2.5 Signal de relance vers M2
-
-```yaml
-SignalRelanceM2:
-  type: str                 # Toujours "DEMANDE_ENTREES_VISUELLES".
-  lead_id: str              # Lead concerné.
-  devis_id: str             # Devis bloqué correspondant.
-  elements_manquants:       # Liste explicite des éléments nécessaires.
-    - str
-  emission_count: int       # Toujours 1 en v1 (pas de boucle).
-```
-
-### 2.6 Digest quotidien vers Nathan
-
-```yaml
-DigestEstimationsBloquees:
-  type: str                 # Toujours "DIGEST_ESTIMATIONS_BLOQUEES".
-  nb_estimations_bloquees: int
-  nb_alertes_plancher: int
-  estimations_bloquees:
-    - devis_id: str
-      lead_id: str
-      verdict_blocage: str
-      raison_blocage: str
-  alertes_plancher:
-    - devis_id: str
-      lead_id: str
-      borne_basse: float
-      plancher_rentable: float
-  hash_digest: str          # sha256 déterministe du contenu du digest.
-```
-
----
-
-## 3. INTERFACES ET CONTRATS
-
 ### 2.3 Contrat d'entrée gelé — `BaremeCouts` (fourni par l'appelant)
 
 Liste FERMÉE de clés. Le module ne porte aucune valeur monétaire en dur : le barème est une
@@ -240,6 +165,87 @@ non numériques ou `min > max` -> estimation bloquée avec `INDETERMINE`.
 
 ---
 
+---
+
+### 2.4 Énumérés fermés
+
+#### NiveauConfiance
+
+Copié mot pour mot du PRD section 4.1.
+
+| Valeur | Condition d'obtention |
+|---|---|
+| `REFERENCE_ECHELLE` | Au moins une photo dont les métadonnées déclarent un objet de dimensions certifiées visible dans le cadre (porte standard, brique, carreau de carrelage, mètre ruban déployé). Condition nécessaire et suffisante pour une estimation précise. |
+| `MULTI_VUES` | Au moins 3 photos sous angles différents (métadonnées `angle` distincts), résolution ≥ seuil configurable, sans référence d'échelle déclarée. Précision moindre, bornes explicites. |
+| `MONO_VUE_BORNES_LARGES` | 1 ou 2 photos, résolution ≥ seuil configurable, éclairage suffisant (métadonnées `eclairage` ≥ seuil), sans référence d'échelle, sans multi-vues. MAE ~0,45 m au mieux. |
+| `INDETERMINE` | **Échappatoire D-032** — les métadonnées fournies ne permettent de classifier dans aucun des trois niveaux précédents. Ce verdict signale « on ne sait pas » et force un blocage du prix. |
+
+#### VerdictEstimation
+
+Copié mot pour mot du PRD section 4.2.
+
+| Valeur | Signification | `prix_bloque` |
+|---|---|---|
+| `AUCUN_BLOCAGE` | Estimation émise normalement, intervalle de confiance calculé. | `False` |
+| `QUALITE_ENTREE_INSUFFISANTE` | Photos faibles : résolution sous le seuil, éclairage insuffisant, ou aucune photo fournie. Le prix ne peut pas être estimé. | `True` |
+| `REFERENCE_ECHELLE_ABSENTE` | Aucune référence d'échelle identifiée dans les photos. Signalé comme alerte, mais ne bloque pas si le niveau de confiance est `MULTI_VUES` ou `MONO_VUE_BORNES_LARGES`. | `False` |
+| `PLANCHER_RENTABILITE_FRANCHI` | La borne basse de l'intervalle de confiance est strictement inférieure au plancher rentable fourni. Alerte rouge : marge négative ou nulle possible. Ne bloque pas l'estimation. | `False` |
+| `CONTRAT_ENTREE_INVALIDE` | Le contrat `LeadQualifie` d'entrée ne respecte pas le schéma gelé (champ manquant, type incorrect, champ interdit présent). | `True` |
+| `INDETERMINE` | **Échappatoire D-032** — la raison du blocage ne peut être classifiée dans les valeurs précédentes. Signale « on ne sait pas pourquoi ça bloque » et force une revue humaine. | `True` |
+
+### 2.5 Maillon du registre append-only
+
+```yaml
+MaillonEstimation:
+  index: int                # Position séquentielle dans le registre (0, 1, 2, ...).
+  devis_id: str             # Référence au devis émis.
+  lead_id: str              # Référence au lead source.
+  niveau_confiance: str     # Enum NiveauConfiance.
+  verdict_blocage: str      # Enum VerdictEstimation.
+  prix_bloque: bool         # Copie du champ du contrat de sortie.
+  borne_basse: float | null # Copie du champ du contrat de sortie.
+  borne_haute: float | null # Copie du champ du contrat de sortie.
+  alerte_plancher: bool     # Copie du champ du contrat de sortie.
+  hash_precedent: str       # sha256 du maillon précédent (chaîne vide pour index 0).
+  hash_maillon: str         # sha256 de ce maillon (inclut hash_precedent).
+```
+
+### 2.6 Signal de relance vers M2
+
+```yaml
+SignalRelanceM2:
+  type: str                 # Toujours "DEMANDE_ENTREES_VISUELLES".
+  lead_id: str              # Lead concerné.
+  devis_id: str             # Devis bloqué correspondant.
+  elements_manquants:       # Liste explicite des éléments nécessaires.
+    - str
+  emission_count: int       # Toujours 1 en v1 (pas de boucle).
+```
+
+### 2.7 Digest quotidien vers Nathan
+
+```yaml
+DigestEstimationsBloquees:
+  type: str                 # Toujours "DIGEST_ESTIMATIONS_BLOQUEES".
+  nb_estimations_bloquees: int
+  nb_alertes_plancher: int
+  estimations_bloquees:
+    - devis_id: str
+      lead_id: str
+      verdict_blocage: str
+      raison_blocage: str
+  alertes_plancher:
+    - devis_id: str
+      lead_id: str
+      borne_basse: float
+      plancher_rentable: float
+  hash_digest: str          # sha256 déterministe du contenu du digest.
+```
+
+---
+
+## 3. INTERFACES ET CONTRATS
+
 ### 3.1 Interface d'entrée — ce que M3 reçoit de M2
 
 M3 reçoit un contrat gelé `LeadQualifie` ayant franchi la **readiness gate M2** :
@@ -250,7 +256,7 @@ M3 reçoit un contrat gelé `LeadQualifie` ayant franchi la **readiness gate M2*
 - `sha256` cohérent avec le contenu du contrat.
 
 M3 reçoit également TROIS paramètres d'appel hors contrat :
-- `bareme_couts: dict` — **contrat d'entrée gelé** décrit en 2.3. Le module ne porte AUCUNE
+- `bareme_couts: dict` — **contrat d'entrée gelé** décrit en 2.3, rangé avec les autres contrats gelés. Le module ne porte AUCUNE
   valeur monétaire : sans barème couvrant le `type_travaux` demandé, l'estimation est BLOQUÉE
   avec `INDETERMINE` (CA-M3-21, DA-M3-09). Exiger le barème ici, et non en prose, est ce qui rend
   le critère implémentable — objection critique de revue scellée : un critère qui exige ce que
