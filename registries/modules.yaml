@@ -6,7 +6,7 @@ modules:
   - name: M3-estimation
     statut: STUB
   - name: M4-field-ops
-    statut: STUB
+    statut: PARTIAL
   - name: M5-financecore
     statut: STUB
   - name: M6-material-control
