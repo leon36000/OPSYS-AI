@@ -28,6 +28,8 @@ jobs:
         run: python3 -m pytest "Modules M/M2-revenue-crm/tests" -q
       - name: Tests module M4 (EPIC G — branché avant la première story, leçon M1)
         run: python3 -m pytest "Modules M/M4-field-ops/tests" -q
+      - name: Tests module M3 (cadrage — sentinelle branchée avant la première story)
+        run: python3 -m pytest "Modules M/M3-estimation/tests" -q
 
   e2e:
     runs-on: ubuntu-latest
