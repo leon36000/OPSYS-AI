@@ -37,7 +37,8 @@ FONCTIONS_HORLOGE_INTERDITES = (
     # Complétée après objection de revue (liste non exhaustive au premier jet).
     "now", "utcnow", "today", "time", "monotonic", "perf_counter", "fromtimestamp",
     "time_ns", "monotonic_ns", "perf_counter_ns", "process_time", "thread_time",
-    "clock_gettime", "gmtime", "localtime", "mktime", "timegm", "times",
+    "clock_gettime", "clock_gettime_ns", "gmtime", "localtime", "mktime",
+    "timegm", "times",
 )
 
 TERMES_INTERDITS_R020 = (
@@ -242,13 +243,24 @@ def garde_absence_horloge(chemin_source=None):
 # nom contient « scoring » se dénonce elle-même par son propre identifiant et ne
 # peut JAMAIS passer (mesuré). Même raison pour le nom de sa liste de termes.
 def garde_conformite_r020(chemin_source=None):
-    """Inspection AST : absence de termes de scoring dans les noms, clés, attributs.
+    """Inspection AST (R-020) : aucun terme de profilage ou de notation punitive.
 
-    Seules les *clés* chaînes des dict littéraux sont inspectées ; les constantes
-    chaînes hors clés sont ignorées, ce qui permet au tuple
-    ``TERMES_INTERDITS_R020`` de résider dans ce module sans se dénoncer.
-    Les noms entièrement en majuscules (convention des constantes) sont exclus
-    pour éviter les faux positifs sur les constantes de configuration.
+    PORTÉE EXACTE, sans aucune exemption de fichier ni de casse :
+      - clés chaînes des dict LITTÉRAUX ;
+      - noms d'identifiants, d'attributs, de fonctions (y compris coroutines),
+        de classes, de PARAMÈTRES de fonction et de mots-clés d'appel.
+
+    Les constantes chaînes HORS clé de dict ne sont PAS inspectées : c'est
+    précisément ce qui permet au tuple ``TERMES_INTERDITS_R020`` de vivre dans ce
+    module sans se dénoncer, sans avoir à exempter un fichier — une exemption de
+    fichier serait un trou franc, on pourrait tout y cacher.
+
+    LIMITE INHÉRENTE, déclarée plutôt que masquée : une introduction DYNAMIQUE
+    (``setattr`` avec une chaîne calculée, clé de dict non littérale) échappe à
+    toute analyse statique. La seconde moitié de la preuve de CA-M4-16 est
+    comportementale : les tests épinglent la whitelist EXACTE des clés de chaque
+    entité et de chaque événement M4, donc un champ introduit dynamiquement
+    ferait échouer ces égalités d'ensembles.
     """
     if chemin_source is None:
         chemin_source = str(Path(__file__).parent)
@@ -277,7 +289,6 @@ def garde_conformite_r020(chemin_source=None):
                 self.generic_visit(node)
 
             def visit_Name(self, node):
-                # Ignorer les noms tout en majuscules (constantes)
                 if self._contient_terme(node.id):
                     violations.append(
                         f"{path.name}: nom '{node.id}' contient un terme interdit"
@@ -292,10 +303,35 @@ def garde_conformite_r020(chemin_source=None):
                         )
                 self.generic_visit(node)
 
+            def visit_arg(self, node):
+                # Un terme interdit peut vivre dans une SIGNATURE (objection de
+                # revue r2) : le paramètre est un nom comme un autre.
+                if self._contient_terme(node.arg):
+                    violations.append(
+                        f"{path.name}: paramètre '{node.arg}' contient un terme interdit"
+                    )
+                self.generic_visit(node)
+
+            def visit_keyword(self, node):
+                # ... ou dans un mot-clé d'appel (f(score_technicien=1)).
+                if isinstance(node.arg, str) and self._contient_terme(node.arg):
+                    violations.append(
+                        f"{path.name}: mot-clé d'appel '{node.arg}' contient un terme interdit"
+                    )
+                self.generic_visit(node)
+
             def visit_FunctionDef(self, node):
                 if self._contient_terme(node.name):
                     violations.append(
                         f"{path.name}: fonction '{node.name}' contient un terme interdit"
+                    )
+                self.generic_visit(node)
+
+            def visit_AsyncFunctionDef(self, node):
+                # Une coroutine est une fonction : même contrôle (objection r2).
+                if self._contient_terme(node.name):
+                    violations.append(
+                        f"{path.name}: coroutine '{node.name}' contient un terme interdit"
                     )
                 self.generic_visit(node)
 

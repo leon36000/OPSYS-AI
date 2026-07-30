@@ -614,3 +614,48 @@ def test_garde_r020_inspecte_aussi_les_attributs(tmp_path, attribut_interdit, fa
     assert not ok, f"attribut {attribut_interdit} non détecté"
     assert msg
 
+@pytest.mark.parametrize("cas, fabrique", [
+    # Paramètres JAMAIS utilisés dans le corps : un paramètre utilisé apparaît
+    # aussi comme ast.Name, donc une autre branche l'attraperait et la branche
+    # « paramètre » ne serait pas discriminée (mutation mesurée non détectée).
+    ("parametre_inutilise", "def f(score_technicien):\n    return 1\n"),
+    ("parametre_majuscule_inutilise", "def f(NOTE_TECHNICIEN):\n    return 1\n"),
+    ("mot_cle_appel", "def g(**kw):\n    return kw\ndef f():\n    return g(performance=1)\n"),
+    ("coroutine", "async def calculer_score(x):\n    return x\n"),
+])
+def test_garde_r020_couvre_signatures_motscles_et_coroutines(tmp_path, cas, fabrique):
+    """Objections MAJEURES du round 2 (Grok-4.5) : un terme interdit pouvait vivre
+    dans une SIGNATURE de fonction, dans un mot-clé d'appel, ou dans le nom d'une
+    coroutine — trois portes que la portée annoncée (« noms d'identifiants »)
+    prétendait couvrir sans les inspecter."""
+    (tmp_path / "faux.py").write_text(fabrique, encoding="utf-8")
+    ok, msg = digest_mod.garde_conformite_r020(chemin_source=str(tmp_path))
+    assert not ok, f"cas non détecté : {cas}"
+    assert msg
+
+
+def test_garde_horloge_clock_gettime_ns(tmp_path):
+    """Objection mineure r2 : clock_gettime_ns interroge une horloge et manquait."""
+    # SANS importer time : « import time » ferait échouer la garde par une autre
+    # voie et la présence de clock_gettime_ns dans la liste ne serait pas
+    # discriminée (mutation mesurée non détectée).
+    (tmp_path / "faux.py").write_text(
+        "def f(horloge):\n    return horloge.clock_gettime_ns(0)\n", encoding="utf-8"
+    )
+    ok, msg = digest_mod.garde_absence_horloge(chemin_source=str(tmp_path))
+    assert not ok
+    assert msg
+
+
+def test_docstring_de_la_garde_ne_promet_aucune_exemption():
+    """La documentation d'une garde EST une promesse : la docstring annonçait
+    encore l'exemption des majuscules après son retrait (objection MAJEURE r2 —
+    une spec inline qui contredit le code est un piège pour le prochain lecteur,
+    qui croira l'échappatoire ouverte ou la réintroduira)."""
+    doc = digest_mod.garde_conformite_r020.__doc__
+    assert doc, "la garde doit documenter sa portée"
+    bas = doc.lower()
+    assert "majuscules" not in bas or "sans aucune exemption" in bas
+    for promesse in ("paramètres", "coroutines", "limite inhérente"):
+        assert promesse in bas, f"la docstring doit annoncer : {promesse}"
+
