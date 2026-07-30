@@ -478,6 +478,28 @@ def verifier_contrat_consomme_existe_vraiment(archi: str) -> List[str]:
     la source d'un voisin depuis un GATE n'est pas un import inter-modules
     (décision #109) : aucun code de production ne dépend de M2, seule la
     vérification le fait.
+
+    La confrontation porte aussi sur les TYPES. Tout contrôle de type que M2
+    exprime sur une clé du contrat — `type(contrat["CLE"]) is not TYPE` ou
+    `isinstance(contrat["CLE"], TYPE)`, lu sur l'arbre ast.parse de sa source et
+    jamais par recherche textuelle, qui trouverait le motif dans un commentaire
+    ou une docstring — doit correspondre au type déclaré pour cette clé dans le
+    bloc YAML `LeadQualifie` de l'architecture. Le type déclaré est le premier
+    token après les deux-points de la clé ; un suffixe éventuel (« bool strict »,
+    « str non vide ») précise la règle métier sans changer le type de base
+    confronté. Seules les clés soumises à un contrôle de type côté M2 sont
+    confrontées : une clé sans contrôle chez le producteur est une absence
+    d'information, pas une divergence — le gate ne prête à M2 aucune exigence
+    qu'il n'exprime pas.
+
+    COUVERTURE RÉELLE, MESURÉE : à ce jour une seule clé du contrat
+    (`urgence_declaree`) est soumise côté M2 à un contrôle portant sur une clé
+    littérale. Les autres types y sont contrôlés à travers une variable
+    intermédiaire (`contact = contrat["contact"]` puis `isinstance(contact, dict)`),
+    forme que cet extracteur ne suit pas encore. La confrontation des types porte
+    donc sur une clé sur sept, et le message du gate le dit — annoncer une
+    couverture plus large que celle qui est tenue est le défaut que ce contrôle
+    existe pour empêcher.
     """
     depot = Path(__file__).resolve().parents[4]
     source_m2 = depot / "Modules M" / "M2-revenue-crm" / "src" / "m2_revenue_crm" / "contrats.py"
@@ -514,6 +536,80 @@ def verifier_contrat_consomme_existe_vraiment(archi: str) -> List[str]:
                 f"que M2 émet réellement {sorted(cles_m2)} — écart {sorted(cles_m3 ^ cles_m2)}. "
                 f"Un consommateur qui décrit une entrée que le producteur n'émet pas valide un "
                 f"chemin inexistant en production."]
+
+    # Des noms de clés identiques ne garantissent pas des types identiques : un
+    # consommateur qui déclare « bool » là où le producteur impose « str » (ou
+    # l'inverse) valide une sémantique d'entrée différente sous des noms alignés,
+    # invisible au seul contrôle des clés. Les contrôles de type de M2 sont lus
+    # sur l'arbre ast.parse de sa source — jamais par recherche textuelle, qui
+    # trouverait le motif dans un commentaire ou une docstring — aux deux formes
+    # reconnues : type(contrat["CLE"]) is not TYPE et isinstance(contrat["CLE"], TYPE).
+    try:
+        arbre_m2 = ast.parse(texte_m2)
+    except SyntaxError as exc:
+        return [f"Source de M2 non analysable par ast.parse ({exc}) — contrôle non probant."]
+    controles_types_m2 = {}
+    for noeud in ast.walk(arbre_m2):
+        cible = None
+        type_impose = None
+        if (isinstance(noeud, ast.Compare) and len(noeud.ops) == 1
+                and isinstance(noeud.ops[0], ast.IsNot)
+                and isinstance(noeud.left, ast.Call)
+                and isinstance(noeud.left.func, ast.Name)
+                and noeud.left.func.id == "type"
+                and len(noeud.left.args) == 1
+                and len(noeud.comparators) == 1
+                and isinstance(noeud.comparators[0], ast.Name)):
+            cible = noeud.left.args[0]
+            type_impose = noeud.comparators[0].id
+        elif (isinstance(noeud, ast.Call)
+                and isinstance(noeud.func, ast.Name)
+                and noeud.func.id == "isinstance"
+                and len(noeud.args) == 2
+                and isinstance(noeud.args[1], ast.Name)):
+            cible = noeud.args[0]
+            type_impose = noeud.args[1].id
+        if cible is None:
+            continue
+        # Seul un accès contrat["CLE"] à clé littérale qualifie : un contrôle sur
+        # la variable contrat elle-même (ex. isinstance(contrat, dict)) ne dit
+        # rien sur le type d'une clé et ne doit pas être capté.
+        if not (isinstance(cible, ast.Subscript)
+                and isinstance(cible.value, ast.Name)
+                and cible.value.id == "contrat"):
+            continue
+        tranche = cible.slice
+        if isinstance(tranche, ast.Constant):
+            constante = tranche
+        else:
+            # Python 3.8 enveloppait la tranche dans un nœud Index portant la constante.
+            constante = getattr(tranche, "value", None)
+        if isinstance(constante, ast.Constant) and isinstance(constante.value, str):
+            controles_types_m2[constante.value] = type_impose
+    if not controles_types_m2:
+        return ["Aucun contrôle de type extrait de la source de M2 (formes attendues : "
+                "type(contrat[CLE]) is not TYPE, isinstance(contrat[CLE], TYPE)) — "
+                "extracteur vide, contrôle non probant."]
+
+    # Le type déclaré par M3 est le premier token après les deux-points de la clé,
+    # à l'indentation du contrat ; un suffixe éventuel (« bool strict », « str non
+    # vide ») précise la règle métier sans changer le type de base confronté.
+    types_declares_m3 = dict(re.findall(r"^  ([a-z_][a-z0-9_]*):[ \t]*([a-zA-Z_][a-zA-Z0-9_]*)",
+                                        corps, re.MULTILINE))
+    divergences_types = []
+    for cle in sorted(controles_types_m2):
+        type_impose_m2 = controles_types_m2[cle]
+        type_declare_m3 = types_declares_m3.get(cle)
+        if type_declare_m3 is None:
+            return [f"La clé « {cle} » est soumise par M2 à un contrôle de type "
+                    f"« {type_impose_m2} » mais aucun type n'est extractible de sa ligne "
+                    f"dans le bloc LeadQualifie de l'architecture — contrôle non probant."]
+        if type_declare_m3 != type_impose_m2:
+            divergences_types.append(
+                f"Type divergent pour la clé « {cle} » : l'architecture M3 déclare "
+                f"« {type_declare_m3} », M2 impose « {type_impose_m2} ».")
+    if divergences_types:
+        return divergences_types
 
     # Les NOMS de clés identiques ne suffisent pas : un énuméré divergent produirait
     # une sémantique de rejet différente entre voisins, invisible au gate (objection
@@ -974,7 +1070,8 @@ def main(dossier_str: str = None) -> int:
             print(f"ECHEC : {e}")
     else:
         print("OK : Le contrat LeadQualifie consommé correspond à celui que le module "
-              "producteur émet.")
+              "producteur émet — clés, énuméré type_travaux, et les types que M2 "
+              "impose par un contrôle sur une clé littérale du contrat.")
 
     errs = verifier_marqueur_consomme_existe_vraiment(archi)
     if errs:
