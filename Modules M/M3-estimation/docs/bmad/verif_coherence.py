@@ -945,13 +945,14 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
     confrontées ligne à ligne. Deux GENRES d'artefact sont reconnus : « bloc »
     (bloc de code clôturé ``` … ```) et « table » (suite contiguë d'au moins
     deux lignes commençant par « | »). Pour chaque déclaration, un seul
-    artefact est retenu : le PREMIER présent dans la zone bornée entre la fin
-    de la déclaration et le prochain titre markdown, jamais au-delà — une
-    recherche sans borne traversait plusieurs sections et rapportait un
-    artefact étranger à la copie déclarée (mesuré sur les déclarations des
-    sections 4.1 et 4.2). Côté PRD, l'appariement exige le MÊME genre et la
-    même première ligne non vide : un artefact retrouvé sous un autre genre
-    n'est pas la copie de celui-ci.
+    artefact est retenu : celui de la zone bornée entre la fin de la
+    déclaration et le prochain titre markdown, jamais au-delà — une recherche
+    sans borne traversait plusieurs sections et rapportait un artefact étranger
+    à la copie déclarée (mesuré sur les déclarations des sections 4.1 et 4.2) —
+    et une zone qui contient PLUS D'UN artefact est refusée plutôt que devinée,
+    la déclaration ne désignant pas lequel elle couvre. Côté PRD, l'appariement
+    exige le MÊME genre et la même première ligne non vide : un artefact
+    retrouvé sous un autre genre n'est pas la copie de celui-ci.
 
     PASSE 2 — toute copie EXACTE doit se déclarer. Retirer une déclaration
     retirait silencieusement la copie du périmètre du contrôle : le gate
@@ -963,6 +964,19 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
     large « même première ligne ⇒ doit être déclarée » a été mesurée puis
     rejetée : des tables distinctes partagent une ligne d'en-tête avec un
     artefact du PRD sans en être des copies (deux faux positifs mesurés).
+
+    Toutes les recherches de titres — borne de la zone de la passe 1, dernier
+    titre précédant un artefact à la passe 2, titres du PRD lus par
+    section_du_prd — se font sur une vue du texte où le contenu de chaque bloc
+    clôturé (clôtures comprises) est masqué caractère pour caractère, car un
+    « # » en colonne 0 à l'intérieur d'un bloc est du code et non un titre ;
+    les contenus comparés viennent toujours du texte d'origine, la vue masquée
+    ne servant qu'à localiser, à longueur strictement identique.
+    Les déclarations sont cherchées sur cette même vue masquée, exactement
+    comme les titres : une phrase « Copié mot pour mot du PRD section N »
+    écrite à l'intérieur d'un bloc clôturé y est un exemple ou une citation,
+    jamais un engagement — elle ne doit ni ouvrir une confrontation à la
+    passe 1 ni tenir lieu de déclaration à la passe 2.
 
     LIMITE EXACTE : une copie qui a été MODIFIÉE et n'a jamais été déclarée
     reste indétectable — n'étant plus identique à sa source, rien ne la
@@ -977,6 +991,25 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
     # pas par « | ».
     motif_table = re.compile(r"^[ \t]*\|[^\n]*(?:\n[ \t]*\|[^\n]*)+", re.MULTILINE)
     motif_titre = re.compile(r"^#{1,6}\s", re.MULTILINE)
+
+    def masquer_blocs(texte: str) -> str:
+        """Vue de `texte` où chaque bloc clôturé (clôtures comprises) est
+        remplacé par des espaces, sauts de ligne préservés.
+
+        Chaque caractère hors saut de ligne est remplacé par exactement UN
+        caractère neutre qui ne peut pas commencer un titre, donc la longueur
+        totale est strictement identique : tout offset mesuré sur la vue reste
+        valide sur le texte d'origine, et le mode MULTILINE garde les mêmes
+        débuts de ligne.
+        """
+        return re.sub(r"```[^\n]*\n.*?```",
+                      lambda m: re.sub(r"[^\n]", " ", m.group(0)),
+                      texte, flags=re.DOTALL)
+
+    # Les recherches de titres se font sur ces vues ; les contenus comparés
+    # sont toujours tranchés dans les textes d'origine, aux mêmes offsets.
+    prd_masque = masquer_blocs(prd)
+    archi_masque = masquer_blocs(archi)
 
     def premiere_ligne_non_vide(texte: str) -> str:
         """Première ligne non vide du texte, sans espaces de fin ('' si vide)."""
@@ -1045,11 +1078,14 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
         """Texte de la section du PRD dont le titre porte exactement ce numéro.
 
         Le titre est `## N. …` ou `### N.M …` ; la section s'étend jusqu'au titre
-        suivant de niveau inférieur ou égal. Retourne None si le titre est
-        introuvable — fail-closed, on ne devine pas la section source.
+        suivant de niveau inférieur ou égal. Les titres sont repérés sur la vue
+        masquée du PRD — un « # » en colonne 0 dans un bloc clôturé y est du
+        code, pas un titre — et les offsets, à longueur préservée, tranchent le
+        PRD d'origine. Retourne None si le titre est introuvable — fail-closed,
+        on ne devine pas la section source.
         """
         titres = []
-        for m in re.finditer(r"^(#+)\s+(.*)$", prd, re.MULTILINE):
+        for m in re.finditer(r"^(#+)\s+(.*)$", prd_masque, re.MULTILINE):
             m_num = re.match(r"(\d+(?:\.\d+)?)\.?(?:\s|$)", m.group(2).strip())
             titres.append((m.start(), m.end(), len(m.group(1)),
                            m_num.group(1) if m_num else None))
@@ -1068,7 +1104,14 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
         return prd[cible[1]:fin]
 
     erreurs: List[str] = []
-    declarations = list(re.finditer(MOTIF_COPIE_DECLAREE, archi))
+    # Les déclarations sont cherchées sur la vue masquée, comme les titres :
+    # une phrase « Copié mot pour mot du PRD section N » écrite à l'intérieur
+    # d'un bloc clôturé est un exemple ou une citation, pas un engagement —
+    # la compter ouvrirait une passe 1 sur un artefact qui n'existe pas (faux
+    # positif mesuré). Les offsets étant préservés par construction,
+    # declaration.end() tranche le texte d'origine et declaration.group(1)
+    # rend le numéro de section exactement comme avant.
+    declarations = list(re.finditer(MOTIF_COPIE_DECLAREE, archi_masque))
     if not declarations:
         return ["Aucune déclaration « Copié mot pour mot du PRD section N » trouvée "
                 "dans l'architecture — extracteur vide, contrôle non probant : "
@@ -1081,26 +1124,38 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
         # déclaration et le prochain titre markdown : sans cette borne, la
         # recherche traversait plusieurs sections et rapportait l'artefact
         # d'une section étrangère — comparer le mauvais artefact est pire que
-        # ne rien comparer (mesuré).
-        m_titre = motif_titre.search(archi, declaration.end())
+        # ne rien comparer (mesuré). Le titre est cherché sur la vue masquée :
+        # un « # » en colonne 0 dans un bloc clôturé est du code, pas un titre.
+        m_titre = motif_titre.search(archi_masque, declaration.end())
         fin_zone = m_titre.start() if m_titre else len(archi)
         zone = archi[declaration.end():fin_zone]
-        trouve_arc = premier_artefact(zone)
-        if trouve_arc is None:
+        artefacts_zone = tous_artefacts(zone)
+        if not artefacts_zone:
             erreurs.append(
                 f"Copie déclarée de la section PRD {numero} : aucun artefact "
                 f"(bloc clôturé ou table) entre la déclaration et le prochain "
                 f"titre — une copie promise sans artefact est invérifiable.")
             continue
-        genre_arc, contenu_arc, _ = trouve_arc
-        # b. La section du PRD portant exactement ce numéro.
+        # b. Une zone à plusieurs artefacts est ambiguë, fail-closed plutôt que
+        # deviner : la déclaration ne dit pas lequel elle couvre, et les
+        # artefacts suivants ne seraient jamais vérifiés.
+        if len(artefacts_zone) > 1:
+            erreurs.append(
+                f"Copie déclarée de la section PRD {numero} : {len(artefacts_zone)} "
+                f"artefacts entre la déclaration et le prochain titre, et la "
+                f"déclaration ne désigne pas lequel elle couvre — une déclaration "
+                f"gouverne l'artefact unique qui la suit ; s'il y en a plusieurs, "
+                f"le document doit être découpé, pas deviné.")
+            continue
+        genre_arc, contenu_arc, _ = artefacts_zone[0]
+        # c. La section du PRD portant exactement ce numéro.
         section = section_du_prd(numero)
         if section is None:
             erreurs.append(
                 f"Copie déclarée de la section PRD {numero} : ce titre est introuvable "
                 f"dans le PRD — fail-closed, on ne devine pas la section source.")
             continue
-        # c. Le premier artefact DU MÊME GENRE dans la section du PRD dont la
+        # d. Le premier artefact DU MÊME GENRE dans la section du PRD dont la
         # première ligne non vide est celle de l'artefact de l'architecture.
         premiere_arc = premiere_ligne_non_vide(contenu_arc)
         contenu_prd = None
@@ -1121,7 +1176,7 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
                 f"« {premiere_arc[:120]} » — artefact source introuvable, "
                 f"contrôle non probant pour cette copie.")
             continue
-        # d. Comparaison ligne à ligne ; les espaces de fin ne sont pas du contenu.
+        # e. Comparaison ligne à ligne ; les espaces de fin ne sont pas du contenu.
         lignes_prd = [l.rstrip() for l in contenu_prd.rstrip("\n").splitlines()]
         lignes_arc = [l.rstrip() for l in contenu_arc.rstrip("\n").splitlines()]
         divergence = False
@@ -1156,9 +1211,18 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
         if lignes_a not in normalises_prd.get(genre_a, []):
             # Pas une copie exacte : rien à suivre pour cette passe.
             continue
-        titres_avant = list(motif_titre.finditer(archi, 0, debut_a))
+        # Le dernier titre est cherché sur la vue masquée : un « # » en colonne
+        # 0 dans un bloc clôturé est du code, pas un titre — sans cela la borne
+        # était décalée et une déclaration légitime était manquée.
+        titres_avant = list(motif_titre.finditer(archi_masque, 0, debut_a))
         borne = titres_avant[-1].end() if titres_avant else 0
-        if re.search(MOTIF_COPIE_DECLAREE, archi[borne:debut_a]):
+        # La déclaration est cherchée sur la vue masquée, pour la même raison
+        # qu'à la passe 1 : citée dans un bloc clôturé entre la borne et
+        # l'artefact, elle serait un exemple et non un engagement, et ferait
+        # passer pour déclarée une copie qui ne l'est pas. Les offsets sont
+        # préservés par construction : la tranche [borne:debut_a] y désigne
+        # exactement la même zone que dans le texte d'origine.
+        if re.search(MOTIF_COPIE_DECLAREE, archi_masque[borne:debut_a]):
             continue
         premiere_a = premiere_ligne_non_vide(contenu_a)
         erreurs.append(
