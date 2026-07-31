@@ -136,6 +136,302 @@ def _lot_avec_eclairage_sous_seuil():
     return lot
 
 
+@pytest.mark.parametrize(
+    "fabriquer_lot",
+    (
+        _lot_vide,
+        _lot_avec_resolution_sous_seuil,
+        _lot_avec_eclairage_sous_seuil,
+    ),
+    ids=("liste-vide", "resolution-sous-seuil", "eclairage-sous-seuil"),
+)
+def test_blocages_causes_isolees(fabriquer_lot):
+    """Chaque cause de blocage, ISOLÉE, disqualifie le lot et bloque le prix.
+
+    L'entrée est bien formée mais insuffisante : ce n'est PAS un rejet, le
+    retour est une qualification dont le verdict d'estimation vaut
+    ``QUALITE_ENTREE_INSUFFISANTE``.
+    """
+    qualification, verdict = qualite_photos.qualifier_photos(
+        fabriquer_lot(), _seuils_valides()
+    )
+    assert verdict is None
+    assert qualification is not None
+    assert qualification["photos_acceptables"] is False
+    assert qualification["verdict_estimation"] == "QUALITE_ENTREE_INSUFFISANTE"
+    assert qualification["prix_bloque"] is True
+    assert qualification["elements_manquants"] != []
+    assert all(
+        isinstance(element, str)
+        for element in qualification["elements_manquants"]
+    )
+
+
+# ---------------------------------------------------------------------------
+# 3. La dimension plate — ambiguïté tranchée, choix fail-closed.
+# ---------------------------------------------------------------------------
+
+
+def test_photo_plate_largeur_ne_compense_pas_hauteur():
+    """Choix fail-closed retenu : une photo très large mais très plate est FAIBLE.
+
+    Le seuil est au singulier, la photo déclare deux dimensions : c'est
+    ``min(largeur, hauteur) >= resolution_minimale`` qui décide. Une très
+    grande largeur ne compense JAMAIS une hauteur sous le seuil.
+    """
+    lot = _lot_valide()
+    lot[0]["resolution_largeur"] = 8000
+    lot[0]["resolution_hauteur"] = 200
+    qualification, verdict = qualite_photos.qualifier_photos(
+        lot, _seuils_valides()
+    )
+    assert verdict is None
+    assert qualification is not None
+    assert qualification["photos_acceptables"] is False
+    assert qualification["verdict_estimation"] == "QUALITE_ENTREE_INSUFFISANTE"
+    assert qualification["prix_bloque"] is True
+    assert qualification["elements_manquants"] != []
+
+
+# ---------------------------------------------------------------------------
+# 4. Les bornes — tests distincts, bornes INCLUSIVES.
+# ---------------------------------------------------------------------------
+
+
+def test_borne_resolution_exactement_au_seuil_acceptable():
+    """Résolution EXACTEMENT au seuil : la photo reste ACCEPTABLE.
+
+    La comparaison est ``>=`` et non ``>`` : seule l'égalité démasque une
+    implémentation qui utiliserait une borne stricte.
+    """
+    seuils = _seuils_valides()
+    lot = _lot_valide()
+    lot[0]["resolution_largeur"] = seuils["resolution_minimale"]
+    lot[0]["resolution_hauteur"] = seuils["resolution_minimale"]
+    qualification, verdict = qualite_photos.qualifier_photos(lot, seuils)
+    assert verdict is None
+    assert qualification is not None
+    assert qualification["photos_acceptables"] is True
+    assert qualification["prix_bloque"] is False
+    assert qualification["elements_manquants"] == []
+
+
+def test_borne_resolution_un_pixel_sous_seuil_faible():
+    """Un pixel EN DESSOUS du seuil de résolution : la photo devient FAIBLE."""
+    seuils = _seuils_valides()
+    lot = _lot_valide()
+    lot[0]["resolution_largeur"] = seuils["resolution_minimale"] - 1
+    lot[0]["resolution_hauteur"] = seuils["resolution_minimale"] - 1
+    qualification, verdict = qualite_photos.qualifier_photos(lot, seuils)
+    assert verdict is None
+    assert qualification is not None
+    assert qualification["photos_acceptables"] is False
+    assert qualification["verdict_estimation"] == "QUALITE_ENTREE_INSUFFISANTE"
+    assert qualification["prix_bloque"] is True
+    assert qualification["elements_manquants"] != []
+
+
+def test_borne_eclairage_exactement_au_seuil_acceptable():
+    """Éclairage EXACTEMENT au seuil : la photo reste ACCEPTABLE (borne inclusive)."""
+    seuils = _seuils_valides()
+    lot = _lot_valide()
+    lot[0]["eclairage"] = seuils["eclairage_minimal"]
+    qualification, verdict = qualite_photos.qualifier_photos(lot, seuils)
+    assert verdict is None
+    assert qualification is not None
+    assert qualification["photos_acceptables"] is True
+    assert qualification["prix_bloque"] is False
+    assert qualification["elements_manquants"] == []
+
+
+def test_borne_eclairage_sous_seuil_faible():
+    """Éclairage EN DESSOUS du seuil : la photo devient FAIBLE."""
+    seuils = _seuils_valides()
+    lot = _lot_valide()
+    lot[0]["eclairage"] = seuils["eclairage_minimal"] - 0.1
+    qualification, verdict = qualite_photos.qualifier_photos(lot, seuils)
+    assert verdict is None
+    assert qualification is not None
+    assert qualification["photos_acceptables"] is False
+    assert qualification["verdict_estimation"] == "QUALITE_ENTREE_INSUFFISANTE"
+    assert qualification["prix_bloque"] is True
+    assert qualification["elements_manquants"] != []
+
+
+# ---------------------------------------------------------------------------
+# 5. Contrat de seuils fail-closed — liste FERMÉE, aucune valeur par défaut.
+# ---------------------------------------------------------------------------
+
+
+def _seuils_none():
+    """Seuils absents : ``None`` au lieu du dictionnaire."""
+    return None
+
+
+def _seuils_dict_vide():
+    """Seuils vides : aucune des deux clés requises."""
+    return {}
+
+
+def _seuils_sans_eclairage():
+    """Seuils incomplets : seule ``resolution_minimale`` est présente."""
+    return {"resolution_minimale": 800}
+
+
+def _seuils_sans_resolution():
+    """Seuils incomplets : seule ``eclairage_minimal`` est présente."""
+    return {"eclairage_minimal": 4.0}
+
+
+def _seuils_avec_cle_inconnue():
+    """Seuils portant une clé INCONNUE en plus des deux clés du contrat."""
+    seuils = _seuils_valides()
+    seuils["seuil_inconnu"] = 1
+    return seuils
+
+
+def _seuils_resolution_en_chaine():
+    """Seuils dont ``resolution_minimale`` est une chaîne et non un entier."""
+    return {"resolution_minimale": "800", "eclairage_minimal": 4.0}
+
+
+def _seuils_eclairage_en_chaine():
+    """Seuils dont ``eclairage_minimal`` est une chaîne et non un flottant."""
+    return {"resolution_minimale": 800, "eclairage_minimal": "4.0"}
+
+
+@pytest.mark.parametrize(
+    "fabriquer_seuils",
+    (
+        _seuils_none,
+        _seuils_dict_vide,
+        _seuils_sans_eclairage,
+        _seuils_sans_resolution,
+        _seuils_avec_cle_inconnue,
+        _seuils_resolution_en_chaine,
+        _seuils_eclairage_en_chaine,
+    ),
+    ids=(
+        "none",
+        "dict-vide",
+        "sans-eclairage",
+        "sans-resolution",
+        "cle-inconnue",
+        "resolution-en-chaine",
+        "eclairage-en-chaine",
+    ),
+)
+def test_seuils_invalides_rejetes(fabriquer_seuils):
+    """Toute déviation du contrat de seuils est rejetée ``REJ-SEUILS-INVALIDES``.
+
+    Le retour est ``(None, verdict)`` : jamais de valeur par défaut, jamais
+    de clé tolérée en plus ou en moins, jamais de type converti en silence.
+    """
+    qualification, verdict = qualite_photos.qualifier_photos(
+        _lot_valide(), fabriquer_seuils()
+    )
+    assert qualification is None
+    _assert_verdict_rejet(verdict, "REJ-SEUILS-INVALIDES")
+
+
+# ---------------------------------------------------------------------------
+# 6. Photos malformées — rejet ``REJ-PHOTOS-INVALIDES``.
+# ---------------------------------------------------------------------------
+
+
+def _lot_photo_non_dict():
+    """Lot dont la « photo » n'est pas un dictionnaire."""
+    return ["ceci-n-est-pas-une-photo"]
+
+
+def _lot_photo_cle_manquante():
+    """Lot dont la photo a perdu une clé requise (``angle``)."""
+    photo = _photo_valide()
+    del photo["angle"]
+    return [photo]
+
+
+def _lot_photo_cle_inconnue():
+    """Lot dont la photo porte une clé inconnue en plus des six du contrat."""
+    photo = _photo_valide()
+    photo["cle_inconnue"] = "valeur"
+    return [photo]
+
+
+def _lot_photo_largeur_zero():
+    """Lot dont la photo a une ``resolution_largeur`` à zéro."""
+    photo = _photo_valide()
+    photo["resolution_largeur"] = 0
+    return [photo]
+
+
+def _lot_photo_largeur_negative():
+    """Lot dont la photo a une ``resolution_largeur`` négative."""
+    photo = _photo_valide()
+    photo["resolution_largeur"] = -100
+    return [photo]
+
+
+def _lot_photo_eclairage_hors_echelle():
+    """Lot dont la photo a un ``eclairage`` à 11, hors de l'échelle 0-10."""
+    photo = _photo_valide()
+    photo["eclairage"] = 11.0
+    return [photo]
+
+
+@pytest.mark.parametrize(
+    "fabriquer_lot",
+    (
+        _lot_photo_non_dict,
+        _lot_photo_cle_manquante,
+        _lot_photo_cle_inconnue,
+        _lot_photo_largeur_zero,
+        _lot_photo_largeur_negative,
+        _lot_photo_eclairage_hors_echelle,
+    ),
+    ids=(
+        "photo-non-dict",
+        "cle-manquante",
+        "cle-inconnue",
+        "largeur-zero",
+        "largeur-negative",
+        "eclairage-hors-echelle",
+    ),
+)
+def test_photos_malformees_rejetees(fabriquer_lot):
+    """Toute photo malformée est rejetée : ``(None, verdict)`` ``REJ-PHOTOS-INVALIDES``."""
+    qualification, verdict = qualite_photos.qualifier_photos(
+        fabriquer_lot(), _seuils_valides()
+    )
+    assert qualification is None
+    _assert_verdict_rejet(verdict, "REJ-PHOTOS-INVALIDES")
+
+
+# ---------------------------------------------------------------------------
+# 7. Le catalogue reste fermé.
+# ---------------------------------------------------------------------------
+
+
+def test_catalogue_ferme_contient_les_codes_de_rejet():
+    """Les deux codes de rejet exercés ici appartiennent à ``CODES_M3_LIST``."""
+    assert "REJ-SEUILS-INVALIDES" in verdicts.CODES_M3_LIST
+    assert "REJ-PHOTOS-INVALIDES" in verdicts.CODES_M3_LIST
+
+
+@pytest.mark.parametrize(
+    "cle_seuil",
+    ("resolution_minimale", "eclairage_minimal"),
+    ids=("resolution-booleenne", "eclairage-booleen"),
+)
+def test_un_booleen_comme_seuil_est_refuse(cle_seuil):
+    """bool est sous-classe de int en Python. Sans ce test, remplacer le typage strict par isinstance passerait inaperçu et un booléen deviendrait un seuil valide."""
+    seuils = _seuils_valides()
+    seuils[cle_seuil] = True
+    qualification, verdict = qualite_photos.qualifier_photos(_lot_valide(), seuils)
+    assert qualification is None
+    _assert_verdict_rejet(verdict, "REJ-SEUILS-INVALIDES")
+
+
 def _cles_du_bloc_yaml(motif_titre, niveaux_titre_suivant):
     """UNIQUE extracteur des clés d'un bloc yaml de l'architecture, partagé
     par tous les tests de non-dérive du fichier : deux extracteurs d'une même
@@ -186,13 +482,6 @@ def _cles_du_bloc_yaml(motif_titre, niveaux_titre_suivant):
     )
     return cles
 
-
-# Les deux motifs de titre DIFFÈRENT volontairement : ce n'est pas une
-# incohérence mais le reflet des documents — mesuré, le titre SeuilsQualite
-# est un titre de niveau 3 qui PORTE un numéro (« ### 2.4 Contrat d'entrée
-# gelé — SeuilsQualite ») alors que le titre PhotosFournies est un titre de
-# niveau 4 SANS numéro (« #### `PhotosFournies` — entrée SÉPARÉE »). Sans
-# cette note, un relecteur verrait un défaut dans cette différence.
 @pytest.mark.parametrize(
     "libelle, motif_titre, niveaux_titre_suivant, constante_attendue",
     [
