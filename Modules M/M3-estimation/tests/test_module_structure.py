@@ -37,19 +37,49 @@ def test_le_gate_de_coherence_bmad_est_execute_et_vert():
     assert "TOUT VERT" in resultat.stdout
 
 
-def test_aucun_paquet_source_avant_la_premiere_story():
-    """M3 est déclaré CADRE au registre : cadré et gardé, mais sans code encore.
+def test_le_paquet_source_porte_l_identite_de_paquet():
+    """Garde l'identité de paquet de M3, désormais que du code source existe.
 
-    Ce test a lui-même RÉVÉLÉ le statut manquant. La gate statut_lint (#152)
-    exigeait qu'un STUB ne porte ni module source ni test — or ce fichier EST un
-    test, et le brancher avant la première story est la pratique prouvée (leçon
-    M1 puis M4). Le seul choix était de mentir en STUB ou de relâcher la règle :
-    un statut manquant force le mensonge. D'où CADRE, qui exige exactement cet
-    état — zéro module source ET au moins un fichier de test.
+    La sentinelle précédente (test_aucun_paquet_source_avant_la_premiere_story)
+    gardait l'absence de code tant que le module était CADRE ; elle a rempli son
+    office quand la story M3-S001 a livré le paquet source et fait passer le
+    registre à PARTIAL. La garde change d'objet, elle ne disparaît pas : ce qui
+    doit tenir maintenant, c'est l'identité de paquet (décision #109). Le nom
+    ``m3_estimation`` est UNIQUE au dépôt, et c'est cette identité qui empêche
+    ``sys.modules`` de confondre deux modules exposant des fichiers de même nom
+    — ``contrats``, ``verdicts`` et ``validation`` existent dans des modules
+    voisins.
 
-    Ce test sera retiré par la première story qui livrera du code, en même temps
-    que le passage du registre à PARTIAL.
+    Ce test vérifie donc que : (1) le paquet ``src/m3_estimation`` existe et
+    porte un ``__init__.py`` ; (2) ce ``__init__.py`` documente la décision
+    #109 et nomme l'« identité » qu'il garantit ; (3) AUCUN fichier ``.py`` ne
+    se trouve directement sous ``src/`` — tout module Python doit vivre DANS le
+    paquet, sinon l'identité est contournée.
     """
+    paquet = _MODULE / "src" / "m3_estimation"
+    init = paquet / "__init__.py"
+
+    assert paquet.is_dir(), (
+        "le paquet src/m3_estimation doit exister : la story S001 a livré du code"
+    )
+    assert init.is_file(), (
+        "src/m3_estimation/__init__.py manquant : "
+        "l'identité de paquet (#109) n'est pas portée"
+    )
+
+    contenu = init.read_text(encoding="utf-8")
+    assert "#109" in contenu, (
+        "le __init__.py doit mentionner la décision #109 "
+        "(identité de paquet unique au dépôt)"
+    )
+    assert "identité" in contenu, (
+        "le __init__.py doit nommer l'« identité » de paquet qu'il garantit"
+    )
+
     src = _MODULE / "src"
-    modules = [p for p in src.rglob("*.py") if p.name != "__init__.py"] if src.exists() else []
-    assert modules == [], f"du code source existe : le registre doit passer à PARTIAL ({modules})"
+    hors_paquet = list(src.glob("*.py"))
+    assert hors_paquet == [], (
+        "aucun fichier .py ne doit se trouver directement sous src/ : tout "
+        "module doit vivre DANS le paquet m3_estimation, sinon l'identité de "
+        f"paquet est contournée ({hors_paquet})"
+    )

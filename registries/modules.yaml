@@ -4,7 +4,7 @@ modules:
   - name: M2-revenue-crm
     statut: PARTIAL
   - name: M3-estimation
-    statut: CADRE
+    statut: PARTIAL
   - name: M4-field-ops
     statut: PARTIAL
   - name: M5-financecore
