@@ -22,6 +22,7 @@ l'implémentation devra tenir :
   éléments manquants non vides).
 """
 
+import re
 import sys
 from pathlib import Path
 
@@ -415,3 +416,140 @@ def test_catalogue_ferme_contient_les_codes_de_rejet():
     """Les deux codes de rejet exercés ici appartiennent à ``CODES_M3_LIST``."""
     assert "REJ-SEUILS-INVALIDES" in verdicts.CODES_M3_LIST
     assert "REJ-PHOTOS-INVALIDES" in verdicts.CODES_M3_LIST
+
+
+@pytest.mark.parametrize(
+    "cle_seuil",
+    ("resolution_minimale", "eclairage_minimal"),
+    ids=("resolution-booleenne", "eclairage-booleen"),
+)
+def test_un_booleen_comme_seuil_est_refuse(cle_seuil):
+    """bool est sous-classe de int en Python. Sans ce test, remplacer le typage strict par isinstance passerait inaperçu et un booléen deviendrait un seuil valide."""
+    seuils = _seuils_valides()
+    seuils[cle_seuil] = True
+    qualification, verdict = qualite_photos.qualifier_photos(_lot_valide(), seuils)
+    assert qualification is None
+    _assert_verdict_rejet(verdict, "REJ-SEUILS-INVALIDES")
+
+
+
+
+def test_champs_seuils_qualite_alignes_sur_architecture():
+    """``CHAMPS_SEUILS_QUALITE`` se dérive du CADRAGE, jamais des fixtures.
+
+    Les fixtures de test décrivent le même monde que le code : sans ce test,
+    une divergence entre la constante et l'architecture resterait invisible.
+    La section est localisée par son NOM — un titre de niveau 3 contenant
+    « SeuilsQualite », avec un numéro quelconque — et non par son numéro :
+    une renumérotation a déjà cassé un test ancré sur un numéro. Extracteur
+    fail-closed : s'il n'extrait aucune clé, le test échoue au lieu de
+    passer en silence.
+    """
+    chemin_architecture = (
+        Path(__file__).resolve().parents[1]
+        / "docs"
+        / "bmad"
+        / "03-ARCHITECTURE.md"
+    )
+    texte = chemin_architecture.read_text(encoding="utf-8")
+
+    motif_titre = re.compile(
+        r"^###\s+\d+(?:\.\d+)*[^\n]*SeuilsQualite[^\n]*$",
+        re.MULTILINE,
+    )
+    titres = list(motif_titre.finditer(texte))
+    assert len(titres) == 1, (
+        "la section « SeuilsQualite » doit apparaître EXACTEMENT une fois, "
+        f"trouvée {len(titres)} fois"
+    )
+
+    debut_section = titres[0].end()
+    titre_suivant = re.compile(r"^#{1,3}\s", re.MULTILINE).search(
+        texte, debut_section
+    )
+    fin_section = titre_suivant.start() if titre_suivant else len(texte)
+    section = texte[debut_section:fin_section]
+
+    bloc = re.search(
+        r"```(?:yaml|yml)?[^\S\n]*\n(.*?)```", section, re.DOTALL
+    )
+    contenu = bloc.group(1) if bloc else ""
+
+    cles_extraites = set()
+    for ligne in contenu.splitlines():
+        if ligne.lstrip().startswith("#"):
+            continue
+        correspondance = re.match(r"^\s*([a-z_][a-z0-9_]*)\s*:", ligne)
+        if correspondance:
+            cles_extraites.add(correspondance.group(1))
+
+    assert cles_extraites, (
+        "extracteur vide : aucune clé extraite du bloc yaml de la section "
+        "« SeuilsQualite »"
+    )
+    assert cles_extraites == set(contrats.CHAMPS_SEUILS_QUALITE), (
+        f"clés extraites de l'architecture {sorted(cles_extraites)} != "
+        f"CHAMPS_SEUILS_QUALITE {sorted(contrats.CHAMPS_SEUILS_QUALITE)}"
+    )
+
+
+def test_champs_photo_alignes_sur_architecture():
+    """``CHAMPS_PHOTO`` se dérive du CADRAGE, jamais des fixtures.
+
+    Les fixtures de test décrivent le même monde que le code : sans ce test,
+    une divergence entre la constante et l'architecture resterait invisible.
+    La section est localisée par son NOM — un titre de niveau 4 contenant
+    « PhotosFournies » — ce titre ne porte AUCUN numéro, mesuré :
+    une renumérotation a déjà cassé un test ancré sur un numéro. Le bloc
+    yaml est une LISTE : la première clé est précédée d'un tiret et
+    d'espaces, elle est retenue comme les autres. Extracteur fail-closed :
+    s'il n'extrait aucune clé, le test échoue au lieu de passer en silence.
+    """
+    chemin_architecture = (
+        Path(__file__).resolve().parents[1]
+        / "docs"
+        / "bmad"
+        / "03-ARCHITECTURE.md"
+    )
+    texte = chemin_architecture.read_text(encoding="utf-8")
+
+    motif_titre = re.compile(
+        r"^####\s[^\n]*PhotosFournies[^\n]*$",
+        re.MULTILINE,
+    )
+    titres = list(motif_titre.finditer(texte))
+    assert len(titres) == 1, (
+        "la section « PhotosFournies » doit apparaître EXACTEMENT une fois, "
+        f"trouvée {len(titres)} fois"
+    )
+
+    debut_section = titres[0].end()
+    titre_suivant = re.compile(r"^#{1,4}\s", re.MULTILINE).search(
+        texte, debut_section
+    )
+    fin_section = titre_suivant.start() if titre_suivant else len(texte)
+    section = texte[debut_section:fin_section]
+
+    bloc = re.search(
+        r"```(?:yaml|yml)?[^\S\n]*\n(.*?)```", section, re.DOTALL
+    )
+    contenu = bloc.group(1) if bloc else ""
+
+    cles_extraites = set()
+    for ligne in contenu.splitlines():
+        if ligne.lstrip().startswith("#"):
+            continue
+        correspondance = re.match(
+            r"^\s*(?:-\s+)?([a-z_][a-z0-9_]*)\s*:", ligne
+        )
+        if correspondance:
+            cles_extraites.add(correspondance.group(1))
+
+    assert cles_extraites, (
+        "extracteur vide : aucune clé extraite du bloc yaml de la section "
+        "« PhotosFournies »"
+    )
+    assert cles_extraites == set(contrats.CHAMPS_PHOTO), (
+        f"clés extraites de l'architecture {sorted(cles_extraites)} != "
+        f"CHAMPS_PHOTO {sorted(contrats.CHAMPS_PHOTO)}"
+    )
