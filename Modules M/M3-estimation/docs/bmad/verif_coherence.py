@@ -980,6 +980,14 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
     jamais un engagement — elle ne doit ni ouvrir une confrontation à la
     passe 1 ni tenir lieu de déclaration à la passe 2.
 
+    Le découpage du scanner en lignes porte sur « \\n » seul, pour partager la
+    notion de ligne des expressions régulières ; les cinq appels à
+    .splitlines() restants ne portent que sur le contenu d'artefacts déjà
+    délimités par des « \\n » — un artefact à séparateurs « \\r » n'est jamais
+    extrait, le contrôle échouant alors en amont, fail-closed, sur « aucun
+    artefact » (mesuré) — et leur sémantique plus large est donc sans effet
+    atteignable.
+
     LIMITE EXACTE : une copie qui a été MODIFIÉE et n'a jamais été déclarée
     reste indétectable — n'étant plus identique à sa source, rien ne la
     distingue d'un artefact indépendant. La passe 1 ne suit que les copies
@@ -997,6 +1005,12 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
 
     def blocs_clotures(texte: str) -> List[Tuple[int, int, int, int]]:
         """Balaye `texte` LIGNE PAR LIGNE et retourne ses blocs de code clôturés.
+
+        Le découpage en lignes se fait sur « \\n » SEUL, DÉLIBÉRÉMENT, pour
+        partager la notion de ligne de re.MULTILINE, dont dépendent les
+        recherches de titres : splitlines couperait aussi sur « \\r » seul,
+        « \\v » et « \\f », et ferait diverger le scanner des expressions
+        régulières.
 
         Chaque bloc est décrit par (debut, fin, debut_contenu, fin_contenu), en
         offsets absolus dans `texte` : debut et fin bornent le bloc CLÔTURES
@@ -1019,7 +1033,13 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
         debut = 0
         debut_contenu = 0
         longueur_ouvrante = 0
-        for ligne in texte.splitlines(keepends=True):
+        # Découpage sur « \n » SEUL, le séparateur étant réattaché à chaque
+        # segment sauf, éventuellement, le dernier : splitlines(keepends=True)
+        # couperait aussi sur « \r » seul, « \v » et « \f », et le scanner
+        # n'aurait plus la notion de ligne de re.MULTILINE.
+        segments = texte.split("\n")
+        lignes = [segment + "\n" for segment in segments[:-1]] + segments[-1:]
+        for ligne in lignes:
             fin_ligne = pos + len(ligne)
             if ligne.endswith("\r\n"):
                 corps = ligne[:-2]
@@ -1058,9 +1078,9 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
         Tout caractère d'un bloc autre que « \\n » est remplacé par exactement UN
         espace — y compris pour un bloc jamais fermé, que `blocs_clotures`
         étend jusqu'à la fin du texte et qui est donc masqué jusque-là. La
-        longueur totale et la position des sauts de ligne sont strictement
-        préservées, car les offsets mesurés sur cette vue doivent trancher le
-        texte d'origine.
+        longueur totale et la position des sauts de ligne « \\n » — le seul
+        séparateur reconnu par ce module — sont strictement préservées, car les
+        offsets mesurés sur cette vue doivent trancher le texte d'origine.
         """
         caracteres = list(texte)
         for debut, fin, _, _ in blocs_clotures(texte):
