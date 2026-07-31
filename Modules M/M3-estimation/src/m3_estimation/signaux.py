@@ -40,12 +40,12 @@ def construire_signal_relance(lead_id, devis_id, elements_manquants):
       3. toute faute donne ``REJ-SIGNAL-INVALIDE``, le détail nommant le
          champ fautif.
     """
-    if not isinstance(lead_id, str) or not lead_id:
+    if not isinstance(lead_id, str) or not lead_id.strip():
         return None, verdicts.construire_verdict(
             "REJ-SIGNAL-INVALIDE",
             detail="lead_id doit être une chaîne non vide",
         )
-    if not isinstance(devis_id, str) or not devis_id:
+    if not isinstance(devis_id, str) or not devis_id.strip():
         return None, verdicts.construire_verdict(
             "REJ-SIGNAL-INVALIDE",
             detail="devis_id doit être une chaîne non vide",
@@ -57,7 +57,7 @@ def construire_signal_relance(lead_id, devis_id, elements_manquants):
             detail="elements_manquants doit être une liste non vide",
         )
     for element in elements_manquants:
-        if not isinstance(element, str) or not element:
+        if not isinstance(element, str) or not element.strip():
             return None, verdicts.construire_verdict(
                 "REJ-SIGNAL-INVALIDE",
                 detail="elements_manquants ne contient que des chaînes non vides",

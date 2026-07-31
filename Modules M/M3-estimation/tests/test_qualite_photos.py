@@ -597,10 +597,16 @@ def test_gardes_isolees_une_par_une(cas):
     ids=("photo-ensemble", "reference-ensemble"),
 )
 def test_un_ensemble_ne_plante_pas_il_est_refuse(fabriquer_lot):
-    """Ces deux gardes paraissent redondantes avec le contrôle des clés, mais elles ne le sont pas ; un ``set`` portant exactement les bons noms franchit le contrôle des clés puis fait lever ``TypeError`` à l'accès indexé ; ce que ces gardes garantissent n'est pas une détection supplémentaire mais un refus NOMMÉ au lieu d'un plantage — mesuré."""
-    qualification, verdict = qualite_photos.qualifier_photos(
-        fabriquer_lot(), _seuils_valides()
-    )
+    """Ces deux gardes paraissent redondantes avec le contrôle des clés, mais elles ne le sont pas ; un ``set`` portant exactement les bons noms franchit le contrôle des clés puis fait lever ``TypeError`` à l'accès indexé ; ce que ces gardes garantissent n'est pas une détection supplémentaire mais un refus NOMMÉ au lieu d'un plantage — mesuré. Sans cette enveloppe, l'échec du test EST le plantage qu'il interdit, et la promesse de son nom n'est jamais vérifiée."""
+    try:
+        qualification, verdict = qualite_photos.qualifier_photos(
+            fabriquer_lot(), _seuils_valides()
+        )
+    except Exception as erreur:
+        pytest.fail(
+            f"Une exception de type {type(erreur).__name__} s'est échappée ; "
+            "la garde promet un refus nommé au lieu d'un plantage."
+        )
     assert qualification is None
     _assert_verdict_rejet(verdict, "REJ-PHOTOS-INVALIDES")
 
@@ -636,3 +642,176 @@ def test_une_chaine_de_blancs_est_refusee(champ):
     assert qualification is None
     assert verdict is not None
     assert verdict["code"] == "REJ-PHOTOS-INVALIDES"
+
+
+@pytest.mark.parametrize(
+    "seuils, photos",
+    [
+        # Garde L39 — isinstance(seuils, dict) : une liste qui porte les
+        # deux noms de clés attendus, de sorte que sans la garde le contrôle
+        # des clés passerait et que l'indexation lèverait TypeError.
+        (
+            ["resolution_minimale", "eclairage_minimal"],
+            [
+                {
+                    "photo_id": "ph-ok",
+                    "resolution_largeur": 1280,
+                    "resolution_hauteur": 960,
+                    "eclairage": 7,
+                    "angle": "face",
+                    "reference_echelle": None,
+                }
+            ],
+        ),
+        # Garde L44 — clés exactes des seuils : le contrat est amputé de
+        # la clé ``eclairage_minimal``.
+        (
+            {"resolution_minimale": 800},
+            [
+                {
+                    "photo_id": "ph-ok",
+                    "resolution_largeur": 1280,
+                    "resolution_hauteur": 960,
+                    "eclairage": 7,
+                    "angle": "face",
+                    "reference_echelle": None,
+                }
+            ],
+        ),
+        # Garde L53 — type de resolution_minimale : un booléen, sous-classe
+        # de int que seul le contrôle ``type(...) is int`` refuse.
+        (
+            {"resolution_minimale": True, "eclairage_minimal": 5},
+            [
+                {
+                    "photo_id": "ph-ok",
+                    "resolution_largeur": 1280,
+                    "resolution_hauteur": 960,
+                    "eclairage": 7,
+                    "angle": "face",
+                    "reference_echelle": None,
+                }
+            ],
+        ),
+        # Garde L58 — type de eclairage_minimal : une chaîne au lieu d'un
+        # nombre.
+        (
+            {"resolution_minimale": 800, "eclairage_minimal": "5"},
+            [
+                {
+                    "photo_id": "ph-ok",
+                    "resolution_largeur": 1280,
+                    "resolution_hauteur": 960,
+                    "eclairage": 7,
+                    "angle": "face",
+                    "reference_echelle": None,
+                }
+            ],
+        ),
+        # Garde L73 — isinstance(photo, dict) : un entier, non itérable et
+        # non indicible, à la place de la photo.
+        (
+            {"resolution_minimale": 800, "eclairage_minimal": 5},
+            [42],
+        ),
+        # Garde L78 — clés exactes de la photo : une clé inconnue en plus
+        # des six clés du contrat ``PhotosFournies``.
+        (
+            {"resolution_minimale": 800, "eclairage_minimal": 5},
+            [
+                {
+                    "photo_id": "ph-ok",
+                    "resolution_largeur": 1280,
+                    "resolution_hauteur": 960,
+                    "eclairage": 7,
+                    "angle": "face",
+                    "reference_echelle": None,
+                    "cle_inconnue": "surprise",
+                }
+            ],
+        ),
+        # Garde L102 — forme de reference_echelle : une chaîne au lieu d'un
+        # dictionnaire (ou de None).
+        (
+            {"resolution_minimale": 800, "eclairage_minimal": 5},
+            [
+                {
+                    "photo_id": "ph-ok",
+                    "resolution_largeur": 1280,
+                    "resolution_hauteur": 960,
+                    "eclairage": 7,
+                    "angle": "face",
+                    "reference_echelle": "un-metre-etalon",
+                }
+            ],
+        ),
+        # Garde L126 — propagation du rejet des seuils : seuils invalides
+        # avec des photos valides ; sans le retour anticipé, la phase de
+        # qualification indexerait une chaîne et lèverait TypeError.
+        (
+            "pas-un-dict",
+            [
+                {
+                    "photo_id": "ph-ok",
+                    "resolution_largeur": 1280,
+                    "resolution_hauteur": 960,
+                    "eclairage": 7,
+                    "angle": "face",
+                    "reference_echelle": None,
+                }
+            ],
+        ),
+        # Garde L136 — propagation du rejet d'une photo : la première photo
+        # est invalide, la seconde valide ; sans le retour anticipé, la
+        # phase de qualification indexerait un entier et lèverait TypeError.
+        (
+            {"resolution_minimale": 800, "eclairage_minimal": 5},
+            [
+                42,
+                {
+                    "photo_id": "ph-ok",
+                    "resolution_largeur": 1280,
+                    "resolution_hauteur": 960,
+                    "eclairage": 7,
+                    "angle": "face",
+                    "reference_echelle": None,
+                },
+            ],
+        ),
+    ],
+    ids=[
+        "seuils-pas-un-dict",
+        "seuils-cle-amputee",
+        "seuils-resolution-minimale-booleenne",
+        "seuils-eclairage-minimal-chaine",
+        "photo-pas-un-dict",
+        "photo-cle-inconnue",
+        "reference-echelle-pas-un-dict",
+        "propagation-rejet-seuils",
+        "propagation-rejet-photo",
+    ],
+)
+def test_aucune_entree_hostile_ne_fait_echapper_une_exception(seuils, photos, request):
+    """L'architecture exige qu'une entrée hostile produise un verdict de
+    rejet dédié plutôt qu'un plantage. Sans ce test, cette propriété n'est
+    jamais assertée : neuf gardes de ``qualite_photos.py`` ne sont tenues,
+    si elles disparaissent, que par l'exception (TypeError, KeyError)
+    qu'elles étaient censées empêcher — la suite détecterait leur
+    disparition par un plantage, non par une assertion de refus. Chaque cas
+    paramétré vise l'une de ces neuf gardes. En cas d'échec, le test échoue
+    par un message nommé qui porte le type de l'exception et le cas, jamais
+    par une trace brute.
+    """
+    cas = request.node.callspec.id
+    try:
+        resultat = qualite_photos.qualifier_photos(photos, seuils)
+    except Exception as erreur:
+        pytest.fail(
+            f"{type(erreur).__name__} s'est échappée de qualifier_photos "
+            f"sur le cas {cas} : {erreur} — l'architecture exige un verdict "
+            "de rejet dédié, jamais un plantage"
+        )
+    assert resultat[0] is None
+    verdict = resultat[1]
+    assert isinstance(verdict, dict)
+    assert verdict["code"] in verdicts.CODES_M3_LIST

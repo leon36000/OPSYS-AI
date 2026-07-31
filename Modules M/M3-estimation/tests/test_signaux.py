@@ -199,3 +199,36 @@ def test_contrat_aligne_sur_architecture():
 
     assert len(signaux.CHAMPS_SIGNAL) == 5
     assert cles_extraites == set(signaux.CHAMPS_SIGNAL)
+
+
+@pytest.mark.parametrize(
+    "champ_fautif,valeur_fautive",
+    [
+        ("lead_id", "   "),
+        ("devis_id", "   "),
+        ("elements_manquants", ["photos_face_nord", "   "]),
+    ],
+    ids=[
+        "lead_id_blancs",
+        "devis_id_blancs",
+        "element_blancs",
+    ],
+)
+def test_une_chaine_de_blancs_est_refusee(champ_fautif, valeur_fautive):
+    """``not chaine`` est faux pour une chaîne d'espaces ; sans ce test la
+    garde pourrait perdre son ``.strip()`` et laisser passer des identifiants
+    vides en apparence.
+    """
+    arguments = {
+        "lead_id": "L1",
+        "devis_id": "D1",
+        "elements_manquants": _elements_manquants_valides(),
+    }
+    arguments[champ_fautif] = valeur_fautive
+
+    signal, verdict = signaux.construire_signal_relance(**arguments)
+
+    assert signal is None
+    assert verdict is not None
+    assert verdict["code"] == "REJ-SIGNAL-INVALIDE"
+    assert verdicts.est_verdict(verdict["code"])

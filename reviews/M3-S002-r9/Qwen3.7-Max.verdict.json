@@ -1,0 +1,14 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/signaux.py",
+   "description": "Défaut de COMPORTEMENT de la même classe que la mineure 1 de la ronde 8, mais non corrigé dans le nouveau module `signaux.py` introduit par ce diff. Les gardes `not lead_id`, `not devis_id` et `not element` laissent passer des chaînes composées uniquement d'espaces (ex: `'   '`), car `not '   '` est faux en Python. Il manque `.strip()` pour être cohérent avec la correction apportée dans `qualite_photos.py`.",
+   "preuve": "Lignes 43, 49 et 60 de signaux.py : `if not isinstance(lead_id, str) or not lead_id:` (et idem pour `devis_id` et `element`). Aucun test dans `test_signaux.py` ne vérifie le rejet de `'   '`."
+  }
+ ],
+ "date_heure": "2026-07-31T14:21:45.442944+00:00",
+ "prompt_sha256": "af08873ec69ab56e91877a1cb5234c2f98eff7f1e60831ac6eb6c121cd56646f",
+ "reviewer_model": "Qwen3.7-Max"
+}
