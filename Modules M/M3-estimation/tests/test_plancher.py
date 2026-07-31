@@ -635,3 +635,89 @@ def test_une_borne_nulle_est_diagnostiquee_comme_un_blocage_amont():
     assert constat_corrompu is None
     assert verdict_corrompu["code"] in verdicts.CODES_M3_LIST
     assert verdict_nul["detail"] != verdict_corrompu["detail"]
+
+
+def test_aucun_verdict_n_est_recopie_en_litteral_dans_le_paquet():
+    """Garde anti-recopie : un verdict se désigne par sa CONSTANTE de
+    ``contrats``, jamais par un littéral recopié dans un module.
+
+    La garde d'appartenance à ``contrats.VERDICTS_ESTIMATION`` détecte la
+    dérive APRÈS coup ; cette garde-ci empêche la recopie TOUT COURT : hors
+    ``contrats.py``, aucune chaîne littérale du paquet source ne peut être
+    égale à l'un des six verdicts. La règle énoncée est « un verdict se
+    désigne par sa constante » — et non « évitez de recopier tel ou tel
+    littéral » — pour qu'aucune exemption ne s'y glisse. Empêcherait de
+    casser : la réintroduction d'un littéral ``"INDETERMINE"`` ou
+    ``"AUCUN_BLOCAGE"`` dans un module — une faute de frappe dedans ne se
+    verrait qu'à l'exécution du chemin concerné, et la garde d'appartenance
+    ne la verrait que si ce chemin est effectivement testé. L'analyse est
+    faite par ``ast.walk`` sur ``ast.Constant`` — JAMAIS par recherche de
+    texte : un verdict cité dans un commentaire ou une docstring n'est pas
+    une recopie ; les docstrings (module, classe, fonction) sont exclues
+    explicitement, sinon le test interdirait de DOCUMENTER les verdicts,
+    ce qui est absurde. Si le parcours ne trouve AUCUN fichier à analyser,
+    le test ÉCHOUE : un extracteur vide n'est pas probant. Le message
+    d'échec nomme le FICHIER, la LIGNE et la VALEUR recopiée, sinon la
+    correction se chercherait à l'aveugle.
+    """
+    racine_paquet = (
+        Path(__file__).resolve().parent.parent / "src" / "m3_estimation"
+    )
+    verdicts_interdits = set(contrats.VERDICTS_ESTIMATION)
+
+    def _identites_des_docstrings(arbre):
+        """Identités des nœuds ``ast.Constant`` qui SONT des docstrings :
+        un ``ast.Expr`` en tête de corps de module, de classe ou de
+        fonction est de la documentation, pas du code.
+        """
+        identites = set()
+        for noeud in ast.walk(arbre):
+            if not isinstance(
+                noeud,
+                (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef,
+                 ast.ClassDef),
+            ):
+                continue
+            if not noeud.body:
+                continue
+            premier = noeud.body[0]
+            if (
+                isinstance(premier, ast.Expr)
+                and isinstance(premier.value, ast.Constant)
+                and isinstance(premier.value.value, str)
+            ):
+                identites.add(id(premier.value))
+        return identites
+
+    fichiers_analyses = 0
+    recopies = []
+    for chemin in sorted(racine_paquet.rglob("*.py")):
+        if chemin.name == "contrats.py":
+            continue
+        fichiers_analyses += 1
+        arbre = ast.parse(chemin.read_text(encoding="utf-8"))
+        docstrings = _identites_des_docstrings(arbre)
+        for noeud in ast.walk(arbre):
+            if not isinstance(noeud, ast.Constant):
+                continue
+            if id(noeud) in docstrings:
+                continue
+            if (
+                isinstance(noeud.value, str)
+                and noeud.value in verdicts_interdits
+            ):
+                recopies.append(
+                    str(chemin.relative_to(racine_paquet))
+                    + ":"
+                    + str(noeud.lineno)
+                    + " : verdict recopié en littéral : "
+                    + repr(noeud.value)
+                )
+    assert fichiers_analyses > 0, (
+        "extracteur vide donc non probant : aucun fichier .py trouvé sous "
+        + str(racine_paquet)
+    )
+    assert not recopies, (
+        "un verdict se désigne par sa constante de contrats, jamais par "
+        "un littéral recopié :\n" + "\n".join(recopies)
+    )

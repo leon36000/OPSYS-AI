@@ -30,8 +30,8 @@ _CLES_INTERVALLE_REQUISES = frozenset({"borne_basse", "borne_haute", "niveau"})
 
 # Verdicts d'estimation émis par ce module — deux MEMBRES du catalogue fermé
 # ``contrats.VERDICTS_ESTIMATION``, jamais des codes inventés.
-_VERDICT_ALERTE = "PLANCHER_RENTABILITE_FRANCHI"
-_VERDICT_SANS_ALERTE = "AUCUN_BLOCAGE"
+_VERDICT_ALERTE = contrats.VERDICT_PLANCHER_RENTABILITE_FRANCHI
+_VERDICT_SANS_ALERTE = contrats.VERDICT_AUCUN_BLOCAGE
 
 # Garde de non-dérive : si le catalogue fermé cessait de porter l'un de ces
 # deux verdicts, mieux vaut un refus franc au chargement qu'un constat hors
