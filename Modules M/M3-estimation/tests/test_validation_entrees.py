@@ -479,3 +479,69 @@ def test_types_travaux_copie_m2_ne_derive_pas():
     valeurs_m2 = re.findall(r"""["']([^"']+)["']""", correspondance.group(1))
     assert valeurs_m2, "TYPES_TRAVAUX vide dans le source M2"
     assert list(contrats.TYPES_TRAVAUX) == valeurs_m2
+
+
+def test_contact_portant_les_trois_cles_de_m2_est_accepte():
+    """Un contact portant les TROIS clés émises par M2 (nom, telephone, courriel) est accepté."""
+    contrat = _contrat_valide()
+    contrat["contact"] = {
+        "nom": "Durand",
+        "telephone": "0600000000",
+        "courriel": "durand@example.com",
+    }
+    accuse, verdict = validation.valider_entrees(
+        contrat, _marqueur_valide(), _photos_valides()
+    )
+    assert verdict is None, (
+        "une liste blanche de contact dérivée des fixtures de test au lieu de la "
+        "source du producteur M2 rejette un lead parfaitement légitime portant "
+        "'courriel' — verdict inattendu : "
+        f"{verdict}"
+    )
+    assert accuse is not None, (
+        "une liste blanche de contact dérivée des fixtures de test au lieu de la "
+        "source du producteur M2 rejette un lead parfaitement légitime portant "
+        "'courriel' — aucun accusé produit"
+    )
+
+
+def test_champs_contact_copie_m2_ne_derive_pas():
+    """CHAMPS_CONTACT de M3 est une copie exacte de CLES_CONTACT de M2, extrait du source M2.
+
+    Cette liste blanche se dérive du PRODUCTEUR, jamais des fixtures : sans ce
+    test, une troncature de CHAMPS_CONTACT reste invisible parce que les
+    fixtures ne fournissent qu'un sous-ensemble des clés réellement émises.
+    """
+    chemin_m2 = (
+        _RACINE_DEPOT
+        / "Modules M"
+        / "M2-revenue-crm"
+        / "src"
+        / "m2_revenue_crm"
+        / "contrats.py"
+    )
+    assert chemin_m2.is_file(), f"Source M2 introuvable : {chemin_m2}"
+    source_m2 = chemin_m2.read_text(encoding="utf-8")
+    correspondance = re.search(r"CLES_CONTACT\s*=\s*\(([^)]*)\)", source_m2)
+    assert correspondance is not None, "CLES_CONTACT introuvable dans le source M2"
+    valeurs_m2 = re.findall(r"""["']([^"']+)["']""", correspondance.group(1))
+    assert valeurs_m2, "CLES_CONTACT vide dans le source M2"
+    assert set(contrats.CHAMPS_CONTACT) == set(valeurs_m2)
+
+
+def test_ca_m3_02_lead_id_discordant_est_un_rejet_nomme():
+    """CA-M3-02 : 'lead_id' du marqueur différent de celui du contrat -> REJ-LEAD-ID-DISCORDANT.
+
+    Cette garde empêche qu'un marqueur AUTHENTIQUE signé pour un lead A soit
+    présenté avec le contrat d'un lead B — une traçabilité transportée sans
+    jamais être liée au lead qu'elle qualifie réellement.
+    """
+    contrat = _contrat_valide()
+    marqueur = _marqueur_valide()
+    marqueur["lead_id"] = "lead-9999"
+    accuse, verdict = validation.valider_entrees(
+        contrat, marqueur, _photos_valides()
+    )
+    assert accuse is None
+    assert verdict is not None
+    assert verdict["code"] == "REJ-LEAD-ID-DISCORDANT"

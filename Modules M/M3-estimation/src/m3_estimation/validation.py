@@ -165,8 +165,11 @@ def _valider_contrat(contrat):
 
 
 def _valider_marqueur(marqueur):
-    """Garde blanche STRUCTURELLE du marqueur de readiness — l'empreinte est
-    contrôlée en forme, jamais recalculée. Retourne un verdict ou None."""
+    """Garde blanche STRUCTURELLE du marqueur de readiness : ensemble exact
+    de clés, format hexadécimal de l'empreinte et de l'identifiant de tête,
+    fuseau horaire de l'horodatage et ``lead_id`` chaîne non vide —
+    l'empreinte est contrôlée en forme, jamais recalculée. Retourne un
+    verdict ou None."""
     if not isinstance(marqueur, dict):
         return verdicts.construire_verdict(
             "REJ-MARQUEUR-INVALIDE",
@@ -223,7 +226,12 @@ def _valider_photos(photos):
 def valider_entrees(contrat, marqueur, photos):
     """Valide les trois entrées de M3 et produit un accusé ou un verdict.
 
-    Ordre ÉPINGLÉ ; rien n'est produit si un contrôle échoue.
+    Ordre ÉPINGLÉ ; rien n'est produit si un contrôle échoue. La garde
+    NOIRE précède la liste blanche parce que CA-M3-02 exige un rejet
+    DISTINCT du rejet générique : inversés, une clé interdite au premier
+    niveau serait dégradée en « clé inconnue ». La concordance du
+    ``lead_id`` vient APRÈS la validation structurelle du marqueur, parce
+    que comparer un champ qu'on n'a pas encore validé n'a pas de sens.
 
     Returns:
         (accuse, None) si toutes les entrées sont valides, (None, verdict)

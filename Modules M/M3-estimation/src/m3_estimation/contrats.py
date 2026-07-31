@@ -63,6 +63,14 @@ CLES_INTERDITES = frozenset(
     }
 )
 
-# Liste blanche fermée du sous-objet ``contact`` : les fixtures des tests
-# fournissent exactement {"nom", "telephone"} — rien de plus n'est admis.
-CHAMPS_CONTACT = ("nom", "telephone")
+# Liste blanche fermée du sous-objet ``contact`` : les TROIS clés que M2
+# émet, dans l'ordre du producteur.
+# Provenance : constante CLES_CONTACT du fichier source
+# Modules M/M2-revenue-crm/src/m2_revenue_crm/contrats.py.
+# Cette copie est épinglée parce que la décision #109 interdit tout import
+# inter-modules ; toute dérive entre cette copie et le source M2 est rattrapée
+# par un contrôle de CI qui compare les deux listes. Cette liste blanche se
+# dérive du PRODUCTEUR, jamais des fixtures de test : une liste blanche
+# dérivée des tests ferait rejeter par le consommateur des contacts
+# légitimes portant ``courriel``.
+CHAMPS_CONTACT = ("nom", "telephone", "courriel")
