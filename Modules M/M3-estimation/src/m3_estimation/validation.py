@@ -71,6 +71,13 @@ def _est_horodatage_avec_fuseau(valeur):
     return moment.tzinfo is not None
 
 
+# Périmètre réel de la visite : seuls les dict et les list/tuple sont
+# descendus — jamais les set ni les frozenset, et ce n'est PAS un trou : un
+# dict y est inhashable, Python lève TypeError, il est donc PROUVÉ impossible
+# qu'une clé interdite s'y cache. La limite réelle est ailleurs : les
+# attributs d'un objet quelconque ne sont pas inspectés. Ce cas est HORS
+# PÉRIMÈTRE : le contrat d'entrée est une structure de données JSON —
+# dictionnaires, listes, chaînes, nombres, booléens, None.
 def _garde_noire(entrees):
     """Traque les clés interdites à toute profondeur des trois entrées.
 
@@ -168,8 +175,9 @@ def _valider_marqueur(marqueur):
     """Garde blanche STRUCTURELLE du marqueur de readiness : ensemble exact
     de clés, format hexadécimal de l'empreinte et de l'identifiant de tête,
     fuseau horaire de l'horodatage et ``lead_id`` chaîne non vide —
-    l'empreinte est contrôlée en forme, jamais recalculée. Retourne un
-    verdict ou None."""
+    l'empreinte est contrôlée en forme, jamais recalculée. La casse
+    hexadécimale est indifférente : majuscules et minuscules sont toutes
+    deux acceptées. Retourne un verdict ou None."""
     if not isinstance(marqueur, dict):
         return verdicts.construire_verdict(
             "REJ-MARQUEUR-INVALIDE",
@@ -237,9 +245,11 @@ def valider_entrees(contrat, marqueur, photos):
         (accuse, None) si toutes les entrées sont valides, (None, verdict)
         sinon.
     """
-    # 1. Garde NOIRE d'abord, récursive, sur les TROIS entrées : en cas de
-    #    double faute, le verdict le plus significatif pour l'audit l'emporte
-    #    sur le rejet générique.
+    # 1. Garde NOIRE d'abord, sur les TROIS entrées : c'est l'ORDRE des
+    #    gardes qui protège le diagnostic. La garde noire s'exécute AVANT
+    #    la liste blanche, donc une clé interdite est rejetée comme clé
+    #    interdite et ne peut jamais être dégradée en « clé inconnue » par
+    #    la garde blanche. Elle retourne au PREMIER interdit rencontré.
     verdict = _garde_noire(
         (("contrat", contrat), ("marqueur", marqueur), ("photos", photos))
     )

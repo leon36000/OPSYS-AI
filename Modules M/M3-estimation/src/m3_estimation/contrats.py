@@ -49,6 +49,13 @@ TYPES_TRAVAUX = (
 )
 
 # Neuf clés interdites, traquées récursivement sur les trois entrées.
+# Provenance : cette liste n'a AUCUNE contrepartie chez M2 — c'est une
+# frontière PROPRE à M3, ratifiée par le critère CA-M3-22 : le prix est la
+# SORTIE de M3 et jamais son entrée, les dates appartiennent à M4. Elle se
+# dérive donc du critère, pas d'un module voisin, et c'est pourquoi elle n'a
+# volontairement AUCUN test de non-dérive : il n'y a rien à quoi la
+# confronter, et un futur relecteur ne doit pas chercher un test qui ne doit
+# pas exister.
 CLES_INTERDITES = frozenset(
     {
         "prix",

@@ -10,6 +10,7 @@ l'import. Ils définissent le contrat que l'implémentation devra tenir :
 - parcours récursif borné : REJ-PROFONDEUR-EXCESSIVE au-delà de la limite.
 """
 
+import ast
 import re
 import sys
 from pathlib import Path
@@ -462,25 +463,6 @@ def test_codes_exerces_appartiennent_au_catalogue():
 # ---------------------------------------------------------------------------
 # L'énuméré épinglé ne dérive pas — comparaison au source de M2 (fail-closed)
 # ---------------------------------------------------------------------------
-def test_types_travaux_copie_m2_ne_derive_pas():
-    """TYPES_TRAVAUX de M3 est une copie exacte de celui de M2, extrait du source M2 par regex."""
-    chemin_m2 = (
-        _RACINE_DEPOT
-        / "Modules M"
-        / "M2-revenue-crm"
-        / "src"
-        / "m2_revenue_crm"
-        / "contrats.py"
-    )
-    assert chemin_m2.is_file(), f"Source M2 introuvable : {chemin_m2}"
-    source_m2 = chemin_m2.read_text(encoding="utf-8")
-    correspondance = re.search(r"TYPES_TRAVAUX\s*=\s*\(([^)]*)\)", source_m2)
-    assert correspondance is not None, "TYPES_TRAVAUX introuvable dans le source M2"
-    valeurs_m2 = re.findall(r"""["']([^"']+)["']""", correspondance.group(1))
-    assert valeurs_m2, "TYPES_TRAVAUX vide dans le source M2"
-    assert list(contrats.TYPES_TRAVAUX) == valeurs_m2
-
-
 def test_contact_portant_les_trois_cles_de_m2_est_accepte():
     """Un contact portant les TROIS clés émises par M2 (nom, telephone, courriel) est accepté."""
     contrat = _contrat_valide()
@@ -505,30 +487,6 @@ def test_contact_portant_les_trois_cles_de_m2_est_accepte():
     )
 
 
-def test_champs_contact_copie_m2_ne_derive_pas():
-    """CHAMPS_CONTACT de M3 est une copie exacte de CLES_CONTACT de M2, extrait du source M2.
-
-    Cette liste blanche se dérive du PRODUCTEUR, jamais des fixtures : sans ce
-    test, une troncature de CHAMPS_CONTACT reste invisible parce que les
-    fixtures ne fournissent qu'un sous-ensemble des clés réellement émises.
-    """
-    chemin_m2 = (
-        _RACINE_DEPOT
-        / "Modules M"
-        / "M2-revenue-crm"
-        / "src"
-        / "m2_revenue_crm"
-        / "contrats.py"
-    )
-    assert chemin_m2.is_file(), f"Source M2 introuvable : {chemin_m2}"
-    source_m2 = chemin_m2.read_text(encoding="utf-8")
-    correspondance = re.search(r"CLES_CONTACT\s*=\s*\(([^)]*)\)", source_m2)
-    assert correspondance is not None, "CLES_CONTACT introuvable dans le source M2"
-    valeurs_m2 = re.findall(r"""["']([^"']+)["']""", correspondance.group(1))
-    assert valeurs_m2, "CLES_CONTACT vide dans le source M2"
-    assert set(contrats.CHAMPS_CONTACT) == set(valeurs_m2)
-
-
 def test_ca_m3_02_lead_id_discordant_est_un_rejet_nomme():
     """CA-M3-02 : 'lead_id' du marqueur différent de celui du contrat -> REJ-LEAD-ID-DISCORDANT.
 
@@ -545,3 +503,187 @@ def test_ca_m3_02_lead_id_discordant_est_un_rejet_nomme():
     assert accuse is None
     assert verdict is not None
     assert verdict["code"] == "REJ-LEAD-ID-DISCORDANT"
+
+
+import ast
+
+
+def _lire_chaines_litterales(valeur, chemin, nom_constante):
+    """Lit les chaînes littérales d'un nœud tuple/liste/ensemble AST, fail-closed.
+
+    Tout élément qui n'est pas un ``ast.Constant`` de type ``str`` fait
+    ÉCHOUER le test en nommant la constante — on ne devine jamais ce que
+    l'élément « voudrait dire ». Un conteneur vide fait également échouer :
+    une constante vidée chez M2 ne doit pas passer en silence.
+    """
+    if not isinstance(valeur, (ast.Tuple, ast.List, ast.Set)):
+        pytest.fail(
+            f"constante {nom_constante} de {chemin} : valeur de type "
+            f"{type(valeur).__name__}, tuple/liste/ensemble attendu — "
+            f"on ne devine pas"
+        )
+    chaines = []
+    for element in valeur.elts:
+        if not (
+            isinstance(element, ast.Constant)
+            and isinstance(element.value, str)
+        ):
+            pytest.fail(
+                f"constante {nom_constante} de {chemin} : élément "
+                f"{ast.dump(element)} qui n'est pas une chaîne littérale — "
+                f"on ne devine pas"
+            )
+        chaines.append(element.value)
+    if not chaines:
+        pytest.fail(
+            f"constante {nom_constante} de {chemin} vide — fail-closed"
+        )
+    return chaines
+
+
+def _constante_m2(chemin_relatif, nom_constante):
+    """Extrait une constante de module du source M2 par AST, jamais par regex.
+
+    Une capture textuelle (regex non ancrée, puis findall sur tout ce qui est
+    entre guillemets) avale AUSSI les chaînes écrites dans les commentaires et
+    docstrings à l'intérieur de la parenthèse : mesuré, une clé fantôme
+    (« fantome », venue d'un commentaire ``# ex: "fantome"``) est entrée dans
+    la comparaison. Le parseur AST ne produit de nœuds que pour la syntaxe
+    réelle — un commentaire n'en produit aucun — donc seules les chaînes
+    effectivement affectées sont lues.
+    """
+    chemin = _RACINE_DEPOT / chemin_relatif
+    if not chemin.is_file():
+        pytest.fail(
+            f"extraction AST fail-closed : fichier M2 introuvable "
+            f"{chemin} (constante {nom_constante})"
+        )
+    source = chemin.read_text(encoding="utf-8")
+    try:
+        arbre = ast.parse(source, filename=str(chemin))
+    except (SyntaxError, ValueError) as erreur:
+        pytest.fail(
+            f"extraction AST fail-closed : {chemin} non parsable "
+            f"(constante {nom_constante}) : {erreur}"
+        )
+    for noeud in arbre.body:
+        if not isinstance(noeud, ast.Assign):
+            continue
+        if not any(
+            isinstance(cible, ast.Name) and cible.id == nom_constante
+            for cible in noeud.targets
+        ):
+            continue
+        return _lire_chaines_litterales(noeud.value, chemin, nom_constante)
+    pytest.fail(
+        f"constante {nom_constante} introuvable au niveau module de "
+        f"{chemin} — fail-closed, jamais de passage silencieux"
+    )
+
+
+def _cles_attendues_m2(chemin_relatif):
+    """Extrait la variable LOCALE ``cles_attendues`` du readiness de M2, par AST.
+
+    Les clés du marqueur ne sont pas une constante de module chez M2 :
+    ``_constante_m2``, qui ne lit que le corps de module, ne les trouverait
+    pas. Ce lecteur parcourt donc TOUS les nœuds ``ast.Assign`` du fichier
+    (``ast.walk``) et retient le premier dont une cible s'appelle
+    ``cles_attendues``. Fail-closed si la variable est introuvable.
+    """
+    chemin = _RACINE_DEPOT / chemin_relatif
+    if not chemin.is_file():
+        pytest.fail(
+            f"extraction AST fail-closed : fichier M2 introuvable "
+            f"{chemin} (variable cles_attendues)"
+        )
+    source = chemin.read_text(encoding="utf-8")
+    try:
+        arbre = ast.parse(source, filename=str(chemin))
+    except (SyntaxError, ValueError) as erreur:
+        pytest.fail(
+            f"extraction AST fail-closed : {chemin} non parsable "
+            f"(variable cles_attendues) : {erreur}"
+        )
+    for noeud in ast.walk(arbre):
+        if not isinstance(noeud, ast.Assign):
+            continue
+        if not any(
+            isinstance(cible, ast.Name) and cible.id == "cles_attendues"
+            for cible in noeud.targets
+        ):
+            continue
+        return _lire_chaines_litterales(noeud.value, chemin, "cles_attendues")
+    pytest.fail(
+        f"variable cles_attendues introuvable dans {chemin} — "
+        f"fail-closed, jamais de passage silencieux"
+    )
+
+
+def test_types_travaux_copie_m2_ne_derive_pas():
+    """TYPES_TRAVAUX de M3 est une copie exacte de celui de M2, extraite du source M2 par AST.
+
+    L'extraction par AST — et non par regex non ancrée suivie d'un findall —
+    garantit qu'aucun commentaire ni docstring à l'intérieur de la parenthèse
+    n'injecte de clé fantôme dans la comparaison (défaut mesuré sur la
+    version regex). La comparaison porte sur des LISTES ORDONNÉES : le
+    commentaire de provenance annonce « dans l'ordre du producteur », et une
+    comparaison d'ensembles ne le vérifierait pas — si l'ordre diverge, ce
+    test le dit.
+    """
+    valeurs_m2 = _constante_m2(
+        "Modules M/M2-revenue-crm/src/m2_revenue_crm/contrats.py",
+        "TYPES_TRAVAUX",
+    )
+    assert list(contrats.TYPES_TRAVAUX) == valeurs_m2
+
+
+def test_champs_contact_copie_m2_ne_derive_pas():
+    """CHAMPS_CONTACT de M3 est une copie exacte de CLES_CONTACT de M2, extraite du source M2 par AST.
+
+    Cette liste blanche se dérive du PRODUCTEUR, jamais des fixtures : sans ce
+    test, une troncature de CHAMPS_CONTACT reste invisible parce que les
+    fixtures ne fournissent qu'un sous-ensemble des clés réellement émises.
+    L'extraction par AST exclut les chaînes des commentaires et docstrings —
+    mesuré, une clé fantôme y est entrée par une capture textuelle. La
+    comparaison est ORDONNÉE : le commentaire de provenance annonce « dans
+    l'ordre du producteur », une comparaison d'ensembles ne le vérifierait
+    pas, et si l'ordre diverge ce test le dit.
+    """
+    valeurs_m2 = _constante_m2(
+        "Modules M/M2-revenue-crm/src/m2_revenue_crm/contrats.py",
+        "CLES_CONTACT",
+    )
+    assert list(contrats.CHAMPS_CONTACT) == valeurs_m2
+
+
+def test_champs_contrat_gele_copie_m2_ne_derive_pas():
+    """CHAMPS_CONTRAT_GELE de M3 est une copie exacte de celle de M2, extraite du source M2 par AST.
+
+    Comparaison en LISTES ORDONNÉES, comme pour TYPES_TRAVAUX et CLES_CONTACT.
+    Note au relecteur : CLES_INTERDITES n'a VOLONTAIREMENT pas de test de
+    non-dérive de ce genre — elle n'a aucune contrepartie chez M2, c'est une
+    frontière PROPRE à M3 ratifiée par CA-M3-22 ; il ne faut pas chercher un
+    test qui ne doit pas exister.
+    """
+    valeurs_m2 = _constante_m2(
+        "Modules M/M2-revenue-crm/src/m2_revenue_crm/contrats.py",
+        "CHAMPS_CONTRAT_GELE",
+    )
+    assert list(contrats.CHAMPS_CONTRAT_GELE) == valeurs_m2
+
+
+def test_champs_marqueur_copie_m2_ne_derive_pas():
+    """CHAMPS_MARQUEUR de M3 reflète ``cles_attendues`` du readiness de M2, extrait par AST.
+
+    Les clés du marqueur ne sont PAS une constante de module chez M2 : c'est
+    une variable LOCALE de ``readiness.py``, que ``_constante_m2`` (corps de
+    module uniquement) ne trouverait pas — d'où l'extraction dédiée qui
+    parcourt TOUS les nœuds ``ast.Assign`` du fichier. La source est un
+    ``set`` : l'ordre n'y a pas de sens, la comparaison se fait donc en
+    ENSEMBLES, à la différence des autres constantes confrontées en listes
+    ordonnées — et cette docstring le dit.
+    """
+    cles_m2 = _cles_attendues_m2(
+        "Modules M/M2-revenue-crm/src/m2_revenue_crm/readiness.py"
+    )
+    assert set(contrats.CHAMPS_MARQUEUR) == set(cles_m2)
