@@ -33,16 +33,12 @@ _CLES_INTERVALLE_REQUISES = frozenset({"borne_basse", "borne_haute", "niveau"})
 _VERDICT_ALERTE = contrats.VERDICT_PLANCHER_RENTABILITE_FRANCHI
 _VERDICT_SANS_ALERTE = contrats.VERDICT_AUCUN_BLOCAGE
 
-# Garde de non-dérive : si le catalogue fermé cessait de porter l'un de ces
-# deux verdicts, mieux vaut un refus franc au chargement qu'un constat hors
-# catalogue servi en silence aux consommateurs aval.
-if (
-    _VERDICT_ALERTE not in contrats.VERDICTS_ESTIMATION
-    or _VERDICT_SANS_ALERTE not in contrats.VERDICTS_ESTIMATION
-):
-    raise verdicts.CodeVerdictInconnu(
-        "verdict_estimation hors catalogue VERDICTS_ESTIMATION"
-    )
+# Non-dérive structurelle : ces constantes sont dérivées du tuple
+# ``contrats.VERDICTS_ESTIMATION`` par indice ; elles ne peuvent donc pas en
+# sortir. Une garde d'appartenance ici serait une tautologie. La protection
+# réelle est ailleurs : le test de non-divergence confronte le tuple à
+# l'architecture, et la garde anti-recopie interdit les littéraux dans le
+# paquet.
 
 
 def _est_nombre_fini(valeur):
