@@ -333,3 +333,151 @@ def test_une_copie_tronquee_a_la_fin_est_detectee():
         "contrôle des longueurs qui doit parler, pas la comparaison ligne à "
         f"ligne. Messages : {messages}"
     )
+
+
+_PRD_SYNTHETIQUE = "# PRD\n\n## 1. Section\n\n| Valeur | Sens |\n|---|---|\n| A | un |\n"
+_ARCHI_SYNTHETIQUE = ("# Archi\n\n## Copie\n\nCopié mot pour mot du PRD section 1.\n\n"
+                      "| Valeur | Sens |\n|---|---|\n| A | un |\n")
+
+
+def test_un_bloc_non_ferme_est_masque_jusqua_la_fin():
+    """Un bloc clôturé jamais refermé doit être masqué jusqu'à la fin du document — sans ce test, un scanner qui traiterait la fin de fichier comme une clôture implicite laisserait le faux titre et la fausse déclaration fuiter du bloc, et le cas de bord le plus structurant du masquage casserait en silence."""
+    messages_nu = VERIF_COHERENCE.verifier_copies_declarees(
+        _PRD_SYNTHETIQUE, _ARCHI_SYNTHETIQUE
+    )
+    assert messages_nu == [], (
+        "le couple synthétique nu doit être vert — sinon ce test « reste "
+        f"vert » ne prouverait rien. Messages : {messages_nu}"
+    )
+    archi_bloc_non_ferme = _ARCHI_SYNTHETIQUE + "\n## Exemple\n\n```text\n# faux titre\nCopié mot pour mot du PRD section 9.\n"
+    messages = VERIF_COHERENCE.verifier_copies_declarees(
+        _PRD_SYNTHETIQUE, archi_bloc_non_ferme
+    )
+    assert messages == [], (
+        "un bloc clôturé jamais refermé doit être masqué jusqu'à la fin du "
+        "document : ni le faux titre ni la fausse déclaration qu'il contient "
+        f"ne doivent exister pour le contrôle. Messages : {messages}"
+    )
+    archi_temoin = _ARCHI_SYNTHETIQUE + "\n## Exemple\n\n# faux titre\nCopié mot pour mot du PRD section 9.\n"
+    messages_temoin = VERIF_COHERENCE.verifier_copies_declarees(
+        _PRD_SYNTHETIQUE, archi_temoin
+    )
+    assert messages_temoin, (
+        "témoin : les deux mêmes lignes placées HORS de tout bloc doivent "
+        "produire au moins un message — sans ce témoin, le test serait vert "
+        "même si le masquage masquait tout et n'importe quoi"
+    )
+
+
+def test_un_bloc_imbrique_ne_ferme_pas_le_bloc_englobant():
+    """Une clôture de trois accents ne doit pas fermer un bloc ouvert à quatre — sans ce test, un scanner qui accepterait une clôture plus courte que l'ouverture refermerait le bloc englobant sur le bloc imbriqué et exposerait le faux titre."""
+    messages_nu = VERIF_COHERENCE.verifier_copies_declarees(
+        _PRD_SYNTHETIQUE, _ARCHI_SYNTHETIQUE
+    )
+    assert messages_nu == [], (
+        "le couple synthétique nu doit être vert — sinon ce test « reste "
+        f"vert » ne prouverait rien. Messages : {messages_nu}"
+    )
+    archi_bloc_imbrique = _ARCHI_SYNTHETIQUE + (
+        "\n## Exemple\n\n````text\n```\n"
+        "Copié mot pour mot du PRD section 9.\n```\n````\n"
+    )
+    messages = VERIF_COHERENCE.verifier_copies_declarees(
+        _PRD_SYNTHETIQUE, archi_bloc_imbrique
+    )
+    assert messages == [], (
+        "une clôture de trois accents ne doit pas fermer un bloc ouvert à "
+        "quatre : la déclaration placée après la clôture courte doit rester "
+        "masquée. Une clôture plus courte referme sinon le bloc englobant, "
+        "la déclaration devient un engagement et cite une section absente. "
+        f"Messages : {messages}"
+    )
+
+
+def test_une_cloture_indentee_ouvre_et_ferme_un_bloc():
+    """Une clôture précédée de deux espaces doit ouvrir et fermer un bloc comme une clôture en colonne zéro — sans ce test, un scanner qui exigerait la colonne zéro ne masquerait aucun bloc indenté et le faux titre fuiterait."""
+    messages_nu = VERIF_COHERENCE.verifier_copies_declarees(
+        _PRD_SYNTHETIQUE, _ARCHI_SYNTHETIQUE
+    )
+    assert messages_nu == [], (
+        "le couple synthétique nu doit être vert — sinon ce test « reste "
+        f"vert » ne prouverait rien. Messages : {messages_nu}"
+    )
+    archi_cloture_indentee = _ARCHI_SYNTHETIQUE + (
+        "\n## Exemple\n\n  ```text\n"
+        "Copié mot pour mot du PRD section 9.\n  ```\n"
+    )
+    messages = VERIF_COHERENCE.verifier_copies_declarees(
+        _PRD_SYNTHETIQUE, archi_cloture_indentee
+    )
+    assert messages == [], (
+        "les clôtures précédées de deux espaces doivent ouvrir et fermer un "
+        "bloc : la déclaration qu'il contient doit rester masquée. Un scanner "
+        "exigeant la colonne zéro en ferait un engagement citant une section "
+        "absente. "
+        f"Messages : {messages}"
+    )
+
+
+def test_un_titre_indente_borne_bien_la_zone():
+    """Un titre indenté de deux espaces doit borner la zone de copie exactement comme un titre en colonne zéro — sans ce test, la seconde table serait rattachée à la zone déclarée, la rendrait ambiguë, et le contrôle mordrait des documents conformes."""
+    messages_nu = VERIF_COHERENCE.verifier_copies_declarees(
+        _PRD_SYNTHETIQUE, _ARCHI_SYNTHETIQUE
+    )
+    assert messages_nu == [], (
+        "le couple synthétique nu doit être vert — sinon ce test « reste "
+        f"vert » ne prouverait rien. Messages : {messages_nu}"
+    )
+    archi_titre_indente = (
+        "# Archi\n\n## Copie\n\nCopié mot pour mot du PRD section 1.\n\n"
+        "| Valeur | Sens |\n|---|---|\n| A | un |\n\n  ## Suite\n\n| Autre | Table |\n|---|---|\n| x | y |\n"
+    )
+    messages = VERIF_COHERENCE.verifier_copies_declarees(
+        _PRD_SYNTHETIQUE, archi_titre_indente
+    )
+    assert messages == [], (
+        "le titre indenté de deux espaces est un vrai titre : il ferme la "
+        "zone de copie, et la seconde table ne doit pas y être rattachée — "
+        "sinon la zone serait ambiguë et le contrôle mordrait un document "
+        f"conforme. Messages : {messages}"
+    )
+    assert "\n  ## Suite\n" in archi_titre_indente, (
+        "le titre indenté doit être présent dans l'architecture de test — "
+        "sinon la désindentation ne muterait rien et la comparaison serait "
+        "verte pour rien"
+    )
+    archi_titre_desindente = archi_titre_indente.replace(
+        "\n  ## Suite\n", "\n## Suite\n", 1
+    )
+    messages_desindente = VERIF_COHERENCE.verifier_copies_declarees(
+        _PRD_SYNTHETIQUE, archi_titre_desindente
+    )
+    assert messages_desindente == [], (
+        "le même titre désindenté doit borner la zone de la même façon : "
+        "les deux formes sont des titres et ferment la zone de copie. "
+        f"Messages : {messages_desindente}"
+    )
+
+
+def test_un_titre_de_section_indente_est_reconnu_dans_le_prd():
+    """Un titre de section indenté de deux espaces dans le PRD doit être reconnu comme un vrai titre et résoudre la section citée exactement comme en colonne zéro — sans ce test, une regex de titre sans tolérance d'indentation ne trouve pas la section citée et le contrôle échoue sur un document pourtant valide."""
+    prd_indente = "# PRD\n\n  ## 1. Section\n\n| Valeur | Sens |\n|---|---|\n| A | un |\n"
+    messages = VERIF_COHERENCE.verifier_copies_declarees(
+        prd_indente, _ARCHI_SYNTHETIQUE
+    )
+    assert messages == [], (
+        "le titre de section indenté de deux espaces est un vrai titre "
+        "markdown : la section 1 du PRD doit être résolue, sa table trouvée "
+        "et appariée à la copie déclarée de l'architecture — sinon une regex "
+        "de titre exigeant la colonne zéro rate la section et le contrôle "
+        f"mord un document conforme. Messages : {messages}"
+    )
+    messages_non_indente = VERIF_COHERENCE.verifier_copies_declarees(
+        _PRD_SYNTHETIQUE, _ARCHI_SYNTHETIQUE
+    )
+    assert messages_non_indente == [], (
+        "le même PRD à titre non indenté doit donner le même résultat : les "
+        "deux formes résolvent la même section — sans cette seconde "
+        "assertion, le test passerait tout aussi bien si la résolution "
+        f"ignorait le PRD. Messages : {messages_non_indente}"
+    )

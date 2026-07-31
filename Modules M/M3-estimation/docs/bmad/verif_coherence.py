@@ -971,7 +971,9 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
     clôturé (clôtures comprises) est masqué caractère pour caractère, car un
     « # » en colonne 0 à l'intérieur d'un bloc est du code et non un titre ;
     les contenus comparés viennent toujours du texte d'origine, la vue masquée
-    ne servant qu'à localiser, à longueur strictement identique.
+    ne servant qu'à localiser, à longueur strictement identique. Le même
+    scanner de blocs sert au masquage et à l'extraction des artefacts, pour
+    qu'il n'existe qu'une seule définition de ce qu'est un bloc.
     Les déclarations sont cherchées sur cette même vue masquée, exactement
     comme les titres : une phrase « Copié mot pour mot du PRD section N »
     écrite à l'intérieur d'un bloc clôturé y est un exemple ou une citation,
@@ -985,26 +987,87 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
     une couverture plus large que celle qu'elle tient.
     """
 
-    motif_bloc = re.compile(r"```[^\n]*\n(.*?)```", re.DOTALL)
     # Une table : au moins deux lignes contiguës commençant par « | » (après
     # espaces éventuels) ; elle s'arrête à la première ligne qui n'en commence
     # pas par « | ».
     motif_table = re.compile(r"^[ \t]*\|[^\n]*(?:\n[ \t]*\|[^\n]*)+", re.MULTILINE)
-    motif_titre = re.compile(r"^#{1,6}\s", re.MULTILINE)
+    # Un titre markdown peut être indenté de 0 à 3 espaces : ainsi indenté, il
+    # borne les zones exactement comme un titre en colonne 0.
+    motif_titre = re.compile(r"^ {0,3}#{1,6}\s", re.MULTILINE)
+
+    def blocs_clotures(texte: str) -> List[Tuple[int, int, int, int]]:
+        """Balaye `texte` LIGNE PAR LIGNE et retourne ses blocs de code clôturés.
+
+        Chaque bloc est décrit par (debut, fin, debut_contenu, fin_contenu), en
+        offsets absolus dans `texte` : debut et fin bornent le bloc CLÔTURES
+        COMPRISES, debut_contenu et fin_contenu bornent son contenu seul. Une
+        ligne OUVRE un bloc si, après avoir retiré 0 à 3 espaces de tête, elle
+        commence par au moins trois accents graves consécutifs — la longueur de
+        cette clôture est retenue, et le reste de la ligne est l'étiquette de
+        langue. Tant qu'un bloc est ouvert, une ligne le FERME si, après avoir
+        retiré 0 à 3 espaces de tête, elle n'est faite que d'accents graves en
+        nombre SUPÉRIEUR OU ÉGAL à la clôture ouvrante, suivis d'espaces
+        éventuels et de rien d'autre ; toute autre ligne, y compris une clôture
+        PLUS COURTE, appartient au contenu — c'est ce qui rend les blocs
+        imbriqués corrects : un bloc à trois accents écrit dans un bloc à
+        quatre n'en est pas la fermeture. Un bloc jamais fermé s'étend jusqu'à
+        la FIN du texte.
+        """
+        blocs: List[Tuple[int, int, int, int]] = []
+        pos = 0
+        en_bloc = False
+        debut = 0
+        debut_contenu = 0
+        longueur_ouvrante = 0
+        for ligne in texte.splitlines(keepends=True):
+            fin_ligne = pos + len(ligne)
+            if ligne.endswith("\r\n"):
+                corps = ligne[:-2]
+            elif ligne.endswith("\n") or ligne.endswith("\r"):
+                corps = ligne[:-1]
+            else:
+                corps = ligne
+            espaces = len(corps) - len(corps.lstrip(" "))
+            # Au-delà de 3 espaces de tête, la ligne ne peut ni ouvrir ni
+            # fermer un bloc : reste à None la range hors jeu.
+            reste = corps[espaces:] if espaces <= 3 else None
+            if not en_bloc:
+                if reste is not None:
+                    m_ouverture = re.match(r"`+", reste)
+                    if m_ouverture is not None and len(m_ouverture.group(0)) >= 3:
+                        en_bloc = True
+                        longueur_ouvrante = len(m_ouverture.group(0))
+                        debut = pos
+                        debut_contenu = fin_ligne
+            elif reste is not None:
+                m_fermeture = re.fullmatch(r"(`+) *", reste)
+                if (m_fermeture is not None
+                        and len(m_fermeture.group(1)) >= longueur_ouvrante):
+                    blocs.append((debut, fin_ligne, debut_contenu, pos))
+                    en_bloc = False
+            pos = fin_ligne
+        if en_bloc:
+            # Bloc jamais fermé : il s'étend jusqu'à la fin du texte.
+            blocs.append((debut, len(texte), debut_contenu, len(texte)))
+        return blocs
 
     def masquer_blocs(texte: str) -> str:
-        """Vue de `texte` où chaque bloc clôturé (clôtures comprises) est
-        remplacé par des espaces, sauts de ligne préservés.
+        """Vue de `texte` où chaque bloc de code clôturé est masqué caractère
+        pour caractère, clôtures comprises.
 
-        Chaque caractère hors saut de ligne est remplacé par exactement UN
-        caractère neutre qui ne peut pas commencer un titre, donc la longueur
-        totale est strictement identique : tout offset mesuré sur la vue reste
-        valide sur le texte d'origine, et le mode MULTILINE garde les mêmes
-        débuts de ligne.
+        Tout caractère d'un bloc autre que « \\n » est remplacé par exactement UN
+        espace — y compris pour un bloc jamais fermé, que `blocs_clotures`
+        étend jusqu'à la fin du texte et qui est donc masqué jusque-là. La
+        longueur totale et la position des sauts de ligne sont strictement
+        préservées, car les offsets mesurés sur cette vue doivent trancher le
+        texte d'origine.
         """
-        return re.sub(r"```[^\n]*\n.*?```",
-                      lambda m: re.sub(r"[^\n]", " ", m.group(0)),
-                      texte, flags=re.DOTALL)
+        caracteres = list(texte)
+        for debut, fin, _, _ in blocs_clotures(texte):
+            for i in range(debut, fin):
+                if caracteres[i] != "\n":
+                    caracteres[i] = " "
+        return "".join(caracteres)
 
     # Les recherches de titres se font sur ces vues ; les contenus comparés
     # sont toujours tranchés dans les textes d'origine, aux mêmes offsets.
@@ -1018,74 +1081,74 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
                 return ligne.rstrip()
         return ""
 
-    def tous_artefacts(texte: str) -> List[Tuple[str, str, int]]:
+    def tous_artefacts(texte: str) -> List[Tuple[str, str, int, int]]:
         """Liste ordonnée de tous les artefacts de `texte`.
 
-        Chaque élément est un triplet (genre, contenu, debut) : genre vaut
-        « bloc » (contenu entre les clôtures ```) ou « table » (suite contiguë
-        d'au moins deux lignes commençant par « | ») ; contenu est le texte de
-        l'artefact ; debut est l'offset où l'artefact COMMENCE dans `texte`.
-        Le parcours est non recouvrant : à chaque étape, l'artefact qui
-        commence le plus tôt l'emporte et la recherche reprend à sa fin — une
-        table écrite à l'intérieur d'un bloc de code n'est pas un artefact.
-        Cette fonction est l'unique juge de ce qu'est un artefact : elle est
-        appliquée à l'architecture comme au PRD, pour que les deux côtés
-        parlent de la même chose.
+        Chaque élément est un quadruplet (genre, contenu, debut, fin) : genre
+        vaut « bloc » (contenu entre les clôtures ```) ou « table » (suite
+        contiguë d'au moins deux lignes commençant par « | ») ; contenu est le
+        texte de l'artefact ; debut et fin sont les offsets où l'artefact
+        commence et finit dans `texte`. Les blocs retenus sont EXACTEMENT ceux
+        que `blocs_clotures` retourne — le scanner qui sert aussi au masquage,
+        pour qu'il n'existe qu'une seule définition de ce qu'est un bloc — et
+        une table située à l'intérieur d'un bloc clôturé est du contenu de
+        bloc, pas un artefact. Le parcours est non recouvrant : les artefacts
+        sont triés par offset de début, et tout artefact qui commencerait avant
+        la fin du précédent retenu est écarté. Cette fonction est l'unique juge
+        de ce qu'est un artefact : elle est appliquée à l'architecture comme au
+        PRD, pour que les deux côtés parlent de la même chose.
         """
-        artefacts: List[Tuple[str, str, int]] = []
+        blocs = blocs_clotures(texte)
+        candidats: List[Tuple[int, int, str, str]] = []
+        for debut, fin, debut_contenu, fin_contenu in blocs:
+            candidats.append((debut, fin, "bloc", texte[debut_contenu:fin_contenu]))
+        for m_table in motif_table.finditer(texte):
+            if any(d <= m_table.start() < f for d, f, _, _ in blocs):
+                # Une table écrite à l'intérieur d'un bloc clôturé est du
+                # contenu de bloc, pas un artefact.
+                continue
+            candidats.append((m_table.start(), m_table.end(), "table", m_table.group(0)))
+        candidats.sort(key=lambda c: c[0])
+        artefacts: List[Tuple[str, str, int, int]] = []
         pos = 0
-        while True:
-            m_bloc = motif_bloc.search(texte, pos)
-            m_table = motif_table.search(texte, pos)
-            if m_bloc is None and m_table is None:
-                break
-            if m_bloc is not None and (m_table is None or m_bloc.start() < m_table.start()):
-                artefacts.append(("bloc", m_bloc.group(1), m_bloc.start()))
-                pos = m_bloc.end()
-            else:
-                artefacts.append(("table", m_table.group(0), m_table.start()))
-                pos = m_table.end()
+        for debut, fin, genre, contenu in candidats:
+            if debut < pos:
+                continue
+            artefacts.append((genre, contenu, debut, fin))
+            pos = fin
         return artefacts
 
     def premier_artefact(texte: str, depart: int = 0):
         """Premier artefact de `texte` à partir de `depart`, ou None.
 
-        Retourne le triplet (genre, contenu, position) : genre vaut « bloc »
-        (contenu entre les clôtures ```) ou « table » (suite contiguë d'au
-        moins deux lignes commençant par « | ») ; contenu est le texte de
-        l'artefact ; position est l'offset de fin de l'artefact, où reprendre
-        la recherche du suivant. Quand les deux genres sont présents, celui
-        qui COMMENCE le plus tôt l'emporte. Le juge de ce qu'est un artefact
-        est UNIQUE : cette fonction se contente de filtrer `tous_artefacts`
-        et d'y recalculer l'offset de fin que ce juge ne retourne pas — sans
-        expression régulière, car une table est son propre match (fin = debut
-        + longueur) et le contenu d'un bloc ne contient jamais ``` (le motif
-        est non gourmand), donc la première clôture après la ligne ouvrante
-        est la fermante.
+        Retourne le triplet (genre, contenu, fin) : genre vaut « bloc » ou
+        « table » ; contenu est le texte de l'artefact ; fin est l'offset de
+        fin de l'artefact, où reprendre la recherche du suivant. Le juge de ce
+        qu'est un artefact est UNIQUE : cette fonction se contente de filtrer
+        `tous_artefacts`, dont l'offset de fin vient du même scanner qui a
+        borné l'artefact — aucune fin n'est recalculée par expression
+        régulière, calcul qui retomberait sur la première clôture interne d'un
+        bloc imbriqué.
         """
-        for genre, contenu, debut in tous_artefacts(texte):
+        for genre, contenu, debut, fin in tous_artefacts(texte):
             if debut < depart:
                 continue
-            if genre == "table":
-                fin = debut + len(contenu)
-            else:
-                debut_contenu = texte.index("\n", debut) + 1
-                fin = texte.index("```", debut_contenu) + 3
             return (genre, contenu, fin)
         return None
 
     def section_du_prd(numero: str):
         """Texte de la section du PRD dont le titre porte exactement ce numéro.
 
-        Le titre est `## N. …` ou `### N.M …` ; la section s'étend jusqu'au titre
-        suivant de niveau inférieur ou égal. Les titres sont repérés sur la vue
-        masquée du PRD — un « # » en colonne 0 dans un bloc clôturé y est du
-        code, pas un titre — et les offsets, à longueur préservée, tranchent le
-        PRD d'origine. Retourne None si le titre est introuvable — fail-closed,
-        on ne devine pas la section source.
+        Le titre est `## N. …` ou `### N.M …`, indenté de 0 à 3 espaces au
+        plus ; la section s'étend jusqu'au titre suivant de niveau inférieur ou
+        égal. Les titres sont repérés sur la vue masquée du PRD — un « # » en
+        colonne 0 dans un bloc clôturé y est du code, pas un titre — et les
+        offsets, à longueur préservée, tranchent le PRD d'origine. Retourne
+        None si le titre est introuvable — fail-closed, on ne devine pas la
+        section source.
         """
         titres = []
-        for m in re.finditer(r"^(#+)\s+(.*)$", prd_masque, re.MULTILINE):
+        for m in re.finditer(r"^ {0,3}(#{1,6})\s+(.*)$", prd_masque, re.MULTILINE):
             m_num = re.match(r"(\d+(?:\.\d+)?)\.?(?:\s|$)", m.group(2).strip())
             titres.append((m.start(), m.end(), len(m.group(1)),
                            m_num.group(1) if m_num else None))
@@ -1147,7 +1210,7 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
                 f"gouverne l'artefact unique qui la suit ; s'il y en a plusieurs, "
                 f"le document doit être découpé, pas deviné.")
             continue
-        genre_arc, contenu_arc, _ = artefacts_zone[0]
+        genre_arc, contenu_arc, _, _ = artefacts_zone[0]
         # c. La section du PRD portant exactement ce numéro.
         section = section_du_prd(numero)
         if section is None:
@@ -1203,10 +1266,10 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
     # section — entre la fin du dernier titre markdown qui la précède et son
     # début.
     normalises_prd: Dict[str, List[List[str]]] = {}
-    for genre_p, contenu_p, _ in tous_artefacts(prd):
+    for genre_p, contenu_p, _, _ in tous_artefacts(prd):
         normalises_prd.setdefault(genre_p, []).append(
             [l.rstrip() for l in contenu_p.rstrip("\n").splitlines()])
-    for genre_a, contenu_a, debut_a in tous_artefacts(archi):
+    for genre_a, contenu_a, debut_a, _ in tous_artefacts(archi):
         lignes_a = [l.rstrip() for l in contenu_a.rstrip("\n").splitlines()]
         if lignes_a not in normalises_prd.get(genre_a, []):
             # Pas une copie exacte : rien à suivre pour cette passe.
