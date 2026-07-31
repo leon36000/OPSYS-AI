@@ -32,6 +32,10 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from m3_estimation import signaux, verdicts
+import sys as _s2
+from pathlib import Path as _P2
+_s2.path.insert(0, str(_P2(__file__).resolve().parent))
+from _commun_contrats import cles_du_bloc_yaml
 
 
 # ---------------------------------------------------------------------------
@@ -183,47 +187,15 @@ def test_contrat_aligne_sur_architecture():
     La section est localisée par son NOM — un titre de niveau 3 contenant
     « Signal de relance vers M2 », avec un numéro quelconque de la forme
     ``<entier>.<entier>`` — et non par son numéro : une renumérotation a déjà
-    cassé un test ancré sur un numéro. L'extracteur est fail-closed : s'il
-    n'extrait aucune clé, le test échoue au lieu de passer en silence.
+    cassé un test ancré sur un numéro. L'extraction est déléguée à
+    ``_commun_contrats.cles_du_bloc_yaml``, extracteur unique et fail-closed :
+    s'il n'extrait aucune clé, le test échoue au lieu de passer en silence.
     """
-    chemin_architecture = (
-        Path(__file__).resolve().parents[1]
-        / "docs"
-        / "bmad"
-        / "03-ARCHITECTURE.md"
-    )
-    texte = chemin_architecture.read_text(encoding="utf-8")
-
     motif_titre = re.compile(
         r"^###\s+\d+\.\d+[^\n]*Signal de relance vers M2[^\n]*$",
         re.MULTILINE,
     )
-    titres = list(motif_titre.finditer(texte))
-    assert len(titres) == 1, (
-        "la section « Signal de relance vers M2 » doit apparaître EXACTEMENT "
-        f"une fois, trouvée {len(titres)} fois"
-    )
+    cles_extraites = cles_du_bloc_yaml(motif_titre, 3)
 
-    debut_section = titres[0].end()
-    titre_suivant = re.compile(r"^#{1,3}\s", re.MULTILINE).search(
-        texte, debut_section
-    )
-    fin_section = titre_suivant.start() if titre_suivant else len(texte)
-    section = texte[debut_section:fin_section]
-
-    bloc = re.search(
-        r"```(?:yaml|yml)?[^\S\n]*\n(.*?)```", section, re.DOTALL
-    )
-    contenu = bloc.group(1) if bloc else section
-
-    cles_extraites = set()
-    for ligne in contenu.splitlines():
-        correspondance = re.match(r"^\s*([a-z_][a-z0-9_]*)\s*:", ligne)
-        if correspondance:
-            cles_extraites.add(correspondance.group(1))
-
-    assert cles_extraites, (
-        "extracteur vide : aucune clé extraite du bloc yaml de la section"
-    )
     assert len(signaux.CHAMPS_SIGNAL) == 5
     assert cles_extraites == set(signaux.CHAMPS_SIGNAL)

@@ -37,6 +37,10 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from m3_estimation import contrats, qualite_photos, verdicts
+import sys as _s2
+from pathlib import Path as _P2
+_s2.path.insert(0, str(_P2(__file__).resolve().parent))
+from _commun_contrats import cles_du_bloc_yaml
 
 # ---------------------------------------------------------------------------
 # Aides de construction — chaque appel retourne des dictionnaires NEUFS :
@@ -432,82 +436,33 @@ def test_un_booleen_comme_seuil_est_refuse(cle_seuil):
     _assert_verdict_rejet(verdict, "REJ-SEUILS-INVALIDES")
 
 
-def _cles_du_bloc_yaml(motif_titre, niveaux_titre_suivant):
-    """UNIQUE extracteur des clés d'un bloc yaml de l'architecture, partagé
-    par tous les tests de non-dérive du fichier : deux extracteurs d'une même
-    notion peuvent diverger — ce défaut a déjà été fermé trois fois dans ce
-    dépôt, et un extracteur dupliqué à 74 % le réintroduirait.
-
-    Fail-closed : si aucune clé n'est extraite, l'assertion finale échoue au
-    lieu de laisser passer un contrôle vide en silence.
-    """
-    chemin_architecture = (
-        Path(__file__).resolve().parents[1]
-        / "docs"
-        / "bmad"
-        / "03-ARCHITECTURE.md"
-    )
-    texte = chemin_architecture.read_text(encoding="utf-8")
-
-    titres = list(re.compile(motif_titre, re.MULTILINE).finditer(texte))
-    assert len(titres) == 1, (
-        f"le titre repéré par {motif_titre!r} doit apparaître EXACTEMENT une "
-        f"fois dans l'architecture, trouvé {len(titres)} fois"
-    )
-
-    debut_section = titres[0].end()
-    titre_suivant = re.compile(
-        rf"^{niveaux_titre_suivant}\s", re.MULTILINE
-    ).search(texte, debut_section)
-    fin_section = titre_suivant.start() if titre_suivant else len(texte)
-    section = texte[debut_section:fin_section]
-
-    bloc_yaml = re.compile(
-        r"^```yaml\s*\n(.*?)^```", re.MULTILINE | re.DOTALL
-    ).search(section)
-    cles = set()
-    if bloc_yaml is not None:
-        for ligne in bloc_yaml.group(1).splitlines():
-            ligne = ligne.strip()
-            if not ligne or ligne.startswith("#"):
-                continue
-            if ligne.startswith("- "):
-                ligne = ligne[2:].strip()
-            correspondance = re.match(r"^([a-z_][a-z0-9_]*)\s*:", ligne)
-            if correspondance:
-                cles.add(correspondance.group(1))
-    assert cles, (
-        f"aucune clé extraite du bloc yaml sous le titre repéré par "
-        f"{motif_titre!r} — extracteur vide, contrôle non probant"
-    )
-    return cles
 
 @pytest.mark.parametrize(
-    "libelle, motif_titre, niveaux_titre_suivant, constante_attendue",
+    "libelle, motif_titre, niveau_titre_suivant, constante_attendue",
     [
         (
             "SeuilsQualite",
             r"^###\s+\d+(?:\.\d+)*[^\n]*SeuilsQualite[^\n]*$",
-            r"#{1,3}",
+            3,
             contrats.CHAMPS_SEUILS_QUALITE,
         ),
         (
             "PhotosFournies",
             r"^####\s[^\n]*PhotosFournies[^\n]*$",
-            r"#{1,4}",
+            4,
             contrats.CHAMPS_PHOTO,
         ),
     ],
     ids=["SeuilsQualite", "PhotosFournies"],
 )
 def test_les_constantes_de_contrat_sont_alignees_sur_l_architecture(
-    libelle, motif_titre, niveaux_titre_suivant, constante_attendue
+    libelle, motif_titre, niveau_titre_suivant, constante_attendue
 ):
     """Ces constantes se dérivent du CADRAGE, jamais des fixtures de test :
     les fixtures décrivent le même monde que le code, donc sans ce test une
     divergence entre la constante et l'architecture resterait invisible.
     """
-    cles_architecture = _cles_du_bloc_yaml(motif_titre, niveaux_titre_suivant)
+    cles_architecture = cles_du_bloc_yaml(motif_titre, niveau_titre_suivant)
     assert cles_architecture == set(constante_attendue), (
         f"cas « {libelle} » : les clés du bloc yaml de l'architecture "
         f"divergent de la constante — extraites {sorted(cles_architecture)}, "
