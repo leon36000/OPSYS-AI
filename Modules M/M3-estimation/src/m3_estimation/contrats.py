@@ -92,3 +92,15 @@ CHAMPS_SEUILS_QUALITE = ("resolution_minimale", "eclairage_minimal")
 # valeur par défaut.
 CHAMPS_PHOTO = ("photo_id", "resolution_largeur", "resolution_hauteur",
                 "eclairage", "angle", "reference_echelle")
+
+# Copie épinglée de l'énuméré ``VerdictEstimation`` de ``03-ARCHITECTURE.md``
+# section 2.5 : un test de non-divergence l'extrait de la source et confronte
+# les deux listes, parce qu'une copie qu'on ne confronte pas dérive en silence.
+VERDICTS_ESTIMATION = (
+    "AUCUN_BLOCAGE",
+    "QUALITE_ENTREE_INSUFFISANTE",
+    "REFERENCE_ECHELLE_ABSENTE",
+    "PLANCHER_RENTABILITE_FRANCHI",
+    "CONTRAT_ENTREE_INVALIDE",
+    "INDETERMINE",
+)
