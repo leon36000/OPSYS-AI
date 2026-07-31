@@ -1,0 +1,14 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Preuve B / mut.py",
+   "description": "L'affirmation « 15/15 mordent » de la batterie de mutations n'est pas soutenue par une sortie d'exécution observable : le script est fourni mais le pack ne contient aucune capture attestant que les 15 mutations produisent effectivement un échec.",
+   "preuve": "Le pack conclut « 15/15 mordent | sources restaurees a l identique : True » sans joindre le moindre extrait de stdout/stderr."
+  }
+ ],
+ "date_heure": "2026-07-31T16:22:17.069292+00:00",
+ "prompt_sha256": "7aa0db12bd60037c452d75a74c1d4aee01694afd3d4ce4000f1adc6d7c6e3a07",
+ "reviewer_model": "DeepSeek-V4-Pro"
+}
