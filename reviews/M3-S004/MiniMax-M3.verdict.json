@@ -1,0 +1,14 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/test_blocage_prix.py",
+   "description": "Le test test_un_ensemble_portant_les_bons_noms_est_refuse invoque decider_blocage(\"MULTI_VUES\", set(...)) — or ce tuple n'est pas un dict : la garde isinstance L117 doit le rejeter AVANT tout accès à qualification. Le test ne peut donc pas nommer avec certitude que la garde L122 (clés) est traversée sans tomber d'abord sur L117. C'est précisément la propriété testée (« la garde de type est tenue nommée, pas par effet de bord aval ») — donc non-bloquant pour la story, à garder en tête si une régression future essaie d'inverser l'ordre L117/L122.",
+   "preuve": "test_blocage_prix.py lignes ~552-590 : les deux paramétrages (set, list) portent _qualification_valide() qui contient des str (les valeurs), donc set(qualification) == {\"photos_acceptables\",\"verdict_estimation\",...} et la garde L117 rejette avant L122. Le test prouve donc la garde L117, pas l'indépendance de L122 vis-à-vis de L117."
+  }
+ ],
+ "date_heure": "2026-07-31T18:46:07.346572+00:00",
+ "prompt_sha256": "72260f4b2a3ec751158c962c535c0afcac1b31834b4f8644119d1ee58e3cf2e0",
+ "reviewer_model": "MiniMax-M3"
+}
