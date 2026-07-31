@@ -1,0 +1,38 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M2-revenue-crm/tests/test_registre.py",
+   "description": "Le cas 'réordonnancement' ne réordonne pas réellement : `__setitem__(0, chain[1]) or __setitem__(1, chain[0])` produit [m1, m1, m2] (duplication du second maillon à la position 0) et non un vrai swap. Le test passe parce que le maillon dupliqué porte l'ancien `precedent_ligne_id=m0` au lieu de `None`, donc la vérification de chaînage déclenche — mais le cas nominal (vraie permutation [m1, m0, m2]) n'est pas exercé.",
+   "preuve": "Lambda lignes 178-183 : après `chain.__setitem__(0, chain[1])`, `chain[0]` pointe déjà sur m1, donc l'instruction suivante `chain.__setitem__(1, chain[0])` ne fait plus rien. État final = [m1, m1, m2], pas [m1, m0, m2]."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M2-revenue-crm/tests/test_registre.py",
+   "description": "test_ajouter_seul_a_modifier_append est asymétrique : pour 'ajouter' il accepte append/extend/insert/__setitem__/__delitem__, mais pour les autres méthodes publiques il ne contrôle que `.append(`, `.insert(`, `.pop(`. Un non-ajouter utilisant `__setitem__`, `__delitem__`, `extend`, `clear`, `sort` ou `reverse` passerait. Le story demande 'un seul point de mutation (.append dans ajouter)' mais le test n'en est pas la preuve.",
+   "preuve": "Lignes 269-282 de test_registre.py : checks pour non-ajouter = 'assert \".append(\" not in src', 'assert \".insert(\" not in src', 'assert \".pop(\" not in src'. Aucun contrôle sur __setitem__, __delitem__, extend, clear."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M2-revenue-crm/src/registre.py",
+   "description": "Double deep-copy inutile dans ajouter() : `copy.deepcopy(entree)` puis `copy.deepcopy(entree_copy)` pour bâtir le maillon. Comme seuls deux champs scalaires sont ajoutés, un `dict(entree_copy)` (shallow) suffirait. Pas de bogue, mais coût O(n) redondant sur chaque ajout.",
+   "preuve": "Lignes 60-67 de registre.py : entree_copy = copy.deepcopy(entree); ...; maillon = copy.deepcopy(entree_copy); maillon['ligne_id']=...; maillon['precedent_ligne_id']=..."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M2-revenue-crm/tests/test_registre.py",
+   "description": "Aucun test n'exerce `valider_chaine()` ni `assert_chaine()` sur un registre strictement vide. Le cas limite (chaîne vide, _empreinte = encoder_canonique() avec zéro arg) devrait retourner True / ne pas lever. La cohérence entre `_empreinte` initial et `_hash_chaine([])` n'est pas testée explicitement.",
+   "preuve": "test_sequence_valide_donne_valider_chaine_vrai utilise `_registre_rempli(2)`. Aucun test ne contient `registre_vide.valider_chaine()` ou `registre_vide.assert_chaine()`."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M2-revenue-crm/tests/test_isolation_modules.py",
+   "description": "Le correctif de fond de la contamination inter-modules (rendre les identités uniques par paquet) n'est PAS dans cette PR — explicitement reporté par l'auteur. Seul un garde-fou est livré. Mieux qu'un faux vert silencieux, mais un `pytest` local qui ramasserait M1 et M2 ensemble ferait toujours échouer toute la suite M2 au lieu de détecter puis continuer. Issue de fond à tracker.",
+   "preuve": "Contexte de revue section '1. Contamination inter-modules' : 'Le correctif de fond n'est PAS dans cette PR... Issue dédiée ouverte.' Vérification dans les deux sens : en processus partagé, 5 tests M2 échouent au lieu de 21 (le garde réduit l'ampleur mais ne répare rien)."
+  }
+ ],
+ "date_heure": "2026-07-29T06:56:35.311557+00:00",
+ "prompt_sha256": "62d9cfd2a1182eb83dc093ad46057b382ce3e28904728324269c83236fd9c348",
+ "reviewer_model": "MiniMax-M3"
+}

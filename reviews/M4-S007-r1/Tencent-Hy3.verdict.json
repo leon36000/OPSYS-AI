@@ -1,0 +1,14 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M4-field-ops/tests/test_ecarts.py",
+   "description": "Doublon de la fonction test_rejets_args_resolution : une première définition (avec paramètre motif mais appel erroné motif=moif) est suivie d'une seconde redéfinition corrigée. La première est masquée et constitue du code mort avec une erreur de nom potentielle ; commentaires internes de correction présents dans le fichier.",
+   "preuve": "Diff lines: première définition @pytest.mark.parametrize(...) def test_rejets_args_resolution(...): ... motif=moif ; puis commentaire '# Correction: need to define `moif` -> `motif`. Fixed below.' et seconde définition identique avec motif=motif."
+  }
+ ],
+ "date_heure": "2026-07-30T09:21:13.427235+00:00",
+ "prompt_sha256": "199126b44f352347374ddcc98f33d9c011cf8bd572bf66df66ad98748a5702f8",
+ "reviewer_model": "Tencent-Hy3"
+}

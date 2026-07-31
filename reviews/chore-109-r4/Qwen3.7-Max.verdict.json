@@ -1,0 +1,14 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M2-revenue-crm/tests/test_conformite_m1.py",
+   "description": "Le message d'erreur des assertions d'existence des fichiers scellés mentionne `_SRC` au lieu de `_PKG`. Le chemin vérifié est correctement `_PKG / 'horodatage.py'` (et `verdicts.py`), mais le message d'erreur en cas d'échec indiquera 'Fichier ... manquant dans .../src' au lieu de '.../src/m2_revenue_crm', ce qui pourrait induire en erreur lors d'un diagnostic.",
+   "preuve": "Lignes 32 et 42 : `assert chemin.exists(), f\"Fichier horodatage.py manquant dans {_SRC}\"` alors que `chemin = _PKG / \"horodatage.py\"`."
+  }
+ ],
+ "date_heure": "2026-07-29T23:23:33.953867+00:00",
+ "prompt_sha256": "1f9ab54a0ccb6d579707415176f4eaaa8f567ffccd6303b0011bb44a8a11c447",
+ "reviewer_model": "Qwen3.7-Max"
+}

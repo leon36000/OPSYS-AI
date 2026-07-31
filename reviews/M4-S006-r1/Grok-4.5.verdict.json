@@ -1,0 +1,20 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M4-field-ops/src/m4_field_ops/pointage.py",
+   "description": "Les latitude/longitude de l'entrée référentiel_villes ne sont pas validées (type numérique, non-bool, bornes) avant distance_km, contrairement à fix_gps et rayon_km. Un référentiel mal typé provoque TypeError non converti en verdict fail-closed.",
+   "preuve": "Après le contrôle set(ref.keys())=={latitude,longitude,rayon_km} et la validation de rayon_km seul, appel direct distance_km(lat, lon, ref['latitude'], ref['longitude']) — aucun isinstance/bornes sur ref['latitude']/ref['longitude']; distance_km fait math.radians(lat2-lat1) sans garde."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M4-field-ops/src/m4_field_ops/pointage.py",
+   "description": "Lecture CA-M4-08 vs table ratifiée : l'arrivée GPS incohérente ne transitionne pas vers en_revue (reste en_route) tout en créant demande_revue; seul départ incohérent depuis sur_site fait en_revue. Conforme à la table (pas de en_route→en_revue; en_route→sur_site conditionné au fix cohérent). Verdict trio: (a) bonne lecture — CA satisfait dans la mesure où la table le permet; pas d'amendement d'artefact ratifié dans cette PR.",
+   "preuve": "Branche transition: if action=='arrivee' and coherent → sur_site; elif action=='depart' and not coherent → en_revue; commentaire explicite sur l'absence de en_route→en_revue. test_arrivee_incoherente assert statut_courant=='en_route' et demande_id is not None; test_depart_incoherent assert statut=='en_revue'."
+  }
+ ],
+ "date_heure": "2026-07-30T08:54:22.963051+00:00",
+ "prompt_sha256": "dcce76d5b04ac7338a3fa421c333a6736c1a33c222906cf3b6884964f1878d37",
+ "reviewer_model": "Grok-4.5"
+}

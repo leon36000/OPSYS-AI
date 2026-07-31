@@ -1,0 +1,20 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "src/readiness.py",
+   "description": "Les branches générant les messages de détail dans emettre_marqueur lorsque le lead est inexistant ou dans un statut différent de 'qualifie' ne sont couvertes par aucun test. Modifier ces messages ne ferait échouer aucun test.",
+   "preuve": "Lignes 161-166 : `msg = f\"lead {lead_id} inexistant\"` et la branche `else`. Aucun test dans test_readiness.py n'appelle emettre_marqueur sur un lead non qualifié."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "src/interactions.py",
+   "description": "Le contenu exact du détail du verdict lors du rejet pour champ vide n'est pas vérifié. La logique de sélection du champ en cause pourrait être altérée sans rendre de test rouge.",
+   "preuve": "Lignes 47-48 : `champ = \"auteur\" if not auteur else \"resume\"`. Le test test_rejets_parametres vérifie uniquement `verdict[\"code\"] == code_attendu` et n'effectue aucune assertion sur `verdict[\"detail\"]`."
+  }
+ ],
+ "date_heure": "2026-07-29T18:39:35.210414+00:00",
+ "prompt_sha256": "2f078b1d27352b36b5731fd2319029e0a8184b24114e1033d47dd4d387c3de8a",
+ "reviewer_model": "Gemini-3.1-Pro"
+}

@@ -1,0 +1,32 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/tests/test_digest.py",
+   "description": "Test dupliqué : test_prix_et_engagement_absents_du_texte_et_garde_fou (au niveau module, hors classe) recouvre TestGardeFou.test_prix_et_engagement_absents_du_texte et TestGardeFou.test_passe_garde_fou_malgre_donnees_sensibles. Mêmes assertions sur les mêmes motifs et même fixture ENTREES_SENSIBLES.",
+   "preuve": "Diff test_digest.py : fonction test_prix_et_engagement_absents_du_texte_et_garde_fou (~ligne 326+) duplique la logique déjà présente dans la classe TestGardeFou (~ligne 125+). Mêmes motifs '15000', '12345', '2025-06-30', '2025-08-15' + appel garde_fou.verifier_sortie."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/tests/test_digest.py",
+   "description": "Fixture 'sujet' paramétrée (4 cas : mock_approval, mock_bus, adaptateurs_approval, adaptateurs_bus) déclarée dans TestContratAdaptateurs mais jamais consommée par aucun test de la classe — code mort.",
+   "preuve": "Diff test_digest.py : @pytest.fixture(params=[...]) def sujet(self, request) (~ligne 215) — aucune méthode de TestContratAdaptateurs ne référence 'sujet' ou 'self.sujet'."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/tests/test_digest.py",
+   "description": "Bloc d'imports dupliqué : import sys, from pathlib import Path, _SRC = ..., sys.path.insert, import digest/adaptateurs/garde_fou apparaît deux fois (en tête de fichier et vers la ligne 250). Le second bloc est inutile.",
+   "preuve": "Diff test_digest.py : premier bloc lignes 1-15 ; second bloc identique (sys, Path, _SRC, sys.path.insert(0,str(_SRC)), import digest, import adaptateurs, import garde_fou) ~ligne 250+."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/tests/test_digest.py",
+   "description": "TestContratAdaptateurs.test_approval_engine_contrat avale silencieusement toute exception via try/except Exception: pass sur engine2.statut(id2), ce qui peut masquer une régression future.",
+   "preuve": "Diff test_digest.py : try: statut_res = engine2.statut(id2) / except Exception: pass (~ligne 240). Commentaire le justifie ('normal') mais aucune assertion ne vérifie qu'aucune exception n'est levée dans le cas nominal."
+  }
+ ],
+ "date_heure": "2026-07-29T02:42:34.557937+00:00",
+ "prompt_sha256": "13a367d035a0ac62605113d65051f4b8d963755a34fff6de4221e731bea40d3a",
+ "reviewer_model": "MiniMax-M3"
+}

@@ -603,3 +603,36 @@ def test_un_ensemble_ne_plante_pas_il_est_refuse(fabriquer_lot):
     )
     assert qualification is None
     _assert_verdict_rejet(verdict, "REJ-PHOTOS-INVALIDES")
+
+
+@pytest.mark.parametrize(
+    "champ",
+    ["photo_id", "angle", "reference_echelle.type"],
+)
+def test_une_chaine_de_blancs_est_refusee(champ):
+    """`not chaine` est faux pour une chaîne d'espaces ; sans ce test, la garde pourrait être écrite sans `.strip()` et laisser passer des valeurs vides en apparence."""
+    photo = {
+        "photo_id": "photo-001",
+        "resolution_largeur": 1920,
+        "resolution_hauteur": 1080,
+        "eclairage": 7.5,
+        "angle": "face",
+        "reference_echelle": {
+            "type": "carte",
+            "dimensions_connues": True,
+        },
+    }
+    seuils = {
+        "resolution_minimale": 512,
+        "eclairage_minimal": 3.0,
+    }
+    if champ == "reference_echelle.type":
+        photo["reference_echelle"]["type"] = "   "
+    else:
+        photo[champ] = "   "
+
+    qualification, verdict = qualite_photos.qualifier_photos([photo], seuils)
+
+    assert qualification is None
+    assert verdict is not None
+    assert verdict["code"] == "REJ-PHOTOS-INVALIDES"

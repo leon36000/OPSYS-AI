@@ -1,0 +1,38 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M2-revenue-crm/docs/bmad/03-ARCHITECTURE.md",
+   "description": "Section 9 contient un bloc S002 dupliqué (copie verbatim de l'interface §7) et S002 n'est pas formellement listé comme story dans l'énumération (la liste saute de S001 à S003).",
+   "preuve": "Lignes §9 : 'S002 : ajouter(entree) -> str ... taille() -> int.' apparaît entre le bloc M2-S001 et M2-S003, sans en-tête '- M2-S002 (T1, dépend : ...)'."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M2-revenue-crm/docs/bmad/03-ARCHITECTURE.md",
+   "description": "CA-M2-10 (registre hash-chaîné) n'est pas explicitement rattaché à S002 dans l'énumération des stories §9, bien qu'il soit référencé à S002 dans §8.",
+   "preuve": "§9 ne contient aucun 'Porte CA-M2-10' pour S002 ; §8 dit 'S002 : valider_chaine retourne vrai après toute séquence valide et faux après altération d'un maillon (CA-M2-10)'."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M2-revenue-crm/docs/bmad/03-ARCHITECTURE.md",
+   "description": "CA-M2-15 n'est pas explicitement cité dans le bloc M2-S008 de §9, alors que le PRD §4 affirme 'CA-M2-15 est porté par la story S008'.",
+   "preuve": "§9 M2-S008 : 'adaptateurs in-memory fail-closed... tout appel hors mode ombre lève REJ-ADAPTATEUR-INDISPONIBLE' — aucun 'Porte CA-M2-15'."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M2-revenue-crm/docs/bmad/03-ARCHITECTURE.md",
+   "description": "La preuve 'STRUCTURE_LINT: VERT (10 modules, 0 frameworks, bijection OK)' ne peut pas être vérifiée depuis le diff (documentation seule) ; l'arborescence §1 énumère 14 fichiers Python, pas 10.",
+   "preuve": "§1 liste : encodage.py, horodatage.py, verdicts.py, registre.py, contrats.py, frontieres.py, ingestion.py, statuts.py, interactions.py, readiness.py, doublons.py, digest.py, adaptateurs.py, fixtures.py = 14 fichiers."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M2-revenue-crm/docs/bmad/03-ARCHITECTURE.md",
+   "description": "La preuve 'gates=success sur le HEAD' ne peut pas être vérifiée depuis un diff documentation-only.",
+   "preuve": "Le diff ne contient que trois fichiers .md (01-BRIEF, 02-PRD, 03-ARCHITECTURE), aucun fichier de code ni de configuration CI."
+  }
+ ],
+ "date_heure": "2026-07-29T04:18:05.046129+00:00",
+ "prompt_sha256": "295b0b3e1f44cd27227c234f8658b894788b5bc585b6751ca0e94c642b5a5a8f",
+ "reviewer_model": "MiniMax-M3"
+}

@@ -1,0 +1,62 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M3-estimation/tests/test_qualite_photos.py",
+   "description": "La restauration est incomplète : le test 'test_champs_photo_alignes_sur_architecture' annoncé comme supprimé (diff entre ee5c255 et l'état soumis) n'apparaît NULLE PART dans le diff intégral fourni. Le diff ne contient que 'test_les_constantes_de_contrat_sont_alignees_sur_l_architecture' qui consolide SeuilsQualite ET PhotosFournies en un seul test paramétré, mais la preuve d'inventaire affirme que 'test_champs_photo_alignes_sur_architecture' a été retiré — affirmation invérifiable puisque le diff censé restaurer depuis ee5c255 ne montre pas l'état pré-factorisation, et la liste '33 fonctions' n'est pas prouvée par énumération explicite des 33 noms.",
+   "preuve": "Diff intégral : seuls les fonctions 'test_nominal_lot_valide_accepte', 'test_blocages_causes_isolees', 'test_photo_plate_largeur_ne_compense_pas_hauteur', 'test_borne_resolution_exactement_au_seuil_acceptable', 'test_borne_resolution_un_pixel_sous_seuil_faible', 'test_borne_eclairage_exactement_au_seuil_acceptable', 'test_borne_eclairage_sous_seuil_faible', 'test_seuils_invalides_rejetes', 'test_photos_malformees_rejetees', 'test_catalogue_ferme_contient_les_codes_de_rejet', 'test_un_booleen_comme_seuil_est_refuse', 'test_les_constantes_de_contrat_sont_alignees_sur_l_architecture' sont visibles — soit 12 fonctions dans test_qualite_photos.py, pas 33. La assertion '33 fonctions au total' (toutes stories M3 confondues possiblement ?) n'est pas justifiée dans le périmètre M3-S002."
+  },
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M3-estimation/tests/test_qualite_photos.py",
+   "description": "Le test 'test_champs_photo_alignes_sur_architecture' référencé dans l'inventaire de l'auteur n'existe pas dans le diff. L'auteur affirme l'avoir 'retiré' lors de la factorisation AST, mais le diff ne montre ni la version originale de ee5c255 (pour prouver qu'il existait) ni de marqueur explicite de suppression. L'argument d'inventaire est circulaire : on ne peut pas vérifier qu'une fonction a été 'retirée' si on ne voit pas son existence préalable dans le pack.",
+   "preuve": "Section 'PREUVE — l'inventaire des fonctions' liste 'test_champs_photo_alignes_sur_architecture' parmi les fonctions 'retirées', mais le diff intégral ne contient aucun '--- a/...' correspondant à ce nom. Le seul test de non-dérive visible est 'test_les_constantes_de_contrat_sont_alignees_sur_l_architecture' qui couvre les DEUX sections (SeuilsQualite et PhotosFournies) via parametrize. Si la fonction d'origine était distincte, sa consolidation est une modification non annoncée qui pourrait masquer une perte de couverture (par exemple un test sur l'éclairage qui aurait été absorbé)."
+  },
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/qualite_photos.py",
+   "description": "Mutation 'CHAMPS_PHOTO ampute de sa derniere cle' : la mutation retire 'reference_echelle' du tuple. Or le code de _valider_photo utilise 'set(photo) != set(contrats.CHAMPS_PHOTO)' puis itère sur les clés du contrat. Si 'reference_echelle' est retirée du tuple, le code lève KeyError sur 'photo[\"reference_echelle\"]' à la ligne de validation, ce qui ferait échouer le test par exception — non par verdict REJ-PHOTOS-INVALIDES. La mutation ROUGE, mais pour une raison qui n'est PAS 'la validation par ensemble' : elle tient par accident (crash), pas par conception. Le test 'test_les_constantes_de_contrat_sont_alignees_sur_l_architecture' détecte l'écart architectural, mais la qualification runtime ne le fait pas.",
+   "preuve": "qualite_photos.py ligne ~100 : 'reference = photo[\"reference_echelle\"]' est accédé directement après la validation par ensemble. Si la clé est absente, KeyError, pas verdict. La mutation 'CHAMPS_PHOTO ampute de sa derniere cle' ROUGE par crash Python, pas par discrimination du contrat. Preuve : le script de mutation remplace la dernière clé du tuple et constate rc != 0, mais ne distingue pas 'rejet par verdict' de 'crash par KeyError'."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/qualite_photos.py",
+   "description": "Aucun test n'exerce la combinaison 'photos n'est pas une liste' (un tuple, un set, un dict passé à la place d'une liste). Le code ligne ~125 rejette avec 'REJ-PHOTOS-INVALIDES' / 'photos n'est pas une liste', mais le diff ne montre aucun test couvrant ce cas. Si une régression future supprimait ce contrôle, aucun test ne le détecterait.",
+   "preuve": "qualite_photos.py : 'if not isinstance(photos, list): return None, verdicts.construire_verdict(...)'. Aucun parametrize id ne contient 'photos-non-liste' dans test_qualite_photos.py (les ids visibles : 'liste-vide', 'resolution-sous-seuil', 'eclairage-sous-seuil', 'photo-non-dict', 'cle-manquante', 'cle-inconnue', 'largeur-zero', 'largeur-negative', 'eclairage-hors-echelle', 'none', 'dict-vide', 'sans-eclairage', 'sans-resolution', 'cle-inconnue', 'resolution-en-chaine', 'eclairage-en-chaine', 'SeuilsQualite', 'PhotosFournies')."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/qualite_photos.py",
+   "description": "Aucun test ne couvre le cas 'eclairage négatif' (par exemple -1.0). L'échelle 0-10 est testée au dépassement supérieur (11.0) via 'eclairage-hors-echelle', mais pas en dessous. La condition '0 <= eclairage <= 10' rejette -1.0, mais ce rejet n'est couvert par aucun test.",
+   "preuve": "qualite_photos.py : 'if type(eclairage) not in (int, float) or not 0 <= eclairage <= 10:'. Le parametrize '_lot_photo_eclairage_hors_echelle' fixe eclairage=11.0. Aucun cas ne fixe eclairage=-1.0. Si la borne inférieure '0 <=' était retirée, un éclairage négatif passerait silencieusement."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/qualite_photos.py",
+   "description": "Aucun test ne couvre 'reference_echelle' malformé de manières autres que la structure globale : par exemple, un dict avec clé 'type' mais sans 'dimensions_connues', ou 'dimensions_connues' non-booléen via une chaîne. Le code teste 'set(reference) != {\"type\", \"dimensions_connues\"}' et 'type(reference[\"dimensions_connues\"]) is not bool', mais aucun test paramétré ne vérifie ces branches.",
+   "preuve": "qualite_photos.py : validation de reference_echelle aux lignes ~95-110. Le diff des tests ne contient aucun '_lot_photo_reference_incomplete' ou équivalent. Les ids 'photo-non-dict', 'cle-manquante', 'cle-inconnue', 'largeur-zero', 'largeur-negative', 'eclairage-hors-echelle' ne couvrent pas les sous-clés de reference_echelle."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/signaux.py",
+   "description": "Le test 'test_contrat_aligne_sur_architecture' (test_signaux.py) DUPLIQUE la logique d'extraction yaml déjà factorisée dans test_qualite_photos.py via '_cles_du_bloc_yaml'. L'auteur a justement averti dans la docstring de _cles_du_bloc_yaml : 'deux extracteurs d'une même notion peuvent diverger — ce défaut a déjà été fermé trois fois dans ce dépôt, et un extracteur dupliqué à 74 % le réintroduirait.' Or test_signaux.py implémente exactement cet extracteur dupliqué en lignes ~200-230. L'auteur a factorisé UNE fois et oublié l'autre : c'est précisément le défaut qu'il dénonce.",
+   "preuve": "test_qualite_photos.py lignes 380-430 : fonction _cles_du_bloc_yaml. test_signaux.py lignes 200-230 : bloc identique de regex sur '03-ARCHITECTURE.md', extraction de bloc yaml, regex '^\\s*([a-z_][a-z0-9_]*)\\s*:', set de clés. Deux implémentations concurrentes."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/qualite_photos.py",
+   "description": "Aucun test ne couvre le cas 'photo avec resolution_largeur == resolution_hauteur == 0' séparément de '== 0' pour une seule dimension. Le code rejette largeur<=0 ET hauteur<=0, mais le test '_lot_photo_largeur_zero' ne modifie que largeur. Un cas où les deux dimensions sont à 0 simultanément n'est pas exercé.",
+   "preuve": "test_qualite_photos.py : _lot_photo_largeur_zero fixe lot[0]['resolution_largeur'] = 0, laissant hauteur à 3000. _lot_photo_largeur_negative fixe -100. Aucun cas 'largeur-zero-hauteur-zero'."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/qualite_photos.py",
+   "description": "Le test 'test_un_booleen_comme_seuil_est_refuse' utilise 'seuils[cle_seuil] = True' (booléen Python). La mutation 'typage STRICT -> isinstance (accepte True)' a été validée ROUGE par le script. Cependant, le test n'exerce pas le cas 'eclairage_minimal = True' combiné avec un eclairage de photo valide — il suppose qu'une fois le booléen accepté, le reste de la qualification s'exécute. Le code rejette en amont via 'type(...) is not int', donc le booléen est rejeté avant toute comparaison. Mais aucun test ne vérifie qu'un float égal à un seuil-égal-booléen ne pose pas de problème de cohérence (par exemple seuils[resolution_minimale]=True, puis photo avec resolution_largeur=True — bool qui passe isinstance(int) mais pas type(...) is int).",
+   "preuve": "test_qualite_photos.py : test_un_booleen_comme_seuil_est_refuse parametrize sur 'resolution_minimale' et 'eclairage_minimal' avec valeur True. La photo passée est _lot_valide() avec resolution_largeur=4000 (int). Le test ne mélange pas un seuil-booléen avec une photo à dimension booléenne."
+  }
+ ],
+ "date_heure": "2026-07-31T12:08:12.137589+00:00",
+ "prompt_sha256": "1fcf73fe16662e7dd28cc9296b9874e9a6b2870244531e53df21b651d0f18c94",
+ "reviewer_model": "MiniMax-M3"
+}

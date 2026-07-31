@@ -1,0 +1,14 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/src/adaptateurs.py",
+   "description": "L'utilisation de `default=repr` dans json.dumps évite le TypeError mais peut produire des identifiants non-déterministes pour les objets personnalisés (inclusion de l'adresse mémoire) ou les sets de chaînes (à cause de la randomisation des hash en Python).",
+   "preuve": "serialized = json.dumps(objet, sort_keys=True, ensure_ascii=True, default=repr)"
+  }
+ ],
+ "date_heure": "2026-07-29T02:36:58.818362+00:00",
+ "prompt_sha256": "c7fa4199ab9e72edc717c988b880a2c9a23586fde8f679b88775852e2f40e452",
+ "reviewer_model": "Gemini-3.1-Pro"
+}

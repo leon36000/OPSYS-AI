@@ -1,0 +1,14 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/src/adaptateurs.py",
+   "description": "L'utilisation de `default=repr` dans `json.dumps` pour les objets non sérialisables (comme les `set`) n'est pas déterministe entre différents processus Python à cause de la randomisation du hachage (`PYTHONHASHSEED`). Cela peut briser la garantie de déterminisme des IDs pour ces objets spécifiques en cas de redémarrage du service.",
+   "preuve": "Ligne 34 : `serialized = json.dumps(objet, sort_keys=True, ensure_ascii=True, default=repr)`"
+  }
+ ],
+ "date_heure": "2026-07-29T02:49:32.732009+00:00",
+ "prompt_sha256": "1b897783fd623368750433d28684af0ba2d3e173d125705d1cd6560f95b074e4",
+ "reviewer_model": "Qwen3.7-Max"
+}

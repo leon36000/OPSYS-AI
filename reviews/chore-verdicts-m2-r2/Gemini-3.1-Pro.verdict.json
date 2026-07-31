@@ -1,0 +1,20 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M2-revenue-crm/tests/test_utilitaires.py",
+   "description": "La méthode `_identifiants_emis_par_les_sources` lit tous les fichiers `.py` du dossier `src`, y compris `verdicts.py`. Par conséquent, l'ensemble `emis` contient tous les codes du catalogue lui-même. Dans `test_le_catalogue_ne_contient_aucun_code_orphelin`, la condition `code not in emis` sera donc toujours fausse pour n'importe quel code présent dans `verdicts.py`. Le test est aveugle : un code totalement inventé ajouté au catalogue s'auto-justifiera par sa simple présence dans `verdicts.py` et ne sera jamais détecté comme orphelin. C'est une réponse directe à la question ouverte 3 (le test passe pour une raison différente de celle annoncée).",
+   "preuve": "Lignes 950-955 : `fichiers = sorted(src.glob(\"*.py\"))` inclut `verdicts.py`, et `re.findall` extrait tous les `REJ-*` de `CODES_M2_LIST`. Ligne 997 : `and code not in emis` neutralise la détection pour tout code du catalogue."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M2-revenue-crm/src/fixtures_garde.py",
+   "description": "La branche `if not isinstance(data, dict):` n'est couverte par aucun test. Le test paramétré `test_refuse_toute_variante_non_strict_true` ne fournit que des dictionnaires (`{\"fictif\": False}`, `{\"fictif\": \"true\"}`, `{\"fictif\": 1}`, `{}`). Si cette condition ou son message d'erreur spécifique étaient supprimés ou modifiés, aucun test ne deviendrait rouge. C'est une réponse directe à la question ouverte 1.",
+   "preuve": "Lignes 180-185 de `test_utilitaires.py` : les 4 cas de `contenu` sont des dictionnaires. Lignes 18-21 de `fixtures_garde.py` : le bloc `if not isinstance(data, dict):` ne sera jamais évalué à True par ces tests (il faudrait tester avec une liste, une chaîne ou un fichier vide)."
+  }
+ ],
+ "date_heure": "2026-07-29T09:09:27.674267+00:00",
+ "prompt_sha256": "e6fd243a38b2c9b04a1f2b3c1dd792c0b416340594e775b1acf15d5b183a4ec0",
+ "reviewer_model": "Gemini-3.1-Pro"
+}

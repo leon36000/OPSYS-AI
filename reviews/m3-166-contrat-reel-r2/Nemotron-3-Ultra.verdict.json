@@ -1,0 +1,44 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M3-estimation/docs/bmad/02-PRD-PM.md",
+   "description": "Le schéma de sortie EstimationV1 documente le mauvais énuméré pour le champ type_travaux : le commentaire dit « Enum NiveauConfiance : REFERENCE_ECHELLE | MULTI_VUES | MONO_VUE_BORNES_LARGES | INDETERMINE » alors que type_travaux doit utiliser l'énuméré M2 (renovation_totale, extension, ravalement, isolation_thermique, autre, INDETERMINE). L'énuméré NiveauConfiance appartient au champ niveau_confiance. Cette erreur de contrat de sortie induira en erreur l'implémentation S001/S003 et M4.",
+   "preuve": "Lignes 158-160 du diff PRD : \"type_travaux: str\\n    # Enum NiveauConfiance : REFERENCE_ECHELLE | MULTI_VUES | MONO_VUE_BORNES_LARGES | INDETERMINE\""
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/docs/bmad/03-ARCHITECTURE.md",
+   "description": "Le contrôle 15 (verifier_ancres_de_docstring) ne vérifie pas la promesse explicite de CA-M3-03 : \"la limite... est écrite dans la docstring du MODULE et à côté du verdict\". Le contrôle accepte l'ancre dans N'IMPORTE quelle docstring (module, classe, fonction) via ast.get_docstring, sans vérifier la localisation « module » ni la proximité du code de verdict. Une ancre placée dans une docstring de fonction utilitaire passerait le contrôle sans tenir la promesse.",
+   "preuve": "Contrôle 15 lignes 740-760 : docstrings collectées via ast.get_docstring(arbre) + ast.walk pour ClassDef/FunctionDef ; aucune vérification de localisation (module vs classe/fonction) ni de proximité du verdict. CA-M3-03 ligne 227-229 du PRD promet explicitement « docstring du module et à côté du verdict »."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/docs/bmad/03-ARCHITECTURE.md",
+   "description": "Le type réel de urgence_declaree dans le contrat M2 n'a pas été mesuré — seul le nom de clé figure dans CHAMPS_CONTRAT_GELE. Le PRD et l'architecture imposent un booléen STRICT (entiers 1/0 refusés), mais M2 pouvait l'émettre en chaîne (l'ancien contrat fantôme avait contexte.urgence_declaree: str avec valeurs basse/moyenne/haute). Aucun contrôle ne compare les types réels ; le contrôle 13 ne compare que les noms de clés et l'énuméré type_travaux.",
+   "preuve": "Preuves d'exécution : CHAMPS_CONTRAT_GELE ne liste que les 7 clés sans types. PRD ligne 72 (archi) : \"urgence_declaree: bool    # Booléen STRICT (1 et 0 sont refusés)\". Aucune mesure du type réel émis par M2."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/verif_coherence.py",
+   "description": "Code mort dans le contrôle 13 : bloc `if False:` avec un ancien format de message d'erreur. Ce code mort est un risque de maintenance (relecture trompeuse, réactivation accidentelle) et indique un nettoyage incomplet du refactoring de l'extracteur d'énuméré.",
+   "preuve": "Lignes 685-688 du diff : \"if False:\\n        return [f\\\"Énuméré type_travaux divergent : M3 cite {sorted(types_m3)}, M2 émet {sorted(types_m2)} — écart {sorted(types_m3 ^ types_m2)}.\\\"]\""
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/verif_coherence.py",
+   "description": "L'extracteur d'énuméré du contrôle 13 est fragile : fenêtre fixe de 400 caractères après le premier titre `#### type_travaux`, regex sur backticks, premier match seulement. Une déclaration plus longue, sans backticks, ou avec plusieurs sections type_travaux ferait passer le contrôle sans comparer l'énuméré réel.",
+   "preuve": "Lignes 668-678 : `titre_enum = re.search(r\"^#### `type_travaux`.*$\", archi, re.MULTILINE)` puis `zone = archi[titre_enum.end():titre_enum.end() + 400]` et `re.findall(r\"`([a-z_][a-z0-9_]*)`\", zone)`."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/verif_coherence.py",
+   "description": "Le contrôle 14 (verifier_ca_cites_existent) dépend du format exact des en-têtes de section PRD (\"## 6.\" et \"## 7.\"). Un changement de numérotation ou de titre (ex: \"## 6. CRITÈRES\") casserait l'extraction silencieusement (retourne table vide -> erreur \"Aucun critère extrait\"), masquant une désynchronisation réelle.",
+   "preuve": "Lignes 700-702 : `table = prd.split(\"## 6.\")[1].split(\"## 7.\")[0] if \"## 6.\" in prd and \"## 7.\" in prd else \"\"`"
+  }
+ ],
+ "date_heure": "2026-07-30T21:52:59.258163+00:00",
+ "prompt_sha256": "b9a89710c23b8ff4e20918d0f07a3db8047fedfddf2b5f483ea0a4cd6aecb37b",
+ "reviewer_model": "Nemotron-3-Ultra"
+}

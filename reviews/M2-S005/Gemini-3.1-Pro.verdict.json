@@ -1,0 +1,20 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "src/readiness.py",
+   "description": "Dans `_extraire_conditions`, si l'horodatage d'une interaction est naïf (sans fuseau) et celui de la transition est aware (avec fuseau), la comparaison `dt_inter >= dt_transition` lève un `TypeError`. Cette exception n'est pas attrapée par le bloc `try...except` (qui ne couvre que le parsing `fromisoformat`), ce qui ferait crasher `evaluer` et `emettre_marqueur` au lieu de retourner un refus propre.",
+   "preuve": "Ligne 98 : `if dt_inter >= dt_transition:` (en dehors du try/except)"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "tests/test_readiness.py",
+   "description": "Le test `test_evaluer_statuts_non_qualifie_faux` passe pour une mauvaise raison : il n'ajoute aucune interaction au lead. Ainsi, même si le contrôle du statut était désactivé, `evaluer` retournerait False car la condition d'interaction n'est pas remplie. Le test n'isole donc pas le pré-requis (contrairement à `test_prerequis_isole_lead_conditions_remplies_mais_converti` qui le fait correctement pour le statut converti).",
+   "preuve": "Ligne 360 : `def test_evaluer_statuts_non_qualifie_faux(self, statut, lead_id_utilise):` (aucune trace d'appel à `interactions.enregistrer` dans ce test)"
+  }
+ ],
+ "date_heure": "2026-07-29T18:27:41.648016+00:00",
+ "prompt_sha256": "fff05c082e76fa236ee6bcfab6bb21af56446eef09f5de814d262cf79dfd0f1a",
+ "reviewer_model": "Gemini-3.1-Pro"
+}

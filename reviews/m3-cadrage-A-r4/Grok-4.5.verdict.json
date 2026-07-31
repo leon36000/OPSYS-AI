@@ -1,0 +1,38 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/docs/bmad/03-ARCHITECTURE.md",
+   "description": "BaremeCouts est élevé au rang de contrat d'entrée gelé (D-015) en §2.3 et exigé comme paramètre d'interface en §3.1 / DA-M3-09 / CA-M3-21, mais la table des modules §1 confie à contrats.py uniquement LeadQualifie et EstimationV1. Aucun fichier n'est chargé du schéma ni de la validation fail-closed de BaremeCouts (postes vide, type_travaux non couvert, min>max). Contrat gelé sans propriétaire = promesse non placée dans l'architecture d'implémentation.",
+   "preuve": "§1: « contrats.py | Définition des schémas gelés LeadQualifie (entrée) et EstimationV1 (sortie) » — BaremeCouts absent. §2.3: « Contrat d'entrée gelé — BaremeCouts » + règles fail-closed. §3.1: « bareme_couts: dict — contrat d'entrée gelé décrit en 2.3 ». Aucune ligne de la table §1 ni de §7.1 n'assigne ce schéma/validation."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/docs/bmad/03-ARCHITECTURE.md",
+   "description": "L'orchestrateur estimation.py omet l'étape de validation du barème dans la séquence publiée, alors que CA-M3-21 impose un blocage avant toute production de bornes si le barème est absent/incomplet. La séquence s'arrête à « validation → qualité → hiérarchie → Monte Carlo → plancher → contrat de sortie → registre » : la validation d'entrée couvre LeadQualifie (§1 validation.py), pas BaremeCouts.",
+   "preuve": "§1 estimation.py: « séquence validation → qualité → hiérarchie → Monte Carlo → plancher → contrat de sortie → registre ». CA-M3-21 / DA-M3-09: sans barème utilisable l'estimation est BLOQUÉE avant de produire des bornes. Aucun maillon nommé « validation barème » dans la chaîne."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/docs/bmad/01-BRIEF-ANALYSTE.md",
+   "description": "Le contrat de sortie du brief diverge du contrat gelé EstimationV1 du PRD/ARCHITECTURE: champ verdict_qualite (inexistant dans EstimationV1), absence de niveau_confiance, lead_sha256, bareme_version. Le brief reste un livrable du cadrage ; un lecteur qui s'y fie décrit un autre pacte que celui scellé en §5 PRD / §2.2 ARCH.",
+   "preuve": "Brief §5: « verdict_qualite », pas de bareme_version/lead_sha256/niveau_confiance. PRD §5 / ARCH §2.2 EstimationV1: champs verdict_blocage, niveau_confiance, lead_sha256, bareme_version — pas de verdict_qualite."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/docs/bmad/02-PRD-PM.md",
+   "description": "Incohérence de nommage résiduelle: l'enum a été renommé VerdictEstimation parce qu'un nom qui affirme un blocage contredit prix_bloque:false sur 3 valeurs, mais le champ du pacte gelé s'appelle toujours verdict_blocage — même classe de défaut que celle corrigée pour l'enum.",
+   "preuve": "PRD §4.2: « Renommé… VerdictBlocage… trois de ses six valeurs portent prix_bloque: False… la sémantique de blocage est portée par le champ prix_bloque, seul ». PRD §5 / ARCH §2.2: champ toujours nommé verdict_blocage: str. CA-M3-04 assert sur verdict_blocage."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/docs/bmad/02-PRD-PM.md",
+   "description": "bareme_version est obligatoire (str) dans EstimationV1 sans valeur d'échappatoire, alors que CA-M3-21 impose d'émettre une EstimationV1 bloquée précisément quand aucun barème n'est fourni. Aucune convention (sentinelle, null autorisé, jeton ABSENT) n'est définie pour peupler le champ dans ce cas — la promesse de traçabilité n'a pas d'atterrissage quand il n'y a rien à tracer.",
+   "preuve": "PRD §5: « Tout champ est obligatoire sauf mention explicite » + bareme_version: str (pas de null). CA-M3-21: « Appel sans barème… assertion prix_bloque is True et bornes null ». Pas de mention de bareme_version dans le cas sans barème."
+  }
+ ],
+ "date_heure": "2026-07-30T14:24:34.754114+00:00",
+ "prompt_sha256": "d572cae3ff12592f8a90402c303825c9481f84e312fde7553cf4783f6afdd0d1",
+ "reviewer_model": "Grok-4.5"
+}

@@ -1,0 +1,26 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M1-front-office/src/adaptateurs.py",
+   "description": "La concaténation utilisée pour générer l'ID dans _NotificationBus n'est pas injective (ambiguë). Un canal 'a|b' avec un message 'c' produira exactement le même hash qu'un canal 'a' avec un message 'b|c'.",
+   "preuve": "raw = f\"{canal}|{message}\""
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/tests/test_digest.py",
+   "description": "La fixture paramétrée 'sujet' est définie mais n'est jamais injectée en argument des tests de contrat. Les tests instancient directement les mocks en dur, rendant la paramétrisation totalement inactive.",
+   "preuve": "def test_approval_engine_contrat(self):\n        engine = MockApprovalEngine()"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/tests/test_digest.py",
+   "description": "Le bloc vérifiant le statut dans test_approval_engine_contrat peut passer à vide : il ne contient aucune assertion sur 'statut_res' et étouffe silencieusement toute exception via un 'pass'.",
+   "preuve": "try:\n            statut_res = engine2.statut(id2)\n        except Exception:\n            # Certaines implémentations lèvent si l'id n'a pas encore de statut (normal)\n            pass"
+  }
+ ],
+ "date_heure": "2026-07-29T02:29:56.284564+00:00",
+ "prompt_sha256": "553fbbcef0c930f8b712973325518567741243e26441d629f4ebf751610c911b",
+ "reviewer_model": "Gemini-3.1-Pro"
+}

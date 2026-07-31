@@ -1,0 +1,50 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M2-revenue-crm/docs/bmad/01-BRIEF-ANALYSTE.md vs 02-PRD-PM.md vs 03-ARCHITECTURE.md",
+   "description": "Incohérence sur le critère de détection des doublons potentiels : le brief utilise un critère conjonctif (AND) tandis que le PRD et l'architecture utilisent un critère disjonctif (OR).",
+   "preuve": "Brief §2: 'même contact, même ville, même type de travaux dans une fenêtre de 7 jours' (lecture AND en français) ; PRD §4: 'même contact OU même combinaison ville et type_travaux, dans une fenêtre glissante de 7 jours calendaires' ; Architecture §6: 'même contact, OU même combinaison ville et type_travaux, dans une fenêtre glissante de 7 jours calendaires'"
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M2-revenue-crm/docs/bmad/02-PRD-PM.md vs 03-ARCHITECTURE.md",
+   "description": "Incohérence sur le nombre de conditions de la readiness gate M3 : le PRD et CA-M2-08 mentionnent 'quatre conditions' tandis que l'architecture §5 liste cinq conditions en ajoutant 'statut égal à qualifie' comme condition distincte.",
+   "preuve": "PRD §4: 'Readiness gate M3 : owner humain confirmé ET type_travaux appartenant à l'énumération fermée M1 ET ville non vide ET au moins une interaction humaine... Les quatre conditions sont conjointes' ; CA-M2-08: 'si l'une quelconque des quatre conditions n'est pas satisfaite' ; Architecture §5: 'Conditions exactes, toutes requises : statut égal à qualifie, ET owner non vide, ET type_travaux appartenant à l'énumération fermée M1, ET ville non vide, ET au moins une interaction humaine dont l'horodatage est postérieur ou égal' (5 conditions)"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M2-revenue-crm/docs/bmad/03-ARCHITECTURE.md",
+   "description": "L'API du registre mentionnée dans §1 inclut 'assert_chaine' mais cette fonction n'apparaît pas dans la liste des interfaces publiques de S002 au §7.",
+   "preuve": "Architecture §1: 'registre.py — registre append-only hash-chaîné, API ajouter/lire/tete/valider_chaine/assert_chaine/taille' ; Architecture §7 S002: 'ajouter(entree) -> str ; lire(depuis) -> list ; tete() -> str|None ; valider_chaine(ancre) -> bool ; taille() -> int' (assert_chaine absent)"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M2-revenue-crm/docs/bmad/03-ARCHITECTURE.md",
+   "description": "Les entités LeadM2, SignalementDoublon et la structure du marqueur readiness sont définies dans l'architecture §3 mais absentes du PRD.",
+   "preuve": "Architecture §3: 'Entité LeadM2 (dossier commercial)' avec champs détaillés, 'Entité SignalementDoublon', structure du marqueur readiness ; PRD : aucune définition d'entité ni de structure de marqueur"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M2-revenue-crm/docs/bmad/03-ARCHITECTURE.md",
+   "description": "S008 (adaptateurs) n'a aucun critère d'acceptation rattaché malgré la mention du verdict REJ-ADAPTATEUR-INDISPONIBLE dans §8.",
+   "preuve": "Architecture §9: 'M2-S008 (T2, dépend : S003) — adaptateurs in-memory fail-closed simulant l'écriture vers un CRM tiers, GATED hors mode ombre' (aucun CA listé) ; Architecture §8: 'S008 : tout appel hors mode ombre lève REJ-ADAPTATEUR-INDISPONIBLE'"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M2-revenue-crm/docs/bmad/01-BRIEF-ANALYSTE.md vs 02-PRD-PM.md",
+   "description": "La production pour M5 (résumé du lead converti) est mentionnée dans le brief §4 mais absente du PRD et de l'architecture.",
+   "preuve": "Brief §4: 'M2 produit pour M5 un résumé du lead converti (statut converti) avec référence au devis M3 accepté, sans jamais stocker le montant' ; PRD : aucune mention de M5 ; Architecture : aucune mention de M5"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M2-revenue-crm/docs/bmad/03-ARCHITECTURE.md",
+   "description": "Le verdict REJ-CONVERSATION-CLOSE est mentionné comme 'repris tel quel du catalogue M1' mais cette dépendance inter-modules n'est pas documentée dans le PRD.",
+   "preuve": "Architecture §2: 'L'identifiant REJ-CONVERSATION-CLOSE est repris tel quel du catalogue M1 pour cohérence inter-modules' ; PRD : aucune mention de REJ-CONVERSATION-CLOSE ni de dépendance au catalogue M1"
+  }
+ ],
+ "date_heure": "2026-07-29T03:48:08.958298+00:00",
+ "prompt_sha256": "c79a3076cf58f78635ed7df7f2fe9f8191b02f0982eae80c88a79eb56fde441a",
+ "reviewer_model": "MiniMax-M3"
+}

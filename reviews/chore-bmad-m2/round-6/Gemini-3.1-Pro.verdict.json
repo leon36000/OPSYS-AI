@@ -1,0 +1,14 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "02-PRD-PM.md",
+   "description": "Le critère CA-M2-15 est toujours concaténé à la fin de la ligne de CA-M2-14 dans la section 6 (Critères d'acceptation testables). Le script de vérification a été trompé car CA-M2-15 apparaît bien en début de ligne dans la section 4, ce qui a validé le compte de 15 critères, mais l'anomalie de forme signalée au round précédent n'a pas été corrigée dans la liste principale.",
+   "preuve": "+CA-M2-14 : une suite de cas d'abus héritée de M1 (collisions par concaténation directe, horodatages invalides, mutations de chaîne, réordonnancements) est rejouée intégralement contre les implémentations M2, sans partage de code de production entre M1 et M2, et chaque cas produit le même verdict déterministe des deux côtés. CA-M2-15 : tout appel d'écriture vers un CRM tiers hors mode ombre est rejeté avec REJ-ADAPTATEUR-INDISPONIBLE sans aucun effet de bord ; les identifiants d'adaptateurs sont déterministes entre deux exécutions et dérivés uniquement par encodage canonique injectif. Porté par la story S008."
+  }
+ ],
+ "date_heure": "2026-07-29T04:33:05.409738+00:00",
+ "prompt_sha256": "e408d020ddec24cc23f708c6addb95c830fb6e52786df0a626d24f893fdaab0d",
+ "reviewer_model": "Gemini-3.1-Pro"
+}

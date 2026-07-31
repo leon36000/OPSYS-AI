@@ -1,0 +1,20 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/docs/bmad/02-PRD-PM.md",
+   "description": "L'énuméré VerdictBlocage porte un nom promettant un verdict de blocage, mais 3 de ses 6 valeurs n'ont pas prix_bloque=True (AUCUN_BLOCAGE, REFERENCE_ECHELLE_ABSENTE, PLANCHER_RENTABILITE_FRANCHI). Même classe de défaut que M4-S009 (docstring contredisant son code) : le nom de l'enum ment sur sa sémantique. Doit être renommé (ex: VerdictEstimation ou StatutEstimation) avant la première story.",
+   "preuve": "PRD section 4.2, tableau VerdictBlocage : lignes AUCUN_BLOCAGE (prix_bloque=False), REFERENCE_ECHELLE_ABSENTE (False), PLANCHER_RENTABILITE_FRANCHI (False) — trois valeurs sur six ne bloquent pas."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/docs/bmad/verif_coherence.py",
+   "description": "Le contrôle 7 (verifier_contrat_sans_date_finance) ne vérifie l'absence de champs date/finance que sur le bloc YAML du PRD (section 5, contrat EstimationV1). Le contrat identique dans l'ARCHITECTURE (section 2.2) n'est pas contrôlé. Une divergence silencieuse (champ interdit ajouté côté architecture seulement) passerait le gate.",
+   "preuve": "verif_coherence.py lignes 247-277 : la fonction ne charge et n'analyse que le PRD (variable `prd`), pas `archi`. L'architecture déclare le même contrat en section 2.2 mais n'est pas validée."
+  }
+ ],
+ "date_heure": "2026-07-30T13:53:17.844448+00:00",
+ "prompt_sha256": "44f77633e9816736e0d072975eac4ffb7c43b7da5d2e4fcef578c43ff755e5e2",
+ "reviewer_model": "Nemotron-3-Ultra"
+}

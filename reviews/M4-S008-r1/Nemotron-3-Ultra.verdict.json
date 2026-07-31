@@ -1,0 +1,14 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M4-field-ops/tests/test_outbox.py",
+   "description": "Cas de test 'deux_paires_arrivee_depart' présent dans le corps de test_duree_fail_closed mais absent du décorateur @pytest.mark.parametrize — code mort non exécuté.",
+   "preuve": "Lignes 247-262 : branche elif scenario == \"deux_paires_arrivee_depart\" jamais atteinte car le parametrize ne liste que [\"aucun_pointage\", \"arrivee_seule\", \"depart_seul\"]"
+  }
+ ],
+ "date_heure": "2026-07-30T09:53:40.168121+00:00",
+ "prompt_sha256": "758e0c6ac4350e34c84c1ef1461e69519f906b33c591cf5999bde123211390bc",
+ "reviewer_model": "Nemotron-3-Ultra"
+}

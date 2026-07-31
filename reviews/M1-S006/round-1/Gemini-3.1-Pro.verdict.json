@@ -1,0 +1,14 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M1-front-office/src/consentement.py",
+   "description": "L'empreinte SHA-256 du contenu est calculée sans sel (salt). Pour des contenus courts, cette empreinte est vulnérable aux attaques par dictionnaire ou force brute, la rendant réversible et potentiellement identifiante en pratique. Cela contrevient à l'exigence stricte de ne laisser aucune donnée personnelle dans le registre immuable (Loi 25).",
+   "preuve": "empreinte = hashlib.sha256(contenu_bytes).hexdigest()"
+  }
+ ],
+ "date_heure": "2026-07-29T02:09:32.805751+00:00",
+ "prompt_sha256": "d44e90ba47ea5603fb5b17d31e5d2b5924e3f48dfff2cd49f17a4f6bb2d414e6",
+ "reviewer_model": "Gemini-3.1-Pro"
+}

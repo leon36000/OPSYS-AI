@@ -1,0 +1,38 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M4-field-ops/src/m4_field_ops/digest.py",
+   "description": "Docstring de garde_conformite_r020 documente encore l'exemption des identifiants TOUT EN MAJUSCULES, alors que cette exemption a été retirée au r1 comme échappatoire. La spécification inline contredit le code effectif et les tests de non-régression r2.",
+   "preuve": "Docstring: « Les noms entièrement en majuscules (convention des constantes) sont exclus pour éviter les faux positifs sur les constantes de configuration. » — contredit visit_Name (aucun filtre isupper) et test_garde_r020_ne_laisse_pas_passer_les_majuscules qui exige la détection de SCORE/NOTE_TECHNICIEN/PERFORMANCE."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M4-field-ops/src/m4_field_ops/digest.py",
+   "description": "Échappatoire R-020 dans la règle de portée annoncée (identifiants) : les noms de paramètres de fonction (nœuds ast.arg) et les noms de mots-clés d'appel (ast.keyword.arg) ne sont jamais inspectés. Un terme interdit peut vivre dans une signature ou un appel sans déclencher la garde.",
+   "preuve": "Visitor: visit_Dict (clés), visit_Name (id), visit_Attribute (attr), visit_FunctionDef (node.name seulement), visit_ClassDef (node.name). Aucun visit_arg ni inspection de keyword.arg. Contre-exemple AST: def f(score_technicien): pass → nœud arg.arg='score_technicien' non couvert; f(note_technicien=1) → keyword.arg non couvert."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M4-field-ops/src/m4_field_ops/digest.py",
+   "description": "Commentaire périmé au-dessus de visit_Name réaffirme l'exemption majuscules déjà supprimée.",
+   "preuve": "Ligne: « # Ignorer les noms tout en majuscules (constantes) » immédiatement suivie de `if self._contient_terme(node.id)` sans branche d'exclusion isupper."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M4-field-ops/src/m4_field_ops/digest.py",
+   "description": "garde_conformite_r020 ne définit pas visit_AsyncFunctionDef: le nom d'une coroutine contenant un terme interdit n'est pas contrôlé.",
+   "preuve": "Handlers de noms de définitions limités à visit_FunctionDef et visit_ClassDef. `async def calculer_score(): pass` produit un AsyncFunctionDef.name hors de tout handler (ast.walk: pas de Name pour le nom de la coroutine)."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M4-field-ops/src/m4_field_ops/digest.py",
+   "description": "FONCTIONS_HORLOGE_INTERDITES reste non exhaustive après l'extension r1: clock_gettime_ns interroge une horloge et n'est pas listé (ni testé).",
+   "preuve": "Tuple: inclut clock_gettime, time_ns, monotonic_ns, perf_counter_ns; absents: clock_gettime_ns. test_garde_horloge_liste_completee couvre time_ns/process_time/timegm/times mais pas clock_gettime_ns — même classe d'objection qu'au round 1."
+  }
+ ],
+ "date_heure": "2026-07-30T10:19:00.834552+00:00",
+ "prompt_sha256": "c24d469d9cc1a2a290142c1fac6cc340a23bf5d8933361365e5906ce001f816c",
+ "reviewer_model": "Grok-4.5"
+}

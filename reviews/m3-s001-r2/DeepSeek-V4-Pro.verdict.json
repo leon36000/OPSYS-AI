@@ -1,0 +1,14 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/contrats.py",
+   "description": "Seule CHAMPS_CONTACT est alignée et testée contre la source M2. Les autres listes blanches (CHAMPS_CONTRAT_GELE, CLES_INTERDITES, TYPES_TRAVAUX, CHAMPS_MARQUEUR) pourraient encore dériver des fixtures de test et masquer un défaut similaire à celui découvert. Aucun test d'alignement avec le source M2 n'est ajouté pour ces constantes.",
+   "preuve": "Le diff r2 ajoute un commentaire (lignes +9 à +13) explicitant que CHAMPS_CONTACT est désormais dérivé du producteur, mais ne modifie ni ne justifie les autres constantes ; le test test_champs_contact_copie_m2_ne_derive_pas vérifie uniquement CHAMPS_CONTACT."
+  }
+ ],
+ "date_heure": "2026-07-31T06:20:37.457325+00:00",
+ "prompt_sha256": "a890eb24927a3f876d30a45ba8dffd7e2e11c59f78056917ef16e7ab6b6b7230",
+ "reviewer_model": "DeepSeek-V4-Pro"
+}

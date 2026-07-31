@@ -1,0 +1,14 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/docs/bmad/verif_coherence.py",
+   "description": "La fonction masquer_blocs préserve uniquement les retours à la ligne \\n. Sur un document utilisant l'ancien séparateur \\r (Mac OS 9), les caractères \\r sont remplacés par un espace, ce qui supprime la coupure de ligne et rend la promesse de conservation des sauts de ligne inexacte. Aucun test ne couvre ce cas de bord, et les offsets calculés sur la vue masquée seraient erronés si les fichiers sources employaient \\r.",
+   "preuve": "Dans masquer_blocs, le remplacement conditionnel : `if caracteres[i] != \"\\n\": caracteres[i] = \" \"` (ligne de masquage). La docstring affirme « La longueur totale et la position des sauts de ligne sont strictement préservées », ce qui n'est pas garanti pour \\r."
+  }
+ ],
+ "date_heure": "2026-07-31T02:43:15.423021+00:00",
+ "prompt_sha256": "4742abeb49b27fa4eeb1ab9e38ead626ac13d6de991457971b9f9d46dd313444",
+ "reviewer_model": "DeepSeek-V4-Pro"
+}

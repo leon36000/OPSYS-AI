@@ -83,7 +83,7 @@ def _valider_photo(photo, index):
                 + _cles_fautives(photo, contrats.CHAMPS_PHOTO)
             ),
         )
-    if not isinstance(photo["photo_id"], str) or not photo["photo_id"]:
+    if not isinstance(photo["photo_id"], str) or not photo["photo_id"].strip():
         return _rejet_champ_photo(index, "photo_id")
     # type(...) is int : un booléen est refusé car bool est sous-classe de int.
     largeur = photo["resolution_largeur"]
@@ -95,7 +95,7 @@ def _valider_photo(photo, index):
     eclairage = photo["eclairage"]
     if type(eclairage) not in (int, float) or not 0 <= eclairage <= 10:
         return _rejet_champ_photo(index, "eclairage")
-    if not isinstance(photo["angle"], str) or not photo["angle"]:
+    if not isinstance(photo["angle"], str) or not photo["angle"].strip():
         return _rejet_champ_photo(index, "angle")
     reference = photo["reference_echelle"]
     if reference is not None:
@@ -104,7 +104,7 @@ def _valider_photo(photo, index):
             "dimensions_connues",
         }:
             return _rejet_champ_photo(index, "reference_echelle")
-        if not isinstance(reference["type"], str) or not reference["type"]:
+        if not isinstance(reference["type"], str) or not reference["type"].strip():
             return _rejet_champ_photo(index, "reference_echelle.type")
         if type(reference["dimensions_connues"]) is not bool:
             return _rejet_champ_photo(

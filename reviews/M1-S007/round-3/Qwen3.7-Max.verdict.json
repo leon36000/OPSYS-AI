@@ -1,0 +1,20 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M1-front-office/tests/test_digest.py",
+   "description": "Le fixture `sujet` est paramétré pour instancier 4 implémentations (mocks et adaptateurs réels), mais il n'est jamais injecté dans les signatures des méthodes `test_approval_engine_contrat` et `test_bus_contrat`. Ces méthodes instancient directement les mocks en dur, rendant le paramétrage pytest inopérant. Le contrat n'est donc pas vérifié de manière générique sur les adaptateurs réels via cette classe de test. De plus, le commentaire affirmant qu'il est 'impossible d'obtenir le statut avec l'id directement' contredit le code de `MockApprovalEngine.statut` qui itère sur `_store` pour retrouver le statut.",
+   "preuve": "@pytest.fixture(params=[...]) def sujet(self, request): vs def test_approval_engine_contrat(self): (le paramètre `sujet` est absent de la signature de la méthode de test)."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/tests/test_digest.py",
+   "description": "Le bloc d'initialisation de `sys.path` et les imports de `digest`, `adaptateurs` et `garde_fou` sont dupliqués au milieu du fichier, juste avant la section 'correctif 1'. Bien que sans impact fonctionnel grâce au cache de `sys.modules`, cela dénote un copier-coller accidentel et nuit à la maintenabilité du fichier de test.",
+   "preuve": "Présence de `import sys \\n from pathlib import Path \\n\\n _SRC = ...` et `import digest` à la fois en tête de fichier et avant `# correctif 1 : collision d'identifiants dans le bus`."
+  }
+ ],
+ "date_heure": "2026-07-29T02:42:39.882122+00:00",
+ "prompt_sha256": "13a367d035a0ac62605113d65051f4b8d963755a34fff6de4221e731bea40d3a",
+ "reviewer_model": "Qwen3.7-Max"
+}

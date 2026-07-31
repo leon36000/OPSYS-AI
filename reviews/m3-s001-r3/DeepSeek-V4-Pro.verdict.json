@@ -1,0 +1,14 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/validation.py",
+   "description": "La docstring de _valider_marqueur ajoute « La casse hexadécimale est indifférente : majuscules et minuscules sont toutes deux acceptées. » mais le diff ne modifie pas la fonction de validation correspondante. Le relecteur ne peut donc pas vérifier que le code accepte effectivement les deux casses ; la promesse reste non prouvée dans le périmètre du diff.",
+   "preuve": "diff : +    la casse hexadécimale est indifférente : majuscules et minuscules sont toutes deux acceptées."
+  }
+ ],
+ "date_heure": "2026-07-31T06:47:15.386115+00:00",
+ "prompt_sha256": "4a4b58527e92439fe4da11d0311afba29ba0e1d808980410c4f493247ee08c79",
+ "reviewer_model": "DeepSeek-V4-Pro"
+}

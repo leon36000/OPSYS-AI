@@ -1,0 +1,14 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "tests/test_statuts.py",
+   "description": "Aucun test ne vérifie que les données métiers spécifiques à la transition (owner, prochaine_action, reference_devis_m3, motif, statut_precedent) sont effectivement écrites dans le maillon. La suppression des lignes 103 à 109 dans statuts.py (qui affectent ces valeurs au dictionnaire maillon) ne fait échouer aucun test, ce qui laisse une faille critique dans la couverture TDD.",
+   "preuve": "Le test `test_maillon_champs_type_lead_horodatage` (lignes 301-308) vérifie uniquement `type_entree`, `lead_id` et `horodatage`. Aucun autre test ne lit le registre pour valider la présence et l'exactitude des champs conditionnels dans le maillon enregistré."
+  }
+ ],
+ "date_heure": "2026-07-29T17:58:23.669294+00:00",
+ "prompt_sha256": "8997d3a7c782d8580090712baab0553312607dcc70299c464762c14ff6c9cd95",
+ "reviewer_model": "Gemini-3.1-Pro"
+}

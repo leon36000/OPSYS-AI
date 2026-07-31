@@ -1,0 +1,26 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M3-estimation/docs/bmad/03-ARCHITECTURE.md",
+   "description": "Le barème de coûts, pourtant exigé par CA-M3-21 et cité dans la portée de S005, n'est défini ni comme paramètre d'appel (§3.1), ni dans le tableau des paramètres configurables (§6), ce qui rend l'acceptation CA-M3-21 non implémentable en l'état.",
+   "preuve": "Architecture §3.1 : 'M3 reçoit également deux paramètres d'appel hors contrat : graine_monte_carlo: int ... plancher_rentable: float' (barème absent) ; Architecture §6 et PRD §9 : aucune ligne 'barème de coûts' ; PRD S005 : 'La graine ET le barème de coûts sont fournis par l'appelant' ; CA-M3-21 exige le blocage sans barème utilisable."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/docs/bmad/03-ARCHITECTURE.md",
+   "description": "L'architecture ne couvre pas la story S009 dans la section dédiée 'CE QUE CHAQUE STORY PROUVE', alors que le PRD définit S009 et que le gate de cohérence prétend vérifier l'alignement des stories entre PRD et architecture.",
+   "preuve": "Architecture §5 : le tableau liste S001 à S008 uniquement ; PRD §7 : définition de S009 'Échappatoires D-032 et conformité déterministe'. Le script verif_coherence.py (contrôle 6) devrait signaler ce manque."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/docs/bmad/03-ARCHITECTURE.md",
+   "description": "La ligne de la story S005 dans l'architecture omet de citer CA-M3-21, bien que ce critère soit porté par S005 dans le PRD.",
+   "preuve": "Architecture §5, ligne S005 : cite '(CA-M3-10, CA-M3-11)' ; PRD §7 S005 : 'Critères portés : CA-M3-10, CA-M3-11, CA-M3-21'."
+  }
+ ],
+ "date_heure": "2026-07-30T14:02:26.785036+00:00",
+ "prompt_sha256": "3dd393a573b328ab9433c83cb8eecbcb95db8bb4a50cffab19651e2ff552646a",
+ "reviewer_model": "Kimi-2.7"
+}

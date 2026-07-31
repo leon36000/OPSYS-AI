@@ -1,0 +1,14 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/docs/bmad/verif_coherence.py",
+   "description": "La docstring affirme « un artefact à séparateurs « \\r » n'est jamais extrait », mais le scanner peut détecter un bloc (vide) si le document débute par des backticks et utilise exclusivement « \\r » comme fin de ligne (ex. « ```\\r...\\r```\\r »). L'extraction a bien lieu, contrairement à l'affirmation.",
+   "preuve": "Ligne ajoutée dans la docstring de verifier_copies_declarees : « un artefact à séparateurs « \\r » n'est jamais extrait »"
+  }
+ ],
+ "date_heure": "2026-07-31T03:02:31.717334+00:00",
+ "prompt_sha256": "60abfa60a289664cada28718564d9b638b4364f1d1b230cb22358240ff521239",
+ "reviewer_model": "DeepSeek-V4-Pro"
+}

@@ -1,0 +1,20 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M2-revenue-crm/tests/test_conformite_m1.py",
+   "description": "Le test `test_aucune_reference_a_un_module_voisin` ne vérifie que son propre fichier (`Path(__file__)`) au lieu de scanner l'ensemble des fichiers de `src/` et `tests/`. L'absence de couplage inter-modules n'est donc pas prouvée par la suite de tests automatisée pour le code de production. Cela correspond exactement au point de vigilance : 'Reste-t-il un test qui ne peut pas prouver ce qu'il annonce ?'.",
+   "preuve": "contenu = Path(__file__).read_text(encoding=\"utf-8\") (ligne 38)"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M2-revenue-crm/tests/preuve_manuelle.py",
+   "description": "Chemin absolu local hardcodé. Bien que ce soit un script de preuve manuelle, le figer avec un chemin spécifique à un poste de travail le rend non rejouable par le pipeline ou les autres développeurs.",
+   "preuve": "RACINE = Path(\"/media/pc1/Storage/Repo/OPSYS-AI/Modules M/M2-revenue-crm\") (ligne 9)"
+  }
+ ],
+ "date_heure": "2026-07-29T06:01:52.699666+00:00",
+ "prompt_sha256": "4af340f7a5d15f7d74ea3d92f5513c8a2062e9ed0ed7c27f21d241b3984ffc70",
+ "reviewer_model": "Qwen3.7-Max"
+}
