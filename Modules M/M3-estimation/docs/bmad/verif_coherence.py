@@ -1595,7 +1595,6 @@ def main(dossier_str: str = None) -> int:
         print(f"OK : Les {nb_copies} copie(s) déclarée(s) « Copié mot pour mot du PRD » "
               f"sont identiques aux blocs du PRD, ligne à ligne.")
 
-    # Lecture à ajouter au chargement des fichiers (en place du « _ = … ») : brief = lire_fichier(dossier / "01-BRIEF-ANALYSTE.md")
     errs = verifier_brief_contrat_reel(brief, archi)
     if errs:
         erreurs.extend(errs)
