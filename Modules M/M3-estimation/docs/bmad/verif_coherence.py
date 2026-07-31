@@ -1324,6 +1324,90 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
             f"et lui — une copie doit se déclarer pour être suivie.")
     return erreurs
 
+# Contrôle 19 — motifs partagés entre la fonction de contrôle et le comptage du
+# bloc OK de main, comme MOTIF_COPIE_DECLAREE pour le contrôle 18.
+MOTIF_TITRE_CONTRAT_BRIEF = r"^##\s+\d+\.\s+CONTRAT D'ENTRÉE\s*$"
+MOTIF_CHAMP_BRIEF = r"^[ \t]*-[ \t]+`([a-z_][a-z0-9_]*)`"
+
+
+def champs_du_contrat_brief(brief: str) -> List[str]:
+    """UNIQUE extracteur des champs du « CONTRAT D'ENTRÉE » du brief, utilisé par
+    le contrôle 19 comme par son message de succès.
+
+    Retourne la liste ordonnée et sans doublon des noms présentés dans la
+    section ; liste vide si la section est introuvable ou ne présente aucun champ.
+    """
+    titre = re.search(MOTIF_TITRE_CONTRAT_BRIEF, brief, re.MULTILINE)
+    if not titre:
+        return []
+    reste = brief[titre.end():]
+    suivant = re.search(r"^#{1,2}\s", reste, re.MULTILINE)
+    section = reste[:suivant.start()] if suivant else reste
+    return list(dict.fromkeys(re.findall(MOTIF_CHAMP_BRIEF, section, re.MULTILINE)))
+
+
+def verifier_brief_contrat_reel(brief: str, archi: str) -> List[str]:
+    """Contrôle 19 : le contrat d'entrée que décrit le brief est celui que M2 émet.
+
+    Le brief est le premier document que lit qui implémente le module, et rien ne
+    le confrontait : la correction de l'issue #166 y a laissé le contrat fantôme.
+    LIMITE : seule la section « CONTRAT D'ENTRÉE » est vérifiée, pas les mentions
+    du contrat ailleurs dans le brief.
+    """
+    # Étape 1 — la section, ancrée sur son NOM et jamais sur son numéro ; la
+    # présence du titre est testée ici, mais l'extraction des NOMS n'existe que
+    # dans champs_du_contrat_brief, l'unique extracteur de cette notion.
+    if not re.search(MOTIF_TITRE_CONTRAT_BRIEF, brief, re.MULTILINE):
+        return ["Section « CONTRAT D'ENTRÉE » absente du brief — le contrôle du "
+                "brief est non probant."]
+
+    # Étape 2 — les champs présentés : puces de la forme `- `<nom>` — …`, le nom
+    # étant [a-z_][a-z0-9_]*.
+    champs_brief = set(champs_du_contrat_brief(brief))
+    if not champs_brief:
+        return ["Aucun champ extrait de la section « CONTRAT D'ENTRÉE » du brief — "
+                "extracteur vide, le contrôle du brief est non probant : un "
+                "contrôle qui ne compare rien passe toujours."]
+
+    # Étape 3 — les clés RÉELLES, lues dans la SOURCE du producteur comme au
+    # contrôle 13 ; racine du dépôt dérivée de __file__, jamais du répertoire
+    # courant. Tout repli est fail-closed.
+    depot = Path(__file__).resolve().parents[4]
+    source_m2 = depot / "Modules M" / "M2-revenue-crm" / "src" / "m2_revenue_crm" / "contrats.py"
+    if not source_m2.is_file():
+        return [f"Source du module producteur introuvable ({source_m2}) — le "
+                f"contrôle du brief est non probant, jamais silencieusement vert."]
+    try:
+        texte_m2 = source_m2.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        return [f"Source du module producteur illisible ({source_m2}) : {exc} — "
+                f"le contrôle du brief est non probant, jamais silencieusement vert."]
+    bloc = re.search(r"CHAMPS_CONTRAT_GELE\s*=\s*\((.*?)\)", texte_m2, re.DOTALL)
+    if not bloc:
+        return ["Constante CHAMPS_CONTRAT_GELE introuvable dans la source de M2 — "
+                "extracteur vide, le contrôle du brief est non probant."]
+    cles_m2 = set(re.findall(r'"([a-z_][a-z0-9_]*)"', bloc.group(1)))
+    if not cles_m2:
+        return ["Aucune clé extraite de CHAMPS_CONTRAT_GELE — extracteur vide, "
+                "le contrôle du brief est non probant."]
+
+    # Étapes 4 et 5 — la confrontation est symétrique : un champ inventé trompe
+    # autant qu'un champ tu.
+    erreurs: List[str] = []
+    fantomes = sorted(champs_brief - cles_m2)
+    if fantomes:
+        erreurs.append(
+            f"Champs présentés par le brief comme appartenant au contrat d'entrée "
+            f"mais ABSENTS de ce que le producteur émet : {fantomes} — le brief "
+            f"décrit un contrat que le producteur n'émet pas.")
+    manquantes = sorted(cles_m2 - champs_brief)
+    if manquantes:
+        erreurs.append(
+            f"Clés que le producteur émet mais que le brief ne mentionne pas dans "
+            f"sa section « CONTRAT D'ENTRÉE » : {manquantes} — un brief qui ne "
+            f"décrit qu'une partie du contrat laisse croire au reste.")
+    return erreurs
+
 def main(dossier_str: str = None) -> int:
     if dossier_str is None:
         dossier = Path(__file__).resolve().parent
@@ -1339,7 +1423,7 @@ def main(dossier_str: str = None) -> int:
         prd = lire_fichier(dossier / "02-PRD-PM.md")
         archi = lire_fichier(dossier / "03-ARCHITECTURE.md")
         # La présence de l'analyste est contrôlée plus bas
-        _ = lire_fichier(dossier / "01-BRIEF-ANALYSTE.md")
+        brief = lire_fichier(dossier / "01-BRIEF-ANALYSTE.md")
     except FileNotFoundError as e:
         print(f"ECHEC : fichier manquant — {e}")
         return 1
@@ -1510,6 +1594,16 @@ def main(dossier_str: str = None) -> int:
         nb_copies = len(re.findall(MOTIF_COPIE_DECLAREE, archi))
         print(f"OK : Les {nb_copies} copie(s) déclarée(s) « Copié mot pour mot du PRD » "
               f"sont identiques aux blocs du PRD, ligne à ligne.")
+
+    errs = verifier_brief_contrat_reel(brief, archi)
+    if errs:
+        erreurs.extend(errs)
+        for e in errs:
+            print(f"ECHEC : {e}")
+    else:
+        nb_champs = len(champs_du_contrat_brief(brief))
+        print(f"OK : Les {nb_champs} champs du contrat d'entrée décrits par le brief "
+              f"sont exactement les clés que le module producteur émet.")
 
     n = len(erreurs)
     if n == 0:

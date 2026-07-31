@@ -64,16 +64,21 @@ M3 maintient un registre append-only des estimations émises, conçu pour permet
 
 ## 4. CONTRAT D'ENTRÉE
 
-M3 consomme le contrat gelé `LeadQualifie` transmis par M2, portant :
+Le contrat gelé `LeadQualifie` porte SEPT clés, et EXACTEMENT celles-ci :
 
 - `lead_id` — identifiant stable du lead.
-- `sha256` — empreinte du contrat gelé, épinglée pour traçabilité.
-- `owner` — owner humain confirmé.
-- `type_travaux` — type de travaux validé.
+- `conversation_id` — référence de la conversation d'origine.
+- `type_travaux` — type de travaux, appartenant à un énuméré fermé de cinq valeurs.
 - `ville` — ville renseignée.
-- `interactions` — au moins une interaction humaine post-qualification.
-- `photos` — liste des entrées visuelles (métadonnées, pas de blobs binaires en v1).
-- `contexte` — informations contextuelles additionnelles (urgence déclarée, canal d'entrée, etc.).
+- `canal` — canal d'entrée du lead.
+- `contact` — coordonnées de contact.
+- `urgence_declaree` — booléen STRICT d'urgence déclarée.
+
+1. Ce contrat ne porte AUCUNE empreinte. La traçabilité passe par le MARQUEUR de readiness signé par M2, transmis séparément, dont les cinq clés sont `readiness_ok`, `lead_id`, `hash_tete_registre`, `horodatage`, `empreinte`. M3 le valide structurellement et ne recalcule jamais son empreinte : il ne possède pas le registre de M2.
+2. `owner` et « au moins une interaction humaine post-qualification » sont des CONDITIONS vérifiées par M2 AVANT de signer le marqueur. Elles ne figurent pas dans le contrat et M3 ne peut donc ni les voir ni les re-juger : la readiness est CONSTATÉE, jamais re-déduite.
+3. Les PHOTOS ne sont pas dans le contrat. Elles sont fournies séparément par l'appelant, avec le barème de coûts, la graine Monte Carlo et le plancher rentable.
+
+Le cadrage initial décrivait un contrat à huit champs que M2 n'émet pas, corrigé par l'issue #166 puis, pour ce document, par l'issue #171.
 
 M3 valide la structure du contrat avant tout traitement et rejette explicitement toute entrée ne respectant pas le schéma gelé (D-015 : contrats gelés = pactes exécutables).
 
