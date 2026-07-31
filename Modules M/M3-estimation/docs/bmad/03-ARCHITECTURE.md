@@ -29,7 +29,7 @@ Le paquet `m3_estimation` est autonome. Il réutilise le patron prouvé des modu
 | Fichier | Responsabilité | Justification |
 |---|---|---|
 | `__init__.py` | Point d'entrée public du paquet ; expose `estimer()` et `valider_registre()`. | Un seul point d'entrée garantit que l'orchestration ne peut être contournée. |
-| `contrats.py` | Définition des schémas gelés `LeadQualifie` (entrée), `BaremeCouts` (entrée) et `EstimationV1` (sortie) avec leurs listes fermées de clés. | D-015 : les contrats gelés sont des pactes exécutables, leur schéma doit être figé dans un fichier dédié. |
+| `contrats.py` | Définition des schémas gelés `LeadQualifie` (entrée), `BaremeCouts` (entrée), `SeuilsQualite` (entrée) et `EstimationV1` (sortie) avec leurs listes fermées de clés. | D-015 : les contrats gelés sont des pactes exécutables, leur schéma doit être figé dans un fichier dédié. |
 | `validation.py` | Validation structurelle des TROIS contrats d'entrée : `LeadQualifie` (champs obligatoires, types, validation de la STRUCTURE du marqueur de readiness et de la CONCORDANCE de son `lead_id` avec celui du contrat, champs interdits), `BaremeCouts` (postes non vide, type_travaux demandé couvert, bornes numériques avec min ≤ max) ET `SeuilsQualite` (les deux clés attendues et leurs types — toute clé manquante, type incorrect ou clé inconnue bloque l'estimation, aucune valeur par défaut). Un contrat gelé sans propriétaire de validation est une promesse que personne ne tient. | Séparé de l'orchestration pour permettre un rejet |
 | `qualite_photos.py` | Qualification binaire de la qualité des entrées visuelles à partir des métadonnées photo. | Logique isolée car elle détermine le branchement fail-closed / estimation. |
 | `hierarchie_echelle.py` | Application de la hiérarchie ratifiée comme logique de décision pure : référence > multi-vues > mono-vue à bornes larges > indéterminé. | Séparé pour garantir qu'aucun modèle d'inférence ne puisse s'y glisser en v1. |
@@ -344,7 +344,7 @@ M3 reçoit de son **appelant** trois entrées supplémentaires, toutes fournies,
   avec `INDETERMINE` (CA-M3-21, DA-M3-09). Exiger le barème ici, et non en prose, est ce qui rend
   le critère implémentable — objection critique de revue scellée : un critère qui exige ce que
   l'interface ne déclare pas est improuvable.
-- `seuils_qualite: dict` — contrat d'entrée gelé décrit en 2.3 bis, au même titre que `bareme_couts` ; il porte les seuils que la qualification des entrées visuelles compare : résolution minimale et éclairage minimal. Il est FOURNI par l'appelant, sans valeur par défaut : un seuil absent BLOQUE l'estimation, il ne se devine pas — exactement comme le module ne porte aucune valeur monétaire. C'est la règle DA-M3-09 qui l'impose : un critère qui exige ce que l'interface ne déclare pas est improuvable.
+- `seuils_qualite: dict` — contrat d'entrée gelé décrit en 2.4, …
 - `graine_monte_carlo: int` — graine pour la simulation déterministe.
 - `plancher_rentable: float` — seuil d'alerte rouge.
 

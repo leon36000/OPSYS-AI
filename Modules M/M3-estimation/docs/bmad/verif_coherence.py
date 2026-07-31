@@ -1424,7 +1424,12 @@ def verifier_grandeurs_fournies_declarees(prd: str, archi: str) -> List[str]:
     correspondant — un critère qui exige ce que l'interface ne déclare pas
     est improuvable (DA-M3-09). LIMITE : seules les grandeurs de la table
     GRANDEURS_FOURNIES sont confrontées ; une grandeur d'un autre nom n'est
-    pas suivie."""
+    pas suivie. LIMITE : le rapprochement entre le mot employé par un
+    critère et le nom d'une entrée déclarée est purement LEXICAL, par
+    fragment — il établit qu'une grandeur est déclarée, jamais qu'elle est
+    la bonne : une entrée au nom voisin mais sémantiquement étranger
+    (« seuil_acceptation » face au « seuil » de qualité photo) satisferait
+    le contrôle."""
 
     def plier(texte: str) -> str:
         """Minuscules sans accents : la comparaison est insensible à la casse
