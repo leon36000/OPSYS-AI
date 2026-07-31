@@ -32,11 +32,24 @@ from . import contrats
 from . import verdicts
 
 # ---------------------------------------------------------------------------
-# Bornes du parcours de la garde noire (parcours ITÉRATIF, pile explicite,
-# jamais de récursion). Les entrées légitimes ne dépassent jamais deux niveaux
-# sous la racine ; la borne de profondeur laisse passer ces entrées et refuse
-# les structures artificiellement profondes (200 niveaux imbriqués, par
-# exemple) sans jamais planter ni épuiser la pile d'appels.
+# Bornes DÉFENSIVES d'implémentation, sans aucune signification métier —
+# aucun critère d'acceptation ne les ratifie et elles ne doivent pas être
+# lues comme une règle. Elles empêchent qu'une entrée hostile à imbrication
+# profonde épuise la pile du parcours ITÉRATIF de la garde noire, en NOMMANT
+# le refus (REJ-PROFONDEUR-EXCESSIVE) plutôt qu'en le subissant comme un
+# plantage.
+#
+# Comptage des profondeurs : la garde empile les entrées à la profondeur 0
+# et rejette sur « strictement supérieur à la borne », c'est-à-dire dès que
+# profondeur > PROFONDEUR_MAX. Les profondeurs ci-dessous sont mesurées dans
+# CETTE base — celle que la garde compare, pas une base 1 — sur les entrées
+# légitimes réelles :
+#   contrat complet ............... profondeur 2, 11 nœuds
+#   marqueur ...................... profondeur 1, 6 nœuds
+#   lot de 20 photos avec référence  profondeur 3, 141 nœuds
+# Marge laissée : facteur supérieur à 10 en profondeur, 70 en nœuds. Le test
+# test_une_entree_legitime_maximale_reste_sous_les_bornes verrouille la
+# borne par le BAS : resserrer sous le besoin réel fait rougir la suite.
 # ---------------------------------------------------------------------------
 PROFONDEUR_MAX = 32
 NOEUDS_MAX = 10000

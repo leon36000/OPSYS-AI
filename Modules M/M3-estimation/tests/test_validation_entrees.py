@@ -505,7 +505,6 @@ def test_ca_m3_02_lead_id_discordant_est_un_rejet_nomme():
     assert verdict["code"] == "REJ-LEAD-ID-DISCORDANT"
 
 
-import ast
 
 
 def _lire_chaines_litterales(valeur, chemin, nom_constante):
@@ -687,3 +686,30 @@ def test_champs_marqueur_copie_m2_ne_derive_pas():
         "Modules M/M2-revenue-crm/src/m2_revenue_crm/readiness.py"
     )
     assert set(contrats.CHAMPS_MARQUEUR) == set(cles_m2)
+
+
+def test_une_entree_legitime_maximale_reste_sous_les_bornes():
+    """Verrouille les bornes défensives PROFONDEUR_MAX et NOEUDS_MAX par le BAS.
+
+    Sans ce test, PROFONDEUR_MAX pourrait être resserré sous le besoin réel
+    et rejeter des lots parfaitement légitimes, sans que rien ne le dise
+    avant la production.
+    """
+    photos = [
+        {
+            "resolution": "4032x3024",
+            "angle": "face",
+            "eclairage": "naturel",
+            "reference_echelle": {
+                "objet": "porte_interieure",
+                "dimension_cm": 203,
+            },
+        }
+        for _ in range(20)
+    ]
+    accuse, verdict = validation.valider_entrees(
+        _contrat_valide(), _marqueur_valide(), photos
+    )
+    assert verdict is None
+    assert accuse is not None
+    assert accuse["nombre_photos"] == 20
