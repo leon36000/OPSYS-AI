@@ -142,11 +142,18 @@ def test_le_controle_est_vert_sur_les_documents_reels():
 
 def test_une_declaration_citee_dans_un_bloc_est_ignoree():
     """Une déclaration citée en exemple dans un bloc ```text n'est pas un engagement."""
-    titre = "### 2.5 Maillon du registre"
-    assert ARCHI.count(titre) == 1, (
-        f"le titre « {titre} » doit apparaître exactement une fois dans "
-        "l'architecture, sinon l'insertion ne mute rien et le test serait "
-        "vert pour rien"
+    import re
+
+    motif = re.compile(r"^### \d+\.\d+ Maillon du registre\b.*$", re.MULTILINE)
+    correspondances = list(motif.finditer(ARCHI))
+    assert len(correspondances) == 1, (
+        "un titre de niveau 3 « Maillon du registre » (numéro quelconque de "
+        "la forme <entier>.<entier>) doit apparaître exactement une fois "
+        f"dans l'architecture — {len(correspondances)} occurrence(s) "
+        "trouvée(s) — sinon l'insertion ne mute rien et le test serait vert "
+        "pour rien. L'ancrage se fait sur le NOM de la section, jamais sur "
+        "son numéro : une renumérotation a déjà cassé la version ancrée sur "
+        "le numéro"
     )
     citation = (
         "### Exemple de déclaration (citation, pas un engagement)\n\n"
@@ -154,7 +161,8 @@ def test_une_declaration_citee_dans_un_bloc_est_ignoree():
         "Copié mot pour mot du PRD section 1.\n"
         "```\n\n"
     )
-    archi_mute = ARCHI.replace(titre, citation + titre, 1)
+    debut = correspondances[0].start()
+    archi_mute = ARCHI[:debut] + citation + ARCHI[debut:]
     messages = VERIF_COHERENCE.verifier_copies_declarees(PRD, archi_mute)
     assert messages == [], (
         "une déclaration citée dans un bloc clôturé de langue text doit être "

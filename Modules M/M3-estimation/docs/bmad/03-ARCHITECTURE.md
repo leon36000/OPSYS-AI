@@ -30,7 +30,7 @@ Le paquet `m3_estimation` est autonome. Il réutilise le patron prouvé des modu
 |---|---|---|
 | `__init__.py` | Point d'entrée public du paquet ; expose `estimer()` et `valider_registre()`. | Un seul point d'entrée garantit que l'orchestration ne peut être contournée. |
 | `contrats.py` | Définition des schémas gelés `LeadQualifie` (entrée), `BaremeCouts` (entrée) et `EstimationV1` (sortie) avec leurs listes fermées de clés. | D-015 : les contrats gelés sont des pactes exécutables, leur schéma doit être figé dans un fichier dédié. |
-| `validation.py` | Validation structurelle des DEUX contrats d'entrée : `LeadQualifie` (champs obligatoires, types, validation de la STRUCTURE du marqueur de readiness et de la CONCORDANCE de son `lead_id` avec celui du contrat, champs interdits) ET `BaremeCouts` (postes non vide, type_travaux demandé couvert, bornes numériques avec min ≤ max). Un contrat gelé sans propriétaire de validation est une promesse que personne ne tient. | Séparé de l'orchestration pour permettre un rejet précoce avant tout traitement coûteux. |
+| `validation.py` | Validation structurelle des TROIS contrats d'entrée : `LeadQualifie` (champs obligatoires, types, validation de la STRUCTURE du marqueur de readiness et de la CONCORDANCE de son `lead_id` avec celui du contrat, champs interdits), `BaremeCouts` (postes non vide, type_travaux demandé couvert, bornes numériques avec min ≤ max) ET `SeuilsQualite` (les deux clés attendues et leurs types — toute clé manquante, type incorrect ou clé inconnue bloque l'estimation, aucune valeur par défaut). Un contrat gelé sans propriétaire de validation est une promesse que personne ne tient. | Séparé de l'orchestration pour permettre un rejet |
 | `qualite_photos.py` | Qualification binaire de la qualité des entrées visuelles à partir des métadonnées photo. | Logique isolée car elle détermine le branchement fail-closed / estimation. |
 | `hierarchie_echelle.py` | Application de la hiérarchie ratifiée comme logique de décision pure : référence > multi-vues > mono-vue à bornes larges > indéterminé. | Séparé pour garantir qu'aucun modèle d'inférence ne puisse s'y glisser en v1. |
 | `monte_carlo.py` | Simulation Monte Carlo déterministe à graine fournie par l'appelant, production de l'intervalle de confiance. | Isolé pour garantir l'auditabilité du déterminisme (CA-M3-10, CA-M3-11, CA-M3-20). |
@@ -61,7 +61,7 @@ Le paquet `m3_estimation` est autonome. Il réutilise le patron prouvé des modu
 LeadQualifie:
   lead_id: str              # Identifiant stable du lead, attribué par M2.
   conversation_id: str      # Référence de la conversation d'origine.
-  type_travaux: str         # Énuméré fermé (voir 2.4).
+  type_travaux: str         # Énuméré fermé (voir 2.5).
   ville: str                # Ville renseignée, non vide.
   canal: str                # Canal d'entrée : telephone | courriel | formulaire | texte.
   contact: dict             # Clés autorisées : nom, telephone, courriel — au moins une non vide.
@@ -223,7 +223,20 @@ non numériques ou `min > max` -> estimation bloquée avec `INDETERMINE`.
 
 ---
 
-### 2.4 Énumérés fermés
+### 2.4 Contrat d'entrée gelé — `SeuilsQualite` (fourni par l'appelant)
+
+`SeuilsQualite` est un schéma gelé : sa liste de clés est FERMÉE.
+
+```yaml
+resolution_minimale: int  # résolution en pixels sous laquelle une photo est faible
+eclairage_minimal: float  # niveau d'éclairage sous lequel une photo est faible
+```
+
+Une clé manquante, un type incorrect ou une clé inconnue BLOQUE l'estimation ; aucune valeur par défaut n'existe.
+
+---
+
+### 2.5 Énumérés fermés
 
 #### `type_travaux` — copie ÉPINGLÉE de l'énuméré fermé de M2
 
@@ -264,7 +277,7 @@ Copié mot pour mot du PRD section 4.2.
 | `CONTRAT_ENTREE_INVALIDE` | Le contrat `LeadQualifie` d'entrée ne respecte pas le schéma gelé (champ manquant, type incorrect, champ interdit présent). | `True` |
 | `INDETERMINE` | **Échappatoire D-032** — la raison du blocage ne peut être classifiée dans les valeurs précédentes. Signale « on ne sait pas pourquoi ça bloque » et force une revue humaine. | `True` |
 
-### 2.5 Maillon du registre append-only
+### 2.6 Maillon du registre append-only
 
 ```yaml
 MaillonEstimation:
@@ -281,7 +294,7 @@ MaillonEstimation:
   hash_maillon: str         # sha256 de ce maillon (inclut hash_precedent).
 ```
 
-### 2.6 Signal de relance vers M2
+### 2.7 Signal de relance vers M2
 
 ```yaml
 SignalRelanceM2:
@@ -293,7 +306,7 @@ SignalRelanceM2:
   emission_count: int       # Toujours 1 en v1 (pas de boucle).
 ```
 
-### 2.7 Digest quotidien vers Nathan
+### 2.8 Digest quotidien vers Nathan
 
 ```yaml
 DigestEstimationsBloquees:
@@ -331,6 +344,7 @@ M3 reçoit de son **appelant** trois entrées supplémentaires, toutes fournies,
   avec `INDETERMINE` (CA-M3-21, DA-M3-09). Exiger le barème ici, et non en prose, est ce qui rend
   le critère implémentable — objection critique de revue scellée : un critère qui exige ce que
   l'interface ne déclare pas est improuvable.
+- `seuils_qualite: dict` — contrat d'entrée gelé décrit en 2.3 bis, au même titre que `bareme_couts` ; il porte les seuils que la qualification des entrées visuelles compare : résolution minimale et éclairage minimal. Il est FOURNI par l'appelant, sans valeur par défaut : un seuil absent BLOQUE l'estimation, il ne se devine pas — exactement comme le module ne porte aucune valeur monétaire. C'est la règle DA-M3-09 qui l'impose : un critère qui exige ce que l'interface ne déclare pas est improuvable.
 - `graine_monte_carlo: int` — graine pour la simulation déterministe.
 - `plancher_rentable: float` — seuil d'alerte rouge.
 

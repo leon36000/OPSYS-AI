@@ -1408,6 +1408,86 @@ def verifier_brief_contrat_reel(brief: str, archi: str) -> List[str]:
             f"décrit qu'une partie du contrat laisse croire au reste.")
     return erreurs
 
+# Rapprochement par fragment et non par égalité : le critère parle en langue
+# naturelle (« le seuil »), l'interface nomme une clé (`seuils_qualite`).
+GRANDEURS_FOURNIES = (
+    ("seuil", "seuil"),
+    ("barème", "bareme"),
+    ("graine", "graine"),
+    ("plancher", "plancher"),
+)
+
+
+def verifier_grandeurs_fournies_declarees(prd: str, archi: str) -> List[str]:
+    """Contrôle 20 : toute grandeur que les critères exigent comme fournie est
+    déclarée dans l'interface d'entrée, sous un nom portant le fragment
+    correspondant — un critère qui exige ce que l'interface ne déclare pas
+    est improuvable (DA-M3-09). LIMITE : seules les grandeurs de la table
+    GRANDEURS_FOURNIES sont confrontées ; une grandeur d'un autre nom n'est
+    pas suivie."""
+
+    def plier(texte: str) -> str:
+        """Minuscules sans accents : la comparaison est insensible à la casse
+        et aux accents — le « barème » des critères doit rejoindre « bareme »."""
+        return texte.lower().translate(str.maketrans({
+            "à": "a", "â": "a", "ä": "a", "á": "a",
+            "é": "e", "è": "e", "ê": "e", "ë": "e",
+            "î": "i", "ï": "i",
+            "ô": "o", "ö": "o",
+            "ù": "u", "û": "u", "ü": "u",
+            "ç": "c", "œ": "oe", "æ": "ae",
+        }))
+
+    # Étape 1 — la section des critères du PRD, ancrée sur son NOM, jamais
+    # sur son numéro.
+    debut_ca = re.search(r"^##\s+(?:\d+\.\s+)?CRITÈRES D'ACCEPTATION\s*$",
+                         prd, re.MULTILINE)
+    if not debut_ca:
+        return ["Section « CRITÈRES D'ACCEPTATION » introuvable dans le PRD — "
+                "contrôle non probant."]
+    reste_prd = prd[debut_ca.end():]
+    fin_ca = re.search(r"^##\s", reste_prd, re.MULTILINE)
+    section_ca = reste_prd[:fin_ca.start()] if fin_ca else reste_prd
+
+    # Étape 2 — la section de l'interface d'entrée de l'architecture, ancrée
+    # sur son NOM, jamais sur son numéro.
+    titre_interface = re.search(
+        r"^(#{1,6})\s+(?:\d+(?:\.\d+)*\.?\s+)?Interface d['’]entrée\b[^\n]*$",
+        archi, re.MULTILINE)
+    if not titre_interface:
+        return ["Section « Interface d'entrée » introuvable dans l'architecture — "
+                "contrôle non probant."]
+    niveau = len(titre_interface.group(1))
+    reste_archi = archi[titre_interface.end():]
+    titre_suivant = re.search(rf"^#{{1,{niveau}}}\s", reste_archi, re.MULTILINE)
+    section_interface = (reste_archi[:titre_suivant.start()]
+                         if titre_suivant else reste_archi)
+
+    # Étape 3 — les entrées déclarées : puces de la forme
+    # `- `<nom>: <type>` — …`, le nom étant [a-z_][a-z0-9_]*.
+    entrees = re.findall(r"^[ \t]*-[ \t]+`([a-z_][a-z0-9_]*):[^`]*`",
+                         section_interface, re.MULTILINE)
+    if not entrees:
+        return ["Aucune entrée extraite de la section « Interface d'entrée » — "
+                "extracteur vide, contrôle non probant : un contrôle qui ne "
+                "compare rien passe toujours."]
+
+    # Étape 4 — chaque grandeur employée par les critères doit être fournie.
+    erreurs: List[str] = []
+    criteres_plies = plier(section_ca)
+    for mot, fragment in GRANDEURS_FOURNIES:
+        if plier(mot) not in criteres_plies:
+            continue
+        if any(fragment in nom for nom in entrees):
+            continue
+        erreurs.append(
+            f"Grandeur « {mot} » employée par les critères d'acceptation mais "
+            f"aucune entrée déclarée ne porte le fragment « {fragment} » — "
+            f"entrées déclarées : {sorted(set(entrees))}. Un critère qui exige "
+            f"ce que l'interface ne déclare pas est improuvable (DA-M3-09).")
+    return erreurs
+
+
 def main(dossier_str: str = None) -> int:
     if dossier_str is None:
         dossier = Path(__file__).resolve().parent
@@ -1604,6 +1684,16 @@ def main(dossier_str: str = None) -> int:
         nb_champs = len(champs_du_contrat_brief(brief))
         print(f"OK : Les {nb_champs} champs du contrat d'entrée décrits par le brief "
               f"sont exactement les clés que le module producteur émet.")
+
+    errs = verifier_grandeurs_fournies_declarees(prd, archi)
+    if errs:
+        erreurs.extend(errs)
+        for e in errs:
+            print(f"ECHEC : {e}")
+    else:
+        print(f"OK : Les {len(GRANDEURS_FOURNIES)} grandeurs de GRANDEURS_FOURNIES "
+              f"ont été confrontées — chacune, dès qu'un critère l'emploie, est "
+              f"déclarée dans l'interface d'entrée.")
 
     n = len(erreurs)
     if n == 0:
