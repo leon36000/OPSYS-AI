@@ -14,25 +14,16 @@ et une preuve qui réécrit ses propres artefacts ne serait pas reproductible.
 Le gate n'étant pas un paquet installable, il est chargé par importlib depuis
 son chemin réel dérivé de ``__file__`` — jamais du répertoire courant.
 """
-import importlib.util
-import sys
-from pathlib import Path
-
 import pytest
 
-_MODULE = Path(__file__).resolve().parents[1]
-_BMAD = _MODULE / "docs" / "bmad"
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parent))
+from _commun_gate import GATE, BRIEF, PRD, ARCHI
 
-_SPEC = importlib.util.spec_from_file_location(
-    "verif_coherence", _BMAD / "verif_coherence.py"
-)
-assert _SPEC is not None and _SPEC.loader is not None, "gate de cohérence introuvable"
-VERIF_COHERENCE = importlib.util.module_from_spec(_SPEC)
-sys.modules[_SPEC.name] = VERIF_COHERENCE
-_SPEC.loader.exec_module(VERIF_COHERENCE)
-
-PRD = (_BMAD / "02-PRD-PM.md").read_text(encoding="utf-8")
-ARCHI = (_BMAD / "03-ARCHITECTURE.md").read_text(encoding="utf-8")
+# Le corps des tests nomme le gate « VERIF_COHERENCE » : simple affectation
+# pour conserver cet identifiant sans toucher à aucun test.
+VERIF_COHERENCE = GATE
 
 MUTATIONS = [
     {
@@ -142,11 +133,18 @@ def test_le_controle_est_vert_sur_les_documents_reels():
 
 def test_une_declaration_citee_dans_un_bloc_est_ignoree():
     """Une déclaration citée en exemple dans un bloc ```text n'est pas un engagement."""
-    titre = "### 2.5 Maillon du registre"
-    assert ARCHI.count(titre) == 1, (
-        f"le titre « {titre} » doit apparaître exactement une fois dans "
-        "l'architecture, sinon l'insertion ne mute rien et le test serait "
-        "vert pour rien"
+    import re
+
+    motif = re.compile(r"^### \d+\.\d+ Maillon du registre\b.*$", re.MULTILINE)
+    correspondances = list(motif.finditer(ARCHI))
+    assert len(correspondances) == 1, (
+        "un titre de niveau 3 « Maillon du registre » (numéro quelconque de "
+        "la forme <entier>.<entier>) doit apparaître exactement une fois "
+        f"dans l'architecture — {len(correspondances)} occurrence(s) "
+        "trouvée(s) — sinon l'insertion ne mute rien et le test serait vert "
+        "pour rien. L'ancrage se fait sur le NOM de la section, jamais sur "
+        "son numéro : une renumérotation a déjà cassé la version ancrée sur "
+        "le numéro"
     )
     citation = (
         "### Exemple de déclaration (citation, pas un engagement)\n\n"
@@ -154,7 +152,8 @@ def test_une_declaration_citee_dans_un_bloc_est_ignoree():
         "Copié mot pour mot du PRD section 1.\n"
         "```\n\n"
     )
-    archi_mute = ARCHI.replace(titre, citation + titre, 1)
+    debut = correspondances[0].start()
+    archi_mute = ARCHI[:debut] + citation + ARCHI[debut:]
     messages = VERIF_COHERENCE.verifier_copies_declarees(PRD, archi_mute)
     assert messages == [], (
         "une déclaration citée dans un bloc clôturé de langue text doit être "
