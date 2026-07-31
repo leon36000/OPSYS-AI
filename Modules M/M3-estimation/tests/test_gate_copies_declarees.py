@@ -481,3 +481,17 @@ def test_un_titre_de_section_indente_est_reconnu_dans_le_prd():
         "assertion, le test passerait tout aussi bien si la résolution "
         f"ignorait le PRD. Messages : {messages_non_indente}"
     )
+
+
+def test_un_retour_chariot_dans_une_cellule_ne_tronque_pas_l_appariement():
+    """Un retour chariot dans une cellule ne doit pas tronquer la première ligne d'un artefact lors de l'appariement — sans ce test, un retour à .splitlines(), qui coupe aussi sur « \r » seul, tronquerait l'en-tête à « | A », apparierait le leurre et déclarerait divergente une copie exacte, et la régression passerait inaperçue."""
+    prd = "# PRD\n\n## 1. Section\n\n| A\n|---|---|\n| leurre | ici |\n\n| A\rZ | un |\n|---|---|\n| vrai | la |\n"
+    archi = "# Archi\n\n## Copie\n\nCopié mot pour mot du PRD section 1.\n\n| A\rZ | un |\n|---|---|\n| vrai | la |\n"
+    messages = VERIF_COHERENCE.verifier_copies_declarees(prd, archi)
+    assert messages == [], (
+        "la copie est exacte : l'appariement doit retenir la seconde table du "
+        "PRD, pas le leurre — une notion de ligne qui coupe sur « \r » (comme "
+        ".splitlines()) tronquerait la première ligne de l'artefact à « | A », "
+        "retiendrait le leurre comme source et déclarerait divergente une "
+        f"copie pourtant exacte. Messages : {messages}"
+    )

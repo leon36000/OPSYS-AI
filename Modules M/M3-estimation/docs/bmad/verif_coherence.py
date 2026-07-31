@@ -980,13 +980,9 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
     jamais un engagement — elle ne doit ni ouvrir une confrontation à la
     passe 1 ni tenir lieu de déclaration à la passe 2.
 
-    Le découpage du scanner en lignes porte sur « \\n » seul, pour partager la
-    notion de ligne des expressions régulières ; les cinq appels à
-    .splitlines() restants ne portent que sur le contenu d'artefacts déjà
-    délimités par des « \\n » — un artefact à séparateurs « \\r » n'est jamais
-    extrait, le contrôle échouant alors en amont, fail-closed, sur « aucun
-    artefact » (mesuré) — et leur sémantique plus large est donc sans effet
-    atteignable.
+    Le module ne reconnaît qu'un seul séparateur de ligne, « \\n », partagé par
+    le scanner de blocs, les expressions régulières et la comparaison de
+    contenu — cette dernière passant par la fonction interne lignes_de.
 
     LIMITE EXACTE : une copie qui a été MODIFIÉE et n'a jamais été déclarée
     reste indétectable — n'étant plus identique à sa source, rien ne la
@@ -1002,6 +998,18 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
     # Un titre markdown peut être indenté de 0 à 3 espaces : ainsi indenté, il
     # borne les zones exactement comme un titre en colonne 0.
     motif_titre = re.compile(r"^ {0,3}#{1,6}\s", re.MULTILINE)
+
+    def lignes_de(texte: str) -> List[str]:
+        """Découpe `texte` sur « \\n » SEUL : le scanner de blocs, les
+        expressions régulières en re.MULTILINE et la comparaison de contenu
+        doivent partager la MÊME notion de ligne, et .splitlines() coupe en
+        plus sur « \\r » seul, « \\v » et « \\f », ce qui a produit un faux
+        négatif mesuré — une copie exacte rapportée divergente. Sur la chaîne
+        vide, "".split("\\n") rend [""] — une ligne vide — là où .splitlines()
+        rendrait la liste vide ; les deux côtés d'une comparaison passant par
+        cette même fonction, la symétrie est préservée.
+        """
+        return texte.split("\n")
 
     def blocs_clotures(texte: str) -> List[Tuple[int, int, int, int]]:
         """Balaye `texte` LIGNE PAR LIGNE et retourne ses blocs de code clôturés.
@@ -1096,7 +1104,7 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
 
     def premiere_ligne_non_vide(texte: str) -> str:
         """Première ligne non vide du texte, sans espaces de fin ('' si vide)."""
-        for ligne in texte.splitlines():
+        for ligne in lignes_de(texte):
             if ligne.strip():
                 return ligne.rstrip()
         return ""
@@ -1260,8 +1268,8 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
                 f"contrôle non probant pour cette copie.")
             continue
         # e. Comparaison ligne à ligne ; les espaces de fin ne sont pas du contenu.
-        lignes_prd = [l.rstrip() for l in contenu_prd.rstrip("\n").splitlines()]
-        lignes_arc = [l.rstrip() for l in contenu_arc.rstrip("\n").splitlines()]
+        lignes_prd = [l.rstrip() for l in lignes_de(contenu_prd.rstrip("\n"))]
+        lignes_arc = [l.rstrip() for l in lignes_de(contenu_arc.rstrip("\n"))]
         divergence = False
         for i, (lp, la) in enumerate(zip(lignes_prd, lignes_arc), start=1):
             if lp != la:
@@ -1288,9 +1296,9 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
     normalises_prd: Dict[str, List[List[str]]] = {}
     for genre_p, contenu_p, _, _ in tous_artefacts(prd):
         normalises_prd.setdefault(genre_p, []).append(
-            [l.rstrip() for l in contenu_p.rstrip("\n").splitlines()])
+            [l.rstrip() for l in lignes_de(contenu_p.rstrip("\n"))])
     for genre_a, contenu_a, debut_a, _ in tous_artefacts(archi):
-        lignes_a = [l.rstrip() for l in contenu_a.rstrip("\n").splitlines()]
+        lignes_a = [l.rstrip() for l in lignes_de(contenu_a.rstrip("\n"))]
         if lignes_a not in normalises_prd.get(genre_a, []):
             # Pas une copie exacte : rien à suivre pour cette passe.
             continue
