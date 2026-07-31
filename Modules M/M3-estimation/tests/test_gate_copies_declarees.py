@@ -14,25 +14,16 @@ et une preuve qui réécrit ses propres artefacts ne serait pas reproductible.
 Le gate n'étant pas un paquet installable, il est chargé par importlib depuis
 son chemin réel dérivé de ``__file__`` — jamais du répertoire courant.
 """
-import importlib.util
-import sys
-from pathlib import Path
-
 import pytest
 
-_MODULE = Path(__file__).resolve().parents[1]
-_BMAD = _MODULE / "docs" / "bmad"
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parent))
+from _commun_gate import GATE, BRIEF, PRD, ARCHI
 
-_SPEC = importlib.util.spec_from_file_location(
-    "verif_coherence", _BMAD / "verif_coherence.py"
-)
-assert _SPEC is not None and _SPEC.loader is not None, "gate de cohérence introuvable"
-VERIF_COHERENCE = importlib.util.module_from_spec(_SPEC)
-sys.modules[_SPEC.name] = VERIF_COHERENCE
-_SPEC.loader.exec_module(VERIF_COHERENCE)
-
-PRD = (_BMAD / "02-PRD-PM.md").read_text(encoding="utf-8")
-ARCHI = (_BMAD / "03-ARCHITECTURE.md").read_text(encoding="utf-8")
+# Le corps des tests nomme le gate « VERIF_COHERENCE » : simple affectation
+# pour conserver cet identifiant sans toucher à aucun test.
+VERIF_COHERENCE = GATE
 
 MUTATIONS = [
     {
