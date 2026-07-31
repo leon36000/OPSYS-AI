@@ -20,6 +20,22 @@ from pathlib import Path
 import pytest
 
 
+def _masquer_blocs(texte):
+    """Remplace le contenu de chaque bloc clôturé — clôtures comprises — par
+    des espaces, caractère pour caractère, en préservant les sauts de ligne.
+
+    La longueur totale est préservée : tout caractère hors saut de ligne
+    devient un espace et tout saut de ligne est conservé, donc tout offset
+    mesuré sur la vue masquée reste valide pour trancher le texte D'ORIGINE.
+    """
+    return re.sub(
+        r"```[^\n]*\n.*?```",
+        lambda correspondance: re.sub(r"[^\n]", " ", correspondance.group(0)),
+        texte,
+        flags=re.DOTALL,
+    )
+
+
 def cles_du_bloc_yaml(motif_titre, niveau_titre_suivant):
     """Extrait l'ensemble des clés du premier bloc yaml d'une section.
 
@@ -32,9 +48,13 @@ def cles_du_bloc_yaml(motif_titre, niveau_titre_suivant):
     ``motif_titre`` est une expression régulière compilée qui localise le
     titre de la section par son NOM — jamais par son numéro, une
     renumérotation a déjà cassé un test ancré sur un numéro. La section doit
-    apparaître EXACTEMENT une fois. ``niveaux_titre_suivant`` est le motif
-    (chaîne) du prochain titre qui borne la section, par exemple
-    ``^#{1,3}\\s``.
+    apparaître EXACTEMENT une fois. ``niveau_titre_suivant`` est un ENTIER :
+    la profondeur maximale du titre qui ferme la section.
+
+    Les DEUX recherches de titre — celui de la section et celui qui la ferme —
+    se font sur une vue où le contenu de chaque bloc clôturé est masqué par
+    ``_masquer_blocs`` ; le contenu découpé vient toujours du texte
+    d'origine, les offsets de la vue y restant valides.
 
     Les commentaires sont exclus et le tiret de liste est toléré devant une
     clé. L'extracteur est fail-closed : titre absent ou dupliqué, ou aucune
@@ -53,7 +73,11 @@ def cles_du_bloc_yaml(motif_titre, niveau_titre_suivant):
     )
     texte = chemin_architecture.read_text(encoding="utf-8")
 
-    titres = list(motif_titre.finditer(texte))
+    # Un « # » en colonne 0 à l'intérieur d'un bloc clôturé est du CODE, pas
+    # un titre : sans masquage, il fermerait la section avant son bloc yaml.
+    vue = _masquer_blocs(texte)
+
+    titres = list(motif_titre.finditer(vue))
     if len(titres) != 1:
         pytest.fail(
             "la section d'architecture localisée par son nom doit apparaître "
@@ -72,7 +96,7 @@ def cles_du_bloc_yaml(motif_titre, niveau_titre_suivant):
         )
     titre_suivant = re.compile(
         r"^#{1,%d}\s" % niveau_titre_suivant, re.MULTILINE
-    ).search(texte, debut_section)
+    ).search(vue, debut_section)
     fin_section = titre_suivant.start() if titre_suivant else len(texte)
     section = texte[debut_section:fin_section]
 

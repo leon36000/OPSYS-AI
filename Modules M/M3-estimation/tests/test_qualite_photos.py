@@ -469,3 +469,65 @@ def test_les_constantes_de_contrat_sont_alignees_sur_l_architecture(
         f"attendues {sorted(constante_attendue)}, écart "
         f"{sorted(cles_architecture ^ set(constante_attendue))}"
     )
+
+
+@pytest.mark.parametrize(
+    "cas",
+    (
+        "photos-en-dict",
+        "photos-en-chaine",
+        "eclairage-negatif",
+        "reference-sans-dimensions-connues",
+        "reference-avec-cle-en-plus",
+        "reference-dimensions-en-chaine",
+        "dimensions-nulles-simultanees",
+        "photos-en-tuple",
+    ),
+)
+def test_lacunes_de_couverture_signalees_en_revue(cas):
+    """Ces cas ont été signalés par la revue scellée à deux rounds consécutifs.
+
+    Le code de ``qualifier_photos`` les rejetait déjà, mais rien ne
+    l'empêchait de cesser de le faire : sans ce test, une régression qui
+    supprimerait l'une de ces gardes passerait inaperçue. Chaque cas
+    n'introduit QU'UNE faute — les autres entrées restent valides, seuils
+    conformes compris.
+
+    Le cas du tuple est le SEUL qui isole la garde de liste : un dict ou une
+    chaîne passés pour ``photos`` sont rattrapés par le contrôle par photo —
+    itérer un dict donne ses clés, itérer une chaîne donne ses caractères,
+    et ni les unes ni les autres ne sont des dictionnaires — alors qu'un
+    tuple de photos valides serait ACCEPTÉ si la garde
+    ``isinstance(photos, list)`` disparaissait. Mesuré en neutralisant cette
+    garde : sans le cas du tuple, la suite reste VERTE.
+    """
+    photos = _lot_valide()
+    if cas == "photos-en-dict":
+        photos = _photo_valide()
+    elif cas == "photos-en-chaine":
+        photos = "ceci-n-est-pas-une-liste-de-photos"
+    elif cas == "eclairage-negatif":
+        photos[0]["eclairage"] = -1.0
+    elif cas == "reference-sans-dimensions-connues":
+        photos[0]["reference_echelle"] = {"type": "porte"}
+    elif cas == "reference-avec-cle-en-plus":
+        photos[0]["reference_echelle"] = {
+            "type": "porte",
+            "dimensions_connues": True,
+            "extra": 1,
+        }
+    elif cas == "reference-dimensions-en-chaine":
+        photos[0]["reference_echelle"] = {
+            "type": "porte",
+            "dimensions_connues": "oui",
+        }
+    elif cas == "dimensions-nulles-simultanees":
+        photos[0]["resolution_largeur"] = 0
+        photos[0]["resolution_hauteur"] = 0
+    elif cas == "photos-en-tuple":
+        photos = (_photo_valide(),)
+    qualification, verdict = qualite_photos.qualifier_photos(
+        photos, _seuils_valides()
+    )
+    assert qualification is None
+    _assert_verdict_rejet(verdict, "REJ-PHOTOS-INVALIDES")
