@@ -34,7 +34,11 @@ CODES_M3_LIST = [
     "REJ-READINESS-NON-CONSTATEE",
     "REJ-LEAD-ID-DISCORDANT",
     "REJ-PHOTOS-INVALIDES",
+    "REJ-SIGNAL-INVALIDE",
     "REJ-PROFONDEUR-EXCESSIVE",
+    # M3-S002 : REJ-SEUILS-INVALIDES est ajouté ; REJ-PHOTOS-INVALIDES figure
+    # déjà ci-dessus dans le catalogue et n'est donc pas dupliqué.
+    "REJ-SEUILS-INVALIDES",
 ]
 CODES_M3 = set(CODES_M3_LIST)
 

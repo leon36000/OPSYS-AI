@@ -81,3 +81,14 @@ CLES_INTERDITES = frozenset(
 # dérivée des tests ferait rejeter par le consommateur des contacts
 # légitimes portant ``courriel``.
 CHAMPS_CONTACT = ("nom", "telephone", "courriel")
+
+# Provenance : constante tirée de la section ``SeuilsQualite`` de
+# l'architecture M3 (cadrage). Liste FERMÉE : aucune clé en plus, aucune
+# valeur par défaut.
+CHAMPS_SEUILS_QUALITE = ("resolution_minimale", "eclairage_minimal")
+
+# Provenance : constante tirée de la section ``PhotosFournies`` de
+# l'architecture M3 (cadrage). Liste FERMÉE : aucune clé en plus, aucune
+# valeur par défaut.
+CHAMPS_PHOTO = ("photo_id", "resolution_largeur", "resolution_hauteur",
+                "eclairage", "angle", "reference_echelle")
