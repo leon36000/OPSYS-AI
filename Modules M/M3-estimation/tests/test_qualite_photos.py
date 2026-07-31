@@ -531,3 +531,75 @@ def test_lacunes_de_couverture_signalees_en_revue(cas):
     )
     assert qualification is None
     _assert_verdict_rejet(verdict, "REJ-PHOTOS-INVALIDES")
+
+
+@pytest.mark.parametrize(
+    "cas",
+    (
+        "photo-non-dict",
+        "photo-id-entier",
+        "photo-id-vide",
+        "hauteur-zero",
+        "hauteur-negative",
+        "largeur-booleenne",
+        "hauteur-booleenne",
+        "angle-entier",
+        "angle-vide",
+        "reference-en-chaine",
+        "reference-type-entier",
+        "reference-type-vide",
+    ),
+)
+def test_gardes_isolees_une_par_une(cas):
+    """Ces gardes ont été trouvées en énumérant par AST toutes les gardes du
+    module et en les neutralisant une par une. Six sur dix-neuf restaient
+    vertes, donc supprimables sans qu'un seul test ne le signale. Chaque cas
+    ci-dessous en isole exactement une.
+    """
+    photos = _lot_valide()
+    if cas == "photo-non-dict":
+        photos[0] = "ceci-n-est-pas-une-photo"
+    elif cas == "photo-id-entier":
+        photos[0]["photo_id"] = 1
+    elif cas == "photo-id-vide":
+        photos[0]["photo_id"] = ""
+    elif cas == "hauteur-zero":
+        photos[0]["resolution_hauteur"] = 0
+    elif cas == "hauteur-negative":
+        photos[0]["resolution_hauteur"] = -100
+    elif cas == "largeur-booleenne":
+        photos[0]["resolution_largeur"] = True
+    elif cas == "hauteur-booleenne":
+        photos[0]["resolution_hauteur"] = True
+    elif cas == "angle-entier":
+        photos[0]["angle"] = 90
+    elif cas == "angle-vide":
+        photos[0]["angle"] = ""
+    elif cas == "reference-en-chaine":
+        photos[0]["reference_echelle"] = "piece_de_monnaie"
+    elif cas == "reference-type-entier":
+        photos[0]["reference_echelle"]["type"] = 1
+    elif cas == "reference-type-vide":
+        photos[0]["reference_echelle"]["type"] = ""
+    qualification, verdict = qualite_photos.qualifier_photos(
+        photos, _seuils_valides()
+    )
+    assert qualification is None
+    _assert_verdict_rejet(verdict, "REJ-PHOTOS-INVALIDES")
+
+
+@pytest.mark.parametrize(
+    "fabriquer_lot",
+    (
+        lambda: [{"photo_id", "resolution_largeur", "resolution_hauteur", "eclairage", "angle", "reference_echelle"}],
+        lambda: [dict(_photo_valide(), reference_echelle={"type", "dimensions_connues"})],
+    ),
+    ids=("photo-ensemble", "reference-ensemble"),
+)
+def test_un_ensemble_ne_plante_pas_il_est_refuse(fabriquer_lot):
+    """Ces deux gardes paraissent redondantes avec le contrôle des clés, mais elles ne le sont pas ; un ``set`` portant exactement les bons noms franchit le contrôle des clés puis fait lever ``TypeError`` à l'accès indexé ; ce que ces gardes garantissent n'est pas une détection supplémentaire mais un refus NOMMÉ au lieu d'un plantage — mesuré."""
+    qualification, verdict = qualite_photos.qualifier_photos(
+        fabriquer_lot(), _seuils_valides()
+    )
+    assert qualification is None
+    _assert_verdict_rejet(verdict, "REJ-PHOTOS-INVALIDES")
