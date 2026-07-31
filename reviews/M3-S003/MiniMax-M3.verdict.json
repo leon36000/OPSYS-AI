@@ -1,0 +1,32 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/hierarchie_echelle.py",
+   "description": "La mutation 'MONO_VUE : borne haute 2 -> 3 photos' (1 <= nombre_photos <= 2 -> 1 <= nombre_photos <= 3) est déclarée ROUGE par le script de la PREUVE B. Or, en logique de décision séquentielle, relâcher la borne haute de MONO_VUE_BORNES_LARGES à 3 n'est PAS un défaut de classification : un lot de 3 photos qui satisfait les DEUX seuils est déjà capturé par MULTI_VUES (règle 2, testée avant la règle 3 dans le code), donc le ROUGE vient nécessairement d'un test qui vise une AUTRE propriété et tombe par hasard — probablement test_mono_vue_bornes_larges_nominal_deux_photos ou test_mono_vue_exige_que_TOUTES_les_photos_passent_les_deux_seuils. C'est précisément le cas de figure 'rouge pour la mauvaise raison' demandé en point 2 : la mutation mute une borne, mais c'est un autre invariant qui casse. La PREUVE B ne distingue pas la règle mutée du test qui la dément.",
+   "preuve": "Mutations list dans mut.py, item 'MONO_VUE : borne haute 2 -> 3 photos' ; ordre des règles dans hierarchie_echelle.py L132-150 (Règle 2 MULTI_VUES avant Règle 3 MONO_VUE)."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/hierarchie_echelle.py",
+   "description": "La redondance déclarée 'dimensions_connues : booleen STRICT -> valeur vraie' (is True -> bool(...)) n'est PAS inertée au sens strict. Le test test_le_type_booleen_de_dimensions_connues_est_garanti_en_amont vise la GARDE AMONT dans qualite_photos._valider_photo, mais ce test est dans le FICHIER de test de hierarchie_echelle et invoque classifier_niveau_confiance — il ne garantit donc rien sur _valider_photo lui-même. Si _valider_photo ne rejette pas le int 1, classifier_niveau_confiance retourne aujourd'hui REFERENCE_ECHELLE (car bool(1) is True). Le test test_le_type_booleen_de_dimensions_connues_est_garanti_en_amont affirmerait l'inertie de la mutation bool(...) mais en réalité il ÉCHOUERAIT déjà (référence 1 classée REFERENCE_ECHELLE, pas (None, verdict)), ce qui contredit la déclaration 'INERTE (conforme a la declaration)'. Soit le test ne passe pas en l'état, soit la garantie amont n'existe pas comme annoncé. À vérifier en exécutant le test nommé.",
+   "preuve": "L112-116 hierarchie_echelle.py : `and reference['dimensions_connues'] is True` ; L586-617 test_hierarchie_echelle.py test_le_type_booleen_de_dimensions_connues_est_garanti_en_amont ; log PREUVE B '[declaree] ... -> INERTE (conforme a la declaration)'."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/hierarchie_echelle.py",
+   "description": "La redondance déclarée 'MULTI_VUES : 3 photos -> 2 photos' (nombre_photos >= 3 -> nombre_photos >= 2) : l'argument d'inertie est correct (angles_distincts <= nombre_photos toujours), donc relâcher à >= 2 ne change pas la classification tant que angles_distincts >= 3 exige toujours 3 photos distinctes. Cependant, le critère d'acceptation énonce la borne '3 photos' explicitement ; la déclarer 'sans effet observable' et la conserver quand même est une discipline acceptable, mais le test test_trois_angles_distincts_impliquent_au_moins_trois_photos ne couvre que des cas où la mutation reste effectivement inerte — il ne PROUVE pas l'implication ensembliste, il l'OBSERVE sur 5 scénarios. C'est un doute non vérifiable sur la généralisation.",
+   "preuve": "L138-144 hierarchie_echelle.py : conditions MULTI_VUES ; L620-680 test_hierarchie_echelle.py test_trois_angles_distincts_impliquent_au_moins_trois_photos."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/test_hierarchie_echelle.py",
+   "description": "Le test test_niveau_toujours_dans_le_jeu_ferme_sur_entrees_variees énumère 4 scénarios (REFERENCE_ECHELLE, MULTI_VUES, MONO_VUE_BORNES_LARGES, INDETERMINE[]) et vérifie niveaux_obtenus == NIVEAUX_FERMES. Mais aucun des 4 scénarios ne couvre le cas MONO_VUE_BORNES_LARGES à 1 photo (uniquement 2 photos au scénario 3), ni INDETERMINE avec photos présentes mais invalides (uniquement liste vide). L'affirmation 'les quatre niveaux doivent rester atteignables' est donc soutenue, mais la portée réelle du test est plus étroite que son nom ne le suggère.",
+   "preuve": "L300-350 test_hierarchie_echelle.py test_niveau_toujours_dans_le_jeu_ferme_sur_entrees_variees, scenarios = [...]."
+  }
+ ],
+ "date_heure": "2026-07-31T16:48:46.052218+00:00",
+ "prompt_sha256": "03ebe0de93be66649a076b01cffa7837eb73a08a92082efd3522d56af1ade874",
+ "reviewer_model": "MiniMax-M3"
+}

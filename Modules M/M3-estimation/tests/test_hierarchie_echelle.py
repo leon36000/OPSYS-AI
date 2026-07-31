@@ -258,47 +258,87 @@ def test_egalite_exacte_aux_seuils_est_acceptable():
     assert motifs["photos_au_dessus_du_seuil"] == 3
 
 
-def test_niveau_toujours_dans_le_jeu_ferme_sur_entrees_variees():
-    """Aucune valeur retournée hors des QUATRE niveaux fermés.
+@pytest.mark.parametrize(
+    "scenarios",
+    [
+        [
+            (
+                "reference_qualifiante_seule_photo",
+                [
+                    _photo_valide(
+                        reference_echelle={
+                            "type": "regle",
+                            "dimensions_connues": True,
+                        }
+                    )
+                ],
+                "REFERENCE_ECHELLE",
+            ),
+            (
+                "trois_photos_trois_angles_distincts",
+                [
+                    _photo_valide(angle="face"),
+                    _photo_valide(angle="profil"),
+                    _photo_valide(angle="dessus"),
+                ],
+                "MULTI_VUES",
+            ),
+            (
+                "deux_photos_au_dessus_des_deux_seuils",
+                [
+                    _photo_valide(angle="face"),
+                    _photo_valide(angle="profil"),
+                ],
+                "MONO_VUE_BORNES_LARGES",
+            ),
+            (
+                "une_seule_photo_borne_basse_de_la_mono_vue",
+                [_photo_valide(angle="face")],
+                "MONO_VUE_BORNES_LARGES",
+            ),
+            (
+                "liste_vide_chemin_degenere",
+                [],
+                "INDETERMINE",
+            ),
+            (
+                "trois_photos_angle_repete_cas_nominal_indetermine",
+                [
+                    _photo_valide(angle="face"),
+                    _photo_valide(angle="face"),
+                    _photo_valide(angle="face"),
+                ],
+                "INDETERMINE",
+            ),
+        ]
+    ],
+    ids=["six_scenarios_couvrant_les_quatre_niveaux_fermes"],
+)
+def test_niveau_toujours_dans_le_jeu_ferme_sur_entrees_variees(scenarios):
+    """Aucune valeur retournée hors des QUATRE niveaux fermés, et les
+    quatre niveaux restent atteignables sur des entrées VARIÉES.
 
     Empêcherait de casser : l'apparition d'un cinquième niveau (faute de
     frappe, niveau renommé, échappatoire D-032 contournée) — chaque niveau
-    produit doit appartenir au jeu fermé, et les quatre niveaux doivent
-    rester atteignables.
+    produit doit appartenir au jeu fermé déclaré par le module
+    (``NIVEAUX_CONFIANCE``), et les quatre niveaux doivent rester
+    atteignables.
+
+    La portée du test doit être aussi large que son nom le promet : la
+    borne basse de MONO_VUE_BORNES_LARGES (UNE SEULE photo, énoncée par
+    CA-M3-07) et le cas nominal de l'échappatoire D-032 (des photos
+    PRÉSENTES qui ne satisfont aucune règle) manquaient — un INDETERMINE
+    obtenu seulement par liste vide est un chemin dégénéré, pas le cas
+    nominal de l'échappatoire. Six scénarios identifiés éprouvent donc
+    les quatre niveaux, et chacun porte son niveau attendu.
     """
-    scenarios = [
-        (
-            [
-                _photo_valide(
-                    reference_echelle={
-                        "type": "regle",
-                        "dimensions_connues": True,
-                    }
-                )
-            ],
-            "REFERENCE_ECHELLE",
-        ),
-        (
-            [
-                _photo_valide(angle="face"),
-                _photo_valide(angle="profil"),
-                _photo_valide(angle="dessus"),
-            ],
-            "MULTI_VUES",
-        ),
-        (
-            [_photo_valide(angle="face"), _photo_valide(angle="profil")],
-            "MONO_VUE_BORNES_LARGES",
-        ),
-        ([], "INDETERMINE"),
-    ]
     niveaux_obtenus = set()
-    for photos, attendu in scenarios:
+    for identifiant, photos, attendu in scenarios:
         niveau, motifs = hierarchie_echelle.classifier_niveau_confiance(
             photos, _SEUILS
         )
-        assert niveau in NIVEAUX_FERMES
-        assert niveau == attendu
+        assert niveau in hierarchie_echelle.NIVEAUX_CONFIANCE, identifiant
+        assert niveau == attendu, identifiant
         niveaux_obtenus.add(niveau)
     assert niveaux_obtenus == NIVEAUX_FERMES
 
