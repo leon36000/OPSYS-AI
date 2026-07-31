@@ -930,6 +930,245 @@ def verifier_anti_derive(prd: str) -> List[str]:
     return erreurs
 
 
+MOTIF_COPIE_DECLAREE = r"Copié mot pour mot du PRD section (\d+(?:\.\d+)?)\."
+
+
+def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
+    """Contrôle 18 : les copies déclarées sont identiques, et toute copie exacte
+    se déclare.
+
+    Une promesse de copie non vérifiée diverge en silence : éditer une seule des
+    deux faces laisse l'architecture affirmer une fidélité qu'elle n'a plus —
+    la classe de défaut de l'issue #166.
+
+    PASSE 1 — les copies qui se DÉCLARENT (motif MOTIF_COPIE_DECLAREE) sont
+    confrontées ligne à ligne. Deux GENRES d'artefact sont reconnus : « bloc »
+    (bloc de code clôturé ``` … ```) et « table » (suite contiguë d'au moins
+    deux lignes commençant par « | »). Pour chaque déclaration, un seul
+    artefact est retenu : le PREMIER présent dans la zone bornée entre la fin
+    de la déclaration et le prochain titre markdown, jamais au-delà — une
+    recherche sans borne traversait plusieurs sections et rapportait un
+    artefact étranger à la copie déclarée (mesuré sur les déclarations des
+    sections 4.1 et 4.2). Côté PRD, l'appariement exige le MÊME genre et la
+    même première ligne non vide : un artefact retrouvé sous un autre genre
+    n'est pas la copie de celui-ci.
+
+    PASSE 2 — toute copie EXACTE doit se déclarer. Retirer une déclaration
+    retirait silencieusement la copie du périmètre du contrôle : le gate
+    restait vert et plus rien ne suivait le bloc (mutation mesurée). Tout
+    artefact de l'architecture IDENTIQUE à un artefact du PRD — même genre,
+    lignes égales après rstrip() par ligne, comme la passe 1 — doit donc être
+    précédé d'une déclaration dans sa propre section, c'est-à-dire entre la
+    fin du dernier titre markdown qui le précède et son début. La règle plus
+    large « même première ligne ⇒ doit être déclarée » a été mesurée puis
+    rejetée : des tables distinctes partagent une ligne d'en-tête avec un
+    artefact du PRD sans en être des copies (deux faux positifs mesurés).
+
+    LIMITE EXACTE : une copie qui a été MODIFIÉE et n'a jamais été déclarée
+    reste indétectable — n'étant plus identique à sa source, rien ne la
+    distingue d'un artefact indépendant. La passe 1 ne suit que les copies
+    déclarées, la passe 2 que les copies exactes ; aucune des deux n'annonce
+    une couverture plus large que celle qu'elle tient.
+    """
+
+    motif_bloc = re.compile(r"```[^\n]*\n(.*?)```", re.DOTALL)
+    # Une table : au moins deux lignes contiguës commençant par « | » (après
+    # espaces éventuels) ; elle s'arrête à la première ligne qui n'en commence
+    # pas par « | ».
+    motif_table = re.compile(r"^[ \t]*\|[^\n]*(?:\n[ \t]*\|[^\n]*)+", re.MULTILINE)
+    motif_titre = re.compile(r"^#{1,6}\s", re.MULTILINE)
+
+    def premiere_ligne_non_vide(texte: str) -> str:
+        """Première ligne non vide du texte, sans espaces de fin ('' si vide)."""
+        for ligne in texte.splitlines():
+            if ligne.strip():
+                return ligne.rstrip()
+        return ""
+
+    def tous_artefacts(texte: str) -> List[Tuple[str, str, int]]:
+        """Liste ordonnée de tous les artefacts de `texte`.
+
+        Chaque élément est un triplet (genre, contenu, debut) : genre vaut
+        « bloc » (contenu entre les clôtures ```) ou « table » (suite contiguë
+        d'au moins deux lignes commençant par « | ») ; contenu est le texte de
+        l'artefact ; debut est l'offset où l'artefact COMMENCE dans `texte`.
+        Le parcours est non recouvrant : à chaque étape, l'artefact qui
+        commence le plus tôt l'emporte et la recherche reprend à sa fin — une
+        table écrite à l'intérieur d'un bloc de code n'est pas un artefact.
+        Cette fonction est l'unique juge de ce qu'est un artefact : elle est
+        appliquée à l'architecture comme au PRD, pour que les deux côtés
+        parlent de la même chose.
+        """
+        artefacts: List[Tuple[str, str, int]] = []
+        pos = 0
+        while True:
+            m_bloc = motif_bloc.search(texte, pos)
+            m_table = motif_table.search(texte, pos)
+            if m_bloc is None and m_table is None:
+                break
+            if m_bloc is not None and (m_table is None or m_bloc.start() < m_table.start()):
+                artefacts.append(("bloc", m_bloc.group(1), m_bloc.start()))
+                pos = m_bloc.end()
+            else:
+                artefacts.append(("table", m_table.group(0), m_table.start()))
+                pos = m_table.end()
+        return artefacts
+
+    def premier_artefact(texte: str, depart: int = 0):
+        """Premier artefact de `texte` à partir de `depart`, ou None.
+
+        Retourne le triplet (genre, contenu, position) : genre vaut « bloc »
+        (contenu entre les clôtures ```) ou « table » (suite contiguë d'au
+        moins deux lignes commençant par « | ») ; contenu est le texte de
+        l'artefact ; position est l'offset de fin de l'artefact, où reprendre
+        la recherche du suivant. Quand les deux genres sont présents, celui
+        qui COMMENCE le plus tôt l'emporte. Le juge de ce qu'est un artefact
+        est UNIQUE : cette fonction se contente de filtrer `tous_artefacts`
+        et d'y recalculer l'offset de fin que ce juge ne retourne pas — sans
+        expression régulière, car une table est son propre match (fin = debut
+        + longueur) et le contenu d'un bloc ne contient jamais ``` (le motif
+        est non gourmand), donc la première clôture après la ligne ouvrante
+        est la fermante.
+        """
+        for genre, contenu, debut in tous_artefacts(texte):
+            if debut < depart:
+                continue
+            if genre == "table":
+                fin = debut + len(contenu)
+            else:
+                debut_contenu = texte.index("\n", debut) + 1
+                fin = texte.index("```", debut_contenu) + 3
+            return (genre, contenu, fin)
+        return None
+
+    def section_du_prd(numero: str):
+        """Texte de la section du PRD dont le titre porte exactement ce numéro.
+
+        Le titre est `## N. …` ou `### N.M …` ; la section s'étend jusqu'au titre
+        suivant de niveau inférieur ou égal. Retourne None si le titre est
+        introuvable — fail-closed, on ne devine pas la section source.
+        """
+        titres = []
+        for m in re.finditer(r"^(#+)\s+(.*)$", prd, re.MULTILINE):
+            m_num = re.match(r"(\d+(?:\.\d+)?)\.?(?:\s|$)", m.group(2).strip())
+            titres.append((m.start(), m.end(), len(m.group(1)),
+                           m_num.group(1) if m_num else None))
+        cible = None
+        for t in titres:
+            if t[3] == numero:
+                cible = t
+                break
+        if cible is None:
+            return None
+        fin = len(prd)
+        for t in titres:
+            if t[0] > cible[0] and t[2] <= cible[2]:
+                fin = t[0]
+                break
+        return prd[cible[1]:fin]
+
+    erreurs: List[str] = []
+    declarations = list(re.finditer(MOTIF_COPIE_DECLAREE, archi))
+    if not declarations:
+        return ["Aucune déclaration « Copié mot pour mot du PRD section N » trouvée "
+                "dans l'architecture — extracteur vide, contrôle non probant : "
+                "un contrôle qui ne compare rien passe toujours."]
+
+    # PASSE 1 — les copies déclarées sont confrontées ligne à ligne.
+    for declaration in declarations:
+        numero = declaration.group(1)
+        # a. L'artefact copié est cherché UNIQUEMENT entre la fin de la
+        # déclaration et le prochain titre markdown : sans cette borne, la
+        # recherche traversait plusieurs sections et rapportait l'artefact
+        # d'une section étrangère — comparer le mauvais artefact est pire que
+        # ne rien comparer (mesuré).
+        m_titre = motif_titre.search(archi, declaration.end())
+        fin_zone = m_titre.start() if m_titre else len(archi)
+        zone = archi[declaration.end():fin_zone]
+        trouve_arc = premier_artefact(zone)
+        if trouve_arc is None:
+            erreurs.append(
+                f"Copie déclarée de la section PRD {numero} : aucun artefact "
+                f"(bloc clôturé ou table) entre la déclaration et le prochain "
+                f"titre — une copie promise sans artefact est invérifiable.")
+            continue
+        genre_arc, contenu_arc, _ = trouve_arc
+        # b. La section du PRD portant exactement ce numéro.
+        section = section_du_prd(numero)
+        if section is None:
+            erreurs.append(
+                f"Copie déclarée de la section PRD {numero} : ce titre est introuvable "
+                f"dans le PRD — fail-closed, on ne devine pas la section source.")
+            continue
+        # c. Le premier artefact DU MÊME GENRE dans la section du PRD dont la
+        # première ligne non vide est celle de l'artefact de l'architecture.
+        premiere_arc = premiere_ligne_non_vide(contenu_arc)
+        contenu_prd = None
+        pos = 0
+        while True:
+            trouve_prd = premier_artefact(section, pos)
+            if trouve_prd is None:
+                break
+            genre_prd, candidat, pos = trouve_prd
+            if (genre_prd == genre_arc
+                    and premiere_ligne_non_vide(candidat) == premiere_arc):
+                contenu_prd = candidat
+                break
+        if contenu_prd is None:
+            erreurs.append(
+                f"Copie déclarée de la section PRD {numero} : aucun artefact de "
+                f"genre « {genre_arc} » dans cette section ne commence par "
+                f"« {premiere_arc[:120]} » — artefact source introuvable, "
+                f"contrôle non probant pour cette copie.")
+            continue
+        # d. Comparaison ligne à ligne ; les espaces de fin ne sont pas du contenu.
+        lignes_prd = [l.rstrip() for l in contenu_prd.rstrip("\n").splitlines()]
+        lignes_arc = [l.rstrip() for l in contenu_arc.rstrip("\n").splitlines()]
+        divergence = False
+        for i, (lp, la) in enumerate(zip(lignes_prd, lignes_arc), start=1):
+            if lp != la:
+                erreurs.append(
+                    f"Copie déclarée de la section PRD {numero} : divergence à la "
+                    f"ligne {i} de l'artefact — PRD : « {lp[:120]} » ; architecture : "
+                    f"« {la[:120]} ».")
+                divergence = True
+                break
+        if not divergence and len(lignes_prd) != len(lignes_arc):
+            erreurs.append(
+                f"Copie déclarée de la section PRD {numero} : préfixe commun identique "
+                f"mais longueurs différentes — {len(lignes_prd)} lignes côté PRD, "
+                f"{len(lignes_arc)} côté architecture.")
+
+    # PASSE 2 — toute copie exacte doit se déclarer.
+    # Un artefact de l'architecture identique à un artefact du PRD (même genre,
+    # mêmes lignes après rstrip() par ligne) est une copie, qu'elle se déclare
+    # ou non : la passe 1 ne la voit que si elle se déclare, et retirer la
+    # déclaration la faisait disparaître du contrôle sans rien changer d'autre
+    # (mutation mesurée). Elle doit donc porter une déclaration dans sa propre
+    # section — entre la fin du dernier titre markdown qui la précède et son
+    # début.
+    normalises_prd: Dict[str, List[List[str]]] = {}
+    for genre_p, contenu_p, _ in tous_artefacts(prd):
+        normalises_prd.setdefault(genre_p, []).append(
+            [l.rstrip() for l in contenu_p.rstrip("\n").splitlines()])
+    for genre_a, contenu_a, debut_a in tous_artefacts(archi):
+        lignes_a = [l.rstrip() for l in contenu_a.rstrip("\n").splitlines()]
+        if lignes_a not in normalises_prd.get(genre_a, []):
+            # Pas une copie exacte : rien à suivre pour cette passe.
+            continue
+        titres_avant = list(motif_titre.finditer(archi, 0, debut_a))
+        borne = titres_avant[-1].end() if titres_avant else 0
+        if re.search(MOTIF_COPIE_DECLAREE, archi[borne:debut_a]):
+            continue
+        premiere_a = premiere_ligne_non_vide(contenu_a)
+        erreurs.append(
+            f"Copie non déclarée : l'artefact de genre « {genre_a} » dont la "
+            f"première ligne est « {premiere_a[:120]} » est identique à un "
+            f"artefact du PRD, mais aucune déclaration « Copié mot pour mot du "
+            f"PRD section N » n'apparaît entre le dernier titre qui le précède "
+            f"et lui — une copie doit se déclarer pour être suivie.")
+    return erreurs
+
 def main(dossier_str: str = None) -> int:
     if dossier_str is None:
         dossier = Path(__file__).resolve().parent
@@ -1106,6 +1345,16 @@ def main(dossier_str: str = None) -> int:
             print(f"ECHEC : {e}")
     else:
         print("OK : Section 'HORS PÉRIMÈTRE' présente (anti-dérive déclarée).")
+
+    errs = verifier_copies_declarees(prd, archi)
+    if errs:
+        erreurs.extend(errs)
+        for e in errs:
+            print(f"ECHEC : {e}")
+    else:
+        nb_copies = len(re.findall(MOTIF_COPIE_DECLAREE, archi))
+        print(f"OK : Les {nb_copies} copie(s) déclarée(s) « Copié mot pour mot du PRD » "
+              f"sont identiques aux blocs du PRD, ligne à ligne.")
 
     n = len(erreurs)
     if n == 0:
