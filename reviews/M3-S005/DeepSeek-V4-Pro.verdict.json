@@ -1,0 +1,14 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "monte_carlo.py",
+   "description": "Les branches de correction du plancher et du plafond (L147–L150) ne sont jamais exercées par la suite de tests. La preuve B les déclare INERTES (aucune couverture), ce qui signifie que leur comportement en cas de dépassement d'arrondi n'est pas validé. Un éventuel bug dans ces garde-fous resterait invisible.",
+   "preuve": "Script mut.py : [declaree] bornage au bareme : le plancher ne s applique plus -> INERTE ; [declaree] bornage au bareme : le plafond ne s applique plus -> INERTE. Aucune sortie de couverture ou de test spécifique ne vérifie que le code de correction s'exécute correctement."
+  }
+ ],
+ "date_heure": "2026-07-31T20:40:43.211022+00:00",
+ "prompt_sha256": "b174089ebc83962e9561070c913840007ab1d6cf0ae5eff50a26302576bb1b49",
+ "reviewer_model": "DeepSeek-V4-Pro"
+}
