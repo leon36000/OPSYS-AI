@@ -98,6 +98,26 @@ def confronter_au_plancher(intervalle, plancher_rentable):
             "REJ-CONTRAT-INVALIDE",
             detail="borne_basse non numérique, booléenne ou non finie",
         )
+    borne_haute = intervalle["borne_haute"]
+    if not _est_nombre_fini(borne_haute):
+        return None, verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE",
+            detail="borne_haute non numérique, booléenne ou non finie",
+        )
+    if borne_basse > borne_haute:
+        # Un intervalle inversé fait comparer la mauvaise borne au plancher :
+        # la confrontation porte sur la borne MAJEURE du lot, et l'alerte
+        # manque au moment précis où elle serait la plus utile — la VRAIE
+        # borne inférieure, rangée dans borne_haute, peut être sous le
+        # plancher sans jamais être comparée. L'ÉGALITÉ reste LÉGITIME : un
+        # barème à coût fixe produit un intervalle dégénéré valide ; le rejet
+        # vise EXACTEMENT « > », pas « >= ».
+        return None, verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE",
+            detail=(
+                "intervalle inversé : borne_basse supérieure à borne_haute"
+            ),
+        )
     if not _est_nombre_fini(plancher_rentable):
         return None, verdicts.construire_verdict(
             "REJ-SEUILS-INVALIDES",

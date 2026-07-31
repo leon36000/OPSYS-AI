@@ -188,12 +188,32 @@ def test_le_plancher_est_fourni_par_l_appelant():
 
 
 @pytest.mark.parametrize(
-    "borne_basse, plancher_rentable",
+    "borne_basse, plancher_rentable, alerte_attendue, verdict_attendu",
     [
-        (80.0, 100.0),
-        (120.0, 100.0),
-        (100.0, 100.0),
-        (10.0, 0.0),
+        (
+            80.0,
+            100.0,
+            True,
+            contrats.VERDICT_PLANCHER_RENTABILITE_FRANCHI,
+        ),
+        (
+            120.0,
+            100.0,
+            False,
+            contrats.VERDICT_AUCUN_BLOCAGE,
+        ),
+        (
+            100.0,
+            100.0,
+            False,
+            contrats.VERDICT_AUCUN_BLOCAGE,
+        ),
+        (
+            10.0,
+            0.0,
+            False,
+            contrats.VERDICT_AUCUN_BLOCAGE,
+        ),
     ],
     ids=[
         "sous_le_plancher",
@@ -203,18 +223,24 @@ def test_le_plancher_est_fourni_par_l_appelant():
     ],
 )
 def test_verdict_estimation_appartient_toujours_au_catalogue_ferme(
-    borne_basse, plancher_rentable
+    borne_basse, plancher_rentable, alerte_attendue, verdict_attendu
 ):
-    """Le ``verdict_estimation`` produit appartient à
-    ``contrats.VERDICTS_ESTIMATION``, sur PLUSIEURS entrées couvrant les
-    deux issues, l'égalité et le plancher zéro.
+    """Chaque situation rend le verdict qui lui CORRESPOND : sous alerte,
+    ``contrats.VERDICT_PLANCHER_RENTABILITE_FRANCHI`` ; sinon,
+    ``contrats.VERDICT_AUCUN_BLOCAGE`` — désignés par leurs constantes de
+    ``contrats``, jamais par des littéraux.
 
-    Empêcherait de casser : un verdict inventé hors catalogue — faute de
-    frappe, synonyme, cas particulier oublié — que les consommateurs aval
-    ne sauraient interpréter. La constante est lue dans le paquet, JAMAIS
-    recopiée à la main : un catalogue recopié dans le test validerait le
-    code contre l'erreur du test. Éprouver une seule entrée laisserait
-    passer un verdict hors catalogue servi uniquement dans l'autre branche.
+    Vérifier l'APPARTENANCE du verdict rendu à
+    ``contrats.VERDICTS_ESTIMATION`` serait ici une TAUTOLOGIE : le module
+    ne produit que deux verdicts DÉRIVÉS de ce même tuple, l'assertion
+    serait vraie par construction et donnerait l'illusion d'une couverture.
+    Ce qui se teste, c'est la CORRESPONDANCE entre la situation et le
+    verdict : une PERMUTATION des deux verdicts — le franchissement servi
+    au-dessus du plancher et l'absence de blocage servie en dessous — doit
+    faire ROUGIR ce test. Les DEUX branches sont éprouvées, ainsi que
+    l'égalité et le plancher zéro, et chaque cas paramétré porte son alerte
+    ET son verdict attendus : sans les deux issues, une permutation ne
+    serait visible d'aucun côté.
     """
     intervalle = _intervalle_valide(borne_basse=borne_basse)
     constat, verdict = plancher.confronter_au_plancher(
@@ -222,8 +248,8 @@ def test_verdict_estimation_appartient_toujours_au_catalogue_ferme(
     )
     assert verdict is None
     assert set(constat) == {"alerte_plancher", "verdict_estimation"}
-    assert isinstance(constat["verdict_estimation"], str)
-    assert constat["verdict_estimation"] in contrats.VERDICTS_ESTIMATION
+    assert constat["alerte_plancher"] is alerte_attendue
+    assert constat["verdict_estimation"] == verdict_attendu
 
 
 def test_borne_basse_none_est_rejetee_sans_comparaison():
@@ -721,3 +747,69 @@ def test_aucun_verdict_n_est_recopie_en_litteral_dans_le_paquet():
         "un verdict se désigne par sa constante de contrats, jamais par "
         "un littéral recopié :\n" + "\n".join(recopies)
     )
+
+
+@pytest.mark.parametrize(
+    "surcharges, plancher_rentable, accepte",
+    [
+        ({"borne_basse": 200.0, "borne_haute": 100.0}, 150.0, False),
+        ({"borne_basse": 100.0, "borne_haute": 50.0}, 100.0, False),
+        ({"borne_haute": "200"}, 100.0, False),
+        ({"borne_haute": True}, 100.0, False),
+        ({"borne_basse": 150.0, "borne_haute": 150.0}, 100.0, True),
+    ],
+    ids=[
+        "bornes_inversees_la_vraie_basse_sous_le_plancher",
+        "bornes_inversees_a_egalite_avec_le_plancher",
+        "borne_haute_chaine",
+        "borne_haute_booleenne",
+        "intervalle_degenere_borne_basse_egale_borne_haute",
+    ],
+)
+def test_un_intervalle_inverse_est_refuse(
+    surcharges, plancher_rentable, accepte
+):
+    """Un intervalle INVERSÉ — ``borne_basse > borne_haute`` — ou dont la
+    ``borne_haute`` n'est pas un nombre fini : rejet ``(None, verdict)`` ;
+    un intervalle DÉGÉNÉRÉ — ``borne_basse == borne_haute`` — est ACCEPTÉ.
+
+    Un intervalle inversé est une donnée incohérente : la confrontation
+    comparerait la borne MAJEURE du lot au plancher, et l'alerte manquerait
+    au moment précis où elle serait la plus utile — le premier cas reprend
+    le scénario de la revue : ``borne_basse`` à 200, vraie borne inférieure
+    à 100, plancher à 150, où ``200 < 150`` est faux alors que la vraie
+    borne basse est sous le plancher. Empêcherait de casser : l'absence de
+    la garde, qui laisserait confronter la mauvaise grandeur en silence ;
+    ou une garde trop large qui refuserait AUSSI l'égalité — le cas de
+    CONTRÔLE ``borne_basse == borne_haute`` (barème à coût fixe, intervalle
+    dégénéré valide) doit être ACCEPTÉ, sinon le test ne distinguerait pas
+    « inversé » de « dégénéré ». ``borne_haute`` non numérique est rejetée
+    AVANT toute comparaison : ``isinstance(True, int)`` étant vrai en
+    Python, le booléen est éprouvé au même titre que la chaîne. L'appel est
+    fait dans un ``try`` : toute exception échappée est un échec qui nomme
+    son TYPE, et chaque code de verdict de rejet appartient au catalogue
+    fermé M3.
+    """
+    intervalle = _intervalle_valide(**surcharges)
+    try:
+        constat, verdict = plancher.confronter_au_plancher(
+            intervalle, plancher_rentable
+        )
+    except Exception as erreur:
+        pytest.fail(
+            "une exception s'est échappée au lieu d'un verdict de rejet : "
+            + type(erreur).__name__
+            + " : "
+            + str(erreur)
+        )
+    if accepte:
+        assert verdict is None
+        assert constat is not None
+        assert set(constat) == {"alerte_plancher", "verdict_estimation"}
+        assert constat["alerte_plancher"] is False
+        assert (
+            constat["verdict_estimation"] == contrats.VERDICT_AUCUN_BLOCAGE
+        )
+    else:
+        assert constat is None
+        assert verdict["code"] in verdicts.CODES_M3_LIST
