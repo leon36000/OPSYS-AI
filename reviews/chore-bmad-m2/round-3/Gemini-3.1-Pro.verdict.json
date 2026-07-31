@@ -1,0 +1,20 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "03-ARCHITECTURE.md",
+   "description": "La story M2-S008 en section 9 est mal formée car elle omet de déclarer le ou les critères qu'elle porte (en l'occurrence CA-M2-15), ce qui viole le point de vigilance explicite sur la formation des stories.",
+   "preuve": "- M2-S008 (T2, dépend : S003) — adaptateurs in-memory fail-closed simulant l'écriture vers un CRM tiers, GATED hors mode ombre, tout appel hors mode ombre lève REJ-ADAPTATEUR-INDISPONIBLE."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "02-PRD-PM.md",
+   "description": "Le critère CA-M2-15 a été concaténé à la fin de la ligne du critère CA-M2-14 au lieu d'être placé sur une nouvelle ligne, ce qui casse le formatage de la liste en section 6.",
+   "preuve": "CA-M2-14 : une suite de cas d'abus héritée de M1 [...] produit le même verdict déterministe des deux côtés. CA-M2-15 : tout appel d'écriture vers un CRM tiers hors mode ombre est rejeté"
+  }
+ ],
+ "date_heure": "2026-07-29T04:20:51.205949+00:00",
+ "prompt_sha256": "23e67eac300167918b3aebbeea0355b2003f5fc213f8e460882db2a6caa0baba",
+ "reviewer_model": "Gemini-3.1-Pro"
+}

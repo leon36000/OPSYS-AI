@@ -1,0 +1,44 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M3-estimation/docs/bmad/03-ARCHITECTURE.md",
+   "description": "Le bloc YAML 2.1 déclare `readiness_ok: bool` puis précise 'DOIT valoir True par IDENTITÉ (l'entier 1 est refusé)', et `urgence_declaree: bool` est également déclaré strict. Or aucun mécanisme dans le diff ne garantit l'application runtime de cette contrainte d'identité (bool natif uniquement, pas de coercition depuis int). Sans contrat de validation exécutable annexé au document, l'énoncé reste déclaratif et le test CA-M3-02 n'a pas de cible vérifiable prouvée — la story S001 ne peut pas être considérée comme couvrant ce CA tant qu'aucun validateur structurel n'est joint au diff.",
+   "preuve": "diff hunk 03-ARCHITECTURE.md lignes 60-67 (`readiness_ok: bool` + commentaire 'l'entier 1 est refusé') et ligne 56 (`urgence_declaree: bool` strict) ; aucun fichier de validation Python ajouté dans le diff pour ces deux champs."
+  },
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M3-estimation/docs/bmad/verif_coherence.py",
+   "description": "Le nouveau contrôle 13 (verifier_contrat_consomme_existe_vraiment) lit la source d'un module voisin (M2) en parsant une regex sur une constante `CHAMPS_CONTRAT_GELE = (...)`. Le diff ne prouve pas que cette constante existe ni qu'elle a la forme supposée : le contrôle prévoit un fallback 'contrôle non probant' si la regex échoue, ce qui transforme silencieusement un échec de couplage en échec probant. Le PR ne contient aucun artefact prouvant que la constante M2 contient exactement les sept clés attendues — on ne dispose que de la promesse que 'le test passe au vert'. Un gate qui peut être non-probant sans le dire est plus dangereux qu'un gate dur.",
+   "preuve": "diff hunk verif_coherence.py lignes 466-468 (fallback 'Source du module producteur introuvable'), lignes 471-473 (fallback 'Constante CHAMPS_CONTRAT_GELE introuvable'), lignes 481-483 (fallback 'Aucune clé extraite') — trois sorties distinctes qui toutes bloquent le gate, mais aucune preuve dans le diff que le chemin nominal produit le résultat attendu sur le M2 réellement livré."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/docs/bmad/03-ARCHITECTURE.md",
+   "description": "Le CA-M3-03 reformulé exige que 'la limite — validation STRUCTURELLE, sans recalcul de l'empreinte, M3 ne possédant pas le registre de M2 — est écrite dans la docstring du module ET à côté du verdict'. Le diff modifie le PRD et l'architecture, mais ne montre aucune docstring de module Python contenant cette limite. Sans la docstring dans le code, le critère n'est pas couvert par le livrable de la PR : l'assertion 'la docstring déclare la limite' du moyen de vérification de CA-M3-03 n'a pas de cible mesurable dans ce diff.",
+   "preuve": "diff hunks限于 02-PRD-PM.md et 03-ARCHITECTURE.md et verif_coherence.py ; aucun fichier *.py de production (m3_estimation/) modifié dans le diff."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/docs/bmad/02-PRD-PM.md",
+   "description": "S001 est renommée 'Validation des entrées : contrat M2, marqueur de readiness, photos' et son périmètre inclut désormais les photos comme entrée séparée. Or CA-M3-04 (photos faibles -> prix bloqué) reste en S002, et le diff n'établit pas clairement la frontière entre ce que S001 vérifie sur la structure des photos (liste valide, types) et ce que S002 vérifie (qualité). Le risque est qu'un test S001 ne couvre qu'une validation de schéma des photos, laissant CA-M3-04 orphelin ou inversement. Le périmètre de S001 doit nommer explicitement ce qui est délégué à S002.",
+   "preuve": "diff hunk 02-PRD-PM.md ligne 254 'Périmètre' de S001 mentionne 'photos fournies séparément par l'appelant' et 'Détection récursive des clés interdites sur toutes les entrées' mais ne délimite pas le périmètre de validation structurelle des photos vs. validation qualitative (CA-M3-04) qui relève de S002."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/docs/bmad/verif_coherence.py",
+   "description": "La regex de capture des clés du contrat M3 (`^  ([a-z_]+):`) suppose que toute clé de contrat est en snake_case sur deux espaces d'indentation. Si le formatage change (ajout d'un commentaire, retrait d'une espace, clé avec chiffre comme 'sha256_v2'), le contrôle extrait silencieusement un ensemble vide ou partiel et tombe dans le fallback 'Aucune clé extraite' — qui bloque le gate mais pour la mauvaise raison, masquant une vraie dérive de formatage.",
+   "preuve": "diff hunk verif_coherence.py ligne 480 `cles_m3 = set(re.findall(r\"^  ([a-z_]+):\", corps, re.MULTILINE))` ; le pattern exclut les chiffres et tout niveau d'indentation différent de 2 espaces."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/docs/bmad/02-PRD-PM.md",
+   "description": "Le point 1 de la question soumise à la revue demande si lire la source d'un voisin est compatible avec la décision #109. Le diff ne cite pas la décision #109 ni ne qualifie explicitement ce mécanisme comme exception 'gate-only' dans un document de décisions (DA-*). Sans trace dans le journal des décisions, la prochaine revue rouvrira le même débat.",
+   "preuve": "absence de tout hunk ajoutant une DA-M3-XX qualifiant le contrôle 13 comme exception à la décision #109 ; la justification apparaît uniquement dans la docstring du contrôle 13 et dans le pack de revue (informatif)."
+  }
+ ],
+ "date_heure": "2026-07-30T21:03:39.897435+00:00",
+ "prompt_sha256": "2bacbc5b30cbf9685d7d273b007f3bee50a3e8a3da1e58169fff1829ebf95032",
+ "reviewer_model": "MiniMax-M3"
+}

@@ -1,0 +1,14 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M3-estimation/tests/test_qualite_photos.py",
+   "description": "Le diff supprime tous les tests fonctionnels de validation des seuils de qualité (bornes inclusives, règle des deux dimensions, échelle 0-10, typage strict, fermeture du dictionnaire de seuils). La batterie de mutation fournie révèle que six mutations critiques restent vertes : 'min -> max', ' < -> <=' (résolution et éclairage), 'retrait échelle 0-10', 'typage strict -> isinstance', 'égalité -> sous-ensemble'. Aucun test ne protège donc ces règles métier ; une régression introduisant ces défauts ne serait pas détectée. La suppression de ces tests vide la couverture des contrats de qualité de la story M3-S002.",
+   "preuve": "Script de mutation, sortie : 'regle des DEUX dimensions : min -> max       -> *** RESTE VERT ***', 'borne resolution : < devient <=              -> *** RESTE VERT ***', 'borne eclairage : < devient <=               -> *** RESTE VERT ***', 'echelle 0-10 retiree                         -> *** RESTE VERT ***', 'typage STRICT -> isinstance (accepte True)   -> *** RESTE VERT ***', 'cles des seuils : egalite -> sous-ensemble   -> *** RESTE VERT ***'. Diff : suppression des lignes 136 à 314 contenant notamment test_borne_resolution_exactement_au_seuil_acceptable, test_borne_eclairage_exactement_au_seuil_acceptable, test_blocages_causes_isolees, test_photos_malformees_rejetees, etc."
+  }
+ ],
+ "date_heure": "2026-07-31T12:03:39.711407+00:00",
+ "prompt_sha256": "e63066dad3e86ed4612a43d4ea4ab8860ead489ef351b6c176e3ad201240ffc3",
+ "reviewer_model": "DeepSeek-V4-Pro"
+}

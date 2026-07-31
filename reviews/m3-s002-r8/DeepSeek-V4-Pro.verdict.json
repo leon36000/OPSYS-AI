@@ -1,0 +1,20 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/qualite_photos.py",
+   "description": "Les chaînes composées uniquement d'espaces blancs ne sont pas rejetées pour les champs obligatoires (photo_id, angle, reference_echelle.type). La vérification not champ est vraie pour '' mais fausse pour '   '. Un attaquant pourrait injecter des valeurs sans contenu significatif.",
+   "preuve": "Lignes ~86-88 (if not isinstance(photo[\"photo_id\"], str) or not photo[\"photo_id\"]:), ~98-99 (if not isinstance(photo[\"angle\"], str) or not photo[\"angle\"]:), ~107-108 (if not isinstance(reference[\"type\"], str) or not reference[\"type\"]:). Aucune de ces gardes ne rejette une chaîne composée uniquement d'espaces."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "revue scellée — SCRIPT 1 d'énumération mécanique",
+   "description": "Le script d'énumération a marqué la garde de la ligne 102 comme ancrée de manière ambiguë (original.count(ligne) != 1) et ne l'a pas neutralisée. La preuve qu'aucune garde n'est nue repose donc sur l'exclusion de cette garde. La garde est toutefois couverte par d'autres tests, donc l'impact sur la qualité du code est nul.",
+   "preuve": "Sortie du script : « L102  ROUGE        if not isinstance(reference, dict) or set(reference) != { » et le compteur « ancres ambiguës : 1 ». La ligne L102 n'a pas subi la mutation en raison de l'ambiguïté détectée."
+  }
+ ],
+ "date_heure": "2026-07-31T13:11:51.089474+00:00",
+ "prompt_sha256": "62926e6f67313400b098d3dadf84fb9f227454fd6f6e9df8ee4b7434ff9852f6",
+ "reviewer_model": "DeepSeek-V4-Pro"
+}

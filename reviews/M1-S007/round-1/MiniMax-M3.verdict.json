@@ -1,0 +1,44 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M1-front-office/tests/test_digest.py",
+   "description": "Le test TestFailClosedHorsModeOmbre suppose que verdicts.construire_verdict('REJ-ADAPTATEUR-INDISPONIBLE') retourne un dict avec une clé 'code'. Or le diff de adaptateurs.py appelle cette fonction pour renvoyer une valeur de retour (return verdicts.construire_verdict(...)), et le code source de verdicts n'est pas fourni dans le diff. Les tests existants (M1 antérieurs) doivent donc déjà fixer la forme de retour (dict ou str). Si c'est un dict, OK ; si c'est une string, le test plante. Aucun verdict type/runtime du module verdicts n'est annexé au pack : l'invariant n'est pas vérifiable.",
+   "preuve": "adaptateurs.py lignes 11, 17, 27 : return verdicts.construire_verdict(\"REJ-ADAPTATEUR-INDISPONIBLE\") ; test_digest.py TestFailClosedHorsModeOmbre : assert res_proposer[\"code\"] == \"REJ-ADAPTATEUR-INDISPONIBLE\""
+  },
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M1-front-office/src/digest.py",
+   "description": "Le test test_prix_et_engagement_absents_du_texte affirme qu'aucun montant ni aucune date n'apparaissent dans le digest. Or le digest inclut littéralement la chaîne date_reference dans l'en-tête (« Période de référence : 2025-04-01 ») et l'absence de normalisation de la date d'entrée permet, via test_digest_different, de discriminer des dates. Mais surtout : le test vérifie '15000', '2025-06-30', '12345' — il NE vérifie PAS que la date_reference elle-même (passée par l'appelant et susceptible de provenir d'un payload) est aussi neutralisée. Si la passerelle amont injecte une date_reference contenant un montant ou une promesse, la parade structurelle annoncée (« QUE des comptes et des libellés FIXES ») est contournée. La défense n'est documentée nulle part dans digest.py.",
+   "preuve": "digest.py ligne 27 : lignes.append(f\"DIGEST - Période de référence : {date_reference}\") ; test_digest.py test_prix_et_engagement_absents_du_texte : assert '15000' not in digest_txt (ne contrôle pas date_reference)"
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M1-front-office/src/digest.py",
+   "description": "Le tri est stable sur les listes CANAUX et TYPES (listes ordonnées) — bon. En revanche, le compteur Counter((canal, type_entree)) itère ensuite sur CANAUX×TYPES dans l'ordre des constantes, donc déterministe. Mais le filtrage « if canal in CANAUX and type_entree in TYPES » est silencieux : une entrée avec canal='sms' ou type_entree='autre' est IGNORÉE sans comptabilisation. Si l'objectif est un agrégat exhaustif, c'est un trou ; si l'objectif est de filtrer, aucun test ne le verrouille. Le critère d'acceptation « aucune entrée n'est perdue » n'est donc ni prouvé ni réfuté.",
+   "preuve": "digest.py lignes 20-22 : if canal in CANAUX and type_entree in TYPES ; aucun test ne couvre un canal ou type hors-allowlist"
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M1-front-office/src/adaptateurs.py",
+   "description": "L'injectivité des ids n'est pas garantie en cas d'objets complexes non sérialisables JSON (ex. datetime, set, objet custom). json.dumps lèverait TypeError et la promesse du contrat « proposeur retourne toujours un id (str) en mode ombre » est violée. Le contrat du protocole ApprovalEngine n'est pas annexé, donc l'invariant attendu n'est pas vérifiable, mais le test test_proposer_objets_differents ne couvre que des dicts plats.",
+   "preuve": "adaptateurs.py ligne 12 : serialized = json.dumps(objet, sort_keys=True, ensure_ascii=True) — pas de try/except ; aucun test n'injecte un objet non-sérialisable"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/src/adaptateurs.py",
+   "description": "_ApprovalEngine.statut(id_) retourne 'STATUT_INCONNU' pour un id absent — c'est un code 'magique' en string nue, pas un verdict typé. Si le consommateur attend un verdict structuré ailleurs, la convention est incohérente avec les autres retours de la classe (qui passent par construire_verdict). Aucun test ne verrille cette valeur.",
+   "preuve": "adaptateurs.py ligne 19 : return \"STATUT_INCONNU\""
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/tests/test_digest.py",
+   "description": "TestContratAdaptateurs.test_approval_engine_contrat contient un commentaire autocritique (« notre mock stocke par raw, impossible d'obtenir le statut avec l'id directement, donc on vérifie juste que ça existe ») et un try/except qui avale silencieusement toute exception. Le test passe donc quelle que soit l'implémentation : il ne prouve rien sur le contrat partagé entre MockApprovalEngine et l'implémentation réelle.",
+   "preuve": "test_digest.py lignes 232-242 : try: statut_res = engine2.statut(id2) except Exception: pass"
+  }
+ ],
+ "date_heure": "2026-07-29T02:29:18.569635+00:00",
+ "prompt_sha256": "553fbbcef0c930f8b712973325518567741243e26441d629f4ebf751610c911b",
+ "reviewer_model": "MiniMax-M3"
+}

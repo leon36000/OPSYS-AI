@@ -1,0 +1,14 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/validation.py",
+   "description": "La validation du sous-objet 'contact' utilise une vérification de sous-ensemble (<=) avec CHAMPS_CONTACT, ce qui accepte un contact ne contenant qu'une partie des clés autorisées (par ex. seulement 'nom' sans 'telephone'). Les fixtures de test fournissent systématiquement les deux clés, de sorte qu'aucun test ne couvre ce cas, et il n'est pas évident que la spécification permette un contact incomplet. Cela pourrait mener à l'acceptation d'une entrée incomplète contraire à l'intention de gel du contrat.",
+   "preuve": "Ligne ~162: `if not isinstance(contact, dict) or not set(contact.keys()) <= set(contrats.CHAMPS_CONTACT):`"
+  }
+ ],
+ "date_heure": "2026-07-31T05:54:05.047440+00:00",
+ "prompt_sha256": "b943e4bfe8d04cbb7dac39a85ebf92b789ba1c40b3971bed02acc9e3b0515ce0",
+ "reviewer_model": "DeepSeek-V4-Pro"
+}

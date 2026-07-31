@@ -1,0 +1,14 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M4-field-ops/docs/bmad/02-PRD-PM.md",
+   "description": "S004 décrit l'énuméré comme ayant « six états » alors que l'énuméré effectif tranché en §4 (et repris verbatim en ARCH §4 bis, ainsi que dans verif_coherence.py:ETATS_ATTENDUS) en compte sept : planifiee, en_route, sur_site, en_revue, reportee, terminee, annulee. Compteur obsolète, sans impact sur la preuve ni sur la machine à états elle-même.",
+   "preuve": "PRD §7 ligne S004 : « Périmètre : Modéliser l'énuméré fermé des six états et la table des transitions conditionnées » — en contradiction avec PRD §4 (« planifiee, en_route, sur_site, en_revue, reportee, terminee, annulee » = 7), ARCH §4 bis (idem), et verif_coherence.py:ETATS_ATTENDUS = {planifiee, en_route, sur_site, en_revue, reportee, terminee, annulee} (7 éléments). Le gate passe car le check d'égalité ensembliste tolère la divergence textuelle du compteur narratif."
+  }
+ ],
+ "date_heure": "2026-07-30T03:15:10.313343+00:00",
+ "prompt_sha256": "c1435c2bdcd7c8c0e888b725d1fcb7f2c32094e5b5d4bf964ff577987776a2ec",
+ "reviewer_model": "MiniMax-M3"
+}

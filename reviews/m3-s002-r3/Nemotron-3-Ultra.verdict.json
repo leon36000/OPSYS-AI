@@ -1,0 +1,50 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M3-estimation/tests/test_qualite_photos.py",
+   "description": "La batterie de mutation prouve que 6 mutations sur 11 ne sont PAS détectées par les tests (restent VERTES). Les mutations non détectées incluent des changements logiques fondamentaux : min→max pour la règle des deux dimensions, <→<= pour les bornes, suppression de l'échelle 0-10, typage strict→isinstance (accepte bool), égalité→sous-ensemble pour les clés de seuils.",
+   "preuve": "Sortie du script de mutation : 6 lignes '*** RESTE VERT ***' sur 11 mutations testées sur qualite_photos.py (lignes 1-6 de la sortie). Le diff montre que les tests de comportement (bornes, photos malformées, seuils invalides, booléens) ont été supprimés, ne laissant qu'un test d'alignement architectural."
+  },
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M3-estimation/tests/test_qualite_photos.py",
+   "description": "Suppression de tous les tests de comportement critique sans remplacement : tests de bornes inclusives/exclusives, photos malformées (clés manquantes/inconnues, dimensions nulles/négatives, éclairage hors échelle), seuils invalides (None, dict vide, clés manquantes/inconnues, types incorrects), rejet des booléens comme seuils. Aucun test ne vérifie plus la logique de qualification effective.",
+   "preuve": "Diff lignes -136 à -453 : suppression de 12 fonctions de test paramétrées couvrant l'ensemble du contrat de qualification. Seul reste test_les_constantes_de_contrat_sont_alignees_sur_l_architecture qui ne valide que l'extraction YAML depuis l'architecture."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/qualite_photos.py",
+   "description": "Chemin permettant d'ACCEPTER des photos qui devraient bloquer : la mutation 'min→max' (règle des deux dimensions) reste verte, prouvant qu'aucun test ne vérifie qu'une photo plate (ex: 8000x200) est rejetée. Le test test_photo_plate_largeur_ne_compense_pas_hauteur a été supprimé.",
+   "preuve": "Mutation 'regle des DEUX dimensions : min -> max' -> *** RESTE VERT *** ; diff ligne -166 à -195 : suppression de test_photo_plate_largeur_ne_compense_pas_hauteur qui validait ce choix fail-closed."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/qualite_photos.py",
+   "description": "Chemin permettant de BLOQUER des photos légitimes : les mutations '< devient <=' sur résolution et éclairage restent vertes, prouvant qu'aucun test ne vérifie que la borne exacte au seuil est acceptée. Les tests test_borne_resolution_exactement_au_seuil_acceptable et test_borne_eclairage_exactement_au_seuil_acceptable ont été supprimés.",
+   "preuve": "Mutations 'borne resolution : < devient <=' et 'borne eclairage : < devient <=' -> *** RESTE VERT *** ; diff lignes -198 à -255 : suppression des 4 tests de bornes (exactement au seuil et 1 pixel/sous-seuil)."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/qualite_photos.py",
+   "description": "Validation d'échelle 0-10 pour l'éclairage désactivée sans détection : mutation 'echelle 0-10 retiree' reste verte. Le test test_photos_malformees_rejetees avec cas 'eclairage-hors-echelle' (valeur 11.0) a été supprimé.",
+   "preuve": "Mutation 'echelle 0-10 retiree' -> *** RESTE VERT *** ; diff lignes -330 à -365 : suppression du cas eclairage_hors_echelle dans test_photos_malformees_rejetees."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/qualite_photos.py",
+   "description": "Typage strict des seuils remplacé par isinstance sans détection : mutation 'typage STRICT -> isinstance (accepte True)' reste verte. Le test test_un_booleen_comme_seuil_est_refuse a été supprimé. Un booléen (True/False) serait maintenant accepté comme seuil valide.",
+   "preuve": "Mutation 'typage STRICT -> isinstance (accepte True)' -> *** RESTE VERT *** ; diff lignes -470 à -490 : suppression de test_un_booleen_comme_seuil_est_refuse."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/qualite_photos.py",
+   "description": "Contrat de seuils assoupli sans détection : mutation 'cles des seuils : egalite -> sous-ensemble' reste verte. Le test test_seuils_invalides_rejetees avec cas 'cle-inconnue' a été supprimé. Une clé inconnue en plus des deux requises serait maintenant acceptée.",
+   "preuve": "Mutation 'cles des seuils : egalite -> sous-ensemble' -> *** RESTE VERT *** ; diff lignes -258 à -325 : suppression du cas cle_inconnue dans test_seuils_invalides_rejetees."
+  }
+ ],
+ "date_heure": "2026-07-31T12:03:18.507413+00:00",
+ "prompt_sha256": "e63066dad3e86ed4612a43d4ea4ab8860ead489ef351b6c176e3ad201240ffc3",
+ "reviewer_model": "Nemotron-3-Ultra"
+}

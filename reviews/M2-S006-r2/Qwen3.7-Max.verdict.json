@@ -1,0 +1,20 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M2-revenue-crm/src/doublons.py",
+   "description": "Angle mort sur les valeurs absentes/None : si deux leads n'ont pas la clé 'contact' (ou 'ville'/'type_travaux'), `get()` retourne `None`. L'égalité `None == None` évaluant à `True`, le code déclenche faussement le critère 'contact_identique' pour des leads sans données de contact, contournant la sémantique de 'similitude'.",
+   "preuve": "Ligne 143 : `if contrat_a.get(\"contact\") == contrat_b.get(\"contact\"):` et Ligne 85 : `contact_identique = contrat.get(\"contact\") == contrat_cible.get(\"contact\")`. Une garde contre les valeurs `None` ou vides est nécessaire."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M2-revenue-crm/tests/test_doublons.py",
+   "description": "Le test `test_arbitrage_distincts_confirmes` vérifie la validité de la chaîne de hash, mais n'inspecte pas le contenu sémantique du maillon d'arbitrage écrit dans le registre (ex: vérifier que le champ `arbitrage` vaut `distincts_confirmes` et que les `lead_id` sont préservés).",
+   "preuve": "Lignes 382 à 393 : `assert reg.valider_chaine() is True` est la seule assertion portant sur l'état du registre après l'appel à `arbitrer`."
+  }
+ ],
+ "date_heure": "2026-07-29T19:17:21.094141+00:00",
+ "prompt_sha256": "42e379d3ec9fd671be49d33cc208385f5b0e051e786c19d4f446214238d80f29",
+ "reviewer_model": "Qwen3.7-Max"
+}

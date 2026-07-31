@@ -1,0 +1,20 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M1-front-office/tests/test_garde_fou.py",
+   "description": "Le rapport de preuve affiche un test en échec, ce qui contredit l'affirmation 'Gates verts sur le HEAD'. Un test de garde-fou en échec est bloquant.",
+   "preuve": "FAILED Modules M/M1-front-office/tests/test_garde_fou.py::test_registre_texte_legitime_n_ecrit_rien"
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M1-front-office/src/phases_voix.py",
+   "description": "Si la conversation a déjà atteint la phase 5, la fonction abandonner() modifie la phase 5 existante puis en ajoute une seconde (doublon) avec le numéro 5, corrompant la liste des phases.",
+   "preuve": "conversation[\"phases\"].append(phase_cloture) (ligne 160) exécuté sans condition d'exclusion si phase_courante == 5."
+  }
+ ],
+ "date_heure": "2026-07-29T00:27:49.876055+00:00",
+ "prompt_sha256": "e4232bccbcee689584871e404959f664242760c64752cb30a019a1120ca7b5f9",
+ "reviewer_model": "Qwen3.7-Max"
+}

@@ -1,0 +1,14 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M2-revenue-crm/src/adaptateurs.py",
+   "description": "La méthode ecrire peut lever une exception (ex: TypeError depuis copy.deepcopy) pour une charge dict non vide contenant un objet non deepcopyable (générateur, thread, fichier), car copy.deepcopy(charge) est placé hors du bloc try/except qui ne capture que les erreurs de json.dumps. Cela viole la convention explicitement citée dans le diff : 'le refus est un couple (None, verdict), jamais une exception chez l'appelant'.",
+   "preuve": "Ligne 'charge_copiee = copy.deepcopy(charge)' située avant 'try: charge_bytes = json.dumps(charge_copiee, sort_keys=True).encode(\"utf-8\")' ; les tests test_charge_non_serialisable_refusee utilisent set/bytes/object/function (tous deepcopyables), donc ce chemin d'exception n'est couvert par aucun test et reste un lever d'exception réel."
+  }
+ ],
+ "date_heure": "2026-07-29T21:29:24.116208+00:00",
+ "prompt_sha256": "c4c0259d887cc36eb43166e7dc7a4bf7afc79610790501e1f6d7de1d44804ae8",
+ "reviewer_model": "Tencent-Hy3"
+}

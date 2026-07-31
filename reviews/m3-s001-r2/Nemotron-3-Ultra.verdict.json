@@ -1,0 +1,32 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/contrats.py",
+   "description": "CLES_INTERDITES n'a pas de test de synchronisation avec la source M2, alors que le défaut corrigé (CHAMPS_CONTACT dérivé des tests) provenait exactement de cette absence. La même classe de défaut peut s'y cacher.",
+   "preuve": "Aucun test dans le diff ne vérifie que CLES_INTERDITES correspond à une constante source de M2 ; seul CHAMPS_CONTACT et TYPES_TRAVAUX ont maintenant de tels tests (test_champs_contact_copie_m2_ne_derive_pas, test_types_travaux_copie_m2_ne_derive_pas)."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/contrats.py",
+   "description": "CHAMPS_CONTRAT_GELE n'a pas de test de synchronisation avec la source M2. Si M2 ajoute/retire un champ du contrat LeadQualifie, la validation M3 divergera silencieusement.",
+   "preuve": "Le diff n'ajoute aucun test comparant CHAMPS_CONTRAT_GELE à une constante source M2 ; le pattern de garde n'est appliqué qu'à CHAMPS_CONTACT et TYPES_TRAVAUX."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/contrats.py",
+   "description": "CHAMPS_MARQUEUR n'a pas de test de synchronisation avec la source M2. Une dérive sur les clés du marqueur de readiness passerait inaperçue jusqu'à un rejet en production.",
+   "preuve": "Aucun test dans le diff ne vérifie CHAMPS_MARQUEUR contre le source M2 ; le pattern de synchronisation n'est pas étendu à cette constante."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/test_validation_entrees.py",
+   "description": "test_champs_contact_copie_m2_ne_derive_pas compare les ensembles (set), pas l'ordre, alors que le commentaire de CHAMPS_CONTACT précise « dans l'ordre du producteur ». Si l'ordre a une importance contractuelle, le test ne la couvre pas.",
+   "preuve": "Ligne du test : `assert set(contrats.CHAMPS_CONTACT) == set(valeurs_m2)` — comparaison ensembliste, pas séquentielle."
+  }
+ ],
+ "date_heure": "2026-07-31T06:21:42.006706+00:00",
+ "prompt_sha256": "a890eb24927a3f876d30a45ba8dffd7e2e11c59f78056917ef16e7ab6b6b7230",
+ "reviewer_model": "Nemotron-3-Ultra"
+}

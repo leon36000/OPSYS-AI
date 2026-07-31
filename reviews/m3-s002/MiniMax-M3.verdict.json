@@ -1,0 +1,14 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/test_qualite_photos.py (en regard de contrats.py)",
+   "description": "Discipline d'ancrage sur l'architecture INCOHÉRENTE entre les deux nouvelles constantes de contrat. CHAMPS_SIGNAL est verrouillé par un test automatique (test_contrat_aligne_sur_architecture) qui extrait les clés depuis docs/bmad/03-ARCHITECTURE.md et exige l'égalité avec l'ensemble extrait. CHAMPS_SEUILS_QUALITE et CHAMPS_PHOTO, eux, ne sont garantis que par leur docstring (« Provenance : constante tirée de la section … de l'architecture M3 (cadrage). Liste FERMÉE »), sans aucun test qui aille lire l'architecture pour vérifier l'alignement. Or les tests paramétrés (test_seuils_invalides_rejetes et test_photos_malformees_rejetees) bouclent sur les constantes du module lui‑même : ils détectent une MAUVAISE utilisation des constantes, jamais une DIVERGENCE entre les constantes et l'autorité (cadrage). C'est précisément le défaut que l'auteur signale comme ayant coûté deux rounds sur S001 ; le rubric « dérivé des tests plutôt que d'une source faisant autorité » reste donc non couvert pour deux des trois listes blanches ajoutées par cette PR.",
+   "preuve": "diff test_signaux.py lignes du test_contrat_aligne_sur_architecture (ouvre Path(__file__).resolve().parents[1]/docs/bmad/03-ARCHITECTURE.md, regex ### \\d+\\.\\d+[^\\n]*Signal de relance vers M2[^\\n]*$, extraction des clés yaml, assert cles_extraites == set(signaux.CHAMPS_SIGNAL)) ; diff test_qualite_photos.py : N'IMPORTE quel test ne touche pas à 03-ARCHITECTURE.md — vérifiable par grep '03-ARCHITECTURE' absent du fichier. La docstring contrats.py lignes ajoutées « Provenance : constante tirée de la section … » est l'unique garde-fou, et elle n'est pas exécutée."
+  }
+ ],
+ "date_heure": "2026-07-31T11:16:34.324194+00:00",
+ "prompt_sha256": "6be780697e81b80fd68ff07c373c5553adab8fef471cce125a26eb202b421e56",
+ "reviewer_model": "MiniMax-M3"
+}

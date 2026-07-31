@@ -1,0 +1,32 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M1-front-office/src/phases_voix.py",
+   "description": "Abandon après complétion non refusé, contrairement à la règle 10 énoncée par le test lui-même (« abandon sur une conversation déjà close (abandon ou complétion) est refusé »). transitionner() ne positionne jamais de statut de complétion : après 0→…→5, conversation['statut'] reste 'ouverte'. abandonner() ne refuse que statut in ('close_abandon','close_erreur') : il accepte donc l'abandon d'une conversation complète, clôt la phase 5 existante, puis AJOUTE une seconde phase numero 5 (append inconditionnel de phase_cloture), et écrit une entrée registre phase_source=5 → phase_cible=5 (boucle 5→5, pourtant interdite en flux normal). L'état résultant phases=[0,1,2,3,4,5,5] viole l'invariant de contiguïté/unicité que le propre test aléatoire de la story assert (numeros == list(range(len(numeros)))). Aucun test ne couvre abandonner() après complétion.",
+   "preuve": "phases_voix.py — abandonner : « if conversation[\"statut\"] in (\"close_abandon\", \"close_erreur\"): return REJ-CONVERSATION-CLOSE » puis « conversation[\"phases\"].append(phase_cloture) » avec « \"numero\": 5 » sans garde ; transitionner ne modifie jamais conversation['statut'] hors violation ; test_phases_voix.py — docstring de test_abandon_sur_conversation_close_refuse : « Règle 10 : abandon sur une conversation déjà close (abandon ou complétion) est refusé », mais le corps ne teste que l'abandon-après-abandon ; test_transition_lineaire_complete attend phase 5 'ouverte' et ne vérifie jamais conversation['statut']."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/src/phases_voix.py",
+   "description": "L'alerte de violation n'est pas chaînée : entree_alerte ne contient pas de 'precedent_ligne_id', le retour de registre.ajouter(entree_alerte) est ignoré et conversation['dernier_ligne_id'] n'est pas mis à jour. L'effet sur registre.valider_chaine() est non vérifiable depuis le pack (registre.py hors diff) et aucun test ne combine violation + valider_chaine ; la preuve « valider_chaine : (True, None) » fournie ne couvre que le scénario d'abandon. Doute non vérifiable → mineure.",
+   "preuve": "phases_voix.py — bloc violation : « entree_alerte = {\"type_entree\": \"alerte\", \"horodatage\": ..., \"code\": \"EVT-PHASE-VIOLATION\", \"payload\": {...}} » (aucune clé precedent_ligne_id) suivi de « registre.ajouter(entree_alerte) » sans affectation ; test_phases_voix.py — test_violation_ecrit_alerte_evt_phase_violation vérifie la présence de l'alerte mais jamais la chaîne."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/tests/test_phases_voix.py",
+   "description": "Bloc d'import dupliqué en milieu de fichier avec chemin erroné : parents[2] résout le répertoire « Modules M », donc _SRC = « Modules M/src » (inexistant ; le code est dans M1-front-office/src). Nom de variable « _M7 » et commentaire « racine du projet » incohérents avec le module M1. Code mort sans effet observable (le premier bloc a déjà inséré le bon chemin et les modules sont en cache sys.modules), mais résidu de copier-coller.",
+   "preuve": "test_phases_voix.py — second bloc : « _M7 = Path(__file__).resolve().parents[2]  # remonte à la racine du projet » / « _SRC = _M7 / \"src\" », alors que le bloc en tête utilise correctement « Path(__file__).resolve().parents[1] / \"src\" »."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/src/phases_voix.py",
+   "description": "Paramètre 'registre' de ouvrir_conversation jamais utilisé : l'ouverture de conversation n'émet aucune entrée registre. L'architecture §3 (citée dans le pack pour imposer l'entrée d'abandon) ne permet pas de déterminer si une entrée d'ouverture est exigée ; doute non vérifiable → mineure.",
+   "preuve": "phases_voix.py — « def ouvrir_conversation(signal_id, horodatage, registre: Registre): » ; le corps de la fonction ne référence jamais le nom 'registre'."
+  }
+ ],
+ "date_heure": "2026-07-29T00:34:02.838671+00:00",
+ "prompt_sha256": "8fb0e0e7fffb3aebbab3af845174c90f0934a2cec05d2833decf7c56a743c378",
+ "reviewer_model": "Kimi-K3"
+}

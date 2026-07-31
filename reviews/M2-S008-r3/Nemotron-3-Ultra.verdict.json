@@ -1,0 +1,14 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M2-revenue-crm/src/adaptateurs.py",
+   "description": "Le contrôle de sérialisation dans `ecrire` ne capture pas `OverflowError`, qui peut être levé par `json.dumps` pour des valeurs float non finies (inf, -inf, nan), causant une exception qui remonte à l'appelant au lieu de retourner un couple (None, verdict). Cela viole la convention de tout le module M2 : le refus est un couple, jamais une exception.",
+   "preuve": "Lignes 94-97 : `except (TypeError, ValueError):` — `OverflowError` n'est pas capturé. `json.dumps(float('inf'))` lève `OverflowError: Out of range float values are not JSON compliant`."
+  }
+ ],
+ "date_heure": "2026-07-29T21:29:27.388251+00:00",
+ "prompt_sha256": "c4c0259d887cc36eb43166e7dc7a4bf7afc79610790501e1f6d7de1d44804ae8",
+ "reviewer_model": "Nemotron-3-Ultra"
+}

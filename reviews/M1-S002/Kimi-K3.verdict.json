@@ -1,0 +1,32 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/src/phases_voix.py",
+   "description": "horodatage_fin incohérent selon le chemin de clôture : la phase 5 atteinte par complétion reste close_normale avec horodatage_fin=None, la phase 5 d'abandon reçoit horodatage_fin=horodatage, et la branche violation passe la phase courante en close_erreur sans renseigner horodatage_fin (les clôtures normales intermédiaires le renseignent). L'exigence de la spec sur ce champ n'est pas vérifiable depuis le diff (context pack non inséré).",
+   "preuve": "transitionner : 'statut_nouvelle = \"close_normale\" if phase_cible == 5 else \"ouverte\"' puis '\"horodatage_fin\": None' dans nouvelle_phase ; abandonner : phase_cloture contient '\"horodatage_fin\": horodatage' ; branche violation : seulement 'phase_courante_obj[\"statut\"] = \"close_erreur\"' sans horodatage_fin, contrairement à 'phase_courante_obj[\"horodatage_fin\"] = horodatage' du chemin normal."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/tests/test_phases_voix.py",
+   "description": "Aucun test ne verrouille l'intégrité de la chaîne après l'écriture de l'alerte de violation, alors que le chaînage de cette alerte était précisément le point litigieux du R3 (réfuté ici par le comportement de Registre, cité mais non visible dans ce diff). valider_chaine() n'est invoqué que dans des scénarios sans violation.",
+   "preuve": "Dans test_phases_voix.py, 'valider_chaine' n'apparaît que dans test_transition_reussie_ecrit_entree_chainee, TestAbandonRegistre::test_abandon_ecrit_entree_registre_chainee et test_ouverture_ecrit_entree_registre ; test_violation_ecrit_alerte_evt_phase_violation, test_apres_violation_conversation_figee et test_mille_sequences_aleatoires_zero_phase_sautee ne l'appellent pas."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/src/phases_voix.py",
+   "description": "abandonner ne met pas à jour conversation[\"phase_courante\"] : après un abandon depuis la phase 2, phase_courante reste 2 alors que phases contient une phase terminale 5 et statut=close_abandon. Les mutations ultérieures sont bloquées par le statut (donc pas de corruption possible), mais l'état exposé aux lecteurs est incohérent ; intention non vérifiable.",
+   "preuve": "Le corps d'abandonner ne contient aucune occurrence de 'phase_courante' en écriture, alors que transitionner exécute 'conversation[\"phase_courante\"] = phase_cible' ; test_abandon_depuis_phase_2 montre numeros == [0, 1, 2, 5] sans assertion sur phase_courante."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/src/phases_voix.py",
+   "description": "Asymétrie des codes de rejet pour la même condition 'conversation déjà close' : transitionner lève TransitionInterdite avec REJ-PHASE-SAUTE tandis qu'abandonner retourne REJ-CONVERSATION-CLOSE (code ajouté dans verdicts.py mais utilisé uniquement par abandonner). Les tests actuels actent cette asymétrie, donc possiblement intentionnel, mais non vérifiable sans la spec.",
+   "preuve": "transitionner : 'verdict = verdicts.construire_verdict(\"REJ-PHASE-SAUTE\", detail=\"Conversation déjà close\")' ; abandonner : 'verdicts.construire_verdict(\"REJ-CONVERSATION-CLOSE\", ...)' ; verdicts.py : ajout de '\"REJ-CONVERSATION-CLOSE\"' ; test_apres_violation_conversation_figee exige REJ-PHASE-SAUTE après figement."
+  }
+ ],
+ "date_heure": "2026-07-29T00:44:21.650868+00:00",
+ "prompt_sha256": "405a14b5321441811dbf4212549f9d32c1a7825020a23c8a62914c03dc4a3c62",
+ "reviewer_model": "Kimi-K3"
+}

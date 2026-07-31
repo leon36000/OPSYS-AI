@@ -1,0 +1,20 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M4-field-ops/src/m4_field_ops/digest.py",
+   "description": "Contradiction entre la docstring/le commentaire et le code concernant l'exclusion des identifiants tout en majuscules : la docstring et le commentaire de visit_Name indiquent une exclusion, mais le code vérifie et détecte ces noms (fonctionnellement correct, mais trompeur).",
+   "preuve": "Docstring : 'Les noms entièrement en majuscules (convention des constantes) sont exclus pour éviter les faux positifs sur les constantes de configuration.' ; dans visit_Name : commentaire '# Ignorer les noms tout en majuscules (constantes)' suivi de 'if self._contient_terme(node.id): violations.append(...)'. Test test_garde_r020_ne_laisse_pas_passer_les_majuscules prouve la détection."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M4-field-ops/src/m4_field_ops/digest.py",
+   "description": "La garde R-020 ne couvre pas l'introduction de termes interdits via des attributs dynamiques (setattr avec chaîne) ou des clés de dict non littérales, malgré le libellé 'noms d'ATTRIBUT' et 'clés'. Cela constitue une échappatoire restante dans la règle de portée.",
+   "preuve": "visit_Attribute ne traite que ast.Attribute (node.attr identifiant) ; aucun visit_Call pour setattr/setitem. visit_Dict ne traite que les clés ast.Constant (littérales). Exemple non couvert : setattr(obj, 'note_technicien', 5) ou d = {var: 1} avec var='score'. Pas de test pour ces cas."
+  }
+ ],
+ "date_heure": "2026-07-30T10:18:56.106261+00:00",
+ "prompt_sha256": "c24d469d9cc1a2a290142c1fac6cc340a23bf5d8933361365e5906ce001f816c",
+ "reviewer_model": "Tencent-Hy3"
+}

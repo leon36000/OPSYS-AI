@@ -1,0 +1,26 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": ".sonarcloud.properties",
+   "description": "Espace littéral dans 'Modules M' non vérifié empiriquement : le parsing du motif par SonarCloud et la prise en compte de l'espace comme partie du chemin ne sont pas prouvés par le diff (doute non mesuré).",
+   "preuve": "Ligne 22 : sonar.cpd.exclusions=Modules M/**/encodage.py,... ; commentaire lignes 19-20 : 'L'espace dans « Modules M » est littéral (le séparateur de motifs est la virgule).' ; note round 2 : 'espace de « Modules M » documenté comme littéral (séparateur = virgule ; doute non mesuré)'."
+  },
+  {
+   "severite": "mineure",
+   "fichier": ".sonarcloud.properties",
+   "description": "Efficacité de l'exclusion sur le gate de duplication non démontrée dans ce diff ; vérification empirique reportée au PR M4-S002 (condition doit passer, sinon correction).",
+   "preuve": "Commentaire ligne 21 : 'Vérification EMPIRIQUE actée : la condition duplication du prochain PR de socle M4 (S002, registre copié-adapté) doit passer — sinon cette exclusion sera corrigée sur mesure' ; round 2 : 'Vérification EMPIRIQUE actée : la condition duplication du PR M4-S002 doit passer, sinon correction sur mesure.'"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "docs/incidents/sonar-duplication-patrons-socle.md",
+   "description": "Inventaire exhaustif de 11 fichiers affirmé mais non vérifiable depuis le diff seul ; l'existence réelle des chemins listés n'est pas prouvée par la présente modification.",
+   "preuve": "Lignes 28-34 du doc listant les fichiers ; le diff n'inclut pas ces fichiers, seulement la doc et la config."
+  }
+ ],
+ "date_heure": "2026-07-30T06:36:59.495658+00:00",
+ "prompt_sha256": "f02aa246ee66066aa8582b433b3db822b3cc3d817a7551d5065cd6721fc67b63",
+ "reviewer_model": "Tencent-Hy3"
+}

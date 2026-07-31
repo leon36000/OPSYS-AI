@@ -1,0 +1,26 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/src/consentement.py",
+   "description": "Le payload du registre inclut 'conversation_id' en plus de l'empreinte sha256 et de la longueur, alors que la story spécifie explicitement que le payload ne porte que l'empreinte et la longueur.",
+   "preuve": "Lignes 95-98 du diff: `if \"id\" in conversation: entree[\"payload\"][\"conversation_id\"] = conversation[\"id\"]`. La story dit: 'Le payload ne porte plus qu'une empreinte sha256 non réversible + la longueur.' Un identifiant de conversation est un identifiant technique et non du contenu personnel, mais c'est une donnée supplémentaire au-delà du périmètre énoncé."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/tests/test_consentement.py",
+   "description": "Import inutilisé 'verdicts' dans le fichier de test.",
+   "preuve": "Ligne 11 du diff: `import verdicts      # noqa: E402` — aucune référence à `verdicts` dans le corps des tests visibles (R1-R8 ou section TDAD)."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/tests/test_consentement.py",
+   "description": "Structure du fichier de test : deux blocs de tests concaténés avec une docstring de module placée après les premières définitions de fonctions, ce qui n'est pas une position valide pour une docstring de module Python. Les imports sont redéfinis dans le second bloc.",
+   "preuve": "Après `test_determinisme` (fin première section), le diff contient une nouvelle docstring `\"\"\"Tests de non-conservation du contenu dans le registre (CORRECTIF M1-S006)...\"\"\"` suivie d'un nouveau bloc d'imports (`import hashlib`, `import consentement`, `from registre import Registre`) puis des tests `test_registre_ne_contient_jamais_le_contenu` et `test_registre_ne_contient_pas_le_contenu_sur_refus`."
+  }
+ ],
+ "date_heure": "2026-07-29T02:09:57.754759+00:00",
+ "prompt_sha256": "d44e90ba47ea5603fb5b17d31e5d2b5924e3f48dfff2cd49f17a4f6bb2d414e6",
+ "reviewer_model": "MiniMax-M3"
+}

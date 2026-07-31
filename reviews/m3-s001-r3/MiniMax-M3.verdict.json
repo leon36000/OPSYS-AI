@@ -1,0 +1,20 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/test_validation_entrees.py",
+   "description": "Double occurrence de `import ast` dans le même fichier, ce qui est redondant puisque l'import est idempotent.",
+   "preuve": "Deux lignes `+import ast` dans le diff : une dans le hunk d'en-tête `@@ -10,6 +10,7 @@` (juste après la docstring d'en-tête, avant `import re`) et une dans le hunk final `@@ -545,3 +503,187 @@` (juste avant la définition de `_lire_chaines_litterales`)."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/validation.py",
+   "description": "La mutation `borne de profondeur retirée -> ROUGE` listée dans la PREUVE indique qu'il existe un test sensible à la borne de profondeur, mais ni la constante qui la porte ni le code du test ne sont visibles dans le diff de r3. Impossible de vérifier que cette borne dérive d'une source faisant autorité (un CA-M3-XX) plutôt que d'être un seuil défini dans l'implémentation et documenté par les tests — la question 2 de la revue (« Reste-t-il une constante, une liste blanche ou un seuil dérivé des TESTS plutôt que d'une source faisant autorité ? ») reste donc ouverte pour ce point précis.",
+   "preuve": "Le diff montre dans `validation.py` un commentaire ajouté au-dessus de `_garde_noire` qui mentionne le périmètre réel de la visite, mais ne contient pas la définition de la constante de profondeur (le code antérieur n'est pas reproduit). Parmi les 34 tests (105 cas), aucun n'est affiché dans le diff pour la profondeur — seuls `TYPES_TRAVAUX`, `CHAMPS_CONTACT`, `CHAMPS_CONTRAT_GELE` et `CHAMPS_MARQUEUR` sont montrés."
+  }
+ ],
+ "date_heure": "2026-07-31T06:48:31.822661+00:00",
+ "prompt_sha256": "4a4b58527e92439fe4da11d0311afba29ba0e1d808980410c4f493247ee08c79",
+ "reviewer_model": "MiniMax-M3"
+}

@@ -1,0 +1,32 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M2-revenue-crm/docs/bmad/03-ARCHITECTURE.md",
+   "description": "En-tête de section dupliqué : la ligne '9. Découpage en stories' (texte brut, sans préfixe markdown) précède immédiatement '## 9. Découpage en stories' (en-tête H2). Il s'agit d'un résidu de version antérieure non nettoyé, visible au rendu markdown et qui trahit une relecture insuffisante du document.",
+   "preuve": "Diff lignes consécutives '+9. Découpage en stories' puis '+## 9. Découpage en stories' dans 03-ARCHITECTURE.md"
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M2-revenue-crm/docs/bmad/01-BRIEF-ANALYSTE.md",
+   "description": "Phrase dupliquée par copier-coller dans §2 : le segment 'et les signaler, mais jamais les fusionner automatiquement' est répété deux fois dans la même phrase, rendant la rédaction incohérente. La mesure automatisée 'critere doublon disjonctif au brief : True' corrobore la détection.",
+   "preuve": "Diff §2 du brief : '... et les signaler, mais jamais les fusionner automatiquement et les signaler, mais jamais les fusionner automatiquement.'"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M2-revenue-crm/docs/bmad/02-PRD-PM.md",
+   "description": "CA-M2-15 est concaténé à la suite de CA-M2-14 sur la même ligne, séparé uniquement par un espace, sans saut de ligne ni ponctuation forte. Le critère est difficile à isoler visuellement et à parser automatiquement, ce qui contraste avec la présentation uniforme des 14 autres critères.",
+   "preuve": "Diff §6 du PRD : '... même verdict déterministe des deux côtés. CA-M2-15 : tout appel d\\'écriture vers un CRM tiers hors mode ombre...'"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M2-revenue-crm/docs/bmad/03-ARCHITECTURE.md",
+   "description": "L'API du catalogue de verdicts (fichier verdicts.py listé en §1 comme appartenant à S001) n'est pas explicitement déclarée dans §7 (interfaces publiques par story). S001 porte pourtant le catalogue de verdicts stables selon §9, et l'addendum D3 s'appuie sur la stabilité inter-modules de REJ-CONVERSATION-CLOSE. L'absence de signature publique crée une ambiguïté d'implémentation pour S001.",
+   "preuve": "§1 liste 'verdicts.py — catalogue d\\'identifiants stables M2, incluant REJ-FRONTIERE-VIOLEE et REJ-TRANSITION-ILLEGALE' mais §7 ne mentionne pour S001 que encoder_canonique, valider_horodatage et valider_fixture."
+  }
+ ],
+ "date_heure": "2026-07-29T04:23:16.264880+00:00",
+ "prompt_sha256": "c791a06af3db1ac9879e6517895b574d12698a198add552101698eeffff369ff",
+ "reviewer_model": "MiniMax-M3"
+}

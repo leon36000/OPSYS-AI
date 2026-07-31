@@ -1,0 +1,32 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "src/doublons.py",
+   "description": "La règle métier 'contact_identique prime' n'est implémentée nulle part. La fonction detecter ne retourne pas le critère applicable, et signaler accepte le critère en paramètre sans vérifier les contrats. Le test test_critere_prioritaire_contact_identique passe pour une mauvaise raison (tautologie) car il injecte manuellement la valeur attendue.",
+   "preuve": "Dans test_doublons.py (lignes 115-116), doublons.signaler est appelé avec 'contact_identique' codé en dur. Dans doublons.py, la fonction signaler utilise ce paramètre aveuglément sans lire les contrats pour valider ou prioriser le critère."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "src/doublons.py",
+   "description": "Le calcul de la fenêtre calendaire ne normalise pas les fuseaux horaires. L'extraction directe de la date locale peut fausser l'écart en jours pour deux instants identiques ou proches situés dans des fuseaux différents (cas transfrontalier).",
+   "preuve": "Lignes 42-43 : datetime.fromisoformat(horodatage_a).date() extrait la date sans conversion préalable vers un fuseau commun (ex: UTC)."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "src/doublons.py",
+   "description": "La condition de sortie anticipée dans detecter lorsqu'un lead est introuvable n'est couverte par aucun test. Sa suppression ne ferait échouer aucun test de la suite.",
+   "preuve": "Lignes 62-63 : 'if maillon_cible is None: return []'. Aucun test dans test_doublons.py n'appelle detecter avec un lead_id inexistant."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "tests/test_doublons.py",
+   "description": "Le test anti-fusion par AST ne couvre pas tous les vecteurs d'introduction d'une fonction. Il ignore les fonctions anonymes (lambdas) assignées à des variables et les alias d'importation.",
+   "preuve": "Ligne 341 : le filtre 'isinstance(node, ast.FunctionDef)' exclut les nœuds de type Assign (contenant des Lambda) et ImportFrom."
+  }
+ ],
+ "date_heure": "2026-07-29T18:55:28.640221+00:00",
+ "prompt_sha256": "a64d2cc0c7080a1cd0dbf522ff947a873fea8eb9c9d7870ee172829b14277942",
+ "reviewer_model": "Gemini-3.1-Pro"
+}

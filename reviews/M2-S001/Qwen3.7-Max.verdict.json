@@ -1,0 +1,14 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M2-revenue-crm/tests/test_utilitaires.py",
+   "description": "Imports dupliqués en fin de fichier. Bien que sans impact fonctionnel, cela réduit la lisibilité et pourrait alerter un linter strict.",
+   "preuve": "Lignes 252 à 258 répètent les imports (os, subprocess, sys, pathlib, pytest, encodage) déjà présents en tête de fichier (lignes 1 à 12)."
+  }
+ ],
+ "date_heure": "2026-07-29T06:24:34.474996+00:00",
+ "prompt_sha256": "ab2945f4dcd09812b9541aaf83fbf1552c6c5697c8ee8dbe127e9510a6ad8562",
+ "reviewer_model": "Qwen3.7-Max"
+}

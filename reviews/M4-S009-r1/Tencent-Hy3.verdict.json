@@ -1,0 +1,26 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M4-field-ops/src/m4_field_ops/digest.py",
+   "description": "Garde R-020 exclut les identifiants tout en majuscules de l'inspection (node.id != node.id.upper()), permettant de dissimuler un terme interdit dans un nom de constante. Portée déclarée couvre 'noms'.",
+   "preuve": "visit_Name: `if node.id != node.id.upper() and self._contient_terme(node.id):` (env. ligne 270)"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M4-field-ops/src/m4_field_ops/digest.py",
+   "description": "Les deux gardes sautent __init__.py (`if path.name == \"__init__.py\": continue`), échappatoire possible pour horloge ou scoring cachés dans ce fichier.",
+   "preuve": "garde_absence_horloge et garde_conformite_r020: `if path.name == \"__init__.py\": continue` (env. lignes 150 et 230)"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M4-field-ops/src/m4_field_ops/digest.py",
+   "description": "Liste des fonctions horloge interdites non exhaustive (ex: calendar.timegm, os.times absents). Doute non vérifiable sur l'exhaustivité CA-M4-15.",
+   "preuve": "Ligne ~38: FONCTIONS_HORLOGE_INTERDITES = (\"now\", \"utcnow\", \"today\", \"time\", \"monotonic\", \"perf_counter\", \"fromtimestamp\")"
+  }
+ ],
+ "date_heure": "2026-07-30T10:13:58.902323+00:00",
+ "prompt_sha256": "98b8eb1aed3ef1b5065860fb910eaaca6780a028039cb607329ccd964a9ac2c2",
+ "reviewer_model": "Tencent-Hy3"
+}

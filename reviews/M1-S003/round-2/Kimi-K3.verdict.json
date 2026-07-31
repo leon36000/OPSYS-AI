@@ -1,0 +1,32 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M1-front-office/src/garde_fou.py",
+   "description": "L'évaluation PAR SEGMENT de la règle DATE introduit un nouveau contournement trivial, de même nature que R1 : il suffit de séparer le verbe d'exécution de la référence temporelle par n'importe quel séparateur (. , ; : ! ? ou les mots et/puis/mais/pour/afin/que) pour obtenir OK, alors que le même engagement en une seule phrase est bloqué. C'est une régression de détection par rapport à l'évaluation globale d'avant correction, et aucun des 3 tests TDAD ne couvre REF et EXEC dans deux segments adjacents.",
+   "preuve": "_detecter_date exige REF_TEMPORELLE.search(seg) ET VERBES_EXECUTION.search(seg) dans le MÊME segment ; _decouper_segments découpe sur [.!?;,:] et \\b(?:et|puis|mais|pour|afin|que)\\b. Trace déterministe : la fixture adv-021 « Nous poserons les fenêtres le 20/03 au plus tard. » -> REJ-INTERDIT-DATE, mais « Nous poserons les fenêtres. Le 20/03 au plus tard. » -> segments [« Nous poserons les fenêtres », « Le 20/03 au plus tard »] : seg1 a EXEC (poserons) sans REF, seg2 a REF (20/03, au plus tard) sans EXEC -> verdict OK. De même « Les travaux seront finis, demain. » -> OK, alors que le test test_piege_finir_travaux_demain verrouille « Les travaux seront finis demain » -> REJ-INTERDIT-DATE : une virgule seule inverse le verdict."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/src/garde_fou.py",
+   "description": "VERBES_CONTACT est du code mort accompagné d'une documentation trompeuse : la liste blanche n'est plus évaluée nulle part, alors que le commentaire « liste blanche – inchangés » et la docstring de _detecter_date (« La présence d'un verbe de contact dans un segment ne neutralise que ce segment… ») décrivent un mécanisme de neutralisation inexistant dans le code. Risque de réintroduction de R1 par un futur maintien qui « rebrancherait » cette liste.",
+   "preuve": "Dans tout le module, aucune occurrence de VERBES_CONTACT.search : _detecter_date n'utilise que REF_TEMPORELLE et VERBES_EXECUTION (double condition sur seg). Le motif VERBES_CONTACT est compilé mais jamais référencé."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/src/garde_fou.py",
+   "description": "Branches dupliquées dans les motifs de la règle DATE : alourdit une règle de sécurité sans effet comportemental et complique la revue.",
+   "preuve": "_PART_EXEC liste deux fois coulé, posé, terminé, livré, installé et prévu ; _AUX_ETRE contient seront et serons en double."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/tests/test_garde_fou.py",
+   "description": "Les gardes « zéro réseau / zéro horloge / zéro LLM » ne portent que sur le source de garde_fou, alors que verifier_sortie exécute aussi verdicts.construire_verdict et registre.ajouter (modules importés, non inclus dans ce diff) : la propriété annoncée n'est pas démontrée sur le chemin réellement exécuté.",
+   "preuve": "test_zero_reseau_zero_horloge et test_zero_llm font inspect.getsource(garde_fou) exclusivement ; garde_fou.py importe verdicts et registre (lignes 3-4) et les appelle dans verifier_sortie."
+  }
+ ],
+ "date_heure": "2026-07-29T01:34:05.753669+00:00",
+ "prompt_sha256": "02aa4bb13310ac391f239d23e90ecd2027d661768702703d9dcfb35522b18509",
+ "reviewer_model": "Kimi-K3"
+}

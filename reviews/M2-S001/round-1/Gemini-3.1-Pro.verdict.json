@@ -1,0 +1,26 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "src/encodage.py",
+   "description": "L'encodage n'est pas injectif car la fonction `_normaliser` convertit plusieurs types distincts vers la même représentation (listes). Par exemple, un dictionnaire `{\"a\": \"b\"}` et une liste de listes `[[\"a\", \"b\"]]` produiront exactement la même empreinte, tout comme un set `{\"a\"}` et une liste `[\"a\"]`.",
+   "preuve": "`return [[k, v] for k, v in items]` pour les dicts et `return [_normaliser(e) for e in obj]` pour les listes/tuples."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "tests/test_conformite_m1.py",
+   "description": "Le test `test_aucune_reference_a_un_module_voisin` prétend vérifier l'absence de couplage, mais il ne lit et n'analyse que son propre code source (`Path(__file__)`), ignorant totalement les autres fichiers du projet (src/ et autres tests). Il ne prouve donc pas ce qu'il annonce.",
+   "preuve": "`contenu = Path(__file__).read_text(encoding=\"utf-8\")`"
+  },
+  {
+   "severite": "majeure",
+   "fichier": "tests/test_conformite_m1.py",
+   "description": "Le test `test_set_et_liste_triee_produisent_meme_encodage` exige explicitement une collision entre un set et une liste, ce qui viole le critère d'injectivité de l'encodage.",
+   "preuve": "`assert v_set == v_liste` pour `{\"b\", \"a\", \"c\"}` et `[\"a\", \"b\", \"c\"]`."
+  }
+ ],
+ "date_heure": "2026-07-29T06:01:38.623034+00:00",
+ "prompt_sha256": "4af340f7a5d15f7d74ea3d92f5513c8a2062e9ed0ed7c27f21d241b3984ffc70",
+ "reviewer_model": "Gemini-3.1-Pro"
+}

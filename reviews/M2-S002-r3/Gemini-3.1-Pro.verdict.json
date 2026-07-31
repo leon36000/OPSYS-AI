@@ -1,0 +1,26 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M2-revenue-crm/src/encodage.py",
+   "description": "Régression fonctionnelle : le refus strict par TypeError rejette à tort des types légitimes dont le repr() est parfaitement déterministe (ex: Decimal pour les montants, datetime pour les dates, UUID pour les identifiants). Avant cette PR, ces types tombaient dans le repli repr(obj) et étaient hachés correctement. En voulant bloquer les objets dont le repr inclut l'adresse mémoire, le correctif casse la compatibilité pour ces types standards très courants dans un CRM.",
+   "preuve": "Ligne 31 : raise TypeError(f\"Type non supporté : {type(obj).__name__}...\")"
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M2-revenue-crm/src/registre.py",
+   "description": "Chemin non couvert : la copie défensive dans lire() lorsque depuis est None n'est couverte par aucun test. Si l'on remplace `return copy.deepcopy(self._chain)` par `return self._chain`, la suite de tests reste verte. Le test `test_lire_depuis_retourne_une_copie` vérifie uniquement le cas où `depuis` est fourni. Aucun test ne vérifie qu'une mutation du résultat de `lire()` (sans argument) laisse le registre intact.",
+   "preuve": "Ligne 82 : `if depuis is None: return copy.deepcopy(self._chain)`"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M2-revenue-crm/tests/test_registre.py",
+   "description": "Fausse preuve dans un test (tautologie) : le test `test_champ_precedent_falsifie_seul_est_detecte` prétend prouver que le recalcul des ligne_id ne détecte pas la falsification en comparant `[m[\"ligne_id\"] for m in r._chain]` avant et après. C'est une tautologie : lire une valeur statique dans un dictionnaire ne déclenche aucun recalcul. De plus, lors de l'appel à valider_chaine(), le recalcul n'est même jamais atteint car la méthode retourne False dès la vérification `m[\"precedent_ligne_id\"] != prec_attendu`.",
+   "preuve": "Lignes 331-335 : `ligne_ids_apres = [m[\"ligne_id\"] for m in r._chain]; assert ligne_ids_apres == ligne_ids_avant`"
+  }
+ ],
+ "date_heure": "2026-07-29T07:19:19.863832+00:00",
+ "prompt_sha256": "c3df7a54f94060485f65d453fd6c6f0e8450f2259c65d1bdfd1498181acdc754",
+ "reviewer_model": "Gemini-3.1-Pro"
+}

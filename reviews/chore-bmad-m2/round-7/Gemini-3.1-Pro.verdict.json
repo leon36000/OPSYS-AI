@@ -1,0 +1,26 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "02-PRD-PM.md",
+   "description": "Le critère CA-M2-15 est dupliqué : il est toujours concaténé à la fin de CA-M2-14, en plus d'apparaître sur sa propre ligne avec une formulation différente.",
+   "preuve": "« ...des deux côtés. CA-M2-15 : tout appel... » suivi de « CA-M2-15 : tout appel... »"
+  },
+  {
+   "severite": "majeure",
+   "fichier": "02-PRD-PM.md",
+   "description": "Une phrase est tronquée et se termine de façon abrupte à la fin du paragraphe 'Adaptateurs CRM tiers (story S008)'.",
+   "preuve": "« Cette capacité est couverte par le critère d'acceptation » (suivi d'un saut de ligne)"
+  },
+  {
+   "severite": "majeure",
+   "fichier": "verif_coherence.py",
+   "description": "Le script de vérification masque la duplication et la concaténation de CA-M2-15 car il compare des ensembles (set) au lieu de vérifier les occurrences exactes. Il affiche un faux positif 'OK' alors qu'un critère ne commence pas sa propre ligne.",
+   "preuve": "`debut_ligne == set(listes)`"
+  }
+ ],
+ "date_heure": "2026-07-29T04:42:40.042406+00:00",
+ "prompt_sha256": "2376448feb47a755ec4978886d9adca7822a5a5c3968e353ca273017cb201582",
+ "reviewer_model": "Gemini-3.1-Pro"
+}

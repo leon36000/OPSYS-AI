@@ -1,0 +1,26 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "docs/incidents/identite-paquet-par-module.md",
+   "description": "Le document mentionne « 1311 passed » et « M1 328, M2 529 » alors que les gates affichent « 1316 passed » et « M1 331, M2 533 ». L'écart (5/3/4) correspond aux ajouts du round 3 (gardes symétriques + exécution des scripts de preuve). Le doc n'a pas été remis à jour après ces ajouts.",
+   "preuve": "docs/incidents/identite-paquet-par-module.md lignes « -> 1311 passed » et « M1 328, M2 529 » vs gates « 1316 passed in 13.49s », « M1 331 passed », « M2 533 passed »"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/tests/test_module_structure.py",
+   "description": "Asymétrie d'organisation : la garde test_aucun_module_m1_a_plat_dans_sys_modules vit dans test_module_structure.py, tandis que son équivalent M2 (test_aucun_module_m2_a_plat_dans_sys_modules) vit dans test_isolation_modules.py. Les deux gardes sont fonctionnellement symétriques mais leur emplacement diverge, ce qui complique la revue future.",
+   "preuve": "test_module_structure.py contient test_aucun_module_m1_a_plat_dans_sys_modules ; test_isolation_modules.py contient test_aucun_module_m2_a_plat_dans_sys_modules"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/tests/test_module_structure.py",
+   "description": "La garde test_aucun_sys_path_insert_vise_le_paquet ne détecte que les lignes commençant littéralement par « sys.path.insert ». Un appel multi-ligne où le nom du paquet apparaît sur une ligne suivante (ex. « pkg = _SRC / 'm1_front_office' » puis « sys.path.insert(0, str(pkg)) ») ne serait pas flagué. En pratique le code actuel n'utilise pas ce pattern, donc la garde n'est pas vacante, mais sa surface de couverture est plus étroite que son nom ne le suggère.",
+   "preuve": "test_module_structure.py lignes de la garde : « if not depouillee.startswith(\"sys.path.insert\"): continue »"
+  }
+ ],
+ "date_heure": "2026-07-29T23:23:54.807248+00:00",
+ "prompt_sha256": "1f9ab54a0ccb6d579707415176f4eaaa8f567ffccd6303b0011bb44a8a11c447",
+ "reviewer_model": "MiniMax-M3"
+}

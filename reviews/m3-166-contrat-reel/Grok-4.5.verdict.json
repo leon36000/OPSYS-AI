@@ -1,0 +1,20 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/docs/bmad/02-PRD-PM.md",
+   "description": "Le CA-M3-03 qui exigeait le rejet explicite REJ-CHAMP-INTERDIT des champs interdits (prix, montant, date_execution, engagement) a été écrasé par le critère sur la limite structurelle du marqueur. La détection récursive des clés interdites reste dans le périmètre S001 et dans l'architecture, mais sans CA ni moyen de vérification dédié — risque de perte du test à l'implémentation.",
+   "preuve": "Ancien CA-M3-03: 'champ interdit... verdict CONTRAT_ENTREE_INVALIDE et la mention REJ-CHAMP-INTERDIT'. Nouveau CA-M3-03: readiness constatée par le MARQUEUR uniquement. Nouveau CA-M3-02 énumère contrat malformé / marqueur absent / readiness_ok / lead_id sans mention des champs interdits ni de REJ-CHAMP-INTERDIT."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/docs/bmad/verif_coherence.py",
+   "description": "Le contrôle 13 ne confronte que les noms de clés CHAMPS_CONTRAT_GELE, pas les types ni énumérés (ex. urgence_declaree bool strict, canal fermé, contact dict). Un écart de sémantique de rejet M3 vs M2/M4 resterait invisible au gate.",
+   "preuve": "cles_m2 = set(re.findall(r'\"([a-z_]+)\"', bloc.group(1))) et cles_m3 = set(re.findall(r'^  ([a-z_]+):', corps, re.MULTILINE)) puis comparaison cles_m3 != cles_m2 uniquement — aucun contrôle de type."
+  }
+ ],
+ "date_heure": "2026-07-30T21:04:37.672661+00:00",
+ "prompt_sha256": "2bacbc5b30cbf9685d7d273b007f3bee50a3e8a3da1e58169fff1829ebf95032",
+ "reviewer_model": "Grok-4.5"
+}

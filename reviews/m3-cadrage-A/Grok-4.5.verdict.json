@@ -1,0 +1,32 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/docs/bmad/verif_coherence.py",
+   "description": "Contrôle 7 (contrat sans date/finance) incomplet par rapport au contrat gelé et à CA-M3-16 : MOTS_INTERDITS ne couvre pas des clés explicitement interdites. Un champ `creneau`, `duree`, `montant`, ou `montant_ttc` glissé dans le YAML EstimationV1 n'est pas détecté, alors que le contrôle affiche « OK : Aucun champ interdit » et que la mutation listée ne prouve que le fragment `date`.",
+   "preuve": "MOTS_INTERDITS = {\"date\", \"echeance\", \"facture\", \"paiement\", \"montant_facture\", \"tva\", \"acompte\"} (ligne ~288) ; test `if mot in cle.lower()` ; CA-M3-16 exige l'absence de `creneau`, `duree`, `montant_ttc` ; PRD §5 / Architecture §2.2 listent ces champs comme absents par design. `paiement` attrape `conditions_paiement`, `date` attrape `date_execution`, mais `creneau`, `duree`, `montant_ttc` et `montant` passent."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/docs/bmad/02-PRD-PM.md",
+   "description": "Énuméré `VerdictBlocage` : 3 valeurs sur 6 ne bloquent pas (`AUCUN_BLOCAGE`, `REFERENCE_ECHELLE_ABSENTE`, `PLANCHER_RENTABILITE_FRANCHI` → prix_bloque=False). Le nom affirme un blocage que le booléen contredit. De plus, aucune CA n'exige l'émission de `REFERENCE_ECHELLE_ABSENTE` ni de `PLANCHER_RENTABILITE_FRANCHI` comme verdict (CA-M3-12/13 ne testent que `alerte_plancher`), donc double signal non arbitrable (enum vs bool) avant S001.",
+   "preuve": "PRD §4.2 tableau VerdictBlocage (colonne prix_bloque) ; CA-M3-12/13 (alerte_plancher uniquement) ; aucun CA pour REFERENCE_ECHELLE_ABSENTE ni PLANCHER_RENTABILITE_FRANCHI ; point soumis n°1 du pack (même classe M4-S009)."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/docs/bmad/verif_coherence.py",
+   "description": "Contrôle 8 anti-dérive ancré sur la sous-chaîne 'HORS PÉRIMÈTRE', satisfaite par le titre §0 « AJOUTS HORS PÉRIMÈTRE ANALYSTE » (ajouts PM), pas par une section qui liste le hors-périmètre module / GATED. Supprimer §3.2 GATED en gardant §0 laisse le contrôle vert.",
+   "preuve": "verifier_anti_derive : `if \"HORS PÉRIMÈTRE\" not in prd` ; PRD §0 titre contient la chaîne ; le vrai hors-périmètre est §3.2 Repoussé GATED/T3."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/test_module_structure.py",
+   "description": "Docstring de test_aucun_paquet_source affirme encore un registre STUB, alors que le README du même diff passe le statut à CADRE. Pack B doit aligner statut_lint, mais le commentaire du pack A est déjà en contradiction avec README.md livré ici.",
+   "preuve": "README.md : `Statut: CADRE` ; test_module_structure.py : « M3 est déclaré STUB au registre tant qu'aucune story n'a été livrée » / « Le module reste donc STUB tant que src/ est vide »."
+  }
+ ],
+ "date_heure": "2026-07-30T13:49:49.491711+00:00",
+ "prompt_sha256": "44f77633e9816736e0d072975eac4ffb7c43b7da5d2e4fcef578c43ff755e5e2",
+ "reviewer_model": "Grok-4.5"
+}

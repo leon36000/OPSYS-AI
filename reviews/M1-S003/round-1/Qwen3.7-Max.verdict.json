@@ -1,0 +1,14 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "src/garde_fou.py",
+   "description": "La liste blanche (VERBES_CONTACT) annule la détection de date si un verbe de contact est présent n'importe où dans le texte. Un LLM peut facilement contourner le garde-fou en ajoutant une formule de contact avant un engagement daté (ex: 'Je vous transmets que la dalle sera coulée dans 3 jours' ou 'Je vous écris pour vous dire que les travaux seront finis demain').",
+   "preuve": "Lignes 158-160 dans _detecter_date : `if VERBES_CONTACT.search(texte): return False`. L'expression régulière VERBES_CONTACT (ligne 138) capture 'transmettr' ou 'écri' sans contrainte de position ou de syntaxe, permettant de masquer n'importe quel engagement ultérieur dans le même texte."
+  }
+ ],
+ "date_heure": "2026-07-29T01:07:44.547085+00:00",
+ "prompt_sha256": "37925f486818129e5769f63db5394df01365190c1d478f8874fa85140df9bebc",
+ "reviewer_model": "Qwen3.7-Max"
+}

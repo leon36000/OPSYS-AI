@@ -1,0 +1,32 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M2-revenue-crm/docs/bmad/02-PRD-PM.md",
+   "description": "CA-M2-15 est défini deux fois dans la section 6. La première définition est concaténée à la fin du texte de CA-M2-14 (la ligne de CA-M2-14 se termine par 'des deux côtés. CA-M2-15 : tout appel d'écriture...'), et la seconde est sur sa propre ligne. Cela crée une ambiguïté sur la définition authoritative et viole le principe d'unicité des critères d'acceptation.",
+   "preuve": "Diff section 6 : ligne contenant 'CA-M2-14 : une suite de cas d'abus héritée de M1 (collisions par concaténation directe, horodatages invalides, mutations de chaîne, réordonnancements) est rejouée intégralement contre les implémentations M2, sans partage de code de production entre M1 et M2, et chaque cas produit le même verdict déterministe des deux côtés. CA-M2-15 : tout appel d'écriture vers un CRM tiers hors mode ombre est rejeté avec REJ-ADAPTATEUR-INDISPONIBLE sans aucun effet de bord ; les identifiants d'adaptateurs sont déterministes entre deux exécutions et dérivés uniquement par encodage canonique injectif. Porté par la story S008.' suivie d'une ligne vide puis 'CA-M2-15 : tout appel d'écriture vers un CRM tiers hors mode ombre est rejeté avec REJ-ADAPTATEUR-INDISPONIBLE sans effet de bord, et les identifiants d'adaptateurs sont stables et dérivés uniquement par encodage canonique injectif. CA-M2-15 est porté par la story S008.'"
+  },
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M2-revenue-crm/docs/bmad/verif_coherence.py",
+   "description": "Le script de vérification a un angle mort fondamental : son regex '^CA-M2-(\\d+) :' avec re.M ne capture que les définitions en début de ligne. Une définition concaténée à la fin d'une ligne précédente (comme c'est le cas pour la première définition de CA-M2-15) n'est pas détectée par les vérifications 'aucun critère défini deux fois dans §6' ni 'aucun critère défini hors de §6'. La vérification rapportée comme 'TOUT VERT' est donc fausse : elle manque la duplication effective de CA-M2-15.",
+   "preuve": "Lignes du script : 'doublons = {n: c for n, c in Counter(re.findall(r\"^CA-M2-(\\d+) :\", sec6, re.M)).items() if c > 1}' et 'hors6 = len(re.findall(r\"^CA-M2-\\d+ :\", prd, re.M)) - len(re.findall(r\"^CA-M2-\\d+ :\", sec6, re.M))'. Le caractère ^ avec re.M ne matche que les débuts de ligne, donc la première occurrence de CA-M2-15 (concaténée à CA-M2-14) n'est jamais comptée comme définition."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M2-revenue-crm/docs/bmad/02-PRD-PM.md",
+   "description": "Phrase incomplète dans la section 4 : 'Cette capacité est couverte par le critère d'acceptation' — la phrase est coupée net et devrait référencer CA-M2-15 (ou le critère approprié). Cela laisse une référence pendante dans le PRD et nuit à la traçabilité.",
+   "preuve": "Diff section 4 : 'Les identifiants d'adaptateurs sont dérivés par encodage canonique injectif et sont déterministes entre deux exécutions. Cette capacité est couverte par le critère d'acceptation' suivi d'une ligne vide et du paragraphe 'Production pour M5 — hors périmètre v1.'"
+  },
+  {
+   "severite": "majeure",
+   "fichier": "context pack",
+   "description": "Les affirmations du context pack sur les occurrences de CA-M2-15 sont incorrectes et auto-contradictoires avec le diff fourni. Il affirme 'les autres occurrences sont des RENVOIS depuis la section 4', mais la première occurrence de CA-M2-15 (concaténée à CA-M2-14) est dans la section 6, pas dans la section 4. Il affirme également 'dont DEFINITIONS (debut de ligne) : 1', or il y a deux tentatives de définition, dont une seule commence en début de ligne — l'autre est une définition mal formée concaténée.",
+   "preuve": "Le diff de 02-PRD-PM.md montre que les deux occurrences de 'CA-M2-15 :' suivies d'un texte définitionnel sont toutes deux dans la section 6 (l'une concaténée à CA-M2-14, l'autre sur sa propre ligne). Aucune n'est dans la section 4. La section 4 contient une phrase incomplète 'cette capacité est couverte par le critère d'acceptation' sans mentionner CA-M2-15."
+  }
+ ],
+ "date_heure": "2026-07-29T04:51:09.000986+00:00",
+ "prompt_sha256": "544a9103bd5c1f3703ab0a16b653f381a66399fc2d34bd03f0b0ceff15f0abe3",
+ "reviewer_model": "MiniMax-M3"
+}

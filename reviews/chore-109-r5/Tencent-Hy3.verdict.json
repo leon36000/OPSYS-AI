@@ -1,0 +1,14 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/tests/test_module_structure.py (et Modules M/M2-revenue-crm/tests/test_isolation_modules.py)",
+   "description": "La garde AST contre l'insertion du paquet dans sys.path ne détecte que les littéraux chaîne présents directement dans les arguments de l'appel sys.path.insert/append, et exige que le récepteur soit un attribut nommé 'path'. Elle ne couvre pas les références indirectes (ex: sys.path.insert(0, str(_PKG)) où _PKG = _SRC / 'm1_front_office') ni 'from sys import path; path.insert(...)'. Aucune violation dans le diff, mais trou non couvert par les mutations décrites (uniquement la forme multi-ligne avec littéral direct).",
+   "preuve": "Fonction test_aucun_sys_path_insert_vise_le_paquet : `if not (isinstance(recepteur, ast.Attribute) and recepteur.attr == \"path\"): continue` et `if (isinstance(litteral, ast.Constant) and isinstance(litteral.value, str) and _NOM_PAQUET in litteral.value):`"
+  }
+ ],
+ "date_heure": "2026-07-29T23:35:19.262803+00:00",
+ "prompt_sha256": "7a530f8daa5800284b663e147ef8f125eb0ccaa8844733513896d92eec58173b",
+ "reviewer_model": "Tencent-Hy3"
+}

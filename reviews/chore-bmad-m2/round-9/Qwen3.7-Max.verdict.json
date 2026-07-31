@@ -1,0 +1,14 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M2-revenue-crm/docs/bmad/verif_coherence.py",
+   "description": "Le script de vérification contient un chemin absolu local hardcodé. Cela le rend non portable et non rejouable en CI ou sur l'environnement d'un autre développeur, ce qui contredit l'objectif affiché dans le commit de 'script versionné, rejouable'.",
+   "preuve": "Ligne 13 : D = Path(\"/media/pc1/Storage/Repo/OPSYS-AI/Modules M/M2-revenue-crm/docs/bmad\")"
+  }
+ ],
+ "date_heure": "2026-07-29T05:02:39.989986+00:00",
+ "prompt_sha256": "1af3c5f574cda4569948d0666486cfbed4b193c914da2673b17ef7d322a5fabd",
+ "reviewer_model": "Qwen3.7-Max"
+}

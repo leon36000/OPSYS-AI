@@ -1,0 +1,20 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M1-front-office/src/phases_voix.py",
+   "description": "La fonction abandonner() ne vérifie pas si la conversation est déjà complétée (phase 5 atteinte). Si elle est appelée sur une conversation en phase 5, elle modifie la phase 5 existante et ajoute une deuxième phase 5 en doublon, ce qui corrompt la structure de la liste des phases. Cela contredit également la docstring du test de la Règle 10 ('abandon sur une conversation déjà close (abandon ou complétion) est refusé').",
+   "preuve": "Lignes 128-129 : `if conversation[\"statut\"] in (\"close_abandon\", \"close_erreur\"):` ne gère pas le cas de la complétion. Lignes 141-147 : ajout inconditionnel d'un dictionnaire phase 5 à la liste `conversation[\"phases\"]`."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M1-front-office/tests/test_phases_voix.py",
+   "description": "Présence d'imports dupliqués et d'une manipulation erronée de sys.path (copier-coller probable d'un autre module) avant la classe TestAbandonRegistre. La variable _M7 pointe vers 'Modules M', donc le chemin _M7 / 'src' n'existe pas.",
+   "preuve": "Lignes 265-277 : re-définition de _SRC avec `parents[2]` et ré-import de phases_voix, verdicts, Registre."
+  }
+ ],
+ "date_heure": "2026-07-29T00:30:11.016206+00:00",
+ "prompt_sha256": "8fb0e0e7fffb3aebbab3af845174c90f0934a2cec05d2833decf7c56a743c378",
+ "reviewer_model": "Gemini-3.1-Pro"
+}
