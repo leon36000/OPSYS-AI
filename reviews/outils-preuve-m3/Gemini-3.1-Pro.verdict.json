@@ -2,38 +2,32 @@
  "verdict": "REJECT",
  "objections": [
   {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/README.md",
+   "description": "Le README affirme que `test_outils_de_preuve.py` exige que « chaque outil s'annonce par un docstring ». Cependant, le test `test_les_outils_transverses_sont_presents_et_documentes` est paramétré en dur avec `[\"enumerer_gardes.py\"]` uniquement. Les autres outils (comme `bilan_preuves.py` ou les `muter_*.py`) ne sont pas vérifiés pour la présence d'un docstring, ce qui contredit l'affirmation.",
+   "preuve": "Dans `test_outils_de_preuve.py` : `@pytest.mark.parametrize(\"nom\", [\"enumerer_gardes.py\"])` limite la vérification à ce seul fichier."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/README.md",
+   "description": "Le README affirme que « chaque outil est SAIN avant sabotage ». Or, le test `test_chaque_outil_est_sain_avant_sabotage` utilise la fixture `_parametres_outils()` qui ne retourne que les scripts `muter_*.py`. L'outil `enumerer_gardes.py` n'est jamais testé à l'état sain.",
+   "preuve": "Dans `test_gardes_des_outils.py` : `def _parametres_outils(): return _OUTILS_MUTATION or [None]` où `_OUTILS_MUTATION` est défini par `sorted(_OUTILS.glob(\"muter_*.py\"))`."
+  },
+  {
    "severite": "critique",
    "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
-   "description": "Le test `test_aucune_trace_apres_les_epreuves` n'exécute jamais les mutations, agissant comme un interrupteur silencieux. En créant `test_epreuve_garde_suite_rouge.py` avant de lancer les outils, il déclenche leur condition d'abandon immédiat. Le test certifie donc seulement qu'un abandon précoce ne laisse pas de trace, mais ne vérifie jamais le nettoyage après une véritable exécution de mutation.",
-   "preuve": "Le test fait `chemin_suite_rouge.write_text(...)` puis `lancer_outil(outil)`. Les outils `muter_*.py` contiennent `if reference.returncode != 0: ... sys.exit(1)` avant toute mutation."
+   "description": "Le test `test_aucune_trace_apres_les_epreuves` crée un fichier `test_epreuve_garde_suite_rouge.py`. L'exécution des outils lance `pytest`, qui compile ce fichier et crée un artefact `.pyc` dans `TESTS/__pycache__`. Le test supprime le fichier `.py` mais pas le `.pyc`. Le relevé d'empreintes ignore aveuglément les dossiers `__pycache__`, rendant le test aveugle à cette trace laissée sur le disque.",
+   "preuve": "Dans `_instantane_arborescence()` : `if \"__pycache__\" in relatif.parts or \".pytest_cache\" in relatif.parts: continue`. Le fichier `.pyc` généré par l'épreuve n'est ni nettoyé ni détecté."
   },
   {
    "severite": "majeure",
    "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
-   "description": "L'épreuve laisse une trace sur le disque que le relevé d'empreintes ne voit pas. La création de `test_epreuve_garde_suite_rouge.py` entraîne sa compilation par pytest. Le test supprime le `.py` mais laisse le `.pyc` orphelin, et la fonction d'empreinte exclut aveuglément ce dossier.",
-   "preuve": "Dans `_instantane_arborescence()`, la condition `if \"__pycache__\" in relatif.parts or \".pytest_cache\" in relatif.parts: continue` rend le test aveugle aux artefacts compilés laissés par l'épreuve."
-  },
-  {
-   "severite": "majeure",
-   "fichier": "Modules M/M3-estimation/tests/test_outils_de_preuve.py",
-   "description": "Le README affirme que `test_outils_de_preuve.py` exige que « chaque outil s'annonce par un docstring ». Or, le test vérifiant cette propriété est paramétré en dur pour ne vérifier que `enumerer_gardes.py`. Les autres outils (`muter_*.py`, `bilan_preuves.py`) ne sont pas contrôlés.",
-   "preuve": "Ligne `@pytest.mark.parametrize(\"nom\", [\"enumerer_gardes.py\"])` devant `def test_les_outils_transverses_sont_presents_et_documentes(nom):`."
-  },
-  {
-   "severite": "majeure",
-   "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
-   "description": "Le README affirme que « Le vérificateur exige un contrôle NÉGATIF (l'outil doit rendre zéro à l'état sain) ». Cependant, le test `test_chaque_outil_est_sain_avant_sabotage` ne s'applique qu'aux outils de mutation, excluant `enumerer_gardes.py`.",
-   "preuve": "Le test utilise `_parametres_outils()` qui retourne `_OUTILS_MUTATION` (défini par `sorted(_OUTILS.glob(\"muter_*.py\"))`). L'énumérateur n'est jamais testé à l'état sain."
-  },
-  {
-   "severite": "mineure",
-   "fichier": "Modules M/M3-estimation/tests/outils_preuve/bilan_preuves.py",
-   "description": "Une boucle d'exécution indirecte subsiste où un instrument déclenche sa propre mesure. `bilan_preuves.py` lance `pytest TESTS` sans ignorer `test_gardes_des_outils.py`. Ce dernier lance les outils de mutation, qui à leur tour lancent `pytest TESTS`.",
-   "preuve": "Dans `bilan_preuves.py`, la commande est `[\"pytest\", str(TESTS), \"-q\", \"-p\", \"no:cacheprovider\", \"--color=no\"]` sans argument `--ignore` pour exclure les tests des outils."
+   "description": "Les tests de garde ne vérifient jamais le comportement des outils face à une mutation qui ne compile pas ou qui est sans effet. Les chemins de code gérant les `SyntaxError` ou l'absence de modification textuelle dans les outils de mutation et l'énumérateur ne sont exercés par aucun test.",
+   "preuve": "Dans `muter_*.py` et `enumerer_gardes.py`, les blocs `except SyntaxError as erreur:` et `if mutant == original:` ajoutent l'erreur à la liste des échecs, mais aucun test dans `test_gardes_des_outils.py` ne simule ces conditions pour s'assurer que l'outil échoue correctement."
   }
  ],
- "date_heure": "2026-08-01T18:45:36.749340+00:00",
- "prompt_sha256": "8aafbb279a6686b09ad7274c56a56956269aa89331c582a5514048e083bca8c6",
+ "date_heure": "2026-08-01T19:03:42.122612+00:00",
+ "prompt_sha256": "385869c5e8ecbfed58503cde111d0fe322db0ab5336f05674416e89a9e1b2ad1",
  "reviewer_model": "Gemini-3.1-Pro",
  "modele_servi": "gemini-31-pro-openrouter",
  "gateway_resilience": {

@@ -5,10 +5,8 @@ Une revue scellée a rendu APPROVE 0/3 sur une première version du dossier
 ``plancher.py`` n'existait pas encore sur la branche. Le script plantait sur
 ``FileNotFoundError``, et les sorties présentées dans le pack avaient été
 produites sur une AUTRE branche — donc irreproductibles là où on les montrait.
-
-Ces tests ferment cette classe : un outil qui accompagne une cible absente est
-un outil qui ment sur ce qu'il prouve.
 """
+
 import ast
 import sys
 from pathlib import Path
@@ -27,6 +25,16 @@ def _outils_de_mutation():
     assert trouves, (
         f"aucun outil de mutation trouvé sous {_OUTILS} — un scanner qui ne "
         f"trouve rien passe toujours, donc ce test refuse de conclure"
+    )
+    return trouves
+
+
+def _outils_python():
+    """Tous les outils Python livrés, triés — jamais une liste vide."""
+    trouves = sorted(_OUTILS.glob("*.py"))
+    assert trouves, (
+        f"aucun outil Python trouvé sous {_OUTILS} — un scanner qui ne trouve "
+        f"rien passe toujours, donc ce test refuse de conclure"
     )
     return trouves
 
@@ -151,17 +159,20 @@ def test_chaque_outil_de_mutation_declare_sa_cible_dans_son_code():
     )
 
 
-@pytest.mark.parametrize("nom", ["enumerer_gardes.py"])
-def test_les_outils_transverses_sont_presents_et_documentes(nom):
-    """Un outil sans docstring ne dit pas ce qu'il prouve ni ce qu'il ne prouve pas.
+def test_les_outils_transverses_sont_presents_et_documentes():
+    """Chaque outil livré explique sa portée et ses limites dans une docstring.
 
-    Empêcherait de casser : un instrument de mesure livré muet, dont personne ne
-    peut vérifier la portée — c'est la portée sur-affirmée qui a valu deux
-    objections de revue sur ce dossier.
+    Un dossier vide est refusé explicitement : l'absence d'outil ne constitue pas
+    une preuve. La vérification couvre indifféremment les mutateurs, l'énumérateur,
+    le bilan et tout autre script Python ajouté au dossier de preuve.
     """
-    chemin = _OUTILS / nom
-    assert chemin.exists(), f"{nom} absent de {_OUTILS}"
-    doc = ast.get_docstring(ast.parse(chemin.read_text(encoding="utf-8")))
-    assert doc and len(doc) > 200, (
-        f"{nom} : docstring absent ou trop court pour énoncer ce qu'il prouve"
+    insuffisants = []
+    for chemin in _outils_python():
+        doc = ast.get_docstring(ast.parse(chemin.read_text(encoding="utf-8")))
+        if not doc or len(doc) <= 200:
+            insuffisants.append(chemin.name)
+
+    assert not insuffisants, (
+        "outil(s) sans docstring substantiel expliquant leur portée : "
+        + ", ".join(insuffisants)
     )

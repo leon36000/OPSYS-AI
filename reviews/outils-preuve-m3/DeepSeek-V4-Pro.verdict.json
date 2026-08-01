@@ -2,32 +2,26 @@
  "verdict": "REJECT",
  "objections": [
   {
-   "severite": "critique",
-   "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_blocage_prix.py",
-   "description": "Boucle où un instrument se mesure lui-même. Chaque muter exécute pytest sur tout le dossier TESTS sans ignorer test_outils_de_preuve.py, qui lui-même parse et vérifie l'outil en cours d'exécution. L'instrument lance donc un test qui inspecte l'instrument, formant une boucle indirecte capable d'introduire des artéfacts ou de fausser les mesures.",
-   "preuve": "Dans executer_tests() : ['pytest', str(TESTS), '-q', f'--ignore={TESTS / \"test_gardes_des_outils.py\"}', ...]. test_outils_de_preuve.py contient test_chaque_outil_de_mutation_declare_sa_cible_dans_son_code qui lit et parse l'AST de chaque outil de mutation présent dans _OUTILS."
-  },
-  {
    "severite": "majeure",
    "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
-   "description": "L'énumérateur (enumerer_gardes.py) n'est pas couvert par le test de santé avant sabotage, contrairement à l'affirmation du README et à la promesse du pack. Une régression sur l'énumérateur pourrait rester non détectée.",
-   "preuve": "La fonction test_chaque_outil_est_sain_avant_sabotage est paramétrée uniquement avec _parametres_outils() qui retourne exclusivement les muter_*.py ; enumerer_gardes.py n'est jamais lancé sur un module valide pour vérifier un retour zéro et l'absence de phrase d'abandon."
-  },
-  {
-   "severite": "mineure",
-   "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
-   "description": "Le test d'absence de traces ignore délibérément les répertoires __pycache__ et .pytest_cache. Une épreuve utilisant des fixtures (comme suite_deja_rouge) génère un fichier .pyc dans __pycache__ lors de l'exécution des outils ; ce fichier n'est pas supprimé par la fixture et n'est pas relevé par l'instantané, laissant une trace invisible.",
-   "preuve": "Dans _instantane_arborescence() : 'if \"__pycache__\" in relatif.parts or \".pytest_cache\" in relatif.parts: continue'. La fixture suite_deja_rouge supprime le .py mais aucun nettoyage du __pycache__ correspondant n'est effectué."
+   "description": "Le test de santé avant sabotage ne vérifie pas l'énumérateur. La robustesse de l'outil le plus critique reste non éprouvée, alors que le README annonce que chaque outil est SAIN avant sabotage.",
+   "preuve": "Le test `test_chaque_outil_est_sain_avant_sabotage` est paramétré via `_parametres_outils()` qui retourne exclusivement `_OUTILS_MUTATION` (les fichiers `muter_*.py`). `enumerer_gardes.py` n'est jamais appelé avec un retour attendu à zéro et sans phrase d'abandon."
   },
   {
    "severite": "majeure",
    "fichier": "Modules M/M3-estimation/tests/outils_preuve/README.md",
-   "description": "Le README affirme que test_outils_de_preuve.py exige que chaque outil s'annonce par un docstring. Le code ne vérifie cette règle que pour enumerer_gardes.py ; les scripts muter_*.py et bilan_preuves.py en sont exemptés, créant un faux sentiment de complétude.",
-   "preuve": "Dans le README : « et que chaque outil s'annonce par un docstring. » Dans test_outils_de_preuve.py : @pytest.mark.parametrize(\"nom\", [\"enumerer_gardes.py\"]) définit test_les_outils_transverses_sont_presents_et_documentes uniquement pour ce fichier."
+   "description": "Le README affirme que chaque outil s'annonce par un docstring et que c'est exigé, mais la vérification ne contrôle que `enumerer_gardes.py`.",
+   "preuve": "Dans le README : « et que chaque outil s'annonce par un docstring ». Dans `test_outils_de_preuve.py`, le test `test_les_outils_transverses_sont_presents_et_documentes` est paramétré avec `@pytest.mark.parametrize(\"nom\", [\"enumerer_gardes.py\"])` et ne couvre pas les `muter_*.py` ni `bilan_preuves.py`."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
+   "description": "Le relevé d'empreintes exclut les caches, laissant passer des traces invisibles. Un fichier .pyc orphelin dans __pycache__ après les épreuves n'est pas détecté.",
+   "preuve": "Dans `_instantane_arborescence()` : `if \"__pycache__\" in relatif.parts or \".pytest_cache\" in relatif.parts: continue`. Les fixtures de test créent des fichiers .py et les suppriment, mais aucun nettoyage du __pycache__ correspondant n'est effectué dans le test `test_aucune_trace_apres_les_epreuves`."
   }
  ],
- "date_heure": "2026-08-01T18:45:43.922325+00:00",
- "prompt_sha256": "8aafbb279a6686b09ad7274c56a56956269aa89331c582a5514048e083bca8c6",
+ "date_heure": "2026-08-01T18:59:33.861813+00:00",
+ "prompt_sha256": "385869c5e8ecbfed58503cde111d0fe322db0ab5336f05674416e89a9e1b2ad1",
  "reviewer_model": "DeepSeek-V4-Pro",
  "modele_servi": "deepseek-v4-pro-direct",
  "gateway_resilience": {
