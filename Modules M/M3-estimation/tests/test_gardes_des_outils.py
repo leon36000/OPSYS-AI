@@ -11,9 +11,12 @@ hostile : un outil simulant exactement les messages attendus passerait. Un
 instrument ne peut pas prouver qu'un autre instrument n'est pas un leurre.
 """
 
+import ast
+from contextlib import contextmanager
 import hashlib
-import re
 from pathlib import Path
+import re
+import shutil
 import subprocess
 import sys
 
@@ -23,6 +26,7 @@ import pytest
 # une sortie saine ou dans une erreur sans rapport et ne discriminerait pas la garde.
 PHRASE_SUITE_ROUGE = "muter une suite non verte ne prouve rien"
 PHRASE_SANS_GARDE = "l'extracteur n'a rien trouvé"
+PHRASE_NE_COMPILE_PAS = "NE COMPILE PAS"
 
 _M3 = Path(__file__).resolve().parents[1]
 _RACINE = Path(__file__).resolve().parents[3]
@@ -32,17 +36,10 @@ _OUTILS = _TESTS / "outils_preuve"
 _ENUMERATEUR = _OUTILS / "enumerer_gardes.py"
 _OUTILS_MUTATION = sorted(_OUTILS.glob("muter_*.py"))
 
-# La sentinelle disque a été retirée : sa présence rendait pytest rc=0 avec zéro
-# test exécuté, ce qui est indiscernable d'un succès. Les outils ignorent
-# déterministement ce module lors de leurs propres appels à pytest.
-
 
 def _modules_disponibles():
     """Retourne les modules cibles des outils de mutation, dans un ordre stable."""
-    modules = sorted(
-        outil.stem[len("muter_"):]
-        for outil in _OUTILS_MUTATION
-    )
+    modules = sorted(outil.stem[len("muter_"):] for outil in _OUTILS_MUTATION)
     assert modules, (
         "aucun module disponible : aucun outil muter_<module>.py trouvé, "
         "le chemin nominal de l'énumérateur ne prouve rien"
@@ -52,9 +49,6 @@ def _modules_disponibles():
 
 def _module_nominal():
     """Retourne un module existant garanti par les outils de mutation présents."""
-    # La correspondance muter_<module>.py ↔ <module>.py est un invariant garanti
-    # par test_chaque_outil_de_mutation_a_son_module_cible, pas une supposition ;
-    # un nom codé en dur, lui, casse au premier changement de branche.
     return _modules_disponibles()[0]
 
 
@@ -177,8 +171,6 @@ def _assert_instantanes_identiques(avant, apres):
         if avant[chemin][1] != apres[chemin][1]
     )
 
-    # L'horodatage est volontairement absent : pytest réécrit des caches et le
-    # rendrait bruyant, tandis que contenu, mode et chemins restent probants.
     differences = {
         "chemin apparu": apparus,
         "chemin disparu": disparus,
@@ -195,13 +187,26 @@ def _assert_instantanes_identiques(avant, apres):
     )
 
 
-@pytest.fixture
-def lancer_outil():
-    yield _lancer
+def _assert_mutations_effectives(sortie, outil):
+    mutations = re.search(r"\b(\d+)/(\d+)\s+mordent\b", sortie)
+    assert mutations is not None, (
+        f"{outil.name} ne prouve aucun travail de mutation effectif :\n{sortie}"
+    )
+    assert int(mutations.group(1)) > 0 and int(mutations.group(2)) > 0, (
+        f"{outil.name} annonce un compte de mutations inactif :\n{sortie}"
+    )
 
 
-@pytest.fixture
-def suite_deja_rouge():
+def _assert_controles_effectifs(sortie):
+    bilan = re.search(r"\bcontroles=(\d+)\b", sortie)
+    assert bilan is not None and int(bilan.group(1)) > 0, (
+        "l'énumérateur nominal n'a produit aucun bilan de contrôles effectifs :\n"
+        f"{sortie}"
+    )
+
+
+@contextmanager
+def _suite_rouge():
     """Dépose puis retire un test volontairement rouge pour les batteries."""
     chemin = _TESTS / "test_epreuve_garde_suite_rouge.py"
     assert not chemin.exists(), f"fichier d'épreuve déjà présent : {chemin}"
@@ -219,8 +224,8 @@ def suite_deja_rouge():
         _assert_aucune_trace_temporaire((chemin.stem,))
 
 
-@pytest.fixture
-def module_sans_garde():
+@contextmanager
+def _module_sans_garde():
     """Dépose puis retire un module dont l'AST ne contient aucun ``if``."""
     chemin = _SOURCE / "epreuve_module_sans_garde.py"
     assert not chemin.exists(), f"module d'épreuve déjà présent : {chemin}"
@@ -236,6 +241,94 @@ def module_sans_garde():
             chemin.unlink()
         _supprimer_pyc_temporaires((chemin.stem,))
         _assert_aucune_trace_temporaire((chemin.stem,))
+
+
+def _offset_ligne(source, ligne, colonne):
+    lignes = source.splitlines(keepends=True)
+    return sum(len(element) for element in lignes[: ligne - 1]) + colonne
+
+
+def _mutations_de_la_batterie(source):
+    """Retourne les couples texte avant/noeud texte après de ``MUTATIONS``."""
+    arbre = ast.parse(source)
+
+    for noeud in arbre.body:
+        if not isinstance(noeud, ast.Assign):
+            continue
+        if not any(
+            isinstance(cible, ast.Name) and cible.id == "MUTATIONS"
+            for cible in noeud.targets
+        ):
+            continue
+        if not isinstance(noeud.value, (ast.List, ast.Tuple)):
+            continue
+
+        mutations = []
+        for element in noeud.value.elts:
+            if not isinstance(element, (ast.Tuple, ast.List)) or len(element.elts) < 3:
+                continue
+            avant, apres = element.elts[1:3]
+            if (
+                isinstance(avant, ast.Constant)
+                and isinstance(avant.value, str)
+                and isinstance(apres, ast.Constant)
+                and isinstance(apres.value, str)
+            ):
+                mutations.append((avant.value, apres))
+        return mutations
+
+    return []
+
+
+def _constante_remplacement_ancre_unique(source_batterie, source_module):
+    """Choisit le premier remplacement dont l'ancre avant est unique dans le module."""
+    for avant, apres in _mutations_de_la_batterie(source_batterie):
+        if source_module.count(avant) == 1:
+            return apres
+    return None
+
+
+def _rendre_une_mutation_non_compilable(
+    source_batterie,
+    source_module,
+):
+    """Sabote le remplacement d'une mutation atteignable jusqu'à ``compile``."""
+    remplacement = _constante_remplacement_ancre_unique(
+        source_batterie,
+        source_module,
+    )
+    if remplacement is None:
+        return None
+
+    debut = _offset_ligne(
+        source_batterie,
+        remplacement.lineno,
+        remplacement.col_offset,
+    )
+    fin = _offset_ligne(
+        source_batterie,
+        remplacement.end_lineno,
+        remplacement.end_col_offset,
+    )
+    fragment_invalide = repr("def epreuve_non_compilable(:\n")
+    return source_batterie[:debut] + fragment_invalide + source_batterie[fin:]
+
+
+@pytest.fixture
+def lancer_outil():
+    yield _lancer
+
+
+@pytest.fixture
+def suite_deja_rouge():
+    with _suite_rouge() as chemin:
+        yield chemin
+
+
+@pytest.fixture
+def module_sans_garde():
+    with _module_sans_garde() as chemin:
+        yield chemin
 
 
 @pytest.mark.parametrize(
@@ -282,25 +375,38 @@ def test_l_enumerateur_refuse_un_module_sans_garde(
     )
 
 
-def test_les_deux_abandons_de_l_enumerateur_sont_distincts(
-    suite_deja_rouge, module_sans_garde, lancer_outil
-):
-    resultat_rouge = lancer_outil(_ENUMERATEUR, _module_nominal())
-    resultat_vide = lancer_outil(_ENUMERATEUR, module_sans_garde.stem)
-    sortie_rouge = _sortie(resultat_rouge)
-    sortie_vide = _sortie(resultat_vide)
+def test_les_deux_abandons_de_l_enumerateur_sont_distincts(lancer_outil):
+    with _suite_rouge():
+        resultat_rouge = lancer_outil(_ENUMERATEUR, _module_nominal())
+        sortie_rouge = _sortie(resultat_rouge)
 
     assert resultat_rouge.returncode != 0, (
         "l'énumérateur a accepté la condition de suite déjà rouge"
     )
-    assert resultat_vide.returncode != 0, (
-        "l'énumérateur a accepté la condition d'extracteur vide"
-    )
     assert PHRASE_SUITE_ROUGE in sortie_rouge, (
         "abandon suite rouge non identifié :\n" f"{sortie_rouge}"
     )
+    assert PHRASE_SANS_GARDE not in sortie_rouge, (
+        "l'abandon de suite rouge annonce aussi un extracteur vide :\n"
+        f"{sortie_rouge}"
+    )
+
+    with _module_sans_garde() as chemin_module_sans_garde:
+        resultat_vide = lancer_outil(
+            _ENUMERATEUR,
+            chemin_module_sans_garde.stem,
+        )
+        sortie_vide = _sortie(resultat_vide)
+
+    assert resultat_vide.returncode != 0, (
+        "l'énumérateur a accepté la condition d'extracteur vide"
+    )
     assert PHRASE_SANS_GARDE in sortie_vide, (
         "abandon extracteur vide non identifié :\n" f"{sortie_vide}"
+    )
+    assert PHRASE_SUITE_ROUGE not in sortie_vide, (
+        "l'abandon d'extracteur vide annonce aussi une suite rouge :\n"
+        f"{sortie_vide}"
     )
     assert sortie_rouge != sortie_vide, (
         "les abandons suite rouge et extracteur vide produisent la même sortie"
@@ -326,6 +432,10 @@ def test_chaque_outil_est_sain_avant_sabotage(outil, lancer_outil):
     assert PHRASE_SANS_GARDE not in sortie, (
         f"{outil.name} annonce un extracteur vide à l'état sain :\n{sortie}"
     )
+    if outil == _ENUMERATEUR:
+        _assert_controles_effectifs(sortie)
+    else:
+        _assert_mutations_effectives(sortie, outil)
 
 
 def test_le_chemin_nominal_de_l_enumerateur_est_exerce(lancer_outil):
@@ -337,17 +447,72 @@ def test_le_chemin_nominal_de_l_enumerateur_est_exerce(lancer_outil):
     assert resultat.returncode == 0, (
         "le chemin nominal de l'énumérateur a échoué :\n" f"{sortie}"
     )
-    bilan = re.search(r"\bcontroles=(\d+)\b", sortie)
-    assert bilan is not None and int(bilan.group(1)) > 0, (
-        "l'énumérateur nominal n'a produit aucun bilan de contrôles effectifs :\n"
-        f"{sortie}"
-    )
+    _assert_controles_effectifs(sortie)
     assert PHRASE_SUITE_ROUGE not in sortie, (
         "l'énumérateur nominal annonce une suite rouge :\n" f"{sortie}"
     )
     assert PHRASE_SANS_GARDE not in sortie, (
         "l'énumérateur nominal annonce un extracteur vide :\n" f"{sortie}"
     )
+    _assert_instantanes_identiques(avant, apres)
+
+
+def test_une_mutation_non_compilable_est_signalee(lancer_outil):
+    assert _OUTILS_MUTATION, (
+        "aucun outil de mutation trouvé : l'épreuve de mutation non compilable "
+        "est absente"
+    )
+    outil_original = _OUTILS_MUTATION[0]
+    module = outil_original.stem[len("muter_"):]
+    source_module = _SOURCE / f"{module}.py"
+    assert source_module.exists(), (
+        "sabotage non probant : le module cible dérivé de la batterie est absent : "
+        f"{source_module}"
+    )
+
+    outil_temporaire = _OUTILS / "epreuve_mutation_non_compilable.py"
+    noms_temporaires = (outil_temporaire.stem,)
+    assert not outil_temporaire.exists(), (
+        f"fichier d'épreuve déjà présent : {outil_temporaire}"
+    )
+
+    avant = _instantane_arborescence()
+    try:
+        shutil.copyfile(outil_original, outil_temporaire)
+        source_batterie = outil_temporaire.read_text(encoding="utf-8")
+        sabotage = _rendre_une_mutation_non_compilable(
+            source_batterie,
+            source_module.read_text(encoding="utf-8"),
+        )
+
+        # Une ancre ambiguë arrête la batterie à son contrôle d'ancre : le test
+        # mesurait alors un autre chemin que celui de la compilation qu'il nommait.
+        if sabotage is None:
+            pytest.fail(
+                "sabotage non probant : aucune mutation de la batterie ne possède "
+                "une ancre AVANT unique dans le module cible"
+            )
+
+        outil_temporaire.write_text(sabotage, encoding="utf-8")
+
+        resultat = lancer_outil(outil_temporaire)
+        sortie = _sortie(resultat)
+
+        assert resultat.returncode != 0, (
+            "la batterie dont une mutation produit du Python non compilable "
+            f"a réussi :\n{sortie}"
+        )
+        assert PHRASE_NE_COMPILE_PAS in sortie, (
+            "la batterie a échoué sans atteindre la branche de compilation "
+            f"de la mutation :\n{sortie}"
+        )
+    finally:
+        if outil_temporaire.exists():
+            outil_temporaire.unlink()
+        _supprimer_pyc_temporaires(noms_temporaires)
+
+    _assert_aucune_trace_temporaire(noms_temporaires)
+    apres = _instantane_arborescence()
     _assert_instantanes_identiques(avant, apres)
 
 
@@ -368,24 +533,15 @@ def test_aucune_trace_apres_les_epreuves(lancer_outil):
 
     avant = _instantane_arborescence()
     try:
-        # Un code de retour nul ne prouve pas qu'un travail a eu lieu : l'outil
-        # doit publier le décompte de mutations effectivement exercées.
-        outil_normal = _OUTILS_MUTATION[0]
-        resultat_normal = lancer_outil(outil_normal)
-        sortie_normale = _sortie(resultat_normal)
-        assert resultat_normal.returncode == 0, (
-            "l'épreuve normale n'a pas abouti ; le contrôle d'absence de trace "
-            f"n'est pas probant :\n{sortie_normale}"
-        )
-        mutations = re.search(r"\b(\d+)/(\d+)\s+mordent\b", sortie_normale)
-        assert mutations is not None, (
-            "l'épreuve normale ne prouve aucun travail de mutation :\n"
-            f"{sortie_normale}"
-        )
-        assert int(mutations.group(1)) > 0 and int(mutations.group(2)) > 0, (
-            "l'épreuve normale annonce un compte de mutations inactif :\n"
-            f"{sortie_normale}"
-        )
+        for outil in _OUTILS_MUTATION:
+            resultat_normal = lancer_outil(outil)
+            sortie_normale = _sortie(resultat_normal)
+            assert resultat_normal.returncode == 0, (
+                f"l'épreuve normale de {outil.name} n'a pas abouti ; "
+                "le contrôle d'absence de trace n'est pas probant :\n"
+                f"{sortie_normale}"
+            )
+            _assert_mutations_effectives(sortie_normale, outil)
 
         chemin_suite_rouge.write_text(
             "def test_epreuve_deliberement_rouge():\n"
@@ -429,9 +585,6 @@ def test_aucune_trace_apres_les_epreuves(lancer_outil):
             chemin_module_sans_garde.unlink()
         _supprimer_pyc_temporaires(noms_temporaires)
 
-    # Les caches ordinaires restent exclus de l'empreinte car ils sont des
-    # artefacts de course ; ceux des fichiers créés par cette épreuve sont,
-    # eux, explicitement contrôlés et ne peuvent donc pas être masqués.
     _assert_aucune_trace_temporaire(noms_temporaires)
     apres = _instantane_arborescence()
     _assert_instantanes_identiques(avant, apres)

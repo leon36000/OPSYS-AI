@@ -22,6 +22,8 @@ TEST_OUTILS = TESTS / "test_outils_de_preuve.py"
 BMAD = ESTIMATION / "docs" / "bmad" / "verif_coherence.py"
 STATUT_LINT = RACINE / "scripts" / "statut_lint.py"
 STRUCTURE_LINT = RACINE / "scripts" / "structure_lint.py"
+
+# La portabilité de ce contrôle externe n'est pas garantie par le dépôt seul.
 NO_STUB = pathlib.Path.home() / "proof-method" / "git-hooks" / "no_stub_ast.py"
 
 
@@ -41,26 +43,62 @@ def derniere_ligne_significative(sortie):
     return "<aucune ligne significative>"
 
 
-def afficher_controle(nom, commande, code_retour, derniere_ligne):
+def afficher_controle(
+    nom,
+    commande,
+    code_retour,
+    derniere_ligne,
+    executable_externe=None,
+):
     """Affiche le résultat consolidé d'un contrôle."""
-    print(f"contrôle : {nom}")
+    if executable_externe is None:
+        etiquette = nom
+    else:
+        etiquette = (
+            f"{nom} (EXTERNE : exécutable hors du dépôt : {executable_externe})"
+        )
+    print(f"contrôle : {etiquette}")
     print(f"commande : {shlex.join([str(element) for element in commande])}")
     print(f"code de retour : {code_retour}")
     print(f"dernière ligne significative : {derniere_ligne}")
 
 
-def executer(nom, commande, preconditions):
+def executer(nom, commande, preconditions, executable_externe=None):
     """Exécute un contrôle ou produit un échec explicite s'il est indisponible."""
     indisponibles = [str(chemin) for chemin in preconditions if not chemin.exists()]
     if indisponibles:
-        message = "introuvable : " + ", ".join(indisponibles)
-        afficher_controle(nom, commande, "introuvable", message)
+        if executable_externe is not None and str(executable_externe) in indisponibles:
+            message = (
+                "contrôle EXTERNE : exécutable hors du dépôt introuvable : "
+                f"{executable_externe}"
+            )
+        else:
+            message = "introuvable : " + ", ".join(indisponibles)
+        afficher_controle(
+            nom,
+            commande,
+            "introuvable",
+            message,
+            executable_externe,
+        )
         return False, False
 
     executable = commande[0]
     if not executable_disponible(executable):
-        message = f"exécutable introuvable : {executable}"
-        afficher_controle(nom, commande, "introuvable", message)
+        if executable_externe is not None:
+            message = (
+                "contrôle EXTERNE : exécutable hors du dépôt introuvable : "
+                f"{executable_externe}"
+            )
+        else:
+            message = f"exécutable introuvable : {executable}"
+        afficher_controle(
+            nom,
+            commande,
+            "introuvable",
+            message,
+            executable_externe,
+        )
         return False, False
 
     try:
@@ -74,16 +112,40 @@ def executer(nom, commande, preconditions):
             check=False,
         )
     except FileNotFoundError:
-        message = f"exécutable introuvable : {executable}"
-        afficher_controle(nom, commande, "introuvable", message)
+        if executable_externe is not None:
+            message = (
+                "contrôle EXTERNE : exécutable hors du dépôt introuvable : "
+                f"{executable_externe}"
+            )
+        else:
+            message = f"exécutable introuvable : {executable}"
+        afficher_controle(
+            nom,
+            commande,
+            "introuvable",
+            message,
+            executable_externe,
+        )
         return False, False
     except PermissionError:
         message = f"exécutable non lançable : {executable}"
-        afficher_controle(nom, commande, "non lançable", message)
+        afficher_controle(
+            nom,
+            commande,
+            "non lançable",
+            message,
+            executable_externe,
+        )
         return False, False
     except OSError as erreur:
         message = f"échec de lancement : {erreur}"
-        afficher_controle(nom, commande, "non lançable", message)
+        afficher_controle(
+            nom,
+            commande,
+            "non lançable",
+            message,
+            executable_externe,
+        )
         return False, False
 
     afficher_controle(
@@ -91,6 +153,7 @@ def executer(nom, commande, preconditions):
         commande,
         resultat.returncode,
         derniere_ligne_significative(resultat.stdout),
+        executable_externe,
     )
     return True, resultat.returncode == 0
 
@@ -110,26 +173,31 @@ controles = [
             "--color=no",
         ],
         [TESTS],
+        None,
     ),
     (
         "gate BMAD",
         [sys.executable, str(BMAD)],
         [BMAD],
+        None,
     ),
     (
         "statut lint",
         [sys.executable, str(STATUT_LINT)],
         [STATUT_LINT],
+        None,
     ),
     (
         "structure lint",
         [sys.executable, str(STRUCTURE_LINT)],
         [STRUCTURE_LINT],
+        None,
     ),
     (
         "garde no-stub",
         [sys.executable, str(NO_STUB)] + [str(chemin) for chemin in cibles_no_stub],
         [NO_STUB, OUTILS, TEST_OUTILS] + cibles_no_stub,
+        NO_STUB,
     ),
 ]
 
@@ -140,8 +208,13 @@ if not controles:
 exécutés = 0
 echecs = 0
 
-for nom, commande, preconditions in controles:
-    a_execute, reussi = executer(nom, commande, preconditions)
+for nom, commande, preconditions, executable_externe in controles:
+    a_execute, reussi = executer(
+        nom,
+        commande,
+        preconditions,
+        executable_externe,
+    )
     if a_execute:
         exécutés += 1
     if not reussi:
