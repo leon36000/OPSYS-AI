@@ -402,3 +402,26 @@ def test_mesure_limite_reecriture_coherente_du_milieu_est_detectee_au_rang_suiva
     )
 
     _assert_validation_invalide_au_rang(journal, 2)
+
+
+def test_mesure_limite_reecriture_coherente_de_toute_la_chaine_nest_pas_detectee():
+    """Verrouille une limite connue, non un défaut : une réécriture intégrale reste valide.
+
+    La mitigation nécessaire est l'épinglage externe de ``hash_tete()``, qui
+    fournit une ancre indépendante hors de la chaîne réécrite.
+    """
+    journal = _journal_a_trois_maillons()
+    hash_precedent = registre.HASH_PREDECESSEUR_INITIAL
+
+    for rang, maillon in enumerate(journal._maillons):
+        maillon["charge"]["lead_id"] = f"lead-s008-chaine-reecrite-{rang}"
+        maillon["hash_precedent"] = hash_precedent
+        maillon["hash_maillon"] = registre._hash_maillon(
+            maillon["rang"],
+            maillon["hash_precedent"],
+            maillon["charge"],
+            maillon["cout_reel"],
+        )
+        hash_precedent = maillon["hash_maillon"]
+
+    assert journal.valider_chaine() == (True, "")

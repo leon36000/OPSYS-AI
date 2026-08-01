@@ -1,15 +1,18 @@
-#!/usr/bin/env python3
 """Batterie de mutations métier sur le registre hash-chaîné M3.
 
 Les neuf mutations de ``MUTATIONS`` doivent toutes mordre. Les deux protections
 de rang sont déclarées redondantes individuellement : le chaînage détecte les
 altérations structurelles lorsque l'une seule est neutralisée. Leur
-neutralisation combinée est néanmoins exécutée et doit mordre, car le
-chaînage reste actif ; cette mesure réfute explicitement l'ancienne
-affirmation selon laquelle les deux mécanismes pouvaient être neutralisés
-ensemble sans effet. La mutation du chaînage doit elle aussi mordre, ce qui
-établit que ce contrôle porte réellement la détection de la réécriture
-cohérente d'un maillon intermédiaire.
+neutralisation combinée est néanmoins exécutée et doit rester INERTE, car le
+chaînage demeure actif et porte seul la détection des retraits, permutations et
+duplications de maillons.
+
+Cette inertie combinée confirme la déclaration de redondance. Si elle venait à
+MORDRE, ce serait cette déclaration qui tomberait ; ce cas fait donc échouer
+l'instrument. La mutation du chaînage est exécutée séparément et doit MORDRE :
+elle établit que ce contrôle porte réellement la détection des réécritures
+cohérentes d'un maillon intermédiaire et étaye ainsi la déclaration de
+redondance au lieu de la supposer.
 """
 
 import os
