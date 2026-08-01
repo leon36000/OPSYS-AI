@@ -3,25 +3,25 @@
  "objections": [
   {
    "severite": "critique",
-   "fichier": "Pack de preuve (section PREUVE D)",
-   "description": "Le pack affiche une sortie de CI (barre de progression, rc_gate=0, STATUT_LINT: VERT, etc.) qui n'est produite par aucun script du diff. Cette preuve n'est pas reproductible depuis la branche et contrevient à la règle « une preuve qui n'existe que dans un scratchpad n'est pas une preuve ».",
-   "preuve": "La PREUVE D montre '........................................................................ [ 86%] ... rc_gate=0 \\nSTATUT_LINT: VERT ...'. Aucun des fichiers ajoutés (enumerer_gardes.py, muter_*.py, verifier_les_outils.py, test_outils_de_preuve.py) ne génère cette sortie. Le diff ne contient aucun pipeline CI."
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/verifier_les_outils.py",
+   "description": "La vérification d'intégrité (`relever_empreintes`) ne couvre que les fichiers `*.py` dans `SRC` et `OUTILS`. Les fichiers de tests (dans `TESTS`, hors `OUTILS`) et les fichiers non‑Python (ex. `README.md`, rapports `.xml`, caches) ne sont pas surveillés. Une altération d'un test (ex. `test_qualite_photos.py`) ou l'introduction d'un fichier parasite ne serait pas détectée, rendant le contrôle d'intégrité non fiable.",
+   "preuve": "Lignes `for dossier in (SRC, OUTILS): for chemin in sorted(dossier.rglob('*.py'))`. Le dossier `TESTS` (et tout fichier non `.py`) est exclu. La vérification finale compare `empreintes_finales == empreintes_initiales` sur ce périmètre restreint."
   },
   {
    "severite": "majeure",
    "fichier": "Modules M/M3-estimation/tests/test_outils_de_preuve.py",
-   "description": "Le test test_chaque_outil_de_mutation_declare_sa_cible_dans_son_code collecte toutes les chaînes de l'AST et accepte toute correspondance avec le nom du module attendu, sans vérifier que cette chaîne est affectée à SRC. Un outil pourrait mentionner le module dans une docstring ou une chaîne inutilisée et passer le test sans que SRC pointe sur le bon fichier.",
-   "preuve": "Lignes du diff : 'chaines = [ n.value for n in ast.walk(arbre) if isinstance(n, ast.Constant) and isinstance(n.value, str) ]' puis 'vise = any(c == f\"{attendu}.py\" or c.endswith(f\"/{attendu}.py\") for c in chaines)'. Aucune inspection d'une affectation SRC n'est faite."
+   "description": "Le test `test_chaque_outil_de_mutation_declare_sa_cible_dans_son_code` annonce extraire la cible « du littéral affecté à SRC » (docstring), mais il parcourt en réalité toutes les constantes chaînes de l'AST sans vérifier qu'elles sont affectées à `SRC`. Une mention fortuite du nom du module dans une chaîne quelconque (docstring, valeur non liée) suffirait à valider le test.",
+   "preuve": "Docstring : 'La cible est extraite par AST du littéral affecté à SRC'. Code : `chaines = [n.value for n in ast.walk(arbre) if isinstance(n, ast.Constant) and isinstance(n.value, str)]` puis `vise = any(c == f\"{attendu}.py\" or c.endswith(f\"/{attendu}.py\") for c in chaines)` sans inspection d'une affectation `SRC = ...`."
   },
   {
-   "severite": "majeure",
-   "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_monte_carlo.py",
-   "description": "La mutation déclarée inerte supprime le plafond (et le plancher) de bornage par 'if False:', alors que le code admet que ce filet existe « contre un dépassement d'un chiffre binaire lié à l'arrondi flottant » et que le contrat exige des bornes dans le barème. L'inertie n'est pas prouvée et la mutation est une vraie régression de protection.",
-   "preuve": "REDONDANCES_DECLAREES : 'bornage au bareme : le plafond ne s applique plus' remplace 'if borne_haute > plafond: borne_haute = plafond' par 'if False: borne_haute = plafond' ; raison citée : « C est un filet contre un depassement d un chiffre binaire lie a l arrondi flottant... il est conserve parce que le contrat exige que les bornes restent dans le bareme »."
+   "severite": "mineure",
+   "fichier": "Pack de preuve (section PREUVE C)",
+   "description": "Les sorties présentées dans PREUVE C sont préfixées du nom du module (ex. `qualite_photos         controles=19...`), mais les scripts versionnés (notamment `enumerer_gardes.py`) émettent uniquement `controles=...` sans préfixe. L'affirmation selon laquelle ces sorties sont reproductibles n'est pas entièrement exacte.",
+   "preuve": "Sortie de `enumerer_gardes.py` : `print(f\"\\ncontroles={len(gardes)}...\")`. Le préfixe `qualite_photos` n'est pas émis par le script. Le format affiché dans la preuve n'est pas directement produit par l'instrument versionné."
   }
  ],
- "date_heure": "2026-08-01T17:20:33.725011+00:00",
- "prompt_sha256": "008e4194726f8457704b2682e02b73b9d44dd268cdd218e6f6e5b683ddb7468a",
+ "date_heure": "2026-08-01T17:32:46.380537+00:00",
+ "prompt_sha256": "cd84d624ae8d11b3b855775cd6d4d970f558b338ada6aae234460018ac26343b",
  "reviewer_model": "DeepSeek-V4-Pro",
  "modele_servi": "deepseek-v4-pro-direct",
  "gateway_resilience": {

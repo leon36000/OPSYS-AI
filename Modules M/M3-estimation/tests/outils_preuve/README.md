@@ -30,9 +30,22 @@ englobantes et décisions de blocage ; ROUGE qualifié en refus nommé ou planta
     python3 -B "Modules M/M3-estimation/tests/outils_preuve/muter_<module>.py" .
 
 Batterie de mutations MÉTIER : chaque mutation est une erreur de conception plausible qui
-doit faire virer la suite au ROUGE. Les mutations qui ne PEUVENT PAS mordre — redondances
-structurelles — sont DÉCLARÉES avec leur raison mesurée, et le script échoue dans les DEUX
-sens : si une redondance déclarée se mettait à mordre, l'hypothèse serait tombée.
+doit faire virer la suite au ROUGE. Les mutations qui NE MORDENT PAS sont DÉCLARÉES avec leur
+raison mesurée, et le script échoue dans les DEUX sens : si une redondance déclarée se mettait
+à mordre, l'hypothèse serait tombée.
+
+Deux natures de déclaration, et le README ne doit pas les confondre — une revue scellée a
+relevé cette contradiction :
+
+- **redondance STRUCTURELLE** — l'inertie se démontre. Exemple : la borne `nombre_photos >= 3`
+  de MULTI_VUES est impliquée par `angles_distincts >= 3`, puisque le cardinal d'un ensemble
+  de valeurs prises sur les photos ne peut excéder leur nombre.
+- **inertie EMPIRIQUE** — l'inertie s'observe, elle ne se prouve pas. Exemple : le bornage au
+  barème de Monte Carlo, 0 déclenchement sur 300 graines et 0 excursion sur 2 500 000 tirages,
+  mais la documentation CPython avertit que la borne haute de `uniform` peut ou non être
+  incluse selon l'arrondi. Un échantillon, même large, ne démontre pas une impossibilité.
+
+Écrire « ne peuvent pas mordre » pour les deux affirmait plus que la mesure.
 
 ## `verifier_les_outils.py` — l'instrument qui vérifie les instruments
 
@@ -76,6 +89,17 @@ branche — étaient irreproductibles là où on les présentait.
 La règle qui en sort : **un outil de preuve ne vit dans le dépôt qu'avec la cible qu'il
 mesure.** `test_outils_de_preuve.py` la fait respecter — il exige que chaque
 `muter_<module>.py` ait son module, et que chaque outil s'annonce par un docstring.
+
+## La limite résiduelle, déclarée
+
+Le vérificateur exige un contrôle NÉGATIF (l'outil doit rendre zéro à l'état sain), le MOTIF
+attendu de chaque garde, et une DISCRIMINATION (deux sabotages différents doivent produire
+deux messages différents). Cela rend le trucage plus coûteux que la chose réelle.
+
+**Cela ne le rend pas impossible.** Un instrument ne peut pas prouver qu'un autre instrument
+n'est pas un leurre : un outil qui simulerait exactement les messages attendus, dans le bon
+ordre, passerait. La limite est déclarée ici plutôt que tue — c'est ce que la méthode exige
+d'une frontière connue.
 
 ## Discipline
 

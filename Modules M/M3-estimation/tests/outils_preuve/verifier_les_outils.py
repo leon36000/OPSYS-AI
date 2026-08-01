@@ -9,23 +9,23 @@ portée, la branche, les sources ni les conditions d'exécution.
 
 Ce script provoque la référence déjà rouge, l'extracteur vide et l'outil orphelin,
 puis exige que les outils concernés sortent en erreur. Après chaque épreuve, il
-contrôle aussi que tous les fichiers Python sources et tous les outils ont retrouvé
-exactement leur empreinte sha256 initiale.
+contrôle aussi que tous les fichiers sous les sources M3 et les tests ont retrouvé
+exactement leur contenu et leurs chemins initiaux.
 
 Deux objections critiques convergentes ont toutefois relevé qu'un code de retour
 non nul ne dit pas QUELLE garde a parlé. Sans contrôle négatif préalable ni motif
 attendu, un instrument hors d'usage — erreur de syntaxe, import manquant ou
 dépendance absente — serait certifié conforme. Chaque outil est donc d'abord exigé
 sain sans sabotage, puis son échec provoqué doit contenir le motif propre à la
-garde exercée.
+garde exercée. Le contrôle de discrimination compare aussi deux sabotages distincts
+pour rendre un leurre plus coûteux ; il ne peut toutefois pas prouver qu'un autre
+instrument n'est pas lui-même un leurre.
 """
 import hashlib
 import pathlib
 import subprocess
 import sys
 
-# Un code de retour seul ne distingue pas « la garde a mordu » de « l'outil est
-# cassé » : chaque sabotage doit produire son motif distinctif.
 MOTIFS_ATTENDUS = {
     "reference_rouge": ("ABANDON", "ROUGE"),
     "extracteur_vide": ("ABANDON", "extracteur"),
@@ -50,13 +50,33 @@ def empreinte(chemin):
     return hashlib.sha256(chemin.read_bytes()).hexdigest()
 
 
+def fichiers_controles():
+    """Énumère tous les fichiers de contenu des sources et des tests."""
+    for dossier in (SRC, TESTS):
+        for chemin in sorted(dossier.rglob("*")):
+            if not chemin.is_file():
+                continue
+            # Les caches Python et pytest sont des artefacts d'exécution, pas
+            # du contenu livré : ils sont donc explicitement exclus du contrôle.
+            if "__pycache__" in chemin.parts or ".pytest_cache" in chemin.parts:
+                continue
+            yield chemin
+
+
+def relever_chemins():
+    """Relève l'ensemble des chemins contrôlés, relatifs à la racine."""
+    return {
+        str(chemin.relative_to(RACINE))
+        for chemin in fichiers_controles()
+    }
+
+
 def relever_empreintes():
-    """Relève toutes les empreintes Python des sources et des outils."""
-    resultat = {}
-    for dossier in (SRC, OUTILS):
-        for chemin in sorted(dossier.rglob("*.py")):
-            resultat[str(chemin.relative_to(RACINE))] = empreinte(chemin)
-    return resultat
+    """Relève l'empreinte de tous les fichiers contrôlés, toute extension incluse."""
+    return {
+        str(chemin.relative_to(RACINE)): empreinte(chemin)
+        for chemin in fichiers_controles()
+    }
 
 
 def retirer(chemin):
@@ -75,11 +95,16 @@ def lancer(commande):
     )
 
 
-def verifier_restauration(etape, depots, empreintes_initiales, echecs):
-    """Contrôle les dépôts retirés et l'identité exacte de toutes les empreintes."""
+def verifier_restauration(etape, depots, empreintes_initiales, chemins_initiaux, echecs):
+    """Contrôle les dépôts retirés, chemins et empreintes après une épreuve."""
     absents = [str(depot.relative_to(RACINE)) for depot in depots if depot.exists()]
+    chemins_finaux = relever_chemins()
     empreintes_finales = relever_empreintes()
-    conforme = not absents and empreintes_finales == empreintes_initiales
+    conforme = (
+        not absents
+        and chemins_finaux == chemins_initiaux
+        and empreintes_finales == empreintes_initiales
+    )
 
     if conforme:
         return
@@ -87,6 +112,13 @@ def verifier_restauration(etape, depots, empreintes_initiales, echecs):
     details = []
     if absents:
         details.append("dépôts encore présents : " + ", ".join(absents))
+
+    chemins_manquants = sorted(chemins_initiaux - chemins_finaux)
+    chemins_ajoutes = sorted(chemins_finaux - chemins_initiaux)
+    if chemins_manquants:
+        details.append("chemins disparus : " + ", ".join(chemins_manquants))
+    if chemins_ajoutes:
+        details.append("chemins ajoutés : " + ", ".join(chemins_ajoutes))
 
     manquants = sorted(set(empreintes_initiales) - set(empreintes_finales))
     ajoutes = sorted(set(empreintes_finales) - set(empreintes_initiales))
@@ -96,9 +128,9 @@ def verifier_restauration(etape, depots, empreintes_initiales, echecs):
         if empreintes_initiales[nom] != empreintes_finales[nom]
     )
     if manquants:
-        details.append("fichiers disparus : " + ", ".join(manquants))
+        details.append("empreintes disparues : " + ", ".join(manquants))
     if ajoutes:
-        details.append("fichiers ajoutés : " + ", ".join(ajoutes))
+        details.append("empreintes ajoutées : " + ", ".join(ajoutes))
     if modifies:
         details.append("empreintes modifiées : " + ", ".join(modifies))
 
@@ -145,6 +177,16 @@ def exiger_morsure(libelle, resultat, motifs, echecs):
     print(f"{libelle} : rc={resultat.returncode} — garde exercée")
 
 
+def exiger_discrimination(libelle, sortie_a, sortie_b, echecs):
+    """Exige que deux sabotages de nature distincte ne produisent pas le même message."""
+    if sortie_a != sortie_b:
+        print(f"{libelle} : messages distincts")
+        return
+
+    print(f"{libelle} : ECHEC : les deux sabotages produisent le même message")
+    echecs.append(libelle)
+
+
 def abandonner(message):
     """Refuse une conclusion positive lorsque le contrôle n'est pas probant."""
     print(f"ABANDON : {message} ; le contrôle n'est pas probant.")
@@ -173,9 +215,10 @@ for depot in (TEST_ROUGE, MODULE_VIDE, OUTIL_ORPHELIN):
             f"{depot.relative_to(RACINE)}"
         )
 
+CHEMINS_INITIAUX = relever_chemins()
 EMPREINTES_INITIALES = relever_empreintes()
 if not EMPREINTES_INITIALES:
-    abandonner("aucun fichier Python à empreinter dans les périmètres contrôlés")
+    abandonner("aucun fichier à empreinter dans les périmètres contrôlés")
 
 echecs = []
 epreuves = 0
@@ -204,11 +247,13 @@ for muter in MUTEURS:
             libelle,
             [TEST_ROUGE],
             EMPREINTES_INITIALES,
+            CHEMINS_INITIAUX,
             echecs,
         )
 
-libelle = "Garde 1 — référence déjà ROUGE — enumerer_gardes.py"
+libelle_rouge = "Garde 1 — référence déjà ROUGE — enumerer_gardes.py"
 commande_enumerer = [sys.executable, "-B", str(ENUMERER), str(RACINE)]
+sortie_rouge_enumerer = ""
 try:
     verifier_etat_sain(ENUMERER.name, commande_enumerer)
     TEST_ROUGE.write_text(
@@ -216,24 +261,26 @@ try:
         '    raise AssertionError("référence volontairement rouge")\n',
         encoding="utf-8",
     )
-    resultat = lancer(commande_enumerer)
+    resultat_rouge = lancer(commande_enumerer)
+    sortie_rouge_enumerer = sortie_complete(resultat_rouge)
     epreuves += 1
     exiger_morsure(
-        libelle,
-        resultat,
+        libelle_rouge,
+        resultat_rouge,
         MOTIFS_ATTENDUS["reference_rouge"],
         echecs,
     )
 finally:
     retirer(TEST_ROUGE)
     verifier_restauration(
-        libelle,
+        libelle_rouge,
         [TEST_ROUGE],
         EMPREINTES_INITIALES,
+        CHEMINS_INITIAUX,
         echecs,
     )
 
-libelle = "Garde 2 — extracteur vide — enumerer_gardes.py"
+libelle_vide = "Garde 2 — extracteur vide — enumerer_gardes.py"
 commande_extracteur = [
     sys.executable,
     "-B",
@@ -241,6 +288,7 @@ commande_extracteur = [
     str(RACINE),
     MODULE_VIDE.stem,
 ]
+sortie_vide_enumerer = ""
 try:
     verifier_etat_sain(
         f"{ENUMERER.name} (cible saine existante)",
@@ -253,22 +301,33 @@ try:
         "    return 1\n",
         encoding="utf-8",
     )
-    resultat = lancer(commande_extracteur)
+    resultat_vide = lancer(commande_extracteur)
+    sortie_vide_enumerer = sortie_complete(resultat_vide)
     epreuves += 1
     exiger_morsure(
-        libelle,
-        resultat,
+        libelle_vide,
+        resultat_vide,
         MOTIFS_ATTENDUS["extracteur_vide"],
         echecs,
     )
 finally:
     retirer(MODULE_VIDE)
     verifier_restauration(
-        libelle,
+        libelle_vide,
         [MODULE_VIDE],
         EMPREINTES_INITIALES,
+        CHEMINS_INITIAUX,
         echecs,
     )
+
+# Cette discrimination rend un leurre plus coûteux, sans pouvoir démontrer
+# qu'un instrument externe n'est pas lui-même un leurre.
+exiger_discrimination(
+    "Garde 2 bis — discrimination référence rouge / extracteur vide",
+    sortie_rouge_enumerer,
+    sortie_vide_enumerer,
+    echecs,
+)
 
 libelle = "Garde 3 — outil orphelin — test_outils_de_preuve.py"
 commande_pytest = [
@@ -303,6 +362,7 @@ finally:
         libelle,
         [OUTIL_ORPHELIN],
         EMPREINTES_INITIALES,
+        CHEMINS_INITIAUX,
         echecs,
     )
 

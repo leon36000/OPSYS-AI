@@ -31,6 +31,70 @@ def _outils_de_mutation():
     return trouves
 
 
+def _noms_cibles(noeud):
+    """Retourne récursivement les noms liés par une cible d'affectation."""
+    if isinstance(noeud, ast.Name):
+        return [noeud.id]
+    if isinstance(noeud, (ast.Tuple, ast.List)):
+        return [
+            nom
+            for element in noeud.elts
+            for nom in _noms_cibles(element)
+        ]
+    return []
+
+
+def _chaines_de_valeur(valeur):
+    """Extrait les littéraux chaîne réellement atteignables depuis une valeur."""
+    return [
+        noeud.value
+        for noeud in ast.walk(valeur)
+        if isinstance(noeud, ast.Constant) and isinstance(noeud.value, str)
+    ]
+
+
+def _valeur_est_un_chemin_source(valeur):
+    """Distingue un chemin source d'un leurre affecté à une majuscule."""
+    return (
+        any(
+            isinstance(noeud, ast.BinOp) and isinstance(noeud.op, ast.Div)
+            for noeud in ast.walk(valeur)
+        )
+        or any("m3_estimation" in chaine for chaine in _chaines_de_valeur(valeur))
+    )
+
+
+def _affectations_chemins_source(arbre):
+    """Extrait les littéraux des affectations majuscules de chemins source."""
+    affectations = []
+    for noeud in ast.walk(arbre):
+        if isinstance(noeud, ast.Assign):
+            noms = [
+                nom
+                for cible in noeud.targets
+                for nom in _noms_cibles(cible)
+                if nom.isupper()
+            ]
+            valeur = noeud.value
+        elif isinstance(noeud, ast.AnnAssign):
+            noms = [
+                nom
+                for nom in _noms_cibles(noeud.target)
+                if nom.isupper()
+            ]
+            valeur = noeud.value
+        else:
+            continue
+
+        if not noms or valeur is None or not _valeur_est_un_chemin_source(valeur):
+            continue
+
+        chaines = _chaines_de_valeur(valeur)
+        for nom in noms:
+            affectations.append((nom, chaines))
+    return affectations
+
+
 def test_chaque_outil_de_mutation_a_son_module_cible():
     """Un `muter_<module>.py` sans `<module>.py` plante au lieu de mesurer.
 
@@ -51,28 +115,36 @@ def test_chaque_outil_de_mutation_a_son_module_cible():
 
 
 def test_chaque_outil_de_mutation_declare_sa_cible_dans_son_code():
-    """Le nom du fichier ne suffit pas : la cible doit être lue dans le code.
+    """Exige une cible dans une affectation majuscule réellement liée à un chemin.
 
-    Empêcherait de casser : un script renommé sans que son SRC soit mis à jour —
-    le nom promettrait un module et le script en mesurerait un autre. La cible
-    est extraite par AST du littéral affecté à SRC, jamais par le nom du fichier.
+    Le nom du script ne suffit pas, mais une chaîne libre, une docstring ou une
+    affectation à un nom minuscule ne suffit pas davantage. Deux formes correctes
+    coexistent : un chemin complet construit dans une seule affectation, ou un
+    dossier déclaré puis des noms de fichiers affectés simultanément dans un tuple.
+    L'extracteur examine donc chaque nom majuscule de ces tuples et les littéraux
+    atteignables dans leur valeur, y compris au sein d'opérateurs ``/`` imbriqués.
+    Il refuse néanmoins un leurre tel que ``LEURRE = "foo.py"`` : l'affectation
+    doit faire intervenir ``/`` ou contenir explicitement ``m3_estimation``.
     """
     discordances = []
     for outil in _outils_de_mutation():
         attendu = outil.stem[len("muter_"):]
         arbre = ast.parse(outil.read_text(encoding="utf-8"))
-        # Deux styles de déclaration coexistent : un chemin complet en un
-        # littéral, ou un dossier puis le nom du fichier (``D / "module.py"``).
-        # L'extracteur doit couvrir les DEUX, sinon il rapporte « aucune cible »
-        # pour un script parfaitement correct — mesuré sur muter_qualite_photos.
-        chaines = [
-            n.value for n in ast.walk(arbre)
-            if isinstance(n, ast.Constant) and isinstance(n.value, str)
-        ]
-        vise = any(c == f"{attendu}.py" or c.endswith(f"/{attendu}.py") for c in chaines)
+        affectations = _affectations_chemins_source(arbre)
+        vise = any(
+            chaine == f"{attendu}.py" or chaine.endswith(f"/{attendu}.py")
+            for _, chaines in affectations
+            for chaine in chaines
+        )
         if not vise:
-            fichiers = sorted({c for c in chaines if c.endswith(".py")})
-            discordances.append(f"{outil.name} : fichiers cités {fichiers or '<aucun>'}")
+            examinees = [
+                f"{nom}={chaines!r}"
+                for nom, chaines in affectations
+            ]
+            discordances.append(
+                f"{outil.name} : affectations examinées "
+                f"{'; '.join(examinees) if examinees else '<aucune>'}"
+            )
     assert not discordances, (
         "le nom du script ne correspond pas au module qu'il mesure :\n  "
         + "\n  ".join(discordances)

@@ -4,30 +4,42 @@
   {
    "severite": "critique",
    "fichier": "Modules M/M3-estimation/tests/outils_preuve/verifier_les_outils.py",
-   "description": "Le script peut conclure à zéro échec sans qu'une garde interne ait réellement été exercée : tout code de retour non nul est accepté comme preuve de morsure. Un fichier muter_*.py conforme au nommage mais terminant immédiatement avec sys.exit(1) ferait rc=1, incrémenterait epreuves et ne serait pas ajouté à echecs.",
-   "preuve": "epreuves += 1 ; exiger_morsure(libelle, resultat, echecs) ; def exiger_morsure: print(f\"{libelle} : rc={resultat.returncode}\") ; if resultat.returncode == 0: echecs.append(libelle). Aucun contrôle du message, de l'attribution ou de l'exécution effective d'une garde."
+   "description": "Un chemin permet de conclure « gardes éprouvées=N échecs=0 » sans qu'une garde interne ait été exercée : le contrôle négatif exige seulement rc=0 avant sabotage, puis accepte tout rc!=0 contenant les sous-chaînes attendues. Un outil nommé muter_<module>.py, sain en apparence (rc=0 hors sabotage), qui imprime « ABANDON » et « ROUGE » puis sort 1 dès que test_verifier_les_outils_temporaire.py existe, serait accepté comme « garde exercée » sans avoir lancé la garde réelle. Le motif attendu ne prouve pas la cause de l'échec.",
+   "preuve": "verifier_etat_sain : « if resultat.returncode != 0: abandonner » ; exiger_morsure : « motifs_absents = [motif for motif in motifs if motif not in texte] » puis, si aucun motif absent, « print(f\"{libelle} : rc={resultat.returncode} — garde exercée\") ». Aucune vérification de l'absence des motifs à l'état sain, ni d'attribution des nouveaux échecs au sabotage TEST_ROUGE."
   },
   {
    "severite": "majeure",
    "fichier": "Modules M/M3-estimation/tests/test_outils_de_preuve.py",
-   "description": "La garde censée garantir que la cible est déclarée dans le code ne vérifie pas un littéral affecté à SRC ; elle accepte n'importe quelle constante chaîne contenant le nom attendu. La condition contrôlée ne correspond donc pas à la protection annoncée.",
-   "preuve": "Docstring : 'La cible est extraite par AST du littéral affecté à SRC'. Code : chaines = [n.value for n in ast.walk(arbre) if isinstance(n, ast.Constant) and isinstance(n.value, str)] ; vise = any(c == f\"{attendu}.py\" or c.endswith(f\"/{attendu}.py\") for c in chaines)."
+   "description": "La garde annoncée comme vérifiant la cible « dans le code » ne vérifie pas un littéral affecté à SRC : elle accepte n'importe quelle constante chaîne contenant le nom attendu. Un script muter_foo.py peut contenir LEURRE = \"foo.py\" tout en pointant réellement vers un autre module, et passer le test.",
+   "preuve": "Docstring : « La cible est extraite par AST du littéral affecté à SRC ». Code : « chaines = [n.value for n in ast.walk(arbre) if isinstance(n, ast.Constant) and isinstance(n.value, str)] » puis « vise = any(c == f\"{attendu}.py\" or c.endswith(f\"/{attendu}.py\") for c in chaines) ». Aucune inspection d'une affectation à SRC."
   },
   {
    "severite": "majeure",
    "fichier": "Modules M/M3-estimation/tests/outils_preuve/verifier_les_outils.py",
-   "description": "La confrontation d'empreintes ne couvre pas tous les fichiers du périmètre annoncé : une trace non Python, par exemple une modification de README.md dans outils_preuve ou l'ajout d'un fichier .txt, ne serait pas détectée.",
-   "preuve": "relever_empreintes ne hache que les fichiers Python : for dossier in (SRC, OUTILS): for chemin in sorted(dossier.rglob(\"*.py\")): resultat[str(chemin.relative_to(RACINE))] = empreinte(chemin). Le contrôle final est seulement empreintes_finales == empreintes_initiales."
+   "description": "La confrontation d'empreintes annoncée comme couvrant « tous les fichiers source et tous les outils » ne couvre en réalité que les fichiers Python sous SRC et OUTILS. Une trace laissée dans un fichier non-Python du dossier outils (README.md) ou dans un fichier de test préexistant sous TESTS ne serait pas détectée.",
+   "preuve": "relever_empreintes : « for dossier in (SRC, OUTILS): for chemin in sorted(dossier.rglob(\"*.py\")) ». verifier_restauration compare seulement ces empreintes et l'existence des dépôts temporaires ; TESTS n'est pas empreinté et README.md n'est pas inclus par rglob(\"*.py\")."
   },
   {
    "severite": "majeure",
    "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_monte_carlo.py",
-   "description": "La PREUVE B affirme que les redondances sont vérifiées inertes, mais le code déclare explicitement une inertie empirique et non prouvée ; une suite verte ne démontre pas l'impossibilité d'un dépassement lié à l'arrondi flottant.",
-   "preuve": "REDONDANCES_DECLAREES : 'INERTIE EMPIRIQUE, NON PROUVEE ... 0 declenchement sur 300 graines ... 2 500 000 tirages ... l impossibilite n est donc PAS etablie.' ; PREUVE B : 'monte_carlo 10/10 mordent | 2 redondances declarees et verifiees INERTES'."
+   "description": "Le pack et le README présentent les redondances comme des mutations qui « ne PEUVENT PAS mordre », mais la batterie Monte Carlo déclare explicitement que leur inertie est empirique et non prouvée. La sortie « vérifiées INERTES » ne soutient pas l'affirmation d'impossibilité.",
+   "preuve": "README : « Les mutations qui ne PEUVENT PAS mordre — redondances structurelles — sont DÉCLARÉES ». muter_monte_carlo.py REDONDANCES_DECLAREES : « INERTIE EMPIRIQUE, NON PROUVEE ... l impossibilite n est donc PAS etablie. ». PREUVE C : « 2 redondances declarees et verifiees INERTES »."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/bilan_preuves.py",
+   "description": "Je ne peux pas vérifier qu'un contrôle réel est exécuté pour les gates externes : bilan_preuves.py se contente du code de retour de commandes dont plusieurs exécutables ne sont pas dans le diff. Un stub ou un script vide sortant 0 produirait « contrôles échoués=0 » sans contrôle effectif. Ce doute non vérifiable empêche de sceller la propriété « aucun verdict écrit d'avance ».",
+   "preuve": "executer : « return True, resultat.returncode == 0 ». Les contrôles utilisent « pytest », « STATUT_LINT = RACINE / \"scripts\" / \"statut_lint.py\" », « STRUCTURE_LINT = RACINE / \"scripts\" / \"structure_lint.py\" » et « NO_STUB = pathlib.Path.home() / \"proof-method\" / \"git-hooks\" / \"no_stub_ast.py\" », aucun de ces fichiers externes n'est ajouté par le diff."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Pack de preuve (section PREUVE C)",
+   "description": "Les sorties PREUVE C sont préfixées par le nom du module, alors que les instruments versionnés ne produisent pas ce préfixe. La présentation n'est donc pas une sortie brute des exécutables du diff.",
+   "preuve": "enumerer_gardes.py imprime « print(f\"\\ncontroles={len(gardes)}...\") » sans nom de module ; les scripts muter_*.py impriment « print(f\"\\n{mutations_mordues}/{len(MUTATIONS)} mordent | ...\") » sans nom de module. PREUVE C affiche des lignes préfixées : « qualite_photos         controles=19... », « hierarchie_echelle     controles=3... »."
   }
  ],
- "date_heure": "2026-08-01T17:22:44.720293+00:00",
- "prompt_sha256": "008e4194726f8457704b2682e02b73b9d44dd268cdd218e6f6e5b683ddb7468a",
+ "date_heure": "2026-08-01T17:39:07.426008+00:00",
+ "prompt_sha256": "cd84d624ae8d11b3b855775cd6d4d970f558b338ada6aae234460018ac26343b",
  "reviewer_model": "Qwen3.8-Max",
  "modele_servi": "qwen38-max-alibaba-sg",
  "gateway_resilience": {
