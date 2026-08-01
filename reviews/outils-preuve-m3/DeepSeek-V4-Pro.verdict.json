@@ -3,19 +3,25 @@
  "objections": [
   {
    "severite": "critique",
-   "fichier": "PREUVE D du pack",
-   "description": "La sortie « outil orphelin déposé -> ROUGE (la garde mord) / dossier restauré : True » est présentée comme preuve dans le descriptif du pack, mais aucun script du diff ne génère cette sortie. Elle est irreproductible sur la branche, ce qui contredit la règle « Une preuve qui n'existe que dans un scratchpad n'est pas une preuve » énoncée dans le README livré.",
-   "preuve": "Le diff ne contient que les scripts outils_preuve/*.py et test_outils_de_preuve.py. Aucun d'eux ne produit le texte cité. La sortie du test_outils_de_preuve.py est un rapport pytest et non cette chaîne. Le pack lui-même cite ce texte dans sa section PREUVE D."
+   "fichier": "Pack de preuve (section PREUVE D)",
+   "description": "Le pack affiche une sortie de CI (barre de progression, rc_gate=0, STATUT_LINT: VERT, etc.) qui n'est produite par aucun script du diff. Cette preuve n'est pas reproductible depuis la branche et contrevient à la règle « une preuve qui n'existe que dans un scratchpad n'est pas une preuve ».",
+   "preuve": "La PREUVE D montre '........................................................................ [ 86%] ... rc_gate=0 \\nSTATUT_LINT: VERT ...'. Aucun des fichiers ajoutés (enumerer_gardes.py, muter_*.py, verifier_les_outils.py, test_outils_de_preuve.py) ne génère cette sortie. Le diff ne contient aucun pipeline CI."
   },
   {
    "severite": "majeure",
    "fichier": "Modules M/M3-estimation/tests/test_outils_de_preuve.py",
-   "description": "Le test `test_chaque_outil_de_mutation_declare_sa_cible_dans_son_code` vérifie que le nom du module attendu apparaît dans une constante chaîne quelconque de l'AST, sans exiger qu'il s'agisse de l'affectation à `SRC`. Un outil de mutation pourrait cibler un autre module et inclure le nom attendu dans une docstring ou une chaîne inutilisée, et ce test le déclarerait valide à tort.",
-   "preuve": "Lignes du diff correspondant au test : il collecte toutes les chaînes (`chaines = [ n.value for n in ast.walk(arbre) if isinstance(n, ast.Constant) and isinstance(n.value, str) ]`) puis accepte toute correspondance (`vise = any(c == f\"{attendu}.py\" or c.endswith(f\"/{attendu}.py\") for c in chaines)`). Il n'y a aucune vérification de l'affectation à la variable `SRC`, contrairement à ce qu'affirme la docstring du test."
+   "description": "Le test test_chaque_outil_de_mutation_declare_sa_cible_dans_son_code collecte toutes les chaînes de l'AST et accepte toute correspondance avec le nom du module attendu, sans vérifier que cette chaîne est affectée à SRC. Un outil pourrait mentionner le module dans une docstring ou une chaîne inutilisée et passer le test sans que SRC pointe sur le bon fichier.",
+   "preuve": "Lignes du diff : 'chaines = [ n.value for n in ast.walk(arbre) if isinstance(n, ast.Constant) and isinstance(n.value, str) ]' puis 'vise = any(c == f\"{attendu}.py\" or c.endswith(f\"/{attendu}.py\") for c in chaines)'. Aucune inspection d'une affectation SRC n'est faite."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_monte_carlo.py",
+   "description": "La mutation déclarée inerte supprime le plafond (et le plancher) de bornage par 'if False:', alors que le code admet que ce filet existe « contre un dépassement d'un chiffre binaire lié à l'arrondi flottant » et que le contrat exige des bornes dans le barème. L'inertie n'est pas prouvée et la mutation est une vraie régression de protection.",
+   "preuve": "REDONDANCES_DECLAREES : 'bornage au bareme : le plafond ne s applique plus' remplace 'if borne_haute > plafond: borne_haute = plafond' par 'if False: borne_haute = plafond' ; raison citée : « C est un filet contre un depassement d un chiffre binaire lie a l arrondi flottant... il est conserve parce que le contrat exige que les bornes restent dans le bareme »."
   }
  ],
- "date_heure": "2026-08-01T08:00:06.146347+00:00",
- "prompt_sha256": "87d00ad8da57cd0000c48ab6d6aabd18365f74f092f3877d5ff9f17e1a892cc6",
+ "date_heure": "2026-08-01T17:20:33.725011+00:00",
+ "prompt_sha256": "008e4194726f8457704b2682e02b73b9d44dd268cdd218e6f6e5b683ddb7468a",
  "reviewer_model": "DeepSeek-V4-Pro",
  "modele_servi": "deepseek-v4-pro-direct",
  "gateway_resilience": {

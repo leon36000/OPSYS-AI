@@ -3,19 +3,31 @@
  "objections": [
   {
    "severite": "critique",
-   "fichier": "Modules M/M3-estimation/tests/outils_preuve/README.md",
-   "description": "Le pack présente une sortie de preuve pour la garde d'exécutabilité ('outil orphelin déposé -> ROUGE'), mais aucun script dans le diff ne produit cette sortie. C'est une preuve de scratchpad non versionnée et irreproductible en l'état sur la branche, ce qui contredit directement la règle 1 du README ('Une preuve qui n'existe que dans un scratchpad n'est pas une preuve').",
-   "preuve": "La sortie 'outil orphelin déposé -> ROUGE (la garde mord) / dossier restauré : True' est citée dans la description du pack (PREUVE D), mais introuvable dans les scripts fournis. Seul `test_outils_de_preuve.py` existe, qui est un test pytest standard et ne génère pas cette sortie de preuve de morsure."
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/verifier_les_outils.py",
+   "description": "L'instrument conclut au succès ('0 échec') si un outil retourne un code non nul, sans vérifier la cause. Si un outil est cassé (ex: erreur de syntaxe), il plantera avec rc=1 avant même d'atteindre la garde. L'instrument comptera cela comme un succès de la garde sans l'avoir éprouvée, et ne vérifie jamais que l'outil peut retourner 0 en condition normale.",
+   "preuve": "Dans `exiger_morsure`, la seule vérification est `if resultat.returncode == 0: echecs.append(libelle)`. L'instrument ne vérifie ni la sortie standard/erreur, ni que l'outil est capable de retourner 0."
   },
   {
-   "severite": "critique",
-   "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_monte_carlo.py",
-   "description": "La suppression du plafond (et du plancher) est déclarée inerte sous prétexte que sur 300 graines, le bornage ne s'est pas déclenché. L'auteur admet que c'est un 'filet contre un dépassement lié à l'arrondi flottant' et que 'le contrat exige que les bornes restent dans le barème'. En Python, `random.uniform(a, b)` peut mathématiquement retourner une valeur excédant `b` à cause des arrondis flottants. La garde est donc indispensable pour respecter le contrat. Le fait qu'elle reste verte prouve seulement que la suite de tests (300 graines) est aveugle à ce cas limite rare, pas que la mutation est inerte. C'est un vrai défaut déguisé en redondance.",
-   "preuve": "Lignes déclarant la redondance : 'C est un filet contre un depassement d un chiffre binaire lie a l arrondi flottant... il est conserve parce que le contrat exige que les bornes restent dans le bareme.' La mutation remplace `if borne_haute > plafond: borne_haute = plafond` par `if False:`."
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/verifier_les_outils.py",
+   "description": "La vérification des empreintes ignore les fichiers de tests et les artefacts non-Python. Une manipulation qui modifierait un test dans TESTS ou laisserait un fichier .xml ou .pytest_cache ne serait pas détectée.",
+   "preuve": "`relever_empreintes()` scanne uniquement `(SRC, OUTILS)` avec `rglob(\"*.py\")`. Le dossier `TESTS` (hors `OUTILS`) et les fichiers non-`.py` (comme les rapports `.xml` générés par les outils) sont exclus de la confrontation."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/tests/test_outils_de_preuve.py",
+   "description": "Le test `test_chaque_outil_de_mutation_declare_sa_cible_dans_son_code` affirme extraire la cible 'du littéral affecté à SRC', mais accepte en réalité n'importe quelle constante chaîne dans l'AST. Cette objection de la ronde précédente n'a pas été corrigée.",
+   "preuve": "La docstring affirme 'La cible est extraite par AST du littéral affecté à SRC', mais le code fait `chaines = [n.value for n in ast.walk(arbre) if isinstance(n, ast.Constant) and isinstance(n.value, str)]` puis `vise = any(...)`. Il ne vérifie aucune affectation à `SRC`."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "PREUVE C du pack",
+   "description": "Le pack affirme que les sorties soutiennent le format présenté dans PREUVE C, mais les outils ne produisent pas ce format. Les préfixes avec les noms des modules ont été ajoutés manuellement.",
+   "preuve": "Dans PREUVE C, les lignes commencent par le nom du module (ex: `  qualite_photos         controles=19...`). Or, `enumerer_gardes.py` imprime `print(f\"\\ncontroles={len(gardes)}...\")` sans jamais préfixer par le nom du module."
   }
  ],
- "date_heure": "2026-08-01T08:02:36.307761+00:00",
- "prompt_sha256": "87d00ad8da57cd0000c48ab6d6aabd18365f74f092f3877d5ff9f17e1a892cc6",
+ "date_heure": "2026-08-01T17:22:18.859664+00:00",
+ "prompt_sha256": "008e4194726f8457704b2682e02b73b9d44dd268cdd218e6f6e5b683ddb7468a",
  "reviewer_model": "Gemini-3.1-Pro",
  "modele_servi": "gemini-31-pro-openrouter",
  "gateway_resilience": {

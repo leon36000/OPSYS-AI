@@ -49,6 +49,23 @@ de tous les outils AVANT, et la confronte APRÈS chaque manipulation : un vérif
 laisse une trace est un vérificateur qui ment. Il abandonne s'il n'a pu éprouver aucune
 garde.
 
+## `bilan_preuves.py` — le bilan des gates, produit par un instrument
+
+    python3 -B "Modules M/M3-estimation/tests/outils_preuve/bilan_preuves.py" .
+
+Une objection critique de revue a relevé que la section « gates » des packs affichait une
+sortie assemblée par du shell écrit DANS le pack : barre de progression pytest, `rc_gate=0`,
+`STATUT_LINT: VERT`. Aucun instrument versionné ne la produisait — elle n'était donc pas
+rejouable.
+
+Ce script exécute les cinq contrôles du dépôt, chacun par son propre exécutable, et imprime
+le nom, la commande RÉELLE, le code de retour et la dernière ligne significative. Aucun
+verdict n'est écrit d'avance : chacun vient du code de retour observé. Un exécutable
+introuvable est un ÉCHEC nommé, jamais un saut silencieux.
+
+Mesuré : gate retirée du disque -> `contrôles exécutés=4 échoués=2`, rc=1. Test saboté ->
+`exécutés=5 échoués=1`, rc=1.
+
 ## Un outil n'accompagne que des cibles qui existent
 
 Une revue scellée a rendu APPROVE 0/3 sur une première version de ce dossier : elle

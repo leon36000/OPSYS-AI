@@ -7,18 +7,30 @@ et rejouable. Un extrait Python recopié dans un dossier de revue n'est pas une
 preuve reproductible ; c'est une affirmation dont personne ne peut contrôler la
 portée, la branche, les sources ni les conditions d'exécution.
 
-Ce script répond aux quatre objections critiques convergentes soulevées contre ce
-défaut. Il provoque la référence déjà rouge, l'extracteur vide et l'outil orphelin,
+Ce script provoque la référence déjà rouge, l'extracteur vide et l'outil orphelin,
 puis exige que les outils concernés sortent en erreur. Après chaque épreuve, il
 contrôle aussi que tous les fichiers Python sources et tous les outils ont retrouvé
-exactement leur empreinte sha256 initiale. Ainsi, le vérificateur ne se contente pas
-d'affirmer que les gardes existent : il rejoue les conditions qui doivent les faire
-mordre et refuse de conclure si l'instrument laisse la moindre trace.
+exactement leur empreinte sha256 initiale.
+
+Deux objections critiques convergentes ont toutefois relevé qu'un code de retour
+non nul ne dit pas QUELLE garde a parlé. Sans contrôle négatif préalable ni motif
+attendu, un instrument hors d'usage — erreur de syntaxe, import manquant ou
+dépendance absente — serait certifié conforme. Chaque outil est donc d'abord exigé
+sain sans sabotage, puis son échec provoqué doit contenir le motif propre à la
+garde exercée.
 """
 import hashlib
 import pathlib
 import subprocess
 import sys
+
+# Un code de retour seul ne distingue pas « la garde a mordu » de « l'outil est
+# cassé » : chaque sabotage doit produire son motif distinctif.
+MOTIFS_ATTENDUS = {
+    "reference_rouge": ("ABANDON", "ROUGE"),
+    "extracteur_vide": ("ABANDON", "extracteur"),
+    "outil_orphelin": ("test_chaque_outil_de_mutation_a_son_module_cible",),
+}
 
 RACINE = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
 ESTIMATION = RACINE / "Modules M" / "M3-estimation"
@@ -70,7 +82,6 @@ def verifier_restauration(etape, depots, empreintes_initiales, echecs):
     conforme = not absents and empreintes_finales == empreintes_initiales
 
     if conforme:
-        print(f"Garde 4 — restauration après {etape} : conforme")
         return
 
     details = []
@@ -98,11 +109,40 @@ def verifier_restauration(etape, depots, empreintes_initiales, echecs):
     echecs.append(f"restauration après {etape}")
 
 
-def exiger_morsure(libelle, resultat, echecs):
-    """Enregistre le code observé et exige que la garde fasse échouer l'outil."""
-    print(f"{libelle} : rc={resultat.returncode}")
+def sortie_complete(resultat):
+    """Retourne stdout et stderr afin de contrôler le motif réel de l'échec."""
+    return resultat.stdout + resultat.stderr
+
+
+def verifier_etat_sain(nom_outil, commande):
+    """Exige qu'un outil fonctionne avant que son sabotage soit créé."""
+    resultat = lancer(commande)
+    if resultat.returncode != 0:
+        abandonner(
+            f"outil cassé à l'état sain : {nom_outil} "
+            f"(rc={resultat.returncode})"
+        )
+
+
+def exiger_morsure(libelle, resultat, motifs, echecs):
+    """Exige l'échec et le motif qui identifie la garde réellement exercée."""
     if resultat.returncode == 0:
+        print(f"{libelle} : rc=0 — ECHEC : la garde ne mord pas")
         echecs.append(libelle)
+        return
+
+    texte = sortie_complete(resultat)
+    motifs_absents = [motif for motif in motifs if motif not in texte]
+    if motifs_absents:
+        print(
+            f"{libelle} : rc={resultat.returncode} — ECHEC : "
+            "la garde n'a pas été exercée ; cause inconnue "
+            "(motif attendu absent : " + ", ".join(motifs_absents) + ")"
+        )
+        echecs.append(f"{libelle} (motif attendu absent)")
+        return
+
+    print(f"{libelle} : rc={resultat.returncode} — garde exercée")
 
 
 def abandonner(message):
@@ -142,16 +182,22 @@ epreuves = 0
 
 for muter in MUTEURS:
     libelle = f"Garde 1 — référence déjà ROUGE — {muter.name}"
-    resultat = None
+    commande = [sys.executable, "-B", str(muter), str(RACINE)]
     try:
+        verifier_etat_sain(muter.name, commande)
         TEST_ROUGE.write_text(
             'def test_echec_delibere_verifier_les_outils():\n'
             '    raise AssertionError("référence volontairement rouge")\n',
             encoding="utf-8",
         )
-        resultat = lancer([sys.executable, "-B", str(muter), str(RACINE)])
+        resultat = lancer(commande)
         epreuves += 1
-        exiger_morsure(libelle, resultat, echecs)
+        exiger_morsure(
+            libelle,
+            resultat,
+            MOTIFS_ATTENDUS["reference_rouge"],
+            echecs,
+        )
     finally:
         retirer(TEST_ROUGE)
         verifier_restauration(
@@ -162,15 +208,22 @@ for muter in MUTEURS:
         )
 
 libelle = "Garde 1 — référence déjà ROUGE — enumerer_gardes.py"
+commande_enumerer = [sys.executable, "-B", str(ENUMERER), str(RACINE)]
 try:
+    verifier_etat_sain(ENUMERER.name, commande_enumerer)
     TEST_ROUGE.write_text(
         'def test_echec_delibere_verifier_les_outils():\n'
         '    raise AssertionError("référence volontairement rouge")\n',
         encoding="utf-8",
     )
-    resultat = lancer([sys.executable, "-B", str(ENUMERER), str(RACINE)])
+    resultat = lancer(commande_enumerer)
     epreuves += 1
-    exiger_morsure(libelle, resultat, echecs)
+    exiger_morsure(
+        libelle,
+        resultat,
+        MOTIFS_ATTENDUS["reference_rouge"],
+        echecs,
+    )
 finally:
     retirer(TEST_ROUGE)
     verifier_restauration(
@@ -181,7 +234,18 @@ finally:
     )
 
 libelle = "Garde 2 — extracteur vide — enumerer_gardes.py"
+commande_extracteur = [
+    sys.executable,
+    "-B",
+    str(ENUMERER),
+    str(RACINE),
+    MODULE_VIDE.stem,
+]
 try:
+    verifier_etat_sain(
+        f"{ENUMERER.name} (cible saine existante)",
+        commande_enumerer,
+    )
     MODULE_VIDE.write_text(
         '"""Module temporaire volontairement dépourvu de garde."""\n'
         "\n"
@@ -189,17 +253,14 @@ try:
         "    return 1\n",
         encoding="utf-8",
     )
-    resultat = lancer(
-        [
-            sys.executable,
-            "-B",
-            str(ENUMERER),
-            str(RACINE),
-            MODULE_VIDE.stem,
-        ]
-    )
+    resultat = lancer(commande_extracteur)
     epreuves += 1
-    exiger_morsure(libelle, resultat, echecs)
+    exiger_morsure(
+        libelle,
+        resultat,
+        MOTIFS_ATTENDUS["extracteur_vide"],
+        echecs,
+    )
 finally:
     retirer(MODULE_VIDE)
     verifier_restauration(
@@ -210,27 +271,32 @@ finally:
     )
 
 libelle = "Garde 3 — outil orphelin — test_outils_de_preuve.py"
+commande_pytest = [
+    sys.executable,
+    "-B",
+    "-m",
+    "pytest",
+    str(TEST_OUTILS),
+    "-q",
+    "-p",
+    "no:cacheprovider",
+    "--color=no",
+]
 try:
+    verifier_etat_sain(TEST_OUTILS.name, commande_pytest)
     OUTIL_ORPHELIN.write_text(
         '"""Outil temporaire dont la cible est volontairement absente."""\n'
         'SRC = "module_verifier_les_outils_orphelin.py"\n',
         encoding="utf-8",
     )
-    resultat = lancer(
-        [
-            sys.executable,
-            "-B",
-            "-m",
-            "pytest",
-            str(TEST_OUTILS),
-            "-q",
-            "-p",
-            "no:cacheprovider",
-            "--color=no",
-        ]
-    )
+    resultat = lancer(commande_pytest)
     epreuves += 1
-    exiger_morsure(libelle, resultat, echecs)
+    exiger_morsure(
+        libelle,
+        resultat,
+        MOTIFS_ATTENDUS["outil_orphelin"],
+        echecs,
+    )
 finally:
     retirer(OUTIL_ORPHELIN)
     verifier_restauration(

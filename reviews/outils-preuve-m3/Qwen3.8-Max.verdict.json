@@ -3,31 +3,31 @@
  "objections": [
   {
    "severite": "critique",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/verifier_les_outils.py",
+   "description": "Le script peut conclure à zéro échec sans qu'une garde interne ait réellement été exercée : tout code de retour non nul est accepté comme preuve de morsure. Un fichier muter_*.py conforme au nommage mais terminant immédiatement avec sys.exit(1) ferait rc=1, incrémenterait epreuves et ne serait pas ajouté à echecs.",
+   "preuve": "epreuves += 1 ; exiger_morsure(libelle, resultat, echecs) ; def exiger_morsure: print(f\"{libelle} : rc={resultat.returncode}\") ; if resultat.returncode == 0: echecs.append(libelle). Aucun contrôle du message, de l'attribution ou de l'exécution effective d'une garde."
+  },
+  {
+   "severite": "majeure",
    "fichier": "Modules M/M3-estimation/tests/test_outils_de_preuve.py",
-   "description": "La PREUVE D du pack montre une sortie de garde d'exécutabilité obtenue manuellement, mais aucun instrument versionné du diff ne produit cette sortie sur la branche.",
-   "preuve": "PREUVE D : 'outil orphelin déposé -> ROUGE (la garde mord) / dossier restauré : True'. Dans le diff, test_outils_de_preuve.py ne contient que des fonctions pytest et aucune commande/script n'imprime cette ligne."
+   "description": "La garde censée garantir que la cible est déclarée dans le code ne vérifie pas un littéral affecté à SRC ; elle accepte n'importe quelle constante chaîne contenant le nom attendu. La condition contrôlée ne correspond donc pas à la protection annoncée.",
+   "preuve": "Docstring : 'La cible est extraite par AST du littéral affecté à SRC'. Code : chaines = [n.value for n in ast.walk(arbre) if isinstance(n, ast.Constant) and isinstance(n.value, str)] ; vise = any(c == f\"{attendu}.py\" or c.endswith(f\"/{attendu}.py\") for c in chaines)."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/verifier_les_outils.py",
+   "description": "La confrontation d'empreintes ne couvre pas tous les fichiers du périmètre annoncé : une trace non Python, par exemple une modification de README.md dans outils_preuve ou l'ajout d'un fichier .txt, ne serait pas détectée.",
+   "preuve": "relever_empreintes ne hache que les fichiers Python : for dossier in (SRC, OUTILS): for chemin in sorted(dossier.rglob(\"*.py\")): resultat[str(chemin.relative_to(RACINE))] = empreinte(chemin). Le contrôle final est seulement empreintes_finales == empreintes_initiales."
   },
   {
    "severite": "majeure",
    "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_monte_carlo.py",
-   "description": "Une mutation déclarée inerte supprime le plafond de bornage requis par le contrat, et l'instrument ne prouve pas l'inertie autrement que par 300 graines et l'absence d'échec de la suite.",
-   "preuve": "REDONDANCES_DECLAREES : 'bornage au bareme : le plafond ne s applique plus' remplace 'if borne_haute > plafond: borne_haute = plafond' par 'if False: borne_haute = plafond' ; raison : 'MESURE : 0 declenchement sur 300 graines' et 'il est conserve parce que le contrat exige que les bornes restent dans le bareme'."
-  },
-  {
-   "severite": "majeure",
-   "fichier": "Modules M/M3-estimation/tests/test_outils_de_preuve.py",
-   "description": "Le test de déclaration de cible accepte n'importe quelle constante chaîne mentionnant le module, sans vérifier qu'elle est affectée à SRC ; un outil peut donc viser un autre module tout en passant le test.",
-   "preuve": "chaines = [n.value for n in ast.walk(arbre) if isinstance(n, ast.Constant) and isinstance(n.value, str)] ; vise = any(c == f\"{attendu}.py\" or c.endswith(f\"/{attendu}.py\") for c in chaines). Aucune inspection d'une affectation SRC n'est faite."
-  },
-  {
-   "severite": "mineure",
-   "fichier": "Modules M/M3-estimation/tests/outils_preuve/enumerer_gardes.py",
-   "description": "L'extracteur de gardes repose sur des formes syntaxiques précises ; un rejet non reconnu pourrait être omis, et le script pourrait sortir 0 si les gardes trouvées passent.",
-   "preuve": "_est_rejet ne retourne True que pour un tuple dont le premier élément est la constante None ou un appel à 'construire_verdict'/fabrique ; FABRIQUES ne liste que les fonctions contenant directement un appel à l'attribut 'construire_verdict'. Aucune preuve d'exhaustivité n'est fournie."
+   "description": "La PREUVE B affirme que les redondances sont vérifiées inertes, mais le code déclare explicitement une inertie empirique et non prouvée ; une suite verte ne démontre pas l'impossibilité d'un dépassement lié à l'arrondi flottant.",
+   "preuve": "REDONDANCES_DECLAREES : 'INERTIE EMPIRIQUE, NON PROUVEE ... 0 declenchement sur 300 graines ... 2 500 000 tirages ... l impossibilite n est donc PAS etablie.' ; PREUVE B : 'monte_carlo 10/10 mordent | 2 redondances declarees et verifiees INERTES'."
   }
  ],
- "date_heure": "2026-08-01T08:12:41.495712+00:00",
- "prompt_sha256": "87d00ad8da57cd0000c48ab6d6aabd18365f74f092f3877d5ff9f17e1a892cc6",
+ "date_heure": "2026-08-01T17:22:44.720293+00:00",
+ "prompt_sha256": "008e4194726f8457704b2682e02b73b9d44dd268cdd218e6f6e5b683ddb7468a",
  "reviewer_model": "Qwen3.8-Max",
  "modele_servi": "qwen38-max-alibaba-sg",
  "gateway_resilience": {
