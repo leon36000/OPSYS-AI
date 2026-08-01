@@ -145,8 +145,13 @@ def executer_tests():
     rapport = pathlib.Path(nom_rapport)
     try:
         resultat = subprocess.run(
+            # Ce dossier contient les tests qui LANCENT ces batteries ; les inclure crée une
+            # récursion mutuelle qui a mesurablement ramené la détection à 0/15 et laissé des
+            # sources MUTÉES sur le disque. Une sentinelle sur disque ne suffit pas : elle ne
+            # survit pas aux exécutions concurrentes. L'exclusion est explicite et locale.
             [
                 sys.executable, "-B", "-m", "pytest", str(TESTS), "-q",
+                f"--ignore={TESTS / 'test_gardes_des_outils.py'}",
                 "-p", "no:cacheprovider", "--color=no", f"--junitxml={rapport}",
             ],
             capture_output=True,

@@ -162,6 +162,11 @@ def lancer_suite():
             "-m",
             "pytest",
             str(TESTS),
+            # Ce dossier contient les tests qui LANCENT cet outil ; les inclure crée
+            # une récursion mutuelle qui a mesurablement ramené la détection à 0 et
+            # laissé des sources MUTÉES sur le disque. Une sentinelle sur disque ne
+            # suffit pas : elle ne survit pas aux exécutions concurrentes.
+            f"--ignore={TESTS / 'test_gardes_des_outils.py'}",
             "-q",
             "-p",
             "no:cacheprovider",
