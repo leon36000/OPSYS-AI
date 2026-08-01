@@ -65,11 +65,10 @@ MUTATIONS = [
 REDONDANCES_DECLAREES = []
 
 
-# Mutations qui ne PEUVENT PAS mordre, et dont l'inertie est elle-même une propriété à
-# prouver. Les faire « passer » exigerait de fabriquer une entrée impossible ; la
-# discipline est de les DÉCLARER, et d'exiger qu'elles restent VERTES. Si l'une venait à
-# mordre, l'hypothèse de redondance serait tombée et il faudrait la réexaminer — le
-# script échoue donc dans les DEUX sens.
+# La liste ci-dessus est VIDE, et c'est un résultat, pas un oubli : les dix mutations de ce
+# module mordent toutes, aucune n'a dû être requalifiée en redondance. Elle reste déclarée
+# pour que l'apparition d'une première entrée soit un geste visible en revue — déclarer
+# qu'une mutation ne mord pas doit coûter une ligne de justification, jamais un silence.
 
 
 def purge():

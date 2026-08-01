@@ -76,11 +76,13 @@ REDONDANCES_DECLAREES = [
 ]
 
 
-# Mutations qui ne PEUVENT PAS mordre, et dont l'inertie est elle-même une propriété à
-# prouver. Les faire « passer » exigerait de fabriquer une entrée impossible ; la
-# discipline est de les DÉCLARER, et d'exiger qu'elles restent VERTES. Si l'une venait à
-# mordre, l'hypothèse de redondance serait tombée et il faudrait la réexaminer — le
-# script échoue donc dans les DEUX sens.
+# Mutations dont l'inertie est OBSERVÉE et non démontrée — chaque entrée ci-dessus dit
+# elle-même l'étendue et la limite de sa mesure. On ne prétend donc PAS qu'elles ne
+# peuvent pas mordre : on déclare qu'on ne les a jamais vues mordre, et on exige qu'elles
+# restent VERTES. Si l'une venait à mordre, l'hypothèse d'inertie tomberait et il faudrait
+# la réexaminer — le script échoue donc dans les DEUX sens. C'est précisément parce que
+# l'impossibilité n'est pas établie que ce contrôle a une valeur : il surveille une
+# observation, il ne consacre pas une certitude.
 
 
 def purge():
