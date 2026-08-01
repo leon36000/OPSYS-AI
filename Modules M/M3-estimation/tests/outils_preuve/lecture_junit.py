@@ -1,37 +1,21 @@
 """Lecture durcie des rapports JUnit produits par pytest, partagée par les batteries.
 
-Cette fonction existait à l'identique dans les cinq batteries de mutation. `bandit` la
-signalait cinq fois (B314, MEDIUM) : l'analyse XML non durcie est classée VULNERABILITY par
-les analyseurs statiques, et une seule vulnérabilité suffit à faire tomber la note de sécurité.
-Elle est extraite ici pour être durcie UNE fois.
+Ce module est destiné à être importé explicitement depuis son chemin de fichier ou après
+l'ajout contrôlé de son dossier parent à ``sys.path`` ; il ne modifie jamais ``sys.path`` lui-même.
+Il extrait exclusivement les identifiants des testcases JUnit portant un ``failure`` ou un
+``error``, ainsi que les erreurs portées directement par une testsuite. L'analyse repose
+directement sur ``xml.parsers.expat`` : aucune API ElementTree n'est utilisée, afin d'éviter les
+constats statiques B405/B314 et de garder le contrôle des déclarations XML dangereuses.
 
-On n'extrait QUE la lecture, jamais la logique de mutation. Chaque batterie garde son propre
-extracteur textuel `_echecs_sortie` et continue d'unir les deux résultats : si cette lecture
-partagée devenait défaillante, l'extracteur textuel de chaque batterie tient encore, et le cas
-où les deux rendent le vide sur une suite rouge reste signalé comme ROUGE NON ATTRIBUABLE.
-La redondance qui protège réellement est donc préservée ; seule la copie inutile disparaît.
-
-CE QUE LE DURCISSEMENT FERME. Trois gestionnaires expat refusent respectivement les
-déclarations de type de document, les déclarations d'entité et les références d'entité
-externes. Cela ferme l'expansion d'entités externes (lecture d'un fichier local ou d'une URL
-via `SYSTEM`) et l'expansion récursive dite « billion laughs ». Vérifié par mesure sur des
-charges réelles des deux familles : refus, ensemble vide, motif écrit sur la sortie d'erreur.
-
-CE QU'IL NE FERME PAS, et qu'il faut savoir. Un rapport légitime mais énorme reste chargé
-intégralement en mémoire — aucune borne de taille n'est posée. Une imbrication profonde sans
-aucune entité n'est pas refusée. Et surtout : cette lecture ne vérifie PAS que le rapport
-correspond bien à l'exécution qu'on croit mesurer ; c'est à l'appelant de le garantir par le
-chemin temporaire qu'il fournit.
-
-LE SILENCE EST RENDU VISIBLE. Un rapport illisible donne un ensemble VIDE — contrat conservé
-des appelants, qui unissent avec leur extracteur textuel. Mais le motif exact est écrit sur la
-sortie d'erreur : un instrument peut rendre un résultat neutre, il ne doit pas le faire sans
-le dire. Si les gestionnaires expat attendus n'existaient pas dans l'interpréteur, la
-configuration ÉCHOUE bruyamment plutôt que d'analyser sans protection.
+Les DTD, déclarations d'entités et références d'entités externes sont refusées avant toute
+expansion, ce qui protège notamment contre XXE et « billion laughs ». Un rapport absent,
+inaccessible ou syntaxiquement invalide retourne un ensemble vide et peut journaliser le motif.
+Cette fonction ne borne toutefois ni la taille d'un rapport XML licite, ni sa profondeur, ne
+valide aucun schéma JUnit et ne garantit pas que le rapport fourni correspond à une exécution
+particulière : cette responsabilité reste celle de l'appelant.
 """
 
 import sys
-import xml.etree.ElementTree as ET
 from xml.parsers import expat
 
 
@@ -47,9 +31,9 @@ class _ConfigurationExpatImpossible(Exception):
     """Les gardes expat nécessaires ne sont pas disponibles."""
 
 
-def nom_balise(element):
-    """Retourne le nom local d'une balise XML, sans son espace de noms."""
-    return element.tag.rsplit("}", 1)[-1]
+def nom_balise(nom):
+    """Retourne le nom local d'une balise XML expat, sans son espace de noms."""
+    return nom.rsplit("}", 1)[-1]
 
 
 def _refuser_dtd(*_arguments):
@@ -67,11 +51,7 @@ def _configurer_gardes_expat(parseur):
         "EntityDeclHandler": _refuser_entite,
         "ExternalEntityRefHandler": _refuser_entite,
     }
-
-    absents = [
-        nom for nom in gestionnaires
-        if not hasattr(parseur, nom)
-    ]
+    absents = [nom for nom in gestionnaires if not hasattr(parseur, nom)]
     if absents:
         raise _ConfigurationExpatImpossible(
             "gestionnaire(s) expat absent(s) : " + ", ".join(absents)
@@ -89,51 +69,93 @@ def _journaliser(journalisation, motif, chemin):
     sortie.write(f"lecture_junit : {motif} : {chemin}\n")
 
 
+def _attribut(attributs, nom, defaut):
+    """Lit explicitement un attribut optionnel sans supposer sa présence."""
+    if nom in attributs:
+        return attributs[nom]
+    return defaut
+
+
 def _analyse_durcie(chemin):
-    """Analyse un rapport sans transmettre DTD ni entités à ElementTree."""
-    analyseur_expat = expat.ParserCreate()
-    _configurer_gardes_expat(analyseur_expat)
+    """Analyse un rapport JUnit avec expat et retourne directement ses échecs."""
+    parseur = expat.ParserCreate(namespace_separator="}")
+    _configurer_gardes_expat(parseur)
 
-    analyseur_xml = ET.XMLParser()
+    echecs = set()
+    pile = []
+    contextes_testcase = []
 
-    # Le XMLParser accéléré de CPython ne publie pas son parseur expat interne :
-    # contrairement à l'implémentation Python pure, il n'expose pas forcément
-    # l'attribut ``parser``. On vérifie donc réellement son existence avant de
-    # l'utiliser, sans supposer un attribut privé ou un nom imaginaire.
-    #
-    # Quand cet attribut est disponible, les mêmes gardes sont posées aussi sur
-    # le parseur interne d'ElementTree. Quand il ne l'est pas, l'analyseur expat
-    # indépendant ci-dessus valide chaque fragment AVANT sa remise à XMLParser.
-    # Ainsi, aucune DTD ni entité refusée n'atteint ElementTree.
-    parseur_interne = getattr(analyseur_xml, "parser", None)
-    if parseur_interne is not None:
-        _configurer_gardes_expat(parseur_interne)
+    def debut_element(nom, attributs):
+        balise = nom_balise(nom)
+        parent = pile[-1] if pile else None
+
+        if balise in {"failure", "error"} and parent == "testsuite":
+            nom_suite = _attribut(
+                pile_attributs[-1],
+                "name",
+                "<collecte>",
+            )
+            echecs.add(f"{nom_suite}::{balise}")
+
+        if balise in {"failure", "error"} and parent == "testcase":
+            profondeur_testcase = len(pile)
+            for contexte in reversed(contextes_testcase):
+                if contexte["profondeur"] == profondeur_testcase:
+                    contexte["en_echec"] = True
+                    break
+
+        pile.append(balise)
+        pile_attributs.append(attributs)
+
+        if balise == "testcase":
+            contextes_testcase.append(
+                {
+                    "profondeur": len(pile),
+                    "classe": _attribut(attributs, "classname", ""),
+                    "nom": _attribut(attributs, "name", "<test sans nom>"),
+                    "en_echec": False,
+                }
+            )
+
+    def fin_element(nom):
+        balise = nom_balise(nom)
+
+        if balise == "testcase":
+            contexte = contextes_testcase.pop()
+            if contexte["en_echec"]:
+                if contexte["classe"]:
+                    echecs.add(f"{contexte['classe']}::{contexte['nom']}")
+                else:
+                    echecs.add(contexte["nom"])
+
+        pile.pop()
+        pile_attributs.pop()
+
+    pile_attributs = []
+    parseur.StartElementHandler = debut_element
+    parseur.EndElementHandler = fin_element
 
     with open(chemin, "rb") as rapport:
         while True:
             fragment = rapport.read(65536)
             if not fragment:
                 break
-            analyseur_expat.Parse(fragment, False)
-            analyseur_xml.feed(fragment)
+            parseur.Parse(fragment, False)
 
-    analyseur_expat.Parse(b"", True)
-    return analyseur_xml.close()
+    parseur.Parse(b"", True)
+    return echecs
 
 
-def echecs_junit(chemin, journalisation=True):
+def echecs_junit(chemin, journalisation=None):
     """Retourne les identifiants JUnit en échec, ou un ensemble vide si illisible.
 
-    Les DTD et déclarations d'entités sont refusées avant tout traitement par
-    ElementTree. Cette garde ferme l'expansion d'entités externes et l'expansion
-    récursive dite « billion laughs ».
-
-    Elle ne couvre pas les consommations de ressources dues à un document XML
-    licite mais volumineux ou très profond, ni la validation métier, de schéma,
-    ou la confiance accordée au contenu d'un rapport valide.
+    Les seules exceptions converties en ensemble vide décrivent réellement un rapport
+    indisponible ou invalide. Les ``TypeError``, ``ValueError`` et ``UnicodeError`` ne sont pas
+    interceptées : les masquer transformerait une erreur de programmation du lecteur en silence
+    indiscernable d'un rapport illisible.
     """
     try:
-        racine = _analyse_durcie(chemin)
+        return _analyse_durcie(chemin)
     except FileNotFoundError:
         _journaliser(journalisation, "fichier absent", chemin)
         return set()
@@ -143,41 +165,6 @@ def echecs_junit(chemin, journalisation=True):
     except _EntiteRefusee:
         _journaliser(journalisation, "entité refusée", chemin)
         return set()
-    except (
-        _ConfigurationExpatImpossible,
-        ET.ParseError,
-        expat.ExpatError,
-        IsADirectoryError,
-        OSError,
-        PermissionError,
-        TypeError,
-        UnicodeError,
-        ValueError,
-    ):
+    except (_ConfigurationExpatImpossible, expat.ExpatError, OSError):
         _journaliser(journalisation, "analyse impossible", chemin)
         return set()
-
-    echecs = set()
-    for cas in racine.iter():
-        if nom_balise(cas) != "testcase":
-            continue
-        if not any(
-            nom_balise(enfant) in {"failure", "error"}
-            for enfant in cas
-        ):
-            continue
-        classe = cas.attrib.get("classname", "")
-        nom = cas.attrib.get("name", "<test sans nom>")
-        echecs.add(f"{classe}::{nom}" if classe else nom)
-
-    for suite in racine.iter():
-        if nom_balise(suite) != "testsuite":
-            continue
-        for enfant in suite:
-            if nom_balise(enfant) in {"failure", "error"}:
-                echecs.add(
-                    f"{suite.attrib.get('name', '<collecte>')}::"
-                    f"{nom_balise(enfant)}"
-                )
-
-    return echecs

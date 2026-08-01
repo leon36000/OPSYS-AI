@@ -3,7 +3,6 @@ import io
 from pathlib import Path
 
 
-# L'import par chemin évite de modifier sys.path globalement pour toute la session pytest.
 _CHEMIN_MODULE = Path(__file__).resolve().parent / "outils_preuve" / "lecture_junit.py"
 _SPECIFICATION = importlib.util.spec_from_file_location(
     "lecture_junit_outils_preuve",
@@ -152,14 +151,8 @@ def test_les_gardes_expat_sont_reellement_branchees_au_refus_des_dtd(tmp_path):
     assert (resultat_sans_garde, sortie_sans_garde) != (
         resultat_protege,
         sortie_protegee,
-    ), (
-        "Les gardes expat ne changent pas le comportement face au billion "
-        "laughs : leur branchement ne constitue plus une protection prouvée."
     )
-    assert "DTD refusée" not in sortie_sans_garde, (
-        "Les gardes expat semblent inopérantes : la DTD reste refusée par le "
-        "même motif après leur neutralisation."
-    )
+    assert "DTD refusée" not in sortie_sans_garde
 
 
 def test_la_journalisation_non_demandee_n_ecrit_ni_sur_stdout_ni_sur_stderr(
@@ -175,3 +168,50 @@ def test_la_journalisation_non_demandee_n_ecrit_ni_sur_stdout_ni_sur_stderr(
     assert echecs == set()
     assert capture.out == ""
     assert capture.err == ""
+
+
+def test_equivalence_semantique_sur_table_de_reference_figee(tmp_path):
+    """Verrouille les cas de compatibilité de l'ancienne extraction JUnit."""
+    # L'historique git n'est pas une dépendance fiable d'une batterie distribuée :
+    # cette comparaison est donc faite contre une table de référence, et non contre
+    # le code d'origine chargé dynamiquement depuis git.
+    cas = [
+        (
+            "espaces-noms.xml",
+            """<testsuites xmlns="urn:junit">
+<testsuite name="ns"><testcase classname="pkg.Classe" name="rouge"><failure/></testcase>
+<error/></testsuite></testsuites>""",
+            {"pkg.Classe::rouge", "ns::error"},
+        ),
+        (
+            "plusieurs-suites.xml",
+            """<testsuites><testsuite name="a"><testcase name="x"><error/></testcase></testsuite>
+<testsuite name="b"><testcase classname="B" name="y"><failure/></testcase></testsuite></testsuites>""",
+            {"x", "B::y"},
+        ),
+        (
+            "attributs-absents.xml",
+            """<testsuite><testcase><failure/></testcase></testsuite>""",
+            {"<test sans nom>"},
+        ),
+        (
+            "echecs-meles.xml",
+            """<testsuite name="mix"><testcase classname="C" name="n"><failure/><error/></testcase>
+<failure/><error/></testsuite>""",
+            {"C::n", "mix::failure", "mix::error"},
+        ),
+        (
+            "suite-vide.xml",
+            """<testsuite name="vide"/>""",
+            set(),
+        ),
+        (
+            "sans-echec.xml",
+            """<testsuites><testsuite name="vert"><testcase classname="C" name="ok"/></testsuite></testsuites>""",
+            set(),
+        ),
+    ]
+
+    for nom, contenu, attendu in cas:
+        rapport = _ecrire_rapport(tmp_path, nom, contenu)
+        assert lecture_junit.echecs_junit(rapport, journalisation=None) == attendu

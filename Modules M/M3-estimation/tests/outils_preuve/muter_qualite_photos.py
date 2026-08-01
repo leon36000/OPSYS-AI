@@ -19,6 +19,11 @@ import shutil
 import subprocess
 import sys
 import tempfile
+# Ces batteries sont des SCRIPTS lancés directement ; le dossier du script est alors en
+# tête de sys.path et l'import ci-dessous fonctionne. On ne s'appuie pas sur cet effet de
+# bord : le chemin est inséré explicitement, pour que l'import tienne quel que soit le
+# répertoire courant et le mode de lancement.
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from lecture_junit import echecs_junit as _echecs_junit, nom_balise as _nom_balise
 
 RACINE = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
