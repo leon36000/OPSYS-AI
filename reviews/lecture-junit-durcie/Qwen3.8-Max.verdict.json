@@ -1,0 +1,43 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/lecture_junit.py",
+   "description": "La preuve d'exécution montre qu'un constat bandit B314 MEDIUM subsiste dans le module partagé, alors que le problème mesuré liait la note de sécurité à la présence d'une seule vulnérabilité statique. Le durcissement comportemental peut exister, mais l'objectif de suppression des signaux statiques n'est pas atteint.",
+   "preuve": "$ python3 -m bandit -r 'Modules M/M3-estimation/' # severites : LOW 531 | MEDIUM 1 (etait LOW 520 | MEDIUM 5) RESTE lecture_junit.py:97 B314 ; diff : +    analyseur_xml = ET.XMLParser()"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_blocage_prix.py",
+   "description": "Les cinq batteries importent le module partagé par nom simple sans modifier sys.path ni ajouter de packaging. Cela suppose que le répertoire des scripts est dans sys.path, ce qui peut casser hors lancement direct en script.",
+   "preuve": "+from lecture_junit import echecs_junit as _echecs_junit, nom_balise as _nom_balise"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/test_lecture_junit.py",
+   "description": "L'équivalence sémantique avec les cinq anciennes copies n'est pas verrouillée par des tests différentiels couvrant les variantes JUnit (namespaces, testsuites multiples, attributs manquants, cas limites). L'affirmation d'une lecture identique reste donc non vérifiable.",
+   "preuve": "Le diff ajoute seulement des tests ciblés : rapport normal, billion laughs, entité externe, fichier absent, branchement des gardes, journalisation ; aucune comparaison systématique avec les cinq fonctions retirées."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/lecture_junit.py",
+   "description": "Le lecteur convertit des erreurs de programmation ou d'encodage (TypeError, ValueError, UnicodeError) en ensemble vide, ce qui peut masquer une régression du lecteur partagé tout en ne laissant qu'une trace stderr facultative.",
+   "preuve": "except (_ConfigurationExpatImpossible, ET.ParseError, expat.ExpatError, IsADirectoryError, OSError, PermissionError, TypeError, UnicodeError, ValueError) : _journaliser(...); return set()"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "README.md",
+   "description": "L'impact réel sur SonarCloud n'est pas démontré. La réserve explicite indique que la remontée de la note reste une hypothèse, et le diff ne permet pas de vérifier les trois conditions Sonar mesurées (duplication, fiabilité, sécurité).",
+   "preuve": "Réserve explicite : Je n ai pas pu confronter cette correction à la liste réelle de SonarCloud, qui exige un token (frontière T3). Que la note remonte à A reste une HYPOTHÈSE à mesurer au prochain run."
+  }
+ ],
+ "date_heure": "2026-08-01T21:26:35.745530+00:00",
+ "prompt_sha256": "41f6e6e93d42530404bced50b33767f636cd29829f3671c97824cd12afb1d37b",
+ "reviewer_model": "Qwen3.8-Max",
+ "modele_servi": "qwen38-max-alibaba-sg",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}
