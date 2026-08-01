@@ -1,0 +1,19 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/lecture_junit.py",
+   "description": "Le module partagé reste signalé par bandit B314 (MEDIUM) car il importe xml.parsers.expat et xml.etree.ElementTree, malgré les gardes positionnées. La correction centralise la vulnérabilité sans la faire disparaître du scan statique.",
+   "preuve": "Preuve d'exécution : `python3 -m bandit -r 'Modules M/M3-estimation/'` affiche `RESTE lecture_junit.py:97 B314`. Le nombre de MEDIUM passe de 5 à 1."
+  }
+ ],
+ "date_heure": "2026-08-01T21:22:55.272858+00:00",
+ "prompt_sha256": "41f6e6e93d42530404bced50b33767f636cd29829f3671c97824cd12afb1d37b",
+ "reviewer_model": "DeepSeek-V4-Pro",
+ "modele_servi": "deepseek-v4-pro-direct",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}

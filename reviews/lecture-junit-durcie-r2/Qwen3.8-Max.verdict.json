@@ -1,0 +1,37 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/README.md",
+   "description": "Le README annonce sept tests alors que le fichier de tests en définit huit.",
+   "preuve": "+Éprouvé par `tests/test_lecture_junit.py`, sept tests. ; le diff de tests/test_lecture_junit.py contient huit fonctions `def test_...`."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/lecture_junit.py",
+   "description": "_ConfigurationExpatImpossible est interceptée et convertie en ensemble vide, ce qui peut masquer une indisponibilité des gardes comme un simple rapport illisible si la journalisation est désactivée.",
+   "preuve": "except (_ConfigurationExpatImpossible, expat.ExpatError, OSError): _journaliser(...); return set()"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/test_lecture_junit.py",
+   "description": "L'équivalence sémantique verrouillée dans le diff porte sur une table de référence ; la comparaison avec l'implémentation réellement retirée est attestée par une sortie fournie mais n'est pas reproduite dans le diff.",
+   "preuve": "# cette comparaison est donc faite contre une table de référence, et non contre le code d'origine chargé dynamiquement depuis git. ; preuve d'exécution : 'Equivalence contre le code REELLEMENT retire...'"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_blocage_prix.py",
+   "description": "L'import de nom_balise as _nom_balise substitue une fonction attendant un nom de balise en chaîne à l'ancienne fonction attendant un élément ; le diff ne permet pas de vérifier l'absence d'appels résiduels au contrat précédent.",
+   "preuve": "+from lecture_junit import echecs_junit as _echecs_junit, nom_balise as _nom_balise ; -def _nom_balise(element): return element.tag.rsplit(\"}\", 1)[-1]"
+  }
+ ],
+ "date_heure": "2026-08-01T21:43:09.481508+00:00",
+ "prompt_sha256": "622a4412e8e355d0dac5a97d564327112e9cffd851ae55b3e5829a86c9b94b47",
+ "reviewer_model": "Qwen3.8-Max",
+ "modele_servi": "qwen38-max-alibaba-sg",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}
