@@ -2,26 +2,32 @@
  "verdict": "REJECT",
  "objections": [
   {
-   "severite": "critique",
-   "fichier": "Modules M/M3-estimation/tests/outils_preuve/verifier_les_outils.py",
-   "description": "Le contrôle de discrimination exigé par le README (« deux sabotages différents doivent produire deux messages différents ») n'est appliqué qu'à l'énumérateur. Aucune épreuve de discrimination n'est exécutée pour les batteries muter_*.py. Un outil de mutation qui produirait le même message pour toutes les erreurs passerait l'ensemble des vérifications sans être détecté, ce qui contredit l'affirmation de la documentation.",
-   "preuve": "verifier_les_outils.py n'appelle `exiger_discrimination` qu'une seule fois, après les deux épreuves sur `enumerer_gardes.py` (lignes `Garde 2 bis`). La boucle sur les `MUTEURS` (lignes `for muter in MUTEURS:`) ne comporte aucune vérification de discrimination."
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
+   "description": "Le README affirme que le vérificateur exige un contrôle NÉGATIF pour chaque outil (l'outil doit être sain avant sabotage). Or la suite de tests ne comporte aucun test de santé pour l'énumérateur (enumerer_gardes.py) : seuls les muters bénéficient de test_chaque_outil_est_sain_avant_sabotage. L'énumérateur n'est donc pas couvert, contrairement à la promesse du pack.",
+   "preuve": "La fonction test_chaque_outil_est_sain_avant_sabotage est paramétrée avec _parametres_outils() qui exclut l'énumérateur ; aucun autre test n'exécute enumerer_gardes.py sur un module valide pour contrôler rc=0 sans phrase d'abandon."
   },
   {
    "severite": "majeure",
-   "fichier": "Pack de preuve (section PREUVE C)",
-   "description": "Les sorties présentées comme preuves dans PREUVE C ne sont pas les sorties brutes des instruments versionnés. Chaque ligne est préfixée par le nom du module (ex. `qualite_photos         controles=19…`), alors qu'`enumerer_gardes.py` imprime seulement `controles=…` sans identifiant de module. La reproductibilité directe de la preuve n'est pas assurée.",
-   "preuve": "Dans `enumerer_gardes.py`, l'impression finale est `print(f\"\\ncontroles={len(gardes)}  nus={len(nues)}…\")`. Aucun préfixe `qualite_photos` n'est émis. Les sorties PREUVE C, telles que `qualite_photos         controles=19…`, ne correspondent donc pas à l'exécution brute de l'outil."
+   "fichier": "Modules M/M3-estimation/tests/test_outils_de_preuve.py",
+   "description": "Le README indique que test_outils_de_preuve.py exige que chaque outil s'annonce par un docstring. En réalité, seule la docstring de enumerer_gardes.py est vérifiée ; les muters et bilan_preuves.py ne sont pas astreints à cette contrainte.",
+   "preuve": "Ligne 167 de test_outils_de_preuve.py : @pytest.mark.parametrize('nom', ['enumerer_gardes.py']). Aucun test similaire pour muter_*.py ou bilan_preuves.py."
   },
   {
    "severite": "mineure",
-   "fichier": "Modules M/M3-estimation/tests/outils_preuve/verifier_les_outils.py",
-   "description": "La confrontation d'empreintes et de chemins exclut explicitement les répertoires `__pycache__` et `.pytest_cache`. Une manipulation qui laisserait un fichier malveillant (ex. un `.pyc` altéré) dans ces caches ne serait pas détectée, alors qu'un tel fichier pourrait influencer les exécutions ultérieures.",
-   "preuve": "Dans `fichiers_controles()`, la condition `if \"__pycache__\" in chemin.parts or \".pytest_cache\" in chemin.parts: continue` écarte ces artefacts de la surveillance. La restauration vérifiée ne couvre donc pas ces traces."
+   "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
+   "description": "Le contrôle d'absence de traces (test_aucune_trace_apres_les_epreuves) exclut explicitement les répertoires __pycache__ et .pytest_cache. Un outil malveillant peut donc y déposer un fichier altéré qui ne sera pas détecté, alors que le README annonce une couverture de TOUS les chemins sous src/ et tests/ avec empreinte et mode.",
+   "preuve": "Dans _instantane_arborescence() : 'if \"__pycache__\" in relatif.parts or \".pytest_cache\" in relatif.parts: continue'."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
+   "description": "La vérification d'intégrité ne porte que sur les fichiers et répertoires à l'intérieur de M3-estimation/src et M3-estimation/tests, alors que le pack affirme surveiller tous les chemins sous src/ et tests/ du dépôt. Les altérations en dehors de ce périmètre (par exemple src/ d'un autre module) passeraient inaperçues.",
+   "preuve": "La variable _M3 est définie comme Path(__file__).resolve().parents[1], limitant le scan au répertoire 'Modules M/M3-estimation'."
   }
  ],
- "date_heure": "2026-08-01T17:50:56.841746+00:00",
- "prompt_sha256": "5d63169d475d36dafb2fbd842b9bb119d3330c66737c8d7e1f09a00e45b0b7c5",
+ "date_heure": "2026-08-01T18:31:02.063390+00:00",
+ "prompt_sha256": "a4bd73ffbe9fd3e3504af736e72393825cc1353e12b46b5b37d50bb76a87cd77",
  "reviewer_model": "DeepSeek-V4-Pro",
  "modele_servi": "deepseek-v4-pro-direct",
  "gateway_resilience": {

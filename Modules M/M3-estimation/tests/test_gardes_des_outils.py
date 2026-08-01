@@ -30,12 +30,10 @@ _SOURCE = _M3 / "src" / "m3_estimation"
 _OUTILS = _TESTS / "outils_preuve"
 _ENUMERATEUR = _OUTILS / "enumerer_gardes.py"
 _OUTILS_MUTATION = sorted(_OUTILS.glob("muter_*.py"))
-_SENTINEL_RECURSION = _TESTS / ".gardes_des_outils_enfant"
 
-if _SENTINEL_RECURSION.exists():
-    pytestmark = pytest.mark.skip(
-        reason="processus enfant d'un outil : éviter l'exécution récursive des épreuves"
-    )
+# La sentinelle disque a été retirée : sa présence rendait pytest rc=0 avec zéro
+# test exécuté, ce qui est indiscernable d'un succès. Les outils ignorent
+# déterministement ce module lors de leurs propres appels à pytest.
 
 
 def _parametres_outils():
@@ -76,16 +74,7 @@ def _lancer(outil, *arguments):
 
 @pytest.fixture
 def lancer_outil():
-    """Empêche qu'un pytest lancé par un outil ne relance ces épreuves récursivement."""
-    assert not _SENTINEL_RECURSION.exists(), (
-        f"sentinelle d'épreuve déjà présente : {_SENTINEL_RECURSION}"
-    )
-    _SENTINEL_RECURSION.write_text("processus enfant des gardes\n", encoding="utf-8")
-    try:
-        yield _lancer
-    finally:
-        if _SENTINEL_RECURSION.exists():
-            _SENTINEL_RECURSION.unlink()
+    yield _lancer
 
 
 @pytest.fixture
@@ -230,35 +219,61 @@ def _instantane_arborescence():
     return instantane
 
 
-def test_aucune_trace_apres_les_epreuves(
-    suite_deja_rouge, module_sans_garde, lancer_outil
-):
+def test_aucune_trace_apres_les_epreuves(lancer_outil):
+    chemin_suite_rouge = _TESTS / "test_epreuve_garde_suite_rouge.py"
+    chemin_module_sans_garde = _SOURCE / "epreuve_module_sans_garde.py"
+
+    assert not chemin_suite_rouge.exists(), (
+        f"fichier d'épreuve déjà présent : {chemin_suite_rouge}"
+    )
+    assert not chemin_module_sans_garde.exists(), (
+        f"module d'épreuve déjà présent : {chemin_module_sans_garde}"
+    )
+    assert _OUTILS_MUTATION, (
+        "aucun outil de mutation trouvé : l'épreuve de suite rouge est absente"
+    )
+
     avant = _instantane_arborescence()
-
-    for outil in _OUTILS_MUTATION:
-        resultat = lancer_outil(outil)
-        sortie = _sortie(resultat)
-        assert resultat.returncode != 0, (
-            f"{outil.name} a accepté l'épreuve complète de suite rouge"
-        )
-        assert PHRASE_SUITE_ROUGE in sortie, (
-            f"{outil.name} n'a pas nommé la suite rouge :\n{sortie}"
+    try:
+        chemin_suite_rouge.write_text(
+            "def test_epreuve_deliberement_rouge():\n"
+            '    assert False, "épreuve volontairement rouge des gardes"\n',
+            encoding="utf-8",
         )
 
-    resultat_rouge = lancer_outil(_ENUMERATEUR)
-    resultat_vide = lancer_outil(_ENUMERATEUR, module_sans_garde.stem)
-    assert resultat_rouge.returncode != 0, (
-        "l'énumérateur a accepté l'épreuve complète de suite rouge"
-    )
-    assert PHRASE_SUITE_ROUGE in _sortie(resultat_rouge), (
-        "l'énumérateur n'a pas nommé la suite rouge"
-    )
-    assert resultat_vide.returncode != 0, (
-        "l'énumérateur a accepté l'épreuve complète d'extracteur vide"
-    )
-    assert PHRASE_SANS_GARDE in _sortie(resultat_vide), (
-        "l'énumérateur n'a pas nommé l'extracteur vide"
-    )
+        resultats_batteries = [
+            (outil, lancer_outil(outil)) for outil in _OUTILS_MUTATION
+        ]
+        for outil, resultat in resultats_batteries:
+            sortie = _sortie(resultat)
+            assert resultat.returncode != 0, (
+                f"{outil.name} a accepté l'épreuve complète de suite rouge"
+            )
+            assert PHRASE_SUITE_ROUGE in sortie, (
+                f"{outil.name} n'a pas nommé la suite rouge :\n{sortie}"
+            )
+
+        chemin_suite_rouge.unlink()
+
+        chemin_module_sans_garde.write_text(
+            "def valeur_epreuve():\n"
+            "    return 1\n",
+            encoding="utf-8",
+        )
+        resultat_vide = lancer_outil(_ENUMERATEUR, chemin_module_sans_garde.stem)
+        sortie_vide = _sortie(resultat_vide)
+
+        assert resultat_vide.returncode != 0, (
+            "l'énumérateur a accepté l'épreuve complète d'extracteur vide"
+        )
+        assert PHRASE_SANS_GARDE in sortie_vide, (
+            "l'énumérateur n'a pas nommé l'extracteur vide"
+        )
+    finally:
+        if chemin_suite_rouge.exists():
+            chemin_suite_rouge.unlink()
+        if chemin_module_sans_garde.exists():
+            chemin_module_sans_garde.unlink()
 
     apres = _instantane_arborescence()
     chemins_avant = set(avant)

@@ -2,26 +2,38 @@
  "verdict": "REJECT",
  "objections": [
   {
-   "severite": "mineure",
-   "fichier": "Modules M/M3-estimation/tests/outils_preuve/verifier_les_outils.py",
-   "description": "La confrontation chemins + sha256 ne voit pas certaines traces d'une manipulation: remplacement d'un fichier par un lien symbolique au contenu identique, changement de mode ou de mtime, ou ajout d'un répertoire vide sous SRC/TESTS. Le contrôle ne compare que des chemins de fichiers et le hachage du contenu lu.",
-   "preuve": "relever_empreintes() fait hashlib.sha256(chemin.read_bytes()).hexdigest(); fichiers_controles() filtre chemin.is_file() et ne lit ni lstat()/st_mode/st_mtime, ni ne liste les répertoires vides; is_file() suit les liens symboliques."
+   "severite": "critique",
+   "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
+   "description": "Une sentinelle disque au niveau module peut désactiver silencieusement toutes les épreuves de garde. Si `.gardes_des_outils_enfant` existe au chargement (crash, exécution concurrente), les tests sont skipés au lieu d'échouer, donc les gardes ne sont pas exercées. Le pack déclare lui-même qu'un tel état partagé ne survit pas aux exécutions concurrentes.",
+   "preuve": "+_SENTINEL_RECURSION = _TESTS / \".gardes_des_outils_enfant\" ; +if _SENTINEL_RECURSION.exists(): +    pytestmark = pytest.mark.skip(reason=\"processus enfant d'un outil : éviter l'exécution récursive des épreuves\")"
   },
   {
-   "severite": "critique",
-   "fichier": "Modules M/M3-estimation/tests/outils_preuve/verifier_les_outils.py",
-   "description": "Un chemin permet d'obtenir 'bilan final : gardes éprouvées=N échecs=0' sans que la garde réelle soit prouvée, hors la limite du leurre parfait: le contrôle négatif vérifie seulement rc=0, pas l'absence des motifs d'échec dans la sortie saine; un outil peut retourner 0 en imprimant déjà 'ABANDON' et 'ROUGE', puis retourner 1 avec ces sous-chaînes après le sabotage. La discrimination n'est en outre appliquée qu'à deux sorties de enumerer_gardes.py, pas aux muters.",
-   "preuve": "verifier_etat_sain: 'if resultat.returncode != 0: abandonner(...)' sans inspecter sortie_complete; exiger_morsure: 'motifs_absents = [motif for motif in motifs if motif not in texte]' puis valide si rc!=0; exiger_discrimination est appelé seulement avec sortie_rouge_enumerer et sortie_vide_enumerer."
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/bilan_preuves.py",
+   "description": "Le contrôle de gate 'suite de tests du module' relance pytest sur tout TESTS sans ignorer test_gardes_des_outils.py. Ce fichier exécute les instruments de preuve, qui relancent eux-mêmes pytest sur TESTS (en ignorant seulement le fichier de garde). Cela forme une boucle indirecte instrument->suite->instrument->suite, contrairement à la correction annoncée d'exclusion explicite.",
+   "preuve": "bilan_preuves.py : +\"pytest\", +str(TESTS), +\"-q\", ... sans --ignore ; test_gardes_des_outils.py : +def _lancer(outil, *arguments): ; muter_blocage_prix.py : +f\"--ignore={TESTS / 'test_gardes_des_outils.py'}\""
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
+   "description": "`test_chaque_outil_est_sain_avant_sabotage` n'exerce pas l'énumérateur : il est paramétré seulement par `_OUTILS_MUTATION`. La propriété nommée 'chaque outil est sain avant sabotage' n'est donc pas vérifiée pour `enumerer_gardes.py` ; un énumérateur cassé à l'état sain pourrait passer inaperçu.",
+   "preuve": "+_OUTILS_MUTATION = sorted(_OUTILS.glob(\"muter_*.py\")) ; +@pytest.mark.parametrize( +    \"outil\", +    _parametres_outils(), ... ) +def test_chaque_outil_est_sain_avant_sabotage(outil, lancer_outil):"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
+   "description": "`test_aucune_trace_apres_les_epreuves` ne voit pas certaines traces : caches exclus et horodatage non comparé. Un changement de mtime ou un artefact laissé dans __pycache__/.pytest_cache ne serait pas détecté, bien que le pack/README évoque 'aucune trace'.",
+   "preuve": "+if \"__pycache__\" in relatif.parts or \".pytest_cache\" in relatif.parts: +    continue ; +    # L'horodatage est volontairement absent : pytest réécrit des caches et le"
   },
   {
    "severite": "majeure",
    "fichier": "Modules M/M3-estimation/tests/outils_preuve/README.md",
-   "description": "Le README affirme que test_outils_de_preuve.py exige que chaque outil s'annonce par un docstring, mais le code ne contrôle le docstring que d'un seul outil transverse, enumerer_gardes.py. Les batteries muter_*.py, bilan_preuves.py et verifier_les_outils.py ne sont pas astreintes à ce contrôle.",
-   "preuve": "README: '... et que chaque outil s'annonce par un docstring.'; test_outils_de_preuve.py: @pytest.mark.parametrize('nom', ['enumerer_gardes.py']) puis assert chemin.exists() et assert doc and len(doc) > 200 uniquement pour ce nom."
+   "description": "Le README affirme que test_outils_de_preuve.py exige que chaque outil s'annonce par un docstring. Le code ne contrôle que `enumerer_gardes.py` ; les scripts `muter_*.py` et `bilan_preuves.py` ne sont pas astreints à ce contrôle.",
+   "preuve": "README : +`test_outils_de_preuve.py` ... et que chaque outil s'annonce par un docstring. ; test_outils_de_preuve.py : +@pytest.mark.parametrize(\"nom\", [\"enumerer_gardes.py\"]) +def test_les_outils_transverses_sont_presents_et_documentes(nom):"
   }
  ],
- "date_heure": "2026-08-01T17:55:45.355095+00:00",
- "prompt_sha256": "5d63169d475d36dafb2fbd842b9bb119d3330c66737c8d7e1f09a00e45b0b7c5",
+ "date_heure": "2026-08-01T18:34:36.034818+00:00",
+ "prompt_sha256": "a4bd73ffbe9fd3e3504af736e72393825cc1353e12b46b5b37d50bb76a87cd77",
  "reviewer_model": "Qwen3.8-Max",
  "modele_servi": "qwen38-max-alibaba-sg",
  "gateway_resilience": {

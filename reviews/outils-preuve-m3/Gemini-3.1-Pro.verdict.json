@@ -3,31 +3,31 @@
  "objections": [
   {
    "severite": "critique",
-   "fichier": "Modules M/M3-estimation/tests/outils_preuve/verifier_les_outils.py",
-   "description": "Le vérificateur ne détecte pas la création de dossiers vides ni la modification des métadonnées (permissions, horodatages). De plus, il restreint son périmètre à `src/m3_estimation/` au lieu de `src/` entier. Une manipulation créant un dossier vide, modifiant un `chmod`, ou altérant un fichier dans `src/` mais hors de `m3_estimation/` laissera une trace sur le disque que la comparaison des chemins et des empreintes ne verra pas.",
-   "preuve": "Dans `fichiers_controles`, `if not chemin.is_file(): continue` ignore les dossiers. `empreinte` utilise uniquement `chemin.read_bytes()`, ignorant les métadonnées. `SRC` est défini comme `ESTIMATION / \"src\" / \"m3_estimation\"`, excluant le reste de `src/`."
+   "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
+   "description": "Le test `test_aucune_trace_apres_les_epreuves` passe sans avoir exercé les épreuves qu'il est censé vérifier. En demandant la fixture `suite_deja_rouge`, il force tous les outils à abandonner immédiatement avant toute mutation. Le test certifie donc qu'un abandon précoce ne laisse pas de trace, mais ne vérifie jamais le chemin d'exécution normal (mutation puis restauration).",
+   "preuve": "La fonction appelle `lancer_outil(outil)` avec `suite_deja_rouge` active, puis exige `assert resultat.returncode != 0` et `PHRASE_SUITE_ROUGE in sortie`. Les blocs `finally: SRC.write_text(original)` des outils ne sont jamais atteints."
   },
   {
    "severite": "majeure",
-   "fichier": "Modules M/M3-estimation/tests/outils_preuve/verifier_les_outils.py",
-   "description": "Le vérificateur peut conclure à un succès même si la garde d'un outil est défectueuse et ne bloque pas l'exécution. Si un outil imprime 'ABANDON' mais oublie de faire `sys.exit(1)`, il continuera à muter. Les mutations échoueront (car TEST_ROUGE est présent), l'outil imprimera 'ROUGE (NON ATTRIBUABLE)' et sortira avec rc=1 à la fin. Le vérificateur verra rc=1 et les motifs 'ABANDON' et 'ROUGE', et validera l'épreuve alors que la garde n'a pas interrompu le script.",
-   "preuve": "La fonction `exiger_morsure` vérifie uniquement `resultat.returncode != 0` et la présence des sous-chaînes dans `sortie_complete(resultat)`. Elle ne vérifie pas que l'outil s'est arrêté immédiatement ni que l'échec provient bien de la garde et non de la suite du script."
+   "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
+   "description": "La fixture `suite_deja_rouge` laisse une trace sur le disque que `test_aucune_trace_apres_les_epreuves` ne peut pas voir. Elle crée un fichier de test qui est compilé en `.pyc` par pytest lors de l'exécution des outils. La fixture supprime le `.py` mais laisse le `.pyc` orphelin, et le test ignore explicitement ce dossier.",
+   "preuve": "Dans `suite_deja_rouge`, le `finally` fait `chemin.unlink()` mais ne nettoie pas le `.pyc` généré dans `__pycache__`. Dans `_instantane_arborescence`, la condition `if \"__pycache__\" in relatif.parts: continue` aveugle le test sur cette trace laissée par l'épreuve."
   },
   {
    "severite": "majeure",
-   "fichier": "Modules M/M3-estimation/tests/outils_preuve/README.md",
-   "description": "Le README affirme que la confrontation couvre 'TOUS les fichiers sous src/ et tests/'. C'est faux, le code restreint explicitement la vérification au sous-dossier 'm3_estimation' dans 'src/'.",
-   "preuve": "README : 'Elle couvre désormais TOUS les fichiers sous src/ et tests/'. Code dans `verifier_les_outils.py` : `SRC = ESTIMATION / \"src\" / \"m3_estimation\"`."
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_*.py",
+   "description": "Une boucle indirecte subsiste où l'instrument se mesure lui-même. Les batteries `muter_*.py` lancent `pytest TESTS` en ignorant `test_gardes_des_outils.py`, mais elles n'ignorent pas `test_outils_de_preuve.py`. Ainsi, pendant que l'outil s'exécute, il lance un test qui parse et vérifie l'outil lui-même.",
+   "preuve": "Dans `executer_tests()` des `muter_*.py`, la commande pytest inclut `str(TESTS)` et `--ignore=test_gardes_des_outils.py`, mais n'exclut pas `test_outils_de_preuve.py`. Ce dernier contient `test_chaque_outil_de_mutation_declare_sa_cible_dans_son_code` qui parse l'AST de l'outil en cours d'exécution."
   },
   {
    "severite": "mineure",
-   "fichier": "Modules M/M3-estimation/tests/outils_preuve/enumerer_gardes.py",
-   "description": "Le README affirme qu'il n'y a 'aucune exclusion' lors de la neutralisation des gardes. Cependant, le script exclut explicitement les gardes dont la neutralisation produit une erreur de syntaxe (par exemple, les 'if' sur une seule ligne).",
-   "preuve": "README : 'aucune exclusion (neutralisation par bornes de nœud AST, jamais par texte)'. Code : `except SyntaxError as e: sans_effet.append(garde.lineno); continue`."
+   "fichier": "Modules M/M3-estimation/tests/test_outils_de_preuve.py",
+   "description": "Le README affirme que `test_outils_de_preuve.py` exige que 'chaque outil s'annonce par un docstring', mais le code ne vérifie cette règle que pour un seul outil.",
+   "preuve": "Le test `test_les_outils_transverses_sont_presents_et_documentes` est paramétré uniquement avec `[\"enumerer_gardes.py\"]`. Les batteries `muter_*.py` et `bilan_preuves.py` ne sont pas soumises à cette exigence."
   }
  ],
- "date_heure": "2026-08-01T17:53:13.139001+00:00",
- "prompt_sha256": "5d63169d475d36dafb2fbd842b9bb119d3330c66737c8d7e1f09a00e45b0b7c5",
+ "date_heure": "2026-08-01T18:32:21.387858+00:00",
+ "prompt_sha256": "a4bd73ffbe9fd3e3504af736e72393825cc1353e12b46b5b37d50bb76a87cd77",
  "reviewer_model": "Gemini-3.1-Pro",
  "modele_servi": "gemini-31-pro-openrouter",
  "gateway_resilience": {
