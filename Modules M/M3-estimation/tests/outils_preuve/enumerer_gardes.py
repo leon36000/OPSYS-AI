@@ -4,7 +4,7 @@
 Chaque `if` dont le corps produit un rejet est neutralisé UN PAR UN ; la suite doit virer
 au ROUGE. Une garde qui reste verte est NUE : rien ne la tient.
 
-Trois propriétés, chacune née d'une objection de revue mesurée (historique complet dans
+Quatre propriétés, chacune née d'une objection de revue mesurée (historique complet dans
 les messages de commit de la branche) :
 
 1. AUCUNE EXCLUSION. La neutralisation se fait par les bornes du nœud `ast.If`, jamais
@@ -25,16 +25,32 @@ les messages de commit de la branche) :
    en rejet), ou un appel à `construire_verdict`. Un blocage est un `return` d'un dict
    littéral portant `prix_bloque` à vrai. Aucune comparaison de texte ne subsiste.
 
-3. ROUGE QUALIFIÉ. Un ROUGE peut venir d'un PLANTAGE et non d'un refus : neuf gardes sur
-   dix-neuf ne tenaient que par l'exception qu'elles devaient éviter, alors que
+3. EXTRACTEUR PROBANT. Si l'extracteur ne trouve aucune garde, l'instrument ABANDONNE :
+   sa propre règle exige de refuser une conclusion quand il ne scanne rien. Une version
+   antérieure enfreignait cette règle et annonçait un succès avec une boucle vide.
+
+4. ROUGE QUALIFIÉ ET ATTRIBUÉ. Un ROUGE peut venir d'un PLANTAGE et non d'un refus : neuf
+   gardes sur dix-neuf ne tenaient que par l'exception qu'elles devaient éviter, alors que
    l'architecture exige « un verdict de rejet dédié plutôt qu'un plantage ». Le script
-   exige donc qu'AU MOINS UN test en échec échoue par un signal NOMMÉ — `Failed`
+   exige donc qu'AU MOINS UN NOUVEL échec échoue par un signal NOMMÉ — `Failed`
    (pytest.fail), `AssertionError`, ou une assertion réécrite par pytest.
    « Au moins un » et non « tous » : neutraliser une garde qui protège un accès indexé
    fait NÉCESSAIREMENT planter le code aval ; l'exiger absent serait exiger l'impossible.
    Ce qui est exigible, c'est qu'un test NOMME la disparition au lieu de la subir.
+
+   Avant toute mutation, la suite est mesurée sur les sources intactes et doit être VERTE.
+   Ensuite, les échecs sont attribués par leurs lignes `FAILED …` : seuls les tests qui
+   échouent maintenant et ne figuraient pas dans la référence peuvent qualifier la garde.
+   Cette référence et cette attribution distinguent « la suite est rouge » de « la suite
+   est rouge À CAUSE de cette garde » ; sans elles, une suite déjà cassée ferait passer
+   l'instrument pour un succès complet.
 """
-import ast, pathlib, re, shutil, subprocess, sys
+import ast
+import pathlib
+import re
+import shutil
+import subprocess
+import sys
 
 RACINE = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".")
 MODULE = sys.argv[2] if len(sys.argv) > 2 else "qualite_photos"
@@ -44,24 +60,32 @@ original = SRC.read_text(encoding="utf-8")
 lignes = original.split("\n")
 
 # Signaux d'un échec NOMMÉ : pytest.fail lève `Failed` ; une assertion échoue soit en
-# `AssertionError`, soit — quand pytest a RÉÉCRIT l'assertion — en une ligne qui
-# commence par le mot `assert` suivi de l'expression évaluée (« assert True is False »).
-# Ce troisième cas a d'abord été classé à tort comme plantage par ce script ; mesuré en
-# neutralisant la garde L163 et en lisant la sortie --tb=line. Tout le reste est une
-# exception SUBIE, pas un refus prononcé.
+# `AssertionError`, soit — quand pytest a RÉÉCRIT l'assertion — en une ligne contenant
+# l'expression évaluée (« assert True is False »).
 NOMMES = ("Failed", "AssertionError", "assert")
-# Avec --tb=line, chaque échec produit « chemin:ligne: TypeDException: message ».
-MOTIF_ECHEC = re.compile(r"^.*?:\d+: (\w+)", re.MULTILINE)
-
+# Avec -q, pytest termine chaque échec par « FAILED identifiant - détail ». Le détail est
+# produit avec --tb=line et porte donc le signal à qualifier.
+MOTIF_FAILED = re.compile(
+    r"^FAILED (?P<test>.+?)(?: - (?P<detail>.*))?$", re.MULTILINE
+)
+MOTIF_TYPE = re.compile(r"\b([A-Z]\w*(?:Error|Exception|Exit|Interrupt))\b")
 
 ARBRE = ast.parse(original)
 # Fabriques de rejet du module : toute fonction dont le corps construit un verdict.
 # Une garde peut déléguer son rejet à une telle fabrique (`return _rejet_champ_photo(...)`),
 # et la reconnaissance doit traverser cette indirection — sinon neuf gardes disparaissent
 # du compte. La résolution se fait sur le GRAPHE d'appel, jamais sur le nom écrit.
-FABRIQUES = {f.name for f in ast.walk(ARBRE) if isinstance(f, ast.FunctionDef)
-             and any(isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
-                     and n.func.attr == "construire_verdict" for n in ast.walk(f))}
+FABRIQUES = {
+    f.name
+    for f in ast.walk(ARBRE)
+    if isinstance(f, ast.FunctionDef)
+    and any(
+        isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Attribute)
+        and n.func.attr == "construire_verdict"
+        for n in ast.walk(f)
+    )
+}
 
 
 def _est_rejet(noeud_return):
@@ -96,8 +120,12 @@ def _est_blocage(noeud_return):
     for n in ast.walk(noeud_return):
         if isinstance(n, ast.Dict):
             for cle, val in zip(n.keys, n.values):
-                if (isinstance(cle, ast.Constant) and cle.value == "prix_bloque"
-                        and isinstance(val, ast.Constant) and val.value is True):
+                if (
+                    isinstance(cle, ast.Constant)
+                    and cle.value == "prix_bloque"
+                    and isinstance(val, ast.Constant)
+                    and val.value is True
+                ):
                     return True
     return False
 
@@ -122,19 +150,109 @@ def bloque_directement(noeud):
     return any(_est_blocage(r) for r in _corps_propre(noeud))
 
 
+def lancer_suite():
+    """Exécute la suite dans le format dont les échecs sont attribuables."""
+    return subprocess.run(
+        [
+            sys.executable,
+            "-B",
+            "-m",
+            "pytest",
+            str(TESTS),
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "--color=no",
+            "--tb=line",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=RACINE,
+    )
+
+
+def extraire_echecs(resultat):
+    """Retourne les tests FAILED et leur détail --tb=line."""
+    sortie = resultat.stdout + "\n" + resultat.stderr
+    return {
+        correspondance.group("test"): correspondance.group("detail") or ""
+        for correspondance in MOTIF_FAILED.finditer(sortie)
+    }
+
+
+def signal_nomme(detail):
+    """Retourne le signal nommé porté par le détail --tb=line, sinon `None`."""
+    if re.search(r"\bFailed\b", detail):
+        return "Failed"
+    if re.search(r"\bAssertionError\b", detail):
+        return "AssertionError"
+    if re.search(r"\bassert\b", detail):
+        return "assert"
+    return None
+
+
+def type_echec(detail):
+    """Retourne un type lisible pour un plantage non qualifié."""
+    correspondance = MOTIF_TYPE.search(detail)
+    return correspondance.group(1) if correspondance else "inconnu"
+
+
 tous = [n for n in ast.walk(ARBRE) if isinstance(n, ast.If)]
 directes = [n for n in tous if rejette_directement(n)]
 blocages = [n for n in tous if n not in directes and bloque_directement(n)]
-englobantes = [n for n in tous if n not in directes and n not in blocages and any(
-    rejette_directement(d) for d in ast.walk(n) if isinstance(d, ast.If) and d is not n)]
+englobantes = [
+    n
+    for n in tous
+    if n not in directes
+    and n not in blocages
+    and any(
+        rejette_directement(d)
+        for d in ast.walk(n)
+        if isinstance(d, ast.If) and d is not n
+    )
+]
 gardes = sorted(directes + englobantes + blocages, key=lambda n: n.lineno)
 genre = {}
 for n in gardes:
-    genre[id(n)] = ("rejet" if n in directes else
-                    "englobante" if n in englobantes else "blocage")
-print(f"contrôles neutralisés = {len(gardes)} = {len(directes)} gardes de REJET "
-      f"+ {len(englobantes)} englobante(s) (L{[n.lineno for n in englobantes]}) "
-      f"+ {len(blocages)} décision(s) de BLOCAGE (L{[n.lineno for n in blocages]})")
+    genre[id(n)] = (
+        "rejet"
+        if n in directes
+        else "englobante"
+        if n in englobantes
+        else "blocage"
+    )
+
+print(
+    f"contrôles neutralisés = {len(gardes)} = {len(directes)} gardes de REJET "
+    f"+ {len(englobantes)} englobante(s) (L{[n.lineno for n in englobantes]}) "
+    f"+ {len(blocages)} décision(s) de BLOCAGE (L{[n.lineno for n in blocages]})"
+)
+
+if not gardes:
+    print(
+        "ABANDON : l'extracteur n'a rien trouvé ; le contrôle n'est pas probant."
+    )
+    assert SRC.read_text(encoding="utf-8") == original, "source non restaurée"
+    sys.exit(1)
+
+reference = lancer_suite()
+echecs_reference = extraire_echecs(reference)
+if reference.returncode != 0:
+    tests_reference = sorted(echecs_reference)
+    if tests_reference:
+        deja_echoues = ", ".join(tests_reference)
+    else:
+        deja_echoues = (
+            "aucun identifiant FAILED (erreur de collecte ou d'exécution avant les tests)"
+        )
+    print(
+        "ABANDON : la référence est déjà ROUGE ; muter une suite non verte ne prouve "
+        f"rien. Tests échouant déjà : {deja_echoues}"
+    )
+    assert SRC.read_text(encoding="utf-8") == original, "source non restaurée"
+    sys.exit(1)
+
+print("référence VERTE : aucun échec préexistant")
 
 
 def neutraliser(noeud):
@@ -164,30 +282,47 @@ try:
         SRC.write_text(mutant, encoding="utf-8")
         for c in SRC.parent.rglob("__pycache__"):
             shutil.rmtree(c, ignore_errors=True)
-        r = subprocess.run([sys.executable, "-B", "-m", "pytest", str(TESTS), "-q",
-                            "-p", "no:cacheprovider", "--color=no", "--tb=line"],
-                           capture_output=True, text=True, cwd=RACINE)
-        if r.returncode == 0:
+        resultat = lancer_suite()
+        if resultat.returncode == 0:
             etat = "VERT (NUE)"
             nues.append(garde.lineno)
         else:
-            types = set(MOTIF_ECHEC.findall(r.stdout))
-            nommes = types & set(NOMMES)
-            if nommes:
-                etat = f"ROUGE par REFUS NOMMÉ ({sorted(nommes)[0]})"
+            echecs_actuels = extraire_echecs(resultat)
+            nouveaux = {
+                test: detail
+                for test, detail in echecs_actuels.items()
+                if test not in echecs_reference
+            }
+            signaux = {
+                test: signal_nomme(detail)
+                for test, detail in nouveaux.items()
+                if signal_nomme(detail) is not None
+            }
+            if signaux:
+                signal = sorted(signaux.values())[0]
+                tests = ", ".join(sorted(signaux))
+                etat = f"ROUGE par REFUS NOMMÉ ({signal}; nouveaux : {tests})"
             else:
-                brut = sorted(types)[0] if types else "inconnu"
+                bruts = sorted(
+                    {type_echec(detail) for detail in nouveaux.values()}
+                )
+                brut = bruts[0] if bruts else "aucun FAILED attribuable"
                 etat = f"ROUGE par PLANTAGE SEUL ({brut})"
                 par_plantage.append((garde.lineno, brut))
         cond = ast.get_source_segment(original, garde.test)[:46]
-        print(f"  [{i:02d}] L{garde.lineno:<4} {genre[id(garde)]:<11} {cond:<48} -> {etat}")
+        print(
+            f"  [{i:02d}] L{garde.lineno:<4} {genre[id(garde)]:<11} "
+            f"{cond:<48} -> {etat}"
+        )
 finally:
     SRC.write_text(original, encoding="utf-8")
     for c in SRC.parent.rglob("__pycache__"):
         shutil.rmtree(c, ignore_errors=True)
 
-print(f"\ncontroles={len(gardes)}  nus={len(nues)}  sans effet={len(sans_effet)}  "
-      f"tenues par plantage SEUL={len(par_plantage)} {par_plantage}  "
-      f"ancres ambiguës=0 (bornes AST)")
+print(
+    f"\ncontroles={len(gardes)}  nus={len(nues)}  sans effet={len(sans_effet)}  "
+    f"tenues par plantage SEUL={len(par_plantage)} {par_plantage}  "
+    f"ancres ambiguës=0 (bornes AST)"
+)
 assert SRC.read_text(encoding="utf-8") == original, "source non restaurée"
 sys.exit(1 if (nues or sans_effet or par_plantage) else 0)

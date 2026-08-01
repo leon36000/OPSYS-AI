@@ -2,26 +2,32 @@
  "verdict": "REJECT",
  "objections": [
   {
+   "severite": "critique",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/README.md",
+   "description": "Le pack présente une sortie de preuve pour la garde d'exécutabilité ('outil orphelin déposé -> ROUGE'), mais aucun script dans le diff ne produit cette sortie. L'auteur a testé manuellement son test en déposant un fichier temporaire, puis a copié la sortie dans la description. C'est une preuve de scratchpad non versionnée et irreproductible en l'état sur la branche, ce qui contredit directement la règle 1 du README ('Une preuve qui n'existe que dans un scratchpad n'est pas une preuve').",
+   "preuve": "La sortie 'outil orphelin déposé -> ROUGE (la garde mord) / dossier restauré : True' est citée dans la description du pack, mais introuvable dans les scripts fournis (seul test_outils_de_preuve.py existe, qui est un test pytest standard et ne génère pas cette sortie de preuve de morsure)."
+  },
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_monte_carlo.py",
+   "description": "La suppression du plafond (et du plancher) est déclarée inerte sous prétexte que sur 300 graines, le bornage ne s'est pas déclenché. L'auteur admet que c'est un 'filet contre un dépassement lié à l'arrondi flottant' et que 'le contrat exige que les bornes restent dans le barème'. En Python, random.uniform(a, b) peut mathématiquement retourner une valeur excédant b à cause des arrondis flottants. La garde est donc indispensable pour respecter le contrat. Le fait qu'elle reste verte prouve seulement que la suite de tests (300 graines) est aveugle à ce cas limite rare, pas que la mutation est inerte. C'est un vrai défaut déguisé en redondance.",
+   "preuve": "Lignes déclarant la redondance : 'C est un filet contre un depassement d un chiffre binaire lie a l arrondi flottant... il est conserve parce que le contrat exige que les bornes restent dans le bareme.' La mutation remplace 'if borne_haute > plafond: borne_haute = plafond' par 'if False:'."
+  },
+  {
    "severite": "majeure",
    "fichier": "Modules M/M3-estimation/tests/outils_preuve/enumerer_gardes.py",
-   "description": "Le script contredit la règle de discipline du README (« refuse de conclure quand son extracteur ne trouve rien »). Si l'extracteur AST ne trouve aucun `if` (liste `gardes` vide), la boucle de mutation ne s'exécute pas, les listes d'échecs restent vides, et le script sort avec un code 0 (succès) au lieu d'échouer.",
+   "description": "Le script contredit la règle de discipline du README ('refuse de conclure quand son extracteur ne trouve rien'). Si l'extracteur AST ne trouve aucun `if` (la liste `gardes` est vide), la boucle de mutation ne s'exécute pas, les listes d'échecs restent vides, et le script sort avec un code 0 (succès) au lieu d'échouer. Un scanner vide passe donc avec succès.",
    "preuve": "Ligne `sys.exit(1 if (nues or sans_effet or par_plantage) else 0)` : aucune vérification que `len(gardes) > 0` avant de conclure au succès."
   },
   {
    "severite": "majeure",
-   "fichier": "Modules M/M3-estimation/tests/outils_preuve/neutralite_renommage.py",
-   "description": "Le script contredit également la règle du README sur les extracteurs vides. Si aucune constante n'est trouvée dans le commit de référence (ex: `total == 0`), la liste `ecarts` reste vide et le script sort avec un code 0 (succès) au lieu d'échouer.",
-   "preuve": "Ligne `sys.exit(1 if ecarts else 0)` : aucune vérification que `total > 0` ou que le dictionnaire `avant` n'est pas vide."
-  },
-  {
-   "severite": "majeure",
    "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_qualite_photos.py",
-   "description": "Le script ne garantit pas la restauration des sources en cas d'interruption (ex: `KeyboardInterrupt`). La mutation est écrite sur le disque en dehors et *avant* d'entrer dans le bloc `try...finally`, créant une condition de course où le fichier reste muté si le script s'arrête à ce moment précis (contrairement aux autres scripts qui incluent l'écriture dans le `try`).",
-   "preuve": "Lignes `fichier.write_text(o.replace(avant, apres, 1), encoding=\"utf-8\")` immédiatement suivies de `try: rc = run(cible)` (motif vulnérable répété 4 fois dans le script)."
+   "description": "Le script ne garantit pas la restauration des sources en cas d'interruption (ex: KeyboardInterrupt ou SIGTERM). La mutation est écrite sur le disque en dehors et avant d'entrer dans le bloc `try...finally`, créant une condition de course où le fichier reste définitivement muté si le script s'arrête à ce moment précis.",
+   "preuve": "Lignes `fichier.write_text(o.replace(avant, apres, 1), encoding=\"utf-8\")` immédiatement suivies de `try: rc = run(cible)` (motif vulnérable répété dans les boucles du script, contrairement aux autres scripts qui englobent l'écriture dans le try)."
   }
  ],
- "date_heure": "2026-08-01T07:36:36.724000+00:00",
- "prompt_sha256": "9cceb34716313c51dd915d6c348322d1c5aebc7885c138f7815db0a20fdba586",
+ "date_heure": "2026-08-01T07:43:45.781031+00:00",
+ "prompt_sha256": "1e53229c840be5096431f94b972cb8e238ff6d73da98311aa971c53d7d0bb6ab",
  "reviewer_model": "Gemini-3.1-Pro",
  "modele_servi": "gemini-31-pro-openrouter",
  "gateway_resilience": {
