@@ -235,6 +235,16 @@ def test_aucune_trace_apres_les_epreuves(lancer_outil):
 
     avant = _instantane_arborescence()
     try:
+        # Un abandon précoce ne touche jamais le disque ; seule une exécution qui
+        # mute puis restaure met la propriété « aucune trace » à l'épreuve.
+        outil_normal = _OUTILS_MUTATION[0]
+        resultat_normal = lancer_outil(outil_normal)
+        sortie_normale = _sortie(resultat_normal)
+        assert resultat_normal.returncode == 0, (
+            "l'épreuve normale n'a pas abouti ; le contrôle d'absence de trace "
+            f"n'est pas probant :\n{sortie_normale}"
+        )
+
         chemin_suite_rouge.write_text(
             "def test_epreuve_deliberement_rouge():\n"
             '    assert False, "épreuve volontairement rouge des gardes"\n',

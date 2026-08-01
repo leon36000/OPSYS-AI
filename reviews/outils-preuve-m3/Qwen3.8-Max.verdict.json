@@ -4,36 +4,30 @@
   {
    "severite": "critique",
    "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
-   "description": "Une sentinelle disque au niveau module peut désactiver silencieusement toutes les épreuves de garde. Si `.gardes_des_outils_enfant` existe au chargement (crash, exécution concurrente), les tests sont skipés au lieu d'échouer, donc les gardes ne sont pas exercées. Le pack déclare lui-même qu'un tel état partagé ne survit pas aux exécutions concurrentes.",
-   "preuve": "+_SENTINEL_RECURSION = _TESTS / \".gardes_des_outils_enfant\" ; +if _SENTINEL_RECURSION.exists(): +    pytestmark = pytest.mark.skip(reason=\"processus enfant d'un outil : éviter l'exécution récursive des épreuves\")"
+   "description": "Le test de trace ne fait exercer que des abandons précoces : entre les deux instantanés, les outils sont lancés avec une suite déjà rouge ou un module sans garde, puis on assertit un code non nul. Aucune exécution nominale des outils (mutation de source puis restauration) n'est réalisée entre `avant` et `apres`. Le test peut donc passer sans vérifier les traces laissées par le chemin réel des instruments.",
+   "preuve": "Dans test_aucune_trace_apres_les_epreuves : création de `test_epreuve_garde_suite_rouge.py`, puis `assert resultat.returncode != 0` et `assert PHRASE_SUITE_ROUGE in sortie` ; création de `epreuve_module_sans_garde.py`, puis `assert resultat_vide.returncode != 0` ; aucun appel aux outils en état sain entre `avant = _instantane_arborescence()` et `apres = _instantane_arborescence()`."
   },
   {
    "severite": "majeure",
    "fichier": "Modules M/M3-estimation/tests/outils_preuve/bilan_preuves.py",
-   "description": "Le contrôle de gate 'suite de tests du module' relance pytest sur tout TESTS sans ignorer test_gardes_des_outils.py. Ce fichier exécute les instruments de preuve, qui relancent eux-mêmes pytest sur TESTS (en ignorant seulement le fichier de garde). Cela forme une boucle indirecte instrument->suite->instrument->suite, contrairement à la correction annoncée d'exclusion explicite.",
-   "preuve": "bilan_preuves.py : +\"pytest\", +str(TESTS), +\"-q\", ... sans --ignore ; test_gardes_des_outils.py : +def _lancer(outil, *arguments): ; muter_blocage_prix.py : +f\"--ignore={TESTS / 'test_gardes_des_outils.py'}\""
-  },
-  {
-   "severite": "majeure",
-   "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
-   "description": "`test_chaque_outil_est_sain_avant_sabotage` n'exerce pas l'énumérateur : il est paramétré seulement par `_OUTILS_MUTATION`. La propriété nommée 'chaque outil est sain avant sabotage' n'est donc pas vérifiée pour `enumerer_gardes.py` ; un énumérateur cassé à l'état sain pourrait passer inaperçu.",
-   "preuve": "+_OUTILS_MUTATION = sorted(_OUTILS.glob(\"muter_*.py\")) ; +@pytest.mark.parametrize( +    \"outil\", +    _parametres_outils(), ... ) +def test_chaque_outil_est_sain_avant_sabotage(outil, lancer_outil):"
+   "description": "Une boucle indirecte d'auto-mesure subsiste : le bilan exécute la suite de tests du module sans exclure les tests qui lancent les instruments ; ces instruments relancent ensuite pytest sur la même arborescence de tests en excluant seulement le fichier de garde, mais pas le fichier qui vérifie statiquement les instruments eux-mêmes. Ainsi l'exécution d'un instrument dépend de tests qui inspectent cet instrument pendant qu'il tourne.",
+   "preuve": "bilan_preuves.py : contrôle `suite de tests du module` = `[\"pytest\", str(TESTS), \"-q\", \"-p\", \"no:cacheprovider\", \"--color=no\"]` sans `--ignore` ; muter_*.py : `executer_tests()` utilise `--ignore={TESTS / 'test_gardes_des_outils.py'}` mais n'exclut pas `test_outils_de_preuve.py` ; test_outils_de_preuve.py : `arbre = ast.parse(outil.read_text(encoding=\"utf-8\"))` sur les scripts `muter_*.py`."
   },
   {
    "severite": "mineure",
    "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
-   "description": "`test_aucune_trace_apres_les_epreuves` ne voit pas certaines traces : caches exclus et horodatage non comparé. Un changement de mtime ou un artefact laissé dans __pycache__/.pytest_cache ne serait pas détecté, bien que le pack/README évoque 'aucune trace'.",
-   "preuve": "+if \"__pycache__\" in relatif.parts or \".pytest_cache\" in relatif.parts: +    continue ; +    # L'horodatage est volontairement absent : pytest réécrit des caches et le"
+   "description": "Le relevé d'empreintes exclut explicitement des répertoires où des artefacts peuvent être laissés et borne le scan au seul module M3. L'affirmation d'absence de trace est donc plus large que la mesure réellement effectuée.",
+   "preuve": "_instantane_arborescence() : `if \"__pycache__\" in relatif.parts or \".pytest_cache\" in relatif.parts: continue` et `for racine in (_M3 / \"src\", _TESTS):` sans couvrir le reste du dépôt."
   },
   {
    "severite": "majeure",
    "fichier": "Modules M/M3-estimation/tests/outils_preuve/README.md",
-   "description": "Le README affirme que test_outils_de_preuve.py exige que chaque outil s'annonce par un docstring. Le code ne contrôle que `enumerer_gardes.py` ; les scripts `muter_*.py` et `bilan_preuves.py` ne sont pas astreints à ce contrôle.",
-   "preuve": "README : +`test_outils_de_preuve.py` ... et que chaque outil s'annonce par un docstring. ; test_outils_de_preuve.py : +@pytest.mark.parametrize(\"nom\", [\"enumerer_gardes.py\"]) +def test_les_outils_transverses_sont_presents_et_documentes(nom):"
+   "description": "Le README affirme que chaque outil est sain avant sabotage et que chaque outil s'annonce par un docstring. Le code ne tient pas ces deux affirmations : la santé avant sabotage n'est testée que pour les scripts `muter_*.py`, pas pour `enumerer_gardes.py` ni `bilan_preuves.py` ; l'exigence de docstring n'est contrôlée que pour `enumerer_gardes.py`.",
+   "preuve": "README : `chaque outil est SAIN avant sabotage` et `chaque outil s'annonce par un docstring` ; test_gardes_des_outils.py : `_OUTILS_MUTATION = sorted(_OUTILS.glob(\"muter_*.py\"))` et `test_chaque_outil_est_sain_avant_sabotage` paramétré via `_parametres_outils()` ; test_outils_de_preuve.py : `@pytest.mark.parametrize(\"nom\", [\"enumerer_gardes.py\"])`."
   }
  ],
- "date_heure": "2026-08-01T18:34:36.034818+00:00",
- "prompt_sha256": "a4bd73ffbe9fd3e3504af736e72393825cc1353e12b46b5b37d50bb76a87cd77",
+ "date_heure": "2026-08-01T18:49:23.260007+00:00",
+ "prompt_sha256": "8aafbb279a6686b09ad7274c56a56956269aa89331c582a5514048e083bca8c6",
  "reviewer_model": "Qwen3.8-Max",
  "modele_servi": "qwen38-max-alibaba-sg",
  "gateway_resilience": {

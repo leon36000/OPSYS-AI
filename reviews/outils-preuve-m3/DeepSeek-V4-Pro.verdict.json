@@ -2,32 +2,32 @@
  "verdict": "REJECT",
  "objections": [
   {
-   "severite": "majeure",
-   "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
-   "description": "Le README affirme que le vérificateur exige un contrôle NÉGATIF pour chaque outil (l'outil doit être sain avant sabotage). Or la suite de tests ne comporte aucun test de santé pour l'énumérateur (enumerer_gardes.py) : seuls les muters bénéficient de test_chaque_outil_est_sain_avant_sabotage. L'énumérateur n'est donc pas couvert, contrairement à la promesse du pack.",
-   "preuve": "La fonction test_chaque_outil_est_sain_avant_sabotage est paramétrée avec _parametres_outils() qui exclut l'énumérateur ; aucun autre test n'exécute enumerer_gardes.py sur un module valide pour contrôler rc=0 sans phrase d'abandon."
+   "severite": "critique",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_blocage_prix.py",
+   "description": "Boucle où un instrument se mesure lui-même. Chaque muter exécute pytest sur tout le dossier TESTS sans ignorer test_outils_de_preuve.py, qui lui-même parse et vérifie l'outil en cours d'exécution. L'instrument lance donc un test qui inspecte l'instrument, formant une boucle indirecte capable d'introduire des artéfacts ou de fausser les mesures.",
+   "preuve": "Dans executer_tests() : ['pytest', str(TESTS), '-q', f'--ignore={TESTS / \"test_gardes_des_outils.py\"}', ...]. test_outils_de_preuve.py contient test_chaque_outil_de_mutation_declare_sa_cible_dans_son_code qui lit et parse l'AST de chaque outil de mutation présent dans _OUTILS."
   },
   {
    "severite": "majeure",
-   "fichier": "Modules M/M3-estimation/tests/test_outils_de_preuve.py",
-   "description": "Le README indique que test_outils_de_preuve.py exige que chaque outil s'annonce par un docstring. En réalité, seule la docstring de enumerer_gardes.py est vérifiée ; les muters et bilan_preuves.py ne sont pas astreints à cette contrainte.",
-   "preuve": "Ligne 167 de test_outils_de_preuve.py : @pytest.mark.parametrize('nom', ['enumerer_gardes.py']). Aucun test similaire pour muter_*.py ou bilan_preuves.py."
+   "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
+   "description": "L'énumérateur (enumerer_gardes.py) n'est pas couvert par le test de santé avant sabotage, contrairement à l'affirmation du README et à la promesse du pack. Une régression sur l'énumérateur pourrait rester non détectée.",
+   "preuve": "La fonction test_chaque_outil_est_sain_avant_sabotage est paramétrée uniquement avec _parametres_outils() qui retourne exclusivement les muter_*.py ; enumerer_gardes.py n'est jamais lancé sur un module valide pour vérifier un retour zéro et l'absence de phrase d'abandon."
   },
   {
    "severite": "mineure",
    "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
-   "description": "Le contrôle d'absence de traces (test_aucune_trace_apres_les_epreuves) exclut explicitement les répertoires __pycache__ et .pytest_cache. Un outil malveillant peut donc y déposer un fichier altéré qui ne sera pas détecté, alors que le README annonce une couverture de TOUS les chemins sous src/ et tests/ avec empreinte et mode.",
-   "preuve": "Dans _instantane_arborescence() : 'if \"__pycache__\" in relatif.parts or \".pytest_cache\" in relatif.parts: continue'."
+   "description": "Le test d'absence de traces ignore délibérément les répertoires __pycache__ et .pytest_cache. Une épreuve utilisant des fixtures (comme suite_deja_rouge) génère un fichier .pyc dans __pycache__ lors de l'exécution des outils ; ce fichier n'est pas supprimé par la fixture et n'est pas relevé par l'instantané, laissant une trace invisible.",
+   "preuve": "Dans _instantane_arborescence() : 'if \"__pycache__\" in relatif.parts or \".pytest_cache\" in relatif.parts: continue'. La fixture suite_deja_rouge supprime le .py mais aucun nettoyage du __pycache__ correspondant n'est effectué."
   },
   {
-   "severite": "mineure",
-   "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
-   "description": "La vérification d'intégrité ne porte que sur les fichiers et répertoires à l'intérieur de M3-estimation/src et M3-estimation/tests, alors que le pack affirme surveiller tous les chemins sous src/ et tests/ du dépôt. Les altérations en dehors de ce périmètre (par exemple src/ d'un autre module) passeraient inaperçues.",
-   "preuve": "La variable _M3 est définie comme Path(__file__).resolve().parents[1], limitant le scan au répertoire 'Modules M/M3-estimation'."
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/README.md",
+   "description": "Le README affirme que test_outils_de_preuve.py exige que chaque outil s'annonce par un docstring. Le code ne vérifie cette règle que pour enumerer_gardes.py ; les scripts muter_*.py et bilan_preuves.py en sont exemptés, créant un faux sentiment de complétude.",
+   "preuve": "Dans le README : « et que chaque outil s'annonce par un docstring. » Dans test_outils_de_preuve.py : @pytest.mark.parametrize(\"nom\", [\"enumerer_gardes.py\"]) définit test_les_outils_transverses_sont_presents_et_documentes uniquement pour ce fichier."
   }
  ],
- "date_heure": "2026-08-01T18:31:02.063390+00:00",
- "prompt_sha256": "a4bd73ffbe9fd3e3504af736e72393825cc1353e12b46b5b37d50bb76a87cd77",
+ "date_heure": "2026-08-01T18:45:43.922325+00:00",
+ "prompt_sha256": "8aafbb279a6686b09ad7274c56a56956269aa89331c582a5514048e083bca8c6",
  "reviewer_model": "DeepSeek-V4-Pro",
  "modele_servi": "deepseek-v4-pro-direct",
  "gateway_resilience": {
