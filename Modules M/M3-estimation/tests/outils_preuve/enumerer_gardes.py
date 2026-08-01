@@ -39,7 +39,7 @@ les messages de commit de la branche) :
    Ce qui est exigible, c'est qu'un test NOMME la disparition au lieu de la subir.
 
    Avant toute mutation, la suite est mesurée sur les sources intactes et doit être VERTE.
-   Ensuite, les échecs sont attribués par leurs lignes `FAILED …` : seuls les tests qui
+   Ensuite, les échecs sont attribués par leurs lignes `FAILED` : seuls les tests qui
    échouent maintenant et ne figuraient pas dans la référence peuvent qualifier la garde.
    Cette référence et cette attribution distinguent « la suite est rouge » de « la suite
    est rouge À CAUSE de cette garde » ; sans elles, une suite déjà cassée ferait passer
@@ -60,15 +60,18 @@ original = SRC.read_text(encoding="utf-8")
 lignes = original.split("\n")
 
 # Signaux d'un échec NOMMÉ : pytest.fail lève `Failed` ; une assertion échoue soit en
-# `AssertionError`, soit — quand pytest a RÉÉCRIT l'assertion — en une ligne contenant
-# l'expression évaluée (« assert True is False »).
+# `AssertionError`, soit — quand pytest a RÉÉCRIT l'assertion — avec `assert` comme type
+# de la ligne --tb=line.
 NOMMES = ("Failed", "AssertionError", "assert")
-# Avec -q, pytest termine chaque échec par « FAILED identifiant - détail ». Le détail est
-# produit avec --tb=line et porte donc le signal à qualifier.
-MOTIF_FAILED = re.compile(
-    r"^FAILED (?P<test>.+?)(?: - (?P<detail>.*))?$", re.MULTILINE
+# Avec -q, pytest émet l'identifiant sur une ligne distincte :
+# « FAILED identifiant ». Cette ligne sert exclusivement à l'ATTRIBUTION.
+MOTIF_FAILED = re.compile(r"^FAILED (?P<test>.+?)(?: - .*)?$", re.MULTILINE)
+# Avec --tb=line, le détail est porté par une autre ligne :
+# « .../test.py:123: Failed: ... » ou « .../test.py:123: assert ... ».
+MOTIF_DETAIL = re.compile(r"^.+?:\d+:\s+(?P<detail>.*)$", re.MULTILINE)
+MOTIF_TYPE = re.compile(
+    r"^\s*(Failed|AssertionError|assert|[A-Z]\w*(?:Error|Exception|Exit|Interrupt))\b"
 )
-MOTIF_TYPE = re.compile(r"\b([A-Z]\w*(?:Error|Exception|Exit|Interrupt))\b")
 
 ARBRE = ast.parse(original)
 # Fabriques de rejet du module : toute fonction dont le corps construit un verdict.
@@ -171,30 +174,37 @@ def lancer_suite():
     )
 
 
-def extraire_echecs(resultat):
-    """Retourne les tests FAILED et leur détail --tb=line."""
-    sortie = resultat.stdout + "\n" + resultat.stderr
+def _sortie(resultat):
+    """Retourne la sortie complète de pytest."""
+    return resultat.stdout + "\n" + resultat.stderr
+
+
+def extraire_tests_echoues(resultat):
+    """Retourne les identifiants des lignes `FAILED`, pour l'attribution."""
     return {
-        correspondance.group("test"): correspondance.group("detail") or ""
-        for correspondance in MOTIF_FAILED.finditer(sortie)
+        correspondance.group("test")
+        for correspondance in MOTIF_FAILED.finditer(_sortie(resultat))
     }
+
+
+def extraire_details(resultat):
+    """Retourne les détails distincts produits par --tb=line."""
+    return [
+        correspondance.group("detail")
+        for correspondance in MOTIF_DETAIL.finditer(_sortie(resultat))
+    ]
+
+
+def type_echec(detail):
+    """Retourne le type lisible porté en tête d'un détail --tb=line."""
+    correspondance = MOTIF_TYPE.search(detail)
+    return correspondance.group(1) if correspondance else "inconnu"
 
 
 def signal_nomme(detail):
     """Retourne le signal nommé porté par le détail --tb=line, sinon `None`."""
-    if re.search(r"\bFailed\b", detail):
-        return "Failed"
-    if re.search(r"\bAssertionError\b", detail):
-        return "AssertionError"
-    if re.search(r"\bassert\b", detail):
-        return "assert"
-    return None
-
-
-def type_echec(detail):
-    """Retourne un type lisible pour un plantage non qualifié."""
-    correspondance = MOTIF_TYPE.search(detail)
-    return correspondance.group(1) if correspondance else "inconnu"
+    signal = type_echec(detail)
+    return signal if signal in NOMMES else None
 
 
 tous = [n for n in ast.walk(ARBRE) if isinstance(n, ast.If)]
@@ -236,7 +246,7 @@ if not gardes:
     sys.exit(1)
 
 reference = lancer_suite()
-echecs_reference = extraire_echecs(reference)
+echecs_reference = extraire_tests_echoues(reference)
 if reference.returncode != 0:
     tests_reference = sorted(echecs_reference)
     if tests_reference:
@@ -266,7 +276,7 @@ def neutraliser(noeud):
     return "\n".join(lignes[:debut] + [indent + "if False:"] + lignes[fin:])
 
 
-nues, sans_effet, par_plantage = [], [], []
+nues, sans_effet, non_attribuables, par_plantage = [], [], [], []
 try:
     for i, garde in enumerate(gardes, 1):
         mutant = neutraliser(garde)
@@ -287,28 +297,36 @@ try:
             etat = "VERT (NUE)"
             nues.append(garde.lineno)
         else:
-            echecs_actuels = extraire_echecs(resultat)
-            nouveaux = {
-                test: detail
-                for test, detail in echecs_actuels.items()
-                if test not in echecs_reference
-            }
-            signaux = {
-                test: signal_nomme(detail)
-                for test, detail in nouveaux.items()
-                if signal_nomme(detail) is not None
-            }
-            if signaux:
-                signal = sorted(signaux.values())[0]
-                tests = ", ".join(sorted(signaux))
-                etat = f"ROUGE par REFUS NOMMÉ ({signal}; nouveaux : {tests})"
+            echecs_actuels = extraire_tests_echoues(resultat)
+            nouveaux = echecs_actuels - echecs_reference
+            if not nouveaux:
+                etat = "ROUGE NON ATTRIBUABLE (aucun nouveau FAILED)"
+                non_attribuables.append(garde.lineno)
             else:
-                bruts = sorted(
-                    {type_echec(detail) for detail in nouveaux.values()}
+                # La référence a été prouvée VERTE avant toute mutation : tout échec du
+                # run courant est donc nouveau. Les détails --tb=line ne sont pas
+                # corrélables à leur ligne FAILED, mais les scanner tous ne peut alors
+                # ramasser aucun échec préexistant.
+                signaux = sorted(
+                    {
+                        signal
+                        for detail in extraire_details(resultat)
+                        if (signal := signal_nomme(detail)) is not None
+                    }
                 )
-                brut = bruts[0] if bruts else "aucun FAILED attribuable"
-                etat = f"ROUGE par PLANTAGE SEUL ({brut})"
-                par_plantage.append((garde.lineno, brut))
+                if signaux:
+                    signal = signaux[0]
+                    tests = ", ".join(sorted(nouveaux))
+                    etat = (
+                        f"ROUGE par REFUS NOMMÉ ({signal}; nouveaux : {tests})"
+                    )
+                else:
+                    bruts = sorted(
+                        {type_echec(detail) for detail in extraire_details(resultat)}
+                    )
+                    brut = bruts[0] if bruts else "aucun détail --tb=line"
+                    etat = f"ROUGE par PLANTAGE SEUL ({brut})"
+                    par_plantage.append((garde.lineno, brut))
         cond = ast.get_source_segment(original, garde.test)[:46]
         print(
             f"  [{i:02d}] L{garde.lineno:<4} {genre[id(garde)]:<11} "
@@ -321,8 +339,11 @@ finally:
 
 print(
     f"\ncontroles={len(gardes)}  nus={len(nues)}  sans effet={len(sans_effet)}  "
+    f"non attribuables={len(non_attribuables)} {non_attribuables}  "
     f"tenues par plantage SEUL={len(par_plantage)} {par_plantage}  "
     f"ancres ambiguës=0 (bornes AST)"
 )
 assert SRC.read_text(encoding="utf-8") == original, "source non restaurée"
-sys.exit(1 if (nues or sans_effet or par_plantage) else 0)
+sys.exit(
+    1 if (nues or sans_effet or non_attribuables or par_plantage) else 0
+)
