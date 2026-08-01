@@ -34,6 +34,21 @@ doit faire virer la suite au ROUGE. Les mutations qui ne PEUVENT PAS mordre — 
 structurelles — sont DÉCLARÉES avec leur raison mesurée, et le script échoue dans les DEUX
 sens : si une redondance déclarée se mettait à mordre, l'hypothèse serait tombée.
 
+## `verifier_les_outils.py` — l'instrument qui vérifie les instruments
+
+    python3 -B "Modules M/M3-estimation/tests/outils_preuve/verifier_les_outils.py" .
+
+Une revue scellée a rendu QUATRE objections critiques convergentes : les preuves que « les
+gardes des outils mordent » venaient d'extraits Python écrits DANS le pack de revue, pas
+d'un instrument versionné. Elles étaient donc irreproductibles — exactement la classe de
+défaut que ces outils servent à débusquer, commise dans le pack qui les présente.
+
+Ce script crée la condition de déclenchement de chaque garde, lance l'outil concerné, et
+exige un code de retour non nul. Il relève l'empreinte sha256 de tous les fichiers source et
+de tous les outils AVANT, et la confronte APRÈS chaque manipulation : un vérificateur qui
+laisse une trace est un vérificateur qui ment. Il abandonne s'il n'a pu éprouver aucune
+garde.
+
 ## Un outil n'accompagne que des cibles qui existent
 
 Une revue scellée a rendu APPROVE 0/3 sur une première version de ce dossier : elle

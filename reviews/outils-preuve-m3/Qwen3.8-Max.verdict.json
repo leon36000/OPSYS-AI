@@ -1,0 +1,37 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M3-estimation/tests/test_outils_de_preuve.py",
+   "description": "La PREUVE D du pack montre une sortie de garde d'exécutabilité obtenue manuellement, mais aucun instrument versionné du diff ne produit cette sortie sur la branche.",
+   "preuve": "PREUVE D : 'outil orphelin déposé -> ROUGE (la garde mord) / dossier restauré : True'. Dans le diff, test_outils_de_preuve.py ne contient que des fonctions pytest et aucune commande/script n'imprime cette ligne."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_monte_carlo.py",
+   "description": "Une mutation déclarée inerte supprime le plafond de bornage requis par le contrat, et l'instrument ne prouve pas l'inertie autrement que par 300 graines et l'absence d'échec de la suite.",
+   "preuve": "REDONDANCES_DECLAREES : 'bornage au bareme : le plafond ne s applique plus' remplace 'if borne_haute > plafond: borne_haute = plafond' par 'if False: borne_haute = plafond' ; raison : 'MESURE : 0 declenchement sur 300 graines' et 'il est conserve parce que le contrat exige que les bornes restent dans le bareme'."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/tests/test_outils_de_preuve.py",
+   "description": "Le test de déclaration de cible accepte n'importe quelle constante chaîne mentionnant le module, sans vérifier qu'elle est affectée à SRC ; un outil peut donc viser un autre module tout en passant le test.",
+   "preuve": "chaines = [n.value for n in ast.walk(arbre) if isinstance(n, ast.Constant) and isinstance(n.value, str)] ; vise = any(c == f\"{attendu}.py\" or c.endswith(f\"/{attendu}.py\") for c in chaines). Aucune inspection d'une affectation SRC n'est faite."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/enumerer_gardes.py",
+   "description": "L'extracteur de gardes repose sur des formes syntaxiques précises ; un rejet non reconnu pourrait être omis, et le script pourrait sortir 0 si les gardes trouvées passent.",
+   "preuve": "_est_rejet ne retourne True que pour un tuple dont le premier élément est la constante None ou un appel à 'construire_verdict'/fabrique ; FABRIQUES ne liste que les fonctions contenant directement un appel à l'attribut 'construire_verdict'. Aucune preuve d'exhaustivité n'est fournie."
+  }
+ ],
+ "date_heure": "2026-08-01T08:12:41.495712+00:00",
+ "prompt_sha256": "87d00ad8da57cd0000c48ab6d6aabd18365f74f092f3877d5ff9f17e1a892cc6",
+ "reviewer_model": "Qwen3.8-Max",
+ "modele_servi": "qwen38-max-alibaba-sg",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}

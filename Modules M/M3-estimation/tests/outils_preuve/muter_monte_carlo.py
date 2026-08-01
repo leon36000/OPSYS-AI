@@ -60,16 +60,19 @@ REDONDANCES_DECLAREES = [
     ("bornage au bareme : le plancher ne s applique plus",
      "    if borne_basse < plancher:\n        borne_basse = plancher",
      "    if False:\n        borne_basse = plancher",
+     "INERTIE EMPIRIQUE, NON PROUVEE — requalification apres objection de revue scellee. "
      "Chaque tirage vaut generateur.uniform(cout_min, cout_max) * quantite et le plancher "
-     "vaut cout_min * quantite : le tirage est DANS les bornes par construction. MESURE : "
-     "sur 300 graines, le bornage ne s est declenche 0 fois. C est un filet contre un "
-     "depassement d un chiffre binaire lie a l arrondi flottant, pas un controle metier ; "
-     "il est conserve parce que le contrat exige que les bornes restent dans le bareme."),
+     "vaut cout_min * quantite. MESURE : 0 declenchement sur 300 graines de cette batterie, "
+     "et 0 excursion hors [min, max] sur 2 500 000 tirages eprouves separement. MAIS la "
+     "documentation CPython avertit que la borne haute de uniform PEUT OU NON etre incluse "
+     "selon l arrondi flottant : l impossibilite n est donc PAS etablie. Un echantillon, "
+     "meme large, ne demontre pas une impossibilite. La garde est conservee comme filet, et "
+     "cette declaration dit ce qu elle est : une observation, pas une preuve."),
     ("bornage au bareme : le plafond ne s applique plus",
      "    if borne_haute > plafond:\n        borne_haute = plafond",
      "    if False:\n        borne_haute = plafond",
-     "Meme raison, symetrique : le plafond vaut cout_max * quantite et aucun tirage ne le "
-     "depasse. MESURE : 0 declenchement sur 300 graines."),
+     "Meme raison, symetrique, et MEME LIMITE : le plafond vaut cout_max * quantite, aucun "
+     "depassement observe, aucune impossibilite prouvee."),
 ]
 
 

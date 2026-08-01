@@ -2,26 +2,20 @@
  "verdict": "REJECT",
  "objections": [
   {
-   "severite": "majeure",
-   "fichier": "Modules M/M3-estimation/tests/outils_preuve/enumerer_gardes.py",
-   "description": "Le script peut sortir 0 (succès) alors qu'aucune garde n'a été extraite ou mesurée, en contradiction avec la règle de discipline « refuse de conclure quand son extracteur ne trouve rien ».",
-   "preuve": "Lignes 163-168 : `sys.exit(1 if (nues or sans_effet or par_plantage) else 0)` ne vérifie pas que `gardes` n'est pas vide. Si `gardes` est vide (aucun `if` rejetant trouvé), la boucle ne s'exécute pas et les listes restent vides, donc le script sort avec 0."
+   "severite": "critique",
+   "fichier": "PREUVE D du pack",
+   "description": "La sortie « outil orphelin déposé -> ROUGE (la garde mord) / dossier restauré : True » est présentée comme preuve dans le descriptif du pack, mais aucun script du diff ne génère cette sortie. Elle est irreproductible sur la branche, ce qui contredit la règle « Une preuve qui n'existe que dans un scratchpad n'est pas une preuve » énoncée dans le README livré.",
+   "preuve": "Le diff ne contient que les scripts outils_preuve/*.py et test_outils_de_preuve.py. Aucun d'eux ne produit le texte cité. La sortie du test_outils_de_preuve.py est un rapport pytest et non cette chaîne. Le pack lui-même cite ce texte dans sa section PREUVE D."
   },
   {
    "severite": "majeure",
-   "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_qualite_photos.py",
-   "description": "L'écriture de la mutation sur le disque intervient avant l'entrée dans le bloc `try` de restauration, ce qui expose à une perte de restauration en cas d'interruption entre l'écriture et le `try`.",
-   "preuve": "Lignes 44-49 (et répétées pour les autres blocs) : `fichier.write_text(...)` est exécuté avant `try: rc = run(cible)`. Une interruption (ex. KeyboardInterrupt, kill) entre ces deux instructions laisse le fichier muté définitivement."
-  },
-  {
-   "severite": "majeure",
-   "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_blocage_prix.py",
-   "description": "Les scripts de mutation ne vérifient pas l'état de la suite de tests avant d'appliquer la mutation. Une suite déjà rouge (ex. collecte cassée) rendrait chaque mutation faussement détectée (ROUGE), masquant l'absence réelle de détection.",
-   "preuve": "Le script exécute `pytest` après mutation et conclut sur le code de retour seul (lignes 91-99). Aucune baseline (exécution de la suite avant mutation) n'est réalisée pour confirmer que la suite était verte."
+   "fichier": "Modules M/M3-estimation/tests/test_outils_de_preuve.py",
+   "description": "Le test `test_chaque_outil_de_mutation_declare_sa_cible_dans_son_code` vérifie que le nom du module attendu apparaît dans une constante chaîne quelconque de l'AST, sans exiger qu'il s'agisse de l'affectation à `SRC`. Un outil de mutation pourrait cibler un autre module et inclure le nom attendu dans une docstring ou une chaîne inutilisée, et ce test le déclarerait valide à tort.",
+   "preuve": "Lignes du diff correspondant au test : il collecte toutes les chaînes (`chaines = [ n.value for n in ast.walk(arbre) if isinstance(n, ast.Constant) and isinstance(n.value, str) ]`) puis accepte toute correspondance (`vise = any(c == f\"{attendu}.py\" or c.endswith(f\"/{attendu}.py\") for c in chaines)`). Il n'y a aucune vérification de l'affectation à la variable `SRC`, contrairement à ce qu'affirme la docstring du test."
   }
  ],
- "date_heure": "2026-08-01T07:42:14.811900+00:00",
- "prompt_sha256": "1e53229c840be5096431f94b972cb8e238ff6d73da98311aa971c53d7d0bb6ab",
+ "date_heure": "2026-08-01T08:00:06.146347+00:00",
+ "prompt_sha256": "87d00ad8da57cd0000c48ab6d6aabd18365f74f092f3877d5ff9f17e1a892cc6",
  "reviewer_model": "DeepSeek-V4-Pro",
  "modele_servi": "deepseek-v4-pro-direct",
  "gateway_resilience": {
