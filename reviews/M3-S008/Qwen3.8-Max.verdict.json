@@ -1,0 +1,61 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_registre.py",
+   "description": "La raison des redondances déclare une mesure combinée qui n'est pas réalisée par le script.",
+   "preuve": "Texte de raison: 'LES DEUX neutralisés ENSEMBLE -> ROUGE : False'; la boucle `for nom, avant, apres, raison in REDONDANCES_DECLAREES: ... mutant = original.replace(avant, apres, 1)` n'applique qu'une mutation à la fois, aucune combinaison des deux anchors n'est testée dans le diff."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_registre.py",
+   "description": "Commentaire de preuve contradictoire: il affirme que la liste ci-dessus est vide et que dix mutations mordent, alors que le diff contient deux redondances déclarées et huit mutations.",
+   "preuve": "Commentaire: '# La liste ci-dessus est VIDE ... les dix mutations de ce module mordent toutes'; le diff montre `MUTATIONS` avec huit entrées, `REDONDANCES_DECLAREES` avec deux entrées, et la preuve affiche 'registre 8/8 mordent | 2 redondances declarees et verifiees INERTES'."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/registre.py",
+   "description": "Une réécriture cohérente du dernier maillon n'est pas détectée: si la charge du dernier maillon est modifiée puis son hash recalculé à rang, hash_precedent et cout_reel inchangés, valider_chaine() peut retourner True.",
+   "preuve": "registre.py: premier passage `if maillon['hash_maillon'] != hash_recalcule` accepte un hash recalculé; second passage seulement `if maillon['rang'] != rang` et `if maillon['hash_precedent'] != hash_attendu_precedent`; sans successeur, aucun décalage de chaînage ne signale la charge modifiée. Les tests altèrent des champs sans recalculer le hash, ex. test_registre.py: `journal._maillons[1]['charge']['lead_id'] = 'lead-s008-altere'`."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/registre.py",
+   "description": "Le contrôle rang/position n'exige pas un entier strict; des valeurs égales mais de type différent peuvent satisfaire la comparaison si le hash est recalculé.",
+   "preuve": "registre.py: `if maillon['rang'] != rang:` sans `isinstance(maillon['rang'], int)` ni exclusion de bool; en Python `True == 1` et `1.0 == 1`."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_registre.py",
+   "description": "La déclaration de défense en profondeur n'est pas étayée par une mutation du contrôle de chaînage; le script ne prouve pas que les mécanismes de rang redeviendraient détecteurs si le chaînage était neutralisé.",
+   "preuve": "`MUTATIONS` et `REDONDANCES_DECLAREES` ne contiennent aucune mutation de `if maillon['hash_precedent'] != hash_attendu_precedent:`; le texte affirme 'si le contrôle de chaînage était retiré ... retomberait sur eux' sans mesure correspondante dans le diff."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/registre.py",
+   "description": "Le docstring prévoit un renseignement futur de cout_reel mais la validation actuelle interdit tout cout_reel non None et aucune API publique ne permet de le mettre à jour cohéremment.",
+   "preuve": "docstring: 'M5/M6 pourront le renseigner ultérieurement'; valider_chaine: `if maillon['cout_reel'] is not None: return False`; la surface publique exposée est `__all__ = ['HASH_PREDECESSEUR_INITIAL', 'Registre']` avec seulement ajouter, lire, valider_chaine."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/registre.py",
+   "description": "L'injectivité canonique n'est pas démontrée pour tous les types acceptés; la normalisation des complex utilise repr sans traitement explicite des NaN, et les champs de charge ne sont pas typés.",
+   "preuve": "registre.py: `if isinstance(objet, complex): return ['__complex__', [repr(objet.real), repr(objet.imag)]]`; `_charge_est_valide` vérifie `_CLES_CHARGE_REQUISES.issubset(charge)` et la sérialisation, pas les types des valeurs."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/test_registre.py",
+   "description": "La preuve append-only par inspection de noms est faible: elle n'empêche pas la mutation de l'attribut interne `_maillons`, utilisé par les tests eux-mêmes pour corrompre l'état.",
+   "preuve": "test_registre.py: `test_surface_publique_ne_propose_aucune_mutation_ou_suppression_de_maillon` contrôle des termes dans les noms publics, mais d'autres tests font `journal._maillons[1]['charge']['lead_id'] = ...` et `del journal._maillons[1]`; registre.py ne verrouille pas `_maillons` par `__slots__` ou propriété."
+  }
+ ],
+ "date_heure": "2026-08-01T22:55:31.703916+00:00",
+ "prompt_sha256": "607c0db3dce773fe02c44bb1dc1d28025ba8fd4e6b17a024afdf2f638121d03e",
+ "reviewer_model": "Qwen3.8-Max",
+ "modele_servi": "qwen38-max-alibaba-sg",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}

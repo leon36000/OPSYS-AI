@@ -1,0 +1,25 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_registre.py",
+   "description": "Le docstring de la batterie contredit l'attente effective de l'instrument et la preuve produite : il annonce que la neutralisation combinée des deux contrôles de rang doit mordre, alors que le code attend un état INERTE (vert) et que la sortie montre INERTE. La mesure déclarée n'est donc pas décrite de manière cohérente.",
+   "preuve": "Docstring : 'Leur neutralisation combinée est néanmoins exécutée et doit mordre, car le chaînage reste actif'. Code : '# La mesure DÉCLARÉE est que la combinaison reste INERTE ... On attend donc le VERT.' Sortie : '[declaree] neutralisation combinee des deux controles de rang -> INERTE'."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/test_registre.py",
+   "description": "La limite de réécriture cohérente de toute la chaîne est annoncée dans le docstring du registre mais n'est épinglée par aucun test ; seuls le dernier maillon et un maillon intermédiaire le sont. La complétude de la limite déclarée n'est donc pas entièrement vérifiée par la suite.",
+   "preuve": "registre.py docstring : 'reecriture coherente de TOUTE la chaine -> (True, '')'. test_registre.py contient seulement 'test_mesure_limite_reecriture_coherente_du_dernier_maillon_nest_pas_detectee' et 'test_mesure_limite_reecriture_coherente_du_milieu_est_detectee_au_rang_suivant'."
+  }
+ ],
+ "date_heure": "2026-08-01T23:22:35.138137+00:00",
+ "prompt_sha256": "283b2e398ac73027adf7b0d766fdc0746953582680314ff642d55f4905c01be0",
+ "reviewer_model": "Qwen3.8-Max",
+ "modele_servi": "qwen38-max-alibaba-sg",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}
