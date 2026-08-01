@@ -4,30 +4,30 @@
   {
    "severite": "critique",
    "fichier": "Modules M/M3-estimation/tests/outils_preuve/verifier_les_outils.py",
-   "description": "Le script `verifier_les_outils.py` peut conclure à « 0 échec » sans qu'une garde ait été exercée. Si un outil `muter_*.py` est saboté de manière à ce que `pytest` échoue avant même de lancer les tests (par exemple, une erreur de syntaxe dans `TEST_ROUGE` ou un problème de collecte), le code de retour de `pytest` sera non nul. Le muter verra `reference.returncode != 0`, affichera « REFERENCE ROUGE » et « ABANDON », puis sortira avec `rc=1`. `verifier_les_outils.py` verra `rc=1` et les motifs attendus, et validera l'épreuve, alors que la garde n'a pas été exercée sur une suite de tests valide.",
-   "preuve": "Dans `verifier_les_outils.py`, `TEST_ROUGE.write_text(...)` crée un test qui échoue. Si ce fichier ou l'environnement `pytest` est corrompu, `pytest` échoue à la collecte. Le muter exécute `if reference.returncode != 0: ... print(\"ABANDON : muter une suite non verte ne prouve rien.\")`. Les motifs `(\"ABANDON\", \"ROUGE\")` sont présents, `rc=1`, donc `exiger_morsure` passe sans vérifier que la garde a réellement mordu sur un échec de test."
-  },
-  {
-   "severite": "majeure",
-   "fichier": "Modules M/M3-estimation/tests/outils_preuve/bilan_preuves.py",
-   "description": "Le script `bilan_preuves.py` peut conclure à « 0 échoué » sans avoir lancé un contrôle si l'exécutable est un script Python valide mais vide, ou s'il s'agit d'un exécutable qui retourne 0 sans rien faire. De plus, si `subprocess.run` est appelé sur un exécutable qui n'est pas le contrôle attendu (par exemple, un alias ou un script factice dans le répertoire courant), il retournera 0.",
-   "preuve": "Dans `bilan_preuves.py`, `executable_disponible` vérifie seulement `shutil.which(executable) is not None`. Si un exécutable factice nommé `pytest` est présent dans le `PATH` et retourne 0, `subprocess.run` l'exécutera, `resultat.returncode` sera 0, et le contrôle sera compté comme réussi sans avoir exécuté la véritable suite de tests."
+   "description": "Le vérificateur ne détecte pas la création de dossiers vides ni la modification des métadonnées (permissions, horodatages). De plus, il restreint son périmètre à `src/m3_estimation/` au lieu de `src/` entier. Une manipulation créant un dossier vide, modifiant un `chmod`, ou altérant un fichier dans `src/` mais hors de `m3_estimation/` laissera une trace sur le disque que la comparaison des chemins et des empreintes ne verra pas.",
+   "preuve": "Dans `fichiers_controles`, `if not chemin.is_file(): continue` ignore les dossiers. `empreinte` utilise uniquement `chemin.read_bytes()`, ignorant les métadonnées. `SRC` est défini comme `ESTIMATION / \"src\" / \"m3_estimation\"`, excluant le reste de `src/`."
   },
   {
    "severite": "majeure",
    "fichier": "Modules M/M3-estimation/tests/outils_preuve/verifier_les_outils.py",
-   "description": "La confrontation d'empreintes ne couvre pas tous les fichiers du périmètre. Une manipulation qui laisserait une trace dans le dossier `TESTS` (en dehors de `OUTILS`), comme un fichier `.xml`, un cache `.pytest_cache`, ou une modification d'un test existant, ne serait pas détectée par `relever_empreintes`.",
-   "preuve": "La fonction `relever_empreintes` scanne uniquement `(SRC, OUTILS)` avec `rglob(\"*.py\")` : `for dossier in (SRC, OUTILS): for chemin in sorted(dossier.rglob(\"*.py\")): resultat[...] = empreinte(chemin)`. Les fichiers non-Python ou situés dans `TESTS` (hors `OUTILS`) sont ignorés."
+   "description": "Le vérificateur peut conclure à un succès même si la garde d'un outil est défectueuse et ne bloque pas l'exécution. Si un outil imprime 'ABANDON' mais oublie de faire `sys.exit(1)`, il continuera à muter. Les mutations échoueront (car TEST_ROUGE est présent), l'outil imprimera 'ROUGE (NON ATTRIBUABLE)' et sortira avec rc=1 à la fin. Le vérificateur verra rc=1 et les motifs 'ABANDON' et 'ROUGE', et validera l'épreuve alors que la garde n'a pas interrompu le script.",
+   "preuve": "La fonction `exiger_morsure` vérifie uniquement `resultat.returncode != 0` et la présence des sous-chaînes dans `sortie_complete(resultat)`. Elle ne vérifie pas que l'outil s'est arrêté immédiatement ni que l'échec provient bien de la garde et non de la suite du script."
   },
   {
    "severite": "majeure",
-   "fichier": "Modules M/M3-estimation/tests/test_outils_de_preuve.py",
-   "description": "Le test `test_chaque_outil_de_mutation_declare_sa_cible_dans_son_code` affirme extraire la cible du littéral affecté à `SRC`, mais il accepte en réalité n'importe quelle constante chaîne dans l'AST. Une chaîne inutilisée ou une docstring contenant le nom du module suffirait à faire passer le test.",
-   "preuve": "La docstring affirme : « La cible est extraite par AST du littéral affecté à SRC ». Cependant, le code fait : `chaines = [n.value for n in ast.walk(arbre) if isinstance(n, ast.Constant) and isinstance(n.value, str)]` puis `vise = any(c == f\"{attendu}.py\" or c.endswith(f\"/{attendu}.py\") for c in chaines)`. Aucune vérification d'affectation à `SRC` n'est effectuée."
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/README.md",
+   "description": "Le README affirme que la confrontation couvre 'TOUS les fichiers sous src/ et tests/'. C'est faux, le code restreint explicitement la vérification au sous-dossier 'm3_estimation' dans 'src/'.",
+   "preuve": "README : 'Elle couvre désormais TOUS les fichiers sous src/ et tests/'. Code dans `verifier_les_outils.py` : `SRC = ESTIMATION / \"src\" / \"m3_estimation\"`."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/enumerer_gardes.py",
+   "description": "Le README affirme qu'il n'y a 'aucune exclusion' lors de la neutralisation des gardes. Cependant, le script exclut explicitement les gardes dont la neutralisation produit une erreur de syntaxe (par exemple, les 'if' sur une seule ligne).",
+   "preuve": "README : 'aucune exclusion (neutralisation par bornes de nœud AST, jamais par texte)'. Code : `except SyntaxError as e: sans_effet.append(garde.lineno); continue`."
   }
  ],
- "date_heure": "2026-08-01T17:35:32.654328+00:00",
- "prompt_sha256": "cd84d624ae8d11b3b855775cd6d4d970f558b338ada6aae234460018ac26343b",
+ "date_heure": "2026-08-01T17:53:13.139001+00:00",
+ "prompt_sha256": "5d63169d475d36dafb2fbd842b9bb119d3330c66737c8d7e1f09a00e45b0b7c5",
  "reviewer_model": "Gemini-3.1-Pro",
  "modele_servi": "gemini-31-pro-openrouter",
  "gateway_resilience": {

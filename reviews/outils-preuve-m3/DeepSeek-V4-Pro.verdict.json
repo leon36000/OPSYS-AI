@@ -4,24 +4,24 @@
   {
    "severite": "critique",
    "fichier": "Modules M/M3-estimation/tests/outils_preuve/verifier_les_outils.py",
-   "description": "La vérification d'intégrité (`relever_empreintes`) ne couvre que les fichiers `*.py` dans `SRC` et `OUTILS`. Les fichiers de tests (dans `TESTS`, hors `OUTILS`) et les fichiers non‑Python (ex. `README.md`, rapports `.xml`, caches) ne sont pas surveillés. Une altération d'un test (ex. `test_qualite_photos.py`) ou l'introduction d'un fichier parasite ne serait pas détectée, rendant le contrôle d'intégrité non fiable.",
-   "preuve": "Lignes `for dossier in (SRC, OUTILS): for chemin in sorted(dossier.rglob('*.py'))`. Le dossier `TESTS` (et tout fichier non `.py`) est exclu. La vérification finale compare `empreintes_finales == empreintes_initiales` sur ce périmètre restreint."
+   "description": "Le contrôle de discrimination exigé par le README (« deux sabotages différents doivent produire deux messages différents ») n'est appliqué qu'à l'énumérateur. Aucune épreuve de discrimination n'est exécutée pour les batteries muter_*.py. Un outil de mutation qui produirait le même message pour toutes les erreurs passerait l'ensemble des vérifications sans être détecté, ce qui contredit l'affirmation de la documentation.",
+   "preuve": "verifier_les_outils.py n'appelle `exiger_discrimination` qu'une seule fois, après les deux épreuves sur `enumerer_gardes.py` (lignes `Garde 2 bis`). La boucle sur les `MUTEURS` (lignes `for muter in MUTEURS:`) ne comporte aucune vérification de discrimination."
   },
   {
    "severite": "majeure",
-   "fichier": "Modules M/M3-estimation/tests/test_outils_de_preuve.py",
-   "description": "Le test `test_chaque_outil_de_mutation_declare_sa_cible_dans_son_code` annonce extraire la cible « du littéral affecté à SRC » (docstring), mais il parcourt en réalité toutes les constantes chaînes de l'AST sans vérifier qu'elles sont affectées à `SRC`. Une mention fortuite du nom du module dans une chaîne quelconque (docstring, valeur non liée) suffirait à valider le test.",
-   "preuve": "Docstring : 'La cible est extraite par AST du littéral affecté à SRC'. Code : `chaines = [n.value for n in ast.walk(arbre) if isinstance(n, ast.Constant) and isinstance(n.value, str)]` puis `vise = any(c == f\"{attendu}.py\" or c.endswith(f\"/{attendu}.py\") for c in chaines)` sans inspection d'une affectation `SRC = ...`."
+   "fichier": "Pack de preuve (section PREUVE C)",
+   "description": "Les sorties présentées comme preuves dans PREUVE C ne sont pas les sorties brutes des instruments versionnés. Chaque ligne est préfixée par le nom du module (ex. `qualite_photos         controles=19…`), alors qu'`enumerer_gardes.py` imprime seulement `controles=…` sans identifiant de module. La reproductibilité directe de la preuve n'est pas assurée.",
+   "preuve": "Dans `enumerer_gardes.py`, l'impression finale est `print(f\"\\ncontroles={len(gardes)}  nus={len(nues)}…\")`. Aucun préfixe `qualite_photos` n'est émis. Les sorties PREUVE C, telles que `qualite_photos         controles=19…`, ne correspondent donc pas à l'exécution brute de l'outil."
   },
   {
    "severite": "mineure",
-   "fichier": "Pack de preuve (section PREUVE C)",
-   "description": "Les sorties présentées dans PREUVE C sont préfixées du nom du module (ex. `qualite_photos         controles=19...`), mais les scripts versionnés (notamment `enumerer_gardes.py`) émettent uniquement `controles=...` sans préfixe. L'affirmation selon laquelle ces sorties sont reproductibles n'est pas entièrement exacte.",
-   "preuve": "Sortie de `enumerer_gardes.py` : `print(f\"\\ncontroles={len(gardes)}...\")`. Le préfixe `qualite_photos` n'est pas émis par le script. Le format affiché dans la preuve n'est pas directement produit par l'instrument versionné."
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/verifier_les_outils.py",
+   "description": "La confrontation d'empreintes et de chemins exclut explicitement les répertoires `__pycache__` et `.pytest_cache`. Une manipulation qui laisserait un fichier malveillant (ex. un `.pyc` altéré) dans ces caches ne serait pas détectée, alors qu'un tel fichier pourrait influencer les exécutions ultérieures.",
+   "preuve": "Dans `fichiers_controles()`, la condition `if \"__pycache__\" in chemin.parts or \".pytest_cache\" in chemin.parts: continue` écarte ces artefacts de la surveillance. La restauration vérifiée ne couvre donc pas ces traces."
   }
  ],
- "date_heure": "2026-08-01T17:32:46.380537+00:00",
- "prompt_sha256": "cd84d624ae8d11b3b855775cd6d4d970f558b338ada6aae234460018ac26343b",
+ "date_heure": "2026-08-01T17:50:56.841746+00:00",
+ "prompt_sha256": "5d63169d475d36dafb2fbd842b9bb119d3330c66737c8d7e1f09a00e45b0b7c5",
  "reviewer_model": "DeepSeek-V4-Pro",
  "modele_servi": "deepseek-v4-pro-direct",
  "gateway_resilience": {

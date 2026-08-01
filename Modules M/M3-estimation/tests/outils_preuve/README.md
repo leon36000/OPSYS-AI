@@ -47,20 +47,23 @@ relevé cette contradiction :
 
 Écrire « ne peuvent pas mordre » pour les deux affirmait plus que la mesure.
 
-## `verifier_les_outils.py` — l'instrument qui vérifie les instruments
+## Les gardes des outils sont éprouvées par des TESTS
 
-    python3 -B "Modules M/M3-estimation/tests/outils_preuve/verifier_les_outils.py" .
+    pytest "Modules M/M3-estimation/tests/test_gardes_des_outils.py"
 
-Une revue scellée a rendu QUATRE objections critiques convergentes : les preuves que « les
-gardes des outils mordent » venaient d'extraits Python écrits DANS le pack de revue, pas
-d'un instrument versionné. Elles étaient donc irreproductibles — exactement la classe de
-défaut que ces outils servent à débusquer, commise dans le pack qui les présente.
+Un script `verifier_les_outils.py` de 350 lignes jouait ce rôle. Sept rondes de revue scellée
+l'ont amélioré — et à chaque itération il gagnait un défaut propre : deux variantes d'un même
+identifiant, une variable hors portée, un motif présent dans la sortie normale. **Sa
+complexité était devenue le goulot.**
 
-Ce script crée la condition de déclenchement de chaque garde, lance l'outil concerné, et
-exige un code de retour non nul. Il relève l'empreinte sha256 de tous les fichiers source et
-de tous les outils AVANT, et la confronte APRÈS chaque manipulation : un vérificateur qui
-laisse une trace est un vérificateur qui ment. Il abandonne s'il n'a pu éprouver aucune
-garde.
+Les mêmes propriétés s'expriment en six tests courts : chaque batterie refuse une suite déjà
+rouge, l'énumérateur refuse aussi un module sans garde, les deux abandons sont DISTINCTS,
+chaque outil est SAIN avant sabotage (rc nul ET phrase d'abandon absente), et aucune trace ne
+subsiste — empreinte, mode d'accès, chemins apparus ou disparus.
+
+Une PHRASE, jamais un mot. Le motif « ROUGE » avait été retenu puis rejeté : il apparaît dans
+la sortie normale des batteries, où chaque mutation qui mord imprime `-> ROUGE`. C'est le
+contrôle « sain avant sabotage » qui l'a démasqué, dès sa première exécution.
 
 ## `bilan_preuves.py` — le bilan des gates, produit par un instrument
 
