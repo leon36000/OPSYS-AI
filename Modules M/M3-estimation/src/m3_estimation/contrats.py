@@ -13,6 +13,17 @@ __all__ = [
     "TYPES_TRAVAUX",
     "CLES_INTERDITES",
     "CHAMPS_CONTACT",
+    "CHAMPS_SEUILS_QUALITE",
+    "CHAMPS_PHOTO",
+    "VERDICTS_ESTIMATION",
+    "VERDICT_AUCUN_BLOCAGE",
+    "VERDICT_QUALITE_ENTREE_INSUFFISANTE",
+    "VERDICT_REFERENCE_ECHELLE_ABSENTE",
+    "VERDICT_PLANCHER_RENTABILITE_FRANCHI",
+    "VERDICT_CONTRAT_ENTREE_INVALIDE",
+    "VERDICT_INDETERMINE",
+    "CHAMPS_ESTIMATION_V1",
+    "CHAMPS_INTERVALLE_CONFIANCE",
 ]
 
 # Contrat LeadQualifie gelé : SEPT clés, dans l'ordre ratifié.
@@ -117,3 +128,24 @@ VERDICT_REFERENCE_ECHELLE_ABSENTE = VERDICTS_ESTIMATION[2]
 VERDICT_PLANCHER_RENTABILITE_FRANCHI = VERDICTS_ESTIMATION[3]
 VERDICT_CONTRAT_ENTREE_INVALIDE = VERDICTS_ESTIMATION[4]
 VERDICT_INDETERMINE = VERDICTS_ESTIMATION[5]
+
+CHAMPS_ESTIMATION_V1 = (
+    "devis_id",
+    "lead_id",
+    "empreinte_marqueur_m2",
+    "niveau_confiance",
+    "verdict_estimation",
+    "bareme_version",
+    "prix_bloque",
+    "intervalle_confiance",
+    "alerte_plancher",
+    "raison_blocage",
+    "graine_monte_carlo",
+    "hash_maillon",
+)
+
+CHAMPS_INTERVALLE_CONFIANCE = (
+    "borne_basse",
+    "borne_haute",
+    "niveau",
+)
