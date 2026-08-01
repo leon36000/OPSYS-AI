@@ -1,0 +1,14 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "src/m3_estimation/plancher.py",
+   "description": "La story exige explicitement que les verdicts soient 'LUS dans contrats.VERDICTS_ESTIMATION, jamais recopiés'. Or, le code définit les verdicts sous forme de chaînes de caractères codées en dur, ce qui constitue une recopie littérale. La présence d'une garde de non-dérive pour vérifier a posteriori leur appartenance au catalogue confirme qu'ils ne sont pas lus directement depuis ce dernier.",
+   "preuve": "Lignes 33-34 : _VERDICT_ALERTE = \"PLANCHER_RENTABILITE_FRANCHI\" et _VERDICT_SANS_ALERTE = \"AUCUN_BLOCAGE\""
+  }
+ ],
+ "date_heure": "2026-07-31T21:07:28.135264+00:00",
+ "prompt_sha256": "481efe5e3c590bc0b40256ef9baca93169ff9c6d109271223be18c2580f523b3",
+ "reviewer_model": "Gemini-3.1-Pro-OR"
+}

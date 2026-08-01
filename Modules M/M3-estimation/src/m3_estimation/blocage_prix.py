@@ -20,6 +20,7 @@ cause nommable ne classifie le blocage.
 
 from . import hierarchie_echelle
 from . import verdicts
+from . import contrats
 
 # Niveau de confiance nominal ÉNONCÉ par l'architecture pour les intervalles
 # de M3 : valeur déclarée en constante nommée, pas un chiffre inventé. Ce
@@ -32,12 +33,12 @@ NIVEAU_CONFIANCE_NOMINAL = 0.90
 # Verdicts d'estimation du jeu FERMÉ : le verdict qui nomme la cause, le
 # verdict acceptable et l'échappatoire D-032. Aucune autre valeur n'est
 # légitime dans une décision.
-VERDICT_QUALITE_INSUFFISANTE = "QUALITE_ENTREE_INSUFFISANTE"
+VERDICT_QUALITE_INSUFFISANTE = contrats.VERDICT_QUALITE_ENTREE_INSUFFISANTE
 # La valeur est lue dans l'énuméré fermé ``VerdictEstimation`` (copie épinglée
 # ``contrats.VERDICTS_ESTIMATION``, architecture section 2.5) : aucun verdict
 # ne s'invente ici.
-VERDICT_AUCUN_BLOCAGE = "AUCUN_BLOCAGE"
-VERDICT_INDETERMINE = "INDETERMINE"
+VERDICT_AUCUN_BLOCAGE = contrats.VERDICT_AUCUN_BLOCAGE
+VERDICT_INDETERMINE = contrats.VERDICT_INDETERMINE
 
 # Clés EXACTES du contrat produit par ``qualite_photos.qualifier_photos`` :
 # liste FERMÉE — une clé en plus ou en moins signifie un contrat dérivé.

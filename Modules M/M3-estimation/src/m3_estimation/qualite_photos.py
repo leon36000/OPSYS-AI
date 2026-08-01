@@ -163,13 +163,13 @@ def qualifier_photos(photos, seuils):
     if elements_manquants:
         return {
             "photos_acceptables": False,
-            "verdict_estimation": "QUALITE_ENTREE_INSUFFISANTE",
+            "verdict_estimation": contrats.VERDICT_QUALITE_ENTREE_INSUFFISANTE,
             "prix_bloque": True,
             "elements_manquants": elements_manquants,
         }, None
     return {
         "photos_acceptables": True,
-        "verdict_estimation": "AUCUN_BLOCAGE",
+        "verdict_estimation": contrats.VERDICT_AUCUN_BLOCAGE,
         "prix_bloque": False,
         "elements_manquants": [],
     }, None

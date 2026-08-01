@@ -104,3 +104,16 @@ VERDICTS_ESTIMATION = (
     "CONTRAT_ENTREE_INVALIDE",
     "INDETERMINE",
 )
+
+# Noms canoniques des verdicts d'estimation : la SEULE façon de désigner un
+# verdict dans le paquet. Chaque nom est DÉRIVÉ du tuple par son indice —
+# jamais réécrit en littéral — : il ne peut donc pas diverger de
+# ``VERDICTS_ESTIMATION``, et une faute de frappe sur le nom devient une
+# erreur d'import, visible immédiatement et non au premier passage sur le
+# chemin concerné.
+VERDICT_AUCUN_BLOCAGE = VERDICTS_ESTIMATION[0]
+VERDICT_QUALITE_ENTREE_INSUFFISANTE = VERDICTS_ESTIMATION[1]
+VERDICT_REFERENCE_ECHELLE_ABSENTE = VERDICTS_ESTIMATION[2]
+VERDICT_PLANCHER_RENTABILITE_FRANCHI = VERDICTS_ESTIMATION[3]
+VERDICT_CONTRAT_ENTREE_INVALIDE = VERDICTS_ESTIMATION[4]
+VERDICT_INDETERMINE = VERDICTS_ESTIMATION[5]

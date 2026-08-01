@@ -24,6 +24,7 @@ rejetée — aucune valeur par défaut n'est inventée.
 
 from . import qualite_photos
 from . import verdicts
+from . import contrats
 
 # Jeu FERMÉ des quatre niveaux de confiance, déclaré dans l'ordre STRICT de
 # la hiérarchie ratifiée : la première règle satisfaite gagne. L'échappatoire
@@ -33,7 +34,7 @@ NIVEAUX_CONFIANCE = (
     "REFERENCE_ECHELLE",
     "MULTI_VUES",
     "MONO_VUE_BORNES_LARGES",
-    "INDETERMINE",
+    contrats.VERDICT_INDETERMINE,
 )
 
 
