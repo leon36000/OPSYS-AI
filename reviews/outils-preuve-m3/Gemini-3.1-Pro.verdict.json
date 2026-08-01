@@ -1,0 +1,31 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/enumerer_gardes.py",
+   "description": "Le script contredit la règle de discipline du README (« refuse de conclure quand son extracteur ne trouve rien »). Si l'extracteur AST ne trouve aucun `if` (liste `gardes` vide), la boucle de mutation ne s'exécute pas, les listes d'échecs restent vides, et le script sort avec un code 0 (succès) au lieu d'échouer.",
+   "preuve": "Ligne `sys.exit(1 if (nues or sans_effet or par_plantage) else 0)` : aucune vérification que `len(gardes) > 0` avant de conclure au succès."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/neutralite_renommage.py",
+   "description": "Le script contredit également la règle du README sur les extracteurs vides. Si aucune constante n'est trouvée dans le commit de référence (ex: `total == 0`), la liste `ecarts` reste vide et le script sort avec un code 0 (succès) au lieu d'échouer.",
+   "preuve": "Ligne `sys.exit(1 if ecarts else 0)` : aucune vérification que `total > 0` ou que le dictionnaire `avant` n'est pas vide."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_qualite_photos.py",
+   "description": "Le script ne garantit pas la restauration des sources en cas d'interruption (ex: `KeyboardInterrupt`). La mutation est écrite sur le disque en dehors et *avant* d'entrer dans le bloc `try...finally`, créant une condition de course où le fichier reste muté si le script s'arrête à ce moment précis (contrairement aux autres scripts qui incluent l'écriture dans le `try`).",
+   "preuve": "Lignes `fichier.write_text(o.replace(avant, apres, 1), encoding=\"utf-8\")` immédiatement suivies de `try: rc = run(cible)` (motif vulnérable répété 4 fois dans le script)."
+  }
+ ],
+ "date_heure": "2026-08-01T07:36:36.724000+00:00",
+ "prompt_sha256": "9cceb34716313c51dd915d6c348322d1c5aebc7885c138f7815db0a20fdba586",
+ "reviewer_model": "Gemini-3.1-Pro",
+ "modele_servi": "gemini-31-pro-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "1"
+ }
+}

@@ -1,0 +1,37 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_plancher.py",
+   "description": "La batterie de preuve du plancher est inexécutable dans l'état fourni, et la preuve de neutralité échoue également pour le même module. Le pack affirme pourtant que les cinq batteries tournent depuis leur nouvel emplacement.",
+   "preuve": "Sortie fournie : `plancher FileNotFoundError: [Errno 2] No such file or directory: 'Modules M/M3-estimation/src/m3_estimation/plancher.py'`, puis `neutralite_renommage.py` échoue avec `ModuleNotFoundError: No module named 'm3_estimation.plancher'`. Le script référence explicitement ce chemin à `muter_plancher.py:16` et inclut `plancher` dans `neutralite_renommage.py:17`."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_hierarchie_echelle.py",
+   "description": "Les batteries de mutations concluent qu'une mutation mord uniquement parce que pytest retourne un code non nul. Elles ne vérifient ni que la suite était verte avant mutation, ni que l'échec est causé par la mutation. Une suite déjà rouge, une erreur de collecte ou une panne indépendante ferait donc compter toutes les mutations comme détectées.",
+   "preuve": "Le subprocess exécute toute la suite à `muter_hierarchie_echelle.py:91-94`, puis le résultat est classé uniquement par `if r.returncode == 0` à `muter_hierarchie_echelle.py:95-99`. La même logique est présente dans `muter_monte_carlo.py`, `muter_blocage_prix.py` et `muter_plancher.py`. Aucun test de référence préalable ni comparaison des sorties n'est effectué."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/enumerer_gardes.py",
+   "description": "La qualification du ROUGE n'établit pas que le signal nommé provient de la garde neutralisée. Elle cherche un type d'échec dans la sortie globale de toute la suite et accepte le premier `Failed`, `AssertionError` ou `assert` trouvé. Un échec nommé préexistant ou indépendant peut donc qualifier abusivement chaque neutralisation.",
+   "preuve": "La sortie complète de pytest est capturée à `enumerer_gardes.py:151-153`, puis les types sont extraits globalement et intersectés avec `NOMMES` à `enumerer_gardes.py:155-160`; toute intersection suffit à produire `ROUGE par REFUS NOMMÉ`. Le script ne lance pas une baseline, ne compare pas les échecs avant/après et ne relie pas le test échoué à la ligne AST neutralisée."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_monte_carlo.py",
+   "description": "Les deux mutations déclarées inertes sont validées seulement par l'absence d'échec de la suite et une mesure sur 300 graines. Cela ne démontre pas qu'un arrondi flottant ou une autre entrée valide ne puisse jamais déclencher le plancher ou le plafond; le commentaire reconnaît lui-même que ces bornes sont un filet contre les dépassements liés à l'arrondi.",
+   "preuve": "Les mutations de suppression du plancher et du plafond sont déclarées inertes à `muter_monte_carlo.py:31-39`, avec la justification `MESURE : ... 0 declenchement sur 300 graines`. Le script ne vérifie ensuite que `r.returncode` à `muter_monte_carlo.py:91-103`; il n'exécute pas une exploration exhaustive ni une propriété de bornage."
+  }
+ ],
+ "date_heure": "2026-08-01T07:34:21.346580+00:00",
+ "prompt_sha256": "9cceb34716313c51dd915d6c348322d1c5aebc7885c138f7815db0a20fdba586",
+ "reviewer_model": "GPT-5.6-Luna-Pro",
+ "modele_servi": "gpt56-luna-pro-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}

@@ -1,0 +1,19 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_plancher.py",
+   "description": "Le fichier source cible 'm3_estimation/plancher.py' n'existe pas, ce qui empêche l'exécution du script de mutation plancher. Le pack affirme 'les cinq batteries tournent' mais la sortie inclut un 'FileNotFoundError' pour cette batterie, contredisant la preuve présentée et rendant la batterie inexploitable.",
+   "preuve": "Ligne dans la section PREUVE du pack : 'plancher               FileNotFoundError: [Errno 2] No such file or directory: 'Modules M/M3-estimation/src/m3_estimation/plancher.py''. Le script enumerer_gardes échoue également sur plancher, et neutralite_renommage.py abandonne sur ModuleNotFoundError pour ce même module."
+  }
+ ],
+ "date_heure": "2026-08-01T07:35:36.556572+00:00",
+ "prompt_sha256": "9cceb34716313c51dd915d6c348322d1c5aebc7885c138f7815db0a20fdba586",
+ "reviewer_model": "DeepSeek-V4-Pro",
+ "modele_servi": "deepseek-v4-pro-direct",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}

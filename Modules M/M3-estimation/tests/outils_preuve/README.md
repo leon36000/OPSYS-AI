@@ -34,15 +34,16 @@ doit faire virer la suite au ROUGE. Les mutations qui ne PEUVENT PAS mordre — 
 structurelles — sont DÉCLARÉES avec leur raison mesurée, et le script échoue dans les DEUX
 sens : si une redondance déclarée se mettait à mordre, l'hypothèse serait tombée.
 
-## `neutralite_renommage.py`
+## Un outil n'accompagne que des cibles qui existent
 
-    python3 -B "Modules M/M3-estimation/tests/outils_preuve/neutralite_renommage.py" . <commit>
+Une revue scellée a rendu APPROVE 0/3 sur une première version de ce dossier : elle
+embarquait `muter_plancher.py`, dont le module cible n'existait pas encore sur la branche.
+Le script plantait sur `FileNotFoundError`, et les sorties du pack — produites sur une AUTRE
+branche — étaient irreproductibles là où on les présentait.
 
-Prouve qu'un renommage de constantes est sémantiquement neutre : extrait la version d'avant
-depuis git, importe RÉELLEMENT les deux, et compare. Abandonne bruyamment si un fichier
-manque au commit de référence, et vérifie que chaque module « avant » a bien été chargé
-depuis le dossier temporaire — sinon il comparerait la version courante avec elle-même en
-annonçant « neutre ».
+La règle qui en sort : **un outil de preuve ne vit dans le dépôt qu'avec la cible qu'il
+mesure.** `test_outils_de_preuve.py` la fait respecter — il exige que chaque
+`muter_<module>.py` ait son module, et que chaque outil s'annonce par un docstring.
 
 ## Discipline
 
