@@ -1,33 +1,8 @@
 {
- "verdict": "REJECT",
- "objections": [
-  {
-   "severite": "majeure",
-   "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
-   "description": "Chemin non exercé : Les chemins de gestion d'erreur des outils (SyntaxError, mutation sans effet, rouge non attribuable) ne sont exercés par aucun test de garde.",
-   "preuve": "Aucun test ne simule une mutation inopérante ou un code source provoquant une `SyntaxError` pour s'assurer que les outils (`muter_*.py`, `enumerer_gardes.py`) empruntent ces chemins et échouent correctement."
-  },
-  {
-   "severite": "majeure",
-   "fichier": "Modules M/M3-estimation/tests/outils_preuve/README.md",
-   "description": "Affirmation non tenue : Le README affirme que le vérificateur exige le MOTIF attendu de chaque garde et une DISCRIMINATION entre deux sabotages différents. Le nouveau vérificateur ne le fait plus.",
-   "preuve": "Le README indique : « Le vérificateur exige [...] le MOTIF attendu de chaque garde, et une DISCRIMINATION ». Or, `test_gardes_des_outils.py` a remplacé l'ancien vérificateur et ne contrôle plus que les phrases génériques d'abandon (`PHRASE_SUITE_ROUGE`, `PHRASE_SANS_GARDE`), ignorant les motifs spécifiques."
-  },
-  {
-   "severite": "mineure",
-   "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
-   "description": "Trace invisible : L'instantané d'arborescence exclut les dossiers __pycache__. Or, les outils suppriment ces dossiers dans src. Cette modification de l'arborescence (suppression d'un cache préexistant) est une trace que le relevé ne peut pas voir.",
-   "preuve": "`_instantane_arborescence` ignore `__pycache__` (`if \"__pycache__\" in relatif.parts: continue`). Les scripts `muter_*.py` et `enumerer_gardes.py` exécutent `shutil.rmtree(c)` sur les `__pycache__` de `src`. La disparition d'un cache préexistant passe inaperçue."
-  },
-  {
-   "severite": "majeure",
-   "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
-   "description": "Interrupteur : Le test d'absence de trace ne vérifie l'exécution normale que pour le premier outil de mutation. Les autres outils sont exécutés avec une suite rouge, ce qui provoque un abandon précoce et fait passer le contrôle sans avoir exécuté leurs mutations.",
-   "preuve": "Dans `test_aucune_trace_apres_les_epreuves`, seul `outil_normal = _OUTILS_MUTATION[0]` est lancé normalement. La boucle `resultats_batteries` qui lance tous les outils le fait après avoir créé `chemin_suite_rouge`, forçant un abandon précoce sans mutation pour le reste des outils."
-  }
- ],
- "date_heure": "2026-08-01T19:17:30.381284+00:00",
- "prompt_sha256": "e93a8694a3b3164aa3e4363833a28cf29614ff619efd5bd7aed974b1b73bbeb4",
+ "verdict": "APPROVE",
+ "objections": [],
+ "date_heure": "2026-08-01T20:27:42.333187+00:00",
+ "prompt_sha256": "69b58f80eb4835a5c6fbc824144584b9e759c9e10949d9ff4c6c68c052a689a8",
  "reviewer_model": "Gemini-3.1-Pro",
  "modele_servi": "gemini-31-pro-openrouter",
  "gateway_resilience": {

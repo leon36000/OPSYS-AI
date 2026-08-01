@@ -1,27 +1,8 @@
 {
- "verdict": "REJECT",
- "objections": [
-  {
-   "severite": "critique",
-   "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
-   "description": "Le test `test_les_deux_abandons_de_l_enumerateur_sont_distincts` est conçu de manière incorrecte. Il utilise à la fois la fixture `suite_deja_rouge` (qui rend la suite rouge pour toute la durée du test) et la fixture `module_sans_garde`. Lors du deuxième appel `lancer_outil(_ENUMERATEUR, module_sans_garde.stem)`, le fichier de suite rouge est toujours présent. L'énumérateur détecte donc une suite déjà rouge et abandonne sans jamais atteindre la branche « extracteur vide ». L'assertion `PHRASE_SANS_GARDE in sortie_vide` échoue, rendant le test invalide et empêchant toute vérification que l'abandon pour extracteur vide est distinct.",
-   "preuve": "Les fixtures sont injectées ensemble : `def test_les_deux_abandons_de_l_enumerateur_sont_distincts(suite_deja_rouge, module_sans_garde, lancer_outil):`. Le deuxième appel est `resultat_vide = lancer_outil(_ENUMERATEUR, module_sans_garde.stem)` alors que le fichier temporaire rouge est toujours actif (fixture `suite_deja_rouge` yield). L'énumérateur exécute pytest sur l'ensemble des tests, y compris ce fichier rouge, et retourne un abandon « suite rouge »."
-  },
-  {
-   "severite": "majeure",
-   "fichier": "Modules M/M3-estimation/tests/outils_preuve/README.md",
-   "description": "Le README affirme que « les deux abandons sont DISTINCTS » et qu'un test le prouve. Le test associé étant cassé (objection ci-dessus), l'affirmation n'est pas tenue par le code. La propriété de discrimination des abandons n'est donc pas vérifiée.",
-   "preuve": "Phrase du README : « les deux abandons sont DISTINCTS » ; le test correspondant dans `test_gardes_des_outils.py` est défaillant comme décrit."
-  },
-  {
-   "severite": "mineure",
-   "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_qualite_photos.py",
-   "description": "Des chemins de code internes aux outils de mutation (gestion d'ancres multiples, mutations sans effet, ou erreurs de syntaxe) ne sont exercés par aucun test de garde. Ces branches sont présentes dans chaque muter_*.py (ex. `if original.count(avant) != 1: ...`, `if mutant == original: ...`, `except SyntaxError: ...`).",
-   "preuve": "Dans `muter_qualite_photos.py`, la boucle `for nom, fichier, cible, avant, apres in mutations:` contient les blocs `if original.count(avant) != 1: ...` (ligne ~220) et `except SyntaxError as erreur: ...` (ligne ~230). Aucun test dans `test_gardes_des_outils.py` ne provoque une ancre erronée ou une mutation non compilable."
-  }
- ],
- "date_heure": "2026-08-01T19:18:26.117102+00:00",
- "prompt_sha256": "e93a8694a3b3164aa3e4363833a28cf29614ff619efd5bd7aed974b1b73bbeb4",
+ "verdict": "APPROVE",
+ "objections": [],
+ "date_heure": "2026-08-01T20:28:00.447908+00:00",
+ "prompt_sha256": "69b58f80eb4835a5c6fbc824144584b9e759c9e10949d9ff4c6c68c052a689a8",
  "reviewer_model": "DeepSeek-V4-Pro",
  "modele_servi": "deepseek-v4-pro-direct",
  "gateway_resilience": {

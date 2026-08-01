@@ -1,33 +1,27 @@
 {
- "verdict": "REJECT",
+ "verdict": "APPROVE",
  "objections": [
   {
-   "severite": "majeure",
+   "severite": "mineure",
    "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_blocage_prix.py",
-   "description": "Le chemin de garde qui doit faire échouer une mutation non compilable n'est exercé par aucun test de garde. Aucun test ne force une SyntaxError dans une mutation, donc si ce chemin cessait d'ajouter un échec ou de sortir non-zéro, aucun test ne le verrait.",
-   "preuve": "muter_blocage_prix.py : le bloc `try: compile(mutant, str(SRC), 'exec')` est suivi de `except SyntaxError as erreur:` avec ajout à `echecs` et impression `NE COMPILE PAS`. Dans test_gardes_des_outils.py, les fixtures `suite_deja_rouge` et `module_sans_garde` sont les seules conditions de sabotage ; aucun test ne provoque une mutation non compilable et le test de santé exécute l'outil nominal."
-  },
-  {
-   "severite": "majeure",
-   "fichier": "Modules M/M3-estimation/tests/outils_preuve/README.md",
-   "description": "Le README affirme que les outils sont rejouables par quiconque et que bilan_preuves.py exécute les cinq contrôles du dépôt, mais le script de bilan dépend d'un fichier hors du dépôt, dans le répertoire personnel, ce qui empêche une reproduction du cinquième contrôle sur un clone frais.",
-   "preuve": "README.md : `Rejouables par quiconque.` et `Ce script exécute les cinq contrôles du dépôt`. bilan_preuves.py : `NO_STUB = pathlib.Path.home() / \"proof-method\" / \"git-hooks\" / \"no_stub_ast.py\"`."
+   "description": "Le docstring cite 'enum_gardes.py' alors que l'outil ajouté se nomme 'enumerer_gardes.py'; même coquille dans muter_hierarchie_echelle.py et muter_monte_carlo.py.",
+   "preuve": "Ligne 4 : 'Les gardes structurelles sont couvertes par enum_gardes.py.' ; le diff ajoute 'enumerer_gardes.py'."
   },
   {
    "severite": "mineure",
-   "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
-   "description": "Une trace de l'épreuve peut rester dans un dossier __pycache__ sans être vue : le nettoyage supprime les .pyc temporaires mais ne supprime pas les dossiers __pycache__ nouvellement créés, et le relevé d'arbre exclut tous les chemins contenant __pycache__.",
-   "preuve": "test_gardes_des_outils.py : `_supprimer_pyc_temporaires` appelle seulement `chemin.unlink()` ; `_instantane_arborescence()` exclut les caches via `if \"__pycache__\" in relatif.parts or \".pytest_cache\" in relatif.parts: continue`."
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_hierarchie_echelle.py",
+   "description": "L'impossibilité structurelle de la redondance 'dimensions_connues : booleen STRICT -> valeur vraie' repose sur une garde amont non visible dans le diff; la preuve dépend donc d'un invariant externe.",
+   "preuve": "Raison de REDONDANCES_DECLAREES : 'qualite_photos._valider_photo porte deja la garde type(reference[''dimensions_connues'']) is not bool ... quand la classification s execute'."
   },
   {
-   "severite": "majeure",
-   "fichier": "Modules M/M3-estimation/tests/test_gardes_des_outils.py",
-   "description": "Interrupteur : le test de santé avant sabotage peut se contenter d'un code de retour nul pour les batteries de mutation. La marque de travail effectif `N/N mordent` n'est exigée que pour la première batterie dans le test de traces, pas pour chaque outil sain ; une batterie non première sortant 0 sans rien écrire en nominal passerait ce test.",
-   "preuve": "test_gardes_des_outils.py : `test_chaque_outil_est_sain_avant_sabotage` assert `resultat.returncode == 0` et l'absence de phrases d'abandon, sans exiger la marque de mutations effectives. `test_aucune_trace_apres_les_epreuves` contrôle la marque `N/N mordent` seulement pour `outil_normal = _OUTILS_MUTATION[0]`."
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/outils_preuve/muter_monte_carlo.py",
+   "description": "La déclaration d'inertie empirique avance des mesures (300 graines, 2 500 000 tirages) qui ne sont pas reproduites dans le diff ou la preuve capturée; elles ne sont donc pas vérifiables ici.",
+   "preuve": "Raison de REDONDANCES_DECLAREES : 'MESURE : 0 declenchement sur 300 graines ... 0 excursion hors [min, max] sur 2 500 000 tirages ...'."
   }
  ],
- "date_heure": "2026-08-01T19:34:57.318683+00:00",
- "prompt_sha256": "e93a8694a3b3164aa3e4363833a28cf29614ff619efd5bd7aed974b1b73bbeb4",
+ "date_heure": "2026-08-01T20:32:54.645053+00:00",
+ "prompt_sha256": "69b58f80eb4835a5c6fbc824144584b9e759c9e10949d9ff4c6c68c052a689a8",
  "reviewer_model": "Qwen3.8-Max",
  "modele_servi": "qwen38-max-alibaba-sg",
  "gateway_resilience": {
