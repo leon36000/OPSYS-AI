@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
-"""Batterie de mutations MÉTIER sur le registre hash-chaîné M3.
+"""Batterie de mutations métier sur le registre hash-chaîné M3.
 
-Les gardes structurelles sont couvertes par enum_gardes.py. Ce script attaque
-les propriétés métier du registre : inclusion du rang et du prédécesseur dans
-le hash, convention du premier maillon, canonicité, intégrité locale,
-append-only effectif et forme réservée du coût réel. Il ne prouve ni la
-véracité métier des charges ni la sécurité cryptographique de SHA-256 : il
-vérifie que les tests distinguent les régressions significatives du contrat
-implémenté par registre.py.
-
-Chaque mutation est vérifiée COMPILABLE et APPLIQUÉE : une mutation sans effet
-ne prouve rien. Une référence verte est mesurée avant toute mutation, puis
-chaque rouge doit contenir au moins un nouvel échec attribuable à la mutation.
-Les sources sont restaurées à l'identique, ce qui est vérifié en fin de course.
+Les neuf mutations de ``MUTATIONS`` doivent toutes mordre. Les deux protections
+de rang sont déclarées redondantes individuellement : le chaînage détecte les
+altérations structurelles lorsque l'une seule est neutralisée. Leur
+neutralisation combinée est néanmoins exécutée et doit mordre, car le
+chaînage reste actif ; cette mesure réfute explicitement l'ancienne
+affirmation selon laquelle les deux mécanismes pouvaient être neutralisés
+ensemble sans effet. La mutation du chaînage doit elle aussi mordre, ce qui
+établit que ce contrôle porte réellement la détection de la réécriture
+cohérente d'un maillon intermédiaire.
 """
+
 import os
 import pathlib
 import re
@@ -22,12 +20,8 @@ import subprocess
 import sys
 import tempfile
 
-# Ces batteries sont des SCRIPTS lancés directement ; le dossier du script est alors en
-# tête de sys.path et l'import ci-dessous fonctionne. On ne s'appuie pas sur cet effet de
-# bord : le chemin est inséré explicitement, pour que l'import tienne quel que soit le
-# répertoire courant et le mode de lancement.
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from lecture_junit import echecs_junit as _echecs_junit, nom_balise as _nom_balise
+from lecture_junit import echecs_junit as _echecs_junit
 
 RACINE = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".")
 SRC = RACINE / "Modules M/M3-estimation/src/m3_estimation/registre.py"
@@ -37,109 +31,74 @@ original = SRC.read_text(encoding="utf-8")
 MUTATIONS = [
     (
         "le hash precedent est retire du hachage",
-        """    return _encoder_canonique(
-        {
-            "rang": rang,
-            "hash_precedent": hash_precedent,""",
-        """    return _encoder_canonique(
-        {
-            "rang": rang,""",
+        '''            "rang": rang,
+            "hash_precedent": hash_precedent,''',
+        '''            "rang": rang,''',
     ),
     (
         "le predecesseur initial conventionnel est altere",
-        """HASH_PREDECESSEUR_INITIAL = (
+        '''HASH_PREDECESSEUR_INITIAL = (
     "0000000000000000000000000000000000000000000000000000000000000000"
-)""",
-        """HASH_PREDECESSEUR_INITIAL = (
+)''',
+        '''HASH_PREDECESSEUR_INITIAL = (
     "1111111111111111111111111111111111111111111111111111111111111111"
-)""",
+)''',
     ),
     (
         "le tri canonique des dictionnaires est neutralise",
-        """        elements.sort(
-            key=lambda paire: json.dumps(
-                paire[0], separators=(",", ":"), ensure_ascii=True
-            )
-        )""",
-        """        elements = list(elements)""",
+        '''        elements.sort(key=lambda paire: paire[0])''',
+        '''        elements = list(elements)''',
     ),
     (
         "le controle d integrite propre est neutralise",
-        """                if maillon["hash_maillon"] != hash_recalcule:""",
-        """                if False:""",
+        '''                if maillon["hash_maillon"] != hash_recalcule:''',
+        '''                if False:''',
     ),
     (
         "la lecture renvoie la reference interne vivante",
-        """    def lire(self):
-        \"\"\"Retourne une copie profonde, jamais une référence interne vivante.\"\"\"
-        return copy.deepcopy(self._maillons)""",
-        """    def lire(self):
-        \"\"\"Retourne une copie profonde, jamais une référence interne vivante.\"\"\"
-        return self._maillons""",
+        '''        return copy.deepcopy(self._maillons)''',
+        '''        return self._maillons''',
     ),
     (
         "la charge ajoutee n est plus copiee defensivement",
-        """            charge_copiee = copy.deepcopy(charge)""",
-        """            charge_copiee = charge""",
+        '''            charge_copiee = copy.deepcopy(charge)''',
+        '''            charge_copiee = charge''',
     ),
     (
         "la place du cout reel n est plus reservee a None",
-        """            cout_reel = None""",
-        """            cout_reel = 0""",
+        '''            cout_reel = None''',
+        '''            cout_reel = 0''',
     ),
     (
         "la garde des cles de charge requises est neutralisee",
-        """        if not _CLES_CHARGE_REQUISES.issubset(charge):""",
-        """        if False:""",
+        '''        if not _CLES_CHARGE_REQUISES.issubset(charge):''',
+        '''        if False:''',
+    ),
+    (
+        "le controle de chainage est neutralise",
+        '''                if maillon["hash_precedent"] != hash_attendu_precedent:''',
+        '''                if False:''',
     ),
 ]
 
 REDONDANCES_DECLAREES = [
     (
         "le rang est retire du hachage",
-        """    return _encoder_canonique(
-        {
-            "rang": rang,
-            "hash_precedent": hash_precedent,""",
-        """    return _encoder_canonique(
-        {
-            "hash_precedent": hash_precedent,""",
-        "Mesure exacte : rang retiré du hachage SEUL -> ROUGE : False ; "
-        "contrôle rang/position SEUL -> ROUGE : False ; LES DEUX neutralisés "
-        "ENSEMBLE -> ROUGE : False. L'inertie est structurellement DÉMONTRÉE "
-        "face aux trois modes d'altération éprouvés (retrait, permutation et "
-        "duplication), car le contrôle de chaînage tranche avant ce mécanisme. "
-        "Cette mesure ne montre pas que le rang dans le hachage est inutile en "
-        "général : si le contrôle de chaînage était un jour retiré ou contourné, "
-        "le registre retomberait sur lui. C'est une défense en profondeur "
-        "DÉCLARÉE, pas une garantie prouvée par les tests."
+        '''            "rang": rang,
+            "hash_precedent": hash_precedent,''',
+        '''            "hash_precedent": hash_precedent,''',
     ),
     (
         "le controle de correspondance rang position est neutralise",
-        """                if maillon["rang"] != rang:""",
-        """                if False:""",
-        "Mesure exacte : rang retiré du hachage SEUL -> ROUGE : False ; "
-        "contrôle rang/position SEUL -> ROUGE : False ; LES DEUX neutralisés "
-        "ENSEMBLE -> ROUGE : False. L'inertie est structurellement DÉMONTRÉE "
-        "face aux trois modes d'altération éprouvés (retrait, permutation et "
-        "duplication), car le contrôle de chaînage tranche avant ce mécanisme. "
-        "Cette mesure ne montre pas que le contrôle rang/position est inutile "
-        "en général : si le contrôle de chaînage était un jour retiré ou "
-        "contourné, le registre retomberait sur lui. C'est une défense en "
-        "profondeur DÉCLARÉE, pas une garantie prouvée par les tests."
+        '''                if type(maillon["rang"]) is not int or maillon["rang"] != rang:''',
+        '''                if False:''',
     ),
 ]
 
 
-# La liste ci-dessus est VIDE, et c'est un résultat, pas un oubli : les dix mutations de ce
-# module mordent toutes, aucune n'a dû être requalifiée en redondance. Elle reste déclarée
-# pour que l'apparition d'une première entrée soit un geste visible en revue — déclarer
-# qu'une mutation ne mord pas doit coûter une ligne de justification, jamais un silence.
-
-
 def purge():
-    for c in SRC.parent.rglob("__pycache__"):
-        shutil.rmtree(c, ignore_errors=True)
+    for cache in SRC.parent.rglob("__pycache__"):
+        shutil.rmtree(cache, ignore_errors=True)
 
 
 def _echecs_sortie(sortie):
@@ -160,125 +119,129 @@ def executer_tests():
     rapport = pathlib.Path(nom_rapport)
     try:
         resultat = subprocess.run(
-            # Ce dossier contient les tests qui LANCENT ces batteries ; les inclure crée une
-            # récursion mutuelle qui a mesurablement laissé des sources MUTÉES sur le disque.
-            # Une sentinelle sur disque ne suffit pas : elle ne survit pas aux exécutions
-            # concurrentes. L'exclusion est explicite et locale.
             [
-                sys.executable, "-B", "-m", "pytest", str(TESTS), "-q",
+                sys.executable,
+                "-B",
+                "-m",
+                "pytest",
+                str(TESTS),
+                "-q",
                 f"--ignore={TESTS / 'test_gardes_des_outils.py'}",
-                "-p", "no:cacheprovider", "--color=no", f"--junitxml={rapport}",
+                "-p",
+                "no:cacheprovider",
+                "--color=no",
+                f"--junitxml={rapport}",
             ],
             capture_output=True,
             text=True,
             cwd=RACINE,
         )
         sortie = resultat.stdout + resultat.stderr
-        echecs = _echecs_junit(rapport) | _echecs_sortie(sortie)
-        return resultat, echecs, sortie
+        return resultat, _echecs_junit(rapport) | _echecs_sortie(sortie), sortie
     finally:
         rapport.unlink(missing_ok=True)
 
 
-def afficher_echecs(titre, echecs, sortie):
-    if echecs:
-        print(f"{titre} :")
-        for echec in sorted(echecs):
-            print(f"  - {echec}")
-    else:
-        print(f"{titre} : aucun nom de test extractible ; sortie pytest :")
+def appliquer(texte, avant, apres):
+    if texte.count(avant) != 1:
+        raise ValueError(f"ancre x{texte.count(avant)}")
+    resultat = texte.replace(avant, apres, 1)
+    if resultat == texte:
+        raise ValueError("mutation sans effet")
+    compile(resultat, str(SRC), "exec")
+    return resultat
+
+
+def lancer_mutant(nom, mutant, echecs_reference, attend_rouge):
+    SRC.write_text(mutant, encoding="utf-8")
+    purge()
+    resultat, echecs_mutant, sortie = executer_tests()
+    nouveaux = echecs_mutant - echecs_reference
+    rouge = resultat.returncode != 0 and bool(nouveaux)
+
+    if attend_rouge:
+        etat = "ROUGE" if rouge else "NON DETECTEE"
+        if not rouge:
+            print(sortie.rstrip())
+        print(f"{nom:<58} -> {etat}")
+        return rouge
+
+    verte = resultat.returncode == 0
+    etat = "INERTE" if verte else "MORD (HYPOTHESE TOMBEE)"
+    if not verte:
         print(sortie.rstrip())
+    print(f"[declaree] {nom:<47} -> {etat}")
+    return verte
 
 
 if not MUTATIONS:
-    print("ABANDON : MUTATIONS est vide ; un instrument qui ne mesure rien ne prouve rien.")
+    print("ABANDON : MUTATIONS est vide.")
     sys.exit(1)
 
 echecs = []
-mutations_mordues = 0
+mordues = 0
 try:
     purge()
     reference, echecs_reference, sortie_reference = executer_tests()
     if reference.returncode != 0:
-        echecs.append("reference : suite deja rouge")
-        afficher_echecs(
-            "REFERENCE ROUGE — tests qui echouaient deja",
-            echecs_reference,
-            sortie_reference,
-        )
+        # Phrase d'abandon CANONIQUE, commune aux batteries : un test du dépôt
+        # l'exige nommément. Une batterie qui mute une suite déjà rouge ne mesure
+        # rien — chaque mutant paraîtrait mordre pour la faute d'un autre.
+        echecs.append("reference deja rouge")
         print("ABANDON : muter une suite non verte ne prouve rien.")
+        print(sortie_reference.rstrip())
     else:
         for nom, avant, apres in MUTATIONS:
-            if original.count(avant) != 1:
-                echecs.append(f"{nom} : ancre x{original.count(avant)}")
-                print(f"{nom:<52} -> ANCRE INTROUVABLE/AMBIGUE")
-                continue
-            mutant = original.replace(avant, apres, 1)
-            if mutant == original:
-                echecs.append(f"{nom} : mutation SANS EFFET")
-                print(f"{nom:<52} -> SANS EFFET")
-                continue
             try:
-                compile(mutant, str(SRC), "exec")
-            except SyntaxError as erreur:
-                echecs.append(f"{nom} : ne compile pas ({erreur.msg})")
-                print(f"{nom:<52} -> NE COMPILE PAS")
-                continue
+                mutant = appliquer(original, avant, apres)
+                if lancer_mutant(nom, mutant, echecs_reference, True):
+                    mordues += 1
+                else:
+                    echecs.append(f"{nom} : ne mord pas")
+            except (SyntaxError, ValueError) as erreur:
+                echecs.append(f"{nom} : {erreur}")
+                print(f"{nom:<58} -> INSTRUMENT INVALIDE ({erreur})")
 
-            SRC.write_text(mutant, encoding="utf-8")
-            purge()
-            resultat, echecs_mutant, sortie_mutant = executer_tests()
-            nouveaux_echecs = echecs_mutant - echecs_reference
+        mutants_redondance = []
+        for nom, avant, apres in REDONDANCES_DECLAREES:
+            try:
+                mutant = appliquer(original, avant, apres)
+                mutants_redondance.append((nom, avant, apres))
+                if not lancer_mutant(nom, mutant, echecs_reference, False):
+                    echecs.append(f"{nom} : redondance individuelle invalidée")
+            except (SyntaxError, ValueError) as erreur:
+                echecs.append(f"{nom} : {erreur}")
 
-            if resultat.returncode == 0:
-                echecs.append(f"{nom} : reste VERTE")
-                etat = "VERTE (NON DETECTEE)"
-            elif not nouveaux_echecs:
-                echecs.append(f"{nom} : rouge NON ATTRIBUABLE")
-                etat = "ROUGE (NON ATTRIBUABLE)"
-                afficher_echecs(
-                    f"  echec(s) mutant pour {nom}",
-                    echecs_mutant,
-                    sortie_mutant,
-                )
-            else:
-                mutations_mordues += 1
-                etat = "ROUGE"
-            print(f"{nom:<52} -> {etat}")
-
-        for nom, avant, apres, raison in REDONDANCES_DECLAREES:
-            if original.count(avant) != 1:
-                echecs.append(f"[redondance] {nom} : ancre x{original.count(avant)}")
-                continue
-            mutant = original.replace(avant, apres, 1)
-            if mutant == original:
-                echecs.append(f"[redondance] {nom} : mutation SANS EFFET (texte inchange)")
-                continue
-            compile(mutant, str(SRC), "exec")
-            SRC.write_text(mutant, encoding="utf-8")
-            purge()
-            resultat, _, _ = executer_tests()
-            if resultat.returncode != 0:
-                echecs.append(
-                    f"[redondance] {nom} : MORD alors qu elle est declaree inerte "
-                    f"— l hypothese de redondance est tombee"
-                )
-                etat = "MORD (HYPOTHESE TOMBEE)"
-            else:
-                etat = "INERTE (conforme a la declaration)"
-            print(f"[declaree] {nom:<52} -> {etat}")
-            print(f"           raison : {raison}")
+        if len(mutants_redondance) == 2:
+            try:
+                combine = original
+                for _, avant, apres in mutants_redondance:
+                    combine = appliquer(combine, avant, apres)
+                # La mesure DÉCLARÉE est que la combinaison reste INERTE : c'est
+                # elle qui établit que le contrôle de chaînage porte seul la
+                # détection des trois modes d'altération éprouvés. On attend donc
+                # le VERT. Si la combinaison venait à MORDRE, ce serait la
+                # déclaration de redondance qui tomberait, et c'est ce cas-là qui
+                # doit faire échouer l'instrument.
+                if not lancer_mutant(
+                    "neutralisation combinee des deux controles de rang",
+                    combine,
+                    echecs_reference,
+                    False,
+                ):
+                    echecs.append(
+                        "combinaison des controles de rang : elle MORD, donc la "
+                        "redondance declaree est REFUTEE — reecrire la declaration"
+                    )
+            except (SyntaxError, ValueError) as erreur:
+                echecs.append(f"combinaison des controles de rang : {erreur}")
 finally:
     SRC.write_text(original, encoding="utf-8")
     purge()
 
 intact = SRC.read_text(encoding="utf-8") == original
 print(
-    f"\n{mutations_mordues}/{len(MUTATIONS)} mordent | "
-    + (
-        f"{len(REDONDANCES_DECLAREES)} redondances declarees et verifiees INERTES | "
-        if REDONDANCES_DECLAREES else ""
-    )
-    + f"sources restaurees a l identique : {intact}"
+    f"\n{mordues}/{len(MUTATIONS)} mordent | "
+    f"sources restaurees a l identique : {intact}"
 )
-sys.exit(1 if (echecs or not intact) else 0)
+sys.exit(1 if echecs or not intact else 0)

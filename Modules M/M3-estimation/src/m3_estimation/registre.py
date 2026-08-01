@@ -1,24 +1,33 @@
 """Registre append-only hash-chaîné des estimations M3.
 
-Le registre garantit que chaque maillon conserve une charge indépendante, un
-prédécesseur explicite et un hash déterministe calculé sur son rang, sa charge
-et ce prédécesseur. Le rang entre dans le hachage afin qu'un retrait, une
-duplication ou une permutation de maillons ne puisse pas rester indétecté.
-Il ne garantit pas la véracité métier de la charge ni son origine : il garantit
-uniquement son intégrité depuis son ajout dans cette instance.
+Le registre garantit l'intégrité cohérente des maillons qu'il conserve et
+détecte toute altération partielle d'un maillon suivi d'au moins un autre
+maillon. Il ne garantit ni l'authenticité métier des charges, ni leur origine,
+ni la réécriture cohérente du dernier maillon, ni la réécriture cohérente de
+la chaîne entière : sans ancre externe ni secret, une personne pouvant
+réécrire toute la structure peut recalculer les hashes.
 
-Aucune horloge n'est consultée ici : tout horodatage éventuel relève de la
-charge fournie par l'appelant, ce qui préserve le déterminisme du registre.
-Chaque maillon réserve explicitement ``cout_reel`` à ``None`` : M5/M6 pourront
-le renseigner ultérieurement sans confondre une place prévue avec une donnée
-absente. Ce module produit le ``hash_maillon`` transmis ensuite à ``devis.py``
-comme paramètre ; il n'importe pas ce module afin d'éviter toute dépendance
-circulaire.
+Mesure explicitement connue :
+    intacte                                          -> (True, '')
+    reecriture coherente du DERNIER maillon          -> (True, '')
+    reecriture coherente d un maillon du MILIEU      -> (False, 'rang 2')
+    reecriture coherente de TOUTE la chaine          -> (True, '')
+
+La mitigation prévue est l'épinglage externe de ``hash_tete()`` dans un
+registre de dépôt, un journal externe ou toute autre ancre indépendante. Le
+module expose cette tête en lecture seule, mais ne peut pas appliquer lui-même
+une ancre située hors de son instance.
+
+Aucune horloge, aucun aléa et aucun réseau ne sont consultés. Chaque maillon
+réserve ``cout_reel`` à ``None`` pour M5/M6 ; le mécanisme qui permettra de le
+renseigner viendra avec ces modules. Jusque-là, toute valeur non nulle est
+refusée fail-closed par la validation.
 """
 
 import copy
 import hashlib
 import json
+import math
 
 from . import verdicts
 
@@ -45,46 +54,27 @@ _CLES_MAILLON = frozenset(
 
 
 def _normaliser(objet):
-    """Retourne une représentation JSON déterministe et injective."""
+    """Retourne une représentation JSON déterministe des seuls types admis."""
     if isinstance(objet, dict):
-        elements = [
-            (_normaliser(cle), _normaliser(valeur))
-            for cle, valeur in objet.items()
-        ]
-        elements.sort(
-            key=lambda paire: json.dumps(
-                paire[0], separators=(",", ":"), ensure_ascii=True
-            )
-        )
+        elements = []
+        for cle, valeur in objet.items():
+            if not isinstance(cle, str):
+                raise TypeError("Les clés de charge doivent être des chaînes.")
+            elements.append((cle, _normaliser(valeur)))
+        elements.sort(key=lambda paire: paire[0])
         return ["__dict__", [[cle, valeur] for cle, valeur in elements]]
-    if isinstance(objet, set):
-        elements = [_normaliser(element) for element in objet]
-        elements.sort(
-            key=lambda element: json.dumps(
-                element, separators=(",", ":"), ensure_ascii=True
-            )
-        )
-        return ["__set__", elements]
-    if isinstance(objet, frozenset):
-        elements = [_normaliser(element) for element in objet]
-        elements.sort(
-            key=lambda element: json.dumps(
-                element, separators=(",", ":"), ensure_ascii=True
-            )
-        )
-        return ["__frozenset__", elements]
     if isinstance(objet, list):
         return ["__list__", [_normaliser(element) for element in objet]]
-    if isinstance(objet, tuple):
-        return ["__tuple__", [_normaliser(element) for element in objet]]
-    if isinstance(objet, (str, int, float, bool)) or objet is None:
+    if isinstance(objet, str):
         return objet
-    if isinstance(objet, bytes):
-        return ["__bytes__", objet.hex()]
-    if isinstance(objet, bytearray):
-        return ["__bytearray__", bytes(objet).hex()]
-    if isinstance(objet, complex):
-        return ["__complex__", [repr(objet.real), repr(objet.imag)]]
+    if type(objet) is bool or objet is None:
+        return objet
+    if type(objet) is int:
+        return objet
+    if type(objet) is float:
+        if not math.isfinite(objet):
+            raise TypeError("Les flottants non finis sont interdits.")
+        return objet
     raise TypeError(f"Type non supporté dans le registre : {type(objet).__name__}")
 
 
@@ -100,7 +90,7 @@ def _encoder_canonique(*valeurs):
 
 
 def _charge_est_valide(charge):
-    """Vérifie la forme minimale et la sérialisabilité canonique d'une charge."""
+    """Vérifie la forme minimale et les types canoniques admis d'une charge."""
     if not isinstance(charge, dict):
         return False
     try:
@@ -136,11 +126,7 @@ class Registre:
         self._maillons = []
 
     def ajouter(self, charge):
-        """Ajoute une charge valide et retourne ``(maillon, None)``.
-
-        Une charge invalide ne modifie jamais le journal et retourne
-        ``(None, verdict)``.
-        """
+        """Ajoute une charge valide et retourne ``(maillon, None)``."""
         if not _charge_est_valide(charge):
             return None, _verdict_refus("Charge d'estimation invalide.")
 
@@ -178,6 +164,12 @@ class Registre:
         """Retourne une copie profonde, jamais une référence interne vivante."""
         return copy.deepcopy(self._maillons)
 
+    def hash_tete(self):
+        """Retourne la tête à épingler hors du registre, sans exposer son état."""
+        if not self._maillons:
+            return HASH_PREDECESSEUR_INITIAL
+        return self._maillons[-1]["hash_maillon"]
+
     def valider_chaine(self):
         """Contrôle l'intégrité complète de la chaîne et localise le rang fautif."""
         for rang, maillon in enumerate(self._maillons):
@@ -189,6 +181,8 @@ class Registre:
                 if not _charge_est_valide(maillon["charge"]):
                     return False, f"Maillon invalide au rang {rang}"
                 if maillon["cout_reel"] is not None:
+                    return False, f"Maillon invalide au rang {rang}"
+                if type(maillon["rang"]) is not int:
                     return False, f"Maillon invalide au rang {rang}"
 
                 hash_recalcule = _hash_maillon(
@@ -211,10 +205,7 @@ class Registre:
         hash_attendu_precedent = HASH_PREDECESSEUR_INITIAL
         for rang, maillon in enumerate(self._maillons):
             try:
-                # L'intégrité propre est vérifiée avant le chaînage : vérifier
-                # le chaînage d'abord accuserait le maillon suivant de la faute
-                # de son prédécesseur corrompu.
-                if maillon["rang"] != rang:
+                if type(maillon["rang"]) is not int or maillon["rang"] != rang:
                     return False, f"Maillon invalide au rang {rang}"
                 if maillon["hash_precedent"] != hash_attendu_precedent:
                     return False, f"Maillon invalide au rang {rang}"

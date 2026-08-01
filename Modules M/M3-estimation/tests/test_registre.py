@@ -46,27 +46,9 @@ def _ajouter_valide(journal, charge=None):
 def _journal_a_trois_maillons():
     """Fabrique une chaîne de trois maillons distincts pour les tests d'intégrité."""
     journal = registre.Registre()
-    _ajouter_valide(
-        journal,
-        _charge_valide(
-            devis_id="M3-DEVIS-charge-s008-001",
-            lead_id="lead-s008-001",
-        ),
-    )
-    _ajouter_valide(
-        journal,
-        _charge_valide(
-            devis_id="M3-DEVIS-charge-s008-002",
-            lead_id="lead-s008-002",
-        ),
-    )
-    _ajouter_valide(
-        journal,
-        _charge_valide(
-            devis_id="M3-DEVIS-charge-s008-003",
-            lead_id="lead-s008-003",
-        ),
-    )
+    _ajouter_valide(journal, _charge_valide(devis_id="M3-DEVIS-charge-s008-001"))
+    _ajouter_valide(journal, _charge_valide(devis_id="M3-DEVIS-charge-s008-002"))
+    _ajouter_valide(journal, _charge_valide(devis_id="M3-DEVIS-charge-s008-003"))
     return journal
 
 
@@ -87,8 +69,7 @@ def _assert_validation_invalide_au_rang(journal, rang):
             f"{diagnostic!r}"
         )
 
-    rang_diagnostique = int(correspondance.group(1))
-    assert rang_diagnostique == rang
+    assert int(correspondance.group(1)) == rang
 
 
 def test_premier_maillon_porte_un_predecesseur_initial_explicite_et_stable():
@@ -105,28 +86,25 @@ def test_premier_maillon_porte_un_predecesseur_initial_explicite_et_stable():
     assert second["hash_precedent"] == registre.HASH_PREDECESSEUR_INITIAL
     assert premier["hash_precedent"] == second["hash_precedent"]
     assert premier["hash_precedent"] is not None
+    assert premier_journal.hash_tete() == premier["hash_maillon"]
 
 
 def test_hash_du_second_maillon_depend_effectivement_du_hash_du_premier():
     """Verrouille la propagation effective d'une modification du premier hash dans le second."""
     journal_a = registre.Registre()
     premier_a = _ajouter_valide(
-        journal_a,
-        _charge_valide(devis_id="M3-DEVIS-propagation-a"),
+        journal_a, _charge_valide(devis_id="M3-DEVIS-propagation-a")
     )
     second_a = _ajouter_valide(
-        journal_a,
-        _charge_valide(devis_id="M3-DEVIS-propagation-b"),
+        journal_a, _charge_valide(devis_id="M3-DEVIS-propagation-b")
     )
 
     journal_b = registre.Registre()
     premier_b = _ajouter_valide(
-        journal_b,
-        _charge_valide(devis_id="M3-DEVIS-propagation-a-modifie"),
+        journal_b, _charge_valide(devis_id="M3-DEVIS-propagation-a-modifie")
     )
     second_b = _ajouter_valide(
-        journal_b,
-        _charge_valide(devis_id="M3-DEVIS-propagation-b"),
+        journal_b, _charge_valide(devis_id="M3-DEVIS-propagation-b")
     )
 
     assert premier_a["hash_maillon"] != premier_b["hash_maillon"]
@@ -166,10 +144,7 @@ def test_validation_reussit_pour_une_chaine_intacte():
     """Verrouille CA-M3-18 sur une chaîne complète qui n'a subi aucune altération."""
     journal = _journal_a_trois_maillons()
 
-    valide, diagnostic = journal.valider_chaine()
-
-    assert valide is True
-    assert diagnostic == ""
+    assert journal.valider_chaine() == (True, "")
 
 
 def test_validation_echoue_et_nomme_le_rang_si_charge_du_maillon_est_alteree():
@@ -216,13 +191,7 @@ def test_validation_echoue_si_deux_maillons_sont_permutés():
 
 
 def test_validation_echoue_si_un_maillon_est_duplique():
-    """Verrouille qu'une duplication de maillon ne peut pas former une chaîne valide.
-
-    Le maillon dupliqué est indétectable à sa propre position, car il y reste
-    structurellement cohérent avec le maillon qui le précède. L'anomalie devient
-    détectable à la position suivante, où le rang stocké cesse de correspondre
-    à la position réelle ; le rang attendu est donc 2.
-    """
+    """Verrouille qu'une duplication de maillon ne peut pas former une chaîne valide."""
     journal = _journal_a_trois_maillons()
     journal._maillons.insert(1, journal._maillons[1].copy())
 
@@ -248,7 +217,7 @@ def test_lecture_retourne_une_copie_sans_reference_vivante_sur_le_registre():
 
 
 def test_surface_publique_ne_propose_aucune_mutation_ou_suppression_de_maillon():
-    """Verrouille que la surface publique n'expose ni modification ni suppression de maillon."""
+    """Verrouille la surface publique seulement ; l'attribut interne reste atteignable en Python."""
     termes_interdits = (
         "modifier",
         "modifie",
@@ -272,9 +241,7 @@ def test_surface_publique_ne_propose_aucune_mutation_ou_suppression_de_maillon()
     }
     surface_publique = fonctions_module | methodes_registre
 
-    assert "ajouter" in methodes_registre
-    assert "lire" in methodes_registre
-    assert "valider_chaine" in methodes_registre
+    assert {"ajouter", "lire", "hash_tete", "valider_chaine"} <= methodes_registre
     assert all(
         terme not in nom.lower()
         for nom in surface_publique
@@ -296,15 +263,11 @@ def test_ajout_deterministe_a_charge_et_predecesseur_identiques():
 
 
 def test_encodage_canonique_ignore_ordre_insertion_des_cles_de_charge():
-    """Verrouille que deux dictionnaires égaux d'ordres d'insertion distincts ont le même hash."""
-    charge_a = {
-        "devis_id": "M3-DEVIS-canonique",
-        "lead_id": "lead-s008-canonique",
-        "empreinte_marqueur_m2": _empreinte_valide(),
-        "niveau_confiance": 0.9,
-        "bareme_version": "2025.1",
-        "graine_monte_carlo": 314159,
-    }
+    """Verrouille que deux dictionnaires égaux d'ordres distincts ont le même hash."""
+    charge_a = _charge_valide(
+        devis_id="M3-DEVIS-canonique",
+        lead_id="lead-s008-canonique",
+    )
     charge_b = {}
     for cle in (
         "graine_monte_carlo",
@@ -316,10 +279,8 @@ def test_encodage_canonique_ignore_ordre_insertion_des_cles_de_charge():
     ):
         charge_b[cle] = charge_a[cle]
 
-    journal_a = registre.Registre()
-    journal_b = registre.Registre()
-    maillon_a = _ajouter_valide(journal_a, charge_a)
-    maillon_b = _ajouter_valide(journal_b, charge_b)
+    maillon_a = _ajouter_valide(registre.Registre(), charge_a)
+    maillon_b = _ajouter_valide(registre.Registre(), charge_b)
 
     assert charge_a == charge_b
     assert list(charge_a) != list(charge_b)
@@ -328,8 +289,7 @@ def test_encodage_canonique_ignore_ordre_insertion_des_cles_de_charge():
 
 def test_maillon_reserve_explicitement_la_place_vide_du_cout_reel():
     """Verrouille la présence explicite et vide de l'emplacement coût réel réservé à M5/M6."""
-    journal = registre.Registre()
-    maillon = _ajouter_valide(journal)
+    maillon = _ajouter_valide(registre.Registre())
 
     assert "cout_reel" in maillon
     assert maillon["cout_reel"] is None
@@ -337,13 +297,7 @@ def test_maillon_reserve_explicitement_la_place_vide_du_cout_reel():
 
 def test_registre_nimporte_ni_horloge_alea_ni_reseau():
     """Verrouille que registre.py ne consulte ni horloge, ni aléa, ni réseau."""
-    modules_interdits = {
-        "datetime",
-        "time",
-        "random",
-        "socket",
-        "urllib",
-    }
+    modules_interdits = {"datetime", "time", "random", "socket", "urllib"}
     source = Path(registre.__file__).read_text(encoding="utf-8")
     arbre = ast.parse(source, filename=registre.__file__)
 
@@ -366,13 +320,7 @@ def test_registre_nimporte_ni_horloge_alea_ni_reseau():
 def test_entree_non_dictionnaire_est_refusee_par_verdict_sans_exception():
     """Verrouille le refus fail-closed d'une entrée non dictionnaire hostile."""
     journal = registre.Registre()
-    try:
-        maillon, verdict = journal.ajouter(None)
-    except (AttributeError, KeyError, TypeError, ValueError) as erreur:
-        pytest.fail(
-            "ajouter a laissé échapper "
-            f"{type(erreur).__name__} pour une entrée non dictionnaire"
-        )
+    maillon, verdict = journal.ajouter(None)
 
     assert maillon is None
     assert isinstance(verdict, dict)
@@ -382,13 +330,7 @@ def test_entree_non_dictionnaire_est_refusee_par_verdict_sans_exception():
 def test_entree_vide_est_refusee_par_verdict_sans_exception():
     """Verrouille le refus fail-closed d'une charge vide dépourvue de contrat exploitable."""
     journal = registre.Registre()
-    try:
-        maillon, verdict = journal.ajouter({})
-    except (AttributeError, KeyError, TypeError, ValueError) as erreur:
-        pytest.fail(
-            "ajouter a laissé échapper "
-            f"{type(erreur).__name__} pour une charge vide"
-        )
+    maillon, verdict = journal.ajouter({})
 
     assert maillon is None
     assert isinstance(verdict, dict)
@@ -398,16 +340,8 @@ def test_entree_vide_est_refusee_par_verdict_sans_exception():
 def test_entree_avec_valeur_non_canonique_est_refusee_par_verdict_sans_exception():
     """Verrouille le refus fail-closed d'une charge contenant une valeur non canonique hostile."""
     journal = registre.Registre()
-    charge_hostile = _charge_valide()
-    charge_hostile["niveau_confiance"] = object()
-
-    try:
-        maillon, verdict = journal.ajouter(charge_hostile)
-    except (AttributeError, KeyError, TypeError, ValueError) as erreur:
-        pytest.fail(
-            "ajouter a laissé échapper "
-            f"{type(erreur).__name__} pour une valeur non canonique"
-        )
+    charge_hostile = _charge_valide(niveau_confiance=object())
+    maillon, verdict = journal.ajouter(charge_hostile)
 
     assert maillon is None
     assert isinstance(verdict, dict)
@@ -417,7 +351,6 @@ def test_entree_avec_valeur_non_canonique_est_refusee_par_verdict_sans_exception
 def test_predecesseur_initial_conventionnel_est_epingle_a_sa_valeur_zero_sha256():
     """Verrouille la valeur conventionnelle exacte et son portage par le premier maillon."""
     journal = registre.Registre()
-
     maillon = _ajouter_valide(journal)
 
     assert registre.HASH_PREDECESSEUR_INITIAL == "0" * 64
@@ -439,3 +372,33 @@ def test_ajout_copie_defensivement_la_charge_de_lappelant():
     assert lecture[0]["charge"]["lead_id"] == "lead-s008-001"
     assert valide is True
     assert diagnostic == ""
+
+
+def test_mesure_limite_reecriture_coherente_du_dernier_maillon_nest_pas_detectee():
+    """Épingle la limite connue : une réécriture cohérente du dernier maillon reste valide."""
+    journal = _journal_a_trois_maillons()
+    dernier = journal._maillons[-1]
+    dernier["charge"]["lead_id"] = "lead-s008-dernier-reecrit"
+    dernier["hash_maillon"] = registre._hash_maillon(
+        dernier["rang"],
+        dernier["hash_precedent"],
+        dernier["charge"],
+        dernier["cout_reel"],
+    )
+
+    assert journal.valider_chaine() == (True, "")
+
+
+def test_mesure_limite_reecriture_coherente_du_milieu_est_detectee_au_rang_suivant():
+    """Épingle la limite connue : un maillon central réécrit est trahi par son successeur."""
+    journal = _journal_a_trois_maillons()
+    milieu = journal._maillons[1]
+    milieu["charge"]["lead_id"] = "lead-s008-milieu-reecrit"
+    milieu["hash_maillon"] = registre._hash_maillon(
+        milieu["rang"],
+        milieu["hash_precedent"],
+        milieu["charge"],
+        milieu["cout_reel"],
+    )
+
+    _assert_validation_invalide_au_rang(journal, 2)
