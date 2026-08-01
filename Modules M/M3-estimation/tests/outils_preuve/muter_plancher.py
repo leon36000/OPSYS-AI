@@ -24,7 +24,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import xml.etree.ElementTree as ET
+from lecture_junit import echecs_junit as _echecs_junit, nom_balise as _nom_balise
 
 RACINE = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".")
 SRC = RACINE / "Modules M/M3-estimation/src/m3_estimation/plancher.py"
@@ -70,35 +70,8 @@ def purge():
         shutil.rmtree(c, ignore_errors=True)
 
 
-def _nom_balise(element):
-    return element.tag.rsplit("}", 1)[-1]
 
 
-def _echecs_junit(chemin):
-    try:
-        racine = ET.parse(chemin).getroot()
-    except ET.ParseError:
-        return set()
-
-    echecs = set()
-    for cas in racine.iter():
-        if _nom_balise(cas) != "testcase":
-            continue
-        if not any(_nom_balise(enfant) in {"failure", "error"} for enfant in cas):
-            continue
-        classe = cas.attrib.get("classname", "")
-        nom = cas.attrib.get("name", "<test sans nom>")
-        echecs.add(f"{classe}::{nom}" if classe else nom)
-
-    for suite in racine.iter():
-        if _nom_balise(suite) != "testsuite":
-            continue
-        for enfant in suite:
-            if _nom_balise(enfant) in {"failure", "error"}:
-                echecs.add(
-                    f"{suite.attrib.get('name', '<collecte>')}::{_nom_balise(enfant)}"
-                )
-    return echecs
 
 
 def _echecs_sortie(sortie):

@@ -47,6 +47,31 @@ relevé cette contradiction :
 
 Écrire « ne peuvent pas mordre » pour les deux affirmait plus que la mesure.
 
+## `lecture_junit.py` — la seule chose extraite des batteries
+
+Les cinq batteries lisaient le rapport JUnit de pytest avec la même fonction, recopiée cinq
+fois. `bandit` la signalait cinq fois (`B314`, MEDIUM) : une analyse XML non durcie est classée
+VULNERABILITY par les analyseurs statiques, et une seule vulnérabilité suffit à faire tomber
+une note de sécurité. La copie est donc remplacée par un module partagé, durci une fois.
+
+**On n'a extrait QUE la lecture.** La logique de mutation reste dans chaque batterie, et chaque
+batterie garde son extracteur textuel `_echecs_sortie`, indépendant, dont elle unit le résultat
+avec celui-ci. C'est délibéré : un tronc commun est un point unique de défaillance, et le
+saboter ferait mentir les cinq batteries d'un coup. Ici, si la lecture partagée devenait
+défaillante, l'extracteur textuel de chaque batterie tient encore, et le cas où les deux
+rendent le vide sur une suite rouge reste signalé comme ROUGE NON ATTRIBUABLE. La redondance
+qui protège est préservée ; seule la copie inutile disparaît.
+
+Le durcissement ferme l'expansion d'entités externes et l'expansion récursive dite « billion
+laughs », par trois gestionnaires expat qui refusent DTD, déclarations d'entité et références
+externes. Il ne borne PAS la taille du rapport, ne refuse PAS une imbrication profonde sans
+entités, et ne vérifie PAS que le rapport correspond à l'exécution qu'on croit mesurer.
+
+Éprouvé par `tests/test_lecture_junit.py`, sept tests. Le test central neutralise la
+configuration expat et exige que le comportement CHANGE — mesuré : trois tests tombent alors
+par assertion nommée. Un durcissement que rien ne fait rougir en son absence n'est pas un
+durcissement, c'est une intention.
+
 ## Les gardes des outils sont éprouvées par des TESTS
 
     pytest "Modules M/M3-estimation/tests/test_gardes_des_outils.py"
