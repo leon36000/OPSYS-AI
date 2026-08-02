@@ -60,9 +60,9 @@ MUTATIONS = [
         "            elif False and suffixe not in {",
     ),
     (
-        "Random sans graine devient illicitement licite",
-        '            if est_random and suffixe == "Random" and not noeud.args:',
-        '            if False and est_random and suffixe == "Random" and not noeud.args:',
+        "Random ou seed sans graine deviennent illicitement licites",
+        'return not (isinstance(argument, ast.Constant) and argument.value is None)',
+        'return True',
     ),
     (
         "les appels d horloge interne ne sont plus detectes",

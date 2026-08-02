@@ -671,3 +671,156 @@ def test_resout_import_direct_de_verdict_indetermine(tmp_path):
         violation["code"] == "REFERENCE_ENUMERE_NON_RESOLUE"
         for violation in rapport["violations"]
     )
+
+
+def test_random_none_est_signale_comme_aleatoire_non_ensemence(tmp_path):
+    """Random(None) est refusé car Python l'initialise depuis l'entropie."""
+    (tmp_path / "cible.py").write_text(
+        'import random\nNIVEAUX = ("INDETERMINE",)\nrandom.Random(None)\n',
+        encoding="utf-8",
+    )
+
+    rapport = conformite.verifier_conformite(tmp_path)
+
+    assert any(
+        violation["code"] == "RANDOM_NON_ENSEMENCE"
+        for violation in rapport["violations"]
+    )
+
+
+def test_seed_sans_argument_est_signale_comme_aleatoire_non_ensemence(tmp_path):
+    """seed() est refusé car il réinitialise depuis l'entropie système."""
+    (tmp_path / "cible.py").write_text(
+        'import random\nNIVEAUX = ("INDETERMINE",)\nrandom.seed()\n',
+        encoding="utf-8",
+    )
+
+    rapport = conformite.verifier_conformite(tmp_path)
+
+    assert any(
+        violation["code"] == "RANDOM_NON_ENSEMENCE"
+        for violation in rapport["violations"]
+    )
+
+
+def test_seed_none_est_signale_comme_aleatoire_non_ensemence(tmp_path):
+    """seed(None) est refusé car il réinitialise depuis l'entropie système."""
+    (tmp_path / "cible.py").write_text(
+        'import random\nNIVEAUX = ("INDETERMINE",)\nrandom.seed(None)\n',
+        encoding="utf-8",
+    )
+
+    rapport = conformite.verifier_conformite(tmp_path)
+
+    assert any(
+        violation["code"] == "RANDOM_NON_ENSEMENCE"
+        for violation in rapport["violations"]
+    )
+
+
+def test_perf_counter_ns_est_signale_comme_horloge_interne(tmp_path):
+    """perf_counter_ns() est une mesure d'horloge interne interdite."""
+    (tmp_path / "cible.py").write_text(
+        'import time\nNIVEAUX = ("INDETERMINE",)\ntime.perf_counter_ns()\n',
+        encoding="utf-8",
+    )
+
+    rapport = conformite.verifier_conformite(tmp_path)
+
+    assert any(
+        violation["code"] == "HORLOGE_INTERNE"
+        for violation in rapport["violations"]
+    )
+
+
+def test_monotonic_ns_est_signale_comme_horloge_interne(tmp_path):
+    """monotonic_ns() est une mesure d'horloge interne interdite."""
+    (tmp_path / "cible.py").write_text(
+        'import time\nNIVEAUX = ("INDETERMINE",)\ntime.monotonic_ns()\n',
+        encoding="utf-8",
+    )
+
+    rapport = conformite.verifier_conformite(tmp_path)
+
+    assert any(
+        violation["code"] == "HORLOGE_INTERNE"
+        for violation in rapport["violations"]
+    )
+
+
+def test_process_time_est_signale_comme_horloge_interne(tmp_path):
+    """process_time() est une mesure d'horloge interne interdite."""
+    (tmp_path / "cible.py").write_text(
+        'import time\nNIVEAUX = ("INDETERMINE",)\ntime.process_time()\n',
+        encoding="utf-8",
+    )
+
+    rapport = conformite.verifier_conformite(tmp_path)
+
+    assert any(
+        violation["code"] == "HORLOGE_INTERNE"
+        for violation in rapport["violations"]
+    )
+
+
+def test_ctime_est_signale_comme_horloge_interne(tmp_path):
+    """ctime() lit une représentation issue de l'horloge système."""
+    (tmp_path / "cible.py").write_text(
+        'import time\nNIVEAUX = ("INDETERMINE",)\ntime.ctime()\n',
+        encoding="utf-8",
+    )
+
+    rapport = conformite.verifier_conformite(tmp_path)
+
+    assert any(
+        violation["code"] == "HORLOGE_INTERNE"
+        for violation in rapport["violations"]
+    )
+
+
+def test_thread_time_est_signale_comme_horloge_interne(tmp_path):
+    """thread_time() est une mesure de temps système interdite."""
+    (tmp_path / "cible.py").write_text(
+        'import time\nNIVEAUX = ("INDETERMINE",)\ntime.thread_time()\n',
+        encoding="utf-8",
+    )
+
+    rapport = conformite.verifier_conformite(tmp_path)
+
+    assert any(
+        violation["code"] == "HORLOGE_INTERNE"
+        for violation in rapport["violations"]
+    )
+
+
+def test_asctime_est_signale_comme_horloge_interne(tmp_path):
+    """asctime() rend une représentation issue du temps système."""
+    (tmp_path / "cible.py").write_text(
+        'import time\nNIVEAUX = ("INDETERMINE",)\ntime.asctime()\n',
+        encoding="utf-8",
+    )
+
+    rapport = conformite.verifier_conformite(tmp_path)
+
+    assert any(
+        violation["code"] == "HORLOGE_INTERNE"
+        for violation in rapport["violations"]
+    )
+
+
+def test_graines_litterales_non_nulles_restent_licites(tmp_path):
+    """Random(42) et seed(42) restent licites car leur graine est déterministe."""
+    (tmp_path / "cible.py").write_text(
+        "import random\n"
+        'NIVEAUX = ("INDETERMINE",)\n'
+        "random.Random(42)\n"
+        "random.seed(42)\n",
+        encoding="utf-8",
+    )
+
+    rapport = conformite.verifier_conformite(tmp_path)
+
+    assert not any(
+        violation["code"] == "RANDOM_NON_ENSEMENCE"
+        for violation in rapport["violations"]
+    )

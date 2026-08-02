@@ -17,6 +17,14 @@ Les appels ``module.fonction()`` et ``from module import fonction`` suivi de
 ``fonction()`` sont équivalents pour le contrôle : tous deux invoquent le même
 symbole d'origine. Les distinguer laisserait une faille où un import par nom
 contournerait une interdiction applicable à l'accès qualifié.
+
+La portée est délibérément limitée aux appels directs ``module.fonction(...)``
+et aux imports par nom résolus statiquement. Le contrôle ne suit pas les alias
+de variables locales, les appels via ``getattr`` ou ``operator.attrgetter``, ni
+les méthodes invoquées sur une instance construite dans un autre contexte.
+Cette limite est inhérente à une analyse AST sans suivi complet de flux de
+données ; un contournement volontaire par ces formes reste théoriquement
+possible, comme pour tout linter statique.
 """
 
 from __future__ import annotations
@@ -156,6 +164,36 @@ def _origine_appelee(
     return ".".join([origine] + morceaux[1:])
 
 
+def _argument_graine_fournie(noeud: ast.Call) -> bool:
+    """Vrai pour un unique argument qui N'EST PAS l'absence ou le None explicite.
+
+    Une graine peut être une VARIABLE — c'est le patron même du dépôt
+    (monte_carlo.py:176 passe ``graine``, un paramètre fourni par
+    l'appelant, jamais un littéral). Cette analyse statique ne peut pas
+    prouver qu'une variable est déterministe, mais elle ne peut pas non
+    plus prouver le contraire : elle ne rejette donc que ce qu'elle SAIT
+    être non déterministe — l'absence d'argument, ou le littéral ``None``
+    explicite, qui d'après la documentation Python initialisent tous deux
+    depuis l'entropie système (``os.urandom``). Tout le reste — variable,
+    appel, littéral — est accepté par prudence inverse : on ne peut pas
+    interdire ce qu'on ne peut pas prouver dangereux sans produire un flot
+    de faux positifs sur le patron « graine fournie », qui rendrait ce
+    contrôle inutilisable.
+    """
+    if len(noeud.args) == 1 and not noeud.keywords:
+        argument = noeud.args[0]
+    elif (
+        not noeud.args
+        and len(noeud.keywords) == 1
+        and noeud.keywords[0].arg == "seed"
+    ):
+        argument = noeud.keywords[0].value
+    else:
+        return False
+
+    return not (isinstance(argument, ast.Constant) and argument.value is None)
+
+
 def _analyser_motifs(arbre: ast.Module, fichier: str) -> list[dict[str, Any]]:
     violations: list[dict[str, Any]] = []
     modules, symboles = _importations(arbre)
@@ -168,27 +206,16 @@ def _analyser_motifs(arbre: ast.Module, fichier: str) -> list[dict[str, Any]]:
 
             suffixe = origine.rsplit(".", 1)[-1]
             est_random = origine == "random" or origine.startswith("random.")
-            # Le nombre d'arguments n'entre PAS dans la décision — c'est ce qui
-            # laissait passer randint(1, 10), choice(...) et uniform(a, b).
-            # UNE seule exception, et elle n'est pas syntaxique mais sémantique :
-            # pour ``Random``, l'argument EST la graine. ``Random(graine)`` est
-            # déterministe et c'est ainsi que monte_carlo.py s'en sert
-            # (monte_carlo.py:176) ; ``Random()`` nu tire de l'entropie système.
-            # On distingue donc les deux, et seulement pour ce nom-là.
-            if est_random and suffixe == "Random" and not noeud.args:
-                violations.append(
-                    {
-                        "code": "RANDOM_NON_ENSEMENCE",
-                        "fichier": fichier,
-                        "ligne": noeud.lineno,
-                    }
-                )
-            elif est_random and suffixe not in {
-                "seed",
-                "getstate",
-                "setstate",
-                "Random",
-            }:
+            if est_random and suffixe in {"Random", "seed"}:
+                if not _argument_graine_fournie(noeud):
+                    violations.append(
+                        {
+                            "code": "RANDOM_NON_ENSEMENCE",
+                            "fichier": fichier,
+                            "ligne": noeud.lineno,
+                        }
+                    )
+            elif est_random and suffixe not in {"getstate", "setstate"}:
                 violations.append(
                     {
                         "code": "RANDOM_NON_ENSEMENCE",
@@ -226,9 +253,15 @@ def _analyser_motifs(arbre: ast.Module, fichier: str) -> list[dict[str, Any]]:
                 "today",
                 "utcnow",
                 "monotonic",
+                "monotonic_ns",
                 "perf_counter",
+                "perf_counter_ns",
+                "process_time",
                 "localtime",
                 "gmtime",
+                "ctime",
+                "thread_time",
+                "asctime",
             }:
                 violations.append(
                     {
