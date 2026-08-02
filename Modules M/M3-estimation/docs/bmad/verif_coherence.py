@@ -1493,6 +1493,144 @@ def verifier_grandeurs_fournies_declarees(prd: str, archi: str) -> List[str]:
     return erreurs
 
 
+
+def verifier_renvois_internes_valides(prd: str, archi: str) -> List[str]:
+    """Contrôle 21 : chaque renvoi interne mesuré vise une section existante dans
+    le même document.
+
+    Le contrôle extrait les sections réellement définies par leurs titres de
+    niveau 2 ou 3, puis confronte les renvois internes de la forme « décrit en
+    N » et « voir N » à cet ensemble. Les blocs de code clôturés sont masqués
+    avant toute recherche : un renvoi écrit dans un exemple ou une citation n'est
+    pas un engagement documentaire.
+
+    Les renvois inter-documents sont exclus. Ils nomment toujours leur source
+    (« du PRD section », « proposé par l'analyste », « brief analyste »), à la
+    différence des renvois internes qui ne portent que leur numéro ; une lecture
+    de proximité suffit donc pour les distinguer dans les formulations mesurées.
+
+    LIMITE EXACTE : le contrôle vérifie seulement que la section citée existe
+    dans le document qui la cite. Il ne vérifie ni que son contenu correspond à
+    la promesse du renvoi, ni les renvois inter-documents ; ces responsabilités
+    appartiennent aux contrôles spécialisés correspondants.
+    """
+
+    def masquer_blocs(texte: str) -> str:
+        """Masque les blocs clôturés par accents graves, SAUF les blocs ``yaml``.
+
+        `blocs_clotures` est locale à `verifier_copies_declarees` et ne peut pas
+        être réutilisée sans modifier cette autre fonction, ce qui est interdit
+        ici. Ce scanner minimal reproduit donc sa règle pertinente : ouverture
+        et fermeture par au moins trois accents graves, avec une fermeture d'une
+        longueur au moins égale à celle de l'ouverture.
+
+        EXCEPTION MESURÉE : un bloc ```yaml décrit un contrat gelé — son contenu
+        est normatif, pas une citation d'exemple. Le seul renvoi interne engagé
+        qui vit dans un bloc clôturé du corpus réel est « voir 2.5 », À
+        L'INTÉRIEUR du bloc YAML du contrat LeadQualifie ; masquer tous les
+        blocs génériquement le rendait invisible et ROUVRAIT exactement le trou
+        que ce contrôle existe pour fermer. Les autres langages (``text`` dans
+        les citations d'exemple mesurées) restent masqués : eux ne portent
+        jamais de renvoi engagé dans ce corpus.
+        """
+        caracteres = list(texte)
+        position = 0
+        ouvert = False
+        masquer_ce_bloc = False
+        debut_bloc = 0
+        longueur_ouverture = 0
+        segments = texte.split("\n")
+        lignes = [segment + "\n" for segment in segments[:-1]] + segments[-1:]
+
+        for ligne in lignes:
+            fin_ligne = position + len(ligne)
+            if ligne.endswith("\r\n"):
+                corps = ligne[:-2]
+            elif ligne.endswith("\n") or ligne.endswith("\r"):
+                corps = ligne[:-1]
+            else:
+                corps = ligne
+            indentation = len(corps) - len(corps.lstrip(" "))
+            reste = corps[indentation:] if indentation <= 3 else None
+
+            if not ouvert:
+                if reste is not None:
+                    ouverture = re.match(r"`+", reste)
+                    if ouverture is not None and len(ouverture.group(0)) >= 3:
+                        ouvert = True
+                        debut_bloc = position
+                        longueur_ouverture = len(ouverture.group(0))
+                        langage = reste[len(ouverture.group(0)):].strip().lower()
+                        masquer_ce_bloc = langage != "yaml"
+            elif reste is not None:
+                fermeture = re.fullmatch(r"(`+) *", reste)
+                if (fermeture is not None
+                        and len(fermeture.group(1)) >= longueur_ouverture):
+                    if masquer_ce_bloc:
+                        for indice in range(debut_bloc, fin_ligne):
+                            if caracteres[indice] != "\n":
+                                caracteres[indice] = " "
+                    ouvert = False
+
+            position = fin_ligne
+
+        if ouvert and masquer_ce_bloc:
+            for indice in range(debut_bloc, len(caracteres)):
+                if caracteres[indice] != "\n":
+                    caracteres[indice] = " "
+
+        return "".join(caracteres)
+
+    erreurs: List[str] = []
+    motifs_renvoi = (
+        re.compile(r"décrit en (\d+(?:\.\d+)?)"),
+        re.compile(r"voir (\d+(?:\.\d+)?)"),
+    )
+    marques_interdocuments = (
+        "du prd section",
+        "proposé par l'analyste",
+        "brief analyste",
+    )
+
+    for etiquette, texte in (("PRD", prd), ("ARCHITECTURE", archi)):
+        texte_masque = masquer_blocs(texte)
+        sections = set(re.findall(
+            r"^#{2,3}\s+(\d+(?:\.\d+)?)",
+            texte_masque,
+            re.MULTILINE,
+        ))
+
+        for motif in motifs_renvoi:
+            for correspondance in motif.finditer(texte_masque):
+                numero = correspondance.group(1)
+
+                # Le bug historique « décrit en 2.3 bis » doit être refusé :
+                # le motif mesuré capture le numéro, puis cette lecture locale
+                # conserve le suffixe textuel qui rend le renvoi inexistant.
+                suffixe_bis = re.match(
+                    r"[ \t]+bis\b",
+                    texte[correspondance.end(1):],
+                    re.IGNORECASE,
+                )
+                if suffixe_bis is not None:
+                    numero += suffixe_bis.group(0)
+
+                debut_contexte = max(0, correspondance.start(1) - 40)
+                contexte = texte[debut_contexte:correspondance.start(1)].lower()
+                # Un renvoi inter-document nomme explicitement sa source ;
+                # contrairement à un renvoi interne, sa proximité est donc
+                # suffisante pour l'exclure sans deviner une cible locale.
+                if any(marque in contexte for marque in marques_interdocuments):
+                    continue
+
+                if numero not in sections:
+                    erreurs.append(
+                        f"{etiquette} : renvoi interne vers la section {numero} "
+                        f"alors qu'aucune section de ce numéro n'existe dans ce document."
+                    )
+
+    return erreurs
+
 def main(dossier_str: str = None) -> int:
     if dossier_str is None:
         dossier = Path(__file__).resolve().parent
@@ -1699,6 +1837,14 @@ def main(dossier_str: str = None) -> int:
         print(f"OK : Les {len(GRANDEURS_FOURNIES)} grandeurs de GRANDEURS_FOURNIES "
               f"ont été confrontées — chacune, dès qu'un critère l'emploie, est "
               f"déclarée dans l'interface d'entrée.")
+
+    errs = verifier_renvois_internes_valides(prd, archi)
+    if errs:
+        erreurs.extend(errs)
+        for e in errs:
+            print(f"ECHEC : {e}")
+    else:
+        print("OK : Chaque renvoi interne mesuré vise une section existante dans son document.")
 
     n = len(erreurs)
     if n == 0:
