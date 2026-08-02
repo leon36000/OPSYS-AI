@@ -1,0 +1,25 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/docs/bmad/verif_coherence.py",
+   "description": "La fenêtre de proximité de 40 caractères et la restriction du contexte au texte précédant le numéro ne sont pas listées parmi les limites ; une marque d'exclusion placée après le numéro ou au-delà de 40 caractères pourrait ne pas être exclue.",
+   "preuve": "debut_contexte = max(0, correspondance.start(1) - 40); contexte = texte_masque[debut_contexte:correspondance.start(1)].lower()"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/test_gate_renvois_internes.py",
+   "description": "Aucun test ne verrouille le cas exact du bug corrigé : une marque d'exclusion dans un bloc clôturé masqué précédant un renvoi hors bloc. Une régression qui relirait le contexte sur le texte original ne serait pas forcément détectée.",
+   "preuve": "test_exclusion_inter_document_par_proximite_est_reellement_exercee ajoute la marque hors bloc ; test_un_renvoi_dans_un_bloc_cloture_est_ignore ajoute seulement des renvois dans un bloc."
+  }
+ ],
+ "date_heure": "2026-08-02T22:59:41.138575+00:00",
+ "prompt_sha256": "84487c86594b341bf7a20b6016b1f05e8808d27ecf3ffd233d63348af93a127d",
+ "reviewer_model": "Qwen3.8-Max",
+ "modele_servi": "qwen38-max-alibaba-sg",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}
