@@ -562,3 +562,112 @@ def test_digest_refuse_une_fenetre_invalide(
         pytest.fail(f"Exception échappée : {type(erreur).__name__}")
     else:
         pytest.fail("Fenêtre invalide acceptée par produire_digest")
+
+
+def test_detecte_random_randint_avec_arguments(tmp_path):
+    """Verrouille la détection de random.randint malgré ses arguments."""
+    (tmp_path / "module.py").write_text(
+        "import random\nrandom.randint(1, 10)\n",
+        encoding="utf-8",
+    )
+    rapport = conformite.verifier_conformite(tmp_path)
+    assert any(
+        violation["code"] == "RANDOM_NON_ENSEMENCE"
+        for violation in rapport["violations"]
+    )
+
+
+def test_detecte_random_choice_avec_argument(tmp_path):
+    """Verrouille la détection de random.choice malgré son argument."""
+    (tmp_path / "module.py").write_text(
+        "import random\nrandom.choice([1, 2])\n",
+        encoding="utf-8",
+    )
+    rapport = conformite.verifier_conformite(tmp_path)
+    assert any(
+        violation["code"] == "RANDOM_NON_ENSEMENCE"
+        for violation in rapport["violations"]
+    )
+
+
+def test_detecte_random_uniform_avec_arguments(tmp_path):
+    """Verrouille la détection de random.uniform malgré ses arguments."""
+    (tmp_path / "module.py").write_text(
+        "import random\nrandom.uniform(1.0, 2.0)\n",
+        encoding="utf-8",
+    )
+    rapport = conformite.verifier_conformite(tmp_path)
+    assert any(
+        violation["code"] == "RANDOM_NON_ENSEMENCE"
+        for violation in rapport["violations"]
+    )
+
+
+def test_detecte_uuid_uuid4(tmp_path):
+    """Verrouille la détection de uuid.uuid4 comme aléa système."""
+    (tmp_path / "module.py").write_text(
+        "import uuid\nuuid.uuid4()\n",
+        encoding="utf-8",
+    )
+    rapport = conformite.verifier_conformite(tmp_path)
+    assert any(
+        violation["code"] == "ALEA_SYSTEME_INTERDIT"
+        for violation in rapport["violations"]
+    )
+
+
+def test_detecte_time_time_ns(tmp_path):
+    """Verrouille la détection de time.time_ns comme horloge interne."""
+    (tmp_path / "module.py").write_text(
+        "import time\ntime.time_ns()\n",
+        encoding="utf-8",
+    )
+    rapport = conformite.verifier_conformite(tmp_path)
+    assert any(
+        violation["code"] == "HORLOGE_INTERNE"
+        for violation in rapport["violations"]
+    )
+
+
+def test_accepte_generateur_random_local_ensemence(tmp_path):
+    """Verrouille l'acceptation d'un générateur local explicitement ensemencé."""
+    (tmp_path / "module.py").write_text(
+        "import random\ngenerateur = random.Random(7)\ngenerateur.uniform(1, 2)\n",
+        encoding="utf-8",
+    )
+    rapport = conformite.verifier_conformite(tmp_path)
+    assert not any(
+        violation["code"] == "RANDOM_NON_ENSEMENCE"
+        for violation in rapport["violations"]
+    )
+
+
+def test_accepte_datetime_fromisoformat(tmp_path):
+    """Verrouille l'acceptation de datetime.fromisoformat déterministe."""
+    (tmp_path / "module.py").write_text(
+        "import datetime\ndatetime.datetime.fromisoformat('2025-01-01T00:00:00')\n",
+        encoding="utf-8",
+    )
+    rapport = conformite.verifier_conformite(tmp_path)
+    assert not any(
+        violation["code"] == "HORLOGE_INTERNE"
+        for violation in rapport["violations"]
+    )
+
+
+def test_resout_import_direct_de_verdict_indetermine(tmp_path):
+    """Verrouille la résolution d'une échappatoire importée directement."""
+    (tmp_path / "contrats.py").write_text(
+        "VERDICT_INDETERMINE = 'INDETERMINE'\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "module.py").write_text(
+        "from contrats import VERDICT_INDETERMINE\n"
+        "NIVEAUX = ('HAUT', VERDICT_INDETERMINE)\n",
+        encoding="utf-8",
+    )
+    rapport = conformite.verifier_conformite(tmp_path)
+    assert not any(
+        violation["code"] == "REFERENCE_ENUMERE_NON_RESOLUE"
+        for violation in rapport["violations"]
+    )

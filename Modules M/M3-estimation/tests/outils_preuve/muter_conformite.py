@@ -56,23 +56,28 @@ MUTATIONS = [
     ),
     (
         "les appels random non ensemences ne sont plus detectes",
-        "                if est_random:",
-        "                if False:",
+        "            elif est_random and suffixe not in {",
+        "            elif False and suffixe not in {",
+    ),
+    (
+        "Random sans graine devient illicitement licite",
+        '            if est_random and suffixe == "Random" and not noeud.args:',
+        '            if False and est_random and suffixe == "Random" and not noeud.args:',
     ),
     (
         "les appels d horloge interne ne sont plus detectes",
-        "                if est_horloge and appele.rsplit(\".\", 1)[-1] in {",
-        "                if False and appele.rsplit(\".\", 1)[-1] in {",
+        "            if est_horloge and suffixe in {",
+        "            if False and suffixe in {",
     ),
     (
         "les appels reseau ne sont plus detectes",
-        "                if est_reseau:",
-        "                if False:",
+        "            if est_reseau:",
+        "            if False:",
     ),
     (
         "datetime.fromisoformat devient illicitement interdit",
-        '                    "utcnow",',
-        '                    "utcnow", "fromisoformat",',
+        '                "utcnow",',
+        '                "utcnow",\n                "fromisoformat",',
     ),
     (
         "l absence de fichiers analyses conclut illicitement au vert",

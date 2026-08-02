@@ -1,26 +1,22 @@
 """Contrôle statique transversal et déterministe du paquet M3.
 
 Ce module analyse exclusivement les arbres syntaxiques Python : il contrôle les
-énumérés publics de domaine, les échappatoires explicites, certains appels
-interdits aux sources d'ambiance et les littéraux numériques placés dans un
-contexte monétaire identifiable. Il ne prouve ni l'absence de comportement
-dynamique, ni les imports construits à l'exécution, ni les coûts masqués sous
-des noms neutres. Les constantes ``CHAMPS_*`` sont volontairement exclues des
-énumérés de domaine : elles décrivent des noms de propriétés de contrat et non
-des valeurs métier parmi lesquelles un appelant doit pouvoir exprimer une
-incertitude. Leur imposer ``INDETERMINE`` créerait des faux positifs nuisibles.
+énumérés publics de domaine, les échappatoires explicites, les appels interdits
+aux sources d'ambiance, notamment ``random``, ``uuid``, ``secrets`` et
+``os.urandom``, ainsi que les littéraux numériques placés dans un contexte
+monétaire identifiable. Il ne prouve ni l'absence de comportement dynamique,
+ni les imports construits à l'exécution, ni les coûts masqués sous des noms
+neutres. Les constantes ``CHAMPS_*`` sont volontairement exclues des énumérés
+de domaine : elles décrivent des noms de propriétés de contrat et non des
+valeurs métier parmi lesquelles un appelant doit pouvoir exprimer une
+incertitude. Les imports directs de constantes sont résolus au même titre que
+les accès qualifiés afin de ne pas confondre une échappatoire importée avec une
+référence inconnue.
 
-Les catalogues fermés de codes de rejet sont également distingués des énumérés
-de domaine : ils recensent des causes techniques déjà nommées, et non des
-issues métier à classifier. Le résolveur d'échappatoires comprend les accès
-indexés à une séquence constante avec indice littéral, tout en bornant sa
-profondeur afin de conserver un refus fermé face aux expressions inconnues ou
-cycliques.
-
-La table ``_DEROGATIONS_ECHAPPATOIRE`` recense les dérogations explicites à
-D-032. Ajouter une entrée à cette table est un geste de conception, et non un
-ajustement local : chaque dérogation doit exposer la raison pour laquelle son
-énuméré ne bloque pas avec l'échappatoire canonique.
+Les appels ``module.fonction()`` et ``from module import fonction`` suivi de
+``fonction()`` sont équivalents pour le contrôle : tous deux invoquent le même
+symbole d'origine. Les distinguer laisserait une faille où un import par nom
+contournerait une interdiction applicable à l'accès qualifié.
 """
 
 from __future__ import annotations
@@ -65,12 +61,6 @@ def _est_sequence_constante(noeud: ast.AST) -> bool:
 
 
 def _est_catalogue_codes_rejet(nom: str, valeur: ast.AST) -> bool:
-    """Reconnaît structurellement un catalogue fermé de causes de rejet.
-
-    Le critère est explicite : un tel catalogue porte un nom ``CODES_*``, est
-    une séquence littérale, et chacune de ses valeurs est un identifiant texte
-    préfixé par ``REJ-``. Il ne dépend donc pas du nom d'une constante précise.
-    """
     if not nom.startswith("CODES_") or not _est_sequence_constante(valeur):
         return False
     assert isinstance(valeur, (ast.Tuple, ast.List, ast.Set))
@@ -83,30 +73,6 @@ def _est_catalogue_codes_rejet(nom: str, valeur: ast.AST) -> bool:
 
 
 def _est_enumere_domaine(nom: str, valeur: ast.AST) -> bool:
-    """Distingue les valeurs métier des listes structurelles de champs.
-
-    Le contrat de nommage public réserve ``CHAMPS_*`` aux noms de propriétés
-    sérialisées. Les autres séquences publiques en majuscules sont examinées :
-    elles représentent des vocabulaires fermés de domaine et doivent donc
-    prévoir une sortie explicite pour l'incertitude.
-
-    L'échappatoire ``INDETERMINE`` de D-032 existe pour le cas où le système ne
-    PEUT PAS classer à l'exécution : il doit alors pouvoir le dire d'un nom et
-    BLOQUER, plutôt que d'inventer ou de planter. Ce cas existe pour
-    ``NiveauConfiance`` (les photos ne permettent pas de trancher) et pour
-    ``VerdictEstimation`` (l'issue métier est indéterminée). Il n'existe PAS
-    pour un catalogue de codes de rejet : chaque site de rejet NOMME sa cause,
-    il n'y a aucun chemin d'exécution où M3 rejette sans savoir pourquoi. Un
-    ``REJ-INDETERMINE`` n'aurait aucun producteur — et ce dépôt compte déjà
-    deux valeurs de ``VERDICTS_ESTIMATION`` sans producteur, c'est un défaut
-    connu qu'il ne faut pas reproduire. Le refus par exception vise une erreur
-    de PROGRAMMATION (un code mal orthographié), pas une lacune de
-    classification.
-
-    Si un chemin d'exécution devait un jour rejeter sans cause nommée, cette
-    décision ne serait plus valable : le catalogue devrait alors porter une
-    échappatoire explicitement produite.
-    """
     return (
         nom.isupper()
         and not nom.startswith("_")
@@ -141,23 +107,53 @@ def _contexte_monetaire(nom: str) -> bool:
 
 
 def _importations(arbre: ast.Module) -> tuple[dict[str, str], dict[str, str]]:
+    """Retourne les modules et symboles locaux avec leur origine absolue."""
     modules: dict[str, str] = {}
     symboles: dict[str, str] = {}
+
     for noeud in ast.walk(arbre):
         if isinstance(noeud, ast.Import):
             for alias in noeud.names:
-                nom_local = alias.asname or alias.name.split(".", 1)[0]
-                modules[nom_local] = alias.name
+                if alias.asname:
+                    modules[alias.asname] = alias.name
+                else:
+                    modules[alias.name.split(".", 1)[0]] = alias.name.split(
+                        ".", 1
+                    )[0]
         elif isinstance(noeud, ast.ImportFrom):
             module = noeud.module or ""
             for alias in noeud.names:
-                nom_local = alias.asname or alias.name
                 if alias.name == "*":
                     continue
-                symboles[nom_local] = f"{module}.{alias.name}".strip(".")
-                if module:
-                    modules[nom_local] = f"{module}.{alias.name}".strip(".")
+                nom_local = alias.asname or alias.name
+                cible = f"{module}.{alias.name}".strip(".")
+                symboles[nom_local] = cible
+                modules[nom_local] = cible
+
     return modules, symboles
+
+
+def _origine_appelee(
+    noeud: ast.Call,
+    modules: dict[str, str],
+    symboles: dict[str, str],
+) -> str | None:
+    """Résout le symbole d'origine réellement appelé, si sa forme est simple."""
+    if isinstance(noeud.func, ast.Name):
+        nom = noeud.func.id
+        return symboles.get(nom) or modules.get(nom)
+
+    appele = _attribut_complet(noeud.func)
+    if appele is None:
+        return None
+
+    morceaux = appele.split(".")
+    origine = modules.get(morceaux[0])
+    if origine is None:
+        return None
+    if len(morceaux) == 1:
+        return origine
+    return ".".join([origine] + morceaux[1:])
 
 
 def _analyser_motifs(arbre: ast.Module, fichier: str) -> list[dict[str, Any]]:
@@ -166,80 +162,110 @@ def _analyser_motifs(arbre: ast.Module, fichier: str) -> list[dict[str, Any]]:
 
     for noeud in ast.walk(arbre):
         if isinstance(noeud, ast.Call):
-            appele = _attribut_complet(noeud.func)
-            if appele is None and isinstance(noeud.func, ast.Name):
-                appele = noeud.func.id
+            origine = _origine_appelee(noeud, modules, symboles)
+            if origine is None:
+                continue
 
-            if appele is not None:
-                racine = appele.split(".", 1)[0]
-                module_racine = modules.get(racine, "")
-                symbole = symboles.get(racine, "")
-
-                est_random = (
-                    module_racine == "random"
-                    or module_racine.startswith("random.")
-                    or symbole == "random.Random"
-                    or symbole == "random.random"
+            suffixe = origine.rsplit(".", 1)[-1]
+            est_random = origine == "random" or origine.startswith("random.")
+            # Le nombre d'arguments n'entre PAS dans la décision — c'est ce qui
+            # laissait passer randint(1, 10), choice(...) et uniform(a, b).
+            # UNE seule exception, et elle n'est pas syntaxique mais sémantique :
+            # pour ``Random``, l'argument EST la graine. ``Random(graine)`` est
+            # déterministe et c'est ainsi que monte_carlo.py s'en sert
+            # (monte_carlo.py:176) ; ``Random()`` nu tire de l'entropie système.
+            # On distingue donc les deux, et seulement pour ce nom-là.
+            if est_random and suffixe == "Random" and not noeud.args:
+                violations.append(
+                    {
+                        "code": "RANDOM_NON_ENSEMENCE",
+                        "fichier": fichier,
+                        "ligne": noeud.lineno,
+                    }
                 )
-                if est_random:
-                    suffixe = appele.rsplit(".", 1)[-1]
-                    if suffixe != "seed" and not noeud.args and not noeud.keywords:
-                        violations.append(
-                            {
-                                "code": "RANDOM_NON_ENSEMENCE",
-                                "fichier": fichier,
-                                "ligne": noeud.lineno,
-                            }
-                        )
-
-                est_horloge = (
-                    module_racine == "time"
-                    or module_racine.startswith("time.")
-                    or module_racine == "datetime"
-                    or module_racine.startswith("datetime.")
-                    or symbole.startswith("datetime.datetime")
+            elif est_random and suffixe not in {
+                "seed",
+                "getstate",
+                "setstate",
+                "Random",
+            }:
+                violations.append(
+                    {
+                        "code": "RANDOM_NON_ENSEMENCE",
+                        "fichier": fichier,
+                        "ligne": noeud.lineno,
+                    }
                 )
-                if est_horloge and appele.rsplit(".", 1)[-1] in {
-                    "time",
-                    "now",
-                    "today",
-                    "utcnow",
-                }:
-                    violations.append(
-                        {
-                            "code": "HORLOGE_INTERNE",
-                            "fichier": fichier,
-                            "ligne": noeud.lineno,
-                        }
-                    )
 
-                est_reseau = (
-                    module_racine == "socket"
-                    or module_racine.startswith("socket.")
-                    or module_racine == "urllib"
-                    or module_racine.startswith("urllib.")
-                    or module_racine == "requests"
-                    or module_racine.startswith("requests.")
-                    or module_racine == "http"
-                    or module_racine.startswith("http.client")
-                    or symbole.startswith(
-                        ("socket.", "urllib.", "requests.", "http.client.")
-                    )
+            est_alea_systeme = (
+                origine == "uuid"
+                or origine.startswith("uuid.")
+                or origine == "secrets"
+                or origine.startswith("secrets.")
+                or origine == "os.urandom"
+            )
+            if est_alea_systeme:
+                violations.append(
+                    {
+                        "code": "ALEA_SYSTEME_INTERDIT",
+                        "fichier": fichier,
+                        "ligne": noeud.lineno,
+                    }
                 )
-                if est_reseau:
-                    violations.append(
-                        {
-                            "code": "RESEAU_INTERDIT",
-                            "fichier": fichier,
-                            "ligne": noeud.lineno,
-                        }
-                    )
+
+            est_horloge = (
+                origine == "time"
+                or origine.startswith("time.")
+                or origine == "datetime"
+                or origine.startswith("datetime.")
+            )
+            if est_horloge and suffixe in {
+                "time",
+                "time_ns",
+                "now",
+                "today",
+                "utcnow",
+                "monotonic",
+                "perf_counter",
+                "localtime",
+                "gmtime",
+            }:
+                violations.append(
+                    {
+                        "code": "HORLOGE_INTERNE",
+                        "fichier": fichier,
+                        "ligne": noeud.lineno,
+                    }
+                )
+
+            est_reseau = (
+                origine == "socket"
+                or origine.startswith("socket.")
+                or origine == "urllib"
+                or origine.startswith("urllib.")
+                or origine == "requests"
+                or origine.startswith("requests.")
+                or origine == "http"
+                or origine.startswith("http.client.")
+            )
+            if est_reseau:
+                violations.append(
+                    {
+                        "code": "RESEAU_INTERDIT",
+                        "fichier": fichier,
+                        "ligne": noeud.lineno,
+                    }
+                )
 
         if isinstance(noeud, (ast.Assign, ast.AnnAssign)):
             valeur = noeud.value
             if valeur is None or not _est_nombre(valeur):
                 continue
-            cibles = noeud.targets if isinstance(noeud, ast.Assign) else [noeud.target]
+            cibles = (
+                noeud.targets
+                if isinstance(noeud, ast.Assign)
+                else [noeud.target]
+            )
             for cible in cibles:
                 nom = _nom_cible(cible)
                 if nom is not None and _contexte_monetaire(nom):
@@ -266,7 +292,11 @@ def _construire_tables(
         for noeud in arbre.body:
             if isinstance(noeud, (ast.Assign, ast.AnnAssign)):
                 valeur = noeud.value
-                cibles = noeud.targets if isinstance(noeud, ast.Assign) else [noeud.target]
+                cibles = (
+                    noeud.targets
+                    if isinstance(noeud, ast.Assign)
+                    else [noeud.target]
+                )
                 if valeur is not None:
                     for cible in cibles:
                         nom = _nom_cible(cible)
@@ -274,7 +304,9 @@ def _construire_tables(
                             constantes[module][nom] = valeur
             elif isinstance(noeud, ast.Import):
                 for alias in noeud.names:
-                    imports[module][alias.asname or alias.name.split(".", 1)[0]] = alias.name
+                    imports[module][
+                        alias.asname or alias.name.split(".", 1)[0]
+                    ] = alias.name
             elif isinstance(noeud, ast.ImportFrom):
                 base = noeud.module or ""
                 for alias in noeud.names:
@@ -285,7 +317,10 @@ def _construire_tables(
     return constantes, imports
 
 
-def _module_existant(nom: str, constantes: dict[str, dict[str, ast.AST]]) -> str | None:
+def _module_existant(
+    nom: str,
+    constantes: dict[str, dict[str, ast.AST]],
+) -> str | None:
     if nom in constantes:
         return nom
     candidats = [
@@ -296,6 +331,21 @@ def _module_existant(nom: str, constantes: dict[str, dict[str, ast.AST]]) -> str
     if len(candidats) == 1:
         return candidats[0]
     return None
+
+
+def _cible_importee(
+    cible: str,
+    constantes: dict[str, dict[str, ast.AST]],
+) -> tuple[str | None, str | None]:
+    morceaux = cible.split(".")
+    if len(morceaux) < 2:
+        return None, None
+    nom_constante = morceaux[-1]
+    module_reel = _module_existant(
+        ".".join(morceaux[:-1]),
+        constantes,
+    )
+    return module_reel, nom_constante
 
 
 def _resoudre_sequence(
@@ -333,8 +383,7 @@ def _resoudre_sequence(
         if qualifie is None:
             return None, None, []
         morceaux = qualifie.split(".")
-        alias = morceaux[0]
-        cible_import = imports.get(module, {}).get(alias)
+        cible_import = imports.get(module, {}).get(morceaux[0])
         if cible_import is None or len(morceaux) < 2:
             return None, qualifie, []
         nom_constante = morceaux[-1]
@@ -342,7 +391,9 @@ def _resoudre_sequence(
         if cible_import.endswith(f".{nom_constante}"):
             nom_module = cible_import.rsplit(".", 1)[0]
         module_reel = _module_existant(nom_module, constantes)
-        if module_reel is None or nom_constante not in constantes.get(module_reel, {}):
+        if module_reel is None or nom_constante not in constantes.get(
+            module_reel, {}
+        ):
             return None, qualifie, []
         cle = (module_reel, nom_constante)
         if cle in pile:
@@ -376,27 +427,51 @@ def _resoudre_valeur(
 
     if isinstance(expression, ast.Name):
         nom = expression.id
-        if nom not in constantes.get(module, {}):
+        if nom in constantes.get(module, {}):
+            cle = (module, nom)
+            if cle in pile:
+                return None, nom, []
+            return _resoudre_valeur(
+                constantes[module][nom],
+                module,
+                constantes,
+                imports,
+                pile | {cle},
+                profondeur + 1,
+            )
+
+        cible_import = imports.get(module, {}).get(nom)
+        if cible_import is None:
             return None, nom, []
-        cle = (module, nom)
+        module_reel, nom_constante = _cible_importee(
+            cible_import,
+            constantes,
+        )
+        if (
+            module_reel is None
+            or nom_constante is None
+            or nom_constante not in constantes.get(module_reel, {})
+        ):
+            return None, nom, []
+        cle = (module_reel, nom_constante)
         if cle in pile:
             return None, nom, []
-        return _resoudre_valeur(
-            constantes[module][nom],
-            module,
+        valeur, inconnu, references = _resoudre_valeur(
+            constantes[module_reel][nom_constante],
+            module_reel,
             constantes,
             imports,
             pile | {cle},
             profondeur + 1,
         )
+        return valeur, inconnu, [cible_import] + references
 
     if isinstance(expression, ast.Attribute):
         qualifie = _attribut_complet(expression)
         if qualifie is None:
             return None, None, []
         morceaux = qualifie.split(".")
-        alias = morceaux[0]
-        cible_import = imports.get(module, {}).get(alias)
+        cible_import = imports.get(module, {}).get(morceaux[0])
         if cible_import is None or len(morceaux) < 2:
             return None, qualifie, []
         nom_constante = morceaux[-1]
@@ -404,9 +479,10 @@ def _resoudre_valeur(
         if cible_import.endswith(f".{nom_constante}"):
             nom_module = cible_import.rsplit(".", 1)[0]
         module_reel = _module_existant(nom_module, constantes)
-        if module_reel is None:
-            return None, qualifie, []
-        if nom_constante not in constantes.get(module_reel, {}):
+        if (
+            module_reel is None
+            or nom_constante not in constantes.get(module_reel, {})
+        ):
             return None, qualifie, []
         cle = (module_reel, nom_constante)
         if cle in pile:
@@ -425,7 +501,6 @@ def _resoudre_valeur(
         indice = expression.slice
         if not isinstance(indice, ast.Constant) or type(indice.value) is not int:
             return None, ast.unparse(expression), []
-
         elements, inconnu, references = _resoudre_sequence(
             expression.value,
             module,
@@ -500,6 +575,7 @@ def verifier_conformite(repertoire: str | Path) -> dict[str, Any]:
             {"fichier": fichier, "famille": famille}
             for famille in (
                 "RANDOM_NON_ENSEMENCE",
+                "ALEA_SYSTEME_INTERDIT",
                 "HORLOGE_INTERNE",
                 "RESEAU_INTERDIT",
             )
