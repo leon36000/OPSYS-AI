@@ -30,10 +30,18 @@ MUTATIONS = [
         "doit_produire_un_message": True,
     },
     {
-        "libelle": "renvoi inter-document absurde reste hors périmètre",
+        # Objection de revue scellée, confirmée par mesure : la mutation
+        # précédente ne contenait ni « décrit en » ni « voir », donc elle
+        # n'atteignait JAMAIS les motifs de renvoi capturés — le test passait
+        # trivialement, quelle que soit l'exclusion par proximité. Celle-ci
+        # combine un motif RÉELLEMENT capturé (« voir 99.9 ») avec la marque
+        # d'exclusion « du prd section » à proximité mesurée (< 40 caractères) :
+        # elle exerce enfin le chemin d'exclusion lui-même, pas seulement
+        # l'absence de détection du motif.
+        "libelle": "renvoi inter-document absurde, motif capturé, reste hors périmètre",
         "document": "archi",
         "avant": "Copié mot pour mot du PRD section 4.1.",
-        "apres": "Copié mot pour mot du PRD section 99.9.",
+        "apres": "Copié mot pour mot du PRD section, voir 99.9.",
         "doit_produire_un_message": False,
     },
     {

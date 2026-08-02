@@ -1513,6 +1513,28 @@ def verifier_renvois_internes_valides(prd: str, archi: str) -> List[str]:
     dans le document qui la cite. Il ne vérifie ni que son contenu correspond à
     la promesse du renvoi, ni les renvois inter-documents ; ces responsabilités
     appartiennent aux contrôles spécialisés correspondants.
+
+    QUATRE LIMITES SUPPLÉMENTAIRES, mesurées comme ABSENTES du corpus actuel
+    (objections de revue scellée — vérifié par mesure directe avant d'écrire
+    cette note, pas supposé) mais qui resteraient de vrais angles morts si le
+    corpus évoluait :
+    - les motifs reconnus sont « décrit en » et « voir » ; une autre
+      formulation de renvoi interne (« cf. », « section N » sans qualificatif
+      de source) échapperait au contrôle. Aucune de ces formes n'a été
+      trouvée dans le corpus mesuré.
+    - les marques d'exclusion inter-documents sont des chaînes fixes ; une
+      formulation non mesurée échapperait à l'exclusion (fausse alerte) ou à
+      la détection (silence). Toutes les occurrences réelles de « section N »
+      qualifiée mesurées dans le corpus sont couvertes par les trois marques.
+    - un titre de section n'est reconnu qu'à deux niveaux (« N.N ») ; une
+      sous-sous-section (« N.N.N ») ne serait pas distinguée de son préfixe.
+      Le corpus ne contient aucun titre à trois niveaux.
+    - seuls les blocs ```yaml échappent au masquage ; un autre langage de
+      bloc portant un jour un renvoi engagé (ou un bloc yaml portant un
+      titre markdown qui ressemblerait à une section) resterait un angle
+      mort. Aucun bloc du corpus ne présente ce cas.
+    Ce contrôle ne prétend donc pas une robustesse à un corpus qu'il n'a pas
+    vu ; il tient ce qu'il a mesuré, comme le reste de ce fichier.
     """
 
     def masquer_blocs(texte: str) -> str:
