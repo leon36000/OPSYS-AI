@@ -1,0 +1,31 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/conformite.py",
+   "description": "Le contrôle de graine n'accepte que exactement un argument positionnel ou exactement un mot-clé. La signature réelle de random.seed inclut aussi version=2 ; des appels valides et déterministes comme random.seed(a=42, version=2) ou random.seed(42, 2) seraient rejetés. Le mapping suffixe->mot-clé est donc correct pour le paramètre de graine mais pas exhaustif pour la forme complète des signatures réelles.",
+   "preuve": "conformite.py, _argument_graine_fournie : `if len(noeud.args) == 1 and not noeud.keywords: ... elif not noeud.args and len(noeud.keywords) == 1: ... else: return False` ; docstring : `random.seed attend a, tandis que random.Random attend x ... toute autre valeur fournie par la signature correcte est admise`."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/tests/test_conformite.py",
+   "description": "Les suffixes time.strftime et os.getrandom sont bien présents dans le code de contrôle, mais aucun test positif dédié ne les verrouille individuellement dans le diff. La batterie de mutations neutralise des familles entières, ce qui ne prouve pas spécifiquement ces deux suffixes contre un retrait ciblé.",
+   "preuve": "conformite.py : `\"strftime\",` et `origine in {\"os.urandom\", \"os.getrandom\"}` ; test_conformite.py : aucune occurrence de `strftime` ni de `getrandom` dans les tests positifs du diff."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/src/m3_estimation/digest.py",
+   "description": "La déclaration de canonicité couvre le tri des maillons et la reproduction brute des trois chaînes fournies par l'appelant, mais ne précise pas que les horodatages contenus dans les maillons ne sont pas non plus normalisés. Deux maillons représentant le même instant avec des écritures ISO-8601 différentes produiraient des digests différents. La limite est donc réelle mais devrait être déclarée explicitement pour les maillons aussi.",
+   "preuve": "digest.py : `lignes.append(f\"  {devis_id} horodatage={horodatage_entree} raison_blocage={raison}\")` sans normalisation ; test_digest_est_canonique_pour_des_registres_equivalents_ordonnes_autrement utilise des horodatages strictement identiques et ne teste pas des instants équivalents sous fuseaux différents."
+  }
+ ],
+ "date_heure": "2026-08-02T17:51:59.548001+00:00",
+ "prompt_sha256": "6c7091a2bdc4df6bbc1b65337e480f57f0f7a52a9bda40fca24e662c08c923a7",
+ "reviewer_model": "Qwen3.8-Max",
+ "modele_servi": "qwen38-max-alibaba-sg",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}
