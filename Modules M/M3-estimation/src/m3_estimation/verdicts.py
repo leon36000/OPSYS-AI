@@ -3,6 +3,23 @@
 Patron copié-adapté des catalogues voisins (décision ratifiée : copie, jamais
 import — décision #109). Le catalogue est FERMÉ : ``construire_verdict``
 refuse tout code qui n'y figure pas en levant ``CodeVerdictInconnu``.
+
+``CODES_M3_LIST`` est un catalogue fermé de codes de rejet techniques, et non
+un énuméré de domaine soumis à l'échappatoire ``INDETERMINE`` de D-032.
+L'échappatoire ``INDETERMINE`` de D-032 existe pour le cas où le système ne
+PEUT PAS classer à l'exécution : il doit alors pouvoir le dire d'un nom et
+BLOQUER, plutôt que d'inventer ou de planter. Ce cas existe pour
+``NiveauConfiance`` (les photos ne permettent pas de trancher) et pour
+``VerdictEstimation`` (l'issue métier est indéterminée). Il n'existe PAS pour
+un catalogue de codes de rejet : chaque site de rejet NOMME sa cause, il n'y a
+aucun chemin d'exécution où M3 rejette sans savoir pourquoi. Un
+``REJ-INDETERMINE`` n'aurait aucun producteur — et ce dépôt compte déjà deux
+valeurs de ``VERDICTS_ESTIMATION`` sans producteur, c'est un défaut connu qu'il
+ne faut pas reproduire. Le refus par exception vise une erreur de PROGRAMMATION
+(un code mal orthographié), pas une lacune de classification.
+
+Ce choix engage le module : si un jour un chemin d'exécution devait rejeter
+sans cause nommée, cette décision tomberait et il faudrait une échappatoire.
 """
 
 __all__ = [
