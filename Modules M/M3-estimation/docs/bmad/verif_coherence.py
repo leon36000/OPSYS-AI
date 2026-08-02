@@ -1514,7 +1514,7 @@ def verifier_renvois_internes_valides(prd: str, archi: str) -> List[str]:
     la promesse du renvoi, ni les renvois inter-documents ; ces responsabilités
     appartiennent aux contrôles spécialisés correspondants.
 
-    QUATRE LIMITES SUPPLÉMENTAIRES, mesurées comme ABSENTES du corpus actuel
+    CINQ LIMITES SUPPLÉMENTAIRES, mesurées comme ABSENTES du corpus actuel
     (objections de revue scellée — vérifié par mesure directe avant d'écrire
     cette note, pas supposé) mais qui resteraient de vrais angles morts si le
     corpus évoluait :
@@ -1635,14 +1635,27 @@ def verifier_renvois_internes_valides(prd: str, archi: str) -> List[str]:
                 # conserve le suffixe textuel qui rend le renvoi inexistant.
                 suffixe_bis = re.match(
                     r"[ \t]+bis\b",
-                    texte[correspondance.end(1):],
+                    texte_masque[correspondance.end(1):],
                     re.IGNORECASE,
                 )
                 if suffixe_bis is not None:
                     numero += suffixe_bis.group(0)
 
+                # BUG CORRIGÉ (revue scellée, objection Qwen3.8-Max fondée) : le
+                # contexte de proximité était lu sur `texte` (original) alors que
+                # la recherche du motif se fait sur `texte_masque`. Un renvoi
+                # capturé HORS bloc, juste après une marque d'exclusion SITUÉE
+                # DANS un bloc clôturé masqué, était donc ignoré à tort — le
+                # masquage annoncé « avant toute recherche » ne s'appliquait pas
+                # réellement à cette lecture. Vérifié : sans cette correction,
+                # `voir 99.9` après un bloc ```text contenant seulement
+                # « du PRD section » restait invisible (messages == []).
+                # `texte` et `texte_masque` ont la MÊME longueur et les MÊMES
+                # offsets par construction du masquage : lire le contexte sur
+                # `texte_masque` ne change rien pour un contexte hors bloc, et
+                # ferme l'angle mort pour un contexte partiellement en bloc.
                 debut_contexte = max(0, correspondance.start(1) - 40)
-                contexte = texte[debut_contexte:correspondance.start(1)].lower()
+                contexte = texte_masque[debut_contexte:correspondance.start(1)].lower()
                 # Un renvoi inter-document nomme explicitement sa source ;
                 # contrairement à un renvoi interne, sa proximité est donc
                 # suffisante pour l'exclure sans deviner une cible locale.

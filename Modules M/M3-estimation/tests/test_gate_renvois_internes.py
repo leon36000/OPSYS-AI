@@ -164,17 +164,22 @@ def test_exclusion_inter_document_par_proximite_est_reellement_exercee():
         f"rester ignoré. Messages : {messages_exclu}"
     )
 
+    # Témoin EXACT (objection de revue scellée, Qwen3.8-Max, fondée) : la même
+    # PHRASE que archi_exclu, à l'octet près, privée SEULEMENT de la marque
+    # d'exclusion — pas une phrase « proche » qui prouverait une propriété
+    # différente. Sans ce témoin exact, rien ne garantit que c'est bien la
+    # marque qui a fait la différence entre les deux mesures.
     archi_temoin_sans_marque = ARCHI + (
-        "\n## Exemple sans marque d'exclusion\n\n"
-        "Voir également, voir 99.9 pour le détail.\n"
+        "\n## Exemple sans marque\n\n"
+        "voir 99.9 pour le détail complet.\n"
     )
     messages_temoin = VERIF_COHERENCE.verifier_renvois_internes_valides(
         PRD,
         archi_temoin_sans_marque,
     )
     assert messages_temoin, (
-        "témoin : le même motif « voir 99.9 » SANS la marque d'exclusion à "
-        "proximité doit être détecté ; sans ce témoin, un motif jamais "
-        "capturé du tout produirait le même résultat vert et le test "
-        f"précédent ne prouverait rien. Messages : {messages_temoin}"
+        "témoin : la MÊME phrase SANS la marque d'exclusion à proximité doit "
+        "être détectée ; sans ce témoin exact, un motif jamais capturé du "
+        "tout produirait le même résultat vert et le test précédent ne "
+        f"prouverait rien. Messages : {messages_temoin}"
     )
