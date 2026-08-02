@@ -1,0 +1,19 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M3-estimation/docs/bmad/verif_coherence.py",
+   "description": "Le suivi des affectations se limite aux nœuds ast.Assign. Si une variable suivie est réaffectée ou ombragée par une boucle (ast.For), un argument de fonction (ast.arg) ou une affectation annotée (ast.AnnAssign), cette modification est invisible pour l'extracteur. Un contrôle de type sur cette variable ombragée serait alors faussement attribué à la clé du contrat, risquant de produire une information fausse au lieu d'aucune information.",
+   "preuve": "Lignes 543-544 : `(noeud for noeud in ast.walk(arbre_m2) if isinstance(noeud, ast.Assign))`"
+  }
+ ],
+ "date_heure": "2026-08-02T23:18:24.452303+00:00",
+ "prompt_sha256": "0966a826c6b791c2437620e30b27f13d6f4f846b51c2c3c7f338477af4d850e1",
+ "reviewer_model": "Gemini-3.1-Pro",
+ "modele_servi": "gemini-31-pro-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "1"
+ }
+}
