@@ -133,3 +133,48 @@ def test_un_renvoi_dans_un_bloc_cloture_est_ignore():
         "ce témoin, le test serait vert même si le masquage ignorait tout le "
         f"document. Messages : {messages_temoin}"
     )
+
+
+def test_exclusion_inter_document_par_proximite_est_reellement_exercee():
+    """Objection de revue scellée : la mutation MUTATIONS ne contenait ni
+
+    « décrit en » ni « voir », donc elle n'atteignait jamais les motifs de
+    renvoi capturés — elle passait trivialement sans jamais exercer
+    l'exclusion par proximité. Ce test combine un motif RÉELLEMENT capturé
+    avec la marque d'exclusion à proximité mesurée, ET fournit le témoin
+    inverse : sans la marque, le même motif doit rougir.
+    """
+    messages_nus = VERIF_COHERENCE.verifier_renvois_internes_valides(PRD, ARCHI)
+    assert messages_nus == [], (
+        "les documents réels doivent être verts avant l'ajout du cas exclu. "
+        f"Messages : {messages_nus}"
+    )
+
+    archi_exclu = ARCHI + (
+        "\n## Exemple de renvoi inter-document\n\n"
+        "Du PRD section, voir 99.9 pour le détail complet.\n"
+    )
+    messages_exclu = VERIF_COHERENCE.verifier_renvois_internes_valides(
+        PRD,
+        archi_exclu,
+    )
+    assert messages_exclu == [], (
+        "un renvoi capturé (« voir 99.9 ») mais précédé de la marque "
+        "d'exclusion inter-document « du PRD section » à proximité doit "
+        f"rester ignoré. Messages : {messages_exclu}"
+    )
+
+    archi_temoin_sans_marque = ARCHI + (
+        "\n## Exemple sans marque d'exclusion\n\n"
+        "Voir également, voir 99.9 pour le détail.\n"
+    )
+    messages_temoin = VERIF_COHERENCE.verifier_renvois_internes_valides(
+        PRD,
+        archi_temoin_sans_marque,
+    )
+    assert messages_temoin, (
+        "témoin : le même motif « voir 99.9 » SANS la marque d'exclusion à "
+        "proximité doit être détecté ; sans ce témoin, un motif jamais "
+        "capturé du tout produirait le même résultat vert et le test "
+        f"précédent ne prouverait rien. Messages : {messages_temoin}"
+    )

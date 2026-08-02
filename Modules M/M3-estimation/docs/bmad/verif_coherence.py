@@ -1533,6 +1533,10 @@ def verifier_renvois_internes_valides(prd: str, archi: str) -> List[str]:
       bloc portant un jour un renvoi engagé (ou un bloc yaml portant un
       titre markdown qui ressemblerait à une section) resterait un angle
       mort. Aucun bloc du corpus ne présente ce cas.
+    - les motifs de renvoi sont sensibles à la casse (« décrit en », « voir »,
+      minuscules) ; une variante en capitale (« Voir », « DÉCRIT EN »)
+      échapperait à la détection. Aucune variante de casse n'a été trouvée
+      dans le corpus mesuré.
     Ce contrôle ne prétend donc pas une robustesse à un corpus qu'il n'a pas
     vu ; il tient ce qu'il a mesuré, comme le reste de ce fichier.
     """
