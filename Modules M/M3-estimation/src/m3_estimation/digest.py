@@ -7,6 +7,16 @@ les mêmes maillons et les mêmes arguments retournent donc les mêmes octets.
 Il ne valide pas l'authenticité métier du registre, ne répare aucune entrée
 malformée et ne déduit pas une alerte absente ; il restitue uniquement les
 signaux présents dans les maillons lisibles fournis par son appelant.
+
+CE QUE « MÊMES ARGUMENTS » VEUT DIRE : les mêmes OCTETS de texte, pas la
+même valeur sémantique. `debut_fenetre`, `fin_fenetre` et `horodatage` sont
+reproduits TELS QUE FOURNIS dans l'en-tête, sans normalisation — deux
+représentations ISO-8601 du même instant (`...Z` contre `...+00:00`)
+produisent donc des digests textuellement différents. C'est un choix
+délibéré, pas un oubli : normaliser transformerait silencieusement une
+entrée de l'appelant, ce que ce module s'interdit ailleurs (il ne répare
+rien). La responsabilité de la forme canonique de ces trois chaînes revient
+à l'appelant.
 """
 
 from __future__ import annotations

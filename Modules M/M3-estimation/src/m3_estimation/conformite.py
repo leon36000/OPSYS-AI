@@ -2,16 +2,16 @@
 
 Ce module analyse exclusivement les arbres syntaxiques Python : il contrôle les
 énumérés publics de domaine, les échappatoires explicites, les appels interdits
-aux sources d'ambiance, notamment ``random``, ``uuid``, ``secrets`` et
-``os.urandom``, ainsi que les littéraux numériques placés dans un contexte
-monétaire identifiable. Il ne prouve ni l'absence de comportement dynamique,
-ni les imports construits à l'exécution, ni les coûts masqués sous des noms
-neutres. Les constantes ``CHAMPS_*`` sont volontairement exclues des énumérés
-de domaine : elles décrivent des noms de propriétés de contrat et non des
-valeurs métier parmi lesquelles un appelant doit pouvoir exprimer une
-incertitude. Les imports directs de constantes sont résolus au même titre que
-les accès qualifiés afin de ne pas confondre une échappatoire importée avec une
-référence inconnue.
+aux sources d'ambiance, notamment ``random``, ``uuid``, ``secrets``,
+``os.urandom`` et ``os.getrandom``, ainsi que les littéraux numériques placés
+dans un contexte monétaire identifiable. Il ne prouve ni l'absence de
+comportement dynamique, ni les imports construits à l'exécution, ni les coûts
+masqués sous des noms neutres. Les constantes ``CHAMPS_*`` sont volontairement
+exclues des énumérés de domaine : elles décrivent des noms de propriétés de
+contrat et non des valeurs métier parmi lesquelles un appelant doit pouvoir
+exprimer une incertitude. Les imports directs de constantes sont résolus au
+même titre que les accès qualifiés afin de ne pas confondre une échappatoire
+importée avec une référence inconnue.
 
 Les appels ``module.fonction()`` et ``from module import fonction`` suivi de
 ``fonction()`` sont équivalents pour le contrôle : tous deux invoquent le même
@@ -25,6 +25,12 @@ les méthodes invoquées sur une instance construite dans un autre contexte.
 Cette limite est inhérente à une analyse AST sans suivi complet de flux de
 données ; un contournement volontaire par ces formes reste théoriquement
 possible, comme pour tout linter statique.
+
+Pour les constructeurs et initialiseurs pseudo-aléatoires, le mot-cle accepté
+dépend de la signature réelle du symbole appelé : ``random.seed`` attend
+``a``, tandis que ``random.Random`` attend ``x``. Une absence de graine ou un
+``None`` explicite reste interdit ; toute autre valeur fournie par la signature
+correcte est admise.
 """
 
 from __future__ import annotations
@@ -164,29 +170,14 @@ def _origine_appelee(
     return ".".join([origine] + morceaux[1:])
 
 
-def _argument_graine_fournie(noeud: ast.Call) -> bool:
-    """Vrai pour un unique argument qui N'EST PAS l'absence ou le None explicite.
-
-    Une graine peut être une VARIABLE — c'est le patron même du dépôt
-    (monte_carlo.py:176 passe ``graine``, un paramètre fourni par
-    l'appelant, jamais un littéral). Cette analyse statique ne peut pas
-    prouver qu'une variable est déterministe, mais elle ne peut pas non
-    plus prouver le contraire : elle ne rejette donc que ce qu'elle SAIT
-    être non déterministe — l'absence d'argument, ou le littéral ``None``
-    explicite, qui d'après la documentation Python initialisent tous deux
-    depuis l'entropie système (``os.urandom``). Tout le reste — variable,
-    appel, littéral — est accepté par prudence inverse : on ne peut pas
-    interdire ce qu'on ne peut pas prouver dangereux sans produire un flot
-    de faux positifs sur le patron « graine fournie », qui rendrait ce
-    contrôle inutilisable.
-    """
+def _argument_graine_fournie(noeud: ast.Call, suffixe: str) -> bool:
+    """Vrai lorsqu'une graine valide est explicitement fournie à l'appel."""
     if len(noeud.args) == 1 and not noeud.keywords:
         argument = noeud.args[0]
-    elif (
-        not noeud.args
-        and len(noeud.keywords) == 1
-        and noeud.keywords[0].arg == "seed"
-    ):
+    elif not noeud.args and len(noeud.keywords) == 1:
+        mot_cle = "x" if suffixe == "Random" else "a"
+        if noeud.keywords[0].arg != mot_cle:
+            return False
         argument = noeud.keywords[0].value
     else:
         return False
@@ -207,7 +198,7 @@ def _analyser_motifs(arbre: ast.Module, fichier: str) -> list[dict[str, Any]]:
             suffixe = origine.rsplit(".", 1)[-1]
             est_random = origine == "random" or origine.startswith("random.")
             if est_random and suffixe in {"Random", "seed"}:
-                if not _argument_graine_fournie(noeud):
+                if not _argument_graine_fournie(noeud, suffixe):
                     violations.append(
                         {
                             "code": "RANDOM_NON_ENSEMENCE",
@@ -229,7 +220,7 @@ def _analyser_motifs(arbre: ast.Module, fichier: str) -> list[dict[str, Any]]:
                 or origine.startswith("uuid.")
                 or origine == "secrets"
                 or origine.startswith("secrets.")
-                or origine == "os.urandom"
+                or origine in {"os.urandom", "os.getrandom"}
             )
             if est_alea_systeme:
                 violations.append(
@@ -262,6 +253,7 @@ def _analyser_motifs(arbre: ast.Module, fichier: str) -> list[dict[str, Any]]:
                 "ctime",
                 "thread_time",
                 "asctime",
+                "strftime",
             }:
                 violations.append(
                     {
@@ -294,11 +286,7 @@ def _analyser_motifs(arbre: ast.Module, fichier: str) -> list[dict[str, Any]]:
             valeur = noeud.value
             if valeur is None or not _est_nombre(valeur):
                 continue
-            cibles = (
-                noeud.targets
-                if isinstance(noeud, ast.Assign)
-                else [noeud.target]
-            )
+            cibles = noeud.targets if isinstance(noeud, ast.Assign) else [noeud.target]
             for cible in cibles:
                 nom = _nom_cible(cible)
                 if nom is not None and _contexte_monetaire(nom):
@@ -325,11 +313,7 @@ def _construire_tables(
         for noeud in arbre.body:
             if isinstance(noeud, (ast.Assign, ast.AnnAssign)):
                 valeur = noeud.value
-                cibles = (
-                    noeud.targets
-                    if isinstance(noeud, ast.Assign)
-                    else [noeud.target]
-                )
+                cibles = noeud.targets if isinstance(noeud, ast.Assign) else [noeud.target]
                 if valeur is not None:
                     for cible in cibles:
                         nom = _nom_cible(cible)
@@ -374,10 +358,7 @@ def _cible_importee(
     if len(morceaux) < 2:
         return None, None
     nom_constante = morceaux[-1]
-    module_reel = _module_existant(
-        ".".join(morceaux[:-1]),
-        constantes,
-    )
+    module_reel = _module_existant(".".join(morceaux[:-1]), constantes)
     return module_reel, nom_constante
 
 
@@ -476,10 +457,7 @@ def _resoudre_valeur(
         cible_import = imports.get(module, {}).get(nom)
         if cible_import is None:
             return None, nom, []
-        module_reel, nom_constante = _cible_importee(
-            cible_import,
-            constantes,
-        )
+        module_reel, nom_constante = _cible_importee(cible_import, constantes)
         if (
             module_reel is None
             or nom_constante is None

@@ -824,3 +824,73 @@ def test_graines_litterales_non_nulles_restent_licites(tmp_path):
         violation["code"] == "RANDOM_NON_ENSEMENCE"
         for violation in rapport["violations"]
     )
+
+
+def test_random_seed_accepte_le_mot_cle_a(tmp_path: Path) -> None:
+    """Le mot-cle réel a de random.seed fournit une graine déterministe."""
+    (tmp_path / "source.py").write_text(
+        "import random\nrandom.seed(a=42)\n",
+        encoding="utf-8",
+    )
+
+    resultat = _verifier(tmp_path)
+
+    assert not any(
+        violation["code"] == "RANDOM_NON_ENSEMENCE"
+        for violation in resultat["violations"]
+    )
+
+
+def test_random_random_accepte_le_mot_cle_x(tmp_path: Path) -> None:
+    """Le mot-cle réel x de random.Random fournit une graine déterministe."""
+    (tmp_path / "source.py").write_text(
+        "import random\nrandom.Random(x=42)\n",
+        encoding="utf-8",
+    )
+
+    resultat = _verifier(tmp_path)
+
+    assert not any(
+        violation["code"] == "RANDOM_NON_ENSEMENCE"
+        for violation in resultat["violations"]
+    )
+
+
+def test_secrets_token_bytes_est_interdit(tmp_path: Path) -> None:
+    """Les jetons secrets proviennent de l'aléa système interdit."""
+    _ecrire_source(
+        tmp_path,
+        "contrats.py",
+        """
+TYPES_TRAVAUX = ("autre",)
+VERDICTS_ESTIMATION = ("INDETERMINE",)
+""",
+    )
+    _ecrire_source(tmp_path, "cible.py", "import secrets\nsecrets.token_bytes()\n")
+
+    resultat = _verifier(tmp_path)
+
+    assert any(
+        violation["code"] == "ALEA_SYSTEME_INTERDIT"
+        for violation in resultat["violations"]
+    )
+
+
+def test_os_urandom_est_interdit(tmp_path: Path) -> None:
+    """os.urandom provient de l'aléa système interdit."""
+    _ecrire_source(
+        tmp_path,
+        "contrats.py",
+        """
+TYPES_TRAVAUX = ("autre",)
+VERDICTS_ESTIMATION = ("INDETERMINE",)
+""",
+    )
+    _ecrire_source(tmp_path, "cible.py", "import os\nos.urandom(16)\n")
+
+    resultat = _verifier(tmp_path)
+
+    assert any(
+        violation["code"] == "ALEA_SYSTEME_INTERDIT"
+        for violation in resultat["violations"]
+    )
