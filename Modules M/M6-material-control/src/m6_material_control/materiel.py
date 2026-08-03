@@ -1,0 +1,51 @@
+from . import contrats_sortie
+from . import stock
+from . import validation
+
+
+def consommer_materiaux(wct, formulaire, registre) -> tuple[dict | None, str | None]:
+    ok, code = validation.valider_wct(wct)
+    if not ok:
+        return None, code
+
+    ok, code = validation.valider_formulaire_consommation(formulaire, wct)
+    if not ok:
+        return None, code
+
+    if not isinstance(formulaire["lignes_consommees"], list):
+        return None, "REJ-FORMULAIRE-LIGNE-INVALIDE"
+
+    cles_ligne_attendues = {"materiau_id", "quantite"}
+    for ligne in formulaire["lignes_consommees"]:
+        if not isinstance(ligne, dict) or set(ligne.keys()) != cles_ligne_attendues:
+            return None, "REJ-FORMULAIRE-LIGNE-INVALIDE"
+        if not (
+            isinstance(ligne["quantite"], (int, float))
+            and type(ligne["quantite"]) is not bool
+        ):
+            return None, "REJ-FORMULAIRE-LIGNE-INVALIDE"
+
+    stock_restant = []
+    for ligne in formulaire["lignes_consommees"]:
+        theorique_avant = stock.deriver_stock_theorique(
+            formulaire["chantier_id"],
+            ligne["materiau_id"],
+            registre,
+        )
+        restant = theorique_avant - ligne["quantite"]
+        stock_restant.append(
+            {
+                "materiau_id": ligne["materiau_id"],
+                "quantite": restant,
+            }
+        )
+
+    return (
+        contrats_sortie.construire_confirmation_consommation_terrain(
+            formulaire["intervention_id"],
+            formulaire["chantier_id"],
+            formulaire["lignes_consommees"],
+            stock_restant,
+        ),
+        None,
+    )
