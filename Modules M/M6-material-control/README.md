@@ -2,5 +2,5 @@
 
 Material Control OS — inventaire, PO, variance sans accusation
 
-Statut: CADRE (BMAD complet — brief, PRD 24 CA / 9 stories, architecture — gate de cohérence
-vert ; aucune story de code encore livrée).
+Statut: PARTIAL (EPIC I #202, vague 1 en cours — S001/9 livrée : validation des entrées WCT/
+formulaire/clés interdites).
