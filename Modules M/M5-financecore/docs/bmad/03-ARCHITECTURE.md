@@ -79,14 +79,14 @@ MouvementFinancier:
 
 ```yaml
 MaillonMouvement:
-  index: int
   montant: float
   type_mouvement: str
   horodatage: str
   classe_retention: str
   source: str
-  hash_precedent: str      # convention PROPRE à M5, tranchée en DA-M5-07
-  hash_maillon: str
+  type_entree: str                 # toujours "mouvement_enregistre"
+  ligne_id: str                     # patron m4_field_ops/registre.py — mesuré à
+  precedent_ligne_id: str | null     # l'implémentation S002, corrige DA-M5-07 ci-dessous
 ```
 
 ### 2.3 Déclaration — `TauxFiscal` (`contracts/taux_fiscaux.v1.yaml`)
@@ -104,7 +104,6 @@ TauxFiscal:
 
 ```yaml
 MaillonApprobation:
-  index: int
   type_entree: str          # "demande_creee" | "transition_approbation"
   demande_id: str
   palier: str                 # enum PalierApprobation (F0-F7), fixé à la création
@@ -113,8 +112,8 @@ MaillonApprobation:
   approbateur: str | null
   preuve: str | null
   horodatage: str
-  hash_precedent: str
-  hash_maillon: str
+  ligne_id: str
+  precedent_ligne_id: str | null
 ```
 
 ### 2.5 Sortie — `EtatFinancier`
@@ -250,15 +249,20 @@ de l'appelant, reproduit tel quel.
 **Justification** : reproductibilité bit-à-bit de `etat_id` exigée (CA-M5-13) — garde par
 `conformite.py`, copie-adaptation directe de M3/M6/M8.
 
-### DA-M5-07 — Convention `hash_precedent` propre à M5 : chaîne vide à l'index 0 (patron M8)
+### DA-M5-07 — Convention `precedent_ligne_id` propre à M5 : `None` au premier maillon (patron M4)
 
-**Décision** : `HASH_PREDECESSEUR_INITIAL = ""` pour LES DEUX registres (mouvements ET
-approbations), pas 64 zéros (M2/M3) ni `None` (M4).
+**Décision (corrigée après mesure à l'implémentation S002)** : `precedent_ligne_id = None` pour
+le premier maillon de CHAQUE registre (mouvements ET approbations, classe `Registre` partagée) —
+PAS une chaîne vide (M8) ni 64 zéros (M2/M3).
 
-**Justification** : cohérence interne du paquet — patron déjà choisi et justifié par M8
-(DA-M8-05) : sentinel le plus simple à comparer/sérialiser, sans branchement de type ; réutilisé
-ici tel quel plutôt que réévalué (pas une nouvelle décision, une adoption du patron le plus
-récent).
+**Justification** : S002 a adopté le patron `m4_field_ops/registre.py` (classe `Registre`
+générique réutilisable pour plusieurs familles de maillons, DA-M5-01) plutôt que le patron
+`m8_analytics` (spécifique à une seule forme) — ce choix, tranché par la consultation
+`architecte` du cadrage, entraîne mécaniquement la convention de sentinel de SON patron source
+(M4 : `None`), pas celle de M8. Cette section documentait encore, à tort, la convention M8
+(chaîne vide) après le changement de patron réel en S002 — corrigé ici avant le dispatch de
+S005, qui réutilise la MÊME classe `Registre` et hériterait silencieusement de la même dérive
+sinon.
 
 ### DA-M5-08 — Aucune cause ni accusation dans un mouvement ou une demande (R-020 transposé)
 
