@@ -7,7 +7,11 @@ from . import encodage
 
 __all__ = ["Registre", "enregistrer_mouvement"]
 
-_TYPE_ENTREE_VALIDES = {"mouvement_enregistre"}
+_TYPE_ENTREE_VALIDES = {
+    "mouvement_enregistre",
+    "demande_creee",
+    "transition_approbation",
+}
 
 _CHAMPS_MOUVEMENT = (
     "montant",
@@ -91,3 +95,4 @@ def enregistrer_mouvement(mouvement_valide, registre_cible):
         if maillon["ligne_id"] == ligne_id:
             return maillon
     raise RuntimeError("Maillon ajouté introuvable.")
+

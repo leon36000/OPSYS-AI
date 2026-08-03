@@ -176,14 +176,17 @@ MouvementFinancier:
 
 ```yaml
 MaillonMouvement:
-  index: int
   montant: float
   type_mouvement: str
   horodatage: str
   classe_retention: str
   source: str
-  hash_precedent: str
-  hash_maillon: str
+  type_entree: str          # toujours "mouvement_enregistre" — mesuré, pas "index"/"hash_*"
+                              # (S002 a adopté le patron m4_field_ops/registre.py, pas m8_analytics
+                              # — la classe Registre générique nomme ses champs de chaînage
+                              # ligne_id/precedent_ligne_id, corrigé ici après coup, DA-M5-07)
+  ligne_id: str
+  precedent_ligne_id: str | null   # None pour le premier maillon (patron M4, pas "" comme M8)
 ```
 
 ### 5.3 Déclaration — `TauxFiscal` (fichier versionné, `contracts/taux_fiscaux.v1.yaml`)
@@ -210,7 +213,6 @@ zéro ou un maillon `transition_approbation` (statut terminal `APPROUVE` ou `REF
 
 ```yaml
 MaillonApprobation:
-  index: int
   type_entree: str        # "demande_creee" | "transition_approbation"
   demande_id: str
   palier: str              # enum PalierApprobation (F0-F7), fixé à la création, jamais réécrit
@@ -219,8 +221,8 @@ MaillonApprobation:
   approbateur: str | null    # requis (non vide) pour toute transition vers APPROUVE, tous paliers
   preuve: str | null         # requis (non vide) EN PLUS pour APPROUVE, SEULEMENT si palier ∈ {F6, F7}
   horodatage: str
-  hash_precedent: str
-  hash_maillon: str
+  ligne_id: str
+  precedent_ligne_id: str | null
 ```
 
 ### 5.5 Sortie — `EtatFinancier`

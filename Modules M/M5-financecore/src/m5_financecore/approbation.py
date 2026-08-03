@@ -1,0 +1,119 @@
+from __future__ import annotations
+
+from . import contrats, validation
+
+_PALIERS_PREUVE_REQUISE = ("F6", "F7")
+
+
+def _dernier_maillon(registre_cible, demande_id):
+    dernier = None
+    for maillon in registre_cible.lire():
+        if maillon.get("type_entree") not in (
+            "demande_creee",
+            "transition_approbation",
+        ):
+            continue
+        if maillon.get("demande_id") != demande_id:
+            continue
+        dernier = maillon
+    return dernier
+
+
+def statut_courant(registre_cible, demande_id):
+    maillon = _dernier_maillon(registre_cible, demande_id)
+    return maillon["statut"] if maillon is not None else None
+
+
+def creer_demande(demande_id, palier, action, registre_cible, horodatage):
+    if palier not in contrats.PALIER_APPROBATION:
+        return None, validation.construire_verdict(
+            "REJ-PALIER-INVALIDE", detail=f"palier inconnu : {palier!r}"
+        )
+
+    if statut_courant(registre_cible, demande_id) is not None:
+        return None, validation.construire_verdict(
+            "REJ-DEMANDE-DEJA-CREEE",
+            detail=f"demande_id déjà utilisé : {demande_id!r}",
+        )
+
+    entree = {
+        "type_entree": "demande_creee",
+        "demande_id": demande_id,
+        "palier": palier,
+        "action": action,
+        "statut": "EN_ATTENTE",
+        "approbateur": None,
+        "preuve": None,
+        "horodatage": horodatage,
+    }
+    ligne_id = registre_cible.ajouter(entree)
+    for maillon in registre_cible.lire():
+        if maillon["ligne_id"] == ligne_id:
+            return maillon, None
+    raise RuntimeError("Maillon ajouté introuvable.")
+
+
+def _est_texte_non_vide(valeur):
+    return isinstance(valeur, str) and valeur.strip() != ""
+
+
+def _transitionner(demande_id, statut_cible, approbateur, registre_cible, horodatage, preuve):
+    dernier = _dernier_maillon(registre_cible, demande_id)
+    if dernier is None:
+        return None, validation.construire_verdict(
+            "REJ-DEMANDE-INTROUVABLE", detail=f"demande inconnue : {demande_id!r}"
+        )
+
+    if dernier["statut"] != "EN_ATTENTE":
+        return None, validation.construire_verdict(
+            "REJ-TRANSITION-ILLEGALE",
+            detail=(
+                f"demande {demande_id!r} déjà au statut terminal "
+                f"{dernier['statut']!r}"
+            ),
+        )
+
+    if not _est_texte_non_vide(approbateur):
+        return None, validation.construire_verdict(
+            "REJ-APPROBATEUR-ABSENT", detail="approbateur requis, non vide"
+        )
+
+    preuve_retenue = None
+    if statut_cible == "APPROUVE" and dernier["palier"] in _PALIERS_PREUVE_REQUISE:
+        if not _est_texte_non_vide(preuve):
+            return None, validation.construire_verdict(
+                "REJ-PREUVE-ABSENTE",
+                detail=(
+                    f"preuve requise au palier {dernier['palier']!r} "
+                    "pour APPROUVE"
+                ),
+            )
+        preuve_retenue = preuve
+
+    entree = {
+        "type_entree": "transition_approbation",
+        "demande_id": demande_id,
+        "palier": dernier["palier"],
+        "action": dernier["action"],
+        "statut": statut_cible,
+        "approbateur": approbateur,
+        "preuve": preuve_retenue,
+        "horodatage": horodatage,
+    }
+    ligne_id = registre_cible.ajouter(entree)
+    for maillon in registre_cible.lire():
+        if maillon["ligne_id"] == ligne_id:
+            return maillon, None
+    raise RuntimeError("Maillon ajouté introuvable.")
+
+
+def approuver(demande_id, approbateur, registre_cible, horodatage, preuve=None):
+    return _transitionner(
+        demande_id, "APPROUVE", approbateur, registre_cible, horodatage, preuve
+    )
+
+
+def refuser(demande_id, approbateur, registre_cible, horodatage):
+    return _transitionner(
+        demande_id, "REFUSE", approbateur, registre_cible, horodatage, None
+    )
