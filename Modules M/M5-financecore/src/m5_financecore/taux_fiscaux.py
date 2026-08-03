@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import yaml
 
 from . import validation
@@ -12,7 +14,7 @@ def charger_taux_fiscaux(chemin):
     dictionnaire = {}
     erreurs = []
 
-    contenu = yaml.safe_load(open(chemin, encoding="utf-8").read())
+    contenu = yaml.safe_load(Path(chemin).read_text(encoding="utf-8"))
 
     if not isinstance(contenu, dict) or contenu.get("schema_version") != 1:
         erreurs.append(f"schema_version invalide : {chemin}")

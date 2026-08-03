@@ -1,0 +1,19 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M5-financecore/src/m5_financecore/taux_fiscaux.py",
+   "description": "Ouverture de fichier sans context manager, pas de garantie de fermeture explicite, risque mineur de fuite de descripteur de fichier dans certains environnements Python.",
+   "preuve": "Ligne 15 : contenu = yaml.safe_load(open(chemin, encoding=\"utf-8\").read())"
+  }
+ ],
+ "date_heure": "2026-08-03T21:37:39.883444+00:00",
+ "prompt_sha256": "e7e275009d3a70804c42994077f3724c183101992660c5c0433f9f177e60c0ce",
+ "reviewer_model": "DeepSeek-V4-Pro",
+ "modele_servi": "deepseek-v4-pro-direct",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}
