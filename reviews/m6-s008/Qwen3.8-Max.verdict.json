@@ -1,0 +1,12 @@
+{
+ "verdict": "APPROVE",
+ "objections": [],
+ "date_heure": "2026-08-03T11:12:48.075596+00:00",
+ "prompt_sha256": "24a69a6bde6361a6d5bd3a4ba71d552dfd1b2fc30335e9e4af53fcdd802008dd",
+ "reviewer_model": "Qwen3.8-Max",
+ "modele_servi": "qwen38-max-alibaba-sg",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}
