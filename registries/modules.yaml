@@ -14,7 +14,7 @@ modules:
   - name: M7-marketing
     statut: PARTIAL
   - name: M8-analytics
-    statut: CADRE
+    statut: PARTIAL
   - name: M9-strategic-intelligence
     statut: STUB
   - name: M10-memoire
