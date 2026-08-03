@@ -92,9 +92,7 @@ demandé, et référence son `snapshot_id`.
 |---|---|
 | `HORS_LIMITE_SUPERIEURE` | Point strictement au-dessus de la limite naturelle supérieure. |
 | `HORS_LIMITE_INFERIEURE` | Point strictement au-dessous de la limite naturelle inférieure. |
-| `DONNEES_INSUFFISANTES` | **Échappatoire D-032** (nom domaine-spécifique, patron `TYPES_TRAVAUX`/`"autre"`
-  de M3 : ici la donnée insuffisante EST l'indétermination elle-même) — moins de `n` minimal de
-  points d'historique pour calculer des limites naturelles fiables.
+| `DONNEES_INSUFFISANTES` | **Échappatoire D-032** (nom domaine-spécifique, patron `TYPES_TRAVAUX`/`"autre"` de M3 : ici la donnée insuffisante EST l'indétermination elle-même) — moins de `n` minimal de points d'historique pour calculer des limites naturelles fiables. |
 
 Un point DANS les limites naturelles n'émet simplement AUCUN signal (silence, comme le reorder de
 M6 : pas de quatrième valeur « stable »).
