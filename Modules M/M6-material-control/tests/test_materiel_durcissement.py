@@ -75,3 +75,62 @@ def test_consommation_materiaux_nominale_continue_de_fonctionner():
             {"materiau_id": "MAT-1", "quantite": -3.0}
         ],
     }
+
+
+def test_lignes_consommees_none_produit_un_rejet_nomme_jamais_une_exception():
+    formulaire = {
+        "wct_id": "wct-1",
+        "intervention_id": "intervention-1",
+        "chantier_id": "CHANTIER-1",
+        "lignes_consommees": None,
+    }
+
+    confirmation, code_verdict = materiel.consommer_materiaux(
+        wct_valide(),
+        formulaire,
+        RegistreVide(),
+    )
+
+    assert confirmation is None
+    assert code_verdict == "REJ-FORMULAIRE-LIGNE-INVALIDE"
+
+
+def test_quantite_chaine_produit_un_rejet_nomme_jamais_une_exception():
+    formulaire = {
+        "wct_id": "wct-1",
+        "intervention_id": "intervention-1",
+        "chantier_id": "CHANTIER-1",
+        "lignes_consommees": [
+            {"materiau_id": "MAT-1", "quantite": "trois"}
+        ],
+    }
+
+    confirmation, code_verdict = materiel.consommer_materiaux(
+        wct_valide(),
+        formulaire,
+        RegistreVide(),
+    )
+
+    assert confirmation is None
+    assert code_verdict == "REJ-FORMULAIRE-LIGNE-INVALIDE"
+
+
+def test_quantite_bool_produit_un_rejet_nomme_jamais_une_exception():
+    for quantite in (True, False):
+        formulaire = {
+            "wct_id": "wct-1",
+            "intervention_id": "intervention-1",
+            "chantier_id": "CHANTIER-1",
+            "lignes_consommees": [
+                {"materiau_id": "MAT-1", "quantite": quantite}
+            ],
+        }
+
+        confirmation, code_verdict = materiel.consommer_materiaux(
+            wct_valide(),
+            formulaire,
+            RegistreVide(),
+        )
+
+        assert confirmation is None
+        assert code_verdict == "REJ-FORMULAIRE-LIGNE-INVALIDE"

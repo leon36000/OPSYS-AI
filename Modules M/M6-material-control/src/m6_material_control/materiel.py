@@ -12,9 +12,17 @@ def consommer_materiaux(wct, formulaire, registre) -> tuple[dict | None, str | N
     if not ok:
         return None, code
 
+    if not isinstance(formulaire["lignes_consommees"], list):
+        return None, "REJ-FORMULAIRE-LIGNE-INVALIDE"
+
     cles_ligne_attendues = {"materiau_id", "quantite"}
     for ligne in formulaire["lignes_consommees"]:
         if not isinstance(ligne, dict) or set(ligne.keys()) != cles_ligne_attendues:
+            return None, "REJ-FORMULAIRE-LIGNE-INVALIDE"
+        if not (
+            isinstance(ligne["quantite"], (int, float))
+            and type(ligne["quantite"]) is not bool
+        ):
             return None, "REJ-FORMULAIRE-LIGNE-INVALIDE"
 
     stock_restant = []
