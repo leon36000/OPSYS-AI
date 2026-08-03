@@ -157,3 +157,43 @@ def test_enregistrer_mouvement_chaine_deux_maillons_et_conserve_les_champs():
         "precedent_ligne_id",
     }
     assert journal.lire() == [premier, second]
+
+
+def test_valider_chaine_detecte_une_valeur_de_maillon_falsifiee():
+    journal = registre.Registre()
+    journal.ajouter(_entree("un"))
+    journal.ajouter(_entree("deux"))
+    journal.ajouter(_entree("trois"))
+
+    journal._chain[1]["valeur"] = "falsifie"
+
+    valide, detail = journal.valider_chaine()
+
+    assert valide is False
+    assert detail
+
+
+def test_valider_chaine_detecte_un_ligne_id_falsifie():
+    journal = registre.Registre()
+    journal.ajouter(_entree("un"))
+    journal.ajouter(_entree("deux"))
+
+    journal._chain[0]["ligne_id"] = "faux-ligne-id"
+
+    valide, detail = journal.valider_chaine()
+
+    assert valide is False
+    assert detail
+
+
+def test_valider_chaine_detecte_une_troncature_du_debut_de_chaine():
+    journal = registre.Registre()
+    journal.ajouter(_entree("un"))
+    journal.ajouter(_entree("deux"))
+
+    del journal._chain[0]
+
+    valide, detail = journal.valider_chaine()
+
+    assert valide is False
+    assert detail
