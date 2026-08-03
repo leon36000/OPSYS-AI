@@ -1,4 +1,4 @@
-CLES_MONETAIRES_INTERDITES = {
+CLES_MONETAIRES_INTERDITES = frozenset({
     "cout_unitaire",
     "cout",
     "prix",
@@ -6,7 +6,7 @@ CLES_MONETAIRES_INTERDITES = {
     "devise",
     "unite_monetaire",
     "montant_total_estime",
-}
+})
 
 
 def _verifier_absence_cles_monetaires(valeur) -> None:
