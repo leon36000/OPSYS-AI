@@ -2,4 +2,5 @@
 
 Strategic Intelligence OS — direction IA, War Room
 
-Statut: STUB (aucun code — attend son cycle, REG-06).
+Statut: CADRE (BMAD complet — brief, PRD 10 CA / 5 stories, architecture — gate de cohérence
+vert ; aucune story de code encore livrée).
