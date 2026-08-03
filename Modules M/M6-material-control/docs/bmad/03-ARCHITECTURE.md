@@ -78,6 +78,8 @@ WctRecu:
 
 M6 valide la présence EXACTE de ces douze clés (aucune de plus, aucune de moins) et que `"M6"` figure dans `consommateurs_cibles`. **M6 ne recalcule JAMAIS `hash_maillon`** — il ne possède pas le registre de M4, exactement comme M3 ne recalcule jamais l'empreinte du marqueur de M2.
 
+> **Précision de portée (objection de revue scellée, Qwen3.8-Max, fondée)** : `duree_reelle_minutes` est une INFORMATION que M4 calcule et transporte, jamais une décision de M6 — M6 ne la modifie pas, ne la recalcule pas, ne l'utilise jamais pour planifier quoi que ce soit. La frontière « M6 ne planifie jamais, aucun contrat émis ne porte de durée » (PRD §5, DA-M6-03) vise les contrats ÉMIS par M6, pas ce champ reçu tel quel d'un module amont dont M6 ne possède pas le schéma.
+
 > **Mesure directe (issue #166 évitée)** : `CONSOMMATEURS_CIBLES = ("M6", "M5", "M2", "M7", "M8", "M10")` — `"M6"` est bien présent (`outbox.py:24`). Le WCT ne porte AUCUN champ de matériaux : le « formulaire matériaux » est un artefact SÉPARÉ (§2.2) que M6 définit et reçoit, référençant le `wct_id`. `devis_id` est émis **`None` en dur** par M4 (`outbox.py:205`, commentaire « M3 n'existe pas en v1 » désormais périmé mais non recâblé dans la source mesurée) : M6 traite donc `devis_id` comme structurellement `str | null` et n'exige **jamais** une valeur non nulle — supposer un `devis_id` renseigné reproduirait exactement le contrat fantôme #166.
 
 ### 2.2 Entrée — `FormulaireConsommationMateriaux` (fourni par l'appelant, référence le WCT)

@@ -49,6 +49,7 @@ MOTS_INTERDITS = {
     "prix_vente",
     "date_execution",
     "creneau",
+    "duree",
 }
 
 NEG_PATTERNS = [

@@ -168,9 +168,18 @@ Conformément à D-032, chaque énuméré ci-dessous porte une échappatoire `IN
 ## 5. CONTRATS GELÉS
 
 Conformément à D-015, ces contrats sont des pactes exécutables. Toute clé est obligatoire sauf
-mention explicite. Aucun de ces contrats ne porte de champ de date d'intervention, de créneau, de
-durée d'exécution, ou de primitive de paiement (virement, statut de règlement, méthode de
-paiement, référence bancaire).
+mention explicite.
+
+> **Précision de portée (objection de revue scellée, Qwen3.8-Max, fondée)** : la frontière
+> qui suit s'applique aux contrats ÉMIS PAR M6 (sorties), jamais aux contrats REÇUS d'un module
+> amont dont M6 n'écrit pas le schéma. Aucun contrat ÉMIS par M6 ne porte de champ de date
+> d'intervention, de créneau, de durée d'exécution, ou de primitive de paiement (virement, statut
+> de règlement, méthode de paiement, référence bancaire) — M6 ne planifie jamais et ne paie
+> jamais. Le contrat d'entrée `WctRecu` (§5.1) fait exception À LA LETTRE, jamais À L'ESPRIT : il
+> porte `duree_reelle_minutes`, un champ que M4 calcule et que M6 REÇOIT tel quel sans jamais le
+> décider, le modifier, ni s'en servir pour planifier quoi que ce soit — exactement comme M3 reçoit
+> sans les re-juger des conditions déjà tranchées par M2. Aucun contrat de SORTIE de M6 (§5.6 à
+> §5.10) ne porte de champ de durée.
 
 ### 5.1 Entrée reçue de M4 — `WctRecu` (mesuré, pas supposé)
 
