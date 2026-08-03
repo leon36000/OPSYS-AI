@@ -2,4 +2,5 @@
 
 FinanceCore — comptabilite, fiscalite (mention CPA), paie, CFO IA
 
-Statut: STUB (aucun code — attend son cycle, REG-06).
+Statut: CADRE (BMAD complet — brief, PRD 18 CA / 7 stories, architecture — gate de cohérence
+vert ; aucune story de code encore livrée).
