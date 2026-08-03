@@ -2,4 +2,5 @@
 
 Material Control OS — inventaire, PO, variance sans accusation
 
-Statut: STUB (aucun code — attend son cycle, REG-06).
+Statut: CADRE (BMAD complet — brief, PRD 24 CA / 9 stories, architecture — gate de cohérence
+vert ; aucune story de code encore livrée).
