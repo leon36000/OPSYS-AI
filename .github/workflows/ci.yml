@@ -32,6 +32,8 @@ jobs:
         run: python3 -m pytest "Modules M/M3-estimation/tests" -q
       - name: Tests module M6 (cadrage — sentinelle branchée avant la première story)
         run: python3 -m pytest "Modules M/M6-material-control/tests" -q
+      - name: Tests module M8 (cadrage — sentinelle branchée avant la première story)
+        run: python3 -m pytest "Modules M/M8-analytics/tests" -q
 
   e2e:
     runs-on: ubuntu-latest

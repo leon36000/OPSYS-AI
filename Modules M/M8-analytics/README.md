@@ -2,4 +2,5 @@
 
 Analytics — verite chiffree, DuckDB, XmR, le LLM ne calcule jamais
 
-Statut: STUB (aucun code — attend son cycle, REG-06).
+Statut: CADRE (BMAD complet — brief, PRD 15 CA / 6 stories, architecture — gate de cohérence
+vert ; aucune story de code encore livrée).
