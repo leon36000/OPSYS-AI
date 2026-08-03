@@ -180,6 +180,21 @@ def test_verifier_non_recalcul_hash_wct_accepte_registre_reel():
     assert message == ""
 
 
+def test_verifier_non_recalcul_hash_wct_signale_wct_en_argument_nomme(tmp_path):
+    fichier = tmp_path / "faux_hash_kw.py"
+    fichier.write_text(
+        "from . import encodage\n\n"
+        "def f(wct, registre):\n"
+        "    return encodage.empreinte(donnee=wct)\n",
+        encoding="utf-8",
+    )
+
+    conforme, message = conformite.verifier_non_recalcul_hash_wct(tmp_path)
+
+    assert conforme is False
+    assert "faux_hash_kw.py" in message
+
+
 def test_garde_ecriture_stock_paquet_reel():
     assert conformite.garde_ecriture_stock(
         _SRC / "m6_material_control"
@@ -248,6 +263,25 @@ def test_garde_ecriture_stock_accepte_bon_type_dans_bonne_fonction(tmp_path):
         '        "cout_unitaire": None,\n'
         "    }\n"
         "    return registre.ajouter(mouvement)\n",
+        encoding="utf-8",
+    )
+
+    assert conformite.garde_ecriture_stock(tmp_path) == (True, "")
+
+
+def test_garde_ecriture_stock_accepte_helper_imbrique_dans_bonne_fonction(tmp_path):
+    fichier = tmp_path / "reception_imbriquee.py"
+    fichier.write_text(
+        "def enregistrer_reception(registre):\n"
+        "    def _construire_mouvement():\n"
+        "        return {\n"
+        '            "type_mouvement": "RECEPTION",\n'
+        '            "chantier_id": "X",\n'
+        '            "materiau_id": "M",\n'
+        '            "quantite": 1,\n'
+        '            "cout_unitaire": None,\n'
+        "        }\n"
+        "    return registre.ajouter(_construire_mouvement())\n",
         encoding="utf-8",
     )
 

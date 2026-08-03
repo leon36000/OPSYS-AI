@@ -676,9 +676,10 @@ def verifier_non_recalcul_hash_wct(repertoire: str | Path) -> tuple[bool, str]:
                 and noeud.func.attr in {"empreinte", "encoder_canonique"}
             ):
                 continue
+            arguments = list(noeud.args) + [mot_cle.value for mot_cle in noeud.keywords]
             if any(
                 isinstance(sous_noeud, ast.Name) and sous_noeud.id == "wct"
-                for argument in noeud.args
+                for argument in arguments
                 for sous_noeud in ast.walk(argument)
             ):
                 violations.append(
@@ -734,10 +735,9 @@ def garde_ecriture_stock(repertoire: str | Path) -> tuple[bool, str]:
                     ):
                         continue
                     type_mouvement = valeur.value
-                    fonction = pile_fonctions[-1] if pile_fonctions else None
                     attendue = DESIGNATION_TYPE_MOUVEMENT[type_mouvement]
-                    if fonction != attendue:
-                        trouvee = fonction if fonction is not None else "portée module"
+                    if attendue not in pile_fonctions:
+                        trouvee = pile_fonctions[-1] if pile_fonctions else "portée module"
                         violations.append(
                             f"{fichier}:{noeud.lineno}: {type_mouvement} "
                             f"dans {trouvee}"
