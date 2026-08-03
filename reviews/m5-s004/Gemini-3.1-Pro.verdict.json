@@ -1,0 +1,19 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M5-financecore/src/m5_financecore/taux_fiscaux.py",
+   "description": "Le fichier YAML est ouvert sans gestionnaire de contexte (with), ce qui laisse le descripteur de fichier ouvert jusqu'au passage du ramasse-miettes (ResourceWarning).",
+   "preuve": "Ligne 15 : contenu = yaml.safe_load(open(chemin, encoding=\"utf-8\").read())"
+  }
+ ],
+ "date_heure": "2026-08-03T21:37:23.221190+00:00",
+ "prompt_sha256": "e7e275009d3a70804c42994077f3724c183101992660c5c0433f9f177e60c0ce",
+ "reviewer_model": "Gemini-3.1-Pro",
+ "modele_servi": "gemini-31-pro-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "1"
+ }
+}

@@ -1,0 +1,16 @@
+# Déclaration versionnée et sourcée des taux fiscaux (CA-M5-07, DA-M5-05).
+# Un taux fiscal utilisé dans un calcul DOIT provenir de ce fichier ; un identifiant
+# demandé mais absent bloque le calcul par un verdict nommé (REJ-TAUX-INCONNU),
+# jamais une approximation.
+schema_version: 1
+taux:
+  - id: tps_federale
+    nom: "Taxe sur les produits et services (fédérale)"
+    taux: 0.05
+    version: "2026-v1"
+    source: "Agence du revenu du Canada, Loi sur la taxe d'accise, partie IX"
+  - id: tvq_quebec
+    nom: "Taxe de vente du Québec"
+    taux: 0.09975
+    version: "2026-v1"
+    source: "Revenu Québec, Loi sur la taxe de vente du Québec"
