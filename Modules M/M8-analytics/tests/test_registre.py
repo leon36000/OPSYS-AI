@@ -101,6 +101,23 @@ def test_hash_tete_est_le_hash_du_dernier_snapshot_ajoute():
     assert snapshots.hash_tete() != premier["hash_maillon"]
 
 
+def test_ajouter_copie_les_valeurs_en_interne_immunise_contre_mutation_externe():
+    snapshots = registre.RegistreSnapshots()
+    mouvement = _snapshot(valeur=1)
+
+    maillon, erreur = snapshots.ajouter(mouvement)
+    assert erreur is None
+
+    mouvement["valeurs"]["indicateur"] = 999
+    mouvement["valeurs"]["details"]["unite"] = "mutee"
+
+    assert snapshots.lire()[0]["valeurs"] == {
+        "indicateur": 1,
+        "details": {"unite": "m2"},
+    }
+    assert snapshots.valider_chaine() == (True, "")
+
+
 def test_valider_chaine_accepte_une_chaine_saine_de_plusieurs_snapshots():
     snapshots = registre.RegistreSnapshots()
     snapshots.ajouter(_snapshot(valeur=1))

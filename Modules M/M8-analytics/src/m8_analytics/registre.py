@@ -27,7 +27,7 @@ class RegistreSnapshots:
             "index": index,
             "module_source": mouvement["module_source"],
             "horodatage": mouvement["horodatage"],
-            "valeurs": mouvement["valeurs"],
+            "valeurs": copy.deepcopy(mouvement["valeurs"]),
             "hash_precedent": hash_precedent,
             "hash_maillon": hash_maillon,
         }
