@@ -8,7 +8,7 @@ modules:
   - name: M4-field-ops
     statut: PARTIAL
   - name: M5-financecore
-    statut: CADRE
+    statut: PARTIAL
   - name: M6-material-control
     statut: PARTIAL
   - name: M7-marketing
