@@ -10,7 +10,7 @@ modules:
   - name: M5-financecore
     statut: STUB
   - name: M6-material-control
-    statut: CADRE
+    statut: PARTIAL
   - name: M7-marketing
     statut: PARTIAL
   - name: M8-analytics
