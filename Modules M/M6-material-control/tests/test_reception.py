@@ -173,6 +173,7 @@ def test_reception_indeterminee_lorsque_le_po_id_ne_correspond_pas():
     accuse = traiter_reception(bon_demande, reception_po, catalogue, RegistreVide())
 
     assert accuse["verdict_reception"] == "INDETERMINE"
+    assert accuse["lignes"] == []
 
 
 def test_reception_indeterminee_lorsqu_une_ligne_demandee_n_a_pas_de_reception():
@@ -202,6 +203,7 @@ def test_reception_indeterminee_lorsqu_une_ligne_demandee_n_a_pas_de_reception()
     accuse = traiter_reception(bon_demande, reception_po, catalogue, RegistreVide())
 
     assert accuse["verdict_reception"] == "INDETERMINE"
+    assert accuse["lignes"] == []
 
 
 def test_montant_total_estime_est_la_somme_exacte_lorsque_tous_les_prix_sont_resolus():
