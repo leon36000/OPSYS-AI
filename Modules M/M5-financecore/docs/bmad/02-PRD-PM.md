@@ -64,10 +64,12 @@ haché.
 
 ### 2.2 Calcul de l'état financier — solde vs argent disponible
 
-Une fonction pure relit le registre et calcule le SOLDE (somme signée de tous les mouvements) et
-l'ARGENT DISPONIBLE (solde moins la somme de TOUS les mouvements `PROVISION` du registre — v1
-sans notion de provision « active » ou expirée, voir CA-M5-06) — deux champs distincts, jamais un
-seul nombre réutilisé sous deux noms (contrainte non négociable §2.1 du brief).
+Une fonction pure relit le registre et calcule le SOLDE (somme signée des mouvements
+`ENCAISSEMENT`/`DECAISSEMENT`/`AJUSTEMENT`/`AUTRE` — `PROVISION` EXCLU, car par définition « sans
+mouvement de solde réel », §4.1) et l'ARGENT DISPONIBLE (solde moins la somme de TOUS les
+mouvements `PROVISION` du registre — v1 sans notion de provision « active » ou expirée, voir
+CA-M5-06) — deux champs distincts, jamais un seul nombre réutilisé sous deux noms (contrainte non
+négociable §2.1 du brief).
 
 ### 2.3 Déclaration et utilisation d'un taux fiscal
 
@@ -253,8 +255,10 @@ EtatFinancier:
   un `type_travaux` hors de `TYPES_TRAVAUX` (qui inclut pourtant `"autre"`) plutôt que de le
   coercer silencieusement — l'échappatoire est un CHOIX explicite de l'appelant, jamais une
   correction automatique d'une entrée invalide.
-- **CA-M5-05** : le solde est la somme signée de tous les mouvements du registre — calcul pur,
-  reproductible par re-calcul complet (mêmes mouvements → même solde).
+- **CA-M5-05** : le solde est la somme signée de tous les mouvements du registre QUI AFFECTENT le
+  solde réel — `ENCAISSEMENT`, `DECAISSEMENT`, `AJUSTEMENT`, `AUTRE` — à l'EXCLUSION de
+  `PROVISION`, qui par sa propre définition (§4.1) n'est « pas un mouvement de solde réel ».
+  Calcul pur, reproductible par re-calcul complet (mêmes mouvements → même solde).
 - **CA-M5-06** : l'argent disponible est le solde moins la somme de TOUS les mouvements de type
   `PROVISION` du registre (v1 : aucune libération de provision — une libération future sera un
   maillon `AJUSTEMENT` dédié référençant la provision d'origine par sa source, jamais une
