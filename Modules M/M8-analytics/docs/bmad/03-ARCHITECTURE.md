@@ -99,7 +99,7 @@ ValeurMetrique:
   metric_id: str
   valeur: float | null
   version_definition: str
-  fraicheur: float
+  fraicheur: float | null   # null SSI valeur est null (S003) : aucun snapshot dont dériver un âge
   n: int
 ```
 

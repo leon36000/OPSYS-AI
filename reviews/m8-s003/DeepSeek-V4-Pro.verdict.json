@@ -1,0 +1,19 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M8-analytics/src/m8_analytics/semantique.py",
+   "description": "La valeur de 'fraicheur' est None lorsque n == 0, alors que l'architecture §2.4 spécifie le type float (non nullable). Cela pourrait provoquer une erreur dans du code consommateur qui attend un float. La story CA-M8-08 autorise 'valeur: null' mais ne précise pas le cas de 'fraicheur'. L'écart nécessite confirmation explicite de l'équipe, comme évoqué dans la demande de revue.",
+   "preuve": "Lignes 32 et 50 : 'fraicheur\": None' dans le bloc if n == 0, retourné au lieu d'un float."
+  }
+ ],
+ "date_heure": "2026-08-03T14:50:14.840355+00:00",
+ "prompt_sha256": "a114d45ed41caac5af6320471ac2328100cd0f19024458fee54a0b1245cf039d",
+ "reviewer_model": "DeepSeek-V4-Pro",
+ "modele_servi": "deepseek-v4-pro-direct",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}

@@ -143,8 +143,9 @@ MaillonSnapshot:
 ValeurMetrique:
   metric_id: str
   valeur: float | null      # null SSI n insuffisant pour dériver (échappatoire, jamais une valeur inventée)
-  version_definition: str   # ex. schema_version du dictionnaire au moment du calcul
-  fraicheur: float          # âge du snapshot le plus ancien utilisé, en jours, TOUJOURS affiché
+  version_definition: str   # empreinte (S003) du contenu de la DefinitionMetrique elle-même
+  fraicheur: float | null   # âge du snapshot CHOISI (le plus récent par ordre du registre), en
+                            # jours ; null SSI valeur est null (aucun snapshot dont dériver un âge)
   n: int                    # taille de l'échantillon ayant servi à la dérivation
 ```
 
