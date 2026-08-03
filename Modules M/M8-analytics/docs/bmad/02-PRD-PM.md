@@ -235,6 +235,7 @@ distinctes à prouver séparément.
 | **Critères portés** | CA-M8-01, CA-M8-02, CA-M8-03, CA-M8-04 |
 | **Tier** | T2 (contrat d'entrée transversal à tout le module, comme M6-S001) |
 | **Dépendances** | Aucune |
+| **Estimation (D-044)** | ~45 min (cible ≤1h) |
 
 ### S002 — Registre append-only hash-chaîné des snapshots
 
@@ -244,6 +245,7 @@ distinctes à prouver séparément.
 | **Critères portés** | CA-M8-05, CA-M8-06 |
 | **Tier** | T1 |
 | **Dépendances** | S001 |
+| **Estimation (D-044)** | ~30 min (copie-adaptation mécanique, patron déjà prouvé) |
 
 ### S003 — Couche sémantique : dérivations pures et provenance
 
@@ -253,6 +255,7 @@ distinctes à prouver séparément.
 | **Critères portés** | CA-M8-07, CA-M8-08 |
 | **Tier** | T1 |
 | **Dépendances** | S001, S002 |
+| **Estimation (D-044)** | ~40 min (cible ≤1h) |
 
 ### S004 — Détection de signaux XmR
 
@@ -262,6 +265,7 @@ distinctes à prouver séparément.
 | **Critères portés** | CA-M8-09, CA-M8-10 |
 | **Tier** | T1 |
 | **Dépendances** | S003 |
+| **Estimation (D-044)** | ~45 min (cible ≤1h) |
 
 ### S005 — Rapports filtrés par rôle
 
@@ -271,6 +275,7 @@ distinctes à prouver séparément.
 | **Critères portés** | CA-M8-11 |
 | **Tier** | T2 (frontière de destinataire par rôle, patron M6-S007) |
 | **Dépendances** | S003, S004 |
+| **Estimation (D-044)** | ~40 min (cible ≤1h) |
 
 ### S006 — Conformité statique transversale et digest quotidien
 
@@ -280,6 +285,7 @@ distinctes à prouver séparément.
 | **Critères portés** | CA-M8-12, CA-M8-13, CA-M8-14, CA-M8-15 |
 | **Tier** | T1 |
 | **Dépendances** | S001, S002, S003, S004, S005 |
+| **Estimation (D-044)** | ~1h (cible atteinte, pas de marge) — mesuré : la story équivalente chez M6 (S009, conformité + digest) a exigé 2 tours de revue scellée avant APPROVE ; si l'implémentation dépasse le cap dur de 3h, la découper en deux stories (conformité seule, puis digest seul) est obligatoire (D-044), pas une option. |
 
 ## 8. DÉCISIONS TRANSVERSALES APPLICABLES
 
