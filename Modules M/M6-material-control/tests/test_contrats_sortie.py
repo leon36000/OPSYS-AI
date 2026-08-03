@@ -86,7 +86,7 @@ def test_le_paquet_ne_contient_aucune_cle_de_paiement_dans_ses_litteraux_dict():
         "mode_paiement",
     }
 
-    for fichier in Path(_SRC / "m6_material_control").glob("*.py"):
+    for fichier in Path(_SRC / "m6_material_control").rglob("*.py"):
         if fichier.name == "__init__.py":
             continue
 
