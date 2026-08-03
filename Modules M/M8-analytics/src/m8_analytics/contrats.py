@@ -9,3 +9,9 @@ CHAMPS_DEFINITION_METRIQUE = frozenset({
 })
 
 CHAMPS_SNAPSHOT_MODULE = frozenset({"module_source", "horodatage", "valeurs"})
+
+TYPE_SIGNAL_XMR = (
+    "HORS_LIMITE_SUPERIEURE",
+    "HORS_LIMITE_INFERIEURE",
+    "DONNEES_INSUFFISANTES",
+)
