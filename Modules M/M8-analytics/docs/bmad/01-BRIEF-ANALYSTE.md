@@ -66,8 +66,13 @@ a pas déclaré. **Fait mesuré, pas supposé** : à ce jour, SEUL `M7-marketing
 dossier `metrics/` — le principe « chaque module livre ses métriques à son build » n'a pas été
 suivi lors des cadrages M3/M4/M6. **Ce n'est PAS à M8 de combler cette lacune** (cela reviendrait à
 inventer un dictionnaire pour un module qui n'a rien déclaré, contraire à 2.5 elle-même) : M8 v1
-compile ce qui EXISTE (M7 seul) et échoue de façon nommée — jamais silencieuse — sur un module
-sans fichier. Combler M1-M6 est un backlog distinct, signalé à Nathan séparément de ce cadrage.
+compile ce qui EXISTE (M7 seul). Deux opérations distinctes, deux comportements distincts, à ne
+pas confondre : **compiler** le dictionnaire ignore SILENCIEUSEMENT un module sans fichier
+`metrics/*.yaml` (rien à rejeter — il n'y a simplement aucune entrée à produire pour lui,
+CA-M8-02) ; **ingérer un snapshot** dont le `module_source` ne figure PAS dans le dictionnaire
+compilé est, lui, un rejet NOMMÉ et explicite (il y a une entrée fournie par un appelant à
+refuser, CA-M8-03) — la compilation ne s'exécute jamais deux fois pour « corriger » son silence.
+Combler M1-M6 est un backlog distinct, signalé à Nathan séparément de ce cadrage.
 
 ### 2.6 Dashboards par rôle — l'employé ne voit jamais les marges
 
@@ -76,8 +81,7 @@ un rapport destiné à un rôle terrain ne contient jamais de métrique de marge
 autorisation (quel rapport EST construit pour quel rôle), jamais une convention de nommage
 espérée.
 
-### 2.7 v1 = mode ombre stdlib-only ; DuckDB/Parquet = décision tracée, jamais une substitution
-### silencieuse
+### 2.7 v1 = mode ombre stdlib-only ; DuckDB/Parquet = décision tracée, jamais une substitution silencieuse
 
 La fiche source mandate explicitement « snapshots Parquet → entrepôt DuckDB ». Décision
 d'architecture prise AVANT ce brief (consultation `architecte`, citations vérifiées) : v1 prouve
