@@ -218,6 +218,32 @@ def test_deriver_metrique_versionne_la_definition_selon_son_contenu():
     )
 
 
+def test_deriver_metrique_calcule_la_meme_fraicheur_pour_z_et_offset_explicite():
+    registre_z = registre.RegistreSnapshots()
+    registre_offset = registre.RegistreSnapshots()
+    definition = _definition()
+    _ajouter(registre_z, "M7-marketing", "2026-01-01T00:00:00Z", {"m7_cpl": "1"})
+    _ajouter(
+        registre_offset,
+        "M7-marketing",
+        "2026-01-01T00:00:00+00:00",
+        {"m7_cpl": "1"},
+    )
+
+    resultat_z = semantique.deriver_metrique(
+        "M7-marketing", "m7_cpl", definition, registre_z, "2026-01-04T00:00:00Z",
+    )
+    resultat_offset = semantique.deriver_metrique(
+        "M7-marketing",
+        "m7_cpl",
+        definition,
+        registre_offset,
+        "2026-01-04T00:00:00+00:00",
+    )
+
+    assert resultat_z["fraicheur"] == resultat_offset["fraicheur"] == 3.0
+
+
 def test_deriver_metrique_ignore_un_autre_metric_id_du_meme_module():
     registre_cible = registre.RegistreSnapshots()
     definition = _definition()
