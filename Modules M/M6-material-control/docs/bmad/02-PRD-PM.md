@@ -339,7 +339,14 @@ SignalPoAPayer:
   montant_total_estime: float
     # Ce signal N'EST JAMAIS ÉMIS si montant_total_estime serait null (prix
     # indéterminé) : M5 ne doit jamais recevoir un montant à payer indéterminé.
-  bareme_version: str
+  bareme_version: str | null
+    # Objection de revue scellée (Qwen3.8-Max, fondée) : un PO peut être intégralement
+    # résolu par PRIX_HISTORIQUE_FALLBACK (aucun catalogue fourni à cet appel), auquel
+    # cas montant_total_estime EST résolu (le signal est bien émis) alors qu'il n'existe
+    # aucune version de catalogue à tracer — même équivalence que bareme_version dans
+    # AccuseReceptionPO (§5.6) : null SI ET SEULEMENT SI aucun catalogue n'a été fourni
+    # à cet appel, jamais parce que le montant serait indéterminé (ce cas n'émet aucun
+    # signal, cf. ci-dessus).
   hash_maillon: str
 ```
 
@@ -509,7 +516,7 @@ MaillonMateriel:
 | Décision | Application dans M6 |
 |---|---|
 | **D-032** — Échappatoire obligatoire sur tout enum | `VerdictResolutionPrix.INDETERMINE`, `VerdictReception.INDETERMINE`, `VerdictVarianceStock.INDETERMINE` |
-| **D-015** — Contrats gelés = pactes exécutables | Dix contrats gelés listés en section 5, chacun validé avant tout traitement |
+| **D-015** — Contrats gelés = pactes exécutables | 14 schémas nommés (regroupés en 10 sous-sections thématiques, §5.1 à §5.10 — objection de revue scellée, Qwen3.8-Max : « dix contrats » comptait les sous-sections, pas les schémas ; §5.4/§5.5/§5.8 en définissent chacune plusieurs), chacun validé avant tout traitement |
 | **R-020** — Aucune formulation accusatoire | Contrainte FONDATRICE de M6 (« variance sans accusation », « jamais vol automatique ») — appliquée à `VerdictVarianceStock` et à toute `raison`/`note_investigation` |
 | **Loi 25** — Minimisation | M6 ne collecte que les identifiants et quantités nécessaires ; aucune donnée personnelle du fournisseur au-delà de ce que le catalogue exige |
 | **Loi 96** — Français d'abord | Tous les verdicts et messages sont en français |

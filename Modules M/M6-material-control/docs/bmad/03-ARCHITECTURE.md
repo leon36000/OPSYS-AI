@@ -16,7 +16,7 @@ Formules gelées reprises verbatim des contraintes non négociables du Brief (§
 
 **Décisions transversales applicables** :
 - **D-032** — Sorties structurées, échappatoire `INDETERMINE` obligatoire sur tout enum (« un schéma sans issue force la fabrication »).
-- **D-015** — Contrats gelés = pactes exécutables (dix contrats en §2).
+- **D-015** — Contrats gelés = pactes exécutables (14 schémas nommés, regroupés en 10 sous-sections thématiques §2.1 à §2.10).
 - **R-020** — Aucune formulation accusatoire ; contrainte FONDATRICE de M6.
 - **R-015** — Injection indirecte via courriels fournisseurs : neutralisée nativement en v1 (zéro LLM, zéro réseau), repoussée GATED/T3 avec REG-13 obligatoire.
 - **Loi 25** — Minimisation ; **Loi 96** — Français d'abord.
@@ -33,7 +33,7 @@ M6 porte QUATRE parcours d'écriture distincts, là où M3 et M4 n'en portent qu
 | Fichier | Responsabilité | Justification |
 |---|---|---|
 | `__init__.py` | Identité de paquet ; aucun ré-export. Les quatre fonctions publiques sont importées par leur nom pleinement qualifié `m6_material_control.materiel.<fn>`. | Reproduit le patron mesuré de `m3_estimation/__init__.py` : l'identité de paquet empêche la collision `sys.modules` (#109). |
-| `contrats.py` | Constantes de contrat gelées : les tuples de clés `CHAMPS_*` des dix contrats (§2), les trois énumérés fermés (`VERDICTS_RESOLUTION_PRIX`, `VERDICTS_RECEPTION`, `VERDICTS_VARIANCE_STOCK`) avec dérivation indicée des noms canoniques et `*_INDETERMINE`, les DEUX ensembles de clés interdites (§DA-M6-03), `CHAMPS_WCT_ATTENDUS` (copie épinglée des 12 clés de M4) et `CONSOMMATEURS_ATTENDU = "M6"`. | D-015 : les contrats gelés sont figés dans un fichier dédié. Mirroring exact de `m3_estimation/contrats.py` (noms de verdicts dérivés par indice, jamais réécrits en littéral, pour qu'une faute de frappe soit une erreur d'import et non un bug de chemin). |
+| `contrats.py` | Constantes de contrat gelées : les tuples de clés `CHAMPS_*` des 14 schémas nommés (§2), les trois énumérés fermés (`VERDICTS_RESOLUTION_PRIX`, `VERDICTS_RECEPTION`, `VERDICTS_VARIANCE_STOCK`) avec dérivation indicée des noms canoniques et `*_INDETERMINE`, les DEUX ensembles de clés interdites (§DA-M6-03), `CHAMPS_WCT_ATTENDUS` (copie épinglée des 12 clés de M4) et `CONSOMMATEURS_ATTENDU = "M6"`. | D-015 : les contrats gelés sont figés dans un fichier dédié. Mirroring exact de `m3_estimation/contrats.py` (noms de verdicts dérivés par indice, jamais réécrits en littéral, pour qu'une faute de frappe soit une erreur d'import et non un bug de chemin). |
 | `verdicts.py` | Catalogue fermé des codes `REJ-*` et `construire_verdict(code, detail=…)`. | Copie-adaptation de `m4_field_ops/verdicts.py` : un verdict nommé et distinct par classe de faute (exigé par CA-M6-01/02/03). |
 | `encodage.py` | `encoder_canonique(*valeurs)` (normalisation récursive typée, JSON déterministe, préfixage par longueur) et `empreinte(*valeurs)` = sha256 de la forme canonique. | Copie-adaptation de `m4_field_ops/encodage.py` : injectivité par préfixage de longueur, refus des types non sérialisables (jamais `repr()` dont l'adresse mémoire briserait la reproductibilité). Sert `hash_maillon` et `hash_digest`. |
 | `frontieres.py` | Scan récursif des clés interdites GLOBALES (dict/list/tuple), normalisation de clé (minuscule, NFD sans diacritiques, espaces/tirets → underscore), verdict `REJ-FRONTIERE-VIOLEE`. | Copie-adaptation de `m4_field_ops/frontieres.py`. Porte l'ensemble #1 (§DA-M6-03) : paiement, date, prix de vente — clés d'un AUTRE domaine, interdites partout. |
@@ -54,7 +54,7 @@ M6 porte QUATRE parcours d'écriture distincts, là où M3 et M4 n'en portent qu
 
 ## 2. SCHÉMAS DE DONNÉES
 
-Les dix contrats gelés ci-dessous sont reproduits **fidèlement** du PRD §5 (le PRD fait foi) ; les annotations d'architecte n'ajoutent aucune clé. Aucun contrat ne porte de date d'intervention, de créneau, de durée d'exécution, ni de primitive de paiement.
+Les 14 schémas nommés ci-dessous (regroupés en 10 sous-sections thématiques — §5.4, §5.5 et §5.8 du PRD en définissent chacune plusieurs, objection de revue scellée Qwen3.8-Max fondée : « dix contrats » comptait les sous-sections, pas les schémas) sont reproduits **fidèlement** du PRD §5 (le PRD fait foi) ; les annotations d'architecte n'ajoutent aucune clé. Aucun contrat ne porte de date d'intervention, de créneau, de durée d'exécution, ni de primitive de paiement.
 
 ### 2.1 Entrée reçue de M4 — `WctRecu` (mesuré, pas supposé)
 
@@ -211,7 +211,13 @@ SignalPoAPayer:
   montant_total_estime: float
     # Ce signal N'EST JAMAIS ÉMIS si montant_total_estime serait null (prix
     # indéterminé) : M5 ne doit jamais recevoir un montant à payer indéterminé.
-  bareme_version: str
+  bareme_version: str | null
+    # Objection de revue scellée (Qwen3.8-Max, fondée) : un PO peut être intégralement
+    # résolu par PRIX_HISTORIQUE_FALLBACK (aucun catalogue fourni à cet appel) — le
+    # montant EST résolu (le signal est bien émis) alors qu'aucune version de catalogue
+    # n'existe à tracer. Même équivalence que bareme_version dans AccuseReceptionPO
+    # (§2.6) : null SI ET SEULEMENT SI aucun catalogue n'a été fourni à cet appel,
+    # jamais parce que le montant serait indéterminé (ce cas n'émet aucun signal).
   hash_maillon: str
 ```
 

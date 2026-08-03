@@ -352,10 +352,19 @@ def check_mots_interdits(c_brief, c_prd, c_arch):
                 ligne for _, ligne in paragraphe
             )
 
-            if any(p.search(texte_paragraphe) for p in NEG_PATTERNS):
-                continue
-
             for numero, ligne in paragraphe:
+                texte_fenetre_negation = (
+                    ligne
+                    if ligne.lstrip().startswith("|")
+                    else texte_paragraphe
+                )
+
+                if any(
+                    p.search(texte_fenetre_negation)
+                    for p in NEG_PATTERNS
+                ):
+                    continue
+
                 low = ligne.lower()
 
                 if not any(
