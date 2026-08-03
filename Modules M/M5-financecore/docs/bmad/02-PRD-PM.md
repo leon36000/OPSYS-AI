@@ -131,7 +131,7 @@ disponible, ni référence à un mouvement individuel — seulement son identit�
 | `DECAISSEMENT` | Sortie d'argent (ex. paiement fournisseur). |
 | `PROVISION` | Réservation d'argent disponible sans mouvement de solde réel (ex. provision fiscale). |
 | `AJUSTEMENT` | Correction d'un mouvement antérieur, jamais une réécriture du mouvement original (append-only). |
-| `AUTRE` | **Échappatoire D-032** (nom domaine-spécifique, patron `TYPES_TRAVAUX`/`"autre"` de M3) — le mouvement est réel et daté, mais sa nature ne correspond à aucune des quatre catégories ci-dessus. Jamais un rejet, jamais une catégorie fabriquée. |
+| `AUTRE` | **Échappatoire D-032** (nom domaine-spécifique, patron `TYPES_TRAVAUX`/`"autre"` de M3) — CHOISIE EXPLICITEMENT par l'appelant quand le mouvement est réel et daté mais que sa nature ne correspond à aucune des quatre catégories ci-dessus. Soumise ainsi, `AUTRE` n'est jamais un rejet. Une valeur qui n'est NI l'une des quatre catégories NI `AUTRE` reste, elle, un rejet nommé (`REJ-MOUVEMENT-TYPE-INCONNU`) — l'échappatoire n'est pas une correction automatique d'une entrée invalide (voir CA-M5-04). |
 
 ### 4.2 `PalierApprobation` (F0-F7, caller-spécifié — pas d'échappatoire, voir §0/§7.3)
 
@@ -244,8 +244,15 @@ EtatFinancier:
   statut courant d'une demande est calculé par relecture de la chaîne (`statut_courant`), jamais
   lu depuis un champ positionnable directement par l'appelant ; une altération d'un maillon est
   détectée à la re-validation.
-- **CA-M5-04** : un `type_mouvement` non reconnu retombe sur l'échappatoire nommée `AUTRE`
-  (D-032), jamais une catégorie fabriquée ni un plantage.
+- **CA-M5-04** : `AUTRE` est une valeur EXPLICITEMENT choisie par l'appelant quand un mouvement
+  réel ne correspond à aucune des quatre autres catégories (échappatoire D-032, jamais une
+  catégorie fabriquée par le système, jamais un plantage) — PAS une valeur de repli que
+  `valider_mouvement` appliquerait elle-même à un `type_mouvement` non reconnu. Une valeur hors de
+  l'énuméré fermé (ni l'une des quatre catégories, ni `AUTRE` lui-même) reste un rejet nommé
+  (`REJ-MOUVEMENT-TYPE-INCONNU`), exactement comme `m3_estimation/validation.py:160-167` rejette
+  un `type_travaux` hors de `TYPES_TRAVAUX` (qui inclut pourtant `"autre"`) plutôt que de le
+  coercer silencieusement — l'échappatoire est un CHOIX explicite de l'appelant, jamais une
+  correction automatique d'une entrée invalide.
 - **CA-M5-05** : le solde est la somme signée de tous les mouvements du registre — calcul pur,
   reproductible par re-calcul complet (mêmes mouvements → même solde).
 - **CA-M5-06** : l'argent disponible est le solde moins la somme de TOUS les mouvements de type

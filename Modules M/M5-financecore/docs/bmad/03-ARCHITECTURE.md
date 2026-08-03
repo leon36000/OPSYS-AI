@@ -139,7 +139,7 @@ EtatFinancier:
 | `DECAISSEMENT` | Sortie d'argent. |
 | `PROVISION` | Réservation d'argent disponible sans mouvement de solde réel. |
 | `AJUSTEMENT` | Correction d'un mouvement antérieur (jamais une réécriture — append-only). |
-| `AUTRE` | **Échappatoire D-032** (patron `TYPES_TRAVAUX`/`"autre"` de M3) — mouvement réel et daté, nature hors des quatre catégories ci-dessus. |
+| `AUTRE` | **Échappatoire D-032** (patron `TYPES_TRAVAUX`/`"autre"` de M3) — CHOISIE EXPLICITEMENT par l'appelant, mouvement réel et daté, nature hors des quatre catégories ci-dessus. Une valeur qui n'est ni l'une des quatre catégories ni `AUTRE` reste un rejet nommé (`REJ-MOUVEMENT-TYPE-INCONNU`) — patron `m3_estimation/validation.py:160-167`, qui rejette de même un `type_travaux` hors de `TYPES_TRAVAUX` plutôt que de le coercer vers `"autre"`. |
 
 #### `PalierApprobation` — F0 < F1 < ... < F7, caller-spécifié (pas d'échappatoire — voir PRD §0/§7.3)
 

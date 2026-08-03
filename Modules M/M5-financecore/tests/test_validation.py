@@ -110,3 +110,27 @@ def test_valider_mouvement_rejette_une_classe_retention_inconnue():
     )
     assert valide is False
     assert verdict["code"] == "REJ-MOUVEMENT-CLASSE-RETENTION-INCONNUE"
+
+
+def test_valider_mouvement_rejette_un_horodatage_non_chaine():
+    valide, verdict = validation.valider_mouvement(_mouvement(horodatage=12345))
+    assert valide is False
+    assert verdict["code"] == "REJ-MOUVEMENT-CHAMP-TEXTE-INVALIDE"
+
+
+def test_valider_mouvement_rejette_un_horodatage_vide():
+    valide, verdict = validation.valider_mouvement(_mouvement(horodatage=""))
+    assert valide is False
+    assert verdict["code"] == "REJ-MOUVEMENT-CHAMP-TEXTE-INVALIDE"
+
+
+def test_valider_mouvement_rejette_une_source_non_chaine():
+    valide, verdict = validation.valider_mouvement(_mouvement(source=None))
+    assert valide is False
+    assert verdict["code"] == "REJ-MOUVEMENT-CHAMP-TEXTE-INVALIDE"
+
+
+def test_valider_mouvement_rejette_une_source_vide():
+    valide, verdict = validation.valider_mouvement(_mouvement(source=""))
+    assert valide is False
+    assert verdict["code"] == "REJ-MOUVEMENT-CHAMP-TEXTE-INVALIDE"

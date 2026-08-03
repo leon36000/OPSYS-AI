@@ -12,8 +12,11 @@ CODES_M5_LIST = [
     "REJ-MOUVEMENT-MONTANT-INVALIDE",
     "REJ-MOUVEMENT-TYPE-INCONNU",
     "REJ-MOUVEMENT-CLASSE-RETENTION-INCONNUE",
+    "REJ-MOUVEMENT-CHAMP-TEXTE-INVALIDE",
 ]
 CODES_M5 = set(CODES_M5_LIST)
+
+_CHAMPS_TEXTE_MOUVEMENT = ("horodatage", "source")
 
 
 def est_verdict(code):
@@ -26,6 +29,10 @@ def construire_verdict(code, detail=""):
     return {"code": code, "detail": detail}
 
 
+def _est_chaine_non_vide(valeur):
+    return isinstance(valeur, str) and valeur != ""
+
+
 def valider_mouvement(mouvement):
     if not isinstance(mouvement, dict):
         return False, construire_verdict("REJ-MOUVEMENT-STRUCTURE-INVALIDE")
@@ -35,6 +42,13 @@ def valider_mouvement(mouvement):
     montant = mouvement["montant"]
     if isinstance(montant, bool) or not isinstance(montant, (int, float)):
         return False, construire_verdict("REJ-MOUVEMENT-MONTANT-INVALIDE")
+
+    for champ in _CHAMPS_TEXTE_MOUVEMENT:
+        if not _est_chaine_non_vide(mouvement[champ]):
+            return False, construire_verdict(
+                "REJ-MOUVEMENT-CHAMP-TEXTE-INVALIDE",
+                detail=f"champ {champ!r} : chaîne non vide exigée",
+            )
 
     if mouvement["type_mouvement"] not in contrats.TYPE_MOUVEMENT:
         return False, construire_verdict("REJ-MOUVEMENT-TYPE-INCONNU")
