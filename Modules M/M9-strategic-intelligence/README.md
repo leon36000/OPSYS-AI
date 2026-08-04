@@ -2,5 +2,5 @@
 
 Strategic Intelligence OS — direction IA, War Room
 
-Statut: CADRE (BMAD complet — brief, PRD 10 CA / 5 stories, architecture — gate de cohérence
-vert ; aucune story de code encore livrée).
+Statut: PARTIAL (S001/5 livrée — contrats gelés SnapshotModule/CHAMPS_RAPPORT_STRATEGIQUE,
+validation structurelle d'entrée).
