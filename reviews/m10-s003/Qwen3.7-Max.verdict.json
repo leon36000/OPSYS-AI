@@ -1,0 +1,19 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "src/m10_memoire/contrats.py",
+   "description": "Impossible de vérifier formellement que les 12 champs de CHAMPS_WCT correspondent exactement au contrat de M4 (m4_field_ops/outbox.py), car le fichier contrats.py n'est pas présent dans ce diff.",
+   "preuve": "Le diff ne contient que wct.py et test_wct.py. Règle : un doute non vérifiable = objection mineure."
+  }
+ ],
+ "date_heure": "2026-08-04T23:43:49.609551+00:00",
+ "prompt_sha256": "b36c22aec69999925dc6c9149895c66a94411e065b00ae1f21fde8c12c2c5a1d",
+ "reviewer_model": "Qwen3.7-Max",
+ "modele_servi": "qwen37-max-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}
