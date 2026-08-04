@@ -16,6 +16,6 @@ modules:
   - name: M8-analytics
     statut: PARTIAL
   - name: M9-strategic-intelligence
-    statut: STUB
+    statut: CADRE
   - name: M10-memoire
     statut: STUB
