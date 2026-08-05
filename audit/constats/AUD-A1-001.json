@@ -1,0 +1,27 @@
+{
+  "id": "AUD-A1-001",
+  "lot": "A1",
+  "classe": "defaut-code",
+  "titre": "Le verificateur de registres rapporte OK sur un fichier absent et sort en code 0.",
+  "emplacement": [
+    "scripts/ledger_append.py:34",
+    ".github/workflows/ci.yml:13"
+  ],
+  "temoin": "audit/temoins/AUD-A1-001/reproduction.py",
+  "temoin_rc": 1,
+  "temoin_sortie_sha256": "ce3ed2c6cf38ba57f2f5139a246d68118c2958d7473a26bdf6427410f0d0fd42",
+  "entrees_rubrique": {
+    "frontiere_t3": true,
+    "gate_couvrant": true,
+    "rayon": 4,
+    "contrat_gele": "D-042"
+  },
+  "severite": "critique",
+  "statut": "confirme",
+  "refutation": {
+    "cmd": "python3 audit/temoins/AUD-A1-001/reproduction.py",
+    "sortie": "3 manifestations : installations.jsonl absent rapporte OK ; preuves.jsonl (49 entrees) supprime -> OK rc=0 ; les 3 registres (101 entrees) supprimes -> OK rc=0",
+    "conclusion": "Refutation tentee par deux voies. (1) Le verificateur echoue-t-il deja sur la copie intacte, ce qui rendrait la mesure sans valeur ? Non : rc=0 sur l'etat intact, la pre-condition tient. (2) Le gate est-il non couvrant, ce qui rendrait le defaut sans portee ? Non : gh api sur la protection de branche renvoie [\"gates\"], et ce job execute la commande sous le libelle « Ledger integrity (D-042) ». Les deux voies de refutation echouent : le constat tient."
+  },
+  "assume_ref": null
+}

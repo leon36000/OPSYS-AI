@@ -1,0 +1,27 @@
+{
+  "id": "AUD-A2-001",
+  "lot": "A2",
+  "classe": "defaut-code",
+  "titre": "Aucun des 646 verdicts de reviews/ ne porte les champs que le depouilleur exige.",
+  "emplacement": [
+    "scripts/tally.py:8",
+    "scripts/consensus_run.py:250"
+  ],
+  "temoin": "audit/temoins/AUD-A2-001/reproduction.py",
+  "temoin_rc": 1,
+  "temoin_sortie_sha256": "35bf2ed9313effa07b4e17d3e9bf032cb028b7d9c31ff42b8377c33439bacd65",
+  "entrees_rubrique": {
+    "frontiere_t3": false,
+    "gate_couvrant": false,
+    "rayon": 3,
+    "contrat_gele": "REG-05"
+  },
+  "severite": "critique",
+  "statut": "confirme",
+  "refutation": {
+    "cmd": "python3 audit/temoins/AUD-A2-001/reproduction.py",
+    "sortie": "reviews : 646 verdicts lus, 0 exploitable, champs manquants ['reviewer','vendor'] ; 179 dossiers a >=3 verdicts, 0 depouillable ; execution reelle sur reviews/M4-S009-r1 -> rc=2 « champ manquant 'reviewer' »",
+    "conclusion": "Trois refutations tentees. (1) L'echantillon est-il non representatif ? Non : la mesure porte sur les 646 verdicts, pas sur un tirage. (2) tally.py est-il casse en soi, ce qui deplacerait le constat ? Non : 31 des 40 verdicts de registries/verdicts/ passent, car consensus_run.py normalise reviewer et vendor avant d'ecrire — le depouilleur fonctionne quand on lui donne le schema qu'il attend. (3) L'identite du relecteur est-elle recuperable autrement ? Elle est dans le NOM du fichier, mais tally.py ne la lit pas, et un nom de fichier n'est pas scelle par le prompt_sha256. Les trois voies echouent : le constat tient, et il vise l'absence de contrat commun entre les deux producteurs, non tally.py."
+  },
+  "assume_ref": null
+}
