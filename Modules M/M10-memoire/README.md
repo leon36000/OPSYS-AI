@@ -2,5 +2,5 @@
 
 Memoire Long Terme — non-oubli, Preflight/Postflight
 
-Statut: PARTIAL (S001/6 livrée — contrats gelés, validation d'entrée, deux énumérés
-fermés avec échappatoire D-032).
+Statut: PARTIAL (vague 1 complète, S001-S006 — contrats, registre générique, consommation
+du WCT de M4, décisions à statut par relecture, révision sans fusion, conformité statique).
