@@ -1,0 +1,27 @@
+{
+  "id": "AUD-A5-001",
+  "lot": "A5",
+  "classe": "faille-securite",
+  "titre": "Les tests d'autorisation et de coffre a secrets tournent dans un job non bloquant.",
+  "emplacement": [
+    ".github/workflows/ci.yml:47",
+    ".github/workflows/ci.yml:68"
+  ],
+  "temoin": "audit/temoins/AUD-A5-001/reproduction.py",
+  "temoin_rc": 1,
+  "temoin_sortie_sha256": "6547d8ffdb74f9c42f892d1c9a5db23e763f43451fd704e7886b8b1c4b5accde",
+  "entrees_rubrique": {
+    "frontiere_t3": true,
+    "gate_couvrant": false,
+    "rayon": 4,
+    "contrat_gele": "REG-09"
+  },
+  "severite": "critique",
+  "statut": "confirme",
+  "refutation": {
+    "cmd": "python3 audit/temoins/AUD-A5-001/reproduction.py",
+    "sortie": "checks exiges = ['gates'] ; job e2e ligne 44 NON BLOQUANT et NON exige, contenant 29 tests d'autorisation et 16 tests de coffre a secrets ; job e2e-load ligne 65 idem",
+    "conclusion": "Deux refutations tentees. (1) Le job e2e est-il exige par la protection de branche malgre son continue-on-error, ce qui rendrait le drapeau inoperant ? Non : l'API renvoie exactement ['gates']. (2) Ces tests sont-ils rejoues ailleurs, dans le job bloquant ? Non : les 15 etapes de « gates » sont enumerees par le temoin et aucune ne porte sur core/src/authz ni core/src/config. Les deux voies echouent. Ce que le constat n'affirme PAS : aucune faille d'autorisation n'est montree — seule l'absence de garde l'est, conformement au standard « exposition prouvee, jamais exploitation ». Troisieme verification, sur le contrat gele lui-meme : R-015 avait ete retenu par supposition, puis resolu au plan de reference — il porte sur l'injection de prompt indirecte, sans rapport. Le contrat reellement contredit est REG-09 (« Securite par defaut. Secrets chiffres, exposition minimale, autorisation fine, journaux d'audit »), ligne 45 de l'extraction du plan. Un identifiant cite de memoire n'est pas une preuve : il doit etre resolu au referentiel. Quatrieme point, souleve par deux relecteurs independants : le constat porte classe=faille-securite et severite=critique alors que sa conclusion dit qu'aucune faille n'est montree — ils y ont vu une contradiction qui fausserait tout routage automatique. L'objection est reelle pour un lecteur, mais elle est levee par le cadrage lui-meme : le PRD §8.5 definit la limite d'un constat de securite comme « exposition prouvee, JAMAIS exploitation ». Dans cet audit, la classe faille-securite designe donc une exposition prouvee, et non une exploitation demontree ; les deux enonces sont coherents. Ce qui manquait etait la CITATION de ce standard dans le constat — un lecteur ne devrait pas avoir a retrouver le cadrage pour comprendre qu'il n'y a pas contradiction. Elle est ajoutee ici."
+  },
+  "assume_ref": null
+}

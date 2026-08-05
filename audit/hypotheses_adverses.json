@@ -126,7 +126,16 @@
       "classe": "methode",
       "gravite_si_vraie": "majeure",
       "lot": "AUD-A1",
-      "etat": "OUVERTE"
+      "etat": "REFUTEE",
+      "refutation": {
+        "commande": "diff AGENTS.md AGENTS.md.pre-proof.bak ; git log --date=short -- <fichier> ; recherche des regles perdues dans les 200+ .md suivis",
+        "resultat": "AGENTS.md actuel porte 18 regles imperatives contre 6 dans le .bak — le fichier actuel est PLUS strict, pas moins. Le remplacement est date du 2026-07-24 et porte le message « transcription ADR-0003 (ratification T3 Nathan) », alors que le .bak date du 2026-07-23 : ce n'est pas une reecriture opportune, c'est le remplacement documente du kit d'installation par la methode PROOF. Sur les 6 regles du .bak absentes de l'actuel, 5 sont reprises ailleurs dans le depot (FORGE_METHOD.md, IMPLEMENTATION_SPEC.md, RECONCILIATION.md, 00-DIGEST.md, CLAUDE.md).",
+        "conclusion": "L'hypothese « les consignes ont ete assouplies apres coup pour faciliter le passage des controles » est REFUTEE sur les trois points qui la composaient : le sens du changement (durcissement), sa date (anterieure aux controles qu'elle aurait vise a passer), et la disparition des regles (5 sur 6 reprises). Deux constats collateraux subsistent et sont consignes separement."
+      },
+      "constats_collateraux": [
+        "Une regle du .bak n'est reprise nulle part dans le depot : « la conversation n'est jamais la memoire du projet ; stories, claims, decisions et preuves vivent dans des artefacts ». Candidat constat A7 (coherence documentaire).",
+        "Les deux fichiers .pre-proof.bak sont SUIVIS par git. Un fichier de sauvegarde versionne est du bruit documentaire, et il a ici induit une hypothese critique chez un relecteur. Candidat constat A7."
+      ]
     },
     {
       "id": "HA-08",
