@@ -1,0 +1,19 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "Modules M/M10-memoire/src/m10_memoire/contexte.py",
+   "description": "La vérification de `hash_tete` compare la valeur à l'ensemble des `ligne_id` du registre (`reference[\"hash_tete\"] not in ligne_ids`). Cela indique que `hash_tete` est traité comme un simple `ligne_id` et non comme un hash cryptographique de la tête de chaîne. Par conséquent, l'intégrité du registre n'est pas vérifiée (le contenu de la tête pourrait être altéré sans invalider la référence), ce qui contredit l'objectif de rendre la référence 'réellement vérifiable plutôt que déclarative'. De plus, si `registre_cible.tete()` retournait un véritable hash, cette condition échouerait systématiquement pour toute référence valide.",
+   "preuve": "Ligne 74 : `if reference[\"hash_tete\"] is not None and reference[\"hash_tete\"] not in ligne_ids:`"
+  }
+ ],
+ "date_heure": "2026-08-05T00:19:22.284957+00:00",
+ "prompt_sha256": "bc2469883d2d708e56efe9ac2ca6966800fb55932ab34bd6c8cd0ca19aee7ecc",
+ "reviewer_model": "Qwen3.7-Max",
+ "modele_servi": "qwen37-max-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}
