@@ -252,7 +252,12 @@
       "classe": "plan",
       "gravite_si_vraie": "majeure",
       "lot": "AUD-A3",
-      "etat": "OUVERTE"
+      "etat": "CONVERTIE",
+      "conversion": {
+        "commande": "python3 audit/sondes/a3_ecart_plan.py ; python3 audit/temoins/AUD-A3-001/reproduction.py",
+        "resultat": "18 identifiants du referentiel ne sont cites nulle part dans le depot ; 4 identifiants cites ne resolvent nulle part (D-047, R-034, R-035, R-036) ; 3 extensions ratifiees correctement ecartees (R-037/038/039).",
+        "conclusion": "CONVERTIE en constats AUD-A3-001 (citations non resolvables) et AUD-A3-002 (services D-010)."
+      }
     },
     {
       "id": "HA-16",
@@ -311,6 +316,14 @@
       "lot": "AUD-A5",
       "etat": "OUVERTE",
       "note": "Piege methodologique consigne : interroger l'API anonyme d'un projet prive renvoie total=0 pour toutes les categories d'issues. Conclure « aucun defaut » de cette reponse serait un faux vert. La sonde A5 devra distinguer « zero issue » de « projet inaccessible »."
+    }
+  ],
+  "fautes_de_l_audit": [
+    {
+      "quoi": "Le cadrage de cet audit designe « H9 (D-047, R-034/35/36) » comme cible obligatoire du lot A3, en reprenant ces identifiants du materiau de depart sans les resoudre au referentiel.",
+      "mesure": "python3 audit/temoins/AUD-A3-001/reproduction.py — les quatre identifiants ne resolvent nulle part ; trois d'entre eux (R-034/035/036) n'apparaissent que dans des verdicts de modeles.",
+      "consequence": "L'audit a cite comme references des identifiants dont il etablit ensuite qu'ils n'existent pas. Le cadrage n'est pas faux — il visait justement a mesurer cette anomalie — mais il les a ecrits sans marquer qu'ils etaient douteux, ce qui est exactement le defaut qu'il constate chez autrui.",
+      "porte_au_dela": "Les autres identifiants cites par le cadrage (D-010, D-032, D-035, D-038, D-042, R-011, R-015, REG-04, REG-05, REG-09, REG-12) ont ete resolus au plan un par un ; seuls ces quatre-la ne l'avaient pas ete."
     }
   ]
 }

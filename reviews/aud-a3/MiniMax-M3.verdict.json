@@ -1,0 +1,25 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "audit/temoins/AUD-A3-001/reproduction.py",
+   "description": "Contradiction interne du pack sur D-047. Le pack affirme que les quatre identifiants 'ne sont définis nulle part', tout en déclarant ailleurs que 'D-047 a été repris dans un ADR ratifié'. L'exécution confirme la présence : D-047 est cité par docs/decisions/ADR-0003-RATIFICATION.md. Le critère d'exclusion appliqué à R-037, R-038, R-039 est qu'ils sont 'DÉFINIS dans un ADR ratifié' ; pour D-047 le pack utilise le verbe 'repris' sans définir la distinction. Si 'repris dans un ADR ratifié' constitue une forme de documentation légitime, le décompte de 4 identifiants sans définition devrait être réexaminé ; si ce n'en est pas une, la phrase sur l'ADR doit être retirée. Tant que la ligne de partage n'est pas explicite, la mesure est arbitraire sur D-047.",
+   "preuve": "Pack ligne 'Restent quatre ... Aucun n'est défini nulle part' ET ligne 'D-047 a été repris dans un ADR ratifié'. Exécution AUD-A3-001 : 'D-047 — cité par 3 fichier(s) dont hors sorties de modèle : 1 — docs/decisions/ADR-0003-RATIFICATION.md'."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "audit/temoins/AUD-A3-002/reproduction.py",
+   "description": "Le témoin effectue la correspondance service↔fichier par mots-clés appliqués au chemin (lignes 25-31). Les mots-clés, bien que présentés comme 'larges à dessein', restent un sous-ensemble fermé : 'Bus de notifications' ne cherche que notification_bus, bus_notification, event_bus, bus — ni 'events', ni 'pubsub', ni 'queue', ni 'messager*'. 'Gate Engine' ne cherche que gate_engine, moteur_gate — ni 'validation', ni 'checkpoint', ni 'filter'. Un service implémenté sous un nom technique radicalement différent serait classé à tort dans 'ABSENT PARTOUT'. La distinction à trois cas (core / module / absent) est conceptuellement correcte, mais le détecteur qui l'alimente peut produire des faux positifs dans la catégorie 'absent'.",
+   "preuve": "Code du témoin : SERVICES = {'Bus de notifications': ('notification_bus', 'bus_notification', 'event_bus', 'bus'), 'Gate Engine': ('gate_engine', 'moteur_gate'), 'Audit / Ledger': ('ledger', 'audit_log', 'piste_ait')}. Sortie actuelle : 3 services classés absents — mais aucun mécanisme de réfutation par synonymes additionnels n'est implémenté dans le témoin."
+  }
+ ],
+ "date_heure": "2026-08-05T10:46:16.162676+00:00",
+ "prompt_sha256": "fb7ecf1b8a8f808b8b31fde7aad85c852b83b29b696cca74571983971ef9bf84",
+ "reviewer_model": "MiniMax-M3",
+ "modele_servi": "minimax-m3-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}
