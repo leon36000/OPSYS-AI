@@ -75,7 +75,13 @@ def main() -> int:
         print(f"TÉMOIN INAPPLICABLE : {REFERENTIEL} est introuvable", file=sys.stderr)
         return 2
 
-    reference = set(REFERENTIEL.read_text(encoding="utf-8").split())
+    # Filtrer par le MOTIF, jamais par .split() : le fichier de référentiel porte deux
+    # sections — la liste des identifiants, puis le texte de la décision D-010, dont les
+    # mots seraient sinon comptés comme des identifiants. Un relecteur a mesuré l'écart :
+    # 324 « identifiants » annoncés au lieu de 91. Le résultat du témoin restait juste,
+    # puisque les identifiants réels figuraient bien dans l'ensemble ; le chiffre affiché,
+    # lui, était faux — et un audit qui publie un chiffre faux se disqualifie sur le reste.
+    reference = set(MOTIF.findall(REFERENTIEL.read_text(encoding="utf-8")))
     if not reference:
         print("TÉMOIN INAPPLICABLE : le référentiel est vide", file=sys.stderr)
         return 2
@@ -125,6 +131,13 @@ def main() -> int:
         )
         print(f"\n  {identifiant} — cité par {len(fichiers)} fichier(s)")
         print(f"     dont hors sorties de modèle : {len(hors_modele)}")
+        # Distinction que deux relecteurs ont demandée : un identifiant peut être CITÉ
+        # dans un document de décision sans y être DÉFINI. « Le roster D-040/D-047 est
+        # adopté » mentionne D-047 ; cela ne dit pas ce qu'est D-047. Le témoin le montre
+        # plutôt que de laisser le lecteur y voir une contradiction.
+        en_decision = [f for f in hors_modele if f.startswith("docs/decisions/")]
+        if en_decision:
+            print(f"     CITÉ dans une décision sans y être DÉFINI : {en_decision[0]}")
         for fichier in hors_modele[:4]:
             print(f"       {fichier}")
         if not hors_modele:

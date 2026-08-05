@@ -1,0 +1,31 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "audit/temoins/AUD-A3-001/reproduction.py (preuve) / PACK DE REVUE lot A3",
+   "description": "Contradiction numérique sur le référentiel. Scénario : lecture du pack et de la sortie du témoin. Comportement observé : le pack affirme 'Le plan fige 91 identifiants' et '18 identifiants... ne sont cités NULLE PART', tandis que la sortie du témoin indique 'référentiel du plan : 324 identifiants' et 'identifiants cités dans le dépôt : 80' (soit 244 non cités). Comportement attendu : les compteurs doivent être cohérents pour valider le constat 1. Le constat s'appuie sur des bases contradictoires.",
+   "preuve": "PACK: 'Le plan fige 91 identifiants (D-001..045, R-001..033, REG-01..13).' vs PREUVE: 'référentiel du plan : 324 identifiants'. PACK: '18 identifiants du référentiel ne sont cités NULLE PART' vs PREUVE: 'identifiants cités dans le dépôt : 80'."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "audit/temoins/AUD-A3-001/reproduction.py",
+   "description": "Le script témoin AUD-A3-001 est absent du diff/contexte fourni. Scénario : revue du code fourni. Comportement observé : seul le script AUD-A3-002 est inclus dans le pack, pas AUD-A3-001. Comportement attendu : le code source du témoin doit être fourni pour permettre la revue de la contrainte 'Bibliothèque standard Python uniquement' et de la logique de filtrage. Doute non vérifiable sur la validité du constat 1.",
+   "preuve": "Le bloc '# LE TÉMOIN DU CONSTAT 2' est présent, mais aucun bloc de code pour AUD-A3-001 n'apparaît dans le PACK DE REVUE."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "audit/temoins/AUD-A3-002/reproduction.py",
+   "description": "Limite de couverture des mots-clés pour 'Approval Engine'. Scénario : entrée = fichier core/src/workflow/validation.py implémentant un moteur d'approbation. Comportement observé : le témoin ne matche ni 'approval' ni 'approbation', classe le service 'ABSENT PARTOUT'. Comportement attendu : le service est dans le core, devrait être 'DANS LE CORE'. Le quatrième cas (présent sous nom non prévu) n'est pas géré, risquant un faux positif.",
+   "preuve": "SERVICES = { 'Approval Engine': ('approval', 'approbation'), ... } dans le script AUD-A3-002."
+  }
+ ],
+ "date_heure": "2026-08-05T10:48:08.529767+00:00",
+ "prompt_sha256": "fb7ecf1b8a8f808b8b31fde7aad85c852b83b29b696cca74571983971ef9bf84",
+ "reviewer_model": "Tencent-Hy3",
+ "modele_servi": "tencent-hy3-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}
