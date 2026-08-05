@@ -87,3 +87,31 @@ rapport final plutôt que traitée ici.
 Deux constats critiques **maintenus** — leur fond n'a été contesté par personne, et l'un des trois
 relecteurs les a reformulés à l'identique. Trois formulations corrigées, une objection réfutée par
 mesure, une mesure manquante inscrite au reste plutôt que passée sous silence.
+
+---
+
+## CLÔTURE DU RESTE — la mesure annoncée est impossible, et c'est le constat
+
+Le paragraphe ci-dessus laissait ouverte la vérification que les archives de tours sont
+byte-identiques entre relecteurs. Elle a été menée, et elle a produit un constat plutôt qu'un
+résultat : **AUD-A2-004**.
+
+```
+$ python3 audit/temoins/AUD-A2-004/reproduction.py
+dossiers de tour porteurs de verdicts : 57
+  avec un pack archivé (sceau recalculable) : 0
+  SANS pack archivé                          : 57
+rc=1
+```
+
+Comparer des archives byte à byte suppose qu'il y ait des archives. Il n'y en a aucune : sur les
+57 tours, pas un ne conserve le pack soumis aux relecteurs. La mesure annoncée n'est donc pas
+« non rendue » — elle est **structurellement impossible dans l'état actuel du dépôt**, et cette
+impossibilité est précisément ce qu'il fallait établir.
+
+Ce qui a pu être mesuré à la place, et qui l'a été : la cohérence des sceaux à l'intérieur de
+chaque tour. Sur 57 tours, 2 portent plusieurs `prompt_sha256`, dont l'un est nommé
+`round-3-sceau-rompu` — donc documenté et assumé. Cette garantie tient.
+
+**Ce reste est clos.** La vérification byte-à-byte redeviendra possible le jour où les packs
+seront archivés ; elle est inscrite à ce titre dans la remédiation, non dans l'audit.
