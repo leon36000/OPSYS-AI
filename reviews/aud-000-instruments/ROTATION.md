@@ -49,3 +49,37 @@ Les deux verdicts obtenus (`Kimi-K3.verdict.json`, `MiniMax-M3.verdict.json`, sc
 conservés comme pièces, mais **le tour suivant sera relancé en entier** sur les trois
 modèles : compléter un trio en n'appelant que le membre manquant produirait un dossier où
 deux verdicts jugent un code et le troisième un autre, et le sceau ne le dirait pas.
+
+## Recomposition du trio — sondage en charge, 2026-08-05
+
+Deux échecs consécutifs (Grok-4.5 en 408 au sondage, Kimi-K3 en 500 sur la revue des corrections)
+ont motivé un sondage de toutes les routes de revue disponibles, sous une charge réaliste
+(~8 000 caractères de contexte, sortie JSON exigée) plutôt qu'un ping trivial.
+
+| Modèle | Vendor | Résultat | Latence |
+|---|---|---|---|
+| MiniMax-M3 | minimax | OK | 3 s |
+| Grok-4.5 | xai | OK | 3 s |
+| Composer-2.5 | xai | OK | 4 s |
+| MiMo-V2.5-Pro | xiaomi | OK | 6 s |
+| MiMo-Pro-V2 | xiaomi | OK | 9 s |
+| Tencent-Hy3 | tencent | OK | 18 s |
+| Kimi-K2.6 | moonshot | OK | 22 s |
+| Kimi-K3 | moonshot | OK | 25 s |
+| MiniMax-M2.7 | minimax | OK | 42 s |
+| LongCat-2.0 | meituan | ÉCHEC — HTTP 429 | 24 s |
+| Nemotron-3-Ultra | nvidia | ÉCHEC — HTTP 403 | 17 s |
+
+**Ce que le sondage établit, et qui change le diagnostic** : Grok-4.5 et Kimi-K3 répondent tous
+deux en quelques secondes sous charge légère. Leurs échecs précédents portaient sur des packs de
+47 000 et 57 000 caractères. La cause n'est donc pas la route mais la **taille du pack** — les
+« routes instables » étaient un diagnostic faux, et le remède (les remplacer) aurait déplacé le
+problème sans le résoudre.
+
+Conséquence opérationnelle : le plafond de pack passe de 50 000 à **30 000 caractères** pour les
+revues de lot. Le chiffre de 50 000 venait d'une mesure réelle (un pack de 84 000 avait produit une
+sortie vide chez un relecteur sur trois) mais il était encore trop haut pour deux vendors sur cinq.
+
+**Trio d'audit retenu** : MiniMax-M3 (minimax) · MiMo-Pro-V2 (xiaomi) · Tencent-Hy3 (tencent).
+Trois vendors distincts, aucun n'ayant approuvé les 168 PR de la vague 1, aucun n'étant anthropic,
+tous mesurés opérationnels ce jour. Suppléants, dans l'ordre : Kimi-K3 (moonshot), Grok-4.5 (xai).
