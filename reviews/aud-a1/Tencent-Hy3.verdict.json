@@ -1,0 +1,31 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "audit/constats/AUD-A5-001.json",
+   "description": "Le constat classe le fait comme 'faille-securite' de sévérité 'critique' dans ses champs structurés, mais sa propre conclusion de réfutation affirme qu'aucune faille n'est montrée (seule une exposition CI est prouvée). Cette contradiction sur-interprète la preuve et faussera tout routage automatique de sévérité.",
+   "preuve": "Champs 'classe': 'faille-securite', 'severite': 'critique' vs refutation.conclusion: 'Ce que le constat n'affirme PAS : aucune faille d'autorisation n'est montree'."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "audit/sondes/a1_conformite.py",
+   "description": "L'exemption 5 de controler_stubs (corps pass seul dans classe héritant de base non locale) laisse passer de vrais stubs silencieux (faux négatif). La sonde est donc faussement rassurante sur la détection de stubs : une méthode 'def x(self): pass' redéfinissant une base externe sans rien faire n'est pas signalée.",
+   "preuve": "Code: 'if (not exempt and classe is not None and corps_est_exactement_pass(noeud) and any(base_non_locale(base, classes_locales) for base in classe.bases)): exempt = True' avec commentaire 'Approximation volontairement large... Un faux négatif y coûte moins qu'un faux positif.'"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "audit/mutation_audit.py",
+   "description": "La batterie de mutation ne prouve que la détection de fautes injectées (positifs). Elle n'inclut aucune mutation négative validant que l'exemption de stubs est intentionnelle et ne masque pas un défaut réel, laissant un doute non vérifiable sur la confiance sans relecture.",
+   "preuve": "Sortie mutation_audit.py : 4/4 mutations mordent (chaine, vider, stub/TODO, test_sans_assertion) ; aucune mutation de type 'injecter un pass sur base non locale' pour vérifier le faux négatif."
+  }
+ ],
+ "date_heure": "2026-08-05T09:46:58.957847+00:00",
+ "prompt_sha256": "7a7ba3c4960825f61a0a8837bf4ee9a995a53e36c396efaaedbfdc00eafa4a3f",
+ "reviewer_model": "Tencent-Hy3",
+ "modele_servi": "tencent-hy3-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}

@@ -37,6 +37,18 @@ MARQUEURS_LIVRAISON = re.compile(
     r"DELIVERED|DONE|TERMIN[ÉE])\b",
     re.IGNORECASE,
 )
+# Points d'extension que la bibliothèque standard invite à redéfinir en no-op pour
+# faire taire une sortie. La liste est CLOSE et nommée : toute autre méthode au corps
+# `pass` reste signalée, fût-elle dans une classe héritant d'une base externe.
+METHODES_SILENCE_ATTENDU = frozenset({
+    "log_message",      # http.server.BaseHTTPRequestHandler
+    "log_request",      # http.server.BaseHTTPRequestHandler
+    "log_error",        # http.server.BaseHTTPRequestHandler
+    "emit",             # logging.Handler
+    "handle_error",     # socketserver.BaseServer
+})
+
+
 MARQUEURS_COMMENTAIRE = re.compile(r"\b(TODO|FIXME)\b", re.IGNORECASE)    # proof:allow — motif de détection de la sonde
 PRAGMA_ALLOW = re.compile(r"\bproof:allow\b", re.IGNORECASE)
 
@@ -699,13 +711,23 @@ def controler_stubs(
                 or PRAGMA_ALLOW.search(ligne_corps) is not None
                 or (classe is not None and classe_abc_ou_protocol(classe))
             )
-            # Approximation volontairement large : un pass qui redéfinit une méthode
-            # d'une base non locale est présumé être un override voulu. Un faux négatif
-            # y coûte moins qu'un faux positif.
+            # Cinquième exemption, RESTREINTE après revue. Elle exemptait auparavant
+            # toute méthode `pass` d'une classe héritant d'une base non locale — deux
+            # relecteurs indépendants ont montré que cela laissait passer un vrai stub :
+            #
+            #     class GerantCache(BackendDistant):
+            #         def fermer(self): pass        <- stub oublié, non signalé
+            #
+            # Mesuré : la sonde ne le voyait pas. L'exemption porte désormais sur le NOM
+            # de la méthode, restreint aux points d'extension que la bibliothèque standard
+            # invite explicitement à redéfinir en no-op pour faire taire une sortie. Une
+            # règle qui nomme ce qu'elle autorise se relit ; une règle sur l'héritage
+            # autorisait tout ce qui hérite.
             if (
                 not exempt
                 and classe is not None
                 and corps_est_exactement_pass(noeud)
+                and noeud.name in METHODES_SILENCE_ATTENDU
                 and any(
                     base_non_locale(base, classes_locales) for base in classe.bases
                 )

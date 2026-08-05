@@ -74,6 +74,16 @@ MUTATIONS = [
         "TODO",    # proof:allow — motif de détection de la sonde
     ),
     (
+        # Mutation NÉGATIVE réclamée par la revue : elle ne vérifie pas qu'un défaut
+        # évident est vu, mais qu'une EXEMPTION ne masque pas un défaut réel.
+        "a1_conformite.py",
+        "stubs_et_todo",
+        "core/src/authz/engine.py",
+        None,
+        "stub_sous_exemption",
+        "fermer_la_connexion",
+    ),
+    (
         "a1_conformite.py",
         "tests_sans_assertion",
         "scripts/tests/test_methode.py",
@@ -121,11 +131,28 @@ def _injecter_test_sans_assertion(chemin: pathlib.Path) -> None:
     )
 
 
+def _injecter_stub_sous_exemption(chemin: pathlib.Path) -> None:
+    """Un vrai stub dans une classe à base externe — le cas que l'exemption 5 laissait passer.
+
+    Deux relecteurs indépendants ont exhibé ce scénario : une méthode au corps `pass`
+    dans une classe héritant d'un module tiers était exemptée par une règle qui portait
+    sur l'HÉRITAGE plutôt que sur le nom de la méthode. Mesuré : non détectée. Cette
+    mutation existe pour que la régression soit impossible sans être vue.
+    """
+    texte = chemin.read_text(encoding="utf-8")
+    chemin.write_text(
+        texte + "\n\nclass ClasseInjecteeParLaBatterie(UneBaseExterne):\n"
+        "    def fermer_la_connexion(self):\n"
+        "        pass\n",
+        encoding="utf-8",
+    )
+
 MUTATEURS = {
     "chaine": _muter_chaine,
     "vider": _vider,
     "stub": _injecter_stub,
     "test_sans_assertion": _injecter_test_sans_assertion,
+    "stub_sous_exemption": _injecter_stub_sous_exemption,
 }
 
 
