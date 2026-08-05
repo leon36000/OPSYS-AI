@@ -1,0 +1,19 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "audit/gate.py",
+   "description": "Le gate ne confronte pas le manifeste gelé (audit/MANIFESTE.sha256, 1278 fichiers) aux artefacts qu'il vérifie. Le pack le reconnaît explicitement : « C'est une vraie faiblesse, et elle n'est PAS corrigée ». Rejouer le pipeline sur un dépôt modifié donnerait le même verdict vert — l'audit n'est pas tamper-evident. Le scellement est fondamental pour l'intégrité d'un audit : sans lui, la clôture ne prouve pas que les artefacts jugés sont ceux qui ont été audités. Le manifeste existe déjà, le gate devrait le lire et le confronter ; l'absence de cette vérification empêche la clôture légitime.",
+   "preuve": "Pack T2, section « CE QUI N'A PAS ÉTÉ TRAITÉ » : « le dépôt porte déjà un manifeste gelé (audit/MANIFESTE.sha256, 1 278 fichiers) mais le gate ne le confronte pas. Inscrit comme limite plutôt que masqué. »"
+  }
+ ],
+ "date_heure": "2026-08-05T20:42:56.720030+00:00",
+ "prompt_sha256": "a5deef2ce5c7f90fb3638e2b4a30479fc0302c691d5d53646e940f081088fb8d",
+ "reviewer_model": "MiniMax-M3",
+ "modele_servi": "minimax-m3-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}

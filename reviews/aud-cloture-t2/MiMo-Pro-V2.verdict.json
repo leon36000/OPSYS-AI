@@ -1,0 +1,25 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "gate (preuve section + section 'CE QUI N'A PAS ÉTÉ TRAITÉ')",
+   "description": "Le verdict affirme 'Aucune hypothèse adverse laissée ouverte' (PROOF) tout en admettant explicitement qu'une objection majeure fondée n'est pas corrigée : le scellement des artefacts n'est pas vérifié. Le manifeste audit/MANIFESTE.sha256 (1 278 fichiers) existe mais le gate ne le confronte pas. Ce n'est pas un oubli — c'est une incohérence structurelle : on déclare l'absence d'hypothèse adverse ouverte tout en documentant une hypothèse adverse ouverte. Un relecteur ne peut pas entériner une clôture qui porte simultanément ces deux assertions contradictoires. La transparence honnête ne remplace pas la correction.",
+   "preuve": "PROOF : 'OK: Aucune hypothèse adverse laissée ouverte' ; CE QUI N'A PAS ÉTÉ TRAITÉ : 'Le gate ne produit aucun scellement des artefacts vérifiés (MiniMax, majeure). Fondé. [...] Inscrit comme limite plutôt que masqué.' — le fichier audit/MANIFESTE.sha256 est cité mais jamais confronté dans aucun contrôle."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "check_rapport_fidele() / check_temoins_mordent() — dépendance _constats()",
+   "description": "Les deux contrôles ajoutés pour répondre aux objections T1 bouclent sur _constats(), qui n'est pas fourni dans le pack. Si cette fonction retournait un itérable vide, les deux contrôles renverraient des listes d'écarts vides — et le gate les validerait comme OK. Il en va de même pour 'Chaque constat passe le contrat gelé' et 'Aucune sévérité écrite à la main'. Le verdict 'TOUT VERT' repose donc sur une fonction non exposée. Il ne s'agit pas d'une supposition sur l'intention mais d'un doute vérifiable : le pack ne permet pas de contrôler que _constats() retourne effectivement les constats attendus.",
+   "preuve": "check_rapport_fidele(), ligne 'for chemin, constat in _constats():' ; check_temoins_mordent(), ligne idem — _constats() introuvable dans le pack fourni."
+  }
+ ],
+ "date_heure": "2026-08-05T20:42:56.717758+00:00",
+ "prompt_sha256": "a5deef2ce5c7f90fb3638e2b4a30479fc0302c691d5d53646e940f081088fb8d",
+ "reviewer_model": "MiMo-Pro-V2",
+ "modele_servi": "mimo-pro-v2-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}

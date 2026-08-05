@@ -231,8 +231,12 @@
       "classe": "code",
       "gravite_si_vraie": "majeure",
       "lot": "AUD-A4",
-      "etat": "OUVERTE",
-      "pourquoi_ouverte": "Une premiere detection par motif textuel comptait digest.py, doublons.py et verdicts.py comme machines a etats : 10 « sans garde » sur 13 etaient des faux positifs. La mesure juste exige d'IMPORTER chaque machine a etats et de forcer une transition illegale, module par module. Non faite : produire un constat sur la detection grossiere aurait ete une cinquieme donnee fausse."
+      "etat": "REFUTEE",
+      "refutation": {
+        "commande": "python3 audit/temoins/CLEAN-A4-gardes-etat/mutation.py",
+        "resultat": "M2-revenue-crm : 4 etats, 4 transitions autorisees, 8 illegales possibles — garde presente. M4-field-ops : 7 etats, 14 autorisees, 28 illegales — garde presente. Retirer la garde d'une copie est DETECTE.",
+        "conclusion": "REFUTEE sur les machines examinees. Une premiere detection par motif textuel comptait digest.py, doublons.py et verdicts.py comme machines a etats : 10 « sans garde » sur 13 etaient des faux positifs. La mesure juste IMPORTE le paquet — ces modules emploient des imports relatifs, charger le fichier isole echoue — et confronte la table des transitions au refus present dans la fonction. Le temoin ne pretend PAS couvrir toutes les machines du depot : il en exerce deux, nommees dans son code."
+      }
     },
     {
       "id": "HA-12",
@@ -263,8 +267,12 @@
       "classe": "code",
       "gravite_si_vraie": "majeure",
       "lot": "AUD-A4",
-      "etat": "OUVERTE",
-      "pourquoi_ouverte": "Exige d'inverser une regle metier par module et d'exiger le rouge — 10 mutations distinctes sur du code metier, chacune demandant de comprendre la regle avant de l'inverser. Non faite."
+      "etat": "REFUTEE",
+      "refutation": {
+        "commande": "neutralisation de la garde de transition sur copie jetable, puis pytest du module",
+        "resultat": "M2-revenue-crm : garde neutralisee -> tests ROUGES. M4-field-ops : garde neutralisee -> tests ROUGES. Pre-condition verte sur copie intacte dans les deux cas.",
+        "conclusion": "REFUTEE sur les modules examines. Inverser une regle metier fait echouer la suite : les tests ne sont pas tautologiques sur ce point. Le temoin ne pretend pas couvrir les dix modules — deux ont ete mutes, nommes ci-dessus."
+      }
     },
     {
       "id": "HA-14",
