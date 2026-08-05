@@ -223,8 +223,37 @@ def check_perimetre_scelle() -> list[str]:
 
     if not verifies:
         return ["le manifeste ne contient aucune entrée vérifiable"]
+
+    # Le sens inverse, réclamé par un relecteur : itérer sur le manifeste ne voit que
+    # les fichiers DISPARUS ou ALTÉRÉS. Un arbre modifié par AJOUT seul produirait
+    # encore un verdict vert. On parcourt donc aussi le disque.
+    #
+    # Les ajouts de l'audit lui-même sont attendus — c'est son travail. CA-AUD-09 nomme
+    # les chemins où il a le droit d'écrire ; tout ajout HORS de ces chemins est un écart,
+    # et signifierait que l'audit a touché au produit.
+    CHEMINS_AUTORISES = ("audit/", "reviews/", "registries/", "stories/REM-")
+    connus = set()
+    for ligne in manifeste.read_text(encoding="utf-8").splitlines():
+        _, _, relatif = ligne.strip().partition("  ")
+        if relatif:
+            connus.add(relatif)
+
+    sortie = subprocess.run(
+        ["git", "ls-files", "-z"], cwd=RACINE, capture_output=True, text=True, check=True
+    ).stdout
+    for relatif in (c for c in sortie.split("\0") if c):
+        if relatif in connus:
+            continue
+        if any(relatif.startswith(prefixe) for prefixe in CHEMINS_AUTORISES):
+            continue
+        ecarts.append(
+            f"{relatif} : AJOUTÉ au dépôt hors du périmètre gelé et hors des chemins "
+            "que CA-AUD-09 autorise à l'audit"
+        )
+
     if not ecarts:
-        print(f"     ({verifies} fichiers du périmètre gelé confrontés à leur empreinte)")
+        print(f"     ({verifies} fichiers du périmètre gelé confrontés à leur empreinte,")
+        print("      et aucun ajout hors des chemins autorisés)")
     return ecarts
 
 
