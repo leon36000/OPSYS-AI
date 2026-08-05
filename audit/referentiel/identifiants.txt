@@ -1,0 +1,125 @@
+# REFERENTIEL DE L'AUDIT — extrait du plan de reference par pdftotext -layout.
+#
+# Deux sections : la LISTE des 91 identifiants figes par le plan, puis le TEXTE
+# des decisions dont une sonde a besoin de lire l'enonce. Le PDF n'etant pas
+# lisible par une sonde, et un fichier temporaire hors du depot n'etant pas
+# rejouable par un tiers, l'extraction est figee ici.
+
+## LISTE DES IDENTIFIANTS
+
+D-001
+D-002
+D-003
+D-004
+D-005
+D-006
+D-007
+D-008
+D-009
+D-010
+D-011
+D-012
+D-013
+D-014
+D-015
+D-016
+D-017
+D-018
+D-019
+D-020
+D-021
+D-022
+D-023
+D-024
+D-025
+D-026
+D-027
+D-028
+D-029
+D-030
+D-031
+D-032
+D-033
+D-034
+D-035
+D-036
+D-037
+D-038
+D-039
+D-040
+D-041
+D-042
+D-043
+D-044
+D-045
+R-001
+R-002
+R-003
+R-004
+R-005
+R-006
+R-007
+R-008
+R-009
+R-010
+R-011
+R-012
+R-013
+R-014
+R-015
+R-016
+R-017
+R-018
+R-019
+R-020
+R-021
+R-022
+R-023
+R-024
+R-025
+R-026
+R-027
+R-028
+R-029
+R-030
+R-031
+R-032
+R-033
+REG-01
+REG-02
+REG-03
+REG-04
+REG-05
+REG-06
+REG-07
+REG-08
+REG-09
+REG-10
+REG-11
+REG-12
+REG-13
+
+## TEXTE DE LA DECISION D-010
+
+D-010
+ : ces mécanismes deviennent des services du core (C2), consommés par tous les modules via des API de domaine.
+ Chaque module garde ses règles métier ; le core fournit la mécanique.
+  Service                 Ce que les plans réinventaient                                  Unification
+  Approval Engine         marketing_approval_request (M7, niveaux 0-6),                   Une file unique d'approbations au dashboard et au
+                          FinancialApprovalRequest + StrategicApprovalRequest             mobile, typée par domaine ; échelles mappées ;
+                          (M5, F0-F7 + GATED_CPA), seuils d'approbation M3,               escalade, expiration, délégation et audit uniformes
+                          completed_pending_review M4, écarts matériaux M6,
+                          fusions doublons M2
+  Autorisation fine       F0-F7 finance, 0-6 marketing, rôles terrain, « le client voit   Moteur ReBAC candidat : OpenFGA (CNCF,
+                          SON chantier », « l'employé ne voit jamais les coûts »          backends Postgres/SQLite, patterns agents
+                                                                                          IA/RAG/MCP) derrière un wrapper d'API de
+                                                                                          domaine ; sécurise aussi les agents au niveau
+                                                                                          ressource (moindre privilège)
+  Audit / Ledger          financial_audit_event (M5), audit stock (M6), accès GPS         Un service d'audit append-only du core, vues par
+                          journalisés (M4), traçabilité règle #9 (M7)                     domaine ; schéma ledger 10.5
+  Gate Engine             10 juges qualité M7, readiness photos M3, cohérence             Un moteur de gates avec rulesets par domaine ;
+                          matériaux M6, honnêteté statistique M8                          verdicts par dimension (REJ-0040), preuves
+                                                                                          attachées
+  Bus de notifications    M1 envoie, M4 notifie clients, M6/M8 alertent admin             Un bus unique : canaux (push, SMS, courriel),
+                                                                                          politiques opt-in, heures de silence, journalisation
+  Mémoire (shim M10) Tous les modules écrivent des context packs M10

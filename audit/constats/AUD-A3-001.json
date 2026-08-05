@@ -1,0 +1,27 @@
+{
+  "id": "AUD-A3-001",
+  "lot": "A3",
+  "classe": "ecart-plan",
+  "titre": "Quatre identifiants sont cites comme references au referentiel sans y etre definis.",
+  "emplacement": [
+    "docs/decisions/ADR-0003-RATIFICATION.md:16",
+    "registries/verdicts/phaseC-live/Grok-4.5.json:1"
+  ],
+  "temoin": "audit/temoins/AUD-A3-001/reproduction.py",
+  "temoin_rc": 1,
+  "temoin_sortie_sha256": "a09f351b3aa94cd3bb9d9cb70d1dd4fa32dd196c38faca88709d279c5b42a828",
+  "entrees_rubrique": {
+    "frontiere_t3": false,
+    "gate_couvrant": false,
+    "rayon": 2,
+    "contrat_gele": "REG-12"
+  },
+  "statut": "confirme",
+  "refutation": {
+    "cmd": "python3 audit/temoins/AUD-A3-001/reproduction.py",
+    "sortie": "91 identifiants au plan, 80 cites dans le depot, 7 hors referentiel. Parmi eux : R-037, R-038, R-039 sont DEFINIS dans docs/decisions/ADR-0003-RATIFICATION.md — extensions ratifiees, legitimes. Restent D-047 (cite dans ADR-0003), R-034, R-035, R-036 (cites uniquement dans des verdicts de modeles) : aucune definition nulle part.",
+    "conclusion": "Trois refutations tentees. (1) Sont-ils definis dans un document de decision posterieur, ce qui en ferait des extensions legitimes ? Le temoin cherche une DEFINITION (identifiant ouvrant son propre enonce, en tete de ligne ou apres une puce) et non une simple mention : R-037/038/039 repondent et sont ecartes du constat ; les quatre autres non. (2) La regle de detection est-elle trop stricte, prenant une mention pour une absence ? Elle a justement distingue trois extensions legitimes sur sept candidats — elle discrimine. (3) S'agit-il d'une coquille isolee ? Non : R-034, R-035 et R-036 n'apparaissent dans AUCUN document du depot, uniquement dans des sorties de modele, et D-047 a ete repris dans un ADR ratifie. Ce que le constat n'affirme PAS : que ces identifiants soient malveillants ni qu'ils designent des risques imaginaires. Il etablit qu'un lecteur cherchant a les resoudre ne trouverait rien."
+  },
+  "assume_ref": null,
+  "severite": "critique"
+}
