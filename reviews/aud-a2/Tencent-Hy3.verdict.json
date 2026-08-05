@@ -1,0 +1,25 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "registries/ledger/preuves.jsonl",
+   "description": "Entrée de preuve M7-S002 (c6e6873e…) supprimée du journal d'ajout suite à un revert de PR, sans entrée de révocation supplémentaire. Violation de la propriété d'ajout seul (D-042) et invisible à ledger_append.py verify.",
+   "preuve": "Sortie AUD-A2-002 : 'preuves.jsonl : 49 entrees, chaine COHERENTE ; 1 hachage ajoute puis disparu — c6e6873e (tache M7-S002), ajoute par a3b0230, retire par le revert 555ec49'"
+  },
+  {
+   "severite": "critique",
+   "fichier": "verdicts/ (691 verdicts scellés)",
+   "description": "Aucun verdict ne lie l'approbation à un commit, arbre, branche ou empreinte de diff. L'approbation est détachée du code fusionné, rendant impossible la détection de code non approuvé fusionné.",
+   "preuve": "Sortie AUD-A2-003 : 'verdicts portant un lien vers un état du dépôt : 0/691'"
+  }
+ ],
+ "date_heure": "2026-08-05T10:08:36.557818+00:00",
+ "prompt_sha256": "741d03ee77eaf150c85fc3582adc8efd177761611aaafa9a6af9fe338e327608",
+ "reviewer_model": "Tencent-Hy3",
+ "modele_servi": "tencent-hy3-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}

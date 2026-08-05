@@ -5,9 +5,15 @@ D-042 (ratifiée Nathan) fait des quatre `.jsonl` de `registries/ledger/` des jo
 d'ajout hachés en chaîne. Le hachage rend toute altération DÉTECTABLE — à une condition
 que le dispositif ne remplit pas : que la chaîne soit comparée à un état antérieur.
 
-`ledger_append.py verify` ne vérifie que la cohérence INTERNE du fichier tel qu'il est.
-Retirer une entrée puis recalculer la chaîne produit un fichier parfaitement cohérent, et
-`verify` le déclare valide. L'intégrité est vérifiée ; l'historique ne l'est pas.
+Il faut être exact sur ce que la chaîne garantit, sous peine de faire dire au témoin plus
+qu'il ne montre. Retirer une entrée SANS recalculer casse la chaîne : `verify` le voit, et
+c'est précisément à quoi il sert. Ce qu'il ne voit pas, c'est un retrait SUIVI d'un
+recalcul — le fichier est alors parfaitement cohérent avec lui-même.
+
+La distinction est décisive : le défaut n'est pas que le hachage en chaîne serait faible,
+c'est que le dépôt s'appuie sur `verify` comme SEULE garantie d'ajout-seul, alors que cette
+garantie ne couvre pas le couple retrait+recalcul. Il manque une comparaison à un état
+antérieur — une ancre hors du fichier, que rien dans le dépôt ne fournit aujourd'hui.
 
 Ce n'est pas une hypothèse : c'est arrivé. L'entrée de preuve de la story M7-S002
 (hash `c6e6873e…`) a été ajoutée par le commit a3b0230, puis retirée par le revert
@@ -128,7 +134,8 @@ def main() -> int:
             constats.append(
                 f"{relatif} : l'entrée {hachage[:16]}… (tâche {tache}) a été ajoutée "
                 f"puis retirée, et la chaîne des {rang} entrées restantes est cohérente — "
-                f"la disparition est donc INVISIBLE à toute vérification de chaîne"
+                f"elle a donc été RECALCULÉE après le retrait, ce qui place la disparition "
+                f"hors de portée de verify, lequel ne compare à aucun état antérieur"
             )
 
     print()
@@ -141,11 +148,17 @@ def main() -> int:
     for constat in constats:
         print(f"  - {constat}")
     print()
-    print("Ce que le témoin N'AFFIRME PAS : que la suppression soit malveillante. Elle")
-    print("résulte d'un revert de pull request, opération légitime. Ce qu'il établit est")
-    print("qu'un journal d'ajout a SUIVI ce revert — alors qu'une annulation aurait dû s'y")
-    print("inscrire comme une entrée supplémentaire — et que l'instrument de vérification")
-    print("ne peut structurellement pas le voir, puisqu'il ne compare à aucun état antérieur.")
+    print("Ce que le témoin N'AFFIRME PAS, point par point :")
+    print("  - ni que la suppression soit malveillante : elle résulte d'un revert de pull")
+    print("    request, opération légitime ;")
+    print("  - ni que le hachage en chaîne serait faible : retirer une entrée SANS recalculer")
+    print("    casse la chaîne, et verify le verrait. C'est le couple retrait+recalcul qui")
+    print("    échappe, et lui seul.")
+    print()
+    print("Ce qu'il établit : un journal d'ajout a SUIVI un revert — alors qu'une annulation")
+    print("aurait dû s'y inscrire comme une entrée SUPPLÉMENTAIRE (D-042, ratifiée Nathan,")
+    print("fait de ces fichiers des journaux d'ajout) — et que le dépôt ne dispose d'aucune")
+    print("ancre hors du fichier permettant de s'en apercevoir.")
     return 1
 
 

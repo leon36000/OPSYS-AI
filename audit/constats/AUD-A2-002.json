@@ -9,7 +9,7 @@
   ],
   "temoin": "audit/temoins/AUD-A2-002/reproduction.py",
   "temoin_rc": 1,
-  "temoin_sortie_sha256": "06309d3fa7c448e3e376c34884afec44e5693102df1fa1cf5e8234089e8564cb",
+  "temoin_sortie_sha256": "97ebd071a60379a651dd7aa3226b6121d8fd37a4c87110faa159aa901b05fcec",
   "entrees_rubrique": {
     "frontiere_t3": true,
     "gate_couvrant": true,

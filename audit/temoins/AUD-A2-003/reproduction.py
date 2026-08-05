@@ -72,6 +72,15 @@ def main() -> int:
         print(f"  {nombre:5d}×  {cle}")
 
     scelles = cles.get("prompt_sha256", 0)
+
+    # Un relecteur a demandé que le résultat soit donné RACINE PAR RACINE plutôt
+    # qu'agrégé : « 0/691 » ne dit pas si toutes les racines ont été cherchées, ni
+    # laquelle aurait pu répondre. Le détail rend la mesure vérifiable sans relire le code.
+    print("\nrecherche d'un lien vers le dépôt, racine par racine :")
+    for indice in INDICES_DE_LIEN:
+        correspondances = [cle for cle in cles if indice in cle.lower()]
+        print(f"  {indice:14s} -> {correspondances if correspondances else 'aucune clé'}")
+
     print(f"\nverdicts portant prompt_sha256 (sceau du pack) : {scelles}/{total}")
     print(f"verdicts portant un lien vers un état du dépôt   : {len(porteurs)}/{total}")
 
