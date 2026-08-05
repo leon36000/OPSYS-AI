@@ -1,0 +1,43 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "témoin à découverte dynamique (decouvrir_machines, chemin non indiqué dans le pack)",
+   "description": "La complétude revendiquée (« 2 machine(s) à états DÉCOUVERTE(S) dans le dépôt — toutes exercées » ; docstring : « une machine ajoutée demain le sera aussi ») n'est garantie que pour des machines conformes à un patron étroit : affectation de niveau module uniquement, ast.Assign simple vers un ast.Name nommé exactement « TRANSITIONS_AUTORISEES », fichier sous « Modules M/ » contenant « /src/ », et présence d'une fonction dont le nom contient « transition ». Une machine définie avec annotation de type (ast.AnnAssign), comme attribut de classe, sous un autre nom de table, en logique if/elif sans table, ou hors de « Modules M/*/src/ » serait invisible alors que la sortie affirme l'exhaustivité. Le traitement déplace partiellement le problème : d'une liste en dur vers une convention en dur. L'objection unanime est honnêtement traitée et matériellement améliorée, mais la forme générale (« QUE DEUX ») reste conditionnée à cette convention — réponse à Q1 : non, pas entièrement vérifiable dans ce pack.",
+   "preuve": "« isinstance(n, ast.Assign) and isinstance(n.targets[0], ast.Name) and n.targets[0].id == \"TRANSITIONS_AUTORISEES\" for n in arbre.body » ; « relatif.endswith(\".py\") and \"/src/\" in relatif and relatif.startswith(\"Modules M/\") » ; « if isinstance(n, ast.FunctionDef) and \"transition\" in n.name.lower() »"
+  },
+  {
+   "severite": "majeure",
+   "fichier": "gate (CONTROLES) / audit/MANIFESTE.sha256",
+   "description": "Absence de scellement reconnue et non corrigée : le manifeste gelé existe (1 278 fichiers) mais le gate ne le confronte pas ; le verdict « TOUT VERT — l'audit est clos rc=0 » n'est pas ancré à un état du dépôt et serait identique sur un arbre modifié. Non bloquant pour la clôture car déclaré ouvertement, rejouable à la demande et sans incidence sur la validité des contrôles exécutés, mais la limite demeure ouverte et doit figurer au verdict — réponse à Q3 : n'empêche pas la clôture en l'état, à condition de rester tracée.",
+   "preuve": "Section « CE QUI N'A PAS ÉTÉ TRAITÉ » : « le dépôt porte déjà un manifeste gelé (audit/MANIFESTE.sha256, 1 278 fichiers) mais le gate ne le confronte pas. Inscrit comme limite plutôt que masqué. »"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "check_rapport_fidele",
+   "description": "Le contrôle ne confronte que la présence de l'identifiant, du titre et de la sévérité (trois tests « in »), alors que la ligne du gate affirme « RAPPORT.md est FIDÈLE aux constats » : les figures et extraits de preuve (p. ex. le « 22 » de AUD-A4-002) ne sont jamais confrontés à la sortie rejouée du témoin. De plus la fenêtre de sévérité est calculée après la PREMIÈRE occurrence de l'identifiant ; une table récapitulative en tête de rapport placerait la fenêtre de 400 caractères au mauvais endroit. La portée annoncée (identifiant, titre, sévérité) est tenue ; l'étiquette du gate est plus large que le contrôle.",
+   "preuve": "« if constat[\"id\"] not in texte » ; « if constat[\"titre\"] not in texte » ; « if constat[\"severite\"] not in texte.split(constat[\"id\"], 1)[1][:400] »"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "check_temoins_mordent",
+   "description": "Le contrôle est satisfiable par un témoin imprimant son identifiant et au moins 200 caractères de texte statique avec le code de sortie attendu ; il ne prouve l'exercice réel que combiné au contrôle « zone déclarée propre prouvée mordante », dont le code n'est pas fourni dans le pack (la ligne « garde retirée -> DÉTECTÉ » est auto-rapportée par le témoin). En outre un témoin absent est silencieusement ignoré dans CE contrôle (« if not temoin.exists(): continue ») et un TimeoutExpired n'est pas rattrapé. Le contrôle ferme ce qu'il prétend fermer (sortie substantielle + nomination), pas davantage — réponse à Q2 : oui dans leur portée déclarée, avec ces réserves.",
+   "preuve": "« if len(sortie.strip()) < 200 » ; « if constat[\"id\"] not in sortie » ; « if not temoin.exists(): continue »"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "pack T2, section OBJECTION UNANIME",
+   "description": "L'affirmation « le dépôt ne contient QUE DEUX machines à états » s'appuie sur une « recherche élargie à toute table de PAIRES d'états, quel que soit son nom » dont ni le code ni la sortie ne figurent dans le pack (seul le candidat _RULE_TACTIQUE est mentionné en prose) ; la cohérence arithmétique de la sortie montrée (4+8=12=4×3 paires ; 14+28=42=7×6) corrobore les deux machines exercées mais pas l'absence d'autres. Doute non vérifiable consigné comme mineure conformément à la règle, non traité par un APPROVE silencieux.",
+   "preuve": "« Une recherche élargie à toute table de PAIRES d'états, quel que soit son nom, ne trouve qu'un candidat de plus — _RULE_TACTIQUE de M7 » — aucune sortie ni code de cette recherche dans le pack"
+  }
+ ],
+ "date_heure": "2026-08-05T20:48:58.159094+00:00",
+ "prompt_sha256": "a5deef2ce5c7f90fb3638e2b4a30479fc0302c691d5d53646e940f081088fb8d",
+ "reviewer_model": "Kimi-K3",
+ "modele_servi": "kimi-k3-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}

@@ -8,6 +8,7 @@ qu'un défaut y aurait été vu.
 
 Sept contrôles. Le gate sort en code non nul si un seul échoue.
 """
+import hashlib
 import json
 import pathlib
 import subprocess
@@ -181,7 +182,54 @@ def check_temoins_mordent() -> list[str]:
     return ecarts
 
 
+def check_perimetre_scelle() -> list[str]:
+    """Le verdict est-il ancré à un état du dépôt, ou flotterait-il sur n'importe lequel ?
+
+    Objection unanime des trois relecteurs de clôture : « rejouer le pipeline sur un dépôt
+    modifié donnerait le même verdict vert ». Elle est fondée — le manifeste gelé existait
+    mais rien ne le confrontait à la réalité.
+
+    Le contrôle confronte chaque empreinte du manifeste au fichier correspondant. Il sert
+    deux choses à la fois :
+      - il ancre le verdict à un état précis, si bien que « TOUT VERT » cesse d'être vrai
+        sur n'importe quel arbre ;
+      - il PROUVE que l'audit n'a rien modifié du produit — CA-AUD-09 — au lieu de le
+        déclarer.
+
+    Un fichier disparu est signalé comme tel, jamais ignoré : c'est le mode de défaillance
+    exact que le constat AUD-A1-001 reproche à l'instrument audité.
+    """
+    manifeste = AUDIT / "MANIFESTE.sha256"
+    if not manifeste.exists():
+        return ["audit/MANIFESTE.sha256 introuvable — le périmètre n'est pas gelé"]
+
+    ecarts, verifies = [], 0
+    for ligne in manifeste.read_text(encoding="utf-8").splitlines():
+        ligne = ligne.strip()
+        if not ligne:
+            continue
+        empreinte, _, relatif = ligne.partition("  ")
+        if not relatif:
+            ecarts.append(f"ligne de manifeste illisible : {ligne[:60]}")
+            continue
+        chemin = RACINE / relatif
+        if not chemin.exists():
+            ecarts.append(f"{relatif} : présent au manifeste, ABSENT du disque")
+            continue
+        reelle = hashlib.sha256(chemin.read_bytes()).hexdigest()
+        if reelle != empreinte:
+            ecarts.append(f"{relatif} : empreinte {reelle[:12]}… ≠ manifeste {empreinte[:12]}…")
+        verifies += 1
+
+    if not verifies:
+        return ["le manifeste ne contient aucune entrée vérifiable"]
+    if not ecarts:
+        print(f"     ({verifies} fichiers du périmètre gelé confrontés à leur empreinte)")
+    return ecarts
+
+
 CONTROLES = [
+    ("Le périmètre gelé est intact — le verdict est ancré", check_perimetre_scelle),
     ("Chaque constat passe le contrat gelé", check_constats_valides),
     ("Aucune sévérité écrite à la main", check_severites_recalculees),
     ("Chaque témoin rejoué sort au code attendu", check_temoins_rouges),
