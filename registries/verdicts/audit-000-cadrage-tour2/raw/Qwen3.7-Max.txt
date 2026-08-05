@@ -1,0 +1,27 @@
+{
+  "reviewer": "Rev-Alpha",
+  "vendor": "Independent",
+  "verdict": "REJECT",
+  "objections": [
+    {
+      "severite": "critique",
+      "fichier": "02-PRD-PM.md (CA-AUD-09)",
+      "description": "CA-AUD-09 impose `git diff --diff-filter=MD` pour garantir qu'aucun fichier autorisé n'est modifié ou supprimé. Cependant, ce filtre ignore les changements de type (`T`, ex: remplacer un fichier JSON scellé par un symlink) et les renommages (`R`). Un orchestrateur peut ainsi altérer ou masquer une preuve scellée sans déclencher le gate.",
+      "preuve": "Scénario : `ln -sf /tmp/fake.json reviews/verdict.json` puis `git add`. `git diff --diff-filter=MD` ne remonte pas le `T` (typechange). La correction mesurable est d'exiger que `git diff --name-status <base>..HEAD -- <chemins_autorises>` ne contienne QUE des lignes débutant par `A` (Add)."
+    }
+  ],
+  "dimensions": {
+    "coherence_interne": "forte",
+    "couverture_perimetre": "exhaustive",
+    "robustesse_preuve": "compromise_par_diff_filter",
+    "faisabilite": "soutenable"
+  },
+  "verdict_final": "REJECT",
+  "reserves": "Le cadrage est d'une grande rigueur et les corrections du tour 1 sont globalement excellentes (notamment la batterie de mutation et le lot A8). Cependant, l'introduction d'une faille mesurable dans le gate d'intégrité des preuves (CA-AUD-09) impose un rejet pour correction ciblée avant exécution.",
+  "reponses_Q": {
+    "Q1": "Elle ferme la circularité de l'instrument (chaque contrôle est prouvé mordant par neutralisation), mais laisse ouverte la complétude sémantique (la batterie ne prouve pas que les contrôles couvrent TOUTE la classe de défaut). Ce reste est acceptable car la preuve de couverture sémantique absolue est indécidable. Le dispositif compense par CA-AUD-05 (preuve spatiale) et le round adverse (CA-AUD-07).",
+    "Q2": "Correctement bornés. L'isolement en sous-processus (DA-AUD-11) empêche la pollution de sys.modules du processus d'audit, et l'interdiction d'exécuter des scénarios métier respecte DA-AUD-04. La brèche est strictement limitée à l'inspection des signatures à la jonction.",
+    "Q3": "Oui. CA-AUD-09 utilise `git diff --diff-filter=MD`. Scénario : un orchestrateur remplace un verdict scellé par un symlink (`ln -sf /tmp/x reviews/v.json && git add`). Git enregistre un typechange (`T`). Le filtre `MD` ne le capture pas, le gate reste vert, et la preuve est altérée silencieusement.",
+    "Q4": "Oui, le défaut de Q3. Correction mesurable : remplacer l'exigence `git diff --diff-filter=MD ... vide` par `git diff --name-status <base>..HEAD -- audit/ stories/REM-* reviews/ registries/ledger/ | grep -v '^A'` doit être vide, garantissant que SEUL l'ajout (A) est permis, bloquant T, R, M, D."
+  }
+}

@@ -44,7 +44,7 @@ _CHAMPS_ENTREES_RUBRIQUE = (
 
 _CHAMPS_REFUTATION = ("cmd", "sortie", "conclusion")
 
-_MOTIF_ID = re.compile(r"^AUD-A[1-7]-\d{3}$")
+_MOTIF_ID = re.compile(r"^AUD-A[1-8]-\d{3}$")
 _MOTIF_EMPLACEMENT = re.compile(r"^.+:[1-9]\d*$")
 _MOTIF_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _ADJECTIFS_GRAVITE = {
@@ -123,7 +123,7 @@ def valider_constat(constat: dict) -> tuple[bool, str]:
     lot = constat["lot"]
     if not isinstance(lot, str):
         return False, _code_type("LOT", lot)
-    if lot not in ("A1", "A2", "A3", "A4", "A5", "A6", "A7"):
+    if lot not in ("A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8"):
         return False, _code_valeur("LOT", lot)
 
     classe = constat["classe"]

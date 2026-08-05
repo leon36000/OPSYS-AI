@@ -96,8 +96,8 @@ class TestsContrats(unittest.TestCase):
 
     def test_chaque_champ_recoit_un_rejet_de_valeur_nomme(self) -> None:
         valeurs_invalides = {
-            "id": "AUD-A8-001",
-            "lot": "A8",
+            "id": "AUD-A9-001",
+            "lot": "A9",
             "classe": "inconnue",
             "titre": "",
             "emplacement": [],

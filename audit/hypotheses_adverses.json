@@ -274,6 +274,19 @@
       "lot": "AUD-A2",
       "etat": "OUVERTE",
       "note": "Consequence pratique : une analyse de securite ne peut pas etre versionnee sous la forme produite par consensus_run.py. La tentation est alors d'editer le verdict, c'est-a-dire de falsifier une piece. Resolu ici en nommant les artefacts selon la convention exemptee, sha256 verifies identiques avant/apres, jamais en editant le contenu. Le hook vit dans ~/proof-method, hors perimetre (DA-AUD-10) ; le defaut de nommage, lui, est dans scripts/consensus_run.py, donc DANS le perimetre."
+    },
+    {
+      "id": "HA-19",
+      "sources": [
+        "mesure de l'Orchestrateur sur la PR #278"
+      ],
+      "enonce": "SonarCloud echoue (« C Reliability Rating on New Code ») sur des commits DEJA fusionnes dans main, sans jamais bloquer : la protection de branche n'exige que le check « gates ». De plus, le diagnostic de cet echec est inaccessible sans un jeton d'API que seul Nathan detient (frontiere T3), si bien qu'un echec de qualite est a la fois non bloquant et non diagnosticable par l'executant.",
+      "mesure": "gh api repos/.../branches/main/protection --jq .required_status_checks.contexts -> [\"gates\"] ; puis, sur les 6 derniers commits de main, relever la conclusion du check SonarCloud : 2 success, 2 cancelled, 2 FAILURE sur des commits fusionnes (3935ffd7, 16a53d36). L'API publique repond « Project doesn't exist » : un total=0 obtenu par cette voie est un FAUX ZERO, pas une absence d'issue.",
+      "classe": "securite",
+      "gravite_si_vraie": "majeure",
+      "lot": "AUD-A5",
+      "etat": "OUVERTE",
+      "note": "Piege methodologique consigne : interroger l'API anonyme d'un projet prive renvoie total=0 pour toutes les categories d'issues. Conclure « aucun defaut » de cette reponse serait un faux vert. La sonde A5 devra distinguer « zero issue » de « projet inaccessible »."
     }
   ]
 }

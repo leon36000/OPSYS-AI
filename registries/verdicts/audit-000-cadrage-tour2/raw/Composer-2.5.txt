@@ -1,0 +1,48 @@
+{
+  "reviewer": "reviewer-tech-indep",
+  "vendor": "independent",
+  "verdict": "REJECT",
+  "objections": [
+    {
+      "severite": "critique",
+      "fichier": "03-ARCHITECTURE.md §4",
+      "description": "A8 est déclaré porter CA-AUD-05 et CA-AUD-06, déjà portés respectivement par A4 et A6 dans le PRD. Cela viole l'invariant « chaque CA porté par exactement un lot » et laisse CA-AUD-13 sans ligne de preuve par lot dans la table d'architecture — le gate TOUT VERT ne détecte pas cette contradiction inter-documents.",
+      "preuve": "ARCH §4: « A8 | … | CA-AUD-05, 06 » contre PRD AUD-A4 « CA-AUD-04, CA-AUD-05 », AUD-A6 « CA-AUD-06 », AUD-A8 « CA-AUD-13 »"
+    },
+    {
+      "severite": "majeure",
+      "fichier": "02-PRD-PM.md §0.2 et §8",
+      "description": "Le tranché §8.2 annonce encore « 12 CA (CA-AUD-01..12) » alors que CA-AUD-13 est introduit. L'ordre d'exécution (§8) ne place A8 dans aucune vague (vague 1=A1,A2 ; 2=A3,A4 ; 3=A5,A6,A7). Le lot créé pour fermer l'angle mort d'intégration n'a pas de slot d'exécution ni de dépendance ordonnée.",
+      "preuve": "PRD §0: « **12 CA** (CA-AUD-01..12) » ; §8 table des vagues = A1..A7 seulement, A8 absent"
+    },
+    {
+      "severite": "majeure",
+      "fichier": "03-ARCHITECTURE.md §1 et §2.3",
+      "description": "Après ouverture d'A8, la matrice reste « 7 lots × 5 classes = 35 cellules » (devrait être 8×5=40). L'arborescence liste `sondes/a1..a7.py` sans a8, et `verif_audit.py` comme gate des « 12 CA ». Correction A8/CA-13 non propagée dans les artefacts structurants.",
+      "preuve": "« 7 lots × 5 classes = 35 cellules » ; table §1: « sondes/a1..a7.py », « verif_audit.py | Gate de complétude — les 12 CA »"
+    },
+    {
+      "severite": "majeure",
+      "fichier": "02-PRD-PM.md CA-AUD-13 / 03-ARCHITECTURE.md DA-AUD-11",
+      "description": "Contradiction opérationnelle non résolue: CA-AUD-13 exige de charger les deux côtés et de confronter « ce que l'appelant produit à ce que l'appelé accepte » (implique évaluation d'appels/valeurs), tandis que DA-AUD-11 borne A8 à « l'import et l'inspection de signatures » et exclut tout scénario métier. Aucun protocole mesurable (entrée → observation → attendu) ne réconcilie les deux énoncés ; la dérogation soit sous-réalise CA-AUD-13, soit ouvre une brèche d'exécution non spécifiée dans DA-AUD-07.",
+      "preuve": "CA-AUD-13: « confronte ce que l'appelant produit à ce que l'appelé accepte » vs DA-AUD-11: « n'autorise pas A8 à exécuter du code métier au-delà de l'import et de l'inspection de signatures »"
+    }
+  ],
+  "dimensions": {
+    "corrections_tour1_substance": 7,
+    "corrections_tour1_propagation": 3,
+    "circularite_batterie": 8,
+    "bornage_A8_DA11": 4,
+    "coherence_prd_arch": 2,
+    "defauts_nouveaux": 3,
+    "mesurabilite_residus": 6
+  },
+  "verdict_final": "REJECT",
+  "reserves": "Les corrections A/B/E/F sont substantielles et la batterie du gate (11/11 contrôles neutralisés, 12/12 mutations) ferme le faux vert mesuré au tour 1. Le REJECT porte uniquement sur la non-propagation d'A8/CA-AUD-13 dans PRD§0/§8 et ARCH§1/§2.3/§4, et sur l'incohérence CA-AUD-13 vs DA-AUD-11. Pas de re-jugement des parties inchangées du brief.",
+  "reponses_Q": {
+    "Q1": "La correction de A ferme la circularité mesurée (contrôles MORTS → faux vert) en exigeant la neutralisation unitaire de chaque contrôle et la publication des fichiers réellement ouverts (CA-AUD-05/06). Elle ne la déplace pas vers un nouveau faux vert instrumenté : elle la réduit au résidu classique « les contrôles exercés ne prouvent pas que l'ensemble couvre la classe ». Ce résidu est acceptable au cadrage parce que (1) la couverture de classe est indécidable par mutation finie, (2) le brief §« CE QUE L'AUDIT NE PRÉTENDRA PAS ÊTRE » l'exclut déjà du claim, (3) le round adverse + CA-AUD-07 restent le filet pour les angles morts de découpage. Ce n'est plus une circularité sonde↔batterie ; c'est une limite de complétude assumée et nommée.",
+    "Q2": "Le bornage intentionnel de DA-AUD-11 (A8 seul, sous-processus isolé, pas de processus producteur de constats, journalisation des imports, exclusion des autres lots) est correct en principe et ne brise pas DA-AUD-07 pour A1–A7. En revanche la brèche est sémantique : CA-AUD-13 demande une confrontation producteur/consommateur que l'inspection de signatures ne peut pas réaliser. Sans définir un oracle mesurable borné (ex. : chargement des deux modules + inspection des annotations/types/signatures + cas d'instanciation pure sans scénario métier, avec liste blanche d'appels), la dérogation est soit inopérante pour CA-AUD-13, soit une autorisation d'exécution extensible non gelée — donc une brèche potentielle dans l'esprit de DA-AUD-07.",
+    "Q3": "Oui. Défaut nouveau de propagation post-A8 : (i) ARCH§4 assigne CA-AUD-05/06 à A8 au lieu de CA-AUD-13 → double portage ; (ii) matrice 7×5=35 non révisée en 8×5=40 ; (iii) sondes a1..a7 et verif_audit « 12 CA » ; (iv) PRD§0 dit encore 12 CA ; (v) A8 absent de l'ordre d'exécution. Scénario : entrée = documents révisés + verif_coherence.py ; observé = TOUT VERT + table ARCH A8→CA-05,06 + vagues sans A8 ; attendu = chaque CA une seule fois, 13 CA partout, 8 lots dans matrice et vagues, sonde a8 déclarée.",
+    "Q4": "Oui — motif de REJECT : incohérence inter-documents introduite par la révision A8/CA-13 (critique sur le double portage ARCH§4 ; majeures sur matrice/arborescence/§0/vagues et tension CA-13↔DA-11). Correction mesurable qui lèverait le REJECT : (1) ARCH§4 porte CA-AUD-13 pour A8 uniquement ; (2) PRD§0.2 → « 13 CA (CA-AUD-01..13) » ; (3) matrice 8×5=40 et cellules A8×5 classes ; (4) arborescence sondes/a1..a8.py et verif_audit 13 CA ; (5) vague d'exécution explicite pour A8 (ex. vague 3 ou 4, après A4) ; (6) protocole gelé réconciliant CA-AUD-13 et DA-AUD-11 (liste close d'opérations autorisées dans le sous-processus, sans scénario métier) ; (7) verif_coherence étendu pour échouer si un CA est porté par deux lots ou si un lot PRD n'a pas de vague."
+  }
+}

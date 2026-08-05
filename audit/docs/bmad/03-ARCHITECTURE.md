@@ -25,12 +25,12 @@ Tout vit sous `audit/`. **Aucun fichier du produit n'est modifié** (CA-AUD-09).
 | `rubrique.py` | Calcul **déterministe** de la sévérité depuis 4 entrées mesurées | A1 |
 | `perimetre.py` | Bijection manifeste ↔ lots ; sort ≠ 0 sur tout orphelin ou double affectation | A1 |
 | `ecarts-assumes.yaml` | Dérogations documentées : doc probant + portée CLOSE + limite opposable | A1 |
-| `sondes/a1..a7.py` | Une sonde par lot — mesure et sort des faits, **ne classe jamais** | A1..A7 |
+| `sondes/a1..a8.py` | Une sonde par lot — mesure et sort des faits, **ne classe jamais** | A1..A8 |
 | `temoins/AUD-<id>/reproduction.py` | Témoin RED d'un constat — rc ≠ 0 sur le commit gelé | par constat |
 | `temoins/CLEAN-<lot>-<classe>/mutation.py` | Preuve qu'une zone déclarée propre est mordante | par cellule vide |
 | `constats/AUD-<id>.json` | Données, jamais de prose | par constat |
 | `mutation_audit.py` | Batterie prouvant que les SONDES mordent | A1 |
-| `verif_audit.py` | Gate de complétude — les 12 CA | A7 |
+| `verif_audit.py` | Gate de complétude — les 13 CA | A7 |
 | `run_audit.sh` | Point d'entrée unique, rejoue tout de zéro | A7 |
 | `FILE-T3.md` | Vue régénérée des constats T3 | A5 |
 | `RAPPORT.md` | **GÉNÉRÉ** depuis `constats/` | A7 |
@@ -67,7 +67,7 @@ STATUT_CONSTAT = ("ouvert", "confirme", "refute", "arbitrage-humain", "indetermi
 `indetermine` est fourni **explicitement** par l'appelant et **force un arbitrage humain**. Une
 valeur hors énuméré est un rejet nommé, jamais une coercition silencieuse (leçon M5-S001).
 
-### 2.3 Matrice de complétude — 7 lots × 5 classes = 35 cellules
+### 2.3 Matrice de complétude — 8 lots × 5 classes = 40 cellules
 
 Chaque cellule est close par **soit** ≥ 1 constat avec témoin RED, **soit** ≥ 1 mutation prouvant
 que la sonde mord sur cette classe. Aucune cellule vide. C'est la définition opérationnelle
@@ -77,10 +77,10 @@ d'« exhaustif », et elle est comptable.
 
 ### DA-AUD-01 — Lots par AXE, jamais par module
 
-**Décision** : sept lots transversaux (A1..A7), pas soixante-dix lots module × axe.
+**Décision** : huit lots transversaux (A1..A8), pas quatre-vingts lots module × axe.
 
 **Justification** : une sonde écrite une fois s'applique aux 135 fichiers source d'un coup. Le
-coût de revue est le facteur limitant : 7 × 3 × 1,6 ≈ **45 appels** contre 70 × 3 × 1,6 ≈ **336**
+coût de revue est le facteur limitant : 8 × 3 × 1,6 ≈ **51 appels** contre 80 × 3 × 1,6 ≈ **384**
 pour la même couverture — facteur ~7. Ce n'est pas une préférence esthétique : c'est ce qui rend
 l'audit soutenable sans dégrader la rigueur.
 
@@ -218,7 +218,7 @@ DA-AUD-04 interdit à l'audit.
 | **A5** | Ce qui est exposé, et ce qui n'est pas couvert par un gate bloquant | CA-AUD-08 | T2 |
 | **A6** | Dette structurelle et goulots, gravité pondérée par A4 | CA-AUD-06 | T2 |
 | **A7** | Cohérence docs ↔ code ; l'audit lui-même est complet et n'a rien corrigé | CA-AUD-09, 10, 12 | T1 |
-| **A8** | Ce qui ne casse qu'à la jonction de deux modules — invisible à toute lecture isolée | CA-AUD-05, 06 | T2 |
+| **A8** | Ce qui ne casse qu'à la jonction de deux modules — invisible à toute lecture isolée | CA-AUD-13 | T2 |
 
 ## 5. GOUVERNANCE — qui juge quoi
 

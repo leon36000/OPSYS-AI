@@ -2,11 +2,11 @@
 
 ## 0. TRANCHÉ SUR LES POINTS OUVERTS DE L'ANALYSTE
 
-- **§8.1 (découpage)** : **sept lots par AXE**, confirmé. Justification chiffrée : 7 lots × 3
-  reviewers × 1,6 round ≈ **45 appels** ; un découpage par module (10 × 7 = 70 lots) donnerait
-  70 × 3 × 1,6 ≈ **336 appels** pour la même couverture — facteur ~7. Une sonde écrite une fois
-  s'applique aux 135 fichiers source d'un coup.
-- **§8.2 (critères)** : **12 CA** (CA-AUD-01..12), chacun vérifiable par `audit/verif_audit.py` et
+- **§8.1 (découpage)** : **huit lots par AXE**, dont A8 ouvert par le round adverse.
+  Justification chiffrée : 8 lots × 3 reviewers × 1,6 round ≈ **51 appels** ; un découpage par
+  module (10 × 8 = 80 lots) donnerait 80 × 3 × 1,6 ≈ **384 appels** pour la même couverture —
+  facteur ~7,5. Une sonde écrite une fois s'applique aux 135 fichiers source d'un coup.
+- **§8.2 (critères)** : **13 CA** (CA-AUD-01..13), chacun vérifiable par `audit/verif_audit.py` et
   porté par exactement une story.
 - **§8.3 (taille de pack)** : plafond dur **50 000 caractères**. Au-delà, scission obligatoire
   journalisée dans un `ROTATION.md` du lot.
@@ -97,7 +97,7 @@ nommé.
 ```yaml
 Constat:
   id: str                    # AUD-<lot>-<nnn>
-  lot: str                   # A1..A7
+  lot: str                   # A1..A8
   classe: str                # dans CLASSE
   titre: str                 # une phrase, sans adjectif de gravité
   emplacement: list[str]     # ["fichier:ligne", ...] — au moins un
@@ -181,8 +181,20 @@ légitime absolve un défaut différent.
 - **CA-AUD-09** : **l'audit ne corrige rien, et n'altère aucune preuve existante** —
   `git diff --name-only <base>..HEAD` n'intersecte le code produit en aucun point (seuls `audit/`,
   `stories/REM-*`, `reviews/`, `registries/ledger/` sont autorisés). Dans ces chemins autorisés,
-  seul l'**ajout** est permis : `git diff --diff-filter=MD <base>..HEAD` doit être vide. Autoriser
-  un répertoire n'autorise pas à y réécrire un verdict scellé ou une ligne de registre fusionnée.
+  **deux régimes distincts** s'appliquent, parce qu'un registre en journal d'ajout et un verdict
+  scellé n'ont pas la même règle d'immuabilité :
+
+  - **Fichiers de preuve figée** (`reviews/`, `audit/constats/`, `audit/temoins/`) : aucun fichier
+    existant n'est modifié, supprimé, **renommé** ni **changé de type**.
+    `git diff --diff-filter=MDTR <base>..HEAD` doit être vide sur ces chemins. Se limiter à `MD`
+    laisserait passer deux altérations mesurées : renommer un verdict scellé, et le remplacer par
+    un lien symbolique — dans les deux cas, `MD` ne rapporte rien.
+  - **Registres en journal d'ajout** (`registries/ledger/`) : y ajouter une ligne est l'opération
+    normale, et git la classe `M` — interdire `M` sur ces chemins rendrait CA-AUD-10 (traçabilité
+    au registre) mécaniquement impossible à satisfaire, les deux critères se contredisant. La règle
+    n'est donc pas un filtre de diff mais une **relation de préfixe** : le contenu du registre au
+    commit de base doit être un préfixe exact, octet pour octet, du contenu à HEAD. Toute ligne
+    antérieure altérée ou retirée est un écart, tout ajout en fin de fichier est légitime.
 - **CA-AUD-10** : **traçabilité au registre, vérifiée sans faire confiance à l'instrument** — chaque
   constat a son entrée `preuve` ; `ledger_append.py verify` reste vert, **rapporte un nombre
   d'entrées non nul**, **et** l'audit rejoue la chaîne de hachage par son propre code. H2 établit
