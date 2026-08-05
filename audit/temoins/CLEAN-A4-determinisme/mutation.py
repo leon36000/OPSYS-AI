@@ -56,17 +56,25 @@ def _mesurer(dossier: pathlib.Path) -> dict | None:
     """Deux processus distincts : c'est ce qui révèle une dépendance à PYTHONHASHSEED."""
     empreintes, ordres = set(), set()
     for _ in range(2):
-        try:
-            resultat = subprocess.run(
-                [sys.executable, "-c", MESURE.format(chemin=str(dossier))],
-                capture_output=True, text=True, timeout=120,
-                env={"PYTHONHASHSEED": "random", "PATH": "/usr/bin:/bin"},
-            )
-        except subprocess.TimeoutExpired:
-            # Un dépassement de délai n'est PAS une absence de défaut. Le confondre
-            # avec « la copie ne s'exécute plus » ferait passer une injection non
-            # mesurée pour une injection détectée — un faux vert dans le sens le plus
-            # dangereux. On le distingue explicitement.
+        # Une mesure qui varie selon la charge de la machine n'est pas une preuve.
+        # Le gate rejoue onze témoins avant cette cellule ; sous cette contention, un
+        # délai unique cédait et la cellule échouait alors qu'elle réussissait seule.
+        # On réessaie donc, avec un délai croissant, avant de conclure à l'impossible.
+        resultat = None
+        for delai in (120, 300, 600):
+            try:
+                resultat = subprocess.run(
+                    [sys.executable, "-c", MESURE.format(chemin=str(dossier))],
+                    capture_output=True, text=True, timeout=delai,
+                    env={"PYTHONHASHSEED": "random", "PATH": "/usr/bin:/bin"},
+                )
+                break
+            except subprocess.TimeoutExpired:
+                continue
+        if resultat is None:
+            # Trois dépassements successifs : la mesure ne conclut pas. Ce n'est PAS
+            # une absence de défaut — le confondre avec « la copie ne s'exécute plus »
+            # ferait passer une injection non mesurée pour une injection détectée.
             return {"timeout": True}
         if resultat.returncode != 0:
             return None

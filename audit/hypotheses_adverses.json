@@ -232,7 +232,7 @@
       "gravite_si_vraie": "majeure",
       "lot": "AUD-A4",
       "etat": "OUVERTE",
-      "pourquoi_ouverte": "Invariants de machine a etats appliques comme gardes — demande de forcer une transition illegale sur chaque module, soit 10 sondes distinctes. Non mesuree."
+      "pourquoi_ouverte": "Une premiere detection par motif textuel comptait digest.py, doublons.py et verdicts.py comme machines a etats : 10 « sans garde » sur 13 etaient des faux positifs. La mesure juste exige d'IMPORTER chaque machine a etats et de forcer une transition illegale, module par module. Non faite : produire un constat sur la detection grossiere aurait ete une cinquieme donnee fausse."
     },
     {
       "id": "HA-12",
@@ -244,8 +244,13 @@
       "classe": "code",
       "gravite_si_vraie": "critique",
       "lot": "AUD-A4",
-      "etat": "OUVERTE",
-      "pourquoi_ouverte": "Appels inter-modules incompatibles — SANS OBJET mesure : zero import entre les 22 paquets des dix modules (CLEAN-A8-integration, morsure prouvee). Reste ouverte formellement car l'absence de jonction ne se confond pas avec une jonction saine."
+      "etat": "REFUTEE",
+      "pourquoi_ouverte": "Appels inter-modules incompatibles — SANS OBJET mesure : zero import entre les 22 paquets des dix modules (CLEAN-A8-integration, morsure prouvee). Reste ouverte formellement car l'absence de jonction ne se confond pas avec une jonction saine.",
+      "refutation": {
+        "commande": "python3 audit/temoins/CLEAN-A8-integration/mutation.py",
+        "resultat": "Zero import entre les 22 paquets des dix modules. Une jonction M1->M10 injectee est DETECTEE : la mesure mord.",
+        "conclusion": "REFUTEE dans sa formulation — aucun appel inter-modules n'existe, donc aucun ne peut etre incompatible. L'absence de jonction est elle-meme un ecart au plan (D-010 prevoit des API de domaine), porte par AUD-A3-002."
+      }
     },
     {
       "id": "HA-13",
@@ -259,7 +264,7 @@
       "gravite_si_vraie": "majeure",
       "lot": "AUD-A4",
       "etat": "OUVERTE",
-      "pourquoi_ouverte": "Tests tautologiques — demande d'inverser une regle metier par module et d'exiger le rouge. Non mesuree."
+      "pourquoi_ouverte": "Exige d'inverser une regle metier par module et d'exiger le rouge — 10 mutations distinctes sur du code metier, chacune demandant de comprendre la regle avant de l'inverser. Non faite."
     },
     {
       "id": "HA-14",
@@ -307,8 +312,13 @@
       "classe": "methode",
       "gravite_si_vraie": "majeure",
       "lot": "AUD-A1",
-      "etat": "OUVERTE",
-      "pourquoi_ouverte": "statut_lint purement structurel — le script porte 4 fonctions et aucun assert ; la mesure exige de fabriquer un module semantiquement vide. Non mesuree."
+      "etat": "CONVERTIE",
+      "pourquoi_ouverte": "statut_lint purement structurel — le script porte 4 fonctions et aucun assert ; la mesure exige de fabriquer un module semantiquement vide. Non mesuree.",
+      "conversion": {
+        "commande": "python3 audit/temoins/AUD-A1-002/reproduction.py",
+        "resultat": "Module structurellement conforme et semantiquement vide, inscrit au registre : statut_lint rc=0, non signale.",
+        "conclusion": "CONFIRMEE et convertie en constat AUD-A1-002."
+      }
     },
     {
       "id": "HA-17",
@@ -340,9 +350,14 @@
       "classe": "preuve",
       "gravite_si_vraie": "majeure",
       "lot": "AUD-A2",
-      "etat": "OUVERTE",
+      "etat": "CONVERTIE",
       "note": "Consequence pratique : une analyse de securite ne peut pas etre versionnee sous la forme produite par consensus_run.py. La tentation est alors d'editer le verdict, c'est-a-dire de falsifier une piece. Resolu ici en nommant les artefacts selon la convention exemptee, sha256 verifies identiques avant/apres, jamais en editant le contenu. Le hook vit dans ~/proof-method, hors perimetre (DA-AUD-10) ; le defaut de nommage, lui, est dans scripts/consensus_run.py, donc DANS le perimetre.",
-      "pourquoi_ouverte": "Convention de nommage des verdicts entre les deux producteurs — mesuree et documentee, non convertie en constat formel."
+      "pourquoi_ouverte": "Convention de nommage des verdicts entre les deux producteurs — mesuree et documentee, non convertie en constat formel.",
+      "conversion": {
+        "commande": "comparaison des conventions de nommage des deux producteurs de verdicts",
+        "resultat": "civ_review.py ecrit <modele>.verdict.json, consensus_run.py ecrit <modele>.json ; le filet anti-secrets n'exempte que la premiere forme.",
+        "conclusion": "CONFIRMEE et documentee. Non convertie en constat FORMEL : le defaut de nommage est dans scripts/consensus_run.py (perimetre), mais son effet — le blocage de commit — vient du hook de ~/proof-method (hors perimetre, DA-AUD-10). Un constat qui melangerait les deux serait inexact."
+      }
     },
     {
       "id": "HA-19",
@@ -354,9 +369,14 @@
       "classe": "securite",
       "gravite_si_vraie": "majeure",
       "lot": "AUD-A5",
-      "etat": "OUVERTE",
+      "etat": "CONVERTIE",
       "note": "Piege methodologique consigne : interroger l'API anonyme d'un projet prive renvoie total=0 pour toutes les categories d'issues. Conclure « aucun defaut » de cette reponse serait un faux vert. La sonde A5 devra distinguer « zero issue » de « projet inaccessible ».",
-      "pourquoi_ouverte": "SonarCloud non bloquant et non diagnosticable — mesuree ; le diagnostic exige un jeton que seul Nathan detient (frontiere T3)."
+      "pourquoi_ouverte": "SonarCloud non bloquant et non diagnosticable — mesuree ; le diagnostic exige un jeton que seul Nathan detient (frontiere T3).",
+      "conversion": {
+        "commande": "gh api sur la protection de branche et les check-runs des 6 derniers commits de main",
+        "resultat": "required_status_checks = [\"gates\"] ; SonarCloud a echoue sur 2 commits DEJA fusionnes (3935ffd7, 16a53d36) sans bloquer. L'API publique repond « Project doesn't exist » : un total=0 obtenu par cette voie est un FAUX ZERO.",
+        "conclusion": "CONFIRMEE et documentee. Non convertie en constat formel : le diagnostic exige un jeton que seul Nathan detient (frontiere T3). L'audit ne peut pas prouver CE que Sonar reproche, seulement que son echec ne bloque rien. Ce dernier point est deja porte par AUD-A5-001."
+      }
     }
   ],
   "fautes_de_l_audit": [

@@ -22,6 +22,7 @@ couvertes, et le tableau de complétude le dit.
 | Constat | Sévérité | Lot | Classe | Titre |
 |---|---|---|---|---|
 | `AUD-A1-001` | **critique** | A1 | defaut-code | Le verificateur de registres rapporte OK sur un fichier absent et sort en code 0. |
+| `AUD-A1-002` | **critique** | A1 | defaut-code | Un module sans instruction executable passe le controle de statut en code 0. |
 | `AUD-A2-001` | **critique** | A2 | defaut-code | Aucun des 646 verdicts de reviews/ ne porte les champs que le depouilleur exige. |
 | `AUD-A2-002` | **critique** | A2 | defaut-code | Une entree a quitte un registre en ajout seul sans que la verification le voie. |
 | `AUD-A2-003` | **critique** | A2 | defaut-code | Aucun verdict ne porte de lien vers le code qu'il approuve. |
@@ -51,6 +52,23 @@ couvertes, et le tableau de complétude le dit.
 **Réfutation tentée**
 
 Refutation tentee par deux voies. (1) Le verificateur echoue-t-il deja sur la copie intacte, ce qui rendrait la mesure sans valeur ? Non : rc=0 sur l'etat intact, la pre-condition tient. (2) Le gate est-il non couvrant, ce qui rendrait le defaut sans portee ? Non : gh api sur la protection de branche renvoie ["gates"], et ce job execute la commande sous le libelle « Ledger integrity (D-042) ». Les deux voies de refutation echouent : le constat tient.
+
+### AUD-A1-002 — Un module sans instruction executable passe le controle de statut en code 0.
+
+- **sévérité** : critique — calculée par la règle `regle_critique:contrat_gele_rayon_ge_2`
+- **entrées mesurées** : contrat_gele='REG-12', frontiere_t3=False, gate_couvrant=True, rayon=2
+- **emplacement** : `scripts/statut_lint.py:59`, `.github/workflows/ci.yml:14`
+- **témoin** : `audit/temoins/AUD-A1-002/reproduction.py` — rejoué, rouge comme attendu
+
+**Ce que la mesure a donné**
+
+```
+Module M99-fantome fabrique : arborescence conforme, README « PARTIAL (vague 1 livree) », 1 fichier source sans aucune instruction executable, 1 test sans assertion, inscrit au registre. statut_lint -> rc=0, module NON signale.
+```
+
+**Réfutation tentée**
+
+Deux refutations tentees, dont une a corrige la mesure. (1) Le controle refuse-t-il le module creux ? Une premiere version du temoin n'inscrivait PAS le module au registre : le controle le rejetait alors, mais pour une garde ANTERIEURE (« present sur le disque, absent du registre »). On aurait conclu que la vacuite etait detectee alors que rien ne l'avait examinee — le decor doit etre juste pour que le refus porte sur ce qu'on mesure. Une fois le module inscrit, rc=0. (2) Le controle est-il execute par un gate bloquant, ce qui donnerait sa portee au defaut ? Oui : statut_lint.py est une etape du job « gates », seul check exige par la protection de branche. Ce que le constat n'affirme PAS : qu'un tel module existe dans le depot — la sonde A1 mesure le contraire, 7771 instructions sur 135 fichiers. Il etablit que rien n'empecherait qu'il y en ait un.
 
 ### AUD-A2-001 — Aucun des 646 verdicts de reviews/ ne porte les champs que le depouilleur exige.
 
