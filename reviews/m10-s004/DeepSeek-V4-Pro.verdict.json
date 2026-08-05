@@ -1,0 +1,12 @@
+{
+ "verdict": "APPROVE",
+ "objections": [],
+ "date_heure": "2026-08-04T23:59:58.879214+00:00",
+ "prompt_sha256": "ab8900c3f751f7574081f78db876731e28ee4872e475b5a8814923fb18f8c327",
+ "reviewer_model": "DeepSeek-V4-Pro",
+ "modele_servi": "deepseek-v4-pro-direct",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}
