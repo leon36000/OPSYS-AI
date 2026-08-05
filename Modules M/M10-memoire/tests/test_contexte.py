@@ -216,3 +216,29 @@ def test_verifier_reference_detecte_un_hash_tete_incoherent():
 
     assert verdict is False
     assert isinstance(erreur, str)
+
+
+def test_verifier_reference_rejette_une_reference_sur_une_chaine_falsifiee():
+    """Une référence ne vaut que si la chaîne qui la porte est intacte.
+
+    Objection CRITIQUE de la revue scellée (Qwen3.7-Max, round 1 de M10-S005),
+    CONFIRMÉE par mesure : vérifier l'existence d'un `ligne_id` ne prouve RIEN sur
+    l'intégrité du registre — le contenu d'un maillon peut être altéré sans que son
+    `ligne_id` stocké ne change. Une référence `memoire_m10` servie à M9 sur un
+    registre corrompu serait un faux feu vert.
+    """
+    registre_cible = registre.Registre()
+    ligne_id = registre_cible.ajouter(_evenement())
+    maillon = [m for m in registre_cible.lire() if m["ligne_id"] == ligne_id][0]
+    reference = contexte.construire_reference(maillon, "forge", registre_cible)
+
+    assert contexte.verifier_reference(reference, registre_cible) == (True, None)
+    assert registre_cible.valider_chaine()[0] is True
+
+    # Altération du CONTENU sans toucher au ligne_id stocké.
+    registre_cible._chain[-1]["valeur"] = "FALSIFIEE"
+
+    assert registre_cible.valider_chaine()[0] is False
+    valide, code = contexte.verifier_reference(reference, registre_cible)
+    assert valide is False
+    assert code

@@ -9,6 +9,7 @@ REJ_CONTEXTE_CHAMP_TEXTE_INVALIDE = "REJ-CONTEXTE-CHAMP-TEXTE-INVALIDE"
 REJ_CONTEXTE_REFERENCES_ABSENTES = "REJ-CONTEXTE-REFERENCES-ABSENTES"
 REJ_REFERENCE_LIGNE_INTROUVABLE = "REJ-REFERENCE-LIGNE-INTROUVABLE"
 REJ_REFERENCE_TETE_INCOHERENTE = "REJ-REFERENCE-TETE-INCOHERENTE"
+REJ_REFERENCE_CHAINE_INVALIDE = "REJ-REFERENCE-CHAINE-INVALIDE"
 
 
 def contexte_suffisant(dossier):
@@ -66,6 +67,14 @@ def verifier_reference(reference, registre_cible):
         or set(reference.keys()) != contrats.CHAMPS_REFERENCE_MEMOIRE
     ):
         return False, REJ_REFERENCE_LIGNE_INTROUVABLE
+
+    # L'existence d'un ligne_id ne prouve RIEN sur l'intégrité du registre : le
+    # contenu d'un maillon peut être altéré sans que son ligne_id stocké ne change.
+    # Une référence ne vaut donc que si la chaîne qui la porte est intacte —
+    # objection CRITIQUE de la revue scellée (round 1), confirmée par mesure.
+    chaine_valide, _ = registre_cible.valider_chaine()
+    if not chaine_valide:
+        return False, REJ_REFERENCE_CHAINE_INVALIDE
 
     maillons = registre_cible.lire()
     ligne_ids = {maillon.get("ligne_id") for maillon in maillons}
