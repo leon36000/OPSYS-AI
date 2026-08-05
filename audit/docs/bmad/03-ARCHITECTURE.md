@@ -165,6 +165,48 @@ Elle est donc exécutée explicitement à chaque étape, et `run_audit.sh` la re
 step CI dédié devait être ajouté, ce serait une story **postérieure à la clôture** de l'audit,
 jamais pendant.
 
+### DA-AUD-10 — La dépendance externe est gelée par empreinte, pas par confiance
+
+**Décision** : `~/proof-method` reste hors du périmètre mesuré, mais l'audit enregistre au
+manifeste le sha256 de chacun des scripts qu'il utilise (`civ_review.py`, `crew_dispatch.py`,
+`tally_reviews.py`, `sentinelle.py`, les hooks git) au moment du gel, et les revérifie à la
+clôture. Toute dérive entre les deux relevés invalide les revues conduites entre-temps.
+
+**Justification** : deux relecteurs indépendants (MiMo-Pro-V2, MiniMax-M3) ont relevé que
+l'essentiel de la chaîne de preuve réellement utilisée vit dans un dépôt distinct, non versionné
+avec le produit et non gelé — de sorte qu'« hors périmètre » revenait à dire « non vérifié, et
+libre de changer sous nos pieds ». On ne peut pas auditer ce dépôt sans sortir du périmètre fixé ;
+on peut en revanche rendre toute modification **détectable**. Geler l'empreinte sans auditer le
+contenu est la seule position à la fois honnête et tenable : elle ne prétend pas que ces scripts
+sont corrects, elle prouve qu'ils n'ont pas changé pendant l'audit.
+
+**Ce que la décision NE couvre PAS** : la correction de ces scripts. Un instrument faux au moment
+du gel restera faux, et l'empreinte le certifiera identique à lui-même.
+
+### DA-AUD-11 — Le lot A8 déroge à DA-AUD-07, de façon bornée et déclarée
+
+**Décision** : le lot A8 (intégration entre modules) peut importer le code audité, **uniquement**
+dans un sous-processus isolé, avec un délai maximal, et jamais dans le processus qui produit les
+constats. Chaque import est journalisé dans la sortie de la sonde. Tous les autres lots restent
+strictement sous DA-AUD-07.
+
+**Justification** : DA-AUD-07 protège l'audit du couplage à l'objet mesuré, et sa justification
+tient toujours. Mais onze modèles ont convergé sur le fait qu'elle crée un angle mort : un défaut
+qui n'existe qu'à la jonction de deux modules — un appelant qui produit un digest là où l'appelé
+attend une chaîne — est invisible à toute lecture de fichier isolé. Interdire l'import garantit
+qu'on ne verra jamais cette classe de défauts.
+
+L'isolement en sous-processus conserve l'essentiel de la protection : un effet de bord d'import,
+un `sys.modules` pollué ou une boucle infinie n'atteignent pas le processus d'audit, et un module
+syntaxiquement invalide produit un échec mesuré au lieu de faire tomber la sonde. Le précédent du
+dépôt (issue #109 : 21 tests de M2 exerçaient le code de M1 via `sys.modules`) est un accident de
+processus partagé ; il ne traverse pas une frontière de processus.
+
+**Ce que la dérogation NE couvre PAS** : elle n'autorise aucun lot autre qu'A8 à importer, et
+n'autorise pas A8 à exécuter du code métier au-delà de l'import et de l'inspection de signatures.
+Faire tourner un scénario métier serait un test d'intégration — donc du développement, ce que
+DA-AUD-04 interdit à l'audit.
+
 ## 4. CE QUE CHAQUE LOT PROUVE
 
 | Lot | Ce qu'il prouve | CA | Tier |
@@ -176,19 +218,33 @@ jamais pendant.
 | **A5** | Ce qui est exposé, et ce qui n'est pas couvert par un gate bloquant | CA-AUD-08 | T2 |
 | **A6** | Dette structurelle et goulots, gravité pondérée par A4 | CA-AUD-06 | T2 |
 | **A7** | Cohérence docs ↔ code ; l'audit lui-même est complet et n'a rien corrigé | CA-AUD-09, 10, 12 | T1 |
+| **A8** | Ce qui ne casse qu'à la jonction de deux modules — invisible à toute lecture isolée | CA-AUD-05, 06 | T2 |
 
 ## 5. GOUVERNANCE — qui juge quoi
 
 | Étape | Consensus | Justification |
 |---|---|---|
-| Cadrage BMAD | **Panel élargi 12 modèles / 9 vendors** (`consensus_run.py`) | Le cadrage définit ce qui compte comme preuve : une erreur ici contamine tout |
+| Cadrage BMAD | **Panel élargi** (`consensus_run.py`) — 8 modèles / 8 vendors obtenus sur 12 sollicités | Le cadrage définit ce qui compte comme preuve : une erreur ici contamine tout |
 | Round d'hypothèses adverses | 3 appels, 1 tour, **pas de verdict** | C'est une collecte, pas un jugement |
 | `contrats.py` + `rubrique.py` | T2 trio | C'est le juge ; le juge se relit en trio |
-| Sonde + sa batterie de mutation | **T0** | La batterie **est** la vérification. Aucun LLM n'a à approuver un instrument qui prouve sa propre morsure |
+| Sonde + sa batterie de mutation | **T1 — la batterie est mesurée, pas crue** | voir ci-dessous |
 | Lot d'inventaire (A1, A7) | T1 | La sortie de sonde est le constat |
-| Lot avec interprétation (A2..A6) | T2 trio | Existence + gravité |
+| Lot avec interprétation (A2..A6, A8) | T2 trio | Existence + gravité |
 | Constat T3 | T3 | Trio + Nathan seul |
 | Rapport final | T2 trio | La conclusion |
+
+**Pourquoi la batterie n'est plus en T0.** Le premier cadrage plaçait sonde et batterie en T0, au
+motif qu'« aucun LLM n'a à approuver un instrument qui prouve sa propre morsure ». Quatre
+relecteurs sur onze ont attaqué ce point, et la mesure leur a donné raison : le gate de ce cadrage
+affichait « BATTERIE COMPLÈTE : 9/9 mutations mordent » alors que **3 de ses 11 contrôles pouvaient
+être supprimés sans qu'elle s'en aperçoive**. Une batterie co-écrite avec sa sonde prouve la
+sensibilité aux motifs que son auteur a imaginés, et rien de plus.
+
+La parade n'est pas de faire approuver la batterie par un modèle — un relecteur n'aurait pas vu
+davantage que son auteur. Elle est **mécanique** : la batterie neutralise tour à tour chaque
+contrôle et exige de devenir rouge (CA-AUD-06), et chaque sonde publie la liste des fichiers
+qu'elle a réellement ouverts, confrontée au périmètre déclaré de sa cellule (CA-AUD-05). Le passage
+en T1 acte que cette double preuve doit être **produite et lue**, non pas supposée acquise.
 
 **Le levier de coût est structurel, pas une dilution** : parce que chaque constat porte un témoin
 exécutable, **vérifier un constat coûte zéro appel modèle** — on lance le script. Le trio ne juge

@@ -1,0 +1,279 @@
+{
+  "protocole": {
+    "date": "2026-08-05",
+    "commit_gele": "f4707977526dbdbe4df2d1077a37c58d875b0b28",
+    "consultes": [
+      "DeepSeek-V4-Pro",
+      "Gemini-3.1-Pro",
+      "Qwen3.7-Max"
+    ],
+    "vendors": [
+      "deepseek",
+      "google",
+      "alibaba"
+    ],
+    "pack": "structure git du depot, AUCUN resultat d'exploration communique",
+    "brutes": "audit/hypotheses/brutes/<modele>.txt",
+    "regle": "toute hypothese ci-dessous doit finir CONVERTIE (sonde ecrite) ou REFUTEE (mesure contraire). verif_audit.py refuse de clore l'audit tant qu'une reste OUVERTE."
+  },
+  "faute_du_pack": {
+    "quoi": "Le pack distribue aux trois modeles annoncait 'lignes source : 0 total'.",
+    "cause": "git ls-files 'Modules M/...' | xargs wc -l : le chemin 'Modules M/' contient une ESPACE, xargs l'a decoupe en deux arguments, wc a echoue sur chaque fragment, et le 2>/dev/null de la commande a mange l'erreur.",
+    "mesure_correcte": "git ls-files -z ... | xargs -0 wc -l -> 18999 lignes source, 36971 lignes de test",
+    "consequence": "Gemini HA-1 et Qwen HA-1 ont bati une hypothese CRITIQUE sur ce chiffre faux. Elles sont refutees sur le fond (mesure AST independante ci-dessous), mais l'audit consigne sa propre faute d'instrument : elle illustre exactement la classe de defaut qu'il cherche (echec silencieux masque par une redirection d'erreur).",
+    "porte_au_dela": "aucune autre donnee du pack ne provenait d'un pipeline xargs ; verifie ligne a ligne."
+  },
+  "angles_morts_declares": [
+    {
+      "par": "DeepSeek-V4-Pro",
+      "enonce": "Les defauts EMERGENTS de l'interaction entre modules (interblocages, courses, incoherences de protocole, violations de proprietes globales) echappent au dispositif, car aucune integration de bout en bout n'est imposee par le processus.",
+      "lot": "AUD-A4"
+    },
+    {
+      "par": "Gemini-3.1-Pro",
+      "enonce": "La validation tautologique en chambre d'echo : si le codeur construit un univers ou le code ne fait rien mais ou les tests valident ce rien, les trois relecteurs valideront que 'le code passe les tests'. Le dispositif verifie la coherence interne d'une fiction, pas son ancrage.",
+      "lot": "AUD-A4"
+    },
+    {
+      "par": "Qwen3.7-Max",
+      "enonce": "La derive semantique consensuelle : si tous les modeles partagent la meme mauvaise lecture d'une regle metier, les tests encodent l'erreur et les relecteurs la confirment. Trois fournisseurs distincts ne protegent pas d'un biais commun a leurs corpus.",
+      "lot": "AUD-A3"
+    }
+  ],
+  "hypotheses": [
+    {
+      "id": "HA-01",
+      "sources": [
+        "DeepSeek HA-7",
+        "Gemini HA-3",
+        "Qwen HA-8"
+      ],
+      "enonce": "scripts/tally.py accepte des verdicts qu'il devrait rejeter (schema heterogene, JSON malforme, verdict negatif contenant un mot positif), et peut donc laisser fusionner malgre un veto.",
+      "mesure": "Fabriquer un jeu de dossiers de verdicts pieges et exiger un code retour non nul pour chacun.",
+      "classe": "preuve",
+      "gravite_si_vraie": "critique",
+      "lot": "AUD-A2",
+      "etat": "OUVERTE"
+    },
+    {
+      "id": "HA-02",
+      "sources": [
+        "Gemini HA-8"
+      ],
+      "enonce": "Le dispositif de revue scellee est vulnerable au decalage verification/usage : rien dans le verdict ne lie l'approbation a un commit precis, donc le code fusionne n'est pas prouve identique au code approuve.",
+      "mesure": "Chercher un champ de commit dans les 644 verdicts ; s'il est absent, exhiber deux etats de branche differents que le meme verdict couvrirait.",
+      "classe": "preuve",
+      "gravite_si_vraie": "critique",
+      "lot": "AUD-A2",
+      "etat": "OUVERTE"
+    },
+    {
+      "id": "HA-03",
+      "sources": [
+        "Gemini HA-6",
+        "DeepSeek HA-10"
+      ],
+      "enonce": "Un registre en journal d'ajout a ete REECRIT (lignes supprimees ou modifiees) au cours des iterations, ce que la verification de chaine ne detecte pas si elle a ete rejouee apres coup.",
+      "mesure": "git log -p sur chaque .jsonl de registre, compter les lignes supprimees ; toute suppression est une violation de l'ajout-seul.",
+      "classe": "preuve",
+      "gravite_si_vraie": "critique",
+      "lot": "AUD-A2",
+      "etat": "OUVERTE"
+    },
+    {
+      "id": "HA-04",
+      "sources": [
+        "DeepSeek HA-1"
+      ],
+      "enonce": "La chaine de hachage d'au moins un registre est brisee ou verifiable a vide, permettant l'insertion non detectee d'entrees.",
+      "mesure": "Rejouer la chaine de chaque registre depuis l'origine ; exiger en plus que le nombre d'entrees soit > 0 (un registre vide ne doit pas rendre OK).",
+      "classe": "preuve",
+      "gravite_si_vraie": "critique",
+      "lot": "AUD-A2",
+      "etat": "OUVERTE"
+    },
+    {
+      "id": "HA-05",
+      "sources": [
+        "Qwen HA-5"
+      ],
+      "enonce": "Les verdicts de repertoires de simulation (mock) ne sont pas distingues des verdicts reels et peuvent compter dans un consensus.",
+      "mesure": "Chercher dans tally.py une exclusion des chemins de simulation ; a defaut, deposer un verdict de simulation dans un dossier reel et observer s'il est compte.",
+      "classe": "preuve",
+      "gravite_si_vraie": "critique",
+      "lot": "AUD-A2",
+      "etat": "OUVERTE"
+    },
+    {
+      "id": "HA-06",
+      "sources": [
+        "Qwen HA-3"
+      ],
+      "enonce": "Le taux d'accord entre relecteurs depasse 95 % sur les 644 verdicts : le dispositif a trois fournisseurs est decoratif.",
+      "mesure": "Denombrer par fournisseur les APPROVE/REJECT sur l'ensemble des verdicts ; comparer les taux de rejet entre fournisseurs.",
+      "classe": "preuve",
+      "gravite_si_vraie": "majeure",
+      "lot": "AUD-A2",
+      "etat": "OUVERTE"
+    },
+    {
+      "id": "HA-07",
+      "sources": [
+        "Qwen HA-7"
+      ],
+      "enonce": "Les fichiers AGENTS.md.pre-proof.bak et CLAUDE.md.pre-proof.bak revelent que les consignes aux agents ont ete assouplies apres coup pour faciliter le passage des controles.",
+      "mesure": "Comparer chaque fichier a sa sauvegarde et dater les modifications par git log ; qualifier chaque regle retiree.",
+      "classe": "methode",
+      "gravite_si_vraie": "majeure",
+      "lot": "AUD-A1",
+      "etat": "OUVERTE"
+    },
+    {
+      "id": "HA-08",
+      "sources": [
+        "DeepSeek HA-4"
+      ],
+      "enonce": "Au moins un fichier source contient un commentaire destine a influencer un relecteur automatique (du type 'deja valide', 'ne pas modifier', 'conforme a REG-xx') pour couvrir un defaut.",
+      "mesure": "Rechercher ces motifs dans les sources et examiner le code environnant de chaque occurrence.",
+      "classe": "securite",
+      "gravite_si_vraie": "majeure",
+      "lot": "AUD-A5",
+      "etat": "OUVERTE"
+    },
+    {
+      "id": "HA-09",
+      "sources": [
+        "Gemini HA-2",
+        "Qwen HA-2"
+      ],
+      "enonce": "L'encodage canonique du registre n'est pas deterministe : ordre des cles non force, ou fonction de hachage non cryptographique (hash() natif, sensible a PYTHONHASHSEED).",
+      "mesure": "Analyser chaque appel de serialisation et de hachage dans les 7 copies de l'encodage ; verifier sort_keys et l'algorithme.",
+      "classe": "code",
+      "gravite_si_vraie": "critique",
+      "lot": "AUD-A4",
+      "etat": "OUVERTE"
+    },
+    {
+      "id": "HA-10",
+      "sources": [
+        "Gemini HA-4",
+        "Qwen HA-6",
+        "DeepSeek HA-2"
+      ],
+      "enonce": "Le socle recopie entre modules a DIVERGE : deux copies du meme composant donnent des resultats differents sur la meme entree.",
+      "mesure": "Importer chaque copie et la faire calculer sur un jeu d'entrees identique ; toute divergence est un ecart.",
+      "classe": "code",
+      "gravite_si_vraie": "majeure",
+      "lot": "AUD-A4",
+      "etat": "OUVERTE"
+    },
+    {
+      "id": "HA-11",
+      "sources": [
+        "Gemini HA-5"
+      ],
+      "enonce": "Les invariants de machine a etats ne sont valides que dans la preparation des tests, pas appliques comme gardes dans le code : une transition illegale forcee depuis l'exterieur passe.",
+      "mesure": "Forcer une transition illegale directement sur l'entite metier de chaque module et exiger un refus.",
+      "classe": "code",
+      "gravite_si_vraie": "majeure",
+      "lot": "AUD-A4",
+      "etat": "OUVERTE"
+    },
+    {
+      "id": "HA-12",
+      "sources": [
+        "DeepSeek HA-6"
+      ],
+      "enonce": "Il existe un appel entre modules dont l'appelant produit un format que l'appele n'accepte pas : il echouerait a l'execution reelle.",
+      "mesure": "Lister les imports entre modules, confronter les signatures appelees aux definitions.",
+      "classe": "code",
+      "gravite_si_vraie": "critique",
+      "lot": "AUD-A4",
+      "etat": "OUVERTE"
+    },
+    {
+      "id": "HA-13",
+      "sources": [
+        "DeepSeek HA-3",
+        "Qwen HA-4"
+      ],
+      "enonce": "Une part importante des tests est tautologique : ils assertent sur des details d'implementation plutot que sur un invariant metier, et resteraient verts si la regle etait inversee.",
+      "mesure": "Denombrer les assertions par nature ; puis, sur un echantillon de regles, inverser la condition dans le code et exiger le rouge.",
+      "classe": "code",
+      "gravite_si_vraie": "majeure",
+      "lot": "AUD-A4",
+      "etat": "OUVERTE"
+    },
+    {
+      "id": "HA-14",
+      "sources": [
+        "DeepSeek HA-9",
+        "Qwen HA-9"
+      ],
+      "enonce": "Au moins un module importe une bibliotheque tierce, y compris par import conditionnel ou dynamique, en violation de la contrainte gelee.",
+      "mesure": "Analyse syntaxique de tous les imports, y compris __import__ et importlib, confrontee a sys.stdlib_module_names.",
+      "classe": "securite",
+      "gravite_si_vraie": "critique",
+      "lot": "AUD-A5",
+      "etat": "OUVERTE"
+    },
+    {
+      "id": "HA-15",
+      "sources": [
+        "DeepSeek HA-5",
+        "Gemini HA-7"
+      ],
+      "enonce": "Des identifiants du plan de reference (D-xxx, R-xxx) sont cites en commentaire alors que la logique correspondante est absente ou contredit la regle.",
+      "mesure": "Extraire les identifiants du plan, les resoudre dans le code, et pour un echantillon muter la logique pour verifier qu'un test la protege.",
+      "classe": "plan",
+      "gravite_si_vraie": "majeure",
+      "lot": "AUD-A3",
+      "etat": "OUVERTE"
+    },
+    {
+      "id": "HA-16",
+      "sources": [
+        "Qwen HA-10"
+      ],
+      "enonce": "scripts/statut_lint.py valide le statut des modules sur des criteres purement structurels et ne verifie aucun invariant semantique : un module vide mais bien range passerait.",
+      "mesure": "Fabriquer un module structurellement conforme mais semantiquement vide et exiger que le controle le refuse.",
+      "classe": "methode",
+      "gravite_si_vraie": "majeure",
+      "lot": "AUD-A1",
+      "etat": "OUVERTE"
+    },
+    {
+      "id": "HA-17",
+      "sources": [
+        "Gemini HA-1",
+        "Qwen HA-1",
+        "DeepSeek HA-8"
+      ],
+      "enonce": "Les 135 fichiers source des modules sont des coquilles vides ou de simples squelettes, et les tests verts ne verifient donc aucune logique metier.",
+      "mesure": "Analyse syntaxique des 135 fichiers : denombrer les instructions executables, hors Pass, imports, docstrings et Ellipsis.",
+      "classe": "code",
+      "gravite_si_vraie": "critique",
+      "lot": "AUD-A4",
+      "etat": "REFUTEE",
+      "refutation": {
+        "commande": "audit/sondes/densite_source.py",
+        "resultat": "135 fichiers analyses, 7771 instructions executables, 0 erreur de syntaxe. 122 fichiers ont au moins 5 instructions ; 10 en ont zero et sont tous des __init__.py ; 3 en ont 1 a 4 et sont des contrats geles (frozenset/tuples de constantes) ou un constructeur d'une ligne.",
+        "volumetrie": "18999 lignes de source, 36971 lignes de test",
+        "note": "Hypothese INDUITE par la faute du pack decrite ci-dessus. Elle est refutee sur le fond par une mesure independante du chiffre errone, et non ecartee au motif de son origine."
+      }
+    },
+    {
+      "id": "HA-18",
+      "sources": [
+        "mesure de l'Orchestrateur pendant le tour 1 du consensus"
+      ],
+      "enonce": "Les deux producteurs de verdicts du dispositif n'emploient pas la meme convention de nommage : civ_review.py ecrit <modele>.verdict.json, consensus_run.py ecrit <modele>.json. Le filet anti-secrets du hook pre-commit n'exempte que la premiere forme, si bien qu'un verdict du panel elargi qui cite une affectation de secret dans sa prose d'analyse bloque le commit — alors que le meme texte, dans un verdict issu de civ_review, passe.",
+      "mesure": "Comparer les noms de fichiers produits par les deux scripts ; confronter au motif d'exclusion du hook. Reproduit : le commit du tour 1 a ete bloque, le renommage en .verdict.json l'a debloque a contenu byte-identique (sha256 verifies avant/apres).",
+      "classe": "preuve",
+      "gravite_si_vraie": "majeure",
+      "lot": "AUD-A2",
+      "etat": "OUVERTE",
+      "note": "Consequence pratique : une analyse de securite ne peut pas etre versionnee sous la forme produite par consensus_run.py. La tentation est alors d'editer le verdict, c'est-a-dire de falsifier une piece. Resolu ici en nommant les artefacts selon la convention exemptee, sha256 verifies identiques avant/apres, jamais en editant le contenu. Le hook vit dans ~/proof-method, hors perimetre (DA-AUD-10) ; le defaut de nommage, lui, est dans scripts/consensus_run.py, donc DANS le perimetre."
+    }
+  ]
+}

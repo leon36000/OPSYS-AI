@@ -160,24 +160,47 @@ légitime absolve un défaut différent.
   le commit gelé sort ≠ 0, sortie capturée, sha256 enregistré.
 - **CA-AUD-04** : **aucune sévérité n'est écrite à la main** — `verif_audit.py` recalcule chaque
   `severite` depuis `entrees_rubrique` et rejette toute divergence.
-- **CA-AUD-05** : **toute zone déclarée propre est prouvée mordante** — chaque cellule
-  (lot × classe) sans constat possède un `mutation.py` qui passe.
-- **CA-AUD-06** : **les sondes mordent** — `audit/mutation_audit.py` sort `BATTERIE COMPLÈTE`,
-  rc=0, chaque fichier muté restauré et vérifié bit-à-bit.
-- **CA-AUD-07** : **aucune hypothèse laissée sans réponse** — chaque hypothèse H1..H9 et chaque
-  hypothèse du round adverse est convertie en constat avec témoin, ou réfutée par une mesure.
+- **CA-AUD-05** : **toute zone déclarée propre est prouvée mordante ET réellement parcourue** —
+  chaque cellule (lot × classe) sans constat possède un `mutation.py` qui passe, **et** la sonde
+  publie la liste des fichiers qu'elle a effectivement ouverts, qui doit couvrir le périmètre
+  déclaré de la cellule. Une mutation qui mord prouve que la sonde voit le motif injecté ; elle ne
+  prouve pas qu'elle a regardé ailleurs. Un fichier du périmètre jamais ouvert est un écart.
+- **CA-AUD-06** : **les sondes mordent, et la batterie couvre CHAQUE contrôle** —
+  `audit/mutation_audit.py` sort `BATTERIE COMPLÈTE`, rc=0, chaque fichier muté restauré et vérifié
+  bit-à-bit. En outre, la batterie neutralise tour à tour chaque contrôle (corps remplacé par un
+  retour vide) et exige de devenir rouge : un contrôle qu'aucune mutation n'exerce est déclaré MORT
+  et fait échouer la batterie. Un compte de mutations ne mesure pas une couverture — mesuré sur le
+  gate de ce cadrage : 9 mutations sur 9 mordaient alors que 3 contrôles sur 11 étaient morts.
+- **CA-AUD-07** : **aucune hypothèse laissée sans réponse, et une hypothèse peut OUVRIR un lot** —
+  chaque hypothèse H1..H9 et chaque hypothèse du round adverse est convertie en constat avec témoin,
+  ou réfutée par une mesure. Si une hypothèse adverse n'entre dans aucun lot existant, le lot
+  manquant est créé plutôt que l'hypothèse écartée : un round adverse qui ne pourrait que désigner
+  où chercher à l'intérieur d'axes déjà figés ne corrigerait pas le biais de découpage.
 - **CA-AUD-08** : **les constats T3 sont bloqués, jamais corrigés** — entrée registre + ligne dans
   `FILE-T3.md` + story `REM-*` à `Tier: T3`, et le diff de la branche ne touche aucun chemin T3.
-- **CA-AUD-09** : **l'audit ne corrige rien** — `git diff --name-only <base>..HEAD` n'intersecte le
-  code produit en aucun point (seuls `audit/`, `stories/REM-*`, `reviews/`, `registries/ledger/`
-  sont autorisés).
-- **CA-AUD-10** : **traçabilité au registre** — chaque constat a son entrée `preuve` ;
-  `ledger_append.py verify` reste vert.
-- **CA-AUD-11** : **chaque lot a un verdict scellé dépouillé** — tally rc=0 pour chaque lot.
+- **CA-AUD-09** : **l'audit ne corrige rien, et n'altère aucune preuve existante** —
+  `git diff --name-only <base>..HEAD` n'intersecte le code produit en aucun point (seuls `audit/`,
+  `stories/REM-*`, `reviews/`, `registries/ledger/` sont autorisés). Dans ces chemins autorisés,
+  seul l'**ajout** est permis : `git diff --diff-filter=MD <base>..HEAD` doit être vide. Autoriser
+  un répertoire n'autorise pas à y réécrire un verdict scellé ou une ligne de registre fusionnée.
+- **CA-AUD-10** : **traçabilité au registre, vérifiée sans faire confiance à l'instrument** — chaque
+  constat a son entrée `preuve` ; `ledger_append.py verify` reste vert, **rapporte un nombre
+  d'entrées non nul**, **et** l'audit rejoue la chaîne de hachage par son propre code. H2 établit
+  que `verify` affiche `OK (0 entrees)` sur un fichier absent : adosser la complétude de l'audit au
+  seul code retour de cet instrument reviendrait à la faire valider par le défaut qu'il documente.
+- **CA-AUD-11** : **chaque lot a un verdict scellé dépouillé** — tally rc=0 pour chaque lot. Le
+  dépouillement est celui de `~/proof-method`, dont l'empreinte est gelée au manifeste (DA-AUD-10) ;
+  si l'audit établit que `scripts/tally.py` du dépôt est inopérant, ce constat ne peut évidemment
+  pas être clos par ce même script.
 - **CA-AUD-12** : **le rapport ne contient aucune affirmation sans témoin** — chaque affirmation de
   `RAPPORT.md` cite un `AUD-<id>` existant ; toute phrase affirmative sans référence est un écart.
+- **CA-AUD-13** : **ce qui ne casse qu'à la jonction est mesuré à la jonction** — pour chaque paire
+  de modules reliée par un import, une sonde charge les DEUX côtés dans un sous-processus isolé et
+  confronte ce que l'appelant produit à ce que l'appelé accepte. Une paire jamais chargée est un
+  écart. Ce critère existe parce qu'aucun des douze autres ne peut être satisfait par une lecture
+  de fichiers isolés : le défaut visé n'apparaît nulle part dans un fichier pris seul.
 
-Les 12 critères sont en séquence continue, chacun porté par exactement une story.
+Les 13 critères sont en séquence continue, chacun porté par exactement une story.
 
 ## 7. STORIES
 
@@ -248,9 +271,32 @@ Sept lots. Tier selon ce que l'étape **décide** : un lot dont la sortie de son
 | Attribut | Valeur |
 |---|---|
 | **Périmètre** | docs ↔ code, `Statut:` des README vs mesure, renvois internes, `AGENTS.md`/`CLAUDE.md` vs canon, fichiers `.bak` versionnés |
+| **Cible obligatoire** | HA-07 (les `.bak` révèlent-ils un assouplissement des consignes après coup ?) |
 | **Critères portés** | CA-AUD-09, CA-AUD-10, CA-AUD-12 |
 | **Tier** | T1 — la sortie de sonde est le constat |
 | **Estimation** | ~45 min |
+
+### AUD-A8 — Intégration entre modules
+
+Ce lot n'existait pas au premier cadrage. Il est **ouvert par le round adverse**, en application de
+la règle qui autorise une hypothèse adverse à créer le lot qui lui manque : les onze modèles
+consultés — trois en round adverse, huit en consensus élargi — ont convergé, indépendamment les uns
+des autres, sur le même angle mort. Formulé par DeepSeek : « les défauts émergents de l'interaction
+entre modules échappent au dispositif, car aucune intégration de bout en bout n'est imposée par le
+processus ». Formulé par GLM : « les sondes lisent des fichiers isolément, donc un défaut qui
+n'existe qu'à l'intégration est structurellement invisible ».
+
+Cette convergence est le seul motif suffisant pour ouvrir un lot : elle ne vient pas d'une mesure de
+l'Orchestrateur, mais d'une critique de son découpage par des parties qui n'y avaient aucun intérêt.
+
+| Attribut | Valeur |
+|---|---|
+| **Périmètre** | imports entre modules ; signatures appelées vs définies ; formats d'échange (un module produit un digest là où un autre attend une chaîne) ; ordre d'initialisation ; invariants qui ne tiennent qu'à la jonction de deux modules |
+| **Cibles obligatoires** | HA-10 (socle recopié divergent), HA-12 (appel inter-modules incompatible), HA-09 (encodage canonique non déterministe entre copies) |
+| **Critères portés** | CA-AUD-13 |
+| **Tier** | T2 — établir qu'une divergence de format est un défaut, et non une frontière voulue, demande un jugement |
+| **Dérogation encadrée** | DA-AUD-07 interdit d'importer le code audité. Ce lot y déroge de façon **bornée** : voir DA-AUD-11. |
+| **Estimation** | ~70 min |
 
 ## 8. ORDRE D'EXÉCUTION — les instruments avant les mesures
 
