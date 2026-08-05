@@ -191,10 +191,22 @@ légitime absolve un défaut différent.
     un lien symbolique — dans les deux cas, `MD` ne rapporte rien.
   - **Registres en journal d'ajout** (`registries/ledger/`) : y ajouter une ligne est l'opération
     normale, et git la classe `M` — interdire `M` sur ces chemins rendrait CA-AUD-10 (traçabilité
-    au registre) mécaniquement impossible à satisfaire, les deux critères se contredisant. La règle
-    n'est donc pas un filtre de diff mais une **relation de préfixe** : le contenu du registre au
-    commit de base doit être un préfixe exact, octet pour octet, du contenu à HEAD. Toute ligne
-    antérieure altérée ou retirée est un écart, tout ajout en fin de fichier est légitime.
+    au registre) mécaniquement impossible à satisfaire, les deux critères se contredisant. Ils
+    doivent donc satisfaire **deux conditions cumulées** :
+
+    1. chaque fichier de registre présent à la base existe toujours à `HEAD`, au même chemin et du
+       même type : `git diff --diff-filter=DTR <base>..HEAD -- registries/ledger/` doit être vide.
+       Ainsi, ni suppression, ni renommage, ni changement de type ne peut faire disparaître la
+       preuve à comparer ;
+    2. pour chaque fichier de registre de base, son contenu à la base est un préfixe exact, octet
+       pour octet, de son contenu à `HEAD`.
+
+    La première condition seule ne protège pas le contenu : un fichier peut rester au même chemin
+    et voir une ligne historique modifiée ou retirée. La seconde seule ne protège pas l'existence :
+    un registre supprimé, renommé ou remplacé par un autre type ne fournit plus de contenu à
+    comparer et rendrait la relation de préfixe muette. Seul `M` reste donc toléré sur ces chemins,
+    et seulement lorsqu'il résulte d'un ajout en fin de fichier qui satisfait simultanément la
+    relation de préfixe.
 - **CA-AUD-10** : **traçabilité au registre, vérifiée sans faire confiance à l'instrument** — chaque
   constat a son entrée `preuve` ; `ledger_append.py verify` reste vert, **rapporte un nombre
   d'entrées non nul**, **et** l'audit rejoue la chaîne de hachage par son propre code. H2 établit

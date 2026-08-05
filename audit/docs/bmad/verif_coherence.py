@@ -125,20 +125,36 @@ def _extraire_section_lots_architecture(contenu_arch: str) -> str:
 
 
 def _extraire_criteres_cellule(cellule: str) -> set[str]:
-    """Reconstruit les suffixes abrégés après une première référence complète.
+    """Extrait une cellule exclusivement composée d'une liste de critères.
 
-    Les tableaux réels écrivent « CA-AUD-01, 02 ». Le second nombre ne doit pas
-    être confondu avec une absence de CA-AUD-02 dans l'architecture.
+    Chaque élément est soit une référence complète CA-AUD-NN, soit une
+    abréviation NN. Une abréviation n'est admise qu'après une référence
+    complète déjà rencontrée dans la même liste. Toute cellule contenant un
+    élément qui ne respecte pas cette grammaire est rejetée intégralement.
     """
+    elements = cellule.split(",")
+    if not elements:
+        return set()
+
     criteres = set()
-    prefixe_vu = False
-    for match in re.finditer(r"\bCA-AUD-(\d+)\b|,\s*(\d+)\b", cellule, re.IGNORECASE):
-        numero_complet, numero_abrege = match.groups()
-        if numero_complet is not None:
-            criteres.add(f"CA-AUD-{int(numero_complet):02d}")
-            prefixe_vu = True
-        elif prefixe_vu:
-            criteres.add(f"CA-AUD-{int(numero_abrege):02d}")
+    enumeration_commencee = False
+
+    for element in elements:
+        element = element.strip()
+
+        complet = re.fullmatch(r"CA-AUD-(\d{2})", element, re.IGNORECASE)
+        if complet is not None:
+            criteres.add(f"CA-AUD-{complet.group(1)}")
+            enumeration_commencee = True
+            continue
+
+        abrege = re.fullmatch(r"(\d{2})", element)
+        if abrege is not None and enumeration_commencee:
+            criteres.add(f"CA-AUD-{abrege.group(1)}")
+            continue
+
+        return set()
+
     return criteres
 
 
@@ -187,10 +203,9 @@ def _extraire_affectations_ca_architecture(
         lot = lot_match.group(1).upper()
         lots_trouves.add(lot)
         for cellule in cellules[2:-1]:
-            if re.search(r"\bCA-AUD-\d+\b", cellule, re.IGNORECASE):
-                _ajouter_affectation(
-                    affectations, lot, _extraire_criteres_cellule(cellule)
-                )
+            criteres = _extraire_criteres_cellule(cellule)
+            if criteres:
+                _ajouter_affectation(affectations, lot, criteres)
     return affectations, lots_trouves
 
 
@@ -198,7 +213,6 @@ def _lots_affiches(lots: set[str]) -> str:
     return ", ".join(sorted(lots))
 
 
-# -----------------------------------------------------------------------------
 def check_existence_et_sections(c_brief, c_prd, c_arch):
     ecarts = []
     if c_brief is None:
@@ -376,8 +390,6 @@ def check_lots_definis_partout(c_prd, c_arch):
     else:
         section_lots = _extraire_section_lots_architecture(c_arch)
         for lot in LOTS:
-            # Le gras rend la déclaration visuellement normative dans le tableau.
-            # Cette exigence de forme reste distincte du contenu CA lu ailleurs.
             if not re.search(
                 rf"^\|\s*\*\*{re.escape(lot)}\*\*\s*\|",
                 section_lots, re.IGNORECASE | re.MULTILINE,
@@ -446,7 +458,6 @@ def check_mots_interdits(c_brief, c_prd, c_arch):
     return ecarts
 
 
-# -----------------------------------------------------------------------------
 def main():
     c_brief = lire_fichier(FICHIERS["brief"])
     c_prd = lire_fichier(FICHIERS["prd"])
