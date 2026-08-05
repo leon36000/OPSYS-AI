@@ -175,7 +175,12 @@
       "classe": "code",
       "gravite_si_vraie": "critique",
       "lot": "AUD-A4",
-      "etat": "OUVERTE"
+      "etat": "REFUTEE",
+      "refutation": {
+        "commande": "python3 audit/temoins/CLEAN-A4-determinisme/mutation.py",
+        "resultat": "Les 7 copies d'encoder_canonique executees dans 2 processus distincts (PYTHONHASHSEED=random), sur le meme objet aux cles inversees : 7/7 rendent la meme empreinte et sont insensibles a l'ordre des cles.",
+        "conclusion": "REFUTEE. Aucune copie n'emploie hash() natif ni ne depend de l'ordre d'insertion. La mesure est accompagnee de sa preuve de morsure : deux non-determinismes injectes (tri retire, cle de tri remplacee par hash() natif) sont tous deux DETECTES — l'absence de constat est donc une mesure, non un silence."
+      }
     },
     {
       "id": "HA-10",
@@ -189,7 +194,12 @@
       "classe": "code",
       "gravite_si_vraie": "majeure",
       "lot": "AUD-A4",
-      "etat": "OUVERTE"
+      "etat": "CONVERTIE",
+      "conversion": {
+        "commande": "python3 audit/temoins/AUD-A4-001/reproduction.py",
+        "resultat": "7 copies executees sur la meme valeur : 6 rendent une chaine canonique, M2-revenue-crm rend un digest sha256.",
+        "conclusion": "CONFIRMEE et convertie en constat AUD-A4-001. La divergence est prouvee par EXECUTION, non par lecture."
+      }
     },
     {
       "id": "HA-11",
@@ -239,7 +249,12 @@
       "classe": "securite",
       "gravite_si_vraie": "critique",
       "lot": "AUD-A5",
-      "etat": "OUVERTE"
+      "etat": "CONVERTIE",
+      "conversion": {
+        "commande": "python3 audit/temoins/AUD-A4-002/reproduction.py",
+        "resultat": "22 fichiers de production importent yaml (PyYAML), seule dependance tierce du code de production.",
+        "conclusion": "CONFIRMEE et convertie en constat AUD-A4-002. Aucun import dynamique ni conditionnel n'a ete trouve : la violation est directe et visible."
+      }
     },
     {
       "id": "HA-15",
@@ -324,6 +339,13 @@
       "mesure": "python3 audit/temoins/AUD-A3-001/reproduction.py — les quatre identifiants ne resolvent nulle part ; trois d'entre eux (R-034/035/036) n'apparaissent que dans des verdicts de modeles.",
       "consequence": "L'audit a cite comme references des identifiants dont il etablit ensuite qu'ils n'existent pas. Le cadrage n'est pas faux — il visait justement a mesurer cette anomalie — mais il les a ecrits sans marquer qu'ils etaient douteux, ce qui est exactement le defaut qu'il constate chez autrui.",
       "porte_au_dela": "Les autres identifiants cites par le cadrage (D-010, D-032, D-035, D-038, D-042, R-011, R-015, REG-04, REG-05, REG-09, REG-12) ont ete resolus au plan un par un ; seuls ces quatre-la ne l'avaient pas ete."
+    }
+  ],
+  "refutations_du_brief": [
+    {
+      "hypothese": "H4 — chantier_social.py mappe une exception NotAutorise sur un statut SUCCES, alors que les deux autres except du meme fichier donnent ECHEC.",
+      "mesure": "Lecture du fichier et de ses tests. Le handler NotAutorise ecrit statut=SUCCES ET incremente publications_bloquees_gated=1. Le test workflows/test_chantier_social.py:72 verrouille explicitement ce comportement (« Fixture valide -> etapes OK, NotAutorise trace, metriques ») et verifie la metrique a 1 puis a 0.",
+      "conclusion": "REFUTEE. NotAutorise signifie que la publication a ete correctement BLOQUEE par le gate de validation ; du point de vue du workflow, le gate a fait son travail. Le comportement est trace, teste, et compte dans une metrique dediee. Reste une critique de LISIBILITE — le libelle « SUCCES » ne distingue pas « publie » de « bloque par le gate » — qui est inscrite au rapport, non en constat."
     }
   ]
 }
