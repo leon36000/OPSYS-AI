@@ -1,0 +1,49 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "audit/temoins/AUD-A2-002/reproduction.py",
+   "description": "La fonction _hachages_disparus() ne compte que les lignes de DIFF préfixées par '-' sans tenir compte des '+'. Or un git revert (commit 555ec49) supprime l'entrée en générant bien des lignes '-', mais le commit d'ajout original (a3b0230) l'a introduite par des lignes '+' — qui ne sont pas examinées. Plus grave : la fonction ne déduit pas une 'disparition' au sens du journal ; elle confond 'ligne supprimée dans un diff' avec 'entrée retirée du journal d'ajout'. Un journal d'ajout peut très bien suivre un revert sans que la chaîne ne le détecte, si le journal a été conçu pour n'enregistrer que les ajouts validés (ce qui est explicitement la sémantique 'ajout seul' invoquée par le constat lui-même). Le témoin ne mesure pas un défaut du dispositif : il mesure une propriété attendue. Pour prouver un défaut, il faudrait démontrer qu'une entrée a été retirée SANS qu'un événement d'annulation n'ait été enregistré ailleurs (un journal séparé, un marker, une entrée de type 'revert') — ce que le témoin ne fait pas.",
+   "preuve": "reproduction.py lignes 47-66 : la boucle ne retient que les lignes préfixées par '-' et ignore les '+'. Elle conclut 'INVISIBLE à toute vérification de chaîne' alors qu'elle n'a pas cherché si un événement d'annulation existait ailleurs dans le dépôt (ex. : un tag, une entrée de type 'revert' dans un autre registre, un message de commit structuré)."
+  },
+  {
+   "severite": "critique",
+   "fichier": "registries/ledger/preuves.jsonl",
+   "description": "Le témoin conclut 'la disparition est donc INVISIBLE à toute vérification de chaîne' en se fondant uniquement sur la cohérence de la chaîne recalculée. Or, par construction, une chaîne de hachage ne peut pas 'voir' un retrait : c'est la définition même d'une fonction de hachage déterministe. Le témoin confond 'incohérence de chaîne' (détectée) et 'perte d'historique' (structurellement invisible à toute chaîne, par définition). L'objection réelle serait que le journal ne porte pas de MÉTA-INFORMATION (compteur, Merkle root committé à l'extérieur, horodatage de commit externe) — mais le témoin ne mesure pas cela. Il mesure une propriété tautologique.",
+   "preuve": "reproduction.py lignes 68-83 (_chaine_est_coherente) : la fonction rejoue la chaîne et retourne True. Le témoin en déduit que la disparition est invisible — mais toute chaîne cohérente est, par définition, incapable de signaler une entrée retirée. Le témoin ne mesure pas le défaut qu'il prétend établir."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "audit/temoins/AUD-A2-003/reproduction.py",
+   "description": "Le témoin AUD-A2-003 cherche 'un lien vers un état du dépôt' dans les champs des verdicts. Or, d'après la sortie fournie, les verdicts portent : verdict, objections, date_heure, prompt_sha256, reviewer_model — et 9 dimensions supplémentaires (modele, artefact, sha256_du_texte, longueur_caracteres, texte, delphi_round, preuve, etc.). Le témoin affirme 0/691 portent un lien vers un état du dépôt, mais ne précise pas s'il a cherché : (a) un champ 'commit', 'tree', 'sha', 'ref' ; (b) une empreinte du diff dans l'un des 27 champs textuels ; (c) si le 'sha256_du_texte' présent 9× pourrait être une empreinte de diff et non du texte du prompt. Sans cette énumération, le 0/691 est invérifiable et pourrait être un faux négatif par sous-recherche. Le témoin ne documente pas sa stratégie de recherche (les 'douze racines différentes' sont mentionnées dans le constat mais absentes du code visible).",
+   "preuve": "Sortie du témoin : 'verdicts portant un lien vers un état du dépôt : 0/691'. Aucune liste des 12 racines testées n'est fournie dans la sortie d'exécution ni dans le code visible. Le champ 'sha256_du_texte' (présent 9×) et 'artefact' (présent 9×) pourraient constituer un lien indirect qui n'est pas examiné."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "audit/temoins/AUD-A2-002/reproduction.py",
+   "description": "La réfutation (3) affirme : 'le défaut est-il isolé à un accident de ce registre ? Non : il est structurel, puisque verify ne compare à aucun état antérieur et validerait de même n'importe quelle réécriture cohérente.' Or cette affirmation est une propriété GÉNÉRALE de tout journal à chaîne de hachage, pas un défaut spécifique à ce dépôt. Aucun système à chaîne seule (sans ancrage externe type timestamp authority ou Merkle publish) ne peut détecter une réécriture cohérente. Le témoin confond 'défaut du dispositif' et 'limitation inhérente à la technique choisie'. Si D-042 spécifiait explicitement un journal d'ajout haché en chaîne SANS ancrage externe, alors le dispositif est CONFORME à son contrat — et le défaut est dans le contrat, pas dans l'implémentation. Le témoin ne vérifie pas ce que D-042 promettait exactement.",
+   "preuve": "Le champ 'contrat_gele' du constat est 'D-042', mais le code de reproduction.py ne contient aucune référence à D-042 ni à ce que ce contrat promettait. La conclusion 'structurel' est émise sans avoir confronté le comportement observé à l'obligation contractuelle."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "audit/temoins/AUD-A2-002/reproduction.py",
+   "description": "Le témoin suppose qu'un journal d'ajout ne doit 'jamais perdre une entrée — une annulation aurait dû s'y inscrire comme une entrée SUPPLÉMENTAIRE'. Mais c'est une convention, pas une nécessité. Un journal d'ajout peut être conçu pour n'enregistrer que les preuves VALIDÉES — auquel cas le revert retire légitimement la preuve. Le témoin impose une sémantique (append-only logique) sans avoir vérifié que c'était la sémantique contractuelle de D-042. Si le registre est sémantiquement un 'index des preuves vivantes' et non un 'log de toutes les preuves jamais émises', alors le comportement observé est correct.",
+   "preuve": "Aucune citation de D-042 dans le code. Le nom du fichier 'preuves.jsonl' (et non 'journal_preuves.jsonl' ou 'audit_trail.jsonl') est cohérent avec un index de preuves actives."
+  }
+ ],
+ "reponses_Q": {
+  "Q1": "Le constat 1 SUR-INTERPRÈTE. Un git revert qui retire une entrée d'un journal d'ajout est conforme à la sémantique d'un 'index de preuves vivantes' (qui est le nom et la fonction plausibles de preuves.jsonl). Le témoin n'a pas confronté ce comportement à ce que D-042 promettait réellement. Pour que le constat tienne, il faudrait : (a) citer D-042 et montrer qu'il impose un append-only logique ; (b) montrer qu'aucun événement 'revert' n'a été enregistré ailleurs (autre registre, marker, log externe). Aucune des deux n'est faite. Le constat tombe par défaut de preuve contractuelle.",
+  "Q2": "Le constat 2 est PEUT-ÊTRE utile mais MAL FORMULÉ. Scénario concret minimal : (1) un reviewer approuve un diff D1 portant le commit_sha C1 ; (2) un attaquant — ou un processus CI — remplace le diff dans la PR après approbation par D2 (commit C2, non revu) ; (3) le merge applique C2. Avec un champ 'commit' ou 'diff_sha' dans le verdict, on pourrait vérifier que C2 ≠ C1 et détecter la substitution. SANS ce champ, rien dans le dossier de revue ne permet de le savoir. Le scénario tient. MAIS : il suppose que le dossier de revue soit conçu comme une garde, et non comme un log. Si le dossier de revue est un journal de discussions et que la garde est ailleurs (CI, signature de commit, revue post-merge), alors le constat dénonce une absence dans un endroit où elle n'était pas promise. Le témoin ne vérifie pas ce point.",
+  "Q3": "La réfutation de 'trio décoratif' est PARTIELLE. 24 % de REJECT global et l'écart 5 % (DeepSeek) / 48 % (MiniMax) sont mesurés. Mais : (a) l'écart gigantesque entre fournisseurs (facteur ~10) suggère un biais de prompt, de calibration, ou de taux de base différent par modèle — pas un effet 'trio décoratif'. (b) 24 % de REJECT global sur 632 verdicts est élevé, pas faible — le dispositif n'est PAS décoratif, il est ACTIF et DIVergent. (c) La vraie conclusion à tirer n'est pas 'non décoratif' mais 'les relecteurs ne s'accordent pas, et un sur cinq est en désaccord — qu'est-ce qui est jugée différemment ?'. La mesure ne nomme pas ce que chaque fournisseur rejette, ni sur quoi porte le désaccord. La réfutation est solide sur 'non décoratif' mais manque la question suivante : 'alors pourquoi divergent-ils ?'.",
+  "Q4": "Mesures MANQUANTES : (1) Confrontation du comportement observé à l'obligation contractuelle de D-042 (le témoin ne cite pas D-042). (2) Énumération EXPLICITE des 12 racines cherchées par AUD-A2-003 et du résultat pour chacune (seul le 0/691 agrégé est fourni). (3) Distribution des motifs de REJECT par fournisseur (quoi est rejeté, pas seulement combien). (4) Vérification que les 12 sceaux absents (691-679=12) sont concentrés sur un fournisseur ou un type de verdict — ce qui pourrait révéler un biais. (5) Test de l'instrument 'tally.py' : est-il bit-identique entre exécutions ? (le périmètre l'annonce mais aucune preuve d'exécution n'est fournie dans le pack). (6) Existence d'un ancrage externe (timestamp authority, Merkle publish) pour les registres — si absent, le défaut est contractuel et non-imputable au code."
+ },
+ "date_heure": "2026-08-05T10:08:08.585298+00:00",
+ "prompt_sha256": "741d03ee77eaf150c85fc3582adc8efd177761611aaafa9a6af9fe338e327608",
+ "reviewer_model": "MiniMax-M3",
+ "modele_servi": "minimax-m3-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}

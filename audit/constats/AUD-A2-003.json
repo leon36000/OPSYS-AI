@@ -1,0 +1,27 @@
+{
+  "id": "AUD-A2-003",
+  "lot": "A2",
+  "classe": "defaut-code",
+  "titre": "Aucun verdict ne porte de lien vers le code qu'il approuve.",
+  "emplacement": [
+    "reviews/M1-S005/DeepSeek-V4-Pro.verdict.json:1",
+    "scripts/consensus_run.py:250"
+  ],
+  "temoin": "audit/temoins/AUD-A2-003/reproduction.py",
+  "temoin_rc": 1,
+  "temoin_sortie_sha256": "a18d2932947bf106f023c264330405888a990f52ccf624f9b837d1a6fe55f2f8",
+  "entrees_rubrique": {
+    "frontiere_t3": false,
+    "gate_couvrant": false,
+    "rayon": 2,
+    "contrat_gele": "REG-04"
+  },
+  "statut": "confirme",
+  "refutation": {
+    "cmd": "python3 audit/temoins/AUD-A2-003/reproduction.py",
+    "sortie": "691 verdicts inventories ; cles : verdict, objections, date_heure, prompt_sha256, reviewer_model, modele_servi, gateway_resilience. 0 verdict porte un champ liant a un commit, un arbre, une branche ou une empreinte de diff.",
+    "conclusion": "Deux refutations tentees. (1) Le lien existe-t-il sous un nom inattendu ? Le temoin cherche douze racines differentes (commit, sha1, diff_sha, head, branche, revision, tree, arbre, base, merge...) plutot qu'un nom precis, pour ne pas manquer une convention locale : aucune ne repond. (2) Le sceau prompt_sha256 suffit-il a lier au code ? Non : il scelle le PACK, ce qui prouve que les relecteurs ont lu le meme texte — garantie reelle, que le constat ne remet pas en cause — mais rien ne relie ce pack au commit fusionne. Ce que le constat n'affirme PAS : qu'un code non approuve ait ete fusionne. Il etablit que rien, dans le dossier de revue, ne permettrait de le savoir."
+  },
+  "assume_ref": null,
+  "severite": "critique"
+}

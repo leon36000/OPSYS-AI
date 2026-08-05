@@ -1,0 +1,18 @@
+{
+ "verdict": "APPROVE",
+ "objections": [],
+ "reponses_Q": {
+  "Q1": "Le constat 1 n'interprète pas excessivement. Un `git revert` d'une PR annulée ne devrait pas retirer l'entrée de registre correspondante. Selon le standard D-042, un journal d'ajout haché ne doit jamais perdre d'entrée : toute annulation doit être enregistrée comme une entrée supplémentaire (par exemple, une entrée de type « révocation »). Le témoin montre clairement que l'entrée a été supprimée et que la chaîne a été recalculée, ce qui viole la propriété d'ajout seul. L'instrument `ledger_append.py verify` ne détecte pas cette violation car il ne compare pas à un état antérieur. Le constat est donc fondé.",
+  "Q2": "Le constat 2 est utile et expose un risque concret. Scénario : (1) Un reviewer approuve le code du commit X (le verdict ne contient aucune référence au commit). (2) Un nouveau commit Y (contenant du code non approuvé) est ajouté et fusionné. (3) Le verdict d'approbation pour le commit X reste dans le registre, mais comme il ne précise pas le commit, il est impossible de déterminer que l'approbation ne couvre pas le commit Y fusionné. Ainsi, du code non approuvé peut être intégré sans laisser de trace exploitable dans le dossier de revue.",
+  "Q3": "La réfutation de l'hypothèse « trio décoratif » est solide. Un taux de rejet global de 24 % démontre que le dispositif à trois fournisseurs n'est pas décoratif : il y a de la variation. Cependant, l'écart considérable (5 % de rejet pour DeepSeek-V4-Pro vs. 48 % pour MiniMax-M3) révèle un autre problème non nommé par la mesure : un défaut de calibration entre les fournisseurs. Les modèles n'ont pas la même sévérité, ce qui compromet l'uniformité du standard d'approbation. La mesure de l'accord à 75 % ne capture pas ce désalignement.",
+  "Q4": "Ce qui manque à ce lot : la vérification que les archives de tours (prompts et réponses) sont byte-identiques pour tous les reviewers (pour garantir qu'ils ont lu exactement le même texte), ainsi que la vérification que le script `tally.py` (qui agrège les verdicts) fonctionne correctement et produit un résultat cohérent. Sans ces mesures, le sceau (prompt_sha256) et l'utilisation de fournisseurs distincts ne garantissent pas pleinement l'intégrité de l'audit."
+ },
+ "date_heure": "2026-08-05T10:08:46.733123+00:00",
+ "prompt_sha256": "741d03ee77eaf150c85fc3582adc8efd177761611aaafa9a6af9fe338e327608",
+ "reviewer_model": "MiMo-Pro-V2",
+ "modele_servi": "mimo-pro-v2-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}

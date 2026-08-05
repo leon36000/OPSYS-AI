@@ -65,7 +65,12 @@
       "classe": "preuve",
       "gravite_si_vraie": "critique",
       "lot": "AUD-A2",
-      "etat": "OUVERTE"
+      "etat": "CONVERTIE",
+      "conversion": {
+        "commande": "inventaire des cles des 651 verdicts de reviews/",
+        "resultat": "cles observees : verdict (651), objections (651), date_heure (651), prompt_sha256 (651), reviewer_model (651), modele_servi (160), gateway_resilience (160). AUCUN champ ne porte un commit, un sha1, une branche ni un diff.",
+        "conclusion": "CONFIRMEE. Le prompt_sha256 scelle le PACK vu par les relecteurs, ce qui est reel et precieux ; mais rien ne relie ce pack au commit fusionne. Convertie en constat AUD-A2-003."
+      }
     },
     {
       "id": "HA-03",
@@ -78,7 +83,12 @@
       "classe": "preuve",
       "gravite_si_vraie": "critique",
       "lot": "AUD-A2",
-      "etat": "OUVERTE"
+      "etat": "CONVERTIE",
+      "conversion": {
+        "commande": "python3 audit/temoins/AUD-A2-002/reproduction.py",
+        "resultat": "preuves.jsonl : 1 entree ajoutee puis disparue (c6e6873e, tache M7-S002), chaine des 49 restantes COHERENTE. decisions.jsonl et executions.jsonl : 0.",
+        "conclusion": "CONFIRMEE sur un cas reel. Convertie en constat AUD-A2-002."
+      }
     },
     {
       "id": "HA-04",
@@ -114,7 +124,12 @@
       "classe": "preuve",
       "gravite_si_vraie": "majeure",
       "lot": "AUD-A2",
-      "etat": "OUVERTE"
+      "etat": "REFUTEE",
+      "refutation": {
+        "commande": "denombrement des APPROVE/REJECT par relecteur sur les 632 verdicts nommes",
+        "resultat": "24 % de REJECT global, accord 75 % — et non « plus de 95 % ». Ecart marque entre relecteurs : DeepSeek-V4-Pro 5 % de rejet sur 112 verdicts, MiniMax-M3 48 % sur 95, Gemini-3.1-Pro 23 % sur 163, Qwen3.7-Max 26 % sur 145.",
+        "conclusion": "REFUTEE dans sa formulation : le dispositif a trois fournisseurs n'est pas decoratif, un verdict sur quatre est un rejet. La mesure confirme en revanche l'ecart de severite entre fournisseurs qui avait motive le choix du trio d'audit — un relecteur qui rejette 5 % et un qui rejette 48 % ne pesent pas pareil dans un consensus."
+      }
     },
     {
       "id": "HA-07",
