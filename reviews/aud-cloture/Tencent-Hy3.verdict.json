@@ -1,0 +1,25 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "RAPPORT.md",
+   "description": "Les hypothèses HA-11 et HA-13 sont déclarées 'réfutées par mesure' et comptabilisées dans '0 ouverte', alors que les témoins associés ne couvrent explicitement que 2 modules sur 10. Cela laisse 8 modules non vérifiés pour ces hypothèses, rendant la clôture trompeuse sur l'exhaustivité de la réfutation.",
+   "preuve": "Pack de revue : 'Chaque témoin n'exerce QUE DEUX modules sur dix et le dit.' vs État déclaré : '19 hypothèses adverses : 10 réfutées par mesure... 0 ouverte'."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "audit/verif_audit.py",
+   "description": "Le gate vérifie sept points mais ne semble pas inclure de contrôle sur la couverture des témoins par rapport à l'ensemble des modules du dépôt, ce qui permet à 'TOUT VERT' de masquer une réfutation partielle (ex: 2/10 modules).",
+   "preuve": "Pack de revue Q1 : 'Le gate vérifie sept choses. En manque-t-il une dont l'absence rendrait « TOUT VERT » trompeur ?'"
+  }
+ ],
+ "date_heure": "2026-08-05T20:29:44.353693+00:00",
+ "prompt_sha256": "cc572ff2f5b4625d2047c1c496a6b224ddc1bcbaf08cac7624af0c9effa22c8e",
+ "reviewer_model": "Tencent-Hy3",
+ "modele_servi": "tencent-hy3-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}

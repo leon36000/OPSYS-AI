@@ -130,6 +130,57 @@ def check_rapport_genere() -> list[str]:
     return []
 
 
+def check_rapport_fidele() -> list[str]:
+    """Le rapport est régénérable — mais dit-il ce que les constats disent ?
+
+    Un relecteur a relevé que « généré, non édité » ne prouve que la reproductibilité :
+    un générateur qui omettrait un constat, ou en altérerait le titre, produirait un
+    rapport parfaitement régénérable et pourtant infidèle. On confronte donc le contenu
+    du rapport aux constats, un par un.
+    """
+    rapport = AUDIT / "RAPPORT.md"
+    if not rapport.exists():
+        return ["audit/RAPPORT.md introuvable"]
+    texte = rapport.read_text(encoding="utf-8")
+    ecarts = []
+    for chemin, constat in _constats():
+        if constat["id"] not in texte:
+            ecarts.append(f"{constat['id']} absent du rapport")
+            continue
+        if constat["titre"] not in texte:
+            ecarts.append(f"{constat['id']} : titre absent ou altéré dans le rapport")
+        if constat["severite"] not in texte.split(constat["id"], 1)[1][:400]:
+            ecarts.append(f"{constat['id']} : sévérité absente au voisinage de son entrée")
+    return ecarts
+
+
+def check_temoins_mordent() -> list[str]:
+    """Un témoin qui sort au bon code sans rien exercer serait tautologique.
+
+    Objection d'un relecteur : « rien n'empêche un témoin de faire exit 1 avant tout
+    test ». On exige donc qu'il PRODUISE une sortie substantielle et qu'il NOMME le
+    constat qu'il porte — un script muet qui rend le bon code ne prouve rien.
+    """
+    ecarts = []
+    for chemin, constat in _constats():
+        temoin = RACINE / constat["temoin"]
+        if not temoin.exists():
+            continue
+        resultat = subprocess.run(
+            [sys.executable, str(temoin)], cwd=RACINE,
+            capture_output=True, text=True, timeout=300,
+        )
+        sortie = resultat.stdout + resultat.stderr
+        if len(sortie.strip()) < 200:
+            ecarts.append(
+                f"{constat['id']} : témoin quasi muet ({len(sortie.strip())} caractères) "
+                "— il rend le bon code sans montrer ce qu'il mesure"
+            )
+        if constat["id"] not in sortie:
+            ecarts.append(f"{constat['id']} : le témoin ne nomme pas le constat qu'il porte")
+    return ecarts
+
+
 CONTROLES = [
     ("Chaque constat passe le contrat gelé", check_constats_valides),
     ("Aucune sévérité écrite à la main", check_severites_recalculees),
@@ -138,6 +189,8 @@ CONTROLES = [
     ("La batterie des sondes est complète", check_sondes_mordent),
     ("Aucune hypothèse adverse laissée ouverte", check_hypotheses_closes),
     ("RAPPORT.md est généré, non édité", check_rapport_genere),
+    ("RAPPORT.md est FIDÈLE aux constats", check_rapport_fidele),
+    ("Chaque témoin montre ce qu'il mesure", check_temoins_mordent),
 ]
 
 

@@ -1,0 +1,55 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "critique",
+   "fichier": "audit/verif_audit.py",
+   "description": "Le gate 'TOUT VERT' valide la cohérence interne du dispositif d'audit (constats, témoins, zones propres), mais ne vérifie pas que le contenu de RAPPORT.md correspond à ce que les constats affirment. Or le commanditaire exige un rapport 'généré, non édité' — preuve de génération fournie, mais aucune preuve que la génération est fidèle aux constats (par exemple : un constat dit '646 verdicts', un autre 'Sept copies d'encoder_canonique' — la présence de ces nombres exacts dans RAPPORT.md n'est pas assertée). Sans cette vérification, le gate peut sortir vert sur un rapport qui omet ou déforme un constat.",
+   "preuve": "check_constats_valides() ne référence jamais RAPPORT.md ; seule la ligne 'RAPPORT.md est généré, non édité' est sortie, sans hash ni diff constats↔rapport. Audit/constats/AUD-A2-001 (646 verdicts) et AUD-A4-001 (Sept copies) : leur présence textuelle dans RAPPORT.md n'est pas testée."
+  },
+  {
+   "severite": "critique",
+   "fichier": "audit/constats/AUD-A4-002.json",
+   "description": "Le constat affirme qu'une bibliothèque tierce est importée dans 22 fichiers de production. La preuve (témoin rejoué) n'est pas fournie dans le pack. Aucun 'xargs -0', 'grep -l' ou sortie canonique ne vient corroborer le chiffre 22. Or l'audit lui-même inscrit comme donnée fausse nº1 un décompte de fichiers obtenu par 'xargs sans -0', exactement le type de mesure qui pourrait produire '22' à tort. Tant que ce chiffre n'est pas rejouable, le constat est non vérifiable et le gate ne peut pas le déclarer passant.",
+   "preuve": "Le pack montre les 12 titres de constats mais aucun bloc de preuve (sortie de commande, chemin, code de retour) pour AUD-A4-002. Premier constat listé dans 'Cinq données fausses' : décompte de fichiers obtenu par xargs sans -0 — même classe de bug que celui que AUD-A4-002 prétend corriger."
+  },
+  {
+   "severite": "critique",
+   "fichier": "audit/hypotheses_adverses/HA-11.json et HA-13.json",
+   "description": "HA-11 et HA-13 sont déclarées 'réfutées' par des témoins qui n'exercent QUE les modules M2 et M4, sur deux modules sur dix. La question Q2 du commanditaire demande explicitement si c'est une réfutation suffisante. Un témoin qui ne mute que 2/10 modules ne peut pas prouver qu'un défaut de même nature dans M1, M3, M5, M6, M7, M8, M9, M10 serait vu. Le gate les traite comme closes ; c'est une réfutation partielle tenue pour totale. Tant que la couverture des témoins d'hypothèses n'est pas documentée comme exhaustive sur l'ensemble des modules concernés, ces deux HA sont au mieux 'partiellement réfutées', pas closes.",
+   "preuve": "Pack : 'Chaque témoin n'exerce QUE DEUX modules sur dix et le dit.' Sortie du gate : 'OK: Aucune hypothèse adverse laissée ouverte' — sans distinguer ouverte/partielle."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "audit/verif_audit.py",
+   "description": "Le gate ne produit aucun horodatage ni empreinte (hash) des artefacts vérifiés (constats/*.json, temoins/*.sh, RAPPORT.md). Rejouer le pipeline à T+1 sur un dépôt modifié donnerait le même 'TOUT VERT' sans qu'aucune ligne du code ne l'ait détecté. Pour un audit qui se veut 'prouvé, pas déclaré', l'absence d'inviolabilité des entrées est une faiblesse. La condition du commanditaire inclut 'vérifié' — sans scellement, la vérification n'est pas reproductiblement liée à un état du dépôt.",
+   "preuve": "Sortie du gate : aucune ligne de type 'sha256(...)' ni 'audit_state.json'. verif_audit.py se contente d'importer valider_constat et de boucler sur glob('AUD-*.json') sans journaliser d'empreinte."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "audit/constats/",
+   "description": "Le pack liste 12 constats, tous de sévérité 'critique'. L'absence de constats majeurs ou mineurs est cohérente avec un audit ciblé, mais rien dans le gate ne vérifie que le tri par sévérité n'a pas été gommé (ex. un défaut majeur reclassé en critique pour gonfler le compte, ou l'inverse). Le gate vérifie 'Aucune sévérité écrite à la main' — c'est le mécanisme (calculée depuis rubrique), pas la distribution résultante. Si calculer_severite classe par défaut tout en 'critique', les 12 constats pourraient être en réalité d'importances hétérogènes sans que le gate le dise.",
+   "preuve": "Pack : 'Aucune sévérité écrite à la main' + '12 constats, tous critiques' — les deux ensemble ne disent pas que la distribution est plausible, seulement qu'aucune valeur n'est hardcodée. Le code de calculer_severite n'est pas dans le pack."
+  },
+  {
+   "severite": "majeure",
+   "fichier": "audit/temoins/",
+   "description": "Le critère 'Chaque témoin rejoué sort au code attendu' est satisfait si chaque témoin sort 0 (ou le code attendu). Mais rien n'empêche un témoin d'être lui-même tautologique (ex. un script qui fait 'exit 0' avant tout test), comme l'a été HA-13 'les tests sont tautologiques' avant d'être détectée. Le gate ne vérifie pas que le témoin EXERCE réellement le défaut qu'il prétend — il vérifie seulement son code de sortie. Si l'audit admet que des tests peuvent être tautologiques, le critère de rejouabilité du témoin est insuffisant pour les exclure.",
+   "preuve": "Sortie : 'OK: Chaque témoin rejoué sort au code attendu' — définition purement syntaxique (exit code). Aucune assertion sur le contenu du témoin (mutations effectuées, défauts injectés), ni cross-check avec les 5 données fausses du passé (ex. 'détection de machines à états par motif textuel — 10 faux positifs sur 13' : le témoin pourrait être le faux positif lui-même)."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "audit/RAPPORT.md",
+   "description": "Le pack ne fournit pas le contenu de RAPPORT.md. Le gate affirme 'RAPPORT.md est généré, non édité' mais ne définit pas ce qu'est 'édité' — absence de diff avec une version antérieure, absence de checksum, absence de mention de la commande de génération dans le rapport lui-même. Sans cette définition, un rapport réécrit à la main après génération passerait le gate.",
+   "preuve": "Pack : ligne 'OK: RAPPORT.md est généré, non édité' sans définition mesurable de 'édité'. Pas de référence à un process de build ou un timestamp d'injection."
+  }
+ ],
+ "date_heure": "2026-08-05T20:28:55.602499+00:00",
+ "prompt_sha256": "cc572ff2f5b4625d2047c1c496a6b224ddc1bcbaf08cac7624af0c9effa22c8e",
+ "reviewer_model": "MiniMax-M3",
+ "modele_servi": "minimax-m3-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}

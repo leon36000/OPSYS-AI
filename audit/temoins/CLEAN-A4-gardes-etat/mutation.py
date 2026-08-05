@@ -19,6 +19,7 @@ un `sys.modules` pollué ou une boucle infinie n'atteignent pas le processus d'a
 Sort en code non nul si une machine accepte une transition illégale, ou si l'injection
 d'une brèche n'est pas détectée.
 """
+import ast
 import json
 import pathlib
 import re
@@ -29,11 +30,46 @@ import tempfile
 
 RACINE = pathlib.Path(__file__).resolve().parents[3]
 
-# Machines à états portant une table TRANSITIONS_AUTORISEES et une fonction de transition.
-MACHINES = [
-    ("Modules M/M2-revenue-crm/src/m2_revenue_crm/statuts.py", "transitionner"),
-    ("Modules M/M4-field-ops/src/m4_field_ops/etats.py", "transitionner"),
-]
+def decouvrir_machines() -> list[tuple[str, str]]:
+    """Découvre les machines à états par analyse syntaxique, sans liste écrite à la main.
+
+    Une liste en dur se désynchronise en silence : trois relecteurs ont objecté que le
+    témoin n'exerçait que deux modules sur dix, et ils avaient raison de le demander — une
+    couverture qu'on affirme ne vaut rien. La découverte rend la question sans objet : ce
+    qui existe est exercé, et une machine ajoutée demain le sera aussi.
+
+    Une machine à états se reconnaît à une table `TRANSITIONS_AUTORISEES` accompagnée
+    d'une fonction dont le nom porte « transition ». Un fichier qui parle d'états sans
+    porter cette table n'en est pas une — c'est ce qu'une première détection par motif
+    textuel avait confondu, comptant 10 faux positifs sur 13.
+    """
+    sortie = subprocess.run(
+        ["git", "ls-files", "-z"], cwd=RACINE, capture_output=True, text=True, check=True
+    ).stdout
+    trouvees = []
+    for relatif in sorted(c for c in sortie.split("\0") if c):
+        if not (relatif.endswith(".py") and "/src/" in relatif
+                and relatif.startswith("Modules M/")):
+            continue
+        try:
+            arbre = ast.parse((RACINE / relatif).read_text(encoding="utf-8"))
+        except (OSError, SyntaxError):
+            continue
+        porte_table = any(
+            isinstance(n, ast.Assign)
+            and isinstance(n.targets[0], ast.Name)
+            and n.targets[0].id == "TRANSITIONS_AUTORISEES"
+            for n in arbre.body
+        )
+        if not porte_table:
+            continue
+        fonctions = [
+            n.name for n in ast.walk(arbre)
+            if isinstance(n, ast.FunctionDef) and "transition" in n.name.lower()
+        ]
+        if fonctions:
+            trouvees.append((relatif, fonctions[0]))
+    return trouvees
 
 # Ces modules emploient des imports relatifs (`from . import horodatage`) : il faut
 # charger le PAQUET, non le fichier isolé. Le chemin ajouté est donc le répertoire
@@ -94,8 +130,12 @@ def _sonder(chemin: pathlib.Path, fonction: str) -> dict | None:
 
 def main() -> int:
     echecs = []
+    MACHINES = decouvrir_machines()
+    if not MACHINES:
+        print("MESURE IMPOSSIBLE : aucune machine à états découverte", file=sys.stderr)
+        return 2
 
-    print("machines à états exercées par IMPORT, non par lecture de motif :\n")
+    print(f"{len(MACHINES)} machine(s) à états DÉCOUVERTE(S) dans le dépôt — toutes exercées :\n")
     for relatif, fonction in MACHINES:
         chemin = RACINE / relatif
         if not chemin.exists():
@@ -149,7 +189,7 @@ def main() -> int:
     print()
     print("L'hypothèse adverse — « les invariants ne sont vérifiés que dans les tests » —")
     print("est donc réfutée sur les machines examinées. Le témoin ne prétend PAS couvrir")
-    print("toutes les machines du dépôt : il en exerce deux, nommées dans son code.")
+    print("un sous-ensemble : il DÉCOUVRE les machines et les exerce toutes.")
     return 0
 
 
