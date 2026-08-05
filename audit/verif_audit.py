@@ -238,8 +238,14 @@ def check_perimetre_scelle() -> list[str]:
         if relatif:
             connus.add(relatif)
 
+    # `--others` est indispensable : sans lui, `git ls-files` n'énumère que l'INDEX.
+    # Un fichier écrit sur le disque et jamais indexé resterait invisible — deux
+    # relecteurs l'ont relevé, dont un en objection bloquante. `--exclude-standard`
+    # écarte ce que .gitignore couvre déjà (caches, artefacts de build), qui n'est
+    # pas du contenu ajouté au dépôt.
     sortie = subprocess.run(
-        ["git", "ls-files", "-z"], cwd=RACINE, capture_output=True, text=True, check=True
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+        cwd=RACINE, capture_output=True, text=True, check=True
     ).stdout
     for relatif in (c for c in sortie.split("\0") if c):
         if relatif in connus:

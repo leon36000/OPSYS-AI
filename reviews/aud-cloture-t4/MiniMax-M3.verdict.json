@@ -1,0 +1,25 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "check_perimetre_scelle (boucle inverse)",
+   "description": "La bidirectionnalité est成立 pour les fichiers SUIVIS par git, conformément au périmètre声明é par le pack. Deux scénarios边 restent hors du sceau et prouvent que « bidirectionnel » signifie ici « manifeste↔index », pas « manifeste↔arbre de travail complet » : (1) un fichier AJOUTÉ mais jamais stage (untracked) — `git ls-files` sans `--others` ne le liste pas, donc la boucle inverse l'ignore ; (2) un fichier du manifeste passé par `git rm --cached` — il reste sur disque avec la bonne empreinte (la boucle directe passe) et la boucle inverse le court-circuite via `if relatif in connus: continue` alors que `git ls-files` ne le contient plus. Le verdict est ancré à l'état suivi, pas à l'état complet du dépôt. Pour la clôture声明ée — « le périmètre gelé est intact » — c'est cohérent ; pour la formulation plus forte du docstring — « PROUVE que l'audit n'a rien modifié du produit » — ce sont deux failles边 nommées.",
+   "preuve": "subprocess.run([\"git\", \"ls-files\", \"-z\"], cwd=RACINE, capture_output=True, text=True, check=True) — `git ls-files` exclut les untracked et exclut les fichiers retirés de l'index ; la condition `if relatif in connus: continue` court-circuite la vérification pour tout chemin du manifeste absent de `git ls-files`. La preuve演示 dans le pack utilise `git add -N`, qui追踪 justement le fichier — les deux scénarios边 ci-dessus ne sont pas couverts par cette演示."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "check_perimetre_scelle (parsing du manifeste)",
+   "description": "Le manifeste est parsé deux fois — une fois pour vérifier les empreintes, une fois pour construire `connus`. Ce n'est pas un défaut de correction, mais un manifeste absent ou illisible produit des messages d'erreur distincts selon le moment où il est lu ; en particulier, la deuxième lecture n'a pas de garde `manifeste.exists()`, elle假设 que la première a réussi. Si le manifeste disparaît entre les deux lectures (TOCTOU bénin en local), la deuxième boucle lèverait une exception non明示e dans le rapport.",
+   "preuve": "manifeste.read_text(encoding=\"utf-8\") est appelé une seconde fois sans vérification d'existence préalable, après que la première boucle ait递增é `verifies`."
+  }
+ ],
+ "date_heure": "2026-08-05T21:01:30.546037+00:00",
+ "prompt_sha256": "d6d986d4d6352151e124250ec591c68f065c5d3bf1c76274f17d116a0a76454f",
+ "reviewer_model": "MiniMax-M3",
+ "modele_servi": "minimax-m3-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}

@@ -1,0 +1,25 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "check_perimetre_scelle (contrôle fourni dans le pack)",
+   "description": "BLOQUANT pour la clôture. Le passage inverse n'énumère pas le disque mais l'INDEX git : « git ls-files » sans option --others ne liste que les fichiers présents dans l'index (suivis ou intent-to-add). Un ajout par simple écriture disque — fichier non indexé, jamais stagé — reste invisible au contrôle : un arbre modifié par AJOUT seul produit donc encore TOUT VERT, qui est le scénario exact de l'objection du tour 3. Elle n'est fermée que pour les ajouts coopératifs (stagés). Cela invalide également la prétention du docstring selon laquelle CA-AUD-09 serait PROUVÉ : un outil d'audit écrivant core/src/x.py sans le staguer (mode d'écriture naturel d'un script) laisserait le scellement vert, et la ligne récapitulative « aucun ajout hors des chemins autorisés » serait fausse. Correctif court : parcourir réellement le système de fichiers (os.walk/Path.rglob en excluant .git et les préfixes autorisés) ou ajouter --others sans --exclude-standard. Le motif disparaît avec ce correctif ; clore avant serait clore sur une preuve qui ne couvre pas son propre scénario fondateur.",
+   "preuve": "Ligne « sortie = subprocess.run([\"git\", \"ls-files\", \"-z\"], cwd=RACINE, ...) » : aucune option --others. La contre-épreuve fournie le confirme elle-même : « touch core/src/injecte_par_contre_epreuve.py && git add -N … » — le « git add -N » est indispensable pour que le fichier apparaisse dans git ls-files ; sans lui, ecarts serait 0 et le verdict resterait vert malgré l'ajout."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "check_perimetre_scelle (constante CHEMINS_AUTORISES)",
+   "description": "Non bloquant — remédiation ultérieure. Tout ajout sous audit/, reviews/, registries/ ou stories/REM- est accepté sans aucune confrontation : un fichier étranger déposé dans ces zones (ex. registries/injecte.json) resterait vert. Limite assumée par CA-AUD-09 (l'audit doit y écrire), mais le scellement ne distingue pas les écritures légitimes des autres ; sceller la liste attendue des sorties d'audit lèverait ce résidu de confiance.",
+   "preuve": "« CHEMINS_AUTORISES = (\"audit/\", \"reviews/\", \"registries/\", \"stories/REM-\") » suivi de « if any(relatif.startswith(prefixe) for prefixe in CHEMINS_AUTORISES): continue » — court-circuit total, aucun contrôle résiduel sur ces chemins."
+  }
+ ],
+ "date_heure": "2026-08-05T21:04:13.640989+00:00",
+ "prompt_sha256": "d6d986d4d6352151e124250ec591c68f065c5d3bf1c76274f17d116a0a76454f",
+ "reviewer_model": "Kimi-K3",
+ "modele_servi": "kimi-k3-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}
