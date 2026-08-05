@@ -1,0 +1,109 @@
+```json
+{
+  "reviewer": "adversarial-audit-probe",
+  "vendor": "independent",
+  "hypotheses": [
+    {
+      "id": "HA-1",
+      "enonce": "Les 135 fichiers source des modules M1-M10 sont des coquilles vides (0 lignes de code effectif confirmées par la volumétrie), ce qui signifie que les 2 840 tests ne vérifient aucune logique métier située dans les modules — ils testent soit des stubs, soit la logique est ailleurs (core/), rendant le statut PARTIAL et les 168 PR fusionnées structurellement mensongers.",
+      "pourquoi": "Un pipeline multi-modèles peut produire des PR qui passent le CI en ne contenant que des signatures, des docstrings et des __init__.py, tandis que les tests importent depuis core/ ou testent des mocks. Le TDD vert masque l'absence de code métier dans les modules annoncés.",
+      "mesure": "python3 -c \"import ast, glob, sys; files=[f for f in glob.glob('Modules M/**/*.py', recursive=True) if 'test' not in f and '__pycache__' not in f]; empty=[f for f in files if not any(isinstance(n,(ast.FunctionDef,ast.ClassDef,ast.AsyncFunctionDef)) for n in ast.walk(ast.parse(open(f).read())))]; print(f'{len(empty)}/{len(files)} fichiers source sans aucune définition de fonction ou classe'); sys.exit(0 if len(empty)/max(len(files),1)>0.8 else 1)\"",
+      "signal_de_confirmation": "Plus de 80 % des fichiers source des modules ne contiennent ni FunctionDef ni ClassDef — les modules sont des façades vides.",
+      "signal_de_refutation": "La majorité des fichiers source contiennent des définitions de fonctions ou de classes avec du corps de code effectif.",
+      "classe": "code",
+      "gravite_si_vraie": "critique"
+    },
+    {
+      "id": "HA-2",
+      "enonce": "Le registre en journal d'ajout haché en chaîne utilise la fonction hash() built-in de Python (ou hashlib.md5) au lieu de hashlib.sha256, rendant la chaîne de preuves non reproductible d'une exécution à l'autre à cause de PYTHONHASHSEED.",
+      "pourquoi": "Les modèles de code confondent fréquemment hash() (conçu pour les tables de hachage, randomisé par processus depuis Python 3.3) avec un hachage cryptographique. En contexte 'bibliothèque standard uniquement', le modèle peut écrire hash() en pensant bien faire, et les 3 relecteurs — entraînés sur les mêmes corpus — ne détectent pas l'erreur car hash() est syntaxiquement valide et passe les tests unitaires (qui tournent dans un seul processus).",
+      "mesure": "grep -rnE '\\bhash\\s*\\(' scripts/ledger_append.py core/ registries/ 2>/dev/null; echo '---'; grep -rnE 'hashlib\\.(sha256|sha3_256|blake2)' scripts/ledger_append.py core/ registries/ 2>/dev/null; echo '---'; python3 -c \"import ast,sys; tree=ast.parse(open('scripts/ledger_append.py').read()); calls=[n.func.id for n in ast.walk(tree) if isinstance(n,ast.Call) and isinstance(n.func,ast.Name) and n.func.id=='hash']; print(f'Appels à hash() built-in: {len(calls)}'); sys.exit(0 if calls else 1)\"",
+      "signal_de_confirmation": "Présence de hash() built-in dans le code du ledger, ou absence totale de hashlib.sha256 — la chaîne de hachage est non reproductible et la preuve d'intégrité est nulle.",
+      "signal_de_refutation": "Utilisation exclusive de hashlib.sha256 (ou plus fort) avec encodage explicite .encode('utf-8') avant hachage.",
+      "classe": "securite",
+      "gravite_si_vraie": "critique"
+    },
+    {
+      "id": "HA-3",
+      "enonce": "Le taux d'accord inter-relecteurs (3 fournisseurs distincts) dépasse 95 % sur l'ensemble des 644 verdicts, ce qui indique un consensus de biais d'entraînement commun plutôt qu'une revue indépendante — le dispositif à 3 fournisseurs est un théâtre.",
+      "pourquoi": "Les modèles de langage partagent des corpus d'entraînement massivement overlapés (Common Crawl, GitHub public, StackOverflow). Sur des patterns de code standard, ils produisent les mêmes jugements avec les mêmes angles morts. La diversité de fournisseur ne garantit pas la diversité cognitive quand les données d'entraînement convergent.",
+      "mesure": "python3 -c \"\nimport json, glob, os\nfrom collections import defaultdict\nverdicts = defaultdict(dict)\nfor f in glob.glob('registries/verdicts/phaseC-live/*.json'):\n    model = os.path.basename(f).replace('.json','')\n    data = json.load(open(f))\n    items = data if isinstance(data, list) else data.get('verdicts', data.get('reviews', []))\n    for item in items:\n        sid = item.get('story_id', item.get('pr_id', item.get('id','')))\n        verdicts[sid][model] = item.get('verdict', item.get('decision', item.get('approved','')))\nagreements = 0; total = 0\nfor sid, models in verdicts.items():\n    if len(models) >= 2:\n        vals = list(models.values())\n        total += 1\n        if len(set(str(v) for v in vals)) == 1:\n            agreements += 1\nrate = agreements/max(total,1)*100\nprint(f'Accord unanime: {agreements}/{total} = {rate:.1f}%')\n\"",
+      "signal_de_confirmation": "Taux d'accord unanime > 95 % — les relecteurs sont fonctionnellement identiques, le dispositif multi-fournisseur n'apporte aucune redondance réelle.",
+      "signal_de_refutation": "Taux d'accord entre 60 % et 85 %, avec des dissentiments documentés et résolus par le tally — la revue multi-fournisseur capture de vrais désaccords.",
+      "classe": "methode",
+      "gravite_si_vraie": "majeure"
+    },
+    {
+      "id": "HA-4",
+      "enonce": "Les tests générés en TDD par les modèles de code sont tautologiques : ils assertent sur des détails d'implémentation (attributs privés, noms de fonctions internes, structure de données) plutôt que sur des contrats d'API publique dérivés de la spécification métier.",
+      "pourquoi": "Quand le même pipeline IA écrit le test puis le code, il optimise pour 'test vert' et non pour 'spécification respectée'. Le test devient une reformulation du code, pas une vérification indépendante. Les 3 relecteurs approuvent car le test passe — mais il ne prouve rien sur l'intention métier.",
+      "mesure": "python3 -c \"\nimport ast, glob, re\nprivate_asserts = 0; public_asserts = 0; total_asserts = 0\nfor f in glob.glob('Modules M/**/test_*.py', recursive=True):\n    try:\n        tree = ast.parse(open(f).read())\n    except: continue\n    for node in ast.walk(tree):\n        if isinstance(node, ast.Assert) or (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr.startswith('assert')):\n            total_asserts += 1\n            src = ast.dump(node)\n            if re.search(r'_[a-zA-Z]', src) or '_private' in src or '.__' in src:\n                private_asserts += 1\n            else:\n                public_asserts += 1\nprint(f'Assertions totales: {total_asserts}')\nprint(f'Assertions sur implémentation privée: {private_asserts} ({private_asserts/max(total_asserts,1)*100:.1f}%)')\nprint(f'Assertions sur API publique: {public_asserts} ({public_asserts/max(total_asserts,1)*100:.1f}%)')\n\"",
+      "signal_de_confirmation": "Plus de 30 % des assertions référencent des attributs privés (préfixe _) ou des détails d'implémentation interne — les tests sont couplés à l'implémentation, pas au contrat.",
+      "signal_de_refutation": "Moins de 10 % des assertions touchent l'implémentation privée ; la majorité teste des entrées/sorties de l'API publique.",
+      "classe": "code",
+      "gravite_si_vraie": "majeure"
+    },
+    {
+      "id": "HA-5",
+      "enonce": "Le script tally.py ne filtre pas les verdicts du répertoire phaseC-mock/ et les comptabilise comme des votes légitimes dans le consensus, permettant à des verdicts fictifs de faire basculer des décisions de fusion.",
+      "pourquoi": "La coexistence de registries/verdicts/mock-phaseC/ et registries/verdicts/phaseC-live/ dans la même arborescence, sans séparation structurelle forte, crée un risque que le tally — s'il parcourt récursivement — ingère les mocks. Les modèles IA qui ont écrit tally.py n'ont pas nécessairement anticipé cette séparation, et les relecteurs n'ont pas vérifié le comportement sur données contaminées.",
+      "mesure": "python3 -c \"\nimport ast\nsrc = open('scripts/tally.py').read()\ntree = ast.parse(src)\n# Check if 'mock' appears in any filter/exclusion logic\nhas_mock_filter = 'mock' in src.lower() and ('exclude' in src.lower() or 'skip' in src.lower() or 'ignore' in src.lower() or 'filter' in src.lower())\n# Check glob patterns used\nimport re\nglobs = re.findall(r'glob\\.glob\\([^)]+\\)', src)\nprint(f'Patterns glob dans tally.py: {globs}')\nprint(f'Filtre anti-mock explicite: {has_mock_filter}')\n# Check if mock dir would be caught by the glob\nif 'phaseC-live' in src and 'mock' not in src:\n    print('RISQUE: tally cible phaseC-live mais sans exclusion explicite de mock')\nelif 'verdicts' in src and 'mock' not in src:\n    print('RISQUE: tally parcourt tout verdicts/ sans exclure mock-phaseC/')\nelse:\n    print('Vérifier manuellement les patterns de chemin')\n\"",
+      "signal_de_confirmation": "tally.py utilise un glob qui inclut mock-phaseC/ (ex: 'registries/verdicts/**/*.json') sans filtre d'exclusion explicite — les mocks contaminent le consensus.",
+      "signal_de_refutation": "tally.py cible explicitement 'phaseC-live/' uniquement, ou contient un filtre d'exclusion vérifiable pour tout chemin contenant 'mock'.",
+      "classe": "preuve",
+      "gravite_si_vraie": "critique"
+    },
+    {
+      "id": "HA-6",
+      "enonce": "Le socle partagé (registre, machine à états, encodage canonique, conformité) a été copié-collé entre les 10 modules et a divergé : au moins 3 modules contiennent des versions mutées du même composant, créant des incohérences silencieuses non détectées par les tests (qui testent chaque copie isolément).",
+      "pourquoi": "En production multi-modèles sans package partagé (contrainte 'stdlib only' + pas de monorepo tooling), chaque story qui touche le socle le modifie dans son module sans propager aux autres. Les relecteurs voient une copie à la fois et approuvent. Le CI teste chaque module isolément. La divergence est invisible tant qu'aucun test d'intégration cross-module n'existe.",
+      "mesure": "python3 -c \"\nimport os, hashlib, glob\nfrom collections import defaultdict\n# Find files with same name across modules\nfile_hashes = defaultdict(dict)\nfor f in glob.glob('Modules M/**/core/*.py', recursive=True) + glob.glob('Modules M/**/base/*.py', recursive=True) + glob.glob('Modules M/**/shared/*.py', recursive=True) + glob.glob('Modules M/**/common/*.py', recursive=True):\n    parts = f.split(os.sep)\n    module = parts[1] if len(parts)>1 else 'unknown'\n    basename = os.path.basename(f)\n    h = hashlib.md5(open(f,'rb').read()).hexdigest()\n    file_hashes[basename][module] = h\n# Also check top-level .py in each module for shared components\nfor f in glob.glob('Modules M/*/*.py', recursive=False):\n    parts = f.split(os.sep)\n    module = parts[1] if len(parts)>1 else 'unknown'\n    basename = os.path.basename(f)\n    if basename in ('ledger.py','state_machine.py','encoding.py','compliance.py','registry.py','canonical.py'):\n        h = hashlib.md5(open(f,'rb').read()).hexdigest()\n        file_hashes[basename][module] = h\ndivergent = 0\nfor name, modules in file_hashes.items():\n    if len(modules) > 1:\n        unique_hashes = set(modules.values())\n        if len(unique_hashes) > 1:\n            divergent += 1\n            print(f'DIVERGENCE: {name} — {len(unique_hashes)} versions dans {list(modules.keys())}')\nprint(f'Fichiers partagés divergents: {divergent}')\n\"",
+      "signal_de_confirmation": "Au moins 2 fichiers de socle existent en 3+ versions distinctes à travers les modules — le socle a divergé silencieusement.",
+      "signal_de_refutation": "Tous les fichiers de socle partagés sont byte-identiques across modules, ou il n'existe qu'une seule copie dans core/ importée par tous.",
+      "classe": "code",
+      "gravite_si_vraie": "majeure"
+    },
+    {
+      "id": "HA-7",
+      "enonce": "Les fichiers AGENTS.md.pre-proof.bak et CLAUDE.md.pre-proof.bak révèlent que les instructions aux agents ont été modifiées APRÈS l'étape de preuve pour optimiser le passage de l'audit (ajout de contraintes cosmétiques, suppression de règles gênantes, reformulation de critères pour les rendre automatiquement satisfaisables).",
+      "pourquoi": "La présence de .bak 'pre-proof' indique explicitement qu'une modification post-preuve a eu lieu. Dans un pipeline IA, ajuster les prompts après coup pour que les outputs passent l'audit est l'équivalent de courber l'instrument de mesure. Si les instructions ont été adoucies, les 644 verdicts scellés l'ont été sous un régime plus laxiste que celui annoncé.",
+      "mesure": "diff AGENTS.md AGENTS.md.pre-proof.bak | head -100; echo '==='; diff CLAUDE.md CLAUDE.md.pre-proof.bak | head -100; echo '==='; diff AGENTS.md AGENTS.md.pre-proof.bak | grep -cE '^[<>]'; echo 'lignes modifiées'",
+      "signal_de_confirmation": "Les diffs montrent des modifications substantielles (>20 lignes) touchant des critères de qualité, des règles de revue, ou des contraintes de code — les instructions ont été tunées post-preuve.",
+      "signal_de_refutation": "Les fichiers sont identiques, ou les différences sont purement cosmétiques (formatage, typos, ajouts de sections non-normatives en fin de fichier).",
+      "classe": "preuve",
+      "gravite_si_vraie": "critique"
+    },
+    {
+      "id": "HA-8",
+      "enonce": "Les verdicts JSON produits par les différents modèles (Gemini, DeepSeek, GLM, Grok, Kimi, LongCat, etc.) ont des schémas structurels hétérogènes (clés différentes, types différents, champs optionnels manquants), et le script tally.py utilise un parsing permissif (.get() avec défauts) qui masque les verdicts malformés en les comptant comme des approbations par défaut.",
+      "pourquoi": "Chaque fournisseur d'IA produit du JSON selon son propre format de sortie. Sans schéma JSON imposé et validé avant ingestion, le tally doit être tolérant pour ne pas planter — et cette tolérance transforme les erreurs de format en votes par défaut. Un verdict qui échoue à parser devient 'approved=None' qui peut être compté comme neutre ou positif.",
+      "mesure": "python3 -c \"\nimport json, glob, os\nfrom collections import Counter\nkey_sets = []\nfor f in glob.glob('registries/verdicts/phaseC-live/*.json'):\n    try:\n        data = json.load(open(f))\n        if isinstance(data, list) and data:\n            keys = frozenset(data[0].keys())\n        elif isinstance(data, dict):\n            keys = frozenset(data.keys())\n        else:\n            keys = frozenset(['EMPTY'])\n        key_sets.append((os.path.basename(f), keys))\n    except Exception as e:\n        key_sets.append((os.path.basename(f), frozenset([f'ERROR:{e}'])))\nschemas = Counter(ks for _,ks in key_sets)\nprint(f'Nombre de schémas distincts: {len(schemas)}')\nfor schema, count in schemas.most_common():\n    print(f'  {count} fichiers: {sorted(schema)}')\n# Check tally.py for permissive parsing\ntally_src = open('scripts/tally.py').read()\npermissive = tally_src.count('.get(') + tally_src.count('or True') + tally_src.count('or \\\"approved\\\"')\nprint(f'Indicateurs de parsing permissif dans tally.py: {permissive} occurrences de .get()/fallbacks')\n\"",
+      "signal_de_confirmation": "3+ schémas JSON distincts coexistent parmi les verdicts live, ET tally.py contient >5 appels .get() avec valeurs par défaut — des verdicts malformés sont silently acceptés.",
+      "signal_de_refutation": "Tous les verdicts partagent un schéma unique, ou tally.py valide strictement les champs requis et rejette (avec erreur) tout verdict non conforme.",
+      "classe": "preuve",
+      "gravite_si_vraie": "majeure"
+    },
+    {
+      "id": "HA-9",
+      "enonce": "Au moins un module importe une bibliothèque tierce (non-stdlib) via un import conditionnel, un import dans un string eval/exec, ou un __import__ dynamique, contournant la contrainte gelée 'stdlib only' sans que le CI ne le détecte car l'import n'échoue qu'en production (où le package n'est pas installé).",
+      "pourquoi": "Les modèles de code sont massivement entraînés sur du code utilisant requests, pydantic, sqlalchemy, numpy, etc. Sous contrainte 'stdlib only', ils peuvent produire des imports conditionnels (try/except ImportError) ou des imports tardifs qui passent le CI (où les packages sont peut-être installés dans l'environnement de test) mais échouent en production. Les relecteurs IA ne vérifient pas systématiquement la liste blanche d'imports.",
+      "mesure": "python3 -c \"\nimport ast, glob, sys\nstdlib_modules = set(sys.stdlib_module_names) if hasattr(sys, 'stdlib_module_names') else set()\nsuspicious = []\nfor f in glob.glob('Modules M/**/*.py', recursive=True):\n    try:\n        tree = ast.parse(open(f).read())\n    except: continue\n    for node in ast.walk(tree):\n        if isinstance(node, ast.Import):\n            for alias in node.names:\n                top = alias.name.split('.')[0]\n                if top not in stdlib_modules and top not in ('tests','core','modules','M1','M2','M3','M4','M5','M6','M7','M8','M9','M10','__future__'):\n                    suspicious.append((f, alias.name, node.lineno))\n        elif isinstance(node, ast.ImportFrom):\n            if node.module:\n                top = node.module.split('.')[0]\n                if top not in stdlib_modules and top not in ('tests','core','modules','.') and not node.module.startswith('.'):\n                    suspicious.append((f, node.module, node.lineno))\nfor f, mod, line in suspicious[:20]:\n    print(f'{f}:{line} -> import {mod}')\nprint(f'Total imports suspects: {len(suspicious)}')\n\"",
+      "signal_de_confirmation": "Au moins 1 import de module non-stdlib trouvé dans le code des modules — la contrainte 'stdlib only' est violée.",
+      "signal_de_refutation": "Tous les imports sont des modules de la bibliothèque standard Python ou des imports relatifs internes au projet.",
+      "classe": "securite",
+      "gravite_si_vraie": "majeure"
+    },
+    {
+      "id": "HA-10",
+      "enonce": "Le script statut_lint.py valide le statut PARTIAL des modules sur des critères purement structurels (présence de fichiers, existence de tests) mais ne vérifie aucun invariant sémantique (complétude de la machine à états, cohérence du registre, couverture des règles R-001..R-033), permettant à un module vide ou incohérent d'obtenir le statut PARTIAL.",
+      "pourquoi": "Un linter de statut écrit par IA tend à vérifier ce qui est facilement vérifiable (fichiers présents, tests existent, pas de syntax error) plutôt que ce qui est sémantiquement requis (tous les états de la FSM sont atteignables, toutes les règles du plan de référence sont implémentées). Le statut PARTIAL devient un badge cosmétique sans garantie de fond.",
+      "mesure": "python3 -c \"\nimport ast\nsrc = open('scripts/statut_lint.py').read()\ntree = ast.parse(src)\n# Extract all string literals and function calls to understand what it checks\nchecks = []\nfor node in ast.walk(tree):\n    if isinstance(node, ast.Constant) and isinstance(node.value, str) and len(node.value) > 3:\n        checks.append(node.value)\n    if isinstance(node, ast.Attribute) and node.attr in ('exists','isfile','isdir','listdir','glob'):\n        checks.append(f'FILESYSTEM_CHECK:{node.attr}')\nsemantic_keywords = ['state_machine','invariant','R-001','R-033','REG-','compliance','canonical','hash_chain','ledger_integrity']\nfound_semantic = [k for k in semantic_keywords if k in src]\nfound_structural = [c for c in checks if 'FILESYSTEM' in str(c) or any(w in str(c).lower() for w in ['exists','path','file','dir','import'])]\nprint(f'Vérifications sémantiques trouvées: {found_semantic}')\nprint(f'Vérifications structurelles trouvées: {len(found_structural)}')\nprint(f'Ratio sémantique/structurel: {len(found_semantic)}/{len(found_structural)}')\n\"",
+      "signal_de_confirmation": "statut_lint.py ne contient aucune référence aux invariants métier, aux règles R-xxx, ou à la cohérence du registre — il ne vérifie que la structure de fichiers. Un module vide avec les bons noms de fichiers passerait PARTIAL.",
+      "signal_de_refutation": "statut_lint.py vérifie explicitement la complétude de la machine à états, la validité de la chaîne de hachage du registre, et la couverture des règles R-001..R-033.",
+      "classe": "methode",
+      "gravite_si_vraie": "majeure"
+    }
+  ],
+  "angle_mort_du_dispositif": "Le dispositif est structurellement incapable de détecter une **dérive sémantique consensuelle** : si tous les modèles participants (codeurs et relecteurs) partagent la même mauvaise interprétation d'une règle métier — parce que leurs corpus d'entraînement contiennent le même biais ou que la spécification est ambiguë d'une façon que tous résolvent identiquement — alors les tests encoderont l'erreur, les 3 relecteurs l'approuveront à l'unanimité, le tally scellera le consensus, et le registre en chaînage haché prouvera que tout s'est déroulé conformément au processus. Le système produit une preuve de cohérence interne parfaite pour un résultat externement faux. Aucune couche du dispositif n'introduit d'oracle indépendant des modèles : le plan de référence (PDF) n'est jamais comparé automatiquement au code, et aucun humain ne valide la sémantique métier avant fusion. La preuve prouve le processus, pas la vérité."
+}
+```

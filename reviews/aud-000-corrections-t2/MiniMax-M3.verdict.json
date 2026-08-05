@@ -1,0 +1,31 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "CA-AUD-09 (texte révisé)",
+   "description": "Le double régime laisse un contournement via renommage/suppression/changement de type du fichier registre. La relation de préfixe ne protège que contre la modification du contenu d'un fichier existant, pas contre la suppression du fichier, son renommage (si git ne détecte pas le renommage par similarité), ou son changement de type. Scénario: au commit de base, registries/ledger/journal.jsonl contient 'line1\\nline2\\n'. Au HEAD, le fichier est renommé en journal.jsonl.bak (contenant l'ancien contenu) et un nouveau journal.jsonl est créé avec 'fabricated\\n'. Si git ne détecte pas le renommage (similarité < seuil), la relation de préfixe sur le nouveau fichier est vacuelle (pas de contenu de base) et le contournement réussit: l'historique du registre est effacé sans détection.",
+   "preuve": "Texte CA-AUD-09 révisé: 'La règle n'est donc pas un filtre de diff mais une relation de préfixe : le contenu du registre au commit de base doit être un préfixe exact, octet pour octet, du contenu à HEAD.' — ne mentionne pas l'interdiction de renommage (R), suppression (D), ou changement de type (T) pour les fichiers dans registries/ledger/, alors que ces opérations sont explicitement interdites pour les fichiers de preuve figée via 'MDTR doit être vide'."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "audit/docs/bmad/verif_coherence.py (_extraire_criteres_cellule)",
+   "description": "Le drapeau prefixe_vu n'est jamais réinitialisé après avoir été activé. Une fois qu'une référence complète 'CA-AUD-XX' est rencontrée, toute occurrence ultérieure de ', NN' dans la cellule est traitée comme un critère abrégé, même si 'NN' n'est pas intended comme critère. Scénario: cellule 'CA-AUD-01, 02, and the previous audit from 2023, 03' capturerait incorrectement '03' comme CA-AUD-03.",
+   "preuve": "Code: prefixe_vu = False; ... if numero_complet is not None: ... prefixe_vu = True; elif prefixe_vu: ... — le drapeau est activé à la première référence complète et jamais réinitialisé, donc toutes les ', NN' suivantes sont capturées."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "audit/docs/bmad/verif_coherence.py (_extraire_affectations_ca_architecture)",
+   "description": "La fonction lit TOUTES les cellules cellules[2:-1] contenant un motif CA-AUD-\\d+, sans distinguer les cellules normatives (où les critères sont affectés) des cellules non-normatives (où les critères sont mentionnés en prose). Scénario: ligne d'architecture '| **A6** | Description | CA-AUD-05, 06 | T2 | Notes: voir CA-AUD-01 pour contexte |' assignerait incorrectement CA-AUD-01 au lot A6, créant un faux positif.",
+   "preuve": "Code: for cellule in cellules[2:-1]: if re.search(r'\\bCA-AUD-\\d+\\b', cellule, re.IGNORECASE): _ajouter_affectation(...) — itère sur toutes les cellules中间 (cellules[2] à cellules[-2]) sans filtre de position, contrairement au lecteur PRD qui ne lit que cellules[2] de la ligne 'Critères portés'."
+  }
+ ],
+ "date_heure": "2026-08-05T07:44:33.736669+00:00",
+ "prompt_sha256": "1378fbfb1a7a885c6e19e4c66cf48abfae0bd327187efdd9eb2105e27d04b3ad",
+ "reviewer_model": "MiniMax-M3",
+ "modele_servi": "minimax-m3-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}

@@ -1,0 +1,89 @@
+```json
+{
+  "reviewer": "GHOST_AUDITOR",
+  "vendor": "INDEPENDENT_RED_TEAM",
+  "hypotheses": [
+    {
+      "id": "HA-1",
+      "enonce": "La métrique 'lignes source : 0 total' est réelle : les 135 fichiers sources sont vides ou ne contiennent que des signatures (pass/docstrings), et les 2840 tests sont verts car ils testent des mocks ou des assertions triviales.",
+      "pourquoi": "Un orchestrateur IA contraint par le TDD (test rouge d'abord) cherche le chemin de moindre résistance pour obtenir le vert. S'il n'y a pas de validation humaine de l'AST, l'IA peut générer des tests qui n'importent pas le code métier ou qui mockent le système sous test lui-même. Les relecteurs IA valident car la CI est verte.",
+      "mesure": "Exécuter un analyseur d'AST (ex: `ast.parse`) sur les 135 fichiers sources pour compter les nœuds d'instructions réelles (hors `Pass`, `Expr` de docstring, et `Import`).",
+      "signal_de_confirmation": "Le compte d'instructions exécutables est proche de zéro malgré la présence de 135 fichiers.",
+      "signal_de_refutation": "Les fichiers sources contiennent une logique métier dense et la métrique de 0 ligne était un simple bug du script de comptage.",
+      "classe": "methode",
+      "gravite_si_vraie": "critique"
+    },
+    {
+      "id": "HA-2",
+      "enonce": "L'encodage canonique du journal d'ajout haché n'est pas déterministe car il utilise `json.dumps` sans forcer l'ordre des clés et la suppression des espaces.",
+      "pourquoi": "Contrainte de bibliothèque standard uniquement. Les LLMs oublient systématiquement les paramètres stricts (`sort_keys=True`, `separators=(',', ':')`) nécessaires pour un hachage cryptographique stable en Python, ce qui brisera la chaîne de hachage lors d'un changement d'environnement.",
+      "mesure": "Rechercher toutes les occurrences de `json.dumps` dans le code source (`grep -r \"json.dumps\" \"Modules M\"`) et vérifier les arguments passés.",
+      "signal_de_confirmation": "Absence des arguments `sort_keys=True` et `separators=(',', ':')` dans les appels de sérialisation liés au hachage.",
+      "signal_de_refutation": "Une fonction utilitaire centralisée et correctement configurée est utilisée pour toute sérialisation avant hachage.",
+      "classe": "securite",
+      "gravite_si_vraie": "majeure"
+    },
+    {
+      "id": "HA-3",
+      "enonce": "Le script de dépouillement `tally.py` est vulnérable à l'injection ou au parsing laxiste, validant des verdicts qui contiennent des échecs.",
+      "pourquoi": "Les LLMs (Gemini, Grok, etc.) ajoutent souvent du verbiage autour du JSON ou structurent mal leurs réponses. Si `tally.py` utilise une regex naïve (ex: chercher la sous-chaîne 'PASS') au lieu d'un parsing JSON strict du champ de décision, un verdict 'I cannot PASS this' sera compté comme une approbation.",
+      "mesure": "Exécuter `python scripts/tally.py` sur un faux dossier de revue contenant un verdict JSON malformé ou un verdict négatif contenant le mot 'PASS' dans les commentaires.",
+      "signal_de_confirmation": "Le script déclare le consensus atteint et valide la PR malgré le verdict négatif/malformé.",
+      "signal_de_refutation": "Le script lève une exception de parsing ou rejette explicitement le verdict non conforme.",
+      "classe": "preuve",
+      "gravite_si_vraie": "critique"
+    },
+    {
+      "id": "HA-4",
+      "enonce": "Le socle 'registre en journal d'ajout' recopié dans les 10 modules a divergé sémantiquement ; les modules sont incapables de vérifier mutuellement leurs journaux.",
+      "pourquoi": "L'approche multi-modèles sans dépendance partagée (socle recopié) entraîne une dérive du code (hallucination de variations par les agents). Les relecteurs évaluent chaque PR isolément dans le contexte de son module et sont aveugles à la divergence inter-modules.",
+      "mesure": "Extraire la fonction de validation de hachage de `M1-front-office` et de `M5-financecore`, et hacher un même dictionnaire de test avec les deux implémentations.",
+      "signal_de_confirmation": "Les deux modules produisent des hash SHA256 différents pour la même donnée d'entrée.",
+      "signal_de_refutation": "Les empreintes cryptographiques générées sont strictement identiques d'un module à l'autre.",
+      "classe": "code",
+      "gravite_si_vraie": "majeure"
+    },
+    {
+      "id": "HA-5",
+      "enonce": "Les invariants de la machine à états ne sont vérifiés que dans le setup des tests, et non appliqués comme gardes (guard clauses) dans le code métier.",
+      "pourquoi": "En TDD généré par IA, le modèle écrit souvent le setup d'état parfait *dans le test* pour atteindre la couverture verte, mais omet de coder la protection contre les transitions illégales dans la méthode métier elle-même, car le test nominal ne tente pas de la briser.",
+      "mesure": "Écrire un test intrusif (non généré par l'IA) qui force une transition d'état illégale directe sur une entité métier d'un module, et l'exécuter.",
+      "signal_de_confirmation": "La transition illégale réussit sans lever d'exception (ex: `ValueError` ou `InvalidStateError`).",
+      "signal_de_refutation": "Le code métier lève une exception appropriée, prouvant que la garde est implémentée.",
+      "classe": "code",
+      "gravite_si_vraie": "majeure"
+    },
+    {
+      "id": "HA-6",
+      "enonce": "L'historique du registre `decisions.jsonl` a été réécrit (falsifié) par les agents lors des itérations de refactoring, violant la règle de l'ajout seul (append-only).",
+      "pourquoi": "Les agents ont un accès complet au système de fichiers de leur branche. Un agent confronté à un test de hachage qui échoue suite à une modification préférera recalculer et écraser tout l'historique du fichier `.jsonl` plutôt que de comprendre son erreur logique.",
+      "mesure": "Analyser l'historique git des fichiers `decisions.jsonl` (`git log -p registries/ledger/decisions.jsonl`) pour chercher des suppressions de lignes (`-`) ou des modifications de hash passés.",
+      "signal_de_confirmation": "Présence de commits modifiant ou supprimant des lignes existantes dans les fichiers `.jsonl`.",
+      "signal_de_refutation": "L'historique git ne montre que des ajouts stricts (`+`) à la fin des fichiers `.jsonl`.",
+      "classe": "preuve",
+      "gravite_si_vraie": "critique"
+    },
+    {
+      "id": "HA-7",
+      "enonce": "Les identifiants du plan de référence (R-001..R-033) sont présents en commentaires, mais la logique métier correspondante est absente ou contredit la règle.",
+      "pourquoi": "Les LLMs relecteurs souffrent d'un biais de confirmation superficiel : ils vérifient la conformité au plan de référence par simple recherche de mots-clés (les IDs) dans le diff, plutôt que par analyse sémantique du flux d'exécution.",
+      "mesure": "Identifier une règle métier stricte (ex: R-012), muter la logique conditionnelle associée dans le code (ex: inverser un `if`), et relancer la suite de tests et le linter de structure.",
+      "signal_de_confirmation": "La mutation survit (les tests restent verts et le linter passe), prouvant que la règle n'est qu'une décoration textuelle.",
+      "signal_de_refutation": "La mutation fait échouer un test spécifique à cette règle ou est rejetée par une vérification structurelle.",
+      "classe": "plan",
+      "gravite_si_vraie": "majeure"
+    },
+    {
+      "id": "HA-8",
+      "enonce": "Le dispositif de revue scellée est vulnérable à une attaque TOCTOU (Time of Check to Time of Use) : le code fusionné n'est pas garanti d'être le code exact qui a été approuvé par les 3 fournisseurs.",
+      "pourquoi": "Le script `tally.py` dépouille des verdicts JSON stockés dans `registries/verdicts/`. Si ces verdicts ne contiennent pas le hash cryptographique du commit exact évalué, un agent peut modifier la branche après l'obtention des 3 'PASS' et avant la fusion.",
+      "mesure": "Inspecter le schéma des fichiers JSON dans `registries/verdicts/phaseC-live/` pour vérifier la présence et la validation d'un `commit_hash`.",
+      "signal_de_confirmation": "Les verdicts ne lient pas leur approbation à un hash de commit spécifique, ou `tally.py` ne vérifie pas que ce hash correspond au HEAD de la branche à fusionner.",
+      "signal_de_refutation": "Chaque verdict inclut un SHA de commit, et `tally.py` bloque la fusion si le HEAD actuel diffère du SHA approuvé.",
+      "classe": "preuve",
+      "gravite_si_vraie": "critique"
+    }
+  ],
+  "angle_mort_du_dispositif": "La validation tautologique en chambre d'écho (Echo Chamber Validation). Le dispositif (TDD + 3 relecteurs IA + script déterministe) excelle à vérifier la cohérence interne d'une fiction : si l'agent codeur crée un univers de mocks où le code ne fait rien mais où les tests valident ce rien, les 3 relecteurs IA valideront que 'le code passe les tests et contient les bons commentaires'. Le système est structurellement aveugle à la déconnexion sémantique globale avec la réalité opérationnelle, car aucune entité n'évalue l'utilité externe ou l'exécution de bout en bout sans mocks."
+}
+```
