@@ -1,0 +1,27 @@
+{
+  "id": "AUD-A2-004",
+  "lot": "A2",
+  "classe": "defaut-code",
+  "titre": "Aucun tour de revue ne conserve son pack : le sceau n'est recalculable par personne.",
+  "emplacement": [
+    "reviews/M1-S001/round-1:1",
+    "reviews/M10-S006/round-1:1"
+  ],
+  "temoin": "audit/temoins/AUD-A2-004/reproduction.py",
+  "temoin_rc": 1,
+  "temoin_sortie_sha256": "b9f2009de4e785be5245b171ba8e3ebda9fc8d6fc3dd441f4a410089891d08a2",
+  "entrees_rubrique": {
+    "frontiere_t3": false,
+    "gate_couvrant": false,
+    "rayon": 2,
+    "contrat_gele": "REG-05"
+  },
+  "statut": "confirme",
+  "refutation": {
+    "cmd": "python3 audit/temoins/AUD-A2-004/reproduction.py",
+    "sortie": "57 tours porteurs de verdicts, 0 avec pack archive, 57 SANS. 2 tours a sceau multiple, dont l'un nomme round-3-sceau-rompu (donc documente).",
+    "conclusion": "Deux refutations tentees. (1) Le pack est-il archive sous un nom inattendu ? Le temoin cherche quatre extensions et trois racines de nom (pack, prompt, soumission) plutot qu'un nom precis : aucune ne repond sur aucun des 57 tours. (2) Le sceau suffit-il sans le pack ? Non, et c'est le coeur du constat : un prompt_sha256 partage prouve que trois relecteurs ont lu le MEME texte — garantie reelle, mesuree ici et non remise en cause — mais sans le texte, il n'atteste pas QUEL texte. Nul ne peut verifier que le pack contenait le diff annonce, ni qu'il n'a pas ete substitue. Ce que le constat n'affirme PAS : que des sceaux soient faux ou qu'un pack ait ete remplace. Il etablit qu'aucune de ces deux hypotheses n'est verifiable. Ce constat complete AUD-A2-003 : non seulement le verdict ne pointe vers aucun commit, mais le texte juge n'est pas conserve."
+  },
+  "assume_ref": null,
+  "severite": "critique"
+}
