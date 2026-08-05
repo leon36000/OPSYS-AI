@@ -1,0 +1,25 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "audit/check_perimetre_scelle (code)",
+   "description": "CHEMINS_AUTORISES = (\"audit/\", \"reviews/\", \"registries/\", \"stories/REM-\") — un préfixe comme \"stories/REM-\"匹配 toute story dont l'identifiant commence par REM-, même si elle n'est pas liée à cet audit. C'est une zone autorisée large par construction ; ce n'est pas un défaut du correctif actuel, mais le périmètre « autorisé à l'audit » est plus généreux qu'il n'y paraît.",
+   "preuve": "ligne CHEMINS_AUTORISES : \"stories/REM-\" est préfixé sur l'identifiant de story, pas sur un répertoire dédié ; tout stories/REM-*.md déposé hors audit passe le filtre"
+  },
+  {
+   "severite": "mineure",
+   "fichier": "audit/check_perimetre_scelle (code)",
+   "description": "Le commentaire `--others` est désormais correct, mais la commande git n'est pas gardée contre une exécution hors dépôt (.git absent) — subprocess.run avec check=True lèvera une exception non capturée remontant au pipeline, qui sera traitée ailleurs. Pas un défaut de cette correction, juste une lecture attentive du snippet.",
+   "preuve": "subprocess.run([...], cwd=RACINE, check=True) sans try/except autour"
+  }
+ ],
+ "date_heure": "2026-08-05T21:05:42.138961+00:00",
+ "prompt_sha256": "b7fdf5b4e7bd85015fb0d76b52117552bcc2be7d88e9321d36180bf3fee00c01",
+ "reviewer_model": "MiniMax-M3",
+ "modele_servi": "minimax-m3-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}

@@ -1,0 +1,31 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "check_perimetre_scelle (fichier non nommé dans le pack)",
+   "description": "Ajouts ignorés invisibles au balayage inverse : `--exclude-standard` soustrait de `--others` tout chemin couvert par TROIS sources (`.gitignore`, `.git/info/exclude`, `core.excludesFile`), or les deux dernières ne sont ni suivies ni au manifeste (le contenu de `.git/` n'est par construction jamais gelé). Masquer un ajout ne demande donc de toucher AUCUN fichier du périmètre. Scénario vérifiable : `echo 'core/src/secret.py' >> .git/info/exclude && echo x > core/src/secret.py` — le fichier est non indexé, non listé par la commande, le manifeste reste intact, le verdict reste vert. NON BLOQUANT, relève de la remédiation : même famille que la limite déjà déclarée des zones `audit/` (non-confrontation d'ajouts dans une zone définie), et l'exploiter suppose d'agir contre le harnais d'audit lui-même, ce qu'aucun auto-contrôle ne borne. Mais à la différence de la limite des zones, celle-ci n'est PAS inscrite : elle doit être déclarée comme limite, ou fermée en complétant par un `git ls-files --others` SANS exclusion et en classant le delta. À noter : le trou bloquant du tour 4 (ajout non indexé) est lui verifiablement fermé — la contre-épreuve fournie reproduit le cas exact décrit par Kimi et le contrôle le détecte.",
+   "preuve": "Ligne du diff : [\"git\", \"ls-files\", \"-z\", \"--cached\", \"--others\", \"--exclude-standard\"] ; sémantique documentée de --exclude-standard (trois sources d'exclusion, dont .git/info/exclude et core.excludesFile) ; .git/info/exclude ne peut figurer au manifeste puisque .git/ n'est jamais suivi."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "check_perimetre_scelle (fichier non nommé dans le pack)",
+   "description": "Sur-promesse du message de sortie : « et aucun ajout hors des chemins autorisés » n'est prouvé que pour les ajouts NON ignorés. Tant que l'objection précédente n'est ni fermée ni déclarée comme limite, la phrase affirme davantage que ce que le contrôle mesure — exactement le type d'écart déclaration/mesure que l'audit reproche au produit audité. Non bloquant : reformuler (« aucun ajout non ignoré hors des chemins autorisés ») ou traiter l'objection précédente.",
+   "preuve": "print(\"      et aucun ajout hors des chemins autorisés)\") émis dès que `ecarts` est vide, alors qu'un ajout sous un chemin couvert par une source d'exclusion ne produit aucun écart (cf. scénario de l'objection précédente)."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "check_perimetre_scelle (fichier non nommé dans le pack)",
+   "description": "Deux cas limites résiduels, tous deux non bloquants et relevant de la remédiation : (a) selon la sémantique documentée, `git ls-files --others` ne descend pas dans un dépôt git imbriqué non suivi et, faute de `--directory`, n'émet aucune entrée pour lui — un répertoire-dépôt déposé dans le produit resterait invisible au balayage inverse ; (b) la confrontation au manifeste ne compare que le CONTENU (sha256 des octets lus, `read_bytes` suit les liens symboliques) : un fichier du périmètre remplacé par un lien symbolique pointant vers un contenu identique resterait vert malgré le changement de type. Correctifs possibles : vérifier l'absence de `.git` étrangers par une source indépendante de git, et comparer type/mode en plus de l'empreinte.",
+   "preuve": "Absence de `--directory` dans la ligne de commande ; boucle manifeste : reelle = hashlib.sha256(chemin.read_bytes()).hexdigest() — aucun contrôle de type ou de mode du fichier, seuls les octets du contenu sont confrontés."
+  }
+ ],
+ "date_heure": "2026-08-05T21:09:22.459740+00:00",
+ "prompt_sha256": "b7fdf5b4e7bd85015fb0d76b52117552bcc2be7d88e9321d36180bf3fee00c01",
+ "reviewer_model": "Kimi-K3",
+ "modele_servi": "kimi-k3-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}

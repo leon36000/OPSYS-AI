@@ -1,0 +1,19 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "check_perimetre_scelle.py",
+   "description": "Les chemins autorisés (audit/, reviews/, registries/, stories/REM-) ne sont pas confrontés au manifeste : un fichier étranger déposé dans ces répertoires passe le contrôle sans vérification. Contrainte architecturale documentée — CA-AUD-09 exige que l'audit puisse écrire ses constats — et reconnue par Kimi comme « non bloquant, remédiation ultérieure ». Ne bloque pas la clôture.",
+   "preuve": "CHEMINS_AUTORISES = ('audit/', 'reviews/', 'registries/', 'stories/REM-') — la boucle `if any(relatif.startswith(prefixe) for prefixe in CHEMINS_AUTORISES): continue` saute tout fichier sous ces préfixes sans confrontation d'empreinte."
+  }
+ ],
+ "date_heure": "2026-08-05T21:06:04.565032+00:00",
+ "prompt_sha256": "b7fdf5b4e7bd85015fb0d76b52117552bcc2be7d88e9321d36180bf3fee00c01",
+ "reviewer_model": "MiMo-Pro-V2",
+ "modele_servi": "mimo-pro-v2-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}
