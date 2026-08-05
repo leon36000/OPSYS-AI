@@ -1,0 +1,27 @@
+{
+  "id": "AUD-A2-002",
+  "lot": "A2",
+  "classe": "defaut-code",
+  "titre": "Une entree a quitte un registre en ajout seul sans que la verification le voie.",
+  "emplacement": [
+    "registries/ledger/preuves.jsonl:1",
+    "scripts/ledger_append.py:32"
+  ],
+  "temoin": "audit/temoins/AUD-A2-002/reproduction.py",
+  "temoin_rc": 1,
+  "temoin_sortie_sha256": "06309d3fa7c448e3e376c34884afec44e5693102df1fa1cf5e8234089e8564cb",
+  "entrees_rubrique": {
+    "frontiere_t3": true,
+    "gate_couvrant": true,
+    "rayon": 2,
+    "contrat_gele": "D-042"
+  },
+  "statut": "confirme",
+  "refutation": {
+    "cmd": "python3 audit/temoins/AUD-A2-002/reproduction.py",
+    "sortie": "preuves.jsonl : 49 entrees, chaine COHERENTE ; 1 hachage ajoute puis disparu — c6e6873e (tache M7-S002), ajoute par a3b0230, retire par le revert 555ec49 de la PR #37. decisions.jsonl et executions.jsonl : 0 disparu.",
+    "conclusion": "Trois refutations tentees. (1) L'entree a-t-elle ete reintroduite ailleurs dans le fichier ? Non : le temoin ne retient un hachage que s'il est absent du contenu courant, et il l'est. (2) La chaine porte-t-elle une trace de la coupure, qui rendrait la disparition detectable ? Non : elle est coherente sur les 49 entrees, et aucune ligne ne pointe sur le hachage disparu — elle a donc ete recalculee. (3) Le defaut est-il isole a un accident de ce registre ? Non : il est structurel, puisque verify ne compare a aucun etat anterieur et validerait de meme n'importe quelle reecriture coherente. Ce que le constat n'affirme PAS : que la suppression soit malveillante. Elle resulte d'un revert de PR, operation legitime. Ce qu'il etablit est qu'un journal d'ajout a SUIVI ce revert, alors qu'une annulation aurait du s'y inscrire comme une entree SUPPLEMENTAIRE."
+  },
+  "assume_ref": null,
+  "severite": "critique"
+}
