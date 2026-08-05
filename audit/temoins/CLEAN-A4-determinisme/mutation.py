@@ -56,11 +56,18 @@ def _mesurer(dossier: pathlib.Path) -> dict | None:
     """Deux processus distincts : c'est ce qui révèle une dépendance à PYTHONHASHSEED."""
     empreintes, ordres = set(), set()
     for _ in range(2):
-        resultat = subprocess.run(
-            [sys.executable, "-c", MESURE.format(chemin=str(dossier))],
-            capture_output=True, text=True, timeout=30,
-            env={"PYTHONHASHSEED": "random", "PATH": "/usr/bin:/bin"},
-        )
+        try:
+            resultat = subprocess.run(
+                [sys.executable, "-c", MESURE.format(chemin=str(dossier))],
+                capture_output=True, text=True, timeout=120,
+                env={"PYTHONHASHSEED": "random", "PATH": "/usr/bin:/bin"},
+            )
+        except subprocess.TimeoutExpired:
+            # Un dépassement de délai n'est PAS une absence de défaut. Le confondre
+            # avec « la copie ne s'exécute plus » ferait passer une injection non
+            # mesurée pour une injection détectée — un faux vert dans le sens le plus
+            # dangereux. On le distingue explicitement.
+            return {"timeout": True}
         if resultat.returncode != 0:
             return None
         try:
@@ -95,6 +102,9 @@ def main() -> int:
         shutil.copy2(reference, travail / "encodage.py")
 
         intacte = _mesurer(travail)
+        if intacte is not None and intacte.get("timeout"):
+            print(f"PRÉ-CONDITION IMPOSSIBLE : délai dépassé sur {module}", file=sys.stderr)
+            return 2
         if intacte is None or not (intacte["stable_processus"] and intacte["stable_ordre"]):
             print(f"PRÉ-CONDITION ÉCHOUÉE : {module} n'est pas déterministe avant mutation")
             return 2
@@ -114,6 +124,10 @@ def main() -> int:
             mesure = _mesurer(travail)
             (travail / "encodage.py").write_text(original, encoding="utf-8")
 
+            if mesure is not None and mesure.get("timeout"):
+                echecs.append(f"MESURE IMPOSSIBLE ({libelle}) : délai dépassé — non conclu")
+                print(f"  ?? {libelle} — délai dépassé, la mesure ne conclut pas")
+                continue
             if mesure is None:
                 print(f"  DÉTECTÉ  {libelle} — la copie mutée ne s'exécute plus")
                 continue
