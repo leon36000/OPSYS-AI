@@ -1,0 +1,27 @@
+{
+  "id": "AUD-A7-001",
+  "lot": "A7",
+  "classe": "incoherence-documentaire",
+  "titre": "Six README de module annoncent moins de stories que ce qui a ete revu.",
+  "emplacement": [
+    "Modules M/M7-marketing/README.md:1",
+    "Modules M/M3-estimation/README.md:1"
+  ],
+  "temoin": "audit/temoins/AUD-A7-001/reproduction.py",
+  "temoin_rc": 1,
+  "temoin_sortie_sha256": "9d6165203e0fb3d0d4c7496c66998e7e7f4f8ba907aeb61e099e47aeb63aac71",
+  "entrees_rubrique": {
+    "frontiere_t3": false,
+    "gate_couvrant": false,
+    "rayon": 6,
+    "contrat_gele": "REG-12"
+  },
+  "statut": "confirme",
+  "refutation": {
+    "cmd": "python3 audit/temoins/AUD-A7-001/reproduction.py",
+    "sortie": "M7 annonce S000 alors que S015 est revue (retard de 15) ; M3 annonce S001 pour S009 (8) ; M6 S001 pour S009 (8) ; M5 S001 pour S007 (6) ; M8 S001 pour S006 (5) ; M9 S001 pour S005 (4). M10 est a jour. M1, M2 et M4 ne citent aucun numero de story.",
+    "conclusion": "Trois refutations tentees. (1) La convention de nommage des dossiers de revue est-elle uniforme, ou la mesure rate-t-elle des modules ? Elle a change en cours de projet (M1-S001 puis m10-s001) : une comparaison sensible a la casse aurait perdu 5 modules et conclu a tort qu'ils n'avaient aucune revue. Le temoin compare sans tenir compte de la casse. (2) Le statut PARTIAL est-il faux ? Non, il est exact pour les dix modules, et le constat ne le remet pas en cause. (3) Un dossier de revue prouve-t-il qu'une story est livree ? Il prouve qu'elle a ete soumise a une revue scellee, ce qui est l'etape terminale du pipeline du depot — c'est la meilleure source disponible, et elle est independante du README qu'elle contredit. Ce que le constat etablit : la ligne consultee en premier par un lecteur annonce moins d'avancement qu'il n'y en a, et aucun gate ne compare ces deux sources."
+  },
+  "assume_ref": null,
+  "severite": "critique"
+}

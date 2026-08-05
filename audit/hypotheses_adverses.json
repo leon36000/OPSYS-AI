@@ -175,7 +175,12 @@
       "classe": "code",
       "gravite_si_vraie": "critique",
       "lot": "AUD-A4",
-      "etat": "OUVERTE"
+      "etat": "REFUTEE",
+      "refutation": {
+        "commande": "python3 audit/temoins/CLEAN-A4-determinisme/mutation.py",
+        "resultat": "Les 7 copies d'encoder_canonique executees dans 2 processus distincts (PYTHONHASHSEED=random), sur le meme objet aux cles inversees : 7/7 rendent la meme empreinte et sont insensibles a l'ordre des cles.",
+        "conclusion": "REFUTEE. Aucune copie n'emploie hash() natif ni ne depend de l'ordre d'insertion. La mesure est accompagnee de sa preuve de morsure : deux non-determinismes injectes (tri retire, cle de tri remplacee par hash() natif) sont tous deux DETECTES — l'absence de constat est donc une mesure, non un silence."
+      }
     },
     {
       "id": "HA-10",
