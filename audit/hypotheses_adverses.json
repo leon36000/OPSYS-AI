@@ -53,7 +53,12 @@
       "classe": "preuve",
       "gravite_si_vraie": "critique",
       "lot": "AUD-A2",
-      "etat": "OUVERTE"
+      "etat": "REFUTEE",
+      "refutation": {
+        "commande": "4 dossiers de verdicts pieges soumis a scripts/tally.py",
+        "resultat": "verdict hors enum -> rc=2 ; objections non-liste -> rc=1 ; vendor egal a celui du codeur -> rc=2 ; JSON malforme -> rc=1. Les quatre sont REJETES.",
+        "conclusion": "REFUTEE. tally.py est robuste SUR SON SCHEMA : il rejette tout ce qu'il doit rejeter. Le defaut etabli par AUD-A2-001 est different et demeure — aucun verdict de reviews/ ne PORTE ce schema, si bien que la robustesse ne s'exerce sur rien."
+      }
     },
     {
       "id": "HA-02",
@@ -100,7 +105,12 @@
       "classe": "preuve",
       "gravite_si_vraie": "critique",
       "lot": "AUD-A2",
-      "etat": "OUVERTE"
+      "etat": "REFUTEE",
+      "refutation": {
+        "commande": "rejeu de la chaine de chaque registre par le code de l'audit",
+        "resultat": "decisions.jsonl 28 entrees chaine OK ; executions.jsonl 24 OK ; preuves.jsonl 49 OK. Aucune chaine brisee, aucun registre vide.",
+        "conclusion": "REFUTEE pour les trois registres presents. Le quatrieme, installations.jsonl, est ABSENT du disque — ce qui est le constat AUD-A1-001 et non une chaine brisee : les deux etats sont distincts et le confondre masquerait le plus grave."
+      }
     },
     {
       "id": "HA-05",
@@ -112,7 +122,12 @@
       "classe": "preuve",
       "gravite_si_vraie": "critique",
       "lot": "AUD-A2",
-      "etat": "OUVERTE"
+      "etat": "CONVERTIE",
+      "conversion": {
+        "commande": "python3 scripts/tally.py registries/verdicts/mock-phaseC deepseek",
+        "resultat": "{'resultat': 'APPROVED', 'reviewers': ['gemini-3.1-pro','glm-5.2','longcat-2.0'], 'vendors': ['google','meituan','zhipu']} — rc=0",
+        "conclusion": "CONFIRMEE. Un repertoire de simulation rend APPROVED sans qu'aucun controle ne le distingue d'un consensus reel. La portee est limitee — le dossier doit etre passe explicitement en argument — mais rien dans tally.py ne mentionne « mock », et un chemin errone produirait un consensus valide. Inscrit au rapport comme constat de portee mineure plutot que converti en constat critique : le scenario exige une erreur d'appel, non un defaut du dispositif."
+      }
     },
     {
       "id": "HA-06",
@@ -162,7 +177,12 @@
       "classe": "securite",
       "gravite_si_vraie": "majeure",
       "lot": "AUD-A5",
-      "etat": "OUVERTE"
+      "etat": "REFUTEE",
+      "refutation": {
+        "commande": "recherche de commentaires d'influence dans les 135 fichiers source",
+        "resultat": "0 commentaire correspondant aux motifs « deja valide », « ne pas modifier », « approuve par », « conforme a REG », « ne pas toucher ».",
+        "conclusion": "REFUTEE. Aucune trace de tentative d'influence d'un relecteur automatique dans le code de production."
+      }
     },
     {
       "id": "HA-09",
@@ -211,7 +231,8 @@
       "classe": "code",
       "gravite_si_vraie": "majeure",
       "lot": "AUD-A4",
-      "etat": "OUVERTE"
+      "etat": "OUVERTE",
+      "pourquoi_ouverte": "Invariants de machine a etats appliques comme gardes — demande de forcer une transition illegale sur chaque module, soit 10 sondes distinctes. Non mesuree."
     },
     {
       "id": "HA-12",
@@ -223,7 +244,8 @@
       "classe": "code",
       "gravite_si_vraie": "critique",
       "lot": "AUD-A4",
-      "etat": "OUVERTE"
+      "etat": "OUVERTE",
+      "pourquoi_ouverte": "Appels inter-modules incompatibles — SANS OBJET mesure : zero import entre les 22 paquets des dix modules (CLEAN-A8-integration, morsure prouvee). Reste ouverte formellement car l'absence de jonction ne se confond pas avec une jonction saine."
     },
     {
       "id": "HA-13",
@@ -236,7 +258,8 @@
       "classe": "code",
       "gravite_si_vraie": "majeure",
       "lot": "AUD-A4",
-      "etat": "OUVERTE"
+      "etat": "OUVERTE",
+      "pourquoi_ouverte": "Tests tautologiques — demande d'inverser une regle metier par module et d'exiger le rouge. Non mesuree."
     },
     {
       "id": "HA-14",
@@ -284,7 +307,8 @@
       "classe": "methode",
       "gravite_si_vraie": "majeure",
       "lot": "AUD-A1",
-      "etat": "OUVERTE"
+      "etat": "OUVERTE",
+      "pourquoi_ouverte": "statut_lint purement structurel — le script porte 4 fonctions et aucun assert ; la mesure exige de fabriquer un module semantiquement vide. Non mesuree."
     },
     {
       "id": "HA-17",
@@ -317,7 +341,8 @@
       "gravite_si_vraie": "majeure",
       "lot": "AUD-A2",
       "etat": "OUVERTE",
-      "note": "Consequence pratique : une analyse de securite ne peut pas etre versionnee sous la forme produite par consensus_run.py. La tentation est alors d'editer le verdict, c'est-a-dire de falsifier une piece. Resolu ici en nommant les artefacts selon la convention exemptee, sha256 verifies identiques avant/apres, jamais en editant le contenu. Le hook vit dans ~/proof-method, hors perimetre (DA-AUD-10) ; le defaut de nommage, lui, est dans scripts/consensus_run.py, donc DANS le perimetre."
+      "note": "Consequence pratique : une analyse de securite ne peut pas etre versionnee sous la forme produite par consensus_run.py. La tentation est alors d'editer le verdict, c'est-a-dire de falsifier une piece. Resolu ici en nommant les artefacts selon la convention exemptee, sha256 verifies identiques avant/apres, jamais en editant le contenu. Le hook vit dans ~/proof-method, hors perimetre (DA-AUD-10) ; le defaut de nommage, lui, est dans scripts/consensus_run.py, donc DANS le perimetre.",
+      "pourquoi_ouverte": "Convention de nommage des verdicts entre les deux producteurs — mesuree et documentee, non convertie en constat formel."
     },
     {
       "id": "HA-19",
@@ -330,7 +355,8 @@
       "gravite_si_vraie": "majeure",
       "lot": "AUD-A5",
       "etat": "OUVERTE",
-      "note": "Piege methodologique consigne : interroger l'API anonyme d'un projet prive renvoie total=0 pour toutes les categories d'issues. Conclure « aucun defaut » de cette reponse serait un faux vert. La sonde A5 devra distinguer « zero issue » de « projet inaccessible »."
+      "note": "Piege methodologique consigne : interroger l'API anonyme d'un projet prive renvoie total=0 pour toutes les categories d'issues. Conclure « aucun defaut » de cette reponse serait un faux vert. La sonde A5 devra distinguer « zero issue » de « projet inaccessible ».",
+      "pourquoi_ouverte": "SonarCloud non bloquant et non diagnosticable — mesuree ; le diagnostic exige un jeton que seul Nathan detient (frontiere T3)."
     }
   ],
   "fautes_de_l_audit": [
