@@ -1,0 +1,37 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "registries/ledger/preuves.jsonl",
+   "description": "Doute non vérifiable : les mesures affirmées (10/10 pytest rc=0, linters VERTS, modules.yaml sans STUB) ne peuvent être reproduites ou vérifiées sur main par le reviewer, le diff ne contenant que les fichiers JSONL.",
+   "preuve": "Diff limité à registries/ledger/*.jsonl ; contexte d'exécution fourni par le pipeline."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "registries/ledger/decisions.jsonl",
+   "description": "Doute non vérifiable : le troisième refus (core/authz en continue-on-error: true) n'est pas confirmable car .github/workflows/ci.yml n'est pas inclus dans le diff de cette PR.",
+   "preuve": "Payload decision : 'consommation de core/authz (job CI non bloquant...)' ; fichier ci.yml absent du diff."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "registries/ledger/preuves.jsonl",
+   "description": "Anomalie de schéma potentielle : le payload de la preuve omet les champs sceau, story, tier, verdict présents dans les entrées précédentes, utilisant tache à la place. La validation du schéma par ledger_append.py n'est pas vérifiable.",
+   "preuve": "Payload ligne 49 : {\"preuve\":\"...\",\"tache\":\"...\"} vs entrées précédentes contenant sceau, story, verdict."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "registries/ledger/decisions.jsonl",
+   "description": "Doute non vérifiable : l'affirmation que les issues #18, #19, #25 et #182 sont hors périmètre autonome ne peut être confirmée sans accès au système de ticketing.",
+   "preuve": "Payload decision : 'Reste ouvert et hors perimetre autonome : #18... #19... #25... #182...'."
+  }
+ ],
+ "date_heure": "2026-08-05T01:06:19.521812+00:00",
+ "prompt_sha256": "14035458c56460e2961b96eaa1352665a0118f86bcc9fb14283f9006539b1a1b",
+ "reviewer_model": "Qwen3.7-Max",
+ "modele_servi": "qwen37-max-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}
