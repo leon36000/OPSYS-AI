@@ -119,25 +119,44 @@ STATUTS_VALIDES = frozenset({
 
 
 def _chemin_egal_ou_sous_chemin_de(candidat: str, reference: str) -> bool:
-    """Compare deux chemins par COMPOSANTS (`PurePosixPath.parts`), jamais
-    par égalité de chaîne brute. Gemini-3.1-Pro, mineure, C00-004 tour 1
-    (mesurée fondée, 4 contournements reproduits) : une comparaison de
-    chaîne exacte laisse passer un slash final (`'core/src/authz/'` !=
-    `'core/src/authz'`) ou un sous-dossier direct (`'core/src/authz/x'`)
-    sans jamais matcher `CHEMINS_CORE_EXISTANTS_PEUPLES`/`MODULES_SRC_ROOTS`
-    — contournant silencieusement `ConflitCheminRefuse` ET
-    `WriterCoreSurModulesRefuse`. `.parts` normalise le slash final
-    (`PurePosixPath('a/b/').parts == ('a','b')`) et une comparaison de
+    """Compare deux chemins par COMPOSANTS APRÈS normalisation LEXICALE,
+    jamais par égalité de chaîne brute ni par composants bruts non
+    normalisés.
+
+    Gemini-3.1-Pro, mineure, C00-004 tour 1 (mesurée fondée, 4
+    contournements reproduits) : une comparaison de chaîne exacte laisse
+    passer un slash final (`'core/src/authz/'` != `'core/src/authz'`) ou
+    un sous-dossier direct (`'core/src/authz/x'`).
+
+    DeepSeek-V4-Pro + Gemini-3.1-Pro + Qwen3.7-Max, MAJEURE CONVERGENTE,
+    C00-004 tour 2 (mesurée fondée sur 2 des 3 exemples — celui de DeepSeek
+    ne se reproduisait PAS, sa préoccupation sous-jacente était néanmoins
+    fondée) : la version tour 2 comparait des `PurePosixPath(...).parts`
+    NON normalisés — `'..'` n'est jamais résolu lexicalement par
+    `PurePosixPath`. Mesuré : `PurePosixPath('core/src/unprotected/../authz').parts`
+    -> `('core','src','unprotected','..','authz')`, dont le préfixe de
+    longueur 3 est `('core','src','unprotected')` != `('core','src','authz')`
+    — la garde ne reconnaissait PAS ce chemin comme visant `core/src/authz`
+    alors qu'il y résout lexicalement, contournant silencieusement
+    `ConflitCheminRefuse`/`WriterCoreSurModulesRefuse`. Fermé en normalisant
+    `candidat` ET `reference` via `os.path.normpath` (collapse LEXICAL de
+    `.`/`..`/séparateurs redondants, AUCUN accès disque, ne dépend pas de
+    l'existence du chemin) AVANT de découper en composants — `os.path.normpath`
+    ne collapse QUE ce qui peut l'être sans information externe (un `..`
+    menant hors de la racine relative reste tel quel, ce qui ne matche de
+    toute façon aucun chemin Core/module connu).
+
+    `.parts` (après normalisation) reste nécessaire pour la comparaison de
     PRÉFIXE DE COMPOSANTS (pas de préfixe de chaîne : `'core/src/authzz'`
-    ne matche PAS `'core/src/authz'`, contrairement à `str.startswith`)
+    ne matche PAS `'core/src/authz'`, contrairement à `str.startswith`) —
     reconnaît correctement un sous-dossier comme faisant partie du même
     chemin peuplé. Portée volontairement limitée aux 2 gardes de REFUS
     (élargir ce qu'elles bloquent est sûr) — les gardes de COHÉRENCE
     (`IncoherenceStatutChemin`) gardent une égalité stricte : elles
     valident une représentation canonique produite par CE module lui-même,
     pas une entrée à tolérer."""
-    parts_candidat = PurePosixPath(candidat).parts
-    parts_reference = PurePosixPath(reference).parts
+    parts_candidat = PurePosixPath(os.path.normpath(candidat)).parts
+    parts_reference = PurePosixPath(os.path.normpath(reference)).parts
     return parts_candidat[: len(parts_reference)] == parts_reference
 
 

@@ -154,6 +154,38 @@ def test_authority_ferme_le_writer_core_meme_avec_slash_final_ou_sous_dossier(va
         Authority("CORE", "x", "y", variante)
 
 
+@pytest.mark.parametrize("variante", [
+    "core/src/authz/../config",           # exemple DeepSeek-V4-Pro (ne se reproduisait pas seul, mais couvert)
+    "core/src/unprotected/../authz",      # exemple Gemini-3.1-Pro (reproduit)
+    "core/src/../src/authz",              # exemple Qwen3.7-Max (reproduit)
+])
+def test_path_map_ferme_le_conflit_meme_avec_point_point_non_normalise(variante):
+    """DeepSeek-V4-Pro + Gemini-3.1-Pro + Qwen3.7-Max, MAJEURE CONVERGENTE,
+    C00-004 tour 2 (mesurée fondée sur 2 des 3 exemples fournis) :
+    PurePosixPath.parts ne normalise pas lexicalement '..' — un chemin
+    candidat qui résout (lexicalement) vers un chemin peuplé pouvait
+    contourner ConflitCheminRefuse. Fermé par os.path.normpath AVANT le
+    découpage en composants."""
+    with pytest.raises(ConflitCheminRefuse):
+        PathMap("x", variante, "RESERVED_NEW")
+
+
+def test_authority_ferme_le_writer_core_meme_avec_point_point_non_normalise():
+    with pytest.raises(WriterCoreSurModulesRefuse):
+        Authority("CORE", "x", "y", "Modules M/M1-front-office/unprotected/../src")
+
+
+def test_chemin_egal_ou_sous_chemin_de_normalise_point_point_sans_faux_positif():
+    """Preuve directe sur le helper (pas seulement via PathMap/Authority) :
+    la normalisation ferme les 3 exemples de revue ET ne casse pas le test
+    anti-faux-positif existant (authzz reste distinct d'authz après
+    normalisation, '..' n'introduit aucune collision inattendue)."""
+    assert _chemin_egal_ou_sous_chemin_de("core/src/unprotected/../authz", "core/src/authz") is True
+    assert _chemin_egal_ou_sous_chemin_de("core/src/../src/authz", "core/src/authz") is True
+    assert _chemin_egal_ou_sous_chemin_de("core/src/authzz", "core/src/authz") is False
+    assert _chemin_egal_ou_sous_chemin_de("core/src/../src/authzz", "core/src/authz") is False
+
+
 def test_chemin_egal_ou_sous_chemin_de_ne_matche_pas_un_nom_voisin():
     """Faux positif à éviter à tout prix : un nom de dossier VOISIN
     partageant un préfixe de CHAÎNE (pas de composant) ne doit jamais
