@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opsys-ai/proof/schemas/review.schema.json",
+  "schema_version": "1.0",
+  "title": "OPSYS-AI Proof Review",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "subject_type", "subject_id", "reviewer_id", "vendor",
+    "verdict", "objections", "evidence_sha256"
+  ],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "subject_type": {"type": "string", "minLength": 1},
+    "subject_id": {"type": "string", "minLength": 1},
+    "reviewer_id": {"type": "string", "minLength": 1},
+    "vendor": {"type": "string", "minLength": 1},
+    "verdict": {"type": "string", "enum": ["APPROVE", "REJECT", "CONTESTED"]},
+    "objections": {"type": "array"},
+    "evidence_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}
