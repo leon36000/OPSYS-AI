@@ -1,0 +1,87 @@
+[
+  {
+    "actual_path": "core/src/opsys_core",
+    "logical_path": "core.opsys_core",
+    "status": "RESERVED_NEW"
+  },
+  {
+    "actual_path": "core/src/auth",
+    "logical_path": "core.auth",
+    "status": "EXISTING_SHIM_REQUIRED"
+  },
+  {
+    "actual_path": "core/src/authz",
+    "logical_path": "core.authz",
+    "status": "EXISTING_SHIM_REQUIRED"
+  },
+  {
+    "actual_path": "core/src/config",
+    "logical_path": "core.config",
+    "status": "EXISTING_SHIM_REQUIRED"
+  },
+  {
+    "actual_path": "Modules M/M1-front-office/src",
+    "logical_path": "module.M1-front-office",
+    "status": "EXISTING_MODULE_OWNED"
+  },
+  {
+    "actual_path": "Modules M/M2-revenue-crm/src",
+    "logical_path": "module.M2-revenue-crm",
+    "status": "EXISTING_MODULE_OWNED"
+  },
+  {
+    "actual_path": "Modules M/M3-estimation/src",
+    "logical_path": "module.M3-estimation",
+    "status": "EXISTING_MODULE_OWNED"
+  },
+  {
+    "actual_path": "Modules M/M4-field-ops/src",
+    "logical_path": "module.M4-field-ops",
+    "status": "EXISTING_MODULE_OWNED"
+  },
+  {
+    "actual_path": "Modules M/M5-financecore/src",
+    "logical_path": "module.M5-financecore",
+    "status": "EXISTING_MODULE_OWNED"
+  },
+  {
+    "actual_path": "Modules M/M6-material-control/src",
+    "logical_path": "module.M6-material-control",
+    "status": "EXISTING_MODULE_OWNED"
+  },
+  {
+    "actual_path": "Modules M/M7-marketing/src",
+    "logical_path": "module.M7-marketing",
+    "status": "EXISTING_MODULE_OWNED"
+  },
+  {
+    "actual_path": "Modules M/M8-analytics/src",
+    "logical_path": "module.M8-analytics",
+    "status": "EXISTING_MODULE_OWNED"
+  },
+  {
+    "actual_path": "Modules M/M9-strategic-intelligence/src",
+    "logical_path": "module.M9-strategic-intelligence",
+    "status": "EXISTING_MODULE_OWNED"
+  },
+  {
+    "actual_path": "Modules M/M10-memoire/src",
+    "logical_path": "module.M10-memoire",
+    "status": "EXISTING_MODULE_OWNED"
+  },
+  {
+    "actual_path": "UNRESOLVED — dépend de la décision C00-003 sur ISS-CAND-CA07-0002 (DECISION_REQUIRED, ISSUE-TO-WORK.csv) : portée mixte, échéances différentes, aucun chemin ne peut être ratifié avant cette décision.",
+    "logical_path": "core.policy_kernel",
+    "status": "AMENDMENT_REQUIRED"
+  },
+  {
+    "actual_path": "UNRESOLVED — dépend de la décision C00-003 sur ISS-CAND-CA07-0002 (DECISION_REQUIRED, ISSUE-TO-WORK.csv) : portée mixte, échéances différentes, aucun chemin ne peut être ratifié avant cette décision.",
+    "logical_path": "core.lifecycle",
+    "status": "AMENDMENT_REQUIRED"
+  },
+  {
+    "actual_path": "UNRESOLVED — dépend de la décision C00-003 sur ISS-CAND-CA07-0002 (DECISION_REQUIRED, ISSUE-TO-WORK.csv) : portée mixte, échéances différentes, aucun chemin ne peut être ratifié avant cette décision.",
+    "logical_path": "core.backup_export",
+    "status": "AMENDMENT_REQUIRED"
+  }
+]
