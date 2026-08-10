@@ -227,8 +227,14 @@ class TestProductionSorties:
             if not dans_c00_001:
                 shutil.rmtree(cible, ignore_errors=True)
 
+    def _chemin_sortie(self, nom: str) -> Path:
+        """Point de lecture UNIQUE du répertoire de sortie réel (déterminé
+        par la fixture, jamais BASE en dur) — évite la répétition de
+        `type(self)._sortie_dir / nom` à travers les 6 méthodes ci-dessous."""
+        return type(self)._sortie_dir / nom
+
     def test_target_json_existe_et_coherent(self):
-        p = type(self)._sortie_dir / "TARGET.json"
+        p = self._chemin_sortie("TARGET.json")
         assert p.is_file() and not p.is_symlink()
         data = json.loads(p.read_text(encoding="utf-8"))
         assert "commit" in data and len(data["commit"]) == 40
@@ -237,14 +243,14 @@ class TestProductionSorties:
         assert "fichiers_inventories" in data
 
     def test_git_refs_existe(self):
-        p = type(self)._sortie_dir / "GIT-REFS.txt"
+        p = self._chemin_sortie("GIT-REFS.txt")
         assert p.is_file() and not p.is_symlink()
         txt = p.read_text(encoding="utf-8")
         assert "commit" in txt
         assert "[refs]" in txt
 
     def test_file_inventory_existe(self):
-        p = type(self)._sortie_dir / "FILE-INVENTORY.csv"
+        p = self._chemin_sortie("FILE-INVENTORY.csv")
         assert p.is_file() and not p.is_symlink()
         with p.open(encoding="utf-8") as f:
             reader = csv.DictReader(f)
@@ -262,7 +268,7 @@ class TestProductionSorties:
             assert chemins == sorted(chemins), "FILE-INVENTORY.csv n'est pas trié par chemin"
 
     def test_github_repository_json(self):
-        p = type(self)._sortie_dir / "GITHUB-REPOSITORY.json"
+        p = self._chemin_sortie("GITHUB-REPOSITORY.json")
         assert p.is_file() and not p.is_symlink(), "GITHUB-REPOSITORY.json manquant"
         data = json.loads(p.read_text(encoding="utf-8"))
         assert data.get("full_name") == "leon36000/OPSYS-AI"
@@ -277,13 +283,13 @@ class TestProductionSorties:
         nommé : un `_raw`/`raw` réintroduit exposerait le PROCHAIN champ
         sensible que GitHub ajoute, que ce test ne connaît pas encore."""
         for nom in ("GITHUB-REPOSITORY.json", "GITHUB-AUTH.json"):
-            data = json.loads((type(self)._sortie_dir / nom).read_text(encoding="utf-8"))
+            data = json.loads(self._chemin_sortie(nom).read_text(encoding="utf-8"))
             interdits = {"_raw", "raw", "token", "temp_clone_token"}
             trouves = interdits & set(data.keys())
             assert not trouves, f"{nom} : clé(s) interdite(s) trouvée(s) {trouves}"
 
     def test_github_auth_json(self):
-        p = type(self)._sortie_dir / "GITHUB-AUTH.json"
+        p = self._chemin_sortie("GITHUB-AUTH.json")
         assert p.is_file() and not p.is_symlink(), "GITHUB-AUTH.json manquant"
         data = json.loads(p.read_text(encoding="utf-8"))
         assert data.get("login") == "leon36000"
