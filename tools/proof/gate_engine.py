@@ -14,6 +14,8 @@ class CheckResult:
     status: str
     timed_out: bool
     error: str | None
+    stdout: str
+    stderr: str
 
 
 @dataclass(frozen=True)
@@ -54,7 +56,13 @@ def evaluate_gate(phase: dict, state: dict, worktree: Path) -> GateResult:
                 timeout=check["timeout_s"],
                 shell=False,
             )
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as exc:
+            # revue tour 5 (Gemini, MAJEURE, mesurée vraie) : stdout/stderr
+            # étaient capturés (PIPE) puis totalement ignorés — un check en
+            # échec devenait indébogable (aucune trace de ce que l'outil a
+            # réellement affiché). TimeoutExpired porte ses PROPRES attributs
+            # .stdout/.stderr (ce qui a été bufferisé avant le kill, peut être
+            # None si rien n'a encore été écrit) — capturés ici aussi.
             results.append(
                 CheckResult(
                     check_id=check["check_id"],
@@ -64,6 +72,8 @@ def evaluate_gate(phase: dict, state: dict, worktree: Path) -> GateResult:
                     status="ERROR",
                     timed_out=True,
                     error="TIMEOUT",
+                    stdout=(exc.stdout or b"").decode("utf-8", errors="replace"),
+                    stderr=(exc.stderr or b"").decode("utf-8", errors="replace"),
                 )
             )
         except OSError as exc:
@@ -114,6 +124,8 @@ def evaluate_gate(phase: dict, state: dict, worktree: Path) -> GateResult:
                     status="ERROR",
                     timed_out=False,
                     error=str(exc),
+                    stdout="",  # aucun sous-processus n'a jamais démarré
+                    stderr="",
                 )
             )
         else:
@@ -132,6 +144,8 @@ def evaluate_gate(phase: dict, state: dict, worktree: Path) -> GateResult:
                     status=status,
                     timed_out=False,
                     error=None,
+                    stdout=completed_process.stdout.decode("utf-8", errors="replace"),
+                    stderr=completed_process.stderr.decode("utf-8", errors="replace"),
                 )
             )
 
