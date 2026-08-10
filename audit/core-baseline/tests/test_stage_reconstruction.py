@@ -20,9 +20,11 @@ from stage_reconstruction import (
     ModuleNonPartielRefuse,
     InterfaceFinaleNonDifferee,
     AbsenceFinaleRequalifieeEnDefaut,
+    SourceHorsConfinementRefusee,
     construire_stage_state,
     rejouer_stade,
     _produire_sorties_stage,
+    _sha256_source_confinee,
     MODULES_STATUTS_SOURCE,
     PROGRAM_STAGE_SOURCE,
     CORE_STATUS_SOURCE,
@@ -172,13 +174,17 @@ def test_produire_sorties_stage_ecrit_json_et_csv_reels(tmp_path):
     assert stage_json["program_stage"] == PROGRAM_STAGE_SOURCE
     assert stage_json["core_status"] == CORE_STATUS_SOURCE
     assert set(stage_json["modules"]) == set(MODULES_STATUTS_SOURCE)
-    assert stage_json["source_hashes"] == etat.source_hashes
+    # etat.source_hashes est un tuple (immuabilité, cf. StageState) ;
+    # stage_json["source_hashes"] vient du JSON, toujours une list — list()
+    # explicite avant comparaison, sinon list == tuple est toujours False
+    # même à éléments identiques (mesuré).
+    assert stage_json["source_hashes"] == list(etat.source_hashes)
 
     with (sortie_dir / "STAGE-EVIDENCE.csv").open(encoding="utf-8", newline="") as f:
         lignes = list(csv.DictReader(f))
     assert len(lignes) == 5
     assert [l["source"] for l in lignes] == list(SOURCES_CANONIQUES)
-    assert [l["sha256"] for l in lignes] == etat.source_hashes
+    assert [l["sha256"] for l in lignes] == list(etat.source_hashes)
 
     if avant is not None:
         assert (sortie_dir / "STAGE.json").read_bytes() == avant, (
@@ -217,3 +223,119 @@ def test_ecrire_csv_stage_echappe_correctement_une_virgule(tmp_path):
     with dest.open(encoding="utf-8", newline="") as f:
         lues = list(csv.DictReader(f))
     assert lues[0]["source"] == "chemin, avec virgule.md"
+
+
+# ---------------------------------------------------------------------------
+# Revue scellée C00-002 tour 1 (APPROVE 0/3, 2 CRITIQUE + 3 MAJEURE) —
+# 3 tests fermant chacun un défaut mesuré fondé.
+# ---------------------------------------------------------------------------
+
+
+def test_instanciation_directe_est_aussi_gardee():
+    """Gemini-3.1-Pro, CRITIQUE, C00-002 tour 1 (mesurée fondée) :
+    `StageState(...)` instancié DIRECTEMENT (pas via construire_stage_state)
+    contournait totalement les 3 gardes — `__post_init__` les exécute
+    désormais quel que soit le chemin de construction. Les 3 sous-cas
+    reproduisent EXACTEMENT l'exemple donné par Gemini puis les 2 autres
+    gardes, chacun via l'appel direct au constructeur du dataclass."""
+    # Reproduction exacte de la preuve Gemini : StageState(program_stage='',
+    # modules={'M1': 'DONE'}, core_status='', source_hashes=[]).
+    with pytest.raises(ModuleNonPartielRefuse):
+        StageState(program_stage="", modules={"M1": "DONE"}, core_status="", source_hashes=[])
+
+    # Modules valides, core_status vide → garde 2 (interface différée),
+    # atteinte cette fois puisque la garde 1 passe.
+    with pytest.raises(InterfaceFinaleNonDifferee):
+        StageState(
+            program_stage=PROGRAM_STAGE_SOURCE, modules=dict(MODULES_STATUTS_SOURCE),
+            core_status="", source_hashes=[],
+        )
+
+    # Modules valides, interface différée, absence non requalifiée → garde 3.
+    with pytest.raises(AbsenceFinaleRequalifieeEnDefaut):
+        StageState(
+            program_stage=PROGRAM_STAGE_SOURCE, modules=dict(MODULES_STATUTS_SOURCE),
+            core_status="INTERFACE_FINALE=DERNIER_CHANTIER", source_hashes=[],
+        )
+
+    # Contre-exemple obligatoire : instanciation directe avec les VRAIES
+    # valeurs sourcées ne doit PAS lever (les gardes ne sont pas juste
+    # punitives, elles laissent passer un état valide).
+    etat = StageState(
+        program_stage=PROGRAM_STAGE_SOURCE, modules=dict(MODULES_STATUTS_SOURCE),
+        core_status=CORE_STATUS_SOURCE, source_hashes=["a" * 64],
+    )
+    assert etat.program_stage == PROGRAM_STAGE_SOURCE
+
+
+def test_stage_state_modules_et_source_hashes_sont_immuables():
+    """Gemini-3.1-Pro, MAJEURE, C00-002 tour 1 (mesurée fondée) :
+    `frozen=True` empêche `etat.x = y` mais PAS la mutation d'un conteneur
+    référencé — `etat.modules['M1'] = 'DONE'` réussissait silencieusement
+    après construction, rouvrant le trou que les gardes venaient de fermer.
+    Reproduction EXACTE de la preuve Gemini : doit désormais lever
+    TypeError (MappingProxyType/tuple, pas dict/list)."""
+    etat = construire_stage_state(
+        program_stage=PROGRAM_STAGE_SOURCE, modules=dict(MODULES_STATUTS_SOURCE),
+        core_status=CORE_STATUS_SOURCE, source_hashes=["a" * 64],
+    )
+    with pytest.raises(TypeError):
+        etat.modules["M1"] = "DONE"
+    with pytest.raises(TypeError):
+        etat.source_hashes[0] = "b" * 64
+    # Le dict/list ORIGINAL passé à la construction n'est pas non plus
+    # partagé par référence — le muter après coup ne doit rien changer.
+    modules_appelant = dict(MODULES_STATUTS_SOURCE)
+    hashes_appelant = ["a" * 64]
+    etat2 = construire_stage_state(
+        program_stage=PROGRAM_STAGE_SOURCE, modules=modules_appelant,
+        core_status=CORE_STATUS_SOURCE, source_hashes=hashes_appelant,
+    )
+    modules_appelant["M1"] = "DONE"
+    hashes_appelant.append("c" * 64)
+    assert etat2.modules["M1"] == MODULES_STATUTS_SOURCE["M1"], (
+        "la mutation du dict APPELANT après construction a fuité dans l'état gelé"
+    )
+    assert len(etat2.source_hashes) == 1, (
+        "la mutation de la liste APPELANTE après construction a fuité dans l'état gelé"
+    )
+
+
+def test_sha256_source_refuse_un_symlink(tmp_path):
+    """Qwen3.7-Max, MAJEURE, C00-002 tour 1 (mesurée fondée, CWE-59) :
+    `_sha256` (avant correctif) suivait aveuglément un symlink placé sur
+    une source canonique, hachant un fichier hors périmètre tout en le
+    déclarant comme la source légitime dans STAGE-EVIDENCE.csv. Reproduit
+    directement : un faux pack_root où une "source" est un symlink vers un
+    fichier externe doit être refusé AVANT lecture — jamais hacher la
+    cible."""
+    faux_pack_root = tmp_path / "faux_pack"
+    faux_pack_root.mkdir()
+    (faux_pack_root / "sources").mkdir()
+    cible_hors_perimetre = tmp_path / "secret_hors_perimetre.txt"
+    cible_hors_perimetre.write_text("contenu sensible hors périmètre", encoding="utf-8")
+    lien = faux_pack_root / "sources" / "audit.md"
+    lien.symlink_to(cible_hors_perimetre)
+
+    with pytest.raises(SourceHorsConfinementRefusee):
+        _sha256_source_confinee(lien, faux_pack_root)
+
+
+def test_rejouer_stade_refuse_reellement_si_une_source_est_symlinkee(tmp_path):
+    """Bout en bout : rejouer_stade() sur un pack_root dont UNE des 5
+    sources canoniques est un symlink refuse — pas seulement l'utilitaire
+    isolé (même piège fermé qu'en C00-001 : tester l'utilitaire seul ne
+    prouve rien du site d'appel réel)."""
+    faux_pack_root = tmp_path / "faux_pack2"
+    for rel in SOURCES_CANONIQUES:
+        chemin = faux_pack_root / rel
+        chemin.parent.mkdir(parents=True, exist_ok=True)
+        chemin.write_text("contenu de remplacement", encoding="utf-8")
+    cible_hors_perimetre = tmp_path / "secret2.txt"
+    cible_hors_perimetre.write_text("secret", encoding="utf-8")
+    premiere_source = faux_pack_root / SOURCES_CANONIQUES[0]
+    premiere_source.unlink()
+    premiere_source.symlink_to(cible_hors_perimetre)
+
+    with pytest.raises(SourceHorsConfinementRefusee):
+        rejouer_stade(faux_pack_root)

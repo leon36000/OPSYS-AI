@@ -14,10 +14,16 @@ import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 
-# Réutilise les primitives durcies et scellées de C00-001 (revue scellée
-# 6 tours, APPROVE 3/3) — confinement + ouverture atomique refusant tout
-# symlink (feuille OU intermédiaire) AVANT toute création. Ne JAMAIS
+# Réutilise l'API PUBLIQUE de C00-001 (custody.py — revue scellée 6 tours,
+# APPROVE 3/3), pas ses fonctions privées. DeepSeek-V4-Pro, CRITIQUE, C00-002
+# tour 1 (mesurée fondée) : importer des noms préfixés `_` d'un autre module
+# rompt le contrat d'encapsulation Python implicite (API privée = instable,
+# aucun engagement de stabilité), même si la logique sous-jacente est
+# durcie. custody.py expose désormais verifier_confinement /
+# ouverture_atomique_confinee / ecrire_sans_suivre_symlink comme alias
+# PUBLICS explicites — mêmes primitives, contrat stable. Ne JAMAIS
 # réimplémenter cette logique : c'est exactement l'erreur mesurée dans
 # tools/target_probe.py (schéma incompatible, aucune protection symlink),
 # signalée en limitations[] du bundle C00-001 tour 6.
@@ -41,14 +47,55 @@ class AbsenceFinaleRequalifieeEnDefaut(Exception):
     finales est un état de stade attendu, pas une preuve de dérive."""
 
 
+class SourceHorsConfinementRefusee(Exception):
+    """Une source canonique doit résider sous pack_root — jamais suivre un
+    lien symbolique vers un fichier hors périmètre."""
+
+
 @dataclass(frozen=True)
 class StageState:
     """Le stade programme reconstruit — un instantané cité, jamais recalculé
-    depuis une interprétation libre du texte source."""
+    depuis une interprétation libre du texte source.
+
+    Les 3 gardes des cas RED de la spec s'exécutent dans `__post_init__` —
+    PAS seulement dans une fonction-usine à part. Gemini-3.1-Pro (CRITIQUE)
+    + Qwen3.7-Max (MAJEURE), C00-002 tour 1, convergentes, mesurées fondées :
+    `StageState(program_stage='', modules={'M1': 'DONE'}, ...)` réussissait
+    silencieusement en instanciant le dataclass directement, contournant
+    TOTALEMENT les gardes qui n'existaient que dans `construire_stage_state`
+    — un commentaire affirmant « point de validation unique » n'empêche rien
+    en Python, `__init__` généré par `@dataclass` reste public. Fermé en
+    déplaçant les 3 gardes ici, au seul endroit qu'AUCUN site d'appel ne
+    peut éviter — `construire_stage_state` reste une façade nommée, mais
+    n'est plus le mécanisme d'enforcement.
+
+    `modules` (Mapping, pas dict) et `source_hashes` (tuple, pas list) :
+    Gemini-3.1-Pro, MAJEURE, C00-002 tour 1, mesurée fondée —
+    `frozen=True` empêche la RÉASSIGNATION d'un champ (`etat.x = y` lève),
+    mais ne gèle PAS le contenu d'un conteneur mutable qu'il référence
+    (`etat.modules['M1'] = 'DONE'` réussissait silencieusement après
+    construction, ré-ouvrant exactement le trou que les gardes venaient de
+    fermer). `MappingProxyType`/`tuple` ferment ce trou : toute mutation
+    post-construction lève désormais `TypeError`. Le type hint de
+    l'interface (`dict[str,str]`/`list[str]`, cf. Task Spec) reste le
+    contrat STRUCTUREL (Mapping[str,str] / Sequence[str] en lecture) ; les
+    classes concrètes changent pour fermer l'objection MAJEURE — conversion
+    explicite en dict/list ordinaires au point de sérialisation JSON
+    (`_produire_sorties_stage`), jamais exposée telle quelle à `json.dumps`
+    (qui ne sait pas sérialiser un `MappingProxyType`, mesuré)."""
     program_stage: str
-    modules: dict[str, str]
+    modules: MappingProxyType
     core_status: str
-    source_hashes: list[str]
+    source_hashes: tuple
+
+    def __post_init__(self) -> None:
+        _verifier_modules_partiels(self.modules)
+        _verifier_interface_differee(self.core_status)
+        _verifier_absence_non_qualifiee_en_defaut(self.core_status)
+        # object.__setattr__ : seule façon de fixer un champ dans
+        # __post_init__ d'un dataclass frozen (son __setattr__ normal lève).
+        object.__setattr__(self, "modules", MappingProxyType(dict(self.modules)))
+        object.__setattr__(self, "source_hashes", tuple(self.source_hashes))
 
 
 # ---------------------------------------------------------------------------
@@ -109,9 +156,9 @@ MARQUEUR_INTERFACE_DIFFEREE = "INTERFACE_FINALE=DERNIER_CHANTIER"
 MARQUEUR_ABSENCE_PAS_DEFAUT = "ASSEMBLAGE_FINAL_ABSENT=ETAT_DE_STAGE_PAS_PREUVE_DE_DERIVE"
 
 
-def _verifier_modules_partiels(modules: dict[str, str]) -> None:
+def _verifier_modules_partiels(modules) -> None:
     """Cas RED obligatoire : « les dix modules doivent rester PARTIAL »."""
-    manquants = MODULES_ATTENDUS - modules.keys()
+    manquants = MODULES_ATTENDUS - set(modules.keys())
     if manquants:
         raise ModuleNonPartielRefuse(
             f"modules manquants (les dix sont requis à ce stade) : {sorted(manquants)}"
@@ -147,23 +194,45 @@ def _verifier_absence_non_qualifiee_en_defaut(core_status: str) -> None:
 
 
 def construire_stage_state(
-    program_stage: str, modules: dict[str, str], core_status: str, source_hashes: list[str],
+    program_stage: str, modules: dict[str, str], core_status: str, source_hashes,
 ) -> StageState:
-    """Point de validation UNIQUE — les 3 gardes des cas RED s'exécutent
-    ici, jamais ailleurs, pour qu'aucun site d'appel ne puisse les
-    contourner en construisant StageState(...) directement."""
-    _verifier_modules_partiels(modules)
-    _verifier_interface_differee(core_status)
-    _verifier_absence_non_qualifiee_en_defaut(core_status)
+    """Façade nommée — l'enforcement réel des 3 gardes vit dans
+    `StageState.__post_init__`, qu'on arrive ici ou par instanciation
+    directe (les deux chemins sont désormais gardés, mesuré par
+    `test_instanciation_directe_est_aussi_gardee`)."""
     return StageState(
-        program_stage=program_stage, modules=dict(modules),
-        core_status=core_status, source_hashes=list(source_hashes),
+        program_stage=program_stage, modules=modules,
+        core_status=core_status, source_hashes=source_hashes,
     )
 
 
-def _sha256(chemin: Path) -> str:
+def _sha256_source_confinee(chemin: Path, pack_root: Path) -> str:
+    """Hache une source canonique — refuse tout lien symbolique (feuille OU
+    intermédiaire) et tout chemin hors `pack_root` AVANT lecture.
+
+    Qwen3.7-Max, MAJEURE, C00-002 tour 1, mesurée fondée (CWE-59) : la
+    version précédente (`chemin.open('rb')` nu) suivait aveuglément un
+    symlink placé sur un chemin de source canonique — un attaquant capable
+    d'en planter un force la lecture et le hachage d'un fichier hors
+    périmètre (ex. une clé privée), dont le hash apparaîtrait ensuite dans
+    STAGE-EVIDENCE.csv comme si c'était la source légitime. Fermé en
+    réutilisant `custody.verifier_confinement` (résolution complète de la
+    chaîne, pas seulement `is_symlink()` sur la feuille — même garde que
+    C00-001, API publique désormais).
+
+    `custody.EcritureViaSymlinkRefusee` est traduite en
+    `SourceHorsConfinementRefusee` : le nom custody est pensé pour un
+    chemin d'ÉCRITURE (« Ecriture... »), sémantiquement inexact pour ce
+    chemin de LECTURE — même mécanisme de confinement, nom de domaine
+    approprié côté appelant."""
+    try:
+        reel = custody.verifier_confinement(chemin, pack_root)
+    except custody.EcritureViaSymlinkRefusee as e:
+        raise SourceHorsConfinementRefusee(
+            f"lecture refusée (source hors confinement ou via symlink) : {chemin} — {e}"
+        ) from e
     h = hashlib.sha256()
-    with chemin.open("rb") as f:
+    with reel.open("rb") as f:
         while bloc := f.read(1_048_576):
             h.update(bloc)
     return h.hexdigest()
@@ -171,10 +240,10 @@ def _sha256(chemin: Path) -> str:
 
 def rejouer_stade(pack_root: str | Path) -> StageState:
     """Reconstruit le StageState : hache RÉELLEMENT les 5 sources
-    canoniques, construit avec les statuts CITÉS (jamais recalculés depuis
-    le texte libre)."""
-    pack_root = Path(pack_root)
-    hashes = [_sha256(pack_root / rel) for rel in SOURCES_CANONIQUES]
+    canoniques (confinées, symlink refusé), construit avec les statuts
+    CITÉS (jamais recalculés depuis le texte libre)."""
+    pack_root = Path(pack_root).resolve()
+    hashes = [_sha256_source_confinee(pack_root / rel, pack_root) for rel in SOURCES_CANONIQUES]
     return construire_stage_state(
         program_stage=PROGRAM_STAGE_SOURCE,
         modules=dict(MODULES_STATUTS_SOURCE),
@@ -184,17 +253,18 @@ def rejouer_stade(pack_root: str | Path) -> StageState:
 
 
 def _ecrire_csv_stage_sans_suivre_symlink(chemin: Path, lignes: list[dict], racine: Path) -> None:
-    """Même garde que `custody._ecrire_sans_suivre_symlink` (confinement +
+    """Même garde que `custody.ecrire_sans_suivre_symlink` (confinement +
     ouverture atomique refusant tout symlink, feuille ou intermédiaire,
     AVANT toute création) — réutilise LES MÊMES primitives durcies et
-    scellées de C00-001 (`custody._verifier_confinement`,
-    `custody._ouverture_atomique_confinee`), jamais réimplémentées.
-    `custody._ecrire_csv_sans_suivre_symlink` n'est pas réutilisable telle
+    scellées de C00-001, via leur API PUBLIQUE (`custody.verifier_confinement`,
+    `custody.ouverture_atomique_confinee`), jamais réimplémentées.
+    `custody.ecrire_csv_sans_suivre_symlink`(*) n'est pas réutilisable telle
     quelle : ses `fieldnames` sont figés à `chemin,sha256,taille` (schéma de
     C00-001), incompatible avec le schéma `source,sha256` de
-    STAGE-EVIDENCE.csv."""
-    custody._verifier_confinement(chemin, racine)
-    fd = custody._ouverture_atomique_confinee(chemin, racine)
+    STAGE-EVIDENCE.csv. (* jamais exposée en public — usage interne à
+    custody.py uniquement, contrairement aux 3 primitives ci-dessus.)"""
+    custody.verifier_confinement(chemin, racine)
+    fd = custody.ouverture_atomique_confinee(chemin, racine)
     with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=["source", "sha256"])
         writer.writeheader()
@@ -206,14 +276,20 @@ def _produire_sorties_stage(worktree: Path, sortie_dir: Path, pack_root: str | P
     dans `sortie_dir`. `worktree` est TOUJOURS la racine de confinement
     (jamais `sortie_dir` — même tautologie fermée qu'en C00-001 tour 1/2)."""
     etat = rejouer_stade(pack_root)
-    custody._ecrire_sans_suivre_symlink(
+    custody.ecrire_sans_suivre_symlink(
         sortie_dir / "STAGE.json",
         json.dumps(
             {
                 "program_stage": etat.program_stage,
-                "modules": etat.modules,
+                # dict(...) : etat.modules est un MappingProxyType (immuable
+                # par construction) — json.dumps ne sait PAS le sérialiser
+                # directement (mesuré : TypeError), seul un dict ordinaire
+                # convient. La conversion ne réintroduit aucune mutabilité
+                # côté etat lui-même (etat.modules reste un MappingProxyType
+                # après cet appel).
+                "modules": dict(etat.modules),
                 "core_status": etat.core_status,
-                "source_hashes": etat.source_hashes,
+                "source_hashes": list(etat.source_hashes),
             },
             ensure_ascii=False, indent=2, sort_keys=True,
         ) + "\n",
@@ -235,6 +311,6 @@ if __name__ == "__main__":
     garde = _produire_sorties_stage(worktree, sortie_dir, pack_root_defaut)
     print(json.dumps(
         {"program_stage": garde.program_stage, "core_status": garde.core_status,
-         "modules": garde.modules, "source_hashes": garde.source_hashes},
+         "modules": dict(garde.modules), "source_hashes": list(garde.source_hashes)},
         ensure_ascii=False, indent=2,
     ))
