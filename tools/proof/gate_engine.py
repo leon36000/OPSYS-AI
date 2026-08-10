@@ -66,45 +66,27 @@ def evaluate_gate(phase: dict, state: dict, worktree: Path) -> GateResult:
                     error="TIMEOUT",
                 )
             )
-        except OSError as exc:
-            # Historique complet (4 tours de revue, chaque étape mesurée
-            # avant application, jamais acceptée sur la seule autorité d'un
-            # modèle) :
-            #   Tour 1 (Gemini) : FileNotFoundError seul -> élargi à
-            #     (FileNotFoundError, PermissionError).
-            #   Tour 2 (DeepSeek) : OSError large -> rétréci, car
-            #     engloberait InterruptedError (EINTR, transitoire).
-            #   Tour 3 (Qwen) : + NotADirectoryError (confirmé empiriquement,
-            #     2 scénarios réels) ; IsADirectoryError REJETÉE (justification
-            #     du tour 3 vérifiée FAUSSE — un répertoire exécuté lève
-            #     PermissionError sur cette plateforme, PAS IsADirectoryError,
-            #     y compris avec le bit +x explicitement posé, re-vérifié
-            #     au tour 4).
-            #   Tour 4 (DeepSeek) : signale ENOEXEC (« Exec format error » —
-            #     un fichier +x au format binaire/script invalide) —
-            #     CONFIRMÉ empiriquement : c'est un OSError GÉNÉRIQUE
-            #     (errno=8), qui n'a PAS de sous-classe nommée dans la
-            #     hiérarchie Python (contrairement à ENOENT/EACCES/ENOTDIR/
-            #     EISDIR/EINTR qui, eux, en ont une). Conséquence
-            #     structurelle : énumérer des sous-classes nommées ne peut
-            #     JAMAIS être complet — il existe des errno « outil
-            #     inutilisable » sans sous-classe dédiée. Seul `OSError` (le
-            #     parent commun) couvre TOUS les cas actuels ET futurs.
+        except (FileNotFoundError, PermissionError, NotADirectoryError) as exc:
+            # Impossibilités de MESURER (jamais un échec de contrôle) :
+            # outil absent (FileNotFoundError, ENOENT), outil présent mais
+            # non exécutable (PermissionError, EACCES) — revue tour 1
+            # (Gemini) — et un composant du chemin (argv[0] OU `worktree`
+            # lui-même passé en cwd) qui n'est pas un répertoire
+            # (NotADirectoryError, ENOTDIR) — revue tour 3 (Qwen), vérifié
+            # empiriquement via 2 scénarios réels distincts avant d'ajouter
+            # (jamais accepté sur la seule autorité du modèle) : un
+            # composant de argv[0] traitant un fichier comme un répertoire,
+            # ET `worktree` lui-même étant un fichier plutôt qu'un
+            # répertoire (cwd invalide).
             #
-            #   Le retour à `OSError` large est donc correct — la
-            #   réintroduction du risque InterruptedError (tour 2) est
-            #   réexaminée, pas ignorée : ce dépôt tourne sur Python 3.12.3
-            #   (vérifié : `sys.version_info`), où la PEP 475 (Python 3.5+)
-            #   fait déjà réessayer automatiquement, AU NIVEAU C, tout appel
-            #   système interrompu par EINTR utilisé en interne par
-            #   `subprocess.Popen`/`subprocess.run` — InterruptedError ne
-            #   remonte donc, en pratique, JAMAIS jusqu'à ce niveau Python
-            #   sur cette plateforme. Et même dans un résidu improbable où
-            #   elle remonterait : produire un CheckResult ERROR (rejouable
-            #   par l'appelant) est un dégradé plus sûr qu'une exception non
-            #   capturée qui ferait planter TOUT evaluate_gate — y compris
-            #   les checks suivants de la même liste — pour un seul signal
-            #   transitoire sur un seul check.
+            # PAS `except OSError` (revue tour 2, DeepSeek) : engloberait
+            # InterruptedError (EINTR, transitoire). PAS IsADirectoryError
+            # non plus : la justification du tour 3 (« exécutable qui EST
+            # un répertoire » -> IsADirectoryError) est vérifiée FAUSSE sur
+            # cette plateforme — ce scénario lève réellement PermissionError
+            # (déjà couvert), pas IsADirectoryError ; 4 scénarios distincts
+            # testés empiriquement, aucun n'atteint IsADirectoryError dans
+            # ce code — non ajoutée sans preuve de chemin réel.
             results.append(
                 CheckResult(
                     check_id=check["check_id"],
