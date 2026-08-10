@@ -1,5 +1,5 @@
-commit 1dfa80417667f094ba7c29a63df4f3ec3c187aba
-tree 7c6e71855c0f1c6fcebb92d292af2b9e332c0f9e
+commit f5bb0558d69916a36dc6fc8a584e3092ec18c521
+tree 69114149384cd540cc8a28ee46c24766bf8ba590
 branch opsys-core/task/c00-001-geler-le-depot-la-branche-et-le-worktree
 
 [remotes]
@@ -28,7 +28,7 @@ bea41473b1ae322a8cbeee6e9a4600fc38720149 refs/heads/copilot-s014-local
 d5867222127fa600772b0ed44a26b51bc25ed2f6 refs/heads/main
 c5663fa2c0ad3216a757b199d586a2cd7b1a71b2 refs/heads/opsys-core/core-v2
 fac74ea0bbe2ad1f02ec58d9f6205e9aaec265db refs/heads/opsys-core/core-v2.3.0-integration
-1dfa80417667f094ba7c29a63df4f3ec3c187aba refs/heads/opsys-core/task/c00-001-geler-le-depot-la-branche-et-le-worktree
+f5bb0558d69916a36dc6fc8a584e3092ec18c521 refs/heads/opsys-core/task/c00-001-geler-le-depot-la-branche-et-le-worktree
 555ec49b4aaf430ff7d22709d8c4278dffa1f6c1 refs/heads/revert/pr-37
 480b716bca98b7efb90e2bda31c77cb1dfe330ef refs/heads/story/AUD-A1
 59378502a019638c0b2e75551fac979b4000f0f2 refs/heads/story/AUD-A2
