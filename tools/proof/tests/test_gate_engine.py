@@ -502,3 +502,36 @@ def test_not_a_directory_error_worktree_est_un_fichier_produit_error(tmp_path):
     assert result.status == "ERROR"
     assert result.checks[0].status == "ERROR"
     assert result.checks[0].actual_returncode is None
+
+
+def test_exec_format_error_fichier_invalide_produit_error_jamais_de_crash(tmp_path):
+    """mineure (revue tour 4, DeepSeek — vérifiée vraie empiriquement) : un
+    fichier marqué exécutable (+x) mais de format binaire/script invalide
+    (ENOEXEC, « Exec format error ») lève un OSError GÉNÉRIQUE — sans
+    sous-classe nommée dans la hiérarchie Python (contrairement à
+    FileNotFoundError/PermissionError/NotADirectoryError, qui EN ont une).
+    Preuve que « énumérer les sous-classes nommées » ne peut jamais être
+    complet — seul `except OSError` capture ce cas. Scénario réel reproduit
+    directement (pas un mock), confirmé par exécution empirique avant
+    d'écrire ce test."""
+    script_invalide = tmp_path / "script_format_invalide"
+    script_invalide.write_text("ceci n'est pas un script valide, aucun shebang\n", encoding="utf-8")
+    script_invalide.chmod(0o755)
+
+    phase = _phase(
+        checks=[
+            {
+                "check_id": "C01-CHK-FORMAT-INVALIDE",
+                "argv": [str(script_invalide)],
+                "expected_returncode": 0,
+                "timeout_s": 5,
+            }
+        ],
+        task_ids=["C01-001"],
+    )
+    state = _state({"C01-001": "VERIFIED"})
+    result = evaluate_gate(phase, state, tmp_path)
+    assert result.satisfied is False
+    assert result.status == "ERROR"
+    assert result.checks[0].status == "ERROR"
+    assert result.checks[0].actual_returncode is None
