@@ -8,7 +8,6 @@ import json
 import shutil
 import subprocess
 import sys
-import warnings
 from pathlib import Path
 
 import pytest
@@ -145,6 +144,25 @@ def test_geler_le_d_p_t_la_branche_et_le_worktree_3(tmp_path):
 # test_geler_le_d_p_t_la_branche_et_le_worktree_1, qui reste actif partout).
 _BRANCHE_C00_001 = "opsys-core/task/c00-001-geler-le-depot-la-branche-et-le-worktree"
 
+# Revue scellée phase C00, tour 5 (DeepSeek-V4-Pro CRITIQUE + Gemini-3.1-Pro
+# MAJEURE + Qwen3.8-Max CRITIQUE, les 3 CONFIRMÉES par mesure) : ni
+# `warnings.warn` (filtrable par `-W error` — qui REMPLACE l'exception
+# originale d'un test en échec par le RuntimeWarning, mesuré ; ou par
+# `--disable-warnings`/`-p no:warnings`/`PYTHONWARNINGS=ignore` — qui le
+# rend invisible, mesuré) ni un `print(file=sys.stderr)` (capturé et
+# MASQUÉ par pytest pour un test qui PASSE, par défaut — mesuré : rc=0,
+# aucune trace) ne ferment cet angle mort de façon fiable. Seul un VRAI
+# résultat de test (rc != 0) est structurellement immunisé contre TOUTE
+# configuration pytest — aucun filtre de warnings, aucune option de
+# capture, n'affecte jamais le compte pass/fail. La fixture ENREGISTRE
+# (jamais ne lève, jamais n'avale) ; `test_nettoyage_temporaire_de_
+# test_production_sorties_reussi` ci-dessous, un item de COLLECTE
+# SÉPARÉ qui s'exécute APRÈS le teardown de la fixture class-scope
+# (ordre de collecte pytest : la classe entière, puis ses fixtures se
+# terminent, PUIS l'item suivant), transforme tout échec enregistré en
+# échec RÉEL, nommé, jamais filtrable.
+_ECHECS_NETTOYAGE_TEMPORAIRE: list[str] = []
+
 
 def _branche_courante() -> str:
     # Revue scellée phase C00 tour 1 (Qwen3.8-Max, CRITIQUE, rôle sécurité) :
@@ -225,31 +243,17 @@ class TestProductionSorties:
         finally:
             if str(BASE) in sys.path:
                 sys.path.remove(str(BASE))
-            # Revue scellée phase C00, tour 4 (DeepSeek-V4-Pro CRITIQUE +
-            # Qwen3.8-Max CRITIQUE, convergentes, CONFIRMÉES par mesure) :
-            # `ignore_errors=True` avale silencieusement un échec de
-            # nettoyage — mon hypothèse tour 3 (« le prochain gatectl/
-            # taskctl le détecte de toute façon ») ne couvre PAS
-            # `pytest test_target_custody.py` lancé SEUL, hors harnais
-            # (un développeur en local, un job CI qui invoque pytest
-            # directement) : là, aucun `inspect_worktree(require_clean=
-            # True)` n'est jamais appelé, le résidu reste RÉELLEMENT
-            # muet. Reproduit par les deux reviewers indépendamment
-            # (verrou externe simulé, `git status --porcelain` montre le
-            # résidu, aucun avertissement pytest). Corrigé : ne JAMAIS
-            # lever depuis un `finally` (masquerait une exception de test
-            # en cours de propagation — SonarCloud S1163, mesuré tour 3)
-            # ET ne JAMAIS avaler en silence — `warnings.warn` rend
-            # l'échec visible dans TOUT contexte d'exécution pytest,
-            # avec ou sans le harnais taskctl/gatectl autour.
+            # Cf. _ECHECS_NETTOYAGE_TEMPORAIRE ci-dessus pour l'historique
+            # complet (tours 2 à 5) et le raisonnement du design retenu.
+            # N'ENREGISTRE que l'échec ici (jamais ne lève — ne masquerait
+            # jamais une exception de test en cours de propagation) ; c'est
+            # le test dédié après cette classe qui transforme
+            # l'enregistrement en échec RÉEL.
             if not dans_c00_001:
                 try:
                     shutil.rmtree(cible)
                 except OSError as e:
-                    warnings.warn(
-                        f"nettoyage de {cible} a échoué : {e}",
-                        RuntimeWarning, stacklevel=2,
-                    )
+                    _ECHECS_NETTOYAGE_TEMPORAIRE.append(f"{cible}: {e}")
 
     def _chemin_sortie(self, nom: str) -> Path:
         """Point de lecture UNIQUE du répertoire de sortie réel (déterminé
@@ -318,6 +322,23 @@ class TestProductionSorties:
         data = json.loads(p.read_text(encoding="utf-8"))
         assert data.get("login") == "leon36000"
         assert data.get("id") == 216249790
+
+
+def test_nettoyage_temporaire_de_test_production_sorties_reussi():
+    """Item de collecte SÉPARÉ, s'exécute après le teardown de la fixture
+    class-scope de TestProductionSorties (ordre de collecte pytest) —
+    transforme tout échec de nettoyage ENREGISTRÉ (jamais levé, jamais
+    avalé silencieusement) en échec de test RÉEL. Un rc de test n'est
+    jamais filtrable par -W/--disable-warnings/-p no:warnings/
+    PYTHONWARNINGS, contrairement à warnings.warn (mesuré : promu en
+    exception masquant l'échec original sous -W error, ou totalement
+    supprimé sous les 3 flags précédents) ou à print(file=sys.stderr)
+    (mesuré : capturé et masqué par pytest pour un test qui PASSE, par
+    défaut)."""
+    assert not _ECHECS_NETTOYAGE_TEMPORAIRE, (
+        f"échec(s) de nettoyage du répertoire temporaire de "
+        f"TestProductionSorties : {_ECHECS_NETTOYAGE_TEMPORAIRE}"
+    )
 
 
 def test_ecriture_via_symlink_refusee(tmp_path):
