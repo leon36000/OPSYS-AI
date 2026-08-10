@@ -31,6 +31,7 @@ from path_and_authority_map import (
     construire_carte_chemins,
     construire_carte_autorites,
     produire_sorties_carte,
+    _chemin_egal_ou_sous_chemin_de,
 )
 
 # ---------------------------------------------------------------------------
@@ -132,6 +133,43 @@ def test_authority_est_gelee_et_gardee():
         a.owner = "CORE"
     with pytest.raises(ValueError):
         Authority("", "x", "y", "z")
+
+
+@pytest.mark.parametrize("variante", ["core/src/authz/", "core/src/authz/sous_dossier", "core/src/config/", "core/src/config/x/y"])
+def test_path_map_ferme_le_conflit_meme_avec_slash_final_ou_sous_dossier(variante):
+    """Gemini-3.1-Pro, mineure, C00-004 tour 1 (mesurée fondée, 4
+    contournements reproduits) : une comparaison de chaîne exacte laissait
+    passer un slash final ou un sous-dossier direct d'un chemin Core
+    peuplé. Fermé par comparaison de composants (PurePosixPath.parts)."""
+    with pytest.raises(ConflitCheminRefuse):
+        PathMap("x", variante, "RESERVED_NEW")
+
+
+@pytest.mark.parametrize("variante", [
+    "Modules M/M1-front-office/src/", "Modules M/M1-front-office/src/sous_dossier",
+    "Modules M/M7-marketing/src/utm",
+])
+def test_authority_ferme_le_writer_core_meme_avec_slash_final_ou_sous_dossier(variante):
+    with pytest.raises(WriterCoreSurModulesRefuse):
+        Authority("CORE", "x", "y", variante)
+
+
+def test_chemin_egal_ou_sous_chemin_de_ne_matche_pas_un_nom_voisin():
+    """Faux positif à éviter à tout prix : un nom de dossier VOISIN
+    partageant un préfixe de CHAÎNE (pas de composant) ne doit jamais
+    matcher — sinon la fonction serait pire que l'ancienne comparaison
+    (elle bloquerait des chemins parfaitement légitimes)."""
+    assert _chemin_egal_ou_sous_chemin_de("core/src/authzz", "core/src/authz") is False
+    assert _chemin_egal_ou_sous_chemin_de("core/src/authz-backup", "core/src/authz") is False
+    # La carte réelle ne doit donc PAS refuser un nom voisin légitime.
+    p = PathMap("x", "core/src/authzz", "RESERVED_NEW")
+    assert p.status == "RESERVED_NEW"
+
+
+def test_chemin_egal_ou_sous_chemin_de_cas_nominaux():
+    assert _chemin_egal_ou_sous_chemin_de("core/src/authz", "core/src/authz") is True
+    assert _chemin_egal_ou_sous_chemin_de("core/src/authz/x", "core/src/authz") is True
+    assert _chemin_egal_ou_sous_chemin_de("core/src", "core/src/authz") is False
 
 
 def test_authority_core_sur_ses_propres_chemins_est_autorise():

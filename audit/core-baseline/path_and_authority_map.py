@@ -19,7 +19,7 @@ import json
 import os
 import sys
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import custody
@@ -118,6 +118,29 @@ STATUTS_VALIDES = frozenset({
 })
 
 
+def _chemin_egal_ou_sous_chemin_de(candidat: str, reference: str) -> bool:
+    """Compare deux chemins par COMPOSANTS (`PurePosixPath.parts`), jamais
+    par égalité de chaîne brute. Gemini-3.1-Pro, mineure, C00-004 tour 1
+    (mesurée fondée, 4 contournements reproduits) : une comparaison de
+    chaîne exacte laisse passer un slash final (`'core/src/authz/'` !=
+    `'core/src/authz'`) ou un sous-dossier direct (`'core/src/authz/x'`)
+    sans jamais matcher `CHEMINS_CORE_EXISTANTS_PEUPLES`/`MODULES_SRC_ROOTS`
+    — contournant silencieusement `ConflitCheminRefuse` ET
+    `WriterCoreSurModulesRefuse`. `.parts` normalise le slash final
+    (`PurePosixPath('a/b/').parts == ('a','b')`) et une comparaison de
+    PRÉFIXE DE COMPOSANTS (pas de préfixe de chaîne : `'core/src/authzz'`
+    ne matche PAS `'core/src/authz'`, contrairement à `str.startswith`)
+    reconnaît correctement un sous-dossier comme faisant partie du même
+    chemin peuplé. Portée volontairement limitée aux 2 gardes de REFUS
+    (élargir ce qu'elles bloquent est sûr) — les gardes de COHÉRENCE
+    (`IncoherenceStatutChemin`) gardent une égalité stricte : elles
+    valident une représentation canonique produite par CE module lui-même,
+    pas une entrée à tolérer."""
+    parts_candidat = PurePosixPath(candidat).parts
+    parts_reference = PurePosixPath(reference).parts
+    return parts_candidat[: len(parts_reference)] == parts_reference
+
+
 # ---------------------------------------------------------------------------
 # PathMap(logical_path, actual_path, status)
 # ---------------------------------------------------------------------------
@@ -139,9 +162,13 @@ class PathMap:
         if self.status not in STATUTS_VALIDES:
             raise ValueError(f"status {self.status!r} hors liste blanche {sorted(STATUTS_VALIDES)}")
 
-        # Cas RED 1 : un chemin RÉELLEMENT peuplé ne peut jamais être déclaré
+        # Cas RED 1 : un chemin RÉELLEMENT peuplé (ou un de ses sous-chemins,
+        # ou une variante avec slash final) ne peut jamais être déclaré
         # RESERVED_NEW — ce serait prétendre qu'il est libre.
-        if self.actual_path in CHEMINS_CORE_EXISTANTS_PEUPLES and self.status == "RESERVED_NEW":
+        if self.status == "RESERVED_NEW" and any(
+            _chemin_egal_ou_sous_chemin_de(self.actual_path, peuple)
+            for peuple in CHEMINS_CORE_EXISTANTS_PEUPLES
+        ):
             raise ConflitCheminRefuse(
                 f"{self.actual_path} est déjà peuplé (service Core existant) — "
                 f"ne peut pas être déclaré RESERVED_NEW, un statut EXISTING_* est requis"
@@ -262,9 +289,13 @@ class Authority:
             if not isinstance(valeur, str) or not valeur.strip():
                 raise ValueError(f"{champ} doit être une str non vide : {valeur!r}")
         # Cas RED 2 : le Core ne reçoit JAMAIS un write_port qui référence la
-        # racine src d'un module M1-M10 — vérifié ici, au seul point de
-        # construction qu'aucun appelant ne peut éviter.
-        if self.owner == "CORE" and self.write_port in MODULES_SRC_ROOTS.values():
+        # racine src d'un module M1-M10 (ni un sous-dossier, ni une variante
+        # avec slash final) — vérifié ici, au seul point de construction
+        # qu'aucun appelant ne peut éviter.
+        if self.owner == "CORE" and any(
+            _chemin_egal_ou_sous_chemin_de(self.write_port, racine)
+            for racine in MODULES_SRC_ROOTS.values()
+        ):
             raise WriterCoreSurModulesRefuse(
                 f"Authority(owner=CORE) ne peut pas porter write_port={self.write_port!r} "
                 f"— une racine src de module M1-M10 ne peut jamais être écrite par le Core"
