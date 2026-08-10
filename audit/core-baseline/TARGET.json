@@ -1,6 +1,6 @@
 {
-  "commit": "f5bb0558d69916a36dc6fc8a584e3092ec18c521",
-  "tree": "69114149384cd540cc8a28ee46c24766bf8ba590",
+  "commit": "104eee9b8ec00d8fe7a948421899b48b5becff80",
+  "tree": "aa88d435cc903492010a47a6f4a66a746dd181ee",
   "branch": "opsys-core/task/c00-001-geler-le-depot-la-branche-et-le-worktree",
   "worktree": "/media/pc1/Storage/opsys-core-worktrees/c00-001",
   "dirty": false,
