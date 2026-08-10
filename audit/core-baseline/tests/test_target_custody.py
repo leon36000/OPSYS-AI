@@ -279,6 +279,37 @@ def test_confinement_refuse_un_parent_symlinke(tmp_path):
         _verifier_confinement(cible, worktree)
 
 
+def test_inventorier_refuse_un_fichier_tracke_derriere_un_parent_symlinke(tmp_path):
+    """Ferme le trou que le test précédent NE couvre PAS : tester
+    `_verifier_confinement` en isolation ne prouve pas qu'`inventorier()`
+    L'APPELLE réellement. Mesuré par mutation (revue post-tour-2, avant
+    soumission) : retirer l'appel à `_verifier_confinement` À L'INTÉRIEUR
+    d'`inventorier()` ne faisait échouer AUCUN test existant — ce test ferme
+    ce trou en exerçant le VRAI point d'entrée, pas seulement l'utilitaire."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-b", "b"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "t@t.t"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+    (repo / "audit").mkdir()
+    (repo / "audit" / "fichier.txt").write_text("contenu tracké", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "init"], cwd=repo, check=True, capture_output=True)
+
+    # Tampering post-checkout : le répertoire tracké `audit/` est remplacé
+    # par un symlink pointant vers un répertoire HORS du dépôt, qui contient
+    # un fichier de même nom mais de contenu différent.
+    coffre = tmp_path / "coffre_externe"
+    coffre.mkdir()
+    (coffre / "fichier.txt").write_text("contenu FALSIFIE hors dépôt", encoding="utf-8")
+    import shutil
+    shutil.rmtree(repo / "audit")
+    (repo / "audit").symlink_to(coffre)
+
+    with pytest.raises(EcritureViaSymlinkRefusee, match="confinement"):
+        inventorier(repo)
+
+
 def test_confinement_accepte_un_chemin_legitime(tmp_path):
     """Contre-exemple obligatoire : un chemin normal, sans aucun symlink,
     ne doit PAS être refusé — sinon la garde bloquerait tout, pas seulement
