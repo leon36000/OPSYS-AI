@@ -413,3 +413,104 @@ def test_protection_de_branche_suit_default_branch(tmp_path, monkeypatch):
         f"la branche par défaut réelle (develop) n'est pas utilisée : {appel_protection[1]}"
     )
     assert "branches/main/protection" not in appel_protection[1]
+
+
+# ---------------------------------------------------------------------------
+# Tour 3 — revue scellée : 1 CRITIQUE (Gemini) + 3 MAJEURE (Gemini + convergence
+# DeepSeek/Gemini/Qwen sur l'encodage) mesurées réelles, corrigées.
+# ---------------------------------------------------------------------------
+
+def test_confinement_via_sortie_dir_refuse_le_scenario_reel(tmp_path):
+    """Le CRITIQUE du tour 3 (Gemini-3.1-Pro, mesuré vrai) : le correctif du
+    CRITIQUE du tour 2 (racine obligatoire) ne suffisait pas — les VRAIS
+    sites d'appel dans _produire_sorties() passaient `sortie_dir`, qui EST
+    le parent immédiat de chaque fichier écrit. Ce test exerce
+    `_ecrire_sans_suivre_symlink` avec le racine RÉEL désormais utilisé
+    (`worktree`, pas `sortie_dir`) sur le scénario exact : `sortie_dir`
+    lui-même symlinké hors du worktree."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-b", "b"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "t@t.t"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+    (repo / "x.txt").write_text("x", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "i"], cwd=repo, check=True, capture_output=True)
+
+    coffre = tmp_path / "coffre_externe"
+    coffre.mkdir()
+    sortie_dir_externe = coffre / "sortie"
+    sortie_dir_externe.mkdir()
+    (repo / "audit_out").symlink_to(sortie_dir_externe)
+
+    with pytest.raises(EcritureViaSymlinkRefusee, match="confinement"):
+        _ecrire_sans_suivre_symlink((repo / "audit_out") / "TARGET.json", "contenu", repo)
+
+
+def test_ouverture_atomique_refuse_si_cible_deja_existante(tmp_path):
+    """TOCTOU (Gemini, MAJEURE, mesurée vraie) : O_EXCL rend le check et
+    l'écriture atomiques. Preuve indirecte de l'atomicité : si un fichier
+    existe déjà à ce chemin (symlink OU régulier), l'ouverture doit refuser
+    plutôt que d'écraser silencieusement — sinon une course gagnée par
+    l'attaquant entre le is_symlink() et l'open() écraserait quand même."""
+    cible = tmp_path / "deja_present.txt"
+    cible.write_text("contenu légitime préexistant", encoding="utf-8")
+    with pytest.raises(EcritureViaSymlinkRefusee):
+        _ecrire_sans_suivre_symlink(cible, "tentative d'écrasement", tmp_path)
+    assert cible.read_text(encoding="utf-8") == "contenu légitime préexistant", (
+        "le contenu préexistant a été écrasé malgré le refus attendu"
+    )
+
+
+def test_ecriture_normale_reussit_toujours(tmp_path):
+    """Contre-exemple obligatoire : un chemin normal, sans rien de
+    préexistant ni de symlink, doit continuer à s'écrire avec succès —
+    sinon O_EXCL bloquerait TOUT, pas seulement l'attaque ciblée."""
+    cible = tmp_path / "nouveau.txt"
+    _ecrire_sans_suivre_symlink(cible, "contenu normal", tmp_path)
+    assert cible.read_text(encoding="utf-8") == "contenu normal"
+
+
+def test_inventorier_hache_une_cible_de_symlink_non_utf8_sans_planter(tmp_path):
+    """Convergence ×3 (DeepSeek/Gemini/Qwen, MAJEURE, mesurée vraie) :
+    `.encode("utf-8")` plantait sur une cible de symlink contenant des
+    octets non-UTF8 valides — git les autorise nativement dans un blob de
+    symlink. `os.fsencode()` doit accepter ce cas sans exception."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-b", "b"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "t@t.t"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+
+    cible_octets = b"\x80\x81cible-non-utf8"
+    lien = repo / "lien.txt"
+    import os as _os
+    _os.symlink(cible_octets, lien)
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "symlink non-utf8"], cwd=repo, check=True, capture_output=True)
+
+    # Ne doit PAS lever UnicodeEncodeError.
+    inv = inventorier(repo)
+    entree = next((e for e in inv if e["chemin"] == "lien.txt"), None)
+    assert entree is not None, "le symlink non-UTF8 a disparu de l'inventaire au lieu d'être haché"
+    assert len(entree["sha256"]) == 64
+
+
+def test_csv_echappe_correctement_un_chemin_avec_virgule(tmp_path):
+    """Défaut trouvé par l'Orchestrateur lui-même avant tout test : une
+    construction manuelle du CSV par f-string (première tentative de ce
+    correctif) n'échapperait pas un chemin contenant une virgule. Vérifie
+    que csv.DictWriter (via _ecrire_csv_sans_suivre_symlink) le fait
+    correctement — round-trip par csv.DictReader."""
+    import custody as c
+    inventaire = [
+        {"chemin": "dossier, avec virgule/fichier.txt", "sha256": "a" * 64, "taille": 10},
+        {"chemin": 'nom "avec" guillemets.txt', "sha256": "b" * 64, "taille": 20},
+    ]
+    dest = tmp_path / "out.csv"
+    c._ecrire_csv_sans_suivre_symlink(dest, inventaire, tmp_path)
+
+    with dest.open(encoding="utf-8", newline="") as f:
+        lignes = list(csv.DictReader(f))
+    assert lignes[0]["chemin"] == "dossier, avec virgule/fichier.txt"
+    assert lignes[1]["chemin"] == 'nom "avec" guillemets.txt'
