@@ -1,4 +1,5 @@
 import csv
+import errno
 import hashlib
 import json
 import os
@@ -205,70 +206,113 @@ def verifier_inventaire(worktree: str | Path, inventaire: list[dict]) -> list[di
     return ecarts
 
 
-def _ecrire_sans_suivre_symlink(chemin: Path, texte: str, racine: Path) -> None:
-    """Refuse d'écrire si `chemin` est un symlink existant, AVANT toute
-    ouverture de fichier — `write_text()` seul suit les symlinks (revue
-    tour 1, Qwen3.7-Max, CRITIQUE, mesurée vraie) : une sortie de la
-    baseline remplacée par un lien vers un fichier hors du dépôt aurait été
-    écrasée à travers ce lien.
+def _ouverture_atomique_confinee(chemin: Path, racine: Path) -> int:
+    """Ouvre `chemin` en écriture, refuse un symlink à la FEUILLE
+    (`O_NOFOLLOW`), permet l'écrasement d'un fichier régulier préexistant
+    (`O_TRUNC`, pas `O_EXCL` — idempotence), PUIS revérifie le confinement
+    via `/proc/self/fd/<fd>` : le chemin RÉELLEMENT ouvert par le noyau,
+    lié à un inode immuable une fois le descripteur obtenu.
 
-    `racine` est OBLIGATOIRE (pas de valeur par défaut) — un repli
-    "racine=None -> vérifier contre chemin.parent" a été retiré ici après
-    mesure (revue scellée tour 2) : comparer un chemin résolu contre SON
-    PROPRE PARENT résolu est tautologiquement toujours vrai. MAIS le
-    paramètre obligatoire ne suffit pas à lui seul : si l'APPELANT passe
-    encore le parent direct comme racine (ce que faisait `_produire_sorties`
-    en passant `sortie_dir`, lui-même parent immédiat des fichiers écrits),
-    la même tautologie reproduit intégralement le trou — mesurée vraie en
-    revue tour 3 (Gemini-3.1-Pro, CRITIQUE) : `sortie_dir` symlinké vers un
-    répertoire externe rendait `_verifier_confinement` inopérant. Corrigé
-    aux appelants : `racine` doit être une ancre STABLE au-dessus de tout
-    répertoire remplaçable (la racine du worktree), jamais le parent
-    immédiat du fichier écrit.
+    Historique des trois défauts fermés ici, chacun mesuré réel par la
+    revue scellée avant correction :
 
-    TOCTOU (revue tour 3, Gemini-3.1-Pro, MAJEURE, mesurée vraie) : vérifier
-    `is_symlink()` PUIS ouvrir séparément laisse une fenêtre où un
-    attaquant peut planter un symlink entre les deux appels — `write_text()`
-    le suivrait. `O_EXCL|O_NOFOLLOW` rend vérification et écriture
-    ATOMIQUES : le noyau échoue l'ouverture si quoi que ce soit existe déjà
-    à ce chemin (fichier OU symlink), sans jamais suivre un lien — aucune
-    fenêtre de course possible, contrairement à un check puis un open
-    séparés."""
-    if chemin.is_symlink():
-        raise EcritureViaSymlinkRefusee(
-            f"refus d'écrire à travers un symlink : {chemin}"
-        )
-    _verifier_confinement(chemin, racine)
-    donnees = texte.encode("utf-8")
+    1. Tour 1/2 (Qwen3.7-Max puis Gemini-3.1-Pro, CRITIQUE) : `is_symlink()`
+       sur la seule feuille, puis `_verifier_confinement()` appelé avec une
+       racine qui était en réalité le parent immédiat — les deux formes de
+       la même tautologie (chemin résolu confiné dans son propre parent
+       résolu, toujours vrai). Fermé en exigeant une racine STABLE
+       (`worktree`, jamais `sortie_dir`) chez les appelants.
+    2. Tour 3 (Gemini-3.1-Pro, MAJEURE) : `O_EXCL` cassait l'idempotence —
+       une ré-exécution sur une sortie déjà produite plantait au lieu
+       d'écraser, changement de contrat non documenté. `O_TRUNC` restaure
+       l'écrasement d'un fichier RÉGULIER préexistant ; `O_NOFOLLOW` seul
+       (mesuré : `ELOOP`) suffit à refuser un symlink à la feuille, sans
+       `O_EXCL`.
+    3. Tour 3 (Qwen3.7-Max, CRITIQUE, mesurée vraie) : `O_NOFOLLOW` ne
+       protège QUE le dernier composant du chemin (spécification POSIX) —
+       un répertoire INTERMÉDIAIRE (ex: `sortie_dir` lui-même) remplacé par
+       un symlink ENTRE `_verifier_confinement()` (sa propre résolution) et
+       `os.open()` (une résolution interne SÉPARÉE) échapperait au
+       confinement. Fermé par une revérification APRÈS ouverture : le fd
+       retourné par le noyau est lié à un INODE, pas à un chemin — aucune
+       manipulation de chemin après l'obtention du fd ne peut plus rien y
+       changer. `/proc/self/fd/<fd>` révèle le chemin RÉELLEMENT résolu ;
+       s'il échappe au confinement, le fd est fermé SANS AVOIR ÉCRIT et
+       l'exception est levée.
+
+    4. Trouvé et corrigé par l'Orchestrateur avant tout test (pas par la
+       revue) : `O_TRUNC` dans les flags d'`open()` initiaux tronquait
+       AVANT la vérification de confinement — si le composant intermédiaire
+       compromis pointait vers un fichier EXTERNE PRÉEXISTANT (pas
+       seulement un nouveau chemin), son contenu aurait été détruit par la
+       simple tentative d'ouverture, MÊME dans le cas où l'écriture est
+       ensuite refusée. La troncature est désormais un appel `ftruncate()`
+       SÉPARÉ, exécuté seulement APRÈS confirmation du confinement — sur un
+       échec, tout contenu externe préexistant reste intact."""
+    racine_reelle = racine.resolve()
     try:
-        fd = os.open(str(chemin), os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644)
+        # PAS de O_TRUNC ici — voir point 4 ci-dessus : tronquer fait partie
+        # de l'ouverture elle-même côté noyau, donc AVANT que nous puissions
+        # vérifier quoi que ce soit. La troncature est différée après le
+        # contrôle de confinement (voir plus bas).
+        fd = os.open(str(chemin), os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW, 0o644)
     except OSError as e:
+        # Qwen3.7-Max, MINEURE, mesurée vraie : un `except OSError` large
+        # relabelle EACCES/EMFILE/EROFS en "symlink refusé", polluant les
+        # logs de sécurité avec de faux positifs. Seul ELOOP (la manière
+        # dont O_NOFOLLOW signale un symlink) devient EcritureViaSymlinkRefusee
+        # — toute autre erreur système remonte SANS ÊTRE REQUALIFIÉE.
+        if e.errno == errno.ELOOP:
+            raise EcritureViaSymlinkRefusee(
+                f"refus d'écrire à travers un symlink : {chemin} — {e}"
+            ) from e
+        raise
+    chemin_reel_ouvert = Path(os.path.realpath(f"/proc/self/fd/{fd}"))
+    try:
+        chemin_reel_ouvert.relative_to(racine_reelle)
+    except ValueError:
+        os.close(fd)
         raise EcritureViaSymlinkRefusee(
-            f"écriture refusée (symlink planté pendant la fenêtre de vérification, "
-            f"ou cible déjà existante) : {chemin} — {e}"
-        ) from e
+            f"chemin réellement ouvert hors confinement (course sur un "
+            f"composant intermédiaire, détectée après ouverture) : "
+            f"{chemin} -> {chemin_reel_ouvert}, hors de {racine_reelle}"
+        )
+    # Confinement confirmé : sûr de tronquer maintenant (idempotence, D2
+    # ci-dessus) — jamais avant, pour ne jamais détruire un contenu externe
+    # préexistant avant d'avoir la certitude qu'on écrit au bon endroit.
+    os.ftruncate(fd, 0)
+    return fd
+
+
+def _ecrire_sans_suivre_symlink(chemin: Path, texte: str, racine: Path) -> None:
+    """Refuse d'écrire à travers un symlink (feuille OU composant
+    intermédiaire — voir `_ouverture_atomique_confinee`), confiné sous
+    `racine` (OBLIGATOIRE, doit être une ancre stable — jamais le parent
+    immédiat du fichier écrit, voir historique dans
+    `_ouverture_atomique_confinee`)."""
+    _verifier_confinement(chemin, racine)
+    fd = _ouverture_atomique_confinee(chemin, racine)
+    donnees = texte.encode("utf-8")
     with os.fdopen(fd, "wb") as f:
         f.write(donnees)
 
 
 def _ecrire_csv_sans_suivre_symlink(chemin: Path, lignes: list[dict], racine: Path) -> None:
-    """Même garde que `_ecrire_sans_suivre_symlink` (symlink + confinement +
-    ouverture atomique O_EXCL|O_NOFOLLOW), mais via `csv.DictWriter` pour un
+    """Même garde que `_ecrire_sans_suivre_symlink` (symlink feuille+
+    intermédiaire, confinement, ouverture atomique via
+    `_ouverture_atomique_confinee`), mais via `csv.DictWriter` pour un
     échappement correct des champs — un `chemin` de fichier PEUT contenir
     une virgule, un guillemet ou un saut de ligne ; une construction
-    manuelle par f-string ne les échapperait pas."""
-    if chemin.is_symlink():
-        raise EcritureViaSymlinkRefusee(
-            f"refus d'écrire à travers un symlink : {chemin}"
-        )
+    manuelle par f-string ne les échapperait pas (défaut trouvé et corrigé
+    par l'Orchestrateur avant tout test).
+
+    `lignes` est trié par appelant AVANT l'appel — DeepSeek-V4-Pro, MAJEURE,
+    mesurée vraie (revue tour 3) : un précédent refactor avait fait perdre
+    le tri déterministe (`sorted(inventaire, key=...)`) que le code
+    d'origine appliquait, cassant l'ordre attendu par les comparaisons/hash
+    en aval. Restauré au site d'appel, dans `_produire_sorties()`."""
     _verifier_confinement(chemin, racine)
-    try:
-        fd = os.open(str(chemin), os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644)
-    except OSError as e:
-        raise EcritureViaSymlinkRefusee(
-            f"écriture refusée (symlink planté pendant la fenêtre de vérification, "
-            f"ou cible déjà existante) : {chemin} — {e}"
-        ) from e
+    fd = _ouverture_atomique_confinee(chemin, racine)
     with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=["chemin", "sha256", "taille"])
         writer.writeheader()
@@ -361,7 +405,11 @@ def _produire_sorties(worktree: Path, sortie_dir: Path) -> TargetCustody:
     # fichier PEUT contenir une virgule ou un guillemet ; une construction
     # manuelle par f-string ne les échapperait pas — corrigé avant même
     # d'être testé, aucune sortie mal formée n'a jamais existé).
-    _ecrire_csv_sans_suivre_symlink(sortie_dir / "FILE-INVENTORY.csv", inventaire, worktree)
+    _ecrire_csv_sans_suivre_symlink(
+        sortie_dir / "FILE-INVENTORY.csv",
+        sorted(inventaire, key=lambda e: e["chemin"]),
+        worktree,
+    )
 
     # GITHUB-REPOSITORY.json — ALLOWLIST stricte, jamais un dump du JSON brut.
     #

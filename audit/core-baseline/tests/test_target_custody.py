@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import csv
+import errno
 import hashlib
 import json
 import subprocess
@@ -35,6 +36,7 @@ from custody import (
     _produire_sorties,
     _verifier_confinement,
     _sha256_par_blocs,
+    _ouverture_atomique_confinee,
 )
 
 # ---------------------------------------------------------------------------
@@ -447,28 +449,110 @@ def test_confinement_via_sortie_dir_refuse_le_scenario_reel(tmp_path):
         _ecrire_sans_suivre_symlink((repo / "audit_out") / "TARGET.json", "contenu", repo)
 
 
-def test_ouverture_atomique_refuse_si_cible_deja_existante(tmp_path):
-    """TOCTOU (Gemini, MAJEURE, mesurée vraie) : O_EXCL rend le check et
-    l'écriture atomiques. Preuve indirecte de l'atomicité : si un fichier
-    existe déjà à ce chemin (symlink OU régulier), l'ouverture doit refuser
-    plutôt que d'écraser silencieusement — sinon une course gagnée par
-    l'attaquant entre le is_symlink() et l'open() écraserait quand même."""
-    cible = tmp_path / "deja_present.txt"
-    cible.write_text("contenu légitime préexistant", encoding="utf-8")
+def test_ecriture_est_idempotente_sur_fichier_regulier_preexistant(tmp_path):
+    """DeepSeek-V4-Pro + Gemini-3.1-Pro, MAJEURE, mesurée vraie (revue tour
+    3) : une première version utilisait O_EXCL, qui cassait l'idempotence —
+    une ré-exécution sur une sortie déjà produite plantait au lieu
+    d'écraser, changement de contrat non documenté. O_TRUNC (sans O_EXCL)
+    restaure l'écrasement d'un fichier RÉGULIER préexistant, tout en
+    conservant le refus d'un symlink (O_NOFOLLOW seul y suffit, voir
+    test_symlink_a_la_feuille_est_toujours_refuse_sans_o_excl)."""
+    cible = tmp_path / "reproductible.txt"
+    _ecrire_sans_suivre_symlink(cible, "première écriture", tmp_path)
+    _ecrire_sans_suivre_symlink(cible, "seconde écriture, plus longue", tmp_path)
+    assert cible.read_text(encoding="utf-8") == "seconde écriture, plus longue"
+
+
+def test_symlink_a_la_feuille_est_toujours_refuse_sans_o_excl(tmp_path):
+    """O_NOFOLLOW SEUL (sans O_EXCL) suffit à refuser un symlink à la
+    feuille — mesuré directement : `errno.ELOOP`. Ce test isole cette
+    propriété du reste (confinement, idempotence)."""
+    cible_reelle = tmp_path / "ailleurs.txt"
+    cible_reelle.write_text("contenu externe", encoding="utf-8")
+    lien = tmp_path / "lien.txt"
+    lien.symlink_to(cible_reelle)
     with pytest.raises(EcritureViaSymlinkRefusee):
-        _ecrire_sans_suivre_symlink(cible, "tentative d'écrasement", tmp_path)
-    assert cible.read_text(encoding="utf-8") == "contenu légitime préexistant", (
-        "le contenu préexistant a été écrasé malgré le refus attendu"
+        _ecrire_sans_suivre_symlink(lien, "tentative via le lien", tmp_path)
+    assert cible_reelle.read_text(encoding="utf-8") == "contenu externe", (
+        "le fichier externe a été modifié à travers le symlink malgré le refus attendu"
     )
 
 
 def test_ecriture_normale_reussit_toujours(tmp_path):
     """Contre-exemple obligatoire : un chemin normal, sans rien de
-    préexistant ni de symlink, doit continuer à s'écrire avec succès —
-    sinon O_EXCL bloquerait TOUT, pas seulement l'attaque ciblée."""
+    préexistant ni de symlink, doit continuer à s'écrire avec succès."""
     cible = tmp_path / "nouveau.txt"
     _ecrire_sans_suivre_symlink(cible, "contenu normal", tmp_path)
     assert cible.read_text(encoding="utf-8") == "contenu normal"
+
+
+def test_toctou_composant_intermediaire_ferme_apres_ouverture(tmp_path):
+    """Qwen3.7-Max, CRITIQUE, mesurée vraie (revue tour 3) : `O_NOFOLLOW`
+    ne protège que la FEUILLE du chemin (spécification POSIX) — un
+    répertoire INTERMÉDIAIRE symlinké échappe à ce check seul. Isole la
+    revérification post-ouverture (`_ouverture_atomique_confinee`) du reste
+    de la chaîne : simule l'état APRÈS une course gagnée par l'attaquant
+    (le composant intermédiaire est déjà symlinké au moment de l'appel)."""
+    racine = tmp_path / "worktree"
+    racine.mkdir()
+    coffre = tmp_path / "coffre_externe"
+    coffre.mkdir()
+    (racine / "sous_dir").symlink_to(coffre)
+    cible = racine / "sous_dir" / "sortie.txt"
+
+    with pytest.raises(EcritureViaSymlinkRefusee, match="composant intermédiaire"):
+        _ouverture_atomique_confinee(cible, racine)
+    # `O_CREAT` (nécessaire pour le cas normal) crée un fichier VIDE comme
+    # effet de bord de l'ouverture elle-même, avant toute vérification
+    # possible — résidu acceptable, sans contenu. Ce qui compte : AUCUN
+    # contenu n'a été écrit ni tronqué (voir aussi test dédié pour le cas
+    # où une cible externe PRÉEXISTANTE avait déjà du contenu).
+    fichiers = list(coffre.iterdir())
+    for f in fichiers:
+        assert f.stat().st_size == 0, f"contenu écrit dans le coffre externe : {f}"
+
+
+def test_toctou_intermediaire_ne_detruit_pas_un_contenu_externe_preexistant(tmp_path):
+    """Défaut trouvé et corrigé par l'Orchestrateur avant tout test (pas
+    par la revue) : une première version tronquait (`O_TRUNC`) DANS les
+    flags d'ouverture initiaux — si la cible externe (au bout du composant
+    intermédiaire compromis) avait déjà un contenu, il aurait été détruit
+    par la simple tentative d'ouverture, AVANT même la vérification de
+    confinement. La troncature doit être un appel séparé, après coup."""
+    racine = tmp_path / "worktree"
+    racine.mkdir()
+    coffre = tmp_path / "coffre_externe"
+    coffre.mkdir()
+    cible_preexistante = coffre / "sortie.txt"
+    cible_preexistante.write_text("contenu externe légitime et précieux", encoding="utf-8")
+    (racine / "sous_dir").symlink_to(coffre)
+    cible = racine / "sous_dir" / "sortie.txt"
+
+    with pytest.raises(EcritureViaSymlinkRefusee, match="composant intermédiaire"):
+        _ouverture_atomique_confinee(cible, racine)
+
+    assert cible_preexistante.read_text(encoding="utf-8") == "contenu externe légitime et précieux", (
+        "le contenu externe préexistant a été détruit malgré le refus attendu"
+    )
+
+
+def test_erreur_systeme_non_symlink_nest_pas_requalifiee(tmp_path, monkeypatch):
+    """Qwen3.7-Max, MINEURE, mesurée vraie : un `except OSError` large
+    relabelle EACCES/EMFILE/EROFS en "symlink refusé", polluant les logs de
+    sécurité. Seul errno.ELOOP doit devenir EcritureViaSymlinkRefusee."""
+    import custody as c
+
+    def os_open_qui_refuse_permission(*a, **kw):
+        raise OSError(errno.EACCES, "Permission denied")
+
+    monkeypatch.setattr(c.os, "open", os_open_qui_refuse_permission)
+    cible = tmp_path / "x.txt"
+    with pytest.raises(OSError) as exc:
+        c._ouverture_atomique_confinee(cible, tmp_path)
+    assert not isinstance(exc.value, EcritureViaSymlinkRefusee), (
+        "une erreur de permission a été requalifiée en refus de symlink"
+    )
+    assert exc.value.errno == errno.EACCES
 
 
 def test_produire_sorties_refuse_reellement_sortie_dir_symlinke(tmp_path, monkeypatch):
