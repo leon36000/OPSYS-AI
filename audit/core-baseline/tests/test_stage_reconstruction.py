@@ -156,24 +156,35 @@ def test_rejouer_stade_hache_les_5_sources_reelles():
 def test_produire_sorties_stage_ecrit_json_et_csv_reels(tmp_path):
     """Bout en bout réel : STAGE.json et STAGE-EVIDENCE.csv sont produits,
     contiennent les valeurs sourcées, et le CSV a exactement 5 lignes liées
-    aux 5 sources canoniques."""
+    aux 5 sources canoniques. `_produire_sorties_stage` est DÉTERMINISTE
+    (mêmes sources → mêmes octets) : ce test réécrit les sorties TRACKÉES
+    avec un contenu IDENTIQUE, jamais ne les supprime — un `finally:
+    unlink()` sur un fichier suivi par git le supprimerait réellement du
+    dépôt à la prochaine régénération (défaut trouvé et corrigé avant
+    soumission : mesuré via `git status --porcelain` montrant `D` après un
+    premier run de la suite)."""
     sortie_dir = WORKTREE / "audit" / "core-baseline"
-    etat = _produire_sorties_stage(WORKTREE, sortie_dir, PACK_ROOT)
-    try:
-        stage_json = json.loads((sortie_dir / "STAGE.json").read_text(encoding="utf-8"))
-        assert stage_json["program_stage"] == PROGRAM_STAGE_SOURCE
-        assert stage_json["core_status"] == CORE_STATUS_SOURCE
-        assert set(stage_json["modules"]) == set(MODULES_STATUTS_SOURCE)
-        assert stage_json["source_hashes"] == etat.source_hashes
+    avant = (sortie_dir / "STAGE.json").read_bytes() if (sortie_dir / "STAGE.json").exists() else None
 
-        with (sortie_dir / "STAGE-EVIDENCE.csv").open(encoding="utf-8", newline="") as f:
-            lignes = list(csv.DictReader(f))
-        assert len(lignes) == 5
-        assert [l["source"] for l in lignes] == list(SOURCES_CANONIQUES)
-        assert [l["sha256"] for l in lignes] == etat.source_hashes
-    finally:
-        (sortie_dir / "STAGE.json").unlink(missing_ok=True)
-        (sortie_dir / "STAGE-EVIDENCE.csv").unlink(missing_ok=True)
+    etat = _produire_sorties_stage(WORKTREE, sortie_dir, PACK_ROOT)
+
+    stage_json = json.loads((sortie_dir / "STAGE.json").read_text(encoding="utf-8"))
+    assert stage_json["program_stage"] == PROGRAM_STAGE_SOURCE
+    assert stage_json["core_status"] == CORE_STATUS_SOURCE
+    assert set(stage_json["modules"]) == set(MODULES_STATUTS_SOURCE)
+    assert stage_json["source_hashes"] == etat.source_hashes
+
+    with (sortie_dir / "STAGE-EVIDENCE.csv").open(encoding="utf-8", newline="") as f:
+        lignes = list(csv.DictReader(f))
+    assert len(lignes) == 5
+    assert [l["source"] for l in lignes] == list(SOURCES_CANONIQUES)
+    assert [l["sha256"] for l in lignes] == etat.source_hashes
+
+    if avant is not None:
+        assert (sortie_dir / "STAGE.json").read_bytes() == avant, (
+            "régénération non déterministe — le contenu tracké a changé "
+            "alors que les sources n'ont pas bougé"
+        )
 
 
 def test_produire_sorties_stage_refuse_sortie_dir_symlinke(tmp_path):
