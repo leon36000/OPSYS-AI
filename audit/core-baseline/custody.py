@@ -243,9 +243,41 @@ def _ouverture_atomique_confinee(chemin: Path, racine: Path) -> int:
        intermédiaire est validée AVANT que la suivante ne soit même
        tentée — aucune création n'est possible tant qu'un composant du
        chemin n'a pas été confirmé non-symlink.
-    4. Bonus de cette réécriture : `/proc/self/fd` (spécifique Linux, MAJEURE
-       DeepSeek+Qwen non résolue) n'est plus utilisé — `dir_fd` est POSIX
-       standard (Python : `os.supports_dir_fd`)."""
+    4. `/proc/self/fd` (spécifique Linux, MAJEURE DeepSeek+Qwen non résolue,
+       tour 3→4) n'est plus utilisé — `dir_fd` est POSIX standard, VÉRIFIÉ
+       ici via `os.supports_dir_fd` plutôt que supposé.
+    5. Tour 5 (Gemini-3.1-Pro + Qwen3.7-Max, CRITIQUE CONVERGENT, mesurée
+       vraie) : `Path.relative_to()` est PUREMENT LEXICAL — il ne normalise
+       jamais `..`. `chemin = racine/../etc/nologin` produit
+       `composants = ('..', 'etc', 'nologin')` ; `..` est une ENTRÉE DE
+       RÉPERTOIRE RÉELLE (pas un symlink), donc `os.open('..', O_DIRECTORY
+       | O_NOFOLLOW, dir_fd=...)` RÉUSSIT et remonte hors de `racine` — la
+       marche `dir_fd` entière ne protégeait alors plus rien contre un
+       chemin qui contient `..` avant confinement. Fermé en refusant
+       explicitement tout composant `..` avant même d'ouvrir `racine`.
+       (Un composant `.` littéral n'a pas besoin de la même garde : mesuré
+       — `pathlib` l'élide TOUJOURS à la construction, `Path("a") / "."
+       / "b"` donne `('a', 'b')`, jamais `('a', '.', 'b')` ; une garde sur
+       `.` ici serait un code mort invérifiable, aucun appel réel via
+       `Path.relative_to().parts` ne peut jamais le produire.)
+
+    Note (DeepSeek-V4-Pro, MINEURE, tour 5) : `racine` elle-même comme
+    symlink n'est plus tolérée depuis cette réécriture — le tout premier
+    `os.open(str(racine_reelle), O_DIRECTORY | O_NOFOLLOW)` la refuse
+    (mesuré : `ELOOP`). Documenté ici, ce n'est pas un oubli : tous les
+    appelants de ce module passent `worktree` (jamais un lien) en
+    `racine` — cf. `_produire_sorties()`."""
+    if os.open not in os.supports_dir_fd:
+        # DeepSeek-V4-Pro, MINEURE, tour 5 : aucune garde n'existait avant
+        # usage de dir_fd= sur une plateforme qui ne le supporte pas —
+        # lèverait une TypeError obscure au premier appel au lieu d'un
+        # refus explicite. Mesuré : os.supports_dir_fd est un set de
+        # fonctions ; os.open y figure sur POSIX (Linux, macOS, *BSD).
+        raise RuntimeError(
+            "dir_fd non supporté par cette plateforme (os.supports_dir_fd) — "
+            "confinement impossible à garantir sans lui, refus plutôt que "
+            "dégradation silencieuse vers une vérification par chemin."
+        )
     racine_reelle = racine.resolve()
     try:
         relatif = chemin.relative_to(racine_reelle)
@@ -256,6 +288,19 @@ def _ouverture_atomique_confinee(chemin: Path, racine: Path) -> int:
     composants = relatif.parts
     if not composants:
         raise EcritureViaSymlinkRefusee(f"chemin vide après confinement : {chemin}")
+    if ".." in composants:
+        # Gemini-3.1-Pro + Qwen3.7-Max, tour 5, CRITIQUE CONVERGENT (mesuré
+        # vrai — cf. docstring point 5) : relative_to() est lexical, ne
+        # normalise pas '..'. Un '..' dans composants EST une entrée de
+        # répertoire réelle que la marche dir_fd suivrait sans broncher
+        # (ce n'est pas un symlink, O_NOFOLLOW ne le voit pas). Refusé ici,
+        # AVANT toute ouverture — même avant racine_reelle. (Pas de garde
+        # symétrique pour '.' : pathlib l'élide à la construction, aucun
+        # appel réel ne peut le produire dans composants — cf. docstring.)
+        raise EcritureViaSymlinkRefusee(
+            f"chemin contient un composant '..' (évasion de confinement) : "
+            f"{chemin} -> {composants}"
+        )
 
     dir_fd = os.open(str(racine_reelle), os.O_DIRECTORY | os.O_NOFOLLOW)
     try:
@@ -294,7 +339,15 @@ def _ouverture_atomique_confinee(chemin: Path, racine: Path) -> int:
     # Confinement garanti PAR CONSTRUCTION à ce point (chaque composant
     # intermédiaire a été validé avant d'être traversé) — la troncature ne
     # peut plus jamais atteindre un contenu externe.
-    os.ftruncate(fd, 0)
+    try:
+        os.ftruncate(fd, 0)
+    except OSError:
+        # Gemini-3.1-Pro, MINEURE, tour 5 : un `ftruncate` non protégé
+        # fuyait `fd` s'il échouait (ENOSPC, EBADF...) — personne d'autre
+        # ne le referme, l'appelant ne l'a jamais reçu. Fermer avant de
+        # remonter : le fd n'a plus aucun usage possible côté appelant.
+        os.close(fd)
+        raise
     return fd
 
 

@@ -676,3 +676,79 @@ def test_csv_echappe_correctement_un_chemin_avec_virgule(tmp_path):
         lignes = list(csv.DictReader(f))
     assert lignes[0]["chemin"] == "dossier, avec virgule/fichier.txt"
     assert lignes[1]["chemin"] == 'nom "avec" guillemets.txt'
+
+
+def test_traversee_par_double_point_est_refusee(tmp_path):
+    """Tour 5 (Gemini-3.1-Pro + Qwen3.7-Max, CRITIQUE CONVERGENT, mesurée
+    vraie) : `Path.relative_to()` est purement lexical — ne normalise
+    jamais `..`. `chemin = racine/../dehors/nologin` produit
+    `composants = ('..', 'dehors', 'nologin')` ; `..` est une ENTRÉE DE
+    RÉPERTOIRE RÉELLE (pas un symlink), la marche `dir_fd` la suivrait
+    sans broncher et remonterait hors de `racine` — exactement le
+    scénario `/etc/nologin` donné en revue (créer un fichier au nom d'un
+    contrôle d'accès système, HORS du confinement, est un déni de service
+    réel, pas un résidu acceptable). Ce test exige le refus AVANT toute
+    création, pas seulement l'absence de contenu."""
+    racine = tmp_path / "worktree"
+    racine.mkdir()
+    dehors = tmp_path / "dehors"
+    dehors.mkdir()
+    cible_hors_confinement = racine / ".." / "dehors" / "nologin"
+
+    with pytest.raises(EcritureViaSymlinkRefusee, match=r"\.\."):
+        _ouverture_atomique_confinee(cible_hors_confinement, racine)
+
+    assert list(dehors.iterdir()) == [], (
+        "un fichier a été créé HORS du worktree confiné via une évasion par "
+        "'..' non normalisée par Path.relative_to() — régression du "
+        "CRITIQUE tour 5"
+    )
+
+
+def test_dir_fd_non_supporte_est_refuse_explicitement(tmp_path, monkeypatch):
+    """DeepSeek-V4-Pro, MINEURE, tour 5 (mesurée vraie) : aucune garde
+    n'existait avant d'utiliser `dir_fd=` sur une plateforme qui ne le
+    supporte pas — l'appel aurait échoué avec une exception obscure au
+    lieu d'un refus explicite. Force `os.supports_dir_fd` à ne PAS
+    contenir `os.open`, pour prouver que la garde ajoutée mord bien
+    (et pas seulement qu'elle existe dans le code)."""
+    import custody as c
+    monkeypatch.setattr(c.os, "supports_dir_fd", frozenset())
+    cible = tmp_path / "fichier.txt"
+    with pytest.raises(RuntimeError, match="dir_fd non supporté"):
+        _ouverture_atomique_confinee(cible, tmp_path)
+    assert not cible.exists(), "un fichier a été créé malgré le refus dir_fd"
+
+
+def test_ftruncate_en_echec_ne_fuit_pas_le_descripteur(tmp_path, monkeypatch):
+    """Gemini-3.1-Pro, MINEURE, tour 5 (mesurée vraie) : un `os.ftruncate`
+    non protégé fuyait `fd` s'il échouait (ENOSPC, EBADF...) — personne
+    d'autre ne le referme, l'appelant ne l'a jamais reçu (l'exception l'en
+    a empêché). Ce test force l'échec et vérifie que le fd concerné a bien
+    été fermé AVANT que l'exception ne remonte — pas seulement que
+    l'exception remonte (un plantage seul ne prouve rien)."""
+    import custody as c
+    fermes: list[int] = []
+    fd_de_la_feuille: list[int] = []
+    close_original = c.os.close
+
+    def ftruncate_qui_echoue(fd, taille):
+        fd_de_la_feuille.append(fd)
+        raise OSError("échec simulé (ex: ENOSPC)")
+
+    def close_trace(fd):
+        fermes.append(fd)
+        return close_original(fd)
+
+    monkeypatch.setattr(c.os, "ftruncate", ftruncate_qui_echoue)
+    monkeypatch.setattr(c.os, "close", close_trace)
+
+    cible = tmp_path / "fichier.txt"
+    with pytest.raises(OSError, match="échec simulé"):
+        _ouverture_atomique_confinee(cible, tmp_path)
+
+    assert fd_de_la_feuille, "ftruncate n'a jamais été appelé — test invalide"
+    assert fd_de_la_feuille[0] in fermes, (
+        "le fd de la feuille n'a PAS été fermé après l'échec de ftruncate "
+        "— fuite de descripteur"
+    )
