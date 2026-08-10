@@ -66,13 +66,19 @@ def evaluate_gate(phase: dict, state: dict, worktree: Path) -> GateResult:
                     error="TIMEOUT",
                 )
             )
-        except OSError as exc:
-            # OSError couvre FileNotFoundError (outil absent, ENOENT) ET
-            # PermissionError (outil présent mais non exécutable, EACCES) —
-            # les deux sont des impossibilités de MESURER, pas des échecs de
-            # contrôle : un binaire sans droit d'exécution ne doit jamais
-            # faire planter evaluate_gate, il doit produire un statut ERROR
-            # propre au même titre qu'un outil absent (revue tour 1, Gemini).
+        except (FileNotFoundError, PermissionError) as exc:
+            # Exactement les deux impossibilités de MESURER (jamais un échec
+            # de contrôle) : outil absent (FileNotFoundError, ENOENT) et
+            # outil présent mais non exécutable (PermissionError, EACCES) —
+            # revue tour 1 (Gemini, élargi depuis FileNotFoundError seul).
+            # PAS `except OSError` (revue tour 2, DeepSeek, mineure mesurée
+            # vraie) : OSError engloberait aussi InterruptedError (EINTR,
+            # interruption système TRANSITOIRE par signal) — un cas qui
+            # n'est ni « outil absent » ni « outil inutilisable », et que
+            # traiter comme ERROR masquerait une interruption qui devrait
+            # normalement se résoudre par une ré-exécution, pas un verdict
+            # définitif. Capturer exactement les deux exceptions nommées,
+            # rien de plus large.
             results.append(
                 CheckResult(
                     check_id=check["check_id"],
