@@ -1,9 +1,9 @@
 {
-  "commit": "cc2a81fd344fa3df2ec31c562b3a70bfa2e9a250",
-  "tree": "8a921985bde90f4fed2c4eee54e267d615964e56",
+  "commit": "1dfa80417667f094ba7c29a63df4f3ec3c187aba",
+  "tree": "7c6e71855c0f1c6fcebb92d292af2b9e332c0f9e",
   "branch": "opsys-core/task/c00-001-geler-le-depot-la-branche-et-le-worktree",
   "worktree": "/media/pc1/Storage/opsys-core-worktrees/c00-001",
   "dirty": false,
   "chemins_sales_tolerés": [],
-  "fichiers_inventories": 1420
+  "fichiers_inventories": 1425
 }
