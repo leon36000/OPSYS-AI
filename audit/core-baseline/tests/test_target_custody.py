@@ -471,6 +471,70 @@ def test_ecriture_normale_reussit_toujours(tmp_path):
     assert cible.read_text(encoding="utf-8") == "contenu normal"
 
 
+def test_produire_sorties_refuse_reellement_sortie_dir_symlinke(tmp_path, monkeypatch):
+    """Ferme le trou que `test_confinement_via_sortie_dir_refuse_le_scenario_reel`
+    NE couvre PAS : appeler `_ecrire_sans_suivre_symlink` directement avec la
+    bonne racine ne prouve pas que `_produire_sorties()` (le VRAI point
+    d'entrée) l'utilise correctement. Mesuré par mutation avant soumission :
+    remettre `sortie_dir` au lieu de `worktree` sur UN SEUL site d'appel
+    (TARGET.json) ne faisait échouer aucun test existant. Ce test appelle
+    `_produire_sorties()` de bout en bout avec un `sortie_dir` symlinké hors
+    du worktree."""
+    import custody as c
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-b", "b"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "t@t.t"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+    (repo / "x.txt").write_text("x", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "i"], cwd=repo, check=True, capture_output=True)
+
+    coffre = tmp_path / "coffre_externe"
+    coffre.mkdir()  # sortie_dir pointera ici, existe déjà donc mkdir(exist_ok=True) ne le recrée pas
+
+    def fake_gh(args):
+        if args == ["api", "user"]:
+            return {"login": "leon36000", "id": 1, "node_id": "U_x"}
+        if args == ["api", "repos/leon36000/OPSYS-AI"]:
+            return {"id": 1, "node_id": "R_x", "full_name": "leon36000/OPSYS-AI",
+                     "default_branch": "main", "private": True, "visibility": "private"}
+        return {"ok": True}
+
+    monkeypatch.setattr(c, "_gh_json", fake_gh)
+
+    # subprocess.run global mock trop risqué ici (geler()/inventorier() en
+    # dépendent réellement pour git) : mocker seulement `gh repo view`, tout
+    # le reste (git) passe réellement.
+    _run_reel = c.subprocess.run
+
+    def run_selectif(argv, *a, **kw):
+        if argv[:3] == ["gh", "repo", "view"]:
+            return type("R", (), {"returncode": 0, "stdout": '{"nameWithOwner":"leon36000/OPSYS-AI"}', "stderr": ""})()
+        return _run_reel(argv, *a, **kw)
+
+    monkeypatch.setattr(c.subprocess, "run", run_selectif)
+
+    # Le symlink doit être TRACKÉ ET COMMITÉ pour que geler() (appelé en
+    # interne par _produire_sorties) le voie comme un worktree propre —
+    # c'est le scénario réaliste : git AUTORISE un symlink comme entrée de
+    # tree (mode 120000), le "tampering" est un commit légitime du point de
+    # vue de git, pas un fichier non suivi.
+    sortie_dir_symlinke = repo / "audit_faux"
+    sortie_dir_symlinke.symlink_to(coffre)
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "tampering: audit_faux -> coffre externe"],
+                    cwd=repo, check=True, capture_output=True)
+
+    with pytest.raises(EcritureViaSymlinkRefusee, match="confinement"):
+        c._produire_sorties(repo, sortie_dir_symlinke)
+
+    assert list(coffre.iterdir()) == [], (
+        "des fichiers ont été écrits dans le coffre externe malgré le refus attendu"
+    )
+
+
 def test_inventorier_hache_une_cible_de_symlink_non_utf8_sans_planter(tmp_path):
     """Convergence ×3 (DeepSeek/Gemini/Qwen, MAJEURE, mesurée vraie) :
     `.encode("utf-8")` plantait sur une cible de symlink contenant des
