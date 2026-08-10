@@ -514,6 +514,26 @@ def _produire_sorties(worktree: Path, sortie_dir: Path) -> TargetCustody:
     return garde
 
 
+# ---------------------------------------------------------------------------
+# API PUBLIQUE — réutilisation inter-tâches (C00-002 et suivantes).
+#
+# DeepSeek-V4-Pro, CRITIQUE, C00-002 tour 1 (mesurée fondée) : une tâche
+# ultérieure important les fonctions PRÉFIXÉES `_` de ce module (contrat
+# Python implicite = API privée, instable, aucun engagement de stabilité)
+# constitue une rupture d'encapsulation — même si la logique est durcie et
+# scellée, le nom seul signale « ne pas utiliser hors de ce module ».
+# Ces alias sont la surface PUBLIQUE, explicite et engagée, pour toute tâche
+# C00-* qui a besoin des mêmes primitives de confinement/écriture atomique
+# sans réimplémenter (l'alternative — réimplémenter — est exactement
+# l'erreur mesurée dans tools/target_probe.py : schéma incompatible, aucune
+# protection symlink). Purs alias, aucune logique dupliquée ni modifiée —
+# la suite de tests C00-001 (test_target_custody.py) reste l'unique preuve
+# de leur comportement, ré-exécutée intacte après cet ajout.
+verifier_confinement = _verifier_confinement
+ouverture_atomique_confinee = _ouverture_atomique_confinee
+ecrire_sans_suivre_symlink = _ecrire_sans_suivre_symlink
+
+
 if __name__ == "__main__":
     import sys
     worktree = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parents[2]
