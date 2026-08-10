@@ -1,0 +1,27 @@
+[project]
+name = "opsys-core"
+version = "0.0.0"
+description = "OPSYS-AI Core — socle d'entreprise autonome (stdlib d'abord, dépendances ajoutées uniquement quand strictement nécessaires)"
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+dependencies = [
+    "PyYAML==6.0.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.1.1",
+]
+
+[tool.opsys-core.licenses]
+# Une ligne par dépendance déclarée (runtime + dev), licence SPDX vérifiée
+# sur PyPI au moment de l'ajout — jamais devinée.
+PyYAML = "MIT"
+pytest = "MIT"
+
+[tool.opsys-core.dependency-provenance]
+# PyYAML : détectée par core/scripts/verify_dependencies.py (import réel
+# dans core/src/config/settings.py, story P0-5d antérieure à C02 — code
+# M1-M10 NON touché par C02-002, seule sa dépendance réelle est déclarée
+# ici pour rendre l'environnement Core reproductible, cf. tasks/C02-002.md).
+PyYAML = "core/src/config/settings.py"
