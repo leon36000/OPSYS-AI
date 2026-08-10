@@ -593,3 +593,51 @@ def test_stdout_stderr_sont_captures_sur_check_pass(tmp_path):
     result = evaluate_gate(phase, state, tmp_path)
     assert result.status == "MEASURED_PASS"
     assert "SORTIE-SUR-SUCCES" in result.checks[0].stdout
+
+
+# ---------------------------------------------------------------------------
+# Correction revue tours 6-7 (Qwen puis DeepSeek, CRITIQUE)
+# ---------------------------------------------------------------------------
+
+
+def test_sortie_massive_est_tronquee_jamais_un_oom(tmp_path):
+    """CRITIQUE (revue tours 6-7 — Qwen MAJEURE puis DeepSeek CRITIQUE,
+    mesurée vraie) : subprocess.run(..., stdout=PIPE, stderr=PIPE)
+    bufferise sans limite en mémoire — un check qui produit une quantité
+    massive de sortie AVANT son timeout pouvait risquer un déni de
+    service par OOM. Preuve directe, pas théorique : un check qui écrit
+    RÉELLEMENT plus que le plafond (_MAX_OUTPUT_BYTES) doit se terminer
+    normalement (jamais un timeout, jamais un crash) ET produire un
+    CheckResult dont stdout est BORNÉ en taille avec un marqueur de
+    troncature explicite — jamais la totalité de ce qui a été écrit."""
+    import gate_engine
+
+    # Écrit délibérément 3x le plafond en une seule ligne dense, pour
+    # garantir un dépassement réel et mesurable, pas un cas limite flou.
+    octets_a_ecrire = gate_engine._MAX_OUTPUT_BYTES * 3
+    script = (
+        "import sys\n"
+        f"sys.stdout.write('X' * {octets_a_ecrire})\n"
+        "sys.exit(0)\n"
+    )
+    phase = _phase(
+        checks=[
+            {
+                "check_id": "C01-CHK-SORTIE-MASSIVE",
+                "argv": [sys.executable, "-c", script],
+                "expected_returncode": 0,
+                "timeout_s": 30,
+            }
+        ],
+        task_ids=["C01-001"],
+    )
+    state = _state({"C01-001": "VERIFIED"})
+    result = evaluate_gate(phase, state, tmp_path)
+    assert result.status == "MEASURED_PASS"  # le check lui-même a réussi
+    assert result.checks[0].timed_out is False  # jamais tué par timeout
+    stdout_capture = result.checks[0].stdout
+    # Borné : nettement moins que les octets_a_ecrire réels, jamais la
+    # totalité en mémoire.
+    assert len(stdout_capture) < octets_a_ecrire
+    assert len(stdout_capture) < gate_engine._MAX_OUTPUT_BYTES * 2
+    assert "TRONQUÉ" in stdout_capture
