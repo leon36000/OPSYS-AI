@@ -1,0 +1,56 @@
+{
+  "amendments": {
+    "C10-004": {
+      "add_acceptance": [
+        "Toute stratégie multi-agent ou de vérification est comparée à une baseline mono-agent/déterministe sur les mêmes données, budgets et oracles.",
+        "L’indépendance empirique est mesurée sur les erreurs du golden set; aucun score Kish ou seuil universel n’est accepté sans données OPSYS-AI.",
+        "Un signal de qualité externe reste un signal candidat et ne remplace jamais les golden sets et postconditions OPSYS-AI."
+      ],
+      "source": "OPSYS-AI-REVUE-CRITIQUE-PATCH-OPUS-STARCOM-v1"
+    },
+    "C10-005": {
+      "add_acceptance": [
+        "Une intersection vide des hard gates produit explicitement NO_QUALIFIED_MODEL; aucun gate n’est relâché silencieusement.",
+        "Les états NO_PRIVATE_MODEL_AVAILABLE, NO_INDEPENDENT_VERIFIER, BUDGET_EXHAUSTED, CAPACITY_EXHAUSTED et MODEL_HEALTH_UNCERTAIN sont explicites et testés."
+      ],
+      "source": "OPSYS-AI-REVUE-CRITIQUE-PATCH-OPUS-STARCOM-v1"
+    },
+    "C10-006": {
+      "add_acceptance": [
+        "L’indépendance combine fournisseur, famille, domaine de panne et corrélation empirique des erreurs; distinctModelCount seul ne nourrit aucun gate.",
+        "Auteur et vérificateur à haut risque ne partagent pas le même fournisseur/famille/domaine de panne sauf exception documentée et bloquante."
+      ],
+      "source": "OPSYS-AI-REVUE-CRITIQUE-PATCH-OPUS-STARCOM-v1"
+    },
+    "C12-001": {
+      "add_acceptance": [
+        "Les budgets enregistrent aussi fanout, rounds, critiques, synthèses et vérifications multi-agent; aucun coût MOA n’est caché au niveau mission."
+      ],
+      "source": "OPSYS-AI-REVUE-CRITIQUE-PATCH-OPUS-STARCOM-v1"
+    },
+    "C13-005": {
+      "add_acceptance": [
+        "Le tournoi compare systématiquement chaque architecture agentique à la baseline native, avec plafond de fanout/rounds/tokens/coût et règle d’arrêt.",
+        "Une architecture multi-agent n’est promue que si son gain net qualité/sécurité justifie son coût, sa latence et sa maintenance."
+      ],
+      "source": "OPSYS-AI-REVUE-CRITIQUE-PATCH-OPUS-STARCOM-v1"
+    },
+    "C17-001": {
+      "add_acceptance": [
+        "Le Brick Manifest inclut version/digest/commit, SBOM, provenance, signature, VEX, findings applicables ouverts, profil d’isolation, egress, mounts, secrets et date d’expiration de qualification."
+      ],
+      "source": "OPSYS-AI-REVUE-CRITIQUE-PATCH-OPUS-STARCOM-v1"
+    },
+    "C17-003": {
+      "add_acceptance": [
+        "Le gate CVE considère les findings applicables non corrigés sur la version/digest épinglé et leurs mitigations/VEX; le nombre historique de CVE seul ne décide jamais.",
+        "Toute brique MCP conserve une provenance immuable, l’identité du publisher, les capabilities, auth, egress, mounts et scans; un registre public seul ne vaut pas confiance."
+      ],
+      "source": "OPSYS-AI-REVUE-CRITIQUE-PATCH-OPUS-STARCOM-v1"
+    }
+  },
+  "dag_overrides_source": "base-hotfix-v2.1/03-DAG-OVERRIDES.json",
+  "ratification_overrides_source": "base-hotfix-v2.1/02-RATIFICATION-OVERRIDES.json",
+  "repository_contract": "leon36000/OPSYS-AI",
+  "version": "2.3.0"
+}
