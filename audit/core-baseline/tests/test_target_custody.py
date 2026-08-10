@@ -8,6 +8,7 @@ import json
 import shutil
 import subprocess
 import sys
+import warnings
 from pathlib import Path
 
 import pytest
@@ -224,16 +225,26 @@ class TestProductionSorties:
         finally:
             if str(BASE) in sys.path:
                 sys.path.remove(str(BASE))
-            # Revue scellée phase C00 tour 2 (Qwen3.8-Max, CRITIQUE, rôle
-            # sécurité) : `ignore_errors=True` avalait silencieusement tout
-            # échec de nettoyage — jamais de dégradation silencieuse (même
-            # principe que la garde HMAC de M1-S006 : si l'action ne peut
-            # pas être menée à bien, elle doit ÉCHOUER bruyamment, pas
-            # simuler un succès). Laisser `shutil.rmtree` lever : un échec
-            # de nettoyage remonte comme une erreur de teardown pytest,
-            # visible, jamais masqué.
+            # Revue scellée phase C00 : tour 2 (Qwen3.8-Max, CRITIQUE,
+            # sécurité) — `ignore_errors=True` avalait silencieusement tout
+            # échec de nettoyage, jamais de dégradation silencieuse. Un
+            # premier correctif laissait `shutil.rmtree` lever directement,
+            # MAIS SonarCloud (E Maintainability sur New Code) signale à
+            # bon droit qu'une exception levée dans un bloc `finally` peut
+            # MASQUER l'exception réellement en cours de propagation (ex.
+            # un test qui vient d'échouer au-dessus du `yield`) — règle
+            # Python bien connue (S1163), pas une fausse alerte. Concilié :
+            # ni silence total ni levée en finally — `warnings.warn` rend
+            # l'échec VISIBLE (capturé par défaut dans la sortie pytest)
+            # sans jamais masquer une exception déjà en vol.
             if not dans_c00_001:
-                shutil.rmtree(cible)
+                try:
+                    shutil.rmtree(cible)
+                except OSError as e:
+                    warnings.warn(
+                        f"nettoyage de {cible} après TestProductionSorties a échoué : {e}",
+                        RuntimeWarning, stacklevel=2,
+                    )
 
     def _chemin_sortie(self, nom: str) -> Path:
         """Point de lecture UNIQUE du répertoire de sortie réel (déterminé
