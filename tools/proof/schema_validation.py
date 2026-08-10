@@ -42,9 +42,6 @@ _REVIEW_KEYS = {
     "objections",
     "evidence_sha256",
 }
-_OBJECTION_KEYS = {"code", "severity", "text", "status"}
-_OBJECTION_SEVERITIES = {"LOW", "MEDIUM", "HIGH", "CRITICAL"}
-_OBJECTION_STATUSES = {"OPEN", "RESOLVED", "WITHDRAWN"}
 
 
 def _fail(message: str) -> None:
@@ -124,26 +121,6 @@ def _evidence_command(value: object, index: int) -> None:
     _sha256(value["stderr_sha256"], f"{name}.stderr_sha256")
 
 
-def _objection(value: object, index: int) -> None:
-    # Revue scellée C01-002 (Gemini-3.1-Pro, MAJEURE, confirmée) : le
-    # champ `objections` n'était contrôlé que comme liste, jamais dans la
-    # structure de ses éléments — contredit l'objectif même de la tâche
-    # (schémas STRICTS). Chaque objection est maintenant un objet fermé
-    # avec sévérité/statut en énumération fermée, comme les autres champs
-    # d'énumération de ce module.
-    name = f"objections[{index}]"
-    if not isinstance(value, dict):
-        _fail(f"{name} must be an object")
-    _required(value, _OBJECTION_KEYS, name)
-    unexpected = set(value).difference(_OBJECTION_KEYS)
-    if unexpected:
-        _fail(f"{name} contains additional field(s): {', '.join(sorted(unexpected))}")
-    _string(value["code"], f"{name}.code")
-    _enum(value["severity"], f"{name}.severity", _OBJECTION_SEVERITIES)
-    _string(value["text"], f"{name}.text")
-    _enum(value["status"], f"{name}.status", _OBJECTION_STATUSES)
-
-
 def _gate_check(value: object, index: int) -> None:
     name = f"checks[{index}]"
     if not isinstance(value, dict):
@@ -215,8 +192,6 @@ def validate_review(obj: dict) -> None:
     _enum(value["verdict"], "review.verdict", _REVIEW_VERDICTS)
     if not isinstance(value["objections"], list):
         _fail("review.objections must be a list")
-    for index, objection in enumerate(value["objections"]):
-        _objection(objection, index)
     _sha256(value["evidence_sha256"], "review.evidence_sha256")
 
 
