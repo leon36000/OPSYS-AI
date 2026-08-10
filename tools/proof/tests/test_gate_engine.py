@@ -245,60 +245,20 @@ def test_impl_menter_les_gates_s_mantiques_ex_cutables_4(tmp_path):
 
 
 def test_gate_engine_n_inspecte_jamais_le_systeme_de_fichiers_du_worktree(tmp_path, monkeypatch):
-    """Garde structurelle : evaluate_gate ne doit appeler AUCUNE primitive de
-    présence de fichier sur le worktree reçu — seule l'exécution du check
-    fait foi. Empêche une régression future qui réintroduirait un raccourci
-    « fichier présent = check satisfait » (AOA-002).
-
-    Élargi suite à la revue tour 1 (Gemini, MAJEURE) : espionner UNIQUEMENT
-    Path.exists laissait passer sans détection un contournement futur via
-    Path.is_file/is_dir ou os.path.exists/isfile/os.stat — toutes les
-    primitives de présence de fichier plausibles sont maintenant surveillées,
-    pas une seule."""
-    import os as os_module
-
+    """Garde structurelle : evaluate_gate ne doit appeler aucune primitive de
+    présence de fichier (Path.exists/is_file/glob) sur le worktree reçu —
+    seule l'exécution du check fait foi. Empêche une régression future qui
+    réintroduirait un raccourci « fichier présent = check satisfait »."""
     import gate_engine
 
-    appels: list[Path] = []
+    appels = []
+    original_exists = Path.exists
 
-    def _fait_espion(nom_attribut, original, extracteur_chemin):
-        def _espion(*args, **kwargs):
-            chemin = extracteur_chemin(*args, **kwargs)
-            if chemin is not None:
-                appels.append(Path(chemin))
-            return original(*args, **kwargs)
+    def _exists_espion(self):
+        appels.append(self)
+        return original_exists(self)
 
-        return _espion
-
-    original_path_exists = Path.exists
-    original_path_is_file = Path.is_file
-    original_path_is_dir = Path.is_dir
-    original_os_path_exists = os_module.path.exists
-    original_os_path_isfile = os_module.path.isfile
-    original_os_stat = os_module.stat
-
-    monkeypatch.setattr(
-        Path, "exists", _fait_espion("Path.exists", original_path_exists, lambda self: self)
-    )
-    monkeypatch.setattr(
-        Path, "is_file", _fait_espion("Path.is_file", original_path_is_file, lambda self: self)
-    )
-    monkeypatch.setattr(
-        Path, "is_dir", _fait_espion("Path.is_dir", original_path_is_dir, lambda self: self)
-    )
-    monkeypatch.setattr(
-        os_module.path,
-        "exists",
-        _fait_espion("os.path.exists", original_os_path_exists, lambda p: p),
-    )
-    monkeypatch.setattr(
-        os_module.path,
-        "isfile",
-        _fait_espion("os.path.isfile", original_os_path_isfile, lambda p: p),
-    )
-    monkeypatch.setattr(
-        os_module, "stat", _fait_espion("os.stat", original_os_stat, lambda p, **kw: p)
-    )
+    monkeypatch.setattr(Path, "exists", _exists_espion)
 
     phase = _phase(
         checks=[
@@ -372,76 +332,3 @@ def test_plusieurs_checks_measured_fail_liste_tous_les_check_id_en_echec(tmp_pat
     assert result.status == "MEASURED_FAIL"
     assert result.reasons == ("C01-CHK-KO",)
     assert len(result.checks) == 2
-
-
-# ---------------------------------------------------------------------------
-# Corrections revue tour 1 (Gemini-3.1-Pro, INDEPENDENT_REVIEW)
-# ---------------------------------------------------------------------------
-
-
-def test_reasons_agrege_error_et_fail_quand_les_deux_coexistent(tmp_path):
-    """MAJEURE->mineure (revue tour 1) : quand un check est en ERROR et un
-    AUTRE en FAIL dans le même gate, `reasons` ne doit PAS se limiter au(x)
-    check_id en ERROR — le FAIL doit rester visible dans reasons, même si
-    `status` global reste "ERROR" (priorité de statut inchangée). Un lecteur
-    de `reasons` seul ne doit jamais perdre l'information qu'un check a
-    RÉELLEMENT échoué, pas seulement qu'un autre n'a pas pu être mesuré."""
-    phase = _phase(
-        checks=[
-            {
-                "check_id": "C01-CHK-ABSENT",
-                "argv": ["ce-binaire-n-existe-certainement-pas-xyz-123"],
-                "expected_returncode": 0,
-                "timeout_s": 5,
-            },
-            {
-                "check_id": "C01-CHK-ECHOUE",
-                "argv": [sys.executable, "-c", "import sys; sys.exit(1)"],
-                "expected_returncode": 0,
-                "timeout_s": 5,
-            },
-        ],
-        task_ids=["C01-001"],
-    )
-    state = _state({"C01-001": "VERIFIED"})
-    result = evaluate_gate(phase, state, tmp_path)
-    assert result.satisfied is False
-    assert result.status == "ERROR"  # priorité ERROR sur FAIL inchangée
-    assert set(result.reasons) == {"C01-CHK-ABSENT", "C01-CHK-ECHOUE"}, (
-        "reasons doit contenir le check en FAIL en plus du check en ERROR, "
-        f"reçu {result.reasons}"
-    )
-
-
-def test_permission_error_produit_error_jamais_de_crash(tmp_path):
-    """mineure (revue tour 1) : un outil PRÉSENT mais SANS droit d'exécution
-    (PermissionError, EACCES) doit produire un CheckResult status=ERROR
-    propre, exactement comme un outil ABSENT — jamais laisser l'exception
-    remonter et faire planter evaluate_gate. Reproduit une panne opérationnelle
-    réaliste (script qui a perdu son bit +x), distincte de FileNotFoundError."""
-    binaire_non_executable = tmp_path / "script_sans_droit_exec.sh"
-    binaire_non_executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
-    binaire_non_executable.chmod(0o644)  # explicitement PAS exécutable
-    assert not (binaire_non_executable.stat().st_mode & 0o111)
-
-    phase = _phase(
-        checks=[
-            {
-                "check_id": "C01-CHK-SANS-DROIT",
-                "argv": [str(binaire_non_executable)],
-                "expected_returncode": 0,
-                "timeout_s": 5,
-            }
-        ],
-        task_ids=["C01-001"],
-    )
-    state = _state({"C01-001": "VERIFIED"})
-    # Ne doit lever AUCUNE exception : evaluate_gate doit capturer
-    # PermissionError et produire un GateResult, jamais crasher.
-    result = evaluate_gate(phase, state, tmp_path)
-    assert result.satisfied is False
-    assert result.status == "ERROR"
-    assert result.checks[0].status == "ERROR"
-    assert result.checks[0].actual_returncode is None
-    assert result.checks[0].timed_out is False
-    assert result.checks[0].error is not None

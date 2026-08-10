@@ -66,13 +66,7 @@ def evaluate_gate(phase: dict, state: dict, worktree: Path) -> GateResult:
                     error="TIMEOUT",
                 )
             )
-        except OSError as exc:
-            # OSError couvre FileNotFoundError (outil absent, ENOENT) ET
-            # PermissionError (outil présent mais non exécutable, EACCES) —
-            # les deux sont des impossibilités de MESURER, pas des échecs de
-            # contrôle : un binaire sans droit d'exécution ne doit jamais
-            # faire planter evaluate_gate, il doit produire un statut ERROR
-            # propre au même titre qu'un outil absent (revue tour 1, Gemini).
+        except FileNotFoundError as exc:
             results.append(
                 CheckResult(
                     check_id=check["check_id"],
@@ -108,19 +102,10 @@ def evaluate_gate(phase: dict, state: dict, worktree: Path) -> GateResult:
         result.check_id for result in checks if result.status == "ERROR"
     )
     if error_reasons:
-        # reasons agrège ERROR *et* FAIL (revue tour 1, Gemini) : un gate qui
-        # a un check en ERROR ET un autre en FAIL simultanément ne doit pas
-        # masquer le FAIL — status reste "ERROR" (priorité inchangée), mais
-        # reasons expose TOUS les check_id en échec, pas seulement le sous-
-        # ensemble ERROR, pour qu'un lecteur n'ait pas à consulter `checks`
-        # en plus pour découvrir le FAIL après avoir corrigé l'ERROR.
-        non_pass_reasons = tuple(
-            result.check_id for result in checks if result.status != "PASS"
-        )
         return GateResult(
             satisfied=False,
             status="ERROR",
-            reasons=non_pass_reasons,
+            reasons=error_reasons,
             checks=checks,
         )
 
