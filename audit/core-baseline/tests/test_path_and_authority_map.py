@@ -170,6 +170,43 @@ def test_path_map_ferme_le_conflit_meme_avec_point_point_non_normalise(variante)
         PathMap("x", variante, "RESERVED_NEW")
 
 
+def test_chemin_normalise_est_independant_de_la_plateforme(monkeypatch):
+    """DeepSeek-V4-Pro + Gemini-3.1-Pro + Qwen3.7-Max, CRITIQUE+MAJEURE
+    CONVERGENTE 3/3, C00-004 tour 3 (mesurée fondée) : la version tour 3
+    utilisait `os.path.normpath`, un ALIAS dépendant de l'OS hôte (`ntpath`
+    sous Windows, séparateur `\\`) — incompatible avec `PurePosixPath` qui
+    ne découpe que sur `/`. Preuve DIRECTE de robustesse : on simule
+    `os.path = ntpath` (ce qui serait réellement vrai sous Windows) et on
+    vérifie que la garde continue de fonctionner — preuve que la fonction
+    n'utilise JAMAIS `os.path`, seulement `posixpath` explicitement importé,
+    donc son comportement est identique sur toute plateforme.
+
+    Piège mesuré en écrivant CE test : un candidat qui se RÉSOUT (via '..')
+    exactement au même texte que la référence (ex. `'core/src/unprotected/../authz'`
+    vs `'core/src/authz'`) matche encore PAR COÏNCIDENCE même sous la
+    normalisation buguée — les deux chaînes finissent mangled en un SEUL
+    composant IDENTIQUE, donc la comparaison réussit sans que le correctif
+    soit sollicité. Ce test ne discrimine PAS le bug (mesuré : passe même
+    avec `os.path.normpath` réintroduit). Le cas qui discrimine RÉELLEMENT
+    est un candidat avec un COMPOSANT SUPPLÉMENTAIRE après la référence (un
+    vrai sous-dossier, ex. `'core/src/authz/sous_dossier'`) : sous `ntpath`,
+    candidat et référence ne collapsent PAS vers la même chaîne (le
+    sous-dossier reste un suffixe distinct), donc `parts_candidat[:1]` (un
+    seul composant mangled) ne peut jamais égaler `parts_reference` (un
+    composant mangled DIFFÉRENT) — reproduit et vérifié avant d'écrire
+    l'assertion ci-dessous."""
+    import ntpath
+    monkeypatch.setattr(pam.os, "path", ntpath)
+    assert pam._chemin_egal_ou_sous_chemin_de("core/src/authz/sous_dossier", "core/src/authz") is True
+    assert pam._chemin_egal_ou_sous_chemin_de(
+        "Modules M/M1-front-office/src/x", "Modules M/M1-front-office/src"
+    ) is True
+    assert pam._chemin_egal_ou_sous_chemin_de("core/src/authzz", "core/src/authz") is False
+    # Bout en bout : la garde PathMap elle-même reste efficace sous la simulation.
+    with pytest.raises(ConflitCheminRefuse):
+        PathMap("x", "core/src/authz/sous_dossier", "RESERVED_NEW")
+
+
 def test_authority_ferme_le_writer_core_meme_avec_point_point_non_normalise():
     with pytest.raises(WriterCoreSurModulesRefuse):
         Authority("CORE", "x", "y", "Modules M/M1-front-office/unprotected/../src")

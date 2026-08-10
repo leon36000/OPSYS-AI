@@ -17,6 +17,7 @@ from __future__ import annotations
 import csv
 import json
 import os
+import posixpath
 import sys
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -139,12 +140,25 @@ def _chemin_egal_ou_sous_chemin_de(candidat: str, reference: str) -> bool:
     — la garde ne reconnaissait PAS ce chemin comme visant `core/src/authz`
     alors qu'il y résout lexicalement, contournant silencieusement
     `ConflitCheminRefuse`/`WriterCoreSurModulesRefuse`. Fermé en normalisant
-    `candidat` ET `reference` via `os.path.normpath` (collapse LEXICAL de
+    `candidat` ET `reference` via `posixpath.normpath` (collapse LEXICAL de
     `.`/`..`/séparateurs redondants, AUCUN accès disque, ne dépend pas de
-    l'existence du chemin) AVANT de découper en composants — `os.path.normpath`
-    ne collapse QUE ce qui peut l'être sans information externe (un `..`
-    menant hors de la racine relative reste tel quel, ce qui ne matche de
-    toute façon aucun chemin Core/module connu).
+    l'existence du chemin) AVANT de découper en composants.
+
+    DeepSeek-V4-Pro + Gemini-3.1-Pro + Qwen3.7-Max, CRITIQUE+MAJEURE
+    CONVERGENTE 3/3, C00-004 tour 3 (mesurée fondée) : la version tour 3
+    utilisait `os.path.normpath` — lié à l'OS HÔTE (`os.path` est un ALIAS
+    de `posixpath` sous Linux/macOS mais de `ntpath` sous Windows).
+    `ntpath.normpath` convertit `/` en `\\`, or `PurePosixPath` ne découpe
+    QUE sur `/` — sous Windows, `PurePosixPath(os.path.normpath(...))`
+    produirait un tuple à UN SEUL composant (`('core\\src\\authz',)` au
+    lieu de `('core','src','authz')`), cassant totalement la comparaison
+    de préfixe et RÉOUVRANT la faille des 2 tours précédents sur toute
+    machine Windows (poste dev ou CI) — mesuré par reproduction directe
+    via `ntpath.normpath` (module stdlib, vérifiable sans machine Windows).
+    Fermé en utilisant EXPLICITEMENT `posixpath.normpath` (jamais
+    `os.path.normpath`) — sémantique POSIX (séparateur `/`) garantie sur
+    TOUTE plateforme d'exécution, cohérente avec `PurePosixPath` par
+    construction, pas par coïncidence de l'OS de développement.
 
     `.parts` (après normalisation) reste nécessaire pour la comparaison de
     PRÉFIXE DE COMPOSANTS (pas de préfixe de chaîne : `'core/src/authzz'`
@@ -155,8 +169,8 @@ def _chemin_egal_ou_sous_chemin_de(candidat: str, reference: str) -> bool:
     (`IncoherenceStatutChemin`) gardent une égalité stricte : elles
     valident une représentation canonique produite par CE module lui-même,
     pas une entrée à tolérer."""
-    parts_candidat = PurePosixPath(os.path.normpath(candidat)).parts
-    parts_reference = PurePosixPath(os.path.normpath(reference)).parts
+    parts_candidat = PurePosixPath(posixpath.normpath(candidat)).parts
+    parts_reference = PurePosixPath(posixpath.normpath(reference)).parts
     return parts_candidat[: len(parts_reference)] == parts_reference
 
 
