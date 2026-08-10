@@ -2,32 +2,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-import resource
 import subprocess
 import tempfile
 
-# Plafond de sécurité par flux (revue tours 6-8, CRITIQUE puis MAJEURE
-# confirmées à chaque fois) : un check qui produit une quantité massive de
-# logs AVANT l'expiration de son timeout ne doit jamais pouvoir faire
-# exploser la mémoire OU le disque de l'hôte. stdout/stderr sont redirigés
-# vers des fichiers temporaires (jamais subprocess.PIPE — tour 6-7) ET
-# l'ÉCRITURE elle-même est bornée AU NIVEAU NOYAU via RLIMIT_FSIZE (tour 8,
-# Gemini, mesurée vraie : plafonner seulement la RELECTURE après coup ne
-# bornait pas l'écriture PENDANT l'exécution — un /tmp en tmpfs aurait
-# déplacé le risque OOM vers l'OS, un /tmp sur disque exposait à
-# « No space left on device »). Vérifié empiriquement avant application :
-# resource.RLIMIT_FSIZE fait échouer l'écriture de l'enfant dès que le
-# fichier atteint la limite (mesuré : fichier plafonné à EXACTEMENT la
-# valeur du rlimit, jamais au-delà), quel que soit le système de fichiers
-# sous-jacent.
-_MAX_OUTPUT_BYTES = 1_048_576  # 1 MiB par flux — aussi le rlimit d'écriture
-
-
-def _limiter_taille_fichier() -> None:
-    """preexec_fn : pose RLIMIT_FSIZE dans le processus ENFANT (après fork,
-    avant exec) — borne l'écriture au niveau noyau, jamais seulement à la
-    relecture. N'affecte que l'enfant, jamais le process Python hôte."""
-    resource.setrlimit(resource.RLIMIT_FSIZE, (_MAX_OUTPUT_BYTES, _MAX_OUTPUT_BYTES))
+# Plafond de sécurité par flux (revue tours 6-7, CRITIQUE confirmée) : un
+# check qui produit une quantité massive de logs AVANT l'expiration de son
+# timeout ne doit jamais pouvoir faire exploser la mémoire du process
+# Python hôte. stdout/stderr sont redirigés vers des fichiers temporaires
+# (jamais subprocess.PIPE) — le système de fichiers absorbe une sortie de
+# taille arbitraire SANS toucher la mémoire Python pendant l'exécution ;
+# seule la relecture explicite après coup, plafonnée à cette taille, entre
+# en mémoire.
+_MAX_OUTPUT_BYTES = 1_048_576  # 1 MiB par flux
 
 
 def _lire_sortie_bornee(fichier) -> str:
@@ -99,7 +85,6 @@ def evaluate_gate(phase: dict, state: dict, worktree: Path) -> GateResult:
                     stderr=stderr_fichier,
                     timeout=check["timeout_s"],
                     shell=False,
-                    preexec_fn=_limiter_taille_fichier,
                 )
             except subprocess.TimeoutExpired:
                 # revue tour 5 (Gemini, MAJEURE, mesurée vraie) : stdout/stderr
