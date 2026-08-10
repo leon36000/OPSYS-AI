@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opsys-ai/proof/schemas/task.schema.json",
+  "schema_version": "1.0",
+  "title": "OPSYS-AI Proof Task",
+  "type": "object",
+  "required": ["schema_version", "task_id", "title", "status", "risk", "review_policy", "dependencies", "outputs"],
+  "properties": {
+    "schema_version": {"type": "string", "minLength": 1},
+    "task_id": {"type": "string", "minLength": 1},
+    "title": {"type": "string", "minLength": 1},
+    "status": {
+      "type": "string",
+      "enum": ["READY", "BLOCKED", "IN_PROGRESS", "EVIDENCE_SUBMITTED", "VERIFIED", "SUPERSEDED"]
+    },
+    "risk": {"type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]},
+    "review_policy": {"type": "string", "enum": ["NONE", "INDEPENDENT_REVIEW", "TRIAD_CONSENSUS"]},
+    "dependencies": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "outputs": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1}
+  }
+}
