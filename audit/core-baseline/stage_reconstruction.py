@@ -76,19 +76,44 @@ class StageState:
     (`etat.modules['M1'] = 'DONE'` réussissait silencieusement après
     construction, ré-ouvrant exactement le trou que les gardes venaient de
     fermer). `MappingProxyType`/`tuple` ferment ce trou : toute mutation
-    post-construction lève désormais `TypeError`. Le type hint de
-    l'interface (`dict[str,str]`/`list[str]`, cf. Task Spec) reste le
-    contrat STRUCTUREL (Mapping[str,str] / Sequence[str] en lecture) ; les
-    classes concrètes changent pour fermer l'objection MAJEURE — conversion
-    explicite en dict/list ordinaires au point de sérialisation JSON
+    post-construction lève désormais `TypeError`. Conversion explicite en
+    dict/list ordinaires au point de sérialisation JSON
     (`_produire_sorties_stage`), jamais exposée telle quelle à `json.dumps`
-    (qui ne sait pas sérialiser un `MappingProxyType`, mesuré)."""
+    (qui ne sait pas sérialiser un `MappingProxyType`, mesuré).
+
+    Gemini-3.1-Pro, MAJEURE, C00-002 tour 2 (mesurée fondée) : la version
+    tour 1 de cette docstring affirmait à tort garder le type hint de
+    l'interface INCHANGÉ (« dict[str,str]/list[str] ») — en réalité le hint
+    de `source_hashes` avait été PERDU sur `construire_stage_state`. Les
+    champs de CE dataclass sont typés `MappingProxyType[str, str]` /
+    `tuple[str, ...]` (classes concrètes réelles, pas de mensonge de type
+    hint) ; `construire_stage_state` restaure `list[str] | tuple[str, ...]`.
+    Un type hint seul ne protège RIEN à l'exécution (Python ne les impose
+    pas) : `__post_init__` refuse explicitement `str`/`bytes` pour
+    `source_hashes` AVANT la conversion `tuple(...)`, qui sinon réduirait
+    silencieusement une chaîne en un tuple d'un caractère par élément
+    (mesuré : `tuple("hash")` donne `('h','a','s','h')`, pas `('hash',)`)."""
     program_stage: str
-    modules: MappingProxyType
+    modules: "MappingProxyType[str, str]"
     core_status: str
-    source_hashes: tuple
+    source_hashes: "tuple[str, ...]"
 
     def __post_init__(self) -> None:
+        # Gemini-3.1-Pro, MAJEURE, C00-002 tour 2 (mesurée fondée) : le type
+        # hint de `source_hashes` avait été perdu sur la signature de
+        # `construire_stage_state` (restauré ci-dessous), et `tuple(x)` sur
+        # une chaîne ne lève JAMAIS — il la réduit SILENCIEUSEMENT en un
+        # tuple d'un caractère par élément (mesuré : `tuple("hash")` donne
+        # `('h','a','s','h')`, pas `('hash',)`). `dict(x)` sur `modules` n'a
+        # PAS ce risque (mesuré : `dict("ab")` lève ValueError fort) — seul
+        # `source_hashes` a besoin d'une garde explicite, un type hint seul
+        # ne protège rien à l'exécution (Python ne les impose pas).
+        if isinstance(self.source_hashes, (str, bytes)):
+            raise TypeError(
+                f"source_hashes doit être une séquence de chaînes (list/tuple), "
+                f"jamais une str/bytes directement (serait réduite en un "
+                f"élément par caractère) : {self.source_hashes!r}"
+            )
         _verifier_modules_partiels(self.modules)
         _verifier_interface_differee(self.core_status)
         _verifier_absence_non_qualifiee_en_defaut(self.core_status)
@@ -194,7 +219,8 @@ def _verifier_absence_non_qualifiee_en_defaut(core_status: str) -> None:
 
 
 def construire_stage_state(
-    program_stage: str, modules: dict[str, str], core_status: str, source_hashes,
+    program_stage: str, modules: dict[str, str], core_status: str,
+    source_hashes: list[str] | tuple[str, ...],
 ) -> StageState:
     """Façade nommée — l'enforcement réel des 3 gardes vit dans
     `StageState.__post_init__`, qu'on arrive ici ou par instanciation

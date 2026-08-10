@@ -339,3 +339,32 @@ def test_rejouer_stade_refuse_reellement_si_une_source_est_symlinkee(tmp_path):
 
     with pytest.raises(SourceHorsConfinementRefusee):
         rejouer_stade(faux_pack_root)
+
+
+# ---------------------------------------------------------------------------
+# Revue scellée C00-002 tour 2 (APPROVE 2/3, 1 MAJEURE non résolue) —
+# 1 test fermant le défaut mesuré fondé.
+# ---------------------------------------------------------------------------
+
+
+def test_source_hashes_chaine_est_refusee_pas_reduite_en_caracteres():
+    """Gemini-3.1-Pro, MAJEURE, C00-002 tour 2 (mesurée fondée) : le type
+    hint de `source_hashes` avait été perdu sur `construire_stage_state`
+    (restauré), et `tuple(x)` sur une chaîne ne lève JAMAIS — il la réduit
+    SILENCIEUSEMENT en un tuple d'un caractère par élément, corrompant
+    STAGE-EVIDENCE.csv/STAGE.json sans erreur explicite. Reproduction
+    EXACTE du risque décrit : passer une chaîne au lieu d'une séquence de
+    hash doit désormais lever TypeError, jamais réduire en tuple de
+    caractères."""
+    with pytest.raises(TypeError, match="str/bytes"):
+        construire_stage_state(
+            program_stage=PROGRAM_STAGE_SOURCE, modules=dict(MODULES_STATUTS_SOURCE),
+            core_status=CORE_STATUS_SOURCE, source_hashes="a" * 64,
+        )
+    # Contre-exemple : une VRAIE séquence de hash (list ou tuple) continue
+    # de fonctionner normalement.
+    etat = construire_stage_state(
+        program_stage=PROGRAM_STAGE_SOURCE, modules=dict(MODULES_STATUTS_SOURCE),
+        core_status=CORE_STATUS_SOURCE, source_hashes=["a" * 64, "b" * 64],
+    )
+    assert etat.source_hashes == ("a" * 64, "b" * 64)
