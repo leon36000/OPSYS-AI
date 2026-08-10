@@ -1,0 +1,17 @@
+name: OPSYS-AI confirmed bug
+description: Défaut confirmé à préserver jusqu’au correctif prouvé
+title: "[BUG] "
+labels: ["opsys-ai", "type:deferred-bug", "proof:required"]
+body:
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Preuve reproductible
+    validations:
+      required: true
+  - type: textarea
+    id: closure
+    attributes:
+      label: Test RED/GREEN et gate de fermeture
+    validations:
+      required: true
