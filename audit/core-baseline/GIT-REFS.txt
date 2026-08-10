@@ -1,6 +1,6 @@
-commit 104eee9b8ec00d8fe7a948421899b48b5becff80
-tree aa88d435cc903492010a47a6f4a66a746dd181ee
-branch opsys-core/task/c00-001-geler-le-depot-la-branche-et-le-worktree
+commit 74fe0cff931899d832c9c7c30465e095490bd60e
+tree adb904e96a414072a0e2033ab9c95ede5bc2ed55
+branch opsys-core/core-v2.3.0-integration
 
 [remotes]
 origin	https://github.com/leon36000/OPSYS-AI.git (fetch)
@@ -27,8 +27,12 @@ bea41473b1ae322a8cbeee6e9a4600fc38720149 refs/heads/copilot-s014-local
 89714b030e160ff3da769aeedcabb0b5529f3aeb refs/heads/copilot/m7-s008a-donnees-saisonnires-fixtures-avis
 d5867222127fa600772b0ed44a26b51bc25ed2f6 refs/heads/main
 c5663fa2c0ad3216a757b199d586a2cd7b1a71b2 refs/heads/opsys-core/core-v2
-fac74ea0bbe2ad1f02ec58d9f6205e9aaec265db refs/heads/opsys-core/core-v2.3.0-integration
-104eee9b8ec00d8fe7a948421899b48b5becff80 refs/heads/opsys-core/task/c00-001-geler-le-depot-la-branche-et-le-worktree
+74fe0cff931899d832c9c7c30465e095490bd60e refs/heads/opsys-core/core-v2.3.0-integration
+10852366164d72f68f05fe6208e3ffb5bceda451 refs/heads/opsys-core/task/c00-001-geler-le-depot-la-branche-et-le-worktree
+a30a263b2bfbc55b85a8ede8d126470a994841d9 refs/heads/opsys-core/task/c00-002-rejouer-le-stade-squelette-first
+0faf19827c988e8a93b3fc3da3dabdc434b79a0f refs/heads/opsys-core/task/c00-003-reconcilier-les-54-issues-et-les-12-bugs-reprodu
+8bce6fc4684b5ad473f2d07d3ba37c6c528968b4 refs/heads/opsys-core/task/c00-004-ratifier-la-carte-des-chemins-et-des-autorites
+5823f39a86028920431bdd11e6f27b60d65b081b refs/heads/opsys-core/task/c00-005-sceller-le-canon-core-les-non-objectifs-et-lordr
 555ec49b4aaf430ff7d22709d8c4278dffa1f6c1 refs/heads/revert/pr-37
 480b716bca98b7efb90e2bda31c77cb1dfe330ef refs/heads/story/AUD-A1
 59378502a019638c0b2e75551fac979b4000f0f2 refs/heads/story/AUD-A2
@@ -68,9 +72,13 @@ ab881c79c429e087852f5a76bf4c852c21e203d5 refs/remotes/origin/chore/journal-vague
 01fb5c31f850038ebe1b581352bfe3f5d82916ea refs/remotes/origin/chore/paquet-completude
 129227324e5267fdc66f2e51a1376ffd2bc9eee9 refs/remotes/origin/copilot/m7-s008a-donnees-saisonnires-fixtures-avis
 ed9671fb71ffeacbb9c2d7f1aaf3edefb77664de refs/remotes/origin/copilot/m7-s009-reputation-engine
-d5867222127fa600772b0ed44a26b51bc25ed2f6 refs/remotes/origin/main
+74fe0cff931899d832c9c7c30465e095490bd60e refs/remotes/origin/main
 fac74ea0bbe2ad1f02ec58d9f6205e9aaec265db refs/remotes/origin/opsys-core/core-v2.3.0-integration
-023ce2a632bebfd32aebb25901666cedce2efaef refs/remotes/origin/opsys-core/task/c00-001-geler-le-depot-la-branche-et-le-worktree
+10852366164d72f68f05fe6208e3ffb5bceda451 refs/remotes/origin/opsys-core/task/c00-001-geler-le-depot-la-branche-et-le-worktree
+a30a263b2bfbc55b85a8ede8d126470a994841d9 refs/remotes/origin/opsys-core/task/c00-002-rejouer-le-stade-squelette-first
+0faf19827c988e8a93b3fc3da3dabdc434b79a0f refs/remotes/origin/opsys-core/task/c00-003-reconcilier-les-54-issues-et-les-12-bugs-reprodu
+8bce6fc4684b5ad473f2d07d3ba37c6c528968b4 refs/remotes/origin/opsys-core/task/c00-004-ratifier-la-carte-des-chemins-et-des-autorites
+5823f39a86028920431bdd11e6f27b60d65b081b refs/remotes/origin/opsys-core/task/c00-005-sceller-le-canon-core-les-non-objectifs-et-lordr
 480b716bca98b7efb90e2bda31c77cb1dfe330ef refs/remotes/origin/story/AUD-A1
 59378502a019638c0b2e75551fac979b4000f0f2 refs/remotes/origin/story/AUD-A2
 d91ae9a43688da8f61e8942257722031e472f552 refs/remotes/origin/story/AUD-A3
