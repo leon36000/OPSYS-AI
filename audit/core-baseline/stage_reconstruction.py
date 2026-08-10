@@ -89,30 +89,49 @@ class StageState:
     `tuple[str, ...]` (classes concrètes réelles, pas de mensonge de type
     hint) ; `construire_stage_state` restaure `list[str] | tuple[str, ...]`.
     Un type hint seul ne protège RIEN à l'exécution (Python ne les impose
-    pas) : `__post_init__` refuse explicitement `str`/`bytes` pour
-    `source_hashes` AVANT la conversion `tuple(...)`, qui sinon réduirait
-    silencieusement une chaîne en un tuple d'un caractère par élément
-    (mesuré : `tuple("hash")` donne `('h','a','s','h')`, pas `('hash',)`)."""
+    pas) : `__post_init__` exige une LISTE BLANCHE stricte
+    (`isinstance(..., (list, tuple))`) pour `source_hashes` AVANT la
+    conversion `tuple(...)` — Gemini-3.1-Pro + Qwen3.7-Max, MAJEURE
+    CONVERGENTE, C00-002 tour 3 (mesurée fondée) : une première version en
+    LISTE NOIRE (`str`/`bytes` seuls refusés) ne fermait pas la classe —
+    bytearray/memoryview (réduits en tuple d'entiers), set (ordre non
+    déterministe) et générateur épuisé (réduit en `()`) traversaient tous
+    silencieusement. La liste blanche ferme la classe entière ; chaque
+    élément est en plus vérifié `str`."""
     program_stage: str
     modules: "MappingProxyType[str, str]"
     core_status: str
     source_hashes: "tuple[str, ...]"
 
     def __post_init__(self) -> None:
-        # Gemini-3.1-Pro, MAJEURE, C00-002 tour 2 (mesurée fondée) : le type
-        # hint de `source_hashes` avait été perdu sur la signature de
-        # `construire_stage_state` (restauré ci-dessous), et `tuple(x)` sur
-        # une chaîne ne lève JAMAIS — il la réduit SILENCIEUSEMENT en un
-        # tuple d'un caractère par élément (mesuré : `tuple("hash")` donne
-        # `('h','a','s','h')`, pas `('hash',)`). `dict(x)` sur `modules` n'a
-        # PAS ce risque (mesuré : `dict("ab")` lève ValueError fort) — seul
-        # `source_hashes` a besoin d'une garde explicite, un type hint seul
-        # ne protège rien à l'exécution (Python ne les impose pas).
-        if isinstance(self.source_hashes, (str, bytes)):
+        # Gemini-3.1-Pro + Qwen3.7-Max, MAJEURE CONVERGENTE, C00-002 tour 3
+        # (mesurée fondée) : une liste NOIRE (`isinstance(..., (str,
+        # bytes))`) ne ferme pas la classe du défaut — `tuple(x)` accepte
+        # SILENCIEUSEMENT n'importe quel itérable, et plusieurs AUTRES types
+        # dégénérés le traversent avec la même corruption muette que la
+        # chaîne d'origine :
+        #   - bytearray/memoryview : réduits en tuple d'ENTIERS, mesuré
+        #     `tuple(bytearray(b'hash'))` -> `(104, 97, 115, 104)`.
+        #   - set : ordre NON DÉTERMINISTE, mesuré `tuple({'h1','h2'})` peut
+        #     donner `('h2','h1')` — casse la reproductibilité du JSON/CSV.
+        #   - générateur déjà épuisé : `tuple(gen_vide)` -> `()`, silencieux.
+        # Fermé en LISTE BLANCHE stricte : seuls `list`/`tuple` sont
+        # acceptés, tout le reste refusé nommément — ferme la CLASSE du
+        # défaut, pas seulement le cas str/bytes déjà signalé. Chaque
+        # ÉLÉMENT doit aussi être une str (une séquence de hash SHA-256 ne
+        # contient que des chaînes ; un `[123, 456]` passerait la liste
+        # blanche de conteneur sans cette 2e garde).
+        if not isinstance(self.source_hashes, (list, tuple)):
             raise TypeError(
-                f"source_hashes doit être une séquence de chaînes (list/tuple), "
-                f"jamais une str/bytes directement (serait réduite en un "
-                f"élément par caractère) : {self.source_hashes!r}"
+                f"source_hashes doit être une list ou un tuple (liste blanche "
+                f"stricte — tout autre itérable, y compris str/bytes/"
+                f"bytearray/set/générateur, est refusé pour éviter une "
+                f"réduction silencieuse via tuple(...)) : "
+                f"{type(self.source_hashes).__name__} reçu"
+            )
+        if not all(isinstance(h, str) for h in self.source_hashes):
+            raise TypeError(
+                f"chaque élément de source_hashes doit être une str : {self.source_hashes!r}"
             )
         _verifier_modules_partiels(self.modules)
         _verifier_interface_differee(self.core_status)

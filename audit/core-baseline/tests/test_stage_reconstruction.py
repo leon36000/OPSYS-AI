@@ -356,7 +356,7 @@ def test_source_hashes_chaine_est_refusee_pas_reduite_en_caracteres():
     EXACTE du risque décrit : passer une chaîne au lieu d'une séquence de
     hash doit désormais lever TypeError, jamais réduire en tuple de
     caractères."""
-    with pytest.raises(TypeError, match="str/bytes"):
+    with pytest.raises(TypeError, match="list ou un tuple"):
         construire_stage_state(
             program_stage=PROGRAM_STAGE_SOURCE, modules=dict(MODULES_STATUTS_SOURCE),
             core_status=CORE_STATUS_SOURCE, source_hashes="a" * 64,
@@ -368,3 +368,42 @@ def test_source_hashes_chaine_est_refusee_pas_reduite_en_caracteres():
         core_status=CORE_STATUS_SOURCE, source_hashes=["a" * 64, "b" * 64],
     )
     assert etat.source_hashes == ("a" * 64, "b" * 64)
+
+
+# ---------------------------------------------------------------------------
+# Revue scellée C00-002 tour 3 (APPROVE 1/3, 2 MAJEURE convergentes) —
+# la garde liste-noire (str/bytes) ne fermait pas la classe du défaut.
+# ---------------------------------------------------------------------------
+
+
+def test_source_hashes_liste_blanche_ferme_toute_la_classe_pas_seulement_str():
+    """Gemini-3.1-Pro + Qwen3.7-Max, MAJEURE CONVERGENTE, C00-002 tour 3
+    (mesurée fondée) : une liste NOIRE (str/bytes seuls refusés) laissait
+    passer d'AUTRES itérables dégénérés qui subissent la MÊME corruption
+    silencieuse via tuple(...). Chaque cas ci-dessous est la reproduction
+    EXACTE d'un exemple donné en revue — tous doivent désormais lever
+    TypeError AVANT toute conversion."""
+    cas_refuses = [
+        bytearray(b"hash"),  # réduit en tuple d'entiers : (104, 97, 115, 104)
+        {"h1" * 32, "h2" * 32},  # ordre non déterministe
+        (x for x in []),  # générateur déjà épuisé -> () silencieux
+        123,  # non itérable du tout — doit aussi être refusé, pas planter ailleurs
+    ]
+    for cas in cas_refuses:
+        with pytest.raises(TypeError, match="list ou un tuple"):
+            construire_stage_state(
+                program_stage=PROGRAM_STAGE_SOURCE, modules=dict(MODULES_STATUTS_SOURCE),
+                core_status=CORE_STATUS_SOURCE, source_hashes=cas,
+            )
+
+
+def test_source_hashes_element_non_str_est_refuse():
+    """Défense complémentaire (pas explicitement demandée par la revue, mais
+    ferme un trou adjacent évident) : une list/tuple qui passe la garde de
+    CONTENEUR mais contient des éléments non-str (ex. des entiers) doit
+    aussi être refusée — un hash SHA-256 est toujours une str."""
+    with pytest.raises(TypeError):
+        construire_stage_state(
+            program_stage=PROGRAM_STAGE_SOURCE, modules=dict(MODULES_STATUTS_SOURCE),
+            core_status=CORE_STATUS_SOURCE, source_hashes=[123, 456],
+        )
