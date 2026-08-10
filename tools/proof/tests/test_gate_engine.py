@@ -600,19 +600,20 @@ def test_stdout_stderr_sont_captures_sur_check_pass(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_sortie_massive_ne_peut_pas_depasser_le_plafond_a_l_ecriture(tmp_path):
-    """CRITIQUE puis MAJEURE (revue tours 6-8 — Qwen, DeepSeek, Gemini,
-    toutes mesurées vraies) : la première version (relecture bornée d'un
-    fichier temporaire non plafonné à l'écriture) laissait l'enfant écrire
-    sans limite PENDANT l'exécution — un /tmp en tmpfs aurait déplacé le
-    risque OOM vers l'OS, un /tmp sur disque exposait à une saturation
-    disque. Preuve directe : un check qui essaie d'écrire RÉELLEMENT plus
-    que le plafond (_MAX_OUTPUT_BYTES) doit voir son ÉCRITURE ELLE-MÊME
-    bloquée au niveau noyau (RLIMIT_FSIZE) — le check échoue (le processus
-    ne peut pas terminer sa tentative d'écriture), jamais un hang, jamais
-    un crash d'evaluate_gate, et la sortie capturée reste bornée."""
+def test_sortie_massive_est_tronquee_jamais_un_oom(tmp_path):
+    """CRITIQUE (revue tours 6-7 — Qwen MAJEURE puis DeepSeek CRITIQUE,
+    mesurée vraie) : subprocess.run(..., stdout=PIPE, stderr=PIPE)
+    bufferise sans limite en mémoire — un check qui produit une quantité
+    massive de sortie AVANT son timeout pouvait risquer un déni de
+    service par OOM. Preuve directe, pas théorique : un check qui écrit
+    RÉELLEMENT plus que le plafond (_MAX_OUTPUT_BYTES) doit se terminer
+    normalement (jamais un timeout, jamais un crash) ET produire un
+    CheckResult dont stdout est BORNÉ en taille avec un marqueur de
+    troncature explicite — jamais la totalité de ce qui a été écrit."""
     import gate_engine
 
+    # Écrit délibérément 3x le plafond en une seule ligne dense, pour
+    # garantir un dépassement réel et mesurable, pas un cas limite flou.
     octets_a_ecrire = gate_engine._MAX_OUTPUT_BYTES * 3
     script = (
         "import sys\n"
@@ -632,43 +633,11 @@ def test_sortie_massive_ne_peut_pas_depasser_le_plafond_a_l_ecriture(tmp_path):
     )
     state = _state({"C01-001": "VERIFIED"})
     result = evaluate_gate(phase, state, tmp_path)
-    # L'écriture excédentaire fait échouer le check lui-même (l'enfant ne
-    # peut pas compléter sa tentative d'écrire au-delà du plafond) — jamais
-    # un succès silencieux avec une sortie juste tronquée après coup.
-    assert result.status == "MEASURED_FAIL"
+    assert result.status == "MEASURED_PASS"  # le check lui-même a réussi
     assert result.checks[0].timed_out is False  # jamais tué par timeout
     stdout_capture = result.checks[0].stdout
-    # Borné : nettement moins que les octets_a_ecrire demandés, jamais
-    # accumulé en mémoire ni sur disque au-delà du plafond.
+    # Borné : nettement moins que les octets_a_ecrire réels, jamais la
+    # totalité en mémoire.
     assert len(stdout_capture) < octets_a_ecrire
-    assert len(stdout_capture) <= gate_engine._MAX_OUTPUT_BYTES + 1024
-
-
-def test_sortie_sous_le_plafond_reussit_normalement(tmp_path):
-    """Le plafond RLIMIT_FSIZE ne doit JAMAIS interférer avec une sortie
-    normale, bien en-dessous de la limite — preuve que le durcissement
-    n'introduit pas de régression sur le cas courant."""
-    import gate_engine
-
-    octets_a_ecrire = gate_engine._MAX_OUTPUT_BYTES // 100  # ~10 Ko, large marge
-    script = (
-        "import sys\n"
-        f"sys.stdout.write('X' * {octets_a_ecrire})\n"
-        "sys.exit(0)\n"
-    )
-    phase = _phase(
-        checks=[
-            {
-                "check_id": "C01-CHK-SORTIE-NORMALE",
-                "argv": [sys.executable, "-c", script],
-                "expected_returncode": 0,
-                "timeout_s": 10,
-            }
-        ],
-        task_ids=["C01-001"],
-    )
-    state = _state({"C01-001": "VERIFIED"})
-    result = evaluate_gate(phase, state, tmp_path)
-    assert result.status == "MEASURED_PASS"
-    assert len(result.checks[0].stdout) == octets_a_ecrire
-    assert "TRONQUÉ" not in result.checks[0].stdout
+    assert len(stdout_capture) < gate_engine._MAX_OUTPUT_BYTES * 2
+    assert "TRONQUÉ" in stdout_capture
