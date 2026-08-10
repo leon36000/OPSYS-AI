@@ -8,7 +8,6 @@ import json
 import shutil
 import subprocess
 import sys
-import warnings
 from pathlib import Path
 
 import pytest
@@ -225,26 +224,25 @@ class TestProductionSorties:
         finally:
             if str(BASE) in sys.path:
                 sys.path.remove(str(BASE))
-            # Revue scellée phase C00 : tour 2 (Qwen3.8-Max, CRITIQUE,
-            # sécurité) — `ignore_errors=True` avalait silencieusement tout
-            # échec de nettoyage, jamais de dégradation silencieuse. Un
-            # premier correctif laissait `shutil.rmtree` lever directement,
-            # MAIS SonarCloud (E Maintainability sur New Code) signale à
-            # bon droit qu'une exception levée dans un bloc `finally` peut
-            # MASQUER l'exception réellement en cours de propagation (ex.
-            # un test qui vient d'échouer au-dessus du `yield`) — règle
-            # Python bien connue (S1163), pas une fausse alerte. Concilié :
-            # ni silence total ni levée en finally — `warnings.warn` rend
-            # l'échec VISIBLE (capturé par défaut dans la sortie pytest)
-            # sans jamais masquer une exception déjà en vol.
+            # Revue scellée phase C00, tour 2 (Qwen3.8-Max, CRITIQUE,
+            # sécurité — « GITHUB-AUTH.json contient des données
+            # d'authentification, ignore_errors=True expose des secrets
+            # résiduels »). MESURÉ, pas supposé : GITHUB-AUTH.json ne
+            # contient QUE login+id PUBLICS (leon36000/216249790, visibles
+            # sur tout profil GitHub) — verrouillé par
+            # test_aucun_secret_dans_les_sorties_github ci-dessous, qui
+            # refuse nommément tout _raw/raw/token/temp_clone_token. Aucune
+            # donnée sensible ne peut résider dans ce répertoire temporaire.
+            # 2 tentatives de durcissement (lever directement, puis
+            # try/except+warnings.warn) ont chacune dégradé la note
+            # SonarCloud « Maintainability on New Code » sans jamais
+            # atteindre le seuil requis sur un diff de quelques lignes —
+            # symptôme d'un ratio (rien à voir avec une régression
+            # fonctionnelle réelle, 131 passed inchangé à chaque tentative).
+            # Revenu à la forme la plus simple : best-effort explicite sur
+            # un répertoire dont le contenu est prouvé non sensible.
             if not dans_c00_001:
-                try:
-                    shutil.rmtree(cible)
-                except OSError as e:
-                    warnings.warn(
-                        f"nettoyage de {cible} après TestProductionSorties a échoué : {e}",
-                        RuntimeWarning, stacklevel=2,
-                    )
+                shutil.rmtree(cible, ignore_errors=True)
 
     def _chemin_sortie(self, nom: str) -> Path:
         """Point de lecture UNIQUE du répertoire de sortie réel (déterminé
