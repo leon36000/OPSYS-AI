@@ -224,8 +224,16 @@ class TestProductionSorties:
         finally:
             if str(BASE) in sys.path:
                 sys.path.remove(str(BASE))
+            # Revue scellée phase C00 tour 2 (Qwen3.8-Max, CRITIQUE, rôle
+            # sécurité) : `ignore_errors=True` avalait silencieusement tout
+            # échec de nettoyage — jamais de dégradation silencieuse (même
+            # principe que la garde HMAC de M1-S006 : si l'action ne peut
+            # pas être menée à bien, elle doit ÉCHOUER bruyamment, pas
+            # simuler un succès). Laisser `shutil.rmtree` lever : un échec
+            # de nettoyage remonte comme une erreur de teardown pytest,
+            # visible, jamais masqué.
             if not dans_c00_001:
-                shutil.rmtree(cible, ignore_errors=True)
+                shutil.rmtree(cible)
 
     def _chemin_sortie(self, nom: str) -> Path:
         """Point de lecture UNIQUE du répertoire de sortie réel (déterminé
