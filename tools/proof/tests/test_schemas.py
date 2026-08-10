@@ -242,6 +242,81 @@ def test_les_4_fichiers_schema_json_existent_et_sont_versionnes():
         )
 
 
+def test_objections_structure_interne_validee():
+    """Revue scellée C01-002 (Gemini-3.1-Pro, MAJEURE, confirmée) :
+    `objections` n'était contrôlé que comme liste, jamais dans la
+    structure de ses éléments — contredit l'objectif même de la tâche
+    (schémas STRICTS). Chaque objection doit être un objet fermé avec
+    code/severity/text/status, sévérité et statut en énumération fermée."""
+    objection_valide = {
+        "code": "guard-manquante",
+        "severity": "CRITICAL",
+        "text": "La garde X n'est jamais appelée.",
+        "status": "OPEN",
+    }
+    revue = _revue_valide()
+    revue["objections"] = [objection_valide]
+    validate_review(revue)  # ne lève pas
+
+    for champ in ("code", "severity", "text", "status"):
+        revue = _revue_valide()
+        objection = dict(objection_valide)
+        del objection[champ]
+        revue["objections"] = [objection]
+        with pytest.raises(SchemaValidationError):
+            validate_review(revue)
+
+    revue = _revue_valide()
+    objection = dict(objection_valide)
+    objection["severity"] = "SEVERITE_INVENTEE"
+    revue["objections"] = [objection]
+    with pytest.raises(SchemaValidationError):
+        validate_review(revue)
+
+    revue = _revue_valide()
+    objection = dict(objection_valide)
+    objection["status"] = "STATUT_INVENTE"
+    revue["objections"] = [objection]
+    with pytest.raises(SchemaValidationError):
+        validate_review(revue)
+
+    revue = _revue_valide()
+    objection = dict(objection_valide)
+    objection["champ_invente_non_prevu"] = "x"
+    revue["objections"] = [objection]
+    with pytest.raises(SchemaValidationError):
+        validate_review(revue)
+
+
+def test_champs_documentes_non_vides_coherents_python_et_json_schema():
+    """Revue scellée C01-002 (Gemini-3.1-Pro, mineure, confirmée) :
+    `_string` impose `non_empty=True` par défaut côté Python pour
+    schema_version/dependencies/outputs/argv — les 4 .schema.json
+    doivent porter `minLength: 1` aux mêmes endroits, pas seulement le
+    code Python. Testé via le comportement Python (le fichier JSON lui-
+    même est vérifié séparément par lecture directe ci-dessous)."""
+    tache = _tache_valide()
+    tache["schema_version"] = ""
+    with pytest.raises(SchemaValidationError):
+        validate_task(tache)
+
+    tache = _tache_valide()
+    tache["outputs"] = [""]
+    with pytest.raises(SchemaValidationError):
+        validate_task(tache)
+
+    preuve = _preuve_valide()
+    preuve["commands"][0]["argv"] = [""]
+    with pytest.raises(SchemaValidationError):
+        validate_evidence(preuve)
+
+    for nom in ["task.schema.json", "evidence.schema.json", "review.schema.json", "gate.schema.json"]:
+        contenu = json.loads((SCHEMAS_DIR / nom).read_text(encoding="utf-8"))
+        assert contenu["properties"]["schema_version"].get("minLength") == 1, (
+            f"{nom} : schema_version sans minLength=1 (divergence Python/JSON Schema)"
+        )
+
+
 def test_dependance_stdlib_uniquement():
     """Aucun import d'une bibliothèque tierce (ex. jsonschema) dans le
     module de validation — vérifié en lisant le code source, pas en

@@ -6,7 +6,7 @@
   "type": "object",
   "required": ["schema_version", "task_id", "title", "status", "risk", "review_policy", "dependencies", "outputs"],
   "properties": {
-    "schema_version": {"type": "string"},
+    "schema_version": {"type": "string", "minLength": 1},
     "task_id": {"type": "string", "minLength": 1},
     "title": {"type": "string", "minLength": 1},
     "status": {
@@ -15,7 +15,7 @@
     },
     "risk": {"type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]},
     "review_policy": {"type": "string", "enum": ["NONE", "INDEPENDENT_REVIEW", "TRIAD_CONSENSUS"]},
-    "dependencies": {"type": "array", "items": {"type": "string"}},
-    "outputs": {"type": "array", "items": {"type": "string"}, "minItems": 1}
+    "dependencies": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "outputs": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1}
   }
 }

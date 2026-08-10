@@ -10,7 +10,7 @@
     "inputs_manifest", "outputs_manifest", "commands"
   ],
   "properties": {
-    "schema_version": {"type": "string"},
+    "schema_version": {"type": "string", "minLength": 1},
     "task_id": {"type": "string", "minLength": 1},
     "implementer_id": {"type": "string", "minLength": 1},
     "commit": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
@@ -44,7 +44,7 @@
       "type": "object",
       "required": ["argv", "expected_returncode", "actual_returncode", "stdout_sha256", "stderr_sha256"],
       "properties": {
-        "argv": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "argv": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
         "expected_returncode": {"type": "integer"},
         "actual_returncode": {"type": "integer"},
         "stdout_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
