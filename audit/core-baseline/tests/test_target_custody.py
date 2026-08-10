@@ -187,6 +187,13 @@ class TestProductionSorties:
             assert len(rows) > 0
             for r in rows:
                 assert len(r["sha256"]) == 64
+            # DeepSeek-V4-Pro, MAJEURE, mesurée vraie (revue tour 4) : le tri
+            # déterministe avait disparu au refactor CSV du tour 3. Ce test
+            # lit la SORTIE RÉELLE produite par _produire_sorties() — pas la
+            # fonction utilitaire en isolation — pour prouver l'ordre au
+            # vrai point d'entrée, même motif que les 2 trous déjà fermés.
+            chemins = [r["chemin"] for r in rows]
+            assert chemins == sorted(chemins), "FILE-INVENTORY.csv n'est pas trié par chemin"
 
     def test_github_repository_json(self):
         p = BASE / "GITHUB-REPOSITORY.json"
