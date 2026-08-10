@@ -66,19 +66,27 @@ def evaluate_gate(phase: dict, state: dict, worktree: Path) -> GateResult:
                     error="TIMEOUT",
                 )
             )
-        except (FileNotFoundError, PermissionError) as exc:
-            # Exactement les deux impossibilités de MESURER (jamais un échec
-            # de contrôle) : outil absent (FileNotFoundError, ENOENT) et
-            # outil présent mais non exécutable (PermissionError, EACCES) —
-            # revue tour 1 (Gemini, élargi depuis FileNotFoundError seul).
-            # PAS `except OSError` (revue tour 2, DeepSeek, mineure mesurée
-            # vraie) : OSError engloberait aussi InterruptedError (EINTR,
-            # interruption système TRANSITOIRE par signal) — un cas qui
-            # n'est ni « outil absent » ni « outil inutilisable », et que
-            # traiter comme ERROR masquerait une interruption qui devrait
-            # normalement se résoudre par une ré-exécution, pas un verdict
-            # définitif. Capturer exactement les deux exceptions nommées,
-            # rien de plus large.
+        except (FileNotFoundError, PermissionError, NotADirectoryError) as exc:
+            # Impossibilités de MESURER (jamais un échec de contrôle) :
+            # outil absent (FileNotFoundError, ENOENT), outil présent mais
+            # non exécutable (PermissionError, EACCES) — revue tour 1
+            # (Gemini) — et un composant du chemin (argv[0] OU `worktree`
+            # lui-même passé en cwd) qui n'est pas un répertoire
+            # (NotADirectoryError, ENOTDIR) — revue tour 3 (Qwen), vérifié
+            # empiriquement via 2 scénarios réels distincts avant d'ajouter
+            # (jamais accepté sur la seule autorité du modèle) : un
+            # composant de argv[0] traitant un fichier comme un répertoire,
+            # ET `worktree` lui-même étant un fichier plutôt qu'un
+            # répertoire (cwd invalide).
+            #
+            # PAS `except OSError` (revue tour 2, DeepSeek) : engloberait
+            # InterruptedError (EINTR, transitoire). PAS IsADirectoryError
+            # non plus : la justification du tour 3 (« exécutable qui EST
+            # un répertoire » -> IsADirectoryError) est vérifiée FAUSSE sur
+            # cette plateforme — ce scénario lève réellement PermissionError
+            # (déjà couvert), pas IsADirectoryError ; 4 scénarios distincts
+            # testés empiriquement, aucun n'atteint IsADirectoryError dans
+            # ce code — non ajoutée sans preuve de chemin réel.
             results.append(
                 CheckResult(
                     check_id=check["check_id"],
