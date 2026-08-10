@@ -194,6 +194,16 @@ def test_classer_le_marqueur_decision_requise_gagne_toujours(stade):
     assert _classer(stade, "CONFIRMED_DECISION_REQUIRED") == "DECISION_REQUIRED"
 
 
+def test_classer_le_marqueur_decision_requise_ne_masque_pas_un_stade_inconnu():
+    """DeepSeek-V4-Pro, mineure, C00-003 tour 1 (mesurée fondée) : la version
+    tour 1 retournait DECISION_REQUIRED pour un stade totalement inconnu dès
+    lors que corrected_disposition portait CONFIRMED_DECISION_REQUIRED — la
+    garde liste blanche du stade était contournée par l'override. Un stade
+    jamais vu doit lever, MÊME avec le marqueur présent."""
+    with pytest.raises(DispositionInconnueRefusee, match="STADE_JAMAIS_VU"):
+        _classer("STADE_JAMAIS_VU", "CONFIRMED_DECISION_REQUIRED")
+
+
 def test_classer_ca21_0001_reel_est_decision_required():
     """Cas réel exact : la LICENSE Apache vs décision T3 PROPRIÉTAIRE."""
     matrice = _charger_matrice(PACK_ROOT)

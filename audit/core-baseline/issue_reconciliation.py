@@ -182,14 +182,28 @@ _MARQUEUR_DECISION_REQUISE = "CONFIRMED_DECISION_REQUIRED"
 def _classer(stade: str, disposition_corrigee: str) -> str:
     """Liste blanche stricte : `stade` doit être l'une des 5 clés connues,
     toute autre valeur lève `DispositionInconnueRefusee` — jamais un
-    classement par défaut silencieux."""
-    if disposition_corrigee == _MARQUEUR_DECISION_REQUISE:
-        return "DECISION_REQUIRED"
+    classement par défaut silencieux.
+
+    DeepSeek-V4-Pro, mineure, C00-003 tour 1 (mesurée fondée) : la version
+    tour 1 testait le marqueur `CONFIRMED_DECISION_REQUIRED` AVANT de
+    vérifier que `stade` est une clé connue — l'override retournait donc
+    `DECISION_REQUIRED` MÊME pour un `skeleton_stage_classification`
+    totalement inconnu/corrompu, contournant silencieusement la garde
+    « liste blanche stricte » documentée juste au-dessus (mesuré :
+    `_classer('STADE_JAMAIS_VU', 'CONFIRMED_DECISION_REQUIRED')` retournait
+    `'DECISION_REQUIRED'` sans lever). Une valeur de stade erronée dans la
+    matrice source serait ainsi masquée dès qu'elle porte ce marqueur.
+    Fermé en VALIDANT `stade` EN PREMIER, inconditionnellement — l'override
+    ne s'applique plus qu'à un stade déjà reconnu (le seul cas réel,
+    ISS-CAND-CA21-0001, reste inchangé : `STAGE_INDEPENDENT_DEFECT_OR_DEBT`
+    est une clé connue)."""
     if stade not in _MAPPING_STADE_VERS_DISPOSITION:
         raise DispositionInconnueRefusee(
             f"skeleton_stage_classification inconnu (liste blanche "
             f"{sorted(_MAPPING_STADE_VERS_DISPOSITION)}) : {stade!r}"
         )
+    if disposition_corrigee == _MARQUEUR_DECISION_REQUISE:
+        return "DECISION_REQUIRED"
     return _MAPPING_STADE_VERS_DISPOSITION[stade]
 
 
