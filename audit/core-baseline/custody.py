@@ -159,7 +159,15 @@ def inventorier(worktree: str | Path) -> list[dict]:
         # Revue scellée : confinement parent + hachage cible du symlink.
         if chemin.is_symlink():
             cible_lien = os.readlink(chemin)
-            octets = cible_lien.encode("utf-8")
+            # Revue tour 3 (DeepSeek·Gemini·Qwen convergents, MAJEURE
+            # mesurée vraie) : `.encode("utf-8")` plante (UnicodeEncodeError)
+            # sur une cible contenant des octets non-UTF8 valides — git
+            # AUTORISE nativement de tels octets dans un blob de symlink.
+            # `os.readlink()` renvoie alors une chaîne avec des caractères
+            # surrogate (`\udcXX`). `os.fsencode()` applique l'encodage du
+            # système de fichiers avec `surrogateescape` — round-trip sans
+            # perte, jamais de plantage, c'est l'idiome canonique pour ce cas.
+            octets = os.fsencode(cible_lien)
             inventaire.append({
                 "chemin": rel,
                 "sha256": hashlib.sha256(octets).hexdigest(),
@@ -207,17 +215,64 @@ def _ecrire_sans_suivre_symlink(chemin: Path, texte: str, racine: Path) -> None:
     `racine` est OBLIGATOIRE (pas de valeur par défaut) — un repli
     "racine=None -> vérifier contre chemin.parent" a été retiré ici après
     mesure (revue scellée tour 2) : comparer un chemin résolu contre SON
-    PROPRE PARENT résolu est tautologiquement toujours vrai (le parent
-    résolu d'un chemin résolu EST son parent, par construction de
-    `Path.resolve()`), y compris dans le scénario malveillant exact que ce
-    repli prétendait fermer (parent symlinké). Un paramètre obligatoire
-    élimine la classe d'erreur plutôt que de la masquer par un test."""
+    PROPRE PARENT résolu est tautologiquement toujours vrai. MAIS le
+    paramètre obligatoire ne suffit pas à lui seul : si l'APPELANT passe
+    encore le parent direct comme racine (ce que faisait `_produire_sorties`
+    en passant `sortie_dir`, lui-même parent immédiat des fichiers écrits),
+    la même tautologie reproduit intégralement le trou — mesurée vraie en
+    revue tour 3 (Gemini-3.1-Pro, CRITIQUE) : `sortie_dir` symlinké vers un
+    répertoire externe rendait `_verifier_confinement` inopérant. Corrigé
+    aux appelants : `racine` doit être une ancre STABLE au-dessus de tout
+    répertoire remplaçable (la racine du worktree), jamais le parent
+    immédiat du fichier écrit.
+
+    TOCTOU (revue tour 3, Gemini-3.1-Pro, MAJEURE, mesurée vraie) : vérifier
+    `is_symlink()` PUIS ouvrir séparément laisse une fenêtre où un
+    attaquant peut planter un symlink entre les deux appels — `write_text()`
+    le suivrait. `O_EXCL|O_NOFOLLOW` rend vérification et écriture
+    ATOMIQUES : le noyau échoue l'ouverture si quoi que ce soit existe déjà
+    à ce chemin (fichier OU symlink), sans jamais suivre un lien — aucune
+    fenêtre de course possible, contrairement à un check puis un open
+    séparés."""
     if chemin.is_symlink():
         raise EcritureViaSymlinkRefusee(
             f"refus d'écrire à travers un symlink : {chemin}"
         )
     _verifier_confinement(chemin, racine)
-    chemin.write_text(texte, encoding="utf-8")
+    donnees = texte.encode("utf-8")
+    try:
+        fd = os.open(str(chemin), os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644)
+    except OSError as e:
+        raise EcritureViaSymlinkRefusee(
+            f"écriture refusée (symlink planté pendant la fenêtre de vérification, "
+            f"ou cible déjà existante) : {chemin} — {e}"
+        ) from e
+    with os.fdopen(fd, "wb") as f:
+        f.write(donnees)
+
+
+def _ecrire_csv_sans_suivre_symlink(chemin: Path, lignes: list[dict], racine: Path) -> None:
+    """Même garde que `_ecrire_sans_suivre_symlink` (symlink + confinement +
+    ouverture atomique O_EXCL|O_NOFOLLOW), mais via `csv.DictWriter` pour un
+    échappement correct des champs — un `chemin` de fichier PEUT contenir
+    une virgule, un guillemet ou un saut de ligne ; une construction
+    manuelle par f-string ne les échapperait pas."""
+    if chemin.is_symlink():
+        raise EcritureViaSymlinkRefusee(
+            f"refus d'écrire à travers un symlink : {chemin}"
+        )
+    _verifier_confinement(chemin, racine)
+    try:
+        fd = os.open(str(chemin), os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644)
+    except OSError as e:
+        raise EcritureViaSymlinkRefusee(
+            f"écriture refusée (symlink planté pendant la fenêtre de vérification, "
+            f"ou cible déjà existante) : {chemin} — {e}"
+        ) from e
+    with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=["chemin", "sha256", "taille"])
+        writer.writeheader()
+        writer.writerows(lignes)
 
 
 def _produire_sorties(worktree: Path, sortie_dir: Path) -> TargetCustody:
@@ -268,6 +323,15 @@ def _produire_sorties(worktree: Path, sortie_dir: Path) -> TargetCustody:
     sortie_dir.mkdir(parents=True, exist_ok=True)
 
     # --- Écritures (toutes via garde symlink) ---
+    #
+    # `racine=worktree` (PAS `sortie_dir`) pour CHAQUE appel ci-dessous.
+    # Revue tour 3 (Gemini-3.1-Pro, CRITIQUE, mesurée vraie) : `sortie_dir`
+    # est le parent IMMÉDIAT de chaque fichier écrit — passer le parent
+    # direct comme racine de confinement est la MÊME tautologie que le
+    # repli `racine=None` déjà retiré au tour 2 (chemin résolu confiné dans
+    # son propre parent résolu, toujours vrai). `worktree` est une ancre
+    # STABLE, plusieurs niveaux au-dessus — un `audit/` ou
+    # `audit/core-baseline/` remplacé par un symlink est maintenant détecté.
     _ecrire_sans_suivre_symlink(
         sortie_dir / "TARGET.json",
         json.dumps({
@@ -279,7 +343,7 @@ def _produire_sorties(worktree: Path, sortie_dir: Path) -> TargetCustody:
             "chemins_sales_tolerés": list(garde.chemins_sales_tolerés),
             "fichiers_inventories": len(inventaire),
         }, ensure_ascii=False, indent=2) + "\n",
-        sortie_dir,
+        worktree,
     )
     remotes = _git(worktree, "remote", "-v", check=False)
     refs = _git(worktree, "show-ref", check=False)
@@ -290,16 +354,14 @@ def _produire_sorties(worktree: Path, sortie_dir: Path) -> TargetCustody:
         f"branch {garde.branch}\n"
         "\n[remotes]\n" + remotes +
         "\n[refs]\n" + refs,
-        sortie_dir,
+        worktree,
     )
-    csv_path = sortie_dir / "FILE-INVENTORY.csv"
-    if csv_path.is_symlink():
-        raise EcritureViaSymlinkRefusee(f"refus d'écrire à travers un symlink : {csv_path}")
-    _verifier_confinement(csv_path, sortie_dir)
-    with csv_path.open("w", encoding="utf-8", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=["chemin", "sha256", "taille"])
-        writer.writeheader()
-        writer.writerows(sorted(inventaire, key=lambda e: e["chemin"]))
+    # FILE-INVENTORY.csv : même garde que _ecrire_sans_suivre_symlink, mais
+    # via csv.DictWriter (échappement correct des champs — un chemin de
+    # fichier PEUT contenir une virgule ou un guillemet ; une construction
+    # manuelle par f-string ne les échapperait pas — corrigé avant même
+    # d'être testé, aucune sortie mal formée n'a jamais existé).
+    _ecrire_csv_sans_suivre_symlink(sortie_dir / "FILE-INVENTORY.csv", inventaire, worktree)
 
     # GITHUB-REPOSITORY.json — ALLOWLIST stricte, jamais un dump du JSON brut.
     #
@@ -320,7 +382,7 @@ def _produire_sorties(worktree: Path, sortie_dir: Path) -> TargetCustody:
     _ecrire_sans_suivre_symlink(
         sortie_dir / "GITHUB-REPOSITORY.json",
         json.dumps(repo_out, ensure_ascii=False, indent=2) + "\n",
-        sortie_dir,
+        worktree,
     )
 
     # GITHUB-AUTH.json — même principe d'allowlist (D-sécurité, cf. plus haut).
@@ -331,7 +393,7 @@ def _produire_sorties(worktree: Path, sortie_dir: Path) -> TargetCustody:
     _ecrire_sans_suivre_symlink(
         sortie_dir / "GITHUB-AUTH.json",
         json.dumps(auth_out, ensure_ascii=False, indent=2) + "\n",
-        sortie_dir,
+        worktree,
     )
 
     return garde
