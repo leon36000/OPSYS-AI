@@ -207,79 +207,93 @@ def verifier_inventaire(worktree: str | Path, inventaire: list[dict]) -> list[di
 
 
 def _ouverture_atomique_confinee(chemin: Path, racine: Path) -> int:
-    """Ouvre `chemin` en écriture, refuse un symlink à la FEUILLE
-    (`O_NOFOLLOW`), permet l'écrasement d'un fichier régulier préexistant
-    (`O_TRUNC`, pas `O_EXCL` — idempotence), PUIS revérifie le confinement
-    via `/proc/self/fd/<fd>` : le chemin RÉELLEMENT ouvert par le noyau,
-    lié à un inode immuable une fois le descripteur obtenu.
+    """Ouvre `chemin` en écriture, refuse tout symlink (feuille OU
+    INTERMÉDIAIRE) AVANT toute création — jamais après.
 
-    Historique des trois défauts fermés ici, chacun mesuré réel par la
-    revue scellée avant correction :
+    Marche COMPOSANT PAR COMPOSANT depuis `racine`, chaque étape ancrée au
+    descripteur de répertoire (`dir_fd`) déjà validé par l'étape
+    précédente, jamais à un CHEMIN. `O_NOFOLLOW` sur chaque étape refuse
+    IMMÉDIATEMENT si ce composant est un symlink — avant même de tenter de
+    descendre dedans. Aucune fenêtre où un composant non encore validé
+    pourrait être traversé : une manipulation de chemin entre deux étapes
+    ne change rien, puisque chaque étape ne dépend QUE du `dir_fd` obtenu
+    à l'étape d'avant, jamais d'une nouvelle résolution depuis la racine.
+
+    Historique des défauts fermés ici, chacun mesuré réel par la revue
+    scellée avant correction :
 
     1. Tour 1/2 (Qwen3.7-Max puis Gemini-3.1-Pro, CRITIQUE) : `is_symlink()`
        sur la seule feuille, puis `_verifier_confinement()` appelé avec une
-       racine qui était en réalité le parent immédiat — les deux formes de
-       la même tautologie (chemin résolu confiné dans son propre parent
-       résolu, toujours vrai). Fermé en exigeant une racine STABLE
-       (`worktree`, jamais `sortie_dir`) chez les appelants.
-    2. Tour 3 (Gemini-3.1-Pro, MAJEURE) : `O_EXCL` cassait l'idempotence —
-       une ré-exécution sur une sortie déjà produite plantait au lieu
-       d'écraser, changement de contrat non documenté. `O_TRUNC` restaure
-       l'écrasement d'un fichier RÉGULIER préexistant ; `O_NOFOLLOW` seul
-       (mesuré : `ELOOP`) suffit à refuser un symlink à la feuille, sans
-       `O_EXCL`.
-    3. Tour 3 (Qwen3.7-Max, CRITIQUE, mesurée vraie) : `O_NOFOLLOW` ne
-       protège QUE le dernier composant du chemin (spécification POSIX) —
-       un répertoire INTERMÉDIAIRE (ex: `sortie_dir` lui-même) remplacé par
-       un symlink ENTRE `_verifier_confinement()` (sa propre résolution) et
-       `os.open()` (une résolution interne SÉPARÉE) échapperait au
-       confinement. Fermé par une revérification APRÈS ouverture : le fd
-       retourné par le noyau est lié à un INODE, pas à un chemin — aucune
-       manipulation de chemin après l'obtention du fd ne peut plus rien y
-       changer. `/proc/self/fd/<fd>` révèle le chemin RÉELLEMENT résolu ;
-       s'il échappe au confinement, le fd est fermé SANS AVOIR ÉCRIT et
-       l'exception est levée.
-
-    4. Trouvé et corrigé par l'Orchestrateur avant tout test (pas par la
-       revue) : `O_TRUNC` dans les flags d'`open()` initiaux tronquait
-       AVANT la vérification de confinement — si le composant intermédiaire
-       compromis pointait vers un fichier EXTERNE PRÉEXISTANT (pas
-       seulement un nouveau chemin), son contenu aurait été détruit par la
-       simple tentative d'ouverture, MÊME dans le cas où l'écriture est
-       ensuite refusée. La troncature est désormais un appel `ftruncate()`
-       SÉPARÉ, exécuté seulement APRÈS confirmation du confinement — sur un
-       échec, tout contenu externe préexistant reste intact."""
+       racine qui était en réalité le parent immédiat — tautologie retirée
+       en exigeant une racine STABLE chez les appelants.
+    2. Tour 3 (Gemini-3.1-Pro, MAJEURE) : `O_EXCL` cassait l'idempotence.
+       `O_TRUNC` restaure l'écrasement d'un fichier régulier préexistant ;
+       `O_NOFOLLOW` seul (mesuré : `ELOOP`) suffit à refuser un symlink à
+       la feuille, sans `O_EXCL`.
+    3. Tour 3→4 (Qwen3.7-Max puis DeepSeek-V4-Pro+Gemini-3.1-Pro, CRITIQUE
+       CONVERGENT ×3, mesurée vraie) : une première correction (revérifier
+       via `/proc/self/fd/<fd>` APRÈS `os.open(..., O_CREAT, ...)`) fermait
+       la lecture/écriture de contenu mais PAS la création elle-même —
+       `O_CREAT` crée un inode VIDE dans le répertoire cible AVANT que la
+       revérification ne s'exécute. Gemini a donné l'exemple concret :
+       créer `/etc/nologin` (dont la seule EXISTENCE, même vide, bloque les
+       connexions non-root) ou `/forcefsck` est un déni de service RÉEL, pas
+       un "résidu acceptable" comme le test le qualifiait à tort. Fermé
+       en marchant composant par composant via `dir_fd` : chaque étape
+       intermédiaire est validée AVANT que la suivante ne soit même
+       tentée — aucune création n'est possible tant qu'un composant du
+       chemin n'a pas été confirmé non-symlink.
+    4. Bonus de cette réécriture : `/proc/self/fd` (spécifique Linux, MAJEURE
+       DeepSeek+Qwen non résolue) n'est plus utilisé — `dir_fd` est POSIX
+       standard (Python : `os.supports_dir_fd`)."""
     racine_reelle = racine.resolve()
     try:
-        # PAS de O_TRUNC ici — voir point 4 ci-dessus : tronquer fait partie
-        # de l'ouverture elle-même côté noyau, donc AVANT que nous puissions
-        # vérifier quoi que ce soit. La troncature est différée après le
-        # contrôle de confinement (voir plus bas).
-        fd = os.open(str(chemin), os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW, 0o644)
-    except OSError as e:
-        # Qwen3.7-Max, MINEURE, mesurée vraie : un `except OSError` large
-        # relabelle EACCES/EMFILE/EROFS en "symlink refusé", polluant les
-        # logs de sécurité avec de faux positifs. Seul ELOOP (la manière
-        # dont O_NOFOLLOW signale un symlink) devient EcritureViaSymlinkRefusee
-        # — toute autre erreur système remonte SANS ÊTRE REQUALIFIÉE.
-        if e.errno == errno.ELOOP:
-            raise EcritureViaSymlinkRefusee(
-                f"refus d'écrire à travers un symlink : {chemin} — {e}"
-            ) from e
-        raise
-    chemin_reel_ouvert = Path(os.path.realpath(f"/proc/self/fd/{fd}"))
-    try:
-        chemin_reel_ouvert.relative_to(racine_reelle)
+        relatif = chemin.relative_to(racine_reelle)
     except ValueError:
-        os.close(fd)
         raise EcritureViaSymlinkRefusee(
-            f"chemin réellement ouvert hors confinement (course sur un "
-            f"composant intermédiaire, détectée après ouverture) : "
-            f"{chemin} -> {chemin_reel_ouvert}, hors de {racine_reelle}"
+            f"chemin hors confinement (pas sous {racine_reelle}) : {chemin}"
         )
-    # Confinement confirmé : sûr de tronquer maintenant (idempotence, D2
-    # ci-dessus) — jamais avant, pour ne jamais détruire un contenu externe
-    # préexistant avant d'avoir la certitude qu'on écrit au bon endroit.
+    composants = relatif.parts
+    if not composants:
+        raise EcritureViaSymlinkRefusee(f"chemin vide après confinement : {chemin}")
+
+    dir_fd = os.open(str(racine_reelle), os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        for composant in composants[:-1]:
+            try:
+                nouveau_dir_fd = os.open(composant, os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=dir_fd)
+            except OSError as e:
+                # errno RÉEL mesuré pour un composant intermédiaire symlinké :
+                # ENOTDIR (pas ELOOP — O_DIRECTORY fait échouer l'ouverture
+                # du symlink lui-même avant même la question du NOFOLLOW).
+                # Même discipline que pour la feuille (Qwen3.7-Max, MINEURE) :
+                # seuls ELOOP/ENOTDIR deviennent EcritureViaSymlinkRefusee ;
+                # EACCES/ENOENT/EMFILE remontent SANS ÊTRE REQUALIFIÉS.
+                if e.errno in (errno.ELOOP, errno.ENOTDIR):
+                    raise EcritureViaSymlinkRefusee(
+                        f"composant intermédiaire refusé (symlink), AVANT "
+                        f"toute création : {composant!r} dans {chemin} — {e}"
+                    ) from e
+                raise
+            os.close(dir_fd)
+            dir_fd = nouveau_dir_fd
+        try:
+            fd = os.open(composants[-1], os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW, 0o644, dir_fd=dir_fd)
+        except OSError as e:
+            # Qwen3.7-Max, MINEURE, mesurée vraie : un `except OSError` large
+            # relabelle EACCES/EMFILE/EROFS en "symlink refusé". Seul ELOOP
+            # (comment O_NOFOLLOW signale un symlink) devient
+            # EcritureViaSymlinkRefusee — tout autre OSError remonte tel quel.
+            if e.errno == errno.ELOOP:
+                raise EcritureViaSymlinkRefusee(
+                    f"refus d'écrire à travers un symlink : {chemin} — {e}"
+                ) from e
+            raise
+    finally:
+        os.close(dir_fd)
+    # Confinement garanti PAR CONSTRUCTION à ce point (chaque composant
+    # intermédiaire a été validé avant d'être traversé) — la troncature ne
+    # peut plus jamais atteindre un contenu externe.
     os.ftruncate(fd, 0)
     return fd
 

@@ -494,12 +494,15 @@ def test_ecriture_normale_reussit_toujours(tmp_path):
 
 
 def test_toctou_composant_intermediaire_ferme_apres_ouverture(tmp_path):
-    """Qwen3.7-Max, CRITIQUE, mesurée vraie (revue tour 3) : `O_NOFOLLOW`
-    ne protège que la FEUILLE du chemin (spécification POSIX) — un
-    répertoire INTERMÉDIAIRE symlinké échappe à ce check seul. Isole la
-    revérification post-ouverture (`_ouverture_atomique_confinee`) du reste
-    de la chaîne : simule l'état APRÈS une course gagnée par l'attaquant
-    (le composant intermédiaire est déjà symlinké au moment de l'appel)."""
+    """Convergence CRITIQUE ×3 (Qwen3.7-Max tour 3 ; DeepSeek-V4-Pro +
+    Gemini-3.1-Pro tour 4, mesurée vraie) : une PREMIÈRE correction
+    (revérifier via /proc/self/fd APRÈS os.open(..., O_CREAT, ...)) fermait
+    la lecture/écriture de contenu mais PAS la création elle-même — Gemini
+    a donné l'exemple concret de /etc/nologin (dont la seule EXISTENCE,
+    même vide, bloque les connexions) : un déni de service réel, pas un
+    "résidu acceptable". La réécriture par marche `dir_fd` composant par
+    composant refuse AVANT toute création — ce test exige maintenant AUCUN
+    fichier, pas seulement "aucun contenu"."""
     racine = tmp_path / "worktree"
     racine.mkdir()
     coffre = tmp_path / "coffre_externe"
@@ -509,23 +512,17 @@ def test_toctou_composant_intermediaire_ferme_apres_ouverture(tmp_path):
 
     with pytest.raises(EcritureViaSymlinkRefusee, match="composant intermédiaire"):
         _ouverture_atomique_confinee(cible, racine)
-    # `O_CREAT` (nécessaire pour le cas normal) crée un fichier VIDE comme
-    # effet de bord de l'ouverture elle-même, avant toute vérification
-    # possible — résidu acceptable, sans contenu. Ce qui compte : AUCUN
-    # contenu n'a été écrit ni tronqué (voir aussi test dédié pour le cas
-    # où une cible externe PRÉEXISTANTE avait déjà du contenu).
-    fichiers = list(coffre.iterdir())
-    for f in fichiers:
-        assert f.stat().st_size == 0, f"contenu écrit dans le coffre externe : {f}"
+    assert list(coffre.iterdir()) == [], (
+        "un fichier (même vide) a été créé dans le coffre externe malgré le refus "
+        "attendu AVANT toute création — régression du déni de service /etc/nologin"
+    )
 
 
 def test_toctou_intermediaire_ne_detruit_pas_un_contenu_externe_preexistant(tmp_path):
-    """Défaut trouvé et corrigé par l'Orchestrateur avant tout test (pas
-    par la revue) : une première version tronquait (`O_TRUNC`) DANS les
-    flags d'ouverture initiaux — si la cible externe (au bout du composant
-    intermédiaire compromis) avait déjà un contenu, il aurait été détruit
-    par la simple tentative d'ouverture, AVANT même la vérification de
-    confinement. La troncature doit être un appel séparé, après coup."""
+    """Contre-exemple obligatoire du test précédent : un fichier externe
+    PRÉEXISTANT (pas seulement un chemin vide) au bout du composant
+    intermédiaire compromis ne doit ni être créé À NOUVEAU, ni tronqué, ni
+    modifié de quelque façon que ce soit."""
     racine = tmp_path / "worktree"
     racine.mkdir()
     coffre = tmp_path / "coffre_externe"
@@ -543,23 +540,33 @@ def test_toctou_intermediaire_ne_detruit_pas_un_contenu_externe_preexistant(tmp_
     )
 
 
-def test_erreur_systeme_non_symlink_nest_pas_requalifiee(tmp_path, monkeypatch):
-    """Qwen3.7-Max, MINEURE, mesurée vraie : un `except OSError` large
-    relabelle EACCES/EMFILE/EROFS en "symlink refusé", polluant les logs de
-    sécurité. Seul errno.ELOOP doit devenir EcritureViaSymlinkRefusee."""
-    import custody as c
-
-    def os_open_qui_refuse_permission(*a, **kw):
-        raise OSError(errno.EACCES, "Permission denied")
-
-    monkeypatch.setattr(c.os, "open", os_open_qui_refuse_permission)
-    cible = tmp_path / "x.txt"
-    with pytest.raises(OSError) as exc:
-        c._ouverture_atomique_confinee(cible, tmp_path)
-    assert not isinstance(exc.value, EcritureViaSymlinkRefusee), (
-        "une erreur de permission a été requalifiée en refus de symlink"
-    )
-    assert exc.value.errno == errno.EACCES
+def test_permission_refusee_sur_composant_intermediaire_nest_pas_requalifiee(tmp_path):
+    """Qwen3.7-Max, MINEURE, mesurée vraie : une erreur système RÉELLE
+    (permission refusée sur un répertoire intermédiaire légitime, PAS un
+    symlink) ne doit pas être requalifiée en refus de symlink — sinon les
+    logs de sécurité confondent un problème de permissions avec une
+    attaque. Utilise un VRAI répertoire sans droit d'exécution (`chmod
+    000`), pas un mock — teste le comportement du narrowing errno réel
+    (ENOTDIR/ELOOP uniquement) plutôt qu'un os.open entièrement remplacé,
+    qui ne testait en réalité que le tout premier appel de la fonction."""
+    racine = tmp_path / "worktree"
+    racine.mkdir()
+    sous_dir = racine / "prive"
+    sous_dir.mkdir()
+    cible = sous_dir / "sortie.txt"
+    sous_dir.chmod(0o000)
+    try:
+        with pytest.raises(OSError) as exc:
+            _ouverture_atomique_confinee(cible, racine)
+        assert not isinstance(exc.value, EcritureViaSymlinkRefusee), (
+            "une erreur de permission sur un VRAI répertoire a été requalifiée "
+            "en refus de symlink"
+        )
+        assert exc.value.errno == errno.EACCES
+    finally:
+        # Restaurer les permissions AVANT que pytest ne tente de nettoyer
+        # tmp_path — sinon la suppression du répertoire échoue elle-même.
+        sous_dir.chmod(0o755)
 
 
 def test_produire_sorties_refuse_reellement_sortie_dir_symlinke(tmp_path, monkeypatch):
