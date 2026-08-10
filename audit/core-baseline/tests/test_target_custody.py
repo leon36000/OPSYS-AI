@@ -144,26 +144,6 @@ def test_geler_le_d_p_t_la_branche_et_le_worktree_3(tmp_path):
 # test_geler_le_d_p_t_la_branche_et_le_worktree_1, qui reste actif partout).
 _BRANCHE_C00_001 = "opsys-core/task/c00-001-geler-le-depot-la-branche-et-le-worktree"
 
-# Revue scellée phase C00, tour 5 (DeepSeek-V4-Pro CRITIQUE + Gemini-3.1-Pro
-# MAJEURE + Qwen3.8-Max CRITIQUE, les 3 CONFIRMÉES par mesure) : ni
-# `warnings.warn` (filtrable par `-W error` — qui REMPLACE l'exception
-# originale d'un test en échec par le RuntimeWarning, mesuré ; ou par
-# `--disable-warnings`/`-p no:warnings`/`PYTHONWARNINGS=ignore` — qui le
-# rend invisible, mesuré) ni un `print(file=sys.stderr)` (capturé et
-# MASQUÉ par pytest pour un test qui PASSE, par défaut — mesuré : rc=0,
-# aucune trace) ne ferment cet angle mort de façon fiable. Seul un VRAI
-# résultat de test (rc != 0) est structurellement immunisé contre TOUTE
-# configuration pytest — aucun filtre de warnings, aucune option de
-# capture, n'affecte jamais le compte pass/fail. La fixture ENREGISTRE
-# (jamais ne lève, jamais n'avale) ; `test_nettoyage_temporaire_de_
-# test_production_sorties_reussi` ci-dessous, un item de COLLECTE
-# SÉPARÉ qui s'exécute APRÈS le teardown de la fixture class-scope
-# (ordre de collecte pytest : la classe entière, puis ses fixtures se
-# terminent, PUIS l'item suivant), transforme tout échec enregistré en
-# échec RÉEL, nommé, jamais filtrable.
-_ECHECS_NETTOYAGE_TEMPORAIRE: list[str] = []
-
-
 def _branche_courante() -> str:
     # Revue scellée phase C00 tour 1 (Qwen3.8-Max, CRITIQUE, rôle sécurité) :
     # sans `check=True`, un échec de `git` (dépôt corrompu, I/O) serait
@@ -243,17 +223,33 @@ class TestProductionSorties:
         finally:
             if str(BASE) in sys.path:
                 sys.path.remove(str(BASE))
-            # Cf. _ECHECS_NETTOYAGE_TEMPORAIRE ci-dessus pour l'historique
-            # complet (tours 2 à 5) et le raisonnement du design retenu.
-            # N'ENREGISTRE que l'échec ici (jamais ne lève — ne masquerait
-            # jamais une exception de test en cours de propagation) ; c'est
-            # le test dédié après cette classe qui transforme
-            # l'enregistrement en échec RÉEL.
+            # Revue scellée phase C00, tour 6 (DeepSeek-V4-Pro CRITIQUE +
+            # Gemini-3.1-Pro CRITIQUE + Qwen3.8-Max CRITIQUE, les 3
+            # CONFIRMÉES par mesure) : le design du tour 5 (enregistrer
+            # l'échec + test dédié SÉPARÉ après cette classe) laissait
+            # l'échec RÉELLEMENT silencieux si une invocation pytest
+            # cible UNIQUEMENT cette classe (`-k TestProductionSorties`
+            # ou le nodeid de la classe) — le test de contrôle, item de
+            # collecte distinct, ne s'exécute alors jamais. Corrigé en
+            # laissant `shutil.rmtree` LEVER directement ici. Vérifié
+            # empiriquement (pas supposé) que ceci NE reproduit PAS le
+            # risque de masquage identifié au tour 5 (`-W error` sur
+            # `warnings.warn` DANS le corps d'un même test) : pour une
+            # fixture `scope="class"`, le teardown s'exécute APRÈS que
+            # CHAQUE méthode de test a DÉJÀ individuellement rapporté son
+            # propre résultat — une levée ici apparaît comme une erreur
+            # de teardown SÉPARÉE (`ERROR at teardown of ...`), sans
+            # jamais remplacer le PASSED/FAILED déjà enregistré d'aucune
+            # méthode (vérifié sur un test qui échoue réellement : les
+            # DEUX raisons — AssertionError du test ET OSError du
+            # teardown — apparaissent, sous `-W error::RuntimeWarning`
+            # ET `--disable-warnings` combinés). `autouse=True` +
+            # `scope="class"` rend ce contrôle STRUCTURELLEMENT
+            # inséparable de la classe : aucune invocation pytest qui
+            # exécute ne serait-ce qu'UNE méthode de TestProductionSorties
+            # ne peut éviter ce teardown.
             if not dans_c00_001:
-                try:
-                    shutil.rmtree(cible)
-                except OSError as e:
-                    _ECHECS_NETTOYAGE_TEMPORAIRE.append(f"{cible}: {e}")
+                shutil.rmtree(cible)
 
     def _chemin_sortie(self, nom: str) -> Path:
         """Point de lecture UNIQUE du répertoire de sortie réel (déterminé
@@ -322,23 +318,6 @@ class TestProductionSorties:
         data = json.loads(p.read_text(encoding="utf-8"))
         assert data.get("login") == "leon36000"
         assert data.get("id") == 216249790
-
-
-def test_nettoyage_temporaire_de_test_production_sorties_reussi():
-    """Item de collecte SÉPARÉ, s'exécute après le teardown de la fixture
-    class-scope de TestProductionSorties (ordre de collecte pytest) —
-    transforme tout échec de nettoyage ENREGISTRÉ (jamais levé, jamais
-    avalé silencieusement) en échec de test RÉEL. Un rc de test n'est
-    jamais filtrable par -W/--disable-warnings/-p no:warnings/
-    PYTHONWARNINGS, contrairement à warnings.warn (mesuré : promu en
-    exception masquant l'échec original sous -W error, ou totalement
-    supprimé sous les 3 flags précédents) ou à print(file=sys.stderr)
-    (mesuré : capturé et masqué par pytest pour un test qui PASSE, par
-    défaut)."""
-    assert not _ECHECS_NETTOYAGE_TEMPORAIRE, (
-        f"échec(s) de nettoyage du répertoire temporaire de "
-        f"TestProductionSorties : {_ECHECS_NETTOYAGE_TEMPORAIRE}"
-    )
 
 
 def test_ecriture_via_symlink_refusee(tmp_path):
