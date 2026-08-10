@@ -1,24 +1,7 @@
-"""C00-001 — Chaîne de custody du dépôt cible : geler la branche, le worktree
-et l'inventaire avant toute écriture produit.
-
-Trois refus nommés, aucune tolérance implicite :
-  1. `main`/`master`/HEAD détaché ne sont jamais un ancrage acceptable — un
-     gel dessus décrirait un état sur lequel écrire serait destructif.
-  2. Un arbre sale n'est toléré que sur une allowlist EXPLICITE de chemins,
-     nommés un par un — une allowlist par motif large rendrait le refus
-     décoratif.
-  3. Un inventaire dont une empreinte a changé, ou dont un fichier a
-     disparu/apparu, est détecté dans LES DEUX SENS : ne vérifier que les
-     entrées déclarées laisserait passer tout ajout non tracé.
-
-Aucune logique métier M1-M10 n'est touchée ici — ce module ne fait que geler
-un état déjà écrit ailleurs.
-"""
-from __future__ import annotations
-
 import csv
 import hashlib
 import json
+import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -51,6 +34,34 @@ class TargetCustody:
     worktree: str
     dirty: bool
     chemins_sales_tolerés: tuple[str, ...] = ()
+
+
+def _verifier_confinement(chemin: Path, racine: Path) -> Path:
+    """Résout la chaîne COMPLÈTE (tous les composants, pas seulement la
+    feuille) et vérifie qu'elle reste sous `racine`. `is_symlink()` sur le
+    seul composant final ne voit pas un PARENT symlinké — `Path.resolve()`
+    suit toute la chaîne. Revue scellée, Qwen3.7-Max CRITIQUE, reproduit :
+    un `audit/` symlinké vers un répertoire hors dépôt donnait
+    is_symlink()=False sur le fichier final tout en lisant son contenu réel."""
+    reel = chemin.resolve()
+    racine_reelle = racine.resolve()
+    try:
+        reel.relative_to(racine_reelle)
+    except ValueError:
+        raise EcritureViaSymlinkRefusee(
+            f"chemin hors confinement (symlink parent ou feuille) : "
+            f"{chemin} résout vers {reel}, hors de {racine_reelle}")
+    return reel
+
+
+def _sha256_par_blocs(chemin: Path, taille_bloc: int = 1_048_576) -> tuple[str, int]:
+    """Hache par blocs de 1 Mo — jamais tout le fichier en mémoire d'un
+    coup, contrairement à read_bytes(). Retourne (hash, taille_totale)."""
+    h = hashlib.sha256(); taille = 0
+    with chemin.open("rb") as f:
+        while bloc := f.read(taille_bloc):
+            h.update(bloc); taille += len(bloc)
+    return h.hexdigest(), taille
 
 
 def _git(worktree: Path, *args: str, check: bool = True) -> str:
@@ -145,14 +156,25 @@ def inventorier(worktree: str | Path) -> list[dict]:
         # (ex: `git add -f` sur un lien pointant hors du dépôt) exposerait
         # l'empreinte d'un fichier de l'HÔTE dans l'inventaire, jamais du
         # dépôt lui-même. `is_symlink()` exclut ce cas AVANT toute lecture.
-        if chemin.is_symlink() or not chemin.is_file():
+        # Revue scellée : confinement parent + hachage cible du symlink.
+        if chemin.is_symlink():
+            cible_lien = os.readlink(chemin)
+            octets = cible_lien.encode("utf-8")
+            inventaire.append({
+                "chemin": rel,
+                "sha256": hashlib.sha256(octets).hexdigest(),
+                "taille": len(octets),
+            })
+        elif chemin.is_file():
+            _verifier_confinement(chemin, worktree)
+            sha, taille = _sha256_par_blocs(chemin)
+            inventaire.append({
+                "chemin": rel,
+                "sha256": sha,
+                "taille": taille,
+            })
+        else:
             continue
-        octets = chemin.read_bytes()
-        inventaire.append({
-            "chemin": rel,
-            "sha256": hashlib.sha256(octets).hexdigest(),
-            "taille": len(octets),
-        })
     return inventaire
 
 
@@ -175,16 +197,26 @@ def verifier_inventaire(worktree: str | Path, inventaire: list[dict]) -> list[di
     return ecarts
 
 
-def _ecrire_sans_suivre_symlink(chemin: Path, texte: str) -> None:
+def _ecrire_sans_suivre_symlink(chemin: Path, texte: str, racine: Path) -> None:
     """Refuse d'écrire si `chemin` est un symlink existant, AVANT toute
     ouverture de fichier — `write_text()` seul suit les symlinks (revue
     tour 1, Qwen3.7-Max, CRITIQUE, mesurée vraie) : une sortie de la
     baseline remplacée par un lien vers un fichier hors du dépôt aurait été
-    écrasée à travers ce lien."""
+    écrasée à travers ce lien.
+
+    `racine` est OBLIGATOIRE (pas de valeur par défaut) — un repli
+    "racine=None -> vérifier contre chemin.parent" a été retiré ici après
+    mesure (revue scellée tour 2) : comparer un chemin résolu contre SON
+    PROPRE PARENT résolu est tautologiquement toujours vrai (le parent
+    résolu d'un chemin résolu EST son parent, par construction de
+    `Path.resolve()`), y compris dans le scénario malveillant exact que ce
+    repli prétendait fermer (parent symlinké). Un paramètre obligatoire
+    élimine la classe d'erreur plutôt que de la masquer par un test."""
     if chemin.is_symlink():
         raise EcritureViaSymlinkRefusee(
             f"refus d'écrire à travers un symlink : {chemin}"
         )
+    _verifier_confinement(chemin, racine)
     chemin.write_text(texte, encoding="utf-8")
 
 
@@ -220,7 +252,8 @@ def _produire_sorties(worktree: Path, sortie_dir: Path) -> TargetCustody:
     protection_data: dict | None = None
     protection_error: str | None = None
     try:
-        protection_data = _gh_json(["api", "repos/leon36000/OPSYS-AI/branches/main/protection"])
+        default_branch = repo_data.get("default_branch", "main")
+        protection_data = _gh_json(["api", f"repos/leon36000/OPSYS-AI/branches/{default_branch}/protection"])
     except Exception as e:
         protection_error = str(e)
 
@@ -246,6 +279,7 @@ def _produire_sorties(worktree: Path, sortie_dir: Path) -> TargetCustody:
             "chemins_sales_tolerés": list(garde.chemins_sales_tolerés),
             "fichiers_inventories": len(inventaire),
         }, ensure_ascii=False, indent=2) + "\n",
+        sortie_dir,
     )
     remotes = _git(worktree, "remote", "-v", check=False)
     refs = _git(worktree, "show-ref", check=False)
@@ -256,10 +290,12 @@ def _produire_sorties(worktree: Path, sortie_dir: Path) -> TargetCustody:
         f"branch {garde.branch}\n"
         "\n[remotes]\n" + remotes +
         "\n[refs]\n" + refs,
+        sortie_dir,
     )
     csv_path = sortie_dir / "FILE-INVENTORY.csv"
     if csv_path.is_symlink():
         raise EcritureViaSymlinkRefusee(f"refus d'écrire à travers un symlink : {csv_path}")
+    _verifier_confinement(csv_path, sortie_dir)
     with csv_path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=["chemin", "sha256", "taille"])
         writer.writeheader()
@@ -284,6 +320,7 @@ def _produire_sorties(worktree: Path, sortie_dir: Path) -> TargetCustody:
     _ecrire_sans_suivre_symlink(
         sortie_dir / "GITHUB-REPOSITORY.json",
         json.dumps(repo_out, ensure_ascii=False, indent=2) + "\n",
+        sortie_dir,
     )
 
     # GITHUB-AUTH.json — même principe d'allowlist (D-sécurité, cf. plus haut).
@@ -294,6 +331,7 @@ def _produire_sorties(worktree: Path, sortie_dir: Path) -> TargetCustody:
     _ecrire_sans_suivre_symlink(
         sortie_dir / "GITHUB-AUTH.json",
         json.dumps(auth_out, ensure_ascii=False, indent=2) + "\n",
+        sortie_dir,
     )
 
     return garde

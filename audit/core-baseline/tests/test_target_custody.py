@@ -33,6 +33,8 @@ from custody import (
     _chemin_depuis_ligne_porcelain,
     _ecrire_sans_suivre_symlink,
     _produire_sorties,
+    _verifier_confinement,
+    _sha256_par_blocs,
 )
 
 # ---------------------------------------------------------------------------
@@ -219,7 +221,7 @@ def test_ecriture_via_symlink_refusee(tmp_path):
     link = tmp_path / "link.txt"
     link.symlink_to(target)
     with pytest.raises(EcritureViaSymlinkRefusee):
-        _ecrire_sans_suivre_symlink(link, "evil")
+        _ecrire_sans_suivre_symlink(link, "evil", tmp_path)
 
 
 def test_github_auth_garde_login(tmp_path, monkeypatch):
@@ -247,3 +249,136 @@ def test_github_auth_garde_login(tmp_path, monkeypatch):
     # Vérifie qu'aucun fichier n'a été écrit
     assert not (tmp_path / "out" / "TARGET.json").exists()
     assert not (tmp_path / "out" / "GITHUB-AUTH.json").exists()
+
+
+# ---------------------------------------------------------------------------
+# Tour 2 — revue scellée : 1 CRITIQUE (Qwen3.7-Max) + 2 MAJEURE (Gemini-3.1-Pro)
+# mesurées réelles, corrigées. Tests écrits par l'Orchestrateur (vérification,
+# pas implémentation) car le codeur crew n'a pas livré cette partie du tour.
+# ---------------------------------------------------------------------------
+
+def test_confinement_refuse_un_parent_symlinke(tmp_path):
+    """Reproduit EXACTEMENT le scénario de Qwen3.7-Max (CRITIQUE, revue
+    scellée) : `is_symlink()` sur le seul composant final ne voit pas un
+    PARENT symlinké. `audit/` -> répertoire hors dépôt ; `secret.txt.is_symlink()`
+    renvoie False alors que le contenu lu est bien celui de la cible externe."""
+    coffre = tmp_path / "coffre"
+    coffre.mkdir()
+    (coffre / "secret.txt").write_text("SECRET HORS DEPOT", encoding="utf-8")
+    worktree = tmp_path / "worktree"
+    worktree.mkdir()
+    (worktree / "audit").symlink_to(coffre)
+    cible = worktree / "audit" / "secret.txt"
+
+    # Le symptôme que la garde precedente laissait passer :
+    assert cible.is_symlink() is False, "précondition du test : la feuille n'est pas un symlink"
+    assert cible.read_bytes() == b"SECRET HORS DEPOT", "précondition : le contenu externe est bien lisible"
+
+    # La garde de confinement doit lever malgré tout :
+    with pytest.raises(EcritureViaSymlinkRefusee, match="confinement"):
+        _verifier_confinement(cible, worktree)
+
+
+def test_confinement_accepte_un_chemin_legitime(tmp_path):
+    """Contre-exemple obligatoire : un chemin normal, sans aucun symlink,
+    ne doit PAS être refusé — sinon la garde bloquerait tout, pas seulement
+    l'attaque qu'elle cible."""
+    (tmp_path / "sous_dir").mkdir()
+    fichier = tmp_path / "sous_dir" / "normal.txt"
+    fichier.write_text("rien de suspect", encoding="utf-8")
+    resolu = _verifier_confinement(fichier, tmp_path)
+    assert resolu == fichier.resolve()
+
+
+def test_ecrire_sans_suivre_symlink_exige_racine(tmp_path):
+    """`racine` est un paramètre positionnel OBLIGATOIRE depuis la revue
+    tour 2 — l'appeler sans lui doit être un TypeError à l'appel, pas une
+    garde silencieusement contournable. Ferme le repli `racine=None` retiré
+    (comparer un chemin résolu à SON PROPRE PARENT résolu est tautologiquement
+    toujours vrai — mesuré, ne défendait rien dans le scénario exact ci-dessus)."""
+    with pytest.raises(TypeError):
+        _ecrire_sans_suivre_symlink(tmp_path / "x.txt", "contenu")  # type: ignore[call-arg]
+
+
+def test_inventorier_detecte_le_retargeting_d_un_symlink(tmp_path):
+    """Un symlink suivi par git EST un objet du dépôt (son contenu = la
+    chaîne cible). L'ignorer (comportement retiré) rend `verifier_inventaire()`
+    aveugle si sa cible change. Correctif : hacher `os.readlink()`."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-b", "b"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "t@t.t"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+    (repo / "cible_a.txt").write_text("a", encoding="utf-8")
+    (repo / "cible_b.txt").write_text("b", encoding="utf-8")
+    (repo / "lien.txt").symlink_to(repo / "cible_a.txt")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "init"], cwd=repo, check=True, capture_output=True)
+
+    inv = inventorier(repo)
+    entree_lien = next((e for e in inv if e["chemin"] == "lien.txt"), None)
+    assert entree_lien is not None, "le symlink doit apparaître dans l'inventaire (jamais ignoré)"
+    assert verifier_inventaire(repo, inv) == [], "inventaire fidèle : aucun écart"
+
+    # Re-cible le lien vers un autre fichier (retargeting) :
+    (repo / "lien.txt").unlink()
+    (repo / "lien.txt").symlink_to(repo / "cible_b.txt")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "retarget"], cwd=repo, check=True, capture_output=True)
+
+    ecarts = verifier_inventaire(repo, inv)
+    assert any(e["chemin"] == "lien.txt" and "empreinte" in e["motif"] for e in ecarts), (
+        f"le retargeting du symlink n'a pas été détecté ; écarts={ecarts}"
+    )
+
+
+def test_hachage_par_blocs_identique_a_read_bytes(tmp_path):
+    """`_sha256_par_blocs` (jamais tout le fichier en mémoire) doit produire
+    EXACTEMENT le même hash que `hashlib.sha256(read_bytes())` — non-régression
+    de correction, pas seulement de performance."""
+    fichier = tmp_path / "gros.bin"
+    contenu = bytes(range(256)) * 5000  # 1.28 Mo, traverse plusieurs blocs de 1 Mo
+    fichier.write_bytes(contenu)
+
+    hash_par_blocs, taille = _sha256_par_blocs(fichier, taille_bloc=1_048_576)
+    hash_read_bytes = hashlib.sha256(fichier.read_bytes()).hexdigest()
+
+    assert hash_par_blocs == hash_read_bytes, "hash divergent entre les deux méthodes"
+    assert taille == len(contenu)
+
+
+def test_protection_de_branche_suit_default_branch(tmp_path, monkeypatch):
+    """La branche par défaut codée en dur ('main') a été retirée — l'appel
+    `gh api .../branches/<branche>/protection` doit utiliser la VRAIE
+    default_branch du dépôt, pas un littéral."""
+    import custody as c
+
+    appels_gh = []
+
+    def fake_gh(args):
+        appels_gh.append(args)
+        if args == ["api", "user"]:
+            return {"login": "leon36000", "id": 1, "node_id": "U_x"}
+        if args == ["api", "repos/leon36000/OPSYS-AI"]:
+            return {"id": 1, "node_id": "R_x", "full_name": "leon36000/OPSYS-AI",
+                     "default_branch": "develop", "private": True, "visibility": "private"}
+        if args[0] == "api" and "protection" in args[1]:
+            return {"ok": True}
+        return {}
+
+    monkeypatch.setattr(c, "_gh_json", fake_gh)
+    monkeypatch.setattr(subprocess, "run", lambda *a, **kw: type(
+        "R", (), {"returncode": 0, "stdout": '{"nameWithOwner":"leon36000/OPSYS-AI"}', "stderr": ""})())
+    monkeypatch.setattr(c, "_git", lambda *a, **kw: "b\n")
+    monkeypatch.setattr(c, "geler", lambda *a, **kw: TargetCustody(
+        commit="c" * 40, tree="t" * 40, branch="b", worktree=str(tmp_path), dirty=False))
+    monkeypatch.setattr(c, "inventorier", lambda *a, **kw: [])
+
+    c._produire_sorties(tmp_path, tmp_path / "out")
+
+    appel_protection = next((a for a in appels_gh if a[0] == "api" and "protection" in a[1]), None)
+    assert appel_protection is not None, "aucun appel de protection de branche capturé"
+    assert "branches/develop/protection" in appel_protection[1], (
+        f"la branche par défaut réelle (develop) n'est pas utilisée : {appel_protection[1]}"
+    )
+    assert "branches/main/protection" not in appel_protection[1]
