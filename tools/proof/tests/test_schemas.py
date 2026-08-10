@@ -305,16 +305,48 @@ def test_champs_documentes_non_vides_coherents_python_et_json_schema():
     with pytest.raises(SchemaValidationError):
         validate_task(tache)
 
+    tache = _tache_valide()
+    tache["dependencies"] = [""]
+    with pytest.raises(SchemaValidationError):
+        validate_task(tache)
+
     preuve = _preuve_valide()
     preuve["commands"][0]["argv"] = [""]
     with pytest.raises(SchemaValidationError):
         validate_evidence(preuve)
 
+    gate = _gate_valide()
+    gate["checks"][0]["argv"] = [""]
+    with pytest.raises(SchemaValidationError):
+        validate_gate(gate)
+
+    # Revue scellée C01-002 tour 2 (Gemini-3.1-Pro, mineure, confirmée) :
+    # la docstring ci-dessus annonçait dependencies/outputs/argv en plus
+    # de schema_version, mais seule schema_version était vérifiée côté
+    # JSON Schema — élargi pour matcher exactement ce que la docstring
+    # promet, pas seulement le champ le plus simple à tester.
     for nom in ["task.schema.json", "evidence.schema.json", "review.schema.json", "gate.schema.json"]:
         contenu = json.loads((SCHEMAS_DIR / nom).read_text(encoding="utf-8"))
         assert contenu["properties"]["schema_version"].get("minLength") == 1, (
             f"{nom} : schema_version sans minLength=1 (divergence Python/JSON Schema)"
         )
+
+    task_schema = json.loads((SCHEMAS_DIR / "task.schema.json").read_text(encoding="utf-8"))
+    for champ in ("dependencies", "outputs"):
+        assert task_schema["properties"][champ]["items"].get("minLength") == 1, (
+            f"task.schema.json : {champ}.items sans minLength=1"
+        )
+
+    evidence_schema = json.loads((SCHEMAS_DIR / "evidence.schema.json").read_text(encoding="utf-8"))
+    assert evidence_schema["$defs"]["command"]["properties"]["argv"]["items"].get("minLength") == 1, (
+        "evidence.schema.json : commands[].argv.items sans minLength=1"
+    )
+
+    gate_schema = json.loads((SCHEMAS_DIR / "gate.schema.json").read_text(encoding="utf-8"))
+    checks_argv = gate_schema["properties"]["checks"]["items"]["properties"]["argv"]
+    assert checks_argv["items"].get("minLength") == 1, (
+        "gate.schema.json : checks[].argv.items sans minLength=1"
+    )
 
 
 def test_dependance_stdlib_uniquement():
