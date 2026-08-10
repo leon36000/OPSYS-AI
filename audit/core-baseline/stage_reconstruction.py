@@ -129,9 +129,27 @@ class StageState:
                 f"réduction silencieuse via tuple(...)) : "
                 f"{type(self.source_hashes).__name__} reçu"
             )
-        if not all(isinstance(h, str) for h in self.source_hashes):
+        # Gemini-3.1-Pro, MAJEURE, C00-002 tour 4 (mesurée fondée) : TOCTOU
+        # entre la validation et la conversion. La version tour 4 validait
+        # `all(isinstance(h, str) for h in self.source_hashes)` PUIS
+        # convertissait `tuple(self.source_hashes)` séparément — DEUX
+        # itérations distinctes sur la MÊME source. `isinstance(x, (list,
+        # tuple))` accepte les SOUS-CLASSES ; une sous-classe de `list` à
+        # `__iter__` AVEC ÉTAT peut renvoyer des str au 1er appel (pour
+        # `all()`, qui passe) puis des entiers au 2e appel (pour `tuple()`),
+        # contournant la garde. Reproduit et mesuré : `SneakyList.__iter__`
+        # renvoyant `('a'*64,)` puis `(123,)` selon le compteur d'appel ->
+        # `all()` voit une str (passe), `tuple()` produit `(123,)` (corrompu,
+        # jamais détecté). Fermé en INVERSANT l'ordre : UNE SEULE conversion
+        # `tuple(...)` en premier (matérialise un instantané figé, un seul
+        # appel à `__iter__`), la validation `all(isinstance(...))` porte
+        # ensuite sur ce TUPLE DÉJÀ FIGÉ — plus aucune fenêtre entre
+        # « vérifié » et « utilisé », le tuple final ne peut plus diverger
+        # de ce qui a été validé (il EST ce qui a été validé).
+        source_hashes_fige = tuple(self.source_hashes)
+        if not all(isinstance(h, str) for h in source_hashes_fige):
             raise TypeError(
-                f"chaque élément de source_hashes doit être une str : {self.source_hashes!r}"
+                f"chaque élément de source_hashes doit être une str : {source_hashes_fige!r}"
             )
         _verifier_modules_partiels(self.modules)
         _verifier_interface_differee(self.core_status)
@@ -139,7 +157,7 @@ class StageState:
         # object.__setattr__ : seule façon de fixer un champ dans
         # __post_init__ d'un dataclass frozen (son __setattr__ normal lève).
         object.__setattr__(self, "modules", MappingProxyType(dict(self.modules)))
-        object.__setattr__(self, "source_hashes", tuple(self.source_hashes))
+        object.__setattr__(self, "source_hashes", source_hashes_fige)
 
 
 # ---------------------------------------------------------------------------

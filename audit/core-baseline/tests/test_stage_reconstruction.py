@@ -407,3 +407,58 @@ def test_source_hashes_element_non_str_est_refuse():
             program_stage=PROGRAM_STAGE_SOURCE, modules=dict(MODULES_STATUTS_SOURCE),
             core_status=CORE_STATUS_SOURCE, source_hashes=[123, 456],
         )
+
+
+# ---------------------------------------------------------------------------
+# Revue scellée C00-002 tour 4 (APPROVE 2/3, 1 MAJEURE) — TOCTOU entre
+# validation et conversion (2 itérations distinctes de la même source).
+# ---------------------------------------------------------------------------
+
+
+def test_source_hashes_toctou_iterateur_a_etat_est_ferme():
+    """Gemini-3.1-Pro, MAJEURE, C00-002 tour 4 (mesurée fondée) : la version
+    tour 4 validait `all(isinstance(...))` PUIS convertissait `tuple(...)`
+    séparément — deux itérations DISTINCTES de la même source. Une
+    sous-classe de `list` à `__iter__` AVEC ÉTAT peut renvoyer des str au
+    1er appel (la validation passe) puis des entiers au 2e (la conversion
+    est corrompue). Reproduction EXACTE de la preuve donnée en revue."""
+
+    class SneakyList(list):
+        """Itérable adversarial : renvoie une str valide au 1er appel de
+        __iter__ (pour tromper une éventuelle garde `all(...)`), puis un
+        entier au 2e appel (pour corrompre une conversion tuple() séparée)."""
+
+        def __init__(self):
+            super().__init__()
+            self._appels = 0
+
+        def __iter__(self):
+            self._appels += 1
+            if self._appels == 1:
+                return iter(["a" * 64])
+            return iter([123])
+
+    # Preuve indépendante que la source EST bien adversariale (2 itérations
+    # consécutives donnent des résultats différents) — sinon le test ne
+    # prouverait rien.
+    source_adversariale = SneakyList()
+    premiere = list(source_adversariale)
+    seconde = list(source_adversariale)
+    assert premiere != seconde, "la source de test n'est pas adversariale — test invalide"
+    assert premiere == ["a" * 64] and seconde == [123]
+
+    # Avec la garde tour 5 (conversion AVANT validation, une seule
+    # itération), soit la construction réussit avec le contenu de la
+    # PREMIÈRE itération (cohérent avec ce qui a été validé), soit elle
+    # échoue — jamais un tuple corrompu contenant un entier non détecté.
+    source_adversariale2 = SneakyList()
+    try:
+        etat = construire_stage_state(
+            program_stage=PROGRAM_STAGE_SOURCE, modules=dict(MODULES_STATUTS_SOURCE),
+            core_status=CORE_STATUS_SOURCE, source_hashes=source_adversariale2,
+        )
+        assert all(isinstance(h, str) for h in etat.source_hashes), (
+            f"TOCTOU non fermé — tuple final contient un non-str : {etat.source_hashes!r}"
+        )
+    except TypeError:
+        pass  # refus explicite = comportement acceptable, jamais une corruption muette
