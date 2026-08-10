@@ -5,6 +5,7 @@ import csv
 import errno
 import hashlib
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -145,9 +146,18 @@ _BRANCHE_C00_001 = "opsys-core/task/c00-001-geler-le-depot-la-branche-et-le-work
 
 
 def _branche_courante() -> str:
+    # Revue scellée phase C00 tour 1 (Qwen3.8-Max, CRITIQUE, rôle sécurité) :
+    # sans `check=True`, un échec de `git` (dépôt corrompu, I/O) serait
+    # silencieusement avalé — `.stdout.strip()` d'un processus en échec peut
+    # valoir une chaîne vide, indiscernable d'un état sain côté appelant.
+    # Reproduit un `index.lock` posé : n'affecte PAS `rev-parse --abbrev-ref`
+    # (ne touche jamais l'index), donc l'exemple précis ne se rejoue pas —
+    # la classe du défaut (ne jamais faire confiance à un stdout non
+    # vérifié) reste fondée : `check=True` fait lever CalledProcessError
+    # bruyamment plutôt que de laisser passer une chaîne vide.
     return subprocess.run(
         ["git", "-C", str(WORKTREE), "rev-parse", "--abbrev-ref", "HEAD"],
-        text=True, capture_output=True,
+        text=True, capture_output=True, check=True,
     ).stdout.strip()
 
 
@@ -170,55 +180,77 @@ class TestWorktreePropreAvantProduction:
         assert garde.branch == branche
 
 
-@pytest.mark.skipif(
-    _branche_courante() != _BRANCHE_C00_001,
-    reason=(
-        "TestProductionSorties régénère RÉELLEMENT TARGET.json/GIT-REFS.txt/"
-        "FILE-INVENTORY.csv dans le worktree courant (motif anti-auto-"
-        "référence de C00-001, cf. conftest.py) — TARGET.json ne peut "
-        "JAMAIS décrire correctement le commit qui le contient (paradoxe "
-        "de point fixe), donc CE worktree ressortira systématiquement 'sale' "
-        "après régénération, quel que soit l'état avant. Sûr et attendu "
-        "dans le worktree ISOLÉ de C00-001 lui-même (la régénération y est "
-        "committée ensuite) ; dirtierait à tort tout AUTRE worktree (ex. le "
-        "worktree d'intégration partagé du gate de phase C00) sans jamais "
-        "pouvoir converger. Skip explicite journalisé, jamais un xfail "
-        "silencieux — la production réelle reste prouvée dans son propre "
-        "contexte (C00-001, tours scellés APPROVE)."
-    ),
-)
 class TestProductionSorties:
-    """Exerce la PRODUCTION des 5 sorties — dépend de la fixture custody_produite."""
+    """Exerce la PRODUCTION des 5 sorties — dépend de la fixture custody_produite.
+
+    Revue scellée phase C00 tour 1 (2026-08-10) : DeepSeek-V4-Pro MAJEURE
+    (rôle correction) + Gemini-3.1-Pro MAJEURE (rôle contrats), CONVERGENTES
+    et mesurées fondées — un premier correctif SKIPPAIT cette classe entière
+    hors du worktree isolé de C00-001, retirant du pipeline d'intégration
+    continu la vérification du contrat PRINCIPAL de `custody.py` (produire
+    réellement les 5 sorties) : un angle mort permanent, jamais rouvert.
+
+    Corrigé en écrivant vers un sous-répertoire TEMPORAIRE **CONFINÉ SOUS
+    LE WORKTREE** (jamais `tmp_path` de pytest, qui vit sous `/tmp` —
+    `_produire_sorties()` appelle `_verifier_confinement(sortie_dir,
+    worktree)` et refuserait tout chemin hors racine, `EcritureViaSymlink
+    Refusee`) au lieu du vrai `BASE` (`audit/core-baseline/`, le seul
+    emplacement COMMITTÉ) quand on n'est PAS dans le worktree isolé de
+    C00-001. Même motif que `test_sorties_sont_deterministes_octet_pour_
+    octet` (C00-004, tour 1) : sous-répertoire jamais suivi par git, créé
+    puis SUPPRIMÉ en `finally` — ne laisse aucun résidu, ne dirtie jamais
+    le worktree partagé. `_produire_sorties()` reste RÉELLEMENT exercée et
+    vérifiée dans TOUS les contextes (jamais skip) ; seul l'EMPLACEMENT
+    d'écriture change. Chaque test lit `cls._sortie_dir` (jamais `BASE` en
+    dur) et compare `data["branch"]` à la branche RÉELLE au moment de la
+    production (`cls._branche_a_la_production`, jamais la chaîne C00-001
+    codée en dur) — probant dans n'importe quel contexte."""
 
     @pytest.fixture(scope="class", autouse=True)
-    def custody_produite(self):
+    @classmethod
+    def custody_produite(cls):
         sys.path.insert(0, str(BASE))
+        branche = _branche_courante()
+        dans_c00_001 = branche == _BRANCHE_C00_001
+        cible = BASE if dans_c00_001 else BASE / "_tmp_test_production_hors_c00_001"
+        if not dans_c00_001:
+            cible.mkdir(exist_ok=True)
+        cls._sortie_dir = cible
+        cls._branche_a_la_production = branche
         try:
             import custody as _c
-            _c._produire_sorties(WORKTREE, BASE)
+            _c._produire_sorties(WORKTREE, cible)
+            yield
         finally:
             if str(BASE) in sys.path:
                 sys.path.remove(str(BASE))
-        yield
+            if not dans_c00_001:
+                shutil.rmtree(cible, ignore_errors=True)
+
+    def _chemin_sortie(self, nom: str) -> Path:
+        """Point de lecture UNIQUE du répertoire de sortie réel (déterminé
+        par la fixture, jamais BASE en dur) — évite la répétition de
+        `type(self)._sortie_dir / nom` à travers les 6 méthodes ci-dessous."""
+        return type(self)._sortie_dir / nom
 
     def test_target_json_existe_et_coherent(self):
-        p = BASE / "TARGET.json"
+        p = self._chemin_sortie("TARGET.json")
         assert p.is_file() and not p.is_symlink()
         data = json.loads(p.read_text(encoding="utf-8"))
         assert "commit" in data and len(data["commit"]) == 40
         assert "tree" in data and len(data["tree"]) == 40
-        assert data["branch"] == "opsys-core/task/c00-001-geler-le-depot-la-branche-et-le-worktree"
+        assert data["branch"] == type(self)._branche_a_la_production
         assert "fichiers_inventories" in data
 
     def test_git_refs_existe(self):
-        p = BASE / "GIT-REFS.txt"
+        p = self._chemin_sortie("GIT-REFS.txt")
         assert p.is_file() and not p.is_symlink()
         txt = p.read_text(encoding="utf-8")
         assert "commit" in txt
         assert "[refs]" in txt
 
     def test_file_inventory_existe(self):
-        p = BASE / "FILE-INVENTORY.csv"
+        p = self._chemin_sortie("FILE-INVENTORY.csv")
         assert p.is_file() and not p.is_symlink()
         with p.open(encoding="utf-8") as f:
             reader = csv.DictReader(f)
@@ -236,7 +268,7 @@ class TestProductionSorties:
             assert chemins == sorted(chemins), "FILE-INVENTORY.csv n'est pas trié par chemin"
 
     def test_github_repository_json(self):
-        p = BASE / "GITHUB-REPOSITORY.json"
+        p = self._chemin_sortie("GITHUB-REPOSITORY.json")
         assert p.is_file() and not p.is_symlink(), "GITHUB-REPOSITORY.json manquant"
         data = json.loads(p.read_text(encoding="utf-8"))
         assert data.get("full_name") == "leon36000/OPSYS-AI"
@@ -251,13 +283,13 @@ class TestProductionSorties:
         nommé : un `_raw`/`raw` réintroduit exposerait le PROCHAIN champ
         sensible que GitHub ajoute, que ce test ne connaît pas encore."""
         for nom in ("GITHUB-REPOSITORY.json", "GITHUB-AUTH.json"):
-            data = json.loads((BASE / nom).read_text(encoding="utf-8"))
+            data = json.loads(self._chemin_sortie(nom).read_text(encoding="utf-8"))
             interdits = {"_raw", "raw", "token", "temp_clone_token"}
             trouves = interdits & set(data.keys())
             assert not trouves, f"{nom} : clé(s) interdite(s) trouvée(s) {trouves}"
 
     def test_github_auth_json(self):
-        p = BASE / "GITHUB-AUTH.json"
+        p = self._chemin_sortie("GITHUB-AUTH.json")
         assert p.is_file() and not p.is_symlink(), "GITHUB-AUTH.json manquant"
         data = json.loads(p.read_text(encoding="utf-8"))
         assert data.get("login") == "leon36000"
