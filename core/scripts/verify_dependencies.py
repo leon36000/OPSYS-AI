@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-_CORRESPONDANCE_IMPORT_PAQUET = {"yaml": "PyYAML"}
+_CORRESPONDANCE_IMPORT_PAQUET = {"yaml": "PyYAML", "psycopg": "psycopg"}
 
 
 @dataclass(frozen=True)
