@@ -251,14 +251,16 @@ def test_config_adapter_identique_a_l_appel_direct(tmp_path, monkeypatch):
     assert settings_via_adapter.litellm_key == settings_direct.litellm_key
 
 
-def test_config_adapter_provider_au_constructeur_prouve_par_le_cache_de_redaction(tmp_path, monkeypatch):
+def test_config_adapter_provider_au_constructeur_prouve_par_l_etat_du_provider(tmp_path, monkeypatch):
     """Le provider est STATEFUL (vault.py: _cache accumule les secrets
-    résolus, consommé par known_secret_values() pour la rédaction) —
-    prouvé, pas affirmé : un chargement réussi PUIS un chargement en
-    échec sur le MÊME adapter (donc le même provider, lié une seule
-    fois au constructeur) doit rédiger le secret déjà résolu dans le
-    message de la seconde erreur, preuve que le cache a survécu entre
-    les deux appels à .load()."""
+    résolus). Preuve DIRECTE sur l'état du provider lui-même — pas
+    indirecte via un message d'erreur (une version antérieure de ce
+    test asserte l'absence du secret dans un message d'erreur « secret
+    absent », qui ne contient JAMAIS de valeur de secret par
+    construction quel que soit l'état du cache : l'assertion était
+    vraie même avec un provider neuf par appel, donc ne prouvait rien
+    — objection Kimi-K3 tour 1, confirmée par relecture de
+    load_settings/safe_traceback, corrigée ici)."""
     monkeypatch.setenv("OPSYS_LITELLM_KEY", "secret-a-rediger-c04-003")
     yaml_ok = tmp_path / "ok.yaml"
     yaml_ok.write_text("mode: dev\nendpoint: http://localhost:9000\ntimeout: 1\nlitellm_key: litellm_key\n")
@@ -268,12 +270,23 @@ def test_config_adapter_provider_au_constructeur_prouve_par_le_cache_de_redactio
     provider = EnvSecretProvider()
     adapter_config = LegacyConfigAdapter(provider)
 
+    assert provider.known_secret_values() == [], "rien ne devrait être résolu avant le premier load"
+
     settings = adapter_config.load(yaml_ok)
     assert settings.litellm_key.reveal("test-c04-003") == "secret-a-rediger-c04-003"
+    assert "secret-a-rediger-c04-003" in provider.known_secret_values(), (
+        "le premier load doit résoudre et mettre en cache le secret sur LE provider de l'adapter"
+    )
 
-    with pytest.raises(SettingsError) as exc_info:
+    with pytest.raises(SettingsError):
         adapter_config.load(yaml_manquant)
-    assert "secret-a-rediger-c04-003" not in str(exc_info.value)
+    # Preuve du lien constructeur : le cache du PREMIER load survit au
+    # SECOND appel .load() (même en échec) — c'est le même objet
+    # provider, jamais recréé par appel. Un provider neuf par appel
+    # repartirait avec un cache VIDE : cette assertion échouerait.
+    assert "secret-a-rediger-c04-003" in provider.known_secret_values(), (
+        "le cache du premier secret a disparu — le provider n'a pas survécu entre les deux appels"
+    )
 
 
 def test_config_adapter_signale_fichier_absent_sans_le_masquer_en_settingserror(tmp_path):
@@ -290,18 +303,70 @@ def test_config_adapter_signale_fichier_absent_sans_le_masquer_en_settingserror(
         adapter_config.load(chemin_absent)
 
 
+def test_config_limitations_documentees_sont_reellement_exercees(tmp_path, monkeypatch):
+    """Objection Kimi-K3 tour 1 confirmée : le test de croisement
+    code<->doc ci-dessous ne vérifiait que la PRÉSENCE de 6 termes
+    génériques dans COMPATIBILITY-SHIMS.md, jamais que les limitations
+    du tableau soient réellement EXERCÉES par un test — 4 des 5 ne
+    l'étaient par aucun test du fichier. Fermé ici, 4 assertions
+    indépendantes, une par limitation documentée non encore exercée."""
+    monkeypatch.setenv("OPSYS_LITELLM_KEY", "secret-a-rediger-c04-003")
+    adapter_config = LegacyConfigAdapter(EnvSecretProvider())
+
+    # (a) Schéma figé à 4 champs : une 5e clé YAML est SILENCIEUSEMENT
+    # ignorée (Settings.__slots__ n'a que mode/endpoint/timeout/
+    # litellm_key — aucune trace de la clé en trop, ni erreur ni attribut).
+    yaml_extra = tmp_path / "extra.yaml"
+    yaml_extra.write_text(
+        "mode: dev\nendpoint: http://localhost:9000\ntimeout: 1\n"
+        "litellm_key: litellm_key\nclef_inconnue_ignoree: valeur\n"
+    )
+    settings = adapter_config.load(yaml_extra)
+    assert not hasattr(settings, "clef_inconnue_ignoree"), (
+        "une 5e clé YAML a fui sur l'objet Settings — le schéma n'est plus figé à 4 champs"
+    )
+    assert settings.__slots__ == ("mode", "endpoint", "timeout", "litellm_key"), (
+        "Settings.__slots__ a changé — (b) un seul secret nommé en dur (litellm_key) n'est plus vrai"
+    )
+
+    # (c) Chaîne d'exception supprimée : `raise SettingsError(...) from
+    # None` — le type d'origine (ici RuntimeError, secret absent) est
+    # irrécupérable par l'appelant via __cause__.
+    yaml_secret_absent = tmp_path / "absent.yaml"
+    yaml_secret_absent.write_text(
+        "mode: dev\nendpoint: http://localhost:9000\ntimeout: 1\nlitellm_key: jamais_resolu\n"
+    )
+    with pytest.raises(SettingsError) as exc_info:
+        adapter_config.load(yaml_secret_absent)
+    assert exc_info.value.__cause__ is None, (
+        "SettingsError porte encore sa cause d'origine — 'from None' aurait dû la supprimer"
+    )
+
+    # (d) Heuristique len(secret_name) > 40 : rejette un NOM de secret
+    # légitimement long (pas sa VALEUR) comme s'il s'agissait d'une
+    # valeur inline suspecte.
+    nom_secret_trop_long = "x" * 41
+    yaml_nom_long = tmp_path / "nom_long.yaml"
+    yaml_nom_long.write_text(
+        f"mode: dev\nendpoint: http://localhost:9000\ntimeout: 1\nlitellm_key: {nom_secret_trop_long}\n"
+    )
+    with pytest.raises(SettingsError):
+        adapter_config.load(yaml_nom_long)
+
+
 # ---------------------------------------------------------------------------
 # Croisement code <-> doc, garde de layer, non-régression du gate d'union
 # ---------------------------------------------------------------------------
 
 
 def test_compatibility_shims_md_existe_et_documente_les_limitations_reelles():
-    """Chaque limitation exercée par un test ci-dessus (fichier absent
-    non converti, schéma figé à 4 champs, secret unique nommé en dur,
-    chaîne d'exception supprimée, heuristique de longueur de nom,
-    permission inconnue signalée, auth/ non résorbé) doit apparaître
-    dans la documentation — un simple 'le fichier existe' ne mesurerait
-    rien (patron plus faible que le test de croisement de C04-001)."""
+    """Croisement DOCUMENTAIRE (présence des termes), complémentaire du
+    test d'EXERCICE ci-dessus (test_config_limitations_documentees_
+    sont_reellement_exercees) — les deux sont nécessaires, ni l'un ni
+    l'autre ne suffit seul (objection Kimi-K3 tour 1 : le docstring
+    précédent prétendait que CE test-ci exerçait les limitations, ce
+    qu'il n'a jamais fait — corrigé en scindant clairement les deux
+    responsabilités)."""
     doc = (_REPO_ROOT / "docs" / "core" / "COMPATIBILITY-SHIMS.md").read_text(encoding="utf-8")
     for terme_attendu in (
         "LegacyAuthzAdapter",
@@ -347,25 +412,27 @@ def test_aucun_import_absolu_opsys_core_dans_kernel_domain_ports():
     actuelle à 100 %), ce test échouerait avec un message trompeur
     ('kernel importe adapters') au lieu de pointer cette décision.
     Cette garde nomme le piège directement : kernel/domain/ports
-    restent 100% imports relatifs pour tout ce qui touche opsys_core."""
-    import ast
+    restent 100% imports relatifs pour tout ce qui touche opsys_core.
 
-    couches_a_verifier = {
-        "kernel": [
-            "opsys_core/__init__.py", "opsys_core/kernel.py", "opsys_core/planes.py",
-            "opsys_core/errors.py", "opsys_core/result.py",
-        ],
-        "domain": ["opsys_core/authority", "opsys_core/status"],
-        "ports": ["opsys_core/ports"],
-    }
+    Les chemins des 3 couches sont LUS depuis dependency-rules.toml
+    (jamais codés en dur) — objection Kimi-K3 tour 1 confirmée : une
+    liste figée saute silencieusement tout fichier renommé/ajouté à
+    une couche sans que ce test le sache. Garde de non-vacuité incluse
+    (assert fichiers) : un dependency-rules.toml vidé par erreur ferait
+    autrement passer ce test à vide, sans rien vérifier."""
+    import ast
+    import tomllib
+
+    regles = tomllib.loads((_REPO_ROOT / "core" / "dependency-rules.toml").read_text(encoding="utf-8"))
     fichiers: list[Path] = []
-    for chemins in couches_a_verifier.values():
-        for rel in chemins:
-            cible = _CORE_SRC / rel
+    for nom_couche in ("kernel", "domain", "ports"):
+        for prefixe in regles["layers"][nom_couche]["paths"]:
+            cible = _CORE_SRC / prefixe
             if cible.is_file():
                 fichiers.append(cible)
             elif cible.is_dir():
                 fichiers.extend(sorted(cible.rglob("*.py")))
+    assert fichiers, "aucun fichier trouvé pour kernel/domain/ports — dependency-rules.toml vide/incohérent, la mesure serait aveugle"
 
     violations = []
     for fichier in fichiers:
