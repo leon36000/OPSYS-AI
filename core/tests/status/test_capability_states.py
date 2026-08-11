@@ -85,7 +85,30 @@ def test_operation_reussie_avec_preuve_devient_active():
     preuve hashée devient ACTIVE — jamais un faux blocage sur un état sain."""
     resultat = evaluer_capacite("cap-z", lambda: "sha256:abc123")
     assert resultat.state == CapabilityState.ACTIVE
-    assert resultat.reasons == []
+    assert resultat.reasons == ()
+
+
+def test_evaluer_capacite_ne_fuite_pas_le_message_brut_de_l_exception():
+    """Cas RED sécurité (revue TRIAD_CONSENSUS clôture C03, DeepSeek-V4-Pro,
+    CRITIQUE, confirmée par lecture directe de la source) : le message brut
+    d'une exception peut porter un secret/PII (ex. une clé rejetée par un
+    appel externe). reasons ne doit JAMAIS contenir ce message en clair —
+    seul le NOM DE TYPE de l'exception est une raison sûre (même discipline
+    que opsys_core.errors.mapper_exception, C03-004, qui ne préserve que
+    type(exc).__name__ dans son safe_message)."""
+    secret = "hunter2-mot-de-passe-utilisateur"  # proof:allow — secret synthétique de test, jamais réel
+
+    def _operation_qui_fuite():
+        raise ValueError(f"authentification refusée avec la clé {secret}")
+
+    resultat = evaluer_capacite("cap-secret", _operation_qui_fuite)
+    assert resultat.state == CapabilityState.QUARANTINED
+    assert not any(secret in r for r in resultat.reasons), (
+        "FUITE: le secret de l'exception est présent en clair dans reasons"
+    )
+    assert any("ValueError" in r for r in resultat.reasons), (
+        "le type de l'exception doit rester visible pour le diagnostic"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -104,7 +127,7 @@ def test_active_n_exige_pas_de_raison():
     """Contrôle symétrique : ACTIVE n'exige PAS de raison — sinon tout
     état sain serait artificiellement forcé à en inventer une."""
     statut = CapabilityStatus(capability_id="cap-b", state=CapabilityState.ACTIVE, reasons=[])
-    assert statut.reasons == []
+    assert statut.reasons == ()
 
 
 def test_tous_les_etats_non_active_exigent_une_raison():
@@ -198,3 +221,17 @@ def test_capability_status_est_gele():
     statut = CapabilityStatus(capability_id="cap-k", state=CapabilityState.ACTIVE, reasons=[])
     with pytest.raises(Exception):
         statut.state = CapabilityState.DEGRADED  # type: ignore[misc]
+
+
+def test_capability_status_reasons_est_immuable_en_profondeur():
+    """Cas RED sécurité (revue TRIAD_CONSENSUS clôture C03, Qwen3.7-Max,
+    MAJEURE, confirmée par lecture directe de la source) :
+    @dataclass(frozen=True) empêche seulement la RÉASSIGNATION d'un
+    attribut (test_capability_status_est_gele ci-dessus vérifie EXACTEMENT
+    ça) — mais PAS la mutation du CONTENU d'un attribut mutable. Avant
+    correction, `reasons: list[str]` restait modifiable via `.append(...)`
+    sur une instance prétendument « gelée ». reasons doit être un tuple :
+    les tuples n'ont pas de .append, la mutation lève AttributeError."""
+    statut = CapabilityStatus(capability_id="cap-l", state=CapabilityState.ACTIVE, reasons=[])
+    with pytest.raises(AttributeError):
+        statut.reasons.append("mutation silencieuse d'un objet gelé")

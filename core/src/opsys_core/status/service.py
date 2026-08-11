@@ -20,7 +20,7 @@ class TransitionRecord:
     capability_id: str
     depuis: CapabilityState
     vers: CapabilityState
-    reasons: list[str]
+    reasons: tuple[str, ...]
     evidence_hash: str | None
 
 
@@ -40,7 +40,7 @@ def transitionner(
     actuel: CapabilityStatus,
     nouvel_etat: CapabilityState,
     *,
-    reasons: list[str],
+    reasons: tuple[str, ...],
     evidence_hash: str | None = None,
     journal: CapabilityTransitionLog | None = None,
 ) -> CapabilityStatus:
@@ -52,7 +52,7 @@ def transitionner(
         return CapabilityStatus(
             capability_id=actuel.capability_id,
             state=actuel.state,
-            reasons=[*actuel.reasons, "promotion vers ACTIVE refusée: aucune preuve hashée (evidence_hash)"],
+            reasons=(*actuel.reasons, "promotion vers ACTIVE refusée: aucune preuve hashée (evidence_hash)"),
         )
 
     nouveau = CapabilityStatus(
@@ -85,15 +85,20 @@ def evaluer_capacite(
     try:
         evidence_hash = operation()
     except Exception as exc:  # noqa: BLE001 - capturé intentionnellement, jamais laissé s'échapper
+        # CORRECTIF sécurité (revue TRIAD_CONSENSUS clôture C03,
+        # DeepSeek-V4-Pro, objection CRITIQUE confirmée) : le message brut
+        # de l'exception (`{exc}`) peut porter un secret/PII — seul le NOM
+        # DE TYPE est une raison sûre, même discipline que
+        # opsys_core.errors.mapper_exception (C03-004) pour safe_message.
         return CapabilityStatus(
             capability_id=capability_id,
             state=CapabilityState.QUARANTINED,
-            reasons=[f"{type(exc).__name__}: {exc}"],
+            reasons=(f"{type(exc).__name__}",),
         )
 
     depart = CapabilityStatus(
         capability_id=capability_id,
         state=CapabilityState.UNKNOWN,
-        reasons=["évaluation initiale"],
+        reasons=("évaluation initiale",),
     )
-    return transitionner(depart, CapabilityState.ACTIVE, reasons=[], evidence_hash=evidence_hash, journal=journal)
+    return transitionner(depart, CapabilityState.ACTIVE, reasons=(), evidence_hash=evidence_hash, journal=journal)

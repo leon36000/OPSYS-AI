@@ -9,6 +9,7 @@ Couvre les 3 cas RED obligatoires de tasks/C03-004.md :
 """
 from __future__ import annotations
 
+import hashlib
 import sys
 from pathlib import Path
 
@@ -110,6 +111,34 @@ def test_mapper_exception_details_ref_est_deterministe_content_addressed():
     e1 = mapper_exception(ValueError("panne identique"))
     e2 = mapper_exception(ValueError("panne identique"))
     assert e1.details_ref == e2.details_ref
+
+
+def test_mapper_exception_details_ref_resiste_a_une_attaque_par_dictionnaire():
+    """Cas RED sécurité (revue TRIAD_CONSENSUS clôture C03, DeepSeek-V4-Pro,
+    MAJEURE, confirmée par lecture directe de la source) : un sha256 NU et
+    NON SALÉ de repr(exc) est un ORACLE d'énumération — un attaquant qui
+    suppose un secret à faible entropie (ex. un mot de passe candidat) peut
+    précalculer son hash HORS LIGNE avec la même formule et le comparer à
+    details_ref, confirmant sa supposition sans jamais voir le secret en
+    clair. « jamais la cause elle-même exposée directement » (docstring du
+    module) doit aussi couvrir cette fuite indirecte par oracle — pas
+    seulement l'absence littérale du secret dans la chaîne (déjà couverte
+    par test_mapper_exception_produit_un_details_ref_pour_retrouver_la_cause
+    ci-dessus, qui ne teste PAS ce mode d'attaque). Le déterminisme
+    INTRA-PROCESS testé ci-dessus doit être préservé (pas de sel aléatoire
+    PAR APPEL) — la clé doit être fixe pour le process, secrète, et absente
+    de toute donnée dérivable de repr(exc) seul."""
+    secret_candidat = "mot-de-passe-invalide-1234"  # proof:allow — secret synthétique de test, jamais réel
+    exc = ValueError(secret_candidat)
+    empreinte_hash_nu = hashlib.sha256(repr(exc).encode("utf-8")).hexdigest()
+
+    erreur = mapper_exception(exc)
+
+    assert f"sha256:{empreinte_hash_nu}" != erreur.details_ref, (
+        "ORACLE: details_ref reproductible par un simple sha256(repr(exc)) "
+        "calculé hors ligne — un attaquant peut vérifier une supposition de "
+        "secret sans jamais y avoir accès"
+    )
 
 
 # ---------------------------------------------------------------------------
