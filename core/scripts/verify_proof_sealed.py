@@ -205,17 +205,20 @@ class RefGitInvalide(ValueError):
     fail-closed, jamais transmis tel quel à subprocess."""
 
 
-# Une réf git valide (branche, tag, remote/branche, SHA) ne COMMENCE
-# jamais par `-` — trouvé par SonarCloud Code Analysis (Security Rating,
-# règle "untrusted data passed to OS command") sur `base` (CLI-contrôlable
-# via --diff-base, seul chemin non littéral de ce module) : une valeur
-# comme "--upload-pack=/bin/sh" ne serait PAS interprétée comme une
-# révision par `git diff` (même sans shell=True — subprocess sans shell
-# n'empêche PAS l'injection d'OPTIONS, seulement l'injection de commandes
-# shell) mais comme un flag, un vecteur git-argument-injection connu.
-# Fail-closed : rejette tout ce qui commence par `-`, jamais une liste
-# noire de motifs dangereux spécifiques.
-_REF_GIT_DANGEREUSE_RE = re.compile(r"^-")
+# Trouvé par SonarCloud Code Analysis (Security Rating, règle "untrusted
+# data passed to OS command") sur `base` (CLI-contrôlable via --diff-base,
+# seul chemin non littéral de ce module) : une valeur comme
+# "--upload-pack=/bin/sh" ne serait PAS interprétée comme une révision par
+# `git diff` (même sans shell=True — subprocess sans shell n'empêche PAS
+# l'injection d'OPTIONS, seulement l'injection de commandes shell) mais
+# comme un flag, un vecteur git-argument-injection connu.
+#
+# LISTE BLANCHE (jamais une liste noire) : une réf git légitime (branche,
+# tag, remote/branche, SHA) ne contient QUE lettres/chiffres/`_.-/` — tout
+# le reste (espaces, `--`, `$()`, `;`, guillemets, …) est refusé. Motif
+# POSITIF (ce qui EST permis), pas une énumération de motifs dangereux
+# qu'on pourrait oublier d'étendre — fail-closed par construction.
+_REF_GIT_AUTORISEE_RE = re.compile(r"\A[A-Za-z0-9_./-]+\Z")
 
 
 def _diff_sha256_actuel(*, base: str = "origin/main") -> str:
@@ -224,10 +227,11 @@ def _diff_sha256_actuel(*, base: str = "origin/main") -> str:
     valeur embarquée dans evidence.json au moment du scellement local et
     (b) la revérification côté CI — garantit la reproductibilité, jamais
     deux implémentations parallèles qui pourraient diverger."""
-    if _REF_GIT_DANGEREUSE_RE.match(base):
+    if not _REF_GIT_AUTORISEE_RE.match(base):
         raise RefGitInvalide(
-            f"--diff-base {base!r} commence par '-' — rejeté (forme d'option git, "
-            "jamais une révision légitime ; fail-closed contre l'injection d'argument)."
+            f"--diff-base {base!r} contient un caractère hors liste blanche "
+            "[A-Za-z0-9_./-] — rejeté avant tout appel subprocess (fail-closed "
+            "contre l'injection d'argument/option git)."
         )
     resultat = subprocess.run(
         ["git", "diff", f"{base}...HEAD", "--", *_PATHSPEC_SCELLE],
