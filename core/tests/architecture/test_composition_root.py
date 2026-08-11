@@ -115,6 +115,22 @@ def _cible_noms(noeud: ast.Assign | ast.AnnAssign) -> list[str]:
     return [t.id for t in noeud.targets if isinstance(t, ast.Name)]
 
 
+def _nom_decorateur(decorateur: ast.expr) -> str:
+    """Objection Kimi-K3 tour 1 confirmée par mesure directe (ast.dump) :
+    la forme idiomatique `@lru_cache(maxsize=...)` est un ast.Call dont
+    le .func porte le nom réel — un ast.Call n'a PAS d'attribut .attr,
+    donc `getattr(decorateur, "attr", "")` rendait toujours '' et
+    laissait passer cette forme précise, alors que `@lru_cache` nu
+    (ast.Name) était bien détecté. Déballe l'ast.Call AVANT
+    d'inspecter Name/Attribute."""
+    cible = decorateur.func if isinstance(decorateur, ast.Call) else decorateur
+    if isinstance(cible, ast.Name):
+        return cible.id
+    if isinstance(cible, ast.Attribute):
+        return cible.attr
+    return ""
+
+
 def _scanner_singleton_global_mutable(chemin: Path) -> list[str]:
     """Détecteur AST : (a) aucun ast.Global/ast.Nonlocal nulle part ;
     (b) aucune affectation de MODULE dont la valeur est un conteneur
@@ -139,7 +155,7 @@ def _scanner_singleton_global_mutable(chemin: Path) -> list[str]:
     for noeud in arbre.body:
         if isinstance(noeud, ast.FunctionDef):
             for decorateur in noeud.decorator_list:
-                nom_dec = decorateur.id if isinstance(decorateur, ast.Name) else getattr(decorateur, "attr", "")
+                nom_dec = _nom_decorateur(decorateur)
                 if nom_dec in ("lru_cache", "cache"):
                     violations.append(f"{chemin.name}:{noeud.lineno}: @{nom_dec} sur une fonction de module")
 
@@ -159,12 +175,23 @@ def test_cr_er_le_registre_de_composition_et_l_injection_explicite_1():
         arguments ne retournent PAS le même objet (seul discriminant du
         piège lru_cache sur build_core lui-même)."""
     # (a1) fixture synthétique : le détecteur DOIT mordre sur du code cassé.
+    # Objection Kimi-K3 tour 1 confirmée : la fixture précédente ne
+    # couvrait ni le cas décorateur ni la forme `@lru_cache(maxsize=...)`
+    # (ast.Call — échappait au détecteur, cf. _nom_decorateur). Fixture
+    # étendue avec ce cas précis, sur une fonction SÉPARÉE pour isoler
+    # laquelle des 3 branches (global, dict, décorateur) mord sur quoi.
     fixture_cassee = (
+        "from functools import lru_cache\n"
+        "\n"
         "_REGISTRE = {}\n"
         "\n"
         "def enregistrer(cle, valeur):\n"
         "    global _REGISTRE\n"
         "    _REGISTRE[cle] = valeur\n"
+        "\n"
+        "@lru_cache(maxsize=128)\n"
+        "def calculer_avec_cache(x):\n"
+        "    return x\n"
     )
     import tempfile
     with tempfile.TemporaryDirectory() as tmp:
@@ -174,8 +201,11 @@ def test_cr_er_le_registre_de_composition_et_l_injection_explicite_1():
         assert violations_fixture, (
             "le détecteur AST ne mord PAS sur un singleton synthétique connu — la garde (a) ne prouve rien"
         )
-        assert any("global" in v for v in violations_fixture)
-        assert any("_REGISTRE" in v for v in violations_fixture)
+        assert any("global" in v for v in violations_fixture), "branche global/nonlocal non mordante sur la fixture"
+        assert any("_REGISTRE" in v for v in violations_fixture), "branche conteneur mutable non mordante sur la fixture"
+        assert any("lru_cache" in v for v in violations_fixture), (
+            "branche décorateur non mordante sur @lru_cache(maxsize=...) — forme ast.Call, piège corrigé cette tâche"
+        )
 
     # (a2) garde réelle sur les 2 fichiers de sortie de cette tâche.
     for chemin in _FICHIERS_COMPOSITION:
@@ -195,13 +225,31 @@ def test_cr_er_le_registre_de_composition_et_l_injection_explicite_1():
                 f"{module.__name__}.{nom} est un conteneur mutable au niveau module : {valeur!r}"
             )
 
-    # (c) contrôle d'identité — pas de lru_cache déguisé.
-    config = CoreConfig(required_planes=frozenset(), registered_planes=frozenset())
-    providers = ProviderSet.depuis_paires([])
-    premier = build_core(config, providers)
-    second = build_core(config, providers)
+    # (c) contrôle d'identité — pas de lru_cache déguisé. DEUX configs
+    # distinctes : la première (planes vides) exerce la branche ELSE de
+    # diagnostiquer (CoreKernel.boot() réellement appelé, vérifié
+    # directement : planes_manquantes est vide -> pas de court-circuit) ;
+    # la seconde (au moins une plane requise ET pourvue) exerce le MÊME
+    # chemin ELSE mais avec un ProviderSet non vide — objection MiMo-
+    # V2.5-Pro tour 1 (la formulation « court-circuite boot » était
+    # techniquement inversée, vérifié par exécution directe, mais la
+    # recommandation sous-jacente — élargir la couverture d'identité
+    # au-delà du seul cas vide — reste valable et appliquée ici).
+    config_vide = CoreConfig(required_planes=frozenset(), registered_planes=frozenset())
+    providers_vides = ProviderSet.depuis_paires([])
+    premier = build_core(config_vide, providers_vides)
+    second = build_core(config_vide, providers_vides)
     assert premier is not second, "build_core retourne le même objet entre deux appels — état partagé suspecté"
     assert premier == second, "deux CoreKernel équivalents devraient être égaux par valeur (dataclass frozen)"
+
+    plane = CorePlane.FRAMEWORK_BRICK_FABRIC
+    config_peuple = CoreConfig(required_planes=frozenset({plane}), registered_planes=frozenset({plane}))
+    providers_peuples = ProviderSet.depuis_paires([(plane, _ProviderFactice("fb"))])
+    troisieme = build_core(config_peuple, providers_peuples)
+    quatrieme = build_core(config_peuple, providers_peuples)
+    assert troisieme.status == CoreStatus.ACTIVE, "prérequis du contrôle (c) invalide : devrait être ACTIVE"
+    assert troisieme is not quatrieme, "build_core retourne le même objet sur le chemin ACTIVE peuplé — état partagé suspecté"
+    assert troisieme == quatrieme
 
 
 # ---------------------------------------------------------------------------
@@ -310,6 +358,24 @@ def test_provider_set_est_immuable():
     providers = ProviderSet.depuis_paires([(CorePlane.EVENT_ACTION_FABRIC, _ProviderFactice("x"))])
     with pytest.raises(Exception):
         providers.planes_a_supprimer = frozenset()  # type: ignore[attr-defined]
+
+
+def test_provider_set_provider_pour():
+    """Objection Kimi-K3 tour 1 confirmée : provider_pour() est une
+    méthode publique livrée par cette tâche mais jamais exercée par
+    aucun test — comportement (retour du provider pour une plane
+    présente, None pour une plane absente) non preuvé. Fermé ici."""
+    plane_presente = CorePlane.CAPABILITY_MODEL_FABRIC
+    plane_absente = CorePlane.OBSERVABILITY_COST_SLO
+    provider = _ProviderFactice("cmf")
+    providers = ProviderSet.depuis_paires([(plane_presente, provider)])
+
+    assert providers.provider_pour(plane_presente) is provider, (
+        "provider_pour ne retourne pas le MÊME objet enregistré pour une plane présente"
+    )
+    assert providers.provider_pour(plane_absente) is None, (
+        "provider_pour devrait retourner None pour une plane sans provider"
+    )
 
 
 def test_dependency_rules_toml_declare_composition_sous_application():

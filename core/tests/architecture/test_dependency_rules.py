@@ -259,17 +259,24 @@ def test_application_est_toujours_documentee_vide_ou_peuplee():
     justification.
 
     MISE À JOUR C04-004 (renommé depuis test_application_est_declaree_
-    vide_explicitement — aucune autre référence dans le dépôt à ce nom,
-    vérifié par grep avant renommage) : la couche n'est plus vide,
-    peuplée comme annoncé par la note du TOML depuis C04-001
-    (« peuplée par C04-004 »). La garde CAND-CA05-0004 reste vivante en
-    exigeant TOUJOURS une note non vide — c'est la présence d'une
-    justification, pas la vacuité elle-même, qui empêche la bijection
-    silencieuse. L'assertion `paths == []` devient `paths != []` :
-    mécaniquement imposé par test_union_des_couches_couvre_exactement_
-    tous_les_py_de_core_src (ci-dessous, même fichier) dès que
-    composition.py/provider_registry.py existent — sans ce changement,
-    ces deux garde-fous du même fichier se contrediraient."""
+    vide_explicitement — 0 référence FONCTIONNELLE dans le dépôt à ce
+    nom, vérifié par grep avant renommage ; seules des mentions en
+    PROSE dans des docstrings citant l'historique subsistent, ex.
+    test_composition_root.py, jamais un identifiant Python réellement
+    référencé/appelé) : la couche n'est plus vide, peuplée comme
+    annoncé par la note du TOML depuis C04-001 (« peuplée par
+    C04-004 »). La garde CAND-CA05-0004 reste vivante en exigeant
+    TOUJOURS une note non vide — c'est la présence d'une justification,
+    pas la vacuité elle-même, qui empêche la bijection silencieuse.
+    L'assertion `paths == []` devient `paths != []` : imposé par
+    test_union_des_couches_couvre_exactement_tous_les_py_de_core_src
+    (ci-dessous, même fichier) ÉTANT DONNÉ le choix — correct et
+    pré-annoncé par la note du TOML depuis C04-001 — de déclarer
+    composition.py/provider_registry.py dans la couche `application`
+    précisément (objection Kimi-K3 tour 1 confirmée : la garde d'union
+    exige seulement qu'un fichier appartienne à UNE couche déclarée,
+    peu importe laquelle — la contradiction ne devient réelle qu'avec
+    CE choix de couche, pas par pure nécessité logique)."""
     regles = _charger_regles()
     assert "application" in regles["layers"], "couche application absente du TOML — doit être déclarée"
     assert regles["layers"]["application"]["paths"] != [], (
