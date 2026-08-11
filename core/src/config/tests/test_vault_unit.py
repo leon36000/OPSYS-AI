@@ -43,7 +43,7 @@ def test_secret_ref_str_repr_fstring_json_redacted(cfg):
 
 def test_secret_ref_copy_pickle_yaml_blocked_or_redacted(cfg):
     import copy
-    import pickle
+    import pickle  # nosec: B403 # teste que SecretRef BLOQUE/rédige la sérialisation pickle, pas une désérialisation de données non fiables
     import yaml
 
     ref = cfg.vault.SecretRef("api_key", "shhh-12345")
@@ -237,7 +237,7 @@ def test_redact_auto_collects_secrets_from_provider(cfg, monkeypatch):
     provider = cfg.vault.EnvSecretProvider()
     ref = provider.get_secret("secret1")
     assert ref is not None
-    text_with_secret = "this is alpha-beta-gamma token"  # proof:allow — fixture/message de test
+    text_with_secret = "this is alpha-beta-gamma token"  # nosec: B105 # proof:allow — fixture/message de test
     result = cfg.redaction.redact(text_with_secret, provider=provider)
     assert "alpha-beta-gamma" not in result
     assert "***REDIGE***" in result

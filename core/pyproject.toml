@@ -45,3 +45,19 @@ PyYAML = "core/src/config/settings.py"
 # son propre libpq statiquement lié, vérifié par connexion réelle à un
 # conteneur PostgreSQL éphémère avant ce commit.
 psycopg = "core/src/opsys_core/persistence/connection.py"
+
+[tool.bandit]
+# B101 (« Use of assert detected ») exclu GLOBALEMENT : mesuré (bandit -r
+# core/src) 125/127 findings de ce dépôt sont des `assert` dans des
+# fichiers */tests/*.py — l'idiome standard pytest, jamais un défaut de
+# sécurité (bandit documente lui-même B101 comme pertinent seulement pour
+# du code non-test compilé avec -O, ce qui n'est jamais le cas ici). Les 2
+# findings RESTANTS après exclusion de B101 étaient FAUX POSITIFS
+# vérifiés individuellement (pas supposés) : core/src/auth/admin_gate.py
+# (nom de variable d'environnement, jamais un secret littéral) et
+# core/src/opsys_core/planes.py (valeur d'Enum architectural, contient
+# le mot "TOKEN" par coïncidence) — annotés `# nosec` en ligne avec
+# justification plutôt que supprimés ici (portée la plus étroite
+# possible, jamais une exclusion de fichier entier).
+skips = ["B101"]
+exclude_dirs = []

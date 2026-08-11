@@ -57,28 +57,40 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5 — pin SHA (D-035), même référence que .github/workflows/ci.yml
-      - name: Aucun mécanisme réel câblé — bloque explicitement (jamais un pass silencieux)
+        with:
+          fetch-depth: 0  # historique complet requis pour git diff contre origin/main
+      - name: Vérification réelle du scellement (mécanisme réel, remplace le placeholder BLOCKED C02-005)
         run: |
-          echo "BLOCKED: aucun mécanisme proof-sealed (vérification de scellement des Evidence Bundles/revues) n'est câblé dans ce workflow." >&2
-          echo "C02-005 documente ce manque et bloque explicitement plutôt que d'inventer un vert — mécanisme réel = tâche future dédiée." >&2
-          exit 1
+          set -e
+          git fetch origin main --quiet
+          CODE_CHANGE=$(git diff --name-only origin/main...HEAD -- core/ | grep -v '^evidence/' || true)
+          EVIDENCE_CHANGE=$(git diff --name-only origin/main...HEAD -- evidence/tasks/ 2>/dev/null | sed -E 's#^evidence/tasks/([^/]+)/.*#\1#' | sort -u || true)
+          if [ -z "$CODE_CHANGE" ]; then
+            echo "Aucun changement de code sous core/ — rien à sceller (PR infra/docs pure)."
+            exit 0
+          fi
+          if [ -z "$EVIDENCE_CHANGE" ]; then
+            echo "PR modifie du code sous core/ SANS committer d'evidence/tasks/<ID>/ scellé (convention CI-hardening) — REFUS." >&2
+            exit 1
+          fi
+          ARGS=""
+          for t in $EVIDENCE_CHANGE; do ARGS="$ARGS --task $t"; done
+          python3 core/scripts/verify_proof_sealed.py $ARGS
 
   security:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5 — pin SHA (D-035), même référence que .github/workflows/ci.yml
-      - name: Aucun scanner de sécurité câblé — bloque explicitement (jamais un pass silencieux)
-        run: |
-          echo "BLOCKED: aucun scanner de sécurité (ex. bandit, pip-audit) n'est référencé nulle part dans ce dépôt à ce jour (grep exhaustif, mesuré C02-005)." >&2
-          echo "C02-005 documente ce manque et bloque explicitement plutôt que d'inventer un vert — mécanisme réel = tâche future dédiée." >&2
-          exit 1
+      - name: Installer bandit + pip-audit (mécanisme réel, remplace le placeholder BLOCKED C02-005)
+        run: python3 -m pip install --quiet bandit==1.9.4 pip-audit==2.10.1
+      - name: Scan sécurité réel — bandit (SAST core/src/) + pip-audit (CVE core/requirements.lock)
+        run: python3 core/scripts/run_security_scan.py
 
   pack-validation:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5 — pin SHA (D-035), même référence que .github/workflows/ci.yml
-      - name: Aucun mécanisme réel câblé — bloque explicitement (jamais un pass silencieux)
-        run: |
-          echo "BLOCKED: aucune validation de cohérence globale du pack bootstrap Core (toolchain + dépendances + tests + qualité, C02-001..004 réunis) n'est câblée dans ce workflow." >&2
-          echo "C02-005 documente ce manque et bloque explicitement plutôt que d'inventer un vert — mécanisme réel = tâche future dédiée." >&2
-          exit 1
+      - name: Installer les dépendances Core verrouillées (mêmes versions que le job tests)
+        run: python3 -m pip install --quiet PyYAML==6.0.1 pytest==9.1.1 psycopg==3.2.3 psycopg-binary==3.2.3
+      - name: Validation de cohérence globale — toolchain + dépendances + runner hermétique + structure (C02-001..004 réunis, mécanisme réel, remplace le placeholder BLOCKED C02-005)
+        run: python3 core/scripts/run_pack_validation.py
