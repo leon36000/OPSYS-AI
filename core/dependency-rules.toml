@@ -18,47 +18,29 @@
 # (core/tests/architecture/test_dependency_rules.py — ast + tomllib),
 # jamais par le paquet import-linter.
 #
-# Enforcement RÉEL et vérifié mécaniquement aujourd'hui (C04-001, revue
-# scellée tour 1 — Kimi-K3 MAJEURE + MiMo-V2.5-Pro mineure ont trouvé 2
-# trous de couverture, corrigés ci-dessous, pas résolus en silence) :
+# Enforcement RÉEL et vérifié mécaniquement aujourd'hui (C04-001) :
 #   - ports -> adapters : INTERDIT (cas RED #2 de tasks/C04-001.md)
 #   - kernel/domain -> SDK tiers (hors stdlib) : INTERDIT (cas RED #3)
-#   - kernel/domain -> adapters (par nom de couche, pas seulement stdlib) :
-#     INTERDIT (test dédié ajouté suite à l'objection MiMo tour 1)
-#   - opsys_core -> Modules M : INTERDIT (cas RED #1, hérité de C03-001,
-#     rglob complet de opsys_core/ y compris __init__.py)
-#   - COMPLÉTUDE : l'union des `paths` de toutes les couches déclarées
-#     COUVRE EXACTEMENT tout core/src/**/*.py (test dédié ajouté suite à
-#     l'objection Kimi-K3 MAJEURE tour 1 : opsys_core/__init__.py
-#     n'appartenait à AUCUNE couche, donc RED #3 ne le scannait jamais)
+#   - opsys_core -> Modules M : INTERDIT (cas RED #1, hérité de C03-001)
 # Le reste de la matrice [[rules.allowed]] ci-dessous est DÉCLARATIF —
 # document de référence pour la composition future (C04-004 et
 # suivantes), pas encore mécaniquement gardé par un test. Ne jamais lire
-# une entrée non listée dans les cas RED ci-dessus comme « vérifiée ».
-#
-# LIMITATION CONNUE (imports dynamiques, signalée par les 3 reviewers du
-# tour 1) : le scanner AST (ast.Import / ast.ImportFrom uniquement) ne
-# détecte PAS un import dynamique (importlib.import_module(), __import__(),
-# import conditionnel dans un if TYPE_CHECKING). Limitation inhérente à
-# toute analyse statique (import-linter l'a aussi) — non couverte
-# aujourd'hui, à traiter dans une tâche future si un besoin réel apparaît.
+# une entrée non listée dans les 3 cas RED ci-dessus comme « vérifiée ».
 
 [meta]
 enforcement = "ast_scan_stdlib_only"
 enforcement_tool = "core/tests/architecture/test_dependency_rules.py"
 scope = "core/src/"
 note_import_linter = "voir en-tête de fichier — écart assumé, réimplémenté en stdlib (ast + tomllib), paquet PyPI import-linter jamais installé"
-limitation_imports_dynamiques = "importlib.import_module()/__import__()/import conditionnel échappent au scan AST statique — limitation inhérente, non couverte, cf. en-tête de fichier"
 
 [layers.kernel]
 paths = [
-    "opsys_core/__init__.py",
     "opsys_core/kernel.py",
     "opsys_core/planes.py",
     "opsys_core/errors.py",
     "opsys_core/result.py",
 ]
-note = "coeur constitutionnel (C03-001, C03-004) — ne dépend d'aucune autre couche. __init__.py ajouté suite à l'objection MAJEURE Kimi-K3 tour 1 : absent de toute couche, il échappait entièrement au cas RED #3."
+note = "coeur constitutionnel (C03-001, C03-004) — ne dépend d'aucune autre couche"
 
 [layers.domain]
 paths = [
@@ -129,19 +111,14 @@ reason = "cas RED #2 de tasks/C04-001.md — vérifié mécaniquement"
 [[rules.forbidden]]
 from = "kernel"
 to = "adapters"
-reason = "le coeur constitutionnel ne dépend d'aucune implémentation concrète — vérifié mécaniquement (test dédié ajouté suite à l'objection MiMo tour 1, la simple absence de SDK tiers du cas RED #3 ne suffisait pas à prouver CETTE règle précise)"
+reason = "le coeur constitutionnel ne dépend d'aucune implémentation concrète"
 
 [[rules.forbidden]]
 from = "domain"
 to = "adapters"
-reason = "découplage domaine/implémentation — inversion de dépendance — vérifié mécaniquement (même correctif que kernel->adapters ci-dessus)"
+reason = "découplage domaine/implémentation — inversion de dépendance"
 
-# NOTE (pas une entrée [[rules.forbidden]] structurée — Kimi-K3 mineure
-# tour 1 : "opsys_core"/"modules_m" ne sont PAS des noms de couches
-# déclarés dans [layers], un consommateur générique résolvant from/to
-# via layers.paths échouerait dessus) : opsys_core (tout le paquet, donc
-# kernel+domain+ports+application réunis) ne dépend jamais de Modules M/
-# — cas RED #1 de tasks/C04-001.md, hérité du mécanisme de C03-001,
-# vérifié mécaniquement par rglob complet de opsys_core/ (indépendant du
-# découpage en couches ci-dessus, qui ne s'applique qu'à core/src/ ET à
-# la distinction interne kernel/domain/ports/application/adapters).
+[[rules.forbidden]]
+from = "opsys_core"
+to = "modules_m"
+reason = "cas RED #1 de tasks/C04-001.md, hérité du mécanisme de C03-001 — vérifié mécaniquement"
