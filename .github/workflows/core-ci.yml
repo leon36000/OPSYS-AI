@@ -1,0 +1,84 @@
+name: core-ci
+# Workflow Core SÉPARÉ (C02-005) — distinct de `gates` (workflow existant, méthode
+# projet). `gates` ne touche jamais `core/tests/bootstrap/` (mesuré : aucun run
+# GitHub Actions récent, ex. PR #494, n'exécute core/ — trou fermé ICI).
+#
+# Chaque catégorie exigée par la tâche (proof-sealed, types, tests, security,
+# pack-validation) est un job nommé. Les catégories SANS mécanisme réel mesuré à
+# ce jour (proof-sealed, security, pack-validation) échouent EXPLICITEMENT —
+# jamais un pass silencieux (PROOF invariant #4) tant qu'aucun outil n'est câblé
+# derrière elles. `types` et `tests` s'appuient sur les interfaces réelles déjà
+# mergées (C02-001..004).
+#
+# Bascule en check "required" (branch protection) : hors périmètre de cette
+# tâche — voir docs/core/CI-REQUIRED-CHECKS.md (décision humaine différée).
+on: [pull_request, push]
+
+jobs:
+  types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5 — pin SHA (D-035), même référence que .github/workflows/ci.yml
+      - name: Installer mypy (version mesurée localement lors de l'établissement de la baseline C02-004)
+        run: python3 -m pip install --quiet mypy==2.1.0
+      - name: Gate mypy-core (C02-004) — baseline enregistrée, jamais masquée, jamais un pass silencieux
+        run: |
+          python3 - <<'PY'
+          import sys
+          import tomllib
+
+          sys.path.insert(0, "core/scripts")
+          from run_static_checks import QualityGate, evaluer_matrice
+
+          with open("core/quality-gates.toml", "rb") as f:
+              cfg = tomllib.load(f)
+
+          gates = [
+              QualityGate(name=g["name"], argv=g["argv"], required=g["required"], scope=g["scope"])
+              for g in cfg["gates"]
+          ]
+          baseline = cfg.get("baseline", {})
+          ok, resultats = evaluer_matrice(gates, baseline)
+          for r in resultats:
+              print(r.detail)
+          sys.exit(0 if ok else 1)
+          PY
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5 — pin SHA (D-035), même référence que .github/workflows/ci.yml
+      - name: Installer les dépendances Core verrouillées (core/pyproject.toml, C02-002)
+        run: python3 -m pip install --quiet PyYAML==6.0.1 pytest==9.1.1
+      - name: Tests bootstrap Core — scope core/ isolé (jamais combiné avec Modules M/, cf. collision de noms mesurée C02-004)
+        run: python3 -m pytest -q core/tests/bootstrap
+
+  proof-sealed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5 — pin SHA (D-035), même référence que .github/workflows/ci.yml
+      - name: Aucun mécanisme réel câblé — bloque explicitement (jamais un pass silencieux)
+        run: |
+          echo "BLOCKED: aucun mécanisme proof-sealed (vérification de scellement des Evidence Bundles/revues) n'est câblé dans ce workflow." >&2
+          echo "C02-005 documente ce manque et bloque explicitement plutôt que d'inventer un vert — mécanisme réel = tâche future dédiée." >&2
+          exit 1
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5 — pin SHA (D-035), même référence que .github/workflows/ci.yml
+      - name: Aucun scanner de sécurité câblé — bloque explicitement (jamais un pass silencieux)
+        run: |
+          echo "BLOCKED: aucun scanner de sécurité (ex. bandit, pip-audit) n'est référencé nulle part dans ce dépôt à ce jour (grep exhaustif, mesuré C02-005)." >&2
+          echo "C02-005 documente ce manque et bloque explicitement plutôt que d'inventer un vert — mécanisme réel = tâche future dédiée." >&2
+          exit 1
+
+  pack-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5 — pin SHA (D-035), même référence que .github/workflows/ci.yml
+      - name: Aucun mécanisme réel câblé — bloque explicitement (jamais un pass silencieux)
+        run: |
+          echo "BLOCKED: aucune validation de cohérence globale du pack bootstrap Core (toolchain + dépendances + tests + qualité, C02-001..004 réunis) n'est câblée dans ce workflow." >&2
+          echo "C02-005 documente ce manque et bloque explicitement plutôt que d'inventer un vert — mécanisme réel = tâche future dédiée." >&2
+          exit 1
