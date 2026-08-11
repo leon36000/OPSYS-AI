@@ -135,8 +135,16 @@ def _scanner_singleton_global_mutable(chemin: Path) -> list[str]:
     """Détecteur AST : (a) aucun ast.Global/ast.Nonlocal nulle part ;
     (b) aucune affectation de MODULE dont la valeur est un conteneur
     mutable littéral (dict/list/set/comprehension) sous un nom
-    NON-dunder ; (c) aucun décorateur lru_cache/cache sur une fonction
-    de module."""
+    NON-dunder ; (c) aucun décorateur lru_cache/cache sur AUCUNE
+    fonction — module, méthode de classe ou fonction imbriquée, sync
+    ou async (objection Kimi-K3 tour 2 confirmée par mesure directe :
+    la version tour 1 n'itérait QUE arbre.body avec isinstance(...,
+    ast.FunctionDef), manquant les méthodes de classe (imbriquées dans
+    ast.ClassDef.body, jamais dans arbre.body) et les fonctions async
+    (ast.AsyncFunctionDef, type distinct de ast.FunctionDef). Corrigé :
+    ast.walk() sur l'arbre ENTIER, les deux types de définition de
+    fonction — même patron déjà utilisé pour Global/Nonlocal
+    ci-dessus)."""
     arbre = ast.parse(chemin.read_text(encoding="utf-8"), filename=str(chemin))
     violations: list[str] = []
 
@@ -152,12 +160,12 @@ def _scanner_singleton_global_mutable(chemin: Path) -> list[str]:
                 continue  # __all__ etc. exclus explicitement (mais on ne les DÉCLARE jamais ici)
             violations.append(f"{chemin.name}:{assignation.lineno}: '{nom}' = conteneur mutable au niveau module")
 
-    for noeud in arbre.body:
-        if isinstance(noeud, ast.FunctionDef):
+    for noeud in ast.walk(arbre):
+        if isinstance(noeud, (ast.FunctionDef, ast.AsyncFunctionDef)):
             for decorateur in noeud.decorator_list:
                 nom_dec = _nom_decorateur(decorateur)
                 if nom_dec in ("lru_cache", "cache"):
-                    violations.append(f"{chemin.name}:{noeud.lineno}: @{nom_dec} sur une fonction de module")
+                    violations.append(f"{chemin.name}:{noeud.lineno}: @{nom_dec} sur '{noeud.name}'")
 
     return violations
 
@@ -180,6 +188,10 @@ def test_cr_er_le_registre_de_composition_et_l_injection_explicite_1():
     # (ast.Call — échappait au détecteur, cf. _nom_decorateur). Fixture
     # étendue avec ce cas précis, sur une fonction SÉPARÉE pour isoler
     # laquelle des 3 branches (global, dict, décorateur) mord sur quoi.
+    # Objection Kimi-K3 tour 2 confirmée : le scanner tour 1 ne
+    # visitait que arbre.body (fonctions de module top-level) — une
+    # méthode décorée dans une classe, ou une fonction async décorée,
+    # échappaient totalement. Fixture étendue avec les deux cas.
     fixture_cassee = (
         "from functools import lru_cache\n"
         "\n"
@@ -192,6 +204,15 @@ def test_cr_er_le_registre_de_composition_et_l_injection_explicite_1():
         "@lru_cache(maxsize=128)\n"
         "def calculer_avec_cache(x):\n"
         "    return x\n"
+        "\n"
+        "class RegistreFactice:\n"
+        "    @lru_cache(maxsize=1)\n"
+        "    def methode_avec_cache(self, x):\n"
+        "        return x\n"
+        "\n"
+        "@lru_cache(maxsize=1)\n"
+        "async def calculer_async_avec_cache(x):\n"
+        "    return x\n"
     )
     import tempfile
     with tempfile.TemporaryDirectory() as tmp:
@@ -203,8 +224,14 @@ def test_cr_er_le_registre_de_composition_et_l_injection_explicite_1():
         )
         assert any("global" in v for v in violations_fixture), "branche global/nonlocal non mordante sur la fixture"
         assert any("_REGISTRE" in v for v in violations_fixture), "branche conteneur mutable non mordante sur la fixture"
-        assert any("lru_cache" in v for v in violations_fixture), (
+        assert any("calculer_avec_cache" in v for v in violations_fixture), (
             "branche décorateur non mordante sur @lru_cache(maxsize=...) — forme ast.Call, piège corrigé cette tâche"
+        )
+        assert any("methode_avec_cache" in v for v in violations_fixture), (
+            "branche décorateur non mordante sur une MÉTHODE de classe — piège corrigé tour 2 (Kimi-K3)"
+        )
+        assert any("calculer_async_avec_cache" in v for v in violations_fixture), (
+            "branche décorateur non mordante sur une fonction ASYNC — piège corrigé tour 2 (Kimi-K3)"
         )
 
     # (a2) garde réelle sur les 2 fichiers de sortie de cette tâche.
