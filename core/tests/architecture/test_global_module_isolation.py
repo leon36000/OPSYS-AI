@@ -52,16 +52,12 @@ Claude Opus 5 natif) :
 """
 from __future__ import annotations
 
-import ast
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "core" / "scripts"))
 
-import pytest
-
 from check_module_isolation import (  # noqa: E402
-    Violation,
     charger_map_modules_m,
     fichiers_a_scanner,
     scan_module_isolation,
