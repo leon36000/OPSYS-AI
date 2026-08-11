@@ -1,0 +1,158 @@
+# Règles de dépendances architecturales — Core OPSYS-AI (C04-001).
+#
+# ÉCART SOURCÉ AU SPEC DE TÂCHE, DOCUMENTÉ EN CLAIR (même patron que
+# core/quality-gates.toml, C02-004) : tasks/C04-001.md (« Implémentation
+# strictement bornée ») cite « encoder règles import-linter ». Recherche
+# exhaustive (subagent architecte, revue AVANT code) : le paquet PyPI réel
+# import-linter a ZÉRO occurrence dans les 4 sources citées par la tâche
+# (69-CORE-ARCHITECTURE-DESIGN-v1.0.0.md, 33-RF01-W7-FRAMEWORK-BRICK-
+# FABRIC-RESEARCH-MAP-v5.0.md, 59-RF01-W11-INTERMODULE-CONTRACTS-RESEARCH-
+# MAP-v5.5.0.md, ANALYSE-FORENSIQUE-CORRIGEE-SQUELETTE-FIRST-v2.md) et
+# ZÉRO mécanisme décrit — la mention est un raccourci de langage du spec,
+# pas une dépendance imposée. L'ajouter violerait
+# RF01-W7-ANTI-FRANKENSTACK-RULES.csv AF-22 (« engineering tools are not
+# product runtime ») et tirerait des transitives (grimp, networkx) sans
+# justification sourcée, alors que core/pyproject.toml n'a qu'UNE
+# dépendance runtime (PyYAML), discipline « stdlib d'abord ». Ce fichier
+# est donc consommé par un scanner AST en stdlib pur
+# (core/tests/architecture/test_dependency_rules.py — ast + tomllib),
+# jamais par le paquet import-linter.
+#
+# Enforcement RÉEL et vérifié mécaniquement aujourd'hui (C04-001, revue
+# scellée tour 1 — Kimi-K3 MAJEURE + MiMo-V2.5-Pro mineure ont trouvé 2
+# trous de couverture, corrigés ci-dessous, pas résolus en silence) :
+#   - ports -> adapters : INTERDIT (cas RED #2 de tasks/C04-001.md)
+#   - kernel/domain -> SDK tiers (hors stdlib) : INTERDIT (cas RED #3)
+#   - kernel/domain -> adapters (par nom de couche, pas seulement stdlib) :
+#     INTERDIT (test dédié ajouté suite à l'objection MiMo tour 1)
+#   - opsys_core -> Modules M : INTERDIT (cas RED #1, hérité de C03-001,
+#     rglob complet de opsys_core/ y compris __init__.py)
+#   - COMPLÉTUDE : l'union des `paths` de toutes les couches déclarées
+#     COUVRE EXACTEMENT tout core/src/**/*.py (test dédié ajouté suite à
+#     l'objection Kimi-K3 MAJEURE tour 1 : opsys_core/__init__.py
+#     n'appartenait à AUCUNE couche, donc RED #3 ne le scannait jamais)
+# Le reste de la matrice [[rules.allowed]] ci-dessous est DÉCLARATIF —
+# document de référence pour la composition future (C04-004 et
+# suivantes), pas encore mécaniquement gardé par un test. Ne jamais lire
+# une entrée non listée dans les cas RED ci-dessus comme « vérifiée ».
+#
+# LIMITATION CONNUE (imports dynamiques, signalée par les 3 reviewers du
+# tour 1) : le scanner AST (ast.Import / ast.ImportFrom uniquement) ne
+# détecte PAS un import dynamique (importlib.import_module(), __import__(),
+# import conditionnel dans un if TYPE_CHECKING). Limitation inhérente à
+# toute analyse statique (import-linter l'a aussi) — non couverte
+# aujourd'hui, à traiter dans une tâche future si un besoin réel apparaît.
+
+[meta]
+enforcement = "ast_scan_stdlib_only"
+enforcement_tool = "core/tests/architecture/test_dependency_rules.py"
+scope = "core/src/"
+note_import_linter = "voir en-tête de fichier — écart assumé, réimplémenté en stdlib (ast + tomllib), paquet PyPI import-linter jamais installé"
+limitation_imports_dynamiques = "importlib.import_module()/__import__()/import conditionnel échappent au scan AST statique — limitation inhérente, non couverte, cf. en-tête de fichier"
+
+[layers.kernel]
+paths = [
+    "opsys_core/__init__.py",
+    "opsys_core/kernel.py",
+    "opsys_core/planes.py",
+    "opsys_core/errors.py",
+    "opsys_core/result.py",
+]
+note = "coeur constitutionnel (C03-001, C03-004) — ne dépend d'aucune autre couche. __init__.py ajouté suite à l'objection MAJEURE Kimi-K3 tour 1 : absent de toute couche, il échappait entièrement au cas RED #3."
+
+[layers.domain]
+paths = [
+    "opsys_core/authority/",
+    "opsys_core/status/",
+]
+note = "règles métier du Core (C03-002, C03-003) — peut dépendre de kernel"
+
+[layers.ports]
+paths = [
+    "opsys_core/ports/",
+]
+note = "contrats provider-neutral (C04-001) — ne dépend d'aucune autre couche (surtout pas adapters, cas RED #2)"
+
+[layers.application]
+paths = [
+    "opsys_core/composition.py",
+    "opsys_core/provider_registry.py",
+]
+note = "PEUPLÉE par C04-004 (composition.py, provider_registry.py) comme annoncé ici depuis C04-001. Note explicite conservée non vide (garde CAND-CA05-0004, cf. audit SKELETON-54-ISSUES-RECLASSEES-SKELETON-FIRST.csv) même après peuplement — c'est la présence d'une justification, pas la vacuité elle-même, qui prévient la bijection silencieuse sur deux ensembles vides."
+
+[layers.adapters]
+paths = [
+    "auth/",
+    "authz/",
+    "config/",
+    "opsys_core/compat/",
+    "opsys_core/persistence/",
+    "opsys_core/objects/",
+]
+note = "implémentations concrètes des ports pour un fournisseur donné. opsys_core/compat/ ajouté C04-003 (revue d'architecture AVANT code) : un compat shim EST un adapter (couche anticorruption autour d'une implémentation héritée) ; sans cette entrée, test_dependency_rules.py::test_union_des_couches_couvre_exactement_tous_les_py_de_core_src (C04-001, déjà mergé) devient rouge dès que compat/*.py existe (fichiers orphelins). Effet de bord nommé et gardé par un test dédié (test_existing_core_compatibility.py) : l'ajout fait entrer le préfixe top-level 'opsys_core' dans les noms considérés comme couche adapters (noms_adapters_top_level = prefixe.split('/')[0]) — latent tant que kernel/domain/ports n'importent 'opsys_core.X' qu'en RELATIF (mesuré 100% aujourd'hui, 0 import absolu). opsys_core/persistence/ ajouté C05-001 (revue d'architecture AVANT code, même patron) : la configuration/connexion PostgreSQL concrète EST un adapter (implémentation pour un fournisseur donné) ; sans cette entrée, le même test d'union devient rouge dès que persistence/{config,connection}.py existent. opsys_core/objects/ ajouté C05-005 (revue d'architecture AVANT code, même patron) : ObjectStorePort (port.py) et CasLocal (local_cas.py) vivent dans UN SEUL répertoire au lieu d'être séparés entre la couche `ports` système (C04-001) et une couche adapters — décision délibérée (cf. docstring de port.py) : ce sont un contrat et sa seule implémentation formant une unité conceptuelle unique (magasin CAS + futur adaptateur S3 documenté mais non activé), pas un contrat générique consommé par plusieurs couches indépendantes comme opsys_core/ports/contracts.py. Classé adapters dans son ENSEMBLE plutôt que scindé fichier par fichier : CasLocal (l'implémentation concrète, disque local) en est la nature dominante, et port.py n'y importe/n'y expose aucune dépendance qu'un classement `ports` aurait seul autorisé (Protocol + dataclass, stdlib pur)."
+exception = "legacy_pre_core"
+exception_reason = "auth/, authz/, config/ pré-existent AVANT la phase C03 (hors périmètre de C03-001..004) et ne sont pas encore encapsulés derrière les ports définis ici. tasks/C04-001.md demande explicitement de « documenter exceptions existantes authz/config » — auth/ est une extension assumée (non nommée littéralement par le spec) ajoutée pour l'exhaustivité de ce fichier sur tout core/src/ (revue d'architecture AVANT code)."
+exception_resorption = "C04-003 (Encapsuler authz et config existants par compatibilité — core/src/opsys_core/compat/{authz,config}.py) : résorption PARTIELLE, authz/ et config/ SEULEMENT. tasks/C04-003.md ne nomme ni auth/, ni LegacyAdminGate/LegacyTotp dans ses Sorties exactes ni ses Interfaces — auth/ reste dans l'exception legacy_pre_core, non résorbé, AUCUNE tâche ne le résorbe à ce jour (raison technique : auth/admin_gate.py fait `import totp` absolu sans package et auth/ n'a pas de __init__.py, cf. exception_anomalie_mesuree — l'encapsuler exigerait de modifier du code hérité, que C04-003 s'interdit explicitement). Un manque nommé plutôt qu'un manque implicite."
+exception_anomalie_mesuree = "auth/admin_gate.py fait `import totp` (import absolu sans package) et auth/ n'a pas de __init__.py, contrairement à authz/ et config/ — lien non résolvable par un raisonnement en noms de paquets, documenté ici plutôt que corrigé en silence (hors périmètre C04-001)."
+
+[[rules.allowed]]
+from = "domain"
+to = "kernel"
+
+[[rules.allowed]]
+from = "ports"
+to = "kernel"
+
+[[rules.allowed]]
+from = "domain"
+to = "ports"
+reason = "ajoutée suite à l'objection MiMo-V2.5-Pro tour 2 (mineure, confirmée) : domain est le consommateur naturel des ports dans le pattern ports & adapters — omission réelle de la matrice initiale, aucun impact fonctionnel (non interdit = permis par défaut) mais ambiguïté documentaire réelle pour un futur lecteur (C04-004 et suivantes)"
+
+[[rules.allowed]]
+from = "adapters"
+to = "kernel"
+
+[[rules.allowed]]
+from = "adapters"
+to = "ports"
+
+[[rules.allowed]]
+from = "application"
+to = "kernel"
+
+[[rules.allowed]]
+from = "application"
+to = "domain"
+
+[[rules.allowed]]
+from = "application"
+to = "ports"
+
+[[rules.allowed]]
+from = "application"
+to = "adapters"
+
+[[rules.forbidden]]
+from = "ports"
+to = "adapters"
+reason = "cas RED #2 de tasks/C04-001.md — vérifié mécaniquement"
+
+[[rules.forbidden]]
+from = "kernel"
+to = "adapters"
+reason = "le coeur constitutionnel ne dépend d'aucune implémentation concrète — vérifié mécaniquement (test dédié ajouté suite à l'objection MiMo tour 1, la simple absence de SDK tiers du cas RED #3 ne suffisait pas à prouver CETTE règle précise)"
+
+[[rules.forbidden]]
+from = "domain"
+to = "adapters"
+reason = "découplage domaine/implémentation — inversion de dépendance — vérifié mécaniquement (même correctif que kernel->adapters ci-dessus)"
+
+# NOTE (pas une entrée [[rules.forbidden]] structurée — Kimi-K3 mineure
+# tour 1 : "opsys_core"/"modules_m" ne sont PAS des noms de couches
+# déclarés dans [layers], un consommateur générique résolvant from/to
+# via layers.paths échouerait dessus) : opsys_core (tout le paquet, donc
+# kernel+domain+ports+application réunis) ne dépend jamais de Modules M/
+# — cas RED #1 de tasks/C04-001.md, hérité du mécanisme de C03-001,
+# vérifié mécaniquement par rglob complet de opsys_core/ (indépendant du
+# découpage en couches ci-dessus, qui ne s'applique qu'à core/src/ ET à
+# la distinction interne kernel/domain/ports/application/adapters).

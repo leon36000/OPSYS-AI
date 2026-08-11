@@ -1,0 +1,12 @@
+module,authoritative_for,prohibited_authority
+CORE,"identity, policy, approvals, consent, event routing, tool grants",Must not own M1-M10 business truth
+M1,"interactions, conversations, intake, handoffs, collection communications",Must not own CRM/finance
+M2,"clients, leads, pipeline, activities, next actions","Must not own estimates, jobs or finance"
+M3,"estimate versions, measurements, assumptions, predicted costs/margins, approved quote drafts",Must not own actual inventory or ledger
+M4,"jobs, schedules, assignments, work sessions, work GPS, field actuals, completion state",Must not own final payroll or stock ledger
+M5,"ledger, invoices, payments, AR/AP, taxes, payroll, cash and financial truth",Must not accept LLM as calculator/authority
+M6,"materials catalog, quantities, stock movements, reservations, PO, receiving, usage",Must not own vendor payments
+M7,"brand, assets/rights, content, campaigns, reputation, attribution observations",Must not own CRM conversion or financial ROI truth
+M8,"metric definitions, analytical projections, freshness, quality, evidence packs",Must not overwrite module authorities
+M9,"strategic decisions, risks, opportunities, plans, action intents",Must not write directly into module truth
+M10,"memory, provenance, temporal claims, procedures, BWM projections",Must not create a second business authority

@@ -1,0 +1,15 @@
+owner,aggregate,read_port,write_port
+M1-front-office,M1-front-office,Modules M/M1-front-office/src,Modules M/M1-front-office/src
+M2-revenue-crm,M2-revenue-crm,Modules M/M2-revenue-crm/src,Modules M/M2-revenue-crm/src
+M3-estimation,M3-estimation,Modules M/M3-estimation/src,Modules M/M3-estimation/src
+M4-field-ops,M4-field-ops,Modules M/M4-field-ops/src,Modules M/M4-field-ops/src
+M5-financecore,M5-financecore,Modules M/M5-financecore/src,Modules M/M5-financecore/src
+M6-material-control,M6-material-control,Modules M/M6-material-control/src,Modules M/M6-material-control/src
+M7-marketing,M7-marketing,Modules M/M7-marketing/src,Modules M/M7-marketing/src
+M8-analytics,M8-analytics,Modules M/M8-analytics/src,Modules M/M8-analytics/src
+M9-strategic-intelligence,M9-strategic-intelligence,Modules M/M9-strategic-intelligence/src,Modules M/M9-strategic-intelligence/src
+M10-memoire,M10-memoire,Modules M/M10-memoire/src,Modules M/M10-memoire/src
+CORE,auth,core/src/auth,core/src/auth
+CORE,authz,core/src/authz,core/src/authz
+CORE,config,core/src/config,core/src/config
+CORE,opsys_core,core/src/opsys_core,core/src/opsys_core

@@ -21,7 +21,11 @@ jobs:
       # identiques (registre, horodatage, verdicts, encodage). Dans un processus partage,
       # sys.modules garde le premier charge et un module en exercerait un autre — mesure
       # M2-S002 : 21 echecs, verdicts/horodatage/registre resolus vers le mauvais arbre.
-      # Le garde-fou tests/test_isolation_modules.py rend cette contamination bruyante.
+      # Isolation intermodule GLOBALE (C04-002) : le garde-fou réel est ce step, pas un
+      # fichier de test unique — commentaire précédent périmé (citait un chemin
+      # jamais réel dans ce dépôt, cf. tasks/C04-002.md).
+      - name: Isolation intermodule globale (C04-002)
+        run: python3 core/scripts/check_module_isolation.py
       - name: Tests module M1 (EPIC E — branché avant la premiere story, exigence revue scellee)
         run: python3 -m pytest "Modules M/M1-front-office/tests" -q
       - name: Tests module M2 (EPIC F — rattrapage, M2-S001 avait fusionne sans gate)

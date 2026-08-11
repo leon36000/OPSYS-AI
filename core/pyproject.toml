@@ -1,0 +1,47 @@
+[project]
+name = "opsys-core"
+version = "0.0.0"
+description = "OPSYS-AI Core — socle d'entreprise autonome (stdlib d'abord, dépendances ajoutées uniquement quand strictement nécessaires)"
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+dependencies = [
+    "PyYAML==6.0.1",
+    "psycopg==3.2.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.1.1",
+]
+
+[tool.opsys-core.licenses]
+# Une ligne par dépendance déclarée (runtime + dev), licence SPDX vérifiée
+# sur PyPI au moment de l'ajout — jamais devinée.
+PyYAML = "MIT"
+pytest = "MIT"
+psycopg = "LGPL-3.0-only"
+# psycopg-binary : présente dans requirements.lock (verrou d'installation
+# transitif nécessaire au runtime, cf. note dédiée ci-dessous) mais jamais
+# `import psycopg_binary` dans le code — c'est psycopg lui-même qui la
+# détecte et l'utilise en interne. Non déclarée ici (pas une dépendance
+# IMPORTÉE au sens de ce tableau, qui suit le même périmètre que
+# _CORRESPONDANCE_IMPORT_PAQUET) ; sa licence est identique, mesurée dans
+# le wheel : LGPL-3.0-only.
+
+[tool.opsys-core.dependency-provenance]
+# PyYAML : détectée par core/scripts/verify_dependencies.py (import réel
+# dans core/src/config/settings.py, story P0-5d antérieure à C02 — code
+# M1-M10 NON touché par C02-002, seule sa dépendance réelle est déclarée
+# ici pour rendre l'environnement Core reproductible, cf. tasks/C02-002.md).
+PyYAML = "core/src/config/settings.py"
+# psycopg (C05-001) : import réel dans core/src/opsys_core/persistence/
+# connection.py. PREMIÈRE dépendance PyPI hors PyYAML de tout core/ —
+# écart à la discipline « stdlib d'abord » documenté dans connection.py
+# lui-même (aucun driver PostgreSQL n'existe en stdlib). psycopg-binary
+# ajoutée à requirements.lock (pas ici, jamais importée directement) :
+# libpq n'est pas installée comme bibliothèque système sur les machines
+# de développement mesurées (`ldconfig -p` vide) et son installation
+# système est interdite par tasks/C05-001.md — psycopg-binary embarque
+# son propre libpq statiquement lié, vérifié par connexion réelle à un
+# conteneur PostgreSQL éphémère avant ce commit.
+psycopg = "core/src/opsys_core/persistence/connection.py"
