@@ -73,7 +73,7 @@ jobs:
             echo "PR modifie du code sous core/ SANS committer d'evidence/tasks/<ID>/ scellé (convention CI-hardening) — REFUS." >&2
             exit 1
           fi
-          ARGS=""
+          ARGS="--min-vendors 3"
           for t in $EVIDENCE_CHANGE; do ARGS="$ARGS --task $t"; done
           python3 core/scripts/verify_proof_sealed.py $ARGS
 

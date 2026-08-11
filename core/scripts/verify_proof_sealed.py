@@ -39,6 +39,32 @@ authentiquement sorti du LLM nommé (aucune re-vérification cryptographique
 de provenance LiteLLM depuis ce dépôt — le raw_response_sha256 prouve
 l'INTÉGRITÉ du fichier committé depuis sa capture, pas son ORIGINE ;
 la même limitation existe déjà côté harnais local, non aggravée ici).
+
+SCHÉMA RÉEL (vérifié contre ~/proof-method/scripts/civ_review.py et
+reviews/TEMPLATE-prompt-revue-neutre.md le 2026-08-11 — PAS deviné) :
+un verdict brut civ_review.py porte `verdict` (APPROVE|REJECT),
+`objections` (liste de {"severite": "critique|majeure|mineure", "fichier",
+"description", "preuve"} — EN FRANÇAIS, PAS de champ "status"), et
+`reviewer_model` (jamais "vendor" — la famille de vendor se DÉRIVE du nom
+de modèle, cf. `_vendor_of` ci-dessous, copie volontaire ET MINIMALE de
+`tally_reviews.py::_VENDOR/vendor_of` : ce script tourne sur un runner CI
+GitHub sans accès à ~/proof-method, un import cross-repo est impossible ;
+à tenir synchronisé manuellement si le tableau canonique évolue). Le sceau
+est `prompt_sha256` (mode neutre) — le mode `--roles` (pack_sha256 +
+role_sha256 distincts par mandat) n'est PAS couvert par ce script : hors
+périmètre des revues neutres utilisées pour ce chantier.
+
+RÈGLE DE CONSENSUS (alignée sur la définition de tally_reviews.py, "tous
+APPROVE + zéro objection critique") : un round non conforme n'est pas
+"résolu" en place — le round SUIVANT (nouveaux response_id, nouveau sceau)
+remplace le round rejeté dans le commit final. Ce script ne rejoue donc
+QUE le dernier round committé, jamais un historique multi-round (ce
+dernier reste la responsabilité de `tally_reviews.py --resolutions`, outil
+local, hors périmètre CI). Les objections "majeure" restantes sont
+SURFACÉES (comptées, visibles dans le rapport) mais NON bloquantes ici —
+suivre leur résolution cross-round exigerait l'historique des rounds
+précédents, absent d'un commit final unique ; nommé, pas contourné en
+silence.
 """
 from __future__ import annotations
 
@@ -48,6 +74,32 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _EVIDENCE_ROOT = _REPO_ROOT / "evidence" / "tasks"
+
+# Copie volontaire et MINIMALE de tally_reviews.py::_VENDOR (roster réellement
+# utilisé par ce projet, cf. AGENTS.md) — voir docstring module pour la raison
+# de la duplication (isolation du runner CI, jamais d'import cross-repo).
+_VENDOR = {
+    "glm": "zhipu", "glm-5.2": "zhipu",
+    "deepseek": "deepseek", "deepseek-v4-pro": "deepseek", "deepseek-v4-flash": "deepseek",
+    "kimi": "moonshot", "kimi-2.7": "moonshot", "kimi-k2.7-code": "moonshot", "kimi-k3": "moonshot",
+    "composer": "xai", "composer-2.5": "xai", "grok": "xai", "grok-4.5": "xai",
+    "gemini": "google", "gemini-3.1-pro": "google", "gemini-3.1-pro-or": "google",
+    "qwen": "alibaba", "qwen3.7-max": "alibaba", "qwen3.8-max": "alibaba",
+    "gpt-5.6-terra-pro": "openai", "gpt-5.6-luna-pro": "openai", "gpt": "openai",
+    "longcat": "meituan", "longcat-2.0": "meituan",
+    "mimo": "xiaomi", "mimo-pro-v2": "xiaomi", "mimo-v2.5-pro": "xiaomi",
+    "minimax-m3": "minimax", "nemotron": "nvidia", "tencent-hy3": "tencent", "hy3": "tencent",
+    "claude-opus-5-native-architecte": "anthropic-native",
+}
+
+
+def _vendor_of(model_or_vendor: str) -> str:
+    """Retourne la famille de vendor d'un identifiant de modèle/reviewer.
+    Modèle absent du tableau : traité comme son propre vendor singleton
+    (jamais fusionné à tort avec un autre — fail-closed sur l'inconnu,
+    même choix par défaut que tally_reviews.py::vendor_of)."""
+    key = (model_or_vendor or "").strip().lower()
+    return _VENDOR.get(key, key)
 
 
 class ScellementInvalide(ValueError):
@@ -98,18 +150,44 @@ def verifier_task(task_id: str, *, min_vendors_approve: int = 1) -> tuple[bool, 
     assert sceau_unique is not None  # narrowing : None déjà exclu par la condition ci-dessus
     lignes.append(f"  sceau prompt_sha256 identique sur {len(verdicts)} verdict(s) : {sceau_unique[:12]}…")
 
-    objections_bloquantes = [
+    # Champ réel : "severite" (français, critique|majeure|mineure) — jamais
+    # "severity"/"status" (n'existent pas dans le schéma civ_review réel,
+    # cf. TEMPLATE-prompt-revue-neutre.md, vérifié au module).
+    objections_critiques = [
         obj
         for v in verdicts
         for obj in v.get("objections", [])
-        if obj.get("status") == "OPEN" and obj.get("severity") == "CRITICAL"
+        if str(obj.get("severite", "")).strip().casefold() == "critique"
     ]
-    if objections_bloquantes:
-        lignes.append(f"  {len(objections_bloquantes)} objection(s) CRITICAL/OPEN non résolue(s)")
+    if objections_critiques:
+        lignes.append(f"  {len(objections_critiques)} objection(s) CRITIQUE(S) présente(s) — round non consensuel")
+        for obj in objections_critiques:
+            lignes.append(f"    - {obj.get('fichier', '?')} : {obj.get('description', '?')}")
+        return False, "\n".join(lignes)
+
+    objections_majeures = [
+        obj
+        for v in verdicts
+        for obj in v.get("objections", [])
+        if str(obj.get("severite", "")).strip().casefold() == "majeure"
+    ]
+    if objections_majeures:
+        lignes.append(
+            f"  AVERTISSEMENT (non bloquant ici) : {len(objections_majeures)} objection(s) MAJEURE(S) "
+            "présente(s) — résolution cross-round non vérifiable par ce script (cf. docstring module), "
+            "revue humaine recommandée avant confiance totale."
+        )
+
+    verdicts_rejet = [v for v in verdicts if v.get("verdict") != "APPROVE"]
+    if verdicts_rejet:
+        rejeteurs = sorted({str(v.get("reviewer_model", "?")) for v in verdicts_rejet})
+        lignes.append(f"  {len(verdicts_rejet)} verdict(s) non-APPROVE (REJECT) — consensus non atteint : {rejeteurs}")
         return False, "\n".join(lignes)
 
     vendors_approve: set[str] = {
-        v["vendor"] for v in verdicts if v.get("verdict") == "APPROVE" and v.get("vendor")
+        _vendor_of(str(v.get("reviewer_model", "")))
+        for v in verdicts
+        if v.get("verdict") == "APPROVE" and v.get("reviewer_model")
     }
     lignes.append(f"  {len(vendors_approve)} vendor(s) distinct(s) APPROVE : {sorted(vendors_approve)}")
     if len(vendors_approve) < min_vendors_approve:
@@ -128,13 +206,19 @@ def main(argv: list[str] | None = None) -> int:
     (calculées par `git diff` dans le step du workflow) plutôt que de
     re-vérifier tout l'historique accumulé à chaque run (coût croissant
     sans fin, hors périmètre de ce que « proof-sealed pour CETTE PR »
-    doit prouver)."""
+    doit prouver). --min-vendors N (défaut 1, INDEPENDENT_REVIEW) : élève le
+    seuil de vendors distincts APPROVE exigé — ex. 3 pour le profil Team
+    (AGENTS.md, "3 reviewers / 3 vendors")."""
     args = argv if argv is not None else sys.argv[1:]
     task_ids: list[str] = []
+    min_vendors = 1
     i = 0
     while i < len(args):
         if args[i] == "--task" and i + 1 < len(args):
             task_ids.append(args[i + 1])
+            i += 2
+        elif args[i] == "--min-vendors" and i + 1 < len(args):
+            min_vendors = int(args[i + 1])
             i += 2
         else:
             i += 1
@@ -161,7 +245,7 @@ def main(argv: list[str] | None = None) -> int:
 
     tout_ok = True
     for task_id in cibles:
-        ok, rapport = verifier_task(task_id)
+        ok, rapport = verifier_task(task_id, min_vendors_approve=min_vendors)
         print(rapport)
         tout_ok = tout_ok and ok
 
