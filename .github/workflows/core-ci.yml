@@ -63,16 +63,22 @@ jobs:
         run: |
           set -e
           git fetch origin main --quiet
-          # Périmètre scellé élargi (révision 2, trouvé par revue scellée
-          # indépendante 4 voix) : core/ + le workflow CI lui-même +
+          # Périmètre scellé (révision 3, trouvé par revue scellée
+          # indépendante 4 voix, 2 rounds) : core/ + LES DEUX workflows CI
+          # (core-ci.yml ET ci.yml — ce dernier exécute core/src/authz/tests
+          # et core/src/config/tests sous continue-on-error, vérifié) +
           # scripts/ racine — DOIT rester identique à _PATHSPEC_SCELLE
           # dans verify_proof_sealed.py, sinon le hash recalculé par le
           # script ne correspondra jamais à ce que ce step a jugé "il y a
-          # du code à sceller".
-          CODE_CHANGE=$(git diff --name-only origin/main...HEAD -- core/ .github/workflows/core-ci.yml scripts/)
+          # du code à sceller". Délibérément PAS Modules M/ (M1-M10) —
+          # discipline établie distincte (BMAD + civ_review + gates
+          # dédiés dans ci.yml), y imposer cette convention serait un
+          # changement de portée large hors périmètre de ce chantier
+          # (signalé à Nathan, pas tranché seul).
+          CODE_CHANGE=$(git diff --name-only origin/main...HEAD -- core/ .github/workflows/core-ci.yml .github/workflows/ci.yml scripts/)
           EVIDENCE_CHANGE=$(git diff --name-only origin/main...HEAD -- evidence/tasks/ 2>/dev/null | sed -E 's#^evidence/tasks/([^/]+)/.*#\1#' | sort -u || true)
           if [ -z "$CODE_CHANGE" ]; then
-            echo "Aucun changement de code sous le périmètre scellé — rien à sceller (PR infra/docs pure)."
+            echo "Aucun changement sous le périmètre scellé de CE gate (core/, core-ci.yml, ci.yml, scripts/) — rien à sceller ici. Modules M/ reste gouverné par son propre workflow (gates/ci.yml), hors périmètre de proof-sealed."
             exit 0
           fi
           if [ -z "$EVIDENCE_CHANGE" ]; then

@@ -150,6 +150,19 @@ _OUTILS_REELS_RE = re.compile(
 # `_OUTILS_REELS_RE`, quel que soit son contenu par ailleurs.
 _LIGNE_INSTALLATION_SEULE_RE = re.compile(r"^\s*python3?\s+-m\s+pip\s+install\b|^\s*pip3?\s+install\b")
 
+# Défense en profondeur (round 2, architecte) : la ligne ci-dessus exige
+# que la commande d'installation COMMENCE la ligne — une continuation
+# multi-ligne (`pip install \` puis la liste des paquets sur la ligne
+# SUIVANTE) ou un gestionnaire alternatif (`uv pip install bandit`)
+# échapperait à `_LIGNE_INSTALLATION_SEULE_RE` tout en laissant
+# `bandit`/`pip-audit` matcher `_OUTILS_REELS_RE` comme si c'était une
+# invocation réelle. Filtre COMPLÉMENTAIRE, au niveau du MATCH plutôt que
+# de la ligne : un nom d'outil immédiatement suivi de `==<version>` est
+# un spécificateur de paquet pip (jamais une invocation de commande, qui
+# serait suivie d'un espace/flag/fin de ligne) — exclu quelle que soit la
+# ligne où il apparaît.
+_SPECIFICATEUR_PAQUET_RE = re.compile(r"==\d")
+
 
 def _jobs_without_hard_failure(data: dict, noms: set[str]) -> list[str]:
     """Parmi les jobs dont le nom est dans `noms` :
@@ -187,14 +200,22 @@ def _jobs_without_hard_failure(data: dict, noms: set[str]) -> list[str]:
             # substring, sinon supprimer le step qui EXÉCUTE le scan tout
             # en gardant celui qui l'installe resterait indétectable
             # (trouvé par revue scellée indépendante, cf. commentaire
-            # _LIGNE_INSTALLATION_SEULE_RE).
+            # _LIGNE_INSTALLATION_SEULE_RE). PUIS filtre au niveau du
+            # MATCH (_SPECIFICATEUR_PAQUET_RE) — défense en profondeur
+            # contre une installation multi-ligne ou un gestionnaire
+            # alternatif (uv, ...) qui échapperait au filtre par ligne.
             lignes_pertinentes = [
                 ligne
                 for c in commandes_run
                 for ligne in c.splitlines()
                 if not _LIGNE_INSTALLATION_SEULE_RE.search(ligne)
             ]
-            invoque_outil_reel = any(_OUTILS_REELS_RE.search(ligne) for ligne in lignes_pertinentes)
+            invoque_outil_reel = any(
+                match
+                for ligne in lignes_pertinentes
+                for match in _OUTILS_REELS_RE.finditer(ligne)
+                if not _SPECIFICATEUR_PAQUET_RE.match(ligne, match.end())
+            )
             if not invoque_outil_reel:
                 en_defaut.append(nom)
     return en_defaut
@@ -230,13 +251,19 @@ def test_rendre_les_checks_ci_r_ellement_bloquants_2():
 def test_rendre_les_checks_ci_r_ellement_bloquants_3():
     """Cas RED #3 — exiger proof-sealed, types, tests, security et pack validation.
 
-    Les 5 catégories doivent exister comme jobs nommés. `security` et
-    `pack-validation` ont désormais un mécanisme réel câblé (chantier
-    CI-hardening post-C02-005) — ils doivent invoquer réellement un
-    outil reconnu (_OUTILS_REELS_RE), jamais un pass silencieux.
-    `proof-sealed` reste sans mécanisme réel à ce jour et doit échouer
-    explicitement (exit non nul, jamais continue-on-error) tant qu'aucun
-    outil n'est câblé derrière lui.
+    Les 5 catégories doivent exister comme jobs nommés. `security`,
+    `pack-validation` ET `proof-sealed` ont désormais un mécanisme réel
+    câblé (chantier CI-hardening post-C02-005, `_CATEGORIES_SANS_
+    MECANISME_REEL_A_CE_JOUR` vide) — les 3 doivent invoquer réellement
+    un outil reconnu (_OUTILS_REELS_RE), jamais un pass silencieux ni un
+    `pip install` sans invocation (cf.
+    test_job_avec_seulement_l_installation_sans_invocation_reelle_est_detecte).
+    Le mécanisme de repli (`exit 1` littéral exigé pour toute catégorie
+    encore dans `_CATEGORIES_SANS_MECANISME_REEL_A_CE_JOUR`) reste testé
+    séparément sur une fixture synthétique — voir
+    test_categorie_sans_mecanisme_reel_exige_exit_1_litteral_sur_fixture_synthetique
+    — même si, à ce jour, aucune des 5 catégories réelles ne l'emprunte
+    plus.
     """
     noms = parse_required_checks(_WORKFLOW_PATH)
     manquantes = _CATEGORIES_EXIGEES - noms
@@ -393,6 +420,28 @@ def test_job_avec_seulement_l_installation_sans_invocation_reelle_est_detecte():
                 "runs-on": "ubuntu-latest",
                 "steps": [
                     {"run": "python3 -m pip install --quiet bandit==1.9.4 pip-audit==2.10.1"},
+                    # step d'exécution du scan absent — régression simulée
+                ],
+            },
+        }
+    }
+    en_defaut = _jobs_without_hard_failure(data, {"security"})
+    assert en_defaut == ["security"]
+
+
+def test_job_installation_multiligne_sans_invocation_reelle_est_detecte():
+    """Défense en profondeur (round 2, architecte) : une installation
+    continuée sur PLUSIEURS lignes (paquets listés sur la ligne suivant
+    `pip install \\`, jamais sur la ligne qui commence par `pip install`
+    elle-même) échapperait à `_LIGNE_INSTALLATION_SEULE_RE` seule — le
+    filtre complémentaire par MATCH (`_SPECIFICATEUR_PAQUET_RE`, sur
+    `==<version>`) doit fermer ce cas aussi."""
+    data = {
+        "jobs": {
+            "security": {
+                "runs-on": "ubuntu-latest",
+                "steps": [
+                    {"run": "python3 -m pip install \\\n  --quiet \\\n  bandit==1.9.4 pip-audit==2.10.1"},
                     # step d'exécution du scan absent — régression simulée
                 ],
             },

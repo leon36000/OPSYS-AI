@@ -54,11 +54,33 @@ Ce script vérifie, pour le commit HEAD du repo (celui que CI construit) :
   6. Au moins N vendors DISTINCTS (anti-Sybil, `_vendor_of`) ont voté
      APPROVE — N configurable via --min-vendors (défaut 1).
 
-LIMITATION CONNUE ET ASSUMÉE : ce script vérifie la COHÉRENCE
+LIMITATION CONNUE ET ASSUMÉE (1) : ce script vérifie la COHÉRENCE
 CRYPTOGRAPHIQUE ET STRUCTURELLE du sceau commité, PAS que le contenu
 d'un verdict est authentiquement sorti du LLM nommé (aucune
 re-vérification cryptographique de provenance LiteLLM depuis ce dépôt —
 la même limitation existe déjà côté harnais local, non aggravée ici).
+
+LIMITATION CONNUE ET ASSUMÉE (2) — ARBITRAGE round 2 (AGENTS.md, "max 2
+rounds puis arbitrage sur pièces journalisé"), trouvée par l'architecte
+et NON entièrement fermée, décision documentée plutôt que silencieuse :
+`code_diff_sha256` est un champ qu'écrit l'ORCHESTRATEUR (via
+`--emit-code-diff-sha256`), pas une valeur que les reviewers ont
+eux-mêmes attestée dans leur sceau — rien ne lie CRYPTOGRAPHIQUEMENT
+`code_diff_sha256` à `prompt_sha256`. Un orchestrateur qui voudrait
+délibérément réutiliser une revue légitime pour un code sans rapport
+pourrait, en théorie, ré-émettre un hash frais et le coller dans
+evidence.json sans repasser par une revue. CE SCRIPT FERME LE CAS
+ACCIDENTEL (code modifié après la revue, oubli de resceller — la faille
+originale trouvée par les 4 reviewers round 1) mais PAS le cas d'un
+orchestrateur activement malveillant disposant déjà d'un accès complet
+en écriture au dépôt. Fermer ce second cas exigerait une signature
+cryptographique côté reviewer (clé privée inconnue de l'orchestrateur)
+— infrastructure disproportionnée au modèle de menace actuel de ce
+projet (un seul orchestrateur de confiance, PROOF vise la rigueur contre
+l'ERREUR honnête, pas la résistance à un initié pleinement malveillant
+qui, de toute façon, pourrait tout aussi bien éditer CE SCRIPT lui-même
+pour toujours retourner vrai). Question posée à Nathan dans le rapport
+de chantier plutôt que tranchée seule ; non fermée en silence.
 
 SCHÉMA RÉEL (vérifié contre ~/proof-method/scripts/civ_review.py et
 reviews/TEMPLATE-prompt-revue-neutre.md le 2026-08-11 — PAS deviné) :
@@ -81,13 +103,25 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _EVIDENCE_ROOT = _REPO_ROOT / "evidence" / "tasks"
 
-# Périmètre scellé : core/ (le code) + le workflow CI lui-même + scripts/
-# racine — élargi en révision 2 (un des 4 reviewers a démontré qu'une PR
-# modifiant SEULEMENT .github/workflows/core-ci.yml, sans toucher core/,
-# contournait entièrement le gate puisque CODE_CHANGE ne portait que sur
-# core/). Le gate qui institue le scellement doit lui-même être dans son
-# propre périmètre scellé, sinon il peut être désactivé sans preuve.
-_PATHSPEC_SCELLE = ("core/", ".github/workflows/core-ci.yml", "scripts/")
+# Périmètre scellé : core/ (le code) + LES DEUX workflows CI (core-ci.yml
+# ET ci.yml — révision 3, trouvé par revue architecte round 2 : ci.yml
+# est le SEUL endroit qui exécute core/src/authz/tests et
+# core/src/config/tests, sous continue-on-error, vérifié en lisant le
+# fichier — un gate qui ne se protège que lui-même laisse l'AUTRE
+# workflow neutralisable sans preuve) + scripts/ racine.
+#
+# DÉLIBÉRÉMENT PAS élargi à `Modules M/` (M1-M10, le produit) malgré
+# l'objection round 2 de l'architecte : ces modules suivent DÉJÀ une
+# discipline établie et différente (BMAD + civ_review + gates dédiés
+# dans ci.yml, des dizaines de stories déjà livrées sous ce régime).
+# Y imposer RÉTROACTIVEMENT la convention evidence/tasks/ de CE chantier
+# (construit pour le harnais core/ C00-C24) serait un changement de
+# portée large, disruptif pour un flux de travail entier, décidé
+# unilatéralement — question explicitement signalée à Nathan plutôt que
+# tranchée seule ici (cf. rapport final du chantier).
+_PATHSPEC_SCELLE = (
+    "core/", ".github/workflows/core-ci.yml", ".github/workflows/ci.yml", "scripts/",
+)
 
 # Copie volontaire de tally_reviews.py::_VENDOR — COMPLÈTE (pas un sous-
 # ensemble "minimal" : la révision 1 copiait un sous-ensemble et a dérivé

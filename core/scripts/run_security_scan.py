@@ -10,18 +10,16 @@ localement au moment de l'écriture (mesuré : `which bandit pip-audit`).
 Reproductible en LOCAL et en CI avec la MÊME commande — pas de logique
 dupliquée entre les deux (le job CI invoque ce script directement).
 
-Bandit : config dans core/pyproject.toml ([tool.bandit], skips=["B101"]
-— asserts de test, jamais un défaut réel, cf. justification dans le
-fichier). Périmètre : core/src/ ET core/scripts/ (élargi révision 2,
-chantier CI-hardening — trouvé par revue scellée indépendante : le code
-d'infrastructure de sécurité le plus récent du dépôt, à savoir CES
-scripts eux-mêmes, subprocess/JSON non fiable inclus, échappait au scan
-qu'ils appliquent à tout le reste ; jamais Modules M/, hors périmètre de
-cette tâche comme de tout core/*). Mesuré AVANT ce script (127 findings
-bruts → 0 après config + `# nosec` scopés individuellement, chacun
-vérifié par lecture directe, jamais supposé) : 0 finding attendu en
-fonctionnement normal, tout NOUVEAU finding doit bloquer (jamais un
-pass silencieux).
+Bandit : config dans core/pyproject.toml ([tool.bandit]). Périmètre :
+core/src/ ET core/scripts/ (élargi révision 2, chantier CI-hardening —
+trouvé par revue scellée indépendante : le code d'infrastructure de
+sécurité le plus récent du dépôt, à savoir CES scripts eux-mêmes,
+subprocess/JSON non fiable inclus, échappait au scan qu'ils appliquent à
+tout le reste ; jamais Modules M/, hors périmètre de cette tâche comme
+de tout core/*). Mesuré AVANT ce script (127 findings bruts sur core/src/
+seul → 0 après config + `# nosec` scopés individuellement, chacun
+vérifié par lecture directe) : 0 finding attendu en fonctionnement
+normal, tout NOUVEAU finding doit bloquer (jamais un pass silencieux).
 
 pip-audit : `--disable-pip` OBLIGATOIRE sur cette machine — `ensurepip`
 indisponible (`apt install python3.12-venv` interdit par les
@@ -29,10 +27,28 @@ interdictions du projet, aucun sudo) ; `--disable-pip` scanne les
 versions ÉPINGLÉES de core/requirements.lock directement contre la
 base OSV, sans tenter de résoudre/installer un environnement isolé.
 
-Aucune méthode de suppression globale de type "ignore tout" : chaque
-exemption est scopée à un test_id bandit précis, sur une ligne précise,
-avec une justification en clair — jamais un fichier entier exclu sans
-raison nommée (cf. core/pyproject.toml, exclude_dirs = [] volontaire).
+SUPPRESSIONS BANDIT — 2 mécanismes DISTINCTS, jamais confondus (révision
+2 a corrigé une DOCSTRING qui affirmait le contraire, contredite par la
+config réelle du même commit) :
+- `skips` dans core/pyproject.toml, [tool.bandit] : suppression PAR
+  RÈGLE, appliquée à TOUT le périmètre scellé (core/src/ ET
+  core/scripts/). 4 règles : B101 (asserts de test, 125/127 findings
+  bruts) ; B404/B603/B607 (import/appel subprocess sans shell=True,
+  chemin d'exécutable relatif — 16 findings, TOUS dans core/scripts/,
+  7 sites d'appel vérifiés individuellement avant suppression : argv
+  fixe, jamais shell=True, jamais une chaîne interpolée depuis une
+  entrée non fiable — cf. commentaire complet dans pyproject.toml).
+  Un futur usage RÉELLEMENT dangereux de subprocess (shell=True,
+  commande construite depuis une entrée externe) resterait invisible à
+  bandit tant que ces 4 règles sont exclues — compromis assumé, pas
+  découvert par accident : core/scripts/ n'a par construction que des
+  scripts d'orchestration à argv fixe, mesuré à chaque ajout de script.
+- `# nosec: B107 #` (par ex.) inline (double dièse, cf. leçon de syntaxe
+  bandit documentée au commit fc48cee) : suppression PAR LIGNE, pour des
+  findings individuels dans des règles NON skippées globalement (B105,
+  B107, B403, B112 — chacun vérifié par lecture directe avant
+  suppression, jamais un fichier entier exclu sans raison nommée, cf.
+  core/pyproject.toml exclude_dirs = [] volontaire).
 """
 from __future__ import annotations
 
