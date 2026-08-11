@@ -534,6 +534,76 @@ def test_drop_sans_if_exists_refuse_meme_en_contexte_autorise():
 
 
 # ---------------------------------------------------------------------------
+# Corrections issues de la revue scellée tour 3 (civ_review, Kimi-K3
+# REJECT) — la refonte du tour 2 (guillemets simples seuls) introduisait
+# 3 NOUVEAUX fail-open, TOUS vérifiés vrais par reproduction directe
+# AVANT correction, jamais acceptés sur la seule autorité du reviewer.
+# ---------------------------------------------------------------------------
+
+
+def test_identificateur_delimite_avec_apostrophe_napavale_pas_le_reste():
+    """Kimi-K3 MAJEURE (tour 3, RÉGRESSION du tour 2, confirmée VRAIE) :
+    un identificateur délimité `"it's"` contenant une apostrophe
+    basculait à tort l'ancien état "dans une chaîne", neutralisant tout
+    le SQL réel qui suivait — un DROP réel devenait invisible. Corrigé :
+    état DÉDIÉ pour les identificateurs `"..."`, un `'` à l'intérieur ne
+    bascule plus rien."""
+    sql_identificateur_avec_apostrophe = 'SELECT "it\'s" FROM t; DROP TABLE x;'
+    plan = MigrationPlan(
+        version="0015_identificateur_apostrophe_test",
+        phase="expand",
+        checksum=_checksum(sql_identificateur_avec_apostrophe),
+        reversible=False,
+    )
+    with pytest.raises(MigrationDestructiveRefusee):
+        validate_migration(plan, sql_identificateur_avec_apostrophe)
+
+
+def test_chaine_echappement_e_napavale_pas_le_reste():
+    """Kimi-K3 MAJEURE (tour 3, RÉGRESSION du tour 2, confirmée VRAIE) :
+    `E'it\\'s'` (chaîne d'échappement PostgreSQL, `\\'` = apostrophe
+    échappée) désynchronisait l'ancienne machine (qui ne connaissait que
+    l'échappement `''`), neutralisant le SQL réel après. Corrigé : état
+    DÉDIÉ pour `E'...'`, `\\<caractère>` toujours consommé comme une
+    paire échappée avant de tester une fermeture."""
+    sql_e_string = "SELECT E'it\\'s'; DROP TABLE x;"
+    plan = MigrationPlan(
+        version="0016_e_string_test", phase="expand", checksum=_checksum(sql_e_string), reversible=False
+    )
+    with pytest.raises(MigrationDestructiveRefusee):
+        validate_migration(plan, sql_e_string)
+
+
+def test_commentaire_bloc_avec_tiret_double_interne_napavale_pas_le_reste():
+    """Kimi-K3 MAJEURE (tour 3, préexistante, confirmée VRAIE) : un `--`
+    À L'INTÉRIEUR d'un commentaire bloc `/* ... */` faisait avaler tout
+    le reste de la ligne (y compris le SQL réel après le `*/`). Corrigé :
+    état DÉDIÉ pour les commentaires bloc, avec compteur de profondeur
+    (PostgreSQL les imbrique réellement) — fermé sur le `*/`
+    correspondant, jamais sur un `--` interne."""
+    sql_bloc_avec_tiret = "/* c -- */ DROP TABLE x;"
+    plan = MigrationPlan(
+        version="0017_bloc_tiret_test", phase="expand", checksum=_checksum(sql_bloc_avec_tiret), reversible=False
+    )
+    with pytest.raises(MigrationDestructiveRefusee):
+        validate_migration(plan, sql_bloc_avec_tiret)
+
+
+def test_commentaire_bloc_imbrique_neutralise_correctement_le_contenu():
+    """Contrôle positif — imbrication RÉELLE de PostgreSQL : un DROP situé
+    À L'INTÉRIEUR d'un commentaire bloc imbriqué (`/* /* ... */ ... */`)
+    doit rester neutralisé (ce n'est PAS du SQL réel), preuve que le
+    compteur de profondeur fonctionne dans les deux sens (pas seulement
+    « ne pas se refermer trop tôt sur `--` », mais aussi « se refermer
+    correctement sur le bon `*/` »)."""
+    sql_imbrique = "/* /* nested */ DROP TABLE fantome; */ SELECT 1;"
+    plan = MigrationPlan(
+        version="0018_bloc_imbrique_test", phase="expand", checksum=_checksum(sql_imbrique), reversible=False
+    )
+    validate_migration(plan, sql_imbrique)  # ne lève pas : le DROP est dans le commentaire
+
+
+# ---------------------------------------------------------------------------
 # Croisement avec le harnais existant — preuve, pas supposition
 # ---------------------------------------------------------------------------
 

@@ -103,69 +103,153 @@ _CHECKSUM_RE = re.compile(r"[0-9a-f]{64}")
 
 
 def _analyser_sql(sql: str) -> tuple[str, str]:
-    """Analyse le SQL en UN SEUL passage, machine à états sur les
-    guillemets simples ('' = guillemet littéral échappé, convention SQL
-    standard) : retourne `(sql_neutralise, commentaires)`.
+    """Analyse le SQL en UN SEUL passage : retourne `(sql_neutralise,
+    commentaires)`.
 
-    `sql_neutralise` a le CONTENU des littéraux de chaîne ('...') ET le
-    texte des commentaires (--...fin-de-ligne, hors chaînes) remplacés
-    par des espaces — LONGUEUR ET POSITIONS PRÉSERVÉES (jamais une
-    suppression). Utilisé pour TOUTE détection de mots-clés (destructif,
-    idempotence) ET pour `_decouper_instructions` : un mot-clé qui
-    n'apparaît QUE dans un littéral ou un commentaire ne doit JAMAIS
-    déclencher, et un ';' à l'intérieur d'un littéral ne doit JAMAIS
-    scinder une instruction à tort.
+    `sql_neutralise` a le CONTENU des littéraux de chaîne (`'...'`),
+    des identificateurs délimités (`"..."`), des chaînes d'échappement
+    PostgreSQL (`E'...'`) ET des commentaires (`--...fin-de-ligne` et
+    `/* ... */`, IMBRICABLES) remplacés par des espaces — LONGUEUR ET
+    POSITIONS PRÉSERVÉES (jamais une suppression). Utilisé pour TOUTE
+    détection de mots-clés (destructif, idempotence) ET pour
+    `_decouper_instructions` : un mot-clé qui n'apparaît QUE dans un
+    littéral, un identificateur ou un commentaire ne doit JAMAIS
+    déclencher, et un `;` à l'intérieur ne doit JAMAIS scinder une
+    instruction à tort.
 
     `commentaires` est la CONCATÉNATION des seuls textes de commentaires
-    RÉELS (hors chaînes) — utilisé EXCLUSIVEMENT pour chercher le
-    marqueur d'autorisation, qui est destiné à y vivre.
+    `--` RÉELS (hors littéraux/identificateurs/blocs) — utilisé
+    EXCLUSIVEMENT pour chercher le marqueur d'autorisation, qui est
+    destiné à y vivre. Les commentaires BLOC (`/* */`) n'y contribuent
+    PAS (limitation ACCEPTÉE : le marqueur doit vivre dans un
+    commentaire `--`, jamais un bloc — non testé comme forme valide,
+    documenté ici plutôt qu'implicite).
 
-    Corrige 3 fail-open confirmés vrais par reproduction directe (revue
-    scellée C05-002 tour 2, jamais acceptés sur la seule autorité des
-    reviewers) :
-      - DeepSeek mineure : un ancien retrait de commentaire naïf
-        (`--[^\\n]*` sur le SQL brut) avalait le reste de la ligne dès
-        qu'un `--` apparaissait DANS un littéral (ex. `SELECT '--';
-        DROP TABLE x;` → le DROP réel après le littéral disparaissait
-        AVANT même d'être vu par le détecteur destructif).
-      - Kimi-K3 mineure : un ancien détecteur d'idempotence non
-        conscient des chaînes acceptait `CREATE TABLE t (c TEXT DEFAULT
-        'if not exists');` comme idempotent — le texte "IF NOT EXISTS"
-        n'était qu'une VALEUR littérale, jamais une vraie clause SQL.
-      - Kimi-K3 mineure (conséquence non nommée) : le marqueur
-        d'autorisation, cherché sur le SQL brut entier, était aussi
-        satisfaisable par un littéral de chaîne contenant son texte —
-        fermé en le limitant désormais aux seuls commentaires extraits.
+    RÉVISÉ après revue scellée tour 3 (Kimi-K3 REJECT, 3 objections
+    MAJEURES) : la version tour 2 (guillemets simples seuls) introduisait
+    3 NOUVEAUX fail-open, TOUS confirmés vrais par reproduction directe
+    AVANT correction (CLAIMS UNVERIFIED) :
+      1. Un identificateur délimité `"it's"` contenant une apostrophe
+         basculait `dans_chaine` à tort, neutralisant tout le SQL réel
+         qui suivait (ex. `SELECT "it's" FROM t; DROP TABLE x;` → DROP
+         invisible). Corrigé : état DÉDIÉ pour `"..."` (`""` = guillemet
+         double échappé, même convention que `''` pour les chaînes),
+         un `'` À L'INTÉRIEUR d'un identificateur ne bascule plus rien.
+      2. `E'it\\'s'` (chaîne d'échappement PostgreSQL, `\\'` = apostrophe
+         échappée) désynchronisait la machine (qui ne connaissait que
+         l'échappement `''`, pas `\\`), neutralisant le SQL réel après.
+         Corrigé : état DÉDIÉ pour `E'...'`/`e'...'`, `\\<caractère>`
+         consommé comme une paire échappée AVANT de tester la fermeture.
+      3. `/* c -- */ DROP TABLE x;` : le `--` À L'INTÉRIEUR d'un
+         commentaire bloc faisait avaler tout le reste de la ligne
+         (y compris le SQL réel après le `*/`). Corrigé : état DÉDIÉ
+         pour `/* ... */` AVEC compteur de profondeur (PostgreSQL les
+         imbrique réellement), fermé sur le `*/` correspondant, jamais
+         sur un `--` interne.
 
-    Limitation ACCEPTÉE et documentée (inchangée) : le dollar-quoting
-    PostgreSQL (`$$...$$`) n'est PAS géré — hors périmètre, un parseur
-    SQL complet serait nécessaire (même discipline que les autres formes
-    déjà exclues)."""
+    Limitation ACCEPTÉE et documentée (inchangée depuis le tour 1) : le
+    dollar-quoting PostgreSQL (`$$...$$`/`$tag$...$tag$`) n'est PAS géré
+    — hors périmètre, un parseur SQL complet serait nécessaire (même
+    discipline que les autres formes déjà exclues)."""
     neutre: list[str] = []
     commentaires: list[str] = []
-    dans_chaine = False
     i = 0
     n = len(sql)
     while i < n:
         c = sql[i]
-        if dans_chaine:
-            if c == "'":
-                if i + 1 < n and sql[i + 1] == "'":
-                    neutre.append("  ")
+
+        # Chaîne d'échappement E'...'/e'...' (PostgreSQL) : \<caractère>
+        # est TOUJOURS consommé comme une paire échappée (jamais testé
+        # comme fermeture), '' reste aussi un échappement valide en
+        # complément (les deux formes sont légales dans une E-string).
+        if c in "Ee" and i + 1 < n and sql[i + 1] == "'":
+            neutre.append(c)
+            neutre.append("'")
+            i += 2
+            while i < n:
+                cc = sql[i]
+                if cc == "\\" and i + 1 < n:
+                    suivant = sql[i + 1]
+                    neutre.append(" ")
+                    neutre.append(suivant if suivant == "\n" else " ")
                     i += 2
                     continue
-                dans_chaine = False
-                neutre.append(c)
+                if cc == "'":
+                    if i + 1 < n and sql[i + 1] == "'":
+                        neutre.append("  ")
+                        i += 2
+                        continue
+                    neutre.append(cc)
+                    i += 1
+                    break
+                neutre.append(cc if cc == "\n" else " ")
                 i += 1
-                continue
-            neutre.append(c if c == "\n" else " ")
-            i += 1
             continue
+
+        # Littéral '...' standard : '' est l'unique échappement
+        # (comportement PostgreSQL par défaut, standard_conforming_
+        # strings=on — le backslash n'y est PAS spécial, contrairement
+        # aux E-strings ci-dessus).
         if c == "'":
-            dans_chaine = True
             neutre.append(c)
             i += 1
+            while i < n:
+                cc = sql[i]
+                if cc == "'":
+                    if i + 1 < n and sql[i + 1] == "'":
+                        neutre.append("  ")
+                        i += 2
+                        continue
+                    neutre.append(cc)
+                    i += 1
+                    break
+                neutre.append(cc if cc == "\n" else " ")
+                i += 1
             continue
+
+        # Identificateur délimité "..." : "" est l'échappement, ÉTAT
+        # DÉDIÉ (un ' à l'intérieur ne bascule plus vers l'état chaîne).
+        if c == '"':
+            neutre.append(c)
+            i += 1
+            while i < n:
+                cc = sql[i]
+                if cc == '"':
+                    if i + 1 < n and sql[i + 1] == '"':
+                        neutre.append('""')
+                        i += 2
+                        continue
+                    neutre.append(cc)
+                    i += 1
+                    break
+                neutre.append(cc if cc == "\n" else " ")
+                i += 1
+            continue
+
+        # Commentaire bloc /* ... */ — IMBRICABLE en PostgreSQL réel,
+        # compteur de profondeur : un '--' interne ne le termine JAMAIS,
+        # seul le '*/' correspondant le fait.
+        if c == "/" and i + 1 < n and sql[i + 1] == "*":
+            debut = i
+            profondeur = 1
+            i += 2
+            while i < n and profondeur > 0:
+                if sql[i] == "/" and i + 1 < n and sql[i + 1] == "*":
+                    profondeur += 1
+                    i += 2
+                    continue
+                if sql[i] == "*" and i + 1 < n and sql[i + 1] == "/":
+                    profondeur -= 1
+                    i += 2
+                    continue
+                i += 1
+            fin = i
+            for k in range(debut, fin):
+                neutre.append(sql[k] if sql[k] == "\n" else " ")
+            continue
+
+        # Commentaire ligne --...fin-de-ligne (hors chaînes/
+        # identificateurs/blocs, déjà exclus par les branches ci-dessus).
         if c == "-" and i + 1 < n and sql[i + 1] == "-":
             fin = sql.find("\n", i)
             fin_reel = fin if fin != -1 else n
@@ -173,6 +257,7 @@ def _analyser_sql(sql: str) -> tuple[str, str]:
             neutre.append(" " * (fin_reel - i))
             i = fin_reel
             continue
+
         neutre.append(c)
         i += 1
     return "".join(neutre), "\n".join(commentaires)
@@ -367,7 +452,7 @@ def validate_migration(plan: MigrationPlan, sql: str) -> None:
             raise MigrationDestructiveRefusee(
                 "verbe destructif (DROP/TRUNCATE/RENAME) détecté sans "
                 "autorisation complète (phase=contract, reversible=True, "
-                f"marqueur pour la version {plan.version!r} présent dans le SQL)"
+                f"marqueur pour la version {plan.version!r} présent dans un commentaire -- du SQL)"
             )
 
     # 3) Idempotence par construction — PAR INSTRUCTION (découpage par
