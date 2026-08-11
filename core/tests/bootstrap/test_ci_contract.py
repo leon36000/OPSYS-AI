@@ -63,13 +63,20 @@ def _missing_referenced_tests(texte: str, repo_root: Path) -> set[str]:
     """Sous-ensemble des chemins cités qui n'existent PAS réellement sur disque.
 
     Vide == aucun commentaire/step ne cite un test fantôme (cas RED #1).
-    """
+
+    Re-revue rétroactive C02-005 (2026-08-11, Kimi-K3, MAJEURE, confirmée
+    par reproduction directe — cf. test_detecte_un_fantome_dans_un_dossier_
+    parent_qui_existe_reellement) : la version précédente tolérait
+    `cible.parent.exists()` en plus de `cible.exists()` — dans CE dépôt,
+    `core/tests/bootstrap/` existe TOUJOURS, donc cette tolérance
+    désactivait silencieusement la détection pour tout fichier cité sous
+    ce dossier, exactement le cas RED que cette fonction doit couvrir.
+    Aucune tolérance de parent n'est correcte ici : un chemin cité qui
+    n'existe pas EST un test fantôme, que son dossier parent existe ou non."""
     manquants = set()
     for chemin in _referenced_test_paths(texte):
         cible = repo_root / chemin
-        if not cible.exists() and not any(
-            p.exists() for p in [cible] + ([cible.parent] if cible.suffix else [])
-        ):
+        if not cible.exists():
             manquants.add(chemin)
     return manquants
 
@@ -227,6 +234,24 @@ def test_ne_signale_pas_un_chemin_de_test_qui_existe_reellement(tmp_path):
     cible.write_text("def test_x(): assert True\n", encoding="utf-8")
     texte = "# core/tests/bootstrap/test_reel.py\n"
     assert _missing_referenced_tests(texte, tmp_path) == set()
+
+
+def test_detecte_un_fantome_dans_un_dossier_parent_qui_existe_reellement(tmp_path):
+    """Re-revue rétroactive C02-005 (2026-08-11, Kimi-K3, MAJEURE, confirmée
+    par reproduction directe) : la fixture ci-dessus utilise un `tmp_path`
+    VIDE — le dossier parent (`core/tests/bootstrap/`) n'existe pas non
+    plus, cas NON REPRÉSENTATIF de ce dépôt où ce dossier existe TOUJOURS.
+    `_missing_referenced_tests` retombe alors sur `cible.parent.exists()`
+    (dernier terme du `any(...)`) : si le PARENT existe (cas réel de ce
+    dépôt) mais que le FICHIER cité, lui, n'existe pas (renommé/supprimé),
+    la fonction ne le signalait PAS — le cas RED #1 réel ne mordait jamais
+    en pratique, seulement sur la fixture synthétique non représentative.
+    Ce test crée le dossier parent réel SANS créer le fichier cité —
+    reproduit le cas RED effectivement pertinent pour ce dépôt."""
+    (tmp_path / "core" / "tests" / "bootstrap").mkdir(parents=True)
+    texte = "# cf. core/tests/bootstrap/test_renomme_ou_supprime.py\n"
+    manquants = _missing_referenced_tests(texte, tmp_path)
+    assert "core/tests/bootstrap/test_renomme_ou_supprime.py" in manquants
 
 
 def test_detecte_combinaison_core_et_modules_m_sur_fixture_synthetique():
