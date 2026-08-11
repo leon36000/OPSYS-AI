@@ -12,6 +12,11 @@ individuellement, avec le texte réel cité (pas résumé de mémoire).
 
 ## 1. `sources/continuity/matrices/RF01-W11-AUTHORITY-DATA-OWNERSHIP.csv`
 
+sha256 (mesuré au moment de cette disposition, pour que toute divergence
+future du fichier pack soit détectable — ce fichier n'étant lui-même pas
+copié dans le dépôt produit, contrairement à la source ratifiée) :
+`8d08b4425af672a4b278384dff36dd6412b0034e2802777ba64a419ae3523a25`.
+
 Structure : `module,authoritative_writes,forbidden_direct_writes,
 reads_via_contracts_from,direct_private_db_access,conflict_rule,status`.
 
@@ -45,6 +50,8 @@ jamais une coexistence silencieuse de deux cartes métier).
 
 ## 2. `sources/continuity/matrices/RF01-W7-OWNERSHIP-AUTHORITY-MATRIX.csv`
 
+sha256 : `b7197401b554940cfa430db7ce0f857388725126d4770f5586e181ce91c64a7a`.
+
 Structure : `capability,authority,consumers,rule`. Exemples :
 
 ```
@@ -72,6 +79,8 @@ substance — M5 possède FINANCE_TRUTH, notre carte donne `ledger`/
 `invoices`/`payments`/... à M5 — même autorité, grain différent).
 
 ## 3. `sources/continuity/matrices/RF01-W6B-AUTHORITY-BOUNDARIES.csv`
+
+sha256 : `b3b273951412c809413cf831ee156e7147f4a24dc8cecdbf76c76d2ddddbd909`.
 
 Structure : `domain,authoritative_owner,hermes_role,openclaw_role,
 failure_semantics`. Exemples :
@@ -105,3 +114,16 @@ par une revue scellée pour M1-M10 à l'issue de ce chore. Les 3 fichiers
 ci-dessus restent, chacun pour un motif distinct et documenté, non
 ratifiés — aucun n'est silencieusement ignoré, aucun n'est promu sans
 justification.
+
+**Limite de vérifiabilité, divulguée (objection mineure, revue scellée
+tour 1, Kimi-K3)** : contrairement à `RF01-W11-AUTHORITY-MAP-M1-M10.csv`
+(copié localement sous `audit/core-baseline/sources/`), les 3 fichiers
+ci-dessus ne sont PAS copiés dans le dépôt produit — seuls des extraits
+verbatim sont cités dans ce document. Leur sha256 (ci-dessus, mesurés
+directement sur le pack) permet de détecter une divergence FUTURE, mais
+ne permet pas à un lecteur du seul dépôt produit de revérifier lui-même
+que les extraits cités sont fidèles au fichier complet. Ne pas les copier
+est un choix délibéré (ils restent explicitement non ratifiés — les
+copier localement suggérerait à tort un statut proche de la source
+ratifiée) ; si un futur chore doit les examiner plus en profondeur, une
+copie locale dédiée sera alors justifiée.

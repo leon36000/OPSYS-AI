@@ -33,13 +33,13 @@ from __future__ import annotations
 
 import csv
 import hashlib
-import io
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
 
-WORKTREE = Path(__file__).resolve().parents[3]
 BASE = Path(__file__).resolve().parent.parent
 
 sys.path.insert(0, str(BASE))
@@ -166,6 +166,35 @@ def test_chaque_record_reference_le_bon_numero_de_ligne_source():
 def test_tous_les_source_sha256_identiques_et_attendus():
     carte = construire_carte_autorite_metier()
     assert {r.source_sha256 for r in carte} == {SOURCE_SHA256_ATTENDU}
+
+
+def test_artefact_commite_octet_pour_octet_identique_a_la_regeneration():
+    """Objection mineure (revue scellée tour 1, Kimi-K3) : les tests
+    précédents pinnent le GÉNÉRATEUR et la SOURCE, jamais l'ARTEFACT
+    COMMITÉ (`BUSINESS-AUTHORITY-MAP-M1-M10.csv` réel du dépôt) — une
+    dérive future (édition manuelle, régénération oubliée, divergence de
+    fin de ligne) ne serait détectée par aucun test. Ce test régénère
+    l'artefact dans un répertoire temporaire SOUS le worktree réel (requis
+    par le confinement `custody` — `sortie_dir` doit être sous `worktree`,
+    même régime que le bloc `__main__` de production) et le compare OCTET
+    POUR OCTET au fichier réellement commité — même discipline que
+    `test_authority_map_csv_14_lignes_bon_entete` (C00-004) qui, lui,
+    épingle sa propre carte commitée. `tempfile.mkdtemp` (nom unique,
+    jamais de collision entre exécutions) + `shutil.rmtree` en `finally`
+    (nettoyage garanti même si l'assertion échoue)."""
+    worktree_reel = BASE.parent.parent
+    artefact_commite = BASE / "BUSINESS-AUTHORITY-MAP-M1-M10.csv"
+    assert artefact_commite.is_file(), f"{artefact_commite} absent — régénérer via business_authority_map.py"
+
+    sortie_dir = Path(tempfile.mkdtemp(dir=worktree_reel, prefix=".regen-test-"))
+    try:
+        chemin_regenere = produire_sortie(sortie_dir=sortie_dir, worktree=worktree_reel)
+        assert chemin_regenere.read_bytes() == artefact_commite.read_bytes(), (
+            "l'artefact commité diverge de la régénération — relancer "
+            "business_authority_map.py et recommitter la sortie"
+        )
+    finally:
+        shutil.rmtree(sortie_dir)
 
 
 # ---------------------------------------------------------------------------

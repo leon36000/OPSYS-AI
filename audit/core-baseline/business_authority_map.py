@@ -38,6 +38,17 @@ class AgregatDuplique(Exception):
 
     Cela brise l'invariant d'autorité unique : chaque agrégat ne peut avoir qu'un
     seul propriétaire dans la ligne de base. Le conflit doit être arbitré.
+
+    Comparaison SENSIBLE À LA CASSE, par choix délibéré (revue scellée tour 1,
+    Kimi-K3, mineure) : la clé de déduplication est le token brut après
+    `strip()`, sans `casefold()`/`lower()`. Une normalisation de casse serait
+    une INTERPRÉTATION du texte source au-delà du simple split virgule (même
+    principe que l'absence de split sur `/`/`and` — jamais transformer le
+    texte source au-delà du strict nécessaire). Sur la donnée réelle actuelle
+    (source intégralement en minuscules), cette sensibilité ne mord jamais ;
+    si un futur amendement du CSV source introduit une divergence de casse
+    réelle (« Ledger » vs « ledger »), elle devra être résolue à la SOURCE
+    (corriger la cellule), pas absorbée silencieusement ici.
     """
 
 
