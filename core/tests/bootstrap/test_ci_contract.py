@@ -125,7 +125,7 @@ def _jobs_without_hard_failure(data: dict, noms: set[str]) -> list[str]:
             continue
         steps = job.get("steps") or []
         a_echec_dur = any(
-            "exit 1" in (step.get("run") or "") or "exit 1" in (step.get("run") or "")
+            "exit 1" in (step.get("run") or "")
             for step in steps
             if isinstance(step, dict)
         )
