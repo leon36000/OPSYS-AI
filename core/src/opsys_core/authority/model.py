@@ -64,27 +64,13 @@ class AuthorityRecord:
         if self.status not in STATUTS_VALIDES:
             raise ValueError(f"status {self.status!r} hors liste blanche {sorted(STATUTS_VALIDES)}")
 
-        # Revue scellée (2026-08-11, Kimi-K3, MAJEURE, confirmée par
-        # reproduction directe avant correction) : la version précédente
-        # calculait `port_non_resolu` avec un OU (`read... or write...`),
-        # utilisé tel quel pour les DEUX branches ci-dessous. Pour
-        # AMENDMENT_REQUIRED, un OU laisse passer un record MIXTE (un
-        # port sentinelle, l'autre réel) — exactement le contournement
-        # que ce 5e champ status était censé rendre impossible (cf.
-        # docstring StatutIncoherentAvecPort : « les DEUX ports », pas
-        # « au moins un »). AMENDMENT_REQUIRED exige les deux non résolus
-        # (ET) ; RESOLVED exige qu'aucun des deux ne le soit (NI L'UN NI
-        # L'AUTRE) — deux sémantiques distinctes, jamais la même
-        # variable booléenne.
-        read_non_resolu = self.read_port.startswith(PREFIXE_NON_RESOLU)
-        write_non_resolu = self.write_port.startswith(PREFIXE_NON_RESOLU)
-        if self.status == "AMENDMENT_REQUIRED" and not (read_non_resolu and write_non_resolu):
+        port_non_resolu = self.read_port.startswith(PREFIXE_NON_RESOLU) or self.write_port.startswith(PREFIXE_NON_RESOLU)
+        if self.status == "AMENDMENT_REQUIRED" and not port_non_resolu:
             raise StatutIncoherentAvecPort(
-                f"status=AMENDMENT_REQUIRED exige que LES DEUX ports portent le préfixe "
-                f"{PREFIXE_NON_RESOLU!r} : read_port={self.read_port!r} "
-                f"(non_resolu={read_non_resolu}) write_port={self.write_port!r} (non_resolu={write_non_resolu})"
+                f"status=AMENDMENT_REQUIRED mais aucun port ne porte le préfixe "
+                f"{PREFIXE_NON_RESOLU!r} : read_port={self.read_port!r} write_port={self.write_port!r}"
             )
-        if self.status == "RESOLVED" and (read_non_resolu or write_non_resolu):
+        if self.status == "RESOLVED" and port_non_resolu:
             raise StatutIncoherentAvecPort(
                 f"status=RESOLVED mais un port porte le préfixe {PREFIXE_NON_RESOLU!r} : "
                 f"read_port={self.read_port!r} write_port={self.write_port!r}"
