@@ -18,6 +18,16 @@ voit jamais un commentaire) :
     est interne par construction) d'un nom de paquet appartenant à un
     AUTRE module M que celui du fichier source (ou n'importe quel
     module M si le fichier source est hors de Modules M/, ex. core/).
+    LIMITATION CONNUE (objection Kimi-K3 tour 1, mineure, confirmée,
+    NON corrigée — hors périmètre proportionné) : seule sys.stdlib_
+    module_names est soustraite avant comparaison à la map modules M ;
+    un futur paquet TIERS (PyPI) homonyme d'un des 13 noms plats de
+    M7-marketing (ads, brand, content, reputation, roi, seo, site,
+    social, utm, workflows...) importé légitimement ailleurs serait
+    signalé à tort. 0 cas réel aujourd'hui (core/pyproject.toml n'a
+    qu'une dépendance, PyYAML) — corriger exigerait de maintenir une
+    liste de paquets PyPI réellement installés, hors périmètre de
+    C04-002.
 
   CHEMIN_PRIVE_CROSS_MODULE — un littéral de chaîne référençant
     `Modules M/<Mx>/...` où Mx diffère du module propriétaire du
@@ -88,11 +98,18 @@ _EXCLUSIONS_PREFIXES = ("audit/", "reviews/", "tests/e2e/")
 def _est_zone_test(rel_str: str) -> bool:
     """Vrai si le fichier est sous core/tests/ ou Modules M/<Mx>/tests/
     — exclu des détecteurs CHEMIN_PRIVE_CROSS_MODULE et SQL_TABLE_PRIVEE
-    uniquement (cf. docstring de module), jamais de IMPORT_CROSS_MODULE."""
+    uniquement (cf. docstring de module), jamais de IMPORT_CROSS_MODULE.
+
+    Ancré sur `parts[2] == "tests"` (le dossier tests/ RACINE du module),
+    jamais `"tests" in parts` (objection Kimi-K3 tour 1, mineure,
+    confirmée) : la version précédente excluait aussi un sous-dossier
+    tests/ imbriqué ailleurs (ex. Modules M/<Mx>/src/<pkg>/tests/x.py)
+    — 0 cas réel mesuré aujourd'hui (aucun module M n'a de tests/ sous
+    src/), mais une sur-exclusion silencieuse latente."""
     if rel_str.startswith("core/tests/"):
         return True
     parts = rel_str.split("/")
-    return len(parts) >= 3 and parts[0] == _MODULES_M_DIR and "tests" in parts
+    return len(parts) >= 3 and parts[0] == _MODULES_M_DIR and parts[2] == "tests"
 
 # Capture "Modules M/<Nom-Module>/<reste-du-chemin>" — le nom de module
 # suit le patron réel mesuré (ex. M2-revenue-crm, M10-memoire).
@@ -239,23 +256,25 @@ def _detecter_chemins_prives_cross_module(
             continue
         if id(noeud) in docstrings:
             continue
-        match = _MOTIF_CHEMIN_MODULE.search(noeud.value)
-        if not match:
-            continue
-        module_cible, reste = match.group(1), match.group(2)
-        if module_cible == module_source:
-            continue
-        if reste.startswith("contracts/") or reste == "contracts":
-            continue
-        violations.append(
-            Violation(
-                kind="CHEMIN_PRIVE_CROSS_MODULE",
-                fichier=str(fichier),
-                module_source=module_source or "(hors Modules M/)",
-                module_cible=module_cible,
-                detail=f"référence au chemin privé {noeud.value!r}",
+        # finditer, jamais search+continue (objection Kimi-K3 tour 1,
+        # mineure, confirmée) : une chaîne peut citer PLUSIEURS chemins
+        # (ex. un contracts/ légitime suivi d'un src/ privé) — search()
+        # ne voyait que la première occurrence et masquait les suivantes.
+        for match in _MOTIF_CHEMIN_MODULE.finditer(noeud.value):
+            module_cible, reste = match.group(1), match.group(2)
+            if module_cible == module_source:
+                continue
+            if reste.startswith("contracts/") or reste == "contracts":
+                continue
+            violations.append(
+                Violation(
+                    kind="CHEMIN_PRIVE_CROSS_MODULE",
+                    fichier=str(fichier),
+                    module_source=module_source or "(hors Modules M/)",
+                    module_cible=module_cible,
+                    detail=f"référence au chemin privé {match.group(0)!r} (dans {noeud.value!r})",
+                )
             )
-        )
     return violations
 
 

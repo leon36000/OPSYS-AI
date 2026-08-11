@@ -112,6 +112,25 @@ def test_fichiers_a_scanner_exclut_audit_et_tests_e2e():
         assert not str(rel).startswith("tests/e2e/"), f"tests/e2e/ non exclu : {rel}"
 
 
+def test_fichiers_a_scanner_exclut_reviews_directement(tmp_path):
+    """Objection Kimi-K3 tour 1 (mineure, confirmée) : reviews/ (archives
+    de preuve) n'était testé QU'indirectement (via le scan du dépôt réel,
+    qui ne prouve rien si reviews/ ne contient par hasard aucun motif
+    violant). Preuve DIRECTE sur fixture synthétique : un fichier .py
+    sous reviews/ n'apparaît JAMAIS dans fichiers_a_scanner."""
+    faux_repo = tmp_path / "repo"
+    (faux_repo / "reviews" / "M9-S001").mkdir(parents=True)
+    (faux_repo / "reviews" / "M9-S001" / "mut.py").write_text("X = 1\n", encoding="utf-8")
+    (faux_repo / "Modules M" / "M1-front-office" / "src" / "m1_front_office").mkdir(parents=True)
+    (faux_repo / "Modules M" / "M1-front-office" / "src" / "m1_front_office" / "x.py").write_text(
+        "Y = 1\n", encoding="utf-8"
+    )
+
+    fichiers = {f.relative_to(faux_repo) for f in fichiers_a_scanner(faux_repo)}
+    assert not any(str(f).startswith("reviews/") for f in fichiers), "reviews/ non exclu"
+    assert any("m1_front_office" in str(f) for f in fichiers), "le fichier légitime hors reviews/ a disparu à tort"
+
+
 # ---------------------------------------------------------------------------
 # Cas RED 1 — détecter import direct M1->M2
 # ---------------------------------------------------------------------------
@@ -295,6 +314,61 @@ def test_chemin_prive_dans_son_propre_module_n_est_jamais_signale(tmp_path):
 
     violations = scan_module_isolation(faux_repo)
     assert not [v for v in violations if v.kind == "CHEMIN_PRIVE_CROSS_MODULE"]
+
+
+def test_detecte_plusieurs_chemins_prives_dans_le_meme_litteral(tmp_path):
+    """Objection Kimi-K3 tour 1 (mineure, confirmée) : search()+continue
+    ne voyait que la PREMIÈRE occurrence par chaîne littérale — un
+    littéral citant d'abord un chemin contracts/ (légitime) PUIS un
+    chemin src/ (privé) masquait ce second chemin. Corrigé avec
+    finditer() : preuve que les DEUX occurrences d'un même littéral sont
+    évaluées indépendamment."""
+    faux_repo = tmp_path / "repo"
+    m1_src = faux_repo / "Modules M" / "M1-front-office" / "src" / "m1_front_office"
+    m1_src.mkdir(parents=True)
+    (m1_src / "__init__.py").write_text("", encoding="utf-8")
+    (m1_src / "lecture.py").write_text(
+        "DOC = ('voir Modules M/M2-revenue-crm/contracts/x.yaml '"
+        "'puis Modules M/M2-revenue-crm/src/m2_revenue_crm/registre.py')\n",
+        encoding="utf-8",
+    )
+    (faux_repo / "Modules M" / "M2-revenue-crm" / "src" / "m2_revenue_crm").mkdir(parents=True)
+    (faux_repo / "Modules M" / "M2-revenue-crm" / "src" / "m2_revenue_crm" / "__init__.py").write_text(
+        "", encoding="utf-8"
+    )
+    (faux_repo / "Modules M" / "M2-revenue-crm" / "contracts").mkdir(parents=True)
+
+    violations = scan_module_isolation(faux_repo)
+    cibles = [v for v in violations if v.kind == "CHEMIN_PRIVE_CROSS_MODULE"]
+    assert any("registre.py" in v.detail for v in cibles), (
+        "GARDE RETIRÉE : le second chemin (privé) d'un littéral à occurrences multiples n'est pas détecté"
+    )
+
+
+def test_sous_dossier_tests_imbrique_dans_src_n_est_pas_exclu(tmp_path):
+    """Objection Kimi-K3 tour 1 (mineure, confirmée) : _est_zone_test
+    testait `"tests" in parts` — n'importe quel composant de chemin
+    nommé "tests", même imbriqué DANS src/, était exclu à tort. Corrigé
+    avec un ancrage sur parts[2] (le dossier tests/ RACINE du module) :
+    preuve qu'un chemin Modules M/<Mx>/src/<pkg>/tests/x.py N'EST PAS
+    traité comme zone-test (donc CHEMIN_PRIVE_CROSS_MODULE reste actif
+    dessus)."""
+    faux_repo = tmp_path / "repo"
+    m1_tests_imbrique = (
+        faux_repo / "Modules M" / "M1-front-office" / "src" / "m1_front_office" / "tests"
+    )
+    m1_tests_imbrique.mkdir(parents=True)
+    (m1_tests_imbrique / "x.py").write_text(
+        "MOI = 'Modules M/M2-revenue-crm/src/m2_revenue_crm/registre.py'\n", encoding="utf-8"
+    )
+    (faux_repo / "Modules M" / "M2-revenue-crm" / "src" / "m2_revenue_crm").mkdir(parents=True)
+    (faux_repo / "Modules M" / "M2-revenue-crm" / "src" / "m2_revenue_crm" / "__init__.py").write_text(
+        "", encoding="utf-8"
+    )
+
+    violations = scan_module_isolation(faux_repo)
+    cibles = [v for v in violations if v.kind == "CHEMIN_PRIVE_CROSS_MODULE"]
+    assert cibles, "un sous-dossier tests/ imbriqué dans src/ a été exclu à tort de la détection"
 
 
 def test_chemin_dans_un_commentaire_n_est_jamais_signale_scan_ast_pas_texte(tmp_path):
