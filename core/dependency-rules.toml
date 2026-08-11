@@ -98,6 +98,11 @@ from = "ports"
 to = "kernel"
 
 [[rules.allowed]]
+from = "domain"
+to = "ports"
+reason = "ajoutée suite à l'objection MiMo-V2.5-Pro tour 2 (mineure, confirmée) : domain est le consommateur naturel des ports dans le pattern ports & adapters — omission réelle de la matrice initiale, aucun impact fonctionnel (non interdit = permis par défaut) mais ambiguïté documentaire réelle pour un futur lecteur (C04-004 et suivantes)"
+
+[[rules.allowed]]
 from = "adapters"
 to = "kernel"
 

@@ -144,14 +144,26 @@ def test_d_finir_les_ports_et_d_pendances_autoris_es_1():
 
 
 def test_detecte_un_import_modules_m_sur_fixture_synthetique(tmp_path):
-    """Preuve que le détecteur détecte VRAIMENT un import Modules M — pas
-    seulement que le code réel est propre par construction (le code réel
-    passerait même avec un détecteur cassé, cf. docstring de module)."""
+    """Preuve que le MÉCANISME COMPLET du cas RED #1 (extraction +
+    _noms_modules_m_reels() + intersection) détecte VRAIMENT un import
+    Modules M — pas seulement que le code réel est propre par
+    construction (le code réel passerait même avec un détecteur cassé,
+    cf. docstring de module).
+
+    Objection Kimi-K3 tour 2 (mineure, confirmée) : la version précédente
+    ne vérifiait que l'EXTRACTION des noms, jamais l'intersection avec
+    _noms_modules_m_reels() ni l'assertion `assert not collision` du cas
+    RED #1 réel — même classe de trou que celle déjà corrigée pour RED #2
+    au tour 2, laissée ouverte ici par asymétrie. Corrigé pour cohérence :
+    ce test reproduit maintenant le calcul EXACT du cas RED #1."""
     faux_fichier = tmp_path / "faux.py"
     faux_fichier.write_text("import m2_revenue_crm\nfrom m4_field_ops import x\n", encoding="utf-8")
+    noms_m = _noms_modules_m_reels()
     imports = _imports_absolus_top_level(faux_fichier)
-    assert "m2_revenue_crm" in imports
-    assert "m4_field_ops" in imports
+    collision = imports & noms_m
+    assert collision == {"m2_revenue_crm", "m4_field_ops"}, (
+        f"le détecteur ne repère pas la collision Modules M attendue : {collision}"
+    )
 
 
 def test_rglob_couvre_bien_authority_et_status_pas_seulement_la_racine():
@@ -360,7 +372,20 @@ def test_union_des_couches_couvre_exactement_tous_les_py_de_core_src():
     NOMME l'absence : l'union de TOUTES les couches déclarées (kernel +
     domain + ports + application + adapters) doit couvrir EXACTEMENT
     l'ensemble des fichiers .py réels de core/src/ — aucun fichier
-    "orphelin" échappant à toute couche, aucune dérive silencieuse."""
+    "orphelin" échappant à toute couche, aucune dérive silencieuse.
+
+    LIMITATION CONNUE (objection Kimi-K3 tour 2, mineure, confirmée et
+    ASSUMÉE — pas corrigée) : cette garde vérifie l'ABSENCE d'orphelins
+    (chaque fichier appartient à AU MOINS une couche), pas la CORRECTE
+    assignation de chaque fichier à SA couche exacte. Déplacer
+    "opsys_core/kernel.py" de kernel vers adapters dans le TOML resterait
+    indétecté par cette garde seule (toujours 0 orphelin). Un test qui
+    épinglerait explicitement l'appartenance de CHAQUE fichier à sa
+    couche serait plus complet mais fragile (obligerait à mettre à jour
+    ce test à chaque nouveau fichier de core/src/, hors du périmètre
+    "définir les ports" de C04-001) — trade-off assumé, pas une
+    sur-spécification non sourcée. La revue humaine du TOML reste la
+    garde de correction d'assignation aujourd'hui."""
     regles = _charger_regles()
     tous_les_py_reels = {p.relative_to(_CORE_SRC) for p in _CORE_SRC.rglob("*.py")}
     assert tous_les_py_reels, "aucun fichier .py sous core/src/ — la mesure elle-même serait aveugle"
@@ -384,14 +409,30 @@ def test_detecte_un_fichier_orphelin_sur_fixture_synthetique(tmp_path):
     TOML synthétiques minimaux, plutôt que de re-corrompre
     dependency-rules.toml lui-même. Réimplémente localement le calcul de
     complétude (pas d'import du reste du module, pas de monkeypatch d'une
-    constante globale — la logique testée est la même que celle de
-    test_union_des_couches_couvre_exactement_tous_les_py_de_core_src)."""
+    constante globale) — EXERCE LES DEUX BRANCHES de _fichiers_de_la_couche
+    (fichier unique ET dossier récursif via rglob), pas seulement la
+    première.
+
+    Objection Kimi-K3 tour 2 (mineure, confirmée) : la version précédente
+    de cette fixture ne déclarait qu'un préfixe FICHIER dans le TOML
+    synthétique (opsys_core/kernel.py), n'exerçant jamais la branche
+    `elif cible.is_dir(): rglob(...)` — le docstring affirmait à tort
+    « la logique testée est la même » que le code réel (qui a des
+    couches déclarées par DOSSIER : authority/, status/, ports/,
+    auth/, authz/, config/). Corrigé : le TOML synthétique déclare
+    maintenant une couche par fichier (kernel) ET une couche par dossier
+    (domain, avec un sous-fichier), exerçant les deux branches réelles."""
     faux_core_src = tmp_path / "core_src"
-    (faux_core_src / "opsys_core").mkdir(parents=True)
+    (faux_core_src / "opsys_core" / "domaine_dir").mkdir(parents=True)
     (faux_core_src / "opsys_core" / "kernel.py").write_text("", encoding="utf-8")
+    (faux_core_src / "opsys_core" / "domaine_dir" / "regle.py").write_text("", encoding="utf-8")
     (faux_core_src / "opsys_core" / "orphelin.py").write_text("", encoding="utf-8")
     faux_toml = tmp_path / "regles.toml"
-    faux_toml.write_text('[layers.kernel]\npaths = ["opsys_core/kernel.py"]\n', encoding="utf-8")
+    faux_toml.write_text(
+        '[layers.kernel]\npaths = ["opsys_core/kernel.py"]\n'
+        '[layers.domain]\npaths = ["opsys_core/domaine_dir/"]\n',
+        encoding="utf-8",
+    )
 
     with faux_toml.open("rb") as f:
         regles = tomllib.load(f)
@@ -402,8 +443,13 @@ def test_detecte_un_fichier_orphelin_sur_fixture_synthetique(tmp_path):
             cible = faux_core_src / prefixe
             if cible.is_file():
                 couverts.add(cible.relative_to(faux_core_src))
+            elif cible.is_dir():
+                couverts.update(p.relative_to(faux_core_src) for p in cible.rglob("*.py"))
     orphelins = tous_les_py - couverts
     assert orphelins == {Path("opsys_core/orphelin.py")}
+    assert Path("opsys_core/domaine_dir/regle.py") in couverts, (
+        "la branche dossier (rglob) de la fixture n'a pas couvert le fichier attendu"
+    )
 
 
 # ---------------------------------------------------------------------------
