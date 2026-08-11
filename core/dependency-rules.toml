@@ -74,11 +74,8 @@ paths = [
 note = "contrats provider-neutral (C04-001) — ne dépend d'aucune autre couche (surtout pas adapters, cas RED #2)"
 
 [layers.application]
-paths = [
-    "opsys_core/composition.py",
-    "opsys_core/provider_registry.py",
-]
-note = "PEUPLÉE par C04-004 (composition.py, provider_registry.py) comme annoncé ici depuis C04-001. Note explicite conservée non vide (garde CAND-CA05-0004, cf. audit SKELETON-54-ISSUES-RECLASSEES-SKELETON-FIRST.csv) même après peuplement — c'est la présence d'une justification, pas la vacuité elle-même, qui prévient la bijection silencieuse sur deux ensembles vides."
+paths = []
+note = "VIDE au 2026-08-11 (C04-001) — peuplée par C04-004 (composition.py, provider_registry.py) ; déclarée vide explicitement avec cette raison pour ne jamais devenir une bijection silencieuse sur deux ensembles vides (cf. audit SKELETON-54-ISSUES-RECLASSEES-SKELETON-FIRST.csv, CAND-CA05-0004)"
 
 [layers.adapters]
 paths = [
