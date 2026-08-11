@@ -1,12 +1,10 @@
-# Checks CI Core — état réel et noms à rendre required (C02-005)
+# Checks CI Core — état réel et noms à rendre required (C02-005 + chantier CI-hardening)
 
 Ce document accompagne `.github/workflows/core-ci.yml`. Il ne modifie **aucune**
 configuration GitHub réelle (branch protection) — bascule en check *required*
-= décision humaine séparée, hors périmètre de l'implémentation strictement
-bornée de C02-005 (« documenter les noms exacts à rendre required dans GitHub »,
-pas les rendre required par appel API).
+= décision humaine séparée.
 
-## Constat mesuré avant cette tâche
+## Constat mesuré avant C02-005
 
 Le workflow existant `.github/workflows/ci.yml` (job `gates`, seul check
 `required` actuel en branch protection sur `main`) exécute `scripts/tests` et
@@ -15,50 +13,72 @@ chaque `Modules M/*/tests` en pytest séparé, mais **ne touche jamais
 Actions récent (PR #494, C02-004). Les tests C02-001→C02-004 (61 tests au
 moment de la mesure) n'étaient donc exécutés par AUCUN CI réel : uniquement
 vérifiés localement par l'Orchestrateur avant chaque merge. `core-ci.yml`
-ferme ce trou pour `types` et `tests` ; les 3 autres catégories exigées par la
-tâche restent honnêtement bloquées (voir tableau).
+a fermé ce trou pour `types` et `tests` ; les 3 autres catégories exigées par
+C02-005 sont restées honnêtement bloquées (placeholders `exit 1`) jusqu'au
+chantier CI-hardening (ci-dessous) qui leur a construit un mécanisme réel.
 
-## Jobs de `core-ci.yml`
+## MISE À JOUR (chantier CI-hardening, PR #516) — les 3 placeholders sont désormais réels
+
+Les 3 jobs listés ci-dessous comme "🔴 ROUGE explicite (voulu)" dans la
+version originale de ce document (C02-005) sont **remplacés par des
+mécanismes réels, VERTS**, revus par 4 voix indépendantes (consensus 3
+vendors distincts, cf. `evidence/tasks/CI-HARDENING-001/`) :
+
+- **`security`** : bandit 1.9.4 + pip-audit 2.10.1 (`core/scripts/run_security_scan.py`),
+  scope `core/src/` + `core/scripts/`.
+- **`pack-validation`** : rejoue toolchain (C02-001) + dépendances (C02-002) +
+  runner hermétique (C02-003) + `structure_lint.py`
+  (`core/scripts/run_pack_validation.py`).
+- **`proof-sealed`** : vérifie qu'un changement de code sous le périmètre
+  scellé (`core/`, les 2 workflows CI, `scripts/`) est accompagné d'un
+  Evidence Bundle scellé committé sous `evidence/tasks/<ID>/`,
+  cryptographiquement lié au diff réel (`code_diff_sha256`) et à un
+  manifeste bijectif des verdicts de revue (`reviews{nom:sha256}`)
+  (`core/scripts/verify_proof_sealed.py`).
+
+**CodeQL** (SAST approfondi) a aussi été ajouté — mais **local uniquement**
+(`core/scripts/run_codeql_scan.py`), **pas câblé en CI** : le bundle CLI
+(578 Mo, installation manuelle) ajouterait un coût réel à chaque run,
+question non tranchée unilatéralement (voir « Câblage CI de CodeQL » ci-dessous).
+
+## Jobs de `core-ci.yml` (état courant)
 
 | Job (context GitHub) | État | Mécanisme réel |
 |---|---|---|
-| `types` | ✅ VERT (mécanisme réel) | `mypy==2.1.0` (version mesurée localement lors de l'établissement de la baseline C02-004) sur `core/`, gate `mypy-core` de `core/quality-gates.toml` via `evaluer_matrice()` (C02-004) — baseline 2 erreurs connues, jamais masquées ; seules les erreurs AU-DELÀ bloquent. |
-| `tests` | ✅ VERT (mécanisme réel) | `pytest -q core/tests/bootstrap` — scope `core/` isolé, jamais combiné à `Modules M/*` (collision de noms de modules mesurée en C02-004 : `verif_coherence.py` dupliqué dans plusieurs `Modules M/*/docs/bmad/`). |
-| `proof-sealed` | 🔴 ROUGE explicite (voulu) | Aucun mécanisme de vérification de scellement des Evidence Bundles/revues n'est câblé en CI à ce jour. Bloque avec message clair plutôt que de simuler un vert. |
-| `security` | 🔴 ROUGE explicite (voulu) | Aucun scanner de sécurité (bandit, pip-audit, semgrep, …) n'est référencé nulle part dans ce dépôt (grep exhaustif au moment de C02-005). Le seul mécanisme de sécurité existant (gitleaks) tourne en hook git pré-commit **local**, hors CI GitHub Actions, jamais testé sur ce runner. |
-| `pack-validation` | 🔴 ROUGE explicite (voulu) | Aucune validation de cohérence globale du pack bootstrap Core (toolchain lock C02-001 + dependency lock C02-002 + test runner C02-003 + quality gates C02-004, réunis) n'est câblée. |
+| `types` | ✅ VERT | `mypy==2.1.0` sur `core/`, gate `mypy-core` de `core/quality-gates.toml` via `evaluer_matrice()` (C02-004) — baseline 2 erreurs connues, jamais masquées. |
+| `tests` | ✅ VERT | `pytest -q core/tests/bootstrap core/tests/architecture core/tests/persistence` — scope `core/` isolé, jamais combiné à `Modules M/*`. |
+| `security` | ✅ VERT | Voir « MISE À JOUR » ci-dessus. |
+| `pack-validation` | ✅ VERT | Voir « MISE À JOUR » ci-dessus. |
+| `proof-sealed` | ✅ VERT | Voir « MISE À JOUR » ci-dessus. |
 
-Les 3 jobs ROUGE ne sont **pas des bugs** : c'est le comportement voulu de
-cette tâche — « rendre les checks CI réellement bloquants » signifie qu'une
-catégorie sans mécanisme réel doit être visiblement rouge, jamais un `pass`
-silencieux qui ferait croire à une garantie qui n'existe pas (PROOF invariant
-#4). Chacun est un point d'entrée explicite pour une tâche future dédiée.
+## Ce qui peut devenir `required`
 
-## Ce qui devrait devenir `required` — et ce qui ne le peut pas encore
-
-**Peuvent devenir `required` dès aujourd'hui** (mécanisme réel, déterministe,
-déjà vert sur `main`) :
-- `types`
-- `tests`
-
-**Ne doivent PAS devenir `required` avant qu'un mécanisme réel les remplace**
-— les rendre required aujourd'hui bloquerait TOUT merge, en permanence, sans
-qu'aucun code puisse jamais les satisfaire :
-- `proof-sealed`
-- `security`
-- `pack-validation`
-
-## Procédure pour rendre `types`/`tests` required (action humaine, hors périmètre C02-005)
+Les 5 jobs sont désormais des mécanismes réels, déterministes, vérifiés VERT
+— tous candidats à `required`. **Décision de bascule non exécutée par ce
+chantier** (modification de la configuration de sécurité du dépôt, réservée
+à une décision humaine explicite — même discipline que C02-005).
 
 ```bash
 gh api -X PUT repos/leon36000/OPSYS-AI/branches/main/protection/required_status_checks \
   -f strict=true \
   -f 'contexts[]=gates' \
   -f 'contexts[]=types' \
-  -f 'contexts[]=tests'
+  -f 'contexts[]=tests' \
+  -f 'contexts[]=security' \
+  -f 'contexts[]=pack-validation' \
+  -f 'contexts[]=proof-sealed'
 ```
 
 (`gates` reconduit — ne jamais le retirer de la liste en l'ajoutant, sous
-peine de désactiver le seul check déjà required aujourd'hui.) Cette commande
-n'a **pas** été exécutée par C02-005 : c'est une modification de la
-configuration de sécurité du dépôt, réservée à une décision humaine explicite.
+peine de désactiver le seul check déjà required aujourd'hui.)
+
+## Câblage CI de CodeQL — question ouverte pour Nathan
+
+CodeQL fonctionne réellement en LOCAL (`core/scripts/run_codeql_scan.py`,
+VERT — 13 faux positifs justifiés individuellement, 0 finding non alloué)
+mais n'est PAS câblé dans `core-ci.yml`. Le câbler exigerait soit (a)
+télécharger le bundle CLI (578 Mo) à chaque run CI (coût réel, répété), soit
+(b) utiliser l'action GitHub officielle `github/codeql-action` (gratuite sur
+dépôt privé selon le plan GitHub, mécanisme différent de ce script local).
+Décision délibérément non tranchée par ce chantier — signalée, pas résolue
+en silence.
