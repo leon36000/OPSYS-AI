@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List, Set, Optional
+from typing import Optional
 
 from authz.model import Relation, ObjectType, ObjectRef, TenantScope, ObjectListing
 

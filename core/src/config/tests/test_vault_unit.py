@@ -255,7 +255,6 @@ def test_exception_in_load_settings_redacts_secrets_in_message(cfg, monkeypatch,
 
     provider = cfg.vault.EnvSecretProvider()
 
-    original_init = cfg.settings.Settings.__init__
     def leaking_init(self, *args, **kwargs):
         leaked = provider.known_secret_values()[0]
         raise ValueError(leaked)

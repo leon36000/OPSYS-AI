@@ -7,7 +7,7 @@ from typing import Any
 import yaml
 
 from config.redaction import safe_traceback
-from config.vault import SecretProvider, SecretRef
+from config.vault import SecretProvider
 
 logger = logging.getLogger(__name__)
 
