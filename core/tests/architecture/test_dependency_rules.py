@@ -251,16 +251,32 @@ def test_regle_adapters_vers_ports_est_bien_declaree_allowed():
     )
 
 
-def test_application_est_declaree_vide_explicitement():
+def test_application_est_toujours_documentee_vide_ou_peuplee():
     """Garde nommée contre le piège déjà audité CAND-CA05-0004 (bijection
     silencieuse sur deux ensembles vides) : la couche `application` doit
-    être déclarée VIDE avec une raison explicite, jamais silencieusement
-    absente du TOML."""
+    TOUJOURS être déclarée avec une raison explicite — jamais
+    silencieusement absente du TOML, jamais silencieusement peuplée sans
+    justification.
+
+    MISE À JOUR C04-004 (renommé depuis test_application_est_declaree_
+    vide_explicitement — aucune autre référence dans le dépôt à ce nom,
+    vérifié par grep avant renommage) : la couche n'est plus vide,
+    peuplée comme annoncé par la note du TOML depuis C04-001
+    (« peuplée par C04-004 »). La garde CAND-CA05-0004 reste vivante en
+    exigeant TOUJOURS une note non vide — c'est la présence d'une
+    justification, pas la vacuité elle-même, qui empêche la bijection
+    silencieuse. L'assertion `paths == []` devient `paths != []` :
+    mécaniquement imposé par test_union_des_couches_couvre_exactement_
+    tous_les_py_de_core_src (ci-dessous, même fichier) dès que
+    composition.py/provider_registry.py existent — sans ce changement,
+    ces deux garde-fous du même fichier se contrediraient."""
     regles = _charger_regles()
-    assert "application" in regles["layers"], "couche application absente du TOML — doit être déclarée, même vide"
-    assert regles["layers"]["application"]["paths"] == []
+    assert "application" in regles["layers"], "couche application absente du TOML — doit être déclarée"
+    assert regles["layers"]["application"]["paths"] != [], (
+        "couche application encore vide après C04-004 — peuplement attendu (composition.py, provider_registry.py)"
+    )
     assert regles["layers"]["application"].get("note", "").strip(), (
-        "couche application vide sans raison explicite — cf. CAND-CA05-0004"
+        "couche application sans raison explicite — cf. CAND-CA05-0004"
     )
 
 
