@@ -163,9 +163,11 @@ def _analyser_sql(sql: str) -> tuple[str, str]:
         # comme fermeture), '' reste aussi un échappement valide en
         # complément (les deux formes sont légales dans une E-string).
         if c in "Ee" and i + 1 < n and sql[i + 1] == "'":
+            debut = i
             neutre.append(c)
             neutre.append("'")
             i += 2
+            fermee = False
             while i < n:
                 cc = sql[i]
                 if cc == "\\" and i + 1 < n:
@@ -181,9 +183,12 @@ def _analyser_sql(sql: str) -> tuple[str, str]:
                         continue
                     neutre.append(cc)
                     i += 1
+                    fermee = True
                     break
                 neutre.append(cc if cc == "\n" else " ")
                 i += 1
+            if not fermee:
+                raise SqlMalforme(f"chaîne d'échappement E'...' jamais fermée (débute à la position {debut})")
             continue
 
         # Littéral '...' standard : '' est l'unique échappement
@@ -191,8 +196,10 @@ def _analyser_sql(sql: str) -> tuple[str, str]:
         # strings=on — le backslash n'y est PAS spécial, contrairement
         # aux E-strings ci-dessus).
         if c == "'":
+            debut = i
             neutre.append(c)
             i += 1
+            fermee = False
             while i < n:
                 cc = sql[i]
                 if cc == "'":
@@ -202,16 +209,21 @@ def _analyser_sql(sql: str) -> tuple[str, str]:
                         continue
                     neutre.append(cc)
                     i += 1
+                    fermee = True
                     break
                 neutre.append(cc if cc == "\n" else " ")
                 i += 1
+            if not fermee:
+                raise SqlMalforme(f"littéral de chaîne '...' jamais fermé (débute à la position {debut})")
             continue
 
         # Identificateur délimité "..." : "" est l'échappement, ÉTAT
         # DÉDIÉ (un ' à l'intérieur ne bascule plus vers l'état chaîne).
         if c == '"':
+            debut = i
             neutre.append(c)
             i += 1
+            fermee = False
             while i < n:
                 cc = sql[i]
                 if cc == '"':
@@ -221,9 +233,12 @@ def _analyser_sql(sql: str) -> tuple[str, str]:
                         continue
                     neutre.append(cc)
                     i += 1
+                    fermee = True
                     break
                 neutre.append(cc if cc == "\n" else " ")
                 i += 1
+            if not fermee:
+                raise SqlMalforme(f'identificateur délimité "..." jamais fermé (débute à la position {debut})')
             continue
 
         # Commentaire bloc /* ... */ — IMBRICABLE en PostgreSQL réel,
@@ -243,6 +258,8 @@ def _analyser_sql(sql: str) -> tuple[str, str]:
                     i += 2
                     continue
                 i += 1
+            if profondeur > 0:
+                raise SqlMalforme(f"commentaire bloc /* ... */ jamais fermé (débute à la position {debut})")
             fin = i
             for k in range(debut, fin):
                 neutre.append(sql[k] if sql[k] == "\n" else " ")
@@ -337,6 +354,24 @@ class ReversibleNonBooleen(ValueError):
 
     def __init__(self, valeur: object) -> None:
         super().__init__(f"reversible doit être un bool strict (reçu {valeur!r})")
+        self.code = "VALIDATION"
+
+
+class SqlMalforme(ValueError):
+    """Levée par `_analyser_sql` (donc par `validate_migration`) quand le
+    SQL contient un littéral `'...'`, un identificateur `"..."`, une
+    chaîne d'échappement `E'...'` ou un commentaire bloc `/* ... */`
+    JAMAIS FERMÉ. Refus FAIL-CLOSED plutôt que neutraliser
+    silencieusement tout le reste du SQL (qui pourrait contenir un verbe
+    destructif RÉEL, invisible derrière la construction non fermée —
+    revue scellée C05-002, finding confirmé vrai par mesure directe :
+    les 4 formes partageaient ce même angle mort). Un SQL malformé de
+    cette façon ne s'exécuterait de toute façon jamais dans PostgreSQL
+    réel (erreur de syntaxe) — l'accepter comme « validé » par ce
+    moteur serait un faux DONE."""
+
+    def __init__(self, motif: str) -> None:
+        super().__init__(f"SQL malformé : {motif}")
         self.code = "VALIDATION"
 
 

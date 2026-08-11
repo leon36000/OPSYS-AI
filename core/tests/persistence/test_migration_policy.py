@@ -42,6 +42,7 @@ from opsys_core.persistence.migrations import (
     MigrationPlan,
     PhaseInvalide,
     ReversibleNonBooleen,
+    SqlMalforme,
     validate_migration,
 )
 
@@ -601,6 +602,87 @@ def test_commentaire_bloc_imbrique_neutralise_correctement_le_contenu():
         version="0018_bloc_imbrique_test", phase="expand", checksum=_checksum(sql_imbrique), reversible=False
     )
     validate_migration(plan, sql_imbrique)  # ne lève pas : le DROP est dans le commentaire
+
+
+# ---------------------------------------------------------------------------
+# Correction issue d'un finding Sentinelle VÉRIFIÉ VRAI (post-tour 4,
+# distinct du mécanisme de confabulation déjà documenté cette session —
+# vérifié directement AVANT action, ni ignoré ni accepté aveuglément) :
+# les 4 formes délimitées (chaîne, identificateur, E-string, commentaire
+# bloc) neutralisaient SILENCIEUSEMENT tout le reste du SQL si jamais
+# fermées, pouvant cacher un verbe destructif RÉEL. Corrigé : refus
+# fail-closed (SqlMalforme) au lieu d'une neutralisation aveugle.
+# ---------------------------------------------------------------------------
+
+
+def test_chaine_jamais_fermee_refusee_fail_closed():
+    """Finding vérifié vrai (mesure directe) : une chaîne '...' jamais
+    fermée neutralisait tout le reste du SQL, y compris un DROP réel
+    après elle — corrigé en refusant fail-closed plutôt que neutraliser
+    à l'aveugle."""
+    sql_chaine_non_fermee = "SELECT 'jamais fermé DROP TABLE x;"
+    plan = MigrationPlan(
+        version="0019_chaine_non_fermee_test",
+        phase="expand",
+        checksum=_checksum(sql_chaine_non_fermee),
+        reversible=False,
+    )
+    with pytest.raises(SqlMalforme):
+        validate_migration(plan, sql_chaine_non_fermee)
+
+
+def test_identificateur_jamais_ferme_refuse_fail_closed():
+    """Même correction, forme identificateur délimité par des guillemets doubles."""
+    sql_identificateur_non_ferme = 'SELECT "jamais fermé DROP TABLE x;'
+    plan = MigrationPlan(
+        version="0020_identificateur_non_ferme_test",
+        phase="expand",
+        checksum=_checksum(sql_identificateur_non_ferme),
+        reversible=False,
+    )
+    with pytest.raises(SqlMalforme):
+        validate_migration(plan, sql_identificateur_non_ferme)
+
+
+def test_e_string_jamais_fermee_refusee_fail_closed():
+    """Même correction, forme chaîne d'échappement E'...'."""
+    sql_e_string_non_fermee = "SELECT E'jamais fermé DROP TABLE x;"
+    plan = MigrationPlan(
+        version="0021_e_string_non_fermee_test",
+        phase="expand",
+        checksum=_checksum(sql_e_string_non_fermee),
+        reversible=False,
+    )
+    with pytest.raises(SqlMalforme):
+        validate_migration(plan, sql_e_string_non_fermee)
+
+
+def test_commentaire_bloc_jamais_ferme_refuse_fail_closed():
+    """Finding Sentinelle vérifié VRAI (distinct du mécanisme de
+    confabulation déjà documenté cette session) : un commentaire bloc
+    /* ... */ jamais fermé neutralisait tout le reste du SQL, y compris
+    un DROP réel après lui — corrigé en refusant fail-closed."""
+    sql_bloc_non_ferme = "/* commentaire jamais fermé DROP TABLE x;"
+    plan = MigrationPlan(
+        version="0022_bloc_non_ferme_test", phase="expand", checksum=_checksum(sql_bloc_non_ferme), reversible=False
+    )
+    with pytest.raises(SqlMalforme):
+        validate_migration(plan, sql_bloc_non_ferme)
+
+
+def test_commentaire_bloc_imbrique_jamais_ferme_a_la_racine_refuse():
+    """Contrôle : un commentaire bloc imbriqué dont SEULE la fermeture
+    EXTÉRIEURE manque (profondeur > 0 à la fin) doit aussi être refusé —
+    pas seulement le cas le plus simple à une seule profondeur."""
+    sql_imbrique_non_ferme = "/* /* nested */ DROP TABLE x;"
+    plan = MigrationPlan(
+        version="0023_bloc_imbrique_non_ferme_test",
+        phase="expand",
+        checksum=_checksum(sql_imbrique_non_ferme),
+        reversible=False,
+    )
+    with pytest.raises(SqlMalforme):
+        validate_migration(plan, sql_imbrique_non_ferme)
 
 
 # ---------------------------------------------------------------------------
