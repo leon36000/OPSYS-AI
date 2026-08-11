@@ -263,6 +263,149 @@ def test_cr_er_le_moteur_de_migrations_expand_contract_3():
 
 
 # ---------------------------------------------------------------------------
+# Corrections issues de la revue scellée tour 1 (civ_review) — 6 objections
+# (4 Kimi-K3 dont 2 MAJEURES, 2 DeepSeek), TOUTES vérifiées vraies par
+# reproduction directe AVANT correction (jamais acceptées sur la seule
+# autorité des reviewers).
+# ---------------------------------------------------------------------------
+
+
+def test_idempotence_create_couvre_les_formes_hors_table_index():
+    """Kimi-K3 MAJEURE (tour 1, confirmée vraie) : le motif original
+    n'exigeait IF NOT EXISTS qu'immédiatement après CREATE TABLE/INDEX —
+    CREATE UNIQUE INDEX, CREATE SEQUENCE, CREATE SCHEMA, CREATE EXTENSION
+    sans IF NOT EXISTS n'étaient JAMAIS détectés. Corrigé : toute
+    instruction contenant CREATE doit porter IF NOT EXISTS QUELQUE PART
+    dans CETTE MÊME instruction."""
+    for sql_verbe in (
+        "CREATE UNIQUE INDEX idx ON t(c);",
+        "CREATE SEQUENCE seq_id;",
+        "CREATE SCHEMA nouveau;",
+        "CREATE EXTENSION pgcrypto;",
+    ):
+        plan = MigrationPlan(
+            version="0005_create_forme_test", phase="expand", checksum=_checksum(sql_verbe), reversible=False
+        )
+        with pytest.raises(MigrationNonIdempotente):
+            validate_migration(plan, sql_verbe)
+
+    # Contrôle positif : les mêmes formes AVEC IF NOT EXISTS sont acceptées.
+    for sql_verbe_ok in (
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx ON t(c);",
+        "CREATE SEQUENCE IF NOT EXISTS seq_id;",
+    ):
+        plan_ok = MigrationPlan(
+            version="0005_create_forme_test", phase="expand", checksum=_checksum(sql_verbe_ok), reversible=False
+        )
+        validate_migration(plan_ok, sql_verbe_ok)  # ne lève pas
+
+
+def test_idempotence_insert_verifiee_par_instruction_pas_globalement():
+    """Kimi-K3 MAJEURE (tour 1, confirmée vraie) : un seul ON CONFLICT
+    n'importe où dans un fichier multi-instructions blanchissait TOUS les
+    INSERT INTO, y compris ceux sans leur PROPRE ON CONFLICT. Corrigé :
+    vérification PAR INSTRUCTION (découpage par ';')."""
+    sql_mixte = (
+        "INSERT INTO a(id) VALUES (1) ON CONFLICT DO NOTHING; "
+        "INSERT INTO b(id) VALUES (2);"
+    )
+    plan = MigrationPlan(
+        version="0006_insert_instruction_test", phase="backfill", checksum=_checksum(sql_mixte), reversible=False
+    )
+    with pytest.raises(MigrationNonIdempotente):
+        validate_migration(plan, sql_mixte)
+
+    # Contrôle positif : les DEUX instructions avec leur propre ON CONFLICT.
+    sql_deux_ok = (
+        "INSERT INTO a(id) VALUES (1) ON CONFLICT DO NOTHING; "
+        "INSERT INTO b(id) VALUES (2) ON CONFLICT DO NOTHING;"
+    )
+    plan_ok = MigrationPlan(
+        version="0006_insert_instruction_test", phase="backfill", checksum=_checksum(sql_deux_ok), reversible=False
+    )
+    validate_migration(plan_ok, sql_deux_ok)  # ne lève pas
+
+
+def test_marqueur_autorisation_refuse_collision_par_prefixe_de_version():
+    """Kimi-K3 mineure (tour 1, confirmée vraie) : le marqueur était
+    vérifié par sous-chaîne (`in`), donc le marqueur de la version
+    "0001" (préfixe) matchait dans un SQL portant le marqueur de la
+    version "0001_hotfix" (une AUTRE migration). Corrigé : ancrage par
+    lookahead négative sur caractère non-espace après la version."""
+    sql_avec_marqueur_dune_autre_version = (
+        "-- AUTORISATION-CONTRACT:0001_hotfix\nDROP TABLE IF EXISTS ancien_index;"
+    )
+    plan = MigrationPlan(
+        version="0001",
+        phase="contract",
+        checksum=_checksum(sql_avec_marqueur_dune_autre_version),
+        reversible=True,
+    )
+    with pytest.raises(MigrationDestructiveRefusee):
+        validate_migration(plan, sql_avec_marqueur_dune_autre_version)
+
+    # Contrôle positif : le marqueur EXACT (version complète, terminé par
+    # un espace/saut de ligne) autorise toujours.
+    sql_marqueur_exact = "-- AUTORISATION-CONTRACT:0001\nDROP TABLE IF EXISTS ancien_index;"
+    plan_ok = MigrationPlan(
+        version="0001", phase="contract", checksum=_checksum(sql_marqueur_exact), reversible=True
+    )
+    validate_migration(plan_ok, sql_marqueur_exact)  # ne lève pas
+
+
+def test_checksum_format_refuse_65_caracteres_avec_saut_de_ligne_final():
+    """Kimi-K3 mineure (tour 1, confirmée vraie) : `re.match(r"^[0-9a-f]
+    {64}$", ...)` — `$` matche aussi juste avant un saut de ligne
+    terminal en Python, donc un checksum de 65 caractères (64 hex + un
+    `\\n` final) passait à tort la garde de FORME. Corrigé :
+    `.fullmatch()` sans ancres `^$`."""
+    checksum_65_caracteres = "a" * 64 + "\n"
+    with pytest.raises(ChecksumFormatInvalide):
+        MigrationPlan(
+            version="0007_checksum_65_test", phase="expand", checksum=checksum_65_caracteres, reversible=False
+        )
+
+
+def test_mot_destructif_dans_un_commentaire_ne_declenche_pas_le_refus():
+    """DeepSeek mineure (tour 1, confirmée vraie) : un mot destructif
+    (DROP/TRUNCATE/RENAME) MENTIONNÉ dans un commentaire SQL (`-- ...`)
+    n'est PAS un verbe SQL réel — corrigé : les commentaires sont
+    retirés AVANT la détection de mots-clés destructifs ET idempotence."""
+    sql_commentaire_seulement = (
+        "-- ce commentaire mentionne DROP mais n'en fait pas un\n"
+        "CREATE TABLE IF NOT EXISTS t(id int);"
+    )
+    plan = MigrationPlan(
+        version="0008_commentaire_test", phase="expand", checksum=_checksum(sql_commentaire_seulement), reversible=False
+    )
+    validate_migration(plan, sql_commentaire_seulement)  # ne lève pas (ni destructif ni non-idempotent)
+
+
+def test_insert_where_not_exists_reste_refuse_biais_conservateur_assume():
+    """DeepSeek mineure (tour 1, confirmée vraie) : `INSERT ... SELECT
+    ... WHERE NOT EXISTS` est une forme idempotente ALTERNATIVE à `ON
+    CONFLICT`, mais N'EST PAS reconnue comme telle — DÉLIBÉRÉMENT NON
+    CORRIGÉ (biais conservateur assumé : le faux négatif, SQL sûr
+    rejeté, est la direction SÛRE du fail-closed ; élargir la
+    reconnaissance de formes ajouterait de la surface de motif pour un
+    bénéfice de confort, pas de sûreté). Ce test PROUVE le comportement
+    documenté plutôt que de le laisser implicite — s'il devient vert un
+    jour sans intention explicite, un changement de comportement non
+    documenté aura eu lieu."""
+    sql_where_not_exists = (
+        "INSERT INTO t(id) SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM t WHERE id=1);"
+    )
+    plan = MigrationPlan(
+        version="0009_where_not_exists_test",
+        phase="backfill",
+        checksum=_checksum(sql_where_not_exists),
+        reversible=False,
+    )
+    with pytest.raises(MigrationNonIdempotente):
+        validate_migration(plan, sql_where_not_exists)
+
+
+# ---------------------------------------------------------------------------
 # Croisement avec le harnais existant — preuve, pas supposition
 # ---------------------------------------------------------------------------
 

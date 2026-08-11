@@ -38,6 +38,47 @@ SANS EXÉCUTION :
      TOUJOURS le même verdict, aucun effet observable (aucun état
      module-level, même discipline que composition.py/provider_registry.py
      C04-004).
+
+RÉVISÉ après revue scellée tour 1 (civ_review, google/kimi-k3/deepseek) :
+REJECT de Kimi-K3 (2 objections MAJEURES) + 2 objections mineures
+DeepSeek — LES 6 VÉRIFIÉES VRAIES par reproduction directe AVANT
+correction (CLAIMS UNVERIFIED, jamais acceptées sur la seule autorité
+des reviewers). Corrections apportées :
+  a. Idempotence CREATE/DROP redessinée en PAR-INSTRUCTION (découpage
+     par ';', heuristique bornée) plutôt qu'un motif fixe CREATE suivi
+     immédiatement de (TABLE|INDEX), qui ratait `CREATE UNIQUE INDEX`/`CREATE SEQUENCE`/
+     `CREATE SCHEMA`/`CREATE EXTENSION` sans IF NOT EXISTS (Kimi-K3
+     MAJEURE, reproduit : aucun match sur "CREATE UNIQUE INDEX idx ON
+     t(c);"). Nouvelle règle : toute instruction contenant CREATE doit
+     contenir IF NOT EXISTS QUELQUE PART dans CETTE MÊME instruction —
+     robuste à l'ordre des modifiers (UNIQUE/CONCURRENTLY/etc.).
+  b. INSERT/ON CONFLICT redessiné en PAR-INSTRUCTION pour la même
+     raison : un seul ON CONFLICT n'importe où dans le fichier
+     blanchissait TOUS les INSERT INTO (Kimi-K3 MAJEURE, reproduit :
+     2e INSERT sans ON CONFLICT accepté à tort si le 1er en a un).
+  c. Marqueur d'autorisation : passage d'un `in sql` (sous-chaîne) à un
+     motif ancré par une lookahead négative sur caractère non-espace —
+     ferme la collision par PRÉFIXE de version (Kimi-K3 mineure,
+     reproduit : marqueur de "0001" matchait dans le SQL de "0001_
+     hotfix").
+  d. Checksum : `.match()` + `^...$` remplacé par `.fullmatch()` sans
+     ancres — ferme le cas où `$` matche avant un saut de ligne final,
+     acceptant à tort 65 caractères (Kimi-K3 mineure, reproduit).
+  e. Commentaires `-- ...` retirés AVANT toute détection de mots-clés
+     (destructif ET idempotence) — un mot destructif MENTIONNÉ dans un
+     commentaire ne doit jamais déclencher un refus (DeepSeek mineure,
+     reproduit). Limitation ACCEPTÉE et documentée : les littéraux de
+     chaîne ('...') ne sont PAS retirés (parseur SQL complet hors
+     périmètre, même discipline que les blocs DO $$...$$).
+  f. INSERT ... WHERE NOT EXISTS (forme idempotente alternative sans
+     ON CONFLICT) : DÉLIBÉRÉMENT PAS reconnue comme équivalente à ON
+     CONFLICT (DeepSeek mineure, reproduit — CONFIRMÉE VRAIE mais
+     NON corrigée) — biais conservateur ASSUMÉ : le faux négatif (SQL
+     sûr rejeté) est la direction SÛRE du fail-closed, contrairement à
+     un faux positif qui laisserait passer du SQL non idempotent.
+     Élargir la reconnaissance de formes « prouvant » l'idempotence
+     ajouterait de la surface de motif pour un bénéfice de confort,
+     pas de sûreté — nommé en clair plutôt que corrigé.
 """
 from __future__ import annotations
 
@@ -51,7 +92,34 @@ from dataclasses import dataclass
 # par test_dependency_rules_toml_couvre_migrations_sans_modification.
 _VOCABULAIRE_PHASES = frozenset({"expand", "backfill", "switch", "contract"})
 
-_CHECKSUM_RE = re.compile(r"^[0-9a-f]{64}$")
+# fullmatch() SANS ancres ^/$ — `$` matche aussi juste avant un `\n`
+# terminal en Python (comportement documenté), ce qui acceptait à tort
+# un checksum de 65 caractères (64 hex + saut de ligne final). Revue
+# scellée tour 1, Kimi-K3 mineure, reproduit et confirmé vrai.
+_CHECKSUM_RE = re.compile(r"[0-9a-f]{64}")
+
+# Commentaires --...fin-de-ligne : retirés AVANT toute détection de
+# mots-clés (destructif ET idempotence) — un mot destructif MENTIONNÉ
+# dans un commentaire ne doit jamais déclencher un refus. Revue scellée
+# tour 1, DeepSeek mineure, reproduit et confirmé vrai. Limitation
+# ACCEPTÉE : les littéraux de chaîne ('...') ne sont PAS retirés (un
+# parseur SQL complet serait hors périmètre — même discipline que les
+# blocs DO $$...$$ déjà documentés plus bas).
+_COMMENTAIRE_LIGNE = re.compile(r"--[^\n]*")
+
+
+def _retirer_commentaires_sql(sql: str) -> str:
+    return _COMMENTAIRE_LIGNE.sub("", sql)
+
+
+def _decouper_instructions(sql: str) -> list[str]:
+    """Découpage par ';' — heuristique BORNÉE, pas un parseur SQL complet.
+    Un ';' à l'intérieur d'une chaîne de caractères ou d'un bloc
+    `DO $$...$$` n'est PAS géré correctement : limitation ACCEPTÉE et
+    documentée, même périmètre que les autres formes déjà exclues
+    (irréductible sans parseur+exécution SQL réel)."""
+    return [i.strip() for i in sql.split(";") if i.strip()]
+
 
 # Token-level, insensible à la casse : `ALTER TABLE t DROP col` est valide
 # en PostgreSQL SANS le mot COLUMN — un motif `DROP\s+COLUMN` raterait ce
@@ -59,26 +127,41 @@ _CHECKSUM_RE = re.compile(r"^[0-9a-f]{64}$")
 _MOTIFS_DESTRUCTIFS = re.compile(r"\b(DROP|TRUNCATE|RENAME)\b", re.IGNORECASE)
 
 # search() (pas finditer()) : détection booléenne « au moins une occurrence
-# quelque part », jamais une énumération multi-match traitée différemment
-# par occurrence — le bug de classe « search() en boucle masque les
-# occurrences suivantes » (déjà mesuré dans check_module_isolation.py) ne
-# s'applique pas ici, un seul appel hors boucle.
-_CREATE_SANS_IF_NOT_EXISTS = re.compile(
-    r"\bCREATE\s+(TABLE|INDEX)\s+(?!IF\s+NOT\s+EXISTS)", re.IGNORECASE
-)
-_DROP_SANS_IF_EXISTS = re.compile(
-    r"\bDROP\s+(TABLE|INDEX)\s+(?!IF\s+EXISTS)", re.IGNORECASE
-)
+# quelque part DANS L'INSTRUCTION COURANTE », jamais une énumération
+# multi-match traitée différemment par occurrence — le bug de classe
+# « search() en boucle masque les occurrences suivantes » (déjà mesuré
+# dans check_module_isolation.py) ne s'applique pas ici, un seul appel
+# par instruction découpée, hors boucle interne.
+#
+# PAR-INSTRUCTION (pas un seul motif global sur tout le fichier) : un
+# motif fixe `CREATE\s+(TABLE|INDEX)` ratait `CREATE UNIQUE INDEX`/
+# `CREATE SEQUENCE`/`CREATE SCHEMA`/`CREATE EXTENSION` sans IF NOT
+# EXISTS, et un seul `ON CONFLICT` n'importe où dans un fichier
+# multi-instructions blanchissait TOUS les INSERT INTO — revue scellée
+# tour 1, Kimi-K3 MAJEURE ×2, reproduites et confirmées vraies. Règle
+# robuste : toute instruction contenant CREATE/DROP/INSERT INTO doit
+# porter sa PROPRE clause IF NOT EXISTS/IF EXISTS/ON CONFLICT, ancrée
+# à l'instruction découpée, pas au fichier entier.
+_MOTIF_CREATE = re.compile(r"\bCREATE\b", re.IGNORECASE)
+_MOTIF_IF_NOT_EXISTS = re.compile(r"\bIF\s+NOT\s+EXISTS\b", re.IGNORECASE)
+_MOTIF_DROP = re.compile(r"\bDROP\b", re.IGNORECASE)
+_MOTIF_IF_EXISTS = re.compile(r"\bIF\s+EXISTS\b", re.IGNORECASE)
 _INSERT_INTO = re.compile(r"\bINSERT\s+INTO\b", re.IGNORECASE)
 _ON_CONFLICT = re.compile(r"\bON\s+CONFLICT\b", re.IGNORECASE)
 
 
-def _marqueur_autorisation(version: str) -> str:
+def _marqueur_autorisation(version: str) -> re.Pattern[str]:
     """Marqueur d'autorisation LIÉ à la version — copier un marqueur
     d'une autre migration ne fonctionne jamais (revue d'architecture
     AVANT code, point 1 : « non copiable-collable d'une migration à
-    l'autre »)."""
-    return f"AUTORISATION-CONTRACT:{version}"
+    l'autre »). Motif COMPILÉ (pas une chaîne pour `in`) : une
+    lookahead négative sur caractère non-espace après la version ferme
+    la collision par PRÉFIXE (ex. le marqueur de la version "0001" ne
+    doit JAMAIS matcher dans un SQL portant "AUTORISATION-CONTRACT:
+    0001_hotfix" — sans cette garde, "0001" est un préfixe valide de
+    "0001_hotfix" et le `in` sous-chaîne laissait passer. Revue scellée
+    tour 1, Kimi-K3 mineure, reproduit et confirmé vrai)."""
+    return re.compile(rf"AUTORISATION-CONTRACT:{re.escape(version)}(?!\S)")
 
 
 class PhaseInvalide(ValueError):
@@ -108,13 +191,15 @@ class ReversibleNonBooleen(ValueError):
 
 class ChecksumFormatInvalide(ValueError):
     """Levée par `MigrationPlan.__post_init__` quand `checksum` n'est pas
-    64 caractères hexadécimaux minuscules — garde de FORME uniquement,
-    distincte de `ChecksumIncorrect` (garde de CONTENU) pour qu'une
-    mutation de l'une des deux gardes reste détectable séparément."""
+    EXACTEMENT 64 caractères hexadécimaux minuscules — garde de FORME
+    uniquement, distincte de `ChecksumIncorrect` (garde de CONTENU) pour
+    qu'une mutation de l'une des deux gardes reste détectable
+    séparément. `fullmatch()` (pas `match()` + ancres `^$`) : `$` seul
+    matche aussi juste avant un `\\n` terminal en Python."""
 
     def __init__(self, checksum: object) -> None:
         super().__init__(
-            f"checksum doit être 64 caractères hexadécimaux minuscules (reçu {checksum!r})"
+            f"checksum doit être exactement 64 caractères hexadécimaux minuscules (reçu {checksum!r})"
         )
         self.code = "VALIDATION"
 
@@ -144,10 +229,11 @@ class MigrationDestructiveRefusee(ValueError):
 
 
 class MigrationNonIdempotente(ValueError):
-    """Levée par `validate_migration` quand le SQL n'est pas
-    ré-exécutable PAR CONSTRUCTION (CREATE sans IF NOT EXISTS, DROP sans
-    IF EXISTS, INSERT sans ON CONFLICT). Propriété STATIQUE du texte SQL
-    — aucune connexion, aucun état de suivi requis."""
+    """Levée par `validate_migration` quand une INSTRUCTION du SQL n'est
+    pas ré-exécutable PAR CONSTRUCTION (CREATE sans IF NOT EXISTS, DROP
+    sans IF EXISTS, INSERT sans ON CONFLICT — vérifié PAR INSTRUCTION,
+    pas globalement sur tout le fichier). Propriété STATIQUE du texte
+    SQL — aucune connexion, aucun état de suivi requis."""
 
     def __init__(self, motif: str) -> None:
         super().__init__(f"migration non idempotente par construction : {motif}")
@@ -174,7 +260,7 @@ class MigrationPlan:
         if not isinstance(self.reversible, bool):
             raise ReversibleNonBooleen(self.reversible)
 
-        if not isinstance(self.checksum, str) or not _CHECKSUM_RE.match(self.checksum):
+        if not isinstance(self.checksum, str) or _CHECKSUM_RE.fullmatch(self.checksum) is None:
             raise ChecksumFormatInvalide(self.checksum)
 
 
@@ -183,31 +269,42 @@ def validate_migration(plan: MigrationPlan, sql: str) -> None:
     module-level, aucun effet observable. Deux appels successifs avec
     `(plan, sql)` identiques donnent TOUJOURS le même verdict (preuve
     d'idempotence par pureté, cas RED 3)."""
-    # 1) Contenu du checksum — AVANT toute autre garde de contenu (fail
-    # fast sur l'intégrité du texte SQL lui-même).
+    # 1) Contenu du checksum — sur le SQL ORIGINAL (le checksum couvre
+    # les octets exacts du fichier, commentaires inclus), AVANT toute
+    # autre garde de contenu (fail fast sur l'intégrité du texte SQL).
     checksum_reel = hashlib.sha256(sql.encode("utf-8")).hexdigest()
     if checksum_reel != plan.checksum:
         raise ChecksumIncorrect()
 
+    # Commentaires retirés AVANT la détection de mots-clés (destructif ET
+    # idempotence) — un mot mentionné dans un commentaire n'est jamais un
+    # verbe SQL réel. Le marqueur d'autorisation, lui, est volontairement
+    # DESTINÉ à vivre dans un commentaire (`-- AUTORISATION-CONTRACT:...`)
+    # : sa présence est vérifiée sur le SQL ORIGINAL, pas la version
+    # nettoyée, sinon il s'auto-effacerait avant d'être lu.
+    sql_sans_commentaires = _retirer_commentaires_sql(sql)
+
     # 2) Destructif : liste blanche — refusé SAUF autorisation complète.
-    if _MOTIFS_DESTRUCTIFS.search(sql) is not None:
-        marqueur = _marqueur_autorisation(plan.version)
+    if _MOTIFS_DESTRUCTIFS.search(sql_sans_commentaires) is not None:
+        motif_marqueur = _marqueur_autorisation(plan.version)
         autorise = (
             plan.phase == "contract"
             and plan.reversible is True
-            and marqueur in sql
+            and motif_marqueur.search(sql) is not None
         )
         if not autorise:
             raise MigrationDestructiveRefusee(
                 "verbe destructif (DROP/TRUNCATE/RENAME) détecté sans "
-                f"autorisation complète (phase=contract, reversible=True, "
-                f"marqueur {marqueur!r} présent dans le SQL)"
+                "autorisation complète (phase=contract, reversible=True, "
+                f"marqueur pour la version {plan.version!r} présent dans le SQL)"
             )
 
-    # 3) Idempotence par construction — propriété STATIQUE du texte SQL.
-    if _CREATE_SANS_IF_NOT_EXISTS.search(sql) is not None:
-        raise MigrationNonIdempotente("CREATE TABLE/INDEX sans IF NOT EXISTS")
-    if _DROP_SANS_IF_EXISTS.search(sql) is not None:
-        raise MigrationNonIdempotente("DROP TABLE/INDEX sans IF EXISTS")
-    if _INSERT_INTO.search(sql) is not None and _ON_CONFLICT.search(sql) is None:
-        raise MigrationNonIdempotente("INSERT INTO sans ON CONFLICT")
+    # 3) Idempotence par construction — PAR INSTRUCTION (découpage par
+    # ';'), pas un motif global sur tout le fichier.
+    for instruction in _decouper_instructions(sql_sans_commentaires):
+        if _MOTIF_CREATE.search(instruction) is not None and _MOTIF_IF_NOT_EXISTS.search(instruction) is None:
+            raise MigrationNonIdempotente(f"CREATE sans IF NOT EXISTS : {instruction!r}")
+        if _MOTIF_DROP.search(instruction) is not None and _MOTIF_IF_EXISTS.search(instruction) is None:
+            raise MigrationNonIdempotente(f"DROP sans IF EXISTS : {instruction!r}")
+        if _INSERT_INTO.search(instruction) is not None and _ON_CONFLICT.search(instruction) is None:
+            raise MigrationNonIdempotente(f"INSERT INTO sans ON CONFLICT : {instruction!r}")
