@@ -48,8 +48,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5 — pin SHA (D-035), même référence que .github/workflows/ci.yml
-      - name: Installer les dépendances Core verrouillées (core/pyproject.toml, C02-002 + psycopg/psycopg-binary C05-001)
-        run: python3 -m pip install --quiet PyYAML==6.0.1 pytest==9.1.1 psycopg==3.2.3 psycopg-binary==3.2.3
+      - name: Installer les dépendances Core verrouillées avec hash vérifiés cryptographiquement (core/requirements.lock, C02-002 + psycopg/psycopg-binary C05-001 ; --require-hashes câblé ici — fix suivi de la revue scellée C05-001 tour 2, Kimi-K3 — un hash erroné dans requirements.lock fait maintenant échouer l'installation, jamais un pass silencieux)
+        run: python3 -m pip install --quiet --require-hashes -r core/requirements.lock
+      - name: Installer pytest (dépendance dev, core/pyproject.toml project.optional-dependencies.dev — hors requirements.lock par conception, donc JAMAIS mélangée à --require-hashes dans la même commande — pip refuse tout le step si un paquet sans hash s'y trouve, mesuré directement ; même principe que mypy installé séparément dans le job types)
+        run: python3 -m pip install --quiet pytest==9.1.1
       - name: Tests bootstrap + architecture + persistence Core — scope core/ isolé (jamais combiné avec Modules M/, cf. collision de noms mesurée C02-004 ; core/tests/architecture ajouté C04-002, core/tests/persistence ajouté C05-001 — chacun n'était exécuté par AUCUN job CI avant son correctif, trou trouvé par la revue d'architecture AVANT code). core/tests/persistence démarre SON PROPRE conteneur PostgreSQL éphémère (docker run interne à la fixture, port publié aléatoire lu via `docker port`, jamais un service CI fixe) — runner ubuntu-latest fournit Docker nativement, aucune étape de service dédiée nécessaire.
         run: python3 -m pytest -q core/tests/bootstrap core/tests/architecture core/tests/persistence
 

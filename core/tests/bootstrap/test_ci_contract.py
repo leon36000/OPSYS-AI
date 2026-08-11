@@ -144,6 +144,57 @@ def _jobs_without_hard_failure(data: dict, noms: set[str]) -> list[str]:
     return en_defaut
 
 
+def _tests_job_install_steps(data: dict) -> list[str]:
+    """Textes `run:` du job `tests` qui invoquent `pip install`."""
+    jobs = data.get("jobs") or {}
+    tests_job = jobs.get("tests") or {}
+    steps = tests_job.get("steps") or []
+    return [
+        step.get("run") or ""
+        for step in steps
+        if isinstance(step, dict) and "pip install" in (step.get("run") or "")
+    ]
+
+
+def _hash_enforcement_violations(data: dict) -> list[str]:
+    """Le job `tests` doit installer `core/requirements.lock` avec
+    `--require-hashes` (fix C05-001 tour 2, Kimi-K3 ; cf. note RÉSOLU dans
+    core/requirements.lock) : sans ce flag, un hash sha256 erroné dans le
+    lock reste vérifié seulement STRUCTURELLEMENT par verify_lock(), jamais
+    appliqué CRYPTOGRAPHIQUEMENT — mesuré directement (hash PyYAML corrompu
+    volontairement : `pip install PyYAML==6.0.1`, la commande CI d'ALORS,
+    l'ignore silencieusement car elle ne lit même pas requirements.lock).
+
+    Réciproquement, aucun step qui porte `--require-hashes` ne doit nommer
+    en dur un paquet hors lock (ex. `pytest==9.1.1`) dans la MÊME commande
+    — pip refuse alors tout le step (« Hashes are required in
+    --require-hashes mode... », mesuré directement) car ce paquet n'a pas
+    de hash déclaré. Le paquet hors lock doit vivre dans un step CI séparé
+    (même principe que mypy, installé séparément dans le job `types`).
+
+    Liste vide == enforcement correct (cas RED)."""
+    violations: list[str] = []
+    lock_step_vu = False
+    for run in _tests_job_install_steps(data):
+        reference_le_lock = "requirements.lock" in run
+        porte_require_hashes = "--require-hashes" in run
+        if reference_le_lock:
+            lock_step_vu = True
+            if not porte_require_hashes:
+                violations.append(
+                    f"requirements.lock installé sans --require-hashes: {run.strip()}"
+                )
+        if porte_require_hashes:
+            noms_en_dur = re.findall(r"\b[A-Za-z][\w.\-]*==[\d][\w.]*\b", run)
+            if noms_en_dur:
+                violations.append(
+                    f"paquet(s) hors lock mélangé(s) à --require-hashes {noms_en_dur}: {run.strip()}"
+                )
+    if not lock_step_vu:
+        violations.append("aucun step du job tests n'installe core/requirements.lock")
+    return violations
+
+
 # ---------------------------------------------------------------------------
 # Cas RED obligatoires (3, noms minimaux imposés par la tâche)
 # ---------------------------------------------------------------------------
@@ -312,3 +363,72 @@ def test_job_avec_continue_on_error_est_toujours_en_defaut_sur_fixture_synthetiq
     }
     en_defaut = _jobs_without_hard_failure(data, {"security"})
     assert en_defaut == ["security"], "continue-on-error masque un exit 1 : doit rester en défaut"
+
+
+# ---------------------------------------------------------------------------
+# Enforcement cryptographique des hash de dépendances (fix C05-001 tour 2,
+# Kimi-K3) — couvre PyYAML (C02-002) ET psycopg/psycopg-binary (C05-001),
+# même mécanisme pour toutes les dépendances verrouillées.
+# ---------------------------------------------------------------------------
+
+
+def test_installation_core_verrouillee_impose_require_hashes():
+    """Cas RED — le job `tests` du workflow Core réel doit installer
+    core/requirements.lock avec --require-hashes, sans jamais mélanger un
+    paquet hors lock (ex. pytest) dans la même commande."""
+    data = yaml.safe_load(_WORKFLOW_PATH.read_text(encoding="utf-8")) or {}
+    violations = _hash_enforcement_violations(data)
+    assert not violations, f"Enforcement hash rompu : {violations}"
+
+
+def test_detecte_lock_installe_sans_require_hashes_sur_fixture_synthetique():
+    data = {
+        "jobs": {
+            "tests": {
+                "steps": [
+                    {"run": "python3 -m pip install --quiet -r core/requirements.lock"},
+                ]
+            }
+        }
+    }
+    violations = _hash_enforcement_violations(data)
+    assert any("sans --require-hashes" in v for v in violations)
+
+
+def test_detecte_melange_paquet_hors_lock_avec_require_hashes_sur_fixture_synthetique():
+    data = {
+        "jobs": {
+            "tests": {
+                "steps": [
+                    {
+                        "run": (
+                            "python3 -m pip install --quiet --require-hashes "
+                            "-r core/requirements.lock pytest==9.1.1"
+                        )
+                    },
+                ]
+            }
+        }
+    }
+    violations = _hash_enforcement_violations(data)
+    assert any("mélangé" in v for v in violations)
+
+
+def test_n_alerte_pas_quand_lock_et_pytest_sont_dans_des_steps_separes_sur_fixture_synthetique():
+    data = {
+        "jobs": {
+            "tests": {
+                "steps": [
+                    {"run": "python3 -m pip install --quiet --require-hashes -r core/requirements.lock"},
+                    {"run": "python3 -m pip install --quiet pytest==9.1.1"},
+                ]
+            }
+        }
+    }
+    assert _hash_enforcement_violations(data) == []
+
+
+def test_detecte_absence_totale_d_installation_du_lock_sur_fixture_synthetique():
+    data = {"jobs": {"tests": {"steps": [{"run": "python3 -m pytest -q core/tests"}]}}}
+    violations = _hash_enforcement_violations(data)
+    assert any("aucun step" in v for v in violations)
