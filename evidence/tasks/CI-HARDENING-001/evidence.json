@@ -3,7 +3,8 @@
   "description": "Chantier CI-hardening — mécanismes réels pour les 3 gates CI placeholder (security, pack-validation, proof-sealed) + CodeQL local, ajout du système de scellement evidence/tasks/ lui-même.",
   "branche": "opsys-core/chore/ci-hardening-gates-reels",
   "base": "origin/main @ 092a1367dddc32e4b774c712535383c3598e2af7",
-  "code_diff_sha256": "701792b35d32e31051026186e20e49dde30524e9d7f109c05712b93dc0ae0d4f",
+  "code_diff_sha256": "431a3b57620b8b930b4e11024b3d636decfc177c9103fd7b37d77471112370d4",
+  "code_diff_sha256_note": "Mis à jour après le consensus 3-vendors (sceau 462aa4c8... ci-dessous) suite au commit dc53462, correctif de la Quality Gate SonarCloud (Security Rating C→A : git-argument-injection fermée sur --diff-base, cf. RefGitInvalide) + réduction de complexité cognitive (comportement inchangé, 47/47 tests identiques avant/après, sortie réelle vérifiée identique avant le correctif). Réponse à un OUTIL DÉTERMINISTE (SonarCloud), pas une nouvelle opinion de modèle — ne rouvre pas le consensus déjà scellé sur le DESIGN du mécanisme, cf. commit dc53462 pour le raisonnement complet.",
   "reviews": {
     "Claude-Opus-5-native-architecte.json": "34809482336d1d635c256c36cd00151de80deba9d0cec31b47ce4be2734e3b48",
     "Muse-Spark-1.2.json": "9b72cfda21e614dcda6560fbda5545f70844ef0c1ad7d026f8df030d1c785c6e",
