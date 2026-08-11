@@ -664,6 +664,114 @@ def test_executer_retourne_les_lignes_pour_select(conteneur_avec_table):
 
 
 # ---------------------------------------------------------------------------
+# Objection mineure (civ_review tour 1, Qwen3.7-Max, VÉRIFIÉE VRAIE par
+# lecture directe du code avant correction) — filet de restauration si
+# la bascule du constructeur échoue EN COURS DE ROUTE
+# ---------------------------------------------------------------------------
+
+
+class _CurseurQuiEchoueUneFois:
+    """Double de test (mock autorisé — service externe, AGENTS.md) :
+    délègue à un curseur RÉEL, mais lève une exception simulée à son 2e
+    appel `execute()` — reproduit une panne réseau survenant PENDANT la
+    bascule du constructeur d'UnitOfWork, APRÈS le 1er set_config()
+    (trace_id) mais AVANT le 2e (tenant_id)."""
+
+    def __init__(self, curseur_reel) -> None:
+        self._reel = curseur_reel
+        self._appels = 0
+
+    def __enter__(self) -> "_CurseurQuiEchoueUneFois":
+        self._reel.__enter__()
+        return self
+
+    def __exit__(self, *exc) -> bool | None:
+        return self._reel.__exit__(*exc)
+
+    def execute(self, sql, params=None):
+        self._appels += 1
+        if self._appels == 2:
+            raise RuntimeError("panne réseau simulée pendant set_config (2e appel)")
+        return self._reel.execute(sql, params)
+
+
+class _ConnDeleguee:
+    """Enveloppe une connexion psycopg RÉELLE : délègue TOUT (lectures
+    ET écritures d'attribut) via `__getattr__`/`__setattr__` sauf
+    `.cursor()`, qui renvoie le curseur défaillant ci-dessus.
+
+    `__setattr__` est INDISPENSABLE ici, pas seulement `__getattr__` :
+    `UnitOfWork.__init__` fait `conn.autocommit = False` (une AFFECTATION
+    d'attribut, jamais interceptée par `__getattr__` qui ne gère QUE les
+    lectures d'attribut absent) — sans lui, cette écriture atterrirait
+    silencieusement sur l'ENVELOPPE elle-même plutôt que sur la
+    connexion réelle, rendant les assertions de restauration de
+    `test_init_restaure_l_etat_si_la_bascule_echoue_en_cours_de_route`
+    vraies quoi qu'il arrive (test vert pour la mauvaise raison — piège
+    déjà rencontré et corrigé PENDANT ce tour, confirmé par mutation :
+    sans ce correctif, désactiver la restauration réelle dans uow.py ne
+    faisait PAS échouer ce test)."""
+
+    def __init__(self, conn_reelle) -> None:
+        object.__setattr__(self, "_reel", conn_reelle)
+
+    def __getattr__(self, nom):
+        return getattr(self._reel, nom)
+
+    def __setattr__(self, nom, valeur):
+        setattr(self._reel, nom, valeur)
+
+    def cursor(self):
+        return _CurseurQuiEchoueUneFois(self._reel.cursor())
+
+
+class _ConnexionAvecCurseurQuiEchoue:
+    """Enveloppe une `ConnexionPostgreSql` réelle avec le même contrat
+    (`.conn`, `.fermer()`) — UnitOfWork ne distingue pas ce double d'une
+    vraie `ConnexionPostgreSql` (typage structurel)."""
+
+    def __init__(self, db_reelle: ConnexionPostgreSql) -> None:
+        self._db_reelle = db_reelle
+
+    @property
+    def conn(self):
+        return _ConnDeleguee(self._db_reelle.conn)
+
+    def fermer(self) -> None:
+        self._db_reelle.fermer()
+
+
+def test_init_restaure_l_etat_si_la_bascule_echoue_en_cours_de_route(conteneur_avec_table):
+    """Objection mineure Qwen3.7-Max (civ_review tour 1), vérifiée VRAIE
+    par lecture directe du code AVANT correction (CLAIMS UNVERIFIED) :
+    si `set_config()` échoue APRÈS `conn.autocommit=False` mais AVANT la
+    fin du constructeur, la connexion (possédée par l'APPELANT, pas par
+    cette UnitOfWork qui n'a jamais fini de se construire) doit être
+    restaurée à son état d'origine — sinon elle resterait
+    `autocommit=False` (+ `isolation_level` potentiellement modifié)
+    SANS AUCUNE UnitOfWork pour jamais la restaurer : fuite d'état
+    silencieuse vers le prochain utilisateur de la connexion."""
+    ctr = conteneur_avec_table
+    db_reelle = _ouvrir_connexion(ctr)
+    autocommit_avant = db_reelle.conn.autocommit
+    isolation_avant = db_reelle.conn.isolation_level
+    db_defaillante = _ConnexionAvecCurseurQuiEchoue(db_reelle)
+    try:
+        with pytest.raises(RuntimeError, match="panne réseau simulée"):
+            UnitOfWork(db_defaillante, trace_id="panne", tenant_id="tenant-panne")
+        # La connexion RÉELLE sous-jacente doit être restaurée malgré l'échec.
+        assert db_reelle.conn.autocommit == autocommit_avant
+        assert db_reelle.conn.isolation_level == isolation_avant
+        assert db_reelle.conn.info.transaction_status == psycopg.pq.TransactionStatus.IDLE
+        # Contrôle positif : une VRAIE UnitOfWork peut s'ouvrir ensuite
+        # sur la même connexion, sans aucun état résiduel de la panne.
+        uow = UnitOfWork(db_reelle, trace_id="apres-panne", tenant_id="tenant-apres-panne")
+        uow.rollback()
+    finally:
+        db_reelle.fermer()
+
+
+# ---------------------------------------------------------------------------
 # repository() retourne une instance Repository réelle
 # ---------------------------------------------------------------------------
 

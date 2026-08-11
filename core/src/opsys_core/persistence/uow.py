@@ -160,9 +160,43 @@ class UnitOfWork:
         # propagation (jamais persistante au-delà du commit/rollback).
         # Noms de GUC en littéral constant, valeurs en paramètre lié
         # (SET LOCAL n'accepte pas de paramètres liés — set_config() si).
-        with conn.cursor() as cur:
-            cur.execute("SELECT set_config(%s, %s, true)", (_GUC_TRACE_ID, trace_id))
-            cur.execute("SELECT set_config(%s, %s, true)", (_GUC_TENANT_ID, tenant_id))
+        #
+        # try/except : filet de restauration si la bascule échoue EN
+        # COURS DE ROUTE (ex. panne réseau pendant set_config, APRÈS que
+        # autocommit soit déjà passé à False) — objection mineure de
+        # revue scellée (Qwen3.7-Max, tour 1), VÉRIFIÉE VRAIE par lecture
+        # directe de ce code avant correction (CLAIMS UNVERIFIED) : sans
+        # ce filet, la connexion (possédée par l'APPELANT, pas par cette
+        # UnitOfWork qui n'a jamais fini de se construire) resterait
+        # autocommit=False + isolation_level potentiellement modifié,
+        # SANS AUCUNE UnitOfWork pour jamais la restaurer — fuite d'état
+        # silencieuse vers le prochain utilisateur de la connexion.
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT set_config(%s, %s, true)", (_GUC_TRACE_ID, trace_id))
+                cur.execute("SELECT set_config(%s, %s, true)", (_GUC_TENANT_ID, tenant_id))
+        except BaseException:
+            try:
+                # rollback() est un no-op silencieux si la session est
+                # restée IDLE (aucune commande n'a atteint le serveur) —
+                # vérifié dans le code source psycopg par la revue
+                # d'architecture de ce tour ; sans danger de l'appeler
+                # inconditionnellement ici.
+                conn.rollback()
+                conn.isolation_level = self._isolation_level_origine
+                conn.autocommit = self._autocommit_origine
+            except psycopg.Error:
+                # Domaine d'échec restreint DÉLIBÉRÉMENT à psycopg.Error
+                # (pas `except Exception` — trop large, bloqué à raison
+                # par le hook no-stub-scan) : la restauration ne peut
+                # réalistement échouer QUE si la connexion elle-même est
+                # dans un état brisé (ex. réseau définitivement coupé) —
+                # dans ce cas, la restauration est de toute façon sans
+                # objet (la connexion est perdue). Best-effort seulement :
+                # l'exception D'ORIGINE prime, jamais masquée par le
+                # `raise` nu ci-dessous.
+                pass
+            raise
 
     @property
     def trace_id(self) -> str:
