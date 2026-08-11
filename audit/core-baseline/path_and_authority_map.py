@@ -2,19 +2,13 @@
 
 Inventorie les chemins RÉELS de `core/src/` et des 10 modules M1-M10
 (`registries/modules.yaml`, transcrit) — jamais recalculés depuis une
-supposition. Définit des shims de compatibilité pour les 3 services Core
-existants (`core/src/auth`, `core/src/authz`, `core/src/config` — tous
-trois réellement peuplés, vérifiés par inventaire) ; refuse toute
-résolution de chemin non reconnue plutôt que de l'adapter en silence ;
-refuse toute autorité Core en écriture sur une vérité M1-M10.
-
-`core/src/opsys_core` était réservé (RESERVED_NEW) à l'écriture initiale
-de ce module — C03-001 (PR #498, postérieure) l'a réellement construit,
-comme prévu par le plan. Un chore de re-ratification a mis à jour ce
-module en conséquence : `opsys_core` est désormais EXISTING_CORE_OWNED
-(possédé par CORE, aucun shim requis — ce N'EST PAS un service legacy à
-envelopper, c'est le nouveau code réel) et doit rester peuplé, au même
-titre que les 3 services existants, sous peine de `InventaireDeriveRefuse`.
+supposition. Réserve `core/src/opsys_core` pour le nouveau Core SI aucun
+conflit avec l'existant (`core/src/auth`, `core/src/authz`,
+`core/src/config` — tous trois réellement peuplés, vérifiés par inventaire
+avant écriture de ce module) ; définit des shims de compatibilité pour ces
+3 services existants ; refuse toute résolution de chemin non reconnue
+plutôt que de l'adapter en silence ; refuse toute autorité Core en
+écriture sur une vérité M1-M10.
 
 Réutilise l'API PUBLIQUE de custody.py (C00-001) pour toute écriture
 (atomique, anti-symlink) — jamais de réimplémentation."""
@@ -66,10 +60,8 @@ class InventaireDeriveRefuse(Exception):
     du disque au moment de l'exécution — vérifié à chaque appel de
     `construire_carte_chemins`, jamais supposé une fois pour toutes. Si le
     disque a dérivé depuis l'écriture de ce module (un service Core
-    existant supprimé, un module renommé, ou — depuis le chore qui a
-    re-ratifié `opsys_core` en EXISTING_CORE_OWNED après C03-001, PR #498 —
-    `opsys_core` VIDÉ ou jamais construit), la carte produite serait
-    fausse — refusée plutôt que publiée périmée."""
+    existant supprimé, `opsys_core` créé entre-temps, un module renommé),
+    la carte produite serait fausse — refusée plutôt que publiée périmée."""
 
 
 # ---------------------------------------------------------------------------
@@ -87,11 +79,8 @@ CHEMINS_CORE_EXISTANTS_PEUPLES = frozenset({
     "core/src/config",
 })
 
-# Le nouveau namespace du Core. Vérifié ABSENT du disque au commit de base
-# de C00-004 (RESERVED_NEW à l'origine) ; réellement construit par C03-001
-# (PR #498) depuis — re-ratifié EXISTING_CORE_OWNED par un chore ultérieur,
-# vérifié PEUPLÉ (comme CHEMINS_CORE_EXISTANTS_PEUPLES) à chaque appel de
-# `construire_carte_chemins`.
+# Le nouveau namespace réservé au Core — vérifié ABSENT du disque au commit
+# de base (aucun conflit possible aujourd'hui).
 CHEMIN_CORE_NOUVEAU = "core/src/opsys_core"
 
 # CA07-0002 (sources/audit/issues/ISS-CAND-CA07-0002.json, réconciliée
@@ -126,8 +115,7 @@ MODULES_SRC_ROOTS = {
 MODULES_ATTENDUS = frozenset(MODULES_SRC_ROOTS)
 
 STATUTS_VALIDES = frozenset({
-    "RESERVED_NEW", "EXISTING_SHIM_REQUIRED", "EXISTING_MODULE_OWNED",
-    "EXISTING_CORE_OWNED", "AMENDMENT_REQUIRED",
+    "RESERVED_NEW", "EXISTING_SHIM_REQUIRED", "EXISTING_MODULE_OWNED", "AMENDMENT_REQUIRED",
 })
 
 
@@ -209,15 +197,10 @@ class PathMap:
 
         # Cas RED 1 : un chemin RÉELLEMENT peuplé (ou un de ses sous-chemins,
         # ou une variante avec slash final) ne peut jamais être déclaré
-        # RESERVED_NEW — ce serait prétendre qu'il est libre. Inclut
-        # CHEMIN_CORE_NOUVEAU depuis le chore de re-ratification post
-        # C03-001 (PR #498) : lui aussi est réellement peuplé désormais, le
-        # même mensonge s'applique. Élargir un REFUS est sûr (cf. docstring
-        # de `_chemin_egal_ou_sous_chemin_de`) — reste 2 gardes de REFUS,
-        # seul l'ensemble comparé par celle-ci grandit.
+        # RESERVED_NEW — ce serait prétendre qu'il est libre.
         if self.status == "RESERVED_NEW" and any(
             _chemin_egal_ou_sous_chemin_de(self.actual_path, peuple)
-            for peuple in (*CHEMINS_CORE_EXISTANTS_PEUPLES, CHEMIN_CORE_NOUVEAU)
+            for peuple in CHEMINS_CORE_EXISTANTS_PEUPLES
         ):
             raise ConflitCheminRefuse(
                 f"{self.actual_path} est déjà peuplé (service Core existant) — "
@@ -243,15 +226,6 @@ class PathMap:
                 f"{self.actual_path} déclaré EXISTING_MODULE_OWNED mais absent des "
                 f"racines src des 10 modules connus"
             )
-        # EXISTING_CORE_OWNED : garde de COHÉRENCE, donc égalité STRICTE
-        # (jamais _chemin_egal_ou_sous_chemin_de, réservée aux gardes de
-        # REFUS — cf. docstring de cette fonction, portée volontairement
-        # limitée). Un seul chemin légitime aujourd'hui : CHEMIN_CORE_NOUVEAU.
-        if self.status == "EXISTING_CORE_OWNED" and self.actual_path != CHEMIN_CORE_NOUVEAU:
-            raise IncoherenceStatutChemin(
-                f"{self.actual_path} déclaré EXISTING_CORE_OWNED mais différent du "
-                f"nouveau paquet Core reconnu : {CHEMIN_CORE_NOUVEAU!r}"
-            )
 
 
 # ---------------------------------------------------------------------------
@@ -264,7 +238,7 @@ def _construire_registre_logique() -> dict[str, tuple[str, str]]:
     """logical_path -> (actual_path, status). Construit UNE FOIS depuis les
     constantes sourcées ci-dessus — jamais recalculé par heuristique."""
     registre: dict[str, tuple[str, str]] = {
-        "core.opsys_core": (CHEMIN_CORE_NOUVEAU, "EXISTING_CORE_OWNED"),
+        "core.opsys_core": (CHEMIN_CORE_NOUVEAU, "RESERVED_NEW"),
         "core.auth": ("core/src/auth", "EXISTING_SHIM_REQUIRED"),
         "core.authz": ("core/src/authz", "EXISTING_SHIM_REQUIRED"),
         "core.config": ("core/src/config", "EXISTING_SHIM_REQUIRED"),
@@ -292,43 +266,25 @@ def resoudre_chemin_canonique(logical_path: str) -> PathMap:
     return PathMap(logical_path=logical_path, actual_path=actual_path, status=status)
 
 
-def _contient_au_moins_un_fichier_reel(chemin: Path) -> bool:
-    """Vrai si `chemin` est un dossier contenant au moins un fichier réel —
-    pas seulement un `.gitkeep`, pas seulement un résidu `__pycache__`
-    (un `.pyc` orphelin ne prouve pas qu'un service existe encore : sa
-    source aurait pu être supprimée en laissant le cache derrière).
-
-    Prédicat PARTAGÉ entre le recoupement des 3 services Core legacy
-    (`CHEMINS_CORE_EXISTANTS_PEUPLES`) et celui du nouveau paquet Core
-    (`CHEMIN_CORE_NOUVEAU`, EXISTING_CORE_OWNED) — une seule définition de
-    « peuplé », jamais deux implémentations qui pourraient diverger."""
-    if not chemin.is_dir():
-        return False
-    return any(
-        p.is_file() and p.name != ".gitkeep" and "__pycache__" not in p.parts
-        for p in chemin.rglob("*")
-    )
-
-
 def _verifier_inventaire_coherent(worktree: Path) -> None:
     """Recoupe l'inventaire codé en dur contre le DISQUE RÉEL — jamais une
     confiance aveugle dans des constantes écrites une fois. Un service
-    Core existant, ET désormais le nouveau paquet Core (EXISTING_CORE_OWNED
-    depuis le chore de re-ratification post C03-001, PR #498), doivent
-    chacun contenir au moins un fichier réel ; chaque racine de module doit
-    exister."""
+    déclaré peuplé doit contenir au moins un fichier réel (pas seulement un
+    `.gitkeep`) ; le namespace réservé doit rester absent ; chaque racine
+    de module doit exister."""
     for rel in CHEMINS_CORE_EXISTANTS_PEUPLES:
-        if not _contient_au_moins_un_fichier_reel(worktree / rel):
+        chemin = worktree / rel
+        fichiers_reels = [p for p in chemin.rglob("*") if p.is_file() and p.name != ".gitkeep"]
+        if not chemin.is_dir() or not fichiers_reels:
             raise InventaireDeriveRefuse(
                 f"{rel} est déclaré peuplé (service Core existant) mais le disque "
                 f"ne le confirme pas (dossier absent ou vide de tout fichier réel) — "
                 f"inventaire périmé, carte refusée"
             )
-    if not _contient_au_moins_un_fichier_reel(worktree / CHEMIN_CORE_NOUVEAU):
+    if (worktree / CHEMIN_CORE_NOUVEAU).exists():
         raise InventaireDeriveRefuse(
-            f"{CHEMIN_CORE_NOUVEAU} est déclaré peuplé (EXISTING_CORE_OWNED, nouveau "
-            f"Core) mais le disque ne le confirme pas (dossier absent ou vide de "
-            f"tout fichier réel) — inventaire périmé, carte refusée"
+            f"{CHEMIN_CORE_NOUVEAU} est déclaré réservable (RESERVED_NEW) mais existe "
+            f"déjà sur le disque — inventaire périmé, carte refusée"
         )
     for nom_module, racine in MODULES_SRC_ROOTS.items():
         if not (worktree / racine).is_dir():
