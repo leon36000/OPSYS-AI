@@ -11,33 +11,53 @@ EXCLUSIVEMENT dans le pack harnais local, hors d'atteinte d'un runner CI
 GitHub par construction (mesuré : aucun accès réseau vers la machine
 locale depuis un runner GitHub Actions). Ce qui EST commité :
 
-  evidence/tasks/<ID>/evidence.json       — manifeste finalisé (hashes)
-  evidence/tasks/<ID>/reviews/*.json      — verdict(s) au format riche
-                                             taskctl.py review (sceau)
+  evidence/tasks/<ID>/evidence.json       — manifeste finalisé
+  evidence/tasks/<ID>/reviews/*.json      — verdict(s) civ_review.py (sceau)
+
+RÉVISION 2 (ce fichier) — DÉFAUT STRUCTUREL TROUVÉ PAR REVUE SCELLÉE
+INDÉPENDANTE, PAS PAR AUTO-RELECTURE : la revision 1 de ce script (commit
+3c2f717) a été soumise à 4 voix indépendantes (GPT-5.6-Terra-Pro,
+Muse-Spark-1.2, Qwen3.8-Max via civ_review.py + Claude Opus 5 via
+subagent architecte natif, même pack scellé, prompt_sha256 identique
+d25fe0276dd72c8d64fb1d59e42a58d80c082406b0692b8dce5814ab96eff9dc). 3/4
+REJECT, le 4e APPROVE-avec-objections-majeures. LES 4, INDÉPENDAMMENT,
+ont trouvé la MÊME faille centrale : le script vérifiait la COHÉRENCE
+INTERNE d'un dossier evidence/tasks/<ID>/ (sceau, vendors, objections)
+mais ne liait JAMAIS ce dossier au CODE RÉELLEMENT MODIFIÉ par la PR —
+n'importe quel evidence bundle valide, même sans rapport avec le diff
+courant, satisfaisait le gate. Corrigé ci-dessous par un manifeste
+cryptographique (voir `_diff_sha256_actuel` et le champ
+`code_diff_sha256` d'evidence.json) — jamais une rustine cosmétique.
 
 Ce script vérifie, pour le commit HEAD du repo (celui que CI construit) :
-  1. Au moins un `evidence/tasks/<ID>/` existe DONT le commit ou le tree
-     déclaré dans son evidence.json/review correspond à un ancêtre du
-     commit courant (le found le plus RÉCENT sur la branche est celui
-     évalué — un evidence bundle antérieur à un rebase/squash n'est pas
-     un faux, juste un ancien tour, cf. discipline établie de la
-     session : le TREE final est la source de vérité, pas le hash de
-     commit exact qui change à chaque squash-merge).
-  2. Le(s) verdict(s) de revue partagent le MÊME prompt_sha256 (sceau —
+  1. `evidence.json` déclare `code_diff_sha256` = sha256 du diff RÉEL
+     (texte complet, pas seulement la liste de fichiers) entre
+     `origin/main` et HEAD sur le périmètre scellé (`_PATHSPEC_SCELLE`).
+     Recalculé indépendamment par ce script et comparé — lie l'evidence
+     au code EFFECTIVEMENT livré, ferme le contournement "coller une
+     evidence valide mais sans rapport" trouvé par les 4 reviewers.
+  2. `evidence.json` déclare un manifeste `reviews` = {nom_fichier:
+     sha256} EXHAUSTIF des fichiers sous `reviews/` : tout fichier
+     déclaré doit exister avec le hash exact (empêche la SUPPRESSION
+     silencieuse d'un verdict gênant après scellement — trouvé
+     indépendamment par le reviewer architecte) ; tout fichier PRÉSENT
+     doit être déclaré (empêche l'AJOUT après coup d'un faux verdict).
+  3. Le(s) verdict(s) de revue partagent le MÊME prompt_sha256 (sceau —
      preuve qu'ils ont vu le pack byte-identique).
-  3. Au moins N vendors DISTINCTS (anti-Sybil, vendor_of) ont voté
-     APPROVE — N configurable, défaut 1 (cohérent avec la discipline
-     INDEPENDENT_REVIEW déjà établie : 1 APPROVE suffit pour ce profil,
-     TRIAD_CONSENSUS exigerait davantage, hors périmètre de ce script
-     générique).
-  4. Aucune objection CRITICAL/OPEN parmi les objections listées.
+  4. Aucune objection "critique" NI "majeure" parmi les objections
+     listées (durci en révision 2 — 3/4 reviewers ont jugé le choix
+     initial "majeure non bloquante" comme une dette de sécurité
+     invisible ; sans mécanisme de résolution cross-round, la lecture
+     conservatrice correcte est : présente = non résolue = bloquante).
+  5. TOUT verdict != APPROVE bloque (consensus = unanimité, pas un
+     comptage de majorité).
+  6. Au moins N vendors DISTINCTS (anti-Sybil, `_vendor_of`) ont voté
+     APPROVE — N configurable via --min-vendors (défaut 1).
 
-LIMITATION CONNUE ET ASSUMÉE : ce script vérifie la COHÉRENCE STRUCTURELLE
-du sceau commité (mêmes règles que schema_validation.py/tally_reviews.py
-côté harnais), PAS que le contenu du raw_response committé est
-authentiquement sorti du LLM nommé (aucune re-vérification cryptographique
-de provenance LiteLLM depuis ce dépôt — le raw_response_sha256 prouve
-l'INTÉGRITÉ du fichier committé depuis sa capture, pas son ORIGINE ;
+LIMITATION CONNUE ET ASSUMÉE : ce script vérifie la COHÉRENCE
+CRYPTOGRAPHIQUE ET STRUCTURELLE du sceau commité, PAS que le contenu
+d'un verdict est authentiquement sorti du LLM nommé (aucune
+re-vérification cryptographique de provenance LiteLLM depuis ce dépôt —
 la même limitation existe déjà côté harnais local, non aggravée ici).
 
 SCHÉMA RÉEL (vérifié contre ~/proof-method/scripts/civ_review.py et
@@ -46,49 +66,73 @@ un verdict brut civ_review.py porte `verdict` (APPROVE|REJECT),
 `objections` (liste de {"severite": "critique|majeure|mineure", "fichier",
 "description", "preuve"} — EN FRANÇAIS, PAS de champ "status"), et
 `reviewer_model` (jamais "vendor" — la famille de vendor se DÉRIVE du nom
-de modèle, cf. `_vendor_of` ci-dessous, copie volontaire ET MINIMALE de
-`tally_reviews.py::_VENDOR/vendor_of` : ce script tourne sur un runner CI
-GitHub sans accès à ~/proof-method, un import cross-repo est impossible ;
-à tenir synchronisé manuellement si le tableau canonique évolue). Le sceau
-est `prompt_sha256` (mode neutre) — le mode `--roles` (pack_sha256 +
-role_sha256 distincts par mandat) n'est PAS couvert par ce script : hors
+de modèle, cf. `_vendor_of` ci-dessous). Le sceau est `prompt_sha256`
+(mode neutre) — le mode `--roles` n'est pas couvert par ce script : hors
 périmètre des revues neutres utilisées pour ce chantier.
-
-RÈGLE DE CONSENSUS (alignée sur la définition de tally_reviews.py, "tous
-APPROVE + zéro objection critique") : un round non conforme n'est pas
-"résolu" en place — le round SUIVANT (nouveaux response_id, nouveau sceau)
-remplace le round rejeté dans le commit final. Ce script ne rejoue donc
-QUE le dernier round committé, jamais un historique multi-round (ce
-dernier reste la responsabilité de `tally_reviews.py --resolutions`, outil
-local, hors périmètre CI). Les objections "majeure" restantes sont
-SURFACÉES (comptées, visibles dans le rapport) mais NON bloquantes ici —
-suivre leur résolution cross-round exigerait l'historique des rounds
-précédents, absent d'un commit final unique ; nommé, pas contourné en
-silence.
 """
 from __future__ import annotations
 
+import hashlib
 import json
+import subprocess
 import sys
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _EVIDENCE_ROOT = _REPO_ROOT / "evidence" / "tasks"
 
-# Copie volontaire et MINIMALE de tally_reviews.py::_VENDOR (roster réellement
-# utilisé par ce projet, cf. AGENTS.md) — voir docstring module pour la raison
-# de la duplication (isolation du runner CI, jamais d'import cross-repo).
+# Périmètre scellé : core/ (le code) + le workflow CI lui-même + scripts/
+# racine — élargi en révision 2 (un des 4 reviewers a démontré qu'une PR
+# modifiant SEULEMENT .github/workflows/core-ci.yml, sans toucher core/,
+# contournait entièrement le gate puisque CODE_CHANGE ne portait que sur
+# core/). Le gate qui institue le scellement doit lui-même être dans son
+# propre périmètre scellé, sinon il peut être désactivé sans preuve.
+_PATHSPEC_SCELLE = ("core/", ".github/workflows/core-ci.yml", "scripts/")
+
+# Copie volontaire de tally_reviews.py::_VENDOR — COMPLÈTE (pas un sous-
+# ensemble "minimal" : la révision 1 copiait un sous-ensemble et a dérivé
+# du canon, trouvé par revue indépendante ; une copie exhaustive élimine
+# le jugement "est-ce que ce modèle est assez utilisé pour mériter d'être
+# copié", seule source de la dérive). Ce script tourne sur un runner CI
+# GitHub sans accès à ~/proof-method — import cross-repo impossible, à
+# tenir synchronisé manuellement si le tableau canonique évolue (source :
+# ~/proof-method/scripts/tally_reviews.py::_VENDOR).
 _VENDOR = {
-    "glm": "zhipu", "glm-5.2": "zhipu",
-    "deepseek": "deepseek", "deepseek-v4-pro": "deepseek", "deepseek-v4-flash": "deepseek",
-    "kimi": "moonshot", "kimi-2.7": "moonshot", "kimi-k2.7-code": "moonshot", "kimi-k3": "moonshot",
-    "composer": "xai", "composer-2.5": "xai", "grok": "xai", "grok-4.5": "xai",
-    "gemini": "google", "gemini-3.1-pro": "google", "gemini-3.1-pro-or": "google",
-    "qwen": "alibaba", "qwen3.7-max": "alibaba", "qwen3.8-max": "alibaba",
-    "gpt-5.6-terra-pro": "openai", "gpt-5.6-luna-pro": "openai", "gpt": "openai",
-    "longcat": "meituan", "longcat-2.0": "meituan",
-    "mimo": "xiaomi", "mimo-pro-v2": "xiaomi", "mimo-v2.5-pro": "xiaomi",
-    "minimax-m3": "minimax", "nemotron": "nvidia", "tencent-hy3": "tencent", "hy3": "tencent",
+    "glm": "zhipu",
+    "glm-5.2": "zhipu",
+    "glm52": "zhipu",
+    "memory-quality": "zhipu",
+    "deepseek": "deepseek",
+    "deepseek-v4-pro": "deepseek",
+    "deepseek-v4-flash": "deepseek",
+    "kimi": "moonshot",
+    "kimi-2.7": "moonshot",
+    "kimi-k2.7-code": "moonshot",
+    "kimi-k3": "moonshot",
+    "composer": "xai",
+    "composer-2.5": "xai",
+    "grok": "xai",
+    "grok-4.5": "xai",
+    "gemini": "google",
+    "gemini-3.1-pro": "google",
+    "gemini-3.1-pro-or": "google",
+    "qwen": "alibaba",
+    "qwen3.7-max": "alibaba",
+    "qwen3.8-max": "alibaba",
+    "gpt-5.6-terra-pro": "openai",
+    "gpt-5.6-luna-pro": "openai",
+    "gpt": "openai",
+    "longcat": "meituan",
+    "longcat-2.0": "meituan",
+    "mimo": "xiaomi",
+    "mimo-pro-v2": "xiaomi",
+    "mimo-v2.5-pro": "xiaomi",
+    "minimax-m3": "minimax",
+    "nemotron": "nvidia",
+    "tencent-hy3": "tencent",
+    "hy3": "tencent",
+    # Voix hors roster LiteLLM (subagent Claude natif, jamais dans le
+    # canon tally_reviews.py puisque non appelable par civ_review.py).
     "claude-opus-5-native-architecte": "anthropic-native",
 }
 
@@ -106,6 +150,26 @@ class ScellementInvalide(ValueError):
     """Le sceau d'une revue committée est structurellement invalide."""
 
 
+class GitIndisponible(RuntimeError):
+    """git n'a pas pu produire le diff attendu — fail-closed, jamais un
+    hash vide interprété comme "aucun changement"."""
+
+
+def _diff_sha256_actuel(*, base: str = "origin/main") -> str:
+    """Sha256 du diff RÉEL (texte complet, verbatim) entre `base` et HEAD
+    sur `_PATHSPEC_SCELLE`. MÊME fonction utilisée pour (a) calculer la
+    valeur embarquée dans evidence.json au moment du scellement local et
+    (b) la revérification côté CI — garantit la reproductibilité, jamais
+    deux implémentations parallèles qui pourraient diverger."""
+    resultat = subprocess.run(
+        ["git", "diff", f"{base}...HEAD", "--", *_PATHSPEC_SCELLE],
+        capture_output=True, text=True, cwd=_REPO_ROOT, timeout=60,
+    )
+    if resultat.returncode != 0:
+        raise GitIndisponible(f"git diff a échoué (rc={resultat.returncode}) : {resultat.stderr.strip()}")
+    return hashlib.sha256(resultat.stdout.encode("utf-8")).hexdigest()
+
+
 def _charger_verdicts(dossier_task: Path) -> list[dict]:
     dossier_reviews = dossier_task / "reviews"
     if not dossier_reviews.is_dir():
@@ -119,7 +183,43 @@ def _charger_verdicts(dossier_task: Path) -> list[dict]:
     return verdicts
 
 
-def verifier_task(task_id: str, *, min_vendors_approve: int = 1) -> tuple[bool, str]:
+def _verifier_manifeste_reviews(dossier_task: Path, manifeste: dict) -> list[str]:
+    """Vérifie que le manifeste `reviews` d'evidence.json correspond
+    EXACTEMENT (bijection, pas seulement sous-ensemble) aux fichiers
+    présents sous reviews/ — ferme la suppression silencieuse d'un
+    verdict gênant ET l'ajout après coup d'un faux verdict (les 2
+    attaques trouvées indépendamment par revue architecte)."""
+    erreurs: list[str] = []
+    if "reviews" not in manifeste:
+        return ["  evidence.json : champ \"reviews\" (manifeste des verdicts) absent — RÉGRESSION vers la faille rev.1"]
+    declares = manifeste.get("reviews")
+    if not isinstance(declares, dict):
+        return ["  evidence.json : champ \"reviews\" doit être un objet {nom_fichier: sha256}"]
+    # declares == {} est valide EN SOI (0 déclaré) — si 0 fichier est aussi
+    # présent sur disque, c'est cohérent ; le cas "aucun verdict du tout"
+    # est un problème DISTINCT, détecté et rapporté plus clairement par
+    # le contrôle "aucun verdict" en aval (_charger_verdicts), pas ici.
+
+    dossier_reviews = dossier_task / "reviews"
+    presents = {p.name for p in dossier_reviews.glob("*.json")} if dossier_reviews.is_dir() else set()
+
+    for nom, sha_attendu in declares.items():
+        chemin = dossier_reviews / nom
+        if not chemin.exists():
+            erreurs.append(f"  manifeste reviews : {nom} déclaré mais ABSENT du disque (verdict supprimé après scellement ?)")
+            continue
+        sha_reel = hashlib.sha256(chemin.read_bytes()).hexdigest()
+        if sha_reel != sha_attendu:
+            erreurs.append(f"  manifeste reviews : {nom} présent mais hash NE CORRESPOND PAS (attendu {sha_attendu[:12]}…, réel {sha_reel[:12]}…)")
+
+    non_declares = presents - set(declares)
+    if non_declares:
+        erreurs.append(f"  manifeste reviews : fichier(s) présent(s) mais NON déclaré(s) (ajout après coup ?) : {sorted(non_declares)}")
+
+    return erreurs
+
+
+def verifier_task(task_id: str, *, min_vendors_approve: int = 1, diff_sha256_attendu: str | None) -> tuple[bool, str]:
     dossier_task = _EVIDENCE_ROOT / task_id
     lignes = [f"--- {task_id} ---"]
 
@@ -134,8 +234,30 @@ def verifier_task(task_id: str, *, min_vendors_approve: int = 1) -> tuple[bool, 
         lignes.append(f"  evidence.json : JSON invalide ({exc})")
         return False, "\n".join(lignes)
 
-    evidence_sha256_attendu = manifeste.get("evidence_sha256") or manifeste.get("task_id")
     lignes.append(f"  evidence.json présent (task_id={manifeste.get('task_id')})")
+
+    # --- Liaison cryptographique evidence <-> code réellement livré ---
+    code_diff_declare = manifeste.get("code_diff_sha256")
+    if not code_diff_declare:
+        lignes.append("  evidence.json : champ \"code_diff_sha256\" absent — evidence non liée au code (RÉGRESSION vers la faille rev.1)")
+        return False, "\n".join(lignes)
+    if diff_sha256_attendu is None:
+        lignes.append("  ERREUR INTERNE : diff_sha256_attendu non fourni par l'appelant (bug d'intégration, jamais un pass silencieux)")
+        return False, "\n".join(lignes)
+    if code_diff_declare != diff_sha256_attendu:
+        lignes.append(
+            f"  code_diff_sha256 NE CORRESPOND PAS au diff réel de cette PR "
+            f"(déclaré {code_diff_declare[:12]}…, réel {diff_sha256_attendu[:12]}…) "
+            "— cette evidence n'atteste PAS du code effectivement livré"
+        )
+        return False, "\n".join(lignes)
+    lignes.append(f"  code_diff_sha256 conforme au diff réel : {diff_sha256_attendu[:12]}…")
+
+    # --- Manifeste reviews (bijection déclaré <-> disque) ---
+    erreurs_manifeste = _verifier_manifeste_reviews(dossier_task, manifeste)
+    if erreurs_manifeste:
+        lignes.extend(erreurs_manifeste)
+        return False, "\n".join(lignes)
 
     verdicts = _charger_verdicts(dossier_task)
     if not verdicts:
@@ -153,30 +275,18 @@ def verifier_task(task_id: str, *, min_vendors_approve: int = 1) -> tuple[bool, 
     # Champ réel : "severite" (français, critique|majeure|mineure) — jamais
     # "severity"/"status" (n'existent pas dans le schéma civ_review réel,
     # cf. TEMPLATE-prompt-revue-neutre.md, vérifié au module).
-    objections_critiques = [
-        obj
-        for v in verdicts
-        for obj in v.get("objections", [])
-        if str(obj.get("severite", "")).strip().casefold() == "critique"
-    ]
-    if objections_critiques:
-        lignes.append(f"  {len(objections_critiques)} objection(s) CRITIQUE(S) présente(s) — round non consensuel")
-        for obj in objections_critiques:
-            lignes.append(f"    - {obj.get('fichier', '?')} : {obj.get('description', '?')}")
-        return False, "\n".join(lignes)
-
-    objections_majeures = [
-        obj
-        for v in verdicts
-        for obj in v.get("objections", [])
-        if str(obj.get("severite", "")).strip().casefold() == "majeure"
-    ]
-    if objections_majeures:
-        lignes.append(
-            f"  AVERTISSEMENT (non bloquant ici) : {len(objections_majeures)} objection(s) MAJEURE(S) "
-            "présente(s) — résolution cross-round non vérifiable par ce script (cf. docstring module), "
-            "revue humaine recommandée avant confiance totale."
-        )
+    for niveau in ("critique", "majeure"):
+        objections_niveau = [
+            obj
+            for v in verdicts
+            for obj in v.get("objections", [])
+            if str(obj.get("severite", "")).strip().casefold() == niveau
+        ]
+        if objections_niveau:
+            lignes.append(f"  {len(objections_niveau)} objection(s) {niveau.upper()}(S) présente(s) — round non consensuel")
+            for obj in objections_niveau:
+                lignes.append(f"    - {obj.get('fichier', '?')} : {obj.get('description', '?')}")
+            return False, "\n".join(lignes)
 
     verdicts_rejet = [v for v in verdicts if v.get("verdict") != "APPROVE"]
     if verdicts_rejet:
@@ -194,24 +304,26 @@ def verifier_task(task_id: str, *, min_vendors_approve: int = 1) -> tuple[bool, 
         lignes.append(f"  insuffisant (minimum requis : {min_vendors_approve})")
         return False, "\n".join(lignes)
 
-    lignes.append(f"  OK — scellé, {evidence_sha256_attendu}")
+    lignes.append("  OK — scellé et lié au code réel")
     return True, "\n".join(lignes)
 
 
 def main(argv: list[str] | None = None) -> int:
     """Sans argument : vérifie TOUTES les tâches sous evidence/tasks/
     (usage manuel/local). Avec --task <ID> (répétable) : vérifie
-    UNIQUEMENT les tâches nommées — c'est le mode utilisé par le job CI,
-    qui ne cible que les tâches NOUVELLES/MODIFIÉES par la PR courante
-    (calculées par `git diff` dans le step du workflow) plutôt que de
-    re-vérifier tout l'historique accumulé à chaque run (coût croissant
-    sans fin, hors périmètre de ce que « proof-sealed pour CETTE PR »
-    doit prouver). --min-vendors N (défaut 1, INDEPENDENT_REVIEW) : élève le
-    seuil de vendors distincts APPROVE exigé — ex. 3 pour le profil Team
-    (AGENTS.md, "3 reviewers / 3 vendors")."""
+    UNIQUEMENT les tâches nommées. --min-vendors N (défaut 1) : élève le
+    seuil de vendors distincts APPROVE exigé. --diff-base REF (défaut
+    origin/main) : base du diff scellé, pour usage local hors CI où
+    origin/main peut différer. --emit-code-diff-sha256 : imprime UNIQUEMENT
+    le hash du diff actuel et quitte (0) — mode utilitaire pour peupler
+    evidence.json au moment du scellement, garantit que la même fonction
+    calcule les 2 côtés de la comparaison (jamais 2 implémentations qui
+    pourraient diverger)."""
     args = argv if argv is not None else sys.argv[1:]
     task_ids: list[str] = []
     min_vendors = 1
+    diff_base = "origin/main"
+    emettre_hash_seul = False
     i = 0
     while i < len(args):
         if args[i] == "--task" and i + 1 < len(args):
@@ -220,8 +332,25 @@ def main(argv: list[str] | None = None) -> int:
         elif args[i] == "--min-vendors" and i + 1 < len(args):
             min_vendors = int(args[i + 1])
             i += 2
+        elif args[i] == "--diff-base" and i + 1 < len(args):
+            diff_base = args[i + 1]
+            i += 2
+        elif args[i] == "--emit-code-diff-sha256":
+            emettre_hash_seul = True
+            i += 1
+        elif args[i].startswith("--"):
+            print(f"ERREUR: option inconnue: {args[i]}", file=sys.stderr)
+            return 3
         else:
             i += 1
+
+    if emettre_hash_seul:
+        try:
+            print(_diff_sha256_actuel(base=diff_base))
+        except GitIndisponible as exc:
+            print(f"ERREUR: {exc}", file=sys.stderr)
+            return 1
+        return 0
 
     if not _EVIDENCE_ROOT.is_dir():
         print(
@@ -243,14 +372,20 @@ def main(argv: list[str] | None = None) -> int:
             print("PROOF_SEALED: ROUGE — evidence/tasks/ existe mais ne contient aucune tâche.", file=sys.stderr)
             return 1
 
+    try:
+        diff_sha256_attendu = _diff_sha256_actuel(base=diff_base)
+    except GitIndisponible as exc:
+        print(f"PROOF_SEALED: ROUGE — {exc}", file=sys.stderr)
+        return 1
+
     tout_ok = True
     for task_id in cibles:
-        ok, rapport = verifier_task(task_id, min_vendors_approve=min_vendors)
+        ok, rapport = verifier_task(task_id, min_vendors_approve=min_vendors, diff_sha256_attendu=diff_sha256_attendu)
         print(rapport)
         tout_ok = tout_ok and ok
 
     if tout_ok:
-        print(f"PROOF_SEALED: VERT ({len(cibles)} tâche(s) scellée(s) vérifiée(s))")
+        print(f"PROOF_SEALED: VERT ({len(cibles)} tâche(s) scellée(s) vérifiée(s), liées au code réel)")
         return 0
     print("PROOF_SEALED: ROUGE — voir détail ci-dessus.", file=sys.stderr)
     return 1

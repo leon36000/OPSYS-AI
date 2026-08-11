@@ -12,7 +12,11 @@ dupliquée entre les deux (le job CI invoque ce script directement).
 
 Bandit : config dans core/pyproject.toml ([tool.bandit], skips=["B101"]
 — asserts de test, jamais un défaut réel, cf. justification dans le
-fichier). Périmètre : core/src/ (jamais Modules M/, hors périmètre de
+fichier). Périmètre : core/src/ ET core/scripts/ (élargi révision 2,
+chantier CI-hardening — trouvé par revue scellée indépendante : le code
+d'infrastructure de sécurité le plus récent du dépôt, à savoir CES
+scripts eux-mêmes, subprocess/JSON non fiable inclus, échappait au scan
+qu'ils appliquent à tout le reste ; jamais Modules M/, hors périmètre de
 cette tâche comme de tout core/*). Mesuré AVANT ce script (127 findings
 bruts → 0 après config + `# nosec` scopés individuellement, chacun
 vérifié par lecture directe, jamais supposé) : 0 finding attendu en
@@ -35,10 +39,12 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _CORE_SRC = _REPO_ROOT / "core" / "src"
+_CORE_SCRIPTS = _REPO_ROOT / "core" / "scripts"
 _PYPROJECT = _REPO_ROOT / "core" / "pyproject.toml"
 _REQUIREMENTS_LOCK = _REPO_ROOT / "core" / "requirements.lock"
 
@@ -64,8 +70,15 @@ def executer_bandit() -> tuple[bool, str]:
     core/pyproject.toml (skips=B101 + nosec scopés) — un scanner qui
     laisse passer un finding non exempté explicitement ne serait pas
     un scanner réel."""
+    # -q OBLIGATOIRE : découvert en élargissant le périmètre à 2 cibles
+    # positionnelles (core/src + core/scripts, révision 2) — bandit 1.9.4
+    # imprime alors une barre de progression `rich` SUR STDOUT ("Working...
+    # 100%"), avant le JSON, cassant le parsing. Absent avec 1 seule cible
+    # (latent, pas nouveau : aurait fini par apparaître dès que le scan
+    # devient assez long, peu importe le nombre de cibles). -q supprime
+    # l'affichage, vérifié : sortie strictement JSON valide avec 2 cibles.
     resultat = _executer(
-        ["bandit", "-c", str(_PYPROJECT), "-r", str(_CORE_SRC), "-f", "json"]
+        ["bandit", "-q", "-c", str(_PYPROJECT), "-r", str(_CORE_SRC), str(_CORE_SCRIPTS), "-f", "json"]
     )
     # bandit : rc=0 aucun finding, rc=1 finding(s) trouvé(s), rc>1 = erreur outil.
     if resultat.returncode not in (0, 1):
@@ -95,20 +108,26 @@ def executer_pip_audit() -> tuple[bool, str]:
         for ligne in _REQUIREMENTS_LOCK.read_text(encoding="utf-8").splitlines()
         if ligne.strip() and not ligne.strip().startswith("#")
     ]
-    fichier_tmp = _REPO_ROOT / ".security-scan-requirements.tmp"
-    fichier_tmp.write_text("\n".join(lignes_verrou) + "\n", encoding="utf-8")
+    # tempfile HORS du dépôt (jamais un nom fixe sous _REPO_ROOT) : un
+    # fichier fixe pollue l'arbre de travail (capturable par un futur
+    # `git add -A`), collisionne entre 2 exécutions concurrentes, et
+    # interagit avec le contrôle d'arborescence D-038 — trouvé par revue
+    # scellée indépendante (chantier CI-hardening, tour 2).
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
+        f.write("\n".join(lignes_verrou) + "\n")
+        chemin_tmp = Path(f.name)
     try:
         resultat = _executer(
             [
                 "pip-audit",
-                "-r", str(fichier_tmp),
+                "-r", str(chemin_tmp),
                 "--disable-pip",
                 "--desc",
                 "-f", "json",
             ]
         )
     finally:
-        fichier_tmp.unlink(missing_ok=True)
+        chemin_tmp.unlink(missing_ok=True)
 
     # pip-audit : rc=0 aucune vulnérabilité, rc=1 vulnérabilité(s) trouvée(s).
     if resultat.returncode not in (0, 1):

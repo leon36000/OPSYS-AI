@@ -59,5 +59,26 @@ psycopg = "core/src/opsys_core/persistence/connection.py"
 # le mot "TOKEN" par coïncidence) — annotés `# nosec` en ligne avec
 # justification plutôt que supprimés ici (portée la plus étroite
 # possible, jamais une exclusion de fichier entier).
-skips = ["B101"]
+#
+# B404/B603/B607 exclus GLOBALEMENT depuis l'élargissement du scan à
+# core/scripts/ (chantier CI-hardening, révision 2 — trouvé par revue
+# scellée indépendante que ces scripts d'orchestration en étaient
+# exclus). 16 findings mesurés, TOUS dans core/scripts/, dont l'unique
+# rôle est d'invoquer des outils externes de confiance (git, bandit,
+# pip-audit, codeql, pytest, structure_lint.py) : B404 = « import
+# subprocess » (déclenché par le seul import, sans rapport avec l'usage
+# réel) ; B603 = « subprocess sans shell=True » (précisément le pattern
+# SÛR que B603 recommande par ailleurs — bandit le signale quand même
+# pour vérification manuelle) ; B607 = « chemin d'exécutable partiel »
+# (`"git"` plutôt que `/usr/bin/git` — portabilité intentionnelle,
+# convention déjà en place dans bootstrap_toolchain.py::_OUTILS_GARANTIS
+# avant ce chantier). Les 7 sites d'appel ont été lus un par un avant
+# cette exclusion (pas supposés sûrs) : chaque argv est une liste
+# littérale fixe (jamais shell=True, jamais une chaîne interpolée depuis
+# une entrée non fiable) — seul core/scripts/verify_proof_sealed.py
+# accepte un paramètre CLI (--diff-base) qui atteint l'argv, mais comme
+# UN élément de liste séparé (jamais une concaténation shell) et
+# uniquement en usage LOCAL manuel (le job CI n'appelle jamais ce flag,
+# valeur toujours "origin/main" littérale en production).
+skips = ["B101", "B404", "B603", "B607"]
 exclude_dirs = []

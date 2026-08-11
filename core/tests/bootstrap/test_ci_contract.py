@@ -140,6 +140,16 @@ _OUTILS_REELS_RE = re.compile(
     r"bandit|pip-audit|run_static_checks|evaluer_matrice|pytest)\b"
 )
 
+# Une commande PUREMENT d'installation (`pip install bandit==...`) ne
+# compte PAS comme invocation réelle même si le nom de l'outil apparaît
+# en substring — trouvé par revue scellée indépendante (architecte) :
+# supprimer le step qui EXÉCUTE le scan en ne gardant que le step
+# d'installation laissait ce test VERT, puisque `bandit`/`pip-audit`
+# apparaissent déjà littéralement dans la commande `pip install`. Une
+# ligne matchée par CE motif est exclue de la recherche de
+# `_OUTILS_REELS_RE`, quel que soit son contenu par ailleurs.
+_LIGNE_INSTALLATION_SEULE_RE = re.compile(r"^\s*python3?\s+-m\s+pip\s+install\b|^\s*pip3?\s+install\b")
+
 
 def _jobs_without_hard_failure(data: dict, noms: set[str]) -> list[str]:
     """Parmi les jobs dont le nom est dans `noms` :
@@ -171,7 +181,20 @@ def _jobs_without_hard_failure(data: dict, noms: set[str]) -> list[str]:
             if not a_echec_dur:
                 en_defaut.append(nom)
         else:
-            invoque_outil_reel = any(_OUTILS_REELS_RE.search(c) for c in commandes_run)
+            # Recherche LIGNE PAR LIGNE (jamais le bloc `run:` entier) —
+            # une ligne d'installation pure (`pip install bandit==...`)
+            # est exclue même si elle contient le nom d'un outil réel en
+            # substring, sinon supprimer le step qui EXÉCUTE le scan tout
+            # en gardant celui qui l'installe resterait indétectable
+            # (trouvé par revue scellée indépendante, cf. commentaire
+            # _LIGNE_INSTALLATION_SEULE_RE).
+            lignes_pertinentes = [
+                ligne
+                for c in commandes_run
+                for ligne in c.splitlines()
+                if not _LIGNE_INSTALLATION_SEULE_RE.search(ligne)
+            ]
+            invoque_outil_reel = any(_OUTILS_REELS_RE.search(ligne) for ligne in lignes_pertinentes)
             if not invoque_outil_reel:
                 en_defaut.append(nom)
     return en_defaut
@@ -355,6 +378,28 @@ def test_job_avec_mecanisme_reel_invoquant_un_outil_nomme_n_est_pas_en_defaut():
     }
     en_defaut = _jobs_without_hard_failure(data, {"security", "pack-validation"})
     assert en_defaut == []
+
+
+def test_job_avec_seulement_l_installation_sans_invocation_reelle_est_detecte():
+    """Trouvé par revue scellée indépendante (subagent architecte,
+    Claude Opus 5, chantier CI-hardening tour 2) : un job qui installe
+    bandit/pip-audit mais dont le step d'EXÉCUTION du scan a été
+    supprimé passait ce test AVANT correctif — `bandit`/`pip-audit`
+    apparaissent déjà en substring dans la commande `pip install`, donc
+    _OUTILS_REELS_RE matchait sans qu'aucun scan ne tourne réellement."""
+    data = {
+        "jobs": {
+            "security": {
+                "runs-on": "ubuntu-latest",
+                "steps": [
+                    {"run": "python3 -m pip install --quiet bandit==1.9.4 pip-audit==2.10.1"},
+                    # step d'exécution du scan absent — régression simulée
+                ],
+            },
+        }
+    }
+    en_defaut = _jobs_without_hard_failure(data, {"security"})
+    assert en_defaut == ["security"]
 
 
 def test_job_reel_deguise_en_placeholder_echo_exit_est_detecte():

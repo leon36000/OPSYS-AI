@@ -42,6 +42,7 @@ entrée de l'allowlist est un ROUGE bloquant, qu'il soit nouveau ou déplacé
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -49,57 +50,73 @@ import tempfile
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_SOURCE_ROOT = _REPO_ROOT / "core" / "src"
+# --source-root = core/ (racine commune requise par le CLI) ; le PÉRIMÈTRE
+# RÉELLEMENT indexé est restreint via LGTM_INDEX_FILTERS (voir
+# construire_base) à src/ + scripts/ — élargi révision 2 (trouvé par revue
+# scellée indépendante : core/scripts/, où vivent CES scripts eux-mêmes,
+# échappait au scan de la révision 1). core/tests/ (dossiers de test
+# TOP-LEVEL, distincts des tests co-localisés sous core/src/**/tests/,
+# conservés) est délibérément exclu de CE chantier — un audit CodeQL de la
+# suite de tests existante est un chantier séparé et proportionné, jamais
+# bundlé silencieusement ici (35+ findings mesurés en testant le scan sans
+# ce filtre, tous dans des fichiers de test pré-existants sans rapport
+# avec le CI-hardening). Vérifié empiriquement (pas supposé) : avec ce
+# filtre, 0 fichier sous core/tests/ dans l'archive source produite, tests
+# co-localisés (core/src/authz/tests/, core/src/config/tests/) préservés.
+_SOURCE_ROOT = _REPO_ROOT / "core"
+_FILTRES_INDEX = "exclude:tests\ninclude:src\ninclude:scripts"
 _SUITE = "python-security-and-quality.qls"
 
-# (rule_id, chemin RELATIF à --source-root, ligne) -> justification individuelle.
-# Chemins/lignes vérifiés le 2026-08-11 sur le SARIF produit par ce script
-# lui-même contre le commit fc48cee (branche opsys-core/chore/ci-hardening-gates-reels).
+# (rule_id, chemin RELATIF à --source-root (core/), ligne) -> justification
+# individuelle. Chemins préfixés `src/` (résultat direct du --source-root=core
+# combiné à LGTM_INDEX_FILTERS ci-dessus — vérifié sur le SARIF produit par CE
+# script, jamais deviné). Lignes vérifiées le 2026-08-11 contre le commit
+# fc48cee (branche opsys-core/chore/ci-hardening-gates-reels).
 _FAUX_POSITIFS_CONNUS: dict[tuple[str, str, int], str] = {
     (
-        "py/ineffectual-statement", "opsys_core/persistence/connection.py", 98,
+        "py/ineffectual-statement", "src/opsys_core/persistence/connection.py", 98,
     ): "corps `...` de méthode Protocol (fermer(), C05-001) — idiome PEP 544 "
        "pour un contrat sans implémentation. Même motif syntaxique déjà exempté "
        "par no_stub_ast.py (vérifié sur node.bases lors de la revue d'architecture).",
     (
-        "py/ineffectual-statement", "opsys_core/ports/contracts.py", 42,
+        "py/ineffectual-statement", "src/opsys_core/ports/contracts.py", 42,
     ): "idem — DomainPort.port_id, @property sur Protocol (C04-001).",
     (
-        "py/ineffectual-statement", "opsys_core/ports/contracts.py", 52,
+        "py/ineffectual-statement", "src/opsys_core/ports/contracts.py", 52,
     ): "idem — ProviderPort.provider_id.",
     (
-        "py/ineffectual-statement", "opsys_core/ports/contracts.py", 63,
+        "py/ineffectual-statement", "src/opsys_core/ports/contracts.py", 63,
     ): "idem — ModulePort.module_id.",
     (
-        "py/ineffectual-statement", "authz/engine.py", 12,
+        "py/ineffectual-statement", "src/authz/engine.py", 12,
     ): "corps `...` de méthode @abstractmethod sur ABC (AuthzEngine.add_tuple) — "
        "même idiome que Protocol, classe jamais instanciée directement.",
     (
-        "py/ineffectual-statement", "authz/engine.py", 16,
+        "py/ineffectual-statement", "src/authz/engine.py", 16,
     ): "idem — AuthzEngine.remove_tuple.",
     (
-        "py/ineffectual-statement", "authz/engine.py", 20,
+        "py/ineffectual-statement", "src/authz/engine.py", 20,
     ): "idem — AuthzEngine.check.",
     (
-        "py/ineffectual-statement", "authz/engine.py", 24,
+        "py/ineffectual-statement", "src/authz/engine.py", 24,
     ): "idem — AuthzEngine.list_objects.",
     (
-        "py/ineffectual-statement", "opsys_core/objects/port.py", 113,
+        "py/ineffectual-statement", "src/opsys_core/objects/port.py", 113,
     ): "idem — ObjectStorePort.put, Protocol @runtime_checkable (C04-004+).",
     (
-        "py/ineffectual-statement", "opsys_core/objects/port.py", 117,
+        "py/ineffectual-statement", "src/opsys_core/objects/port.py", 117,
     ): "idem — ObjectStorePort.get.",
     (
-        "py/ineffectual-statement", "config/vault.py", 69,
+        "py/ineffectual-statement", "src/config/vault.py", 69,
     ): "idem — SecretProvider.get_secret, @abstractmethod sur ABC fail-closed.",
     (
-        "py/unsafe-cyclic-import", "opsys_core/persistence/repository.py", 22,
+        "py/unsafe-cyclic-import", "src/opsys_core/persistence/repository.py", 22,
     ): "import sous `if TYPE_CHECKING:` — jamais exécuté au runtime (C05-003). "
        "Vérifié empiriquement le 2026-08-11 : les 2 ordres d'import possibles "
        "(uow puis repository, et l'inverse) réussissent sans ImportError. CodeQL "
        "ne semble pas spécialiser cet idiome comme le fait mypy.",
     (
-        "py/unsafe-cyclic-import", "opsys_core/persistence/uow.py", 62,
+        "py/unsafe-cyclic-import", "src/opsys_core/persistence/uow.py", 62,
     ): "idem, sens inverse — même paire d'imports différés.",
 }
 
@@ -123,13 +140,20 @@ def _localiser_codeql() -> str:
     )
 
 
-def _executer(codeql: str, argv: list[str], *, timeout: int) -> subprocess.CompletedProcess:
+def _executer(
+    codeql: str, argv: list[str], *, timeout: int, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess:
     return subprocess.run(
-        [codeql, *argv], capture_output=True, text=True, timeout=timeout, cwd=_REPO_ROOT,
+        [codeql, *argv], capture_output=True, text=True, timeout=timeout, cwd=_REPO_ROOT, env=env,
     )
 
 
 def construire_base(codeql: str, db_path: Path) -> tuple[bool, str]:
+    # LGTM_INDEX_FILTERS restreint l'indexation à src/+scripts/ sous
+    # --source-root=core (exclut core/tests/ — voir docstring module).
+    # os.environ hérité EXPLICITEMENT (PATH etc. nécessaires à codeql lui-
+    # même) plutôt qu'un environnement vide, avec CETTE seule variable ajoutée.
+    env = {**os.environ, "LGTM_INDEX_FILTERS": _FILTRES_INDEX}
     resultat = _executer(
         codeql,
         [
@@ -139,6 +163,7 @@ def construire_base(codeql: str, db_path: Path) -> tuple[bool, str]:
             "--overwrite",
         ],
         timeout=600,
+        env=env,
     )
     ok = resultat.returncode == 0
     sortie = (resultat.stdout + resultat.stderr).strip()

@@ -81,7 +81,7 @@ def verify_lock(pyproject: Path, lock: Path) -> LockReport:
                 continue
             try:
                 source = py_file.read_text(encoding="utf-8", errors="replace")
-            except Exception:
+            except Exception:  # nosec: B112 # 1 fichier illisible (permissions/binaire) ne doit pas interrompre le scan de dépendances de tout l'arbre — dégradation gracieuse mesurée, pas un masquage de faille de sécurité
                 continue
             for line in source.splitlines():
                 stripped = line.strip()
