@@ -53,8 +53,14 @@ tracée à sa réponse :
    (`owner=CORE, aggregate∈{auth,authz,config,opsys_core}`) ne matchent
    jamais ce filtre et sont donc naturellement exclues, sans branche
    spéciale : `"CORE" not in ports_par_owner_long` déclenche la sentinelle
-   du point 2 de façon générique (vaudrait pareil pour un futur M11 sans
-   port résolu).
+   du point 2. **Corrigé (revue scellée 2026-08-11, Kimi-K3, mineure) :**
+   cette sentinelle n'est PAS générique pour un futur module sans port
+   résolu — SEUL `"CORE"` est exempté par `_verifier_table_alias`
+   (`if owner_court == "CORE": continue`) ; pour tout owner non-CORE, la
+   même fonction lève `TableAliasPerimee` AVANT que la branche sentinelle
+   ne soit atteignable (cf. `test_owner_non_core_sans_ligne_dans_les_
+   chemins_leve_table_perimee_pas_sentinelle`). La sentinelle est donc
+   câblée nommément sur CORE, jamais un mécanisme générique.
 7. **Vérification d'unicité INDÉPENDANTE du chargeur amont** —
    `business_authority_map.py` garantit déjà l'absence de conflit
    deux-owners dans SA sortie (testé), mais ce registre ne présume pas
@@ -73,9 +79,14 @@ from pathlib import Path
 
 from .model import PREFIXE_NON_RESOLU, AuthorityRecord
 
-# 3 niveaux au-dessus de ce fichier = racine du dépôt (authority -> src ->
-# core -> racine). Paramétrable en argument de `construire_registre` pour
-# les tests (cf. docstring point 4 : jamais de chemin figé non testable).
+# parents[4] = racine du dépôt (revue scellée 2026-08-11, Kimi-K3, mineure,
+# confirmée : le commentaire précédent disait « 3 niveaux » avec la chaîne
+# authority -> src -> core -> racine, omettant opsys_core — la chaîne
+# RÉELLE est authority -> opsys_core -> src -> core -> racine, soit 4
+# niveaux, cohérent avec parents[4]. Le code était déjà correct — vérifié
+# par les tests GREEN sur les vraies cartes — seul le commentaire trompait.
+# Paramétrable en argument de `construire_registre` pour les tests (cf.
+# docstring point 4 : jamais de chemin figé non testable).
 _RACINE_DEPOT = Path(__file__).resolve().parents[4]
 CHEMIN_CARTE_CHEMINS = _RACINE_DEPOT / "audit" / "core-baseline" / "AUTHORITY-MAP.csv"
 CHEMIN_CARTE_METIER = _RACINE_DEPOT / "audit" / "core-baseline" / "BUSINESS-AUTHORITY-MAP-M1-M10.csv"
