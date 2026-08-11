@@ -251,39 +251,16 @@ def test_regle_adapters_vers_ports_est_bien_declaree_allowed():
     )
 
 
-def test_application_est_toujours_documentee_vide_ou_peuplee():
+def test_application_est_declaree_vide_explicitement():
     """Garde nommée contre le piège déjà audité CAND-CA05-0004 (bijection
     silencieuse sur deux ensembles vides) : la couche `application` doit
-    TOUJOURS être déclarée avec une raison explicite — jamais
-    silencieusement absente du TOML, jamais silencieusement peuplée sans
-    justification.
-
-    MISE À JOUR C04-004 (renommé depuis test_application_est_declaree_
-    vide_explicitement — 0 référence FONCTIONNELLE dans le dépôt à ce
-    nom, vérifié par grep avant renommage ; seules des mentions en
-    PROSE dans des docstrings citant l'historique subsistent, ex.
-    test_composition_root.py, jamais un identifiant Python réellement
-    référencé/appelé) : la couche n'est plus vide, peuplée comme
-    annoncé par la note du TOML depuis C04-001 (« peuplée par
-    C04-004 »). La garde CAND-CA05-0004 reste vivante en exigeant
-    TOUJOURS une note non vide — c'est la présence d'une justification,
-    pas la vacuité elle-même, qui empêche la bijection silencieuse.
-    L'assertion `paths == []` devient `paths != []` : imposé par
-    test_union_des_couches_couvre_exactement_tous_les_py_de_core_src
-    (ci-dessous, même fichier) ÉTANT DONNÉ le choix — correct et
-    pré-annoncé par la note du TOML depuis C04-001 — de déclarer
-    composition.py/provider_registry.py dans la couche `application`
-    précisément (objection Kimi-K3 tour 1 confirmée : la garde d'union
-    exige seulement qu'un fichier appartienne à UNE couche déclarée,
-    peu importe laquelle — la contradiction ne devient réelle qu'avec
-    CE choix de couche, pas par pure nécessité logique)."""
+    être déclarée VIDE avec une raison explicite, jamais silencieusement
+    absente du TOML."""
     regles = _charger_regles()
-    assert "application" in regles["layers"], "couche application absente du TOML — doit être déclarée"
-    assert regles["layers"]["application"]["paths"] != [], (
-        "couche application encore vide après C04-004 — peuplement attendu (composition.py, provider_registry.py)"
-    )
+    assert "application" in regles["layers"], "couche application absente du TOML — doit être déclarée, même vide"
+    assert regles["layers"]["application"]["paths"] == []
     assert regles["layers"]["application"].get("note", "").strip(), (
-        "couche application sans raison explicite — cf. CAND-CA05-0004"
+        "couche application vide sans raison explicite — cf. CAND-CA05-0004"
     )
 
 
