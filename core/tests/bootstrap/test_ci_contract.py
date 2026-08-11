@@ -147,20 +147,37 @@ _OUTILS_REELS_RE = re.compile(
 # d'installation laissait ce test VERT, puisque `bandit`/`pip-audit`
 # apparaissent déjà littéralement dans la commande `pip install`. Une
 # ligne matchée par CE motif est exclue de la recherche de
-# `_OUTILS_REELS_RE`, quel que soit son contenu par ailleurs.
-_LIGNE_INSTALLATION_SEULE_RE = re.compile(r"^\s*python3?\s+-m\s+pip\s+install\b|^\s*pip3?\s+install\b")
+# `_OUTILS_REELS_RE`, quel que soit son contenu par ailleurs. `uv pip
+# install` ajouté round 3 (confirmation architecte) — gestionnaire
+# alternatif nommé explicitement comme cas à fermer, PAS couvert par le
+# filtre `==<version>` seul (un `uv pip install bandit` SANS version
+# épinglée n'a aucun `==` à détecter).
+_LIGNE_INSTALLATION_SEULE_RE = re.compile(
+    r"^\s*python3?\s+-m\s+pip\s+install\b|^\s*pip3?\s+install\b|^\s*uv\s+pip\s+install\b"
+)
 
-# Défense en profondeur (round 2, architecte) : la ligne ci-dessus exige
-# que la commande d'installation COMMENCE la ligne — une continuation
+# Un COMMENTAIRE ne compte JAMAIS comme invocation réelle — trouvé par
+# revue scellée indépendante round 3 (architecte), défaut LIVE (pas
+# hypothétique) : le bloc `run: |` de core-ci.yml/proof-sealed contient,
+# EN COMMENTAIRE, le nom littéral `verify_proof_sealed.py` (explication
+# de la cohérence _PATHSPEC_SCELLE) — sans cette exclusion, supprimer la
+# SEULE ligne d'invocation réelle du step laissait ce test VERT
+# uniquement à cause du commentaire, exactement la classe de trou que ce
+# test prétend fermer pour bandit/pip-audit.
+_LIGNE_COMMENTAIRE_RE = re.compile(r"^\s*#")
+
+# Défense en profondeur (round 2, architecte) : les deux motifs
+# ci-dessus exigent que le motif COMMENCE la ligne — une continuation
 # multi-ligne (`pip install \` puis la liste des paquets sur la ligne
-# SUIVANTE) ou un gestionnaire alternatif (`uv pip install bandit`)
-# échapperait à `_LIGNE_INSTALLATION_SEULE_RE` tout en laissant
-# `bandit`/`pip-audit` matcher `_OUTILS_REELS_RE` comme si c'était une
-# invocation réelle. Filtre COMPLÉMENTAIRE, au niveau du MATCH plutôt que
-# de la ligne : un nom d'outil immédiatement suivi de `==<version>` est
-# un spécificateur de paquet pip (jamais une invocation de commande, qui
-# serait suivie d'un espace/flag/fin de ligne) — exclu quelle que soit la
-# ligne où il apparaît.
+# SUIVANTE) échapperait aux deux tout en laissant `bandit`/`pip-audit`
+# matcher `_OUTILS_REELS_RE` comme si c'était une invocation réelle.
+# Filtre COMPLÉMENTAIRE, au niveau du MATCH plutôt que de la ligne : un
+# nom d'outil immédiatement suivi de `==<version>` est un spécificateur
+# de paquet pip ÉPINGLÉ (jamais une invocation de commande, qui serait
+# suivie d'un espace/flag/fin de ligne) — exclu quelle que soit la ligne
+# où il apparaît. Ne couvre PAS un paquet non épinglé sur une ligne de
+# continuation (angle mort résiduel, nommé — cas jugé peu probable dans
+# ce dépôt qui épingle systématiquement les versions, D-035/D-038).
 _SPECIFICATEUR_PAQUET_RE = re.compile(r"==\d")
 
 
@@ -196,19 +213,25 @@ def _jobs_without_hard_failure(data: dict, noms: set[str]) -> list[str]:
         else:
             # Recherche LIGNE PAR LIGNE (jamais le bloc `run:` entier) —
             # une ligne d'installation pure (`pip install bandit==...`)
-            # est exclue même si elle contient le nom d'un outil réel en
-            # substring, sinon supprimer le step qui EXÉCUTE le scan tout
-            # en gardant celui qui l'installe resterait indétectable
-            # (trouvé par revue scellée indépendante, cf. commentaire
-            # _LIGNE_INSTALLATION_SEULE_RE). PUIS filtre au niveau du
-            # MATCH (_SPECIFICATEUR_PAQUET_RE) — défense en profondeur
-            # contre une installation multi-ligne ou un gestionnaire
-            # alternatif (uv, ...) qui échapperait au filtre par ligne.
+            # OU un COMMENTAIRE (`# ... verify_proof_sealed.py ...`, défaut
+            # LIVE trouvé round 3 : core-ci.yml/proof-sealed EXPLIQUE en
+            # commentaire pourquoi _PATHSPEC_SCELLE doit rester synchronisé,
+            # nommant le script — sans cette exclusion, supprimer la seule
+            # ligne d'invocation réelle laissait ce test VERT à cause du
+            # commentaire seul) est exclue même si elle contient le nom
+            # d'un outil réel en substring, sinon supprimer le step qui
+            # EXÉCUTE le scan tout en gardant celui qui l'installe (ou un
+            # commentaire qui le mentionne) resterait indétectable (trouvé
+            # par revue scellée indépendante, cf. commentaires
+            # _LIGNE_INSTALLATION_SEULE_RE / _LIGNE_COMMENTAIRE_RE). PUIS
+            # filtre au niveau du MATCH (_SPECIFICATEUR_PAQUET_RE) —
+            # défense en profondeur contre une installation multi-ligne.
             lignes_pertinentes = [
                 ligne
                 for c in commandes_run
                 for ligne in c.splitlines()
                 if not _LIGNE_INSTALLATION_SEULE_RE.search(ligne)
+                and not _LIGNE_COMMENTAIRE_RE.search(ligne)
             ]
             invoque_outil_reel = any(
                 match
@@ -442,6 +465,60 @@ def test_job_installation_multiligne_sans_invocation_reelle_est_detecte():
                 "runs-on": "ubuntu-latest",
                 "steps": [
                     {"run": "python3 -m pip install \\\n  --quiet \\\n  bandit==1.9.4 pip-audit==2.10.1"},
+                    # step d'exécution du scan absent — régression simulée
+                ],
+            },
+        }
+    }
+    en_defaut = _jobs_without_hard_failure(data, {"security"})
+    assert en_defaut == ["security"]
+
+
+def test_job_commentaire_nommant_l_outil_sans_invocation_reelle_est_detecte():
+    """Défaut LIVE trouvé round 3 (confirmation architecte) sur
+    core-ci.yml/proof-sealed lui-même, pas une régression hypothétique :
+    un COMMENTAIRE explicatif à l'intérieur du bloc `run: |` qui NOMME un
+    outil réel (ex. « ... doit rester identique à _PATHSPEC_SCELLE dans
+    verify_proof_sealed.py ... ») matchait _OUTILS_REELS_RE avant ce
+    correctif, rendant ce test AVEUGLE à la suppression de la seule ligne
+    d'invocation réelle du même step."""
+    data = {
+        "jobs": {
+            "proof-sealed": {
+                "runs-on": "ubuntu-latest",
+                "steps": [
+                    {
+                        "run": (
+                            "set -e\n"
+                            "# Ce commentaire mentionne verify_proof_sealed.py explicitement,\n"
+                            "# comme le fait réellement core-ci.yml — sans rapport avec une\n"
+                            "# invocation réelle du script.\n"
+                            "echo rien d'autre ne s'exécute ici"
+                        ),
+                        # aucune ligne n'invoque réellement verify_proof_sealed.py
+                    },
+                ],
+            },
+        }
+    }
+    en_defaut = _jobs_without_hard_failure(data, {"proof-sealed"})
+    assert en_defaut == ["proof-sealed"]
+
+
+def test_job_uv_pip_install_sans_version_epinglee_sans_invocation_reelle_est_detecte():
+    """Trouvé round 3 (confirmation architecte) : le commentaire de
+    _SPECIFICATEUR_PAQUET_RE nommait `uv pip install bandit` (SANS
+    version épinglée) comme cas à fermer, mais seul `==<version>` était
+    filtré — un paquet non épinglé via `uv` échappait aux deux filtres.
+    `_LIGNE_INSTALLATION_SEULE_RE` étendu pour couvrir `uv pip install`
+    directement (comme `pip install`), plutôt que de dépendre du
+    filtre par version qui ne s'applique pas ici."""
+    data = {
+        "jobs": {
+            "security": {
+                "runs-on": "ubuntu-latest",
+                "steps": [
+                    {"run": "uv pip install bandit pip-audit"},
                     # step d'exécution du scan absent — régression simulée
                 ],
             },
