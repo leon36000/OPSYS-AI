@@ -48,10 +48,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5 — pin SHA (D-035), même référence que .github/workflows/ci.yml
-      - name: Installer les dépendances Core verrouillées (core/pyproject.toml, C02-002 + psycopg/psycopg-binary C05-001)
-        run: python3 -m pip install --quiet PyYAML==6.0.1 pytest==9.1.1 psycopg==3.2.3 psycopg-binary==3.2.3
-      - name: Tests bootstrap + architecture + persistence Core — scope core/ isolé (jamais combiné avec Modules M/, cf. collision de noms mesurée C02-004 ; core/tests/architecture ajouté C04-002, core/tests/persistence ajouté C05-001 — chacun n'était exécuté par AUCUN job CI avant son correctif, trou trouvé par la revue d'architecture AVANT code). core/tests/persistence démarre SON PROPRE conteneur PostgreSQL éphémère (docker run interne à la fixture, port publié aléatoire lu via `docker port`, jamais un service CI fixe) — runner ubuntu-latest fournit Docker nativement, aucune étape de service dédiée nécessaire.
-        run: python3 -m pytest -q core/tests/bootstrap core/tests/architecture core/tests/persistence
+      - name: Installer les dépendances Core verrouillées (core/pyproject.toml, C02-002)
+        run: python3 -m pip install --quiet PyYAML==6.0.1 pytest==9.1.1
+      - name: Tests bootstrap + architecture Core — scope core/ isolé (jamais combiné avec Modules M/, cf. collision de noms mesurée C02-004 ; core/tests/architecture ajouté C04-002 — n'était exécuté par AUCUN job CI avant ce correctif, trou trouvé par la revue d'architecture AVANT code de C04-002)
+        run: python3 -m pytest -q core/tests/bootstrap core/tests/architecture
 
   proof-sealed:
     runs-on: ubuntu-latest
