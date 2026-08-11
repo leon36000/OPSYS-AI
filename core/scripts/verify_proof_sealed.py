@@ -173,9 +173,19 @@ _VENDOR = {
 
 def _vendor_of(model_or_vendor: str) -> str:
     """Retourne la famille de vendor d'un identifiant de modèle/reviewer.
-    Modèle absent du tableau : traité comme son propre vendor singleton
-    (jamais fusionné à tort avec un autre — fail-closed sur l'inconnu,
-    même choix par défaut que tally_reviews.py::vendor_of)."""
+    Modèle absent du tableau : traité comme son propre vendor singleton.
+    PRÉCISION round 4 (confirmation architecte) : ce repli est
+    fail-closed pour "ne jamais fusionner à tort 2 modèles CONNUS de
+    vendors différents", mais PAS une garantie anti-Sybil absolue pour
+    des modèles absents du tableau — si 2 alias inconnus appartenaient
+    en réalité au MÊME vendor, ils compteraient à tort comme 2 vendors
+    distincts (fail-OPEN du point de vue de la décorrélation, comme
+    tally_reviews.py::vendor_of dont ce comportement est hérité à
+    l'identique). Cas réel présent dans ce chantier : "muse-spark-1.2"
+    est absent du tableau canonique, compte pour son propre vendor.
+    Mitigation : `_VENDOR` reste tenu synchronisé avec le canon (jamais
+    de sous-ensemble "minimal" — c'est la dérive round 2), et tout
+    roster élargi devrait y ajouter ses nouveaux vendors explicitement."""
     key = (model_or_vendor or "").strip().lower()
     return _VENDOR.get(key, key)
 
