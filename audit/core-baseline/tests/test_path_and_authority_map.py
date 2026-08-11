@@ -55,8 +55,10 @@ def test_ratifier_la_carte_des_chemins_et_des_autorit_s_1():
     for chemin_peuple in CHEMINS_CORE_EXISTANTS_PEUPLES:
         assert par_chemin[chemin_peuple].status == "EXISTING_SHIM_REQUIRED"
 
-    # Le seul chemin RÉELLEMENT libre (opsys_core) reste réservable.
-    assert par_chemin[CHEMIN_CORE_NOUVEAU].status == "RESERVED_NEW"
+    # opsys_core : peuplé pour de vrai par C03-001 (PR #498) depuis la
+    # ratification initiale de C00-004 — re-ratifié EXISTING_CORE_OWNED par
+    # ce chore (jamais RESERVED_NEW une fois peuplé, cf. cas RED ci-dessous).
+    assert par_chemin[CHEMIN_CORE_NOUVEAU].status == "EXISTING_CORE_OWNED"
 
 
 def test_ratifier_la_carte_des_chemins_et_des_autorit_s_2():
@@ -92,7 +94,7 @@ def test_ratifier_la_carte_des_chemins_et_des_autorit_s_3():
 
 
 def test_path_map_est_gelee():
-    p = PathMap("core.opsys_core", CHEMIN_CORE_NOUVEAU, "RESERVED_NEW")
+    p = PathMap("core.opsys_core", CHEMIN_CORE_NOUVEAU, "EXISTING_CORE_OWNED")
     with pytest.raises(AttributeError):
         p.status = "AMENDMENT_REQUIRED"
 
@@ -118,6 +120,42 @@ def test_path_map_refuse_existing_shim_required_sur_chemin_non_peuple():
 def test_path_map_refuse_existing_module_owned_sur_racine_inconnue():
     with pytest.raises(IncoherenceStatutChemin, match="EXISTING_MODULE_OWNED"):
         PathMap("module.invente", "Modules M/M11-fantome/src", "EXISTING_MODULE_OWNED")
+
+
+def test_path_map_refuse_opsys_core_declare_reserved_new_maintenant_peuple():
+    """Cas RED 1, extension (chore post C03-001, PR #498) : depuis que
+    core/src/opsys_core est réellement peuplé, le redéclarer RESERVED_NEW
+    est le MÊME mensonge que pour core/src/authz ou core/src/config —
+    refusé par la même garde, élargie à ce chemin. Élargir un REFUS est
+    sûr (cf. docstring de `_chemin_egal_ou_sous_chemin_de`, portée
+    volontairement limitée aux gardes de refus, jamais aux gardes de
+    cohérence)."""
+    with pytest.raises(ConflitCheminRefuse, match="RESERVED_NEW"):
+        PathMap("x", CHEMIN_CORE_NOUVEAU, "RESERVED_NEW")
+
+
+def test_path_map_refuse_existing_core_owned_sur_chemin_different():
+    """IncoherenceStatutChemin, symétrique de EXISTING_SHIM_REQUIRED/
+    EXISTING_MODULE_OWNED : EXISTING_CORE_OWNED ne peut être déclaré que
+    sur CHEMIN_CORE_NOUVEAU exactement — égalité STRICTE (jamais la
+    comparaison souple de sous-chemin, réservée aux gardes de refus)."""
+    with pytest.raises(IncoherenceStatutChemin, match="EXISTING_CORE_OWNED"):
+        PathMap("core.invente", "core/src/pas_opsys_core", "EXISTING_CORE_OWNED")
+
+
+@pytest.mark.parametrize("variante", [
+    "core/src/opsys_core/kernel.py", "core/src/opsys_core/", "core/src/opsys_core/status",
+])
+def test_path_map_refuse_existing_core_owned_meme_sur_un_sous_chemin(variante):
+    """Piège nommé en revue d'architecture (chore de re-ratification) : la
+    garde de COHÉRENCE EXISTING_CORE_OWNED doit rester une égalité STRICTE.
+    Si elle utilisait la comparaison souple _chemin_egal_ou_sous_chemin_de
+    (réservée aux gardes de REFUS), un sous-chemin de CHEMIN_CORE_NOUVEAU
+    passerait à tort — alors que les gardes EXISTING_SHIM_REQUIRED/
+    EXISTING_MODULE_OWNED existantes le refusent déjà par construction
+    (comparaison `in` sur un ensemble, jamais un préfixe)."""
+    with pytest.raises(IncoherenceStatutChemin, match="EXISTING_CORE_OWNED"):
+        PathMap("core.invente", variante, "EXISTING_CORE_OWNED")
 
 
 def test_path_map_accepte_amendment_required():
@@ -254,7 +292,7 @@ def test_authority_core_sur_ses_propres_chemins_est_autorise():
 
 
 def test_resoudre_chemin_canonique_couvre_les_3_familles():
-    assert resoudre_chemin_canonique("core.opsys_core").status == "RESERVED_NEW"
+    assert resoudre_chemin_canonique("core.opsys_core").status == "EXISTING_CORE_OWNED"
     assert resoudre_chemin_canonique("core.authz").status == "EXISTING_SHIM_REQUIRED"
     assert resoudre_chemin_canonique("module.M2-revenue-crm").status == "EXISTING_MODULE_OWNED"
     assert resoudre_chemin_canonique("core.policy_kernel").status == "AMENDMENT_REQUIRED"
@@ -287,18 +325,48 @@ def test_construire_carte_chemins_refuse_si_inventaire_derive(tmp_path, monkeypa
         construire_carte_chemins(faux_worktree)
 
 
-def test_construire_carte_chemins_refuse_si_opsys_core_existe_deja(tmp_path):
-    """Reproduit un vrai worktree MINIMAL où opsys_core existerait déjà —
-    le réserver serait alors un mensonge."""
-    faux_worktree = tmp_path / "worktree_conflit"
+def test_construire_carte_chemins_refuse_si_opsys_core_absent(tmp_path):
+    """Chore de re-ratification (post C03-001, PR #498) : depuis que
+    core/src/opsys_core est EXISTING_CORE_OWNED (peuplé pour de vrai, plus
+    RESERVED_NEW), il rejoint le même régime que les 3 services legacy —
+    un worktree où il est ABSENT (nouveau Core jamais construit, dépendance
+    amont non satisfaite) est refusé, jamais publié sur une hypothèse
+    fausse. Inverse l'ancien test de ce nom (qui vérifiait l'ancien régime
+    RESERVED_NEW, devenu obsolète — cf. test_path_map_refuse_opsys_core_
+    declare_reserved_new_maintenant_peuple pour la garde qui a repris cette
+    préoccupation à la couche PathMap)."""
+    faux_worktree = tmp_path / "worktree_sans_opsys_core"
     for rel in CHEMINS_CORE_EXISTANTS_PEUPLES:
         d = faux_worktree / rel
         d.mkdir(parents=True)
         (d / "reel.py").write_text("# fichier réel\n", encoding="utf-8")
     for racine in MODULES_SRC_ROOTS.values():
         (faux_worktree / racine).mkdir(parents=True)
-    (faux_worktree / CHEMIN_CORE_NOUVEAU).mkdir(parents=True)
-    with pytest.raises(InventaireDeriveRefuse, match="RESERVED_NEW"):
+    # opsys_core délibérément PAS créé — worktree par ailleurs complet
+    # (3 services + 10 modules) pour que la garde échoue pour la BONNE
+    # raison, jamais parce qu'une boucle antérieure a levé en premier.
+    with pytest.raises(InventaireDeriveRefuse, match="opsys_core"):
+        construire_carte_chemins(faux_worktree)
+
+
+def test_construire_carte_chemins_refuse_si_opsys_core_vide_de_fichier_reel(tmp_path):
+    """Même garde, second cas (les deux branches de la condition composée
+    `not chemin.is_dir() or not fichiers_reels`) : le dossier existe (ex.
+    suivi par un seul .gitkeep, comme les racines de modules avant leur
+    première story) mais ne contient aucun fichier réel — toujours une
+    dépendance amont non satisfaite, jamais un « le dossier existe donc
+    c'est bon »."""
+    faux_worktree = tmp_path / "worktree_opsys_core_vide"
+    for rel in CHEMINS_CORE_EXISTANTS_PEUPLES:
+        d = faux_worktree / rel
+        d.mkdir(parents=True)
+        (d / "reel.py").write_text("# fichier réel\n", encoding="utf-8")
+    for racine in MODULES_SRC_ROOTS.values():
+        (faux_worktree / racine).mkdir(parents=True)
+    d = faux_worktree / CHEMIN_CORE_NOUVEAU
+    d.mkdir(parents=True)
+    (d / ".gitkeep").write_text("", encoding="utf-8")
+    with pytest.raises(InventaireDeriveRefuse, match="opsys_core"):
         construire_carte_chemins(faux_worktree)
 
 
@@ -338,6 +406,13 @@ def test_produire_sorties_refuse_sortie_dir_symlinke(tmp_path):
         (d / "reel.py").write_text("# reel\n", encoding="utf-8")
     for racine in MODULES_SRC_ROOTS.values():
         (faux_worktree / racine).mkdir(parents=True)
+    # opsys_core doit lui aussi être peuplé ici (EXISTING_CORE_OWNED) —
+    # sinon construire_carte_chemins (appelé par produire_sorties_carte
+    # AVANT toute écriture) lève InventaireDeriveRefuse et ce test cesse
+    # d'exercer la garde anti-symlink qu'il vise réellement.
+    d = faux_worktree / CHEMIN_CORE_NOUVEAU
+    d.mkdir(parents=True)
+    (d / "reel.py").write_text("# reel\n", encoding="utf-8")
     ailleurs = tmp_path / "ailleurs"
     ailleurs.mkdir()
     lien = faux_worktree / "sortie"
