@@ -137,7 +137,16 @@ def open_database(config: DatabaseConfig, *, provider: SecretProvider) -> Databa
     cible résolue non-PostgreSQL, ouvre une connexion réelle. `provider`
     keyword-only et sans défaut : un appel `open_database(config)` lève
     `TypeError` (paramètre manquant), jamais un `EnvSecretProvider()`
-    implicite construit en silence."""
+    implicite construit en silence.
+
+    LIMITATION CONNUE (revue scellée C05-001, objection mineure Kimi-K3
+    confirmée vraie, non résolue en silence) : `config.pool_min`/
+    `config.pool_max` sont validés à la construction (cas RED 3) mais
+    NON consommés ici — une seule connexion `psycopg.connect` est
+    ouverte, jamais un `psycopg_pool.ConnectionPool` réel. Le spec
+    C05-001 exige seulement « pool invalide bloque », pas un pool
+    effectif ; un pool de connexions réel est laissé à une tâche
+    future (hors périmètre de cette tâche, cf. Sorties exactes)."""
     secret = provider.get_secret(config.dsn_secret_ref)  # proof:allow — nom de variable (objet SecretRef), aucun secret littéral
     if secret is None:
         raise ValueError(

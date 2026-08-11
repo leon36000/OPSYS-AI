@@ -52,7 +52,16 @@ _MOTS_CLES_LIBPQ = ("host=", "dbname=", "user=", "password=", "port=", "sslmode=
 
 def _detecter_dsn_clair(dsn_secret_ref: str) -> str | None:
     """Retourne le motif détecté si `dsn_secret_ref` ressemble à un DSN
-    déjà résolu ; `None` si c'est un nom de secret légitime."""
+    déjà résolu ; `None` si c'est un nom de secret légitime.
+
+    LIMITATION CONNUE (revue scellée C05-001, objection mineure Kimi-K3
+    confirmée vraie, non résolue en silence) : les heuristiques finales
+    (caractère '@', espace, longueur > 40) peuvent refuser à tort un nom
+    de secret légitime mais atypique (ex. chemin Vault long ou ARN
+    Secrets Manager > 40 caractères, sans '://' ni '=' libpq). Choix de
+    politique fail-closed délibéré et assumé (un faux positif bloque
+    sans risque de sécurité ; un faux négatif laisserait passer un DSN
+    en clair) — à revisiter si un provider futur bute réellement dessus."""
     if not isinstance(dsn_secret_ref, str) or not dsn_secret_ref.strip():
         return "vide ou non-chaîne"
     minuscule = dsn_secret_ref.lower()
