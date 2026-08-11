@@ -27,6 +27,14 @@ psycopg = "LGPL-3.0-only"
 # IMPORTÉE au sens de ce tableau, qui suit le même périmètre que
 # _CORRESPONDANCE_IMPORT_PAQUET) ; sa licence est identique, mesurée dans
 # le wheel : LGPL-3.0-only.
+#
+# typing-extensions (fix C05-001 tour 2, Kimi-K3) : présente dans
+# requirements.lock (dépendance TRANSITIVE de psycopg==3.2.3, exigée par
+# le mode `--require-hashes` câblé dans core-ci.yml — cf. note dédiée dans
+# requirements.lock) mais jamais `import`ée directement dans core/. Non
+# déclarée ici pour la même raison que psycopg-binary ci-dessus. Licence
+# mesurée directement dans le wheel (champ `License-Expression` du
+# METADATA, jamais devinée) : PSF-2.0.
 
 [tool.opsys-core.dependency-provenance]
 # PyYAML : détectée par core/scripts/verify_dependencies.py (import réel
@@ -45,3 +53,12 @@ PyYAML = "core/src/config/settings.py"
 # son propre libpq statiquement lié, vérifié par connexion réelle à un
 # conteneur PostgreSQL éphémère avant ce commit.
 psycopg = "core/src/opsys_core/persistence/connection.py"
+# typing-extensions : jamais importée directement dans core/ (même
+# traitement que psycopg-binary ci-dessus) — dépendance TRANSITIVE de
+# psycopg==3.2.3 (`typing-extensions>=4.6`, déclarée par le paquet
+# lui-même), ajoutée à requirements.lock uniquement parce que `pip
+# install --require-hashes` (câblé par le fix C05-001 tour 2, Kimi-K3)
+# exige un hash pour toute dépendance résolue dans la commande
+# d'installation, y compris transitive. Pas de clé ici : ce tableau
+# suit le même périmètre que _CORRESPONDANCE_IMPORT_PAQUET (imports
+# réels de core/), et rien sous core/ n'importe typing_extensions.

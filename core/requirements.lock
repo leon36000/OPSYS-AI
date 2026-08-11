@@ -8,6 +8,15 @@
 # Régénérer à chaque ajout de dépendance runtime — vérifié par
 # core/scripts/verify_dependencies.py.
 #
+# Installation CI (core-ci.yml, job `tests`) : `pip install --require-hashes
+# -r core/requirements.lock` (fix C05-001 tour 2, Kimi-K3 — cf. note RÉSOLU
+# plus bas). Ce mode EXIGE un hash pour TOUTE dépendance installée dans la
+# même commande, y compris transitive (cf. typing-extensions plus bas) —
+# aucun paquet hors lock (ex. pytest, dépendance dev) ne doit jamais
+# partager cette commande : pip refuse tout le step sinon (« Hashes are
+# required in --require-hashes mode... », mesuré directement). pytest est
+# donc installé par un step CI séparé, sans --require-hashes.
+#
 # core/scripts/bootstrap_toolchain.py et core/scripts/verify_dependencies.py
 # (C02-001/C02-002) sont stdlib-only. PyYAML est requise par
 # core/src/config/settings.py (story P0-5d antérieure, code M1-M10 non
@@ -26,17 +35,49 @@ PyYAML==6.0.1 --hash=sha256:6c22bec3fbe2524cde73d7ada88f6566758a8f7227bfbf93a408
 # --only-binary=:all:` (et idem pour psycopg-binary) puis `sha256sum`
 # sur le wheel obtenu — reproductible, jamais un hash inventé.
 #
-# LIMITATION CONNUE (revue scellée C05-001, objection mineure Kimi-K3
-# confirmée vraie, non résolue en silence) : ces hash sont vérifiés
-# STRUCTURELLEMENT par verify_dependencies.verify_lock() (présence +
-# format sha256 valide) mais PAS cryptographiquement appliqués à
-# l'installation — core-ci.yml installe via `pip install
-# psycopg==3.2.3 ...` SANS `--require-hashes`, donc un hash erroné ici
-# resterait latent (pip ne le recalculerait pas contre PyPI pour le
-# rejeter). Gap HÉRITÉ du patron pré-existant (PyYAML ci-dessus a
-# exactement la même limitation depuis C02-002) — pas une régression
-# introduite par C05-001, mais nommé ici plutôt que laissé implicite.
-# Câbler `--require-hashes` sur tout core-ci.yml est un changement
-# transverse (affecterait aussi PyYAML) hors périmètre de cette tâche.
+# RÉSOLU par ce commit (suivi de la revue scellée C05-001 tour 2,
+# Kimi-K3) — historique conservé plutôt qu'effacé en silence
+# (« objection mineure ignorée revient en critique ») :
+#
+# LIMITATION CONNUE [HISTORIQUE, close depuis ce commit] (revue scellée
+# C05-001 tour 1, objection mineure Kimi-K3 confirmée vraie) : ces hash
+# étaient vérifiés STRUCTURELLEMENT par verify_dependencies.verify_lock()
+# (présence + format sha256 valide) mais PAS appliqués
+# CRYPTOGRAPHIQUEMENT à l'installation — core-ci.yml installait via `pip
+# install psycopg==3.2.3 ...` (versions en dur sur la ligne de commande,
+# requirements.lock jamais lu par pip) SANS `--require-hashes`, donc un
+# hash erroné ici serait resté indétecté. Mesuré directement avant ce
+# commit : un hash PyYAML volontairement corrompu passe `pip install
+# PyYAML==6.0.1` sans la moindre erreur (la commande CI d'alors ne
+# consultait même pas ce fichier). Gap HÉRITÉ du patron pré-existant
+# (PyYAML ci-dessus avait exactement la même limitation depuis C02-002).
+#
+# Fix : core-ci.yml utilise maintenant `pip install --require-hashes -r
+# core/requirements.lock`. Le même hash PyYAML corrompu fait désormais
+# échouer l'installation — mesuré directement : « THESE PACKAGES DO NOT
+# MATCH THE HASHES FROM THE REQUIREMENTS FILE ... someone may have
+# tampered with them », rc=1. --require-hashes exige aussi un hash pour
+# TOUTE dépendance transitive résolue dans la même commande (cf.
+# typing-extensions ci-dessous, requise par psycopg) — jamais un paquet
+# hors lock (ex. pytest) dans cette même commande, pip échouerait
+# (mesuré ; cf. step CI séparé pour pytest).
 psycopg==3.2.3 --hash=sha256:644d3973fe26908c73d4be746074f6e5224b03c1101d302d9a53bf565ad64907
 psycopg-binary==3.2.3 --hash=sha256:64a607e630d9f4b2797f641884e52b9f8e239d35943f51bef817a384ec1678fe
+#
+# typing-extensions (ajoutée par le fix C05-001 tour 2, Kimi-K3) :
+# dépendance TRANSITIVE de psycopg==3.2.3 (le paquet déclare lui-même
+# `typing-extensions>=4.6`) — jamais `import`ée directement dans le code
+# Core (même traitement que psycopg-binary ci-dessus : aucune clé dans
+# core/pyproject.toml [tool.opsys-core.dependency-provenance], voir note
+# prose dédiée là-bas), mais `pip install --require-hashes` refuse de
+# démarrer sans elle : « In --require-hashes mode, all requirements must
+# have their versions pinned with == » (mesuré directement en résolvant
+# l'arbre complet de psycopg==3.2.3). Version 4.16.0 = celle réellement
+# résolue par pip pour la contrainte `>=4.6` à la date ci-dessous (pas
+# choisie à la main). Licence PSF-2.0 (champ `License-Expression` du
+# wheel, vérifiée directement dans le METADATA, jamais devinée). Hash
+# téléchargé le 2026-08-11 via `pip download "typing-extensions>=4.6"
+# --no-deps --only-binary=:all:` (contrainte de psycopg rejouée à
+# l'identique) puis `sha256sum` sur le wheel obtenu — reproductible,
+# jamais un hash inventé.
+typing-extensions==4.16.0 --hash=sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8
