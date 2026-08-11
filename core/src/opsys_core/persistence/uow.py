@@ -176,6 +176,19 @@ class UnitOfWork:
                 cur.execute("SELECT set_config(%s, %s, true)", (_GUC_TRACE_ID, trace_id))
                 cur.execute("SELECT set_config(%s, %s, true)", (_GUC_TENANT_ID, tenant_id))
         except BaseException:
+            # `except BaseException` DÉLIBÉRÉ ici, pas `except Exception`
+            # (objection mineure civ_review tour 2, DeepSeek-V4-Pro — le
+            # gestionnaire capture aussi KeyboardInterrupt/GeneratorExit,
+            # ce qui « peut interférer avec les mécanismes standards
+            # d'arrêt du processus »). Analysé et CONSCIEMMENT conservé :
+            # ce bloc rejette TOUJOURS inconditionnellement (`raise` nu
+            # ci-dessous, jamais de branche qui avalerait) — il est donc
+            # fonctionnellement équivalent à un `finally` (qui capture
+            # aussi BaseException par nature), pas à un `except Exception`
+            # qui masquerait un vrai bug. Restreindre à `Exception`
+            # laisserait justement la connexion dans l'état brisé décrit
+            # ci-dessus si l'échec survient via un KeyboardInterrupt — la
+            # fuite d'état que ce correctif entier existe pour fermer.
             try:
                 # rollback() est un no-op silencieux si la session est
                 # restée IDLE (aucune commande n'a atteint le serveur) —
