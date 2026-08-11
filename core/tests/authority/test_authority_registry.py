@@ -294,6 +294,30 @@ def test_record_amendment_required_sans_port_non_resolu_leve_statut_incoherent()
         AuthorityRecord(aggregate="a", owner="CORE", read_port="Modules M/reel/src", write_port="Modules M/reel/src", status="AMENDMENT_REQUIRED")
 
 
+def test_record_amendment_required_avec_UN_SEUL_port_non_resolu_leve_statut_incoherent():
+    """Revue scellée (2026-08-11, Kimi-K3, MAJEURE, confirmée par
+    reproduction directe avant correction) : un `or` (au lieu d'un `and`)
+    laissait passer un record MIXTE (un port sentinelle, l'autre réel)
+    sous status=AMENDMENT_REQUIRED — exposant un write_port RÉEL comme si
+    le champ status documentait sa non-résolution. Les DEUX cas mixtes
+    (read seul, write seul) doivent lever, pas seulement le cas où
+    AUCUN port n'est résolu."""
+    with pytest.raises(StatutIncoherentAvecPort):
+        AuthorityRecord(
+            aggregate="x", owner="CORE",
+            read_port=f"{PREFIXE_NON_RESOLU} — y",
+            write_port="Modules M/M5-financecore/src",
+            status="AMENDMENT_REQUIRED",
+        )
+    with pytest.raises(StatutIncoherentAvecPort):
+        AuthorityRecord(
+            aggregate="x", owner="CORE",
+            read_port="Modules M/M5-financecore/src",
+            write_port=f"{PREFIXE_NON_RESOLU} — y",
+            status="AMENDMENT_REQUIRED",
+        )
+
+
 def test_record_champ_texte_vide_refuse():
     with pytest.raises(ValueError):
         AuthorityRecord(aggregate="", owner="M1-front-office", read_port="Modules M/M1-front-office/src", write_port="Modules M/M1-front-office/src")
