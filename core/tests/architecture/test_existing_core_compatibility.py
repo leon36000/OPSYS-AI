@@ -330,8 +330,15 @@ def test_config_limitations_documentees_sont_reellement_exercees(tmp_path, monke
     )
 
     # (c) Chaîne d'exception supprimée : `raise SettingsError(...) from
-    # None` — le type d'origine (ici RuntimeError, secret absent) est
-    # irrécupérable par l'appelant via __cause__.
+    # None` — objection Kimi-K3 tour 2 CONFIRMÉE par mesure directe
+    # (interpréteur) : `__cause__ is None` est vrai à la fois pour
+    # `from None` ET pour un `raise` nu (sans from du tout) dans un
+    # except — ça ne discriminait rien. Le marqueur sémantique RÉEL de
+    # `from None` est `__suppress_context__ is True` (vérifié :
+    # `from None` -> suppress_context=True ; `raise` nu ->
+    # suppress_context=False, les deux avec cause=None). `__context__`
+    # non-None prouve en plus qu'une exception d'origine existait bien
+    # (le mécanisme s'est déclenché, pas un cas où rien n'a été levé).
     yaml_secret_absent = tmp_path / "absent.yaml"
     yaml_secret_absent.write_text(
         "mode: dev\nendpoint: http://localhost:9000\ntimeout: 1\nlitellm_key: jamais_resolu\n"
@@ -339,18 +346,29 @@ def test_config_limitations_documentees_sont_reellement_exercees(tmp_path, monke
     with pytest.raises(SettingsError) as exc_info:
         adapter_config.load(yaml_secret_absent)
     assert exc_info.value.__cause__ is None, (
-        "SettingsError porte encore sa cause d'origine — 'from None' aurait dû la supprimer"
+        "SettingsError porte encore sa cause d'origine explicite"
+    )
+    assert exc_info.value.__suppress_context__ is True, (
+        "'from None' devrait activer __suppress_context__ — sans lui, un raise nu produirait le même __cause__ is None"
+    )
+    assert exc_info.value.__context__ is not None, (
+        "aucune exception d'origine détectée — le mécanisme redact/wrap ne s'est pas déclenché"
     )
 
     # (d) Heuristique len(secret_name) > 40 : rejette un NOM de secret
     # légitimement long (pas sa VALEUR) comme s'il s'agissait d'une
-    # valeur inline suspecte.
+    # valeur inline suspecte. Objection Kimi-K3 tour 2 CONFIRMÉE par
+    # mesure directe : un pytest.raises(SettingsError) nu ne discrimine
+    # PAS cette branche de la branche "secret introuvable" (les deux
+    # lèvent SettingsError) — le message texte, lui, diffère
+    # ("Inline secret value" pour l'heuristique vs "Secret '...' not
+    # found" pour l'absence), mesuré directement sur load_settings.
     nom_secret_trop_long = "x" * 41
     yaml_nom_long = tmp_path / "nom_long.yaml"
     yaml_nom_long.write_text(
         f"mode: dev\nendpoint: http://localhost:9000\ntimeout: 1\nlitellm_key: {nom_secret_trop_long}\n"
     )
-    with pytest.raises(SettingsError):
+    with pytest.raises(SettingsError, match="Inline secret value"):
         adapter_config.load(yaml_nom_long)
 
 
