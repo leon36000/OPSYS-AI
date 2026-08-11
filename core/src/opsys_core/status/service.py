@@ -20,7 +20,7 @@ class TransitionRecord:
     capability_id: str
     depuis: CapabilityState
     vers: CapabilityState
-    reasons: list[str]
+    reasons: tuple[str, ...]
     evidence_hash: str | None
 
 
@@ -40,7 +40,7 @@ def transitionner(
     actuel: CapabilityStatus,
     nouvel_etat: CapabilityState,
     *,
-    reasons: list[str],
+    reasons: tuple[str, ...],
     evidence_hash: str | None = None,
     journal: CapabilityTransitionLog | None = None,
 ) -> CapabilityStatus:
@@ -52,7 +52,7 @@ def transitionner(
         return CapabilityStatus(
             capability_id=actuel.capability_id,
             state=actuel.state,
-            reasons=[*actuel.reasons, "promotion vers ACTIVE refusée: aucune preuve hashée (evidence_hash)"],
+            reasons=(*actuel.reasons, "promotion vers ACTIVE refusée: aucune preuve hashée (evidence_hash)"),
         )
 
     nouveau = CapabilityStatus(
@@ -93,12 +93,12 @@ def evaluer_capacite(
         return CapabilityStatus(
             capability_id=capability_id,
             state=CapabilityState.QUARANTINED,
-            reasons=[f"{type(exc).__name__}"],
+            reasons=(f"{type(exc).__name__}",),
         )
 
     depart = CapabilityStatus(
         capability_id=capability_id,
         state=CapabilityState.UNKNOWN,
-        reasons=["évaluation initiale"],
+        reasons=("évaluation initiale",),
     )
-    return transitionner(depart, CapabilityState.ACTIVE, reasons=[], evidence_hash=evidence_hash, journal=journal)
+    return transitionner(depart, CapabilityState.ACTIVE, reasons=(), evidence_hash=evidence_hash, journal=journal)
