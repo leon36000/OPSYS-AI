@@ -67,56 +67,67 @@ _SOURCE_ROOT = _REPO_ROOT / "core"
 _FILTRES_INDEX = "exclude:tests\ninclude:src\ninclude:scripts"
 _SUITE = "python-security-and-quality.qls"
 
-# (rule_id, chemin RELATIF à --source-root (core/), ligne) -> justification
-# individuelle. Chemins préfixés `src/` (résultat direct du --source-root=core
-# combiné à LGTM_INDEX_FILTERS ci-dessus — vérifié sur le SARIF produit par CE
-# script, jamais deviné). Lignes vérifiées le 2026-08-11 contre le commit
-# fc48cee (branche opsys-core/chore/ci-hardening-gates-reels).
+# Noms de règles et chemins RÉUTILISÉS ci-dessous — extraits en constantes
+# nommées (jamais répétés en littéral) suite à SonarCloud Code Analysis
+# ("Define a constant instead of duplicating this literal", 3 occurrences
+# sur ce dict, révision précédente). Chemins RELATIFS à --source-root
+# (core/), préfixés `src/` (résultat direct du --source-root=core combiné
+# à LGTM_INDEX_FILTERS ci-dessus — vérifié sur le SARIF produit par CE
+# script, jamais deviné).
+_REGLE_INEFFECTUAL_STATEMENT = "py/ineffectual-statement"
+_REGLE_UNSAFE_CYCLIC_IMPORT = "py/unsafe-cyclic-import"
+_FICHIER_CONTRACTS = "src/opsys_core/ports/contracts.py"
+_FICHIER_ENGINE = "src/authz/engine.py"
+_FICHIER_PORT = "src/opsys_core/objects/port.py"
+
+# (rule_id, chemin, ligne) -> justification individuelle. Lignes vérifiées
+# le 2026-08-11 contre le commit fc48cee (branche
+# opsys-core/chore/ci-hardening-gates-reels).
 _FAUX_POSITIFS_CONNUS: dict[tuple[str, str, int], str] = {
     (
-        "py/ineffectual-statement", "src/opsys_core/persistence/connection.py", 98,
+        _REGLE_INEFFECTUAL_STATEMENT, "src/opsys_core/persistence/connection.py", 98,
     ): "corps `...` de méthode Protocol (fermer(), C05-001) — idiome PEP 544 "
        "pour un contrat sans implémentation. Même motif syntaxique déjà exempté "
        "par no_stub_ast.py (vérifié sur node.bases lors de la revue d'architecture).",
     (
-        "py/ineffectual-statement", "src/opsys_core/ports/contracts.py", 42,
+        _REGLE_INEFFECTUAL_STATEMENT, _FICHIER_CONTRACTS, 42,
     ): "idem — DomainPort.port_id, @property sur Protocol (C04-001).",
     (
-        "py/ineffectual-statement", "src/opsys_core/ports/contracts.py", 52,
+        _REGLE_INEFFECTUAL_STATEMENT, _FICHIER_CONTRACTS, 52,
     ): "idem — ProviderPort.provider_id.",
     (
-        "py/ineffectual-statement", "src/opsys_core/ports/contracts.py", 63,
+        _REGLE_INEFFECTUAL_STATEMENT, _FICHIER_CONTRACTS, 63,
     ): "idem — ModulePort.module_id.",
     (
-        "py/ineffectual-statement", "src/authz/engine.py", 12,
+        _REGLE_INEFFECTUAL_STATEMENT, _FICHIER_ENGINE, 12,
     ): "corps `...` de méthode @abstractmethod sur ABC (AuthzEngine.add_tuple) — "
        "même idiome que Protocol, classe jamais instanciée directement.",
     (
-        "py/ineffectual-statement", "src/authz/engine.py", 16,
+        _REGLE_INEFFECTUAL_STATEMENT, _FICHIER_ENGINE, 16,
     ): "idem — AuthzEngine.remove_tuple.",
     (
-        "py/ineffectual-statement", "src/authz/engine.py", 20,
+        _REGLE_INEFFECTUAL_STATEMENT, _FICHIER_ENGINE, 20,
     ): "idem — AuthzEngine.check.",
     (
-        "py/ineffectual-statement", "src/authz/engine.py", 24,
+        _REGLE_INEFFECTUAL_STATEMENT, _FICHIER_ENGINE, 24,
     ): "idem — AuthzEngine.list_objects.",
     (
-        "py/ineffectual-statement", "src/opsys_core/objects/port.py", 113,
+        _REGLE_INEFFECTUAL_STATEMENT, _FICHIER_PORT, 113,
     ): "idem — ObjectStorePort.put, Protocol @runtime_checkable (C04-004+).",
     (
-        "py/ineffectual-statement", "src/opsys_core/objects/port.py", 117,
+        _REGLE_INEFFECTUAL_STATEMENT, _FICHIER_PORT, 117,
     ): "idem — ObjectStorePort.get.",
     (
-        "py/ineffectual-statement", "src/config/vault.py", 69,
+        _REGLE_INEFFECTUAL_STATEMENT, "src/config/vault.py", 69,
     ): "idem — SecretProvider.get_secret, @abstractmethod sur ABC fail-closed.",
     (
-        "py/unsafe-cyclic-import", "src/opsys_core/persistence/repository.py", 22,
+        _REGLE_UNSAFE_CYCLIC_IMPORT, "src/opsys_core/persistence/repository.py", 22,
     ): "import sous `if TYPE_CHECKING:` — jamais exécuté au runtime (C05-003). "
        "Vérifié empiriquement le 2026-08-11 : les 2 ordres d'import possibles "
        "(uow puis repository, et l'inverse) réussissent sans ImportError. CodeQL "
        "ne semble pas spécialiser cet idiome comme le fait mypy.",
     (
-        "py/unsafe-cyclic-import", "src/opsys_core/persistence/uow.py", 62,
+        _REGLE_UNSAFE_CYCLIC_IMPORT, "src/opsys_core/persistence/uow.py", 62,
     ): "idem, sens inverse — même paire d'imports différés.",
 }
 

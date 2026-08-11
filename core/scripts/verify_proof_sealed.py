@@ -96,6 +96,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -199,12 +200,35 @@ class GitIndisponible(RuntimeError):
     hash vide interprété comme "aucun changement"."""
 
 
+class RefGitInvalide(ValueError):
+    """`base` a une forme dangereuse pour git (injection d'option) —
+    fail-closed, jamais transmis tel quel à subprocess."""
+
+
+# Une réf git valide (branche, tag, remote/branche, SHA) ne COMMENCE
+# jamais par `-` — trouvé par SonarCloud Code Analysis (Security Rating,
+# règle "untrusted data passed to OS command") sur `base` (CLI-contrôlable
+# via --diff-base, seul chemin non littéral de ce module) : une valeur
+# comme "--upload-pack=/bin/sh" ne serait PAS interprétée comme une
+# révision par `git diff` (même sans shell=True — subprocess sans shell
+# n'empêche PAS l'injection d'OPTIONS, seulement l'injection de commandes
+# shell) mais comme un flag, un vecteur git-argument-injection connu.
+# Fail-closed : rejette tout ce qui commence par `-`, jamais une liste
+# noire de motifs dangereux spécifiques.
+_REF_GIT_DANGEREUSE_RE = re.compile(r"^-")
+
+
 def _diff_sha256_actuel(*, base: str = "origin/main") -> str:
     """Sha256 du diff RÉEL (texte complet, verbatim) entre `base` et HEAD
     sur `_PATHSPEC_SCELLE`. MÊME fonction utilisée pour (a) calculer la
     valeur embarquée dans evidence.json au moment du scellement local et
     (b) la revérification côté CI — garantit la reproductibilité, jamais
     deux implémentations parallèles qui pourraient diverger."""
+    if _REF_GIT_DANGEREUSE_RE.match(base):
+        raise RefGitInvalide(
+            f"--diff-base {base!r} commence par '-' — rejeté (forme d'option git, "
+            "jamais une révision légitime ; fail-closed contre l'injection d'argument)."
+        )
     resultat = subprocess.run(
         ["git", "diff", f"{base}...HEAD", "--", *_PATHSPEC_SCELLE],
         capture_output=True, text=True, cwd=_REPO_ROOT, timeout=60,
@@ -263,41 +287,106 @@ def _verifier_manifeste_reviews(dossier_task: Path, manifeste: dict) -> list[str
     return erreurs
 
 
-def verifier_task(task_id: str, *, min_vendors_approve: int = 1, diff_sha256_attendu: str | None) -> tuple[bool, str]:
-    dossier_task = _EVIDENCE_ROOT / task_id
-    lignes = [f"--- {task_id} ---"]
-
+def _charger_manifeste(dossier_task: Path) -> tuple[dict | None, list[str]]:
+    """Charge evidence.json. Retourne (None, [ligne d'erreur]) si absent
+    ou invalide — jamais une exception qui remonterait sans message clair."""
     evidence_json = dossier_task / "evidence.json"
     if not evidence_json.exists():
-        lignes.append("  evidence.json absent — aucun scellement à vérifier pour cette tâche")
-        return False, "\n".join(lignes)
-
+        return None, ["  evidence.json absent — aucun scellement à vérifier pour cette tâche"]
     try:
         manifeste = json.loads(evidence_json.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        lignes.append(f"  evidence.json : JSON invalide ({exc})")
-        return False, "\n".join(lignes)
+        return None, [f"  evidence.json : JSON invalide ({exc})"]
+    return manifeste, [f"  evidence.json présent (task_id={manifeste.get('task_id')})"]
 
-    lignes.append(f"  evidence.json présent (task_id={manifeste.get('task_id')})")
 
-    # --- Liaison cryptographique evidence <-> code réellement livré ---
+def _verifier_diff_lie(manifeste: dict, diff_sha256_attendu: str | None) -> list[str] | None:
+    """Retourne None si le code_diff_sha256 déclaré correspond au diff
+    réel (+ ligne de confirmation ajoutée par l'appelant), sinon la
+    liste des lignes d'erreur à ajouter au rapport."""
     code_diff_declare = manifeste.get("code_diff_sha256")
     if not code_diff_declare:
-        lignes.append("  evidence.json : champ \"code_diff_sha256\" absent — evidence non liée au code (RÉGRESSION vers la faille rev.1)")
-        return False, "\n".join(lignes)
+        return ["  evidence.json : champ \"code_diff_sha256\" absent — evidence non liée au code (RÉGRESSION vers la faille rev.1)"]
     if diff_sha256_attendu is None:
-        lignes.append("  ERREUR INTERNE : diff_sha256_attendu non fourni par l'appelant (bug d'intégration, jamais un pass silencieux)")
-        return False, "\n".join(lignes)
+        return ["  ERREUR INTERNE : diff_sha256_attendu non fourni par l'appelant (bug d'intégration, jamais un pass silencieux)"]
     if code_diff_declare != diff_sha256_attendu:
-        lignes.append(
+        return [
             f"  code_diff_sha256 NE CORRESPOND PAS au diff réel de cette PR "
             f"(déclaré {code_diff_declare[:12]}…, réel {diff_sha256_attendu[:12]}…) "
             "— cette evidence n'atteste PAS du code effectivement livré"
-        )
-        return False, "\n".join(lignes)
-    lignes.append(f"  code_diff_sha256 conforme au diff réel : {diff_sha256_attendu[:12]}…")
+        ]
+    return None
 
-    # --- Manifeste reviews (bijection déclaré <-> disque) ---
+
+def _verifier_sceau_coherent(verdicts: list[dict]) -> tuple[str | None, list[str]]:
+    """Retourne (sceau_unique, lignes) si tous les verdicts partagent le
+    même prompt_sha256, sinon (None, [ligne d'erreur])."""
+    sceaux: set[str | None] = {v.get("prompt_sha256") for v in verdicts}
+    if len(sceaux) != 1 or None in sceaux:
+        return None, [f"  sceau prompt_sha256 INCOHÉRENT entre verdicts : {sceaux}"]
+    sceau_unique = next(iter(sceaux))
+    assert sceau_unique is not None  # narrowing : None déjà exclu par la condition ci-dessus
+    return sceau_unique, [f"  sceau prompt_sha256 identique sur {len(verdicts)} verdict(s) : {sceau_unique[:12]}…"]
+
+
+def _verifier_objections_bloquantes(verdicts: list[dict]) -> list[str] | None:
+    """Champ réel : "severite" (français, critique|majeure|mineure) —
+    jamais "severity"/"status" (n'existent pas dans le schéma civ_review
+    réel, cf. TEMPLATE-prompt-revue-neutre.md, vérifié au module)."""
+    for niveau in ("critique", "majeure"):
+        objections_niveau = [
+            obj
+            for v in verdicts
+            for obj in v.get("objections", [])
+            if str(obj.get("severite", "")).strip().casefold() == niveau
+        ]
+        if objections_niveau:
+            lignes = [f"  {len(objections_niveau)} objection(s) {niveau.upper()}(S) présente(s) — round non consensuel"]
+            lignes.extend(f"    - {obj.get('fichier', '?')} : {obj.get('description', '?')}" for obj in objections_niveau)
+            return lignes
+    return None
+
+
+def _verifier_consensus_unanime(verdicts: list[dict]) -> list[str] | None:
+    verdicts_rejet = [v for v in verdicts if v.get("verdict") != "APPROVE"]
+    if verdicts_rejet:
+        rejeteurs = sorted({str(v.get("reviewer_model", "?")) for v in verdicts_rejet})
+        return [f"  {len(verdicts_rejet)} verdict(s) non-APPROVE (REJECT) — consensus non atteint : {rejeteurs}"]
+    return None
+
+
+def _verifier_vendors_suffisants(verdicts: list[dict], min_vendors_approve: int) -> tuple[bool, list[str]]:
+    vendors_approve: set[str] = {
+        _vendor_of(str(v.get("reviewer_model", "")))
+        for v in verdicts
+        if v.get("verdict") == "APPROVE" and v.get("reviewer_model")
+    }
+    lignes = [f"  {len(vendors_approve)} vendor(s) distinct(s) APPROVE : {sorted(vendors_approve)}"]
+    if len(vendors_approve) < min_vendors_approve:
+        lignes.append(f"  insuffisant (minimum requis : {min_vendors_approve})")
+        return False, lignes
+    return True, lignes
+
+
+def verifier_task(task_id: str, *, min_vendors_approve: int = 1, diff_sha256_attendu: str | None) -> tuple[bool, str]:
+    """Pipeline séquentiel — chaque étape peut arrêter avec un rapport
+    d'échec ; complexité cognitive volontairement réduite en extrayant
+    chaque contrôle dans sa propre fonction (`_verifier_*`), voir SonarCloud
+    "Cognitive Complexity" sur la revision précédente (18 > 15 autorisé)."""
+    dossier_task = _EVIDENCE_ROOT / task_id
+    lignes = [f"--- {task_id} ---"]
+
+    manifeste, lignes_manifeste = _charger_manifeste(dossier_task)
+    lignes.extend(lignes_manifeste)
+    if manifeste is None:
+        return False, "\n".join(lignes)
+
+    erreurs_diff = _verifier_diff_lie(manifeste, diff_sha256_attendu)
+    if erreurs_diff is not None:
+        lignes.extend(erreurs_diff)
+        return False, "\n".join(lignes)
+    lignes.append(f"  code_diff_sha256 conforme au diff réel : {diff_sha256_attendu[:12]}…")  # type: ignore[index]
+
     erreurs_manifeste = _verifier_manifeste_reviews(dossier_task, manifeste)
     if erreurs_manifeste:
         lignes.extend(erreurs_manifeste)
@@ -308,48 +397,89 @@ def verifier_task(task_id: str, *, min_vendors_approve: int = 1, diff_sha256_att
         lignes.append("  aucun verdict de revue committé sous reviews/")
         return False, "\n".join(lignes)
 
-    sceaux: set[str | None] = {v.get("prompt_sha256") for v in verdicts}
-    if len(sceaux) != 1 or None in sceaux:
-        lignes.append(f"  sceau prompt_sha256 INCOHÉRENT entre verdicts : {sceaux}")
-        return False, "\n".join(lignes)
-    sceau_unique = next(iter(sceaux))
-    assert sceau_unique is not None  # narrowing : None déjà exclu par la condition ci-dessus
-    lignes.append(f"  sceau prompt_sha256 identique sur {len(verdicts)} verdict(s) : {sceau_unique[:12]}…")
-
-    # Champ réel : "severite" (français, critique|majeure|mineure) — jamais
-    # "severity"/"status" (n'existent pas dans le schéma civ_review réel,
-    # cf. TEMPLATE-prompt-revue-neutre.md, vérifié au module).
-    for niveau in ("critique", "majeure"):
-        objections_niveau = [
-            obj
-            for v in verdicts
-            for obj in v.get("objections", [])
-            if str(obj.get("severite", "")).strip().casefold() == niveau
-        ]
-        if objections_niveau:
-            lignes.append(f"  {len(objections_niveau)} objection(s) {niveau.upper()}(S) présente(s) — round non consensuel")
-            for obj in objections_niveau:
-                lignes.append(f"    - {obj.get('fichier', '?')} : {obj.get('description', '?')}")
-            return False, "\n".join(lignes)
-
-    verdicts_rejet = [v for v in verdicts if v.get("verdict") != "APPROVE"]
-    if verdicts_rejet:
-        rejeteurs = sorted({str(v.get("reviewer_model", "?")) for v in verdicts_rejet})
-        lignes.append(f"  {len(verdicts_rejet)} verdict(s) non-APPROVE (REJECT) — consensus non atteint : {rejeteurs}")
+    sceau_unique, lignes_sceau = _verifier_sceau_coherent(verdicts)
+    lignes.extend(lignes_sceau)
+    if sceau_unique is None:
         return False, "\n".join(lignes)
 
-    vendors_approve: set[str] = {
-        _vendor_of(str(v.get("reviewer_model", "")))
-        for v in verdicts
-        if v.get("verdict") == "APPROVE" and v.get("reviewer_model")
-    }
-    lignes.append(f"  {len(vendors_approve)} vendor(s) distinct(s) APPROVE : {sorted(vendors_approve)}")
-    if len(vendors_approve) < min_vendors_approve:
-        lignes.append(f"  insuffisant (minimum requis : {min_vendors_approve})")
+    erreurs_objections = _verifier_objections_bloquantes(verdicts)
+    if erreurs_objections is not None:
+        lignes.extend(erreurs_objections)
+        return False, "\n".join(lignes)
+
+    erreurs_consensus = _verifier_consensus_unanime(verdicts)
+    if erreurs_consensus is not None:
+        lignes.extend(erreurs_consensus)
+        return False, "\n".join(lignes)
+
+    vendors_ok, lignes_vendors = _verifier_vendors_suffisants(verdicts, min_vendors_approve)
+    lignes.extend(lignes_vendors)
+    if not vendors_ok:
         return False, "\n".join(lignes)
 
     lignes.append("  OK — scellé et lié au code réel")
     return True, "\n".join(lignes)
+
+
+class _Options:
+    """Options CLI parsées — regroupées pour garder `main()` simple
+    (complexité cognitive réduite, cf. SonarCloud sur la revision
+    précédente, 26 > 15 autorisé)."""
+
+    def __init__(self) -> None:
+        self.task_ids: list[str] = []
+        self.min_vendors = 1
+        self.diff_base = "origin/main"
+        self.emettre_hash_seul = False
+
+
+def _parser_args(args: list[str]) -> _Options | int:
+    """Retourne les options parsées, ou un CODE DE RETOUR ENTIER en cas
+    d'option invalide (jamais un pass silencieux sur une faute de frappe)."""
+    opts = _Options()
+    i = 0
+    while i < len(args):
+        if args[i] == "--task" and i + 1 < len(args):
+            opts.task_ids.append(args[i + 1])
+            i += 2
+        elif args[i] == "--min-vendors" and i + 1 < len(args):
+            opts.min_vendors = int(args[i + 1])
+            i += 2
+        elif args[i] == "--diff-base" and i + 1 < len(args):
+            opts.diff_base = args[i + 1]
+            i += 2
+        elif args[i] == "--emit-code-diff-sha256":
+            opts.emettre_hash_seul = True
+            i += 1
+        elif args[i].startswith("--"):
+            print(f"ERREUR: option inconnue: {args[i]}", file=sys.stderr)
+            return 3
+        else:
+            i += 1
+    return opts
+
+
+def _selectionner_cibles(task_ids: list[str]) -> list[str] | int:
+    """Retourne la liste des task_id à vérifier, ou un CODE DE RETOUR
+    ENTIER si evidence/tasks/ est absent/vide/incomplet."""
+    if not _EVIDENCE_ROOT.is_dir():
+        print(
+            "PROOF_SEALED: ROUGE — evidence/tasks/ absent du dépôt "
+            "(aucun Evidence Bundle committé pour cette PR).",
+            file=sys.stderr,
+        )
+        return 1
+    if task_ids:
+        manquants = [t for t in task_ids if not (_EVIDENCE_ROOT / t).is_dir()]
+        if manquants:
+            print(f"PROOF_SEALED: ROUGE — dossier(s) evidence/tasks/ absent(s) pour : {manquants}", file=sys.stderr)
+            return 1
+        return task_ids
+    cibles = sorted(p.name for p in _EVIDENCE_ROOT.iterdir() if p.is_dir())
+    if not cibles:
+        print("PROOF_SEALED: ROUGE — evidence/tasks/ existe mais ne contient aucune tâche.", file=sys.stderr)
+        return 1
+    return cibles
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -363,68 +493,31 @@ def main(argv: list[str] | None = None) -> int:
     evidence.json au moment du scellement, garantit que la même fonction
     calcule les 2 côtés de la comparaison (jamais 2 implémentations qui
     pourraient diverger)."""
-    args = argv if argv is not None else sys.argv[1:]
-    task_ids: list[str] = []
-    min_vendors = 1
-    diff_base = "origin/main"
-    emettre_hash_seul = False
-    i = 0
-    while i < len(args):
-        if args[i] == "--task" and i + 1 < len(args):
-            task_ids.append(args[i + 1])
-            i += 2
-        elif args[i] == "--min-vendors" and i + 1 < len(args):
-            min_vendors = int(args[i + 1])
-            i += 2
-        elif args[i] == "--diff-base" and i + 1 < len(args):
-            diff_base = args[i + 1]
-            i += 2
-        elif args[i] == "--emit-code-diff-sha256":
-            emettre_hash_seul = True
-            i += 1
-        elif args[i].startswith("--"):
-            print(f"ERREUR: option inconnue: {args[i]}", file=sys.stderr)
-            return 3
-        else:
-            i += 1
+    opts = _parser_args(argv if argv is not None else sys.argv[1:])
+    if isinstance(opts, int):
+        return opts
 
-    if emettre_hash_seul:
+    if opts.emettre_hash_seul:
         try:
-            print(_diff_sha256_actuel(base=diff_base))
-        except GitIndisponible as exc:
+            print(_diff_sha256_actuel(base=opts.diff_base))
+        except (GitIndisponible, RefGitInvalide) as exc:
             print(f"ERREUR: {exc}", file=sys.stderr)
             return 1
         return 0
 
-    if not _EVIDENCE_ROOT.is_dir():
-        print(
-            "PROOF_SEALED: ROUGE — evidence/tasks/ absent du dépôt "
-            "(aucun Evidence Bundle committé pour cette PR).",
-            file=sys.stderr,
-        )
-        return 1
-
-    if task_ids:
-        manquants = [t for t in task_ids if not (_EVIDENCE_ROOT / t).is_dir()]
-        if manquants:
-            print(f"PROOF_SEALED: ROUGE — dossier(s) evidence/tasks/ absent(s) pour : {manquants}", file=sys.stderr)
-            return 1
-        cibles = task_ids
-    else:
-        cibles = sorted(p.name for p in _EVIDENCE_ROOT.iterdir() if p.is_dir())
-        if not cibles:
-            print("PROOF_SEALED: ROUGE — evidence/tasks/ existe mais ne contient aucune tâche.", file=sys.stderr)
-            return 1
+    cibles = _selectionner_cibles(opts.task_ids)
+    if isinstance(cibles, int):
+        return cibles
 
     try:
-        diff_sha256_attendu = _diff_sha256_actuel(base=diff_base)
-    except GitIndisponible as exc:
+        diff_sha256_attendu = _diff_sha256_actuel(base=opts.diff_base)
+    except (GitIndisponible, RefGitInvalide) as exc:
         print(f"PROOF_SEALED: ROUGE — {exc}", file=sys.stderr)
         return 1
 
     tout_ok = True
     for task_id in cibles:
-        ok, rapport = verifier_task(task_id, min_vendors_approve=min_vendors, diff_sha256_attendu=diff_sha256_attendu)
+        ok, rapport = verifier_task(task_id, min_vendors_approve=opts.min_vendors, diff_sha256_attendu=diff_sha256_attendu)
         print(rapport)
         tout_ok = tout_ok and ok
 

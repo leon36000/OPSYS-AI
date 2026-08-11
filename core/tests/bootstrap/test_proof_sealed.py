@@ -430,3 +430,26 @@ def test_diff_sha256_actuel_git_indisponible_echoue_explicitement(tmp_path, monk
         raise AssertionError("devait lever GitIndisponible")
     except vps.GitIndisponible:
         pass
+
+
+def test_diff_sha256_actuel_rejette_une_ref_commencant_par_un_tiret():
+    """Trouvé par SonarCloud Code Analysis (Security Rating, "LLMs running
+    this code with faulty CLI arguments can escape from shell sandboxes") :
+    --diff-base est CLI-contrôlable et atteint subprocess.run comme un
+    argument séparé — sans shell=True l'injection de COMMANDE est
+    impossible, mais l'injection d'OPTION git (ex. --upload-pack=...) ne
+    l'est pas. Fail-closed : tout ce qui commence par '-' est rejeté avant
+    d'atteindre subprocess, jamais une liste noire de motifs spécifiques."""
+    try:
+        vps._diff_sha256_actuel(base="--upload-pack=/bin/sh")
+        raise AssertionError("devait lever RefGitInvalide")
+    except vps.RefGitInvalide as exc:
+        assert "--upload-pack=/bin/sh" in str(exc)
+
+
+def test_main_diff_base_dangereux_echoue_explicitement_pas_de_pass_silencieux():
+    """Même garde, exercée via l'entrée CLI réelle (--emit-code-diff-sha256
+    --diff-base <valeur dangereuse>) — pas seulement au niveau de la
+    fonction interne."""
+    rc = vps.main(["--emit-code-diff-sha256", "--diff-base", "--upload-pack=/bin/sh"])
+    assert rc == 1
