@@ -85,10 +85,15 @@ def evaluer_capacite(
     try:
         evidence_hash = operation()
     except Exception as exc:  # noqa: BLE001 - capturé intentionnellement, jamais laissé s'échapper
+        # CORRECTIF sécurité (revue TRIAD_CONSENSUS clôture C03,
+        # DeepSeek-V4-Pro, objection CRITIQUE confirmée) : le message brut
+        # de l'exception (`{exc}`) peut porter un secret/PII — seul le NOM
+        # DE TYPE est une raison sûre, même discipline que
+        # opsys_core.errors.mapper_exception (C03-004) pour safe_message.
         return CapabilityStatus(
             capability_id=capability_id,
             state=CapabilityState.QUARANTINED,
-            reasons=[f"{type(exc).__name__}: {exc}"],
+            reasons=[f"{type(exc).__name__}"],
         )
 
     depart = CapabilityStatus(
