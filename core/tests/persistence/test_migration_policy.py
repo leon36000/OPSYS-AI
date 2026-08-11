@@ -406,6 +406,134 @@ def test_insert_where_not_exists_reste_refuse_biais_conservateur_assume():
 
 
 # ---------------------------------------------------------------------------
+# Corrections issues de la revue scellée tour 2 (civ_review) — 3 des 5
+# objections mineures (2 DeepSeek + 1 Kimi-K3) partageaient une même
+# faille racine (mots-clés détectés/manqués À L'INTÉRIEUR de littéraux
+# de chaîne), TOUTES vérifiées vraies par reproduction directe AVANT
+# correction, résolues par une refonte unique (_analyser_sql). Les 2
+# objections mineures restantes (couverture DROP-sans-IF-EXISTS,
+# dérive documentaire) sont traitées séparément ci-dessous.
+# ---------------------------------------------------------------------------
+
+
+def test_drop_dans_un_litteral_napparait_pas_comme_un_dollar_reel():
+    """DeepSeek mineure (tour 2, confirmée VRAIE, fail-open DANGEREUX) :
+    l'ancien retrait de commentaire naïf (`--[^\\n]*` sur le SQL brut)
+    avalait le reste de la ligne dès qu'un `--` apparaissait DANS un
+    littéral de chaîne — un DROP RÉEL situé après ce littéral sur la
+    même ligne disparaissait AVANT même d'être vu par le détecteur
+    destructif. Reproduit : `SELECT '--'; DROP TABLE x;` devenait
+    `SELECT '` après nettoyage naïf, le DROP jamais détecté. Corrigé :
+    `_analyser_sql` neutralise le CONTENU des littéraux (machine à
+    états sur les guillemets), jamais leur simple présence — un `--`
+    À L'INTÉRIEUR d'une chaîne n'est plus jamais confondu avec un
+    commentaire réel."""
+    sql_avec_tiret_dans_litteral = "SELECT '--'; DROP TABLE x;"
+    plan = MigrationPlan(
+        version="0010_dash_litteral_test",
+        phase="expand",
+        checksum=_checksum(sql_avec_tiret_dans_litteral),
+        reversible=False,
+    )
+    with pytest.raises(MigrationDestructiveRefusee):
+        validate_migration(plan, sql_avec_tiret_dans_litteral)
+
+
+def test_if_not_exists_dans_un_litteral_ne_satisfait_pas_lidempotence():
+    """Kimi-K3 mineure (tour 2, confirmée VRAIE, fail-open) : l'ancien
+    détecteur d'idempotence, non conscient des chaînes, acceptait
+    `CREATE TABLE t (c TEXT DEFAULT 'if not exists');` comme idempotent
+    — le texte "IF NOT EXISTS" n'était qu'une VALEUR littérale, jamais
+    une vraie clause SQL. Corrigé : `_analyser_sql` neutralise le
+    contenu des littéraux AVANT la détection de mots-clés d'idempotence."""
+    sql_avec_faux_if_not_exists = "CREATE TABLE t (c TEXT DEFAULT 'if not exists');"
+    plan = MigrationPlan(
+        version="0011_faux_if_not_exists_test",
+        phase="expand",
+        checksum=_checksum(sql_avec_faux_if_not_exists),
+        reversible=False,
+    )
+    with pytest.raises(MigrationNonIdempotente):
+        validate_migration(plan, sql_avec_faux_if_not_exists)
+
+
+def test_marqueur_dans_un_litteral_nautorise_pas_le_destructif():
+    """Kimi-K3 mineure (tour 2, confirmée VRAIE, conséquence non nommée
+    du fail-open ci-dessus) : le marqueur d'autorisation, cherché sur le
+    SQL brut entier, était aussi satisfaisable par un littéral de chaîne
+    contenant son texte — sans AUCUN commentaire réel. Corrigé : le
+    marqueur est désormais cherché UNIQUEMENT dans les commentaires
+    extraits par `_analyser_sql`, jamais dans le SQL brut entier.
+
+    Un ESPACE suit délibérément le marqueur DANS le littéral (avant le
+    guillemet fermant) : sans lui, le guillemet fermant `'` (caractère
+    non-espace) suffirait à lui seul à faire échouer la garde
+    ANTI-PRÉFIXE existante (lookahead `(?!\\S)`), et ce test serait vert
+    pour la MAUVAISE raison. `IF EXISTS` sur le DROP, délibérément aussi
+    : sans lui, la garde d'idempotence voisine (DROP sans IF EXISTS)
+    intercepterait la mutation à sa place et masquerait une régression
+    de CETTE garde précise — mesuré : une 1re version de ce test, sans
+    ces deux précautions, ne détectait pas sa propre mutation ciblée
+    (capturée par la garde anti-préfixe puis par la garde d'idempotence,
+    jamais par la restriction « marqueur cherché dans les commentaires
+    seulement » réellement visée)."""
+    sql_marqueur_dans_litteral = (
+        "DROP TABLE IF EXISTS x; SELECT 'AUTORISATION-CONTRACT:0012_marqueur_litteral_test ';"
+    )
+    plan = MigrationPlan(
+        version="0012_marqueur_litteral_test",
+        phase="contract",
+        checksum=_checksum(sql_marqueur_dans_litteral),
+        reversible=True,
+    )
+    with pytest.raises(MigrationDestructiveRefusee):
+        validate_migration(plan, sql_marqueur_dans_litteral)
+
+
+def test_point_virgule_dans_un_litteral_ne_scinde_pas_a_tort():
+    """DeepSeek mineure (tour 2, confirmée vraie) : un ';' à l'intérieur
+    d'un littéral de chaîne scindait `_decouper_instructions` à tort,
+    pouvant rejeter une migration idempotente. Corrigé (effet de bord de
+    `_analyser_sql`, qui neutralise aussi les ';' internes aux
+    littéraux) : contrôle positif — la migration passe entière."""
+    sql_point_virgule_litteral = (
+        "INSERT INTO t VALUES ('a;b') ON CONFLICT DO NOTHING;"
+    )
+    plan = MigrationPlan(
+        version="0013_semicolon_litteral_test",
+        phase="backfill",
+        checksum=_checksum(sql_point_virgule_litteral),
+        reversible=False,
+    )
+    validate_migration(plan, sql_point_virgule_litteral)  # ne lève pas
+
+
+def test_drop_sans_if_exists_refuse_meme_en_contexte_autorise():
+    """Kimi-K3 mineure (tour 2, confirmée vraie — lacune de COUVERTURE,
+    pas un défaut de comportement) : la branche DROP-sans-IF-EXISTS de
+    la garde d'idempotence n'était atteinte par AUCUN test — tous les
+    DROP des tests précédents étaient soit interceptés en amont par la
+    garde destructive (contexte non autorisé), soit portaient déjà IF
+    EXISTS. Une mutation supprimant `_MOTIF_DROP`/`_MOTIF_IF_EXISTS`
+    aurait survécu sans rouge. Corrigé : ce test combine PHASE=CONTRACT
+    + REVERSIBLE=TRUE + MARQUEUR VALIDE (autorisation destructive
+    accordée) avec un DROP SANS IF EXISTS — la garde d'idempotence doit
+    quand même refuser, prouvant que les deux gardes sont réellement
+    indépendantes."""
+    sql_drop_non_idempotent_mais_autorise = (
+        "-- AUTORISATION-CONTRACT:0014_drop_sans_if_exists_test\nDROP TABLE ancien;"
+    )
+    plan = MigrationPlan(
+        version="0014_drop_sans_if_exists_test",
+        phase="contract",
+        checksum=_checksum(sql_drop_non_idempotent_mais_autorise),
+        reversible=True,
+    )
+    with pytest.raises(MigrationNonIdempotente):
+        validate_migration(plan, sql_drop_non_idempotent_mais_autorise)
+
+
+# ---------------------------------------------------------------------------
 # Croisement avec le harnais existant — preuve, pas supposition
 # ---------------------------------------------------------------------------
 

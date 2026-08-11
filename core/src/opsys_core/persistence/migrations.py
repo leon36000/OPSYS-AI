@@ -89,7 +89,10 @@ from dataclasses import dataclass
 # Vocabulaire de phases FERMÉ — zéro normalisation (.strip()/.lower()
 # élargirait silencieusement l'autorisation, revue d'architecture AVANT
 # code, point (c)). Recoupé mécaniquement avec core/migrations/README.md
-# par test_dependency_rules_toml_couvre_migrations_sans_modification.
+# par test_readme_vocabulaire_phases_bijectif_avec_le_code (PAS test_
+# dependency_rules_toml_couvre_migrations_sans_modification, qui ne lit
+# jamais le README — dérive documentaire corrigée, revue scellée tour 2,
+# Kimi-K3 mineure confirmée vraie).
 _VOCABULAIRE_PHASES = frozenset({"expand", "backfill", "switch", "contract"})
 
 # fullmatch() SANS ancres ^/$ — `$` matche aussi juste avant un `\n`
@@ -98,27 +101,90 @@ _VOCABULAIRE_PHASES = frozenset({"expand", "backfill", "switch", "contract"})
 # scellée tour 1, Kimi-K3 mineure, reproduit et confirmé vrai.
 _CHECKSUM_RE = re.compile(r"[0-9a-f]{64}")
 
-# Commentaires --...fin-de-ligne : retirés AVANT toute détection de
-# mots-clés (destructif ET idempotence) — un mot destructif MENTIONNÉ
-# dans un commentaire ne doit jamais déclencher un refus. Revue scellée
-# tour 1, DeepSeek mineure, reproduit et confirmé vrai. Limitation
-# ACCEPTÉE : les littéraux de chaîne ('...') ne sont PAS retirés (un
-# parseur SQL complet serait hors périmètre — même discipline que les
-# blocs DO $$...$$ déjà documentés plus bas).
-_COMMENTAIRE_LIGNE = re.compile(r"--[^\n]*")
+
+def _analyser_sql(sql: str) -> tuple[str, str]:
+    """Analyse le SQL en UN SEUL passage, machine à états sur les
+    guillemets simples ('' = guillemet littéral échappé, convention SQL
+    standard) : retourne `(sql_neutralise, commentaires)`.
+
+    `sql_neutralise` a le CONTENU des littéraux de chaîne ('...') ET le
+    texte des commentaires (--...fin-de-ligne, hors chaînes) remplacés
+    par des espaces — LONGUEUR ET POSITIONS PRÉSERVÉES (jamais une
+    suppression). Utilisé pour TOUTE détection de mots-clés (destructif,
+    idempotence) ET pour `_decouper_instructions` : un mot-clé qui
+    n'apparaît QUE dans un littéral ou un commentaire ne doit JAMAIS
+    déclencher, et un ';' à l'intérieur d'un littéral ne doit JAMAIS
+    scinder une instruction à tort.
+
+    `commentaires` est la CONCATÉNATION des seuls textes de commentaires
+    RÉELS (hors chaînes) — utilisé EXCLUSIVEMENT pour chercher le
+    marqueur d'autorisation, qui est destiné à y vivre.
+
+    Corrige 3 fail-open confirmés vrais par reproduction directe (revue
+    scellée C05-002 tour 2, jamais acceptés sur la seule autorité des
+    reviewers) :
+      - DeepSeek mineure : un ancien retrait de commentaire naïf
+        (`--[^\\n]*` sur le SQL brut) avalait le reste de la ligne dès
+        qu'un `--` apparaissait DANS un littéral (ex. `SELECT '--';
+        DROP TABLE x;` → le DROP réel après le littéral disparaissait
+        AVANT même d'être vu par le détecteur destructif).
+      - Kimi-K3 mineure : un ancien détecteur d'idempotence non
+        conscient des chaînes acceptait `CREATE TABLE t (c TEXT DEFAULT
+        'if not exists');` comme idempotent — le texte "IF NOT EXISTS"
+        n'était qu'une VALEUR littérale, jamais une vraie clause SQL.
+      - Kimi-K3 mineure (conséquence non nommée) : le marqueur
+        d'autorisation, cherché sur le SQL brut entier, était aussi
+        satisfaisable par un littéral de chaîne contenant son texte —
+        fermé en le limitant désormais aux seuls commentaires extraits.
+
+    Limitation ACCEPTÉE et documentée (inchangée) : le dollar-quoting
+    PostgreSQL (`$$...$$`) n'est PAS géré — hors périmètre, un parseur
+    SQL complet serait nécessaire (même discipline que les autres formes
+    déjà exclues)."""
+    neutre: list[str] = []
+    commentaires: list[str] = []
+    dans_chaine = False
+    i = 0
+    n = len(sql)
+    while i < n:
+        c = sql[i]
+        if dans_chaine:
+            if c == "'":
+                if i + 1 < n and sql[i + 1] == "'":
+                    neutre.append("  ")
+                    i += 2
+                    continue
+                dans_chaine = False
+                neutre.append(c)
+                i += 1
+                continue
+            neutre.append(c if c == "\n" else " ")
+            i += 1
+            continue
+        if c == "'":
+            dans_chaine = True
+            neutre.append(c)
+            i += 1
+            continue
+        if c == "-" and i + 1 < n and sql[i + 1] == "-":
+            fin = sql.find("\n", i)
+            fin_reel = fin if fin != -1 else n
+            commentaires.append(sql[i:fin_reel])
+            neutre.append(" " * (fin_reel - i))
+            i = fin_reel
+            continue
+        neutre.append(c)
+        i += 1
+    return "".join(neutre), "\n".join(commentaires)
 
 
-def _retirer_commentaires_sql(sql: str) -> str:
-    return _COMMENTAIRE_LIGNE.sub("", sql)
-
-
-def _decouper_instructions(sql: str) -> list[str]:
-    """Découpage par ';' — heuristique BORNÉE, pas un parseur SQL complet.
-    Un ';' à l'intérieur d'une chaîne de caractères ou d'un bloc
-    `DO $$...$$` n'est PAS géré correctement : limitation ACCEPTÉE et
-    documentée, même périmètre que les autres formes déjà exclues
-    (irréductible sans parseur+exécution SQL réel)."""
-    return [i.strip() for i in sql.split(";") if i.strip()]
+def _decouper_instructions(sql_neutralise: str) -> list[str]:
+    """Découpage par ';' du SQL DÉJÀ NEUTRALISÉ (`_analyser_sql`) —
+    heuristique BORNÉE, pas un parseur SQL complet. Le dollar-quoting
+    (`$$...$$`) n'est PAS géré : limitation ACCEPTÉE et documentée, même
+    périmètre que les autres formes déjà exclues (irréductible sans
+    parseur+exécution SQL réel)."""
+    return [i.strip() for i in sql_neutralise.split(";") if i.strip()]
 
 
 # Token-level, insensible à la casse : `ALTER TABLE t DROP col` est valide
@@ -276,21 +342,26 @@ def validate_migration(plan: MigrationPlan, sql: str) -> None:
     if checksum_reel != plan.checksum:
         raise ChecksumIncorrect()
 
-    # Commentaires retirés AVANT la détection de mots-clés (destructif ET
-    # idempotence) — un mot mentionné dans un commentaire n'est jamais un
-    # verbe SQL réel. Le marqueur d'autorisation, lui, est volontairement
-    # DESTINÉ à vivre dans un commentaire (`-- AUTORISATION-CONTRACT:...`)
-    # : sa présence est vérifiée sur le SQL ORIGINAL, pas la version
-    # nettoyée, sinon il s'auto-effacerait avant d'être lu.
-    sql_sans_commentaires = _retirer_commentaires_sql(sql)
+    # Littéraux de chaîne ET commentaires neutralisés AVANT la détection
+    # de mots-clés (destructif ET idempotence) en un seul passage — un
+    # mot mentionné dans un commentaire OU une valeur littérale n'est
+    # jamais un verbe SQL réel (revue scellée tour 1 DeepSeek + tour 2
+    # Kimi-K3, toutes deux confirmées vraies). Le marqueur d'autorisation,
+    # lui, est volontairement DESTINÉ à vivre dans un commentaire
+    # (`-- AUTORISATION-CONTRACT:...`) : sa présence est vérifiée
+    # UNIQUEMENT dans les commentaires extraits, jamais dans un littéral
+    # de chaîne (revue scellée tour 2, Kimi-K3 mineure confirmée vraie :
+    # un marqueur dans une VALEUR, pas un commentaire, autorisait aussi
+    # à tort avant ce correctif).
+    sql_neutralise, commentaires = _analyser_sql(sql)
 
     # 2) Destructif : liste blanche — refusé SAUF autorisation complète.
-    if _MOTIFS_DESTRUCTIFS.search(sql_sans_commentaires) is not None:
+    if _MOTIFS_DESTRUCTIFS.search(sql_neutralise) is not None:
         motif_marqueur = _marqueur_autorisation(plan.version)
         autorise = (
             plan.phase == "contract"
             and plan.reversible is True
-            and motif_marqueur.search(sql) is not None
+            and motif_marqueur.search(commentaires) is not None
         )
         if not autorise:
             raise MigrationDestructiveRefusee(
@@ -300,8 +371,8 @@ def validate_migration(plan: MigrationPlan, sql: str) -> None:
             )
 
     # 3) Idempotence par construction — PAR INSTRUCTION (découpage par
-    # ';'), pas un motif global sur tout le fichier.
-    for instruction in _decouper_instructions(sql_sans_commentaires):
+    # ';' du SQL NEUTRALISÉ), pas un motif global sur tout le fichier.
+    for instruction in _decouper_instructions(sql_neutralise):
         if _MOTIF_CREATE.search(instruction) is not None and _MOTIF_IF_NOT_EXISTS.search(instruction) is None:
             raise MigrationNonIdempotente(f"CREATE sans IF NOT EXISTS : {instruction!r}")
         if _MOTIF_DROP.search(instruction) is not None and _MOTIF_IF_EXISTS.search(instruction) is None:
