@@ -250,6 +250,24 @@ def test_owner_long_reel_non_couvert_par_alias_leve_table_perimee(tmp_path):
         construire_registre(chemin_carte_chemins=chemins, chemin_carte_metier=metier, alias=alias)
 
 
+def test_alias_core_vers_autre_chose_que_core_leve_table_perimee(tmp_path):
+    """Revue scellée (2026-08-11, Kimi-K3, mineure) : sans garde
+    symétrique, un alias injecté {"CORE": "M5-financecore", ...}
+    passerait _verifier_table_alias silencieusement (CORE était
+    entièrement exempté), résolvant les 6 agrégats métier CORE sur les
+    ports RÉELS de M5 au lieu de la sentinelle documentée comme
+    obligatoire. CORE doit toujours pointer vers CORE (identique dans
+    les deux cartes par construction)."""
+    chemins = _ecrire_carte_chemins(tmp_path, [
+        ("M5-financecore", "M5-financecore", "Modules M/M5-financecore/src", "Modules M/M5-financecore/src"),
+    ])
+    metier = _ecrire_carte_metier(tmp_path, [("ledger", "M5"), ("identity", "CORE")])
+    # Alias corrompu : CORE pointe vers M5-financecore au lieu de CORE.
+    alias = {"M5": "M5-financecore", "CORE": "M5-financecore"}
+    with pytest.raises(TableAliasPerimee):
+        construire_registre(chemin_carte_chemins=chemins, chemin_carte_metier=metier, alias=alias)
+
+
 def test_core_sans_ligne_dans_les_chemins_recoit_la_sentinelle_meme_synthetique(tmp_path):
     """CORE est la SEULE exemption de `_verifier_table_alias` (owner_court
     == "CORE" jamais vérifié contre les owners réels des chemins, cf.

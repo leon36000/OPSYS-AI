@@ -68,10 +68,21 @@ tracée à sa réponse :
    générateur (édition manuelle, régression future) : la garde est
    refaite ici, sur les données réellement chargées.
 
-Ne PAS importer `audit/core-baseline/business_authority_map.py` (effet de
-bord `sys.path.insert` au niveau module, dépendance non packagée depuis
-`opsys-core` distribuable) — les CSV sont lus directement, comme le
-demande la spec."""
+Ne PAS importer `audit/core-baseline/business_authority_map.py` — les CSV
+sont lus directement, comme le demande la spec. **Précision (revue
+scellée 2026-08-11, Kimi-K3, mineure)** : la VRAIE raison est l'effet de
+bord `sys.path.insert` AU NIVEAU MODULE que cet import déclencherait
+(mutation globale de `sys.path` au simple `import`, jamais souhaitable
+dans une bibliothèque). La « dépendance non packagée depuis `opsys-core`
+distribuable » n'est PAS résolue pour autant par la lecture directe des
+CSV : `_RACINE_DEPOT = Path(__file__).resolve().parents[4]` et les
+chemins par défaut qui en découlent dépendent tout autant du LAYOUT du
+dépôt (`audit/core-baseline/` hors du package `core/src/`) — un
+`opsys-core` réellement installé (hors de ce dépôt) échouerait avec
+`FileNotFoundError` sur les défauts. Assumé et déjà documenté ailleurs
+(point 4 : chemins paramétrables, jamais figés) — pas un défaut de
+comportement, seule l'ancienne formulation du docstring prétendait à tort
+que la lecture directe réglait CETTE dépendance-là."""
 from __future__ import annotations
 
 import csv
@@ -167,10 +178,22 @@ def _verifier_table_alias(alias: dict[str, str], owners_longs_reels: set[str], o
         if owner_court not in alias:
             raise AliasInconnu(f"owner (nom court) {owner_court!r} absent de la table d'alias {sorted(alias)}")
     # Chaque valeur non-CORE de la table doit référencer un owner long
-    # RÉELLEMENT présent parmi les 10 lignes M1-M10 (CORE est exempté :
-    # il n'a jamais de ligne owner==aggregate, cf. point 6).
+    # RÉELLEMENT présent parmi les 10 lignes M1-M10 (CORE est exempté de
+    # CETTE vérification précise : il n'a jamais de ligne owner==aggregate,
+    # cf. point 6) — mais la clé "CORE" reste vérifiée SYMÉTRIQUEMENT
+    # (revue scellée 2026-08-11, Kimi-K3, mineure, corrigée à coût nul) :
+    # sans cette garde, un alias injecté {"CORE": "M5-financecore", ...}
+    # passerait silencieusement (CORE est identique dans les deux cartes
+    # par construction — jamais une valeur arbitraire), résolvant les 6
+    # agrégats métier CORE sur les ports RÉELS de M5 au lieu de la
+    # sentinelle documentée comme obligatoire.
     for owner_court, owner_long in alias.items():
         if owner_court == "CORE":
+            if owner_long != "CORE":
+                raise TableAliasPerimee(
+                    f"alias 'CORE' doit pointer vers 'CORE' (identique dans les deux "
+                    f"cartes par construction), pas {owner_long!r}"
+                )
             continue
         if owner_long not in owners_longs_reels:
             raise TableAliasPerimee(
