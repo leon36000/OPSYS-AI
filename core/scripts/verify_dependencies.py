@@ -82,7 +82,15 @@ def _modules_importes_sur_ligne(stripped: str) -> set[str]:
     doivent être détectés, jamais seulement le premier)."""
     trouves: set[str] = set()
     sans_commentaire = re.sub(r"#.*$", "", stripped).strip()
-    import_match = re.match(r"^import\s+(.+)$", sans_commentaire)
+    # `\S.*` plutôt que `.+` après `\s+` — trouvé par SonarCloud Code
+    # Analysis ("super-linear performance due to backtracking") : `\s+`
+    # suivi de `.+` est ambigu sur une entrée riche en espaces (`.` matche
+    # AUSSI l'espace par défaut en Python re, donc la frontière entre les
+    # deux quantificateurs n'est pas unique — de nombreux découpages
+    # possibles pour "import      x", backtracking polynomial). Ancrer le
+    # groupe capturé sur un premier caractère NON-espace lève l'ambiguïté :
+    # `\s+` consomme alors sans équivoque TOUT l'espace de tête.
+    import_match = re.match(r"^import\s+(\S.*)$", sans_commentaire)
     noms_importes = (
         [n.strip().split(" as ")[0].split(".")[0] for n in import_match.group(1).split(",")]
         if import_match
