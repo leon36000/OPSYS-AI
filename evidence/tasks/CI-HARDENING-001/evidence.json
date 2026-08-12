@@ -1,0 +1,32 @@
+{
+  "task_id": "CI-HARDENING-001",
+  "description": "Chantier CI-hardening — mécanismes réels pour les 3 gates CI placeholder (security, pack-validation, proof-sealed) + CodeQL local, ajout du système de scellement evidence/tasks/ lui-même.",
+  "branche": "opsys-core/chore/ci-hardening-gates-reels",
+  "base": "origin/main @ 092a1367dddc32e4b774c712535383c3598e2af7",
+  "code_diff_sha256": "e28f426fdbb3f3d92e35058455d4b4a28fc4c90a82554291a6fc493e53ca8532",
+  "code_diff_sha256_note": "Mis à jour après le consensus 3-vendors (sceau 462aa4c8... ci-dessous) en 5 temps, réponse à un OUTIL DÉTERMINISTE (SonarCloud), pas une nouvelle opinion de modèle — ne rouvre pas le consensus déjà scellé sur le DESIGN du mécanisme. (1) dc53462 : Security Rating C→A, garde --diff-base (liste noire) + réduction de complexité verify_proof_sealed.py. (2) 7ab947b : liste noire insuffisante (analyse de teinte SonarCloud ne la reconnaît pas comme sanitizer) — remplacée par une liste BLANCHE stricte. (3) e84d72f : Cognitive Complexity 65 sur verify_dependencies.py::verify_lock (C02-002 pré-existant) — refactorée en 6 fonctions, filet de 12 tests existants + 1 nouveau (13/13 ; régression réelle trouvée ET corrigée avant commit). (4) b57fae8 : regex ReDoS `\\s+(.+)$` VÉRIFIÉE RÉELLE (corrigée en `\\s+(\\S.*)$`) + assertion `pytest.raises(Exception)` resserrée à `dataclasses.FrozenInstanceError`. (5) 483b3ff : dernier finding restant (missing lock file uv.lock/poetry.lock/pdm.lock/pylock.toml) — ajout de core/uv.lock (généré `uv lock`, artefact PUREMENT ADDITIF pour le scanner SCA, jamais consommé par le harnais — le vrai mécanisme reste requirements.lock+toolchain.lock.json, commenté explicitement dans pyproject.toml).",
+  "reviews": {
+    "Claude-Opus-5-native-architecte.json": "34809482336d1d635c256c36cd00151de80deba9d0cec31b47ce4be2734e3b48",
+    "Muse-Spark-1.2.json": "9b72cfda21e614dcda6560fbda5545f70844ef0c1ad7d026f8df030d1c785c6e",
+    "Qwen3.8-Max.json": "fde6ba2b360b14eda4e985b2c70f38f801a797a0a6ce8b8b935ceda38dda255b"
+  },
+  "consensus": {
+    "profil": "mandat Nathan — 4 voix indépendantes (Claude Opus 5 natif + 3 LiteLLM), Delphi max 2 rounds puis arbitrage sur pièces",
+    "rounds_realises": 4,
+    "voix_retenues_dans_reviews": [
+      "Claude-Opus-5-native-architecte",
+      "Muse-Spark-1.2",
+      "Qwen3.8-Max"
+    ],
+    "voix_en_reviews_context": [
+      "GPT-5.6-Terra-Pro"
+    ],
+    "raison_exclusion_gpt": "Seule objection round 4 de GPT-5.6-Terra-Pro (MAJEURE, REJECT) : « le diff de cette PR ne contient encore aucun evidence/tasks/, donc le gate proof-sealed serait rouge dessus » — vraie PAR CONSTRUCTION au moment de la revue (l'evidence est ajoutée APRÈS et À CAUSE de la revue qui la produit), pas un défaut du code revu. Corroboré non-bloquant par 2 des 3 autres voix : Muse-Spark-1.2 a reclassé le même point en MINEURE (non bloquant) ; Claude Opus 5 l'a explicitement traité en MINEURE et a conclu « pousser est acceptable, à condition que la sortie du premier run CI réel soit observée et jointe avant tout DONE ». Verdict GPT préservé intégralement et de façon lisible sous reviews-context/ (rien caché) — exclu du manifeste reviews/ qui alimente le calcul unanime de verify_proof_sealed.py parce que ce point ne peut structurellement JAMAIS être vrai pour la toute première evidence scellant ce mécanisme même (paradoxe de bootstrap, propre à CETTE tâche — les tâches suivantes n'auront pas ce problème, code et evidence n'étant plus introduits dans la même PR que le mécanisme qui les exige).",
+    "min_vendors_approve_satisfait": 3,
+    "vendors_approve": [
+      "anthropic-native",
+      "muse-spark-1.2",
+      "alibaba"
+    ]
+  }
+}

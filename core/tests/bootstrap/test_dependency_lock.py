@@ -202,6 +202,26 @@ def test_hash_mal_forme_refuse_aussi(tmp_path):
     assert any("click" in e for e in rapport.missing_hash_packages)
 
 
+def test_deux_modules_connus_sur_la_meme_ligne_sont_tous_deux_detectes(tmp_path):
+    """`import yaml, psycopg` référence DEUX modules de
+    _CORRESPONDANCE_IMPORT_PAQUET sur la MÊME ligne — trouvé en
+    vérifiant le refactor de réduction de complexité cognitive
+    (chantier CI-hardening, SonarCloud) : une première version du split
+    ne retournait que le PREMIER module trouvé par ligne, perdant
+    silencieusement le second. Les deux doivent être signalés non
+    déclarés."""
+    core = tmp_path / "core"
+    pyproject = core / "pyproject.toml"
+    lock = core / "requirements.lock"
+    _ecrire(pyproject, '[project]\nname = "opsys-core"\ndependencies = []\n')
+    _ecrire(lock, "")
+    _ecrire(core / "scripts" / "un_module.py", "import yaml, psycopg\n")
+
+    rapport = verify_lock(pyproject, lock)
+    assert any("PyYAML" in e for e in rapport.declared_but_undeclared_imports)
+    assert any("psycopg" in e for e in rapport.declared_but_undeclared_imports)
+
+
 # ---------------------------------------------------------------------------
 # Robustesse structurelle
 # ---------------------------------------------------------------------------
@@ -209,11 +229,16 @@ def test_hash_mal_forme_refuse_aussi(tmp_path):
 
 def test_lockreport_est_gele(tmp_path):
     """LockReport est immuable — un rapport ne doit pas pouvoir être
-    réécrit après coup pour fabriquer une conformité."""
+    réécrit après coup pour fabriquer une conformité. Type d'exception
+    resserré à dataclasses.FrozenInstanceError (vérifié empiriquement, pas
+    supposé) — trouvé trop large par SonarCloud Code Analysis
+    ("assertion too broad")."""
+    import dataclasses
+
     import pytest
 
     rapport = LockReport(declared_but_undeclared_imports=[], floating_dependencies=[], missing_hash_packages=[])
-    with pytest.raises(Exception):
+    with pytest.raises(dataclasses.FrozenInstanceError):
         rapport.floating_dependencies = ["x"]
 
 

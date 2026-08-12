@@ -7,7 +7,7 @@ import logging
 import os
 import threading
 import time
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Set
 
 import totp
 
@@ -29,7 +29,7 @@ class AdminGate:
 
     def __init__(
         self,
-        secret_env: str = "OPSYS_ADMIN_TOTP_SECRET",
+        secret_env: str = "OPSYS_ADMIN_TOTP_SECRET",  # nosec: B107 # nom de variable d'environnement à lire, jamais un secret littéral
         max_echecs: int = 5,
         verrou_s: int = 300,
     ) -> None:

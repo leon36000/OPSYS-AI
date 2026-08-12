@@ -1,3 +1,13 @@
+# core/uv.lock (voisin de ce fichier) : généré par `uv lock`, ajouté suite
+# au dernier finding SonarCloud Code Analysis restant sur ce chantier
+# CI-hardening ("Dependency versions are not predictable if the lock file
+# ... is missing"). Le VRAI mécanisme de verrouillage de ce projet reste
+# core/requirements.lock (C02-002, verify_dependencies.py) + toolchain.lock.json
+# (C02-001) — uv.lock est un artefact PUREMENT ADDITIF, reconnu par le
+# scanner SCA de SonarCloud, jamais consommé par le harnais du projet
+# (aucun `uv sync`/`uv run` dans core-ci.yml ni pack-validation). Régénérer
+# avec `uv lock --project core` si les dépendances de ce fichier changent —
+# sinon les 2 lock files divergent silencieusement.
 [project]
 name = "opsys-core"
 version = "0.0.0"
@@ -45,3 +55,40 @@ PyYAML = "core/src/config/settings.py"
 # son propre libpq statiquement lié, vérifié par connexion réelle à un
 # conteneur PostgreSQL éphémère avant ce commit.
 psycopg = "core/src/opsys_core/persistence/connection.py"
+
+[tool.bandit]
+# B101 (« Use of assert detected ») exclu GLOBALEMENT : mesuré (bandit -r
+# core/src) 125/127 findings de ce dépôt sont des `assert` dans des
+# fichiers */tests/*.py — l'idiome standard pytest, jamais un défaut de
+# sécurité (bandit documente lui-même B101 comme pertinent seulement pour
+# du code non-test compilé avec -O, ce qui n'est jamais le cas ici). Les 2
+# findings RESTANTS après exclusion de B101 étaient FAUX POSITIFS
+# vérifiés individuellement (pas supposés) : core/src/auth/admin_gate.py
+# (nom de variable d'environnement, jamais un secret littéral) et
+# core/src/opsys_core/planes.py (valeur d'Enum architectural, contient
+# le mot "TOKEN" par coïncidence) — annotés `# nosec` en ligne avec
+# justification plutôt que supprimés ici (portée la plus étroite
+# possible, jamais une exclusion de fichier entier).
+#
+# B404/B603/B607 exclus GLOBALEMENT depuis l'élargissement du scan à
+# core/scripts/ (chantier CI-hardening, révision 2 — trouvé par revue
+# scellée indépendante que ces scripts d'orchestration en étaient
+# exclus). 16 findings mesurés, TOUS dans core/scripts/, dont l'unique
+# rôle est d'invoquer des outils externes de confiance (git, bandit,
+# pip-audit, codeql, pytest, structure_lint.py) : B404 = « import
+# subprocess » (déclenché par le seul import, sans rapport avec l'usage
+# réel) ; B603 = « subprocess sans shell=True » (précisément le pattern
+# SÛR que B603 recommande par ailleurs — bandit le signale quand même
+# pour vérification manuelle) ; B607 = « chemin d'exécutable partiel »
+# (`"git"` plutôt que `/usr/bin/git` — portabilité intentionnelle,
+# convention déjà en place dans bootstrap_toolchain.py::_OUTILS_GARANTIS
+# avant ce chantier). Les 7 sites d'appel ont été lus un par un avant
+# cette exclusion (pas supposés sûrs) : chaque argv est une liste
+# littérale fixe (jamais shell=True, jamais une chaîne interpolée depuis
+# une entrée non fiable) — seul core/scripts/verify_proof_sealed.py
+# accepte un paramètre CLI (--diff-base) qui atteint l'argv, mais comme
+# UN élément de liste séparé (jamais une concaténation shell) et
+# uniquement en usage LOCAL manuel (le job CI n'appelle jamais ce flag,
+# valeur toujours "origin/main" littérale en production).
+skips = ["B101", "B404", "B603", "B607"]
+exclude_dirs = []

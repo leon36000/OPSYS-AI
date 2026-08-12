@@ -1,0 +1,45 @@
+{
+  "verdict": "APPROVE",
+  "objections": [
+    {
+      "severite": "mineure",
+      "fichier": ".github/workflows/core-ci.yml",
+      "description": "Ordre d'opération non documenté : en l'état de l'arbre, la PR de ce chantier modifie du code scellé (core/**, core-ci.yml) et ne contient AUCUN evidence/tasks/<ID>/ — le job proof-sealed sortira en 1 sur sa propre PR. Ce n'est pas un défaut du mécanisme (fail-closed, jamais un vert silencieux) mais une précondition de livraison à exécuter avant push, d'autant que l'evidence doit contenir CE verdict (contrainte circulaire d'ordonnancement).",
+      "preuve": "core-ci.yml:78-87 — CODE_CHANGE non vide + EVIDENCE_CHANGE vide => 'PR modifie du code scellé SANS committer d'evidence/tasks/<ID>/ — REFUS.' exit 1. Vérifié sur l'arbre réel : glob 'evidence/**' = 0 fichier ; confirmé par la preuve du pack elle-même 'PROOF_SEALED: ROUGE — evidence/tasks/ absent du dépôt (rc=1)'."
+    },
+    {
+      "severite": "mineure",
+      "fichier": "core/scripts/verify_proof_sealed.py",
+      "description": "Anti-Sybil non garanti pour tout modèle absent de la table copiée : _vendor_of retombe sur le nom du modèle lui-même, donc N alias inconnus d'un MÊME fournisseur comptent pour N vendors distincts face au --min-vendors 3 codé en dur dans le job. Comportement hérité fidèlement du canon (donc pas une dérive de la copie), mais la docstring le qualifiait de 'fail-closed' alors qu'il est fail-open du point de vue de la décorrélation.",
+      "preuve": "verify_proof_sealed.py (`return _VENDOR.get(key, key)`) + core-ci.yml (`ARGS=(--min-vendors 3)`). Le cas est épinglé par test_proof_sealed.py::test_vendor_of_modele_inconnu_repli_sur_lui_meme sur 'muse-spark-1.2' — reviewer RÉEL de ce chantier, absent de _VENDOR. Canon relu ligne à ligne : tally_reviews.py::_VENDOR et vendor_of — aucune entrée canon manquante dans la copie, claim 'COMPLÈTE' vérifié vrai."
+    },
+    {
+      "severite": "mineure",
+      "fichier": "core/scripts/verify_proof_sealed.py",
+      "description": "Le canal de revue 'subagent Claude natif' est déclaré dans la table des vendors mais ne peut structurellement pas satisfaire le contrôle de sceau : le gabarit de prompt neutre n'exige ni prompt_sha256 ni reviewer_model. Committer tel quel un verdict natif casse le sceau ; l'annoter à la main produit un verdict indistinguable d'un verdict scellé côté gate.",
+      "preuve": "verify_proof_sealed.py déclare 'claude-opus-5-native-architecte' dans _VENDOR. Le gabarit ne demande que verdict/objections/date_heure. Sans prompt_sha256 : sceau INCOHÉRENT (rouge). Sans reviewer_model : le verdict n'entre pas dans vendors_approve. Seul civ_review.py écrit ces champs — civ_review.py (`verdict['prompt_sha256'] = prompt_sha`, `verdict['reviewer_model'] = model`)."
+    },
+    {
+      "severite": "mineure",
+      "fichier": "core/tests/bootstrap/test_ci_contract.py",
+      "description": "Résidu de la MÊME classe que le défaut LIVE round 3, non fermé : seules les lignes d'installation et les lignes de commentaire sont exclues ; un nom d'outil apparaissant dans une chaîne `echo \"...\"` compterait encore comme invocation réelle. Non LIVE aujourd'hui — vérifié ligne par ligne sur le workflow réel — mais la garde reste franchissable par un futur placeholder bavard.",
+      "preuve": "test_ci_contract.py (filtres _LIGNE_INSTALLATION_SEULE_RE et _LIGNE_COMMENTAIRE_RE uniquement) + _OUTILS_REELS_RE. Contrôle du LIVE : les 2 seuls echo du job proof-sealed ne contiennent aucun nom de la liste fermée ; l'unique ligne non-commentaire/non-install qui matche est l'invocation réelle elle-même — l'objection 1 round 3 est donc effectivement fermée (supprimer cette ligne rendrait le test ROUGE)."
+    },
+    {
+      "severite": "mineure",
+      "fichier": "core/scripts/run_security_scan.py",
+      "description": "Le pack round 4 ne fournit aucune sortie d'exécution des deux mécanismes qui remplacent les placeholders `security` et `pack-validation` : leur VERT reste un CLAIM non vérifié dans CE pack (les interfaces appelées, elles, ont été vérifiées et existent réellement).",
+      "preuve": "Section 'Preuve d'exécution' du pack round 4 : pytest, verify_proof_sealed, mypy-core, structure_lint — aucune sortie de `python3 core/scripts/run_security_scan.py` ni de `run_pack_validation.py`. Contre-vérification faite côté interfaces : bootstrap_toolchain.py/run_tests.py/verify_dependencies.py correspondent exactement aux appels de run_pack_validation.py."
+    },
+    {
+      "severite": "mineure",
+      "fichier": "core/scripts/verify_proof_sealed.py",
+      "description": "Réponse explicite à la question posée sur le risque merge-commit : le risque reste non vérifiable depuis le dépôt, mais son mode de défaillance est FERMÉ (hash différent ou git indisponible => rouge, jamais un vert silencieux). Avis : pousser est acceptable, à condition que la sortie du PREMIER run CI réel soit observée et jointe avant tout DONE — sans elle, 'le gate fonctionne en CI' reste une affirmation non prouvée.",
+      "preuve": "core-ci.yml (fetch-depth: 0, git fetch origin main) ; script `_diff_sha256_actuel` : `git diff origin/main...HEAD -- _PATHSPEC_SCELLE` avec rc!=0 => GitIndisponible, propagé rc=1. Sur pull_request, HEAD = commit de merge alors que le hash embarqué est calculé sur la pointe de branche : si origin/main avance sur le périmètre scellé, le texte du diff change => 'code_diff_sha256 NE CORRESPOND PAS' => rouge. Aucun chemin ne convertit ce cas en vert."
+    }
+  ],
+  "reviewer_model": "Claude-Opus-5-native-architecte",
+  "modele_servi": "claude-opus-5-native-architecte-subagent",
+  "prompt_sha256": "462aa4c8e582d364a79a073f2258d057b438be8e317a590c7e5743deb44051b8",
+  "date_heure": "2026-08-11T23:45:00+00:00"
+}

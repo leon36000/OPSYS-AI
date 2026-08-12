@@ -26,7 +26,7 @@ def cfg():
 
 
 def test_safe_traceback_purges_secret_value(cfg):
-    secret = "super-secret-token"  # proof:allow — fixture/message de test, aucun secret reel
+    secret = "super-secret-token"  # nosec: B105 # proof:allow — fixture/message de test, aucun secret reel
     try:
         raise ValueError("failure", secret)
     except ValueError as exc:

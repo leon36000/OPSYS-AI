@@ -115,11 +115,83 @@ def _unpinned_actions(texte: str) -> list[str]:
     return non_epingles
 
 
+# Chantier CI-hardening (post-C02-005, directive Nathan « aucun gate ne
+# reste un placeholder ») : `security`, `pack-validation` ET `proof-sealed`
+# ont désormais un MÉCANISME RÉEL câblé (run_security_scan.py,
+# run_pack_validation.py, verify_proof_sealed.py) — le cas RED #3
+# originel de C02-005 exigeait un « exit 1 » littéral pour les 3 jobs
+# PARCE QU'aucun mécanisme réel n'existait encore ; l'exiger MAINTENANT
+# serait incohérent (un vrai script a son propre code retour). Ensemble
+# VOLONTAIREMENT VIDE aujourd'hui (pas supprimé) : si une FUTURE catégorie
+# exigée était ajoutée sans mécanisme réel immédiat, elle rejoindrait cet
+# ensemble — le mécanisme de repli (exit 1 littéral) reste testé
+# (cf. test_categorie_sans_mecanisme_reel_exige_exit_1_litteral_sur_fixture_synthetique)
+# même si aucune catégorie réelle ne l'utilise plus à ce jour.
+_CATEGORIES_SANS_MECANISME_REEL_A_CE_JOUR: set[str] = set()
+
+# Un `run:` invoquant réellement un outil/script d'analyse — jamais un
+# simple `echo`/`exit` nu. Volontairement une liste FERMÉE des outils
+# réellement câblés à ce jour (pas un motif générique `\S+\.py` qui
+# accepterait N'IMPORTE QUEL script, y compris un futur placeholder
+# déguisé en `python3 fake.py; exit 0`) — étendre cette liste EXIGE de
+# nommer le nouvel outil ici, jamais un motif qui accepterait tout par défaut.
+_OUTILS_REELS_RE = re.compile(
+    r"\b(run_security_scan\.py|run_pack_validation\.py|verify_proof_sealed\.py|"
+    r"bandit|pip-audit|run_static_checks|evaluer_matrice|pytest)\b"
+)
+
+# Une commande PUREMENT d'installation (`pip install bandit==...`) ne
+# compte PAS comme invocation réelle même si le nom de l'outil apparaît
+# en substring — trouvé par revue scellée indépendante (architecte) :
+# supprimer le step qui EXÉCUTE le scan en ne gardant que le step
+# d'installation laissait ce test VERT, puisque `bandit`/`pip-audit`
+# apparaissent déjà littéralement dans la commande `pip install`. Une
+# ligne matchée par CE motif est exclue de la recherche de
+# `_OUTILS_REELS_RE`, quel que soit son contenu par ailleurs. `uv pip
+# install` ajouté round 3 (confirmation architecte) — gestionnaire
+# alternatif nommé explicitement comme cas à fermer, PAS couvert par le
+# filtre `==<version>` seul (un `uv pip install bandit` SANS version
+# épinglée n'a aucun `==` à détecter).
+_LIGNE_INSTALLATION_SEULE_RE = re.compile(
+    r"^\s*python3?\s+-m\s+pip\s+install\b|^\s*pip3?\s+install\b|^\s*uv\s+pip\s+install\b"
+)
+
+# Un COMMENTAIRE ne compte JAMAIS comme invocation réelle — trouvé par
+# revue scellée indépendante round 3 (architecte), défaut LIVE (pas
+# hypothétique) : le bloc `run: |` de core-ci.yml/proof-sealed contient,
+# EN COMMENTAIRE, le nom littéral `verify_proof_sealed.py` (explication
+# de la cohérence _PATHSPEC_SCELLE) — sans cette exclusion, supprimer la
+# SEULE ligne d'invocation réelle du step laissait ce test VERT
+# uniquement à cause du commentaire, exactement la classe de trou que ce
+# test prétend fermer pour bandit/pip-audit.
+_LIGNE_COMMENTAIRE_RE = re.compile(r"^\s*#")
+
+# Défense en profondeur (round 2, architecte) : les deux motifs
+# ci-dessus exigent que le motif COMMENCE la ligne — une continuation
+# multi-ligne (`pip install \` puis la liste des paquets sur la ligne
+# SUIVANTE) échapperait aux deux tout en laissant `bandit`/`pip-audit`
+# matcher `_OUTILS_REELS_RE` comme si c'était une invocation réelle.
+# Filtre COMPLÉMENTAIRE, au niveau du MATCH plutôt que de la ligne : un
+# nom d'outil immédiatement suivi de `==<version>` est un spécificateur
+# de paquet pip ÉPINGLÉ (jamais une invocation de commande, qui serait
+# suivie d'un espace/flag/fin de ligne) — exclu quelle que soit la ligne
+# où il apparaît. Ne couvre PAS un paquet non épinglé sur une ligne de
+# continuation (angle mort résiduel, nommé — cas jugé peu probable dans
+# ce dépôt qui épingle systématiquement les versions, D-035/D-038).
+_SPECIFICATEUR_PAQUET_RE = re.compile(r"==\d")
+
+
 def _jobs_without_hard_failure(data: dict, noms: set[str]) -> list[str]:
-    """Parmi les jobs dont le nom est dans `noms`, ceux qui NE contiennent PAS de
-    step à échec dur explicite (exit 1 / exit non nul) ET qui n'ont pas non plus
-    de mécanisme réel (aucun `continue-on-error: true` autorisé sur ces jobs — un
-    tel réglage transformerait un blocage voulu en un vert silencieux).
+    """Parmi les jobs dont le nom est dans `noms` :
+    - `continue-on-error: true` est TOUJOURS en défaut, quel que soit le job
+      (transformerait un blocage voulu en un vert silencieux).
+    - Ceux de `_CATEGORIES_SANS_MECANISME_REEL_A_CE_JOUR` (aucun mécanisme réel
+      câblé à ce jour) doivent avoir un échec dur explicite (`exit 1` en dur) —
+      jamais un pass silencieux tant qu'aucun outil n'est câblé derrière eux.
+    - Les autres catégories exigées (`security`, `pack-validation`, `types`,
+      `tests`) doivent invoquer RÉELLEMENT un outil/script nommé dans
+      `_OUTILS_REELS_RE` — un mécanisme réel qui n'invoquerait RIEN de
+      reconnaissable serait indiscernable d'un placeholder déguisé.
     """
     jobs = data.get("jobs") or {}
     en_defaut = []
@@ -131,16 +203,44 @@ def _jobs_without_hard_failure(data: dict, noms: set[str]) -> list[str]:
             en_defaut.append(nom)
             continue
         steps = job.get("steps") or []
-        a_echec_dur = any(
-            "exit 1" in (step.get("run") or "")
-            for step in steps
-            if isinstance(step, dict)
-        )
-        # Un job "réel" (types/tests) a un mécanisme concret ; on ne l'exige donc
-        # PAS pour ceux-là. On ne l'exige que pour les catégories sans interface
-        # mesurée à ce stade (voir docstring de test_..._3).
-        if nom in {"proof-sealed", "security", "pack-validation"} and not a_echec_dur:
-            en_defaut.append(nom)
+        commandes_run = [
+            step.get("run") or "" for step in steps if isinstance(step, dict)
+        ]
+        if nom in _CATEGORIES_SANS_MECANISME_REEL_A_CE_JOUR:
+            a_echec_dur = any("exit 1" in c for c in commandes_run)
+            if not a_echec_dur:
+                en_defaut.append(nom)
+        else:
+            # Recherche LIGNE PAR LIGNE (jamais le bloc `run:` entier) —
+            # une ligne d'installation pure (`pip install bandit==...`)
+            # OU un COMMENTAIRE (`# ... verify_proof_sealed.py ...`, défaut
+            # LIVE trouvé round 3 : core-ci.yml/proof-sealed EXPLIQUE en
+            # commentaire pourquoi _PATHSPEC_SCELLE doit rester synchronisé,
+            # nommant le script — sans cette exclusion, supprimer la seule
+            # ligne d'invocation réelle laissait ce test VERT à cause du
+            # commentaire seul) est exclue même si elle contient le nom
+            # d'un outil réel en substring, sinon supprimer le step qui
+            # EXÉCUTE le scan tout en gardant celui qui l'installe (ou un
+            # commentaire qui le mentionne) resterait indétectable (trouvé
+            # par revue scellée indépendante, cf. commentaires
+            # _LIGNE_INSTALLATION_SEULE_RE / _LIGNE_COMMENTAIRE_RE). PUIS
+            # filtre au niveau du MATCH (_SPECIFICATEUR_PAQUET_RE) —
+            # défense en profondeur contre une installation multi-ligne.
+            lignes_pertinentes = [
+                ligne
+                for c in commandes_run
+                for ligne in c.splitlines()
+                if not _LIGNE_INSTALLATION_SEULE_RE.search(ligne)
+                and not _LIGNE_COMMENTAIRE_RE.search(ligne)
+            ]
+            invoque_outil_reel = any(
+                match
+                for ligne in lignes_pertinentes
+                for match in _OUTILS_REELS_RE.finditer(ligne)
+                if not _SPECIFICATEUR_PAQUET_RE.match(ligne, match.end())
+            )
+            if not invoque_outil_reel:
+                en_defaut.append(nom)
     return en_defaut
 
 
@@ -174,10 +274,19 @@ def test_rendre_les_checks_ci_r_ellement_bloquants_2():
 def test_rendre_les_checks_ci_r_ellement_bloquants_3():
     """Cas RED #3 — exiger proof-sealed, types, tests, security et pack validation.
 
-    Les 5 catégories doivent exister comme jobs nommés. Celles sans mécanisme
-    réel mesuré à ce jour (proof-sealed, security, pack-validation) doivent
-    échouer explicitement (exit non nul, jamais continue-on-error) — jamais un
-    pass silencieux tant qu'aucun outil n'est câblé derrière elles.
+    Les 5 catégories doivent exister comme jobs nommés. `security`,
+    `pack-validation` ET `proof-sealed` ont désormais un mécanisme réel
+    câblé (chantier CI-hardening post-C02-005, `_CATEGORIES_SANS_
+    MECANISME_REEL_A_CE_JOUR` vide) — les 3 doivent invoquer réellement
+    un outil reconnu (_OUTILS_REELS_RE), jamais un pass silencieux ni un
+    `pip install` sans invocation (cf.
+    test_job_avec_seulement_l_installation_sans_invocation_reelle_est_detecte).
+    Le mécanisme de repli (`exit 1` littéral exigé pour toute catégorie
+    encore dans `_CATEGORIES_SANS_MECANISME_REEL_A_CE_JOUR`) reste testé
+    séparément sur une fixture synthétique — voir
+    test_categorie_sans_mecanisme_reel_exige_exit_1_litteral_sur_fixture_synthetique
+    — même si, à ce jour, aucune des 5 catégories réelles ne l'emprunte
+    plus.
     """
     noms = parse_required_checks(_WORKFLOW_PATH)
     manquantes = _CATEGORIES_EXIGEES - noms
@@ -298,6 +407,182 @@ def test_job_sans_mecanisme_et_sans_echec_dur_est_detecte_sur_fixture_synthetiqu
     }
     en_defaut = _jobs_without_hard_failure(data, {"security"})
     assert en_defaut == ["security"]
+
+
+def test_job_avec_mecanisme_reel_invoquant_un_outil_nomme_n_est_pas_en_defaut():
+    """Chantier CI-hardening : `security`/`pack-validation` invoquant
+    réellement un script/outil reconnu (_OUTILS_REELS_RE) ne doivent PLUS
+    être exigés d'avoir un `exit 1` littéral — le mécanisme réel EST leur
+    échec dur (le script a son propre code retour)."""
+    data = {
+        "jobs": {
+            "security": {
+                "runs-on": "ubuntu-latest",
+                "steps": [{"run": "python3 core/scripts/run_security_scan.py"}],
+            },
+            "pack-validation": {
+                "runs-on": "ubuntu-latest",
+                "steps": [{"run": "python3 core/scripts/run_pack_validation.py"}],
+            },
+        }
+    }
+    en_defaut = _jobs_without_hard_failure(data, {"security", "pack-validation"})
+    assert en_defaut == []
+
+
+def test_job_avec_seulement_l_installation_sans_invocation_reelle_est_detecte():
+    """Trouvé par revue scellée indépendante (subagent architecte,
+    Claude Opus 5, chantier CI-hardening tour 2) : un job qui installe
+    bandit/pip-audit mais dont le step d'EXÉCUTION du scan a été
+    supprimé passait ce test AVANT correctif — `bandit`/`pip-audit`
+    apparaissent déjà en substring dans la commande `pip install`, donc
+    _OUTILS_REELS_RE matchait sans qu'aucun scan ne tourne réellement."""
+    data = {
+        "jobs": {
+            "security": {
+                "runs-on": "ubuntu-latest",
+                "steps": [
+                    {"run": "python3 -m pip install --quiet bandit==1.9.4 pip-audit==2.10.1"},
+                    # step d'exécution du scan absent — régression simulée
+                ],
+            },
+        }
+    }
+    en_defaut = _jobs_without_hard_failure(data, {"security"})
+    assert en_defaut == ["security"]
+
+
+def test_job_installation_multiligne_sans_invocation_reelle_est_detecte():
+    """Défense en profondeur (round 2, architecte) : une installation
+    continuée sur PLUSIEURS lignes (paquets listés sur la ligne suivant
+    `pip install \\`, jamais sur la ligne qui commence par `pip install`
+    elle-même) échapperait à `_LIGNE_INSTALLATION_SEULE_RE` seule — le
+    filtre complémentaire par MATCH (`_SPECIFICATEUR_PAQUET_RE`, sur
+    `==<version>`) doit fermer ce cas aussi."""
+    data = {
+        "jobs": {
+            "security": {
+                "runs-on": "ubuntu-latest",
+                "steps": [
+                    {"run": "python3 -m pip install \\\n  --quiet \\\n  bandit==1.9.4 pip-audit==2.10.1"},
+                    # step d'exécution du scan absent — régression simulée
+                ],
+            },
+        }
+    }
+    en_defaut = _jobs_without_hard_failure(data, {"security"})
+    assert en_defaut == ["security"]
+
+
+def test_job_commentaire_nommant_l_outil_sans_invocation_reelle_est_detecte():
+    """Défaut LIVE trouvé round 3 (confirmation architecte) sur
+    core-ci.yml/proof-sealed lui-même, pas une régression hypothétique :
+    un COMMENTAIRE explicatif à l'intérieur du bloc `run: |` qui NOMME un
+    outil réel (ex. « ... doit rester identique à _PATHSPEC_SCELLE dans
+    verify_proof_sealed.py ... ») matchait _OUTILS_REELS_RE avant ce
+    correctif, rendant ce test AVEUGLE à la suppression de la seule ligne
+    d'invocation réelle du même step."""
+    data = {
+        "jobs": {
+            "proof-sealed": {
+                "runs-on": "ubuntu-latest",
+                "steps": [
+                    {
+                        "run": (
+                            "set -e\n"
+                            "# Ce commentaire mentionne verify_proof_sealed.py explicitement,\n"
+                            "# comme le fait réellement core-ci.yml — sans rapport avec une\n"
+                            "# invocation réelle du script.\n"
+                            "echo rien d'autre ne s'exécute ici"
+                        ),
+                        # aucune ligne n'invoque réellement verify_proof_sealed.py
+                    },
+                ],
+            },
+        }
+    }
+    en_defaut = _jobs_without_hard_failure(data, {"proof-sealed"})
+    assert en_defaut == ["proof-sealed"]
+
+
+def test_job_uv_pip_install_sans_version_epinglee_sans_invocation_reelle_est_detecte():
+    """Trouvé round 3 (confirmation architecte) : le commentaire de
+    _SPECIFICATEUR_PAQUET_RE nommait `uv pip install bandit` (SANS
+    version épinglée) comme cas à fermer, mais seul `==<version>` était
+    filtré — un paquet non épinglé via `uv` échappait aux deux filtres.
+    `_LIGNE_INSTALLATION_SEULE_RE` étendu pour couvrir `uv pip install`
+    directement (comme `pip install`), plutôt que de dépendre du
+    filtre par version qui ne s'applique pas ici."""
+    data = {
+        "jobs": {
+            "security": {
+                "runs-on": "ubuntu-latest",
+                "steps": [
+                    {"run": "uv pip install bandit pip-audit"},
+                    # step d'exécution du scan absent — régression simulée
+                ],
+            },
+        }
+    }
+    en_defaut = _jobs_without_hard_failure(data, {"security"})
+    assert en_defaut == ["security"]
+
+
+def test_job_reel_deguise_en_placeholder_echo_exit_est_detecte():
+    """Un job `security`/`pack-validation` qui régresserait vers un
+    `echo ...; exit 0` (faux vert silencieux, jamais un vrai outil) DOIT
+    être détecté — la présence d'un `exit` seul ne suffit plus, il faut un
+    outil NOMMÉ dans _OUTILS_REELS_RE."""
+    data = {
+        "jobs": {
+            "security": {
+                "runs-on": "ubuntu-latest",
+                "steps": [{"run": "echo tout va bien\nexit 0"}],
+            },
+        }
+    }
+    en_defaut = _jobs_without_hard_failure(data, {"security"})
+    assert en_defaut == ["security"]
+
+
+def test_proof_sealed_invoquant_verify_proof_sealed_n_est_pas_en_defaut():
+    """proof-sealed a désormais un mécanisme réel câblé (chantier
+    CI-hardening) : un job invoquant verify_proof_sealed.py, sans
+    continue-on-error, n'est PLUS exigé d'avoir un exit 1 littéral."""
+    data = {
+        "jobs": {
+            "proof-sealed": {
+                "runs-on": "ubuntu-latest",
+                "steps": [{"run": "python3 core/scripts/verify_proof_sealed.py --task C05-003"}],
+            },
+        }
+    }
+    en_defaut = _jobs_without_hard_failure(data, {"proof-sealed"})
+    assert en_defaut == []
+
+
+def test_categorie_sans_mecanisme_reel_exige_exit_1_litteral_sur_fixture_synthetique():
+    """Le mécanisme de repli (catégorie SANS interface réelle -> exit 1
+    littéral exigé) reste testé même si _CATEGORIES_SANS_MECANISME_REEL_A_CE_JOUR
+    est vide aujourd'hui — fixture synthétique qui simule une FUTURE
+    catégorie ajoutée à cet ensemble, jamais un test qui dépendrait de
+    l'état actuel (vide) de la constante réelle."""
+    global _CATEGORIES_SANS_MECANISME_REEL_A_CE_JOUR
+    original = _CATEGORIES_SANS_MECANISME_REEL_A_CE_JOUR
+    try:
+        _CATEGORIES_SANS_MECANISME_REEL_A_CE_JOUR = {"future-gate"}
+        data = {
+            "jobs": {
+                "future-gate": {
+                    "runs-on": "ubuntu-latest",
+                    "steps": [{"run": "echo pas encore de mecanisme reel"}],
+                },
+            }
+        }
+        en_defaut = _jobs_without_hard_failure(data, {"future-gate"})
+        assert en_defaut == ["future-gate"]
+    finally:
+        _CATEGORIES_SANS_MECANISME_REEL_A_CE_JOUR = original
 
 
 def test_job_avec_continue_on_error_est_toujours_en_defaut_sur_fixture_synthetique():
