@@ -1,104 +1,78 @@
 # Politique NO-STUB et qualité
 
-Le gate `scripts/quality/no_stub_gate.py` protège les scopes Python définis par
-`core/quality-scopes.toml` ainsi que les jobs GitHub requis.
+Le gate `scripts/quality/no_stub_gate.py` refuse les absences
+d'implémentation, les régressions de qualité ajoutées et les moyens de rendre
+les contrôles CI non bloquants.
 
-## Violations
+## Contrat de périmètre
 
-| Code | Règle |
+Le fichier `core/quality-scopes.toml` est obligatoire lors de l'exécution en
+ligne de commande. Il définit les racines Python contrôlées et les identifiants
+des jobs GitHub Actions requis.
+
+Une absence, une lecture impossible ou un TOML invalide produit
+`CONTRAT_PERIMETRE_ABSENT` et fait échouer le gate. Le contrat ne peut donc pas
+être supprimé ou corrompu pour désactiver silencieusement le contrôle.
+
+L'API `scan_repository` reste utilisable dans des dépôts synthétiques sans
+contrat : les règles indépendantes du contrat restent actives, tandis que les
+règles de comparaison avec les racines contractuelles ne sont pas applicables.
+
+## Codes de violation
+
+| Code | Signification |
 | --- | --- |
-| `FICHIER_NON_ANALYSABLE` | Un fichier Python ne peut pas être lu en UTF-8 ou ne peut pas être analysé syntaxiquement. Le détail porte la ligne et le message de l'erreur lorsque ceux-ci sont disponibles. Cette règle est fail-closed : un fichier illisible ou invalide n'est jamais considéré propre. |
-| `EMPTY_PRODUCTION_FILE` | Un module de production est vide, hors `__init__.py` et `.gitkeep`. |
-| `EXECUTABLE_PASS` | Le corps exécutable d'une fonction ne contient que `pass`, `return` ou `return None`. |
-| `EXECUTABLE_ELLIPSIS` | Une ellipse ou un lambda réduit à `None` ou `...` sert de stub hors abstraction reconnue. |
+| `CONTRAT_PERIMETRE_ABSENT` | Le contrat de périmètre requis par la CLI est absent, illisible ou invalide. |
+| `EXECUTABLE_PASS` | Une fonction ne contient que des instructions triviales. |
+| `EXECUTABLE_ELLIPSIS` | Une fonction ou lambda est réduit à une ellipse ou à une valeur de stub. |
+| `NOT_IMPLEMENTED_STUB` | Une fonction lève explicitement une exception d'absence d'implémentation. |
 | `DOCSTRING_ONLY_BODY` | Une fonction ne contient qu'une docstring. |
-| `NOT_IMPLEMENTED_STUB` | Une fonction lève `NotImplementedError`, sa forme qualifiée, ou `NotImplemented`. |
+| `EMPTY_PRODUCTION_FILE` | Un module de production est vide. |
+| `FICHIER_NON_ANALYSABLE` | Un fichier Python ou YAML ne peut pas être lu ou analysé. |
 | `TRIVIAL_ASSERTION` | Une assertion ajoutée porte sur une constante vraie. |
 | `TEST_WITHOUT_ORACLE` | Un test modifié ne contient aucun oracle reconnu. |
 | `NEW_SKIP_OR_XFAIL` | Un skip ou xfail a été ajouté. |
 | `FORBIDDEN_MARKER` | Un commentaire ajouté contient un marqueur de dette interdit. |
-| `UNJUSTIFIED_SUPPRESSION` | Une suppression de contrôle ajoutée ne porte pas de justification structurée. |
-| `SCOPE_ROOT_OMITTED` | Une collection littérale ou une compréhension retire des racines contractuelles. |
-| `REQUIRED_JOB_SOFT_FAILURE` | Un job requis emploie `continue-on-error` avec une valeur vraie YAML, ou une expression dynamique. |
-| `REQUIRED_JOB_FORCED_SUCCESS` | Une commande d'un job requis, ou d'une action composite locale appelée par lui, force un succès shell. |
+| `UNJUSTIFIED_SUPPRESSION` | Une suppression de contrôle ajoutée n'est pas justifiée. |
+| `SCOPE_ROOT_OMITTED` | Un lanceur de scan omet ou exclut littéralement une racine contractuelle. |
+| `SCOPE_FILTRE_INDECIDABLE` | Un filtre de racines n'est pas décidable statiquement ; il doit être rendu littéral ou justifié. |
+| `REQUIRED_JOB_SOFT_FAILURE` | Un job requis, un de ses steps, ou un step d'action composite locale accepte les erreurs. |
+| `REQUIRED_JOB_FORCED_SUCCESS` | Un job requis force un succès shell. |
+| `LOCAL_ACTION_CYCLE` | Une cascade d'actions composites locales contient un cycle. |
+| `LOCAL_ACTION_DEPTH_EXCEEDED` | Une cascade d'actions composites locales dépasse la profondeur autorisée. |
 
-`continue-on-error` refuse les valeurs YAML vraies `true`, `yes`, `on`, `y` et
-`1`, sans distinction de casse. Une valeur contenant `${{` est également
-refusée : elle est dynamique et ne peut pas être décidée statiquement.
+## Exemptions d'abstraction
 
-## Actions composites
+Une ellipse est admise uniquement dans une méthode de classe dérivant d'un
+`typing.Protocol` dont l'import est prouvé, ou dans une méthode décorée par un
+`abc.abstractmethod` dont l'import est prouvé. Un nom local homonyme ne crée
+pas d'exemption.
 
-Lorsqu'un step d'un job requis utilise une action locale, sous la forme
-`uses: ./chemin`, le gate inspecte `action.yml` puis `action.yaml` du répertoire
-visé avec les mêmes règles de succès shell.
+Le parcours AST descend dans tous les blocs Python. Une fonction ou une classe
+définie dans un `if`, `try`, `with`, `for` ou `while` reste donc soumise aux
+mêmes règles.
 
-Une action externe, telle que `owner/repo@sha`, ne peut pas être inspectée depuis
-le dépôt. Un job requis qui délègue son contrôle à une telle action échappe donc
-à cette vérification. Cette limite impose de sélectionner des actions externes
-fiables et épinglées.
+## Workflows et actions composites
 
-## Limites explicites de l'analyse statique
+Les jobs requis ne peuvent pas utiliser `continue-on-error: true`, y compris
+au niveau d'un step. Toute valeur dynamique contenant `${{` est refusée par
+principe. Cette protection est également appliquée aux steps des actions
+composites locales appelées en cascade.
 
-Le gate ne prétend pas résoudre les cas nécessitant une exécution ou une analyse
-de flot de données.
+Les succès forcés shell, notamment `|| true`, `|| :`, `|| exit 0` et `exit 0`
+non gardé, sont refusés dans les jobs requis et leurs actions composites
+locales.
 
-- Une exclusion indirecte, par exemple `exclus = ["tools/proof"]` puis
-  `[r for r in racines if r not in exclus]`, n'est pas détectée : suivre la
-  valeur de `exclus` nécessiterait une analyse de flot de données.
-- Les alias importés ne sont pas suivis après réaffectation. Ainsi,
-  `Protocol = MaClasseLocale` après un import n'est pas résolu par la table
-  d'alias statique.
-- Un `exit 0` conditionnel dont la condition est toujours vraie n'est pas
-  détecté comme succès forcé : l'analyse shell est textuelle et n'exécute pas
-  les conditions.
+## Contrôle des racines
 
-Ces limites sont opérationnelles : les revues de code et les contrôles
-d'intégration doivent examiner les indirections, les réaffectations et la
-logique shell que le gate ne peut pas prouver honnêtement.
+Les listes littérales de racines sont comparées au contrat. Les exclusions
+littérales sont signalées par `SCOPE_ROOT_OMITTED`.
 
-## Analyse des workflows : PyYAML, pas un parseur maison
+Une compréhension qui filtre les racines au moyen d'une variable, d'un appel
+non reconnu ou d'une autre condition impossible à trancher statiquement est
+signalée par `SCOPE_FILTRE_INDECIDABLE`. L'incapacité du gate à conclure ne
+constitue donc jamais une autorisation silencieuse de retirer une racine.
 
-L'analyse de `.github/workflows/*.yml` et des `action.yml` composites repose sur
-`yaml.safe_load` (PyYAML 6.0.1, dépendance déjà déclarée du projet), et non plus
-sur un parseur écrit à la main.
-
-Ce choix n'est pas une préférence de style : quatre contournements distincts,
-tous trouvés en revue scellée, découlaient de la même cause — un parseur maison
-ne suit pas la sémantique YAML réelle.
-
-| Contournement | Ce que le parseur maison faisait | Ce que PyYAML fait |
-|---|---|---|
-| `jobs:` avec jobs indentés de 4 espaces | exigeait `indentation == jobs + 2` : le job requis n'était même pas reconnu, donc ni son `continue-on-error` ni ses `run` n'étaient analysés | mapping réel, indentation indifférente |
-| `continue-on-error: true # tolérance` | valeur extraite « true # tolérance », absente du vocabulaire booléen — contournement silencieux | commentaire retiré, valeur `True` |
-| `continue-on-error: yes` / `on` | non reconnus | booléens YAML 1.1 : `True` |
-| bloc `run: \|` coupé après l'opérateur (`verif \|\|` puis `true`) | analyse ligne par ligne : ni `\|\|true`, ni un `true` isolé | le bloc est UNE chaîne, analysée entière |
-
-Un workflow YAML illisible (`yaml.YAMLError`) est traité comme un fichier Python
-non analysable : c'est une violation, jamais un « propre par défaut ».
-
-### Valeurs dynamiques
-
-`continue-on-error: ${{ … }}` est refusé **par principe**. Une expression
-GitHub n'est pas décidable statiquement, et un job requis ne doit pas voir sa
-tolérance aux échecs pilotée par une valeur d'exécution. Le détail de la
-violation le dit explicitement — il n'affirme pas que la valeur vaut `true`.
-
-### Actions composites locales
-
-Un `uses: ./…` est résolu et son `action.yml` analysé avec les mêmes règles, en
-cascade : un job requis ne peut pas masquer un succès forcé en déléguant à une
-action, qui délègue à une autre. Deux garde-fous : un ensemble de chemins déjà
-visités (anti-cycle) et une profondeur maximale, au-delà de laquelle une
-violation NOMMÉE est émise plutôt qu'un abandon silencieux.
-
-### Imports collectés sur tout le module
-
-Les alias d'import sont collectés par `ast.walk`, pas seulement au niveau
-supérieur du module. Sans cela, un `from typing import Protocol` placé sous
-`if TYPE_CHECKING:` — l'idiome le plus courant en production — restait invisible,
-et tout `Protocol` légitime écrit ainsi levait un `EXECUTABLE_ELLIPSIS`
-injustifié. Le gate en serait devenu inutilisable.
-
-La garde anti-usurpation continue de mordre dans l'autre sens : une classe
-LOCALE nommée `Protocol`, sans lien avec `typing`, n'ouvre aucune exemption.
-
+Le filtre `.exists()` reste admis : il exprime le cas légitime d'une cible
+optionnelle présente sur le système de fichiers, sans masquer une exclusion
+d'identité de racine.

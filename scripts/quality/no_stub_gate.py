@@ -13,7 +13,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from io import StringIO
 from pathlib import Path
-from typing import Final, Iterable, cast
+from typing import Final
 
 import yaml
 
@@ -68,42 +68,6 @@ class _AliasesImports:
     modules_abc: frozenset[str]
 
 
-def _charger_contrat(repo: Path) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    """Charge le contrat local, ou le contrat canonique si le dépôt testé ne l'a pas."""
-    fichier = repo / "core" / "quality-scopes.toml"
-    source = fichier if fichier.is_file() else _SCOPE_FILE
-    try:
-        with source.open("rb") as flux:
-            contrat = tomllib.load(flux)
-    except (OSError, tomllib.TOMLDecodeError):
-        return (), _DEFAULT_REQUIRED_JOB_IDS
-
-    racines = contrat.get("python_roots", [])
-    jobs = contrat.get("target_required_job_ids", [])
-    if not isinstance(racines, list) or not all(isinstance(item, str) for item in racines):
-        racines = []
-    if not isinstance(jobs, list) or not all(isinstance(item, str) for item in jobs):
-        jobs = list(_DEFAULT_REQUIRED_JOB_IDS)
-    return tuple(racines), tuple(jobs)
-
-
-def _charger_racines_contractuelles(repo: Path) -> tuple[str, ...] | None:
-    """Charge les racines du contrat du dépôt analysé sans inventer de repli externe."""
-    fichier = repo / "core" / "quality-scopes.toml"
-    if not fichier.is_file():
-        return None
-    try:
-        with fichier.open("rb") as flux:
-            contrat = tomllib.load(flux)
-    except (OSError, tomllib.TOMLDecodeError):
-        return None
-
-    racines = contrat.get("python_roots")
-    if not isinstance(racines, list) or not all(isinstance(item, str) for item in racines):
-        return None
-    return tuple(racines)
-
-
 def _chemin_relatif(repo: Path, fichier: Path) -> str:
     """Retourne le chemin POSIX stable d'un fichier relativement au dépôt."""
     return fichier.relative_to(repo).as_posix()
@@ -112,6 +76,62 @@ def _chemin_relatif(repo: Path, fichier: Path) -> str:
 def _violation(code: str, repo: Path, fichier: Path, line: int, detail: str) -> Violation:
     """Construit une violation avec son chemin affichable."""
     return Violation(code, _chemin_relatif(repo, fichier), line, detail)
+
+
+def _lire_contrat(
+    repo: Path,
+) -> tuple[tuple[str, ...], tuple[str, ...], str | None]:
+    """Lit le contrat local et prouve que son format permet un contrôle fiable."""
+    fichier = repo / "core" / "quality-scopes.toml"
+    if not fichier.is_file():
+        return (), _DEFAULT_REQUIRED_JOB_IDS, "le contrat core/quality-scopes.toml est absent"
+
+    try:
+        with fichier.open("rb") as flux:
+            contrat = tomllib.load(flux)
+    except OSError as erreur:
+        return (), _DEFAULT_REQUIRED_JOB_IDS, f"le contrat est illisible : {erreur}"
+    except tomllib.TOMLDecodeError as erreur:
+        return (), _DEFAULT_REQUIRED_JOB_IDS, f"le contrat TOML est invalide : {erreur}"
+
+    racines = contrat.get("python_roots")
+    jobs = contrat.get("target_required_job_ids")
+    if not isinstance(racines, list) or not all(isinstance(item, str) for item in racines):
+        return (), _DEFAULT_REQUIRED_JOB_IDS, "python_roots est absent ou invalide"
+    if not isinstance(jobs, list) or not all(isinstance(item, str) for item in jobs):
+        return (), _DEFAULT_REQUIRED_JOB_IDS, "target_required_job_ids est absent ou invalide"
+    return tuple(racines), tuple(jobs), None
+
+
+def _charger_contrat(repo: Path) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Charge le contrat pour la bibliothèque sans désactiver ses autres règles.
+
+    scan_repository reste utilisable sur les dépôts synthétiques sans contrat :
+    seules les règles dont la preuve dépend de python_roots sont alors
+    inapplicables. La CLI appelle séparément _lire_contrat et échoue fermement.
+    """
+    racines, jobs, erreur = _lire_contrat(repo)
+    if erreur is None:
+        return racines, jobs
+
+    try:
+        with _SCOPE_FILE.open("rb") as flux:
+            contrat = tomllib.load(flux)
+    except (OSError, tomllib.TOMLDecodeError):
+        return (), _DEFAULT_REQUIRED_JOB_IDS
+
+    jobs_source = contrat.get("target_required_job_ids", [])
+    if not isinstance(jobs_source, list) or not all(
+        isinstance(item, str) for item in jobs_source
+    ):
+        return (), _DEFAULT_REQUIRED_JOB_IDS
+    return (), tuple(jobs_source)
+
+
+def _charger_racines_contractuelles(repo: Path) -> tuple[str, ...] | None:
+    """Charge les racines locales sans inventer de contrat pour les tests isolés."""
+    racines, _, erreur = _lire_contrat(repo)
+    return racines if erreur is None else None
 
 
 def _fichiers_python(repo: Path, scopes: tuple[str, ...]) -> list[Path]:
@@ -141,12 +161,7 @@ def _corps_utile(corps: list[ast.stmt]) -> list[ast.stmt]:
 
 
 def _analyser_imports(arbre: ast.Module) -> _AliasesImports:
-    """Prouve les imports standards, même sous une garde TYPE_CHECKING.
-
-    Le parcours complet évite de refuser un Protocol légitime importé dans un
-    if, un try/except ou une fonction, sans accorder cette exemption à un nom
-    local usurpant Protocol ou abstractmethod.
-    """
+    """Prouve les imports standards même lorsqu'ils sont placés dans un bloc."""
     protocols: set[str] = set()
     modules_typing: set[str] = set()
     abstractmethods: set[str] = set()
@@ -157,7 +172,7 @@ def _analyser_imports(arbre: ast.Module) -> _AliasesImports:
             for alias in noeud.names:
                 if alias.name == "typing":
                     modules_typing.add(alias.asname or "typing")
-                if alias.name == "abc":
+                elif alias.name == "abc":
                     modules_abc.add(alias.asname or "abc")
         elif isinstance(noeud, ast.ImportFrom):
             if noeud.module == "typing":
@@ -166,7 +181,7 @@ def _analyser_imports(arbre: ast.Module) -> _AliasesImports:
                     for alias in noeud.names
                     if alias.name == "Protocol"
                 )
-            if noeud.module == "abc":
+            elif noeud.module == "abc":
                 abstractmethods.update(
                     alias.asname or "abstractmethod"
                     for alias in noeud.names
@@ -339,21 +354,55 @@ def _analyser_lambdas(repo: Path, fichier: Path, arbre: ast.Module) -> list[Viol
 
 
 def _analyser_stubs(repo: Path, fichier: Path, arbre: ast.Module) -> list[Violation]:
-    """Parcourt les fonctions avec le contexte d'abstraction prouvé par imports."""
-    violations: list[Violation] = []
+    """Parcourt tous les blocs en conservant le contexte Protocol des classes.
+
+    Le visiteur descend dans if, try, with, for, while et tout autre nœud AST.
+    Cela prouve qu'une définition cachée dans un bloc ne peut pas échapper au
+    gate tout en conservant l'exemption des méthodes de Protocol légitimes.
+    """
     aliases = _analyser_imports(arbre)
+    violations: list[Violation] = []
 
-    def visiter(noeuds: Iterable[ast.stmt], dans_protocol: bool) -> None:
-        for noeud in noeuds:
-            if isinstance(noeud, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                violations.extend(
-                    _analyser_fonction(repo, fichier, noeud, dans_protocol, aliases)
+    class Visiteur(ast.NodeVisitor):
+        """Visite chaque définition sans perdre le contexte de sa classe parente."""
+
+        def __init__(self) -> None:
+            self.protocols: list[bool] = [False]
+
+        def visit_ClassDef(self, noeud: ast.ClassDef) -> None:
+            self.protocols.append(_est_classe_protocol(noeud, aliases))
+            self.generic_visit(noeud)
+            self.protocols.pop()
+
+        def visit_FunctionDef(self, noeud: ast.FunctionDef) -> None:
+            violations.extend(
+                _analyser_fonction(
+                    repo,
+                    fichier,
+                    noeud,
+                    self.protocols[-1],
+                    aliases,
                 )
-                visiter(noeud.body, False)
-            elif isinstance(noeud, ast.ClassDef):
-                visiter(noeud.body, _est_classe_protocol(noeud, aliases))
+            )
+            self.protocols.append(False)
+            self.generic_visit(noeud)
+            self.protocols.pop()
 
-    visiter(arbre.body, False)
+        def visit_AsyncFunctionDef(self, noeud: ast.AsyncFunctionDef) -> None:
+            violations.extend(
+                _analyser_fonction(
+                    repo,
+                    fichier,
+                    noeud,
+                    self.protocols[-1],
+                    aliases,
+                )
+            )
+            self.protocols.append(False)
+            self.generic_visit(noeud)
+            self.protocols.pop()
+
+    Visiteur().visit(arbre)
     violations.extend(_analyser_lambdas(repo, fichier, arbre))
     return violations
 
@@ -539,9 +588,13 @@ def _analyser_ast_diff(
 
 
 def _est_cible_controle_perimetre(repo: Path, fichier: Path) -> bool:
-    """Limite la preuve aux lanceurs de scan responsables du périmètre effectif."""
+    """Limite la preuve aux lanceurs core/scripts/run_* responsables du périmètre."""
     relatif = fichier.relative_to(repo)
-    return fichier.name.startswith("run_") or relatif.parts[:2] == ("core", "scripts")
+    return (
+        len(relatif.parts) >= 3
+        and relatif.parts[:2] == ("core", "scripts")
+        and fichier.name.startswith("run_")
+    )
 
 
 def _valeurs_litterales(noeud: ast.expr) -> set[str] | None:
@@ -619,20 +672,83 @@ def _comprehension_filtre_racines(noeud: ast.expr) -> bool:
     )
 
 
+def _est_appel_exists(noeud: ast.expr) -> bool:
+    """Reconnaît le filtre d'existence légitime qui ne retire pas une racine connue."""
+    cible = noeud.func if isinstance(noeud, ast.Call) else noeud
+    return isinstance(cible, ast.Attribute) and cible.attr == "exists"
+
+
+def _filtre_statiquement_decidable(noeud: ast.expr, nom_boucle: str) -> bool:
+    """Distingue un filtre littéral prouvable d'une exclusion indirecte inconnue."""
+    if _comparaison_exclut_racine(noeud, nom_boucle) or _est_appel_exists(noeud):
+        return True
+    if isinstance(noeud, ast.BoolOp):
+        return all(
+            _filtre_statiquement_decidable(valeur, nom_boucle)
+            for valeur in noeud.values
+        )
+    if isinstance(noeud, ast.UnaryOp) and isinstance(noeud.op, ast.Not):
+        return _filtre_statiquement_decidable(noeud.operand, nom_boucle)
+    return False
+
+
+_NOMS_ITERABLES_RACINES = frozenset(
+    {"racines", "roots", "python_roots", "racines_contractuelles", "scopes"}
+)
+
+
+def _itere_sur_les_racines(generateur: ast.comprehension) -> bool:
+    """Indique si la compréhension parcourt bien les racines contractuelles.
+
+    LIMITE NOMMÉE, assumée : la reconnaissance porte sur l'identifiant de
+    l'itérable. Des racines stockées dans une variable au nom sans rapport
+    échappent à cette règle — suivre la valeur exigerait une analyse de flot de
+    données. Sans ce filtrage, la règle se déclenchait sur TOUTE compréhension au
+    filtre indécidable du dépôt (mesuré : lignes d'un fichier de verrou,
+    dépendances pip-audit), c'est-à-dire du bruit qui aurait rendu le gate
+    inutilisable — un faux positif massif est aussi nuisible qu'un angle mort.
+    """
+    iterable = generateur.iter
+    if isinstance(iterable, ast.Name):
+        return iterable.id in _NOMS_ITERABLES_RACINES
+    if isinstance(iterable, ast.Call):
+        cible = iterable.func
+        nom = cible.attr if isinstance(cible, ast.Attribute) else getattr(cible, "id", "")
+        return "racine" in nom.lower() or "root" in nom.lower()
+    return False
+
+
+def _comprehension_filtre_indecidable(noeud: ast.expr) -> bool:
+    """Prouve qu'un filtre de racines ne peut pas être décidé statiquement."""
+    if not isinstance(noeud, (ast.ListComp, ast.SetComp, ast.GeneratorExp)):
+        return False
+    return any(
+        isinstance(generateur.target, ast.Name)
+        and _itere_sur_les_racines(generateur)
+        and any(
+            not _filtre_statiquement_decidable(condition, generateur.target.id)
+            for condition in generateur.ifs
+        )
+        for generateur in noeud.generators
+    )
+
+
 def _analyser_omissions_racines(
     repo: Path,
     fichier: Path,
     arbre: ast.Module,
     racines: tuple[str, ...] | None,
 ) -> list[Violation]:
-    """Prouve les omissions littérales et exclusions explicites des racines."""
+    """Prouve les omissions littérales et refuse les filtres non prouvables."""
     if not racines or not _est_cible_controle_perimetre(repo, fichier):
         return []
 
     violations: list[Violation] = []
     ensemble_racines = set(racines)
     for noeud in ast.walk(arbre):
-        if isinstance(noeud, ast.expr) and _comprehension_filtre_racines(noeud):
+        if not isinstance(noeud, ast.expr):
+            continue
+        if _comprehension_filtre_racines(noeud):
             violations.append(
                 _violation(
                     "SCOPE_ROOT_OMITTED",
@@ -643,7 +759,19 @@ def _analyser_omissions_racines(
                 )
             )
             continue
-        valeurs = _valeurs_litterales(noeud) if isinstance(noeud, ast.expr) else None
+        if _comprehension_filtre_indecidable(noeud):
+            violations.append(
+                _violation(
+                    "SCOPE_FILTRE_INDECIDABLE",
+                    repo,
+                    fichier,
+                    noeud.lineno,
+                    "le filtre de racines n'est pas décidable statiquement ; "
+                    "il doit être rendu littéral ou justifié",
+                )
+            )
+            continue
+        valeurs = _valeurs_litterales(noeud)
         if valeurs is None:
             continue
         presentes = ensemble_racines.intersection(valeurs)
@@ -798,11 +926,7 @@ def _charger_yaml(
     repo: Path,
     fichier: Path,
 ) -> tuple[Mapping[object, object] | None, list[Violation]]:
-    """Charge YAML avec PyYAML afin de respecter sa sémantique réelle.
-
-    Une erreur YAML est refusée : un workflow ou une action illisible ne doit
-    jamais contourner le contrôle par défaut.
-    """
+    """Charge YAML avec PyYAML afin de respecter sa sémantique réelle."""
     try:
         contenu = fichier.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as erreur:
@@ -895,6 +1019,33 @@ def _analyser_commande(
     return []
 
 
+def _analyser_continue_on_error(
+    repo: Path,
+    fichier: Path,
+    valeur: object,
+    job: str,
+) -> list[Violation]:
+    """Refuse une tolérance d'erreur prouvée ou dynamique dans un job requis."""
+    if valeur is True:
+        detail = f"le job requis {job} accepte les erreurs"
+    elif isinstance(valeur, str) and "${{" in valeur:
+        detail = (
+            f"le job requis {job} utilise une valeur dynamique "
+            "pour continue-on-error, refusée par principe"
+        )
+    else:
+        return []
+    return [
+        _violation(
+            "REQUIRED_JOB_SOFT_FAILURE",
+            repo,
+            fichier,
+            1,
+            detail,
+        )
+    ]
+
+
 def _fichier_action_locale(repo: Path, reference: str) -> Path | None:
     """Résout une référence locale vers son descripteur action.yml ou action.yaml."""
     if not reference.startswith("./"):
@@ -914,12 +1065,7 @@ def _analyser_action_locale(
     visites: frozenset[Path] = frozenset(),
     profondeur: int = 0,
 ) -> list[Violation]:
-    """Analyse récursivement une action composite locale appelée par un job requis.
-
-    Les actions externes restent hors périmètre car leur contenu n'est pas
-    disponible localement. Les cycles et profondeurs excessives sont refusés
-    pour éviter qu'une délégation locale masque un succès forcé.
-    """
+    """Analyse récursivement une action composite locale appelée par un job requis."""
     fichier = _fichier_action_locale(repo, reference)
     if fichier is None:
         return []
@@ -962,6 +1108,14 @@ def _analyser_action_locale(
     for etape in etapes:
         if not isinstance(etape, Mapping):
             continue
+        violations.extend(
+            _analyser_continue_on_error(
+                repo,
+                fichier,
+                etape.get("continue-on-error"),
+                job,
+            )
+        )
         violations.extend(_analyser_commande(repo, fichier, etape.get("run"), job))
         reference_suivante = etape.get("uses")
         if isinstance(reference_suivante, str) and reference_suivante.startswith("./"):
@@ -982,12 +1136,7 @@ def _analyser_workflow(
     fichier: Path,
     jobs_requis: tuple[str, ...],
 ) -> list[Violation]:
-    """Analyse un workflow selon son arbre PyYAML plutôt que son indentation.
-
-    safe_load retire les commentaires YAML et reconstruit les scalaires bloc
-    complets ; les valeurs continue-on-error et run sont donc contrôlées selon
-    la sémantique YAML réellement exécutée par le workflow.
-    """
+    """Analyse un workflow selon son arbre PyYAML plutôt que son indentation."""
     document, violations = _charger_yaml(repo, fichier)
     if document is None:
         return violations
@@ -1002,31 +1151,14 @@ def _analyser_workflow(
         if not isinstance(definition, Mapping):
             continue
 
-        continue_on_error = definition.get("continue-on-error")
-        if continue_on_error is True:
-            violations.append(
-                _violation(
-                    "REQUIRED_JOB_SOFT_FAILURE",
-                    repo,
-                    fichier,
-                    1,
-                    f"le job requis {identifiant} accepte les erreurs",
-                )
+        violations.extend(
+            _analyser_continue_on_error(
+                repo,
+                fichier,
+                definition.get("continue-on-error"),
+                identifiant,
             )
-        elif (
-            isinstance(continue_on_error, str)
-            and "${{" in continue_on_error
-        ):
-            violations.append(
-                _violation(
-                    "REQUIRED_JOB_SOFT_FAILURE",
-                    repo,
-                    fichier,
-                    1,
-                    f"le job requis {identifiant} utilise une valeur dynamique "
-                    "pour continue-on-error, refusée par principe",
-                )
-            )
+        )
 
         etapes = definition.get("steps")
         if not isinstance(etapes, list):
@@ -1034,6 +1166,14 @@ def _analyser_workflow(
         for etape in etapes:
             if not isinstance(etape, Mapping):
                 continue
+            violations.extend(
+                _analyser_continue_on_error(
+                    repo,
+                    fichier,
+                    etape.get("continue-on-error"),
+                    identifiant,
+                )
+            )
             violations.extend(
                 _analyser_commande(repo, fichier, etape.get("run"), identifiant)
             )
@@ -1071,7 +1211,7 @@ def scan_repository(repo: Path, scopes: tuple[str, ...], *, base_ref: str) -> li
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Exécute le gate depuis la ligne de commande et affiche ses violations."""
+    """Exécute le gate et échoue fermement si son contrat de périmètre est absent."""
     parser = argparse.ArgumentParser(description="Détecte les stubs et dettes qualité.")
     parser.add_argument("--repo", type=Path, default=Path.cwd())
     parser.add_argument("--base-ref", default="HEAD")
@@ -1079,7 +1219,15 @@ def main(argv: list[str] | None = None) -> int:
     arguments = parser.parse_args(argv)
 
     repo = arguments.repo.resolve()
-    racines, _ = _charger_contrat(repo)
+    racines, _, erreur_contrat = _lire_contrat(repo)
+    if erreur_contrat is not None:
+        print(
+            "CONTRAT_PERIMETRE_ABSENT core/quality-scopes.toml:1 "
+            + erreur_contrat,
+            file=sys.stdout,
+        )
+        return 1
+
     scopes = tuple(arguments.scopes) if arguments.scopes else racines
     violations = scan_repository(repo, scopes, base_ref=arguments.base_ref)
     for violation in violations:
@@ -1092,3 +1240,4 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
