@@ -1,6 +1,8 @@
-"""Scan CodeQL réel (SAST approfondi, local) sur core/src — chantier
-CI-hardening, réponse à la demande explicite « ajoute CodeQL en local si
-possible ».
+"""Scan CodeQL réel (SAST approfondi, local) sur le périmètre contractuel.
+
+Le périmètre vient désormais du contrat unique core/quality-scopes.toml :
+toutes les racines présentes définies par ce contrat sont indexées, tandis
+que les racines absentes sont tolérées.
 
 PORTÉE ASSUMÉE — LOCAL, PAS CI : le CLI CodeQL est un outil installé
 manuellement (bundle ~578 Mo, `github/codeql-action` releases, jamais un
@@ -47,33 +49,20 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-# --source-root = core/ (racine commune requise par le CLI) ; le PÉRIMÈTRE
-# RÉELLEMENT indexé est restreint via LGTM_INDEX_FILTERS (voir
-# construire_base) à src/ + scripts/ — élargi révision 2 (trouvé par revue
-# scellée indépendante : core/scripts/, où vivent CES scripts eux-mêmes,
-# échappait au scan de la révision 1). core/tests/ (dossiers de test
-# TOP-LEVEL, distincts des tests co-localisés sous core/src/**/tests/,
-# conservés) est délibérément exclu de CE chantier — un audit CodeQL de la
-# suite de tests existante est un chantier séparé et proportionné, jamais
-# bundlé silencieusement ici (35+ findings mesurés en testant le scan sans
-# ce filtre, tous dans des fichiers de test pré-existants sans rapport
-# avec le CI-hardening). Vérifié empiriquement (pas supposé) : avec ce
-# filtre, 0 fichier sous core/tests/ dans l'archive source produite, tests
-# co-localisés (core/src/authz/tests/, core/src/config/tests/) préservés.
-_SOURCE_ROOT = _REPO_ROOT / "core"
-_FILTRES_INDEX = "exclude:tests\ninclude:src\ninclude:scripts"
+_QUALITY_SCOPES = _REPO_ROOT / "core" / "quality-scopes.toml"
+_SOURCE_ROOT = _REPO_ROOT
 _SUITE = "python-security-and-quality.qls"
 
 # Noms de règles et chemins RÉUTILISÉS ci-dessous — extraits en constantes
 # nommées (jamais répétés en littéral) suite à SonarCloud Code Analysis
 # ("Define a constant instead of duplicating this literal", 3 occurrences
-# sur ce dict, révision précédente). Chemins RELATIFS à --source-root
-# (core/), préfixés `src/` (résultat direct du --source-root=core combiné
-# à LGTM_INDEX_FILTERS ci-dessus — vérifié sur le SARIF produit par CE
-# script, jamais deviné).
+# sur ce dict, révision précédente). Chemins RELATIFS à core/, préfixés
+# `src/`, conformément aux clés SARIF normalisées par
+# _normaliser_chemin_sarif.
 _REGLE_INEFFECTUAL_STATEMENT = "py/ineffectual-statement"
 _REGLE_UNSAFE_CYCLIC_IMPORT = "py/unsafe-cyclic-import"
 _FICHIER_CONTRACTS = "src/opsys_core/ports/contracts.py"
@@ -136,6 +125,31 @@ class OutilCodeQLAbsent(RuntimeError):
     """Le CLI CodeQL n'est pas installé/atteignable sur cette machine."""
 
 
+def charger_racines_qualite() -> tuple[Path, ...]:
+    """Charge les racines Python existantes définies par le contrat unique."""
+    with _QUALITY_SCOPES.open("rb") as flux:
+        contrat = tomllib.load(flux)
+    racines = contrat.get("python_roots")
+    if not isinstance(racines, list) or not all(isinstance(racine, str) for racine in racines):
+        raise OutilCodeQLAbsent("contrat quality-scopes.toml invalide : python_roots attendu")
+    return tuple(
+        chemin
+        for racine in racines
+        if (chemin := _REPO_ROOT / racine).exists()
+    )
+
+
+def construire_filtres_index() -> str:
+    """Construit les filtres CodeQL pour toutes les racines contractuelles présentes."""
+    racines = charger_racines_qualite()
+    if not racines:
+        raise OutilCodeQLAbsent("aucune racine Python existante dans quality-scopes.toml")
+    return "\n".join(
+        f"include:{racine.relative_to(_REPO_ROOT).as_posix()}"
+        for racine in racines
+    )
+
+
 def _localiser_codeql() -> str:
     exe = shutil.which("codeql")
     if exe:
@@ -153,18 +167,15 @@ def _localiser_codeql() -> str:
 
 def _executer(
     codeql: str, argv: list[str], *, timeout: int, env: dict[str, str] | None = None
-) -> subprocess.CompletedProcess:
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [codeql, *argv], capture_output=True, text=True, timeout=timeout, cwd=_REPO_ROOT, env=env,
     )
 
 
 def construire_base(codeql: str, db_path: Path) -> tuple[bool, str]:
-    # LGTM_INDEX_FILTERS restreint l'indexation à src/+scripts/ sous
-    # --source-root=core (exclut core/tests/ — voir docstring module).
-    # os.environ hérité EXPLICITEMENT (PATH etc. nécessaires à codeql lui-
-    # même) plutôt qu'un environnement vide, avec CETTE seule variable ajoutée.
-    env = {**os.environ, "LGTM_INDEX_FILTERS": _FILTRES_INDEX}
+    """Construit une base CodeQL limitée aux racines du contrat qualité."""
+    env = {**os.environ, "LGTM_INDEX_FILTERS": construire_filtres_index()}
     resultat = _executer(
         codeql,
         [
@@ -182,6 +193,7 @@ def construire_base(codeql: str, db_path: Path) -> tuple[bool, str]:
 
 
 def analyser_base(codeql: str, db_path: Path, sarif_path: Path) -> tuple[bool, str]:
+    """Analyse la base CodeQL et produit le rapport SARIF."""
     resultat = _executer(
         codeql,
         [
@@ -195,7 +207,16 @@ def analyser_base(codeql: str, db_path: Path, sarif_path: Path) -> tuple[bool, s
     return ok, f"database analyze : rc={resultat.returncode}\n{sortie[-1000:]}"
 
 
+def _normaliser_chemin_sarif(chemin: str) -> str:
+    """Conserve les clés historiques de l'allowlist malgré la racine dépôt."""
+    prefixe_core = "core/"
+    if chemin.startswith(prefixe_core):
+        return chemin.removeprefix(prefixe_core)
+    return chemin
+
+
 def trier_resultats(sarif_path: Path) -> tuple[bool, str]:
+    """Trie les findings SARIF entre allowlist justifiée et résultats bloquants."""
     data = json.loads(sarif_path.read_text(encoding="utf-8"))
     resultats = data["runs"][0]["results"]
 
@@ -205,7 +226,7 @@ def trier_resultats(sarif_path: Path) -> tuple[bool, str]:
     for res in resultats:
         rule_id = res["ruleId"]
         loc = res["locations"][0]["physicalLocation"]
-        chemin = loc["artifactLocation"]["uri"]
+        chemin = _normaliser_chemin_sarif(loc["artifactLocation"]["uri"])
         ligne = loc["region"]["startLine"]
         cle = (rule_id, chemin, ligne)
         if cle in _FAUX_POSITIFS_CONNUS:
@@ -233,30 +254,35 @@ def trier_resultats(sarif_path: Path) -> tuple[bool, str]:
 
 
 def main() -> int:
+    """Exécute le scan CodeQL local et retourne son statut de qualité."""
     try:
         codeql = _localiser_codeql()
     except OutilCodeQLAbsent as exc:
         print(f"CODEQL: BLOCKED — {exc}", file=sys.stderr)
         return 1
 
-    with tempfile.TemporaryDirectory(prefix="codeql-run-") as tmp:
-        db_path = Path(tmp) / "db"
-        sarif_path = Path(tmp) / "results.sarif"
+    try:
+        with tempfile.TemporaryDirectory(prefix="codeql-run-") as tmp:
+            db_path = Path(tmp) / "db"
+            sarif_path = Path(tmp) / "results.sarif"
 
-        ok, rapport = construire_base(codeql, db_path)
-        print(rapport)
-        if not ok:
-            print("CODEQL: ROUGE — échec database create.", file=sys.stderr)
-            return 1
+            ok, rapport = construire_base(codeql, db_path)
+            print(rapport)
+            if not ok:
+                print("CODEQL: ROUGE — échec database create.", file=sys.stderr)
+                return 1
 
-        ok, rapport = analyser_base(codeql, db_path, sarif_path)
-        print(rapport)
-        if not ok:
-            print("CODEQL: ROUGE — échec database analyze.", file=sys.stderr)
-            return 1
+            ok, rapport = analyser_base(codeql, db_path, sarif_path)
+            print(rapport)
+            if not ok:
+                print("CODEQL: ROUGE — échec database analyze.", file=sys.stderr)
+                return 1
 
-        ok, rapport = trier_resultats(sarif_path)
-        print(rapport)
+            ok, rapport = trier_resultats(sarif_path)
+            print(rapport)
+    except OutilCodeQLAbsent as exc:
+        print(f"CODEQL: BLOCKED — {exc}", file=sys.stderr)
+        return 1
 
     if ok:
         print("CODEQL: VERT (tous les findings sont soit absents, soit connus/justifiés).")

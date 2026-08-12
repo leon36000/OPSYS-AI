@@ -1,20 +1,5 @@
 # Matrice qualité statique et typage — Core OPSYS-AI (C02-004).
 #
-# ÉCART SOURCÉ AU SPEC DE TÂCHE, DOCUMENTÉ EN CLAIR : tasks/C02-004.md cite
-# « les 374 erreurs historiques » comme cas RED. Recherche exhaustive
-# (agent dédié + mesure directe) : ce chiffre n'a AUCUNE provenance
-# traçable dans ce pack (absent de sources/audit/ANALYSE-FORENSIQUE-
-# COMPLETE.md, des 2 autres sources citées par la tâche, des issues d'audit
-# liées ISS-CAND-CA08-0001/0003, et de tout autre fichier du pack) ; ce
-# n'est ni un compte mypy/pyright, ni ruff (425 réel, ISS-CAND-CA08-0003),
-# ni radon (211 réel, ISS-CAND-CA08-0001). La baseline ci-dessous utilise
-# le SEUL nombre RÉELLEMENT MESURÉ et reproductible pour ce périmètre :
-#
-#   $ python3 -m mypy --ignore-missing-imports core/
-#   core/src/auth/totp.py:22: error: Module has no attribute "binascii"  [attr-defined]
-#   core/src/auth/admin_gate.py:109: error: Argument 1 to "add" of "set" has incompatible type "int | None"; expected "int"  [arg-type]
-#   Found 2 errors in 2 files (checked 15 source files)
-#
 # mypy sur l'arbre complet (Modules M/ inclus) ne peut même pas ACHEVER un
 # passage : collisions de noms de modules dupliqués entre M-modules
 # (ex. verif_coherence.py présent dans plusieurs Modules M/*/docs/bmad/),
@@ -23,16 +8,14 @@
 # couverture à Modules M/ exigerait une restructuration en paquets Python
 # propres (__init__.py / --explicit-package-bases cohérent), à traiter
 # dans une tâche dédiée et tracée, jamais en silence ici.
+#
+# La dette mypy de ce périmètre est désormais nulle : les deux causes
+# réellement mesurées ont été corrigées, sans suppression. totp importe
+# explicitement binascii et AdminGate refuse fail-closed un succès TOTP sans
+# timestep consommable.
 
 [[gates]]
 name = "mypy-core"
 argv = ["mypy", "--ignore-missing-imports", "core/"]
 required = true
 scope = ["core/"]
-
-[baseline]
-# Baseline de dette CONNUE, enregistrée pour ne jamais être masquée — voir
-# core/scripts/run_static_checks.py:evaluer_gate() : seules les erreurs
-# AU-DELÀ de ce compte bloquent la gate (required=true) ; le compte
-# lui-même reste toujours visible dans GateOutcome.baseline_count.
-mypy-core = 2
