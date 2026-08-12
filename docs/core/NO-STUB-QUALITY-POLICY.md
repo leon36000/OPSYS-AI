@@ -55,3 +55,50 @@ de flot de données.
 Ces limites sont opérationnelles : les revues de code et les contrôles
 d'intégration doivent examiner les indirections, les réaffectations et la
 logique shell que le gate ne peut pas prouver honnêtement.
+
+## Analyse des workflows : PyYAML, pas un parseur maison
+
+L'analyse de `.github/workflows/*.yml` et des `action.yml` composites repose sur
+`yaml.safe_load` (PyYAML 6.0.1, dépendance déjà déclarée du projet), et non plus
+sur un parseur écrit à la main.
+
+Ce choix n'est pas une préférence de style : quatre contournements distincts,
+tous trouvés en revue scellée, découlaient de la même cause — un parseur maison
+ne suit pas la sémantique YAML réelle.
+
+| Contournement | Ce que le parseur maison faisait | Ce que PyYAML fait |
+|---|---|---|
+| `jobs:` avec jobs indentés de 4 espaces | exigeait `indentation == jobs + 2` : le job requis n'était même pas reconnu, donc ni son `continue-on-error` ni ses `run` n'étaient analysés | mapping réel, indentation indifférente |
+| `continue-on-error: true # tolérance` | valeur extraite « true # tolérance », absente du vocabulaire booléen — contournement silencieux | commentaire retiré, valeur `True` |
+| `continue-on-error: yes` / `on` | non reconnus | booléens YAML 1.1 : `True` |
+| bloc `run: \|` coupé après l'opérateur (`verif \|\|` puis `true`) | analyse ligne par ligne : ni `\|\|true`, ni un `true` isolé | le bloc est UNE chaîne, analysée entière |
+
+Un workflow YAML illisible (`yaml.YAMLError`) est traité comme un fichier Python
+non analysable : c'est une violation, jamais un « propre par défaut ».
+
+### Valeurs dynamiques
+
+`continue-on-error: ${{ … }}` est refusé **par principe**. Une expression
+GitHub n'est pas décidable statiquement, et un job requis ne doit pas voir sa
+tolérance aux échecs pilotée par une valeur d'exécution. Le détail de la
+violation le dit explicitement — il n'affirme pas que la valeur vaut `true`.
+
+### Actions composites locales
+
+Un `uses: ./…` est résolu et son `action.yml` analysé avec les mêmes règles, en
+cascade : un job requis ne peut pas masquer un succès forcé en déléguant à une
+action, qui délègue à une autre. Deux garde-fous : un ensemble de chemins déjà
+visités (anti-cycle) et une profondeur maximale, au-delà de laquelle une
+violation NOMMÉE est émise plutôt qu'un abandon silencieux.
+
+### Imports collectés sur tout le module
+
+Les alias d'import sont collectés par `ast.walk`, pas seulement au niveau
+supérieur du module. Sans cela, un `from typing import Protocol` placé sous
+`if TYPE_CHECKING:` — l'idiome le plus courant en production — restait invisible,
+et tout `Protocol` légitime écrit ainsi levait un `EXECUTABLE_ELLIPSIS`
+injustifié. Le gate en serait devenu inutilisable.
+
+La garde anti-usurpation continue de mordre dans l'autre sens : une classe
+LOCALE nommée `Protocol`, sans lien avec `typing`, n'ouvre aucune exemption.
+

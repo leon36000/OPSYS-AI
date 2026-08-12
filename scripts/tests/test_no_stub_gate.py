@@ -608,3 +608,225 @@ def test_accepte_or_true_dans_action_composite_locale_dun_job_non_requis(
         "    - run: python controle.py || true\n",
     )
     assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
+def test_refuse_continue_on_error_yes_commente_et_indente_a_quatre_espaces(
+    tmp_path: Path,
+) -> None:
+    """Prouve que PyYAML suit la sémantique réelle malgré indentation et commentaire inline, là où le parseur maison les calculait mal."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/a.yml",
+        "jobs:\n"
+        "    tests:\n"
+        "        continue-on-error: yes # tolerance\n"
+        "        runs-on: ubuntu-latest\n",
+    )
+    assert "REQUIRED_JOB_SOFT_FAILURE" in _codes(_scanner(repo))
+
+
+def test_refuse_un_succes_force_coupe_apres_operateur_dans_bloc_run(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un bloc YAML est une chaîne unique et que la continuation après l'opérateur ne masque pas le succès forcé."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/b.yml",
+        "jobs:\n"
+        "  security:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: |\n"
+        "          verif ||\n"
+        "          true\n",
+    )
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_exit_zero_suivi_dune_autre_commande_dans_job_requis(
+    tmp_path: Path,
+) -> None:
+    """Prouve que exit 0 non conditionnel force le succès même lorsqu'une commande le suit."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/c.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: exit 0; echo suite\n",
+    )
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_workflow_yaml_invalide_en_fail_closed(tmp_path: Path) -> None:
+    """Prouve qu'un workflow illisible est refusé plutôt que silencieusement ignoré par le gate."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/invalide.yml",
+        "jobs:\n  gates:\n    steps: [\n",
+    )
+    assert "FICHIER_NON_ANALYSABLE" in _codes(_scanner(repo))
+
+
+def test_accepte_continue_on_error_false_avec_contrat_de_jobs_requis(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la valeur YAML false ne produit pas de faux positif pour un job explicitement requis."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/faux.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    continue-on-error: false\n"
+        "    runs-on: ubuntu-latest\n",
+    )
+    assert "REQUIRED_JOB_SOFT_FAILURE" not in _codes(_scanner(repo))
+
+
+def test_detecte_le_succes_force_dans_la_seconde_action_composite_locale(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la cascade A vers B appelée par un job requis est analysée et rapporte la violation sur B."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/actions.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - uses: ./.github/actions/A\n",
+    )
+    _ecrire(
+        repo,
+        ".github/actions/A/action.yml",
+        "runs:\n"
+        "  using: composite\n"
+        "  steps:\n"
+        "    - uses: ./.github/actions/B\n",
+    )
+    _ecrire(
+        repo,
+        ".github/actions/B/action.yml",
+        "runs:\n"
+        "  using: composite\n"
+        "  steps:\n"
+        "    - run: verif || true\n",  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    )
+    violations = _scanner(repo)
+    assert any(
+        violation.code == "REQUIRED_JOB_FORCED_SUCCESS"
+        and violation.path == ".github/actions/B/action.yml"
+        for violation in violations
+    )
+
+
+def test_detecte_un_cycle_dactions_composites_locales(tmp_path: Path) -> None:
+    """Prouve qu'un cycle A vers B vers A est refusé explicitement sans boucle infinie."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/actions.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - uses: ./.github/actions/A\n",
+    )
+    _ecrire(
+        repo,
+        ".github/actions/A/action.yml",
+        "runs:\n"
+        "  using: composite\n"
+        "  steps:\n"
+        "    - uses: ./.github/actions/B\n",
+    )
+    _ecrire(
+        repo,
+        ".github/actions/B/action.yml",
+        "runs:\n"
+        "  using: composite\n"
+        "  steps:\n"
+        "    - uses: ./.github/actions/A\n",
+    )
+    assert "LOCAL_ACTION_CYCLE" in _codes(_scanner(repo))
+
+
+def test_accepte_la_meme_cascade_dactions_pour_un_job_non_requis(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la cascade locale dangereuse reste hors contrôle lorsqu'aucun job requis ne l'appelle."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/actions.yml",
+        "jobs:\n"
+        "  rapport:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - uses: ./.github/actions/A\n",
+    )
+    _ecrire(
+        repo,
+        ".github/actions/A/action.yml",
+        "runs:\n"
+        "  using: composite\n"
+        "  steps:\n"
+        "    - uses: ./.github/actions/B\n",
+    )
+    _ecrire(
+        repo,
+        ".github/actions/B/action.yml",
+        "runs:\n"
+        "  using: composite\n"
+        "  steps:\n"
+        "    - run: verif || true\n",  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    )
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
+def test_accepte_protocol_importe_sous_type_checking(tmp_path: Path) -> None:
+    """Prouve que l'idiome de production TYPE_CHECKING conserve Protocol et évite de rendre le gate inutilisable."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/proto.py",
+        "from typing import TYPE_CHECKING\n\n"
+        "if TYPE_CHECKING:\n"
+        "    from typing import Protocol\n\n"
+        "class Depot(Protocol):\n"
+        "    def lire(self) -> str:\n"
+        "        ...\n",
+    )
+    assert "EXECUTABLE_ELLIPSIS" not in _codes(_scanner(repo))
+
+
+def test_refuse_toujours_protocol_local_usurpe_sans_import_typing(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la collecte élargie des imports ne donne jamais une exemption à une classe locale homonyme."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/proto.py",
+        "class Protocol:\n"
+        "    valeur = 1\n\n"
+        "class Depot(Protocol):\n"
+        "    def lire(self) -> str:\n"
+        "        ...\n",
+    )
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))

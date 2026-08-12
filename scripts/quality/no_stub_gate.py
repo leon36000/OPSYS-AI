@@ -9,10 +9,13 @@ import subprocess
 import sys
 import tokenize
 import tomllib
+from collections.abc import Mapping
 from dataclasses import dataclass
 from io import StringIO
 from pathlib import Path
-from typing import Final, Iterable
+from typing import Final, Iterable, cast
+
+import yaml
 
 
 _SCOPE_FILE: Final[Path] = (
@@ -26,19 +29,23 @@ _DEFAULT_REQUIRED_JOB_IDS: Final[tuple[str, ...]] = (
     "pack-validation",
     "proof-sealed",
 )
-_DEBT_MARKERS: Final[tuple[str, ...]] = ("TODO", "FIXME", "XXX")  # proof:allow — fixture/constante du gate NO-STUB : ce motif EST le sujet du test
+_DEBT_MARKERS: Final[tuple[str, ...]] = (
+    "TODO",  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet
+    "FIXME",  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet
+    "XXX",  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet
+)  # proof:allow — fixture/constante du gate NO-STUB : ce motif EST le sujet du test
 _SUPPRESSION_MARKERS: Final[tuple[str, ...]] = ("type: ignore", "noqa", "nosec")
 _IDENTIFIANT_REGLE_OPTIONNEL: Final[re.Pattern[str]] = re.compile(
     r"(?:[A-Za-z]+[0-9][A-Za-z0-9_-]*|\[[A-Za-z0-9_.-]+\]|[A-Za-z][A-Za-z0-9_.-]*)"
 )
-_EXIT_ZERO: Final[re.Pattern[str]] = re.compile(r"(?:^|[;|&()\s])exit\s+0(?:\s|$)")
+_EXIT_ZERO: Final[re.Pattern[str]] = re.compile(
+    r"(?:^|[;|&()\s])exit\s+0(?=$|[^A-Za-z0-9_])"
+)
 _IF_SHELL: Final[re.Pattern[str]] = re.compile(r"^\s*if\b.*\bthen\s*$")
 _CASE_SHELL: Final[re.Pattern[str]] = re.compile(r"^\s*case\b.*\bin\s*$")
 _FIN_IF_SHELL: Final[re.Pattern[str]] = re.compile(r"^\s*fi\s*;?\s*$")
 _FIN_CASE_SHELL: Final[re.Pattern[str]] = re.compile(r"^\s*esac\s*;?\s*$")
-_VALEURS_YAML_VRAIES: Final[frozenset[str]] = frozenset(
-    {"true", "yes", "on", "y", "1"}
-)
+_MAX_ACTION_DEPTH: Final[int] = 5
 
 
 @dataclass(frozen=True)
@@ -129,22 +136,23 @@ def _est_docstring(noeud: ast.stmt) -> bool:
 
 
 def _corps_utile(corps: list[ast.stmt]) -> list[ast.stmt]:
-    """Retire la docstring initiale d'un corps exécutable."""
+    """Retire la docstring initiale afin de mesurer le vrai corps exécutable."""
     return corps[1:] if corps and _est_docstring(corps[0]) else corps
 
 
 def _analyser_imports(arbre: ast.Module) -> _AliasesImports:
-    """Prouve les alias réellement liés à typing.Protocol et abc.abstractmethod.
+    """Prouve les imports standards, même sous une garde TYPE_CHECKING.
 
-    Cette preuve est volontairement limitée aux imports : une réaffectation
-    ultérieure d'un alias importé n'est pas suivie par cette analyse statique.
+    Le parcours complet évite de refuser un Protocol légitime importé dans un
+    if, un try/except ou une fonction, sans accorder cette exemption à un nom
+    local usurpant Protocol ou abstractmethod.
     """
     protocols: set[str] = set()
     modules_typing: set[str] = set()
     abstractmethods: set[str] = set()
     modules_abc: set[str] = set()
 
-    for noeud in arbre.body:
+    for noeud in ast.walk(arbre):
         if isinstance(noeud, ast.Import):
             for alias in noeud.names:
                 if alias.name == "typing":
@@ -164,6 +172,7 @@ def _analyser_imports(arbre: ast.Module) -> _AliasesImports:
                     for alias in noeud.names
                     if alias.name == "abstractmethod"
                 )
+
     return _AliasesImports(
         frozenset(protocols),
         frozenset(modules_typing),
@@ -211,15 +220,20 @@ def _est_exception_non_implementee(noeud: ast.expr) -> bool:
     cible = noeud.func if isinstance(noeud, ast.Call) else noeud
     return (
         isinstance(cible, ast.Name)
-        and cible.id in {"NotImplementedError", "NotImplemented"}  # proof:allow — fixture/constante du gate NO-STUB : ce motif EST le sujet du test
+        and cible.id
+        in {
+            "NotImplementedError",  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet
+            "NotImplemented",
+        }  # proof:allow — fixture/constante du gate NO-STUB : ce motif EST le sujet du test
     ) or (
         isinstance(cible, ast.Attribute)
-        and cible.attr == "NotImplementedError"  # proof:allow — fixture/constante du gate NO-STUB : ce motif EST le sujet du test
+        and cible.attr
+        == "NotImplementedError"  # proof:allow — fixture/constante du gate NO-STUB : ce motif EST le sujet du test
     )
 
 
 def _leve_not_implemented(fonction: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    """Recherche une levée de NotImplementedError ou NotImplemented dans le corps."""  # proof:allow — fixture/constante du gate NO-STUB : ce motif EST le sujet du test
+    """Recherche une levée explicite d'absence d'implémentation dans la fonction."""
     return any(
         isinstance(noeud, ast.Raise)
         and noeud.exc is not None
@@ -304,7 +318,7 @@ def _analyser_fonction(
 
 
 def _analyser_lambdas(repo: Path, fichier: Path, arbre: ast.Module) -> list[Violation]:
-    """Refuse les lambdas réduits à None ou Ellipsis, stubs hors corps de fonction."""
+    """Refuse les lambdas réduits à None ou Ellipsis, stubs hors fonction."""
     violations: list[Violation] = []
     for noeud in ast.walk(arbre):
         if (
@@ -325,7 +339,7 @@ def _analyser_lambdas(repo: Path, fichier: Path, arbre: ast.Module) -> list[Viol
 
 
 def _analyser_stubs(repo: Path, fichier: Path, arbre: ast.Module) -> list[Violation]:
-    """Parcourt les fonctions avec le contexte d'abstraction prouvé par les imports."""
+    """Parcourt les fonctions avec le contexte d'abstraction prouvé par imports."""
     violations: list[Violation] = []
     aliases = _analyser_imports(arbre)
 
@@ -355,7 +369,7 @@ def _est_vide_autorise(fichier: Path) -> bool:
 
 
 def _lignes_du_diff(repo: Path, fichier: Path, base_ref: str, contenu: str) -> set[int]:
-    """Retourne les lignes ajoutées par Git, avec repli fermé pour les fichiers non suivis."""
+    """Retourne les lignes ajoutées par Git, avec repli fermé pour non suivis."""
     relatif = _chemin_relatif(repo, fichier)
     suivi = subprocess.run(
         ["git", "ls-files", "--error-unmatch", "--", relatif],
@@ -531,7 +545,7 @@ def _est_cible_controle_perimetre(repo: Path, fichier: Path) -> bool:
 
 
 def _valeurs_litterales(noeud: ast.expr) -> set[str] | None:
-    """Extrait les chaînes d'une collection littérale ou de concaténations de listes."""
+    """Extrait les chaînes d'une collection littérale ou concaténation de listes."""
     if isinstance(noeud, (ast.List, ast.Tuple, ast.Set)):
         if not all(
             isinstance(element, ast.Constant) and isinstance(element.value, str)
@@ -552,16 +566,12 @@ def _valeurs_litterales(noeud: ast.expr) -> set[str] | None:
 
 
 def _est_nom_racine(noeud: ast.expr, nom_boucle: str) -> bool:
-    """Indique si une expression désigne la variable de boucle de la compréhension."""
+    """Indique si une expression désigne la variable de boucle de compréhension."""
     return isinstance(noeud, ast.Name) and noeud.id == nom_boucle
 
 
 def _comparaison_exclut_racine(noeud: ast.expr, nom_boucle: str) -> bool:
-    """Détecte une exclusion littérale, y compris dans une condition composée.
-
-    Une indirection telle que ``r not in exclus`` n'est volontairement pas suivie :
-    la déterminer nécessiterait une analyse de flot de données.
-    """
+    """Détecte une exclusion littérale, y compris dans une condition composée."""
     if isinstance(noeud, ast.BoolOp):
         return any(
             _comparaison_exclut_racine(valeur, nom_boucle)
@@ -730,11 +740,7 @@ def _analyser_fichier_python(
     base_ref: str,
     racines_contractuelles: tuple[str, ...] | None,
 ) -> list[Violation]:
-    """Analyse un fichier Python selon les règles globales et diff-aware.
-
-    Tout échec de lecture ou de parsing est une violation fail-closed :
-    un fichier impossible à analyser ne peut jamais être considéré comme propre.
-    """
+    """Analyse un fichier Python et refuse toute lecture ou syntaxe invalide."""
     try:
         contenu = fichier.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as erreur:
@@ -748,7 +754,6 @@ def _analyser_fichier_python(
             )
         ]
 
-    violations: list[Violation] = []
     if (
         not contenu.strip()
         and _est_fichier_production(fichier)
@@ -763,6 +768,7 @@ def _analyser_fichier_python(
                 "le module de production est vide",
             )
         ]
+
     try:
         arbre = ast.parse(contenu, filename=str(fichier))
     except SyntaxError as erreur:
@@ -778,7 +784,7 @@ def _analyser_fichier_python(
             )
         ]
 
-    violations.extend(_analyser_stubs(repo, fichier, arbre))
+    violations = _analyser_stubs(repo, fichier, arbre)
     violations.extend(
         _analyser_omissions_racines(repo, fichier, arbre, racines_contractuelles)
     )
@@ -788,14 +794,56 @@ def _analyser_fichier_python(
     return violations
 
 
-def _valeur_apres_deux_points(ligne: str) -> str:
-    """Extrait la valeur textuelle d'une clé YAML simple."""
-    return ligne.split(":", 1)[1].strip().strip("'\"")
+def _charger_yaml(
+    repo: Path,
+    fichier: Path,
+) -> tuple[Mapping[object, object] | None, list[Violation]]:
+    """Charge YAML avec PyYAML afin de respecter sa sémantique réelle.
+
+    Une erreur YAML est refusée : un workflow ou une action illisible ne doit
+    jamais contourner le contrôle par défaut.
+    """
+    try:
+        contenu = fichier.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as erreur:
+        return None, [
+            _violation(
+                "FICHIER_NON_ANALYSABLE",
+                repo,
+                fichier,
+                1,
+                f"lecture impossible : {erreur}",
+            )
+        ]
+
+    try:
+        document = yaml.safe_load(contenu)
+    except yaml.YAMLError as erreur:
+        return None, [
+            _violation(
+                "FICHIER_NON_ANALYSABLE",
+                repo,
+                fichier,
+                1,
+                f"erreur YAML : {erreur}",
+            )
+        ]
+
+    if document is None:
+        return {}, []
+    if not isinstance(document, Mapping):
+        return None, []
+    return document, []
+
+
+def _normaliser_commande(commande: str) -> str:
+    """Supprime tous les espaces pour voir les succès forcés coupés sur plusieurs lignes."""
+    return re.sub(r"\s+", "", commande)
 
 
 def _contient_succes_force(commande: str) -> bool:
-    """Reconnaît les neutralisations shell usuelles d'un code de retour."""
-    compacte = commande.replace(" ", "")
+    """Détecte les neutralisations shell, y compris réparties dans un bloc YAML."""
+    compacte = _normaliser_commande(commande)
     return (
         "||true" in compacte
         or "||:" in compacte
@@ -804,32 +852,17 @@ def _contient_succes_force(commande: str) -> bool:
     )
 
 
-def _contient_exit_zero_non_garde(commande: str, dans_condition: bool) -> bool:
-    """Détecte un exit 0 hors d'une branche shell conditionnelle connue."""
-    return not dans_condition and _EXIT_ZERO.search(commande) is not None
-
-
-def _commande_run_inline(ligne: str) -> str | None:
-    """Extrait une commande run, y compris depuis un item YAML `- run:`."""
-    if ligne.startswith("run:"):
-        return _valeur_apres_deux_points(ligne)
-    if ligne.startswith("- run:"):
-        return _valeur_apres_deux_points(ligne[2:].lstrip())
-    return None
-
-
-def _valeur_uses(ligne: str) -> str | None:
-    """Extrait la référence d'une action depuis une clé YAML `uses`."""
-    if ligne.startswith("uses:"):
-        return _valeur_apres_deux_points(ligne)
-    if ligne.startswith("- uses:"):
-        return _valeur_apres_deux_points(ligne[2:].lstrip())
-    return None
-
-
-def _est_indicateur_bloc_yaml(valeur: str) -> bool:
-    """Reconnaît les indicateurs YAML de scalaire littéral ou replié."""
-    return valeur in {"|", "|-", "|+", ">", ">-", ">+"}
+def _contient_exit_zero_non_garde(commande: str) -> bool:
+    """Détecte exit 0 sauf dans une branche shell conditionnelle connue."""
+    profondeur_conditionnelle = 0
+    for ligne in commande.splitlines() or [commande]:
+        if _IF_SHELL.match(ligne) or _CASE_SHELL.match(ligne):
+            profondeur_conditionnelle += 1
+        if profondeur_conditionnelle == 0 and _EXIT_ZERO.search(ligne) is not None:
+            return True
+        if _FIN_IF_SHELL.match(ligne) or _FIN_CASE_SHELL.match(ligne):
+            profondeur_conditionnelle = max(0, profondeur_conditionnelle - 1)
+    return False
 
 
 def _violation_succes_force(
@@ -838,7 +871,7 @@ def _violation_succes_force(
     ligne: int,
     job: str,
 ) -> Violation:
-    """Construit la violation commune aux commandes de job et d'action composite."""
+    """Construit la violation commune aux commandes de job et action composite."""
     return _violation(
         "REQUIRED_JOB_FORCED_SUCCESS",
         repo,
@@ -848,69 +881,100 @@ def _violation_succes_force(
     )
 
 
-def _analyser_commandes_yaml(
+def _analyser_commande(
     repo: Path,
     fichier: Path,
+    commande: object,
     job: str,
 ) -> list[Violation]:
-    """Analyse les commandes run d'un YAML d'action composite locale."""
-    try:
-        lignes = fichier.read_text(encoding="utf-8").splitlines()
-    except (OSError, UnicodeDecodeError):
+    """Analyse une commande YAML complète, blocs littéraux inclus."""
+    if not isinstance(commande, str):
         return []
+    if _contient_succes_force(commande) or _contient_exit_zero_non_garde(commande):
+        return [_violation_succes_force(repo, fichier, 1, job)]
+    return []
 
-    violations: list[Violation] = []
-    dans_bloc = False
-    indentation_bloc = -1
-    profondeur_conditionnelle = 0
-    for numero, brute in enumerate(lignes, start=1):
-        sans_espace = brute.lstrip()
-        indentation = len(brute) - len(sans_espace)
-        if dans_bloc:
-            if sans_espace and indentation > indentation_bloc:
-                if _IF_SHELL.match(sans_espace) or _CASE_SHELL.match(sans_espace):
-                    profondeur_conditionnelle += 1
-                if _contient_succes_force(sans_espace) or _contient_exit_zero_non_garde(
-                    sans_espace, profondeur_conditionnelle > 0
-                ):
-                    violations.append(_violation_succes_force(repo, fichier, numero, job))
-                if _FIN_IF_SHELL.match(sans_espace) or _FIN_CASE_SHELL.match(sans_espace):
-                    profondeur_conditionnelle = max(0, profondeur_conditionnelle - 1)
-                continue
-            dans_bloc = False
-            profondeur_conditionnelle = 0
 
-        commande = _commande_run_inline(sans_espace)
-        if commande is None:
-            continue
-        if _est_indicateur_bloc_yaml(commande):
-            dans_bloc = True
-            indentation_bloc = indentation
-        elif _contient_succes_force(commande) or _contient_exit_zero_non_garde(
-            commande, False
-        ):
-            violations.append(_violation_succes_force(repo, fichier, numero, job))
-    return violations
+def _fichier_action_locale(repo: Path, reference: str) -> Path | None:
+    """Résout une référence locale vers son descripteur action.yml ou action.yaml."""
+    if not reference.startswith("./"):
+        return None
+    repertoire = repo / reference[2:]
+    for nom in ("action.yml", "action.yaml"):
+        fichier = repertoire / nom
+        if fichier.is_file():
+            return fichier
+    return None
 
 
 def _analyser_action_locale(
     repo: Path,
     reference: str,
     job: str,
+    visites: frozenset[Path] = frozenset(),
+    profondeur: int = 0,
 ) -> list[Violation]:
-    """Analyse action.yml d'une action composite locale référencée par un job requis.
+    """Analyse récursivement une action composite locale appelée par un job requis.
 
-    Les références externes ``owner/repo@sha`` ne sont pas analysables localement :
-    leur délégation échappe donc nécessairement à cette vérification statique.
+    Les actions externes restent hors périmètre car leur contenu n'est pas
+    disponible localement. Les cycles et profondeurs excessives sont refusés
+    pour éviter qu'une délégation locale masque un succès forcé.
     """
-    if not reference.startswith("./"):
+    fichier = _fichier_action_locale(repo, reference)
+    if fichier is None:
         return []
-    repertoire = repo / reference[2:]
-    for nom in ("action.yml", "action.yaml"):
-        fichier = repertoire / nom
-        if fichier.is_file():
-            return _analyser_commandes_yaml(repo, fichier, job)
-    return []
+
+    chemin = fichier.resolve()
+    if chemin in visites:
+        return [
+            _violation(
+                "LOCAL_ACTION_CYCLE",
+                repo,
+                fichier,
+                1,
+                f"le job requis {job} référence un cycle d'actions composites locales",
+            )
+        ]
+    if profondeur >= _MAX_ACTION_DEPTH:
+        return [
+            _violation(
+                "LOCAL_ACTION_DEPTH_EXCEEDED",
+                repo,
+                fichier,
+                1,
+                f"le job requis {job} dépasse la profondeur maximale d'actions locales",
+            )
+        ]
+
+    document, violations = _charger_yaml(repo, fichier)
+    if document is None:
+        return violations
+
+    runs = document.get("runs")
+    if not isinstance(runs, Mapping) or runs.get("using") != "composite":
+        return violations
+
+    etapes = runs.get("steps")
+    if not isinstance(etapes, list):
+        return violations
+
+    prochaines_visites = visites | {chemin}
+    for etape in etapes:
+        if not isinstance(etape, Mapping):
+            continue
+        violations.extend(_analyser_commande(repo, fichier, etape.get("run"), job))
+        reference_suivante = etape.get("uses")
+        if isinstance(reference_suivante, str) and reference_suivante.startswith("./"):
+            violations.extend(
+                _analyser_action_locale(
+                    repo,
+                    reference_suivante,
+                    job,
+                    prochaines_visites,
+                    profondeur + 1,
+                )
+            )
+    return violations
 
 
 def _analyser_workflow(
@@ -918,114 +982,67 @@ def _analyser_workflow(
     fichier: Path,
     jobs_requis: tuple[str, ...],
 ) -> list[Violation]:
-    """Analyse textuellement les jobs requis et leurs commandes shell.
+    """Analyse un workflow selon son arbre PyYAML plutôt que son indentation.
 
-    Un ``exit 0`` dans un bloc ``if`` ou ``case`` est considéré conditionnel.
-    Une condition toujours vraie n'est pas détectable ici : cette règle lit du
-    texte shell, elle ne l'exécute pas. Les actions locales sont inspectées,
-    contrairement aux actions externes qui échappent à cette vérification.
+    safe_load retire les commentaires YAML et reconstruit les scalaires bloc
+    complets ; les valeurs continue-on-error et run sont donc contrôlées selon
+    la sémantique YAML réellement exécutée par le workflow.
     """
-    violations: list[Violation] = []
-    try:
-        lignes = fichier.read_text(encoding="utf-8").splitlines()
-    except (OSError, UnicodeDecodeError):
+    document, violations = _charger_yaml(repo, fichier)
+    if document is None:
         return violations
 
-    dans_jobs = False
-    indentation_jobs = -1
-    job_courant: str | None = None
-    indentation_job = -1
-    bloc_requis = False
-    indentation_bloc = -1
-    profondeur_conditionnelle = 0
+    jobs = document.get("jobs")
+    if not isinstance(jobs, Mapping):
+        return violations
 
-    for numero, brute in enumerate(lignes, start=1):
-        sans_espace = brute.lstrip()
-        indentation = len(brute) - len(sans_espace)
-
-        if bloc_requis:
-            if sans_espace and indentation > indentation_bloc:
-                if _IF_SHELL.match(sans_espace) or _CASE_SHELL.match(sans_espace):
-                    profondeur_conditionnelle += 1
-                if _contient_succes_force(sans_espace) or _contient_exit_zero_non_garde(
-                    sans_espace, profondeur_conditionnelle > 0
-                ):
-                    if job_courant is not None:
-                        violations.append(
-                            _violation_succes_force(
-                                repo, fichier, numero, job_courant
-                            )
-                        )
-                if _FIN_IF_SHELL.match(sans_espace) or _FIN_CASE_SHELL.match(sans_espace):
-                    profondeur_conditionnelle = max(0, profondeur_conditionnelle - 1)
-                continue
-            bloc_requis = False
-            indentation_bloc = -1
-            profondeur_conditionnelle = 0
-
-        if not sans_espace or sans_espace.startswith("#"):
+    for identifiant, definition in jobs.items():
+        if not isinstance(identifiant, str) or identifiant not in jobs_requis:
             continue
-        if sans_espace == "jobs:":
-            dans_jobs = True
-            indentation_jobs = indentation
-            job_courant = None
-            continue
-        if not dans_jobs:
-            continue
-        if indentation <= indentation_jobs:
-            dans_jobs = False
-            job_courant = None
+        if not isinstance(definition, Mapping):
             continue
 
-        est_cle = ":" in sans_espace and not sans_espace.startswith("- ")
-        if est_cle and indentation == indentation_jobs + 2:
-            job_courant = sans_espace.split(":", 1)[0].strip("'\"")
-            indentation_job = indentation
-            continue
-
-        if job_courant not in jobs_requis or indentation <= indentation_job:
-            continue
-
-        if sans_espace.startswith("continue-on-error:"):
-            valeur = _valeur_apres_deux_points(sans_espace)
-            if "${{" in valeur:
-                violations.append(
-                    _violation(
-                        "REQUIRED_JOB_SOFT_FAILURE",
-                        repo,
-                        fichier,
-                        numero,
-                        f"le job requis {job_courant} utilise une valeur dynamique "
-                        "pour continue-on-error, refusée par principe",
-                    )
+        continue_on_error = definition.get("continue-on-error")
+        if continue_on_error is True:
+            violations.append(
+                _violation(
+                    "REQUIRED_JOB_SOFT_FAILURE",
+                    repo,
+                    fichier,
+                    1,
+                    f"le job requis {identifiant} accepte les erreurs",
                 )
-            elif valeur.lower() in _VALEURS_YAML_VRAIES:
-                violations.append(
-                    _violation(
-                        "REQUIRED_JOB_SOFT_FAILURE",
-                        repo,
-                        fichier,
-                        numero,
-                        f"le job requis {job_courant} accepte les erreurs",
-                    )
-                )
-
-        reference = _valeur_uses(sans_espace)
-        if reference is not None:
-            violations.extend(_analyser_action_locale(repo, reference, job_courant))
-            continue
-
-        commande = _commande_run_inline(sans_espace)
-        if commande is None:
-            continue
-        if _est_indicateur_bloc_yaml(commande):
-            bloc_requis = True
-            indentation_bloc = indentation
-            profondeur_conditionnelle = 0
-        elif _contient_succes_force(commande) or _contient_exit_zero_non_garde(
-            commande, False
+            )
+        elif (
+            isinstance(continue_on_error, str)
+            and "${{" in continue_on_error
         ):
-            violations.append(_violation_succes_force(repo, fichier, numero, job_courant))
+            violations.append(
+                _violation(
+                    "REQUIRED_JOB_SOFT_FAILURE",
+                    repo,
+                    fichier,
+                    1,
+                    f"le job requis {identifiant} utilise une valeur dynamique "
+                    "pour continue-on-error, refusée par principe",
+                )
+            )
+
+        etapes = definition.get("steps")
+        if not isinstance(etapes, list):
+            continue
+        for etape in etapes:
+            if not isinstance(etape, Mapping):
+                continue
+            violations.extend(
+                _analyser_commande(repo, fichier, etape.get("run"), identifiant)
+            )
+            reference = etape.get("uses")
+            if isinstance(reference, str) and reference.startswith("./"):
+                violations.extend(
+                    _analyser_action_locale(repo, reference, identifiant)
+                )
+
     return violations
 
 
