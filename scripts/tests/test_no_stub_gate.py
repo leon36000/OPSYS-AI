@@ -42,6 +42,14 @@ def _ecrire(repo: Path, chemin: str, contenu: str) -> Path:
     return cible
 
 
+def _ecrire_octets(repo: Path, chemin: str, contenu: bytes) -> Path:
+    """Écrit des octets bruts sous le dépôt isolé du cas testé."""
+    cible = repo / chemin
+    cible.parent.mkdir(parents=True, exist_ok=True)
+    cible.write_bytes(contenu)
+    return cible
+
+
 def _scanner(repo: Path, scopes: tuple[str, ...] = ("src",)) -> list[Violation]:
     """Lance le gate avec HEAD comme référence d'un dépôt git effectivement initialisé."""
     return scan_repository(repo, scopes, base_ref=_BASE_REF)
@@ -426,3 +434,177 @@ def test_accepte_or_true_dans_un_bloc_run_de_job_non_requis(tmp_path: Path) -> N
         "          python rapport.py || true\n",
     )
     assert _codes(_scanner(repo)) == set()
+
+
+def test_refuse_un_fichier_de_production_syntaxiquement_invalide(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le fail-open précédent laissait un fichier corrompu échapper à TOUTES les règles, le défaut le plus grave possible pour un gate."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(repo, "src/invalide.py", "def casse(:\n")
+    assert "FICHIER_NON_ANALYSABLE" in _codes(_scanner(repo))
+
+
+def test_refuse_un_fichier_de_production_non_decodable_en_utf_8(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le fail-open précédent laissait un fichier corrompu échapper à TOUTES les règles, le défaut le plus grave possible pour un gate."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire_octets(repo, "src/invalide.py", b"\xff\xfe def a(): pass")
+    assert "FICHIER_NON_ANALYSABLE" in _codes(_scanner(repo))
+
+
+def test_refuse_continue_on_error_yes_dans_un_job_requis(tmp_path: Path) -> None:
+    """Prouve que le vocabulaire booléen YAML yes rend aussi un job requis souple."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        "jobs:\n  tests:\n    continue-on-error: yes\n",
+    )
+    assert "REQUIRED_JOB_SOFT_FAILURE" in _codes(_scanner(repo))
+
+
+def test_refuse_continue_on_error_on_dans_un_job_requis(tmp_path: Path) -> None:
+    """Prouve que le vocabulaire booléen YAML on rend aussi un job requis souple."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        "jobs:\n  tests:\n    continue-on-error: on\n",
+    )
+    assert "REQUIRED_JOB_SOFT_FAILURE" in _codes(_scanner(repo))
+
+
+def test_refuse_continue_on_error_dynamique_dans_un_job_requis(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'une valeur dynamique indécidable statiquement est refusée, comportement fail-closed correct."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        "jobs:\n  tests:\n    continue-on-error: ${{ inputs.x }}\n",
+    )
+    assert "REQUIRED_JOB_SOFT_FAILURE" in _codes(_scanner(repo))
+
+
+def test_accepte_continue_on_error_false_dans_un_job_requis(tmp_path: Path) -> None:
+    """Prouve que la valeur booléenne YAML false ne transforme pas le job requis en succès souple."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        "jobs:\n  tests:\n    continue-on-error: false\n",
+    )
+    assert "REQUIRED_JOB_SOFT_FAILURE" not in _codes(_scanner(repo))
+
+
+def test_accepte_continue_on_error_yes_dans_un_job_non_requis(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la protection des erreurs souples reste limitée aux jobs requis du contrat."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        "jobs:\n  rapport:\n    continue-on-error: yes\n",
+    )
+    assert "REQUIRED_JOB_SOFT_FAILURE" not in _codes(_scanner(repo))
+
+
+def test_refuse_raise_builtins_not_implemented_error(tmp_path: Path) -> None:
+    """Prouve qu'une forme qualifiée de NotImplementedError reste un stub explicite."""  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/qualifie.py",
+        "import builtins\n\ndef calculer() -> int:\n    raise builtins.NotImplementedError\n",  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    )
+    assert "NOT_IMPLEMENTED_STUB" in _codes(_scanner(repo))
+
+
+def test_refuse_raise_not_implemented(tmp_path: Path) -> None:
+    """Prouve que la sentinelle NotImplemented levée est reconnue comme un stub."""  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/qualifie.py",
+        "def calculer() -> int:\n    raise NotImplemented\n",  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    )
+    assert "NOT_IMPLEMENTED_STUB" in _codes(_scanner(repo))
+
+
+def test_refuse_raise_not_implemented_appel(tmp_path: Path) -> None:
+    """Prouve que la forme appelée de NotImplemented reste reconnue comme un stub."""  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/qualifie.py",
+        "def calculer() -> int:\n    raise NotImplemented()\n",  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    )
+    assert "NOT_IMPLEMENTED_STUB" in _codes(_scanner(repo))
+
+
+def test_detecte_un_filtrage_compose_par_comprehension_des_racines(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le parcours descend dans un ast.BoolOp afin de voir chaque exclusion de racine."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "core/scripts/run_security_scan.py",
+        'cibles = tuple(r for r in racines if r != "tools/proof" and r != "scripts")\n',
+    )
+    assert "SCOPE_ROOT_OMITTED" in _codes(_scanner(repo, ("core/scripts",)))
+
+
+def test_refuse_or_true_dans_action_composite_locale_dun_job_requis(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un job requis ne délègue pas impunément un succès forcé à une action composite locale."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        "jobs:\n"
+        "  security:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - uses: ./.github/actions/controle\n",
+    )
+    _ecrire(
+        repo,
+        ".github/actions/controle/action.yml",
+        "runs:\n"
+        "  using: composite\n"
+        "  steps:\n"
+        "    - run: python controle.py || true\n",
+    )
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_accepte_or_true_dans_action_composite_locale_dun_job_non_requis(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'inspection des actions composites locales reste limitée aux jobs requis."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        "jobs:\n"
+        "  rapport:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - uses: ./.github/actions/controle\n",
+    )
+    _ecrire(
+        repo,
+        ".github/actions/controle/action.yml",
+        "runs:\n"
+        "  using: composite\n"
+        "  steps:\n"
+        "    - run: python controle.py || true\n",
+    )
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
