@@ -1,3 +1,13 @@
+# core/uv.lock (voisin de ce fichier) : généré par `uv lock`, ajouté suite
+# au dernier finding SonarCloud Code Analysis restant sur ce chantier
+# CI-hardening ("Dependency versions are not predictable if the lock file
+# ... is missing"). Le VRAI mécanisme de verrouillage de ce projet reste
+# core/requirements.lock (C02-002, verify_dependencies.py) + toolchain.lock.json
+# (C02-001) — uv.lock est un artefact PUREMENT ADDITIF, reconnu par le
+# scanner SCA de SonarCloud, jamais consommé par le harnais du projet
+# (aucun `uv sync`/`uv run` dans core-ci.yml ni pack-validation). Régénérer
+# avec `uv lock --project core` si les dépendances de ce fichier changent —
+# sinon les 2 lock files divergent silencieusement.
 [project]
 name = "opsys-core"
 version = "0.0.0"
