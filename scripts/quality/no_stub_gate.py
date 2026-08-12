@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import re
 import subprocess
 import sys
 import tokenize
@@ -27,6 +28,14 @@ _DEFAULT_REQUIRED_JOB_IDS: Final[tuple[str, ...]] = (
 )
 _DEBT_MARKERS: Final[tuple[str, ...]] = ("TODO", "FIXME", "XXX")  # proof:allow — fixture/constante du gate NO-STUB : ce motif EST le sujet du test
 _SUPPRESSION_MARKERS: Final[tuple[str, ...]] = ("type: ignore", "noqa", "nosec")
+_IDENTIFIANT_REGLE_OPTIONNEL: Final[re.Pattern[str]] = re.compile(
+    r"(?:[A-Za-z]+[0-9][A-Za-z0-9_-]*|\[[A-Za-z0-9_.-]+\]|[A-Za-z][A-Za-z0-9_.-]*)"
+)
+_EXIT_ZERO: Final[re.Pattern[str]] = re.compile(r"(?:^|[;|&()\s])exit\s+0(?:\s|$)")
+_IF_SHELL: Final[re.Pattern[str]] = re.compile(r"^\s*if\b.*\bthen\s*$")
+_CASE_SHELL: Final[re.Pattern[str]] = re.compile(r"^\s*case\b.*\bin\s*$")
+_FIN_IF_SHELL: Final[re.Pattern[str]] = re.compile(r"^\s*fi\s*;?\s*$")
+_FIN_CASE_SHELL: Final[re.Pattern[str]] = re.compile(r"^\s*esac\s*;?\s*$")
 
 
 @dataclass(frozen=True)
@@ -37,6 +46,16 @@ class Violation:
     path: str
     line: int
     detail: str
+
+
+@dataclass(frozen=True)
+class _AliasesImports:
+    """Conserve les noms locaux prouvés comme issus des modules standards visés."""
+
+    protocols: frozenset[str]
+    modules_typing: frozenset[str]
+    abstractmethods: frozenset[str]
+    modules_abc: frozenset[str]
 
 
 def _charger_contrat(repo: Path) -> tuple[tuple[str, ...], tuple[str, ...]]:
@@ -113,40 +132,70 @@ def _corps_utile(corps: list[ast.stmt]) -> list[ast.stmt]:
     return corps
 
 
-def _nom_decorateur(decorateur: ast.expr) -> str | None:
-    """Extrait le nom qualifié d'un décorateur sans interpréter le code."""
-    cible = decorateur.func if isinstance(decorateur, ast.Call) else decorateur
-    morceaux: list[str] = []
-    while isinstance(cible, ast.Attribute):
-        morceaux.append(cible.attr)
-        cible = cible.value
-    if isinstance(cible, ast.Name):
-        morceaux.append(cible.id)
-        return ".".join(reversed(morceaux))
-    return None
+def _analyser_imports(arbre: ast.Module) -> _AliasesImports:
+    """Prouve les alias réellement liés à typing.Protocol et abc.abstractmethod."""
+    protocols: set[str] = set()
+    modules_typing: set[str] = set()
+    abstractmethods: set[str] = set()
+    modules_abc: set[str] = set()
+
+    for noeud in arbre.body:
+        if isinstance(noeud, ast.Import):
+            for alias in noeud.names:
+                if alias.name == "typing":
+                    modules_typing.add(alias.asname or "typing")
+                if alias.name == "abc":
+                    modules_abc.add(alias.asname or "abc")
+        elif isinstance(noeud, ast.ImportFrom):
+            if noeud.module == "typing":
+                for alias in noeud.names:
+                    if alias.name == "Protocol":
+                        protocols.add(alias.asname or "Protocol")
+            if noeud.module == "abc":
+                for alias in noeud.names:
+                    if alias.name == "abstractmethod":
+                        abstractmethods.add(alias.asname or "abstractmethod")
+
+    return _AliasesImports(
+        frozenset(protocols),
+        frozenset(modules_typing),
+        frozenset(abstractmethods),
+        frozenset(modules_abc),
+    )
 
 
-def _est_classe_protocol(classe: ast.ClassDef) -> bool:
-    """Détermine par ses bases AST si une classe est un Protocol."""
+def _est_classe_protocol(classe: ast.ClassDef, aliases: _AliasesImports) -> bool:
+    """Détermine si une base est prouvée comme le véritable typing.Protocol."""
     for base in classe.bases:
-        if isinstance(base, ast.Name) and base.id == "Protocol":
+        if isinstance(base, ast.Name) and base.id in aliases.protocols:
             return True
         if (
             isinstance(base, ast.Attribute)
             and isinstance(base.value, ast.Name)
-            and base.value.id == "typing"
+            and base.value.id in aliases.modules_typing
             and base.attr == "Protocol"
         ):
             return True
     return False
 
 
-def _est_methode_abstraite(fonction: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    """Détermine si une méthode porte explicitement le décorateur abstractmethod."""
-    return any(
-        _nom_decorateur(decorateur) in {"abstractmethod", "abc.abstractmethod"}
-        for decorateur in fonction.decorator_list
-    )
+def _est_methode_abstraite(
+    fonction: ast.FunctionDef | ast.AsyncFunctionDef,
+    aliases: _AliasesImports,
+) -> bool:
+    """Détermine si le décorateur vise réellement abc.abstractmethod."""
+    for decorateur in fonction.decorator_list:
+        cible = decorateur.func if isinstance(decorateur, ast.Call) else decorateur
+        if isinstance(cible, ast.Name) and cible.id in aliases.abstractmethods:
+            return True
+        if (
+            isinstance(cible, ast.Attribute)
+            and isinstance(cible.value, ast.Name)
+            and cible.value.id in aliases.modules_abc
+            and cible.attr == "abstractmethod"
+        ):
+            return True
+    return False
 
 
 def _leve_not_implemented(fonction: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
@@ -161,11 +210,36 @@ def _leve_not_implemented(fonction: ast.FunctionDef | ast.AsyncFunctionDef) -> b
     return False
 
 
+def _est_retour_vide(noeud: ast.stmt) -> bool:
+    """Reconnaît return et return None, deux formes sans comportement utile."""
+    return isinstance(noeud, ast.Return) and (
+        noeud.value is None
+        or (
+            isinstance(noeud.value, ast.Constant)
+            and noeud.value.value is None
+        )
+    )
+
+
+def _est_instruction_triviale(noeud: ast.stmt) -> bool:
+    """Reconnaît les instructions qui ne réalisent aucun travail observable."""
+    return (
+        isinstance(noeud, ast.Pass)
+        or _est_retour_vide(noeud)
+        or (
+            isinstance(noeud, ast.Expr)
+            and isinstance(noeud.value, ast.Constant)
+            and noeud.value.value is Ellipsis
+        )
+    )
+
+
 def _analyser_fonction(
     repo: Path,
     fichier: Path,
     fonction: ast.FunctionDef | ast.AsyncFunctionDef,
     dans_protocol: bool,
+    aliases: _AliasesImports,
 ) -> list[Violation]:
     """Applique les règles anti-stub locales à une fonction."""
     violations: list[Violation] = []
@@ -183,33 +257,24 @@ def _analyser_fonction(
             )
         )
 
-    if len(utile) == 1 and isinstance(utile[0], ast.Pass):
-        violations.append(
-            _violation(
-                "EXECUTABLE_PASS",
-                repo,
-                fichier,
-                ligne,
-                "le corps exécutable est réduit à pass",
-            )
-        )
-
-    est_ellipse = (
+    est_ellipse_unique = (
         len(utile) == 1
         and isinstance(utile[0], ast.Expr)
         and isinstance(utile[0].value, ast.Constant)
         and utile[0].value.value is Ellipsis
     )
-    if est_ellipse and not (dans_protocol or _est_methode_abstraite(fonction)):
-        violations.append(
-            _violation(
-                "EXECUTABLE_ELLIPSIS",
-                repo,
-                fichier,
-                ligne,
-                "le corps exécutable est réduit à une ellipse",
-            )
+    est_abstraction = dans_protocol or _est_methode_abstraite(fonction, aliases)
+    if est_ellipse_unique and est_abstraction:
+        return violations
+
+    if utile and all(_est_instruction_triviale(noeud) for noeud in utile):
+        code = "EXECUTABLE_ELLIPSIS" if est_ellipse_unique else "EXECUTABLE_PASS"
+        detail = (
+            "le corps exécutable est réduit à une ellipse"
+            if code == "EXECUTABLE_ELLIPSIS"
+            else "le corps exécutable ne contient que des instructions triviales"
         )
+        violations.append(_violation(code, repo, fichier, ligne, detail))
 
     if _leve_not_implemented(fonction):
         violations.append(
@@ -224,19 +289,45 @@ def _analyser_fonction(
     return violations
 
 
-def _analyser_stubs(repo: Path, fichier: Path, arbre: ast.Module) -> list[Violation]:
-    """Parcourt les fonctions en conservant le contexte exact des classes Protocol."""
+def _analyser_lambdas(repo: Path, fichier: Path, arbre: ast.Module) -> list[Violation]:
+    """Refuse les lambdas réduits à None ou Ellipsis, stubs hors corps de fonction."""
     violations: list[Violation] = []
+    for noeud in ast.walk(arbre):
+        if not isinstance(noeud, ast.Lambda):
+            continue
+        if (
+            isinstance(noeud.body, ast.Constant)
+            and noeud.body.value in {None, Ellipsis}
+        ):
+            violations.append(
+                _violation(
+                    "EXECUTABLE_ELLIPSIS",
+                    repo,
+                    fichier,
+                    noeud.lineno,
+                    "le lambda est réduit à une valeur de stub",
+                )
+            )
+    return violations
+
+
+def _analyser_stubs(repo: Path, fichier: Path, arbre: ast.Module) -> list[Violation]:
+    """Parcourt les fonctions avec le contexte d'abstraction prouvé par les imports."""
+    violations: list[Violation] = []
+    aliases = _analyser_imports(arbre)
 
     def visiter(noeuds: Iterable[ast.stmt], dans_protocol: bool) -> None:
         for noeud in noeuds:
             if isinstance(noeud, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                violations.extend(_analyser_fonction(repo, fichier, noeud, dans_protocol))
+                violations.extend(
+                    _analyser_fonction(repo, fichier, noeud, dans_protocol, aliases)
+                )
                 visiter(noeud.body, False)
             elif isinstance(noeud, ast.ClassDef):
-                visiter(noeud.body, _est_classe_protocol(noeud))
+                visiter(noeud.body, _est_classe_protocol(noeud, aliases))
 
     visiter(arbre.body, False)
+    violations.extend(_analyser_lambdas(repo, fichier, arbre))
     return violations
 
 
@@ -264,9 +355,8 @@ def _lignes_du_diff(repo: Path, fichier: Path, base_ref: str, contenu: str) -> s
     if suivi.returncode != 0:
         return set(range(1, len(contenu.splitlines()) + 1))
 
-    commande = ["git", "diff", "--unified=0", f"{base_ref}...HEAD", "--", relatif]
     resultat = subprocess.run(
-        commande,
+        ["git", "diff", "--unified=0", f"{base_ref}...HEAD", "--", relatif],
         cwd=repo,
         capture_output=True,
         text=True,
@@ -284,13 +374,9 @@ def _parser_hunks(diff: str) -> set[int]:
         if not ligne.startswith("@@ "):
             continue
         morceaux = ligne.split()
-        if len(morceaux) < 3:
+        if len(morceaux) < 3 or not morceaux[2].startswith("+"):
             continue
-        nouveau = morceaux[2]
-        if not nouveau.startswith("+"):
-            continue
-        intervalle = nouveau[1:]
-        debut_texte, separateur, compte_texte = intervalle.partition(",")
+        debut_texte, separateur, compte_texte = morceaux[2][1:].partition(",")
         try:
             debut = int(debut_texte)
             compte = int(compte_texte) if separateur else 1
@@ -300,7 +386,10 @@ def _parser_hunks(diff: str) -> set[int]:
     return lignes
 
 
-def _fonction_modifiee(fonction: ast.FunctionDef | ast.AsyncFunctionDef, lignes: set[int]) -> bool:
+def _fonction_modifiee(
+    fonction: ast.FunctionDef | ast.AsyncFunctionDef,
+    lignes: set[int],
+) -> bool:
     """Indique si une ligne du rectangle source de la fonction est dans le diff."""
     fin = getattr(fonction, "end_lineno", fonction.lineno)
     return any(ligne in lignes for ligne in range(fonction.lineno, fin + 1))
@@ -416,16 +505,90 @@ def _analyser_ast_diff(
 
 
 def _est_cible_controle_perimetre(repo: Path, fichier: Path) -> bool:
-    """Limite la preuve aux lanceurs de scan, car une liste partielle y masque un audit.
-
-    Les listes de racines dans des tests ou fixtures décrivent souvent un cas local
-    intentionnel. Un fichier nommé ``run_*`` ou placé sous ``core/scripts`` porte,
-    lui, la responsabilité opérationnelle de transmettre le périmètre aux outils
-    de scan : y omettre une racine est plus dangereux qu'omettre toute liste, car
-    la liste partielle donne une apparence trompeuse de couverture exhaustive.
-    """
+    """Limite la preuve aux lanceurs de scan responsables du périmètre effectif."""
     relatif = fichier.relative_to(repo)
     return fichier.name.startswith("run_") or relatif.parts[:2] == ("core", "scripts")
+
+
+def _valeurs_litterales(noeud: ast.expr) -> set[str] | None:
+    """Extrait les chaînes d'une collection littérale ou de concaténations de listes."""
+    if isinstance(noeud, (ast.List, ast.Tuple, ast.Set)):
+        if all(
+            isinstance(element, ast.Constant) and isinstance(element.value, str)
+            for element in noeud.elts
+        ):
+            return {
+                element.value
+                for element in noeud.elts
+                if isinstance(element, ast.Constant) and isinstance(element.value, str)
+            }
+        return None
+    if isinstance(noeud, ast.BinOp) and isinstance(noeud.op, ast.Add):
+        gauche = _valeurs_litterales(noeud.left)
+        droite = _valeurs_litterales(noeud.right)
+        if gauche is not None and droite is not None:
+            return gauche | droite
+    return None
+
+
+def _est_nom_racine(noeud: ast.expr, nom_boucle: str) -> bool:
+    """Indique si une expression désigne la variable de boucle de la compréhension.
+
+    Le nom est LIÉ depuis la compréhension analysée, jamais supposé : coder en dur
+    « racine » laissait passer toute compréhension écrite avec un autre nom de
+    variable — exactement le contournement que cette règle doit fermer.
+    """
+    return isinstance(noeud, ast.Name) and noeud.id == nom_boucle
+
+
+def _comparaison_exclut_racine(noeud: ast.expr, nom_boucle: str) -> bool:
+    """Détecte un test qui retire explicitement une racine par identité littérale."""
+    if not isinstance(noeud, ast.Compare) or len(noeud.ops) != 1 or len(noeud.comparators) != 1:
+        return False
+
+    comparateur = noeud.comparators[0]
+    operateur = noeud.ops[0]
+    if isinstance(operateur, (ast.NotEq, ast.NotIn)):
+        return _est_nom_racine(noeud.left, nom_boucle) and (
+            isinstance(comparateur, ast.Constant)
+            and isinstance(comparateur.value, str)
+            or _valeurs_litterales(comparateur) is not None
+        )
+    if isinstance(operateur, (ast.Eq, ast.In)):
+        return (
+            isinstance(comparateur, ast.Name)
+            and comparateur.id == nom_boucle
+            and (
+                isinstance(noeud.left, ast.Constant)
+                and isinstance(noeud.left.value, str)
+                or _valeurs_litterales(noeud.left) is not None
+            )
+        )
+    return False
+
+
+def _comprehension_filtre_racines(noeud: ast.expr) -> bool:
+    """Détecte un filtrage qui exclut explicitement une racine par identité.
+
+    Les tests de présence sur le système de fichiers sont admis : ils tolèrent
+    une racine absente sans ignorer une racine existante. Une comparaison à une
+    valeur littérale, elle, retire effectivement une racine et reste interdite.
+    """
+    generateurs: list[ast.comprehension]
+    if isinstance(noeud, (ast.ListComp, ast.SetComp, ast.GeneratorExp)):
+        generateurs = noeud.generators
+    else:
+        return False
+    for generateur in generateurs:
+        if not isinstance(generateur.target, ast.Name):
+            continue
+        nom_boucle = generateur.target.id
+        if any(
+            _comparaison_exclut_racine(condition, nom_boucle)
+            for condition in generateur.ifs
+        ):
+            return True
+    return False
 
 
 def _analyser_omissions_racines(
@@ -434,25 +597,27 @@ def _analyser_omissions_racines(
     arbre: ast.Module,
     racines: tuple[str, ...] | None,
 ) -> list[Violation]:
-    """Prouve qu'un lanceur de scan énumère partiellement les racines contractuelles."""
+    """Prouve les omissions littérales et exclusions explicites des racines."""
     if not racines or not _est_cible_controle_perimetre(repo, fichier):
         return []
 
     violations: list[Violation] = []
     ensemble_racines = set(racines)
     for noeud in ast.walk(arbre):
-        if not isinstance(noeud, (ast.List, ast.Tuple)):
+        if _comprehension_filtre_racines(noeud):
+            violations.append(
+                _violation(
+                    "SCOPE_ROOT_OMITTED",
+                    repo,
+                    fichier,
+                    noeud.lineno,
+                    "une compréhension exclut une racine contractuelle par identité",
+                )
+            )
             continue
-        if not all(
-            isinstance(element, ast.Constant) and isinstance(element.value, str)
-            for element in noeud.elts
-        ):
+        valeurs = _valeurs_litterales(noeud) if isinstance(noeud, ast.expr) else None
+        if valeurs is None:
             continue
-        valeurs = {
-            element.value
-            for element in noeud.elts
-            if isinstance(element, ast.Constant) and isinstance(element.value, str)
-        }
         presentes = ensemble_racines.intersection(valeurs)
         manquantes = tuple(racine for racine in racines if racine not in valeurs)
         if presentes and manquantes:
@@ -487,7 +652,7 @@ def _marqueur_dette(commentaire: str) -> str | None:
 
 
 def _suppression_justifiee(commentaire: str) -> bool:
-    """Vérifie la présence d'une justification structurée après une suppression."""
+    """Vérifie une justification après marqueur et identifiant de règle éventuel."""
     texte = commentaire[1:].strip()
     texte_minuscule = texte.lower()
     for marqueur in _SUPPRESSION_MARKERS:
@@ -495,6 +660,9 @@ def _suppression_justifiee(commentaire: str) -> bool:
         if position < 0:
             continue
         suite = texte[position + len(marqueur) :].lstrip()
+        identifiant = _IDENTIFIANT_REGLE_OPTIONNEL.match(suite)
+        if identifiant is not None:
+            suite = suite[identifiant.end() :].lstrip()
         return len(suite) >= 2 and suite[0] in {"—", "-", ":"} and bool(suite[1:].strip())
     return True
 
@@ -579,7 +747,17 @@ def _valeur_apres_deux_points(ligne: str) -> str:
 def _contient_succes_force(commande: str) -> bool:
     """Reconnaît les neutralisations shell usuelles d'un code de retour."""
     compacte = commande.replace(" ", "")
-    return "||true" in compacte or "||:" in compacte or "||exit0" in compacte
+    return (
+        "||true" in compacte
+        or "||:" in compacte
+        or "||exit0" in compacte
+        or ";true" in compacte
+    )
+
+
+def _contient_exit_zero_non_garde(commande: str, dans_condition: bool) -> bool:
+    """Détecte un exit 0 hors d'une branche shell conditionnelle connue."""
+    return not dans_condition and _EXIT_ZERO.search(commande) is not None
 
 
 def _commande_run_inline(ligne: str) -> str | None:
@@ -591,24 +769,62 @@ def _commande_run_inline(ligne: str) -> str | None:
     return None
 
 
+def _est_indicateur_bloc_yaml(valeur: str) -> bool:
+    """Reconnaît les indicateurs YAML de scalaire littéral ou replié."""
+    return valeur in {"|", "|-", "|+", ">", ">-", ">+"}
+
+
 def _analyser_workflow(
     repo: Path,
     fichier: Path,
     jobs_requis: tuple[str, ...],
 ) -> list[Violation]:
-    """Analyse un sous-ensemble YAML honnête des jobs CI requis."""
+    """Analyse textuellement les jobs requis et leurs commandes shell.
+
+    La détection ne constitue pas une exécution du shell. Un ``exit 0`` dans un
+    bloc ``if`` ou ``case`` est considéré comme conditionnel et n'est pas signalé ;
+    une condition toujours vraie ne serait donc pas détectée par cette analyse.
+    """
     violations: list[Violation] = []
     lignes = fichier.read_text(encoding="utf-8").splitlines()
     dans_jobs = False
     indentation_jobs = -1
     job_courant: str | None = None
     indentation_job = -1
+    bloc_requis = False
+    indentation_bloc = -1
+    profondeur_conditionnelle = 0
 
     for numero, brute in enumerate(lignes, start=1):
         sans_espace = brute.lstrip()
+        indentation = len(brute) - len(sans_espace)
+
+        if bloc_requis:
+            if sans_espace and indentation > indentation_bloc:
+                if _IF_SHELL.match(sans_espace) or _CASE_SHELL.match(sans_espace):
+                    profondeur_conditionnelle += 1
+                if _contient_succes_force(sans_espace) or _contient_exit_zero_non_garde(
+                    sans_espace,
+                    profondeur_conditionnelle > 0,
+                ):
+                    violations.append(
+                        _violation(
+                            "REQUIRED_JOB_FORCED_SUCCESS",
+                            repo,
+                            fichier,
+                            numero,
+                            f"le job requis {job_courant} force un succès shell",
+                        )
+                    )
+                if _FIN_IF_SHELL.match(sans_espace) or _FIN_CASE_SHELL.match(sans_espace):
+                    profondeur_conditionnelle = max(0, profondeur_conditionnelle - 1)
+                continue
+            bloc_requis = False
+            indentation_bloc = -1
+            profondeur_conditionnelle = 0
+
         if not sans_espace or sans_espace.startswith("#"):
             continue
-        indentation = len(brute) - len(sans_espace)
         if sans_espace == "jobs:":
             dans_jobs = True
             indentation_jobs = indentation
@@ -643,7 +859,16 @@ def _analyser_workflow(
                 )
 
         commande = _commande_run_inline(sans_espace)
-        if commande is not None and _contient_succes_force(commande):
+        if commande is None:
+            continue
+        if _est_indicateur_bloc_yaml(commande):
+            bloc_requis = True
+            indentation_bloc = indentation
+            profondeur_conditionnelle = 0
+        elif _contient_succes_force(commande) or _contient_exit_zero_non_garde(
+            commande,
+            False,
+        ):
             violations.append(
                 _violation(
                     "REQUIRED_JOB_FORCED_SUCCESS",
@@ -703,4 +928,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

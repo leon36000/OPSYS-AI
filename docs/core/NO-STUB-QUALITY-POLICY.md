@@ -1,92 +1,114 @@
-# Politique qualité NO-STUB
+# Politique NO-STUB et qualité diff-aware
 
-Le gate `scripts/quality/no_stub_gate.py` protège le dépôt contre les
-implémentations incomplètes et les protections qualité artificiellement
-affaiblies.
+## Objet
 
-## Codes refusés
+Le gate `scripts/quality/no_stub_gate.py` refuse les implémentations incomplètes,
+les tests sans oracle vérifiable, les suppressions de contrôle non justifiées et
+les neutralisations de jobs CI requis.
 
-| Code | Refus |
-| --- | --- |
-| `EXECUTABLE_PASS` | Fonction dont le corps utile est seulement `pass`. |
-| `EXECUTABLE_ELLIPSIS` | Fonction dont le corps utile est seulement `...`. |
-| `NOT_IMPLEMENTED_STUB` | Fonction qui lève `NotImplementedError`. |
-| `DOCSTRING_ONLY_BODY` | Fonction dont le corps ne contient qu'une docstring. |
-| `EMPTY_PRODUCTION_FILE` | Module Python de production vide ou blanc. |
-| `TRIVIAL_ASSERTION` | Assertion ajoutée sur une constante vraie. |
-| `TEST_WITHOUT_ORACLE` | Test ajouté ou modifié sans assertion, attente ou autre oracle reconnu. |
-| `NEW_SKIP_OR_XFAIL` | Appel de skip ou décorateur skip/xfail ajouté. |
-| `FORBIDDEN_MARKER` | Marqueur de dette dans un commentaire ajouté. |
-| `UNJUSTIFIED_SUPPRESSION` | `type: ignore`, `noqa` ou `nosec` ajouté sans justification structurée. |
-| `SCOPE_ROOT_OMITTED` | Un lanceur de scan énumère une partie, mais pas toutes, des racines Python contractuelles. |
-| `REQUIRED_JOB_SOFT_FAILURE` | `continue-on-error: true` dans un job CI requis ou une de ses étapes. |
-| `REQUIRED_JOB_FORCED_SUCCESS` | Commande d'un job CI requis qui neutralise un échec shell. |
+Le gate est intentionnellement fail-closed pour les motifs qu'il sait prouver
+syntaxiquement. Les exceptions aux règles de stub doivent être explicitement
+liées aux abstractions standards importées.
 
-## Deux niveaux de contrôle
+## Codes de violation
 
-Les règles anti-stub sont appliquées à tous les fichiers Python du périmètre,
-sans dépendre du diff. Un stub déjà présent reste donc interdit.
+| Code | Règle |
+|---|---|
+| `DOCSTRING_ONLY_BODY` | Une fonction ne contient qu'une docstring. |
+| `EXECUTABLE_PASS` | Une fonction ne contient que `pass`, `return`, `return None`, ou une combinaison de ces instructions triviales. |
+| `EXECUTABLE_ELLIPSIS` | Une fonction ordinaire ou un lambda est réduit à `...` ou à une valeur de stub. |
+| `NOT_IMPLEMENTED_STUB` | Une fonction lève `NotImplementedError`. |
+| `EMPTY_PRODUCTION_FILE` | Un module de production est vide hors exceptions explicites. |
+| `TRIVIAL_ASSERTION` | Une assertion ajoutée porte sur une constante vraie. |
+| `TEST_WITHOUT_ORACLE` | Un test ajouté ou modifié ne contient aucun oracle reconnu. |
+| `NEW_SKIP_OR_XFAIL` | Un skip ou xfail est ajouté dans le diff. |
+| `FORBIDDEN_MARKER` | Un commentaire ajouté contient un marqueur de dette interdit. |
+| `UNJUSTIFIED_SUPPRESSION` | Une suppression `type: ignore`, `noqa` ou `nosec` ne porte pas de justification structurée. |
+| `SCOPE_ROOT_OMITTED` | Un lanceur de scan omet une ou plusieurs racines Python contractuelles. |
+| `REQUIRED_JOB_SOFT_FAILURE` | Un job CI requis utilise `continue-on-error: true`. |
+| `REQUIRED_JOB_FORCED_SUCCESS` | Un job CI requis force un succès shell avec `|| true`, `|| :` ou `|| exit 0`. |
 
-Les règles diff-aware sont limitées aux lignes, appels, décorateurs et fonctions
-ajoutés ou modifiés depuis `base_ref`. Le gate récupère ces lignes avec Git. Si
-la référence ou le dépôt Git ne peut pas être lu, il traite tout le fichier
-comme ajouté : une erreur d'infrastructure ne doit pas masquer une violation.
+## Abstractions légitimes
 
-Il est interdit de baseliner un stub existant. Déplacer une violation hors du
-diff, l'ajouter à une liste d'exceptions ou modifier la référence ne rend jamais
-acceptable un corps vide, une ellipse exécutable ou un
-`NotImplementedError`.
+Une ellipse est acceptée uniquement dans les cas suivants :
 
-## Contrat de périmètre des scans
+- une méthode d'une classe dérivant d'un `typing.Protocol` réellement importé ;
+- une méthode portant un décorateur `abc.abstractmethod` réellement importé.
 
-Le gate vérifie les listes littérales de chaînes présentes dans les lanceurs
-nommés `run_*` et dans `core/scripts/`. Lorsqu'une telle liste contient au moins
-une racine de `python_roots` mais n'en contient pas toutes, il émet
-`SCOPE_ROOT_OMITTED` et nomme les racines manquantes.
+Les imports directs et les alias sont reconnus :
 
-Cette restriction de portée est intentionnelle : les listes de racines dans les
-tests et fixtures décrivent fréquemment des scénarios partiels légitimes. Dans
-un lanceur de scan, une énumération partielle est plus dangereuse qu'une absence
-totale de liste, car elle donne une apparence de couverture exhaustive tout en
-laissant silencieusement une partie du périmètre hors du contrôle.
+```python
+from typing import Protocol
+from typing import Protocol as P
+import typing as t
 
-Cette règle lit exclusivement
-`<repo>/core/quality-scopes.toml`, où `<repo>` est le dépôt analysé. Si ce
-contrat est absent ou invalide, le périmètre est inconnu et la règle ne produit
-aucune violation.
-
-## Exemptions d'interface
-
-Une méthode dont le corps est `...` est admise uniquement dans deux cas prouvés
-par l'AST :
-
-1. la méthode porte `@abstractmethod` ou `@abc.abstractmethod` ;
-2. la méthode appartient à une classe héritant de `Protocol` ou
-   `typing.Protocol`.
-
-Ces exemptions représentent des contrats de type explicitement déclarés, non
-une absence d'implémentation dissimulée. Elles ne s'appliquent pas à
-`NotImplementedError`, qui demeure interdit même dans une interface.
-
-## Périmètre
-
-`core/quality-scopes.toml` est la source unique de vérité des racines Python et
-des identifiants de jobs CI requis. Les consommateurs chargent ce contrat avec
-`tomllib`; ils ne doivent pas recopier les racines dans leur code.
-
-## Exécution locale
-
-Depuis la racine du dépôt :
-
-```bash
-python scripts/quality/no_stub_gate.py --repo . --base-ref HEAD
+from abc import abstractmethod
+import abc as a
 ```
 
-Pour vérifier un périmètre ponctuel :
+Une classe locale nommée `Protocol` ou une fonction locale nommée
+`abstractmethod` ne crée aucune exemption.
 
-```bash
-python scripts/quality/no_stub_gate.py --repo . --base-ref HEAD --scope scripts
+## Suppressions de contrôles
+
+Toute suppression doit avoir une justification non vide après `—`, `-` ou `:`.
+
+Les identifiants de règle sont admis avant ce séparateur :
+
+```python
+valeur = appel()  # nosec B310 — le schéma est validé par liste blanche
+valeur = appel()  # type: ignore[arg-type] — contrat externe documenté
+valeur = appel()  # noqa E501 - exception de format justifiée
 ```
 
-`--scope` peut être répété. Sans `--scope`, le gate utilise les racines définies
-dans `core/quality-scopes.toml`.
+Les formes suivantes restent interdites :
+
+```python
+valeur = appel()  # nosec
+valeur = appel()  # nosec B310
+valeur = appel()  # type: ignore[arg-type]
+```
+
+## Workflows CI
+
+Les jobs requis sont définis par `target_required_job_ids` dans
+`core/quality-scopes.toml`.
+
+Le gate inspecte les commandes `run:` inline ainsi que les scalaires YAML de
+bloc `|`, `|-`, `|+`, `>`, `>-` et `>+`. Une neutralisation shell dans une ligne
+d'un bloc appartenant à un job requis produit
+`REQUIRED_JOB_FORCED_SUCCESS`.
+
+Les mêmes constructions dans un job non requis ne relèvent pas de cette règle.
+
+## Limites nommées de l'analyse statique
+
+### Périmètre dynamique des scanners
+
+La règle `SCOPE_ROOT_OMITTED` prouve les omissions dans :
+
+- les listes, tuples et sets littéraux ;
+- les concaténations directes de collections littérales ;
+- les compréhensions qui filtrent explicitement la variable `racines`.
+
+Elle ne résout pas les appels de fonctions, les valeurs construites par import,
+les mutations, la réflexion, les évaluations conditionnelles ou toute autre
+construction nécessitant l'exécution du programme. Cette limite est nommée
+**périmètre dynamique non résolu**.
+
+Le contrat de racines reste la source d'autorité. Les lanceurs opérationnels
+doivent préférer une énumération littérale exhaustive ou transmettre directement
+les racines contractuelles afin de conserver une preuve statique.
+
+### Sémantique Python non exécutée
+
+Le gate inspecte l'AST sans exécuter le code. Il ne déduit pas les effets de bord
+d'appels, de décorateurs arbitraires ni de métaprogrammation. Cette limite est
+nommée **sémantique dynamique non exécutée**.
+
+### YAML opérationnel ciblé
+
+Le contrôle CI couvre les formes `run:` inline et les scalaires de bloc usuels
+des jobs requis. Il ne prétend pas interpréter les expressions GitHub, les
+ancres YAML complexes ou les commandes fabriquées à l'exécution. Cette limite
+est nommée **commande CI indirecte**.

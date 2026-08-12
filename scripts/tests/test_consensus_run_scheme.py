@@ -19,6 +19,7 @@ from consensus_run import (  # noqa: E402 — chemin ajouté ci-dessus
     _SCHEMAS_RESEAU_AUTORISES,
     TransportError,
     _valider_schema_url,
+    make_real_transport,
 )
 
 
@@ -59,3 +60,23 @@ def test_la_liste_blanche_ne_contient_que_les_deux_schemas_reseau() -> None:
     """Prouve que la liste blanche n'a pas été élargie en silence : tout ajout
     futur d'un schéma doit passer par la modification EXPLICITE de ce test."""
     assert _SCHEMAS_RESEAU_AUTORISES == frozenset({"http", "https"})
+
+
+def test_fabrique_refuse_effectivement_le_schema_interdit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Prouve la garde au site d'appel : retirer son appel de la fabrique fait
+    rougir ce test, contrairement à un test isolé de la fonction de validation."""
+    monkeypatch.setenv("LITELLM_BASE_URL", "file:///etc/passwd")
+    with pytest.raises(TransportError) as erreur:
+        make_real_transport(timeout=1, max_tokens=1)
+    assert "Schéma refusé" in str(erreur.value)
+
+
+def test_fabrique_accepte_une_url_http_nominale(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Prouve que la garde au site d'appel conserve la construction nominale."""
+    monkeypatch.setenv("LITELLM_BASE_URL", "http://127.0.0.1:4000")
+    transport = make_real_transport(timeout=1, max_tokens=1)
+    assert callable(transport)

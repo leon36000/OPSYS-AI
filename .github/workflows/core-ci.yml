@@ -76,7 +76,7 @@ jobs:
           # changement de portée large hors périmètre de ce chantier
           # (signalé à Nathan, pas tranché seul).
           CODE_CHANGE=$(git diff --name-only origin/main...HEAD -- core/ .github/workflows/core-ci.yml .github/workflows/ci.yml scripts/)
-          EVIDENCE_CHANGE=$(git diff --name-only origin/main...HEAD -- evidence/tasks/ 2>/dev/null | sed -E 's#^evidence/tasks/([^/]+)/.*#\1#' | sort -u || true)
+          EVIDENCE_CHANGE=$(git diff --name-only origin/main...HEAD -- evidence/tasks/ 2>/dev/null | sed -E 's#^evidence/tasks/([^/]+)/.*#\1#' | sort -u)
           if [ -z "$CODE_CHANGE" ]; then
             echo "Aucun changement sous le périmètre scellé de CE gate (core/, core-ci.yml, ci.yml, scripts/) — rien à sceller ici. Modules M/ reste gouverné par son propre workflow (gates/ci.yml), hors périmètre de proof-sealed."
             exit 0

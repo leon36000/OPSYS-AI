@@ -190,7 +190,7 @@ def make_real_transport(timeout: int, max_tokens: int):
             # bandit est une règle statique qui ne suit pas cette garde en amont ;
             # la garde est prouvée par
             # scripts/tests/test_consensus_run_scheme.py, pas affirmée ici.
-            with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310
+            with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310 — schéma validé en liste blanche par _valider_schema_url avant toute requête, prouvé par test_consensus_run_scheme.py
                 resp_text = resp.read().decode("utf-8")
         except urllib.error.HTTPError as exc:
             raise TransportError(f"HTTP {exc.code} depuis la passerelle") from None
