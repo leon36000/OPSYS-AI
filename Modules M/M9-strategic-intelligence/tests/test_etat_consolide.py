@@ -307,3 +307,24 @@ def test_construire_etat_consolide_ne_modifie_jamais_le_registre():
     assert premier_resultat == second_resultat
     assert apres_premier_appel == avant
     assert apres_second_appel == avant
+
+
+def test_construire_etat_consolide_conserve_le_plus_recent_meme_arrive_apres():
+    registre_snapshots = registre.RegistreSnapshots()
+    _ajouter(
+        registre_snapshots,
+        "X",
+        "2025-01-02T10:00:00Z",
+        {"recent": True},
+    )
+    maillon_ancien = _ajouter(
+        registre_snapshots,
+        "X",
+        "2025-01-01T10:00:00Z",
+        {"ancien": True},
+    )
+
+    resultat = etat_consolide.construire_etat_consolide(registre_snapshots)
+
+    assert resultat["faits_par_module"]["X"]["horodatage"] == "2025-01-02T10:00:00Z"
+    assert resultat["faits_par_module"]["X"] != maillon_ancien
