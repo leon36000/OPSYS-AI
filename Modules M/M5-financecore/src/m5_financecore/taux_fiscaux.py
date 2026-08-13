@@ -40,18 +40,18 @@ def charger_taux_fiscaux(chemin):
             erreurs.append(f"taux invalide {identifiant} : clés non conformes")
             continue
 
-        montant = item["taux"]
-        if isinstance(montant, bool) or not isinstance(montant, (int, float)):
+        valeur_taux = item["taux"]
+        if isinstance(valeur_taux, bool) or not isinstance(valeur_taux, (int, float)):
             erreurs.append(
                 f"taux invalide {identifiant} : 'taux' doit être un nombre"
             )
             continue
 
-        if isinstance(montant, float) and not math.isfinite(montant):
+        if isinstance(valeur_taux, float) and not math.isfinite(valeur_taux):
             erreurs.append(f"taux invalide {identifiant} : 'taux' doit être fini")
             continue
 
-        if montant < 0 or montant > _BORNE_HAUTE_FRACTION_VALIDATION:
+        if valeur_taux < 0 or valeur_taux > _BORNE_HAUTE_FRACTION_VALIDATION:
             erreurs.append(f"taux invalide {identifiant} : 'taux' hors bornes")
             continue
 
