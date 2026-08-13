@@ -10,7 +10,7 @@ import sys
 import tokenize
 import tomllib
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from io import StringIO
 from pathlib import Path
 from typing import Final
@@ -67,8 +67,13 @@ _FIN_CASE_SHELL: Final[re.Pattern[str]] = re.compile(
     r"(?:^|[;|&()\s])esac(?=$|[;|&()\s])"
 )
 _SUITE_NOM_COMMANDE: Final[str] = r"(?![A-Za-z0-9_./-])"
+_PREFIXE_CHEMIN_COMMANDE: Final[str] = r"(?:[A-Za-z0-9_.-]*/)+"
+_PREFIXE_BUILTIN_COMMAND: Final[str] = r"command\s+(?:-[A-Za-z]+\s+)*"
+_PREFIXES_NEUTRES_REPLI: Final[str] = (
+    f"(?:{_PREFIXE_BUILTIN_COMMAND})?(?:{_PREFIXE_CHEMIN_COMMANDE})?"
+)
 _FALLBACK_SHELL: Final[re.Pattern[str]] = re.compile(
-    r"\|\|\s*(?P<command>"
+    r"\|\|\s*(?P<prefixe>" + _PREFIXES_NEUTRES_REPLI + r")(?P<command>"
     f"true{_SUITE_NOM_COMMANDE}"
     f"|:{_SUITE_NOM_COMMANDE}"
     f"|echo{_SUITE_NOM_COMMANDE}"
@@ -146,6 +151,64 @@ class _AliasesImports:
     abstractmethods: frozenset[str]
     modules_abc: frozenset[str]
     not_implemented_errors: frozenset[str]
+    modules_pytest: frozenset[str]
+    modules_unittest: frozenset[str]
+    marques_pytest: frozenset[str]
+    sauts_directs: frozenset[str]
+
+
+@dataclass
+class _CollecteAliases:
+    """Accumule les noms liés par les imports pendant le parcours du module.
+
+    La preuve consommée par les règles reste immuable : cette collecte n'existe
+    que le temps du parcours, puis est figée en ``_AliasesImports``. Séparer les
+    deux garantit qu'aucune règle ne peut modifier après coup l'origine prouvée
+    d'un nom.
+    """
+
+    protocols: set[str] = field(default_factory=set)
+    modules_typing: set[str] = field(default_factory=set)
+    abstractmethods: set[str] = field(default_factory=set)
+    modules_abc: set[str] = field(default_factory=set)
+    not_implemented_errors: set[str] = field(default_factory=set)
+    modules_pytest: set[str] = field(default_factory=set)
+    modules_unittest: set[str] = field(default_factory=set)
+    marques_pytest: set[str] = field(default_factory=set)
+    sauts_directs: set[str] = field(default_factory=set)
+
+    def _ensembles(self) -> tuple[set[str], ...]:
+        """Énumère TOUS les ensembles : un oubli ici rendrait un alias ininvalidable."""
+        return (
+            self.protocols,
+            self.modules_typing,
+            self.abstractmethods,
+            self.modules_abc,
+            self.not_implemented_errors,
+            self.modules_pytest,
+            self.modules_unittest,
+            self.marques_pytest,
+            self.sauts_directs,
+        )
+
+    def retirer(self, noms: set[str]) -> None:
+        """Retire les noms réaffectés : leur origine standard n'est plus prouvée."""
+        for ensemble in self._ensembles():
+            ensemble.difference_update(noms)
+
+    def figer(self) -> _AliasesImports:
+        """Fige la collecte en preuve immuable consommée par les règles."""
+        return _AliasesImports(
+            frozenset(self.protocols),
+            frozenset(self.modules_typing),
+            frozenset(self.abstractmethods),
+            frozenset(self.modules_abc),
+            frozenset(self.not_implemented_errors),
+            frozenset(self.modules_pytest),
+            frozenset(self.modules_unittest),
+            frozenset(self.marques_pytest),
+            frozenset(self.sauts_directs),
+        )
 
 
 def _chemin_relatif(repo: Path, fichier: Path) -> str:
@@ -275,46 +338,67 @@ def _noms_cibles_affectation(noeud: ast.stmt) -> set[str]:
 
 def _imports_module(
     corps: list[ast.stmt],
-) -> tuple[set[str], set[str], set[str], set[str], set[str]]:
-    """Collecte les imports qui lient réellement le namespace du module.
+) -> tuple[_CollecteAliases, set[str]]:
+    """Collecte les liaisons du namespace du module : ses imports ET ses écrasements.
 
-    Les blocs module-level, notamment ``if TYPE_CHECKING:``, conservent leurs
-    imports car ils lient syntaxiquement le module. Les corps de fonctions et
-    méthodes ne sont jamais parcourus afin qu'un import local ne crée pas une
-    exemption globale non prouvée.
+    Les blocs module-level — ``if`` (notamment ``if TYPE_CHECKING:``), ``for``,
+    ``while``, ``with``, ``try`` et ``match`` — sont parcourus dans les DEUX
+    sens, car ils lient le module exactement comme son premier niveau : leurs
+    imports prouvent un alias, leurs affectations le détruisent. Ne descendre
+    que pour les imports laissait une réaffectation cachée d'un seul cran
+    conserver l'alias, donc exempter une classe qui hérite en réalité d'``object``.
+
+    Les corps de fonctions et de méthodes ne sont jamais parcourus : leur portée
+    est locale, si bien qu'un import local ne crée aucune exemption globale et
+    qu'une affectation locale n'invalide aucun alias du module.
     """
-    protocols: set[str] = set()
-    modules_typing: set[str] = set()
-    abstractmethods: set[str] = set()
-    modules_abc: set[str] = set()
-    not_implemented_errors: set[str] = set()
+    aliases = _CollecteAliases()
+    reassignees: set[str] = set()
 
     def visiter(instructions: list[ast.stmt]) -> None:
         for noeud in instructions:
+            reassignees.update(_noms_cibles_affectation(noeud))
             if isinstance(noeud, ast.Import):
                 for alias in noeud.names:
                     if alias.name == "typing":
-                        modules_typing.add(alias.asname or "typing")
+                        aliases.modules_typing.add(alias.asname or "typing")
                     elif alias.name == "abc":
-                        modules_abc.add(alias.asname or "abc")
+                        aliases.modules_abc.add(alias.asname or "abc")
+                    elif alias.name == "pytest":
+                        aliases.modules_pytest.add(alias.asname or "pytest")
+                    elif alias.name == "unittest":
+                        aliases.modules_unittest.add(alias.asname or "unittest")
             elif isinstance(noeud, ast.ImportFrom):
-                if noeud.module == "typing":
-                    protocols.update(
+                origine = noeud.module or ""
+                if origine == "typing":
+                    aliases.protocols.update(
                         alias.asname or "Protocol"
                         for alias in noeud.names
                         if alias.name == "Protocol"
                     )
-                elif noeud.module == "abc":
-                    abstractmethods.update(
+                elif origine == "abc":
+                    aliases.abstractmethods.update(
                         alias.asname or "abstractmethod"
                         for alias in noeud.names
                         if alias.name == "abstractmethod"
                     )
-                elif noeud.module == "builtins":
-                    not_implemented_errors.update(
+                elif origine == "builtins":
+                    aliases.not_implemented_errors.update(
                         alias.asname or alias.name
                         for alias in noeud.names
                         if alias.name in {"NotImplementedError", "NotImplemented"}  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet
+                    )
+                elif origine in _APPELS_DE_SAUT:
+                    if origine == "pytest":
+                        aliases.marques_pytest.update(
+                            alias.asname or "mark"
+                            for alias in noeud.names
+                            if alias.name == "mark"
+                        )
+                    aliases.sauts_directs.update(
+                        alias.asname or alias.name
+                        for alias in noeud.names
+                        if alias.name in _APPELS_DE_SAUT[origine]
                     )
             elif isinstance(noeud, (ast.If, ast.For, ast.AsyncFor, ast.While)):
                 visiter(noeud.body)
@@ -332,45 +416,22 @@ def _imports_module(
                     visiter(cas.body)
 
     visiter(corps)
-    return (
-        protocols,
-        modules_typing,
-        abstractmethods,
-        modules_abc,
-        not_implemented_errors,
-    )
+    return aliases, reassignees
 
 
 def _analyser_imports(arbre: ast.Module) -> _AliasesImports:
     """Prouve les imports module-level et retire toute liaison qui les écrase.
 
     Toute définition, affectation, cible de boucle ou cible de contexte au niveau
-    module retire l'alias. Cette règle fail-closed empêche une exemption lorsque
-    l'origine standard du nom n'est plus certaine.
+    module retire l'alias, à quelque profondeur de bloc qu'elle soit écrite. Cette
+    règle fail-closed empêche une exemption lorsque l'origine standard du nom
+    n'est plus certaine, et elle s'applique sans tenir compte de l'ORDRE : une
+    réaffectation écrite avant l'import compte autant qu'une réaffectation écrite
+    après lui.
     """
-    (
-        protocols,
-        modules_typing,
-        abstractmethods,
-        modules_abc,
-        not_implemented_errors,
-    ) = _imports_module(arbre.body)
-
-    for noeud in arbre.body:
-        reassignees = _noms_cibles_affectation(noeud)
-        protocols.difference_update(reassignees)
-        modules_typing.difference_update(reassignees)
-        abstractmethods.difference_update(reassignees)
-        modules_abc.difference_update(reassignees)
-        not_implemented_errors.difference_update(reassignees)
-
-    return _AliasesImports(
-        frozenset(protocols),
-        frozenset(modules_typing),
-        frozenset(abstractmethods),
-        frozenset(modules_abc),
-        frozenset(not_implemented_errors),
-    )
+    aliases, reassignees = _imports_module(arbre.body)
+    aliases.retirer(reassignees)
+    return aliases.figer()
 
 
 def _est_classe_protocol(classe: ast.ClassDef, aliases: _AliasesImports) -> bool:
@@ -744,36 +805,80 @@ def _contient_oracle(fonction: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     return False
 
 
-def _est_decorateur_skip_ou_xfail(decorateur: ast.expr) -> bool:
-    """Reconnaît les marques pytest de saut, y compris la forme conditionnelle.
+def _est_marque_de_saut_pytest(cible: ast.expr, aliases: _AliasesImports) -> bool:
+    """Reconnaît ``pytest.mark.<saut>`` sous le nom canonique comme sous ses alias.
+
+    Le porteur de la marque est prouvé de deux façons : un module importé sous un
+    autre nom (``import pytest as pt`` puis ``pt.mark.skip``) ou la marque
+    elle-même importée (``from pytest import mark`` puis ``mark.skip``). Renommer
+    un import ne change rien à ce que pytest exécute : le saut reste un saut.
+    """
+    if not (isinstance(cible, ast.Attribute) and cible.attr in _MARQUES_DE_SAUT_PYTEST):
+        return False
+    porteur = cible.value
+    if isinstance(porteur, ast.Name):
+        return porteur.id in aliases.marques_pytest
+    return (
+        isinstance(porteur, ast.Attribute)
+        and porteur.attr == "mark"
+        and isinstance(porteur.value, ast.Name)
+        and (
+            porteur.value.id == "pytest" or porteur.value.id in aliases.modules_pytest
+        )
+    )
+
+
+def _est_saut_qualifie(cible: ast.expr, aliases: _AliasesImports) -> bool:
+    """Reconnaît ``<module>.<saut>`` où le module est prouvé pytest ou unittest.
+
+    Le nom canonique est reconnu inconditionnellement, l'alias uniquement s'il
+    est PROUVÉ par un import du module correspondant. Ce sens est délibéré : sans
+    le nom canonique, un fichier qui réaffecte ``pytest`` désarmerait la règle,
+    et sans la preuve d'import, un homonyme métier serait un faux positif.
+    """
+    if not (isinstance(cible, ast.Attribute) and isinstance(cible.value, ast.Name)):
+        return False
+    porteur = cible.value.id
+    if cible.attr in _APPELS_DE_SAUT.get(porteur, frozenset()):
+        return True
+    if porteur in aliases.modules_pytest and cible.attr in _APPELS_DE_SAUT["pytest"]:
+        return True
+    return (
+        porteur in aliases.modules_unittest
+        and cible.attr in _APPELS_DE_SAUT["unittest"]
+    )
+
+
+def _est_decorateur_skip_ou_xfail(
+    decorateur: ast.expr,
+    aliases: _AliasesImports,
+) -> bool:
+    """Reconnaît les décorateurs de saut, y compris la forme conditionnelle.
 
     ``skipif`` saute exactement comme ``skip`` dès que sa condition est vraie :
     l'exclure laisserait un test ajouté ne jamais s'exécuter tout en paraissant
-    présent dans la suite.
+    présent dans la suite. Le nom nu — ``from unittest import skip`` puis
+    ``@skip`` — n'est jugé que si son import prouve son origine.
     """
     cible = decorateur.func if isinstance(decorateur, ast.Call) else decorateur
-    return (
-        isinstance(cible, ast.Attribute)
-        and cible.attr in _MARQUES_DE_SAUT_PYTEST
-        and isinstance(cible.value, ast.Attribute)
-        and cible.value.attr == "mark"
-        and isinstance(cible.value.value, ast.Name)
-        and cible.value.value.id == "pytest"
+    if isinstance(cible, ast.Name):
+        return cible.id in aliases.sauts_directs
+    return _est_marque_de_saut_pytest(cible, aliases) or _est_saut_qualifie(
+        cible, aliases
     )
 
 
-def _est_appel_de_saut(noeud: ast.Call) -> bool:
-    """Reconnaît un appel qui saute ou abandonne un test, qualifié par son module.
+def _est_appel_de_saut(noeud: ast.Call, aliases: _AliasesImports) -> bool:
+    """Reconnaît un appel qui saute ou abandonne un test, qualifié par son origine.
 
-    La qualification par le module est conservée : un homonyme porté par un objet
-    métier ne saute rien et ne doit jamais être confondu avec la dette visée.
+    La qualification est conservée : un homonyme porté par un objet métier
+    (``lecteur.skipIf(…)``) ou par une instance (``self.skip(…)``) ne saute rien
+    et ne doit jamais être confondu avec la dette visée.
     """
     cible = noeud.func
-    return (
-        isinstance(cible, ast.Attribute)
-        and isinstance(cible.value, ast.Name)
-        and cible.attr in _APPELS_DE_SAUT.get(cible.value.id, frozenset())
-    )
+    if isinstance(cible, ast.Name):
+        return cible.id in aliases.sauts_directs
+    return _est_saut_qualifie(cible, aliases)
 
 
 def _analyser_ast_diff(
@@ -783,6 +888,7 @@ def _analyser_ast_diff(
     lignes: set[int],
 ) -> list[Violation]:
     """Applique les règles AST limitées aux éléments effectivement modifiés."""
+    aliases = _analyser_imports(arbre)
     violations: list[Violation] = []
     for noeud in ast.walk(arbre):
         if (
@@ -811,10 +917,14 @@ def _analyser_ast_diff(
                             "le test modifié ne contient aucun oracle",
                         )
                     )
+        if isinstance(noeud, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            # Les classes portent les mêmes décorateurs : pytest applique une
+            # marque de classe à CHACUNE de ses méthodes de test. Ne lire que les
+            # fonctions laissait déserter une suite entière d'un seul décorateur
+            # déplacé d'un cran vers le haut.
             for decorateur in noeud.decorator_list:
-                if (
-                    decorateur.lineno in lignes
-                    and _est_decorateur_skip_ou_xfail(decorateur)
+                if decorateur.lineno in lignes and _est_decorateur_skip_ou_xfail(
+                    decorateur, aliases
                 ):
                     violations.append(
                         _violation(
@@ -826,7 +936,7 @@ def _analyser_ast_diff(
                         )
                     )
         if isinstance(noeud, ast.Call) and noeud.lineno in lignes:
-            if _est_appel_de_saut(noeud):
+            if _est_appel_de_saut(noeud, aliases):
                 violations.append(
                     _violation(
                         "NEW_SKIP_OR_XFAIL",
@@ -1434,19 +1544,26 @@ def _groupe_repli_succes(neutre: str) -> str | None:
 
 
 def _commande_repli_succes(commande: str) -> str | None:
-    """Prouve qu'une branche ``||`` se termine inconditionnellement avec succès."""
+    """Prouve qu'une branche ``||`` se termine inconditionnellement avec succès.
+
+    Le nom de la commande est lu APRÈS les préfixes qui ne changent pas ce qui
+    s'exécute : un chemin (``/usr/bin/true``, ``/bin/true``) désigne le même
+    binaire que son nom nu, et le builtin ``command`` ne fait que le lancer en
+    court-circuitant fonctions et alias du shell. La borne de fin de nom survit
+    au préfixe : ``/usr/bin/true_story`` reste un exécutable tiers légitime.
+    """
     neutre = _neutraliser_chaines_shell(commande)
     correspondance = _FALLBACK_SHELL.search(neutre)
     if correspondance is None:
         return _groupe_repli_succes(neutre)
     commande_repli = correspondance.group("command")
     if commande_repli.startswith("echo"):
-        return "echo"
-    if commande_repli.startswith("printf"):
-        return "printf"
-    if commande_repli.startswith("exit"):
-        return "exit 0"
-    return commande_repli
+        commande_repli = "echo"
+    elif commande_repli.startswith("printf"):
+        commande_repli = "printf"
+    elif commande_repli.startswith("exit"):
+        commande_repli = "exit 0"
+    return correspondance.group("prefixe") + commande_repli
 
 
 def _contient_succes_force(commande: str) -> bool:

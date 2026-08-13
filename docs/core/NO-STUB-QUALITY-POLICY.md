@@ -109,6 +109,22 @@ python3 gate.py; true_story       # accepté — même borne sur la forme séque
 python3 gate.py || true; echo ok  # refusé  — ici « true » est bien la commande shell
 ```
 
+Le nom de commande est lu **après les préfixes qui ne changent pas ce qui
+s'exécute** : un chemin désigne le même binaire que son nom nu, et le builtin
+`command` ne fait que le lancer en court-circuitant fonctions et alias du shell.
+Renommer le chemin d'accès au repli n'a jamais changé le code de retour rendu au
+job requis, et le laisser passer suffisait à repeindre en vert un contrôle
+échoué :
+
+```sh
+python3 gate.py || /usr/bin/true       # refusé  — même binaire, même repli
+python3 gate.py || /bin/true           # refusé  — autre emplacement, même binaire
+python3 gate.py || /usr/bin/:          # refusé  — la commande vide reste elle-même
+python3 gate.py || command true        # refusé  — « command » ne fait que lancer true
+python3 gate.py || /usr/bin/true_story # accepté — la borne de nom survit au préfixe
+python3 gate.py && /usr/bin/true       # accepté — « && » n'est pas un repli
+```
+
 ## Gardes `if !` et désarmement d'errexit
 
 Une commande testée par `if !` est **exempte d'`errexit`** : ce n'est plus elle
@@ -245,8 +261,31 @@ exactement comme un saut inconditionnel dès que sa condition est vraie ; le
 distinguer laisserait un test ajouté ne jamais s'exécuter tout en paraissant
 présent dans la suite.
 
-La règle reste **qualifiée par le module** : un homonyme porté par un objet
-métier (`lecteur.skipIf(…)`) ne saute rien et n'est pas concerné.
+Les décorateurs sont lus sur les **fonctions comme sur les classes** : pytest
+applique une marque de classe à chacune de ses méthodes de test, si bien qu'un
+seul décorateur déplacé d'un cran vers le haut désertait une suite entière.
+
+Les **alias d'import** sont résolus par le même mécanisme que `Protocol` et
+`abstractmethod` : renommer l'import ne change rien à ce qui est exécuté.
+
+```python
+import pytest as pt        ->  @pt.mark.skip          # refusé
+import pytest as p         ->  p.skip('x')            # refusé
+from pytest import mark    ->  @mark.xfail            # refusé
+from pytest import skip    ->  skip('x')              # refusé — forme appelée
+from unittest import skip  ->  @skip / @skip('x')     # refusé
+import unittest as ut      ->  @ut.skipIf(True, '')   # refusé
+```
+
+La règle reste **qualifiée par l'origine** : elle exige que le nom soit prouvé
+par un import de `pytest` ou de `unittest`. Un homonyme porté par un objet métier
+(`lecteur.skipIf(…)`), par une instance (`self.skip(…)`), ou importé d'un autre
+module (`from mon_module import skip`) ne saute rien et n'est pas concerné.
+
+Les noms canoniques `pytest` et `unittest` restent reconnus **sans condition**.
+Ce sens est délibéré et inverse de celui des alias `Protocol` : là-bas, perdre la
+preuve rend le gate plus strict ; ici, elle ne doit jamais pouvoir être désarmée
+par une réaffectation du nom du module.
 
 ## Protocoles génériques
 
@@ -264,6 +303,29 @@ class Depot(Generic[T]): ...           # refusé  — Generic seul n'abstrait ri
 
 La preuve d'origine de l'alias est inchangée : une classe locale qui usurpe le
 nom `Protocol` reste refusée, y compris sous la forme paramétrée `Protocol[int]`.
+
+### Portée de la preuve d'alias
+
+Un alias n'est prouvé que tant que rien ne l'écrase dans le namespace du module.
+Les **blocs module-level** — `if`, `for`, `while`, `with`, `try`, `match` — sont
+parcourus dans les DEUX sens : leurs imports lient le module, leurs affectations
+le délient. Les scruter seulement pour les imports laissait une réaffectation
+cachée d'un cran conserver un alias que l'exécution avait déjà détruit :
+
+```python
+from typing import Protocol
+if True:
+    Protocol = object      # écrase l'alias — la classe hérite en réalité d'object
+
+class C(Protocol):
+    def f(self) -> None: ...   # refusé — plus aucun protocole ne le justifie
+```
+
+Les **corps de fonctions** ne sont jamais parcourus, dans les deux sens
+également : leur portée est locale, si bien qu'un import local ne crée aucune
+exemption globale et qu'une affectation locale n'invalide aucun alias du module.
+La règle ne tient pas compte de l'**ordre** : une réaffectation écrite avant
+l'import compte autant qu'une réaffectation écrite après lui.
 
 ## Suppressions de contrôles
 

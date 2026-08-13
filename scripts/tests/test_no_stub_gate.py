@@ -2828,3 +2828,364 @@ def test_refuse_une_directive_de_suppression_apres_un_second_diese(
         "import os  # import hérité du gabarit  # noqa: F401\n",
     )
     assert "UNJUSTIFIED_SUPPRESSION" in _codes(_scanner(repo))
+
+
+def test_refuse_un_protocol_reaffecte_dans_un_bloc_module(tmp_path: Path) -> None:
+    """Prouve qu'une réaffectation cachée dans un bloc module écrase bien l'alias.
+
+    À l'exécution, ``Protocol = object`` placé sous un ``if`` module-level lie le
+    module exactement comme la même ligne écrite au premier niveau : la classe
+    hérite alors de ``object`` et livre une méthode vide. Ne chercher les
+    réaffectations que sous ``arbre.body`` laissait ce contournement passer.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "from typing import Protocol\n\n"
+        "if True:\n"
+        "    Protocol = object\n\n\n"
+        "class Service(Protocol):\n"
+        "    def executer(self) -> int:\n"
+        "        ...\n",
+    )
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_protocol_reaffecte_dans_un_bloc_try_module(tmp_path: Path) -> None:
+    """Prouve que le repli ``try/except`` lie le module au même titre qu'un ``if``."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "from typing import Protocol\n\n"
+        "try:\n"
+        "    import inexistant\n"
+        "except ImportError:\n"
+        "    Protocol = object\n\n\n"
+        "class Service(Protocol):\n"
+        "    def executer(self) -> int:\n"
+        "        ...\n",
+    )
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_protocol_ecrase_par_une_boucle_module(tmp_path: Path) -> None:
+    """Prouve qu'une cible de boucle imbriquée écrase l'alias comme une affectation."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "from typing import Protocol\n\n"
+        "if True:\n"
+        "    for Protocol in (object,):\n"
+        "        print(Protocol)\n\n\n"
+        "class Service(Protocol):\n"
+        "    def executer(self) -> int:\n"
+        "        ...\n",
+    )
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_accepte_un_protocol_reaffecte_seulement_dans_une_fonction(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la descente s'arrête aux corps de fonctions, dont la portée est locale.
+
+    Une liaison interne à une fonction ne touche jamais le namespace du module :
+    l'alias module reste prouvé, et refuser la classe serait un faux positif.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "from typing import Protocol\n\n\n"
+        "def configurer() -> object:\n"
+        "    Protocol = object\n"
+        "    return Protocol\n\n\n"
+        "class Service(Protocol):\n"
+        "    def executer(self) -> int:\n"
+        "        ...\n",
+    )
+    assert "EXECUTABLE_ELLIPSIS" not in _codes(_scanner(repo))
+
+
+def test_refuse_un_repli_vers_true_par_chemin_absolu(tmp_path: Path) -> None:
+    """Prouve que ``/usr/bin/true`` est la commande ``true``, pas un exécutable tiers.
+
+    Préfixer le chemin ne change ni le binaire appelé ni son code de retour nul :
+    le job requis redevenait vert alors que le contrôle avait échoué.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run("security", ("python3 gate.py || /usr/bin/true",)),
+    )
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_repli_vers_true_par_chemin_bin(tmp_path: Path) -> None:
+    """Prouve que l'autre emplacement usuel du même binaire est traité à égalité."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run("security", ("python3 gate.py || /bin/true",)),
+    )
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_repli_vers_la_commande_vide_par_chemin(tmp_path: Path) -> None:
+    """Prouve que la commande vide reste elle-même une fois préfixée d'un chemin."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run("security", ("python3 gate.py || /usr/bin/:",)),
+    )
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_repli_via_le_builtin_command(tmp_path: Path) -> None:
+    """Prouve que ``command true`` exécute ``true`` et absorbe l'échec identiquement."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run("security", ("python3 gate.py || command true",)),
+    )
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_accepte_un_repli_vers_un_chemin_prefixe_par_true(tmp_path: Path) -> None:
+    """Prouve que la borne de nom survit au préfixe de chemin : ``true_story`` reste licite."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run("security", ("python3 gate.py || /usr/bin/true_story",)),
+    )
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_accepte_un_enchainement_et_vers_true_par_chemin_absolu(
+    tmp_path: Path,
+) -> None:
+    """Prouve que ``&&`` n'est pas un repli : la commande gardée décide encore de l'échec."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run("security", ("python3 gate.py && /usr/bin/true",)),
+    )
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_refuse_un_decorateur_de_saut_sur_une_classe_de_test(tmp_path: Path) -> None:
+    """Prouve qu'une marque de saut posée sur la classe saute tous ses tests.
+
+    Pytest applique la marque à chaque méthode de la classe : n'examiner les
+    décorateurs que sur les fonctions laissait déserter une suite entière d'un
+    seul décorateur déplacé d'un cran.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "import pytest\n\n\n"
+        "@pytest.mark.skip\n"
+        "class TestGroupe:\n"
+        "    def test_calcul(self) -> None:\n"
+        "        assert calculer() == 1\n",
+    )
+    assert "NEW_SKIP_OR_XFAIL" in _codes(_scanner(repo))
+
+
+def test_accepte_un_decorateur_sans_saut_sur_une_classe_de_test(
+    tmp_path: Path,
+) -> None:
+    """Prouve que seules les marques de saut sont visées sur une classe de test."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "import pytest\n\n\n"
+        "@pytest.mark.usefixtures('depot')\n"
+        "class TestGroupe:\n"
+        "    def test_calcul(self) -> None:\n"
+        "        assert calculer() == 1\n",
+    )
+    assert "NEW_SKIP_OR_XFAIL" not in _codes(_scanner(repo))
+
+
+def test_refuse_une_marque_de_saut_sous_alias_de_module_pytest(
+    tmp_path: Path,
+) -> None:
+    """Prouve que renommer l'import ne désarme pas la règle : ``pt.mark.skip`` saute."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "import pytest as pt\n\n\n"
+        "@pt.mark.skip\n"
+        "def test_calcul() -> None:\n"
+        "    assert calculer() == 1\n",
+    )
+    assert "NEW_SKIP_OR_XFAIL" in _codes(_scanner(repo))
+
+
+def test_refuse_un_appel_de_saut_sous_alias_de_module_pytest(tmp_path: Path) -> None:
+    """Prouve que la forme appelée est couverte par la même preuve d'alias."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "import pytest as p\n\n\n"
+        "def test_calcul() -> None:\n"
+        "    p.skip('indisponible')\n"
+        "    assert calculer() == 1\n",
+    )
+    assert "NEW_SKIP_OR_XFAIL" in _codes(_scanner(repo))
+
+
+def test_refuse_un_saut_importe_directement_de_unittest(tmp_path: Path) -> None:
+    """Prouve que le nom nu importé de unittest reste un saut prouvé par son import."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "from unittest import skip\n\n\n"
+        "@skip('indisponible')\n"
+        "def test_calcul() -> None:\n"
+        "    assert calculer() == 1\n",
+    )
+    assert "NEW_SKIP_OR_XFAIL" in _codes(_scanner(repo))
+
+
+def test_refuse_un_appel_de_saut_importe_directement_de_pytest(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le nom nu importé saute AUSSI depuis le corps, hors décorateur.
+
+    ``from pytest import skip`` puis ``skip('…')`` est la forme appelée du même
+    saut : sans elle, la branche « nom nu » de la règle d'appel n'aurait aucun
+    cas qui la traverse, et sa suppression passerait inaperçue.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "from pytest import skip\n\n\n"
+        "def test_calcul() -> None:\n"
+        "    skip('indisponible')\n"
+        "    assert calculer() == 1\n",
+    )
+    assert "NEW_SKIP_OR_XFAIL" in _codes(_scanner(repo))
+
+
+def test_refuse_une_marque_de_saut_importee_directement_de_pytest(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la marque elle-même importée porte le saut sans passer par pytest."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "from pytest import mark\n\n\n"
+        "@mark.xfail\n"
+        "def test_calcul() -> None:\n"
+        "    assert calculer() == 1\n",
+    )
+    assert "NEW_SKIP_OR_XFAIL" in _codes(_scanner(repo))
+
+
+def test_accepte_une_marque_homonyme_importee_dun_module_metier(
+    tmp_path: Path,
+) -> None:
+    """Prouve que ``mark`` n'est une marque pytest que si son import le prouve."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "from mon_module import mark\n\n\n"
+        "@mark.xfail\n"
+        "def test_calcul() -> None:\n"
+        "    assert calculer() == 1\n",
+    )
+    assert "NEW_SKIP_OR_XFAIL" not in _codes(_scanner(repo))
+
+
+def test_refuse_un_decorateur_de_saut_nu_importe_directement(tmp_path: Path) -> None:
+    """Prouve que la forme décorateur non appelée est jugée comme la forme appelée."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "from unittest import skip\n\n\n"
+        "@skip\n"
+        "def test_calcul() -> None:\n"
+        "    assert calculer() == 1\n",
+    )
+    assert "NEW_SKIP_OR_XFAIL" in _codes(_scanner(repo))
+
+
+def test_refuse_un_saut_sous_alias_de_module_unittest(tmp_path: Path) -> None:
+    """Prouve que l'alias du module unittest est résolu comme celui de pytest."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "import unittest as ut\n\n\n"
+        "@ut.skipIf(True, 'indisponible')\n"
+        "def test_calcul() -> None:\n"
+        "    assert calculer() == 1\n",
+    )
+    assert "NEW_SKIP_OR_XFAIL" in _codes(_scanner(repo))
+
+
+def test_accepte_un_saut_homonyme_sur_un_module_metier(tmp_path: Path) -> None:
+    """Prouve que l'origine de l'alias doit être PROUVÉE par un import de pytest.
+
+    Un module métier importé sous un nom quelconque ne saute rien : le signaler
+    serait un faux positif que la règle par alias ne doit jamais introduire.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "import mon_module as p\n\n\n"
+        "def test_calcul() -> None:\n"
+        "    p.skip('etape')\n"
+        "    assert calculer() == 1\n",
+    )
+    assert "NEW_SKIP_OR_XFAIL" not in _codes(_scanner(repo))
+
+
+def test_accepte_une_methode_skip_portee_par_self(tmp_path: Path) -> None:
+    """Prouve qu'une méthode d'instance homonyme n'est jamais confondue avec un saut."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "import pytest as p\n\n\n"
+        "class TestGroupe:\n"
+        "    def test_calcul(self) -> None:\n"
+        "        self.skip('etape')\n"
+        "        assert calculer() == 1\n",
+    )
+    assert "NEW_SKIP_OR_XFAIL" not in _codes(_scanner(repo))
+
+
+def test_accepte_un_decorateur_skip_importe_dun_module_metier(tmp_path: Path) -> None:
+    """Prouve que le nom nu n'est un saut que si son import vient de pytest ou unittest."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "from mon_module import skip\n\n\n"
+        "@skip('etape')\n"
+        "def test_calcul() -> None:\n"
+        "    assert calculer() == 1\n",
+    )
+    assert "NEW_SKIP_OR_XFAIL" not in _codes(_scanner(repo))
