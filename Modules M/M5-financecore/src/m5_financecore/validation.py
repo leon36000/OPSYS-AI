@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 from . import contrats
 
 
@@ -48,6 +50,9 @@ def valider_mouvement(mouvement):
 
     montant = mouvement["montant"]
     if isinstance(montant, bool) or not isinstance(montant, (int, float)):
+        return False, construire_verdict("REJ-MOUVEMENT-MONTANT-INVALIDE")
+
+    if isinstance(montant, float) and not math.isfinite(montant):
         return False, construire_verdict("REJ-MOUVEMENT-MONTANT-INVALIDE")
 
     for champ in _CHAMPS_TEXTE_MOUVEMENT:
