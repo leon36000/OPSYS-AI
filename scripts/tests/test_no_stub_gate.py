@@ -1127,3 +1127,276 @@ def test_accepte_un_protocol_importe_non_reaffecte(tmp_path: Path) -> None:
     )
 
     assert "EXECUTABLE_ELLIPSIS" not in _codes(_scanner(repo))
+
+
+def test_refuse_protocol_ecrase_par_une_classe_module(tmp_path: Path) -> None:
+    """Prouve qu'une classe module-level homonyme retire la preuve de typing.Protocol."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "src/a.py",
+        "from typing import Protocol\n\n"
+        "class Protocol:\n"
+        "    valeur = 1\n\n"
+        "class Depot(Protocol):\n"
+        "    def lire(self) -> str:\n"
+        "        ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_protocol_ecrase_par_une_fonction_module(tmp_path: Path) -> None:
+    """Prouve qu'une fonction module-level homonyme retire aussi l'exemption Protocol."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "src/a.py",
+        "from typing import Protocol\n\n"
+        "def Protocol() -> object:\n"
+        "    return object\n\n"
+        "class Depot(Protocol):\n"
+        "    def lire(self) -> str:\n"
+        "        ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_accepte_protocol_importe_sans_ecrasement_module(tmp_path: Path) -> None:
+    """Prouve que l'exemption reste ouverte lorsque l'alias typing.Protocol est intact."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "src/a.py",
+        "from typing import Protocol\n\n"
+        "class X(Protocol):\n"
+        "    def lire(self) -> str:\n"
+        "        ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" not in _codes(_scanner(repo))
+
+
+def test_refuse_protocol_importe_localement_dans_une_fonction(tmp_path: Path) -> None:
+    """Prouve qu'un import local ne fournit jamais une exemption globale non prouvée."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "src/b.py",
+        "def fabriquer() -> object:\n"
+        "    from typing import Protocol\n"
+        "    return Protocol\n\n"
+        "class Depot(Protocol):\n"
+        "    def lire(self) -> str:\n"
+        "        ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_repli_echo_apres_or_dans_un_job_requis(tmp_path: Path) -> None:
+    """Prouve qu'un echo après || absorbe l'échec du contrôle requis."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/a.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        '      - run: verif || echo "gate en echec"\n',
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_accepte_repli_exit_un_apres_or_dans_un_job_requis(tmp_path: Path) -> None:
+    """Prouve que exit 1 propage l'échec au lieu de le transformer en succès."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/b.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: verif || exit 1\n",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
+def test_refuse_repli_printf_apres_or_dans_un_job_requis(tmp_path: Path) -> None:
+    """Prouve qu'un printf après || absorbe également l'échec du contrôle requis."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/printf.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        '      - run: verif || printf "echec"\n',
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_repli_deux_points_apres_or_dans_un_job_requis(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le builtin : après || force un succès interdit."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/colon.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: 'verif || :'\n",  # quoté : `|| :` non quoté rend le YAML invalide
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_accepte_repli_false_apres_or_dans_un_job_requis(tmp_path: Path) -> None:
+    """Prouve que false après || conserve un échec visible pour le job requis."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/false.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: verif || false\n",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
+def test_accepte_motif_de_succes_force_uniquement_dans_un_commentaire_shell(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un commentaire shell ne déclenche pas de détection de code dangereux."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/c.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        '      - run: "# ne pas utiliser || true"\n',  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
+def test_refuse_succes_force_avant_un_commentaire_shell(tmp_path: Path) -> None:
+    """Prouve que le commentaire après || true ne masque pas le code déjà exécuté."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/commentaire.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: verif || true  # justification\n",  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_succes_force_apres_diese_dans_une_chaine_shell(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un # littéral entre quotes ne commence pas un commentaire shell."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/couleur.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        '      - run: \'echo "couleur #ff0000" && verif || true\'\n',  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_accepte_exit_zero_dans_un_if_shell_sur_une_ligne(tmp_path: Path) -> None:
+    """Prouve qu'un exit 0 protégé par if sur une ligne n'est pas un succès forcé nu."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/d.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: if true; then exit 0; fi\n",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
+def test_refuse_exit_zero_nu_dans_un_job_requis(tmp_path: Path) -> None:
+    """Prouve qu'un exit 0 sans garde conditionnelle force toujours un succès interdit."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/exit.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: exit 0\n",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_workflow_yaml_a_racine_liste(tmp_path: Path) -> None:
+    """Prouve qu'une racine YAML liste ne peut pas être analysée comme un workflow."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(repo, ".github/workflows/e.yml", "- jobs\n- gates\n")
+
+    assert "FICHIER_NON_ANALYSABLE" in _codes(_scanner(repo))
+
+
+def test_refuse_workflow_avec_jobs_texte(tmp_path: Path) -> None:
+    """Prouve que jobs doit être un mapping pour établir les protections requises."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(repo, ".github/workflows/f.yml", 'jobs: "texte"\n')
+
+    assert "FICHIER_NON_ANALYSABLE" in _codes(_scanner(repo))
+
+
+def test_accepte_workflow_sans_cle_jobs(tmp_path: Path) -> None:
+    """Prouve qu'un document YAML sans jobs ne produit pas de faux positif structurel."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(repo, ".github/workflows/g.yml", "name: information\non: push\n")
+
+    assert "FICHIER_NON_ANALYSABLE" not in _codes(_scanner(repo))

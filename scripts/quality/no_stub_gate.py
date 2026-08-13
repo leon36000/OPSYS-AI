@@ -41,10 +41,13 @@ _IDENTIFIANT_REGLE_OPTIONNEL: Final[re.Pattern[str]] = re.compile(
 _EXIT_ZERO: Final[re.Pattern[str]] = re.compile(
     r"(?:^|[;|&()\s])exit\s+0(?=$|[^A-Za-z0-9_])"
 )
-_IF_SHELL: Final[re.Pattern[str]] = re.compile(r"^\s*if\b.*\bthen\s*$")
-_CASE_SHELL: Final[re.Pattern[str]] = re.compile(r"^\s*case\b.*\bin\s*$")
-_FIN_IF_SHELL: Final[re.Pattern[str]] = re.compile(r"^\s*fi\s*;?\s*$")
-_FIN_CASE_SHELL: Final[re.Pattern[str]] = re.compile(r"^\s*esac\s*;?\s*$")
+_IF_SHELL: Final[re.Pattern[str]] = re.compile(r"^\s*if\b.*\bthen\b")
+_CASE_SHELL: Final[re.Pattern[str]] = re.compile(r"^\s*case\b.*\bin\b")
+_FIN_IF_SHELL: Final[re.Pattern[str]] = re.compile(r"\bfi\s*;?\s*$")
+_FIN_CASE_SHELL: Final[re.Pattern[str]] = re.compile(r"\besac\s*;?\s*$")
+_FALLBACK_SHELL: Final[re.Pattern[str]] = re.compile(
+    r"\|\|\s*(?P<command>true|:|echo\b|printf\b|exit\s+0(?=$|[^A-Za-z0-9_]))"
+)
 _MAX_ACTION_DEPTH: Final[int] = 5
 _VALEURS_VRAIES_YAML: Final[frozenset[str]] = frozenset(
     {"true", "yes", "on", "y", "1"}
@@ -168,24 +171,47 @@ def _corps_utile(corps: list[ast.stmt]) -> list[ast.stmt]:
     return corps[1:] if corps and _est_docstring(corps[0]) else corps
 
 
+def _noms_lies_cible(noeud: ast.expr) -> set[str]:
+    """Extrait tous les noms liés par une cible simple, destructurée ou étoilée."""
+    if isinstance(noeud, ast.Name):
+        return {noeud.id}
+    if isinstance(noeud, (ast.Tuple, ast.List)):
+        return set().union(*(_noms_lies_cible(element) for element in noeud.elts))
+    if isinstance(noeud, ast.Starred):
+        return _noms_lies_cible(noeud.value)
+    return set()
+
+
 def _noms_cibles_affectation(noeud: ast.stmt) -> set[str]:
-    """Extrait les noms réaffectés directement au niveau module, forme exploitable simple."""
-    cibles: list[ast.expr] = []
+    """Extrait les noms que toute liaison module-level peut réaffecter."""
     if isinstance(noeud, ast.Assign):
-        cibles = noeud.targets
-    elif isinstance(noeud, ast.AnnAssign):
-        cibles = [noeud.target]
-    else:
-        return set()
-    return {cible.id for cible in cibles if isinstance(cible, ast.Name)}
+        return set().union(*(_noms_lies_cible(cible) for cible in noeud.targets))
+    if isinstance(noeud, ast.AnnAssign):
+        return _noms_lies_cible(noeud.target)
+    if isinstance(noeud, (ast.For, ast.AsyncFor)):
+        return _noms_lies_cible(noeud.target)
+    if isinstance(noeud, (ast.With, ast.AsyncWith)):
+        return set().union(
+            *(
+                _noms_lies_cible(element.optional_vars)
+                for element in noeud.items
+                if element.optional_vars is not None
+            )
+        )
+    if isinstance(noeud, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+        return {noeud.name}
+    return set()
 
 
-def _analyser_imports(arbre: ast.Module) -> _AliasesImports:
-    """Prouve les imports standards et retire les alias réaffectés au niveau module.
+def _imports_module(
+    corps: list[ast.stmt],
+) -> tuple[set[str], set[str], set[str], set[str], set[str]]:
+    """Collecte les imports qui lient réellement le namespace du module.
 
-    Une affectation directe ultérieure rend l'origine importée non prouvable :
-    l'exemption est donc retirée fail-closed. Les réaffectations conditionnelles,
-    locales ou indirectes restent hors périmètre de cette analyse syntaxique.
+    Les blocs module-level, notamment ``if TYPE_CHECKING:``, conservent leurs
+    imports car ils lient syntaxiquement le module. Les corps de fonctions et
+    méthodes ne sont jamais parcourus afin qu'un import local ne crée pas une
+    exemption globale non prouvée.
     """
     protocols: set[str] = set()
     modules_typing: set[str] = set()
@@ -193,32 +219,72 @@ def _analyser_imports(arbre: ast.Module) -> _AliasesImports:
     modules_abc: set[str] = set()
     not_implemented_errors: set[str] = set()
 
-    for noeud in ast.walk(arbre):
-        if isinstance(noeud, ast.Import):
-            for alias in noeud.names:
-                if alias.name == "typing":
-                    modules_typing.add(alias.asname or "typing")
-                elif alias.name == "abc":
-                    modules_abc.add(alias.asname or "abc")
-        elif isinstance(noeud, ast.ImportFrom):
-            if noeud.module == "typing":
-                protocols.update(
-                    alias.asname or "Protocol"
-                    for alias in noeud.names
-                    if alias.name == "Protocol"
-                )
-            elif noeud.module == "abc":
-                abstractmethods.update(
-                    alias.asname or "abstractmethod"
-                    for alias in noeud.names
-                    if alias.name == "abstractmethod"
-                )
-            elif noeud.module == "builtins":
-                not_implemented_errors.update(
-                    alias.asname or alias.name
-                    for alias in noeud.names
-                    if alias.name in {"NotImplementedError", "NotImplemented"}  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet
-                )
+    def visiter(instructions: list[ast.stmt]) -> None:
+        for noeud in instructions:
+            if isinstance(noeud, ast.Import):
+                for alias in noeud.names:
+                    if alias.name == "typing":
+                        modules_typing.add(alias.asname or "typing")
+                    elif alias.name == "abc":
+                        modules_abc.add(alias.asname or "abc")
+            elif isinstance(noeud, ast.ImportFrom):
+                if noeud.module == "typing":
+                    protocols.update(
+                        alias.asname or "Protocol"
+                        for alias in noeud.names
+                        if alias.name == "Protocol"
+                    )
+                elif noeud.module == "abc":
+                    abstractmethods.update(
+                        alias.asname or "abstractmethod"
+                        for alias in noeud.names
+                        if alias.name == "abstractmethod"
+                    )
+                elif noeud.module == "builtins":
+                    not_implemented_errors.update(
+                        alias.asname or alias.name
+                        for alias in noeud.names
+                        if alias.name in {"NotImplementedError", "NotImplemented"}  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet
+                    )
+            elif isinstance(noeud, (ast.If, ast.For, ast.AsyncFor, ast.While)):
+                visiter(noeud.body)
+                visiter(noeud.orelse)
+            elif isinstance(noeud, (ast.With, ast.AsyncWith)):
+                visiter(noeud.body)
+            elif isinstance(noeud, ast.Try):
+                visiter(noeud.body)
+                visiter(noeud.orelse)
+                visiter(noeud.finalbody)
+                for gestionnaire in noeud.handlers:
+                    visiter(gestionnaire.body)
+            elif isinstance(noeud, ast.Match):
+                for cas in noeud.cases:
+                    visiter(cas.body)
+
+    visiter(corps)
+    return (
+        protocols,
+        modules_typing,
+        abstractmethods,
+        modules_abc,
+        not_implemented_errors,
+    )
+
+
+def _analyser_imports(arbre: ast.Module) -> _AliasesImports:
+    """Prouve les imports module-level et retire toute liaison qui les écrase.
+
+    Toute définition, affectation, cible de boucle ou cible de contexte au niveau
+    module retire l'alias. Cette règle fail-closed empêche une exemption lorsque
+    l'origine standard du nom n'est plus certaine.
+    """
+    (
+        protocols,
+        modules_typing,
+        abstractmethods,
+        modules_abc,
+        not_implemented_errors,
+    ) = _imports_module(arbre.body)
 
     for noeud in arbre.body:
         reassignees = _noms_cibles_affectation(noeud)
@@ -286,7 +352,7 @@ def _est_exception_non_implementee(noeud: ast.expr, aliases: _AliasesImports) ->
     ) or (
         isinstance(cible, ast.Attribute)
         and cible.attr
-        == "NotImplementedError"  # proof:allow — fixture/constante du gate NO-STUB : ce motif EST le sujet du test
+        == "NotImplementedError"  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet du test
     )
 
 
@@ -943,11 +1009,26 @@ def _analyser_fichier_python(
     return violations
 
 
+def _type_yaml(valeur: object) -> str:
+    """Décrit le type YAML effectif pour expliquer pourquoi la preuve a échoué."""
+    if valeur is None:
+        return "null"
+    if isinstance(valeur, bool):
+        return "booléen"
+    if isinstance(valeur, str):
+        return "chaîne"
+    if isinstance(valeur, list):
+        return "liste"
+    if isinstance(valeur, Mapping):
+        return "mapping"
+    return type(valeur).__name__
+
+
 def _charger_yaml(
     repo: Path,
     fichier: Path,
 ) -> tuple[Mapping[object, object] | None, list[Violation]]:
-    """Charge YAML avec PyYAML afin de respecter sa sémantique réelle."""
+    """Charge YAML et refuse une racine qui ne permet pas une analyse structurée."""
     try:
         contenu = fichier.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as erreur:
@@ -977,45 +1058,57 @@ def _charger_yaml(
     if document is None:
         return {}, []
     if not isinstance(document, Mapping):
-        return None, []
+        return None, [
+            _violation(
+                "FICHIER_NON_ANALYSABLE",
+                repo,
+                fichier,
+                1,
+                "la racine YAML doit être un mapping, "
+                f"mais {_type_yaml(document)} a été trouvé",
+            )
+        ]
     return document, []
 
 
 def _neutraliser_chaines_shell(commande: str) -> str:
-    """Neutralise le contenu des quotes shell en préservant lignes et positions.
+    """Neutralise quotes et commentaires afin de ne prouver que le code shell.
 
-    Les quotes simples sont closes par la quote suivante. Dans les quotes doubles,
-    un antislash consomme la paire échappée avant toute recherche de fermeture.
-    Un texte non fermé reste neutralisé jusqu'à la fin : il ne constitue pas du
-    code shell exploitable pour forcer un succès.
+    Les positions et retours à la ligne sont conservés. Un ``#`` n'ouvre un
+    commentaire qu'après le traitement des quotes, ce qui préserve notamment les
+    couleurs et autres données littérales contenant ce caractère.
     """
     neutre: list[str] = []
     i = 0
     n = len(commande)
     while i < n:
         caractere = commande[i]
-        if caractere not in {"'", '"'}:
-            neutre.append(caractere)
+        if caractere in {"'", '"'}:
+            quote = caractere
+            neutre.append(quote)
             i += 1
-            continue
-
-        quote = caractere
-        neutre.append(quote)
-        i += 1
-        while i < n:
-            courant = commande[i]
-            if quote == '"' and courant == "\\" and i + 1 < n:
-                suivant = commande[i + 1]
-                neutre.append(" ")
-                neutre.append("\n" if suivant == "\n" else " ")
-                i += 2
-                continue
-            if courant == quote:
-                neutre.append(quote)
+            while i < n:
+                courant = commande[i]
+                if quote == '"' and courant == "\\" and i + 1 < n:
+                    suivant = commande[i + 1]
+                    neutre.append(" ")
+                    neutre.append("\n" if suivant == "\n" else " ")
+                    i += 2
+                    continue
+                if courant == quote:
+                    neutre.append(quote)
+                    i += 1
+                    break
+                neutre.append("\n" if courant == "\n" else " ")
                 i += 1
-                break
-            neutre.append("\n" if courant == "\n" else " ")
-            i += 1
+            continue
+        if caractere == "#":
+            while i < n and commande[i] != "\n":
+                neutre.append(" ")
+                i += 1
+            continue
+        neutre.append(caractere)
+        i += 1
     return "".join(neutre)
 
 
@@ -1024,26 +1117,46 @@ def _normaliser_commande(commande: str) -> str:
     return re.sub(r"\s+", "", _neutraliser_chaines_shell(commande))
 
 
+def _commande_repli_succes(commande: str) -> str | None:
+    """Prouve qu'une branche ``||`` se termine inconditionnellement avec succès."""
+    correspondance = _FALLBACK_SHELL.search(_neutraliser_chaines_shell(commande))
+    if correspondance is None:
+        return None
+    commande_repli = correspondance.group("command")
+    if commande_repli.startswith("echo"):
+        return "echo"
+    if commande_repli.startswith("printf"):
+        return "printf"
+    if commande_repli.startswith("exit"):
+        return "exit 0"
+    return commande_repli
+
+
 def _contient_succes_force(commande: str) -> bool:
-    """Détecte les neutralisations shell hors chaînes littérales uniquement."""
+    """Détecte les neutralisations shell hors chaînes et commentaires littéraux."""
     compacte = _normaliser_commande(commande)
     return (
         "||true" in compacte
         or "||:" in compacte
         or "||exit0" in compacte
         or ";true" in compacte
+        or _commande_repli_succes(commande) is not None
     )
 
 
 def _contient_exit_zero_non_garde(commande: str) -> bool:
-    """Détecte exit 0 hors quotes, sauf dans une branche shell conditionnelle connue."""
+    """Distingue les ``exit 0`` nus des branches conditionnelles shell prouvées."""
     profondeur_conditionnelle = 0
     for ligne in _neutraliser_chaines_shell(commande).splitlines() or [commande]:
-        if _IF_SHELL.match(ligne) or _CASE_SHELL.match(ligne):
+        ouvre_if = _IF_SHELL.match(ligne) is not None
+        ouvre_case = _CASE_SHELL.match(ligne) is not None
+        ferme_if = _FIN_IF_SHELL.search(ligne) is not None
+        ferme_case = _FIN_CASE_SHELL.search(ligne) is not None
+        if ouvre_if or ouvre_case:
             profondeur_conditionnelle += 1
         if profondeur_conditionnelle == 0 and _EXIT_ZERO.search(ligne) is not None:
             return True
-        if _FIN_IF_SHELL.match(ligne) or _FIN_CASE_SHELL.match(ligne):
+        if ferme_if or ferme_case:
             profondeur_conditionnelle = max(0, profondeur_conditionnelle - 1)
     return False
 
@@ -1053,14 +1166,18 @@ def _violation_succes_force(
     fichier: Path,
     ligne: int,
     job: str,
+    commande_repli: str | None = None,
 ) -> Violation:
     """Construit la violation commune aux commandes de job et action composite."""
+    detail = f"le job requis {job} force un succès shell"
+    if commande_repli is not None:
+        detail += f" avec la commande de repli {commande_repli}"
     return _violation(
         "REQUIRED_JOB_FORCED_SUCCESS",
         repo,
         fichier,
         ligne,
-        f"le job requis {job} force un succès shell",
+        detail,
     )
 
 
@@ -1070,9 +1187,12 @@ def _analyser_commande(
     commande: object,
     job: str,
 ) -> list[Violation]:
-    """Analyse une commande YAML complète, blocs littéraux inclus."""
+    """Refuse les commandes qui absorbent l'échec d'un contrôle requis."""
     if not isinstance(commande, str):
         return []
+    commande_repli = _commande_repli_succes(commande)
+    if commande_repli is not None:
+        return [_violation_succes_force(repo, fichier, 1, job, commande_repli)]
     if _contient_succes_force(commande) or _contient_exit_zero_non_garde(commande):
         return [_violation_succes_force(repo, fichier, 1, job)]
     return []
@@ -1111,13 +1231,7 @@ def _analyser_continue_on_error(
 
 
 def _condition_requise_acceptee(valeur: object) -> bool:
-    """Accepte uniquement always() et success(), garanties sans dépendance métier.
-
-    Ces deux formes sont les conditions GitHub Actions explicites qui préservent
-    l'exécution du job requis dans le flux attendu. Toute autre expression,
-    dynamique ou littéralement fausse, dépend de données d'exécution et ne
-    prouve plus que le contrôle obligatoire a été exécuté.
-    """
+    """Accepte uniquement always() et success(), garanties sans dépendance métier."""
     if not isinstance(valeur, str):
         return False
     condition = valeur.strip()
@@ -1237,13 +1351,26 @@ def _analyser_workflow(
     fichier: Path,
     jobs_requis: tuple[str, ...],
 ) -> list[Violation]:
-    """Analyse un workflow selon son arbre PyYAML plutôt que son indentation."""
+    """Analyse un workflow et refuse les structures empêchant la preuve des jobs."""
     document, violations = _charger_yaml(repo, fichier)
     if document is None:
         return violations
 
-    jobs = document.get("jobs")
+    if "jobs" not in document:
+        return violations
+
+    jobs = document["jobs"]
     if not isinstance(jobs, Mapping):
+        violations.append(
+            _violation(
+                "FICHIER_NON_ANALYSABLE",
+                repo,
+                fichier,
+                1,
+                "la clé workflow jobs doit être un mapping, "
+                f"mais {_type_yaml(jobs)} a été trouvé",
+            )
+        )
         return violations
 
     for identifiant, definition in jobs.items():
@@ -1339,12 +1466,7 @@ def _violations_scopes_incomplets(
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Exécute le gate avec les racines contractuelles par défaut sûr.
-
-    Sans --scope, toutes les racines du contrat sont analysées. Avec --scope,
-    chacune des racines contractuelles doit rester présente : un sous-périmètre
-    silencieux ne peut pas constituer une preuve de qualité.
-    """
+    """Exécute le gate avec les racines contractuelles par défaut sûr."""
     parser = argparse.ArgumentParser(description="Détecte les stubs et dettes qualité.")
     parser.add_argument("--repo", type=Path, default=Path.cwd())
     parser.add_argument("--base-ref", default="HEAD")
@@ -1375,4 +1497,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

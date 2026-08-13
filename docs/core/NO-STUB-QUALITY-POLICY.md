@@ -74,3 +74,79 @@ Une réaffectation directe au niveau module d'un alias importé retire cet alias
 la table de preuve. Le gate ne tente pas de résoudre les réaffectations
 conditionnelles, locales ou indirectes (`globals()`), qui nécessiteraient une
 analyse de flot de données complète.
+
+## Liaisons de noms : ce qui fait tomber une exemption
+
+Une exemption `Protocol` / `@abstractmethod` repose sur la table des alias
+d'import. Cette table n'est fiable que si elle suit les REDÉFINITIONS.
+
+Toute liaison de niveau module qui écrase un nom importé le retire de la table —
+`Assign`, `AnnAssign`, `ClassDef`, `FunctionDef`, `AsyncFunctionDef`, et les
+cibles de `for` / `with`. Fail-closed : au moindre doute, l'exemption tombe.
+
+```python
+from typing import Protocol
+
+class Protocol:            # écrase l'import -> l'exemption ne s'applique plus
+    ...
+
+class X(Protocol):
+    def f(self): ...       # correctement signalé
+```
+
+Les imports LOCAUX à une fonction n'alimentent pas la table utilisée pour juger
+les classes de niveau module : ils ne lient pas le nom global. Un
+`from typing import Protocol` sous `if TYPE_CHECKING:` continue en revanche de
+l'alimenter — c'est un bloc, pas une fonction, et c'est l'idiome standard.
+
+**Limite nommée** : une réaffectation hors niveau module (conditionnelle, dans
+une fonction, via `globals()`) n'est pas suivie. La fermer exigerait une analyse
+de flot de données.
+
+## Succès forcé : ce qui compte comme repli
+
+Après un `||`, toute commande qui réussit inconditionnellement neutralise
+l'échec du job requis. `true`, `:`, `echo …`, `printf …`, `exit 0` sont donc
+traités comme des replis interdits — le détail de la violation NOMME la commande
+détectée.
+
+Ce n'est pas cosmétique : `gate.py || echo "en échec"` fait passer le step au
+vert avec le code de retour du `echo`, alors que le gate a échoué.
+
+`|| exit 1` et `|| false` restent tolérés : ils propagent l'échec.
+
+## Neutralisation shell : l'ordre compte
+
+Avant toute recherche de motif, les chaînes littérales PUIS les commentaires
+sont neutralisés, en préservant longueurs et positions (les numéros de ligne
+restent justes).
+
+L'ordre est ce qui rend la règle correcte dans les deux sens :
+
+| Commande | Verdict | Pourquoi |
+|---|---|---|
+| `# ne pas utiliser \|\| true` | aucune violation | le motif est dans un commentaire, jamais exécuté |
+| `echo "couleur #ff0000" && verif \|\| true` | violation | le `#` est DANS une chaîne : il n'ouvre pas de commentaire, et le `\|\| true` qui suit est bien du code |
+| `verif \|\| true  # justification` | violation | le motif précède le commentaire |
+
+## Workflows : fail-closed sur structure inattendue
+
+Un fichier de `.github/workflows/` dont la racine n'est pas un mapping, ou dont
+`jobs` est présent mais d'un type inattendu, est une violation : le gate ne peut
+pas analyser les jobs requis et ne doit pas réussir en silence.
+
+Distinction préservée : un fichier SANS clé `jobs` du tout (configuration
+d'action, par exemple) n'est pas signalé.
+
+## Piège de fixture rencontré, documenté pour les suivants
+
+Deux fixtures de test écrites en YAML brut se sont révélées fausses, pas le gate :
+
+- `run: verif || :` rend le YAML **invalide** (`ScannerError`). Le gate rendait
+  correctement `FICHIER_NON_ANALYSABLE` — son fail-closed fonctionnait.
+- `run: echo "couleur #ff0000" && …` : un ` #` non quoté ouvre un **commentaire
+  YAML** qui avale la fin de la ligne. PyYAML rend `echo "couleur`.
+
+Toute fixture de workflow contenant `:`, `#` ou `|` dans une commande doit être
+QUOTÉE. Diagnostiquer avant de conclure qu'un test rouge accuse le code.
+
