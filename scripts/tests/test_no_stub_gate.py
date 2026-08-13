@@ -1342,6 +1342,82 @@ def test_refuse_succes_force_apres_diese_dans_une_chaine_shell(
     assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
 
 
+def test_refuse_un_succes_force_apres_un_diese_colle_a_un_mot(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un # collé à un mot reste un caractère ordinaire du shell, jamais l'ouverture d'un commentaire."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/mot.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        '      - run: "python3 gate.py x#note || true"\n',  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_succes_force_apres_le_parametre_special_nombre_darguments(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le # de $# ne coupe pas la ligne : la borne est le caractère précédent, pas la seule classe des lettres."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/arguments.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        '      - run: "python3 gate.py $# || true"\n',  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_accepte_un_repli_cite_dans_un_commentaire_shell_ouvert_apres_un_espace(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le commentaire ouvert en milieu de ligne après un espace neutralise toujours sa fin de ligne."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/espace.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        '      - run: "gate.py  # commentaire avec || true dedans"\n',  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
+def test_accepte_un_repli_cite_dans_un_commentaire_ouvert_apres_un_point_virgule(
+    tmp_path: Path,
+) -> None:
+    """Prouve que les séparateurs de commandes ouvrent aussi un mot, donc un commentaire, exactement comme le shell."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/separateur.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        '      - run: "gate.py;# commentaire avec || true dedans"\n',  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
 def test_accepte_exit_zero_dans_un_if_shell_sur_une_ligne(tmp_path: Path) -> None:
     """Prouve qu'un exit 0 protégé par if sur une ligne n'est pas un succès forcé nu."""
     repo = _depot_git_initialise(tmp_path)
@@ -1897,6 +1973,154 @@ def test_accepte_un_job_non_requis_dont_la_liste_detapes_est_vide(
         repo,
         ".github/workflows/aa.yml",
         "jobs: {rapport-optionnel: {runs-on: ubuntu-latest, steps: []}}\n",
+    )
+
+    assert "REQUIRED_JOB_SANS_ETAPE" not in _codes(_scanner(repo))
+
+
+def _job_requis_delegue(repo: Path, reference: str = "./.github/actions/controle") -> None:
+    """Écrit un job requis dont la seule étape délègue à une action locale."""
+    _ecrire(
+        repo,
+        ".github/workflows/delegation.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        f"      - uses: {reference}\n",
+    )
+
+
+def test_refuse_une_action_composite_locale_sans_aucune_etape(tmp_path: Path) -> None:
+    """Prouve qu'un job requis délégant à une action composite vide n'exécute rien, comme un job requis sans étape."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _job_requis_delegue(repo)
+    _ecrire(
+        repo,
+        ".github/actions/controle/action.yml",
+        "runs:\n  using: composite\n  steps: []\n",
+    )
+
+    assert "REQUIRED_JOB_SANS_ETAPE" in _codes(_scanner(repo))
+
+
+def test_refuse_une_action_composite_locale_aux_etapes_decoratives(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'une étape d'action composite réduite à un name n'exécute aucun contrôle."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _job_requis_delegue(repo)
+    _ecrire(
+        repo,
+        ".github/actions/controle/action.yml",
+        "runs:\n  using: composite\n  steps:\n    - name: decor\n",
+    )
+
+    assert "REQUIRED_JOB_SANS_ETAPE" in _codes(_scanner(repo))
+
+
+def test_refuse_une_action_composite_locale_depourvue_de_cle_steps(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'une action composite sans steps du tout tombe sous la même exigence que la liste vide."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _job_requis_delegue(repo)
+    _ecrire(
+        repo,
+        ".github/actions/controle/action.yml",
+        "runs:\n  using: composite\n",
+    )
+
+    assert "REQUIRED_JOB_SANS_ETAPE" in _codes(_scanner(repo))
+
+
+def test_accepte_une_action_composite_locale_avec_une_etape_reelle(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'exigence d'étape effective ne signale pas l'action composite qui exécute réellement un contrôle."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _job_requis_delegue(repo)
+    _ecrire(
+        repo,
+        ".github/actions/controle/action.yml",
+        "runs:\n  using: composite\n  steps:\n    - run: verif\n",
+    )
+
+    assert "REQUIRED_JOB_SANS_ETAPE" not in _codes(_scanner(repo))
+
+
+def test_accepte_une_action_composite_qui_delegue_a_une_action_locale_reelle(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un uses vers une autre action locale compte comme étape effective, la profondeur restant suivie."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _job_requis_delegue(repo, "./.github/actions/A")
+    _ecrire(
+        repo,
+        ".github/actions/A/action.yml",
+        "runs:\n  using: composite\n  steps:\n    - uses: ./.github/actions/B\n",
+    )
+    _ecrire(
+        repo,
+        ".github/actions/B/action.yml",
+        "runs:\n  using: composite\n  steps:\n    - run: verif\n",
+    )
+
+    assert "REQUIRED_JOB_SANS_ETAPE" not in _codes(_scanner(repo))
+
+
+def test_accepte_une_action_locale_javascript_sans_steps(tmp_path: Path) -> None:
+    """Prouve qu'une action node20 est valide sans steps et n'est pas confondue avec une composite vide."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _job_requis_delegue(repo)
+    _ecrire(
+        repo,
+        ".github/actions/controle/action.yml",
+        "runs:\n  using: node20\n  main: index.js\n",
+    )
+
+    assert "REQUIRED_JOB_SANS_ETAPE" not in _codes(_scanner(repo))
+
+
+def test_accepte_une_action_locale_docker_sans_steps(tmp_path: Path) -> None:
+    """Prouve que l'action docker, elle aussi dépourvue de steps par nature, reste acceptée."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _job_requis_delegue(repo)
+    _ecrire(
+        repo,
+        ".github/actions/controle/action.yml",
+        "runs:\n  using: docker\n  image: Dockerfile\n",
+    )
+
+    assert "REQUIRED_JOB_SANS_ETAPE" not in _codes(_scanner(repo))
+
+
+def test_accepte_une_action_composite_vide_appelee_par_un_job_non_requis(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'exigence d'étape effective reste bornée aux ids requis du contrat."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/delegation.yml",
+        "jobs:\n"
+        "  rapport-optionnel:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - uses: ./.github/actions/controle\n",
+    )
+    _ecrire(
+        repo,
+        ".github/actions/controle/action.yml",
+        "runs:\n  using: composite\n  steps: []\n",
     )
 
     assert "REQUIRED_JOB_SANS_ETAPE" not in _codes(_scanner(repo))
@@ -3189,3 +3413,139 @@ def test_accepte_un_decorateur_skip_importe_dun_module_metier(tmp_path: Path) ->
         "    assert calculer() == 1\n",
     )
     assert "NEW_SKIP_OR_XFAIL" not in _codes(_scanner(repo))
+
+
+@pytest.mark.parametrize(
+    "declaration",
+    (
+        'argv = ["bandit", "-r", "src"]\n',
+        'configuration.racines = ["src"]\n',
+        'cibles: list[str] = ["src"]\n',
+        'lancer(scopes=["src"])\n',
+        'definir_racines(["src"])\n',
+    ),
+)
+def test_detecte_le_retrait_total_des_racines_dune_declaration_de_perimetre(
+    tmp_path: Path,
+    declaration: str,
+) -> None:
+    """Prouve que vider ENTIÈREMENT le périmètre reste une omission, pas un silence.
+
+    Ne signaler que les périmètres partiels offrait la sortie exactement inverse
+    de l'intention du contrôle : qui veut désarmer le scan retire toutes les
+    racines d'un coup, jamais une seule.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(repo, "core/scripts/run_security_scan.py", declaration)
+
+    assert "SCOPE_ROOT_OMITTED" in _codes(_scanner(repo, ("core/scripts",)))
+
+
+def test_accepte_une_liste_anonyme_de_chaines_dans_un_lanceur(tmp_path: Path) -> None:
+    """Prouve que fermer le retrait total ne juge pas les listes sans contexte de périmètre."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "core/scripts/run_security_scan.py",
+        'MESSAGES = ["analyse terminee", "aucun defaut releve"]\n',
+    )
+
+    assert "SCOPE_ROOT_OMITTED" not in _codes(_scanner(repo, ("core/scripts",)))
+
+
+@pytest.mark.parametrize(
+    "corps",
+    (
+        "    with pt.raises(ValueError):\n        calculer()\n",
+        "    pt.fail('chemin jamais atteint')\n",
+    ),
+)
+def test_accepte_un_oracle_pytest_sous_alias_dimport(
+    tmp_path: Path,
+    corps: str,
+) -> None:
+    """Prouve qu'un oracle pytest renommé à l'import reste un oracle, comme à l'exécution."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "import pytest as pt\n\n\ndef test_calcul() -> None:\n" + corps,
+    )
+
+    assert "TEST_WITHOUT_ORACLE" not in _codes(_scanner(repo))
+
+
+def test_refuse_un_raises_porte_par_un_module_metier_comme_oracle(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'ouverture aux alias n'accepte pas un homonyme dont l'origine n'est pas pytest."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "import mon_module as pt\n\n\n"
+        "def test_calcul() -> None:\n"
+        "    with pt.raises(ValueError):\n"
+        "        calculer()\n",
+    )
+
+    assert "TEST_WITHOUT_ORACLE" in _codes(_scanner(repo))
+
+
+def test_refuse_une_action_locale_introuvable_dans_un_job_requis(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un job requis délégant à une action locale absente n'exécute aucun contrôle."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _job_requis_delegue(repo)
+
+    assert "LOCAL_ACTION_INTROUVABLE" in _codes(_scanner(repo))
+
+
+def test_refuse_une_action_locale_introuvable_appelee_par_une_action_composite(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la référence absente est détectée aussi en cascade sous une action composite."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _job_requis_delegue(repo, "./.github/actions/A")
+    _ecrire(
+        repo,
+        ".github/actions/A/action.yml",
+        "runs:\n  using: composite\n  steps:\n    - uses: ./.github/actions/B\n",
+    )
+
+    assert "LOCAL_ACTION_INTROUVABLE" in _codes(_scanner(repo))
+
+
+def test_accepte_une_action_externe_referencee_par_un_job_requis(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'une action publiée hors du dépôt n'est jamais tenue pour absente."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _job_requis_delegue(repo, "actions/checkout@v4")
+
+    assert "LOCAL_ACTION_INTROUVABLE" not in _codes(_scanner(repo))
+
+
+def test_accepte_une_action_locale_introuvable_dans_un_job_non_requis(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'exigence d'existence reste bornée aux ids requis du contrat."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/delegation.yml",
+        "jobs:\n"
+        "  rapport-optionnel:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - uses: ./.github/actions/inexistante\n",
+    )
+
+    assert "LOCAL_ACTION_INTROUVABLE" not in _codes(_scanner(repo))

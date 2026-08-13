@@ -39,7 +39,10 @@ Le gate refuse notamment :
 - les jobs CI requis conditionnels ou avec `continue-on-error` ;
 - les jobs requis de forme invalide, notamment une définition non mapping ou un
   champ `steps` qui n'est pas une liste ;
-- les jobs requis qui n'exécutent aucune étape ;
+- les jobs requis qui n'exécutent aucune étape, y compris lorsqu'ils délèguent
+  la totalité de leur travail à une action composite locale sans étape ;
+- les jobs requis qui délèguent à une action locale **absente du dépôt**
+  (`LOCAL_ACTION_INTROUVABLE`) ;
 - l'absence globale d'un id déclaré dans `target_required_job_ids`.
 
 Un id requis peut être déclaré dans un workflow différent des autres ids :
@@ -76,6 +79,86 @@ jobs:
   gates:
     uses: ./.github/workflows/reutilisable.yml    # accepté
 ```
+
+### Actions composites locales sans étape
+
+Déléguer à une action locale ne dispense pas de l'exigence : un job requis dont
+la seule étape est `uses: ./.github/actions/…` n'exécute rien de plus que ce que
+l'action exécute. La même règle, et le même code `REQUIRED_JOB_SANS_ETAPE`,
+s'appliquent donc au descripteur de l'action, où la violation est rapportée :
+
+```yaml
+runs: {using: composite, steps: []}                 # refusé — aucune étape
+runs: {using: composite, steps: [{name: decor}]}    # refusé — étape décorative
+runs: {using: composite}                            # refusé — pas même une clé steps
+runs: {using: composite, steps: [{run: verif}]}     # accepté — un contrôle réel
+```
+
+Trois formes restent volontairement hors de cette règle :
+
+- une action composite dont la seule étape est un `uses` vers une **autre**
+  action locale : le `uses` est une étape effective, et l'action appelée est à
+  son tour analysée en profondeur — la cascade est jugée là où elle se termine ;
+- une action `using: node20` ou `using: docker`, qui n'a par nature aucune clé
+  `steps` et n'est donc jamais une composite vide ;
+- une action locale illisible ou introuvable, déjà traitée par les règles de
+  chargement (`FICHIER_NON_ANALYSABLE`) et de résolution
+  (`LOCAL_ACTION_INTROUVABLE`) : la règle d'étape effective ne les double pas.
+
+### Action locale introuvable
+
+Une action locale **référencée mais absente** est un contrôle qui n'existe pas,
+et le job requis qui la délègue reste vert sans avoir rien vérifié — la même
+faille qu'un job sans étape, à ceci près qu'elle survit à toute lecture du
+workflow, qui paraît complet. Le code `LOCAL_ACTION_INTROUVABLE` la refuse ; la
+violation est rapportée dans le fichier **qui porte la référence**, workflow ou
+descripteur d'action, puisque c'est là qu'elle se corrige.
+
+```yaml
+- uses: ./.github/actions/absente     # refusé  — aucun action.yml ni action.yaml
+- uses: ./.github/actions/controle    # accepté — le descripteur existe
+- uses: actions/checkout@v4           # accepté — action externe, hors du dépôt
+```
+
+Une action **externe** n'est jamais tenue pour absente : elle ne vit pas dans le
+dépôt, et son absence locale est la normale. La distinction est portée par le
+préfixe `./`, seul point de décision, et la règle reste bornée aux ids de
+`target_required_job_ids` comme les autres règles de jobs requis.
+
+Le code est délibérément distinct de `FICHIER_NON_ANALYSABLE` : celui-ci
+qualifie un fichier **présent** dont le contenu résiste à l'analyse — lecture,
+encodage, syntaxe — alors qu'ici rien n'a été lu et rien n'a échoué à l'analyse.
+Le défaut est dans la **référence**, comme pour `LOCAL_ACTION_CYCLE` et
+`LOCAL_ACTION_DEPTH_EXCEEDED`, dont il rejoint la famille ; les confondre
+rendrait le message trompeur et la correction ambiguë (créer l'action, ou
+retirer la référence, plutôt que réparer un fichier).
+
+La détection suit la **cascade** : une action composite qui délègue à une action
+locale absente est refusée exactement comme le job qui l'appelle.
+
+## Chaînes et commentaires shell
+
+Toutes les règles shell lisent la commande **après neutralisation** des chaînes
+et des commentaires : un motif écrit entre quotes ou après un `#` est une donnée
+ou un texte, jamais du code exécuté. Cette lecture décide donc de ce que chaque
+règle voit, et un commentaire ouvert trop tôt rend muets tous les contrôles.
+
+Un `#` n'ouvre un commentaire que s'il est en **début de mot**, comme dans un
+shell réel : précédé du début de la commande, d'une espace, d'une tabulation,
+d'un retour à la ligne, ou de l'un des séparateurs `;`, `|`, `&`, `(`, `)`.
+Collé à un mot, c'est un caractère ordinaire :
+
+```sh
+python3 gate.py x#note || true   # refusé  — « x#note » est un mot, le repli s'exécute
+python3 gate.py $# || true       # refusé  — « $# » est le nombre d'arguments
+gate.py  # commentaire || true   # accepté — commentaire réel, sa fin de ligne est morte
+gate.py;# commentaire || true    # accepté — « ; » ouvre un mot, donc un commentaire
+echo "couleur #ff0000" || true   # refusé  — le # entre quotes reste une donnée
+```
+
+Traiter tout `#` comme une ouverture de commentaire effaçait la fin de la ligne :
+`python3 gate.py x#note || true` passait pour un contrôle sans repli, alors qu'il
+force un succès.
 
 ## Groupes de repli après `||`
 
@@ -236,6 +319,76 @@ longue ouvrirait une garde imaginaire et masquerait un contournement réel :
 ```sh
 grep --ignore-case motif fichier; exit 0    # refusé — `case` n'ouvre rien ici
 ```
+
+## Périmètre déclaré des lanceurs
+
+`SCOPE_ROOT_OMITTED` protège les lanceurs `core/scripts/run_*.py` contre le
+rétrécissement silencieux du périmètre défini par `python_roots`. Une collection
+littérale de chaînes est comparée aux racines contractuelles, et toute racine
+manquante est refusée.
+
+Le contrôle ne dépendait autrefois que du **reste** : il exigeait qu'au moins une
+racine survive à côté des manquantes. Cette condition ouvrait la sortie
+exactement inverse de son intention — retirer TOUTES les racines d'un coup
+rendait la règle muette, alors que c'est la façon la plus complète de désarmer un
+scan :
+
+```python
+argv = ["bandit", "-r", "core/src", "core/scripts", "tools/proof"]  # refusé — 1 racine omise
+argv = ["bandit", "-r", "core/src"]                                 # refusé — 3 racines omises
+argv = ["bandit", "-r", "src"]                                      # refusé — toutes omises
+MESSAGES = ["analyse terminee", "aucun defaut releve"]              # accepté — pas un périmètre
+```
+
+Ce qui autorise le jugement d'une collection sans aucune racine survivante n'est
+pas son contenu mais son **contexte**, seul capable de prouver qu'elle déclare un
+périmètre. Sans cette preuve, la moindre liste de messages ou de drapeaux d'un
+lanceur deviendrait un faux positif. Quatre contextes valent preuve :
+
+| Contexte | Exemple |
+|---|---|
+| affectation à un nom de périmètre | `argv = [...]`, `cibles = [...]` |
+| affectation à un attribut de périmètre | `configuration.racines = [...]` |
+| affectation annotée | `cibles: list[str] = [...]` |
+| argument nommé, ou argument d'un appel qui l'annonce | `lancer(scopes=[...])`, `definir_racines([...])` |
+
+Un nom « de périmètre » est reconnu **mot à mot** après découpage sur ses
+séparateurs — `argv`, `cible`, `perimetre`, `racine`, `root`, `scope`, `target`,
+au singulier comme au pluriel — jamais par sous-chaîne, pour qu'un mot qui
+contient ces lettres par hasard ne déclenche rien. `python_roots` et `cibles`
+sont donc des déclarations de périmètre ; `MESSAGES` n'en est pas une.
+
+Limite assumée : une collection **anonyme** dont toutes les racines ont été
+retirées reste non jugée, faute de tout indice de son rôle. La borne est celle du
+nommage, et elle est mesurée — l'auto-scan du dépôt reste à zéro violation, ce
+qui prouve qu'aucun lanceur existant n'est faussement signalé. Conséquence pour
+les contributeurs : dans un `run_*.py`, une commande littérale sans rapport avec
+le périmètre ne doit pas être liée à un nom de périmètre.
+
+Une collection dont tous les éléments ne sont pas des chaînes littérales n'est
+jugée par aucune de ces règles : elle relève des filtres dynamiques, traités par
+`SCOPE_FILTRE_INDECIDABLE`.
+
+## Oracles de test reconnus
+
+`TEST_WITHOUT_ORACLE` exige qu'un test ajouté ou modifié vérifie quelque chose.
+Comptent comme oracles : `assert`, `pytest.raises`, `pytest.fail` et les méthodes
+`assert…` d'`unittest`.
+
+Les **alias d'import** y sont résolus par le même mécanisme que pour les sauts :
+renommer l'import ne change rien à ce que l'oracle vérifie, et refuser un test
+légitime pousse les contributeurs à désarmer le gate.
+
+```python
+import pytest        ->  with pytest.raises(ValueError):   # accepté
+import pytest as pt  ->  with pt.raises(ValueError):       # accepté — alias prouvé
+import pytest as pt  ->  pt.fail('chemin jamais atteint')  # accepté — alias prouvé
+import mon_module    ->  with mon_module.raises(...):      # aucun oracle — origine non prouvée
+```
+
+La qualification par l'origine est conservée en sens inverse : un `raises` porté
+par un module dont l'import ne prouve pas qu'il s'agit de pytest ne vérifie rien
+et ne vaut pas oracle.
 
 ## Absence d'implémentation
 

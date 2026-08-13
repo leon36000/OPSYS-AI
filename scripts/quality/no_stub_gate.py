@@ -123,6 +123,9 @@ _COMMANDE_SET_SHELL: Final[re.Pattern[str]] = re.compile(
 _OPTION_DESARMANT_ERREXIT: Final[re.Pattern[str]] = re.compile(
     r"(?:^|\s)\+(?:[A-Za-z]*e[A-Za-z]*|o\s+errexit)(?=$|\s)"
 )
+_OUVERTURES_DE_MOT_SHELL: Final[frozenset[str]] = frozenset(
+    {" ", "\t", "\n", "\r", ";", "|", "&", "(", ")"}
+)
 _MAX_ACTION_DEPTH: Final[int] = 5
 _VALEURS_VRAIES_YAML: Final[frozenset[str]] = frozenset(
     {"true", "yes", "on", "y", "1"}
@@ -775,29 +778,45 @@ def _est_constante_vraie(expression: ast.expr) -> bool:
     return isinstance(expression, ast.Constant) and bool(expression.value)
 
 
-def _est_appel_pytest(noeud: ast.Call, attribut: str) -> bool:
-    """Reconnaît un appel direct pytest.<attribut> par sa forme syntaxique."""
-    return (
-        isinstance(noeud.func, ast.Attribute)
-        and noeud.func.attr == attribut
-        and isinstance(noeud.func.value, ast.Name)
-        and noeud.func.value.id == "pytest"
+def _est_appel_pytest(
+    noeud: ast.Call,
+    attribut: str,
+    aliases: _AliasesImports,
+) -> bool:
+    """Reconnaît ``pytest.<attribut>`` sous le nom canonique comme sous ses alias.
+
+    L'origine est prouvée par les imports déjà résolus du module, le même
+    mécanisme que la détection des sauts : renommer ``pytest`` à l'import ne
+    change rien à ce que l'oracle vérifie, et refuser un test légitime pousse à
+    désarmer le gate. La qualification est conservée en sens inverse : un
+    homonyme métier — ``mon_module.raises(...)`` — ne prouve toujours aucun
+    oracle.
+    """
+    cible = noeud.func
+    if not (isinstance(cible, ast.Attribute) and cible.attr == attribut):
+        return False
+    porteur = cible.value
+    return isinstance(porteur, ast.Name) and (
+        porteur.id == "pytest" or porteur.id in aliases.modules_pytest
     )
 
 
-def _contient_oracle(fonction: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+def _contient_oracle(
+    fonction: ast.FunctionDef | ast.AsyncFunctionDef,
+    aliases: _AliasesImports,
+) -> bool:
     """Détermine si une fonction de test contient au moins un oracle reconnu."""
     for noeud in ast.walk(fonction):
         if isinstance(noeud, ast.Assert):
             return True
         if isinstance(noeud, ast.With) and any(
             isinstance(element.context_expr, ast.Call)
-            and _est_appel_pytest(element.context_expr, "raises")
+            and _est_appel_pytest(element.context_expr, "raises", aliases)
             for element in noeud.items
         ):
             return True
         if isinstance(noeud, ast.Call) and (
-            _est_appel_pytest(noeud, "fail")
+            _est_appel_pytest(noeud, "fail", aliases)
             or isinstance(noeud.func, ast.Attribute)
             and noeud.func.attr.startswith("assert")
         ):
@@ -907,7 +926,7 @@ def _analyser_ast_diff(
             )
         if isinstance(noeud, (ast.FunctionDef, ast.AsyncFunctionDef)):
             if noeud.name.startswith("test_") and _fonction_modifiee(noeud, lignes):
-                if not _contient_oracle(noeud):
+                if not _contient_oracle(noeud, aliases):
                     violations.append(
                         _violation(
                             "TEST_WITHOUT_ORACLE",
@@ -1087,6 +1106,76 @@ def _comprehension_filtre_indecidable(noeud: ast.expr) -> bool:
     )
 
 
+_MOTS_DECLARATION_PERIMETRE: Final[frozenset[str]] = frozenset(
+    {"argv", "cible", "perimetre", "racine", "root", "scope", "target"}
+)
+
+_PARTIES_IDENTIFIANT: Final[re.Pattern[str]] = re.compile(r"[^a-z0-9]+")
+
+
+def _nom_designe_un_perimetre(nom: str) -> bool:
+    """Prouve par son NOM qu'un identifiant annonce une déclaration de périmètre.
+
+    Le nom est découpé sur ses séparateurs puis comparé mot à mot, jamais par
+    sous-chaîne : ``python_roots``, ``cibles`` ou ``argv`` annoncent un
+    périmètre, alors qu'un mot qui contient ces lettres par hasard ne l'annonce
+    pas. Le pluriel est ramené au singulier parce que les deux formes désignent
+    la même chose.
+    """
+    for partie in _PARTIES_IDENTIFIANT.split(nom.lower()):
+        if partie in _MOTS_DECLARATION_PERIMETRE:
+            return True
+        if partie.endswith("s") and partie[:-1] in _MOTS_DECLARATION_PERIMETRE:
+            return True
+    return False
+
+
+def _nom_identifiant(noeud: ast.expr) -> str:
+    """Retourne l'identifiant lisible d'une cible ou d'un appelé, sinon rien."""
+    if isinstance(noeud, ast.Name):
+        return noeud.id
+    if isinstance(noeud, ast.Attribute):
+        return noeud.attr
+    return ""
+
+
+def _expressions_de_perimetre(arbre: ast.Module) -> set[ast.expr]:
+    """Recense les expressions dont le CONTEXTE prouve une déclaration de périmètre.
+
+    Ce recensement existe pour lever une condition de fail-open : ne signaler
+    une omission que lorsqu'il RESTE au moins une racine offrait la sortie
+    exactement inverse de l'intention du contrôle, puisque désarmer un lanceur
+    se fait en retirant TOUTES les racines d'un coup, jamais une seule.
+
+    La preuve reste le contexte, jamais le contenu : une collection anonyme de
+    chaînes quelconques n'est pas jugée, sans quoi tout message ou drapeau
+    littéral d'un lanceur deviendrait un faux positif. Quatre contextes la
+    prouvent — affectation à un nom ou à un attribut de périmètre, affectation
+    annotée, argument nommé de périmètre, argument d'un appel dont le nom
+    l'annonce.
+    """
+    declarations: set[ast.expr] = set()
+    for noeud in ast.walk(arbre):
+        if isinstance(noeud, ast.Assign):
+            if any(
+                _nom_designe_un_perimetre(_nom_identifiant(cible))
+                for cible in noeud.targets
+            ):
+                declarations.add(noeud.value)
+        elif isinstance(noeud, ast.AnnAssign):
+            if noeud.value is not None and _nom_designe_un_perimetre(
+                _nom_identifiant(noeud.target)
+            ):
+                declarations.add(noeud.value)
+        elif isinstance(noeud, ast.keyword):
+            if noeud.arg is not None and _nom_designe_un_perimetre(noeud.arg):
+                declarations.add(noeud.value)
+        elif isinstance(noeud, ast.Call):
+            if _nom_designe_un_perimetre(_nom_identifiant(noeud.func)):
+                declarations.update(noeud.args)
+    return declarations
+
+
 def _analyser_omissions_racines(
     repo: Path,
     fichier: Path,
@@ -1099,6 +1188,7 @@ def _analyser_omissions_racines(
 
     violations: list[Violation] = []
     ensemble_racines = set(racines)
+    declarations = _expressions_de_perimetre(arbre)
     for noeud in ast.walk(arbre):
         if not isinstance(noeud, ast.expr):
             continue
@@ -1130,7 +1220,7 @@ def _analyser_omissions_racines(
             continue
         presentes = ensemble_racines.intersection(valeurs)
         manquantes = tuple(racine for racine in racines if racine not in valeurs)
-        if presentes and manquantes:
+        if manquantes and (presentes or noeud in declarations):
             violations.append(
                 _violation(
                     "SCOPE_ROOT_OMITTED",
@@ -1439,6 +1529,14 @@ def _neutraliser_chaines_shell(commande: str) -> str:
     Les positions et retours à la ligne sont conservés. Un ``#`` n'ouvre un
     commentaire qu'après le traitement des quotes, ce qui préserve notamment les
     couleurs et autres données littérales contenant ce caractère.
+
+    Il faut de plus qu'il soit en DÉBUT DE MOT, comme dans un shell réel :
+    précédé du début de la commande, d'une espace, d'une tabulation, d'un retour
+    à la ligne ou d'un séparateur ``;``, ``|``, ``&``, ``(``, ``)``. Collé à un
+    mot il reste un caractère ordinaire — ``gate.py x#note || true`` exécute bien
+    son repli, et ``$#`` ne coupe pas la ligne. Neutraliser jusqu'au bout de la
+    ligne dans ces cas rendait invisible le code qui suit, donc muet tout contrôle
+    fondé sur cette lecture.
     """
     neutre: list[str] = []
     i = 0
@@ -1464,7 +1562,9 @@ def _neutraliser_chaines_shell(commande: str) -> str:
                 neutre.append("\n" if courant == "\n" else " ")
                 i += 1
             continue
-        if caractere == "#":
+        if caractere == "#" and (
+            i == 0 or commande[i - 1] in _OUVERTURES_DE_MOT_SHELL
+        ):
             while i < n and commande[i] != "\n":
                 neutre.append(" ")
                 i += 1
@@ -1942,10 +2042,12 @@ def _analyser_condition_requise(
 
 
 def _fichier_action_locale(repo: Path, reference: str) -> Path | None:
-    """Résout une référence locale vers son descripteur action.yml ou action.yaml."""
-    if not reference.startswith("./"):
-        return None
-    repertoire = repo / reference[2:]
+    """Résout une référence locale vers son descripteur action.yml ou action.yaml.
+
+    L'appelant garantit une référence locale : ``None`` signifie donc « aucun
+    descripteur n'existe à cet emplacement », jamais « référence externe ».
+    """
+    repertoire = repo / reference.removeprefix("./")
     for nom in ("action.yml", "action.yaml"):
         fichier = repertoire / nom
         if fichier.is_file():
@@ -1955,15 +2057,33 @@ def _fichier_action_locale(repo: Path, reference: str) -> Path | None:
 
 def _analyser_action_locale(
     repo: Path,
+    source: Path,
     reference: str,
     job: str,
     visites: frozenset[Path] = frozenset(),
     profondeur: int = 0,
 ) -> list[Violation]:
-    """Analyse récursivement une action composite locale appelée par un job requis."""
+    """Analyse récursivement une action composite locale appelée par un job requis.
+
+    Une action EXTERNE ne vit pas dans le dépôt : son absence locale est normale
+    et n'est jamais signalée. Une action LOCALE référencée mais absente est au
+    contraire un contrôle qui n'existe pas, tout en rendant le job requis vert.
+    """
+    if not reference.startswith("./"):
+        return []
+
     fichier = _fichier_action_locale(repo, reference)
     if fichier is None:
-        return []
+        return [
+            _violation(
+                "LOCAL_ACTION_INTROUVABLE",
+                repo,
+                source,
+                1,
+                f"le job requis {job} référence l'action locale {reference}, "
+                "dont aucun descripteur action.yml ou action.yaml n'existe",
+            )
+        ]
 
     chemin = fichier.resolve()
     if chemin in visites:
@@ -1996,11 +2116,21 @@ def _analyser_action_locale(
         return violations
 
     etapes = runs.get("steps")
-    if not isinstance(etapes, list):
+    etapes_declarees = etapes if isinstance(etapes, list) else []
+    if not any(_etape_execute_quelque_chose(etape) for etape in etapes_declarees):
+        violations.append(
+            _violation_job_requis_sans_etape(
+                repo,
+                fichier,
+                job,
+                f"l'action composite locale {reference} ne porte aucune étape "
+                "avec run ou uses",
+            )
+        )
         return violations
 
     prochaines_visites = visites | {chemin}
-    for etape in etapes:
+    for etape in etapes_declarees:
         if not isinstance(etape, Mapping):
             continue
         violations.extend(_analyser_condition_requise(repo, fichier, etape.get("if"), job))
@@ -2014,10 +2144,11 @@ def _analyser_action_locale(
         )
         violations.extend(_analyser_commande(repo, fichier, etape.get("run"), job))
         reference_suivante = etape.get("uses")
-        if isinstance(reference_suivante, str) and reference_suivante.startswith("./"):
+        if isinstance(reference_suivante, str):
             violations.extend(
                 _analyser_action_locale(
                     repo,
+                    fichier,
                     reference_suivante,
                     job,
                     prochaines_visites,
@@ -2179,9 +2310,9 @@ def _analyser_workflow(
                 _analyser_commande(repo, fichier, etape.get("run"), identifiant)
             )
             reference = etape.get("uses")
-            if isinstance(reference, str) and reference.startswith("./"):
+            if isinstance(reference, str):
                 violations.extend(
-                    _analyser_action_locale(repo, reference, identifiant)
+                    _analyser_action_locale(repo, fichier, reference, identifiant)
                 )
 
     return violations
