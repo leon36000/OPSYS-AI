@@ -3,6 +3,9 @@ import json
 import xml.etree.ElementTree as ET
 
 
+_XML_MAX_BYTES = 2_000_000  # garde-fou DoS (~2 Mo) ; ajustable selon les fixtures
+
+
 class SEOParser(HTMLParser):
     def __init__(self):
         super().__init__()
@@ -158,6 +161,8 @@ def analyze_robots(robots_str: str) -> dict:
 def analyze_sitemap(xml_str: str) -> dict:
     if not xml_str.strip():
         return {"C-07": "KO", "detail_C-07": "Fichier sitemap.xml absent"}
+    if len(xml_str.encode("utf-8")) > _XML_MAX_BYTES:
+        return {"C-07": "KO", "detail_C-07": "sitemap.xml dépasse la taille maximale autorisée"}
     try:
         root = ET.fromstring(xml_str)
     except ET.ParseError as e:
