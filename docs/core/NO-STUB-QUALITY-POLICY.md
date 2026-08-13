@@ -104,6 +104,26 @@ continue-on-error: 0.0     # accepté
 le doit. Les formes dont la vérité n'est pas décidable ici — `.nan`, `.inf` —
 restent refusées en fail-closed : aucune ne désigne un contrôle obligatoire.
 
+La même lecture par la valeur s'applique aux scalaires **quotés**. La liste des
+chaînes vraies est fermée (`true`, `yes`, `on`, `y`, `1`) et ne couvrait aucun
+autre numérique quoté : MESURÉ, `'2'` était accepté quand `2` non quoté et
+`'true'` étaient refusés — un seul caractère de quote suffisait à tolérer les
+erreurs d'un job requis.
+
+```yaml
+continue-on-error: '2'     # refusé — deux vaut vrai, quoté ou non
+continue-on-error: "-1"    # refusé — nombre non nul
+continue-on-error: '1.5'   # refusé — flottant non nul
+
+continue-on-error: '0'     # accepté — zéro ne tolère rien, quoté ou non
+continue-on-error: "0.0"   # accepté
+continue-on-error: "false" # accepté
+```
+
+Le contrôle numérique est placé **après** la liste des chaînes vraies, si bien
+que `'1'`, déjà couvert par elle, conserve son message d'origine. Un texte non
+numérique n'appartient pas à cette règle et reste jugé par les précédentes.
+
 ## Jobs requis qui n'exécutent rien
 
 Un job requis peut être parfaitement valide au sens YAML et n'exécuter aucun
@@ -307,6 +327,42 @@ python3 gate.py || command true        # refusé  — « command » ne fait que 
 python3 gate.py || /usr/bin/true_story # accepté — la borne de nom survit au préfixe
 python3 gate.py && /usr/bin/true       # accepté — « && » n'est pas un repli
 ```
+
+### Conditionnelle de repli : `|| if … fi` et `|| case … esac`
+
+Une conditionnelle placée derrière `||` est un repli comme un autre : elle ne
+s'exécute que si le contrôle a échoué, et son code de retour devient celui de
+l'étape. MESURÉ, elle échappait à tous les motifs — le `||` exempte la gauche de
+l'`errexit`, le `fi` rend 0, et l'étape passe au vert avec son contrôle rouge.
+
+Le critère est celui des groupes : **chaque branche exécutable doit se terminer
+par une sortie non nulle prouvée**.
+
+```sh
+python3 gate.py || if true; then :; fi                 # refusé — le fi rend 0
+python3 gate.py || if true; then exit 1; else echo x; fi # refusé — le else absorbe
+python3 gate.py || case x in *) : ;; esac              # refusé — même absorption
+python3 gate.py || if verifier; fi                     # refusé — aucune branche lisible
+
+python3 gate.py || if true; then exit 1; fi            # accepté — la branche propage
+python3 gate.py || if a; then exit 1; elif b; then exit 2; else exit 3; fi  # accepté
+python3 gate.py || case x in *) exit 1 ;; esac         # accepté
+python3 gate.py --motif '|| if true; then :; fi'       # accepté — repli cité, non exécuté
+```
+
+Le `case` est traité au même critère que le `if`, et non laissé de côté : le gate
+les tokenise déjà comme la même conditionnelle, si bien que fermer le seul `if`
+rendrait le contournement disponible au mot-clé voisin.
+
+Deux textes ne sont **pas** des branches et ne sont donc jamais jugés : la
+condition d'un `if`/`elif`, qui est évaluée et non exécutée en repli, et le motif
+d'un `case`, qui filtre. Les juger refuserait un repli qui propage pourtant
+l'échec par chacune de ses branches.
+
+Une conditionnelle dont **aucune** branche ne se laisse isoler est refusée. Elle
+ne prouve rien du sort de l'échec, et la traiter comme propageante rendrait le
+contrôle muet devant la première syntaxe que le lecteur de jetons ne sait pas
+suivre — soit le contournement suivant tout trouvé.
 
 ### Shell lancé en repli : `|| sh -c '…'`
 
@@ -589,6 +645,38 @@ La qualification par l'origine est conservée en sens inverse : un `raises` port
 par un module dont l'import ne prouve pas qu'il s'agit de pytest ne vérifie rien
 et ne vaut pas oracle.
 
+#### L'oracle importé directement
+
+`from pytest import raises` est la forme courante de l'oracle, et le gate la
+refusait. MESURÉ : `TEST_WITHOUT_ORACLE` était émis sur cet idiome alors que
+`import pytest` puis `pytest.raises` était accepté — et alors que le gate traçait
+DÉJÀ les imports directs de `skip` et de `mark` pour détecter les sauts. Un faux
+positif sur une forme aussi répandue coûte autant qu'un angle mort : il se paie
+du désarmement du gate par ceux qu'il gêne.
+
+Le nom nu est désormais reconnu par le même mécanisme que les sauts — l'origine
+est prouvée par l'import, jamais par l'orthographe.
+
+```python
+from pytest import raises      ->  with raises(ValueError):  # accepté
+from pytest import fail        ->  fail('jamais atteint')    # accepté
+from pytest import raises as leve -> with leve(ValueError):  # accepté — alias prouvé
+
+from mon_module import raises  ->  with raises(ValueError):  # aucun oracle — origine non prouvée
+from pytest import raises
+raises = mon_module.raises     ->  with raises(ValueError):  # aucun oracle — preuve détruite
+```
+
+L'**asymétrie des positions** est celle de l'exécution et vaut pour les deux
+formes : `raises` n'est lu qu'en tête d'un `with`, `fail` qu'en appel. Un
+`raises(...)` écrit hors d'un `with` n'entre jamais dans le gestionnaire de
+contexte et ne vérifie donc rien.
+
+```python
+from pytest import raises  ->  raises(ValueError)            # aucun oracle — hors `with`
+import pytest              ->  pytest.raises(ValueError)     # aucun oracle — même raison
+```
+
 ## Corps de classe réduit à un stub
 
 Le corps d'une classe s'exécute à la création de la classe : réduit à `pass` ou à
@@ -687,6 +775,81 @@ class MonErreur(ValueError): pass            # accepté — l'origine est prouv�
 Le retrait par import est réservé aux noms d'exception : ailleurs, un import est
 justement ce qui PROUVE l'alias, et l'y appliquer effacerait la preuve qu'il vient
 d'établir.
+
+### La base d'une classe se résout dans SA portée, jamais sur tout l'arbre
+
+L'exemption est attachée à la **définition** exempte, repérée par sa position, et
+non à son nom. Cela ne suffisait pas : la **résolution** de la base, elle,
+cherchait le nom sur tout l'arbre. MESURÉ, une classe locale héritant d'un
+homonyme LOCAL restait exemptée parce que la résolution lui prêtait l'héritage du
+type d'exception du module.
+
+```python
+class Panne(ValueError):
+    pass
+
+def configurer() -> None:
+    class Panne:                 # classe ORDINAIRE, locale
+        marqueur = 1
+
+    class Service(Panne):
+        pass                     # refusé — hérite du Panne LOCAL, qui n'exempte rien
+```
+
+Une base nommée est désormais résolue **du plus proche au module**, comme à
+l'exécution, et la preuve d'origine par les imports n'est consultée qu'à défaut
+de toute liaison locale.
+
+```python
+class Panne(ValueError): pass
+def configurer() -> None:
+    class Service(Panne): pass        # accepté — aucun homonyme local, repli au module
+
+def configurer() -> None:
+    class ValueError:                 # usurpe un nom builtin
+        marqueur = 1
+    class Service(ValueError): pass   # refusé — la définition locale l'emporte
+
+def configurer() -> None:
+    ValueError = charger()            # liaison OPAQUE
+    class Service(ValueError): pass   # refusé — le nom est lié, l'origine inconnue
+
+class Panne(ValueError): pass
+def configurer(Panne) -> None:        # le PARAMÈTRE masque le module
+    class Service(Panne): pass        # refusé
+```
+
+Une liaison locale **opaque** arrête la résolution sans jamais retomber sur les
+imports : le nom désigne alors quelque chose d'inconnu, et consulter les imports
+reviendrait à exempter sur la foi d'une orthographe. Un nom déclaré `global` puis
+affecté tombe sous cette même règle, et le doit — il réécrit le nom du module
+avec une valeur inconnue.
+
+Les **imports** ne comptent pas parmi les liaisons de portée : ils sont ce qui
+PROUVE les alias, et les compter ferait passer `from unittest import TestCase`
+pour un écrasement du nom, soit un faux positif sur l'idiome le plus courant du
+dépôt.
+
+La chaîne des portées suit la règle de Python, pas une approximation : le corps
+de classe qui contient **directement** la définition en fait partie, les corps de
+classes plus **lointains** n'y participent pas.
+
+```python
+class Enveloppe:
+    class Panne(ValueError): pass
+    class Service(Panne): pass        # accepté — sœur du même corps de classe
+
+class Enveloppe:
+    class Panne(ValueError): pass
+    def monter(self) -> None:
+        class Service(Panne): pass    # refusé — NameError à l'exécution, rien n'est hérité
+```
+
+Cette résolution sert les DEUX questions posées à la même fonction : quelle
+classe est un type d'exception, et quelle classe est un cas de test `unittest`.
+Le même défaut laissait un `TestCase` local usurpé fabriquer un receveur
+d'oracles, si bien qu'un `self.assertVrai(...)` passait pour une vérification
+héritée de la bibliothèque standard.
 
 ### Le protocole déclaré par une ellipse
 
@@ -819,6 +982,52 @@ Les **corps de fonctions** ne sont jamais parcourus, dans les deux sens
 exemption globale et qu'une affectation locale n'invalide aucun alias du module.
 La règle ne tient pas compte de l'**ordre** : une réaffectation écrite avant
 l'import compte autant qu'une réaffectation écrite après lui.
+
+#### Toutes les FORMES d'écriture d'un nom, pas seulement l'affectation
+
+Une instruction lie un nom de trois façons distinctes, et n'en lire qu'une
+laissait à chaque fois un contournement ouvert : par sa **cible** déclarée, par
+une **expression** d'affectation, par une **capture** de filtrage. Les formes
+suivantes ont été MESURÉES comme ignorées, et sont désormais toutes collectées.
+
+```python
+from typing import Protocol
+
+(Protocol := object)                       # walrus — expression, jamais instruction
+_c = [(Protocol := object) for _e in range(1)]   # walrus de compréhension
+_c = (Protocol := object) if charger() else None # walrus d'expression conditionnelle
+Protocol += ()                             # affectation augmentée
+match object:
+    case Protocol: pass                    # capture de filtrage
+try: charger()
+except ValueError as Protocol: ...         # nom du gestionnaire
+del Protocol                               # suppression du nom
+```
+
+La **capture de filtrage** est le contournement le plus sérieux du lot, parce
+qu'il est valide à l'exécution : MESURÉ à l'interpréteur, après `match object:` /
+`case Protocol:`, le nom vaut `object` et la classe qui en hérite a bien `object`
+dans son MRO. Les autres formes lèvent une erreur à l'import, mais sont
+collectées au même titre : la règle est fail-closed sur la CERTITUDE de
+l'origine, jamais sur l'exploitabilité de chaque cas.
+
+Deux formes voisines sont au contraire **écartées, mesures à l'appui** :
+
+- **La cible d'une compréhension** ne lie pas la portée englobante. MESURÉ à
+  l'interpréteur : après `[Protocol for Protocol in ('A', 'B')]`, le nom vaut
+  encore ce que l'import lui a donné. La retenir serait un faux positif pur.
+  Le walrus d'une compréhension, lui, fuit bien vers l'extérieur — d'où la
+  différence de traitement entre les deux.
+- **Le walrus d'un corps de classe** ne lie pas davantage le module. MESURÉ :
+  `class Boite: _v = (Protocol := object)` crée `Boite.Protocol` et laisse le
+  nom du module intact — même divergence, et même raison, que pour
+  l'affectation ordinaire écrite dans un corps de classe.
+- **Le recouvrement par un import étranger** — `from transport import Protocol`
+  ou `import os as Protocol` — n'ouvre en pratique aucun contournement. MESURÉ :
+  employé seul, il ne prouve RIEN et la classe est déjà refusée. La seule forme
+  atteignable est le double import du même nom, qui est exactement l'idiome
+  légitime `typing` / `typing_extensions` selon la version de Python. Le
+  retenir échangerait un faux positif corrigé contre un faux positif nouveau.
 
 Deux liaisons échappaient encore à ce parcours, chacune suffisant à usurper une
 exemption d'un seul point.

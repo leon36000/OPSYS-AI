@@ -43,6 +43,7 @@ _MOTIFS_DIRECTIVE: Final[Mapping[str, re.Pattern[str]]] = {
     "nosec": re.compile(r"nosec", re.IGNORECASE),
 }
 _MARQUES_DE_SAUT_PYTEST: Final[frozenset[str]] = frozenset({"skip", "skipif", "xfail"})
+_ORACLES_PYTEST: Final[frozenset[str]] = frozenset({"raises", "fail"})
 _APPELS_DE_SAUT: Final[Mapping[str, frozenset[str]]] = {
     "pytest": frozenset({"skip", "xfail", "importorskip"}),
     "unittest": frozenset({"skip", "skipIf", "skipUnless"}),
@@ -105,6 +106,8 @@ _SUCCES_FORCE_COMPACT: Final[re.Pattern[str]] = re.compile(
     r"(?:\|\|true|\|\|:|\|\|exit0|;true)" + _SUITE_NOM_COMMANDE
 )
 _GROUPE_APRES_OU: Final[re.Pattern[str]] = re.compile(r"\|\|\s*(?P<ouverture>[{(])")
+_MOT_IF_SHELL: Final[str] = "if"
+_SEPARATEUR_MOTIF_CASE: Final[str] = ";;"
 _SEPARATEUR_COMMANDE_SHELL: Final[re.Pattern[str]] = re.compile(r";|\n|&&")
 _SORTIE_NON_NULLE: Final[re.Pattern[str]] = re.compile(
     r"^(?:exit|return)\s+(?P<code>[0-9]+)(?![0-9])"
@@ -122,6 +125,9 @@ _JETONS_CONDITIONNELLES: Final[re.Pattern[str]] = re.compile(
     f"|(?P<then>{_POSITION_COMMANDE_SHELL}then{_FIN_DE_MOT_SHELL})"
     f"|(?P<sinon>{_POSITION_COMMANDE_SHELL}(?:else|elif){_FIN_DE_MOT_SHELL})"
     f"|(?P<ferme>{_POSITION_COMMANDE_SHELL}(?:fi|esac){_FIN_DE_MOT_SHELL})"
+)
+_CONDITIONNELLE_APRES_OU: Final[re.Pattern[str]] = re.compile(
+    r"\|\|\s*(?P<mot>if|case)" + _FIN_DE_MOT_SHELL
 )
 _NEGATION_APRES_IF: Final[re.Pattern[str]] = re.compile(r"\s*!")
 _SEPARATEUR_CONDITION_SHELL: Final[re.Pattern[str]] = re.compile(r"[;\n|&]+")
@@ -170,6 +176,13 @@ _NOMS_ABSENCE_IMPLEMENTATION: Final[frozenset[str]] = frozenset(
 )  # proof:allow — fixture/constante du gate NO-STUB : ce motif EST le sujet du test
 _ATTRIBUT_PROUVANT_PROTOCOL: Final[str] = "Protocol"
 _ATTRIBUT_PROUVANT_ABSTRACTMETHOD: Final[str] = "abstractmethod"
+_PORTEES_PROPRES: Final[tuple[type[ast.AST], ...]] = (
+    ast.Module,
+    ast.FunctionDef,
+    ast.AsyncFunctionDef,
+    ast.Lambda,
+    ast.ClassDef,
+)
 
 
 @dataclass(frozen=True)
@@ -195,6 +208,8 @@ class _AliasesImports:
     modules_unittest: frozenset[str]
     marques_pytest: frozenset[str]
     sauts_directs: frozenset[str]
+    oracles_raises: frozenset[str]
+    oracles_fail: frozenset[str]
     test_cases: frozenset[str]
     modules_builtins: frozenset[str]
     exceptions_builtins: frozenset[str]
@@ -219,6 +234,8 @@ class _CollecteAliases:
     modules_unittest: set[str] = field(default_factory=set)
     marques_pytest: set[str] = field(default_factory=set)
     sauts_directs: set[str] = field(default_factory=set)
+    oracles_raises: set[str] = field(default_factory=set)
+    oracles_fail: set[str] = field(default_factory=set)
     test_cases: set[str] = field(default_factory=set)
     modules_builtins: set[str] = field(default_factory=set)
     exceptions_builtins: set[str] = field(
@@ -237,6 +254,8 @@ class _CollecteAliases:
             self.modules_unittest,
             self.marques_pytest,
             self.sauts_directs,
+            self.oracles_raises,
+            self.oracles_fail,
             self.test_cases,
             self.modules_builtins,
             self.exceptions_builtins,
@@ -251,18 +270,21 @@ class _CollecteAliases:
         """Énumère les seules preuves dont le retrait rend le gate PLUS strict.
 
         Ces ensembles servent à EXEMPTER : sans eux, l'ellipse d'un protocole ou
-        d'une méthode abstraite, l'oracle hérité d'un cas de test et le corps
-        vide d'un type d'exception redeviennent des violations. Les autres
-        ensembles servent au contraire à DÉTECTER (marques de saut, absences
-        d'implémentation) : les retirer rendrait le gate muet, donc fail-open.
-        Cette liste est volontairement partielle, et c'est la raison pour
-        laquelle elle est séparée de ``_ensembles``.
+        d'une méthode abstraite, l'oracle hérité d'un cas de test, l'oracle
+        pytest importé directement et le corps vide d'un type d'exception
+        redeviennent des violations. Les autres ensembles servent au contraire à
+        DÉTECTER (marques de saut, absences d'implémentation) : les retirer
+        rendrait le gate muet, donc fail-open. Cette liste est volontairement
+        partielle, et c'est la raison pour laquelle elle est séparée de
+        ``_ensembles``.
         """
         return (
             self.protocols,
             self.modules_typing,
             self.abstractmethods,
             self.modules_abc,
+            self.oracles_raises,
+            self.oracles_fail,
             self.test_cases,
             self.modules_builtins,
             self.exceptions_builtins,
@@ -315,6 +337,8 @@ class _CollecteAliases:
             frozenset(self.modules_unittest),
             frozenset(self.marques_pytest),
             frozenset(self.sauts_directs),
+            frozenset(self.oracles_raises),
+            frozenset(self.oracles_fail),
             frozenset(self.test_cases),
             frozenset(self.modules_builtins),
             frozenset(self.exceptions_builtins),
@@ -425,12 +449,23 @@ def _noms_lies_cible(noeud: ast.expr) -> set[str]:
     return set()
 
 
-def _noms_cibles_affectation(noeud: ast.stmt) -> set[str]:
-    """Extrait les noms que toute liaison module-level peut réaffecter."""
+def _noms_cibles_directes(noeud: ast.stmt) -> set[str]:
+    """Extrait les noms qu'une INSTRUCTION lie par sa cible déclarée.
+
+    Trois formes s'ajoutaient à celles que la collecte lisait déjà, et MESURÉ,
+    toutes trois laissaient survivre une exemption dont l'origine avait pourtant
+    été écrasée : l'affectation augmentée, le nom du gestionnaire d'exception
+    (``except … as Protocol``) et la SUPPRESSION du nom. Les trois lient — ou
+    délient — le nom, ce qui suffit à retirer sa preuve d'origine standard.
+    """
     if isinstance(noeud, ast.Assign):
         return set().union(*(_noms_lies_cible(cible) for cible in noeud.targets))
     if isinstance(noeud, ast.AnnAssign):
         return _noms_lies_cible(noeud.target)
+    if isinstance(noeud, ast.AugAssign):
+        return _noms_lies_cible(noeud.target)
+    if isinstance(noeud, ast.Delete):
+        return set().union(*(_noms_lies_cible(cible) for cible in noeud.targets))
     if isinstance(noeud, (ast.For, ast.AsyncFor)):
         return _noms_lies_cible(noeud.target)
     if isinstance(noeud, (ast.With, ast.AsyncWith)):
@@ -441,9 +476,101 @@ def _noms_cibles_affectation(noeud: ast.stmt) -> set[str]:
                 if element.optional_vars is not None
             )
         )
+    if isinstance(noeud, (ast.Try, ast.TryStar)):
+        return {
+            gestionnaire.name
+            for gestionnaire in noeud.handlers
+            if gestionnaire.name is not None
+        }
     if isinstance(noeud, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
         return {noeud.name}
     return set()
+
+
+def _enfants_hors_corps(noeud: ast.AST) -> list[ast.AST]:
+    """Énumère les enfants d'un nœud en sautant le corps des portées PROPRES.
+
+    Le corps d'une fonction, d'un lambda ou d'une classe ouvre un espace de noms
+    distinct : ce qu'on y lie n'appartient pas à la portée parcourue. Le champ
+    ``body`` n'est écarté que pour ces trois formes, jamais sur son seul nom : il
+    désigne ailleurs une simple expression — celui d'``a if c else b`` en est
+    une — et l'écarter partout perdrait une liaison bien réelle.
+    """
+    ignorer_corps = isinstance(
+        noeud, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
+    )
+    enfants: list[ast.AST] = []
+    for champ, valeur in ast.iter_fields(noeud):
+        if ignorer_corps and champ == "body":
+            continue
+        elements = valeur if isinstance(valeur, list) else [valeur]
+        enfants.extend(element for element in elements if isinstance(element, ast.AST))
+    return enfants
+
+
+def _noms_lies_par_expression_daffectation(noeud: ast.stmt) -> set[str]:
+    """Extrait les noms qu'une EXPRESSION d'affectation lie dans la portée courante.
+
+    ``(Protocol := object)`` est une expression, jamais une instruction : la
+    collecte des cibles, qui ne lisait que des instructions, la manquait
+    entièrement. MESURÉ, l'écrasement passait alors inaperçu et la classe qui
+    héritait ensuite du nom restait exemptée alors qu'elle dérivait d'``object``.
+
+    Les compréhensions sont parcourues à dessein : MESURÉ à l'interpréteur,
+    ``[(P := 1) for _ in range(1)]`` laisse ``P`` défini dans la portée
+    ENGLOBANTE, à la différence de la cible de boucle ``[P for P in …]``, qui
+    reste confinée et n'est donc pas collectée.
+    """
+    noms: set[str] = set()
+    pile: list[ast.AST] = _enfants_hors_corps(noeud)
+    while pile:
+        courant = pile.pop()
+        if isinstance(courant, ast.NamedExpr):
+            noms |= _noms_lies_cible(courant.target)
+        pile.extend(_enfants_hors_corps(courant))
+    return noms
+
+
+def _noms_lies_par_filtrage(noeud: ast.stmt) -> set[str]:
+    """Extrait les noms qu'une capture ``match``/``case`` lie dans la portée courante.
+
+    Un motif de capture n'ouvre aucune portée : le nom qu'il lie survit au bloc.
+    MESURÉ à l'interpréteur, après ``match object:`` / ``case Protocol:``, le nom
+    ``Protocol`` vaut ``object`` et la classe qui en hérite a bien ``object``
+    dans son MRO — le contournement est donc VALIDE à l'exécution, contrairement
+    aux formes qui lèvent une erreur à l'import.
+
+    Les trois formes de capture sont lues : le nom d'un ``as``, celui d'une
+    étoile de séquence, et le reste d'un motif de mapping. Le motif est parcouru
+    en entier, une capture pouvant être imbriquée dans une alternative, une
+    séquence ou un motif de classe.
+    """
+    if not isinstance(noeud, ast.Match):
+        return set()
+    noms: set[str] = set()
+    for cas in noeud.cases:
+        for motif in ast.walk(cas.pattern):
+            if isinstance(motif, (ast.MatchAs, ast.MatchStar)) and motif.name:
+                noms.add(motif.name)
+            elif isinstance(motif, ast.MatchMapping) and motif.rest:
+                noms.add(motif.rest)
+    return noms
+
+
+def _noms_cibles_affectation(noeud: ast.stmt) -> set[str]:
+    """Extrait TOUS les noms que toute liaison module-level peut réaffecter.
+
+    Une instruction lie de trois façons distinctes, et n'en lire qu'une laissait
+    à chaque fois un contournement ouvert : par sa CIBLE déclarée, par une
+    EXPRESSION d'affectation écrite n'importe où dans ses sous-expressions, et
+    par une CAPTURE de filtrage. Les trois sources sont réunies ici, à un seul
+    endroit, afin qu'aucun appelant ne puisse en oublier une.
+    """
+    return (
+        _noms_cibles_directes(noeud)
+        | _noms_lies_par_expression_daffectation(noeud)
+        | _noms_lies_par_filtrage(noeud)
+    )
 
 
 def _attributs_lies_cible(noeud: ast.expr) -> set[tuple[str, str]]:
@@ -644,6 +771,15 @@ def _imports_module(
                             for alias in noeud.names
                             if alias.name == "mark"
                         )
+                        oracles_par_attribut = {
+                            "raises": aliases.oracles_raises,
+                            "fail": aliases.oracles_fail,
+                        }
+                        for alias in noeud.names:
+                            if alias.name in _ORACLES_PYTEST:
+                                oracles_par_attribut[alias.name].add(
+                                    alias.asname or alias.name
+                                )
                     if origine == "unittest":
                         aliases.test_cases.update(
                             alias.asname or alias.name
@@ -735,6 +871,137 @@ def _base_declaree(base: ast.expr) -> ast.expr:
     return base.value if isinstance(base, ast.Subscript) else base
 
 
+def _parents_de_larbre(arbre: ast.Module) -> dict[ast.AST, ast.AST]:
+    """Associe chaque nœud au nœud qui le contient, seul lien vers ses portées.
+
+    L'AST de Python ne porte pas de lien remontant : sans cette table, une
+    définition ne peut pas dire dans QUELLE portée elle est écrite, et la
+    résolution d'une base ne peut être que globale — le défaut même que la
+    résolution lexicale corrige.
+    """
+    parents: dict[ast.AST, ast.AST] = {}
+    for noeud in ast.walk(arbre):
+        for enfant in ast.iter_child_nodes(noeud):
+            parents[enfant] = noeud
+    return parents
+
+
+def _portee_englobante(
+    parents: Mapping[ast.AST, ast.AST], noeud: ast.AST
+) -> ast.AST | None:
+    """Remonte jusqu'au bloc qui ouvre l'espace de noms contenant ce nœud."""
+    courant = parents.get(noeud)
+    while courant is not None and not isinstance(courant, _PORTEES_PROPRES):
+        courant = parents.get(courant)
+    return courant
+
+
+def _chaine_de_portees(
+    parents: Mapping[ast.AST, ast.AST], classe: ast.ClassDef
+) -> list[ast.AST]:
+    """Énumère, du plus proche au module, les portées où la base d'une classe se résout.
+
+    Le corps de classe qui contient DIRECTEMENT la définition en fait partie : la
+    base y est évaluée pendant l'exécution de ce corps, si bien qu'une classe
+    sœur déclarée juste au-dessus la résout. Les corps de classes plus lointains
+    en sont exclus, Python ne les faisant pas participer à la résolution des
+    portées imbriquées — ``class A:`` déclarant ``class P:`` puis, dans une
+    MÉTHODE de ``A``, ``class S(P)`` lève ``NameError`` à l'exécution.
+    """
+    chaine: list[ast.AST] = []
+    portee = _portee_englobante(parents, classe)
+    while portee is not None:
+        if not chaine or not isinstance(portee, ast.ClassDef):
+            chaine.append(portee)
+        portee = _portee_englobante(parents, portee)
+    return chaine
+
+
+def _noeuds_propres(portee: ast.AST) -> list[ast.AST]:
+    """Énumère la portée PROPRE d'un bloc en CONSERVANT ses définitions filles.
+
+    ``_noeuds_de_la_portee`` écarte une définition imbriquée avant de la retenir :
+    son NOM, pourtant lié dans la portée parcourue, y est perdu. Ici la
+    définition est conservée et seul son intérieur est ignoré, ce qui est
+    exactement ce qu'il faut pour savoir CE QUE la portée lie.
+    """
+    noeuds: list[ast.AST] = []
+    pile: list[ast.AST] = list(ast.iter_child_nodes(portee))
+    while pile:
+        noeud = pile.pop()
+        noeuds.append(noeud)
+        if isinstance(noeud, _PORTEES_PROPRES):
+            continue
+        pile.extend(ast.iter_child_nodes(noeud))
+    return noeuds
+
+
+def _liaisons_de_portee(portee: ast.AST) -> tuple[dict[str, ast.ClassDef], set[str]]:
+    """Sépare ce qu'une portée lie à une CLASSE de ce qu'elle lie sans preuve.
+
+    Les IMPORTS en sont volontairement absents : ils sont ce qui PROUVE les alias
+    lus par ``_analyser_imports``, et les compter ici ferait passer ``from
+    unittest import TestCase`` pour un écrasement du nom — un faux positif sur
+    l'idiome le plus courant du dépôt, alors que le module gère déjà ses propres
+    écrasements par ``reassignees``.
+
+    Les PARAMÈTRES comptent parmi les liaisons opaques : ``def configurer(Panne)``
+    masque le type d'exception du module dans tout le corps de la fonction, et
+    une classe qui hérite du paramètre hérite d'une valeur inconnue.
+
+    Une liaison OPAQUE l'emporte sur une définition de classe du même nom :
+    quand les deux coexistent, ce que la base désigne n'est plus certain, et
+    l'exemption doit tomber. Un nom déclaré ``global`` puis AFFECTÉ tombe sous
+    cette règle et le doit : il réécrit le nom du module avec une valeur
+    inconnue, si bien qu'en faire une liaison opaque est la lecture exacte de ce
+    que la classe héritera.
+    """
+    classes: dict[str, ast.ClassDef] = {}
+    opaques: set[str] = set()
+    for noeud in _noeuds_propres(portee):
+        if isinstance(noeud, ast.ClassDef):
+            classes[noeud.name] = noeud
+        elif isinstance(noeud, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            opaques.add(noeud.name)
+        elif isinstance(noeud, ast.arg):
+            opaques.add(noeud.arg)
+        elif isinstance(noeud, ast.stmt):
+            opaques |= _noms_cibles_affectation(noeud)
+    return classes, opaques
+
+
+def _base_est_derivee(
+    cible: ast.expr,
+    chaine: list[ast.AST],
+    liaisons: Mapping[ast.AST, tuple[dict[str, ast.ClassDef], set[str]]],
+    positions_derivees: set[tuple[int, int]],
+    est_base_prouvee: Callable[[ast.expr], bool],
+) -> bool:
+    """Décide si une base désigne un type déjà prouvé dérivé, ou la base visée.
+
+    Un nom nu est d'abord résolu dans SA portée, du plus proche au module, comme
+    à l'exécution : une définition locale l'emporte sur ce que les imports du
+    module prouvent. Ce n'est qu'à défaut de TOUTE liaison locale que la preuve
+    d'origine est consultée. Sans cet ordre, une classe locale ordinaire portant
+    le nom d'un type d'exception — ou celui de ``TestCase`` — suffisait à exempter
+    ce qui en hérite.
+
+    Une liaison locale OPAQUE arrête la résolution sans jamais retomber sur la
+    preuve d'origine : le nom désigne alors quelque chose d'inconnu, et
+    consulter les imports reviendrait à exempter sur la foi d'une orthographe.
+    """
+    if not isinstance(cible, ast.Name):
+        return est_base_prouvee(cible)
+    for portee in chaine:
+        classes_locales, opaques = liaisons[portee]
+        if cible.id in opaques:
+            return False
+        definition = classes_locales.get(cible.id)
+        if definition is not None:
+            return (definition.lineno, definition.col_offset) in positions_derivees
+    return est_base_prouvee(cible)
+
+
 def _positions_de_classes_derivees(
     arbre: ast.Module,
     est_base_prouvee: Callable[[ast.expr], bool],
@@ -752,29 +1019,39 @@ def _positions_de_classes_derivees(
     Seules les bases nommées du MÊME module sont suivies : un nom importé d'un
     autre module n'est pas résolvable statiquement et ne prouve donc rien.
 
-    Le résultat désigne les DÉFINITIONS par leur position, jamais par leur nom.
-    Rendre des noms faisait dépendre l'exemption d'une collision entre portées :
-    une classe locale n'héritant de rien devenait exempte du seul fait qu'un type
-    d'exception du module portait le même nom. Les noms restent l'unité de
-    RÉSOLUTION des bases, faute d'autre lien statique entre une base et sa
-    définition, mais ils ne sont plus l'unité d'EXEMPTION.
+    Le résultat désigne les DÉFINITIONS par leur position, jamais par leur nom, et
+    la RÉSOLUTION d'une base tient désormais compte des PORTÉES. Les deux points
+    étaient distincts, et le premier ne suffisait pas : une classe locale
+    héritant d'un homonyme LOCAL restait exemptée parce que la résolution par nom
+    sur tout l'arbre lui prêtait l'héritage du type d'exception du module. Une
+    base se résout maintenant dans la portée où elle est écrite avant de retomber
+    sur le module, exactement comme à l'exécution.
     """
     classes = [noeud for noeud in ast.walk(arbre) if isinstance(noeud, ast.ClassDef)]
-    noms_derives: set[str] = set()
+    parents = _parents_de_larbre(arbre)
+    chaines = {classe: _chaine_de_portees(parents, classe) for classe in classes}
+    liaisons: dict[ast.AST, tuple[dict[str, ast.ClassDef], set[str]]] = {}
+    for chaine in chaines.values():
+        for portee in chaine:
+            if portee not in liaisons:
+                liaisons[portee] = _liaisons_de_portee(portee)
     positions_derivees: set[tuple[int, int]] = set()
     ajout = True
     while ajout:
         ajout = False
         for classe in classes:
-            if (classe.lineno, classe.col_offset) in positions_derivees:
+            position = (classe.lineno, classe.col_offset)
+            if position in positions_derivees:
                 continue
             for base in classe.bases:
-                cible = _base_declaree(base)
-                if est_base_prouvee(cible) or (
-                    isinstance(cible, ast.Name) and cible.id in noms_derives
+                if _base_est_derivee(
+                    _base_declaree(base),
+                    chaines[classe],
+                    liaisons,
+                    positions_derivees,
+                    est_base_prouvee,
                 ):
-                    noms_derives.add(classe.name)
-                    positions_derivees.add((classe.lineno, classe.col_offset))
+                    positions_derivees.add(position)
                     ajout = True
                     break
     return frozenset(positions_derivees)
@@ -1220,12 +1497,29 @@ def _est_constante_vraie(expression: ast.expr) -> bool:
     return isinstance(expression, ast.Constant) and bool(expression.value)
 
 
+def _noms_oracle_direct(attribut: str, aliases: _AliasesImports) -> frozenset[str]:
+    """Rend les noms NUS que les imports du module lient à l'oracle pytest visé.
+
+    La correspondance est faite attribut par attribut, jamais par un ensemble
+    commun, parce que la POSITION compte : ``raises`` ne prouve un oracle qu'en
+    gestionnaire de contexte, ``fail`` qu'en appel. Les confondre accepterait un
+    ``raises(ValueError)`` nu, qui n'entre jamais dans le gestionnaire et ne
+    vérifie donc rien — c'est exactement l'asymétrie que la forme qualifiée
+    respecte déjà.
+    """
+    if attribut == "raises":
+        return aliases.oracles_raises
+    if attribut == "fail":
+        return aliases.oracles_fail
+    return frozenset()
+
+
 def _est_appel_pytest(
     noeud: ast.Call,
     attribut: str,
     aliases: _AliasesImports,
 ) -> bool:
-    """Reconnaît ``pytest.<attribut>`` sous le nom canonique comme sous ses alias.
+    """Reconnaît ``pytest.<attribut>`` sous le nom canonique, ses alias et son import direct.
 
     L'origine est prouvée par les imports déjà résolus du module, le même
     mécanisme que la détection des sauts : renommer ``pytest`` à l'import ne
@@ -1233,8 +1527,19 @@ def _est_appel_pytest(
     désarmer le gate. La qualification est conservée en sens inverse : un
     homonyme métier — ``mon_module.raises(...)`` — ne prouve toujours aucun
     oracle.
+
+    Le nom NU importé directement — ``from pytest import raises`` puis ``with
+    raises(...)`` — est reconnu au même titre. MESURÉ avant correction : cet
+    idiome courant recevait ``TEST_WITHOUT_ORACLE`` alors que le gate traçait
+    DÉJÀ les imports directs de ``skip`` et de ``mark`` pour détecter les sauts.
+    Un faux positif sur une forme aussi répandue coûte autant qu'un angle mort :
+    il se paie du désarmement du gate par ceux qu'il gêne. La preuve d'origine
+    est identique à celle des sauts — ``from mon_module import raises`` ne
+    prouve rien, et une réaffectation du nom détruit la preuve.
     """
     cible = noeud.func
+    if isinstance(cible, ast.Name):
+        return cible.id in _noms_oracle_direct(attribut, aliases)
     if not (isinstance(cible, ast.Attribute) and cible.attr == attribut):
         return False
     porteur = cible.value
@@ -1303,6 +1608,11 @@ def _contient_oracle(
 
     L'assertion nue et ``pytest.raises`` restent les oracles de référence du
     dépôt, inchangés : le durcissement ne retire que ce qui n'était jamais prouvé.
+
+    ``raises`` n'est lu qu'en tête d'un ``with`` et ``fail`` qu'en appel, sous la
+    forme qualifiée comme sous la forme importée directement. Cette asymétrie est
+    celle de l'exécution : un ``raises(...)`` hors ``with`` n'entre jamais dans le
+    gestionnaire de contexte et ne vérifie donc rien.
     """
     for noeud in ast.walk(fonction):
         if isinstance(noeud, ast.Assert):
@@ -2202,6 +2512,112 @@ def _groupe_repli_succes(neutre: str) -> str | None:
     return None
 
 
+def _fin_de_conditionnelle_shell(neutre: str, debut: int) -> int:
+    """Retourne l'index du mot qui referme la conditionnelle ouverte à ``debut``.
+
+    Ouvertures et fermetures sont comptées ensemble — ``if``/``case`` d'un côté,
+    ``fi``/``esac`` de l'autre — si bien qu'une conditionnelle imbriquée dans une
+    branche n'arrête pas le comptage trop tôt. Non refermée, elle s'étend jusqu'à
+    la fin de la commande : son contenu reste analysé au lieu d'être abandonné en
+    silence, exactement comme pour les groupes.
+    """
+    profondeur = 0
+    for jeton in _JETONS_CONDITIONNELLES.finditer(neutre, debut):
+        if jeton.group("ouvre") is not None:
+            profondeur += 1
+        elif jeton.group("ferme") is not None:
+            profondeur -= 1
+            if profondeur == 0:
+                return jeton.start("ferme")
+    return len(neutre)
+
+
+def _branches_de_conditionnelle(neutre: str, debut: int, fin: int) -> list[str]:
+    """Isole les corps de branches d'un ``if`` de repli, conditions exclues.
+
+    Un corps commence après ``then`` ou ``else`` et s'arrête au jeton de même
+    niveau qui suit. La condition d'un ``elif`` n'est PAS un corps : elle est
+    évaluée, jamais exécutée en repli, et la juger refuserait un repli qui
+    propage pourtant l'échec par chacune de ses branches.
+    """
+    branches: list[str] = []
+    profondeur = 0
+    ouverture: int | None = None
+    for jeton in _JETONS_CONDITIONNELLES.finditer(neutre, debut):
+        if jeton.start() >= fin:
+            break
+        if jeton.group("ouvre") is not None:
+            profondeur += 1
+            continue
+        if jeton.group("ferme") is not None:
+            profondeur -= 1
+            if profondeur == 0:
+                break
+            continue
+        if profondeur != 1:
+            continue
+        if ouverture is not None:
+            branches.append(neutre[ouverture : jeton.start()])
+            ouverture = None
+        sinon = jeton.group("sinon")
+        if jeton.group("then") is not None or (
+            sinon is not None and sinon.strip() == "else"
+        ):
+            ouverture = jeton.end()
+    if ouverture is not None:
+        branches.append(neutre[ouverture:fin])
+    return branches
+
+
+def _branches_de_filtrage(neutre: str, debut: int, fin: int) -> list[str]:
+    """Isole les corps de motifs d'un ``case`` de repli, motifs exclus.
+
+    Chaque alternative est délimitée par ``;;`` et son corps commence après la
+    parenthèse qui referme le motif. Le motif lui-même ne s'exécute pas, il
+    filtre : le juger reviendrait à refuser un repli qui propage l'échec.
+    """
+    return [
+        suite
+        for alternative in neutre[debut:fin].split(_SEPARATEUR_MOTIF_CASE)
+        for _motif, separateur, suite in [alternative.partition(")")]
+        if separateur
+    ]
+
+
+def _compose_conditionnel_repli_succes(neutre: str) -> str | None:
+    """Détecte un ``|| if … fi`` ou ``|| case … esac`` qui absorbe l'échec requis.
+
+    Une conditionnelle placée derrière ``||`` ne s'exécute que si le contrôle a
+    échoué, et son code de retour devient celui de l'étape. Le critère est celui
+    des groupes ``|| { … }`` : chaque branche exécutable doit se terminer par une
+    sortie non nulle prouvée, faute de quoi le job requis redevient vert avec son
+    contrôle rouge. MESURÉ, ``gate.py || if true; then :; fi`` échappait à tous
+    les motifs — le ``||`` exempte la gauche, le ``fi`` rend 0, l'étape est
+    verte. ``|| if …; then exit 1; fi`` reste au contraire licite : sa branche
+    propage.
+
+    Le ``case`` est traité au même critère que le ``if``, et non laissé de côté :
+    le gate les tokenise déjà comme la même conditionnelle, si bien que fermer le
+    seul ``if`` rendrait le contournement disponible au mot-clé voisin.
+
+    Une conditionnelle SANS aucune branche lisible est refusée : rien ne prouve
+    alors qu'un échec en sorte, et l'incertitude se tranche en faveur du contrôle.
+    """
+    for correspondance in _CONDITIONNELLE_APRES_OU.finditer(neutre):
+        debut = correspondance.start()
+        fin = _fin_de_conditionnelle_shell(neutre, debut)
+        est_si = correspondance.group("mot") == _MOT_IF_SHELL
+        branches = (
+            _branches_de_conditionnelle(neutre, debut, fin)
+            if est_si
+            else _branches_de_filtrage(neutre, debut, fin)
+        )
+        if branches and all(_groupe_propage_echec(branche) for branche in branches):
+            continue
+        return "if … fi" if est_si else "case … esac"
+    return None
+
+
 def _script_shell_force_le_succes(script: str) -> bool:
     """Décide si un script shell inline se termine forcément avec succès.
 
@@ -2251,6 +2667,12 @@ def _commande_repli_succes(commande: str) -> str | None:
     binaire que son nom nu, et le builtin ``command`` ne fait que le lancer en
     court-circuitant fonctions et alias du shell. La borne de fin de nom survit
     au préfixe : ``/usr/bin/true_story`` reste un exécutable tiers légitime.
+
+    Quatre formes de repli sont éprouvées tour à tour, de la plus simple à la
+    plus composée : la commande nue, le script ``sh -c``, le groupe ``{ … }`` et
+    la conditionnelle ``if … fi`` / ``case … esac``. Toutes répondent à la même
+    question — ce qui s'exécute après l'échec du contrôle propage-t-il cet
+    échec ?
     """
     neutre = _neutraliser_chaines_shell(commande)
     correspondance = _FALLBACK_SHELL.search(neutre)
@@ -2258,7 +2680,10 @@ def _commande_repli_succes(commande: str) -> str | None:
         inline = _repli_shell_inline_succes(commande, neutre)
         if inline is not None:
             return inline
-        return _groupe_repli_succes(neutre)
+        groupe = _groupe_repli_succes(neutre)
+        if groupe is not None:
+            return groupe
+        return _compose_conditionnel_repli_succes(neutre)
     commande_repli = correspondance.group("command")
     if commande_repli.startswith("echo"):
         commande_repli = "echo"
@@ -2582,6 +3007,24 @@ def _analyser_commande(
     return []
 
 
+def _chaine_numerique_non_nulle(texte: str) -> bool:
+    """Décide si un scalaire QUOTÉ porte un nombre qui tolère les erreurs.
+
+    MESURÉ : ``continue-on-error: '2'`` était accepté quand ``2`` non quoté et
+    ``'true'`` étaient refusés — la liste des chaînes vraies est fermée
+    (``true``, ``yes``, ``on``, ``y``, ``1``) et ne couvrait aucun autre
+    numérique quoté, si bien qu'un caractère de quote suffisait à tolérer les
+    erreurs d'un job requis. La valeur est donc lue comme celle d'un entier, et
+    non l'orthographe : ``'2'``, ``'-1'`` et ``'1.5'`` tolèrent, ``'0'`` et
+    ``'0.0'`` ne tolèrent rien et restent acceptés. Un texte non numérique
+    n'appartient pas à cette règle et est laissé aux suivantes.
+    """
+    try:
+        return float(texte) != 0
+    except ValueError:
+        return False
+
+
 def _analyser_continue_on_error(
     repo: Path,
     fichier: Path,
@@ -2603,6 +3046,11 @@ def _analyser_continue_on_error(
     violation, comme il le doit. Les formes non numériques dont la vérité n'est
     pas décidable ici — ``.nan``, ``.inf`` — restent refusées en fail-closed :
     aucune ne désigne un contrôle obligatoire.
+
+    La même lecture par la valeur s'applique aux scalaires QUOTÉS, et elle est
+    placée APRÈS la liste des chaînes vraies afin que ``'1'``, déjà couvert par
+    elle, garde son message d'origine. MESURÉ avant correction : ``'2'`` était
+    accepté quand ``2`` était refusé — la quote seule désarmait la règle.
     """
     if valeur is True:
         detail = f"le job requis {job} accepte les erreurs"
@@ -2621,6 +3069,11 @@ def _analyser_continue_on_error(
         and valeur.strip().lower() in _VALEURS_VRAIES_YAML
     ):
         detail = f"le job requis {job} accepte les erreurs"
+    elif isinstance(valeur, str) and _chaine_numerique_non_nulle(valeur.strip()):
+        detail = (
+            f"le job requis {job} accepte les erreurs "
+            f"par la valeur numérique {valeur!r}"
+        )
     else:
         return []
     return [

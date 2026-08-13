@@ -4646,3 +4646,768 @@ def test_conserve_une_exemption_reaffectee_dans_un_corps_de_classe(
     )
 
     assert "EXECUTABLE_ELLIPSIS" not in _codes(_scanner(repo))
+
+
+def test_accepte_un_oracle_raises_importe_directement_de_pytest(
+    tmp_path: Path,
+) -> None:
+    """Prouve que ``from pytest import raises`` reste un oracle, comme à l'exécution.
+
+    MESURÉ avant correction : le code ``TEST_WITHOUT_ORACLE`` était émis sur cet
+    idiome courant, alors qu'``import pytest`` puis ``pytest.raises`` était
+    accepté. Un gate qui refuse un idiome courant se fait désarmer par ceux qu'il
+    gêne : le faux positif coûte aussi cher que l'angle mort.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "from pytest import raises\n\n\n"
+        "def test_calcul() -> None:\n"
+        "    with raises(ValueError):\n"
+        "        calculer()\n",
+    )
+
+    assert "TEST_WITHOUT_ORACLE" not in _codes(_scanner(repo))
+
+
+def test_accepte_un_oracle_fail_importe_directement_de_pytest(
+    tmp_path: Path,
+) -> None:
+    """Prouve que ``from pytest import fail`` abandonne bien le test, donc l'oracle.
+
+    MESURÉ avant correction : cette forme était elle aussi signalée sans oracle.
+    Elle vient du même import direct, et le correctif la traite au même endroit.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "from pytest import fail\n\n\n"
+        "def test_calcul() -> None:\n"
+        "    fail('chemin jamais atteint')\n",
+    )
+
+    assert "TEST_WITHOUT_ORACLE" not in _codes(_scanner(repo))
+
+
+def test_accepte_un_oracle_raises_importe_sous_un_alias_de_pytest(
+    tmp_path: Path,
+) -> None:
+    """Prouve que renommer l'oracle à l'import ne change rien à ce qu'il vérifie."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "from pytest import raises as leve\n\n\n"
+        "def test_calcul() -> None:\n"
+        "    with leve(ValueError):\n"
+        "        calculer()\n",
+    )
+
+    assert "TEST_WITHOUT_ORACLE" not in _codes(_scanner(repo))
+
+
+def test_refuse_un_raises_importe_dun_module_metier_comme_oracle(
+    tmp_path: Path,
+) -> None:
+    """Prouve la garde INVERSE : seule l'origine pytest fait d'un nom nu un oracle.
+
+    ``from mon_module import raises`` porte le même nom sans rien vérifier :
+    l'ouverture aux imports directs se paierait d'un oracle de façade si elle ne
+    lisait que l'orthographe du nom.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "from mon_module import raises\n\n\n"
+        "def test_calcul() -> None:\n"
+        "    with raises(ValueError):\n"
+        "        calculer()\n",
+    )
+
+    assert "TEST_WITHOUT_ORACLE" in _codes(_scanner(repo))
+
+
+def test_refuse_un_raises_de_pytest_reaffecte_comme_oracle(tmp_path: Path) -> None:
+    """Prouve qu'une réaffectation du nom importé détruit la preuve de son origine."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "from pytest import raises\n\n"
+        "raises = mon_module.raises\n\n\n"
+        "def test_calcul() -> None:\n"
+        "    with raises(ValueError):\n"
+        "        calculer()\n",
+    )
+
+    assert "TEST_WITHOUT_ORACLE" in _codes(_scanner(repo))
+
+
+def test_refuse_un_appel_nu_a_raises_importe_de_pytest_comme_oracle(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'ouverture aux imports directs conserve l'asymétrie des POSITIONS.
+
+    MESURÉ : ``pytest.raises(ValueError)`` appelé hors d'un ``with`` n'entre
+    jamais dans le gestionnaire de contexte et ne vérifie donc rien — le gate le
+    refuse déjà sous la forme qualifiée. La forme importée directement doit être
+    jugée pareil, sans quoi le correctif du faux positif ouvrirait un oracle de
+    façade à un caractère près.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "from pytest import raises\n\n\n"
+        "def test_calcul() -> None:\n"
+        "    raises(ValueError)\n",
+    )
+
+    assert "TEST_WITHOUT_ORACLE" in _codes(_scanner(repo))
+
+
+def test_refuse_un_protocol_ecrase_par_une_expression_daffectation(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un walrus module-level détruit l'exemption comme une affectation.
+
+    MESURÉ avant correction : ``(Protocol := object)`` était accepté alors que
+    ``Protocol = object`` était refusé. La collecte des réaffectations ne lisait
+    que des INSTRUCTIONS, et le walrus est une EXPRESSION : l'écrasement lui
+    échappait entièrement.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "from typing import Protocol\n\n"
+        "(Protocol := object)\n\n\n"
+        "class Depot(Protocol):\n"
+        "    def lire(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_protocol_ecrase_par_un_walrus_de_comprehension(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un walrus écrit dans une compréhension lie bien la portée ENGLOBANTE.
+
+    MESURÉ à l'interpréteur : ``[(P := 1) for _ in range(1)]`` laisse ``P``
+    défini au dehors, contrairement à la cible de boucle de la compréhension.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "from typing import Protocol\n\n"
+        "_charges = [(Protocol := object) for _element in range(1)]\n\n\n"
+        "class Depot(Protocol):\n"
+        "    def lire(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_accepte_un_protocol_ecrase_par_un_walrus_de_corps_de_classe(
+    tmp_path: Path,
+) -> None:
+    """Prouve la garde INVERSE : un walrus de CORPS DE CLASSE ne lie pas le module.
+
+    MESURÉ à l'interpréteur : après ``class Boite: _valeur = (Protocol :=
+    object)``, le nom ``Protocol`` du module vaut encore ce que l'import lui a
+    donné, et c'est ``Boite.Protocol`` qui a été créé. Parcourir les corps de
+    classes pour y chercher des liaisons du module produirait un faux positif,
+    exactement comme pour l'affectation ordinaire déjà couverte.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "from typing import Protocol\n\n\n"
+        "class Boite:\n"
+        "    _valeur = (Protocol := object)\n\n\n"
+        "class Depot(Protocol):\n"
+        "    def lire(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" not in _codes(_scanner(repo))
+
+
+def test_accepte_un_protocol_masque_par_une_cible_de_comprehension(
+    tmp_path: Path,
+) -> None:
+    """Prouve la garde INVERSE : la cible d'une compréhension ne lie PAS le module.
+
+    MESURÉ à l'interpréteur : après ``[Protocol for Protocol in ('A', 'B')]``, le
+    nom ``Protocol`` vaut encore ce que l'import lui a donné. Traiter cette forme
+    comme un écrasement produirait un faux positif pur, exactement la pression
+    qui fait désarmer un gate.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "from typing import Protocol\n\n"
+        "_noms = [Protocol for Protocol in ('A', 'B')]\n\n\n"
+        "class Depot(Protocol):\n"
+        "    def lire(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" not in _codes(_scanner(repo))
+
+
+def test_refuse_un_protocol_ecrase_par_une_affectation_augmentee(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'une affectation augmentée module-level détruit aussi l'exemption."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "from typing import Protocol\n\n"
+        "Protocol += ()\n\n\n"
+        "class Depot(Protocol):\n"
+        "    def lire(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_protocol_lie_par_un_gestionnaire_dexception(
+    tmp_path: Path,
+) -> None:
+    """Prouve que ``except … as Protocol`` lie le nom, donc détruit son origine."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "from typing import Protocol\n\n"
+        "try:\n"
+        "    charger()\n"
+        "except ValueError as Protocol:\n"
+        "    class Depot(Protocol):\n"
+        "        def lire(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_protocol_lie_par_une_capture_de_filtrage(tmp_path: Path) -> None:
+    """Prouve qu'une capture ``match``/``case`` réécrit le nom au niveau du module.
+
+    MESURÉ à l'interpréteur : après ``match object:`` / ``case Protocol:``, le nom
+    ``Protocol`` vaut ``object`` et la classe qui en hérite a bien ``object``
+    dans son MRO. Le contournement est donc VALIDE à l'exécution, pas seulement
+    sur le papier — contrairement aux formes qui lèvent une erreur à l'import.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "from typing import Protocol\n\n"
+        "match object:\n"
+        "    case Protocol:\n"
+        "        pass\n\n\n"
+        "class Depot(Protocol):\n"
+        "    def lire(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_protocol_ecrase_par_un_walrus_dexpression_conditionnelle(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le corps d'une expression CONDITIONNELLE est bien parcouru.
+
+    ``a if c else b`` range son résultat dans un champ nommé ``body`` sans ouvrir
+    la moindre portée. Écarter ce champ sur son seul NOM, comme on écarte le
+    corps d'une fonction, y perdrait une liaison bien réelle du module : la
+    distinction tient à la NATURE du nœud, jamais au nom de son champ.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "from typing import Protocol\n\n"
+        "_choix = (Protocol := object) if charger() else None\n\n\n"
+        "class Depot(Protocol):\n"
+        "    def lire(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_protocol_delie_par_une_suppression(tmp_path: Path) -> None:
+    """Prouve qu'un ``del`` module-level retire au nom son origine prouvée."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "from typing import Protocol\n\n"
+        "del Protocol\n\n\n"
+        "class Depot(Protocol):\n"
+        "    def lire(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_une_classe_locale_heritant_dun_homonyme_de_sa_portee(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la base d'une classe se résout dans SA portée avant le module.
+
+    MESURÉ avant correction : ``Service`` héritait du ``Panne`` LOCAL, ordinaire,
+    et son corps vide était pourtant exempté — la résolution par nom sur tout
+    l'arbre faisait croire qu'il héritait du type d'exception du module. Le
+    correctif précédent avait attaché l'exemption à la POSITION de la définition
+    exempte ; ici c'est la RÉSOLUTION de la base qui ignorait les portées.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "class Panne(ValueError):\n"
+        "    pass\n\n\n"
+        "def configurer() -> None:\n"
+        "    class Panne:\n"
+        "        marqueur = 1\n\n"
+        "    class Service(Panne):\n"
+        "        pass\n",
+    )
+
+    assert "EXECUTABLE_PASS" in _codes(_scanner(repo))
+
+
+def test_accepte_une_classe_locale_heritant_du_type_dexception_du_module(
+    tmp_path: Path,
+) -> None:
+    """Prouve la garde INVERSE : sans homonyme local, la résolution retombe au module.
+
+    Une classe locale qui dérive réellement du type d'exception du module reste
+    exempte : le correctif restreint la résolution aux portées, il ne la coupe
+    pas. Sans cette preuve, rendre le gate plus strict serait indiscernable de le
+    rendre aveugle au cas légitime.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "class Panne(ValueError):\n"
+        "    pass\n\n\n"
+        "def configurer() -> None:\n"
+        "    class Service(Panne):\n"
+        "        pass\n",
+    )
+
+    assert "EXECUTABLE_PASS" not in _codes(_scanner(repo))
+
+
+def test_refuse_une_classe_heritant_dun_nom_dexception_usurpe_localement(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'une classe locale usurpant un nom builtin n'exempte plus rien."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "def configurer() -> None:\n"
+        "    class ValueError:\n"
+        "        marqueur = 1\n\n"
+        "    class Service(ValueError):\n"
+        "        pass\n",
+    )
+
+    assert "EXECUTABLE_PASS" in _codes(_scanner(repo))
+
+
+def test_refuse_une_classe_heritant_dun_nom_dexception_lie_sans_preuve(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'une liaison locale OPAQUE arrête la résolution sans repli.
+
+    ``ValueError = charger()`` dans une fonction ne dit rien de ce que le nom
+    désigne ensuite. Retomber alors sur la preuve d'origine des imports
+    exempterait sur la foi d'une orthographe : le nom est lié, donc la question
+    est tranchée, et elle l'est contre l'exemption.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "def configurer() -> None:\n"
+        "    ValueError = charger()\n"
+        "    class Service(ValueError):\n"
+        "        pass\n",
+    )
+
+    assert "EXECUTABLE_PASS" in _codes(_scanner(repo))
+
+
+def test_refuse_une_classe_heritant_dun_parametre_qui_masque_le_module(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un PARAMÈTRE masque le type d'exception du module dans le corps."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "class Panne(ValueError):\n"
+        "    pass\n\n\n"
+        "def configurer(Panne) -> None:\n"
+        "    class Service(Panne):\n"
+        "        pass\n",
+    )
+
+    assert "EXECUTABLE_PASS" in _codes(_scanner(repo))
+
+
+def test_accepte_une_classe_dont_lhomonyme_vit_dans_une_portee_soeur(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'une portée ne voit PAS ce que déclarent les portées imbriquées.
+
+    Le ``Panne`` déclaré dans une fonction interne n'existe pas pour la fonction
+    qui la contient : l'y compter ferait croire à un masquage inexistant et
+    signalerait un type d'exception parfaitement valide.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "class Panne(ValueError):\n"
+        "    pass\n\n\n"
+        "def configurer() -> None:\n"
+        "    def interne() -> None:\n"
+        "        class Panne:\n"
+        "            marqueur = 1\n\n"
+        "    class Service(Panne):\n"
+        "        pass\n",
+    )
+
+    assert "EXECUTABLE_PASS" not in _codes(_scanner(repo))
+
+
+def test_refuse_une_classe_heritant_dun_homonyme_dun_corps_de_classe_lointain(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un corps de classe LOINTAIN ne participe pas à la résolution.
+
+    Python ne fait pas participer les espaces de noms de classes à la résolution
+    des portées imbriquées : ``class Enveloppe:`` déclarant ``Panne`` puis, dans
+    une MÉTHODE, ``class Service(Panne)`` lève ``NameError`` à l'exécution. Le
+    prêter au ``Panne`` de la classe englobante exempterait une classe qui
+    n'hérite en réalité de rien.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "class Enveloppe:\n"
+        "    class Panne(ValueError):\n"
+        "        pass\n\n"
+        "    def monter(self) -> None:\n"
+        "        class Service(Panne):\n"
+        "            pass\n",
+    )
+
+    assert "EXECUTABLE_PASS" in _codes(_scanner(repo))
+
+
+def test_accepte_une_classe_heritant_dune_soeur_du_meme_corps_de_classe(
+    tmp_path: Path,
+) -> None:
+    """Prouve la garde INVERSE : le corps de classe DIRECT résout bien la base.
+
+    La base d'une classe est évaluée pendant l'exécution du corps qui la
+    contient : une sœur déclarée juste au-dessus est visible, et l'exclure
+    signalerait un type d'exception valide.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "class Enveloppe:\n"
+        "    class Panne(ValueError):\n"
+        "        pass\n\n"
+        "    class Service(Panne):\n"
+        "        pass\n",
+    )
+
+    assert "EXECUTABLE_PASS" not in _codes(_scanner(repo))
+
+
+def test_refuse_un_oracle_herite_dun_test_case_usurpe_dans_une_portee_locale(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la résolution par portée sert AUSSI la preuve des cas de test.
+
+    ``_positions_de_classes_derivees`` répond à deux questions — quelle classe
+    est un type d'exception, quelle classe est un cas de test ``unittest``. Le
+    même défaut de résolution laissait un ``TestCase`` local usurpé fabriquer un
+    receveur d'oracles : ``self.assertVrai(...)`` passait alors pour une
+    vérification héritée de la bibliothèque standard.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "from unittest import TestCase\n\n\n"
+        "def monter() -> None:\n"
+        "    class TestCase:\n"
+        "        marqueur = 1\n\n"
+        "    class Suite(TestCase):\n"
+        "        def test_calcul(self) -> None:\n"
+        "            self.assertVrai(calculer())\n",
+    )
+
+    assert "TEST_WITHOUT_ORACLE" in _codes(_scanner(repo))
+
+
+def test_accepte_un_oracle_herite_dun_test_case_importe_du_module(
+    tmp_path: Path,
+) -> None:
+    """Prouve la garde INVERSE : un cas de test réel garde ses oracles hérités."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "from unittest import TestCase\n\n\n"
+        "class Suite(TestCase):\n"
+        "    def test_calcul(self) -> None:\n"
+        "        self.assertEqual(calculer(), 1)\n",
+    )
+
+    assert "TEST_WITHOUT_ORACLE" not in _codes(_scanner(repo))
+
+
+def test_refuse_un_compose_conditionnel_de_repli_qui_absorbe_lechec(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un ``if`` placé en repli ``||`` ne peut pas rendre l'étape verte.
+
+    MESURÉ avant correction : ``gate.py || if true; then :; fi`` était accepté
+    dans un job requis. Le ``||`` exempte l'échec de gauche, le ``if`` rend 0, et
+    l'étape passe au vert avec son contrôle rouge. Le critère est celui des
+    groupes ``|| { … }`` : la branche exécutée propage-t-elle l'échec ?
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        '      - run: "gate.py || if true; then :; fi"\n',
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_accepte_un_compose_conditionnel_de_repli_qui_propage_lechec(
+    tmp_path: Path,
+) -> None:
+    """Prouve la garde INVERSE : un repli conditionnel qui sort non nul reste licite."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        '      - run: "gate.py || if true; then exit 1; fi"\n',
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
+def test_refuse_un_compose_conditionnel_de_repli_dont_le_sinon_absorbe(
+    tmp_path: Path,
+) -> None:
+    """Prouve que TOUTE branche du repli doit propager, pas seulement la première."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        '      - run: "gate.py || if true; then exit 1; else echo repli; fi"\n',
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_accepte_un_compose_conditionnel_de_repli_dont_chaque_branche_propage(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un repli à ``elif`` n'est pas condamné pour sa CONDITION.
+
+    La condition d'un ``elif`` n'est pas une branche exécutée en cas d'échec :
+    la juger comme telle refuserait un repli pourtant propageant, donc un faux
+    positif sur une forme légitime.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        '      - run: "gate.py || if a; then exit 1; elif b; then exit 2; '
+        'else exit 3; fi"\n',
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
+def test_refuse_un_filtrage_de_repli_qui_absorbe_lechec(tmp_path: Path) -> None:
+    """Prouve qu'un ``case`` en repli est jugé au même critère qu'un ``if``.
+
+    MESURÉ : ``|| case … esac`` échappait lui aussi à tous les motifs. Fermer le
+    seul ``if`` laisserait le contournement disponible au mot-clé voisin, que le
+    gate tokenise pourtant déjà comme la même conditionnelle.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        '      - run: "gate.py || case x in *) : ;; esac"\n',
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_accepte_un_filtrage_de_repli_dont_chaque_motif_propage(
+    tmp_path: Path,
+) -> None:
+    """Prouve la garde INVERSE : un ``case`` de repli qui sort non nul reste licite."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        '      - run: "gate.py || case x in *) exit 1 ;; esac"\n',
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
+def test_refuse_un_compose_conditionnel_de_repli_sans_branche_lisible(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'une conditionnelle de repli ILLISIBLE est refusée, non acceptée.
+
+    Une conditionnelle dont aucune branche ne se laisse isoler ne prouve rien du
+    sort de l'échec. La traiter comme propageante — ce que fait un ``all`` sur
+    une liste vide — rendrait le contrôle muet devant la première syntaxe que le
+    lecteur de jetons ne sait pas suivre, soit le contournement suivant tout
+    trouvé. L'incertitude se tranche donc en faveur du contrôle.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        '      - run: "gate.py || if verifier; fi"\n',
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_accepte_un_compose_conditionnel_de_repli_cite_dans_une_chaine(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la neutralisation des quotes protège toujours un repli CITÉ.
+
+    Un repli conditionnel écrit à l'intérieur d'un argument littéral n'est pas
+    exécuté : le signaler ferait un faux positif sur une commande qui ne force
+    aucun succès.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: \"gate.py --motif '|| if true; then :; fi'\"\n",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
+@pytest.mark.parametrize("valeur", ("'2'", '"-1"', "'1.5'"))
+def test_refuse_continue_on_error_numerique_non_nul_ecrit_comme_chaine_quotee(
+    tmp_path: Path,
+    valeur: str,
+) -> None:
+    """Prouve qu'une chaîne numérique est jugée sur sa VALEUR, comme un entier.
+
+    MESURÉ avant correction : ``'2'`` était accepté alors que ``2`` non quoté et
+    ``'true'`` étaient refusés. La liste des chaînes vraies est fermée
+    (``true``, ``yes``, ``on``, ``y``, ``1``) et ne couvrait aucun autre
+    numérique quoté — un caractère de quote suffisait à tolérer les erreurs d'un
+    job requis.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/continue.yml",
+        "jobs:\n"
+        "  gates:\n"
+        f"    continue-on-error: {valeur}\n"
+        "    runs-on: ubuntu-latest\n",
+    )
+
+    assert "REQUIRED_JOB_SOFT_FAILURE" in _codes(_scanner(repo))
+
+
+@pytest.mark.parametrize("valeur", ("'0'", '"0.0"'))
+def test_accepte_continue_on_error_numerique_nul_ecrit_comme_chaine_quotee(
+    tmp_path: Path,
+    valeur: str,
+) -> None:
+    """Prouve la garde INVERSE : un zéro quoté ne tolère rien et reste accepté."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/continue.yml",
+        "jobs:\n"
+        "  gates:\n"
+        f"    continue-on-error: {valeur}\n"
+        "    runs-on: ubuntu-latest\n",
+    )
+
+    assert "REQUIRED_JOB_SOFT_FAILURE" not in _codes(_scanner(repo))
