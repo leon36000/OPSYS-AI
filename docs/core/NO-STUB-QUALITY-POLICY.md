@@ -121,8 +121,59 @@ continue-on-error: "false" # accepté
 ```
 
 Le contrôle numérique est placé **après** la liste des chaînes vraies, si bien
-que `'1'`, déjà couvert par elle, conserve son message d'origine. Un texte non
-numérique n'appartient pas à cette règle et reste jugé par les précédentes.
+que `'1'`, déjà couvert par elle, conserve son message d'origine.
+
+### Sur un scalaire QUOTÉ, c'est la FAUSSETÉ qui doit être écrite
+
+La lecture décimale n'a pas suffi, et l'échec était mesurable : elle **échoue**
+sur les bases non décimales et retombait silencieusement sur « faux ».
+
+```yaml
+continue-on-error: '0x1'   # MESURÉ accepté avant correction — float('0x1') lève
+continue-on-error: '0o7'   # MESURÉ accepté avant correction — même cause
+continue-on-error: '2'     # refusé — la lecture décimale aboutit
+```
+
+Deux options se présentaient : apprendre les bases, ou **inverser la règle**.
+La première ne ferme qu'une orthographe à la fois — `'0x1'` fermé, `'0x0'`,
+`'enabled'` et `'oui'` restaient ouverts —, et l'énumération des orthographes
+vraies ne converge pas, exactement comme celle des replis absorbants. C'est donc
+l'inversion qui est retenue : **un scalaire quoté tolère les erreurs, sauf si sa
+fausseté est écrite.**
+
+Trois écritures disent la fausseté sans ambiguïté et restent acceptées : le
+scalaire **vide**, un mot-clé faux de YAML (`false`, `no`, `off`, `n`), et un
+zéro **décimal** (`0`, `0.0`, `-0`).
+
+```yaml
+continue-on-error: '0x1'   # refusé — base non décimale
+continue-on-error: '0o7'   # refusé
+continue-on-error: '0b1'   # refusé
+continue-on-error: '0x0'   # refusé — un zéro hexadécimal n'écrit la fausseté de personne
+continue-on-error: 'oui'   # refusé — chaîne quelconque
+continue-on-error: '.nan'  # refusé — vérité non décidable, fail-closed
+continue-on-error: '  '    # refusé — des blancs ne sont pas le scalaire VIDE
+
+continue-on-error: ''      # accepté — scalaire vide
+continue-on-error: 'false' # accepté
+continue-on-error: 'no'    # accepté
+continue-on-error: 'off'   # accepté
+continue-on-error: 'n'     # accepté
+continue-on-error: '-0'    # accepté — zéro décimal
+```
+
+Les branches numériques restent **avant** cette fermeture, afin de garder leur
+message chiffré, plus précis pour l'auteur du workflow ; elles ne décident plus
+seules de l'acceptation.
+
+Cette lecture est plus stricte que la sémantique nominale de YAML, et le doit :
+d'après le contrat GitHub Actions — rappelé au mandat de cette correction, non
+exécutable depuis ce dépôt et donc rapporté comme tel — toute chaîne non vide y
+est convertie en vrai, y compris `'false'` et `'0'`. Accepter les quatre
+mots-clés et le zéro décimal est une **concession assumée à l'intention**, qu'ils
+écrivent sans équivoque, et aux cas déjà couverts par la suite de tests. Le
+scalaire non quoté ne connaît pas ce doute : PyYAML en rend un booléen ou un
+nombre, jugé plus haut.
 
 ## Jobs requis qui n'exécutent rien
 
@@ -279,6 +330,35 @@ echo "couleur #ff0000" || true   # refusé  — le # entre quotes reste une donn
 Traiter tout `#` comme une ouverture de commentaire effaçait la fin de la ligne :
 `python3 gate.py x#note || true` passait pour un contrôle sans repli, alors qu'il
 force un succès.
+
+### L'antislash suit les trois règles du shell, mesurées avant d'être codées
+
+Ne pas traiter l'échappement laissait une quote **échappée** ouvrir une chaîne
+qui n'existe pas, et cette fausse chaîne effaçait tout ce qui suivait — donc le
+repli. MESURÉ dans bash : `f gate.py \"|| echo REPLI` passe `gate.py` puis un
+guillemet littéral en arguments, et écrit bien `REPLI` ; le job requis restait
+pourtant vert avec son contrôle rouge.
+
+| Contexte | Rôle de `\` | Mesure |
+|---|---|---|
+| Hors quotes | rend littéral le caractère suivant | `f gate.py \"\|\| echo REPLI` → argv `[gate.py]["]`, puis `REPLI` |
+| Quotes **simples** | aucun — caractère ordinaire | `printf '%s' '\"'` écrit deux octets, `5c 22` |
+| Guillemets **doubles** | échappe `"`, `\`, `$` et `` ` `` | la position du guillemet fermant est la seule qui compte ici |
+
+```sh
+gate.py \" || true      # refusé  — la quote est littérale, le repli s'exécute
+gate.py \"|| true       # refusé  — sans espace : « || » reste un opérateur
+gate.py \\ || true      # refusé  — antislash littéral, le repli s'exécute
+gate.py 'motif\' || true # refusé — entre quotes simples, « \ » n'échappe rien
+gate.py --motif "a\" || true" --strict   # accepté — le repli est CITÉ, jamais exécuté
+```
+
+Hors quotes, les deux caractères sont neutralisés **ensemble** : ils ne portent
+aucune syntaxe. La consommation est d'exactement deux caractères — un de plus
+couperait un `||` collé à la quote et rouvrirait la brèche par l'autre bout.
+Entre guillemets doubles, la distinction entre échappement réel et antislash
+littéral est sans effet observable : l'intérieur d'une chaîne est neutralisé de
+toute façon.
 
 ## Replis après `||` : une LISTE BLANCHE de formes qui propagent
 
@@ -743,6 +823,45 @@ class Suite:                          # aucun import unittest
 L'`assert` nu et `pytest.raises` restent les oracles de référence du dépôt,
 inchangés : le durcissement ne retire que ce qui n'était jamais prouvé.
 
+### Un oracle ne compte que dans la portée PROPRE du test
+
+MESURÉ : la recherche parcourait tout l'arbre, si bien que l'`assert` d'une
+fonction interne **jamais appelée** comptait comme oracle du test qui l'entoure.
+Le test ne vérifiait pourtant rien à l'exécution.
+
+```python
+def test_x() -> None:
+    def oracle() -> None:
+        assert False          # REFUSÉ — portée jamais exécutée
+    return
+```
+
+Fonctions, lambdas et classes imbriquées ouvrent leur propre portée et sont
+écartées. Un **bloc** n'en ouvre aucune : son oracle appartient au corps du test
+et compte comme lui.
+
+```python
+def test_boucle() -> None:
+    for valeur in [1]:
+        assert valeur         # accepté — la boucle est le corps du test
+
+def test_contexte() -> None:
+    for cas in [1, 2]:
+        with pytest.raises(ValueError):
+            calculer(cas)     # accepté — bloc, jamais portée
+```
+
+Boucle, condition, gestionnaire de contexte, `try` et `match` sont donc traités
+à égalité avec le premier niveau. Le parcours réutilise l'utilitaire de portée
+déjà employé pour les liaisons `global` : deux parcours de portée seraient deux
+règles à maintenir, donc deux occasions de diverger.
+
+La conséquence est assumée : un test dont l'oracle est déporté dans une fonction
+auxiliaire **appelée** est désormais refusé lui aussi. Distinguer l'auxiliaire
+appelé de l'auxiliaire mort demanderait de suivre les appels, ce que le gate ne
+fait pas ; l'incertitude se tranche en faveur du contrôle, et l'oracle
+s'écrit dans le test.
+
 Les **alias d'import** y sont résolus par le même mécanisme que pour les sauts :
 renommer l'import ne change rien à ce que l'oracle vérifie, et refuser un test
 légitime pousse les contributeurs à désarmer le gate.
@@ -1039,12 +1158,107 @@ l'ellipse — jamais `pass`, jamais une docstring seule — et le **vrai**
 `typing.Protocol`, prouvé par les imports du module. Un homonyme local du nom
 `Protocol` ne l'obtient pas.
 
+### `typing_extensions` compte à ÉGALITÉ avec `typing`
+
+MESURÉ avant correction : seul le module `typing` était reconnu. Les quatre
+écritures du rétroportage étaient signalées `EXECUTABLE_ELLIPSIS` quand le témoin
+`from typing import Protocol` passait.
+
+```python
+from typing_extensions import Protocol                  # accepté
+from typing_extensions import Protocol as Interface     # accepté — alias
+import typing_extensions                                # accepté
+import typing_extensions as te                          # accepté — alias de module
+
+from typing_extensions import Protocol, runtime_checkable
+@runtime_checkable
+class Service(Protocol):
+    def calculer(self) -> int: ...                      # accepté
+```
+
+`typing_extensions` est l'écriture **normale** d'un protocole sur les versions de
+Python où `typing` ne l'expose pas encore, et le repli d'import entre les deux
+modules est l'idiome courant. Un gate qui refuse du code normal finit désarmé par
+ceux qu'il gêne : le faux positif coûte aussi cher que l'angle mort.
+
+La parité est obtenue en versant les deux origines dans les **mêmes ensembles de
+preuve**. Toutes les révocations déjà en place s'y appliquent donc sans qu'aucune
+ait à être dupliquée — et c'est bien ce qui est vérifié :
+
+```python
+from typing_extensions import Protocol
+Protocol = object                   # refusé — nom réaffecté
+
+from typing_extensions import Protocol
+del Protocol                        # refusé — nom supprimé
+
+import typing_extensions as te
+te.Protocol = object                # refusé — attribut prouvant réécrit
+
+import typing_extensions as te
+del te.Protocol                     # refusé — attribut prouvant supprimé
+
+from typing_extensions import Protocol
+def monter() -> None:
+    class Protocol:                 # homonyme local
+        marqueur = 1
+    class Service(Protocol):
+        def calculer(self) -> int: ...   # refusé — masquage lexical
+```
+
+**`abc` n'a pas d'équivalent à traiter, et l'absence est mesurée**, pas
+supposée : `hasattr(typing_extensions, "abstractmethod")` vaut `False`. Le module
+rétroporte `typing`, jamais `abc`. La liste des modules `abc` reste donc
+singleton, écrite à la même place et sous la même forme que celle des modules
+`typing`, pour qu'un rétroportage futur n'ait qu'un seul endroit à modifier.
+
 ## Absence d'implémentation
 
 La sentinelle `NotImplemented` et l'exception `NotImplementedError` sont
 refusées à égalité, sous leurs formes nue, appelée, importée sous alias et
 qualifiée par attribut. Un attribut du même nom qui n'est pas levé n'est pas
 concerné.
+
+### Sous la forme QUALIFIÉE, c'est le PORTEUR qui décide
+
+MESURÉ : la levée de l'attribut **homonyme** porté par un module métier était
+refusée sur la seule orthographe de cet attribut, alors qu'un module est libre
+de nommer ainsi son propre type d'erreur — qui n'a rien d'un stub. Voir le bloc
+ci-dessous pour la forme exacte. La règle voisine sur les
+**bases** d'exception exigeait déjà, elle, un porteur prouvé : les deux sont
+désormais alignées, et un seul point du code répond à la question pour les deux
+chemins qui la posent.
+
+```python
+import mon_module
+def calculer() -> int:
+    raise mon_module.NotImplementedError   # accepté — porteur non prouvé  # proof:allow — exemple de la règle
+
+import builtins
+def calculer() -> int:
+    raise builtins.NotImplementedError     # refusé — porteur prouvé  # proof:allow — exemple de la règle
+
+import builtins as b
+def calculer() -> int:
+    raise b.NotImplementedError            # refusé — alias du module prouvé  # proof:allow — exemple de la règle
+
+def calculer() -> int:
+    raise NotImplementedError              # refusé — forme NUE, cas principal inchangé  # proof:allow — exemple de la règle
+```
+
+La forme **nue** ne dépend d'aucun porteur : elle reste reconnue par la liste des
+noms de l'interpréteur, sans qu'aucun import ait à la prouver. C'est le cas
+principal, et il n'est pas touché.
+
+Le chemin des **alias construits par affectation** exige le même porteur, sans
+quoi le faux positif se déplacerait simplement d'une ligne :
+
+```python
+import mon_module
+Absence = mon_module.NotImplementedError   # proof:allow — exemple de la règle
+def calculer() -> int:
+    raise Absence                          # accepté — l'origine n'est pas builtins
+```
 
 L'alias construit par **affectation** l'est aussi : le gate résolvait l'alias
 d'import, mais le même nom obtenu depuis l'attribut d'un module échappait

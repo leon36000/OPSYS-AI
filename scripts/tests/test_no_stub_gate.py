@@ -6394,3 +6394,450 @@ def test_accepte_une_chaine_dalias_dont_lorigine_nest_pas_prouvee(
     )
 
     assert _codes(_scanner(repo)) == set()
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        "from typing_extensions import Protocol\n\n\nclass Service(Protocol):\n",
+        "from typing_extensions import Protocol as Interface\n\n\n"
+        "class Service(Interface):\n",
+        "import typing_extensions\n\n\nclass Service(typing_extensions.Protocol):\n",
+        "import typing_extensions as te\n\n\nclass Service(te.Protocol):\n",
+    ),
+    ids=("import-direct", "import-alias", "module", "module-alias"),
+)
+def test_accepte_une_ellipse_de_protocole_retroporte_par_typing_extensions(
+    tmp_path: Path, source: str
+) -> None:
+    """Prouve que le rétroportage ``typing_extensions`` vaut la bibliothèque standard.
+
+    MESURÉ avant correction : seul le module ``typing`` était reconnu, si bien
+    que les quatre formes ci-dessus étaient signalées ``EXECUTABLE_ELLIPSIS``
+    alors que ``from typing import Protocol`` passait. ``typing_extensions`` est
+    l'écriture normale d'un protocole sur les versions de Python où ``typing``
+    ne l'expose pas encore : un gate qui refuse cet idiome se fait désarmer par
+    ceux qu'il gêne.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(repo, "src/ports.py", source + "    def calculer(self) -> int: ...\n")
+
+    assert "EXECUTABLE_ELLIPSIS" not in _codes(_scanner(repo))
+
+
+def test_accepte_un_protocole_runtime_checkable_de_typing_extensions(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le décorateur rétroporté accompagne le protocole sans le refuser."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/ports.py",
+        "from typing_extensions import Protocol, runtime_checkable\n\n\n"
+        "@runtime_checkable\n"
+        "class Service(Protocol):\n"
+        "    def calculer(self) -> int: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" not in _codes(_scanner(repo))
+
+
+def test_accepte_un_protocole_importe_des_deux_modules_selon_la_version(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le repli d'import entre les deux modules garde l'exemption."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/ports.py",
+        "try:\n"
+        "    from typing import Protocol\n"
+        "except ImportError:\n"
+        "    from typing_extensions import Protocol\n\n\n"
+        "class Service(Protocol):\n"
+        "    def calculer(self) -> int: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" not in _codes(_scanner(repo))
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        "from typing_extensions import Protocol\nProtocol = object\n\n\n"
+        "class Service(Protocol):\n    def calculer(self) -> int: ...\n",
+        "from typing_extensions import Protocol\ndel Protocol\n\n\n"
+        "class Service(Protocol):\n    def calculer(self) -> int: ...\n",
+        "import typing_extensions as te\nte.Protocol = object\n\n\n"
+        "class Service(te.Protocol):\n    def calculer(self) -> int: ...\n",
+        "import typing_extensions as te\ndel te.Protocol\n\n\n"
+        "class Service(te.Protocol):\n    def calculer(self) -> int: ...\n",
+        "from typing_extensions import Protocol\n\n\n"
+        "def monter() -> None:\n"
+        "    class Protocol:\n        marqueur = 1\n\n"
+        "    class Service(Protocol):\n        def calculer(self) -> int: ...\n",
+    ),
+    ids=(
+        "nom-reaffecte",
+        "nom-supprime",
+        "attribut-reaffecte",
+        "attribut-supprime",
+        "masquage-local",
+    ),
+)
+def test_refuse_un_protocole_typing_extensions_dont_la_preuve_est_revoquee(
+    tmp_path: Path, source: str
+) -> None:
+    """Prouve la garde INVERSE : le rétroportage subit les mêmes révocations que ``typing``.
+
+    Reconnaître un second module sans lui appliquer les révocations déjà en
+    place ouvrirait le contournement exact que celles-ci ferment : réaffecter le
+    nom, le supprimer, réécrire ou supprimer l'attribut prouvant, ou masquer le
+    nom dans une portée locale.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(repo, "src/ports.py", source)
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_accepte_une_exception_metier_homonyme_de_labsence_dimplementation(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un PORTEUR non prouvé ne fait pas d'un homonyme un stub.
+
+    MESURÉ avant correction : la levée de l'attribut HOMONYME porté par un module
+    métier était refusée sur la seule orthographe de cet attribut, alors que la
+    règle voisine sur les bases d'exception exige, elle, un porteur prouvé. Un
+    module métier est libre de nommer ainsi son type d'erreur : l'attribut ne
+    désigne alors pas l'exception de l'interpréteur.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "import mon_module\n\n\n"
+        "def calculer() -> int:\n"
+        "    raise mon_module.NotImplementedError\n",  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    )
+
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_accepte_un_alias_construit_depuis_une_exception_metier_homonyme(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le chemin des ALIAS exige le même porteur prouvé que la levée directe.
+
+    Sans cette symétrie, l'affectation recevant l'attribut HOMONYME d'un module
+    métier liait le nom à l'absence d'implémentation, et le ``raise`` qui suit
+    était refusé par ricochet — le même faux positif, déplacé d'une ligne.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "import mon_module\n\n"
+        "Absence = mon_module.NotImplementedError\n\n\n"  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+        "def calculer() -> int:\n    raise Absence\n",
+    )
+
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_refuse_une_absence_qualifiee_par_un_alias_prouve_du_module_builtins(
+    tmp_path: Path,
+) -> None:
+    """Prouve la garde INVERSE : le porteur prouvé reste refusé, même sous alias."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "import builtins as b\n\n\n"
+        "def calculer() -> int:\n"
+        "    raise b.NotImplementedError\n",  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    )
+
+    assert "NOT_IMPLEMENTED_STUB" in _codes(_scanner(repo))
+
+
+def test_refuse_un_repli_masque_par_une_quote_echappee_hors_chaine(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un antislash devant une quote n'ouvre aucune chaîne, comme dans le shell.
+
+    MESURÉ dans bash : ``python3 -c 'import sys; sys.exit(1)' \\" || true`` sort
+    en 0 — l'antislash rend le guillemet littéral et le repli s'applique. La
+    neutralisation lisait pourtant ce guillemet comme une OUVERTURE et effaçait
+    tout ce qui suivait, si bien que le repli devenait invisible et que l'étape
+    d'un job requis restait verte sur un contrôle rouge.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: 'python3 scripts/quality/no_stub_gate.py \\\" || true'\n",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_repli_precede_dun_antislash_lui_meme_echappe(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'échappement consomme EXACTEMENT deux caractères.
+
+    ``gate.py \\\\ || true`` passe un antislash littéral en argument puis
+    applique bien son repli : consommer un caractère de trop ferait disparaître
+    l'espace, et un de moins rouvrirait la brèche précédente.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: 'python3 scripts/quality/no_stub_gate.py \\\\ || true'\n",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_repli_colle_a_une_quote_echappee(tmp_path: Path) -> None:
+    """Prouve que l'échappement s'arrête au caractère échappé, sans manger le suivant.
+
+    MESURÉ dans bash : ``f gate.py \\"|| echo REPLI`` passe ``gate.py`` puis un
+    guillemet littéral en arguments, et ``||`` reste un opérateur de contrôle —
+    ``REPLI`` est bien écrit. Sans espace entre la quote et l'opérateur, avaler
+    un caractère de trop couperait le ``||`` en deux et rendrait le repli
+    invisible : c'est la borne exacte de la consommation qui est éprouvée ici.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: 'python3 scripts/quality/no_stub_gate.py \\\"|| true'\n",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_repli_apres_une_chaine_simple_terminee_par_un_antislash(
+    tmp_path: Path,
+) -> None:
+    """Prouve la règle du shell : entre quotes SIMPLES, l'antislash n'échappe rien.
+
+    MESURÉ à l'interpréteur : ``printf '%s' '\\"'`` écrit deux octets, ``5c 22``.
+    L'antislash y est un caractère ordinaire, si bien que la quote qui suit
+    ferme réellement la chaîne — traiter l'échappement partout ferait disparaître
+    le repli qui suit.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: \"gate.py 'motif\\\\' || true\"\n",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_accepte_un_repli_cite_dans_une_chaine_double_a_quote_echappee(
+    tmp_path: Path,
+) -> None:
+    """Prouve la garde INVERSE : entre guillemets DOUBLES, ``\\"`` ne ferme pas la chaîne.
+
+    Le repli reste alors littéral, donc jamais exécuté : le signaler serait un
+    faux positif sur une commande qui ne force aucun succès.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: 'gate.py --motif \"a\\\" || true\" --strict'\n",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
+def test_refuse_un_test_dont_le_seul_oracle_est_dans_une_fonction_imbriquee(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'une portée jamais appelée ne fournit aucun oracle au test.
+
+    MESURÉ avant correction : la recherche parcourait tout l'arbre, si bien que
+    l'``assert`` d'une fonction interne JAMAIS APPELÉE comptait comme oracle du
+    test qui l'entoure. Le test ne vérifie pourtant rien à l'exécution.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "def test_calcul() -> None:\n"
+        "    def oracle() -> None:\n"
+        "        assert False\n\n"
+        "    return\n",
+    )
+
+    assert "TEST_WITHOUT_ORACLE" in _codes(_scanner(repo))
+
+
+def test_refuse_un_test_dont_le_seul_oracle_est_dans_une_classe_imbriquee(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la classe interne ouvre une portée propre, comme la fonction interne."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "def test_calcul() -> None:\n"
+        "    class Sonde:\n"
+        "        def verifier(self) -> None:\n"
+        "            assert False\n\n"
+        "    return\n",
+    )
+
+    assert "TEST_WITHOUT_ORACLE" in _codes(_scanner(repo))
+
+
+@pytest.mark.parametrize(
+    "corps",
+    (
+        "    for valeur in [1]:\n        assert valeur\n",
+        "    if calculer():\n        assert calculer()\n",
+        "    with ouvrir() as flux:\n        assert flux\n",
+        "    try:\n        assert calculer()\n    except ValueError:\n        raise\n",
+        "    while calculer():\n        assert calculer()\n",
+        "    match calculer():\n        case 1:\n            assert calculer()\n",
+    ),
+    ids=("boucle", "condition", "contexte", "essai", "tant-que", "filtrage"),
+)
+def test_accepte_un_oracle_ecrit_dans_un_bloc_du_corps_du_test(
+    tmp_path: Path, corps: str
+) -> None:
+    """Prouve la garde INVERSE : un bloc n'ouvre AUCUNE portée, son oracle compte.
+
+    Boucle, condition, gestionnaire de contexte, essai et filtrage appartiennent
+    au corps du test et s'exécutent avec lui. Les écarter avec les portées
+    imbriquées ferait un faux positif sur la forme d'oracle la plus courante.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(repo, "src/test_service.py", "def test_calcul() -> None:\n" + corps)
+
+    assert "TEST_WITHOUT_ORACLE" not in _codes(_scanner(repo))
+
+
+def test_accepte_un_oracle_raises_ecrit_dans_une_boucle_du_corps_du_test(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'oracle ``pytest.raises`` imbriqué dans un bloc compte lui aussi."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "import pytest\n\n\n"
+        "def test_calcul() -> None:\n"
+        "    for cas in [1, 2]:\n"
+        "        with pytest.raises(ValueError):\n"
+        "            calculer(cas)\n",
+    )
+
+    assert "TEST_WITHOUT_ORACLE" not in _codes(_scanner(repo))
+
+
+@pytest.mark.parametrize("valeur", ("'0x1'", '"0o7"', "'0b1'"))
+def test_refuse_continue_on_error_ecrit_dans_une_base_non_decimale(
+    tmp_path: Path, valeur: str
+) -> None:
+    """Prouve qu'une base non décimale ne désarme plus la règle.
+
+    MESURÉ avant correction : ``'0x1'`` et ``'0o7'`` étaient acceptés quand
+    ``'2'`` était refusé — la lecture DÉCIMALE échouait sur ces orthographes et
+    retombait silencieusement sur « faux ».
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/continue.yml",
+        "jobs:\n"
+        "  gates:\n"
+        f"    continue-on-error: {valeur}\n"
+        "    runs-on: ubuntu-latest\n",
+    )
+
+    assert "REQUIRED_JOB_SOFT_FAILURE" in _codes(_scanner(repo))
+
+
+@pytest.mark.parametrize("valeur", ("'0x0'", "'oui'", "'.nan'", "'enabled'", "'  '"))
+def test_refuse_continue_on_error_dont_la_faussete_nest_pas_ecrite(
+    tmp_path: Path, valeur: str
+) -> None:
+    """Prouve la règle INVERSÉE : une chaîne non vide tolère, sauf orthographe fausse.
+
+    GitHub Actions convertit toute chaîne NON VIDE en vrai. Énumérer les
+    orthographes vraies ne converge pas — ``'0x1'`` puis ``'0x0'`` puis
+    ``'enabled'`` échapperaient tour à tour. La classe se ferme en exigeant
+    l'inverse : la fausseté doit être ÉCRITE pour que la tolérance soit acceptée.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/continue.yml",
+        "jobs:\n"
+        "  gates:\n"
+        f"    continue-on-error: {valeur}\n"
+        "    runs-on: ubuntu-latest\n",
+    )
+
+    assert "REQUIRED_JOB_SOFT_FAILURE" in _codes(_scanner(repo))
+
+
+@pytest.mark.parametrize(
+    "valeur", ("'false'", "'no'", "'off'", "'n'", "'0'", '"0.0"', "''", "'-0'")
+)
+def test_accepte_continue_on_error_dont_lorthographe_est_explicitement_fausse(
+    tmp_path: Path, valeur: str
+) -> None:
+    """Prouve la garde INVERSE : les acquis de fausseté restent acceptés.
+
+    Ces orthographes disent l'intention contraire à la tolérance ; les refuser
+    signalerait comme un contournement le seul moyen d'écrire explicitement
+    qu'aucune erreur n'est tolérée.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/continue.yml",
+        "jobs:\n"
+        "  gates:\n"
+        f"    continue-on-error: {valeur}\n"
+        "    runs-on: ubuntu-latest\n",
+    )
+
+    assert "REQUIRED_JOB_SOFT_FAILURE" not in _codes(_scanner(repo))

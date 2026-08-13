@@ -195,6 +195,9 @@ _MAX_ACTION_DEPTH: Final[int] = 5
 _VALEURS_VRAIES_YAML: Final[frozenset[str]] = frozenset(
     {"true", "yes", "on", "y", "1"}
 )
+_VALEURS_FAUSSES_YAML: Final[frozenset[str]] = frozenset(
+    {"false", "no", "off", "n"}
+)
 _CONDITIONS_REQUISES_ACCEPTEES: Final[frozenset[str]] = frozenset(
     {"always()", "success()"}
 )
@@ -215,6 +218,8 @@ _NOMS_ABSENCE_IMPLEMENTATION: Final[frozenset[str]] = frozenset(
 )  # proof:allow — fixture/constante du gate NO-STUB : ce motif EST le sujet du test
 _ATTRIBUT_PROUVANT_PROTOCOL: Final[str] = "Protocol"
 _ATTRIBUT_PROUVANT_ABSTRACTMETHOD: Final[str] = "abstractmethod"
+_MODULES_TYPING: Final[frozenset[str]] = frozenset({"typing", "typing_extensions"})
+_MODULES_ABC: Final[frozenset[str]] = frozenset({"abc"})
 _PORTEES_PROPRES: Final[tuple[type[ast.AST], ...]] = (
     ast.Module,
     ast.FunctionDef,
@@ -724,7 +729,11 @@ def _attributs_cibles_affectation(noeud: ast.stmt) -> set[tuple[str, str]]:
     return _attributs_cibles_directes(noeud) | _attributs_lies_par_comprehension(noeud)
 
 
-def _valeur_prouve_une_absence(valeur: ast.expr, noms_prouves: AbstractSet[str]) -> bool:
+def _valeur_prouve_une_absence(
+    valeur: ast.expr,
+    noms_prouves: AbstractSet[str],
+    modules_builtins: AbstractSet[str],
+) -> bool:
     """Prouve qu'une affectation lie son nom à l'absence d'implémentation.
 
     La preuve est celle qu'exige déjà la levée directe : le nom construit — nu,
@@ -737,10 +746,16 @@ def _valeur_prouve_une_absence(valeur: ast.expr, noms_prouves: AbstractSet[str])
     chaîne où une cible reçoit l'absence qualifiée, puis une seconde cible
     échappait entièrement à la règle. La liste inclut toujours les noms de
     l'interpréteur, si bien qu'aucune lecture séparée n'est nécessaire.
+
+    La forme qualifiée exige le MÊME porteur prouvé que la levée directe : sans
+    cette symétrie, une affectation recevant l'attribut HOMONYME d'un module
+    métier liait le nom à l'absence d'implémentation, et le ``raise`` suivant
+    était refusé par ricochet — le faux positif du porteur non prouvé, déplacé
+    d'une ligne.
     """  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet
     cible = valeur.func if isinstance(valeur, ast.Call) else valeur
     if isinstance(cible, ast.Attribute):
-        return cible.attr in _NOMS_ABSENCE_IMPLEMENTATION
+        return _attribut_absence_de_builtins(cible, modules_builtins)
     return isinstance(cible, ast.Name) and cible.id in noms_prouves
 
 
@@ -778,7 +793,10 @@ def _appariement_destructure(
 
 
 def _noms_lies_a_une_absence(
-    cible: ast.expr, valeur: ast.expr, noms_prouves: AbstractSet[str]
+    cible: ast.expr,
+    valeur: ast.expr,
+    noms_prouves: AbstractSet[str],
+    modules_builtins: AbstractSet[str],
 ) -> set[str]:
     """Nomme les seules cibles qu'une affectation lie à l'absence d'implémentation.
 
@@ -790,12 +808,16 @@ def _noms_lies_a_une_absence(
         if not isinstance(valeur, (ast.Tuple, ast.List)):
             return (
                 _noms_lies_cible(cible)
-                if _valeur_prouve_une_absence(valeur, noms_prouves)
+                if _valeur_prouve_une_absence(
+                    valeur, noms_prouves, modules_builtins
+                )
                 else set()
             )
         return set().union(
             *(
-                _noms_lies_a_une_absence(sous_cible, sous_valeur, noms_prouves)
+                _noms_lies_a_une_absence(
+                    sous_cible, sous_valeur, noms_prouves, modules_builtins
+                )
                 for sous_cible, sous_valeur in _appariement_destructure(
                     cible.elts, valeur.elts
                 )
@@ -804,7 +826,7 @@ def _noms_lies_a_une_absence(
         )
     return (
         _noms_lies_cible(cible)
-        if _valeur_prouve_une_absence(valeur, noms_prouves)
+        if _valeur_prouve_une_absence(valeur, noms_prouves, modules_builtins)
         else set()
     )
 
@@ -812,6 +834,7 @@ def _noms_lies_a_une_absence(
 def _absences_prouvees(
     affectations: list[ast.Assign | ast.AnnAssign],
     aliases_importes: AbstractSet[str],
+    modules_builtins: AbstractSet[str],
 ) -> set[str]:
     """Résout par POINT FIXE les noms qu'un module lie à l'absence d'implémentation.
 
@@ -839,7 +862,9 @@ def _absences_prouvees(
             )
             nouveaux = set().union(
                 *(
-                    _noms_lies_a_une_absence(cible, noeud.value, prouves)
+                    _noms_lies_a_une_absence(
+                        cible, noeud.value, prouves, modules_builtins
+                    )
                     for cible in cibles
                 ),
                 set(),
@@ -951,10 +976,10 @@ def _imports_module(
                     noms_importes_hors_builtins.add(
                         alias.asname or alias.name.partition(".")[0]
                     )
-                    if alias.name == "typing":
-                        aliases.modules_typing.add(alias.asname or "typing")
-                    elif alias.name == "abc":
-                        aliases.modules_abc.add(alias.asname or "abc")
+                    if alias.name in _MODULES_TYPING:
+                        aliases.modules_typing.add(alias.asname or alias.name)
+                    elif alias.name in _MODULES_ABC:
+                        aliases.modules_abc.add(alias.asname or alias.name)
                     elif alias.name == "pytest":
                         aliases.modules_pytest.add(alias.asname or "pytest")
                     elif alias.name == "unittest":
@@ -967,13 +992,13 @@ def _imports_module(
                     noms_importes_hors_builtins.update(
                         alias.asname or alias.name for alias in noeud.names
                     )
-                if origine == "typing":
+                if origine in _MODULES_TYPING:
                     aliases.protocols.update(
                         alias.asname or "Protocol"
                         for alias in noeud.names
                         if alias.name == "Protocol"
                     )
-                elif origine == "abc":
+                elif origine in _MODULES_ABC:
                     aliases.abstractmethods.update(
                         alias.asname or "abstractmethod"
                         for alias in noeud.names
@@ -1032,7 +1057,11 @@ def _imports_module(
         aliases,
         reassignees,
         attributs_reaffectes,
-        _absences_prouvees(affectations, aliases.not_implemented_errors),
+        _absences_prouvees(
+            affectations,
+            aliases.not_implemented_errors,
+            aliases.modules_builtins,
+        ),
         noms_importes_hors_builtins,
     )
 
@@ -1085,6 +1114,25 @@ def _est_classe_protocol(
     portée où elle est écrite, par le résolveur déjà employé pour les types
     d'exception. Sous la forme qualifiée, c'est le PORTEUR qui est résolu : un
     ``t`` masqué localement ne désigne plus le module ``typing``.
+
+    ``typing_extensions`` compte à ÉGALITÉ avec ``typing`` (``_MODULES_TYPING``).
+    MESURÉ avant correction : les quatre écritures du rétroportage —
+    ``from typing_extensions import Protocol``, son alias, ``import
+    typing_extensions`` et son alias — étaient signalées ``EXECUTABLE_ELLIPSIS``
+    quand le témoin ``from typing import Protocol`` passait. Le module rétroporte
+    ce que la version de Python installée n'expose pas encore : refuser cet
+    idiome rendait le gate inutilisable sur du code normal, et un gate qui gêne
+    du code normal finit désarmé. La parité est obtenue en versant les deux
+    origines dans les MÊMES ensembles de preuve, si bien que toutes les
+    révocations déjà en place — réaffectation, ``del``, réécriture ou suppression
+    de l'attribut prouvant, ``global``, masquage lexical — s'y appliquent sans
+    qu'aucune ait à être dupliquée.
+
+    ``abc`` n'a pas d'équivalent à traiter, et l'absence est MESURÉE :
+    ``hasattr(typing_extensions, "abstractmethod")`` vaut ``False`` — le module
+    rétroporte ``typing``, jamais ``abc``. ``_MODULES_ABC`` reste donc singleton,
+    à la même place et sous la même forme, pour que l'ajout d'un rétroportage
+    futur n'ait qu'un seul endroit à modifier.
     """
     for base in classe.bases:
         cible = _base_declaree(base)
@@ -1427,6 +1475,19 @@ def _est_exception_non_implementee(noeud: ast.expr, aliases: _AliasesImports) ->
 
     La sentinelle et l'exception sont traitées à égalité : une forme qualifiée par
     attribut, telle qu'un accès via le module builtins, reste un stub explicite.
+
+    Sous la forme qualifiée, c'est le PORTEUR qui décide, jamais l'orthographe de
+    l'attribut — exactement l'exigence de ``_est_base_exception_builtin``, dont
+    cette règle divergeait. MESURÉ avant correction : la levée de l'attribut
+    HOMONYME porté par un module métier — ``raise mon_module.<le nom de
+    l'exception>`` — était refusée, alors qu'un module est libre de nommer ainsi
+    son propre type d'erreur, qui n'a rien d'un stub. Seul un nom que les imports
+    lient au module ``builtins`` qualifie donc l'absence d'implémentation de
+    l'interpréteur.
+
+    La forme NUE ne dépend d'aucun porteur et reste le cas principal : elle est
+    reconnue par la liste des noms de l'interpréteur, sans qu'aucun import ait à
+    la prouver.
     """  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet
     cible = noeud.func if isinstance(noeud, ast.Call) else noeud
     if isinstance(cible, ast.Name):
@@ -1434,9 +1495,23 @@ def _est_exception_non_implementee(noeud: ast.expr, aliases: _AliasesImports) ->
             cible.id in _NOMS_ABSENCE_IMPLEMENTATION
             or cible.id in aliases.not_implemented_errors
         )
+    return _attribut_absence_de_builtins(cible, aliases.modules_builtins)
+
+
+def _attribut_absence_de_builtins(
+    cible: ast.expr, modules_builtins: AbstractSet[str]
+) -> bool:
+    """Prouve qu'un ATTRIBUT désigne l'absence d'implémentation de l'interpréteur.
+
+    Un seul endroit répond à la question pour les deux chemins qui la posent —
+    la levée directe et l'alias construit par affectation — afin qu'ils ne
+    puissent plus diverger comme ils l'avaient fait.
+    """  # proof:allow — fixture/constante du gate NO-STUB : ce motif EST le sujet
     return (
         isinstance(cible, ast.Attribute)
         and cible.attr in _NOMS_ABSENCE_IMPLEMENTATION
+        and isinstance(cible.value, ast.Name)
+        and cible.value.id in modules_builtins
     )
 
 
@@ -1917,8 +1992,21 @@ def _contient_oracle(
     forme qualifiée comme sous la forme importée directement. Cette asymétrie est
     celle de l'exécution : un ``raises(...)`` hors ``with`` n'entre jamais dans le
     gestionnaire de contexte et ne vérifie donc rien.
+
+    La recherche se limite à la portée PROPRE du test. MESURÉ avant correction :
+    ``def test_x(): def oracle(): assert False`` — la fonction interne n'étant
+    JAMAIS appelée — passait le contrôle, alors que rien n'était vérifié à
+    l'exécution. Le parcours réutilise ``_noeuds_de_la_portee``, déjà employé
+    pour les liaisons ``global`` : écrire un second parcours ferait deux règles
+    de portée à maintenir, donc deux occasions de diverger.
+
+    Un bloc n'ouvre AUCUNE portée et n'est jamais écarté : l'oracle d'une boucle,
+    d'une condition, d'un gestionnaire de contexte, d'un ``try`` ou d'un ``match``
+    appartient au corps du test et compte comme lui. Seules fonctions, lambdas et
+    classes imbriquées le sont, parce qu'elles déportent leur contenu dans une
+    exécution qui n'a pas lieu.
     """
-    for noeud in ast.walk(fonction):
+    for noeud in _noeuds_de_la_portee(fonction):
         if isinstance(noeud, ast.Assert):
             return True
         if isinstance(noeud, ast.With) and any(
@@ -2710,12 +2798,41 @@ def _neutraliser_chaines_shell(commande: str) -> str:
     son repli, et ``$#`` ne coupe pas la ligne. Neutraliser jusqu'au bout de la
     ligne dans ces cas rendait invisible le code qui suit, donc muet tout contrôle
     fondé sur cette lecture.
+
+    L'ANTISLASH est lu selon les trois règles du shell, mesurées avant d'être
+    codées, car elles diffèrent d'un contexte à l'autre :
+
+    * HORS quotes, il rend littéral le caractère suivant. MESURÉ dans bash :
+      ``python3 -c 'import sys; sys.exit(1)' \\" || true`` sort en 0, le repli
+      s'appliquant bel et bien. Ne pas le traiter faisait lire ce guillemet comme
+      l'OUVERTURE d'une chaîne, qui effaçait tout ce qui suivait — le repli
+      devenait invisible et l'étape d'un job requis restait verte sur un contrôle
+      rouge. Les deux caractères sont donc neutralisés ENSEMBLE : ils ne portent
+      aucune syntaxe.
+    * Entre quotes SIMPLES, il n'échappe RIEN. MESURÉ à l'interpréteur :
+      ``printf '%s' '\\"'`` écrit deux octets, ``5c 22``. La quote qui suit ferme
+      donc réellement la chaîne, et le repli écrit après elle s'exécute.
+    * Entre guillemets DOUBLES, il échappe ``"``, ``\\``, ``$`` et ``` ` ```.
+      Devant tout autre caractère il reste littéral, mais la distinction est sans
+      effet observable ici : l'intérieur d'une chaîne est neutralisé de toute
+      façon, et la seule position qui compte — celle du guillemet fermant — est
+      la même dans les deux lectures.
+
+    La longueur et les retours à la ligne sont conservés dans les trois cas, ce
+    dont dépendent les index rendus à l'appelant pour retrouver le texte
+    d'origine.
     """
     neutre: list[str] = []
     i = 0
     n = len(commande)
     while i < n:
         caractere = commande[i]
+        if caractere == "\\" and i + 1 < n:
+            suivant = commande[i + 1]
+            neutre.append(" ")
+            neutre.append("\n" if suivant == "\n" else " ")
+            i += 2
+            continue
         if caractere in {"'", '"'}:
             quote = caractere
             neutre.append(quote)
@@ -3605,11 +3722,55 @@ def _chaine_numerique_non_nulle(texte: str) -> bool:
     non l'orthographe : ``'2'``, ``'-1'`` et ``'1.5'`` tolèrent, ``'0'`` et
     ``'0.0'`` ne tolèrent rien et restent acceptés. Un texte non numérique
     n'appartient pas à cette règle et est laissé aux suivantes.
+
+    Cette lecture ne décide plus de l'ACCEPTATION, seulement du message : la
+    décision appartient désormais à ``_chaine_tolere_les_erreurs``, qui refuse
+    par défaut. Elle sert à nommer précisément une tolérance chiffrée plutôt que
+    de la ranger avec les orthographes quelconques.
     """
     try:
         return float(texte) != 0
     except ValueError:
         return False
+
+
+def _chaine_tolere_les_erreurs(texte: str) -> bool:
+    """Refuse tout scalaire QUOTÉ dont la fausseté n'est pas ÉCRITE.
+
+    La règle est inversée, comme celle des replis shell, et pour la même raison
+    MESURÉE : énumérer les orthographes vraies ne converge pas. ``'2'`` avait été
+    fermé par une lecture décimale, que ``'0x1'``, ``'0o7'`` et ``'0b1'``
+    rouvraient aussitôt — ces bases échouent à la conversion décimale, qui
+    retombait silencieusement sur « faux » et acceptait la tolérance. La liste
+    des orthographes vraies est OUVERTE ; celle des façons d'écrire la fausseté
+    ne l'est pas, si bien que c'est elle qu'il faut énumérer.
+
+    Trois écritures disent la fausseté sans ambiguïté et restent donc acceptées :
+    le scalaire VIDE, un mot-clé faux de YAML (``false``, ``no``, ``off``, ``n``)
+    et un zéro DÉCIMAL (``0``, ``0.0``, ``-0``). Tout le reste tolère, y compris
+    ``'0x0'`` : une base non décimale n'est la façon d'écrire « aucune tolérance »
+    de personne, et l'incertitude se tranche en faveur du contrôle.
+
+    Le scalaire fait de blancs seuls n'est pas le scalaire VIDE et n'écrit aucune
+    fausseté : il est refusé, la comparaison n'étant faite qu'après avoir écarté
+    la chaîne réellement vide.
+
+    Cette lecture est plus stricte que la sémantique nominale de YAML et le
+    doit : d'après le contrat GitHub Actions rappelé au mandat de cette
+    correction — non exécutable ici, donc rapporté comme tel — toute chaîne non
+    vide y est convertie en vrai. Accepter les quatre mots-clés et le zéro
+    décimal est une concession assumée à l'INTENTION, qu'ils écrivent sans
+    équivoque, et aux cas déjà couverts par la suite de tests.
+    """
+    if texte == "":
+        return False
+    normalisee = texte.strip().lower()
+    if normalisee in _VALEURS_FAUSSES_YAML:
+        return False
+    try:
+        return float(normalisee) != 0
+    except ValueError:
+        return True
 
 
 def _analyser_continue_on_error(
@@ -3638,6 +3799,12 @@ def _analyser_continue_on_error(
     placée APRÈS la liste des chaînes vraies afin que ``'1'``, déjà couvert par
     elle, garde son message d'origine. MESURÉ avant correction : ``'2'`` était
     accepté quand ``2`` était refusé — la quote seule désarmait la règle.
+
+    La DERNIÈRE branche renverse la charge de la preuve pour tout scalaire quoté
+    restant : ``_chaine_tolere_les_erreurs`` refuse celui dont la fausseté n'est
+    pas écrite. Les branches numériques la précèdent afin de garder leur message
+    chiffré, plus précis ; elles ne décident plus seules de l'acceptation, ce qui
+    ferme la classe entière au lieu d'en fermer une orthographe à la fois.
     """
     if valeur is True:
         detail = f"le job requis {job} accepte les erreurs"
@@ -3660,6 +3827,12 @@ def _analyser_continue_on_error(
         detail = (
             f"le job requis {job} accepte les erreurs "
             f"par la valeur numérique {valeur!r}"
+        )
+    elif isinstance(valeur, str) and _chaine_tolere_les_erreurs(valeur):
+        detail = (
+            f"le job requis {job} accepte les erreurs par la chaîne {valeur!r}, "
+            "dont la fausseté n'est pas écrite : seuls le scalaire vide, "
+            "false, no, off, n et un zéro décimal ne tolèrent rien"
         )
     else:
         return []
