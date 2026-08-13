@@ -676,7 +676,7 @@ passe. Un manque nommé se corrige ; un manque implicite se découvre en product
 
 Un `exit 0` situé dans une branche conditionnelle est légitime : il exprime une
 sortie choisie, pas un contournement. Le gate distingue les deux en lisant les
-ouvertures (`if`, `case`), les fermetures (`fi`, `esac`) et les `exit 0` **dans
+ouvertures (`if`, `case`), les fermetures (`fi`, `esac`) et les sorties **dans
 leur ordre d'apparition**, y compris plusieurs fois sur une même ligne.
 
 ```sh
@@ -693,6 +693,51 @@ longue ouvrirait une garde imaginaire et masquerait un contournement réel :
 
 ```sh
 grep --ignore-case motif fichier; exit 0    # refusé — `case` n'ouvre rien ici
+```
+
+### La sortie NUE se juge sur sa VALEUR, comme la sortie d'un repli
+
+Les deux chemins qui lisent une sortie posent la même question — *ce littéral
+rend-il le statut 0 ?* — et ils consomment désormais le **même prédicat**
+(`_sortie_litterale_est_nulle` : `N % 256 == 0`). Avant unification, le chemin de
+repli jugeait la VALEUR pendant que le chemin direct exigeait l'ORTHOGRAPHE
+exacte `0`, si bien que la même écriture recevait deux verdicts opposés :
+
+| Commande dans un job requis | Avant | Après |
+|---|---|---|
+| `gate.py; exit 0` | refusé | refusé |
+| `gate.py; exit 00` | **accepté** | refusé |
+| `gate.py; exit 000` | **accepté** | refusé |
+| `gate.py; exit 256` | **accepté** | refusé |
+| `gate.py \|\| exit 00` | refusé | refusé |
+
+MESURÉ dans bash, dash et sh : `exit 00`, `exit 000`, `exit 256` et `exit 0512`
+rendent tous `0` — le statut est le littéral modulo 256. Ajouter un cas
+particulier pour `00` aurait laissé la classe entière ouverte ; c'est le prédicat
+qui est partagé, pas la liste des orthographes.
+
+Élargir la **capture** sans élargir le **verdict** est ce qui préserve les deux
+gardes. `exit 1` est maintenant reconnu comme sortie puis laissé passer sur sa
+valeur, et une sortie nulle reste licite sous une garde conditionnelle, quelle
+que soit son orthographe :
+
+```sh
+gate.py; exit 1                 # accepté — 1 % 256 ≠ 0, l'étape échoue bien
+if true; then exit 00; fi       # accepté — la garde vaut pour toutes les orthographes
+```
+
+**Ce que les deux chemins font de l'INCONNU diverge, et c'est voulu.** Un
+argument qui n'est pas un littéral décimal — `exit 0x0`, `exit 1x`, `exit 12abc`
+— rend `2` dans bash, dash et sh (erreur d'usage) : il ne force donc aucun
+succès, et le chemin direct, qui **détecte** le succès forcé, ne le signale pas.
+Le chemin de repli le refuse au contraire, non par un autre prédicat de valeur
+mais parce qu'il pose la question INVERSE : il exige la **preuve** que la branche
+propage l'échec du contrôle, et un statut 2 d'erreur d'usage ne prouve rien de
+tel. Liste noire d'un côté, liste blanche de l'autre — même prédicat au centre.
+
+```sh
+gate.py; exit 0x0               # accepté  — le shell rend 2, l'étape échoue
+gate.py || exit 0x0             # refusé   — la propagation n'est pas prouvée
 ```
 
 ## Périmètre déclaré des lanceurs
@@ -1453,6 +1498,11 @@ exemption globale et qu'une affectation locale n'invalide aucun alias du module.
 La règle ne tient pas compte de l'**ordre** : une réaffectation écrite avant
 l'import compte autant qu'une réaffectation écrite après lui.
 
+Cette limite vaut pour les **noms**, et pour eux seuls. Les **attributs de
+module** sont collectés à toute profondeur — voir « Un attribut de module n'est
+lié à aucune portée » plus bas : un nom est lié à une portée, un attribut ne
+l'est pas.
+
 #### Toutes les FORMES d'écriture d'un nom, pas seulement l'affectation
 
 Une instruction lie un nom de trois façons distinctes, et n'en lire qu'une
@@ -1563,6 +1613,8 @@ MESURÉE, à l'interpréteur puis contre le gate, avant d'être retenue ou écar
 | `with cm as t.Protocol` | oui | lu | lu | conforme |
 | `t.Protocol += ()` (`AugAssign`) | oui | lu | **ignoré** | **EN DÉFAUT — corrigé** |
 | `[1 for t.Protocol in (object,)]` | oui | écarté à dessein | **ignoré** | **EN DÉFAUT — corrigé** |
+| `def f(): t.Protocol = object` | oui, à l'appel | portée locale, écarté | **ignoré** | **EN DÉFAUT — corrigé** |
+| `class Boite: t.Protocol = object` | oui, à l'import | portée de classe, écarté | **ignoré** | **EN DÉFAUT — corrigé** |
 | `case t.Protocol:` | non — motif de VALEUR, il lit sans lier | lu (capture) | ignoré | correct, aucun changement |
 | `except … as t.Protocol` | forme refusée par la grammaire | lu (nom nu) | sans objet | correct, aucun changement |
 | `(t.Protocol := object)` | forme refusée par la grammaire | lu (nom nu) | sans objet | correct, aucun changement |
@@ -1608,10 +1660,86 @@ class Service(t.Protocol):
 
 Les sous-expressions sont parcourues, une compréhension n'étant jamais une
 instruction : `x = [...]` la cacherait sinon derrière une affectation dont la
-cible est un simple nom. Les portées propres — fonction, lambda, classe — sont
-sautées, exactement comme le fait le chemin des noms. La cible d'un
-**générateur** est retenue sans exiger la preuve qu'il soit consommé : l'analyse
-est fail-closed, comme l'est déjà son mépris de l'ORDRE des instructions.
+cible est un simple nom. La cible d'un **générateur** est retenue sans exiger la
+preuve qu'il soit consommé : l'analyse est fail-closed, comme l'est déjà son
+mépris de l'ORDRE des instructions.
+
+Le second exemple ci-dessus n'est plus qu'une **frontière résiduelle**, et elle
+s'est déplacée : depuis que la collecte lit chaque instruction de l'arbre (voir
+la section suivante), un corps de fonction ou de classe ne protège plus rien.
+Seul le corps d'un **lambda** — une expression, qu'aucun parcours d'instructions
+n'atteint — reste hors du champ.
+
+#### Un attribut de module n'est lié à aucune portée
+
+C'est la **distinction structurante** entre les deux chemins. Un nom est lié à la
+portée où il est écrit : `def f(): Protocol = object` ne touche pas le module, et
+révoquer là serait un faux positif. Un attribut de module ne l'est pas :
+`t.Protocol = object` écrit sur l'objet `typing` **où que la ligne soit
+rédigée**. La collecte des révocations d'attributs lit donc l'arbre ENTIER,
+corps de fonctions, de méthodes et de classes compris.
+
+MESURÉ avant correction — les deux formes suivantes étaient acceptées à tort :
+
+```python
+import typing as t
+
+def desarmer() -> None:
+    t.Protocol = object     # mutile réellement typing.Protocol
+
+desarmer()
+
+class S(t.Protocol):
+    def manque(self) -> None: ...   # refusé désormais — S hérite d'object
+```
+
+```python
+import typing as t
+
+class Boite:
+    t.Protocol = object     # PAS un attribut de classe : la cible est un attribut
+                            # de module, `Boite.Protocol` n'est jamais créé
+
+class S(t.Protocol):
+    def manque(self) -> None: ...   # refusé désormais
+```
+
+Le second cas — signalé jusqu'ici comme non couvert — est fermé par **le même
+correctif** : c'est un parcours par nœuds, pas une exception ajoutée à un cas
+particulier. Le `del` d'attribut et la cible de compréhension suivent la même
+règle, à la même profondeur.
+
+La distinction avec les noms est conservée intacte, et deux gardes la tiennent :
+
+```python
+def configurer() -> None:
+    Protocol = object       # NOM local — l'exemption du module tient
+
+class Boite:
+    Protocol = object       # attribut de CLASSE — l'exemption du module tient
+```
+
+**Conséquence FAIL-CLOSED assumée, et mesurée.** Une fonction qui réécrit
+l'attribut sans être jamais appelée révoque elle aussi la preuve : le gate ne
+suit pas les appels. Une analyse de flot serait de toute façon incomplète
+(décorateur, appel indirect, import tiers), et écrire une fonction qui mutile
+`typing.Protocol` sans jamais l'appeler n'a aucun usage légitime — quand l'angle
+mort inverse rend l'exemption entièrement contournable.
+
+```python
+import typing as t
+
+def desarmer() -> None:
+    t.Protocol = object     # jamais appelée — la preuve tombe quand même
+
+class S(t.Protocol):
+    def manque(self) -> None: ...   # refusé
+```
+
+La portée du retrait, elle, n'est pas élargie : seul l'attribut **prouvant** —
+`Protocol`, `abstractmethod` — révoque, et seulement sur son **porteur**. Une
+écriture profonde sur `t.TYPE_CHECKING`, ou sur le `Protocol` d'un objet
+quelconque, ne détruit aucune preuve.
 
 **L'affectation déclarée `global`.** L'exemption des affectations locales repose
 sur leur portée ; `global` la supprime explicitement, et la liaison atteint alors

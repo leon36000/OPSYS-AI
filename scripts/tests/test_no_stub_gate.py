@@ -4194,6 +4194,240 @@ def test_refuse_un_abstractmethod_reaffecte_par_attribut_de_module(
     assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
 
 
+def test_refuse_un_protocol_reaffecte_par_attribut_dans_un_corps_de_fonction(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un ATTRIBUT de module se réécrit à toute PROFONDEUR, jamais localement.
+
+    MESURÉ à l'interpréteur : l'appel ``desarmer()`` exécute réellement
+    ``t.Protocol = object`` AVANT la définition de ``Service``, qui hérite alors
+    d'``object`` et n'est plus un protocole. La collecte des révocations ignorait
+    pourtant les corps de fonctions — règle correcte pour un NOM, qu'une portée
+    locale confine, mais FAUSSE pour un attribut de module : l'objet visé est le
+    module lui-même, et la portée où l'écriture est rédigée ne le protège pas.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "import typing as t\n\n\n"
+        "def desarmer() -> None:\n"
+        "    t.Protocol = object\n\n\n"
+        "desarmer()\n\n\n"
+        "class Service(t.Protocol):\n"
+        "    def calculer(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_protocol_reaffecte_par_attribut_dans_un_corps_de_classe(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le corps de CLASSE ne protège pas davantage l'attribut du module.
+
+    MESURÉ à l'interpréteur : ``class Boite: t.Protocol = object`` exécute son
+    corps à l'import et écrase l'attribut du module ``t`` — ``Boite.Protocol``
+    n'est PAS créé, la cible étant un attribut, jamais un nom de classe. La
+    divergence conservée pour les NOMS (``class Boite: Protocol = object`` ne
+    réaffecte rien du module) ne vaut donc pas ici, et le même correctif ferme
+    les deux profondeurs d'un coup.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "import typing as t\n\n\n"
+        "class Boite:\n"
+        "    t.Protocol = object\n\n\n"
+        "class Service(t.Protocol):\n"
+        "    def calculer(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_protocol_supprime_par_del_dans_un_corps_de_fonction(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le ``del`` d'attribut est révocateur à toute profondeur, lui aussi.
+
+    MESURÉ à l'interpréteur : après l'appel, ``t.Protocol`` n'existe plus et la
+    classe qui prétend en hériter échoue à l'import sur une ``AttributeError``.
+    Ne fermer que l'affectation laisserait exempter un code qui ne s'importe même
+    pas, exactement comme au niveau du module avant sa correction.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "import typing as t\n\n\n"
+        "def desarmer() -> None:\n"
+        "    del t.Protocol\n\n\n"
+        "desarmer()\n\n\n"
+        "class Service(t.Protocol):\n"
+        "    def calculer(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_abstractmethod_reaffecte_par_attribut_dans_un_corps_de_fonction(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la profondeur vaut pour TOUT attribut prouvant, pas pour Protocol seul.
+
+    Les deux attributs qui portent une exemption — ``Protocol`` et
+    ``abstractmethod`` — passent par la même collecte : fermer la profondeur pour
+    l'un sans l'autre laisserait le contournement disponible au voisin.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/base.py",
+        "import abc\n\n\n"
+        "def desarmer() -> None:\n"
+        "    abc.abstractmethod = staticmethod\n\n\n"
+        "desarmer()\n\n\n"
+        "class Socle:\n"
+        "    @abc.abstractmethod\n"
+        "    def calculer(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_protocol_reaffecte_par_une_fonction_jamais_appelee(
+    tmp_path: Path,
+) -> None:
+    """Prouve la conséquence FAIL-CLOSED assumée : l'appel n'est pas suivi.
+
+    La fonction n'est jamais appelée, donc l'attribut n'est pas réellement écrasé
+    à l'exécution — et la preuve est révoquée quand même. Suivre les appels
+    exigerait une analyse de flot que ni un décorateur, ni un appel indirect, ni
+    un import tiers ne rendraient fiable ; le gate refuse donc par défaut.
+    Écrire une fonction qui mutile ``typing.Protocol`` sans jamais l'appeler n'a
+    aucun usage légitime : le coût de ce refus est nul, celui de l'angle mort
+    inverse est une exemption entièrement contournable.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "import typing as t\n\n\n"
+        "def desarmer() -> None:\n"
+        "    t.Protocol = object\n\n\n"
+        "class Service(t.Protocol):\n"
+        "    def calculer(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_protocol_reaffecte_par_comprehension_dans_un_corps_de_fonction(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la cible de compréhension est révocatrice jusque dans une fonction.
+
+    MESURÉ à l'interpréteur : ``[1 for t.Protocol in (object,)]`` écrase
+    l'attribut du module, la portée de la compréhension ne protégeant que son
+    dictionnaire local, jamais l'objet visé. La forme était déjà fermée au niveau
+    du module ; l'enfermer dans une fonction la rouvrait.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "import typing as t\n\n\n"
+        "def desarmer() -> None:\n"
+        "    [1 for t.Protocol in (object,)]\n\n\n"
+        "desarmer()\n\n\n"
+        "class Service(t.Protocol):\n"
+        "    def calculer(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_protocol_reaffecte_par_attribut_dans_une_methode(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la profondeur se compte en NIVEAUX, pas en un cran de descente.
+
+    L'écriture est ici doublement enfermée — corps de classe PUIS corps de
+    méthode. Un correctif qui n'aurait ajouté qu'un niveau de descente à la
+    collecte existante l'aurait manquée, alors que le parcours par nœuds la
+    couvre au même titre qu'une écriture de premier niveau.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "import typing as t\n\n\n"
+        "class Atelier:\n"
+        "    def desarmer(self) -> None:\n"
+        "        t.Protocol = object\n\n\n"
+        "Atelier().desarmer()\n\n\n"
+        "class Service(t.Protocol):\n"
+        "    def calculer(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_conserve_une_exemption_dont_un_autre_attribut_est_reaffecte_en_fonction(
+    tmp_path: Path,
+) -> None:
+    """Prouve la garde INVERSE : la profondeur n'élargit pas la CIBLE du retrait.
+
+    Seul l'attribut PROUVANT révoque. Une écriture profonde sur un attribut sans
+    rapport — ici ``t.TYPE_CHECKING`` — ne détruit aucune preuve, faute de quoi
+    étendre la portée du contrôle transformerait chaque fonction de
+    configuration en faux positif.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "import typing as t\n\n\n"
+        "def configurer() -> None:\n"
+        "    t.TYPE_CHECKING = True\n\n\n"
+        "configurer()\n\n\n"
+        "class Service(t.Protocol):\n"
+        "    def calculer(self) -> str: ...\n",
+    )
+
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_conserve_une_exemption_dont_un_attribut_homonyme_est_ecrit_en_fonction(
+    tmp_path: Path,
+) -> None:
+    """Prouve la garde INVERSE : le PORTEUR compte autant que le nom de l'attribut.
+
+    ``configuration.Protocol`` écrit l'attribut d'un objet quelconque, pas celui
+    du module ``typing`` : la preuve d'origine du protocole reste entière.
+    Retirer sur le seul nom d'attribut ferait de tout code métier employant le
+    mot ``Protocol`` un faux positif.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "import typing as t\n\n\n"
+        "class Reglages:\n"
+        "    Protocol = 1\n\n\n"
+        "configuration = Reglages()\n\n\n"
+        "def configurer() -> None:\n"
+        "    configuration.Protocol = 2\n\n\n"
+        "configurer()\n\n\n"
+        "class Service(t.Protocol):\n"
+        "    def calculer(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" not in _codes(_scanner(repo))
+
+
 def test_accepte_un_module_typing_dont_un_autre_attribut_est_reaffecte(
     tmp_path: Path,
 ) -> None:
@@ -5516,6 +5750,108 @@ def test_refuse_un_repli_exit_dont_largument_nest_pas_un_litteral_decimal(
     )
 
     assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+@pytest.mark.parametrize(
+    "sortie",
+    ("exit 00", "exit 000", "exit 256", "exit 0512"),
+    ids=("deux-zeros", "trois-zeros", "multiple-256", "multiple-256-zero-tete"),
+)
+def test_refuse_une_sortie_nue_dont_la_valeur_est_nulle_quelle_que_soit_lorthographe(
+    tmp_path: Path, sortie: str
+) -> None:
+    """Prouve que la sortie NUE est jugée sur sa VALEUR, comme celle d'un repli.
+
+    MESURÉ avant correction, la même question recevait deux réponses opposées :
+    ``gate.py || exit 00`` était refusé — le repli lit ``N % 256`` — quand
+    ``gate.py; exit 00`` passait, le chemin direct exigeant l'orthographe exacte
+    ``0``. MESURÉ dans bash, dash et sh : ``exit 00``, ``exit 000``, ``exit 256``
+    et ``exit 0512`` rendent tous 0 et forcent le succès de l'étape aussi
+    sûrement que ``exit 0``. Les deux chemins consomment désormais le même
+    prédicat de valeur, si bien qu'une orthographe inédite du zéro ne peut plus
+    passer d'un côté en étant refusée de l'autre.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise_citee(
+        repo, ".github/workflows/valeur_directe.yml", f"gate.py; {sortie}"
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+@pytest.mark.parametrize(
+    "sortie",
+    ("exit 1", "exit 2", "exit 255", "exit 257"),
+    ids=("un", "deux", "dernier-non-nul", "au-dela-du-modulo"),
+)
+def test_accepte_une_sortie_nue_dont_la_valeur_nest_pas_nulle(
+    tmp_path: Path, sortie: str
+) -> None:
+    """Prouve la garde INVERSE : une sortie non nulle propage et reste licite.
+
+    MESURÉ dans bash, dash et sh : ``exit 1``, ``exit 2``, ``exit 255`` et
+    ``exit 257`` rendent 1, 2, 255 et 1 — jamais 0. Sans cette garde, juger la
+    valeur reviendrait à refuser toute sortie explicite, y compris celle qui
+    fait précisément échouer le job requis.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise_citee(
+        repo, ".github/workflows/valeur_non_nulle.yml", f"gate.py; {sortie}"
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
+@pytest.mark.parametrize(
+    "sortie",
+    ("exit 0x0", "exit 1x", "exit 12abc"),
+    ids=("hexadecimal", "suffixe-court", "suffixe-long"),
+)
+def test_accepte_une_sortie_nue_dont_largument_nest_pas_un_litteral_decimal(
+    tmp_path: Path, sortie: str
+) -> None:
+    """Prouve la conséquence assumée du prédicat partagé sur les non-littéraux.
+
+    MESURÉ dans bash, dash et sh : ``exit 0x0``, ``exit 1x`` et ``exit 12abc``
+    rendent 2 — l'argument n'est pas numérique, le shell signale une erreur
+    d'usage et l'étape ÉCHOUE. Ces écritures ne forcent donc aucun succès, et le
+    chemin direct, qui DÉTECTE le succès forcé, ne les signale pas.
+
+    Le chemin de repli les refuse au contraire, et ce n'est pas une divergence de
+    prédicat : il pose la question inverse — il exige la PREUVE que la branche
+    propage l'échec du CONTRÔLE — et un statut 2 d'erreur d'usage ne prouve rien
+    de tel. Même prédicat de valeur des deux côtés, deux régimes assumés pour
+    l'inconnu : liste noire à gauche, liste blanche à droite.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise_citee(
+        repo, ".github/workflows/non_decimal_direct.yml", f"gate.py; {sortie}"
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
+def test_accepte_une_sortie_de_valeur_nulle_gardee_par_une_conditionnelle(
+    tmp_path: Path,
+) -> None:
+    """Prouve que juger la VALEUR ne supprime pas la garde de CONDITIONNALITÉ.
+
+    Une sortie nulle placée entre l'ouverture et la fermeture d'un ``if`` ne
+    s'exécute pas toujours : elle reste licite. La garde vaut pour toutes les
+    orthographes du zéro, et pas seulement pour celle que l'ancien motif
+    reconnaissait — sans quoi élargir le motif transformerait un contrôle
+    conditionnel légitime en faux positif.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise(
+        repo, ".github/workflows/valeur_gardee.yml", "if true; then exit 00; fi"
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
 
 
 @pytest.mark.parametrize(

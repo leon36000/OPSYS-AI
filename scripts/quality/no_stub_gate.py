@@ -58,8 +58,8 @@ _IDENTIFIANTS_REGLE_OPTIONNELS: Final[re.Pattern[str]] = re.compile(
     + _IDENTIFIANT_REGLE_OPTIONNEL.pattern
     + r")*"
 )
-_EXIT_ZERO: Final[re.Pattern[str]] = re.compile(
-    r"(?:^|[;|&()\s])exit\s+0(?=$|[^A-Za-z0-9_])"
+_SORTIE_LITTERALE_SHELL: Final[re.Pattern[str]] = re.compile(
+    r"(?:^|[;|&()\s])exit\s+(?P<code>[0-9]+)(?=$|[^A-Za-z0-9_])"
 )
 _DEBUT_COMMANDE_SHELL: Final[str] = r"(?:^|[;|&(]|\bthen\b|\bdo\b|\belse\b)\s*"
 _IF_SHELL: Final[re.Pattern[str]] = re.compile(_DEBUT_COMMANDE_SHELL + r"if\b")
@@ -127,7 +127,7 @@ _ECHEC_GARANTI_EN_TETE: Final[re.Pattern[str]] = re.compile(
 _JETONS_SHELL: Final[re.Pattern[str]] = re.compile(
     f"(?P<ouvre>{_IF_SHELL.pattern}|{_CASE_SHELL.pattern})"
     f"|(?P<ferme>{_FIN_IF_SHELL.pattern}|{_FIN_CASE_SHELL.pattern})"
-    f"|(?P<sortie>{_EXIT_ZERO.pattern})"
+    f"|(?P<sortie>{_SORTIE_LITTERALE_SHELL.pattern})"
 )
 _POSITION_COMMANDE_SHELL: Final[str] = r"(?:^|[;|&()\s])"
 _FIN_DE_MOT_SHELL: Final[str] = r"(?=$|[;|&()\s])"
@@ -697,9 +697,13 @@ def _attributs_lies_par_comprehension(noeud: ast.stmt) -> set[tuple[str, str]]:
     une affectation dont la cible est un simple nom, et ne lire que le premier
     niveau la manquerait entièrement.
 
-    Les portées PROPRES sont sautées via ``_enfants_hors_corps`` : MESURÉ,
+    Les portées PROPRES restent sautées via ``_enfants_hors_corps``, et la portée
+    de ce saut a CHANGÉ sans que la fonction bouge : son appelant l'applique
+    désormais à chaque instruction de l'arbre, corps de fonctions et de classes
+    compris, si bien que seul le corps d'un LAMBDA — une expression, qu'aucun
+    parcours d'instructions n'atteint — lui échappe encore. MESURÉ,
     ``f = lambda: [1 for t.Protocol in (object,)]`` n'écrit rien tant que ``f``
-    n'est pas appelée, et révoquer là serait un faux positif.
+    n'est pas appelée, et cette frontière-là est tenue par un test dédié.
 
     La cible d'un GÉNÉRATEUR est comptée sans exiger la preuve qu'il soit
     consommé : l'analyse est fail-closed, comme l'est déjà le mépris de l'ORDRE
@@ -717,16 +721,45 @@ def _attributs_lies_par_comprehension(noeud: ast.stmt) -> set[tuple[str, str]]:
     return attributs
 
 
-def _attributs_cibles_affectation(noeud: ast.stmt) -> set[tuple[str, str]]:
-    """Extrait TOUS les attributs de module qu'une liaison module-level réécrit.
+def _attributs_cibles_affectation(arbre: ast.AST) -> set[tuple[str, str]]:
+    """Extrait TOUS les attributs de module que l'arbre réécrit, à toute PROFONDEUR.
 
-    Les deux sources sont réunies ici, à un seul endroit, exactement comme
-    ``_noms_cibles_affectation`` réunit les siennes : la CIBLE déclarée de
-    l'instruction, et la cible d'une COMPRÉHENSION écrite n'importe où dans ses
-    sous-expressions. Séparer les deux collectes et les rassembler ici empêche
-    qu'un appelant n'en oublie une.
+    C'est ici que le chemin des ATTRIBUTS quitte celui des NOMS, et la
+    distinction est la raison d'être de la fonction : un nom est lié à une
+    portée, si bien qu'une affectation écrite dans une fonction ou dans un corps
+    de classe ne touche pas le module ; un attribut de module ne l'est pas, et
+    ``t.Protocol = object`` mutile l'objet ``typing`` où qu'il soit écrit.
+
+    MESURÉ avant correction, la collecte n'inspectait que les instructions du
+    niveau module et de ses blocs : une fonction contenant ``t.Protocol =
+    object``, puis APPELÉE, laissait la classe suivante hériter d'``object`` tout
+    en restant exemptée. Le même trou existait dans un corps de classe, où
+    ``class Boite: t.Protocol = object`` n'a rien d'un attribut de classe — la
+    cible étant un attribut, c'est bien le module qui est écrit, et non un
+    membre de la classe.
+
+    Conséquence FAIL-CLOSED assumée : une fonction qui réécrit l'attribut sans
+    jamais être appelée révoque elle aussi la preuve. Suivre les appels
+    exigerait une analyse de flot qu'un décorateur, un appel indirect ou un
+    import tiers rendraient de toute façon incomplète ; et écrire une fonction
+    qui mutile ``typing.Protocol`` sans jamais l'appeler n'a aucun usage
+    légitime, quand l'angle mort inverse rend l'exemption entièrement
+    contournable.
+
+    Les deux sources sont réunies ici, exactement comme ``_noms_cibles_affectation``
+    réunit les siennes, mais sur l'ARBRE au lieu d'une instruction : la CIBLE
+    déclarée de chaque instruction — ``ast.walk`` les livre toutes, y compris
+    celles des corps — et la cible d'une COMPRÉHENSION, qui n'est jamais une
+    instruction et se lit donc dans les sous-expressions de chacune.
     """
-    return _attributs_cibles_directes(noeud) | _attributs_lies_par_comprehension(noeud)
+    return set().union(
+        set(),
+        *(
+            _attributs_cibles_directes(noeud) | _attributs_lies_par_comprehension(noeud)
+            for noeud in ast.walk(arbre)
+            if isinstance(noeud, ast.stmt)
+        ),
+    )
 
 
 def _valeur_prouve_une_absence(
@@ -931,7 +964,6 @@ class _LiaisonsModule:
 
     aliases: _CollecteAliases
     reassignees: set[str]
-    attributs_reaffectes: set[tuple[str, str]]
     absences_prouvees: set[str]
     noms_importes_hors_builtins: set[str]
 
@@ -958,17 +990,21 @@ def _imports_module(
     ``_instructions_hors_fonction`` est voulue : une classe est un espace de noms
     propre, si bien que ``class Boite: Protocol = object`` ne réaffecte aucun nom
     du module et ne doit invalider aucune preuve.
+
+    Cette limite vaut pour les NOMS, jamais pour les ATTRIBUTS, et c'est
+    exactement pourquoi les seconds ne sont plus collectés ici :
+    ``_attributs_cibles_affectation`` lit l'arbre entier, corps compris, parce
+    qu'un attribut de module est écrit sur l'objet module quelle que soit la
+    portée d'où l'écriture part.
     """
     aliases = _CollecteAliases()
     reassignees: set[str] = set()
-    attributs_reaffectes: set[tuple[str, str]] = set()
     affectations: list[ast.Assign | ast.AnnAssign] = []
     noms_importes_hors_builtins: set[str] = set()
 
     def visiter(instructions: list[ast.stmt]) -> None:
         for noeud in instructions:
             reassignees.update(_noms_cibles_affectation(noeud))
-            attributs_reaffectes.update(_attributs_cibles_affectation(noeud))
             if isinstance(noeud, (ast.Assign, ast.AnnAssign)):
                 affectations.append(noeud)
             if isinstance(noeud, ast.Import):
@@ -1056,7 +1092,6 @@ def _imports_module(
     return _LiaisonsModule(
         aliases,
         reassignees,
-        attributs_reaffectes,
         _absences_prouvees(
             affectations,
             aliases.not_implemented_errors,
@@ -1084,10 +1119,15 @@ def _analyser_imports(arbre: ast.Module) -> _AliasesImports:
     une, et doit donc être ajoutée en dernier — l'affectation qui la porte est
     aussi une réaffectation, si bien que l'appliquer plus tôt reviendrait à
     l'effacer avec elle.
+
+    Les attributs sont collectés sur l'ARBRE, non sur les liaisons du module :
+    leur portée d'écriture n'a aucune importance, alors que celle d'un nom
+    décide de tout. C'est la seule asymétrie voulue entre les deux collectes, et
+    elle est ce qui ferme ``def desarmer(): t.Protocol = object``.
     """
     liaisons = _imports_module(arbre.body)
     liaisons.aliases.retirer(liaisons.reassignees)
-    liaisons.aliases.retirer_attributs_prouvants(liaisons.attributs_reaffectes)
+    liaisons.aliases.retirer_attributs_prouvants(_attributs_cibles_affectation(arbre))
     liaisons.aliases.retirer_exemptions(_noms_reaffectes_par_global(arbre))
     liaisons.aliases.retirer_exceptions_importees(liaisons.noms_importes_hors_builtins)
     liaisons.aliases.ajouter_absences_prouvees(liaisons.absences_prouvees)
@@ -3016,6 +3056,27 @@ def _shell_inline_propage(
     )
 
 
+def _sortie_litterale_est_nulle(code: str) -> bool:
+    """Décide si un littéral d'``exit``/``return`` rend un statut NUL. Prédicat UNIQUE.
+
+    Les deux chemins qui jugent une sortie — la sortie NUE d'une étape et la
+    branche de REPLI d'un ``||`` — consomment ce prédicat, et c'est tout l'objet
+    de la fonction. MESURÉ avant unification : ``gate.py || exit 00`` était
+    refusé quand ``gate.py; exit 00`` passait, le repli lisant la VALEUR pendant
+    que le chemin direct exigeait l'orthographe exacte ``0``. La même question
+    recevait deux réponses, et la classe entière des orthographes du zéro
+    (``exit 000``, ``exit 256``, ``exit 0512``) restait disponible d'un côté.
+
+    Le critère est celui du shell, MESURÉ dans bash, dash et sh : le statut rendu
+    est le littéral modulo 256, si bien que ``exit 256`` et ``exit 0512`` valent
+    ``exit 0``. Ce que chaque appelant FAIT du verdict diffère à dessein — la
+    sortie nue est signalée quand elle est nulle, la branche de repli n'est
+    admise que lorsqu'elle ne l'est pas — mais la valeur, elle, ne se juge plus
+    qu'ici.
+    """
+    return int(code) % _MODULO_CODE_DE_SORTIE == 0
+
+
 def _commande_simple_propage(
     original: str, neutre: str, debut: int, fin: int, profondeur: int
 ) -> bool:
@@ -3023,18 +3084,19 @@ def _commande_simple_propage(
 
     Trois formes seulement le prouvent, et elles ont été MESURÉES dans bash, dash
     et sh : ``false`` (1, y compris préfixé d'un chemin ou de ``command``),
-    ``exit``/``return`` suivi d'un littéral décimal dont la VALEUR modulo 256
-    n'est pas nulle — ``exit 00``, ``exit 000`` et ``exit 256`` rendent 0 — et le
-    script d'un ``sh -c``. Tout le reste rend un statut que rien ne détermine
-    ici : ``env true``, ``nice true``, ``timeout 1 true`` rendent 0 et l'échec
-    disparaît. Énumérer ces porteurs ne converge pas, donc l'inconnu est refusé.
+    ``exit``/``return`` suivi d'un littéral décimal dont la VALEUR n'est pas nulle
+    au sens de ``_sortie_litterale_est_nulle`` — ``exit 00``, ``exit 000`` et
+    ``exit 256`` rendent 0 — et le script d'un ``sh -c``. Tout le reste rend un
+    statut que rien ne détermine ici : ``env true``, ``nice true``, ``timeout 1
+    true`` rendent 0 et l'échec disparaît. Énumérer ces porteurs ne converge pas,
+    donc l'inconnu est refusé.
     """
     texte = neutre[debut:fin]
     if _ECHEC_GARANTI_EN_TETE.match(texte) is not None:
         return True
     sortie = _SORTIE_NON_NULLE.match(texte)
     if sortie is not None:
-        return int(sortie.group("code")) % _MODULO_CODE_DE_SORTIE != 0
+        return not _sortie_litterale_est_nulle(sortie.group("code"))
     return _shell_inline_propage(original, neutre, debut, fin, profondeur)
 
 
@@ -3398,15 +3460,25 @@ def _contient_succes_force(commande: str) -> bool:
 
 
 def _contient_exit_zero_non_garde(commande: str) -> bool:
-    """Distingue les ``exit 0`` nus des branches conditionnelles shell prouvées.
+    """Distingue les sorties de valeur NULLE nues des branches conditionnelles prouvées.
 
     Les ouvertures, les fermetures et les sorties sont lues dans leur ORDRE
-    d'apparition, y compris plusieurs fois sur une même ligne. Un ``exit 0``
-    placé après le ``fi`` qui referme la garde s'exécute donc toujours et reste
-    un contournement, alors qu'un ``exit 0`` situé entre l'ouverture et la
-    fermeture demeure conditionnel. Les mots-clés ne comptent qu'en position de
+    d'apparition, y compris plusieurs fois sur une même ligne. Une sortie nulle
+    placée après le ``fi`` qui referme la garde s'exécute donc toujours et reste
+    un contournement, alors qu'une sortie nulle située entre l'ouverture et la
+    fermeture demeure conditionnelle. Les mots-clés ne comptent qu'en position de
     commande, afin qu'une option longue comme ``--if-exists`` ou
     ``--ignore-case`` n'ouvre aucune garde imaginaire.
+
+    Le jeton de sortie capture désormais le littéral ENTIER, et c'est
+    ``_sortie_litterale_est_nulle`` — le prédicat que consomme aussi le chemin de
+    repli — qui décide. Avant cette unification, le motif exigeait l'orthographe
+    exacte ``0`` : MESURÉ, ``gate.py; exit 00`` passait pendant que
+    ``gate.py || exit 00`` était refusé. Élargir la CAPTURE sans élargir le
+    verdict est ce qui préserve la garde inverse : ``exit 1`` est maintenant
+    reconnu comme sortie, puis laissé passer sur sa valeur, et un argument qui
+    n'est pas un littéral décimal — ``exit 0x0``, ``exit 1x`` — n'est pas capturé
+    du tout, le shell rendant alors 2, donc un échec, jamais un succès forcé.
     """
     profondeur_conditionnelle = 0
     for ligne in _neutraliser_chaines_shell(commande).splitlines() or [commande]:
@@ -3415,7 +3487,9 @@ def _contient_exit_zero_non_garde(commande: str) -> bool:
                 profondeur_conditionnelle += 1
             elif jeton.group("ferme") is not None:
                 profondeur_conditionnelle = max(0, profondeur_conditionnelle - 1)
-            elif profondeur_conditionnelle == 0:
+            elif profondeur_conditionnelle == 0 and _sortie_litterale_est_nulle(
+                jeton.group("code")
+            ):
                 return True
     return False
 
