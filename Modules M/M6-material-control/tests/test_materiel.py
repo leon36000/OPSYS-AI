@@ -127,3 +127,71 @@ def test_consommer_materiaux_rejette_un_formulaire_incoherent_avec_le_wct():
 
     assert confirmation is None
     assert code_verdict == "REJ-FORMULAIRE-WCT-INCOHERENT"
+
+
+def test_consommer_materiaux_rejette_quantite_negative():
+    formulaire = formulaire_valide()
+    formulaire["lignes_consommees"] = [{"materiau_id": "MAT-1", "quantite": -1}]
+
+    confirmation, code_verdict = materiel.consommer_materiaux(
+        wct_valide(),
+        formulaire,
+        registre_avec_reception_prealable(),
+    )
+
+    assert confirmation is None
+    assert code_verdict == "REJ-FORMULAIRE-LIGNE-INVALIDE"
+
+
+def test_consommer_materiaux_rejette_quantite_nulle():
+    formulaire = formulaire_valide()
+    formulaire["lignes_consommees"] = [{"materiau_id": "MAT-1", "quantite": 0}]
+
+    confirmation, code_verdict = materiel.consommer_materiaux(
+        wct_valide(),
+        formulaire,
+        registre_avec_reception_prealable(),
+    )
+
+    assert confirmation is None
+    assert code_verdict == "REJ-FORMULAIRE-LIGNE-INVALIDE"
+
+
+def test_consommer_materiaux_rejette_quantite_nan():
+    formulaire = formulaire_valide()
+    formulaire["lignes_consommees"] = [{"materiau_id": "MAT-1", "quantite": float("nan")}]
+
+    confirmation, code_verdict = materiel.consommer_materiaux(
+        wct_valide(),
+        formulaire,
+        registre_avec_reception_prealable(),
+    )
+
+    assert confirmation is None
+    assert code_verdict == "REJ-FORMULAIRE-LIGNE-INVALIDE"
+
+
+def test_consommer_materiaux_rejette_quantite_infinie():
+    formulaire = formulaire_valide()
+    formulaire["lignes_consommees"] = [{"materiau_id": "MAT-1", "quantite": float("inf")}]
+
+    confirmation, code_verdict = materiel.consommer_materiaux(
+        wct_valide(),
+        formulaire,
+        registre_avec_reception_prealable(),
+    )
+
+    assert confirmation is None
+    assert code_verdict == "REJ-FORMULAIRE-LIGNE-INVALIDE"
+
+    formulaire = formulaire_valide()
+    formulaire["lignes_consommees"] = [{"materiau_id": "MAT-1", "quantite": float("-inf")}]
+
+    confirmation, code_verdict = materiel.consommer_materiaux(
+        wct_valide(),
+        formulaire,
+        registre_avec_reception_prealable(),
+    )
+
+    assert confirmation is None
+    assert code_verdict == "REJ-FORMULAIRE-LIGNE-INVALIDE"

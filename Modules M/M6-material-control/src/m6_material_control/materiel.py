@@ -1,3 +1,5 @@
+import math
+
 from . import contrats_sortie
 from . import stock
 from . import validation
@@ -23,6 +25,15 @@ def consommer_materiaux(wct, formulaire, registre) -> tuple[dict | None, str | N
             isinstance(ligne["quantite"], (int, float))
             and type(ligne["quantite"]) is not bool
         ):
+            return None, "REJ-FORMULAIRE-LIGNE-INVALIDE"
+
+        # Rejette 0, négatif, NaN, +inf, -inf. Aucun test existant ne valide
+        # quantite == 0 comme cas légitime ; si un tel cas était prouvé,
+        # cette garde devrait être affinée plutôt que de casser silencieusement.
+        quantite = ligne["quantite"]
+        if isinstance(quantite, float) and not math.isfinite(quantite):
+            return None, "REJ-FORMULAIRE-LIGNE-INVALIDE"
+        if quantite <= 0:
             return None, "REJ-FORMULAIRE-LIGNE-INVALIDE"
 
     stock_restant = []
