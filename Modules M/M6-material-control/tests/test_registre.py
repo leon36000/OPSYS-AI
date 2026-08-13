@@ -183,3 +183,43 @@ def test_ajouter_lot_est_atomique_si_le_second_mouvement_est_invalide():
     assert isinstance(code_erreur, str)
     assert code_erreur
     assert registre.lire() == avant
+
+
+def test_ajouter_lot_ne_modifie_rien_si_un_mouvement_du_lot_manque_un_champ():
+    registre = Registre()
+    avant = registre.lire()
+    mouvement_incomplet = {
+        "type_mouvement": "CONSOMMATION",
+        "chantier_id": "chantier-A",
+        "materiau_id": "beton-C25",
+        "quantite": -3.0,
+    }
+
+    maillons, code_erreur = registre.ajouter_lot([_reception(), mouvement_incomplet])
+
+    assert maillons is None
+    assert code_erreur == "REJ-MOUVEMENT-STRUCTURE-INVALIDE"
+    assert registre.lire() == avant
+    assert registre.lire() == []
+
+
+def test_ajouter_lot_produit_un_chainage_de_hash_identique_au_cas_ajouter_un_par_un():
+    mouvements = [_reception(), _consommation(), _variance()]
+
+    registre_un_par_un = Registre()
+    maillons_un_par_un = []
+    for m in mouvements:
+        maillon, erreur = registre_un_par_un.ajouter(m)
+        assert erreur is None
+        maillons_un_par_un.append(maillon)
+
+    registre_lot = Registre()
+    maillons_lot, erreur_lot = registre_lot.ajouter_lot(mouvements)
+
+    assert erreur_lot is None
+    assert len(maillons_lot) == len(maillons_un_par_un)
+    for a, b in zip(maillons_un_par_un, maillons_lot):
+        assert a["hash_maillon"] == b["hash_maillon"]
+        assert a["hash_precedent"] == b["hash_precedent"]
+        assert a["index"] == b["index"]
+    assert [m["hash_maillon"] for m in registre_un_par_un.lire()] == [m["hash_maillon"] for m in registre_lot.lire()]
