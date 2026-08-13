@@ -9,7 +9,12 @@ from typing import Final
 
 import pytest
 
-from scripts.quality.no_stub_gate import Violation, main, scan_repository
+from scripts.quality.no_stub_gate import (
+    Violation,
+    _violations_jobs_requis_absents,
+    main,
+    scan_repository,
+)
 
 
 _BASE_REF: Final[str] = "HEAD"
@@ -854,6 +859,34 @@ def test_main_refuse_un_scope_partiel_et_nomme_les_racines_omises(
     assert ".opsys/tools/github-control" in sortie
 
 
+def _workflow_de_tous_les_jobs_du_contrat(repo: Path) -> None:
+    """Écrit la CI qui satisfait le contrat de `_contrat`, chaque job requis exécutant une commande.
+
+    Sans elle, le dépôt du cas déclarerait six jobs requis sans en définir
+    aucun : le gate le refuse à juste titre, et le code de retour ne mesurerait
+    plus le périmètre mais l'absence de CI.
+    """
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        "jobs:\n"
+        + "".join(
+            f"  {job}:\n"
+            "    runs-on: ubuntu-latest\n"
+            "    steps:\n"
+            "      - run: python3 -m pytest\n"
+            for job in (
+                "gates",
+                "types",
+                "tests",
+                "security",
+                "pack-validation",
+                "proof-sealed",
+            )
+        ),
+    )
+
+
 def test_main_sans_scope_utilise_toutes_les_racines_du_contrat(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -861,6 +894,7 @@ def test_main_sans_scope_utilise_toutes_les_racines_du_contrat(
     """Prouve que l'absence de --scope sélectionne exactement le périmètre contractuel complet."""
     repo = _depot_git_initialise(tmp_path)
     _contrat(repo)
+    _workflow_de_tous_les_jobs_du_contrat(repo)
 
     code_retour = main(["--repo", str(repo)])
 
@@ -3549,3 +3583,364 @@ def test_accepte_une_action_locale_introuvable_dans_un_job_non_requis(
     )
 
     assert "LOCAL_ACTION_INTROUVABLE" not in _codes(_scanner(repo))
+
+
+def test_main_refuse_les_jobs_requis_quand_aucun_repertoire_de_workflows_nexiste(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Prouve qu'un contrat déclarant des jobs requis SANS aucune CI est le défaut maximal.
+
+    Ne rien dire d'un dépôt dépourvu de `.github/workflows/` produisait
+    l'inverse de l'intention : le contrat exige des contrôles, et leur absence
+    TOTALE est précisément ce que le code REQUIRED_JOB_ABSENT nomme.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat_deux_jobs(repo)
+    _ecrire(repo, "src/service.py", "def calculer() -> int:\n    return 1\n")
+
+    code_retour = main(["--repo", str(repo)])
+
+    sortie = capsys.readouterr().out
+    assert not (repo / ".github" / "workflows").exists()
+    assert code_retour == 1
+    assert "REQUIRED_JOB_ABSENT" in sortie
+    assert "gates" in sortie
+    assert "types" in sortie
+
+
+def test_main_refuse_les_jobs_requis_quand_le_repertoire_de_workflows_est_vide(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Prouve qu'un répertoire de workflows créé mais vide ne dispense de rien."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat_deux_jobs(repo)
+    (repo / ".github" / "workflows").mkdir(parents=True)
+
+    code_retour = main(["--repo", str(repo)])
+
+    sortie = capsys.readouterr().out
+    assert code_retour == 1
+    assert "REQUIRED_JOB_ABSENT" in sortie
+
+
+def test_main_refuse_les_jobs_requis_quand_aucun_fichier_yaml_nexiste(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Prouve qu'un répertoire de workflows sans .yml ni .yaml ne définit aucun job."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat_deux_jobs(repo)
+    _ecrire(repo, ".github/workflows/NOTES.md", "aucun workflow ici\n")
+
+    code_retour = main(["--repo", str(repo)])
+
+    sortie = capsys.readouterr().out
+    assert code_retour == 1
+    assert "REQUIRED_JOB_ABSENT" in sortie
+
+
+def test_un_contrat_sans_job_requis_ne_signale_aucune_absence(tmp_path: Path) -> None:
+    """Prouve que la borne conservée est le CONTRAT, jamais la présence d'une CI.
+
+    Sans identifiant requis déclaré, il n'existe aucun contrôle promis dont
+    l'absence puisse être reprochée : le gate doit alors rester muet, y compris
+    dans un dépôt totalement dépourvu de workflows.
+    """
+    repo = _depot_git_initialise(tmp_path)
+
+    assert _violations_jobs_requis_absents(repo, ()) == []
+
+
+def test_refuse_une_classe_dont_le_corps_est_pass(tmp_path: Path) -> None:
+    """Prouve qu'un corps de CLASSE réduit à pass est un stub, comme celui d'une fonction."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(repo, "src/service.py", "class Service:\n    pass\n")
+
+    assert "EXECUTABLE_PASS" in _codes(_scanner(repo))
+
+
+def test_refuse_une_classe_dont_le_corps_est_une_ellipse(tmp_path: Path) -> None:
+    """Prouve que l'ellipse ne rend pas plus licite un corps de classe vide."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(repo, "src/service.py", "class Service:\n    ...\n")
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_une_classe_reduite_a_sa_docstring(tmp_path: Path) -> None:
+    """Prouve la cohérence avec les fonctions : documenter un vide ne le remplit pas."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(repo, "src/service.py", 'class Service:\n    """Décrit un service."""\n')
+
+    assert "DOCSTRING_ONLY_BODY" in _codes(_scanner(repo))
+
+
+def test_refuse_une_classe_vide_heritant_dune_base_ordinaire(tmp_path: Path) -> None:
+    """Prouve que l'exemption vise les TYPES D'EXCEPTION, jamais le simple fait d'hériter."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "class Base:\n"
+        "    def calculer(self) -> int:\n"
+        "        return 1\n"
+        "\n"
+        "\n"
+        "class Service(Base):\n"
+        "    pass\n",
+    )
+
+    assert "EXECUTABLE_PASS" in _codes(_scanner(repo))
+
+
+def test_accepte_une_classe_dexception_vide(tmp_path: Path) -> None:
+    """Prouve le sens inverse : un type d'exception vide est du code COMPLET, pas un stub.
+
+    L'identité du type EST tout son contenu — elle se lève et se rattrape
+    sélectivement. Le refuser serait un faux positif sur un idiome Python
+    courant, et pousserait à désarmer le gate.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(repo, "src/erreurs.py", "class MonErreur(ValueError):\n    pass\n")
+
+    codes = _codes(_scanner(repo))
+    assert "EXECUTABLE_PASS" not in codes
+    assert "DOCSTRING_ONLY_BODY" not in codes
+
+
+def test_accepte_une_classe_dexception_reduite_a_sa_docstring(tmp_path: Path) -> None:
+    """Prouve que la forme documentée du même idiome reste acceptée."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/erreurs.py",
+        'class MonErreur(RuntimeError):\n    """Signale une panne du transport."""\n',
+    )
+
+    assert "DOCSTRING_ONLY_BODY" not in _codes(_scanner(repo))
+
+
+def test_accepte_une_exception_derivee_dune_exception_locale(tmp_path: Path) -> None:
+    """Prouve que l'héritage est résolu TRANSITIVEMENT dans le module, pas au premier cran."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/erreurs.py",
+        'class ErreurRacine(ValueError):\n'
+        '    """Racine des erreurs du module."""\n'
+        "\n"
+        "\n"
+        "class ErreurFille(ErreurRacine):\n"
+        "    pass\n",
+    )
+
+    codes = _codes(_scanner(repo))
+    assert "EXECUTABLE_PASS" not in codes
+    assert "DOCSTRING_ONLY_BODY" not in codes
+
+
+def test_accepte_une_classe_portant_de_vraies_methodes(tmp_path: Path) -> None:
+    """Prouve qu'une classe ordinaire dont le corps déclare des méthodes reste acceptée."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "class Service:\n"
+        "    def calculer(self) -> int:\n"
+        "        return 1\n",
+    )
+
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_refuse_un_test_dont_le_seul_oracle_est_une_methode_metier(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un objet métier NOMMÉ comme une assertion ne vaut aucun oracle.
+
+    Sans preuve d'héritage d'unittest.TestCase, il suffisait de nommer une
+    méthode `assert…` pour faire passer un test qui ne vérifie rien.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_silence.py",
+        "class Silencer:\n"
+        "    def assert_noop(self) -> int:\n"
+        "        return 1\n"
+        "\n"
+        "\n"
+        "def test_c() -> None:\n"
+        "    Silencer().assert_noop()\n",
+    )
+
+    assert "TEST_WITHOUT_ORACLE" in _codes(_scanner(repo))
+
+
+def test_refuse_self_assert_hors_dune_classe_test_case(tmp_path: Path) -> None:
+    """Prouve que le receveur `self` seul ne prouve rien sans l'héritage unittest."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_suite.py",
+        "class Faux:\n"
+        "    def assertEqual(self, gauche: int, droite: int) -> int:\n"
+        "        return gauche + droite\n"
+        "\n"
+        "\n"
+        "class Suite:\n"
+        "    def test_ok(self) -> None:\n"
+        "        self.assertEqual(1, 1)\n",
+    )
+
+    assert "TEST_WITHOUT_ORACLE" in _codes(_scanner(repo))
+
+
+def test_accepte_self_assert_equal_dans_un_cas_de_test_unittest(tmp_path: Path) -> None:
+    """Prouve que l'oracle unittest légitime reste accepté, sens inverse du durcissement."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_unittest.py",
+        "import unittest\n"
+        "\n"
+        "\n"
+        "class Suite(unittest.TestCase):\n"
+        "    def test_ok(self) -> None:\n"
+        "        self.assertEqual(1, 1)\n",
+    )
+
+    assert "TEST_WITHOUT_ORACLE" not in _codes(_scanner(repo))
+
+
+def test_accepte_self_assert_dans_une_sous_classe_locale_de_test_case(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'héritage unittest est résolu transitivement, comme celui des exceptions."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_base.py",
+        "import unittest\n"
+        "\n"
+        "\n"
+        "class Base(unittest.TestCase):\n"
+        "    def aider(self) -> int:\n"
+        "        return 1\n"
+        "\n"
+        "\n"
+        "class Suite(Base):\n"
+        "    def test_ok(self) -> None:\n"
+        "        self.assertEqual(1, 1)\n",
+    )
+
+    assert "TEST_WITHOUT_ORACLE" not in _codes(_scanner(repo))
+
+
+def test_accepte_self_assert_avec_test_case_importe_sous_alias(tmp_path: Path) -> None:
+    """Prouve que l'alias d'import est résolu comme ailleurs dans le gate."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_alias.py",
+        "from unittest import TestCase as CasDeTest\n"
+        "\n"
+        "\n"
+        "class Suite(CasDeTest):\n"
+        "    def test_ok(self) -> None:\n"
+        "        self.assertEqual(1, 1)\n",
+    )
+
+    assert "TEST_WITHOUT_ORACLE" not in _codes(_scanner(repo))
+
+
+def test_accepte_un_assert_nu_dans_un_test(tmp_path: Path) -> None:
+    """Prouve que l'assertion nue reste l'oracle de référence du dépôt."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(repo, "src/test_nu.py", "def test_c() -> None:\n    assert 1 + 1 == 2\n")
+
+    assert "TEST_WITHOUT_ORACLE" not in _codes(_scanner(repo))
+
+
+def test_refuse_continue_on_error_entier_un_dans_un_job_requis(tmp_path: Path) -> None:
+    """Prouve que l'entier 1 tolère les erreurs exactement comme le booléen true.
+
+    PyYAML rend l'entier 1, que ni `valeur is True` ni le test de chaîne
+    n'attrapaient : le job requis restait vert avec son contrôle rouge.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    continue-on-error: 1\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: python3 -m pytest\n",
+    )
+
+    assert "REQUIRED_JOB_SOFT_FAILURE" in _codes(_scanner(repo))
+
+
+def test_refuse_continue_on_error_flottant_non_nul_dans_un_job_requis(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la règle porte sur la valeur numérique, pas sur le seul type entier."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    continue-on-error: 1.0\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: python3 -m pytest\n",
+    )
+
+    assert "REQUIRED_JOB_SOFT_FAILURE" in _codes(_scanner(repo))
+
+
+def test_accepte_continue_on_error_entier_zero_dans_un_job_requis(
+    tmp_path: Path,
+) -> None:
+    """Prouve le sens inverse : zéro ne tolère rien et ne doit jamais être signalé."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    continue-on-error: 0\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: python3 -m pytest\n",
+    )
+
+    assert "REQUIRED_JOB_SOFT_FAILURE" not in _codes(_scanner(repo))
+
+
+def test_refuse_continue_on_error_entier_un_dans_une_etape_requise(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la forme entière est refusée au niveau ÉTAPE comme au niveau job."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: python3 -m pytest\n"
+        "        continue-on-error: 1\n",
+    )
+
+    assert "REQUIRED_JOB_SOFT_FAILURE" in _codes(_scanner(repo))

@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import argparse
 import ast
+import builtins
 import re
 import subprocess
 import sys
 import tokenize
 import tomllib
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from io import StringIO
 from pathlib import Path
@@ -133,6 +134,14 @@ _VALEURS_VRAIES_YAML: Final[frozenset[str]] = frozenset(
 _CONDITIONS_REQUISES_ACCEPTEES: Final[frozenset[str]] = frozenset(
     {"always()", "success()"}
 )
+_NOMS_EXCEPTIONS_BUILTINS: Final[frozenset[str]] = frozenset(
+    nom
+    for nom, objet in vars(builtins).items()
+    if isinstance(objet, type) and issubclass(objet, BaseException)
+)
+_NOMS_TEST_CASE_UNITTEST: Final[frozenset[str]] = frozenset(
+    {"TestCase", "IsolatedAsyncioTestCase", "FunctionTestCase"}
+)
 
 
 @dataclass(frozen=True)
@@ -158,6 +167,7 @@ class _AliasesImports:
     modules_unittest: frozenset[str]
     marques_pytest: frozenset[str]
     sauts_directs: frozenset[str]
+    test_cases: frozenset[str]
 
 
 @dataclass
@@ -179,6 +189,7 @@ class _CollecteAliases:
     modules_unittest: set[str] = field(default_factory=set)
     marques_pytest: set[str] = field(default_factory=set)
     sauts_directs: set[str] = field(default_factory=set)
+    test_cases: set[str] = field(default_factory=set)
 
     def _ensembles(self) -> tuple[set[str], ...]:
         """Énumère TOUS les ensembles : un oubli ici rendrait un alias ininvalidable."""
@@ -192,6 +203,7 @@ class _CollecteAliases:
             self.modules_unittest,
             self.marques_pytest,
             self.sauts_directs,
+            self.test_cases,
         )
 
     def retirer(self, noms: set[str]) -> None:
@@ -211,6 +223,7 @@ class _CollecteAliases:
             frozenset(self.modules_unittest),
             frozenset(self.marques_pytest),
             frozenset(self.sauts_directs),
+            frozenset(self.test_cases),
         )
 
 
@@ -398,6 +411,12 @@ def _imports_module(
                             for alias in noeud.names
                             if alias.name == "mark"
                         )
+                    if origine == "unittest":
+                        aliases.test_cases.update(
+                            alias.asname or alias.name
+                            for alias in noeud.names
+                            if alias.name in _NOMS_TEST_CASE_UNITTEST
+                        )
                     aliases.sauts_directs.update(
                         alias.asname or alias.name
                         for alias in noeud.names
@@ -457,6 +476,79 @@ def _est_classe_protocol(classe: ast.ClassDef, aliases: _AliasesImports) -> bool
         ):
             return True
     return False
+
+
+def _base_declaree(base: ast.expr) -> ast.expr:
+    """Déplie la forme paramétrée ``Base[T]``, qui désigne la même classe que ``Base``."""
+    return base.value if isinstance(base, ast.Subscript) else base
+
+
+def _noms_de_classes_derivees(
+    arbre: ast.Module,
+    est_base_prouvee: Callable[[ast.expr], bool],
+) -> frozenset[str]:
+    """Résout par POINT FIXE les classes du module dérivant d'une base prouvée.
+
+    L'héritage indirect vaut l'héritage direct : une classe qui dérive d'une
+    classe elle-même dérivée de la base visée EST de ce type, et s'arrêter au
+    premier cran manquerait toute hiérarchie intermédiaire — un socle de tests
+    partagé, une racine d'erreurs propre au module. Le parcours s'arrête dès
+    qu'un tour n'ajoute plus rien, ce qui le borne même sur un héritage
+    circulaire : Python refuse cette forme à l'exécution, mais un fichier
+    analysé peut la contenir.
+
+    Seules les bases nommées du MÊME module sont suivies : un nom importé d'un
+    autre module n'est pas résolvable statiquement et ne prouve donc rien.
+    """
+    classes = [noeud for noeud in ast.walk(arbre) if isinstance(noeud, ast.ClassDef)]
+    derivees: set[str] = set()
+    ajout = True
+    while ajout:
+        ajout = False
+        for classe in classes:
+            if classe.name in derivees:
+                continue
+            for base in classe.bases:
+                cible = _base_declaree(base)
+                if est_base_prouvee(cible) or (
+                    isinstance(cible, ast.Name) and cible.id in derivees
+                ):
+                    derivees.add(classe.name)
+                    ajout = True
+                    break
+    return frozenset(derivees)
+
+
+def _est_base_exception_builtin(base: ast.expr) -> bool:
+    """Reconnaît une base d'exception fournie par builtins, nue ou qualifiée.
+
+    La liste des noms est LUE dans ``builtins`` à l'import du gate, jamais
+    recopiée : toute hiérarchie d'exceptions de l'interpréteur est ainsi couverte
+    sans qu'un oubli de recopie puisse rendre un type d'exception méconnaissable.
+    """
+    if isinstance(base, ast.Name):
+        return base.id in _NOMS_EXCEPTIONS_BUILTINS
+    return isinstance(base, ast.Attribute) and base.attr in _NOMS_EXCEPTIONS_BUILTINS
+
+
+def _est_base_test_case(base: ast.expr, aliases: _AliasesImports) -> bool:
+    """Prouve qu'une base désigne réellement un cas de test ``unittest``.
+
+    L'origine est prouvée par les imports du module, jamais par le nom seul :
+    ``import unittest`` puis ``unittest.TestCase``, ou ``from unittest import
+    TestCase`` sous son nom comme sous un alias. Le sens de cette exigence est
+    inverse de celui des règles de saut : ici, reconnaître un nom NON prouvé
+    reviendrait à ACCEPTER un oracle inexistant, si bien qu'une classe locale
+    usurpant le nom ``TestCase`` ne doit jamais suffire.
+    """
+    if isinstance(base, ast.Name):
+        return base.id in aliases.test_cases
+    return (
+        isinstance(base, ast.Attribute)
+        and base.attr in _NOMS_TEST_CASE_UNITTEST
+        and isinstance(base.value, ast.Name)
+        and base.value.id in aliases.modules_unittest
+    )
 
 
 def _est_methode_abstraite(
@@ -592,6 +684,65 @@ def _analyser_fonction(
     return violations
 
 
+def _analyser_classe(
+    repo: Path,
+    fichier: Path,
+    classe: ast.ClassDef,
+    exceptions: frozenset[str],
+) -> list[Violation]:
+    """Refuse un corps de CLASSE réduit à un stub, hors types d'exception.
+
+    Le corps d'une classe s'exécute à la création de la classe : réduit à
+    ``pass`` ou à une ellipse, il ne déclare rien de plus que son en-tête et
+    relève exactement de la même dette qu'un corps de fonction vide. La règle
+    des fonctions est reprise à l'identique, docstring seule comprise :
+    documenter un vide ne le remplit pas.
+
+    Un TYPE D'EXCEPTION en est exempté, et lui seul. ``class Panne(ValueError):
+    pass`` est du code COMPLET : l'identité du type est tout son contenu,
+    puisqu'elle se lève et se rattrape sélectivement — il n'y a rien d'autre à
+    écrire. MESURÉ sur les racines contractuelles de ce dépôt : 21 des 99 classes
+    ont un corps vide, et TOUTES sont des types d'exception ; les signaler
+    produirait 21 faux positifs sur un idiome Python courant, ce qui pousserait à
+    désarmer le gate au lieu de le respecter.
+
+    L'exemption tient à la nature du type, jamais au simple fait d'hériter :
+    ``class Service(Base): pass`` reste refusée, car une classe métier vide
+    n'annonce aucune implémentation.
+    """
+    if classe.name in exceptions:
+        return []
+
+    if len(classe.body) == 1 and _est_docstring(classe.body[0]):
+        return [
+            _violation(
+                "DOCSTRING_ONLY_BODY",
+                repo,
+                fichier,
+                classe.lineno,
+                "le corps de la classe ne contient qu'une docstring",
+            )
+        ]
+
+    utile = _corps_utile(classe.body)
+    if not utile or not all(_est_instruction_triviale(noeud) for noeud in utile):
+        return []
+
+    est_ellipse_unique = (
+        len(utile) == 1
+        and isinstance(utile[0], ast.Expr)
+        and isinstance(utile[0].value, ast.Constant)
+        and utile[0].value.value is Ellipsis
+    )
+    code = "EXECUTABLE_ELLIPSIS" if est_ellipse_unique else "EXECUTABLE_PASS"
+    detail = (
+        "le corps de la classe est réduit à une ellipse"
+        if est_ellipse_unique
+        else "le corps de la classe ne contient que des instructions triviales"
+    )
+    return [_violation(code, repo, fichier, classe.lineno, detail)]
+
+
 def _instructions_hors_fonction(corps: list[ast.stmt]) -> list[ast.stmt]:
     """Énumère les instructions exécutées hors de tout corps de fonction.
 
@@ -674,6 +825,7 @@ def _analyser_lambdas(repo: Path, fichier: Path, arbre: ast.Module) -> list[Viol
 def _analyser_stubs(repo: Path, fichier: Path, arbre: ast.Module) -> list[Violation]:
     """Parcourt tous les blocs en conservant le contexte Protocol des classes."""
     aliases = _analyser_imports(arbre)
+    exceptions = _noms_de_classes_derivees(arbre, _est_base_exception_builtin)
     violations: list[Violation] = []
 
     class Visiteur(ast.NodeVisitor):
@@ -683,6 +835,7 @@ def _analyser_stubs(repo: Path, fichier: Path, arbre: ast.Module) -> list[Violat
             self.protocols: list[bool] = [False]
 
         def visit_ClassDef(self, noeud: ast.ClassDef) -> None:
+            violations.extend(_analyser_classe(repo, fichier, noeud, exceptions))
             self.protocols.append(_est_classe_protocol(noeud, aliases))
             self.generic_visit(noeud)
             self.protocols.pop()
@@ -801,11 +954,64 @@ def _est_appel_pytest(
     )
 
 
+def _receveurs_de_cas_de_test(
+    arbre: ast.Module,
+    aliases: _AliasesImports,
+) -> dict[ast.stmt, str]:
+    """Associe chaque méthode d'un cas de test ``unittest`` au nom de son receveur.
+
+    Le receveur est le PREMIER paramètre de la méthode — ``self`` par convention,
+    mais librement renommable : c'est lui, et lui seul, qui porte les oracles
+    hérités d'``unittest.TestCase``. Une méthode sans paramètre, telle une
+    ``staticmethod``, n'a aucun receveur et n'est donc pas recensée.
+    """
+    cas_de_test = _noms_de_classes_derivees(
+        arbre, lambda base: _est_base_test_case(base, aliases)
+    )
+    receveurs: dict[ast.stmt, str] = {}
+    for noeud in ast.walk(arbre):
+        if not (isinstance(noeud, ast.ClassDef) and noeud.name in cas_de_test):
+            continue
+        for membre in noeud.body:
+            if (
+                isinstance(membre, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and membre.args.args
+            ):
+                receveurs[membre] = membre.args.args[0].arg
+    return receveurs
+
+
+def _est_oracle_unittest(noeud: ast.Call, receveur: str | None) -> bool:
+    """Reconnaît un ``self.assertXxx(…)`` porté par le receveur d'un cas de test.
+
+    Les deux preuves sont exigées ensemble : le nom de la méthode appelée ET
+    l'appartenance à une classe dont l'héritage ``unittest.TestCase`` est établi.
+    """
+    return (
+        receveur is not None
+        and isinstance(noeud.func, ast.Attribute)
+        and noeud.func.attr.startswith("assert")
+        and isinstance(noeud.func.value, ast.Name)
+        and noeud.func.value.id == receveur
+    )
+
+
 def _contient_oracle(
     fonction: ast.FunctionDef | ast.AsyncFunctionDef,
     aliases: _AliasesImports,
+    receveur: str | None,
 ) -> bool:
-    """Détermine si une fonction de test contient au moins un oracle reconnu."""
+    """Détermine si une fonction de test contient au moins un oracle PROUVÉ.
+
+    Un appel ``…assertXxx(…)`` ne compte que porté par le receveur d'une méthode
+    dont la classe hérite RÉELLEMENT d'``unittest.TestCase``. Accepter tout
+    attribut dont le nom commence par ``assert`` suffisait à faire passer un test
+    qui ne vérifie rien : il suffisait de nommer ainsi une méthode métier —
+    ``Silencieux().assert_rien()`` — pour fabriquer un oracle de façade.
+
+    L'assertion nue et ``pytest.raises`` restent les oracles de référence du
+    dépôt, inchangés : le durcissement ne retire que ce qui n'était jamais prouvé.
+    """
     for noeud in ast.walk(fonction):
         if isinstance(noeud, ast.Assert):
             return True
@@ -817,8 +1023,7 @@ def _contient_oracle(
             return True
         if isinstance(noeud, ast.Call) and (
             _est_appel_pytest(noeud, "fail", aliases)
-            or isinstance(noeud.func, ast.Attribute)
-            and noeud.func.attr.startswith("assert")
+            or _est_oracle_unittest(noeud, receveur)
         ):
             return True
     return False
@@ -908,6 +1113,7 @@ def _analyser_ast_diff(
 ) -> list[Violation]:
     """Applique les règles AST limitées aux éléments effectivement modifiés."""
     aliases = _analyser_imports(arbre)
+    receveurs = _receveurs_de_cas_de_test(arbre, aliases)
     violations: list[Violation] = []
     for noeud in ast.walk(arbre):
         if (
@@ -926,7 +1132,7 @@ def _analyser_ast_diff(
             )
         if isinstance(noeud, (ast.FunctionDef, ast.AsyncFunctionDef)):
             if noeud.name.startswith("test_") and _fonction_modifiee(noeud, lignes):
-                if not _contient_oracle(noeud, aliases):
+                if not _contient_oracle(noeud, aliases, receveurs.get(noeud)):
                     violations.append(
                         _violation(
                             "TEST_WITHOUT_ORACLE",
@@ -1985,9 +2191,29 @@ def _analyser_continue_on_error(
     valeur: object,
     job: str,
 ) -> list[Violation]:
-    """Refuse une tolérance d'erreur vraie, y compris écrite comme scalaire YAML quoté."""
+    """Refuse une tolérance d'erreur vraie sous ses formes booléenne, numérique et quotée.
+
+    MESURÉ avec PyYAML 6.0.1 : ``yes``, ``on`` et ``true`` sont rendus comme le
+    booléen ``True``, ``y`` et ``Y`` comme des chaînes, mais ``1`` est rendu comme
+    l'ENTIER 1 — que ni ``valeur is True`` ni le test de chaîne n'attrapaient. La
+    tolérance passait alors inaperçue et le job requis restait vert avec son
+    contrôle rouge.
+
+    La forme numérique est donc jugée sur sa VALEUR, non sur son type : tout
+    nombre non nul tolère les erreurs (``1``, ``2``, ``-1``, ``0x1`` que PyYAML
+    rend 1, ``1.0``), tandis que ``0`` et ``0.0`` ne tolèrent rien et ne sont
+    jamais signalés. ``False`` échoue à cette comparaison et poursuit sans
+    violation, comme il le doit. Les formes non numériques dont la vérité n'est
+    pas décidable ici — ``.nan``, ``.inf`` — restent refusées en fail-closed :
+    aucune ne désigne un contrôle obligatoire.
+    """
     if valeur is True:
         detail = f"le job requis {job} accepte les erreurs"
+    elif isinstance(valeur, (int, float)) and valeur != 0:
+        detail = (
+            f"le job requis {job} accepte les erreurs "
+            f"par la valeur numérique {valeur!r}"
+        )
     elif isinstance(valeur, str) and "${{" in valeur:
         detail = (
             f"le job requis {job} utilise une valeur dynamique "
@@ -2391,9 +2617,20 @@ def _violations_jobs_requis_absents(
     La couverture est mesurée globalement : un identifiant peut légitimement être
     défini dans un autre fichier que celui des autres. Un identifiant qu'aucun
     workflow ne définit est un contrôle requis absent, donc un gate manquant.
+
+    La seule borne est le CONTRAT, jamais la présence d'une CI. Se taire quand
+    ``.github/workflows/`` n'existe pas produisait l'inverse exact de l'intention :
+    un dépôt qui DÉCLARE des jobs requis et n'en exécute aucun est le défaut
+    maximal, pas un dépôt dispensé de preuve. Les trois formes de cette absence —
+    répertoire inexistant, répertoire vide, répertoire sans fichier ``.yml`` ni
+    ``.yaml`` — sont désormais jugées à l'identique, puisqu'elles livrent
+    exactement la même CI : aucune. Sans identifiant requis déclaré, en revanche,
+    aucun contrôle n'est promis et rien ne peut être reproché — ce cas est porté
+    par le calcul de ``manquants``, vide par construction quand ``jobs_requis``
+    l'est, donc par le seul ``return`` qui le suit. Une garde explicite en tête
+    serait indétectable à la mutation, donc non prouvable : elle a été retirée
+    plutôt que laissée en décor.
     """
-    if not (repo / ".github" / "workflows").is_dir():
-        return []
     declares = _identifiants_de_jobs_declares(repo)
     manquants = tuple(job for job in jobs_requis if job not in declares)
     if not manquants:

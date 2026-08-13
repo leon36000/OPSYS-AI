@@ -26,7 +26,8 @@ neutralisation équivalente de son code de retour.
 
 Le gate refuse notamment :
 
-- les corps exécutables réduits à `pass`, `...`, `return` ou `return None` ;
+- les corps exécutables réduits à `pass`, `...`, `return` ou `return None`,
+  **dans une fonction comme dans un corps de CLASSE** ;
 - les levées de `NotImplementedError` ou `NotImplemented`, directes, importées
   ou qualifiées, **dans une fonction comme hors de toute fonction** ;
 - les tests modifiés sans oracle et les assertions trivialement vraies ;
@@ -36,7 +37,8 @@ Le gate refuse notamment :
 - toute suppression de typage **ajoutée**, justifiée ou non (`NEW_TYPE_IGNORE`) ;
 - les jobs CI requis qui absorbent un échec shell, y compris par une garde
   `if !` dont la branche ne propage pas l'échec, ou par `set +e` ;
-- les jobs CI requis conditionnels ou avec `continue-on-error` ;
+- les jobs CI requis conditionnels ou avec `continue-on-error`, y compris sous
+  ses formes **numériques** (`1`, `2`, `-1`, `1.0`) ;
 - les jobs requis de forme invalide, notamment une définition non mapping ou un
   champ `steps` qui n'est pas une liste ;
 - les jobs requis qui n'exécutent aucune étape, y compris lorsqu'ils délèguent
@@ -49,11 +51,58 @@ Un id requis peut être déclaré dans un workflow différent des autres ids :
 la couverture est vérifiée sur l'ensemble de `.github/workflows/`, ce qui
 permet notamment la répartition actuelle entre `ci.yml` et `core-ci.yml`.
 
+### L'absence TOTALE de CI est le défaut maximal, jamais une dispense
+
+La seule borne de `REQUIRED_JOB_ABSENT` est le **contrat**, jamais la présence
+d'une CI. Un dépôt qui déclare des jobs requis et n'en exécute aucun est le
+défaut maximal : les trois formes de cette absence livrent exactement la même
+CI — aucune — et sont donc jugées à l'identique.
+
+| Forme | Verdict |
+|---|---|
+| `.github/workflows/` inexistant | refusé |
+| `.github/workflows/` existant mais vide | refusé |
+| `.github/workflows/` sans fichier `.yml` ni `.yaml` | refusé |
+| `target_required_job_ids` ne déclare aucun id | rien signalé |
+
+Sans identifiant requis déclaré, aucun contrôle n'est promis et rien ne peut
+être reproché.
+
 Les trois derniers contrôles portent les codes `REQUIRED_JOB_STRUCTURE_INVALIDE`,
 `REQUIRED_JOB_SANS_ETAPE` et `REQUIRED_JOB_ABSENT`. Ils ne s'appliquent qu'aux
 ids listés dans `target_required_job_ids` : un job facultatif de forme inattendue
 reste ignoré, pour qu'un durcissement ne se paie pas en faux positifs sur le
 reste du dépôt.
+
+## `continue-on-error` — les formes réellement vraies
+
+`REQUIRED_JOB_SOFT_FAILURE` juge la valeur telle que **PyYAML la rend**, non
+telle qu'elle est écrite. MESURÉ avec PyYAML 6.0.1 : `yes`, `on` et `true`
+deviennent le booléen `True` ; `y` et `Y` restent des chaînes ; mais `1` devient
+l'**entier** 1, que ni le test booléen ni le test de chaîne n'attrapaient — la
+tolérance passait alors inaperçue et le job requis restait vert avec son contrôle
+rouge.
+
+La forme numérique est donc jugée sur sa **valeur**, jamais sur son type :
+
+```yaml
+continue-on-error: true    # refusé — booléen
+continue-on-error: yes     # refusé — booléen (PyYAML)
+continue-on-error: '1'     # refusé — chaîne vraie
+continue-on-error: 1       # refusé — entier non nul
+continue-on-error: 0x1     # refusé — PyYAML rend l'entier 1
+continue-on-error: 1.0     # refusé — flottant non nul
+continue-on-error: -1      # refusé — nombre non nul
+continue-on-error: ${{ … }} # refusé — valeur dynamique, par principe
+
+continue-on-error: false   # accepté
+continue-on-error: 0       # accepté — zéro ne tolère rien
+continue-on-error: 0.0     # accepté
+```
+
+`False` échoue à la comparaison numérique et poursuit sans violation, comme il
+le doit. Les formes dont la vérité n'est pas décidable ici — `.nan`, `.inf` —
+restent refusées en fail-closed : aucune ne désigne un contrôle obligatoire.
 
 ## Jobs requis qui n'exécutent rien
 
@@ -375,6 +424,46 @@ jugée par aucune de ces règles : elle relève des filtres dynamiques, traités
 Comptent comme oracles : `assert`, `pytest.raises`, `pytest.fail` et les méthodes
 `assert…` d'`unittest`.
 
+Cette dernière forme n'est reconnue que **prouvée**. Accepter tout appel dont
+l'attribut commence par `assert` suffisait à fabriquer un oracle de façade : il
+suffisait de nommer ainsi une méthode métier pour faire passer un test qui ne
+vérifie rien.
+
+```python
+class Silencieux:
+    def assert_rien(self) -> int:
+        return 1
+
+def test_c() -> None:
+    Silencieux().assert_rien()        # REFUSÉ — aucun oracle, malgré le nom
+```
+
+Deux preuves sont désormais exigées ensemble : l'appel est porté par le
+**receveur** de la méthode (son premier paramètre, `self` par convention mais
+librement renommable) **et** la classe hérite réellement d'`unittest.TestCase`.
+L'héritage est résolu comme ailleurs dans le gate — alias d'import compris — et
+**transitivement**, afin qu'un socle de tests partagé reste reconnu :
+
+```python
+import unittest
+class Suite(unittest.TestCase):
+    def test_ok(self) -> None:
+        self.assertEqual(1, 1)        # accepté — héritage prouvé
+
+from unittest import TestCase as Cas
+class Suite(Cas): ...                 # accepté — alias prouvé
+
+class Base(unittest.TestCase): ...
+class Suite(Base): ...                # accepté — héritage transitif
+
+class Suite:                          # aucun import unittest
+    def test_ok(self) -> None:
+        self.assertEqual(1, 1)        # REFUSÉ — `self` seul ne prouve rien
+```
+
+L'`assert` nu et `pytest.raises` restent les oracles de référence du dépôt,
+inchangés : le durcissement ne retire que ce qui n'était jamais prouvé.
+
 Les **alias d'import** y sont résolus par le même mécanisme que pour les sauts :
 renommer l'import ne change rien à ce que l'oracle vérifie, et refuser un test
 légitime pousse les contributeurs à désarmer le gate.
@@ -389,6 +478,40 @@ import mon_module    ->  with mon_module.raises(...):      # aucun oracle — or
 La qualification par l'origine est conservée en sens inverse : un `raises` porté
 par un module dont l'import ne prouve pas qu'il s'agit de pytest ne vérifie rien
 et ne vaut pas oracle.
+
+## Corps de classe réduit à un stub
+
+Le corps d'une classe s'exécute à la création de la classe : réduit à `pass` ou à
+une ellipse, il ne déclare rien de plus que son en-tête et relève exactement de
+la même dette qu'un corps de fonction vide. La règle des fonctions s'y applique
+à l'identique, docstring seule comprise — documenter un vide ne le remplit pas.
+
+```python
+class Service:            pass         # refusé — EXECUTABLE_PASS
+class Service:            ...          # refusé — EXECUTABLE_ELLIPSIS
+class Service:            """Doc."""   # refusé — DOCSTRING_ONLY_BODY
+class Service(Base):      pass         # refusé — hériter n'implémente rien
+```
+
+**Un type d'exception en est exempté, et lui seul.** `class Panne(ValueError):
+pass` est du code COMPLET : l'identité du type est tout son contenu, puisqu'elle
+se lève et se rattrape sélectivement — il n'y a rien d'autre à écrire.
+
+```python
+class MonErreur(ValueError):   pass            # accepté — type d'exception
+class MonErreur(RuntimeError): """Doc."""      # accepté — même idiome, documenté
+class Racine(ValueError):      """Doc."""
+class Fille(Racine):           pass            # accepté — héritage transitif
+```
+
+MESURÉ sur les racines contractuelles de ce dépôt au moment de l'ajout de la
+règle : **21 des 99 classes** ont un corps vide, et **toutes** sont des types
+d'exception. Les signaler produirait 21 faux positifs sur un idiome Python
+courant, ce qui pousserait à désarmer le gate au lieu de le respecter.
+
+L'exemption tient à la NATURE du type, jamais au simple fait d'hériter : les
+noms d'exceptions sont lus dans `builtins` à l'import du gate — jamais recopiés,
+donc jamais incomplets — et l'héritage est résolu transitivement dans le module.
 
 ## Absence d'implémentation
 
