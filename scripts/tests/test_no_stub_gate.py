@@ -7177,3 +7177,452 @@ def test_accepte_continue_on_error_dont_lorthographe_est_explicitement_fausse(
     )
 
     assert "REQUIRED_JOB_SOFT_FAILURE" not in _codes(_scanner(repo))
+
+
+def test_refuse_une_absence_levee_sous_un_alias_importe_dans_la_fonction(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un import ÉCRIT DANS la fonction lie l'absence aussi réellement qu'au module.
+
+    L'import local n'était jamais collecté : la collecte s'arrêtait aux corps de
+    fonctions, si bien que le même alias refusé au niveau module passait dès
+    qu'il était écrit une ligne plus bas.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "src/livraison.py",
+        "def livrer() -> None:\n"
+        "    from builtins import NotImplementedError as NI\n\n"  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+        "    raise NI\n",
+    )
+
+    assert "NOT_IMPLEMENTED_STUB" in _codes(_scanner(repo))
+
+
+def test_refuse_une_absence_qualifiee_par_un_builtins_importe_dans_la_fonction(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la forme QUALIFIÉE suit la même portée que la forme nue."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "src/qualifie.py",
+        "def livrer() -> None:\n"
+        "    import builtins as b\n\n"
+        "    raise b.NotImplementedError\n",  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    )
+
+    assert "NOT_IMPLEMENTED_STUB" in _codes(_scanner(repo))
+
+
+def test_refuse_une_absence_levee_sous_un_alias_affecte_dans_la_fonction(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'alias construit par AFFECTATION vaut dans la portée où il est écrit.
+
+    Le même alias affecté au niveau module était déjà refusé : borner la preuve
+    au module laissait la version locale, strictement équivalente à l'exécution,
+    échapper à la règle.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "src/affecte.py",
+        "def livrer() -> None:\n"
+        "    E = NotImplementedError\n\n"  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+        "    raise E\n",
+    )
+
+    assert "NOT_IMPLEMENTED_STUB" in _codes(_scanner(repo))
+
+
+def test_accepte_le_nom_dabsence_dans_une_fonction_qui_ne_limporte_pas(
+    tmp_path: Path,
+) -> None:
+    """Prouve le faux positif SYMÉTRIQUE : un alias local ne déborde pas de sa portée.
+
+    ``NI`` désigne l'absence dans ``fabriquer`` et un paramètre quelconque dans
+    ``livrer`` : les rendre visibles partout ferait signaler du code qui ne lève
+    aucune absence d'implémentation.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "src/portee.py",
+        "def fabriquer() -> object:\n"
+        "    from builtins import NotImplementedError as NI\n\n"  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+        "    return NI\n\n\n"
+        "def livrer(NI: type) -> None:\n"
+        "    raise NI\n",
+    )
+
+    assert "NOT_IMPLEMENTED_STUB" not in _codes(_scanner(repo))
+
+
+def test_refuse_un_saut_appele_sous_un_module_pytest_importe_dans_le_test(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un module de saut importé DANS le test désarme la suite comme au module."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "src/test_saut.py",
+        "def test_calcul() -> None:\n"
+        "    import pytest as pt\n\n"
+        "    pt.skip('desarme')\n"
+        "    assert 1 == 1\n",
+    )
+
+    assert "NEW_SKIP_OR_XFAIL" in _codes(_scanner(repo))
+
+
+def test_refuse_un_saut_appele_sous_un_nom_importe_dans_le_test(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le nom NU importé dans la fonction saute exactement comme au module."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "src/test_saut_nu.py",
+        "def test_calcul() -> None:\n"
+        "    from pytest import skip as sauter\n\n"
+        "    sauter('desarme')\n"
+        "    assert 1 == 1\n",
+    )
+
+    assert "NEW_SKIP_OR_XFAIL" in _codes(_scanner(repo))
+
+
+def test_refuse_un_saut_unittest_appele_sous_un_module_importe_dans_la_fonction(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'origine unittest est établie dans la portée locale, comme pytest."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "src/test_saut_unittest.py",
+        "def test_calcul() -> None:\n"
+        "    import unittest as ut\n\n"
+        "    ut.skip('desarme')\n"
+        "    assert 1 == 1\n",
+    )
+
+    assert "NEW_SKIP_OR_XFAIL" in _codes(_scanner(repo))
+
+
+def test_refuse_un_decorateur_de_saut_sous_un_module_importe_dans_la_fonction(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la MARQUE, et pas seulement l'appel, est lue dans la portée locale."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "src/test_marque.py",
+        "def fabriquer() -> object:\n"
+        "    import pytest as pt\n\n"
+        "    @pt.mark.skip\n"
+        "    def test_interne() -> None:\n"
+        "        assert 1 == 1\n\n"
+        "    return test_interne\n",
+    )
+
+    assert "NEW_SKIP_OR_XFAIL" in _codes(_scanner(repo))
+
+
+def test_accepte_un_homonyme_de_saut_dans_une_fonction_qui_nimporte_pas_pytest(
+    tmp_path: Path,
+) -> None:
+    """Prouve le faux positif SYMÉTRIQUE des sauts : l'alias local reste dans sa portée.
+
+    ``pt`` désigne pytest dans ``prepare`` et un paramètre quelconque dans le
+    test : sans la limite de portée, tout objet nommé ``pt`` deviendrait un
+    sauteur de test.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "src/test_homonyme.py",
+        "def prepare() -> None:\n"
+        "    import pytest as pt\n\n"
+        "    pt.fixture()\n\n\n"
+        "def test_calcul(pt: object) -> None:\n"
+        "    pt.skip('rien')\n"
+        "    assert 1 == 1\n",
+    )
+
+    assert "NEW_SKIP_OR_XFAIL" not in _codes(_scanner(repo))
+
+
+def test_accepte_un_protocol_importe_dans_la_fonction_pour_une_classe_locale(
+    tmp_path: Path,
+) -> None:
+    """Prouve la contrepartie EXEMPTANTE : l'import local prouve l'origine dans sa portée.
+
+    La classe est déclarée DANS la fonction qui importe le protocole : elle
+    hérite du véritable ``typing.Protocol``, et signaler son ellipse serait un
+    faux positif sur une interface réelle.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "src/protocole_local.py",
+        "def fabriquer() -> type:\n"
+        "    from typing import Protocol\n\n"
+        "    class Depot(Protocol):\n"
+        "        def lire(self) -> str:\n"
+        "            ...\n\n"
+        "    return Depot\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" not in _codes(_scanner(repo))
+
+
+def test_accepte_abstractmethod_importe_dans_la_fonction_pour_une_classe_locale(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le décorateur abstrait importé localement exempte dans sa portée."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "src/abstrait_local.py",
+        "def fabriquer() -> type:\n"
+        "    from abc import abstractmethod\n\n"
+        "    class Depot:\n"
+        "        @abstractmethod\n"
+        "        def lire(self) -> str:\n"
+        "            ...\n\n"
+        "    return Depot\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" not in _codes(_scanner(repo))
+
+
+def test_accepte_un_oracle_pytest_importe_dans_la_fonction_de_test(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'oracle importé DANS le test compte comme oracle.
+
+    Sans cette lecture, le gate signalait comme dépourvu d'oracle un test qui
+    vérifie réellement une levée.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "src/test_oracle_local.py",
+        "def test_conversion() -> None:\n"
+        "    from pytest import raises\n\n"
+        "    with raises(ValueError):\n"
+        "        int('x')\n",
+    )
+
+    assert "TEST_WITHOUT_ORACLE" not in _codes(_scanner(repo))
+
+
+@pytest.mark.parametrize("valeur", ("''", "'   '", '"\\t"'))
+def test_refuse_un_job_requis_dont_la_seule_etape_porte_un_run_vide(
+    tmp_path: Path, valeur: str
+) -> None:
+    """Prouve qu'une commande vide ou blanche n'exécute rien, la CLÉ ne suffisant pas.
+
+    ``run: ''`` satisfaisait l'exigence d'étape effective : la présence de la clé
+    était lue sans jamais regarder sa valeur, si bien qu'un job requis pouvait
+    rapporter vert sans lancer la moindre commande.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/vide.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        f"      - run: {valeur}\n",
+    )
+
+    assert "REQUIRED_JOB_SANS_ETAPE" in _codes(_scanner(repo))
+
+
+def test_refuse_un_job_requis_dont_la_seule_etape_porte_un_uses_vide(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le critère de valeur s'applique aussi à uses, pas au seul run."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/uses-vide.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - uses: '  '\n",
+    )
+
+    assert "REQUIRED_JOB_SANS_ETAPE" in _codes(_scanner(repo))
+
+
+@pytest.mark.parametrize("valeur", ("42", "null", "[]"))
+def test_refuse_un_job_requis_dont_la_seule_etape_porte_un_run_non_chaine(
+    tmp_path: Path, valeur: str
+) -> None:
+    """Prouve le choix FAIL-CLOSED sur une valeur non-chaîne, qu'aucune règle ne lit.
+
+    L'analyse des commandes ignore déjà tout ``run`` non-chaîne : le compter
+    comme étape effective laisserait un job requis satisfaire l'exigence avec
+    une valeur qu'aucun contrôle du gate ne sait lire.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/non-chaine.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        f"      - run: {valeur}\n",
+    )
+
+    assert "REQUIRED_JOB_SANS_ETAPE" in _codes(_scanner(repo))
+
+
+def test_accepte_un_job_requis_dont_la_seule_etape_porte_une_commande_reelle(
+    tmp_path: Path,
+) -> None:
+    """Prouve la garde INVERSE : une commande réelle reste une étape effective."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/reelle.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: python3 -m pytest -q\n",
+    )
+
+    assert "REQUIRED_JOB_SANS_ETAPE" not in _codes(_scanner(repo))
+
+
+def test_refuse_une_action_composite_locale_dont_la_seule_etape_porte_un_run_vide(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'action composite est jugée sur le MÊME critère que le job requis."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _job_requis_delegue(repo)
+    _ecrire(
+        repo,
+        ".github/actions/controle/action.yml",
+        "runs:\n  using: composite\n  steps:\n    - run: ''\n",
+    )
+
+    assert "REQUIRED_JOB_SANS_ETAPE" in _codes(_scanner(repo))
+
+
+def test_refuse_un_saut_appele_dans_une_fonction_imbriquee_sous_lalias_englobant(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la chaîne ENTIÈRE des portées est lue, pas seulement la plus proche.
+
+    L'alias est importé dans la fonction englobante et utilisé dans la fonction
+    imbriquée : à l'exécution, la fermeture le rend visible. Ne consulter que la
+    portée immédiate laisserait ce saut passer.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "src/test_imbrique.py",
+        "def fabriquer() -> object:\n"
+        "    import pytest as pt\n\n"
+        "    def test_interne() -> None:\n"
+        "        pt.skip('desarme')\n"
+        "        assert 1 == 1\n\n"
+        "    return test_interne\n",
+    )
+
+    assert "NEW_SKIP_OR_XFAIL" in _codes(_scanner(repo))
+
+
+def test_refuse_une_classe_locale_heritant_dune_exception_detournee_par_le_module(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'une portée locale ne RESTAURE jamais un nom d'exception révoqué.
+
+    Le module détourne le nom vers un autre module : l'exemption des types
+    d'exception tombe. Une portée locale n'apporte que ce que ses imports
+    prouvent — repartir de la graine complète des noms de l'interpréteur
+    rendrait à la classe locale une exemption que le module vient de retirer.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "src/detourne.py",
+        "from transport import ValueError\n\n\n"
+        "def fabriquer() -> type:\n"
+        "    class Panne(ValueError):\n"
+        "        pass\n\n"
+        "    return Panne\n",
+    )
+
+    assert "EXECUTABLE_PASS" in _codes(_scanner(repo))
+
+
+def test_accepte_une_classe_locale_heritant_dune_exception_de_linterpreteur(
+    tmp_path: Path,
+) -> None:
+    """Prouve la garde INVERSE : le type d'exception local non détourné reste exempté."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "src/legitime.py",
+        "def fabriquer() -> type:\n"
+        "    class Panne(ValueError):\n"
+        "        pass\n\n"
+        "    return Panne\n",
+    )
+
+    assert "EXECUTABLE_PASS" not in _codes(_scanner(repo))
+
+
+def test_accepte_un_cas_de_test_unittest_importe_dans_la_fonction(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'héritage du cas de test est prouvé dans la portée de la CLASSE.
+
+    ``TestCase`` importé dans la fonction qui déclare la classe prouve l'origine
+    des oracles hérités : sans cette lecture, une méthode qui vérifie réellement
+    quelque chose était signalée dépourvue d'oracle.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "src/test_cas.py",
+        "def fabriquer() -> type:\n"
+        "    from unittest import TestCase\n\n"
+        "    class Cas(TestCase):\n"
+        "        def test_x(self) -> None:\n"
+        "            self.assertTrue(bool(1))\n\n"
+        "    return Cas\n",
+    )
+
+    assert "TEST_WITHOUT_ORACLE" not in _codes(_scanner(repo))

@@ -191,6 +191,28 @@ Une étape ne compte que si elle porte `run` ou `uses` : une étape réduite à 
 `name` décoratif n'exécute rien. Un job requis dépourvu à la fois de `steps` et
 de `uses` est refusé pour la même raison.
 
+**La présence de la CLÉ ne suffit pas : la VALEUR est lue.** MESURÉ avant
+correction — les deux formes suivantes satisfaisaient l'exigence d'étape
+effective alors qu'aucune commande n'est exécutée :
+
+```yaml
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - run: ''        # refusé désormais — commande vide
+      - run: '   '     # refusé désormais — commande blanche
+      - uses: '  '     # refusé désormais — aucune action désignée
+```
+
+Une valeur **non-chaîne** ne compte pas non plus, et ce choix est FAIL-CLOSED :
+`run: 42`, `run: null` et `run: []` sont ignorés par l'analyse des commandes, qui
+ne lit que des chaînes. Les compter comme effectifs laisserait un job requis
+satisfaire l'exigence avec une valeur qu'aucune règle du gate ne sait lire — la
+seule forme de désarmement qu'un job non vide pouvait encore prendre. Le critère
+est identique pour les étapes des **actions composites locales**, jugées par le
+même prédicat.
+
 L'appel d'un workflow réutilisable reste légitime et n'est pas signalé, bien
 qu'il n'ait aucune clé `steps` :
 
@@ -1492,11 +1514,15 @@ class C(Protocol):
     def f(self) -> None: ...   # refusé — plus aucun protocole ne le justifie
 ```
 
-Les **corps de fonctions** ne sont jamais parcourus, dans les deux sens
-également : leur portée est locale, si bien qu'un import local ne crée aucune
-exemption globale et qu'une affectation locale n'invalide aucun alias du module.
-La règle ne tient pas compte de l'**ordre** : une réaffectation écrite avant
-l'import compte autant qu'une réaffectation écrite après lui.
+Les **corps de fonctions** ne sont jamais parcourus par la collecte du MODULE,
+dans les deux sens également : leur portée est locale, si bien qu'un import local
+ne crée aucune exemption globale et qu'une affectation locale n'invalide aucun
+alias du module. La règle ne tient pas compte de l'**ordre** : une réaffectation
+écrite avant l'import compte autant qu'une réaffectation écrite après lui.
+
+Ce que le module ignore n'est pourtant pas inexistant : un import local lie un
+alias RÉEL dans sa propre portée, et il est désormais lu là — voir « Un import
+LOCAL prouve un alias, dans SA portée seulement » plus bas.
 
 Cette limite vaut pour les **noms**, et pour eux seuls. Les **attributs de
 module** sont collectés à toute profondeur — voir « Un attribut de module n'est
@@ -1755,6 +1781,96 @@ def inspecter() -> str:
     global Protocol
     return Protocol.__name__   # aucune affectation — l'exemption tient
 ```
+
+#### Un import LOCAL prouve un alias, dans SA portée seulement
+
+C'est le **miroir exact** du cas précédent. Un attribut de module est écrit sur
+l'objet module d'où qu'on l'écrive : sa collecte lit l'arbre entier. Un import,
+lui, lie un nom — donc une portée, et une seule. Le lire au niveau module
+seulement laissait échapper tout ce qui est écrit une ligne plus bas ; le lire
+partout ferait signaler des noms qui désignent autre chose ailleurs.
+
+MESURÉ avant correction — refusé au niveau module, accepté dans une fonction :
+
+```python
+def livrer() -> None:
+    from builtins import NotImplementedError as NI
+    raise NI                    # refusé désormais — l'alias local est réel
+
+def test_c() -> None:
+    import pytest as pt
+    pt.skip('desarme')          # refusé désormais — la suite est bien désarmée
+    assert 1 == 1
+```
+
+Les **deux familles** d'alias suivent la règle : l'absence d'implémentation —
+nue, qualifiée par un `builtins` importé localement, ou construite par
+AFFECTATION dans la portée — et les sauts de test, en appel comme en marque
+(`@pt.mark.skip` sur une définition imbriquée), pour pytest comme pour unittest.
+
+La contrepartie EXEMPTANTE suit la même loi, faute de quoi le gate signalerait du
+code correct : un `Protocol`, un `abstractmethod`, un `TestCase` ou un oracle
+`raises` importé dans la fonction qui déclare la classe ou le test prouve son
+origine exactement comme au niveau module.
+
+```python
+def fabriquer() -> type:
+    from typing import Protocol
+    class Depot(Protocol):
+        def lire(self) -> str: ...   # accepté — protocole réellement importé
+    return Depot
+```
+
+**La portée est la limite, et elle est prouvée dans les deux sens.** L'alias ne
+déborde jamais sur une portée sœur, et la chaîne des portées englobantes est
+lue en entier, comme une fermeture à l'exécution :
+
+```python
+def fabriquer() -> object:
+    import pytest as pt              # visible dans la fonction imbriquée
+    def test_interne() -> None:
+        pt.skip('desarme')           # refusé — la fermeture porte l'alias
+    return test_interne
+
+def prepare() -> None:
+    import pytest as pt
+
+def test_calcul(pt: object) -> None:
+    pt.skip('rien')                  # accepté — ici `pt` est un paramètre
+    assert 1 == 1
+```
+
+La résolution réutilise l'**unique** table de portées lexicales, celle qui tranche
+déjà les bases d'exception, `Protocol` et `abstractmethod` : les corps de classes
+lointains en sont exclus, comme à l'exécution. Un nom écrit dans un en-tête —
+base de classe, décorateur — se résout dans la portée qui CONTIENT la définition,
+jamais dans son corps.
+
+L'apport d'une portée locale est **purement additif**, et cette asymétrie est
+voulue. Une réaffectation locale ne retire aucune preuve de DÉTECTION — `import
+pytest as pt` suivi de `pt = objet` laisse le saut refusé, en fail-closed. Pour
+l'EXEMPTION, c'est le **masquage lexical** qui tranche, et il refuse déjà
+l'exemption dès qu'une liaison locale rend le nom incertain :
+
+```python
+def fabriquer() -> type:
+    from typing import Protocol
+    Protocol = object
+    class Depot(Protocol):
+        def lire(self) -> str: ...   # refusé — le nom est masqué localement
+    return Depot
+```
+
+La graine des noms d'exception de l'interpréteur n'est **jamais** réintroduite par
+une portée locale : une portée n'apporte que ce que ses imports prouvent. Sans
+cette précaution, une classe locale aurait récupéré une exemption que le module
+venait de révoquer en détournant le nom (`from transport import ValueError`).
+
+**Limite connue, mesurée, non fermée** : un import local qui DÉTOURNE un nom
+d'exception vers un autre module ne révoque pas l'exemption dans sa portée, alors
+que le même import au niveau module la révoque. Fermer ce cas demande une
+destruction par portée, symétrique de l'apport ; il est signalé ici plutôt que
+laissé implicite.
 
 #### `except*` est un nœud distinct, pas un `try` ordinaire
 

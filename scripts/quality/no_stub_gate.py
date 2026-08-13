@@ -11,7 +11,7 @@ import sys
 import tokenize
 import tomllib
 from collections.abc import Callable, Mapping, Set as AbstractSet
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from io import StringIO
 from pathlib import Path
 from typing import Final
@@ -216,6 +216,7 @@ _NOMS_ABSENCE_IMPLEMENTATION: Final[frozenset[str]] = frozenset(
         "NotImplemented",
     }
 )  # proof:allow — fixture/constante du gate NO-STUB : ce motif EST le sujet du test
+_CHAMPS_ETAPE_EFFECTIVE: Final[tuple[str, ...]] = ("run", "uses")
 _ATTRIBUT_PROUVANT_PROTOCOL: Final[str] = "Protocol"
 _ATTRIBUT_PROUVANT_ABSTRACTMETHOD: Final[str] = "abstractmethod"
 _MODULES_TYPING: Final[frozenset[str]] = frozenset({"typing", "typing_extensions"})
@@ -285,6 +286,35 @@ class _CollecteAliases:
     exceptions_builtins: set[str] = field(
         default_factory=lambda: set(_NOMS_EXCEPTIONS_BUILTINS)
     )
+
+    @classmethod
+    def depuis(cls, preuve: _AliasesImports) -> "_CollecteAliases":
+        """Reprend une preuve FIGÉE pour la compléter sans jamais la modifier.
+
+        Les champs sont recopiés par leur nom déclaré, jamais énumérés à la
+        main : la preuve d'origine et la collecte portent les mêmes champs, si
+        bien qu'aucun ajout futur ne peut être oublié ici — l'oubli rendrait un
+        alias déjà prouvé invisible à la portée locale qui le reprend.
+        """
+        return cls(
+            **{
+                champ.name: set(getattr(preuve, champ.name))
+                for champ in fields(_AliasesImports)
+            }
+        )
+
+    def ajouter(self, apport: "_CollecteAliases") -> None:
+        """Ajoute ce qu'une portée plus proche prouve, sans jamais rien retirer.
+
+        L'ajout est unilatéral, et c'est délibéré : un import écrit dans une
+        fonction PROUVE une origine dans sa portée, alors qu'une réaffectation
+        locale ne détruit aucune preuve pour les règles de DÉTECTION — un nom
+        réécrit après son import reste jugé fail-closed. Les règles d'EXEMPTION,
+        elles, consultent déjà le masquage lexical, qui refuse l'exemption dès
+        qu'une liaison locale rend le nom incertain.
+        """
+        for ensemble, ajout in zip(self._ensembles(), apport._ensembles()):
+            ensemble |= ajout
 
     def _ensembles(self) -> tuple[set[str], ...]:
         """Énumère TOUS les ensembles : un oubli ici rendrait un alias ininvalidable."""
@@ -958,6 +988,85 @@ def _noms_reaffectes_par_global(arbre: ast.Module) -> set[str]:
     return reaffectes
 
 
+def _lier_import(
+    noeud: ast.Import | ast.ImportFrom,
+    aliases: _CollecteAliases,
+    noms_importes_hors_builtins: set[str],
+) -> None:
+    """Lie les alias qu'un import PROUVE, quelle que soit la portée qui le porte.
+
+    La règle est la même au niveau module et au fond d'une fonction : ``import
+    pytest as pt`` lie ``pt`` au module pytest partout où il est écrit. Ce qui
+    change n'est pas la preuve, mais son ÉTENDUE, et c'est l'appelant qui la
+    fixe — le module pour le namespace global, ``_aliases_de_portee`` pour une
+    portée locale. Un seul endroit lit donc les imports, faute de quoi les deux
+    lectures divergeraient au premier alias ajouté.
+    """
+    if isinstance(noeud, ast.Import):
+        for alias in noeud.names:
+            noms_importes_hors_builtins.add(alias.asname or alias.name.partition(".")[0])
+            if alias.name in _MODULES_TYPING:
+                aliases.modules_typing.add(alias.asname or alias.name)
+            elif alias.name in _MODULES_ABC:
+                aliases.modules_abc.add(alias.asname or alias.name)
+            elif alias.name == "pytest":
+                aliases.modules_pytest.add(alias.asname or "pytest")
+            elif alias.name == "unittest":
+                aliases.modules_unittest.add(alias.asname or "unittest")
+            elif alias.name == "builtins":
+                aliases.modules_builtins.add(alias.asname or "builtins")
+        return
+
+    origine = noeud.module or ""
+    if origine != "builtins":
+        noms_importes_hors_builtins.update(
+            alias.asname or alias.name for alias in noeud.names
+        )
+    if origine in _MODULES_TYPING:
+        aliases.protocols.update(
+            alias.asname or "Protocol"
+            for alias in noeud.names
+            if alias.name == "Protocol"
+        )
+    elif origine in _MODULES_ABC:
+        aliases.abstractmethods.update(
+            alias.asname or "abstractmethod"
+            for alias in noeud.names
+            if alias.name == "abstractmethod"
+        )
+    elif origine == "builtins":
+        aliases.not_implemented_errors.update(
+            alias.asname or alias.name
+            for alias in noeud.names
+            if alias.name in {"NotImplementedError", "NotImplemented"}  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet
+        )
+    elif origine in _APPELS_DE_SAUT:
+        if origine == "pytest":
+            aliases.marques_pytest.update(
+                alias.asname or "mark"
+                for alias in noeud.names
+                if alias.name == "mark"
+            )
+            oracles_par_attribut = {
+                "raises": aliases.oracles_raises,
+                "fail": aliases.oracles_fail,
+            }
+            for alias in noeud.names:
+                if alias.name in _ORACLES_PYTEST:
+                    oracles_par_attribut[alias.name].add(alias.asname or alias.name)
+        if origine == "unittest":
+            aliases.test_cases.update(
+                alias.asname or alias.name
+                for alias in noeud.names
+                if alias.name in _NOMS_TEST_CASE_UNITTEST
+            )
+        aliases.sauts_directs.update(
+            alias.asname or alias.name
+            for alias in noeud.names
+            if alias.name in _APPELS_DE_SAUT[origine]
+        )
+
+
 @dataclass
 class _LiaisonsModule:
     """Rassemble ce que le namespace d'un module lie, prouve et détruit."""
@@ -1007,72 +1116,8 @@ def _imports_module(
             reassignees.update(_noms_cibles_affectation(noeud))
             if isinstance(noeud, (ast.Assign, ast.AnnAssign)):
                 affectations.append(noeud)
-            if isinstance(noeud, ast.Import):
-                for alias in noeud.names:
-                    noms_importes_hors_builtins.add(
-                        alias.asname or alias.name.partition(".")[0]
-                    )
-                    if alias.name in _MODULES_TYPING:
-                        aliases.modules_typing.add(alias.asname or alias.name)
-                    elif alias.name in _MODULES_ABC:
-                        aliases.modules_abc.add(alias.asname or alias.name)
-                    elif alias.name == "pytest":
-                        aliases.modules_pytest.add(alias.asname or "pytest")
-                    elif alias.name == "unittest":
-                        aliases.modules_unittest.add(alias.asname or "unittest")
-                    elif alias.name == "builtins":
-                        aliases.modules_builtins.add(alias.asname or "builtins")
-            elif isinstance(noeud, ast.ImportFrom):
-                origine = noeud.module or ""
-                if origine != "builtins":
-                    noms_importes_hors_builtins.update(
-                        alias.asname or alias.name for alias in noeud.names
-                    )
-                if origine in _MODULES_TYPING:
-                    aliases.protocols.update(
-                        alias.asname or "Protocol"
-                        for alias in noeud.names
-                        if alias.name == "Protocol"
-                    )
-                elif origine in _MODULES_ABC:
-                    aliases.abstractmethods.update(
-                        alias.asname or "abstractmethod"
-                        for alias in noeud.names
-                        if alias.name == "abstractmethod"
-                    )
-                elif origine == "builtins":
-                    aliases.not_implemented_errors.update(
-                        alias.asname or alias.name
-                        for alias in noeud.names
-                        if alias.name in {"NotImplementedError", "NotImplemented"}  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet
-                    )
-                elif origine in _APPELS_DE_SAUT:
-                    if origine == "pytest":
-                        aliases.marques_pytest.update(
-                            alias.asname or "mark"
-                            for alias in noeud.names
-                            if alias.name == "mark"
-                        )
-                        oracles_par_attribut = {
-                            "raises": aliases.oracles_raises,
-                            "fail": aliases.oracles_fail,
-                        }
-                        for alias in noeud.names:
-                            if alias.name in _ORACLES_PYTEST:
-                                oracles_par_attribut[alias.name].add(
-                                    alias.asname or alias.name
-                                )
-                    if origine == "unittest":
-                        aliases.test_cases.update(
-                            alias.asname or alias.name
-                            for alias in noeud.names
-                            if alias.name in _NOMS_TEST_CASE_UNITTEST
-                        )
-                    aliases.sauts_directs.update(
-                        alias.asname or alias.name
-                        for alias in noeud.names
-                        if alias.name in _APPELS_DE_SAUT[origine]
-                    )
+            if isinstance(noeud, (ast.Import, ast.ImportFrom)):
+                _lier_import(noeud, aliases, noms_importes_hors_builtins)
             elif isinstance(noeud, (ast.If, ast.For, ast.AsyncFor, ast.While)):
                 visiter(noeud.body)
                 visiter(noeud.orelse)
@@ -1346,12 +1391,117 @@ class _PorteesLexicales:
         return False
 
 
+def _aliases_de_portee(portee: ast.AST) -> _CollecteAliases:
+    """Collecte les alias que les imports ÉCRITS DANS cette portée prouvent.
+
+    Le parcours est celui des liaisons d'une portée — ``_noeuds_propres`` — et
+    non celui du module : les imports d'un bloc ``if`` ou ``try`` intérieur à la
+    fonction lient la même portée qu'elle, tandis qu'une définition imbriquée
+    ouvre la sienne et n'est jamais traversée.
+
+    ``exceptions_builtins`` est délibérément VIDÉ. Cet ensemble n'est jamais
+    prouvé par un import : il est la graine des noms de l'interpréteur, que le
+    module a pu AMPUTER en détournant l'un d'eux. Le laisser plein le
+    réintroduirait à la première portée locale rencontrée, et restaurerait
+    précisément la preuve que le module venait de révoquer.
+    """
+    aliases = _CollecteAliases(exceptions_builtins=set())
+    for noeud in _noeuds_propres(portee):
+        if isinstance(noeud, (ast.Import, ast.ImportFrom)):
+            _lier_import(noeud, aliases, set())
+    return aliases
+
+
+def _affectations_de_portee(portee: ast.AST) -> list[ast.Assign | ast.AnnAssign]:
+    """Énumère les affectations que cette portée exécute, blocs intérieurs compris."""
+    return [
+        noeud
+        for noeud in _noeuds_propres(portee)
+        if isinstance(noeud, (ast.Assign, ast.AnnAssign))
+    ]
+
+
+class _AliasesVisibles:
+    """Résout les alias visibles LÀ OÙ un nœud est écrit, imports locaux compris.
+
+    Un import écrit dans une fonction lie un alias RÉEL, mais seulement DANS SA
+    PORTÉE : ``import pytest as pt`` dans ``f`` ne dit rien de ce que ``pt``
+    désigne dans ``g``. La collecte du module ne pouvait donc pas simplement
+    l'absorber — c'est le miroir exact des ATTRIBUTS de module, écrits n'importe
+    où et visibles partout, que la collecte lit sur l'arbre entier. MESURÉ avant
+    correction : ``from builtins import <l'absence> as NI`` puis ``raise NI``,
+    et ``import pytest as pt`` puis ``pt.skip(…)``, écrits dans une fonction,
+    étaient acceptés là où les mêmes lignes au niveau module étaient refusées.
+
+    La résolution réutilise l'UNIQUE table de portées : la chaîne d'un nœud dit
+    déjà quelles portées son nom traverse, corps de classes lointains exclus
+    comme à l'exécution. En écrire une seconde garantirait de ne corriger
+    qu'une moitié des règles au premier défaut suivant.
+
+    Le résultat est mémorisé par portée la plus proche : tous les nœuds d'une
+    même fonction voient exactement les mêmes alias, et la chaîne n'est
+    reparcourue qu'une fois par portée.
+    """  # proof:allow — le motif d'absence est le SUJET du gate, cité ici comme mesure
+
+    def __init__(self, socle: _AliasesImports, portees: _PorteesLexicales) -> None:
+        self._socle = socle
+        self._portees = portees
+        self._visibles: dict[ast.AST, _AliasesImports] = {}
+
+    def au(self, noeud: ast.AST) -> _AliasesImports:
+        """Rend les alias visibles à l'endroit où ce nœud est ÉCRIT.
+
+        Un nœud du corps d'une fonction est écrit DANS cette fonction : sa
+        chaîne commence par elle. L'en-tête d'une définition — base de classe,
+        décorateur — est au contraire écrit dans la portée qui la CONTIENT :
+        interroger la définition elle-même rend donc la bonne chaîne pour les
+        deux usages, exactement comme pour le masquage lexical.
+        """
+        chaine = [
+            portee
+            for portee in self._portees.chaine(noeud)
+            if not isinstance(portee, ast.Module)
+        ]
+        if not chaine:
+            return self._socle
+        connu = self._visibles.get(chaine[0])
+        if connu is None:
+            connu = self._socle
+            for portee in reversed(chaine):
+                connu = self._enrichir(connu, portee)
+            self._visibles[chaine[0]] = connu
+        return connu
+
+    def _enrichir(
+        self, socle: _AliasesImports, portee: ast.AST
+    ) -> _AliasesImports:
+        """Ajoute au socle ce que cette portée prouve : ses imports, puis ses alias affectés.
+
+        L'ordre compte. Les absences prouvées par AFFECTATION sont résolues
+        APRÈS la fusion des imports et avec les alias déjà visibles : ``E =
+        b.<l'absence>`` où ``b`` vient d'un import du module ne se lit qu'ainsi,
+        et le calculer sur les seuls imports de la portée manquerait la moitié
+        des chaînes d'alias.
+        """  # proof:allow — le motif d'absence est le SUJET du gate, cité ici comme mesure
+        fusion = _CollecteAliases.depuis(socle)
+        fusion.ajouter(_aliases_de_portee(portee))
+        fusion.ajouter_absences_prouvees(
+            _absences_prouvees(
+                _affectations_de_portee(portee),
+                fusion.not_implemented_errors,
+                fusion.modules_builtins,
+            )
+        )
+        return fusion.figer()
+
+
 def _base_est_derivee(
     cible: ast.expr,
+    classe: ast.ClassDef,
     chaine: list[ast.AST],
     portees: _PorteesLexicales,
     positions_derivees: set[tuple[int, int]],
-    est_base_prouvee: Callable[[ast.expr], bool],
+    est_base_prouvee: Callable[[ast.expr, ast.ClassDef], bool],
 ) -> bool:
     """Décide si une base désigne un type déjà prouvé dérivé, ou la base visée.
 
@@ -1365,9 +1515,14 @@ def _base_est_derivee(
     Une liaison locale OPAQUE arrête la résolution sans jamais retomber sur la
     preuve d'origine : le nom désigne alors quelque chose d'inconnu, et
     consulter les imports reviendrait à exempter sur la foi d'une orthographe.
+
+    La CLASSE est transmise à la preuve d'origine : celle-ci se lit dans la
+    portée où la base est écrite, un import local prouvant une origine que le
+    module ignore. Sans elle, la preuve resterait globale là où la résolution
+    est devenue lexicale.
     """
     if not isinstance(cible, ast.Name):
-        return est_base_prouvee(cible)
+        return est_base_prouvee(cible, classe)
     for portee in chaine:
         classes_locales, opaques = portees.liaisons(portee)
         if cible.id in opaques:
@@ -1375,12 +1530,12 @@ def _base_est_derivee(
         definition = classes_locales.get(cible.id)
         if definition is not None:
             return (definition.lineno, definition.col_offset) in positions_derivees
-    return est_base_prouvee(cible)
+    return est_base_prouvee(cible, classe)
 
 
 def _positions_de_classes_derivees(
     arbre: ast.Module,
-    est_base_prouvee: Callable[[ast.expr], bool],
+    est_base_prouvee: Callable[[ast.expr, ast.ClassDef], bool],
     portees: _PorteesLexicales,
 ) -> frozenset[tuple[int, int]]:
     """Résout par POINT FIXE les classes du module dérivant d'une base prouvée.
@@ -1417,6 +1572,7 @@ def _positions_de_classes_derivees(
             for base in classe.bases:
                 if _base_est_derivee(
                     _base_declaree(base),
+                    classe,
                     chaines[classe],
                     portees,
                     positions_derivees,
@@ -1557,13 +1713,18 @@ def _attribut_absence_de_builtins(
 
 def _leve_not_implemented(
     fonction: ast.FunctionDef | ast.AsyncFunctionDef,
-    aliases: _AliasesImports,
+    visibles: _AliasesVisibles,
 ) -> bool:
-    """Recherche une levée explicite d'absence d'implémentation dans la fonction."""
+    """Recherche une levée explicite d'absence d'implémentation dans la fonction.
+
+    Chaque levée est jugée avec les alias visibles LÀ OÙ ELLE EST ÉCRITE, et non
+    avec ceux du module : le parcours descend dans les fonctions imbriquées, dont
+    la portée peut prouver un alias que la fonction extérieure ignore.
+    """
     return any(
         isinstance(noeud, ast.Raise)
         and noeud.exc is not None
-        and _est_exception_non_implementee(noeud.exc, aliases)
+        and _est_exception_non_implementee(noeud.exc, visibles.au(noeud))
         for noeud in ast.walk(fonction)
     )
 
@@ -1593,7 +1754,7 @@ def _analyser_fonction(
     fichier: Path,
     fonction: ast.FunctionDef | ast.AsyncFunctionDef,
     dans_protocol: bool,
-    aliases: _AliasesImports,
+    visibles: _AliasesVisibles,
     portees: _PorteesLexicales,
 ) -> list[Violation]:
     """Applique les règles anti-stub locales à une fonction."""
@@ -1618,7 +1779,8 @@ def _analyser_fonction(
         and utile[0].value.value is Ellipsis
     )
     if est_ellipse_unique and (
-        dans_protocol or _est_methode_abstraite(fonction, aliases, portees)
+        dans_protocol
+        or _est_methode_abstraite(fonction, visibles.au(fonction), portees)
     ):
         return violations
 
@@ -1631,7 +1793,7 @@ def _analyser_fonction(
         )
         violations.append(_violation(code, repo, fichier, fonction.lineno, detail))
 
-    if _leve_not_implemented(fonction, aliases):
+    if _leve_not_implemented(fonction, visibles):
         violations.append(
             _violation(
                 "NOT_IMPLEMENTED_STUB",
@@ -1750,13 +1912,16 @@ def _analyser_absences_hors_fonction(
     repo: Path,
     fichier: Path,
     arbre: ast.Module,
-    aliases: _AliasesImports,
+    visibles: _AliasesVisibles,
 ) -> list[Violation]:
     """Refuse une absence d'implémentation levée hors de toute fonction.
 
     Un module ou une classe qui lève cette exception échoue À L'IMPORT, et échoue
     précisément parce que le code n'est pas écrit : c'est le stub le plus visible
     qui soit, et il échappait entièrement au parcours limité aux fonctions.
+
+    Un corps de CLASSE est une portée à part entière : la levée y est jugée avec
+    les alias que cette classe rend visibles, comme n'importe quel autre nœud.
     """
     return [
         _violation(
@@ -1770,7 +1935,7 @@ def _analyser_absences_hors_fonction(
         for noeud in _instructions_hors_fonction(arbre.body)
         if isinstance(noeud, ast.Raise)
         and noeud.exc is not None
-        and _est_exception_non_implementee(noeud.exc, aliases)
+        and _est_exception_non_implementee(noeud.exc, visibles.au(noeud))
     ]
 
 
@@ -1799,8 +1964,11 @@ def _analyser_stubs(repo: Path, fichier: Path, arbre: ast.Module) -> list[Violat
     """Parcourt tous les blocs en conservant le contexte Protocol des classes."""
     aliases = _analyser_imports(arbre)
     portees = _PorteesLexicales(arbre)
+    visibles = _AliasesVisibles(aliases, portees)
     exceptions = _positions_de_classes_derivees(
-        arbre, lambda base: _est_base_exception_builtin(base, aliases), portees
+        arbre,
+        lambda base, classe: _est_base_exception_builtin(base, visibles.au(classe)),
+        portees,
     )
     violations: list[Violation] = []
 
@@ -1811,7 +1979,7 @@ def _analyser_stubs(repo: Path, fichier: Path, arbre: ast.Module) -> list[Violat
             self.protocols: list[bool] = [False]
 
         def visit_ClassDef(self, noeud: ast.ClassDef) -> None:
-            est_protocol = _est_classe_protocol(noeud, aliases, portees)
+            est_protocol = _est_classe_protocol(noeud, visibles.au(noeud), portees)
             violations.extend(
                 _analyser_classe(repo, fichier, noeud, exceptions, est_protocol)
             )
@@ -1822,7 +1990,7 @@ def _analyser_stubs(repo: Path, fichier: Path, arbre: ast.Module) -> list[Violat
         def visit_FunctionDef(self, noeud: ast.FunctionDef) -> None:
             violations.extend(
                 _analyser_fonction(
-                    repo, fichier, noeud, self.protocols[-1], aliases, portees
+                    repo, fichier, noeud, self.protocols[-1], visibles, portees
                 )
             )
             self.protocols.append(False)
@@ -1832,7 +2000,7 @@ def _analyser_stubs(repo: Path, fichier: Path, arbre: ast.Module) -> list[Violat
         def visit_AsyncFunctionDef(self, noeud: ast.AsyncFunctionDef) -> None:
             violations.extend(
                 _analyser_fonction(
-                    repo, fichier, noeud, self.protocols[-1], aliases, portees
+                    repo, fichier, noeud, self.protocols[-1], visibles, portees
                 )
             )
             self.protocols.append(False)
@@ -1840,7 +2008,7 @@ def _analyser_stubs(repo: Path, fichier: Path, arbre: ast.Module) -> list[Violat
             self.protocols.pop()
 
     Visiteur().visit(arbre)
-    violations.extend(_analyser_absences_hors_fonction(repo, fichier, arbre, aliases))
+    violations.extend(_analyser_absences_hors_fonction(repo, fichier, arbre, visibles))
     violations.extend(_analyser_lambdas(repo, fichier, arbre))
     return violations
 
@@ -1967,7 +2135,8 @@ def _est_appel_pytest(
 
 def _receveurs_de_cas_de_test(
     arbre: ast.Module,
-    aliases: _AliasesImports,
+    visibles: _AliasesVisibles,
+    portees: _PorteesLexicales,
 ) -> dict[ast.stmt, str]:
     """Associe chaque méthode d'un cas de test ``unittest`` au nom de son receveur.
 
@@ -1975,11 +2144,16 @@ def _receveurs_de_cas_de_test(
     mais librement renommable : c'est lui, et lui seul, qui porte les oracles
     hérités d'``unittest.TestCase``. Une méthode sans paramètre, telle une
     ``staticmethod``, n'a aucun receveur et n'est donc pas recensée.
+
+    L'origine de la base est prouvée dans la portée de la CLASSE : ``from
+    unittest import TestCase`` écrit dans une fonction y déclare un cas de test
+    aussi réellement qu'au niveau module, et l'ignorer signalait comme dépourvues
+    d'oracle des méthodes qui en portent un.
     """
     cas_de_test = _positions_de_classes_derivees(
         arbre,
-        lambda base: _est_base_test_case(base, aliases),
-        _PorteesLexicales(arbre),
+        lambda base, classe: _est_base_test_case(base, visibles.au(classe)),
+        portees,
     )
     receveurs: dict[ast.stmt, str] = {}
     for noeud in ast.walk(arbre):
@@ -2014,7 +2188,7 @@ def _est_oracle_unittest(noeud: ast.Call, receveur: str | None) -> bool:
 
 def _contient_oracle(
     fonction: ast.FunctionDef | ast.AsyncFunctionDef,
-    aliases: _AliasesImports,
+    visibles: _AliasesVisibles,
     receveur: str | None,
 ) -> bool:
     """Détermine si une fonction de test contient au moins un oracle PROUVÉ.
@@ -2045,18 +2219,25 @@ def _contient_oracle(
     appartient au corps du test et compte comme lui. Seules fonctions, lambdas et
     classes imbriquées le sont, parce qu'elles déportent leur contenu dans une
     exécution qui n'a pas lieu.
+
+    L'origine de l'oracle est prouvée avec les alias visibles DANS le test :
+    ``from pytest import raises`` écrit à sa première ligne prouve autant que le
+    même import au niveau module, et l'ignorer signalait comme dépourvu d'oracle
+    un test qui vérifie réellement une levée.
     """
     for noeud in _noeuds_de_la_portee(fonction):
         if isinstance(noeud, ast.Assert):
             return True
         if isinstance(noeud, ast.With) and any(
             isinstance(element.context_expr, ast.Call)
-            and _est_appel_pytest(element.context_expr, "raises", aliases)
+            and _est_appel_pytest(
+                element.context_expr, "raises", visibles.au(noeud)
+            )
             for element in noeud.items
         ):
             return True
         if isinstance(noeud, ast.Call) and (
-            _est_appel_pytest(noeud, "fail", aliases)
+            _est_appel_pytest(noeud, "fail", visibles.au(noeud))
             or _est_oracle_unittest(noeud, receveur)
         ):
             return True
@@ -2145,9 +2326,15 @@ def _analyser_ast_diff(
     arbre: ast.Module,
     lignes: set[int],
 ) -> list[Violation]:
-    """Applique les règles AST limitées aux éléments effectivement modifiés."""
-    aliases = _analyser_imports(arbre)
-    receveurs = _receveurs_de_cas_de_test(arbre, aliases)
+    """Applique les règles AST limitées aux éléments effectivement modifiés.
+
+    Les alias sont résolus PAR PORTÉE : un import écrit dans une fonction y lie
+    un alias réel, et un saut appelé sous cet alias saute aussi sûrement que
+    sous celui du module.
+    """
+    portees = _PorteesLexicales(arbre)
+    visibles = _AliasesVisibles(_analyser_imports(arbre), portees)
+    receveurs = _receveurs_de_cas_de_test(arbre, visibles, portees)
     violations: list[Violation] = []
     for noeud in ast.walk(arbre):
         if (
@@ -2166,7 +2353,7 @@ def _analyser_ast_diff(
             )
         if isinstance(noeud, (ast.FunctionDef, ast.AsyncFunctionDef)):
             if noeud.name.startswith("test_") and _fonction_modifiee(noeud, lignes):
-                if not _contient_oracle(noeud, aliases, receveurs.get(noeud)):
+                if not _contient_oracle(noeud, visibles, receveurs.get(noeud)):
                     violations.append(
                         _violation(
                             "TEST_WITHOUT_ORACLE",
@@ -2182,8 +2369,11 @@ def _analyser_ast_diff(
             # fonctions laissait déserter une suite entière d'un seul décorateur
             # déplacé d'un cran vers le haut.
             for decorateur in noeud.decorator_list:
+                # Le décorateur s'évalue là où la DÉFINITION est écrite, jamais
+                # dans son corps : c'est donc la définition, et non le
+                # décorateur, qui donne la portée où résoudre son nom.
                 if decorateur.lineno in lignes and _est_decorateur_skip_ou_xfail(
-                    decorateur, aliases
+                    decorateur, visibles.au(noeud)
                 ):
                     violations.append(
                         _violation(
@@ -2195,7 +2385,7 @@ def _analyser_ast_diff(
                         )
                     )
         if isinstance(noeud, ast.Call) and noeud.lineno in lignes:
-            if _est_appel_de_saut(noeud, aliases):
+            if _est_appel_de_saut(noeud, visibles.au(noeud)):
                 violations.append(
                     _violation(
                         "NEW_SKIP_OR_XFAIL",
@@ -4137,8 +4327,26 @@ def _etape_execute_quelque_chose(etape: object) -> bool:
 
     Seuls ``run`` et ``uses`` déclenchent un travail : une étape réduite à un
     ``name`` décoratif n'exécute aucun contrôle.
+
+    La CLÉ ne suffit pourtant pas, et c'est MESURÉ : ``run: ''`` et ``run:
+    '   '`` satisfaisaient l'exigence d'étape effective alors qu'une commande
+    vide ou blanche ne lance rien — le job requis rapportait vert sans exécuter
+    le moindre contrôle, exactement le gate désarmé que la règle vise. La VALEUR
+    est donc lue, au même titre pour ``uses``, dont la référence vide ne désigne
+    aucune action.
+
+    Une valeur NON-CHAÎNE ne compte pas non plus, en fail-closed : l'analyse des
+    commandes ignore déjà tout ``run`` qui n'est pas une chaîne, si bien que la
+    compter comme effective laisserait un job requis satisfaire l'exigence avec
+    une valeur qu'aucune règle du gate ne sait lire.
     """
-    return isinstance(etape, Mapping) and ("run" in etape or "uses" in etape)
+    if not isinstance(etape, Mapping):
+        return False
+    for champ in _CHAMPS_ETAPE_EFFECTIVE:
+        valeur = etape.get(champ)
+        if isinstance(valeur, str) and valeur.strip():
+            return True
+    return False
 
 
 def _violation_job_requis_sans_etape(
