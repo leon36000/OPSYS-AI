@@ -139,6 +139,13 @@ def charger_racines_qualite() -> tuple[Path, ...]:
     )
 
 
+# core/tests/ (dossiers de test
+# TOP-LEVEL, distincts des tests co-localisés sous core/src/**/tests/,
+# conservés) est délibérément exclu de CE chantier — un audit CodeQL de la
+# suite de tests existante est un chantier séparé et proportionné, jamais
+# bundlé silencieusement ici (35+ findings mesurés en testant le scan sans
+# ce filtre, tous dans des fichiers de test pré-existants sans rapport
+# avec le CI-hardening).
 def construire_filtres_index() -> str:
     """Construit les filtres CodeQL pour toutes les racines contractuelles présentes."""
     racines = charger_racines_qualite()
@@ -175,6 +182,8 @@ def _executer(
 
 def construire_base(codeql: str, db_path: Path) -> tuple[bool, str]:
     """Construit une base CodeQL limitée aux racines du contrat qualité."""
+    # os.environ hérité EXPLICITEMENT (PATH etc. nécessaires à codeql lui-
+    # même) plutôt qu'un environnement vide, avec CETTE seule variable ajoutée.
     env = {**os.environ, "LGTM_INDEX_FILTERS": construire_filtres_index()}
     resultat = _executer(
         codeql,

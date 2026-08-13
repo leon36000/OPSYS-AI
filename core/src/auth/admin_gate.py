@@ -37,7 +37,9 @@ class AdminGate:
         self.max_echecs = max_echecs
         self.verrou_s = verrou_s
         self._lock = threading.Lock()
+        # replay_state : dict secret_hash_bytes -> set de timesteps consommes
         self._replay_state: Dict[bytes, Set[int]] = {}
+        # failure_tracker : dict ip -> liste des timestamps d'echecs (dans la fenetre)
         self._failure_tracker: Dict[str, List[float]] = {}
 
     def est_configure(self) -> bool:
@@ -67,21 +69,26 @@ class AdminGate:
 
         now = time.monotonic()
         with self._lock:
+            # --- Nettoyage des rate-limits expires ---
             self._purge_expired_failures(now)
 
+            # --- Rate limiting par IP ---
             failures = self._failure_tracker.setdefault(ip, [])
             if len(failures) >= self.max_echecs:
                 logger.warning("IP %s verrouillée (trop d'échecs TOTP)", ip)
                 return {"autorise": False, "raison": "verrouille"}
 
+            # --- Anti-replay : hash du secret courant ---
             try:
                 secret_hash = hashlib.sha256(secret_b32.encode()).digest()
             except Exception:
                 logger.error("Erreur lors du hash du secret")
                 return {"autorise": False, "raison": "erreur_interne"}
 
+            # Garder uniquement le hash courant pour borner la memoire en cas de rotation
             self._replay_state = {secret_hash: self._replay_state.get(secret_hash, set())}
 
+            # --- Verification TOTP ---
             try:
                 ok, timestep = totp.verify_totp(secret_b32, code, window=1)
             except Exception:
@@ -101,6 +108,7 @@ class AdminGate:
                 logger.warning("Tentative de rejeu TOTP pour IP %s", ip)
                 return {"autorise": False, "raison": "rejoue"}
 
+            # --- Succes : consommer le timestep et reinitialiser les echecs IP ---
             self._replay_state[secret_hash].add(timestep)
             if ip in self._failure_tracker:
                 del self._failure_tracker[ip]

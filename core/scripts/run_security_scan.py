@@ -70,6 +70,13 @@ def executer_bandit() -> tuple[bool, str]:
     if not racines:
         raise OutilSecuriteAbsent("aucune racine Python existante dans quality-scopes.toml")
 
+    # -q OBLIGATOIRE : découvert en élargissant le périmètre à 2 cibles
+    # positionnelles (core/src + core/scripts, révision 2) — bandit 1.9.4
+    # imprime alors une barre de progression `rich` SUR STDOUT ("Working...
+    # 100%"), avant le JSON, cassant le parsing. Absent avec 1 seule cible
+    # (latent, pas nouveau : aurait fini par apparaître dès que le scan
+    # devient assez long, peu importe le nombre de cibles). -q supprime
+    # l'affichage, vérifié : sortie strictement JSON valide avec 2 cibles.
     resultat = _executer(
         [
             "bandit",
@@ -82,6 +89,7 @@ def executer_bandit() -> tuple[bool, str]:
             "json",
         ]
     )
+    # bandit : rc=0 aucun finding, rc=1 finding(s) trouvé(s), rc>1 = erreur outil.
     if resultat.returncode not in (0, 1):
         raise OutilSecuriteAbsent(
             f"bandit a échoué avec un code inattendu ({resultat.returncode}) : {resultat.stderr}"
@@ -109,6 +117,11 @@ def executer_pip_audit() -> tuple[bool, str]:
         for ligne in _REQUIREMENTS_LOCK.read_text(encoding="utf-8").splitlines()
         if ligne.strip() and not ligne.strip().startswith("#")
     ]
+    # tempfile HORS du dépôt (jamais un nom fixe sous _REPO_ROOT) : un
+    # fichier fixe pollue l'arbre de travail (capturable par un futur
+    # `git add -A`), collisionne entre 2 exécutions concurrentes, et
+    # interagit avec le contrôle d'arborescence D-038 — trouvé par revue
+    # scellée indépendante (chantier CI-hardening, tour 2).
     with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as flux:
         flux.write("\n".join(lignes_verrou) + "\n")
         chemin_tmp = Path(flux.name)
@@ -119,6 +132,7 @@ def executer_pip_audit() -> tuple[bool, str]:
     finally:
         chemin_tmp.unlink(missing_ok=True)
 
+    # pip-audit : rc=0 aucune vulnérabilité, rc=1 vulnérabilité(s) trouvée(s).
     if resultat.returncode not in (0, 1):
         raise OutilSecuriteAbsent(
             f"pip-audit a échoué avec un code inattendu ({resultat.returncode}) : {resultat.stderr}"

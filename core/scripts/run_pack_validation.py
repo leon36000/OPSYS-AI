@@ -11,6 +11,17 @@ INVOQUÉES par un job CI avant ce script (mesuré, pas supposé).
 Le périmètre Python de la validation est lu depuis le contrat unique
 core/quality-scopes.toml. Les racines absentes sur le checkout courant sont
 ignorées ; les racines présentes sont passées au contrôle de structure.
+
+LIMITATION CONNUE ET ASSUMÉE (nommée, pas contournée en silence) : le
+toolchain.lock.json existant (core/toolchain.lock.json) a été produit sur
+UNE machine de développement locale — ses digests NE PEUVENT PAS être
+comparés à ceux d'un runner GitHub Actions (binaire différent par
+construction, ex. python/git/docker installés différemment). Ce script
+n'appelle donc JAMAIS `detect_drift()` contre ce lock figé (produirait un
+FAUX rouge permanent sur tout runner CI, jamais sur la machine locale
+d'origine) — il inventorie et valide le FORMAT d'un lock FRAIS, mesuré
+sur l'environnement qui exécute CE script, prouvant que le mécanisme
+fonctionne réellement sur une machine autre que celle d'origine.
 """
 from __future__ import annotations
 
@@ -27,6 +38,11 @@ from bootstrap_toolchain import inventorier_toolchain, validate_toolchain_lock  
 from run_tests import run_test_slice  # noqa: E402
 from verify_dependencies import verify_lock  # noqa: E402
 
+# Outils garantis présents sur TOUTE machine capable d'exécuter ce script
+# (python3 s'exécute déjà lui-même, git est requis par le checkout CI) —
+# jamais un outil optionnel (helm/uv/podman/psql) qui produirait un
+# blocker attendu sur un runner nu et masquerait un VRAI blocker derrière
+# du bruit habituel.
 _OUTILS_GARANTIS = {
     "python": [sys.executable, "--version"],
     "git": ["git", "--version"],
