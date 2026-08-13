@@ -833,6 +833,42 @@ forme attendue d'un lanceur ; les **compréhensions** sur les racines, qui ont
 leurs juges dédiés et seraient sinon condamnées deux fois ; les **valeurs
 littérales**, déjà jugées par la règle des omissions.
 
+#### La CLÉ contractuelle prouve la source, pas le nom de l'appelé
+
+Une source de racines se reconnaissait à son NOM : celui de la collection
+(`racines`, `python_roots`, `scopes`…) ou celui de l'appelé, qui devait contenir
+« racine » ou « root ». Or un lanceur lit le contrat par une méthode d'accès
+générique, dont le nom — `get` — ne contient ni l'un ni l'autre. La troncature
+échappait donc au contrôle, alors que le témoin par appel nommé était bien
+signalé. MESURÉ avant correction :
+
+```python
+racines = contrat.get("python_roots")[:1]        # NON signalé — angle mort
+racines = charger_racines_qualite()[:1]          # signalé — témoin
+```
+
+Le porteur de sens est la **clé demandée**, seule à nommer le champ contractuel
+des racines dans `core/quality-scopes.toml`. Deux formes d'accès sont retenues,
+et ce sont celles que le dépôt écrit : l'**indexation** `contrat["python_roots"]`
+et l'**appel dont le premier argument est la clé** — `contrat.get("python_roots")`
+avec ou sans valeur par défaut, la forme employée par `run_security_scan`,
+`run_pack_validation` et `run_codeql_scan`. Le **déballage**
+`[*contrat.get("python_roots")]` n'a besoin d'aucune règle propre : l'accès qu'il
+enveloppe est retrouvé par le parcours de l'expression.
+
+```python
+racines = contrat.get("python_roots")[:1]        # refusé — troncature de la lecture
+racines = contrat["python_roots"][:1]            # refusé — même retrait, autre accès
+racines = contrat.get("python_roots", [])[:1]    # refusé — la valeur par défaut ne change rien
+racines = [*contrat.get("python_roots")][:1]     # refusé — le déballage ne masque rien
+racines = contrat["python_roots"]                # accepté — lecture intégrale
+racines = contrat.get("python_roots", [])        # accepté — lecture intégrale
+```
+
+Une **tranche** n'est pas une clé littérale : `[:1]` ne peut jamais être pris
+pour la lecture qu'il réduit. Le nom de l'appelé est délibérément ignoré — c'est
+la clé qui décide, jamais l'orthographe de la méthode d'accès.
+
 Le rôle est prouvé **deux fois** : par le contexte de déclaration, et par la
 présence de la source des racines dans l'expression. MESURÉ sur ce dépôt : le
 seul contexte de déclaration retient **16 expressions légitimes** des lanceurs —
@@ -1517,8 +1553,9 @@ class C(Protocol):
 Les **corps de fonctions** ne sont jamais parcourus par la collecte du MODULE,
 dans les deux sens également : leur portée est locale, si bien qu'un import local
 ne crée aucune exemption globale et qu'une affectation locale n'invalide aucun
-alias du module. La règle ne tient pas compte de l'**ordre** : une réaffectation
-écrite avant l'import compte autant qu'une réaffectation écrite après lui.
+alias du module. Une **réaffectation** ne tient pas compte de l'**ordre** :
+écrite avant l'import, elle compte autant qu'écrite après lui. Un **second
+import**, lui, est ordonné — voir la section suivante.
 
 Ce que le module ignore n'est pourtant pas inexistant : un import local lie un
 alias RÉEL dans sa propre portée, et il est désormais lu là — voir « Un import
@@ -1528,6 +1565,85 @@ Cette limite vaut pour les **noms**, et pour eux seuls. Les **attributs de
 module** sont collectés à toute profondeur — voir « Un attribut de module n'est
 lié à aucune portée » plus bas : un nom est lié à une portée, un attribut ne
 l'est pas.
+
+#### Un import REBINDE un nom : la liaison la PLUS PROCHE décide
+
+Un import n'est pas seulement une preuve, c'est une **liaison** — au même titre
+qu'une affectation. Les imports ne comptaient pourtant pas parmi les
+réaffectations : le second n'écrasait jamais la preuve établie par le premier.
+Une seule cause, **deux effets opposés**, tous deux MESURÉS.
+
+```python
+from typing import Protocol
+from module_tiers import Protocol   # le nom ne désigne plus typing
+
+class C(Protocol):
+    def f(self) -> None: ...        # accepté à tort — refusé désormais
+
+import builtins as b
+import module_tiers as b            # le porteur ne désigne plus builtins
+
+def f() -> None:
+    raise b.NotImplementedError     # refusé à tort — accepté désormais
+```
+
+La même incohérence portait sur les **sauts de test** : `import pytest as pt`
+puis `import module_tiers as pt` puis `pt.skip(…)` était signalé, alors que
+`import module_tiers as pt` SEUL — qui désigne pourtant le même objet — ne
+l'était pas.
+
+La résolution est celle de l'exécution : **le dernier import qui lie le nom dans
+la portée considérée**. Lier commence donc par DÉLIER — les noms que l'import
+relie perdent d'abord ce qu'un import antérieur leur prouvait, puis l'import
+ajoute le sien. L'ordre des deux gestes est ce qui distingue « rebinder » de
+« effacer » :
+
+```python
+from module_tiers import Protocol
+from typing import Protocol         # le dernier import RÉTABLIT la preuve
+
+class C(Protocol):
+    def f(self) -> None: ...        # accepté — l'origine est de nouveau prouvée
+```
+
+**Rebinder vers un module PROUVANT ne retire rien**, et c'est ce qui préserve
+l'idiome de rétroportage : `typing` et `typing_extensions` prouvent à égalité,
+si bien que passer de l'un à l'autre — dans les deux sens, y compris par le
+repli `try: … except ImportError: …` — laisse l'exemption intacte.
+
+Un seul ensemble échappe à cette révocation, et l'exception est structurelle :
+les **noms d'exception de l'interpréteur** ne sont pas prouvés par un import
+mais SEMÉS depuis `builtins` au démarrage du gate. Les y inclure ferait perdre à
+`from builtins import ValueError` la preuve que cet import vient précisément
+d'apporter ; leur amputation reste donc réglée par la règle dédiée — « Le nom
+d'une exception ne prouve rien à lui seul ».
+
+La règle vaut **dans chaque portée**, module comme fonction. La collecte d'une
+portée locale rendait ses nœuds à REBOURS de l'ordre écrit — sans conséquence
+tant que lier ne faisait qu'ajouter, décisif dès lors qu'un import révoque : les
+imports d'une portée sont donc désormais liés dans l'ordre du **source**, comme
+au niveau module.
+
+```python
+def fabriquer() -> type:
+    from typing import Protocol
+    from module_tiers import Protocol      # rebind LOCAL, honoré comme au module
+
+    class Depot(Protocol):
+        def lire(self) -> str: ...         # refusé désormais
+    return Depot
+```
+
+Limite assumée, MESURÉE et inchangée par ce correctif : l'apport d'une portée
+locale au socle du module reste **purement additif** (voir « Un import LOCAL
+prouve un alias, dans SA portée seulement »). Un import de fonction qui rebinde
+un nom déjà prouvé PAR LE MODULE ne révoque donc pas la preuve du module. Pour
+les **détections** c'est fail-closed — `import builtins as b` au module puis
+`import module_tiers as b` dans la fonction reste signalé. Pour les
+**exemptions**, c'est le sens inverse, et cette limite est ouverte : le même
+enchaînement sur `Protocol` conserve l'exemption. Fermer ce dernier cas suppose
+de rendre l'apport local soustractif, ce qui touche toutes les règles à la fois
+et relève d'un chantier propre.
 
 #### Toutes les FORMES d'écriture d'un nom, pas seulement l'affectation
 

@@ -7626,3 +7626,268 @@ def test_accepte_un_cas_de_test_unittest_importe_dans_la_fonction(
     )
 
     assert "TEST_WITHOUT_ORACLE" not in _codes(_scanner(repo))
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        "from typing import Protocol\nfrom module_tiers import Protocol\n\n\n"
+        "class Service(Protocol):\n    def calculer(self) -> None: ...\n",
+        "import typing as t\nimport module_tiers as t\n\n\n"
+        "class Service(t.Protocol):\n    def calculer(self) -> None: ...\n",
+        "from abc import abstractmethod\nfrom module_tiers import abstractmethod\n\n\n"
+        "class Service:\n    @abstractmethod\n    def calculer(self) -> None: ...\n",
+    ),
+)
+def test_refuse_une_ellipse_dont_la_preuve_est_rebindee_par_un_import_tiers(
+    tmp_path: Path,
+    source: str,
+) -> None:
+    """Prouve qu'un import qui REBINDE un nom retire la preuve établie par le précédent.
+
+    MESURÉ avant correction : les trois écritures passaient sans aucune
+    violation. Un import ne comptait pas comme une réaffectation, si bien que le
+    second import laissait intacte la preuve du premier — ``Protocol`` continuait
+    de désigner ``typing`` alors qu'il désignait le module tiers, et l'ellipse
+    était exemptée sur la foi d'une origine périmée.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(repo, "src/service.py", source)
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_accepte_une_absence_dont_le_module_builtins_est_rebinde_par_un_import_tiers(
+    tmp_path: Path,
+) -> None:
+    """Prouve l'effet INVERSE de la même cause : un porteur rebindé ne prouve plus rien.
+
+    MESURÉ avant correction : ``NOT_IMPLEMENTED_STUB``. Le nom ``b`` désigne le
+    module tiers, dont l'attribut homonyme est un type d'erreur métier — la
+    règle qualifiée exige justement un PORTEUR prouvé, et ce porteur ne l'est
+    plus dès qu'un import postérieur le relie ailleurs.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "import builtins as b\nimport module_tiers as b\n\n\n"  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+        "def calculer() -> None:\n    raise b.NotImplementedError\n",  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    )
+
+    assert "NOT_IMPLEMENTED_STUB" not in _codes(_scanner(repo))
+
+
+def test_accepte_un_saut_dont_le_module_pytest_est_rebinde_par_un_import_tiers(
+    tmp_path: Path,
+) -> None:
+    """Prouve la TROISIÈME manifestation de la même cause, sur les marques de saut.
+
+    MESURÉ avant correction : ``NEW_SKIP_OR_XFAIL``, alors que ``pt`` désigne le
+    module tiers et que ``pt.skip`` y est une fonction métier. Le témoin inverse
+    — ``import module_tiers as pt`` SEUL — n'était déjà pas signalé : les deux
+    écritures désignent pourtant le même objet, et cette incohérence est
+    exactement le défaut fermé ici.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_calcul.py",
+        "import pytest as pt\nimport module_tiers as pt\n\n\n"
+        "def test_calcul() -> None:\n    pt.skip('indisponible')\n    assert bool(1)\n",
+    )
+
+    assert "NEW_SKIP_OR_XFAIL" not in _codes(_scanner(repo))
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        "import pytest as pt\n\n\n"
+        "def test_calcul() -> None:\n    pt.skip('indisponible')\n    assert bool(1)\n",
+        "import pytest as pt\nimport module_tiers as autre\n\n\n"
+        "def test_calcul() -> None:\n    pt.skip('indisponible')\n    assert bool(1)\n",
+    ),
+)
+def test_refuse_un_saut_dont_le_module_pytest_reste_lie(
+    tmp_path: Path,
+    source: str,
+) -> None:
+    """Garde INVERSE : révoquer sur rebind ne doit pas rendre la détection muette.
+
+    Seul le nom effectivement REBINDÉ perd sa preuve ; un import voisin portant
+    un autre nom ne retire rien, sans quoi le correctif ouvrirait un
+    contournement d'un import quelconque.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(repo, "src/test_calcul.py", source)
+
+    assert "NEW_SKIP_OR_XFAIL" in _codes(_scanner(repo))
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        "from module_tiers import Protocol\nfrom typing import Protocol\n\n\n"
+        "class Service(Protocol):\n    def calculer(self) -> None: ...\n",
+        "import module_tiers as t\nimport typing as t\n\n\n"
+        "class Service(t.Protocol):\n    def calculer(self) -> None: ...\n",
+        "from typing import Protocol\nfrom typing_extensions import Protocol\n\n\n"
+        "class Service(Protocol):\n    def calculer(self) -> None: ...\n",
+        "from typing_extensions import Protocol\nfrom typing import Protocol\n\n\n"
+        "class Service(Protocol):\n    def calculer(self) -> None: ...\n",
+    ),
+)
+def test_accepte_un_protocole_dont_le_dernier_import_prouve_encore_l_origine(
+    tmp_path: Path,
+    source: str,
+) -> None:
+    """Prouve que la LIAISON LA PLUS PROCHE décide, jamais le simple fait d'un rebind.
+
+    Deux distinctions sont verrouillées ici. L'ORDRE : le dernier import lie le
+    nom, si bien qu'un retour vers ``typing`` rétablit la preuve qu'un import
+    tiers antérieur avait retirée. L'ORIGINE : ``typing`` et
+    ``typing_extensions`` prouvent à égalité, si bien que rebinder de l'un vers
+    l'autre — l'idiome de rétroportage — ne retire rien, dans les deux sens.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(repo, "src/service.py", source)
+
+    assert "EXECUTABLE_ELLIPSIS" not in _codes(_scanner(repo))
+
+
+@pytest.mark.parametrize(
+    "declaration",
+    (
+        '    racines = contrat.get("python_roots")[:1]\n',
+        '    racines = contrat["python_roots"][:1]\n',
+        '    racines = contrat.get("python_roots", [])[:1]\n',
+        '    racines = [*contrat.get("python_roots")][:1]\n',
+    ),
+)
+def test_refuse_une_troncature_des_racines_lues_dans_le_contrat(
+    tmp_path: Path,
+    declaration: str,
+) -> None:
+    """Prouve que la CLÉ contractuelle demandée prouve la source, pas le nom de l'appelé.
+
+    MESURÉ avant correction : la troncature n'était pas signalée, alors que le
+    témoin ``charger_racines_qualite()[:1]`` l'était. La reconnaissance
+    s'appuyait sur le nom de l'appelé — ``get`` pour un accès au contrat, qui ne
+    contient ni « racine » ni « root » — au lieu du champ effectivement lu dans
+    ``core/quality-scopes.toml``.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "core/scripts/run_security_scan.py",
+        "def principal(contrat: dict[str, object]) -> int:\n"
+        + declaration
+        + "    return len(racines)\n",
+    )
+
+    assert "SCOPE_FILTRE_INDECIDABLE" in _codes(_scanner(repo, ("core/scripts",)))
+
+
+@pytest.mark.parametrize(
+    "declaration",
+    (
+        '    racines = contrat["python_roots"]\n',
+        '    racines = contrat.get("python_roots", [])\n',
+        '    racines = [chemin for chemin in contrat.get("python_roots") if chemin.exists()]\n',
+    ),
+)
+def test_accepte_une_lecture_integrale_de_la_cle_contractuelle(
+    tmp_path: Path,
+    declaration: str,
+) -> None:
+    """Garde INVERSE : lire la clé SANS la réduire reste la forme attendue d'un lanceur.
+
+    Les trois lanceurs réels du dépôt lisent le contrat ainsi ; juger la lecture
+    elle-même produirait le faux positif qui fait désarmer un gate.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "core/scripts/run_security_scan.py",
+        "def principal(contrat: dict[str, object]) -> int:\n"
+        + declaration
+        + "    return len(racines)\n",
+    )
+
+    assert "SCOPE_FILTRE_INDECIDABLE" not in _codes(_scanner(repo, ("core/scripts",)))
+
+
+def test_refuse_une_ellipse_dont_le_protocole_local_est_rebinde(tmp_path: Path) -> None:
+    """Prouve que la liaison la plus proche décide AUSSI dans une portée locale.
+
+    La collecte d'une portée énumère ses nœuds à rebours de l'ordre du source :
+    la révocation par rebind y était donc appliquée à l'envers, et le premier
+    import écrit l'emportait sur le dernier. Les deux imports sont ici LOCAUX,
+    si bien qu'aucune preuve du module ne vient masquer le résultat.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/fabrique.py",
+        "def fabriquer() -> type:\n"
+        "    from typing import Protocol\n"
+        "    from module_tiers import Protocol\n\n"
+        "    class Depot(Protocol):\n"
+        "        def lire(self) -> str: ...\n\n"
+        "    return Depot\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_accepte_un_saut_dont_le_pytest_local_est_rebinde(tmp_path: Path) -> None:
+    """Prouve l'effet inverse du même ordre local : la marque de saut n'est plus prouvée."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_calcul.py",
+        "def test_calcul() -> None:\n"
+        "    import pytest as pt\n"
+        "    import module_tiers as pt\n"
+        "    pt.skip('indisponible')\n"
+        "    assert bool(1)\n",
+    )
+
+    assert "NEW_SKIP_OR_XFAIL" not in _codes(_scanner(repo))
+
+
+def test_accepte_une_absence_dont_le_builtins_local_est_rebinde(tmp_path: Path) -> None:
+    """Prouve que le porteur rebindé localement ne qualifie plus l'absence de l'interpréteur."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "def calculer() -> None:\n"
+        "    import builtins as b\n"  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+        "    import module_tiers as b\n"
+        "    raise b.NotImplementedError\n",  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    )
+
+    assert "NOT_IMPLEMENTED_STUB" not in _codes(_scanner(repo))
+
+
+def test_accepte_un_protocole_local_dont_le_dernier_import_prouve_l_origine(
+    tmp_path: Path,
+) -> None:
+    """Garde d'ORDRE en portée locale : le dernier import écrit rétablit la preuve."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/fabrique.py",
+        "def fabriquer() -> type:\n"
+        "    from module_tiers import Protocol\n"
+        "    from typing import Protocol\n\n"
+        "    class Depot(Protocol):\n"
+        "        def lire(self) -> str: ...\n\n"
+        "    return Depot\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" not in _codes(_scanner(repo))

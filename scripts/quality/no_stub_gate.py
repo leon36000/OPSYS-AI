@@ -340,6 +340,36 @@ class _CollecteAliases:
         for ensemble in self._ensembles():
             ensemble.difference_update(noms)
 
+    def retirer_preuves_importees(self, noms: set[str]) -> None:
+        """Retire ce qu'un import ANTÉRIEUR prouvait d'un nom qu'un autre import relie.
+
+        Un import est une LIAISON : ``from typing import Protocol`` puis ``from
+        transport import Protocol`` fait désigner au nom ce que ``transport``
+        exporte, exactement comme une affectation. Les imports ne comptaient
+        pourtant pas parmi les réaffectations, si bien que le second n'écrasait
+        jamais la preuve établie par le premier. MESURÉ, la même cause produisait
+        les deux effets opposés : une ellipse EXEMPTÉE sous un protocole qui n'en
+        était plus un, et une levée REFUSÉE sur un porteur qui n'était plus
+        ``builtins``.
+
+        Le retrait précède l'ajout dans ``_lier_import``, si bien que la liaison
+        la plus proche décide : un retour vers l'origine standard rétablit la
+        preuve, et deux origines prouvantes — ``typing`` et ``typing_extensions``
+        — se remplacent sans rien retirer.
+
+        ``exceptions_builtins`` est le seul ensemble épargné, et l'exception est
+        structurelle : il n'est pas prouvé par un import mais SEMÉ avec les noms
+        de l'interpréteur, que seul ``retirer_exceptions_importees`` ampute. L'y
+        inclure ferait perdre à ``from builtins import ValueError`` la preuve que
+        cet import vient précisément d'apporter. Tous les autres ensembles sont
+        énumérés par ``_ensembles`` plutôt que recopiés : un champ ajouté demain
+        est révoqué sans qu'aucune liste n'ait à être tenue à jour.
+        """
+        for ensemble in self._ensembles():
+            if ensemble is self.exceptions_builtins:
+                continue
+            ensemble.difference_update(noms)
+
     def _ensembles_exemptants(self) -> tuple[set[str], ...]:
         """Énumère les seules preuves dont le retrait rend le gate PLUS strict.
 
@@ -988,6 +1018,20 @@ def _noms_reaffectes_par_global(arbre: ast.Module) -> set[str]:
     return reaffectes
 
 
+def _noms_lies_par_import(noeud: ast.Import | ast.ImportFrom) -> set[str]:
+    """Énumère les noms que cet import LIE dans la portée où il est écrit.
+
+    ``import a.b.c`` lie ``a``, jamais ``a.b.c`` : sans alias, seul le paquet
+    racine entre dans le namespace. Avec ``as``, c'est l'alias seul qui est lié,
+    sous les deux formes d'import. ``from x import *`` ne lie que le pseudo-nom
+    ``*``, qui ne correspond à aucun identifiant : rien n'est donc révoqué, ce
+    qui est fail-closed pour les détections comme pour les exemptions.
+    """
+    if isinstance(noeud, ast.Import):
+        return {alias.asname or alias.name.partition(".")[0] for alias in noeud.names}
+    return {alias.asname or alias.name for alias in noeud.names}
+
+
 def _lier_import(
     noeud: ast.Import | ast.ImportFrom,
     aliases: _CollecteAliases,
@@ -1001,7 +1045,13 @@ def _lier_import(
     fixe — le module pour le namespace global, ``_aliases_de_portee`` pour une
     portée locale. Un seul endroit lit donc les imports, faute de quoi les deux
     lectures divergeraient au premier alias ajouté.
+
+    Lier commence par DÉLIER : les noms que cet import relie perdent d'abord ce
+    qu'un import antérieur leur prouvait, avant que celui-ci n'ajoute le sien.
+    L'ordre des deux gestes est ce qui fait décider la liaison la PLUS PROCHE,
+    et l'ajout seul laissait survivre indéfiniment la preuve du premier import.
     """
+    aliases.retirer_preuves_importees(_noms_lies_par_import(noeud))
     if isinstance(noeud, ast.Import):
         for alias in noeud.names:
             noms_importes_hors_builtins.add(alias.asname or alias.name.partition(".")[0])
@@ -1404,11 +1454,24 @@ def _aliases_de_portee(portee: ast.AST) -> _CollecteAliases:
     module a pu AMPUTER en détournant l'un d'eux. Le laisser plein le
     réintroduirait à la première portée locale rencontrée, et restaurerait
     précisément la preuve que le module venait de révoquer.
+
+    Les imports sont RÉORDONNÉS par leur position dans le source avant d'être
+    liés. ``_noeuds_propres`` dépile ce qu'il a empilé : il rend donc les nœuds à
+    REBOURS de l'ordre écrit, ce qui n'avait aucune conséquence tant que lier ne
+    faisait qu'ajouter. Depuis qu'un import REBINDE — donc révoque —, cet ordre
+    décide, et le rendre inverse ferait l'emporter le PREMIER import écrit sur le
+    dernier, à l'exact opposé de l'exécution. Le tri rend la portée locale
+    identique au module, dont ``_imports_module`` parcourt déjà les instructions
+    dans l'ordre du source.
     """
     aliases = _CollecteAliases(exceptions_builtins=set())
-    for noeud in _noeuds_propres(portee):
-        if isinstance(noeud, (ast.Import, ast.ImportFrom)):
-            _lier_import(noeud, aliases, set())
+    imports = [
+        noeud
+        for noeud in _noeuds_propres(portee)
+        if isinstance(noeud, (ast.Import, ast.ImportFrom))
+    ]
+    for noeud in sorted(imports, key=lambda noeud: (noeud.lineno, noeud.col_offset)):
+        _lier_import(noeud, aliases, set())
     return aliases
 
 
@@ -2474,14 +2537,53 @@ _NOMS_ITERABLES_RACINES = frozenset(
 )
 
 
+_CLES_CONTRACTUELLES_RACINES: Final[frozenset[str]] = frozenset({"python_roots"})
+
+
+def _cle_contractuelle_lue(noeud: ast.expr) -> str | None:
+    """Rend la clé LITTÉRALE du contrat que cette expression demande, sinon rien.
+
+    Deux formes d'accès sont retenues, et ce sont les seules que le dépôt écrit
+    réellement : l'indexation ``contrat["python_roots"]`` et l'appel qui prend la
+    clé en premier argument — ``contrat.get("python_roots")`` avec ou sans
+    valeur par défaut, forme employée par les trois lanceurs
+    ``run_security_scan``, ``run_pack_validation`` et ``run_codeql_scan``. Le
+    déballage ``[*contrat.get("python_roots")]`` n'a besoin d'aucune règle
+    propre : l'accès qu'il enveloppe est retrouvé par le parcours de
+    l'expression, qui descend jusqu'à lui.
+
+    Le premier argument suffit, et le nom de l'APPELÉ est délibérément ignoré :
+    c'est la clé demandée qui porte le sens, jamais l'orthographe de la méthode
+    d'accès. Une tranche — ``[:1]``, ``[1:]`` — n'est pas une clé littérale : la
+    troncature n'est donc jamais prise pour la lecture qu'elle réduit.
+    """
+    if isinstance(noeud, ast.Subscript):
+        index = noeud.slice
+        return index.value if isinstance(index, ast.Constant) and isinstance(index.value, str) else None
+    if isinstance(noeud, ast.Call) and noeud.args:
+        premier = noeud.args[0]
+        return premier.value if isinstance(premier, ast.Constant) and isinstance(premier.value, str) else None
+    return None
+
+
 def _est_source_de_racines(noeud: ast.expr) -> bool:
     """Prouve qu'une expression REND les racines contractuelles telles quelles.
 
-    Deux formes le prouvent : le nom consacré de la collection de racines, et
-    l'appel dont le nom annonce leur chargement. Une telle expression est
-    décidable par DÉLÉGATION au contrat — c'est la forme attendue d'un lanceur —
-    même si sa valeur n'est pas lisible dans le fichier.
+    Trois formes le prouvent : le nom consacré de la collection de racines,
+    l'appel dont le nom annonce leur chargement, et la LECTURE du champ du
+    contrat ``core/quality-scopes.toml`` qui les déclare. Une telle expression
+    est décidable par DÉLÉGATION au contrat — c'est la forme attendue d'un
+    lanceur — même si sa valeur n'est pas lisible dans le fichier.
+
+    La troisième forme manquait, et l'angle mort était MESURÉ : dans un lanceur,
+    ``contrat.get("python_roots")[:1]`` tronquait le périmètre sans être
+    signalé, quand le témoin ``charger_racines_qualite()[:1]`` l'était. La
+    reconnaissance s'appuyait sur le nom de l'appelé — ``get`` pour un accès au
+    contrat, qui ne contient ni « racine » ni « root ». Le porteur de sens est
+    la CLÉ demandée, seule à nommer le champ contractuel des racines.
     """
+    if _cle_contractuelle_lue(noeud) in _CLES_CONTRACTUELLES_RACINES:
+        return True
     if isinstance(noeud, ast.Name):
         return noeud.id in _NOMS_ITERABLES_RACINES
     if isinstance(noeud, ast.Call):
