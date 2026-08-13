@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+import tokenize
 from pathlib import Path
 from typing import Final
 
@@ -1661,3 +1662,376 @@ def test_accepte_un_attribut_homonyme_qui_nest_pas_une_levee(tmp_path: Path) -> 
     )
 
     assert "NOT_IMPLEMENTED_STUB" not in _codes(_scanner(repo))
+
+
+def _workflow_commande_requise_citee(repo: Path, chemin: str, commande: str) -> None:
+    """Écrit un job requis dont l'unique étape cite sa commande, accolades comprises.
+
+    La citation YAML est indispensable ici : les commandes mesurées contiennent
+    des indicateurs de flux qu'un scalaire nu rendrait ambigus.
+    """
+    citee = commande.replace("'", "''")
+    _ecrire(
+        repo,
+        chemin,
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        f"      - run: '{citee}'\n",
+    )
+
+
+def test_refuse_un_groupe_daccolades_de_repli_apres_or_dans_un_job_requis(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un groupe { … } derrière || absorbe l'échec du contrôle requis."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise_citee(
+        repo,
+        ".github/workflows/n.yml",
+        "python3 gate.py || { :; }",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_groupe_de_parentheses_de_repli_apres_or_dans_un_job_requis(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le sous-shell ( … ) neutralise l'échec exactement comme { … }."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise_citee(
+        repo,
+        ".github/workflows/o.yml",
+        "python3 gate.py || ( : )",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_groupe_de_repli_qui_journalise_sans_propager_lechec(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un groupe de repli qui se contente de journaliser reste un contournement."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise_citee(
+        repo,
+        ".github/workflows/p.yml",
+        'python3 gate.py || { echo "gate ignoré" >&2; }',
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_groupe_de_repli_termine_par_exit_zero(tmp_path: Path) -> None:
+    """Prouve qu'une sortie nulle en fin de groupe reste une absorption de l'échec."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise_citee(
+        repo,
+        ".github/workflows/q.yml",
+        'python3 gate.py || { echo "toléré"; exit 0; }',
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_groupe_de_repli_dont_la_sortie_nulle_est_gardee(
+    tmp_path: Path,
+) -> None:
+    """Prouve le refus par la règle des groupes seule, hors portée de la garde exit 0.
+
+    La sortie nulle est ici conditionnelle, donc acceptée par
+    ``_contient_exit_zero_non_garde`` : seule l'analyse du groupe de repli
+    constate que l'étape se termine malgré tout en succès.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise_citee(
+        repo,
+        ".github/workflows/ab.yml",
+        "python3 gate.py || ( if true; then exit 0; fi )",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_groupe_de_repli_contenant_une_substitution_de_commande(
+    tmp_path: Path,
+) -> None:
+    """Prouve que les parenthèses internes de $( … ) ne referment pas le groupe trop tôt."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise_citee(
+        repo,
+        ".github/workflows/r.yml",
+        "python3 gate.py || { echo $(date); }",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_accepte_un_groupe_apres_or_termine_par_exit_non_nul(tmp_path: Path) -> None:
+    """Prouve qu'un groupe qui sort en non nul propage l'échec et n'est donc pas signalé."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise_citee(
+        repo,
+        ".github/workflows/s.yml",
+        'python3 gate.py || { echo "échec du gate" >&2; exit 1; }',
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
+def test_accepte_un_groupe_apres_or_termine_par_false(tmp_path: Path) -> None:
+    """Prouve que false en fin de groupe propage l'échec autant qu'un exit non nul."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise_citee(
+        repo,
+        ".github/workflows/t.yml",
+        'python3 gate.py || { echo "échec du gate" >&2; false; }',
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
+def test_accepte_un_groupe_de_repli_ecrit_dans_une_chaine_shell(tmp_path: Path) -> None:
+    """Prouve que le motif cité dans une chaîne shell reste une donnée, pas du code."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise_citee(
+        repo,
+        ".github/workflows/u.yml",
+        'python3 gate.py && echo "interdit : cmd || { :; }"',
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
+def test_refuse_un_job_requis_dont_la_liste_detapes_est_vide(tmp_path: Path) -> None:
+    """Prouve qu'un job requis à steps vide est un gate désarmé, pas un job valide."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/v.yml",
+        "jobs: {gates: {runs-on: ubuntu-latest, steps: []}}\n",
+    )
+
+    assert "REQUIRED_JOB_SANS_ETAPE" in _codes(_scanner(repo))
+
+
+def test_refuse_un_job_requis_dont_la_seule_etape_est_nulle(tmp_path: Path) -> None:
+    """Prouve qu'une étape nulle n'est pas silencieusement sautée sur un job requis."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/w.yml",
+        "jobs: {gates: {runs-on: ubuntu-latest, steps: [null]}}\n",
+    )
+
+    assert "REQUIRED_JOB_SANS_ETAPE" in _codes(_scanner(repo))
+
+
+def test_refuse_un_job_requis_dont_aucune_etape_nexecute_run_ou_uses(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'une étape sans run ni uses n'exécute aucun contrôle et ne compte pas."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/x.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - name: étape décorative\n",
+    )
+
+    assert "REQUIRED_JOB_SANS_ETAPE" in _codes(_scanner(repo))
+
+
+def test_refuse_un_job_requis_sans_steps_ni_uses(tmp_path: Path) -> None:
+    """Prouve qu'un job requis dépourvu de steps et de uses n'exécute rien du tout."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/y.yml",
+        "jobs:\n  gates:\n    runs-on: ubuntu-latest\n",
+    )
+
+    assert "REQUIRED_JOB_SANS_ETAPE" in _codes(_scanner(repo))
+
+
+def test_accepte_un_job_requis_appelant_un_workflow_reutilisable_sans_steps(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'appel d'un workflow réutilisable reste une exécution légitime."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/z.yml",
+        "jobs:\n  gates:\n    uses: ./.github/workflows/reutilisable.yml\n",
+    )
+
+    assert "REQUIRED_JOB_SANS_ETAPE" not in _codes(_scanner(repo))
+
+
+def test_accepte_un_job_non_requis_dont_la_liste_detapes_est_vide(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le refus des jobs vides reste borné aux identifiants du contrat."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/aa.yml",
+        "jobs: {rapport-optionnel: {runs-on: ubuntu-latest, steps: []}}\n",
+    )
+
+    assert "REQUIRED_JOB_SANS_ETAPE" not in _codes(_scanner(repo))
+
+
+def _tokenisation_impossible(readline: object) -> object:
+    """Simule un flux dont la tokenisation casse là où l'analyse AST a réussi.
+
+    Aucune source réelle acceptée par ``ast.parse`` et refusée par ``tokenize``
+    n'a pu être construite sur CPython 3.12 ; l'exception est donc injectée,
+    ce qui mesure exactement la branche de repli du gate.
+    """
+    raise tokenize.TokenError("EOF in multi-line statement", (3, 0))
+
+
+def test_refuse_un_fichier_dont_la_tokenisation_echoue(tmp_path: Path) -> None:
+    """Prouve qu'un fichier intokenisable est une violation, jamais un silence."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(repo, "src/service.py", "valeur = 1\n")
+
+    with pytest.MonkeyPatch.context() as contexte:
+        contexte.setattr(tokenize, "generate_tokens", _tokenisation_impossible)
+        violations = _scanner(repo)
+
+    assert "FICHIER_NON_ANALYSABLE" in _codes(violations)
+
+
+def test_signale_la_ligne_rapportee_par_lechec_de_tokenisation(tmp_path: Path) -> None:
+    """Prouve que la position rendue par tokenize est reportée dans la violation."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(repo, "src/service.py", "valeur = 1\n")
+
+    with pytest.MonkeyPatch.context() as contexte:
+        contexte.setattr(tokenize, "generate_tokens", _tokenisation_impossible)
+        violations = _scanner(repo)
+
+    lignes = {
+        violation.line
+        for violation in violations
+        if violation.code == "FICHIER_NON_ANALYSABLE"
+    }
+    assert lignes == {3}
+
+
+def _sortie_git(repo: Path, *arguments: str) -> str:
+    """Exécute git et retourne sa sortie, tout échec devenant une erreur explicite."""
+    resultat = subprocess.run(
+        ["git", *arguments],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return resultat.stdout.strip()
+
+
+def _commiter_sans_hook(repo: Path, message: str) -> None:
+    """Commite l'index par la plomberie Git, qui n'exécute aucun hook local.
+
+    Les fixtures de ces cas contiennent volontairement des stubs : un
+    ``git commit`` ordinaire serait refusé par les hooks qualité de la machine.
+    ``write-tree`` puis ``commit-tree`` et ``update-ref`` produisent le même
+    historique réel sans passer par eux.
+    """
+    _executer_git(repo, "add", "--all")
+    arbre = _sortie_git(repo, "write-tree")
+    parent = _sortie_git(repo, "rev-parse", "HEAD")
+    commit = _sortie_git(repo, "commit-tree", arbre, "-p", parent, "-m", message)
+    _executer_git(repo, "update-ref", "HEAD", commit)
+
+
+def test_un_stub_preexistant_non_modifie_reste_refuse_choix_delibere(
+    tmp_path: Path,
+) -> None:
+    """Verrouille le partage délibéré : _analyser_stubs juge l'ÉTAT, pas le diff.
+
+    Le fichier est commité puis laissé intact : aucune de ses lignes n'appartient
+    au diff, ce que prouve le silence de la règle diff-aware sur son marqueur de
+    dette. Le stub, lui, doit rester refusé. Filtrer _analyser_stubs par le diff
+    laisserait vivre indéfiniment toute dette déjà commitée : ce test rougit
+    précisément si quelqu'un aligne cette règle sur les règles diff-aware.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "# " + "TO" + "DO traiter ce cas\ndef calculer() -> None:\n    pass\n",
+    )
+    _commiter_sans_hook(repo, "stub préexistant")
+
+    codes = _codes(_scanner(repo))
+    assert "FORBIDDEN_MARKER" not in codes
+    assert "EXECUTABLE_PASS" in codes
+
+
+def test_une_racine_omise_preexistante_non_modifiee_reste_refusee_choix_delibere(
+    tmp_path: Path,
+) -> None:
+    """Verrouille le même partage pour _analyser_omissions_racines, jugée sur l'ÉTAT.
+
+    Une racine contractuelle absente du lanceur sécurité est un trou de périmètre
+    permanent, pas un ajout : le filtrer par le diff le rendrait invisible dès le
+    commit suivant. Le silence de la règle diff-aware sur le marqueur de dette du
+    même fichier prouve que rien de ce fichier n'appartient au diff mesuré.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "core/scripts/run_security_scan.py",
+        "# " + "TO" + "DO traiter ce cas\n"
+        'argv = ["bandit", "-r", "core/src", "core/scripts", "scripts"]\n',
+    )
+    _commiter_sans_hook(repo, "périmètre incomplet préexistant")
+
+    codes = _codes(_scanner(repo, ("core/scripts",)))
+    assert "FORBIDDEN_MARKER" not in codes
+    assert "SCOPE_ROOT_OMITTED" in codes
+
+
+def test_un_marqueur_de_dette_preexistant_non_modifie_reste_accepte_choix_delibere(
+    tmp_path: Path,
+) -> None:
+    """Verrouille l'autre moitié du partage : les marqueurs ne jugent QUE les ajouts.
+
+    Un marqueur de dette est un ajout de dette, pas un état : ne juger que les
+    lignes ajoutées évite de bloquer sur l'historique. Ce test rougit si quelqu'un
+    étend cette règle à tout le dépôt.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "# " + "TO" + "DO traiter ce cas\nvaleur = 1\n",
+    )
+    _commiter_sans_hook(repo, "marqueur de dette préexistant")
+
+    assert "FORBIDDEN_MARKER" not in _codes(_scanner(repo))

@@ -51,6 +51,12 @@ _FIN_CASE_SHELL: Final[re.Pattern[str]] = re.compile(
 _FALLBACK_SHELL: Final[re.Pattern[str]] = re.compile(
     r"\|\|\s*(?P<command>true|:|echo\b|printf\b|exit\s+0(?=$|[^A-Za-z0-9_]))"
 )
+_GROUPE_APRES_OU: Final[re.Pattern[str]] = re.compile(r"\|\|\s*(?P<ouverture>[{(])")
+_SEPARATEUR_COMMANDE_SHELL: Final[re.Pattern[str]] = re.compile(r";|\n|&&")
+_SORTIE_NON_NULLE: Final[re.Pattern[str]] = re.compile(
+    r"^(?:exit|return)\s+(?P<code>[0-9]+)(?![0-9])"
+)
+_COMMANDES_ECHOUANT_TOUJOURS: Final[frozenset[str]] = frozenset({"false"})
 _JETONS_SHELL: Final[re.Pattern[str]] = re.compile(
     f"(?P<ouvre>{_IF_SHELL.pattern}|{_CASE_SHELL.pattern})"
     f"|(?P<ferme>{_FIN_IF_SHELL.pattern}|{_FIN_CASE_SHELL.pattern})"
@@ -926,13 +932,27 @@ def _suppression_justifiee(commentaire: str) -> bool:
     return True
 
 
+def _ligne_de_tokenisation(erreur: tokenize.TokenError) -> int:
+    """Extrait la ligne rapportée par tokenize, à défaut la première du fichier."""
+    if len(erreur.args) >= 2:
+        position = erreur.args[1]
+        if isinstance(position, tuple) and position and isinstance(position[0], int):
+            return max(1, position[0])
+    return 1
+
+
 def _analyser_commentaires(
     repo: Path,
     fichier: Path,
     contenu: str,
     lignes: set[int],
 ) -> list[Violation]:
-    """Analyse exclusivement les tokens COMMENT appartenant aux lignes ajoutées."""
+    """Analyse exclusivement les tokens COMMENT appartenant aux lignes ajoutées.
+
+    Un fichier accepté par l'AST mais refusé par le tokeniseur ne rend aucun
+    commentaire lisible : il est signalé en fail-closed, jamais tu, conformément
+    à la règle du dépôt qui traite l'inanalysable comme une violation.
+    """
     violations: list[Violation] = []
     try:
         for jeton in tokenize.generate_tokens(StringIO(contenu).readline):
@@ -959,8 +979,17 @@ def _analyser_commentaires(
                         "la suppression de contrôle n'a pas de justification structurée",
                     )
                 )
-    except tokenize.TokenError:
-        return violations
+    except tokenize.TokenError as erreur:
+        message = erreur.args[0] if erreur.args else erreur
+        violations.append(
+            _violation(
+                "FICHIER_NON_ANALYSABLE",
+                repo,
+                fichier,
+                _ligne_de_tokenisation(erreur),
+                f"tokenisation impossible : {message}",
+            )
+        )
     return violations
 
 
@@ -970,7 +999,33 @@ def _analyser_fichier_python(
     base_ref: str,
     racines_contractuelles: tuple[str, ...] | None,
 ) -> list[Violation]:
-    """Analyse un fichier Python et refuse toute lecture ou syntaxe invalide."""
+    """Analyse un fichier Python et refuse toute lecture ou syntaxe invalide.
+
+    Partage DÉLIBÉRÉ du périmètre entre les règles — à ne pas « harmoniser » :
+
+    Règles jugées sur l'ÉTAT du dépôt, fichier entier, diff ignoré :
+
+    - ``_analyser_stubs`` : un stub est un défaut de l'état livré, pas un ajout.
+      Le filtrer par le diff laisserait vivre indéfiniment tout stub déjà
+      commité, qu'aucun commit ultérieur ne toucherait plus jamais.
+    - ``_analyser_omissions_racines`` : une racine contractuelle absente d'un
+      lanceur est un trou de périmètre permanent ; réduite au diff, l'omission
+      deviendrait invisible dès le commit suivant, et le périmètre non couvert
+      resterait non couvert sans que rien ne le signale.
+
+    Règles jugées sur le DIFF, lignes ajoutées seulement :
+
+    - ``_analyser_ast_diff`` : un test sans oracle, une assertion triviale ou un
+      skip sont des AJOUTS de dette ; ne juger que les lignes ajoutées cible
+      l'acte du contributeur sans bloquer sur l'historique hérité.
+    - ``_analyser_commentaires`` : un marqueur de dette et une suppression de
+      contrôle sont des ajouts de la même nature, jugés à la même borne.
+
+    Le dépôt est à zéro violation : les deux règles d'état ne coûtent donc rien
+    aujourd'hui et garantissent qu'il en reste ainsi. Ce partage est verrouillé
+    par les tests nommés ``…_choix_delibere`` de
+    ``scripts/tests/test_no_stub_gate.py``.
+    """
     try:
         contenu = fichier.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as erreur:
@@ -1132,11 +1187,76 @@ def _normaliser_commande(commande: str) -> str:
     return re.sub(r"\s+", "", _neutraliser_chaines_shell(commande))
 
 
+def _fin_de_groupe_shell(texte: str, ouverture: int) -> int:
+    """Retourne l'index de la fermeture du groupe shell ouvert à ``ouverture``.
+
+    Les accolades et les parenthèses sont suivies ensemble, ce qui traverse
+    correctement les substitutions ``$( … )`` internes. Un groupe jamais refermé
+    s'étend jusqu'à la fin de la commande : son contenu reste ainsi analysé au
+    lieu d'être abandonné en silence.
+    """
+    profondeur = 0
+    for index in range(ouverture, len(texte)):
+        if texte[index] in "{(":
+            profondeur += 1
+        elif texte[index] in "})":
+            profondeur -= 1
+            if profondeur == 0:
+                return index
+    return len(texte)
+
+
+def _derniere_commande_shell(groupe: str) -> str:
+    """Isole la dernière commande utile d'un groupe, seule à fixer son code de retour.
+
+    Le découpage retient ``;``, le retour à la ligne et ``&&`` : ce sont les
+    séparateurs après lesquels la commande suivante décide du statut du groupe.
+    """
+    commandes = [
+        morceau.strip()
+        for morceau in _SEPARATEUR_COMMANDE_SHELL.split(groupe)
+        if morceau.strip()
+    ]
+    return commandes[-1] if commandes else ""
+
+
+def _groupe_propage_echec(groupe: str) -> bool:
+    """Prouve qu'un groupe de repli se termine par une sortie non nulle explicite.
+
+    Seule cette forme rend l'échec au job requis. Toute autre fin — y compris un
+    ``exit 0``, un statut hérité ou une simple journalisation — laisse le groupe
+    réussir, donc absorbe l'échec de la commande gardée.
+    """
+    derniere = _derniere_commande_shell(groupe)
+    if derniere in _COMMANDES_ECHOUANT_TOUJOURS:
+        return True
+    correspondance = _SORTIE_NON_NULLE.match(derniere)
+    return correspondance is not None and int(correspondance.group("code")) % 256 != 0
+
+
+def _groupe_repli_succes(neutre: str) -> str | None:
+    """Détecte un groupe ``|| { … }`` ou ``|| ( … )`` qui absorbe l'échec.
+
+    Un groupe placé derrière ``||`` ne s'exécute que si la commande gardée a
+    échoué, et devient alors le code de retour de l'étape. Il n'est licite que
+    s'il se termine par une sortie non nulle prouvée : sans cela, le contrôle
+    requis échoue et le job réussit quand même.
+    """
+    for correspondance in _GROUPE_APRES_OU.finditer(neutre):
+        debut = correspondance.start("ouverture")
+        fin = _fin_de_groupe_shell(neutre, debut)
+        if _groupe_propage_echec(neutre[debut + 1 : fin]):
+            continue
+        return "{ … }" if neutre[debut] == "{" else "( … )"
+    return None
+
+
 def _commande_repli_succes(commande: str) -> str | None:
     """Prouve qu'une branche ``||`` se termine inconditionnellement avec succès."""
-    correspondance = _FALLBACK_SHELL.search(_neutraliser_chaines_shell(commande))
+    neutre = _neutraliser_chaines_shell(commande)
+    correspondance = _FALLBACK_SHELL.search(neutre)
     if correspondance is None:
-        return None
+        return _groupe_repli_succes(neutre)
     commande_repli = correspondance.group("command")
     if commande_repli.startswith("echo"):
         return "echo"
@@ -1387,6 +1507,36 @@ def _violation_structure_job_requis(
     )
 
 
+def _etape_execute_quelque_chose(etape: object) -> bool:
+    """Reconnaît une étape qui exécute réellement une commande ou une action.
+
+    Seuls ``run`` et ``uses`` déclenchent un travail : une étape réduite à un
+    ``name`` décoratif n'exécute aucun contrôle.
+    """
+    return isinstance(etape, Mapping) and ("run" in etape or "uses" in etape)
+
+
+def _violation_job_requis_sans_etape(
+    repo: Path,
+    fichier: Path,
+    job: str,
+    detail: str,
+) -> Violation:
+    """Refuse un job requis syntaxiquement valide qui n'exécute pourtant rien.
+
+    Un job requis vide satisfait la protection de branche sans lancer le moindre
+    contrôle : c'est un gate désarmé, plus dangereux qu'un gate absent puisque
+    la CI le rapporte vert.
+    """
+    return _violation(
+        "REQUIRED_JOB_SANS_ETAPE",
+        repo,
+        fichier,
+        1,
+        f"le job requis {job} n'exécute aucune étape : {detail}",
+    )
+
+
 def _analyser_workflow(
     repo: Path,
     fichier: Path,
@@ -1452,7 +1602,25 @@ def _analyser_workflow(
             )
             continue
         if not isinstance(etapes, list):
+            if "uses" not in definition:
+                violations.append(
+                    _violation_job_requis_sans_etape(
+                        repo,
+                        fichier,
+                        identifiant,
+                        "il ne déclare ni steps ni appel de workflow réutilisable",
+                    )
+                )
             continue
+        if not any(_etape_execute_quelque_chose(etape) for etape in etapes):
+            violations.append(
+                _violation_job_requis_sans_etape(
+                    repo,
+                    fichier,
+                    identifiant,
+                    "aucune de ses étapes ne porte run ou uses",
+                )
+            )
         for etape in etapes:
             if not isinstance(etape, Mapping):
                 continue

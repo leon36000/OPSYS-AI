@@ -610,17 +610,19 @@ def _jobs_du_workflow_core() -> dict[object, object]:
 
 def test_un_job_requis_core_ci_execute_le_gate_no_stub() -> None:
     """Un gate qu'aucun job requis n'invoque ne garantit rien : le câblage lui-même est gardé."""
-    invocations = [
-        (identifiant, commande)
-        for identifiant, definition in _jobs_du_workflow_core().items()
-        if identifiant in _CATEGORIES_EXIGEES and isinstance(definition, dict)
-        for etape in (
-            definition.get("steps") if isinstance(definition.get("steps"), list) else []
-        )
-        if isinstance(etape, dict)
-        for commande in [etape.get("run")]
-        if isinstance(commande, str) and "scripts/quality/no_stub_gate.py" in commande
-    ]
+    invocations: list[tuple[object, str]] = []
+    for identifiant, definition in _jobs_du_workflow_core().items():
+        if identifiant not in _CATEGORIES_EXIGEES or not isinstance(definition, dict):
+            continue
+        etapes = definition.get("steps")
+        if not isinstance(etapes, list):
+            continue
+        for etape in etapes:
+            if not isinstance(etape, dict):
+                continue
+            commande = etape.get("run")
+            if isinstance(commande, str) and "scripts/quality/no_stub_gate.py" in commande:
+                invocations.append((identifiant, commande))
 
     assert invocations, (
         "aucun job requis de core-ci.yml n'invoque scripts/quality/no_stub_gate.py"
