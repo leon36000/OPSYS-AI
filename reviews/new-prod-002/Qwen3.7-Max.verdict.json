@@ -1,0 +1,25 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M5-financecore/tests/test_taux_fiscaux.py",
+   "description": "Le test de rejet des valeurs infinies ne couvre explicitement que +inf. Bien que math.isfinite() gère correctement -inf, ajouter un test dédié pour -inf améliorerait la couverture explicite des cas limites.",
+   "preuve": "test_charger_taux_fiscaux_rejette_taux_infini utilise float('inf') mais aucun test n'utilise float('-inf')."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M5-financecore/src/m5_financecore/taux_fiscaux.py",
+   "description": "Utilisation de la variable 'montant' pour valider le champ 'taux'. Bien que fonctionnel et sans NameError (la variable est assignée plus haut dans la boucle), cela nuit à la lisibilité locale et semble hérité d'un copier-coller.",
+   "preuve": "Lignes 50 et 54 : 'if isinstance(montant, float)...' et 'if montant < 0...'"
+  }
+ ],
+ "date_heure": "2026-08-13T10:37:50.148332+00:00",
+ "prompt_sha256": "ab1408387ddfd713a245263a86c3d983ac4e18389762dc3ae13c023d4262f99d",
+ "reviewer_model": "Qwen3.7-Max",
+ "modele_servi": "qwen37-max-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}

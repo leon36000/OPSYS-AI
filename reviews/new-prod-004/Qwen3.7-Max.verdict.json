@@ -1,0 +1,19 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M6-material-control/src/m6_material_control/materiel.py",
+   "description": "La vérification `isinstance(quantite, float)` avant `math.isfinite()` est fonctionnelle pour les types natifs JSON (int/float), mais laisserait silencieusement passer un `Decimal('NaN')` ou `Decimal('Infinity')` si le typage des quantités venait à évoluer vers `decimal.Decimal` (pour lequel `math.isfinite` fonctionne mais `isinstance(..., float)` est faux).",
+   "preuve": "Ligne : `if isinstance(quantite, float) and not math.isfinite(quantite):`"
+  }
+ ],
+ "date_heure": "2026-08-13T10:31:36.493486+00:00",
+ "prompt_sha256": "d37393db4cbea5117eb7e320ae68ad980ee096235a8828e40aef4bdc856869f8",
+ "reviewer_model": "Qwen3.7-Max",
+ "modele_servi": "qwen37-max-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}

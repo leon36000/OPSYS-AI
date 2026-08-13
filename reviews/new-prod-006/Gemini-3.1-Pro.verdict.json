@@ -1,0 +1,19 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "Modules M/M6-material-control/src/m6_material_control/materiel.py",
+   "description": "La convention d'utiliser le dernier coût unitaire connu (basé sur la dernière RECEPTION) pour valoriser une consommation est un choix technique documenté mais discutable d'un point de vue comptable. En général, une méthode de type CMP (Coût Moyen Pondéré) ou FIFO est attendue pour éviter des sauts de valorisation si les prix d'achat fluctuent. Ce choix métier doit être explicitement challengé et validé par le Product Owner.",
+   "preuve": "Lignes 10-21 (docstring expliquant le rejet du CMP au profit du dernier coût) et ligne 28 (return maillon.get('cout_unitaire'))"
+  }
+ ],
+ "date_heure": "2026-08-13T10:43:21.228781+00:00",
+ "prompt_sha256": "562e90c52f27c4cc03ee2c66faab09ee22975fc4d111366d5d7dddb2a89ea4bb",
+ "reviewer_model": "Gemini-3.1-Pro",
+ "modele_servi": "gemini-31-pro-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "1"
+ }
+}
