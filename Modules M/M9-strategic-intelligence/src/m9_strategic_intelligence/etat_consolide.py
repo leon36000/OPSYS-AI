@@ -11,7 +11,9 @@ def construire_etat_consolide(registre_snapshots):
         module_source = maillon["module_source"]
         horodatage = maillon["horodatage"]
 
-        faits_par_module[module_source] = maillon
+        actuel = faits_par_module.get(module_source)
+        if actuel is None or horodatage >= actuel["horodatage"]:
+            faits_par_module[module_source] = maillon
 
         cle_groupe = (module_source, horodatage)
         if cle_groupe not in maillons_par_source_et_horodatage:
