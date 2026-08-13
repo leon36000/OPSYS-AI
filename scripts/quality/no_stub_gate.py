@@ -623,8 +623,8 @@ def _attributs_lies_cible(noeud: ast.expr) -> set[tuple[str, str]]:
     return set()
 
 
-def _attributs_cibles_affectation(noeud: ast.stmt) -> set[tuple[str, str]]:
-    """Extrait les attributs de module que toute liaison module-level réécrit.
+def _attributs_cibles_directes(noeud: ast.stmt) -> set[tuple[str, str]]:
+    """Extrait les attributs de module qu'une INSTRUCTION réécrit par sa cible.
 
     Surveiller les seules cibles ``ast.Name`` laissait ``typing.Protocol =
     object`` intact : le nom du module survit, mais l'attribut par lequel
@@ -636,6 +636,18 @@ def _attributs_cibles_affectation(noeud: ast.stmt) -> set[tuple[str, str]]:
     donc exempter un code qui ne s'importe même pas. La symétrie avec
     ``_noms_cibles_directes``, qui compte déjà le ``del`` d'un NOM, est ici
     rétablie pour les attributs.
+
+    L'affectation AUGMENTÉE fermait la dernière asymétrie de cette liste : le
+    chemin des noms la lisait, celui des attributs non, si bien que
+    ``t.Protocol += ()`` laissait l'exemption debout. MESURÉ à l'interpréteur,
+    la forme réécrit pourtant l'attribut du module aussi sûrement qu'une
+    affectation simple — un module n'a pas de ``__iadd__``, l'opération retombe
+    sur ``__add__`` puis réaffecte la cible.
+
+    Les autres formes liantes du chemin des noms n'ont PAS d'équivalent ici, et
+    l'absence est mesurée, pas supposée : ``except … as t.X``, ``(t.X := …)`` et
+    la capture ``case t.X`` sont soit refusées par la grammaire, soit — pour le
+    ``case`` — un motif de VALEUR qui lit l'attribut sans jamais le lier.
     """
     if isinstance(noeud, ast.Assign):
         return set().union(
@@ -647,6 +659,8 @@ def _attributs_cibles_affectation(noeud: ast.stmt) -> set[tuple[str, str]]:
             set(),
         )
     if isinstance(noeud, ast.AnnAssign):
+        return _attributs_lies_cible(noeud.target)
+    if isinstance(noeud, ast.AugAssign):
         return _attributs_lies_cible(noeud.target)
     if isinstance(noeud, (ast.For, ast.AsyncFor)):
         return _attributs_lies_cible(noeud.target)
@@ -660,6 +674,54 @@ def _attributs_cibles_affectation(noeud: ast.stmt) -> set[tuple[str, str]]:
             set(),
         )
     return set()
+
+
+def _attributs_lies_par_comprehension(noeud: ast.stmt) -> set[tuple[str, str]]:
+    """Extrait les attributs de module qu'une CIBLE de compréhension réécrit.
+
+    C'est le seul point où les deux chemins doivent DIVERGER, et ne pas diverger
+    était le défaut. La portée d'une compréhension confine le NOM qu'elle lie —
+    raison pour laquelle ``_noms_lies_par_expression_daffectation`` l'ignore à
+    dessein — mais elle ne confine rien du tout pour un ATTRIBUT : MESURÉ à
+    l'interpréteur, ``[1 for t.Protocol in (object,)]`` écrase l'attribut du
+    module tout comme une affectation ordinaire, la portée ne protégeant que le
+    dictionnaire local, jamais l'objet module visé.
+
+    Les sous-expressions sont parcourues parce qu'une compréhension n'est jamais
+    une instruction : ``x = [1 for t.Protocol in (object,)]`` la cache derrière
+    une affectation dont la cible est un simple nom, et ne lire que le premier
+    niveau la manquerait entièrement.
+
+    Les portées PROPRES sont sautées via ``_enfants_hors_corps`` : MESURÉ,
+    ``f = lambda: [1 for t.Protocol in (object,)]`` n'écrit rien tant que ``f``
+    n'est pas appelée, et révoquer là serait un faux positif.
+
+    La cible d'un GÉNÉRATEUR est comptée sans exiger la preuve qu'il soit
+    consommé : l'analyse est fail-closed, comme l'est déjà le mépris de l'ORDRE
+    des instructions. Retenir l'attribut coûte au pire une exemption refusée là
+    où le générateur dort ; l'ignorer rouvrirait le contournement dès qu'un
+    appel l'entoure.
+    """
+    attributs: set[tuple[str, str]] = set()
+    pile: list[ast.AST] = _enfants_hors_corps(noeud)
+    while pile:
+        courant = pile.pop()
+        if isinstance(courant, ast.comprehension):
+            attributs |= _attributs_lies_cible(courant.target)
+        pile.extend(_enfants_hors_corps(courant))
+    return attributs
+
+
+def _attributs_cibles_affectation(noeud: ast.stmt) -> set[tuple[str, str]]:
+    """Extrait TOUS les attributs de module qu'une liaison module-level réécrit.
+
+    Les deux sources sont réunies ici, à un seul endroit, exactement comme
+    ``_noms_cibles_affectation`` réunit les siennes : la CIBLE déclarée de
+    l'instruction, et la cible d'une COMPRÉHENSION écrite n'importe où dans ses
+    sous-expressions. Séparer les deux collectes et les rassembler ici empêche
+    qu'un appelant n'en oublie une.
+    """
+    return _attributs_cibles_directes(noeud) | _attributs_lies_par_comprehension(noeud)
 
 
 def _valeur_prouve_une_absence(valeur: ast.expr, noms_prouves: AbstractSet[str]) -> bool:

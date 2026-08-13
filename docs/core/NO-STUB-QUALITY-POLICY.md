@@ -1333,6 +1333,72 @@ class Service(t.Protocol):
     def calculer(self) -> str: ...   # accepté — la preuve visée est intacte
 ```
 
+##### Le chemin ATTRIBUT lit les mêmes formes d'écriture que le chemin NOM
+
+Le vrai défaut n'était pas une règle manquante mais une **asymétrie** : deux
+collectes parallèles — l'une pour les noms nus, l'autre pour les attributs de
+module — ne lisaient pas les mêmes formes d'écriture. Chaque forme a été
+MESURÉE, à l'interpréteur puis contre le gate, avant d'être retenue ou écartée.
+
+| Forme d'écriture sur `t.Protocol` | Attribut réellement écrasé ? | Chemin NOM | Chemin ATTRIBUT (avant) | Verdict |
+| --- | --- | --- | --- | --- |
+| `t.Protocol = object` | oui | lu | lu | conforme |
+| `t.Protocol: object = object` (`AnnAssign`) | oui | lu | lu | conforme |
+| `del t.Protocol` | oui (attribut absent) | lu | lu | conforme |
+| `for t.Protocol in (object,)` | oui | lu | lu | conforme |
+| `with cm as t.Protocol` | oui | lu | lu | conforme |
+| `t.Protocol += ()` (`AugAssign`) | oui | lu | **ignoré** | **EN DÉFAUT — corrigé** |
+| `[1 for t.Protocol in (object,)]` | oui | écarté à dessein | **ignoré** | **EN DÉFAUT — corrigé** |
+| `case t.Protocol:` | non — motif de VALEUR, il lit sans lier | lu (capture) | ignoré | correct, aucun changement |
+| `except … as t.Protocol` | forme refusée par la grammaire | lu (nom nu) | sans objet | correct, aucun changement |
+| `(t.Protocol := object)` | forme refusée par la grammaire | lu (nom nu) | sans objet | correct, aucun changement |
+
+**L'affectation augmentée d'un attribut** écrit le module aussi sûrement qu'une
+affectation simple — un module n'a pas d'`__iadd__`, l'opération retombe sur
+`__add__` puis réaffecte la cible. Le témoin sur le NOM était déjà refusé ; seul
+le chemin attribut laissait passer.
+
+```python
+import typing as t
+t.Protocol += ()
+
+class Service(t.Protocol):
+    def calculer(self) -> str: ...   # refusé — l'attribut prouvant a été réécrit
+
+import typing as t
+t.Any += ()                          # attribut sans rapport
+
+class Service(t.Protocol):
+    def calculer(self) -> str: ...   # accepté — la preuve visée est intacte
+```
+
+**La cible de compréhension est le seul point où les deux chemins doivent
+DIVERGER**, et ne pas diverger était précisément le défaut. La portée d'une
+compréhension confine le NOM qu'elle lie — raison pour laquelle il est écarté
+plus haut, mesures à l'appui — mais elle ne confine rien pour un ATTRIBUT :
+elle ne protège que son dictionnaire local, jamais l'objet module visé.
+
+```python
+import typing as t
+x = [1 for t.Protocol in (object,)]   # écrase bien t.Protocol — MESURÉ
+
+class Service(t.Protocol):
+    def calculer(self) -> str: ...    # refusé
+
+import typing as t
+f = lambda: [1 for t.Protocol in (object,)]   # portée PROPRE : rien n'est écrit
+
+class Service(t.Protocol):
+    def calculer(self) -> str: ...    # accepté — `f` n'est jamais appelée
+```
+
+Les sous-expressions sont parcourues, une compréhension n'étant jamais une
+instruction : `x = [...]` la cacherait sinon derrière une affectation dont la
+cible est un simple nom. Les portées propres — fonction, lambda, classe — sont
+sautées, exactement comme le fait le chemin des noms. La cible d'un
+**générateur** est retenue sans exiger la preuve qu'il soit consommé : l'analyse
+est fail-closed, comme l'est déjà son mépris de l'ORDRE des instructions.
+
 **L'affectation déclarée `global`.** L'exemption des affectations locales repose
 sur leur portée ; `global` la supprime explicitement, et la liaison atteint alors
 le module. La déclaration seule ne suffit pas : le nom doit aussi être affecté

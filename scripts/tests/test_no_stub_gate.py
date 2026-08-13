@@ -6108,6 +6108,157 @@ def test_accepte_un_module_typing_dont_un_autre_attribut_est_supprime(
     assert _codes(_scanner(repo)) == set()
 
 
+def test_refuse_un_protocol_reaffecte_par_affectation_augmentee_dattribut(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'affectation AUGMENTÉE d'un attribut détruit la preuve d'origine.
+
+    Le chemin des NOMS comptait déjà ``ast.AugAssign`` ; celui des ATTRIBUTS ne
+    le lisait pas. MESURÉ à l'interpréteur, ``t.Protocol += ()`` réécrit bien
+    l'attribut du module : la classe qui en hérite ensuite ne dérive plus du
+    protocole de la bibliothèque standard, et l'exemption ne repose plus sur rien.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "import typing as t\n\nt.Protocol += ()\n\n\n"
+        "class Service(t.Protocol):\n    def calculer(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_abstractmethod_reaffecte_par_affectation_augmentee_dattribut(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'affectation augmentée vise la PREUVE, pas le seul nom Protocol."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/base.py",
+        "import abc\n\nabc.abstractmethod += ()\n\n\n"
+        "class Socle:\n    @abc.abstractmethod\n"
+        "    def calculer(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_accepte_un_module_typing_dont_un_autre_attribut_est_augmente(
+    tmp_path: Path,
+) -> None:
+    """Prouve que seule l'augmentation de l'attribut PROUVANT retire l'exemption.
+
+    Sans cette borne, traiter ``ast.AugAssign`` reviendrait à condamner tout
+    module dont un attribut sans rapport est modifié — MESURÉ à l'interpréteur,
+    ``t.Any += ()`` laisse ``t.Protocol`` intact.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "import typing as t\n\nt.Any += ()\n\n\n"
+        "class Service(t.Protocol):\n    def calculer(self) -> str: ...\n",
+    )
+
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_refuse_un_protocol_reaffecte_par_cible_de_comprehension_dattribut(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'une cible de compréhension ATTRIBUT écrase bien le module.
+
+    Ici les deux chemins doivent DIVERGER, et ne pas diverger était le défaut.
+    MESURÉ à l'interpréteur : ``[1 for Protocol in (object,)]`` laisse le NOM du
+    module intact — la portée de la compréhension le confine — tandis que
+    ``[1 for t.Protocol in (object,)]`` réécrit l'ATTRIBUT du module, qu'aucune
+    portée ne protège. La compréhension est lue jusque dans les
+    sous-expressions, un simple ``x = [...]`` suffisant sinon à la cacher.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "import typing as t\n\nx = [1 for t.Protocol in (object,)]\n\n\n"
+        "class Service(t.Protocol):\n    def calculer(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_abstractmethod_reaffecte_par_cible_de_generateur(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le générateur lie sa cible attribut comme la compréhension."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/base.py",
+        "import abc\n\nlist(1 for abc.abstractmethod in (staticmethod,))\n\n\n"
+        "class Socle:\n    @abc.abstractmethod\n"
+        "    def calculer(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_accepte_un_protocol_dont_le_nom_nu_est_cible_de_comprehension(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la cible de compréhension d'un NOM reste confinée à sa portée.
+
+    MESURÉ à l'interpréteur, après ``[1 for Protocol in (object,)]`` le nom du
+    module vaut toujours le protocole importé : révoquer ici serait un faux
+    positif, et c'est la raison pour laquelle les deux chemins divergent.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "from typing import Protocol\n\n[1 for Protocol in (object,)]\n\n\n"
+        "class Service(Protocol):\n    def calculer(self) -> str: ...\n",
+    )
+
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_accepte_une_comprehension_dattribut_enfermee_dans_un_lambda(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la compréhension d'un corps de lambda n'écrit rien à l'import.
+
+    MESURÉ à l'interpréteur, ``f = lambda: [1 for t.Protocol in (object,)]``
+    laisse l'attribut intact tant que ``f`` n'est pas appelée : la collecte doit
+    donc sauter les portées PROPRES, exactement comme le fait le chemin des noms.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "import typing as t\n\nf = lambda: [1 for t.Protocol in (object,)]\n\n\n"
+        "class Service(t.Protocol):\n    def calculer(self) -> str: ...\n",
+    )
+
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_accepte_un_module_typing_dont_un_autre_attribut_est_en_comprehension(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la compréhension ne révoque que l'attribut PROUVANT."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "import typing as t\n\nx = [1 for t.Any in (object,)]\n\n\n"
+        "class Service(t.Protocol):\n    def calculer(self) -> str: ...\n",
+    )
+
+    assert _codes(_scanner(repo)) == set()
+
+
 def test_refuse_une_absence_dimplementation_aliasee_par_destructuration(
     tmp_path: Path,
 ) -> None:
