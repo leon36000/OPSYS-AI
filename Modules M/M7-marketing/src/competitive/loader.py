@@ -3,7 +3,11 @@ from pathlib import Path
 
 
 def load_fixture(slug: str, base_fixtures: str = ".") -> dict:
-    base = Path(base_fixtures) / slug
+    base_root = Path(base_fixtures).resolve()
+    base = (base_root / slug).resolve()
+    if base != base_root and base_root not in base.parents:
+        raise ValueError(f"slug hors du répertoire de fixtures autorisé : {slug!r}")
+
     meta_path = base / "meta.yaml"
     index_path = base / "index.html"
     robots_path = base / "robots.txt"
