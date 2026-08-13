@@ -7,11 +7,8 @@ def _load_stopwords(path: str) -> Set[str]:
     Retourne un set vide si le chemin est vide ou le fichier inaccessible."""
     if not path:
         return set()
-    try:
-        with open(path, encoding="utf-8") as f:
-            lines = [line.strip() for line in f]
-    except Exception:
-        return set()
+    with open(path, encoding="utf-8") as f:
+        lines = [line.strip() for line in f]
     return {line.lower() for line in lines if line}
 
 
