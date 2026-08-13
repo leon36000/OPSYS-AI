@@ -7,21 +7,14 @@ TYPES_MOUVEMENT_VALIDES = frozenset(
 )
 HASH_PREDECESSEUR_INITIAL = ""
 
+_CHAMPS_MOUVEMENT_REQUIS = {"type_mouvement", "chantier_id", "materiau_id", "quantite", "cout_unitaire"}
+
 
 class Registre:
     def __init__(self):
         self._maillons = []
 
-    def ajouter(self, mouvement):
-        if mouvement["type_mouvement"] not in TYPES_MOUVEMENT_VALIDES:
-            return None, "REJ-MOUVEMENT-TYPE-INVALIDE"
-
-        index = len(self._maillons)
-        hash_precedent = (
-            self._maillons[-1]["hash_maillon"]
-            if self._maillons
-            else HASH_PREDECESSEUR_INITIAL
-        )
+    def _construire_maillon(self, mouvement, index, hash_precedent):
         hash_maillon = encodage.empreinte(
             index,
             mouvement["type_mouvement"],
@@ -31,7 +24,7 @@ class Registre:
             mouvement["cout_unitaire"],
             hash_precedent,
         )
-        maillon = {
+        return {
             "index": index,
             "type_mouvement": mouvement["type_mouvement"],
             "chantier_id": mouvement["chantier_id"],
@@ -41,21 +34,41 @@ class Registre:
             "hash_precedent": hash_precedent,
             "hash_maillon": hash_maillon,
         }
+
+    def ajouter(self, mouvement):
+        if not _CHAMPS_MOUVEMENT_REQUIS.issubset(mouvement.keys()):
+            return None, "REJ-MOUVEMENT-STRUCTURE-INVALIDE"
+        if mouvement["type_mouvement"] not in TYPES_MOUVEMENT_VALIDES:
+            return None, "REJ-MOUVEMENT-TYPE-INVALIDE"
+
+        hash_precedent = (
+            self._maillons[-1]["hash_maillon"]
+            if self._maillons
+            else HASH_PREDECESSEUR_INITIAL
+        )
+        maillon = self._construire_maillon(mouvement, len(self._maillons), hash_precedent)
         self._maillons.append(maillon)
         return copy.deepcopy(maillon), None
 
     def ajouter_lot(self, mouvements):
         for mouvement in mouvements:
+            if not _CHAMPS_MOUVEMENT_REQUIS.issubset(mouvement.keys()):
+                return None, "REJ-MOUVEMENT-STRUCTURE-INVALIDE"
             if mouvement["type_mouvement"] not in TYPES_MOUVEMENT_VALIDES:
                 return None, "REJ-MOUVEMENT-TYPE-INVALIDE"
 
-        maillons = []
-        for mouvement in mouvements:
-            maillon, erreur = self.ajouter(mouvement)
-            if erreur is not None:
-                return None, erreur
-            maillons.append(maillon)
-        return copy.deepcopy(maillons), None
+        maillons_construits = []
+        hash_precedent = (
+            self._maillons[-1]["hash_maillon"]
+            if self._maillons
+            else HASH_PREDECESSEUR_INITIAL
+        )
+        for i, mouvement in enumerate(mouvements):
+            maillon = self._construire_maillon(mouvement, len(self._maillons) + i, hash_precedent)
+            maillons_construits.append(maillon)
+            hash_precedent = maillon["hash_maillon"]
+        self._maillons.extend(maillons_construits)
+        return copy.deepcopy(maillons_construits), None
 
     def lire(self):
         return copy.deepcopy(self._maillons)
