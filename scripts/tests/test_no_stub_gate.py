@@ -6,7 +6,9 @@ import subprocess
 from pathlib import Path
 from typing import Final
 
-from scripts.quality.no_stub_gate import Violation, scan_repository
+import pytest
+
+from scripts.quality.no_stub_gate import Violation, main, scan_repository
 
 
 _BASE_REF: Final[str] = "HEAD"
@@ -242,12 +244,12 @@ def test_refuse_abstractmethod_local_usurpe(tmp_path: Path) -> None:
 
 
 def test_refuse_raise_not_implemented_error(tmp_path: Path) -> None:
-    """Prouve qu'une levée de NotImplementedError ne masque pas une absence d'implémentation."""  # proof:allow — fixture/constante du gate NO-STUB : ce motif EST le sujet du test
+    """Prouve qu'une levée de NotImplementedError ne masque pas une absence d'implémentation."""  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
     repo = _depot_git_initialise(tmp_path)
     _ecrire(
         repo,
         "src/service.py",
-        "def calculer() -> int:\n    raise NotImplementedError\n",  # proof:allow — fixture/constante du gate NO-STUB : ce motif EST le sujet du test
+        "def calculer() -> int:\n    raise NotImplementedError\n",  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
     )
     assert "NOT_IMPLEMENTED_STUB" in _codes(_scanner(repo))
 
@@ -830,3 +832,298 @@ def test_refuse_toujours_protocol_local_usurpe_sans_import_typing(
         "        ...\n",
     )
     assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_main_refuse_un_scope_partiel_et_nomme_les_racines_omises(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Prouve qu'un appel CLI partiel ne peut pas réduire silencieusement le périmètre contractuel."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+
+    code_retour = main(["--repo", str(repo), "--scope", "core/src"])
+
+    sortie = capsys.readouterr().out
+    assert code_retour == 1
+    assert "SCOPE_ROOT_OMITTED" in sortie
+    assert "core/scripts" in sortie
+    assert "tools/proof" in sortie
+    assert "scripts" in sortie
+    assert ".opsys/tools/github-control" in sortie
+
+
+def test_main_sans_scope_utilise_toutes_les_racines_du_contrat(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Prouve que l'absence de --scope sélectionne exactement le périmètre contractuel complet."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+
+    code_retour = main(["--repo", str(repo)])
+
+    sortie = capsys.readouterr().out
+    assert code_retour == 0
+    assert "SCOPE_ROOT_OMITTED" not in sortie
+
+
+def test_main_refuse_un_contrat_aux_racines_python_vides(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Prouve qu'une liste vide annule le périmètre et doit donc être refusée explicitement."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "core/quality-scopes.toml",
+        "python_roots = []\n"
+        'target_required_job_ids = ["gates"]\n',
+    )
+
+    code_retour = main(["--repo", str(repo)])
+
+    sortie = capsys.readouterr().out
+    assert code_retour == 1
+    assert "CONTRAT_PERIMETRE_ABSENT" in sortie
+    assert "python_roots est vide" in sortie
+
+
+def test_main_refuse_un_contrat_aux_jobs_requis_vides(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Prouve qu'une liste vide de jobs obligatoires invalide le contrat au lieu de désactiver les protections."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "core/quality-scopes.toml",
+        'python_roots = ["core/src"]\n'
+        "target_required_job_ids = []\n",
+    )
+
+    code_retour = main(["--repo", str(repo)])
+
+    sortie = capsys.readouterr().out
+    assert code_retour == 1
+    assert "CONTRAT_PERIMETRE_ABSENT" in sortie
+    assert "target_required_job_ids est vide" in sortie
+
+
+def test_refuse_une_condition_false_sur_un_job_requis(tmp_path: Path) -> None:
+    """Prouve qu'une condition littéralement fausse peut neutraliser un job requis et est refusée."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/condition.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    if: ${{ false }}\n"
+        "    runs-on: ubuntu-latest\n",
+    )
+
+    assert "REQUIRED_JOB_CONDITIONNEL" in _codes(_scanner(repo))
+
+
+def test_accepte_always_comme_condition_dun_job_requis(tmp_path: Path) -> None:
+    """Prouve que always() maintient l'exécution du contrôle requis sans faux positif."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/condition.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    if: always()\n"
+        "    runs-on: ubuntu-latest\n",
+    )
+
+    assert "REQUIRED_JOB_CONDITIONNEL" not in _codes(_scanner(repo))
+
+
+def test_accepte_une_condition_sur_un_job_non_requis(tmp_path: Path) -> None:
+    """Prouve que la contrainte de condition reste limitée aux jobs définis comme requis."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/condition.yml",
+        "jobs:\n"
+        "  rapport:\n"
+        "    if: ${{ false }}\n"
+        "    runs-on: ubuntu-latest\n",
+    )
+
+    assert "REQUIRED_JOB_CONDITIONNEL" not in _codes(_scanner(repo))
+
+
+@pytest.mark.parametrize("valeur", ('"true"', "'yes'", '"on"'))
+def test_refuse_continue_on_error_vrai_ecrit_comme_chaine_quotee(
+    tmp_path: Path,
+    valeur: str,
+) -> None:
+    """Prouve que les scalaires quotés vrais gardent leur sémantique de succès souple interdite."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/continue.yml",
+        "jobs:\n"
+        "  gates:\n"
+        f"    continue-on-error: {valeur}\n"
+        "    runs-on: ubuntu-latest\n",
+    )
+
+    assert "REQUIRED_JOB_SOFT_FAILURE" in _codes(_scanner(repo))
+
+
+def test_accepte_continue_on_error_false_ecrit_comme_chaine_quotee(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'une chaîne quotée false ne déclenche pas la règle réservée aux tolérances réelles."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/continue.yml",
+        "jobs:\n"
+        "  gates:\n"
+        '    continue-on-error: "false"\n'
+        "    runs-on: ubuntu-latest\n",
+    )
+
+    assert "REQUIRED_JOB_SOFT_FAILURE" not in _codes(_scanner(repo))
+
+
+@pytest.mark.parametrize("levee", ("raise E", "raise E()"))
+def test_refuse_un_alias_importe_de_not_implemented_error(
+    tmp_path: Path,
+    levee: str,
+) -> None:
+    """Prouve qu'un alias prouvé de builtins ne masque pas une absence explicite d'implémentation."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/alias.py",
+        "from builtins import NotImplementedError as E\n\n"  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+        f"def calculer() -> int:\n    {levee}\n",
+    )
+
+    assert "NOT_IMPLEMENTED_STUB" in _codes(_scanner(repo))
+
+
+def test_accepte_un_filtre_litteral_sur_un_iterable_etranger_aux_racines(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un filtre métier sur utilisateurs ne doit pas être confondu avec une omission de racine."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "core/scripts/run_utilisateurs.py",
+        'actifs = [u for u in utilisateurs if u != "admin"]\n',
+    )
+
+    assert "SCOPE_ROOT_OMITTED" not in _codes(_scanner(repo, ("core/scripts",)))
+
+
+def test_detecte_toujours_un_filtre_litteral_sur_les_racines(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'assouplissement pour les itérables métier conserve la détection des vraies racines."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "core/scripts/run_security_scan.py",
+        'cibles = [r for r in racines if r != "tools/proof"]\n',
+    )
+
+    assert "SCOPE_ROOT_OMITTED" in _codes(_scanner(repo, ("core/scripts",)))
+
+
+def test_accepte_les_motifs_de_succes_force_dans_une_chaine_shell(
+    tmp_path: Path,
+) -> None:
+    """Prouve que les opérateurs écrits dans un argument littéral ne sont pas interprétés comme du shell."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/shell.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        '      - run: echo "pour forcer, certains écrivent || true"\n',
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
+def test_accepte_exit_zero_dans_une_chaine_shell(tmp_path: Path) -> None:
+    """Prouve qu'un texte entre quotes contenant exit 0 ne neutralise pas réellement un job requis."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/shell.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: echo 'exit 0'\n",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
+def test_refuse_un_succes_force_place_hors_dune_chaine_shell(
+    tmp_path: Path,
+) -> None:
+    """Prouve que neutraliser les quotes ne masque jamais un opérateur dangereux situé dans le code shell."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/shell.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        '      - run: echo "x" && verif || true\n',
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_protocol_importe_puis_reaffecte(tmp_path: Path) -> None:
+    """Prouve qu'une réaffectation retire la preuve d'origine typing et ferme l'exemption d'ellipse."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/proto.py",
+        "from typing import Protocol\n\n"
+        "Protocol = object\n\n"
+        "class Depot(Protocol):\n"
+        "    def lire(self) -> str:\n"
+        "        ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_accepte_un_protocol_importe_non_reaffecte(tmp_path: Path) -> None:
+    """Prouve que le retrait d'alias réaffectés ne supprime pas l'exemption du véritable import intact."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/proto.py",
+        "from typing import Protocol\n\n"
+        "class Depot(Protocol):\n"
+        "    def lire(self) -> str:\n"
+        "        ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" not in _codes(_scanner(repo))

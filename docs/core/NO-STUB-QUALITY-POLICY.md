@@ -1,78 +1,76 @@
-# Politique NO-STUB et qualité
+# Politique de qualité NO-STUB
 
-Le gate `scripts/quality/no_stub_gate.py` refuse les absences
-d'implémentation, les régressions de qualité ajoutées et les moyens de rendre
-les contrôles CI non bloquants.
+Le gate `scripts/quality/no_stub_gate.py` protège les modules Python, le
+périmètre contractuel et les jobs GitHub Actions obligatoires. Il échoue fermé :
+une absence de preuve de couverture ou d'exécution d'un contrôle requis est une
+violation.
 
 ## Contrat de périmètre
 
-Le fichier `core/quality-scopes.toml` est obligatoire lors de l'exécution en
-ligne de commande. Il définit les racines Python contrôlées et les identifiants
-des jobs GitHub Actions requis.
+`core/quality-scopes.toml` est une frontière de confiance.
 
-Une absence, une lecture impossible ou un TOML invalide produit
-`CONTRAT_PERIMETRE_ABSENT` et fait échouer le gate. Le contrat ne peut donc pas
-être supprimé ou corrompu pour désactiver silencieusement le contrôle.
+- `python_roots` doit être une liste non vide de chaînes ;
+- `target_required_job_ids` doit être une liste non vide de chaînes ;
+- sans option `--scope`, le CLI analyse exactement toutes les racines de
+  `python_roots` ;
+- avec une ou plusieurs options `--scope`, toutes les racines contractuelles
+  doivent encore être présentes. Les scopes supplémentaires restent possibles,
+  mais un sous-ensemble silencieux est refusé.
 
-L'API `scan_repository` reste utilisable dans des dépôts synthétiques sans
-contrat : les règles indépendantes du contrat restent actives, tandis que les
-règles de comparaison avec les racines contractuelles ne sont pas applicables.
+Les violations correspondantes sont :
 
-## Codes de violation
+- `CONTRAT_PERIMETRE_ABSENT` : le contrat est absent, illisible, invalide ou
+  contient une liste contractuelle vide ;
+- `SCOPE_ROOT_OMITTED` : une liste, une compréhension ou les options `--scope`
+  omettent une racine contractuelle ;
+- `SCOPE_FILTRE_INDECIDABLE` : une compréhension qui itère sur des racines
+  applique un filtre dont l'effet ne peut pas être prouvé statiquement.
 
-| Code | Signification |
-| --- | --- |
-| `CONTRAT_PERIMETRE_ABSENT` | Le contrat de périmètre requis par la CLI est absent, illisible ou invalide. |
-| `EXECUTABLE_PASS` | Une fonction ne contient que des instructions triviales. |
-| `EXECUTABLE_ELLIPSIS` | Une fonction ou lambda est réduit à une ellipse ou à une valeur de stub. |
-| `NOT_IMPLEMENTED_STUB` | Une fonction lève explicitement une exception d'absence d'implémentation. |
-| `DOCSTRING_ONLY_BODY` | Une fonction ne contient qu'une docstring. |
-| `EMPTY_PRODUCTION_FILE` | Un module de production est vide. |
-| `FICHIER_NON_ANALYSABLE` | Un fichier Python ou YAML ne peut pas être lu ou analysé. |
-| `TRIVIAL_ASSERTION` | Une assertion ajoutée porte sur une constante vraie. |
-| `TEST_WITHOUT_ORACLE` | Un test modifié ne contient aucun oracle reconnu. |
-| `NEW_SKIP_OR_XFAIL` | Un skip ou xfail a été ajouté. |
-| `FORBIDDEN_MARKER` | Un commentaire ajouté contient un marqueur de dette interdit. |
-| `UNJUSTIFIED_SUPPRESSION` | Une suppression de contrôle ajoutée n'est pas justifiée. |
-| `SCOPE_ROOT_OMITTED` | Un lanceur de scan omet ou exclut littéralement une racine contractuelle. |
-| `SCOPE_FILTRE_INDECIDABLE` | Un filtre de racines n'est pas décidable statiquement ; il doit être rendu littéral ou justifié. |
-| `REQUIRED_JOB_SOFT_FAILURE` | Un job requis, un de ses steps, ou un step d'action composite locale accepte les erreurs. |
-| `REQUIRED_JOB_FORCED_SUCCESS` | Un job requis force un succès shell. |
-| `LOCAL_ACTION_CYCLE` | Une cascade d'actions composites locales contient un cycle. |
-| `LOCAL_ACTION_DEPTH_EXCEEDED` | Une cascade d'actions composites locales dépasse la profondeur autorisée. |
+La reconnaissance des compréhensions est volontairement limitée aux itérables
+dont le nom prouve qu'ils représentent les racines contractuelles. Un filtrage
+littéral d'une collection sans rapport avec les racines ne constitue pas une
+violation.
 
-## Exemptions d'abstraction
+## Jobs GitHub Actions requis
 
-Une ellipse est admise uniquement dans une méthode de classe dérivant d'un
-`typing.Protocol` dont l'import est prouvé, ou dans une méthode décorée par un
-`abc.abstractmethod` dont l'import est prouvé. Un nom local homonyme ne crée
-pas d'exemption.
+Les jobs indiqués par `target_required_job_ids` ne peuvent ni accepter une
+erreur, ni forcer un succès shell, ni dépendre d'une condition d'exécution
+arbitraire.
 
-Le parcours AST descend dans tous les blocs Python. Une fonction ou une classe
-définie dans un `if`, `try`, `with`, `for` ou `while` reste donc soumise aux
-mêmes règles.
+- `REQUIRED_JOB_SOFT_FAILURE` refuse `continue-on-error: true`, y compris les
+  scalaires YAML quotés équivalents à vrai : `true`, `yes`, `on`, `y` et `1`,
+  sans distinction de casse. Une valeur dynamique `${{ ... }}` est également
+  refusée. Les valeurs fausses, notamment `"false"`, restent acceptées.
+- `REQUIRED_JOB_FORCED_SUCCESS` refuse les formes shell qui neutralisent une
+  erreur, telles que `|| true`, `|| :`, `|| exit 0`, `; true` et `exit 0`.
+  Les contenus entre quotes simples ou doubles sont neutralisés avant cette
+  analyse : un exemple affiché par `echo "|| true"` n'est pas du code shell.
+  Le code entourant une chaîne reste analysé.
+- `REQUIRED_JOB_CONDITIONNEL` refuse une clé `if:` sur un job requis ou une de
+  ses étapes sauf `always()` et `success()`, avec ou sans enveloppe
+  `${{ ... }}`. Ces deux formes sont explicitement tolérées car elles ne
+  conditionnent pas le contrôle requis à une donnée métier ou à une expression
+  arbitraire. Toute autre valeur, y compris `false` ou une expression dynamique,
+  ne prouve plus l'exécution du contrôle.
+- `LOCAL_ACTION_CYCLE` et `LOCAL_ACTION_DEPTH_EXCEEDED` refusent les graphes
+  d'actions composites locales impossibles à analyser de façon bornée.
 
-## Workflows et actions composites
+Les mêmes règles de condition et de succès souple s'appliquent aux étapes des
+actions composites locales atteintes depuis un job requis.
 
-Les jobs requis ne peuvent pas utiliser `continue-on-error: true`, y compris
-au niveau d'un step. Toute valeur dynamique contenant `${{` est refusée par
-principe. Cette protection est également appliquée aux steps des actions
-composites locales appelées en cascade.
+## Stubs et alias importés
 
-Les succès forcés shell, notamment `|| true`, `|| :`, `|| exit 0` et `exit 0`
-non gardé, sont refusés dans les jobs requis et leurs actions composites
-locales.
+Le gate refuse les corps exécutables réduits à `pass`, `...`, `return` ou
+`return None`, les fonctions à docstring seule et les levées de
+`NotImplementedError` ou `NotImplemented`.
 
-## Contrôle des racines
+Les imports aliasés depuis `builtins`, par exemple
+`from builtins import NotImplementedError as E`, sont résolus pour détecter
+`raise E` et `raise E()`.
 
-Les listes littérales de racines sont comparées au contrat. Les exclusions
-littérales sont signalées par `SCOPE_ROOT_OMITTED`.
-
-Une compréhension qui filtre les racines au moyen d'une variable, d'un appel
-non reconnu ou d'une autre condition impossible à trancher statiquement est
-signalée par `SCOPE_FILTRE_INDECIDABLE`. L'incapacité du gate à conclure ne
-constitue donc jamais une autorisation silencieuse de retirer une racine.
-
-Le filtre `.exists()` reste admis : il exprime le cas légitime d'une cible
-optionnelle présente sur le système de fichiers, sans masquer une exclusion
-d'identité de racine.
+L'exemption des méthodes de `typing.Protocol` et des méthodes
+`abc.abstractmethod` ne s'applique que si l'origine importée est encore prouvée.
+Une réaffectation directe au niveau module d'un alias importé retire cet alias de
+la table de preuve. Le gate ne tente pas de résoudre les réaffectations
+conditionnelles, locales ou indirectes (`globals()`), qui nécessiteraient une
+analyse de flot de données complète.

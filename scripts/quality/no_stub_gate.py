@@ -46,6 +46,12 @@ _CASE_SHELL: Final[re.Pattern[str]] = re.compile(r"^\s*case\b.*\bin\s*$")
 _FIN_IF_SHELL: Final[re.Pattern[str]] = re.compile(r"^\s*fi\s*;?\s*$")
 _FIN_CASE_SHELL: Final[re.Pattern[str]] = re.compile(r"^\s*esac\s*;?\s*$")
 _MAX_ACTION_DEPTH: Final[int] = 5
+_VALEURS_VRAIES_YAML: Final[frozenset[str]] = frozenset(
+    {"true", "yes", "on", "y", "1"}
+)
+_CONDITIONS_REQUISES_ACCEPTEES: Final[frozenset[str]] = frozenset(
+    {"always()", "success()"}
+)
 
 
 @dataclass(frozen=True)
@@ -66,6 +72,7 @@ class _AliasesImports:
     modules_typing: frozenset[str]
     abstractmethods: frozenset[str]
     modules_abc: frozenset[str]
+    not_implemented_errors: frozenset[str]
 
 
 def _chemin_relatif(repo: Path, fichier: Path) -> str:
@@ -81,7 +88,7 @@ def _violation(code: str, repo: Path, fichier: Path, line: int, detail: str) -> 
 def _lire_contrat(
     repo: Path,
 ) -> tuple[tuple[str, ...], tuple[str, ...], str | None]:
-    """Lit le contrat local et prouve que son format permet un contrôle fiable."""
+    """Lit le contrat local et refuse ses listes vides, qui annuleraient le périmètre."""
     fichier = repo / "core" / "quality-scopes.toml"
     if not fichier.is_file():
         return (), _DEFAULT_REQUIRED_JOB_IDS, "le contrat core/quality-scopes.toml est absent"
@@ -98,18 +105,17 @@ def _lire_contrat(
     jobs = contrat.get("target_required_job_ids")
     if not isinstance(racines, list) or not all(isinstance(item, str) for item in racines):
         return (), _DEFAULT_REQUIRED_JOB_IDS, "python_roots est absent ou invalide"
+    if not racines:
+        return (), _DEFAULT_REQUIRED_JOB_IDS, "python_roots est vide"
     if not isinstance(jobs, list) or not all(isinstance(item, str) for item in jobs):
         return (), _DEFAULT_REQUIRED_JOB_IDS, "target_required_job_ids est absent ou invalide"
+    if not jobs:
+        return (), _DEFAULT_REQUIRED_JOB_IDS, "target_required_job_ids est vide"
     return tuple(racines), tuple(jobs), None
 
 
 def _charger_contrat(repo: Path) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    """Charge le contrat pour la bibliothèque sans désactiver ses autres règles.
-
-    scan_repository reste utilisable sur les dépôts synthétiques sans contrat :
-    seules les règles dont la preuve dépend de python_roots sont alors
-    inapplicables. La CLI appelle séparément _lire_contrat et échoue fermement.
-    """
+    """Charge le contrat sans inventer de racines si son format local est invalide."""
     racines, jobs, erreur = _lire_contrat(repo)
     if erreur is None:
         return racines, jobs
@@ -121,8 +127,10 @@ def _charger_contrat(repo: Path) -> tuple[tuple[str, ...], tuple[str, ...]]:
         return (), _DEFAULT_REQUIRED_JOB_IDS
 
     jobs_source = contrat.get("target_required_job_ids", [])
-    if not isinstance(jobs_source, list) or not all(
-        isinstance(item, str) for item in jobs_source
+    if (
+        not isinstance(jobs_source, list)
+        or not jobs_source
+        or not all(isinstance(item, str) for item in jobs_source)
     ):
         return (), _DEFAULT_REQUIRED_JOB_IDS
     return (), tuple(jobs_source)
@@ -160,12 +168,30 @@ def _corps_utile(corps: list[ast.stmt]) -> list[ast.stmt]:
     return corps[1:] if corps and _est_docstring(corps[0]) else corps
 
 
+def _noms_cibles_affectation(noeud: ast.stmt) -> set[str]:
+    """Extrait les noms réaffectés directement au niveau module, forme exploitable simple."""
+    cibles: list[ast.expr] = []
+    if isinstance(noeud, ast.Assign):
+        cibles = noeud.targets
+    elif isinstance(noeud, ast.AnnAssign):
+        cibles = [noeud.target]
+    else:
+        return set()
+    return {cible.id for cible in cibles if isinstance(cible, ast.Name)}
+
+
 def _analyser_imports(arbre: ast.Module) -> _AliasesImports:
-    """Prouve les imports standards même lorsqu'ils sont placés dans un bloc."""
+    """Prouve les imports standards et retire les alias réaffectés au niveau module.
+
+    Une affectation directe ultérieure rend l'origine importée non prouvable :
+    l'exemption est donc retirée fail-closed. Les réaffectations conditionnelles,
+    locales ou indirectes restent hors périmètre de cette analyse syntaxique.
+    """
     protocols: set[str] = set()
     modules_typing: set[str] = set()
     abstractmethods: set[str] = set()
     modules_abc: set[str] = set()
+    not_implemented_errors: set[str] = set()
 
     for noeud in ast.walk(arbre):
         if isinstance(noeud, ast.Import):
@@ -187,12 +213,27 @@ def _analyser_imports(arbre: ast.Module) -> _AliasesImports:
                     for alias in noeud.names
                     if alias.name == "abstractmethod"
                 )
+            elif noeud.module == "builtins":
+                not_implemented_errors.update(
+                    alias.asname or alias.name
+                    for alias in noeud.names
+                    if alias.name in {"NotImplementedError", "NotImplemented"}  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet
+                )
+
+    for noeud in arbre.body:
+        reassignees = _noms_cibles_affectation(noeud)
+        protocols.difference_update(reassignees)
+        modules_typing.difference_update(reassignees)
+        abstractmethods.difference_update(reassignees)
+        modules_abc.difference_update(reassignees)
+        not_implemented_errors.difference_update(reassignees)
 
     return _AliasesImports(
         frozenset(protocols),
         frozenset(modules_typing),
         frozenset(abstractmethods),
         frozenset(modules_abc),
+        frozenset(not_implemented_errors),
     )
 
 
@@ -230,8 +271,8 @@ def _est_methode_abstraite(
     return False
 
 
-def _est_exception_non_implementee(noeud: ast.expr) -> bool:
-    """Reconnaît les exceptions indiquant explicitement une absence d'implémentation."""
+def _est_exception_non_implementee(noeud: ast.expr, aliases: _AliasesImports) -> bool:
+    """Reconnaît NotImplementedError, y compris un alias importé prouvé de builtins."""  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet
     cible = noeud.func if isinstance(noeud, ast.Call) else noeud
     return (
         isinstance(cible, ast.Name)
@@ -241,18 +282,23 @@ def _est_exception_non_implementee(noeud: ast.expr) -> bool:
             "NotImplemented",
         }  # proof:allow — fixture/constante du gate NO-STUB : ce motif EST le sujet du test
     ) or (
+        isinstance(cible, ast.Name) and cible.id in aliases.not_implemented_errors
+    ) or (
         isinstance(cible, ast.Attribute)
         and cible.attr
         == "NotImplementedError"  # proof:allow — fixture/constante du gate NO-STUB : ce motif EST le sujet du test
     )
 
 
-def _leve_not_implemented(fonction: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+def _leve_not_implemented(
+    fonction: ast.FunctionDef | ast.AsyncFunctionDef,
+    aliases: _AliasesImports,
+) -> bool:
     """Recherche une levée explicite d'absence d'implémentation dans la fonction."""
     return any(
         isinstance(noeud, ast.Raise)
         and noeud.exc is not None
-        and _est_exception_non_implementee(noeud.exc)
+        and _est_exception_non_implementee(noeud.exc, aliases)
         for noeud in ast.walk(fonction)
     )
 
@@ -319,7 +365,7 @@ def _analyser_fonction(
         )
         violations.append(_violation(code, repo, fichier, fonction.lineno, detail))
 
-    if _leve_not_implemented(fonction):
+    if _leve_not_implemented(fonction, aliases):
         violations.append(
             _violation(
                 "NOT_IMPLEMENTED_STUB",
@@ -354,12 +400,7 @@ def _analyser_lambdas(repo: Path, fichier: Path, arbre: ast.Module) -> list[Viol
 
 
 def _analyser_stubs(repo: Path, fichier: Path, arbre: ast.Module) -> list[Violation]:
-    """Parcourt tous les blocs en conservant le contexte Protocol des classes.
-
-    Le visiteur descend dans if, try, with, for, while et tout autre nœud AST.
-    Cela prouve qu'une définition cachée dans un bloc ne peut pas échapper au
-    gate tout en conservant l'exemption des méthodes de Protocol légitimes.
-    """
+    """Parcourt tous les blocs en conservant le contexte Protocol des classes."""
     aliases = _analyser_imports(arbre)
     violations: list[Violation] = []
 
@@ -376,13 +417,7 @@ def _analyser_stubs(repo: Path, fichier: Path, arbre: ast.Module) -> list[Violat
 
         def visit_FunctionDef(self, noeud: ast.FunctionDef) -> None:
             violations.extend(
-                _analyser_fonction(
-                    repo,
-                    fichier,
-                    noeud,
-                    self.protocols[-1],
-                    aliases,
-                )
+                _analyser_fonction(repo, fichier, noeud, self.protocols[-1], aliases)
             )
             self.protocols.append(False)
             self.generic_visit(noeud)
@@ -390,13 +425,7 @@ def _analyser_stubs(repo: Path, fichier: Path, arbre: ast.Module) -> list[Violat
 
         def visit_AsyncFunctionDef(self, noeud: ast.AsyncFunctionDef) -> None:
             violations.extend(
-                _analyser_fonction(
-                    repo,
-                    fichier,
-                    noeud,
-                    self.protocols[-1],
-                    aliases,
-                )
+                _analyser_fonction(repo, fichier, noeud, self.protocols[-1], aliases)
             )
             self.protocols.append(False)
             self.generic_visit(noeud)
@@ -658,12 +687,30 @@ def _comparaison_exclut_racine(noeud: ast.expr, nom_boucle: str) -> bool:
     return False
 
 
+_NOMS_ITERABLES_RACINES = frozenset(
+    {"racines", "roots", "python_roots", "racines_contractuelles", "scopes"}
+)
+
+
+def _itere_sur_les_racines(generateur: ast.comprehension) -> bool:
+    """Indique si la compréhension parcourt bien les racines contractuelles."""
+    iterable = generateur.iter
+    if isinstance(iterable, ast.Name):
+        return iterable.id in _NOMS_ITERABLES_RACINES
+    if isinstance(iterable, ast.Call):
+        cible = iterable.func
+        nom = cible.attr if isinstance(cible, ast.Attribute) else getattr(cible, "id", "")
+        return "racine" in nom.lower() or "root" in nom.lower()
+    return False
+
+
 def _comprehension_filtre_racines(noeud: ast.expr) -> bool:
-    """Détecte un filtrage explicite de racines dans une compréhension."""
+    """Détecte une exclusion littérale seulement sur une itération de racines prouvée."""
     if not isinstance(noeud, (ast.ListComp, ast.SetComp, ast.GeneratorExp)):
         return False
     return any(
         isinstance(generateur.target, ast.Name)
+        and _itere_sur_les_racines(generateur)
         and any(
             _comparaison_exclut_racine(condition, generateur.target.id)
             for condition in generateur.ifs
@@ -689,32 +736,6 @@ def _filtre_statiquement_decidable(noeud: ast.expr, nom_boucle: str) -> bool:
         )
     if isinstance(noeud, ast.UnaryOp) and isinstance(noeud.op, ast.Not):
         return _filtre_statiquement_decidable(noeud.operand, nom_boucle)
-    return False
-
-
-_NOMS_ITERABLES_RACINES = frozenset(
-    {"racines", "roots", "python_roots", "racines_contractuelles", "scopes"}
-)
-
-
-def _itere_sur_les_racines(generateur: ast.comprehension) -> bool:
-    """Indique si la compréhension parcourt bien les racines contractuelles.
-
-    LIMITE NOMMÉE, assumée : la reconnaissance porte sur l'identifiant de
-    l'itérable. Des racines stockées dans une variable au nom sans rapport
-    échappent à cette règle — suivre la valeur exigerait une analyse de flot de
-    données. Sans ce filtrage, la règle se déclenchait sur TOUTE compréhension au
-    filtre indécidable du dépôt (mesuré : lignes d'un fichier de verrou,
-    dépendances pip-audit), c'est-à-dire du bruit qui aurait rendu le gate
-    inutilisable — un faux positif massif est aussi nuisible qu'un angle mort.
-    """
-    iterable = generateur.iter
-    if isinstance(iterable, ast.Name):
-        return iterable.id in _NOMS_ITERABLES_RACINES
-    if isinstance(iterable, ast.Call):
-        cible = iterable.func
-        nom = cible.attr if isinstance(cible, ast.Attribute) else getattr(cible, "id", "")
-        return "racine" in nom.lower() or "root" in nom.lower()
     return False
 
 
@@ -960,13 +981,51 @@ def _charger_yaml(
     return document, []
 
 
+def _neutraliser_chaines_shell(commande: str) -> str:
+    """Neutralise le contenu des quotes shell en préservant lignes et positions.
+
+    Les quotes simples sont closes par la quote suivante. Dans les quotes doubles,
+    un antislash consomme la paire échappée avant toute recherche de fermeture.
+    Un texte non fermé reste neutralisé jusqu'à la fin : il ne constitue pas du
+    code shell exploitable pour forcer un succès.
+    """
+    neutre: list[str] = []
+    i = 0
+    n = len(commande)
+    while i < n:
+        caractere = commande[i]
+        if caractere not in {"'", '"'}:
+            neutre.append(caractere)
+            i += 1
+            continue
+
+        quote = caractere
+        neutre.append(quote)
+        i += 1
+        while i < n:
+            courant = commande[i]
+            if quote == '"' and courant == "\\" and i + 1 < n:
+                suivant = commande[i + 1]
+                neutre.append(" ")
+                neutre.append("\n" if suivant == "\n" else " ")
+                i += 2
+                continue
+            if courant == quote:
+                neutre.append(quote)
+                i += 1
+                break
+            neutre.append("\n" if courant == "\n" else " ")
+            i += 1
+    return "".join(neutre)
+
+
 def _normaliser_commande(commande: str) -> str:
-    """Supprime tous les espaces pour voir les succès forcés coupés sur plusieurs lignes."""
-    return re.sub(r"\s+", "", commande)
+    """Supprime tous les espaces du code shell neutralisé pour les motifs répartis."""
+    return re.sub(r"\s+", "", _neutraliser_chaines_shell(commande))
 
 
 def _contient_succes_force(commande: str) -> bool:
-    """Détecte les neutralisations shell, y compris réparties dans un bloc YAML."""
+    """Détecte les neutralisations shell hors chaînes littérales uniquement."""
     compacte = _normaliser_commande(commande)
     return (
         "||true" in compacte
@@ -977,9 +1036,9 @@ def _contient_succes_force(commande: str) -> bool:
 
 
 def _contient_exit_zero_non_garde(commande: str) -> bool:
-    """Détecte exit 0 sauf dans une branche shell conditionnelle connue."""
+    """Détecte exit 0 hors quotes, sauf dans une branche shell conditionnelle connue."""
     profondeur_conditionnelle = 0
-    for ligne in commande.splitlines() or [commande]:
+    for ligne in _neutraliser_chaines_shell(commande).splitlines() or [commande]:
         if _IF_SHELL.match(ligne) or _CASE_SHELL.match(ligne):
             profondeur_conditionnelle += 1
         if profondeur_conditionnelle == 0 and _EXIT_ZERO.search(ligne) is not None:
@@ -1025,7 +1084,7 @@ def _analyser_continue_on_error(
     valeur: object,
     job: str,
 ) -> list[Violation]:
-    """Refuse une tolérance d'erreur prouvée ou dynamique dans un job requis."""
+    """Refuse une tolérance d'erreur vraie, y compris écrite comme scalaire YAML quoté."""
     if valeur is True:
         detail = f"le job requis {job} accepte les erreurs"
     elif isinstance(valeur, str) and "${{" in valeur:
@@ -1033,6 +1092,11 @@ def _analyser_continue_on_error(
             f"le job requis {job} utilise une valeur dynamique "
             "pour continue-on-error, refusée par principe"
         )
+    elif (
+        isinstance(valeur, str)
+        and valeur.strip().lower() in _VALEURS_VRAIES_YAML
+    ):
+        detail = f"le job requis {job} accepte les erreurs"
     else:
         return []
     return [
@@ -1042,6 +1106,42 @@ def _analyser_continue_on_error(
             fichier,
             1,
             detail,
+        )
+    ]
+
+
+def _condition_requise_acceptee(valeur: object) -> bool:
+    """Accepte uniquement always() et success(), garanties sans dépendance métier.
+
+    Ces deux formes sont les conditions GitHub Actions explicites qui préservent
+    l'exécution du job requis dans le flux attendu. Toute autre expression,
+    dynamique ou littéralement fausse, dépend de données d'exécution et ne
+    prouve plus que le contrôle obligatoire a été exécuté.
+    """
+    if not isinstance(valeur, str):
+        return False
+    condition = valeur.strip()
+    if condition.startswith("${{") and condition.endswith("}}"):
+        condition = condition[3:-2].strip()
+    return condition.lower() in _CONDITIONS_REQUISES_ACCEPTEES
+
+
+def _analyser_condition_requise(
+    repo: Path,
+    fichier: Path,
+    valeur: object,
+    job: str,
+) -> list[Violation]:
+    """Refuse les conditions qui peuvent neutraliser un job requis ou une étape requise."""
+    if valeur is None or _condition_requise_acceptee(valeur):
+        return []
+    return [
+        _violation(
+            "REQUIRED_JOB_CONDITIONNEL",
+            repo,
+            fichier,
+            1,
+            f"le job requis {job} dépend d'une condition non garantie : {valeur!r}",
         )
     ]
 
@@ -1108,6 +1208,7 @@ def _analyser_action_locale(
     for etape in etapes:
         if not isinstance(etape, Mapping):
             continue
+        violations.extend(_analyser_condition_requise(repo, fichier, etape.get("if"), job))
         violations.extend(
             _analyser_continue_on_error(
                 repo,
@@ -1151,6 +1252,7 @@ def _analyser_workflow(
         if not isinstance(definition, Mapping):
             continue
 
+        violations.extend(_analyser_condition_requise(repo, fichier, definition.get("if"), identifiant))
         violations.extend(
             _analyser_continue_on_error(
                 repo,
@@ -1166,6 +1268,9 @@ def _analyser_workflow(
         for etape in etapes:
             if not isinstance(etape, Mapping):
                 continue
+            violations.extend(
+                _analyser_condition_requise(repo, fichier, etape.get("if"), identifiant)
+            )
             violations.extend(
                 _analyser_continue_on_error(
                     repo,
@@ -1210,8 +1315,36 @@ def scan_repository(repo: Path, scopes: tuple[str, ...], *, base_ref: str) -> li
     return sorted(violations, key=lambda item: (item.path, item.line, item.code))
 
 
+def _violations_scopes_incomplets(
+    repo: Path,
+    scopes: tuple[str, ...],
+    racines_contractuelles: tuple[str, ...],
+) -> list[Violation]:
+    """Prouve que chaque racine du contrat est demandée explicitement au CLI."""
+    demandes = set(scopes)
+    manquantes = tuple(
+        racine for racine in racines_contractuelles if racine not in demandes
+    )
+    if not manquantes:
+        return []
+    return [
+        Violation(
+            "SCOPE_ROOT_OMITTED",
+            "core/quality-scopes.toml",
+            1,
+            "les --scope omettent les racines contractuelles : "
+            + ", ".join(manquantes),
+        )
+    ]
+
+
 def main(argv: list[str] | None = None) -> int:
-    """Exécute le gate et échoue fermement si son contrat de périmètre est absent."""
+    """Exécute le gate avec les racines contractuelles par défaut sûr.
+
+    Sans --scope, toutes les racines du contrat sont analysées. Avec --scope,
+    chacune des racines contractuelles doit rester présente : un sous-périmètre
+    silencieux ne peut pas constituer une preuve de qualité.
+    """
     parser = argparse.ArgumentParser(description="Détecte les stubs et dettes qualité.")
     parser.add_argument("--repo", type=Path, default=Path.cwd())
     parser.add_argument("--base-ref", default="HEAD")
@@ -1229,7 +1362,9 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     scopes = tuple(arguments.scopes) if arguments.scopes else racines
-    violations = scan_repository(repo, scopes, base_ref=arguments.base_ref)
+    violations = _violations_scopes_incomplets(repo, scopes, racines)
+    if not violations:
+        violations = scan_repository(repo, scopes, base_ref=arguments.base_ref)
     for violation in violations:
         print(
             f"{violation.code} {violation.path}:{violation.line} {violation.detail}",
