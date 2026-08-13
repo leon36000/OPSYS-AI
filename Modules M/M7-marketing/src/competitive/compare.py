@@ -4,7 +4,8 @@ from typing import Set
 
 def _load_stopwords(path: str) -> Set[str]:
     """Charge un ensemble de stopwords depuis un fichier (un mot par ligne).
-    Retourne un set vide si le chemin est vide ou le fichier inaccessible."""
+    Retourne un set vide si le chemin est vide. Un chemin fourni mais inaccessible
+    lève l'exception native (FileNotFoundError/OSError)."""
     if not path:
         return set()
     with open(path, encoding="utf-8") as f:
