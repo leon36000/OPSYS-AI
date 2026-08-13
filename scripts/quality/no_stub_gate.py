@@ -10,7 +10,7 @@ import subprocess
 import sys
 import tokenize
 import tomllib
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Set as AbstractSet
 from dataclasses import dataclass, field
 from io import StringIO
 from pathlib import Path
@@ -629,10 +629,22 @@ def _attributs_cibles_affectation(noeud: ast.stmt) -> set[tuple[str, str]]:
     Surveiller les seules cibles ``ast.Name`` laissait ``typing.Protocol =
     object`` intact : le nom du module survit, mais l'attribut par lequel
     l'exemption est prouvée ne désigne plus le protocole standard.
+
+    La SUPPRESSION de l'attribut détruit la même preuve, et plus radicalement
+    encore : après ``del t.Protocol``, la classe qui prétend en hériter échoue à
+    l'import sur une ``AttributeError``. Ne lire que les affectations laissait
+    donc exempter un code qui ne s'importe même pas. La symétrie avec
+    ``_noms_cibles_directes``, qui compte déjà le ``del`` d'un NOM, est ici
+    rétablie pour les attributs.
     """
     if isinstance(noeud, ast.Assign):
         return set().union(
             *(_attributs_lies_cible(cible) for cible in noeud.targets)
+        )
+    if isinstance(noeud, ast.Delete):
+        return set().union(
+            *(_attributs_lies_cible(cible) for cible in noeud.targets),
+            set(),
         )
     if isinstance(noeud, ast.AnnAssign):
         return _attributs_lies_cible(noeud.target)
@@ -650,18 +662,130 @@ def _attributs_cibles_affectation(noeud: ast.stmt) -> set[tuple[str, str]]:
     return set()
 
 
-def _valeur_prouve_une_absence(valeur: ast.expr) -> bool:
+def _valeur_prouve_une_absence(valeur: ast.expr, noms_prouves: AbstractSet[str]) -> bool:
     """Prouve qu'une affectation lie son nom à l'absence d'implémentation.
 
     La preuve est celle qu'exige déjà la levée directe : le nom construit — nu,
     qualifié par un attribut de module, appelé ou non — est celui de l'absence
     d'implémentation. ``E = MonModule.MonErreur`` n'est donc jamais concerné,
     l'origine restant inconnue.
-    """
+
+    Les noms DÉJÀ prouvés sont fournis par l'appelant plutôt que relus ici : un
+    alias d'alias désigne la même exception, et sans cette transitivité la
+    chaîne où une cible reçoit l'absence qualifiée, puis une seconde cible
+    échappait entièrement à la règle. La liste inclut toujours les noms de
+    l'interpréteur, si bien qu'aucune lecture séparée n'est nécessaire.
+    """  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet
     cible = valeur.func if isinstance(valeur, ast.Call) else valeur
     if isinstance(cible, ast.Attribute):
         return cible.attr in _NOMS_ABSENCE_IMPLEMENTATION
-    return isinstance(cible, ast.Name) and cible.id in _NOMS_ABSENCE_IMPLEMENTATION
+    return isinstance(cible, ast.Name) and cible.id in noms_prouves
+
+
+def _appariement_destructure(
+    cibles: list[ast.expr], valeurs: list[ast.expr]
+) -> list[tuple[ast.expr, ast.expr]]:
+    """Aligne une destructuration POSITION par POSITION, comme le fait l'interpréteur.
+
+    Deux erreurs symétriques étaient possibles, et l'appariement les écarte
+    toutes les deux. Ne rien prouver — le comportement observé — laissait une
+    destructuration dont la PREMIÈRE valeur est l'absence d'implémentation
+    qualifiée passer pour un objet quelconque, puisque la valeur globale est un
+    tuple. Tout prouver dès qu'UNE valeur convient ferait au contraire de la
+    seconde cible un stub qu'elle n'est pas.
+
+    L'étoile absorbe un nombre variable de valeurs : les positions qui la
+    précèdent restent alignées par la gauche, celles qui la suivent par la
+    droite. L'étoile elle-même lie une LISTE, jamais l'exception, et n'est donc
+    appariée avec rien. Une longueur incompatible n'apparie rien du tout : la
+    forme échouerait à l'exécution, et en déduire une preuve serait inventer.
+    """  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet
+    etoiles = [rang for rang, cible in enumerate(cibles) if isinstance(cible, ast.Starred)]
+    if len(etoiles) > 1:
+        return []
+    if not etoiles:
+        return list(zip(cibles, valeurs)) if len(cibles) == len(valeurs) else []
+    if len(valeurs) < len(cibles) - 1:
+        return []
+    pivot = etoiles[0]
+    suffixe = len(cibles) - pivot - 1
+    apparies = list(zip(cibles[:pivot], valeurs[:pivot]))
+    if suffixe:
+        apparies += list(zip(cibles[pivot + 1 :], valeurs[len(valeurs) - suffixe :]))
+    return apparies
+
+
+def _noms_lies_a_une_absence(
+    cible: ast.expr, valeur: ast.expr, noms_prouves: AbstractSet[str]
+) -> set[str]:
+    """Nomme les seules cibles qu'une affectation lie à l'absence d'implémentation.
+
+    La destructuration n'est appariée que lorsque les DEUX côtés énumèrent leurs
+    éléments : ``A, B = fabriquer()`` ne dit rien de ce que chaque nom reçoit, et
+    l'appelant retombe alors sur la lecture globale de la valeur.
+    """
+    if isinstance(cible, (ast.Tuple, ast.List)):
+        if not isinstance(valeur, (ast.Tuple, ast.List)):
+            return (
+                _noms_lies_cible(cible)
+                if _valeur_prouve_une_absence(valeur, noms_prouves)
+                else set()
+            )
+        return set().union(
+            *(
+                _noms_lies_a_une_absence(sous_cible, sous_valeur, noms_prouves)
+                for sous_cible, sous_valeur in _appariement_destructure(
+                    cible.elts, valeur.elts
+                )
+            ),
+            set(),
+        )
+    return (
+        _noms_lies_cible(cible)
+        if _valeur_prouve_une_absence(valeur, noms_prouves)
+        else set()
+    )
+
+
+def _absences_prouvees(
+    affectations: list[ast.Assign | ast.AnnAssign],
+    aliases_importes: AbstractSet[str],
+) -> set[str]:
+    """Résout par POINT FIXE les noms qu'un module lie à l'absence d'implémentation.
+
+    Un alias d'alias est le même stub que la levée directe : s'arrêter au premier
+    cran laissait la chaîne entière échapper à la règle. Le parcours ignore
+    l'ORDRE des lignes, comme le reste de la collecte des liaisons, et s'arrête
+    dès qu'un tour n'ajoute plus rien — ce qui le borne, le nombre de noms liés
+    par le module étant fini.
+
+    Le résultat exclut la graine : les noms de l'interpréteur sont déjà reconnus
+    par la règle de levée, et les alias d'import le sont par la collecte des
+    imports. Ne rendre que les noms liés par AFFECTATION laisse donc intact le
+    traitement des autres origines.
+    """
+    graine = set(_NOMS_ABSENCE_IMPLEMENTATION) | set(aliases_importes)
+    prouves = set(graine)
+    ajout = True
+    while ajout:
+        ajout = False
+        for noeud in affectations:
+            if noeud.value is None:
+                continue
+            cibles = (
+                noeud.targets if isinstance(noeud, ast.Assign) else [noeud.target]
+            )
+            nouveaux = set().union(
+                *(
+                    _noms_lies_a_une_absence(cible, noeud.value, prouves)
+                    for cible in cibles
+                ),
+                set(),
+            )
+            if nouveaux - prouves:
+                prouves |= nouveaux
+                ajout = True
+    return prouves - graine
 
 
 def _noeuds_de_la_portee(fonction: ast.AST) -> list[ast.AST]:
@@ -751,19 +875,15 @@ def _imports_module(
     aliases = _CollecteAliases()
     reassignees: set[str] = set()
     attributs_reaffectes: set[tuple[str, str]] = set()
-    absences_prouvees: set[str] = set()
+    affectations: list[ast.Assign | ast.AnnAssign] = []
     noms_importes_hors_builtins: set[str] = set()
 
     def visiter(instructions: list[ast.stmt]) -> None:
         for noeud in instructions:
             reassignees.update(_noms_cibles_affectation(noeud))
             attributs_reaffectes.update(_attributs_cibles_affectation(noeud))
-            if (
-                isinstance(noeud, (ast.Assign, ast.AnnAssign))
-                and noeud.value is not None
-                and _valeur_prouve_une_absence(noeud.value)
-            ):
-                absences_prouvees.update(_noms_cibles_affectation(noeud))
+            if isinstance(noeud, (ast.Assign, ast.AnnAssign)):
+                affectations.append(noeud)
             if isinstance(noeud, ast.Import):
                 for alias in noeud.names:
                     noms_importes_hors_builtins.add(
@@ -850,7 +970,7 @@ def _imports_module(
         aliases,
         reassignees,
         attributs_reaffectes,
-        absences_prouvees,
+        _absences_prouvees(affectations, aliases.not_implemented_errors),
         noms_importes_hors_builtins,
     )
 
@@ -883,23 +1003,39 @@ def _analyser_imports(arbre: ast.Module) -> _AliasesImports:
     return liaisons.aliases.figer()
 
 
-def _est_classe_protocol(classe: ast.ClassDef, aliases: _AliasesImports) -> bool:
+def _est_classe_protocol(
+    classe: ast.ClassDef,
+    aliases: _AliasesImports,
+    portees: _PorteesLexicales,
+) -> bool:
     """Détermine si une base est prouvée comme le véritable typing.Protocol.
 
     La forme paramétrée ``Protocol[T]`` est un ``ast.Subscript`` : la valeur
     souscrite est dépliée avant la preuve, car un protocole générique est la même
     abstraction que sa forme nue. La preuve d'origine de l'alias est inchangée :
     une classe locale usurpant le nom reste refusée sous les deux formes.
+
+    L'alias du module ne suffit pourtant jamais seul : il dit ce que le nom
+    désigne AU NIVEAU DU MODULE, jamais ce qu'il désigne à l'endroit où la base
+    est écrite. MESURÉ, une définition locale homonyme — ``def f(): class
+    Protocol: …`` puis ``class C(Protocol)`` — faisait hériter d'une classe
+    ordinaire tout en conservant l'exemption. La base est donc résolue dans la
+    portée où elle est écrite, par le résolveur déjà employé pour les types
+    d'exception. Sous la forme qualifiée, c'est le PORTEUR qui est résolu : un
+    ``t`` masqué localement ne désigne plus le module ``typing``.
     """
     for base in classe.bases:
-        cible = base.value if isinstance(base, ast.Subscript) else base
-        if isinstance(cible, ast.Name) and cible.id in aliases.protocols:
-            return True
+        cible = _base_declaree(base)
+        if isinstance(cible, ast.Name):
+            if cible.id in aliases.protocols and not portees.masque(cible.id, classe):
+                return True
+            continue
         if (
             isinstance(cible, ast.Attribute)
             and isinstance(cible.value, ast.Name)
             and cible.value.id in aliases.modules_typing
             and cible.attr == "Protocol"
+            and not portees.masque(cible.value.id, classe)
         ):
             return True
     return False
@@ -936,9 +1072,9 @@ def _portee_englobante(
 
 
 def _chaine_de_portees(
-    parents: Mapping[ast.AST, ast.AST], classe: ast.ClassDef
+    parents: Mapping[ast.AST, ast.AST], definition: ast.AST
 ) -> list[ast.AST]:
-    """Énumère, du plus proche au module, les portées où la base d'une classe se résout.
+    """Énumère, du plus proche au module, les portées où l'EN-TÊTE d'une définition se résout.
 
     Le corps de classe qui contient DIRECTEMENT la définition en fait partie : la
     base y est évaluée pendant l'exécution de ce corps, si bien qu'une classe
@@ -946,9 +1082,14 @@ def _chaine_de_portees(
     en sont exclus, Python ne les faisant pas participer à la résolution des
     portées imbriquées — ``class A:`` déclarant ``class P:`` puis, dans une
     MÉTHODE de ``A``, ``class S(P)`` lève ``NameError`` à l'exécution.
+
+    La règle vaut pour toute définition, non pour les seules classes : le
+    DÉCORATEUR d'une méthode s'évalue exactement là où s'évalueraient les bases
+    d'une classe écrite au même endroit. Les deux questions se résolvent donc
+    dans la même chaîne, et il n'existe qu'un seul résolveur.
     """
     chaine: list[ast.AST] = []
-    portee = _portee_englobante(parents, classe)
+    portee = _portee_englobante(parents, definition)
     while portee is not None:
         if not chaine or not isinstance(portee, ast.ClassDef):
             chaine.append(portee)
@@ -1009,10 +1150,56 @@ def _liaisons_de_portee(portee: ast.AST) -> tuple[dict[str, ast.ClassDef], set[s
     return classes, opaques
 
 
+class _PorteesLexicales:
+    """Table des portées d'un module, consultée par TOUTE règle qui résout un nom.
+
+    Un seul résolveur existe, et il est partagé : la résolution par portée
+    construite pour les bases d'exception répond mot pour mot à la question que
+    posent le protocole d'une classe et le décorateur d'une méthode — ce que le
+    nom écrit ICI désigne réellement. En dupliquer un second garantirait de le
+    corriger à moitié le jour suivant.
+
+    La table est mémorisée par module : reconstruire le lien parent à chaque
+    question referait un parcours complet de l'arbre par nom résolu.
+    """
+
+    def __init__(self, arbre: ast.Module) -> None:
+        self._parents = _parents_de_larbre(arbre)
+        self._liaisons: dict[ast.AST, tuple[dict[str, ast.ClassDef], set[str]]] = {}
+
+    def chaine(self, definition: ast.AST) -> list[ast.AST]:
+        """Énumère les portées où un nom écrit dans cet en-tête se résout."""
+        return _chaine_de_portees(self._parents, definition)
+
+    def liaisons(self, portee: ast.AST) -> tuple[dict[str, ast.ClassDef], set[str]]:
+        """Retourne, en la mémorisant, la table des noms que cette portée lie."""
+        connue = self._liaisons.get(portee)
+        if connue is None:
+            connue = _liaisons_de_portee(portee)
+            self._liaisons[portee] = connue
+        return connue
+
+    def masque(self, nom: str, definition: ast.AST) -> bool:
+        """Dit si une liaison LOCALE prive le nom de l'origine prouvée par le module.
+
+        Toute liaison compte, classe ou non : ``class Protocol:``, ``Protocol =
+        object``, un paramètre ``Protocol`` ou une fonction homonyme font tous
+        désigner autre chose que le protocole importé. Consulter les imports du
+        module malgré ce masquage reviendrait à exempter sur la foi d'une
+        orthographe, exactement ce que ``_base_est_derivee`` refuse déjà pour les
+        types d'exception.
+        """
+        for portee in self.chaine(definition):
+            classes_locales, opaques = self.liaisons(portee)
+            if nom in opaques or nom in classes_locales:
+                return True
+        return False
+
+
 def _base_est_derivee(
     cible: ast.expr,
     chaine: list[ast.AST],
-    liaisons: Mapping[ast.AST, tuple[dict[str, ast.ClassDef], set[str]]],
+    portees: _PorteesLexicales,
     positions_derivees: set[tuple[int, int]],
     est_base_prouvee: Callable[[ast.expr], bool],
 ) -> bool:
@@ -1032,7 +1219,7 @@ def _base_est_derivee(
     if not isinstance(cible, ast.Name):
         return est_base_prouvee(cible)
     for portee in chaine:
-        classes_locales, opaques = liaisons[portee]
+        classes_locales, opaques = portees.liaisons(portee)
         if cible.id in opaques:
             return False
         definition = classes_locales.get(cible.id)
@@ -1044,6 +1231,7 @@ def _base_est_derivee(
 def _positions_de_classes_derivees(
     arbre: ast.Module,
     est_base_prouvee: Callable[[ast.expr], bool],
+    portees: _PorteesLexicales,
 ) -> frozenset[tuple[int, int]]:
     """Résout par POINT FIXE les classes du module dérivant d'une base prouvée.
 
@@ -1067,13 +1255,7 @@ def _positions_de_classes_derivees(
     sur le module, exactement comme à l'exécution.
     """
     classes = [noeud for noeud in ast.walk(arbre) if isinstance(noeud, ast.ClassDef)]
-    parents = _parents_de_larbre(arbre)
-    chaines = {classe: _chaine_de_portees(parents, classe) for classe in classes}
-    liaisons: dict[ast.AST, tuple[dict[str, ast.ClassDef], set[str]]] = {}
-    for chaine in chaines.values():
-        for portee in chaine:
-            if portee not in liaisons:
-                liaisons[portee] = _liaisons_de_portee(portee)
+    chaines = {classe: portees.chaine(classe) for classe in classes}
     positions_derivees: set[tuple[int, int]] = set()
     ajout = True
     while ajout:
@@ -1086,7 +1268,7 @@ def _positions_de_classes_derivees(
                 if _base_est_derivee(
                     _base_declaree(base),
                     chaines[classe],
-                    liaisons,
+                    portees,
                     positions_derivees,
                     est_base_prouvee,
                 ):
@@ -1149,17 +1331,30 @@ def _est_base_test_case(base: ast.expr, aliases: _AliasesImports) -> bool:
 def _est_methode_abstraite(
     fonction: ast.FunctionDef | ast.AsyncFunctionDef,
     aliases: _AliasesImports,
+    portees: _PorteesLexicales,
 ) -> bool:
-    """Détermine si le décorateur vise réellement abc.abstractmethod."""
+    """Détermine si le décorateur vise réellement abc.abstractmethod.
+
+    Le décorateur s'évalue là où la définition est écrite, exactement comme les
+    bases d'une classe : un homonyme LOCAL — fonction identité, affectation,
+    paramètre — le remplace sans que l'import du module cesse d'exister. Le même
+    résolveur de portées tranche donc les deux questions, et un décorateur
+    masqué n'exempte plus l'ellipse qu'il décore.
+    """
     for decorateur in fonction.decorator_list:
         cible = decorateur.func if isinstance(decorateur, ast.Call) else decorateur
-        if isinstance(cible, ast.Name) and cible.id in aliases.abstractmethods:
-            return True
+        if isinstance(cible, ast.Name):
+            if cible.id in aliases.abstractmethods and not portees.masque(
+                cible.id, fonction
+            ):
+                return True
+            continue
         if (
             isinstance(cible, ast.Attribute)
             and isinstance(cible.value, ast.Name)
             and cible.value.id in aliases.modules_abc
             and cible.attr == "abstractmethod"
+            and not portees.masque(cible.value.id, fonction)
         ):
             return True
     return False
@@ -1222,6 +1417,7 @@ def _analyser_fonction(
     fonction: ast.FunctionDef | ast.AsyncFunctionDef,
     dans_protocol: bool,
     aliases: _AliasesImports,
+    portees: _PorteesLexicales,
 ) -> list[Violation]:
     """Applique les règles anti-stub locales à une fonction."""
     violations: list[Violation] = []
@@ -1245,7 +1441,7 @@ def _analyser_fonction(
         and utile[0].value.value is Ellipsis
     )
     if est_ellipse_unique and (
-        dans_protocol or _est_methode_abstraite(fonction, aliases)
+        dans_protocol or _est_methode_abstraite(fonction, aliases, portees)
     ):
         return violations
 
@@ -1425,8 +1621,9 @@ def _analyser_lambdas(repo: Path, fichier: Path, arbre: ast.Module) -> list[Viol
 def _analyser_stubs(repo: Path, fichier: Path, arbre: ast.Module) -> list[Violation]:
     """Parcourt tous les blocs en conservant le contexte Protocol des classes."""
     aliases = _analyser_imports(arbre)
+    portees = _PorteesLexicales(arbre)
     exceptions = _positions_de_classes_derivees(
-        arbre, lambda base: _est_base_exception_builtin(base, aliases)
+        arbre, lambda base: _est_base_exception_builtin(base, aliases), portees
     )
     violations: list[Violation] = []
 
@@ -1437,7 +1634,7 @@ def _analyser_stubs(repo: Path, fichier: Path, arbre: ast.Module) -> list[Violat
             self.protocols: list[bool] = [False]
 
         def visit_ClassDef(self, noeud: ast.ClassDef) -> None:
-            est_protocol = _est_classe_protocol(noeud, aliases)
+            est_protocol = _est_classe_protocol(noeud, aliases, portees)
             violations.extend(
                 _analyser_classe(repo, fichier, noeud, exceptions, est_protocol)
             )
@@ -1447,7 +1644,9 @@ def _analyser_stubs(repo: Path, fichier: Path, arbre: ast.Module) -> list[Violat
 
         def visit_FunctionDef(self, noeud: ast.FunctionDef) -> None:
             violations.extend(
-                _analyser_fonction(repo, fichier, noeud, self.protocols[-1], aliases)
+                _analyser_fonction(
+                    repo, fichier, noeud, self.protocols[-1], aliases, portees
+                )
             )
             self.protocols.append(False)
             self.generic_visit(noeud)
@@ -1455,7 +1654,9 @@ def _analyser_stubs(repo: Path, fichier: Path, arbre: ast.Module) -> list[Violat
 
         def visit_AsyncFunctionDef(self, noeud: ast.AsyncFunctionDef) -> None:
             violations.extend(
-                _analyser_fonction(repo, fichier, noeud, self.protocols[-1], aliases)
+                _analyser_fonction(
+                    repo, fichier, noeud, self.protocols[-1], aliases, portees
+                )
             )
             self.protocols.append(False)
             self.generic_visit(noeud)
@@ -1599,7 +1800,9 @@ def _receveurs_de_cas_de_test(
     ``staticmethod``, n'a aucun receveur et n'est donc pas recensée.
     """
     cas_de_test = _positions_de_classes_derivees(
-        arbre, lambda base: _est_base_test_case(base, aliases)
+        arbre,
+        lambda base: _est_base_test_case(base, aliases),
+        _PorteesLexicales(arbre),
     )
     receveurs: dict[ast.stmt, str] = {}
     for noeud in ast.walk(arbre):

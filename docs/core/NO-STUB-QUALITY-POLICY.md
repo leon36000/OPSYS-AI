@@ -964,6 +964,59 @@ Le même défaut laissait un `TestCase` local usurpé fabriquer un receveur
 d'oracles, si bien qu'un `self.assertVrai(...)` passait pour une vérification
 héritée de la bibliothèque standard.
 
+#### Le même résolveur tranche aussi `Protocol` et `abstractmethod`
+
+Deux exemptions consultaient encore l'alias du MODULE sans tenir compte du
+masquage lexical. L'alias dit ce qu'un nom désigne au niveau du module ; il ne
+dit jamais ce qu'il désigne à l'endroit où la base — ou le décorateur — est
+écrite. MESURÉ, les quatre formes suivantes étaient acceptées alors que le code
+n'hérite de rien et n'abstrait rien.
+
+```python
+from typing import Protocol
+def f() -> None:
+    class Protocol:                    # classe ORDINAIRE, locale
+        marqueur = 1
+    class C(Protocol):
+        def manque(self) -> None: ...  # refusé — hérite du Protocol LOCAL
+
+from typing import Protocol
+def f(Protocol) -> None:               # le PARAMÈTRE masque le module
+    class C(Protocol):
+        def manque(self) -> None: ...  # refusé
+
+from abc import abstractmethod
+def f() -> None:
+    def abstractmethod(g):             # décorateur local homonyme
+        return g
+    class C:
+        @abstractmethod
+        def manque(self) -> None: ...  # refusé — le décorateur n'abstrait rien
+
+import typing as t
+def f() -> None:
+    class t:                           # le PORTEUR est masqué
+        Protocol = object
+    class C(t.Protocol):
+        def manque(self) -> None: ...  # refusé — t.Protocol vaut object
+```
+
+Aucun second résolveur n'a été écrit : la chaîne de portées construite pour les
+bases d'exception répond mot pour mot à la même question, et un décorateur
+s'évalue exactement là où s'évalueraient les bases d'une classe écrite au même
+endroit. En dupliquer un second garantirait de le corriger à moitié.
+
+La garde INVERSE est tenue : sans homonyme, la classe locale reste un protocole
+et le décorateur importé garde son exemption.
+
+```python
+from typing import Protocol
+def fabriquer() -> type:
+    class Depot(Protocol):
+        def lire(self) -> str: ...     # accepté — aucun homonyme ne masque le nom
+    return Depot
+```
+
 ### Le protocole déclaré par une ellipse
 
 Un **protocole prouvé** dont le corps entier est une ellipse est exempté : il
@@ -999,7 +1052,7 @@ entièrement à la règle.
 
 ```python
 import builtins
-Absence = builtins.NotImplementedError
+Absence = builtins.NotImplementedError  # proof:allow — exemple de la règle, ce motif EST le sujet
 
 def calculer() -> None:
     raise Absence            # refusé — alias prouvé, stub explicite
@@ -1011,6 +1064,96 @@ partir de `NotImplemented`/`NotImplementedError` est concerné, si bien qu'un
 **après** l'invalidation générale des noms réaffectés : l'affectation qui la
 porte est elle-même une réaffectation, et l'appliquer plus tôt reviendrait à
 l'effacer avec elle.
+
+#### La destructuration est appariée POSITION par POSITION
+
+La preuve n'était lue que sur une affectation à cible unique. Le tuple de droite
+n'étant lui-même ni un nom ni un attribut, MESURÉ, la même absence
+d'implémentation passait pour un objet quelconque. Deux erreurs symétriques
+étaient possibles, et l'appariement les écarte toutes les deux : ne rien prouver
+laissait le stub passer ; tout prouver dès qu'UNE valeur convient ferait de la
+position voisine un stub qu'elle n'est pas.
+
+```python
+import builtins
+A, B = builtins.NotImplementedError, builtins.NotImplemented  # proof:allow — exemple de la règle, ce motif EST le sujet
+
+def f() -> None:
+    raise A                     # refusé — la position 0 est prouvée
+
+import builtins, metier
+A, B = builtins.NotImplementedError, metier.Erreur  # proof:allow — exemple de la règle, ce motif EST le sujet
+
+def f() -> None:
+    raise B                     # accepté — la preuve ne déteint pas sur B
+
+import mon_module, autre_module
+A, B = mon_module.Erreur, autre_module.Valeur
+
+def f() -> None:
+    raise A                     # accepté — aucune position n'est prouvée
+```
+
+L'**étoile** absorbe un nombre variable de valeurs : les positions qui la
+précèdent restent alignées par la gauche, celles qui la suivent par la droite.
+L'étoile elle-même lie une LISTE, jamais l'exception, et n'est appariée avec
+rien. Une longueur incompatible n'apparie rien du tout : la forme échouerait à
+l'exécution, et en déduire une preuve serait inventer.
+
+```python
+import builtins
+*debut, Absence = 1, 2, builtins.NotImplementedError  # proof:allow — exemple de la règle, ce motif EST le sujet
+
+def f() -> None:
+    raise Absence               # refusé — alignement par la droite
+```
+
+L'appariement n'a lieu que lorsque les DEUX côtés énumèrent leurs éléments :
+`A, B = fabriquer()` ne dit rien de ce que chaque nom reçoit, et la lecture
+globale de la valeur reprend alors la main, inchangée.
+
+#### La chaîne d'alias est résolue jusqu'au POINT FIXE
+
+Un alias d'alias est le même stub que la levée directe : `Alias` vaut bien
+l'exception de l'interpréteur à l'exécution. S'arrêter au premier cran laissait
+la chaîne entière échapper à la règle.
+
+```python
+import builtins
+Absence = builtins.NotImplementedError  # proof:allow — exemple de la règle, ce motif EST le sujet
+Alias = Absence
+
+def f() -> None:
+    raise Alias                 # refusé — chaîne transitive
+
+import metier
+Racine = metier.Erreur
+Alias = Racine
+
+def f() -> None:
+    raise Alias                 # accepté — la propagation s'arrête à une origine inconnue
+```
+
+La propagation ignore l'**ordre** des lignes, comme le reste de la collecte des
+liaisons. Ce n'est pas une précaution théorique : MESURÉ, la collecte visite le
+`finally` d'un bloc AVANT ses gestionnaires, si bien qu'un repli d'import
+ordinaire présente son maillon consommateur avant son maillon source.
+
+```python
+import builtins
+try:
+    import module_optionnel
+except ImportError:
+    Absence = builtins.NotImplementedError  # proof:allow — exemple de la règle, ce motif EST le sujet
+finally:
+    Alias = Absence
+
+def f() -> None:
+    raise Alias                 # refusé — un seul tour de propagation le manquerait
+```
+
+Le parcours s'arrête dès qu'un tour n'ajoute plus rien, ce qui le borne : le
+nombre de noms liés par un module est fini.
 
 La règle ne s'arrête **pas** au corps des fonctions. Levée au niveau d'un module
 ou dans un corps de classe, l'exception fait échouer le module **à l'import**, et
@@ -1162,6 +1305,33 @@ Le retrait vise l'**attribut prouvant**, pas le module entier : `t.TYPE_CHECKING
 **exemptent** sont invalidées ainsi — `typing.Protocol`, `abc.abstractmethod` —
 car retirer une preuve qui sert à *détecter* (marques de saut, absences
 d'implémentation) rendrait le gate muet, donc fail-open.
+
+**La SUPPRESSION d'un attribut de module** détruit la même preuve, et plus
+radicalement encore : après `del t.Protocol`, la classe qui prétend en hériter
+échoue à l'import sur une `AttributeError`. Ne lire que les affectations
+laissait donc exempter un code qui ne s'importe même pas. La symétrie avec le
+`del` d'un NOM, déjà collecté, est ainsi rétablie pour les attributs.
+
+```python
+import typing as t
+del t.Protocol
+
+class S(t.Protocol):
+    def f(self) -> None: ...     # refusé — l'attribut prouvant n'existe plus
+
+import abc
+del abc.abstractmethod
+
+class Socle:
+    @abc.abstractmethod
+    def calculer(self) -> str: ...   # refusé — même raison
+
+import typing as t
+del t.TYPE_CHECKING              # attribut sans rapport
+
+class Service(t.Protocol):
+    def calculer(self) -> str: ...   # accepté — la preuve visée est intacte
+```
 
 **L'affectation déclarée `global`.** L'exemption des affectations locales repose
 sur leur portée ; `global` la supprime explicitement, et la liaison atteint alors

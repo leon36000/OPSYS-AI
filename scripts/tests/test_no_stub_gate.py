@@ -5888,3 +5888,358 @@ def test_refuse_une_negation_dont_le_then_absorbe_malgre_un_elif_propageant(
     )
 
     assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_une_ellipse_sous_un_protocol_masque_par_une_classe_locale(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'une classe locale homonyme désarme l'exemption du protocole importé.
+
+    MESURÉ : ``C`` hérite de la classe ordinaire déclarée dans ``f``, jamais du
+    protocole du module, si bien que son ellipse est un corps de méthode vide.
+    Résoudre la base sur le seul alias du module ignorait ce masquage lexical.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "from typing import Protocol\n\n\n"
+        "def f() -> None:\n"
+        "    class Protocol:\n"
+        "        marqueur = 1\n\n"
+        "    class C(Protocol):\n"
+        "        def manque(self) -> None: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_une_ellipse_sous_un_protocol_masque_par_une_affectation_locale(
+    tmp_path: Path,
+) -> None:
+    """Prouve que toute liaison locale, pas seulement une classe, éteint l'exemption.
+
+    ``Protocol = object`` dans la portée où la base est écrite fait hériter
+    ``C`` d'``object`` : le nom du module n'est plus celui qui est résolu.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "from typing import Protocol\n\n\n"
+        "def f() -> None:\n"
+        "    Protocol = object\n\n"
+        "    class C(Protocol):\n"
+        "        def manque(self) -> None: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_une_ellipse_sous_un_protocol_masque_par_un_parametre(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un paramètre homonyme masque le protocole dans tout le corps."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "from typing import Protocol\n\n\n"
+        "def f(Protocol) -> None:\n"
+        "    class C(Protocol):\n"
+        "        def manque(self) -> None: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_une_ellipse_sous_un_protocol_dont_le_module_est_masque(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le PORTEUR d'une base qualifiée se résout aussi par portée.
+
+    ``class t: Protocol = object`` dans ``f`` fait désigner ``object`` à
+    ``t.Protocol`` : exempter sur la foi de l'import du module reviendrait à
+    juger l'orthographe du porteur plutôt que ce qu'il désigne à cet endroit.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "import typing as t\n\n\n"
+        "def f() -> None:\n"
+        "    class t:\n"
+        "        Protocol = object\n\n"
+        "    class C(t.Protocol):\n"
+        "        def manque(self) -> None: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_une_ellipse_sous_un_abstractmethod_masque_localement(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un décorateur local homonyme désarme l'exemption comme une base locale.
+
+    Le décorateur est évalué dans la portée où il est écrit : ici il désigne la
+    fonction identité déclarée juste au-dessus, qui n'abstrait rien du tout.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/base.py",
+        "from abc import abstractmethod\n\n\n"
+        "def f() -> None:\n"
+        "    def abstractmethod(g):\n"
+        "        return g\n\n"
+        "    class C:\n"
+        "        @abstractmethod\n"
+        "        def manque(self) -> None: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_une_ellipse_sous_un_abstractmethod_dont_le_module_est_masque(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le porteur ``abc`` d'un décorateur qualifié se résout par portée."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/base.py",
+        "import abc\n\n\n"
+        "def f(abc) -> None:\n"
+        "    class C:\n"
+        "        @abc.abstractmethod\n"
+        "        def manque(self) -> None: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_accepte_une_classe_locale_heritant_du_protocol_du_module(
+    tmp_path: Path,
+) -> None:
+    """Prouve la garde INVERSE : sans homonyme, la classe locale reste un protocole.
+
+    La résolution par portée ne doit pas inventer un masquage : aucune liaison
+    de ``fabriquer`` ne porte le nom ``Protocol``, donc la base est bien celle
+    du module et l'ellipse déclarative reste licite.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "from typing import Protocol\n\n\n"
+        "def fabriquer() -> type:\n"
+        "    class Depot(Protocol):\n"
+        "        def lire(self) -> str: ...\n\n"
+        "    return Depot\n",
+    )
+
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_accepte_un_abstractmethod_du_module_dans_une_classe_locale(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le décorateur importé garde son exemption dans une portée imbriquée."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/base.py",
+        "from abc import abstractmethod\n\n\n"
+        "def fabriquer() -> type:\n"
+        "    class Socle:\n"
+        "        @abstractmethod\n"
+        "        def lire(self) -> str: ...\n\n"
+        "    return Socle\n",
+    )
+
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_refuse_un_protocol_supprime_par_del_dattribut(tmp_path: Path) -> None:
+    """Prouve que ``del`` d'un attribut détruit la preuve autant que sa réécriture.
+
+    Après ``del t.Protocol``, la classe qui prétend en hériter lève une
+    ``AttributeError`` à l'import : l'exemption ne repose plus sur rien. Le gate
+    surveillait la réaffectation d'attribut mais pas sa suppression.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "import typing as t\n\ndel t.Protocol\n\n\n"
+        "class S(t.Protocol):\n    def f(self) -> None: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_abstractmethod_supprime_par_del_dattribut(tmp_path: Path) -> None:
+    """Prouve que la suppression vise la PREUVE d'origine, pas le seul nom Protocol."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/base.py",
+        "import abc\n\ndel abc.abstractmethod\n\n\n"
+        "class Socle:\n    @abc.abstractmethod\n"
+        "    def calculer(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_accepte_un_module_typing_dont_un_autre_attribut_est_supprime(
+    tmp_path: Path,
+) -> None:
+    """Prouve que seule la suppression de l'attribut PROUVANT retire l'exemption."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "import typing as t\n\ndel t.TYPE_CHECKING\n\n\n"
+        "class Service(t.Protocol):\n    def calculer(self) -> str: ...\n",
+    )
+
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_refuse_une_absence_dimplementation_aliasee_par_destructuration(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'une destructuration lie l'absence d'implémentation position par position.
+
+    La preuve d'alias n'était lue que sur une affectation à cible unique : le
+    tuple de droite n'étant lui-même ni un nom ni un attribut, la même absence
+    d'implémentation passait pour un objet quelconque.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "import builtins\n\n"
+        "A, B = builtins.NotImplementedError, builtins.NotImplemented\n\n\n"  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+        "def f() -> None:\n    raise A\n",
+    )
+
+    assert "NOT_IMPLEMENTED_STUB" in _codes(_scanner(repo))
+
+
+def test_refuse_une_absence_dimplementation_destructuree_apres_une_etoile(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'étoile n'aligne pas moins les positions qui la suivent.
+
+    ``*debut, Absence`` lie la DERNIÈRE valeur à ``Absence`` : l'appariement se
+    fait par la droite pour tout ce qui suit l'étoile.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "import builtins\n\n"
+        "*debut, Absence = 1, 2, builtins.NotImplementedError\n\n\n"  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+        "def f() -> None:\n    raise Absence\n",
+    )
+
+    assert "NOT_IMPLEMENTED_STUB" in _codes(_scanner(repo))
+
+
+def test_accepte_une_destructuration_dont_la_position_levee_nest_pas_prouvee(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'appariement ne contamine pas la position VOISINE de la preuve.
+
+    Prouver toutes les cibles dès qu'UNE valeur convient serait l'erreur
+    symétrique du défaut corrigé : ``B`` désigne une erreur métier, et la lever
+    n'est pas un stub.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "import builtins\nimport metier\n\n"
+        "A, B = builtins.NotImplementedError, metier.Erreur\n\n\n"  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+        "def f() -> None:\n    raise B\n",
+    )
+
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_accepte_une_destructuration_de_modules_metier(tmp_path: Path) -> None:
+    """Prouve qu'une destructuration sans absence d'implémentation ne déclenche rien."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "import mon_module\nimport autre_module\n\n"
+        "A, B = mon_module.Erreur, autre_module.Valeur\n\n\n"
+        "def f() -> None:\n    raise A\n",
+    )
+
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_refuse_une_absence_dimplementation_aliasee_en_chaine(tmp_path: Path) -> None:
+    """Prouve que la preuve d'absence se propage le long d'un alias d'alias.
+
+    MESURÉ : ``Alias`` vaut bien l'exception de l'interpréteur à l'exécution, si
+    bien que ``raise Alias`` est le même stub que la levée directe. S'arrêter au
+    premier cran laissait la chaîne entière échapper à la règle.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "import builtins\n\n"
+        "Absence = builtins.NotImplementedError\n"  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+        "Alias = Absence\n\n\n"
+        "def f() -> None:\n    raise Alias\n",
+    )
+
+    assert "NOT_IMPLEMENTED_STUB" in _codes(_scanner(repo))
+
+
+def test_refuse_une_chaine_dalias_dont_le_maillon_source_est_collecte_en_dernier(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la propagation atteint son POINT FIXE, et pas seulement un tour.
+
+    MESURÉ : la collecte des liaisons visite le ``finally`` AVANT les
+    gestionnaires, si bien que ``Alias = Absence`` est lu avant l'affectation qui
+    prouve ``Absence``. Un seul tour de propagation laisserait donc ``Alias``
+    inconnu, alors que le repli d'import le lie bien à l'exception de
+    l'interpréteur. Sans ce cas, réduire la boucle à un tour passait inaperçu.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "import builtins\n\n"
+        "try:\n    import module_optionnel\n"
+        "except ImportError:\n"
+        "    Absence = builtins.NotImplementedError\n"  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+        "finally:\n    Alias = Absence\n\n\n"
+        "def f() -> None:\n    raise Alias\n",
+    )
+
+    assert "NOT_IMPLEMENTED_STUB" in _codes(_scanner(repo))
+
+
+def test_accepte_une_chaine_dalias_dont_lorigine_nest_pas_prouvee(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la propagation s'arrête au maillon dont l'origine est inconnue."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "import metier\n\nRacine = metier.Erreur\nAlias = Racine\n\n\n"
+        "def f() -> None:\n    raise Alias\n",
+    )
+
+    assert _codes(_scanner(repo)) == set()
