@@ -1,0 +1,74 @@
+name: external-audit-export
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: external-audit-export-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  export:
+    if: github.head_ref == 'chore/audit-000-cadrage'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout complete repository history
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Build immutable read-only audit export
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_SHA='${{ github.event.pull_request.base.sha }}'
+          test "$(git rev-parse "${BASE_SHA}^{commit}")" = "${BASE_SHA}"
+          mkdir -p /tmp/opsys-audit-export
+
+          git archive \
+            --format=tar.gz \
+            --prefix="OPSYS-AI-${BASE_SHA}/" \
+            --output="/tmp/opsys-audit-export/OPSYS-AI-${BASE_SHA}.tar.gz" \
+            "${BASE_SHA}"
+
+          git bundle create \
+            "/tmp/opsys-audit-export/OPSYS-AI-${BASE_SHA}.bundle" \
+            refs/remotes/origin/main
+
+          git ls-tree -r -l "${BASE_SHA}" \
+            > "/tmp/opsys-audit-export/OPSYS-AI-${BASE_SHA}.ls-tree.txt"
+          git show-ref \
+            > "/tmp/opsys-audit-export/OPSYS-AI-${BASE_SHA}.refs.txt"
+          git log --all --date=iso-strict \
+            --format='%H%x09%P%x09%aI%x09%an%x09%G?%x09%s' \
+            > "/tmp/opsys-audit-export/OPSYS-AI-${BASE_SHA}.history.tsv"
+
+          {
+            printf 'repository=%s\n' '${{ github.repository }}'
+            printf 'base_ref=%s\n' '${{ github.base_ref }}'
+            printf 'base_sha=%s\n' "${BASE_SHA}"
+            printf 'tree_sha=%s\n' "$(git show -s --format=%T "${BASE_SHA}")"
+            printf 'exported_at=%s\n' "$(date --utc --iso-8601=seconds)"
+            printf 'workflow_sha=%s\n' '${{ github.sha }}'
+          } > "/tmp/opsys-audit-export/EXPORT-METADATA.txt"
+
+          cd /tmp/opsys-audit-export
+          sha256sum ./* > SHA256SUMS
+          sha256sum --check SHA256SUMS
+
+      - name: Upload audit export
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: opsys-ai-external-audit-export-${{ github.event.pull_request.base.sha }}
+          path: /tmp/opsys-audit-export/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+          include-hidden-files: true
