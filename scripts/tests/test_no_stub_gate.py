@@ -2035,3 +2035,796 @@ def test_un_marqueur_de_dette_preexistant_non_modifie_reste_accepte_choix_delibe
     _commiter_sans_hook(repo, "marqueur de dette préexistant")
 
     assert "FORBIDDEN_MARKER" not in _codes(_scanner(repo))
+
+
+def _workflow_run(job: str, lignes: tuple[str, ...]) -> str:
+    """Assemble un workflow dont l'unique étape exécute le bloc shell donné."""
+    corps = "".join(f"          {ligne}\n" for ligne in lignes)
+    return (
+        "jobs:\n"
+        f"  {job}:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: |\n" + corps
+    )
+
+
+def test_refuse_une_condition_de_negation_qui_absorbe_lechec_dans_un_job_requis(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'une garde ``if !`` exempte le contrôle d'errexit puis avale son échec.
+
+    La commande testée par ``if !`` n'est jamais soumise à ``set -e`` : c'est la
+    branche ``then`` qui fixe le code de retour de l'étape. Réduite à ``:``, elle
+    réussit, donc le job requis est vert alors que le contrôle a échoué.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run(
+            "security",
+            (
+                "if ! python3 core/scripts/run_security_scan.py; then",
+                "  :",
+                "fi",
+            ),
+        ),
+    )
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_une_condition_de_negation_qui_journalise_sans_propager(
+    tmp_path: Path,
+) -> None:
+    """Prouve que journaliser l'échec ne le propage pas : la branche réussit quand même."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run(
+            "security",
+            (
+                "if ! python3 core/scripts/run_security_scan.py; then",
+                "  echo 'scan ignoré' >&2",
+                "fi",
+            ),
+        ),
+    )
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_accepte_une_condition_de_negation_qui_propage_lechec(tmp_path: Path) -> None:
+    """Prouve que la borne est la propagation, jamais la forme : ``exit 1`` reste licite."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run(
+            "security",
+            (
+                "if ! test -f rapport.json; then",
+                "  exit 1",
+                "fi",
+            ),
+        ),
+    )
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_accepte_une_condition_de_negation_absorbante_dans_un_job_non_requis(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le durcissement reste borné aux identifiants du contrat."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run(
+            "rapport-optionnel",
+            (
+                "if ! python3 rapport.py; then",
+                "  :",
+                "fi",
+            ),
+        ),
+    )
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_refuse_un_controle_du_depot_en_condition_if_sans_negation(
+    tmp_path: Path,
+) -> None:
+    """Prouve que retirer le ``!`` ne suffit plus à contourner la garde ``if !``.
+
+    Quand le contrôle échoue, la branche ``then`` n'est pas prise ; sans ``else``
+    rien ne s'exécute et le ``fi`` rend 0. L'étape est verte alors que le contrôle
+    requis a échoué : l'échec est absorbé exactement comme avec la négation, pour
+    un caractère de moins dans le workflow.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run(
+            "security",
+            (
+                "if python3 core/scripts/run_security_scan.py; then",
+                "  :",
+                "fi",
+            ),
+        ),
+    )
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_controle_du_depot_en_condition_if_qui_journalise_sans_propager(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la branche ``then`` prise au SUCCÈS ne rachète pas l'échec absorbé."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run(
+            "security",
+            (
+                "if python3 core/scripts/run_security_scan.py; then",
+                "  echo ok",
+                "fi",
+            ),
+        ),
+    )
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+@pytest.mark.parametrize(
+    "invocation",
+    (
+        "python3 gate.py",
+        "bash verifier.sh",
+        "bash scripts/quality/verifier.sh",
+        "./tools/proof/verifier --strict",
+        "core/scripts/verify_proof_sealed.py --min-vendors 3",
+    ),
+    ids=(
+        "suffixe-py",
+        "suffixe-sh",
+        "racine-scripts",
+        "racine-tools",
+        "racine-core-scripts",
+    ),
+)
+def test_refuse_tout_script_du_depot_en_condition_if_sans_negation(
+    tmp_path: Path, invocation: str
+) -> None:
+    """Prouve que le critère porte sur le SCRIPT DU DÉPÔT, pas sur l'interpréteur.
+
+    Chaque cas isole UNE marque du dépôt : le suffixe ``.py`` seul, le suffixe
+    ``.sh`` seul, puis les racines ``scripts/``, ``tools/`` et ``core/scripts/``.
+    Aucune n'est couverte par une autre — supprimer un seul de ces critères laisse
+    donc un cas rouge, et non un contournement silencieux.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run("security", (f"if {invocation}; then", "  :", "fi")),
+    )
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_accepte_un_controle_en_condition_if_dont_le_else_propage_lechec(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la borne reste la propagation : le ``else`` rend l'échec au job.
+
+    Sur un ``if`` sans négation, la branche exécutée quand le contrôle échoue est
+    le ``else`` ; s'il sort en non nul, l'étape échoue comme sans conditionnelle.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run(
+            "security",
+            (
+                "if python3 core/scripts/run_security_scan.py; then",
+                "  echo ok",
+                "else",
+                "  exit 1",
+                "fi",
+            ),
+        ),
+    )
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_accepte_laiguillage_par_test_shell_du_job_proof_sealed(
+    tmp_path: Path,
+) -> None:
+    """Verrouille la forme LÉGITIME réellement utilisée par le job requis proof-sealed.
+
+    ``[ -z "$X" ]`` est un aiguillage sur une variable, pas un contrôle dont
+    l'échec importerait : le contrôle réel s'exécute après le ``fi``, soumis à
+    ``errexit``. Ce test rougit si la règle des ``if`` sans négation déborde sur
+    les tests shell et casse le workflow du dépôt.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run(
+            "proof-sealed",
+            (
+                'if [ -z "$CODE_CHANGE" ]; then',
+                '  echo "Aucun changement sous le périmètre scellé"',
+                "  exit 0",
+                "fi",
+                'python3 core/scripts/verify_proof_sealed.py "${ARGS[@]}"',
+            ),
+        ),
+    )
+    assert _codes(_scanner(repo)) == set()
+
+
+@pytest.mark.parametrize(
+    ("condition", "corps"),
+    (
+        ("command -v docker", "echo présent"),
+        ("git diff --quiet", "echo rien"),
+        ("grep -q motif fichier", "echo trouvé"),
+        ('[[ -n "$RUNNER_OS" ]]', "echo os"),
+        ("test -f rapport.json", "echo rapport"),
+        ("[ -f core/scripts/verify_proof_sealed.py ]", "echo présent"),
+        ("grep -q motif scripts/quality/no_stub_gate.py", "echo trouvé"),
+    ),
+    ids=(
+        "command-v",
+        "git-diff",
+        "grep",
+        "crochet-double",
+        "test-f",
+        "crochet-sur-un-script-du-depot",
+        "grep-sur-un-script-du-depot",
+    ),
+)
+def test_accepte_les_sondes_shell_en_condition_if_sans_negation(
+    tmp_path: Path, condition: str, corps: str
+) -> None:
+    """Prouve que les sondes shell restent hors règle, même en nommant un script du dépôt.
+
+    ``[``, ``[[``, ``test``, ``command``, ``grep`` et ``git`` interrogent un état ;
+    leur code de retour EST la question posée, jamais le verdict d'un contrôle
+    absorbé. Les deux derniers cas prouvent que citer un chemin du dépôt en
+    ARGUMENT d'une sonde ne vaut pas l'invoquer.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run("security", (f"if {condition}; then", f"  {corps}", "fi")),
+    )
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_accepte_un_controle_if_absorbant_dans_un_job_non_requis(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la nouvelle règle reste bornée aux identifiants du contrat."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run(
+            "rapport-optionnel",
+            (
+                "if python3 core/scripts/run_security_scan.py; then",
+                "  :",
+                "fi",
+            ),
+        ),
+    )
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_refuse_set_plus_e_dans_un_job_requis(tmp_path: Path) -> None:
+    """Prouve que désarmer errexit rend vert tout ce qui échoue ensuite dans l'étape."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run(
+            "security",
+            (
+                "set +e",
+                "python3 core/scripts/run_security_scan.py",
+                "echo terminé",
+            ),
+        ),
+    )
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_set_plus_o_errexit_dans_un_job_requis(tmp_path: Path) -> None:
+    """Prouve que la forme longue ``+o errexit`` désarme la même garantie."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run(
+            "security",
+            (
+                "set +o errexit",
+                "python3 core/scripts/run_security_scan.py",
+            ),
+        ),
+    )
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_accepte_set_moins_e_dans_un_job_requis(tmp_path: Path) -> None:
+    """Prouve que le durcissement vise le ``+`` : armer errexit reste la bonne pratique."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run(
+            "security",
+            (
+                "set -e",
+                "python3 core/scripts/run_security_scan.py",
+            ),
+        ),
+    )
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_accepte_set_plus_x_dans_un_job_requis(tmp_path: Path) -> None:
+    """Prouve que seule l'option errexit est visée : couper la trace ne masque aucun échec."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run(
+            "security",
+            (
+                "set +x",
+                "python3 core/scripts/run_security_scan.py",
+            ),
+        ),
+    )
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_refuse_un_skipif_ajoute(tmp_path: Path) -> None:
+    """Prouve que la condition de saut est un saut : le test ajouté ne s'exécute pas."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "import pytest\n\n\n"
+        "@pytest.mark.skipif(True, reason='indisponible')\n"
+        "def test_calcul() -> None:\n"
+        "    assert calculer() == 1\n",
+    )
+    assert "NEW_SKIP_OR_XFAIL" in _codes(_scanner(repo))
+
+
+def test_refuse_un_skip_if_unittest_ajoute(tmp_path: Path) -> None:
+    """Prouve que la variante unittest du saut conditionnel est refusée à égalité."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "import unittest\n\n\n"
+        "@unittest.skipIf(True, 'indisponible')\n"
+        "def test_calcul() -> None:\n"
+        "    assert calculer() == 1\n",
+    )
+    assert "NEW_SKIP_OR_XFAIL" in _codes(_scanner(repo))
+
+
+def test_refuse_un_skip_unless_unittest_ajoute(tmp_path: Path) -> None:
+    """Prouve que la négation de la même dette ne crée pas un échappatoire."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "import unittest\n\n\n"
+        "@unittest.skipUnless(False, 'indisponible')\n"
+        "def test_calcul() -> None:\n"
+        "    assert calculer() == 1\n",
+    )
+    assert "NEW_SKIP_OR_XFAIL" in _codes(_scanner(repo))
+
+
+def test_refuse_un_xfail_appele_dans_le_corps(tmp_path: Path) -> None:
+    """Prouve que l'échec attendu déclaré depuis le corps est aussi une dette ajoutée."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "import pytest\n\n\n"
+        "def test_calcul() -> None:\n"
+        "    pytest.xfail('connu cassé')\n"
+        "    assert calculer() == 1\n",
+    )
+    assert "NEW_SKIP_OR_XFAIL" in _codes(_scanner(repo))
+
+
+def test_refuse_un_importorskip_ajoute(tmp_path: Path) -> None:
+    """Prouve que le saut conditionné à un import est un saut, donc une dette ajoutée."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "import pytest\n\n\n"
+        "def test_calcul() -> None:\n"
+        "    pytest.importorskip('yaml')\n"
+        "    assert calculer() == 1\n",
+    )
+    assert "NEW_SKIP_OR_XFAIL" in _codes(_scanner(repo))
+
+
+def test_accepte_un_saut_homonyme_sur_un_autre_objet(tmp_path: Path) -> None:
+    """Prouve que la règle reste qualifiée par le module et n'attrape pas un homonyme."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/test_service.py",
+        "def test_calcul() -> None:\n"
+        "    lecteur.skipIf(True)\n"
+        "    assert lecteur.position == 1\n",
+    )
+    assert "NEW_SKIP_OR_XFAIL" not in _codes(_scanner(repo))
+
+
+def test_refuse_une_absence_dimplementation_au_niveau_module(tmp_path: Path) -> None:
+    """Prouve que l'absence d'implémentation est jugée partout, pas seulement en fonction.
+
+    Un module qui lève cette exception à l'import échoue précisément par absence
+    d'implémentation : le scanner limité aux corps de fonctions ne voyait rien.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "raise NotImplementedError('module non livré')\n",  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    )
+    assert "NOT_IMPLEMENTED_STUB" in _codes(_scanner(repo))
+
+
+def test_refuse_une_absence_dimplementation_dans_un_corps_de_classe(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le corps d'une classe est un lieu d'exécution comme un autre."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "class Depot:\n    raise NotImplementedError('classe non livrée')\n",  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    )
+    assert "NOT_IMPLEMENTED_STUB" in _codes(_scanner(repo))
+
+
+def test_refuse_une_absence_dimplementation_dans_un_bloc_module(tmp_path: Path) -> None:
+    """Prouve que les blocs module — condition, boucle, try — sont bien parcourus."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "import sys\n\nif sys.platform == 'win32':\n"
+        "    raise NotImplementedError('plateforme non livrée')\n",  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    )
+    assert "NOT_IMPLEMENTED_STUB" in _codes(_scanner(repo))
+
+
+def test_accepte_une_levee_module_dune_autre_exception(tmp_path: Path) -> None:
+    """Prouve que la règle vise l'absence d'implémentation, pas toute levée module."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "import sys\n\nif sys.platform == 'win32':\n"
+        "    raise RuntimeError('plateforme refusée par contrat')\n",
+    )
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_ne_compte_quune_fois_une_absence_dimplementation_en_fonction(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'extension hors fonction ne double pas la violation déjà rendue."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "def calculer() -> int:\n    raise NotImplementedError\n",  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    )
+    violations = _scanner(repo)
+    assert [v.code for v in violations] == ["NOT_IMPLEMENTED_STUB"]
+
+
+def test_accepte_une_ellipse_dans_un_protocol_generique(tmp_path: Path) -> None:
+    """Prouve qu'un Protocol paramétré reste une abstraction, non un stub.
+
+    ``Protocol[T]`` est un ``ast.Subscript`` : la base n'était pas reconnue et
+    toutes les méthodes d'une interface générique parfaitement légitime étaient
+    refusées.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "from typing import Protocol, TypeVar\n\n"
+        "T = TypeVar('T')\n\n\n"
+        "class Depot(Protocol[T]):\n"
+        "    def lire(self) -> T:\n"
+        "        ...\n",
+    )
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_accepte_une_ellipse_dans_un_protocol_qualifie_generique(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la forme qualifiée typing.Protocol[T] est reconnue à égalité."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "import typing\n\n"
+        "T = typing.TypeVar('T')\n\n\n"
+        "class Depot(typing.Protocol[T]):\n"
+        "    def lire(self) -> T:\n"
+        "        ...\n",
+    )
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_accepte_une_ellipse_dans_un_protocol_alias_generique(tmp_path: Path) -> None:
+    """Prouve que l'alias d'import reste prouvé sous la forme paramétrée."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "from typing import Protocol as P, TypeVar\n\n"
+        "T = TypeVar('T')\n\n\n"
+        "class Depot(P[T]):\n"
+        "    def lire(self) -> T:\n"
+        "        ...\n",
+    )
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_accepte_une_ellipse_dans_un_protocol_combine_a_generic(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la combinaison Generic[T] + Protocol[T] reste une abstraction."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "from typing import Generic, Protocol, TypeVar\n\n"
+        "T = TypeVar('T')\n\n\n"
+        "class Depot(Generic[T], Protocol[T]):\n"
+        "    def lire(self) -> T:\n"
+        "        ...\n",
+    )
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_refuse_une_ellipse_dans_une_classe_generique_non_protocol(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le correctif reste borné : Generic[T] seul n'est pas une abstraction."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "from typing import Generic, TypeVar\n\n"
+        "T = TypeVar('T')\n\n\n"
+        "class Depot(Generic[T]):\n"
+        "    def lire(self) -> T:\n"
+        "        ...\n",
+    )
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_une_ellipse_dans_un_protocol_generique_usurpe(tmp_path: Path) -> None:
+    """Prouve que la preuve d'origine de l'alias survit à la forme paramétrée."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "class Protocol:\n"
+        "    valeur = 1\n\n"
+        "class Service(Protocol[int]):\n"
+        "    def executer(self) -> int:\n"
+        "        ...\n",
+    )
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_accepte_un_repli_vers_une_commande_prefixee_par_true(tmp_path: Path) -> None:
+    """Prouve que le motif de repli borne ses mots : ``true_story`` est un exécutable.
+
+    Sans limite de mot, tout programme dont le nom commence par ``true`` était lu
+    comme la commande shell ``true``, et un job requis parfaitement licite était
+    refusé.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run("security", ("python3 gate.py || true_story",)),
+    )
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_accepte_un_repli_vers_une_commande_prefixee_par_deux_points(
+    tmp_path: Path,
+) -> None:
+    """Prouve que ``:mon_label`` est un nom de commande, non la commande vide ``:``."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run("security", ("python3 gate.py || :mon_label",)),
+    )
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_accepte_une_commande_prefixee_par_true_apres_un_point_virgule(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la même limite de mot s'applique à la forme séquentielle."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run("security", ("python3 gate.py; true_story",)),
+    )
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_refuse_toujours_un_repli_true_suivi_dun_point_virgule(tmp_path: Path) -> None:
+    """Prouve que la limite de mot n'ouvre aucun angle mort sur le vrai ``|| true``."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run("security", ("python3 gate.py || true; echo suite",)),
+    )
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_toujours_un_repli_deux_points_suivi_dun_point_virgule(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la commande vide ``:`` reste refusée quand elle est bien elle-même."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run("security", ("python3 gate.py || :; echo suite",)),
+    )
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_type_ignore_ajoute_meme_justifie(tmp_path: Path) -> None:
+    """Prouve qu'une justification n'ouvre plus la porte à une dette de typage.
+
+    Masquer une erreur de typage n'est pas une dette justifiable : c'est la
+    baseline que ce gate interdit. Le gate mypy du dépôt est à zéro erreur, donc
+    aucun besoin légitime ne subsiste.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "valeur = convertir()  # type: ignore[return-value] — conversion validée\n",
+    )
+    assert "NEW_TYPE_IGNORE" in _codes(_scanner(repo))
+
+
+def test_refuse_un_type_ignore_ajoute_sans_espace(tmp_path: Path) -> None:
+    """Prouve que l'orthographe compacte acceptée par mypy ne contourne pas la règle."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "valeur = convertir()  # type:ignore[return-value] — conversion validée\n",
+    )
+    assert "NEW_TYPE_IGNORE" in _codes(_scanner(repo))
+
+
+def test_accepte_un_type_ignore_preexistant_non_modifie(tmp_path: Path) -> None:
+    """Prouve que le durcissement reste diff-aware : l'existant n'est pas rouvert."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "valeur = convertir()  # type: ignore[return-value] — conversion validée\n",
+    )
+    _commiter_sans_hook(repo, "suppression de typage préexistante")
+
+    assert "NEW_TYPE_IGNORE" not in _codes(_scanner(repo))
+
+
+def test_accepte_un_noqa_justifie_apres_le_durcissement_du_typage(
+    tmp_path: Path,
+) -> None:
+    """Prouve que noqa conserve la règle de justification et n'est pas durci."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "valeur = 1  # noqa: E501 — gabarit hérité, découpage prévu par la story\n",
+    )
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_refuse_un_noqa_avec_identifiant_sans_justification(tmp_path: Path) -> None:
+    """Prouve que l'identifiant de règle précédé de « : » ne tient pas lieu de justification."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(repo, "src/service.py", "valeur = 1  # noqa: E501\n")
+    assert "UNJUSTIFIED_SUPPRESSION" in _codes(_scanner(repo))
+
+
+def test_accepte_un_noqa_multi_identifiants_justifie(tmp_path: Path) -> None:
+    """Prouve que la liste de règles supprimées reste lisible avant la justification."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "valeur = 1  # noqa: E501,W503 — gabarit hérité, découpage prévu\n",
+    )
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_accepte_un_commentaire_discursif_mentionnant_une_directive_de_typage(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un commentaire qui PARLE d'une directive n'en applique aucune.
+
+    Mesuré sur mypy 2.1.0 : la directive écrite au fil d'une phrase ne supprime
+    rien, l'erreur de typage reste rapportée. La refuser était un faux positif.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "valeur = 1  # Ne pas utiliser type: ignore ici, corriger le type source\n",
+    )
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_accepte_un_commentaire_discursif_mentionnant_nosec(tmp_path: Path) -> None:
+    """Prouve la même borne pour bandit, mesurée sur bandit 1.9.4."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "valeur = 1  # Voir le nosec B101 pour les détails de la revue\n",
+    )
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_refuse_une_directive_de_suppression_apres_un_second_diese(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la borne est le « # », jamais le début du commentaire.
+
+    Mesuré sur ruff 0.15.20 et bandit 1.9.4 : ``# texte  # noqa: F401`` supprime
+    RÉELLEMENT le diagnostic. Borner la règle au début du jeton ouvrirait donc un
+    angle mort exploitable en une ligne.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "import os  # import hérité du gabarit  # noqa: F401\n",
+    )
+    assert "UNJUSTIFIED_SUPPRESSION" in _codes(_scanner(repo))

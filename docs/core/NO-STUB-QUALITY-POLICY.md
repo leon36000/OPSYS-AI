@@ -28,10 +28,14 @@ Le gate refuse notamment :
 
 - les corps exécutables réduits à `pass`, `...`, `return` ou `return None` ;
 - les levées de `NotImplementedError` ou `NotImplemented`, directes, importées
-  ou qualifiées ;
+  ou qualifiées, **dans une fonction comme hors de toute fonction** ;
 - les tests modifiés sans oracle et les assertions trivialement vraies ;
+- les sauts de tests ajoutés, y compris conditionnels (`skipif`, `skipIf`,
+  `skipUnless`, `xfail`, `importorskip`) ;
 - les marqueurs de dette ajoutés et les suppressions de contrôles non justifiées ;
-- les jobs CI requis qui absorbent un échec shell ;
+- toute suppression de typage **ajoutée**, justifiée ou non (`NEW_TYPE_IGNORE`) ;
+- les jobs CI requis qui absorbent un échec shell, y compris par une garde
+  `if !` dont la branche ne propage pas l'échec, ou par `set +e` ;
 - les jobs CI requis conditionnels ou avec `continue-on-error` ;
 - les jobs requis de forme invalide, notamment une définition non mapping ou un
   champ `steps` qui n'est pas une liste ;
@@ -94,6 +98,45 @@ toujours. Les parenthèses internes d'une substitution `$( … )` sont traversé
 sans refermer le groupe prématurément, et un motif écrit dans une chaîne shell
 reste une donnée, jamais du code.
 
+Les motifs de repli sont bornés par la **fin du nom de commande** : `true`, `:`,
+`echo` et `printf` ne sont reconnus que lorsqu'ils sont bien ces commandes-là.
+Un exécutable dont le nom commence par l'un d'eux reste un appel légitime :
+
+```sh
+python3 gate.py || true_story     # accepté — « true_story » est un exécutable
+python3 gate.py || :mon_label     # accepté — nom de commande, pas la commande vide
+python3 gate.py; true_story       # accepté — même borne sur la forme séquentielle
+python3 gate.py || true; echo ok  # refusé  — ici « true » est bien la commande shell
+```
+
+## Gardes `if !` et désarmement d'errexit
+
+Une commande testée par `if !` est **exempte d'`errexit`** : ce n'est plus elle
+mais la branche `then` qui fixe le code de retour de l'étape. Le critère est donc
+exactement celui des groupes de repli — la branche propage-t-elle l'échec ?
+
+```sh
+if ! python3 gate.py; then :; fi                  # refusé — l'échec est avalé
+if ! python3 gate.py; then echo ko >&2; fi        # refusé — journalise puis réussit
+if ! test -f rapport.json; then exit 1; fi        # accepté — l'échec est propagé
+```
+
+Seule la **première** branche d'un `if !` est jugée : elle seule s'exécute quand
+la commande gardée échoue. Une branche `elif`/`else` du même bloc s'exécute au
+contraire quand la commande a réussi, et n'absorbe donc aucun échec. Les formes
+non niées relèvent de la règle suivante, qui sépare la sonde du contrôle.
+
+`set +e` désarme `errexit` pour **tout le reste de l'étape** : tout échec ultérieur
+devient invisible. La forme longue `set +o errexit` est traitée à égalité. Les
+autres options restent libres, car elles ne changent rien à la propagation :
+
+```sh
+set +e            # refusé — plus aucun échec n'interrompt l'étape
+set +o errexit    # refusé — même effet, écrit autrement
+set -e            # accepté — c'est la bonne pratique
+set +x            # accepté — couper la trace ne masque aucun échec
+```
+
 Cette règle est indépendante de la garde sur les `exit 0` nus décrite plus haut :
 elle couvre notamment la forme dont la sortie nulle est conditionnelle, que la
 garde précédente accepte à juste titre alors que le groupe, lui, réussit quand
@@ -102,6 +145,58 @@ même.
 ```sh
 python3 gate.py || ( if true; then exit 0; fi )    # refusé par la règle des groupes
 ```
+
+## Contrôle du dépôt en condition `if` sans négation
+
+Retirer le `!` ne rend pas la forme sûre. Quand le contrôle échoue, la branche
+`then` n'est pas prise : sans `else`, **rien** ne s'exécute, le `fi` rend 0 et
+l'étape est verte avec un contrôle rouge. La branche jugée est donc celle qui
+s'exécute à l'échec — le `else` — et le critère de propagation reste exactement
+celui des groupes de repli.
+
+```sh
+if python3 gate.py; then :; fi                      # refusé — rien ne s'exécute à l'échec
+if python3 gate.py; then echo ok; fi                # refusé — la trace ne propage rien
+if bash scripts/verifier.sh; then echo ok; fi       # refusé — script du dépôt en condition
+if python3 gate.py; then echo ok; else exit 1; fi   # accepté — le `else` propage l'échec
+```
+
+La règle ne vise que les **contrôles versionnés ici** : un chemin suffixé `.py`
+ou `.sh`, ou situé sous `scripts/`, `core/scripts/`, `tools/`. Une **sonde**
+shell (`[`, `[[`, `test`, `command`, `grep`, `git`) interroge un état : son code
+de retour EST la question posée, jamais le verdict d'un contrôle. Citer un chemin
+du dépôt en ARGUMENT d'une sonde ne l'exécute pas.
+
+```sh
+if [ -z "$CODE_CHANGE" ]; then exit 0; fi       # accepté — aiguillage réel du job proof-sealed
+if command -v docker; then echo présent; fi     # accepté — sonde de présence
+if git diff --quiet; then echo rien; fi         # accepté — sonde d'état
+if [ -f core/scripts/verify.py ]; then :; fi    # accepté — le chemin est un argument, pas un appel
+```
+
+### Limites
+
+Ce que la règle **ne couvre pas**, et pourquoi elle n'a pas été fermée :
+
+- **Un outil installé mis en condition.** `if mypy core/; then :; fi` absorbe
+  réellement l'échec, mais `mypy` n'est pas un chemin du dépôt : rien ne le
+  distingue d'une sonde comme `if command -v mypy`. Une liste blanche d'outils
+  « qui comptent » refuserait des sondes légitimes nommant un binaire et se
+  périmerait à chaque outil ajouté. Non fermé, sciemment.
+- **Un contrôle appelé indirectement.** `CTRL=scripts/x.py; if $CTRL; then …` :
+  le nom du script n'apparaît pas dans la condition, seule une variable.
+- **Une propagation différée.** `if ctrl; then S=ok; else S=ko; fi` suivi de
+  `[ "$S" = ok ] || exit 1` est refusé alors que l'échec finit par sortir :
+  suivre un statut à travers une variable demanderait un interpréteur shell. La
+  règle `if !` a la même limite depuis son origine (mesuré sur le motif nié
+  équivalent) ; écrire `else exit 1` lève le refus.
+- **Une chaîne `elif`.** La branche mesurée est la première atteinte à l'échec,
+  donc la *condition* du `elif`, qui ne propage rien par elle-même. Une chaîne
+  dont toutes les issues sortent en non nul est refusée à tort — refus
+  conservateur, jamais silence.
+
+Le principe tenu : refuser ce qui est prouvé absorbant, et **nommer** ce qui
+passe. Un manque nommé se corrige ; un manque implicite se découvre en production.
 
 ## Conditionnelles shell et `exit 0`
 
@@ -132,6 +227,93 @@ La sentinelle `NotImplemented` et l'exception `NotImplementedError` sont
 refusées à égalité, sous leurs formes nue, appelée, importée sous alias et
 qualifiée par attribut. Un attribut du même nom qui n'est pas levé n'est pas
 concerné.
+
+La règle ne s'arrête **pas** au corps des fonctions. Levée au niveau d'un module
+ou dans un corps de classe, l'exception fait échouer le module **à l'import**, et
+elle échoue précisément parce que le code n'est pas écrit : c'est le stub le plus
+visible qui soit. Les blocs module — `if`, `for`, `while`, `with`, `try`, `match`
+— et les corps de classes sont donc parcourus, jamais les corps de fonctions, qui
+sont déjà jugés par ailleurs : un seul défaut ne produit jamais deux violations.
+
+## Sauts de tests ajoutés
+
+`NEW_SKIP_OR_XFAIL` couvre toutes les façons d'ajouter un test qui ne s'exécute
+pas : `pytest.mark.skip`, `pytest.mark.skipif`, `pytest.mark.xfail`,
+`pytest.skip()`, `pytest.xfail()`, `pytest.importorskip()`, `unittest.skip`,
+`unittest.skipIf` et `unittest.skipUnless`. Un saut conditionnel saute
+exactement comme un saut inconditionnel dès que sa condition est vraie ; le
+distinguer laisserait un test ajouté ne jamais s'exécuter tout en paraissant
+présent dans la suite.
+
+La règle reste **qualifiée par le module** : un homonyme porté par un objet
+métier (`lecteur.skipIf(…)`) ne saute rien et n'est pas concerné.
+
+## Protocoles génériques
+
+`Protocol[T]` est un `ast.Subscript` : la base souscrite est dépliée avant la
+preuve d'origine du nom. Un protocole paramétré est la même abstraction que sa
+forme nue, et ses méthodes réduites à `...` sont donc légitimes — les refuser
+était un faux positif sur du code courant.
+
+```python
+class Depot(Protocol[T]): ...          # accepté — protocole générique
+class Depot(typing.Protocol[T]): ...   # accepté — forme qualifiée
+class Depot(Generic[T], Protocol[T]):  # accepté — combinaison usuelle
+class Depot(Generic[T]): ...           # refusé  — Generic seul n'abstrait rien
+```
+
+La preuve d'origine de l'alias est inchangée : une classe locale qui usurpe le
+nom `Protocol` reste refusée, y compris sous la forme paramétrée `Protocol[int]`.
+
+## Suppressions de contrôles
+
+### Où une directive agit réellement
+
+MESURÉ sur les outils eux-mêmes — mypy 2.1.0, ruff 0.15.20, bandit 1.9.4 — une
+directive n'agit que si elle suit **directement un `#`**. La borne du gate est
+donc ce `#`, ni « n'importe où dans le commentaire » (faux positif), ni « au
+début du jeton » (angle mort) :
+
+```python
+valeur = 1  # Ne pas utiliser type: ignore ici     # accepté — mypy signale encore
+valeur = 1  # Voir le nosec B101 pour les détails  # accepté — bandit signale encore
+import os   # import hérité  # noqa: F401          # jugé — ruff supprime vraiment
+```
+
+Le troisième cas est celui qui interdit de borner la règle au début du jeton :
+`tokenize` rend UN seul commentaire pour toute la ligne, alors que ruff et bandit
+honorent la directive qui suit le second `#`.
+
+### `type: ignore` — refus inconditionnel des ajouts
+
+Un `type: ignore` **ajouté** est refusé, avec ou sans justification, sous le code
+`NEW_TYPE_IGNORE`. Masquer une erreur de typage n'est pas une dette justifiable :
+c'est exactement la baseline que ce gate interdit, et le gate mypy du dépôt est à
+zéro erreur pour zéro baseline — aucun besoin légitime ne subsiste. L'orthographe
+compacte `# type:ignore`, que mypy accepte, est traitée à égalité.
+
+La règle est **diff-aware** : elle ne juge que les lignes ajoutées. Le seul
+`# type: ignore` réellement présent dans les racines contractuelles
+(`core/scripts/verify_proof_sealed.py`) n'est donc pas rouvert tant qu'il n'est
+pas retouché.
+
+### `noqa` et `nosec` — justification structurée obligatoire
+
+Ces deux directives conservent la règle existante, car elles ont des usages
+légitimes documentés : marqueur, identifiants de règles éventuels, puis un
+séparateur (`—`, `-`, `:`) suivi d'une justification humaine non vide.
+
+```python
+valeur = 1  # nosec B310 — schéma validé par liste blanche   # accepté
+valeur = 1  # noqa: E501,W503 — gabarit hérité, découpage prévu   # accepté
+valeur = 1  # nosec B310                                      # refusé
+valeur = 1  # noqa: E501                                      # refusé
+```
+
+Les identifiants de règles — précédés ou non de `:`, séparés par des virgules —
+décrivent CE QUI est supprimé, jamais POURQUOI : ils sont consommés avant de
+chercher la justification. Sans cette consommation, `# noqa: E501` passait pour
+justifié par son seul `:`. Chaque directive d'un même commentaire est jugée.
 
 ## Fichier inanalysable
 

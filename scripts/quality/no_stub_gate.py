@@ -34,9 +34,27 @@ _DEBT_MARKERS: Final[tuple[str, ...]] = (
     "FIXME",  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet
     "XXX",  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet
 )  # proof:allow — fixture/constante du gate NO-STUB : ce motif EST le sujet du test
-_SUPPRESSION_MARKERS: Final[tuple[str, ...]] = ("type: ignore", "noqa", "nosec")
+_MARQUEUR_TYPE_IGNORE: Final[str] = "type: ignore"
+_SUPPRESSION_MARKERS: Final[tuple[str, ...]] = (_MARQUEUR_TYPE_IGNORE, "noqa", "nosec")
+_MOTIFS_DIRECTIVE: Final[Mapping[str, re.Pattern[str]]] = {
+    _MARQUEUR_TYPE_IGNORE: re.compile(r"type:\s*ignore", re.IGNORECASE),
+    "noqa": re.compile(r"noqa", re.IGNORECASE),
+    "nosec": re.compile(r"nosec", re.IGNORECASE),
+}
+_MARQUES_DE_SAUT_PYTEST: Final[frozenset[str]] = frozenset({"skip", "skipif", "xfail"})
+_APPELS_DE_SAUT: Final[Mapping[str, frozenset[str]]] = {
+    "pytest": frozenset({"skip", "xfail", "importorskip"}),
+    "unittest": frozenset({"skip", "skipIf", "skipUnless"}),
+}
 _IDENTIFIANT_REGLE_OPTIONNEL: Final[re.Pattern[str]] = re.compile(
     r"(?:[A-Za-z]+[0-9][A-Za-z0-9_-]*|\[[A-Za-z0-9_.-]+\]|[A-Za-z][A-Za-z0-9_.-]*)"
+)
+_IDENTIFIANTS_REGLE_OPTIONNELS: Final[re.Pattern[str]] = re.compile(
+    r":?\s*"
+    + _IDENTIFIANT_REGLE_OPTIONNEL.pattern
+    + r"(?:\s*,\s*"
+    + _IDENTIFIANT_REGLE_OPTIONNEL.pattern
+    + r")*"
 )
 _EXIT_ZERO: Final[re.Pattern[str]] = re.compile(
     r"(?:^|[;|&()\s])exit\s+0(?=$|[^A-Za-z0-9_])"
@@ -48,8 +66,18 @@ _FIN_IF_SHELL: Final[re.Pattern[str]] = re.compile(r"(?:^|[;|&()\s])fi(?=$|[;|&(
 _FIN_CASE_SHELL: Final[re.Pattern[str]] = re.compile(
     r"(?:^|[;|&()\s])esac(?=$|[;|&()\s])"
 )
+_SUITE_NOM_COMMANDE: Final[str] = r"(?![A-Za-z0-9_./-])"
 _FALLBACK_SHELL: Final[re.Pattern[str]] = re.compile(
-    r"\|\|\s*(?P<command>true|:|echo\b|printf\b|exit\s+0(?=$|[^A-Za-z0-9_]))"
+    r"\|\|\s*(?P<command>"
+    f"true{_SUITE_NOM_COMMANDE}"
+    f"|:{_SUITE_NOM_COMMANDE}"
+    f"|echo{_SUITE_NOM_COMMANDE}"
+    f"|printf{_SUITE_NOM_COMMANDE}"
+    r"|exit\s+0(?=$|[^A-Za-z0-9_])"
+    r")"
+)
+_SUCCES_FORCE_COMPACT: Final[re.Pattern[str]] = re.compile(
+    r"(?:\|\|true|\|\|:|\|\|exit0|;true)" + _SUITE_NOM_COMMANDE
 )
 _GROUPE_APRES_OU: Final[re.Pattern[str]] = re.compile(r"\|\|\s*(?P<ouverture>[{(])")
 _SEPARATEUR_COMMANDE_SHELL: Final[re.Pattern[str]] = re.compile(r";|\n|&&")
@@ -61,6 +89,34 @@ _JETONS_SHELL: Final[re.Pattern[str]] = re.compile(
     f"(?P<ouvre>{_IF_SHELL.pattern}|{_CASE_SHELL.pattern})"
     f"|(?P<ferme>{_FIN_IF_SHELL.pattern}|{_FIN_CASE_SHELL.pattern})"
     f"|(?P<sortie>{_EXIT_ZERO.pattern})"
+)
+_POSITION_COMMANDE_SHELL: Final[str] = r"(?:^|[;|&()\s])"
+_FIN_DE_MOT_SHELL: Final[str] = r"(?=$|[;|&()\s])"
+_JETONS_CONDITIONNELLES: Final[re.Pattern[str]] = re.compile(
+    f"(?P<ouvre>{_POSITION_COMMANDE_SHELL}(?P<mot_ouvre>if|case){_FIN_DE_MOT_SHELL})"
+    f"|(?P<then>{_POSITION_COMMANDE_SHELL}then{_FIN_DE_MOT_SHELL})"
+    f"|(?P<sinon>{_POSITION_COMMANDE_SHELL}(?:else|elif){_FIN_DE_MOT_SHELL})"
+    f"|(?P<ferme>{_POSITION_COMMANDE_SHELL}(?:fi|esac){_FIN_DE_MOT_SHELL})"
+)
+_NEGATION_APRES_IF: Final[re.Pattern[str]] = re.compile(r"\s*!")
+_SEPARATEUR_CONDITION_SHELL: Final[re.Pattern[str]] = re.compile(r"[;\n|&]+")
+_SONDES_SHELL: Final[frozenset[str]] = frozenset(
+    {"[", "[[", "test", "command", "grep", "git"}
+)
+_RACINES_SCRIPTS_DU_DEPOT: Final[tuple[str, ...]] = (
+    "scripts/",
+    "core/scripts/",
+    "tools/",
+)
+_SUFFIXES_SCRIPTS_DU_DEPOT: Final[tuple[str, ...]] = (".py", ".sh")
+_GENRE_NEUTRE: Final[str] = ""
+_GENRE_NEGATION: Final[str] = "négation"
+_GENRE_CONTROLE_DIRECT: Final[str] = "contrôle direct"
+_COMMANDE_SET_SHELL: Final[re.Pattern[str]] = re.compile(
+    _POSITION_COMMANDE_SHELL + r"set(?P<arguments>[^\n;|&]*)"
+)
+_OPTION_DESARMANT_ERREXIT: Final[re.Pattern[str]] = re.compile(
+    r"(?:^|\s)\+(?:[A-Za-z]*e[A-Za-z]*|o\s+errexit)(?=$|\s)"
 )
 _MAX_ACTION_DEPTH: Final[int] = 5
 _VALEURS_VRAIES_YAML: Final[frozenset[str]] = frozenset(
@@ -318,15 +374,22 @@ def _analyser_imports(arbre: ast.Module) -> _AliasesImports:
 
 
 def _est_classe_protocol(classe: ast.ClassDef, aliases: _AliasesImports) -> bool:
-    """Détermine si une base est prouvée comme le véritable typing.Protocol."""
+    """Détermine si une base est prouvée comme le véritable typing.Protocol.
+
+    La forme paramétrée ``Protocol[T]`` est un ``ast.Subscript`` : la valeur
+    souscrite est dépliée avant la preuve, car un protocole générique est la même
+    abstraction que sa forme nue. La preuve d'origine de l'alias est inchangée :
+    une classe locale usurpant le nom reste refusée sous les deux formes.
+    """
     for base in classe.bases:
-        if isinstance(base, ast.Name) and base.id in aliases.protocols:
+        cible = base.value if isinstance(base, ast.Subscript) else base
+        if isinstance(cible, ast.Name) and cible.id in aliases.protocols:
             return True
         if (
-            isinstance(base, ast.Attribute)
-            and isinstance(base.value, ast.Name)
-            and base.value.id in aliases.modules_typing
-            and base.attr == "Protocol"
+            isinstance(cible, ast.Attribute)
+            and isinstance(cible.value, ast.Name)
+            and cible.value.id in aliases.modules_typing
+            and cible.attr == "Protocol"
         ):
             return True
     return False
@@ -465,6 +528,64 @@ def _analyser_fonction(
     return violations
 
 
+def _instructions_hors_fonction(corps: list[ast.stmt]) -> list[ast.stmt]:
+    """Énumère les instructions exécutées hors de tout corps de fonction.
+
+    Les blocs module et les corps de classes sont parcourus car ils s'exécutent à
+    l'import ; les corps de fonctions ne le sont jamais, puisque
+    ``_analyser_fonction`` les juge déjà et qu'un double comptage transformerait
+    un seul défaut en deux violations.
+    """
+    instructions: list[ast.stmt] = []
+    for noeud in corps:
+        instructions.append(noeud)
+        if isinstance(noeud, ast.ClassDef):
+            instructions.extend(_instructions_hors_fonction(noeud.body))
+        elif isinstance(noeud, (ast.If, ast.For, ast.AsyncFor, ast.While)):
+            instructions.extend(_instructions_hors_fonction(noeud.body))
+            instructions.extend(_instructions_hors_fonction(noeud.orelse))
+        elif isinstance(noeud, (ast.With, ast.AsyncWith)):
+            instructions.extend(_instructions_hors_fonction(noeud.body))
+        elif isinstance(noeud, (ast.Try, ast.TryStar)):
+            instructions.extend(_instructions_hors_fonction(noeud.body))
+            instructions.extend(_instructions_hors_fonction(noeud.orelse))
+            instructions.extend(_instructions_hors_fonction(noeud.finalbody))
+            for gestionnaire in noeud.handlers:
+                instructions.extend(_instructions_hors_fonction(gestionnaire.body))
+        elif isinstance(noeud, ast.Match):
+            for cas in noeud.cases:
+                instructions.extend(_instructions_hors_fonction(cas.body))
+    return instructions
+
+
+def _analyser_absences_hors_fonction(
+    repo: Path,
+    fichier: Path,
+    arbre: ast.Module,
+    aliases: _AliasesImports,
+) -> list[Violation]:
+    """Refuse une absence d'implémentation levée hors de toute fonction.
+
+    Un module ou une classe qui lève cette exception échoue À L'IMPORT, et échoue
+    précisément parce que le code n'est pas écrit : c'est le stub le plus visible
+    qui soit, et il échappait entièrement au parcours limité aux fonctions.
+    """
+    return [
+        _violation(
+            "NOT_IMPLEMENTED_STUB",
+            repo,
+            fichier,
+            noeud.lineno,
+            "une exception d'absence d'implémentation est levée hors de toute "
+            "fonction, donc à l'import",
+        )
+        for noeud in _instructions_hors_fonction(arbre.body)
+        if isinstance(noeud, ast.Raise)
+        and noeud.exc is not None
+        and _est_exception_non_implementee(noeud.exc, aliases)
+    ]
+
+
 def _analyser_lambdas(repo: Path, fichier: Path, arbre: ast.Module) -> list[Violation]:
     """Refuse les lambdas réduits à None ou Ellipsis, stubs hors fonction."""
     violations: list[Violation] = []
@@ -519,6 +640,7 @@ def _analyser_stubs(repo: Path, fichier: Path, arbre: ast.Module) -> list[Violat
             self.protocols.pop()
 
     Visiteur().visit(arbre)
+    violations.extend(_analyser_absences_hors_fonction(repo, fichier, arbre, aliases))
     violations.extend(_analyser_lambdas(repo, fichier, arbre))
     return violations
 
@@ -623,15 +745,34 @@ def _contient_oracle(fonction: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
 
 
 def _est_decorateur_skip_ou_xfail(decorateur: ast.expr) -> bool:
-    """Reconnaît les décorateurs pytest.mark.skip et pytest.mark.xfail."""
+    """Reconnaît les marques pytest de saut, y compris la forme conditionnelle.
+
+    ``skipif`` saute exactement comme ``skip`` dès que sa condition est vraie :
+    l'exclure laisserait un test ajouté ne jamais s'exécuter tout en paraissant
+    présent dans la suite.
+    """
     cible = decorateur.func if isinstance(decorateur, ast.Call) else decorateur
     return (
         isinstance(cible, ast.Attribute)
-        and cible.attr in {"skip", "xfail"}
+        and cible.attr in _MARQUES_DE_SAUT_PYTEST
         and isinstance(cible.value, ast.Attribute)
         and cible.value.attr == "mark"
         and isinstance(cible.value.value, ast.Name)
         and cible.value.value.id == "pytest"
+    )
+
+
+def _est_appel_de_saut(noeud: ast.Call) -> bool:
+    """Reconnaît un appel qui saute ou abandonne un test, qualifié par son module.
+
+    La qualification par le module est conservée : un homonyme porté par un objet
+    métier ne saute rien et ne doit jamais être confondu avec la dette visée.
+    """
+    cible = noeud.func
+    return (
+        isinstance(cible, ast.Attribute)
+        and isinstance(cible.value, ast.Name)
+        and cible.attr in _APPELS_DE_SAUT.get(cible.value.id, frozenset())
     )
 
 
@@ -685,12 +826,7 @@ def _analyser_ast_diff(
                         )
                     )
         if isinstance(noeud, ast.Call) and noeud.lineno in lignes:
-            if _est_appel_pytest(noeud, "skip") or (
-                isinstance(noeud.func, ast.Attribute)
-                and noeud.func.attr == "skip"
-                and isinstance(noeud.func.value, ast.Name)
-                and noeud.func.value.id == "unittest"
-            ):
+            if _est_appel_de_saut(noeud):
                 violations.append(
                     _violation(
                         "NEW_SKIP_OR_XFAIL",
@@ -916,20 +1052,55 @@ def _marqueur_dette(commentaire: str) -> str | None:
     return None
 
 
+def _directives_de_suppression(commentaire: str) -> list[tuple[str, str]]:
+    """Isole les directives réellement actives et leur suite dans un commentaire.
+
+    MESURÉ sur les outils eux-mêmes — mypy 2.1.0, ruff 0.15.20, bandit 1.9.4 —
+    une directive n'agit que si elle suit DIRECTEMENT un ``#`` : écrite au fil
+    d'une phrase (« ne pas utiliser type: ignore ici »), elle ne supprime rien et
+    la refuser était un faux positif. La borne est le ``#``, pas le début du
+    jeton : ``# texte  # noqa: F401`` supprime réellement le diagnostic chez ruff
+    et bandit, donc reste jugé.
+    """
+    directives: list[tuple[str, str]] = []
+    for fragment in commentaire.split("#"):
+        texte = fragment.lstrip(" \t")
+        for marqueur in _SUPPRESSION_MARKERS:
+            correspondance = _MOTIFS_DIRECTIVE[marqueur].match(texte)
+            if correspondance is not None:
+                directives.append((marqueur, texte[correspondance.end() :]))
+                break
+    return directives
+
+
+def _justification_suffisante(suite: str) -> bool:
+    """Exige une justification humaine après la directive et ses identifiants.
+
+    Les identifiants de règles supprimés — précédés ou non de ``:``, séparés par
+    des virgules — décrivent CE QUI est supprimé, jamais POURQUOI : ils sont
+    consommés avant de chercher le séparateur puis le texte de justification.
+    """
+    reste = suite.lstrip()
+    identifiants = _IDENTIFIANTS_REGLE_OPTIONNELS.match(reste)
+    if identifiants is not None:
+        reste = reste[identifiants.end() :].lstrip()
+    return len(reste) >= 2 and reste[0] in {"—", "-", ":"} and bool(reste[1:].strip())
+
+
 def _suppression_justifiee(commentaire: str) -> bool:
-    """Vérifie une justification après marqueur et identifiant de règle éventuel."""
-    texte = commentaire[1:].strip()
-    texte_minuscule = texte.lower()
-    for marqueur in _SUPPRESSION_MARKERS:
-        position = texte_minuscule.find(marqueur)
-        if position < 0:
-            continue
-        suite = texte[position + len(marqueur) :].lstrip()
-        identifiant = _IDENTIFIANT_REGLE_OPTIONNEL.match(suite)
-        if identifiant is not None:
-            suite = suite[identifiant.end() :].lstrip()
-        return len(suite) >= 2 and suite[0] in {"—", "-", ":"} and bool(suite[1:].strip())
-    return True
+    """Vérifie que CHAQUE directive du commentaire porte sa justification."""
+    return all(
+        _justification_suffisante(suite)
+        for _, suite in _directives_de_suppression(commentaire)
+    )
+
+
+def _supprime_le_typage(commentaire: str) -> bool:
+    """Détecte une directive qui masque une erreur de typage, justifiée ou non."""
+    return any(
+        marqueur == _MARQUEUR_TYPE_IGNORE
+        for marqueur, _ in _directives_de_suppression(commentaire)
+    )
 
 
 def _ligne_de_tokenisation(erreur: tokenize.TokenError) -> int:
@@ -967,6 +1138,17 @@ def _analyser_commentaires(
                         fichier,
                         jeton.start[0],
                         f"le commentaire contient le marqueur de dette {marqueur}",
+                    )
+                )
+            if _supprime_le_typage(jeton.string):
+                violations.append(
+                    _violation(
+                        "NEW_TYPE_IGNORE",
+                        repo,
+                        fichier,
+                        jeton.start[0],
+                        "une suppression de typage est ajoutée : masquer une erreur "
+                        "de typage n'est pas une dette justifiable",
                     )
                 )
             if not _suppression_justifiee(jeton.string):
@@ -1268,13 +1450,14 @@ def _commande_repli_succes(commande: str) -> str | None:
 
 
 def _contient_succes_force(commande: str) -> bool:
-    """Détecte les neutralisations shell hors chaînes et commentaires littéraux."""
-    compacte = _normaliser_commande(commande)
+    """Détecte les neutralisations shell hors chaînes et commentaires littéraux.
+
+    Les motifs sont bornés par la fin du NOM de commande : ``true_story`` et
+    ``:mon_label`` sont des exécutables valides, jamais les commandes shell
+    ``true`` et ``:``. Sans cette borne, un job requis licite était refusé.
+    """
     return (
-        "||true" in compacte
-        or "||:" in compacte
-        or "||exit0" in compacte
-        or ";true" in compacte
+        _SUCCES_FORCE_COMPACT.search(_normaliser_commande(commande)) is not None
         or _commande_repli_succes(commande) is not None
     )
 
@@ -1300,6 +1483,216 @@ def _contient_exit_zero_non_garde(commande: str) -> bool:
             elif profondeur_conditionnelle == 0:
                 return True
     return False
+
+
+@dataclass
+class _CadreConditionnel:
+    """Suit une conditionnelle shell ouverte afin d'isoler sa branche de repli.
+
+    ``genre`` nomme la forme absorbante reconnue, car la branche exécutée quand
+    le contrôle échoue n'est pas la même : ``if !`` rend son ``then``, un ``if``
+    non nié gardant un contrôle du dépôt rend son ``else``. ``condition`` retient
+    l'index où commence la condition, seule à décider ce second genre.
+    """
+
+    genre: str
+    condition: int | None = None
+    debut: int | None = None
+    mesuree: bool = False
+
+
+def _mot_designe_un_script_du_depot(mot: str) -> bool:
+    """Reconnaît un script versionné ICI, jamais un exécutable fourni par le système.
+
+    Un suffixe ``.py``/``.sh`` ou une racine ``scripts/``, ``core/scripts/``,
+    ``tools/`` sont les marques du dépôt : elles nomment un contrôle que la CI
+    doit exécuter, pas un outil dont on sonde la présence.
+    """
+    chemin = mot.strip("\"'")
+    if chemin.startswith("./"):
+        chemin = chemin[2:]
+    return chemin.endswith(_SUFFIXES_SCRIPTS_DU_DEPOT) or chemin.startswith(
+        _RACINES_SCRIPTS_DU_DEPOT
+    )
+
+
+def _condition_invoque_un_script_du_depot(condition: str) -> bool:
+    """Prouve qu'une condition ``if`` exécute un contrôle versionné dans le dépôt.
+
+    Chaque commande de la condition est jugée par son NOM : une sonde shell
+    (``[``, ``[[``, ``test``, ``command``, ``grep``, ``git``) interroge un état,
+    et citer un chemin du dépôt en ARGUMENT ne l'exécute pas. Toute autre
+    commande nommant un script du dépôt est, elle, le contrôle lui-même — et
+    c'est son échec que la conditionnelle exempte d'``errexit``.
+    """
+    for morceau in _SEPARATEUR_CONDITION_SHELL.split(condition):
+        mots = morceau.split()
+        if not mots or mots[0] in _SONDES_SHELL:
+            continue
+        if any(_mot_designe_un_script_du_depot(mot) for mot in mots):
+            return True
+    return False
+
+
+def _ouvrir_cadre_conditionnel(
+    neutre: str, jeton: re.Match[str]
+) -> _CadreConditionnel:
+    """Ouvre le cadre d'une conditionnelle en fixant ce qui est déjà décidable.
+
+    La négation se lit dès le mot ``if`` ; le genre d'un ``if`` non nié dépend de
+    sa condition, dont seule la fin est connue au ``then``. Un ``case`` n'exempte
+    rien : il reste neutre.
+    """
+    if jeton.group("mot_ouvre") != "if":
+        return _CadreConditionnel(_GENRE_NEUTRE)
+    if _NEGATION_APRES_IF.match(neutre, jeton.end()) is not None:
+        return _CadreConditionnel(_GENRE_NEGATION)
+    return _CadreConditionnel(_GENRE_NEUTRE, condition=jeton.end())
+
+
+def _qualifier_cadre_conditionnel(
+    cadre: _CadreConditionnel, neutre: str, jeton: re.Match[str]
+) -> None:
+    """Décide au premier ``then`` si un ``if`` non nié garde un contrôle du dépôt.
+
+    La condition est le texte compris entre le mot ``if`` et son ``then`` : c'est
+    lui, et lui seul, dont l'échec devient exempt d'``errexit``. La mesure n'a
+    lieu qu'une fois par cadre, les ``then`` d'un ``elif`` gardant leur propre
+    condition, déjà atteinte après l'échec du contrôle.
+    """
+    if cadre.condition is None:
+        return
+    condition = neutre[cadre.condition : jeton.start()]
+    cadre.condition = None
+    if _condition_invoque_un_script_du_depot(condition):
+        cadre.genre = _GENRE_CONTROLE_DIRECT
+
+
+def _branches_de_repli_conditionnel(neutre: str) -> list[tuple[str, str]]:
+    """Isole la branche exécutée à l'ÉCHEC de chaque conditionnelle gardant un contrôle.
+
+    Deux formes exemptent un contrôle d'``errexit`` et leur repli diffère :
+    ``if ! contrôle; then …`` exécute son ``then`` quand le contrôle échoue,
+    ``if contrôle; then …`` exécute son ``else``. Une seule lecture du texte
+    neutralisé les sert toutes deux, afin qu'aucune ne dérive de l'autre. Un
+    contrôle direct SANS ``else`` produit une branche VIDE : c'est exactement ce
+    que le shell exécute alors — rien, et le ``fi`` rend 0.
+    """
+    branches: list[tuple[str, str]] = []
+    pile: list[_CadreConditionnel] = []
+    for jeton in _JETONS_CONDITIONNELLES.finditer(neutre):
+        if jeton.group("ouvre") is not None:
+            pile.append(_ouvrir_cadre_conditionnel(neutre, jeton))
+            continue
+        if not pile:
+            continue
+        cadre = pile[-1]
+        if cadre.debut is not None:
+            branches.append((cadre.genre, neutre[cadre.debut : jeton.start()]))
+            cadre.debut = None
+            cadre.mesuree = True
+        elif jeton.group("then") is not None:
+            _qualifier_cadre_conditionnel(cadre, neutre, jeton)
+            if cadre.genre == _GENRE_NEGATION and not cadre.mesuree:
+                cadre.debut = jeton.end()
+        elif jeton.group("sinon") is not None:
+            if cadre.genre == _GENRE_CONTROLE_DIRECT and not cadre.mesuree:
+                cadre.debut = jeton.end()
+        if jeton.group("ferme") is not None:
+            if cadre.genre == _GENRE_CONTROLE_DIRECT and not cadre.mesuree:
+                branches.append((_GENRE_CONTROLE_DIRECT, ""))
+            pile.pop()
+    return branches
+
+
+def _branches_de_negation(neutre: str) -> list[str]:
+    """Isole le corps ``then`` de chaque conditionnelle ``if !`` du texte neutralisé.
+
+    Seule la PREMIÈRE branche d'un ``if !`` est retenue : c'est elle, et elle
+    seule, qui s'exécute quand la commande gardée échoue. Une branche ``elif`` ou
+    ``else`` du même bloc s'exécute au contraire quand la commande a réussi, et
+    n'absorbe donc aucun échec.
+    """
+    return [
+        branche
+        for genre, branche in _branches_de_repli_conditionnel(neutre)
+        if genre == _GENRE_NEGATION
+    ]
+
+
+def _branches_de_controle_direct(neutre: str) -> list[str]:
+    """Isole la branche ``else`` de chaque ``if`` non nié gardant un contrôle du dépôt.
+
+    Symétrique exact de la lecture des ``if !`` : ici, la branche prise quand le
+    contrôle échoue est le ``else`` (ou le ``elif``), et son absence vaut branche
+    vide.
+    """
+    return [
+        branche
+        for genre, branche in _branches_de_repli_conditionnel(neutre)
+        if genre == _GENRE_CONTROLE_DIRECT
+    ]
+
+
+def _condition_negation_absorbe(commande: str) -> bool:
+    """Prouve qu'une garde ``if !`` avale l'échec de la commande qu'elle teste.
+
+    ``if ! contrôle; then …; fi`` exempte le contrôle d'``errexit`` : le statut de
+    l'étape devient celui de la branche ``then``. Le critère est donc le même que
+    pour les groupes de repli ``|| { … }`` — la branche propage-t-elle l'échec par
+    une sortie non nulle prouvée, ou le laisse-t-elle réussir ?
+    """
+    return any(
+        not _groupe_propage_echec(branche)
+        for branche in _branches_de_negation(_neutraliser_chaines_shell(commande))
+    )
+
+
+def _condition_controle_direct_absorbe(commande: str) -> bool:
+    """Prouve qu'un ``if`` SANS négation avale l'échec du contrôle qu'il teste.
+
+    Retirer le ``!`` ne rend pas la forme sûre : quand le contrôle échoue, la
+    branche ``then`` n'est pas prise, et c'est le ``else`` qui fixe alors le
+    statut de l'étape. Absent, rien ne s'exécute et le ``fi`` rend 0 — le job
+    requis est vert avec un contrôle rouge. Le critère reste celui des groupes de
+    repli : cette branche propage-t-elle l'échec ?
+    """
+    return any(
+        not _groupe_propage_echec(branche)
+        for branche in _branches_de_controle_direct(
+            _neutraliser_chaines_shell(commande)
+        )
+    )
+
+
+def _desarme_errexit(commande: str) -> bool:
+    """Détecte un ``set +e`` qui désarme errexit pour tout le reste de l'étape.
+
+    Les autres options restent libres : seule celle qui cesse d'interrompre
+    l'étape au premier échec transforme un contrôle rouge en job vert.
+    """
+    return any(
+        _OPTION_DESARMANT_ERREXIT.search(correspondance.group("arguments")) is not None
+        for correspondance in _COMMANDE_SET_SHELL.finditer(
+            _neutraliser_chaines_shell(commande)
+        )
+    )
+
+
+def _violation_echec_absorbe(
+    repo: Path,
+    fichier: Path,
+    job: str,
+    detail: str,
+) -> Violation:
+    """Construit la violation commune aux formes shell qui avalent un échec requis."""
+    return _violation(
+        "REQUIRED_JOB_FORCED_SUCCESS",
+        repo,
+        fichier,
+        1,
+        f"le job requis {job} {detail}",
+    )
 
 
 def _violation_succes_force(
@@ -1336,6 +1729,36 @@ def _analyser_commande(
         return [_violation_succes_force(repo, fichier, 1, job, commande_repli)]
     if _contient_succes_force(commande) or _contient_exit_zero_non_garde(commande):
         return [_violation_succes_force(repo, fichier, 1, job)]
+    if _condition_negation_absorbe(commande):
+        return [
+            _violation_echec_absorbe(
+                repo,
+                fichier,
+                job,
+                "garde un contrôle par une condition de négation dont la branche "
+                "absorbe l'échec au lieu de le propager",
+            )
+        ]
+    if _condition_controle_direct_absorbe(commande):
+        return [
+            _violation_echec_absorbe(
+                repo,
+                fichier,
+                job,
+                "place un contrôle du dépôt en condition d'un if sans négation, "
+                "dont aucune branche ne propage l'échec",
+            )
+        ]
+    if _desarme_errexit(commande):
+        return [
+            _violation_echec_absorbe(
+                repo,
+                fichier,
+                job,
+                "désarme errexit, ce qui rend vert tout échec survenant ensuite "
+                "dans l'étape",
+            )
+        ]
     return []
 
 
