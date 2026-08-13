@@ -255,6 +255,11 @@ class TestReglesSEO:
                     f"Valeur de verdict invalide: {verdict['verdict']}"
 
 
+def test_load_stopwords_leve_si_le_chemin_est_fourni_mais_introuvable():
+    with pytest.raises(FileNotFoundError):
+        compare._load_stopwords("/chemin/qui/nexiste/pas.txt")
+
+
 def test_site_reel_compare():
     notre = (_M7 / "src" / "site" / "static" / "index.html").read_text(encoding="utf-8")
     rapport = report.generate_report(
