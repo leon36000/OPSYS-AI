@@ -73,14 +73,33 @@ _PREFIXE_BUILTIN_COMMAND: Final[str] = r"command\s+(?:-[A-Za-z]+\s+)*"
 _PREFIXES_NEUTRES_REPLI: Final[str] = (
     f"(?:{_PREFIXE_BUILTIN_COMMAND})?(?:{_PREFIXE_CHEMIN_COMMANDE})?"
 )
-_FALLBACK_SHELL: Final[re.Pattern[str]] = re.compile(
-    r"\|\|\s*(?P<prefixe>" + _PREFIXES_NEUTRES_REPLI + r")(?P<command>"
+_COMMANDES_SUCCES_GARANTI: Final[str] = (
     f"true{_SUITE_NOM_COMMANDE}"
     f"|:{_SUITE_NOM_COMMANDE}"
     f"|echo{_SUITE_NOM_COMMANDE}"
     f"|printf{_SUITE_NOM_COMMANDE}"
     r"|exit\s+0(?=$|[^A-Za-z0-9_])"
-    r")"
+)
+_FALLBACK_SHELL: Final[re.Pattern[str]] = re.compile(
+    r"\|\|\s*(?P<prefixe>"
+    + _PREFIXES_NEUTRES_REPLI
+    + r")(?P<command>"
+    + _COMMANDES_SUCCES_GARANTI
+    + r")"
+)
+_SUCCES_GARANTI_EN_TETE: Final[re.Pattern[str]] = re.compile(
+    r"^(?:" + _PREFIXES_NEUTRES_REPLI + r")(?:" + _COMMANDES_SUCCES_GARANTI + r")"
+)
+_INTERPRETES_SHELL: Final[str] = r"(?:ba|da|k|z|a)?sh"
+_REPLI_SHELL_INLINE: Final[re.Pattern[str]] = re.compile(
+    r"\|\|\s*(?P<prefixe>"
+    + _PREFIXES_NEUTRES_REPLI
+    + r")(?P<shell>"
+    + _INTERPRETES_SHELL
+    + r")"
+    + _SUITE_NOM_COMMANDE
+    + r"(?:\s+-[A-Za-z]+)*?\s+-[A-Za-z]*c\s+"
+    + r"(?P<script>'[^']*'|\"[^\"]*\"|[^\s;|&]+)"
 )
 _SUCCES_FORCE_COMPACT: Final[re.Pattern[str]] = re.compile(
     r"(?:\|\|true|\|\|:|\|\|exit0|;true)" + _SUITE_NOM_COMMANDE
@@ -142,6 +161,14 @@ _NOMS_EXCEPTIONS_BUILTINS: Final[frozenset[str]] = frozenset(
 _NOMS_TEST_CASE_UNITTEST: Final[frozenset[str]] = frozenset(
     {"TestCase", "IsolatedAsyncioTestCase", "FunctionTestCase"}
 )
+_NOMS_ABSENCE_IMPLEMENTATION: Final[frozenset[str]] = frozenset(
+    {
+        "NotImplementedError",  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet
+        "NotImplemented",
+    }
+)  # proof:allow — fixture/constante du gate NO-STUB : ce motif EST le sujet du test
+_ATTRIBUT_PROUVANT_PROTOCOL: Final[str] = "Protocol"
+_ATTRIBUT_PROUVANT_ABSTRACTMETHOD: Final[str] = "abstractmethod"
 
 
 @dataclass(frozen=True)
@@ -210,6 +237,48 @@ class _CollecteAliases:
         """Retire les noms réaffectés : leur origine standard n'est plus prouvée."""
         for ensemble in self._ensembles():
             ensemble.difference_update(noms)
+
+    def _ensembles_exemptants(self) -> tuple[set[str], ...]:
+        """Énumère les seules preuves dont le retrait rend le gate PLUS strict.
+
+        Ces ensembles servent à EXEMPTER : sans eux, l'ellipse d'un protocole ou
+        d'une méthode abstraite, et l'oracle hérité d'un cas de test, redeviennent
+        des violations. Les autres ensembles servent au contraire à DÉTECTER
+        (marques de saut, absences d'implémentation) : les retirer rendrait le
+        gate muet, donc fail-open. Cette liste est volontairement partielle, et
+        c'est la raison pour laquelle elle est séparée de ``_ensembles``.
+        """
+        return (
+            self.protocols,
+            self.modules_typing,
+            self.abstractmethods,
+            self.modules_abc,
+            self.test_cases,
+        )
+
+    def retirer_exemptions(self, noms: set[str]) -> None:
+        """Retire les seules preuves d'exemption portées par les noms donnés."""
+        for ensemble in self._ensembles_exemptants():
+            ensemble.difference_update(noms)
+
+    def retirer_attributs_prouvants(self, attributs: set[tuple[str, str]]) -> None:
+        """Retire un alias de module dont l'attribut PROUVANT une exemption est réécrit.
+
+        ``t.Protocol = object`` laisse le module ``t`` en place mais détruit
+        l'origine de l'exemption : la classe qui hérite ensuite de ``t.Protocol``
+        ne dérive plus du protocole de la bibliothèque standard. Le retrait vise
+        l'attribut réécrit, pas le module entier, afin qu'une écriture sur un
+        attribut sans rapport ne fasse pas disparaître une preuve valide.
+        """
+        for module, attribut in attributs:
+            if attribut == _ATTRIBUT_PROUVANT_PROTOCOL:
+                self.modules_typing.discard(module)
+            elif attribut == _ATTRIBUT_PROUVANT_ABSTRACTMETHOD:
+                self.modules_abc.discard(module)
+
+    def ajouter_absences_prouvees(self, noms: set[str]) -> None:
+        """Ajoute les noms qu'une affectation lie à l'absence d'implémentation."""
+        self.not_implemented_errors.update(noms)
 
     def figer(self) -> _AliasesImports:
         """Fige la collecte en preuve immuable consommée par les règles."""
@@ -352,9 +421,121 @@ def _noms_cibles_affectation(noeud: ast.stmt) -> set[str]:
     return set()
 
 
+def _attributs_lies_cible(noeud: ast.expr) -> set[tuple[str, str]]:
+    """Extrait les attributs de module liés par une cible, même destructurée."""
+    if isinstance(noeud, ast.Attribute) and isinstance(noeud.value, ast.Name):
+        return {(noeud.value.id, noeud.attr)}
+    if isinstance(noeud, (ast.Tuple, ast.List)):
+        return set().union(*(_attributs_lies_cible(element) for element in noeud.elts))
+    if isinstance(noeud, ast.Starred):
+        return _attributs_lies_cible(noeud.value)
+    return set()
+
+
+def _attributs_cibles_affectation(noeud: ast.stmt) -> set[tuple[str, str]]:
+    """Extrait les attributs de module que toute liaison module-level réécrit.
+
+    Surveiller les seules cibles ``ast.Name`` laissait ``typing.Protocol =
+    object`` intact : le nom du module survit, mais l'attribut par lequel
+    l'exemption est prouvée ne désigne plus le protocole standard.
+    """
+    if isinstance(noeud, ast.Assign):
+        return set().union(
+            *(_attributs_lies_cible(cible) for cible in noeud.targets)
+        )
+    if isinstance(noeud, ast.AnnAssign):
+        return _attributs_lies_cible(noeud.target)
+    if isinstance(noeud, (ast.For, ast.AsyncFor)):
+        return _attributs_lies_cible(noeud.target)
+    if isinstance(noeud, (ast.With, ast.AsyncWith)):
+        return set().union(
+            *(
+                _attributs_lies_cible(element.optional_vars)
+                for element in noeud.items
+                if element.optional_vars is not None
+            ),
+            set(),
+        )
+    return set()
+
+
+def _valeur_prouve_une_absence(valeur: ast.expr) -> bool:
+    """Prouve qu'une affectation lie son nom à l'absence d'implémentation.
+
+    La preuve est celle qu'exige déjà la levée directe : le nom construit — nu,
+    qualifié par un attribut de module, appelé ou non — est celui de l'absence
+    d'implémentation. ``E = MonModule.MonErreur`` n'est donc jamais concerné,
+    l'origine restant inconnue.
+    """
+    cible = valeur.func if isinstance(valeur, ast.Call) else valeur
+    if isinstance(cible, ast.Attribute):
+        return cible.attr in _NOMS_ABSENCE_IMPLEMENTATION
+    return isinstance(cible, ast.Name) and cible.id in _NOMS_ABSENCE_IMPLEMENTATION
+
+
+def _noeuds_de_la_portee(fonction: ast.AST) -> list[ast.AST]:
+    """Énumère les nœuds de la portée PROPRE d'une fonction, sans les portées filles.
+
+    Une fonction, un lambda ou une classe imbriqués ouvrent leur propre espace de
+    noms : ce qu'ils déclarent n'appartient pas à la portée parcourue ici, et
+    chaque fonction imbriquée est de toute façon analysée pour elle-même.
+    """
+    noeuds: list[ast.AST] = []
+    pile: list[ast.AST] = list(ast.iter_child_nodes(fonction))
+    while pile:
+        noeud = pile.pop()
+        if isinstance(
+            noeud,
+            (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef),
+        ):
+            continue
+        noeuds.append(noeud)
+        pile.extend(ast.iter_child_nodes(noeud))
+    return noeuds
+
+
+def _noms_reaffectes_par_global(arbre: ast.Module) -> set[str]:
+    """Recense les noms du MODULE qu'une fonction réaffecte via ``global``.
+
+    Les corps de fonctions sont ignorés par la collecte des liaisons parce qu'une
+    affectation locale ne touche pas le module. ``global`` supprime précisément
+    cette portée locale : l'affectation lie alors le module, et la déclaration
+    seule ne suffit pas — le nom doit aussi être affecté dans la même portée.
+    """
+    reaffectes: set[str] = set()
+    for fonction in ast.walk(arbre):
+        if not isinstance(fonction, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        portee = _noeuds_de_la_portee(fonction)
+        declares = {
+            nom
+            for noeud in portee
+            if isinstance(noeud, ast.Global)
+            for nom in noeud.names
+        }
+        if not declares:
+            continue
+        affectes: set[str] = set()
+        for noeud in portee:
+            if isinstance(noeud, ast.stmt):
+                affectes |= _noms_cibles_affectation(noeud)
+        reaffectes |= declares & affectes
+    return reaffectes
+
+
+@dataclass
+class _LiaisonsModule:
+    """Rassemble ce que le namespace d'un module lie, prouve et détruit."""
+
+    aliases: _CollecteAliases
+    reassignees: set[str]
+    attributs_reaffectes: set[tuple[str, str]]
+    absences_prouvees: set[str]
+
+
 def _imports_module(
     corps: list[ast.stmt],
-) -> tuple[_CollecteAliases, set[str]]:
+) -> _LiaisonsModule:
     """Collecte les liaisons du namespace du module : ses imports ET ses écrasements.
 
     Les blocs module-level — ``if`` (notamment ``if TYPE_CHECKING:``), ``for``,
@@ -370,10 +551,19 @@ def _imports_module(
     """
     aliases = _CollecteAliases()
     reassignees: set[str] = set()
+    attributs_reaffectes: set[tuple[str, str]] = set()
+    absences_prouvees: set[str] = set()
 
     def visiter(instructions: list[ast.stmt]) -> None:
         for noeud in instructions:
             reassignees.update(_noms_cibles_affectation(noeud))
+            attributs_reaffectes.update(_attributs_cibles_affectation(noeud))
+            if (
+                isinstance(noeud, (ast.Assign, ast.AnnAssign))
+                and noeud.value is not None
+                and _valeur_prouve_une_absence(noeud.value)
+            ):
+                absences_prouvees.update(_noms_cibles_affectation(noeud))
             if isinstance(noeud, ast.Import):
                 for alias in noeud.names:
                     if alias.name == "typing":
@@ -438,7 +628,9 @@ def _imports_module(
                     visiter(cas.body)
 
     visiter(corps)
-    return aliases, reassignees
+    return _LiaisonsModule(
+        aliases, reassignees, attributs_reaffectes, absences_prouvees
+    )
 
 
 def _analyser_imports(arbre: ast.Module) -> _AliasesImports:
@@ -450,10 +642,21 @@ def _analyser_imports(arbre: ast.Module) -> _AliasesImports:
     n'est plus certaine, et elle s'applique sans tenir compte de l'ORDRE : une
     réaffectation écrite avant l'import compte autant qu'une réaffectation écrite
     après lui.
+
+    Trois liaisons échappaient à ce parcours : la réécriture d'un ATTRIBUT de
+    module, la réaffectation d'un nom par ``global`` depuis une fonction, et
+    l'alias d'exception construit par AFFECTATION. Les deux premières détruisent
+    une preuve et sont appliquées après le retrait général ; la troisième en
+    crée une, et doit donc être ajoutée en dernier — l'affectation qui la porte
+    est aussi une réaffectation, si bien que l'appliquer plus tôt reviendrait à
+    l'effacer avec elle.
     """
-    aliases, reassignees = _imports_module(arbre.body)
-    aliases.retirer(reassignees)
-    return aliases.figer()
+    liaisons = _imports_module(arbre.body)
+    liaisons.aliases.retirer(liaisons.reassignees)
+    liaisons.aliases.retirer_attributs_prouvants(liaisons.attributs_reaffectes)
+    liaisons.aliases.retirer_exemptions(_noms_reaffectes_par_global(arbre))
+    liaisons.aliases.ajouter_absences_prouvees(liaisons.absences_prouvees)
+    return liaisons.aliases.figer()
 
 
 def _est_classe_protocol(classe: ast.ClassDef, aliases: _AliasesImports) -> bool:
@@ -483,10 +686,10 @@ def _base_declaree(base: ast.expr) -> ast.expr:
     return base.value if isinstance(base, ast.Subscript) else base
 
 
-def _noms_de_classes_derivees(
+def _positions_de_classes_derivees(
     arbre: ast.Module,
     est_base_prouvee: Callable[[ast.expr], bool],
-) -> frozenset[str]:
+) -> frozenset[tuple[int, int]]:
     """Résout par POINT FIXE les classes du module dérivant d'une base prouvée.
 
     L'héritage indirect vaut l'héritage direct : une classe qui dérive d'une
@@ -499,24 +702,33 @@ def _noms_de_classes_derivees(
 
     Seules les bases nommées du MÊME module sont suivies : un nom importé d'un
     autre module n'est pas résolvable statiquement et ne prouve donc rien.
+
+    Le résultat désigne les DÉFINITIONS par leur position, jamais par leur nom.
+    Rendre des noms faisait dépendre l'exemption d'une collision entre portées :
+    une classe locale n'héritant de rien devenait exempte du seul fait qu'un type
+    d'exception du module portait le même nom. Les noms restent l'unité de
+    RÉSOLUTION des bases, faute d'autre lien statique entre une base et sa
+    définition, mais ils ne sont plus l'unité d'EXEMPTION.
     """
     classes = [noeud for noeud in ast.walk(arbre) if isinstance(noeud, ast.ClassDef)]
-    derivees: set[str] = set()
+    noms_derives: set[str] = set()
+    positions_derivees: set[tuple[int, int]] = set()
     ajout = True
     while ajout:
         ajout = False
         for classe in classes:
-            if classe.name in derivees:
+            if (classe.lineno, classe.col_offset) in positions_derivees:
                 continue
             for base in classe.bases:
                 cible = _base_declaree(base)
                 if est_base_prouvee(cible) or (
-                    isinstance(cible, ast.Name) and cible.id in derivees
+                    isinstance(cible, ast.Name) and cible.id in noms_derives
                 ):
-                    derivees.add(classe.name)
+                    noms_derives.add(classe.name)
+                    positions_derivees.add((classe.lineno, classe.col_offset))
                     ajout = True
                     break
-    return frozenset(derivees)
+    return frozenset(positions_derivees)
 
 
 def _est_base_exception_builtin(base: ast.expr) -> bool:
@@ -577,22 +789,14 @@ def _est_exception_non_implementee(noeud: ast.expr, aliases: _AliasesImports) ->
     attribut, telle qu'un accès via le module builtins, reste un stub explicite.
     """  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet
     cible = noeud.func if isinstance(noeud, ast.Call) else noeud
+    if isinstance(cible, ast.Name):
+        return (
+            cible.id in _NOMS_ABSENCE_IMPLEMENTATION
+            or cible.id in aliases.not_implemented_errors
+        )
     return (
-        isinstance(cible, ast.Name)
-        and cible.id
-        in {
-            "NotImplementedError",  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet
-            "NotImplemented",
-        }  # proof:allow — fixture/constante du gate NO-STUB : ce motif EST le sujet du test
-    ) or (
-        isinstance(cible, ast.Name) and cible.id in aliases.not_implemented_errors
-    ) or (
         isinstance(cible, ast.Attribute)
-        and cible.attr
-        in {
-            "NotImplementedError",  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet du test
-            "NotImplemented",
-        }  # proof:allow — fixture/constante du gate NO-STUB : ce motif EST le sujet du test
+        and cible.attr in _NOMS_ABSENCE_IMPLEMENTATION
     )
 
 
@@ -688,7 +892,8 @@ def _analyser_classe(
     repo: Path,
     fichier: Path,
     classe: ast.ClassDef,
-    exceptions: frozenset[str],
+    exceptions: frozenset[tuple[int, int]],
+    est_protocol: bool,
 ) -> list[Violation]:
     """Refuse un corps de CLASSE réduit à un stub, hors types d'exception.
 
@@ -708,9 +913,18 @@ def _analyser_classe(
 
     L'exemption tient à la nature du type, jamais au simple fait d'hériter :
     ``class Service(Base): pass`` reste refusée, car une classe métier vide
-    n'annonce aucune implémentation.
+    n'annonce aucune implémentation. Elle est de plus attachée à la DÉFINITION
+    exempte, repérée par sa position, et non à son nom : une classe d'une autre
+    portée qui reprend le nom d'un type d'exception du module n'hérite de rien
+    et reste jugée sur son propre en-tête.
+
+    Un PROTOCOLE prouvé dont le corps entier est une ellipse est exempté lui
+    aussi : ``class Depot(Protocol): ...`` déclare une interface, exactement
+    comme l'ellipse acceptée méthode par méthode juste au-dessous. L'exemption
+    s'arrête là où celle des méthodes s'arrête — ``pass`` ne déclare rien, et un
+    homonyme local de ``Protocol`` ne prouve aucune origine.
     """
-    if classe.name in exceptions:
+    if (classe.lineno, classe.col_offset) in exceptions:
         return []
 
     if len(classe.body) == 1 and _est_docstring(classe.body[0]):
@@ -734,6 +948,9 @@ def _analyser_classe(
         and isinstance(utile[0].value, ast.Constant)
         and utile[0].value.value is Ellipsis
     )
+    if est_ellipse_unique and est_protocol:
+        return []
+
     code = "EXECUTABLE_ELLIPSIS" if est_ellipse_unique else "EXECUTABLE_PASS"
     detail = (
         "le corps de la classe est réduit à une ellipse"
@@ -825,7 +1042,7 @@ def _analyser_lambdas(repo: Path, fichier: Path, arbre: ast.Module) -> list[Viol
 def _analyser_stubs(repo: Path, fichier: Path, arbre: ast.Module) -> list[Violation]:
     """Parcourt tous les blocs en conservant le contexte Protocol des classes."""
     aliases = _analyser_imports(arbre)
-    exceptions = _noms_de_classes_derivees(arbre, _est_base_exception_builtin)
+    exceptions = _positions_de_classes_derivees(arbre, _est_base_exception_builtin)
     violations: list[Violation] = []
 
     class Visiteur(ast.NodeVisitor):
@@ -835,8 +1052,11 @@ def _analyser_stubs(repo: Path, fichier: Path, arbre: ast.Module) -> list[Violat
             self.protocols: list[bool] = [False]
 
         def visit_ClassDef(self, noeud: ast.ClassDef) -> None:
-            violations.extend(_analyser_classe(repo, fichier, noeud, exceptions))
-            self.protocols.append(_est_classe_protocol(noeud, aliases))
+            est_protocol = _est_classe_protocol(noeud, aliases)
+            violations.extend(
+                _analyser_classe(repo, fichier, noeud, exceptions, est_protocol)
+            )
+            self.protocols.append(est_protocol)
             self.generic_visit(noeud)
             self.protocols.pop()
 
@@ -965,12 +1185,15 @@ def _receveurs_de_cas_de_test(
     hérités d'``unittest.TestCase``. Une méthode sans paramètre, telle une
     ``staticmethod``, n'a aucun receveur et n'est donc pas recensée.
     """
-    cas_de_test = _noms_de_classes_derivees(
+    cas_de_test = _positions_de_classes_derivees(
         arbre, lambda base: _est_base_test_case(base, aliases)
     )
     receveurs: dict[ast.stmt, str] = {}
     for noeud in ast.walk(arbre):
-        if not (isinstance(noeud, ast.ClassDef) and noeud.name in cas_de_test):
+        if not (
+            isinstance(noeud, ast.ClassDef)
+            and (noeud.lineno, noeud.col_offset) in cas_de_test
+        ):
             continue
         for membre in noeud.body:
             if (
@@ -1250,16 +1473,25 @@ _NOMS_ITERABLES_RACINES = frozenset(
 )
 
 
+def _est_source_de_racines(noeud: ast.expr) -> bool:
+    """Prouve qu'une expression REND les racines contractuelles telles quelles.
+
+    Deux formes le prouvent : le nom consacré de la collection de racines, et
+    l'appel dont le nom annonce leur chargement. Une telle expression est
+    décidable par DÉLÉGATION au contrat — c'est la forme attendue d'un lanceur —
+    même si sa valeur n'est pas lisible dans le fichier.
+    """
+    if isinstance(noeud, ast.Name):
+        return noeud.id in _NOMS_ITERABLES_RACINES
+    if isinstance(noeud, ast.Call):
+        nom = _nom_identifiant(noeud.func).lower()
+        return "racine" in nom or "root" in nom
+    return False
+
+
 def _itere_sur_les_racines(generateur: ast.comprehension) -> bool:
     """Indique si la compréhension parcourt bien les racines contractuelles."""
-    iterable = generateur.iter
-    if isinstance(iterable, ast.Name):
-        return iterable.id in _NOMS_ITERABLES_RACINES
-    if isinstance(iterable, ast.Call):
-        cible = iterable.func
-        nom = cible.attr if isinstance(cible, ast.Attribute) else getattr(cible, "id", "")
-        return "racine" in nom.lower() or "root" in nom.lower()
-    return False
+    return _est_source_de_racines(generateur.iter)
 
 
 def _comprehension_filtre_racines(noeud: ast.expr) -> bool:
@@ -1382,6 +1614,46 @@ def _expressions_de_perimetre(arbre: ast.Module) -> set[ast.expr]:
     return declarations
 
 
+def _perimetre_derive_des_racines_indecidable(noeud: ast.expr) -> bool:
+    """Prouve qu'un périmètre TRANSFORME les racines sans valeur décidable.
+
+    Le contrôle des omissions ne sait lire que les collections littérales : toute
+    autre valeur le rendait muet. Or retirer des racines ne demande alors qu'une
+    transformation opaque de leur source — ``charger_racines()[:1]``,
+    ``list(racines)[:1]`` — qui réduit le périmètre d'un contrôle requis sans
+    qu'aucune règle ne s'applique. Le critère retenu est l'INDÉCIDABILITÉ, jamais
+    la forme du wrapper : déplier ``list(…)`` puis ``sorted(…)`` puis le suivant
+    serait une course sans fin, et chaque forme oubliée un trou.
+
+    Trois exclusions bornent la règle à ce qu'elle sait juger :
+    — la source elle-même, décidable par délégation au contrat ;
+    — les compréhensions sur les racines, qui ont leurs juges dédiés (exclusion
+      littérale, filtre indécidable) et seraient sinon condamnées deux fois ;
+    — les valeurs littérales, déjà jugées par la règle des omissions.
+
+    Le rôle est prouvé DEUX fois : par le contexte de déclaration (l'appelant)
+    et par la présence de la source des racines dans l'expression. MESURÉ sur ce
+    dépôt : le seul contexte de déclaration retient 16 expressions légitimes des
+    lanceurs — chemins du dépôt, lectures du contrat, lignes de commande — que
+    juger produirait autant de faux positifs, soit la pression exacte qui fait
+    désarmer un gate.
+    """
+    if _valeurs_litterales(noeud) is not None:
+        return False
+    if _est_source_de_racines(noeud):
+        return False
+    if any(
+        isinstance(interne, (ast.ListComp, ast.SetComp, ast.GeneratorExp, ast.DictComp))
+        and any(_itere_sur_les_racines(gen) for gen in interne.generators)
+        for interne in ast.walk(noeud)
+    ):
+        return False
+    return any(
+        isinstance(interne, ast.expr) and _est_source_de_racines(interne)
+        for interne in ast.walk(noeud)
+    )
+
+
 def _analyser_omissions_racines(
     repo: Path,
     fichier: Path,
@@ -1418,6 +1690,18 @@ def _analyser_omissions_racines(
                     noeud.lineno,
                     "le filtre de racines n'est pas décidable statiquement ; "
                     "il doit être rendu littéral ou justifié",
+                )
+            )
+            continue
+        if noeud in declarations and _perimetre_derive_des_racines_indecidable(noeud):
+            violations.append(
+                _violation(
+                    "SCOPE_FILTRE_INDECIDABLE",
+                    repo,
+                    fichier,
+                    noeud.lineno,
+                    "le périmètre dérive des racines contractuelles sans valeur "
+                    "décidable statiquement ; il doit être rendu littéral ou justifié",
                 )
             )
             continue
@@ -1849,6 +2133,47 @@ def _groupe_repli_succes(neutre: str) -> str | None:
     return None
 
 
+def _script_shell_force_le_succes(script: str) -> bool:
+    """Décide si un script shell inline se termine forcément avec succès.
+
+    Le critère est celui des replis directs, appliqué à la commande qui FIXE le
+    code de retour du script : ``exit 0``, ``true``, ``:``, ``echo`` et
+    ``printf`` réussissent toujours, si bien que le job requis redevient vert.
+    Toute autre fin — ``exit 1``, ``false``, un outil qui peut échouer — propage
+    son statut et reste licite, exactement comme ``|| make rapport``.
+
+    Le script est de plus relu comme une commande à part entière, ce qui traite
+    un repli imbriqué (``sh -c 'verif || true'``). La récursion est bornée :
+    chaque niveau lit une sous-chaîne strictement plus courte que le précédent.
+    """
+    if _commande_repli_succes(script) is not None:
+        return True
+    return _SUCCES_GARANTI_EN_TETE.match(_derniere_commande_shell(script)) is not None
+
+
+def _repli_shell_inline_succes(commande: str, neutre: str) -> str | None:
+    """Détecte un repli ``|| sh -c '…'`` dont le script force le succès de l'étape.
+
+    Cette forme échappait à tous les motifs : la neutralisation des quotes, qui
+    protège des replis simplement CITÉS, effaçait aussi le contenu réellement
+    exécuté par ``-c``. Les deux besoins sont conciliés en repérant l'appel sur
+    le texte NEUTRALISÉ — un ``|| sh -c 'exit 0'`` écrit dans une chaîne y est
+    effacé, donc jamais signalé — puis en lisant le script à la même position
+    dans le texte d'origine, la neutralisation conservant les positions.
+
+    Les options précédant ``-c`` sont admises, groupées ou non (``sh -ec``),
+    car seul compte le fait que l'argument suivant soit le script exécuté.
+    """
+    for correspondance in _REPLI_SHELL_INLINE.finditer(neutre):
+        debut, fin = correspondance.span("script")
+        script = commande[debut:fin]
+        if len(script) >= 2 and script[0] in {"'", '"'} and script[-1] == script[0]:
+            script = script[1:-1]
+        if _script_shell_force_le_succes(script):
+            return f"{correspondance.group('prefixe')}{correspondance.group('shell')} -c"
+    return None
+
+
 def _commande_repli_succes(commande: str) -> str | None:
     """Prouve qu'une branche ``||`` se termine inconditionnellement avec succès.
 
@@ -1861,6 +2186,9 @@ def _commande_repli_succes(commande: str) -> str | None:
     neutre = _neutraliser_chaines_shell(commande)
     correspondance = _FALLBACK_SHELL.search(neutre)
     if correspondance is None:
+        inline = _repli_shell_inline_succes(commande, neutre)
+        if inline is not None:
+            return inline
         return _groupe_repli_succes(neutre)
     commande_repli = correspondance.group("command")
     if commande_repli.startswith("echo"):

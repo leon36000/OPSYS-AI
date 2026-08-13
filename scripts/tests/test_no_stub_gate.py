@@ -3944,3 +3944,355 @@ def test_refuse_continue_on_error_entier_un_dans_une_etape_requise(
     )
 
     assert "REQUIRED_JOB_SOFT_FAILURE" in _codes(_scanner(repo))
+
+
+def test_accepte_une_ellipse_comme_corps_entier_dun_protocol(tmp_path: Path) -> None:
+    """Prouve qu'un protocole déclaré par une ellipse seule reste une interface licite.
+
+    Contrôler le corps des classes avait pour effet de bord de refuser la
+    déclaration d'interface la plus courante de Python, alors que la même ellipse
+    est acceptée méthode par méthode juste au-dessous.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "from typing import Protocol\n\n\nclass Depot(Protocol):\n    ...\n",
+    )
+
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_refuse_une_ellipse_de_classe_ordinaire_voisine_dun_protocol(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'exemption du protocole ne déteint pas sur la classe d'à côté."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "from typing import Protocol\n\n\n"
+        "class Depot(Protocol):\n    ...\n\n\n"
+        "class Service:\n    ...\n",
+    )
+
+    violations = _scanner(repo)
+    assert [(violation.code, violation.line) for violation in violations] == [
+        ("EXECUTABLE_ELLIPSIS", 8)
+    ]
+
+
+def test_refuse_un_corps_de_protocol_reduit_a_pass(tmp_path: Path) -> None:
+    """Prouve que l'exemption vise l'ellipse déclarative, jamais un pass de remplissage.
+
+    La règle des méthodes est reprise à l'identique : ``...`` déclare une
+    interface, ``pass`` ne déclare rien.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "from typing import Protocol\n\n\nclass Depot(Protocol):\n    pass\n",
+    )
+
+    assert "EXECUTABLE_PASS" in _codes(_scanner(repo))
+
+
+def test_refuse_une_ellipse_de_classe_sous_un_protocol_usurpe(tmp_path: Path) -> None:
+    """Prouve que l'exemption exige le VRAI typing.Protocol, jamais un homonyme local."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "class Protocol:\n    def marquer(self) -> None:\n        self.vu = True\n\n\n"
+        "class Depot(Protocol):\n    ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_une_classe_vide_homonyme_dune_exception_du_module(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'exemption d'exception suit l'héritage, jamais une collision de nom.
+
+    Une classe déclarée dans une autre portée peut porter le nom d'un type
+    d'exception du module sans rien hériter : l'exempter revenait à ouvrir un
+    contournement d'un seul renommage.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "class Panne(ValueError):\n    pass\n\n\n"
+        "def configurer() -> None:\n"
+        "    class Panne:\n        pass\n\n"
+        "    raise Panne\n",
+    )
+
+    assert "EXECUTABLE_PASS" in _codes(_scanner(repo))
+
+
+def test_accepte_une_exception_vide_du_module_apres_le_controle_dhomonymie(
+    tmp_path: Path,
+) -> None:
+    """Prouve que resserrer l'exemption ne réintroduit pas le faux positif d'exception."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "class Panne(ValueError):\n    pass\n\n\n"
+        "class PanneGrave(Panne):\n    pass\n",
+    )
+
+    assert _codes(_scanner(repo)) == set()
+
+
+@pytest.mark.parametrize("shell", ("sh", "bash", "/bin/sh"))
+def test_refuse_un_repli_shell_inline_forcant_le_succes(
+    tmp_path: Path,
+    shell: str,
+) -> None:
+    """Prouve qu'un shell lancé en repli avec un script à succès absorbe l'échec requis.
+
+    La neutralisation des quotes rendait ``exit 0`` invisible à l'intérieur de
+    l'argument, si bien qu'aucun motif de repli ne s'appliquait plus.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/inline.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        f"      - run: verif || {shell} -c 'exit 0'\n",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_accepte_un_repli_shell_inline_qui_propage_lechec(tmp_path: Path) -> None:
+    """Prouve que le critère est le succès FORCÉ, pas l'appel d'un shell en repli."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/inline_echec.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: verif || sh -c 'exit 1'\n",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
+def test_accepte_un_repli_vers_un_script_de_recuperation(tmp_path: Path) -> None:
+    """Prouve qu'un script de récupération, qui peut échouer, reste un repli licite."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/recuperation.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: verif || bash script_de_recuperation.sh\n",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
+def test_refuse_un_protocol_reaffecte_par_attribut_de_module(tmp_path: Path) -> None:
+    """Prouve qu'écraser typing.Protocol détruit l'exemption comme écraser le nom nu.
+
+    Ne surveiller que les cibles ``ast.Name`` laissait un seul point réaffecter
+    l'origine prouvée du protocole.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "import typing as t\n\nt.Protocol = object\n\n\n"
+        "class Service(t.Protocol):\n    def calculer(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_abstractmethod_reaffecte_par_attribut_de_module(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la règle vise la PREUVE d'origine, pas le seul nom Protocol."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/base.py",
+        "import abc\n\nabc.abstractmethod = staticmethod\n\n\n"
+        "class Socle:\n    @abc.abstractmethod\n"
+        "    def calculer(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_accepte_un_module_typing_dont_un_autre_attribut_est_reaffecte(
+    tmp_path: Path,
+) -> None:
+    """Prouve que seule la réaffectation de l'attribut PROUVANT retire l'exemption."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "import typing as t\n\nt.TYPE_CHECKING = True\n\n\n"
+        "class Service(t.Protocol):\n    def calculer(self) -> str: ...\n",
+    )
+
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_refuse_un_protocol_reaffecte_par_global_dans_une_fonction(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'une affectation déclarée global lie le MODULE, non la fonction.
+
+    L'exemption des affectations locales repose sur leur portée ; ``global`` la
+    supprime explicitement, donc l'origine du nom n'est plus prouvée.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "from typing import Protocol\n\n\n"
+        "def desarmer() -> None:\n    global Protocol\n\n    Protocol = object\n\n\n"
+        "class Service(Protocol):\n    def calculer(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_accepte_un_global_declare_sans_reaffectation(tmp_path: Path) -> None:
+    """Prouve que déclarer global ne suffit pas : il faut une affectation pour délier."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/interfaces.py",
+        "from typing import Protocol\n\n\n"
+        "def inspecter() -> str:\n    global Protocol\n\n    return Protocol.__name__\n\n\n"
+        "class Service(Protocol):\n    def calculer(self) -> str: ...\n",
+    )
+
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_refuse_une_absence_dimplementation_aliasee_par_affectation(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un alias construit par affectation reste un stub explicite.
+
+    Le gate résolvait l'alias d'import ; le même nom obtenu par affectation
+    depuis l'attribut d'un module échappait entièrement à la règle.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "import builtins\n\nAbsence = builtins.NotImplementedError\n\n\n"  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+        "def calculer() -> None:\n    raise Absence\n",
+    )
+
+    assert "NOT_IMPLEMENTED_STUB" in _codes(_scanner(repo))
+
+
+def test_accepte_un_alias_daffectation_vers_une_autre_exception(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'exigence de PREUVE d'origine tient : un alias quelconque n'est pas visé."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "import mon_module\n\nAbsence = mon_module.PanneMetier\n\n\n"
+        "def calculer() -> None:\n    raise Absence\n",
+    )
+
+    assert "NOT_IMPLEMENTED_STUB" not in _codes(_scanner(repo))
+
+
+@pytest.mark.parametrize(
+    "declaration",
+    (
+        "    racines = charger_racines_qualite()[:1]\n",
+        "    racines = list(charger_racines_contractuelles())[:1]\n",
+        "    racines = python_roots[1:]\n",
+    ),
+)
+def test_refuse_une_troncature_indecidable_des_racines_contractuelles(
+    tmp_path: Path,
+    declaration: str,
+) -> None:
+    """Prouve qu'un périmètre dérivé des racines sans valeur décidable est refusé.
+
+    Le contrôle des omissions ne lisait que les collections littérales ; toute
+    transformation opaque de la source des racines retirait donc des racines en
+    silence.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "core/scripts/run_security_scan.py",
+        "def principal() -> int:\n" + declaration + "    return len(racines)\n",
+    )
+
+    assert "SCOPE_FILTRE_INDECIDABLE" in _codes(_scanner(repo, ("core/scripts",)))
+
+
+@pytest.mark.parametrize(
+    "declaration",
+    (
+        "    racines = charger_racines_qualite()\n",
+        "    racines = contrat.get('python_roots')\n",
+        "    racines = [chemin for chemin in python_roots if chemin.exists()]\n",
+    ),
+)
+def test_accepte_une_declaration_de_racines_deleguee_au_contrat(
+    tmp_path: Path,
+    declaration: str,
+) -> None:
+    """Prouve que déléguer les racines au contrat reste la forme attendue d'un lanceur."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "core/scripts/run_security_scan.py",
+        "def principal(contrat: dict[str, object], python_roots: list[str]) -> int:\n"
+        + declaration
+        + "    return len(racines)\n",
+    )
+
+    assert "SCOPE_FILTRE_INDECIDABLE" not in _codes(_scanner(repo, ("core/scripts",)))
+
+
+def test_accepte_une_ligne_de_commande_etrangere_aux_racines(tmp_path: Path) -> None:
+    """Prouve que le contrôle vise les racines, pas toute liste au nom de périmètre.
+
+    MESURÉ sur ce dépôt : juger toute déclaration non décidable signalerait 16
+    expressions légitimes des lanceurs (chemins, lectures du contrat, lignes de
+    commande), soit le faux positif qui pousse à désarmer un gate.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        "core/scripts/run_tests.py",
+        "def principal(interpreteur: str, arguments: list[str]) -> int:\n"
+        "    argv = [str(interpreteur), '-m', 'pytest', *arguments]\n"
+        "    return len(argv)\n",
+    )
+
+    assert _codes(_scanner(repo, ("core/scripts",))) == set()

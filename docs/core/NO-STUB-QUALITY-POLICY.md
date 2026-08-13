@@ -257,6 +257,32 @@ python3 gate.py || /usr/bin/true_story # accepté — la borne de nom survit au 
 python3 gate.py && /usr/bin/true       # accepté — « && » n'est pas un repli
 ```
 
+### Shell lancé en repli : `|| sh -c '…'`
+
+Un shell appelé en repli exécute le script passé à `-c`, et ce script devient le
+code de retour de l'étape. La neutralisation des quotes — celle qui empêche de
+signaler un repli simplement **cité** — effaçait aussi ce script, si bien
+qu'aucun motif ne s'appliquait plus : la forme était acceptée alors qu'elle
+repeint en vert n'importe quel contrôle requis.
+
+Le critère est le **succès forcé**, jamais l'appel d'un shell : le script est
+jugé sur la commande qui fixe son code de retour, avec la liste déjà utilisée
+pour les replis directs (`true`, `:`, `echo`, `printf`, `exit 0`).
+
+```sh
+python3 gate.py || sh -c 'exit 0'          # refusé  — le repli réussit toujours
+python3 gate.py || bash -c 'exit 0'        # refusé  — même forme, autre shell
+python3 gate.py || /bin/sh -ec 'echo ko'   # refusé  — options groupées, echo réussit
+python3 gate.py || sh -c 'verif || true'   # refusé  — repli imbriqué
+python3 gate.py || sh -c 'exit 1'          # accepté — l'échec est propagé
+python3 gate.py || bash recuperation.sh    # accepté — un script peut échouer
+echo "gate || sh -c 'exit 0'"              # accepté — cité, donc donnée
+```
+
+L'appel est repéré sur le texte **neutralisé** — un repli écrit dans une chaîne y
+est effacé, donc jamais signalé — puis le script est lu à la même position dans
+le texte d'origine, la neutralisation conservant les positions.
+
 ## Gardes `if !` et désarmement d'errexit
 
 Une commande testée par `if !` est **exempte d'`errexit`** : ce n'est plus elle
@@ -414,9 +440,42 @@ qui prouve qu'aucun lanceur existant n'est faussement signalé. Conséquence pou
 les contributeurs : dans un `run_*.py`, une commande littérale sans rapport avec
 le périmètre ne doit pas être liée à un nom de périmètre.
 
-Une collection dont tous les éléments ne sont pas des chaînes littérales n'est
-jugée par aucune de ces règles : elle relève des filtres dynamiques, traités par
-`SCOPE_FILTRE_INDECIDABLE`.
+### Périmètre dérivé des racines sans valeur décidable
+
+Le contrôle des omissions ne sait lire que les collections **littérales** : toute
+autre valeur le rendait muet. Or retirer des racines ne demande alors qu'une
+transformation opaque de leur source, qui réduit le périmètre d'un contrôle
+requis sans qu'aucune règle ne s'applique. Ces déclarations sont désormais
+refusées par `SCOPE_FILTRE_INDECIDABLE`.
+
+```python
+racines = charger_racines_qualite()[:1]          # refusé — troncature indécidable
+racines = list(charger_racines_contractuelles())[:1]  # refusé — le wrapper ne change rien
+racines = python_roots[1:]                       # refusé — même retrait, autre écriture
+racines = charger_racines_qualite()              # accepté — délégation au contrat
+racines = contrat.get("python_roots")            # accepté — le contrat fait foi
+racines = [c for c in python_roots if c.exists()]  # accepté — filtre décidable
+argv = [str(interpreteur), "-m", "pytest", *args]  # accepté — étranger aux racines
+```
+
+Le critère est l'**indécidabilité**, jamais la forme du wrapper : déplier
+`list(…)` puis `sorted(…)` puis le suivant serait une course sans fin, et chaque
+forme oubliée un trou. Trois exclusions bornent la règle à ce qu'elle sait
+juger : la **source** elle-même — décidable par délégation au contrat, c'est la
+forme attendue d'un lanceur ; les **compréhensions** sur les racines, qui ont
+leurs juges dédiés et seraient sinon condamnées deux fois ; les **valeurs
+littérales**, déjà jugées par la règle des omissions.
+
+Le rôle est prouvé **deux fois** : par le contexte de déclaration, et par la
+présence de la source des racines dans l'expression. MESURÉ sur ce dépôt : le
+seul contexte de déclaration retient **16 expressions légitimes** des lanceurs —
+chemins du dépôt, lectures du contrat, lignes de commande — que juger produirait
+autant de faux positifs, soit la pression exacte qui fait désarmer un gate.
+
+Limite assumée, symétrique de celle du nommage : une indirection qui ne nomme ni
+racine ni source (`ARGV = [UNE_CONSTANTE]`) reste hors de portée du contrôle
+statique. Le rejugement du dépôt entier, chaque fichier traité comme un ajout,
+confirme **0 fichier réel nouvellement signalé** par cette règle.
 
 ## Oracles de test reconnus
 
@@ -513,12 +572,73 @@ L'exemption tient à la NATURE du type, jamais au simple fait d'hériter : les
 noms d'exceptions sont lus dans `builtins` à l'import du gate — jamais recopiés,
 donc jamais incomplets — et l'héritage est résolu transitivement dans le module.
 
+Elle est attachée à la **définition** exempte, repérée par sa position, et non à
+son nom. Exempter par nom faisait dépendre la règle d'une collision entre
+portées : une classe déclarée ailleurs, n'héritant de rien, devenait exempte du
+seul fait qu'un type d'exception du module portait le même nom — un
+contournement d'un seul renommage.
+
+```python
+class Panne(ValueError):
+    pass                  # accepté — type d'exception du module
+
+def configurer() -> None:
+    class Panne:
+        pass              # refusé — n'hérite de rien, l'homonymie ne prouve rien
+```
+
+Les noms restent l'unité de **résolution** des bases, faute d'autre lien statique
+entre une base et sa définition ; ils ne sont plus l'unité d'**exemption**. La
+même correction vaut pour les cas de test `unittest` : les oracles `self.assert…`
+ne sont reconnus que dans la sous-classe réellement dérivée de `TestCase`.
+
+### Le protocole déclaré par une ellipse
+
+Un **protocole prouvé** dont le corps entier est une ellipse est exempté : il
+déclare une interface, exactement comme l'ellipse acceptée méthode par méthode
+juste au-dessous. Contrôler le corps des classes avait pour effet de bord de
+refuser cette déclaration, alors que la même ellipse restait licite un cran plus
+bas — une incohérence interne à la règle.
+
+```python
+class Depot(Protocol): ...          # accepté — déclaration d'interface
+class Depot(Protocol):
+    def lire(self) -> str: ...      # accepté — inchangé
+class Depot(Protocol): pass         # refusé  — « pass » ne déclare rien
+class Depot(Protocol): """Doc."""   # refusé  — documenter un vide ne le remplit pas
+class Service: ...                  # refusé  — classe ordinaire, aucune interface
+```
+
+L'exemption s'arrête exactement où s'arrête celle des méthodes : elle exige
+l'ellipse — jamais `pass`, jamais une docstring seule — et le **vrai**
+`typing.Protocol`, prouvé par les imports du module. Un homonyme local du nom
+`Protocol` ne l'obtient pas.
+
 ## Absence d'implémentation
 
 La sentinelle `NotImplemented` et l'exception `NotImplementedError` sont
 refusées à égalité, sous leurs formes nue, appelée, importée sous alias et
 qualifiée par attribut. Un attribut du même nom qui n'est pas levé n'est pas
 concerné.
+
+L'alias construit par **affectation** l'est aussi : le gate résolvait l'alias
+d'import, mais le même nom obtenu depuis l'attribut d'un module échappait
+entièrement à la règle.
+
+```python
+import builtins
+Absence = builtins.NotImplementedError
+
+def calculer() -> None:
+    raise Absence            # refusé — alias prouvé, stub explicite
+```
+
+L'exigence de **preuve d'origine** est conservée : seul un nom construit à
+partir de `NotImplemented`/`NotImplementedError` est concerné, si bien qu'un
+`Absence = mon_module.PanneMetier` reste hors sujet. Cette preuve est appliquée
+**après** l'invalidation générale des noms réaffectés : l'affectation qui la
+porte est elle-même une réaffectation, et l'appliquer plus tôt reviendrait à
+l'effacer avec elle.
 
 La règle ne s'arrête **pas** au corps des fonctions. Levée au niveau d'un module
 ou dans un corps de classe, l'exception fait échouer le module **à l'import**, et
@@ -602,6 +722,42 @@ Les **corps de fonctions** ne sont jamais parcourus, dans les deux sens
 exemption globale et qu'une affectation locale n'invalide aucun alias du module.
 La règle ne tient pas compte de l'**ordre** : une réaffectation écrite avant
 l'import compte autant qu'une réaffectation écrite après lui.
+
+Deux liaisons échappaient encore à ce parcours, chacune suffisant à usurper une
+exemption d'un seul point.
+
+**La réécriture d'un attribut de module.** Surveiller les seules cibles nommées
+laissait `t.Protocol = object` intact : le module survit, mais l'attribut par
+lequel l'exemption est prouvée ne désigne plus le protocole standard.
+
+```python
+import typing as t
+t.Protocol = object
+
+class Service(t.Protocol):
+    def calculer(self) -> str: ...   # refusé — l'origine n'est plus prouvée
+```
+
+Le retrait vise l'**attribut prouvant**, pas le module entier : `t.TYPE_CHECKING
+= True` ne fait disparaître aucune preuve valide. Seules les preuves qui
+**exemptent** sont invalidées ainsi — `typing.Protocol`, `abc.abstractmethod` —
+car retirer une preuve qui sert à *détecter* (marques de saut, absences
+d'implémentation) rendrait le gate muet, donc fail-open.
+
+**L'affectation déclarée `global`.** L'exemption des affectations locales repose
+sur leur portée ; `global` la supprime explicitement, et la liaison atteint alors
+le module. La déclaration seule ne suffit pas : le nom doit aussi être affecté
+dans la même portée.
+
+```python
+def desarmer() -> None:
+    global Protocol
+    Protocol = object      # délie le module — l'exemption tombe
+
+def inspecter() -> str:
+    global Protocol
+    return Protocol.__name__   # aucune affectation — l'exemption tient
+```
 
 ## Suppressions de contrôles
 
