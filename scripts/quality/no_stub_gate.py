@@ -153,6 +153,7 @@ _VALEURS_VRAIES_YAML: Final[frozenset[str]] = frozenset(
 _CONDITIONS_REQUISES_ACCEPTEES: Final[frozenset[str]] = frozenset(
     {"always()", "success()"}
 )
+_CONDITIONS_REQUISES_MALGRE_NEEDS: Final[frozenset[str]] = frozenset({"always()"})
 _NOMS_EXCEPTIONS_BUILTINS: Final[frozenset[str]] = frozenset(
     nom
     for nom, objet in vars(builtins).items()
@@ -195,6 +196,8 @@ class _AliasesImports:
     marques_pytest: frozenset[str]
     sauts_directs: frozenset[str]
     test_cases: frozenset[str]
+    modules_builtins: frozenset[str]
+    exceptions_builtins: frozenset[str]
 
 
 @dataclass
@@ -217,6 +220,10 @@ class _CollecteAliases:
     marques_pytest: set[str] = field(default_factory=set)
     sauts_directs: set[str] = field(default_factory=set)
     test_cases: set[str] = field(default_factory=set)
+    modules_builtins: set[str] = field(default_factory=set)
+    exceptions_builtins: set[str] = field(
+        default_factory=lambda: set(_NOMS_EXCEPTIONS_BUILTINS)
+    )
 
     def _ensembles(self) -> tuple[set[str], ...]:
         """Énumère TOUS les ensembles : un oubli ici rendrait un alias ininvalidable."""
@@ -231,6 +238,8 @@ class _CollecteAliases:
             self.marques_pytest,
             self.sauts_directs,
             self.test_cases,
+            self.modules_builtins,
+            self.exceptions_builtins,
         )
 
     def retirer(self, noms: set[str]) -> None:
@@ -242,11 +251,12 @@ class _CollecteAliases:
         """Énumère les seules preuves dont le retrait rend le gate PLUS strict.
 
         Ces ensembles servent à EXEMPTER : sans eux, l'ellipse d'un protocole ou
-        d'une méthode abstraite, et l'oracle hérité d'un cas de test, redeviennent
-        des violations. Les autres ensembles servent au contraire à DÉTECTER
-        (marques de saut, absences d'implémentation) : les retirer rendrait le
-        gate muet, donc fail-open. Cette liste est volontairement partielle, et
-        c'est la raison pour laquelle elle est séparée de ``_ensembles``.
+        d'une méthode abstraite, l'oracle hérité d'un cas de test et le corps
+        vide d'un type d'exception redeviennent des violations. Les autres
+        ensembles servent au contraire à DÉTECTER (marques de saut, absences
+        d'implémentation) : les retirer rendrait le gate muet, donc fail-open.
+        Cette liste est volontairement partielle, et c'est la raison pour
+        laquelle elle est séparée de ``_ensembles``.
         """
         return (
             self.protocols,
@@ -254,6 +264,8 @@ class _CollecteAliases:
             self.abstractmethods,
             self.modules_abc,
             self.test_cases,
+            self.modules_builtins,
+            self.exceptions_builtins,
         )
 
     def retirer_exemptions(self, noms: set[str]) -> None:
@@ -280,6 +292,17 @@ class _CollecteAliases:
         """Ajoute les noms qu'une affectation lie à l'absence d'implémentation."""
         self.not_implemented_errors.update(noms)
 
+    def retirer_exceptions_importees(self, noms: set[str]) -> None:
+        """Retire les noms d'exception qu'un import lie à autre chose que ``builtins``.
+
+        ``from transport import ValueError`` fait désigner au nom ce que
+        ``transport`` exporte : l'exception de l'interpréteur n'est plus prouvée.
+        Le retrait est réservé à cet ensemble parce qu'un import est justement ce
+        qui PROUVE les autres alias — les y appliquer effacerait la preuve qu'ils
+        viennent d'établir.
+        """
+        self.exceptions_builtins.difference_update(noms)
+
     def figer(self) -> _AliasesImports:
         """Fige la collecte en preuve immuable consommée par les règles."""
         return _AliasesImports(
@@ -293,6 +316,8 @@ class _CollecteAliases:
             frozenset(self.marques_pytest),
             frozenset(self.sauts_directs),
             frozenset(self.test_cases),
+            frozenset(self.modules_builtins),
+            frozenset(self.exceptions_builtins),
         )
 
 
@@ -531,6 +556,7 @@ class _LiaisonsModule:
     reassignees: set[str]
     attributs_reaffectes: set[tuple[str, str]]
     absences_prouvees: set[str]
+    noms_importes_hors_builtins: set[str]
 
 
 def _imports_module(
@@ -539,20 +565,28 @@ def _imports_module(
     """Collecte les liaisons du namespace du module : ses imports ET ses écrasements.
 
     Les blocs module-level — ``if`` (notamment ``if TYPE_CHECKING:``), ``for``,
-    ``while``, ``with``, ``try`` et ``match`` — sont parcourus dans les DEUX
-    sens, car ils lient le module exactement comme son premier niveau : leurs
-    imports prouvent un alias, leurs affectations le détruisent. Ne descendre
-    que pour les imports laissait une réaffectation cachée d'un seul cran
-    conserver l'alias, donc exempter une classe qui hérite en réalité d'``object``.
+    ``while``, ``with``, ``try``, ``try``/``except*`` et ``match`` — sont
+    parcourus dans les DEUX sens, car ils lient le module exactement comme son
+    premier niveau : leurs imports prouvent un alias, leurs affectations le
+    détruisent. Ne descendre que pour les imports laissait une réaffectation
+    cachée d'un seul cran conserver l'alias, donc exempter une classe qui hérite
+    en réalité d'``object``. ``ast.TryStar`` est un nœud DISTINCT d'``ast.Try``,
+    et non une sous-classe : l'omettre rendait ``except*`` invisible ici alors
+    que ``_instructions_hors_fonction`` le parcourait déjà.
 
     Les corps de fonctions et de méthodes ne sont jamais parcourus : leur portée
     est locale, si bien qu'un import local ne crée aucune exemption globale et
-    qu'une affectation locale n'invalide aucun alias du module.
+    qu'une affectation locale n'invalide aucun alias du module. Les corps de
+    CLASSES ne le sont pas non plus, et cette divergence avec
+    ``_instructions_hors_fonction`` est voulue : une classe est un espace de noms
+    propre, si bien que ``class Boite: Protocol = object`` ne réaffecte aucun nom
+    du module et ne doit invalider aucune preuve.
     """
     aliases = _CollecteAliases()
     reassignees: set[str] = set()
     attributs_reaffectes: set[tuple[str, str]] = set()
     absences_prouvees: set[str] = set()
+    noms_importes_hors_builtins: set[str] = set()
 
     def visiter(instructions: list[ast.stmt]) -> None:
         for noeud in instructions:
@@ -566,6 +600,9 @@ def _imports_module(
                 absences_prouvees.update(_noms_cibles_affectation(noeud))
             if isinstance(noeud, ast.Import):
                 for alias in noeud.names:
+                    noms_importes_hors_builtins.add(
+                        alias.asname or alias.name.partition(".")[0]
+                    )
                     if alias.name == "typing":
                         aliases.modules_typing.add(alias.asname or "typing")
                     elif alias.name == "abc":
@@ -574,8 +611,14 @@ def _imports_module(
                         aliases.modules_pytest.add(alias.asname or "pytest")
                     elif alias.name == "unittest":
                         aliases.modules_unittest.add(alias.asname or "unittest")
+                    elif alias.name == "builtins":
+                        aliases.modules_builtins.add(alias.asname or "builtins")
             elif isinstance(noeud, ast.ImportFrom):
                 origine = noeud.module or ""
+                if origine != "builtins":
+                    noms_importes_hors_builtins.update(
+                        alias.asname or alias.name for alias in noeud.names
+                    )
                 if origine == "typing":
                     aliases.protocols.update(
                         alias.asname or "Protocol"
@@ -617,7 +660,7 @@ def _imports_module(
                 visiter(noeud.orelse)
             elif isinstance(noeud, (ast.With, ast.AsyncWith)):
                 visiter(noeud.body)
-            elif isinstance(noeud, ast.Try):
+            elif isinstance(noeud, (ast.Try, ast.TryStar)):
                 visiter(noeud.body)
                 visiter(noeud.orelse)
                 visiter(noeud.finalbody)
@@ -629,7 +672,11 @@ def _imports_module(
 
     visiter(corps)
     return _LiaisonsModule(
-        aliases, reassignees, attributs_reaffectes, absences_prouvees
+        aliases,
+        reassignees,
+        attributs_reaffectes,
+        absences_prouvees,
+        noms_importes_hors_builtins,
     )
 
 
@@ -643,18 +690,20 @@ def _analyser_imports(arbre: ast.Module) -> _AliasesImports:
     réaffectation écrite avant l'import compte autant qu'une réaffectation écrite
     après lui.
 
-    Trois liaisons échappaient à ce parcours : la réécriture d'un ATTRIBUT de
-    module, la réaffectation d'un nom par ``global`` depuis une fonction, et
-    l'alias d'exception construit par AFFECTATION. Les deux premières détruisent
-    une preuve et sont appliquées après le retrait général ; la troisième en
-    crée une, et doit donc être ajoutée en dernier — l'affectation qui la porte
-    est aussi une réaffectation, si bien que l'appliquer plus tôt reviendrait à
+    Quatre liaisons échappaient à ce parcours : la réécriture d'un ATTRIBUT de
+    module, la réaffectation d'un nom par ``global`` depuis une fonction, le
+    détournement d'un nom d'exception builtin par un IMPORT, et l'alias
+    d'exception construit par AFFECTATION. Les trois premières détruisent une
+    preuve et sont appliquées après le retrait général ; la dernière en crée
+    une, et doit donc être ajoutée en dernier — l'affectation qui la porte est
+    aussi une réaffectation, si bien que l'appliquer plus tôt reviendrait à
     l'effacer avec elle.
     """
     liaisons = _imports_module(arbre.body)
     liaisons.aliases.retirer(liaisons.reassignees)
     liaisons.aliases.retirer_attributs_prouvants(liaisons.attributs_reaffectes)
     liaisons.aliases.retirer_exemptions(_noms_reaffectes_par_global(arbre))
+    liaisons.aliases.retirer_exceptions_importees(liaisons.noms_importes_hors_builtins)
     liaisons.aliases.ajouter_absences_prouvees(liaisons.absences_prouvees)
     return liaisons.aliases.figer()
 
@@ -731,16 +780,34 @@ def _positions_de_classes_derivees(
     return frozenset(positions_derivees)
 
 
-def _est_base_exception_builtin(base: ast.expr) -> bool:
+def _est_base_exception_builtin(base: ast.expr, aliases: _AliasesImports) -> bool:
     """Reconnaît une base d'exception fournie par builtins, nue ou qualifiée.
 
     La liste des noms est LUE dans ``builtins`` à l'import du gate, jamais
     recopiée : toute hiérarchie d'exceptions de l'interpréteur est ainsi couverte
     sans qu'un oubli de recopie puisse rendre un type d'exception méconnaissable.
+
+    Le NOM ne suffit pourtant jamais à lui seul, dans aucune des deux formes.
+    Sous la forme nue, il doit rester celui de l'interpréteur : un module qui
+    écrit ``ValueError = object`` ou ``from transport import ValueError`` fait
+    hériter d'autre chose, et son exemption tombe — d'où la lecture de
+    ``aliases.exceptions_builtins``, amputé de tout nom relié localement.
+
+    Sous la forme qualifiée, c'est le PORTEUR qui doit être prouvé, et non
+    l'orthographe de l'attribut. ``Faux.ValueError`` où ``Faux`` déclare
+    ``ValueError = object`` désigne ``object`` : accepter l'attribut sur son seul
+    nom laissait exempter n'importe quelle classe derrière un porteur inventé en
+    deux lignes. Seul un nom que les imports du module lient au module
+    ``builtins`` qualifie donc une exception.
     """
     if isinstance(base, ast.Name):
-        return base.id in _NOMS_EXCEPTIONS_BUILTINS
-    return isinstance(base, ast.Attribute) and base.attr in _NOMS_EXCEPTIONS_BUILTINS
+        return base.id in aliases.exceptions_builtins
+    return (
+        isinstance(base, ast.Attribute)
+        and base.attr in _NOMS_EXCEPTIONS_BUILTINS
+        and isinstance(base.value, ast.Name)
+        and base.value.id in aliases.modules_builtins
+    )
 
 
 def _est_base_test_case(base: ast.expr, aliases: _AliasesImports) -> bool:
@@ -1042,7 +1109,9 @@ def _analyser_lambdas(repo: Path, fichier: Path, arbre: ast.Module) -> list[Viol
 def _analyser_stubs(repo: Path, fichier: Path, arbre: ast.Module) -> list[Violation]:
     """Parcourt tous les blocs en conservant le contexte Protocol des classes."""
     aliases = _analyser_imports(arbre)
-    exceptions = _positions_de_classes_derivees(arbre, _est_base_exception_builtin)
+    exceptions = _positions_de_classes_derivees(
+        arbre, lambda base: _est_base_exception_builtin(base, aliases)
+    )
     violations: list[Violation] = []
 
     class Visiteur(ast.NodeVisitor):
@@ -2565,14 +2634,42 @@ def _analyser_continue_on_error(
     ]
 
 
-def _condition_requise_acceptee(valeur: object) -> bool:
-    """Accepte uniquement always() et success(), garanties sans dépendance métier."""
+def _condition_requise_acceptee(valeur: object, *, depend_de_jobs: bool) -> bool:
+    """Accepte les seules conditions dont la VÉRITÉ est garantie dans le contexte donné.
+
+    ``always()`` vaut vrai en toutes circonstances, y compris quand une
+    dépendance déclarée par ``needs`` a échoué ou a été sautée : le job requis
+    s'exécute, et la condition ne peut donc jamais le neutraliser.
+
+    ``success()`` n'a cette garantie que SANS ``needs``. Dès qu'une dépendance
+    est déclarée, GitHub Actions évalue le statut de cette dépendance : un job
+    dont on dépend qui est sauté — ce qu'une simple condition fausse sur un job
+    NON requis suffit à provoquer — ou qui échoue rend ``success()`` faux, et le
+    job requis est alors sauté. La protection de branche est satisfaite sans
+    qu'aucun contrôle ait tourné.
+    """
     if not isinstance(valeur, str):
         return False
     condition = valeur.strip()
     if condition.startswith("${{") and condition.endswith("}}"):
         condition = condition[3:-2].strip()
-    return condition.lower() in _CONDITIONS_REQUISES_ACCEPTEES
+    acceptees = (
+        _CONDITIONS_REQUISES_MALGRE_NEEDS
+        if depend_de_jobs
+        else _CONDITIONS_REQUISES_ACCEPTEES
+    )
+    return condition.lower() in acceptees
+
+
+def _job_depend_dautres_jobs(definition: Mapping[object, object]) -> bool:
+    """Détecte la PRÉSENCE d'un ``needs``, sans juger ce qu'il contient.
+
+    La forme d'un ``needs`` varie — chaîne unique, liste, valeur dynamique — et
+    une déclaration illisible n'apporte aucune garantie. Retenir la seule
+    présence de la clé est donc fail-closed : au pire, un ``needs`` dégénéré et
+    sans dépendance réelle oblige à écrire ``always()``, qui exécute le contrôle.
+    """
+    return "needs" in definition
 
 
 def _analyser_condition_requise(
@@ -2580,17 +2677,33 @@ def _analyser_condition_requise(
     fichier: Path,
     valeur: object,
     job: str,
+    *,
+    depend_de_jobs: bool = False,
 ) -> list[Violation]:
-    """Refuse les conditions qui peuvent neutraliser un job requis ou une étape requise."""
-    if valeur is None or _condition_requise_acceptee(valeur):
+    """Refuse les conditions qui peuvent neutraliser un job requis ou une étape requise.
+
+    Le défaut est ``depend_de_jobs=False`` parce que les ÉTAPES, seules autres
+    porteuses d'un ``if``, n'ont pas de ``needs`` : leur ``success()`` ne dépend
+    que des étapes précédentes du même job, dont l'échec rend le job — donc le
+    contrôle requis — rouge. Aucun saut silencieux n'y est possible.
+    """
+    if valeur is None or _condition_requise_acceptee(
+        valeur, depend_de_jobs=depend_de_jobs
+    ):
         return []
+    detail = (
+        f"le job requis {job} porte un needs et une condition que l'échec ou le "
+        f"saut d'une dépendance rend fausse : {valeur!r}"
+        if depend_de_jobs
+        else f"le job requis {job} dépend d'une condition non garantie : {valeur!r}"
+    )
     return [
         _violation(
             "REQUIRED_JOB_CONDITIONNEL",
             repo,
             fichier,
             1,
-            f"le job requis {job} dépend d'une condition non garantie : {valeur!r}",
+            detail,
         )
     ]
 
@@ -2804,7 +2917,15 @@ def _analyser_workflow(
             )
             continue
 
-        violations.extend(_analyser_condition_requise(repo, fichier, definition.get("if"), identifiant))
+        violations.extend(
+            _analyser_condition_requise(
+                repo,
+                fichier,
+                definition.get("if"),
+                identifiant,
+                depend_de_jobs=_job_depend_dautres_jobs(definition),
+            )
+        )
         violations.extend(
             _analyser_continue_on_error(
                 repo,

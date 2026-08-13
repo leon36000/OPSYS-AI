@@ -129,6 +129,57 @@ jobs:
     uses: ./.github/workflows/reutilisable.yml    # accepté
 ```
 
+### `success()` cesse d'être une garantie dès qu'un `needs` est déclaré
+
+Un job requis ne peut porter que les conditions dont la vérité est garantie.
+`always()` et `success()` l'étaient toutes deux — c'était incomplet, et le code
+`REQUIRED_JOB_CONDITIONNEL` refuse désormais la seconde en présence d'un `needs`.
+
+`success()` SEUL est la condition par défaut et ne saute rien. Dès qu'une
+dépendance est déclarée, la même écriture change de sens : GitHub Actions évalue
+alors le statut de cette dépendance. Un job dont on dépend **sauté** — ce qu'une
+simple condition fausse sur un job NON requis suffit à provoquer, puisque rien ne
+contraint les jobs facultatifs — ou en échec rend `success()` faux, et le job
+requis est sauté à son tour. La protection de branche est satisfaite sans qu'un
+seul contrôle ait tourné.
+
+```yaml
+jobs:
+  precheck:
+    if: ${{ false }}            # job NON requis, libre de ne jamais tourner
+    runs-on: ubuntu-latest
+    steps: [{run: echo rien}]
+  gates:
+    needs: precheck
+    if: success()               # refusé — precheck sauté ⇒ gates sauté
+```
+
+`always()` reste accepté **malgré** un `needs`, et c'est un choix fondé sur le
+comportement réel : `always()` vaut vrai quel que soit le sort des dépendances,
+si bien que le job requis s'exécute même quand celui dont il dépend a échoué ou a
+été sauté. Le danger corrigé — un contrôle requis rapporté vert sans avoir tourné
+— n'existe pas sous cette condition, et l'interdire supprimerait la seule
+écriture qui force un gate à tourner en toutes circonstances.
+
+```yaml
+jobs:
+  gates:
+    if: success()               # accepté — aucun needs, rien ne peut la rendre fausse
+jobs:
+  gates:
+    needs: precheck
+    if: always()                # accepté — tourne même si precheck a échoué ou sauté
+```
+
+La détection retient la **présence** de la clé `needs`, sans juger son contenu :
+la forme varie (chaîne, liste, valeur dynamique) et une déclaration illisible
+n'apporte aucune garantie. Au pire, un `needs` dégénéré oblige à écrire
+`always()`, qui exécute le contrôle — le repli est donc fail-closed.
+
+La contrainte s'arrête au niveau **job**. Une ÉTAPE n'a pas de `needs` : son
+`success()` ne dépend que des étapes précédentes du même job, dont l'échec rend
+le job — donc le contrôle requis — rouge. Aucun saut silencieux n'y est possible.
+
 ### Actions composites locales sans étape
 
 Déléguer à une action locale ne dispense pas de l'exigence : un job requis dont
@@ -592,6 +643,51 @@ entre une base et sa définition ; ils ne sont plus l'unité d'**exemption**. La
 même correction vaut pour les cas de test `unittest` : les oracles `self.assert…`
 ne sont reconnus que dans la sous-classe réellement dérivée de `TestCase`.
 
+### Le nom d'une exception ne prouve rien à lui seul
+
+Lire les noms dans `builtins` garantit la LISTE, pas que le nom écrit dans un
+fichier désigne encore ce qu'il nomme. Les deux formes de base exigent donc une
+preuve supplémentaire.
+
+**Forme qualifiée : c'est le PORTEUR qui doit être prouvé**, jamais l'orthographe
+de l'attribut. Une classe déclarant un attribut homonyme suffisait à exempter
+n'importe quel corps vide derrière un porteur inventé en deux lignes.
+
+```python
+class Faux:
+    ValueError = object
+
+class Service(Faux.ValueError):
+    pass                     # refusé — Faux.ValueError EST object
+```
+
+```python
+import builtins
+class MonErreur(builtins.ValueError): pass   # accepté — porteur prouvé par import
+import builtins as b
+class MonErreur(b.ValueError):        pass   # accepté — l'alias prouve autant
+class Service(builtins.ValueError):   pass   # refusé  — aucun import ne lie le nom
+```
+
+**Forme nue : le nom ne doit pas avoir été relié localement.** Une affectation du
+module comme un import détournent le nom vers autre chose, et l'exemption tombe
+avec l'origine.
+
+```python
+ValueError = object
+class Service(ValueError): pass              # refusé — hérite en réalité d'object
+
+from transport import ValueError
+class Service(ValueError): pass              # refusé — origine inconnue
+
+from builtins import ValueError
+class MonErreur(ValueError): pass            # accepté — l'origine est prouvée
+```
+
+Le retrait par import est réservé aux noms d'exception : ailleurs, un import est
+justement ce qui PROUVE l'alias, et l'y appliquer effacerait la preuve qu'il vient
+d'établir.
+
 ### Le protocole déclaré par une ellipse
 
 Un **protocole prouvé** dont le corps entier est une ellipse est exempté : il
@@ -703,10 +799,11 @@ nom `Protocol` reste refusée, y compris sous la forme paramétrée `Protocol[in
 ### Portée de la preuve d'alias
 
 Un alias n'est prouvé que tant que rien ne l'écrase dans le namespace du module.
-Les **blocs module-level** — `if`, `for`, `while`, `with`, `try`, `match` — sont
-parcourus dans les DEUX sens : leurs imports lient le module, leurs affectations
-le délient. Les scruter seulement pour les imports laissait une réaffectation
-cachée d'un cran conserver un alias que l'exécution avait déjà détruit :
+Les **blocs module-level** — `if`, `for`, `while`, `with`, `try`, `try`/`except*`
+et `match` — sont parcourus dans les DEUX sens : leurs imports lient le module,
+leurs affectations le délient. Les scruter seulement pour les imports laissait
+une réaffectation cachée d'un cran conserver un alias que l'exécution avait déjà
+détruit :
 
 ```python
 from typing import Protocol
@@ -758,6 +855,47 @@ def inspecter() -> str:
     global Protocol
     return Protocol.__name__   # aucune affectation — l'exemption tient
 ```
+
+#### `except*` est un nœud distinct, pas un `try` ordinaire
+
+`ast.TryStar` n'est **pas** une sous-classe d'`ast.Try` : l'omettre rendait
+`except*` invisible au parcours des liaisons, alors que le parcours des
+instructions hors fonction le traitait déjà. Une réaffectation d'un seul cran y
+survivait donc à l'invalidation.
+
+```python
+from typing import Protocol
+try:
+    pass
+except* ValueError:
+    Protocol = object          # écrase l'alias, comme dans un except ordinaire
+
+class Depot(Protocol):
+    def lire(self) -> str: ...  # refusé — plus aucun protocole ne le justifie
+```
+
+Les quatre corps du bloc sont parcourus — `try`, gestionnaires, `else`, `finally`
+— et dans les DEUX sens : un import porté par un `except*` PROUVE l'alias, sans
+quoi corriger le seul sens destructeur aurait fait d'un repli d'import légitime
+un faux positif.
+
+Le **corps de classe** est la seule divergence conservée entre les deux parcours,
+et elle est voulue. `_instructions_hors_fonction` y descend parce qu'un corps de
+classe s'exécute à l'import ; le parcours des liaisons ne le fait pas, parce
+qu'une classe est un espace de noms propre :
+
+```python
+from typing import Protocol
+
+class Boite:
+    Protocol = object          # attribut de classe — ne réaffecte AUCUN nom du module
+
+class Depot(Protocol):
+    def lire(self) -> str: ...  # accepté — l'alias du module est intact
+```
+
+Aligner les deux parcours sur ce point créerait un faux positif au lieu de fermer
+un contournement : c'est ce qui distingue cette divergence de celle d'`except*`.
 
 ## Suppressions de contrôles
 

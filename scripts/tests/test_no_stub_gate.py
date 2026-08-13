@@ -4296,3 +4296,353 @@ def test_accepte_une_ligne_de_commande_etrangere_aux_racines(tmp_path: Path) -> 
     )
 
     assert _codes(_scanner(repo, ("core/scripts",))) == set()
+
+
+def test_refuse_success_comme_condition_dun_job_requis_qui_depend_dun_autre(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un ``needs`` rend ``success()`` capable de SAUTER le job requis.
+
+    ``success()`` seul est la condition par défaut et ne saute rien. Dès qu'un
+    ``needs`` est déclaré, la même écriture change de sens : GitHub Actions
+    évalue alors le statut des dépendances, si bien qu'une dépendance SAUTÉE ou
+    en échec rend ``success()`` faux et le job requis sauté. La protection de
+    branche est satisfaite sans qu'aucun contrôle ait tourné, et n'importe quel
+    job non requis — donc libre de porter la condition qu'il veut — suffit à
+    déclencher ce saut.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/condition.yml",
+        "jobs:\n"
+        "  precheck:\n"
+        "    if: ${{ false }}\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: echo rien\n"
+        "  gates:\n"
+        "    needs: precheck\n"
+        "    if: success()\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: python3 scripts/quality/no_stub_gate.py\n",
+    )
+
+    assert "REQUIRED_JOB_CONDITIONNEL" in _codes(_scanner(repo))
+
+
+def test_accepte_success_comme_condition_dun_job_requis_sans_needs(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le resserrement vise le ``needs``, jamais ``success()`` lui-même.
+
+    Sans dépendance déclarée, aucun job dont l'échec ou le saut pourrait rendre
+    la condition fausse n'existe : le job requis s'exécute. Le refuser serait un
+    faux positif sur la forme la plus banale d'un workflow, et c'est précisément
+    ce constat qui rendait la première réfutation de l'objection incomplète
+    plutôt que fausse.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/condition.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    if: success()\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: python3 scripts/quality/no_stub_gate.py\n",
+    )
+
+    assert "REQUIRED_JOB_CONDITIONNEL" not in _codes(_scanner(repo))
+
+
+def test_accepte_always_comme_condition_dun_job_requis_qui_depend_dun_autre(
+    tmp_path: Path,
+) -> None:
+    """Prouve que ``always()`` survit au ``needs``, parce qu'il ne saute JAMAIS.
+
+    ``always()`` vaut vrai quel que soit le sort des dépendances : le job requis
+    tourne même quand le job dont il dépend a échoué ou a été sauté. Le danger
+    corrigé — un contrôle requis rapporté vert sans avoir tourné — n'existe donc
+    pas sous cette condition, et l'interdire supprimerait la seule écriture qui
+    force un gate à s'exécuter en toutes circonstances.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/condition.yml",
+        "jobs:\n"
+        "  precheck:\n"
+        "    if: ${{ false }}\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: echo rien\n"
+        "  gates:\n"
+        "    needs: precheck\n"
+        "    if: always()\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: python3 scripts/quality/no_stub_gate.py\n",
+    )
+
+    assert "REQUIRED_JOB_CONDITIONNEL" not in _codes(_scanner(repo))
+
+
+def test_accepte_success_comme_condition_dune_etape_dun_job_requis(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le resserrement ne déborde pas sur les ÉTAPES, qui n'ont pas de needs.
+
+    Au niveau d'une étape, ``success()`` ne dépend que des étapes précédentes du
+    même job : si l'une a échoué, le job échoue et le contrôle requis est rouge.
+    Aucun saut silencieux n'est donc possible, contrairement au niveau job.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/condition.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - if: success()\n"
+        "        run: python3 scripts/quality/no_stub_gate.py\n",
+    )
+
+    assert "REQUIRED_JOB_CONDITIONNEL" not in _codes(_scanner(repo))
+
+
+def test_refuse_une_base_dexception_usurpee_par_un_attribut_homonyme(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'exemption d'exception exige la preuve du PORTEUR de l'attribut.
+
+    ``Faux.ValueError`` désigne ici ``object`` : la classe qui en hérite n'est
+    aucun type d'exception, et son corps vide reste une dette entière. Se fier au
+    seul nom de l'attribut laissait exempter n'importe quelle classe derrière un
+    porteur inventé en deux lignes.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "class Faux:\n"
+        "    ValueError = object\n"
+        "\n"
+        "\n"
+        "class Service(Faux.ValueError):\n"
+        "    pass\n",
+    )
+
+    assert "EXECUTABLE_PASS" in _codes(_scanner(repo))
+
+
+def test_accepte_une_exception_builtin_qualifiee_par_le_module_prouve(
+    tmp_path: Path,
+) -> None:
+    """Prouve le sens inverse : ``builtins`` prouvé par import qualifie une vraie exception."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/erreurs.py",
+        "import builtins\n\n\nclass MonErreur(builtins.ValueError):\n    pass\n",
+    )
+
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_accepte_une_exception_builtin_qualifiee_par_un_alias_du_module(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'alias du module builtins prouve autant que son nom d'origine."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/erreurs.py",
+        "import builtins as b\n\n\nclass MonErreur(b.ValueError):\n    pass\n",
+    )
+
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_refuse_une_base_dexception_qualifiee_par_un_module_non_importe(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un porteur nommé ``builtins`` sans import ne prouve rien.
+
+    Le nom n'étant lié par aucun import, il désigne ce que le module veut : la
+    preuve exigée est l'import, jamais l'orthographe du porteur.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "class Service(builtins.ValueError):\n    pass\n",
+    )
+
+    assert "EXECUTABLE_PASS" in _codes(_scanner(repo))
+
+
+def test_refuse_une_base_dexception_dont_le_nom_est_reaffecte_au_niveau_module(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un nom d'exception builtin réaffecté par le module ne prouve plus rien.
+
+    ``ValueError = object`` au niveau module fait hériter ``Service`` d'``object``
+    : c'est le même contournement que l'attribut homonyme, écrit d'une seule
+    ligne au lieu de deux.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "ValueError = object\n\n\nclass Service(ValueError):\n    pass\n",
+    )
+
+    assert "EXECUTABLE_PASS" in _codes(_scanner(repo))
+
+
+def test_refuse_une_base_dexception_dont_le_nom_vient_dun_autre_module(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un import lie un nom aussi sûrement qu'une affectation.
+
+    ``from transport import ValueError`` fait désigner au nom ce que ``transport``
+    exporte, et non l'exception de l'interpréteur : l'exemption tombe.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "from transport import ValueError\n\n\nclass Service(ValueError):\n    pass\n",
+    )
+
+    assert "EXECUTABLE_PASS" in _codes(_scanner(repo))
+
+
+def test_accepte_une_exception_builtin_importee_depuis_builtins(
+    tmp_path: Path,
+) -> None:
+    """Prouve que l'import DEPUIS builtins conserve la preuve au lieu de la détruire."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/erreurs.py",
+        "from builtins import ValueError\n\n\nclass MonErreur(ValueError):\n    pass\n",
+    )
+
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_invalide_une_exemption_reaffectee_dans_un_except_etoile(
+    tmp_path: Path,
+) -> None:
+    """Prouve que ``except*`` lie le module exactement comme ``except``.
+
+    Le parcours des liaisons ignorait ``ast.TryStar`` alors que le parcours des
+    instructions hors fonction le traitait déjà : une réaffectation cachée d'un
+    seul cran conservait l'alias, donc exemptait une classe qui hérite en
+    réalité d'``object``.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "from typing import Protocol\n"
+        "\n"
+        "try:\n"
+        "    pass\n"
+        "except* ValueError:\n"
+        "    Protocol = object\n"
+        "\n"
+        "\n"
+        "class Depot(Protocol):\n"
+        "    def lire(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_invalide_une_exemption_reaffectee_dans_le_finally_dun_except_etoile(
+    tmp_path: Path,
+) -> None:
+    """Prouve que les quatre corps d'un ``except*`` sont parcourus, pas seulement le premier."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "from typing import Protocol\n"
+        "\n"
+        "try:\n"
+        "    pass\n"
+        "except* ValueError:\n"
+        "    pass\n"
+        "finally:\n"
+        "    Protocol = object\n"
+        "\n"
+        "\n"
+        "class Depot(Protocol):\n"
+        "    def lire(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
+
+
+def test_prouve_un_alias_importe_dans_un_except_etoile(tmp_path: Path) -> None:
+    """Prouve que ``except*`` est parcouru dans les DEUX sens, comme ``except``.
+
+    Le repli lie le module au même titre que son premier niveau : l'import qu'il
+    porte PROUVE l'alias. Ne corriger que le sens destructeur aurait transformé
+    un repli d'import légitime en faux positif.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "try:\n"
+        "    pass\n"
+        "except* ImportError:\n"
+        "    from typing import Protocol\n"
+        "\n"
+        "\n"
+        "class Depot(Protocol):\n"
+        "    def lire(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" not in _codes(_scanner(repo))
+
+
+def test_conserve_une_exemption_reaffectee_dans_un_corps_de_classe(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le corps de CLASSE reste HORS du parcours des liaisons du module.
+
+    ``_instructions_hors_fonction`` descend dans les classes parce qu'elles
+    s'exécutent à l'import ; le parcours des liaisons ne le fait pas, et ne doit
+    pas le faire : ``Boite.Protocol`` est un attribut de classe, il ne réaffecte
+    aucun nom du module. Aligner les deux parcours sur ce point précis créerait
+    un faux positif au lieu de fermer un contournement, ce qui distingue cette
+    divergence-là de celle du ``except*``.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/service.py",
+        "from typing import Protocol\n"
+        "\n"
+        "\n"
+        "class Boite:\n"
+        "    Protocol = object\n"
+        "\n"
+        "\n"
+        "class Depot(Protocol):\n"
+        "    def lire(self) -> str: ...\n",
+    )
+
+    assert "EXECUTABLE_ELLIPSIS" not in _codes(_scanner(repo))
