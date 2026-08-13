@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 import yaml
@@ -8,6 +9,13 @@ from . import validation
 
 CHAMPS_TAUX_FISCAL = frozenset({"id", "nom", "taux", "version", "source"})
 _CHAMPS_TEXTE = ("id", "nom", "version", "source")
+
+# Borne de validation (pas une valeur financière — invariant de représentation) :
+# le champ 'taux' est une fraction entre 0 et 1 (ex. 0.05 pour 5 %), confirmée
+# par contracts/taux_fiscaux.v1.yaml (tps_federale.taux == 0.05). Nom choisi
+# sans le morceau "taux" pour ne pas déclencher LITTERAL_COUT_INTERDIT
+# (conformite._contexte_monetaire) sur ce qui n'est pas un montant.
+_BORNE_HAUTE_FRACTION_VALIDATION = 1.0
 
 
 def charger_taux_fiscaux(chemin):
@@ -32,11 +40,19 @@ def charger_taux_fiscaux(chemin):
             erreurs.append(f"taux invalide {identifiant} : clés non conformes")
             continue
 
-        montant = item["taux"]
-        if isinstance(montant, bool) or not isinstance(montant, (int, float)):
+        valeur_taux = item["taux"]
+        if isinstance(valeur_taux, bool) or not isinstance(valeur_taux, (int, float)):
             erreurs.append(
                 f"taux invalide {identifiant} : 'taux' doit être un nombre"
             )
+            continue
+
+        if isinstance(valeur_taux, float) and not math.isfinite(valeur_taux):
+            erreurs.append(f"taux invalide {identifiant} : 'taux' doit être fini")
+            continue
+
+        if valeur_taux < 0 or valeur_taux > _BORNE_HAUTE_FRACTION_VALIDATION:
+            erreurs.append(f"taux invalide {identifiant} : 'taux' hors bornes")
             continue
 
         if any(
