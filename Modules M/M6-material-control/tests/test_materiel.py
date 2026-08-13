@@ -26,6 +26,10 @@ class RegistreFactice:
     def lire(self):
         return self._mouvements
 
+    def ajouter_lot(self, mouvements):
+        self._mouvements.extend(mouvements)
+        return mouvements, None
+
 
 def wct_valide():
     return {
@@ -52,6 +56,9 @@ def registre_avec_reception_prealable():
                 "chantier_id": "CHANTIER-1",
                 "materiau_id": "MAT-1",
                 "quantite": 10.0,
+                # Fix NEW-PROD-006 : une RECEPTION utilisée comme base de coût
+                # pour une consommation ultérieure doit porter un cout_unitaire tracé.
+                "cout_unitaire": 12.5,
             }
         ]
     )
