@@ -191,3 +191,71 @@ def test_champ_texte_vide_est_exclu(tmp_path):
 
     assert erreurs
     assert dictionnaire == {}
+
+
+# Convention des taux : fraction entre 0 et 1 (les tests existants utilisent
+# 0.05 et 0.10). La borne haute est donc 1.0, pas 100.
+
+
+def test_charger_taux_fiscaux_rejette_taux_nan(tmp_path):
+    chemin = tmp_path / "taux.yaml"
+    _ecrire_yaml(
+        chemin,
+        {
+            "schema_version": 1,
+            "taux": [_item(taux=float("nan"))],
+        },
+    )
+
+    dictionnaire, erreurs = taux_fiscaux.charger_taux_fiscaux(chemin)
+
+    assert erreurs
+    assert dictionnaire == {}
+
+
+def test_charger_taux_fiscaux_rejette_taux_infini(tmp_path):
+    chemin = tmp_path / "taux.yaml"
+    _ecrire_yaml(
+        chemin,
+        {
+            "schema_version": 1,
+            "taux": [_item(taux=float("inf"))],
+        },
+    )
+
+    dictionnaire, erreurs = taux_fiscaux.charger_taux_fiscaux(chemin)
+
+    assert erreurs
+    assert dictionnaire == {}
+
+
+def test_charger_taux_fiscaux_rejette_taux_negatif(tmp_path):
+    chemin = tmp_path / "taux.yaml"
+    _ecrire_yaml(
+        chemin,
+        {
+            "schema_version": 1,
+            "taux": [_item(taux=-0.01)],
+        },
+    )
+
+    dictionnaire, erreurs = taux_fiscaux.charger_taux_fiscaux(chemin)
+
+    assert erreurs
+    assert dictionnaire == {}
+
+
+def test_charger_taux_fiscaux_rejette_taux_hors_borne_haute(tmp_path):
+    chemin = tmp_path / "taux.yaml"
+    _ecrire_yaml(
+        chemin,
+        {
+            "schema_version": 1,
+            "taux": [_item(taux=1.01)],
+        },
+    )
+
+    dictionnaire, erreurs = taux_fiscaux.charger_taux_fiscaux(chemin)
+
+    assert erreurs
+    assert dictionnaire == {}
