@@ -1400,3 +1400,264 @@ def test_accepte_workflow_sans_cle_jobs(tmp_path: Path) -> None:
     _ecrire(repo, ".github/workflows/g.yml", "name: information\non: push\n")
 
     assert "FICHIER_NON_ANALYSABLE" not in _codes(_scanner(repo))
+
+
+def test_refuse_un_job_requis_defini_comme_chaine(tmp_path: Path) -> None:
+    """Prouve qu'un job requis réduit à un scalaire n'est plus ignoré en silence."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(repo, ".github/workflows/h.yml", "jobs:\n  gates: disabled\n")
+
+    assert "REQUIRED_JOB_STRUCTURE_INVALIDE" in _codes(_scanner(repo))
+
+
+def test_refuse_un_job_requis_defini_comme_null(tmp_path: Path) -> None:
+    """Prouve qu'un job requis vidé de sa définition est refusé au lieu d'être sauté."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(repo, ".github/workflows/i.yml", "jobs:\n  gates:\n")
+
+    assert "REQUIRED_JOB_STRUCTURE_INVALIDE" in _codes(_scanner(repo))
+
+
+def test_refuse_un_job_requis_dont_les_etapes_ne_sont_pas_une_liste(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un champ steps non liste rend le job requis inanalysable, donc refusé."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/j.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps: aucune\n",
+    )
+
+    assert "REQUIRED_JOB_STRUCTURE_INVALIDE" in _codes(_scanner(repo))
+
+
+def test_accepte_un_job_non_requis_defini_comme_chaine(tmp_path: Path) -> None:
+    """Prouve que le refus structurel reste borné aux identifiants du contrat."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(repo, ".github/workflows/k.yml", "jobs:\n  rapport-optionnel: disabled\n")
+
+    assert "REQUIRED_JOB_STRUCTURE_INVALIDE" not in _codes(_scanner(repo))
+
+
+def test_accepte_un_job_requis_dont_les_etapes_sont_une_liste(tmp_path: Path) -> None:
+    """Prouve que la forme normale d'un job requis ne déclenche aucun refus structurel."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/l.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: python3 -m pytest\n",
+    )
+
+    assert "REQUIRED_JOB_STRUCTURE_INVALIDE" not in _codes(_scanner(repo))
+
+
+def _contrat_deux_jobs(repo: Path) -> None:
+    """Écrit un contrat réduit à deux jobs requis pour mesurer leur couverture réelle."""
+    _ecrire(
+        repo,
+        "core/quality-scopes.toml",
+        'python_roots = ["src"]\n'
+        'target_required_job_ids = ["gates", "types"]\n',
+    )
+
+
+def _workflow_dun_job(repo: Path, chemin: str, job: str) -> None:
+    """Écrit un workflow minimal définissant un unique job exécutant une vraie commande."""
+    _ecrire(
+        repo,
+        chemin,
+        "jobs:\n"
+        f"  {job}:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: python3 -m pytest\n",
+    )
+
+
+def test_main_refuse_un_job_requis_absent_de_tous_les_workflows(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Prouve qu'un identifiant requis sans job correspondant est un gate absent, donc refusé."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat_deux_jobs(repo)
+    _workflow_dun_job(repo, ".github/workflows/ci.yml", "gates")
+
+    code_retour = main(["--repo", str(repo)])
+
+    sortie = capsys.readouterr().out
+    assert code_retour == 1
+    assert "REQUIRED_JOB_ABSENT" in sortie
+    assert "types" in sortie
+
+
+def test_main_accepte_un_job_requis_defini_dans_un_autre_workflow(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Prouve que la couverture des jobs requis est mesurée sur tous les workflows du dépôt."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat_deux_jobs(repo)
+    _workflow_dun_job(repo, ".github/workflows/ci.yml", "gates")
+    _workflow_dun_job(repo, ".github/workflows/core-ci.yml", "types")
+
+    code_retour = main(["--repo", str(repo)])
+
+    sortie = capsys.readouterr().out
+    assert code_retour == 0
+    assert "REQUIRED_JOB_ABSENT" not in sortie
+
+
+def test_main_refuse_les_deux_jobs_requis_absents_dans_une_seule_violation(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Prouve que chaque identifiant requis manquant est nommé dans la sortie du gate."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat_deux_jobs(repo)
+    _workflow_dun_job(repo, ".github/workflows/ci.yml", "rapport-optionnel")
+
+    code_retour = main(["--repo", str(repo)])
+
+    sortie = capsys.readouterr().out
+    assert code_retour == 1
+    assert "REQUIRED_JOB_ABSENT" in sortie
+    assert "gates" in sortie
+    assert "types" in sortie
+
+
+def _workflow_commande_requise(repo: Path, chemin: str, commande: str) -> None:
+    """Écrit un job requis dont l'unique étape exécute la commande shell mesurée."""
+    _ecrire(
+        repo,
+        chemin,
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        f"      - run: {commande}\n",
+    )
+
+
+def test_refuse_exit_zero_apres_un_fi_sur_la_meme_ligne(tmp_path: Path) -> None:
+    """Prouve qu'un exit 0 placé après la fermeture d'un if monoligne s'exécute toujours."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise(
+        repo,
+        ".github/workflows/m.yml",
+        "if false; then :; fi; exit 0",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_exit_zero_apres_la_fermeture_dune_conditionnelle_multiligne(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un fi suivi d'un exit 0 sur sa ligne ne masque pas le contournement."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/n.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: |\n"
+        "          if false; then\n"
+        "            echo garde\n"
+        "          fi; exit 0\n",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_exit_zero_apres_une_option_contenant_le_mot_case(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un mot-clé shell en option longue n'ouvre aucune garde conditionnelle."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise(
+        repo,
+        ".github/workflows/o.yml",
+        "grep --ignore-case motif fichier; exit 0",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_exit_zero_apres_une_option_contenant_le_mot_if(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'une option longue contenant if ne peut pas faire passer un exit 0 pour gardé."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise(
+        repo,
+        ".github/workflows/p.yml",
+        "psql --if-exists --dbname base; exit 0",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_accepte_exit_zero_dans_le_second_if_dune_meme_ligne(tmp_path: Path) -> None:
+    """Prouve qu'un exit 0 réellement encadré par une seconde garde reste accepté."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise(
+        repo,
+        ".github/workflows/q.yml",
+        "if true; then echo a; fi; if false; then exit 0; fi",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
+@pytest.mark.parametrize(
+    "levee",
+    ("raise builtins.NotImplemented", "raise builtins.NotImplemented()"),  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+)
+def test_refuse_la_sentinelle_not_implemented_qualifiee(
+    tmp_path: Path,
+    levee: str,
+) -> None:
+    """Prouve que la sentinelle qualifiée est un stub au même titre que sa forme simple."""  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/sentinelle.py",
+        f"import builtins\n\ndef calculer() -> int:\n    {levee}\n",
+    )
+
+    assert "NOT_IMPLEMENTED_STUB" in _codes(_scanner(repo))
+
+
+def test_accepte_un_attribut_homonyme_qui_nest_pas_une_levee(tmp_path: Path) -> None:
+    """Prouve que le refus vise la levée elle-même et non tout attribut du même nom."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        "src/registre.py",
+        "import builtins\n\n"
+        "def decrire() -> str:\n"
+        "    return repr(builtins.NotImplemented)\n",  # proof:allow — fixture du gate NO-STUB : ce motif EST le sujet du test
+    )
+
+    assert "NOT_IMPLEMENTED_STUB" not in _codes(_scanner(repo))

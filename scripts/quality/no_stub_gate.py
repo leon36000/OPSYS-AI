@@ -41,12 +41,20 @@ _IDENTIFIANT_REGLE_OPTIONNEL: Final[re.Pattern[str]] = re.compile(
 _EXIT_ZERO: Final[re.Pattern[str]] = re.compile(
     r"(?:^|[;|&()\s])exit\s+0(?=$|[^A-Za-z0-9_])"
 )
-_IF_SHELL: Final[re.Pattern[str]] = re.compile(r"^\s*if\b.*\bthen\b")
-_CASE_SHELL: Final[re.Pattern[str]] = re.compile(r"^\s*case\b.*\bin\b")
-_FIN_IF_SHELL: Final[re.Pattern[str]] = re.compile(r"\bfi\s*;?\s*$")
-_FIN_CASE_SHELL: Final[re.Pattern[str]] = re.compile(r"\besac\s*;?\s*$")
+_DEBUT_COMMANDE_SHELL: Final[str] = r"(?:^|[;|&(]|\bthen\b|\bdo\b|\belse\b)\s*"
+_IF_SHELL: Final[re.Pattern[str]] = re.compile(_DEBUT_COMMANDE_SHELL + r"if\b")
+_CASE_SHELL: Final[re.Pattern[str]] = re.compile(_DEBUT_COMMANDE_SHELL + r"case\b")
+_FIN_IF_SHELL: Final[re.Pattern[str]] = re.compile(r"(?:^|[;|&()\s])fi(?=$|[;|&()\s])")
+_FIN_CASE_SHELL: Final[re.Pattern[str]] = re.compile(
+    r"(?:^|[;|&()\s])esac(?=$|[;|&()\s])"
+)
 _FALLBACK_SHELL: Final[re.Pattern[str]] = re.compile(
     r"\|\|\s*(?P<command>true|:|echo\b|printf\b|exit\s+0(?=$|[^A-Za-z0-9_]))"
+)
+_JETONS_SHELL: Final[re.Pattern[str]] = re.compile(
+    f"(?P<ouvre>{_IF_SHELL.pattern}|{_CASE_SHELL.pattern})"
+    f"|(?P<ferme>{_FIN_IF_SHELL.pattern}|{_FIN_CASE_SHELL.pattern})"
+    f"|(?P<sortie>{_EXIT_ZERO.pattern})"
 )
 _MAX_ACTION_DEPTH: Final[int] = 5
 _VALEURS_VRAIES_YAML: Final[frozenset[str]] = frozenset(
@@ -338,7 +346,11 @@ def _est_methode_abstraite(
 
 
 def _est_exception_non_implementee(noeud: ast.expr, aliases: _AliasesImports) -> bool:
-    """Reconnaît NotImplementedError, y compris un alias importé prouvé de builtins."""  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet
+    """Reconnaît l'absence d'implémentation sous ses formes simple, appelée, importée et qualifiée.
+
+    La sentinelle et l'exception sont traitées à égalité : une forme qualifiée par
+    attribut, telle qu'un accès via le module builtins, reste un stub explicite.
+    """  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet
     cible = noeud.func if isinstance(noeud, ast.Call) else noeud
     return (
         isinstance(cible, ast.Name)
@@ -352,7 +364,10 @@ def _est_exception_non_implementee(noeud: ast.expr, aliases: _AliasesImports) ->
     ) or (
         isinstance(cible, ast.Attribute)
         and cible.attr
-        == "NotImplementedError"  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet du test
+        in {
+            "NotImplementedError",  # proof:allow — constante/fixture du gate NO-STUB : ce motif EST le sujet du test
+            "NotImplemented",
+        }  # proof:allow — fixture/constante du gate NO-STUB : ce motif EST le sujet du test
     )
 
 
@@ -1145,19 +1160,25 @@ def _contient_succes_force(commande: str) -> bool:
 
 
 def _contient_exit_zero_non_garde(commande: str) -> bool:
-    """Distingue les ``exit 0`` nus des branches conditionnelles shell prouvées."""
+    """Distingue les ``exit 0`` nus des branches conditionnelles shell prouvées.
+
+    Les ouvertures, les fermetures et les sorties sont lues dans leur ORDRE
+    d'apparition, y compris plusieurs fois sur une même ligne. Un ``exit 0``
+    placé après le ``fi`` qui referme la garde s'exécute donc toujours et reste
+    un contournement, alors qu'un ``exit 0`` situé entre l'ouverture et la
+    fermeture demeure conditionnel. Les mots-clés ne comptent qu'en position de
+    commande, afin qu'une option longue comme ``--if-exists`` ou
+    ``--ignore-case`` n'ouvre aucune garde imaginaire.
+    """
     profondeur_conditionnelle = 0
     for ligne in _neutraliser_chaines_shell(commande).splitlines() or [commande]:
-        ouvre_if = _IF_SHELL.match(ligne) is not None
-        ouvre_case = _CASE_SHELL.match(ligne) is not None
-        ferme_if = _FIN_IF_SHELL.search(ligne) is not None
-        ferme_case = _FIN_CASE_SHELL.search(ligne) is not None
-        if ouvre_if or ouvre_case:
-            profondeur_conditionnelle += 1
-        if profondeur_conditionnelle == 0 and _EXIT_ZERO.search(ligne) is not None:
-            return True
-        if ferme_if or ferme_case:
-            profondeur_conditionnelle = max(0, profondeur_conditionnelle - 1)
+        for jeton in _JETONS_SHELL.finditer(ligne):
+            if jeton.group("ouvre") is not None:
+                profondeur_conditionnelle += 1
+            elif jeton.group("ferme") is not None:
+                profondeur_conditionnelle = max(0, profondeur_conditionnelle - 1)
+            elif profondeur_conditionnelle == 0:
+                return True
     return False
 
 
@@ -1346,6 +1367,26 @@ def _analyser_action_locale(
     return violations
 
 
+def _violation_structure_job_requis(
+    repo: Path,
+    fichier: Path,
+    job: str,
+    detail: str,
+) -> Violation:
+    """Refuse en fail-closed toute structure de job requis qui empêche sa preuve.
+
+    Un job requis illisible n'apporte aucune garantie : il est donc signalé, et
+    jamais sauté en silence comme un job facultatif.
+    """
+    return _violation(
+        "REQUIRED_JOB_STRUCTURE_INVALIDE",
+        repo,
+        fichier,
+        1,
+        f"le job requis {job} est inanalysable : {detail}",
+    )
+
+
 def _analyser_workflow(
     repo: Path,
     fichier: Path,
@@ -1377,6 +1418,15 @@ def _analyser_workflow(
         if not isinstance(identifiant, str) or identifiant not in jobs_requis:
             continue
         if not isinstance(definition, Mapping):
+            violations.append(
+                _violation_structure_job_requis(
+                    repo,
+                    fichier,
+                    identifiant,
+                    "sa définition doit être un mapping, "
+                    f"mais {_type_yaml(definition)} a été trouvé",
+                )
+            )
             continue
 
         violations.extend(_analyser_condition_requise(repo, fichier, definition.get("if"), identifiant))
@@ -1390,6 +1440,17 @@ def _analyser_workflow(
         )
 
         etapes = definition.get("steps")
+        if "steps" in definition and not isinstance(etapes, list):
+            violations.append(
+                _violation_structure_job_requis(
+                    repo,
+                    fichier,
+                    identifiant,
+                    "son champ steps doit être une liste, "
+                    f"mais {_type_yaml(etapes)} a été trouvé",
+                )
+            )
+            continue
         if not isinstance(etapes, list):
             continue
         for etape in etapes:
@@ -1465,6 +1526,50 @@ def _violations_scopes_incomplets(
     ]
 
 
+def _identifiants_de_jobs_declares(repo: Path) -> set[str]:
+    """Collecte les identifiants de jobs de TOUS les workflows, sans se limiter à un fichier."""
+    repertoire = repo / ".github" / "workflows"
+    identifiants: set[str] = set()
+    for fichier in sorted((*repertoire.glob("*.yml"), *repertoire.glob("*.yaml"))):
+        document, _ = _charger_yaml(repo, fichier)
+        if document is None:
+            continue
+        jobs = document.get("jobs")
+        if not isinstance(jobs, Mapping):
+            continue
+        identifiants.update(
+            identifiant for identifiant in jobs if isinstance(identifiant, str)
+        )
+    return identifiants
+
+
+def _violations_jobs_requis_absents(
+    repo: Path,
+    jobs_requis: tuple[str, ...],
+) -> list[Violation]:
+    """Prouve que chaque identifiant requis du contrat existe dans un workflow réel.
+
+    La couverture est mesurée globalement : un identifiant peut légitimement être
+    défini dans un autre fichier que celui des autres. Un identifiant qu'aucun
+    workflow ne définit est un contrôle requis absent, donc un gate manquant.
+    """
+    if not (repo / ".github" / "workflows").is_dir():
+        return []
+    declares = _identifiants_de_jobs_declares(repo)
+    manquants = tuple(job for job in jobs_requis if job not in declares)
+    if not manquants:
+        return []
+    return [
+        Violation(
+            "REQUIRED_JOB_ABSENT",
+            ".github/workflows",
+            1,
+            "aucun workflow ne définit les jobs requis du contrat : "
+            + ", ".join(manquants),
+        )
+    ]
+
+
 def main(argv: list[str] | None = None) -> int:
     """Exécute le gate avec les racines contractuelles par défaut sûr."""
     parser = argparse.ArgumentParser(description="Détecte les stubs et dettes qualité.")
@@ -1474,7 +1579,7 @@ def main(argv: list[str] | None = None) -> int:
     arguments = parser.parse_args(argv)
 
     repo = arguments.repo.resolve()
-    racines, _, erreur_contrat = _lire_contrat(repo)
+    racines, jobs_requis, erreur_contrat = _lire_contrat(repo)
     if erreur_contrat is not None:
         print(
             "CONTRAT_PERIMETRE_ABSENT core/quality-scopes.toml:1 "
@@ -1487,6 +1592,7 @@ def main(argv: list[str] | None = None) -> int:
     violations = _violations_scopes_incomplets(repo, scopes, racines)
     if not violations:
         violations = scan_repository(repo, scopes, base_ref=arguments.base_ref)
+        violations.extend(_violations_jobs_requis_absents(repo, jobs_requis))
     for violation in violations:
         print(
             f"{violation.code} {violation.path}:{violation.line} {violation.detail}",
