@@ -2905,12 +2905,19 @@ def test_refuse_une_ellipse_dans_un_protocol_generique_usurpe(tmp_path: Path) ->
     assert "EXECUTABLE_ELLIPSIS" in _codes(_scanner(repo))
 
 
-def test_accepte_un_repli_vers_une_commande_prefixee_par_true(tmp_path: Path) -> None:
-    """Prouve que le motif de repli borne ses mots : ``true_story`` est un exécutable.
+def test_refuse_un_repli_vers_une_commande_prefixee_par_true(tmp_path: Path) -> None:
+    """Prouve qu'un exécutable tiers en repli est refusé : il ne PROUVE pas sa sortie.
 
-    Sans limite de mot, tout programme dont le nom commence par ``true`` était lu
-    comme la commande shell ``true``, et un job requis parfaitement licite était
-    refusé.
+    ``true_story`` n'est pas la commande shell ``true`` — la borne de mot le
+    distingue toujours, et c'est ce qui évite de le nommer « succès forcé ». Mais
+    la règle des replis est une LISTE BLANCHE : dans un job requis, une branche
+    ``||`` n'est acceptée que si elle démontre qu'elle rend l'échec. Un exécutable
+    tiers peut rendre 0 comme 1, donc il ne démontre rien.
+
+    Aucun critère structurel ne sépare ``true_story`` de ``env true`` : les deux
+    sont un programme externe. Exempter la classe rouvrirait l'énumération des
+    porteurs de commande, qui ne converge pas. Le repli légitime s'écrit avec sa
+    propagation : ``|| { true_story; exit 1; }``.
     """
     repo = _depot_git_initialise(tmp_path)
     _ecrire(
@@ -2918,20 +2925,25 @@ def test_accepte_un_repli_vers_une_commande_prefixee_par_true(tmp_path: Path) ->
         ".github/workflows/ci.yml",
         _workflow_run("security", ("python3 gate.py || true_story",)),
     )
-    assert _codes(_scanner(repo)) == set()
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
 
 
-def test_accepte_un_repli_vers_une_commande_prefixee_par_deux_points(
+def test_refuse_un_repli_vers_une_commande_prefixee_par_deux_points(
     tmp_path: Path,
 ) -> None:
-    """Prouve que ``:mon_label`` est un nom de commande, non la commande vide ``:``."""
+    """Prouve que ``:mon_label`` est refusé comme commande INCONNUE, non comme ``:``.
+
+    La borne de mot tient toujours — ``:mon_label`` n'est pas la commande vide —
+    mais un nom que le gate ne sait pas évaluer n'entre pas dans la liste blanche
+    des formes propageantes. L'inconnu bloque, par construction.
+    """
     repo = _depot_git_initialise(tmp_path)
     _ecrire(
         repo,
         ".github/workflows/ci.yml",
         _workflow_run("security", ("python3 gate.py || :mon_label",)),
     )
-    assert _codes(_scanner(repo)) == set()
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
 
 
 def test_accepte_une_commande_prefixee_par_true_apres_un_point_virgule(
@@ -3216,15 +3228,21 @@ def test_refuse_un_repli_via_le_builtin_command(tmp_path: Path) -> None:
     assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
 
 
-def test_accepte_un_repli_vers_un_chemin_prefixe_par_true(tmp_path: Path) -> None:
-    """Prouve que la borne de nom survit au préfixe de chemin : ``true_story`` reste licite."""
+def test_refuse_un_repli_vers_un_chemin_prefixe_par_true(tmp_path: Path) -> None:
+    """Prouve qu'un chemin vers un exécutable tiers est refusé comme le nom nu.
+
+    La borne de nom survit toujours au préfixe — ``/usr/bin/true_story`` n'est pas
+    ``/usr/bin/true`` — mais le préfixe ne change rien à la question posée : ce
+    binaire prouve-t-il qu'il rend l'échec ? Non. Le préfixe de chemin ne peut
+    donc pas être un chemin d'exemption.
+    """
     repo = _depot_git_initialise(tmp_path)
     _ecrire(
         repo,
         ".github/workflows/ci.yml",
         _workflow_run("security", ("python3 gate.py || /usr/bin/true_story",)),
     )
-    assert _codes(_scanner(repo)) == set()
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
 
 
 def test_accepte_un_enchainement_et_vers_true_par_chemin_absolu(
@@ -4090,8 +4108,18 @@ def test_accepte_un_repli_shell_inline_qui_propage_lechec(tmp_path: Path) -> Non
     assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
 
 
-def test_accepte_un_repli_vers_un_script_de_recuperation(tmp_path: Path) -> None:
-    """Prouve qu'un script de récupération, qui peut échouer, reste un repli licite."""
+def test_refuse_un_repli_vers_un_script_de_recuperation(tmp_path: Path) -> None:
+    """Prouve qu'un script de récupération ne suffit plus : il ne dit rien de l'échec.
+
+    « Ce script PEUT échouer » n'est pas « ce script propage l'échec du contrôle ».
+    Rien, dans ``|| bash script_de_recuperation.sh``, ne distingue statiquement un
+    script qui sort en non nul d'un script qui journalise et rend 0 — ni de
+    ``|| env true``, qui est aussi un programme externe.
+
+    Dans un job REQUIS, un repli doit DIRE ce qu'il fait de l'échec. La réécriture
+    qui passe est prouvée par
+    ``test_accepte_un_repli_vers_un_script_de_recuperation_qui_propage``.
+    """
     repo = _depot_git_initialise(tmp_path)
     _contrat(repo)
     _ecrire(
@@ -4104,7 +4132,33 @@ def test_accepte_un_repli_vers_un_script_de_recuperation(tmp_path: Path) -> None
         "      - run: verif || bash script_de_recuperation.sh\n",
     )
 
-    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_accepte_un_repli_vers_un_script_de_recuperation_qui_propage(
+    tmp_path: Path,
+) -> None:
+    """NOMME le coût de l'inversion et sa sortie : rendre la propagation explicite.
+
+    Même script de récupération, même intention, une accolade de plus : le groupe
+    exécute la récupération PUIS sort en non nul, si bien que le job requis reste
+    rouge quand son contrôle l'est. C'est la forme que la politique recommande, et
+    elle doit être prouvée VERTE — sans quoi l'inversion serait une interdiction
+    du repli, et non une exigence de propagation.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/recuperation_ok.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: 'verif || { bash script_de_recuperation.sh; exit 1; }'\n",
+    )
+
+    assert _codes(_scanner(repo)) == set()
 
 
 def test_refuse_un_protocol_reaffecte_par_attribut_de_module(tmp_path: Path) -> None:
@@ -5411,3 +5465,426 @@ def test_accepte_continue_on_error_numerique_nul_ecrit_comme_chaine_quotee(
     )
 
     assert "REQUIRED_JOB_SOFT_FAILURE" not in _codes(_scanner(repo))
+
+
+@pytest.mark.parametrize(
+    "repli",
+    ("exit 00", "exit 000", "exit 256", "exit 0512"),
+    ids=("deux-zeros", "trois-zeros", "multiple-256", "multiple-256-zero-tete"),
+)
+def test_refuse_un_repli_exit_dont_la_valeur_est_nulle_quelle_que_soit_lorthographe(
+    tmp_path: Path, repli: str
+) -> None:
+    """Prouve que la VALEUR de la sortie décide, jamais son orthographe.
+
+    MESURÉ dans bash, dash et sh : ``exit 00``, ``exit 000``, ``exit 256`` et
+    ``exit 0512`` rendent tous 0 (le shell tronque modulo 256). Un motif exigeant
+    le texte exact ``exit 0`` laissait donc passer quatre écritures du même
+    succès forcé.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise_citee(
+        repo, ".github/workflows/valeur.yml", f"gate.py || {repli}"
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+@pytest.mark.parametrize(
+    "repli",
+    ("exit 0x0", "exit 1x", "exit 12abc"),
+    ids=("hexadecimal", "suffixe-court", "suffixe-long"),
+)
+def test_refuse_un_repli_exit_dont_largument_nest_pas_un_litteral_decimal(
+    tmp_path: Path, repli: str
+) -> None:
+    """Prouve que seule une sortie PROUVÉE non nulle est admise en repli.
+
+    MESURÉ dans bash et dash : ``exit 0x0``, ``exit 1x`` et ``exit 12abc`` rendent
+    tous 2 — l'argument n'est pas numérique, le shell signale une erreur d'usage.
+    Ces formes n'absorbent donc rien, mais elles ne PROUVENT pas davantage la
+    propagation de l'échec du CONTRÔLE : le statut rendu est celui de l'erreur
+    d'usage. Lire le seul préfixe décimal certifierait ``exit 1x`` comme
+    propageant alors que le shell le refuse ; la liste blanche exige donc le
+    littéral décimal ENTIER, et l'inconnu bloque.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise_citee(
+        repo, ".github/workflows/hexa.yml", f"gate.py || {repli}"
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+@pytest.mark.parametrize(
+    "repli",
+    (
+        "env true",
+        "/usr/bin/env true",
+        "nice true",
+        "timeout 1 true",
+        "xargs true",
+        "env -i true",
+    ),
+    ids=("env", "env-chemin", "nice", "timeout", "xargs", "env-option"),
+)
+def test_refuse_un_repli_vers_true_lance_par_un_porteur_de_commande(
+    tmp_path: Path, repli: str
+) -> None:
+    """Prouve que la règle ne dépend plus d'une liste de préfixes reconnus.
+
+    ``env``, ``nice``, ``timeout``, ``xargs`` lancent tous ``true`` et rendent 0 :
+    MESURÉ à 0 pour chacun. Énumérer les porteurs ne converge pas — la liste est
+    ouverte — donc c'est la branche qui doit PROUVER qu'elle propage.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise_citee(
+        repo, ".github/workflows/porteur.yml", f"gate.py || {repli}"
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_repli_vers_une_commande_inconnue_dans_un_job_requis(
+    tmp_path: Path,
+) -> None:
+    """Prouve le cœur de l'inversion : l'inconnu bloque au lieu de passer.
+
+    Une commande dont le gate ne sait rien peut rendre 0 comme 1. La supposer
+    propageante, c'est parier ; et c'est ce pari qui rouvrait la classe entière à
+    chaque nouvelle orthographe. Le doute se tranche désormais en faveur du
+    contrôle requis.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise_citee(
+        repo, ".github/workflows/inconnue.yml", "gate.py || outil_maison --repli"
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_repli_vers_return_dont_la_valeur_est_nulle(tmp_path: Path) -> None:
+    """Prouve que ``return`` est jugé à la valeur comme ``exit``.
+
+    MESURÉ : ``f(){ return 00; }; f`` rend 0 dans bash. La forme est donc un
+    succès forcé, malgré un mot-clé qui suggère la propagation.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise_citee(
+        repo, ".github/workflows/retour.yml", "gate.py || { echo ko; return 00; }"
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_accepte_un_repli_vers_return_non_nul_dans_un_groupe(tmp_path: Path) -> None:
+    """Prouve la garde INVERSE de la liste blanche : ``return 1`` propage et reste licite."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise_citee(
+        repo, ".github/workflows/retour_ok.yml", "gate.py || { echo ko; return 1; }"
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
+def test_accepte_un_repli_dont_la_derniere_commande_est_un_compose_propageant(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la dernière commande d'un groupe est lue même composée.
+
+    Découper le corps sur les seuls ``;`` faisait de ``fi`` la dernière commande
+    d'un groupe terminé par une conditionnelle : un repli parfaitement propageant
+    était alors refusé.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise_citee(
+        repo,
+        ".github/workflows/compose_ok.yml",
+        "gate.py || { echo ko; if verifier; then exit 1; else exit 2; fi }",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
+def test_refuse_un_repli_dont_le_compose_final_absorbe(tmp_path: Path) -> None:
+    """Prouve la garde symétrique : lue en profondeur, la branche absorbante est vue."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise_citee(
+        repo,
+        ".github/workflows/compose_ko.yml",
+        "gate.py || { echo ko; if verifier; then exit 1; else echo absorbe; fi }",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_accepte_un_repli_absorbant_dans_un_job_non_requis(tmp_path: Path) -> None:
+    """Prouve que l'inversion reste bornée aux identifiants du contrat.
+
+    Un job hors ``target_required_job_ids`` n'atteste rien : y refuser ``|| true``
+    transformerait le durcissement en interdiction générale du repli shell.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/optionnel.yml",
+        "jobs:\n"
+        "  rapport-optionnel:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: 'gate.py || env true'\n",
+    )
+
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_refuse_un_controle_direct_dont_le_else_absorbe_apres_un_elif(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la branche ``else`` est mesurée même quand un ``elif`` la précède.
+
+    MESURÉ avant correction : la seule branche relevée était la CONDITION du
+    ``elif`` (« false »), tenue pour propageante, et le corps ``else`` — le seul
+    exécuté quand toutes les conditions échouent — n'était jamais lu. Un ``elif``
+    suffisait donc à rendre la garde muette.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run(
+            "security",
+            (
+                "if python3 core/scripts/run_security_scan.py; then",
+                "  echo ok",
+                "elif false; then",
+                "  exit 1",
+                "else",
+                "  echo absorbe",
+                "fi",
+            ),
+        ),
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_controle_direct_dont_le_corps_delif_absorbe(tmp_path: Path) -> None:
+    """Prouve que le CORPS d'un ``elif`` est lui aussi une branche d'échec mesurée.
+
+    Quand le contrôle échoue et que la condition du ``elif`` est vraie, c'est son
+    corps qui fixe le statut de l'étape : le laisser hors mesure rouvrait la même
+    absorption d'un cran plus loin.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run(
+            "security",
+            (
+                "if python3 core/scripts/run_security_scan.py; then",
+                "  echo ok",
+                "elif verifier; then",
+                "  echo absorbe",
+                "else",
+                "  exit 1",
+                "fi",
+            ),
+        ),
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_controle_direct_a_elif_sans_else(tmp_path: Path) -> None:
+    """Prouve qu'une chaîne ``elif`` sans ``else`` laisse un chemin muet.
+
+    Si le contrôle échoue ET que la condition du ``elif`` est fausse, rien ne
+    s'exécute : le ``fi`` rend 0 et le job requis est vert avec son contrôle
+    rouge. La branche vide doit donc compter comme absorbante.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run(
+            "security",
+            (
+                "if python3 core/scripts/run_security_scan.py; then",
+                "  echo ok",
+                "elif verifier; then",
+                "  exit 1",
+                "fi",
+            ),
+        ),
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_accepte_un_controle_direct_dont_chaque_branche_propage_apres_un_elif(
+    tmp_path: Path,
+) -> None:
+    """Prouve la garde INVERSE : toutes branches propageantes, le ``elif`` reste licite.
+
+    Sans ce cas, corriger la lecture des branches pourrait se réduire à « refuser
+    dès qu'un ``elif`` apparaît », ce qui serait un faux positif sur une garde
+    parfaitement propageante.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run(
+            "security",
+            (
+                "if python3 core/scripts/run_security_scan.py; then",
+                "  echo ok",
+                "elif verifier; then",
+                "  exit 1",
+                "else",
+                "  exit 2",
+                "fi",
+            ),
+        ),
+    )
+
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_refuse_un_repli_vers_false_neutralise_par_un_tube(tmp_path: Path) -> None:
+    """Prouve que ``false`` doit être la commande ENTIÈRE, pas le début d'un tube.
+
+    MESURÉ : ``bash -c 'false | true'`` rend 0 — dans un tube, c'est le DERNIER
+    maillon qui fixe le statut. Reconnaître ``false`` sur le seul début de la
+    commande certifiait donc propageant un repli qui réussit toujours.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise_citee(
+        repo, ".github/workflows/tube_false.yml", "gate.py || false | true"
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_un_repli_groupe_neutralise_par_un_tube(tmp_path: Path) -> None:
+    """Prouve qu'un groupe propageant ne rachète rien s'il alimente un tube.
+
+    MESURÉ : ``bash -c '{ exit 1; } | true'`` rend 0. Borner la branche à la
+    fermeture du groupe sans regarder ce qui SUIT laissait le tube hors mesure.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise_citee(
+        repo, ".github/workflows/tube_groupe.yml", "gate.py || { exit 1; } | true"
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_refuse_une_negation_dont_la_branche_est_neutralisee_par_un_tube(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la garde ``if !`` juge elle aussi la commande entière du tube."""
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run(
+            "security",
+            (
+                "if ! python3 core/scripts/run_security_scan.py; then",
+                "  false | true",
+                "fi",
+            ),
+        ),
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))
+
+
+def test_accepte_une_branche_ou_un_filtrage_precede_un_groupe_propageant(
+    tmp_path: Path,
+) -> None:
+    """Prouve que le motif ``*)`` d'un ``case`` ne dérègle pas le compte des groupes.
+
+    Un motif de ``case`` s'écrit avec une parenthèse FERMANTE sans ouvrante. Un
+    compteur unique passe alors en négatif, et le ``{`` qui suit le ramène à zéro
+    au lieu de un : le découpage coupe à l'intérieur du groupe et prend ``}``
+    pour la dernière commande. MESURÉ dans bash, la branche rend pourtant 1.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run(
+            "security",
+            (
+                "if ! python3 core/scripts/run_security_scan.py; then",
+                "  case x in *) : ;; esac",
+                "  { exit 1; }",
+                "fi",
+            ),
+        ),
+    )
+
+    assert _codes(_scanner(repo)) == set()
+
+
+def test_accepte_un_repli_conditionnel_suivi_dun_enchainement_licite(
+    tmp_path: Path,
+) -> None:
+    """Prouve la garde INVERSE : exiger une branche TERMINALE ne condamne pas ``fi``.
+
+    Sans ce cas, borner la conditionnelle avant son mot de fermeture ferait du
+    ``fi`` lui-même une commande enchaînée, et tout ``|| if … fi`` propageant
+    serait refusé à tort.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _workflow_commande_requise_citee(
+        repo,
+        ".github/workflows/compose_suite.yml",
+        "gate.py || if verifier; then exit 1; else exit 2; fi",
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" not in _codes(_scanner(repo))
+
+
+def test_refuse_une_negation_dont_le_then_absorbe_malgre_un_elif_propageant(
+    tmp_path: Path,
+) -> None:
+    """Prouve que la lecture des ``if !`` reste bornée à leur PREMIÈRE branche.
+
+    Sur une négation, la branche prise quand le contrôle échoue est le ``then`` ;
+    un ``elif`` propageant ne s'exécute alors jamais et ne rachète rien. Corriger
+    le parcours des branches ne doit pas déplacer cette frontière.
+    """
+    repo = _depot_git_initialise(tmp_path)
+    _ecrire(
+        repo,
+        ".github/workflows/ci.yml",
+        _workflow_run(
+            "security",
+            (
+                "if ! python3 core/scripts/run_security_scan.py; then",
+                "  echo absorbe",
+                "elif verifier; then",
+                "  exit 1",
+                "fi",
+            ),
+        ),
+    )
+
+    assert "REQUIRED_JOB_FORCED_SUCCESS" in _codes(_scanner(repo))

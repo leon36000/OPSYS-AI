@@ -280,53 +280,145 @@ Traiter tout `#` comme une ouverture de commentaire effaçait la fin de la ligne
 `python3 gate.py x#note || true` passait pour un contrôle sans repli, alors qu'il
 force un succès.
 
-## Groupes de repli après `||`
+## Replis après `||` : une LISTE BLANCHE de formes qui propagent
 
-Un groupe `{ … }` ou `( … )` placé derrière `||` ne s'exécute que si la commande
-gardée a échoué, et devient alors le code de retour de l'étape. Il absorbe donc
-l'échec par construction, sauf s'il se termine par une sortie non nulle prouvée.
+La règle est **inversée**. Dans un job **requis**, tout opérateur `||` est tenu
+pour absorbant **par défaut** ; sa branche de droite n'est acceptée que si elle
+PROUVE qu'elle rend l'échec au job. C'est un fail-closed structurel : il ferme la
+classe entière au lieu de ses instances.
 
-```sh
-python3 gate.py || { :; }                            # refusé — échec absorbé
-python3 gate.py || { echo "gate ignoré" >&2; }       # refusé — journalise puis réussit
-python3 gate.py || ( : )                             # refusé — sous-shell équivalent
-python3 gate.py || { echo "toléré"; exit 0; }        # refusé — sortie nulle
-python3 gate.py || { echo "échec" >&2; exit 1; }     # accepté — l'échec est propagé
-python3 gate.py || { echo "échec" >&2; false; }      # accepté — statut non nul
-```
+### Pourquoi l'énumération des formes absorbantes ne converge pas
 
-Le critère est la **dernière commande du groupe**, seule à fixer son code de
-retour : `exit`/`return` avec un littéral non nul, ou une commande qui échoue
-toujours. Les parenthèses internes d'une substitution `$( … )` sont traversées
-sans refermer le groupe prématurément, et un motif écrit dans une chaîne shell
-reste une donnée, jamais du code.
-
-Les motifs de repli sont bornés par la **fin du nom de commande** : `true`, `:`,
-`echo` et `printf` ne sont reconnus que lorsqu'ils sont bien ces commandes-là.
-Un exécutable dont le nom commence par l'un d'eux reste un appel légitime :
+L'ancienne règle listait les formes qui **absorbent** : `|| true`, `|| :`,
+`|| echo`, `|| printf`, `|| exit 0`, `|| { … }`, `|| ( … )`, `|| sh -c '…'`,
+`|| if … fi`, `|| case … esac`, avec préfixes de chemin et `command`. Quatre
+tours de revue indépendante consécutifs n'ont produit que des variantes de cette
+même liste, et trois d'entre elles ont été MESURÉES en défaut :
 
 ```sh
-python3 gate.py || true_story     # accepté — « true_story » est un exécutable
-python3 gate.py || :mon_label     # accepté — nom de commande, pas la commande vide
-python3 gate.py; true_story       # accepté — même borne sur la forme séquentielle
-python3 gate.py || true; echo ok  # refusé  — ici « true » est bien la commande shell
+python3 gate.py || exit 00     # était accepté — le motif exigeait le texte exact « exit 0 »
+python3 gate.py || env true    # était accepté — « env » n'était pas un préfixe reconnu
+python3 gate.py || nice true   # était accepté — idem ; la liste des porteurs est OUVERTE
 ```
 
-Le nom de commande est lu **après les préfixes qui ne changent pas ce qui
-s'exécute** : un chemin désigne le même binaire que son nom nu, et le builtin
-`command` ne fait que le lancer en court-circuitant fonctions et alias du shell.
-Renommer le chemin d'accès au repli n'a jamais changé le code de retour rendu au
-job requis, et le laisser passer suffisait à repeindre en vert un contrôle
-échoué :
+`env`, `nice`, `timeout`, `xargs`, `env -i`, … : l'ensemble des programmes qui
+lancent `true` n'est pas énumérable, et l'orthographe d'une sortie nulle non plus
+— `exit 00`, `exit 000`, `exit 256` rendent tous 0 (MESURÉ dans bash, dash et
+sh, le shell tronquant modulo 256). Chaque tour fermait une instance et laissait
+la classe ouverte. Seule l'exigence INVERSE la ferme.
+
+### Les formes admises, établies par mesure
+
+Une branche propage l'échec si, et seulement si, sa **dernière commande** — seule
+à fixer le code de retour — est l'une des formes suivantes :
+
+| Forme admise | Mesure |
+|---|---|
+| `exit N` / `return N`, `N` littéral décimal **entier**, `N % 256 ≠ 0` | `exit 1` → 1 ; `exit 00`, `exit 000`, `exit 256` → 0 ; `exit 0x0`, `exit 1x` → 2 (erreur d'usage) |
+| `false`, y compris `/bin/false` et `command false` | `false` → 1 |
+| `sh -c '<script>'` dont le script propage, **récursivement** | `sh -c 'exit 1'` → 1 |
+| groupe `{ … }` / `( … )` dont le corps propage, **récursivement** | le corps décide du statut du groupe |
+| `if` / `case` dont **chaque** branche exécutable propage, **récursivement** | la branche prise décide du statut |
+
+Tout le reste est **refusé** : commande inconnue, `env true`, appel de script,
+branche vide, forme non analysable, profondeur d'imbrication dépassée. Un
+argument non décimal n'est jamais lu par son préfixe : `exit 1x` serait sinon
+certifié propageant alors que le shell le rejette (MESURÉ à 2).
+
+### Un repli vers une commande EXTERNE est refusé
+
+C'est la conséquence la plus visible de l'inversion, et elle est **délibérée**.
+`|| bash recuperation.sh`, `|| true_story`, `|| /usr/bin/true_story`,
+`|| :mon_label` sont refusés dans un job requis : ce sont des programmes dont le
+gate ne peut pas décider statiquement le code de retour.
+
+La raison n'est pas la méfiance mais l'**absence de critère** : rien ne sépare
+`bash recuperation.sh` de `env true`. Les deux sont un exécutable externe lancé
+après `||`. Toute exemption de cette classe rouvre l'énumération des porteurs de
+commande — `env`, `nice`, `timeout`, `xargs`, … — qui ne converge pas. La borne
+de mot reste correcte par ailleurs (`true_story` n'est pas `true`, `:mon_label`
+n'est pas `:`) : ces formes ne sont pas signalées comme « succès forcé », elles
+sont signalées comme **non prouvées**.
+
+Dans un job requis, un repli doit DIRE ce qu'il fait de l'échec. La réécriture
+tient en une accolade et une sortie, et elle est prouvée VERTE :
 
 ```sh
-python3 gate.py || /usr/bin/true       # refusé  — même binaire, même repli
-python3 gate.py || /bin/true           # refusé  — autre emplacement, même binaire
-python3 gate.py || /usr/bin/:          # refusé  — la commande vide reste elle-même
-python3 gate.py || command true        # refusé  — « command » ne fait que lancer true
-python3 gate.py || /usr/bin/true_story # accepté — la borne de nom survit au préfixe
-python3 gate.py && /usr/bin/true       # accepté — « && » n'est pas un repli
+python3 gate.py || bash recuperation.sh              # refusé  — sortie non prouvée
+python3 gate.py || { bash recuperation.sh; exit 1; } # accepté — la sortie est écrite
 ```
+
+```sh
+python3 gate.py || exit 1                             # accepté — sortie non nulle littérale
+python3 gate.py || false                              # accepté — échoue toujours
+python3 gate.py || { echo "échec" >&2; exit 1; }      # accepté — le groupe propage
+python3 gate.py || { echo "échec" >&2; false; }       # accepté — statut non nul
+python3 gate.py || sh -c 'exit 1'                     # accepté — le script propage
+python3 gate.py || if a; then exit 1; else exit 2; fi # accepté — chaque branche propage
+python3 gate.py --motif '|| true'                     # accepté — cité, donc donnée
+python3 gate.py && /usr/bin/true                      # accepté — « && » n'est pas un repli
+
+python3 gate.py || true                # refusé — succès forcé
+python3 gate.py || /usr/bin/true       # refusé — même binaire, même repli
+python3 gate.py || command true        # refusé — « command » ne fait que lancer true
+python3 gate.py || exit 00             # refusé — la VALEUR est 0, pas l'orthographe
+python3 gate.py || exit 0x0            # refusé — pas un littéral décimal entier
+python3 gate.py || env true            # refusé — porteur de commande
+python3 gate.py || /usr/bin/env true   # refusé — le chemin ne change rien
+python3 gate.py || nice true           # refusé — idem
+python3 gate.py || timeout 1 true      # refusé — idem
+python3 gate.py || outil_maison        # refusé — l'inconnu bloque
+python3 gate.py || bash recuperation.sh # refusé — un script ne prouve pas sa sortie
+python3 gate.py || { :; }              # refusé — échec absorbé
+python3 gate.py || { echo "gate ignoré" >&2; } # refusé — journalise puis réussit
+python3 gate.py || ( : )               # refusé — sous-shell équivalent
+python3 gate.py || { echo "toléré"; exit 0; } # refusé — sortie nulle
+```
+
+Les parenthèses internes d'une substitution `$( … )` sont traversées sans
+refermer le groupe prématurément ; un motif écrit dans une chaîne shell reste une
+donnée, jamais du code ; et la dernière commande d'une suite est lue **composés
+traversés entiers**, si bien qu'un corps terminé par `if … fi` n'est pas réduit
+au mot `fi`.
+
+La branche doit enfin être **terminale** : rien ne doit s'enchaîner derrière elle
+autrement que par `;`, un retour à la ligne, `&&` ou `||`. Dans un tube, c'est le
+dernier maillon qui fixe le statut, pas la branche — MESURÉ dans bash :
+
+```sh
+python3 gate.py || false | true       # refusé — le tube rend 0
+python3 gate.py || { exit 1; } | true # refusé — le groupe propage, le tube l'annule
+python3 gate.py || false              # accepté — la branche décide seule
+```
+
+Un `||` dans un job **non requis** n'est pas concerné : ces jobs n'attestent rien,
+et y interdire le repli ferait du durcissement une interdiction générale.
+
+### Ce que l'inversion coûte, sciemment
+
+Outre les commandes externes traitées ci-dessus, elle refuse `|| exit $?` et
+`|| foo | bar`, qui propagent réellement sans le **prouver**. Le remède est
+toujours le même : écrire la sortie.
+
+La règle s'applique à **tout** `||` de l'étape, y compris hors position de
+repli, et deux formes légitimes en font MESURÉMENT les frais :
+
+```sh
+if [ -f a ] || [ -f b ]; then exit 1; fi   # refusé — « || » en CONDITION
+VAL=$(a || b); python3 gate.py             # refusé — « || » en SUBSTITUTION
+```
+
+Ni l'un ni l'autre n'absorbe l'échec d'un contrôle, mais les exempter rouvrirait
+la brèche : `if gate.py || true; then echo ok; else exit 1; fi` rend l'étape
+VERTE avec son gate rouge — le `|| true` force la condition à vrai, le `then` est
+pris, et la branche `else` que le gate mesure n'est jamais exécutée. Exempter la
+condition rendrait cette forme acceptable. Le refus reste donc entier ; l'écrire
+autrement le lève (`if [ -f a ]; then exit 1; elif [ -f b ]; then exit 1; fi`).
+
+C'est le prix assumé du fail-closed : un refus se corrige à l'écriture, une
+absorption silencieuse se découvre en production. Le contrôle a été mesuré à
+`rc=0` sur les workflows réels du dépôt, qui n'emploient aucun `||` : aucune
+étape réelle n'est refusée à tort aujourd'hui.
 
 ### Conditionnelle de repli : `|| if … fi` et `|| case … esac`
 
@@ -372,9 +464,8 @@ signaler un repli simplement **cité** — effaçait aussi ce script, si bien
 qu'aucun motif ne s'appliquait plus : la forme était acceptée alors qu'elle
 repeint en vert n'importe quel contrôle requis.
 
-Le critère est le **succès forcé**, jamais l'appel d'un shell : le script est
-jugé sur la commande qui fixe son code de retour, avec la liste déjà utilisée
-pour les replis directs (`true`, `:`, `echo`, `printf`, `exit 0`).
+Le critère est celui de la liste blanche, appliqué **récursivement** au script :
+c'est la commande qui fixe son code de retour qui doit prouver la propagation.
 
 ```sh
 python3 gate.py || sh -c 'exit 0'          # refusé  — le repli réussit toujours
@@ -382,7 +473,7 @@ python3 gate.py || bash -c 'exit 0'        # refusé  — même forme, autre she
 python3 gate.py || /bin/sh -ec 'echo ko'   # refusé  — options groupées, echo réussit
 python3 gate.py || sh -c 'verif || true'   # refusé  — repli imbriqué
 python3 gate.py || sh -c 'exit 1'          # accepté — l'échec est propagé
-python3 gate.py || bash recuperation.sh    # accepté — un script peut échouer
+python3 gate.py || bash recuperation.sh    # refusé  — un script ne prouve pas sa sortie
 echo "gate || sh -c 'exit 0'"              # accepté — cité, donc donnée
 ```
 
@@ -442,6 +533,27 @@ if bash scripts/verifier.sh; then echo ok; fi       # refusé — script du dép
 if python3 gate.py; then echo ok; else exit 1; fi   # accepté — le `else` propage l'échec
 ```
 
+Une chaîne `elif` ne dispense d'aucune branche. Quand le contrôle échoue, le
+shell évalue les conditions suivantes puis exécute **le corps** retenu — celui
+d'un `elif` vrai, sinon le `else`, sinon rien. Toutes ces issues sont mesurées :
+
+```sh
+if gate.py; then echo ok; elif c; then exit 1; else echo x; fi  # refusé — le `else` absorbe
+if gate.py; then echo ok; elif c; then echo x; else exit 1; fi  # refusé — le corps d'`elif` absorbe
+if gate.py; then echo ok; elif c; then exit 1; fi               # refusé — sans `else`, le `fi` rend 0
+if gate.py; then echo ok; elif c; then exit 1; else exit 2; fi  # accepté — toutes propagent
+```
+
+MESURÉ avant correction : la seule branche relevée était la **condition** du
+premier `elif`, tenue pour propageante dès qu'elle s'écrivait `false`, et le
+corps du `else` n'était jamais lu. Un `elif` suffisait à rendre la garde muette.
+Une condition n'est pas une branche : seuls les corps ouverts par `then` et
+`else` en sont.
+
+Sur une garde **niée** `if ! contrôle`, la frontière reste inchangée : seule la
+première branche `then` s'exécute quand le contrôle échoue, et un `elif`
+propageant du même bloc ne rachète rien.
+
 La règle ne vise que les **contrôles versionnés ici** : un chemin suffixé `.py`
 ou `.sh`, ou situé sous `scripts/`, `core/scripts/`, `tools/`. Une **sonde**
 shell (`[`, `[[`, `test`, `command`, `grep`, `git`) interroge un état : son code
@@ -471,10 +583,11 @@ Ce que la règle **ne couvre pas**, et pourquoi elle n'a pas été fermée :
   suivre un statut à travers une variable demanderait un interpréteur shell. La
   règle `if !` a la même limite depuis son origine (mesuré sur le motif nié
   équivalent) ; écrire `else exit 1` lève le refus.
-- **Une chaîne `elif`.** La branche mesurée est la première atteinte à l'échec,
-  donc la *condition* du `elif`, qui ne propage rien par elle-même. Une chaîne
-  dont toutes les issues sortent en non nul est refusée à tort — refus
-  conservateur, jamais silence.
+- **Un repli qui propage sans le prouver.** `|| bash recuperation.sh`,
+  `|| true_story`, `|| exit $?` sortent parfois en non nul, mais aucune lecture
+  statique ne le démontre. Ce n'est PAS une limite subie : c'est la règle
+  décidée — la liste blanche des replis. Refus conservateur, jamais silence, et
+  corrigeable en écrivant la sortie (`|| { bash recuperation.sh; exit 1; }`).
 
 Le principe tenu : refuser ce qui est prouvé absorbant, et **nommer** ce qui
 passe. Un manque nommé se corrige ; un manque implicite se découvre en production.

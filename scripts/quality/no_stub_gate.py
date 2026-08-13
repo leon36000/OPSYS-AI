@@ -107,12 +107,23 @@ _SUCCES_FORCE_COMPACT: Final[re.Pattern[str]] = re.compile(
 )
 _GROUPE_APRES_OU: Final[re.Pattern[str]] = re.compile(r"\|\|\s*(?P<ouverture>[{(])")
 _MOT_IF_SHELL: Final[str] = "if"
+_MOT_SINON_SHELL: Final[str] = "else"
 _SEPARATEUR_MOTIF_CASE: Final[str] = ";;"
 _SEPARATEUR_COMMANDE_SHELL: Final[re.Pattern[str]] = re.compile(r";|\n|&&")
 _SORTIE_NON_NULLE: Final[re.Pattern[str]] = re.compile(
-    r"^(?:exit|return)\s+(?P<code>[0-9]+)(?![0-9])"
+    r"^(?:exit|return)\s+(?P<code>[0-9]+)\s*$"
 )
 _COMMANDES_ECHOUANT_TOUJOURS: Final[frozenset[str]] = frozenset({"false"})
+_ECHEC_GARANTI_EN_TETE: Final[re.Pattern[str]] = re.compile(
+    r"(?:"
+    + _PREFIXES_NEUTRES_REPLI
+    + r")(?:"
+    + "|".join(
+        f"{nom}{_SUITE_NOM_COMMANDE}"
+        for nom in sorted(_COMMANDES_ECHOUANT_TOUJOURS)
+    )
+    + r")\s*$"
+)
 _JETONS_SHELL: Final[re.Pattern[str]] = re.compile(
     f"(?P<ouvre>{_IF_SHELL.pattern}|{_CASE_SHELL.pattern})"
     f"|(?P<ferme>{_FIN_IF_SHELL.pattern}|{_FIN_CASE_SHELL.pattern})"
@@ -129,6 +140,34 @@ _JETONS_CONDITIONNELLES: Final[re.Pattern[str]] = re.compile(
 _CONDITIONNELLE_APRES_OU: Final[re.Pattern[str]] = re.compile(
     r"\|\|\s*(?P<mot>if|case)" + _FIN_DE_MOT_SHELL
 )
+_OPERATEUR_OU_SHELL: Final[re.Pattern[str]] = re.compile(r"\|\|")
+_OPERATEUR_OU_TEXTE: Final[str] = "||"
+_MOT_FERMANT_SHELL: Final[re.Pattern[str]] = re.compile(r"fi|esac")
+_MOT_COMPOSE_SHELL: Final[re.Pattern[str]] = re.compile(
+    r"(?P<compose>if|case)" + _FIN_DE_MOT_SHELL
+)
+_FIN_DE_BRANCHE_SIMPLE: Final[re.Pattern[str]] = re.compile(r";|\n|&&|\|\|")
+_SHELL_INLINE_EN_TETE: Final[re.Pattern[str]] = re.compile(
+    r"(?:"
+    + _PREFIXES_NEUTRES_REPLI
+    + r")(?:"
+    + _INTERPRETES_SHELL
+    + r")"
+    + _SUITE_NOM_COMMANDE
+    + r"(?:\s+-[A-Za-z]+)*?\s+-[A-Za-z]*c\s+"
+    + r"(?P<script>'[^']*'|\"[^\"]*\"|[^\s;|&]+)"
+)
+_OUVERTURES_DE_GROUPE_SHELL: Final[str] = "{("
+_FERMETURES_DE_GROUPE_SHELL: Final[str] = "})"
+_SEPARATEURS_SIMPLES_SHELL: Final[str] = ";\n"
+_ENCHAINEMENT_ET_SHELL: Final[str] = "&&"
+_MODULO_CODE_DE_SORTIE: Final[int] = 256
+_PROFONDEUR_REPLI_MAX: Final[int] = 8
+_DESIGNATION_REPLI_VIDE: Final[str] = "branche vide"
+_DESIGNATION_REPLI_ACCOLADES: Final[str] = "{ … }"
+_DESIGNATION_REPLI_PARENTHESES: Final[str] = "( … )"
+_DESIGNATION_REPLI_SI: Final[str] = "if … fi"
+_DESIGNATION_REPLI_FILTRAGE: Final[str] = "case … esac"
 _NEGATION_APRES_IF: Final[re.Pattern[str]] = re.compile(r"\s*!")
 _SEPARATEUR_CONDITION_SHELL: Final[re.Pattern[str]] = re.compile(r"[;\n|&]+")
 _SONDES_SHELL: Final[frozenset[str]] = frozenset(
@@ -2481,18 +2520,194 @@ def _derniere_commande_shell(groupe: str) -> str:
     return commandes[-1] if commandes else ""
 
 
-def _groupe_propage_echec(groupe: str) -> bool:
-    """Prouve qu'un groupe de repli se termine par une sortie non nulle explicite.
+def _bornes_utiles(neutre: str, debut: int, fin: int) -> tuple[int, int]:
+    """Resserre un intervalle sur son texte utile, séparateurs de bordure exclus.
 
-    Seule cette forme rend l'échec au job requis. Toute autre fin — y compris un
-    ``exit 0``, un statut hérité ou une simple journalisation — laisse le groupe
-    réussir, donc absorbe l'échec de la commande gardée.
+    Les espaces, retours à la ligne et ``;`` qui encadrent une commande ne font
+    pas partie d'elle : les laisser fausserait la lecture du premier caractère,
+    seul à distinguer un groupe d'une commande simple.
     """
-    derniere = _derniere_commande_shell(groupe)
-    if derniere in _COMMANDES_ECHOUANT_TOUJOURS:
+    borne = " \t\r\n;"
+    while debut < fin and neutre[debut] in borne:
+        debut += 1
+    while fin > debut and neutre[fin - 1] in borne:
+        fin -= 1
+    return debut, fin
+
+
+def _ancre_de_composee(debut: int) -> int:
+    """Recule d'un caractère pour que le mot ``if``/``case`` reste reconnaissable.
+
+    Les jetons de conditionnelle ne comptent qu'en POSITION DE COMMANDE, donc
+    précédés d'un séparateur. Lancer la lecture exactement sur le mot-clé le
+    rendait invisible : la profondeur restait nulle, la conditionnelle passait
+    pour non ouverte, et ses branches n'étaient jamais isolées. MESURÉ : un
+    ``|| if true; then exit 1; fi`` pourtant propageant était refusé.
+    """
+    return max(debut - 1, 0)
+
+
+def _increments_de_profondeur(neutre: str, debut: int, fin: int) -> dict[int, int]:
+    """Situe les mots qui ouvrent et referment une conditionnelle dans un intervalle.
+
+    L'ouverture est comptée sur le MOT ``if``/``case`` et la fermeture APRÈS le
+    mot ``fi``/``esac``, jamais sur le séparateur qui les précède : compter sur
+    le séparateur ferait sortir de la conditionnelle un ``;`` qui lui appartient
+    encore, et découperait la commande au mauvais endroit.
+    """
+    increments: dict[int, int] = {}
+    for jeton in _JETONS_CONDITIONNELLES.finditer(neutre, _ancre_de_composee(debut)):
+        if jeton.start() >= fin:
+            break
+        if jeton.group("ouvre") is not None:
+            position, delta = jeton.start("mot_ouvre"), 1
+        elif jeton.group("ferme") is not None:
+            position, delta = jeton.end("ferme"), -1
+        else:
+            continue
+        increments[position] = increments.get(position, 0) + delta
+    return increments
+
+
+def _etendue_derniere_commande(neutre: str, debut: int, fin: int) -> tuple[int, int]:
+    """Isole la dernière commande d'une suite, groupes et composés traversés entiers.
+
+    Seule cette commande fixe le code de retour de la suite. Le découpage ne
+    retient ``;``, le retour à la ligne et ``&&`` qu'au niveau ZÉRO : à
+    l'intérieur d'un ``{ … }`` ou d'un ``if … fi`` ces caractères séparent des
+    commandes INTERNES, et couper là ferait du mot ``fi`` la dernière commande
+    d'un groupe qui se termine pourtant par une conditionnelle propageante.
+
+    Les deux niveaux sont comptés SÉPARÉMENT, et celui des parenthèses ne
+    descend jamais sous zéro : un motif de ``case`` s'écrit ``*)`` sans
+    parenthèse ouvrante, si bien qu'un compteur unique passait en négatif et
+    faisait du mot ``esac`` la dernière commande du filtrage.
+    """
+    increments = _increments_de_profondeur(neutre, debut, fin)
+    composee = 0
+    groupe = 0
+    depart = debut
+    index = debut
+    while index < fin:
+        composee += increments.get(index, 0)
+        caractere = neutre[index]
+        if caractere in _OUVERTURES_DE_GROUPE_SHELL:
+            groupe += 1
+        elif caractere in _FERMETURES_DE_GROUPE_SHELL:
+            groupe = max(0, groupe - 1)
+        elif composee <= 0 and groupe <= 0:
+            if caractere in _SEPARATEURS_SIMPLES_SHELL:
+                depart = index + 1
+            elif neutre.startswith(_ENCHAINEMENT_ET_SHELL, index):
+                depart = index + len(_ENCHAINEMENT_ET_SHELL)
+        index += 1
+    return _bornes_utiles(neutre, depart, fin)
+
+
+def _shell_inline_propage(
+    original: str, neutre: str, debut: int, fin: int, profondeur: int
+) -> bool:
+    """Prouve la propagation d'un ``sh -c '…'`` en relisant le script réellement exécuté.
+
+    Le script vit dans une chaîne, donc effacé du texte neutralisé : il est relu
+    à la MÊME position dans le texte d'origine, la neutralisation conservant les
+    positions. Sans cette relecture, un repli ``sh -c 'exit 1'`` parfaitement
+    propageant serait refusé faute de pouvoir être lu.
+    """
+    correspondance = _SHELL_INLINE_EN_TETE.match(neutre, debut, fin)
+    if correspondance is None:
+        return False
+    ouverture, fermeture = correspondance.span("script")
+    if (
+        fermeture - ouverture >= 2
+        and original[ouverture] in {"'", '"'}
+        and original[fermeture - 1] == original[ouverture]
+    ):
+        ouverture, fermeture = ouverture + 1, fermeture - 1
+    script = original[ouverture:fermeture]
+    return _branche_propage_lechec(
+        script,
+        _neutraliser_chaines_shell(script),
+        0,
+        len(script),
+        profondeur - 1,
+    )
+
+
+def _commande_simple_propage(
+    original: str, neutre: str, debut: int, fin: int, profondeur: int
+) -> bool:
+    """Décide si une commande SIMPLE de repli propage l'échec, par liste blanche.
+
+    Trois formes seulement le prouvent, et elles ont été MESURÉES dans bash, dash
+    et sh : ``false`` (1, y compris préfixé d'un chemin ou de ``command``),
+    ``exit``/``return`` suivi d'un littéral décimal dont la VALEUR modulo 256
+    n'est pas nulle — ``exit 00``, ``exit 000`` et ``exit 256`` rendent 0 — et le
+    script d'un ``sh -c``. Tout le reste rend un statut que rien ne détermine
+    ici : ``env true``, ``nice true``, ``timeout 1 true`` rendent 0 et l'échec
+    disparaît. Énumérer ces porteurs ne converge pas, donc l'inconnu est refusé.
+    """
+    texte = neutre[debut:fin]
+    if _ECHEC_GARANTI_EN_TETE.match(texte) is not None:
         return True
-    correspondance = _SORTIE_NON_NULLE.match(derniere)
-    return correspondance is not None and int(correspondance.group("code")) % 256 != 0
+    sortie = _SORTIE_NON_NULLE.match(texte)
+    if sortie is not None:
+        return int(sortie.group("code")) % _MODULO_CODE_DE_SORTIE != 0
+    return _shell_inline_propage(original, neutre, debut, fin, profondeur)
+
+
+def _branche_propage_lechec(
+    original: str, neutre: str, debut: int, fin: int, profondeur: int
+) -> bool:
+    """Prouve qu'une branche de repli rend l'échec au job requis — liste BLANCHE.
+
+    La question est posée à l'envers de l'ancienne règle : au lieu de chercher
+    les formes qui absorbent, on exige que la branche DÉMONTRE sa propagation.
+    Un groupe et une conditionnelle sont traversés récursivement — chacune de
+    leurs branches exécutables doit propager — et une commande simple est jugée
+    sur la liste blanche mesurée. Une branche vide, illisible ou trop profonde ne
+    prouve rien : elle est refusée, et c'est le sens même du fail-closed.
+    """
+    if profondeur <= 0:
+        return False
+    debut, fin = _etendue_derniere_commande(neutre, *_bornes_utiles(neutre, debut, fin))
+    if debut >= fin:
+        return False
+    if neutre[debut] in _OUVERTURES_DE_GROUPE_SHELL:
+        fermeture = min(_fin_de_groupe_shell(neutre, debut), fin)
+        return _branche_propage_lechec(
+            original, neutre, debut + 1, fermeture, profondeur - 1
+        )
+    compose = _MOT_COMPOSE_SHELL.match(neutre, debut)
+    if compose is not None:
+        ancre = _ancre_de_composee(debut)
+        fermeture = _fin_de_conditionnelle_shell(neutre, ancre)
+        branches = (
+            _branches_de_conditionnelle(neutre, ancre, fermeture)
+            if compose.group("compose") == _MOT_IF_SHELL
+            else _branches_de_filtrage(neutre, debut, fermeture)
+        )
+        return bool(branches) and all(
+            _branche_propage_lechec(
+                branche, branche, 0, len(branche), profondeur - 1
+            )
+            for branche in branches
+        )
+    return _commande_simple_propage(original, neutre, debut, fin, profondeur)
+
+
+def _groupe_propage_echec(groupe: str) -> bool:
+    """Prouve qu'un corps de repli rend l'échec, par la liste blanche des formes.
+
+    Seules les formes MESURÉES comme propageantes sont admises ; toute autre fin
+    — ``exit 0``, un statut hérité, une simple journalisation, une commande dont
+    le gate ne sait rien — laisse le corps réussir, donc absorbe l'échec de la
+    commande gardée. Le texte reçu est déjà neutralisé par ses appelants : un
+    script cité y est effacé, donc non prouvé, donc refusé.
+    """
+    return _branche_propage_lechec(
+        groupe, groupe, 0, len(groupe), _PROFONDEUR_REPLI_MAX
+    )
 
 
 def _groupe_repli_succes(neutre: str) -> str | None:
@@ -2659,6 +2874,94 @@ def _repli_shell_inline_succes(commande: str, neutre: str) -> str | None:
     return None
 
 
+def _etendue_de_branche_apres_ou(neutre: str, apres: int) -> tuple[int, int]:
+    """Délimite la branche que le shell exécute quand la commande gardée échoue.
+
+    Trois formes seulement s'étendent au-delà du premier séparateur : le groupe
+    ``{ … }`` / ``( … )``, qui court jusqu'à sa fermeture, et la conditionnelle
+    ``if``/``case``, qui court jusqu'à son ``fi``/``esac``. Une commande simple
+    s'arrête au premier ``;``, retour à la ligne, ``&&`` ou ``||`` : ce qui suit
+    est une AUTRE commande, dont le sort ne dit rien de ce repli.
+    """
+    debut = apres
+    while debut < len(neutre) and neutre[debut] in " \t":
+        debut += 1
+    if debut >= len(neutre):
+        return debut, debut
+    if neutre[debut] in _OUVERTURES_DE_GROUPE_SHELL:
+        return debut, min(_fin_de_groupe_shell(neutre, debut) + 1, len(neutre))
+    if _MOT_COMPOSE_SHELL.match(neutre, debut) is not None:
+        ferme = _fin_de_conditionnelle_shell(neutre, _ancre_de_composee(debut))
+        mot = _MOT_FERMANT_SHELL.search(neutre, ferme)
+        return debut, mot.end() if mot is not None else len(neutre)
+    fin = _FIN_DE_BRANCHE_SIMPLE.search(neutre, debut)
+    return debut, fin.start() if fin is not None else len(neutre)
+
+
+def _branche_est_terminale(neutre: str, fin: int) -> bool:
+    """Vérifie que la branche fixe bien le statut, sans commande enchaînée derrière.
+
+    Un ``|`` derrière la branche en fait un simple MAILLON : c'est le dernier
+    élément du tube qui fixe le code de retour, jamais elle. MESURÉ dans bash :
+    ``{ exit 1; } | true`` et ``false | true`` rendent 0. Seuls ``;``, le retour
+    à la ligne, ``&&``, ``||`` et la fin de l'étape laissent la branche décider ;
+    toute autre suite — tube, redirection — n'est pas prouvable et est refusée.
+    """
+    index = fin
+    while index < len(neutre) and neutre[index] in " \t":
+        index += 1
+    if index >= len(neutre):
+        return True
+    return (
+        neutre[index] in _SEPARATEURS_SIMPLES_SHELL
+        or neutre.startswith(_ENCHAINEMENT_ET_SHELL, index)
+        or neutre.startswith(_OPERATEUR_OU_TEXTE, index)
+    )
+
+
+def _designer_repli(neutre: str, debut: int, fin: int) -> str:
+    """Nomme la branche refusée afin que le message dise QUOI corriger.
+
+    Le nom lu est celui de la FORME quand la branche est composée, et le premier
+    mot quand elle est simple : c'est lui que l'auteur du workflow reconnaîtra.
+    """
+    if debut >= fin:
+        return _DESIGNATION_REPLI_VIDE
+    if neutre[debut] == "{":
+        return _DESIGNATION_REPLI_ACCOLADES
+    if neutre[debut] == "(":
+        return _DESIGNATION_REPLI_PARENTHESES
+    compose = _MOT_COMPOSE_SHELL.match(neutre, debut)
+    if compose is not None:
+        return (
+            _DESIGNATION_REPLI_SI
+            if compose.group("compose") == _MOT_IF_SHELL
+            else _DESIGNATION_REPLI_FILTRAGE
+        )
+    mots = neutre[debut:fin].split()
+    return mots[0] if mots else _DESIGNATION_REPLI_VIDE
+
+
+def _repli_non_prouve(commande: str, neutre: str) -> str | None:
+    """Refuse tout ``||`` dont la branche ne PROUVE pas qu'elle propage l'échec.
+
+    C'est l'inversion de la règle. Énumérer les formes qui absorbent ne converge
+    pas : ``|| exit 00``, ``|| env true``, ``|| nice true``, ``|| timeout 1 true``
+    ont tour à tour échappé aux motifs, et la liste des porteurs de commande est
+    OUVERTE. La classe entière se ferme en exigeant l'inverse — la branche doit
+    démontrer sa propagation — si bien qu'une orthographe inédite est refusée
+    d'office au lieu de rouvrir la brèche.
+    """
+    for correspondance in _OPERATEUR_OU_SHELL.finditer(neutre):
+        debut, fin = _etendue_de_branche_apres_ou(neutre, correspondance.end())
+        if _branche_est_terminale(neutre, fin) and _branche_propage_lechec(
+            commande, neutre, debut, fin, _PROFONDEUR_REPLI_MAX
+        ):
+            continue
+        return _designer_repli(neutre, debut, fin)
+    return None
+
+
 def _commande_repli_succes(commande: str) -> str | None:
     """Prouve qu'une branche ``||`` se termine inconditionnellement avec succès.
 
@@ -2672,7 +2975,9 @@ def _commande_repli_succes(commande: str) -> str | None:
     plus composée : la commande nue, le script ``sh -c``, le groupe ``{ … }`` et
     la conditionnelle ``if … fi`` / ``case … esac``. Toutes répondent à la même
     question — ce qui s'exécute après l'échec du contrôle propage-t-il cet
-    échec ?
+    échec ? Elles ne servent plus qu'à NOMMER précisément la forme reconnue : le
+    verdict, lui, revient à ``_repli_non_prouve``, qui refuse par défaut toute
+    branche dont la propagation n'est pas démontrée.
     """
     neutre = _neutraliser_chaines_shell(commande)
     correspondance = _FALLBACK_SHELL.search(neutre)
@@ -2683,7 +2988,10 @@ def _commande_repli_succes(commande: str) -> str | None:
         groupe = _groupe_repli_succes(neutre)
         if groupe is not None:
             return groupe
-        return _compose_conditionnel_repli_succes(neutre)
+        compose = _compose_conditionnel_repli_succes(neutre)
+        if compose is not None:
+            return compose
+        return _repli_non_prouve(commande, neutre)
     commande_repli = correspondance.group("command")
     if commande_repli.startswith("echo"):
         commande_repli = "echo"
@@ -2744,6 +3052,8 @@ class _CadreConditionnel:
     condition: int | None = None
     debut: int | None = None
     mesuree: bool = False
+    premier_then_vu: bool = False
+    sinon_vu: bool = False
 
 
 def _mot_designe_un_script_du_depot(mot: str) -> bool:
@@ -2818,10 +3128,17 @@ def _branches_de_repli_conditionnel(neutre: str) -> list[tuple[str, str]]:
 
     Deux formes exemptent un contrôle d'``errexit`` et leur repli diffère :
     ``if ! contrôle; then …`` exécute son ``then`` quand le contrôle échoue,
-    ``if contrôle; then …`` exécute son ``else``. Une seule lecture du texte
-    neutralisé les sert toutes deux, afin qu'aucune ne dérive de l'autre. Un
-    contrôle direct SANS ``else`` produit une branche VIDE : c'est exactement ce
-    que le shell exécute alors — rien, et le ``fi`` rend 0.
+    ``if contrôle; then …`` exécute tout le RESTE de la chaîne — le corps de
+    chaque ``elif`` dont la condition est vraie, sinon le ``else``. Une seule
+    lecture du texte neutralisé les sert toutes deux, afin qu'aucune ne dérive
+    de l'autre. Un contrôle direct SANS ``else`` produit une branche VIDE : c'est
+    exactement ce que le shell exécute alors — rien, et le ``fi`` rend 0.
+
+    MESURÉ avant correction : sur un contrôle direct, la seule branche relevée
+    était la CONDITION du premier ``elif``, et le corps du ``else`` — le seul
+    exécuté quand toutes les conditions échouent — n'était jamais lu. Un ``elif``
+    suffisait donc à rendre la garde muette. Une condition n'est PAS une branche :
+    seuls les corps ouverts par ``then`` et ``else`` en sont.
     """
     branches: list[tuple[str, str]] = []
     pile: list[_CadreConditionnel] = []
@@ -2836,15 +3153,20 @@ def _branches_de_repli_conditionnel(neutre: str) -> list[tuple[str, str]]:
             branches.append((cadre.genre, neutre[cadre.debut : jeton.start()]))
             cadre.debut = None
             cadre.mesuree = True
-        elif jeton.group("then") is not None:
+        if jeton.group("then") is not None:
             _qualifier_cadre_conditionnel(cadre, neutre, jeton)
             if cadre.genre == _GENRE_NEGATION and not cadre.mesuree:
                 cadre.debut = jeton.end()
-        elif jeton.group("sinon") is not None:
-            if cadre.genre == _GENRE_CONTROLE_DIRECT and not cadre.mesuree:
+            elif cadre.genre == _GENRE_CONTROLE_DIRECT and cadre.premier_then_vu:
                 cadre.debut = jeton.end()
+            cadre.premier_then_vu = True
+        elif jeton.group("sinon") is not None:
+            if jeton.group("sinon").strip() == _MOT_SINON_SHELL:
+                cadre.sinon_vu = True
+                if cadre.genre == _GENRE_CONTROLE_DIRECT:
+                    cadre.debut = jeton.end()
         if jeton.group("ferme") is not None:
-            if cadre.genre == _GENRE_CONTROLE_DIRECT and not cadre.mesuree:
+            if cadre.genre == _GENRE_CONTROLE_DIRECT and not cadre.sinon_vu:
                 branches.append((_GENRE_CONTROLE_DIRECT, ""))
             pile.pop()
     return branches
