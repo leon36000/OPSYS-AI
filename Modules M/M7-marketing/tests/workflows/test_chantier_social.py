@@ -84,7 +84,14 @@ class TestChaineCompleteReelle:
         noms_attendus = ["charge", "compose", "propose", "approuve", "publication"]
         for idx, nom in enumerate(noms_attendus):
             assert etapes[idx]["nom"] == nom
+
+        # Les quatre premières étapes aboutissent normalement.
+        for idx in range(4):
             assert etapes[idx]["statut"] == "SUCCES"
+
+        # NEW-PROD-008 : une publication refusée par le gate doit être BLOQUE,
+        # jamais SUCCES, même si le détail mentionne NotAutorise.
+        assert etapes[4]["statut"] == "BLOQUE"
 
         detail_pub = etapes[-1]["detail"]
         assert "NotAutorise" in str(detail_pub)
@@ -186,3 +193,64 @@ def test_type_travaux_invalide_rejete(tmp_path):
         chantier_social.orchestrer_chantier_vers_social(
             str(fixture_path), TIMESTAMP, ACTEUR_PROPOSE, ACTEUR_APPROUVE
         )
+
+
+def test_orchestrer_chantier_vers_social_statut_bloque_quand_non_autorise(
+    tmp_path, monkeypatch
+):
+    """NEW-PROD-008 : une publication refusée par le gate doit être BLOQUE, jamais SUCCES."""
+    chantier_dir = tmp_path / "residence-quebec-2026"
+    chantier_dir.mkdir()
+    chantier_file = chantier_dir / "chantier.yaml"
+    chantier_file.write_text(
+        yaml.safe_dump(
+            {
+                "fictif": True,
+                "type_travaux": "renovation_totale",
+                "ville": "Québec",
+                "description_factuelle": "Rénovation complète d'une résidence.",
+                "photos": [],
+            }
+        )
+    )
+
+    monkeypatch.setattr(chantier_social, "_charger_brand", lambda: {"nom": "TestBrand"})
+    monkeypatch.setattr(
+        chantier_social, "build_content_item", lambda *args, **kwargs: {"body": "Corps du post"}
+    )
+
+    approval_module = getattr(chantier_social, "approval", approval)
+    monkeypatch.setattr(approval_module, "propose", lambda item, *args, **kwargs: item)
+    monkeypatch.setattr(approval_module, "approve", lambda item, *args, **kwargs: item)
+
+    class FakeCanal:
+        GBP = type("GBP", (), {"value": "GBP"})()
+
+    monkeypatch.setattr(chantier_social, "Canal", FakeCanal)
+
+    class FakeSocialPost:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    monkeypatch.setattr(chantier_social, "SocialPost", FakeSocialPost)
+
+    class FakeAdapter:
+        def __init__(self, config):
+            self.config = config
+
+        def publier(self, post):
+            raise chantier_social.NotAutorise("publication non autorisée")
+
+    monkeypatch.setattr(chantier_social, "PostizAdapter", FakeAdapter)
+
+    result = chantier_social.orchestrer_chantier_vers_social(
+        chemin_chantier=str(chantier_file),
+        timestamp="2024-05-20T12:00:00Z",
+        acteur_propose="alice",
+        acteur_approuve="bob",
+    )
+
+    publication_etape = next(e for e in result["etapes"] if e["nom"] == "publication")
+    assert publication_etape["statut"] == "BLOQUE"
+    assert publication_etape["statut"] != "SUCCES"
+    assert result["metriques"]["publications_bloquees_gated"] == 1
