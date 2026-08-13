@@ -175,7 +175,7 @@ def orchestrer_chantier_vers_social(
         etapes.append(
             {
                 "nom": "publication",
-                "statut": "SUCCES",
+                "statut": "BLOQUE",
                 "detail": f"NotAutorise capturé : {e}",
             }
         )
