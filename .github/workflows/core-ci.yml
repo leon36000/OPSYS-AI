@@ -19,8 +19,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5 — pin SHA (D-035), même référence que .github/workflows/ci.yml
-      - name: Installer mypy (version mesurée localement lors de l'établissement de la baseline C02-004)
-        run: python3 -m pip install --quiet mypy==2.1.0
+        with:
+          fetch-depth: 0  # historique complet requis pour git diff contre origin/main
+      - name: Installer mypy et PyYAML (versions verrouillées)
+        run: python3 -m pip install --quiet mypy==2.1.0 PyYAML==6.0.1
+      - name: Récupérer origin/main pour les contrôles diff-aware
+        run: git fetch origin main --quiet
+      - name: Gate NO-STUB (AST, diff-aware)
+        run: python3 scripts/quality/no_stub_gate.py --repo . --base-ref origin/main
       - name: Gate mypy-core (C02-004) — baseline enregistrée, jamais masquée, jamais un pass silencieux
         run: |
           python3 - <<'PY'
