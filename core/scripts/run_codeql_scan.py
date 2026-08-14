@@ -217,10 +217,10 @@ def analyser_base(codeql: str, db_path: Path, sarif_path: Path) -> tuple[bool, s
 
 
 def _normaliser_chemin_sarif(chemin: str) -> str:
-    """Conserve les clés historiques de l'allowlist malgré la racine dépôt."""
-    prefixe_core = "core/"
-    if chemin.startswith(prefixe_core):
-        return chemin.removeprefix(prefixe_core)
+    """Conserve les clés historiques core/src sans collisionner les autres racines."""
+    prefixe_core_src = "core/src/"
+    if chemin.startswith(prefixe_core_src):
+        return chemin.removeprefix("core/")
     return chemin
 
 
