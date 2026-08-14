@@ -107,8 +107,20 @@ def verifier_runner_hermetique() -> tuple[bool, str]:
 
 
 def verifier_structure() -> tuple[bool, str]:
-    """Exécute le contrôle de structure sur les racines du contrat."""
-    racines = charger_racines_qualite()
+    """Exécute le contrôle de structure sur les racines du contrat, fail-closed."""
+    try:
+        racines = charger_racines_qualite()
+    except (OSError, tomllib.TOMLDecodeError, RuntimeError) as exc:
+        return (
+            False,
+            "structure_lint.py : ROUGE — quality-scopes.toml non mesurable "
+            f"({type(exc).__name__}) : {exc}",
+        )
+    if not racines:
+        return (
+            False,
+            "structure_lint.py : ROUGE — quality-scopes.toml : aucune racine Python existante",
+        )
     resultat = subprocess.run(
         [
             sys.executable,
