@@ -1,0 +1,1 @@
+CLR-001 TDD RED checkpoint only: this commit adds a focused regression test and intentionally makes no production/tool behavior change. No user-facing or canonical contract changes in this RED checkpoint; documentation is reviewed after the GREEN fix.

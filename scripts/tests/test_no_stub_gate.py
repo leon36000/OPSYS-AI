@@ -2199,6 +2199,22 @@ def test_signale_la_ligne_rapportee_par_lechec_de_tokenisation(tmp_path: Path) -
     assert lignes == {3}
 
 
+def test_base_ref_option_est_refuse_avant_tout_appel_git(tmp_path, monkeypatch) -> None:
+    """Un pseudo-ref Git ne doit jamais franchir la frontière subprocess."""
+    from scripts.quality import no_stub_gate as gate
+
+    fichier = tmp_path / "module.py"
+    contenu = "def fonction():\n    return 1\n"
+    fichier.write_text(contenu, encoding="utf-8")
+
+    def subprocess_interdit(*_args, **_kwargs):
+        pytest.fail("un --base-ref non fiable a atteint subprocess")
+
+    monkeypatch.setattr(gate.subprocess, "run", subprocess_interdit)
+    with pytest.raises(ValueError, match="base-ref"):
+        gate._lignes_du_diff(tmp_path, fichier, "--stat", contenu)
+
+
 def _sortie_git(repo: Path, *arguments: str) -> str:
     """Exécute git et retourne sa sortie, tout échec devenant une erreur explicite."""
     resultat = subprocess.run(
