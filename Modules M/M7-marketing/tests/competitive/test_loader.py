@@ -104,3 +104,27 @@ class TestLoader:
                     f"Le module {mod.__name__} contient une référence à {mot} "
                     f"— interdit dans nos sources"
                 )
+
+    def test_load_fixture_rejette_un_slug_de_traversee_de_chemin(self, tmp_path):
+        slug = "test-traversée"
+        dossier = tmp_path / slug
+        dossier.mkdir()
+        _creer_meta(dossier, fictif=True)
+        _creer_index(dossier)
+        _creer_robots(dossier)
+        _creer_sitemap(dossier)
+
+        with pytest.raises(ValueError):
+            loader.load_fixture("../../../etc", base_fixtures=tmp_path)
+
+    def test_load_fixture_rejette_un_slug_absolu(self, tmp_path):
+        slug = "test-absolu"
+        dossier = tmp_path / slug
+        dossier.mkdir()
+        _creer_meta(dossier, fictif=True)
+        _creer_index(dossier)
+        _creer_robots(dossier)
+        _creer_sitemap(dossier)
+
+        with pytest.raises(ValueError):
+            loader.load_fixture("/etc/passwd", base_fixtures=tmp_path)

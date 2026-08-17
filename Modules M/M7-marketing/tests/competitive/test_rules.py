@@ -193,6 +193,20 @@ class TestReglesSEO:
         result = analyzers.analyze_sitemap("")
         assert result["C-07"] == "KO"
 
+    def test_analyze_sitemap_rejette_un_xml_trop_volumineux(self):
+        overflow = "x" * (analyzers._XML_MAX_BYTES + 1)
+        xml_str = (
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+            f'{overflow}\n'
+            '</urlset>'
+        )
+        result = analyzers.analyze_sitemap(xml_str)
+        assert result == {
+            "C-07": "KO",
+            "detail_C-07": "sitemap.xml dépasse la taille maximale autorisée",
+        }
+
     # C-08
     def test_c08_conforme(self, tmp_path):
         # Créer un fichier stopwords minimal (vide pour ne filtrer aucun mot)
@@ -239,6 +253,11 @@ class TestReglesSEO:
                 assert "verdict" in verdict, f"Verdict sans clé 'verdict': {verdict}"
                 assert verdict["verdict"] in ("conforme", "non_conforme", "candidat_a_verifier", "KO"), \
                     f"Valeur de verdict invalide: {verdict['verdict']}"
+
+
+def test_load_stopwords_leve_si_le_chemin_est_fourni_mais_introuvable():
+    with pytest.raises(FileNotFoundError):
+        compare._load_stopwords("/chemin/qui/nexiste/pas.txt")
 
 
 def test_site_reel_compare():

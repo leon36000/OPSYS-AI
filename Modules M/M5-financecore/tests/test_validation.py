@@ -134,3 +134,21 @@ def test_valider_mouvement_rejette_une_source_vide():
     valide, verdict = validation.valider_mouvement(_mouvement(source=""))
     assert valide is False
     assert verdict["code"] == "REJ-MOUVEMENT-CHAMP-TEXTE-INVALIDE"
+
+
+def test_valider_mouvement_rejette_montant_nan():
+    valide, verdict = validation.valider_mouvement(_mouvement(montant=float("nan")))
+    assert valide is False
+    assert verdict["code"] == "REJ-MOUVEMENT-MONTANT-INVALIDE"
+
+
+def test_valider_mouvement_rejette_montant_infini_positif():
+    valide, verdict = validation.valider_mouvement(_mouvement(montant=float("inf")))
+    assert valide is False
+    assert verdict["code"] == "REJ-MOUVEMENT-MONTANT-INVALIDE"
+
+
+def test_valider_mouvement_rejette_montant_infini_negatif():
+    valide, verdict = validation.valider_mouvement(_mouvement(montant=float("-inf")))
+    assert valide is False
+    assert verdict["code"] == "REJ-MOUVEMENT-MONTANT-INVALIDE"
