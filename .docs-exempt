@@ -1,1 +1,1 @@
-CLR-001 TDD checkpoint: the security fix is GREEN at the subprocess boundary; this RED refinement adds only a CLI regression test for argparse-style rejection of invalid --base-ref before contract loading. No canonical contract change. This temporary exemption must be removed after the CLI GREEN verification.
+CLR-001 TDD checkpoint: candidate CLI GREEN validates --base-ref in argparse before contract loading while preserving the already-GREEN subprocess boundary. No canonical contract change. This temporary exemption must be removed after GREEN verification.

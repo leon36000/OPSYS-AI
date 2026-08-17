@@ -4705,7 +4705,7 @@ def main(argv: list[str] | None = None) -> int:
     """Exécute le gate avec les racines contractuelles par défaut sûr."""
     parser = argparse.ArgumentParser(description="Détecte les stubs et dettes qualité.")
     parser.add_argument("--repo", type=Path, default=Path.cwd())
-    parser.add_argument("--base-ref", default="HEAD")
+    parser.add_argument("--base-ref", type=_valider_base_ref, default="HEAD")
     parser.add_argument("--scope", action="append", dest="scopes")
     arguments = parser.parse_args(argv)
 
