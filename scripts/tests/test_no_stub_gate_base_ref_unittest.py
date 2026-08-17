@@ -25,6 +25,15 @@ class BaseRefValidationTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "base-ref"):
                     gate._lignes_du_diff(repo, fichier, "--stat", contenu)
 
+    def test_cli_rejects_invalid_base_ref_during_argument_parsing(self) -> None:
+        def contrat_interdit(*_args, **_kwargs):
+            self.fail("un --base-ref invalide a depasse argparse")
+
+        with patch.object(gate, "_lire_contrat", side_effect=contrat_interdit):
+            with self.assertRaises(SystemExit) as erreur:
+                gate.main(["--base-ref=--stat"])
+        self.assertEqual(erreur.exception.code, 2)
+
 
 if __name__ == "__main__":
     unittest.main()
