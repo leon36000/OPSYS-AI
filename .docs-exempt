@@ -1,1 +1,0 @@
-CLR-001 TDD checkpoint: candidate CLI GREEN validates --base-ref in argparse before contract loading while preserving the already-GREEN subprocess boundary. No canonical contract change. This temporary exemption must be removed after GREEN verification.
