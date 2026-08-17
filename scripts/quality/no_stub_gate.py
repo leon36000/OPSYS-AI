@@ -48,6 +48,7 @@ _APPELS_DE_SAUT: Final[Mapping[str, frozenset[str]]] = {
     "pytest": frozenset({"skip", "xfail", "importorskip"}),
     "unittest": frozenset({"skip", "skipIf", "skipUnless"}),
 }
+_BASE_REF_GIT_AUTORISEE: Final[re.Pattern[str]] = re.compile(r"(?!-)[^\x00-\x20\x7f]+")
 _IDENTIFIANT_REGLE_OPTIONNEL: Final[re.Pattern[str]] = re.compile(
     r"(?:[A-Za-z]+[0-9][A-Za-z0-9_-]*|\[[A-Za-z0-9_.-]+\]|[A-Za-z][A-Za-z0-9_.-]*)"
 )
@@ -2086,8 +2087,16 @@ def _est_vide_autorise(fichier: Path) -> bool:
     return fichier.name in {"__init__.py", ".gitkeep"}
 
 
+def _valider_base_ref(base_ref: str) -> str:
+    """Refuse une pseudo-référence Git ambiguë avant toute frontière subprocess."""
+    if _BASE_REF_GIT_AUTORISEE.fullmatch(base_ref) is None:
+        raise ValueError("--base-ref invalide")
+    return base_ref
+
+
 def _lignes_du_diff(repo: Path, fichier: Path, base_ref: str, contenu: str) -> set[int]:
     """Retourne les lignes ajoutées par Git, avec repli fermé pour non suivis."""
+    base_ref = _valider_base_ref(base_ref)
     relatif = _chemin_relatif(repo, fichier)
     suivi = subprocess.run(
         ["git", "ls-files", "--error-unmatch", "--", relatif],
