@@ -4439,12 +4439,13 @@ def _etape_execute_quelque_chose(etape: object) -> bool:
     Seuls ``run`` et ``uses`` déclenchent un travail : une étape réduite à un
     ``name`` décoratif n'exécute aucun contrôle.
 
-    La CLÉ ne suffit pourtant pas, et c'est MESURÉ : ``run: ''`` et ``run:
-    '   '`` satisfaisaient l'exigence d'étape effective alors qu'une commande
-    vide ou blanche ne lance rien — le job requis rapportait vert sans exécuter
-    le moindre contrôle, exactement le gate désarmé que la règle vise. La VALEUR
-    est donc lue, au même titre pour ``uses``, dont la référence vide ne désigne
-    aucune action.
+    La CLÉ ne suffit pourtant pas, et c'est MESURÉ : ``run: ''``, ``run:
+    '   '`` et un ``run`` composé uniquement de commentaires shell satisfaisaient
+    l'exigence d'étape effective alors qu'aucune commande n'est exécutée — le job
+    requis rapportait vert sans lancer le moindre contrôle, exactement le gate
+    désarmé que la règle vise. La VALEUR est donc lue après neutralisation des
+    chaînes/commentaires shell, au même titre pour ``uses``, dont la référence
+    vide ne désigne aucune action.
 
     Une valeur NON-CHAÎNE ne compte pas non plus, en fail-closed : l'analyse des
     commandes ignore déjà tout ``run`` qui n'est pas une chaîne, si bien que la
@@ -4453,11 +4454,15 @@ def _etape_execute_quelque_chose(etape: object) -> bool:
     """
     if not isinstance(etape, Mapping):
         return False
-    for champ in _CHAMPS_ETAPE_EFFECTIVE:
-        valeur = etape.get(champ)
-        if isinstance(valeur, str) and valeur.strip():
-            return True
-    return False
+    commande = etape.get("run")
+    if (
+        isinstance(commande, str)
+        and commande.strip()
+        and _neutraliser_chaines_shell(commande).strip()
+    ):
+        return True
+    reference = etape.get("uses")
+    return isinstance(reference, str) and bool(reference.strip())
 
 
 def _violation_job_requis_sans_etape(

@@ -194,6 +194,12 @@ contrôle et ne compte donc pas comme étape effective. Le même critère s'appl
 aux étapes des actions composites locales appelées par un job requis. Un job
 requis dépourvu à la fois de `steps` et de `uses` est refusé pour la même raison.
 
+```yaml
+- run: '# commentaire seulement'   # aucune étape effective — refusé
+- run: python3 -m pytest           # commande réelle — effectif
+- uses: actions/checkout@v5        # action désignée — effectif
+```
+
 **La présence de la CLÉ ne suffit pas : la VALEUR est lue.** MESURÉ avant
 correction — les deux formes suivantes satisfaisaient l'exigence d'étape
 effective alors qu'aucune commande n'est exécutée :
