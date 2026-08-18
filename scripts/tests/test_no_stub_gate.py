@@ -7447,6 +7447,45 @@ def test_accepte_un_oracle_pytest_importe_dans_la_fonction_de_test(
     assert "TEST_WITHOUT_ORACLE" not in _codes(_scanner(repo))
 
 
+def test_refuse_un_job_requis_dont_la_seule_etape_est_un_commentaire_shell(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un commentaire shell seul ne lance aucun contrôle requis."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _ecrire(
+        repo,
+        ".github/workflows/commentaire.yml",
+        "jobs:\n"
+        "  gates:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: '# rien'\n",
+    )
+
+    assert "REQUIRED_JOB_SANS_ETAPE" in _codes(_scanner(repo))
+
+
+def test_refuse_une_action_composite_locale_dont_la_seule_etape_est_un_commentaire_shell(
+    tmp_path: Path,
+) -> None:
+    """Prouve qu'un commentaire shell seul ne rend pas une action composite effective."""
+    repo = _depot_git_initialise(tmp_path)
+    _contrat(repo)
+    _job_requis_delegue(repo)
+    _ecrire(
+        repo,
+        ".github/actions/controle/action.yml",
+        "runs:\n  using: composite\n  steps:\n    - run: '# rien'\n",
+    )
+
+    assert any(
+        violation.code == "REQUIRED_JOB_SANS_ETAPE"
+        and violation.path == ".github/actions/controle/action.yml"
+        for violation in _scanner(repo)
+    )
+
+
 @pytest.mark.parametrize("valeur", ("''", "'   '", '"\\t"'))
 def test_refuse_un_job_requis_dont_la_seule_etape_porte_un_run_vide(
     tmp_path: Path, valeur: str

@@ -187,9 +187,12 @@ jobs: {gates: {runs-on: ubuntu-latest, steps: []}}       # refusé — aucune é
 jobs: {gates: {runs-on: ubuntu-latest, steps: [null]}}   # refusé — étape nulle
 ```
 
-Une étape ne compte que si elle porte `run` ou `uses` : une étape réduite à un
-`name` décoratif n'exécute rien. Un job requis dépourvu à la fois de `steps` et
-de `uses` est refusé pour la même raison.
+Une étape ne compte que si elle exécute réellement un `run` ou désigne un
+`uses` non vide : une étape réduite à un `name` décoratif n'exécute rien. Un
+`run` vide, blanc ou composé uniquement de commentaires shell n'exécute aucun
+contrôle et ne compte donc pas comme étape effective. Le même critère s'applique
+aux étapes des actions composites locales appelées par un job requis. Un job
+requis dépourvu à la fois de `steps` et de `uses` est refusé pour la même raison.
 
 **La présence de la CLÉ ne suffit pas : la VALEUR est lue.** MESURÉ avant
 correction — les deux formes suivantes satisfaisaient l'exigence d'étape
