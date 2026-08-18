@@ -17,4 +17,3 @@ target_required_job_ids = [
   "pack-validation",
   "proof-sealed",
 ]
-
