@@ -54,7 +54,8 @@ def test_codeql_transmet_toutes_les_racines_dans_l_environnement(
     env = captures[0]["env"]
     assert isinstance(env, dict)
     assert env["LGTM_INDEX_FILTERS"] == "\n".join(
-        f"include:{racine}" for racine in _racines_contractuelles()
+        ["exclude:**/*"]
+        + [f"include:{racine}/**" for racine in _racines_contractuelles()]
     )
 
 

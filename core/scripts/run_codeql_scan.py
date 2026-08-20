@@ -152,8 +152,11 @@ def construire_filtres_index() -> str:
     if not racines:
         raise OutilCodeQLAbsent("aucune racine Python existante dans quality-scopes.toml")
     return "\n".join(
-        f"include:{racine.relative_to(_REPO_ROOT).as_posix()}"
-        for racine in racines
+        ["exclude:**/*"]
+        + [
+            f"include:{racine.relative_to(_REPO_ROOT).as_posix()}/**"
+            for racine in racines
+        ]
     )
 
 

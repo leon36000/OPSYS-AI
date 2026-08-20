@@ -878,6 +878,19 @@ Une **tranche** n'est pas une clé littérale : `[:1]` ne peut jamais être pris
 pour la lecture qu'il réduit. Le nom de l'appelé est délibérément ignoré — c'est
 la clé qui décide, jamais l'orthographe de la méthode d'accès.
 
+#### CodeQL : l'inclusion doit d'abord exclure
+
+`core/scripts/run_codeql_scan.py` transmet le périmètre au CLI CodeQL via
+`LGTM_INDEX_FILTERS`. Le filtre commence par `exclude:**/*`, puis ajoute une
+ligne `include:<racine>/**` pour chaque racine existante du contrat. Cette
+forme est volontaire : une liste composée uniquement d'inclusions laisse le
+reste de l'arbre indexable par le CLI et produit des findings hors contrat.
+Le test `core/tests/bootstrap/test_security_tool_scope.py` capture
+l'environnement réellement passé à l'exécuteur et verrouille l'ordre ainsi que
+les cinq racines. Le scan CodeQL local doit ensuite être rejoué ; tout finding
+dans les racines autorisées reste un résultat à corriger ou à justifier
+individuellement, jamais une raison d'élargir silencieusement le périmètre.
+
 Le rôle est prouvé **deux fois** : par le contexte de déclaration, et par la
 présence de la source des racines dans l'expression. MESURÉ sur ce dépôt : le
 seul contexte de déclaration retient **16 expressions légitimes** des lanceurs —

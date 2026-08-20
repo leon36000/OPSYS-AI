@@ -217,7 +217,6 @@ _NOMS_ABSENCE_IMPLEMENTATION: Final[frozenset[str]] = frozenset(
         "NotImplemented",
     }
 )  # proof:allow — fixture/constante du gate NO-STUB : ce motif EST le sujet du test
-_CHAMPS_ETAPE_EFFECTIVE: Final[tuple[str, ...]] = ("run", "uses")
 _ATTRIBUT_PROUVANT_PROTOCOL: Final[str] = "Protocol"
 _ATTRIBUT_PROUVANT_ABSTRACTMETHOD: Final[str] = "abstractmethod"
 _MODULES_TYPING: Final[frozenset[str]] = frozenset({"typing", "typing_extensions"})
