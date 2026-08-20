@@ -882,9 +882,11 @@ la clé qui décide, jamais l'orthographe de la méthode d'accès.
 
 `core/scripts/run_codeql_scan.py` transmet le périmètre au CLI CodeQL via
 `LGTM_INDEX_FILTERS`. Le filtre commence par `exclude:**/*`, puis ajoute une
-ligne `include:<racine>/**` pour chaque racine existante du contrat. Cette
-forme est volontaire : une liste composée uniquement d'inclusions laisse le
-reste de l'arbre indexable par le CLI et produit des findings hors contrat.
+ligne `include:<racine>/**` pour chaque racine du contrat. Les cinq racines
+doivent toutes exister : une racine absente fait échouer le chargeur en
+fail-closed au lieu de réduire silencieusement le périmètre. Cette forme est
+volontaire : une liste composée uniquement d'inclusions laisse le reste de
+l'arbre indexable par le CLI et produit des findings hors contrat.
 Le test `core/tests/bootstrap/test_security_tool_scope.py` capture
 l'environnement réellement passé à l'exécuteur et verrouille l'ordre ainsi que
 les cinq racines. Le scan CodeQL local doit ensuite être rejoué ; tout finding

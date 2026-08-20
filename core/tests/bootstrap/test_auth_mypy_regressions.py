@@ -28,6 +28,7 @@ def test_admin_gate_refuse_un_timestep_absent_sans_ecrire_dans_le_replay(
     assert all(None not in timesteps for timesteps in gate._replay_state.values())
 
 
-def test_totp_convertit_une_erreur_base32_en_resultat_invalide() -> None:
-    """Une base32 invalide reste un échec contrôlé, jamais un AttributeError."""
-    assert totp.verify_totp("not-base32!", "123456") == (False, None)
+def test_totp_convertit_une_erreur_base32_en_value_error() -> None:
+    """Le décodage public transforme l'erreur binaire en ValueError stable."""
+    with pytest.raises(ValueError, match="secret base32 invalide"):
+        totp._decode_secret("not-base32!")

@@ -17,17 +17,17 @@ import run_security_scan as security  # noqa: E402
 
 
 def _racines_contractuelles() -> tuple[str, ...]:
-    return tuple(
-        racine
-        for racine in (
-            "core/src",
-            "core/scripts",
-            "tools/proof",
-            "scripts",
-            ".opsys/tools/github-control",
-        )
-        if (_REPO_ROOT / racine).exists()
+    return (
+        "core/src",
+        "core/scripts",
+        "tools/proof",
+        "scripts",
+        ".opsys/tools/github-control",
     )
+
+
+def test_les_cinq_racines_contractuelles_existent() -> None:
+    assert all((_REPO_ROOT / racine).is_dir() for racine in _racines_contractuelles())
 
 
 def test_codeql_transmet_toutes_les_racines_dans_l_environnement(
@@ -84,3 +84,25 @@ def test_security_transmet_toutes_les_racines_a_bandit(
     assert argv[index + 1 : index + 1 + len(_racines_contractuelles())] == [
         str(_REPO_ROOT / racine) for racine in _racines_contractuelles()
     ]
+
+
+def test_codeql_refuse_une_racine_contractuelle_absente(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    contrat = tmp_path / "quality-scopes.toml"
+    contrat.write_text('python_roots = ["core/src", "missing-root"]\n', encoding="utf-8")
+    monkeypatch.setattr(codeql, "_QUALITY_SCOPES", contrat)
+
+    with pytest.raises(codeql.OutilCodeQLAbsent, match="racine.*absente"):
+        codeql.charger_racines_qualite()
+
+
+def test_bandit_refuse_une_racine_contractuelle_absente(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    contrat = tmp_path / "quality-scopes.toml"
+    contrat.write_text('python_roots = ["core/src", "missing-root"]\n', encoding="utf-8")
+    monkeypatch.setattr(security, "_QUALITY_SCOPES", contrat)
+
+    with pytest.raises(security.OutilSecuriteAbsent, match="racine.*absente"):
+        security.charger_racines_qualite()

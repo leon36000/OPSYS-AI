@@ -132,11 +132,13 @@ def charger_racines_qualite() -> tuple[Path, ...]:
     racines = contrat.get("python_roots")
     if not isinstance(racines, list) or not all(isinstance(racine, str) for racine in racines):
         raise OutilCodeQLAbsent("contrat quality-scopes.toml invalide : python_roots attendu")
-    return tuple(
-        chemin
-        for racine in racines
-        if (chemin := _REPO_ROOT / racine).exists()
-    )
+    chemins = tuple(_REPO_ROOT / racine for racine in racines)
+    manquantes = [racine for racine, chemin in zip(racines, chemins) if not chemin.is_dir()]
+    if manquantes:
+        raise OutilCodeQLAbsent(
+            "racine(s) qualité absente(s) du dépôt : " + ", ".join(manquantes)
+        )
+    return chemins
 
 
 # core/tests/ (dossiers de test
