@@ -50,7 +50,7 @@
 
 **Interfaces:**
 - Consumes: the current exact tree, not old issue conclusions.
-- Produces: fresh A1/A2/A4/A5/A6 findings with evidence refs and explicit `NEEDS_EVIDENCE` boundaries.
+- Produces: fresh A1/A2/A3/A4/A5/A6 findings with evidence refs and explicit `NEEDS_EVIDENCE` boundaries.
 
 - [ ] **Step 1: Run the audit harness against the current tree.**
 
