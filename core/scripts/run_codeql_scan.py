@@ -1,8 +1,9 @@
 """Scan CodeQL réel (SAST approfondi, local) sur le périmètre contractuel.
 
 Le périmètre vient désormais du contrat unique core/quality-scopes.toml :
-toutes les racines présentes définies par ce contrat sont indexées, tandis
-que les racines absentes sont tolérées.
+les cinq racines définies par ce contrat sont toutes indexées. Une racine
+absente fait échouer le chargement du contrat, afin de ne jamais réduire
+silencieusement le périmètre audité.
 
 PORTÉE ASSUMÉE — LOCAL, PAS CI : le CLI CodeQL est un outil installé
 manuellement (bundle ~578 Mo, `github/codeql-action` releases, jamais un
@@ -126,7 +127,7 @@ class OutilCodeQLAbsent(RuntimeError):
 
 
 def charger_racines_qualite() -> tuple[Path, ...]:
-    """Charge les racines Python existantes définies par le contrat unique."""
+    """Charge toutes les racines Python du contrat, ou échoue fermement."""
     with _QUALITY_SCOPES.open("rb") as flux:
         contrat = tomllib.load(flux)
     racines = contrat.get("python_roots")
@@ -149,7 +150,7 @@ def charger_racines_qualite() -> tuple[Path, ...]:
 # ce filtre, tous dans des fichiers de test pré-existants sans rapport
 # avec le CI-hardening).
 def construire_filtres_index() -> str:
-    """Construit les filtres CodeQL pour toutes les racines contractuelles présentes."""
+    """Construit les filtres CodeQL pour toutes les racines contractuelles."""
     racines = charger_racines_qualite()
     if not racines:
         raise OutilCodeQLAbsent("aucune racine Python existante dans quality-scopes.toml")
