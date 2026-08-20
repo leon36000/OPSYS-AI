@@ -286,4 +286,3 @@ Expected: no unrelated files, no M1–M10 logic, no new secrets, no undocumented
 - [ ] **Step 3: Prepare the handoff without publishing externally**
 
 The handoff must state the exact candidate identity, tests and exit codes, proof verdict, unresolved blockers, and that no push, merge, deployment, or GitHub issue mutation was performed unless explicitly authorized in a later step.
-
