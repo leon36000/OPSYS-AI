@@ -5,6 +5,11 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 E2E_DIR="${REPO_ROOT}/tests/e2e"
 K6_SCRIPT="${E2E_DIR}/k6/brand_smoke.js"
 BRAND_SERVER="${REPO_ROOT}/Modules M/M7-marketing/src/brand/brand_server.py"
+E2E_REQUIREMENTS_LOCK="${E2E_DIR}/requirements.lock"
+
+# Aucun interpréteur système implicite : l'appelant (CI ou développeur) doit
+# déclarer le Python dont l'environnement contient les dépendances verrouillées.
+PYTHON_BIN="${PYTHON_BIN:-}"
 
 # Variables partagées avec le trap EXIT/INT/TERM.
 # Elles NE PEUVENT PAS être 'local' dans une fonction car le trap s'exécute
@@ -62,8 +67,30 @@ trap 'arreter_serveur; exit 143' TERM
 # ----------------------------------------------------------------------
 # Fonctions utilitaires
 # ----------------------------------------------------------------------
+verifier_interpreteur() {
+  if [ -z "${PYTHON_BIN}" ]; then
+    echo "ERREUR: PYTHON_BIN est obligatoire (Python de l'environnement E2E préparé)." >&2
+    echo "Exemple: PYTHON_BIN=.venv/bin/python bash scripts/run-e2e.sh e2e" >&2
+    return 1
+  fi
+  if ! command -v "${PYTHON_BIN}" >/dev/null 2>&1; then
+    echo "ERREUR: interpréteur PYTHON_BIN introuvable: ${PYTHON_BIN}" >&2
+    return 1
+  fi
+}
+
+verifier_dependances_e2e() {
+  local imports="$1"
+  if ! "${PYTHON_BIN}" -c "import ${imports}" >/dev/null 2>&1; then
+    echo "ERREUR: l'environnement ${PYTHON_BIN} ne contient pas les dépendances E2E (${imports})." >&2
+    echo "Installez-les avec: ${PYTHON_BIN} -m pip install --require-hashes -r ${E2E_REQUIREMENTS_LOCK}" >&2
+    return 1
+  fi
+}
+
 run_python_e2e() {
-  python3 -m pytest "${E2E_DIR}" -q
+  verifier_dependances_e2e "pytest, yaml" || return 1
+  "${PYTHON_BIN}" -m pytest "${E2E_DIR}" -q
 }
 
 run_k6() {
@@ -71,9 +98,10 @@ run_k6() {
     echo "SKIP: k6 absent"
     return 0
   fi
+  verifier_dependances_e2e "yaml" || return 1
 
   local PORT BASE_URL
-  PORT="$(python3 - <<'PY'
+  PORT="$("${PYTHON_BIN}" - <<'PY'
 import socket
 s = socket.socket()
 s.bind(("127.0.0.1", 0))
@@ -84,7 +112,7 @@ PY
   BASE_URL="http://127.0.0.1:${PORT}"
   SERVER_LOG="$(mktemp)"
 
-  python3 "${BRAND_SERVER}" "${PORT}" >"${SERVER_LOG}" 2>&1 </dev/null &
+  "${PYTHON_BIN}" "${BRAND_SERVER}" "${PORT}" >"${SERVER_LOG}" 2>&1 </dev/null &
   SERVER_PID=$!
 
   local deadline
@@ -95,7 +123,7 @@ PY
         break
       fi
     else
-      if python3 - <<PY >/dev/null 2>&1
+      if "${PYTHON_BIN}" - <<PY >/dev/null 2>&1
 import urllib.request
 urllib.request.urlopen("${BASE_URL}/brand", timeout=5)
 PY
@@ -128,6 +156,10 @@ PY
 main() {
   local mode
   mode="${1:-}"
+
+  if ! verifier_interpreteur; then
+    exit 10
+  fi
 
   case "${mode}" in
     e2e)

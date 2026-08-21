@@ -1,6 +1,7 @@
 import os
 import shutil
 import subprocess
+import sys
 import time
 import tempfile
 from pathlib import Path
@@ -13,6 +14,10 @@ SCRIPT = REPO_ROOT / "scripts" / "run-e2e.sh"
 # découverte de k6 ; un PATH vidé masquerait aussi bash et le test
 # échouerait sur FileNotFoundError au lieu de tester le script.
 _BASH = shutil.which("bash") or "/usr/bin/bash"
+
+
+def _env_with_path(path: str) -> dict[str, str]:
+    return {**os.environ, "PATH": path, "PYTHON_BIN": sys.executable}
 
 
 def _make_fake_k6(dirpath: str) -> str:
@@ -35,7 +40,7 @@ def test_mode_load_reussit_avec_k6_factice():
     with tempfile.TemporaryDirectory() as tmpdir:
         _make_fake_k6(tmpdir)
         new_path = f"{tmpdir}:/usr/bin:/bin"
-        env = {**os.environ, "PATH": new_path}
+        env = _env_with_path(new_path)
         completed = subprocess.run(
             [_BASH, str(SCRIPT), "load"],
             capture_output=True, text=True,
@@ -91,7 +96,7 @@ def test_aucun_processus_serveur_ne_survit_au_run():
         pytest.skip("pgrep absent : impossible d'observer les processus")
     with tempfile.TemporaryDirectory() as tmpdir:
         _make_fake_k6(tmpdir)
-        env = {**os.environ, "PATH": f"{tmpdir}:/usr/bin:/bin"}
+        env = _env_with_path(f"{tmpdir}:/usr/bin:/bin")
         completed = subprocess.run(
             [_BASH, str(SCRIPT), "load"],
             capture_output=True, text=True, cwd=REPO_ROOT, env=env,
@@ -108,7 +113,7 @@ def test_aucun_processus_serveur_ne_survit_au_run():
 
 def test_skip_propre_si_k6_absent():
     """Prouve qu'en l'absence de k6, le mode load sort 0 et affiche le SKIP."""
-    env_no_k6 = {**os.environ}
+    env_no_k6 = {**os.environ, "PYTHON_BIN": sys.executable}
     # On retire k6 du PATH en utilisant un répertoire vide comme seul chemin.
     with tempfile.TemporaryDirectory() as tmpdir:
         # PATH volontairement dépourvu de k6 mais contenant python3 :
@@ -161,7 +166,7 @@ def test_echec_k6_rend_20_et_nettoie():
     avant = _pids_brand_server()
     with tempfile.TemporaryDirectory() as tmpdir:
         _ecrire_k6_factice(tmpdir, 'echo "k6 factice : echec simule" >&2\nexit 1\n')
-        env = {**os.environ, "PATH": f"{tmpdir}:/usr/bin:/bin"}
+        env = _env_with_path(f"{tmpdir}:/usr/bin:/bin")
         completed = subprocess.run(
             [_BASH, str(SCRIPT), "load"],
             capture_output=True, text=True, cwd=REPO_ROOT, env=env,
@@ -206,7 +211,7 @@ def test_trap_nettoie_sur_signal_term():
     _MARGE_COMMUNICATE = 60
     with tempfile.TemporaryDirectory() as tmpdir:
         _ecrire_k6_factice(tmpdir, f"sleep {_SOMMEIL_K6}\n")
-        env = {**os.environ, "PATH": f"{tmpdir}:/usr/bin:/bin"}
+        env = _env_with_path(f"{tmpdir}:/usr/bin:/bin")
         proc = subprocess.Popen(
             [_BASH, str(SCRIPT), "load"],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
