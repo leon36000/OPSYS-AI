@@ -16,7 +16,7 @@ def _recording_python(tmp_path: Path) -> tuple[Path, Path]:
     log = tmp_path / "python-argv.log"
     wrapper = tmp_path / "python-wrapper"
     wrapper.write_text(
-        "#!/usr/bin/python3\n"
+        f"#!{sys.executable}\n"
         "import os\n"
         "import sys\n"
         f"with open({str(log)!r}, 'a', encoding='utf-8') as stream:\n"
