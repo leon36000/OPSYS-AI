@@ -1,4 +1,5 @@
 import sys
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -40,4 +41,8 @@ def test_encoder_canonique_est_deterministe_pour_un_dict():
         {"y": 2, "x": 1}
     )
 
+
+def test_decimal_est_encode_deterministement_et_sans_collision_de_repr():
+    assert encodage.empreinte(Decimal("1.00")) == encodage.empreinte(Decimal("1.00"))
+    assert encodage.empreinte(Decimal("1.0")) != encodage.empreinte(Decimal("1.00"))
 

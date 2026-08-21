@@ -176,6 +176,47 @@ def test_enregistrer_mouvement_rejette_float_sans_ecrire():
     assert journal.lire() == []
 
 
+def test_ajouter_accepte_un_maillon_mouvement_decimal_complet():
+    journal = registre.Registre()
+    entree = {**_mouvement(), "type_entree": "mouvement_enregistre"}
+
+    ligne_id = journal.ajouter(entree)
+
+    assert journal.lire()[0]["ligne_id"] == ligne_id
+    assert journal.lire()[0]["montant"] == Decimal("125.00")
+    assert journal.valider_chaine() == (True, "")
+
+
+def test_ajouter_rejette_un_champ_mouvement_inattendu_sans_ecrire():
+    journal = registre.Registre()
+    entree = {
+        **_mouvement(),
+        "type_entree": "mouvement_enregistre",
+        "devise": "CAD",
+    }
+
+    with pytest.raises(validation.MouvementInvalide) as erreur:
+        journal.ajouter(entree)
+
+    assert erreur.value.verdict["code"] == "REJ-MOUVEMENT-STRUCTURE-INVALIDE"
+    assert journal.lire() == []
+
+
+@pytest.mark.parametrize(
+    "montant",
+    [Decimal("NaN"), Decimal("sNaN"), Decimal("Infinity"), Decimal("-Infinity")],
+)
+def test_ajouter_rejette_un_decimal_non_fini_sans_ecrire(montant):
+    journal = registre.Registre()
+    entree = {**_mouvement(), "type_entree": "mouvement_enregistre", "montant": montant}
+
+    with pytest.raises(validation.MouvementInvalide) as erreur:
+        journal.ajouter(entree)
+
+    assert erreur.value.verdict["code"] == "REJ-MOUVEMENT-MONTANT-INVALIDE"
+    assert journal.lire() == []
+
+
 def test_ajouter_rejette_un_maillon_mouvement_float_sans_ecrire():
     journal = registre.Registre()
 
