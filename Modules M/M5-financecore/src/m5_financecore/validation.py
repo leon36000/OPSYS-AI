@@ -1,12 +1,20 @@
 from __future__ import annotations
 
-import math
+from decimal import Decimal
 
 from . import contrats
 
 
 class CodeVerdictInconnu(Exception):
     pass
+
+
+class MouvementInvalide(ValueError):
+    """Rejet nommé d'un mouvement avant son écriture dans le registre."""
+
+    def __init__(self, verdict):
+        self.verdict = verdict
+        super().__init__(verdict["code"])
 
 
 CODES_M5_LIST = [
@@ -49,10 +57,10 @@ def valider_mouvement(mouvement):
         return False, construire_verdict("REJ-MOUVEMENT-STRUCTURE-INVALIDE")
 
     montant = mouvement["montant"]
-    if isinstance(montant, bool) or not isinstance(montant, (int, float)):
+    if not isinstance(montant, Decimal):
         return False, construire_verdict("REJ-MOUVEMENT-MONTANT-INVALIDE")
 
-    if isinstance(montant, float) and not math.isfinite(montant):
+    if not montant.is_finite():
         return False, construire_verdict("REJ-MOUVEMENT-MONTANT-INVALIDE")
 
     for champ in _CHAMPS_TEXTE_MOUVEMENT:

@@ -57,10 +57,11 @@ chaîne, jamais stocké dans un champ positionnable. Détail complet en architec
 ### 2.1 Enregistrement d'un mouvement financier
 
 Un appelant fournit un mouvement `{montant, type_mouvement, horodatage, classe_retention, source}`.
-M5 valide sa structure (montant numérique, type_mouvement soit une valeur connue soit `AUTRE`,
-classe_retention connue) — un mouvement structurellement invalide est rejeté par un verdict nommé,
-jamais accepté avec une valeur devinée. Le mouvement validé est ajouté au registre append-only,
-haché.
+M5 valide sa structure (`montant` `Decimal` fini, type_mouvement soit une valeur connue soit
+`AUTRE`, classe_retention connue) — les `float`, `int`, booléens et valeurs non finies sont
+refusés par un verdict nommé, jamais convertis silencieusement. Le mouvement validé est ajouté au
+registre append-only, haché. `enregistrer_mouvement` et l'ajout direct d'un maillon
+`mouvement_enregistre` partagent cette garde avant toute écriture.
 
 ### 2.2 Calcul de l'état financier — solde vs argent disponible
 
@@ -165,7 +166,7 @@ la nature fiscale ou non de ce qu'il rapporte).
 
 ```yaml
 MouvementFinancier:
-  montant: float            # signé : positif = encaissement, négatif = décaissement (convention gelée ici)
+  montant: Decimal          # signé : positif = encaissement, négatif = décaissement ; construit depuis un texte décimal
   type_mouvement: str       # enum TypeMouvement
   horodatage: str           # fourni par l'appelant, reproduit tel quel — M5 n'a pas d'horloge
   classe_retention: str     # enum ClasseRetention
@@ -176,7 +177,7 @@ MouvementFinancier:
 
 ```yaml
 MaillonMouvement:
-  montant: float
+  montant: Decimal
   type_mouvement: str
   horodatage: str
   classe_retention: str
@@ -231,15 +232,28 @@ MaillonApprobation:
 EtatFinancier:
   type: str                     # toujours "ETAT_FINANCIER"
   role: str | null               # null = non filtré (vue complète)
-  solde: float | null             # null SSI rôle non autorisé aux coûts
-  argent_disponible: float | null # null SSI rôle non autorisé aux coûts
+  solde: Decimal | null           # null SSI rôle non autorisé aux coûts
+  argent_disponible: Decimal | null # null SSI rôle non autorisé aux coûts
   taux_utilises: list             # [{id, version}], vide si non autorisé aux coûts
   etat_id: str                    # sha256 déterministe du contenu (patron roi_engine.py)
 ```
 
+### 5.6 Représentation exacte des montants — correction NEW-PROD-003
+
+Les montants, soldes et argent disponible sont des `Decimal` Python finis. L'appelant construit
+un `Decimal` depuis une représentation textuelle (`Decimal("0.10")`) ; M5 refuse les `float`, les
+`int`, les booléens et les valeurs `NaN`/infinies sans coercition. Le rejet porte le verdict
+`REJ-MOUVEMENT-MONTANT-INVALIDE` dans `MouvementInvalide` et intervient avant l'écriture, y
+compris lorsque l'appel passe directement par `Registre.ajouter`.
+
+La devise et une éventuelle échelle fixe restent hors du périmètre v1 : `Decimal("1.0")` et
+`Decimal("1.00")` sont des valeurs exactes mais leurs représentations canoniques restent
+distinctes pour le hash. Les taux fiscaux restent des fractions `float` versionnées : ils ne sont
+pas des montants et cette correction ne modifie pas leur contrat.
+
 ## 6. CRITÈRES D'ACCEPTATION
 
-- **CA-M5-01** : un mouvement financier structurellement valide (montant numérique,
+- **CA-M5-01** : un mouvement financier structurellement valide (montant `Decimal` fini,
   `type_mouvement` connu ou `AUTRE`, `classe_retention` connue) est accepté ; un mouvement
   structurellement invalide est rejeté par un verdict nommé.
 - **CA-M5-02** : le registre append-only des mouvements est hash-chaîné (patron M2/M4/M6/M8) ;
@@ -257,11 +271,11 @@ EtatFinancier:
   un `type_travaux` hors de `TYPES_TRAVAUX` (qui inclut pourtant `"autre"`) plutôt que de le
   coercer silencieusement — l'échappatoire est un CHOIX explicite de l'appelant, jamais une
   correction automatique d'une entrée invalide.
-- **CA-M5-05** : le solde est la somme signée de tous les mouvements du registre QUI AFFECTENT le
+- **CA-M5-05** : le solde `Decimal` est la somme signée de tous les mouvements du registre QUI AFFECTENT le
   solde réel — `ENCAISSEMENT`, `DECAISSEMENT`, `AJUSTEMENT`, `AUTRE` — à l'EXCLUSION de
   `PROVISION`, qui par sa propre définition (§4.1) n'est « pas un mouvement de solde réel ».
   Calcul pur, reproductible par re-calcul complet (mêmes mouvements → même solde).
-- **CA-M5-06** : l'argent disponible est le solde moins la somme de TOUS les mouvements de type
+- **CA-M5-06** : l'argent disponible `Decimal` est le solde moins la somme de TOUS les mouvements de type
   `PROVISION` du registre (v1 : aucune libération de provision — une libération future sera un
   maillon `AJUSTEMENT` dédié référençant la provision d'origine par sa source, jamais une
   réécriture du mouvement `PROVISION` original) — champ distinct du solde, jamais confondu dans un

@@ -1,4 +1,5 @@
 import sys
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -7,7 +8,7 @@ _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from m5_financecore import registre
+from m5_financecore import registre, validation
 
 
 HORODATAGE = "2026-08-03T12:00:00+00:00"
@@ -15,7 +16,7 @@ HORODATAGE = "2026-08-03T12:00:00+00:00"
 
 def _entree(suffix=""):
     return {
-        "type_entree": "mouvement_enregistre",
+        "type_entree": "demande_creee",
         "horodatage": HORODATAGE,
         "valeur": suffix,
     }
@@ -23,7 +24,7 @@ def _entree(suffix=""):
 
 def _mouvement(source="caisse-principale"):
     return {
-        "montant": "125.00",
+        "montant": Decimal("125.00"),
         "type_mouvement": "ENCAISSEMENT",
         "horodatage": HORODATAGE,
         "classe_retention": "STANDARD",
@@ -46,7 +47,7 @@ def test_ajouter_retourne_un_ligne_id_et_lire_retourne_le_maillon_complet():
     assert len(maillons) == 1
     assert maillons[0]["ligne_id"] == ligne_id
     assert maillons[0]["precedent_ligne_id"] is None
-    assert maillons[0]["type_entree"] == "mouvement_enregistre"
+    assert maillons[0]["type_entree"] == "demande_creee"
 
 
 def test_ajouter_protege_le_maillon_de_la_mutation_de_l_entree_originale():
@@ -146,6 +147,10 @@ def test_enregistrer_mouvement_chaine_deux_maillons_et_conserve_les_champs():
         assert premier[champ] == valeur
         assert second[champ] == valeur
 
+    assert type(premier["montant"]) is Decimal
+    assert type(second["montant"]) is Decimal
+    assert journal.valider_chaine() == (True, "")
+
     assert set(premier) == {
         "montant",
         "type_mouvement",
@@ -157,6 +162,37 @@ def test_enregistrer_mouvement_chaine_deux_maillons_et_conserve_les_champs():
         "precedent_ligne_id",
     }
     assert journal.lire() == [premier, second]
+
+
+def test_enregistrer_mouvement_rejette_float_sans_ecrire():
+    journal = registre.Registre()
+    mouvement = _mouvement()
+    mouvement["montant"] = 0.1
+
+    with pytest.raises(validation.MouvementInvalide) as erreur:
+        registre.enregistrer_mouvement(mouvement, journal)
+
+    assert erreur.value.verdict["code"] == "REJ-MOUVEMENT-MONTANT-INVALIDE"
+    assert journal.lire() == []
+
+
+def test_ajouter_rejette_un_maillon_mouvement_float_sans_ecrire():
+    journal = registre.Registre()
+
+    with pytest.raises(validation.MouvementInvalide) as erreur:
+        journal.ajouter(
+            {
+                "montant": 0.1,
+                "type_mouvement": "ENCAISSEMENT",
+                "horodatage": HORODATAGE,
+                "classe_retention": "STANDARD",
+                "source": "test",
+                "type_entree": "mouvement_enregistre",
+            }
+        )
+
+    assert erreur.value.verdict["code"] == "REJ-MOUVEMENT-MONTANT-INVALIDE"
+    assert journal.lire() == []
 
 
 def test_valider_chaine_detecte_une_valeur_de_maillon_falsifiee():
