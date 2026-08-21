@@ -9,17 +9,34 @@ Preuve de bout en bout que le système FONCTIONNE (pas seulement que les tests u
 - `k6/brand_smoke.js` — smoke de charge k6 (seuils : `http_req_failed==0`, `p95<500ms`).
 - `playwright/` — scaffold ; E2E navigateur ajouté avec l'UI dashboard (P0-5).
 
-## Lancer
+## Dépendances et lancement
+
+Le harnais E2E dépend de PyYAML et pytest. Le lock
+`tests/e2e/requirements.lock` contient ces paquets et leurs dépendances
+transitives avec des hashes obligatoires. Le harnais refuse tout interpréteur
+implicite : `PYTHON_BIN` doit pointer vers l'environnement préparé.
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install --require-hashes -r tests/e2e/requirements.lock
+PYTHON_BIN=.venv/bin/python bash scripts/run-e2e.sh e2e
+PYTHON_BIN=.venv/bin/python bash scripts/run-e2e.sh load
 ```
-python3 -m pytest tests/e2e -q          # e2e Python (aucune dépendance externe)
-bash scripts/run-e2e.sh e2e             # idem, via le runner
-bash scripts/run-e2e.sh load            # smoke k6 seul (démarre son serveur)
-bash scripts/run-e2e.sh                 # les deux
+
+## Lancer les tests directement
+
+```
+.venv/bin/python -m pytest tests/e2e -q  # e2e Python (dépendances du lock)
+PYTHON_BIN=.venv/bin/python bash scripts/run-e2e.sh e2e
+PYTHON_BIN=.venv/bin/python bash scripts/run-e2e.sh load
+PYTHON_BIN=.venv/bin/python bash scripts/run-e2e.sh                 # les deux
 ```
 Codes de sortie du runner : `0` OK · `10` e2e échec · `20` k6 échec.
 
 ## CI (deux jobs distincts, aucun ne touche le contexte protégé « gates »)
-- **`e2e`** : deps épinglées (`pytest==9.1.1 PyYAML==6.0.1`) + `run-e2e.sh e2e`.
-- **`e2e-load`** : deps épinglées + k6 v0.54.0 épinglé par checksum sha256 + `run-e2e.sh load`.
+- **`e2e`** : Python 3.12 fourni par `setup-python`, lock E2E installé avec
+  `--require-hashes`, puis `PYTHON_BIN=python3 run-e2e.sh e2e`.
+- **`e2e-load`** : même lock + k6 v0.54.0 épinglé par checksum sha256 +
+  `PYTHON_BIN=python3 run-e2e.sh load`.
 
 Les deux sont informatifs au départ (promotion en check requis après stabilité, cf. avis architecte).
