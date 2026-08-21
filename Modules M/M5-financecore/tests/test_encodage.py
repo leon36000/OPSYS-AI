@@ -12,9 +12,12 @@ from m5_financecore import encodage
 
 
 def test_empreinte_est_deterministe():
-    assert encodage.empreinte(1, "a", {"x": 1}) == encodage.empreinte(
-        1, "a", {"x": 1}
-    )
+    valeurs = (1, "a", {"x": 1})
+
+    premiere_empreinte = encodage.empreinte(*valeurs)
+    seconde_empreinte = encodage.empreinte(*valeurs)
+
+    assert premiere_empreinte == seconde_empreinte
 
 
 def test_ordre_des_cles_d_un_dict_n_affecte_pas_l_empreinte():
@@ -43,6 +46,9 @@ def test_encoder_canonique_est_deterministe_pour_un_dict():
 
 
 def test_decimal_est_encode_deterministement_et_sans_collision_de_repr():
-    assert encodage.empreinte(Decimal("1.00")) == encodage.empreinte(Decimal("1.00"))
-    assert encodage.empreinte(Decimal("1.0")) != encodage.empreinte(Decimal("1.00"))
+    valeur = Decimal("1.00")
+    premiere_empreinte = encodage.empreinte(valeur)
+    seconde_empreinte = encodage.empreinte(valeur)
 
+    assert premiere_empreinte == seconde_empreinte
+    assert encodage.empreinte(Decimal("1.0")) != encodage.empreinte(Decimal("1.00"))
