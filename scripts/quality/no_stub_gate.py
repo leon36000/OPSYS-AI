@@ -48,9 +48,11 @@ _APPELS_DE_SAUT: Final[Mapping[str, frozenset[str]]] = {
     "pytest": frozenset({"skip", "xfail", "importorskip"}),
     "unittest": frozenset({"skip", "skipIf", "skipUnless"}),
 }
-_BASE_REF_GIT_AUTORISEE: Final[re.Pattern[str]] = re.compile(r"(?!-)[^\x00-\x20\x7f]+")
 _CHEMIN_GIT_AUTORISEE: Final[re.Pattern[str]] = re.compile(
     r"[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*"
+)
+_BASE_REF_GIT_AUTORISEE: Final[re.Pattern[str]] = re.compile(
+    r"(?!-)[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*"
 )
 _IDENTIFIANT_REGLE_OPTIONNEL: Final[re.Pattern[str]] = re.compile(
     r"(?:[A-Za-z]+[0-9][A-Za-z0-9_-]*|\[[A-Za-z0-9_.-]+\]|[A-Za-z][A-Za-z0-9_.-]*)"

@@ -29,7 +29,8 @@ frontière `subprocess`. Il doit être relatif au dépôt, composé uniquement d
 segments alphanumériques, `_`, `.`, `-` et `/`, sans segment `.` ou `..`. Les
 commandes Git reçoivent ensuite un `argv` sans chemin dynamique : elles listent
 les chemins suivis et produisent le diff complet, filtré en mémoire sur le
-chemin validé ; `--end-of-options` protège aussi la référence de base. Un
+chemin validé. La référence de base suit la même liste blanche et ne peut pas
+commencer par `-` ; `--end-of-options` la protège aussi côté Git. Un
 pathspec ambigu ou contenant un métacaractère est refusé en mode fail-closed ;
 il ne peut donc pas devenir une option Git ou une expression de pathspec.
 

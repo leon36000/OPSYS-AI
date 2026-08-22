@@ -25,6 +25,20 @@ class BaseRefValidationTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "base-ref"):
                     gate._lignes_du_diff(repo, fichier, "--stat", contenu)
 
+    def test_base_ref_hors_liste_blanche_est_rejete_avant_git(self) -> None:
+        with TemporaryDirectory() as repertoire:
+            repo = Path(repertoire)
+            fichier = repo / "module.py"
+            contenu = "def fonction():\n    return 1\n"
+            fichier.write_text(contenu, encoding="utf-8")
+
+            def subprocess_interdit(*_args, **_kwargs):
+                self.fail("une --base-ref hors liste blanche a atteint subprocess")
+
+            with patch.object(gate.subprocess, "run", side_effect=subprocess_interdit):
+                with self.assertRaisesRegex(ValueError, "base-ref"):
+                    gate._lignes_du_diff(repo, fichier, "main;echo", contenu)
+
     def test_cli_rejects_invalid_base_ref_during_argument_parsing(self) -> None:
         def contrat_interdit(*_args, **_kwargs):
             self.fail("un --base-ref invalide a depasse argparse")
