@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from decimal import Decimal
+
 _TYPES_SOLDE = ("ENCAISSEMENT", "DECAISSEMENT", "AJUSTEMENT", "AUTRE")
 
 
 def calculer_solde(registre_cible):
-    total = 0.0
+    total = Decimal("0")
     for maillon in registre_cible.lire():
         if maillon.get("type_entree") != "mouvement_enregistre":
             continue
@@ -15,7 +17,7 @@ def calculer_solde(registre_cible):
 
 def calculer_argent_disponible(registre_cible):
     solde = calculer_solde(registre_cible)
-    total_provisions = 0.0
+    total_provisions = Decimal("0")
     for maillon in registre_cible.lire():
         if maillon.get("type_entree") != "mouvement_enregistre":
             continue

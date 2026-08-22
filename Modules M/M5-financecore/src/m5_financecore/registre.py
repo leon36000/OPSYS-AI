@@ -3,7 +3,7 @@ from __future__ import annotations
 import copy
 from datetime import datetime
 
-from . import encodage
+from . import encodage, validation
 
 __all__ = ["Registre", "enregistrer_mouvement"]
 
@@ -45,6 +45,16 @@ class Registre:
                 f"type_entree non reconnu : {type_entree!r}. "
                 f"Attendu l'un de {sorted(_TYPE_ENTREE_VALIDES)}."
             )
+
+        if type_entree == "mouvement_enregistre":
+            corps_mouvement = {
+                cle: valeur
+                for cle, valeur in entree.items()
+                if cle not in ("type_entree", "ligne_id", "precedent_ligne_id")
+            }
+            valide, verdict = validation.valider_mouvement(corps_mouvement)
+            if not valide:
+                raise validation.MouvementInvalide(verdict)
 
         if "horodatage" not in entree:
             raise KeyError("horodatage")
@@ -95,4 +105,3 @@ def enregistrer_mouvement(mouvement_valide, registre_cible):
         if maillon["ligne_id"] == ligne_id:
             return maillon
     raise RuntimeError("Maillon ajouté introuvable.")
-

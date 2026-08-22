@@ -1,4 +1,5 @@
 import sys
+from decimal import Decimal
 from pathlib import Path
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
@@ -15,7 +16,7 @@ def _registre_peuple():
     registre_cible = registre.Registre()
     registre.enregistrer_mouvement(
         {
-            "montant": 100.0,
+            "montant": Decimal("100.00"),
             "type_mouvement": "ENCAISSEMENT",
             "horodatage": HORODATAGE,
             "classe_retention": "STANDARD",
@@ -51,8 +52,10 @@ def test_construit_un_etat_financier_autorise_avec_les_soldes():
 
     assert resultat["type"] == "ETAT_FINANCIER"
     assert resultat["role"] == "gestionnaire"
-    assert resultat["solde"] == 100.0
-    assert resultat["argent_disponible"] == 100.0
+    assert type(resultat["solde"]) is Decimal
+    assert type(resultat["argent_disponible"]) is Decimal
+    assert resultat["solde"] == Decimal("100.00")
+    assert resultat["argent_disponible"] == Decimal("100.00")
     assert resultat["taux_utilises"] == taux
     assert resultat["etat_id"]
 
@@ -117,21 +120,21 @@ def test_registre_vide_produit_des_soldes_nuls():
         autorise_couts=True,
     )
 
-    assert resultat["solde"] == 0.0
-    assert resultat["argent_disponible"] == 0.0
+    assert resultat["solde"] == Decimal("0")
+    assert resultat["argent_disponible"] == Decimal("0")
 
 
 def test_argent_disponible_tient_compte_des_provisions():
     registre_cible = _registre_peuple()
-    _ajouter_mouvement(registre_cible, 25.0, "PROVISION")
+    _ajouter_mouvement(registre_cible, Decimal("25.00"), "PROVISION")
 
     resultat = etat_financier.construire_etat_financier(
         registre_cible,
         [],
     )
 
-    assert resultat["solde"] == 100.0
-    assert resultat["argent_disponible"] == 75.0
+    assert resultat["solde"] == Decimal("100.00")
+    assert resultat["argent_disponible"] == Decimal("75.00")
 
 
 def test_deux_constructions_identiques_sont_deterministes():
