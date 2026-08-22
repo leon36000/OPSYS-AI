@@ -1,4 +1,5 @@
 import sys
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -12,7 +13,7 @@ from m5_financecore import contrats, validation
 
 def _mouvement(**surcharges):
     mouvement = {
-        "montant": 150.0,
+        "montant": Decimal("150.00"),
         "type_mouvement": "ENCAISSEMENT",
         "horodatage": "2026-08-03T12:00:00+00:00",
         "classe_retention": "STANDARD",
@@ -51,6 +52,20 @@ def test_construire_verdict_rejette_un_code_inconnu():
 
 def test_valider_mouvement_accepte_un_mouvement_valide():
     assert validation.valider_mouvement(_mouvement()) == (True, None)
+
+
+def test_valider_mouvement_rejette_un_montant_float_binaire():
+    valide, verdict = validation.valider_mouvement(_mouvement(montant=0.1))
+
+    assert valide is False
+    assert verdict["code"] == "REJ-MOUVEMENT-MONTANT-INVALIDE"
+
+
+def test_valider_mouvement_rejette_un_montant_entier():
+    valide, verdict = validation.valider_mouvement(_mouvement(montant=1))
+
+    assert valide is False
+    assert verdict["code"] == "REJ-MOUVEMENT-MONTANT-INVALIDE"
 
 
 def test_valider_mouvement_accepte_le_type_autre():
@@ -150,5 +165,16 @@ def test_valider_mouvement_rejette_montant_infini_positif():
 
 def test_valider_mouvement_rejette_montant_infini_negatif():
     valide, verdict = validation.valider_mouvement(_mouvement(montant=float("-inf")))
+    assert valide is False
+    assert verdict["code"] == "REJ-MOUVEMENT-MONTANT-INVALIDE"
+
+
+@pytest.mark.parametrize(
+    "montant",
+    [Decimal("NaN"), Decimal("sNaN"), Decimal("Infinity"), Decimal("-Infinity")],
+)
+def test_valider_mouvement_rejette_un_decimal_non_fini(montant):
+    valide, verdict = validation.valider_mouvement(_mouvement(montant=montant))
+
     assert valide is False
     assert verdict["code"] == "REJ-MOUVEMENT-MONTANT-INVALIDE"

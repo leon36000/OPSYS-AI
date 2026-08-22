@@ -68,7 +68,7 @@ garde AST anti-écriture-hors-fonction-autorisée (DA-M5-01, patron DA-M6-11) n'
 
 ```yaml
 MouvementFinancier:
-  montant: float            # signé : positif = encaissement, négatif = décaissement
+  montant: Decimal          # signé : positif = encaissement, négatif = décaissement ; construit depuis un texte décimal
   type_mouvement: str        # enum TypeMouvement
   horodatage: str             # fourni par l'appelant — M5 n'a pas d'horloge
   classe_retention: str        # enum ClasseRetention
@@ -79,7 +79,7 @@ MouvementFinancier:
 
 ```yaml
 MaillonMouvement:
-  montant: float
+  montant: Decimal
   type_mouvement: str
   horodatage: str
   classe_retention: str
@@ -122,13 +122,24 @@ MaillonApprobation:
 EtatFinancier:
   type: str                      # toujours "ETAT_FINANCIER"
   role: str | null
-  solde: float | null              # null SSI rôle non autorisé aux coûts
-  argent_disponible: float | null  # null SSI rôle non autorisé aux coûts
+  solde: Decimal | null            # null SSI rôle non autorisé aux coûts
+  argent_disponible: Decimal | null # null SSI rôle non autorisé aux coûts
   taux_utilises: list               # [{id, version}], vide si non autorisé aux coûts
   etat_id: str
 ```
 
-### 2.6 Énumérés fermés (copie mot pour mot du PRD §4)
+### 2.6 Représentation exacte des montants — correction NEW-PROD-003
+
+Les champs `montant`, `solde` et `argent_disponible` utilisent `Decimal` fini. La frontière
+`validation.valider_mouvement` refuse `float`, `int`, booléens et valeurs `NaN`/infinies ;
+`Registre.ajouter` réapplique cette garde aux maillons `mouvement_enregistre` avant le calcul du
+hash et l'écriture dans la chaîne, et soulève `MouvementInvalide` avec le verdict nommé
+`REJ-MOUVEMENT-MONTANT-INVALIDE`. `Decimal` est déjà supporté par `encodage.py`, donc le hash
+reste déterministe et injectif. La devise et l'échelle fixe sont explicitement différées ; les
+taux fiscaux, qui sont des fractions versionnées et non des montants, conservent leur contrat
+`float`.
+
+### 2.7 Énumérés fermés (copie mot pour mot du PRD §4)
 
 #### `TypeMouvement`
 
@@ -279,8 +290,9 @@ données elles-mêmes ; c'est un fait à corriger, pas un verdict de blâme.
 ### DA-M5-09 — Snapshot/mouvement validé AVANT écriture, aucune écriture partielle
 
 **Décision** : `validation.py` vérifie la structure ENTIÈRE d'un `MouvementFinancier` (montant
-numérique, type et classe de rétention connus) AVANT tout appel à `registre.ajouter`. Un mouvement
-invalide ne produit AUCUNE écriture.
+`Decimal` fini, type et classe de rétention connus) AVANT tout appel à `registre.ajouter`.
+`Registre.ajouter` réapplique la même garde pour un maillon `mouvement_enregistre`, de sorte qu'un
+mouvement invalide ne produit AUCUNE écriture, quel que soit le chemin public emprunté.
 
 **Justification** : patron déjà appliqué trois fois (DA-M6-08, DA-M8-06) — « valider toutes les
 clés avant la première écriture » ; M5 n'a pas de notion de lot multi-lignes en v1 (un mouvement =
