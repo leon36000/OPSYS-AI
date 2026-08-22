@@ -29,18 +29,19 @@ frontière `subprocess`. Il doit être relatif au dépôt, composé uniquement d
 segments alphanumériques, `_`, `.`, `-` et `/`, sans segment `.` ou `..`. Les
 commandes Git reçoivent ensuite un `argv` sans chemin dynamique : elles listent
 les chemins suivis et produisent le diff complet, filtré en mémoire sur le
-chemin validé. La référence de base suit une expression régulière ancrée sur
-la même liste blanche et ne peut pas commencer par `-` ; `--end-of-options` la
-protège aussi côté Git. La garde est répétée juste avant l’appel `subprocess`
-qui construit la révision, afin que cette frontière reste vérifiable par les
-analyseurs statiques. Un
+chemin validé. La référence de base est limitée aux deux références du contrat,
+`HEAD` et `origin/main`; les autres valeurs sont refusées avant Git. La
+révision envoyée à `subprocess` est ensuite choisie parmi deux littéraux, et
+`--end-of-options` la protège aussi côté Git. Ainsi aucune valeur provenant de
+la CLI ne devient un argument Git dynamique. Un
 pathspec ambigu ou contenant un métacaractère est refusé en mode fail-closed ;
 il ne peut donc pas devenir une option Git ou une expression de pathspec.
 
 Cette propriété est verrouillée par
 `scripts/tests/test_no_stub_gate_base_ref_unittest.py`, qui vérifie qu’un nom
 de fichier contenant des métacaractères est rejeté avant tout appel à
-`subprocess` et qu’un chemin nominal n’apparaît pas dans les `argv` Git.
+`subprocess`, qu’une référence hors contrat est rejetée et qu’un chemin nominal
+n’apparaît pas dans les `argv` Git.
 
 ## Contrôles refusés
 
