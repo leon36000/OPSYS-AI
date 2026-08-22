@@ -24,17 +24,19 @@ neutralisation équivalente de son code de retour.
 
 ## Frontière Git des contrôles diff-aware
 
-Le chemin relatif transmis aux commandes Git qui calculent les lignes modifiées
-est validé avant la frontière `subprocess`. Il doit être relatif au dépôt,
-composé uniquement de segments alphanumériques, `_`, `.`, `-` et `/`, sans
-segment `.` ou `..`, puis reste placé après `--` dans les arguments Git. Un
+Le chemin relatif utilisé pour calculer les lignes modifiées est validé avant la
+frontière `subprocess`. Il doit être relatif au dépôt, composé uniquement de
+segments alphanumériques, `_`, `.`, `-` et `/`, sans segment `.` ou `..`. Les
+commandes Git reçoivent ensuite un `argv` sans chemin dynamique : elles listent
+les chemins suivis et produisent le diff complet, filtré en mémoire sur le
+chemin validé ; `--end-of-options` protège aussi la référence de base. Un
 pathspec ambigu ou contenant un métacaractère est refusé en mode fail-closed ;
 il ne peut donc pas devenir une option Git ou une expression de pathspec.
 
 Cette propriété est verrouillée par
 `scripts/tests/test_no_stub_gate_base_ref_unittest.py`, qui vérifie qu’un nom
 de fichier contenant des métacaractères est rejeté avant tout appel à
-`subprocess`.
+`subprocess` et qu’un chemin nominal n’apparaît pas dans les `argv` Git.
 
 ## Contrôles refusés
 

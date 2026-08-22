@@ -2107,28 +2107,51 @@ def _valider_chemin_git(pathspec: str) -> str:
     return pathspec
 
 
+def _section_diff_fichier(diff: str, relatif: str) -> str:
+    """Isole en mémoire la section Git correspondant au fichier demandé."""
+    marqueur = f"+++ b/{relatif}\n"
+    return next(
+        (section for section in diff.split("diff --git ")[1:] if marqueur in section),
+        "",
+    )
+
+
 def _lignes_du_diff(repo: Path, fichier: Path, base_ref: str, contenu: str) -> set[int]:
-    """Retourne les lignes ajoutées par Git, avec repli fermé pour non suivis."""
+    """Retourne les lignes ajoutées par Git, avec repli fermé pour non suivis.
+
+    Les commandes Git ne reçoivent aucun chemin dynamique dans leur ``argv`` :
+    elles listent les chemins suivis et le diff complet, puis le fichier validé
+    est sélectionné en mémoire. Cela conserve le comportement diff-aware sans
+    exposer un pathspec contrôlable à la frontière système.
+    """
     base_ref = _valider_base_ref(base_ref)
     relatif = _valider_chemin_git(_chemin_relatif(repo, fichier))
     suivi = subprocess.run(
-        ["git", "ls-files", "--error-unmatch", "--", relatif],
+        ["git", "ls-files", "-z"],
         cwd=repo,
         capture_output=True,
         text=True,
         check=False,
     )
-    if suivi.returncode != 0:
+    if suivi.returncode != 0 or relatif not in suivi.stdout.split("\0"):
         return set(range(1, len(contenu.splitlines()) + 1))
     resultat = subprocess.run(
-        ["git", "diff", "--unified=0", f"{base_ref}...HEAD", "--", relatif],
+        [
+            "git",
+            "diff",
+            "--unified=0",
+            "--no-ext-diff",
+            "--no-renames",
+            "--end-of-options",
+            f"{base_ref}...HEAD",
+        ],
         cwd=repo,
         capture_output=True,
         text=True,
         check=False,
     )
     return (
-        _parser_hunks(resultat.stdout)
+        _parser_hunks(_section_diff_fichier(resultat.stdout, relatif))
         if resultat.returncode == 0
         else set(range(1, len(contenu.splitlines()) + 1))
     )

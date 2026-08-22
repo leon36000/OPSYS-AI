@@ -49,6 +49,40 @@ class BaseRefValidationTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "chemin"):
                     gate._lignes_du_diff(repo, fichier, "origin/main", contenu)
 
+    def test_nom_de_fichier_filtre_en_memoire_et_absent_des_argv_git(self) -> None:
+        """Le chemin cible ne doit pas être transmis comme argument à Git."""
+        with TemporaryDirectory() as repertoire:
+            repo = Path(repertoire)
+            fichier = repo / "module.py"
+            contenu = "def fonction():\n    return 1\n"
+            fichier.write_text(contenu, encoding="utf-8")
+            appels: list[tuple[list[str], dict[str, object]]] = []
+
+            def git_sans_pathspec(argv: list[str], **kwargs: object):
+                appels.append((argv, kwargs))
+                if argv[1] == "ls-files":
+                    return gate.subprocess.CompletedProcess(
+                        argv, 0, stdout="module.py\0", stderr=""
+                    )
+                return gate.subprocess.CompletedProcess(
+                    argv,
+                    0,
+                    stdout=(
+                        "diff --git a/module.py b/module.py\n"
+                        "--- a/module.py\n"
+                        "+++ b/module.py\n"
+                        "@@ -1 +1 @@\n"
+                        "+def fonction():\n"
+                    ),
+                    stderr="",
+                )
+
+            with patch.object(gate.subprocess, "run", side_effect=git_sans_pathspec):
+                assert gate._lignes_du_diff(repo, fichier, "origin/main", contenu) == {1}
+
+            assert len(appels) == 2
+            assert all("module.py" not in argv for argv, _ in appels)
+
 
 if __name__ == "__main__":
     unittest.main()
