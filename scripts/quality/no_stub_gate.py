@@ -51,8 +51,11 @@ _APPELS_DE_SAUT: Final[Mapping[str, frozenset[str]]] = {
 _CHEMIN_GIT_AUTORISEE: Final[re.Pattern[str]] = re.compile(
     r"[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*"
 )
+# Keep the sanitizer in the anchored form understood by static analyzers. The
+# leading-dash rule is explicit because ``-`` is valid in a ref segment but a
+# ref beginning with it can still be parsed as a Git option.
 _BASE_REF_GIT_AUTORISEE: Final[re.Pattern[str]] = re.compile(
-    r"(?!-)[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*"
+    r"\A[A-Za-z0-9_./-]+\Z"
 )
 _IDENTIFIANT_REGLE_OPTIONNEL: Final[re.Pattern[str]] = re.compile(
     r"(?:[A-Za-z]+[0-9][A-Za-z0-9_-]*|\[[A-Za-z0-9_.-]+\]|[A-Za-z][A-Za-z0-9_.-]*)"
@@ -2093,7 +2096,7 @@ def _est_vide_autorise(fichier: Path) -> bool:
 
 def _valider_base_ref(base_ref: str) -> str:
     """Refuse une pseudo-référence Git ambiguë avant toute frontière subprocess."""
-    if _BASE_REF_GIT_AUTORISEE.fullmatch(base_ref) is None:
+    if base_ref.startswith("-") or _BASE_REF_GIT_AUTORISEE.match(base_ref) is None:
         raise ValueError("--base-ref invalide")
     return base_ref
 
@@ -2126,7 +2129,10 @@ def _lignes_du_diff(repo: Path, fichier: Path, base_ref: str, contenu: str) -> s
     est sélectionné en mémoire. Cela conserve le comportement diff-aware sans
     exposer un pathspec contrôlable à la frontière système.
     """
-    base_ref = _valider_base_ref(base_ref)
+    # Keep the validation adjacent to the subprocess boundary so the
+    # sanitizer-to-argument data flow remains explicit to static analyzers.
+    if base_ref.startswith("-") or _BASE_REF_GIT_AUTORISEE.match(base_ref) is None:
+        raise ValueError("--base-ref invalide")
     relatif = _valider_chemin_git(_chemin_relatif(repo, fichier))
     suivi = subprocess.run(
         ["git", "ls-files", "-z"],
