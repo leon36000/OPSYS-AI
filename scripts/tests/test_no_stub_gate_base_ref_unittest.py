@@ -34,6 +34,21 @@ class BaseRefValidationTest(unittest.TestCase):
                 gate.main(["--base-ref=--stat"])
         self.assertEqual(erreur.exception.code, 2)
 
+    def test_pathspec_git_hors_liste_blanche_est_rejete_avant_git(self) -> None:
+        """Un nom de fichier non sûr ne doit jamais atteindre git comme argument."""
+        with TemporaryDirectory() as repertoire:
+            repo = Path(repertoire)
+            fichier = repo / "module;$(touch pwned).py"
+            contenu = "def fonction():\n    return 1\n"
+            fichier.write_text(contenu, encoding="utf-8")
+
+            def subprocess_interdit(*_args, **_kwargs):
+                self.fail("un pathspec non fiable a atteint subprocess")
+
+            with patch.object(gate.subprocess, "run", side_effect=subprocess_interdit):
+                with self.assertRaisesRegex(ValueError, "chemin"):
+                    gate._lignes_du_diff(repo, fichier, "origin/main", contenu)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -49,6 +49,9 @@ _APPELS_DE_SAUT: Final[Mapping[str, frozenset[str]]] = {
     "unittest": frozenset({"skip", "skipIf", "skipUnless"}),
 }
 _BASE_REF_GIT_AUTORISEE: Final[re.Pattern[str]] = re.compile(r"(?!-)[^\x00-\x20\x7f]+")
+_CHEMIN_GIT_AUTORISEE: Final[re.Pattern[str]] = re.compile(
+    r"[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*"
+)
 _IDENTIFIANT_REGLE_OPTIONNEL: Final[re.Pattern[str]] = re.compile(
     r"(?:[A-Za-z]+[0-9][A-Za-z0-9_-]*|\[[A-Za-z0-9_.-]+\]|[A-Za-z][A-Za-z0-9_.-]*)"
 )
@@ -2093,10 +2096,21 @@ def _valider_base_ref(base_ref: str) -> str:
     return base_ref
 
 
+def _valider_chemin_git(pathspec: str) -> str:
+    """Refuse un pathspec ambigu avant de le transmettre à une commande Git."""
+    segments = pathspec.split("/")
+    if (
+        _CHEMIN_GIT_AUTORISEE.fullmatch(pathspec) is None
+        or any(segment in {".", ".."} for segment in segments)
+    ):
+        raise ValueError("chemin Git invalide")
+    return pathspec
+
+
 def _lignes_du_diff(repo: Path, fichier: Path, base_ref: str, contenu: str) -> set[int]:
     """Retourne les lignes ajoutées par Git, avec repli fermé pour non suivis."""
     base_ref = _valider_base_ref(base_ref)
-    relatif = _chemin_relatif(repo, fichier)
+    relatif = _valider_chemin_git(_chemin_relatif(repo, fichier))
     suivi = subprocess.run(
         ["git", "ls-files", "--error-unmatch", "--", relatif],
         cwd=repo,
