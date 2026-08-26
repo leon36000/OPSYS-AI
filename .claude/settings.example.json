@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "availableModels": [
+    "claude-sonnet-5"
+  ],
+  "env": {
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-5",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "model": "claude-sonnet-5",
+  "permissions": {
+    "defaultMode": "auto",
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)",
+      "Read(./credentials/**)",
+      "Bash(curl *)",
+      "Bash(wget *)"
+    ],
+    "disableBypassPermissionsMode": "disable"
+  }
+}
