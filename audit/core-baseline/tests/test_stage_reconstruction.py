@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -31,7 +32,20 @@ from stage_reconstruction import (
     SOURCES_CANONIQUES,
 )
 
-PACK_ROOT = Path("/home/pc1/core-pack/OPSYS-AI-CORE-EXECUTION-PACK-v2.3.1-fusion")
+# AUD-CORE-006 : le pack d'exécution Core est un artefact externe au dépôt,
+# propre à chaque poste — aucun littéral de chemin hôte ici. Si OPSYS_PACK
+# est absent ou pointe vers un dossier inexistant, ce module SKIPPE
+# explicitement (jamais un pass silencieux) : un test qui ne peut pas
+# mesurer doit se déclarer sauté, pas vert.
+_OPSYS_PACK = os.environ.get("OPSYS_PACK")
+if not _OPSYS_PACK or not Path(_OPSYS_PACK).is_dir():
+    pytest.skip(
+        "OPSYS_PACK non défini ou introuvable — définir "
+        "OPSYS_PACK=/chemin/vers/OPSYS-AI-CORE-EXECUTION-PACK-vX.Y.Z-fusion "
+        "(dossier existant) pour exécuter ces tests contre le pack réel.",
+        allow_module_level=True,
+    )
+PACK_ROOT = Path(_OPSYS_PACK)
 
 # ---------------------------------------------------------------------------
 # 3 cas RED obligatoires (noms imposés)
