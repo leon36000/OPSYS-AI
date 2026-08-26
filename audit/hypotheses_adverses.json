@@ -383,7 +383,7 @@
       "conversion": {
         "commande": "gh api sur la protection de branche et les check-runs des 6 derniers commits de main",
         "resultat": "required_status_checks = [\"gates\"] ; SonarCloud a echoue sur 2 commits DEJA fusionnes (3935ffd7, 16a53d36) sans bloquer. L'API publique repond « Project doesn't exist » : un total=0 obtenu par cette voie est un FAUX ZERO.",
-        "conclusion": "CONFIRMEE et documentee. Non convertie en constat formel : le diagnostic exige un jeton que seul Nathan detient (frontiere T3). L'audit ne peut pas prouver CE que Sonar reproche, seulement que son echec ne bloque rien. Ce dernier point est deja porte par AUD-A5-001."
+        "conclusion": "CONFIRMEE et documentee. Non convertie en constat formel : le diagnostic exige un jeton que seul Nathan detient (frontiere T3). L'audit ne peut pas prouver CE que Sonar reproche, seulement que son echec ne bloque rien. Ce dernier point etait porte par AUD-A5-001, constat retire le 2026-08-26 (issue #565, PR #567) parce que son temoin ne le reproduisait plus : les tests authz et coffre ont ete deplaces dans le job bloquant `gates`. Le volet SonarCloud, lui, n'est pas traite par cette PR et reste entier : `required_status_checks` vaut ['gates'], donc un echec SonarCloud ne bloque toujours rien."
       }
     }
   ],

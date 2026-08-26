@@ -55,7 +55,16 @@ une condition `if:` (ex. `if: false`, ou une expression qui évalue à faux
 qu'il ne bloquerait rien non plus. De même, un `continue-on-error` exprimé
 comme une expression GitHub Actions (`${{ ... }}`) plutôt que le littéral
 booléen `true` n'est pas reconnu : seule la valeur booléenne stricte est
-comparée. Ce sont des trous d'oracle CONNUS et non fermés par ce module,
+comparée. Troisième trou, du même registre que celui que ce module vient
+de fermer : un step dont le `run:` avale son propre code de retour au
+niveau shell (`... || true`, `set +e`, `; exit 0`) est classé bloquant,
+alors qu'il ne bloque rien. Mesuré sur fixture : un step
+`pytest "core/src/authz/tests" -q || true` dans un job sain rend une liste
+vide. Aucune occurrence de cette forme n'existe aujourd'hui dans `ci.yml`
+(recherche des trois formes dans le fichier : zéro), l'exposition est donc
+nulle — mais le trou est réel et nommé plutôt que tu.
+
+Ce sont des trous d'oracle CONNUS et non fermés par ce module,
 pas des cas couverts par omission silencieuse.
 """
 from __future__ import annotations
