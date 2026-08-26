@@ -3,7 +3,7 @@ name: opsys-issue-restructure
 description: Writer for one atomic restructuring, packaging, complexity or proven cleanup issue.
 model: claude-sonnet-5
 effort: max
-permissionMode: auto
+permissionMode: default
 background: true
 maxTurns: 240
 isolation: worktree

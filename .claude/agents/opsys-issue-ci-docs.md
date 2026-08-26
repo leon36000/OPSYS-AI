@@ -3,7 +3,7 @@ name: opsys-issue-ci-docs
 description: Writer for independent CI, documentation, canon, manifest and supply-chain issues.
 model: claude-sonnet-5
 effort: max
-permissionMode: auto
+permissionMode: default
 background: true
 maxTurns: 240
 isolation: worktree

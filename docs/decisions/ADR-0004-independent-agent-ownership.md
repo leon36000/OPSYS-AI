@@ -24,12 +24,22 @@ ci-dessous).
 ## Supersession retirée
 
 La version proposée de ce document affirmait remplacer « l'ancien modèle où Claude Code
-était maître d'œuvre GitHub global ». Vérification menée avec la commande
-`git grep -niE "ma.tre.d.(oe|œ)uvre|github global"` sur l'historique de ce dépôt :
-**aucune trace d'un tel modèle antérieur, nulle part.** L'affirmation n'était rattachée
-à aucune pièce vérifiable et a donc été retirée plutôt que reformulée — cette section
-documente le retrait pour que l'écart reste traçable au lieu de disparaître
-silencieusement.
+était maître d'œuvre GitHub global ». Une première vérification (revue #1) citait
+`git grep -niE "ma.tre.d.(oe|œ)uvre|github global"` « sur l'historique de ce dépôt » :
+c'était inexact à double titre — un `git grep` sans révision n'interroge que l'arbre de
+travail courant, jamais l'historique, et rejouée telle quelle aujourd'hui cette commande
+retourne une correspondance : celle portée par ce paragraphe lui-même, qui cite la
+formulation pour la retirer. Ce n'est pas une preuve, dans un sens ou dans l'autre, sur un
+modèle antérieur réel.
+
+Vérification réellement rejouée sur l'historique du tronc :
+`git log origin/main --pickaxe-regex -S'ma.tre.d.(oe|œ)uvre|github global' --oneline`
+→ sortie vide (810 commits parcourus sur `origin/main`, aucune correspondance) : **aucun
+commit du tronc n'a jamais ajouté ni retiré cette formulation.** Le fond de l'affirmation
+tient donc, sur cette base ; sa méthode de vérification initiale ne tenait pas.
+L'affirmation n'était de toute façon rattachée à aucune pièce vérifiable et a donc été
+retirée plutôt que reformulée — cette section documente le retrait pour que l'écart reste
+traçable au lieu de disparaître silencieusement.
 
 ## Conséquences
 

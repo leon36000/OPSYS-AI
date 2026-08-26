@@ -3,7 +3,7 @@ name: opsys-issue-security-quality
 description: Writer for independent security, tests, quality, portability and observability issues.
 model: claude-sonnet-5
 effort: max
-permissionMode: auto
+permissionMode: default
 background: true
 maxTurns: 240
 isolation: worktree

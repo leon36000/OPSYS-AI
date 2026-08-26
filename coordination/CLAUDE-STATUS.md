@@ -7,7 +7,14 @@ Updated UTC : `2026-08-26T10:59Z`
 - Lead observé : `claude-opus-5`. Le pack demande `claude-sonnet-5`.
   **Écart réel, ratifié explicitement par Nathan dans la session du 2026-08-26T02:14Z.**
   Aucun fallback silencieux : l'écart est consigné ici, pas masqué.
-- Sous-agents : instanciés en `sonnet` (Claude Sonnet 5), conforme au pack.
+- Sous-agents : instanciés en `sonnet` (Claude Sonnet 5), **conforme au pack amont, mais
+  pas à `CLAUDE.md:9`**, qui prescrit pour les sous-agents des noms LiteLLM dédiés
+  (`crew-coder-long`, `crew-coder-bulk`, etc.), jamais `opus`/`sonnet`/`haiku`. Le champ
+  `model: claude-sonnet-5` des 4 fichiers `.claude/agents/opsys-issue-*.md` porte le même
+  écart. **Écart consigné ici, modèle non changé dans cette revue** : requalifier ces
+  4 champs `model` vers des noms LiteLLM dédiés est une décision produit (quel modèle par
+  rôle) hors périmètre d'une correction de revue, à faire avec validation Nathan plutôt
+  que silencieusement ici.
   Les définitions `.claude/agents/opsys-issue-*.md` sont installées dans ce dépôt ;
   le dossier projet de la session courante étant distinct, les agents sont invoqués
   en injectant leur prompt et leurs contraintes verbatim.
@@ -24,8 +31,10 @@ protection, aucun code métier M1–M10, aucune promotion canonique.
 
 Objection de revue : ces 4 définitions n'ont jamais été exercées comme fichiers
 `.claude/agents/` chargés nativement, et deviennent après merge chargeables avec
-`permissionMode: auto`, `tools` incluant Write/Edit, `maxTurns: 240`. Ne pas dégrader
-en `.example` — mais ne pas non plus prétendre à une capacité non observée. Détail :
+`tools` incluant Write/Edit, `maxTurns: 240` (jusqu'à ce commit, trois d'entre elles
+portaient en plus `permissionMode: auto` ; corrigé en `default` — voir « Écarts
+volontaires » ci-dessous). Ne pas dégrader en `.example` — mais ne pas non plus
+prétendre à une capacité non observée. Détail :
 
 **Ce qui EST prouvé** — le corps de prompt (hors frontmatter YAML) de ces 4 rôles a été
 exercé comme instruction de sous-agent, verbatim ou quasi-verbatim, sur des missions
@@ -60,7 +69,7 @@ cette campagne. En clair : le **contenu** des rôles a tourné en conditions ré
 **enveloppe de permissions déclarée** (le frontmatter YAML) n'a, à ce jour, jamais été
 vérifiée en exécution — ni confirmée, ni infirmée.
 
-## Exemple `.claude/settings.example.json` — écarts volontaires vis-à-vis du pack amont
+## Écarts volontaires vis-à-vis du pack amont (permissions)
 
 Le fichier livré par `OPSYS-AI-CLAUDE-ISSUES-OPERATIONS-v1.2` (vérifié identique à
 `platform-overlay/.claude/settings.example.json` du pack) porte `defaultMode: "auto"`,
@@ -97,6 +106,22 @@ dépôt s'en écarte, délibérément, sur trois points :
    l'exemple ne tiendrait même pas face au comportement réel constaté. La clé
    `env.ANTHROPIC_DEFAULT_SONNET_MODEL` suffit à exprimer « quand sonnet est utilisé,
    cette version précise » sans verrouiller tout le reste.
+4. **`permissionMode` des 3 agents `.claude/agents/opsys-issue-{ci-docs,restructure,
+   security-quality}.md`** : le pack amont porte `permissionMode: auto` pour ces trois
+   fichiers (champ `permissionMode` vérifié identique à celui de
+   `platform-overlay/.claude/agents/` du pack — le reste du corps de ces 3 fichiers
+   diffère légèrement, cf. `PREUVE:`/`BLOCKED:` ajouté en fin de prompt) et
+   `permissionMode: plan` pour `opsys-issue-triage.md`. La revue scellée n°2 (objection
+   N3) a relevé que le point 1 ci-dessus n'avait été appliqué qu'à un fichier inerte
+   (`.claude/settings.example.json` n'est chargé par rien) et pas aux fichiers
+   effectivement lus nativement par Claude Code (`.claude/agents/*.md`) — alors que ces
+   trois agents portent `tools` incluant Write/Edit/Bash, `maxTurns: 240`,
+   `background: true`, et que `.claude/settings.json` (le fichier réel, pas l'exemple) ne
+   porte aucune clé `permissions` qui aurait pu compenser côté session. Correction : les
+   trois `permissionMode: auto` sont passés à `permissionMode: default` dans ce commit,
+   par le même raisonnement que le point 1 (« Outils déterministes = autorité » ;
+   `AGENTS.md` liste l'auto-approbation parmi ses interdits absolus). `triage` reste
+   `plan`, déjà plus restrictif qu'`auto` et hors-sujet de cet écart, sans changement.
 
 ## `.claude/settings.example.json` — ne jamais écraser `.claude/settings.json`
 
@@ -111,7 +136,7 @@ avertissement. Voir la mise en garde portée dans `coordination/README.md`.
 
 | Work ID | Branche | État |
 |---|---|---|
-| OPS-OVERLAY-INSTALL | `claude/ops/install-coordination-overlay` | PR #564 ouverte ; revue aveugle scellée REJECT (8 majeures, 4 mineures) ; corrections en cours dans ce commit |
+| OPS-OVERLAY-INSTALL | `claude/ops/install-coordination-overlay` | PR #564 ouverte ; revue aveugle #1 = REJECT (8 majeures, 4 mineures) → corrigée par `17d653c` ; revue aveugle #2 = REJECT (le correctif #1 avait lui-même introduit des défauts) → corrections dans ce commit |
 | LIVE-ISSUE-RECONCILIATION | read-only | triage live en cours ; 3 candidats déjà livrés (PR #567, issue #568, PR #571) |
 
 ## Merged since last sync

@@ -19,7 +19,15 @@
   reste manuelle et déclarative, à la charge de qui active une mission. Présenter cette
   garde comme câblée en CI serait exactement le défaut que l'issue #568 a documenté pour
   un autre validateur (fragment jamais branché nulle part) — on ne le reproduit pas ici :
-  la limite est écrite, pas cachée.
+  la limite est écrite, pas cachée. Autre limite, plus décisive, à ne pas taire non plus :
+  `COORDINATION_OK` atteste uniquement la **forme** de la table (énumérations valides,
+  Work ID unique, scopes relatifs bien formés, aucune collision de branche ou de chemin
+  entre lignes actives) — jamais sa concordance avec l'état réel sur GitHub. Une ligne
+  `QUEUED` dont la PR citée est en fait déjà ouverte, une PR fictive, ou une date `Updated
+  UTC` remontant à des années ne font échouer aucune de ces vérifications : le validateur
+  ne consulte jamais `gh`. Seule la re-vérification manuelle (`gh pr view <n>` / `gh issue
+  view <n>`, cf. `WORK-OWNERSHIP.md`) donne la concordance GitHub ; `COORDINATION_OK` n'en
+  tient pas lieu.
 - `.claude/settings.example.json` est un **exemple** à copier puis adapter. Ne jamais
   l'écraser sur `.claude/settings.json` : ce dernier porte les 3 hooks d'enforcement
   réels de la session (`SessionStart`, `UserPromptSubmit`, `PreToolUse` sur `Bash`) ; une
