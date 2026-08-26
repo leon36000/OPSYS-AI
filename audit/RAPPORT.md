@@ -31,7 +31,6 @@ couvertes, et le tableau de complétude le dit.
 | `AUD-A3-002` | **critique** | A3 | ecart-plan | Les services transversaux de D-010 ne sont pas dans le core, l'un vit dans un module. |
 | `AUD-A4-001` | **critique** | A4 | defaut-code | Sept copies d'encoder_canonique, deux conventions de retour inverses. |
 | `AUD-A4-002` | **critique** | A4 | ecart-plan | Le code de production importe une bibliotheque tierce dans 22 fichiers. |
-| `AUD-A5-001` | **critique** | A5 | faille-securite | RESOLU (PR #567, issue #565) -- Les tests d'autorisation et de coffre a secrets tournent dans un job non bloquant. |
 | `AUD-A7-001` | **critique** | A7 | incoherence-documentaire | Six README de module annoncent moins de stories que ce qui a ete revu. |
 
 ## Détail, constat par constat
@@ -205,36 +204,6 @@ Trois refutations tentees. (1) La divergence vient-elle d'une lecture erronee du
 **Réfutation tentée**
 
 Trois refutations tentees. (1) yaml fait-il partie de la bibliotheque standard ? Non : il est absent de sys.stdlib_module_names. (2) Est-ce un module local du depot portant ce nom ? Non : le temoin construit l'ensemble des noms locaux depuis git ls-files et yaml n'y figure pas. (3) Ces imports sont-ils confines aux tests, ou la contrainte ne s'applique pas ? Non : le temoin ne retient que les fichiers sous src/ hors tests. Ce que le constat n'affirme PAS : que ces imports soient injustifies — analyser du YAML sans bibliotheque demande d'en ecrire une. Il etablit que la contrainte « bibliotheque standard uniquement », repetee dans les cadrages de module, n'est pas tenue, et qu'aucun gate ne le signale.
-
-### AUD-A5-001 — RESOLU (PR #567, issue #565) -- Les tests d'autorisation et de coffre a secrets tournent dans un job non bloquant.
-
-- **sévérité** : critique — calculée par la règle `regle_critique:frontiere_t3`
-- **entrées mesurées** : contrat_gele='REG-09', frontiere_t3=True, gate_couvrant=False, rayon=4
-- **emplacement** : `.github/workflows/ci.yml:47`, `.github/workflows/ci.yml:68`
-- **témoin** : `audit/temoins/AUD-A5-001/reproduction.py` — REJOUÉ : rc=0 (attendu 1)
-
-**Ce que la mesure a donné**
-
-```
-checks exiges par la protection de main : ['gates']
-
--- job « gates » (ligne 4) -- bloquant, exige par la protection
--- job « e2e » (ligne 60) -- bloquant, NON exige par la protection
--- job « e2e-load » (ligne 76) -- bloquant, NON exige par la protection
-
-CONSTAT NON REPRODUIT : plus aucun test sensible dans un job non bloquant.
-AUD-A5-001 est perime et doit etre retire du rapport.
-(rc=0 -- rejoue le 2026-08-26 sur claude/aud-ci-003-004-gating-bloquant, commit 3d57b50 puis le present commit de revue)
-```
-
-**Réfutation tentée**
-
-RESOLU -- mesure le 2026-08-26 sur la branche claude/aud-ci-003-004-gating-bloquant (issue #565, PR #567 ; correctif initial commit 3d57b50, complete par le present commit de revue). Le correctif deplace les trois steps critiques (dashboard P0-5a, authz P0-5c, config/vault P0-5d) du job `e2e` (continue-on-error: true) vers le job `gates` -- le seul contexte required en branch protection sur `main`, mesure via `gh api repos/leon36000/OPSYS-AI/branches/main/protection` -- et retire `continue-on-error: true` des jobs `e2e` et `e2e-load`. Rejoue sur cet etat, `audit/temoins/AUD-A5-001/reproduction.py` rend desormais rc=0 (« CONSTAT NON REPRODUIT : plus aucun test sensible dans un job non bloquant. AUD-A5-001 est perime et doit etre retire du rapport. »), sortie complete ci-dessus dans `refutation.sortie`. `check_temoins_rouges()` (audit/verif_audit.py) le confirme independamment : liste vide sur `main`, mais encore ['AUD-A5-001.json : temoin rc=0, attendu 1'] sur cette branche tant que ce fichier declare `temoin_rc: 1`.
-
-Ce champ `temoin_rc` reste a 1 en connaissance de cause, pas par omission : `audit/contrats.py::valider_constat` REJETTE `temoin_rc == 0` pour TOUT constat (`TEMOIN_RC_VALEUR_INVALIDE:0`, verifie empiriquement en ecrivant temporairement 0 dans ce fichier -- `audit/rapport.py` refuse alors de regenerer QUELQUE rapport que ce soit, meme pour les 11 autres constats, valides eux). Ce format n'a donc pas de representation valide pour « defaut resolu » ; seul le retrait de ce fichier de `audit/constats/` (ce que le temoin recommande lui-meme) ferait rendre une liste vide a `check_temoins_rouges()`. `git rm audit/constats/AUD-A5-001.json` a ete tente dans cette session et bloque par le classifieur de securite de l'environnement (suppression hors perimetre auto-approuve, validation humaine explicite requise) -- ce qui rejoint la consigne de ne pas supprimer sans cette validation. Le contenu integral de ce constat reste recuperable a l'identique via `git show 3d57b50:audit/constats/AUD-A5-001.json` (sha256 du blob : 7a04333143a5345a8729fced4764164908b6254093f3ebb1730f2fb1cfe06ebe) des qu'un humain autorise son retrait effectif. L'`emplacement` ci-dessus reste la localisation HISTORIQUE du defaut confirme (ci.yml avant correctif) ; le code a cette localisation n'existe plus a l'identique apres le deplacement des trois steps vers `gates`.
-
---- Raisonnement original, au moment de la confirmation (avant correctif) ---
-Deux refutations tentees. (1) Le job e2e est-il exige par la protection de branche malgre son continue-on-error, ce qui rendrait le drapeau inoperant ? Non : l'API renvoie exactement ['gates']. (2) Ces tests sont-ils rejoues ailleurs, dans le job bloquant ? Non : les 15 etapes de « gates » sont enumerees par le temoin et aucune ne porte sur core/src/authz ni core/src/config. Les deux voies echouent. Ce que le constat n'affirme PAS : aucune faille d'autorisation n'est montree — seule l'absence de garde l'est, conformement au standard « exposition prouvee, jamais exploitation ». Troisieme verification, sur le contrat gele lui-meme : R-015 avait ete retenu par supposition, puis resolu au plan de reference — il porte sur l'injection de prompt indirecte, sans rapport. Le contrat reellement contredit est REG-09 (« Securite par defaut. Secrets chiffres, exposition minimale, autorisation fine, journaux d'audit »), ligne 45 de l'extraction du plan. Un identifiant cite de memoire n'est pas une preuve : il doit etre resolu au referentiel. Quatrieme point, souleve par deux relecteurs independants : le constat porte classe=faille-securite et severite=critique alors que sa conclusion dit qu'aucune faille n'est montree — ils y ont vu une contradiction qui fausserait tout routage automatique. L'objection est reelle pour un lecteur, mais elle est levee par le cadrage lui-meme : le PRD §8.5 definit la limite d'un constat de securite comme « exposition prouvee, JAMAIS exploitation ». Dans cet audit, la classe faille-securite designe donc une exposition prouvee, et non une exploitation demontree ; les deux enonces sont coherents. Ce qui manquait etait la CITATION de ce standard dans le constat — un lecteur ne devrait pas avoir a retrouver le cadrage pour comprendre qu'il n'y a pas contradiction. Elle est ajoutee ici.
 
 ### AUD-A7-001 — Six README de module annoncent moins de stories que ce qui a ete revu.
 
