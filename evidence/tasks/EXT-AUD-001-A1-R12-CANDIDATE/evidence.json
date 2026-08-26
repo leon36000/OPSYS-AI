@@ -30,6 +30,36 @@
     "core_persistence_tests": "BLOCKED locally: Docker daemon returned unsupported protocol while starting ephemeral PostgreSQL; no test was skipped",
     "pack_validation": "ROUGE locally for the same Docker runtime blocker",
     "proof_sealed": "BLOCKED until three independent external APPROVE verdicts are actually supplied",
+    "github_core_ci": {
+      "run": "https://github.com/leon36000/OPSYS-AI/actions/runs/32922440783",
+      "head": "b2f4be6d90cbfab9af56d7cb78c01b72a74c6bb1",
+      "tests": "PASS",
+      "types": "PASS",
+      "security": "PASS",
+      "pack_validation": "PASS",
+      "proof_sealed": "FAIL: no committed review verdicts"
+    },
+    "github_gates": {
+      "run": "https://github.com/leon36000/OPSYS-AI/actions/runs/32922440793",
+      "head": "b2f4be6d90cbfab9af56d7cb78c01b72a74c6bb1",
+      "gates": "PASS",
+      "e2e": "PASS",
+      "e2e_load": "PASS"
+    },
+    "github_external_checks": {
+      "sonarcloud": "PASS: https://sonarcloud.io/dashboard?id=leon36000_OPSYS-AI&pullRequest=566",
+      "gitguardian": "PASS"
+    },
+    "live_core_reconciliation": {
+      "snapshot": "/tmp/opsys-codex-live-snapshot-20260826-r12.json",
+      "registry_tasks": 148,
+      "unique_live_issue_matches": 148,
+      "status_verified": 28,
+      "status_in_review": 1,
+      "status_blocked": 119,
+      "free_ready_candidates": 0,
+      "frontier": "C05-004 / issue #339 is the only dependency-ready frontier, but it is already OPEN/status:in-review with external implementation/evidence; no new reservation is authorized"
+    },
     "nathan_validation": "PENDING",
     "external_review": "PENDING"
   },
