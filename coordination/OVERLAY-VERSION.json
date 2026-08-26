@@ -1,8 +1,10 @@
 {
   "authority": "GitHub live; Markdown is the daily human-readable snapshot",
-  "generated_date": "2026-08-25",
+  "generated_date": "2026-08-26",
   "module_code_during_core": false,
   "schema_version": "OPSYS-COORDINATION-1",
   "single_owner_per_work": true,
+  "source_zip": "OPSYS-AI-CLAUDE-ISSUES-OPERATIONS-v1.2.zip",
+  "source_zip_sha256": "c9127c2a5bd63c44a5406e4e38aa709860dc028e3003eb7d2ac3e845a4db33a7",
   "version": "1.2"
 }
