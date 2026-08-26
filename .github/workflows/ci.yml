@@ -15,6 +15,18 @@ jobs:
         run: python3 scripts/statut_lint.py
       - name: Tests des scripts de methode (R-030)
         run: python3 -m pytest scripts/tests -q
+      # AUD-CI-003/004 (issue #565) : ces trois steps sont des pytest unitaires
+      # purs (imports vérifiés : stdlib + pytest + PyYAML uniquement, aucun
+      # besoin du harnais e2e) — déplacés hors du job `e2e` (continue-on-error)
+      # car `gates` est le SEUL contexte required en branch protection sur
+      # `main` (mesuré : gh api repos/leon36000/OPSYS-AI/branches/main/protection).
+      # Les y placer les rend réellement bloquants, pas seulement exécutés.
+      - name: Tests dashboard (P0-5a)
+        run: python3 -m pytest "surfaces/dashboard/tests" -q
+      - name: Tests authz (P0-5c)
+        run: python3 -m pytest "core/src/authz/tests" -q
+      - name: Tests config/vault (P0-5d)
+        run: python3 -m pytest "core/src/config/tests" -q
       - name: Tests module M7 (M7-S000)
         run: python3 -m pytest "Modules M/M7-marketing/tests" -q
       # Un pytest DISTINCT par module : les modules exposent des noms de premier niveau
@@ -48,7 +60,6 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    continue-on-error: true
     env:
       PYTHON_BIN: python3
     steps:
@@ -61,17 +72,10 @@ jobs:
         run: python3 -m pip install --quiet --require-hashes -r tests/e2e/requirements.lock
       - name: Run e2e harness
         run: bash scripts/run-e2e.sh e2e
-      - name: Tests dashboard (P0-5a)
-        run: python3 -m pytest "surfaces/dashboard/tests" -q
-      - name: Tests authz (P0-5c)
-        run: python3 -m pytest "core/src/authz/tests" -q
-      - name: Tests config/vault (P0-5d)
-        run: python3 -m pytest "core/src/config/tests" -q
 
   e2e-load:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    continue-on-error: true
     env:
       PYTHON_BIN: python3
     steps:
