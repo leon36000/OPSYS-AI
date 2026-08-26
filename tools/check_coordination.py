@@ -14,21 +14,23 @@ CLAUDE_RE = re.compile(r"^(?:ISS-|AUD-|BUG-|R4-)")
 HEADER = ["Work ID", "Owner", "Branch", "Path scope", "Status", "Updated UTC", "Next"]
 
 
-def parse_rows(path: Path) -> tuple[list[dict[str, str]], list[str]]:
+def parse_rows(path: Path) -> tuple[list[dict[str, str]], list[str], bool]:
     out: list[dict[str, str]] = []
     errors: list[str] = []
+    header_found = False
     for lineno, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         line = raw.strip()
         if not line.startswith("|") or line.startswith("|---"):
             continue
         cells = [c.strip() for c in line.strip("|").split("|")]
         if cells == HEADER:
+            header_found = True
             continue
         if len(cells) != 7:
             errors.append(f"MALFORMED_ROW:{lineno}:{len(cells)}")
             continue
         out.append(dict(zip(["work_id", "owner", "branch", "scope", "status", "updated", "next"], cells)))
-    return out, errors
+    return out, errors, header_found
 
 
 def valid_scope(scope: str) -> bool:
@@ -52,7 +54,14 @@ def overlaps(a: str, b: str) -> bool:
 
 
 def validate(path: Path) -> tuple[list[dict[str, str]], list[str]]:
-    data, errors = parse_rows(path)
+    data, errors, header_found = parse_rows(path)
+    if not header_found:
+        # Plancher de non-vacuité : un mauvais chemin, un fichier tronqué ou vidé
+        # n'ont aucune ligne "| Work ID | Owner | ... |" et ne doivent pas rendre le
+        # même succès qu'une vraie table avec zéro ligne de données (gabarit neuf,
+        # légitime : cf. tools/daily_start.py). L'en-tête, pas le nombre de lignes,
+        # est le signal fiable — une table vide MAIS avec en-tête reste valide.
+        errors.append("HEADER_MISSING")
     seen: set[str] = set()
     for row in data:
         wid = row["work_id"]

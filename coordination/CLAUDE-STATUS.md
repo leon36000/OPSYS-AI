@@ -48,9 +48,17 @@ réelles et vérifiables de ce dépôt :
 - L'installation de l'overlay elle-même → issue **#563** → PR **#564** (cette PR) est
   de la même famille de travail que le rôle **ci-docs** (coordination/docs/manifest),
   mais **ne peut pas** être citée comme une exécution du fichier `opsys-issue-ci-docs.md` :
-  ce fichier est *créé par* ce commit (`b552f87`, seul commit de la branche sur
-  `31fa5497`) — il n'existait dans aucun commit du dépôt avant lui. C'est le travail de
-  l'orchestrateur (session lead), pas un rejeu du fichier commité.
+  ce fichier est *créé par* la branche `claude/ops/install-coordination-overlay` (premier
+  commit `b552f87`) — il n'existait dans aucun commit de `origin/main` avant cette branche.
+  Aujourd'hui, `git log origin/main -- .claude/agents/opsys-issue-ci-docs.md` le confirme par
+  une sortie vide ; après le merge, la même commande listera l'historique de ce fichier sur
+  cette branche (dont `b552f87`, le plus ancien de la liste, celui qui l'a créé), ce qui
+  confirme le même fait sous une autre forme, pas son contraire. Une formulation qui dirait
+  « seul commit de la branche » à la place ne resterait pas vraie au
+  commit suivant — cette branche en compte maintenant plusieurs — alors que « créée par cette
+  branche, premier commit b552f87 » reste vraie quel que soit le nombre de commits qui
+  suivent. C'est le travail de l'orchestrateur (session lead), pas un rejeu du
+  fichier commité.
 - **restructure** (restructuration/packaging/nettoyage prouvé) : **aucune mission
   numérotée n'a encore exercé ce rôle**. Le candidat le plus proche est l'issue **#568**
   (AUD-CORE-005, fragment de packaging orphelin `.opsys/tools/github-control`), mais
@@ -123,6 +131,39 @@ dépôt s'en écarte, délibérément, sur trois points :
    `AGENTS.md` liste l'auto-approbation parmi ses interdits absolus). `triage` reste
    `plan`, déjà plus restrictif qu'`auto` et hors-sujet de cet écart, sans changement.
 
+## `tools/check_coordination.py` — écart volontaire vis-à-vis du pack amont (validation)
+
+À partir de ce commit, ce fichier **n'est plus une copie octet-exacte** du
+`tools/check_coordination.py` du pack `OPSYS-AI-CLAUDE-ISSUES-OPERATIONS-v1.2` — `README.md`
+affirmait cette exactitude, corrigé dans ce même commit. Écart mesuré, un seul, localisé :
+
+- **Constat** : `parse_rows()` ne validait que la *forme* des lignes de données ; l'absence
+  totale de la ligne d'en-tête `| Work ID | Owner | Branch | Path scope | Status | Updated
+  UTC | Next |` n'était jamais détectée. Conséquence mesurée avant ce commit — un mauvais
+  chemin ou un fichier tronqué/vidé rendaient exactement le même succès qu'une vraie table :
+  `python3 -B tools/check_coordination.py coordination/DAILY-SYNC.md` →
+  `COORDINATION_OK rows=0 active=0`, exit 0, alors que ce fichier ne porte aucune table de
+  coordination. Idem pour `coordination/24H-UPDATE-TEMPLATE.md`.
+- **Piège écarté** : `rows == 0` n'est **pas** un discriminant valide — le gabarit neuf du
+  pack (`repo-overlay/coordination/WORK-OWNERSHIP.md`, zéro ligne de données, en-tête
+  présent) est légitimement vide et `tools/daily_start.py` du pack le valide comme tel sur
+  une installation neuve. Une règle `rows == 0 → erreur` aurait cassé ce cas légitime.
+- **Correctif** : `parse_rows()` retourne désormais si l'en-tête a été rencontré
+  (`header_found: bool`) ; `validate()` ajoute l'erreur `HEADER_MISSING` quand il ne l'a pas
+  été, indépendamment du nombre de lignes de données. Une table vide **avec** en-tête reste
+  valide ; l'absence totale d'en-tête ne l'est plus. Diff exact contre le pack : un troisième
+  élément de retour sur `parse_rows` et une vérification de 7 lignes dans `validate()` ;
+  aucune autre ligne changée.
+- **Vérifié après correctif** : gabarit du pack → toujours `COORDINATION_OK rows=0 active=0`
+  (inchangé) ; vraie table de ce dépôt → toujours `COORDINATION_OK rows=9 active=3`
+  (inchangé) ; `DAILY-SYNC.md` et `24H-UPDATE-TEMPLATE.md` → `HEADER_MISSING`, exit 1 (avant :
+  faux succès, exit 0).
+- **Limite non résolue par ce correctif, à ne pas taire** : un fichier inexistant fait déjà
+  échouer l'appel (`FileNotFoundError` non interceptée, traceback, exit 1) — ce n'était donc
+  pas un faux succès, seulement un échec peu lisible ; ce correctif ne change pas ce
+  comportement, seul le cas « fichier présent mais sans en-tête » était un vrai faux vert et
+  seul celui-ci a été traité.
+
 ## `.claude/settings.example.json` — ne jamais écraser `.claude/settings.json`
 
 `.claude/settings.json` (le fichier réel, pas l'exemple) porte les 3 hooks
@@ -134,10 +175,24 @@ avertissement. Voir la mise en garde portée dans `coordination/README.md`.
 
 ## Active
 
+Les états PR/issue cités dans cette section et dans « Blocked »/« Next » ci-dessous sont
+datés de l'horodatage `Updated UTC` en tête de ce fichier et soumis à la même clause de
+péremption que `coordination/WORK-OWNERSHIP.md:7` (périment dès le prochain commit/push/merge
+sur l'une ou l'autre plateforme ; au-delà de 24 h, re-vérifier via `gh pr view <n>` / `gh issue
+view <n>` plutôt que de faire confiance à la valeur écrite ici) — non dupliquée, pour éviter
+que les deux dérivent l'une de l'autre.
+
 | Work ID | Branche | État |
 |---|---|---|
-| OPS-OVERLAY-INSTALL | `claude/ops/install-coordination-overlay` | PR #564 ouverte ; revue aveugle #1 = REJECT (8 majeures, 4 mineures) → corrigée par `17d653c` ; revue aveugle #2 = REJECT (le correctif #1 avait lui-même introduit des défauts) → corrections dans ce commit |
+| OPS-OVERLAY-INSTALL | `claude/ops/install-coordination-overlay` | PR #564 ouverte ; revue aveugle #1 = REJECT (8 majeures, 4 mineures) → corrigée par `17d653c` ; revue aveugle #2 = REJECT (le correctif #1 avait lui-même introduit des défauts) → corrigé par `5afd821` ; troisième tour : le défaut nommé n'était plus un site isolé mais un motif (« le défaut ponctuel est corrigé, la classe ne l'est pas ») → traité au niveau du motif dans ce commit |
 | LIVE-ISSUE-RECONCILIATION | read-only | triage live en cours ; 3 candidats déjà livrés (PR #567, issue #568, PR #571) |
+| AUD-CORE-006 | `claude/aud-core-006-chemins-hote-en-dur` | PR #571 ouverte, CI vert y compris `proof-sealed` (hors périmètre scellé : seul `audit/core-baseline/` touché) ; en attente de revue scellée — détail dans `WORK-OWNERSHIP.md` |
+
+Trois lignes actives ici, cohérent avec `WORK-OWNERSHIP.md` et avec
+`python3 -B tools/check_coordination.py coordination/WORK-OWNERSHIP.md` (`active=3` : les
+statuts `REVIEW`/`REVIEW`/`ACTIVE` de `OPS-OVERLAY-INSTALL`, `AUD-CORE-006` et
+`LIVE-ISSUE-RECONCILIATION`). `DAILY-SYNC.md` renvoie ici pour le détail d'exécution de ces
+trois missions ; avant ce commit, `AUD-CORE-006` en était absente — écart corrigé.
 
 ## Merged since last sync
 

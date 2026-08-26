@@ -14,6 +14,14 @@ n'ajoute aucune affirmation nouvelle, seulement un résumé compact. Le fichier
 `24H-UPDATE-TEMPLATE.md` du même dossier reste le gabarit vide réutilisable pour la
 prochaine mise au point ; il n'est pas touché par ce choix.
 
+Ce résumé hérite donc aussi de la péremption de ses sources : tous les états PR/issue
+cités ci-dessous (« en revue », `#564` vs `#566`, etc.) sont datés du `Date UTC` ci-dessus
+et soumis à la même clause que `coordination/WORK-OWNERSHIP.md:7` — périment dès le
+prochain commit/push/merge, re-vérifier via `gh` au-delà de 24 h plutôt que de faire
+confiance à la valeur écrite ici. Non répétée en détail à chaque ligne, pour la même
+raison que ci-dessus : un résumé qui redit sa propre péremption à chaque phrase cesse
+d'être un résumé.
+
 ## Merges depuis le dernier sync
 
 - aucun
