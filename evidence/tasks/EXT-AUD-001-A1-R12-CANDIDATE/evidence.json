@@ -2,7 +2,7 @@
   "task_id": "EXT-AUD-001-A1-R12-CANDIDATE",
   "description": "Candidat R12 pour la réconciliation documentaire de l'issue #541; le changement établit l'index du canon Core actif et marque les anciens bootstrap comme superseded, sans promotion canonique ni changement des modules M1–M10.",
   "issue": "https://github.com/leon36000/OPSYS-AI/issues/541",
-  "pull_request": null,
+  "pull_request": "https://github.com/leon36000/OPSYS-AI/pull/566",
   "branche": "forgeai/manual-opsys-ai-r12-canon-integration-20260826021235",
   "base": "origin/main @ 31fa54976443f7413f705776dbd8a8af1cdfa872",
   "head": "b0831bfabad03936b7e5eb539f540acb8aa2b243",
