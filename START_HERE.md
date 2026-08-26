@@ -1,3 +1,9 @@
+# SUPERSEDED — START_HERE.md historique
+
+> **Ne pas utiliser comme point de départ opérationnel.** Le programme actif est
+> Core v2.3.0 ; commencer par `docs/core/CANON-INDEX.md`. Ce fichier est
+> conservé uniquement pour provenance et migration des anciennes sessions.
+
 # START_HERE.md — Démarrage
 
 ## Ordre d'invocation — PAS simultané (règle de la spec elle-même)
