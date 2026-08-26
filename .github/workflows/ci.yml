@@ -3,6 +3,15 @@ on: [pull_request, push]
 jobs:
   gates:
     runs-on: ubuntu-latest
+    # `gates` est le SEUL contexte required en branch protection sur `main`
+    # (mesuré : gh api repos/leon36000/OPSYS-AI/branches/main/protection) —
+    # sans timeout-minutes explicite, un blocage ici hérite du défaut GitHub
+    # de 360 minutes et gèlerait CHAQUE PR pendant 6h. Mesuré sur 11 runs
+    # réels (gh run list/view --workflow=ci.yml, avant et après ce correctif,
+    # ce dernier n'ajoutant que 3 suites pytest unitaires) : durée observée
+    # 4min02s à 6min20s. 20 minutes laisse ~3x de marge sur le run le plus
+    # lent observé, tout en bornant le pire cas à une fraction du défaut.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5 — pin SHA (D-035)
       - name: Installer les dépendances de test
