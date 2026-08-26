@@ -30,14 +30,33 @@ l'oracle lui-même, fermés ici :
    CSV, 5 JSON, 1 MD et 1 TXT réellement présents dans
    `audit/core-baseline/` — un littéral de chemin hôte dans
    STAGE-EVIDENCE.csv ou CANONICAL-PATH-MAP.json, par exemple, passait
-   inaperçu. Fermé en étendant le scan à `EXTENSIONS_SCANNEES`. Décision
-   PRISE ET DOCUMENTÉE sur `/media/`, `/mnt/`, `/opt/` : délibérément PAS
-   ajoutés aux motifs recherchés (voir le commentaire sur
-   `MOTIFS_CHEMIN_HOTE` ci-dessous) — `TARGET.json`, artefact généré hors
-   de l'autorité d'écriture de cette tâche, porte déjà légitimement
-   `"worktree": "/media/pc1/Storage/opsys-core-v2.3.0"` ; ajouter le
-   préfixe media ferait rougir l'oracle sur un fichier qu'AUD-CORE-006 n'a
-   pas le droit de corriger dans son périmètre autorisé."""
+   inaperçu. Fermé en étendant le scan à `EXTENSIONS_SCANNEES`.
+
+AUD-CORE-006 tour 3 (tâche de suivi) — la limitation laissée sciemment
+ouverte au tour 2 est LEVÉE, avec sa cause racine :
+
+3. PRÉFIXES DE POINT DE MONTAGE (media, mnt, opt). Le tour 2 les avait
+   délibérément écartés des motifs pour une raison d'AUTORITÉ, jamais de
+   fond : `TARGET.json` — artefact généré, hors des 5 fichiers que la
+   tâche AUD-CORE-006 pouvait écrire — portait un vrai chemin hôte absolu
+   dans son champ `worktree` (un point de montage propre à UNE machine).
+   Ajouter le préfixe correspondant aurait rendu l'oracle rouge sur un
+   fichier non corrigeable dans le périmètre d'alors.
+
+   Autorité re-vérifiée sur pièces (`gh pr list --json files`, pas de
+   mémoire) : ce champ est écrit par `custody.py`, PAS par
+   `path_and_authority_map.py`. Les trois fichiers occupés par la PR #504
+   (`path_and_authority_map.py`, `CANONICAL-PATH-MAP.json`,
+   `tests/test_path_and_authority_map.py`) ne sont donc pas concernés, et
+   aucune PR ouverte ne touche `custody.py`, `TARGET.json` ni
+   `tests/test_target_custody.py`.
+
+   Le champ a été rendu portable des DEUX côtés — générateur (ancre
+   relative, cf. `ANCRE_WORKTREE_PORTABLE` dans `custody.py` et le
+   commentaire qui la justifie) et artefact committé — puis les trois
+   préfixes ont rejoint `_PREFIXES_HOTE`. Aucun d'eux n'apparaît en
+   littéral contigu ici, docstring comprise : la composition par fragments
+   du point 1 les couvre exactement de la même façon."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -54,25 +73,18 @@ def _fragment_motif(prefixe: str) -> str:
     return f"/{prefixe}/"
 
 
-# Préfixes de chemin absolu propres à UN poste de développement — jamais
-# les 3 motifs complets écrits en toutes lettres ici (cf. _fragment_motif
-# ci-dessus : c'est précisément ce qui évite l'auto-signalement).
-_PREFIXES_HOTE: tuple[str, ...] = ("home", "Users", "root")
+# Préfixes de chemin absolu propres à UN poste — jamais écrits ici en
+# motifs complets (cf. _fragment_motif ci-dessus : c'est précisément ce qui
+# évite l'auto-signalement).
+#
+# Les 3 premiers sont le critère littéral de l'issue #570. Les 3 suivants
+# (points de montage) les ont rejoints au tour 3, une fois `TARGET.json`
+# rendu portable — cf. point 3 de la docstring du module pour la raison
+# d'autorité qui les avait fait écarter au tour 2, et
+# `test_les_six_prefixes_exacts_sont_couverts` pour le verrou de
+# non-régression sur cette liste.
+_PREFIXES_HOTE: tuple[str, ...] = ("home", "Users", "root", "media", "mnt", "opt")
 MOTIFS_CHEMIN_HOTE: tuple[str, ...] = tuple(_fragment_motif(p) for p in _PREFIXES_HOTE)
-
-# AUD-CORE-006 tour 2 (mesuré) : les préfixes de montage media, mnt et opt
-# sont tout aussi propres à UN poste que les trois préfixes ci-dessus
-# (home, Users, root) — mais NE SONT PAS ajoutés à MOTIFS_CHEMIN_HOTE.
-# TARGET.json (généré, hors périmètre
-# d'écriture de cette tâche — cf. docstring du module) porte déjà
-# "worktree": "/media/pc1/Storage/opsys-core-v2.3.0", un vrai chemin hôte
-# absolu. Étendre les motifs au préfixe media tout en étendant le scan aux
-# .json (EXTENSIONS_SCANNEES ci-dessous) ferait rougir l'oracle sur ce
-# fichier généré SANS qu'on puisse le corriger ici. Arbitrage retenu :
-# garder exactement les 3 motifs du critère littéral de l'issue #570
-# (home, Users, root) ; media, mnt et opt restent une limitation connue, à
-# traiter quand TARGET.json pourra être régénéré ou corrigé (hors périmètre
-# ABSOLU de cette tâche).
 
 
 def _chemin_hote_synthetique(prefixe: str, reste: str) -> str:
@@ -96,8 +108,9 @@ CE_FICHIER = Path(__file__).resolve()
 # 5 JSON, 1 MD et 1 TXT réellement présents dans audit/core-baseline/ — un
 # littéral de chemin hôte dans STAGE-EVIDENCE.csv ou
 # CANONICAL-PATH-MAP.json, par exemple, y passerait inaperçu. Étendu à ces
-# 4 extensions ; voir le commentaire sur MOTIFS_CHEMIN_HOTE ci-dessus pour
-# l'arbitrage media/mnt/opt qui accompagne cette extension.
+# 4 extensions. C'est cette extension aux .json qui rendait l'oracle rouge
+# sur le champ `worktree` de TARGET.json dès que les préfixes de montage
+# rejoignaient les motifs — cf. point 3 de la docstring du module.
 EXTENSIONS_SCANNEES: tuple[str, ...] = (".py", ".csv", ".json", ".md", ".txt")
 
 
@@ -309,3 +322,89 @@ def test_un_litteral_injecte_dans_une_copie_de_ce_fichier_est_detecte(tmp_path):
         "revue serait rouvert"
     )
     assert any(litteral_injecte in ligne for _, ligne in par_fichier[copie.resolve()])
+
+
+# ---------------------------------------------------------------------------
+# Couverture des préfixes (AUD-CORE-006 tour 3) — les 3 préfixes de point de
+# montage écartés au tour 2 pour une raison d'autorité, ajoutés ici une fois
+# TARGET.json rendu portable. Cf. point 3 de la docstring du module.
+# ---------------------------------------------------------------------------
+
+# Liste GOLDEN, écrite indépendamment de `_PREFIXES_HOTE`. Paramétrer les
+# tests ci-dessous sur `_PREFIXES_HOTE` lui-même serait tautologique :
+# retirer un préfixe retirerait AUSSI son cas de test, et la suite
+# repasserait au vert en couvrant strictement moins — le motif exact que le
+# commit `a32d99c` sur main a retiré ailleurs (« remove tautological
+# assertions »). Ici, retirer un préfixe rend RED.
+_PREFIXES_ATTENDUS: tuple[str, ...] = ("home", "Users", "root", "media", "mnt", "opt")
+
+
+def test_les_six_prefixes_exacts_sont_couverts():
+    """Verrou sur la LISTE elle-même : ni rétrécissement silencieux (le
+    défaut réel — le tour 2 n'en couvrait que 3), ni élargissement
+    accidentel qui rendrait l'oracle bruyant. La composition attendue des
+    motifs est reconstruite ici à partir de la liste golden, sans passer
+    par `_fragment_motif` — sinon le test ne comparerait la fonction qu'à
+    elle-même."""
+    assert _PREFIXES_HOTE == _PREFIXES_ATTENDUS
+    assert MOTIFS_CHEMIN_HOTE == tuple("/" + prefixe + "/" for prefixe in _PREFIXES_ATTENDUS)
+
+
+@pytest.mark.parametrize("prefixe", _PREFIXES_ATTENDUS)
+def test_chaque_prefixe_est_reellement_detecte(tmp_path, prefixe):
+    """Chaque préfixe est prouvé VIVANT dans le détecteur, un par un :
+    figurer dans un tuple ne prouve pas qu'il déclenche. Un préfixe présent
+    dans `_PREFIXES_HOTE` mais neutralisé en aval (motif mal composé,
+    comparaison cassée) passerait `test_les_six_prefixes_exacts_sont_
+    couverts` sans être détecté nulle part."""
+    litteral = _chemin_hote_synthetique(prefixe, "pc1/core-pack/exemple")
+    faux = tmp_path / "module_sale.py"
+    faux.write_text(f'PACK = "{litteral}"\n', encoding="utf-8")
+
+    trouvailles = trouver_chemins_hote_code_en_dur(tmp_path)
+
+    assert len(trouvailles) == 1, f"attendu 1 trouvaille pour {prefixe!r}, obtenu : {trouvailles!r}"
+    chemin, numero, ligne = trouvailles[0]
+    assert chemin == faux.resolve()
+    assert numero == 1
+    assert litteral in ligne
+
+
+@pytest.mark.parametrize("prefixe", ("media", "mnt", "opt"))
+def test_un_champ_worktree_de_json_avec_prefixe_de_montage_est_detecte(tmp_path, prefixe):
+    """Non-régression NOMMÉE sur le défaut réellement mesuré : un champ
+    `worktree` portant un chemin hôte absolu de point de montage, dans un
+    `.json` de la forme exacte de `TARGET.json`. Avant le tour 3, ce
+    fichier passait DEUX fois inaperçu — préfixe hors motifs (tour 1) puis
+    hors motifs par arbitrage d'autorité (tour 2). Il est désormais
+    signalé ; le vrai `TARGET.json`, lui, ne porte plus de chemin absolu
+    (cf. `ANCRE_WORKTREE_PORTABLE` dans `custody.py`), donc l'oracle réel
+    reste vert sans exclusion ni tolérance."""
+    litteral = _chemin_hote_synthetique(prefixe, "pc1/Storage/opsys-core-v2.3.0")
+    cible = tmp_path / "TARGET.json"
+    cible.write_text(
+        '{\n  "branch": "opsys-core/core-v2.3.0-integration",\n'
+        f'  "worktree": "{litteral}",\n  "dirty": false\n}}\n',
+        encoding="utf-8",
+    )
+
+    trouvailles = trouver_chemins_hote_code_en_dur(tmp_path)
+
+    fichiers_signales = {chemin for chemin, _, _ in trouvailles}
+    assert fichiers_signales == {cible.resolve()}
+    assert any(litteral in ligne for _, _, ligne in trouvailles)
+
+
+def test_une_ancre_relative_dans_un_champ_worktree_nest_jamais_signalee(tmp_path):
+    """Contrôle négatif de la correction retenue : la valeur RÉELLEMENT
+    écrite désormais dans `TARGET.json` ne doit pas déclencher l'oracle —
+    sinon la correction n'aurait fait que déplacer le rouge. Le contenu
+    reproduit la sortie réelle du générateur (`ANCRE_WORKTREE_PORTABLE`)."""
+    cible = tmp_path / "TARGET.json"
+    cible.write_text(
+        '{\n  "branch": "opsys-core/core-v2.3.0-integration",\n'
+        '  "worktree": ".",\n  "dirty": false\n}\n',
+        encoding="utf-8",
+    )
+    assert trouver_chemins_hote_code_en_dur(tmp_path) == []
+

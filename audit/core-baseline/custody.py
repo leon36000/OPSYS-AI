@@ -32,6 +32,9 @@ class TargetCustody:
     commit: str
     tree: str
     branch: str
+    # ABSOLU en mémoire — `geler()` doit pouvoir lancer git dessus et ne
+    # doit jamais mentir sur son entrée. JAMAIS sérialisé tel quel :
+    # TARGET.json reçoit `_ancre_worktree_portable()` (cf. son commentaire).
     worktree: str
     dirty: bool
     chemins_sales_tolerés: tuple[str, ...] = ()
@@ -101,6 +104,45 @@ def _chemin_depuis_ligne_porcelain(ligne: str) -> str:
     préserve tout espace interne au chemin dans le dernier élément."""
     parts = ligne.split(maxsplit=8)
     return parts[-1] if parts else ligne
+
+
+# --- Portabilité du champ `worktree` de TARGET.json ---------------------
+#
+# AUD-CORE-006, suivi de l'issue #570. Mesuré : ce champ portait la valeur
+# ABSOLUE rendue par `geler()` — sur la baseline committée, un point de
+# montage propre à UN poste (préfixe media). Deux défauts MESURÉS, pas une
+# préférence de style :
+#
+# 1. AUCUNE VALEUR PROBANTE. Toutes les sorties de `_produire_sorties()`
+#    sont écrites sous `worktree` — `_verifier_confinement(chemin,
+#    worktree)` le garantit pour CHAQUE fichier. TARGET.json vit donc, par
+#    construction, DANS le worktree qu'il décrit : qui le lit s'y trouve
+#    déjà. Le chemin absolu ne dit rien que son lecteur ne sache, et rien
+#    qu'un tiers puisse vérifier. Ce qui ancre réellement l'audit —
+#    `commit` et `tree` — est adressé par CONTENU, donc vérifiable partout,
+#    et discrimine déjà deux copies qui différeraient.
+#
+# 2. NON PORTABLE, ET FUITE D'ARBORESCENCE LOCALE. La valeur n'est
+#    reproductible que sur la machine qui a généré la baseline, et publie
+#    la disposition de ses points de montage dans un artefact d'audit
+#    versionné — à rebours du principe de portabilité de l'audit.
+#
+# Retenu : une ancre RELATIVE — « la racine du dépôt qui contient cet
+# artefact ». Ce n'est pas un placeholder inventé : `.` est un chemin
+# valide, et c'est exactement le chemin du worktree vu depuis lui-même.
+ANCRE_WORKTREE_PORTABLE = "."
+
+
+def _ancre_worktree_portable(worktree: Path, sortie_dir: Path) -> str:
+    """Renvoie l'ancre relative écrite dans TARGET.json, APRÈS avoir
+    vérifié l'invariant qui seul la rend vraie : `sortie_dir` est bien
+    confiné sous `worktree`. Sans cette vérification, `.` serait une
+    affirmation non mesurée (« l'artefact vit dans le worktree qu'il
+    décrit ») — exactement le genre de tautologie que les tours de revue
+    précédents ont retirée de ce module. Lève `EcritureViaSymlinkRefusee`,
+    comme le feraient les écritures qui suivent, si l'invariant est faux."""
+    _verifier_confinement(sortie_dir, worktree)
+    return ANCRE_WORKTREE_PORTABLE
 
 
 def geler(
@@ -449,7 +491,7 @@ def _produire_sorties(worktree: Path, sortie_dir: Path) -> TargetCustody:
             "commit": garde.commit,
             "tree": garde.tree,
             "branch": garde.branch,
-            "worktree": garde.worktree,
+            "worktree": _ancre_worktree_portable(worktree, sortie_dir),
             "dirty": garde.dirty,
             "chemins_sales_tolerés": list(garde.chemins_sales_tolerés),
             "fichiers_inventories": len(inventaire),

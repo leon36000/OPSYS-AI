@@ -36,6 +36,8 @@ from custody import (
     _ecrire_sans_suivre_symlink,
     _produire_sorties,
     _verifier_confinement,
+    _ancre_worktree_portable,
+    ANCRE_WORKTREE_PORTABLE,
     _sha256_par_blocs,
     _ouverture_atomique_confinee,
 )
@@ -265,6 +267,30 @@ class TestProductionSorties:
         assert "tree" in data and len(data["tree"]) == 40
         assert data["branch"] == type(self)._branche_a_la_production
         assert "fichiers_inventories" in data
+
+    def test_target_json_ne_porte_jamais_de_chemin_absolu(self):
+        """AUD-CORE-006 (suivi de l'issue #570) — non-régression sur la
+        PRODUCTION : le champ `worktree` portait le chemin ABSOLU du poste
+        générateur (mesuré sur la baseline committée : un point de montage
+        propre à UNE machine). Aucun test existant ne lisait ce champ — la
+        régression était donc invisible. Verrouillé ici sur la sortie
+        RÉELLEMENT produite par `_produire_sorties()`, pas seulement sur
+        l'artefact committé : régénérer la baseline ne peut plus
+        réintroduire un chemin d'hôte.
+
+        Le champ est vérifié TROIS fois, chacune fermant un contournement
+        distinct : valeur exacte (un autre relatif ne passe pas en
+        silence), non-absolu (le vrai défaut mesuré), et absence de
+        séparateur de racine n'importe où dans la valeur (une valeur
+        comme un chemin absolu enrobé resterait non portable)."""
+        data = json.loads(self._chemin_sortie("TARGET.json").read_text(encoding="utf-8"))
+        valeur = data["worktree"]
+        assert valeur == ANCRE_WORKTREE_PORTABLE, (
+            f"TARGET.json produit porte {valeur!r} au lieu de l'ancre portable "
+            f"{ANCRE_WORKTREE_PORTABLE!r}"
+        )
+        assert not Path(valeur).is_absolute(), f"chemin absolu produit : {valeur!r}"
+        assert "/" not in valeur, f"séparateur de chemin dans l'ancre : {valeur!r}"
 
     def test_git_refs_existe(self):
         p = self._chemin_sortie("GIT-REFS.txt")
@@ -848,3 +874,55 @@ def test_ftruncate_en_echec_ne_fuit_pas_le_descripteur(tmp_path, monkeypatch):
         "le fd de la feuille n'a PAS été fermé après l'échec de ftruncate "
         "— fuite de descripteur"
     )
+
+
+# ---------------------------------------------------------------------------
+# AUD-CORE-006 (suivi de l'issue #570) — portabilité du champ `worktree`.
+# ---------------------------------------------------------------------------
+
+
+def test_target_json_committe_ne_porte_pas_de_chemin_absolu():
+    """L'ARTEFACT committé (`audit/core-baseline/TARGET.json`), pas la
+    sortie régénérée : c'est lui que lit un tiers qui vérifie l'audit, et
+    c'est lui qui portait réellement le chemin d'hôte mesuré. Distinct de
+    `TestProductionSorties.test_target_json_ne_porte_jamais_de_chemin_
+    absolu` — celui-là couvre le GÉNÉRATEUR, celui-ci le FICHIER
+    VERSIONNÉ ; corriger l'un sans l'autre laisse la moitié du défaut."""
+    data = json.loads((BASE / "TARGET.json").read_text(encoding="utf-8"))
+    valeur = data["worktree"]
+    assert valeur == ANCRE_WORKTREE_PORTABLE
+    assert not Path(valeur).is_absolute()
+    # Les champs qui ancrent RÉELLEMENT l'audit sont intacts : la correction
+    # de portabilité ne doit rien retirer à la preuve adressée par contenu.
+    assert len(data["commit"]) == 40 and len(data["tree"]) == 40
+    assert data["branch"] and data["branch"] not in ("main", "master", "HEAD")
+
+
+def test_ancre_portable_exige_reellement_que_la_sortie_soit_dans_le_worktree(tmp_path):
+    """Preuve que la vérification d'invariant de `_ancre_worktree_portable()`
+    n'est pas décorative : l'ancre `.` n'est vraie QUE parce que les sorties
+    vivent sous le worktree décrit. Si ce n'est pas le cas, la fonction lève
+    au lieu de renvoyer une ancre mensongère. Sans ce test, on pourrait
+    supprimer l'appel à `_verifier_confinement` sans qu'aucun test rougisse."""
+    worktree = tmp_path / "wt"
+    (worktree / "audit" / "core-baseline").mkdir(parents=True)
+    dedans = worktree / "audit" / "core-baseline"
+    dehors = tmp_path / "ailleurs"
+    dehors.mkdir()
+
+    assert _ancre_worktree_portable(worktree, dedans) == ANCRE_WORKTREE_PORTABLE
+
+    with pytest.raises(EcritureViaSymlinkRefusee):
+        _ancre_worktree_portable(worktree, dehors)
+
+
+def test_geler_conserve_le_worktree_absolu_en_memoire(tmp_path):
+    """Frontière volontaire : seule la SÉRIALISATION est rendue portable.
+    `TargetCustody.worktree` reste la valeur absolue reçue — `geler()` ne
+    doit jamais mentir sur son entrée, et git a besoin du vrai chemin. Ce
+    test empêche de « corriger » le défaut au mauvais niveau (dans
+    `geler()`), ce qui casserait les appelants sans rien améliorer dans
+    TARGET.json."""
+    garde = geler(WORKTREE, branche_observee="feature/portabilite", statut_observe=[])
+    assert Path(garde.worktree).is_absolute()
+    assert Path(garde.worktree) == WORKTREE
