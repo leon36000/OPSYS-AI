@@ -43,13 +43,16 @@ ouverte au tour 2 est LEVÉE, avec sa cause racine :
    Ajouter le préfixe correspondant aurait rendu l'oracle rouge sur un
    fichier non corrigeable dans le périmètre d'alors.
 
-   Autorité re-vérifiée sur pièces (`gh pr list --json files`, pas de
-   mémoire) : ce champ est écrit par `custody.py`, PAS par
-   `path_and_authority_map.py`. Les trois fichiers occupés par la PR #504
-   (`path_and_authority_map.py`, `CANONICAL-PATH-MAP.json`,
-   `tests/test_path_and_authority_map.py`) ne sont donc pas concernés, et
-   aucune PR ouverte ne touche `custody.py`, `TARGET.json` ni
-   `tests/test_target_custody.py`.
+   Autorité du champ, établie dans le CODE et non dans un état GitHub :
+   `worktree` est écrit par `custody.py` (`_ancre_worktree_portable`), PAS
+   par `path_and_authority_map.py` — `grep -n TARGET
+   audit/core-baseline/path_and_authority_map.py` ne rend rien. Rejouable
+   à tout moment, sur n'importe quel clone, sans réseau.
+
+   Le constat de non-collision entre branches est daté par nature : il vit
+   dans la description de la pull request, jamais ici. Un fichier versionné
+   qui énumère les pull requests ouvertes et leurs fichiers devient faux à
+   l'ouverture de la suivante — y compris celle qui le porte.
 
    Le champ a été rendu portable des DEUX côtés — générateur (ancre
    relative, cf. `ANCRE_WORKTREE_PORTABLE` dans `custody.py` et le
@@ -83,6 +86,18 @@ def _fragment_motif(prefixe: str) -> str:
 # d'autorité qui les avait fait écarter au tour 2, et
 # `test_les_six_prefixes_exacts_sont_couverts` pour le verrou de
 # non-régression sur cette liste.
+#
+# FRONTIÈRE VOLONTAIRE, déclarée sur le modèle d'`EXTENSIONS_SCANNEES` :
+# cette liste ne prétend PAS à l'exhaustivité des points de montage. Sont
+# notamment NON couverts /srv, /data, /var et /Volumes (macOS) — mesuré,
+# un littéral les employant passe l'oracle au vert. Sont également hors de
+# portée d'un scanner de sous-chaîne contiguë : la casse différente, le
+# séparateur Windows, l'échappement JSON, et tout chemin composé à
+# l'exécution (concaténation, os.path.join, f-string, variable
+# d'environnement) — c'est la technique que ce module emploie
+# délibérément sur lui-même, et elle vaut donc aussi comme contournement.
+# Élargir la liste exige de modifier `_PREFIXES_ATTENDUS` dans le même
+# geste : c'est le seul chemin d'extension, et il est délibérément bruyant.
 _PREFIXES_HOTE: tuple[str, ...] = ("home", "Users", "root", "media", "mnt", "opt")
 MOTIFS_CHEMIN_HOTE: tuple[str, ...] = tuple(_fragment_motif(p) for p in _PREFIXES_HOTE)
 
@@ -335,7 +350,7 @@ def test_un_litteral_injecte_dans_une_copie_de_ce_fichier_est_detecte(tmp_path):
 # retirer un préfixe retirerait AUSSI son cas de test, et la suite
 # repasserait au vert en couvrant strictement moins — le motif exact que le
 # commit `a32d99c` sur main a retiré ailleurs (« remove tautological
-# assertions »). Ici, retirer un préfixe rend RED.
+# encoding assertions »). Ici, retirer un préfixe rend RED.
 _PREFIXES_ATTENDUS: tuple[str, ...] = ("home", "Users", "root", "media", "mnt", "opt")
 
 

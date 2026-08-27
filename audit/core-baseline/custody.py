@@ -127,9 +127,12 @@ def _chemin_depuis_ligne_porcelain(ligne: str) -> str:
 #    la disposition de ses points de montage dans un artefact d'audit
 #    versionné — à rebours du principe de portabilité de l'audit.
 #
-# Retenu : une ancre RELATIVE — « la racine du dépôt qui contient cet
-# artefact ». Ce n'est pas un placeholder inventé : `.` est un chemin
-# valide, et c'est exactement le chemin du worktree vu depuis lui-même.
+# Retenu : une ancre RELATIVE — « la racine du worktree, exprimée depuis
+# elle-même ». Le point de référence est la racine du WORKTREE, jamais le
+# répertoire de l'artefact : `TARGET.json` ne vit pas à la racine, et
+# `_produire_sorties` peut l'écrire dans n'importe quel `sortie_dir`
+# confiné. Ce n'est pas un placeholder inventé : `.` est un chemin valide,
+# et c'est exactement le chemin du worktree vu depuis lui-même.
 ANCRE_WORKTREE_PORTABLE = "."
 
 
