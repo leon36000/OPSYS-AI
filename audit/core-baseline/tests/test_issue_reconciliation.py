@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -36,7 +37,31 @@ from issue_reconciliation import (
 
 import custody
 
-PACK_ROOT = Path("/home/pc1/core-pack/OPSYS-AI-CORE-EXECUTION-PACK-v2.3.1-fusion")
+# AUD-CORE-006 tour 2 (revue aveugle, mesurée fondée) : un skip au niveau
+# MODULE (`pytest.skip(allow_module_level=True)`) éteint TOUS les tests de
+# ce fichier dès qu'OPSYS_PACK est absent — y compris les tests qui ne
+# lisent JAMAIS PACK_ROOT, ni directement ni via le helper
+# `_lire_id_squelette_reels` (défini plus bas, lui-même lecteur direct de
+# PACK_ROOT). Mesuré par analyse AST du corps de chaque test ET des
+# helpers qu'il appelle (pas à l'œil) : 16 des 25 tests de ce module, plus
+# les 5 méthodes de `TestProductionSorties` (dépendantes de PACK_ROOT via
+# leur fixture `_produire`, elle-même directe), ne dépendent d'aucun pack
+# réel. Fermé en ne construisant plus AUCUN skip au niveau module :
+# PACK_ROOT vaut None si OPSYS_PACK est absent ou invalide, et seuls les
+# tests qui LISENT RÉELLEMENT PACK_ROOT (directement ou par transitivité)
+# portent `@pytest.mark.skipif(PACK_ROOT is None, ...)`. Les tests
+# hermétiques tournent désormais INCONDITIONNELLEMENT, pack présent ou non.
+_OPSYS_PACK = os.environ.get("OPSYS_PACK")
+PACK_ROOT = Path(_OPSYS_PACK) if _OPSYS_PACK and Path(_OPSYS_PACK).is_dir() else None
+
+_RAISON_PACK_ABSENT = (
+    "OPSYS_PACK non défini ou introuvable — définir "
+    "OPSYS_PACK=/chemin/vers/OPSYS-AI-CORE-EXECUTION-PACK-vX.Y.Z-fusion "
+    "(dossier existant) pour exécuter ce test contre le pack réel."
+)
+# Un seul mark partagé par les tests (et la classe) qui lisent réellement
+# PACK_ROOT — jamais un skip de module, jamais un pass silencieux.
+_PACK_ABSENT = pytest.mark.skipif(PACK_ROOT is None, reason=_RAISON_PACK_ABSENT)
 
 
 def _lire_id_squelette_reels() -> set[str]:
@@ -55,6 +80,7 @@ def _lire_id_squelette_reels() -> set[str]:
 # ---------------------------------------------------------------------------
 
 
+@_PACK_ABSENT
 def test_r_concilier_les_54_issues_et_les_12_bugs_reproduits_1():
     """RED obligatoire : « 54 issues doivent avoir exactement une
     disposition ». Bijection stricte entre les 54 `ISS-CAND-*.json` et les
@@ -72,6 +98,7 @@ def test_r_concilier_les_54_issues_et_les_12_bugs_reproduits_1():
         assert d.disposition in DISPOSITIONS_VALIDES, f"{d.issue_id} : disposition hors liste blanche {d.disposition!r}"
 
 
+@_PACK_ABSENT
 def test_r_concilier_les_54_issues_et_les_12_bugs_reproduits_2():
     """RED obligatoire : « 12 bugs produit doivent rester visibles ».
     Bijection stricte avec les 12 lignes de NOUVEAUX-CONSTATS-PRODUIT.csv —
@@ -89,6 +116,7 @@ def test_r_concilier_les_54_issues_et_les_12_bugs_reproduits_2():
     assert modules_presents == {"M5", "M6", "M7", "M9", "Tests/CI"}
 
 
+@_PACK_ABSENT
 def test_r_concilier_les_54_issues_et_les_12_bugs_reproduits_3():
     """RED obligatoire : « aucun EXPECTED_SKELETON ne doit être transformé en
     bug Core ». Vérifié sur les 12 issues réellement marquées
@@ -204,6 +232,7 @@ def test_classer_le_marqueur_decision_requise_ne_masque_pas_un_stade_inconnu():
         _classer("STADE_JAMAIS_VU", "CONFIRMED_DECISION_REQUIRED")
 
 
+@_PACK_ABSENT
 def test_classer_ca21_0001_reel_est_decision_required():
     """Cas réel exact : la LICENSE Apache vs décision T3 PROPRIÉTAIRE."""
     matrice = _charger_matrice(PACK_ROOT)
@@ -219,6 +248,7 @@ def test_classer_ca21_0001_reel_est_decision_required():
 # ---------------------------------------------------------------------------
 
 
+@_PACK_ABSENT
 def test_garde_skeleton_promu_mord_si_le_mapping_est_corrompu(monkeypatch):
     """Preuve que `_verifier_aucun_skeleton_promu` est une garde
     INDÉPENDANTE de `_classer` : on corrompt le mapping pour qu'il route
@@ -235,6 +265,7 @@ def test_garde_skeleton_promu_mord_si_le_mapping_est_corrompu(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
+@_PACK_ABSENT
 def test_reconcilier_unresolved_questions_est_le_sous_ensemble_exact():
     issue_to_work, _, unresolved_questions = reconcilier(PACK_ROOT)
     attendu = {d.issue_id for d in issue_to_work if d.disposition == "DECISION_REQUIRED"}
@@ -245,12 +276,14 @@ def test_reconcilier_unresolved_questions_est_le_sous_ensemble_exact():
     }
 
 
+@_PACK_ABSENT
 def test_reconcilier_est_deterministe():
     a = reconcilier(PACK_ROOT)
     b = reconcilier(PACK_ROOT)
     assert a == b
 
 
+@_PACK_ABSENT
 def test_reconcilier_target_phase_est_transcrit_verbatim():
     issue_to_work, _, _ = reconcilier(PACK_ROOT)
     par_id = {d.issue_id: d for d in issue_to_work}
@@ -319,6 +352,7 @@ def test_charger_matrice_refuse_un_symlink(tmp_path):
         _charger_matrice(faux_pack)
 
 
+@_PACK_ABSENT
 def test_produire_sorties_refuse_sortie_dir_symlinke(tmp_path):
     faux_worktree = tmp_path / "faux_worktree"
     faux_worktree.mkdir()
@@ -405,9 +439,13 @@ def test_reconcilier_refuse_bugs_produit_incomplets(tmp_path):
 # ---------------------------------------------------------------------------
 
 
+@_PACK_ABSENT
 class TestProductionSorties:
     """Écrit RÉELLEMENT les 3 CSV dans le répertoire de sortie du worktree —
-    même motif anti-auto-référence que C00-001/C00-002 (conftest.py)."""
+    même motif anti-auto-référence que C00-001/C00-002 (conftest.py). Les 5
+    méthodes dépendent TOUTES de PACK_ROOT via la fixture autouse
+    `_produire` ci-dessous (mesuré par AST) — le mark `@_PACK_ABSENT` est
+    donc posé sur la CLASSE entière, pas méthode par méthode."""
 
     @pytest.fixture(autouse=True)
     def _produire(self):

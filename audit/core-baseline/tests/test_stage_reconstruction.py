@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -31,7 +32,33 @@ from stage_reconstruction import (
     SOURCES_CANONIQUES,
 )
 
-PACK_ROOT = Path("/home/pc1/core-pack/OPSYS-AI-CORE-EXECUTION-PACK-v2.3.1-fusion")
+# AUD-CORE-006 tour 2 (revue aveugle, mesurée fondée) : un skip au niveau
+# MODULE (`pytest.skip(allow_module_level=True)`) éteint TOUS les tests de
+# ce fichier dès qu'OPSYS_PACK est absent — y compris les tests qui ne
+# lisent JAMAIS PACK_ROOT. Mesuré par analyse AST (aucun des 3 tests
+# ci-dessous ne référence PACK_ROOT, ni directement ni via un appel) :
+# test_rejouer_le_stade_squelette_first_1/2/3 sont précisément les
+# `required_test_names` de C00-002 dans
+# `.opsys/core-control/2.3.0/TASK-REGISTRY.jsonl` — un skip de module les
+# éteint aussi, ce qui revient à faire taire des tests qu'une tâche Core
+# exige formellement. Fermé en ne construisant plus AUCUN skip au niveau
+# module : PACK_ROOT vaut None si OPSYS_PACK est absent ou invalide, et
+# seuls les tests qui LISENT RÉELLEMENT PACK_ROOT portent
+# `@pytest.mark.skipif(PACK_ROOT is None, ...)` — identifiés par analyse
+# AST du corps de chaque test (pas à l'œil). Les tests hermétiques tournent
+# désormais INCONDITIONNELLEMENT, pack présent ou non.
+_OPSYS_PACK = os.environ.get("OPSYS_PACK")
+PACK_ROOT = Path(_OPSYS_PACK) if _OPSYS_PACK and Path(_OPSYS_PACK).is_dir() else None
+
+_RAISON_PACK_ABSENT = (
+    "OPSYS_PACK non défini ou introuvable — définir "
+    "OPSYS_PACK=/chemin/vers/OPSYS-AI-CORE-EXECUTION-PACK-vX.Y.Z-fusion "
+    "(dossier existant) pour exécuter ce test contre le pack réel."
+)
+# Un seul mark partagé par les tests qui lisent réellement PACK_ROOT —
+# jamais un skip de module, jamais un pass silencieux : un test qui ne peut
+# pas mesurer doit se déclarer sauté, pas vert.
+_PACK_ABSENT = pytest.mark.skipif(PACK_ROOT is None, reason=_RAISON_PACK_ABSENT)
 
 # ---------------------------------------------------------------------------
 # 3 cas RED obligatoires (noms imposés)
@@ -143,6 +170,7 @@ def test_stage_state_est_gele():
         etat.program_stage = "AUTRE"
 
 
+@_PACK_ABSENT
 def test_rejouer_stade_hache_les_5_sources_reelles():
     """rejouer_stade() doit hacher RÉELLEMENT les 5 sources canoniques —
     comparé indépendamment à hashlib.sha256(read_bytes()), jamais supposé."""
@@ -155,6 +183,7 @@ def test_rejouer_stade_hache_les_5_sources_reelles():
         assert len(h) == 64
 
 
+@_PACK_ABSENT
 def test_produire_sorties_stage_ecrit_json_et_csv_reels(tmp_path):
     """Bout en bout réel : STAGE.json et STAGE-EVIDENCE.csv sont produits,
     contiennent les valeurs sourcées, et le CSV a exactement 5 lignes liées
@@ -193,6 +222,7 @@ def test_produire_sorties_stage_ecrit_json_et_csv_reels(tmp_path):
         )
 
 
+@_PACK_ABSENT
 def test_produire_sorties_stage_refuse_sortie_dir_symlinke(tmp_path):
     """Le SITE D'APPEL réel de _produire_sorties_stage refuse un sortie_dir
     symlinké — pas seulement l'utilitaire testé isolément (piège fermé en

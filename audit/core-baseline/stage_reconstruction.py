@@ -364,11 +364,22 @@ def _produire_sorties_stage(worktree: Path, sortie_dir: Path, pack_root: str | P
 
 
 if __name__ == "__main__":
-    pack_root_defaut = Path(
-        os.environ.get(
-            "OPSYS_PACK", "/home/pc1/core-pack/OPSYS-AI-CORE-EXECUTION-PACK-v2.3.1-fusion"
+    # AUD-CORE-006 : aucun défaut plausible n'est inventé ici. Le pack
+    # d'exécution Core est un artefact EXTERNE au dépôt (versionné hors
+    # Git, propre à chaque poste) ; il n'existe aucun sous-répertoire du
+    # dépôt qui puisse en tenir lieu par défaut. Un chemin absolu propre à
+    # un seul poste présenté comme valeur par défaut générale est
+    # exactement le défaut mesuré par l'issue #570. Erreur explicite
+    # plutôt que deviner.
+    _opsys_pack_env = os.environ.get("OPSYS_PACK")
+    if not _opsys_pack_env:
+        sys.exit(
+            "OPSYS_PACK n'est pas défini. Ce script a besoin du chemin vers le "
+            "pack d'exécution Core (ex. OPSYS_PACK=/chemin/vers/"
+            "OPSYS-AI-CORE-EXECUTION-PACK-vX.Y.Z-fusion) ; ce pack est un "
+            "artefact externe au dépôt, il n'a pas de valeur par défaut."
         )
-    )
+    pack_root_defaut = Path(_opsys_pack_env)
     worktree = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parents[2]
     sortie_dir = Path(__file__).resolve().parent
     garde = _produire_sorties_stage(worktree, sortie_dir, pack_root_defaut)
