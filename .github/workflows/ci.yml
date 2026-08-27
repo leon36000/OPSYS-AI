@@ -15,6 +15,24 @@ jobs:
         run: python3 scripts/statut_lint.py
       - name: Tests des scripts de methode (R-030)
         run: python3 -m pytest scripts/tests -q
+      # Défaut mesuré (chore post C03-001) : audit/core-baseline/tests/ n'a
+      # JAMAIS été référencé ici — le job gates (seul check `required`) n'a
+      # jamais couvert cette carte, une régression (opsys_core mal classé)
+      # est restée invisible en CI sur 3 PR mergées avant d'être trouvée en
+      # exécution locale. 3 fichiers EXCLUS (pas de fichier, pas de --ignore
+      # implicite) — chacun confirmé non hermétique, dont 2 par un ÉCHEC RÉEL
+      # de ce step sur ce même PR avant correction (jamais supposé) :
+      # - test_target_custody.py : HEAD détaché sur `pull_request` (branche
+      #   interdite pour geler()) et dépend de `gh api user` == leon36000,
+      #   indisponible sur un runner GitHub Actions.
+      # - test_issue_reconciliation.py, test_stage_reconstruction.py :
+      #   PACK_ROOT = /home/pc1/core-pack/... codé en dur — chemin machine
+      #   LOCALE hors dépôt, absent de tout runner CI (mesuré : 17
+      #   FAILED/ERROR réels sur le run GitHub Actions de ce PR avant cette
+      #   exclusion — un test local seul ne l'aurait jamais révélé, la
+      #   machine de développement partage ce chemin).
+      - name: Tests audit/core-baseline (carte chemins/autorités C00-004 + carte autorité métier + couverture canon — 3 fichiers hermétiques du dossier)
+        run: python3 -m pytest -q audit/core-baseline/tests/test_path_and_authority_map.py audit/core-baseline/tests/test_business_authority_map.py audit/core-baseline/tests/test_core_canon_coverage.py
       - name: Tests module M7 (M7-S000)
         run: python3 -m pytest "Modules M/M7-marketing/tests" -q
       # Un pytest DISTINCT par module : les modules exposent des noms de premier niveau

@@ -2,7 +2,7 @@
   {
     "actual_path": "core/src/opsys_core",
     "logical_path": "core.opsys_core",
-    "status": "RESERVED_NEW"
+    "status": "EXISTING_CORE_OWNED"
   },
   {
     "actual_path": "core/src/auth",
