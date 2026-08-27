@@ -1,0 +1,89 @@
+{
+  "task_id": "CORE-STATUS-EVIDENCE-583",
+  "description": "Issue #583 — empêcher la promotion ACTIVE lorsqu’evidence_hash est absent, non-chaîne ou ne respecte pas la référence canonique sha256:<64 hex minuscules>.",
+  "issue": "https://github.com/leon36000/OPSYS-AI/issues/583",
+  "branche": "codex/issue-583-status-evidence-20260827",
+  "base": "origin/main @ 62b9d49a7ebb6ec4d9de138eae10ad1c839762bf",
+  "base_tree": "12af0f1adfdb191f6060bc04709ae49c1c68860c",
+  "reviewed_commit": "eaf313ddaeeada2f320d067b820bc1dfb34327e3",
+  "reviewed_tree": "86f634bc0ac96b63d0a974231537c9de2df3e58d",
+  "code_diff_sha256": "e5bb32a2d51eadc5916fe65b5050b44182ec1b31dac03c3468832a43c4287cac",
+  "code_diff_sha256_scope": "git diff origin/main...HEAD -- core/ tools/proof/ .opsys/tools/github-control/ .github/workflows/core-ci.yml .github/workflows/ci.yml scripts/ ; calculé par core/scripts/verify_proof_sealed.py",
+  "sealed_at": "2026-08-27T01:22:11-04:00",
+  "verification": {
+    "red": {
+      "base": "origin/main @ 62b9d49a7ebb6ec4d9de138eae10ad1c839762bf",
+      "result": "5 échecs ciblés observés : quatre valeurs truthy invalides et le chemin public evaluer_capacite() produisaient ACTIVE avant le correctif."
+    },
+    "green": [
+      "python3 -m pytest core/tests/status/test_capability_states.py -q -rs --tb=short : 22 passed",
+      "python3 -m pytest core/tests -q -rs --tb=short : exit 0",
+      "python3 -m mypy --ignore-missing-imports core/src core/tests : exit 0, 64 fichiers",
+      "python3 scripts/structure_lint.py : exit 0",
+      "python3 scripts/quality/no_stub_gate.py --repo . --base-ref origin/main : exit 0",
+      "python3 core/scripts/run_security_scan.py : exit 0, bandit 0, pip-audit 0",
+      "python3 core/scripts/run_codeql_scan.py : exit 0, 13 connus/justifiés, 0 non alloué",
+      "python3 core/scripts/run_pack_validation.py : exit 0",
+      "git diff --check origin/main...HEAD : exit 0"
+    ],
+    "pending_external_gate": "SonarCloud exact-head et CI GitHub seront vérifiés après création de la PR ; aucun merge avant leur résultat vert."
+  },
+  "review_inputs": {
+    "round": "OPSYS-ISSUE-583-STATUS-EVIDENCE-r1-eaf313d",
+    "mode": "T2, trois reviewers indépendants en parallèle, prompt neutre commun, sans rôles",
+    "prompt_sha256": "fa8cd0b93662ef991314f08a01aef60b91b4a5c555eb59d82f341550ed200cda",
+    "pack_sha256": "725710924d23aee1134faf9d4d6ca29b99845f0a3a40439ff1f5d9ecd7899b6d",
+    "diff_verbatim_sha256": "e5bb32a2d51eadc5916fe65b5050b44182ec1b31dac03c3468832a43c4287cac",
+    "review_neutrality": {
+      "team_memory_story": "opsys-issue-583-status-evidence-r1-eaf313d",
+      "team_memory_preflight": "empty before submission (count 0)",
+      "previous_evidence_and_verdicts_excluded_from_pack": true
+    },
+    "runner": {
+      "repository": "proof-method",
+      "commit": "8c5d0a09609837a46ee1c5b5f909a6a8a5c310a6",
+      "tree": "086c9b5ae38b9120ac81e47ce221bfdbbe9a7753",
+      "worktree_clean": false,
+      "sources_sha256": {
+        "scripts/civ_review.py": "4176f8734d91417a87a96c26df40a059281b0a6aff9def9aecf4ab18b91c3c45",
+        "scripts/tally_reviews.py": "cbdb4f4b55b6972ebe83d0078177a28fd511dc87962367eb63b8f3cb695e40c7",
+        "scripts/lib/team_memory.py": "ba2ed269fc80d849ca0e72d7a4dc3a434d2ec2d6ca97824ad828fc506ac90844",
+        "reviews/TEMPLATE-prompt-revue-neutre.md": "fa03341c225031aa209d29c2e9d40e422e080934fe6aa8e3b03bef6f832fc6a8"
+      },
+      "observed_local_changes": {
+        "scripts/civ_review.py": "max_tokens=32000 et x-session-id dérivé du hash du prompt",
+        "scripts/tally_reviews.py": "aliases GPT-5.6-Sol ajoutés au mapping vendor"
+      }
+    }
+  },
+  "reviews": {
+    "DeepSeek-V4-Pro-0813.verdict.json": "834c4b62b437a70598681943e3da1000b102f0d7829b65c2869d8850eb738b57",
+    "Gemini-3.7-Flash.verdict.json": "96d2876283cdb83bf633442128fef5aa49910bd0e5ba4266aa5aa3a3834a9c22",
+    "Muse-Spark-1.2-Contributor.verdict.json": "e59cb0db704ad43381a3825cbab5aa70f2fc3a0614310374f585435fcbfbbc7f"
+  },
+  "consensus": {
+    "outcome": "APPROVE 3/3",
+    "major_or_critical_objections": 0,
+    "minor_objections": 0,
+    "reviewers": {
+      "DeepSeek-V4-Pro-0813": {
+        "vendor": "deepseek",
+        "served_model": "deepseek-v4-pro-0813-openrouter",
+        "retries": 0,
+        "fallbacks": 0
+      },
+      "Gemini-3.7-Flash": {
+        "vendor": "google",
+        "served_model": "gemini-37-flash-openrouter",
+        "retries": 0,
+        "fallbacks": 0
+      },
+      "Muse-Spark-1.2-Contributor": {
+        "vendor": "meta",
+        "served_model": "muse-spark-12-contributor-openrouter",
+        "retries": 0,
+        "fallbacks": 0
+      }
+    }
+  }
+}

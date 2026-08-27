@@ -33,6 +33,8 @@ from opsys_core.status.service import (  # noqa: E402
     transitionner,
 )
 
+_EVIDENCE_HASH_VALIDE = "sha256:" + ("a" * 64)
+
 
 # ---------------------------------------------------------------------------
 # Cas RED 1 — états autorisés
@@ -83,7 +85,7 @@ def test_timeout_ne_devient_jamais_active():
 def test_operation_reussie_avec_preuve_devient_active():
     """Contrôle symétrique : une opération qui RÉUSSIT et retourne une
     preuve hashée devient ACTIVE — jamais un faux blocage sur un état sain."""
-    resultat = evaluer_capacite("cap-z", lambda: "sha256:abc123")
+    resultat = evaluer_capacite("cap-z", lambda: _EVIDENCE_HASH_VALIDE)
     assert resultat.state == CapabilityState.ACTIVE
     assert resultat.reasons == ()
 
@@ -157,8 +159,62 @@ def test_promotion_vers_active_sans_preuve_hashee_est_refusee():
 
 def test_promotion_vers_active_avec_preuve_hashee_est_acceptee():
     depart = CapabilityStatus(capability_id="cap-e", state=CapabilityState.DEGRADED, reasons=["dégradation initiale"])
-    resultat = transitionner(depart, CapabilityState.ACTIVE, reasons=[], evidence_hash="sha256:deadbeef")
+    resultat = transitionner(depart, CapabilityState.ACTIVE, reasons=[], evidence_hash=_EVIDENCE_HASH_VALIDE)
     assert resultat.state == CapabilityState.ACTIVE
+
+
+@pytest.mark.parametrize(
+    "evidence_hash_invalide",
+    (
+        "not-a-hash",
+        "sha256:deadbeef",
+        "sha256:" + ("A" * 64),
+        object(),
+    ),
+)
+def test_promotion_vers_active_avec_preuve_invalide_est_refusee_sans_journalisation(
+    evidence_hash_invalide: object,
+):
+    """Une valeur truthy mais non vérifiable ne doit jamais devenir ACTIVE.
+
+    Le test couvre les deux frontières d'exécution réelles : un appelant
+    peut fournir une chaîne arbitraire et une opération typée peut livrer
+    un objet inattendu au runtime. Aucun de ces cas ne doit enregistrer
+    une promotion ou divulguer la valeur invalide dans la raison."""
+    depart = CapabilityStatus(
+        capability_id="cap-evidence-invalide",
+        state=CapabilityState.DEGRADED,
+        reasons=("dégradation initiale",),
+    )
+    journal = CapabilityTransitionLog()
+
+    resultat = transitionner(
+        depart,
+        CapabilityState.ACTIVE,
+        reasons=(),
+        evidence_hash=evidence_hash_invalide,  # type: ignore[arg-type]
+        journal=journal,
+    )
+
+    assert resultat.state == CapabilityState.DEGRADED
+    assert any("invalide" in raison for raison in resultat.reasons)
+    assert all(str(evidence_hash_invalide) not in raison for raison in resultat.reasons)
+    assert journal.entries == []
+
+
+def test_evaluer_capacite_avec_preuve_invalide_ne_devient_pas_active():
+    """La vérification doit protéger le chemin public evaluer_capacite()."""
+    journal = CapabilityTransitionLog()
+
+    resultat = evaluer_capacite(
+        "cap-evaluation-invalide",
+        lambda: "evidence-not-sha256",
+        journal=journal,
+    )
+
+    assert resultat.state == CapabilityState.UNKNOWN
+    assert any("invalide" in raison for raison in resultat.reasons)
+    assert journal.entries == []
 
 
 def test_transition_vers_non_active_n_exige_pas_de_preuve():
@@ -177,13 +233,13 @@ def test_transition_vers_non_active_n_exige_pas_de_preuve():
 def test_journal_enregistre_une_transition_reussie():
     journal = CapabilityTransitionLog()
     depart = CapabilityStatus(capability_id="cap-g", state=CapabilityState.DEGRADED, reasons=["dégradation initiale"])
-    transitionner(depart, CapabilityState.ACTIVE, reasons=[], evidence_hash="sha256:cafe", journal=journal)
+    transitionner(depart, CapabilityState.ACTIVE, reasons=[], evidence_hash=_EVIDENCE_HASH_VALIDE, journal=journal)
     assert len(journal.entries) == 1
     entree = journal.entries[0]
     assert entree.capability_id == "cap-g"
     assert entree.depuis == CapabilityState.DEGRADED
     assert entree.vers == CapabilityState.ACTIVE
-    assert entree.evidence_hash == "sha256:cafe"
+    assert entree.evidence_hash == _EVIDENCE_HASH_VALIDE
 
 
 def test_journal_n_enregistre_pas_une_promotion_refusee():
@@ -197,7 +253,7 @@ def test_journal_n_enregistre_pas_une_promotion_refusee():
 
 def test_evaluer_capacite_avec_succes_journalise_la_transition():
     journal = CapabilityTransitionLog()
-    evaluer_capacite("cap-i", lambda: "sha256:1234", journal=journal)
+    evaluer_capacite("cap-i", lambda: _EVIDENCE_HASH_VALIDE, journal=journal)
     assert len(journal.entries) == 1
     assert journal.entries[0].vers == CapabilityState.ACTIVE
 
