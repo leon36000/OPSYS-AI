@@ -69,9 +69,9 @@ Deux propriétés de cette formulation, et rien d'autre :
   était `ADR-PROPOSED-INDEPENDENT-AGENT-OWNERSHIP.md`. Sans ces deux exclusions, la commande
   compterait ce document parmi ses propres preuves — et deviendrait non vide dès le merge de
   cette PR, c'est-à-dire au moment exact où un lecteur peut la rejouer.
-- **Ni SHA de base ni décompte de commits n'est figé ici**, contrairement à une version
-  antérieure de ce paragraphe qui figeait les deux comme preuve : la première avance de
-  `main` a suffi à les rendre faux, avant même le merge. Ce qui est affirmé est **borné à
+- **Une version antérieure de ce paragraphe figeait un SHA de base et un décompte de commits
+  comme preuve** ; la première avance de `main` a suffi à les rendre faux, avant même le
+  merge. Ce qui est affirmé ici est **borné à
   une mesure datée**, et non présenté comme valant pour toute révision : rejouée sur
   `origin/main` le **2026-08-27**, cette commande rend une sortie vide. Rejouée le même jour
   en remplaçant `origin/main` par le `HEAD` de cette branche — qui porte déjà tous les
