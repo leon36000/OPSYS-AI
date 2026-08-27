@@ -1,0 +1,10 @@
+{
+  "verdict": "APPROVE",
+  "objections": [],
+  "resume": "Le déplacement des tests unitaires vers le job bloquant 'gates' et l'ajout de l'oracle de contrat statique comblent rigoureusement les trous de gating sans régression.",
+  "date_heure": "2026-08-27T02:05:37.270377+00:00",
+  "prompt_sha256": "e183573badf6f116ada2e523b7479772060d4ebb9e3cc5204cf311ea5f6dd21e",
+  "reviewer_model": "Gemini-3.7-Flash",
+  "modele_servi": "gemini-3.7-flash",
+  "job_id": "4c909f56-30e7-4702-aa1c-4a38f146cd5d"
+}

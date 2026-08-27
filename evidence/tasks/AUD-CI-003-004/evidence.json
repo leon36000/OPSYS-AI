@@ -1,0 +1,32 @@
+{
+  "task_id": "AUD-CI-003-004",
+  "description": "AUD-CI-003 + AUD-CI-004 (issue #565) — rendre e2e, charge, authz et coffre reellement bloquants : retrait de continue-on-error sur e2e/e2e-load et deplacement des suites dashboard/authz/config-vault vers le job `gates`, seul contexte required en protection de branche. Ajout de l'oracle statique core/tests/bootstrap/test_ci_gating_contract.py, qui manquait sur ci.yml.",
+  "branche": "claude/aud-ci-003-004-gating-bloquant",
+  "base": "origin/main @ 5a155f98b004b39915cdacce7eabb3b77849ff0a",
+  "code_diff_sha256": "9d7ae165c33d19669cab4896e34625fb4f4644f92daeeb85bbcdf7f493629e7d",
+  "code_diff_sha256_note": "Calcule par core/scripts/verify_proof_sealed.py::_diff_sha256_actuel, la MEME fonction que celle utilisee par le gate en CI — jamais une seconde implementation. Porte sur les 2 seuls chemins du perimetre scelle touches par cette PR : .github/workflows/ci.yml et core/tests/bootstrap/test_ci_gating_contract.py. Fragilite assumee et nommee : ce hash est lie a origin/main au moment du scellement ; si main avance avant le merge, il faut resceller.",
+  "prompt_sha256": "e183573badf6f116ada2e523b7479772060d4ebb9e3cc5204cf311ea5f6dd21e",
+  "prompt_note": "Prompt de revue unique de 25 238 caracteres, contenant le diff verbatim, transmis a l'identique aux trois modeles. Verifie octet pour octet avant chaque envoi. Aucun modele n'a recu de contexte que les autres n'avaient pas.",
+  "reviews": {
+    "Gemini-3.7-Flash.json": "7e58b3d362d09fb3c9a62ce74a468cefde806373f872ec1ea244c2892175091e",
+    "Kimi-2.7.json": "ee0f6c3506a0d5da9caae2afe2da2cc116668605b18443973cd4b41994b2f851",
+    "Muse-Spark-1.2-Contributor.json": "c4ade4a1dc1bec8da7df29192a4e3b0c2f06240be5a0b5372659361f755fb31e"
+  },
+  "consensus": {
+    "profil": "Revue aveugle desancree : chaque modele a recu le diff et l'enonce du defaut, jamais le corps de la PR, jamais un verdict anterieur, jamais le nom de l'auteur, jamais un compte de tours.",
+    "rounds_realises": 1,
+    "voix_retenues_dans_reviews": [
+      "Gemini-3.7-Flash",
+      "Muse-Spark-1.2-Contributor",
+      "Kimi-2.7"
+    ],
+    "min_vendors_approve_satisfait": 3,
+    "vendors_approve": [
+      "gemini-3.7-flash",
+      "moonshot",
+      "muse-spark-1.2-contributor"
+    ],
+    "vendors_note": "Decorrelation reelle : Google (Gemini-3.7-Flash), Meta (Muse-Spark-1.2-Contributor) et Moonshot (Kimi-2.7) sont trois fournisseurs distincts, routes via OpenRouter. Transparence sur le calcul : seul `kimi-2.7` figure dans le tableau _VENDOR de verify_proof_sealed.py (-> moonshot) ; les deux autres tombent dans le repli singleton documente par _vendor_of, que sa propre docstring qualifie de fail-open du point de vue de la decorrelation. Ici le repli donne la meme reponse que la realite — trois vendors bel et bien distincts — mais le fait est dit, pas tu.",
+    "deepseek_absent": "DeepSeek-V4-Pro-0813 puis DeepSeek-V4-Pro ont ete sollicites avec le meme prompt scelle, deux tentatives chacun : les quatre appels ont rendu TRUNCATED_COMPLETION avec finish_reason=length et aucun contenu. Cause observee : FORGE_MODEL_BRIDGE_MAX_TOKENS vaut 4096, budget consomme en tokens de raisonnement avant emission sur un prompt de 25 Ko. Aucun verdict n'a ete fabrique pour combler l'absence ; un troisieme vendor reellement joignable (Kimi-2.7 / moonshot) a ete sollicite a la place."
+  }
+}
