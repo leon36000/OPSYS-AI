@@ -14,8 +14,8 @@ CLAUDE_RE = re.compile(r"^(?:ISS-|AUD-|BUG-|R4-)")
 HEADER = ["Work ID", "Owner", "Branch", "Path scope", "Status", "Updated UTC", "Next"]
 # Une ligne de separation Markdown valide : "|---|---|", "| --- | --- |",
 # avec ou sans ":" d'alignement, au moins 3 tirets par colonne.
-CELLULE_SEPARATRICE_RE = re.compile(r"^\s*:?-{3,}:?\s*$")
-FENCE_RE = re.compile(r"^(```|~~~)")
+TIRETS_MINIMUM_SEPARATEUR = 3
+MARQUEURS_BLOC_CODE = ("```", "~~~")
 
 
 def est_ligne_separatrice(ligne: str) -> bool:
@@ -37,7 +37,22 @@ def est_ligne_separatrice(ligne: str) -> bool:
     if len(ligne) < 2 or not ligne.startswith("|") or not ligne.endswith("|"):
         return False
     cellules = ligne[1:-1].split("|")
-    return bool(cellules) and all(CELLULE_SEPARATRICE_RE.match(c) for c in cellules)
+    return bool(cellules) and all(_est_cellule_separatrice(c) for c in cellules)
+
+
+def _est_cellule_separatrice(cellule: str) -> bool:
+    """Vraie pour une cellule de separation du type `---`, `:---`, `---:`, `:---:`.
+
+    Ecrit sans regex, deliberement, comme est_ligne_separatrice au-dessus. Toute
+    forme `\\s*...\\s*` autour d'un coeur de longueur variable est un motif que
+    SonarCloud classe en point chaud de securite (S5852), et deux tentatives de
+    reecriture regex n'ont pas suffi a faire repasser la Security Rating en A.
+    Un decoupage explicite ferme la question : il est lineaire par construction
+    et ne laisse aucun motif a analyser.
+    """
+    noyau = cellule.strip()
+    noyau = noyau.removeprefix(":").removesuffix(":")
+    return len(noyau) >= TIRETS_MINIMUM_SEPARATEUR and set(noyau) == {"-"}
 
 
 def parse_rows(path: Path) -> tuple[list[dict[str, str]], list[str], bool]:
@@ -48,7 +63,7 @@ def parse_rows(path: Path) -> tuple[list[dict[str, str]], list[str], bool]:
     in_fence = False
     for lineno, raw in enumerate(lines, 1):
         line = raw.strip()
-        if FENCE_RE.match(line):
+        if line.startswith(MARQUEURS_BLOC_CODE):
             in_fence = not in_fence
             continue
         if in_fence:
