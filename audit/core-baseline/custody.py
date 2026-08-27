@@ -32,9 +32,12 @@ class TargetCustody:
     commit: str
     tree: str
     branch: str
-    # ABSOLU en mémoire — `geler()` doit pouvoir lancer git dessus et ne
-    # doit jamais mentir sur son entrée. JAMAIS sérialisé tel quel :
-    # TARGET.json reçoit `_ancre_worktree_portable()` (cf. son commentaire).
+    # Le chemin du worktree TEL QUE REÇU par `geler()` : recopié sans
+    # `resolve()` ni contrôle, précisément pour ne jamais mentir sur son
+    # entrée. Absolu dans tous les appels de ce dépôt, mais ce n'est PAS
+    # une garantie du code — mesuré : `geler(".")` rend `"."`.
+    # JAMAIS sérialisé tel quel : TARGET.json reçoit
+    # `_ancre_worktree_portable()` (cf. son commentaire).
     worktree: str
     dirty: bool
     chemins_sales_tolerés: tuple[str, ...] = ()

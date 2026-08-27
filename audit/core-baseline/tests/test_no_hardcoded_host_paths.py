@@ -98,6 +98,23 @@ def _fragment_motif(prefixe: str) -> str:
 # délibérément sur lui-même, et elle vaut donc aussi comme contournement.
 # Élargir la liste exige de modifier `_PREFIXES_ATTENDUS` dans le même
 # geste : c'est le seul chemin d'extension, et il est délibérément bruyant.
+#
+# L'AUTRE MOITIÉ DE LA FRONTIÈRE — les faux POSITIFS. La recherche est une
+# sous-chaîne NON ANCRÉE : tout chemin RELATIF ou toute URL dont un segment
+# médian porte l'un des préfixes est signalé comme « chemin hôte absolu ».
+# Mesuré : un fichier rangé sous un répertoire nommé `media` dans
+# `Modules M/M7-marketing`, ou une URL dont un segment médian s'appelle
+# `media`, sont tous deux signalés. Le risque est déjà matérialisé pour
+# l'un des préfixes cités ci-dessus comme non couverts : ajouter `data`
+# rend l'oracle ROUGE, non pas sur un chemin hôte mais sur la ligne 325 de
+# `FILE-INVENTORY.csv`, qui inventorie un fichier sous un répertoire
+# nommé `data` — un chemin RELATIF généré, pas un chemin de poste.
+# (Ces exemples sont écrits en nommant le segment plutôt qu'en collant les
+# barres autour : un commentaire qui illustre le motif le déclencherait,
+# et cette note en a fait la démonstration en rendant l'oracle rouge.)
+# C'est la raison de fond de ne pas élargir à l'aveugle : chaque préfixe
+# ajouté est aussi un nom de répertoire que le dépôt peut légitimement
+# employer.
 _PREFIXES_HOTE: tuple[str, ...] = ("home", "Users", "root", "media", "mnt", "opt")
 MOTIFS_CHEMIN_HOTE: tuple[str, ...] = tuple(_fragment_motif(p) for p in _PREFIXES_HOTE)
 
@@ -368,10 +385,27 @@ def test_les_six_prefixes_exacts_sont_couverts():
 @pytest.mark.parametrize("prefixe", _PREFIXES_ATTENDUS)
 def test_chaque_prefixe_est_reellement_detecte(tmp_path, prefixe):
     """Chaque préfixe est prouvé VIVANT dans le détecteur, un par un :
-    figurer dans un tuple ne prouve pas qu'il déclenche. Un préfixe présent
-    dans `_PREFIXES_HOTE` mais neutralisé en aval (motif mal composé,
-    comparaison cassée) passerait `test_les_six_prefixes_exacts_sont_
-    couverts` sans être détecté nulle part."""
+    figurer dans un tuple ne prouve pas qu'il déclenche.
+
+    Ce que ce test ferme EN PROPRE, et lui seul : une **comparaison cassée**
+    dans `trouver_chemins_hote_code_en_dur` — par exemple n'y confronter
+    qu'une partie de `MOTIFS_CHEMIN_HOTE`. Mesuré : cette mutation laisse
+    `test_les_six_prefixes_exacts_sont_couverts` au VERT et fait rougir ce
+    test-ci sur les préfixes devenus muets.
+
+    Ce que ce test NE PEUT PAS fermer, et il faut le dire plutôt que le
+    laisser croire : un **motif mal composé** (`_fragment_motif` renvoyant
+    autre chose que `/<prefixe>/`). Sa fixture est construite PAR
+    `_chemin_hote_synthetique`, donc par `_fragment_motif` elle-même : sur
+    ce point précis il comparerait la fonction à elle-même, et il reste
+    VERT quand le détecteur est mort. Mesuré : `_fragment_motif` renvoyant
+    `/<prefixe>/zzz` laisse les 6 cas de ce test au vert.
+
+    Le motif mal composé est fermé par le SECOND assert de
+    `test_les_six_prefixes_exacts_sont_couverts`, qui recompose les motifs
+    attendus sans passer par `_fragment_motif`. C'est le seul filet sur ce
+    cas : le retirer rend la suite intégralement verte avec un détecteur
+    mort. Les deux tests sont complémentaires, aucun ne subsume l'autre."""
     litteral = _chemin_hote_synthetique(prefixe, "pc1/core-pack/exemple")
     faux = tmp_path / "module_sale.py"
     faux.write_text(f'PACK = "{litteral}"\n', encoding="utf-8")
