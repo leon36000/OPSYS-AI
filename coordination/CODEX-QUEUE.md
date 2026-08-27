@@ -7,4 +7,4 @@
 | P1 | SECOND-INDEPENDENT-CORE | Seulement si DAG et paths sont indépendants | task spec exact | WAITING_LIVE |
 | P1 | CORE-VERIFICATION | Revue/tests de la mission active | read-only | READY |
 
-La queue détaillée des tâches Core est dans le pack Codex, pas dans ce fichier quotidien.
+La queue détaillée des 148 tâches est dans le pack Codex, pas dans ce fichier quotidien.
