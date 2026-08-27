@@ -1,0 +1,531 @@
+Tu es relecteur indépendant, mandaté pour un verdict formel sur un changement de code.
+
+# Contexte
+
+Dépôt : OPSYS-AI. Branche protégée `main`, un seul contexte GitHub *required* : le job `gates`
+de `.github/workflows/ci.yml`. Ce dépôt applique une politique de chaîne d'approvisionnement
+nommée D-035 : toute action GitHub doit être épinglée par SHA de commit complet, jamais par un
+tag flottant, parce qu'un tag mutable laisse changer le code exécuté par la CI sans aucun commit
+dans le dépôt.
+
+# Le défaut corrigé
+
+`.github/workflows/ci.yml` utilisait `actions/setup-python@v5` — tag mutable — dans les jobs
+`e2e` et `e2e-load`, alors que ses trois `actions/checkout` étaient déjà épinglés par SHA complet.
+
+Défaut de second ordre : un détecteur d'action non épinglée existait déjà dans
+`core/tests/bootstrap/test_ci_contract.py` (`_unpinned_actions`), et sa fixture synthétique
+utilise littéralement `actions/setup-python@v5` comme exemple à refuser — mais il n'est appliqué
+qu'à `core-ci.yml`. `ci.yml`, le workflow qui porte le seul contexte *required*, n'avait aucun
+oracle de pin.
+
+Le SHA retenu, `a26af69be951a213d495a4c3e4e4022e16d87065`, est ce que `actions/setup-python@v5`
+résout aujourd'hui (tag v5.6.0).
+
+# Périmètre
+
+Le changement modifie exactement deux fichiers, et les deux sont dans le périmètre scellé du
+dépôt (`core/`, `scripts/`, `.github/workflows/ci.yml`, `.github/workflows/core-ci.yml`) :
+
+- `.github/workflows/ci.yml`
+- `core/tests/bootstrap/test_ci_gating_contract.py`
+
+Le diff ci-dessous est donc COMPLET : aucun fichier de ce changement n'est hors de ce que tu vois.
+
+# Ce que tu dois établir
+
+1. Le défaut est-il réellement corrigé, et le SHA est-il plausible et bien formé ?
+2. L'oracle ajouté est-il NON VIDE — rougirait-il réellement sur le défaut ? Peut-il rendre vert
+   à tort (fichier vide, absence de `uses:`, forme YAML non anticipée) ?
+3. La docstring dit-elle vrai ? Elle revendique des trous connus nommés par leur cause racine et
+   une duplication assumée avec `test_ci_contract._unpinned_actions`. Sur-vend-elle quoi que ce soit ?
+4. Le changement casse-t-il autre chose dans `ci.yml` — un `continue-on-error`, l'ordre des steps,
+   une dépendance nouvelle dans le job `gates` (qui n'installe que `pytest` et `pyyaml`) ?
+5. Un fichier livré contient-il une affirmation qu'une opération Git ordinaire (rebase, squash,
+   amend, avance de `main`, le merge lui-même) rendrait fausse ? Ou une affirmation sur un état
+   externe mutable (liste de PR ouvertes, état d'une issue) ?
+
+# Règle de jugement
+
+Ne compte pas comme objection un écart que le code DÉCLARE lui-même honnêtement. La distinction
+qui compte : « le code fait moins que l'idéal » (acceptable s'il le dit) contre « le code dit
+autre chose que ce qu'il fait » (objection).
+
+# Format de réponse — JSON strict, rien d'autre
+
+{"verdict":"APPROVE"|"REJECT","objections":[{"severite":"CRITIQUE|MAJEURE|MINEURE","fichier":"...","constat":"...","correctif_attendu":"..."}],"raisonnement":"..."}
+
+`REJECT` s'il reste une objection CRITIQUE ou MAJEURE fondée. `APPROVE` sinon, même s'il reste des
+mineures — liste-les quand même. N'invente aucune objection pour paraître rigoureux ; une liste
+vide est un résultat valide si le changement est sain.
+
+# DIFF COMPLET
+
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 475b419..17f1a74 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -41,8 +41,9 @@ jobs:
+       # `continue-on-error: true` rendrait `tests` rouge dans core-ci.yml, workflow
+       # NON required, et pourrait fusionner malgre tout. Trouve en revue : le remede
+       # etait applique aux trois suites ci-dessus et pas a la garde elle-meme.
+-      # Cout mesure : 13 tests, 0,03 s, aucune dependance en plus de pytest+pyyaml
+-      # deja installes par ce job. Le fichier reste aussi execute par core-ci.yml.
++      # Cout : negligeable, et aucune dependance en plus de pytest+pyyaml deja
++      # installes par ce job. Pas de compte de tests ici : il serait faux a la
++      # prochaine addition, et c'est le job qui l'execute qui le mesure. Le fichier reste aussi execute par core-ci.yml.
+       - name: Oracle de gating CI (AUD-CI-003/004)
+         run: python3 -m pytest core/tests/bootstrap/test_ci_gating_contract.py -q
+       - name: Tests module M7 (M7-S000)
+@@ -83,7 +84,7 @@ jobs:
+     steps:
+       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5 — pin SHA (D-035)
+       - name: Set up Python 3.12
+-        uses: actions/setup-python@v5
++        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5 — pin SHA (D-035)
+         with:
+           python-version: '3.12'
+       - name: Installer les dépendances de test épinglées
+@@ -99,7 +100,7 @@ jobs:
+     steps:
+       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5 — pin SHA (D-035)
+       - name: Set up Python 3.12
+-        uses: actions/setup-python@v5
++        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5 — pin SHA (D-035)
+         with:
+           python-version: '3.12'
+       - name: Installer les dépendances de test épinglées
+diff --git a/core/tests/bootstrap/test_ci_gating_contract.py b/core/tests/bootstrap/test_ci_gating_contract.py
+index 2deef57..c73fab7 100644
+--- a/core/tests/bootstrap/test_ci_gating_contract.py
++++ b/core/tests/bootstrap/test_ci_gating_contract.py
+@@ -73,6 +73,101 @@ retour citées plus haut. Trois de ces variantes ont été mesurées vertes en r
+ 
+ Ce sont des trous d'oracle CONNUS et non fermés par ce module. La liste des
+ symptômes ci-dessus n'est pas exhaustive — c'est la cause racine qui l'est.
++
++---------------------------------------------------------------------------
++AUD-CI-002 (issue #576) — épinglage des actions par SHA complet
++---------------------------------------------------------------------------
++
++Second sujet couvert par ce module. Il porte sur le MÊME fichier et reste
++donc dans le contrat déclaré plus haut (`.github/workflows/ci.yml`, LECTURE
++STATIQUE seule) : le périmètre de fichier du module est inchangé, seul son
++objet s'élargit du gating vers la chaîne d'approvisionnement.
++
++Défaut : une action référencée par un tag (`@v5`, `@main`) peut être
++redirigée en amont vers un autre commit sans aucun commit ici. Le code
++exécuté par la CI change alors sans trace dans ce dépôt. C'est la raison
++d'être de D-035, appliquée aux `actions/checkout` de ce fichier.
++
++Trou d'oracle qui justifie ce détecteur ICI : le dépôt possédait déjà le bon
++contrôle — `test_ci_contract._unpinned_actions` — mais braqué sur
++`.github/workflows/core-ci.yml`, conformément au contrat déclaré de CE
++module-là (sa docstring l.3). `ci.yml`, qui porte le job `gates`, n'avait
++aucun oracle de pin. Même classe de défaut qu'AUD-CI-003/004 : un contrôle
++réel dont la PORTÉE rate la cible.
++
++DUPLICATION DÉCLARÉE, pas laissée à découvrir
++  `_actions_non_epinglees` ci-dessous duplique `test_ci_contract._unpinned_actions`.
++
++  Ce qui est dupliqué : la RÈGLE MÉTIER (« un `uses:` doit porter un SHA
++  complet »), pas le code. La version d'ici parcourt l'arbre YAML analysé ;
++  celle de `test_ci_contract.py` applique un motif au TEXTE BRUT. Les deux
++  ne classent déjà pas identiquement plusieurs formes mesurées ci-dessous
++  (bloc `run: |` contenant la sous-chaîne `uses:`, scalaire replié `uses: >`,
++  scalaire entre guillemets, style flow `- {uses: …}`).
++
++  Pourquoi ne pas factoriser maintenant : les deux modules ont des
++  périmètres de workflow DISJOINTS ET DÉCLARÉS (`core-ci.yml` là-bas,
++  `ci.yml` ici) ; chacun doit pouvoir rougir seul et se lire seul. Un
++  facteur circonstanciel a pesé au moment de la rédaction —
++  `test_ci_contract.py` faisait alors l'objet d'une modification concurrente
++  (PR #515) — mais ce facteur est par nature périmable et n'est PAS la
++  raison de fond.
++
++  Risque assumé : DÉRIVE. Si les deux implémentations divergent sur ce
++  qu'elles acceptent, le remède n'est pas d'aligner l'une sur l'autre en
++  silence : il faut extraire la règle dans un module partagé importé des
++  deux côtés, et ne laisser de chaque côté que le choix du fichier de
++  workflow. Ce déplacement touche `test_ci_contract.py` et sortait du
++  périmètre de la tâche qui a écrit ces lignes.
++
++CE QUE CET ORACLE NE MESURE PAS — cause racine, pas énumération
++  Il lit la FORME de la référence, à l'unique endroit où GitHub l'écrit
++  `uses:`, dans CE fichier. Trois conséquences qui ne se ferment pas en
++  ajoutant des cas :
++  - il ne RÉSOUT rien. Une chaîne de 40 hexadécimaux est acceptée sur sa
++    seule forme : ni son existence, ni le dépôt qu'elle vise, ni son
++    atteignabilité ne sont vérifiés. Résoudre exigerait le réseau, que le
++    contrat de ce module exclut.
++  - il ne voit pas la chaîne TRANSITIVE. Une action épinglée qui appelle
++    elle-même des actions non épinglées dans son propre `action.yml`, ou un
++    workflow réutilisable épinglé dont le contenu ne l'est pas, sont hors
++    d'atteinte : ces fichiers ne vivent pas dans ce dépôt.
++  - il ne voit pas ce qui n'est PAS un `uses:`. Un step `run:` qui
++    télécharge et exécute du code (`curl … | bash`, `docker run`, une
++    archive de release) est une dépendance externe que ce détecteur ne
++    regarde pas.
++
++  Deux exemptions explicites, qui sont des trous NOMMÉS et non des oublis :
++  `./…` / `../…` (action locale, versionnée par le commit du dépôt lui-même
++  — il n'existe aucun SHA amont à épingler) et `docker://…` (image de
++  conteneur : un tag d'image y est tout aussi mutable qu'un tag Git, et cet
++  oracle n'exige PAS son digest).
++
++  Un SHA de 40 hexadécimaux MAJUSCULES est signalé non conforme. Faux
++  positif délibéré : la minuscule est la forme canonique d'un SHA Git et
++  c'est celle qu'exige déjà `test_ci_contract._FULL_SHA_RE` — diverger ici
++  recréerait exactement la dérive décrite plus haut.
++
++  Hors de ces exemptions, le détecteur REFUSE PAR DÉFAUT toute référence
++  dont la forme n'est pas reconnue au lieu de l'accepter. Ce refus par
++  défaut vaut pour toute référence QUI ATTEINT le classifieur — c'est la
++  raison pour laquelle la liste de contournements testée plus bas n'a pas
++  besoin d'être exhaustive, et elle ne l'est pas.
++
++  La portée de cette garantie a une frontière, et c'est la cause racine de
++  ce que la lecture de l'arbre analysé ne peut pas voir : une référence
++  TEXTUELLEMENT PRÉSENTE mais ABSENTE de l'arbre que rend `yaml.safe_load`.
++  Trois formes connues, la troisième trouvée en revue :
++  commentaire YAML ; scalaire de `run:` ; et clé de mapping `uses`
++  DUPLIQUÉE dans le même step, dont PyYAML ne garde que la dernière
++  (dernier-gagnant). Si la référence écrasée est celle qui n'est pas
++  épinglée, elle disparaît avant le classifieur et l'oracle rend une liste
++  vide — un échec du côté silencieux, pas bruyant.
++  Le détecteur jumeau par texte brut (`test_ci_contract._unpinned_actions`)
++  voit ce cas : c'est une instanciation concrète du risque de dérive décrit
++  plus haut. Exposition pratique quasi nulle — le YAML est volontairement
++  malformé, et sous la sémantique dernier-gagnant l'action réellement
++  exécutée serait de toute façon l'action épinglée.
+ """
+ from __future__ import annotations
+ 
+@@ -441,3 +536,327 @@ def test_regex_chemin_de_test_ne_capture_pas_un_faux_positif_dans_un_nom_de_modu
+     du module, jamais un fragment `core/tests` orphelin en plus."""
+     texte = '      - run: python3 -m pytest "Modules M/M5-financecore/tests" -q\n'
+     assert _chemins_de_test_cites(texte) == {"Modules M/M5-financecore/tests"}
++
++
++# ---------------------------------------------------------------------------
++# AUD-CI-002 (issue #576) — épinglage par SHA complet des actions de `ci.yml`.
++# Section autonome : constantes, détecteur, cas RED sur le fichier réel, puis
++# fixtures synthétiques de non-vacuité et de contournement. La duplication
++# assumée avec `test_ci_contract._unpinned_actions`, ses raisons et le remède
++# en cas de dérive sont déclarés dans l'en-tête de ce module.
++# ---------------------------------------------------------------------------
++
++# Une référence CONFORME : `owner/repo[/sous-chemin]@<40 hexadécimaux
++# minuscules>`. Liste blanche stricte, appliquée en `fullmatch` — jamais un
++# `match` avec `$`, qui accepterait un SHA suivi d'un saut de ligne (forme
++# réellement produite par un scalaire YAML replié `uses: >`).
++_USES_EPINGLE_RE = re.compile(r"[^\s@]+/[^\s@]+@[0-9a-f]{40}")
++
++# Formes qui n'ont PAS de SHA amont à épingler — exemptées volontairement.
++# `docker://` sans digest reste mutable : trou nommé, pas oubli (cf. en-tête).
++_PREFIXES_SANS_SHA_AMONT = ("./", "../", "docker://")
++
++
++def _refs_uses(noeud, chemin: str = "") -> list[tuple[str, object]]:
++    """TOUTE valeur portée par une clé de mapping `uses`, à N'IMPORTE QUELLE
++    profondeur du document analysé, avec son chemin YAML
++    (`jobs.e2e.steps[1].uses`).
++
++    Volontairement AGNOSTIQUE DU SCHÉMA : la fonction ne sait pas où GitHub
++    autorise `uses:`. Elle couvre donc du même geste le `uses:` d'un step, le
++    `uses:` de job d'un workflow réutilisable, le style flow `- {uses: …}` et
++    toute position future — au lieu de dépendre d'une liste d'emplacements
++    qu'il faudrait tenir à jour.
++
++    La casse de la CLÉ est normalisée pour que l'oracle ne dépende jamais
++    d'avoir raison sur la façon dont GitHub traite `Uses:` : une clé
++    autrement cassée est vue ici, quitte à produire un faux positif — c'est
++    la direction sûre.
++
++    Ce qui n'est PAS collecté, et ne doit pas l'être : une occurrence de
++    `uses:` qui n'est pas une clé de mapping mais du texte à l'intérieur d'un
++    scalaire (bloc `run: |`, chaîne entre guillemets) ou un commentaire YAML.
++    Ces formes n'exécutent aucune action ; les signaler serait un faux
++    positif — et c'est précisément là que le détecteur par texte brut de
++    `test_ci_contract.py` diverge de celui-ci.
++
++    Liste vide == ce document ne référence AUCUNE action. Le cas RED
++    ci-dessous refuse explicitement de conclure sur une liste vide, pour ne
++    jamais passer VERT par absence de matière à examiner.
++    """
++    trouves: list[tuple[str, object]] = []
++    if isinstance(noeud, dict):
++        for cle, valeur in noeud.items():
++            sous = f"{chemin}.{cle}" if chemin else str(cle)
++            if isinstance(cle, str) and cle.lower() == "uses":
++                trouves.append((sous, valeur))
++            if not isinstance(valeur, str):
++                trouves.extend(_refs_uses(valeur, sous))
++    elif isinstance(noeud, list):
++        for index, element in enumerate(noeud):
++            trouves.extend(_refs_uses(element, f"{chemin}[{index}]"))
++    return trouves
++
++
++def _actions_non_epinglees(data) -> list[str]:
++    """`<chemin YAML>: <référence>` pour chaque `uses:` qui n'est pas épinglé
++    par un SHA complet, exemptions `./` et `docker://` mises à part.
++
++    REFUS PAR DÉFAUT : tout ce qui ne correspond pas exactement à la liste
++    blanche est signalé — tag (`@v5`, `@main`), SHA court, chaîne de 40
++    caractères non hexadécimaux, SHA en majuscules, espace autour du `@`,
++    référence sans `owner/repo`, valeur non textuelle. Une forme non
++    anticipée est donc signalée, pas acceptée.
++
++    Liste vide == aucune référence d'action de ce document ne peut changer de
++    contenu sans commit ici — au sens de la FORME de la référence seulement,
++    jamais de ce vers quoi elle pointe réellement (cf. en-tête du module).
++    """
++    non_epingles: list[str] = []
++    for chemin, ref in _refs_uses(data):
++        if not isinstance(ref, str):
++            non_epingles.append(f"{chemin}: (valeur non textuelle) {ref!r}")
++            continue
++        candidat = ref.strip()
++        if candidat.startswith(_PREFIXES_SANS_SHA_AMONT):
++            continue
++        if not _USES_EPINGLE_RE.fullmatch(candidat):
++            non_epingles.append(f"{chemin}: {candidat}")
++    return non_epingles
++
++
++def test_ci_yml_toutes_les_actions_sont_epinglees_par_sha_complet():
++    """RED #4 (AUD-CI-002) — défaut mesuré sur le merge-base `b9ced94` :
++    `ci.yml` portait `actions/setup-python@v5`, tag MUTABLE, dans les jobs
++    `e2e` et `e2e-load`, alors que ses trois `actions/checkout` étaient déjà
++    épinglés par SHA complet. L'assertion nomme les sites fautifs par leur
++    chemin YAML — deux sur cette base, liste vide une fois corrigés.
++    Même convention d'ancrage que RED #1 : une mesure datée sur un commit
++    atteignable, jamais une affirmation sur l'état courant du fichier.
++    """
++    data = _charger(_WORKFLOW_PATH)
++    refs = _refs_uses(data)
++    # Garde de non-vacuité sur le fichier RÉEL : sans elle, un `ci.yml` vidé,
++    # renommé ou restructuré rendrait ce test VERT en n'ayant plus rien à
++    # examiner — exactement le pass silencieux que cet oracle doit interdire.
++    assert refs, (
++        "Aucune référence `uses:` trouvée dans ci.yml : l'oracle d'épinglage "
++        "n'aurait rien examiné et serait passé VERT à vide."
++    )
++    non_epingles = _actions_non_epinglees(data)
++    assert not non_epingles, (
++        "Action(s) de ci.yml non épinglée(s) par SHA complet — un tag est "
++        "mutable en amont, le code exécuté par la CI peut donc changer sans "
++        f"aucun commit dans ce dépôt (D-035) : {non_epingles}"
++    )
++
++
++# --- Non-vacuité du détecteur : fixtures synthétiques, indépendantes de ci.yml
++
++_SHA_VALIDE = "08c6903cd8c0fde910a37f88322edcfb5dd907a8"
++
++
++def _fixture(corps: str):
++    return yaml.safe_load(corps) or {}
++
++
++def test_detecteur_pin_signale_tag_sha_court_et_chaine_de_40_non_hex():
++    """Preuve que le détecteur n'est pas vide, sur les quatre formes exigées
++    par l'issue #576 : tag `@v5`, branche `@main`, SHA court (7 hex), et
++    chaîne de 40 caractères NON hexadécimaux — la forme qui piégerait un
++    détecteur se contentant de compter la longueur."""
++    data = _fixture(
++        "jobs:\n"
++        "  suspect:\n"
++        "    steps:\n"
++        "      - uses: actions/setup-python@v5\n"
++        "      - uses: actions/checkout@main\n"
++        "      - uses: actions/checkout@08c6903\n"
++        f"      - uses: actions/checkout@{'z' * 40}\n"
++    )
++    signales = _actions_non_epinglees(data)
++    assert signales == [
++        "jobs.suspect.steps[0].uses: actions/setup-python@v5",
++        "jobs.suspect.steps[1].uses: actions/checkout@main",
++        "jobs.suspect.steps[2].uses: actions/checkout@08c6903",
++        f"jobs.suspect.steps[3].uses: actions/checkout@{'z' * 40}",
++    ]
++
++
++def test_detecteur_pin_ne_signale_pas_un_sha_complet_valide():
++    """Le cas VERT doit exister, sinon l'oracle n'est pas satisfiable : un
++    SHA complet de 40 hexadécimaux minuscules ne doit RIEN déclencher, y
++    compris sur un `uses:` de workflow réutilisable au niveau job."""
++    data = _fixture(
++        "jobs:\n"
++        "  sain:\n"
++        "    steps:\n"
++        f"      - uses: actions/checkout@{_SHA_VALIDE}\n"
++        f"      - uses: actions/setup-python@{_SHA_VALIDE}\n"
++        "  appel:\n"
++        f"    uses: org/repo/.github/workflows/reutilisable.yml@{_SHA_VALIDE}\n"
++    )
++    assert len(_refs_uses(data)) == 3, "fixture : trois références à examiner"
++    assert _actions_non_epinglees(data) == []
++
++
++# --- Contournements interrogés. Fermés ici, ou nommés comme trous en en-tête.
++
++
++def test_contournement_uses_en_commentaire_yaml_n_est_pas_un_faux_positif():
++    """CONTOURNEMENT FERMÉ (par construction) — un `uses:` en COMMENTAIRE
++    n'exécute aucune action : le signaler serait un faux positif. Lire
++    l'arbre analysé plutôt que le texte brut règle le cas sans liste
++    d'exceptions. Le `uses:` réel de la même fixture, lui, doit être vu."""
++    data = _fixture(
++        "jobs:\n"
++        "  a:\n"
++        "    steps:\n"
++        "      # - uses: actions/setup-python@v5   (désactivé)\n"
++        f"      - uses: actions/checkout@{_SHA_VALIDE}\n"
++    )
++    assert [chemin for chemin, _ref in _refs_uses(data)] == ["jobs.a.steps[0].uses"]
++    assert _actions_non_epinglees(data) == []
++
++
++def test_contournement_uses_dans_une_chaine_run_n_est_pas_un_faux_positif():
++    """CONTOURNEMENT FERMÉ — `uses:` apparaissant DANS un scalaire (bloc
++    `run: |` ou chaîne entre guillemets) est du texte de shell, pas une
++    action. C'est le point où ce détecteur diverge de
++    `test_ci_contract._unpinned_actions`, qui applique son motif au texte
++    brut et signalerait ici une action inexistante."""
++    data = _fixture(
++        "jobs:\n"
++        "  a:\n"
++        "    steps:\n"
++        "      - run: |\n"
++        "          echo demarrage\n"
++        "          uses: actions/evil@v1\n"
++        "      - run: 'echo \"uses: actions/evil@main\"'\n"
++    )
++    assert _refs_uses(data) == []
++    assert _actions_non_epinglees(data) == []
++
++
++def test_contournement_docker_et_action_locale_ne_sont_pas_des_faux_positifs():
++    """EXEMPTION ASSUMÉE — `docker://…`, `./…` et `../…` n'ont pas de SHA
++    amont à épingler et ne doivent pas rougir. Que `docker://` sans digest
++    reste mutable est un trou NOMMÉ dans l'en-tête, pas un oubli."""
++    data = _fixture(
++        "jobs:\n"
++        "  a:\n"
++        "    steps:\n"
++        "      - uses: docker://alpine:3.19\n"
++        "      - uses: ./.github/actions/locale\n"
++        "      - uses: ../action-voisine\n"
++    )
++    assert len(_refs_uses(data)) == 3, "fixture : les trois formes sont bien vues"
++    assert _actions_non_epinglees(data) == []
++
++
++def test_contournement_uses_de_job_reutilisable_non_epingle_est_signale():
++    """CONTOURNEMENT FERMÉ — un `uses:` porté par le JOB (appel de workflow
++    réutilisable) et non par un step échappe à tout détecteur qui n'inspecte
++    que `jobs.*.steps[*]`. Le parcours agnostique du schéma le voit."""
++    data = _fixture(
++        "jobs:\n"
++        "  appel:\n"
++        "    uses: org/repo/.github/workflows/reutilisable.yml@v1\n"
++        "    secrets: inherit\n"
++    )
++    assert _actions_non_epinglees(data) == [
++        "jobs.appel.uses: org/repo/.github/workflows/reutilisable.yml@v1"
++    ]
++
++
++def test_contournement_style_flow_et_guillemets_est_signale():
++    """CONTOURNEMENT FERMÉ — `- {uses: "actions/…@v5"}` (mapping en style
++    flow, scalaire entre guillemets) est du YAML parfaitement valide. Un
++    détecteur ancré sur `^\\s*-?\\s*uses:` en texte brut ne le voit pas, et
++    inclurait le guillemet fermant dans la référence s'il le voyait."""
++    data = _fixture(
++        "jobs:\n"
++        "  a:\n"
++        "    steps:\n"
++        '      - {uses: "actions/setup-python@v5"}\n'
++        f"      - {{uses: 'actions/checkout@{_SHA_VALIDE}'}}\n"
++    )
++    assert _actions_non_epinglees(data) == [
++        "jobs.a.steps[0].uses: actions/setup-python@v5"
++    ]
++
++
++def test_contournement_scalaire_replie_est_signale_malgre_le_saut_de_ligne():
++    """CONTOURNEMENT FERMÉ — un scalaire replié (`uses: >`) produit une
++    référence terminée par `\\n`. Avec `re.match(r"^[0-9a-f]{40}$", …)`, `$`
++    accepte ce saut de ligne final : un `uses: >` suivi d'un SHA tronqué puis
++    d'un retour ligne pourrait passer. D'où `fullmatch` sur la référence
++    nettoyée. Un tag replié doit rougir, un SHA replié doit rester vert."""
++    replie_tag = _fixture(
++        "jobs:\n  a:\n    steps:\n      - uses: >\n          actions/setup-python@v5\n"
++    )
++    assert _refs_uses(replie_tag)[0][1].endswith("\n"), "fixture : saut de ligne présent"
++    assert _actions_non_epinglees(replie_tag) == [
++        "jobs.a.steps[0].uses: actions/setup-python@v5"
++    ]
++    replie_sha = _fixture(
++        "jobs:\n  a:\n    steps:\n      - uses: >\n"
++        f"          actions/checkout@{_SHA_VALIDE}\n"
++    )
++    assert _actions_non_epinglees(replie_sha) == []
++
++
++def test_contournement_casse_et_espaces_autour_de_l_arobase_est_signale():
++    """CONTOURNEMENT FERMÉ, dans la direction bruyante — un SHA de 40
++    hexadécimaux MAJUSCULES et un espace de part et d'autre du `@` sont
++    refusés. Refus par défaut : ces formes ne sont pas reconnues, donc elles
++    sont signalées plutôt qu'acceptées."""
++    data = _fixture(
++        "jobs:\n"
++        "  a:\n"
++        "    steps:\n"
++        f"      - uses: actions/checkout@{_SHA_VALIDE.upper()}\n"
++        f"      - uses: 'actions/checkout @{_SHA_VALIDE}'\n"
++        f"      - uses: 'actions/checkout@ {_SHA_VALIDE}'\n"
++        f"      - uses: checkout@{_SHA_VALIDE}\n"
++    )
++    assert [chemin for chemin, _ref in _refs_uses(data)] == [
++        "jobs.a.steps[0].uses",
++        "jobs.a.steps[1].uses",
++        "jobs.a.steps[2].uses",
++        "jobs.a.steps[3].uses",
++    ]
++    assert len(_actions_non_epinglees(data)) == 4
++
++
++def test_contournement_ancre_yaml_est_signale_a_chaque_expansion():
++    """CONTOURNEMENT FERMÉ — un step défini une fois via une ancre YAML puis
++    réutilisé par alias. `yaml.safe_load` résout l'alias, le parcours voit
++    donc la définition ET chaque expansion : aucune ne passe inaperçue."""
++    data = _fixture(
++        "modeles:\n"
++        "  python: &python\n"
++        "    uses: actions/setup-python@v5\n"
++        "jobs:\n"
++        "  a:\n"
++        "    steps:\n"
++        "      - *python\n"
++        "  b:\n"
++        "    steps:\n"
++        "      - *python\n"
++    )
++    assert _actions_non_epinglees(data) == [
++        "modeles.python.uses: actions/setup-python@v5",
++        "jobs.a.steps[0].uses: actions/setup-python@v5",
++        "jobs.b.steps[0].uses: actions/setup-python@v5",
++    ]
++
++
++def test_detecteur_pin_signale_une_valeur_uses_non_textuelle():
++    """Refus par défaut — un `uses:` dont la valeur n'est pas une chaîne
++    n'est pas une référence d'action épinglable. Il est signalé, jamais
++    ignoré au prétexte qu'il n'entre dans aucun cas prévu."""
++    data = {"jobs": {"a": {"steps": [{"uses": ["actions/checkout@v5"]}]}}}
++    signales = _actions_non_epinglees(data)
++    assert len(signales) == 1
++    assert signales[0].startswith("jobs.a.steps[0].uses: (valeur non textuelle)")

@@ -1,0 +1,10 @@
+{
+  "verdict": "APPROVE",
+  "objections": [],
+  "resume": "Le remplacement du tag mutable par le SHA complet 'a26af69be951a213d495a4c3e4e4022e16d87065' dans les jobs 'e2e' et 'e2e-load' de '.github/workflows/ci.yml' corrige directement le défaut identifié. L'oracle de test associé dans 'test_ci_gating_contract.py' inspecte récursivement l'arbre YAML, refuse par défaut toute forme non conforme à la regex stricte (40 hexadécimaux minuscules), et intègre un garde de non-vacuité explicite. Les limites, divergences voulues avec 'test_ci_contract.py' et cas non couverts sont documentés de manière honnête et rigoureuse sans aucune sur-revendication.",
+  "date_heure": "2026-08-27T05:28:51.035020+00:00",
+  "prompt_sha256": "61ea2004f580b4f4b24f31f159399a6ac9636cd55099f7967df7910709fd8f80",
+  "reviewer_model": "Gemini-3.7-Flash",
+  "modele_servi": "gemini-3.7-flash",
+  "job_id": "2207e51b-e164-4427-b3fc-c9a8f6548808"
+}

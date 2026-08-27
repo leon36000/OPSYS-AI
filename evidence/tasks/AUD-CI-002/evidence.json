@@ -1,0 +1,43 @@
+{
+  "task_id": "AUD-CI-002",
+  "description": "AUD-CI-002 (issue #576) — epingler actions/setup-python par SHA complet dans ci.yml (jobs e2e et e2e-load), et doter ce workflow d'un oracle de pin. Le detecteur existait deja dans test_ci_contract.py mais n'etait applique qu'a core-ci.yml : ci.yml, qui porte le seul contexte required, n'en avait aucun.",
+  "branche": "claude/aud-ci-002-pin-setup-python",
+  "base": "origin/main @ 22b6beb39e8c84a376bb25492853d4e5380db6ba",
+  "code_diff_sha256": "944ea105220fecfcb9cb92f65ee8f59ebad6144bb69d0d7dd6974a3a09d1c8d6",
+  "code_diff_sha256_note": "Calcule par verify_proof_sealed.py::_diff_sha256_actuel, la MEME fonction que celle executee par le gate en CI, puis recoupe a la main par `git diff origin/main...HEAD -- <_PATHSPEC_SCELLE> | sha256sum`. Les deux chemins concordent. PIEGE RENCONTRE ET DIT : un premier calcul a rendu e3b0c442... (sha256 de la chaine VIDE) parce que _REPO_ROOT est derive de l'emplacement du SCRIPT importe, pas du repertoire courant ; la fonction avait donc diffe origin/main contre lui-meme. Un hash valide peut mesurer le vide : tout hash de sceau doit etre recoupe par un second chemin.",
+  "perimetre_note": "Le perimetre scelle et le perimetre TOTAL du changement COINCIDENT : les deux seuls fichiers modifies (.github/workflows/ci.yml et core/tests/bootstrap/test_ci_gating_contract.py) sont tous deux dans _PATHSPEC_SCELLE. Les relecteurs ont donc vu l'integralite du changement, et non un sous-ensemble. Ce n'etait pas le cas du bundle AUD-CI-003-004, ou le premier sceau ne montrait que 2 des 5 fichiers modifies.",
+  "prompt_sha256": "61ea2004f580b4f4b24f31f159399a6ac9636cd55099f7967df7910709fd8f80",
+  "prompt_note": "Prompt unique de 26 713 octets (26 144 caracteres), contenant le diff COMPLET verbatim, transmis a l'identique aux trois voix. Le pont de modeles n'accepte que du texte inline : la transcription a ete re-hachee et comparee au scelle AVANT tout envoi. Le premier essai divergeait — deux lignes de contexte de diff unifie constituees d'un seul espace avaient ete rendues vides ; corrige puis re-verifie octet pour octet. Corroboration independante : le pont a renvoye le meme avertissement `contexte volumineux (26144 chars)` sur les TROIS appels.",
+  "reviews": {
+    "DeepSeek-V4-Pro-0813.json": "521ae80096c828e2f3b7bd84ba8e30bd56aed88873c8c309542b27f317fab62c",
+    "Gemini-3.7-Flash.json": "cccfc63eb86e34be7510a846ed820108134b6739ca023fc8ef8d47be1291adf3",
+    "Muse-Spark-1.2-Contributor.json": "300b543d73b1b805145b756be3463646d8f8266185132658289f640e6f5b57dc"
+  },
+  "consensus": {
+    "profil": "Revue aveugle desancree : les trois voix ont recu le diff et l'enonce du defaut, jamais le corps de la PR, ni son auteur, ni un verdict anterieur.",
+    "verdicts": "APPROVE / APPROVE / APPROVE — objections litteralement vides sur les trois, du premier appel, sans aucun retry.",
+    "vendors_distincts": [
+      "deepseek-v4-pro-0813",
+      "gemini-3.7-flash",
+      "muse-spark"
+    ],
+    "transparence_sur_le_calcul_des_vendors": "AUCUN des trois provider_id ne figure dans la table _VENDOR de verify_proof_sealed.py : les trois tombent dans le repli singleton de _vendor_of, que sa propre docstring qualifie de fail-open pour la decorrelation. Ici le repli donne la MEME reponse que la realite — DeepSeek, Google et Meta sont bien trois fournisseurs distincts, servis par trois routes OpenRouter distinctes — mais le mecanisme est dit plutot que laisse deviner.",
+    "ecart_de_format_non_repare": "Gemini-3.7-Flash a encadre sa reponse d'une cloture markdown ```json alors que le prompt exigeait du JSON strict. Le contenu est conserve tel quel dans son fichier de preuve ; l'ecart est signale, pas repare.",
+    "budget_de_tokens": "FORGE_MODEL_BRIDGE_MAX_TOKENS vaut 4096 et n'est pas reglable par appel. Le pont listait, environ 68 minutes avant ces appels, des TRUNCATED_COMPLETION recents sur Muse-Spark et DeepSeek. Ces deux memes routes ont ici emis normalement du premier coup : budget court intermittent sur les prompts longs, pas route morte."
+  },
+  "revue_aveugle_opus5": {
+    "verdict": "APPROVE",
+    "objections": "3 mineures, toutes fondees, toutes corrigees AVANT le scellement — pour ne pas invalider le sceau en corrigeant, comme cela s'etait produit sur AUD-CI-003-004.",
+    "detail": [
+      "Cecite par cle YAML `uses` DUPLIQUEE : PyYAML applique le dernier-gagnant, la reference non epinglee disparait de l'arbre avant le classifieur. L'en-tete affirmait 'jamais du cote silencieux' ; la garantie est desormais bornee a 'toute reference QUI ATTEINT le classifieur' et la cause racine est nommee.",
+      "ci.yml annoncait 'Cout mesure : 13 tests' alors que le fichier en compte 25 depuis cette PR — remplace par une formulation non perimable.",
+      "La docstring de RED #4 affirmait au PRESENT un etat que la PR invalide elle-meme — alignee sur la convention d'ancrage datee de RED #1."
+    ],
+    "methode": "28 contournements testes sur copies figees, mutation prouvee byte-identique au merge-base (md5 des deux cotes), fusion simulee dans un clone jetable."
+  },
+  "preuves_jointes": {
+    "prompt.txt": "61ea2004f580b4f4b24f31f159399a6ac9636cd55099f7967df7910709fd8f80",
+    "full.diff": "944ea105220fecfcb9cb92f65ee8f59ebad6144bb69d0d7dd6974a3a09d1c8d6"
+  },
+  "preuves_jointes_note": "prompt.txt est le PREIMAGE : il doit hacher exactement a prompt_sha256, ce qui rend le sceau verifiable par un tiers sans acces a /tmp ni au pont de modeles. full.diff est le diff exact sur lequel les trois voix se sont prononcees. Ces deux fichiers sont committes parce qu'un sceau dont le preimage vit hors du depot cesse d'etre verifiable des que /tmp est purge."
+}
