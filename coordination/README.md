@@ -8,7 +8,7 @@
 - Une tâche, une issue, une branche, un worktree et un owner. Aucun doublon.
 - Entre deux syncs, une issue assignée ou une PR active réserve immédiatement la mission.
 - Le validateur `tools/check_coordination.py` (versionné dans ce dépôt, dérivé du pack
-  `OPSYS-AI-CLAUDE-ISSUES-OPERATIONS-v1.2` — **il n'en est pas une copie octet-exacte** ;
+  `OPSYS-AI-CLAUDE-ISSUES-AUTONOMOUS-v1.4` — **il n'en est pas une copie octet-exacte** ;
   `diff -u` entre les deux fichiers en donne le détail, écarts documentés dans
   `coordination/CLAUDE-STATUS.md`) est exécuté avant l'activation d'une nouvelle mission,
   pas à chaque commande :
@@ -23,17 +23,14 @@
     `OWNER:<id>:<valeur>`, `STATUS:<id>:<valeur>`, `SCOPE:<id>:<valeur>`, `BRANCH:<id>`,
     `MODULE_CODE_DURING_CORE:<id>`, `CORE_OWNER:<id>:<valeur>`,
     `ISSUE_OWNER:<id>:<valeur>`, `BRANCH_COLLISION:<a>:<b>`,
-    `PATH_COLLISION:<a>:<b>:<scope-a>:<scope-b>`, `UNTERMINATED_FENCE`. La table a été lue,
+    `PATH_COLLISION:<a>:<b>:<scope-a>:<scope-b>`. La table a été lue,
     elle n'est pas conforme. **Ce code est réservé à ce cas** : aucun échec de lecture ou
     d'écriture ne s'y retrouve, et aucun traceback ne remplace ces lignes.
   - **exit 2** — **aucun verdict de conformité exploitable**. Les causes interceptées par
     le validateur portent un préfixe sur la sortie standard, jamais un traceback :
-    - `CHEMIN_INVALIDE:<raison>` — l'argument de chemin n'a pas passé la validation
-      préalable (fichier inexistant, répertoire fourni à la place d'un fichier, octet nul
-      dans le chemin, `--json-output` dont le répertoire parent n'existe pas, ou dont la
-      cible existe déjà sans être un fichier régulier). La table n'a jamais été ouverte.
-    - `LECTURE_IMPOSSIBLE:<raison>` — le chemin était valide, mais la cible n'a pas pu être
-      lue ni décodée en UTF-8. La table n'a jamais été lue.
+    - `LECTURE_IMPOSSIBLE:<raison>` — la cible n'a pas pu être lue (chemin inexistant,
+      répertoire fourni à la place d'un fichier, permission refusée…) ni décodée en UTF-8.
+      La table n'a jamais été lue.
     - `SORTIE_IMPOSSIBLE:<raison>` — la table a été lue et validée, mais la sortie
       `--json-output` n'a pas pu être écrite. Le verdict existe, il n'a pas été livré.
 
@@ -44,10 +41,7 @@
 
   L'exit 2 et ces préfixes n'existent pas dans la version du pack, qui laissait remonter
   l'exception avec un traceback et un exit 1 indiscernable, pour l'appelant, d'une table
-  lue et non conforme. Motif du changement et portée volontairement **non** confinée à
-  l'arborescence du dépôt — `tools/daily_start.py` du pack valide son propre gabarit, hors
-  dépôt, sur une installation neuve : voir `coordination/CLAUDE-STATUS.md`, écart
-  « `_chemin_valide()` ».
+  lue et non conforme. Motif du changement : voir `coordination/CLAUDE-STATUS.md`.
 
   **Ce validateur n'est câblé dans aucun job CI.** Raison assumée, pas un oubli : le câbler
   modifierait `.github/workflows/ci.yml`, un fichier **existant** du dépôt
@@ -67,24 +61,13 @@
   une date `Updated UTC` remontant à des années ne font échouer aucune de ces vérifications :
   le validateur ne consulte jamais `gh`. Seule la re-vérification manuelle (`gh pr view <n>` /
   `gh issue view <n>`, cf. `WORK-OWNERSHIP.md`) donne la concordance GitHub ;
-  `COORDINATION_OK` n'en tient pas lieu. Troisième limite, du même ordre, et **restreinte
-  aux blocs de code clôturés** : ce qui est écrit entre deux clôtures (trois apostrophes
-  inverses, ou `~~~`) n'est jamais lu comme une ligne de table — donc jamais vérifié.
-  Encadrer des lignes de coordination réelles par une paire de clôtures **du même
-  marqueur** les fait disparaître du décompte et de la détection de collision, sans aucun
-  signalement (détail et mesure dans `coordination/CLAUDE-STATUS.md`). Un marqueur ouvrant
-  qui n'est pas refermé par le **même** marqueur rend `UNTERMINATED_FENCE`, exit 1.
-  Cette restriction n'est pas rhétorique : les blocs de code **indentés** (quatre espaces)
-  ne sont pas suivis du tout, l'indentation étant effacée avant tout test. Mesuré sur le
-  contenu nommé ici, et non généralisé à « un bloc indenté » : un document dont la
-  ligne d'en-tête **et sa ligne de séparation** sont indentées de quatre espaces rend
-  `COORDINATION_OK rows=0 active=0`, exit 0, là où les deux mêmes lignes placées entre deux
-  clôtures rendent `HEADER_MISSING`, exit 1. L'en-tête indenté **sans** sa ligne de
-  séparation rend `HEADER_MISSING`, exit 1 — comme sa forme clôturée : sur ce contenu-là,
-  les deux formes ne se distinguent pas, et il n'y a pas de contraste à annoncer. Des lignes
-  de données indentées de quatre espaces, elles, sont comptées comme de vraies lignes,
-  collisions comprises. Pour soustraire des lignes à la lecture, seule une paire de clôtures
-  fait ce qu'elle annonce.
+  `COORDINATION_OK` n'en tient pas lieu. Troisième limite, mesurée et héritée du pack, pas
+  refermée ici : une ligne de données privée de son pipe **initial** (ex. `ISS-A | CLAUDE |
+  br-a | coordination | ACTIVE | 2026-01-01T00:00Z | x` sans le `|` de tête, en-tête et
+  séparateur par ailleurs intacts) n'est jamais lue comme une ligne de table — donc jamais
+  vérifiée, collisions comprises. Aucun bloc de code ni aucune indentation n'a de traitement
+  spécial : ce qui est écrit dans ce fichier, fence ou pas, indenté ou pas, est lu comme
+  n'importe quelle autre ligne. Détail et mesure dans `coordination/CLAUDE-STATUS.md`.
 - `.claude/settings.example.json` est un **exemple** à copier puis adapter. Ne jamais
   l'écraser sur `.claude/settings.json` : ce dernier est un fichier préexistant du dépôt,
   que cette PR ne modifie pas, et une copie brute de l'exemple en remplacerait le contenu

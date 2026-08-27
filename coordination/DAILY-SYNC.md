@@ -59,11 +59,9 @@ une valeur ici.
 
 ## Décisions Nathan requises
 
-- Arbitrage PR #564 vs PR #566 (cf. `WORK-OWNERSHIP.md`)
 - Issue #569 : décision attendue sur sa suite. Ni son état, ni son énoncé, ni ses
   commentaires ne sont recopiés ici ; `gh issue view 569` fait foi
 - Décision sur l'issue #568 (restaurer / retirer / requalifier)
-- Gate #541 pour `AUD-CANON-001`/`AUD-CANON-002`
 
 ## Ownership mis à jour
 

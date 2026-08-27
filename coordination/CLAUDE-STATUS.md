@@ -14,14 +14,17 @@ prochaine édition du fichier visé.
 
 ## Vérification runtime (07-RUNTIME-CHECK, constat unique de session)
 
-- Lead observé : `claude-opus-5`. Le pack demande `claude-sonnet-5`.
-  **Écart réel, ratifié explicitement par Nathan dans la session du 2026-08-26T02:14Z.**
-  Aucun fallback silencieux : l'écart est consigné ici, pas masqué.
+- Lead observé : `claude-opus-5`. Le pack v1.4 nomme désormais ce choix explicitement :
+  `06-CLAUDE-LEAD-PROMPT.md` porte « le modèle du lead est celui explicitement sélectionné
+  par Nathan ; ne transforme pas cette différence en erreur ». Ce n'est plus un écart.
+  Aucun fallback silencieux : la valeur observée reste consignée ici, pas masquée.
 - Sous-agents : instanciés en `sonnet` (Claude Sonnet 5), conforme au pack amont. Les
   fichiers livrés `.claude/agents/opsys-issue-*.md` portent la même valeur dans leur champ
-  `model` (`grep -n '^model:' .claude/agents/opsys-issue-*.md`). Sur le canon du dépôt en
-  matière de noms de modèles de sous-agents, voir `CLAUDE.md`, fichier qui n'appartient pas
-  à cette PR. **Modèle non changé dans cette revue** :
+  `model` (`grep -n '^model:' .claude/agents/opsys-issue-*.md`). Le canon désigné par la
+  décision Nathan du 2026-08-27 est `docs/core/CANON-INDEX.md` (promotion portée par #566,
+  pas encore fusionnée à HEAD) ; `CLAUDE.md`, fichier qui n'appartient pas à cette PR, en est
+  un adaptateur dérivé, pas une autorité concurrente, et les noms de modèles en restent
+  explicitement exclus. **Modèle non changé dans cette revue** :
   requalifier ces champs `model` est une décision produit (quel modèle par rôle) hors
   périmètre d'une correction de revue, à faire avec validation Nathan plutôt que
   silencieusement ici.
@@ -34,8 +37,11 @@ prochaine édition du fichier visé.
 
 ## Périmètre autorisé pour cette session
 
-Jusqu'à la **PR ouverte** incluse. **Aucun merge**, aucune modification de branch
-protection, aucun code métier M1–M10, aucune promotion canonique.
+Jusqu'à la **PR ouverte** incluse, avec merge autonome par le propriétaire si les huit
+critères de la décision Nathan du 2026-08-27 sont réunis — trio de validation aveugle sur
+le SHA final compris (`08-TRIO-AND-MERGE-AUTONOMY.md`) — sinon rien de plus qu'une PR
+ouverte. Aucune modification de branch protection, aucun code métier M1–M10, aucune
+promotion canonique.
 
 ## Capacité des agents `.claude/agents/opsys-issue-*.md` — ce qui est prouvé, ce qui ne l'est pas
 
@@ -90,8 +96,8 @@ vérifiée en exécution — ni confirmée, ni infirmée.
 Cette section recense les écarts de permissions vis-à-vis du pack amont, dans
 `.claude/settings.example.json` **et** dans `.claude/agents/opsys-issue-*.md`.
 Référence côté pack : `$OPSYS_PACK/platform-overlay/.claude/settings.example.json`, qui
-porte `defaultMode: "auto"`, `availableModels: ["claude-sonnet-5"]` et
-`model: "claude-sonnet-5"`.
+porte `defaultMode: "auto"` ; ni `availableModels` ni `model` n'y figurent (absents depuis
+le pack v1.4, verrouillé par `tests/test_v14.py` côté pack : `assertNotIn`).
 
 **Aucun décompte d'écarts n'est figé ici, et c'est délibéré** — même raison que pour le
 validateur plus bas. Une version antérieure de ce paragraphe annonçait « trois points »
@@ -118,14 +124,14 @@ réels ; cette liste n'en énumère que la signification.
    elle ne la ferme pas. La protection réelle reste : ne pas versionner de secret dans
    le dépôt, permissions OS / gestionnaire de secrets, et les hooks déterministes — pas
    cette liste, qui reste une politique côté client pour un agent coopératif.
-3. **`availableModels` et `model`** : retirés de l'exemple (le pack amont fixe les deux
-   à `"claude-sonnet-5"`). Motif : une liste d'un seul modèle interdit de sélectionner
-   quoi que ce soit d'autre, et un `model` par défaut fige le choix. La section runtime
-   ci-dessus consigne d'ailleurs un écart déjà observé en pratique (lead réel
-   `claude-opus-5` malgré la demande `claude-sonnet-5`) :
-   figer `model` dans l'exemple ne tiendrait même pas face au comportement réel constaté.
-   La clé `env.ANTHROPIC_DEFAULT_SONNET_MODEL` suffit à exprimer « quand sonnet est
-   utilisé, cette version précise » sans verrouiller tout le reste.
+3. **`env.ANTHROPIC_DEFAULT_SONNET_MODEL`** : présent dans l'exemple livré ici, absent du
+   pack `OPSYS-AI-CLAUDE-ISSUES-AUTONOMOUS-v1.4` — mesuré, cette clé n'apparaît pas dans
+   `$OPSYS_PACK/platform-overlay/.claude/settings.example.json`. `availableModels` et
+   `model` sont eux absents des **deux** côtés désormais (v1.4 les a retirés) : ce n'est
+   plus un écart sur ces deux clés. Ce qui reste est **inversé** par rapport à une
+   formulation antérieure de ce point : c'est ce dépôt qui ajoute une clé absente du pack,
+   pas le pack qui en fixe une que ce dépôt retirerait. Motif inchangé : exprimer « quand
+   sonnet est utilisé, cette version précise » sans figer `model`.
 4. **`permissionMode` de `.claude/agents/opsys-issue-{ci-docs,restructure,security-quality}.md`**
    — écart portant sur d'autres fichiers que les points ci-dessus. Le pack amont porte
    `permissionMode: auto` pour ces définitions et `permissionMode: plan` pour
@@ -146,279 +152,89 @@ réels ; cette liste n'en énumère que la signification.
 ## `tools/check_coordination.py` — écarts volontaires vis-à-vis du pack amont (validation)
 
 Ce fichier **n'est pas une copie octet-exacte** du `tools/check_coordination.py` du pack
-`OPSYS-AI-CLAUDE-ISSUES-OPERATIONS-v1.2`. C'est une propriété stable, vérifiable sans citer
+`OPSYS-AI-CLAUDE-ISSUES-AUTONOMOUS-v1.4`. C'est une propriété stable, vérifiable sans citer
 ni commit, ni révision, ni décompte : `diff -q "$OPSYS_PACK/tools/check_coordination.py"
 tools/check_coordination.py` signale que les fichiers diffèrent, et `diff -u` entre les deux
 donne le détail exact.
 
-**Aucun décompte d'écarts, de fonctions, de hunks ou de lignes n'est figé ci-dessous, et
-c'est délibéré.** Un décompte est une affirmation de plus à maintenir, invalidée par la
-prochaine édition de ce même fichier sans qu'aucune opération Git n'y soit pour rien. Une
-version antérieure de cette section annonçait « deux écarts mesurés, localisés à deux
-fonctions » ; le commit qui a ajouté la validation de chemin d'argv (écart
-« `_chemin_valide()` » ci-dessous) a rendu ce décompte faux sans le mettre à jour — la faute
-même que cette section a pour rôle de ne pas commettre. La formulation qui remplace un
-décompte est celle-ci : **la commande `diff -u` fait autorité sur le diff réel ; cette
-section n'en énumère que la signification.** Une version antérieure ancrait aussi cet écart
-sur un rang de commit de cette branche (« depuis le premier commit de cette branche ») :
-retiré plutôt que recorrigé, parce qu'une affirmation ancrée sur un rang de commit ne
-survit ni à un rebase, ni à un squash, ni à un amend, alors que la propriété « diffère du
-pack » y survit, et survit aussi à toute avance de `main`.
+**Décision Nathan (2026-08-27) : ramener ce validateur vers le minimal de la directive.**
+Chaque écart de ce fichier vis-à-vis du pack a été repassé au tri suivant, fixture Markdown
+hors dépôt par fixture, mesurée contre `tools/check_coordination.py` du pack **et** contre ce
+fichier : le pack rend vert à tort et ce fichier rouge → l'écart ferme un fail-open mesuré,
+gardé ci-dessous ; les deux rendent la même chose, ou le pack rendait déjà rouge sur une
+entrée légitime → l'écart ne fermait rien de mesurable, retiré avec sa prose. Quatre écarts
+antérieurs (reconnaissance élargie des séparateurs Markdown, suivi des blocs de code clôturés,
+`UNTERMINATED_FENCE`, validation du chemin d'argv avant tout accès disque) ont été retirés sur
+ce critère — le premier parce que le pack n'était jamais vert à tort sur ses fixtures (rouge
+des deux côtés, pour des raisons différentes) ; le deuxième et le troisième parce que le
+fichier lui-même rendait vert à tort là où le pack rendait rouge à raison (une paire de
+clôtures équilibrée autour d'une vraie collision disparaissait en silence) ; le quatrième
+parce que l'interception au point d'accès (ci-dessous) rend, mesuré, le même exit 2 sans
+traceback sur toute entrée atteignable en ligne de commande, sans la validation préalable.
+Le détail de leur mesure ne survit pas ici, pour ne pas maintenir une justification pour du
+code qui n'existe plus ; `diff -u` contre le pack fait foi de ce qui reste.
 
-Écarts (l'ordre des sections ci-dessous ne suit aucun ordre du fichier source ; c'est
-`diff -u` qui fait autorité sur le diff réel) :
+### `HEADER_MISSING`
 
-### `est_ligne_separatrice()` / `_est_cellule_separatrice()` — une seule notion de « ligne de séparation »
+Sans ce contrôle, un mauvais chemin ou un fichier tronqué/vidé rendent le même succès qu'une
+vraie table. Mesuré : `python3 -B tools/check_coordination.py coordination/DAILY-SYNC.md`,
+côté pack, rend `COORDINATION_OK rows=0 active=0`, exit 0, alors que ce fichier ne porte
+aucune table de coordination. `rows == 0` n'est pas un discriminant valide : une vraie table
+vide (en-tête et séparateur présents, zéro ligne de données) reste légitime. `parse_rows()`
+retourne donc si l'en-tête a été rencontré **immédiatement suivi** d'une vraie ligne de
+séparation ; `validate()` ajoute `HEADER_MISSING` sinon.
 
-- **Constat** : ces deux fonctions sont absentes du pack. Elles acceptent les formes
-  Markdown standard `|---|---|`, `| --- | --- |`, `|:---|---:|`, et la documentation
-  l'annonce. Mais `parse_rows()` ne sautait que les lignes commençant **littéralement** par
-  `|---` — deux notions de séparateur dans le même fichier, dont une seule était documentée.
-  Conséquence mesurée : une table écrite avec un séparateur espacé ou aligné voyait son
-  en-tête confirmé (ce contrôle-là utilisait déjà le détecteur), puis sa propre ligne de
-  séparation recomptée en ligne de données. Fixture ad hoc (hors dépôt) :
-  `| --- | --- | ... |` → `OWNER:---:---` + `STATUS:---:---`, exit 1 ; `|:---|:---:|...|` →
-  `OWNER::---::---:` + `STATUS::---::---:`, exit 1. Une table Markdown parfaitement
-  légitime, rejetée avec un diagnostic trompeur.
-- **Correctif** : le filtre de `parse_rows()` appelle `est_ligne_separatrice()` au lieu de
-  tester le préfixe. Un seul détecteur décide, pour le filtre comme pour le contrôle
-  d'en-tête.
-- **Deuxième asymétrie du même genre, corrigée ici — pipe FINAL** : il est optionnel en
-  GFM, et `parse_rows()` en tenait déjà compte pour les lignes de données et l'en-tête
-  (`line.strip("|")`) — mais `est_ligne_separatrice()` exigeait les deux pipes de bord.
-  Une table à pipe initial sans pipe final, forme parfaitement légale, était donc rejetée
-  avec un diagnostic trompeur. Mesuré sur la fixture correspondante (hors dépôt) :
-  ce fichier rendait `HEADER_MISSING` + `OWNER:---:---` + `STATUS:---:---`, exit 1, là où la
-  version du pack rend `COORDINATION_OK rows=1 active=1`, exit 0 — une régression de ce
-  dépôt vis-à-vis du pack, pas un défaut hérité. À HEAD, les deux rendent
-  `COORDINATION_OK rows=1 active=1`, exit 0.
-- **Relâchement introduit avec ce correctif, mesuré et refermé — pipe INITIAL** : rendre le
-  pipe final optionnel avait été fait en n'exigeant qu'un `|` **n'importe où** dans la
-  ligne, et la documentation justifiait cet élargissement par une symétrie avec les lignes
-  de données. **Cette symétrie n'existait pas** : `parse_rows()` exige, lui, un pipe
-  *initial* (`line.startswith("|")`), dans ce fichier comme dans la version du pack.
-  Conséquence
-  mesurée de l'asymétrie, fixture (hors dépôt) « en-tête avec pipe initial, séparateur et
-  deux lignes `ACTIVE` en collision de branche **et** de chemin sans pipe initial » : le
-  séparateur validait `header_found`, puis le filtre écartait toutes les lignes de données —
-  `COORDINATION_OK rows=0 active=0`, exit 0, sur un document qui porte visiblement des
-  lignes. **Ce n'est pas une régression vis-à-vis du pack** : mesuré des deux côtés, la
-  version du pack rend `COORDINATION_OK rows=0 active=0`, exit 0 sur la même fixture (elle
-  ne connaît pas `HEADER_MISSING`). C'est un silence hérité du pack, refermé ici, et un
-  relâchement vis-à-vis de la révision précédente de cette branche. Correctif :
-  `est_ligne_separatrice()` exige à son tour le pipe initial. La symétrie annoncée devient
-  alors réelle, dans les deux sens — **pipe initial requis des deux côtés, pipe final
-  optionnel des deux côtés** — et la fixture rend `HEADER_MISSING`, exit 1.
-- **Mode de défaillance nommé avant d'être écrit** : rendre les pipes de bord entièrement
-  optionnels ferait passer `---` seul (barre horizontale Markdown, délimiteur de
-  front-matter YAML) pour une ligne de séparation — et un en-tête cité en prose suivi d'une
-  barre horizontale annulerait alors le durcissement `HEADER_MISSING`. Le pipe initial
-  requis l'exclut. Table de vérité mesurée, à rejouer plutôt qu'à croire (`|---|` → vrai ;
-  `|---|---` → vrai ; `| --- | --- |` → vrai ; `|:---|---:|` → vrai ; `--- | --- | ---` →
-  faux ; `---|---` → faux ; `---` → faux ; `|--- foo` → faux). **Prouvé par fixture, pas
-  déduit** : un document réduit à la ligne d'en-tête suivie de `---` rend `HEADER_MISSING`,
-  exit 1.
-- **Mode de défaillance du remplacement du préfixe, nommé avant d'être écrit** : élargir ce
-  qui est sauté peut faire disparaître **en silence** une vraie ligne de données. Deux
-  propriétés de construction bornent le risque, sans dépendre d'aucun corpus :
-  une ligne *nouvellement* sautée a toutes ses cellules faites de `-` et `:` seulement,
-  donc aucun Work ID, donc ce n'est pas une entrée de coordination réelle ; une ligne qui
-  *perd* son saut (ex. `|--- foo`, sauté par le préfixe du pack, plus par le détecteur)
-  retombe dans le contrôle de forme et devient `MALFORMED_ROW` ou une ligne de données
-  validée — plus bruyante, jamais silencieusement verte.
-- **Ce qui n'est PAS affirmé** : « le correctif élargit sans rien retirer ». C'était vrai du
-  seul corpus mesuré, faux en général — `|--- foo` en est le contre-exemple. Aucun décompte
-  de corpus n'est figé ici non plus : il serait invalidé par la prochaine édition d'un `.md`
-  quelconque du dépôt, sans qu'aucune opération Git n'y soit pour rien. Le balayage se
-  rejoue, il ne se croit pas — comparer, pour chaque ligne de chaque `.md` du dépôt et du
-  pack, `ligne.strip().startswith("|---")` (filtre du pack) à
-  `est_ligne_separatrice(ligne)` (ce dépôt), et inspecter les lignes qui changent de
-  classement.
-- Le remplacement a été préféré à l'autre correctif possible (restreindre la documentation à
-  la seule forme `|---|`) parce que restreindre la documentation aurait laissé le validateur
-  rejeter des tables Markdown valides.
+Mesuré à HEAD : `coordination/WORK-OWNERSHIP.md` de ce dépôt → `COORDINATION_OK rows=9
+active=2` ; `coordination/DAILY-SYNC.md`, `coordination/24H-UPDATE-TEMPLATE.md` et
+`coordination/README.md` → `HEADER_MISSING`, exit 1 — aucun des trois ne portant de table de
+coordination ; un gabarit neuf (en-tête et séparateur, zéro ligne) → `COORDINATION_OK rows=0
+active=0`, exit 0.
 
-### `HEADER_MISSING` — absence d'en-tête non détectée, puis un faux positif corrigé
+### `overlaps()` — casse et séparateur non normalisés, incohérent avec `MODULE_CODE_DURING_CORE`
 
-- **Constat initial** : `parse_rows()` ne validait que la *forme* des lignes de données ;
-  l'absence totale de la ligne d'en-tête `| Work ID | Owner | Branch | Path scope | Status |
-  Updated UTC | Next |` n'était jamais détectée. Conséquence mesurée — un mauvais chemin ou
-  un fichier tronqué/vidé rendaient exactement le même succès qu'une vraie table :
-  `python3 -B tools/check_coordination.py coordination/DAILY-SYNC.md` →
-  `COORDINATION_OK rows=0 active=0`, exit 0, alors que ce fichier ne porte aucune table de
-  coordination. Idem pour `coordination/24H-UPDATE-TEMPLATE.md`.
-- **Piège écarté** : `rows == 0` n'est **pas** un discriminant valide — le gabarit neuf du
-  pack (`repo-overlay/coordination/WORK-OWNERSHIP.md`, zéro ligne de données, en-tête
-  présent) est légitimement vide et `tools/daily_start.py` du pack le valide comme tel sur
-  une installation neuve. Une règle `rows == 0 → erreur` aurait cassé ce cas légitime.
-- **Premier correctif** : `parse_rows()` a commencé à retourner si l'en-tête a été rencontré
-  (`header_found: bool`) ; `validate()` ajoute l'erreur `HEADER_MISSING` quand il ne l'a pas
-  été, indépendamment du nombre de lignes de données.
-- **Défaut résiduel de ce premier correctif, corrigé depuis** : il mettait
-  `header_found = True` dès qu'une ligne était *égale* à l'en-tête, sans regarder ce qui la
-  suit — y compris citée seule, en bloc de code ou en prose, pour documenter le format sans
-  qu'aucune vraie table ne suive. Une fixture ad hoc (hors dépôt) le démontre : un document
-  qui ne fait que citer la ligne d'en-tête dans un bloc de code
-  passait à tort `COORDINATION_OK rows=0 active=0`. Correctif : `parse_rows()` ignore
-  tout contenu entre deux clôtures de bloc de code (les lignes commençant par trois
-  apostrophes inverses ou par `~~~`) — jamais compté comme en-tête, séparateur ou ligne de
-  données — et n'accepte `header_found = True` que si la ligne d'en-tête est **immédiatement
-  suivie** d'une vraie ligne de séparation Markdown (ex. `|---|---|`, avec ou sans espaces ou
-  `:` d'alignement). Une table vide **avec** en-tête et séparateur reste valide ; une simple
-  citation de l'en-tête, en bloc de code ou non, ne l'est plus.
-- **Contrepartie assumée du suivi de bloc de code, fail-open non refermée** : une **paire**
-  de fences équilibrée autour de vraies lignes de données les fait disparaître en silence,
-  avec les collisions qu'elles porteraient. Mesuré, fixture « en-tête et séparateur hors
-  bloc de code, deux lignes en collision de branche et de chemin encadrées par une paire de
-  clôtures (trois apostrophes inverses) » : ce dépôt rend
-  `COORDINATION_OK rows=0 active=0`, exit 0 ; la version du pack — qui ne suit pas les blocs
-  de code du tout — rend `BRANCH_COLLISION:ISS-A:ISS-B` + `PATH_COLLISION:…`, exit 1. C'est
-  donc **une régression fail-open de la détection de collision vis-à-vis du pack**, écrite ici
-  plutôt que refermée. Le choix est motivé : signaler ces lignes (par un
-  `FENCED_ROW_IGNORED:<ligne>`) rouvrirait exactement le faux positif que le suivi de fence
-  existe pour supprimer — un fichier de coordination qui documente son propre format dans un
-  bloc de code deviendrait non conforme. Un fence équilibré est un acte d'écriture délibéré ;
-  un fence orphelin est une faute de frappe, d'où le traitement différent de ce dernier
-  (`UNTERMINATED_FENCE`, exit 1). Cette limite est une propriété du validateur, pas un oubli :
-  `COORDINATION_OK` n'atteste rien de ce qui est écrit à l'intérieur d'un bloc de code.
-- **Deux clôtures orphelines de marqueurs différents — défaut préexistant, refermé ici.**
-  Le suivi de bloc de code était une bascule aveugle : elle ne distinguait pas les trois
-  apostrophes inverses de `~~~`, de sorte que deux clôtures orphelines de marqueurs
-  différents s'annulaient. Aucune `UNTERMINATED_FENCE` n'était levée, et la ligne avalée
-  entre les deux disparaissait avec sa collision — alors que le commentaire du code
-  annonçait « fail-closed … un fence orphelin doit rougir ». Le code disait donc autre
-  chose que ce qu'il faisait. Mesuré, fixture « table valide, clôture orpheline en trois
-  apostrophes inverses, ligne en collision, `~~~` orphelin » : ce dépôt
-  rendait `COORDINATION_OK rows=1 active=1`, exit 0, là où la version du pack rend
-  `BRANCH_COLLISION` + `PATH_COLLISION`, exit 1. **Choix : apparier les marqueurs** plutôt
-  qu'écrire la limite à côté de la fail-open — seul un marqueur identique referme, comme en
-  CommonMark, dont ce suivi ne reprend que ce point (ni la longueur du marqueur, ni
-  l'info-string) ; cela referme un chemin fail-open au lieu d'en documenter un de plus. Après
-  correctif, la même fixture rend `UNTERMINATED_FENCE`, exit 1. La contrepartie du point
-  précédent est inchangée et reste ouverte : elle vaut pour une paire équilibrée de
-  marqueurs **identiques**.
-- **Comportement mesuré à HEAD** (et non « après tel commit » : ces valeurs sont
-  re-mesurables à tout instant, la formulation ne dépend d'aucun rang de commit) —
-  gabarit du pack `repo-overlay/coordination/WORK-OWNERSHIP.md` →
-  `COORDINATION_OK rows=0 active=0`, exit 0 ; `coordination/WORK-OWNERSHIP.md` de ce dépôt →
-  `COORDINATION_OK rows=9 active=2` (les deux lignes `REVIEW`/`ACTIVE`, cf. la section
-  « Active » de ce fichier) ; `coordination/DAILY-SYNC.md`, `coordination/24H-UPDATE-TEMPLATE.md` et
-  `coordination/README.md` → `HEADER_MISSING`, exit 1 ; fixture « en-tête cité dans un bloc
-  de code » → `HEADER_MISSING`, exit 1, là où la version du pack rend
-  `COORDINATION_OK rows=0 active=0`, exit 0 ; fixture « en-tête suivi d'une barre `---` » →
-  `HEADER_MISSING`, exit 1 ; fixtures « séparateur espacé », « séparateur aligné » et
-  « table GFM avec pipe initial, sans pipe final » → `COORDINATION_OK rows=1 active=1`,
-  exit 0 ; fixture « en-tête avec pipe initial, séparateur et deux lignes en collision sans
-  pipe initial » → `HEADER_MISSING`, exit 1, là où la version du pack rend
-  `COORDINATION_OK rows=0 active=0`, exit 0 ; fixture « deux clôtures orphelines de
-  marqueurs différents autour d'une ligne en collision » → `UNTERMINATED_FENCE`, exit 1.
-  La non-régression sur le gabarit du pack est la plus critique de la liste, parce que ce
-  gabarit est ce que le **rôle** du validateur doit accepter sur une installation neuve.
-  Ce n'est pas ce fichier-ci que `tools/daily_start.py` du pack exécute : mesuré dans son
-  source, toutes ses invocations pointent sur `<pack>/tools/check_coordination.py`. Casser
-  la copie de ce dépôt ne peut donc pas bloquer une installation neuve — une version
-  antérieure de cette phrase l'affirmait, à tort.
-- **Cas du fichier inexistant — comportement réel, re-mesuré** : une version antérieure de
-  cette section le donnait comme une « limite non résolue », avec `FileNotFoundError` non
-  interceptée, traceback et exit 1, en ajoutant que « ce correctif ne change pas ce
-  comportement ». C'était vrai jusqu'à ce que la validation de chemin d'argv soit ajoutée
-  (écart `_chemin_valide()` ci-dessous), et faux depuis, sans que la phrase soit reprise.
-  Comportement mesuré à HEAD :
-  `python3 -B tools/check_coordination.py <chemin-inexistant>` →
-  `CHEMIN_INVALIDE:chemin non resolvable : [Errno 2] No such file or directory: '<chemin>'`,
-  **exit 2**, aucun traceback. Affirmation **bornée aux cas mesurés** et non étendue à
-  « plus aucun traceback nulle part », qu'aucune mesure ne peut établir : les cas mesurés
-  sans traceback sont le chemin inexistant, le répertoire fourni à la place d'un fichier,
-  le fichier régulier non décodable en UTF-8, le répertoire de sortie inexistant et le
-  répertoire de sortie non inscriptible.
-- **Diff contre le pack** : `valid_scope()` est la seule fonction du pack reprise inchangée.
-  `parse_rows()`, `overlaps()`, `validate()` et `main()` diffèrent tous, et le fichier ajoute
-  des définitions absentes du pack (`est_ligne_separatrice`, `_est_cellule_separatrice`,
-  les classes `CheminInvalide` et `LectureImpossible`, `_chemin_valide`). `main()` en
-  particulier **ne fait pas** partie
-  des fonctions identiques au pack : une version antérieure de cette phrase l'y rangeait, et
-  le commit qui a fait passer `main()` par `_chemin_valide()` ne l'a pas retirée de la liste.
-  Vérifiable fonction par fonction sans décompte, contre le pack installé, plutôt que sur une
-  liste recopiée ici — c'est le diff qui fait foi.
+Dans `validate()`, `MODULE_CODE_DURING_CORE` normalise déjà casse et séparateur du scope
+avant comparaison ; `overlaps()`, lui, comparait les chemins de scope tels quels — incohérence
+interne héritée du pack amont, pas introduite ici. Conséquence mesurée : deux lignes actives,
+branches distinctes, portant les scopes `Coordination` et `coordination` → le pack rend
+`COORDINATION_OK rows=2 active=2`, exit 0 (collision manquée). Même constat, séparateur plutôt
+que casse : scopes `coordination\sub` et `coordination/sub` → même résultat côté pack.
+`overlaps()` normalise maintenant casse **et** séparateur des deux chemins avant comparaison,
+par le même principe que `MODULE_CODE_DURING_CORE`. Mesuré à HEAD sur les deux fixtures :
+`PATH_COLLISION:ISS-A:ISS-B:Coordination:coordination`, exit 1, puis
+`PATH_COLLISION:ISS-A:ISS-B:coordination\sub:coordination/sub`, exit 1.
 
-### `overlaps()` — casse non normalisée, incohérente avec `MODULE_CODE_DURING_CORE`
+### Lecture et écriture — interception au lieu d'un traceback
 
-- **Constat** : dans `validate()`, le contrôle
-  `MODULE_CODE_DURING_CORE` normalise déjà la casse du scope avant comparaison. `overlaps()`,
-  lui, comparait les chemins de scope tels quels, sans normaliser la casse. Conséquence :
-  deux lignes actives portant les scopes `Coordination` et `coordination` ne déclenchaient
-  aucun `PATH_COLLISION`, alors que `MODULE_CODE_DURING_CORE` les aurait traitées comme
-  identiques quelques lignes plus loin dans la même fonction `validate()` — incohérence
-  interne héritée du pack amont, pas introduite par ce dépôt. Fixture ad hoc (hors dépôt) :
-  deux lignes actives, branches distinctes, scopes `Coordination` et `coordination` → la
-  version du pack rend `COORDINATION_OK rows=2 active=2`, exit 0 (collision manquée) ; la
-  version de ce dépôt rend `PATH_COLLISION:ISS-A:ISS-B:Coordination:coordination`, exit 1.
-- **Correctif** : `overlaps()` normalise la casse **et le séparateur** des deux chemins
-  avant comparaison, par le même principe que `MODULE_CODE_DURING_CORE`. La normalisation de
-  casse seule ne suffisait pas : une revue a mesuré que `coordination\sub` et
-  `coordination/sub`, deux lignes actives, ne déclenchaient toujours aucune collision, alors
-  que `MODULE_CODE_DURING_CORE` traitait bien ces deux écritures comme le même chemin.
-  Mesuré à HEAD sur la fixture correspondante :
-  `PATH_COLLISION:ISS-A:ISS-B:coordination\sub:coordination/sub`, exit 1, là où la version
-  du pack rend `COORDINATION_OK rows=2 active=2`, exit 0. Les deux contrôles de scope partagent maintenant la
-  même notion de « même chemin » — casse et séparateur.
+Sans interception, un chemin de lecture invalide (répertoire fourni à la place d'un fichier,
+chemin inexistant, permission refusée, contenu non décodable en UTF-8) ou une sortie
+`--json-output` inscriptible rendent, côté pack, une exception non captée : exit 1 avec
+traceback sur stderr, stdout vide — indiscernable, pour un appelant qui teste `== 1`, d'une
+table lue et non conforme. Plus net encore : une table lue **et conforme**, dont la sortie
+`--json-output` échoue à l'écriture, rend le même exit 1 qu'une table non conforme. Mesuré :
+table valide (gabarit neuf) + `--json-output` vers un répertoire non inscriptible → pack
+`exit=1`, traceback, `PermissionError`, alors que `errors == []`.
 
-### `_chemin_valide()` — validation des chemins d'argv, et le code de sortie 2
+`main()` intercepte `OSError` et `UnicodeDecodeError` à la lecture (`LECTURE_IMPOSSIBLE:
+<raison>`, exit 2) et `OSError` à l'écriture JSON (`SORTIE_IMPOSSIBLE:<raison>`, exit 2), sans
+validation de chemin préalable : une version antérieure ajoutait un module de validation
+(`_chemin_valide()`) avant tout accès disque, motivée par un repère SonarCloud
+(`pythonsecurity:S8707`) non re-mesurable depuis ce dépôt. Mesuré sur les quatre fixtures où
+elle changeait quelque chose côté pack (répertoire en lecture, chemin inexistant, répertoire
+de sortie inexistant, cible de sortie = répertoire) : avec ou sans cette validation préalable,
+ce fichier rend le même exit 2 et la même absence de traceback — seul le préfixe du message
+diffère. Retirée comme redondante avec l'interception au point d'accès.
 
-- **Motif** : SonarCloud remonte le motif `pythonsecurity:S8707` sur ce module — un chemin
-  venu d'`argv` atteignait le système de fichiers sans validation préalable, à la lecture
-  (`Path(args.ownership)`) comme à l'écriture (`Path(args.json_output).write_text(...)`).
-  Les deux lignes viennent du pack amont, mais le fichier étant neuf dans ce dépôt, la
-  totalité de son contenu compte comme *new code*. **Le verdict SonarCloud lui-même n'est
-  pas re-mesurable depuis ce dépôt** (il vient du service, pas d'un outil local) : il est
-  cité comme le motif du changement, pas comme une mesure de cette section.
-- **Portée volontairement NON confinée à l'arborescence du dépôt.** L'argument porte sur le
-  **rôle** du validateur, pas sur une exécution de ce fichier-ci. Mesuré dans le source de
-  `tools/daily_start.py` du pack : toutes ses invocations pointent sur
-  `<pack>/tools/check_coordination.py`, **jamais** sur `<repo>/tools/check_coordination.py` ;
-  les *cibles*, elles, sont `<repo>/coordination/WORK-OWNERSHIP.md` et, quand la première
-  n'existe pas encore, `<pack>/repo-overlay/coordination/WORK-OWNERSHIP.md`, hors du dépôt.
-  Une copie confinée à l'arborescence du dépôt serait donc **inutilisable dans ce rôle** —
-  c'est ce qui motive la portée. Ce qui **n'est pas** affirmé, et qu'une version antérieure
-  de ce paragraphe affirmait à tort : que casser *ce* fichier interdirait une installation
-  neuve. `daily_start.py` ne l'exécute pas. La validation porte sur la **forme** et la
-  **nature** de la cible, jamais sur son emplacement.
-- **Ce qui est refusé, mesuré** : octet nul dans le chemin (non atteignable via `argv`, où
-  l'OS interdit l'octet nul — mesuré par appel direct de `_chemin_valide`) ; chemin non
-  résolvable ;
-  cible de lecture qui n'est pas un fichier régulier (un répertoire, notamment) ; en
-  écriture, répertoire parent inexistant, ou cible existante qui n'est pas un fichier
-  régulier. Les `..` et les liens symboliques sont aplatis par `resolve()` **avant** tout
-  accès, de sorte qu'un lien menant hors d'un périmètre attendu devient visible dans le
-  chemin résolu au lieu d'être suivi à l'aveugle.
-- **Nouveau code de sortie, et nouveaux préfixes de message** : un chemin refusé rend
-  `CHEMIN_INVALIDE:<raison>` sur la sortie standard et **exit 2**, distinct de l'exit 1 des
-  erreurs de contenu (`HEADER_MISSING`, `PATH_COLLISION`, `UNTERMINATED_FENCE`, …) et de
-  l'exit 0 de `COORDINATION_OK`. Contrat : 0 = table lue et conforme ; 1 = table lue, non
-  conforme ; 2 = aucun verdict de conformité exploitable. Documenté aussi dans
-  `coordination/README.md`, à côté de `COORDINATION_OK` — un appelant qui teste `!= 0` ne
-  voit pas la différence, un appelant qui teste `== 1` la voit.
-- **Deux trous de ce contrat, mesurés et refermés.** Le chemin validé pouvait encore
-  échouer *après* la validation, et l'exception remontait alors non interceptée : exit 1
-  avec traceback sur stderr et stdout vide. Un appelant qui teste `== 1` pour conclure
-  « table lue, corrigez-la » était donc induit en erreur dans deux cas où elle ne l'était
-  pas, ou l'était sans problème :
-  - **fichier régulier non décodable en UTF-8** — `read_text` levait `UnicodeDecodeError`,
-    et la table n'avait jamais été lue. Intercepté : `LECTURE_IMPOSSIBLE:<raison>`, exit 2.
-    Mesuré à HEAD : `LECTURE_IMPOSSIBLE:contenu illisible : 'utf-8' codec can't decode
-    byte 0xff …`, exit 2, aucun traceback.
-  - **`--json-output` non écrivable** (répertoire en lecture seule, disque plein) — la
-    table était lue *et conforme*, mais l'`OSError` rendait exit 1. Intercepté :
-    `SORTIE_IMPOSSIBLE:<raison>`, exit 2. Mesuré à HEAD :
-    `SORTIE_IMPOSSIBLE:ecriture impossible : [Errno 13] Permission denied: …`, exit 2.
+Mesuré à HEAD : chemin = répertoire → `LECTURE_IMPOSSIBLE:[Errno 21] Is a directory: ...`,
+exit 2 ; contenu non UTF-8 → `LECTURE_IMPOSSIBLE:'utf-8' codec can't decode byte ...`, exit 2 ;
+`--json-output` vers cible non inscriptible → `SORTIE_IMPOSSIBLE:...`, exit 2. Contrat : 0 =
+table lue et conforme ; 1 = table lue, non conforme ; 2 = aucun verdict de conformité
+exploitable. Documenté dans `coordination/README.md`, à côté de `COORDINATION_OK`.
 
-  C'est pour couvrir ces deux cas que l'exit 2 est libellé « aucun verdict de conformité
-  exploitable » et non « table jamais lue » : cette dernière formulation, plus courte,
-  était fausse pour l'échec d'écriture.
-- **Conséquence sur `main()`** : c'est ce changement qui fait que `main()` diffère du pack,
-  et donc qui a invalidé la phrase « `main()` reste identique » corrigée plus haut. L'écart
-  est consigné ici pour que la prochaine édition de `main()` trouve une entrée à mettre à
-  jour, au lieu d'une liste qui prétend le contraire.
+### Diff contre le pack
+
+`valid_scope()` est la seule fonction du pack reprise inchangée. `parse_rows()`, `overlaps()`,
+`validate()` et `main()` diffèrent tous. Vérifiable fonction par fonction sans décompte,
+contre le pack installé, plutôt que sur une liste recopiée ici — c'est le diff qui fait foi.
 
 ## `.claude/settings.example.json` — ne jamais écraser `.claude/settings.json`
 
@@ -473,9 +289,11 @@ Ce qui se recense de façon stable :
 Ce qui est consigné ici est la seule décision locale — la mission ne progresse pas, et ce
 qu'elle attend de notre côté. Les numéros renvoient à la source.
 
-- `AUD-CANON-001` / `AUD-CANON-002` — gate #541 : décision Nathan attendue avant toute
-  promotion canonique ; `gh issue view 541` fait foi. Preuve produite, promotion non
-  exécutée.
+- `AUD-CANON-001` / `AUD-CANON-002` — gate #541 : décision enregistrée côté pack
+  (`docs/core/CANON-INDEX.md` comme canon, #564 propriétaire exclusif de `coordination/**`,
+  #566 propriétaire de la promotion canonique — `live-guidance/ISSUE-541-DECISION.md` du
+  pack v1.4). `gh issue view 541` fait foi de son état de fermeture sur GitHub, non recopié
+  ici. Preuve produite, promotion non exécutée.
 - `AUD-CI-003` / `AUD-CI-004` — ne sont plus tenues pour bloquées de notre côté ; leur statut
   dans `WORK-OWNERSHIP.md` est `MERGED`.
 - Issue **#569**, citée de notre côté comme motif du gel des deux précédentes : ni son état,

@@ -10,11 +10,15 @@ Le titre et l'énoncé de cette issue ne sont pas recopiés ici — ils se modif
 sans que ce fichier en sache rien ; `gh issue view 563` fait foi.
 
 **Il n'en est pas une copie octet-exacte.** Propriété stable, re-mesurable sans citer
-aucun commit ni aucune révision :
+aucun commit ni aucune révision — **contre le pack v1.2 spécifiquement**, celui dont ce
+document est dérivé : le pack `OPSYS-AI-CLAUDE-ISSUES-AUTONOMOUS-v1.4`, devenu la référence
+courante ailleurs dans cette PR, n'a plus ni `repo-overlay/`, ni aucun ADR, et ne peut donc
+pas servir à cette comparaison-ci :
 
-`diff -u "$OPSYS_PACK/repo-overlay/docs/decisions/ADR-PROPOSED-INDEPENDENT-AGENT-OWNERSHIP.md" docs/decisions/ADR-0004-independent-agent-ownership.md`
+`diff -u "$OPSYS_PACK_V1_2/repo-overlay/docs/decisions/ADR-PROPOSED-INDEPENDENT-AGENT-OWNERSHIP.md" docs/decisions/ADR-0004-independent-agent-ownership.md`
 
-Ce `diff -u` fait autorité sur les écarts réels. Ce qui se dit sans lui : la section
+où `$OPSYS_PACK_V1_2` désigne le répertoire où le pack `OPSYS-AI-CLAUDE-ISSUES-OPERATIONS-v1.2`
+(et lui seul) a été dépaqueté. Ce `diff -u` fait autorité sur les écarts réels. Ce qui se dit sans lui : la section
 « Décision » ci-dessous est reprise **inchangée** du fichier du pack ; les écarts portent
 notamment sur le titre, la ligne `Statut`, ce paragraphe, la section « Supersession
 retirée », et des précisions ajoutées dans « Conséquences » et « Enregistrement canon ».
