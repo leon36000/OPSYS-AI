@@ -1,6 +1,6 @@
 # Status Claude Code
 
-Updated UTC : `2026-08-26T10:59Z`
+Updated UTC : `2026-08-27T02:14Z`
 
 ## Vérification runtime (07-RUNTIME-CHECK, constat unique de session)
 
@@ -48,17 +48,27 @@ réelles et vérifiables de ce dépôt :
 - L'installation de l'overlay elle-même → issue **#563** → PR **#564** (cette PR) est
   de la même famille de travail que le rôle **ci-docs** (coordination/docs/manifest),
   mais **ne peut pas** être citée comme une exécution du fichier `opsys-issue-ci-docs.md` :
-  ce fichier est *créé par* la branche `claude/ops/install-coordination-overlay` (premier
-  commit `b552f87`) — il n'existait dans aucun commit de `origin/main` avant cette branche.
-  Aujourd'hui, `git log origin/main -- .claude/agents/opsys-issue-ci-docs.md` le confirme par
-  une sortie vide ; après le merge, la même commande listera l'historique de ce fichier sur
-  cette branche (dont `b552f87`, le plus ancien de la liste, celui qui l'a créé), ce qui
-  confirme le même fait sous une autre forme, pas son contraire. Une formulation qui dirait
-  « seul commit de la branche » à la place ne resterait pas vraie au
-  commit suivant — cette branche en compte maintenant plusieurs — alors que « créée par cette
-  branche, premier commit b552f87 » reste vraie quel que soit le nombre de commits qui
-  suivent. C'est le travail de l'orchestrateur (session lead), pas un rejeu du
-  fichier commité.
+  ce fichier est *créé par* la branche `claude/ops/install-coordination-overlay` ; il
+  n'existait dans aucun commit de `origin/main` avant cette branche — vérifiable par
+  `git log origin/main -- .claude/agents/opsys-issue-ci-docs.md`, dont la sortie est vide.
+  (Après le merge de cette PR, la même commande cessera d'être vide : elle listera alors
+  l'historique de ce fichier sur `origin/main`, ce qui confirme le même fait sous une autre
+  forme — la commande vérifie l'absence *avant* cette branche, pas une absence perpétuelle —
+  et non son contraire.)
+  Cette formulation ne nomme aucun SHA de cette branche, volontairement : un SHA de commit
+  local ne survit ni à un rebase, ni à un squash, ni à un amend. Le troisième tour de revue
+  avait corrigé ce paragraphe en nommant le SHA du premier commit d'alors, justifié par
+  « reste vraie quel que soit le nombre de commits qui suivent » — vrai pour l'ajout de
+  commits, silencieux sur la réécriture d'historique. Le rebase qui a suivi a rendu ce SHA
+  inatteignable depuis toute ref (`git rev-list --all` ne le liste plus), ce qui a réfuté la
+  phrase exactement au moment où un lecteur aurait pu la vérifier. Le fait qui importe — ce
+  fichier appartient à cette branche, à aucun commit antérieur de `origin/main` — se dit sans
+  SHA et reste vrai après rebase, squash, amend ou avance de `main` : c'est la formulation
+  retenue ci-dessus. Une formulation qui dirait « seul commit de la branche » serait un
+  défaut différent, non traité ici par accident mais par non-pertinence : elle cesserait
+  d'être vraie dès le commit suivant sur cette branche, réécriture ou non, et n'est donc pas
+  celle utilisée. C'est le travail de l'orchestrateur (session lead), pas un rejeu du fichier
+  commité.
 - **restructure** (restructuration/packaging/nettoyage prouvé) : **aucune mission
   numérotée n'a encore exercé ce rôle**. Le candidat le plus proche est l'issue **#568**
   (AUD-CORE-005, fragment de packaging orphelin `.opsys/tools/github-control`), mais
@@ -131,16 +141,19 @@ dépôt s'en écarte, délibérément, sur trois points :
    `AGENTS.md` liste l'auto-approbation parmi ses interdits absolus). `triage` reste
    `plan`, déjà plus restrictif qu'`auto` et hors-sujet de cet écart, sans changement.
 
-## `tools/check_coordination.py` — écart volontaire vis-à-vis du pack amont (validation)
+## `tools/check_coordination.py` — écarts volontaires vis-à-vis du pack amont (validation)
 
-À partir de ce commit, ce fichier **n'est plus une copie octet-exacte** du
-`tools/check_coordination.py` du pack `OPSYS-AI-CLAUDE-ISSUES-OPERATIONS-v1.2` — `README.md`
-affirmait cette exactitude, corrigé dans ce même commit. Écart mesuré, un seul, localisé :
+Depuis le premier commit de cette branche, ce fichier **n'est plus une copie octet-exacte**
+du `tools/check_coordination.py` du pack `OPSYS-AI-CLAUDE-ISSUES-OPERATIONS-v1.2` —
+`README.md` affirmait cette exactitude, corrigé dès ce premier commit. Deux écarts mesurés,
+localisés à deux fonctions :
 
-- **Constat** : `parse_rows()` ne validait que la *forme* des lignes de données ; l'absence
-  totale de la ligne d'en-tête `| Work ID | Owner | Branch | Path scope | Status | Updated
-  UTC | Next |` n'était jamais détectée. Conséquence mesurée avant ce commit — un mauvais
-  chemin ou un fichier tronqué/vidé rendaient exactement le même succès qu'une vraie table :
+### 1. `HEADER_MISSING` — absence d'en-tête non détectée, puis un faux positif corrigé
+
+- **Constat initial** : `parse_rows()` ne validait que la *forme* des lignes de données ;
+  l'absence totale de la ligne d'en-tête `| Work ID | Owner | Branch | Path scope | Status |
+  Updated UTC | Next |` n'était jamais détectée. Conséquence mesurée — un mauvais chemin ou
+  un fichier tronqué/vidé rendaient exactement le même succès qu'une vraie table :
   `python3 -B tools/check_coordination.py coordination/DAILY-SYNC.md` →
   `COORDINATION_OK rows=0 active=0`, exit 0, alors que ce fichier ne porte aucune table de
   coordination. Idem pour `coordination/24H-UPDATE-TEMPLATE.md`.
@@ -148,21 +161,55 @@ affirmait cette exactitude, corrigé dans ce même commit. Écart mesuré, un se
   pack (`repo-overlay/coordination/WORK-OWNERSHIP.md`, zéro ligne de données, en-tête
   présent) est légitimement vide et `tools/daily_start.py` du pack le valide comme tel sur
   une installation neuve. Une règle `rows == 0 → erreur` aurait cassé ce cas légitime.
-- **Correctif** : `parse_rows()` retourne désormais si l'en-tête a été rencontré
+- **Premier correctif** : `parse_rows()` a commencé à retourner si l'en-tête a été rencontré
   (`header_found: bool`) ; `validate()` ajoute l'erreur `HEADER_MISSING` quand il ne l'a pas
-  été, indépendamment du nombre de lignes de données. Une table vide **avec** en-tête reste
-  valide ; l'absence totale d'en-tête ne l'est plus. Diff exact contre le pack : un troisième
-  élément de retour sur `parse_rows` et une vérification de 7 lignes dans `validate()` ;
-  aucune autre ligne changée.
-- **Vérifié après correctif** : gabarit du pack → toujours `COORDINATION_OK rows=0 active=0`
-  (inchangé) ; vraie table de ce dépôt → toujours `COORDINATION_OK rows=9 active=3`
-  (inchangé) ; `DAILY-SYNC.md` et `24H-UPDATE-TEMPLATE.md` → `HEADER_MISSING`, exit 1 (avant :
-  faux succès, exit 0).
+  été, indépendamment du nombre de lignes de données.
+- **Défaut résiduel trouvé et corrigé dans ce commit** : ce premier correctif mettait
+  `header_found = True` dès qu'une ligne était *égale* à l'en-tête, sans regarder ce qui la
+  suit — y compris citée seule, en bloc de code ou en prose, pour documenter le format sans
+  qu'aucune vraie table ne suive. Une fixture ad hoc (hors dépôt, cf. preuve de ce commit) le
+  démontre : un document qui ne fait que citer la ligne d'en-tête dans un bloc de code
+  passait à tort `COORDINATION_OK rows=0 active=0`. Correctif : `parse_rows()` ignore
+  désormais tout contenu entre deux clôtures de bloc de code (les lignes commençant par trois
+  apostrophes inverses ou par `~~~`) — jamais compté comme en-tête, séparateur ou ligne de
+  données — et n'accepte `header_found = True` que si la ligne d'en-tête est **immédiatement
+  suivie** d'une vraie ligne de séparation Markdown (ex. `|---|---|`, avec ou sans espaces ou
+  `:` d'alignement). Une table vide **avec** en-tête et séparateur reste valide ; une simple
+  citation de l'en-tête, en bloc de code ou non, ne l'est plus.
+- **Vérifié après ce commit** : gabarit du pack → toujours `COORDINATION_OK rows=0 active=0`
+  (inchangé, en-tête immédiatement suivi de son séparateur) ; vraie table de ce dépôt →
+  `COORDINATION_OK rows=9 active=2` (`active` recalculé dans ce commit — voir « Active »
+  ci-dessus, `AUD-CORE-006` est passée `MERGED`) ; `DAILY-SYNC.md` et
+  `24H-UPDATE-TEMPLATE.md` → toujours `HEADER_MISSING`, exit 1 ; fixture « en-tête cité dans
+  un bloc de code » → désormais `HEADER_MISSING`, exit 1 (avant ce commit : faux succès,
+  exit 0).
 - **Limite non résolue par ce correctif, à ne pas taire** : un fichier inexistant fait déjà
   échouer l'appel (`FileNotFoundError` non interceptée, traceback, exit 1) — ce n'était donc
   pas un faux succès, seulement un échec peu lisible ; ce correctif ne change pas ce
-  comportement, seul le cas « fichier présent mais sans en-tête » était un vrai faux vert et
-  seul celui-ci a été traité.
+  comportement.
+- **Diff contre le pack, à ce stade** : les fonctions `parse_rows()` et `overlaps()` (écart 2
+  ci-dessous) diffèrent de la version installée ; `valid_scope()`, le reste de `validate()`
+  et `main()` restent identiques. Se référer à `git diff`/`git show` de ce fichier pour le
+  détail exact plutôt qu'à un décompte de lignes recopié ici : un décompte figé deviendrait
+  faux à la prochaine édition de ce même fichier, sans qu'aucune opération Git n'y soit pour
+  rien — la même leçon que le reste de ce commit, appliquée à un futur diff plutôt qu'à un
+  SHA ou une révision.
+
+### 2. `overlaps()` — casse non normalisée, incohérente avec `MODULE_CODE_DURING_CORE`
+
+- **Constat, trouvé et corrigé dans ce commit** : dans `validate()`, le contrôle
+  `MODULE_CODE_DURING_CORE` normalise déjà la casse du scope avant comparaison. `overlaps()`,
+  lui, comparait les chemins de scope tels quels, sans normaliser la casse. Conséquence :
+  deux lignes actives portant les scopes `Coordination` et `coordination` ne déclenchaient
+  aucun `PATH_COLLISION`, alors que `MODULE_CODE_DURING_CORE` les aurait traitées comme
+  identiques quelques lignes plus loin dans la même fonction `validate()` — incohérence
+  interne héritée du pack amont (pas introduite par ce dépôt), jamais corrigée avant ce
+  commit. Fixture ad hoc (hors dépôt) : deux lignes actives, branches distinctes, scopes
+  `Coordination` et `coordination` → avant ce commit, `COORDINATION_OK rows=2 active=2`
+  (collision manquée) ; après ce commit, `PATH_COLLISION:...`, exit 1.
+- **Correctif** : `overlaps()` normalise désormais la casse des deux chemins avant
+  comparaison, par le même principe que `MODULE_CODE_DURING_CORE`. Les deux contrôles de
+  scope partagent maintenant la même notion de « même chemin ».
 
 ## `.claude/settings.example.json` — ne jamais écraser `.claude/settings.json`
 
@@ -184,19 +231,34 @@ que les deux dérivent l'une de l'autre.
 
 | Work ID | Branche | État |
 |---|---|---|
-| OPS-OVERLAY-INSTALL | `claude/ops/install-coordination-overlay` | PR #564 ouverte ; revue aveugle #1 = REJECT (8 majeures, 4 mineures) → corrigée par `17d653c` ; revue aveugle #2 = REJECT (le correctif #1 avait lui-même introduit des défauts) → corrigé par `5afd821` ; troisième tour : le défaut nommé n'était plus un site isolé mais un motif (« le défaut ponctuel est corrigé, la classe ne l'est pas ») → traité au niveau du motif dans ce commit |
-| LIVE-ISSUE-RECONCILIATION | read-only | triage live en cours ; 3 candidats déjà livrés (PR #567, issue #568, PR #571) |
-| AUD-CORE-006 | `claude/aud-core-006-chemins-hote-en-dur` | PR #571 ouverte, CI vert y compris `proof-sealed` (hors périmètre scellé : seul `audit/core-baseline/` touché) ; en attente de revue scellée — détail dans `WORK-OWNERSHIP.md` |
+| OPS-OVERLAY-INSTALL | `claude/ops/install-coordination-overlay` | PR #564 ouverte ; premier tour de revue aveugle scellée = REJECT (8 majeures, 4 mineures), corrigé au premier tour ; deuxième tour = REJECT à nouveau (le correctif du premier tour avait lui-même introduit des défauts), corrigé au deuxième tour ; troisième tour : le défaut nommé n'était plus un site isolé mais un motif (« le défaut ponctuel est corrigé, la classe ne l'est pas »), mais sa justification (« reste vraie quel que soit le nombre de commits qui suivent ») ne couvrait que l'ajout de commits, pas la réécriture d'historique — le rebase qui a suivi a rendu inatteignables les SHA que ce tour citait ; quatrième tour (ce commit) : critère d'invariance explicite (rebase, squash, amend, avance de `main`), plus aucun SHA de cette branche cité dans ce fichier |
+| LIVE-ISSUE-RECONCILIATION | read-only | triage live en cours ; 3 candidats déjà triés — PR #567 (ouverte), issue #568 (bloquée en investigation), PR #571 (**mergée** : `gh pr view 571` → `MERGED`, et son commit de merge apparaît dans `git log --oneline HEAD` en cherchant `#571`) |
 
-Trois lignes actives ici, cohérent avec `WORK-OWNERSHIP.md` et avec
-`python3 -B tools/check_coordination.py coordination/WORK-OWNERSHIP.md` (`active=3` : les
-statuts `REVIEW`/`REVIEW`/`ACTIVE` de `OPS-OVERLAY-INSTALL`, `AUD-CORE-006` et
-`LIVE-ISSUE-RECONCILIATION`). `DAILY-SYNC.md` renvoie ici pour le détail d'exécution de ces
-trois missions ; avant ce commit, `AUD-CORE-006` en était absente — écart corrigé.
+Deux lignes actives ici, cohérent avec `WORK-OWNERSHIP.md` et avec
+`python3 -B tools/check_coordination.py coordination/WORK-OWNERSHIP.md` (`active=2` : les
+statuts `REVIEW`/`ACTIVE` de `OPS-OVERLAY-INSTALL` et `LIVE-ISSUE-RECONCILIATION`).
+`AUD-CORE-006` a quitté cette table dans ce commit, pour la raison inverse de celle qui l'y
+avait fait entrer au tour précédent : sa PR #571 est mergée, donc son statut dans
+`WORK-OWNERSHIP.md` est passé à `MERGED`, hors de l'ensemble `ACTIVE` du validateur — voir
+« Merged since last sync » ci-dessous. `DAILY-SYNC.md` renvoie ici pour le détail
+d'exécution de ces deux missions.
 
 ## Merged since last sync
 
-Aucune.
+Ne pas figer de liste de SHA de merge ici : un rebase de cette branche ne change pas quels
+merges ont réellement eu lieu sur `origin/main`, mais il change les SHA locaux disponibles
+pour les nommer — une valeur figée à la place d'une commande devient donc fausse ou
+incomplète sans qu'aucun fait réel n'ait changé. Ce que l'on peut recenser de façon stable :
+
+- Missions suivies dans `WORK-OWNERSHIP.md` passées à `MERGED` depuis la mise au point
+  précédente : au moment de cette réconciliation, `AUD-CORE-006` (PR #571 — `gh pr view 571`
+  → `MERGED`, et le commit de merge de #571 est un ancêtre de cette branche, visible dans
+  `git log --oneline HEAD` en cherchant `#571`).
+- Merges externes absorbés dans `origin/main` depuis la base connue à la mise au point
+  précédente, hors missions suivies ici (ex. travaux Core) : à recenser via
+  `git log --merges --oneline <base-de-la-dernière-sync>..origin/main`, jamais à recopier en
+  valeur figée ici — cette commande reste valide après rebase, squash, amend ou avance de
+  `main`, contrairement à toute liste de SHA écrite directement dans ce fichier.
 
 ## Blocked
 

@@ -1,6 +1,6 @@
 # Daily sync
 
-Date UTC : `2026-08-26T10:59Z`
+Date UTC : `2026-08-27T02:14Z`
 
 Choix éditorial (revue scellée n°2, mineure) : ce fichier avait été mergé avec `UNSET` et
 « active : aucun » partout alors que le sync owner de cette même mise au point
@@ -24,7 +24,11 @@ d'être un résumé.
 
 ## Merges depuis le dernier sync
 
-- aucun
+- `AUD-CORE-006` (PR #571) — mergée ; détail et méthode de vérification dans
+  `coordination/CLAUDE-STATUS.md` (section « Merged since last sync »). Ne pas figer cette
+  liste par SHA lors des prochains sync : un rebase change les SHA locaux disponibles pour
+  nommer un merge, pas le fait qu'il a eu lieu — recenser via `git log --merges --oneline
+  <base-de-la-dernière-sync>..origin/main` plutôt que de recopier une valeur ici.
 
 ## Codex
 
@@ -35,8 +39,9 @@ d'être un résumé.
 ## Claude
 
 - active : `OPS-OVERLAY-INSTALL` (PR #564, en revue) ; `LIVE-ISSUE-RECONCILIATION`
-  (triage live) ; `AUD-CORE-006` (PR #571, en revue) — détail par mission dans
-  `WORK-OWNERSHIP.md`, statut d'exécution dans `CLAUDE-STATUS.md`
+  (triage live) — détail par mission dans `WORK-OWNERSHIP.md`, statut d'exécution dans
+  `CLAUDE-STATUS.md`. `AUD-CORE-006` a quitté cette liste : sa PR #571 est mergée (cf.
+  « Merges depuis le dernier sync » ci-dessus)
 - blocked : `AUD-CI-003`/`AUD-CI-004` (gel #569), `AUD-CORE-005` (issue #568),
   `AUD-CANON-001`/`AUD-CANON-002` (gate #541)
 - next : suivre la restauration du routeur LiteLLM (#569) et la décision Nathan sur #568
@@ -51,4 +56,4 @@ d'être un résumé.
 
 ## Ownership mis à jour
 
-- oui — `WORK-OWNERSHIP.md` à `2026-08-26T10:59Z`
+- oui — `WORK-OWNERSHIP.md` à `2026-08-27T02:14Z`

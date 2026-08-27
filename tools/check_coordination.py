@@ -12,19 +12,43 @@ STATUSES = {"QUEUED", "ACTIVE", "BLOCKED", "REVIEW", "READY_TO_MERGE", "MERGED",
 CORE_RE = re.compile(r"^C(?:0[0-9]|1[0-9]|2[0-4])-\d{3}$")
 CLAUDE_RE = re.compile(r"^(?:ISS-|AUD-|BUG-|R4-)")
 HEADER = ["Work ID", "Owner", "Branch", "Path scope", "Status", "Updated UTC", "Next"]
+# Une ligne de separation Markdown valide : "|---|---|", "| --- | --- |",
+# avec ou sans ":" d'alignement, au moins 3 tirets par colonne.
+SEPARATOR_RE = re.compile(r"^\|(\s*:?-{3,}:?\s*\|)+$")
+FENCE_RE = re.compile(r"^(```|~~~)")
 
 
 def parse_rows(path: Path) -> tuple[list[dict[str, str]], list[str], bool]:
     out: list[dict[str, str]] = []
     errors: list[str] = []
     header_found = False
-    for lineno, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+    lines = path.read_text(encoding="utf-8").splitlines()
+    in_fence = False
+    for lineno, raw in enumerate(lines, 1):
         line = raw.strip()
+        if FENCE_RE.match(line):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            # Un document qui documente le format (ex. README, ou cette meme table
+            # citee en exemple) peut reciter l'en-tete ou une ligne de table dans un
+            # bloc de code : ce n'est pas une table de coordination reelle, ne pas la
+            # compter. Ecart corrige : avant ce commit, une ligne "== HEADER" comptait
+            # partout, y compris ici, et un document qui ne fait que documenter le
+            # format passait a tort en COORDINATION_OK rows=0.
+            continue
         if not line.startswith("|") or line.startswith("|---"):
             continue
         cells = [c.strip() for c in line.strip("|").split("|")]
         if cells == HEADER:
-            header_found = True
+            # Une ligne egale a l'en-tete ne suffit pas non plus hors bloc de code :
+            # elle peut etre citee en prose (une phrase qui la mentionne entre
+            # backticks au fil du texte) sans qu'aucune table ne suive. Exiger que la
+            # ligne suivante soit une vraie ligne de separation avant de considerer
+            # qu'une table de coordination commence ici.
+            next_line = lines[lineno].strip() if lineno < len(lines) else ""
+            if SEPARATOR_RE.match(next_line):
+                header_found = True
             continue
         if len(cells) != 7:
             errors.append(f"MALFORMED_ROW:{lineno}:{len(cells)}")
@@ -48,8 +72,15 @@ def valid_scope(scope: str) -> bool:
 def overlaps(a: str, b: str) -> bool:
     if a in {"read-only", "task spec exact"} or b in {"read-only", "task spec exact"}:
         return False
-    pa = PurePosixPath(a.rstrip("/"))
-    pb = PurePosixPath(b.rstrip("/"))
+    # casefold() ici pour la meme raison que MODULE_CODE_DURING_CORE plus bas, qui
+    # compare deja les scopes casefold(). Sans ce casefold, deux scopes actifs
+    # "Coordination" et "coordination" ne collisionnaient jamais ici (chemins
+    # distincts au sens strict de PurePosixPath) alors que MODULE_CODE_DURING_CORE les
+    # traite comme identiques quelques lignes plus loin dans validate() : incoherence
+    # interne heritee du pack amont, corrigee ici pour que les deux controles de scope
+    # partagent la meme notion de "meme chemin".
+    pa = PurePosixPath(a.rstrip("/").casefold())
+    pb = PurePosixPath(b.rstrip("/").casefold())
     return pa == pb or pa in pb.parents or pb in pa.parents
 
 

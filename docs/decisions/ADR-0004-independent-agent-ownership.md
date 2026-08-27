@@ -49,19 +49,35 @@ de porter cette formulation : ce document, et son nom de travail avant renommage
 ':!docs/decisions/ADR-0004-independent-agent-ownership.md' \
 ':!docs/decisions/ADR-PROPOSED-INDEPENDENT-AGENT-OWNERSHIP.md'`
 
-Mesuré le 2026-08-26 sur `origin/main` = `31fa5497` (base de cette PR, 810 commits) →
-sortie vide. Sans l'exclusion de chemin, la même commande sur cette même base est déjà vide
-aussi (`origin/main` ne porte encore aucun des deux chemins) : la différence entre les deux
+Rejouée sur `origin/main`, cette commande rend une sortie vide — sans figer ni un SHA de
+base, ni un décompte de commits, ni la date à laquelle elle a été rejouée : aucun des trois
+n'est la propriété qui compte, et tous changent à chaque avance de `main`. (Une version
+antérieure de ce paragraphe figeait les trois — un SHA de base, un décompte de commits et une
+date de mesure, présentés comme la preuve — et la toute première avance de `main` qui a suivi
+a suffi à rendre les trois faux avant même le merge de cette PR : `origin/main` pointe
+aujourd'hui vers un autre SHA, avec un autre décompte, et pointera encore ailleurs demain. Ni
+le SHA ni le décompte ne sont repris ici, y compris à titre d'exemple : c'est précisément ce
+que ce paragraphe corrige, et les reproduire ne ferait que déplacer le défaut d'une phrase à
+l'autre.) Sans l'exclusion de
+chemin, la même commande sur `origin/main` est déjà vide aussi tant que cette PR n'est pas
+mergée (`origin/main` ne porte encore aucun des deux chemins) : la différence entre les deux
 formes n'est donc pas visible avant le merge. Elle l'est sur cette branche, où l'un de ses
 commits a introduit la formulation et d'autres — dont celui-ci — l'ont discutée pour la
 retirer : sans l'exclusion, ces commits font passer la commande de vide à non vide ; avec
-elle, le résultat reste vide, quel que soit le nombre de commits qui discutent encore cette
-formulation dans ce document. C'est cette propriété, et non un décompte figé à une révision
-donnée, qui reste vraie après le merge : **en dehors de la lignée de ce document, aucun commit
-connu du dépôt n'a jamais ajouté ni retiré cette formulation.** Le fond de l'affirmation tient
-donc, sur cette base ; sa méthode de vérification, à deux reprises déjà, ne tenait pas — la
-condition pour qu'elle tienne cette fois est qu'elle cesse de compter ce document lui-même
-comme une preuve sur son propre sujet.
+elle, le résultat reste vide — que cette branche compte trois commits ou trente, qu'elle soit
+rebasée, squashée ou amendée, et quel que soit ce que `main` accumule pendant ce temps. C'est
+cette propriété, et non une révision ou un décompte figés, qui reste vraie après le merge :
+**en dehors de la lignée de ce document, aucun commit connu du dépôt n'a jamais ajouté ni
+retiré cette formulation.** Le fond de l'affirmation tient donc ; sa méthode de vérification a
+échoué trois fois de suite, chaque correction ayant déplacé le défaut sans l'éliminer : une
+première fois en cherchant sans révision (`git grep` n'interroge jamais l'historique) ; une
+deuxième fois en interrogeant l'historique mais sans exclure ce document de ses propres
+preuves ; une troisième fois — ce paragraphe, avant ce commit — en excluant bien ce document
+mais en figeant le résultat sur une révision et un décompte que la seule avance de `main`
+suffit à réfuter. La condition pour que la vérification tienne cette fois est double :
+exclure ce document de ses propres preuves (déjà fait ci-dessus), et n'énoncer que la
+propriété — la commande rend une sortie vide sur `origin/main`, quelle que soit sa révision —
+jamais une révision ou un décompte précis qui n'en serait qu'une photographie périssable.
 
 L'affirmation n'était de toute façon rattachée à aucune pièce vérifiable et a donc été
 retirée plutôt que reformulée — cette section documente le retrait pour que l'écart reste
