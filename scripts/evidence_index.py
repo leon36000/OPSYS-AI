@@ -392,8 +392,22 @@ def analyser_fichier(path_rel):
     return entree
 
 
+def dernier_commit_perimetre():
+    """Dernier commit qui touche réellement evidence/**, registries/** ou Registres/**
+    — PAS `HEAD`. HEAD inclurait, dès qu'il est committé, le commit qui ajoute cet
+    index lui-même : un fichier ne peut pas contenir son propre hash (même principe
+    que l'exclusion défensive du hash du commit introducteur en méthode 2). Ce commit
+    d'index ne touche que docs/audit/ et scripts/, hors des racines indexées, donc cet
+    ancrage reste stable avant et après qu'il soit committé."""
+    r = sh(["git", "log", "-1", "--format=%H", "--"] + ROOTS_INDEXES)
+    h = r.stdout.strip()
+    if h:
+        return h
+    return sh(["git", "rev-parse", "HEAD"]).stdout.strip()  # repli : aucun commit ne touche encore ces racines
+
+
 def construire_index():
-    head = sh(["git", "rev-parse", "HEAD"]).stdout.strip()
+    head = dernier_commit_perimetre()
     paths = git_tracked_files(ROOTS_INDEXES)
     paths = [p for p in paths if not est_exclu(p)]
 

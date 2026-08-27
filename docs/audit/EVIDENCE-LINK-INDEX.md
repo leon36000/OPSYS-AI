@@ -2,7 +2,7 @@
 
 Généré par `scripts/evidence_index.py` — **ne pas éditer à la main**, relancer le script.
 Issue : https://github.com/leon36000/OPSYS-AI/issues/593
-Mesuré à commit `1d0393e12cc61a6c9e12ac7718abc0603614e687`.
+Mesuré à commit `8977555977bc9c422d7eb8c87ae4f0657fd3eb2a`.
 
 **reviews/** : exclu de ce lot, cf. #591, en attente de décision Nathan.**
 

@@ -175,6 +175,28 @@ def test_check_flag_detecte_la_derive_puis_verifie_vert(tmp_path):
     assert run([str(repo / "scripts" / "evidence_index.py"), "--check"], cwd=str(repo)).returncode == 0
 
 
+def test_regression_check_reste_vert_apres_avoir_committe_lindex(tmp_path):
+    """Régression du deuxième bug mesuré en session : `mesure_a_commit` ancré sur
+    `git rev-parse HEAD` inclut, dès que ce commit existe, le commit qui ajoute
+    l'index lui-même — un fichier ne peut pas contenir son propre hash. `--check`
+    sortait ROUGE juste après le premier commit du PR, sur un dépôt pourtant
+    propre. Le commit qui ajoute l'index ne doit PAS faire dériver --check, tant
+    qu'il ne touche pas evidence/registries/Registres."""
+    repo = _init_repo(tmp_path)
+    (repo / "evidence" / "tasks" / "T5").mkdir(parents=True)
+    (repo / "evidence" / "tasks" / "T5" / "evidence.json").write_text(json.dumps({"task_id": "T5"}))
+    _commit_all(repo, "proof(T5): ajoute une entrée réelle au périmètre indexé")
+
+    assert run([str(repo / "scripts" / "evidence_index.py")], cwd=str(repo)).returncode == 0
+    # committer l'index généré (docs/audit/ uniquement à ce stade), comme le fait réellement le PR
+    _commit_all(repo, "feat: committer l'index généré, ne touche pas evidence/registries/Registres")
+
+    assert run([str(repo / "scripts" / "evidence_index.py"), "--check"], cwd=str(repo)).returncode == 0, (
+        "committer l'index ne doit pas le faire dériver : ce commit ne touche pas "
+        "evidence/registries/Registres"
+    )
+
+
 def test_regeneration_idempotente_a_etat_de_depot_inchange(tmp_path):
     repo = _init_repo(tmp_path)
     (repo / "evidence" / "tasks" / "T4").mkdir(parents=True)

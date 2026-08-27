@@ -20,6 +20,15 @@ C'est un **instantané daté**, pas une vérité permanente : chaque entrée est
 précis (`mesure_a_commit` dans le JSON), exactement comme `#591` ancre ses mesures sur
 `origin/main (07106d8)`. Re-exécuter le script après de nouveaux commits pour re-mesurer.
 
+`mesure_a_commit` n'est délibérément **pas** `git rev-parse HEAD` : dès que le commit qui ajoute cet
+index existe, `HEAD` l'inclurait lui-même — un fichier ne peut pas contenir son propre hash. Mesuré
+en session : `--check` sortait `ROUGE` juste après le premier commit de ce lot, sur un dépôt pourtant
+propre. Ancré à la place sur `git log -1 --format=%H -- evidence registries Registres` (dernier
+commit touchant réellement le périmètre indexé) : stable avant et après que ce commit d'index
+lui-même — qui ne touche que `docs/audit/` et `scripts/` — soit committé. Verrouillé par
+`test_regression_check_reste_vert_apres_avoir_committe_lindex` dans
+`scripts/tests/test_evidence_index.py`.
+
 ## Ce qui est indexé, ce qui ne l'est pas
 
 - Indexé : `evidence/**`, `registries/**`, `Registres/**` — un fichier versionné (`git ls-files`)

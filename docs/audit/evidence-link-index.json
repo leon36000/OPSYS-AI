@@ -2,7 +2,7 @@
   "genere_par": "scripts/evidence_index.py",
   "ne_pas_editer_a_la_main": true,
   "issue": "https://github.com/leon36000/OPSYS-AI/issues/593",
-  "mesure_a_commit": "1d0393e12cc61a6c9e12ac7718abc0603614e687",
+  "mesure_a_commit": "8977555977bc9c422d7eb8c87ae4f0657fd3eb2a",
   "perimetre": {
     "inclus": [
       "evidence/**",
