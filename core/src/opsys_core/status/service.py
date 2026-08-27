@@ -11,8 +11,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
+import re
 
 from .model import CapabilityState, CapabilityStatus
+
+_EVIDENCE_HASH_RE = re.compile(r"sha256:[0-9a-f]{64}")
 
 
 @dataclass(frozen=True)
@@ -36,6 +39,17 @@ class CapabilityTransitionLog:
         self.entries.append(record)
 
 
+def _evidence_hash_valide(evidence_hash: object) -> bool:
+    """Vérifie la forme canonique d'une preuve de promotion.
+
+    Une annotation de type ne protège pas la frontière runtime : une
+    opération externe peut retourner n'importe quel objet. La promotion
+    vers ACTIVE accepte donc uniquement une référence SHA-256 complète,
+    jamais une valeur simplement truthy.
+    """
+    return isinstance(evidence_hash, str) and _EVIDENCE_HASH_RE.fullmatch(evidence_hash) is not None
+
+
 def transitionner(
     actuel: CapabilityStatus,
     nouvel_etat: CapabilityState,
@@ -44,15 +58,19 @@ def transitionner(
     evidence_hash: str | None = None,
     journal: CapabilityTransitionLog | None = None,
 ) -> CapabilityStatus:
-    """Calcule le nouveau CapabilityStatus. Une promotion (vers ACTIVE)
-    SANS evidence_hash est REFUSÉE — reste dans l'état actuel, avec une
-    raison explicite ajoutée à la liste existante. Toute autre transition
-    (y compris vers un état non-ACTIVE) est acceptée directement."""
-    if nouvel_etat == CapabilityState.ACTIVE and not evidence_hash:
+    """Calcule le nouveau CapabilityStatus.
+
+    Une promotion vers ACTIVE exige une référence exactement formée
+    ``sha256:<64 hex minuscules>``. Une valeur absente, mal formée ou
+    d'un type inattendu est refusée fermé : l'état courant est conservé,
+    une raison sûre est ajoutée et aucun journal de promotion n'est créé.
+    Toute transition non-ACTIVE reste acceptée directement.
+    """
+    if nouvel_etat == CapabilityState.ACTIVE and not _evidence_hash_valide(evidence_hash):
         return CapabilityStatus(
             capability_id=actuel.capability_id,
             state=actuel.state,
-            reasons=(*actuel.reasons, "promotion vers ACTIVE refusée: aucune preuve hashée (evidence_hash)"),
+            reasons=(*actuel.reasons, "promotion vers ACTIVE refusée: preuve hashée absente ou invalide (evidence_hash)"),
         )
 
     nouveau = CapabilityStatus(
@@ -77,11 +95,14 @@ def evaluer_capacite(
     *,
     journal: CapabilityTransitionLog | None = None,
 ) -> CapabilityStatus:
-    """Exécute `operation` (doit retourner un evidence_hash — une chaîne —
-    en cas de succès réel) et calcule le CapabilityStatus résultant. Toute
-    EXCEPTION levée par `operation` — y compris TimeoutError — ne devient
-    JAMAIS ACTIVE : toujours QUARANTINED avec le type et le message de
-    l'exception comme raison."""
+    """Exécute ``operation`` et calcule le CapabilityStatus résultant.
+
+    Un succès réel retourne une preuve au format ``sha256:<64 hex
+    minuscules>``. Toute exception — y compris TimeoutError — ne devient
+    jamais ACTIVE : elle est QUARANTINED avec son seul type comme raison.
+    Une valeur de retour invalide est ensuite refusée fermé par
+    ``transitionner``.
+    """
     try:
         evidence_hash = operation()
     except Exception as exc:  # noqa: BLE001 - capturé intentionnellement, jamais laissé s'échapper
