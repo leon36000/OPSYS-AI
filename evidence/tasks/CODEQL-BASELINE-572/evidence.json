@@ -2,28 +2,33 @@
   "task_id": "CODEQL-BASELINE-572",
   "description": "Issue #572 — élimination des 23 findings CodeQL non alloués présents sur origin/main et confinement des entrées de fichiers de tools/proof/gate_cli.py, sans baseline, allowlist ni suppression de contrôle.",
   "branche": "codex/issue-572-codeql-baseline-20260827",
-  "base": "origin/main @ 5a155f98b004b39915cdacce7eabb3b77849ff0a",
-  "reviewed_commit": "e9a640b03515d3ad50118d3d705743f4414acf65",
-  "reviewed_tree": "4f1e572ed77b1eb6e049d63b32c8b7b58ce22d74",
+  "base": "origin/main @ b9ced941ea7afe302f9c0056f9656de8f995e248",
+  "reviewed_commit": "80d528d645d10b2d6bb7197e55f714f91ea96eeb",
+  "reviewed_tree": "1a527eb8100b97a885aa1339d476196d9960e2e1",
   "code_diff_sha256": "4d9c57d1d097c50124dc92b1be49e5bbdefff6cb97f6335a40c5a67c2042bb23",
   "code_diff_sha256_scope": "git diff origin/main...HEAD -- core/ tools/proof/ .opsys/tools/github-control/ .github/workflows/core-ci.yml .github/workflows/ci.yml scripts/ ; calculé par core/scripts/verify_proof_sealed.py",
   "review_inputs": {
-    "round": "OPSYS-ISSUE-572-CODEQL-BASELINE-r5-sonar-e9a640b",
+    "round": "OPSYS-ISSUE-572-CODEQL-BASELINE-r7-tally-context-80d528d",
     "mode": "T2, trois reviewers en parallèle, prompt neutre commun, sans rôles",
-    "prompt_sha256": "773b85b529e6b0385b81c69c8a69e219cd69cce1dd9fa1c4f8609eb859d0fc5d",
-    "pack_sha256": "fa940a9b73d8362de0db88c8853affdf0bb4a280dc1878a51e78431af373d1bc",
+    "prompt_sha256": "4cef4a936336ee7476ca74a846520ffff390ee54e6472ee5f4d2d5fe365213cf",
+    "pack_sha256": "5a56feab1b47365f24c2bca35b16a8fc74f9b8634d5993a4295e76e303241352",
     "diff_verbatim_sha256": "4d9c57d1d097c50124dc92b1be49e5bbdefff6cb97f6335a40c5a67c2042bb23",
     "documentation_diff_sha256": "d1a432171265cb92965f17f9a1b4dd27a36685ca26904b7a3b385b21a673da44",
     "review_neutrality": {
-      "team_memory_story": "opsys-issue-572-codeql-baseline-r5-sonar-e9a640b",
+      "team_memory_story": "opsys-issue-572-codeql-baseline-r7-tally-context-80d528d",
       "team_memory_preflight": "empty before submission",
       "previous_evidence_and_verdicts_excluded_from_pack": true
     },
-    "minor_objection_follow_up": {
-      "reviewer": "DeepSeek-V4-Pro-0813",
-      "finding": "E402 possible sur tools/proof/tests/test_gate_engine.py",
-      "verification": "ruff 0.15.20 check sur ce fichier : All checks passed ; scripts/structure_lint.py et core/scripts/run_pack_validation.py : VERT",
-      "resolution": "non reproductible sur le linter réellement disponible ; aucune modification de code après le round r5"
+    "immutable_context": {
+      "candidate_tally_source_sha256": "3c5ae07587a90e9b2a35b366f8ec255fb6a486bfb156477f9654a1a37bd49d73",
+      "unchanged_fail_definition_sha256": "140fd37aef4d7684a5fb2e179b81fbcf8d86f4b7cbb6ee1dd5e309627c12b73b",
+      "failure_matrix": {
+        "command": "python3 scripts/tally.py <temporary dossier> coder",
+        "cases": ["moins_de_trois", "champ_manquant", "verdict_hors_enum", "vendor_du_codeur", "moins_de_trois_vendors"],
+        "expected_and_measured_returncode": 2,
+        "expected_and_measured_resultat": "INVALIDE"
+      },
+      "codeql": "python3 core/scripts/run_codeql_scan.py : 13 findings bruts, 13 connus/justifiés, 0 non-alloué(s), rc=0"
     },
     "archivage": "Le paquet et ses deux diffs ont été fournis non compressés aux reviewers. Ils ne sont pas recopiés comme texte dans Git : les espaces de fin présents dans le diff source feraient échouer git diff --check sans affecter le code. Les hashes, la base, le commit revu et le contexte candidat suffisent à les rejouer exactement.",
     "runner": {
@@ -37,14 +42,14 @@
     }
   },
   "reviews": {
-    "DeepSeek-V4-Pro-0813.verdict.json": "1026ccedcc56f03976df244ad5c194de97d4846152a830a4f69d8c1754570c6f",
-    "Gemini-3.7-Flash.verdict.json": "b6051119f118674ff20165788c2e19a8942f95a56ada3491be270be8ca16270c",
-    "Muse-Spark-1.2-Contributor.verdict.json": "430526b5219532f2113b8ef6a36750350ab4ab5c77cfa92a117eeab99b5339fc"
+    "DeepSeek-V4-Pro-0813.verdict.json": "e006ae5aaeec1c623e31c02f995058a4680c3163e1427adafde0320f45ccfaf7",
+    "Gemini-3.7-Flash.verdict.json": "bd1bf0c7e2ba4a56e29a780c4a1405969a1fe01c74dac8da649d39ede19f896c",
+    "Muse-Spark-1.2-Contributor.verdict.json": "50dcfff02acf6c255b0f2b8b9ec7bd337aa03d0ee767bfa6e24cafca4ba2b5c3"
   },
   "consensus": {
     "outcome": "APPROVE 3/3",
     "major_or_critical_objections": 0,
-    "minor_objections": 1,
+    "minor_objections": 0,
     "reviewers": {
       "DeepSeek-V4-Pro-0813": {
         "vendor": "deepseek",
@@ -97,6 +102,40 @@
         "reviews-context/r4-cbe5af7-approved/DeepSeek-V4-Pro-0813.verdict.json": "b3699f24c1fbcbde9148f292f85af1c9a3f73b5feefe16d1a95f18ef8cfc8c1a",
         "reviews-context/r4-cbe5af7-approved/Gemini-3.7-Flash.verdict.json": "107598ca9f12df5641c2b11aadf1703df6e1a9163d9832c34b973f15f99b709c",
         "reviews-context/r4-cbe5af7-approved/Muse-Spark-1.2-Contributor.verdict.json": "6531049579097d876ad6bc63bdc88524f1048d72c2a7d058126657abd48681b7"
+      }
+    },
+    {
+      "round": "OPSYS-ISSUE-572-CODEQL-BASELINE-r5-sonar-e9a640b",
+      "outcome": "APPROVE 3/3",
+      "reviewed_commit": "e9a640b03515d3ad50118d3d705743f4414acf65",
+      "reviewed_tree": "4f1e572ed77b1eb6e049d63b32c8b7b58ce22d74",
+      "code_diff_sha256": "4d9c57d1d097c50124dc92b1be49e5bbdefff6cb97f6335a40c5a67c2042bb23",
+      "prompt_sha256": "773b85b529e6b0385b81c69c8a69e219cd69cce1dd9fa1c4f8609eb859d0fc5d",
+      "pack_sha256": "fa940a9b73d8362de0db88c8853affdf0bb4a280dc1878a51e78431af373d1bc",
+      "minor_objections": 1,
+      "reason": "Supersédé par le rebase sur b9ced94 après la fusion de #567 : le diff scellé est inchangé, mais le commit et l'arbre candidat ont changé. Le round r7 est la revue active de ce nouveau SHA.",
+      "minor_objection_follow_up": "E402 possible non reproduit : ruff 0.15.20, structure_lint.py et run_pack_validation.py sont verts.",
+      "files": {
+        "reviews-context/r5-e9a640b-approved/DeepSeek-V4-Pro-0813.verdict.json": "1026ccedcc56f03976df244ad5c194de97d4846152a830a4f69d8c1754570c6f",
+        "reviews-context/r5-e9a640b-approved/Gemini-3.7-Flash.verdict.json": "b6051119f118674ff20165788c2e19a8942f95a56ada3491be270be8ca16270c",
+        "reviews-context/r5-e9a640b-approved/Muse-Spark-1.2-Contributor.verdict.json": "430526b5219532f2113b8ef6a36750350ab4ab5c77cfa92a117eeab99b5339fc"
+      }
+    },
+    {
+      "round": "OPSYS-ISSUE-572-CODEQL-BASELINE-r6-rebase-80d528d",
+      "outcome": "REJECT 2/3",
+      "reviewed_commit": "80d528d645d10b2d6bb7197e55f714f91ea96eeb",
+      "reviewed_tree": "1a527eb8100b97a885aa1339d476196d9960e2e1",
+      "code_diff_sha256": "4d9c57d1d097c50124dc92b1be49e5bbdefff6cb97f6335a40c5a67c2042bb23",
+      "prompt_sha256": "cde65236ae4b52fc57e8c54d7c51870f5f334bbe18f39acba873479bd6f70411",
+      "pack_sha256": "aac9209c198d1c82927b118a0fcd4daab137ba83328ec2612df84ee7bcf75dd7",
+      "major_or_critical_objections": 1,
+      "minor_objections": 2,
+      "reason": "Le paquet ne contenait pas le contexte candidat complet requis pour évaluer le contrôle de flux de fail(). Aucun code n'a changé ensuite ; le round r7 ajoute ce contexte immuable et la matrice boîte noire fraîche avant une nouvelle revue indépendante.",
+      "files": {
+        "reviews-context/r6-rejected-missing-tally-context/DeepSeek-V4-Pro-0813.verdict.json": "9ff2fa02056503eb1df11fb4ad43c1819a29f8a2d18ed5afaa92412ac67bf9c9",
+        "reviews-context/r6-rejected-missing-tally-context/Gemini-3.7-Flash.verdict.json": "2410ac1319d4d710921b80c1eb4719c6152de7cf9c7051e9831473e549009037",
+        "reviews-context/r6-rejected-missing-tally-context/Muse-Spark-1.2-Contributor.verdict.json": "b654ea4002dd34cf0ff5d410aa87d5b20fa6f2a673e3c58defd362ccc953f48a"
       }
     }
   ]

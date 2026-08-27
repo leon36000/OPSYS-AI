@@ -1,0 +1,31 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "scripts/tally.py",
+   "description": "La suppression de `return` devant les appels à `fail` change le flux de contrôle : si `fail` retourne normalement au lieu de lever `SystemExit`, la fonction `run` continue après une validation échouée, au lieu de s'arrêter comme le faisait `return fail(...)`. L'ancien code utilisait explicitement `return fail(...)` pour propager l'arrêt ; la nouvelle version ne stoppe plus. Cela peut transformer un rejet C-12/REG-04 en continuation puis KeyError ou succès apparent.",
+   "preuve": "Diff scripts/tally.py : `-    if len(files) < 3: return fail(...)` -> `+    if len(files) < 3:\n+        fail(...)` ; même motif sur les champs manquants, verdict hors enum et vendor identique."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "tools/proof/gate_cli.py",
+   "description": "La résolution puis la lecture ne sont pas atomiques : après `_fichier_dans_worktree` et avant `read_text`, un remplacement du fichier validé par un symlink externe peut contourner la frontière. La vérification est faite avant toute lecture, mais une fenêtre TOCTOU subsiste.",
+   "preuve": "Dans `main`, `phase_file = _fichier_dans_worktree(...)` puis `phase = json.loads(phase_file.read_text(...))` ; aucun descripteur ouvert avec `O_NOFOLLOW` ou `openat` pour lier résolution et lecture."
+  },
+  {
+   "severite": "mineure",
+   "fichier": "core/scripts/verify_proof_sealed.py",
+   "description": "Le critère d'acceptation 4 exige le succès de CodeQL avec 0 finding non alloué, mais le diff fourni ne contient aucune sortie CodeQL ni artefact attestant ce résultat.",
+   "preuve": "Absence de trace de scan CodeQL ou de rapport dans le diff scellé ; le résultat annoncé en documentation n'est pas vérifiable depuis le périmètre verbatim."
+  }
+ ],
+ "date_heure": "2026-08-27T04:21:49.519017+00:00",
+ "prompt_sha256": "cde65236ae4b52fc57e8c54d7c51870f5f334bbe18f39acba873479bd6f70411",
+ "reviewer_model": "DeepSeek-V4-Pro-0813",
+ "modele_servi": "deepseek-v4-pro-0813-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}
