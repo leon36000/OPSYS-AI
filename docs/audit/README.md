@@ -67,6 +67,15 @@ alors qu'elles existent bel et bien sur GitHub. `git_ref_exists()` interroge don
 (`git ls-remote`) quand la résolution locale échoue, plutôt que de dépendre de la complétude du
 clone qui exécute le script.
 
+**Deuxième dépendance à l'environnement de checkout, distincte et fermée séparément :** un clone
+à profondeur 1 (même défaut réel d'`actions/checkout`) peut faire rendre à
+`git log -1 --format=%H -- <chemin>` le commit de TÊTE même s'il ne touche pas ce chemin, au lieu
+de rien — mesuré sur un cas minimal, pas supposé. `mesure_a_commit` et `commit_introducteur`
+dépendent tous deux de cette commande. `assurer_historique_complet()` complète le clone
+(`git fetch --unshallow`) avant toute lecture d'historique ; si ça échoue (pas de réseau, pas de
+remote), le script refuse de produire un résultat plutôt que d'ancrer silencieusement sur le
+mauvais commit.
+
 ## Constat mesuré à ce lot (commit `07106d81cb9d5935db775575ce29ad131bf6431a`)
 
 114 entrées : 9 prouvées (toutes sous `evidence/tasks/`), 105 non prouvées. `registries/**` (69

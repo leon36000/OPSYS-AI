@@ -415,6 +415,42 @@ def analyser_fichier(path_rel):
     return entree
 
 
+class HistoriqueIncomplet(RuntimeError):
+    """L'historique Git est superficiel et n'a pas pu être complété (pas de remote,
+    pas de réseau). Levée plutôt que de laisser le script produire un résultat qui a
+    l'air correct mais ne l'est pas — cf. assurer_historique_complet()."""
+
+
+def assurer_historique_complet():
+    """Complète un clone superficiel AVANT toute opération dépendant de l'historique.
+
+    BUG mesuré, distinct de git_ref_exists() ci-dessus et plus profond : sur un clone
+    à profondeur 1 (`--depth 1`, la valeur par défaut d'`actions/checkout` sans
+    `fetch-depth` explicite — non touché ici, `.github/workflows/ci.yml` est hors
+    périmètre de cette PR, actif sous #504), `git log -1 --format=%H -- <pathspec>`
+    ne rend pas un résultat vide quand le seul commit disponible ne touche pas ce
+    pathspec : il rend CE COMMIT quand même. Reproduit : sur un clone à profondeur 1
+    de ce dépôt, `git log -1 --format=%H -- evidence registries Registres` rendait le
+    commit qui AJOUTE ce correctif — qui ne touche ni evidence/ ni registries/ ni
+    Registres/ — au lieu de rien. `dernier_commit_perimetre()` et `commit_introducteur()`
+    en dépendent tous les deux : les deux rendaient un résultat FAUX, pas vide, donc
+    aucun repli n'était déclenché. `git fetch --unshallow` avant toute lecture
+    d'historique ferme la classe entière plutôt qu'un symptôme : vérifié en session,
+    `git log` redevient correct après, sans autre changement.
+    """
+    r = sh(["git", "rev-parse", "--is-shallow-repository"])
+    if r.stdout.strip() != "true":
+        return
+    r = sh(["git", "fetch", "--unshallow", "--quiet"])
+    if r.returncode != 0:
+        raise HistoriqueIncomplet(
+            "clone superficiel et git fetch --unshallow a échoué "
+            f"(rc={r.returncode}) : {r.stderr.strip()!r} — "
+            "l'historique est insuffisant pour un résultat fiable, refus de produire "
+            "un index construit sur un pathspec-log potentiellement faux."
+        )
+
+
 def dernier_commit_perimetre():
     """Dernier commit qui touche réellement evidence/**, registries/** ou Registres/**
     — PAS `HEAD`. HEAD inclurait, dès qu'il est committé, le commit qui ajoute cet
@@ -430,6 +466,7 @@ def dernier_commit_perimetre():
 
 
 def construire_index():
+    assurer_historique_complet()
     head = dernier_commit_perimetre()
     paths = git_tracked_files(ROOTS_INDEXES)
     paths = [p for p in paths if not est_exclu(p)]

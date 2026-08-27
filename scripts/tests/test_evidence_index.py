@@ -197,6 +197,54 @@ def test_regression_check_reste_vert_apres_avoir_committe_lindex(tmp_path):
     )
 
 
+def test_regression_clone_superficiel_ne_fausse_pas_lancrage(tmp_path):
+    """Régression d'un troisième bug mesuré en session, distinct des deux
+    précédents : sur un clone à profondeur 1 (défaut d'`actions/checkout` sans
+    `fetch-depth` explicite — la forme réelle du checkout CI, mesurée sur PR #596),
+    `git log -1 --format=%H -- <pathspec>` peut rendre le commit de TÊTE même s'il
+    ne touche PAS ce pathspec, au lieu de rien. Reproduit ici sur un cas minimal :
+    un commit ajoute evidence/a.json, un second n'ajoute QUE scripts/marqueur.py.
+    Un clone superficiel du second rend pourtant ce second commit pour
+    `-- evidence`, qui ne le contient pas — `dernier_commit_perimetre()` aurait
+    donc ancré l'index sur le mauvais commit, silencieusement (pas d'échec, un
+    résultat qui a l'air correct)."""
+    repo = _init_repo(tmp_path)
+    (repo / "evidence").mkdir()
+    (repo / "evidence" / "a.json").write_text("{}\n")
+    ajout_evidence = _commit_all(repo, "ajoute evidence/a.json")
+    (repo / "scripts" / "marqueur.py").write_text("# ne touche pas evidence/\n")
+    tip = _commit_all(repo, "ajoute scripts/marqueur.py, ne touche pas evidence/")
+
+    clone = tmp_path / "clone-superficiel"
+    r = subprocess.run(
+        ["git", "clone", "--depth", "1", "--no-local", f"file://{repo}", str(clone)],
+        capture_output=True, text=True,
+    )
+    assert r.returncode == 0, r.stderr
+    est_superficiel = subprocess.run(
+        ["git", "rev-parse", "--is-shallow-repository"], cwd=str(clone),
+        capture_output=True, text=True,
+    ).stdout.strip()
+    assert est_superficiel == "true", "clone pas superficiel -- fixture à revoir, le bug ne serait pas exercé"
+
+    # Bug caractérisé AVANT correctif, sur CE clone précis (pas affirmé, mesuré) :
+    # sans assurer_historique_complet(), git rend le tip au lieu de rien.
+    brut = subprocess.run(
+        ["git", "log", "-1", "--format=%H", "--", "evidence"], cwd=str(clone),
+        capture_output=True, text=True,
+    ).stdout.strip()
+    assert brut == tip, "le bug attendu ne s'est pas reproduit sur ce clone -- fixture à revoir"
+
+    r = run([str(clone / "scripts" / "evidence_index.py")], cwd=str(clone))
+    assert r.returncode == 0, r.stderr
+    idx = _index_de(clone)
+    assert idx["mesure_a_commit"] == ajout_evidence, (
+        f"ancré sur {idx['mesure_a_commit']!r} au lieu du vrai dernier commit du "
+        f"périmètre ({ajout_evidence!r}) — le correctif clone superficiel n'a pas fermé le cas"
+    )
+    assert run([str(clone / "scripts" / "evidence_index.py"), "--check"], cwd=str(clone)).returncode == 0
+
+
 def test_regeneration_idempotente_a_etat_de_depot_inchange(tmp_path):
     repo = _init_repo(tmp_path)
     (repo / "evidence" / "tasks" / "T4").mkdir(parents=True)
