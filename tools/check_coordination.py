@@ -9,9 +9,11 @@ from pathlib import Path, PurePosixPath
 ACTIVE = {"ACTIVE", "REVIEW", "READY_TO_MERGE"}
 OWNERS = {"CODEX", "CLAUDE", "CHATGPT", "NATHAN", "UNASSIGNED"}
 STATUSES = {"QUEUED", "ACTIVE", "BLOCKED", "REVIEW", "READY_TO_MERGE", "MERGED", "TRANSFER"}
-CORE_RE = re.compile(r"^C(?:0[0-9]|1[0-9]|2[0-4])-\d{3}$")
+CORE_RE = re.compile(r"^C(?:0\d|1\d|2[0-4])-\d{3}$")
 CLAUDE_RE = re.compile(r"^(?:ISS-|AUD-|BUG-|R4-)")
 HEADER = ["Work ID", "Owner", "Branch", "Path scope", "Status", "Updated UTC", "Next"]
+# SonarCloud python:S1192 : "task spec exact" apparaissait 3 fois en litteral.
+SCOPES_HORS_COLLISION = {"read-only", "task spec exact"}
 
 
 def parse_rows(path: Path) -> tuple[list[dict[str, str]], list[str], bool]:
@@ -40,7 +42,7 @@ def parse_rows(path: Path) -> tuple[list[dict[str, str]], list[str], bool]:
 
 
 def valid_scope(scope: str) -> bool:
-    if scope in {"read-only", "task spec exact"}:
+    if scope in SCOPES_HORS_COLLISION:
         return True
     if not scope.strip():
         return False
@@ -52,7 +54,7 @@ def valid_scope(scope: str) -> bool:
 
 
 def overlaps(a: str, b: str) -> bool:
-    if a in {"read-only", "task spec exact"} or b in {"read-only", "task spec exact"}:
+    if a in SCOPES_HORS_COLLISION or b in SCOPES_HORS_COLLISION:
         return False
     # casse + separateur normalises ici, coherent avec MODULE_CODE_DURING_CORE plus bas.
     # Fixture : scopes "Coordination"/"coordination" (ou "a\b"/"a/b"), branches distinctes
@@ -108,13 +110,40 @@ def validate(path: Path) -> tuple[list[dict[str, str]], list[str]]:
     return data, errors
 
 
+def _chemin_sur(brut: str, *, pour_ecriture: bool = False) -> Path:
+    """Resout et valide un chemin AVANT tout acces disque (SonarCloud S8707,
+    new_security_rating C sur ce fichier neuf : deux lectures/ecritures d'un
+    chemin argv sans validation prealable, lignes 21 et 129 avant ce correctif).
+
+    Pas de confinement a l'arborescence du depot : mesure deja faite au tour
+    precedent, `daily_start.py` du pack appelle ce validateur sur des chemins
+    hors depot (son propre gabarit) — confiner casserait l'installation neuve.
+    La validation porte donc sur la forme et la nature de la cible : octet nul
+    refuse, `..`/liens symboliques aplatis par resolve(), puis existence et
+    type verifies. Leve OSError (deja intercepte aux deux appels) plutot qu'une
+    classe dediee : le contrat d'exit 2 / LECTURE_IMPOSSIBLE / SORTIE_IMPOSSIBLE
+    ne change pas.
+    """
+    if "\x00" in brut:
+        raise OSError("le chemin contient un octet nul")
+    chemin = Path(brut).resolve(strict=not pour_ecriture)
+    if pour_ecriture:
+        if not chemin.parent.is_dir():
+            raise OSError(f"repertoire de sortie inexistant : {chemin.parent}")
+        if chemin.exists() and not chemin.is_file():
+            raise OSError(f"la cible existe et n'est pas un fichier regulier : {chemin}")
+    elif not chemin.is_file():
+        raise OSError(f"n'est pas un fichier regulier : {chemin}")
+    return chemin
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("ownership")
     parser.add_argument("--json-output")
     args = parser.parse_args()
     try:
-        data, errors = validate(Path(args.ownership))
+        data, errors = validate(_chemin_sur(args.ownership))
     except (OSError, UnicodeDecodeError) as exc:
         # exit 2 = aucun verdict de conformite exploitable, la table n'a jamais ete lue.
         # Sans interception, l'exception remontait non captee : exit 1 avec traceback,
@@ -126,7 +155,8 @@ def main() -> int:
     result = {"rows": len(data), "active": sum(r["status"] in ACTIVE for r in data), "errors": errors}
     if args.json_output:
         try:
-            Path(args.json_output).write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            chemin_sortie = _chemin_sur(args.json_output, pour_ecriture=True)
+            chemin_sortie.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         except OSError as exc:
             # Meme raison que ci-dessus : sans interception, une table lue ET conforme
             # rendait quand meme exit 1 (traceback) si --json-output etait inscriptible.
