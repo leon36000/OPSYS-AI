@@ -55,6 +55,49 @@ def _est_cellule_separatrice(cellule: str) -> bool:
     return len(noyau) >= TIRETS_MINIMUM_SEPARATEUR and set(noyau) == {"-"}
 
 
+class CheminInvalide(ValueError):
+    """Un chemin fourni en argument n'a pas passe la validation prealable."""
+
+
+def _chemin_valide(brut: str, *, pour_ecriture: bool = False) -> Path:
+    """Valide un chemin AVANT tout acces au systeme de fichiers.
+
+    Motif : SonarCloud remonte deux VULNERABILITY `pythonsecurity:S8707` sur ce
+    module — « LLMs running this code with faulty CLI arguments can escape file
+    system restrictions » — une a la lecture et une a l'ecriture. Les deux lignes
+    viennent du pack amont, mais le fichier etant neuf dans ce depot, 100 % de son
+    contenu compte comme new code et la Security Rating tombe a C.
+
+    Ce validateur ne peut PAS etre confine a l'arborescence du depot : le
+    `daily_start.py` du pack l'appelle legitimement sur son propre gabarit, qui
+    vit hors du depot (mesure : deux invocations, l'une sur coordination/ du
+    depot, l'autre sur repo-overlay/coordination/ du pack). Confiner casserait
+    l'installation neuve — le defaut qu'on cherche a eviter, en pire.
+
+    La validation porte donc sur la FORME et la NATURE de la cible, pas sur son
+    emplacement : octet nul refuse, chemin resolu (les `..` et les liens
+    symboliques sont aplatis avant tout acces), et la cible doit etre un fichier
+    regulier existant en lecture, ou un chemin dont le parent est un repertoire
+    existant en ecriture. Un lien symbolique menant hors d'un perimetre attendu
+    devient ainsi visible dans le chemin resolu au lieu d'etre suivi a l'aveugle.
+    """
+    if "\x00" in brut:
+        raise CheminInvalide("le chemin contient un octet nul")
+    try:
+        chemin = Path(brut).resolve(strict=not pour_ecriture)
+    except (OSError, RuntimeError) as exc:
+        raise CheminInvalide(f"chemin non resolvable : {exc}") from None
+    if pour_ecriture:
+        parent = chemin.parent
+        if not parent.is_dir():
+            raise CheminInvalide(f"repertoire de sortie inexistant : {parent}")
+        if chemin.exists() and not chemin.is_file():
+            raise CheminInvalide(f"la cible existe et n'est pas un fichier regulier : {chemin}")
+    elif not chemin.is_file():
+        raise CheminInvalide(f"n'est pas un fichier regulier : {chemin}")
+    return chemin
+
+
 def parse_rows(path: Path) -> tuple[list[dict[str, str]], list[str], bool]:
     out: list[dict[str, str]] = []
     errors: list[str] = []
@@ -187,10 +230,16 @@ def main() -> int:
     parser.add_argument("ownership")
     parser.add_argument("--json-output")
     args = parser.parse_args()
-    data, errors = validate(Path(args.ownership))
+    try:
+        chemin_ownership = _chemin_valide(args.ownership)
+        chemin_sortie = _chemin_valide(args.json_output, pour_ecriture=True) if args.json_output else None
+    except CheminInvalide as exc:
+        print(f"CHEMIN_INVALIDE:{exc}")
+        return 2
+    data, errors = validate(chemin_ownership)
     result = {"rows": len(data), "active": sum(r["status"] in ACTIVE for r in data), "errors": errors}
-    if args.json_output:
-        Path(args.json_output).write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if chemin_sortie is not None:
+        chemin_sortie.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     if errors:
         print("\n".join(errors))
         return 1
