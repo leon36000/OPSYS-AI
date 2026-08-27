@@ -39,7 +39,7 @@ from pathlib import Path
 
 import pytest
 
-from tools.proof.evidence_bundle import ReplayResult, build_bundle, replay_bundle
+from tools.proof.evidence_bundle import build_bundle, replay_bundle
 
 HEX64_A = "a" * 64
 HEX64_B = "b" * 64

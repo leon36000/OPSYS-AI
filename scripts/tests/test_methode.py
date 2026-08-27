@@ -1,5 +1,5 @@
 # Suite de tests des scripts de methode (R-030) — la methode se teste elle-meme.
-import json, os, subprocess, sys, tempfile, shutil
+import json, os, shutil, subprocess, sys
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def run(args, **kw):
@@ -8,7 +8,6 @@ def run(args, **kw):
 def test_ledger_chain_and_tamper(tmp_path, monkeypatch):
     led = tmp_path / "registries" / "ledger"; led.mkdir(parents=True)
     script = os.path.join(HERE, "ledger_append.py")
-    env = dict(os.environ)
     # copier le script dans tmp pour que LEDGER_DIR pointe local
     sdir = tmp_path / "scripts"; sdir.mkdir(); shutil.copy(script, sdir / "ledger_append.py")
     sp = str(sdir / "ledger_append.py")

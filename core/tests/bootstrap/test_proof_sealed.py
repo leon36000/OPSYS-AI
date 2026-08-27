@@ -108,6 +108,9 @@ def test_vendor_of_modeles_connus():
     assert vps._vendor_of("gpt-5.6-terra-pro") == "openai"
     assert vps._vendor_of("qwen3.8-max") == "alibaba"
     assert vps._vendor_of("deepseek-v4-pro") == "deepseek"
+    assert vps._vendor_of("DeepSeek-V4-Pro-0813") == "deepseek"
+    assert vps._vendor_of("Gemini-3.7-Flash") == "google"
+    assert vps._vendor_of("Muse-Spark-1.2-Contributor") == "meta"
     assert vps._vendor_of("glm52") == "zhipu"
     assert vps._vendor_of("memory-quality") == "zhipu"
 
@@ -350,6 +353,30 @@ def test_verifier_task_echoue_si_vendors_distincts_insuffisants(tmp_path, monkey
     ok, rapport = vps.verifier_task("T-013", min_vendors_approve=2, diff_sha256_attendu=_DIFF_HASH_FICTIF)
     assert not ok
     assert "insuffisant" in rapport
+
+
+# ---------------------------------------------------------------------------
+# Périmètre scellé — aucune racine de qualité ne peut être ignorée par preuve
+# ---------------------------------------------------------------------------
+
+
+def test_perimetre_scellé_couvre_toutes_les_racines_qualite_hors_modules_m() -> None:
+    """Un changement sous un outil contrôlé doit exiger la même preuve que Core.
+
+    Les racines `tools/proof` et `.opsys/tools/github-control` font partie du
+    contrat qualité et peuvent modifier les mécanismes de preuve ou de contrôle
+    GitHub. Les omettre du hash donnait à une PR l'apparence d'un diff non
+    scellé, alors qu'elle changeait précisément les outils qui rendent la preuve
+    crédible. Les modules M restent volontairement hors de ce contrat distinct.
+    """
+    racines_exigees = {
+        "core/",
+        "tools/proof/",
+        ".opsys/tools/github-control/",
+        "scripts/",
+    }
+
+    assert racines_exigees.issubset(set(vps._PATHSPEC_SCELLE))
 
 
 # ---------------------------------------------------------------------------

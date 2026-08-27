@@ -17,7 +17,8 @@ for m in MODS:
 reg = os.path.join(ROOT, "registries", "frameworks.yaml")
 declared = set()
 if os.path.isfile(reg):
-    txt = open(reg, encoding="utf-8").read()
+    with open(reg, encoding="utf-8") as fichier_registre:
+        txt = fichier_registre.read()
     declared = {m.group(1).strip() for m in re.finditer(r"path:\s*(.+)", txt)}
 else:
     errs.append("registries/frameworks.yaml manquant")

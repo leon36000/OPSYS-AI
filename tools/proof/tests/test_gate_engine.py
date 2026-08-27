@@ -13,13 +13,17 @@ de livrables ». Ce moteur ne doit reproduire ni l'un ni l'autre défaut.
 from __future__ import annotations
 
 import sys
+from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from gate_engine import CheckResult, GateResult, evaluate_gate  # noqa: E402
+import gate_engine
+
+GateResult = gate_engine.GateResult
+evaluate_gate = gate_engine.evaluate_gate
 
 
 def _phase(checks: list[dict], task_ids: list[str] | None = None) -> dict:
@@ -216,7 +220,8 @@ def test_impl_menter_les_gates_s_mantiques_ex_cutables_4(tmp_path):
     # intact et non vide.
     livrable = tmp_path / "livrable_pretendument_complet.py"
     livrable.write_text("def fonction_reelle(): return 42\n", encoding="utf-8")
-    assert livrable.exists() and livrable.stat().st_size > 0
+    assert livrable.exists()
+    assert livrable.stat().st_size > 0
 
     # Mais le check sémantique déclaré (qui mesure un VRAI comportement, pas
     # la présence du fichier) échoue réellement.
@@ -256,8 +261,6 @@ def test_gate_engine_n_inspecte_jamais_le_systeme_de_fichiers_du_worktree(tmp_pa
     primitives de présence de fichier plausibles sont maintenant surveillées,
     pas une seule."""
     import os as os_module
-
-    import gate_engine
 
     appels: list[Path] = []
 
@@ -339,9 +342,9 @@ def test_gate_result_et_check_result_sont_geles(tmp_path):
     )
     state = _state({"C01-001": "VERIFIED"})
     result = evaluate_gate(phase, state, tmp_path)
-    with pytest.raises(Exception):
+    with pytest.raises(FrozenInstanceError):
         result.satisfied = False
-    with pytest.raises(Exception):
+    with pytest.raises(FrozenInstanceError):
         result.checks[0].actual_returncode = 999
 
 
@@ -557,8 +560,10 @@ def test_stdout_stderr_sont_captures_et_exposes_sur_check_fail(tmp_path):
                 "argv": [
                     sys.executable,
                     "-c",
-                    "import sys; print('MARQUEUR-STDOUT-UNIQUE'); "
-                    "print('MARQUEUR-STDERR-UNIQUE', file=sys.stderr); sys.exit(1)",
+                    (
+                        "import sys; print('MARQUEUR-STDOUT-UNIQUE'); "
+                        + "print('MARQUEUR-STDERR-UNIQUE', file=sys.stderr); sys.exit(1)"
+                    ),
                 ],
                 "expected_returncode": 0,
                 "timeout_s": 5,
@@ -611,8 +616,6 @@ def test_sortie_massive_ne_peut_pas_depasser_le_plafond_a_l_ecriture(tmp_path):
     bloquée au niveau noyau (RLIMIT_FSIZE) — le check échoue (le processus
     ne peut pas terminer sa tentative d'écriture), jamais un hang, jamais
     un crash d'evaluate_gate, et la sortie capturée reste bornée."""
-    import gate_engine
-
     octets_a_ecrire = gate_engine._MAX_OUTPUT_BYTES * 3
     script = (
         "import sys\n"
@@ -648,8 +651,6 @@ def test_sortie_sous_le_plafond_reussit_normalement(tmp_path):
     """Le plafond RLIMIT_FSIZE ne doit JAMAIS interférer avec une sortie
     normale, bien en-dessous de la limite — preuve que le durcissement
     n'introduit pas de régression sur le cas courant."""
-    import gate_engine
-
     octets_a_ecrire = gate_engine._MAX_OUTPUT_BYTES // 100  # ~10 Ko, large marge
     script = (
         "import sys\n"

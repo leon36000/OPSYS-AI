@@ -34,10 +34,6 @@ interne) CONTRE ce fichier.
 """
 from __future__ import annotations
 
-import hashlib
-
-import pytest
-
 from tools.proof.review_policy import PolicyResult, evaluate_policy
 
 
@@ -274,7 +270,8 @@ def test_policy_result_est_un_objet_structure():
     resultat = evaluate_policy("NONE", [], [])
     assert isinstance(resultat, PolicyResult)
     assert isinstance(resultat.satisfied, bool)
-    assert isinstance(resultat.status, str) and resultat.status
+    assert isinstance(resultat.status, str)
+    assert resultat.status
     assert isinstance(resultat.reasons, tuple)
 
 
@@ -290,7 +287,8 @@ def test_ratification_hachage_deterministe_et_sensible_au_contenu():
     r2 = dict(r1)  # même contenu, ordre de construction différent
     h1 = hash_ratification(r1)
     h2 = hash_ratification(r2)
-    assert isinstance(h1, str) and len(h1) == 64  # sha256 hex
+    assert isinstance(h1, str)
+    assert len(h1) == 64  # sha256 hex
     assert h1 == h2, "même contenu doit produire le même hash"
 
     r3 = _ratification("NATHAN", generated_by_agent=True)  # 1 champ diffère

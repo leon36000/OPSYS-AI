@@ -6,8 +6,6 @@ import sys
 import threading
 from pathlib import Path
 
-import pytest
-
 _MODULE_PATH = Path(__file__).resolve().parents[1] / "consensus_run.py"
 _spec = importlib.util.spec_from_file_location("consensus_run", _MODULE_PATH)
 consensus_run = importlib.util.module_from_spec(_spec)

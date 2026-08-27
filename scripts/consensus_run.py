@@ -331,8 +331,12 @@ def mock():
     for r, vend, verdict, obj in [("glm-5.2","zhipu","APPROVE",[]),
                                   ("gemini-3.1-pro","google","APPROVE",[]),
                                   ("longcat-2.0","meituan","APPROVE",[{"severite":"mineure","fichier":"pack","description":"exemple","preuve":"n/a"}])]:
-        json.dump({"reviewer":r,"vendor":vend,"verdict":verdict,"objections":obj},
-                  open(os.path.join(d, r + ".json"), "w", encoding="utf-8"), ensure_ascii=False)
+        with open(os.path.join(d, r + ".json"), "w", encoding="utf-8") as fichier_verdict:
+            json.dump(
+                {"reviewer": r, "vendor": vend, "verdict": verdict, "objections": obj},
+                fichier_verdict,
+                ensure_ascii=False,
+            )
     rc = subprocess.call([sys.executable, os.path.join(HERE,"tally.py"), d, "deepseek"])
     print("PREUVE: circuit collecte->tally =", "OK" if rc == 0 else f"echec rc={rc}")
     sys.exit(rc)

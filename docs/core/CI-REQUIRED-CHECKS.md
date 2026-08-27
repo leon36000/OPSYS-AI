@@ -29,17 +29,39 @@ vendors distincts, cf. `evidence/tasks/CI-HARDENING-001/`) :
 - **`pack-validation`** : rejoue toolchain (C02-001) + dépendances (C02-002) +
   runner hermétique (C02-003) + `structure_lint.py`
   (`core/scripts/run_pack_validation.py`).
-- **`proof-sealed`** : vérifie qu'un changement de code sous le périmètre
-  scellé (`core/`, les 2 workflows CI, `scripts/`) est accompagné d'un
-  Evidence Bundle scellé committé sous `evidence/tasks/<ID>/`,
-  cryptographiquement lié au diff réel (`code_diff_sha256`) et à un
-  manifeste bijectif des verdicts de revue (`reviews{nom:sha256}`)
-  (`core/scripts/verify_proof_sealed.py`).
+- **`proof-sealed`** : le vérificateur lie le hash de diff à `core/`,
+  `tools/proof/`, `.opsys/tools/github-control/`, aux 2 workflows CI et à
+  `scripts/`. Il exige un Evidence Bundle committé sous
+  `evidence/tasks/<ID>/`, cryptographiquement lié au diff réel
+  (`code_diff_sha256`) et à un manifeste bijectif des verdicts de revue
+  (`reviews{nom:sha256}`) (`core/scripts/verify_proof_sealed.py`). Les alias
+  de reviewer connus y sont associés explicitement à leur fournisseur ; un
+  alias inconnu ne doit jamais être présenté comme une identité fournisseur
+  prouvée.
+
+  Le déclencheur `CODE_CHANGE` de `core-ci.yml` reste temporairement plus
+  étroit pour les modifications limitées à `tools/proof/` ou au contrôle GitHub
+  : le fichier est possédé par la PR #515. Ce n'est pas un vert implicite ;
+  l'alignement est tracé et bloqué par ownership dans l'issue #573 avant toute
+  affirmation de couverture CI complète.
 
 **CodeQL** (SAST approfondi) a aussi été ajouté — mais **local uniquement**
 (`core/scripts/run_codeql_scan.py`), **pas câblé en CI** : le bundle CLI
 (578 Mo, installation manuelle) ajouterait un coût réel à chaque run,
 question non tranchée unilatéralement (voir « Câblage CI de CodeQL » ci-dessous).
+
+### Mise à jour #572 — dette CodeQL de `main`
+
+Sur `origin/main` `5a155f9`, le scan local mesurait 36 findings bruts : 13
+justifiés et 23 non alloués. Le correctif #572 élimine les 23 causes sans
+ajouter de baseline, d'allowlist ou de suppression de contrôle. Le résultat
+attendu sur son SHA candidat est donc 13 justifiés et **0 non alloué**.
+
+La CLI `tools/proof/gate_cli.py` traite ses fichiers `phase` et `state` comme
+des entrées non fiables : elle résout les chemins réels avant toute lecture et
+refuse les fichiers, `..` ou symlinks qui sortent du `--worktree` déclaré. Les
+quatre cas de frontière (phase externe, state externe, symlink externe, cas
+valide) sont couverts par `tools/proof/tests/test_gate_cli.py`.
 
 ## Jobs de `core-ci.yml` (état courant)
 
