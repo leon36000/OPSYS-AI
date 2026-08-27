@@ -16,7 +16,7 @@
   "consensus": {
     "profil": "Revue aveugle desancree : les trois voix ont recu le diff et l'enonce du defaut, jamais le corps de la PR, ni son auteur, ni un verdict anterieur.",
     "verdicts": "APPROVE / APPROVE / APPROVE — objections litteralement vides sur les trois, du premier appel, sans aucun retry.",
-    "transparence_sur_le_calcul_des_vendors": "MESURE SUR LE MERGE-BASE b9ced941 (la base de cette PR), et NON une affirmation d'etat courant : a ce commit, aucun des trois provider_id ne figurait dans la table _VENDOR de verify_proof_sealed.py ; les trois tombaient dans le repli singleton de _vendor_of, que sa propre docstring qualifie de fail-open pour la decorrelation. Le repli donnait la meme reponse que la realite — trois fournisseurs distincts, trois routes OpenRouter distinctes — mais le mecanisme est dit plutot que laisse deviner. MISE A JOUR MESUREE : origin/main a depuis ajoute les trois entrees a _VENDOR ('deepseek-v4-pro-0813' -> deepseek, 'gemini-3.7-flash' -> google, 'muse-spark-1.2-contributor' -> meta). Au merge, la distinction ne repose donc PLUS sur le repli mais sur la table, et le gate imprime ['deepseek', 'google', 'meta']. La conclusion est inchangee et mieux fondee ; la formulation initiale, ecrite au present sans ancre, etait devenue fausse — releve en revue, corrige ici.",
+    "transparence_sur_le_calcul_des_vendors": "Ce que le gate compte : il applique _vendor_of au champ `reviewer_model` de chaque verdict (verify_proof_sealed.py, appel `_vendor_of(str(v.get(\"reviewer_model\", \"\")))`), PAS au provider_id. Les trois cles concernees sont donc les reviewer_model en minuscules — 'deepseek-v4-pro-0813', 'gemini-3.7-flash', 'muse-spark-1.2-contributor' — et non les provider_id d'appel, dont le troisieme est 'muse-spark' (absent de _VENDOR dans les deux etats mesures ci-dessous, et sans effet puisque le gate ne le consulte pas). MESURE 1 — au merge-base b9ced941ea7afe302f9c0056f9656de8f995e248 : aucune des trois cles ne figurait dans _VENDOR ; les trois tombaient dans le repli singleton de _vendor_of, que sa propre docstring qualifie de fail-open pour la decorrelation. Le repli donnait la meme reponse que la realite — trois fournisseurs distincts, trois routes OpenRouter distinctes — mais le mecanisme est dit plutot que laisse deviner. MESURE 2 — a origin/main @ ad4a80892f5b340dc8f0fee260b0d3d07ffb5160 : les trois cles sont presentes ('deepseek-v4-pro-0813' -> deepseek, 'gemini-3.7-flash' -> google, 'muse-spark-1.2-contributor' -> meta). Introduites par le commit 9646437847f3a51d62cb774882b57a2b0ce81d0f, donc deja presentes a 22b6beb39e8c84a376bb25492853d4e5380db6ba, le commit cite par le champ `base`. Au merge, la distinction ne repose donc plus sur le repli mais sur la table : conclusion inchangee et mieux fondee. HISTORIQUE DE CE CHAMP, parce qu'il est instructif : sa premiere version affirmait l'etat de _VENDOR AU PRESENT sans ancre, et etait deja fausse contre main. Sa deuxieme version a ancre la mesure du merge-base sur un SHA mais a reintroduit la meme classe pour l'etat de main ('origin/main a depuis ajoute'), reference mouvante sans SHA — tout en affirmant que les deux etats etaient ancres. Corriger une affirmation perissable par une autre affirmation perissable, en declarant le contraire : releve en revue, corrige ici. Les deux etats portent desormais un SHA.",
     "ecart_de_format_non_repare": "Gemini-3.7-Flash a encadre sa reponse d'une cloture markdown ```json alors que le prompt exigeait du JSON strict. Le contenu est conserve tel quel dans son fichier de preuve ; l'ecart est signale, pas repare.",
     "budget_de_tokens": "FORGE_MODEL_BRIDGE_MAX_TOKENS vaut 4096 et n'est pas reglable par appel. Le pont listait, environ 68 minutes avant ces appels, des TRUNCATED_COMPLETION recents sur Muse-Spark et DeepSeek. Ces deux memes routes ont ici emis normalement du premier coup : budget court intermittent sur les prompts longs, pas route morte.",
     "provider_ids_appeles": [
@@ -25,17 +25,17 @@
       "muse-spark"
     ],
     "vendors_calcules_par_vendor_of": {
-      "au merge-base b9ced941 (repli singleton)": [
+      "au merge-base b9ced941ea7afe302f9c0056f9656de8f995e248 (repli singleton)": [
         "deepseek-v4-pro-0813",
         "gemini-3.7-flash",
         "muse-spark-1.2-contributor"
       ],
-      "sur origin/main apres ajout a _VENDOR": [
+      "a origin/main @ ad4a80892f5b340dc8f0fee260b0d3d07ffb5160 (apres ajout a _VENDOR)": [
         "deepseek",
         "google",
         "meta"
       ],
-      "note": "Le champ precedent s'appelait vendors_distincts mais enumerait des provider_id du pont, pas ce que calcule _vendor_of — sur lequel le gate fonde son compte. Les deux sont desormais distingues, chacun ancre sur le commit ou il a ete mesure."
+      "note": "Deux notions distinctes, chacune ancree sur le SHA du commit ou elle a ete mesuree. `provider_ids_appeles` liste ce qui a ete demande au pont ; ce champ-ci liste ce que _vendor_of calcule reellement a partir de `reviewer_model`, sur lequel le gate fonde son compte. Un champ nomme `vendors_distincts` melangeait les deux : releve en revue, scinde."
     },
     "integralite_des_resumes": "Le champ `resume` de chaque verdict porte le `raisonnement` INTEGRAL rendu par le modele, sans troncature. Une premiere version plafonnait Muse-Spark a 1200 caracteres, coupe en pleine phrase et sans marqueur : releve en revue, corrige. Le texte omis etait entierement FAVORABLE, et `objections` valait [] des deux cotes — mais une coupe non marquee est indistinguable d'un TRUNCATED_COMPLETION pour un tiers, dans un document qui discute precisement ces troncatures."
   },
