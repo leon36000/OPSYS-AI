@@ -1,32 +1,34 @@
 {
   "task_id": "AUD-CI-003-004",
-  "description": "AUD-CI-003 + AUD-CI-004 (issue #565) — rendre e2e, charge, authz et coffre reellement bloquants : retrait de continue-on-error sur e2e/e2e-load et deplacement des suites dashboard/authz/config-vault vers le job `gates`, seul contexte required en protection de branche. Ajout de l'oracle statique core/tests/bootstrap/test_ci_gating_contract.py, qui manquait sur ci.yml.",
+  "description": "AUD-CI-003 + AUD-CI-004 (issue #565) — rendre e2e, charge, authz et coffre reellement bloquants : retrait de continue-on-error sur e2e/e2e-load, deplacement des suites dashboard/authz/config-vault vers `gates` (seul contexte required), ajout de l'oracle core/tests/bootstrap/test_ci_gating_contract.py qui manquait sur ci.yml, et retrait du constat d'audit AUD-A5-001 devenu perime (son propre temoin le prescrit).",
   "branche": "claude/aud-ci-003-004-gating-bloquant",
   "base": "origin/main @ 5a155f98b004b39915cdacce7eabb3b77849ff0a",
-  "code_diff_sha256": "9d7ae165c33d19669cab4896e34625fb4f4644f92daeeb85bbcdf7f493629e7d",
-  "code_diff_sha256_note": "Calcule par core/scripts/verify_proof_sealed.py::_diff_sha256_actuel, la MEME fonction que celle utilisee par le gate en CI — jamais une seconde implementation. Porte sur les 2 seuls chemins du perimetre scelle touches par cette PR : .github/workflows/ci.yml et core/tests/bootstrap/test_ci_gating_contract.py. Fragilite assumee et nommee : ce hash est lie a origin/main au moment du scellement ; si main avance avant le merge, il faut resceller.",
-  "prompt_sha256": "e183573badf6f116ada2e523b7479772060d4ebb9e3cc5204cf311ea5f6dd21e",
-  "prompt_note": "Prompt de revue unique de 25 238 caracteres, contenant le diff verbatim, transmis a l'identique aux trois modeles. Verifie octet pour octet avant chaque envoi. Aucun modele n'a recu de contexte que les autres n'avaient pas.",
+  "code_diff_sha256": "c743875a58e528e15db0cfe053ca51b9fa67ad059bbcfd7212cdd812897494b8",
+  "code_diff_sha256_note": "Calcule par verify_proof_sealed.py::_diff_sha256_actuel, la MEME fonction que celle executee par le gate en CI. Porte sur les 2 chemins du perimetre scelle touches : ci.yml et test_ci_gating_contract.py. Fragilite nommee : lie a origin/main au moment du scellement ; si main avance avant le merge, il faut resceller. Ce sceau est le SECOND : le premier a ete invalide par le gate lui-meme quand une revue a impose de corriger ci.yml, et le vérificateur l'a dit sans ambiguite.",
+  "prompt_sha256": "f1c223e47c7115918c84c403964088df1a5984a5a9d8a4af4c2ae127947cb0a2",
+  "prompt_note": "Prompt unique de 36 096 caracteres, transmis a l'identique aux trois voix et verifie octet pour octet avant chaque envoi. Il contient le diff COMPLET des 5 fichiers modifies, pas seulement les 2 du perimetre scelle. Correction deliberee du premier scellement, ou les reviewers n'avaient vu que le sous-ensemble hache par le verificateur : la suppression du constat AUD-A5-001, de severite critique, avait alors echappe a la revue. Le perimetre de scellement est une contrainte technique du gate, pas une definition de ce qui merite d'etre relu.",
   "reviews": {
-    "Gemini-3.7-Flash.json": "7e58b3d362d09fb3c9a62ce74a468cefde806373f872ec1ea244c2892175091e",
-    "Kimi-2.7.json": "ee0f6c3506a0d5da9caae2afe2da2cc116668605b18443973cd4b41994b2f851",
-    "Muse-Spark-1.2-Contributor.json": "c4ade4a1dc1bec8da7df29192a4e3b0c2f06240be5a0b5372659361f755fb31e"
+    "Gemini-3.7-Flash.json": "2b6c5a4e0c8ca09ce05157fd51f51bf3e31c9ce50c9e566b85fb0820e2e0f29b",
+    "Muse-Spark-1.2-Contributor.json": "aadeb2bfee62ddaa26f0c49e141b7bc4c78cfe3489cfc679a3a6b30fbf2d90dd",
+    "claude-opus-5-native-architecte.json": "2c4eb3297cf27f0e947eb3b276609312bd65d8bc1a8ce57cad72cd8f2fadcbef"
   },
   "consensus": {
-    "profil": "Revue aveugle desancree : chaque modele a recu le diff et l'enonce du defaut, jamais le corps de la PR, jamais un verdict anterieur, jamais le nom de l'auteur, jamais un compte de tours.",
+    "profil": "Revue aveugle desancree : chaque voix a recu le diff complet et l'enonce du defaut, jamais le corps de la PR, jamais le nom de l'auteur, jamais un compte de tours.",
     "rounds_realises": 1,
     "voix_retenues_dans_reviews": [
       "Gemini-3.7-Flash",
       "Muse-Spark-1.2-Contributor",
-      "Kimi-2.7"
+      "claude-opus-5-native-architecte"
     ],
     "min_vendors_approve_satisfait": 3,
     "vendors_approve": [
+      "anthropic-native",
       "gemini-3.7-flash",
-      "moonshot",
       "muse-spark-1.2-contributor"
     ],
-    "vendors_note": "Decorrelation reelle : Google (Gemini-3.7-Flash), Meta (Muse-Spark-1.2-Contributor) et Moonshot (Kimi-2.7) sont trois fournisseurs distincts, routes via OpenRouter. Transparence sur le calcul : seul `kimi-2.7` figure dans le tableau _VENDOR de verify_proof_sealed.py (-> moonshot) ; les deux autres tombent dans le repli singleton documente par _vendor_of, que sa propre docstring qualifie de fail-open du point de vue de la decorrelation. Ici le repli donne la meme reponse que la realite — trois vendors bel et bien distincts — mais le fait est dit, pas tu.",
-    "deepseek_absent": "DeepSeek-V4-Pro-0813 puis DeepSeek-V4-Pro ont ete sollicites avec le meme prompt scelle, deux tentatives chacun : les quatre appels ont rendu TRUNCATED_COMPLETION avec finish_reason=length et aucun contenu. Cause observee : FORGE_MODEL_BRIDGE_MAX_TOKENS vaut 4096, budget consomme en tokens de raisonnement avant emission sur un prompt de 25 Ko. Aucun verdict n'a ete fabrique pour combler l'absence ; un troisieme vendor reellement joignable (Kimi-2.7 / moonshot) a ete sollicite a la place."
+    "vendors_note": "Decorrelation reelle : Google, Meta et Anthropic. Transparence sur le calcul : seul `claude-opus-5-native-architecte` figure dans le tableau _VENDOR (-> anthropic-native) ; les deux autres tombent dans le repli singleton de _vendor_of, que sa propre docstring qualifie de fail-open pour la decorrelation. Ici le repli donne la meme reponse que la realite, mais le fait est dit.",
+    "anthropic_native_note": "INDEPENDANCE MOINDRE, DECLAREE. La troisieme voix est un subagent Claude Opus 5, donc de la MEME famille que le modele auteur du changement. C'est une voix explicitement prevue par _VENDOR et deja utilisee dans evidence/tasks/CI-HARDENING-001/, mais elle vaut moins qu'un tiers. Elle a ete sollicitee parce que les deux vendors tiers restants (Kimi/Moonshot, DeepSeek) echouent sur ce prompt — voir budget_tokens. Mitigation appliquee : le reviewer a ete explicitement prevenu de ce biais ET de l'existence des deux APPROVE anterieurs, pour que l'ancrage soit nomme plutot que subi. Contrairement aux deux autres, il a pu mesurer dans le depot : il a construit dix contournements de l'oracle, en a trouve quatre attrapes et six deja nommes dans la docstring, et a rendu deux objections mineures que les deux autres n'avaient pas vues.",
+    "budget_tokens": "FORGE_MODEL_BRIDGE_MAX_TOKENS vaut 4096 et n'est pas reglable par appel. Un modele a raisonnement consomme ce budget avant d'emettre, d'autant plus vite que le prompt est long. Mesure sur les memes modeles, deux tailles : a 25 238 caracteres Gemini, Muse-Spark et Kimi rendent tous un verdict ; a 36 096 caracteres Kimi echoue deux fois en TRUNCATED_COMPLETION / finish_reason=length. DeepSeek echoue aux deux tailles (quatre appels, deux routes). Consequence structurelle : la capacite de revue se degrade a mesure que le diff grossit, ce qui est l'inverse du besoin. Aucun verdict n'a jamais ete fabrique pour combler une absence.",
+    "objections_mineures_acceptees": "Les trois voix rendent APPROVE. Deux objections MINEURES de la voix anthropic-native sont retenues comme fondees et non bloquantes. (1) L'identifiant AUD-CI-005 cite dans la docstring de l'oracle ne resolvait a aucune issue — corrige hors perimetre scelle par l'ouverture de l'issue #574, sans toucher un fichier de code. (2) Les trois suites deplacees perdent l'epinglage par hachage de tests/e2e/requirements.lock et le setup-python 3.12 du job e2e, au profit du `pip install pytest pyyaml` non epingle de `gates` — troc assume et favorable (bloquant non epingle vaut mieux que non bloquant epingle), mais reel. Il releve du chantier d'epinglage AUD-CI-001/AUD-CI-002, pas de cette PR : corriger ci.yml ici aurait invalide ce sceau une troisieme fois."
   }
 }

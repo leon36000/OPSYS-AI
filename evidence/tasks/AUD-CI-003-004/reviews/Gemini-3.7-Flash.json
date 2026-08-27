@@ -1,10 +1,10 @@
 {
   "verdict": "APPROVE",
   "objections": [],
-  "resume": "Le déplacement des tests unitaires vers le job bloquant 'gates' et l'ajout de l'oracle de contrat statique comblent rigoureusement les trous de gating sans régression.",
-  "date_heure": "2026-08-27T02:05:37.270377+00:00",
-  "prompt_sha256": "e183573badf6f116ada2e523b7479772060d4ebb9e3cc5204cf311ea5f6dd21e",
+  "resume": "Le déplacement des suites critiques et la suppression de continue-on-error rendent le gating CI réellement bloquant, appuyé par un oracle statique rigoureux et une mise à jour cohérente du dossier d'audit.",
+  "date_heure": "2026-08-27T03:02:13.433298+00:00",
+  "prompt_sha256": "f1c223e47c7115918c84c403964088df1a5984a5a9d8a4af4c2ae127947cb0a2",
   "reviewer_model": "Gemini-3.7-Flash",
   "modele_servi": "gemini-3.7-flash",
-  "job_id": "4c909f56-30e7-4702-aa1c-4a38f146cd5d"
+  "job_id": "b9e5e1ac-498b-412a-91e8-b15014a4400f"
 }
