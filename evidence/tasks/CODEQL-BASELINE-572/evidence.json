@@ -1,23 +1,31 @@
 {
   "task_id": "CODEQL-BASELINE-572",
-  "description": "Issue #572 — élimination des 23 findings CodeQL non alloués présents sur origin/main, sans baseline, allowlist ni suppression de contrôle.",
+  "description": "Issue #572 — élimination des 23 findings CodeQL non alloués présents sur origin/main et confinement des entrées de fichiers de tools/proof/gate_cli.py, sans baseline, allowlist ni suppression de contrôle.",
   "branche": "codex/issue-572-codeql-baseline-20260827",
   "base": "origin/main @ 5a155f98b004b39915cdacce7eabb3b77849ff0a",
-  "reviewed_commit": "cbe5af7b88e0fb42ded0b67547355491cc89db1a",
-  "reviewed_tree": "910c2cbedc65e8952cf112a981ac25f59d76a5ab",
-  "code_diff_sha256": "e52ea253fb3acc596a3d67baceabd4adb826783c57a0f9de7d3e08eaf12ad834",
+  "reviewed_commit": "e9a640b03515d3ad50118d3d705743f4414acf65",
+  "reviewed_tree": "4f1e572ed77b1eb6e049d63b32c8b7b58ce22d74",
+  "code_diff_sha256": "4d9c57d1d097c50124dc92b1be49e5bbdefff6cb97f6335a40c5a67c2042bb23",
   "code_diff_sha256_scope": "git diff origin/main...HEAD -- core/ tools/proof/ .opsys/tools/github-control/ .github/workflows/core-ci.yml .github/workflows/ci.yml scripts/ ; calculé par core/scripts/verify_proof_sealed.py",
   "review_inputs": {
-    "round": "OPSYS-ISSUE-572-CODEQL-BASELINE-r4-context",
+    "round": "OPSYS-ISSUE-572-CODEQL-BASELINE-r5-sonar-e9a640b",
     "mode": "T2, trois reviewers en parallèle, prompt neutre commun, sans rôles",
-    "prompt_sha256": "dfef32612171cb0ff890b87ba611fec2593811896265c6a93894c513f3ceb18d",
-    "pack_sha256": "26aea0975778434ee90d42dce6a98bce2e6b705294135d8cabee494f675ecf15",
-    "diff_verbatim_sha256": "eef40ecfd3af76fa1820ae52a599daa57c7a4b9e24a2c1700408724ef2fdf97a",
-    "review_context": {
-      "tally_source_sha256": "3c5ae07587a90e9b2a35b366f8ec255fb6a486bfb156477f9654a1a37bd49d73",
-      "tally_test_source_sha256": "fd5e24eec47fba4eef1d8f469dde21ddd6cd84d2f3f1ccc80228ba585fed4d83"
+    "prompt_sha256": "773b85b529e6b0385b81c69c8a69e219cd69cce1dd9fa1c4f8609eb859d0fc5d",
+    "pack_sha256": "fa940a9b73d8362de0db88c8853affdf0bb4a280dc1878a51e78431af373d1bc",
+    "diff_verbatim_sha256": "4d9c57d1d097c50124dc92b1be49e5bbdefff6cb97f6335a40c5a67c2042bb23",
+    "documentation_diff_sha256": "d1a432171265cb92965f17f9a1b4dd27a36685ca26904b7a3b385b21a673da44",
+    "review_neutrality": {
+      "team_memory_story": "opsys-issue-572-codeql-baseline-r5-sonar-e9a640b",
+      "team_memory_preflight": "empty before submission",
+      "previous_evidence_and_verdicts_excluded_from_pack": true
     },
-    "archivage": "Le paquet et le diff ont été fournis non compressés aux reviewers. Ils ne sont pas recopiés comme texte dans Git : les espaces de fin présents dans le diff source feraient échouer git diff --check sans affecter le code. Les hashes, la base, le commit revu et le contexte candidat suffisent à les rejouer exactement.",
+    "minor_objection_follow_up": {
+      "reviewer": "DeepSeek-V4-Pro-0813",
+      "finding": "E402 possible sur tools/proof/tests/test_gate_engine.py",
+      "verification": "ruff 0.15.20 check sur ce fichier : All checks passed ; scripts/structure_lint.py et core/scripts/run_pack_validation.py : VERT",
+      "resolution": "non reproductible sur le linter réellement disponible ; aucune modification de code après le round r5"
+    },
+    "archivage": "Le paquet et ses deux diffs ont été fournis non compressés aux reviewers. Ils ne sont pas recopiés comme texte dans Git : les espaces de fin présents dans le diff source feraient échouer git diff --check sans affecter le code. Les hashes, la base, le commit revu et le contexte candidat suffisent à les rejouer exactement.",
     "runner": {
       "repository": "proof-method",
       "commit": "6d73a9d68f7052685408b6d63ebb00d96c2ca0a5",
@@ -29,14 +37,14 @@
     }
   },
   "reviews": {
-    "DeepSeek-V4-Pro-0813.verdict.json": "b3699f24c1fbcbde9148f292f85af1c9a3f73b5feefe16d1a95f18ef8cfc8c1a",
-    "Gemini-3.7-Flash.verdict.json": "107598ca9f12df5641c2b11aadf1703df6e1a9163d9832c34b973f15f99b709c",
-    "Muse-Spark-1.2-Contributor.verdict.json": "6531049579097d876ad6bc63bdc88524f1048d72c2a7d058126657abd48681b7"
+    "DeepSeek-V4-Pro-0813.verdict.json": "1026ccedcc56f03976df244ad5c194de97d4846152a830a4f69d8c1754570c6f",
+    "Gemini-3.7-Flash.verdict.json": "b6051119f118674ff20165788c2e19a8942f95a56ada3491be270be8ca16270c",
+    "Muse-Spark-1.2-Contributor.verdict.json": "430526b5219532f2113b8ef6a36750350ab4ab5c77cfa92a117eeab99b5339fc"
   },
   "consensus": {
     "outcome": "APPROVE 3/3",
     "major_or_critical_objections": 0,
-    "minor_objections": 3,
+    "minor_objections": 1,
     "reviewers": {
       "DeepSeek-V4-Pro-0813": {
         "vendor": "deepseek",
@@ -69,6 +77,26 @@
         "reviews-context/r3-rejected/DeepSeek-V4-Pro-0813.verdict.json": "49edcdd13a59695af100a5d6ec119f8a6c868093c65a1807ae440cf0bcfd0b77",
         "reviews-context/r3-rejected/Gemini-3.7-Flash.verdict.json": "a8a8dff7656e3d32d40e9f1f2960e02101637af6990fb76e9b2ef0e231f6ee04",
         "reviews-context/r3-rejected/Muse-Spark-1.2-Contributor.verdict.json": "c9601fef290b0805cfce9b6967092f9cd06d9896d162a7b9d0ac807293632295"
+      }
+    },
+    {
+      "round": "OPSYS-ISSUE-572-CODEQL-BASELINE-r4-context",
+      "outcome": "APPROVE 3/3",
+      "reviewed_commit": "cbe5af7b88e0fb42ded0b67547355491cc89db1a",
+      "reviewed_tree": "910c2cbedc65e8952cf112a981ac25f59d76a5ab",
+      "code_diff_sha256": "e52ea253fb3acc596a3d67baceabd4adb826783c57a0f9de7d3e08eaf12ad834",
+      "prompt_sha256": "dfef32612171cb0ff890b87ba611fec2593811896265c6a93894c513f3ceb18d",
+      "pack_sha256": "26aea0975778434ee90d42dce6a98bce2e6b705294135d8cabee494f675ecf15",
+      "minor_objections": 3,
+      "reason": "Supersédé par le commit e9a640b, qui ajoute le correctif Sonar de frontière CLI ; les verdicts bruts r4 restent archivés mais ne sont pas présentés comme une revue du nouveau SHA.",
+      "review_context": {
+        "tally_source_sha256": "3c5ae07587a90e9b2a35b366f8ec255fb6a486bfb156477f9654a1a37bd49d73",
+        "tally_test_source_sha256": "fd5e24eec47fba4eef1d8f469dde21ddd6cd84d2f3f1ccc80228ba585fed4d83"
+      },
+      "files": {
+        "reviews-context/r4-cbe5af7-approved/DeepSeek-V4-Pro-0813.verdict.json": "b3699f24c1fbcbde9148f292f85af1c9a3f73b5feefe16d1a95f18ef8cfc8c1a",
+        "reviews-context/r4-cbe5af7-approved/Gemini-3.7-Flash.verdict.json": "107598ca9f12df5641c2b11aadf1703df6e1a9163d9832c34b973f15f99b709c",
+        "reviews-context/r4-cbe5af7-approved/Muse-Spark-1.2-Contributor.verdict.json": "6531049579097d876ad6bc63bdc88524f1048d72c2a7d058126657abd48681b7"
       }
     }
   ]

@@ -1,15 +1,8 @@
 {
  "verdict": "APPROVE",
- "objections": [
-  {
-   "severite": "mineure",
-   "fichier": "core/scripts/run_codeql_scan.py",
-   "description": "Aucune sortie d'exécution CodeQL/pack/typing fournie dans le diff pour vérifier le critère 5 (0 finding non alloué); conformité inférée par correction des causes décrites mais non prouvée par log dans le périmètre du diff",
-   "preuve": "diff verbatim ne contient aucune sortie de scan; vérification repose sur description issue #572 et modifications de fermeture de ressources/imports"
-  }
- ],
- "date_heure": "2026-08-27T03:26:35.219112+00:00",
- "prompt_sha256": "dfef32612171cb0ff890b87ba611fec2593811896265c6a93894c513f3ceb18d",
+ "objections": [],
+ "date_heure": "2026-08-27T03:49:58.131965+00:00",
+ "prompt_sha256": "773b85b529e6b0385b81c69c8a69e219cd69cce1dd9fa1c4f8609eb859d0fc5d",
  "reviewer_model": "Muse-Spark-1.2-Contributor",
  "modele_servi": "muse-spark-12-contributor-openrouter",
  "gateway_resilience": {

@@ -3,19 +3,13 @@
  "objections": [
   {
    "severite": "mineure",
-   "fichier": ".opsys/tools/github-control/github_issue_sync.py, .opsys/tools/github-control/github_task_status.py, .opsys/tools/github-control/validate_github_control_pack.py, tools/proof/gate_cli.py, tools/proof/tests/test_evidence_bundle.py, tools/proof/tests/test_gate_engine.py, tools/proof/tests/test_review_policy.py, scripts/tests/test_consensus_live.py, scripts/tests/test_methode.py",
-   "description": "Le diff supprime des imports (sys, Path, pytest, hashlib, ReplayResult, CheckResult) et une variable locale (env) sans fournir les fichiers complets pour vérifier qu'aucun de ces symboles n'est utilisé ailleurs. L'absence d'utilisation n'est pas prouvée par le diff seul.",
-   "preuve": "Exemples : diff --git a/.opsys/tools/github-control/github_issue_sync.py -import argparse, json, subprocess, sys ; diff --git a/tools/proof/tests/test_evidence_bundle.py -from tools.proof.evidence_bundle import ReplayResult, build_bundle, replay_bundle ; diff --git a/scripts/tests/test_methode.py -    env = dict(os.environ)"
-  },
-  {
-   "severite": "mineure",
-   "fichier": "core/tests/bootstrap/test_proof_sealed.py",
-   "description": "Le test ajouté vérifie uniquement que les racines sont présentes dans la constante _PATHSPEC_SCELLE, pas que le calcul du hash de preuve utilise effectivement ces chemins. Une régression où _PATHSPEC_SCELLE serait ignoré lors du hachage ne serait pas détectée.",
-   "preuve": "assert racines_exigees.issubset(set(vps._PATHSPEC_SCELLE))"
+   "fichier": "tools/proof/tests/test_gate_engine.py",
+   "description": "L'import module-level `gate_engine` est placé après `sys.path.insert(0, ...)` sans `# noqa: E402`, alors que le diff retire explicitement ce noqa présent sur l'import initial. Si la structure lint exécute flake8/ruff avec E402 pour ce fichier, la commande structure/CI pourrait échouer. Non vérifiable depuis le diff seul.",
+   "preuve": "Diff: `+import gate_engine` immédiatement après `sys.path.insert(0, str(Path(__file__).resolve().parents[1]))`, sans `# noqa: E402`."
   }
  ],
- "date_heure": "2026-08-27T03:27:33.406431+00:00",
- "prompt_sha256": "dfef32612171cb0ff890b87ba611fec2593811896265c6a93894c513f3ceb18d",
+ "date_heure": "2026-08-27T03:53:53.313669+00:00",
+ "prompt_sha256": "773b85b529e6b0385b81c69c8a69e219cd69cce1dd9fa1c4f8609eb859d0fc5d",
  "reviewer_model": "DeepSeek-V4-Pro-0813",
  "modele_servi": "deepseek-v4-pro-0813-openrouter",
  "gateway_resilience": {
