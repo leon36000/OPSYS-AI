@@ -13,6 +13,7 @@ de livrables ». Ce moteur ne doit reproduire ni l'un ni l'autre défaut.
 from __future__ import annotations
 
 import sys
+from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 import pytest
@@ -219,7 +220,8 @@ def test_impl_menter_les_gates_s_mantiques_ex_cutables_4(tmp_path):
     # intact et non vide.
     livrable = tmp_path / "livrable_pretendument_complet.py"
     livrable.write_text("def fonction_reelle(): return 42\n", encoding="utf-8")
-    assert livrable.exists() and livrable.stat().st_size > 0
+    assert livrable.exists()
+    assert livrable.stat().st_size > 0
 
     # Mais le check sémantique déclaré (qui mesure un VRAI comportement, pas
     # la présence du fichier) échoue réellement.
@@ -340,9 +342,9 @@ def test_gate_result_et_check_result_sont_geles(tmp_path):
     )
     state = _state({"C01-001": "VERIFIED"})
     result = evaluate_gate(phase, state, tmp_path)
-    with pytest.raises(Exception):
+    with pytest.raises(FrozenInstanceError):
         result.satisfied = False
-    with pytest.raises(Exception):
+    with pytest.raises(FrozenInstanceError):
         result.checks[0].actual_returncode = 999
 
 

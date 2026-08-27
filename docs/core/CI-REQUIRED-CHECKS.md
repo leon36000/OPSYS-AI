@@ -57,6 +57,12 @@ justifiés et 23 non alloués. Le correctif #572 élimine les 23 causes sans
 ajouter de baseline, d'allowlist ou de suppression de contrôle. Le résultat
 attendu sur son SHA candidat est donc 13 justifiés et **0 non alloué**.
 
+La CLI `tools/proof/gate_cli.py` traite ses fichiers `phase` et `state` comme
+des entrées non fiables : elle résout les chemins réels avant toute lecture et
+refuse les fichiers, `..` ou symlinks qui sortent du `--worktree` déclaré. Les
+quatre cas de frontière (phase externe, state externe, symlink externe, cas
+valide) sont couverts par `tools/proof/tests/test_gate_cli.py`.
+
 ## Jobs de `core-ci.yml` (état courant)
 
 | Job (context GitHub) | État | Mécanisme réel |
