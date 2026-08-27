@@ -1,0 +1,75 @@
+{
+  "task_id": "CODEQL-BASELINE-572",
+  "description": "Issue #572 — élimination des 23 findings CodeQL non alloués présents sur origin/main, sans baseline, allowlist ni suppression de contrôle.",
+  "branche": "codex/issue-572-codeql-baseline-20260827",
+  "base": "origin/main @ 5a155f98b004b39915cdacce7eabb3b77849ff0a",
+  "reviewed_commit": "cbe5af7b88e0fb42ded0b67547355491cc89db1a",
+  "reviewed_tree": "910c2cbedc65e8952cf112a981ac25f59d76a5ab",
+  "code_diff_sha256": "e52ea253fb3acc596a3d67baceabd4adb826783c57a0f9de7d3e08eaf12ad834",
+  "code_diff_sha256_scope": "git diff origin/main...HEAD -- core/ tools/proof/ .opsys/tools/github-control/ .github/workflows/core-ci.yml .github/workflows/ci.yml scripts/ ; calculé par core/scripts/verify_proof_sealed.py",
+  "review_inputs": {
+    "round": "OPSYS-ISSUE-572-CODEQL-BASELINE-r4-context",
+    "mode": "T2, trois reviewers en parallèle, prompt neutre commun, sans rôles",
+    "prompt_sha256": "dfef32612171cb0ff890b87ba611fec2593811896265c6a93894c513f3ceb18d",
+    "pack_sha256": "26aea0975778434ee90d42dce6a98bce2e6b705294135d8cabee494f675ecf15",
+    "diff_verbatim_sha256": "eef40ecfd3af76fa1820ae52a599daa57c7a4b9e24a2c1700408724ef2fdf97a",
+    "review_context": {
+      "tally_source_sha256": "3c5ae07587a90e9b2a35b366f8ec255fb6a486bfb156477f9654a1a37bd49d73",
+      "tally_test_source_sha256": "fd5e24eec47fba4eef1d8f469dde21ddd6cd84d2f3f1ccc80228ba585fed4d83"
+    },
+    "archivage": "Le paquet et le diff ont été fournis non compressés aux reviewers. Ils ne sont pas recopiés comme texte dans Git : les espaces de fin présents dans le diff source feraient échouer git diff --check sans affecter le code. Les hashes, la base, le commit revu et le contexte candidat suffisent à les rejouer exactement.",
+    "runner": {
+      "repository": "proof-method",
+      "commit": "6d73a9d68f7052685408b6d63ebb00d96c2ca0a5",
+      "tree": "469da74616ec6bfce3d53b19efbd5c178b9d180d",
+      "reasoning": {
+        "effort": "low",
+        "exclude": true
+      }
+    }
+  },
+  "reviews": {
+    "DeepSeek-V4-Pro-0813.verdict.json": "b3699f24c1fbcbde9148f292f85af1c9a3f73b5feefe16d1a95f18ef8cfc8c1a",
+    "Gemini-3.7-Flash.verdict.json": "107598ca9f12df5641c2b11aadf1703df6e1a9163d9832c34b973f15f99b709c",
+    "Muse-Spark-1.2-Contributor.verdict.json": "6531049579097d876ad6bc63bdc88524f1048d72c2a7d058126657abd48681b7"
+  },
+  "consensus": {
+    "outcome": "APPROVE 3/3",
+    "major_or_critical_objections": 0,
+    "minor_objections": 3,
+    "reviewers": {
+      "DeepSeek-V4-Pro-0813": {
+        "vendor": "deepseek",
+        "served_model": "deepseek-v4-pro-0813-openrouter",
+        "retries": 0,
+        "fallbacks": 0
+      },
+      "Gemini-3.7-Flash": {
+        "vendor": "google",
+        "served_model": "gemini-37-flash-openrouter",
+        "retries": 0,
+        "fallbacks": 0
+      },
+      "Muse-Spark-1.2-Contributor": {
+        "vendor": "meta",
+        "served_model": "muse-spark-12-contributor-openrouter",
+        "retries": 0,
+        "fallbacks": 0
+      }
+    }
+  },
+  "review_history": [
+    {
+      "round": "OPSYS-ISSUE-572-CODEQL-BASELINE-r3-6d73a9d",
+      "outcome": "REJECT",
+      "prompt_sha256": "a26646bb6ff704b445ba40d85d166630cb5de5276a9285049e39e567699bb6aa",
+      "pack_sha256": "afdabcdff06ca0c7c5a0ac8badc45cc955c025e01aaa8f8d282fba50d5419fa9",
+      "reason": "Le contexte non modifié de scripts/tally.py manquait au paquet ; le round r4 l'a fourni intégralement, sans modifier le diff candidat.",
+      "files": {
+        "reviews-context/r3-rejected/DeepSeek-V4-Pro-0813.verdict.json": "49edcdd13a59695af100a5d6ec119f8a6c868093c65a1807ae440cf0bcfd0b77",
+        "reviews-context/r3-rejected/Gemini-3.7-Flash.verdict.json": "a8a8dff7656e3d32d40e9f1f2960e02101637af6990fb76e9b2ef0e231f6ee04",
+        "reviews-context/r3-rejected/Muse-Spark-1.2-Contributor.verdict.json": "c9601fef290b0805cfce9b6967092f9cd06d9896d162a7b9d0ac807293632295"
+      }
+    }
+  ]
+}

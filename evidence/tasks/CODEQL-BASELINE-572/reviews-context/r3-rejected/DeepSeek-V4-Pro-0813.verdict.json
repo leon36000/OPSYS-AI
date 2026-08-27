@@ -1,0 +1,19 @@
+{
+ "verdict": "REJECT",
+ "objections": [
+  {
+   "severite": "majeure",
+   "fichier": "scripts/tally.py",
+   "description": "La suppression des `return` devant `fail(...)` dans les branches d'erreur de `run()` modifie le flux de contrôle : si `fail` ne termine pas le processus (aucune définition de `fail` dans le diff ne montre `sys.exit` ou exception), l'exécution continue après une validation invalide, peut atteindre la fin de `run` et retourner un statut nul. Cela viole le critère 1 ('comportement de tally.py ... restent identiques') et peut laisser passer un consensus invalide.",
+   "preuve": "Diff scripts/tally.py: ancien `if len(files) < 3: return fail(...)`, nouveau `if len(files) < 3:\\n    fail(...)` ; idem pour `champ manquant`, `verdict hors enum`, `vendor = vendor du codeur`, `vendors distincts`."
+  }
+ ],
+ "date_heure": "2026-08-27T03:22:52.972686+00:00",
+ "prompt_sha256": "a26646bb6ff704b445ba40d85d166630cb5de5276a9285049e39e567699bb6aa",
+ "reviewer_model": "DeepSeek-V4-Pro-0813",
+ "modele_servi": "deepseek-v4-pro-0813-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}
