@@ -36,6 +36,15 @@ jobs:
         run: python3 -m pytest "core/src/authz/tests" -q
       - name: Tests config/vault (P0-5d)
         run: python3 -m pytest "core/src/config/tests" -q
+      # L'oracle qui garde CE correctif doit vivre dans le job required, pour la
+      # raison exacte donnee ci-dessus : sinon une PR future qui remettrait
+      # `continue-on-error: true` rendrait `tests` rouge dans core-ci.yml, workflow
+      # NON required, et pourrait fusionner malgre tout. Trouve en revue : le remede
+      # etait applique aux trois suites ci-dessus et pas a la garde elle-meme.
+      # Cout mesure : 13 tests, 0,03 s, aucune dependance en plus de pytest+pyyaml
+      # deja installes par ce job. Le fichier reste aussi execute par core-ci.yml.
+      - name: Oracle de gating CI (AUD-CI-003/004)
+        run: python3 -m pytest core/tests/bootstrap/test_ci_gating_contract.py -q
       - name: Tests module M7 (M7-S000)
         run: python3 -m pytest "Modules M/M7-marketing/tests" -q
       # Un pytest DISTINCT par module : les modules exposent des noms de premier niveau

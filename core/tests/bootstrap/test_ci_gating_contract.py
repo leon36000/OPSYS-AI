@@ -64,8 +64,15 @@ vide. Aucune occurrence de cette forme n'existe aujourd'hui dans `ci.yml`
 (recherche des trois formes dans le fichier : zéro), l'exposition est donc
 nulle — mais le trou est réel et nommé plutôt que tu.
 
-Ce sont des trous d'oracle CONNUS et non fermés par ce module,
-pas des cas couverts par omission silencieuse.
+Cause racine commune, nommée plutôt qu'énumérée par symptômes :
+`_occurrences_de_scope` fait une correspondance de SOUS-CHAÎNE sur le texte brut
+du `run:`. Toute forme où le chemin apparaît sans être réellement exécuté et gardé
+est donc classée bloquante — invocation commentée dans un bloc `run: |`,
+`--ignore=<scope>`, `--collect-only`, autant que les formes d'avalement du code de
+retour citées plus haut. Trois de ces variantes ont été mesurées vertes en revue.
+
+Ce sont des trous d'oracle CONNUS et non fermés par ce module. La liste des
+symptômes ci-dessus n'est pas exhaustive — c'est la cause racine qui l'est.
 """
 from __future__ import annotations
 
