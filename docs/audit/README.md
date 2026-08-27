@@ -56,6 +56,17 @@ Si aucune des deux méthodes ne prouve de liaison vers du code (commit/tree/ref/
 ne préjuge pas de la nécessité d'un lien pour chaque fichier ; il rapporte mécaniquement ce que les
 deux méthodes trouvent, ou ne trouvent pas.
 
+**Limite assumée sur `branche`/`branch`, différente en nature des trois autres champs.** Un commit
+ou un tree, une fois créés, restent des objets Git stables ; une branche peut être supprimée par une
+opération de routine (nettoyage post-merge) — aucune re-exécution future ne peut garantir de la
+retrouver. `"verifie": true` sur ce champ atteste donc « cette branche existait au moment de cette
+mesure », jamais une garantie permanente. Mesuré en session : la résolution de ref ne doit pas
+dépendre de ce qu'un clone local a fetché — un clone à branche unique (la forme réelle du checkout
+CI sans `fetch-depth` explicite) ne porte localement aucune ref pour les branches non checkées,
+alors qu'elles existent bel et bien sur GitHub. `git_ref_exists()` interroge donc le remote en repli
+(`git ls-remote`) quand la résolution locale échoue, plutôt que de dépendre de la complétude du
+clone qui exécute le script.
+
 ## Constat mesuré à ce lot (commit `07106d81cb9d5935db775575ce29ad131bf6431a`)
 
 114 entrées : 9 prouvées (toutes sous `evidence/tasks/`), 105 non prouvées. `registries/**` (69

@@ -26,9 +26,17 @@ Méthode de liaison (nommée, rejouable — même discipline que le forensics de
        - code_diff_sha256 + preuves_jointes    -> recalcul sha256 d'un export committé
          (full.diff ou équivalent nommé *diff*) et comparaison à la valeur déclarée
      Chaque candidat est vérifié par une commande Git réelle (`git cat-file -e`,
-     `git rev-parse --verify`) ou par un recalcul de sha256 sur un fichier committé —
-     jamais accepté sur la seule forme (leçon #591 : un motif hexadécimal n'est pas une
-     preuve tant qu'il ne résout pas vers un objet réel).
+     `git rev-parse --verify`, `git ls-remote` en repli) ou par un recalcul de sha256 sur
+     un fichier committé — jamais accepté sur la seule forme (leçon #591 : un motif
+     hexadécimal n'est pas une preuve tant qu'il ne résout pas vers un objet réel).
+
+     LIMITE ASSUMÉE, différente en nature des trois autres champs : `branche`/`branch`
+     preuve une ref, pas un objet. Un commit ou un tree, une fois créés, restent des
+     objets Git stables ; une BRANCHE peut être supprimée par une opération de routine
+     (nettoyage post-merge) — ce que ce script ne peut pas empêcher, et qu'aucune
+     re-exécution future ne peut garantir de retrouver. `"verifie": true` sur ce champ
+     atteste donc « cette branche existait au moment de cette mesure », jamais une
+     garantie permanente comme pour un commit ou un tree. Documenté plutôt que tu.
      Deux vocabulaires supplémentaires sont reconnus mais NE COMPTENT PAS comme lien au
      CODE (même distinction que #591 sur prompt_sha256, "scelle le prompt, pas l'arbre") :
      preuves_jointes.prompt.txt (scelle un prompt) et sha256_du_texte~texte (auto-
@@ -101,10 +109,25 @@ def git_object_exists(sha, kind):
 
 
 def git_ref_exists(ref):
+    """Vraie si `ref` résout vers un commit, en local d'abord puis sur le remote.
+
+    BUG mesuré (reproduit par clonage à branche unique, la forme de checkout
+    réelle de `actions/checkout` sans configuration explicite) : un clone qui
+    n'a récupéré QUE la branche de cette PR ne porte localement aucun ref pour
+    les AUTRES branches citées dans les fichiers indexés (`refs/remotes/origin/*`
+    absent), alors que ces 6 branches existent bel et bien sur GitHub au moment
+    de ce correctif (vérifié une à une via `gh api repos/.../branches/<nom>`).
+    La complétude du clone local n'est pas une propriété du dépôt : elle ne
+    doit pas décider `verifie`. D'où le repli sur `git ls-remote`, qui
+    interroge le remote directement, indépendamment de ce qui a été fetché.
+    """
     for candidate in (f"refs/remotes/origin/{ref}", f"refs/heads/{ref}", ref):
         r = sh(["git", "rev-parse", "--verify", "--quiet", candidate])
         if r.returncode == 0:
             return True, r.stdout.strip()
+    r = sh(["git", "ls-remote", "--exit-code", "origin", f"refs/heads/{ref}"])
+    if r.returncode == 0 and r.stdout.strip():
+        return True, r.stdout.split()[0]
     return False, None
 
 

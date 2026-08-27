@@ -10,7 +10,7 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # scripts/
 SCRIPT = os.path.join(HERE, "evidence_index.py")
 
 sys.path.insert(0, HERE)
-import evidence_index as ei  # noqa: E402
+import evidence_index as ei  # noqa: E402 — import après ajustement de sys.path, requis pour le résoudre
 
 
 def run(args, cwd=None):
