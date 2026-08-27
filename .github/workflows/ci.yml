@@ -3,6 +3,15 @@ on: [pull_request, push]
 jobs:
   gates:
     runs-on: ubuntu-latest
+    # `gates` est le SEUL contexte required en branch protection sur `main`
+    # (mesuré : gh api repos/leon36000/OPSYS-AI/branches/main/protection) —
+    # sans timeout-minutes explicite, un blocage ici hérite du défaut GitHub
+    # de 360 minutes et gèlerait CHAQUE PR pendant 6h. Mesuré sur 11 runs
+    # réels (gh run list/view --workflow=ci.yml, avant et après ce correctif,
+    # ce dernier n'ajoutant que 3 suites pytest unitaires) : durée observée
+    # 4min02s à 6min20s. 20 minutes laisse ~3x de marge sur le run le plus
+    # lent observé, tout en bornant le pire cas à une fraction du défaut.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5 — pin SHA (D-035)
       - name: Installer les dépendances de test
@@ -15,6 +24,27 @@ jobs:
         run: python3 scripts/statut_lint.py
       - name: Tests des scripts de methode (R-030)
         run: python3 -m pytest scripts/tests -q
+      # AUD-CI-003/004 (issue #565) : ces trois steps sont des pytest unitaires
+      # purs (imports vérifiés : stdlib + pytest + PyYAML uniquement, aucun
+      # besoin du harnais e2e) — déplacés hors du job `e2e` (continue-on-error)
+      # car `gates` est le SEUL contexte required en branch protection sur
+      # `main` (mesuré : gh api repos/leon36000/OPSYS-AI/branches/main/protection).
+      # Les y placer les rend réellement bloquants, pas seulement exécutés.
+      - name: Tests dashboard (P0-5a)
+        run: python3 -m pytest "surfaces/dashboard/tests" -q
+      - name: Tests authz (P0-5c)
+        run: python3 -m pytest "core/src/authz/tests" -q
+      - name: Tests config/vault (P0-5d)
+        run: python3 -m pytest "core/src/config/tests" -q
+      # L'oracle qui garde CE correctif doit vivre dans le job required, pour la
+      # raison exacte donnee ci-dessus : sinon une PR future qui remettrait
+      # `continue-on-error: true` rendrait `tests` rouge dans core-ci.yml, workflow
+      # NON required, et pourrait fusionner malgre tout. Trouve en revue : le remede
+      # etait applique aux trois suites ci-dessus et pas a la garde elle-meme.
+      # Cout mesure : 13 tests, 0,03 s, aucune dependance en plus de pytest+pyyaml
+      # deja installes par ce job. Le fichier reste aussi execute par core-ci.yml.
+      - name: Oracle de gating CI (AUD-CI-003/004)
+        run: python3 -m pytest core/tests/bootstrap/test_ci_gating_contract.py -q
       - name: Tests module M7 (M7-S000)
         run: python3 -m pytest "Modules M/M7-marketing/tests" -q
       # Un pytest DISTINCT par module : les modules exposent des noms de premier niveau
@@ -48,7 +78,6 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    continue-on-error: true
     env:
       PYTHON_BIN: python3
     steps:
@@ -61,17 +90,10 @@ jobs:
         run: python3 -m pip install --quiet --require-hashes -r tests/e2e/requirements.lock
       - name: Run e2e harness
         run: bash scripts/run-e2e.sh e2e
-      - name: Tests dashboard (P0-5a)
-        run: python3 -m pytest "surfaces/dashboard/tests" -q
-      - name: Tests authz (P0-5c)
-        run: python3 -m pytest "core/src/authz/tests" -q
-      - name: Tests config/vault (P0-5d)
-        run: python3 -m pytest "core/src/config/tests" -q
 
   e2e-load:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    continue-on-error: true
     env:
       PYTHON_BIN: python3
     steps:
