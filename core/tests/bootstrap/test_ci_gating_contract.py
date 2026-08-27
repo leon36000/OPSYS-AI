@@ -149,10 +149,25 @@ CE QUE CET ORACLE NE MESURE PAS — cause racine, pas énumération
   recréerait exactement la dérive décrite plus haut.
 
   Hors de ces exemptions, le détecteur REFUSE PAR DÉFAUT toute référence
-  dont la forme n'est pas reconnue au lieu de l'accepter. Une forme non
-  anticipée échoue donc du côté bruyant, jamais du côté silencieux — c'est
-  la seule raison pour laquelle la liste de contournements testée plus bas
-  n'a pas besoin d'être exhaustive, et elle ne l'est pas.
+  dont la forme n'est pas reconnue au lieu de l'accepter. Ce refus par
+  défaut vaut pour toute référence QUI ATTEINT le classifieur — c'est la
+  raison pour laquelle la liste de contournements testée plus bas n'a pas
+  besoin d'être exhaustive, et elle ne l'est pas.
+
+  La portée de cette garantie a une frontière, et c'est la cause racine de
+  ce que la lecture de l'arbre analysé ne peut pas voir : une référence
+  TEXTUELLEMENT PRÉSENTE mais ABSENTE de l'arbre que rend `yaml.safe_load`.
+  Trois formes connues, la troisième trouvée en revue :
+  commentaire YAML ; scalaire de `run:` ; et clé de mapping `uses`
+  DUPLIQUÉE dans le même step, dont PyYAML ne garde que la dernière
+  (dernier-gagnant). Si la référence écrasée est celle qui n'est pas
+  épinglée, elle disparaît avant le classifieur et l'oracle rend une liste
+  vide — un échec du côté silencieux, pas bruyant.
+  Le détecteur jumeau par texte brut (`test_ci_contract._unpinned_actions`)
+  voit ce cas : c'est une instanciation concrète du risque de dérive décrit
+  plus haut. Exposition pratique quasi nulle — le YAML est volontairement
+  malformé, et sous la sémantique dernier-gagnant l'action réellement
+  exécutée serait de toute façon l'action épinglée.
 """
 from __future__ import annotations
 
@@ -611,10 +626,13 @@ def _actions_non_epinglees(data) -> list[str]:
 
 
 def test_ci_yml_toutes_les_actions_sont_epinglees_par_sha_complet():
-    """RED #4 (AUD-CI-002) — `ci.yml` porte `actions/setup-python@v5`, tag
-    MUTABLE, dans les jobs `e2e` et `e2e-load`, alors que ses trois
-    `actions/checkout` sont épinglés par SHA complet. L'assertion doit nommer
-    les deux sites par leur chemin YAML avant correction, liste vide après.
+    """RED #4 (AUD-CI-002) — défaut mesuré sur le merge-base `b9ced94` :
+    `ci.yml` portait `actions/setup-python@v5`, tag MUTABLE, dans les jobs
+    `e2e` et `e2e-load`, alors que ses trois `actions/checkout` étaient déjà
+    épinglés par SHA complet. L'assertion nomme les sites fautifs par leur
+    chemin YAML — deux sur cette base, liste vide une fois corrigés.
+    Même convention d'ancrage que RED #1 : une mesure datée sur un commit
+    atteignable, jamais une affirmation sur l'état courant du fichier.
     """
     data = _charger(_WORKFLOW_PATH)
     refs = _refs_uses(data)

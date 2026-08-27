@@ -41,8 +41,9 @@ jobs:
       # `continue-on-error: true` rendrait `tests` rouge dans core-ci.yml, workflow
       # NON required, et pourrait fusionner malgre tout. Trouve en revue : le remede
       # etait applique aux trois suites ci-dessus et pas a la garde elle-meme.
-      # Cout mesure : 13 tests, 0,03 s, aucune dependance en plus de pytest+pyyaml
-      # deja installes par ce job. Le fichier reste aussi execute par core-ci.yml.
+      # Cout : negligeable, et aucune dependance en plus de pytest+pyyaml deja
+      # installes par ce job. Pas de compte de tests ici : il serait faux a la
+      # prochaine addition, et c'est le job qui l'execute qui le mesure. Le fichier reste aussi execute par core-ci.yml.
       - name: Oracle de gating CI (AUD-CI-003/004)
         run: python3 -m pytest core/tests/bootstrap/test_ci_gating_contract.py -q
       - name: Tests module M7 (M7-S000)
