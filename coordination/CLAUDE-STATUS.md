@@ -8,11 +8,14 @@ Updated UTC : `2026-08-27T04:41Z`
   **Écart réel, ratifié explicitement par Nathan dans la session du 2026-08-26T02:14Z.**
   Aucun fallback silencieux : l'écart est consigné ici, pas masqué.
 - Sous-agents : instanciés en `sonnet` (Claude Sonnet 5), **conforme au pack amont, mais
-  pas à `CLAUDE.md:9`**, qui prescrit pour les sous-agents des noms LiteLLM dédiés
+  pas à `CLAUDE.md`** (ligne « Subagents (noms LiteLLM dédiés, jamais opus/sonnet/haiku) »,
+  repérable par `grep -n 'Subagents' CLAUDE.md` — un numéro de ligne se réfuterait à la
+  prochaine édition de ce fichier, qui n'appartient pas à cette PR), qui prescrit pour les sous-agents des noms LiteLLM dédiés
   (`crew-coder-long`, `crew-coder-bulk`, etc.), jamais `opus`/`sonnet`/`haiku`. Le champ
-  `model: claude-sonnet-5` des 4 fichiers `.claude/agents/opsys-issue-*.md` porte le même
-  écart. **Écart consigné ici, modèle non changé dans cette revue** : requalifier ces
-  4 champs `model` vers des noms LiteLLM dédiés est une décision produit (quel modèle par
+  `model: claude-sonnet-5` des fichiers `.claude/agents/opsys-issue-*.md` porte le même
+  écart (`grep -n '^model:' .claude/agents/opsys-issue-*.md`). **Écart consigné ici, modèle
+  non changé dans cette revue** : requalifier ces
+  champs `model` vers des noms LiteLLM dédiés est une décision produit (quel modèle par
   rôle) hors périmètre d'une correction de revue, à faire avec validation Nathan plutôt
   que silencieusement ici.
   Les définitions `.claude/agents/opsys-issue-*.md` sont installées dans ce dépôt ;
@@ -27,22 +30,25 @@ Updated UTC : `2026-08-27T04:41Z`
 Jusqu'à la **PR ouverte** incluse. **Aucun merge**, aucune modification de branch
 protection, aucun code métier M1–M10, aucune promotion canonique.
 
-## Capacité des 4 agents `.claude/agents/opsys-issue-*.md` — ce qui est prouvé, ce qui ne l'est pas
+## Capacité des agents `.claude/agents/opsys-issue-*.md` — ce qui est prouvé, ce qui ne l'est pas
 
-Objection de revue : ces 4 définitions n'ont jamais été exercées comme fichiers
+Objection de revue : ces définitions n'ont jamais été exercées comme fichiers
 `.claude/agents/` chargés nativement, et deviennent après merge chargeables avec
-`maxTurns: 240`. Précision mesurée, corrigée en revue : **3 des 4** portent `tools`
-incluant Write/Edit — `opsys-issue-triage` déclare `tools: Read, Grep, Glob, Bash` et
-place Write/Edit/NotebookEdit dans `disallowedTools`, cohérent avec son
-`permissionMode: plan`. Les 3 autres portaient aussi `permissionMode: auto` jusqu'à ce
-commit ; corrigé en `default` — voir « Écarts volontaires » ci-dessous. Ne pas dégrader en `.example` — mais ne pas non plus
-prétendre à une capacité non observée. Détail :
+`maxTurns: 240`. Précision mesurée : `opsys-issue-triage` déclare
+`tools: Read, Grep, Glob, Bash` et place Write/Edit/NotebookEdit dans
+`disallowedTools`, cohérent avec son `permissionMode: plan` ; les autres portent
+`tools` incluant Write/Edit. Aucune de ces définitions ne porte `permissionMode: auto` —
+propriété stable, à rejouer plutôt qu'à croire :
+`grep -n '^permissionMode:' .claude/agents/opsys-issue-*.md`. L'écart correspondant
+vis-à-vis du pack amont est consigné en « Écarts volontaires » ci-dessous. Ne pas
+dégrader en `.example` — mais ne pas non plus prétendre à une capacité non observée.
+Détail :
 
-**Ce qui EST prouvé** — le corps de prompt (hors frontmatter YAML) de ces 4 rôles a été
+**Ce qui EST prouvé** — le corps de prompt (hors frontmatter YAML) de ces rôles a été
 exercé comme instruction de sous-agent, verbatim ou quasi-verbatim, sur des missions
 réelles et vérifiables de ce dépôt :
 - **triage** (read-only, reconnaissance live) → `LIVE-ISSUE-RECONCILIATION`, sans issue
-  ni PR propre (par construction : read-only) ; a produit les 3 candidats ci-dessous.
+  ni PR propre (par construction : read-only) ; a produit les candidats repris ci-dessous.
 - **ci-docs** (CI/docs/canon/manifest) → issue **#565** → PR **#567** (gating CI
   bloquant, `.github/workflows/ci.yml`).
 - **security-quality** (sécurité/tests/qualité/portabilité) → issue **#570** → PR
@@ -58,19 +64,14 @@ réelles et vérifiables de ce dépôt :
   forme — la commande vérifie l'absence *avant* cette branche, pas une absence perpétuelle —
   et non son contraire.)
   Cette formulation ne nomme aucun SHA de cette branche, volontairement : un SHA de commit
-  local ne survit ni à un rebase, ni à un squash, ni à un amend. Le troisième tour de revue
-  avait corrigé ce paragraphe en nommant le SHA du premier commit d'alors, justifié par
-  « reste vraie quel que soit le nombre de commits qui suivent » — vrai pour l'ajout de
-  commits, silencieux sur la réécriture d'historique. Le rebase qui a suivi a rendu ce SHA
+  local ne survit ni à un rebase, ni à un squash, ni à un amend. Une version antérieure de
+  ce paragraphe nommait le SHA du premier commit d'alors ; le rebase qui a suivi l'a rendu
   inatteignable depuis toute ref (`git rev-list --all` ne le liste plus), ce qui a réfuté la
   phrase exactement au moment où un lecteur aurait pu la vérifier. Le fait qui importe — ce
   fichier appartient à cette branche, à aucun commit antérieur de `origin/main` — se dit sans
   SHA et reste vrai après rebase, squash, amend ou avance de `main` : c'est la formulation
-  retenue ci-dessus. Une formulation qui dirait « seul commit de la branche » serait un
-  défaut différent, non traité ici par accident mais par non-pertinence : elle cesserait
-  d'être vraie dès le commit suivant sur cette branche, réécriture ou non, et n'est donc pas
-  celle utilisée. C'est le travail de l'orchestrateur (session lead), pas un rejeu du fichier
-  commité.
+  retenue ci-dessus. C'est le travail de l'orchestrateur (session lead), pas un rejeu du
+  fichier commité.
 - **restructure** (restructuration/packaging/nettoyage prouvé) : **aucune mission
   numérotée n'a encore exercé ce rôle**. Le candidat le plus proche est l'issue **#568**
   (AUD-CORE-005, fragment de packaging orphelin `.opsys/tools/github-control`), mais
@@ -78,7 +79,7 @@ réelles et vérifiables de ce dépôt :
   Ne pas compter #568 comme une preuve d'exécution du rôle restructure.
 
 **Ce qui N'EST PAS prouvé, et reste un écart nommé** — que le chargeur natif
-`.claude/agents/` de Claude Code honore réellement, pour ces 4 fichiers, les champs de
+`.claude/agents/` de Claude Code honore réellement, pour ces fichiers, les champs de
 frontmatter `permissionMode`, `effort`, `background`, `maxTurns`, `disallowedTools`.
 Toutes les exécutions listées ci-dessus sont passées par injection manuelle du corps de
 prompt dans un autre outil d'invocation (le dossier projet de la session n'est pas ce
@@ -91,10 +92,18 @@ vérifiée en exécution — ni confirmée, ni infirmée.
 
 ## Écarts volontaires vis-à-vis du pack amont (permissions)
 
-Le fichier livré par `OPSYS-AI-CLAUDE-ISSUES-OPERATIONS-v1.2` (vérifié identique à
-`platform-overlay/.claude/settings.example.json` du pack) porte `defaultMode: "auto"`,
-`availableModels: ["claude-sonnet-5"]` et `model: "claude-sonnet-5"`. La copie de ce
-dépôt s'en écarte, délibérément, sur trois points :
+Cette section recense les écarts de permissions vis-à-vis du pack amont, dans
+`.claude/settings.example.json` **et** dans `.claude/agents/opsys-issue-*.md`.
+Référence côté pack : `$OPSYS_PACK/platform-overlay/.claude/settings.example.json`, qui
+porte `defaultMode: "auto"`, `availableModels: ["claude-sonnet-5"]` et
+`model: "claude-sonnet-5"`.
+
+**Aucun décompte d'écarts n'est figé ici, et c'est délibéré** — même raison que pour le
+validateur plus bas. Une version antérieure de ce paragraphe annonçait « trois points »
+devant une liste qui n'en portait déjà plus trois : le point ajouté ensuite n'a pas mis le
+décompte à jour, exactement la faute que cette politique a pour rôle de ne pas commettre.
+`diff -u` entre chaque fichier et son homologue du pack fait autorité sur les écarts
+réels ; cette liste n'en énumère que la signification.
 
 1. **`defaultMode`** : `"auto"` → `"default"`, et ajout de `"disableAutoMode": "disable"`
    à côté de `"disableBypassPermissionsMode"`. `AGENTS.md` liste l'auto-approbation
@@ -126,22 +135,25 @@ dépôt s'en écarte, délibérément, sur trois points :
    l'exemple ne tiendrait même pas face au comportement réel constaté. La clé
    `env.ANTHROPIC_DEFAULT_SONNET_MODEL` suffit à exprimer « quand sonnet est utilisé,
    cette version précise » sans verrouiller tout le reste.
-4. **`permissionMode` des 3 agents `.claude/agents/opsys-issue-{ci-docs,restructure,
-   security-quality}.md`** : le pack amont porte `permissionMode: auto` pour ces trois
-   fichiers (champ `permissionMode` vérifié identique à celui de
-   `platform-overlay/.claude/agents/` du pack — le reste du corps de ces 3 fichiers
-   diffère légèrement, cf. `PREUVE:`/`BLOCKED:` ajouté en fin de prompt) et
-   `permissionMode: plan` pour `opsys-issue-triage.md`. La revue scellée n°2 (objection
-   N3) a relevé que le point 1 ci-dessus n'avait été appliqué qu'à un fichier inerte
-   (`.claude/settings.example.json` n'est chargé par rien) et pas aux fichiers
+4. **`permissionMode` de `.claude/agents/opsys-issue-{ci-docs,restructure,security-quality}.md`**
+   — écart portant sur d'autres fichiers que les points ci-dessus. Le pack amont porte
+   `permissionMode: auto` pour ces définitions et `permissionMode: plan` pour
+   `opsys-issue-triage.md` ; la copie de ce dépôt porte `default` pour les premières et
+   `plan`, inchangé, pour `triage`. Les deux côtés sont re-mesurables sans citer aucun
+   commit :
+   `grep -n '^permissionMode:' "$OPSYS_PACK"/platform-overlay/.claude/agents/*.md` et
+   `grep -n '^permissionMode:' .claude/agents/opsys-issue-*.md`.
+   Motif : le point 1 ci-dessus ne portait que sur un fichier inerte
+   (`.claude/settings.example.json` n'est chargé par rien) et pas sur les fichiers
    effectivement lus nativement par Claude Code (`.claude/agents/*.md`) — alors que ces
-   trois agents portent `tools` incluant Write/Edit/Bash, `maxTurns: 240`,
+   définitions portent `tools` incluant Write/Edit/Bash, `maxTurns: 240`,
    `background: true`, et que `.claude/settings.json` (le fichier réel, pas l'exemple) ne
-   porte aucune clé `permissions` qui aurait pu compenser côté session. Correction : les
-   trois `permissionMode: auto` sont passés à `permissionMode: default` dans ce commit,
-   par le même raisonnement que le point 1 (« Outils déterministes = autorité » ;
-   `AGENTS.md` liste l'auto-approbation parmi ses interdits absolus). `triage` reste
-   `plan`, déjà plus restrictif qu'`auto` et hors-sujet de cet écart, sans changement.
+   porte aucune clé `permissions` qui aurait pu compenser côté session. Même raisonnement
+   que le point 1 (« Outils déterministes = autorité » ; `AGENTS.md` liste
+   l'auto-approbation parmi ses interdits absolus). `triage` est déjà plus restrictif
+   qu'`auto` et reste hors-sujet de cet écart. Le corps de ces fichiers diffère aussi du
+   pack (ligne `PREUVE:`/`BLOCKED:` ajoutée en fin de prompt, description de `triage`
+   réécrite) : là encore, `diff -u` fait foi, aucun décompte n'est figé ici.
 
 ## `tools/check_coordination.py` — écarts volontaires vis-à-vis du pack amont (validation)
 
@@ -159,14 +171,11 @@ fonctions » ; le commit qui a ajouté la validation de chemin d'argv (écart
 « `_chemin_valide()` » ci-dessous) a rendu ce décompte faux sans le mettre à jour — la faute
 même que cette section a pour rôle de ne pas commettre. La formulation qui remplace un
 décompte est celle-ci : **la commande `diff -u` fait autorité sur le diff réel ; cette
-section n'en énumère que la signification.** Une version antérieure affirmait aussi que ce
-fichier différait du pack « depuis le premier commit de cette branche » et que
-`coordination/README.md` « affirmait cette exactitude, corrigé dès ce premier commit » :
-mesuré, ce fichier n'existait pas dans ce commit-là, et le `README.md` de ce commit ne
-mentionnait pas ce validateur. Cette phrase est retirée plutôt que recorrigée — une
-affirmation ancrée sur un rang de commit se réfute par un `git ls-tree` ordinaire, alors que
-la propriété « diffère du pack » survit à un rebase, un squash, un amend et à toute avance de
-`main`.
+section n'en énumère que la signification.** Une version antérieure ancrait aussi cet écart
+sur un rang de commit de cette branche (« depuis le premier commit de cette branche ») :
+retiré plutôt que recorrigé, parce qu'une affirmation ancrée sur un rang de commit ne
+survit ni à un rebase, ni à un squash, ni à un amend, alors que la propriété « diffère du
+pack » y survit, et survit aussi à toute avance de `main`.
 
 Écarts, par ordre d'apparition dans le fichier :
 
@@ -183,23 +192,42 @@ la propriété « diffère du pack » survit à un rebase, un squash, un amend e
   `OWNER::---::---:` + `STATUS::---::---:`, exit 1. Une table Markdown parfaitement
   légitime, rejetée avec un diagnostic trompeur.
 - **Correctif** : le filtre de `parse_rows()` appelle `est_ligne_separatrice()` au lieu de
-  tester le préfixe. Un seul détecteur décide désormais, pour le filtre comme pour
-  le contrôle d'en-tête.
-- **Mode de défaillance nommé avant d'être écrit** : élargir ce qui est sauté peut faire
-  disparaître **en silence** une vraie ligne de données. Le sous-ensemble nouvellement sauté
-  est exactement celui des lignes dont *toutes* les cellules sont `---`/`:---`/`---:`/`:---:` ;
-  aucune ne porte de Work ID, donc aucune ne peut être une entrée de coordination réelle.
-  Mesuré des deux côtés : les lignes de données plausibles (cellules vides, `-`, `--`, une
-  seule cellule non conforme, l'en-tête lui-même) sont toutes refusées par
-  `est_ligne_separatrice()` ; et sur l'intégralité des fichiers `.md` du dépôt et du pack
-  réunis, les seules lignes séparatrices à 7 cellules sont les séparateurs des deux vraies tables
-  (`coordination/WORK-OWNERSHIP.md` et le gabarit du pack), que l'ancien filtre sautait déjà.
-- **Sens inverse mesuré aussi** : sur ce même balayage, aucune ligne ne commence par
-  `|---` sans être par ailleurs une ligne de séparation valide. Remplacer le préfixe par le
-  détecteur ne retire donc le saut à aucune ligne réelle : le correctif élargit sans retirer.
-  C'est cette mesure, et non un jugement, qui a fait préférer le remplacement à l'autre
-  correctif possible (restreindre la documentation à la seule forme `|---|`) : restreindre la
-  documentation aurait laissé le validateur rejeter des tables Markdown valides.
+  tester le préfixe. Un seul détecteur décide, pour le filtre comme pour le contrôle
+  d'en-tête.
+- **Deuxième asymétrie du même genre, corrigée ici** : les pipes de bord sont optionnels en
+  GFM, et `parse_rows()` en tenait déjà compte pour les lignes de données et l'en-tête
+  (`line.strip("|")`) — mais `est_ligne_separatrice()` exigeait les deux. Une table à pipe
+  initial sans pipe final, forme parfaitement légale, était donc rejetée avec un diagnostic
+  trompeur. Mesuré sur la fixture correspondante (hors dépôt) :
+  ce fichier rendait `HEADER_MISSING` + `OWNER:---:---` + `STATUS:---:---`, exit 1, là où la
+  version du pack rend `COORDINATION_OK rows=1 active=1`, exit 0 — une régression de ce
+  dépôt vis-à-vis du pack, pas un défaut hérité. À HEAD, les deux rendent
+  `COORDINATION_OK rows=1 active=1`, exit 0.
+- **Mode de défaillance de cet élargissement, nommé avant d'être écrit** : accepter les
+  pipes de bord optionnels ferait passer `---` seul (barre horizontale Markdown, délimiteur
+  de front-matter YAML) pour une ligne de séparation — et un en-tête cité en prose suivi
+  d'une barre horizontale annulerait alors le durcissement `HEADER_MISSING`. D'où
+  l'exigence d'au moins un `|` dans la ligne. **Prouvé par fixture, pas déduit** : un
+  document réduit à la ligne d'en-tête suivie de `---` rend `HEADER_MISSING`, exit 1.
+- **Mode de défaillance du remplacement du préfixe, nommé avant d'être écrit** : élargir ce
+  qui est sauté peut faire disparaître **en silence** une vraie ligne de données. Deux
+  propriétés de construction bornent le risque, sans dépendre d'aucun corpus :
+  une ligne *nouvellement* sautée a toutes ses cellules faites de `-` et `:` seulement,
+  donc aucun Work ID, donc ce n'est pas une entrée de coordination réelle ; une ligne qui
+  *perd* son saut (ex. `|--- foo`, sauté par le préfixe du pack, plus par le détecteur)
+  retombe dans le contrôle de forme et devient `MALFORMED_ROW` ou une ligne de données
+  validée — plus bruyante, jamais silencieusement verte.
+- **Ce qui n'est PAS affirmé** : « le correctif élargit sans rien retirer ». C'était vrai du
+  seul corpus mesuré, faux en général — `|--- foo` en est le contre-exemple. Aucun décompte
+  de corpus n'est figé ici non plus : il serait invalidé par la prochaine édition d'un `.md`
+  quelconque du dépôt, sans qu'aucune opération Git n'y soit pour rien. Le balayage se
+  rejoue, il ne se croit pas — comparer, pour chaque ligne de chaque `.md` du dépôt et du
+  pack, `ligne.strip().startswith("|---")` (filtre du pack) à
+  `est_ligne_separatrice(ligne)` (ce dépôt), et inspecter les lignes qui changent de
+  classement.
+- Le remplacement a été préféré à l'autre correctif possible (restreindre la documentation à
+  la seule forme `|---|`) parce que restreindre la documentation aurait laissé le validateur
+  rejeter des tables Markdown valides.
 
 ### `HEADER_MISSING` — absence d'en-tête non détectée, puis un faux positif corrigé
 
@@ -220,15 +248,30 @@ la propriété « diffère du pack » survit à un rebase, un squash, un amend e
 - **Défaut résiduel de ce premier correctif, corrigé depuis** : il mettait
   `header_found = True` dès qu'une ligne était *égale* à l'en-tête, sans regarder ce qui la
   suit — y compris citée seule, en bloc de code ou en prose, pour documenter le format sans
-  qu'aucune vraie table ne suive. Une fixture ad hoc (hors dépôt, cf. preuve du commit
-  correspondant) le démontre : un document qui ne fait que citer la ligne d'en-tête dans un bloc de code
+  qu'aucune vraie table ne suive. Une fixture ad hoc (hors dépôt) le démontre : un document
+  qui ne fait que citer la ligne d'en-tête dans un bloc de code
   passait à tort `COORDINATION_OK rows=0 active=0`. Correctif : `parse_rows()` ignore
-  désormais tout contenu entre deux clôtures de bloc de code (les lignes commençant par trois
+  tout contenu entre deux clôtures de bloc de code (les lignes commençant par trois
   apostrophes inverses ou par `~~~`) — jamais compté comme en-tête, séparateur ou ligne de
   données — et n'accepte `header_found = True` que si la ligne d'en-tête est **immédiatement
   suivie** d'une vraie ligne de séparation Markdown (ex. `|---|---|`, avec ou sans espaces ou
   `:` d'alignement). Une table vide **avec** en-tête et séparateur reste valide ; une simple
   citation de l'en-tête, en bloc de code ou non, ne l'est plus.
+- **Contrepartie assumée du suivi de bloc de code, fail-open non refermée** : une **paire**
+  de fences équilibrée autour de vraies lignes de données les fait disparaître en silence,
+  avec les collisions qu'elles porteraient. Mesuré, fixture « en-tête et séparateur hors
+  bloc de code, deux lignes en collision de branche et de chemin encadrées par une paire de
+  clôtures (trois apostrophes inverses) » : ce dépôt rend
+  `COORDINATION_OK rows=0 active=0`, exit 0 ; la version du pack — qui ne suit pas les blocs
+  de code du tout — rend `BRANCH_COLLISION:ISS-A:ISS-B` + `PATH_COLLISION:…`, exit 1. C'est
+  donc **une régression fail-open de la détection de collision vis-à-vis du pack**, écrite ici
+  plutôt que refermée. Le choix est motivé : signaler ces lignes (par un
+  `FENCED_ROW_IGNORED:<ligne>`) rouvrirait exactement le faux positif que le suivi de fence
+  existe pour supprimer — un fichier de coordination qui documente son propre format dans un
+  bloc de code deviendrait non conforme. Un fence équilibré est un acte d'écriture délibéré ;
+  un fence orphelin est une faute de frappe, d'où le traitement différent de ce dernier
+  (`UNTERMINATED_FENCE`, exit 1). Cette limite est une propriété du validateur, pas un oubli :
+  `COORDINATION_OK` n'atteste rien de ce qui est écrit à l'intérieur d'un bloc de code.
 - **Comportement mesuré à HEAD** (et non « après tel commit » : ces valeurs sont
   re-mesurables à tout instant, la formulation ne dépend d'aucun rang de commit) —
   gabarit du pack `repo-overlay/coordination/WORK-OWNERSHIP.md` →
@@ -237,7 +280,9 @@ la propriété « diffère du pack » survit à un rebase, un squash, un amend e
   ci-dessus) ; `coordination/DAILY-SYNC.md`, `coordination/24H-UPDATE-TEMPLATE.md` et
   `coordination/README.md` → `HEADER_MISSING`, exit 1 ; fixture « en-tête cité dans un bloc
   de code » → `HEADER_MISSING`, exit 1, là où la version du pack rend
-  `COORDINATION_OK rows=0 active=0`, exit 0.
+  `COORDINATION_OK rows=0 active=0`, exit 0 ; fixture « en-tête suivi d'une barre `---` » →
+  `HEADER_MISSING`, exit 1 ; fixtures « séparateur espacé », « séparateur aligné » et
+  « table GFM sans pipe final » → `COORDINATION_OK rows=1 active=1`, exit 0.
   La non-régression sur le gabarit du pack est la plus critique de la liste : la casser
   interdirait toute installation neuve, `tools/daily_start.py` du pack validant ce gabarit
   quand `coordination/WORK-OWNERSHIP.md` n'existe pas encore.
@@ -246,14 +291,19 @@ la propriété « diffère du pack » survit à un rebase, un squash, un amend e
   interceptée, traceback et exit 1, en ajoutant que « ce correctif ne change pas ce
   comportement ». C'était vrai jusqu'à ce que la validation de chemin d'argv soit ajoutée
   (écart `_chemin_valide()` ci-dessous), et faux depuis, sans que la phrase soit reprise.
-  Comportement mesuré à ce jour :
+  Comportement mesuré à HEAD :
   `python3 -B tools/check_coordination.py <chemin-inexistant>` →
   `CHEMIN_INVALIDE:chemin non resolvable : [Errno 2] No such file or directory: '<chemin>'`,
-  **exit 2**, aucun traceback. Le traceback n'existe plus que dans la version du pack.
+  **exit 2**, aucun traceback. Affirmation **bornée aux cas mesurés** et non étendue à
+  « plus aucun traceback nulle part », qu'aucune mesure ne peut établir : les cas mesurés
+  sans traceback sont le chemin inexistant, le répertoire fourni à la place d'un fichier,
+  le fichier régulier non décodable en UTF-8, le répertoire de sortie inexistant et le
+  répertoire de sortie non inscriptible.
 - **Diff contre le pack** : `valid_scope()` est la seule fonction du pack reprise inchangée.
   `parse_rows()`, `overlaps()`, `validate()` et `main()` diffèrent tous, et le fichier ajoute
   des définitions absentes du pack (`est_ligne_separatrice`, `_est_cellule_separatrice`,
-  la classe `CheminInvalide`, `_chemin_valide`). `main()` en particulier **ne fait pas** partie
+  les classes `CheminInvalide` et `LectureImpossible`, `_chemin_valide`). `main()` en
+  particulier **ne fait pas** partie
   des fonctions identiques au pack : une version antérieure de cette phrase l'y rangeait, et
   le commit qui a fait passer `main()` par `_chemin_valide()` ne l'a pas retirée de la liste.
   Vérifiable fonction par fonction sans décompte, contre le pack installé, plutôt que sur une
@@ -292,9 +342,9 @@ la propriété « diffère du pack » survit à un rebase, un squash, un amend e
   cité comme le motif du changement, pas comme une mesure de cette section.
 - **Portée volontairement NON confinée à l'arborescence du dépôt.** C'est l'écart à
   comprendre avant tout le reste : `tools/daily_start.py` du pack appelle ce même validateur
-  sur **son propre gabarit**, qui vit hors du dépôt. Mesuré dans le source du pack — deux
-  invocations, l'une sur `<repo>/coordination/WORK-OWNERSHIP.md`, l'autre sur
-  `<pack>/repo-overlay/coordination/WORK-OWNERSHIP.md` quand la première n'existe pas encore.
+  sur **son propre gabarit**, qui vit hors du dépôt. Mesuré dans le source du pack : il
+  l'invoque sur `<repo>/coordination/WORK-OWNERSHIP.md`, et sur
+  `<pack>/repo-overlay/coordination/WORK-OWNERSHIP.md` quand la première cible n'existe pas encore.
   Confiner la validation à l'arborescence du dépôt **casserait l'installation neuve** : le
   défaut qu'on cherche à éviter, en pire. La validation porte donc sur la **forme** et la
   **nature** de la cible, jamais sur son emplacement.
@@ -304,14 +354,30 @@ la propriété « diffère du pack » survit à un rebase, un squash, un amend e
   régulier. Les `..` et les liens symboliques sont aplatis par `resolve()` **avant** tout
   accès, de sorte qu'un lien menant hors d'un périmètre attendu devient visible dans le
   chemin résolu au lieu d'être suivi à l'aveugle.
-- **Nouveau code de sortie, et nouveau préfixe de message** : un chemin refusé rend
+- **Nouveau code de sortie, et nouveaux préfixes de message** : un chemin refusé rend
   `CHEMIN_INVALIDE:<raison>` sur la sortie standard et **exit 2**, distinct de l'exit 1 des
   erreurs de contenu (`HEADER_MISSING`, `PATH_COLLISION`, `UNTERMINATED_FENCE`, …) et de
-  l'exit 0 de `COORDINATION_OK`. Trois codes, trois significations : 0 = table conforme,
-  1 = table lue mais non conforme, 2 = table jamais lue, l'argument n'a pas passé la
-  validation. Documenté aussi dans `coordination/README.md`, à côté de `COORDINATION_OK` —
-  un appelant qui teste `!= 0` ne voit pas la différence, un appelant qui teste `== 1` la
-  voit.
+  l'exit 0 de `COORDINATION_OK`. Contrat : 0 = table lue et conforme ; 1 = table lue, non
+  conforme ; 2 = aucun verdict de conformité exploitable. Documenté aussi dans
+  `coordination/README.md`, à côté de `COORDINATION_OK` — un appelant qui teste `!= 0` ne
+  voit pas la différence, un appelant qui teste `== 1` la voit.
+- **Deux trous de ce contrat, mesurés et refermés.** Le chemin validé pouvait encore
+  échouer *après* la validation, et l'exception remontait alors non interceptée : exit 1
+  avec traceback sur stderr et stdout vide. Un appelant qui teste `== 1` pour conclure
+  « table lue, corrigez-la » était donc induit en erreur dans deux cas où elle ne l'était
+  pas, ou l'était sans problème :
+  - **fichier régulier non décodable en UTF-8** — `read_text` levait `UnicodeDecodeError`,
+    et la table n'avait jamais été lue. Intercepté : `LECTURE_IMPOSSIBLE:<raison>`, exit 2.
+    Mesuré à HEAD : `LECTURE_IMPOSSIBLE:contenu illisible : 'utf-8' codec can't decode
+    byte 0xff …`, exit 2, aucun traceback.
+  - **`--json-output` non écrivable** (répertoire en lecture seule, disque plein) — la
+    table était lue *et conforme*, mais l'`OSError` rendait exit 1. Intercepté :
+    `SORTIE_IMPOSSIBLE:<raison>`, exit 2. Mesuré à HEAD :
+    `SORTIE_IMPOSSIBLE:ecriture impossible : [Errno 13] Permission denied: …`, exit 2.
+
+  C'est pour couvrir ces deux cas que l'exit 2 est libellé « aucun verdict de conformité
+  exploitable » et non « table jamais lue » : cette dernière formulation, plus courte,
+  était fausse pour l'échec d'écriture.
 - **Conséquence sur `main()`** : c'est ce changement qui fait que `main()` diffère du pack,
   et donc qui a invalidé la phrase « `main()` reste identique » corrigée plus haut. L'écart
   est consigné ici pour que la prochaine édition de `main()` trouve une entrée à mettre à
@@ -319,25 +385,27 @@ la propriété « diffère du pack » survit à un rebase, un squash, un amend e
 
 ## `.claude/settings.example.json` — ne jamais écraser `.claude/settings.json`
 
-`.claude/settings.json` (le fichier réel, pas l'exemple) porte les 3 hooks
+`.claude/settings.json` (le fichier réel, pas l'exemple) porte les hooks
 d'enforcement de ce dépôt : `SessionStart` (injecte `00-DIGEST.md`), `UserPromptSubmit`
 (rappel périodique via `inject_digest.sh`) et `PreToolUse` sur `Bash`
 (`guard_forbidden.sh`, bloque `--no-verify` et le force-push sur `main`). Copier
-`settings.example.json` par-dessus `settings.json` supprimerait ces trois hooks sans
+`settings.example.json` par-dessus `settings.json` les supprimerait sans
 avertissement. Voir la mise en garde portée dans `coordination/README.md`.
 
 ## Active
 
 Les états PR/issue cités dans cette section et dans « Blocked »/« Next » ci-dessous sont
-datés de l'horodatage `Updated UTC` en tête de ce fichier et soumis à la même clause de
-péremption que `coordination/WORK-OWNERSHIP.md:7` (périment dès le prochain commit/push/merge
-sur l'une ou l'autre plateforme ; au-delà de 24 h, re-vérifier via `gh pr view <n>` / `gh issue
-view <n>` plutôt que de faire confiance à la valeur écrite ici) — non dupliquée, pour éviter
-que les deux dérivent l'une de l'autre.
+datés de l'horodatage `Updated UTC` en tête de ce fichier et soumis à la clause de
+péremption portée en tête de `coordination/WORK-OWNERSHIP.md` (périment dès le prochain
+commit/push/merge sur l'une ou l'autre plateforme ; au-delà de 24 h, re-vérifier via
+`gh pr view <n>` / `gh issue view <n>` plutôt que de faire confiance à la valeur écrite ici)
+— non dupliquée, pour éviter que les deux dérivent l'une de l'autre. Aucun numéro de ligne
+n'est cité pour la désigner : un renvoi par numéro de ligne se réfute dès la prochaine
+édition du fichier visé.
 
 | Work ID | Branche | État |
 |---|---|---|
-| OPS-OVERLAY-INSTALL | `claude/ops/install-coordination-overlay` | PR #564 ouverte ; cinq tours de revue aveugle scellée = REJECT, dont quatre sur la **même classe de défaut** : une affirmation d'un fichier livré portant sur du code livré, non re-mesurée contre HEAD dans le commit qui modifie ce code. Corrigée site par site à chaque tour, elle réapparaissait au suivant — le tour 5 l'a réintroduite via le commit de validation de chemin d'argv, qui a modifié `tools/check_coordination.py` sans reprendre le registre décrivant ce fichier. Ce tour applique le critère à la classe entière : balayage de toutes les affirmations vérifiables portant sur ce fichier, re-mesure de chacune contre HEAD, et retrait des décomptes figés — un décompte étant lui-même une affirmation à maintenir |
+| OPS-OVERLAY-INSTALL | `claude/ops/install-coordination-overlay` | PR #564 ouverte ; revue aveugle scellée itérée, verdict REJECT à chaque tour, majoritairement sur la **même classe de défaut** : une affirmation contenue dans un fichier livré, vérifiable et non re-mesurée contre HEAD. Corrigée site par site, elle réapparaissait au tour suivant, à côté. Le critère est donc appliqué à la classe et non aux sites : toute affirmation vérifiable des fichiers livrés est re-mesurée, et l'affirmation est retirée quand elle peut l'être plutôt que maintenue — un décompte, un SHA de branche, un déictique de commit et un état GitHub non borné sont des affirmations à maintenir, et sont supprimés à ce titre. Aucun décompte de tours n'est figé ici : il serait faux au tour suivant |
 | LIVE-ISSUE-RECONCILIATION | read-only | triage live en cours ; candidats re-mesurés à l'horodatage de ce fichier — PR #567 (**mergée** le 2026-08-27T04:11:06Z, `gh pr view 567` → `MERGED`) et son issue #565 (**fermée**) ; issue #568 (`OPEN`, bloquée en investigation) ; PR #571 (**mergée**, `gh pr view 571` → `MERGED`) ; issue #576 (**ouverte** le 2026-08-27T04:29:11Z, AUD-CI-002) |
 
 Deux lignes actives ici, cohérent avec `WORK-OWNERSHIP.md` et avec
@@ -383,28 +451,26 @@ incomplète sans qu'aucun fait réel n'ait changé. Ce que l'on peut recenser de
   « Merged since last sync » ci-dessus. Elles figuraient ici comme « gelées par l'issue
   #569 » ; cette ligne était périmée et l'est encore le jour où elle est corrigée, faute de
   resynchronisation automatique.
-- État mesuré de l'issue **#569**, qui portait ce gel : elle est **toujours `OPEN`**
-  (`gh issue view 569` → `OPEN`, `closed_at` nul, `state_reason` nul). Le gel qu'elle
-  décrivait, en revanche, ne se constate plus : la PR #567 touchait
-  `.github/workflows/ci.yml` et `core/tests/bootstrap/test_ci_gating_contract.py` — donc le
-  périmètre scellé — et a franchi `proof-sealed` pour être mergée. Un commentaire du
-  propriétaire du dépôt sur #569 documente la cause réelle : ce n'était pas le routeur
-  LiteLLM, qui servait déjà les trois routes, mais la **table d'alias du pont de modèles**,
-  restée sur d'anciens noms ; sept alias ajoutés, les trois routes répondent. Le
-  commentaire signale aussi un défaut d'infrastructure distinct et non résolu
-  (`FORGE_MODEL_BRIDGE_MAX_TOKENS` à 4096, trop court pour les prompts de diff volumineux).
+- Issue **#569**, qui portait ce gel : `OPEN` à l'horodatage `Updated UTC` en tête de ce
+  fichier — état soumis à la clause de péremption ci-dessus, à re-lire par
+  `gh issue view 569` plutôt qu'ici. Le gel qu'elle décrivait, en revanche, ne se constate
+  plus : la PR #567 touchait `.github/workflows/ci.yml` et
+  `core/tests/bootstrap/test_ci_gating_contract.py` — donc le périmètre scellé — et a
+  franchi `proof-sealed` pour être mergée. La cause réelle et un défaut d'infrastructure
+  distinct, encore ouvert, sont documentés par le propriétaire du dépôt en commentaire de
+  #569 ; ce contenu n'est pas recopié ici, parce qu'un commentaire GitHub se modifie et se
+  supprime sans que ce fichier en sache rien — le lire à la source.
   **La distinction compte et n'est pas cosmétique : issue ouverte ≠ blocage constaté.**
-  Écrire « #569 est close » serait faux ; écrire « le gel dure » le serait aussi. Les deux
-  faits sont consignés séparément parce qu'ils sont séparément vérifiables.
+  Les deux faits sont consignés séparément parce qu'ils sont séparément vérifiables.
 - `AUD-CORE-005` — issue #568 : fragment orphelin `.opsys/tools/github-control`,
   correction TDD impossible sans fabriquer des données absentes ; décision Nathan
   demandée (restaurer / retirer / requalifier) avant tout code.
 
 ## Next
 
-`AUD-CI-002` (épinglage SHA des actions) porte désormais l'issue **#576**, ouverte le
-2026-08-27T04:29:11Z (`gh issue view 576` → `OPEN`) : `actions/setup-python` n'est pas
-épinglé par SHA dans `ci.yml`, et aucun oracle ne couvre ce workflow. Les deux conditions
+`AUD-CI-002` (épinglage SHA des actions) porte l'issue **#576**, ouverte le
+2026-08-27T04:29:11Z : `actions/setup-python` n'est pas
+épinglé par SHA dans `ci.yml`, et aucun oracle ne couvre ce workflow. Les conditions
 d'attente qui la retenaient sont levées et mesurées : `AUD-CI-003/004` sont mergées (même
 fichier, donc plus de risque de parallélisme), et le gel du périmètre scellé ne se constate
 plus (cf. « Blocked » ci-dessus). Elle reste `QUEUED` faute d'activation, pas faute de

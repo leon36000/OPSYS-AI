@@ -13,7 +13,8 @@ CORE_RE = re.compile(r"^C(?:0[0-9]|1[0-9]|2[0-4])-\d{3}$")
 CLAUDE_RE = re.compile(r"^(?:ISS-|AUD-|BUG-|R4-)")
 HEADER = ["Work ID", "Owner", "Branch", "Path scope", "Status", "Updated UTC", "Next"]
 # Une ligne de separation Markdown valide : "|---|---|", "| --- | --- |",
-# avec ou sans ":" d'alignement, au moins 3 tirets par colonne.
+# avec ou sans ":" d'alignement, au moins 3 tirets par colonne. Les pipes de bord
+# sont optionnels (GFM), comme pour les lignes de donnees : cf. est_ligne_separatrice.
 TIRETS_MINIMUM_SEPARATEUR = 3
 MARQUEURS_BLOC_CODE = ("```", "~~~")
 
@@ -21,25 +22,36 @@ MARQUEURS_BLOC_CODE = ("```", "~~~")
 def est_ligne_separatrice(ligne: str) -> bool:
     """Vraie pour une ligne de separation Markdown du type `|---|:---:|---|`.
 
-    Ecrit sans quantificateur imbrique, deliberement. La forme regex naturelle
-    `^\\|(\\s*:?-{3,}:?\\s*\\|)+$` repete un groupe qui commence ET finit par `\\s*`,
-    motif super-lineaire que SonarCloud classe en point chaud de securite (S5852)
-    et qui a fait tomber la Security Rating de cette PR en C. Ce verdict-la vient du
-    service et n'est pas re-mesurable depuis ce depot : il est cite comme le motif du
-    changement, pas comme une mesure locale. Ce qui suit, en revanche, l'est.
+    Les pipes de bord sont OPTIONNELS, comme le prevoit GFM et comme le fait deja
+    le decoupage des lignes de donnees et de l'en-tete (`line.strip("|")`) plus bas.
+    Exiger ici les deux pipes de bord alors que les lignes de donnees s'en passent
+    creait deux notions de "bord de ligne" dans le meme fichier : une table
+    parfaitement legitime ecrite sans pipe final voyait son en-tete reconnu comme
+    tel, puis sa ligne de separation recomptee en ligne de donnees, et rendait
+    `HEADER_MISSING` + `OWNER:---:---` + `STATUS:---:---`, exit 1, la ou la version
+    du pack rend `COORDINATION_OK rows=1 active=1`, exit 0. Fixture et sorties des
+    deux cotes dans coordination/CLAUDE-STATUS.md.
 
-    Mesure honnete : sur des entrees realistes (jusqu'a 22 groupes valides suivis
-    d'une queue non conforme) aucune explosion combinatoire n'a ete reproduite —
-    l'ancrage par `-{3,}` et `\\|` limite les decoupages possibles. Le defaut est
-    donc le MOTIF, pas un exploit demontre. Il est corrige quand meme : le
-    decoupage explicite ci-dessous est lineaire par construction, se lit plus
-    clairement, et supprime le point chaud sans rien couter.
+    Mode de defaillance de cet elargissement, nomme avant d'etre ecrit : un `---`
+    seul (barre horizontale Markdown, delimiteur de front-matter YAML) ne doit PAS
+    devenir une ligne de separation, sans quoi un en-tete cite en prose et suivi
+    d'une barre horizontale passerait pour le debut d'une vraie table et annulerait
+    le durcissement HEADER_MISSING. D'ou l'exigence d'au moins un `|` : `---` est
+    refuse, `|---|` et `---|---` sont acceptes.
+
+    Ecrit sans quantificateur imbrique, deliberement. La forme regex naturelle
+    repete un groupe qui commence ET finit par `\\s*`, motif super-lineaire que
+    SonarCloud classe en point chaud de securite (S5852) et qui a fait tomber la
+    Security Rating de cette PR en C. Ce verdict-la vient du service et n'est pas
+    re-mesurable depuis ce depot : il est cite comme le motif du changement, pas
+    comme une mesure locale. Le decoupage explicite ci-dessous est lineaire par
+    construction et ne laisse aucun motif a analyser.
     """
     ligne = ligne.strip()
-    if len(ligne) < 2 or not ligne.startswith("|") or not ligne.endswith("|"):
+    if "|" not in ligne:
         return False
-    cellules = ligne[1:-1].split("|")
-    return bool(cellules) and all(_est_cellule_separatrice(c) for c in cellules)
+    cellules = ligne.strip("|").split("|")
+    return all(_est_cellule_separatrice(c) for c in cellules)
 
 
 def _est_cellule_separatrice(cellule: str) -> bool:
@@ -61,6 +73,24 @@ class CheminInvalide(ValueError):
     """Un chemin fourni en argument n'a pas passe la validation prealable."""
 
 
+class LectureImpossible(ValueError):
+    """La cible a passe la validation de chemin mais n'a pas pu etre lue ni decodee.
+
+    Cas reel : un fichier regulier non decodable en UTF-8. Sans cette interception,
+    `read_text` levait `UnicodeDecodeError`, l'interpreteur rendait exit 1 avec un
+    traceback sur stderr et rien sur stdout — indiscernable, pour un appelant qui
+    teste `== 1`, d'une table lue et non conforme. Or la table n'a jamais ete lue :
+    c'est exit 2, comme un chemin refuse. Meme traitement pour un `OSError` a la
+    lecture (permission, disparition de la cible entre la validation et la lecture).
+    """
+
+
+# L'ecriture de `--json-output` est interceptee directement dans main() et rend
+# `SORTIE_IMPOSSIBLE:<raison>` + exit 2, pour la meme raison que LectureImpossible :
+# sans interception, un OSError a l'ecriture rendait exit 1 avec traceback alors que
+# la table etait lue ET conforme, ce qui contredit la signification annoncee de l'exit 1.
+
+
 def _chemin_valide(brut: str, *, pour_ecriture: bool = False) -> Path:
     """Valide un chemin AVANT tout acces au systeme de fichiers.
 
@@ -74,9 +104,9 @@ def _chemin_valide(brut: str, *, pour_ecriture: bool = False) -> Path:
 
     Ce validateur ne peut PAS etre confine a l'arborescence du depot : le
     `daily_start.py` du pack l'appelle legitimement sur son propre gabarit, qui
-    vit hors du depot (mesure : deux invocations, l'une sur coordination/ du
-    depot, l'autre sur repo-overlay/coordination/ du pack, quand la premiere
-    n'existe pas encore). Confiner casserait l'installation neuve — le defaut qu'on
+    vit hors du depot (mesure : il l'invoque sur coordination/ du depot, et sur
+    repo-overlay/coordination/ du pack quand la premiere cible n'existe pas
+    encore). Confiner casserait l'installation neuve — le defaut qu'on
     cherche a eviter, en pire. Cette mesure-la, elle, est reproductible : elle se lit
     dans le source de tools/daily_start.py du pack.
 
@@ -112,7 +142,10 @@ def parse_rows(path: Path) -> tuple[list[dict[str, str]], list[str], bool]:
     out: list[dict[str, str]] = []
     errors: list[str] = []
     header_found = False
-    lines = path.read_text(encoding="utf-8").splitlines()
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError) as exc:
+        raise LectureImpossible(f"contenu illisible : {exc}") from None
     in_fence = False
     for lineno, raw in enumerate(lines, 1):
         line = raw.strip()
@@ -126,6 +159,20 @@ def parse_rows(path: Path) -> tuple[list[dict[str, str]], list[str], bool]:
             # compter. Ecart corrige vis-a-vis du pack : dans la version amont, une
             # ligne "== HEADER" comptait partout, y compris ici, et un document qui ne
             # fait que documenter le format passait a tort en COORDINATION_OK rows=0.
+            #
+            # CONTREPARTIE ASSUMEE, fail-open non refermee : une PAIRE de fences
+            # equilibree autour de vraies lignes de donnees les fait disparaitre en
+            # silence, avec les collisions qu'elles porteraient. Mesure, fixture
+            # "en-tete + separateur hors fence, deux lignes en collision entre
+            # ```" : ce fichier-ci rend COORDINATION_OK rows=0 active=0 exit 0, la
+            # ou la version du pack rend BRANCH_COLLISION + PATH_COLLISION exit 1.
+            # C'est donc une regression fail-open de la detection de collision vis-a-vis
+            # du pack, ecrite ici plutot que refermee : signaler ces lignes rouvrirait
+            # exactement le faux positif que le suivi de fence existe pour supprimer
+            # (un fichier qui documente son propre format dans un bloc de code
+            # deviendrait non conforme). Un fence equilibre est un acte d'ecriture
+            # delibere ; un fence orphelin est une faute de frappe — d'ou le
+            # traitement different de ce dernier, plus bas.
             continue
         # Un seul et meme detecteur decide ce qu'est une ligne de separation, ici
         # comme dans le controle d'en-tete ci-dessous. La version du pack testait
@@ -141,13 +188,20 @@ def parse_rows(path: Path) -> tuple[list[dict[str, str]], list[str], bool]:
         # ce qui est saute peut faire disparaitre EN SILENCE une vraie ligne de
         # donnees. Le sous-ensemble concerne est exactement celui des lignes dont
         # TOUTES les cellules sont `---`/`:---`/`---:`/`:---:` — aucune ne porte de
-        # Work ID, donc aucune n'est une entree de coordination reelle. Mesure, sur
-        # l'integralite des fichiers .md du depot et du pack reunis : les seules
-        # lignes separatrices a 7 cellules sont les separateurs des deux vraies
-        # tables, que l'ancien filtre sautait deja ; et aucune ligne ne commence par
-        # `|---` sans etre par ailleurs une ligne de separation valide, donc le
-        # remplacement ne retire le saut a aucune ligne reelle. Le correctif elargit
-        # sans retirer. Detail et contre-exemples dans coordination/CLAUDE-STATUS.md.
+        # Work ID, donc aucune n'est une entree de coordination reelle.
+        #
+        # L'echange n'est PAS a sens unique, et la formulation "elargit sans rien
+        # retirer" serait fausse en general : `|--- foo` etait saute par le prefixe
+        # du pack et ne l'est plus par le detecteur. Ce qui tient sans dependre
+        # d'aucun corpus, ce sont deux proprietes de construction :
+        #  - une ligne NOUVELLEMENT sautee a toutes ses cellules faites de `-` et `:`
+        #    seulement, donc pas de Work ID, donc ce n'est pas une entree reelle ;
+        #  - une ligne qui PERD son saut retombe dans le controle de forme et devient
+        #    MALFORMED_ROW ou une ligne de donnees validee — plus bruyante, jamais
+        #    silencieusement verte.
+        # Aucun decompte de corpus n'est fige ici : il serait invalide par la
+        # prochaine edition d'un .md quelconque du depot. La commande de balayage est
+        # dans coordination/CLAUDE-STATUS.md, a rejouer plutot qu'a croire.
         if not line.startswith("|") or est_ligne_separatrice(line):
             continue
         cells = [c.strip() for c in line.strip("|").split("|")]
@@ -267,10 +321,24 @@ def main() -> int:
     except CheminInvalide as exc:
         print(f"CHEMIN_INVALIDE:{exc}")
         return 2
-    data, errors = validate(chemin_ownership)
+    # Exit 2 = aucun verdict de conformite exploitable n'a ete produit. Trois causes,
+    # trois prefixes distincts, jamais un traceback : chemin refuse avant tout acces
+    # (CHEMIN_INVALIDE), cible illisible ou non decodable (LECTURE_IMPOSSIBLE),
+    # sortie JSON non ecrite (SORTIE_IMPOSSIBLE). L'exit 1 est reserve a "table lue,
+    # non conforme" ; sans ces interceptions il absorbait aussi les echecs de lecture
+    # et d'ecriture, ce qui rendait faux le contrat annonce dans coordination/README.md.
+    try:
+        data, errors = validate(chemin_ownership)
+    except LectureImpossible as exc:
+        print(f"LECTURE_IMPOSSIBLE:{exc}")
+        return 2
     result = {"rows": len(data), "active": sum(r["status"] in ACTIVE for r in data), "errors": errors}
     if chemin_sortie is not None:
-        chemin_sortie.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        try:
+            chemin_sortie.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        except OSError as exc:
+            print(f"SORTIE_IMPOSSIBLE:ecriture impossible : {exc}")
+            return 2
     if errors:
         print("\n".join(errors))
         return 1

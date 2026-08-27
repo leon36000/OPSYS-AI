@@ -3,13 +3,36 @@
 Statut: Proposé (directive Nathan appliquée opérationnellement ; enregistrement canon différé — voir « Enregistrement canon » ci-dessous)
 Date: 2026-08-26
 
-Origine et traçabilité : ce document est installé à l'identique par la mission de
-l'issue **#563** (« [OPS] Installer l'overlay de coordination Claude/Codex v1.2 »),
-depuis le pack `OPSYS-AI-CLAUDE-ISSUES-OPERATIONS-v1.2`. Son contenu reprend
-`CURRENT-NATHAN-DIRECTIVE.md` du même pack (directive Nathan, fichier hors dépôt) :
-c'est la pièce vérifiable derrière chaque affirmation de ce document ; toute
-affirmation qui n'y est pas rattachée a été retirée (voir « Supersession retirée »
+Origine et traçabilité : ce document est **dérivé** de
+`repo-overlay/docs/decisions/ADR-PROPOSED-INDEPENDENT-AGENT-OWNERSHIP.md` du pack
+`OPSYS-AI-CLAUDE-ISSUES-OPERATIONS-v1.2`, installé par la mission de l'issue **#563**
+(« [OPS] Installer l'overlay de coordination Claude/Codex v1.2 »).
+
+**Il n'en est pas une copie octet-exacte.** Propriété stable, re-mesurable sans citer
+aucun commit ni aucune révision :
+
+`diff -u "$OPSYS_PACK/repo-overlay/docs/decisions/ADR-PROPOSED-INDEPENDENT-AGENT-OWNERSHIP.md" docs/decisions/ADR-0004-independent-agent-ownership.md`
+
+Ce `diff -u` fait autorité sur les écarts réels. Ce qui se dit sans lui : la section
+« Décision » ci-dessous est reprise **inchangée** du fichier du pack ; les écarts portent
+notamment sur le titre, la ligne `Statut`, ce paragraphe, la section « Supersession
+retirée », et des précisions ajoutées dans « Conséquences » et « Enregistrement canon ».
+**Aucun décompte de lignes, de sections ou d'écarts n'est figé ici**, pour la même raison
+qu'ailleurs dans cette PR : un décompte est une affirmation de plus à maintenir, que la
+prochaine édition de ce fichier invalide sans qu'aucune opération Git n'y soit pour rien.
+
+La section « Décision » ci-dessous reprend `CURRENT-NATHAN-DIRECTIVE.md` du même pack
+(directive Nathan, fichier hors dépôt) : c'est la pièce vérifiable derrière ces points ;
+toute affirmation qui n'y est pas rattachée a été retirée (voir « Supersession retirée »
 ci-dessous).
+
+Une version antérieure de ce paragraphe affirmait que ce document était installé
+« à l'identique » depuis le pack. C'était faux, et réfutable par le `diff -u` ci-dessus.
+La copie installée par le commit `ad38bfd` (porté par la PR #566) est, elle,
+octet-identique au fichier du pack — un contenu de commit ne change pas, contrairement à
+l'état d'une PR. C'est donc cette PR-ci qui s'écarte du pack, délibérément : d'où un
+registre d'écarts renvoyant à une commande, plutôt qu'une affirmation d'identité que rien
+ne recensait.
 
 ## Décision
 
@@ -24,64 +47,40 @@ ci-dessous).
 ## Supersession retirée
 
 La version proposée de ce document affirmait remplacer « l'ancien modèle où Claude Code
-était maître d'œuvre GitHub global ». Une première vérification (revue #1) citait
-`git grep -niE "ma.tre.d.(oe|œ)uvre|github global"` « sur l'historique de ce dépôt » :
-c'était inexact à double titre — un `git grep` sans révision n'interroge que l'arbre de
-travail courant, jamais l'historique, et rejouée telle quelle aujourd'hui cette commande
-retourne une correspondance : celle portée par ce paragraphe lui-même, qui cite la
-formulation pour la retirer. Ce n'est pas une preuve, dans un sens ou dans l'autre, sur un
-modèle antérieur réel.
+était maître d'œuvre GitHub global ». **Cette affirmation est retirée** : elle n'était
+rattachée à aucune pièce vérifiable — `CURRENT-NATHAN-DIRECTIVE.md` ne la porte pas. Cette
+section documente le retrait pour que l'écart reste traçable au lieu de disparaître
+silencieusement.
 
-Cette phrase a déjà été corrigée une fois sans que l'erreur de fond disparaisse — elle a
-seulement changé de nature. La revue #1 ci-dessus avait utilisé un `git grep` sans révision,
-qui n'interroge jamais l'historique. La correction qui l'a suivie (revue #2) a bien interrogé
-l'historique, via `git log --pickaxe-regex` sur `origin/main`, mais sans exclure le chemin de
-ce document — qui contient lui-même la formulation cherchée, deux paragraphes plus haut et
-juste au-dessus, pour la citer et la retirer. Une commande qui compte ce document parmi ses
-propres preuves n'en est pas une : dès le merge de cette PR, `origin/main` porte ce fichier,
-et la même commande y trouve alors sa propre trace — la conclusion en gras devenait fausse au
-moment exact où un lecteur pouvait la rejouer. La correction n'est donc pas de rejouer la même
-commande plus tard, mais d'exclure explicitement le seul endroit ayant légitimement le droit
-de porter cette formulation : ce document, et son nom de travail avant renommage,
-`ADR-PROPOSED-INDEPENDENT-AGENT-OWNERSHIP.md`.
+La commande qui interroge l'historique du dépôt sur cette formulation :
 
 `git log origin/main --pickaxe-regex -S'ma.tre.d.(oe|œ)uvre|github global' --oneline -- . \
 ':!docs/decisions/ADR-0004-independent-agent-ownership.md' \
 ':!docs/decisions/ADR-PROPOSED-INDEPENDENT-AGENT-OWNERSHIP.md'`
 
-Rejouée sur `origin/main`, cette commande rend une sortie vide — sans figer ni un SHA de
-base, ni un décompte de commits, ni la date à laquelle elle a été rejouée : aucun des trois
-n'est la propriété qui compte, et tous changent à chaque avance de `main`. (Une version
-antérieure de ce paragraphe figeait les trois — un SHA de base, un décompte de commits et une
-date de mesure, présentés comme la preuve — et la toute première avance de `main` qui a suivi
-a suffi à rendre les trois faux avant même le merge de cette PR : `origin/main` pointe
-aujourd'hui vers un autre SHA, avec un autre décompte, et pointera encore ailleurs demain. Ni
-le SHA ni le décompte ne sont repris ici, y compris à titre d'exemple : c'est précisément ce
-que ce paragraphe corrige, et les reproduire ne ferait que déplacer le défaut d'une phrase à
-l'autre.) Sans l'exclusion de
-chemin, la même commande sur `origin/main` est déjà vide aussi tant que cette PR n'est pas
-mergée (`origin/main` ne porte encore aucun des deux chemins) : la différence entre les deux
-formes n'est donc pas visible avant le merge. Elle l'est sur cette branche, où l'un de ses
-commits a introduit la formulation et d'autres — dont celui-ci — l'ont discutée pour la
-retirer : sans l'exclusion, ces commits font passer la commande de vide à non vide ; avec
-elle, le résultat reste vide — que cette branche compte trois commits ou trente, qu'elle soit
-rebasée, squashée ou amendée, et quel que soit ce que `main` accumule pendant ce temps. C'est
-cette propriété, et non une révision ou un décompte figés, qui reste vraie après le merge :
-**en dehors de la lignée de ce document, aucun commit connu du dépôt n'a jamais ajouté ni
-retiré cette formulation.** Le fond de l'affirmation tient donc ; sa méthode de vérification a
-échoué trois fois de suite, chaque correction ayant déplacé le défaut sans l'éliminer : une
-première fois en cherchant sans révision (`git grep` n'interroge jamais l'historique) ; une
-deuxième fois en interrogeant l'historique mais sans exclure ce document de ses propres
-preuves ; une troisième fois — ce paragraphe, avant ce commit — en excluant bien ce document
-mais en figeant le résultat sur une révision et un décompte que la seule avance de `main`
-suffit à réfuter. La condition pour que la vérification tienne cette fois est double :
-exclure ce document de ses propres preuves (déjà fait ci-dessus), et n'énoncer que la
-propriété — la commande rend une sortie vide sur `origin/main`, quelle que soit sa révision —
-jamais une révision ou un décompte précis qui n'en serait qu'une photographie périssable.
+Deux propriétés de cette formulation, et rien d'autre :
 
-L'affirmation n'était de toute façon rattachée à aucune pièce vérifiable et a donc été
-retirée plutôt que reformulée — cette section documente le retrait pour que l'écart reste
-traçable au lieu de disparaître silencieusement.
+- **L'exclusion de chemin est obligatoire, pas décorative.** Ce document contient lui-même
+  la formulation cherchée, pour la citer et la retirer ; son nom de travail avant renommage
+  était `ADR-PROPOSED-INDEPENDENT-AGENT-OWNERSHIP.md`. Sans ces deux exclusions, la commande
+  compterait ce document parmi ses propres preuves — et deviendrait non vide dès le merge de
+  cette PR, c'est-à-dire au moment exact où un lecteur peut la rejouer.
+- **Aucune sortie n'est figée ici, ni SHA de base, ni décompte de commits, ni date de
+  mesure.** Une version antérieure de ce paragraphe figeait les trois comme preuve ; la
+  première avance de `main` a suffi à les rendre faux, avant même le merge. Ce qui est
+  affirmé est la propriété seule : rejouée sur `origin/main`, quelle que soit sa révision,
+  cette commande rend une sortie vide — et le reste après un rebase, un squash ou un amend
+  de cette branche, comme après le merge. Ce qu'elle établit : **en dehors de la lignée de
+  ce document, aucun commit connu du dépôt n'a jamais ajouté ni retiré cette formulation.**
+
+Cette vérification a échoué plusieurs fois avant de tenir, et chaque correction avait
+déplacé le défaut au lieu de l'éliminer : d'abord un `git grep` sans révision, qui
+n'interroge jamais l'historique ; puis un `git log --pickaxe-regex` correct mais sans
+exclure ce document de ses propres preuves ; puis une version antérieure de ce paragraphe,
+qui excluait bien ce document mais figeait le résultat sur une révision et un décompte que
+la seule avance de `main` suffisait à réfuter. Aucun décompte de ces tentatives n'est retenu
+ici : il faudrait le maintenir, et c'est exactement la dette que cette section a pour rôle
+de ne pas contracter.
 
 ## Conséquences
 

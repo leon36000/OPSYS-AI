@@ -2,10 +2,10 @@
 
 Date UTC : `2026-08-27T04:41Z`
 
-Choix éditorial (revue scellée n°2, mineure) : ce fichier avait été mergé avec `UNSET` et
+Choix éditorial (revue scellée n°2, mineure) : ce fichier portait `UNSET` et
 « active : aucun » partout alors que le sync owner de cette même mise au point
-(`WORK-OWNERSHIP.md`, `CLAUDE-STATUS.md`) déclarait déjà 3 lignes actives — contradiction
-interne au même commit. Choix retenu ici : **renseigner ce fichier en cohérence avec
+(`WORK-OWNERSHIP.md`, `CLAUDE-STATUS.md`) déclarait déjà des lignes actives —
+contradiction interne. Choix retenu ici : **renseigner ce fichier en cohérence avec
 `WORK-OWNERSHIP.md`, `CLAUDE-STATUS.md` et `CODEX-STATUS.md`**, plutôt que le neutraliser
 en gabarit vide, parce que README.md confie explicitement ce fichier au sync owner de la
 mise au point (« modifié par un seul sync owner désigné ») et que cette mise au point a
@@ -16,7 +16,9 @@ prochaine mise au point ; il n'est pas touché par ce choix.
 
 Ce résumé hérite donc aussi de la péremption de ses sources : tous les états PR/issue
 cités ci-dessous (« en revue », `#564` vs `#566`, etc.) sont datés du `Date UTC` ci-dessus
-et soumis à la même clause que `coordination/WORK-OWNERSHIP.md:7` — périment dès le
+et soumis à la clause de péremption portée en tête de `coordination/WORK-OWNERSHIP.md`
+(désignée par sa section, pas par un numéro de ligne, qu'une simple édition réfuterait) —
+périment dès le
 prochain commit/push/merge, re-vérifier via `gh` au-delà de 24 h plutôt que de faire
 confiance à la valeur écrite ici. Non répétée en détail à chaque ligne, pour la même
 raison que ci-dessus : un résumé qui redit sa propre péremption à chaque phrase cesse
@@ -54,14 +56,18 @@ Détail et méthode de vérification dans
 
 - Arbitrage PR #564 vs PR #566 (installeur unique de `coordination/`, cf.
   `WORK-OWNERSHIP.md`)
-- Issue #569 : **toujours `OPEN`** au `Date UTC` ci-dessus, mais le gel qu'elle décrivait ne
-  se constate plus (PR #567 mergée à travers le périmètre scellé). Cause réelle documentée
-  en commentaire par le propriétaire du dépôt : la table d'alias du pont de modèles, pas le
-  routeur. Reste à trancher : fermer #569, ou la garder ouverte pour le défaut distinct
-  qu'elle porte désormais (`FORGE_MODEL_BRIDGE_MAX_TOKENS` à 4096)
+- Issue #569 : `OPEN` au `Date UTC` ci-dessus, mais le gel qu'elle décrivait ne
+  se constate plus (PR #567 mergée à travers le périmètre scellé). Cause réelle et défaut
+  d'infrastructure distinct : documentés en commentaire de #569 par le propriétaire du
+  dépôt, à lire à la source plutôt que recopiés ici — un commentaire GitHub se modifie sans
+  que ce fichier en sache rien. Reste à trancher : fermer #569, ou la garder ouverte pour ce
+  défaut distinct
 - Décision sur l'issue #568 (restaurer / retirer / requalifier le fragment orphelin)
 - Gate #541 (layout du canon) pour `AUD-CANON-001`/`AUD-CANON-002`
 
 ## Ownership mis à jour
 
-- oui — `WORK-OWNERSHIP.md` à `2026-08-27T02:14Z`
+- oui — cf. l'horodatage en tête de `coordination/WORK-OWNERSHIP.md`. Valeur non recopiée
+  ici, volontairement : deux fichiers qui ne recopient rien l'un de l'autre ne peuvent pas
+  diverger. Une version antérieure de cette ligne recopiait cette date, et c'est la seule
+  valeur de ce fichier qui avait divergé de sa source.
