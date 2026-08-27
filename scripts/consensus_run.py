@@ -10,6 +10,7 @@ import os
 import subprocess
 import sys
 import threading
+import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
@@ -145,12 +146,33 @@ def _parse_response(raw: str) -> dict:
     return data
 
 
+_SCHEMAS_RESEAU_AUTORISES = frozenset({"http", "https"})
+
+
+def _valider_schema_url(url: str) -> None:
+    """Refuse toute URL dont le schéma n'est pas explicitement autorisé.
+
+    LISTE BLANCHE, jamais liste noire : un schéma inconnu est refusé par défaut.
+    L'URL est construite depuis LITELLM_BASE_URL, une variable d'environnement —
+    rien ne garantit qu'elle porte un schéma réseau, et `file:` serait ouvert par
+    `urlopen` sans cette garde. Extraite en fonction nommée pour être PROUVÉE par
+    scripts/tests/test_consensus_run_scheme.py plutôt qu'affirmée en commentaire.
+    """
+    scheme = urllib.parse.urlsplit(url).scheme
+    if scheme not in _SCHEMAS_RESEAU_AUTORISES:
+        raise TransportError(
+            f"Schéma refusé '{scheme}' pour l'URL issue de la variable d'environnement "
+            "de la passerelle LITELLM_BASE_URL"
+        )
+
+
 def make_real_transport(timeout: int, max_tokens: int):
     base_url = os.environ.get("LITELLM_BASE_URL", "http://localhost:4000").rstrip("/")
     api_key = os.environ.get("LITELLM_API_KEY")  # proof:allow — lecture de variable d'environnement, aucun secret littéral
+    url = base_url + "/v1/chat/completions"
+    _valider_schema_url(url)
 
     def transport(alias: str, prompt: str) -> str:
-        url = base_url + "/v1/chat/completions"
         body = {
             "model": alias,
             "messages": [{"role": "user", "content": prompt}],
@@ -162,7 +184,13 @@ def make_real_transport(timeout: int, max_tokens: int):
         req.add_header("Content-Type", "application/json")
         req.add_header("Authorization", f"Bearer {api_key}")
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
+            # nosec B310 — le schéma est validé en LISTE BLANCHE ({http, https})
+            # aux lignes 153-156, AVANT toute construction de requête : un schéma
+            # file: ou custom lève TransportError et n'atteint jamais urlopen.
+            # bandit est une règle statique qui ne suit pas cette garde en amont ;
+            # la garde est prouvée par
+            # scripts/tests/test_consensus_run_scheme.py, pas affirmée ici.
+            with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310 — schéma validé en liste blanche par _valider_schema_url avant toute requête, prouvé par test_consensus_run_scheme.py
                 resp_text = resp.read().decode("utf-8")
         except urllib.error.HTTPError as exc:
             raise TransportError(f"HTTP {exc.code} depuis la passerelle") from None

@@ -597,3 +597,37 @@ def test_job_avec_continue_on_error_est_toujours_en_defaut_sur_fixture_synthetiq
     }
     en_defaut = _jobs_without_hard_failure(data, {"security"})
     assert en_defaut == ["security"], "continue-on-error masque un exit 1 : doit rester en défaut"
+
+
+def _jobs_du_workflow_core() -> dict[object, object]:
+    """Charge les jobs du workflow réel afin de prouver un câblage structurel."""
+    contenu = yaml.safe_load(_WORKFLOW_PATH.read_text(encoding="utf-8"))
+    assert isinstance(contenu, dict), "core-ci.yml doit être un mapping YAML"
+    jobs = contenu.get("jobs")
+    assert isinstance(jobs, dict), "core-ci.yml doit déclarer un mapping de jobs"
+    return jobs
+
+
+def test_un_job_requis_core_ci_execute_le_gate_no_stub() -> None:
+    """Un gate qu'aucun job requis n'invoque ne garantit rien : le câblage lui-même est gardé."""
+    invocations: list[tuple[object, str]] = []
+    for identifiant, definition in _jobs_du_workflow_core().items():
+        if identifiant not in _CATEGORIES_EXIGEES or not isinstance(definition, dict):
+            continue
+        etapes = definition.get("steps")
+        if not isinstance(etapes, list):
+            continue
+        for etape in etapes:
+            if not isinstance(etape, dict):
+                continue
+            commande = etape.get("run")
+            if isinstance(commande, str) and "scripts/quality/no_stub_gate.py" in commande:
+                invocations.append((identifiant, commande))
+
+    assert invocations, (
+        "aucun job requis de core-ci.yml n'invoque scripts/quality/no_stub_gate.py"
+    )
+    assert any(
+        commande == "python3 scripts/quality/no_stub_gate.py --repo . --base-ref origin/main"
+        for _, commande in invocations
+    ), f"le gate est invoqué mais sous une forme inattendue : {invocations}"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import hmac
 import struct
@@ -19,7 +20,7 @@ def _decode_secret(secret_b32: str) -> bytes:
         secret += "=" * (8 - rem)
     try:
         return base64.b32decode(secret)
-    except (base64.binascii.Error, ValueError):
+    except (binascii.Error, ValueError):
         raise ValueError("secret base32 invalide")
 
 

@@ -100,7 +100,10 @@ class AdminGate:
                 logger.info("Échec de vérification TOTP pour IP %s", ip)
                 return {"autorise": False, "raison": "invalide"}
 
-            # timestep ne peut pas etre None ici car ok est True
+            if timestep is None:
+                logger.error("verify_totp a autorisé un code sans timestep pour IP %s", ip)
+                return {"autorise": False, "raison": "erreur_interne"}
+
             if timestep in self._replay_state[secret_hash]:
                 logger.warning("Tentative de rejeu TOTP pour IP %s", ip)
                 return {"autorise": False, "raison": "rejoue"}
