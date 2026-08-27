@@ -24,7 +24,9 @@ def est_ligne_separatrice(ligne: str) -> bool:
     Ecrit sans quantificateur imbrique, deliberement. La forme regex naturelle
     `^\\|(\\s*:?-{3,}:?\\s*\\|)+$` repete un groupe qui commence ET finit par `\\s*`,
     motif super-lineaire que SonarCloud classe en point chaud de securite (S5852)
-    et qui a fait tomber la Security Rating de cette PR en C.
+    et qui a fait tomber la Security Rating de cette PR en C. Ce verdict-la vient du
+    service et n'est pas re-mesurable depuis ce depot : il est cite comme le motif du
+    changement, pas comme une mesure locale. Ce qui suit, en revanche, l'est.
 
     Mesure honnete : sur des entrees realistes (jusqu'a 22 groupes valides suivis
     d'une queue non conforme) aucune explosion combinatoire n'a ete reproduite —
@@ -62,17 +64,25 @@ class CheminInvalide(ValueError):
 def _chemin_valide(brut: str, *, pour_ecriture: bool = False) -> Path:
     """Valide un chemin AVANT tout acces au systeme de fichiers.
 
-    Motif : SonarCloud remonte deux VULNERABILITY `pythonsecurity:S8707` sur ce
-    module — « LLMs running this code with faulty CLI arguments can escape file
-    system restrictions » — une a la lecture et une a l'ecriture. Les deux lignes
-    viennent du pack amont, mais le fichier etant neuf dans ce depot, 100 % de son
-    contenu compte comme new code et la Security Rating tombe a C.
+    Motif : SonarCloud remonte le motif `pythonsecurity:S8707` sur ce module —
+    « LLMs running this code with faulty CLI arguments can escape file system
+    restrictions » — a la lecture (`Path(args.ownership)`) comme a l'ecriture
+    (`Path(args.json_output).write_text(...)`). Les deux lignes viennent du pack
+    amont, mais le fichier etant neuf dans ce depot, la totalite de son contenu
+    compte comme new code. Comme pour S5852 ci-dessus, ce verdict vient du service
+    et n'est pas re-mesurable depuis ce depot : motif du changement, pas mesure.
 
     Ce validateur ne peut PAS etre confine a l'arborescence du depot : le
     `daily_start.py` du pack l'appelle legitimement sur son propre gabarit, qui
     vit hors du depot (mesure : deux invocations, l'une sur coordination/ du
-    depot, l'autre sur repo-overlay/coordination/ du pack). Confiner casserait
-    l'installation neuve — le defaut qu'on cherche a eviter, en pire.
+    depot, l'autre sur repo-overlay/coordination/ du pack, quand la premiere
+    n'existe pas encore). Confiner casserait l'installation neuve — le defaut qu'on
+    cherche a eviter, en pire. Cette mesure-la, elle, est reproductible : elle se lit
+    dans le source de tools/daily_start.py du pack.
+
+    Codes de sortie : un chemin refuse rend `CHEMIN_INVALIDE:<raison>` et exit 2,
+    distinct de l'exit 1 des erreurs de contenu et de l'exit 0 de COORDINATION_OK.
+    Documente dans coordination/README.md et coordination/CLAUDE-STATUS.md.
 
     La validation porte donc sur la FORME et la NATURE de la cible, pas sur son
     emplacement : octet nul refuse, chemin resolu (les `..` et les liens
@@ -113,11 +123,32 @@ def parse_rows(path: Path) -> tuple[list[dict[str, str]], list[str], bool]:
             # Un document qui documente le format (ex. README, ou cette meme table
             # citee en exemple) peut reciter l'en-tete ou une ligne de table dans un
             # bloc de code : ce n'est pas une table de coordination reelle, ne pas la
-            # compter. Ecart corrige : avant ce commit, une ligne "== HEADER" comptait
-            # partout, y compris ici, et un document qui ne fait que documenter le
-            # format passait a tort en COORDINATION_OK rows=0.
+            # compter. Ecart corrige vis-a-vis du pack : dans la version amont, une
+            # ligne "== HEADER" comptait partout, y compris ici, et un document qui ne
+            # fait que documenter le format passait a tort en COORDINATION_OK rows=0.
             continue
-        if not line.startswith("|") or line.startswith("|---"):
+        # Un seul et meme detecteur decide ce qu'est une ligne de separation, ici
+        # comme dans le controle d'en-tete ci-dessous. La version du pack testait
+        # `line.startswith("|---")`, litteralement, alors que le controle d'en-tete
+        # utilise est_ligne_separatrice : deux notions de separateur dans le meme
+        # fichier, dont une seule etait documentee. Une table ecrite
+        # `| --- | --- |` ou `|:---|---:|` voyait donc son en-tete confirme, puis sa
+        # propre ligne de separation recomptee en ligne de donnees —
+        # `OWNER:---:---`, exit 1. Une table Markdown legitime, rejetee avec un
+        # diagnostic trompeur.
+        #
+        # Mode de defaillance de ce correctif, nomme avant d'etre ecrit : elargir
+        # ce qui est saute peut faire disparaitre EN SILENCE une vraie ligne de
+        # donnees. Le sous-ensemble concerne est exactement celui des lignes dont
+        # TOUTES les cellules sont `---`/`:---`/`---:`/`:---:` — aucune ne porte de
+        # Work ID, donc aucune n'est une entree de coordination reelle. Mesure, sur
+        # l'integralite des fichiers .md du depot et du pack reunis : les seules
+        # lignes separatrices a 7 cellules sont les separateurs des deux vraies
+        # tables, que l'ancien filtre sautait deja ; et aucune ligne ne commence par
+        # `|---` sans etre par ailleurs une ligne de separation valide, donc le
+        # remplacement ne retire le saut a aucune ligne reelle. Le correctif elargit
+        # sans retirer. Detail et contre-exemples dans coordination/CLAUDE-STATUS.md.
+        if not line.startswith("|") or est_ligne_separatrice(line):
             continue
         cells = [c.strip() for c in line.strip("|").split("|")]
         if cells == HEADER:
@@ -139,10 +170,10 @@ def parse_rows(path: Path) -> tuple[list[dict[str, str]], list[str], bool]:
         # referme fait ignorer EN SILENCE toutes les lignes suivantes, donc les
         # collisions de branche et de chemin qu'elles porteraient. Mesure : une
         # table valide suivie d'un `~~~` orphelin puis d'une ligne en collision
-        # rendait COORDINATION_OK exit 0, la ou la version d'avant ce garde-fou
-        # rendait BRANCH_COLLISION + PATH_COLLISION exit 1. Le durcissement du
-        # bloc de code avait donc ouvert un chemin fail-open dans le controle
-        # qu'il pretendait renforcer. Un fence orphelin est une faute de frappe
+        # rendait COORDINATION_OK exit 0, la ou la version du pack — qui ne suit pas
+        # les blocs de code du tout — rend BRANCH_COLLISION + PATH_COLLISION exit 1.
+        # Le durcissement du bloc de code avait donc ouvert un chemin fail-open dans
+        # le controle qu'il pretendait renforcer. Un fence orphelin est une faute de frappe
         # banale dans un fichier Markdown edite a la main, que les rendus
         # absorbent sans rien signaler : il doit rougir, pas passer.
         errors.append("UNTERMINATED_FENCE")

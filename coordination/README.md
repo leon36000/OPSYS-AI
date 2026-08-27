@@ -8,16 +8,39 @@
 - Une tâche, une issue, une branche, un worktree et un owner. Aucun doublon.
 - Entre deux syncs, une issue assignée ou une PR active réserve immédiatement la mission.
 - Le validateur `tools/check_coordination.py` (versionné dans ce dépôt, dérivé du pack
-  `OPSYS-AI-CLAUDE-ISSUES-OPERATIONS-v1.2` — n'en est plus une copie octet-exacte depuis ce
-  commit ; écart fonctionnel documenté dans `coordination/CLAUDE-STATUS.md`) est exécuté
-  avant l'activation d'une nouvelle mission, pas à chaque commande :
+  `OPSYS-AI-CLAUDE-ISSUES-OPERATIONS-v1.2` — **il n'en est pas une copie octet-exacte** ;
+  `diff -u` entre les deux fichiers en donne le détail, écarts documentés dans
+  `coordination/CLAUDE-STATUS.md`) est exécuté avant l'activation d'une nouvelle mission,
+  pas à chaque commande :
   `PYTHONDONTWRITEBYTECODE=1 python3 -B tools/check_coordination.py coordination/WORK-OWNERSHIP.md`
-  (sortie attendue : `COORDINATION_OK rows=<n> active=<n>`).
-  **Ce validateur n'est câblé dans aucun job CI.** Raison assumée, pas un oubli : le
-  câbler toucherait `.github/workflows/`, qui fait partie du périmètre scellé
-  actuellement gelé par l'issue #569 (gate `proof-sealed`, capacité de revue à 1 vendor
-  sur 11, seuil de 3 vendors distincts inatteignable). Tant que ce gel dure, l'exécution
-  reste manuelle et déclarative, à la charge de qui active une mission. Présenter cette
+
+  **Trois codes de sortie, trois significations distinctes.** Un appelant qui teste
+  seulement `!= 0` confond les deux derniers, qui ne veulent pas dire la même chose :
+  - **exit 0** — `COORDINATION_OK rows=<n> active=<n>` : table lue et conforme.
+  - **exit 1** — une erreur par ligne sur la sortie standard : `HEADER_MISSING`,
+    `MALFORMED_ROW:<ligne>:<cellules>`, `WORK_ID_EMPTY`, `DUPLICATE_WORK:<id>`,
+    `OWNER:<id>:<valeur>`, `STATUS:<id>:<valeur>`, `SCOPE:<id>:<valeur>`, `BRANCH:<id>`,
+    `MODULE_CODE_DURING_CORE:<id>`, `CORE_OWNER:<id>:<valeur>`,
+    `ISSUE_OWNER:<id>:<valeur>`, `BRANCH_COLLISION:<a>:<b>`,
+    `PATH_COLLISION:<a>:<b>:<scope-a>:<scope-b>`, `UNTERMINATED_FENCE`. La table a été lue,
+    elle n'est pas conforme.
+  - **exit 2** — `CHEMIN_INVALIDE:<raison>` : la table n'a **jamais été lue**, l'argument de
+    chemin n'a pas passé la validation préalable (fichier inexistant, répertoire fourni à la
+    place d'un fichier, octet nul dans le chemin, ou `--json-output` dont le répertoire
+    parent n'existe pas).
+
+  Le code `2` et le préfixe `CHEMIN_INVALIDE` n'existent pas dans la version du pack, qui
+  laissait remonter un `FileNotFoundError` avec traceback. Motif du changement et portée
+  volontairement **non** confinée à l'arborescence du dépôt — `tools/daily_start.py` du pack
+  valide son propre gabarit, hors dépôt, sur une installation neuve : voir
+  `coordination/CLAUDE-STATUS.md`, écart « `_chemin_valide()` ».
+
+  **Ce validateur n'est câblé dans aucun job CI.** Raison assumée, pas un oubli : le câbler
+  modifierait `.github/workflows/ci.yml`, un fichier **existant** du dépôt, alors que le
+  cinquième critère d'acceptation de l'issue #563 exige « aucun fichier existant du dépôt
+  n'est modifié ». Le câblage relève donc d'une mission séparée, ouverte après le merge de
+  #564, et non d'un ajout ici. Tant qu'il n'a pas lieu, l'exécution reste manuelle et
+  déclarative, à la charge de qui active une mission. Présenter cette
   garde comme câblée en CI serait exactement le défaut que l'issue #568 a documenté pour
   un autre validateur (fragment jamais branché nulle part) — on ne le reproduit pas ici :
   la limite est écrite, pas cachée. Autre limite, plus décisive, à ne pas taire non plus :
