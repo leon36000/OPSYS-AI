@@ -1,0 +1,70 @@
+{
+  "task_id": "EXT-AUD-001-A1-R12-CANDIDATE",
+  "description": "Candidat R12 pour la réconciliation documentaire de l'issue #541; le changement établit l'index du canon Core actif et marque les anciens bootstrap comme superseded, sans promotion canonique ni changement des modules M1–M10.",
+  "issue": "https://github.com/leon36000/OPSYS-AI/issues/541",
+  "pull_request": "https://github.com/leon36000/OPSYS-AI/pull/566",
+  "branche": "forgeai/manual-opsys-ai-r12-canon-integration-20260826021235",
+  "base": "origin/main @ 31fa54976443f7413f705776dbd8a8af1cdfa872",
+  "head": "b0831bfabad03936b7e5eb539f540acb8aa2b243",
+  "tree": "efd6cd5c037faf5b404e202c36b3518366f296b8",
+  "code_diff_sha256": "5a238dd51ec05382d9f96a4e4bcbf0cf844a9deff84cdeb7aa351c0daf1969d9",
+  "code_diff_sha256_note": "Hash produit par core/scripts/verify_proof_sealed.py --emit-code-diff-sha256 après synchronisation origin/main. Seul le fichier core/tests/bootstrap/test_root_canon_entrypoints.py est dans le périmètre scellé du diff; les docs restent hors de ce hash.",
+  "archive_verification": {
+    "core_sha256": "verified externally from /home/pc1/OPSYS-AI-CODEX-CORE-OPERATIONS-v1.2.zip.sha256",
+    "r12_sha256": "verified externally from /home/pc1/Bureau/OPSYS-AI-R12-CHATGPT-CANON-PATCH.zip.sha256",
+    "core_manifest": "48/48 entries matched",
+    "r12_manifest": "5/5 entries matched"
+  },
+  "verification": {
+    "red_targeted": "4 failed on baseline ad38bfd before the five non-test patch files were applied",
+    "green_targeted": "4 passed",
+    "git_apply_check": "0",
+    "git_diff_check": "0",
+    "structure_lint": "VERT",
+    "scripts_tests": "35 passed",
+    "ledger_verify": "VERT",
+    "statut_lint": "VERT",
+    "bootstrap_architecture_tests": "211 passed",
+    "security": "VERT: bandit 0 findings; pip-audit 0 vulnerabilities",
+    "types": "2 known baseline errors, 0 new errors under the repository baseline",
+    "core_persistence_tests": "BLOCKED locally: Docker daemon returned unsupported protocol while starting ephemeral PostgreSQL; no test was skipped",
+    "pack_validation": "ROUGE locally for the same Docker runtime blocker",
+    "proof_sealed": "FAIL: no committed review verdicts; https://github.com/leon36000/OPSYS-AI/actions/runs/32923120560/job/98040496614",
+    "github_core_ci": {
+      "run": "https://github.com/leon36000/OPSYS-AI/actions/runs/32923120560",
+      "head": "b932ca47899faf8f3c944ea463dbbb78f90edf27",
+      "tests": "PASS",
+      "types": "PASS",
+      "security": "PASS",
+      "pack_validation": "PASS",
+      "proof_sealed": "FAIL: no committed review verdicts"
+    },
+    "github_gates": {
+      "run": "https://github.com/leon36000/OPSYS-AI/actions/runs/32923120574",
+      "head": "b932ca47899faf8f3c944ea463dbbb78f90edf27",
+      "gates": "PASS",
+      "e2e": "PASS",
+      "e2e_load": "PASS"
+    },
+    "github_external_checks": {
+      "head": "b932ca47899faf8f3c944ea463dbbb78f90edf27",
+      "sonarcloud": "PASS: https://sonarcloud.io/dashboard?id=leon36000_OPSYS-AI&pullRequest=566",
+      "gitguardian": "PASS"
+    },
+    "live_core_reconciliation": {
+      "snapshot": "/tmp/opsys-codex-live-snapshot-20260826-r12-final.json",
+      "observed_at": "2026-08-26T02:39:29.448291+00:00",
+      "registry_tasks": 148,
+      "unique_live_issue_matches": 148,
+      "status_verified": 28,
+      "status_in_review": 1,
+      "status_blocked": 119,
+      "free_ready_candidates": 0,
+      "frontier": "Static dependency frontier C05-004 / issue #339 is already OPEN/status:in-review with external implementation/evidence; no free READY task and no new reservation is authorized"
+    },
+    "nathan_validation": "PENDING",
+    "external_review": "PENDING"
+  },
+  "reviews": {},
+  "promotion": "BLOCKED: draft candidate only; issue #541 forbids canonical promotion before Nathan validation and external review."
+}

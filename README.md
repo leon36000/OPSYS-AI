@@ -1,34 +1,63 @@
-# OPSYS-AI / Systèmes complets d'automatisation d'entreprise par intelligence artificielle
+# OPSYS-AI — Core d'automatisation d'entreprise
 
-Core d'entreprise autonome, clé en main. Ce repo exécute la méthode **PROOF STACK v1.1** (kit `GRS_KIT_DEMARRAGE_v1.0`, ratifié D-039). Source de vérité : le plan maître `docs/GRS_Plan_Squelette_Maitre_v1.1_PERFECTION.pdf`.
+OPSYS-AI construit un Core d'entreprise autoritatif et installable avant la
+complétion des modules métier. Le programme actif est **Core v2.3.0**.
 
-## Profils d'installation (D-043)
+## Commencer ici
 
-- **infra-existante** : branchement sur passerelle LLM, Langfuse, base vectorielle et PostgreSQL fournis par l'hôte.
-- **starter** : auto-déploiement des prérequis en conteneurs (à venir en Phase 0/P0-2).
+1. Lire `docs/core/CANON-INDEX.md`.
+2. Lire les ADR actives sous `docs/decisions/`.
+3. Pour une mission Core, utiliser
+   `.opsys/core-control/2.3.0/TASK-REGISTRY.jsonl` et
+   `.opsys/core-control/2.3.0/DEPENDENCY-GRAPH.json`.
+4. Travailler depuis l'issue GitHub unique, une branche et un worktree dédiés ;
+   prouver RED, GREEN, rollback et résultat lié au commit/tree exacts.
 
-## Démarrage
+## Ordre du programme
 
-Le repo est déjà câblé, `main` est protégée. Ordre d'exécution :
+```text
+Core C00 → C24
+→ M7 → M1 → M2 → M4 → M3 → M6 → M8 → M10 → M5 → M9
+→ surfaces mobile, cockpit et avatar finales
+```
 
-1. Phase C — consensus outillé (`python3 scripts/consensus_run.py --mock`, puis mode live après configuration de la passerelle et rotation de la clef).
-2. Phase 0 — dans l'ordre v1.1 (P0-1 → P0-4 → P0-2 → P0-3/P0-6 → tests des scripts de méthode → harnais e2e → … → P0-10).
-3. Story pilote **M7-S000** (mode ombre, ≤ 1 h).
-4. M7 vague 1 — fondations sans dépendances.
+Pendant le Core, aucune logique métier M1–M10 n'est complétée. La recherche et
+les plans candidats restent permis ; chaque module sera ensuite traité un par
+un, intégré, testé et prouvé.
 
-Suivre `PROMPT_BOOTSTRAP_CLAUDE_CODE.md` sans sauter d'étape.
+## Architecture de référence
 
-## Sources de vérité
+- modular monolith Python/PostgreSQL ;
+- ports explicites et workers isolés seulement lorsque nécessaires ;
+- DomainEvent, ActionIntent, Query et Receipt/Postcondition ;
+- outbox/inbox, idempotence, déduplication, DLQ, compensation,
+  réconciliation et `IN_DOUBT` ;
+- frameworks soumis à tournoi et aucun downgrade silencieux.
 
-- Plan maître : `docs/GRS_Plan_Squelette_Maitre_v1.1_PERFECTION.pdf` (28 p., nom historique GRS).
-- Pack Phase C : `PACK_CONSENSUS_GRS_v2.md`.
-- Constitution d'exécution : `00-DIGEST.md` + `docs/canon/REGLES.md`.
+Voir `docs/core/CORE-CANON-v2.md` et
+`docs/core/CORE-NON-GOALS-v2.md` pour les frontières exactes.
 
-## ForgeAI PROOF IDE System
+## Développement et preuve
 
-Les fichiers `VISION.md`, `FORGE_METHOD.md`, `IMPLEMENTATION_SPEC.md`, `RECONCILIATION.md`, `START_HERE.md` et `config.ini.example` présents à la racine sont le référentiel d'un **produit-méthode distinct** (chantier séparé). Ils ne gouvernent pas l'exécution de ce repo, qui suit PROOF STACK v1.1 du kit (cf. ADR-0002).
+- jamais de push direct sur la branche par défaut ;
+- tests ciblés pendant la boucle, contrôles lourds au gate de phase/release ;
+- aucun stub, faux succès, timeout masqué ou dépendance non qualifiée ;
+- une issue fermée ou un consensus LLM ne constituent pas une preuve ;
+- PostgreSQL de test dédié, éphémère et isolé ; jamais les bases d'un autre
+  service présent sur l'hôte.
+
+## Historique conservé
+
+Le plan GRS/PROOF STACK v1.1, la Phase C historique, `START_HERE.md` et
+`PROMPT_BOOTSTRAP_CLAUDE_CODE.md` sont conservés pour provenance. Ils sont
+**superseded comme points d'entrée opérationnels** par
+`docs/core/CANON-INDEX.md`.
+
+Les fichiers `VISION.md`, `FORGE_METHOD.md`, `IMPLEMENTATION_SPEC.md` et
+`RECONCILIATION.md` décrivent un produit-méthode distinct ; ils ne gouvernent
+pas l'exécution du Core OPSYS-AI.
 
 ## Licence
 
-Apache-2.0
-
+Voir `LICENSE`. Toute contradiction entre le fichier de licence et les
+métadonnées de packaging doit être résolue explicitement avant publication.

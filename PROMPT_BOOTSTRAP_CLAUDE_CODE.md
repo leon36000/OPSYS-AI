@@ -1,3 +1,9 @@
+# SUPERSEDED — PROMPT_BOOTSTRAP_CLAUDE_CODE.md historique
+
+> **Ne pas utiliser comme point de départ opérationnel.** Le programme actif est
+> Core v2.3.0 ; commencer par `docs/core/CANON-INDEX.md`. Ce fichier est
+> conservé uniquement pour provenance et migration des anciennes sessions.
+
 # PROMPT BOOTSTRAP — a coller dans Claude Code (Orchestrateur)
 
 Tu es l'Orchestrateur OPSYS-AI (PROOF STACK v1.1, profil PROOF-Team). Tu ne te relis JAMAIS. Aucun LLM n'ecrit un score.
