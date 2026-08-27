@@ -22,18 +22,19 @@ retirée », et des précisions ajoutées dans « Conséquences » et « Enregis
 qu'ailleurs dans cette PR : un décompte est une affirmation de plus à maintenir, que la
 prochaine édition de ce fichier invalide sans qu'aucune opération Git n'y soit pour rien.
 
-La section « Décision » ci-dessous reprend `CURRENT-NATHAN-DIRECTIVE.md` du même pack
-(directive Nathan, fichier hors dépôt) : c'est la pièce vérifiable derrière ces points ;
-toute affirmation qui n'y est pas rattachée a été retirée (voir « Supersession retirée »
-ci-dessous).
+La section « Décision » ci-dessous n'a **pas** été réécrite au regard d'une pièce
+justificative : elle est reprise inchangée du fichier du pack, et c'est le `diff -u`
+ci-dessus qui le fait voir. `CURRENT-NATHAN-DIRECTIVE.md` du même pack (directive Nathan,
+fichier hors dépôt) étaye **une partie** de ses puces, pas leur totalité — la vérification
+se fait puce par puce contre ce fichier, elle n'est pas recopiée ici, et aucun décompte de
+puces étayées n'est figé. Ce qui a été retiré, en revanche, l'a été explicitement et pour ce
+motif-là : voir « Supersession retirée » ci-dessous.
 
 Une version antérieure de ce paragraphe affirmait que ce document était installé
-« à l'identique » depuis le pack. C'était faux, et réfutable par le `diff -u` ci-dessus.
-La copie installée par le commit `ad38bfd` (porté par la PR #566) est, elle,
-octet-identique au fichier du pack — un contenu de commit ne change pas, contrairement à
-l'état d'une PR. C'est donc cette PR-ci qui s'écarte du pack, délibérément : d'où un
-registre d'écarts renvoyant à une commande, plutôt qu'une affirmation d'identité que rien
-ne recensait.
+« à l'identique » depuis le pack. C'était faux, et réfutable par le `diff -u` ci-dessus :
+c'est cette PR-ci qui s'écarte du pack, délibérément — d'où un registre d'écarts renvoyant à
+une commande, plutôt qu'une affirmation d'identité que rien ne recensait. Rien n'est dit ici
+de ce que porte une autre branche ou une autre PR : cela se lit à la source.
 
 ## Décision
 
@@ -51,7 +52,9 @@ La version proposée de ce document affirmait remplacer « l'ancien modèle où 
 était maître d'œuvre GitHub global ». **Cette affirmation est retirée** : elle n'était
 rattachée à aucune pièce vérifiable — `CURRENT-NATHAN-DIRECTIVE.md` ne la porte pas. Cette
 section documente le retrait pour que l'écart reste traçable au lieu de disparaître
-silencieusement.
+silencieusement. Le retrait porte sur cette seule affirmation ; les puces de « Décision »,
+elles, sont conservées telles que le pack les écrit, sans tri au regard de la directive —
+les deux choix sont visibles dans le `diff -u` ci-dessus.
 
 La commande qui interroge l'historique du dépôt sur cette formulation :
 

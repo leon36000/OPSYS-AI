@@ -53,9 +53,10 @@
   modifierait `.github/workflows/ci.yml`, un fichier **existant** du dépôt, et romprait la
   propriété que cette PR maintient — elle est purement additive, ce qui se re-mesure par
   `git diff --name-status origin/main...HEAD`, dont toutes les lignes portent le statut `A`.
-  C'est aussi ce qu'exige l'issue #563 (« aucun fichier existant du dépôt n'est modifié »),
-  mais la propriété se vérifie sans elle. Le câblage relève donc d'une mission séparée,
-  ouverte après le merge de #564, et non d'un ajout ici. Tant qu'il n'a pas lieu, l'exécution reste manuelle et
+  C'est aussi ce qu'exige l'issue **#563**, mais la propriété se vérifie sans elle : son
+  énoncé n'est pas recopié ici, `gh issue view 563` fait foi. Le câblage relève donc d'une
+  mission séparée, ouverte après le merge de #564, et non d'un ajout ici. Tant qu'il n'a pas
+  lieu, l'exécution reste manuelle et
   déclarative, à la charge de qui active une mission. Présenter cette
   garde comme câblée en CI alors qu'elle ne l'est pas serait le défaut d'un validateur
   livré sans être branché nulle part — on ne le reproduit pas ici : la limite est écrite,
@@ -67,15 +68,22 @@
   une date `Updated UTC` remontant à des années ne font échouer aucune de ces vérifications :
   le validateur ne consulte jamais `gh`. Seule la re-vérification manuelle (`gh pr view <n>` /
   `gh issue view <n>`, cf. `WORK-OWNERSHIP.md`) donne la concordance GitHub ;
-  `COORDINATION_OK` n'en tient pas lieu. Troisième limite, du même ordre : ce qui est écrit
-  **à l'intérieur d'un bloc de code** n'est jamais lu comme une ligne de table — donc jamais
-  vérifié. Encadrer des lignes de coordination réelles par une paire de clôtures de bloc de
-  code **du même marqueur** (trois apostrophes inverses des deux côtés, ou `~~~` des deux
-  côtés) les fait disparaître du décompte et de la détection de collision, sans aucun
+  `COORDINATION_OK` n'en tient pas lieu. Troisième limite, du même ordre, et **restreinte
+  aux blocs de code clôturés** : ce qui est écrit entre deux clôtures (trois apostrophes
+  inverses, ou `~~~`) n'est jamais lu comme une ligne de table — donc jamais vérifié.
+  Encadrer des lignes de coordination réelles par une paire de clôtures **du même
+  marqueur** les fait disparaître du décompte et de la détection de collision, sans aucun
   signalement (détail et mesure dans `coordination/CLAUDE-STATUS.md`). Un marqueur ouvrant
   qui n'est pas refermé par le **même** marqueur rend `UNTERMINATED_FENCE`, exit 1.
+  Cette restriction n'est pas rhétorique : les blocs de code **indentés** (quatre espaces)
+  ne sont pas suivis du tout, l'indentation étant effacée avant tout test. Mesuré — un
+  document qui ne documente le format que dans un bloc indenté rend
+  `COORDINATION_OK rows=0 active=0`, exit 0, là où le même contenu en bloc clôturé rend
+  `HEADER_MISSING`, exit 1 ; et des lignes de données indentées de quatre espaces sont
+  comptées comme de vraies lignes, collisions comprises. Pour soustraire des lignes à la
+  lecture, seule une paire de clôtures fait ce qu'elle annonce.
 - `.claude/settings.example.json` est un **exemple** à copier puis adapter. Ne jamais
-  l'écraser sur `.claude/settings.json` : ce dernier porte les hooks d'enforcement
-  réels de la session (`SessionStart`, `UserPromptSubmit`, `PreToolUse` sur `Bash`) ; une
-  copie brute de l'exemple les supprimerait silencieusement. Détail des écarts entre les
-  deux fichiers dans `coordination/CLAUDE-STATUS.md`.
+  l'écraser sur `.claude/settings.json` : ce dernier est un fichier préexistant du dépôt,
+  que cette PR ne modifie pas, et une copie brute de l'exemple en remplacerait le contenu
+  **quel qu'il soit**, sans avertissement. Son contenu n'est pas recopié ici. Détail des
+  écarts entre l'exemple et son homologue du pack dans `coordination/CLAUDE-STATUS.md`.

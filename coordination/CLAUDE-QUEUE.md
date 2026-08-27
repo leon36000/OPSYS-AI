@@ -17,9 +17,9 @@ d'installation dépendant de la machine, sous la forme
 `$OPSYS_PACK/data/CLAUDE-BACKLOG.csv` où `$OPSYS_PACK` désigne le répertoire où le pack
 a été dépaqueté — non versionné dans ce dépôt, chemin non portable tel quel). Elle n'est
 donc pas résoluble depuis un checkout propre de ce dépôt ; c'est un renvoi documenté vers
-une source externe, et aucun outil versionné ici ne tente de l'ouvrir — propriété
-re-mesurable : `grep -rn --exclude-dir=.git 'CLAUDE-BACKLOG' .` ne renvoie que ce
-paragraphe. Les
+une source externe. Qui, dans ce dépôt, mentionne ce chemin se relève par
+`grep -rn --exclude-dir=.git 'CLAUDE-BACKLOG' .` — commande à rejouer plutôt qu'à croire,
+aucune sortie n'étant figée ici. Les
 lignes `CODEX_BOUND` sont exclues de la queue Claude, même si elles proviennent d'une
 issue d'audit.
 
