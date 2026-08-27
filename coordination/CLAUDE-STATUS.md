@@ -74,9 +74,10 @@ réelles et vérifiables de ce dépôt :
   fichier commité.
 - **restructure** (restructuration/packaging/nettoyage prouvé) : **aucune mission
   numérotée n'a encore exercé ce rôle**. Le candidat le plus proche est l'issue **#568**
-  (AUD-CORE-005, fragment de packaging orphelin `.opsys/tools/github-control`), mais
-  cette investigation s'est arrêtée en `BLOCKED` — aucun fichier modifié, aucune PR.
-  Ne pas compter #568 comme une preuve d'exécution du rôle restructure.
+  (AUD-CORE-005), mais l'investigation menée pendant cette campagne s'est arrêtée avant
+  tout code — fait local et passé, qui ne se périme pas. Ne pas compter #568 comme une
+  preuve d'exécution du rôle restructure. Son état et son contenu ne sont pas recopiés
+  ici : `gh issue view 568` fait foi.
 
 **Ce qui N'EST PAS prouvé, et reste un écart nommé** — que le chargeur natif
 `.claude/agents/` de Claude Code honore réellement, pour ces fichiers, les champs de
@@ -177,7 +178,8 @@ retiré plutôt que recorrigé, parce qu'une affirmation ancrée sur un rang de 
 survit ni à un rebase, ni à un squash, ni à un amend, alors que la propriété « diffère du
 pack » y survit, et survit aussi à toute avance de `main`.
 
-Écarts, par ordre d'apparition dans le fichier :
+Écarts (l'ordre des sections ci-dessous ne suit aucun ordre du fichier source ; c'est
+`diff -u` qui fait autorité sur le diff réel) :
 
 ### `est_ligne_separatrice()` / `_est_cellule_separatrice()` — une seule notion de « ligne de séparation »
 
@@ -194,21 +196,41 @@ pack » y survit, et survit aussi à toute avance de `main`.
 - **Correctif** : le filtre de `parse_rows()` appelle `est_ligne_separatrice()` au lieu de
   tester le préfixe. Un seul détecteur décide, pour le filtre comme pour le contrôle
   d'en-tête.
-- **Deuxième asymétrie du même genre, corrigée ici** : les pipes de bord sont optionnels en
+- **Deuxième asymétrie du même genre, corrigée ici — pipe FINAL** : il est optionnel en
   GFM, et `parse_rows()` en tenait déjà compte pour les lignes de données et l'en-tête
-  (`line.strip("|")`) — mais `est_ligne_separatrice()` exigeait les deux. Une table à pipe
-  initial sans pipe final, forme parfaitement légale, était donc rejetée avec un diagnostic
-  trompeur. Mesuré sur la fixture correspondante (hors dépôt) :
+  (`line.strip("|")`) — mais `est_ligne_separatrice()` exigeait les deux pipes de bord.
+  Une table à pipe initial sans pipe final, forme parfaitement légale, était donc rejetée
+  avec un diagnostic trompeur. Mesuré sur la fixture correspondante (hors dépôt) :
   ce fichier rendait `HEADER_MISSING` + `OWNER:---:---` + `STATUS:---:---`, exit 1, là où la
   version du pack rend `COORDINATION_OK rows=1 active=1`, exit 0 — une régression de ce
   dépôt vis-à-vis du pack, pas un défaut hérité. À HEAD, les deux rendent
   `COORDINATION_OK rows=1 active=1`, exit 0.
-- **Mode de défaillance de cet élargissement, nommé avant d'être écrit** : accepter les
-  pipes de bord optionnels ferait passer `---` seul (barre horizontale Markdown, délimiteur
-  de front-matter YAML) pour une ligne de séparation — et un en-tête cité en prose suivi
-  d'une barre horizontale annulerait alors le durcissement `HEADER_MISSING`. D'où
-  l'exigence d'au moins un `|` dans la ligne. **Prouvé par fixture, pas déduit** : un
-  document réduit à la ligne d'en-tête suivie de `---` rend `HEADER_MISSING`, exit 1.
+- **Relâchement introduit avec ce correctif, mesuré et refermé — pipe INITIAL** : rendre le
+  pipe final optionnel avait été fait en n'exigeant qu'un `|` **n'importe où** dans la
+  ligne, et la documentation justifiait cet élargissement par une symétrie avec les lignes
+  de données. **Cette symétrie n'existait pas** : `parse_rows()` exige, lui, un pipe
+  *initial* (`line.startswith("|")`), dans ce fichier comme dans la version du pack.
+  Conséquence
+  mesurée de l'asymétrie, fixture (hors dépôt) « en-tête avec pipe initial, séparateur et
+  deux lignes `ACTIVE` en collision de branche **et** de chemin sans pipe initial » : le
+  séparateur validait `header_found`, puis le filtre écartait toutes les lignes de données —
+  `COORDINATION_OK rows=0 active=0`, exit 0, sur un document qui porte visiblement des
+  lignes. **Ce n'est pas une régression vis-à-vis du pack** : mesuré des deux côtés, la
+  version du pack rend `COORDINATION_OK rows=0 active=0`, exit 0 sur la même fixture (elle
+  ne connaît pas `HEADER_MISSING`). C'est un silence hérité du pack, refermé ici, et un
+  relâchement vis-à-vis de la révision précédente de cette branche. Correctif :
+  `est_ligne_separatrice()` exige à son tour le pipe initial. La symétrie annoncée devient
+  alors réelle, dans les deux sens — **pipe initial requis des deux côtés, pipe final
+  optionnel des deux côtés** — et la fixture rend `HEADER_MISSING`, exit 1.
+- **Mode de défaillance nommé avant d'être écrit** : rendre les pipes de bord entièrement
+  optionnels ferait passer `---` seul (barre horizontale Markdown, délimiteur de
+  front-matter YAML) pour une ligne de séparation — et un en-tête cité en prose suivi d'une
+  barre horizontale annulerait alors le durcissement `HEADER_MISSING`. Le pipe initial
+  requis l'exclut. Table de vérité mesurée, à rejouer plutôt qu'à croire (`|---|` → vrai ;
+  `|---|---` → vrai ; `| --- | --- |` → vrai ; `|:---|---:|` → vrai ; `--- | --- | ---` →
+  faux ; `---|---` → faux ; `---` → faux ; `|--- foo` → faux). **Prouvé par fixture, pas
+  déduit** : un document réduit à la ligne d'en-tête suivie de `---` rend `HEADER_MISSING`,
+  exit 1.
 - **Mode de défaillance du remplacement du préfixe, nommé avant d'être écrit** : élargir ce
   qui est sauté peut faire disparaître **en silence** une vraie ligne de données. Deux
   propriétés de construction bornent le risque, sans dépendre d'aucun corpus :
@@ -272,20 +294,43 @@ pack » y survit, et survit aussi à toute avance de `main`.
   un fence orphelin est une faute de frappe, d'où le traitement différent de ce dernier
   (`UNTERMINATED_FENCE`, exit 1). Cette limite est une propriété du validateur, pas un oubli :
   `COORDINATION_OK` n'atteste rien de ce qui est écrit à l'intérieur d'un bloc de code.
+- **Deux clôtures orphelines de marqueurs différents — défaut préexistant, refermé ici.**
+  Le suivi de bloc de code était une bascule aveugle : elle ne distinguait pas les trois
+  apostrophes inverses de `~~~`, de sorte que deux clôtures orphelines de marqueurs
+  différents s'annulaient. Aucune `UNTERMINATED_FENCE` n'était levée, et la ligne avalée
+  entre les deux disparaissait avec sa collision — alors que le commentaire du code
+  annonçait « fail-closed … un fence orphelin doit rougir ». Le code disait donc autre
+  chose que ce qu'il faisait. Mesuré, fixture « table valide, clôture orpheline en trois
+  apostrophes inverses, ligne en collision, `~~~` orphelin » : ce dépôt
+  rendait `COORDINATION_OK rows=1 active=1`, exit 0, là où la version du pack rend
+  `BRANCH_COLLISION` + `PATH_COLLISION`, exit 1. **Choix : apparier les marqueurs** plutôt
+  qu'écrire la limite à côté de la fail-open — seul un marqueur identique referme, comme en
+  CommonMark, dont ce suivi ne reprend que ce point (ni la longueur du marqueur, ni
+  l'info-string) ; cela referme un chemin fail-open au lieu d'en documenter un de plus. Après
+  correctif, la même fixture rend `UNTERMINATED_FENCE`, exit 1. La contrepartie du point
+  précédent est inchangée et reste ouverte : elle vaut pour une paire équilibrée de
+  marqueurs **identiques**.
 - **Comportement mesuré à HEAD** (et non « après tel commit » : ces valeurs sont
   re-mesurables à tout instant, la formulation ne dépend d'aucun rang de commit) —
   gabarit du pack `repo-overlay/coordination/WORK-OWNERSHIP.md` →
   `COORDINATION_OK rows=0 active=0`, exit 0 ; `coordination/WORK-OWNERSHIP.md` de ce dépôt →
-  `COORDINATION_OK rows=9 active=2` (les deux lignes `REVIEW`/`ACTIVE`, cf. « Active »
-  ci-dessus) ; `coordination/DAILY-SYNC.md`, `coordination/24H-UPDATE-TEMPLATE.md` et
+  `COORDINATION_OK rows=9 active=2` (les deux lignes `REVIEW`/`ACTIVE`, cf. la section
+  « Active » de ce fichier) ; `coordination/DAILY-SYNC.md`, `coordination/24H-UPDATE-TEMPLATE.md` et
   `coordination/README.md` → `HEADER_MISSING`, exit 1 ; fixture « en-tête cité dans un bloc
   de code » → `HEADER_MISSING`, exit 1, là où la version du pack rend
   `COORDINATION_OK rows=0 active=0`, exit 0 ; fixture « en-tête suivi d'une barre `---` » →
   `HEADER_MISSING`, exit 1 ; fixtures « séparateur espacé », « séparateur aligné » et
-  « table GFM sans pipe final » → `COORDINATION_OK rows=1 active=1`, exit 0.
-  La non-régression sur le gabarit du pack est la plus critique de la liste : la casser
-  interdirait toute installation neuve, `tools/daily_start.py` du pack validant ce gabarit
-  quand `coordination/WORK-OWNERSHIP.md` n'existe pas encore.
+  « table GFM avec pipe initial, sans pipe final » → `COORDINATION_OK rows=1 active=1`,
+  exit 0 ; fixture « en-tête avec pipe initial, séparateur et deux lignes en collision sans
+  pipe initial » → `HEADER_MISSING`, exit 1, là où la version du pack rend
+  `COORDINATION_OK rows=0 active=0`, exit 0 ; fixture « deux clôtures orphelines de
+  marqueurs différents autour d'une ligne en collision » → `UNTERMINATED_FENCE`, exit 1.
+  La non-régression sur le gabarit du pack est la plus critique de la liste, parce que ce
+  gabarit est ce que le **rôle** du validateur doit accepter sur une installation neuve.
+  Ce n'est pas ce fichier-ci que `tools/daily_start.py` du pack exécute : mesuré dans son
+  source, toutes ses invocations pointent sur `<pack>/tools/check_coordination.py`. Casser
+  la copie de ce dépôt ne peut donc pas bloquer une installation neuve — une version
+  antérieure de cette phrase l'affirmait, à tort.
 - **Cas du fichier inexistant — comportement réel, re-mesuré** : une version antérieure de
   cette section le donnait comme une « limite non résolue », avec `FileNotFoundError` non
   interceptée, traceback et exit 1, en ajoutant que « ce correctif ne change pas ce
@@ -340,15 +385,20 @@ pack » y survit, et survit aussi à toute avance de `main`.
   totalité de son contenu compte comme *new code*. **Le verdict SonarCloud lui-même n'est
   pas re-mesurable depuis ce dépôt** (il vient du service, pas d'un outil local) : il est
   cité comme le motif du changement, pas comme une mesure de cette section.
-- **Portée volontairement NON confinée à l'arborescence du dépôt.** C'est l'écart à
-  comprendre avant tout le reste : `tools/daily_start.py` du pack appelle ce même validateur
-  sur **son propre gabarit**, qui vit hors du dépôt. Mesuré dans le source du pack : il
-  l'invoque sur `<repo>/coordination/WORK-OWNERSHIP.md`, et sur
-  `<pack>/repo-overlay/coordination/WORK-OWNERSHIP.md` quand la première cible n'existe pas encore.
-  Confiner la validation à l'arborescence du dépôt **casserait l'installation neuve** : le
-  défaut qu'on cherche à éviter, en pire. La validation porte donc sur la **forme** et la
+- **Portée volontairement NON confinée à l'arborescence du dépôt.** L'argument porte sur le
+  **rôle** du validateur, pas sur une exécution de ce fichier-ci. Mesuré dans le source de
+  `tools/daily_start.py` du pack : toutes ses invocations pointent sur
+  `<pack>/tools/check_coordination.py`, **jamais** sur `<repo>/tools/check_coordination.py` ;
+  les *cibles*, elles, sont `<repo>/coordination/WORK-OWNERSHIP.md` et, quand la première
+  n'existe pas encore, `<pack>/repo-overlay/coordination/WORK-OWNERSHIP.md`, hors du dépôt.
+  Une copie confinée à l'arborescence du dépôt serait donc **inutilisable dans ce rôle** —
+  c'est ce qui motive la portée. Ce qui **n'est pas** affirmé, et qu'une version antérieure
+  de ce paragraphe affirmait à tort : que casser *ce* fichier interdirait une installation
+  neuve. `daily_start.py` ne l'exécute pas. La validation porte sur la **forme** et la
   **nature** de la cible, jamais sur son emplacement.
-- **Ce qui est refusé, mesuré** : octet nul dans le chemin ; chemin non résolvable ;
+- **Ce qui est refusé, mesuré** : octet nul dans le chemin (non atteignable via `argv`, où
+  l'OS interdit l'octet nul — mesuré par appel direct de `_chemin_valide`) ; chemin non
+  résolvable ;
   cible de lecture qui n'est pas un fichier régulier (un répertoire, notamment) ; en
   écriture, répertoire parent inexistant, ou cible existante qui n'est pas un fichier
   régulier. Les `..` et les liens symboliques sont aplatis par `resolve()` **avant** tout
@@ -469,8 +519,20 @@ incomplète sans qu'aucun fait réel n'ait changé. Ce que l'on peut recenser de
 ## Next
 
 `AUD-CI-002` (épinglage SHA des actions) porte l'issue **#576**, ouverte le
-2026-08-27T04:29:11Z : `actions/setup-python` n'est pas
-épinglé par SHA dans `ci.yml`, et aucun oracle ne couvre ce workflow. Les conditions
+2026-08-27T04:29:11Z. Ce qu'aucun oracle ne couvre est l'**épinglage par SHA des actions
+de `ci.yml`** — et non le workflow `ci.yml` lui-même, qui a bien un oracle. Propriété
+re-mesurable, à rejouer plutôt qu'à croire :
+`grep -rn 'def test_.*epingl' core/tests/` recense les contrôles d'épinglage, et
+`grep -rn '_WORKFLOW_PATH = ' core/tests/bootstrap/` dit sur quel workflow chacun porte.
+Au moment de cette mesure, le seul contrôle d'épinglage visant un workflow réel est
+`test_toutes_les_actions_du_workflow_core_sont_epinglees_par_sha`, dans
+`test_ci_contract.py`, dont le `_WORKFLOW_PATH` est `core-ci.yml` ; et
+`grep -rni 'epingl\|_sha' core/tests/bootstrap/test_ci_gating_contract.py` — le fichier
+qui porte, lui, sur `ci.yml` — ne renvoie aucune ligne. Une version antérieure de ce
+paragraphe affirmait qu'« aucun oracle ne couvre ce workflow » : faux, et contredit par le
+relevé du périmètre de #567 fait ailleurs dans ce fichier et dans `WORK-OWNERSHIP.md`, qui
+nomme `core/tests/bootstrap/test_ci_gating_contract.py` à côté de
+`.github/workflows/ci.yml`. Les conditions
 d'attente qui la retenaient sont levées et mesurées : `AUD-CI-003/004` sont mergées (même
 fichier, donc plus de risque de parallélisme), et le gel du périmètre scellé ne se constate
 plus (cf. « Blocked » ci-dessus). Elle reste `QUEUED` faute d'activation, pas faute de

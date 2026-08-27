@@ -26,15 +26,21 @@
     `PATH_COLLISION:<a>:<b>:<scope-a>:<scope-b>`, `UNTERMINATED_FENCE`. La table a été lue,
     elle n'est pas conforme. **Ce code est réservé à ce cas** : aucun échec de lecture ou
     d'écriture ne s'y retrouve, et aucun traceback ne remplace ces lignes.
-  - **exit 2** — **aucun verdict de conformité exploitable**, avec un préfixe par cause :
+  - **exit 2** — **aucun verdict de conformité exploitable**. Les causes interceptées par
+    le validateur portent un préfixe sur la sortie standard, jamais un traceback :
     - `CHEMIN_INVALIDE:<raison>` — l'argument de chemin n'a pas passé la validation
       préalable (fichier inexistant, répertoire fourni à la place d'un fichier, octet nul
-      dans le chemin, ou `--json-output` dont le répertoire parent n'existe pas). La table
-      n'a jamais été ouverte.
+      dans le chemin, `--json-output` dont le répertoire parent n'existe pas, ou dont la
+      cible existe déjà sans être un fichier régulier). La table n'a jamais été ouverte.
     - `LECTURE_IMPOSSIBLE:<raison>` — le chemin était valide, mais la cible n'a pas pu être
       lue ni décodée en UTF-8. La table n'a jamais été lue.
     - `SORTIE_IMPOSSIBLE:<raison>` — la table a été lue et validée, mais la sortie
       `--json-output` n'a pas pu être écrite. Le verdict existe, il n'a pas été livré.
+
+    Aucun décompte de causes n'est donné, et ces préfixes ne les épuisent pas : `argparse`
+    rend lui aussi exit 2 quand l'argument `ownership` manque, **sans préfixe** — sortie
+    standard vide, `usage:` sur la sortie d'erreur. Un appelant qui teste `== 2` doit donc
+    lire stdout, pas le supposer non vide.
 
   L'exit 2 et ces préfixes n'existent pas dans la version du pack, qui laissait remonter
   l'exception avec un traceback et un exit 1 indiscernable, pour l'appelant, d'une table
@@ -51,9 +57,9 @@
   mais la propriété se vérifie sans elle. Le câblage relève donc d'une mission séparée,
   ouverte après le merge de #564, et non d'un ajout ici. Tant qu'il n'a pas lieu, l'exécution reste manuelle et
   déclarative, à la charge de qui active une mission. Présenter cette
-  garde comme câblée en CI serait exactement le défaut que l'issue #568 a documenté pour
-  un autre validateur (fragment jamais branché nulle part) — on ne le reproduit pas ici :
-  la limite est écrite, pas cachée. Autre limite, plus décisive, à ne pas taire non plus :
+  garde comme câblée en CI alors qu'elle ne l'est pas serait le défaut d'un validateur
+  livré sans être branché nulle part — on ne le reproduit pas ici : la limite est écrite,
+  pas cachée. Autre limite, plus décisive, à ne pas taire non plus :
   `COORDINATION_OK` atteste uniquement la **forme** de la table (en-tête présent,
   énumérations valides, Work ID unique, scopes relatifs bien formés, aucune collision de
   branche ou de chemin entre lignes actives) — jamais sa concordance avec l'état réel sur
@@ -64,9 +70,10 @@
   `COORDINATION_OK` n'en tient pas lieu. Troisième limite, du même ordre : ce qui est écrit
   **à l'intérieur d'un bloc de code** n'est jamais lu comme une ligne de table — donc jamais
   vérifié. Encadrer des lignes de coordination réelles par une paire de clôtures de bloc de
-  code (trois apostrophes inverses, ou `~~~`) les fait disparaître du décompte et de la
-  détection de collision, sans aucun signalement (détail et mesure dans
-  `coordination/CLAUDE-STATUS.md`).
+  code **du même marqueur** (trois apostrophes inverses des deux côtés, ou `~~~` des deux
+  côtés) les fait disparaître du décompte et de la détection de collision, sans aucun
+  signalement (détail et mesure dans `coordination/CLAUDE-STATUS.md`). Un marqueur ouvrant
+  qui n'est pas refermé par le **même** marqueur rend `UNTERMINATED_FENCE`, exit 1.
 - `.claude/settings.example.json` est un **exemple** à copier puis adapter. Ne jamais
   l'écraser sur `.claude/settings.json` : ce dernier porte les hooks d'enforcement
   réels de la session (`SessionStart`, `UserPromptSubmit`, `PreToolUse` sur `Bash`) ; une

@@ -5,8 +5,9 @@ Date: 2026-08-26
 
 Origine et traçabilité : ce document est **dérivé** de
 `repo-overlay/docs/decisions/ADR-PROPOSED-INDEPENDENT-AGENT-OWNERSHIP.md` du pack
-`OPSYS-AI-CLAUDE-ISSUES-OPERATIONS-v1.2`, installé par la mission de l'issue **#563**
-(« [OPS] Installer l'overlay de coordination Claude/Codex v1.2 »).
+`OPSYS-AI-CLAUDE-ISSUES-OPERATIONS-v1.2`, installé par la mission de l'issue **#563**.
+Le titre et l'énoncé de cette issue ne sont pas recopiés ici — ils se modifient sur GitHub
+sans que ce fichier en sache rien ; `gh issue view 563` fait foi.
 
 **Il n'en est pas une copie octet-exacte.** Propriété stable, re-mesurable sans citer
 aucun commit ni aucune révision :

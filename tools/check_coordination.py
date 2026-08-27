@@ -13,8 +13,8 @@ CORE_RE = re.compile(r"^C(?:0[0-9]|1[0-9]|2[0-4])-\d{3}$")
 CLAUDE_RE = re.compile(r"^(?:ISS-|AUD-|BUG-|R4-)")
 HEADER = ["Work ID", "Owner", "Branch", "Path scope", "Status", "Updated UTC", "Next"]
 # Une ligne de separation Markdown valide : "|---|---|", "| --- | --- |",
-# avec ou sans ":" d'alignement, au moins 3 tirets par colonne. Les pipes de bord
-# sont optionnels (GFM), comme pour les lignes de donnees : cf. est_ligne_separatrice.
+# avec ou sans ":" d'alignement, au moins 3 tirets par colonne. Pipe INITIAL requis,
+# pipe final optionnel : cf. est_ligne_separatrice.
 TIRETS_MINIMUM_SEPARATEUR = 3
 MARQUEURS_BLOC_CODE = ("```", "~~~")
 
@@ -22,22 +22,36 @@ MARQUEURS_BLOC_CODE = ("```", "~~~")
 def est_ligne_separatrice(ligne: str) -> bool:
     """Vraie pour une ligne de separation Markdown du type `|---|:---:|---|`.
 
-    Les pipes de bord sont OPTIONNELS, comme le prevoit GFM et comme le fait deja
-    le decoupage des lignes de donnees et de l'en-tete (`line.strip("|")`) plus bas.
-    Exiger ici les deux pipes de bord alors que les lignes de donnees s'en passent
-    creait deux notions de "bord de ligne" dans le meme fichier : une table
-    parfaitement legitime ecrite sans pipe final voyait son en-tete reconnu comme
-    tel, puis sa ligne de separation recomptee en ligne de donnees, et rendait
-    `HEADER_MISSING` + `OWNER:---:---` + `STATUS:---:---`, exit 1, la ou la version
-    du pack rend `COORDINATION_OK rows=1 active=1`, exit 0. Fixture et sorties des
-    deux cotes dans coordination/CLAUDE-STATUS.md.
+    Meme notion de "bord de ligne" que le filtre de parse_rows() plus bas, dans les
+    deux sens : pipe INITIAL requis (`line.startswith("|")` la-bas, meme test ici),
+    pipe FINAL optionnel (`line.strip("|")` la-bas, meme decoupage ici).
 
-    Mode de defaillance de cet elargissement, nomme avant d'etre ecrit : un `---`
-    seul (barre horizontale Markdown, delimiteur de front-matter YAML) ne doit PAS
-    devenir une ligne de separation, sans quoi un en-tete cite en prose et suivi
-    d'une barre horizontale passerait pour le debut d'une vraie table et annulerait
-    le durcissement HEADER_MISSING. D'ou l'exigence d'au moins un `|` : `---` est
-    refuse, `|---|` et `---|---` sont acceptes.
+    Le pipe final optionnel repare un vrai defaut : une table a pipe initial sans
+    pipe final, forme legale en GFM, voyait son en-tete reconnu comme tel, puis sa
+    ligne de separation recomptee en ligne de donnees, et rendait `HEADER_MISSING`
+    + `OWNER:---:---` + `STATUS:---:---`, exit 1, la ou la version du pack rend
+    `COORDINATION_OK rows=1 active=1`, exit 0.
+
+    Le pipe initial requis referme le relachement qui accompagnait le precedent :
+    une version anterieure n'exigeait qu'un `|` n'importe ou dans la ligne, et la
+    justifiait par une symetrie avec les lignes de donnees qui n'a jamais existe —
+    parse_rows() exige, lui, un pipe initial, dans ce fichier comme dans la version
+    du pack. Consequence mesuree de l'asymetrie : un document dont l'en-tete porte
+    le pipe initial mais dont le
+    separateur et les lignes de donnees ne l'ont pas voyait `header_found` valide
+    par le separateur, puis TOUTES ses lignes de donnees ignorees par le filtre —
+    `COORDINATION_OK rows=0 active=0`, exit 0, sur un document portant deux lignes
+    ACTIVE en collision de branche ET de chemin. Ce n'est pas une regression
+    vis-a-vis du pack : mesure faite, la version du pack rend exit 0 elle aussi sur
+    cette fixture (elle ne connait pas HEADER_MISSING). C'est un silence herite du
+    pack, referme ici : `HEADER_MISSING`, exit 1.
+
+    Mode de defaillance nomme avant d'etre ecrit : un `---` seul (barre horizontale
+    Markdown, delimiteur de front-matter YAML) ne doit PAS devenir une ligne de
+    separation, sans quoi un en-tete cite en prose et suivi d'une barre horizontale
+    passerait pour le debut d'une vraie table et annulerait le durcissement
+    HEADER_MISSING. Le pipe initial requis l'exclut, comme il exclut `---|---` et
+    `--- | --- | ---` ; `|---|` et `|---|---` restent acceptes.
 
     Ecrit sans quantificateur imbrique, deliberement. La forme regex naturelle
     repete un groupe qui commence ET finit par `\\s*`, motif super-lineaire que
@@ -48,7 +62,7 @@ def est_ligne_separatrice(ligne: str) -> bool:
     construction et ne laisse aucun motif a analyser.
     """
     ligne = ligne.strip()
-    if "|" not in ligne:
+    if not ligne.startswith("|"):
         return False
     cellules = ligne.strip("|").split("|")
     return all(_est_cellule_separatrice(c) for c in cellules)
@@ -102,13 +116,15 @@ def _chemin_valide(brut: str, *, pour_ecriture: bool = False) -> Path:
     compte comme new code. Comme pour S5852 ci-dessus, ce verdict vient du service
     et n'est pas re-mesurable depuis ce depot : motif du changement, pas mesure.
 
-    Ce validateur ne peut PAS etre confine a l'arborescence du depot : le
-    `daily_start.py` du pack l'appelle legitimement sur son propre gabarit, qui
-    vit hors du depot (mesure : il l'invoque sur coordination/ du depot, et sur
-    repo-overlay/coordination/ du pack quand la premiere cible n'existe pas
-    encore). Confiner casserait l'installation neuve — le defaut qu'on
-    cherche a eviter, en pire. Cette mesure-la, elle, est reproductible : elle se lit
-    dans le source de tools/daily_start.py du pack.
+    Portee volontairement NON confinee a l'arborescence du depot, a cause du ROLE
+    de ce validateur, pas d'une execution de ce fichier-ci. Mesure, dans le source
+    de tools/daily_start.py du pack : toutes ses invocations pointent sur
+    `<pack>/tools/check_coordination.py`, jamais sur la copie du depot ; les cibles,
+    elles, sont `<repo>/coordination/WORK-OWNERSHIP.md` et, quand la premiere
+    n'existe pas encore, `<pack>/repo-overlay/coordination/WORK-OWNERSHIP.md`, hors
+    du depot. Une copie confinee a l'arborescence du depot serait donc inutilisable
+    dans ce role — c'est ce qui motive la portee, et non l'idee, fausse, que casser
+    CE fichier bloquerait une installation neuve : daily_start.py ne l'execute pas.
 
     Codes de sortie : un chemin refuse rend `CHEMIN_INVALIDE:<raison>` et exit 2,
     distinct de l'exit 1 des erreurs de contenu et de l'exit 0 de COORDINATION_OK.
@@ -146,13 +162,29 @@ def parse_rows(path: Path) -> tuple[list[dict[str, str]], list[str], bool]:
         lines = path.read_text(encoding="utf-8").splitlines()
     except (OSError, UnicodeDecodeError) as exc:
         raise LectureImpossible(f"contenu illisible : {exc}") from None
-    in_fence = False
+    # Le marqueur ouvrant est memorise, pas seulement le fait d'etre dans un bloc :
+    # seul un marqueur IDENTIQUE referme, comme en CommonMark — dont ce suivi ne
+    # reprend que ce point, ni la longueur du marqueur ni l'info-string. Une bascule
+    # aveugle laissait deux clotures orphelines de marqueurs differents s'annuler ; mesure,
+    # fixture "table valide, ``` orphelin, ligne en collision, ~~~ orphelin" : ce
+    # fichier-ci rendait COORDINATION_OK rows=1 active=1 exit 0, aucune
+    # UNTERMINATED_FENCE, la ligne avalee entre les deux disparaissant avec sa
+    # collision, la ou la version du pack rend BRANCH_COLLISION + PATH_COLLISION
+    # exit 1. Le commentaire fail-closed plus bas disait donc autre chose que ce que
+    # le code faisait ; l'appariement le rend vrai.
+    marqueur_ouvrant: str | None = None
     for lineno, raw in enumerate(lines, 1):
         line = raw.strip()
         if line.startswith(MARQUEURS_BLOC_CODE):
-            in_fence = not in_fence
+            marqueur = line[:3]
+            if marqueur_ouvrant is None:
+                marqueur_ouvrant = marqueur
+            elif marqueur == marqueur_ouvrant:
+                marqueur_ouvrant = None
+            # Marqueur different a l'interieur d'un bloc : contenu du bloc, pas
+            # cloture. Saute comme le reste du bloc, sans changer l'etat.
             continue
-        if in_fence:
+        if marqueur_ouvrant is not None:
             # Un document qui documente le format (ex. README, ou cette meme table
             # citee en exemple) peut reciter l'en-tete ou une ligne de table dans un
             # bloc de code : ce n'est pas une table de coordination reelle, ne pas la
@@ -161,18 +193,20 @@ def parse_rows(path: Path) -> tuple[list[dict[str, str]], list[str], bool]:
             # fait que documenter le format passait a tort en COORDINATION_OK rows=0.
             #
             # CONTREPARTIE ASSUMEE, fail-open non refermee : une PAIRE de fences
-            # equilibree autour de vraies lignes de donnees les fait disparaitre en
-            # silence, avec les collisions qu'elles porteraient. Mesure, fixture
-            # "en-tete + separateur hors fence, deux lignes en collision entre
-            # ```" : ce fichier-ci rend COORDINATION_OK rows=0 active=0 exit 0, la
-            # ou la version du pack rend BRANCH_COLLISION + PATH_COLLISION exit 1.
-            # C'est donc une regression fail-open de la detection de collision vis-a-vis
-            # du pack, ecrite ici plutot que refermee : signaler ces lignes rouvrirait
-            # exactement le faux positif que le suivi de fence existe pour supprimer
-            # (un fichier qui documente son propre format dans un bloc de code
-            # deviendrait non conforme). Un fence equilibre est un acte d'ecriture
-            # delibere ; un fence orphelin est une faute de frappe — d'ou le
-            # traitement different de ce dernier, plus bas.
+            # equilibree (memes marqueurs) autour de vraies lignes de donnees les
+            # fait disparaitre en silence, avec les collisions qu'elles porteraient.
+            # Mesure, fixture "en-tete + separateur hors fence, deux lignes en
+            # collision entre ```" : ce fichier-ci rend COORDINATION_OK rows=0
+            # active=0 exit 0, la ou la version du pack rend BRANCH_COLLISION +
+            # PATH_COLLISION exit 1. C'est donc une regression fail-open de la
+            # detection de collision vis-a-vis du pack, ecrite ici plutot que
+            # refermee : signaler ces lignes rouvrirait exactement le faux positif
+            # que le suivi de fence existe pour supprimer (un fichier qui documente
+            # son propre format dans un bloc de code deviendrait non conforme). Un
+            # fence equilibre est un acte d'ecriture delibere ; un fence orphelin
+            # est une faute de frappe — d'ou le traitement different de ce dernier,
+            # plus bas. Deux clotures orphelines de marqueurs DIFFERENTS ne sont
+            # plus un fence equilibre : cf. l'appariement ci-dessus.
             continue
         # Un seul et meme detecteur decide ce qu'est une ligne de separation, ici
         # comme dans le controle d'en-tete ci-dessous. La version du pack testait
@@ -219,17 +253,18 @@ def parse_rows(path: Path) -> tuple[list[dict[str, str]], list[str], bool]:
             errors.append(f"MALFORMED_ROW:{lineno}:{len(cells)}")
             continue
         out.append(dict(zip(["work_id", "owner", "branch", "scope", "status", "updated", "next"], cells)))
-    if in_fence:
-        # Fail-closed. Le suivi de bloc de code est une bascule : un fence non
-        # referme fait ignorer EN SILENCE toutes les lignes suivantes, donc les
-        # collisions de branche et de chemin qu'elles porteraient. Mesure : une
-        # table valide suivie d'un `~~~` orphelin puis d'une ligne en collision
-        # rendait COORDINATION_OK exit 0, la ou la version du pack — qui ne suit pas
-        # les blocs de code du tout — rend BRANCH_COLLISION + PATH_COLLISION exit 1.
-        # Le durcissement du bloc de code avait donc ouvert un chemin fail-open dans
-        # le controle qu'il pretendait renforcer. Un fence orphelin est une faute de frappe
-        # banale dans un fichier Markdown edite a la main, que les rendus
-        # absorbent sans rien signaler : il doit rougir, pas passer.
+    if marqueur_ouvrant is not None:
+        # Fail-closed. Un bloc de code non referme fait ignorer EN SILENCE toutes les
+        # lignes suivantes, donc les collisions de branche et de chemin qu'elles
+        # porteraient. Mesure : une table valide suivie d'un `~~~` orphelin puis
+        # d'une ligne en collision rendait COORDINATION_OK exit 0, la ou la version
+        # du pack — qui ne suit pas les blocs de code du tout — rend
+        # BRANCH_COLLISION + PATH_COLLISION exit 1. Le durcissement du bloc de code
+        # avait donc ouvert un chemin fail-open dans le controle qu'il pretendait
+        # renforcer. Un fence orphelin est une faute de frappe banale dans un
+        # fichier Markdown edite a la main, que les rendus absorbent sans rien
+        # signaler : il doit rougir, pas passer. Vaut aussi pour deux clotures
+        # orphelines de marqueurs differents, qui s'annulaient avant l'appariement.
         errors.append("UNTERMINATED_FENCE")
     return out, errors, header_found
 
@@ -321,12 +356,15 @@ def main() -> int:
     except CheminInvalide as exc:
         print(f"CHEMIN_INVALIDE:{exc}")
         return 2
-    # Exit 2 = aucun verdict de conformite exploitable n'a ete produit. Trois causes,
-    # trois prefixes distincts, jamais un traceback : chemin refuse avant tout acces
-    # (CHEMIN_INVALIDE), cible illisible ou non decodable (LECTURE_IMPOSSIBLE),
-    # sortie JSON non ecrite (SORTIE_IMPOSSIBLE). L'exit 1 est reserve a "table lue,
-    # non conforme" ; sans ces interceptions il absorbait aussi les echecs de lecture
-    # et d'ecriture, ce qui rendait faux le contrat annonce dans coordination/README.md.
+    # Exit 2 = aucun verdict de conformite exploitable n'a ete produit. Les causes
+    # interceptees ici portent un prefixe sur stdout, jamais un traceback : chemin
+    # refuse avant tout acces (CHEMIN_INVALIDE), cible illisible ou non decodable
+    # (LECTURE_IMPOSSIBLE), sortie JSON non ecrite (SORTIE_IMPOSSIBLE). Aucun
+    # decompte de causes n'est fige : argparse rend deja exit 2 sans passer par
+    # aucune d'elles, stdout vide et usage sur stderr, quand un argument manque.
+    # L'exit 1 est reserve a "table lue, non conforme" ; sans ces interceptions il
+    # absorbait aussi les echecs de lecture et d'ecriture, ce qui rendait faux le
+    # contrat annonce dans coordination/README.md.
     try:
         data, errors = validate(chemin_ownership)
     except LectureImpossible as exc:
