@@ -27,10 +27,9 @@ issue d'audit.
 scellée n°2, objection N2) — `docs/index.md` est un fichier **préexistant** du dépôt
 (`git cat-file -e origin/main:docs/index.md` réussit) et cette PR maintient la propriété
 d'être purement additive (`git diff --name-status origin/main...HEAD`, dont toutes les
-lignes portent le statut `A`). C'est aussi ce qu'exige l'issue **#563**, mais les deux
-propriétés se vérifient sans elle : son énoncé n'est pas recopié ici. La référence à
-ADR-0004 dans `docs/index.md` reste à faire, mais dans une mission séparée, ouverte après
-que #564 soit mergée (sinon la même propriété est rompue).
+lignes portent le statut `A`). La référence à ADR-0004 dans `docs/index.md` reste à faire,
+mais dans une mission séparée, ouverte après que #564 soit mergée (sinon la même propriété
+est rompue).
 Scope exact : `docs/index.md` uniquement. Pas d'issue GitHub créée par cette PR — au lead
 de la créer s'il retient cette mission.
 

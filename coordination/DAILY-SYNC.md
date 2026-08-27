@@ -7,8 +7,9 @@ Choix éditorial (revue scellée n°2, mineure) : ce fichier portait `UNSET` et
 (`WORK-OWNERSHIP.md`, `CLAUDE-STATUS.md`) déclarait déjà des lignes actives —
 contradiction interne. Choix retenu ici : **renseigner ce fichier en cohérence avec
 `WORK-OWNERSHIP.md`, `CLAUDE-STATUS.md` et `CODEX-STATUS.md`**, plutôt que le neutraliser
-en gabarit vide, parce que README.md confie explicitement ce fichier au sync owner de la
-mise au point (« modifié par un seul sync owner désigné ») et que cette mise au point a
+en gabarit vide, parce que `coordination/README.md` — fichier livré par cette PR — confie
+explicitement ce fichier au sync owner de la mise au point (« sont modifiés par un seul
+sync owner désigné pour la mise au point ») et que cette mise au point a
 déjà produit un état daté et réconcilié dans ces trois fichiers : le dupliquer ici
 n'ajoute aucune affirmation nouvelle, seulement un résumé compact. Le fichier
 `24H-UPDATE-TEMPLATE.md` du même dossier reste le gabarit vide réutilisable pour la
@@ -58,10 +59,9 @@ une valeur ici.
 
 ## Décisions Nathan requises
 
-- Arbitrage PR #564 vs PR #566 (installeur unique de `coordination/`, cf.
-  `WORK-OWNERSHIP.md`)
-- Issue #569 : à trancher — la fermer, ou la garder ouverte. Ni son état, ni son énoncé, ni
-  ses commentaires ne sont recopiés ici ; `gh issue view 569` fait foi
+- Arbitrage PR #564 vs PR #566 (cf. `WORK-OWNERSHIP.md`)
+- Issue #569 : décision attendue sur sa suite. Ni son état, ni son énoncé, ni ses
+  commentaires ne sont recopiés ici ; `gh issue view 569` fait foi
 - Décision sur l'issue #568 (restaurer / retirer / requalifier)
 - Gate #541 pour `AUD-CANON-001`/`AUD-CANON-002`
 

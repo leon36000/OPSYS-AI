@@ -50,13 +50,12 @@
   « `_chemin_valide()` ».
 
   **Ce validateur n'est câblé dans aucun job CI.** Raison assumée, pas un oubli : le câbler
-  modifierait `.github/workflows/ci.yml`, un fichier **existant** du dépôt, et romprait la
+  modifierait `.github/workflows/ci.yml`, un fichier **existant** du dépôt
+  (`git cat-file -e origin/main:.github/workflows/ci.yml` réussit), et romprait la
   propriété que cette PR maintient — elle est purement additive, ce qui se re-mesure par
   `git diff --name-status origin/main...HEAD`, dont toutes les lignes portent le statut `A`.
-  C'est aussi ce qu'exige l'issue **#563**, mais la propriété se vérifie sans elle : son
-  énoncé n'est pas recopié ici, `gh issue view 563` fait foi. Le câblage relève donc d'une
-  mission séparée, ouverte après le merge de #564, et non d'un ajout ici. Tant qu'il n'a pas
-  lieu, l'exécution reste manuelle et
+  Le câblage relève donc d'une mission séparée, ouverte après le merge de #564, et non d'un
+  ajout ici. Tant qu'il n'a pas lieu, l'exécution reste manuelle et
   déclarative, à la charge de qui active une mission. Présenter cette
   garde comme câblée en CI alors qu'elle ne l'est pas serait le défaut d'un validateur
   livré sans être branché nulle part — on ne le reproduit pas ici : la limite est écrite,
@@ -76,12 +75,16 @@
   signalement (détail et mesure dans `coordination/CLAUDE-STATUS.md`). Un marqueur ouvrant
   qui n'est pas refermé par le **même** marqueur rend `UNTERMINATED_FENCE`, exit 1.
   Cette restriction n'est pas rhétorique : les blocs de code **indentés** (quatre espaces)
-  ne sont pas suivis du tout, l'indentation étant effacée avant tout test. Mesuré — un
-  document qui ne documente le format que dans un bloc indenté rend
-  `COORDINATION_OK rows=0 active=0`, exit 0, là où le même contenu en bloc clôturé rend
-  `HEADER_MISSING`, exit 1 ; et des lignes de données indentées de quatre espaces sont
-  comptées comme de vraies lignes, collisions comprises. Pour soustraire des lignes à la
-  lecture, seule une paire de clôtures fait ce qu'elle annonce.
+  ne sont pas suivis du tout, l'indentation étant effacée avant tout test. Mesuré sur le
+  contenu nommé ici, et non généralisé à « un bloc indenté » : un document dont la
+  ligne d'en-tête **et sa ligne de séparation** sont indentées de quatre espaces rend
+  `COORDINATION_OK rows=0 active=0`, exit 0, là où les deux mêmes lignes placées entre deux
+  clôtures rendent `HEADER_MISSING`, exit 1. L'en-tête indenté **sans** sa ligne de
+  séparation rend `HEADER_MISSING`, exit 1 — comme sa forme clôturée : sur ce contenu-là,
+  les deux formes ne se distinguent pas, et il n'y a pas de contraste à annoncer. Des lignes
+  de données indentées de quatre espaces, elles, sont comptées comme de vraies lignes,
+  collisions comprises. Pour soustraire des lignes à la lecture, seule une paire de clôtures
+  fait ce qu'elle annonce.
 - `.claude/settings.example.json` est un **exemple** à copier puis adapter. Ne jamais
   l'écraser sur `.claude/settings.json` : ce dernier est un fichier préexistant du dépôt,
   que cette PR ne modifie pas, et une copie brute de l'exemple en remplacerait le contenu

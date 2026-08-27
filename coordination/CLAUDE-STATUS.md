@@ -12,16 +12,6 @@ pas l'une de l'autre. En pratique : au-delà de 24 h, re-vérifier par `gh pr vi
 ligne n'est cité pour désigner cette clause : un renvoi par numéro de ligne se réfute dès la
 prochaine édition du fichier visé.
 
-**Ce que ce fichier porte, et ce qu'il n'entreprend pas de raconter.** Il porte : les
-constats de runtime de cette session, les écarts mesurés du validateur et de
-`.claude/settings.example.json` vis-à-vis du pack, les comportements mesurés du validateur,
-les commandes qui les rejouent, et le suivi local des missions. Il ne porte pas : ce que
-contient un autre fichier du dépôt, ce que couvre un oracle de tests, l'énoncé ou l'état
-d'une issue ou d'une PR. Ces choses se lisent à la source (`gh issue view <n>`,
-`gh pr view <n>`, le dépôt lui-même) ; écrites ici, elles deviennent fausses au premier
-commit de quelqu'un d'autre — le cas s'est produit sur ce fichier, dans une phrase pourtant
-exacte au moment où elle a été écrite.
-
 ## Vérification runtime (07-RUNTIME-CHECK, constat unique de session)
 
 - Lead observé : `claude-opus-5`. Le pack demande `claude-sonnet-5`.
@@ -29,10 +19,9 @@ exacte au moment où elle a été écrite.
   Aucun fallback silencieux : l'écart est consigné ici, pas masqué.
 - Sous-agents : instanciés en `sonnet` (Claude Sonnet 5), conforme au pack amont. Les
   fichiers livrés `.claude/agents/opsys-issue-*.md` portent la même valeur dans leur champ
-  `model` (`grep -n '^model:' .claude/agents/opsys-issue-*.md`). Un éventuel écart vis-à-vis
-  du canon du dépôt sur les noms de modèles des sous-agents se lit dans `CLAUDE.md`, fichier
-  qui n'appartient pas à cette PR : rien de son contenu n'est recopié ici —
-  `grep -n 'Subagents' CLAUDE.md` fait foi. **Modèle non changé dans cette revue** :
+  `model` (`grep -n '^model:' .claude/agents/opsys-issue-*.md`). Sur le canon du dépôt en
+  matière de noms de modèles de sous-agents, voir `CLAUDE.md`, fichier qui n'appartient pas
+  à cette PR. **Modèle non changé dans cette revue** :
   requalifier ces champs `model` est une décision produit (quel modèle par rôle) hors
   périmètre d'une correction de revue, à faire avec validation Nathan plutôt que
   silencieusement ici.
@@ -113,10 +102,8 @@ réels ; cette liste n'en énumère que la signification.
 
 1. **`defaultMode`** : `"auto"` → `"default"`, et ajout de `"disableAutoMode": "disable"`
    à côté de `"disableBypassPermissionsMode"`. Motif : faire approuver des actions par un
-   modèle est l'inverse du principe d'autorité des outils déterministes. Le canon du dépôt
-   sur ce point vit dans `AGENTS.md`, fichier qui n'appartient pas à cette PR ; son énoncé
-   n'est pas recopié ici — il se lit à la source. L'exemple suit ce canon plutôt que le
-   défaut amont.
+   modèle est l'inverse du principe d'autorité des outils déterministes. Sur ce point, voir
+   aussi `AGENTS.md`, fichier qui n'appartient pas à cette PR.
 2. **Règles `deny` Bash** : les règles `Read(./.env)`, `Read(./secrets/**)`,
    `Read(./credentials/**)` sont par outil — elles ne couvrent pas `Bash`, qui peut lire
    les mêmes fichiers via `cat`, `head`, etc. Des règles `Bash(cat .env*)`,
@@ -133,10 +120,9 @@ réels ; cette liste n'en énumère que la signification.
    cette liste, qui reste une politique côté client pour un agent coopératif.
 3. **`availableModels` et `model`** : retirés de l'exemple (le pack amont fixe les deux
    à `"claude-sonnet-5"`). Motif : une liste d'un seul modèle interdit de sélectionner
-   quoi que ce soit d'autre, et un `model` par défaut fige le choix. Le roster de modèles
-   de ce dépôt est décrit dans `CLAUDE.md`, fichier qui n'appartient pas à cette PR et dont
-   rien n'est recopié ici. La section runtime ci-dessus consigne d'ailleurs un écart déjà
-   observé en pratique (lead réel `claude-opus-5` malgré la demande `claude-sonnet-5`) :
+   quoi que ce soit d'autre, et un `model` par défaut fige le choix. La section runtime
+   ci-dessus consigne d'ailleurs un écart déjà observé en pratique (lead réel
+   `claude-opus-5` malgré la demande `claude-sonnet-5`) :
    figer `model` dans l'exemple ne tiendrait même pas face au comportement réel constaté.
    La clé `env.ANTHROPIC_DEFAULT_SONNET_MODEL` suffit à exprimer « quand sonnet est
    utilisé, cette version précise » sans verrouiller tout le reste.
@@ -492,8 +478,8 @@ qu'elle attend de notre côté. Les numéros renvoient à la source.
   exécutée.
 - `AUD-CI-003` / `AUD-CI-004` — ne sont plus tenues pour bloquées de notre côté ; leur statut
   dans `WORK-OWNERSHIP.md` est `MERGED`.
-- Issue **#569**, qui portait le gel invoqué pour les deux précédentes : ni son état, ni son
-  énoncé, ni ses commentaires ne sont recopiés ici — `gh issue view 569` fait foi.
+- Issue **#569**, citée de notre côté comme motif du gel des deux précédentes : ni son état,
+  ni son énoncé, ni ses commentaires ne sont recopiés ici — `gh issue view 569` fait foi.
   **La distinction qui compte et qui reste : issue ouverte ≠ blocage constaté.** Ce sont deux
   faits séparément vérifiables, et ce fichier n'en affirme aucun.
 - `AUD-CORE-005` — issue #568 : décision Nathan demandée (restaurer / retirer / requalifier)

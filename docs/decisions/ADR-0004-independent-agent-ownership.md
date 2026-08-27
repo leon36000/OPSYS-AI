@@ -69,13 +69,19 @@ Deux propriétés de cette formulation, et rien d'autre :
   était `ADR-PROPOSED-INDEPENDENT-AGENT-OWNERSHIP.md`. Sans ces deux exclusions, la commande
   compterait ce document parmi ses propres preuves — et deviendrait non vide dès le merge de
   cette PR, c'est-à-dire au moment exact où un lecteur peut la rejouer.
-- **Aucune sortie n'est figée ici, ni SHA de base, ni décompte de commits, ni date de
-  mesure.** Une version antérieure de ce paragraphe figeait les trois comme preuve ; la
-  première avance de `main` a suffi à les rendre faux, avant même le merge. Ce qui est
-  affirmé est la propriété seule : rejouée sur `origin/main`, quelle que soit sa révision,
-  cette commande rend une sortie vide — et le reste après un rebase, un squash ou un amend
-  de cette branche, comme après le merge. Ce qu'elle établit : **en dehors de la lignée de
-  ce document, aucun commit connu du dépôt n'a jamais ajouté ni retiré cette formulation.**
+- **Ni SHA de base ni décompte de commits n'est figé ici**, contrairement à une version
+  antérieure de ce paragraphe qui figeait les deux comme preuve : la première avance de
+  `main` a suffi à les rendre faux, avant même le merge. Ce qui est affirmé est **borné à
+  une mesure datée**, et non présenté comme valant pour toute révision : rejouée sur
+  `origin/main` le **2026-08-27**, cette commande rend une sortie vide. Rejouée le même jour
+  en remplaçant `origin/main` par le `HEAD` de cette branche — qui porte déjà tous les
+  fichiers que le merge apportera — elle rend également une sortie vide : c'est ce qui borne
+  l'effet d'un rebase, d'un squash, d'un amend ou du merge de cette branche, sans avoir à le
+  déduire. Le résultat ne survit en revanche **pas de droit** à l'avance de `main` : un
+  commit ultérieur qui réintroduirait la formulation rendrait la sortie non vide.
+  **La commande est à rejouer, pas à croire.** Ce que la sortie vide établissait à cette
+  date : en dehors de la lignée de ce document, aucun commit alors présent dans l'historique
+  interrogé n'avait ajouté ni retiré cette formulation.
 
 Cette vérification a échoué plusieurs fois avant de tenir, et chaque correction avait
 déplacé le défaut au lieu de l'éliminer : d'abord un `git grep` sans révision, qui
