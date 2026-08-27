@@ -102,13 +102,32 @@ def _fragment_motif(prefixe: str) -> str:
 # L'AUTRE MOITIÉ DE LA FRONTIÈRE — les faux POSITIFS. La recherche est une
 # sous-chaîne NON ANCRÉE : tout chemin RELATIF ou toute URL dont un segment
 # médian porte l'un des préfixes est signalé comme « chemin hôte absolu ».
-# Mesuré : un fichier rangé sous un répertoire nommé `media` dans
-# `Modules M/M7-marketing`, ou une URL dont un segment médian s'appelle
-# `media`, sont tous deux signalés. Le risque est déjà matérialisé pour
-# l'un des préfixes cités ci-dessus comme non couverts : ajouter `data`
-# rend l'oracle ROUGE, non pas sur un chemin hôte mais sur la ligne 325 de
-# `FILE-INVENTORY.csv`, qui inventorie un fichier sous un répertoire
-# nommé `data` — un chemin RELATIF généré, pas un chemin de poste.
+# Un fichier QUI SERAIT rangé sous un répertoire nommé `media`, ou une URL
+# dont un segment médian s'appellerait `media`, seraient signalés — mesuré
+# sur fixture, aucun objet de ce nom n'existant aujourd'hui dans l'arbre.
+# Le risque est en revanche DÉJÀ MATÉRIALISÉ, et là c'est mesuré sur l'arbre
+# réel : ajouter `data` — l'un des préfixes cités ci-dessus comme non
+# couverts — rend l'oracle ROUGE, non pas sur un chemin hôte mais sur la
+# ligne 325 de `FILE-INVENTORY.csv`, qui inventorie un fichier sous un
+# répertoire nommé `data` : un chemin RELATIF généré, pas un chemin de poste.
+#
+# QUATRE AUTRES LIMITES, mesurées en revue et PRÉEXISTANTES à ce correctif —
+# `trouver_chemins_hote_code_en_dur` est identique à sa version sur `main`.
+# Nommées ici parce que cette section a pour objet de dire ce que l'oracle
+# ne voit pas, et qu'une frontière énoncée à moitié rassure autant qu'une
+# frontière tue :
+#   1. La casse du SUFFIXE de fichier n'est pas normalisée : un `.CSV`, un
+#      `.Json` ou un `.PY` n'est jamais lu. Distinct de la casse du LITTÉRAL
+#      déjà nommée plus haut.
+#   2. Rien n'atteste que le scan RÉEL a visité au moins un fichier. Si
+#      `AUDIT_CORE_BASELINE` cessait de désigner un répertoire peuplé,
+#      l'oracle rendrait vert en ne couvrant rien, sans qu'aucun test rougisse.
+#   3. Les liens symboliques sont traités de façon asymétrique : un lien de
+#      FICHIER est suivi et son contenu hors périmètre est lu et imputé au
+#      lien ; un lien de RÉPERTOIRE n'est pas parcouru et masque son sous-arbre.
+#   4. Un seul octet non-UTF8 dans un fichier scanné interrompt le scan
+#      ENTIER par exception. Échec BRUYANT, jamais un faux vert — mais les
+#      fichiers suivants ne sont alors plus examinés.
 # (Ces exemples sont écrits en nommant le segment plutôt qu'en collant les
 # barres autour : un commentaire qui illustre le motif le déclencherait,
 # et cette note en a fait la démonstration en rendant l'oracle rouge.)
