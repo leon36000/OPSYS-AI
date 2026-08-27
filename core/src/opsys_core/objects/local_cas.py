@@ -23,6 +23,12 @@ AVANT code, cf. port.py). Un tombstone est un fichier sidecar
 `<hash>.supprime` — les noms d'objets réels sont TOUJOURS exactement 64
 caractères hexadécimaux sans point, donc aucune collision possible avec
 ce suffixe.
+
+Concurrence bornée : deux `put()` du même contenu peuvent résurrecter
+concurremment le même tombstone sans exception, car son retrait est
+idempotent. `supprimer_logiquement()` et `purger()` ne forment pas une
+transaction distribuée avec `put()` : une course entre opérations
+différentes conserve l'ordre réellement imposé par le système de fichiers.
 """
 from __future__ import annotations
 
@@ -141,17 +147,14 @@ class CasLocal:
             else:
                 os.replace(chemin_tmp, chemin_final)
 
-            if chemin_tombstone.exists():
-                # Résurrection (revue d'architecture AVANT code, testée
-                # explicitement) : un put() du même contenu qu'un objet
-                # supprimé logiquement le fait revivre — le tombstone n'a
-                # plus lieu d'être dès que le contenu réel est
-                # présent/reconfirmé. Vérifié APRÈS la branche
-                # exists()/replace() ci-dessus, jamais court-circuité par
-                # elle : le cas typique de résurrection est précisément
-                # celui où chemin_final existe déjà (soft-delete ne
-                # retire jamais les octets réels).
-                chemin_tombstone.unlink()
+            # Résurrection (revue d'architecture AVANT code, testée
+            # explicitement) : un put() du même contenu qu'un objet
+            # supprimé logiquement le fait revivre — le tombstone n'a
+            # plus lieu d'être dès que le contenu réel est
+            # présent/reconfirmé. unlink(missing_ok=True) est nécessaire :
+            # deux put() concurrents peuvent tous deux avoir observé le
+            # tombstone avant que le premier ne le retire.
+            chemin_tombstone.unlink(missing_ok=True)
 
             return ref
         finally:

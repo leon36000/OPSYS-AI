@@ -37,10 +37,12 @@ lui-même.
 """
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import sys
 from io import BytesIO
 from pathlib import Path
+from threading import Barrier
 from typing import BinaryIO
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
@@ -326,6 +328,49 @@ def test_put_du_meme_contenu_resurrecte_un_objet_supprime_logiquement(
     ref_2 = cas.put(BytesIO(b"contenu resurrectable"))
     assert ref_2 == ref
     assert cas.get(ref).read() == b"contenu resurrectable"
+
+
+def test_deux_put_concurrents_resurrectent_le_meme_tombstone_sans_exception(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Le CAS reste idempotent quand deux résurrections se chevauchent.
+
+    La barrière force les deux appels à arriver exactement avant le retrait
+    du même tombstone. Sans retrait tolérant à l'absence, l'un des deux
+    threads reçoit FileNotFoundError après que l'autre l'a supprimé.
+    """
+    contenu = b"contenu resurrectable concurrent"
+    cas = CasLocal(tmp_path)
+    ref = cas.put(BytesIO(contenu))
+    cas.supprimer_logiquement(ref)
+    tombstone = tmp_path / ref.sha256[:2] / f"{ref.sha256[2:]}.supprime"
+    assert tombstone.exists()
+
+    barriere_unlink = Barrier(2)
+    unlink_original = Path.unlink
+
+    def unlink_synchronise(path: Path, missing_ok: bool = False) -> None:
+        if path == tombstone:
+            barriere_unlink.wait(timeout=5)
+        unlink_original(path, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "unlink", unlink_synchronise)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(cas.put, BytesIO(contenu)) for _ in range(2)]
+        resultats = []
+        erreurs = []
+        for future in futures:
+            try:
+                resultats.append(future.result())
+            except BaseException as exc:  # la preuve vérifie l'absence de toute exception brute
+                erreurs.append(exc)
+
+    assert erreurs == []
+    assert resultats == [ref, ref]
+    assert not tombstone.exists()
+    assert cas.get(ref).read() == contenu
 
 
 # ------------------------------------------------------------------
