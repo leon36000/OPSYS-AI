@@ -1,0 +1,92 @@
+{
+  "task_id": "CORE-CAS-CONCURRENCY-584",
+  "description": "Issue #584 — rendre idempotente la résurrection concurrente d’un tombstone CasLocal, sans modifier le contrat de purge ni introduire de verrou distribué.",
+  "issue": "https://github.com/leon36000/OPSYS-AI/issues/584",
+  "branche": "codex/issue-584-cas-concurrency-20260827",
+  "base": "origin/main @ 22b6beb39e8c84a376bb25492853d4e5380db6ba",
+  "base_tree": "528acf2dee198e8e3211d3c9737767395ee7facf",
+  "reviewed_commit": "0a0d8be044b23963f8e4108c2cdf341dd7dc83d1",
+  "reviewed_tree": "78f93a05f8f5d23b047c518bfe4ff2463b7d194a",
+  "code_diff_sha256": "06b5930ccb930a00b66ebb400f6dbdd2de1d197f9e8488fc1e30c15f3412fc84",
+  "code_diff_sha256_scope": "git diff origin/main...HEAD -- core/ tools/proof/ .opsys/tools/github-control/ .github/workflows/core-ci.yml .github/workflows/ci.yml scripts/ ; calculé par core/scripts/verify_proof_sealed.py",
+  "sealed_at": "2026-08-27T01:40:44-04:00",
+  "verification": {
+    "red": {
+      "base": "origin/main @ 22b6beb39e8c84a376bb25492853d4e5380db6ba",
+      "command": "python3 -m pytest core/tests/persistence/test_content_addressed_store.py::test_deux_put_concurrents_resurrectent_le_meme_tombstone_sans_exception -q -rs --tb=short",
+      "result": "échec déterministe : erreurs contenait FileNotFoundError(2, 'No such file or directory') après synchronisation des deux unlink du même tombstone."
+    },
+    "green": [
+      "test de concurrence ciblé : exit 0, 20 exécutions consécutives",
+      "python3 -m pytest core/tests/persistence/test_content_addressed_store.py -q -rs --tb=short : exit 0",
+      "python3 -m pytest core/tests/persistence -q -rs --tb=short : exit 0",
+      "python3 -m pytest core/tests -q -rs --tb=short : exit 0",
+      "python3 -m mypy --ignore-missing-imports core/src core/tests : exit 0, 64 fichiers",
+      "python3 scripts/structure_lint.py : exit 0",
+      "python3 scripts/quality/no_stub_gate.py --repo . --base-ref origin/main : exit 0",
+      "python3 core/scripts/run_security_scan.py : exit 0, bandit 0, pip-audit 0",
+      "python3 core/scripts/run_codeql_scan.py : exit 0, 13 connus/justifiés, 0 non alloué",
+      "python3 core/scripts/run_pack_validation.py : exit 0",
+      "git diff --check : exit 0"
+    ],
+    "adjacent_races": "La garantie est bornée à deux put() du même contenu pendant la résurrection. Les courses entre put(), supprimer_logiquement() et purger() ne sont pas une transaction distribuée et leur ordre reste celui du système de fichiers, documenté dans local_cas.py."
+  },
+  "review_inputs": {
+    "round": "OPSYS-ISSUE-584-CAS-CONCURRENCY-r1-0a0d8be",
+    "mode": "T2, trois reviewers indépendants en parallèle, prompt neutre commun, sans rôles",
+    "prompt_sha256": "0902a51f9bb60f6fde4bec65156dd4bc2063c929d533aae42f387894043d5932",
+    "pack_sha256": "e19aa65ffa29a56d3d7d1c9ef3f595dcd8f0b0f55dcc7d954a340077e1700610",
+    "diff_verbatim_sha256": "06b5930ccb930a00b66ebb400f6dbdd2de1d197f9e8488fc1e30c15f3412fc84",
+    "review_neutrality": {
+      "team_memory_story": "opsys-issue-584-cas-concurrency-r1-0a0d8be",
+      "team_memory_preflight": "empty before submission (count 0)",
+      "previous_evidence_and_verdicts_excluded_from_pack": true
+    },
+    "runner": {
+      "repository": "proof-method",
+      "commit": "8c5d0a09609837a46ee1c5b5f909a6a8a5c310a6",
+      "tree": "086c9b5ae38b9120ac81e47ce221bfdbbe9a7753",
+      "worktree_clean": false,
+      "sources_sha256": {
+        "scripts/civ_review.py": "4176f8734d91417a87a96c26df40a059281b0a6aff9def9aecf4ab18b91c3c45",
+        "scripts/tally_reviews.py": "cbdb4f4b55b6972ebe83d0078177a28fd511dc87962367eb63b8f3cb695e40c7",
+        "scripts/lib/team_memory.py": "ba2ed269fc80d849ca0e72d7a4dc3a434d2ec2d6ca97824ad828fc506ac90844",
+        "reviews/TEMPLATE-prompt-revue-neutre.md": "fa03341c225031aa209d29c2e9d40e422e080934fe6aa8e3b03bef6f832fc6a8"
+      },
+      "observed_local_changes": {
+        "scripts/civ_review.py": "max_tokens=32000 et x-session-id dérivé du hash du prompt",
+        "scripts/tally_reviews.py": "aliases GPT-5.6-Sol ajoutés au mapping vendor"
+      }
+    }
+  },
+  "reviews": {
+    "DeepSeek-V4-Pro-0813.verdict.json": "ea4a7dd214d3826733126c1e431da33ad283e54acc693c9acbc13d031eb0c617",
+    "Gemini-3.7-Flash.verdict.json": "e4c5d096b818281041f3ca154811b5043cc7c0a76b14fb3d78548f4585e883c9",
+    "Muse-Spark-1.2-Contributor.verdict.json": "397e3217e33088ad4a783d75098a3b7b7e524e257a7688639d73a93086b44978"
+  },
+  "consensus": {
+    "outcome": "APPROVE 3/3",
+    "major_or_critical_objections": 0,
+    "minor_objections": 0,
+    "reviewers": {
+      "DeepSeek-V4-Pro-0813": {
+        "vendor": "deepseek",
+        "served_model": "deepseek-v4-pro-0813-openrouter",
+        "retries": 0,
+        "fallbacks": 0
+      },
+      "Gemini-3.7-Flash": {
+        "vendor": "google",
+        "served_model": "gemini-37-flash-openrouter",
+        "retries": 0,
+        "fallbacks": 0
+      },
+      "Muse-Spark-1.2-Contributor": {
+        "vendor": "meta",
+        "served_model": "muse-spark-12-contributor-openrouter",
+        "retries": 0,
+        "fallbacks": 0
+      }
+    }
+  }
+}
