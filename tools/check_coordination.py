@@ -14,8 +14,30 @@ CLAUDE_RE = re.compile(r"^(?:ISS-|AUD-|BUG-|R4-)")
 HEADER = ["Work ID", "Owner", "Branch", "Path scope", "Status", "Updated UTC", "Next"]
 # Une ligne de separation Markdown valide : "|---|---|", "| --- | --- |",
 # avec ou sans ":" d'alignement, au moins 3 tirets par colonne.
-SEPARATOR_RE = re.compile(r"^\|(\s*:?-{3,}:?\s*\|)+$")
+CELLULE_SEPARATRICE_RE = re.compile(r"^\s*:?-{3,}:?\s*$")
 FENCE_RE = re.compile(r"^(```|~~~)")
+
+
+def est_ligne_separatrice(ligne: str) -> bool:
+    """Vraie pour une ligne de separation Markdown du type `|---|:---:|---|`.
+
+    Ecrit sans quantificateur imbrique, deliberement. La forme regex naturelle
+    `^\\|(\\s*:?-{3,}:?\\s*\\|)+$` repete un groupe qui commence ET finit par `\\s*`,
+    motif super-lineaire que SonarCloud classe en point chaud de securite (S5852)
+    et qui a fait tomber la Security Rating de cette PR en C.
+
+    Mesure honnete : sur des entrees realistes (jusqu'a 22 groupes valides suivis
+    d'une queue non conforme) aucune explosion combinatoire n'a ete reproduite —
+    l'ancrage par `-{3,}` et `\\|` limite les decoupages possibles. Le defaut est
+    donc le MOTIF, pas un exploit demontre. Il est corrige quand meme : le
+    decoupage explicite ci-dessous est lineaire par construction, se lit plus
+    clairement, et supprime le point chaud sans rien couter.
+    """
+    ligne = ligne.strip()
+    if len(ligne) < 2 or not ligne.startswith("|") or not ligne.endswith("|"):
+        return False
+    cellules = ligne[1:-1].split("|")
+    return bool(cellules) and all(CELLULE_SEPARATRICE_RE.match(c) for c in cellules)
 
 
 def parse_rows(path: Path) -> tuple[list[dict[str, str]], list[str], bool]:
@@ -47,7 +69,7 @@ def parse_rows(path: Path) -> tuple[list[dict[str, str]], list[str], bool]:
             # ligne suivante soit une vraie ligne de separation avant de considerer
             # qu'une table de coordination commence ici.
             next_line = lines[lineno].strip() if lineno < len(lines) else ""
-            if SEPARATOR_RE.match(next_line):
+            if est_ligne_separatrice(next_line):
                 header_found = True
             continue
         if len(cells) != 7:
