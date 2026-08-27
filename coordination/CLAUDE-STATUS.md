@@ -31,9 +31,11 @@ protection, aucun code métier M1–M10, aucune promotion canonique.
 
 Objection de revue : ces 4 définitions n'ont jamais été exercées comme fichiers
 `.claude/agents/` chargés nativement, et deviennent après merge chargeables avec
-`tools` incluant Write/Edit, `maxTurns: 240` (jusqu'à ce commit, trois d'entre elles
-portaient en plus `permissionMode: auto` ; corrigé en `default` — voir « Écarts
-volontaires » ci-dessous). Ne pas dégrader en `.example` — mais ne pas non plus
+`maxTurns: 240`. Précision mesurée, corrigée en revue : **3 des 4** portent `tools`
+incluant Write/Edit — `opsys-issue-triage` déclare `tools: Read, Grep, Glob, Bash` et
+place Write/Edit/NotebookEdit dans `disallowedTools`, cohérent avec son
+`permissionMode: plan`. Les 3 autres portaient aussi `permissionMode: auto` jusqu'à ce
+commit ; corrigé en `default` — voir « Écarts volontaires » ci-dessous. Ne pas dégrader en `.example` — mais ne pas non plus
 prétendre à une capacité non observée. Détail :
 
 **Ce qui EST prouvé** — le corps de prompt (hors frontmatter YAML) de ces 4 rôles a été
@@ -207,9 +209,13 @@ localisés à deux fonctions :
   commit. Fixture ad hoc (hors dépôt) : deux lignes actives, branches distinctes, scopes
   `Coordination` et `coordination` → avant ce commit, `COORDINATION_OK rows=2 active=2`
   (collision manquée) ; après ce commit, `PATH_COLLISION:...`, exit 1.
-- **Correctif** : `overlaps()` normalise désormais la casse des deux chemins avant
-  comparaison, par le même principe que `MODULE_CODE_DURING_CORE`. Les deux contrôles de
-  scope partagent maintenant la même notion de « même chemin ».
+- **Correctif** : `overlaps()` normalise désormais la casse **et le séparateur** des deux
+  chemins avant comparaison, par le même principe que `MODULE_CODE_DURING_CORE`.
+  La normalisation de casse seule ne suffisait pas : une revue a mesuré que
+  `coordination\sub` et `coordination/sub`, deux lignes actives, ne déclenchaient
+  toujours aucune collision, alors que `MODULE_CODE_DURING_CORE` traitait bien ces deux
+  écritures comme le même chemin. Les deux contrôles de scope partagent maintenant la
+  même notion de « même chemin » — casse et séparateur.
 
 ## `.claude/settings.example.json` — ne jamais écraser `.claude/settings.json`
 

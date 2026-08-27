@@ -54,6 +54,18 @@ def parse_rows(path: Path) -> tuple[list[dict[str, str]], list[str], bool]:
             errors.append(f"MALFORMED_ROW:{lineno}:{len(cells)}")
             continue
         out.append(dict(zip(["work_id", "owner", "branch", "scope", "status", "updated", "next"], cells)))
+    if in_fence:
+        # Fail-closed. Le suivi de bloc de code est une bascule : un fence non
+        # referme fait ignorer EN SILENCE toutes les lignes suivantes, donc les
+        # collisions de branche et de chemin qu'elles porteraient. Mesure : une
+        # table valide suivie d'un `~~~` orphelin puis d'une ligne en collision
+        # rendait COORDINATION_OK exit 0, la ou la version d'avant ce garde-fou
+        # rendait BRANCH_COLLISION + PATH_COLLISION exit 1. Le durcissement du
+        # bloc de code avait donc ouvert un chemin fail-open dans le controle
+        # qu'il pretendait renforcer. Un fence orphelin est une faute de frappe
+        # banale dans un fichier Markdown edite a la main, que les rendus
+        # absorbent sans rien signaler : il doit rougir, pas passer.
+        errors.append("UNTERMINATED_FENCE")
     return out, errors, header_found
 
 
@@ -78,9 +90,10 @@ def overlaps(a: str, b: str) -> bool:
     # distincts au sens strict de PurePosixPath) alors que MODULE_CODE_DURING_CORE les
     # traite comme identiques quelques lignes plus loin dans validate() : incoherence
     # interne heritee du pack amont, corrigee ici pour que les deux controles de scope
-    # partagent la meme notion de "meme chemin".
-    pa = PurePosixPath(a.rstrip("/").casefold())
-    pb = PurePosixPath(b.rstrip("/").casefold())
+    # partagent la meme notion de "meme chemin" : meme normalisation de casse ET
+    # de separateur, comme MODULE_CODE_DURING_CORE le fait deja.
+    pa = PurePosixPath(a.replace("\\", "/").rstrip("/").casefold())
+    pb = PurePosixPath(b.replace("\\", "/").rstrip("/").casefold())
     return pa == pb or pa in pb.parents or pb in pa.parents
 
 
