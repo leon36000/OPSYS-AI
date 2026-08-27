@@ -104,12 +104,13 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _EVIDENCE_ROOT = _REPO_ROOT / "evidence" / "tasks"
 
-# Périmètre scellé : core/ (le code) + LES DEUX workflows CI (core-ci.yml
-# ET ci.yml — révision 3, trouvé par revue architecte round 2 : ci.yml
-# est le SEUL endroit qui exécute core/src/authz/tests et
-# core/src/config/tests, sous continue-on-error, vérifié en lisant le
-# fichier — un gate qui ne se protège que lui-même laisse l'AUTRE
-# workflow neutralisable sans preuve) + scripts/ racine.
+# Périmètre scellé : core/ (le code) + tools/proof/ et le contrôle GitHub
+# sous .opsys/ (outils de preuve/contrôle, racines du contrat qualité) + LES
+# DEUX workflows CI (core-ci.yml ET ci.yml — révision 3, trouvé par revue
+# architecte round 2 : ci.yml est le SEUL endroit qui exécute
+# core/src/authz/tests et core/src/config/tests, sous continue-on-error,
+# vérifié en lisant le fichier — un gate qui ne se protège que lui-même laisse
+# l'AUTRE workflow neutralisable sans preuve) + scripts/ racine.
 #
 # DÉLIBÉRÉMENT PAS élargi à `Modules M/` (M1-M10, le produit) malgré
 # l'objection round 2 de l'architecte : ces modules suivent DÉJÀ une
@@ -121,7 +122,12 @@ _EVIDENCE_ROOT = _REPO_ROOT / "evidence" / "tasks"
 # unilatéralement — question explicitement signalée à Nathan plutôt que
 # tranchée seule ici (cf. rapport final du chantier).
 _PATHSPEC_SCELLE = (
-    "core/", ".github/workflows/core-ci.yml", ".github/workflows/ci.yml", "scripts/",
+    "core/",
+    "tools/proof/",
+    ".opsys/tools/github-control/",
+    ".github/workflows/core-ci.yml",
+    ".github/workflows/ci.yml",
+    "scripts/",
 )
 
 # Copie volontaire de tally_reviews.py::_VENDOR — COMPLÈTE (pas un sous-
@@ -139,6 +145,7 @@ _VENDOR = {
     "memory-quality": "zhipu",
     "deepseek": "deepseek",
     "deepseek-v4-pro": "deepseek",
+    "deepseek-v4-pro-0813": "deepseek",
     "deepseek-v4-flash": "deepseek",
     "kimi": "moonshot",
     "kimi-2.7": "moonshot",
@@ -151,6 +158,8 @@ _VENDOR = {
     "gemini": "google",
     "gemini-3.1-pro": "google",
     "gemini-3.1-pro-or": "google",
+    "gemini-3.7-flash": "google",
+    "muse-spark-1.2-contributor": "meta",
     "qwen": "alibaba",
     "qwen3.7-max": "alibaba",
     "qwen3.8-max": "alibaba",

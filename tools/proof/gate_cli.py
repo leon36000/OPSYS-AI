@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import json
-import sys
 from pathlib import Path
 
 from gate_engine import evaluate_gate

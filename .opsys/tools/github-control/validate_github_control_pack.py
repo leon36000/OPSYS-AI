@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 import csv,hashlib,json,re
-from pathlib import Path
 try:
     from tools.common import PACK, EXPECTED_REPO, EXPECTED_OWNER, canonical_bytes, load_tasks, load_phases
 except ImportError:

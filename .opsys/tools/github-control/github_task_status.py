@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 import argparse, json, subprocess
-from pathlib import Path
 try:
     from tools.common import EXPECTED_REPO, load_config, issue_map, inspect_repository
 except ImportError:

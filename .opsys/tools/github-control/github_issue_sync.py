@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse, json, subprocess, sys
+import argparse, json, subprocess
 from pathlib import Path
 try:
     from tools.common import PACK, EXPECTED_REPO, EXPECTED_OWNER, write_json

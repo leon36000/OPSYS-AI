@@ -34,10 +34,6 @@ interne) CONTRE ce fichier.
 """
 from __future__ import annotations
 
-import hashlib
-
-import pytest
-
 from tools.proof.review_policy import PolicyResult, evaluate_policy
 
 
