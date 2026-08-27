@@ -1,0 +1,10 @@
+{
+  "verdict": "APPROVE",
+  "objections": [],
+  "resume": "Le SHA est bien formé et correspond au tag v5 résolu. Le nouvel oracle est non vide, détecte effectivement les défauts (tag, branche, SHA court, chaîne non hexadécimale), avec une garde de non-vacuité sur le fichier réel. Les limitations sont explicitement déclarées dans la docstring (lecture statique, portée locale, non-résolution, clé dupliquée dernier-gagnant) et ne constituent pas des objections selon la règle de jugement. Aucune dépendance nouvelle n'est introduite dans le job gates, aucune structure de ci.yml modifiée, aucune affirmation dépendante d'un état externe mutable ou d'une opération Git ordinaire.",
+  "date_heure": "2026-08-27T05:25:58.737997+00:00",
+  "prompt_sha256": "61ea2004f580b4f4b24f31f159399a6ac9636cd55099f7967df7910709fd8f80",
+  "reviewer_model": "DeepSeek-V4-Pro-0813",
+  "modele_servi": "deepseek-v4-pro-0813",
+  "job_id": "27f0e47c-0047-410d-9fb7-310feb1e8bd4"
+}
