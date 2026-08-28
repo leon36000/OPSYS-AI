@@ -20,16 +20,19 @@
 # `coordination/CLAUDE-STATUS.md` garde le détail narratif des durcissements, ce fichier en
 # garde la preuve rejouable. Invocation en subprocess réel (comme
 # scripts/tests/test_methode.py) : ce qui compte ici est le contrat CLI — exit code + préfixe
-# sur stdout — pas l'appel direct des fonctions internes. Précision (AUD-QUAL-008, #600) :
-# deux fixtures dédiées épinglent en outre l'ORDRE RELATIF de plusieurs lignes d'erreur par
-# égalité EXACTE de `stdout.splitlines()` (pas seulement leur préfixe ou leur présence) —
+# sur stdout — pas l'appel direct des fonctions internes. Précision (AUD-QUAL-008, #600 ;
+# étendue en AUD-QUAL-010, #604) : les fixtures dont le nom commence par `test_ordre_`
+# (désignation par motif de nom, pas par décompte — un décompte figé serait faux à la
+# prochaine addition, cf. coordination/README.md) épinglent en outre l'ORDRE RELATIF de
+# plusieurs lignes d'erreur par égalité EXACTE de `stdout.splitlines()` (pas seulement
+# leur préfixe ou leur présence) —
 # ATTENTION, auto-contradiction corrigée en revue scellée (tour 2 de #601, siège 2) : une
 # première version de cette phrase rangeait « les paires de _erreurs_de_collision() » parmi
 # l'ordre NON épinglé, alors que l'ordre INTERNE à UNE paire (BRANCH_COLLISION avant
 # PATH_COLLISION, dans `_erreurs_de_paire()`) EST épinglé en bonus par
 # `test_ordre_erreurs_de_ligne_avant_erreurs_de_collision` (désignée par NOM, pas par
-# position — un test inséré entre les deux ci-dessous ne doit pas périmer ce renvoi
-# silencieusement) — contredisant, dans le même commit, le commentaire de ce test-là.
+# position — un test inséré entre les fixtures d'ordre ci-dessous ne doit pas périmer ce
+# renvoi silencieusement) — contredisant, dans le même commit, le commentaire de ce test-là.
 # Précisément :
 # l'ordre INTERNE à chaque groupe de contrôles PAR LIGNE (`_erreurs_structurelles()`,
 # `_erreurs_de_propriete()`) reste hors contrat, non épinglé par ce fichier à ce jour ; il en
@@ -52,6 +55,20 @@
 # hors contrat ci-dessus : le groupement des blocs d'erreur PAR LIGNE (ordre entre lignes
 # distinctes) et la position de HEADER_MISSING/MALFORMED_ROW n'y figurent pas non plus,
 # et ne sont pas davantage revendiqués comme épinglés ailleurs dans ce fichier.
+#
+# Précision (AUD-QUAL-010, #604 ; revue scellée, tour 1 de #603, siège 2) : jusqu'ici, la
+# relation ligne-avant-paire n'était épinglée que lorsque la ligne en erreur est elle-même
+# membre de la paire concernée (cas de
+# `test_ordre_erreurs_de_ligne_avant_erreurs_de_collision` ci-dessous).
+# `test_ordre_ligne_avant_paire_quand_la_ligne_en_erreur_est_hors_de_la_paire` couvre en
+# outre le cas où elle ne l'est PAS : une ligne hors de toute collision (ici hors de
+# l'ensemble ACTIVE : statut MERGED), positionnée après une paire dans la table. Un
+# entrelacement qui émettrait, pour chaque ligne, ses erreurs PUIS les paires dont elle
+# est membre DROIT laissait ce cas-là vert avant ce test. Ni
+# `test_ordre_erreurs_de_ligne_avant_erreurs_de_collision` ni ce test ne prétendent
+# épuiser toutes les stratégies d'entrelacement possibles entre boucle par ligne et
+# boucle par paire — au moins les deux stratégies mesurées ici sont effectivement
+# exclues par ces deux fixtures.
 #
 # Lancer seul : python3 -m pytest coordination/tests/ (hors testpaths par défaut de
 # pytest.ini — dont le contenu exact n'est pas recopié ici, voir coordination/README.md).
@@ -1182,6 +1199,78 @@ def test_ordre_erreurs_de_ligne_avant_erreurs_de_collision(tmp_path):
     assert r.stdout.splitlines() == [
         "OWNER:ISS-B:BADOWNER",
         "ISSUE_OWNER:ISS-B:BADOWNER",
+        "BRANCH_COLLISION:ISS-A:ISS-B",
+        "PATH_COLLISION:ISS-A:ISS-B:coordination:coordination",
+    ]
+
+
+def test_ordre_ligne_avant_paire_quand_la_ligne_en_erreur_est_hors_de_la_paire(tmp_path):
+    # Complète test_ordre_erreurs_de_ligne_avant_erreurs_de_collision ci-dessus contre
+    # un entrelacement MIROIR de celui qu'il exclut déjà (revue scellée, tour 1 de
+    # #603, siège 2 ; AUD-QUAL-010, #604) : pour chaque ligne, émettre ses erreurs
+    # PUIS les paires où elle est le membre DROIT plutôt que le membre GAUCHE. Ce
+    # test-là place l'erreur de ligne sur ISS-B, membre DROIT de la SEULE paire de sa
+    # fixture — ce qui exclut l'entrelacement membre GAUCHE, mais ne distingue PAS
+    # validate() réel de son miroir : à cette arité (une seule paire, l'erreur de
+    # ligne portée par un de SES membres), la sortie du miroir coïncide avec celle
+    # de validate() réel.
+    #
+    # Ce test-ci isole la ligne en erreur de la paire : ISS-C ne participe à AUCUNE
+    # collision (branche et scope propres à elle), et son statut MERGED l'exclut de
+    # _erreurs_de_collision() (qui ne voit que les lignes ACTIVE) — donc de toute
+    # paire, y compris comme membre. Positionnée APRÈS la paire ISS-A/ISS-B dans la
+    # table, elle force la divergence : _erreurs_de_ligne() est appliquée à TOUTE la
+    # table (ISS-C y contribue OWNER + ISSUE_OWNER), tandis que
+    # _erreurs_de_collision() ne voit que les 2 lignes ACTIVE (ISS-A, ISS-B, seule
+    # paire). Sous le mutant miroir, le « tour » d'ISS-B émet ses propres erreurs de
+    # ligne (aucune ici) PUIS la paire dont il est membre DROIT (BRANCH_COLLISION,
+    # PATH_COLLISION) — AVANT que le « tour » d'ISS-C, plus tardif dans la table,
+    # n'émette ses erreurs de ligne. Mesuré (copie isolée, jamais le worktree
+    # partagé) : cette mutation laisse les 70 tests d'alors verts (ISS-C n'étant
+    # membre d'aucune paire, aucun test existant n'exerce ce cas) mais fait rougir CE
+    # test — même ensemble de lignes que le réel, ordre différent : erreurs DE PAIRE
+    # avant erreurs DE LIGNE, l'inverse exact de ce que le nom de ce test revendique.
+    #
+    # Instance retenue parmi les 2 mesurées en revue scellée, tour 1 de #603 (siège 2) et
+    # reprises dans #604 (3 lignes ACTIVE ; 2 ACTIVE + 1 ligne hors de l'ensemble ACTIVE
+    # après) : celle-ci, qui réduit le nombre de paires évaluées de 3 à 1. Ce choix n'est
+    # PAS mécaniquement requis — sur-généralisation trouvée et mesurée en revue scellée
+    # (tour 2 de #606, 3 sièges convergents) dans une précédente version de ce paragraphe,
+    # qui l'affirmait à tort : status="ACTIVE" sur ISS-C fait diverger le mutant miroir à
+    # l'identique (mesuré). Ce qui porte le mécanisme, tel que #604 et le docstring de
+    # _erreurs_de_ligne() le formulent déjà (mais voir #607 : l'aveu de ce docstring «
+    # reste NON epinglee a ce cas — suivi separe : #604 » devient lui-même périmé une fois
+    # #604 fermée par cette PR — suivi séparé, pas de correctif ici) : ISS-C porte une
+    # erreur de ligne et est positionnée, dans la table, APRÈS le membre DROIT d'une paire
+    # en collision — pas plus. Sur-restriction trouvée et mesurée en revue scellée (tour 3
+    # de #606, 3 sièges convergents) dans une autre précédente version de ce paragraphe,
+    # qui ajoutait à tort la condition qu'ISS-C ne soit elle-même membre DROIT d'aucune
+    # paire : mesuré par contre-exemple, donner à ISS-C À LA FOIS la même branche que
+    # ISS-A/ISS-B ET le statut ACTIVE (les deux mutations sont nécessaires — sous MERGED
+    # seul, ISS-C reste hors de _erreurs_de_collision() quelle que soit sa branche, donc
+    # membre d'aucune paire, ce qui ne réfute rien) la rend membre DROIT de 2 paires en
+    # collision supplémentaires (BRANCH_COLLISION:ISS-A:ISS-C,
+    # BRANCH_COLLISION:ISS-B:ISS-C) — et le mutant miroir diverge toujours à l'identique :
+    # c'est la présence de la paire (ISS-A,ISS-B), dont ISS-C n'a pas besoin d'être
+    # membre, qui suffit. Ni l'appartenance d'ISS-C à ACTIVE, ni son statut de membre ou
+    # non d'une paire, ne portent le mécanisme. Un statut hors ACTIVE reste néanmoins
+    # préférable ici : il instancie la branche la plus distincte des 2 mesurées dans #604,
+    # plutôt que de redire sous une troisième forme l'instance à 3 lignes ACTIVE déjà
+    # documentée ailleurs (#604, instance 1 ; docstring de _erreurs_de_ligne()). MERGED
+    # choisi parmi QUEUED, BLOCKED, MERGED — TRANSFER exclu, mesuré : la garde
+    # `status != "TRANSFER"` de _erreurs_de_propriete() supprimerait ISSUE_OWNER, faisant
+    # tomber cette fixture à 3 lignes au lieu des 4 assertées ; c'est la SEULE
+    # contrainte que le statut retenu fait peser sur la sortie assertée.
+    p = write(tmp_path, "t.md", table(
+        row(work_id="ISS-A", owner="CLAUDE", branch="claude/x", scope="coordination"),
+        row(work_id="ISS-B", owner="CLAUDE", branch="claude/x", scope="coordination"),
+        row(work_id="ISS-C", owner="BADOWNER", branch="claude/z", scope="scripts", status="MERGED"),
+    ))
+    r = run([str(p)])
+    assert r.returncode == 1
+    assert r.stdout.splitlines() == [
+        "OWNER:ISS-C:BADOWNER",
+        "ISSUE_OWNER:ISS-C:BADOWNER",
         "BRANCH_COLLISION:ISS-A:ISS-B",
         "PATH_COLLISION:ISS-A:ISS-B:coordination:coordination",
     ]
