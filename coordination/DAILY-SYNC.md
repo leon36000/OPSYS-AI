@@ -9,9 +9,14 @@ contradiction interne. Choix retenu ici : **renseigner ce fichier en cohérence 
 `WORK-OWNERSHIP.md`, `CLAUDE-STATUS.md` et `CODEX-STATUS.md`**, plutôt que le neutraliser
 en gabarit vide, parce que `coordination/README.md` — fichier livré par cette PR — confie
 explicitement ce fichier au sync owner de la mise au point (« sont modifiés par un seul
-sync owner désigné pour la mise au point ») et que cette mise au point a
-déjà produit un état daté et réconcilié dans ces trois fichiers : le dupliquer ici
-n'ajoute aucune affirmation nouvelle, seulement un résumé compact. Le fichier
+sync owner désigné pour la mise au point ») et que cette mise au point a déjà produit un état
+daté et réconcilié dans `WORK-OWNERSHIP.md` et `CLAUDE-STATUS.md` : le dupliquer ici
+n'ajoute aucune affirmation nouvelle côté Claude, seulement un résumé compact.
+**`CODEX-STATUS.md` n'entre pas dans cette justification** — `Updated UTC : UNSET` et ses
+sections vides montrent que c'est le gabarit du pack, jamais renseigné (cette PR ne l'édite
+pas, cf. `coordination/README.md`) : la section « Codex » ci-dessous n'est donc pas la
+réconciliation d'un état déjà produit, mais l'unique lecture qu'un gabarit vide permet —
+« aucune mission déclarée », faute d'affirmation à réconcilier. Le fichier
 `24H-UPDATE-TEMPLATE.md` du même dossier reste le gabarit vide réutilisable pour la
 prochaine mise au point ; il n'est pas touché par ce choix.
 

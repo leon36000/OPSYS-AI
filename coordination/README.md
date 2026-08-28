@@ -2,7 +2,16 @@
 
 - Les assignees, labels, branches et PR GitHub constituent la vérité live.
 - `WORK-OWNERSHIP.md` est le snapshot humain de la mise au point approximativement quotidienne.
-- Codex modifie seulement `CODEX-QUEUE.md` et `CODEX-STATUS.md`.
+- Codex modifie seulement `CODEX-QUEUE.md` et `CODEX-STATUS.md`. Cette PR les installe
+  identiques au pack **v1.2** — seule version qui porte encore un `repo-overlay/`, v1.4 ne
+  l'a plus (`diff -q "$OPSYS_PACK_V1_2/repo-overlay/coordination/CODEX-QUEUE.md"
+  coordination/CODEX-QUEUE.md`, silencieux — même commande pour `CODEX-STATUS.md`, où
+  `$OPSYS_PACK_V1_2` désigne le répertoire où le pack `OPSYS-AI-CLAUDE-ISSUES-OPERATIONS-v1.2`
+  a été dépaqueté) et ne les édite pas. **Exception assumée à la doctrine anti-décompte de ce
+  dépôt** : `CODEX-QUEUE.md` fige « les 148 tâches » du pack, une valeur externe et mutable.
+  Elle reste, verbatim, parce que ce fichier n'est pas de la prose de ce dépôt à maintenir —
+  c'est une copie d'un fichier que seul Codex édite ; la corriger romprait l'identité au pack
+  que la commande ci-dessus atteste.
 - Claude Code modifie seulement `CLAUDE-QUEUE.md` et `CLAUDE-STATUS.md`.
 - `WORK-OWNERSHIP.md` et `DAILY-SYNC.md` sont modifiés par un seul sync owner désigné pour la mise au point.
 - Une tâche, une issue, une branche, un worktree et un owner. Aucun doublon.
@@ -43,12 +52,15 @@
   l'exception avec un traceback et un exit 1 indiscernable, pour l'appelant, d'une table
   lue et non conforme. Motif du changement : voir `coordination/CLAUDE-STATUS.md`.
 
-  **Ce validateur n'est câblé dans aucun job CI.** Raison assumée, pas un oubli : le câbler
-  modifierait `.github/workflows/ci.yml`, un fichier **existant** du dépôt
-  (`git cat-file -e origin/main:.github/workflows/ci.yml` réussit), et romprait la
-  propriété que cette PR maintient — elle est purement additive, ce qui se re-mesure par
-  `git diff --name-status origin/main...HEAD`, dont toutes les lignes portent le statut `A`.
-  Le câblage relève donc d'une mission séparée, ouverte après le merge de #564, et non d'un
+  **Ce validateur n'est câblé dans aucun job CI.** Raison assumée, pas un oubli — mais pas
+  non plus celle qu'une version antérieure de ce paragraphe donnait : un job CI câblé
+  *pourrait* rester additif (un nouveau fichier de workflow porterait le statut `A` comme les
+  seize autres, sans modifier `.github/workflows/ci.yml`), donc l'additivité de cette PR
+  n'est pas, en soi, ce qui empêche le câblage — cette justification-là était fausse, trouvée
+  et retirée en revue. La raison réelle est de mission : le mandat de #564 est d'installer
+  l'overlay de coordination, pas d'ajouter une porte CI ; câbler une garde qui bloquerait
+  potentiellement les PR futures mérite sa propre revue, dédiée, distincte de celle-ci. Le
+  câblage relève donc d'une mission séparée, ouverte après le merge de #564, et non d'un
   ajout ici. Tant qu'il n'a pas lieu, l'exécution reste manuelle et
   déclarative, à la charge de qui active une mission. Présenter cette
   garde comme câblée en CI alors qu'elle ne l'est pas serait le défaut d'un validateur

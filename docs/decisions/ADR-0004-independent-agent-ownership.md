@@ -62,39 +62,50 @@ les deux choix sont visibles dans le `diff -u` ci-dessus.
 
 La commande qui interroge l'historique du dépôt sur cette formulation :
 
-`git log origin/main --pickaxe-regex -S'ma.tre.d.(oe|œ)uvre|github global' --oneline -- . \
+`git log origin/main --pickaxe-regex -i -S'ma.tre.d.(oe|œ)uvre|github global' --oneline -- . \
 ':!docs/decisions/ADR-0004-independent-agent-ownership.md' \
 ':!docs/decisions/ADR-PROPOSED-INDEPENDENT-AGENT-OWNERSHIP.md'`
 
-Deux propriétés de cette formulation, et rien d'autre :
+Trois propriétés de cette formulation, et rien d'autre :
 
 - **L'exclusion de chemin est obligatoire, pas décorative.** Ce document contient lui-même
   la formulation cherchée, pour la citer et la retirer ; son nom de travail avant renommage
   était `ADR-PROPOSED-INDEPENDENT-AGENT-OWNERSHIP.md`. Sans ces deux exclusions, la commande
   compterait ce document parmi ses propres preuves — et deviendrait non vide dès le merge de
-  cette PR, c'est-à-dire au moment exact où un lecteur peut la rejouer.
+  cette PR, c'est-à-dire au moment exact où un lecteur peut la rejouer. **Contrôle positif**,
+  rejoué sans les deux exclusions : la commande rend alors une sortie NON vide (ce document
+  cite lui-même la formulation), la preuve que le motif régulier sait effectivement matcher
+  quand la formulation est présente — une sortie vide n'est donc pas un motif mort.
+- **`-i` est nécessaire, pas cosmétique.** La seconde alternative du motif, `github global`,
+  est écrite tout en minuscules ; `-S` de `git log` est sensible à la casse par défaut. Sans
+  `-i`, une occurrence réelle sous la graphie citée dans ce document (« GitHub global », G et
+  H majuscules) ne matcherait PAS cette alternative — seule la première (`ma.tre...`) resterait
+  opérante, et une sortie vide ne distinguerait plus « formulation absente » de « motif qui
+  n'a pas pu correspondre ». Trouvé en revue scellée (2 sièges, convergents), corrigé ici.
 - **Une version antérieure de ce paragraphe figeait un SHA de base et un décompte de commits
   comme preuve** ; la première avance de `main` a suffi à les rendre faux, avant même le
   merge. Ce qui est affirmé ici est **borné à
   une mesure datée**, et non présenté comme valant pour toute révision : rejouée sur
-  `origin/main` le **2026-08-27**, cette commande rend une sortie vide. Rejouée le même jour
-  en remplaçant `origin/main` par le `HEAD` de cette branche — qui porte déjà tous les
-  fichiers que le merge apportera — elle rend également une sortie vide : c'est ce qui borne
-  l'effet d'un rebase, d'un squash, d'un amend ou du merge de cette branche, sans avoir à le
-  déduire. Le résultat ne survit en revanche **pas de droit** à l'avance de `main` : un
+  `origin/main` le **2026-08-28**, cette commande (avec `-i`) rend une sortie vide. Rejouée le
+  même jour en remplaçant `origin/main` par le `HEAD` de cette branche — qui porte déjà tous
+  les fichiers que le merge apportera — elle rend également une sortie vide : c'est ce qui
+  borne l'effet d'un rebase, d'un squash, d'un amend ou du merge de cette branche, sans avoir
+  à le déduire. Le résultat ne survit en revanche **pas de droit** à l'avance de `main` : un
   commit ultérieur qui réintroduirait la formulation rendrait la sortie non vide.
   **La commande est à rejouer, pas à croire.** Ce que la sortie vide établissait à cette
   date : en dehors de la lignée de ce document, aucun commit alors présent dans l'historique
-  interrogé n'avait ajouté ni retiré cette formulation.
+  interrogé n'avait ajouté ni retiré cette formulation, sous aucune casse.
 
 Cette vérification a échoué plusieurs fois avant de tenir, et chaque correction avait
 déplacé le défaut au lieu de l'éliminer : d'abord un `git grep` sans révision, qui
 n'interroge jamais l'historique ; puis un `git log --pickaxe-regex` correct mais sans
-exclure ce document de ses propres preuves ; puis une version antérieure de ce paragraphe,
-qui excluait bien ce document mais figeait le résultat sur une révision et un décompte que
-la seule avance de `main` suffisait à réfuter. Aucun décompte de ces tentatives n'est retenu
-ici : il faudrait le maintenir, et c'est exactement la dette que cette section a pour rôle
-de ne pas contracter.
+exclure ce document de ses propres preuves ; puis une version qui excluait bien ce document
+mais figeait le résultat sur une révision et un décompte que la seule avance de `main`
+suffisait à réfuter ; puis une version datée et bornée mais sensible à la casse sans le
+dire, trouvée par revue scellée indépendante plutôt que par une relecture de plus — quatre
+tours, quatre classes de défaut distinctes, jamais la même deux fois. Aucun décompte de ces
+tentatives n'est retenu ici : il faudrait le maintenir, et c'est exactement la dette que
+cette section a pour rôle de ne pas contracter.
 
 ## Conséquences
 

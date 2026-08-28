@@ -90,8 +90,18 @@ def validate(path: Path) -> tuple[list[dict[str, str]], list[str]]:
             errors.append(f"SCOPE:{wid}:{row['scope']}")
         if status in ACTIVE and branch.lower() in {"main", "master", ""}:
             errors.append(f"BRANCH:{wid}")
-        normalized_scope = row["scope"].replace("\\", "/").casefold()
-        if status in ACTIVE and (normalized_scope == "modules m" or normalized_scope.startswith("modules m/")):
+        # Fixture (revue scellee independante, 3 sieges) : "coordination;modules m/M7"
+        # sur une ligne ACTIVE ne declenchait rien avant ce correctif — normalized_scope
+        # portait la cellule ENTIERE ("coordination;modules m/m7"), qui n'egale ni ne
+        # commence par "modules m", meme si un de ses items separes par ";" le fait.
+        # Herite du pack (meme bug, memes lignes) ; ferme ici par element de scope,
+        # meme decoupage que valid_scope()/overlaps() juste au-dessus.
+        scopes_normalises = [
+            x.strip().replace("\\", "/").casefold() for x in row["scope"].split(";") if x.strip()
+        ]
+        if status in ACTIVE and any(
+            s == "modules m" or s.startswith("modules m/") for s in scopes_normalises
+        ):
             errors.append(f"MODULE_CODE_DURING_CORE:{wid}")
         if CORE_RE.match(wid) and owner not in {"CODEX", "UNASSIGNED"} and status != "TRANSFER":
             errors.append(f"CORE_OWNER:{wid}:{owner}")
@@ -112,8 +122,10 @@ def validate(path: Path) -> tuple[list[dict[str, str]], list[str]]:
 
 def _chemin_sur(brut: str, *, pour_ecriture: bool = False) -> Path:
     """Resout et valide un chemin AVANT tout acces disque (SonarCloud S8707,
-    new_security_rating C sur ce fichier neuf : deux lectures/ecritures d'un
-    chemin argv sans validation prealable, lignes 21 et 129 avant ce correctif).
+    new_security_rating C sur ce fichier neuf : lecture et ecriture d'un
+    chemin argv sans validation prealable, motif cite au point d'appel de
+    chacune des deux dans main() plutot que par numero de ligne — un renvoi
+    par ligne se refute des la prochaine edition de ce fichier).
 
     Pas de confinement a l'arborescence du depot : mesure deja faite au tour
     precedent, `daily_start.py` du pack appelle ce validateur sur des chemins
@@ -123,17 +135,52 @@ def _chemin_sur(brut: str, *, pour_ecriture: bool = False) -> Path:
     type verifies. Leve OSError (deja intercepte aux deux appels) plutot qu'une
     classe dediee : le contrat d'exit 2 / LECTURE_IMPOSSIBLE / SORTIE_IMPOSSIBLE
     ne change pas.
+
+    Lecture et ecriture n'exigent PAS la meme nature de cible, deliberement.
+
+    REGRESSION mesuree et fermee ici, trouvee par revue scellee independante
+    (3 sieges, convergents) : une premiere version de cette fonction exigeait
+    `is_file()` en lecture, ce qui rejetait un FIFO, `/dev/stdin` ou une
+    substitution de processus (`<(...)`) — des entrees legitimes et
+    atteignables en ligne de commande que `read_text()` seul lisait deja sans
+    encombre avant ce correctif. Retrecissement de comportement jamais
+    annonce comme tel : ferme en n'excluant que les repertoires en lecture.
+
+    Deuxieme cas ferme dans le meme geste, plus profond : `resolve(strict=True)`
+    echoue AUSSI sur ces memes entrees (mesure : une substitution de processus
+    resout vers un `pipe:[N]` synthetique, `FileNotFoundError` sur ce chemin qui
+    n'existe pas en tant que tel). Repli explicite sur le chemin NON resolu
+    dans ce seul cas precis : la resolution est retentee, et seul un vrai
+    `FileNotFoundError` de resolution (pas d'existence — la difference est
+    faite par le repli lui-meme, jamais devinee) fait retomber sur `Path(brut)`
+    tel quel, que `is_dir()`/`read_text()` jugeront ensuite sur ses propres
+    termes. Un chemin reellement inexistant traverse ce meme repli sans
+    silence : `is_dir()` y rend faux, `read_text()` echoue a son tour plus
+    loin, meme message et meme exit 2 qu'avant ce correctif — verifie.
+
+    En ecriture, la cible doit rester un fichier regulier ou un chemin
+    inexistant : `--json-output` cree la sortie, un FIFO ou peripherique en
+    cible d'ecriture est un cas d'usage distinct, plus risque, qu'aucune
+    fixture ne demande d'ouvrir ici. `resolve(strict=False)` y reste sans
+    repli particulier : la cible n'a PAS a exister d'avance (c'est elle que
+    --json-output cree), seul son repertoire parent doit exister, verifie
+    juste apres.
     """
     if "\x00" in brut:
         raise OSError("le chemin contient un octet nul")
-    chemin = Path(brut).resolve(strict=not pour_ecriture)
     if pour_ecriture:
+        chemin = Path(brut).resolve(strict=False)
         if not chemin.parent.is_dir():
             raise OSError(f"repertoire de sortie inexistant : {chemin.parent}")
         if chemin.exists() and not chemin.is_file():
             raise OSError(f"la cible existe et n'est pas un fichier regulier : {chemin}")
-    elif not chemin.is_file():
-        raise OSError(f"n'est pas un fichier regulier : {chemin}")
+    else:
+        try:
+            chemin = Path(brut).resolve(strict=True)
+        except FileNotFoundError:
+            chemin = Path(brut)
+        if chemin.is_dir():
+            raise OSError(f"n'est pas un fichier regulier : {chemin}")
     return chemin
 
 

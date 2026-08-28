@@ -131,7 +131,12 @@ réels ; cette liste n'en énumère que la signification.
    plus un écart sur ces deux clés. Ce qui reste est **inversé** par rapport à une
    formulation antérieure de ce point : c'est ce dépôt qui ajoute une clé absente du pack,
    pas le pack qui en fixe une que ce dépôt retirerait. Motif inchangé : exprimer « quand
-   sonnet est utilisé, cette version précise » sans figer `model`.
+   l'alias `sonnet` est demandé, cette version précise » sans figer `model` — **portée
+   limitée à ce qui invoque l'alias**, pas à tout le dépôt. Les quatre définitions
+   `.claude/agents/opsys-issue-*.md` livrées ici portent `model: claude-sonnet-5` en dur
+   (identique au pack — `grep -n '^model:' "$OPSYS_PACK"/platform-overlay/.claude/agents/*.md`
+   rend la même valeur), pas l'alias `sonnet` : ce point 3 ne les couvre donc pas, et ne
+   prétend pas le contraire.
 4. **`permissionMode` de `.claude/agents/opsys-issue-{ci-docs,restructure,security-quality}.md`**
    — écart portant sur d'autres fichiers que les points ci-dessus. Le pack amont porte
    `permissionMode: auto` pour ces définitions et `permissionMode: plan` pour
@@ -162,17 +167,17 @@ Chaque écart de ce fichier vis-à-vis du pack a été repassé au tri suivant, 
 hors dépôt par fixture, mesurée contre `tools/check_coordination.py` du pack **et** contre ce
 fichier : le pack rend vert à tort et ce fichier rouge → l'écart ferme un fail-open mesuré,
 gardé ci-dessous ; les deux rendent la même chose, ou le pack rendait déjà rouge sur une
-entrée légitime → l'écart ne fermait rien de mesurable, retiré avec sa prose. Quatre écarts
+entrée légitime → l'écart ne fermait rien de mesurable, retiré avec sa prose. Trois écarts
 antérieurs (reconnaissance élargie des séparateurs Markdown, suivi des blocs de code clôturés,
-`UNTERMINATED_FENCE`, validation du chemin d'argv avant tout accès disque) ont été retirés sur
-ce critère — le premier parce que le pack n'était jamais vert à tort sur ses fixtures (rouge
-des deux côtés, pour des raisons différentes) ; le deuxième et le troisième parce que le
-fichier lui-même rendait vert à tort là où le pack rendait rouge à raison (une paire de
-clôtures équilibrée autour d'une vraie collision disparaissait en silence) ; le quatrième
-parce que l'interception au point d'accès (ci-dessous) rend, mesuré, le même exit 2 sans
-traceback sur toute entrée atteignable en ligne de commande, sans la validation préalable.
-Le détail de leur mesure ne survit pas ici, pour ne pas maintenir une justification pour du
-code qui n'existe plus ; `diff -u` contre le pack fait foi de ce qui reste.
+`UNTERMINATED_FENCE`) ont été retirés sur ce critère — le premier parce que le pack n'était
+jamais vert à tort sur ses fixtures (rouge des deux côtés, pour des raisons différentes) ; le
+deuxième et le troisième parce que le fichier lui-même rendait vert à tort là où le pack
+rendait rouge à raison (une paire de clôtures équilibrée autour d'une vraie collision
+disparaissait en silence). Le détail de leur mesure ne survit pas ici, pour ne pas maintenir
+une justification pour du code qui n'existe plus ; `diff -u` contre le pack fait foi de ce qui
+reste. La validation du chemin d'argv, elle, n'a pas suivi ce sort — voir plus bas : retirée
+un temps sur ce même critère, elle a dû être **réintroduite** pour une raison distincte
+(SonarCloud), documentée là où le code vit, pas ici.
 
 ### `HEADER_MISSING`
 
@@ -215,26 +220,48 @@ table valide (gabarit neuf) + `--json-output` vers un répertoire non inscriptib
 `exit=1`, traceback, `PermissionError`, alors que `errors == []`.
 
 `main()` intercepte `OSError` et `UnicodeDecodeError` à la lecture (`LECTURE_IMPOSSIBLE:
-<raison>`, exit 2) et `OSError` à l'écriture JSON (`SORTIE_IMPOSSIBLE:<raison>`, exit 2), sans
-validation de chemin préalable : une version antérieure ajoutait un module de validation
-(`_chemin_valide()`) avant tout accès disque, motivée par un repère SonarCloud
-(`pythonsecurity:S8707`) non re-mesurable depuis ce dépôt. Mesuré sur les quatre fixtures où
-elle changeait quelque chose côté pack (répertoire en lecture, chemin inexistant, répertoire
-de sortie inexistant, cible de sortie = répertoire) : avec ou sans cette validation préalable,
-ce fichier rend le même exit 2 et la même absence de traceback — seul le préfixe du message
-diffère. Retirée comme redondante avec l'interception au point d'accès.
+<raison>`, exit 2) et `OSError` à l'écriture JSON (`SORTIE_IMPOSSIBLE:<raison>`, exit 2).
 
-Mesuré à HEAD : chemin = répertoire → `LECTURE_IMPOSSIBLE:[Errno 21] Is a directory: ...`,
-exit 2 ; contenu non UTF-8 → `LECTURE_IMPOSSIBLE:'utf-8' codec can't decode byte ...`, exit 2 ;
-`--json-output` vers cible non inscriptible → `SORTIE_IMPOSSIBLE:...`, exit 2. Contrat : 0 =
-table lue et conforme ; 1 = table lue, non conforme ; 2 = aucun verdict de conformité
-exploitable. Documenté dans `coordination/README.md`, à côté de `COORDINATION_OK`.
+**Historique de cet écart, corrigé ici après une revue scellée indépendante (3 sièges,
+convergents) qui l'a trouvé faux.** Une version antérieure de ce tri avait retiré la
+validation de chemin préalable (`_chemin_valide()`), la jugeant redondante avec
+l'interception ci-dessus sur les quatre fixtures mesurées à l'époque (répertoire en lecture,
+chemin inexistant, répertoire de sortie inexistant, cible de sortie = répertoire) — mêmes
+exit 2, même absence de traceback sur ces quatre-là. Mais un critère mesuré sur des fixtures
+*comportementales* ne couvre pas un motif détecté par *analyse statique* : SonarCloud a
+rouvert `pythonsecurity:S8707` (chemin argv non validé avant accès disque) sur ce fichier
+neuf, faisant échouer le gate CI — sans qu'aucune des quatre fixtures ci-dessus ne change de
+verdict. `_chemin_sur()` (nom changé, motif identique) est donc **de retour**, appelée aux
+deux points d'accès. Elle lève `OSError` nue plutôt qu'une classe dédiée : ce contrat
+exit 2 / `LECTURE_IMPOSSIBLE` / `SORTIE_IMPOSSIBLE` ne change pas pour autant. Détail complet
+(refus de l'octet nul, `resolve()`, portée volontairement non confinée à l'arborescence du
+dépôt) dans son propre docstring, `tools/check_coordination.py` — pas recopié ici, pour ne
+pas répéter l'erreur qui a motivé cette réécriture.
+
+**Un vrai rétrécissement de comportement est passé avec elle, trouvé et fermé par la même
+revue** : la première version de `_chemin_sur()` exigeait `is_file()` en lecture, donc
+rejetait un FIFO, `/dev/stdin` ou une substitution de processus (`<(...)`) — des entrées
+légitimes que `read_text()` seul lisait déjà sans encombre. Fermé en n'excluant que les
+répertoires en lecture ; le cas plus profond où `resolve()` lui-même échoue sur ces mêmes
+entrées (mesuré : une substitution de processus résout vers un `pipe:[N]` synthétique,
+introuvable) est traité par repli explicite sur le chemin non résolu, décrit dans le
+docstring de la fonction.
+
+Mesuré à HEAD : chemin = répertoire → `LECTURE_IMPOSSIBLE:n'est pas un fichier regulier :
+<chemin>`, exit 2 ; contenu non UTF-8 → `LECTURE_IMPOSSIBLE:'utf-8' codec can't decode byte
+...`, exit 2 ; `--json-output` vers cible non inscriptible → `SORTIE_IMPOSSIBLE:...`, exit 2 ;
+FIFO ou substitution de processus lisible en entrée → `COORDINATION_OK`, comme avant
+`_chemin_sur()`. Contrat : 0 = table lue et conforme ; 1 = table lue, non conforme ; 2 = aucun
+verdict de conformité exploitable. Documenté dans `coordination/README.md`, à côté de
+`COORDINATION_OK`.
 
 ### Diff contre le pack
 
 `valid_scope()` est la seule fonction du pack reprise inchangée. `parse_rows()`, `overlaps()`,
-`validate()` et `main()` diffèrent tous. Vérifiable fonction par fonction sans décompte,
-contre le pack installé, plutôt que sur une liste recopiée ici — c'est le diff qui fait foi.
+`validate()` et `main()` diffèrent tous ; `_chemin_sur()` n'a pas d'équivalent dans le pack du
+tout — fonction neuve, pas un écart sur une fonction existante. Vérifiable fonction par
+fonction sans décompte, contre le pack installé, plutôt que sur une liste recopiée ici — c'est
+le diff qui fait foi.
 
 ## `.claude/settings.example.json` — ne jamais écraser `.claude/settings.json`
 
