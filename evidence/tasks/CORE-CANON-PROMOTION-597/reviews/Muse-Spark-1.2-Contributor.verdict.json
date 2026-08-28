@@ -3,13 +3,13 @@
  "objections": [
   {
    "severite": "mineure",
-   "fichier": "",
-   "description": "Preuve d'exécution (base RED 3 échecs / candidate GREEN 3 passed, scripts/tests exit 0, core/tests/bootstrap exit 0, structure lint 10 modules bijection OK, git diff --check exit 0, hash binaire 0b3c012ff09390b075c2421557872eaf70cf43b6c364060c08b0116e60da2163) annoncée mais non jointe au pack ; non vérifiable dans ce tour. Conforme à la Review boundary qui exclut le bundle, mais le merge doit rester interdit jusqu'au reseal de preuves fraîches scellées et CI verte sur le candidate head 79f5982c74b27a0c6fd261134b5168e0e895b514.",
-   "preuve": "Review boundary: 'The evidence bundle is excluded from the pack and is being replaced only after all three fresh reviewers return complete verdicts. Review the exact candidate identity above; the merge remains forbidden until fresh proof-sealed evidence and all CI gates are green.' + section Fresh execution evidence sans artefacts joints"
+   "fichier": "(bundle de preuves exclu)",
+   "description": "Exécution RED/GREEN et suites existantes (3 passed, scripts/tests, core/tests/bootstrap, structure_lint, git diff --check, hash binaire scopé) non vérifiable dans ce pack : le bundle est explicitement exclu du pack et annoncé comme remplacé après les trois verdicts.",
+   "preuve": "Review boundary: 'The evidence bundle is excluded from the pack and is being replaced only after all three fresh reviewers return complete verdicts.' ; Fresh execution evidence liste des sorties sans logs bruts joints"
   }
  ],
- "date_heure": "2026-08-28T14:16:12.878658+00:00",
- "prompt_sha256": "9a53b7373714b27bb0e15dbe745286e0b20867e3a53bdd8c9f2df74ba6f52f62",
+ "date_heure": "2026-08-28T16:13:15.351757+00:00",
+ "prompt_sha256": "94f3fba800c621b901b44694d5fb21486aa04f95fe66bd6d04218d59fb4a517c",
  "reviewer_model": "Muse-Spark-1.2-Contributor",
  "modele_servi": "muse-spark-12-contributor-openrouter",
  "gateway_resilience": {
