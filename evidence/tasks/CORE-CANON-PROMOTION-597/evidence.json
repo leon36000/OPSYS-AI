@@ -3,19 +3,19 @@
   "description": "PR #597 — promotion de docs/core/CANON-INDEX.md comme point d'entrée canonique unique et réduction des fichiers racine en portails/adaptateurs dérivés.",
   "issue": "https://github.com/leon36000/OPSYS-AI/pull/597",
   "branche": "codex/canon-promotion-v14",
-  "base": "origin/main @ 1d0393e12cc61a6c9e12ac7718abc0603614e687",
-  "base_tree": "2d1a061cca253f49fb7401462dccf49fcdbf6766",
-  "reviewed_commit": "f46bd1ee39a101add32c0ae920c3707c0b477c1f",
-  "reviewed_tree": "987eac9e04b639e5bcc81ed6cb38b40811f6a54d",
+  "base": "origin/main @ 15748e27f9c8489aead6f2ce0833d816326e792d",
+  "base_tree": "4e5d3132a4c722dc4c8ba90c474c73f9f9063967",
+  "reviewed_commit": "2adae496910ac7cca666eca40cc0a1f33fd710fd",
+  "reviewed_tree": "4e524a03f4aebb1dec84693873729370245c6f4c",
   "code_diff_sha256": "ac6eb9d01e8f4bf71936e31440d3f1c1f50d5829ba45c448ec8b2da26f373120",
   "code_diff_sha256_scope": "git diff origin/main...HEAD -- core/ tools/proof/ .opsys/tools/github-control/ .github/workflows/core-ci.yml .github/workflows/ci.yml scripts/ ; calculé par core/scripts/verify_proof_sealed.py",
   "diff_verbatim_sha256": "faab10fee40e9521d2ac27dd5155489c0c4d8bb50c45597c083c9a45aa07e4c7",
-  "sealed_at": "2026-08-28T03:04:47Z",
+  "sealed_at": "2026-08-28T06:05:36Z",
   "verification": {
     "red": {
-      "base": "origin/main @ 1d0393e12cc61a6c9e12ac7718abc0603614e687",
+      "base": "origin/main @ 15748e27f9c8489aead6f2ce0833d816326e792d",
       "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m pytest core/tests/bootstrap/test_root_canon_entrypoints.py -q",
-      "result": "3 échecs déterministes sur la base : index canonique absent et adaptateurs racine encore historiques."
+      "result": "3 échecs déterministes sur une copie du test contractuel injectée dans un worktree temporaire de la base : index canonique absent et adaptateurs racine encore historiques."
     },
     "green": [
       "PYTHONDONTWRITEBYTECODE=1 python3 -m pytest core/tests/bootstrap/test_root_canon_entrypoints.py -q : 3 passed",
@@ -25,15 +25,15 @@
       "git diff --check : exit 0"
     ],
     "scope": "Diff contrôlé : huit chemins autorisés seulement ; aucun coordination/**, .claude/**, .codex/**, workflow, Core source, audit, quality-gate ou test hors contrat canonique.",
-    "remote_status_before_bundle": "SonarCloud, GitGuardian, types, tests, security, pack-validation, e2e, e2e-load et gates étaient verts sur le code f46bd1e ; proof-sealed refusait alors uniquement l'absence de evidence/tasks/<ID>.",
-    "bundle_commit_note": "Le bundle est ajouté après la revue du code f46bd1e ; il ne modifie aucun chemin du périmètre code scellé et conserve le code_diff_sha256 ci-dessus. Les checks distants doivent être rejoués sur le head final avant toute décision d'intégration."
+    "remote_status_before_bundle": "Après le rebase post-#564, les suites locales ciblées et non-régressives sont vertes sur le candidat 2adae49 ; les checks distants doivent être déclenchés sur le head final après remplacement de ce bundle.",
+    "bundle_commit_note": "Ce bundle remplace le bundle pré-rebase après une nouvelle revue complète du candidat 2adae49. Le commit d'évidence à venir ne modifie aucun chemin du périmètre code scellé et conserve le code_diff_sha256 ci-dessus. Les checks distants doivent être rejoués sur le head final avant toute décision d'intégration."
   },
   "review_inputs": {
-    "round": "OPSYS-CANON-PROMOTION-597-r1-f46bd1e",
+    "round": "OPSYS-CANON-PROMOTION-597-r3-2adae49",
     "mode": "T2, trois reviewers indépendants en parallèle, prompt neutre commun, sans rôles",
-    "prompt_sha256": "7eabe858221b6c71ccca21f5af7222399bfba31bd3fabe68a1a2602b92e2e8dc",
-    "pack_sha256": "96ae1a5a8a422a8e337fff1ecfdad4b104b449fd1668f5722edafa2aa82e1e2c",
-    "pack_bytes": 30332,
+    "prompt_sha256": "2061380d90f67f775ce5c7a44b2abed564ddc8ec2b94be158ca2a5667a3b14e6",
+    "pack_sha256": "2f959e2d277848fc7f438be1083d5c1afbcdb494fe17a3bfc73e26456cbc4f26",
+    "pack_bytes": 30608,
     "diff_verbatim_sha256": "faab10fee40e9521d2ac27dd5155489c0c4d8bb50c45597c083c9a45aa07e4c7",
     "review_neutrality": {
       "previous_incomplete_batches_excluded": true,
@@ -49,9 +49,9 @@
     }
   },
   "reviews": {
-    "DeepSeek-V4-Pro-0813.verdict.json": "9570c242bf0b7bf950019c73a5c4c7ee080e2074d88c5aae5fd4f9514bf4195d",
-    "Gemini-3.7-Flash.verdict.json": "794df50d3ec1789b7ed34ff6b20ec8bedddd4823a5094da4a030ebf069ee630d",
-    "Muse-Spark-1.2-Contributor.verdict.json": "16acca7fa569fba28304e5360cd6942aa096728efb6148ce6aa152c46f88c581"
+    "DeepSeek-V4-Pro-0813.verdict.json": "2c2bc44df81a299707cedf997530d5867f410524af6e01feeb061384b7c6e364",
+    "Gemini-3.7-Flash.verdict.json": "90f3eff3b200234c590158f216b37f87cf2a22d554923f588a7acd40eec5a515",
+    "Muse-Spark-1.2-Contributor.verdict.json": "895b880503b850331a71fa203373812cb346c2cc94dab15853e23c17bf50031e"
   },
   "consensus": {
     "outcome": "APPROVE 3/3",
@@ -78,6 +78,6 @@
         "fallbacks": 0
       }
     },
-    "minor_objection_note": "Muse-Spark demande que les sorties RED/GREEN et des suites soient vérifiées par CI ; ces exécutions locales sont consignées ci-dessus et la CI distante reste obligatoire sur le head final."
+    "minor_objection_note": "Muse-Spark signale que la preuve d'exécution RED/GREEN et des suites n'est pas incluse dans le pack, qui exclut explicitement evidence/tasks/** ; les exécutions locales sont consignées ci-dessus et la CI distante reste obligatoire sur le head final."
   }
 }
