@@ -141,6 +141,21 @@ def test_overlaps_normalise_la_casse(tmp_path):
     assert "PATH_COLLISION:ISS-A:ISS-B:Coordination:coordination" in r.stdout
 
 
+def test_path_collision_sur_cellule_multi_items_avec_espace(tmp_path):
+    # Même famille de faux positif de couverture que le test MODULE_CODE_DURING_CORE
+    # voisin (revue scellée, tour 3 de #598) : sans .strip() après le découpage sur ";",
+    # une collision réelle entre "tools" et un item "tools" niché dans une cellule
+    # multi-items ESPACÉE ("coordination; tools") passait inaperçue — item extrait
+    # " tools" (espace de tête compris) jamais égal à "tools" sans normalisation.
+    p = write(tmp_path, "t.md", table(
+        row(work_id="ISS-A", branch="br-a", scope="coordination; tools"),
+        row(work_id="ISS-B", branch="br-b", scope="tools"),
+    ))
+    r = run([str(p)])
+    assert r.returncode == 1
+    assert "PATH_COLLISION:ISS-A:ISS-B:tools:tools" in r.stdout
+
+
 def test_overlaps_normalise_le_separateur_antislash(tmp_path):
     p = write(tmp_path, "t.md", table(
         row(work_id="ISS-A", branch="br-a", scope="coordination\\sub"),
@@ -284,6 +299,21 @@ def test_module_code_during_core_cellule_multiple(tmp_path):
     assert "MODULE_CODE_DURING_CORE:ISS-A" in r.stdout
 
 
+def test_module_code_during_core_cellule_multiple_avec_espace(tmp_path):
+    # Sans ce test avant ce correctif (mutant survivant sur les 4 sites de .strip() qui
+    # suivent scope.split(";"), revue scellée, tour 3 de #598) : la seule fixture
+    # multi-items du fichier ("coordination;modules m/M7", collée) ne discriminait rien,
+    # car un .strip() en moins n'y change aucun contrat. C'est pourtant la graphie AVEC
+    # espace après ";" que la seule table réelle de ce dépôt emploie effectivement
+    # (coordination/WORK-OWNERSHIP.md, ligne OPS-OVERLAY-INSTALL) — retirer le .strip()
+    # y laissait passer inaperçu un scope touchant modules m/, fail-open réel sur le seul
+    # interdit dur de l'ADR-0004.
+    p = write(tmp_path, "t.md", table(row(scope="coordination; modules m/M7")))
+    r = run([str(p)])
+    assert r.returncode == 1
+    assert "MODULE_CODE_DURING_CORE:ISS-A" in r.stdout
+
+
 def test_module_code_during_core_prefixe_point_slash(tmp_path):
     p = write(tmp_path, "t.md", table(row(scope="./modules m/M7")))
     r = run([str(p)])
@@ -332,6 +362,19 @@ def test_module_code_during_core_arme_seulement_sur_ligne_active(tmp_path):
     assert r.stdout.strip() == "COORDINATION_OK rows=1 active=0"
 
 
+def test_module_code_during_core_arme_bien_sur_review_et_ready_to_merge(tmp_path):
+    # Pendant positif du test ci-dessus (revue scellée, tour 3 de #598) : celui-ci ne
+    # confirme QUE le négatif (QUEUED n'arme pas) — retirer REVIEW ou READY_TO_MERGE de
+    # l'ensemble ACTIVE = {"ACTIVE", "REVIEW", "READY_TO_MERGE"} y survivait sans faire
+    # échouer aucun test, alors que coordination/WORK-OWNERSHIP.md porte aujourd'hui une
+    # ligne REVIEW réelle.
+    for status in ("REVIEW", "READY_TO_MERGE"):
+        p = write(tmp_path, "t.md", table(row(scope="modules m/M7", status=status)))
+        r = run([str(p)])
+        assert r.returncode == 1, status
+        assert "MODULE_CODE_DURING_CORE:ISS-A" in r.stdout, status
+
+
 # ---------------------------------------------------------------------------
 # valid_scope() — SCOPE:<id>:<valeur> (fixtures ayant justifié le durcissement)
 # ---------------------------------------------------------------------------
@@ -359,6 +402,20 @@ def test_scope_traversee_refusee_antislash_et_slash(tmp_path):
         r = run([str(p)])
         assert r.returncode == 1, scope
         assert "SCOPE:ISS-A:" in r.stdout, scope
+
+
+def test_scope_multi_items_avec_espace_refuse_si_un_item_invalide(tmp_path):
+    # Troisième et dernier des trois contrats que le .strip() de valid_scope() fait
+    # tenir sur la graphie AVEC espace après ";" (revue scellée, tour 3 de #598, même
+    # famille que les deux tests voisins ajoutés pour MODULE_CODE_DURING_CORE et
+    # PATH_COLLISION) : sans lui, l'item " /absolu" (espace de tête compris) n'est ni
+    # reconnu absolu par PurePosixPath ni comparé correctement — un item invalide caché
+    # derrière un premier item valide dans une cellule multi-items espacée passait
+    # inaperçu.
+    p = write(tmp_path, "t.md", table(row(scope="foo; /absolu")))
+    r = run([str(p)])
+    assert r.returncode == 1
+    assert "SCOPE:ISS-A:foo; /absolu" in r.stdout
 
 
 def test_scope_degenere_uniquement_separateurs_refuse(tmp_path):
@@ -491,6 +548,21 @@ def test_boucle_de_liens_symboliques_en_lecture(tmp_path):
 def test_sortie_impossible_sur_repertoire_de_sortie_inexistant(tmp_path):
     p = write(tmp_path, "t.md", table(row()))
     r = run([str(p), "--json-output", str(tmp_path / "n-existe-pas" / "o.json")])
+    assert r.returncode == 2
+    assert r.stdout.startswith("SORTIE_IMPOSSIBLE:")
+
+
+def test_sortie_impossible_sur_fifo_existant(tmp_path):
+    # La garde "chemin.exists() and not chemin.is_file()" n'est PAS un mutant équivalent
+    # au niveau du contrat, contrairement à ses deux voisines (répertoire, parent non-
+    # répertoire) : sans elle, --json-output vers un FIFO déjà existant ne rend pas le
+    # même SORTIE_IMPOSSIBLE exit 2 par un autre chemin — il BLOQUE indéfiniment, faute
+    # de lecteur côté écriture (revue scellée, tour 3 de #598). `timeout=` borne le test
+    # pour qu'une régression future échoue proprement au lieu de faire pendre pytest.
+    fifo = tmp_path / "sortie.fifo"
+    os.mkfifo(fifo)
+    p = write(tmp_path, "t.md", table(row()))
+    r = run([str(p), "--json-output", str(fifo)], timeout=10)
     assert r.returncode == 2
     assert r.stdout.startswith("SORTIE_IMPOSSIBLE:")
 
