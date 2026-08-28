@@ -26,23 +26,32 @@
 # ATTENTION, auto-contradiction corrigée en revue scellée (tour 2 de #601, siège 2) : une
 # première version de cette phrase rangeait « les paires de _erreurs_de_collision() » parmi
 # l'ordre NON épinglé, alors que l'ordre INTERNE à UNE paire (BRANCH_COLLISION avant
-# PATH_COLLISION, dans `_erreurs_de_paire()`) EST épinglé en bonus par la seconde fixture
-# ci-dessous — contredisant, dans le même commit, le commentaire de ce test-là. Précisément :
+# PATH_COLLISION, dans `_erreurs_de_paire()`) EST épinglé en bonus par
+# `test_ordre_erreurs_de_ligne_avant_erreurs_de_collision` (désignée par NOM, pas par
+# position — un test inséré entre les deux ci-dessous ne doit pas périmer ce renvoi
+# silencieusement) — contredisant, dans le même commit, le commentaire de ce test-là.
+# Précisément :
 # l'ordre INTERNE à chaque groupe de contrôles PAR LIGNE (`_erreurs_structurelles()`,
 # `_erreurs_de_propriete()`) reste hors contrat, non épinglé par ce fichier à ce jour ; il en
 # va de même pour l'ordre ENTRE plusieurs paires distinctes lorsque `_erreurs_de_collision()`
 # en traite plus d'une (mesuré : inverser l'ordre de parcours des paires sur une table à 3
 # lignes actives change l'ordre des blocs émis sans faire rougir aucun test). ATTENTION,
-# sur-généralisation corrigée en revue scellée (tour 3 de #601, siège 2) : une version
-# précédente de cette phrase affirmait que « l'ordre INTERNE à _erreurs_de_paire()
-# lui-même EST épinglé » sans réserve — faux, mesuré par contre-exemple direct. Seule UNE
-# relation interne à cette fonction est réellement épinglée par la seconde fixture
-# ci-dessous : BRANCH_COLLISION précède toujours les PATH_COLLISION d'une même paire.
-# L'ordre RELATIF entre PLUSIEURS lignes PATH_COLLISION d'une même paire (un scope
-# multi-items séparés par « ; », des deux côtés) reste, lui, hors contrat — mesuré :
-# inverser le parcours des deux listes d'items dans `_erreurs_de_paire()` change l'ordre
-# des PATH_COLLISION émis (ex. « coordination;tools » des deux côtés : les deux lignes
-# PATH_COLLISION échangent leur position) sans faire rougir aucun test.
+# sur-généralisation corrigée en revue scellée (tour 3 de #601, siège 2 ; reformulée tour 4,
+# sièges 1/2/3 convergents) : une version précédente de cette phrase affirmait que « l'ordre
+# INTERNE à _erreurs_de_paire() lui-même EST épinglé » sans réserve — faux, mesuré par
+# contre-exemple direct. Seule UNE relation interne à cette fonction est réellement épinglée
+# par `test_ordre_erreurs_de_ligne_avant_erreurs_de_collision`, et seulement à l'arité
+# qu'elle exerce (une seule ligne
+# PATH_COLLISION) : BRANCH_COLLISION précède la PATH_COLLISION de la paire. L'ordre RELATIF
+# entre PLUSIEURS lignes PATH_COLLISION d'une même paire reste, lui, hors contrat — mesuré :
+# il suffit qu'un item d'un SEUL côté recouvre plusieurs items de l'autre (scope multi-items
+# séparés par « ; » — un seul côté suffit, pas nécessairement les deux) pour qu'inverser le
+# parcours des listes d'items dans `_erreurs_de_paire()` change l'ordre des PATH_COLLISION
+# émis (ex. mesuré : « coordination;tools » des deux côtés, les deux lignes PATH_COLLISION
+# échangent leur position) sans faire rougir aucun test. Liste NON EXHAUSTIVE des ordres
+# hors contrat ci-dessus : le groupement des blocs d'erreur PAR LIGNE (ordre entre lignes
+# distinctes) et la position de HEADER_MISSING/MALFORMED_ROW n'y figurent pas non plus,
+# et ne sont pas davantage revendiqués comme épinglés ailleurs dans ce fichier.
 #
 # Lancer seul : python3 -m pytest coordination/tests/ (hors testpaths par défaut de
 # pytest.ini — dont le contenu exact n'est pas recopié ici, voir coordination/README.md).
