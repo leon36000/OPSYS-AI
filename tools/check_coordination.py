@@ -90,17 +90,23 @@ def validate(path: Path) -> tuple[list[dict[str, str]], list[str]]:
             errors.append(f"SCOPE:{wid}:{row['scope']}")
         if status in ACTIVE and branch.lower() in {"main", "master", ""}:
             errors.append(f"BRANCH:{wid}")
-        # Fixture (revue scellee independante, 3 sieges) : "coordination;modules m/M7"
-        # sur une ligne ACTIVE ne declenchait rien avant ce correctif — normalized_scope
-        # portait la cellule ENTIERE ("coordination;modules m/m7"), qui n'egale ni ne
-        # commence par "modules m", meme si un de ses items separes par ";" le fait.
-        # Herite du pack (meme bug, memes lignes) ; ferme ici par element de scope,
-        # meme decoupage que valid_scope()/overlaps() juste au-dessus.
+        # Deux fail-opens fermes ici sur le meme interdit dur de l'ADR-0004 ("aucun
+        # code metier M avant handoff Core"), trouves par deux revues scellees
+        # independantes. (1) "coordination;modules m/M7" sur une ligne ACTIVE ne
+        # declenchait rien : le test portait sur la cellule ENTIERE, jamais sur ses
+        # items separes par ";" comme le font deja valid_scope()/overlaps() ci-dessus.
+        # (2) "./modules m/M7" ne declenchait rien non plus une fois (1) ferme : un
+        # prefixe "./" — que valid_scope() accepte comme scope valide et qu'overlaps()
+        # normalise deja via PurePosixPath — echappait a la comparaison de chaine
+        # brute. Les deux fermes par le meme mecanisme que overlaps() : PurePosixPath
+        # par element, egalite ou parente avec "modules m".
+        cible_module_m = PurePosixPath("modules m")
         scopes_normalises = [
-            x.strip().replace("\\", "/").casefold() for x in row["scope"].split(";") if x.strip()
+            PurePosixPath(x.strip().replace("\\", "/").casefold())
+            for x in row["scope"].split(";") if x.strip()
         ]
         if status in ACTIVE and any(
-            s == "modules m" or s.startswith("modules m/") for s in scopes_normalises
+            s == cible_module_m or cible_module_m in s.parents for s in scopes_normalises
         ):
             errors.append(f"MODULE_CODE_DURING_CORE:{wid}")
         if CORE_RE.match(wid) and owner not in {"CODEX", "UNASSIGNED"} and status != "TRANSFER":
@@ -146,12 +152,17 @@ def _chemin_sur(brut: str, *, pour_ecriture: bool = False) -> Path:
     lisait deja sans encombre avant l'introduction de cette fonction.
     Retrecissement de comportement jamais annonce comme tel.
 
-    Fermee pour le FIFO nomme et `/dev/stdin` : `elif chemin.is_dir()`
-    n'exclut plus que les repertoires — un FIFO resout normalement (c'est un
-    vrai chemin existant) et n'est pas un repertoire, donc passe. Mesure et
-    verifie : `COORDINATION_OK`, comme avant l'introduction de cette fonction.
+Fermee pour le FIFO nomme : `elif chemin.is_dir()` n'exclut plus que les
+    repertoires — un FIFO resout normalement (c'est un vrai chemin existant)
+    et n'est pas un repertoire, donc passe. `/dev/stdin` ne passe QUE sur
+    redirection depuis un fichier regulier (`tool /dev/stdin < f`,
+    `COORDINATION_OK`, mesure) : adosse a un tube (`cat f | tool /dev/stdin`,
+    l'usage courant), il resout vers le meme `pipe:[N]` synthetique que la
+    substitution de processus ci-dessous et echoue pareillement — PAS
+    ferme, meme cause.
 
-    PAS fermee pour la substitution de processus, deliberement, apres un
+    PAS fermee pour la substitution de processus ni pour `/dev/stdin` sur
+    tube, deliberement, apres un
     aller-retour reel avec la CI — a dire plutot qu'a cacher. Un premier
     essai ajoutait un repli sur le chemin NON resolu quand
     `resolve(strict=True)` echoue lui-meme sur ce type d'entree (mesure :
@@ -167,10 +178,10 @@ def _chemin_sur(brut: str, *, pour_ecriture: bool = False) -> Path:
     inter-fonctions) le voit. Ne pas prendre un local vert pour une preuve
     sur cette regle precise ; seule la CI reelle fait foi ici. Le repli est
     retire : `resolve(strict=True)` reste sans exception pour la lecture,
-    la substitution de processus redevient `LECTURE_IMPOSSIBLE`, exit 2 —
-    arbitrage assume entre un gate CI dur et une entree legitime mais rare
-    dans l'usage documente de cet outil (toujours invoque sur un chemin de
-    fichier reel, jamais observe via `<(...)` dans ce depot).
+    la substitution de processus et `/dev/stdin` sur tube redeviennent
+    `LECTURE_IMPOSSIBLE`, exit 2 — arbitrage assume entre un gate CI dur et
+    des entrees legitimes mais jamais observees dans l'usage documente de
+    cet outil (toujours invoque sur un chemin de fichier reel dans ce dépôt).
 
     En ecriture, la cible doit rester un fichier regulier ou un chemin
     inexistant : `--json-output` cree la sortie, un FIFO ou peripherique en
@@ -201,7 +212,7 @@ def _chemin_sur(brut: str, *, pour_ecriture: bool = False) -> Path:
         if chemin.exists() and not chemin.is_file():
             raise OSError(f"la cible existe et n'est pas un fichier regulier : {chemin}")
     elif chemin.is_dir():
-        raise OSError(f"n'est pas un fichier regulier : {chemin}")
+        raise OSError(f"est un repertoire : {chemin}")
     return chemin
 
 

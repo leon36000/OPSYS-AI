@@ -19,9 +19,10 @@ texte.
 
 ## Périmètre autorisé pour cette session
 
-Jusqu'à la PR ouverte incluse, avec merge autonome par le propriétaire si les huit critères de
-la décision Nathan du 2026-08-27 sont réunis — trio de validation sur le SHA final compris
-(`08-TRIO-AND-MERGE-AUTONOMY.md`). Aucune modification de branch protection, aucun code métier
+Jusqu'à la PR ouverte incluse, avec merge autonome par le propriétaire si les critères de la
+décision Nathan du 2026-08-27 sont réunis — trio de validation sur le SHA final compris
+(critères énumérés dans `08-TRIO-AND-MERGE-AUTONOMY.md`, hors dépôt, non recomptés ici).
+Aucune modification de branch protection, aucun code métier
 M1–M10, aucune promotion canonique.
 
 ## Capacité des agents `.claude/agents/opsys-issue-*.md`
@@ -63,8 +64,9 @@ leur signification, pas un décompte figé.
    Les 4 fichiers `.claude/agents/opsys-issue-*.md` portent `model: claude-sonnet-5` en dur,
    identique au pack : hors de la portée de ce point.
 4. **`permissionMode`** : `auto` (pack) → `default` pour les 3 agents non-`triage`, `plan`
-   inchangé pour `triage`. Même motif que le point 1, appliqué aux fichiers réellement chargés
-   nativement par Claude Code.
+   inchangé pour `triage`. Même motif que le point 1, appliqué cette fois aux fichiers
+   *destinés* au chargeur natif `.claude/agents/` — pas à un chargement natif constaté : voir
+   la section « Capacité des agents » ci-dessus, qui reste la source sur ce point.
 
 ## `tools/check_coordination.py` — écarts vis-à-vis du pack amont
 
@@ -92,12 +94,15 @@ Normalise casse et séparateur des scopes avant comparaison, cohérent avec
 Coordination:coordination`, exit 1 ; `PATH_COLLISION:ISS-A:ISS-B:coordination\sub:
 coordination/sub`, exit 1.
 
-### `MODULE_CODE_DURING_CORE` — scope multiple testé par élément
+### `MODULE_CODE_DURING_CORE` — scope multiple, normalisé par élément
 
-Découpe la cellule `scope` sur `;` et teste chaque élément (même découpage que
-`valid_scope()`/`overlaps()`), pas la cellule entière. Ferme un fail-open hérité du pack :
-`coordination;modules m/M7` sur une ligne `ACTIVE` ne déclenchait rien avant ce correctif —
-contournait le seul interdit dur de l'ADR-0004 (aucun code métier M avant handoff Core).
+Découpe la cellule `scope` sur `;` et teste chaque élément via `PurePosixPath` (égalité ou
+parenté avec `modules m`, même mécanisme que `overlaps()`), pas une comparaison de chaîne sur
+la cellule entière. Ferme deux fail-opens sur le seul interdit dur de l'ADR-0004 (aucun code
+métier M avant handoff Core) : `coordination;modules m/M7` (cellule entière testée, pas ses
+éléments) et `./modules m/M7` (préfixe `./`, que `valid_scope()` accepte et qu'une comparaison
+de chaîne brute ne reconnaît pas comme équivalent à `modules m/M7`). Mesuré à HEAD : les deux
+fixtures et `./coordination;./modules m/M7` → `MODULE_CODE_DURING_CORE:<id>`, exit 1.
 
 ### Lecture et écriture — `_chemin_sur()`
 
@@ -109,13 +114,16 @@ même exit 1 qu'une table non conforme.
 `_chemin_sur()` valide le chemin avant tout accès disque (SonarCloud `pythonsecurity:S8707`) :
 octet nul refusé, `resolve()`, boucle de liens symboliques reconvertie en `OSError` (sinon
 `RuntimeError`, non intercepté par `main()`). En lecture, seuls les répertoires sont refusés —
-FIFO et `/dev/stdin` passent. La substitution de processus (`<(...)`) reste refusée
-(`LECTURE_IMPOSSIBLE`) : `resolve()` ne peut pas la résoudre sans emprunter un chemin de code
-que SonarCloud refuse (détail dans le docstring de la fonction) — limite assumée, cet outil
-n'étant jamais invoqué ainsi dans l'usage documenté de ce dépôt. En écriture, la cible doit
-être un fichier régulier ou un chemin inexistant.
+un FIFO nommé passe ; `/dev/stdin` ne passe QUE sur redirection depuis un fichier régulier
+(`tool /dev/stdin < f`), pas adossé à un tube (`cat f | tool /dev/stdin`, l'usage courant) : ce
+dernier cas, comme la substitution de processus (`<(...)`), reste refusé
+(`LECTURE_IMPOSSIBLE`) — les deux résolvent vers le même `pipe:[N]` synthétique que `resolve()`
+ne peut pas résoudre sans emprunter un chemin de code que SonarCloud refuse (détail dans le
+docstring de la fonction) — limite assumée, ces deux formes n'étant jamais observées dans
+l'usage documenté de ce dépôt. En écriture, la cible doit être un fichier régulier ou un
+chemin inexistant.
 
-Mesuré à HEAD : répertoire → `LECTURE_IMPOSSIBLE:n'est pas un fichier regulier`, exit 2 ;
+Mesuré à HEAD : répertoire → `LECTURE_IMPOSSIBLE:est un repertoire`, exit 2 ;
 non-UTF-8 → `LECTURE_IMPOSSIBLE:'utf-8' codec can't decode...`, exit 2 ; sortie non
 inscriptible → `SORTIE_IMPOSSIBLE:...`, exit 2 ; FIFO nommé → `COORDINATION_OK` ; substitution
 de processus → `LECTURE_IMPOSSIBLE:[Errno 2]...`, exit 2 ; boucle de liens (lecture et sortie)

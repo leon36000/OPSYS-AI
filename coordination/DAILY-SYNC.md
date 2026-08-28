@@ -6,8 +6,9 @@ Ce fichier est renseigné en cohérence avec `WORK-OWNERSHIP.md` et `CLAUDE-STAT
 `coordination/README.md` confie explicitement `DAILY-SYNC.md` au sync owner de la mise au
 point, et cette mise au point a déjà produit un état daté et réconcilié dans ces deux fichiers :
 le résumer ici n'ajoute aucune affirmation nouvelle côté Claude. **`CODEX-STATUS.md` n'entre
-pas dans cette logique** — `Updated UTC : UNSET` et ses sections vides montrent que c'est le
-gabarit du pack, jamais renseigné (cette PR ne l'édite pas) : la section « Codex » ci-dessous
+pas dans cette logique** — `Updated UTC : UNSET` et son contenu de gabarit (« Aucune mission
+déclarée », « Aucune. », « Aucun. ») montrent que c'est le gabarit du pack, jamais renseigné
+(cette PR ne l'édite pas) : la section « Codex » ci-dessous
 lit donc un gabarit vide, pas un état réconcilié — « aucune mission déclarée », faute
 d'affirmation à réconcilier. `24H-UPDATE-TEMPLATE.md` reste le gabarit vide réutilisable pour
 la prochaine mise au point ; non touché par ce choix.
@@ -62,6 +63,6 @@ une valeur ici.
 
 ## Ownership mis à jour
 
-- oui — cf. l'horodatage en tête de `coordination/WORK-OWNERSHIP.md`, identique au `Date UTC`
-  en tête de ce fichier (ligne 3) : cette mise au point entière est datée de ce moment-là. Non
+- oui — cf. l'horodatage en tête de `coordination/WORK-OWNERSHIP.md`, identique au champ
+  `Date UTC` en tête de ce fichier : cette mise au point entière est datée de ce moment-là. Non
   recopiée une troisième fois ici.

@@ -26,7 +26,9 @@
   **Trois codes de sortie, trois significations distinctes.** Un appelant qui teste
   seulement `!= 0` confond les deux derniers, qui ne veulent pas dire la même chose :
   - **exit 0** — `COORDINATION_OK rows=<n> active=<n>` : table lue et conforme (et sortie
-    `--json-output` écrite, si elle a été demandée).
+    `--json-output` écrite, si elle a été demandée). `-h`/`--help` rend lui aussi exit 0, sans
+    cette ligne — un appelant qui teste `== 0` doit lire stdout, pas le supposer non vide,
+    symétrique du même avertissement au point exit 2.
   - **exit 1** — une erreur par ligne sur la sortie standard : `HEADER_MISSING`,
     `MALFORMED_ROW:<ligne>:<cellules>`, `WORK_ID_EMPTY`, `DUPLICATE_WORK:<id>`,
     `OWNER:<id>:<valeur>`, `STATUS:<id>:<valeur>`, `SCOPE:<id>:<valeur>`, `BRANCH:<id>`,
@@ -52,11 +54,12 @@
   l'exception avec un traceback et un exit 1 indiscernable, pour l'appelant, d'une table
   lue et non conforme. Motif du changement : voir `coordination/CLAUDE-STATUS.md`.
 
-  **Ce validateur n'est câblé dans aucun job CI.** Raison assumée, pas un oubli : le mandat de
-  #564 est d'installer l'overlay de coordination, pas d'ajouter une porte CI — câbler une garde
-  qui bloquerait potentiellement les PR futures mérite sa propre revue, dédiée, distincte de
-  celle-ci (mission séparée, ouverte après le merge de #564). Tant qu'il n'a pas lieu,
-  l'exécution reste manuelle et déclarative, à la charge de qui active une mission. Autre
+  **Câbler ce validateur en CI est hors mandat de #564** (installer l'overlay de coordination,
+  pas ajouter une porte CI qui bloquerait potentiellement les PR futures — mission séparée,
+  dédiée). Affirmation sur `.github/workflows/**`, hors de cette PR : re-vérifiable sans la
+  croire — `grep -n check_coordination .github/workflows/*.yml`, jamais figée ici. Tant qu'il
+  n'a pas lieu, l'exécution reste manuelle et déclarative, à la charge de qui active une
+  mission. Autre
   limite, plus décisive, à ne pas taire non plus :
   `COORDINATION_OK` atteste uniquement la **forme** de la table (en-tête présent,
   énumérations valides, Work ID unique, scopes relatifs bien formés, aucune collision de
@@ -71,7 +74,7 @@
   séparateur par ailleurs intacts) n'est jamais lue comme une ligne de table — donc jamais
   vérifiée, collisions comprises. Aucun bloc de code ni aucune indentation n'a de traitement
   spécial : ce qui est écrit dans ce fichier, fence ou pas, indenté ou pas, est lu comme
-  n'importe quelle autre ligne. Détail et mesure dans `coordination/CLAUDE-STATUS.md`.
+  n'importe quelle autre ligne.
 - `.claude/settings.example.json` est un **exemple** à copier puis adapter. Ne jamais
   l'écraser sur `.claude/settings.json` : ce dernier est un fichier préexistant du dépôt,
   que cette PR ne modifie pas, et une copie brute de l'exemple en remplacerait le contenu
