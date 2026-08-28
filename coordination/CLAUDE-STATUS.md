@@ -9,7 +9,7 @@ texte.
 
 ## Vérification runtime
 
-- Lead : `claude-opus-5` — choix explicite Nathan (`06-CLAUDE-LEAD-PROMPT.md`).
+- Lead : `claude-opus-5` — choix explicite Nathan (`06-CLAUDE-LEAD-PROMPT.md`, hors dépôt).
 - Sous-agents : `sonnet` (Claude Sonnet 5), conforme au champ `model` des 4 fichiers
   `.claude/agents/opsys-issue-*.md` livrés ici. Canon désigné : `docs/core/CANON-INDEX.md`
   (porté par #566, pas encore fusionné) ; `CLAUDE.md` (hors de cette PR) en est un adaptateur.
@@ -41,15 +41,18 @@ natif `.claude/agents/` n'a été observé) :
   cette branche (statut `A`), pas rejoué depuis elle.
 
 Non prouvé, écart nommé : que le chargeur natif `.claude/agents/` honore, pour ces fichiers,
-`permissionMode`/`effort`/`background`/`maxTurns`/`disallowedTools`. Le **contenu** des rôles a
+aucun champ de leur en-tête YAML (`tools`, `permissionMode`, `effort`, `background`, `maxTurns`,
+`disallowedTools`, `isolation`) — `tools` compris, le plus load-bearing (c'est lui qui porte le
+blocage Write/Edit/NotebookEdit annoncé par `opsys-issue-triage.md`). Le **contenu** des rôles a
 tourné en conditions réelles ; leur **enveloppe de permissions déclarée** n'a jamais été
 vérifiée en exécution.
 
 ## Écarts de permissions vis-à-vis du pack amont
 
-`diff -u` entre chaque fichier livré et son homologue du pack
-(`$OPSYS_PACK/platform-overlay/...`) fait autorité sur les écarts réels ; ce qui suit résume
-leur signification, pas un décompte figé.
+`diff -u` entre chaque fichier livré et son homologue du pack (`$OPSYS_PACK/platform-overlay/
+...`, où `$OPSYS_PACK` désigne le répertoire où le pack `OPSYS-AI-CLAUDE-ISSUES-AUTONOMOUS-v1.4`
+a été dépaqueté) fait autorité sur les écarts réels ; ce qui suit résume leur signification, pas
+un décompte figé.
 
 1. **`defaultMode`** : `"auto"` → `"default"`, ajout de `"disableAutoMode": "disable"`. Motif :
    l'autorité des outils déterministes prime sur l'approbation par un modèle. Voir aussi

@@ -42,12 +42,17 @@ def parse_rows(path: Path) -> tuple[list[dict[str, str]], list[str], bool]:
 
 
 def valid_scope(scope: str) -> bool:
+    # Antislash normalise avant PurePosixPath -- comme overlaps() et
+    # MODULE_CODE_DURING_CORE, revue scellee -- sinon "foo\..\modules m\M7"
+    # (un seul composant PurePosixPath, ".." absent de .parts) passe ce
+    # controle puis echappe aussi a MODULE_CODE_DURING_CORE apres son propre
+    # remplacement ("foo/../modules m" jamais egal a "modules m").
     if scope in SCOPES_HORS_COLLISION:
         return True
     if not scope.strip():
         return False
     for item in [x.strip() for x in scope.split(";") if x.strip()]:
-        p = PurePosixPath(item)
+        p = PurePosixPath(item.replace("\\", "/"))
         if p.is_absolute() or ".." in p.parts or item.startswith("~"):
             return False
     return True
@@ -232,7 +237,13 @@ def main() -> int:
         print(f"LECTURE_IMPOSSIBLE:{exc}")
         return 2
     result = {"rows": len(data), "active": sum(r["status"] in ACTIVE for r in data), "errors": errors}
-    if args.json_output:
+    # is not None, pas une verite tronquee : --json-output '' est une demande reelle
+    # (argparse le distingue de l'absence, qui vaut None), pas une absence de demande.
+    # Fail-open mesure et ferme ici : avec `if args.json_output:` seul, cette valeur
+    # vide sautait le bloc entier en silence -- exit 0, COORDINATION_OK, rien ecrit --
+    # exactement le fail-open que ce bloc existe pour fermer, en pire (exit 0 au lieu
+    # de l'exit 1 du pack, indetectable meme par un appelant testant `!= 0`).
+    if args.json_output is not None:
         try:
             chemin_sortie = _chemin_sur(args.json_output, pour_ecriture=True)
             chemin_sortie.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")

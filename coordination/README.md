@@ -13,7 +13,9 @@
   c'est une copie d'un fichier que seul Codex édite ; la corriger romprait l'identité au pack
   que la commande ci-dessus atteste.
 - Claude Code modifie seulement `CLAUDE-QUEUE.md` et `CLAUDE-STATUS.md`.
-- `WORK-OWNERSHIP.md` et `DAILY-SYNC.md` sont modifiés par un seul sync owner désigné pour la mise au point.
+- `WORK-OWNERSHIP.md`, `DAILY-SYNC.md` et `OVERLAY-VERSION.json` sont modifiés par un seul sync
+  owner désigné pour la mise au point ; `24H-UPDATE-TEMPLATE.md` reste un gabarit vide, non
+  édité par la mise au point elle-même (cf. `DAILY-SYNC.md`).
 - Une tâche, une issue, une branche, un worktree et un owner. Aucun doublon.
 - Entre deux syncs, une issue assignée ou une PR active réserve immédiatement la mission.
 - Le validateur `tools/check_coordination.py` (versionné dans ce dépôt, dérivé du pack
@@ -26,9 +28,9 @@
   **Trois codes de sortie, trois significations distinctes.** Un appelant qui teste
   seulement `!= 0` confond les deux derniers, qui ne veulent pas dire la même chose :
   - **exit 0** — `COORDINATION_OK rows=<n> active=<n>` : table lue et conforme (et sortie
-    `--json-output` écrite, si elle a été demandée). `-h`/`--help` rend lui aussi exit 0, sans
-    cette ligne — un appelant qui teste `== 0` doit lire stdout, pas le supposer non vide,
-    symétrique du même avertissement au point exit 2.
+    `--json-output` écrite, si elle a été demandée). `-h`/`--help` rend lui aussi exit 0, mais
+    stdout y porte le texte d'aide, pas cette ligne — un appelant qui teste `== 0` doit lire
+    stdout, pas supposer qu'il porte `COORDINATION_OK`.
   - **exit 1** — une erreur par ligne sur la sortie standard : `HEADER_MISSING`,
     `MALFORMED_ROW:<ligne>:<cellules>`, `WORK_ID_EMPTY`, `DUPLICATE_WORK:<id>`,
     `OWNER:<id>:<valeur>`, `STATUS:<id>:<valeur>`, `SCOPE:<id>:<valeur>`, `BRANCH:<id>`,
@@ -57,14 +59,13 @@
   **Câbler ce validateur en CI est hors mandat de #564** (installer l'overlay de coordination,
   pas ajouter une porte CI qui bloquerait potentiellement les PR futures — mission séparée,
   dédiée). Affirmation sur `.github/workflows/**`, hors de cette PR : re-vérifiable sans la
-  croire — `grep -n check_coordination .github/workflows/*.yml`, jamais figée ici. Tant qu'il
+  croire — `grep -rn check_coordination .github/workflows/`, jamais figée ici. Tant qu'il
   n'a pas lieu, l'exécution reste manuelle et déclarative, à la charge de qui active une
   mission. Autre
   limite, plus décisive, à ne pas taire non plus :
-  `COORDINATION_OK` atteste uniquement la **forme** de la table (en-tête présent,
-  énumérations valides, Work ID unique, scopes relatifs bien formés, aucune collision de
-  branche ou de chemin entre lignes actives) — jamais sa concordance avec l'état réel sur
-  GitHub. Une ligne `QUEUED` dont la PR citée est en fait déjà ouverte, une PR fictive, ou
+  `COORDINATION_OK` atteste uniquement la **forme** de la table — toutes les vérifications
+  listées au point exit 1 ci-dessus, ni plus ni moins — jamais sa concordance avec l'état réel
+  sur GitHub. Une ligne `QUEUED` dont la PR citée est en fait déjà ouverte, une PR fictive, ou
   une date `Updated UTC` remontant à des années ne font échouer aucune de ces vérifications :
   le validateur ne consulte jamais `gh`. Seule la re-vérification manuelle (`gh pr view <n>` /
   `gh issue view <n>`, cf. `WORK-OWNERSHIP.md`) donne la concordance GitHub ;
@@ -74,7 +75,11 @@
   séparateur par ailleurs intacts) n'est jamais lue comme une ligne de table — donc jamais
   vérifiée, collisions comprises. Aucun bloc de code ni aucune indentation n'a de traitement
   spécial : ce qui est écrit dans ce fichier, fence ou pas, indenté ou pas, est lu comme
-  n'importe quelle autre ligne.
+  n'importe quelle autre ligne. Deux limites de plus, mesurées, ni exercées par un fichier
+  livré ni fermées : une ligne de séparation espacée (`| --- | --- |` au lieu de `|---|---|`)
+  n'est pas reconnue (`HEADER_MISSING` + des `OWNER`/`STATUS` parasites, fail-closed — pas un
+  faux `COORDINATION_OK`) ; et `overlaps()` compare des chaînes littérales, donc deux scopes
+  `.github/workflows/**` et `.github/workflows/ci.yml` ne sont pas vus en collision.
 - `.claude/settings.example.json` est un **exemple** à copier puis adapter. Ne jamais
   l'écraser sur `.claude/settings.json` : ce dernier est un fichier préexistant du dépôt,
   que cette PR ne modifie pas, et une copie brute de l'exemple en remplacerait le contenu
