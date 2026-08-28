@@ -129,11 +129,15 @@ def _erreurs_structurelles(row: dict[str, str], seen: set[str]) -> list[str]:
     branche de ce controle y porte deja sa propre fixture) avant d'etre considere
     fait. ATTENTION, imprecision corrigee en revue scellee (tour 3 de #599, 3 sieges
     convergents) : SEUL DUPLICATE_WORK n'est PAS independant des autres lignes de la
-    table — son verdict depend de `seen`, l'ensemble des work_id deja vus, mute en
-    place au fil des lignes precedentes (mesure : la meme ligne rend [] si `seen` est
-    vide, ['DUPLICATE_WORK:...'] si une ligne anterieure y a deja insere le meme
-    work_id). Les cinq autres controles de ce groupe sont, eux, bien locaux a la
-    ligne. Pendant : _erreurs_de_propriete().
+    table — son verdict depend de `seen`, l'ensemble des work_id deja vus (mesure : la
+    meme ligne rend [] si `seen` est vide, ['DUPLICATE_WORK:...'] si une ligne
+    anterieure y a deja insere le meme work_id). Les cinq autres controles de ce
+    groupe sont, eux, bien locaux a la ligne. Precision (tour 4, 3 sieges
+    convergents), sur l'effet de bord SORTANT que la reecriture du tour 3 avait omis
+    de reenoncer : `seen.add(wid)` est execute inconditionnellement par CETTE
+    fonction, work_id vide compris — c'est le SEUL site d'ecriture de `seen` de tout
+    le fichier, et c'est lui qui rend DUPLICATE_WORK detectable sur les lignes
+    SUIVANTES. Pendant : _erreurs_de_propriete().
     """
     errors: list[str] = []
     wid = row["work_id"]
@@ -154,11 +158,21 @@ def _erreurs_structurelles(row: dict[str, str], seen: set[str]) -> list[str]:
 
 
 def _erreurs_de_propriete(row: dict[str, str]) -> list[str]:
-    """Second groupe des controles par ligne : proprietaire vs prefixe du Work ID,
-    et l'interdit dur de l'ADR-0004 (MODULE_CODE_DURING_CORE, CORE_OWNER,
+    """Second groupe des controles par ligne (MODULE_CODE_DURING_CORE, CORE_OWNER,
     ISSUE_OWNER) — meme extraction et meme raison que _erreurs_structurelles()
     ci-dessus, dont c'est le pendant. Ses trois controles sont, eux, tous
     independants des autres lignes de la table (pas de `seen` ni d'etat accumule).
+    Precision (tour 4, 3 sieges convergents) sur le regroupement de la phrase
+    precedente, qui laissait a tort lire les trois codes comme relevant tous de
+    l'ADR-0004 : SEUL MODULE_CODE_DURING_CORE en est l'interdit dur (« aucun code
+    metier M avant handoff Core », cf. _touche_modules_m() ci-dessus). CORE_OWNER et
+    ISSUE_OWNER relevent d'un controle distinct, proprietaire vs MOTIF du Work ID —
+    pas juste un « prefixe » pour les deux : CLAUDE_RE (^(?:ISS-|AUD-|BUG-|R4-)) est
+    un vrai prefixe, non ancre a la fin, mais CORE_RE (^C(?:0\\d|1\\d|2[0-4])-\\d{3}$)
+    est ancre aux DEUX bouts — une forme COMPLETE de Work ID, pas un simple prefixe.
+    Mesure, voir test_core_re_et_claude_re_nont_pas_de_faux_positifs :
+    "C05-0011" (4 chiffres, hors \\d{3}$) n'est PAS reconnu, la ou un vrai prefixe
+    l'aurait ete.
     """
     errors: list[str] = []
     wid = row["work_id"]
