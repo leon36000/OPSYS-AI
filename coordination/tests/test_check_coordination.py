@@ -35,8 +35,14 @@
 # renvoi silencieusement) — contredisant, dans le même commit, le commentaire de ce test-là.
 # Précisément :
 # l'ordre INTERNE à chaque groupe de contrôles PAR LIGNE (`_erreurs_structurelles()`,
-# `_erreurs_de_propriete()`) reste hors contrat, non épinglé par ce fichier à ce jour ; il en
-# va de même pour l'ordre ENTRE plusieurs paires distinctes lorsque `_erreurs_de_collision()`
+# `_erreurs_de_propriete()`) reste hors contrat, non épinglé par ce fichier à ce jour — SAUF
+# une relation, épinglée en bonus depuis AUD-QUAL-011 (#605) par
+# `test_ordre_structurel_avant_propriete_avec_deux_erreurs_structurelles` : OWNER précède
+# STATUS dans `_erreurs_structurelles()` (mesuré : les échanger fait rougir CE test, et lui
+# seul). Ni les quatre autres contrôles de ce groupe (WORK_ID_EMPTY, DUPLICATE_WORK, SCOPE,
+# BRANCH), ni aucun de `_erreurs_de_propriete()`, n'en sont concernés — mesuré : déplacer SCOPE
+# ou BRANCH, ou échanger MODULE_CODE_DURING_CORE et CORE_OWNER, laisse la suite entière verte.
+# Il en va de même pour l'ordre ENTRE plusieurs paires distinctes lorsque `_erreurs_de_collision()`
 # en traite plus d'une (mesuré : inverser l'ordre de parcours des paires sur une table à 3
 # lignes actives change l'ordre des blocs émis sans faire rougir aucun test). ATTENTION,
 # sur-généralisation corrigée en revue scellée (tour 3 de #601, siège 2 ; reformulée tour 4,
@@ -1273,6 +1279,53 @@ def test_ordre_ligne_avant_paire_quand_la_ligne_en_erreur_est_hors_de_la_paire(t
         "ISSUE_OWNER:ISS-C:BADOWNER",
         "BRANCH_COLLISION:ISS-A:ISS-B",
         "PATH_COLLISION:ISS-A:ISS-B:coordination:coordination",
+    ]
+
+
+def test_ordre_structurel_avant_propriete_avec_deux_erreurs_structurelles(tmp_path):
+    # Complète test_ordre_erreur_structurelle_avant_erreur_de_propriete_sur_meme_ligne
+    # ci-dessus contre un entrelacement en ZIP des deux groupes assemblés par
+    # _erreurs_de_ligne() (revue scellée, tour 2 de #603, siège 3 ; précisée tour
+    # 3, siège 3 ; AUD-QUAL-011, #605). Ce test-là n'exerce qu'UNE
+    # erreur par groupe (OWNER, CORE_OWNER) — arité où concaténation et
+    # entrelacement en zip coïncident. Mesuré : à l'arité (1 structurelle,
+    # 2 propriété), le mutant reste indiscernable du réel ; c'est UNIQUEMENT à
+    # partir de 2 erreurs côté STRUCTUREL (avec au moins 1 côté propriété) qu'il
+    # diverge.
+    #
+    # Fixture à 2 erreurs structurelles (OWNER, STATUS) + 1 erreur de propriété
+    # (CORE_OWNER) : Work ID "C05-001" (matche CORE_RE), owner "BADOWNER" (hors
+    # OWNERS), status "BADSTATUS" (hors STATUSES), scope "core/x". Une fixture
+    # préexistante (test_separateur_espace_reste_non_reconnu_fail_closed) exerce
+    # déjà 2 erreurs structurelles (OWNER, STATUS) sur une même ligne, mais AUCUNE
+    # erreur de propriété — arité (2,0) où `zip_longest` dégénère en la liste
+    # structurelle seule, indiscernable de la concaténation. Mesuré (copie isolée,
+    # jamais le worktree partagé) : le mutant zip laisse les 71 tests d'alors
+    # verts mais fait rougir CE test — même ensemble de lignes que le réel, ordre
+    # différent : CORE_OWNER (propriété) sort entre OWNER et STATUS (structurel)
+    # au lieu de les suivre toutes deux.
+    #
+    # Couverture bonus, non revendiquée par le nom du test mais mesurée : cette
+    # même égalité de liste épingle aussi que OWNER précède STATUS à l'intérieur
+    # de _erreurs_structurelles() — voir l'en-tête de ce fichier pour la portée
+    # exacte de cette exception (les autres contrôles de ce groupe et ceux de
+    # _erreurs_de_propriete() restent hors contrat).
+    #
+    # Voir aussi #607 : la fermeture de #605 par ce commit périme DEUX clauses du
+    # docstring de _erreurs_de_ligne() dans tools/check_coordination.py — celle
+    # qui borne la relation structurel-avant-propriété à l'arité (1,1) (« reste...
+    # NON epinglee a ce jour — suivi separe : #605 ») et celle sur l'ordre INTERNE
+    # à chaque groupe (« reste NON epingle a ce jour ») — suivi séparé, pas de
+    # correctif ici.
+    p = write(tmp_path, "t.md", table(
+        row(work_id="C05-001", owner="BADOWNER", scope="core/x", status="BADSTATUS"),
+    ))
+    r = run([str(p)])
+    assert r.returncode == 1
+    assert r.stdout.splitlines() == [
+        "OWNER:C05-001:BADOWNER",
+        "STATUS:C05-001:BADSTATUS",
+        "CORE_OWNER:C05-001:BADOWNER",
     ]
 
 
