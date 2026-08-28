@@ -1,11 +1,13 @@
 # Tests de tools/check_coordination.py (issue AUD-QUAL-006, #592) — pas une énumération
-# exhaustive de tout comportement du validateur (ex. le message exact d'une boucle de liens
-# symboliques n'a pas de test dédié : LECTURE_IMPOSSIBLE/SORTIE_IMPOSSIBLE en couvrent déjà le
-# contrat), mais chaque durcissement de la revue scellée qui a produit ce fichier (PR #564,
-# 14 tours), AU NIVEAU DU CONTRAT CLI qu'il fait tenir — certains durcissements de
-# `_chemin_sur()` partagent un même prefixe/exit avec un autre chemin de code (contrat
-# préservé, message interne distinct non épinglé, mesuré en revue scellée) — ET chaque
-# contrôle de ligne hérité du pack encore vivant dans le validateur réduit
+# exhaustive de tout comportement du validateur (ex. le refus d'un octet nul dans le chemin
+# argv n'a, lui, aucun test dédié : intestable au niveau CLI déclaré, execve/Python refusant
+# un tel octet embarqué avant même le lancement du script — mesuré), mais chaque durcissement
+# de la revue scellée qui a produit ce fichier (PR #564, 14 tours), AU NIVEAU DU CONTRAT CLI
+# qu'il fait tenir — certains durcissements de `_chemin_sur()` partagent un même
+# préfixe/exit avec un autre chemin de code (contrat préservé, message interne distinct non
+# épinglé, mesuré en revue scellée : PAS le cas de la boucle de liens symboliques ni du FIFO
+# nommé ci-dessous, dont le contrat CHANGE réellement sans test dédié — les deux en portent
+# un) — ET chaque contrôle de ligne hérité du pack encore vivant dans le validateur réduit
 # (MALFORMED_ROW, WORK_ID_EMPTY, DUPLICATE_WORK, OWNER, STATUS, BRANCH, CORE_OWNER,
 # ISSUE_OWNER — mesurés par mutation en revue scellée, tour 1 de #598 : aucun test dédié
 # avant ce commit, malgré une revendication de couverture ici même qui les omettait).
@@ -150,16 +152,30 @@ def test_overlaps_normalise_le_separateur_antislash(tmp_path):
 
 
 def test_overlaps_detecte_la_parente_dans_les_deux_sens(tmp_path):
-    # Sans test avant ce correctif (mutant survivant, revue scellée, tour 2 de #598) :
-    # retirer "pb in pa.parents" de overlaps() laissait ce cas passer inaperçu — un
-    # scope PARENT déclaré APRÈS son enfant cessait d'être vu comme collision.
-    p = write(tmp_path, "t.md", table(
+    # Sans test avant le tour 2 de #598 (mutant survivant) : retirer "pb in pa.parents"
+    # de overlaps() laissait le cas ENFANT-PUIS-PARENT passer inaperçu. Mais le nom de
+    # CE test promettait "les deux sens" sans exercer l'autre moitié — un test qui se
+    # nomme "dans les deux sens" et n'en exerce qu'un seul, contrôle réel non tenu (revue
+    # scellée, tour 3 de #598) : retirer "pa in pb.parents" laissait alors le cas
+    # PARENT-PUIS-ENFANT (l'ordre le plus naturel de rédaction d'une table) passer
+    # inaperçu SANS faire échouer ce test-là non plus. Les deux fixtures ci-dessous
+    # exercent chacune un seul disjoint de `overlaps()` ; retirer l'un ou l'autre fait
+    # échouer une des deux, jamais les deux à la fois.
+    p_enfant_puis_parent = write(tmp_path, "enfant_puis_parent.md", table(
         row(work_id="ISS-A", branch="br-a", scope="coordination/sub"),
         row(work_id="ISS-B", branch="br-b", scope="coordination"),
     ))
-    r = run([str(p)])
+    r = run([str(p_enfant_puis_parent)])
     assert r.returncode == 1
     assert "PATH_COLLISION:ISS-A:ISS-B:coordination/sub:coordination" in r.stdout
+
+    p_parent_puis_enfant = write(tmp_path, "parent_puis_enfant.md", table(
+        row(work_id="ISS-A", branch="br-a", scope="coordination"),
+        row(work_id="ISS-B", branch="br-b", scope="coordination/sub"),
+    ))
+    r = run([str(p_parent_puis_enfant)])
+    assert r.returncode == 1
+    assert "PATH_COLLISION:ISS-A:ISS-B:coordination:coordination/sub" in r.stdout
 
 
 def test_overlaps_ne_developpe_aucun_glob(tmp_path):
@@ -426,14 +442,50 @@ def test_fifo_nomme_reste_lisible(tmp_path):
         stdin=subprocess.PIPE,
         text=True,
     )
+    r = None
     try:
         ecrivain.stdin.write(table(row()))
         ecrivain.stdin.close()
         r = run([str(fifo)], timeout=10)
     finally:
-        ecrivain.wait(timeout=10)
+        # `wait(timeout=...)` seul ne tue rien : si le lecteur n'ouvre jamais le FIFO
+        # (exactement le cas ROUGE contre lequel ce test protège), `cat` reste bloqué
+        # dans son propre open() et `wait()` lève TimeoutExpired en laissant le
+        # processus orphelin — mesuré en revue scellée, tour 3 de #598. `kill()` avant
+        # un second `wait()` (sans timeout, un processus tué se termine immédiatement)
+        # garantit la récolte dans les deux cas.
+        try:
+            ecrivain.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            ecrivain.kill()
+            ecrivain.wait()
+    assert r is not None
     assert r.returncode == 0
     assert r.stdout.strip() == "COORDINATION_OK rows=1 active=1"
+
+
+def test_boucle_de_liens_symboliques_en_lecture(tmp_path):
+    """Durcissement documenté de #564 (docstring de _chemin_sur()) SANS test dédié
+    jusqu'à ce correctif, alors que l'en-tête de ce fichier revendiquait à tort que
+    "LECTURE_IMPOSSIBLE/SORTIE_IMPOSSIBLE en couvrent déjà le contrat" pour ce cas —
+    faux, mesuré (revue scellée, tour 3 de #598) : `resolve(strict=True)` lève
+    `RuntimeError` (pas `OSError`) sur une boucle de liens symboliques, qui échappe telle
+    quelle aux deux `except` de `main()`. Sans la reconversion en `OSError` que
+    `_chemin_sur()` fait explicitement pour cette classe d'entrée, une boucle réelle NE
+    change pas seulement de message : elle change d'EXIT CODE ET DE PRÉFIXE, de
+    `LECTURE_IMPOSSIBLE` exit 2 à un traceback non intercepté, exit 1, stdout vide —
+    exactement le fail-open que ce fichier existe pour fermer. Ne bloque jamais
+    (contrairement à un FIFO sans écrivain) : `resolve()` détecte l'ELOOP et échoue tout
+    de suite, aucune précaution de nettoyage particulière requise.
+    """
+    a = tmp_path / "boucle_a"
+    b = tmp_path / "boucle_b"
+    a.symlink_to(b)
+    b.symlink_to(a)
+    r = run([str(a)], timeout=10)
+    assert r.returncode == 2
+    assert r.stdout.startswith("LECTURE_IMPOSSIBLE:")
+    assert r.stderr == ""  # aucun traceback
 
 
 def test_sortie_impossible_sur_repertoire_de_sortie_inexistant(tmp_path):
