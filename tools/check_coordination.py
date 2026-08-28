@@ -11,6 +11,19 @@ OWNERS = {"CODEX", "CLAUDE", "CHATGPT", "NATHAN", "UNASSIGNED"}
 STATUSES = {"QUEUED", "ACTIVE", "BLOCKED", "REVIEW", "READY_TO_MERGE", "MERGED", "TRANSFER"}
 CORE_RE = re.compile(r"^C(?:0\d|1\d|2[0-4])-\d{3}$")
 CLAUDE_RE = re.compile(r"^(?:ISS-|AUD-|BUG-|R4-)")
+# Ligne de separation GFM entiere -- pas un prefixe. Fail-open trouve en revue
+# scellee : l'ancien test ("line.startswith(\"|---\")") sautait aussi toute ligne
+# de DONNEES dont la premiere cellule commence par "---" (ex. Work ID "---X"),
+# silencieusement exclue de la table -- MODULE_CODE_DURING_CORE et les collisions
+# y compris. Mesure : "|---X | NATHAN | main | modules m/M7 | ACTIVE | ... | ... |"
+# rendait COORDINATION_OK rows=0 active=0 avant ce correctif. Le motif entier
+# (pas seulement la premiere cellule) evite aussi de faire regresser les deux
+# limites deja documentees dans coordination/README.md : un separateur espace
+# ("| --- |") ou porteur des deux-points d'alignement ("|:---|") ne matche pas
+# davantage apres ce correctif qu'avant -- seul le prefixe "---" nu, sans espace
+# ni deux-points, y compte comme separation, exactement le format que ce depot
+# livre reellement (verifie dans les 4 fichiers de table du diff).
+SEPARATOR_RE = re.compile(r"^\|(-+\|)+$")
 HEADER = ["Work ID", "Owner", "Branch", "Path scope", "Status", "Updated UTC", "Next"]
 # SonarCloud python:S1192 : "task spec exact" apparaissait 3 fois en litteral.
 SCOPES_HORS_COLLISION = {"read-only", "task spec exact"}
@@ -23,7 +36,7 @@ def parse_rows(path: Path) -> tuple[list[dict[str, str]], list[str], bool]:
     lines = path.read_text(encoding="utf-8").splitlines()
     for lineno, raw in enumerate(lines, 1):
         line = raw.strip()
-        if not line.startswith("|") or line.startswith("|---"):
+        if not line.startswith("|") or SEPARATOR_RE.match(line):
             continue
         cells = [c.strip() for c in line.strip("|").split("|")]
         if cells == HEADER:
@@ -31,7 +44,7 @@ def parse_rows(path: Path) -> tuple[list[dict[str, str]], list[str], bool]:
             # (a tort). Exiger que la ligne suivante soit une vraie separation evite
             # aussi qu'une simple citation de l'en-tete en prose ne compte comme table.
             next_line = lines[lineno].strip() if lineno < len(lines) else ""
-            if next_line.startswith("|---"):
+            if SEPARATOR_RE.match(next_line):
                 header_found = True
             continue
         if len(cells) != 7:
@@ -132,12 +145,15 @@ def validate(path: Path) -> tuple[list[dict[str, str]], list[str]]:
     for idx, left in enumerate(active):
         for right in active[idx + 1 :]:
             # "n/a" exempte, en miroir de SCOPES_HORS_COLLISION pour PATH_COLLISION.
-            # Fail-open trouve en revue scellee : BRANCH (ligne 96 ci-dessus) autorise
+            # Fail-open trouve en revue scellee : le controle BRANCH ci-dessus autorise
             # "n/a" comme sentinelle des missions sans branche (read-only), mais
             # BRANCH_COLLISION comparait les branches brutes sans cette exemption --
-            # deux missions read-only actives, toutes deux "n/a", devenaient
-            # structurellement inexprimables alors que WORK-OWNERSHIP.md et
-            # CODEX-QUEUE.md en livrent plusieurs.
+            # deux missions read-only actives, toutes deux "n/a", deviendraient
+            # structurellement inexprimables. Mesure sur l'arbre livre, pas un decompte
+            # fige : seul WORK-OWNERSHIP.md porte une ligne active "n/a" a ce jour
+            # (LIVE-ISSUE-RECONCILIATION) ; CODEX-QUEUE.md n'a pas de colonne Branch et
+            # n'est pas concerne par cette exemption -- l'exemption reste voulue pour
+            # toute ligne future de ce type, pas seulement celle qui existe aujourd'hui.
             if left["branch"] == right["branch"] and left["branch"].strip().casefold() != "n/a":
                 errors.append(f"BRANCH_COLLISION:{left['work_id']}:{right['work_id']}")
             for sa in [x.strip() for x in left["scope"].split(";") if x.strip()]:
@@ -150,9 +166,11 @@ def validate(path: Path) -> tuple[list[dict[str, str]], list[str]]:
 def _chemin_sur(brut: str, *, pour_ecriture: bool = False) -> Path:
     """Resout et valide un chemin AVANT tout acces disque (SonarCloud S8707,
     new_security_rating C sur ce fichier neuf : lecture et ecriture d'un
-    chemin argv sans validation prealable, motif cite au point d'appel de
-    chacune des deux dans main() plutot que par numero de ligne — un renvoi
-    par ligne se refute des la prochaine edition de ce fichier).
+    chemin argv sans validation prealable). Les deux points d'appel, dans
+    main(), ne repetent pas ce motif : ils commentent le contrat exit 2 /
+    LECTURE_IMPOSSIBLE / SORTIE_IMPOSSIBLE qu'ils font tenir, pas la regle
+    SonarCloud elle-meme -- un seul endroit a maintenir pour ce motif, pas
+    par numero de ligne, qui se refuterait des la prochaine edition.
 
     Pas de confinement a l'arborescence du depot : mesure deja faite au tour
     precedent, `daily_start.py` du pack appelle ce validateur sur des chemins
@@ -229,11 +247,22 @@ Fermee pour le FIFO nomme : `elif chemin.is_dir()` n'exclut plus que les
         raise OSError(str(exc)) from exc
     if pour_ecriture:
         if not chemin.parent.is_dir():
-            raise OSError(f"repertoire de sortie inexistant : {chemin.parent}")
+            # !r, pas str() nu : un chemin argv non-UTF-8 est deja decode avec
+            # surrogateescape (PEP 383), donc `chemin` peut porter des surrogates
+            # bas (\udcXX). str() les laisse tels quels dans le message ; le print()
+            # de main() sur ces trois lignes tente ensuite un encode('utf-8') strict
+            # et leve UnicodeEncodeError, non intercepte -- exit 1 + traceback, stdout
+            # vide, EXACTEMENT le fail-open que ce fichier existe pour fermer, sur une
+            # classe d'entree que rien ici ne nommait. repr() echappe les surrogates
+            # en ASCII imprimable (mesure : encodable utf-8 dans tous les cas testes).
+            # Les OSError levees par le systeme (FileNotFoundError, etc.) n'ont jamais
+            # ce probleme : leur str() passe deja par un repr() interne du nom de
+            # fichier -- seuls CES TROIS messages, construits ici a la main, y echappaient.
+            raise OSError(f"repertoire de sortie inexistant : {chemin.parent!r}")
         if chemin.exists() and not chemin.is_file():
-            raise OSError(f"la cible existe et n'est pas un fichier regulier : {chemin}")
+            raise OSError(f"la cible existe et n'est pas un fichier regulier : {chemin!r}")
     elif chemin.is_dir():
-        raise OSError(f"est un repertoire : {chemin}")
+        raise OSError(f"est un repertoire : {chemin!r}")
     return chemin
 
 
@@ -265,7 +294,7 @@ def main() -> int:
             chemin_sortie.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         except OSError as exc:
             # Meme raison que ci-dessus : sans interception, une table lue ET conforme
-            # rendait quand meme exit 1 (traceback) si --json-output etait inscriptible.
+            # rendait quand meme exit 1 (traceback) si --json-output n'etait PAS inscriptible.
             print(f"SORTIE_IMPOSSIBLE:{exc}")
             return 2
     if errors:

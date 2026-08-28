@@ -58,11 +58,16 @@ les deux choix sont visibles dans le `diff -u` ci-dessus.
 La commande qui interroge l'historique du dépôt sur cette formulation :
 
 `git log origin/main --pickaxe-regex -i -S'ma.tre.d.(oe|œ)uvre|github global' --oneline -- ':/' \
-':!docs/decisions/ADR-0004-independent-agent-ownership.md' \
-':!docs/decisions/ADR-PROPOSED-INDEPENDENT-AGENT-OWNERSHIP.md'`
+':!/docs/decisions/ADR-0004-independent-agent-ownership.md' \
+':!/docs/decisions/ADR-PROPOSED-INDEPENDENT-AGENT-OWNERSHIP.md'`
 
-(`:/` ancre le pathspec à la racine du dépôt — `-- .` rendrait une sortie vide sans rien
-prouver si la commande est rejouée depuis un sous-répertoire, mesuré.)
+(`:/` ancre le pathspec d'inclusion à la racine du dépôt — `-- .` rendrait une sortie vide
+sans rien prouver si la commande est rejouée depuis un sous-répertoire, mesuré. Le `/` de
+tête sur chacune des deux exclusions les ancre pareillement : sans lui, `:!chemin` reste
+relatif au répertoire courant et cesse d'exclure quoi que ce soit dès qu'on rejoue la
+commande depuis un sous-répertoire — ce document se recompterait alors lui-même parmi ses
+propres preuves. Mesuré depuis `coordination/` : sortie vide avec le `/` de tête sur les
+deux exclusions, non vide sans lui.)
 
 Trois propriétés de cette formulation, et rien d'autre :
 

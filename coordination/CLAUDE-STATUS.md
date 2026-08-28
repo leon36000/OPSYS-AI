@@ -89,6 +89,16 @@ en silence.
 `HEADER_MISSING` exit 1 ; gabarit neuf (en-tête + séparateur, zéro ligne) →
 `COORDINATION_OK rows=0 active=0`.
 
+`SEPARATOR_RE` (tour 8) : l'ancien test vérifiait seulement que la ligne COMMENÇAIT par
+`|---`, donc une ligne de DONNÉES dont la première cellule débute aussi par `---`
+(Work ID `---X`) était prise pour une ligne de séparation et silencieusement exclue de la
+table — `MODULE_CODE_DURING_CORE` et les collisions y compris. Fermé par un motif sur la
+ligne ENTIÈRE (`^\|(-+\|)+$`), sans faire régresser les deux limites déjà nommées dans
+`coordination/README.md` (séparateur espacé ou aligné par deux-points toujours non
+reconnu — vérifié inchangé après ce correctif). Mesuré : `|---X | NATHAN | main |
+modules m/M7 | ACTIVE | ... | ... |` → `MODULE_CODE_DURING_CORE:---X`, exit 1 (au lieu de
+`COORDINATION_OK rows=0 active=0` à tort, l'interdit dur de l'ADR-0004 non testé compris).
+
 ### `overlaps()` — casse et séparateur normalisés
 
 Normalise casse et séparateur des scopes avant comparaison, cohérent avec
@@ -147,6 +157,19 @@ inscriptible → `SORTIE_IMPOSSIBLE:...`, exit 2 ; FIFO nommé → `COORDINATION
 de processus → `LECTURE_IMPOSSIBLE:[Errno 2]...`, exit 2 ; boucle de liens (lecture et sortie)
 → `LECTURE_IMPOSSIBLE`/`SORTIE_IMPOSSIBLE:Symlink loop from '<chemin>'`, exit 2. Contrat :
 0 = table lue et conforme, 1 = table lue et non conforme, 2 = aucun verdict exploitable.
+
+Fermé aussi ici (tour 8) : un chemin argv non-UTF-8 (décodé par Python avec
+`surrogateescape`, PEP 383) faisait échapper les trois messages `OSError` propres à cette
+fonction (répertoire de sortie inexistant, cible non régulière, cible = répertoire) —
+`str(chemin)` y porte alors des surrogates bas, et le `print()` de `main()` sur
+`LECTURE_IMPOSSIBLE`/`SORTIE_IMPOSSIBLE` levait `UnicodeEncodeError`, non intercepté :
+exit 1 avec traceback, stdout vide, indiscernable d'une table non conforme — le fail-open
+que ce fichier existe pour fermer, réintroduit sur une classe d'entrée non testée jusque
+-là. Les `OSError` levées par le système (`FileNotFoundError`, etc.), elles, n'ont jamais
+ce problème : leur `str()` interne repr déjà le nom de fichier. Fermé en formatant le
+chemin par `repr()` (`!r`) plutôt que `str()` dans ces trois messages précis. Mesuré :
+répertoire cible et `--json-output` de nom non-UTF-8 → `LECTURE_IMPOSSIBLE`/
+`SORTIE_IMPOSSIBLE`, exit 2 dans les deux cas (au lieu d'exit 1 avec traceback à tort).
 
 ### Diff contre le pack
 
