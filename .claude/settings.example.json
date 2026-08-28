@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-5",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "permissions": {
+    "defaultMode": "default",
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)",
+      "Read(./credentials/**)",
+      "Bash(curl *)",
+      "Bash(wget *)",
+      "Bash(cat .env*)",
+      "Bash(cat ./.env*)",
+      "Bash(cat ./secrets/*)",
+      "Bash(cat ./credentials/*)",
+      "Bash(head .env*)",
+      "Bash(head ./.env*)",
+      "Bash(head ./secrets/*)",
+      "Bash(head ./credentials/*)",
+      "Bash(tail .env*)",
+      "Bash(tail ./.env*)",
+      "Bash(tail ./secrets/*)",
+      "Bash(tail ./credentials/*)",
+      "Bash(less .env*)",
+      "Bash(less ./.env*)",
+      "Bash(less ./secrets/*)",
+      "Bash(less ./credentials/*)",
+      "Bash(more .env*)",
+      "Bash(more ./.env*)",
+      "Bash(more ./secrets/*)",
+      "Bash(more ./credentials/*)",
+      "Bash(cp .env*)",
+      "Bash(cp ./.env*)",
+      "Bash(cp ./secrets/*)",
+      "Bash(cp ./credentials/*)",
+      "Bash(scp *)",
+      "Bash(rsync *)",
+      "Bash(nc *)"
+    ],
+    "disableBypassPermissionsMode": "disable",
+    "disableAutoMode": "disable"
+  }
+}
