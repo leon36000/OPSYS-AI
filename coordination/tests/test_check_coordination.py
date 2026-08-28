@@ -253,6 +253,36 @@ def test_overlaps_ne_developpe_aucun_glob(tmp_path):
     assert r.returncode == 0
 
 
+def test_overlaps_exemption_scopes_hors_collision(tmp_path):
+    # SCOPES_HORS_COLLISION = {"read-only", "task spec exact"} n'avait aucun test dédié
+    # avant ce correctif (revue scellée, tour 6 de #598) — la seule couverture incidente
+    # (deux lignes "read-only" pour BRANCH_COLLISION) porte les DEUX opérandes exemptés à
+    # la fois, donc ne discrimine ni l'un ni l'autre pris séparément. "read-only" et
+    # "read-only/sub" ont une vraie relation parent-enfant au sens PurePosixPath — SANS
+    # l'exemption, ces deux lignes collisionneraient réellement (mesuré par mutation).
+    # Les deux ordres de déclaration sont exercés, plus le second membre du set.
+    p_gauche_exemptee = write(tmp_path, "gauche_exemptee.md", table(
+        row(work_id="ISS-A", branch="br-a", scope="read-only"),
+        row(work_id="ISS-B", branch="br-b", scope="read-only/sub"),
+    ))
+    r = run([str(p_gauche_exemptee)])
+    assert r.returncode == 0
+
+    p_droite_exemptee = write(tmp_path, "droite_exemptee.md", table(
+        row(work_id="ISS-A", branch="br-a", scope="read-only/sub"),
+        row(work_id="ISS-B", branch="br-b", scope="read-only"),
+    ))
+    r = run([str(p_droite_exemptee)])
+    assert r.returncode == 0
+
+    p_task_spec = write(tmp_path, "task_spec.md", table(
+        row(work_id="ISS-A", branch="br-a", scope="task spec exact"),
+        row(work_id="ISS-B", branch="br-b", scope="task spec exact"),
+    ))
+    r = run([str(p_task_spec)])
+    assert r.returncode == 0
+
+
 # ---------------------------------------------------------------------------
 # Contrôles de ligne hérités du pack, jamais touchés par la revue scellée de #564 mais
 # toujours vivants dans le validateur réduit — sans test dédié avant ce correctif (revue
@@ -266,6 +296,20 @@ def test_malformed_row_compte_de_cellules(tmp_path):
     r = run([str(p)])
     assert r.returncode == 1
     assert "MALFORMED_ROW:3:6" in r.stdout  # 3 = numéro de ligne, 6 = nombre de cellules
+
+
+def test_malformed_row_borne_haute_egalement(tmp_path):
+    # Pendant de la borne basse ci-dessus, jamais exercé avant ce correctif (revue
+    # scellée, tour 6 de #598, siège 1) : "len(cells) != 7" n'a qu'un seul mutant
+    # testé (6 cellules). Muter en "len(cells) < 7" laissait les tests d'alors verts —
+    # une ligne à 8 cellules aurait alors été acceptée et validée sur ses 7 premières
+    # seulement (zip() tronque en silence), fail-open sur un contrôle que l'en-tête
+    # revendique couvrir.
+    p = write(tmp_path, "t.md",
+              HEADER + SEP + "| ISS-A | CLAUDE | br-a | coordination | ACTIVE | x | y | EXTRA |\n")
+    r = run([str(p)])
+    assert r.returncode == 1
+    assert "MALFORMED_ROW:3:8" in r.stdout
 
 
 def test_work_id_empty(tmp_path):
@@ -302,6 +346,35 @@ def test_status_invalide(tmp_path):
     assert "STATUS:ISS-A:BADSTATUS" in r.stdout
 
 
+def test_owners_legitimes_acceptes(tmp_path):
+    # Pendant positif de test_owner_invalide, jamais exercé avant ce correctif (revue
+    # scellée, tour 6 de #598, siège 1) : retirer "NATHAN", "CHATGPT" ou "UNASSIGNED" de
+    # OWNERS = {"CODEX","CLAUDE","CHATGPT","NATHAN","UNASSIGNED"} laissait les tests
+    # d'alors verts, faute d'une ligne affirmant chacun accepté. Work ID "XYZ-1" (même
+    # raison que test_owner_invalide : hors CORE_RE et CLAUDE_RE) pour isoler ce seul
+    # contrôle, CODEX et CLAUDE compris — sans lui, une valeur qui échappe pourtant à
+    # OWNERS déclencherait quand même CORE_OWNER/ISSUE_OWNER pour la même mauvaise raison.
+    for owner in ("CODEX", "CLAUDE", "CHATGPT", "NATHAN", "UNASSIGNED"):
+        p = write(tmp_path, "t.md", table(row(work_id="XYZ-1", owner=owner)))
+        r = run([str(p)])
+        assert r.returncode == 0, owner
+        assert "OWNER:" not in r.stdout, owner
+
+
+def test_statuses_legitimes_acceptees(tmp_path):
+    # Même pendant positif que ci-dessus, pour STATUSES = {"QUEUED","ACTIVE","BLOCKED",
+    # "REVIEW","READY_TO_MERGE","MERGED","TRANSFER"} — retirer "BLOCKED" ou "MERGED"
+    # laissait les tests d'alors verts (revue scellée, tour 6 de #598, sièges 1 et 3
+    # convergents), alors que coordination/WORK-OWNERSHIP.md porte aujourd'hui des
+    # lignes réelles dans ces deux statuts. Branch "br-a" (jamais "main"/"master"/vide)
+    # pour ne pas laisser BRANCH:ISS-A interférer sur les statuts actifs de la boucle.
+    for status in ("QUEUED", "ACTIVE", "BLOCKED", "REVIEW", "READY_TO_MERGE", "MERGED", "TRANSFER"):
+        p = write(tmp_path, "t.md", table(row(status=status, branch="br-a")))
+        r = run([str(p)])
+        assert r.returncode == 0, status
+        assert "STATUS:" not in r.stdout, status
+
+
 def test_branch_main_ou_master_ou_vide_sur_ligne_active(tmp_path):
     # Le nom promet aussi le cas "vide" : sans lui, retirer "" de l'ensemble de refus
     # {"main", "master", ""} du validateur laissait ce test vert (mutant survivant,
@@ -313,24 +386,67 @@ def test_branch_main_ou_master_ou_vide_sur_ligne_active(tmp_path):
         assert "BRANCH:ISS-A" in r.stdout, repr(branch)
 
 
-def test_core_owner_hors_codex(tmp_path):
-    p = write(tmp_path, "t.md", table(row(work_id="C05-001", owner="CLAUDE", scope="core/x")))
+def test_branch_arme_seulement_sur_ligne_active(tmp_path):
+    # Pendant, pour ce contrôle, de test_module_code_during_core_arme_seulement_sur_
+    # ligne_active plus bas : "status in ACTIVE" garde aussi BRANCH, jamais exercé avant
+    # ce correctif (revue scellée, tour 6 de #598, siège 3) — la retirer survivait aux
+    # tests d'alors faute d'une ligne QUEUED à branche "main" affirmée COORDINATION_OK.
+    p = write(tmp_path, "t.md", table(row(branch="main", status="QUEUED")))
     r = run([str(p)])
-    assert r.returncode == 1
-    assert "CORE_OWNER:C05-001:CLAUDE" in r.stdout
+    assert r.returncode == 0
+    assert "BRANCH:ISS-A" not in r.stdout
+
+
+def test_core_owner_hors_codex(tmp_path):
+    # CORE_RE = ^C(?:0\d|1\d|2[0-4])-\d{3}$ porte TROIS alternatives de décennie — sans
+    # ce test avant ce correctif (revue scellée, tour 6 de #598), seule 0\d était
+    # exercée. Mesuré : retirer 1\d ou 2[0-4] de CORE_RE laissait les tests d'alors verts
+    # tout en produisant un COORDINATION_OK à tort sur C15-.../C23-..., un fail-open réel
+    # (pas seulement une asymétrie de couverture) sur le contrôle même que l'en-tête du
+    # fichier revendique avoir fermé « mesuré par mutation ».
+    for work_id in ("C05-001", "C15-001", "C23-001"):
+        p = write(tmp_path, "t.md", table(row(work_id=work_id, owner="CLAUDE", scope="core/x")))
+        r = run([str(p)])
+        assert r.returncode == 1, work_id
+        assert f"CORE_OWNER:{work_id}:CLAUDE" in r.stdout, work_id
 
 
 def test_issue_owner_hors_claude(tmp_path):
-    p = write(tmp_path, "t.md", table(row(owner="CODEX")))
-    r = run([str(p)])
-    assert r.returncode == 1
-    assert "ISSUE_OWNER:ISS-A:CODEX" in r.stdout
+    # CLAUDE_RE = ^(?:ISS-|AUD-|BUG-|R4-) porte QUATRE alternatives — même famille et
+    # même gravité que le test CORE_OWNER voisin (revue scellée, tour 6 de #598) : seule
+    # ISS- était exercée avant ce correctif, alors qu'AUD- est le préfixe qui DOMINE la
+    # seule table réellement validée de ce dépôt (coordination/WORK-OWNERSHIP.md :
+    # AUD-CI-002/003/004, AUD-CORE-005/006, AUD-CANON-001/002). Mesuré : retirer AUD-,
+    # BUG- ou R4- de CLAUDE_RE laissait les tests d'alors verts tout en produisant un
+    # COORDINATION_OK à tort sur un Work ID de ce préfixe possédé par CODEX.
+    for work_id in ("ISS-A", "AUD-CORE-005", "BUG-001", "R4-001"):
+        p = write(tmp_path, "t.md", table(row(work_id=work_id, owner="CODEX")))
+        r = run([str(p)])
+        assert r.returncode == 1, work_id
+        assert f"ISSUE_OWNER:{work_id}:CODEX" in r.stdout, work_id
 
 
 def test_core_et_issue_owner_transfer_exempte(tmp_path):
     # TRANSFER est l'exception explicite des deux contrôles ci-dessus (hand-off en cours).
     for wid, owner in (("C05-001", "CLAUDE"), ("ISS-A", "CODEX")):
         p = write(tmp_path, "t.md", table(row(work_id=wid, owner=owner, status="TRANSFER")))
+        r = run([str(p)])
+        assert r.returncode == 0, (wid, owner)
+
+
+def test_core_owner_et_issue_owner_acceptent_leurs_proprietaires_legitimes(tmp_path):
+    # Pendant positif des deux contrôles CORE_OWNER/ISSUE_OWNER, jamais exercé avant ce
+    # correctif (revue scellée, tour 6 de #598, sièges 1 et 3 convergents) : retirer
+    # "CODEX" de l'ensemble autorisé de CORE_OWNER, ou "UNASSIGNED" de celui de
+    # CORE_OWNER ou d'ISSUE_OWNER ({"CODEX","UNASSIGNED"} et {"CLAUDE","UNASSIGNED"}),
+    # survivait aux tests d'alors faute d'une ligne affirmant chacun accepté hors
+    # TRANSFER — le seul cas déjà couvert ci-dessus.
+    for wid, owner, scope in (
+        ("C05-001", "CODEX", "core/x"),
+        ("C05-001", "UNASSIGNED", "core/x"),
+        ("ISS-A", "UNASSIGNED", "coordination"),
+    ):
+        p = write(tmp_path, "t.md", table(row(work_id=wid, owner=owner, scope=scope)))
         r = run([str(p)])
         assert r.returncode == 0, (wid, owner)
 
