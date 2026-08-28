@@ -1,34 +1,38 @@
-# OPSYS-AI / Systèmes complets d'automatisation d'entreprise par intelligence artificielle
+# OPSYS-AI — Core d'automatisation d'entreprise
 
-Core d'entreprise autonome, clé en main. Ce repo exécute la méthode **PROOF STACK v1.1** (kit `GRS_KIT_DEMARRAGE_v1.0`, ratifié D-039). Source de vérité : le plan maître `docs/GRS_Plan_Squelette_Maitre_v1.1_PERFECTION.pdf`.
+OPSYS-AI construit et qualifie d'abord un Core d'entreprise autoritatif. Le
+programme actif est **Core v2.3.0**.
 
-## Profils d'installation (D-043)
+## Commencer ici
 
-- **infra-existante** : branchement sur passerelle LLM, Langfuse, base vectorielle et PostgreSQL fournis par l'hôte.
-- **starter** : auto-déploiement des prérequis en conteneurs (à venir en Phase 0/P0-2).
+1. Lire [`docs/core/CANON-INDEX.md`](docs/core/CANON-INDEX.md).
+2. Lire les décisions actives sous `docs/decisions/`.
+3. Pour une mission Core, consulter le registre, le graphe et le contrat sous
+   `.opsys/core-control/2.3.0/`.
+4. Utiliser une issue, une branche et un worktree dédiés, puis lier les tests
+   et la preuve au commit et à l'arbre exacts.
 
-## Démarrage
+## Ordre du programme
 
-Le repo est déjà câblé, `main` est protégée. Ordre d'exécution :
+```text
+C00 → C24
+→ M7 → M1 → M2 → M4 → M3 → M6 → M8 → M10 → M5 → M9
+→ surfaces mobile, cockpit et avatar finales
+```
 
-1. Phase C — consensus outillé (`python3 scripts/consensus_run.py --mock`, puis mode live après configuration de la passerelle et rotation de la clef).
-2. Phase 0 — dans l'ordre v1.1 (P0-1 → P0-4 → P0-2 → P0-3/P0-6 → tests des scripts de méthode → harnais e2e → … → P0-10).
-3. Story pilote **M7-S000** (mode ombre, ≤ 1 h).
-4. M7 vague 1 — fondations sans dépendances.
+Pendant le Core, aucune logique métier `M1` à `M10` n'est complétée. Les
+frontières et les surfaces différées sont définies dans le canon indexé.
 
-Suivre `PROMPT_BOOTSTRAP_CLAUDE_CODE.md` sans sauter d'étape.
+## Développement et preuve
 
-## Sources de vérité
+- pas de push direct sur la branche par défaut ;
+- RED/GREEN et non-régressions avant l'intégration ;
+- aucune preuve, revue ou réussite fabriquée ;
+- une mission terminée doit être vérifiable sur son commit et son arbre exacts.
 
-- Plan maître : `docs/GRS_Plan_Squelette_Maitre_v1.1_PERFECTION.pdf` (28 p., nom historique GRS).
-- Pack Phase C : `PACK_CONSENSUS_GRS_v2.md`.
-- Constitution d'exécution : `00-DIGEST.md` + `docs/canon/REGLES.md`.
-
-## ForgeAI PROOF IDE System
-
-Les fichiers `VISION.md`, `FORGE_METHOD.md`, `IMPLEMENTATION_SPEC.md`, `RECONCILIATION.md`, `START_HERE.md` et `config.ini.example` présents à la racine sont le référentiel d'un **produit-méthode distinct** (chantier séparé). Ils ne gouvernent pas l'exécution de ce repo, qui suit PROOF STACK v1.1 du kit (cf. ADR-0002).
+Les fichiers racine sont des portails. Le canon actif se trouve dans
+[`docs/core/CANON-INDEX.md`](docs/core/CANON-INDEX.md).
 
 ## Licence
 
-Apache-2.0
-
+Voir `LICENSE`.
