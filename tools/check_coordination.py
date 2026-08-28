@@ -92,6 +92,127 @@ def overlaps(a: str, b: str) -> bool:
     return pa == pb or pa in pb.parents or pb in pa.parents
 
 
+def _touche_modules_m(scope: str) -> bool:
+    # Trois fail-opens fermes ici sur le meme interdit dur de l'ADR-0004 ("aucun
+    # code metier M avant handoff Core"), trouves par trois revues scellees
+    # independantes. (1) "coordination;modules m/M7" sur une ligne ACTIVE ne
+    # declenchait rien : le test portait sur la cellule ENTIERE, jamais sur ses
+    # items separes par ";" comme le font deja valid_scope()/overlaps() ci-dessus.
+    # (2) "./modules m/M7" ne declenchait rien non plus une fois (1) ferme : un
+    # prefixe "./" — que valid_scope() accepte comme scope valide et qu'overlaps()
+    # normalise deja via PurePosixPath — echappait a la comparaison de chaine
+    # brute. (3) (tour 10) un scope "." ou "./" — valide pour valid_scope(), et qui
+    # couvre pourtant TOUT l'arbre, "modules m/" compris — echappait encore : le test
+    # ne verifiait que "modules m" == s ou "modules m" DESCEND de s (cible_module_m
+    # in s.parents utilise a l'envers ne matche pas ici), jamais le sens inverse, "s
+    # est un ANCETRE de modules m" -- alors que overlaps() juste au-dessus teste deja
+    # les DEUX sens ("pa in pb.parents or pb in pa.parents"). Les trois fermes par le
+    # meme mecanisme que overlaps() : PurePosixPath par element, egalite OU parente
+    # dans les deux sens avec "modules m".
+    cible_module_m = PurePosixPath("modules m")
+    scopes_normalises = [
+        PurePosixPath(x.strip().replace("\\", "/").casefold())
+        for x in scope.split(";") if x.strip()
+    ]
+    return any(
+        s == cible_module_m or cible_module_m in s.parents or s in cible_module_m.parents
+        for s in scopes_normalises
+    )
+
+
+def _erreurs_structurelles(row: dict[str, str], seen: set[str]) -> list[str]:
+    """Premiere moitie des controles portant sur UNE seule ligne, independants de
+    toute autre ligne de la table (WORK_ID_EMPTY, DUPLICATE_WORK, OWNER, STATUS,
+    SCOPE, BRANCH) — extrait de validate() (revue scellee, AUD-QUAL-007, #594) pour
+    reduire sa complexite cognitive sous le seuil SonarCloud (python:S3776, mesure 44
+    avant ce commit) ; comportement inchange, verifie contre la suite de
+    non-regression de coordination/tests/ (#598 : chaque branche de ce controle y
+    porte deja sa propre fixture) avant d'etre considere fait. `seen` est mutee en
+    place, comme le faisait la boucle d'origine. Pendant : _erreurs_de_propriete().
+    """
+    errors: list[str] = []
+    wid = row["work_id"]
+    if not wid:
+        errors.append("WORK_ID_EMPTY")
+    if wid in seen:
+        errors.append(f"DUPLICATE_WORK:{wid}")
+    seen.add(wid)
+    if row["owner"] not in OWNERS:
+        errors.append(f"OWNER:{wid}:{row['owner']}")
+    if row["status"] not in STATUSES:
+        errors.append(f"STATUS:{wid}:{row['status']}")
+    if not valid_scope(row["scope"]):
+        errors.append(f"SCOPE:{wid}:{row['scope']}")
+    if row["status"] in ACTIVE and row["branch"].lower() in {"main", "master", ""}:
+        errors.append(f"BRANCH:{wid}")
+    return errors
+
+
+def _erreurs_de_propriete(row: dict[str, str]) -> list[str]:
+    """Seconde moitie des controles par ligne : proprietaire vs prefixe du Work ID,
+    et l'interdit dur de l'ADR-0004 (MODULE_CODE_DURING_CORE, CORE_OWNER,
+    ISSUE_OWNER) — meme extraction et meme raison que _erreurs_structurelles()
+    ci-dessus, dont c'est le pendant.
+    """
+    errors: list[str] = []
+    wid = row["work_id"]
+    owner = row["owner"]
+    status = row["status"]
+    if status in ACTIVE and _touche_modules_m(row["scope"]):
+        errors.append(f"MODULE_CODE_DURING_CORE:{wid}")
+    if CORE_RE.match(wid) and owner not in {"CODEX", "UNASSIGNED"} and status != "TRANSFER":
+        errors.append(f"CORE_OWNER:{wid}:{owner}")
+    if CLAUDE_RE.match(wid) and owner not in {"CLAUDE", "UNASSIGNED"} and status != "TRANSFER":
+        errors.append(f"ISSUE_OWNER:{wid}:{owner}")
+    return errors
+
+
+def _erreurs_de_ligne(row: dict[str, str], seen: set[str]) -> list[str]:
+    """Assemble les deux moities ci-dessus, DANS L'ORDRE ou validate() les emettait
+    avant extraction — le contrat que ce fichier tient est aussi l'ordre d'apparition
+    des erreurs sur stdout (cf. l'en-tete de coordination/tests/test_check_
+    coordination.py), pas seulement leur presence.
+    """
+    return _erreurs_structurelles(row, seen) + _erreurs_de_propriete(row)
+
+
+def _erreurs_de_paire(left: dict[str, str], right: dict[str, str]) -> list[str]:
+    """BRANCH_COLLISION et PATH_COLLISION pour UNE PAIRE de lignes ACTIVES — extrait
+    de la double boucle de validate() (meme raison que ci-dessus) pour que sa propre
+    complexite cognitive ne cumule pas celle des deux boucles `for` englobantes.
+    """
+    errors: list[str] = []
+    # "n/a" exempte, en miroir de SCOPES_HORS_COLLISION pour PATH_COLLISION.
+    # Fail-open trouve en revue scellee : le controle BRANCH ci-dessus autorise
+    # "n/a" comme sentinelle des missions sans branche (read-only), mais
+    # BRANCH_COLLISION comparait les branches brutes sans cette exemption --
+    # deux missions read-only actives, toutes deux "n/a", deviendraient
+    # structurellement inexprimables. Mesure sur l'arbre livre, pas un decompte
+    # fige : seul WORK-OWNERSHIP.md porte une ligne active "n/a" a ce jour
+    # (LIVE-ISSUE-RECONCILIATION) ; CODEX-QUEUE.md n'a pas de colonne Branch et
+    # n'est pas concerne par cette exemption -- l'exemption reste voulue pour
+    # toute ligne future de ce type, pas seulement celle qui existe aujourd'hui.
+    if left["branch"] == right["branch"] and left["branch"].strip().casefold() != "n/a":
+        errors.append(f"BRANCH_COLLISION:{left['work_id']}:{right['work_id']}")
+    for sa in [x.strip() for x in left["scope"].split(";") if x.strip()]:
+        for sb in [x.strip() for x in right["scope"].split(";") if x.strip()]:
+            if overlaps(sa, sb):
+                errors.append(f"PATH_COLLISION:{left['work_id']}:{right['work_id']}:{sa}:{sb}")
+    return errors
+
+
+def _erreurs_de_collision(active: list[dict[str, str]]) -> list[str]:
+    """Controles par PAIRE de lignes ACTIVES (BRANCH_COLLISION, PATH_COLLISION) —
+    extrait de validate() pour la meme raison que ci-dessus ; ne fait plus que
+    porter la double boucle, la logique par paire vit dans _erreurs_de_paire().
+    """
+    errors: list[str] = []
+    for idx, left in enumerate(active):
+        for right in active[idx + 1 :]:
+            errors.extend(_erreurs_de_paire(left, right))
+    return errors
+
+
 def validate(path: Path) -> tuple[list[dict[str, str]], list[str]]:
     data, errors, header_found = parse_rows(path)
     if not header_found:
@@ -101,73 +222,9 @@ def validate(path: Path) -> tuple[list[dict[str, str]], list[str]]:
         errors.append("HEADER_MISSING")
     seen: set[str] = set()
     for row in data:
-        wid = row["work_id"]
-        owner = row["owner"]
-        status = row["status"]
-        branch = row["branch"]
-        if not wid:
-            errors.append("WORK_ID_EMPTY")
-        if wid in seen:
-            errors.append(f"DUPLICATE_WORK:{wid}")
-        seen.add(wid)
-        if owner not in OWNERS:
-            errors.append(f"OWNER:{wid}:{owner}")
-        if status not in STATUSES:
-            errors.append(f"STATUS:{wid}:{status}")
-        if not valid_scope(row["scope"]):
-            errors.append(f"SCOPE:{wid}:{row['scope']}")
-        if status in ACTIVE and branch.lower() in {"main", "master", ""}:
-            errors.append(f"BRANCH:{wid}")
-        # Trois fail-opens fermes ici sur le meme interdit dur de l'ADR-0004 ("aucun
-        # code metier M avant handoff Core"), trouves par trois revues scellees
-        # independantes. (1) "coordination;modules m/M7" sur une ligne ACTIVE ne
-        # declenchait rien : le test portait sur la cellule ENTIERE, jamais sur ses
-        # items separes par ";" comme le font deja valid_scope()/overlaps() ci-dessus.
-        # (2) "./modules m/M7" ne declenchait rien non plus une fois (1) ferme : un
-        # prefixe "./" — que valid_scope() accepte comme scope valide et qu'overlaps()
-        # normalise deja via PurePosixPath — echappait a la comparaison de chaine
-        # brute. (3) (tour 10) un scope "." ou "./" — valide pour valid_scope(), et qui
-        # couvre pourtant TOUT l'arbre, "modules m/" compris — echappait encore : le test
-        # ne verifiait que "modules m" == s ou "modules m" DESCEND de s (cible_module_m
-        # in s.parents utilise a l'envers ne matche pas ici), jamais le sens inverse, "s
-        # est un ANCETRE de modules m" -- alors que overlaps() juste au-dessus teste deja
-        # les DEUX sens ("pa in pb.parents or pb in pa.parents"). Les trois fermes par le
-        # meme mecanisme que overlaps() : PurePosixPath par element, egalite OU parente
-        # dans les deux sens avec "modules m".
-        cible_module_m = PurePosixPath("modules m")
-        scopes_normalises = [
-            PurePosixPath(x.strip().replace("\\", "/").casefold())
-            for x in row["scope"].split(";") if x.strip()
-        ]
-        if status in ACTIVE and any(
-            s == cible_module_m or cible_module_m in s.parents or s in cible_module_m.parents
-            for s in scopes_normalises
-        ):
-            errors.append(f"MODULE_CODE_DURING_CORE:{wid}")
-        if CORE_RE.match(wid) and owner not in {"CODEX", "UNASSIGNED"} and status != "TRANSFER":
-            errors.append(f"CORE_OWNER:{wid}:{owner}")
-        if CLAUDE_RE.match(wid) and owner not in {"CLAUDE", "UNASSIGNED"} and status != "TRANSFER":
-            errors.append(f"ISSUE_OWNER:{wid}:{owner}")
-
+        errors.extend(_erreurs_de_ligne(row, seen))
     active = [r for r in data if r["status"] in ACTIVE]
-    for idx, left in enumerate(active):
-        for right in active[idx + 1 :]:
-            # "n/a" exempte, en miroir de SCOPES_HORS_COLLISION pour PATH_COLLISION.
-            # Fail-open trouve en revue scellee : le controle BRANCH ci-dessus autorise
-            # "n/a" comme sentinelle des missions sans branche (read-only), mais
-            # BRANCH_COLLISION comparait les branches brutes sans cette exemption --
-            # deux missions read-only actives, toutes deux "n/a", deviendraient
-            # structurellement inexprimables. Mesure sur l'arbre livre, pas un decompte
-            # fige : seul WORK-OWNERSHIP.md porte une ligne active "n/a" a ce jour
-            # (LIVE-ISSUE-RECONCILIATION) ; CODEX-QUEUE.md n'a pas de colonne Branch et
-            # n'est pas concerne par cette exemption -- l'exemption reste voulue pour
-            # toute ligne future de ce type, pas seulement celle qui existe aujourd'hui.
-            if left["branch"] == right["branch"] and left["branch"].strip().casefold() != "n/a":
-                errors.append(f"BRANCH_COLLISION:{left['work_id']}:{right['work_id']}")
-            for sa in [x.strip() for x in left["scope"].split(";") if x.strip()]:
-                for sb in [x.strip() for x in right["scope"].split(";") if x.strip()]:
-                    if overlaps(sa, sb):
-                        errors.append(f"PATH_COLLISION:{left['work_id']}:{right['work_id']}:{sa}:{sb}")
+    errors.extend(_erreurs_de_collision(active))
     return data, errors
 
 
