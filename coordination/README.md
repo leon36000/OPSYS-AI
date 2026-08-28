@@ -118,3 +118,8 @@
   que cette PR ne modifie pas, et une copie brute de l'exemple en remplacerait le contenu
   **quel qu'il soit**, sans avertissement. Son contenu n'est pas recopié ici. Détail des
   écarts entre l'exemple et son homologue du pack dans `coordination/CLAUDE-STATUS.md`.
+- `coordination/tests/` (issue #592) rejoue en tests automatisés les fixtures ayant
+  justifié chaque durcissement de `tools/check_coordination.py` mesuré ci-dessus, plus la
+  limite du pipe initial manquant — caractérisée explicitement, pas cachée. Hors de
+  `testpaths` par défaut (`pytest.ini` ne couvre que `scripts/tests`) : invocation
+  explicite requise, `python3 -m pytest coordination/tests/`.
