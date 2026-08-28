@@ -77,7 +77,7 @@
   séparateur par ailleurs intacts) n'est jamais lue comme une ligne de table — donc jamais
   vérifiée, collisions comprises. Aucun bloc de code ni aucune indentation n'a de traitement
   spécial : ce qui est écrit dans ce fichier, fence ou pas, indenté ou pas, est lu comme
-  n'importe quelle autre ligne. Trois limites de plus, mesurées, ni exercées par un fichier
+  n'importe quelle autre ligne. D'autres limites, mesurées, ni exercées par un fichier
   livré ni fermées : une ligne de séparation espacée ou porteuse des deux-points d'alignement
   Markdown (`| --- | --- |` ou `|:---|:---|` au lieu de `|---|---|`) n'est pas reconnue
   (`HEADER_MISSING` + des `OWNER`/`STATUS` parasites, fail-closed — pas un faux
@@ -87,7 +87,9 @@
   `.github/workflows/ci.yml` ne sont donc pas vus en collision ; et un périphérique caractère
   sans fin de fichier (`/dev/zero`) ou un tube nommé sans écrivain sortent tous deux du
   contrat 0/1/2 ci-dessus — blocage ou trace non interceptée, jamais l'une des lignes
-  énumérées à exit 1 ni un `LECTURE_IMPOSSIBLE` propre.
+  énumérées à exit 1 ni un `LECTURE_IMPOSSIBLE` propre ; et un BOM UTF-8 en tête de la
+  ligne d'en-tête fait échouer sa comparaison stricte avec l'en-tête attendu — `HEADER_
+  MISSING`, fail-closed, pas un faux `COORDINATION_OK`.
 - `.claude/settings.example.json` est un **exemple** à copier puis adapter. Ne jamais
   l'écraser sur `.claude/settings.json` : ce dernier est un fichier préexistant du dépôt,
   que cette PR ne modifie pas, et une copie brute de l'exemple en remplacerait le contenu

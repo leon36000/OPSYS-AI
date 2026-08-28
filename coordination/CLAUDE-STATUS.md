@@ -149,7 +149,9 @@ pack où une table lue et conforme, mais dont `--json-output` échoue à l'écri
 même exit 1 qu'une table non conforme.
 
 `_chemin_sur()` valide le chemin avant tout accès disque (SonarCloud `pythonsecurity:S8707`) :
-octet nul refusé, `resolve()`, boucle de liens symboliques reconvertie en `OSError` (sinon
+octet nul refusé (garde défensive, non mesurable en CLI — `execve`/Python refuse un tel
+octet dans un argument avant même le lancement du script ; atteignable seulement en usage
+bibliothèque), `resolve()`, boucle de liens symboliques reconvertie en `OSError` (sinon
 `RuntimeError`, non intercepté par `main()`). En lecture, seuls les répertoires sont refusés —
 un FIFO nommé passe ; `/dev/stdin` ne passe QUE sur redirection depuis un fichier régulier
 (`tool /dev/stdin < f`), pas adossé à un tube (`cat f | tool /dev/stdin`, l'usage courant) : ce
@@ -167,27 +169,46 @@ de processus → `LECTURE_IMPOSSIBLE:[Errno 2]...`, exit 2 ; boucle de liens (le
 → `LECTURE_IMPOSSIBLE`/`SORTIE_IMPOSSIBLE:Symlink loop from '<chemin>'`, exit 2. Contrat :
 0 = table lue et conforme, 1 = table lue et non conforme, 2 = aucun verdict exploitable.
 
-Fermé aussi ici (tour 8, affiné tour 9) : un chemin argv non-UTF-8 (décodé par Python avec
-`surrogateescape`, PEP 383) faisait échapper les trois messages `OSError` propres à cette
-fonction (répertoire de sortie inexistant, cible non régulière, cible = répertoire) —
-`str(chemin)` y porte alors des surrogates bas, et le `print()` de `main()` sur
-`LECTURE_IMPOSSIBLE`/`SORTIE_IMPOSSIBLE` levait `UnicodeEncodeError`, non intercepté :
-exit 1 avec traceback, stdout vide, indiscernable d'une table non conforme — le fail-open
-que ce fichier existe pour fermer, réintroduit sur une classe d'entrée non testée jusque
--là. Les `OSError` levées par le système (`FileNotFoundError`, etc.), elles, n'ont jamais
-ce problème : leur `str()` interne repr déjà le nom de fichier. Fermé en formatant le
-chemin par `ascii()` (`!a`) plutôt que `str()` dans ces trois messages précis — `repr()`
-(`!r`, essayé d'abord au tour 8) échappe bien les surrogates mais laisse passer tel quel
-tout caractère non-ASCII valide, qui casse à son tour sous `PYTHONIOENCODING=ascii` (mesuré
-au tour 9) ; `ascii()` échappe les deux classes en une seule forme. Mesuré : répertoire
-cible et `--json-output` de nom non-UTF-8 → `LECTURE_IMPOSSIBLE`/`SORTIE_IMPOSSIBLE`,
-exit 2 dans les deux cas (au lieu d'exit 1 avec traceback à tort).
+Fermé aussi ici (tour 8, corrigé pour de bon au tour 10 — voir plus bas) : un chemin argv
+non-UTF-8 (décodé par Python avec `surrogateescape`, PEP 383) faisait échapper les trois
+messages `OSError` propres à cette fonction (répertoire de sortie inexistant, cible non
+régulière, cible = répertoire) — `str(chemin)` y porte alors des surrogates bas, et le
+`print()` de `main()` sur `LECTURE_IMPOSSIBLE`/`SORTIE_IMPOSSIBLE` levait
+`UnicodeEncodeError`, non intercepté : exit 1 avec traceback, stdout vide, indiscernable
+d'une table non conforme. Fermé au tour 8 en formatant le chemin par `repr()` (`!r`) dans
+ces trois messages précis.
 
-Deux affinages supplémentaires au tour 9, tous deux mesurés avant correction : le message
-« répertoire de sortie inexistant » sortait aussi quand le parent de la cible EXISTE mais
-n'est pas un répertoire (`is_dir()` est faux dans les deux cas) — distingué par un test
-`exists()` séparé, message dédié « le parent de la sortie n'est pas un répertoire » pour ce
-second cas. Et `--json-output` pointant sur le même chemin (résolu) que l'argument
+**Le tour 9 a introduit une régression de raisonnement, corrigée au tour 10.** Il affirmait
+que « les `OSError` levées par le système (`FileNotFoundError`, etc.) n'ont jamais ce
+problème : leur `str()` interne repr déjà le nom de fichier » — **faux**, réfuté par sa
+propre mesure adjacente : `str(OSError)` passe justement par un `repr()` interne, et le
+tour 9 venait de mesurer que `repr()` laisse passer tel quel tout caractère non-ASCII
+VALIDE (pas seulement les surrogates), qui casse sous `PYTHONIOENCODING=ascii`. La
+correction du tour 9 (`ascii()`/`!a` sur les trois messages construits à la main) posait
+donc la protection au mauvais étage : aux trois sites `raise` de `_chemin_sur()`, jamais
+aux sites `print()` de `main()` où l'encodage a réellement lieu — ni aux `OSError` système,
+ni au troisième `print()` (`"\n".join(errors)`), atteignable sans aucun argv exotique dès
+qu'une CELLULE de table porte un accent (réaliste : ce dépôt rédige ses tables en français).
+Revue scellée (tour 10, 2 sièges convergents), mesuré sous `PYTHONIOENCODING=ascii` avant
+correction : chemin argv inexistant accentué, permission refusée sur répertoire accentué,
+`--json-output` non inscriptible de nom accentué, et une simple cellule `scope` accentuée →
+les quatre rendaient exit 1, stdout VIDE, traceback, au lieu de `LECTURE_IMPOSSIBLE`/
+`SORTIE_IMPOSSIBLE` exit 2 ou d'une ligne `SCOPE:`/`PATH_COLLISION:` exit 1 propre — le
+fail-open que ce fichier existe pour fermer. **Fermé pour de bon** en sécurisant STDOUT
+lui-même, une seule fois, en tête de `main()` : `sys.stdout.reconfigure(errors=
+"backslashreplace")` — couvre les quatre `print()` de `main()` sans exception, sans effet
+sous UTF-8 (mesuré : aucun caractère de ce dépôt n'est inencodable en UTF-8). `!a` est donc
+redevenu inutile aux trois sites où le tour 9 l'avait introduit et a été repris en `!r`
+(plus lisible), la protection réelle vivant désormais au seul point d'impression. Mesuré
+après correction : les quatre cas ci-dessus rendent tous un exit et un préfixe propres,
+message lisible (accents échappés en `\xHH`), sans traceback.
+
+Deux affinages supplémentaires au tour 9, restés valides et non affectés par ce qui
+précède, tous deux mesurés avant correction : le message « répertoire de sortie
+inexistant » sortait aussi quand le parent de la cible EXISTE mais n'est pas un répertoire
+(`is_dir()` est faux dans les deux cas) — distingué par un test `exists()` séparé, message
+dédié « le parent de la sortie n'est pas un répertoire » pour ce second cas. Et
+`--json-output` pointant sur le même chemin (résolu) que l'argument
 `ownership` écrasait silencieusement la table qui venait d'être validée par le JSON de son
 propre résultat, exit 0 — même famille que l'écrasement documenté pour
 `.claude/settings.json` plus bas, mais non gardé ici jusqu'ici. Fermé : `SORTIE_IMPOSSIBLE`,

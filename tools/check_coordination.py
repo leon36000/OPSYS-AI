@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from pathlib import Path, PurePosixPath
 
 ACTIVE = {"ACTIVE", "REVIEW", "READY_TO_MERGE"}
@@ -117,23 +118,30 @@ def validate(path: Path) -> tuple[list[dict[str, str]], list[str]]:
             errors.append(f"SCOPE:{wid}:{row['scope']}")
         if status in ACTIVE and branch.lower() in {"main", "master", ""}:
             errors.append(f"BRANCH:{wid}")
-        # Deux fail-opens fermes ici sur le meme interdit dur de l'ADR-0004 ("aucun
-        # code metier M avant handoff Core"), trouves par deux revues scellees
+        # Trois fail-opens fermes ici sur le meme interdit dur de l'ADR-0004 ("aucun
+        # code metier M avant handoff Core"), trouves par trois revues scellees
         # independantes. (1) "coordination;modules m/M7" sur une ligne ACTIVE ne
         # declenchait rien : le test portait sur la cellule ENTIERE, jamais sur ses
         # items separes par ";" comme le font deja valid_scope()/overlaps() ci-dessus.
         # (2) "./modules m/M7" ne declenchait rien non plus une fois (1) ferme : un
         # prefixe "./" — que valid_scope() accepte comme scope valide et qu'overlaps()
         # normalise deja via PurePosixPath — echappait a la comparaison de chaine
-        # brute. Les deux fermes par le meme mecanisme que overlaps() : PurePosixPath
-        # par element, egalite ou parente avec "modules m".
+        # brute. (3) (tour 10) un scope "." ou "./" — valide pour valid_scope(), et qui
+        # couvre pourtant TOUT l'arbre, "modules m/" compris — echappait encore : le test
+        # ne verifiait que "modules m" == s ou "modules m" DESCEND de s (cible_module_m
+        # in s.parents utilise a l'envers ne matche pas ici), jamais le sens inverse, "s
+        # est un ANCETRE de modules m" -- alors que overlaps() juste au-dessus teste deja
+        # les DEUX sens ("pa in pb.parents or pb in pa.parents"). Les trois fermes par le
+        # meme mecanisme que overlaps() : PurePosixPath par element, egalite OU parente
+        # dans les deux sens avec "modules m".
         cible_module_m = PurePosixPath("modules m")
         scopes_normalises = [
             PurePosixPath(x.strip().replace("\\", "/").casefold())
             for x in row["scope"].split(";") if x.strip()
         ]
         if status in ACTIVE and any(
-            s == cible_module_m or cible_module_m in s.parents for s in scopes_normalises
+            s == cible_module_m or cible_module_m in s.parents or s in cible_module_m.parents
+            for s in scopes_normalises
         ):
             errors.append(f"MODULE_CODE_DURING_CORE:{wid}")
         if CORE_RE.match(wid) and owner not in {"CODEX", "UNASSIGNED"} and status != "TRANSFER":
@@ -247,35 +255,51 @@ def _chemin_sur(brut: str, *, pour_ecriture: bool = False) -> Path:
         raise OSError(str(exc)) from exc
     if pour_ecriture:
         if not chemin.parent.exists():
-            # !a (ascii()), pas str() ni repr() nu : un chemin argv non-UTF-8 est deja
-            # decode avec surrogateescape (PEP 383), donc `chemin` peut porter des
-            # surrogates bas (\udcXX) -- str() les laisse tels quels. Revue scellee
-            # (tour 9) : repr() (essaye d'abord) les echappe bien, MAIS laisse passer
-            # tel quel tout caractere non-ASCII VALIDE (ex. e accentue) -- suffisant tant
-            # que stdout encode en UTF-8, mais PYTHONIOENCODING=ascii (mesure) fait alors
-            # lever UnicodeEncodeError au print() de main(), non intercepte -- exit 1 +
-            # traceback, stdout vide, meme famille de fail-open. ascii() echappe les DEUX
-            # classes en une seule forme (mesure ASCII-sur dans tous les cas testes),
-            # pour un cout de lisibilite nul sur le cas courant. Les OSError levees par
-            # le systeme (FileNotFoundError, etc.) n'ont jamais ce probleme : leur str()
-            # passe deja par un repr() interne du nom de fichier -- seuls CES TROIS
-            # messages, construits ici a la main, y echappaient.
-            raise OSError(f"repertoire de sortie inexistant : {chemin.parent!a}")
+            # repr() (!r), pas str() nu : un chemin argv non-UTF-8 est deja decode avec
+            # surrogateescape (PEP 383), donc `chemin` peut porter des surrogates bas
+            # (\udcXX) -- str() les laisse tels quels, repr() les echappe. La securite
+            # ASCII de STDOUT lui-meme (tout caractere inencodable, pas seulement les
+            # surrogates) est assuree une seule fois, au debut de main() -- voir son
+            # commentaire pour l'historique (tour 9 -> tour 10) de ce choix.
+            raise OSError(f"repertoire de sortie inexistant : {chemin.parent!r}")
         if not chemin.parent.is_dir():
             # Distinct du cas ci-dessus (revue scellee, tour 9) : un parent qui EXISTE
             # mais n'est pas un repertoire (ex. --json-output vers un chemin dont un
             # segment intermediaire est un fichier regulier) rendait le meme message
             # "inexistant", faux -- is_dir() est False dans les deux cas, seule la
             # branche exists() distingue les deux causes reelles.
-            raise OSError(f"le parent de la sortie n'est pas un repertoire : {chemin.parent!a}")
+            raise OSError(f"le parent de la sortie n'est pas un repertoire : {chemin.parent!r}")
         if chemin.exists() and not chemin.is_file():
-            raise OSError(f"la cible existe et n'est pas un fichier regulier : {chemin!a}")
+            raise OSError(f"la cible existe et n'est pas un fichier regulier : {chemin!r}")
     elif chemin.is_dir():
-        raise OSError(f"est un repertoire : {chemin!a}")
+        raise OSError(f"est un repertoire : {chemin!r}")
     return chemin
 
 
 def main() -> int:
+    # Revue scellee (tour 10) : le correctif du tour 9 (formater les TROIS messages
+    # construits a la main via ascii() plutot que repr(), pour un chemin argv non-ASCII
+    # valide sous PYTHONIOENCODING=ascii) etait REEL mais INCOMPLET, et l'affirmation qui
+    # l'accompagnait etait FAUSSE : "les OSError levees par le systeme n'ont jamais ce
+    # probleme, leur str() interne repr deja le nom de fichier" -- vrai pour un chemin a
+    # surrogates (mesure tour 8/9), FAUX pour un caractere non-ASCII VALIDE (ex. e accentue) :
+    # repr() ne l'echappe PAS (seuls les surrogates et non-imprimables le sont), donc le
+    # str() d'une FileNotFoundError/NotADirectoryError/PermissionError sur un tel chemin
+    # porte le caractere tel quel. print(f"LECTURE_IMPOSSIBLE:{exc}") / SORTIE_IMPOSSIBLE
+    # sur CE str()-la, et print("\n".join(errors)) si une CELLULE de la table (pas
+    # seulement un chemin argv) porte un tel caractere, levaient donc UnicodeEncodeError
+    # non intercepte sous PYTHONIOENCODING=ascii -- exit 1, stdout vide, traceback, le
+    # fail-open que ce fichier existe pour fermer, sur des entrees que coordination/
+    # README.md enumere lui-meme comme etant EN contrat (chemin inexistant, permission
+    # refusee, sortie non inscriptible). Corrige une bonne fois a la source plutot qu'un
+    # site d'impression a la fois -- ce que le tour 9 avait fait, en oubliant les sites
+    # freres : reconfigurer stdout pour echapper (\xHH/\uHHHH), jamais planter, tout
+    # caractere qu'il ne saurait encoder. Sans effet sous UTF-8 (le cas courant : aucun
+    # caractere de ce fichier n'est jamais inencodable en UTF-8, mesure). !a redevient
+    # inutile aux trois sites ou il avait ete introduit au tour 9 -- revenu a !r (repr(),
+    # plus lisible) pour ces trois-la, la protection reelle vivant ici desormais, une
+    # seule fois, pour tous les points d'impression de cette fonction sans exception.
+    sys.stdout.reconfigure(errors="backslashreplace")
     parser = argparse.ArgumentParser()
     parser.add_argument("ownership")
     parser.add_argument("--json-output")
@@ -301,14 +325,22 @@ def main() -> int:
     if args.json_output is not None:
         try:
             chemin_sortie = _chemin_sur(args.json_output, pour_ecriture=True)
-            if chemin_sortie == chemin_entree:
-                # Fail-open trouve en revue scellee (tour 9) : --json-output pointant sur
-                # le MEME chemin que `ownership` (faute de frappe la plus simple) rendait
-                # exit 0 / COORDINATION_OK en silence, apres avoir ECRASE la table qui
-                # venait d'etre validee par le JSON de son propre resultat -- destruction
-                # silencieuse, meme famille que celle documentee pour .claude/settings.json.
-                # _chemin_sur() a deja resolu les deux chemins (liens symboliques et `..`
-                # compris) : une simple egalite de Path suffit, pas de nouvelle resolution.
+            # Fail-open trouve en revue scellee (tour 9, elargi tour 10) : --json-output
+            # pointant sur le MEME fichier que `ownership` (faute de frappe la plus simple)
+            # rendait exit 0 / COORDINATION_OK en silence, apres avoir ECRASE la table qui
+            # venait d'etre validee par le JSON de son propre resultat -- destruction
+            # silencieuse, meme famille que celle documentee pour .claude/settings.json.
+            # La seule egalite de Path (tour 9) attrape le meme chemin resolu -- lien
+            # symbolique compris, deja aplati par _chemin_sur() -- mais pas un lien
+            # PHYSIQUE (hardlink) : un second nom pour la meme inode, chemin different,
+            # meme fichier. Mesure (tour 10) : --json-output vers un hardlink de
+            # `ownership` -> exit 0, table source silencieusement reduite au JSON. Ferme
+            # par identite de fichier (samefile(), stat (st_dev, st_ino)) en plus de
+            # l'egalite de chemin -- `chemin_sortie` n'existe pas forcement encore, d'ou
+            # la garde `exists()` avant `samefile()` (qui exige que les deux existent).
+            if chemin_sortie == chemin_entree or (
+                chemin_sortie.exists() and chemin_sortie.samefile(chemin_entree)
+            ):
                 raise OSError("la sortie --json-output ecraserait le fichier ownership lui-meme")
             chemin_sortie.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         except OSError as exc:
