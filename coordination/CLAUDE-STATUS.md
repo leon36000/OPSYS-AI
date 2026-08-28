@@ -290,5 +290,6 @@ coordination/WORK-OWNERSHIP.md` (`active=2`).
 
 ## Next
 
-`AUD-CI-002` (épinglage SHA des actions) — issue #576, statut `QUEUED` dans
-`WORK-OWNERSHIP.md`, mission non activée.
+`AUD-CI-002` — issue #576, statut `QUEUED` dans `WORK-OWNERSHIP.md`, mission non activée
+(intention locale déjà portée par le nom de branche dans `WORK-OWNERSHIP.md`, pas recopiée
+ici — `gh issue view 576` fait foi de l'énoncé).

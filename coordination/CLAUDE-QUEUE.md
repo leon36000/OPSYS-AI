@@ -19,9 +19,10 @@ aucune sortie n'étant figée ici. Les
 lignes `CODEX_BOUND` sont exclues de la queue Claude, même si elles proviennent d'une
 issue d'audit.
 
-Scopes touchant `README.md`, `START_HERE.md`, `AGENTS.md` ou `docs/index.md` ne sont pas mis
-en file ici : la décision Nathan du 2026-08-27 les attribue à la PR #566 (promotion
-canonique), pas à la queue Claude.
+Scopes touchant `README.md` (à la racine du dépôt, hors de cette PR — à distinguer de
+`coordination/README.md`, livré ici), `START_HERE.md`, `AGENTS.md` ou `docs/index.md` ne
+sont pas mis en file ici : la décision Nathan du 2026-08-27 les attribue à la PR #566
+(promotion canonique), pas à la queue Claude.
 
 Aucun état ni contenu d'issue ou de PR n'est recopié dans ce fichier : les numéros cités
 sont la clé vivante, `gh issue view <n>` / `gh pr view <n>` fait foi. La colonne `Status`
