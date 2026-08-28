@@ -121,14 +121,19 @@ def _touche_modules_m(scope: str) -> bool:
 
 
 def _erreurs_structurelles(row: dict[str, str], seen: set[str]) -> list[str]:
-    """Premiere moitie des controles portant sur UNE seule ligne, independants de
-    toute autre ligne de la table (WORK_ID_EMPTY, DUPLICATE_WORK, OWNER, STATUS,
-    SCOPE, BRANCH) — extrait de validate() (revue scellee, AUD-QUAL-007, #594) pour
-    reduire sa complexite cognitive sous le seuil SonarCloud (python:S3776, mesure 44
-    avant ce commit) ; comportement inchange, verifie contre la suite de
-    non-regression de coordination/tests/ (#598 : chaque branche de ce controle y
-    porte deja sa propre fixture) avant d'etre considere fait. `seen` est mutee en
-    place, comme le faisait la boucle d'origine. Pendant : _erreurs_de_propriete().
+    """Premier groupe des controles portant sur UNE seule ligne (WORK_ID_EMPTY,
+    DUPLICATE_WORK, OWNER, STATUS, SCOPE, BRANCH) — extrait de validate() (revue
+    scellee, AUD-QUAL-007, #594) pour reduire sa complexite cognitive sous le seuil
+    SonarCloud (python:S3776, mesure 44 avant ce commit) ; comportement inchange,
+    verifie contre la suite de non-regression de coordination/tests/ (#598 : chaque
+    branche de ce controle y porte deja sa propre fixture) avant d'etre considere
+    fait. ATTENTION, imprecision corrigee en revue scellee (tour 3 de #599, 3 sieges
+    convergents) : SEUL DUPLICATE_WORK n'est PAS independant des autres lignes de la
+    table — son verdict depend de `seen`, l'ensemble des work_id deja vus, mute en
+    place au fil des lignes precedentes (mesure : la meme ligne rend [] si `seen` est
+    vide, ['DUPLICATE_WORK:...'] si une ligne anterieure y a deja insere le meme
+    work_id). Les cinq autres controles de ce groupe sont, eux, bien locaux a la
+    ligne. Pendant : _erreurs_de_propriete().
     """
     errors: list[str] = []
     wid = row["work_id"]
@@ -149,10 +154,11 @@ def _erreurs_structurelles(row: dict[str, str], seen: set[str]) -> list[str]:
 
 
 def _erreurs_de_propriete(row: dict[str, str]) -> list[str]:
-    """Seconde moitie des controles par ligne : proprietaire vs prefixe du Work ID,
+    """Second groupe des controles par ligne : proprietaire vs prefixe du Work ID,
     et l'interdit dur de l'ADR-0004 (MODULE_CODE_DURING_CORE, CORE_OWNER,
     ISSUE_OWNER) — meme extraction et meme raison que _erreurs_structurelles()
-    ci-dessus, dont c'est le pendant.
+    ci-dessus, dont c'est le pendant. Ses trois controles sont, eux, tous
+    independants des autres lignes de la table (pas de `seen` ni d'etat accumule).
     """
     errors: list[str] = []
     wid = row["work_id"]
@@ -168,7 +174,7 @@ def _erreurs_de_propriete(row: dict[str, str]) -> list[str]:
 
 
 def _erreurs_de_ligne(row: dict[str, str], seen: set[str]) -> list[str]:
-    """Assemble les deux moities ci-dessus, DANS L'ORDRE ou validate() les emettait
+    """Assemble les deux groupes ci-dessus, DANS L'ORDRE ou validate() les emettait
     avant extraction. ATTENTION, imprecision corrigee en revue scellee (tour 1 de
     #599, 3 sieges convergents) : ce n'est PAS un contrat pin par
     coordination/tests/test_check_coordination.py — cet en-tete declare au contraire
