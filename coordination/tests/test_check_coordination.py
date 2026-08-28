@@ -32,9 +32,17 @@
 # `_erreurs_de_propriete()`) reste hors contrat, non épinglé par ce fichier à ce jour ; il en
 # va de même pour l'ordre ENTRE plusieurs paires distinctes lorsque `_erreurs_de_collision()`
 # en traite plus d'une (mesuré : inverser l'ordre de parcours des paires sur une table à 3
-# lignes actives change l'ordre des blocs émis sans faire rougir aucun test) — mais l'ordre
-# INTERNE à _erreurs_de_paire() lui-même EST épinglé, lui, comme la seconde fixture
-# ci-dessous le revendique explicitement.
+# lignes actives change l'ordre des blocs émis sans faire rougir aucun test). ATTENTION,
+# sur-généralisation corrigée en revue scellée (tour 3 de #601, siège 2) : une version
+# précédente de cette phrase affirmait que « l'ordre INTERNE à _erreurs_de_paire()
+# lui-même EST épinglé » sans réserve — faux, mesuré par contre-exemple direct. Seule UNE
+# relation interne à cette fonction est réellement épinglée par la seconde fixture
+# ci-dessous : BRANCH_COLLISION précède toujours les PATH_COLLISION d'une même paire.
+# L'ordre RELATIF entre PLUSIEURS lignes PATH_COLLISION d'une même paire (un scope
+# multi-items séparés par « ; », des deux côtés) reste, lui, hors contrat — mesuré :
+# inverser le parcours des deux listes d'items dans `_erreurs_de_paire()` change l'ordre
+# des PATH_COLLISION émis (ex. « coordination;tools » des deux côtés : les deux lignes
+# PATH_COLLISION échangent leur position) sans faire rougir aucun test.
 #
 # Lancer seul : python3 -m pytest coordination/tests/ (hors testpaths par défaut de
 # pytest.ini — dont le contenu exact n'est pas recopié ici, voir coordination/README.md).
@@ -1149,9 +1157,13 @@ def test_ordre_erreurs_de_ligne_avant_erreurs_de_collision(tmp_path):
     # l'erreur déplacée sur ISS-B (la paire, dont ISS-A est le membre gauche, serait
     # alors émise AVANT les erreurs de ISS-B). Couverture bonus, non revendiquée par
     # le nom du test mais mesurée (revue scellée, tour 1 de #601, sièges 1 et 2) :
-    # cette même égalité de liste épingle aussi BRANCH_COLLISION avant PATH_COLLISION
-    # à l'intérieur de _erreurs_de_paire() — un réordonnancement interne à cette
-    # fonction ferait donc rougir ce test aussi, pas seulement le sien.
+    # cette même égalité de liste épingle aussi que BRANCH_COLLISION précède les
+    # PATH_COLLISION à l'intérieur de _erreurs_de_paire() — SEULEMENT cette relation-là,
+    # pas « l'ordre interne » de la fonction en général : sur cette fixture à scopes
+    # mono-item, il n'existe qu'une seule ligne PATH_COLLISION par paire, donc rien
+    # n'épingle l'ordre RELATIF entre plusieurs lignes PATH_COLLISION d'une même paire
+    # (cf. l'aveu explicite de l'en-tête, corrigé pour la même sur-généralisation en
+    # revue scellée, tour 3 de #601, siège 2).
     p = write(tmp_path, "t.md", table(
         row(work_id="ISS-A", owner="CLAUDE", branch="claude/x", scope="coordination"),
         row(work_id="ISS-B", owner="BADOWNER", branch="claude/x", scope="coordination"),
