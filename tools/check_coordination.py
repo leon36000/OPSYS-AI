@@ -219,30 +219,41 @@ def _erreurs_de_ligne(row: dict[str, str], seen: set[str]) -> list[str]:
     La meme suite epingle aussi, au niveau de validate() plutot que de cette
     fonction, que les erreurs par ligne precedent les erreurs de paire
     (`test_ordre_erreurs_de_ligne_avant_erreurs_de_collision`) — mais SEULEMENT a
-    l'arite que sa fixture exerce (2 lignes actives, UNE paire, l'erreur de ligne
-    portee par le membre DROIT de cette paire), pas en general. Sur-generalisation
-    trouvee et mesuree en revue scellee (tour 1 de #603, siege 2) : un entrelacement
-    MIROIR de celui que ce test exclut deja pour le membre GAUCHE (voir son propre
-    commentaire) — emettre, pour chaque ligne, ses erreurs de ligne PUIS les paires
-    ou elle est le membre DROIT plutot que le membre GAUCHE — laisse cette fixture et
-    les 70 tests d'alors verts, tout en faisant sortir des erreurs DE PAIRE avant
-    des erreurs DE LIGNE des qu'une ligne portant une erreur de ligne (ACTIVE ou
-    non — `_erreurs_de_ligne()` voit TOUTE la table, `_erreurs_de_collision()` ne
-    voit que les lignes ACTIVE) suit, dans la table, le membre DROIT d'une paire en
-    collision : l'axe qui compte est la POSITION, pas un compte de lignes actives.
-    Mesure sur 2 instances : une table a 3 lignes actives, et une table a 2 lignes actives
-    en collision suivies d'une 3e ligne INACTIVE (statut MERGED) portant l'erreur — memes
-    lignes, ordre different dans les deux cas, 70/70 vert alors. Ferme depuis
-    (AUD-QUAL-010, #604/#606) pour la SECONDE de ces deux instances :
-    coordination/tests/test_check_coordination.py epingle desormais 2 lignes actives en
-    collision suivies d'une 3e ligne MERGED portant l'erreur par
-    `test_ordre_ligne_avant_paire_quand_la_ligne_en_erreur_est_hors_de_la_paire` (meme
-    egalite exacte) — le meme entrelacement miroir y fait maintenant rougir ce test ;
-    l'instance a 3 lignes actives reste, elle, mesuree mais NON instanciee par une fixture.
-    Ni ce test ni son voisin ne pretendent epuiser toutes les strategies d'entrelacement
-    possibles entre boucle par ligne et boucle par paire — voir l'en-tete de
-    coordination/tests/test_check_coordination.py pour le detail exact de ce qui est et
-    n'est pas couvert.
+    l'instanciation que sa fixture exerce (2 lignes actives, UNE paire, l'erreur de
+    ligne — OWNER structurelle et ISSUE_OWNER propriete — portee par le membre DROIT
+    de cette paire), pas en general : mesure, un mutant qui n'inverse cet ordre
+    (paire avant ligne) que lorsque la ligne fautive ne porte NI OWNER: NI
+    ISSUE_OWNER: laisse les 72 tests d'alors verts un par un, tout en faisant
+    reellement sortir la paire avant une erreur de ligne SCOPE a cette meme
+    configuration. Sur-generalisation trouvee et mesuree en revue scellee (tour 1 de
+    #603, siege 2) : un entrelacement MIROIR de celui que ce test exclut deja pour le
+    membre GAUCHE (voir son propre commentaire) — emettre, pour chaque ligne, ses
+    erreurs de ligne PUIS les paires ou elle est le membre DROIT plutot que le membre
+    GAUCHE — laisse cette fixture et les 70 tests d'alors verts, tout en faisant
+    sortir des erreurs DE PAIRE avant des erreurs DE LIGNE des qu'une ligne portant
+    une erreur de ligne (ACTIVE ou non — `_erreurs_de_ligne()` voit TOUTE la table,
+    `_erreurs_de_collision()` ne voit que les lignes ACTIVE) suit, dans la table, le
+    membre DROIT d'une paire en collision : l'axe qui compte est la POSITION, pas un
+    compte de lignes actives. Mesure sur 2 instances : une table a 3 lignes actives,
+    et une table a 2 lignes actives en collision suivies d'une 3e ligne INACTIVE
+    (statut MERGED) portant l'erreur — memes lignes, ordre different dans les deux
+    cas, 70/70 vert alors. Ferme depuis (AUD-QUAL-010, #604/#606) pour la SECONDE de
+    ces deux instances : coordination/tests/test_check_coordination.py epingle
+    desormais 2 lignes actives en collision suivies d'une 3e ligne MERGED portant
+    l'erreur — OWNER structurelle et ISSUE_OWNER propriete, comme ci-dessus — par
+    `test_ordre_ligne_avant_paire_quand_la_ligne_en_erreur_est_hors_de_la_paire`
+    (meme egalite exacte) — le meme entrelacement miroir y fait maintenant rougir ce
+    test, mais SEULEMENT a cette instanciation : mesure, le meme miroir conditionne
+    sur l'absence d'OWNER:/ISSUE_OWNER: laisse les 72 tests d'alors verts un par un,
+    tout en faisant reellement sortir la paire avant une erreur de ligne SCOPE a
+    cette meme configuration. L'instance a 3 lignes actives reste, elle, mesuree
+    mais NON instanciee par une fixture — sans perte de detection propre : le meme
+    mecanisme y diverge a l'identique (mesure, tour 2 de #606). Ni ce test ni
+    `test_ordre_erreurs_de_ligne_avant_erreurs_de_collision` ne pretendent epuiser
+    toutes les strategies d'entrelacement possibles entre boucle par ligne et
+    boucle par paire — voir l'en-tete de
+    coordination/tests/test_check_coordination.py pour le detail exact de ce qui est
+    et n'est pas couvert.
 
     L'ordre INTERNE a chacun des deux groupes PAR LIGNE ci-dessus
     (`_erreurs_structurelles()`, `_erreurs_de_propriete()` — entre les controles d'UN MEME
@@ -253,8 +264,8 @@ def _erreurs_de_ligne(row: dict[str, str], seen: set[str]) -> list[str]:
     SEULEMENT a l'instanciation que sa fixture exerce (Work ID matchant CORE_RE, owner
     hors OWNERS, status hors STATUSES, l'erreur de propriete etant CORE_OWNER), pas en
     general : mesure, un mutant qui n'echange OWNER et STATUS que pour un Work ID ne
-    matchant PAS CORE_RE laisse les 72 tests verts un par un, tout en emettant reellement
-    STATUS avant OWNER sur toute ligne concernee. Voir l'en-tete de
+    matchant PAS CORE_RE laisse les 72 tests d'alors verts un par un, tout en emettant
+    reellement STATUS avant OWNER sur toute ligne concernee. Voir l'en-tete de
     coordination/tests/test_check_coordination.py pour le detail exact de ce qui est et
     n'est pas couvert.
     """
