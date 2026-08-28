@@ -57,9 +57,12 @@ les deux choix sont visibles dans le `diff -u` ci-dessus.
 
 La commande qui interroge l'historique du dépôt sur cette formulation :
 
-`git log origin/main --pickaxe-regex -i -S'ma.tre.d.(oe|œ)uvre|github global' --oneline -- . \
+`git log origin/main --pickaxe-regex -i -S'ma.tre.d.(oe|œ)uvre|github global' --oneline -- ':/' \
 ':!docs/decisions/ADR-0004-independent-agent-ownership.md' \
 ':!docs/decisions/ADR-PROPOSED-INDEPENDENT-AGENT-OWNERSHIP.md'`
+
+(`:/` ancre le pathspec à la racine du dépôt — `-- .` rendrait une sortie vide sans rien
+prouver si la commande est rejouée depuis un sous-répertoire, mesuré.)
 
 Trois propriétés de cette formulation, et rien d'autre :
 
@@ -77,9 +80,10 @@ Trois propriétés de cette formulation, et rien d'autre :
 - **`-i` est nécessaire, pas cosmétique.** La seconde alternative du motif, `github global`,
   est écrite tout en minuscules ; `-S` de `git log` est sensible à la casse par défaut. Sans
   `-i`, une occurrence réelle sous la graphie citée dans ce document (« GitHub global », G et
-  H majuscules) ne matcherait PAS cette alternative — seule la première (`ma.tre...`) resterait
-  opérante, et une sortie vide ne distinguerait plus « formulation absente » de « motif qui
-  n'a pas pu correspondre ».
+  H majuscules) ne matcherait PAS cette alternative, et une sortie vide ne distinguerait plus
+  « formulation absente » de « motif qui n'a pas pu correspondre ». (Le sort de la première
+  alternative, `ma.tre...`, dépend en plus de la locale d'exécution — hors du point ici : `-i`
+  reste nécessaire indépendamment d'elle.)
 - **Borné par construction, pas par une valeur figée.** Rejouée sur `origin/main`, cette
   commande (avec `-i`) rend une sortie vide. Rejouée en remplaçant `origin/main` par le `HEAD`
   de cette branche — qui porte déjà tous les fichiers que le merge apportera — elle rend

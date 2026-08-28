@@ -107,6 +107,21 @@ métier M avant handoff Core) : `coordination;modules m/M7` (cellule entière te
 de chaîne brute ne reconnaît pas comme équivalent à `modules m/M7`). Mesuré à HEAD : les deux
 fixtures et `./coordination;./modules m/M7` → `MODULE_CODE_DURING_CORE:<id>`, exit 1.
 
+### `BRANCH_COLLISION` — sentinelle `n/a` exemptée
+
+`WORK-OWNERSHIP.md` utilise `n/a` comme branche des missions `read-only` (`BRANCH` l'autorise
+explicitement en ligne active). `BRANCH_COLLISION` comparait les branches brutes sans cette
+exemption, symétrique de celle que `SCOPES_HORS_COLLISION` donne déjà à `read-only` côté scope
+— deux missions `read-only` actives, toutes deux `n/a`, devenaient donc inexprimables. Fermé :
+`n/a` (casefold) exempté, comme `read-only` l'est pour `PATH_COLLISION`. Mesuré à HEAD : deux
+lignes actives `read-only`/`n/a` → `COORDINATION_OK`, exit 0.
+
+`valid_scope()` rendait aussi `True` sur une cellule composée uniquement de `;` et d'espaces
+(`;`, `; ;`) : non vide au sens de `scope.strip()`, mais sans aucun item après découpage — la
+boucle de validation ne s'exécutait alors jamais. Fermé : liste d'items vide après découpage
+→ `False`, donc `SCOPE:<id>:<valeur>`. Mesuré à HEAD : scope `;` ou `; ;` → `SCOPE:<id>:...`,
+exit 1 (au lieu de `COORDINATION_OK` à tort, collisions et interdit M non testés compris).
+
 ### Lecture et écriture — `_chemin_sur()`
 
 `main()` intercepte `(OSError, UnicodeDecodeError)` en lecture (`LECTURE_IMPOSSIBLE:<raison>`,

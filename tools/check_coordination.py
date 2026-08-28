@@ -51,7 +51,16 @@ def valid_scope(scope: str) -> bool:
         return True
     if not scope.strip():
         return False
-    for item in [x.strip() for x in scope.split(";") if x.strip()]:
+    items = [x.strip() for x in scope.split(";") if x.strip()]
+    # "scope.strip()" seul ne suffit pas : une cellule ";" ou "; ;" n'est pas
+    # vide (le ";" est un caractere reel) mais ne decompose en AUCUN item --
+    # la boucle ci-dessous ne s'executait alors jamais, et la fonction rendait
+    # True sans avoir rien valide. Fail-open trouve en revue scellee : ce
+    # scope vide passait ensuite PATH_COLLISION et MODULE_CODE_DURING_CORE
+    # (le seul interdit dur de l'ADR-0004) inaperçu, faute d'item a comparer.
+    if not items:
+        return False
+    for item in items:
         p = PurePosixPath(item.replace("\\", "/"))
         if p.is_absolute() or ".." in p.parts or item.startswith("~"):
             return False
@@ -122,7 +131,14 @@ def validate(path: Path) -> tuple[list[dict[str, str]], list[str]]:
     active = [r for r in data if r["status"] in ACTIVE]
     for idx, left in enumerate(active):
         for right in active[idx + 1 :]:
-            if left["branch"] == right["branch"]:
+            # "n/a" exempte, en miroir de SCOPES_HORS_COLLISION pour PATH_COLLISION.
+            # Fail-open trouve en revue scellee : BRANCH (ligne 96 ci-dessus) autorise
+            # "n/a" comme sentinelle des missions sans branche (read-only), mais
+            # BRANCH_COLLISION comparait les branches brutes sans cette exemption --
+            # deux missions read-only actives, toutes deux "n/a", devenaient
+            # structurellement inexprimables alors que WORK-OWNERSHIP.md et
+            # CODEX-QUEUE.md en livrent plusieurs.
+            if left["branch"] == right["branch"] and left["branch"].strip().casefold() != "n/a":
                 errors.append(f"BRANCH_COLLISION:{left['work_id']}:{right['work_id']}")
             for sa in [x.strip() for x in left["scope"].split(";") if x.strip()]:
                 for sb in [x.strip() for x in right["scope"].split(";") if x.strip()]:
