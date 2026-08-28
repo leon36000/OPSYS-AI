@@ -4,12 +4,12 @@
   {
    "severite": "mineure",
    "fichier": "core/tests/bootstrap/test_root_canon_entrypoints.py",
-   "description": "Preuve d'exécution RED base / GREEN candidate et suites existantes vertes non vérifiable dans ce pack : evidence/tasks/** explicitement exclu du review pack, aucune sortie pytest/CI/Sonar jointe au diff. Conformité inférée du code du test uniquement; merge reste conditionné au proof-sealed frais et aux checks verts du verification contract.",
-   "preuve": "Review boundary: 'Existing evidence/tasks/** files are excluded from this review pack' ; DIFF ajoute core/tests/bootstrap/test_root_canon_entrypoints.py sans sortie d'exécution; Verification contract: 'merge remains forbidden until the final head has fresh proof-sealed evidence, green CI/security/Sonar checks'"
+   "description": "Critère 'base RED / candidate GREEN et suites existantes vertes' non vérifiable dans le pack : evidence bundle explicitement exclu, aucune sortie d'exécution fournie pour démontrer RED/GREEN.",
+   "preuve": "Review boundary: 'The existing evidence bundle is excluded from the pack and will be replaced only after all three fresh reviewers return complete verdicts.' Diff ne contient aucune log pytest; vérification reportée aux preuves scellées et CI gates."
   }
  ],
- "date_heure": "2026-08-28T05:04:17.355547+00:00",
- "prompt_sha256": "2061380d90f67f775ce5c7a44b2abed564ddc8ec2b94be158ca2a5667a3b14e6",
+ "date_heure": "2026-08-28T09:06:03.551575+00:00",
+ "prompt_sha256": "35626dda6e48875299bc93e60d58d213a9365ad8c4f0cb6fbe4f4207a531b825",
  "reviewer_model": "Muse-Spark-1.2-Contributor",
  "modele_servi": "muse-spark-12-contributor-openrouter",
  "gateway_resilience": {

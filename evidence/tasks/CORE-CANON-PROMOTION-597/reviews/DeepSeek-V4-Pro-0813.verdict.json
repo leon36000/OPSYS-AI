@@ -1,8 +1,15 @@
 {
  "verdict": "APPROVE",
- "objections": [],
- "date_heure": "2026-08-28T05:07:53.515677+00:00",
- "prompt_sha256": "2061380d90f67f775ce5c7a44b2abed564ddc8ec2b94be158ca2a5667a3b14e6",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "core/tests/bootstrap/test_root_canon_entrypoints.py",
+   "description": "L'exécution base RED/candidate GREEN et la non-régression des suites existantes ne sont pas vérifiables à partir du diff seul; la preuve scellée/CI doit le confirmer avant merge.",
+   "preuve": "Le diff ajoute le test contractuel mais ne contient aucune sortie pytest; le contexte indique que le bundle de preuve est exclu du pack de revue."
+  }
+ ],
+ "date_heure": "2026-08-28T09:09:19.084689+00:00",
+ "prompt_sha256": "35626dda6e48875299bc93e60d58d213a9365ad8c4f0cb6fbe4f4207a531b825",
  "reviewer_model": "DeepSeek-V4-Pro-0813",
  "modele_servi": "deepseek-v4-pro-0813-openrouter",
  "gateway_resilience": {
