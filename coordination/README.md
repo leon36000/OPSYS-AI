@@ -123,6 +123,9 @@
   limite du pipe initial manquant — caractérisée explicitement, pas cachée. À ce jour, hors
   du `testpaths` par défaut de `pytest.ini` (source faisant foi sur son propre contenu, non
   recopié ici — mesuré : un `pytest` nu ne les collecte pas) : invocation explicite requise,
-  `python3 -m pytest coordination/tests/`. **À ce jour, cette suite n'est câblée dans aucun
-  workflow CI** — une régression future du validateur n'y serait donc pas rattrapée
-  automatiquement ; mission de suivi séparée, hors du périmètre de cette PR.
+  `python3 -m pytest coordination/tests/`. Affirmation sur `.github/workflows/**`, hors de
+  cette PR, au même titre que celle posée plus haut sur `check_coordination` lui-même :
+  re-vérifiable sans la croire — `grep -rln coordination/tests .github/workflows/`, silencieux
+  à ce jour, jamais figé ici. Tant qu'aucun workflow ne la câble, une régression future du
+  validateur n'y serait pas rattrapée automatiquement ; mission de suivi séparée, hors du
+  périmètre de cette PR.

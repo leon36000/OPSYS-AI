@@ -115,6 +115,37 @@ def test_separator_re_ne_confond_pas_une_ligne_de_donnees_avec_un_separateur(tmp
     assert "MODULE_CODE_DURING_CORE:---X" in r.stdout
 
 
+def test_separator_re_epingle_lancre_de_fin_et_le_quantificateur(tmp_path):
+    # Pendant du test ci-dessus, jamais exercé avant ce correctif (revue scellée, tour 7
+    # de #598, sièges 1/2/3 convergents — seule la sévérité diverge, MAJEURE au siège 1) :
+    # SEPARATOR_RE = ^\|(-+\|)+$ n'était épinglé QUE sur son préfixe nu, jamais sur son
+    # ancre "$" ni sur son quantificateur "-+". Le Work ID "---X" ci-dessus a un
+    # caractère APRÈS les tirets ; il ne discrimine donc ni l'un ni l'autre. Mesuré :
+    # retirer "$" laisse les 60 tests d'alors verts tout en rendant un faux
+    # COORDINATION_OK RÉEL — une ligne de donnée dont la PREMIÈRE cellule est
+    # uniquement des tirets collés au pipe, le RESTE de la ligne dans la graphie
+    # espacée normale du dépôt, passe de "BRANCH:---" + "MODULE_CODE_DURING_CORE:---"
+    # exit 1 à "COORDINATION_OK rows=0 active=0" exit 0 : la ligne entière est
+    # escamotée, interdit dur de l'ADR-0004 compris. Retirer "-+" (muté en "-*") laisse
+    # pareillement passer une ligne dégénérée faite de pipes seuls de MALFORMED_ROW:3:1
+    # à COORDINATION_OK. Classé non bloquant par 2 sièges sur 3 (la graphie
+    # déclenchante — Work ID composé uniquement de tirets, ou ligne de pipes nus —
+    # n'existe dans aucune table réelle de ce dépôt), mais fermé ici plutôt que reporté
+    # une nouvelle fois : même famille que les six tours précédents, sur la regex à
+    # laquelle ce fichier consacre déjà son plus long commentaire.
+    p = write(tmp_path, "t.md",
+              HEADER + SEP + "|---| NATHAN | main | modules m/M7 | ACTIVE | 2026-01-01T00:00Z | x |\n")
+    r = run([str(p)])
+    assert r.returncode == 1
+    assert "BRANCH:---" in r.stdout
+    assert "MODULE_CODE_DURING_CORE:---" in r.stdout
+
+    p2 = write(tmp_path, "t2.md", HEADER + SEP + "|||||||\n")
+    r2 = run([str(p2)])
+    assert r2.returncode == 1
+    assert "MALFORMED_ROW:3:1" in r2.stdout
+
+
 def test_separateur_espace_reste_non_reconnu_fail_closed(tmp_path):
     # Limite héritée du pack, documentée dans coordination/README.md, pas fermée ici :
     # un séparateur espacé n'est pas reconnu — mais le résultat est fail-closed (des
@@ -416,9 +447,14 @@ def test_issue_owner_hors_claude(tmp_path):
     # même gravité que le test CORE_OWNER voisin (revue scellée, tour 6 de #598) : seule
     # ISS- était exercée avant ce correctif, alors qu'AUD- est le préfixe qui DOMINE la
     # seule table réellement validée de ce dépôt (coordination/WORK-OWNERSHIP.md :
-    # AUD-CI-002/003/004, AUD-CORE-005/006, AUD-CANON-001/002). Mesuré : retirer AUD-,
-    # BUG- ou R4- de CLAUDE_RE laissait les tests d'alors verts tout en produisant un
-    # COORDINATION_OK à tort sur un Work ID de ce préfixe possédé par CODEX.
+    # AUD-CI-002/003/004, AUD-CORE-005/006, AUD-CANON-001/002 — référence datée, comme
+    # celle de test_module_code_during_core_cellule_multiple_avec_espace plus bas :
+    # cette énumération peut changer d'identifiant ou de statut à tout merge ordinaire,
+    # y compris depuis l'autre plateforme ; seul l'invariant qu'elle sert à justifier —
+    # AUD- est un préfixe réellement porté par la table de ce dépôt — est stable).
+    # Mesuré : retirer AUD-, BUG- ou R4- de CLAUDE_RE laissait les tests d'alors verts
+    # tout en produisant un COORDINATION_OK à tort sur un Work ID de ce préfixe possédé
+    # par CODEX.
     for work_id in ("ISS-A", "AUD-CORE-005", "BUG-001", "R4-001"):
         p = write(tmp_path, "t.md", table(row(work_id=work_id, owner="CODEX")))
         r = run([str(p)])
@@ -449,6 +485,28 @@ def test_core_owner_et_issue_owner_acceptent_leurs_proprietaires_legitimes(tmp_p
         p = write(tmp_path, "t.md", table(row(work_id=wid, owner=owner, scope=scope)))
         r = run([str(p)])
         assert r.returncode == 0, (wid, owner)
+
+
+def test_core_re_et_claude_re_nont_pas_de_faux_positifs(tmp_path):
+    # Pendant négatif des deux contrôles ci-dessus, jamais exercé avant ce correctif
+    # (revue scellée, tour 7 de #598, siège 1) : les mutants qui ÉLARGISSENT CORE_RE ou
+    # CLAUDE_RE (retrait de l'ancre "^", de l'ancre "$", ou "2[0-4]" assoupli en "2\d")
+    # survivent aux tests d'alors, fail-closed (ils ajoutent des erreurs, jamais un faux
+    # COORDINATION_OK) donc non bloquants — mais aucune fixture n'affirme explicitement
+    # qu'un Work ID hors de ces motifs échappe bien à CORE_OWNER/ISSUE_OWNER même avec
+    # un owner qui violerait le contrôle si le motif matchait à tort. "C25-001" (décennie
+    # hors 2[0-4]) et "C05-0011" (4 chiffres, hors \d{3}$) hors CORE_RE ; "XC05-001" et
+    # "XISS-A" (préfixe non ancré en tête) hors des deux.
+    for wid in ("C25-001", "C05-0011", "XC05-001"):
+        p = write(tmp_path, "t.md", table(row(work_id=wid, owner="CLAUDE", scope="core/x")))
+        r = run([str(p)])
+        assert r.returncode == 0, wid
+        assert "CORE_OWNER:" not in r.stdout, wid
+
+    p = write(tmp_path, "t.md", table(row(work_id="XISS-A", owner="CODEX")))
+    r = run([str(p)])
+    assert r.returncode == 0
+    assert "ISSUE_OWNER:" not in r.stdout
 
 
 # ---------------------------------------------------------------------------
@@ -662,6 +720,49 @@ def test_branch_collision_exempte_la_sentinelle_read_only(tmp_path):
         ))
         r = run([str(p)])
         assert r.returncode == 0, repr(graphie)
+
+
+def test_collisions_armees_seulement_sur_lignes_actives(tmp_path):
+    # Pendant, côté collisions, de test_branch_arme_seulement_sur_ligne_active et
+    # test_module_code_during_core_arme_seulement_sur_ligne_active plus haut — jamais
+    # exercé avant ce correctif (revue scellée, tour 7 de #598, sièges 1 et 3
+    # convergents) : `active = [r for r in data if r["status"] in ACTIVE]` filtre déjà
+    # BRANCH_COLLISION et PATH_COLLISION en amont de leur boucle commune ; le retirer
+    # (muté en `list(data)`) laisse les tests d'alors verts, fail-closed (BRANCH_COLLISION
+    # et PATH_COLLISION parasites sur un état légitime, jamais un faux COORDINATION_OK).
+    # Deux lignes QUEUED de même branche et même scope, aujourd'hui vertes, referaient
+    # échouer la validation.
+    p = write(tmp_path, "t.md", table(
+        row(work_id="ISS-A", branch="br-a", scope="coordination", status="QUEUED"),
+        row(work_id="ISS-B", branch="br-a", scope="coordination", status="QUEUED"),
+    ))
+    r = run([str(p)])
+    assert r.returncode == 0
+    assert r.stdout.strip() == "COORDINATION_OK rows=2 active=0"
+
+
+def test_scope_a_point_virgule_final_reste_vert(tmp_path):
+    # Les trois filtres `if x.strip()` sur `scope.split(";")` (MODULE_CODE_DURING_CORE,
+    # et sa/sb de la boucle PATH_COLLISION) n'avaient, avant ce correctif (revue scellée,
+    # tour 7 de #598, siège 3), aucune fixture dédiée — les retirer laisse les tests
+    # d'alors verts, fail-closed : un point-virgule final produit un item vide qui, non
+    # filtré, devient PurePosixPath(".") — ancêtre de tout scope, donc collisions et
+    # MODULE_CODE_DURING_CORE parasites sur un état légitime.
+    #
+    # Une ligne UNIQUE à point-virgule final suffit à épingler le filtre de
+    # MODULE_CODE_DURING_CORE (mesuré), mais PATH_COLLISION n'a pas de second membre
+    # actif à comparer sans une deuxième ligne — sa et sb restent alors non atteints,
+    # même asymétrie gauche/droite que celle fermée ailleurs dans ce fichier pour
+    # overlaps(). D'où DEUX lignes actives, chacune à point-virgule final : mesuré,
+    # retirer le filtre de sa (gauche) SEUL ou celui de sb (droite) SEUL fait chacun
+    # apparaître un PATH_COLLISION parasite sur cette fixture, réel sur le code livré.
+    p = write(tmp_path, "t.md", table(
+        row(work_id="ISS-A", branch="br-a", scope="coordination;"),
+        row(work_id="ISS-B", branch="br-b", scope="docs;"),
+    ))
+    r = run([str(p)])
+    assert r.returncode == 0
+    assert r.stdout.strip() == "COORDINATION_OK rows=2 active=2"
 
 
 # ---------------------------------------------------------------------------
