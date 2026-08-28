@@ -189,20 +189,50 @@ def _erreurs_de_propriete(row: dict[str, str]) -> list[str]:
 
 def _erreurs_de_ligne(row: dict[str, str], seen: set[str]) -> list[str]:
     """Assemble les deux groupes ci-dessus, DANS L'ORDRE ou validate() les emettait
-    avant extraction. ATTENTION, imprecision corrigee en revue scellee (tour 1 de
-    #599, 3 sieges convergents) : ce n'est PAS un contrat pin par
-    coordination/tests/test_check_coordination.py — cet en-tete declare au contraire
-    que seuls l'exit code et le PREFIXE sur stdout comptent, jamais l'ordre entre
-    plusieurs lignes d'erreur. Precision (tour 2, 3 sieges convergents) : la suite
-    porte bien UNE egalite de liste sur `errors`
-    (test_json_output_porte_les_erreurs_sur_table_non_conforme), mais sur un
-    SINGLETON — elle epingle contenu et longueur, jamais un ordre entre plusieurs
-    lignes. Mesure : echanger cet appel en
-    `_erreurs_de_propriete(row) + _erreurs_structurelles(row, seen)` laisse la suite
-    verte. L'ordre reste un invariant TENU par ce commit (verifie par differentiel
-    comportemental exhaustif en revue scellee), mais NON epingle par la suite
-    existante — a fermer par une fixture dediee dans coordination/tests/ (hors
-    perimetre de cette PR, qui ne touche que ce fichier ; issue de suivi #600).
+    avant extraction (AUD-QUAL-007, #594/#599). A l'origine (revue scellee, tour 1 de
+    #599, 3 sieges convergents), cet ordre etait un invariant TENU par le code mais
+    NON epingle par aucune fixture — echanger cet appel en
+    `_erreurs_de_propriete(row) + _erreurs_structurelles(row, seen)` laissait alors
+    toute la suite verte. Attenue depuis (AUD-QUAL-008, #600/#601, docstring
+    rafraichie en AUD-QUAL-009, #602/#603) :
+    coordination/tests/test_check_coordination.py epingle desormais cet echange
+    complet par `test_ordre_erreur_structurelle_avant_erreur_de_propriete_sur_meme_ligne`
+    (egalite exacte de `stdout.splitlines()`, pas seulement l'exit code et le
+    prefixe) — la meme mutation d'echange y fait maintenant rougir ce test — mais
+    SEULEMENT a l'arite (1,1) que sa fixture exerce (UNE erreur structurelle,
+    OWNER, et UNE erreur de propriete, CORE_OWNER), pas en general.
+    Sur-generalisation trouvee et mesuree en revue scellee (tour 2 de #603, siege
+    3) : un mutant qui ENTRELACE (zip) les deux listes au lieu de les concatener
+    laisse cette fixture et les 70 tests d'alors verts, tout en faisant sortir, sur
+    une ligne portant 2 erreurs STRUCTURELLES et 1 erreur de PROPRIETE (mesure :
+    meme fixture, `status` egalement invalide), une erreur de PROPRIETE entre deux
+    erreurs STRUCTURELLES. Cette relation generale (TOUT le premier groupe avant
+    TOUT le second) reste, au-dela de l'arite (1,1) exercee ci-dessus, NON
+    epinglee a ce jour — suivi separe : #605.
+
+    La meme suite epingle aussi, au niveau de validate() plutot que de cette
+    fonction, que les erreurs par ligne precedent les erreurs de paire
+    (`test_ordre_erreurs_de_ligne_avant_erreurs_de_collision`) — mais SEULEMENT a
+    l'arite que sa fixture exerce (2 lignes actives, UNE paire, l'erreur de ligne
+    portee par le membre DROIT de cette paire), pas en general. Sur-generalisation
+    trouvee et mesuree en revue scellee (tour 1 de #603, siege 2) : un entrelacement
+    MIROIR de celui que ce test exclut deja pour le membre GAUCHE (voir son propre
+    commentaire) — emettre, pour chaque ligne, ses erreurs de ligne PUIS les paires
+    ou elle est le membre DROIT plutot que le membre GAUCHE — laisse cette fixture et
+    les 70 tests d'alors verts, tout en faisant sortir des erreurs DE PAIRE avant
+    des erreurs DE LIGNE des qu'une ligne portant une erreur de ligne (ACTIVE ou
+    non — `_erreurs_de_ligne()` voit TOUTE la table, `_erreurs_de_collision()` ne
+    voit que les lignes ACTIVE) suit, dans la table, le membre DROIT d'une paire en
+    collision : l'axe qui compte est la POSITION, pas un compte de lignes actives.
+    Mesure sur 2 instances : une table a 3 lignes actives, et une table a 2 lignes
+    actives en collision suivies d'une 3e ligne INACTIVE (statut MERGED) portant
+    l'erreur — memes lignes, ordre different dans les deux cas, 70/70 vert. Cette
+    relation precise reste NON epinglee a ce cas — suivi separe : #604.
+
+    L'ordre INTERNE a chaque groupe ci-dessus (entre les controles d'UN MEME
+    groupe), lui, reste NON epingle a ce jour — voir l'en-tete de
+    coordination/tests/test_check_coordination.py pour le detail exact de ce qui est
+    et n'est pas couvert.
     """
     return _erreurs_structurelles(row, seen) + _erreurs_de_propriete(row)
 
