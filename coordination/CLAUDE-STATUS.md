@@ -65,7 +65,11 @@ un décompte figé.
 2. **`deny` Bash** : `Bash(cat .env*)` etc. ajoutés en miroir des règles `Read(...)` par outil,
    qui ne couvrent pas `Bash`. Limite assumée, non exhaustive : ne couvre ni les autres
    commandes de lecture (`sed`, `awk`, `python3 -c`, …) ni les variantes de chemin
-   (absolu, `..`, lien symbolique). La protection réelle reste : ne pas versionner de secret,
+   (absolu, `..`, lien symbolique) ; le miroir est aussi plus étroit d'un cran non nommé
+   jusqu'ici (revue scellée, tour 13) : `Read(./secrets/**)`/`Read(./credentials/**)` sont
+   récursifs, les motifs `Bash` correspondants (`cat`/`head`/`tail`/`less`/`more`/`cp` sur
+   `./secrets/*`/`./credentials/*`) ne couvrent qu'un seul niveau — `cat ./secrets/sub/cle`
+   n'est visé par aucun. La protection réelle reste : ne pas versionner de secret,
    permissions OS, hooks déterministes.
 3. **`env.ANTHROPIC_DEFAULT_SONNET_MODEL`** : ajouté ici, absent du pack. Exprime la version
    exacte de l'alias `sonnet` sans figer `model` — portée limitée à ce qui invoque l'alias.
@@ -130,6 +134,15 @@ sur le sens ANCÊTRE manquant, symétrique de celui déjà présent dans `overla
 HEAD : les deux premières fixtures et `./coordination;./modules m/M7` →
 `MODULE_CODE_DURING_CORE:<id>`, exit 1 ; scope `.` ou `./` → `MODULE_CODE_DURING_CORE:<id>`,
 exit 1 (tour 10).
+
+Limite nommée, pas fermée (revue scellée, tour 13) : le contrôle n'est armé que sur ligne
+`ACTIVE`/`REVIEW`/`READY_TO_MERGE` (`if status in ACTIVE and any(...)`, `ACTIVE` désignant ici
+l'ensemble des trois, pas le seul statut littéral). Une ligne `QUEUED`, `BLOCKED`, `MERGED` ou
+`TRANSFER` portant `modules m/M7` n'est pas signalée. Mesuré : `| ISS-M | CLAUDE | br-m |
+modules m/M7 | QUEUED | ... | ... |` → `COORDINATION_OK rows=1 active=0`, exit 0 ; la même
+ligne en `ACTIVE` → `MODULE_CODE_DURING_CORE:ISS-M`, exit 1. Cohérent avec l'intention (une
+mission `QUEUED` n'a encore rien exécuté ; le contrôle s'arme dès qu'elle passe active), mais
+non dit ailleurs, alors que `WORK-OWNERSHIP.md` porte déjà une ligne `QUEUED` (`AUD-CI-002`).
 
 ### `BRANCH_COLLISION` — sentinelle `n/a` exemptée
 
@@ -201,7 +214,7 @@ régulière, cible = répertoire) — `str(chemin)` y porte alors des surrogates
 `print()` de `main()` sur `LECTURE_IMPOSSIBLE`/`SORTIE_IMPOSSIBLE` levait
 `UnicodeEncodeError`, non intercepté : exit 1 avec traceback, stdout vide, indiscernable
 d'une table non conforme. Fermé au tour 8 en formatant le chemin par `repr()` (`!r`) dans
-ces trois messages précis.
+ces messages précis (leur nombre exact n'est pas figé ici — voir plus bas).
 
 **Le tour 9 a introduit une régression de raisonnement, corrigée au tour 10.** Il affirmait
 que « les `OSError` levées par le système (`FileNotFoundError`, etc.) n'ont jamais ce
