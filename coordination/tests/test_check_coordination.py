@@ -1231,38 +1231,36 @@ def test_ordre_ligne_avant_paire_quand_la_ligne_en_erreur_est_hors_de_la_paire(t
     # test — même ensemble de lignes que le réel, ordre différent : erreurs DE PAIRE
     # avant erreurs DE LIGNE, l'inverse exact de ce que le nom de ce test revendique.
     #
-    # Instance retenue parmi les 2 mesurées en revue scellée, tour 1 de #603 (siège 2)
-    # et reprises dans #604 (3 lignes ACTIVE ; 2 ACTIVE + 1 ligne hors de l'ensemble
-    # ACTIVE après) : celle-ci, qui réduit le nombre de paires évaluées de 3 à 1. Ce
-    # choix n'est PAS mécaniquement requis — sur-généralisation trouvée et mesurée en
-    # revue scellée (tour 2 de #606, 3 sièges convergents) dans une précédente
-    # version de ce paragraphe, qui l'affirmait à tort : status="ACTIVE" sur ISS-C
-    # fait diverger le mutant miroir à l'identique (mesuré). Ce qui porte le
-    # mécanisme, tel que #604 et le docstring de _erreurs_de_ligne() le formulent
-    # déjà (mais voir #607 : ce docstring devient lui-même périmé sur ce point une
-    # fois #604 fermée par ce commit — suivi séparé, pas de correctif ici) : ISS-C
-    # porte une erreur de ligne et est positionnée, dans la table, APRÈS le membre
-    # DROIT d'une paire en collision — pas plus. Sur-restriction trouvée et mesurée
-    # en revue scellée (tour 3 de #606, 3 sièges convergents) dans une autre
-    # précédente version de ce paragraphe, qui ajoutait à tort la condition qu'ISS-C
-    # ne soit elle-même membre DROIT d'aucune paire : mesuré par contre-exemple,
-    # donner à ISS-C À LA FOIS la même branche que ISS-A/ISS-B ET le statut ACTIVE
-    # (les deux mutations sont nécessaires — sous MERGED seul, ISS-C reste hors de
-    # _erreurs_de_collision() quelle que soit
-    # sa branche, donc membre d'aucune paire, ce qui ne réfute rien) la rend membre
-    # DROIT de 2 paires en collision supplémentaires (BRANCH_COLLISION:ISS-A:ISS-C,
-    # BRANCH_COLLISION:ISS-B:ISS-C) — et le mutant miroir diverge toujours à
-    # l'identique : c'est la présence de la paire (ISS-A,ISS-B), dont ISS-C n'a pas
-    # besoin d'être membre, qui suffit. Ni l'appartenance d'ISS-C à ACTIVE, ni son
-    # statut de membre ou non d'une paire, ne portent le mécanisme. Un statut hors
-    # ACTIVE reste néanmoins préférable ici : il instancie la branche la plus
-    # distincte des 2 mesurées dans #604, plutôt que de redire sous une troisième
-    # forme l'instance à 3 lignes ACTIVE déjà documentée ailleurs (#604, instance 1 ;
-    # docstring de _erreurs_de_ligne()). MERGED choisi parmi QUEUED, BLOCKED, MERGED
-    # — TRANSFER exclu, mesuré : la garde `status != "TRANSFER"` de
-    # _erreurs_de_propriete() supprimerait ISSUE_OWNER, faisant tomber cette fixture
-    # à 3 lignes au lieu des 4 assertées ; c'est la SEULE contrainte que le statut
-    # retenu fait peser sur la sortie assertée.
+    # Instance retenue parmi les 2 mesurées en revue scellée, tour 1 de #603 (siège 2) et
+    # reprises dans #604 (3 lignes ACTIVE ; 2 ACTIVE + 1 ligne hors de l'ensemble ACTIVE
+    # après) : celle-ci, qui réduit le nombre de paires évaluées de 3 à 1. Ce choix n'est
+    # PAS mécaniquement requis — sur-généralisation trouvée et mesurée en revue scellée
+    # (tour 2 de #606, 3 sièges convergents) dans une précédente version de ce paragraphe,
+    # qui l'affirmait à tort : status="ACTIVE" sur ISS-C fait diverger le mutant miroir à
+    # l'identique (mesuré). Ce qui porte le mécanisme, tel que #604 et le docstring de
+    # _erreurs_de_ligne() le formulent déjà (mais voir #607 : l'aveu de ce docstring «
+    # reste NON epinglee a ce cas — suivi separe : #604 » devient lui-même périmé une fois
+    # #604 fermée par cette PR — suivi séparé, pas de correctif ici) : ISS-C porte une
+    # erreur de ligne et est positionnée, dans la table, APRÈS le membre DROIT d'une paire
+    # en collision — pas plus. Sur-restriction trouvée et mesurée en revue scellée (tour 3
+    # de #606, 3 sièges convergents) dans une autre précédente version de ce paragraphe,
+    # qui ajoutait à tort la condition qu'ISS-C ne soit elle-même membre DROIT d'aucune
+    # paire : mesuré par contre-exemple, donner à ISS-C À LA FOIS la même branche que
+    # ISS-A/ISS-B ET le statut ACTIVE (les deux mutations sont nécessaires — sous MERGED
+    # seul, ISS-C reste hors de _erreurs_de_collision() quelle que soit sa branche, donc
+    # membre d'aucune paire, ce qui ne réfute rien) la rend membre DROIT de 2 paires en
+    # collision supplémentaires (BRANCH_COLLISION:ISS-A:ISS-C,
+    # BRANCH_COLLISION:ISS-B:ISS-C) — et le mutant miroir diverge toujours à l'identique :
+    # c'est la présence de la paire (ISS-A,ISS-B), dont ISS-C n'a pas besoin d'être
+    # membre, qui suffit. Ni l'appartenance d'ISS-C à ACTIVE, ni son statut de membre ou
+    # non d'une paire, ne portent le mécanisme. Un statut hors ACTIVE reste néanmoins
+    # préférable ici : il instancie la branche la plus distincte des 2 mesurées dans #604,
+    # plutôt que de redire sous une troisième forme l'instance à 3 lignes ACTIVE déjà
+    # documentée ailleurs (#604, instance 1 ; docstring de _erreurs_de_ligne()). MERGED
+    # choisi parmi QUEUED, BLOCKED, MERGED — TRANSFER exclu, mesuré : la garde
+    # `status != "TRANSFER"` de _erreurs_de_propriete() supprimerait ISSUE_OWNER, faisant
+    # tomber cette fixture à 3 lignes au lieu des 4 assertées ; c'est la SEULE
+    # contrainte que le statut retenu fait peser sur la sortie assertée.
     p = write(tmp_path, "t.md", table(
         row(work_id="ISS-A", owner="CLAUDE", branch="claude/x", scope="coordination"),
         row(work_id="ISS-B", owner="CLAUDE", branch="claude/x", scope="coordination"),
