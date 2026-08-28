@@ -1081,6 +1081,64 @@ def test_stdout_ferme_reste_silencieux_sans_lever_attributeerror(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# Ordre relatif des lignes d'erreur — validate() (AUD-QUAL-008, #600)
+# ---------------------------------------------------------------------------
+
+def test_ordre_erreur_structurelle_avant_erreur_de_propriete_sur_meme_ligne(tmp_path):
+    # tools/check_coordination.py éclate désormais validate() (revue scellée,
+    # AUD-QUAL-007, #594/#599) en _erreurs_structurelles() + _erreurs_de_propriete()
+    # pour une même ligne, assemblées par _erreurs_de_ligne(). Cet ordre était
+    # structurellement inviolable avant l'éclatement (un bloc linéaire unique, non
+    # réordonnable sans réécrire tout le corps de la fonction) ; après, c'est un `+`
+    # échangeable en un jeton — trouvé par les 3 sièges du tour 1 de la revue scellée
+    # de #599, jamais épinglé par aucune fixture avant ce test. Mesuré : muter
+    # l'assemblage en `_erreurs_de_propriete(row) + _erreurs_structurelles(row, seen)`
+    # laisse toutes les fixtures d'alors vertes, faute d'une assertion sur l'ORDRE
+    # (par opposition à la seule PRÉSENCE) des lignes d'erreur.
+    #
+    # OWNER (contrôle de _erreurs_structurelles) et CORE_OWNER (contrôle de
+    # _erreurs_de_propriete) cumulés sur la MÊME ligne : Work ID "C05-001" (matche
+    # CORE_RE) porté par un owner ni dans OWNERS ni exempté de CORE_OWNER, un seul
+    # littéral impossible qui viole les deux contrôles à la fois.
+    p = write(tmp_path, "t.md", table(row(work_id="C05-001", owner="BADOWNER", scope="core/x")))
+    r = run([str(p)])
+    assert r.returncode == 1
+    assert r.stdout.splitlines() == [
+        "OWNER:C05-001:BADOWNER",
+        "CORE_OWNER:C05-001:BADOWNER",
+    ]
+
+
+def test_ordre_erreurs_de_ligne_avant_erreurs_de_collision(tmp_path):
+    # Pendant du test ci-dessus, au niveau de validate() plutôt que de
+    # _erreurs_de_ligne() : les erreurs PAR LIGNE (boucle `for row in data`) doivent
+    # précéder toutes les erreurs DE PAIRE (boucle `for idx, left in enumerate(active)`
+    # sur `_erreurs_de_collision()`), comme le faisait le bloc linéaire unique avant
+    # l'éclatement. Mesuré : déplacer l'appel à `_erreurs_de_collision()` avant la
+    # boucle par ligne dans validate() laisse toutes les fixtures d'alors vertes, pour
+    # la même raison que le test ci-dessus — aucune n'affirme un ordre entre les DEUX
+    # familles de contrôle.
+    #
+    # Deux lignes actives de même branche et même scope (BRANCH_COLLISION et
+    # PATH_COLLISION, une paire) ; la première porte en prime une erreur PAR LIGNE
+    # (OWNER, puis ISSUE_OWNER — Work ID "ISS-A" matche CLAUDE_RE) pour vérifier que
+    # les erreurs de ligne de CETTE ligne précèdent bien les erreurs de paire, pas
+    # seulement celles d'une ligne antérieure.
+    p = write(tmp_path, "t.md", table(
+        row(work_id="ISS-A", owner="BADOWNER", branch="claude/x", scope="coordination"),
+        row(work_id="ISS-B", owner="CLAUDE", branch="claude/x", scope="coordination"),
+    ))
+    r = run([str(p)])
+    assert r.returncode == 1
+    assert r.stdout.splitlines() == [
+        "OWNER:ISS-A:BADOWNER",
+        "ISSUE_OWNER:ISS-A:BADOWNER",
+        "BRANCH_COLLISION:ISS-A:ISS-B",
+        "PATH_COLLISION:ISS-A:ISS-B:coordination:coordination",
+    ]
+
+
+# ---------------------------------------------------------------------------
 # Limite héritée du pack, caractérisée explicitement — PAS un test qui la cache
 # (mandat #592, point 2)
 # ---------------------------------------------------------------------------
