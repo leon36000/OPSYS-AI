@@ -193,12 +193,22 @@ def _erreurs_de_ligne(row: dict[str, str], seen: set[str]) -> list[str]:
     #599, 3 sieges convergents), cet ordre etait un invariant TENU par le code mais
     NON epingle par aucune fixture — echanger cet appel en
     `_erreurs_de_propriete(row) + _erreurs_structurelles(row, seen)` laissait alors
-    toute la suite verte. Ferme depuis (AUD-QUAL-008, #600/#601, docstring
+    toute la suite verte. Attenue depuis (AUD-QUAL-008, #600/#601, docstring
     rafraichie en AUD-QUAL-009, #602/#603) :
-    coordination/tests/test_check_coordination.py epingle desormais cet ordre precis
-    par `test_ordre_erreur_structurelle_avant_erreur_de_propriete_sur_meme_ligne`
+    coordination/tests/test_check_coordination.py epingle desormais cet echange
+    complet par `test_ordre_erreur_structurelle_avant_erreur_de_propriete_sur_meme_ligne`
     (egalite exacte de `stdout.splitlines()`, pas seulement l'exit code et le
-    prefixe) — la meme mutation d'echange y fait maintenant rougir ce test.
+    prefixe) — la meme mutation d'echange y fait maintenant rougir ce test — mais
+    SEULEMENT a l'arite (1,1) que sa fixture exerce (UNE erreur structurelle,
+    OWNER, et UNE erreur de propriete, CORE_OWNER), pas en general.
+    Sur-generalisation trouvee et mesuree en revue scellee (tour 2 de #603, siege
+    3) : un mutant qui ENTRELACE (zip) les deux listes au lieu de les concatener
+    laisse cette fixture et les 70 tests d'alors verts, tout en faisant sortir, sur
+    une ligne portant 2 erreurs STRUCTURELLES et 1 erreur de PROPRIETE (mesure :
+    meme fixture, `status` egalement invalide), une erreur de PROPRIETE entre deux
+    erreurs STRUCTURELLES. Cette relation generale (TOUT le premier groupe avant
+    TOUT le second) reste, au-dela de l'arite (1,1) exercee ci-dessus, NON
+    epinglee a ce jour — suivi separe : #605.
 
     La meme suite epingle aussi, au niveau de validate() plutot que de cette
     fonction, que les erreurs par ligne precedent les erreurs de paire
@@ -209,10 +219,15 @@ def _erreurs_de_ligne(row: dict[str, str], seen: set[str]) -> list[str]:
     MIROIR de celui que ce test exclut deja pour le membre GAUCHE (voir son propre
     commentaire) — emettre, pour chaque ligne, ses erreurs de ligne PUIS les paires
     ou elle est le membre DROIT plutot que le membre GAUCHE — laisse cette fixture et
-    les 70 tests d'alors verts, tout en faisant sortir, sur une table a 3 lignes
-    actives ou la ligne en erreur n'appartient a aucune paire en collision, des
-    erreurs DE PAIRE avant des erreurs DE LIGNE. Cette relation precise reste NON
-    epingle a cette arite — suivi separe : #604.
+    les 70 tests d'alors verts, tout en faisant sortir des erreurs DE PAIRE avant
+    des erreurs DE LIGNE des qu'une ligne portant une erreur de ligne (ACTIVE ou
+    non — `_erreurs_de_ligne()` voit TOUTE la table, `_erreurs_de_collision()` ne
+    voit que les lignes ACTIVE) suit, dans la table, le membre DROIT d'une paire en
+    collision : l'axe qui compte est la POSITION, pas un compte de lignes actives.
+    Mesure sur 2 instances : une table a 3 lignes actives, et une table a 2 lignes
+    actives en collision suivies d'une 3e ligne INACTIVE (statut MERGED) portant
+    l'erreur — memes lignes, ordre different dans les deux cas, 70/70 vert. Cette
+    relation precise reste NON epinglee a ce cas — suivi separe : #604.
 
     L'ordre INTERNE a chaque groupe ci-dessus (entre les controles d'UN MEME
     groupe), lui, reste NON epingle a ce jour — voir l'en-tete de
