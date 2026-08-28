@@ -194,7 +194,7 @@ def _erreurs_de_ligne(row: dict[str, str], seen: set[str]) -> list[str]:
     NON epingle par aucune fixture — echanger cet appel en
     `_erreurs_de_propriete(row) + _erreurs_structurelles(row, seen)` laissait alors
     toute la suite verte. Attenue depuis (AUD-QUAL-008, #600/#601, docstring
-    rafraichie en AUD-QUAL-009, #602/#603) :
+    rafraichie en AUD-QUAL-009, #602/#603 puis en AUD-QUAL-012, #607/#609) :
     coordination/tests/test_check_coordination.py epingle desormais cet echange
     complet par `test_ordre_erreur_structurelle_avant_erreur_de_propriete_sur_meme_ligne`
     (egalite exacte de `stdout.splitlines()`, pas seulement l'exit code et le
@@ -207,7 +207,7 @@ def _erreurs_de_ligne(row: dict[str, str], seen: set[str]) -> list[str]:
     meme liste que les concatener, donc aucune fixture a l'arite (1,1) ne peut discriminer
     ce mutant — et laissait alors les 70 tests d'alors verts, tout en faisant sortir, sur
     une ligne portant 2 erreurs STRUCTURELLES et 1 erreur de PROPRIETE, une erreur de
-    PROPRIETE entre deux erreurs STRUCTURELLES. Ferme depuis pour cette arite
+    PROPRIETE entre deux erreurs STRUCTURELLES. Ferme depuis pour cette instanciation
     (AUD-QUAL-011, #605/#608) : coordination/tests/test_check_coordination.py epingle
     desormais aussi l'arite (2,1) que sa fixture exerce (DEUX erreurs structurelles,
     OWNER et STATUS, et UNE erreur de propriete, CORE_OWNER) par
@@ -239,7 +239,7 @@ def _erreurs_de_ligne(row: dict[str, str], seen: set[str]) -> list[str]:
     `test_ordre_ligne_avant_paire_quand_la_ligne_en_erreur_est_hors_de_la_paire` (meme
     egalite exacte) — le meme entrelacement miroir y fait maintenant rougir ce test ;
     l'instance a 3 lignes actives reste, elle, mesuree mais NON instanciee par une fixture.
-    Ni lui ni son voisin ne pretendent epuiser toutes les strategies d'entrelacement
+    Ni ce test ni son voisin ne pretendent epuiser toutes les strategies d'entrelacement
     possibles entre boucle par ligne et boucle par paire — voir l'en-tete de
     coordination/tests/test_check_coordination.py pour le detail exact de ce qui est et
     n'est pas couvert.
@@ -249,8 +249,13 @@ def _erreurs_de_ligne(row: dict[str, str], seen: set[str]) -> list[str]:
     groupe) reste, pour l'essentiel, NON epingle a ce jour — SAUF une relation
     (AUD-QUAL-011, #605/#608, effet de bord non revendique par le mandat de #605) : OWNER
     precede STATUS dans `_erreurs_structurelles()`, epingle en bonus par
-    `test_ordre_structurel_avant_propriete_avec_deux_erreurs_structurelles`. Voir l'en-tete
-    de coordination/tests/test_check_coordination.py pour le detail exact de ce qui est et
+    `test_ordre_structurel_avant_propriete_avec_deux_erreurs_structurelles` — mais
+    SEULEMENT a l'instanciation que sa fixture exerce (Work ID matchant CORE_RE, owner
+    hors OWNERS, status hors STATUSES, l'erreur de propriete etant CORE_OWNER), pas en
+    general : mesure, un mutant qui n'echange OWNER et STATUS que pour un Work ID ne
+    matchant PAS CORE_RE laisse les 72 tests verts un par un, tout en emettant reellement
+    STATUS avant OWNER sur toute ligne concernee. Voir l'en-tete de
+    coordination/tests/test_check_coordination.py pour le detail exact de ce qui est et
     n'est pas couvert.
     """
     return _erreurs_structurelles(row, seen) + _erreurs_de_propriete(row)
