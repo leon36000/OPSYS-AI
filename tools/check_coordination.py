@@ -169,9 +169,17 @@ def _erreurs_de_propriete(row: dict[str, str]) -> list[str]:
 
 def _erreurs_de_ligne(row: dict[str, str], seen: set[str]) -> list[str]:
     """Assemble les deux moities ci-dessus, DANS L'ORDRE ou validate() les emettait
-    avant extraction — le contrat que ce fichier tient est aussi l'ordre d'apparition
-    des erreurs sur stdout (cf. l'en-tete de coordination/tests/test_check_
-    coordination.py), pas seulement leur presence.
+    avant extraction. ATTENTION, imprecision corrigee en revue scellee (tour 1 de
+    #599, 3 sieges convergents) : ce n'est PAS un contrat pin par
+    coordination/tests/test_check_coordination.py — cet en-tete declare au contraire
+    que seuls l'exit code et le PREFIXE sur stdout comptent, jamais l'ordre entre
+    plusieurs lignes d'erreur, et aucun de ses 68 tests n'affirme une egalite de liste
+    sur `errors` (mesure : echanger cet appel en
+    `_erreurs_de_propriete(row) + _erreurs_structurelles(row, seen)` laisse les 68
+    tests verts). L'ordre reste un invariant TENU par ce commit (verifie par
+    differentiel comportemental exhaustif en revue scellee), mais NON epingle par la
+    suite existante — a fermer par une fixture dediee dans coordination/tests/ (hors
+    perimetre de cette PR, qui ne touche que ce fichier ; issue de suivi ouverte).
     """
     return _erreurs_structurelles(row, seen) + _erreurs_de_propriete(row)
 
