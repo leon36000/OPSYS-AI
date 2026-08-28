@@ -149,6 +149,19 @@ def test_overlaps_normalise_le_separateur_antislash(tmp_path):
     assert "PATH_COLLISION:ISS-A:ISS-B:coordination\\sub:coordination/sub" in r.stdout
 
 
+def test_overlaps_detecte_la_parente_dans_les_deux_sens(tmp_path):
+    # Sans test avant ce correctif (mutant survivant, revue scellée, tour 2 de #598) :
+    # retirer "pb in pa.parents" de overlaps() laissait ce cas passer inaperçu — un
+    # scope PARENT déclaré APRÈS son enfant cessait d'être vu comme collision.
+    p = write(tmp_path, "t.md", table(
+        row(work_id="ISS-A", branch="br-a", scope="coordination/sub"),
+        row(work_id="ISS-B", branch="br-b", scope="coordination"),
+    ))
+    r = run([str(p)])
+    assert r.returncode == 1
+    assert "PATH_COLLISION:ISS-A:ISS-B:coordination/sub:coordination" in r.stdout
+
+
 def test_overlaps_ne_developpe_aucun_glob(tmp_path):
     # Documenté comme limite assumée : "**" est un composant de chemin ordinaire, pas
     # un joker — deux scopes qui ne collisionneraient QUE via une sémantique de glob
@@ -272,6 +285,16 @@ def test_module_code_during_core_scope_racine_couvrant_tout_larbre(tmp_path):
         assert "MODULE_CODE_DURING_CORE:ISS-A" in r.stdout, scope
 
 
+def test_module_code_during_core_normalise_la_casse(tmp_path):
+    # Sans test avant ce correctif (mutant survivant, revue scellée, tour 2 de #598) :
+    # retirer le .casefold() de la normalisation de scope laissait ce cas passer
+    # inaperçu — un fail-open réel sur le seul interdit dur de l'ADR-0004.
+    p = write(tmp_path, "t.md", table(row(scope="Modules M/M7")))
+    r = run([str(p)])
+    assert r.returncode == 1
+    assert "MODULE_CODE_DURING_CORE:ISS-A" in r.stdout
+
+
 def test_module_code_during_core_scope_legitime_non_declenche(tmp_path):
     # Non-régression : un scope réel qui ne touche pas modules m/ ne doit jamais
     # déclencher ce contrôle — y compris un composant de chemin visuellement proche
@@ -380,6 +403,37 @@ def test_lecture_impossible_sur_contenu_non_utf8(tmp_path):
     r = run([str(p)])
     assert r.returncode == 2
     assert r.stdout.startswith("LECTURE_IMPOSSIBLE:")
+
+
+def test_fifo_nomme_reste_lisible(tmp_path):
+    """Régression réelle de #564, PAS un mutant équivalent (revue scellée, tour 2 de
+    #598) : une version antérieure de _chemin_sur() exigeait `is_file()` en lecture, ce
+    qui rejetait un FIFO — entrée légitime et atteignable en ligne de commande que
+    `read_text()` seul lisait déjà sans encombre avant l'introduction de cette fonction
+    (voir son docstring, "Fermée pour le FIFO nommé"). Contrairement aux mutants
+    équivalents documentés plus haut dans ce fichier (message de cause différent, même
+    exit + préfixe), réintroduire ce test précis change le CONTRAT observable : un FIFO
+    réel passe de `COORDINATION_OK` (exit 0) à `LECTURE_IMPOSSIBLE` (exit 2) — mesuré,
+    aucun des autres tests de ce fichier ne s'en aperçoit.
+    """
+    fifo = tmp_path / "table.fifo"
+    os.mkfifo(fifo)
+    # Écrivain en arrière-plan : un FIFO bloque à l'ouverture tant que personne n'écrit
+    # ou ne lit de l'autre côté — le lancer avant `run()` (qui, lui, lit) évite le blocage
+    # mutuel des deux extrémités.
+    ecrivain = subprocess.Popen(
+        ["sh", "-c", f'cat > "$1"', "sh", str(fifo)],
+        stdin=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        ecrivain.stdin.write(table(row()))
+        ecrivain.stdin.close()
+        r = run([str(fifo)], timeout=10)
+    finally:
+        ecrivain.wait(timeout=10)
+    assert r.returncode == 0
+    assert r.stdout.strip() == "COORDINATION_OK rows=1 active=1"
 
 
 def test_sortie_impossible_sur_repertoire_de_sortie_inexistant(tmp_path):
