@@ -131,39 +131,73 @@ def test_separateur_espace_reste_non_reconnu_fail_closed(tmp_path):
 
 def test_overlaps_normalise_la_casse(tmp_path):
     # Fail-open du pack fermé : "Coordination" vs "coordination" est une vraie collision,
-    # une comparaison de chaîne brute la manquait.
-    p = write(tmp_path, "t.md", table(
+    # une comparaison de chaîne brute la manquait. Les DEUX ordres de déclaration sont
+    # exercés (revue scellée, tour 4 de #598) : overlaps() normalise séparément chaque
+    # opérande ("a" ligne 90, "b" ligne 91) — un seul ordre ne teste que la moitié gauche
+    # de cette paire de normalisations, comme l'a révélé la disjonction de parenté au
+    # tour 3 pour un mécanisme voisin.
+    p_gauche_anormale = write(tmp_path, "gauche_anormale.md", table(
         row(work_id="ISS-A", branch="br-a", scope="Coordination"),
         row(work_id="ISS-B", branch="br-b", scope="coordination"),
     ))
-    r = run([str(p)])
+    r = run([str(p_gauche_anormale)])
     assert r.returncode == 1
     assert "PATH_COLLISION:ISS-A:ISS-B:Coordination:coordination" in r.stdout
+
+    p_droite_anormale = write(tmp_path, "droite_anormale.md", table(
+        row(work_id="ISS-A", branch="br-a", scope="coordination"),
+        row(work_id="ISS-B", branch="br-b", scope="Coordination"),
+    ))
+    r = run([str(p_droite_anormale)])
+    assert r.returncode == 1
+    assert "PATH_COLLISION:ISS-A:ISS-B:coordination:Coordination" in r.stdout
 
 
 def test_path_collision_sur_cellule_multi_items_avec_espace(tmp_path):
     # Même famille de faux positif de couverture que le test MODULE_CODE_DURING_CORE
-    # voisin (revue scellée, tour 3 de #598) : sans .strip() après le découpage sur ";",
-    # une collision réelle entre "tools" et un item "tools" niché dans une cellule
-    # multi-items ESPACÉE ("coordination; tools") passait inaperçue — item extrait
-    # " tools" (espace de tête compris) jamais égal à "tools" sans normalisation.
-    p = write(tmp_path, "t.md", table(
+    # voisin (revue scellée, tour 3 de #598, complétée tour 4) : sans .strip() après le
+    # découpage sur ";", une collision réelle entre "tools" et un item "tools" niché dans
+    # une cellule multi-items ESPACÉE ("coordination; tools") passait inaperçue — item
+    # extrait " tools" (espace de tête compris) jamais égal à "tools" sans normalisation.
+    # DEUX sites distincts portent ce .strip() dans la boucle PATH_COLLISION (`sa` à
+    # gauche, `sb` à droite) : le tour 3 n'avait fermé que le premier, le second (`sb`)
+    # restait un mutant survivant réel sur la graphie qu'emploie, à ce jour, la seule
+    # table réelle de ce dépôt.
+    p_gauche_espacee = write(tmp_path, "gauche_espacee.md", table(
         row(work_id="ISS-A", branch="br-a", scope="coordination; tools"),
         row(work_id="ISS-B", branch="br-b", scope="tools"),
     ))
-    r = run([str(p)])
+    r = run([str(p_gauche_espacee)])
+    assert r.returncode == 1
+    assert "PATH_COLLISION:ISS-A:ISS-B:tools:tools" in r.stdout
+
+    p_droite_espacee = write(tmp_path, "droite_espacee.md", table(
+        row(work_id="ISS-A", branch="br-a", scope="tools"),
+        row(work_id="ISS-B", branch="br-b", scope="coordination; tools"),
+    ))
+    r = run([str(p_droite_espacee)])
     assert r.returncode == 1
     assert "PATH_COLLISION:ISS-A:ISS-B:tools:tools" in r.stdout
 
 
 def test_overlaps_normalise_le_separateur_antislash(tmp_path):
-    p = write(tmp_path, "t.md", table(
+    # Les deux ordres de déclaration sont exercés, même raison que le test de casse
+    # voisin (revue scellée, tour 4 de #598).
+    p_gauche_anormale = write(tmp_path, "gauche_anormale.md", table(
         row(work_id="ISS-A", branch="br-a", scope="coordination\\sub"),
         row(work_id="ISS-B", branch="br-b", scope="coordination/sub"),
     ))
-    r = run([str(p)])
+    r = run([str(p_gauche_anormale)])
     assert r.returncode == 1
     assert "PATH_COLLISION:ISS-A:ISS-B:coordination\\sub:coordination/sub" in r.stdout
+
+    p_droite_anormale = write(tmp_path, "droite_anormale.md", table(
+        row(work_id="ISS-A", branch="br-a", scope="coordination/sub"),
+        row(work_id="ISS-B", branch="br-b", scope="coordination\\sub"),
+    ))
+    r = run([str(p_droite_anormale)])
+    assert r.returncode == 1
+    assert "PATH_COLLISION:ISS-A:ISS-B:coordination/sub:coordination\\sub" in r.stdout
 
 
 def test_overlaps_detecte_la_parente_dans_les_deux_sens(tmp_path):
@@ -300,15 +334,33 @@ def test_module_code_during_core_cellule_multiple(tmp_path):
 
 
 def test_module_code_during_core_cellule_multiple_avec_espace(tmp_path):
-    # Sans ce test avant ce correctif (mutant survivant sur les 4 sites de .strip() qui
+    # Sans ce test avant ce correctif (mutant survivant sur 3 des 4 sites de .strip() qui
     # suivent scope.split(";"), revue scellée, tour 3 de #598) : la seule fixture
     # multi-items du fichier ("coordination;modules m/M7", collée) ne discriminait rien,
     # car un .strip() en moins n'y change aucun contrat. C'est pourtant la graphie AVEC
-    # espace après ";" que la seule table réelle de ce dépôt emploie effectivement
-    # (coordination/WORK-OWNERSHIP.md, ligne OPS-OVERLAY-INSTALL) — retirer le .strip()
-    # y laissait passer inaperçu un scope touchant modules m/, fail-open réel sur le seul
-    # interdit dur de l'ADR-0004.
+    # espace après ";" qu'emploie, à ce jour, la seule table réelle de ce dépôt
+    # (coordination/WORK-OWNERSHIP.md, ligne OPS-OVERLAY-INSTALL — référence datée : cette
+    # ligne peut changer d'identifiant ou de statut à tout merge ordinaire) — retirer le
+    # .strip() y laissait passer inaperçu un scope touchant modules m/, fail-open réel sur
+    # le seul interdit dur de l'ADR-0004.
     p = write(tmp_path, "t.md", table(row(scope="coordination; modules m/M7")))
+    r = run([str(p)])
+    assert r.returncode == 1
+    assert "MODULE_CODE_DURING_CORE:ISS-A" in r.stdout
+
+
+def test_module_code_during_core_normalise_lantislash(tmp_path):
+    # Le 4e des 4 sites de normalisation touchés par cette famille (revue scellée, tour 4
+    # de #598) : `.replace("\\", "/")` dans la construction de `scopes_normalises`
+    # n'avait, jusqu'ici, AUCUN test qui l'exerce réellement. La fixture antislash déjà
+    # présente dans ce fichier (test_scope_traversee_refusee_antislash_et_slash, scope
+    # "foo\..\modules m\M7") donne l'ILLUSION de couvrir cette graphie pour l'interdit
+    # ADR-0004, mais elle porte aussi un ".." : elle est rejetée par valid_scope() AVANT
+    # d'atteindre MODULE_CODE_DURING_CORE (mesuré : sortie réelle "SCOPE:ISS-A:...", MODULE_
+    # CODE_DURING_CORE jamais émis pour cette entrée précise). Ce test-ci retire le ".." :
+    # un scope antislash SANS traversée doit passer valid_scope() et être intercepté
+    # uniquement par MODULE_CODE_DURING_CORE.
+    p = write(tmp_path, "t.md", table(row(scope="modules m\\M7")))
     r = run([str(p)])
     assert r.returncode == 1
     assert "MODULE_CODE_DURING_CORE:ISS-A" in r.stdout
@@ -405,10 +457,12 @@ def test_scope_traversee_refusee_antislash_et_slash(tmp_path):
 
 
 def test_scope_multi_items_avec_espace_refuse_si_un_item_invalide(tmp_path):
-    # Troisième et dernier des trois contrats que le .strip() de valid_scope() fait
-    # tenir sur la graphie AVEC espace après ";" (revue scellée, tour 3 de #598, même
-    # famille que les deux tests voisins ajoutés pour MODULE_CODE_DURING_CORE et
-    # PATH_COLLISION) : sans lui, l'item " /absolu" (espace de tête compris) n'est ni
+    # Un des quatre contrats que le .strip() après scope.split(";") fait tenir sur la
+    # graphie AVEC espace (revue scellée, tour 3 de #598 pour ce site précis et les deux
+    # tests voisins de MODULE_CODE_DURING_CORE/PATH_COLLISION — PAS "le dernier" : le
+    # tour 4 a dû fermer un 4e site de la même famille, .strip() côté droit de la boucle
+    # PATH_COLLISION, qu'affirmer une famille close par erreur avait laissé passer
+    # inaperçu) : sans ce .strip(), l'item " /absolu" (espace de tête compris) n'est ni
     # reconnu absolu par PurePosixPath ni comparé correctement — un item invalide caché
     # derrière un premier item valide dans une cellule multi-items espacée passait
     # inaperçu.
@@ -446,12 +500,17 @@ def test_branch_collision_detecte_sur_branche_identique(tmp_path):
 def test_branch_collision_exempte_la_sentinelle_read_only(tmp_path):
     # Deux missions read-only actives, toutes deux "n/a", devaient rester exprimables —
     # sans cette exemption, la porte d'activation se bloquait sur un état légitime.
-    p = write(tmp_path, "t.md", table(
-        row(work_id="ISS-A", branch="n/a", scope="read-only"),
-        row(work_id="ISS-B", branch="n/a", scope="read-only"),
-    ))
-    r = run([str(p)])
-    assert r.returncode == 0
+    # L'exemption est elle-même normalisée par .strip().casefold() (revue scellée,
+    # tour 4 de #598) : "N/A" et " n/a " doivent être exemptées au même titre que "n/a" —
+    # sans quoi une variante de casse retombe à tort en BRANCH_COLLISION (fail-closed,
+    # pas un fail-open, mais la normalisation restait non protégée par ce test avant).
+    for graphie in ("n/a", "N/A", " n/a "):
+        p = write(tmp_path, "t.md", table(
+            row(work_id="ISS-A", branch=graphie, scope="read-only"),
+            row(work_id="ISS-B", branch=graphie, scope="read-only"),
+        ))
+        r = run([str(p)])
+        assert r.returncode == 0, repr(graphie)
 
 
 # ---------------------------------------------------------------------------
