@@ -28,8 +28,8 @@
 # l'ordre NON épinglé, alors que l'ordre INTERNE à UNE paire (BRANCH_COLLISION avant
 # PATH_COLLISION, dans `_erreurs_de_paire()`) EST épinglé en bonus par
 # `test_ordre_erreurs_de_ligne_avant_erreurs_de_collision` (désignée par NOM, pas par
-# position — un test inséré entre les deux ci-dessous ne doit pas périmer ce renvoi
-# silencieusement) — contredisant, dans le même commit, le commentaire de ce test-là.
+# position — un test inséré entre les fixtures d'ordre ci-dessous ne doit pas périmer ce
+# renvoi silencieusement) — contredisant, dans le même commit, le commentaire de ce test-là.
 # Précisément :
 # l'ordre INTERNE à chaque groupe de contrôles PAR LIGNE (`_erreurs_structurelles()`,
 # `_erreurs_de_propriete()`) reste hors contrat, non épinglé par ce fichier à ce jour ; il en
@@ -56,10 +56,11 @@
 # Précision (AUD-QUAL-010, #604 ; revue scellée, tour 1 de #603, siège 2) : jusqu'ici, la
 # relation ligne-avant-paire n'était épinglée que lorsque la ligne en erreur est elle-même
 # membre de la paire concernée (cas de `test_ordre_erreurs_de_ligne_avant_erreurs_de_collision`
-# ci-dessus).
-# `test_ordre_ligne_avant_paire_meme_quand_ligne_en_erreur_suit_une_paire_hors_collision`
+# ci-dessous).
+# `test_ordre_ligne_avant_paire_quand_la_ligne_en_erreur_est_hors_de_la_paire`
 # couvre en outre le cas où elle ne l'est PAS : une ligne hors de toute collision (ici
-# INACTIVE), positionnée après une paire dans la table. Un entrelacement qui émettrait, pour
+# hors de l'ensemble ACTIVE : statut MERGED), positionnée après une paire dans la table.
+# Un entrelacement qui émettrait, pour
 # chaque ligne, ses erreurs PUIS les paires dont elle est membre DROIT laissait ce cas-là
 # vert avant ce test. Ni ce test ni celui qui le précède ne prétendent épuiser toutes les
 # stratégies d'entrelacement possibles entre boucle par ligne et boucle par paire — seules
@@ -1199,17 +1200,18 @@ def test_ordre_erreurs_de_ligne_avant_erreurs_de_collision(tmp_path):
     ]
 
 
-def test_ordre_ligne_avant_paire_meme_quand_ligne_en_erreur_suit_une_paire_hors_collision(tmp_path):
-    # Complète le test ci-dessus contre un entrelacement MIROIR de celui qu'il exclut
-    # déjà (revue scellée, tour 1 de #603, siège 2 ; AUD-QUAL-010, #604) : pour chaque
-    # ligne, émettre ses erreurs PUIS les paires où elle est le membre DROIT plutôt
-    # que le membre GAUCHE. Le test ci-dessus place l'erreur de ligne sur ISS-B,
-    # membre DROIT de la SEULE paire de sa fixture — ce qui exclut l'entrelacement
-    # membre GAUCHE, mais ne distingue PAS validate() réel de son miroir : à cette
-    # arité (une seule paire, l'erreur de ligne portée par un de SES membres), les
-    # deux entrelacements coïncident avec la sortie réelle.
+def test_ordre_ligne_avant_paire_quand_la_ligne_en_erreur_est_hors_de_la_paire(tmp_path):
+    # Complète test_ordre_erreurs_de_ligne_avant_erreurs_de_collision ci-dessus contre
+    # un entrelacement MIROIR de celui qu'il exclut déjà (revue scellée, tour 1 de
+    # #603, siège 2 ; AUD-QUAL-010, #604) : pour chaque ligne, émettre ses erreurs
+    # PUIS les paires où elle est le membre DROIT plutôt que le membre GAUCHE. Ce
+    # test-là place l'erreur de ligne sur ISS-B, membre DROIT de la SEULE paire de sa
+    # fixture — ce qui exclut l'entrelacement membre GAUCHE, mais ne distingue PAS
+    # validate() réel de son miroir : à cette arité (une seule paire, l'erreur de
+    # ligne portée par un de SES membres), les deux entrelacements coïncident avec la
+    # sortie réelle.
     #
-    # Ce test isole la ligne en erreur de la paire : ISS-C ne participe à AUCUNE
+    # Ce test-ci isole la ligne en erreur de la paire : ISS-C ne participe à AUCUNE
     # collision (branche et scope propres à elle), et son statut MERGED l'exclut de
     # _erreurs_de_collision() (qui ne voit que les lignes ACTIVE) — donc de toute
     # paire, y compris comme membre. Positionnée APRÈS la paire ISS-A/ISS-B dans la
@@ -1224,10 +1226,16 @@ def test_ordre_ligne_avant_paire_meme_quand_ligne_en_erreur_suit_une_paire_hors_
     # membre d'aucune paire, aucun test existant n'exerce ce cas) mais fait rougir CE
     # test — même ensemble de lignes que le réel, ordre différent : erreurs DE PAIRE
     # avant erreurs DE LIGNE, l'inverse exact de ce que le nom de ce test revendique.
-    # Instance retenue parmi les 2 mesurées dans #604 (3 lignes ACTIVE ; 2 ACTIVE + 1
-    # MERGED après) : celle-ci, la plus économique — MERGED choisi arbitrairement
-    # parmi les statuts hors ACTIVE (QUEUED, BLOCKED, MERGED, TRANSFER), le mécanisme
-    # ne dépendant que de l'exclusion de ACTIVE, pas du statut précis retenu.
+    #
+    # Instance retenue parmi les 2 mesurées en revue scellée, tour 1 de #603 (siège 2)
+    # et reprises dans #604 (3 lignes ACTIVE ; 2 ACTIVE + 1 ligne hors de l'ensemble
+    # ACTIVE après) : celle-ci, qui réduit le nombre de paires évaluées de 3 à 1.
+    # MERGED choisi parmi QUEUED, BLOCKED, MERGED — TRANSFER exclu, mesuré : la garde
+    # `status != "TRANSFER"` de _erreurs_de_propriete() est indépendante de
+    # l'appartenance à ACTIVE et supprimerait ISSUE_OWNER, faisant tomber cette
+    # fixture à 3 lignes au lieu des 4 assertées. Seule l'exclusion de l'ensemble
+    # ACTIVE (par _erreurs_de_collision()) porte le mécanisme miroir ; le statut
+    # retenu, lui, contraint la sortie assertée.
     p = write(tmp_path, "t.md", table(
         row(work_id="ISS-A", owner="CLAUDE", branch="claude/x", scope="coordination"),
         row(work_id="ISS-B", owner="CLAUDE", branch="claude/x", scope="coordination"),
