@@ -1,15 +1,8 @@
 {
  "verdict": "APPROVE",
- "objections": [
-  {
-   "severite": "mineure",
-   "fichier": "docs/core/CANON-INDEX.md",
-   "description": "Le canon déclare actifs `docs/core/CI-REQUIRED-CHECKS.md` et `.opsys/core-control/2.3.0/GITHUB-OPERATING-MODEL.md`, mais le test contractuel ne vérifie pas leur existence, contrairement aux autres autorités listées. Le diff fourni ne contient pas ces fichiers, donc leur présence dans l'arbre candidat n'est pas démontrée par la preuve incluse.",
-   "preuve": "docs/core/CANON-INDEX.md lignes `docs/core/CI-REQUIRED-CHECKS.md` et `.opsys/core-control/2.3.0/GITHUB-OPERATING-MODEL.md` ; core/tests/bootstrap/test_root_canon_entrypoints.py `_ACTIVE_AUTHORITIES` ne contient pas ces chemins."
-  }
- ],
- "date_heure": "2026-08-28T11:15:11.115087+00:00",
- "prompt_sha256": "57323903ce95acf36dce9d35eb3016c1cb0ee12062738b9b5e4241d3ad0c842d",
+ "objections": [],
+ "date_heure": "2026-08-28T12:17:43.541808+00:00",
+ "prompt_sha256": "666938d35db21f1141fb447dc066f1ae8d602c7d4b4a57d4974d7d7961192c94",
  "reviewer_model": "DeepSeek-V4-Pro-0813",
  "modele_servi": "deepseek-v4-pro-0813-openrouter",
  "gateway_resilience": {

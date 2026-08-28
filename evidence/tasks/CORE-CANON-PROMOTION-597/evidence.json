@@ -5,12 +5,12 @@
   "branche": "codex/canon-promotion-v14",
   "base": "origin/main @ 29b68c1eaf78063184fb6bb6edfced5ac425e42e",
   "base_tree": "da982522fa7c0759089b61bafc76b095080925a9",
-  "reviewed_commit": "812df118d3be1546f568809846c2777bba614bdc",
-  "reviewed_tree": "3fff2e7587ba4fbe0a7fbee5876cbe6d5dac088f",
-  "code_diff_sha256": "ac6eb9d01e8f4bf71936e31440d3f1c1f50d5829ba45c448ec8b2da26f373120",
+  "reviewed_commit": "6efbfd915ef59e52c8a0a2fb177b94de7b7d6660",
+  "reviewed_tree": "a25d6a6d8eb405a5522d8101e95ffe8f8594e3a9",
+  "code_diff_sha256": "72943a928bfe9b6e7c3d216dbedcdb60a4b2cb9e2f8cc79cc56fd48c565807e8",
   "code_diff_sha256_scope": "git diff origin/main...HEAD -- core/ tools/proof/ .opsys/tools/github-control/ .github/workflows/core-ci.yml .github/workflows/ci.yml scripts/ ; calculé par core/scripts/verify_proof_sealed.py",
-  "diff_verbatim_sha256": "faab10fee40e9521d2ac27dd5155489c0c4d8bb50c45597c083c9a45aa07e4c7",
-  "sealed_at": "2026-08-28T11:15:42Z",
+  "diff_verbatim_sha256": "0b3c012ff09390b075c2421557872eaf70cf43b6c364060c08b0116e60da2163",
+  "sealed_at": "2026-08-28T12:18:15Z",
   "verification": {
     "red": {
       "base": "origin/main @ 29b68c1eaf78063184fb6bb6edfced5ac425e42e",
@@ -25,16 +25,16 @@
       "git diff --check : exit 0"
     ],
     "scope": "Diff contrôlé : huit chemins autorisés seulement ; aucun coordination/**, .claude/**, .codex/**, workflow, Core source, audit, quality-gate ou test hors contrat canonique.",
-      "remote_status_before_bundle": "Après le rebase propre sur origin/main 29b68c1, le ciblé RED/GREEN et les contrôles locaux sont à refaire sur le candidat 812df11 ; les checks distants visibles concernent encore l'ancien head 3622bbe et seront invalides pour ce head final.",
-      "bundle_commit_note": "Ce bundle r5 remplace le bundle précédent après l'avance de main et une nouvelle revue complète du candidat 812df11. Le commit d'évidence à venir ne modifie aucun chemin du périmètre code scellé et conserve le code_diff_sha256 ci-dessus. Les checks distants doivent être déclenchés sur le head final avant toute décision d'intégration."
+      "remote_status_before_bundle": "Après le rebase propre sur origin/main 589156f et le renforcement du test contractuel, le ciblé RED/GREEN et les contrôles locaux sont verts sur le candidat 6efbfd9 ; les checks distants visibles concernent encore l'ancien head 63c758e et seront invalides pour ce head final.",
+      "bundle_commit_note": "Ce bundle r7 remplace le bundle précédent après l'avance de main et la correction contractuelle issue de la revue r6. Le commit d'évidence à venir ne modifie aucun chemin du périmètre code scellé et conserve le code_diff_sha256 ci-dessus. Les checks distants doivent être déclenchés sur le head final avant toute décision d'intégration."
   },
   "review_inputs": {
-    "round": "OPSYS-CANON-PROMOTION-597-r5-812df11",
+    "round": "OPSYS-CANON-PROMOTION-597-r7-6efbfd9",
     "mode": "T2, trois reviewers indépendants en parallèle, prompt neutre commun, sans rôles",
-    "prompt_sha256": "57323903ce95acf36dce9d35eb3016c1cb0ee12062738b9b5e4241d3ad0c842d",
-    "pack_sha256": "58a2d6b98599ce1a866302e01820b2c8b81d33e9e922625ef941db36e26cb76a",
-    "pack_bytes": 30921,
-    "diff_verbatim_sha256": "faab10fee40e9521d2ac27dd5155489c0c4d8bb50c45597c083c9a45aa07e4c7",
+    "prompt_sha256": "666938d35db21f1141fb447dc066f1ae8d602c7d4b4a57d4974d7d7961192c94",
+    "pack_sha256": "e0095937609d80faa59a15e1b9c151cab78f527358dfc6f2a90c728fe25acee8",
+    "pack_bytes": 31903,
+    "diff_verbatim_sha256": "0b3c012ff09390b075c2421557872eaf70cf43b6c364060c08b0116e60da2163",
     "review_neutrality": {
       "previous_incomplete_batches_excluded": true,
       "reviewers_received_same_pack": true
@@ -49,14 +49,14 @@
     }
   },
   "reviews": {
-    "DeepSeek-V4-Pro-0813.verdict.json": "d4997babe32c4145cf8971a70e7f39434e18f7ba34e2b9d013f2eaaa0745681f",
-    "Gemini-3.7-Flash.verdict.json": "7fdcff417b69372abe3c54bd63ef4c0b7965d75887e8f058b23f86c21343b33f",
-    "Muse-Spark-1.2-Contributor.verdict.json": "f7f11f76ab43da0ec26d70203680b59b1024c68937f7e7254680db22ad50b380"
+    "DeepSeek-V4-Pro-0813.verdict.json": "3786801e21faba5319f3c47a1e77468d31cf4ca478e4823708d11f3a1d439a82",
+    "Gemini-3.7-Flash.verdict.json": "9e28e503e390e2b202940f41eaeb5c931684813b93cb9e76b90b8842fffa94a8",
+    "Muse-Spark-1.2-Contributor.verdict.json": "6f116dcf54245b932986921b05663ab411d295458440369844a45b8ec70e2824"
   },
   "consensus": {
     "outcome": "APPROVE 3/3",
     "major_or_critical_objections": 0,
-    "minor_objections": 2,
+    "minor_objections": 1,
     "tally": "DRAIN SPOOL: ligne illisible conservée telle quelle; APPROVE 3/3 | vendors distincts: 3 ['deepseek-v4-pro-0813', 'gemini-3.7-flash', 'muse-spark-1.2-contributor'] | objections critiques: 0 | objections majeures non résolues: 0",
     "reviewers": {
       "DeepSeek-V4-Pro-0813": {
@@ -78,6 +78,6 @@
         "fallbacks": 0
       }
     },
-    "minor_objection_note": "DeepSeek et Muse-Spark signalent que la preuve d'exécution RED/GREEN et des suites n'est pas incluse dans le pack, qui exclut explicitement evidence/tasks/** ; les exécutions locales sont consignées ci-dessus et la CI distante reste obligatoire sur le head final."
+    "minor_objection_note": "Muse-Spark signale que la preuve d'exécution RED/GREEN et des suites n'est pas incluse dans le pack, qui exclut explicitement evidence/tasks/** ; les exécutions locales sont consignées ci-dessus et la CI distante reste obligatoire sur le head final."
   }
 }
