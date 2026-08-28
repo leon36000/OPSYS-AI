@@ -1,7 +1,13 @@
 # Tests de tools/check_coordination.py (issue AUD-QUAL-006, #592) — pas une énumération
 # exhaustive de tout comportement du validateur (ex. le refus d'un octet nul dans le chemin
 # argv n'a, lui, aucun test dédié : intestable au niveau CLI déclaré, execve/Python refusant
-# un tel octet embarqué avant même le lancement du script — mesuré), mais chaque durcissement
+# un tel octet embarqué avant même le lancement du script — mesuré ; de même, les deux
+# `.rstrip("/")` d'`overlaps()`, sur ses deux opérandes, n'ont aucune fixture dédiée —
+# redondants avec `PurePosixPath` pour tout scope VALIDE, qui normalise déjà une barre
+# oblique finale ; la seule graphie qui les rend observables, un scope entièrement composé
+# de `/`, est de toute façon déjà refusée par `valid_scope()` avant que la collision
+# n'entre en jeu — mesuré en revue scellée, tours 10 et 11 de #598, 4 sièges convergents
+# sur 6, aucun ne rendant un faux COORDINATION_OK), mais chaque durcissement
 # de la revue scellée qui a produit ce fichier (PR #564, 14 tours), AU NIVEAU DU CONTRAT CLI
 # qu'il fait tenir — certains durcissements de `_chemin_sur()` partagent un même
 # préfixe/exit avec un autre chemin de code (contrat préservé, message interne distinct non
@@ -1033,10 +1039,14 @@ def test_cellule_accentuee_reste_lisible_sous_locale_non_utf8(tmp_path):
     # — sous une locale non-UTF-8 délibérée. Mesuré sur le validateur réel : sans le
     # correctif, `LC_ALL=C PYTHONUTF8=0` sur une table valide à scope accentué rend
     # `COORDINATION_OK` exit 0 ; muté, `LECTURE_IMPOSSIBLE:'ascii' codec can't decode
-    # byte...` exit 2 — cible réaliste, `coordination/WORK-OWNERSHIP.md` porte aujourd'hui
-    # 15 lignes non-ASCII (français accentué). Fail-closed (jamais un faux COORDINATION_OK,
-    # seul contrat que ce fichier se donne) et hors de tout usage documenté de cet outil
-    # (jamais invoqué sous une locale non-UTF-8 dans ce dépôt), d'où non bloquant.
+    # byte...` exit 2 — cible réaliste : `coordination/WORK-OWNERSHIP.md` porte des lignes
+    # non-ASCII (français accentué) — référence datée (revue scellée, tour 11 de #598,
+    # sièges 1/2/3 convergents : 15 aujourd'hui), un merge ordinaire ou le travail de
+    # l'autre plateforme sur une autre branche peut faire varier ce décompte sans que
+    # l'invariant lui-même (la table réelle en porte) cesse d'être vrai. Fail-closed
+    # (jamais un faux COORDINATION_OK, seul contrat que ce fichier se donne) et hors de
+    # tout usage documenté de cet outil (jamais invoqué sous une locale non-UTF-8 dans
+    # ce dépôt), d'où non bloquant.
     p = write(tmp_path, "t.md", table(row(scope="coordination/répertoire-accentué")))
     env = {**os.environ, "LC_ALL": "C", "LANG": "C", "PYTHONUTF8": "0"}
     r = run([str(p)], env=env)
