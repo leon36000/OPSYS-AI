@@ -2,7 +2,10 @@
 # exhaustive de tout comportement du validateur (ex. le message exact d'une boucle de liens
 # symboliques n'a pas de test dédié : LECTURE_IMPOSSIBLE/SORTIE_IMPOSSIBLE en couvrent déjà le
 # contrat), mais chaque durcissement de la revue scellée qui a produit ce fichier (PR #564,
-# 14 tours) ET chaque contrôle de ligne hérité du pack encore vivant dans le validateur réduit
+# 14 tours), AU NIVEAU DU CONTRAT CLI qu'il fait tenir — certains durcissements de
+# `_chemin_sur()` partagent un même prefixe/exit avec un autre chemin de code (contrat
+# préservé, message interne distinct non épinglé, mesuré en revue scellée) — ET chaque
+# contrôle de ligne hérité du pack encore vivant dans le validateur réduit
 # (MALFORMED_ROW, WORK_ID_EMPTY, DUPLICATE_WORK, OWNER, STATUS, BRANCH, CORE_OWNER,
 # ISSUE_OWNER — mesurés par mutation en revue scellée, tour 1 de #598 : aucun test dédié
 # avant ce commit, malgré une revendication de couverture ici même qui les omettait).
@@ -208,11 +211,14 @@ def test_status_invalide(tmp_path):
 
 
 def test_branch_main_ou_master_ou_vide_sur_ligne_active(tmp_path):
-    for branch in ("main", "master", "MAIN"):
+    # Le nom promet aussi le cas "vide" : sans lui, retirer "" de l'ensemble de refus
+    # {"main", "master", ""} du validateur laissait ce test vert (mutant survivant,
+    # trouvé en revue scellée, tour 2 de #598) alors que le comportement réel change.
+    for branch in ("main", "master", "MAIN", ""):
         p = write(tmp_path, "t.md", table(row(branch=branch)))
         r = run([str(p)])
-        assert r.returncode == 1, branch
-        assert "BRANCH:ISS-A" in r.stdout, branch
+        assert r.returncode == 1, repr(branch)
+        assert "BRANCH:ISS-A" in r.stdout, repr(branch)
 
 
 def test_core_owner_hors_codex(tmp_path):
@@ -296,6 +302,16 @@ def test_scope_absolu_refuse(tmp_path):
     r = run([str(p)])
     assert r.returncode == 1
     assert "SCOPE:ISS-A:" in r.stdout
+
+
+def test_scope_tilde_refuse(tmp_path):
+    # Garde item.startswith("~") sans test avant ce correctif (mutant survivant trouvé
+    # en revue scellée, tour 2 de #598) : "~/secret" échappait aux deux autres gardes
+    # (ni absolu au sens PurePosixPath, ni ".." dans ses parts).
+    p = write(tmp_path, "t.md", table(row(scope="~/secret")))
+    r = run([str(p)])
+    assert r.returncode == 1
+    assert "SCOPE:ISS-A:~/secret" in r.stdout
 
 
 def test_scope_traversee_refusee_antislash_et_slash(tmp_path):
