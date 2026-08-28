@@ -2,23 +2,15 @@
 
 Date UTC : `2026-08-27T04:41Z`
 
-Choix éditorial (revue scellée n°2, mineure) : ce fichier portait `UNSET` et
-« active : aucun » partout alors que le sync owner de cette même mise au point
-(`WORK-OWNERSHIP.md`, `CLAUDE-STATUS.md`) déclarait déjà des lignes actives —
-contradiction interne. Choix retenu ici : **renseigner ce fichier en cohérence avec
-`WORK-OWNERSHIP.md`, `CLAUDE-STATUS.md` et `CODEX-STATUS.md`**, plutôt que le neutraliser
-en gabarit vide, parce que `coordination/README.md` — fichier livré par cette PR — confie
-explicitement ce fichier au sync owner de la mise au point (« sont modifiés par un seul
-sync owner désigné pour la mise au point ») et que cette mise au point a déjà produit un état
-daté et réconcilié dans `WORK-OWNERSHIP.md` et `CLAUDE-STATUS.md` : le dupliquer ici
-n'ajoute aucune affirmation nouvelle côté Claude, seulement un résumé compact.
-**`CODEX-STATUS.md` n'entre pas dans cette justification** — `Updated UTC : UNSET` et ses
-sections vides montrent que c'est le gabarit du pack, jamais renseigné (cette PR ne l'édite
-pas, cf. `coordination/README.md`) : la section « Codex » ci-dessous n'est donc pas la
-réconciliation d'un état déjà produit, mais l'unique lecture qu'un gabarit vide permet —
-« aucune mission déclarée », faute d'affirmation à réconcilier. Le fichier
-`24H-UPDATE-TEMPLATE.md` du même dossier reste le gabarit vide réutilisable pour la
-prochaine mise au point ; il n'est pas touché par ce choix.
+Ce fichier est renseigné en cohérence avec `WORK-OWNERSHIP.md` et `CLAUDE-STATUS.md` —
+`coordination/README.md` confie explicitement `DAILY-SYNC.md` au sync owner de la mise au
+point, et cette mise au point a déjà produit un état daté et réconcilié dans ces deux fichiers :
+le résumer ici n'ajoute aucune affirmation nouvelle côté Claude. **`CODEX-STATUS.md` n'entre
+pas dans cette logique** — `Updated UTC : UNSET` et ses sections vides montrent que c'est le
+gabarit du pack, jamais renseigné (cette PR ne l'édite pas) : la section « Codex » ci-dessous
+lit donc un gabarit vide, pas un état réconcilié — « aucune mission déclarée », faute
+d'affirmation à réconcilier. `24H-UPDATE-TEMPLATE.md` reste le gabarit vide réutilisable pour
+la prochaine mise au point ; non touché par ce choix.
 
 Ce résumé hérite donc aussi de la péremption de ses sources. **La clause couvre ce fichier
 entier, prose comprise** — pas une énumération de sections ni d'exemples, qui redeviendrait
@@ -70,10 +62,6 @@ une valeur ici.
 
 ## Ownership mis à jour
 
-- oui — cf. l'horodatage en tête de `coordination/WORK-OWNERSHIP.md`. Non recopiée une
-  **seconde fois** dans cette section précise : le `Date UTC` en tête de CE fichier (ligne 3)
-  porte déjà la même valeur, parce que cette mise au point entière est datée de ce moment-là —
-  ce n'est pas une coïncidence à masquer, c'est la même mesure vue depuis deux endroits du même
-  fichier. Une version antérieure de cette ligne recopiait la date une troisième fois ici, et
-  c'est la seule valeur de ce fichier qui avait alors divergé de sa source — corrigée en
-  renvoyant à l'en-tête plutôt qu'en la réécrivant une troisième fois.
+- oui — cf. l'horodatage en tête de `coordination/WORK-OWNERSHIP.md`, identique au `Date UTC`
+  en tête de ce fichier (ligne 3) : cette mise au point entière est datée de ce moment-là. Non
+  recopiée une troisième fois ici.

@@ -32,13 +32,8 @@ ci-dessus qui le fait voir. `CURRENT-NATHAN-DIRECTIVE.md` du même pack (directi
 fichier hors dépôt) étaye **une partie** de ses puces, pas leur totalité — la vérification
 se fait puce par puce contre ce fichier, elle n'est pas recopiée ici, et aucun décompte de
 puces étayées n'est figé. Ce qui a été retiré, en revanche, l'a été explicitement et pour ce
-motif-là : voir « Supersession retirée » ci-dessous.
-
-Une version antérieure de ce paragraphe affirmait que ce document était installé
-« à l'identique » depuis le pack. C'était faux, et réfutable par le `diff -u` ci-dessus :
-c'est cette PR-ci qui s'écarte du pack, délibérément — d'où un registre d'écarts renvoyant à
-une commande, plutôt qu'une affirmation d'identité que rien ne recensait. Rien n'est dit ici
-de ce que porte une autre branche ou une autre PR : cela se lit à la source.
+motif-là : voir « Supersession retirée » ci-dessous. Rien n'est dit ici de ce que porte une
+autre branche ou une autre PR : cela se lit à la source.
 
 ## Décision
 
@@ -84,33 +79,17 @@ Trois propriétés de cette formulation, et rien d'autre :
   `-i`, une occurrence réelle sous la graphie citée dans ce document (« GitHub global », G et
   H majuscules) ne matcherait PAS cette alternative — seule la première (`ma.tre...`) resterait
   opérante, et une sortie vide ne distinguerait plus « formulation absente » de « motif qui
-  n'a pas pu correspondre ». Trouvé en revue scellée (2 sièges, convergents), corrigé ici.
-- **Une version antérieure de ce paragraphe figeait un SHA de base et un décompte de commits
-  comme preuve** ; la première avance de `main` a suffi à les rendre faux, avant même le
-  merge. Une version suivante figeait une date de mesure — corrigée à son tour après qu'une
-  revue l'a trouvée en avance sur tous les autres horodatages de l'arbre (une mesure ne peut
-  pas dater d'après l'instant le plus récent que l'arbre s'attribue ailleurs). Ce qui est
-  affirmé ici n'est **borné à aucune des deux** : rejouée sur `origin/main`, cette commande
-  (avec `-i`) rend une sortie vide. Rejouée en remplaçant `origin/main` par le `HEAD` de cette
-  branche — qui porte déjà tous les fichiers que le merge apportera — elle rend également une
-  sortie vide : c'est ce qui borne l'effet d'un rebase, d'un squash, d'un amend ou du merge de
-  cette branche, sans avoir à le déduire. Le résultat ne survit en revanche **pas de droit** à
-  l'avance de `main` : un commit ultérieur qui réintroduirait la formulation rendrait la
-  sortie non vide.
+  n'a pas pu correspondre ».
+- **Borné par construction, pas par une valeur figée.** Rejouée sur `origin/main`, cette
+  commande (avec `-i`) rend une sortie vide. Rejouée en remplaçant `origin/main` par le `HEAD`
+  de cette branche — qui porte déjà tous les fichiers que le merge apportera — elle rend
+  également une sortie vide : c'est ce qui borne l'effet d'un rebase, d'un squash, d'un amend
+  ou du merge de cette branche, sans avoir à citer ni SHA ni date. Le résultat ne survit en
+  revanche **pas de droit** à l'avance de `main` : un commit ultérieur qui réintroduirait la
+  formulation rendrait la sortie non vide.
   **La commande est à rejouer, pas à croire.** Ce que sa sortie vide établit : en dehors de la
   lignée de ce document, aucun commit alors présent dans l'historique interrogé n'a ajouté ni
   retiré cette formulation, sous aucune casse.
-
-Cette vérification a échoué plusieurs fois avant de tenir, et chaque correction avait
-déplacé le défaut au lieu de l'éliminer : d'abord un `git grep` sans révision, qui
-n'interroge jamais l'historique ; puis un `git log --pickaxe-regex` correct mais sans
-exclure ce document de ses propres preuves ; puis une version qui excluait bien ce document
-mais figeait le résultat sur une révision et un décompte que la seule avance de `main`
-suffisait à réfuter ; puis une version datée et bornée mais sensible à la casse sans le
-dire, trouvée par revue scellée indépendante plutôt que par une relecture de plus — quatre
-tours, quatre classes de défaut distinctes, jamais la même deux fois. Aucun décompte de ces
-tentatives n'est retenu ici : il faudrait le maintenir, et c'est exactement la dette que
-cette section a pour rôle de ne pas contracter.
 
 ## Conséquences
 

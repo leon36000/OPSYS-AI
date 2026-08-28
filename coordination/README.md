@@ -52,21 +52,12 @@
   l'exception avec un traceback et un exit 1 indiscernable, pour l'appelant, d'une table
   lue et non conforme. Motif du changement : voir `coordination/CLAUDE-STATUS.md`.
 
-  **Ce validateur n'est câblé dans aucun job CI.** Raison assumée, pas un oubli — mais pas
-  non plus celle qu'une version antérieure de ce paragraphe donnait : un job CI câblé
-  *pourrait* rester additif (un nouveau fichier de workflow porterait le statut `A` comme les
-  autres fichiers de cette PR, tous en statut `A`, sans modifier `.github/workflows/ci.yml`),
-  donc l'additivité de cette PR
-  n'est pas, en soi, ce qui empêche le câblage — cette justification-là était fausse, trouvée
-  et retirée en revue. La raison réelle est de mission : le mandat de #564 est d'installer
-  l'overlay de coordination, pas d'ajouter une porte CI ; câbler une garde qui bloquerait
-  potentiellement les PR futures mérite sa propre revue, dédiée, distincte de celle-ci. Le
-  câblage relève donc d'une mission séparée, ouverte après le merge de #564, et non d'un
-  ajout ici. Tant qu'il n'a pas lieu, l'exécution reste manuelle et
-  déclarative, à la charge de qui active une mission. Présenter cette
-  garde comme câblée en CI alors qu'elle ne l'est pas serait le défaut d'un validateur
-  livré sans être branché nulle part — on ne le reproduit pas ici : la limite est écrite,
-  pas cachée. Autre limite, plus décisive, à ne pas taire non plus :
+  **Ce validateur n'est câblé dans aucun job CI.** Raison assumée, pas un oubli : le mandat de
+  #564 est d'installer l'overlay de coordination, pas d'ajouter une porte CI — câbler une garde
+  qui bloquerait potentiellement les PR futures mérite sa propre revue, dédiée, distincte de
+  celle-ci (mission séparée, ouverte après le merge de #564). Tant qu'il n'a pas lieu,
+  l'exécution reste manuelle et déclarative, à la charge de qui active une mission. Autre
+  limite, plus décisive, à ne pas taire non plus :
   `COORDINATION_OK` atteste uniquement la **forme** de la table (en-tête présent,
   énumérations valides, Work ID unique, scopes relatifs bien formés, aucune collision de
   branche ou de chemin entre lignes actives) — jamais sa concordance avec l'état réel sur

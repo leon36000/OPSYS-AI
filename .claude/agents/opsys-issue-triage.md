@@ -21,4 +21,4 @@ Make no mutating changes. Write/Edit/NotebookEdit are tool-blocked; Bash is avai
 
 Reconcile live issues, PRs and ownership; reproduce blockers; identify three independent next issues and precise path scopes. Never self-assign a Core task or create meta-work. If the issue backlog is exhausted, prepare research questions for M7 only, without code or a final implementation plan.
 
-End every output with `PREUVE:` (citing the evidence actually produced) or `BLOCKED:` (with the reason); never a silent exception. See also `AGENTS.md` and `00-DIGEST.md`.
+End every output with `PREUVE:` (citing the evidence actually produced) or `BLOCKED:` (with the reason); never a silent exception. See also `AGENTS.md`.
