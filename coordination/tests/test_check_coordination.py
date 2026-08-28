@@ -586,9 +586,16 @@ def test_module_code_during_core_normalise_lantislash(tmp_path):
     # n'avait, jusqu'ici, AUCUN test qui l'exerce réellement. La fixture antislash déjà
     # présente dans ce fichier (test_scope_traversee_refusee_antislash_et_slash, scope
     # "foo\..\modules m\M7") donne l'ILLUSION de couvrir cette graphie pour l'interdit
-    # ADR-0004, mais elle porte aussi un ".." : elle est rejetée par valid_scope() AVANT
-    # d'atteindre MODULE_CODE_DURING_CORE (mesuré : sortie réelle "SCOPE:ISS-A:...", MODULE_
-    # CODE_DURING_CORE jamais émis pour cette entrée précise). Ce test-ci retire le ".." :
+    # ADR-0004, mais elle porte aussi un ".." — imprécision de mécanisme corrigée ici
+    # (revue scellée, tour 9 de #598, sièges 2 et 3 convergents) : validate() n'a AUCUN
+    # court-circuit entre SCOPE et MODULE_CODE_DURING_CORE, ce sont deux `if` séquentiels
+    # indépendants (mesuré : un scope "modules m/M7; /absolu" émet les DEUX en même temps,
+    # SCOPE ET MODULE_CODE_DURING_CORE — un scope invalide ATTEINT donc bien l'interdit
+    # ADR-0004). La cause réelle de la non-émission pour CETTE entrée précise est que
+    # PurePosixPath ne normalise pas ".." : "foo/../modules m/m7" n'est ni égal, ni
+    # parent, ni descendant de "modules m" (mesuré : sortie réelle "SCOPE:ISS-A:...",
+    # MODULE_CODE_DURING_CORE jamais émis pour cette entrée-là spécifiquement — l'effet
+    # observé reste exact, seule la cause invoquée changeait). Ce test-ci retire le ".." :
     # un scope antislash SANS traversée doit passer valid_scope() et être intercepté
     # uniquement par MODULE_CODE_DURING_CORE.
     p = write(tmp_path, "t.md", table(row(scope="modules m\\M7")))
