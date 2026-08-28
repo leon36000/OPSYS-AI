@@ -6,5 +6,6 @@
   "single_owner_per_work": true,
   "source_zip": "OPSYS-AI-CLAUDE-ISSUES-AUTONOMOUS-v1.4.zip",
   "source_zip_sha256": "9e2406f8b3dd08254a587d04b3d2af71fc728262b50f6ac91a40214cb2f4c16d",
+  "source_zip_note": "Cette entree ne couvre que la source majoritaire (v1.4). CODEX-QUEUE.md, CODEX-STATUS.md et docs/decisions/ADR-0004-independent-agent-ownership.md sont derives du pack OPSYS-AI-CLAUDE-ISSUES-OPERATIONS-v1.2 a la place -- v1.4 n'a plus de repo-overlay/ ni d'ADR a cet emplacement. Detail et sha256 par fichier : coordination/README.md et docs/decisions/ADR-0004-independent-agent-ownership.md.",
   "version": "1.4"
 }

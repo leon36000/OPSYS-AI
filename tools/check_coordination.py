@@ -182,16 +182,26 @@ def _chemin_sur(brut: str, *, pour_ecriture: bool = False) -> Path:
     """
     if "\x00" in brut:
         raise OSError("le chemin contient un octet nul")
+    try:
+        if pour_ecriture:
+            chemin = Path(brut).resolve(strict=False)
+        else:
+            chemin = Path(brut).resolve(strict=True)
+    except RuntimeError as exc:
+        # resolve() leve RuntimeError (pas OSError) sur une boucle de liens
+        # symboliques -- echappe aux deux except de main(), exit 1 + traceback,
+        # stdout vide. Reconverti en OSError ici pour que le contrat exit 2
+        # tienne sur CETTE classe d'entree aussi, sans elargir les except de
+        # main() a RuntimeError (qui masquerait un bug distinct, sans rapport
+        # avec un chemin, survenant plus loin dans validate()/parse_rows()).
+        raise OSError(str(exc)) from exc
     if pour_ecriture:
-        chemin = Path(brut).resolve(strict=False)
         if not chemin.parent.is_dir():
             raise OSError(f"repertoire de sortie inexistant : {chemin.parent}")
         if chemin.exists() and not chemin.is_file():
             raise OSError(f"la cible existe et n'est pas un fichier regulier : {chemin}")
-    else:
-        chemin = Path(brut).resolve(strict=True)
-        if chemin.is_dir():
-            raise OSError(f"n'est pas un fichier regulier : {chemin}")
+    elif chemin.is_dir():
+        raise OSError(f"n'est pas un fichier regulier : {chemin}")
     return chemin
 
 

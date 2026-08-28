@@ -261,7 +261,14 @@ Mesuré à HEAD : chemin = répertoire → `LECTURE_IMPOSSIBLE:n'est pas un fich
 ...`, exit 2 ; `--json-output` vers cible non inscriptible → `SORTIE_IMPOSSIBLE:...`, exit 2 ;
 FIFO nommé lisible en entrée → `COORDINATION_OK`, comme avant `_chemin_sur()` ; substitution
 de processus en entrée → `LECTURE_IMPOSSIBLE:[Errno 2] No such file or directory: '/proc/.../
-pipe:[...]'`, exit 2 — limite assumée, ci-dessus. Contrat : 0 = table lue et conforme ;
+pipe:[...]'`, exit 2 — limite assumée, ci-dessus ; boucle de liens symboliques, en entrée
+comme en cible `--json-output` → `LECTURE_IMPOSSIBLE:Symlink loop from '<chemin>'` /
+`SORTIE_IMPOSSIBLE:Symlink loop from '<chemin>'`, exit 2 des deux côtés — `resolve()` lève
+`RuntimeError` sur ce cas précis, jamais `OSError` ; trouvé en revue scellée (le seul défaut
+CRITIQUE/MAJEURE du tour suivant celui qui a fermé le FIFO), fermé en reconvertissant cette
+`RuntimeError` en `OSError` dans `_chemin_sur()` elle-même plutôt qu'en élargissant les
+`except` de `main()`, pour ne pas capturer au passage une `RuntimeError` sans rapport,
+survenue plus loin dans `validate()`/`parse_rows()`. Contrat : 0 = table lue et conforme ;
 1 = table lue, non conforme ; 2 = aucun verdict de conformité exploitable. Documenté dans
 `coordination/README.md`, à côté de
 `COORDINATION_OK`.

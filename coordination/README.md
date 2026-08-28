@@ -55,7 +55,8 @@
   **Ce validateur n'est câblé dans aucun job CI.** Raison assumée, pas un oubli — mais pas
   non plus celle qu'une version antérieure de ce paragraphe donnait : un job CI câblé
   *pourrait* rester additif (un nouveau fichier de workflow porterait le statut `A` comme les
-  seize autres, sans modifier `.github/workflows/ci.yml`), donc l'additivité de cette PR
+  autres fichiers de cette PR, tous en statut `A`, sans modifier `.github/workflows/ci.yml`),
+  donc l'additivité de cette PR
   n'est pas, en soi, ce qui empêche le câblage — cette justification-là était fausse, trouvée
   et retirée en revue. La raison réelle est de mission : le mandat de #564 est d'installer
   l'overlay de coordination, pas d'ajouter une porte CI ; câbler une garde qui bloquerait
