@@ -66,8 +66,12 @@ sans rien prouver si la commande est rejouée depuis un sous-répertoire, mesur�
 tête sur chacune des deux exclusions les ancre pareillement : sans lui, `:!chemin` reste
 relatif au répertoire courant et cesse d'exclure quoi que ce soit dès qu'on rejoue la
 commande depuis un sous-répertoire — ce document se recompterait alors lui-même parmi ses
-propres preuves. Mesuré depuis `coordination/` : sortie vide avec le `/` de tête sur les
-deux exclusions, non vide sans lui.)
+propres preuves. Même précision de révision que le contrôle positif ci-dessous, revue
+scellée (tour 9) : ce contraste ne se mesure PAS contre `origin/main`, qui rend une sortie
+vide dans les deux cas — avec ou sans le `/` de tête — faute d'occurrence à y trouver (ce
+document n'y existe pas encore). Mesuré depuis `coordination/` contre le `HEAD` de cette
+branche, qui porte déjà ce document : sortie vide avec le `/` de tête sur les deux
+exclusions, non vide sans lui.)
 
 Trois propriétés de cette formulation, et rien d'autre :
 

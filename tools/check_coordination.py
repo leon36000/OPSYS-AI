@@ -191,7 +191,7 @@ def _chemin_sur(brut: str, *, pour_ecriture: bool = False) -> Path:
     lisait deja sans encombre avant l'introduction de cette fonction.
     Retrecissement de comportement jamais annonce comme tel.
 
-Fermee pour le FIFO nomme : `elif chemin.is_dir()` n'exclut plus que les
+    Fermee pour le FIFO nomme : `elif chemin.is_dir()` n'exclut plus que les
     repertoires — un FIFO resout normalement (c'est un vrai chemin existant)
     et n'est pas un repertoire, donc passe. `/dev/stdin` ne passe QUE sur
     redirection depuis un fichier regulier (`tool /dev/stdin < f`,
@@ -246,23 +246,32 @@ Fermee pour le FIFO nomme : `elif chemin.is_dir()` n'exclut plus que les
         # avec un chemin, survenant plus loin dans validate()/parse_rows()).
         raise OSError(str(exc)) from exc
     if pour_ecriture:
+        if not chemin.parent.exists():
+            # !a (ascii()), pas str() ni repr() nu : un chemin argv non-UTF-8 est deja
+            # decode avec surrogateescape (PEP 383), donc `chemin` peut porter des
+            # surrogates bas (\udcXX) -- str() les laisse tels quels. Revue scellee
+            # (tour 9) : repr() (essaye d'abord) les echappe bien, MAIS laisse passer
+            # tel quel tout caractere non-ASCII VALIDE (ex. e accentue) -- suffisant tant
+            # que stdout encode en UTF-8, mais PYTHONIOENCODING=ascii (mesure) fait alors
+            # lever UnicodeEncodeError au print() de main(), non intercepte -- exit 1 +
+            # traceback, stdout vide, meme famille de fail-open. ascii() echappe les DEUX
+            # classes en une seule forme (mesure ASCII-sur dans tous les cas testes),
+            # pour un cout de lisibilite nul sur le cas courant. Les OSError levees par
+            # le systeme (FileNotFoundError, etc.) n'ont jamais ce probleme : leur str()
+            # passe deja par un repr() interne du nom de fichier -- seuls CES TROIS
+            # messages, construits ici a la main, y echappaient.
+            raise OSError(f"repertoire de sortie inexistant : {chemin.parent!a}")
         if not chemin.parent.is_dir():
-            # !r, pas str() nu : un chemin argv non-UTF-8 est deja decode avec
-            # surrogateescape (PEP 383), donc `chemin` peut porter des surrogates
-            # bas (\udcXX). str() les laisse tels quels dans le message ; le print()
-            # de main() sur ces trois lignes tente ensuite un encode('utf-8') strict
-            # et leve UnicodeEncodeError, non intercepte -- exit 1 + traceback, stdout
-            # vide, EXACTEMENT le fail-open que ce fichier existe pour fermer, sur une
-            # classe d'entree que rien ici ne nommait. repr() echappe les surrogates
-            # en ASCII imprimable (mesure : encodable utf-8 dans tous les cas testes).
-            # Les OSError levees par le systeme (FileNotFoundError, etc.) n'ont jamais
-            # ce probleme : leur str() passe deja par un repr() interne du nom de
-            # fichier -- seuls CES TROIS messages, construits ici a la main, y echappaient.
-            raise OSError(f"repertoire de sortie inexistant : {chemin.parent!r}")
+            # Distinct du cas ci-dessus (revue scellee, tour 9) : un parent qui EXISTE
+            # mais n'est pas un repertoire (ex. --json-output vers un chemin dont un
+            # segment intermediaire est un fichier regulier) rendait le meme message
+            # "inexistant", faux -- is_dir() est False dans les deux cas, seule la
+            # branche exists() distingue les deux causes reelles.
+            raise OSError(f"le parent de la sortie n'est pas un repertoire : {chemin.parent!a}")
         if chemin.exists() and not chemin.is_file():
-            raise OSError(f"la cible existe et n'est pas un fichier regulier : {chemin!r}")
+            raise OSError(f"la cible existe et n'est pas un fichier regulier : {chemin!a}")
     elif chemin.is_dir():
-        raise OSError(f"est un repertoire : {chemin!r}")
+        raise OSError(f"est un repertoire : {chemin!a}")
     return chemin
 
 
@@ -272,7 +281,8 @@ def main() -> int:
     parser.add_argument("--json-output")
     args = parser.parse_args()
     try:
-        data, errors = validate(_chemin_sur(args.ownership))
+        chemin_entree = _chemin_sur(args.ownership)
+        data, errors = validate(chemin_entree)
     except (OSError, UnicodeDecodeError) as exc:
         # exit 2 = aucun verdict de conformite exploitable, la table n'a jamais ete lue.
         # Sans interception, l'exception remontait non captee : exit 1 avec traceback,
@@ -291,10 +301,20 @@ def main() -> int:
     if args.json_output is not None:
         try:
             chemin_sortie = _chemin_sur(args.json_output, pour_ecriture=True)
+            if chemin_sortie == chemin_entree:
+                # Fail-open trouve en revue scellee (tour 9) : --json-output pointant sur
+                # le MEME chemin que `ownership` (faute de frappe la plus simple) rendait
+                # exit 0 / COORDINATION_OK en silence, apres avoir ECRASE la table qui
+                # venait d'etre validee par le JSON de son propre resultat -- destruction
+                # silencieuse, meme famille que celle documentee pour .claude/settings.json.
+                # _chemin_sur() a deja resolu les deux chemins (liens symboliques et `..`
+                # compris) : une simple egalite de Path suffit, pas de nouvelle resolution.
+                raise OSError("la sortie --json-output ecraserait le fichier ownership lui-meme")
             chemin_sortie.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         except OSError as exc:
             # Meme raison que ci-dessus : sans interception, une table lue ET conforme
-            # rendait quand meme exit 1 (traceback) si --json-output n'etait PAS inscriptible.
+            # rendait quand meme exit 1 (traceback) si --json-output n'etait PAS inscriptible
+            # -- ou, depuis ce commit, si --json-output visait la table elle-meme.
             print(f"SORTIE_IMPOSSIBLE:{exc}")
             return 2
     if errors:

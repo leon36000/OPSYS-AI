@@ -119,8 +119,17 @@ fixtures et `./coordination;./modules m/M7` → `MODULE_CODE_DURING_CORE:<id>`, 
 
 ### `BRANCH_COLLISION` — sentinelle `n/a` exemptée
 
-`WORK-OWNERSHIP.md` utilise `n/a` comme branche des missions `read-only` (`BRANCH` l'autorise
-explicitement en ligne active). `BRANCH_COLLISION` comparait les branches brutes sans cette
+**Exception assumée au critère de conservation ci-dessus** (revue scellée, tour 9) : cet
+écart va dans le sens INVERSE des autres — le pack rend `BRANCH_COLLISION` à tort sur deux
+missions `read-only` actives, ce fichier le lève. Gardé pour la même raison que les « 148
+tâches » de `CODEX-QUEUE.md` sont gardées verbatim malgré la doctrine anti-décompte : un
+correctif d'expressivité mesuré, pas la fermeture d'un fail-open, mais nécessaire pour que
+deux missions `read-only` actives restent exprimables.
+
+`WORK-OWNERSHIP.md` utilise `n/a` comme branche des missions `read-only`. Le contrôle `BRANCH`
+ne le refuse pas — il rejette seulement `main`/`master`/vide en ligne active (`branch.lower()
+in {"main", "master", ""}`), une liste de refus où `n/a` n'apparaît pas, ce qui n'équivaut
+pas à une autorisation explicite. `BRANCH_COLLISION` comparait les branches brutes sans cette
 exemption, symétrique de celle que `SCOPES_HORS_COLLISION` donne déjà à `read-only` côté scope
 — deux missions `read-only` actives, toutes deux `n/a`, devenaient donc inexprimables. Fermé :
 `n/a` (casefold) exempté, comme `read-only` l'est pour `PATH_COLLISION`. Mesuré à HEAD : deux
@@ -158,7 +167,7 @@ de processus → `LECTURE_IMPOSSIBLE:[Errno 2]...`, exit 2 ; boucle de liens (le
 → `LECTURE_IMPOSSIBLE`/`SORTIE_IMPOSSIBLE:Symlink loop from '<chemin>'`, exit 2. Contrat :
 0 = table lue et conforme, 1 = table lue et non conforme, 2 = aucun verdict exploitable.
 
-Fermé aussi ici (tour 8) : un chemin argv non-UTF-8 (décodé par Python avec
+Fermé aussi ici (tour 8, affiné tour 9) : un chemin argv non-UTF-8 (décodé par Python avec
 `surrogateescape`, PEP 383) faisait échapper les trois messages `OSError` propres à cette
 fonction (répertoire de sortie inexistant, cible non régulière, cible = répertoire) —
 `str(chemin)` y porte alors des surrogates bas, et le `print()` de `main()` sur
@@ -167,9 +176,25 @@ exit 1 avec traceback, stdout vide, indiscernable d'une table non conforme — l
 que ce fichier existe pour fermer, réintroduit sur une classe d'entrée non testée jusque
 -là. Les `OSError` levées par le système (`FileNotFoundError`, etc.), elles, n'ont jamais
 ce problème : leur `str()` interne repr déjà le nom de fichier. Fermé en formatant le
-chemin par `repr()` (`!r`) plutôt que `str()` dans ces trois messages précis. Mesuré :
-répertoire cible et `--json-output` de nom non-UTF-8 → `LECTURE_IMPOSSIBLE`/
-`SORTIE_IMPOSSIBLE`, exit 2 dans les deux cas (au lieu d'exit 1 avec traceback à tort).
+chemin par `ascii()` (`!a`) plutôt que `str()` dans ces trois messages précis — `repr()`
+(`!r`, essayé d'abord au tour 8) échappe bien les surrogates mais laisse passer tel quel
+tout caractère non-ASCII valide, qui casse à son tour sous `PYTHONIOENCODING=ascii` (mesuré
+au tour 9) ; `ascii()` échappe les deux classes en une seule forme. Mesuré : répertoire
+cible et `--json-output` de nom non-UTF-8 → `LECTURE_IMPOSSIBLE`/`SORTIE_IMPOSSIBLE`,
+exit 2 dans les deux cas (au lieu d'exit 1 avec traceback à tort).
+
+Deux affinages supplémentaires au tour 9, tous deux mesurés avant correction : le message
+« répertoire de sortie inexistant » sortait aussi quand le parent de la cible EXISTE mais
+n'est pas un répertoire (`is_dir()` est faux dans les deux cas) — distingué par un test
+`exists()` séparé, message dédié « le parent de la sortie n'est pas un répertoire » pour ce
+second cas. Et `--json-output` pointant sur le même chemin (résolu) que l'argument
+`ownership` écrasait silencieusement la table qui venait d'être validée par le JSON de son
+propre résultat, exit 0 — même famille que l'écrasement documenté pour
+`.claude/settings.json` plus bas, mais non gardé ici jusqu'ici. Fermé : `SORTIE_IMPOSSIBLE`,
+exit 2, si les deux chemins résolus coïncident. Mesuré : `tool w.md --json-output w.md`,
+avant correctif → `COORDINATION_OK` exit 0 et `w.md` réduit au JSON de résultat ; après
+correctif → `SORTIE_IMPOSSIBLE:la sortie --json-output ecraserait le fichier ownership
+lui-meme`, exit 2, fichier d'entrée intact.
 
 ### Diff contre le pack
 
@@ -195,7 +220,7 @@ foi de l'état GitHub.
 | Work ID | Branche | État |
 |---|---|---|
 | OPS-OVERLAY-INSTALL | `claude/ops/install-coordination-overlay` | PR #564 |
-| LIVE-ISSUE-RECONCILIATION | read-only | triage live — issues #565, #568, #576 ; PR #567, #571 |
+| LIVE-ISSUE-RECONCILIATION | `n/a` | triage live, scope `read-only` — issues #565, #568, #576 ; PR #567, #571 |
 
 Cohérent avec `WORK-OWNERSHIP.md` et `python3 -B tools/check_coordination.py
 coordination/WORK-OWNERSHIP.md` (`active=2`).
