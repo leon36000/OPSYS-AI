@@ -20,7 +20,12 @@
 # `coordination/CLAUDE-STATUS.md` garde le détail narratif des durcissements, ce fichier en
 # garde la preuve rejouable. Invocation en subprocess réel (comme
 # scripts/tests/test_methode.py) : ce qui compte ici est le contrat CLI — exit code + préfixe
-# sur stdout — pas l'appel direct des fonctions internes.
+# sur stdout — pas l'appel direct des fonctions internes. Précision (AUD-QUAL-008, #600) :
+# deux fixtures dédiées épinglent en outre l'ORDRE RELATIF de plusieurs lignes d'erreur par
+# égalité EXACTE de `stdout.splitlines()` (pas seulement leur préfixe ou leur présence) —
+# l'ordre INTERNE à chaque groupe de contrôles (`_erreurs_structurelles()`,
+# `_erreurs_de_propriete()`, les paires de `_erreurs_de_collision()`) reste, lui, hors de ce
+# contrat, non épinglé par ce fichier à ce jour.
 #
 # Lancer seul : python3 -m pytest coordination/tests/ (hors testpaths par défaut de
 # pytest.ini — dont le contenu exact n'est pas recopié ici, voir coordination/README.md).
@@ -1111,19 +1116,25 @@ def test_ordre_erreur_structurelle_avant_erreur_de_propriete_sur_meme_ligne(tmp_
 
 def test_ordre_erreurs_de_ligne_avant_erreurs_de_collision(tmp_path):
     # Pendant du test ci-dessus, au niveau de validate() plutôt que de
-    # _erreurs_de_ligne() : les erreurs PAR LIGNE (boucle `for row in data`) doivent
-    # précéder toutes les erreurs DE PAIRE (boucle `for idx, left in enumerate(active)`
-    # sur `_erreurs_de_collision()`), comme le faisait le bloc linéaire unique avant
-    # l'éclatement. Mesuré : déplacer l'appel à `_erreurs_de_collision()` avant la
-    # boucle par ligne dans validate() laisse toutes les fixtures d'alors vertes, pour
-    # la même raison que le test ci-dessus — aucune n'affirme un ordre entre les DEUX
-    # familles de contrôle.
+    # _erreurs_de_ligne() : les erreurs PAR LIGNE (produites en appelant
+    # _erreurs_de_ligne() sur chaque ligne) doivent précéder toutes les erreurs DE
+    # PAIRE (produites par _erreurs_de_collision()), comme le faisait le bloc
+    # linéaire unique avant l'éclatement — désignées par NOM de fonction plutôt que
+    # par graphie de boucle, moins sensible à un refactor futur de validate() (revue
+    # scellée, tour 1 de #601, siège 2). Mesuré : déplacer l'appel à
+    # _erreurs_de_collision() avant la boucle par ligne dans validate() laisse
+    # toutes les fixtures d'alors vertes, pour la même raison que le test ci-dessus
+    # — aucune n'affirme un ordre entre les DEUX familles de contrôle.
     #
     # Deux lignes actives de même branche et même scope (BRANCH_COLLISION et
     # PATH_COLLISION, une paire) ; la première porte en prime une erreur PAR LIGNE
     # (OWNER, puis ISSUE_OWNER — Work ID "ISS-A" matche CLAUDE_RE) pour vérifier que
     # les erreurs de ligne de CETTE ligne précèdent bien les erreurs de paire, pas
-    # seulement celles d'une ligne antérieure.
+    # seulement celles d'une ligne antérieure. Couverture bonus, non revendiquée par
+    # le nom du test mais mesurée (revue scellée, tour 1 de #601, sièges 1 et 2) :
+    # cette même égalité de liste épingle aussi BRANCH_COLLISION avant PATH_COLLISION
+    # à l'intérieur de _erreurs_de_paire() — un réordonnancement interne à cette
+    # fonction ferait donc rougir ce test aussi, pas seulement le sien.
     p = write(tmp_path, "t.md", table(
         row(work_id="ISS-A", owner="BADOWNER", branch="claude/x", scope="coordination"),
         row(work_id="ISS-B", owner="CLAUDE", branch="claude/x", scope="coordination"),
