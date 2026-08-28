@@ -147,11 +147,11 @@ def test_separator_re_ne_confond_pas_une_ligne_de_donnees_avec_un_separateur(tmp
     assert "MODULE_CODE_DURING_CORE:---X" in r.stdout
 
 
-def test_separator_re_epingle_lancre_de_fin_et_le_quantificateur(tmp_path):
+def test_separator_re_epingle_lancre_de_fin_et_les_deux_quantificateurs(tmp_path):
     # Pendant du test ci-dessus, jamais exercé avant ce correctif (revue scellée, tour 7
     # de #598, sièges 1/2/3 convergents — seule la sévérité diverge, MAJEURE au siège 1) :
     # SEPARATOR_RE = ^\|(-+\|)+$ n'était épinglé QUE sur son préfixe nu, jamais sur son
-    # ancre "$" ni sur son quantificateur "-+". Le Work ID "---X" ci-dessus a un
+    # ancre "$" ni sur son quantificateur INTERNE "-+". Le Work ID "---X" ci-dessus a un
     # caractère APRÈS les tirets ; il ne discrimine donc ni l'un ni l'autre. Mesuré :
     # retirer "$" laisse les 60 tests d'alors verts tout en rendant un faux
     # COORDINATION_OK RÉEL — une ligne de donnée dont la PREMIÈRE cellule est
@@ -176,6 +176,20 @@ def test_separator_re_epingle_lancre_de_fin_et_le_quantificateur(tmp_path):
     r2 = run([str(p2)])
     assert r2.returncode == 1
     assert "MALFORMED_ROW:3:1" in r2.stdout
+
+    # Quantificateur EXTERNE (le groupe "(-+\|)+" lui-même, distinct du "-+" interne
+    # ci-dessus) — trouvé UNANIME par les trois sièges du tour 10, seul survivant à
+    # transition exit 1 -> exit 0 de leurs trois campagnes indépendantes : le nom
+    # (« le quantificateur », au singulier) et la fixture ci-dessus ne discriminaient que
+    # l'interne, jamais l'externe. Mesuré : muter "(-+\|)+$" en "(-+\|)*$" laisse les 67
+    # tests d'alors verts, tout en faisant passer une ligne de DONNÉE réduite à un pipe
+    # unique (0 répétition du groupe, donc matché par le "*" mais pas par le "+") de
+    # "MALFORMED_ROW:3:1" à "COORDINATION_OK rows=0 active=0" — un vrai faux vert, mais
+    # sur une ligne qui ne porte aucune donnée de travail, contrairement au cas de "$".
+    p3 = write(tmp_path, "t3.md", HEADER + SEP + "|\n")
+    r3 = run([str(p3)])
+    assert r3.returncode == 1
+    assert "MALFORMED_ROW:3:1" in r3.stdout
 
 
 def test_separateur_espace_reste_non_reconnu_fail_closed(tmp_path):
@@ -1008,6 +1022,28 @@ def test_cellule_accentuee_sous_stdout_ascii_ne_plante_pas(tmp_path):
     assert r.stderr == ""  # aucun traceback
 
 
+def test_cellule_accentuee_reste_lisible_sous_locale_non_utf8(tmp_path):
+    # Pendant côté LECTURE du test ci-dessus, qui ne couvre que la SORTIE (stdout) —
+    # jamais exercé avant ce correctif (revue scellée, tour 10 de #598, siège 2, contraste
+    # personnellement reproduit après un premier essai infructueux au tour 9 : LC_ALL=C
+    # SEUL ne suffit pas, PYTHONUTF8=0 est requis pour que Python renonce au repli UTF-8 de
+    # la PEP 540). `path.read_text(encoding="utf-8")` dans parse_rows() n'avait aucune
+    # fixture dédiée à son argument `encoding` : le retirer laisse les 67 tests d'alors
+    # verts, tout en faisant échouer LA LECTURE d'une cellule accentuée — pourtant légitime
+    # — sous une locale non-UTF-8 délibérée. Mesuré sur le validateur réel : sans le
+    # correctif, `LC_ALL=C PYTHONUTF8=0` sur une table valide à scope accentué rend
+    # `COORDINATION_OK` exit 0 ; muté, `LECTURE_IMPOSSIBLE:'ascii' codec can't decode
+    # byte...` exit 2 — cible réaliste, `coordination/WORK-OWNERSHIP.md` porte aujourd'hui
+    # 15 lignes non-ASCII (français accentué). Fail-closed (jamais un faux COORDINATION_OK,
+    # seul contrat que ce fichier se donne) et hors de tout usage documenté de cet outil
+    # (jamais invoqué sous une locale non-UTF-8 dans ce dépôt), d'où non bloquant.
+    p = write(tmp_path, "t.md", table(row(scope="coordination/répertoire-accentué")))
+    env = {**os.environ, "LC_ALL": "C", "LANG": "C", "PYTHONUTF8": "0"}
+    r = run([str(p)], env=env)
+    assert r.returncode == 0
+    assert r.stdout.strip() == "COORDINATION_OK rows=1 active=1"
+
+
 def test_stdout_ferme_reste_silencieux_sans_lever_attributeerror(tmp_path):
     # Régression du tour 10 fermée au tour 11 : sys.stdout.reconfigure() plantait
     # (AttributeError) quand le descripteur de sortie standard était déjà fermé au
@@ -1023,7 +1059,15 @@ def test_stdout_ferme_reste_silencieux_sans_lever_attributeerror(tmp_path):
         text=True,
     )
     assert proc.returncode == 0
-    assert proc.stderr == ""
+    # Assertion volontairement restreinte à la signature de traceback, pas à une
+    # égalité stricte avec la chaîne vide (revue scellée, tour 10 de #598, siège 1) :
+    # `proc.stderr` capture le stderr du SHELL INTERMÉDIAIRE `sh -c`, pas seulement
+    # celui du validateur — observé réellement en revue (répertoire courant supprimé
+    # par un accès concurrent pendant l'exécution) : dash y émet alors « sh: 0:
+    # getcwd() failed: ... », un bruit qui ne vient pas du script testé, et qu'une
+    # égalité stricte imputerait à tort à une régression du validateur.
+    assert "AttributeError" not in proc.stderr
+    assert "Traceback" not in proc.stderr
 
 
 # ---------------------------------------------------------------------------
