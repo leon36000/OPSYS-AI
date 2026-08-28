@@ -1,0 +1,19 @@
+{
+ "verdict": "APPROVE",
+ "objections": [
+  {
+   "severite": "mineure",
+   "fichier": "core/tests/bootstrap/test_root_canon_entrypoints.py",
+   "description": "Aucune sortie d'exécution RED (base 1d0393e) / GREEN (candidate) ni log de suites existantes n'est fournie dans le pack ; la conformité est vérifiable par lecture du test, mais la preuve d'exécution reste à valider par CI externe comme prévu au contrat de vérification.",
+   "preuve": "pack contient uniquement le diff verbatim, aucun log pytest ou sortie CI"
+  }
+ ],
+ "date_heure": "2026-08-28T02:03:49.885037+00:00",
+ "prompt_sha256": "7eabe858221b6c71ccca21f5af7222399bfba31bd3fabe68a1a2602b92e2e8dc",
+ "reviewer_model": "Muse-Spark-1.2-Contributor",
+ "modele_servi": "muse-spark-12-contributor-openrouter",
+ "gateway_resilience": {
+  "retries": "0",
+  "fallbacks": "0"
+ }
+}

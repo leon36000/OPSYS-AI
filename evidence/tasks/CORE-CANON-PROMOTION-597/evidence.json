@@ -1,0 +1,83 @@
+{
+  "task_id": "CORE-CANON-PROMOTION-597",
+  "description": "PR #597 — promotion de docs/core/CANON-INDEX.md comme point d'entrée canonique unique et réduction des fichiers racine en portails/adaptateurs dérivés.",
+  "issue": "https://github.com/leon36000/OPSYS-AI/pull/597",
+  "branche": "codex/canon-promotion-v14",
+  "base": "origin/main @ 1d0393e12cc61a6c9e12ac7718abc0603614e687",
+  "base_tree": "2d1a061cca253f49fb7401462dccf49fcdbf6766",
+  "reviewed_commit": "f46bd1ee39a101add32c0ae920c3707c0b477c1f",
+  "reviewed_tree": "987eac9e04b639e5bcc81ed6cb38b40811f6a54d",
+  "code_diff_sha256": "ac6eb9d01e8f4bf71936e31440d3f1c1f50d5829ba45c448ec8b2da26f373120",
+  "code_diff_sha256_scope": "git diff origin/main...HEAD -- core/ tools/proof/ .opsys/tools/github-control/ .github/workflows/core-ci.yml .github/workflows/ci.yml scripts/ ; calculé par core/scripts/verify_proof_sealed.py",
+  "diff_verbatim_sha256": "faab10fee40e9521d2ac27dd5155489c0c4d8bb50c45597c083c9a45aa07e4c7",
+  "sealed_at": "2026-08-28T03:04:47Z",
+  "verification": {
+    "red": {
+      "base": "origin/main @ 1d0393e12cc61a6c9e12ac7718abc0603614e687",
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m pytest core/tests/bootstrap/test_root_canon_entrypoints.py -q",
+      "result": "3 échecs déterministes sur la base : index canonique absent et adaptateurs racine encore historiques."
+    },
+    "green": [
+      "PYTHONDONTWRITEBYTECODE=1 python3 -m pytest core/tests/bootstrap/test_root_canon_entrypoints.py -q : 3 passed",
+      "PYTHONDONTWRITEBYTECODE=1 python3 -m pytest scripts/tests -q : exit 0",
+      "PYTHONDONTWRITEBYTECODE=1 python3 -m pytest core/tests/bootstrap -q : exit 0",
+      "python3 scripts/structure_lint.py : exit 0 — 10 modules, 0 frameworks, bijection OK",
+      "git diff --check : exit 0"
+    ],
+    "scope": "Diff contrôlé : huit chemins autorisés seulement ; aucun coordination/**, .claude/**, .codex/**, workflow, Core source, audit, quality-gate ou test hors contrat canonique.",
+    "remote_status_before_bundle": "SonarCloud, GitGuardian, types, tests, security, pack-validation, e2e, e2e-load et gates étaient verts sur le code f46bd1e ; proof-sealed refusait alors uniquement l'absence de evidence/tasks/<ID>.",
+    "bundle_commit_note": "Le bundle est ajouté après la revue du code f46bd1e ; il ne modifie aucun chemin du périmètre code scellé et conserve le code_diff_sha256 ci-dessus. Les checks distants doivent être rejoués sur le head final avant toute décision d'intégration."
+  },
+  "review_inputs": {
+    "round": "OPSYS-CANON-PROMOTION-597-r1-f46bd1e",
+    "mode": "T2, trois reviewers indépendants en parallèle, prompt neutre commun, sans rôles",
+    "prompt_sha256": "7eabe858221b6c71ccca21f5af7222399bfba31bd3fabe68a1a2602b92e2e8dc",
+    "pack_sha256": "96ae1a5a8a422a8e337fff1ecfdad4b104b449fd1668f5722edafa2aa82e1e2c",
+    "pack_bytes": 30332,
+    "diff_verbatim_sha256": "faab10fee40e9521d2ac27dd5155489c0c4d8bb50c45597c083c9a45aa07e4c7",
+    "review_neutrality": {
+      "previous_incomplete_batches_excluded": true,
+      "reviewers_received_same_pack": true
+    },
+    "runner": {
+      "repository": "proof-method",
+      "sources_sha256": {
+        "scripts/civ_review.py": "4176f8734d91417a87a96c26df40a059281b0a6aff9def9aecf4ab18b91c3c45",
+        "scripts/tally_reviews.py": "cbdb4f4b55b6972ebe83d0078177a28fd511dc87962367eb63b8f3cb695e40c7",
+        "reviews/TEMPLATE-prompt-revue-neutre.md": "fa03341c225031aa209d29c2e9d40e422e080934fe6aa8e3b03bef6f832fc6a8"
+      }
+    }
+  },
+  "reviews": {
+    "DeepSeek-V4-Pro-0813.verdict.json": "9570c242bf0b7bf950019c73a5c4c7ee080e2074d88c5aae5fd4f9514bf4195d",
+    "Gemini-3.7-Flash.verdict.json": "794df50d3ec1789b7ed34ff6b20ec8bedddd4823a5094da4a030ebf069ee630d",
+    "Muse-Spark-1.2-Contributor.verdict.json": "16acca7fa569fba28304e5360cd6942aa096728efb6148ce6aa152c46f88c581"
+  },
+  "consensus": {
+    "outcome": "APPROVE 3/3",
+    "major_or_critical_objections": 0,
+    "minor_objections": 1,
+    "tally": "DRAIN SPOOL: ligne illisible conservée telle quelle; APPROVE 3/3; vendors distincts: 3; objections critiques: 0; objections majeures non résolues: 0",
+    "reviewers": {
+      "DeepSeek-V4-Pro-0813": {
+        "vendor": "deepseek",
+        "served_model": "deepseek-v4-pro-0813-openrouter",
+        "retries": 0,
+        "fallbacks": 0
+      },
+      "Gemini-3.7-Flash": {
+        "vendor": "google",
+        "served_model": "gemini-37-flash-openrouter",
+        "retries": 0,
+        "fallbacks": 0
+      },
+      "Muse-Spark-1.2-Contributor": {
+        "vendor": "meta",
+        "served_model": "muse-spark-12-contributor-openrouter",
+        "retries": 0,
+        "fallbacks": 0
+      }
+    },
+    "minor_objection_note": "Muse-Spark demande que les sorties RED/GREEN et des suites soient vérifiées par CI ; ces exécutions locales sont consignées ci-dessus et la CI distante reste obligatoire sur le head final."
+  }
+}
