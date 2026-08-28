@@ -32,13 +32,15 @@
     stdout y porte le texte d'aide, pas cette ligne — un appelant qui teste `== 0` doit lire
     stdout, pas supposer qu'il porte `COORDINATION_OK`.
   - **exit 1** — une erreur par ligne sur la sortie standard : `HEADER_MISSING`,
-    `MALFORMED_ROW:<ligne>:<cellules>`, `WORK_ID_EMPTY`, `DUPLICATE_WORK:<id>`,
+    `MALFORMED_ROW:<ligne>:<nombre-de-cellules>`, `WORK_ID_EMPTY`, `DUPLICATE_WORK:<id>`,
     `OWNER:<id>:<valeur>`, `STATUS:<id>:<valeur>`, `SCOPE:<id>:<valeur>`, `BRANCH:<id>`,
     `MODULE_CODE_DURING_CORE:<id>`, `CORE_OWNER:<id>:<valeur>`,
     `ISSUE_OWNER:<id>:<valeur>`, `BRANCH_COLLISION:<a>:<b>`,
     `PATH_COLLISION:<a>:<b>:<scope-a>:<scope-b>`. La table a été lue,
-    elle n'est pas conforme. **Ce code est réservé à ce cas** : aucun échec de lecture ou
-    d'écriture ne s'y retrouve, et aucun traceback ne remplace ces lignes.
+    elle n'est pas conforme. **Ce code est réservé à ce cas, pour toute entrée couverte par
+    le contrat ci-dessous** : aucun échec de lecture ou d'écriture ordinaire ne s'y retrouve,
+    et aucun traceback ne remplace ces lignes — une entrée hors contrat (dernière limite
+    listée plus bas) y échappe.
   - **exit 2** — **aucun verdict de conformité exploitable**. Les causes interceptées par
     le validateur portent un préfixe sur la sortie standard, jamais un traceback :
     - `LECTURE_IMPOSSIBLE:<raison>` — la cible n'a pas pu être lue (chemin inexistant,
@@ -75,11 +77,17 @@
   séparateur par ailleurs intacts) n'est jamais lue comme une ligne de table — donc jamais
   vérifiée, collisions comprises. Aucun bloc de code ni aucune indentation n'a de traitement
   spécial : ce qui est écrit dans ce fichier, fence ou pas, indenté ou pas, est lu comme
-  n'importe quelle autre ligne. Deux limites de plus, mesurées, ni exercées par un fichier
-  livré ni fermées : une ligne de séparation espacée (`| --- | --- |` au lieu de `|---|---|`)
-  n'est pas reconnue (`HEADER_MISSING` + des `OWNER`/`STATUS` parasites, fail-closed — pas un
-  faux `COORDINATION_OK`) ; et `overlaps()` compare des chaînes littérales, donc deux scopes
-  `.github/workflows/**` et `.github/workflows/ci.yml` ne sont pas vus en collision.
+  n'importe quelle autre ligne. Trois limites de plus, mesurées, ni exercées par un fichier
+  livré ni fermées : une ligne de séparation espacée ou porteuse des deux-points d'alignement
+  Markdown (`| --- | --- |` ou `|:---|:---|` au lieu de `|---|---|`) n'est pas reconnue
+  (`HEADER_MISSING` + des `OWNER`/`STATUS` parasites, fail-closed — pas un faux
+  `COORDINATION_OK`) ; `overlaps()` normalise casse et séparateur puis compare des chemins
+  par égalité ou parenté (`PurePosixPath`), sans aucune sémantique de glob — `**` y est un
+  composant de chemin ordinaire, pas un joker : deux scopes `.github/workflows/**` et
+  `.github/workflows/ci.yml` ne sont donc pas vus en collision ; et un périphérique caractère
+  sans fin de fichier (`/dev/zero`) ou un tube nommé sans écrivain sortent tous deux du
+  contrat 0/1/2 ci-dessus — blocage ou trace non interceptée, jamais l'une des lignes
+  énumérées à exit 1 ni un `LECTURE_IMPOSSIBLE` propre.
 - `.claude/settings.example.json` est un **exemple** à copier puis adapter. Ne jamais
   l'écraser sur `.claude/settings.json` : ce dernier est un fichier préexistant du dépôt,
   que cette PR ne modifie pas, et une copie brute de l'exemple en remplacerait le contenu

@@ -83,7 +83,10 @@ Trois propriétés de cette formulation, et rien d'autre :
   H majuscules) ne matcherait PAS cette alternative, et une sortie vide ne distinguerait plus
   « formulation absente » de « motif qui n'a pas pu correspondre ». (Le sort de la première
   alternative, `ma.tre...`, dépend en plus de la locale d'exécution — hors du point ici : `-i`
-  reste nécessaire indépendamment d'elle.)
+  reste nécessaire indépendamment d'elle. Sous une locale où cette première alternative ne
+  matche plus, mesuré avec `LC_ALL=C` sur un dépôt jetable portant ce texte, le contrôle
+  positif ci-dessus ne le détecte pas : la seconde alternative, purement ASCII, suffit à elle
+  seule à rendre une sortie non vide sur ce document.)
 - **Borné par construction, pas par une valeur figée.** Rejouée sur `origin/main`, cette
   commande (avec `-i`) rend une sortie vide. Rejouée en remplaçant `origin/main` par le `HEAD`
   de cette branche — qui porte déjà tous les fichiers que le merge apportera — elle rend

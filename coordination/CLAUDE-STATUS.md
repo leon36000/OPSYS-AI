@@ -150,10 +150,14 @@ de processus → `LECTURE_IMPOSSIBLE:[Errno 2]...`, exit 2 ; boucle de liens (le
 
 ### Diff contre le pack
 
-`valid_scope()` diffère d'une ligne (constante `SCOPES_HORS_COLLISION`, extraction SonarCloud
-`S1192`, sémantiquement identique — aucune fixture ne distingue les deux formes).
-`parse_rows()`, `overlaps()`, `validate()`, `main()` diffèrent tous, pas seulement
-cosmétiquement. `_chemin_sur()` n'a pas d'équivalent dans le pack.
+`valid_scope()` diffère du pack sur plusieurs points, pas seulement cosmétiques : la
+constante `SCOPES_HORS_COLLISION` (extraction SonarCloud `S1192`) ; la normalisation
+antislash avant `PurePosixPath` (`item.replace("\\", "/")`) — sans elle, `foo\..\modules
+m\M7` passe ce contrôle puis échappe aussi à `MODULE_CODE_DURING_CORE`, fixture mesurée,
+donc pas sémantiquement identique au pack sur ce point ; et le refus d'une liste d'items
+vide après découpage (section précédente). `parse_rows()`, `overlaps()`, `validate()`,
+`main()` diffèrent tous aussi, pas seulement cosmétiquement. `_chemin_sur()` n'a pas
+d'équivalent dans le pack.
 
 ## `.claude/settings.example.json` — ne jamais écraser `.claude/settings.json`
 
