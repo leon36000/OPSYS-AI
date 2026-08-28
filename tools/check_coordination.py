@@ -296,10 +296,23 @@ def main() -> int:
     # freres : reconfigurer stdout pour echapper (\xHH/\uHHHH), jamais planter, tout
     # caractere qu'il ne saurait encoder. Sans effet sous UTF-8 (le cas courant : aucun
     # caractere de ce fichier n'est jamais inencodable en UTF-8, mesure). !a redevient
-    # inutile aux trois sites ou il avait ete introduit au tour 9 -- revenu a !r (repr(),
-    # plus lisible) pour ces trois-la, la protection reelle vivant ici desormais, une
-    # seule fois, pour tous les points d'impression de cette fonction sans exception.
-    sys.stdout.reconfigure(errors="backslashreplace")
+    # inutile aux sites de _chemin_sur() ou il avait ete introduit au tour 9 -- revenu a
+    # !r (repr(), plus lisible) pour ces sites-la (pas de decompte fige ici : `diff -u`
+    # ou un grep sur `!r}"` en donne le compte exact, qu'une future edition invaliderait
+    # sinon en silence), la protection reelle vivant ici desormais, une seule fois, pour
+    # tous les points d'impression de cette fonction sans exception.
+    #
+    # Regression introduite PAR ce correctif, fermee au tour 11 (revue scellee, 2 sieges
+    # convergents) : reconfigure() est la toute premiere instruction de main(), or CPython
+    # met sys.stdout a None quand le descripteur de sortie standard est deja ferme au
+    # lancement (`... >&-`) -- reconfigure() levait alors AttributeError, non intercepte :
+    # exit 1 + traceback, stdout vide, EXACTEMENT le fail-open que ce fichier existe pour
+    # fermer, sur une entree qui ne l'atteignait pas avant ce commit (print() sur un flux
+    # clos ne leve rien -- mesure sur les quatre print() de cette fonction, contre-epreuve
+    # faite en retirant cette ligne). La garde ci-dessous restaure ce silence : rien a
+    # reconfigurer quand il n'y a pas de flux, et rien de plus a faire.
+    if sys.stdout is not None:
+        sys.stdout.reconfigure(errors="backslashreplace")
     parser = argparse.ArgumentParser()
     parser.add_argument("ownership")
     parser.add_argument("--json-output")

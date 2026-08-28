@@ -39,8 +39,10 @@
     `PATH_COLLISION:<a>:<b>:<scope-a>:<scope-b>`. La table a été lue,
     elle n'est pas conforme. **Ce code est réservé à ce cas, pour toute entrée couverte par
     le contrat ci-dessous** : aucun échec de lecture ou d'écriture ordinaire ne s'y retrouve,
-    et aucun traceback ne remplace ces lignes — une entrée hors contrat (dernière limite
-    listée plus bas) y échappe.
+    et aucun traceback ne remplace ces lignes — une entrée hors contrat (périphérique
+    caractère sans fin de fichier, tube sans écrivain, stdout indisponible — limites
+    nommées plus bas, pas par position, qu'un ajout ultérieur à cette liste rendrait fausse)
+    y échappe.
   - **exit 2** — **aucun verdict de conformité exploitable**. Les causes interceptées par
     le validateur portent un préfixe sur la sortie standard, jamais un traceback :
     - `LECTURE_IMPOSSIBLE:<raison>` — la cible n'a pas pu être lue (chemin inexistant,
@@ -84,12 +86,19 @@
   `COORDINATION_OK`) ; `overlaps()` normalise casse et séparateur puis compare des chemins
   par égalité ou parenté (`PurePosixPath`), sans aucune sémantique de glob — `**` y est un
   composant de chemin ordinaire, pas un joker : deux scopes `.github/workflows/**` et
-  `.github/workflows/ci.yml` ne sont donc pas vus en collision ; et un périphérique caractère
-  sans fin de fichier (`/dev/zero`) ou un tube nommé sans écrivain sortent tous deux du
-  contrat 0/1/2 ci-dessus — blocage ou trace non interceptée, jamais l'une des lignes
-  énumérées à exit 1 ni un `LECTURE_IMPOSSIBLE` propre ; et un BOM UTF-8 en tête de la
-  ligne d'en-tête fait échouer sa comparaison stricte avec l'en-tête attendu — `HEADER_
-  MISSING`, fail-closed, pas un faux `COORDINATION_OK`.
+  `.github/workflows/ci.yml` ne sont donc pas vus en collision, et un scope glob (`*`,
+  `**`) sur une ligne active échappe pareillement à `MODULE_CODE_DURING_CORE` — même
+  absence de sémantique, aucun chemin réel couvrant `modules m/` n'y échappant en
+  revanche (vérifié sur ~20 graphies) ; un périphérique caractère sans fin de fichier
+  (`/dev/zero`) ou un tube nommé sans écrivain sortent tous deux du contrat 0/1/2
+  ci-dessus — blocage ou trace non interceptée, jamais l'une des lignes énumérées à
+  exit 1 ni un `LECTURE_IMPOSSIBLE` propre ; même famille, un stdout indisponible AVANT
+  toute écriture (`> &-`, descripteur fermé) ou rompu EN COURS d'écriture (tube lu puis
+  refermé, `| head -0`) échappe lui aussi, respectivement en silence (`print()` sur un
+  flux clos ne lève rien) et en `BrokenPipeError`, exit 120 — condition du canal de
+  SORTIE, générique à tout script Python qui imprime, ni ouverte ni fermée par cette PR ;
+  et un BOM UTF-8 en tête de la ligne d'en-tête fait échouer sa comparaison stricte avec
+  l'en-tête attendu — `HEADER_MISSING`, fail-closed, pas un faux `COORDINATION_OK`.
 - `.claude/settings.example.json` est un **exemple** à copier puis adapter. Ne jamais
   l'écraser sur `.claude/settings.json` : ce dernier est un fichier préexistant du dépôt,
   que cette PR ne modifie pas, et une copie brute de l'exemple en remplacerait le contenu

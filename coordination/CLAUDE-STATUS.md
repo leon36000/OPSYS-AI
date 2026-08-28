@@ -184,8 +184,11 @@ problème : leur `str()` interne repr déjà le nom de fichier » — **faux**, 
 propre mesure adjacente : `str(OSError)` passe justement par un `repr()` interne, et le
 tour 9 venait de mesurer que `repr()` laisse passer tel quel tout caractère non-ASCII
 VALIDE (pas seulement les surrogates), qui casse sous `PYTHONIOENCODING=ascii`. La
-correction du tour 9 (`ascii()`/`!a` sur les trois messages construits à la main) posait
-donc la protection au mauvais étage : aux trois sites `raise` de `_chemin_sur()`, jamais
+correction du tour 9 (`ascii()`/`!a` sur les messages construits à la main) posait donc
+la protection au mauvais étage : aux sites `raise` de `_chemin_sur()` (leur nombre exact
+n'est pas figé ici, un `grep` sur `!r}"` en donne le compte courant — décompte déjà pris
+en défaut une fois : le tour 9 en comptait trois de mémoire alors qu'il venait, dans le
+même commit, de scinder un message en deux), jamais
 aux sites `print()` de `main()` où l'encodage a réellement lieu — ni aux `OSError` système,
 ni au troisième `print()` (`"\n".join(errors)`), atteignable sans aucun argv exotique dès
 qu'une CELLULE de table porte un accent (réaliste : ce dépôt rédige ses tables en français).
@@ -198,10 +201,20 @@ fail-open que ce fichier existe pour fermer. **Fermé pour de bon** en sécurisa
 lui-même, une seule fois, en tête de `main()` : `sys.stdout.reconfigure(errors=
 "backslashreplace")` — couvre les quatre `print()` de `main()` sans exception, sans effet
 sous UTF-8 (mesuré : aucun caractère de ce dépôt n'est inencodable en UTF-8). `!a` est donc
-redevenu inutile aux trois sites où le tour 9 l'avait introduit et a été repris en `!r`
-(plus lisible), la protection réelle vivant désormais au seul point d'impression. Mesuré
-après correction : les quatre cas ci-dessus rendent tous un exit et un préfixe propres,
-message lisible (accents échappés en `\xHH`), sans traceback.
+redevenu inutile aux sites où le tour 9 l'avait introduit et a été repris en `!r` (plus
+lisible), la protection réelle vivant désormais au seul point d'impression. Mesuré après
+correction : les quatre cas ci-dessus rendent tous un exit et un préfixe propres, message
+lisible (accents échappés en `\xHH`), sans traceback.
+
+**Régression introduite par ce correctif lui-même, fermée au tour 11** (revue scellée,
+2 sièges convergents) : `sys.stdout.reconfigure(...)` est la toute première instruction
+de `main()`, or CPython met `sys.stdout` à `None` quand le descripteur de sortie standard
+est déjà fermé au lancement (`... >&-`) — `reconfigure()` levait alors `AttributeError`,
+non intercepté : exit 1 avec traceback, stdout vide, sur une entrée qui ne l'atteignait
+PAS avant ce commit (mesuré par contre-épreuve : sans cette ligne, les quatre `print()`
+de `main()` no-opent silencieusement sur un flux clos, table conforme comme non conforme).
+Fermé par une garde `if sys.stdout is not None:` — rien à reconfigurer quand il n'y a pas
+de flux, et le silence d'avant ce commit est restauré pour ce cas précis.
 
 Deux affinages supplémentaires au tour 9, restés valides et non affectés par ce qui
 précède, tous deux mesurés avant correction : le message « répertoire de sortie
