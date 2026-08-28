@@ -39,7 +39,11 @@
 # une relation, épinglée en bonus depuis AUD-QUAL-011 (#605) par
 # `test_ordre_structurel_avant_propriete_avec_deux_erreurs_structurelles` : OWNER précède
 # STATUS dans `_erreurs_structurelles()` (mesuré : les échanger fait rougir CE test, et lui
-# seul). Ni les quatre autres contrôles de ce groupe (WORK_ID_EMPTY, DUPLICATE_WORK, SCOPE,
+# seul) — mais SEULEMENT à l'instanciation que cette fixture exerce (Work ID matchant
+# CORE_RE, owner hors OWNERS, status hors STATUSES, erreur de propriété CORE_OWNER), pas en
+# général : un échange conditionné à un Work ID ne matchant PAS CORE_RE laisse la suite
+# entière verte, test par test, tout en émettant réellement STATUS avant OWNER
+# (AUD-QUAL-013, #610). Ni les quatre autres contrôles de ce groupe (WORK_ID_EMPTY, DUPLICATE_WORK, SCOPE,
 # BRANCH), ni aucun de `_erreurs_de_propriete()`, n'en sont concernés — mesuré : déplacer SCOPE
 # ou BRANCH, ou échanger MODULE_CODE_DURING_CORE et CORE_OWNER, laisse la suite entière verte.
 # Il en va de même pour l'ordre ENTRE plusieurs paires distinctes lorsque `_erreurs_de_collision()`
@@ -1244,9 +1248,8 @@ def test_ordre_ligne_avant_paire_quand_la_ligne_en_erreur_est_hors_de_la_paire(t
     # (tour 2 de #606, 3 sièges convergents) dans une précédente version de ce paragraphe,
     # qui l'affirmait à tort : status="ACTIVE" sur ISS-C fait diverger le mutant miroir à
     # l'identique (mesuré). Ce qui porte le mécanisme, tel que #604 et le docstring de
-    # _erreurs_de_ligne() le formulent déjà (mais voir #607 : l'aveu de ce docstring «
-    # reste NON epinglee a ce cas — suivi separe : #604 » devient lui-même périmé une fois
-    # #604 fermée par cette PR — suivi séparé, pas de correctif ici) : ISS-C porte une
+    # _erreurs_de_ligne() le formulent déjà (l'aveu périmé que ce docstring portait alors
+    # sur ce point a été corrigé par AUD-QUAL-012, #607/PR #609) : ISS-C porte une
     # erreur de ligne et est positionnée, dans la table, APRÈS le membre DROIT d'une paire
     # en collision — pas plus. Sur-restriction trouvée et mesurée en revue scellée (tour 3
     # de #606, 3 sièges convergents) dans une autre précédente version de ce paragraphe,
@@ -1311,12 +1314,10 @@ def test_ordre_structurel_avant_propriete_avec_deux_erreurs_structurelles(tmp_pa
     # exacte de cette exception (les autres contrôles de ce groupe et ceux de
     # _erreurs_de_propriete() restent hors contrat).
     #
-    # Voir aussi #607 : la fermeture de #605 par ce commit périme DEUX clauses du
-    # docstring de _erreurs_de_ligne() dans tools/check_coordination.py — celle
-    # qui borne la relation structurel-avant-propriété à l'arité (1,1) (« reste...
-    # NON epinglee a ce jour — suivi separe : #605 ») et celle sur l'ordre INTERNE
-    # à chaque groupe (« reste NON epingle a ce jour ») — suivi séparé, pas de
-    # correctif ici.
+    # AUD-QUAL-012, #607/PR #609 a depuis corrigé les deux clauses du docstring de
+    # _erreurs_de_ligne() dans tools/check_coordination.py que la fermeture de #605
+    # par ce commit périmait : celle qui bornait la relation structurel-avant-propriété
+    # à l'arité (1,1), et celle sur l'ordre INTERNE à chaque groupe.
     p = write(tmp_path, "t.md", table(
         row(work_id="C05-001", owner="BADOWNER", scope="core/x", status="BADSTATUS"),
     ))
