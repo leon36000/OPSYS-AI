@@ -20,6 +20,7 @@
 # pytest.ini — dont le contenu exact n'est pas recopié ici, voir coordination/README.md).
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -94,6 +95,37 @@ def test_header_missing_sur_en_tete_sans_vraie_separation(tmp_path):
     r = run([str(p)])
     assert r.returncode == 1
     assert "HEADER_MISSING" in r.stdout
+
+
+def test_header_missing_sur_fichier_tronque_a_len_lines(tmp_path):
+    # La borne `lineno < len(lines)` du lookahead de séparateur (parse_rows()) n'avait
+    # aucune fixture avant ce correctif (revue scellée, tour 8 de #598, siège 1) :
+    # aucune table construite dans ce fichier ne place la ligne d'en-tête en DERNIÈRE
+    # ligne. Mesuré : muter cette borne en `<=` laisse les tests d'alors verts tout en
+    # rendant stdout VIDE (IndexError non interceptée) au lieu du préfixe HEADER_MISSING
+    # que ce fichier déclare pourtant comme faisant partie du contrat testé — le cas
+    # exact du « fichier tronqué » que le commentaire HEADER_MISSING du validateur nomme
+    # lui-même. Fail-closed (exit 1 dans les deux cas, jamais un faux COORDINATION_OK),
+    # mais un traceback remplacerait silencieusement le préfixe attendu.
+    p = write(tmp_path, "t.md", HEADER.rstrip("\n"))  # en-tête seul, aucune ligne suivante
+    r = run([str(p)])
+    assert r.returncode == 1
+    assert r.stdout.strip() == "HEADER_MISSING"
+    assert r.stderr == ""
+
+
+def test_separateur_indente_juste_apres_len_tete_reste_reconnu(tmp_path):
+    # `lines[lineno].strip()` — le lookahead qui décide si la ligne suivant l'en-tête
+    # est une vraie séparation — n'avait aucune fixture avant ce correctif (revue
+    # scellée, tour 8 de #598, siège 3) : mesuré, muter en `lines[lineno]` (sans
+    # `.strip()`) laisse les tests d'alors verts tout en faisant passer un séparateur
+    # GFM INDENTÉ juste après l'en-tête de COORDINATION_OK à HEADER_MISSING — fail-closed
+    # (jamais un faux COORDINATION_OK), même famille que
+    # test_ligne_de_donnees_indentee_reste_validee ci-dessous pour les lignes de DONNÉES.
+    p = write(tmp_path, "t.md", HEADER + "  " + SEP + "| ISS-A | CLAUDE | br-a | coordination | ACTIVE | x | y |\n")
+    r = run([str(p)])
+    assert r.returncode == 0
+    assert r.stdout.strip() == "COORDINATION_OK rows=1 active=1"
 
 
 def test_separator_re_ne_confond_pas_une_ligne_de_donnees_avec_un_separateur(tmp_path):
@@ -397,8 +429,11 @@ def test_statuses_legitimes_acceptees(tmp_path):
     # "REVIEW","READY_TO_MERGE","MERGED","TRANSFER"} — retirer "BLOCKED" ou "MERGED"
     # laissait les tests d'alors verts (revue scellée, tour 6 de #598, sièges 1 et 3
     # convergents), alors que coordination/WORK-OWNERSHIP.md porte aujourd'hui des
-    # lignes réelles dans ces deux statuts. Branch "br-a" (jamais "main"/"master"/vide)
-    # pour ne pas laisser BRANCH:ISS-A interférer sur les statuts actifs de la boucle.
+    # lignes réelles dans ces deux statuts — référence datée (revue scellée, tour 8 de
+    # #598, siège 2) : peut changer de statut à tout merge ordinaire, seul l'invariant
+    # que STATUSES accepte les deux est stable. Branch "br-a" (jamais "main"/"master"/
+    # vide) pour ne pas laisser BRANCH:ISS-A interférer sur les statuts actifs de la
+    # boucle.
     for status in ("QUEUED", "ACTIVE", "BLOCKED", "REVIEW", "READY_TO_MERGE", "MERGED", "TRANSFER"):
         p = write(tmp_path, "t.md", table(row(status=status, branch="br-a")))
         r = run([str(p)])
@@ -490,13 +525,21 @@ def test_core_owner_et_issue_owner_acceptent_leurs_proprietaires_legitimes(tmp_p
 def test_core_re_et_claude_re_nont_pas_de_faux_positifs(tmp_path):
     # Pendant négatif des deux contrôles ci-dessus, jamais exercé avant ce correctif
     # (revue scellée, tour 7 de #598, siège 1) : les mutants qui ÉLARGISSENT CORE_RE ou
-    # CLAUDE_RE (retrait de l'ancre "^", de l'ancre "$", ou "2[0-4]" assoupli en "2\d")
-    # survivent aux tests d'alors, fail-closed (ils ajoutent des erreurs, jamais un faux
-    # COORDINATION_OK) donc non bloquants — mais aucune fixture n'affirme explicitement
-    # qu'un Work ID hors de ces motifs échappe bien à CORE_OWNER/ISSUE_OWNER même avec
-    # un owner qui violerait le contrôle si le motif matchait à tort. "C25-001" (décennie
-    # hors 2[0-4]) et "C05-0011" (4 chiffres, hors \d{3}$) hors CORE_RE ; "XC05-001" et
-    # "XISS-A" (préfixe non ancré en tête) hors des deux.
+    # CLAUDE_RE ("$" retiré, ou "2[0-4]" assoupli en "2\d") survivent aux tests d'alors,
+    # fail-closed (ils ajoutent des erreurs, jamais un faux COORDINATION_OK) donc non
+    # bloquants — mais aucune fixture n'affirme explicitement qu'un Work ID hors de ces
+    # motifs échappe bien à CORE_OWNER/ISSUE_OWNER même avec un owner qui violerait le
+    # contrôle si le motif matchait à tort. "C25-001" (décennie hors 2[0-4]) et
+    # "C05-0011" (4 chiffres, hors \d{3}$) hors CORE_RE ; "XC05-001" et "XISS-A" (préfixe
+    # non en tête) hors des deux — CEUX-CI, en revanche, ne discriminent la présence
+    # d'aucun mutant réel : imprécision corrigée en revue scellée (tour 8 de #598,
+    # sièges 1 et 3 convergents) — retirer l'ancre "^" de ces trois regex est un mutant
+    # STRICTEMENT ÉQUIVALENT, jamais un simple élargissement fail-closed, puisque les
+    # trois ne sont consommées que par re.match(), qui ancre déjà en tête de chaîne quel
+    # que soit le motif (mesuré : 0 différence observable sur retrait de "^" seul). Ces
+    # deux fixtures restent utiles pour la lisibilité de l'intention et comme
+    # défense-en-profondeur, mais — comme le .strip() déjà avoué de l'exemption n/a —
+    # ne tuent aucun mutant que "$" et "2\d" ne tuent déjà.
     for wid in ("C25-001", "C05-0011", "XC05-001"):
         p = write(tmp_path, "t.md", table(row(work_id=wid, owner="CLAUDE", scope="core/x")))
         r = run([str(p)])
@@ -622,7 +665,9 @@ def test_module_code_during_core_arme_bien_sur_review_et_ready_to_merge(tmp_path
     # confirme QUE le négatif (QUEUED n'arme pas) — retirer REVIEW ou READY_TO_MERGE de
     # l'ensemble ACTIVE = {"ACTIVE", "REVIEW", "READY_TO_MERGE"} y survivait sans faire
     # échouer aucun test, alors que coordination/WORK-OWNERSHIP.md porte aujourd'hui une
-    # ligne REVIEW réelle.
+    # ligne REVIEW réelle — référence datée (revue scellée, tour 8 de #598, siège 2) :
+    # peut changer de statut à tout merge ordinaire, seul l'invariant que ACTIVE compte
+    # REVIEW et READY_TO_MERGE est stable.
     for status in ("REVIEW", "READY_TO_MERGE"):
         p = write(tmp_path, "t.md", table(row(scope="modules m/M7", status=status)))
         r = run([str(p)])
@@ -885,6 +930,26 @@ def test_json_output_ecrit_sur_chemin_conforme(tmp_path):
     assert r.returncode == 0
     assert out.exists()
     assert '"rows": 1' in out.read_text()
+
+
+def test_json_output_porte_les_erreurs_sur_table_non_conforme(tmp_path):
+    # coordination/README.md (fichier modifié par cette PR) affirme « (mesuré) » qu'une
+    # table NON conforme voit quand même sa sortie --json-output écrite, portant alors
+    # cette même liste d'erreurs dans son champ "errors" — aucune fixture ne le tenait
+    # avant ce correctif (revue scellée, tour 8 de #598, siège 1) : seul le champ "rows"
+    # sur une table CONFORME est épinglé ci-dessus, jamais le champ "errors" sur une
+    # table non conforme, la moitié du contrat que le README revendique.
+    p = write(tmp_path, "t.md", table(row(scope="modules m")))
+    out = tmp_path / "o.json"
+    r = run([str(p), "--json-output", str(out)])
+    assert r.returncode == 1
+    assert "MODULE_CODE_DURING_CORE:ISS-A" in r.stdout
+    assert out.exists()
+    assert json.loads(out.read_text()) == {
+        "rows": 1,
+        "active": 1,
+        "errors": ["MODULE_CODE_DURING_CORE:ISS-A"],
+    }
 
 
 def test_json_output_vide_est_une_demande_reelle_pas_une_absence(tmp_path):
