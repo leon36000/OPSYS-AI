@@ -209,11 +209,12 @@ def _erreurs_de_ligne(row: dict[str, str], seen: set[str]) -> list[str]:
     une ligne portant 2 erreurs STRUCTURELLES et 1 erreur de PROPRIETE, une erreur de
     PROPRIETE entre deux erreurs STRUCTURELLES. Ferme depuis pour cette arite
     (AUD-QUAL-011, #605/#608) : coordination/tests/test_check_coordination.py epingle
-    desormais aussi l'arite (2,1) par
+    desormais aussi l'arite (2,1) que sa fixture exerce (DEUX erreurs structurelles,
+    OWNER et STATUS, et UNE erreur de propriete, CORE_OWNER) par
     `test_ordre_structurel_avant_propriete_avec_deux_erreurs_structurelles` (meme egalite
     exacte) — le meme mutant zip y fait maintenant rougir ce test. Cette relation generale
-    (TOUT le premier groupe avant TOUT le second) reste, a ce jour, NON epinglee pour toute
-    arite autre que (1,1) et (2,1).
+    (TOUT le premier groupe avant TOUT le second) reste, au-dela des arites et
+    instanciations EXERCEES ci-dessus, NON epinglee a ce jour.
 
     La meme suite epingle aussi, au niveau de validate() plutot que de cette
     fonction, que les erreurs par ligne precedent les erreurs de paire
@@ -232,19 +233,22 @@ def _erreurs_de_ligne(row: dict[str, str], seen: set[str]) -> list[str]:
     Mesure sur 2 instances : une table a 3 lignes actives, et une table a 2 lignes actives
     en collision suivies d'une 3e ligne INACTIVE (statut MERGED) portant l'erreur — memes
     lignes, ordre different dans les deux cas, 70/70 vert alors. Ferme depuis
-    (AUD-QUAL-010, #604/#606) : coordination/tests/test_check_coordination.py epingle
-    desormais ce cas par
+    (AUD-QUAL-010, #604/#606) pour la SECONDE de ces deux instances :
+    coordination/tests/test_check_coordination.py epingle desormais 2 lignes actives en
+    collision suivies d'une 3e ligne MERGED portant l'erreur par
     `test_ordre_ligne_avant_paire_quand_la_ligne_en_erreur_est_hors_de_la_paire` (meme
-    egalite exacte) — le meme entrelacement miroir y fait maintenant rougir ce test ; ni
-    lui ni son voisin ne pretendent epuiser toutes les strategies d'entrelacement possibles
-    entre boucle par ligne et boucle par paire — voir l'en-tete de
+    egalite exacte) — le meme entrelacement miroir y fait maintenant rougir ce test ;
+    l'instance a 3 lignes actives reste, elle, mesuree mais NON instanciee par une fixture.
+    Ni lui ni son voisin ne pretendent epuiser toutes les strategies d'entrelacement
+    possibles entre boucle par ligne et boucle par paire — voir l'en-tete de
     coordination/tests/test_check_coordination.py pour le detail exact de ce qui est et
     n'est pas couvert.
 
-    L'ordre INTERNE a chaque groupe ci-dessus (entre les controles d'UN MEME groupe) reste,
-    pour l'essentiel, NON epingle a ce jour — SAUF une relation (AUD-QUAL-011, #605/#608,
-    effet de bord non revendique par le mandat de #605) : OWNER precede STATUS dans
-    `_erreurs_structurelles()`, epingle en bonus par
+    L'ordre INTERNE a chacun des deux groupes PAR LIGNE ci-dessus
+    (`_erreurs_structurelles()`, `_erreurs_de_propriete()` — entre les controles d'UN MEME
+    groupe) reste, pour l'essentiel, NON epingle a ce jour — SAUF une relation
+    (AUD-QUAL-011, #605/#608, effet de bord non revendique par le mandat de #605) : OWNER
+    precede STATUS dans `_erreurs_structurelles()`, epingle en bonus par
     `test_ordre_structurel_avant_propriete_avec_deux_erreurs_structurelles`. Voir l'en-tete
     de coordination/tests/test_check_coordination.py pour le detail exact de ce qui est et
     n'est pas couvert.
