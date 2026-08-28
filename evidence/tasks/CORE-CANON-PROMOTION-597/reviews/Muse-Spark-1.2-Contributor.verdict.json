@@ -4,12 +4,12 @@
   {
    "severite": "mineure",
    "fichier": "core/tests/bootstrap/test_root_canon_entrypoints.py",
-   "description": "Critère 'base RED / candidate GREEN et suites existantes vertes' non vérifiable dans le pack : evidence bundle explicitement exclu, aucune sortie d'exécution fournie pour démontrer RED/GREEN.",
-   "preuve": "Review boundary: 'The existing evidence bundle is excluded from the pack and will be replaced only after all three fresh reviewers return complete verdicts.' Diff ne contient aucune log pytest; vérification reportée aux preuves scellées et CI gates."
+   "description": "Preuve d'exécution base RED / candidate GREEN non vérifiable dans ce pack : l'evidence bundle est explicitement exclu et sera re-scellé après les trois revues fraîches. La conformité est donc inférée du diff et du test contractuel uniquement.",
+   "preuve": "Review boundary: 'The existing evidence bundle is excluded from the pack and will be replaced only after all three fresh reviewers return complete verdicts.'"
   }
  ],
- "date_heure": "2026-08-28T09:06:03.551575+00:00",
- "prompt_sha256": "35626dda6e48875299bc93e60d58d213a9365ad8c4f0cb6fbe4f4207a531b825",
+ "date_heure": "2026-08-28T11:11:30.900802+00:00",
+ "prompt_sha256": "57323903ce95acf36dce9d35eb3016c1cb0ee12062738b9b5e4241d3ad0c842d",
  "reviewer_model": "Muse-Spark-1.2-Contributor",
  "modele_servi": "muse-spark-12-contributor-openrouter",
  "gateway_resilience": {

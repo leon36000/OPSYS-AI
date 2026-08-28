@@ -3,17 +3,17 @@
   "description": "PR #597 — promotion de docs/core/CANON-INDEX.md comme point d'entrée canonique unique et réduction des fichiers racine en portails/adaptateurs dérivés.",
   "issue": "https://github.com/leon36000/OPSYS-AI/pull/597",
   "branche": "codex/canon-promotion-v14",
-  "base": "origin/main @ a449e41cbb51b64ed54bc07436e2564b7c99e129",
-  "base_tree": "d25a7d12c288812f931c29eaa1e287796d04646b",
-  "reviewed_commit": "69a45655cd415ebfd819e4a6ff7561cee40da251",
-  "reviewed_tree": "33703813c9d9c861aeab97b5d4976660dcf290f1",
+  "base": "origin/main @ 29b68c1eaf78063184fb6bb6edfced5ac425e42e",
+  "base_tree": "da982522fa7c0759089b61bafc76b095080925a9",
+  "reviewed_commit": "812df118d3be1546f568809846c2777bba614bdc",
+  "reviewed_tree": "3fff2e7587ba4fbe0a7fbee5876cbe6d5dac088f",
   "code_diff_sha256": "ac6eb9d01e8f4bf71936e31440d3f1c1f50d5829ba45c448ec8b2da26f373120",
   "code_diff_sha256_scope": "git diff origin/main...HEAD -- core/ tools/proof/ .opsys/tools/github-control/ .github/workflows/core-ci.yml .github/workflows/ci.yml scripts/ ; calculé par core/scripts/verify_proof_sealed.py",
   "diff_verbatim_sha256": "faab10fee40e9521d2ac27dd5155489c0c4d8bb50c45597c083c9a45aa07e4c7",
-  "sealed_at": "2026-08-28T09:12:01Z",
+  "sealed_at": "2026-08-28T11:15:42Z",
   "verification": {
     "red": {
-      "base": "origin/main @ a449e41cbb51b64ed54bc07436e2564b7c99e129",
+      "base": "origin/main @ 29b68c1eaf78063184fb6bb6edfced5ac425e42e",
       "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m pytest core/tests/bootstrap/test_root_canon_entrypoints.py -q",
       "result": "3 échecs déterministes sur une copie du test contractuel injectée dans un worktree temporaire de la base : index canonique absent et adaptateurs racine encore historiques."
     },
@@ -25,15 +25,15 @@
       "git diff --check : exit 0"
     ],
     "scope": "Diff contrôlé : huit chemins autorisés seulement ; aucun coordination/**, .claude/**, .codex/**, workflow, Core source, audit, quality-gate ou test hors contrat canonique.",
-      "remote_status_before_bundle": "Après le rebase propre sur origin/main a449e41, le ciblé, la structure et le diff-check sont verts sur le candidat 69a4565 ; les checks distants doivent être déclenchés sur le head final après remplacement de ce bundle.",
-      "bundle_commit_note": "Ce bundle r4 remplace le bundle précédent après l'avance de main et la nouvelle revue complète du candidat 69a4565. Le commit d'évidence à venir ne modifie aucun chemin du périmètre code scellé et conserve le code_diff_sha256 ci-dessus. Les checks distants doivent être rejoués sur le head final avant toute décision d'intégration."
+      "remote_status_before_bundle": "Après le rebase propre sur origin/main 29b68c1, le ciblé RED/GREEN et les contrôles locaux sont à refaire sur le candidat 812df11 ; les checks distants visibles concernent encore l'ancien head 3622bbe et seront invalides pour ce head final.",
+      "bundle_commit_note": "Ce bundle r5 remplace le bundle précédent après l'avance de main et une nouvelle revue complète du candidat 812df11. Le commit d'évidence à venir ne modifie aucun chemin du périmètre code scellé et conserve le code_diff_sha256 ci-dessus. Les checks distants doivent être déclenchés sur le head final avant toute décision d'intégration."
   },
   "review_inputs": {
-    "round": "OPSYS-CANON-PROMOTION-597-r4-69a4565",
+    "round": "OPSYS-CANON-PROMOTION-597-r5-812df11",
     "mode": "T2, trois reviewers indépendants en parallèle, prompt neutre commun, sans rôles",
-    "prompt_sha256": "35626dda6e48875299bc93e60d58d213a9365ad8c4f0cb6fbe4f4207a531b825",
-    "pack_sha256": "352280085dbbfe9c2b58b272bfbbabb8d0ff1798b8aaa817ab44d144bba59733",
-    "pack_bytes": 30435,
+    "prompt_sha256": "57323903ce95acf36dce9d35eb3016c1cb0ee12062738b9b5e4241d3ad0c842d",
+    "pack_sha256": "58a2d6b98599ce1a866302e01820b2c8b81d33e9e922625ef941db36e26cb76a",
+    "pack_bytes": 30921,
     "diff_verbatim_sha256": "faab10fee40e9521d2ac27dd5155489c0c4d8bb50c45597c083c9a45aa07e4c7",
     "review_neutrality": {
       "previous_incomplete_batches_excluded": true,
@@ -49,9 +49,9 @@
     }
   },
   "reviews": {
-    "DeepSeek-V4-Pro-0813.verdict.json": "7cd566aa475c83f25feb3b7495dd3fddbe72671f482c2707a056495a5a12bafb",
-    "Gemini-3.7-Flash.verdict.json": "5ea7937dd33c0445884ab9784e59e1ca637f138557e39ab90c1189cc7406835f",
-    "Muse-Spark-1.2-Contributor.verdict.json": "889b8cf61ed4c534ed461a44e33f2406c08e0f4622196576b980b82bd9d581a3"
+    "DeepSeek-V4-Pro-0813.verdict.json": "d4997babe32c4145cf8971a70e7f39434e18f7ba34e2b9d013f2eaaa0745681f",
+    "Gemini-3.7-Flash.verdict.json": "7fdcff417b69372abe3c54bd63ef4c0b7965d75887e8f058b23f86c21343b33f",
+    "Muse-Spark-1.2-Contributor.verdict.json": "f7f11f76ab43da0ec26d70203680b59b1024c68937f7e7254680db22ad50b380"
   },
   "consensus": {
     "outcome": "APPROVE 3/3",
