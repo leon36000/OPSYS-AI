@@ -42,8 +42,11 @@ natif `.claude/agents/` n'a été observé) :
 
 Non prouvé, écart nommé : que le chargeur natif `.claude/agents/` honore, pour ces fichiers,
 aucun champ de leur en-tête YAML (`tools`, `permissionMode`, `effort`, `background`, `maxTurns`,
-`disallowedTools`, `isolation`) — `tools` compris, le plus load-bearing (c'est lui qui porte le
-blocage Write/Edit/NotebookEdit annoncé par `opsys-issue-triage.md`). Le **contenu** des rôles a
+`disallowedTools`, `isolation`) — union des champs portés par l'un ou l'autre des 4 fichiers,
+pas une enumeration valable fichier par fichier : `isolation` par exemple ne figure que dans
+3 des 4 (absent d'`opsys-issue-triage.md`). `tools` compris, le plus load-bearing (c'est lui
+qui porte le blocage Write/Edit/NotebookEdit annoncé par `opsys-issue-triage.md`). Le
+**contenu** des rôles a
 tourné en conditions réelles ; leur **enveloppe de permissions déclarée** n'a jamais été
 vérifiée en exécution.
 

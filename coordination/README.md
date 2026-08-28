@@ -37,7 +37,9 @@
     `MODULE_CODE_DURING_CORE:<id>`, `CORE_OWNER:<id>:<valeur>`,
     `ISSUE_OWNER:<id>:<valeur>`, `BRANCH_COLLISION:<a>:<b>`,
     `PATH_COLLISION:<a>:<b>:<scope-a>:<scope-b>`. La table a été lue,
-    elle n'est pas conforme. **Ce code est réservé à ce cas, pour toute entrée couverte par
+    elle n'est pas conforme — et si `--json-output` a été demandée, elle est écrite quand
+    même, portant alors cette même liste d'erreurs dans son champ `errors` (mesuré). **Ce
+    code est réservé à ce cas, pour toute entrée couverte par
     le contrat ci-dessous** : aucun échec de lecture ou d'écriture ordinaire ne s'y retrouve,
     et aucun traceback ne remplace ces lignes — une entrée hors contrat (périphérique
     caractère sans fin de fichier, tube sans écrivain, stdout indisponible — limites
@@ -95,7 +97,7 @@
   (`/dev/zero`) ou un tube nommé sans écrivain sortent tous deux du contrat 0/1/2
   ci-dessus — blocage ou trace non interceptée, jamais l'une des lignes énumérées à
   exit 1 ni un `LECTURE_IMPOSSIBLE` propre ; même famille, un stdout indisponible AVANT
-  toute écriture (`> &-`, descripteur fermé) ou rompu EN COURS d'écriture (tube lu puis
+  toute écriture (`>&-`, descripteur fermé) ou rompu EN COURS d'écriture (tube lu puis
   refermé, `| head -0`) échappe lui aussi, respectivement en silence (`print()` sur un
   flux clos ne lève rien) et en `BrokenPipeError`, exit 120 — condition du canal de
   SORTIE, générique à tout script Python qui imprime, ni ouverte ni fermée par cette PR ;
