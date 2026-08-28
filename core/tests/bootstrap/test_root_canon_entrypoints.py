@@ -10,9 +10,11 @@ _ACTIVE_AUTHORITIES = (
     "docs/core/CORE-CANON-v2.md",
     "docs/core/CORE-NON-GOALS-v2.md",
     "docs/core/MODULE-ORDER-AND-DEFERRED-SURFACES.md",
+    "docs/core/CI-REQUIRED-CHECKS.md",
     ".opsys/core-control/2.3.0/TASK-REGISTRY.jsonl",
     ".opsys/core-control/2.3.0/DEPENDENCY-GRAPH.json",
     ".opsys/core-control/2.3.0/REPOSITORY-CONTRACT.md",
+    ".opsys/core-control/2.3.0/GITHUB-OPERATING-MODEL.md",
 )
 
 
