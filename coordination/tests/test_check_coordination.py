@@ -1,10 +1,15 @@
-# Tests de tools/check_coordination.py — un contrôle par comportement réellement conservé
-# dans le validateur réduit (issue AUD-QUAL-006, #592). Chaque test rejoue une mesure faite
-# à la main pendant les 14 tours de revue scellée qui ont produit ce fichier (PR #564) :
-# `coordination/CLAUDE-STATUS.md` en garde le détail narratif, ce fichier en garde la preuve
-# rejouable. Invocation en subprocess réel (comme scripts/tests/test_methode.py) : ce qui
-# compte ici est le contrat CLI — exit code + préfixe sur stdout — pas l'appel direct des
-# fonctions internes.
+# Tests de tools/check_coordination.py (issue AUD-QUAL-006, #592) — pas une énumération
+# exhaustive de tout comportement du validateur (ex. le message exact d'une boucle de liens
+# symboliques n'a pas de test dédié : LECTURE_IMPOSSIBLE/SORTIE_IMPOSSIBLE en couvrent déjà le
+# contrat), mais chaque durcissement de la revue scellée qui a produit ce fichier (PR #564,
+# 14 tours) ET chaque contrôle de ligne hérité du pack encore vivant dans le validateur réduit
+# (MALFORMED_ROW, WORK_ID_EMPTY, DUPLICATE_WORK, OWNER, STATUS, BRANCH, CORE_OWNER,
+# ISSUE_OWNER — mesurés par mutation en revue scellée, tour 1 de #598 : aucun test dédié
+# avant ce commit, malgré une revendication de couverture ici même qui les omettait).
+# `coordination/CLAUDE-STATUS.md` garde le détail narratif des durcissements, ce fichier en
+# garde la preuve rejouable. Invocation en subprocess réel (comme
+# scripts/tests/test_methode.py) : ce qui compte ici est le contrat CLI — exit code + préfixe
+# sur stdout — pas l'appel direct des fonctions internes.
 #
 # Lancer seul : python3 -m pytest coordination/tests/ (hors testpaths par défaut de
 # pytest.ini — dont le contenu exact n'est pas recopié ici, voir coordination/README.md).
@@ -151,6 +156,85 @@ def test_overlaps_ne_developpe_aucun_glob(tmp_path):
     ))
     r = run([str(p)])
     assert r.returncode == 0
+
+
+# ---------------------------------------------------------------------------
+# Contrôles de ligne hérités du pack, jamais touchés par la revue scellée de #564 mais
+# toujours vivants dans le validateur réduit — sans test dédié avant ce correctif (revue
+# scellée, tour 1 de #598 : mesuré par mutation, aucun des huit ne fait échouer les 32
+# tests d'origine si on le retire, alors que l'en-tête de ce fichier prétendait couvrir
+# « un contrôle par comportement réellement conservé »).
+# ---------------------------------------------------------------------------
+
+def test_malformed_row_compte_de_cellules(tmp_path):
+    p = write(tmp_path, "t.md", HEADER + SEP + "| ISS-A | CLAUDE | br-a | coordination | ACTIVE | x |\n")
+    r = run([str(p)])
+    assert r.returncode == 1
+    assert "MALFORMED_ROW:3:6" in r.stdout  # 3 = numéro de ligne, 6 = nombre de cellules
+
+
+def test_work_id_empty(tmp_path):
+    p = write(tmp_path, "t.md", table(row(work_id="")))
+    r = run([str(p)])
+    assert r.returncode == 1
+    assert "WORK_ID_EMPTY" in r.stdout
+
+
+def test_duplicate_work(tmp_path):
+    p = write(tmp_path, "t.md", table(
+        row(work_id="ISS-A", branch="br-a", scope="coordination"),
+        row(work_id="ISS-A", branch="br-b", scope="tools"),
+    ))
+    r = run([str(p)])
+    assert r.returncode == 1
+    assert "DUPLICATE_WORK:ISS-A" in r.stdout
+
+
+def test_owner_invalide(tmp_path):
+    # Work ID "XYZ-1" volontairement hors de CORE_RE et CLAUDE_RE (ne commence ni par
+    # "C<0-24>-", ni par "ISS-"/"AUD-"/"BUG-"/"R4-") pour isoler ce seul contrôle — un
+    # Work ID "ISS-*" déclencherait aussi ISSUE_OWNER pour le même owner invalide.
+    p = write(tmp_path, "t.md", table(row(work_id="XYZ-1", owner="BADOWNER")))
+    r = run([str(p)])
+    assert r.returncode == 1
+    assert "OWNER:XYZ-1:BADOWNER" in r.stdout
+
+
+def test_status_invalide(tmp_path):
+    p = write(tmp_path, "t.md", table(row(status="BADSTATUS")))
+    r = run([str(p)])
+    assert r.returncode == 1
+    assert "STATUS:ISS-A:BADSTATUS" in r.stdout
+
+
+def test_branch_main_ou_master_ou_vide_sur_ligne_active(tmp_path):
+    for branch in ("main", "master", "MAIN"):
+        p = write(tmp_path, "t.md", table(row(branch=branch)))
+        r = run([str(p)])
+        assert r.returncode == 1, branch
+        assert "BRANCH:ISS-A" in r.stdout, branch
+
+
+def test_core_owner_hors_codex(tmp_path):
+    p = write(tmp_path, "t.md", table(row(work_id="C05-001", owner="CLAUDE", scope="core/x")))
+    r = run([str(p)])
+    assert r.returncode == 1
+    assert "CORE_OWNER:C05-001:CLAUDE" in r.stdout
+
+
+def test_issue_owner_hors_claude(tmp_path):
+    p = write(tmp_path, "t.md", table(row(owner="CODEX")))
+    r = run([str(p)])
+    assert r.returncode == 1
+    assert "ISSUE_OWNER:ISS-A:CODEX" in r.stdout
+
+
+def test_core_et_issue_owner_transfer_exempte(tmp_path):
+    # TRANSFER est l'exception explicite des deux contrôles ci-dessus (hand-off en cours).
+    for wid, owner in (("C05-001", "CLAUDE"), ("ISS-A", "CODEX")):
+        p = write(tmp_path, "t.md", table(row(work_id=wid, owner=owner, status="TRANSFER")))
+        r = run([str(p)])
+        assert r.returncode == 0, (wid, owner)
 
 
 # ---------------------------------------------------------------------------
