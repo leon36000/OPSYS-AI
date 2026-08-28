@@ -201,14 +201,16 @@ def _erreurs_de_ligne(row: dict[str, str], seen: set[str]) -> list[str]:
     prefixe) — la meme mutation d'echange y fait maintenant rougir ce test — mais
     SEULEMENT a l'arite (1,1) que sa fixture exerce (UNE erreur structurelle,
     OWNER, et UNE erreur de propriete, CORE_OWNER), pas en general.
-    Sur-generalisation trouvee et mesuree en revue scellee (tour 2 de #603, siege
-    3) : un mutant qui ENTRELACE (zip) les deux listes au lieu de les concatener
-    laisse cette fixture et les 70 tests d'alors verts, tout en faisant sortir, sur
-    une ligne portant 2 erreurs STRUCTURELLES et 1 erreur de PROPRIETE (mesure :
-    meme fixture, `status` egalement invalide), une erreur de PROPRIETE entre deux
-    erreurs STRUCTURELLES. Cette relation generale (TOUT le premier groupe avant
-    TOUT le second) reste, au-dela de l'arite (1,1) exercee ci-dessus, NON
-    epinglee a ce jour — suivi separe : #605.
+    Sur-generalisation trouvee et mesuree en revue scellee (tour 2 de #603, siege 3) : un
+    mutant qui ENTRELACE (zip) les deux listes au lieu de les concatener laissait alors
+    cette fixture et les 70 tests d'alors verts, tout en faisant sortir, sur une ligne
+    portant 2 erreurs STRUCTURELLES et 1 erreur de PROPRIETE, une erreur de PROPRIETE entre
+    deux erreurs STRUCTURELLES. Ferme depuis pour cette arite (AUD-QUAL-011, #605/#608) :
+    coordination/tests/test_check_coordination.py epingle desormais aussi l'arite (2,1) par
+    `test_ordre_structurel_avant_propriete_avec_deux_erreurs_structurelles` (meme egalite
+    exacte) — le meme mutant zip y fait maintenant rougir ce test aussi. Cette relation
+    generale (TOUT le premier groupe avant TOUT le second) reste, a ce jour, NON epinglee
+    pour toute arite autre que (1,1) et (2,1).
 
     La meme suite epingle aussi, au niveau de validate() plutot que de cette
     fonction, que les erreurs par ligne precedent les erreurs de paire
@@ -224,15 +226,21 @@ def _erreurs_de_ligne(row: dict[str, str], seen: set[str]) -> list[str]:
     non — `_erreurs_de_ligne()` voit TOUTE la table, `_erreurs_de_collision()` ne
     voit que les lignes ACTIVE) suit, dans la table, le membre DROIT d'une paire en
     collision : l'axe qui compte est la POSITION, pas un compte de lignes actives.
-    Mesure sur 2 instances : une table a 3 lignes actives, et une table a 2 lignes
-    actives en collision suivies d'une 3e ligne INACTIVE (statut MERGED) portant
-    l'erreur — memes lignes, ordre different dans les deux cas, 70/70 vert. Cette
-    relation precise reste NON epinglee a ce cas — suivi separe : #604.
+    Mesure sur 2 instances : une table a 3 lignes actives, et une table a 2 lignes actives
+    en collision suivies d'une 3e ligne INACTIVE (statut MERGED) portant l'erreur — memes
+    lignes, ordre different dans les deux cas, 70/70 vert alors. Ferme depuis
+    (AUD-QUAL-010, #604/#606) : coordination/tests/test_check_coordination.py epingle
+    desormais ce cas par
+    `test_ordre_ligne_avant_paire_quand_la_ligne_en_erreur_est_hors_de_la_paire` (meme
+    egalite exacte) — le meme entrelacement miroir y fait maintenant rougir ce test.
 
-    L'ordre INTERNE a chaque groupe ci-dessus (entre les controles d'UN MEME
-    groupe), lui, reste NON epingle a ce jour — voir l'en-tete de
-    coordination/tests/test_check_coordination.py pour le detail exact de ce qui est
-    et n'est pas couvert.
+    L'ordre INTERNE a chaque groupe ci-dessus (entre les controles d'UN MEME groupe) reste,
+    pour l'essentiel, NON epingle a ce jour — SAUF une relation (AUD-QUAL-011, #605/#608,
+    effet de bord non revendique par le mandat de #605) : OWNER precede STATUS dans
+    `_erreurs_structurelles()`, epingle en bonus par
+    `test_ordre_structurel_avant_propriete_avec_deux_erreurs_structurelles`. Voir l'en-tete
+    de coordination/tests/test_check_coordination.py pour le detail exact de ce qui est et
+    n'est pas couvert.
     """
     return _erreurs_structurelles(row, seen) + _erreurs_de_propriete(row)
 
