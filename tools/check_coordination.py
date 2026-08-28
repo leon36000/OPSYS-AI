@@ -189,20 +189,23 @@ def _erreurs_de_propriete(row: dict[str, str]) -> list[str]:
 
 def _erreurs_de_ligne(row: dict[str, str], seen: set[str]) -> list[str]:
     """Assemble les deux groupes ci-dessus, DANS L'ORDRE ou validate() les emettait
-    avant extraction. ATTENTION, imprecision corrigee en revue scellee (tour 1 de
-    #599, 3 sieges convergents) : ce n'est PAS un contrat pin par
-    coordination/tests/test_check_coordination.py — cet en-tete declare au contraire
-    que seuls l'exit code et le PREFIXE sur stdout comptent, jamais l'ordre entre
-    plusieurs lignes d'erreur. Precision (tour 2, 3 sieges convergents) : la suite
-    porte bien UNE egalite de liste sur `errors`
-    (test_json_output_porte_les_erreurs_sur_table_non_conforme), mais sur un
-    SINGLETON — elle epingle contenu et longueur, jamais un ordre entre plusieurs
-    lignes. Mesure : echanger cet appel en
-    `_erreurs_de_propriete(row) + _erreurs_structurelles(row, seen)` laisse la suite
-    verte. L'ordre reste un invariant TENU par ce commit (verifie par differentiel
-    comportemental exhaustif en revue scellee), mais NON epingle par la suite
-    existante — a fermer par une fixture dediee dans coordination/tests/ (hors
-    perimetre de cette PR, qui ne touche que ce fichier ; issue de suivi #600).
+    avant extraction (AUD-QUAL-007, #594/#599). A l'origine (revue scellee, tour 1 de
+    #599, 3 sieges convergents), cet ordre etait un invariant TENU par le code mais
+    NON epingle par aucune fixture — echanger cet appel en
+    `_erreurs_de_propriete(row) + _erreurs_structurelles(row, seen)` laissait alors
+    toute la suite verte. Ferme depuis (AUD-QUAL-008, #600/#601, docstring
+    rafraichie en AUD-QUAL-009, #602) : coordination/tests/test_check_coordination.py
+    epingle desormais cet ordre precis par
+    `test_ordre_erreur_structurelle_avant_erreur_de_propriete_sur_meme_ligne`
+    (egalite exacte de `stdout.splitlines()`, pas seulement l'exit code et le
+    prefixe) — la meme mutation d'echange y fait maintenant rougir ce test. La
+    meme suite epingle aussi, au niveau de validate() plutot que de cette fonction,
+    que les erreurs par ligne precedent les erreurs de paire
+    (`test_ordre_erreurs_de_ligne_avant_erreurs_de_collision`). L'ordre INTERNE a
+    chaque groupe ci-dessus (entre les controles d'UN MEME groupe), lui, reste NON
+    epingle a ce jour — voir l'en-tete de
+    coordination/tests/test_check_coordination.py pour le detail exact de ce qui est
+    et n'est pas couvert.
     """
     return _erreurs_structurelles(row, seen) + _erreurs_de_propriete(row)
 
