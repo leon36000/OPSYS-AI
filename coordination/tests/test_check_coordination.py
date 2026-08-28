@@ -23,9 +23,18 @@
 # sur stdout — pas l'appel direct des fonctions internes. Précision (AUD-QUAL-008, #600) :
 # deux fixtures dédiées épinglent en outre l'ORDRE RELATIF de plusieurs lignes d'erreur par
 # égalité EXACTE de `stdout.splitlines()` (pas seulement leur préfixe ou leur présence) —
-# l'ordre INTERNE à chaque groupe de contrôles (`_erreurs_structurelles()`,
-# `_erreurs_de_propriete()`, les paires de `_erreurs_de_collision()`) reste, lui, hors de ce
-# contrat, non épinglé par ce fichier à ce jour.
+# ATTENTION, auto-contradiction corrigée en revue scellée (tour 2 de #601, siège 2) : une
+# première version de cette phrase rangeait « les paires de _erreurs_de_collision() » parmi
+# l'ordre NON épinglé, alors que l'ordre INTERNE à UNE paire (BRANCH_COLLISION avant
+# PATH_COLLISION, dans `_erreurs_de_paire()`) EST épinglé en bonus par la seconde fixture
+# ci-dessous — contredisant, dans le même commit, le commentaire de ce test-là. Précisément :
+# l'ordre INTERNE à chaque groupe de contrôles PAR LIGNE (`_erreurs_structurelles()`,
+# `_erreurs_de_propriete()`) reste hors contrat, non épinglé par ce fichier à ce jour ; il en
+# va de même pour l'ordre ENTRE plusieurs paires distinctes lorsque `_erreurs_de_collision()`
+# en traite plus d'une (mesuré : inverser l'ordre de parcours des paires sur une table à 3
+# lignes actives change l'ordre des blocs émis sans faire rougir aucun test) — mais l'ordre
+# INTERNE à _erreurs_de_paire() lui-même EST épinglé, lui, comme la seconde fixture
+# ci-dessous le revendique explicitement.
 #
 # Lancer seul : python3 -m pytest coordination/tests/ (hors testpaths par défaut de
 # pytest.ini — dont le contenu exact n'est pas recopié ici, voir coordination/README.md).
@@ -1127,23 +1136,31 @@ def test_ordre_erreurs_de_ligne_avant_erreurs_de_collision(tmp_path):
     # — aucune n'affirme un ordre entre les DEUX familles de contrôle.
     #
     # Deux lignes actives de même branche et même scope (BRANCH_COLLISION et
-    # PATH_COLLISION, une paire) ; la première porte en prime une erreur PAR LIGNE
-    # (OWNER, puis ISSUE_OWNER — Work ID "ISS-A" matche CLAUDE_RE) pour vérifier que
-    # les erreurs de ligne de CETTE ligne précèdent bien les erreurs de paire, pas
-    # seulement celles d'une ligne antérieure. Couverture bonus, non revendiquée par
+    # PATH_COLLISION, une paire) ; la SECONDE (ISS-B, membre DROIT de la paire) porte
+    # en prime une erreur PAR LIGNE (OWNER, puis ISSUE_OWNER — Work ID "ISS-B" matche
+    # CLAUDE_RE). Précision (revue scellée, tour 2 de #601, siège 1) : le membre DROIT
+    # est nécessaire, pas arbitraire — une erreur portée par le membre GAUCHE (ISS-A)
+    # ne distinguerait PAS validate() réel d'un refactor hypothétique qui entrelacerait
+    # boucle par ligne et boucle par paire (traiter chaque ligne, émettre ses erreurs
+    # PUIS les paires où elle est le membre gauche, avant de passer à la ligne
+    # suivante) : sous cet entrelacement, ISS-A (première ligne) resterait émise avant
+    # la paire dans les deux cas. Mesuré : cette mutation d'entrelacement laisse les
+    # 70 tests d'alors verts avec l'erreur sur ISS-A, mais fait rougir CE test une fois
+    # l'erreur déplacée sur ISS-B (la paire, dont ISS-A est le membre gauche, serait
+    # alors émise AVANT les erreurs de ISS-B). Couverture bonus, non revendiquée par
     # le nom du test mais mesurée (revue scellée, tour 1 de #601, sièges 1 et 2) :
     # cette même égalité de liste épingle aussi BRANCH_COLLISION avant PATH_COLLISION
     # à l'intérieur de _erreurs_de_paire() — un réordonnancement interne à cette
     # fonction ferait donc rougir ce test aussi, pas seulement le sien.
     p = write(tmp_path, "t.md", table(
-        row(work_id="ISS-A", owner="BADOWNER", branch="claude/x", scope="coordination"),
-        row(work_id="ISS-B", owner="CLAUDE", branch="claude/x", scope="coordination"),
+        row(work_id="ISS-A", owner="CLAUDE", branch="claude/x", scope="coordination"),
+        row(work_id="ISS-B", owner="BADOWNER", branch="claude/x", scope="coordination"),
     ))
     r = run([str(p)])
     assert r.returncode == 1
     assert r.stdout.splitlines() == [
-        "OWNER:ISS-A:BADOWNER",
-        "ISSUE_OWNER:ISS-A:BADOWNER",
+        "OWNER:ISS-B:BADOWNER",
+        "ISSUE_OWNER:ISS-B:BADOWNER",
         "BRANCH_COLLISION:ISS-A:ISS-B",
         "PATH_COLLISION:ISS-A:ISS-B:coordination:coordination",
     ]
