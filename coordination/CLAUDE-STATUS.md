@@ -198,9 +198,11 @@ tour 9 venait de mesurer que `repr()` laisse passer tel quel tout caractère non
 VALIDE (pas seulement les surrogates), qui casse sous `PYTHONIOENCODING=ascii`. La
 correction du tour 9 (`ascii()`/`!a` sur les messages construits à la main) posait donc
 la protection au mauvais étage : aux sites `raise` de `_chemin_sur()` (leur nombre exact
-n'est pas figé ici, un `grep` sur `!r}"` en donne le compte courant — décompte déjà pris
-en défaut une fois : le tour 9 en comptait trois de mémoire alors qu'il venait, dans le
-même commit, de scinder un message en deux), jamais
+n'est pas figé ici — `diff -u` contre le pack reste la seule source qui ne devient jamais
+fausse en silence ; un `grep` suggéré ici pour les compter se compterait lui-même dès
+qu'il est cité en commentaire, mesuré au tour 12 — décompte déjà pris en défaut une fois :
+le tour 9 en comptait trois de mémoire alors qu'il venait, dans le même commit, de
+scinder un message en deux), jamais
 aux sites `print()` de `main()` où l'encodage a réellement lieu — ni aux `OSError` système,
 ni au troisième `print()` (`"\n".join(errors)`), atteignable sans aucun argv exotique dès
 qu'une CELLULE de table porte un accent (réaliste : ce dépôt rédige ses tables en français).

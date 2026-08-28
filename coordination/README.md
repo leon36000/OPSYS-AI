@@ -51,7 +51,14 @@
       répertoire fourni à la place d'un fichier, permission refusée…) ni décodée en UTF-8.
       La table n'a jamais été lue.
     - `SORTIE_IMPOSSIBLE:<raison>` — la table a été lue et validée, mais la sortie
-      `--json-output` n'a pas pu être écrite. Le verdict existe, il n'a pas été livré.
+      `--json-output` n'a pas pu être écrite. Le verdict existe, il n'a pas été livré —
+      y compris, si la table était NON conforme, la liste d'erreurs elle-même :
+      l'écriture `--json-output` est tentée avant le test qui déciderait de l'exit 1,
+      donc un échec d'écriture sur une table non conforme rend exit 2 sans jamais
+      imprimer les lignes d'erreur (mesuré : `MODULE_CODE_DURING_CORE:<id>` sur une
+      table portant l'interdit dur de l'ADR-0004, non affiché dans ce cas précis).
+      Pas un faux vert (exit 2 ≠ 0, jamais confondu avec un succès), mais un
+      diagnostic perdu — mesuré, pas encore refermé.
 
     Aucun décompte de causes n'est donné, et ces préfixes ne les épuisent pas : `argparse`
     rend lui aussi exit 2 quand l'argument `ownership` manque, **sans préfixe** — sortie

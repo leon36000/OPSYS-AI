@@ -297,9 +297,10 @@ def main() -> int:
     # caractere qu'il ne saurait encoder. Sans effet sous UTF-8 (le cas courant : aucun
     # caractere de ce fichier n'est jamais inencodable en UTF-8, mesure). !a redevient
     # inutile aux sites de _chemin_sur() ou il avait ete introduit au tour 9 -- revenu a
-    # !r (repr(), plus lisible) pour ces sites-la (pas de decompte fige ici : `diff -u`
-    # ou un grep sur `!r}"` en donne le compte exact, qu'une future edition invaliderait
-    # sinon en silence), la protection reelle vivant ici desormais, une seule fois, pour
+    # !r (repr(), plus lisible) pour ces sites-la (pas de decompte fige ici, `diff -u`
+    # contre le pack restant la seule source qui ne devient jamais fausse en silence --
+    # un grep suggere ICI pour les compter se compterait lui-meme, mesure : ce piege
+    # precis a failli se reproduire au tour 12), la protection reelle vivant ici desormais, une seule fois, pour
     # tous les points d'impression de cette fonction sans exception.
     #
     # Regression introduite PAR ce correctif, fermee au tour 11 (revue scellee, 2 sieges
