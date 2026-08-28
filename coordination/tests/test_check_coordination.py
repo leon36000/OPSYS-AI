@@ -1276,6 +1276,37 @@ def test_ordre_ligne_avant_paire_quand_la_ligne_en_erreur_est_hors_de_la_paire(t
     ]
 
 
+def test_ordre_structurel_avant_propriete_avec_deux_erreurs_structurelles(tmp_path):
+    # Complète test_ordre_erreur_structurelle_avant_erreur_de_propriete_sur_meme_ligne
+    # ci-dessus contre un entrelacement en ZIP des deux groupes assemblés par
+    # _erreurs_de_ligne() (revue scellée, tour 2 de #603, 3 sièges convergents ;
+    # précisée tour 3, siège 3 ; AUD-QUAL-011, #605). Ce test-là n'exerce qu'UNE
+    # erreur par groupe (OWNER, CORE_OWNER) — arité où concaténation et
+    # entrelacement en zip coïncident. Mesuré : à l'arité (1 structurelle,
+    # 2 propriété), le mutant reste indiscernable du réel ; c'est UNIQUEMENT à
+    # partir de 2 erreurs côté STRUCTUREL (avec au moins 1 côté propriété) qu'il
+    # diverge.
+    #
+    # Fixture à 2 erreurs structurelles (OWNER, STATUS) + 1 erreur de propriété
+    # (CORE_OWNER) : Work ID "C05-001" (matche CORE_RE), owner "BADOWNER" (hors
+    # OWNERS), status "BADSTATUS" (hors STATUSES), scope "core/x". Mesuré (copie
+    # isolée, jamais le worktree partagé) : le mutant zip laisse les 71 tests
+    # d'alors verts (aucune fixture existante n'exerce ≥2 erreurs dans un même
+    # groupe) mais fait rougir CE test — même ensemble de lignes que le réel,
+    # ordre différent : CORE_OWNER (propriété) sort entre OWNER et STATUS
+    # (structurel) au lieu de les suivre toutes deux.
+    p = write(tmp_path, "t.md", table(
+        row(work_id="C05-001", owner="BADOWNER", scope="core/x", status="BADSTATUS"),
+    ))
+    r = run([str(p)])
+    assert r.returncode == 1
+    assert r.stdout.splitlines() == [
+        "OWNER:C05-001:BADOWNER",
+        "STATUS:C05-001:BADSTATUS",
+        "CORE_OWNER:C05-001:BADOWNER",
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Limite héritée du pack, caractérisée explicitement — PAS un test qui la cache
 # (mandat #592, point 2)
