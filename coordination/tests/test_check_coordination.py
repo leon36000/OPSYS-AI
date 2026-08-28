@@ -125,6 +125,19 @@ def test_separateur_espace_reste_non_reconnu_fail_closed(tmp_path):
     assert "HEADER_MISSING" in r.stdout
 
 
+def test_ligne_de_donnees_indentee_reste_validee(tmp_path):
+    # `raw.strip()` de parse_rows() (avant le test `line.startswith("|")`) sans test
+    # dédié jusqu'ici, signalé deux fois comme non bloquant (revue scellée, tours 4 et 5
+    # de #598) : sans lui, une ligne de DONNÉES précédée d'espaces cesserait d'être
+    # reconnue comme ligne de table — collisions et interdit dur de l'ADR-0004 compris,
+    # silencieusement. GFM lui-même ne distingue pas une ligne de table indentée d'une
+    # autre ; ce contrôle affirme que ce fichier non plus.
+    p = write(tmp_path, "t.md", HEADER + SEP + "  | ISS-A | CLAUDE | br-a | modules m | ACTIVE | x | y |\n")
+    r = run([str(p)])
+    assert r.returncode == 1
+    assert "MODULE_CODE_DURING_CORE:ISS-A" in r.stdout
+
+
 # ---------------------------------------------------------------------------
 # overlaps() — normalisation casse + séparateur (mandat #592, point 3)
 # ---------------------------------------------------------------------------
@@ -132,8 +145,9 @@ def test_separateur_espace_reste_non_reconnu_fail_closed(tmp_path):
 def test_overlaps_normalise_la_casse(tmp_path):
     # Fail-open du pack fermé : "Coordination" vs "coordination" est une vraie collision,
     # une comparaison de chaîne brute la manquait. Les DEUX ordres de déclaration sont
-    # exercés (revue scellée, tour 4 de #598) : overlaps() normalise séparément chaque
-    # opérande ("a" ligne 90, "b" ligne 91) — un seul ordre ne teste que la moitié gauche
+    # exercés (revue scellée, tour 4 de #598, renvoi par nom plutôt que par numéro de
+    # ligne — doctrine du fichier livré, cf. son propre docstring) : `overlaps(a, b)`
+    # normalise séparément chaque opérande — un seul ordre ne teste que la moitié gauche
     # de cette paire de normalisations, comme l'a révélé la disjonction de parenté au
     # tour 3 pour un mécanisme voisin.
     p_gauche_anormale = write(tmp_path, "gauche_anormale.md", table(
@@ -383,6 +397,21 @@ def test_module_code_during_core_scope_racine_couvrant_tout_larbre(tmp_path):
         assert "MODULE_CODE_DURING_CORE:ISS-A" in r.stdout, scope
 
 
+def test_module_code_during_core_scope_exactement_egal(tmp_path):
+    # Sens ÉGALITÉ (revue scellée, tour 5 de #598) : le disjoint le plus direct de
+    # `s == cible_module_m or cible_module_m in s.parents or s in cible_module_m.parents`
+    # n'était exercé par AUCUNE des 52 fixtures — toutes retombaient sur le sens
+    # descendant ("modules m/M7" et variantes) ou ancêtre ("." et "./"), jamais sur un
+    # scope EXACTEMENT égal à "modules m" (aucun composant enfant, aucun préfixe "."). Le
+    # disjoint homologue d'overlaps() (`pa == pb`), lui, était déjà couvert par 3 tests —
+    # asymétrie non intentionnelle sur le seul interdit dur de l'ADR-0004, et sur la
+    # graphie la plus directe de la violation que ce contrôle existe pour interdire.
+    p = write(tmp_path, "t.md", table(row(scope="modules m")))
+    r = run([str(p)])
+    assert r.returncode == 1
+    assert "MODULE_CODE_DURING_CORE:ISS-A" in r.stdout
+
+
 def test_module_code_during_core_normalise_la_casse(tmp_path):
     # Sans test avant ce correctif (mutant survivant, revue scellée, tour 2 de #598) :
     # retirer le .casefold() de la normalisation de scope laissait ce cas passer
@@ -500,10 +529,16 @@ def test_branch_collision_detecte_sur_branche_identique(tmp_path):
 def test_branch_collision_exempte_la_sentinelle_read_only(tmp_path):
     # Deux missions read-only actives, toutes deux "n/a", devaient rester exprimables —
     # sans cette exemption, la porte d'activation se bloquait sur un état légitime.
-    # L'exemption est elle-même normalisée par .strip().casefold() (revue scellée,
-    # tour 4 de #598) : "N/A" et " n/a " doivent être exemptées au même titre que "n/a" —
-    # sans quoi une variante de casse retombe à tort en BRANCH_COLLISION (fail-closed,
-    # pas un fail-open, mais la normalisation restait non protégée par ce test avant).
+    # L'exemption est normalisée par .strip().casefold() (revue scellée, tour 4 de #598) :
+    # "N/A" doit être exemptée au même titre que "n/a" — sans quoi une variante de casse
+    # retombe à tort en BRANCH_COLLISION (fail-closed, pas un fail-open, mais la
+    # normalisation restait non protégée par ce test avant). " n/a " (espaces de bord)
+    # est incluse pour la lisibilité de l'intention, mais NE discrimine PAS le .strip()
+    # de cette exemption à elle seule : parse_rows() strippe déjà chaque cellule avant
+    # que BRANCH_COLLISION ne la voie (mesuré en revue scellée, tour 5 : muter
+    # .strip().casefold() en .casefold() seul laisse ce test vert) — ce .strip() précis
+    # est une garde défensive redondante avec un strip en amont, pas un contrat atteint
+    # par cette fixture.
     for graphie in ("n/a", "N/A", " n/a "):
         p = write(tmp_path, "t.md", table(
             row(work_id="ISS-A", branch=graphie, scope="read-only"),
