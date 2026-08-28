@@ -86,10 +86,12 @@
   `COORDINATION_OK`) ; `overlaps()` normalise casse et séparateur puis compare des chemins
   par égalité ou parenté (`PurePosixPath`), sans aucune sémantique de glob — `**` y est un
   composant de chemin ordinaire, pas un joker : deux scopes `.github/workflows/**` et
-  `.github/workflows/ci.yml` ne sont donc pas vus en collision, et un scope glob (`*`,
-  `**`) sur une ligne active échappe pareillement à `MODULE_CODE_DURING_CORE` — même
-  absence de sémantique, aucun chemin réel couvrant `modules m/` n'y échappant en
-  revanche (vérifié sur ~20 graphies) ; un périphérique caractère sans fin de fichier
+  `.github/workflows/ci.yml` ne sont donc pas vus en collision, et un scope dont la
+  résolution en joker serait nécessaire pour ATTEINDRE `modules m` (`**` seul, `*/M7`)
+  échappe pareillement à `MODULE_CODE_DURING_CORE`, même absence de sémantique — un scope
+  qui reste un DESCENDANT littéral de `modules m` (`modules m/*`, `modules m/**`), lui,
+  y est intercepté normalement, `modules m` en étant déjà l'ancêtre littéral sans qu'aucun
+  joker n'ait besoin d'être développé (vérifié) ; un périphérique caractère sans fin de fichier
   (`/dev/zero`) ou un tube nommé sans écrivain sortent tous deux du contrat 0/1/2
   ci-dessus — blocage ou trace non interceptée, jamais l'une des lignes énumérées à
   exit 1 ni un `LECTURE_IMPOSSIBLE` propre ; même famille, un stdout indisponible AVANT

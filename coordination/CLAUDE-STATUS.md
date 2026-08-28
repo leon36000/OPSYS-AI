@@ -96,8 +96,10 @@ table — `MODULE_CODE_DURING_CORE` et les collisions y compris. Fermé par un m
 ligne ENTIÈRE (`^\|(-+\|)+$`), sans faire régresser les deux limites déjà nommées dans
 `coordination/README.md` (séparateur espacé ou aligné par deux-points toujours non
 reconnu — vérifié inchangé après ce correctif). Mesuré : `|---X | NATHAN | main |
-modules m/M7 | ACTIVE | ... | ... |` → `MODULE_CODE_DURING_CORE:---X`, exit 1 (au lieu de
-`COORDINATION_OK rows=0 active=0` à tort, l'interdit dur de l'ADR-0004 non testé compris).
+modules m/M7 | ACTIVE | ... | ... |` → deux lignes, `BRANCH:---X` (branche `main` en ligne
+ACTIVE, incident à cette fixture précise, pas au correctif) puis `MODULE_CODE_DURING_CORE:
+---X`, exit 1 (au lieu de `COORDINATION_OK rows=0 active=0` à tort, l'interdit dur de
+l'ADR-0004 non testé compris).
 
 ### `overlaps()` — casse et séparateur normalisés
 
@@ -109,13 +111,20 @@ coordination/sub`, exit 1.
 
 ### `MODULE_CODE_DURING_CORE` — scope multiple, normalisé par élément
 
-Découpe la cellule `scope` sur `;` et teste chaque élément via `PurePosixPath` (égalité ou
-parenté avec `modules m`, même mécanisme que `overlaps()`), pas une comparaison de chaîne sur
-la cellule entière. Ferme deux fail-opens sur le seul interdit dur de l'ADR-0004 (aucun code
-métier M avant handoff Core) : `coordination;modules m/M7` (cellule entière testée, pas ses
-éléments) et `./modules m/M7` (préfixe `./`, que `valid_scope()` accepte et qu'une comparaison
-de chaîne brute ne reconnaît pas comme équivalent à `modules m/M7`). Mesuré à HEAD : les deux
-fixtures et `./coordination;./modules m/M7` → `MODULE_CODE_DURING_CORE:<id>`, exit 1.
+Découpe la cellule `scope` sur `;` et teste chaque élément via `PurePosixPath` (égalité, ou
+parenté avec `modules m` dans les DEUX sens — descendant et ancêtre —, même mécanisme que
+`overlaps()`), pas une comparaison de chaîne sur la cellule entière. Ferme plusieurs
+fail-opens sur le seul interdit dur de l'ADR-0004 (aucun code métier M avant handoff Core),
+pas de décompte figé ici — `tools/check_coordination.py` porte le détail et `diff -u` reste
+la source qui ne peut pas devenir incomplète en silence : `coordination;modules m/M7`
+(cellule entière testée, pas ses éléments), `./modules m/M7` (préfixe `./`, que
+`valid_scope()` accepte et qu'une comparaison de chaîne brute ne reconnaît pas comme
+équivalent à `modules m/M7`), et un scope `.` ou `./` (tour 10 — couvre tout l'arbre,
+`modules m/` compris, mais le test ne portait que sur le sens descendant/égalité, jamais
+sur le sens ANCÊTRE manquant, symétrique de celui déjà présent dans `overlaps()`). Mesuré à
+HEAD : les deux premières fixtures et `./coordination;./modules m/M7` →
+`MODULE_CODE_DURING_CORE:<id>`, exit 1 ; scope `.` ou `./` → `MODULE_CODE_DURING_CORE:<id>`,
+exit 1 (tour 10).
 
 ### `BRANCH_COLLISION` — sentinelle `n/a` exemptée
 
