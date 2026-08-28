@@ -22,8 +22,8 @@
 # scripts/tests/test_methode.py) : ce qui compte ici est le contrat CLI — exit code + préfixe
 # sur stdout — pas l'appel direct des fonctions internes. Précision (AUD-QUAL-008, #600 ;
 # troisième fixture ajoutée en AUD-QUAL-010, #604) : trois fixtures dédiées épinglent en
-# outre l'ORDRE RELATIF de plusieurs lignes d'erreur par
-# égalité EXACTE de `stdout.splitlines()` (pas seulement leur préfixe ou leur présence) —
+# outre l'ORDRE RELATIF de plusieurs lignes d'erreur par égalité EXACTE de
+# `stdout.splitlines()` (pas seulement leur préfixe ou leur présence) —
 # ATTENTION, auto-contradiction corrigée en revue scellée (tour 2 de #601, siège 2) : une
 # première version de cette phrase rangeait « les paires de _erreurs_de_collision() » parmi
 # l'ordre NON épinglé, alors que l'ordre INTERNE à UNE paire (BRANCH_COLLISION avant
@@ -1233,18 +1233,24 @@ def test_ordre_ligne_avant_paire_quand_la_ligne_en_erreur_est_hors_de_la_paire(t
     # et reprises dans #604 (3 lignes ACTIVE ; 2 ACTIVE + 1 ligne hors de l'ensemble
     # ACTIVE après) : celle-ci, qui réduit le nombre de paires évaluées de 3 à 1. Ce
     # choix n'est PAS mécaniquement requis — sur-généralisation trouvée et mesurée en
-    # revue scellée (tour 2 de #606, siège 2) dans une précédente version de ce
-    # paragraphe, qui l'affirmait à tort : status="ACTIVE" sur ISS-C (donc SANS
-    # aucune exclusion de l'ensemble ACTIVE — ISS-C devient alors candidate aux
-    # paires (ISS-A,ISS-C) et (ISS-B,ISS-C), qui ne collisionnent simplement pas)
-    # fait diverger le mutant miroir à l'identique. Ce qui porte le mécanisme est la
-    # POSITION d'ISS-C après le membre DROIT de la paire, jointe au fait qu'elle
-    # n'est elle-même le membre DROIT d'aucune paire en collision — PAS son
-    # appartenance ou non à ACTIVE (même axe que #604 et que le docstring de
-    # _erreurs_de_ligne() : « la position, pas un compte de lignes actives »). Un
-    # statut hors ACTIVE reste néanmoins préférable ici : il instancie la branche la
+    # revue scellée (tour 2 de #606, 3 sièges convergents) dans une précédente
+    # version de ce paragraphe, qui l'affirmait à tort : status="ACTIVE" sur ISS-C
+    # fait diverger le mutant miroir à l'identique (mesuré). Ce qui porte le
+    # mécanisme, tel que #604 et le docstring de _erreurs_de_ligne() le formulent
+    # déjà : ISS-C porte une erreur de ligne et est positionnée, dans la table,
+    # APRÈS le membre DROIT d'une paire en collision — pas plus. Sur-restriction
+    # trouvée et mesurée en revue scellée (tour 3 de #606, siège 1) dans une autre
+    # précédente version de ce paragraphe, qui ajoutait à tort la condition qu'ISS-C
+    # ne soit elle-même membre DROIT d'aucune paire : mesuré par contre-exemple,
+    # donner à ISS-C la même branche que ISS-A et ISS-B (la rendant membre DROIT de
+    # 2 paires en collision supplémentaires) fait toujours diverger le mutant
+    # miroir à l'identique — c'est la présence de la paire (ISS-A,ISS-B), dont
+    # ISS-C n'a pas besoin d'être membre, qui suffit. Ni l'appartenance d'ISS-C à
+    # ACTIVE, ni son statut de membre ou non d'une paire, ne portent le mécanisme.
+    # Un statut hors ACTIVE reste néanmoins préférable ici : il instancie la branche la
     # plus distincte des 2 mesurées dans #604, plutôt que de redire sous une
-    # troisième forme l'instance à 3 lignes ACTIVE déjà couverte par ailleurs. MERGED
+    # troisième forme l'instance à 3 lignes ACTIVE déjà documentée ailleurs (#604,
+    # instance 1 ; docstring de _erreurs_de_ligne()). MERGED
     # choisi parmi QUEUED, BLOCKED, MERGED — TRANSFER exclu, mesuré : la garde
     # `status != "TRANSFER"` de _erreurs_de_propriete() supprimerait ISSUE_OWNER,
     # faisant tomber cette fixture à 3 lignes au lieu des 4 assertées ; c'est la
