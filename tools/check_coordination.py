@@ -172,7 +172,7 @@ def validate(path: Path) -> tuple[list[dict[str, str]], list[str]]:
 
 
 def _chemin_sur(brut: str, *, pour_ecriture: bool = False) -> Path:
-    """Resout et valide un chemin AVANT tout acces disque (SonarCloud S8707,
+    """Resout et valide un chemin AVANT tout acces a son CONTENU (SonarCloud S8707,
     new_security_rating C sur ce fichier neuf : lecture et ecriture d'un
     chemin argv sans validation prealable). Les deux points d'appel, dans
     main(), ne repetent pas ce motif : ils commentent le contrat exit 2 /

@@ -100,10 +100,13 @@
   échappe pareillement à `MODULE_CODE_DURING_CORE`, même absence de sémantique — un scope
   qui reste un DESCENDANT littéral de `modules m` (`modules m/*`, `modules m/**`), lui,
   y est intercepté normalement, `modules m` en étant déjà l'ancêtre littéral sans qu'aucun
-  joker n'ait besoin d'être développé (vérifié) ; un périphérique caractère sans fin de fichier
-  (`/dev/zero`) ou un tube nommé sans écrivain sortent tous deux du contrat 0/1/2
-  ci-dessus — blocage ou trace non interceptée, jamais l'une des lignes énumérées à
-  exit 1 ni un `LECTURE_IMPOSSIBLE` propre ; même famille, un stdout indisponible AVANT
+  joker n'ait besoin d'être développé (vérifié) ; le mécanisme, pas seulement le type de
+  périphérique, est ce qui sort du contrat 0/1/2 — `read_text()` charge tout le contenu en
+  mémoire d'un coup, sans borne : un périphérique caractère sans fin de fichier
+  (`/dev/zero`), un tube nommé sans écrivain, ou un simple FICHIER RÉGULIER dont la taille
+  dépasse la mémoire disponible (mesuré : `MemoryError` non interceptée sous `ulimit -v`
+  bas, table livrée bien plus petite) en sortent tous — blocage ou trace non interceptée,
+  jamais l'une des lignes énumérées à exit 1 ni un `LECTURE_IMPOSSIBLE` propre ; même famille, un stdout indisponible AVANT
   toute écriture (`>&-`, descripteur fermé) ou rompu EN COURS d'écriture (tube lu puis
   refermé, `| head -0`) échappe lui aussi, respectivement en silence (`print()` sur un
   flux clos ne lève rien) et en `BrokenPipeError`, exit 120 — condition du canal de

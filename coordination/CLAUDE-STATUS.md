@@ -186,7 +186,12 @@ exit 2) et `OSError` en écriture (`SORTIE_IMPOSSIBLE:<raison>`, exit 2) — fer
 pack où une table lue et conforme, mais dont `--json-output` échoue à l'écriture, rendait le
 même exit 1 qu'une table non conforme.
 
-`_chemin_sur()` valide le chemin avant tout accès disque (SonarCloud `pythonsecurity:S8707`) :
+`_chemin_sur()` valide le chemin avant tout accès à son CONTENU (`read_text()`/
+`write_text()`), pas avant tout accès disque au sens strict — `resolve(strict=True)`
+lui-même fait des `stat()`/`readlink()` (revue scellée, tour 14 : le message
+`LECTURE_IMPOSSIBLE:[Errno 13] Permission denied` sur un parent illisible, mesuré
+plus bas, ne peut venir que d'un accès disque À L'INTÉRIEUR de cette « validation
+préalable » — SonarCloud `pythonsecurity:S8707` :
 octet nul refusé (garde défensive, non mesurable en CLI — `execve`/Python refuse un tel
 octet dans un argument avant même le lancement du script ; atteignable seulement en usage
 bibliothèque), `resolve()`, boucle de liens symboliques reconvertie en `OSError` (sinon
