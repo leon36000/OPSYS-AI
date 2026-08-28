@@ -21,11 +21,11 @@
 # garde la preuve rejouable. Invocation en subprocess réel (comme
 # scripts/tests/test_methode.py) : ce qui compte ici est le contrat CLI — exit code + préfixe
 # sur stdout — pas l'appel direct des fonctions internes. Précision (AUD-QUAL-008, #600 ;
-# étendue en AUD-QUAL-010, #604) : les fixtures d'ordre ci-dessous, désignées par nom (pas
-# par décompte — un décompte figé serait faux à la prochaine addition, cf.
-# coordination/README.md), épinglent en outre l'ORDRE RELATIF de plusieurs lignes
-# d'erreur par égalité EXACTE de `stdout.splitlines()` (pas seulement leur préfixe ou
-# leur présence) —
+# étendue en AUD-QUAL-010, #604) : les fixtures dont le nom commence par `test_ordre_`
+# (désignation par motif de nom, pas par décompte — un décompte figé serait faux à la
+# prochaine addition, cf. coordination/README.md) épinglent en outre l'ORDRE RELATIF de
+# plusieurs lignes d'erreur par égalité EXACTE de `stdout.splitlines()` (pas seulement
+# leur préfixe ou leur présence) —
 # ATTENTION, auto-contradiction corrigée en revue scellée (tour 2 de #601, siège 2) : une
 # première version de cette phrase rangeait « les paires de _erreurs_de_collision() » parmi
 # l'ordre NON épinglé, alors que l'ordre INTERNE à UNE paire (BRANCH_COLLISION avant
@@ -1242,15 +1242,13 @@ def test_ordre_ligne_avant_paire_quand_la_ligne_en_erreur_est_hors_de_la_paire(t
     # déjà (mais voir #607 : ce docstring devient lui-même périmé sur ce point une
     # fois #604 fermée par ce commit — suivi séparé, pas de correctif ici) : ISS-C
     # porte une erreur de ligne et est positionnée, dans la table, APRÈS le membre
-    # DROIT d'une paire en collision — pas plus (condition SUFFISANTE pour cette
-    # fixture à une seule paire ; à ≥ 2 paires en collision, le miroir se distingue
-    # aussi par le seul ordre ENTRE paires, relation que l'en-tête range hors
-    # contrat). Sur-restriction trouvée et mesurée en revue scellée (tour 3 de #606,
-    # 3 sièges convergents) dans une autre précédente version de ce paragraphe, qui
-    # ajoutait à tort la condition qu'ISS-C ne soit elle-même membre DROIT d'aucune
-    # paire : mesuré par contre-exemple, donner à ISS-C À LA FOIS la même branche
-    # que ISS-A/ISS-B ET le statut ACTIVE (les deux mutations sont nécessaires —
-    # sous MERGED seul, ISS-C reste hors de _erreurs_de_collision() quelle que soit
+    # DROIT d'une paire en collision — pas plus. Sur-restriction trouvée et mesurée
+    # en revue scellée (tour 3 de #606, 3 sièges convergents) dans une autre
+    # précédente version de ce paragraphe, qui ajoutait à tort la condition qu'ISS-C
+    # ne soit elle-même membre DROIT d'aucune paire : mesuré par contre-exemple,
+    # donner à ISS-C À LA FOIS la même branche que ISS-A/ISS-B ET le statut ACTIVE
+    # (les deux mutations sont nécessaires — sous MERGED seul, ISS-C reste hors de
+    # _erreurs_de_collision() quelle que soit
     # sa branche, donc membre d'aucune paire, ce qui ne réfute rien) la rend membre
     # DROIT de 2 paires en collision supplémentaires (BRANCH_COLLISION:ISS-A:ISS-C,
     # BRANCH_COLLISION:ISS-B:ISS-C) — et le mutant miroir diverge toujours à
