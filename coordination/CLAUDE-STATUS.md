@@ -238,21 +238,32 @@ exit 2 / `LECTURE_IMPOSSIBLE` / `SORTIE_IMPOSSIBLE` ne change pas pour autant. D
 dépôt) dans son propre docstring, `tools/check_coordination.py` — pas recopié ici, pour ne
 pas répéter l'erreur qui a motivé cette réécriture.
 
-**Un vrai rétrécissement de comportement est passé avec elle, trouvé et fermé par la même
-revue** : la première version de `_chemin_sur()` exigeait `is_file()` en lecture, donc
-rejetait un FIFO, `/dev/stdin` ou une substitution de processus (`<(...)`) — des entrées
-légitimes que `read_text()` seul lisait déjà sans encombre. Fermé en n'excluant que les
-répertoires en lecture ; le cas plus profond où `resolve()` lui-même échoue sur ces mêmes
-entrées (mesuré : une substitution de processus résout vers un `pipe:[N]` synthétique,
-introuvable) est traité par repli explicite sur le chemin non résolu, décrit dans le
-docstring de la fonction.
+**Un vrai rétrécissement de comportement est passé avec elle, trouvé par la même revue et
+fermé partiellement, l'autre part assumée** : la première version de `_chemin_sur()` exigeait
+`is_file()` en lecture, donc rejetait un FIFO, `/dev/stdin` **et** une substitution de
+processus (`<(...)`) — des entrées légitimes que `read_text()` seul lisait déjà sans encombre.
+Pour le FIFO nommé et `/dev/stdin` : fermé, en n'excluant que les répertoires en lecture — un
+FIFO résout normalement (chemin réel existant), donc passe. Pour la substitution de
+processus : **non fermé, délibérément, après un aller-retour réel avec la CI**. Un premier
+essai ajoutait un repli sur le chemin non résolu quand `resolve(strict=True)` échoue lui-même
+sur ce type d'entrée (mesuré : `<(...)` résout vers un `pipe:[N]` synthétique, introuvable) —
+`COORDINATION_OK` obtenu localement, mais SonarCloud a rouvert `pythonsecurity:S8707` sur le
+code réel de ce dépôt : sur ce repli précis, le chemin qui atteint `read_text()` n'a traversé
+aucune validation, exactement le motif que cette fonction existe pour fermer. Vérifié avant
+de conclure : `sonar analyze` local, `--depth DEEP` inclus, **ne reproduit pas** ce
+diagnostic sur ce fichier — seule l'analyse serveur réelle (taint inter-fonctions) le voit ;
+un local vert n'est pas une preuve sur cette règle précise. Le repli est retiré : arbitrage
+assumé entre un gate CI dur et une entrée légitime mais jamais observée dans l'usage
+documenté de cet outil (toujours invoqué sur un chemin de fichier réel dans ce dépôt).
 
 Mesuré à HEAD : chemin = répertoire → `LECTURE_IMPOSSIBLE:n'est pas un fichier regulier :
 <chemin>`, exit 2 ; contenu non UTF-8 → `LECTURE_IMPOSSIBLE:'utf-8' codec can't decode byte
 ...`, exit 2 ; `--json-output` vers cible non inscriptible → `SORTIE_IMPOSSIBLE:...`, exit 2 ;
-FIFO ou substitution de processus lisible en entrée → `COORDINATION_OK`, comme avant
-`_chemin_sur()`. Contrat : 0 = table lue et conforme ; 1 = table lue, non conforme ; 2 = aucun
-verdict de conformité exploitable. Documenté dans `coordination/README.md`, à côté de
+FIFO nommé lisible en entrée → `COORDINATION_OK`, comme avant `_chemin_sur()` ; substitution
+de processus en entrée → `LECTURE_IMPOSSIBLE:[Errno 2] No such file or directory: '/proc/.../
+pipe:[...]'`, exit 2 — limite assumée, ci-dessus. Contrat : 0 = table lue et conforme ;
+1 = table lue, non conforme ; 2 = aucun verdict de conformité exploitable. Documenté dans
+`coordination/README.md`, à côté de
 `COORDINATION_OK`.
 
 ### Diff contre le pack

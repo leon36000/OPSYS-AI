@@ -138,25 +138,39 @@ def _chemin_sur(brut: str, *, pour_ecriture: bool = False) -> Path:
 
     Lecture et ecriture n'exigent PAS la meme nature de cible, deliberement.
 
-    REGRESSION mesuree et fermee ici, trouvee par revue scellee independante
-    (3 sieges, convergents) : une premiere version de cette fonction exigeait
-    `is_file()` en lecture, ce qui rejetait un FIFO, `/dev/stdin` ou une
-    substitution de processus (`<(...)`) — des entrees legitimes et
-    atteignables en ligne de commande que `read_text()` seul lisait deja sans
-    encombre avant ce correctif. Retrecissement de comportement jamais
-    annonce comme tel : ferme en n'excluant que les repertoires en lecture.
+    REGRESSION mesuree et PARTIELLEMENT fermee ici, trouvee par revue scellee
+    independante (3 sieges, convergents) : une premiere version de cette
+    fonction exigeait `is_file()` en lecture, ce qui rejetait un FIFO,
+    `/dev/stdin` ou une substitution de processus (`<(...)`) — des entrees
+    legitimes et atteignables en ligne de commande que `read_text()` seul
+    lisait deja sans encombre avant l'introduction de cette fonction.
+    Retrecissement de comportement jamais annonce comme tel.
 
-    Deuxieme cas ferme dans le meme geste, plus profond : `resolve(strict=True)`
-    echoue AUSSI sur ces memes entrees (mesure : une substitution de processus
-    resout vers un `pipe:[N]` synthetique, `FileNotFoundError` sur ce chemin qui
-    n'existe pas en tant que tel). Repli explicite sur le chemin NON resolu
-    dans ce seul cas precis : la resolution est retentee, et seul un vrai
-    `FileNotFoundError` de resolution (pas d'existence — la difference est
-    faite par le repli lui-meme, jamais devinee) fait retomber sur `Path(brut)`
-    tel quel, que `is_dir()`/`read_text()` jugeront ensuite sur ses propres
-    termes. Un chemin reellement inexistant traverse ce meme repli sans
-    silence : `is_dir()` y rend faux, `read_text()` echoue a son tour plus
-    loin, meme message et meme exit 2 qu'avant ce correctif — verifie.
+    Fermee pour le FIFO nomme et `/dev/stdin` : `elif chemin.is_dir()`
+    n'exclut plus que les repertoires — un FIFO resout normalement (c'est un
+    vrai chemin existant) et n'est pas un repertoire, donc passe. Mesure et
+    verifie : `COORDINATION_OK`, comme avant l'introduction de cette fonction.
+
+    PAS fermee pour la substitution de processus, deliberement, apres un
+    aller-retour reel avec la CI — a dire plutot qu'a cacher. Un premier
+    essai ajoutait un repli sur le chemin NON resolu quand
+    `resolve(strict=True)` echoue lui-meme sur ce type d'entree (mesure :
+    `<(...)` resout vers un `pipe:[N]` synthetique, `FileNotFoundError`).
+    Ce repli fonctionnait — `COORDINATION_OK` obtenu localement — mais
+    SonarCloud a rouvert `pythonsecurity:S8707` sur le code REEL de ce
+    depot, au point d'acces `read_text()` de `parse_rows()` : le chemin non
+    resolu qui emprunte ce repli n'a, de fait, traverse AUCUNE validation
+    avant d'atteindre l'acces disque, exactement le motif que ce fichier
+    existe pour fermer. Verifie AVEC preuve avant de conclure : `sonar
+    analyze` en local, `--depth DEEP` inclus, ne reproduit PAS ce
+    diagnostic sur ce fichier — seule l'analyse serveur reelle (taint
+    inter-fonctions) le voit. Ne pas prendre un local vert pour une preuve
+    sur cette regle precise ; seule la CI reelle fait foi ici. Le repli est
+    retire : `resolve(strict=True)` reste sans exception pour la lecture,
+    la substitution de processus redevient `LECTURE_IMPOSSIBLE`, exit 2 —
+    arbitrage assume entre un gate CI dur et une entree legitime mais rare
+    dans l'usage documente de cet outil (toujours invoque sur un chemin de
+    fichier reel, jamais observe via `<(...)` dans ce depot).
 
     En ecriture, la cible doit rester un fichier regulier ou un chemin
     inexistant : `--json-output` cree la sortie, un FIFO ou peripherique en
@@ -175,10 +189,7 @@ def _chemin_sur(brut: str, *, pour_ecriture: bool = False) -> Path:
         if chemin.exists() and not chemin.is_file():
             raise OSError(f"la cible existe et n'est pas un fichier regulier : {chemin}")
     else:
-        try:
-            chemin = Path(brut).resolve(strict=True)
-        except FileNotFoundError:
-            chemin = Path(brut)
+        chemin = Path(brut).resolve(strict=True)
         if chemin.is_dir():
             raise OSError(f"n'est pas un fichier regulier : {chemin}")
     return chemin
