@@ -20,8 +20,9 @@
 # `coordination/CLAUDE-STATUS.md` garde le détail narratif des durcissements, ce fichier en
 # garde la preuve rejouable. Invocation en subprocess réel (comme
 # scripts/tests/test_methode.py) : ce qui compte ici est le contrat CLI — exit code + préfixe
-# sur stdout — pas l'appel direct des fonctions internes. Précision (AUD-QUAL-008, #600) :
-# trois fixtures dédiées épinglent en outre l'ORDRE RELATIF de plusieurs lignes d'erreur par
+# sur stdout — pas l'appel direct des fonctions internes. Précision (AUD-QUAL-008, #600 ;
+# troisième fixture ajoutée en AUD-QUAL-010, #604) : trois fixtures dédiées épinglent en
+# outre l'ORDRE RELATIF de plusieurs lignes d'erreur par
 # égalité EXACTE de `stdout.splitlines()` (pas seulement leur préfixe ou leur présence) —
 # ATTENTION, auto-contradiction corrigée en revue scellée (tour 2 de #601, siège 2) : une
 # première version de cette phrase rangeait « les paires de _erreurs_de_collision() » parmi
@@ -55,16 +56,17 @@
 #
 # Précision (AUD-QUAL-010, #604 ; revue scellée, tour 1 de #603, siège 2) : jusqu'ici, la
 # relation ligne-avant-paire n'était épinglée que lorsque la ligne en erreur est elle-même
-# membre de la paire concernée (cas de `test_ordre_erreurs_de_ligne_avant_erreurs_de_collision`
-# ci-dessous).
-# `test_ordre_ligne_avant_paire_quand_la_ligne_en_erreur_est_hors_de_la_paire`
-# couvre en outre le cas où elle ne l'est PAS : une ligne hors de toute collision (ici
-# hors de l'ensemble ACTIVE : statut MERGED), positionnée après une paire dans la table.
-# Un entrelacement qui émettrait, pour
-# chaque ligne, ses erreurs PUIS les paires dont elle est membre DROIT laissait ce cas-là
-# vert avant ce test. Ni ce test ni celui qui le précède ne prétendent épuiser toutes les
-# stratégies d'entrelacement possibles entre boucle par ligne et boucle par paire — seules
-# les deux mesurées ici le sont.
+# membre de la paire concernée (cas de
+# `test_ordre_erreurs_de_ligne_avant_erreurs_de_collision` ci-dessous).
+# `test_ordre_ligne_avant_paire_quand_la_ligne_en_erreur_est_hors_de_la_paire` couvre en
+# outre le cas où elle ne l'est PAS : une ligne hors de toute collision (ici hors de
+# l'ensemble ACTIVE : statut MERGED), positionnée après une paire dans la table. Un
+# entrelacement qui émettrait, pour chaque ligne, ses erreurs PUIS les paires dont elle
+# est membre DROIT laissait ce cas-là vert avant ce test. Ni
+# `test_ordre_erreurs_de_ligne_avant_erreurs_de_collision` ni ce test ne prétendent
+# épuiser toutes les stratégies d'entrelacement possibles entre boucle par ligne et
+# boucle par paire — au moins les deux stratégies mesurées ici sont effectivement
+# exclues par ces deux fixtures.
 #
 # Lancer seul : python3 -m pytest coordination/tests/ (hors testpaths par défaut de
 # pytest.ini — dont le contenu exact n'est pas recopié ici, voir coordination/README.md).
@@ -1208,8 +1210,8 @@ def test_ordre_ligne_avant_paire_quand_la_ligne_en_erreur_est_hors_de_la_paire(t
     # test-là place l'erreur de ligne sur ISS-B, membre DROIT de la SEULE paire de sa
     # fixture — ce qui exclut l'entrelacement membre GAUCHE, mais ne distingue PAS
     # validate() réel de son miroir : à cette arité (une seule paire, l'erreur de
-    # ligne portée par un de SES membres), les deux entrelacements coïncident avec la
-    # sortie réelle.
+    # ligne portée par un de SES membres), la sortie du miroir coïncide avec celle
+    # de validate() réel.
     #
     # Ce test-ci isole la ligne en erreur de la paire : ISS-C ne participe à AUCUNE
     # collision (branche et scope propres à elle), et son statut MERGED l'exclut de
@@ -1229,13 +1231,24 @@ def test_ordre_ligne_avant_paire_quand_la_ligne_en_erreur_est_hors_de_la_paire(t
     #
     # Instance retenue parmi les 2 mesurées en revue scellée, tour 1 de #603 (siège 2)
     # et reprises dans #604 (3 lignes ACTIVE ; 2 ACTIVE + 1 ligne hors de l'ensemble
-    # ACTIVE après) : celle-ci, qui réduit le nombre de paires évaluées de 3 à 1.
-    # MERGED choisi parmi QUEUED, BLOCKED, MERGED — TRANSFER exclu, mesuré : la garde
-    # `status != "TRANSFER"` de _erreurs_de_propriete() est indépendante de
-    # l'appartenance à ACTIVE et supprimerait ISSUE_OWNER, faisant tomber cette
-    # fixture à 3 lignes au lieu des 4 assertées. Seule l'exclusion de l'ensemble
-    # ACTIVE (par _erreurs_de_collision()) porte le mécanisme miroir ; le statut
-    # retenu, lui, contraint la sortie assertée.
+    # ACTIVE après) : celle-ci, qui réduit le nombre de paires évaluées de 3 à 1. Ce
+    # choix n'est PAS mécaniquement requis — sur-généralisation trouvée et mesurée en
+    # revue scellée (tour 2 de #606, siège 2) dans une précédente version de ce
+    # paragraphe, qui l'affirmait à tort : status="ACTIVE" sur ISS-C (donc SANS
+    # aucune exclusion de l'ensemble ACTIVE — ISS-C devient alors candidate aux
+    # paires (ISS-A,ISS-C) et (ISS-B,ISS-C), qui ne collisionnent simplement pas)
+    # fait diverger le mutant miroir à l'identique. Ce qui porte le mécanisme est la
+    # POSITION d'ISS-C après le membre DROIT de la paire, jointe au fait qu'elle
+    # n'est elle-même le membre DROIT d'aucune paire en collision — PAS son
+    # appartenance ou non à ACTIVE (même axe que #604 et que le docstring de
+    # _erreurs_de_ligne() : « la position, pas un compte de lignes actives »). Un
+    # statut hors ACTIVE reste néanmoins préférable ici : il instancie la branche la
+    # plus distincte des 2 mesurées dans #604, plutôt que de redire sous une
+    # troisième forme l'instance à 3 lignes ACTIVE déjà couverte par ailleurs. MERGED
+    # choisi parmi QUEUED, BLOCKED, MERGED — TRANSFER exclu, mesuré : la garde
+    # `status != "TRANSFER"` de _erreurs_de_propriete() supprimerait ISSUE_OWNER,
+    # faisant tomber cette fixture à 3 lignes au lieu des 4 assertées ; c'est la
+    # SEULE contrainte que le statut retenu fait peser sur la sortie assertée.
     p = write(tmp_path, "t.md", table(
         row(work_id="ISS-A", owner="CLAUDE", branch="claude/x", scope="coordination"),
         row(work_id="ISS-B", owner="CLAUDE", branch="claude/x", scope="coordination"),
