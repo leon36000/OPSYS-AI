@@ -3,19 +3,19 @@
   "description": "PR #597 — promotion de docs/core/CANON-INDEX.md comme point d'entrée canonique unique et réduction des fichiers racine en portails/adaptateurs dérivés.",
   "issue": "https://github.com/leon36000/OPSYS-AI/pull/597",
   "branche": "codex/canon-promotion-v14",
-  "base": "origin/main @ 29b68c1eaf78063184fb6bb6edfced5ac425e42e",
-  "base_tree": "da982522fa7c0759089b61bafc76b095080925a9",
-  "reviewed_commit": "6efbfd915ef59e52c8a0a2fb177b94de7b7d6660",
-  "reviewed_tree": "a25d6a6d8eb405a5522d8101e95ffe8f8594e3a9",
+    "base": "origin/main @ c383e857576ce9e1630615d86e497653c4afdcdd",
+    "base_tree": "fac9441e1ebb6b7453c3568dac7051988143724d",
+    "reviewed_commit": "79f5982c74b27a0c6fd261134b5168e0e895b514",
+    "reviewed_tree": "d1a14d8f7139769d97f57e6c1eff9b3fa81c5d1d",
   "code_diff_sha256": "72943a928bfe9b6e7c3d216dbedcdb60a4b2cb9e2f8cc79cc56fd48c565807e8",
   "code_diff_sha256_scope": "git diff origin/main...HEAD -- core/ tools/proof/ .opsys/tools/github-control/ .github/workflows/core-ci.yml .github/workflows/ci.yml scripts/ ; calculé par core/scripts/verify_proof_sealed.py",
   "diff_verbatim_sha256": "0b3c012ff09390b075c2421557872eaf70cf43b6c364060c08b0116e60da2163",
-  "sealed_at": "2026-08-28T12:18:15Z",
+    "sealed_at": "2026-08-28T14:19:12Z",
   "verification": {
     "red": {
-      "base": "origin/main @ 29b68c1eaf78063184fb6bb6edfced5ac425e42e",
+            "base": "origin/main @ c383e857576ce9e1630615d86e497653c4afdcdd",
       "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m pytest core/tests/bootstrap/test_root_canon_entrypoints.py -q",
-      "result": "3 échecs déterministes sur une copie du test contractuel injectée dans un worktree temporaire de la base : index canonique absent et adaptateurs racine encore historiques."
+            "result": "3 échecs déterministes sur une copie du test contractuel injectée dans un worktree temporaire détaché de la base : index canonique absent, portails racine historiques et AGENTS/CLAUDE non dérivés."
     },
     "green": [
       "PYTHONDONTWRITEBYTECODE=1 python3 -m pytest core/tests/bootstrap/test_root_canon_entrypoints.py -q : 3 passed",
@@ -25,15 +25,15 @@
       "git diff --check : exit 0"
     ],
     "scope": "Diff contrôlé : huit chemins autorisés seulement ; aucun coordination/**, .claude/**, .codex/**, workflow, Core source, audit, quality-gate ou test hors contrat canonique.",
-      "remote_status_before_bundle": "Après le rebase propre sur origin/main 589156f et le renforcement du test contractuel, le ciblé RED/GREEN et les contrôles locaux sont verts sur le candidat 6efbfd9 ; les checks distants visibles concernent encore l'ancien head 63c758e et seront invalides pour ce head final.",
-      "bundle_commit_note": "Ce bundle r7 remplace le bundle précédent après l'avance de main et la correction contractuelle issue de la revue r6. Le commit d'évidence à venir ne modifie aucun chemin du périmètre code scellé et conserve le code_diff_sha256 ci-dessus. Les checks distants doivent être déclenchés sur le head final avant toute décision d'intégration."
+            "remote_status_before_bundle": "Le rebase propre sur origin/main c383e857 a été effectué après l’avance de main. Le candidat local 79f5982 est propre et le RED/GREEN ainsi que les contrôles locaux sont verts ; le head distant 2174dc6 et ses checks sont obsolètes pour cette base et ne constituent pas une preuve de ce candidat.",
+        "bundle_commit_note": "Ce bundle r8 remplace le bundle r7 après l’avance de main. Le commit d’évidence ne modifie aucun chemin du périmètre code scellé et conserve le code_diff_sha256 calculé par le vérificateur. Les checks distants doivent être verts sur le head poussé avant toute décision d’intégration ; aucun merge n’est effectué dans ce cycle."
   },
   "review_inputs": {
-    "round": "OPSYS-CANON-PROMOTION-597-r7-6efbfd9",
+        "round": "OPSYS-CANON-PROMOTION-597-r8-79f5982",
     "mode": "T2, trois reviewers indépendants en parallèle, prompt neutre commun, sans rôles",
-    "prompt_sha256": "666938d35db21f1141fb447dc066f1ae8d602c7d4b4a57d4974d7d7961192c94",
-    "pack_sha256": "e0095937609d80faa59a15e1b9c151cab78f527358dfc6f2a90c728fe25acee8",
-    "pack_bytes": 31903,
+        "prompt_sha256": "9a53b7373714b27bb0e15dbe745286e0b20867e3a53bdd8c9f2df74ba6f52f62",
+        "pack_sha256": "3be0a02674a4fda54c42c11d83cff890feb13e2ed5059cf98496a90a8d8b2135",
+        "pack_bytes": 32447,
     "diff_verbatim_sha256": "0b3c012ff09390b075c2421557872eaf70cf43b6c364060c08b0116e60da2163",
     "review_neutrality": {
       "previous_incomplete_batches_excluded": true,
@@ -49,9 +49,9 @@
     }
   },
   "reviews": {
-    "DeepSeek-V4-Pro-0813.verdict.json": "3786801e21faba5319f3c47a1e77468d31cf4ca478e4823708d11f3a1d439a82",
-    "Gemini-3.7-Flash.verdict.json": "9e28e503e390e2b202940f41eaeb5c931684813b93cb9e76b90b8842fffa94a8",
-    "Muse-Spark-1.2-Contributor.verdict.json": "6f116dcf54245b932986921b05663ab411d295458440369844a45b8ec70e2824"
+        "DeepSeek-V4-Pro-0813.verdict.json": "c8284f9926ac978d60b9188625e62b1398d4865fdc7fb1fc5149c022d1f04093",
+        "Gemini-3.7-Flash.verdict.json": "0f304b8f02c912e2cbb2221deb492c8d8b3e6f38f393b70ccc6c14ee329bc598",
+        "Muse-Spark-1.2-Contributor.verdict.json": "4232b8326a2c7ce99511d6a6ba17d95ad653a0aba6ef67f38299fe6a2e71a048"
   },
   "consensus": {
     "outcome": "APPROVE 3/3",
@@ -78,6 +78,6 @@
         "fallbacks": 0
       }
     },
-    "minor_objection_note": "Muse-Spark signale que la preuve d'exécution RED/GREEN et des suites n'est pas incluse dans le pack, qui exclut explicitement evidence/tasks/** ; les exécutions locales sont consignées ci-dessus et la CI distante reste obligatoire sur le head final."
+        "minor_objection_note": "Muse-Spark signale que la preuve d’exécution RED/GREEN et des suites n’est pas incluse dans le pack, qui exclut explicitement evidence/tasks/** ; les sorties locales sont consignées ci-dessus et la CI distante reste obligatoire sur le head final."
   }
 }
