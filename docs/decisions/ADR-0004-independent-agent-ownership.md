@@ -71,11 +71,14 @@ Trois propriétés de cette formulation, et rien d'autre :
 - **L'exclusion de chemin est obligatoire, pas décorative.** Ce document contient lui-même
   la formulation cherchée, pour la citer et la retirer ; son nom de travail avant renommage
   était `ADR-PROPOSED-INDEPENDENT-AGENT-OWNERSHIP.md`. Sans ces deux exclusions, la commande
-  compterait ce document parmi ses propres preuves — et deviendrait non vide dès le merge de
-  cette PR, c'est-à-dire au moment exact où un lecteur peut la rejouer. **Contrôle positif**,
-  rejoué sans les deux exclusions : la commande rend alors une sortie NON vide (ce document
-  cite lui-même la formulation), la preuve que le motif régulier sait effectivement matcher
-  quand la formulation est présente — une sortie vide n'est donc pas un motif mort.
+  compterait ce document parmi ses propres preuves. **Contrôle positif, précision de révision
+  nécessaire** : ce document est ajouté PAR cette branche (statut `A` dans son diff), absent
+  d'`origin/main` — le rejouer sans les deux exclusions contre `origin/main` reste vide (rien
+  à y trouver), et ne serait un contrôle positif qu'**après** le merge de cette PR. Rejoué
+  MAINTENANT, avant merge, contre le `HEAD` de cette branche (qui porte déjà ce document) sans
+  les deux exclusions : la commande rend une sortie NON vide (ce document cite lui-même la
+  formulation), la preuve que le motif régulier sait effectivement matcher quand la formulation
+  est présente — une sortie vide sur la forme AVEC exclusions n'est donc pas un motif mort.
 - **`-i` est nécessaire, pas cosmétique.** La seconde alternative du motif, `github global`,
   est écrite tout en minuscules ; `-S` de `git log` est sensible à la casse par défaut. Sans
   `-i`, une occurrence réelle sous la graphie citée dans ce document (« GitHub global », G et

@@ -166,8 +166,12 @@ donne le détail exact.
 Chaque écart de ce fichier vis-à-vis du pack a été repassé au tri suivant, fixture Markdown
 hors dépôt par fixture, mesurée contre `tools/check_coordination.py` du pack **et** contre ce
 fichier : le pack rend vert à tort et ce fichier rouge → l'écart ferme un fail-open mesuré,
-gardé ci-dessous ; les deux rendent la même chose, ou le pack rendait déjà rouge sur une
-entrée légitime → l'écart ne fermait rien de mesurable, retiré avec sa prose. Trois écarts
+gardé ; les deux rendent la même chose, ou le pack rendait déjà rouge sur une entrée légitime
+→ l'écart ne fermait rien de mesurable, retiré avec sa prose. **Les sous-sections ci-dessous
+détaillent les écarts les plus substantiels, pas une énumération exhaustive ligne à ligne** —
+`diff -u` contre le pack reste la seule source qui ne peut pas devenir incomplète en silence ;
+un écart mineur (ex. l'extraction `S1192` de `SCOPES_HORS_COLLISION`, cosmétique, sans fixture
+de fail-open) peut exister dans le code sans sa propre sous-section ici. Trois écarts
 antérieurs (reconnaissance élargie des séparateurs Markdown, suivi des blocs de code clôturés,
 `UNTERMINATED_FENCE`) ont été retirés sur ce critère — le premier parce que le pack n'était
 jamais vert à tort sur ses fixtures (rouge des deux côtés, pour des raisons différentes) ; le
@@ -275,8 +279,11 @@ survenue plus loin dans `validate()`/`parse_rows()`. Contrat : 0 = table lue et 
 
 ### Diff contre le pack
 
-`valid_scope()` est la seule fonction du pack reprise inchangée. `parse_rows()`, `overlaps()`,
-`validate()` et `main()` diffèrent tous ; `_chemin_sur()` n'a pas d'équivalent dans le pack du
+`valid_scope()` est **sémantiquement** inchangée par rapport au pack — son corps diffère d'une
+ligne (`scope in SCOPES_HORS_COLLISION` remplace le littéral `{"read-only", "task spec
+exact"}`, extraction `S1192` cosmétique, cf. plus haut), mais aucune fixture ne distingue les
+deux formes. `parse_rows()`, `overlaps()`, `validate()` et `main()` diffèrent tous, pas
+seulement cosmétiquement ; `_chemin_sur()` n'a pas d'équivalent dans le pack du
 tout — fonction neuve, pas un écart sur une fonction existante. Vérifiable fonction par
 fonction sans décompte, contre le pack installé, plutôt que sur une liste recopiée ici — c'est
 le diff qui fait foi.

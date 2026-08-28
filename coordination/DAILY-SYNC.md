@@ -70,7 +70,10 @@ une valeur ici.
 
 ## Ownership mis à jour
 
-- oui — cf. l'horodatage en tête de `coordination/WORK-OWNERSHIP.md`. Valeur non recopiée
-  ici, volontairement : deux fichiers qui ne recopient rien l'un de l'autre ne peuvent pas
-  diverger. Une version antérieure de cette ligne recopiait cette date, et c'est la seule
-  valeur de ce fichier qui avait divergé de sa source.
+- oui — cf. l'horodatage en tête de `coordination/WORK-OWNERSHIP.md`. Non recopiée une
+  **seconde fois** dans cette section précise : le `Date UTC` en tête de CE fichier (ligne 3)
+  porte déjà la même valeur, parce que cette mise au point entière est datée de ce moment-là —
+  ce n'est pas une coïncidence à masquer, c'est la même mesure vue depuis deux endroits du même
+  fichier. Une version antérieure de cette ligne recopiait la date une troisième fois ici, et
+  c'est la seule valeur de ce fichier qui avait alors divergé de sa source — corrigée en
+  renvoyant à l'en-tête plutôt qu'en la réécrivant une troisième fois.
