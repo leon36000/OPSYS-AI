@@ -120,6 +120,8 @@
   écarts entre l'exemple et son homologue du pack dans `coordination/CLAUDE-STATUS.md`.
 - `coordination/tests/` (issue #592) rejoue en tests automatisés les fixtures ayant
   justifié chaque durcissement de `tools/check_coordination.py` mesuré ci-dessus, plus la
-  limite du pipe initial manquant — caractérisée explicitement, pas cachée. Hors de
-  `testpaths` par défaut (`pytest.ini` ne couvre que `scripts/tests`) : invocation
-  explicite requise, `python3 -m pytest coordination/tests/`.
+  limite du pipe initial manquant — caractérisée explicitement, pas cachée. Hors du
+  `testpaths` par défaut de `pytest.ini` (source faisant foi sur son propre contenu, non
+  recopié ici — un changement futur de `pytest.ini` par l'une ou l'autre plateforme ne
+  peut donc pas rendre cette phrase fausse) : invocation explicite requise,
+  `python3 -m pytest coordination/tests/`.

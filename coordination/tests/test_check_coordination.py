@@ -7,7 +7,7 @@
 # fonctions internes.
 #
 # Lancer seul : python3 -m pytest coordination/tests/ (hors testpaths par défaut de
-# pytest.ini, qui ne couvre que scripts/tests — voir coordination/README.md).
+# pytest.ini — dont le contenu exact n'est pas recopié ici, voir coordination/README.md).
 from __future__ import annotations
 
 import os
@@ -89,7 +89,17 @@ def test_header_missing_sur_en_tete_sans_vraie_separation(tmp_path):
 def test_separator_re_ne_confond_pas_une_ligne_de_donnees_avec_un_separateur(tmp_path):
     # Une ligne de DONNÉES dont la première cellule commence par "---" (Work ID "---X")
     # ne doit pas être prise pour une ligne de séparation et silencieusement exclue.
-    p = write(tmp_path, "t.md", table(row(work_id="---X", branch="main", scope="modules m/M7")))
+    #
+    # Fixture écrite en LITTÉRAL, pas via row() : row() insère toujours un espace après
+    # le pipe de tête ("| ---X | ..."), qui à lui seul évite déjà le regex vulnérable
+    # d'avant #564 (`^\|---`, collé au pipe) — un test construit avec row() reste vert
+    # que SEPARATOR_RE soit le motif entier corrigé ou l'ancien préfixe nu, donc ne
+    # protège RIEN de ce fail-open précis (faux positif de couverture trouvé en revue
+    # scellée, tour 1 de #598, mesuré par mutation avant correction). Seule la graphie
+    # SANS espace ("|---X | ...", celle du commentaire historique de
+    # tools/check_coordination.py) discrimine réellement les deux versions du motif.
+    p = write(tmp_path, "t.md",
+              HEADER + SEP + "|---X | NATHAN | main | modules m/M7 | ACTIVE | 2026-01-01T00:00Z | x |\n")
     r = run([str(p)])
     assert r.returncode == 1
     assert "MODULE_CODE_DURING_CORE:---X" in r.stdout
