@@ -39,7 +39,7 @@
 # une relation, épinglée en bonus depuis AUD-QUAL-011 (#605) par
 # `test_ordre_structurel_avant_propriete_avec_deux_erreurs_structurelles` : OWNER précède
 # STATUS dans `_erreurs_structurelles()` (mesuré : les échanger fait rougir CE test, et lui
-# seul). Ni les trois autres contrôles de ce groupe (WORK_ID_EMPTY, DUPLICATE_WORK, SCOPE,
+# seul). Ni les quatre autres contrôles de ce groupe (WORK_ID_EMPTY, DUPLICATE_WORK, SCOPE,
 # BRANCH), ni aucun de `_erreurs_de_propriete()`, n'en sont concernés — mesuré : déplacer SCOPE
 # ou BRANCH, ou échanger MODULE_CODE_DURING_CORE et CORE_OWNER, laisse la suite entière verte.
 # Il en va de même pour l'ordre ENTRE plusieurs paires distinctes lorsque `_erreurs_de_collision()`
@@ -1311,10 +1311,12 @@ def test_ordre_structurel_avant_propriete_avec_deux_erreurs_structurelles(tmp_pa
     # exacte de cette exception (les autres contrôles de ce groupe et ceux de
     # _erreurs_de_propriete() restent hors contrat).
     #
-    # Voir aussi #607 : la fermeture de #605 par ce commit périme la dernière
-    # clause du docstring de _erreurs_de_ligne() dans tools/check_coordination.py
-    # (« reste... NON epinglee a ce jour — suivi separe : #605 », et son aveu
-    # voisin sur l'ordre interne) — suivi séparé, pas de correctif ici.
+    # Voir aussi #607 : la fermeture de #605 par ce commit périme DEUX clauses du
+    # docstring de _erreurs_de_ligne() dans tools/check_coordination.py — celle
+    # qui borne la relation structurel-avant-propriété à l'arité (1,1) (« reste...
+    # NON epinglee a ce jour — suivi separe : #605 ») et celle sur l'ordre INTERNE
+    # à chaque groupe (« reste NON epingle a ce jour ») — suivi séparé, pas de
+    # correctif ici.
     p = write(tmp_path, "t.md", table(
         row(work_id="C05-001", owner="BADOWNER", scope="core/x", status="BADSTATUS"),
     ))
