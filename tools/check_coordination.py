@@ -194,16 +194,28 @@ def _erreurs_de_ligne(row: dict[str, str], seen: set[str]) -> list[str]:
     NON epingle par aucune fixture — echanger cet appel en
     `_erreurs_de_propriete(row) + _erreurs_structurelles(row, seen)` laissait alors
     toute la suite verte. Ferme depuis (AUD-QUAL-008, #600/#601, docstring
-    rafraichie en AUD-QUAL-009, #602) : coordination/tests/test_check_coordination.py
-    epingle desormais cet ordre precis par
-    `test_ordre_erreur_structurelle_avant_erreur_de_propriete_sur_meme_ligne`
+    rafraichie en AUD-QUAL-009, #602/#603) :
+    coordination/tests/test_check_coordination.py epingle desormais cet ordre precis
+    par `test_ordre_erreur_structurelle_avant_erreur_de_propriete_sur_meme_ligne`
     (egalite exacte de `stdout.splitlines()`, pas seulement l'exit code et le
-    prefixe) — la meme mutation d'echange y fait maintenant rougir ce test. La
-    meme suite epingle aussi, au niveau de validate() plutot que de cette fonction,
-    que les erreurs par ligne precedent les erreurs de paire
-    (`test_ordre_erreurs_de_ligne_avant_erreurs_de_collision`). L'ordre INTERNE a
-    chaque groupe ci-dessus (entre les controles d'UN MEME groupe), lui, reste NON
-    epingle a ce jour — voir l'en-tete de
+    prefixe) — la meme mutation d'echange y fait maintenant rougir ce test.
+
+    La meme suite epingle aussi, au niveau de validate() plutot que de cette
+    fonction, que les erreurs par ligne precedent les erreurs de paire
+    (`test_ordre_erreurs_de_ligne_avant_erreurs_de_collision`) — mais SEULEMENT a
+    l'arite que sa fixture exerce (2 lignes actives, UNE paire, l'erreur de ligne
+    portee par le membre DROIT de cette paire), pas en general. Sur-generalisation
+    trouvee et mesuree en revue scellee (tour 1 de #603, siege 2) : un entrelacement
+    MIROIR de celui que ce test exclut deja pour le membre GAUCHE (voir son propre
+    commentaire) — emettre, pour chaque ligne, ses erreurs de ligne PUIS les paires
+    ou elle est le membre DROIT plutot que le membre GAUCHE — laisse cette fixture et
+    les 70 tests d'alors verts, tout en faisant sortir, sur une table a 3 lignes
+    actives ou la ligne en erreur n'appartient a aucune paire en collision, des
+    erreurs DE PAIRE avant des erreurs DE LIGNE. Cette relation precise reste NON
+    epingle a cette arite — suivi separe : #604.
+
+    L'ordre INTERNE a chaque groupe ci-dessus (entre les controles d'UN MEME
+    groupe), lui, reste NON epingle a ce jour — voir l'en-tete de
     coordination/tests/test_check_coordination.py pour le detail exact de ce qui est
     et n'est pas couvert.
     """
