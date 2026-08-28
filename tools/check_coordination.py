@@ -173,13 +173,16 @@ def _erreurs_de_ligne(row: dict[str, str], seen: set[str]) -> list[str]:
     #599, 3 sieges convergents) : ce n'est PAS un contrat pin par
     coordination/tests/test_check_coordination.py — cet en-tete declare au contraire
     que seuls l'exit code et le PREFIXE sur stdout comptent, jamais l'ordre entre
-    plusieurs lignes d'erreur, et aucun de ses 68 tests n'affirme une egalite de liste
-    sur `errors` (mesure : echanger cet appel en
-    `_erreurs_de_propriete(row) + _erreurs_structurelles(row, seen)` laisse les 68
-    tests verts). L'ordre reste un invariant TENU par ce commit (verifie par
-    differentiel comportemental exhaustif en revue scellee), mais NON epingle par la
-    suite existante — a fermer par une fixture dediee dans coordination/tests/ (hors
-    perimetre de cette PR, qui ne touche que ce fichier ; issue de suivi ouverte).
+    plusieurs lignes d'erreur. Precision (tour 2, 3 sieges convergents) : la suite
+    porte bien UNE egalite de liste sur `errors`
+    (test_json_output_porte_les_erreurs_sur_table_non_conforme), mais sur un
+    SINGLETON — elle epingle contenu et longueur, jamais un ordre entre plusieurs
+    lignes. Mesure : echanger cet appel en
+    `_erreurs_de_propriete(row) + _erreurs_structurelles(row, seen)` laisse la suite
+    verte. L'ordre reste un invariant TENU par ce commit (verifie par differentiel
+    comportemental exhaustif en revue scellee), mais NON epingle par la suite
+    existante — a fermer par une fixture dediee dans coordination/tests/ (hors
+    perimetre de cette PR, qui ne touche que ce fichier ; issue de suivi #600).
     """
     return _erreurs_structurelles(row, seen) + _erreurs_de_propriete(row)
 
