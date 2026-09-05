@@ -1,0 +1,10 @@
+{
+  "verdict": "APPROVE",
+  "objections": [],
+  "resume": "Le diff ne contient que les deux fichiers attendus. L’ajout à reviews/README.md est en fin de fichier, conserve la convention existante, qualifie explicitement les verdicts d’archive non liée au code, fournit les mesures avec l’ancre 07106d8 et n’attribue pas aux verdicts une capacité de preuve du code. Le test lit le README réel et tous les fichiers JSON présents sous reviews/ via rglob ; il vérifie la déclaration et applique une liste explicite de clés de liaison au code, dont code_diff_sha256, reviewed_commit, commit et tree. Il échouerait donc si un verdict actuel sous reviews/ portait l’une de ces clés.",
+  "date_heure": "1788590026.1913483",
+  "prompt_sha256": "d2b75e79cfb1cade709aae2f0e390943a6ab8cf05ade79feb71c68204c251109",
+  "reviewer_model": "GPT-5.6-Luna-Pro",
+  "modele_servi": "GPT-5.6-Luna-Pro",
+  "job_id": "d2049a3b-3be9-4902-8d16-a8cc99f0cfb8"
+}

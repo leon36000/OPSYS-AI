@@ -1,0 +1,23 @@
+{
+  "verdict": "APPROVE",
+  "objections": [
+    {
+      "fichier": "scripts/tests/test_reviews_archive_declaration.py",
+      "severite": "mineure",
+      "description": "Le test (B) (lignes 27-35) ne compare CLES_LIANT_AU_CODE qu'aux clés de premier niveau de chaque JSON (set(json.loads(...).keys())). Une clé liant au code imbriquée (ex. {\"meta\":{\"commit\":...}} ou un enrichissement de objections[]) ne ferait pas rougir le test, alors que reviews/README.md (ligne ajoutée ~32) promet l'invariant « aucune clé liant au code sous reviews/ ». Le corpus mesuré (9 clés racine) est bien couvert, mais la promesse du README est plus large que la mesure réelle.",
+      "correctif_attendu": "Traverser récursivement toutes les clés (dicts et listes imbriqués) avant l'intersection, ou restreindre la formulation du README à « aucune clé de premier niveau liant au code »."
+    },
+    {
+      "fichier": "reviews/README.md",
+      "severite": "mineure",
+      "description": "Ligne ajoutée 32 : « Ils ne franchiraient pas le premier contrôle de core/scripts/verify_proof_sealed.py (« code_diff_sha256 absent — evidence non liée au code ») » cite un script et un message d'erreur exact qui ne figurent pas dans ce diff (2 fichiers). L'affirmation n'est pas contredite par le diff mais n'est pas vérifiable depuis la pièce.",
+      "correctif_attendu": "Confirmer hors diff que la chaîne du message correspond exactement au script core/scripts/verify_proof_sealed.py, ou citer le contrôle sans guillemet exact."
+    }
+  ],
+  "resume": "Le diff contient exactement 2 fichiers, conformément à l'énoncé. reviews/README.md : ajout pur en fin de fichier — le contexte @@ -12,3 +12,26 @@ montre les 3 lignes existantes (convention round-N/) inchangées ; les chiffres (711, 9 clés, 275 sceaux, 95/616 dont 95+616=711, 349, 196x3) sont systématiquement ancrés à la mesure « origin/main 07106d8 (2026-08-27) » et présentés comme historiques, pas comme courants ; aucune capacité inventée — la section dit explicitement ce que les verdicts n'attestent pas (quel code, non-fusion). Les 9 clés listées sont au nombre de 9 (vérifié). Le test lit les vrais fichiers : README.read_text sur le README réel, rglob('*.json') sur le corpus réel, garde-fou « corpus reviews/ vide ? ». Le test (B) n'est pas une tautologie : CLES_LIANT_AU_CODE est une liste explicite (code_diff_sha256, reviewed_commit, commit, tree, head_sha, base, merge_base, revision, diff_sha256...) et l'intersection ferait échouer le test sur tout verdict portant l'une d'elles. Les 4 sous-chaînes assertées par (A) (« Statut : ARCHIVE », « #591 », « Aucun champ ne lie un verdict au code », « aucune préimage n'est committée ») figurent toutes dans le README ajouté. RACINE = parents[2] est correct pour scripts/tests/*.py. Le chemin du test cité dans le README correspond au fichier créé. Aucune contradiction entre le diff et les affirmations ; les deux objections relevées sont des écarts de couverture/formulation, non bloquants.",
+  "date_heure": "1788590222.8111093",
+  "prompt_sha256": "d2b75e79cfb1cade709aae2f0e390943a6ab8cf05ade79feb71c68204c251109",
+  "reviewer_model": "GLM-5.3-Flash",
+  "modele_servi": "GLM-5.3-Flash",
+  "job_id": "be6f7801-88ee-4518-ad27-61ce13b62738"
+}
