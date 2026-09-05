@@ -1,0 +1,10 @@
+{
+  "verdict": "APPROVE",
+  "objections": [],
+  "resume": "Diff conforme à l'issue #595 : .sonarcloud.properties conserve intacte la ligne sonar.cpd.exclusions (Modules M/**/encodage.py etc.) et ajoute uniquement le bloc commentaire documentant la mesure du 2026-09-05 (77 287 LOC, plafond 50k) et la clé sonar.test.inclusions=**/tests/**,**/test_*.py,**/conftest.py honorée par l'Automatic Analysis. Le test scripts/tests/test_sonarcloud_properties.py lit le vrai fichier (strip, ignore #/blancs, partition au premier =), assert les 3 motifs et la conservation de l'exclusion CPD (RED avant, VERT après). Aucun autre fichier modifié. Le motif **/tests/** ne reclasse pas de code de production d'après l'inventaire fourni. Aucune contradiction diff vs affirmations.",
+  "date_heure": "1788588785.1695073",
+  "prompt_sha256": "af602d1cdccd30e0a2b11b39f456e8eade20f4aed1b06299ca8c82ed0ce7bc77",
+  "reviewer_model": "Muse-Spark-1.2-Contributor",
+  "modele_servi": "Muse-Spark-1.2-Contributor",
+  "job_id": "e5dbf698-8b6a-45ec-b03a-0e250e749396"
+}

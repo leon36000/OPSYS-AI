@@ -1,0 +1,23 @@
+{
+  "task_id": "AUD-SEC-006",
+  "description": "SonarCloud : declarer les chemins de tests pour que l'analyse de main repasse sous le plafond LOC (#595)",
+  "branche": "claude/aud-sec-006-sonar-scope",
+  "base": "origin/main @ 0aff240aa74a082fb9b71f2318f07eb6c30bae87",
+  "code_diff_sha256": "91d3563d1a51a41a90f05f56a953344c90b8b85054e32dc4e03c4a97a90392b1",
+  "code_diff_sha256_note": "Calcule par core/scripts/verify_proof_sealed.py --emit-code-diff-sha256 du worktree, la MEME fonction que celle executee par le gate en CI, sur le perimetre scelle.",
+  "prompt_sha256": "af602d1cdccd30e0a2b11b39f456e8eade20f4aed1b06299ca8c82ed0ce7bc77",
+  "prompt_note": "Prompt unique transmis a l'identique aux sieges (sha256 verifie avant chaque envoi), preimage : prompt.txt. Il contient le diff complet de la PR.",
+  "reviews": {
+    "GPT-5.6-Luna-Pro.json": "1e97c7f2b2a638bfb947426899703a8682994c50f48c57f992c0e0ef553890bf",
+    "Muse-Spark-1.2-Contributor.json": "fe416520f4cfaee257821b66d5e4916c911b26f603d856b0a4a08aa062a13333"
+  },
+  "consensus": {
+    "profil": "Revue aveugle desancree : chaque siege ne recoit que le prompt, sans voir les autres verdicts.",
+    "outil": "trio_seal.py (hors depot) via forge-model-bridge /v1/jobs"
+  },
+  "preuves_jointes": {
+    "prompt.txt": "af602d1cdccd30e0a2b11b39f456e8eade20f4aed1b06299ca8c82ed0ce7bc77",
+    "full.diff": "77e4d2329db9b7490c17c7b397b4d8c0c887a1a87dc7d252a648a81d8c200a54"
+  },
+  "preuves_jointes_note": "prompt.txt hache a prompt_sha256 (preimage) ; full.diff = git diff origin/main...HEAD hors evidence/."
+}
