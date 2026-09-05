@@ -19,7 +19,21 @@ from typing import Final
 
 RACINE: Final[Path] = Path(__file__).resolve().parents[2]
 
-_EXTENSIONS_CONFIG: Final[tuple[str, ...]] = (".ini", ".toml", ".yaml", ".yml", ".env", ".cfg")
+# Elargie apres la revue scellee (GPT-5.6-Luna-Pro et GLM-5.3-Flash, memes constats) : la liste
+# fermee d'origine laissait passer un endpoint prive dans un .json/.conf/.properties suivi, alors
+# que l'invariant annonce porte sur « un fichier de config suivi ». Mesure faite avant d'elargir :
+# avec cette liste et SANS aucune exclusion de repertoire, zero fichier suivi ne matche aujourd'hui.
+# La prose (.md, .txt) et les enregistrements d'audit dates restent hors perimetre par choix
+# explicite : ce sont des constats retrospectifs, pas de la configuration active.
+_EXTENSIONS_CONFIG: Final[tuple[str, ...]] = (
+    ".ini", ".toml", ".yaml", ".yml", ".env", ".cfg", ".json", ".conf", ".properties",
+)
+
+# Echappatoire VISIBLE et volontairement etroite, a la place de l'ancienne exclusion en bloc des
+# repertoires `tests` : une fixture qui doit vraiment porter une adresse privee le declare sur SA
+# ligne. Rien dans le depot ne l'utilise aujourd'hui -- si une ligne l'invoque, elle est lisible en
+# revue, ce qu'une exclusion de repertoire entiere n'etait pas.
+_MARQUEUR_FIXTURE: Final[str] = "hygiene: fixture-endpoint-autorise"
 
 _RE_IP_PRIVEE: Final[re.Pattern[str]] = re.compile(
     r"\b(?:10\.\d{1,3}\.\d{1,3}\.\d{1,3}"
@@ -42,10 +56,13 @@ def _fichiers_suivis() -> list[str]:
 
 
 def _hors_perimetre(chemin: str) -> bool:
-    """Modules M/ est interdit a modifier ; les repertoires de tests peuvent contenir des
-    fixtures synthetiques qui ressemblent a des IP sans en etre une fuite reelle."""
-    segments = chemin.split("/")
-    return "Modules M" in segments or "tests" in segments
+    """Seul `Modules M/` est hors perimetre : il est interdit a la modification par ce lot.
+
+    L'exclusion en bloc de tout repertoire nomme `tests` a ete RETIREE apres la revue scellee :
+    elle masquait une fuite reelle dans un fichier de config vivant sous un repertoire de test,
+    silencieusement. Les fixtures qui ont besoin d'une adresse privee utilisent desormais le
+    marqueur de ligne `_MARQUEUR_FIXTURE`, qui se voit en revue."""
+    return "Modules M" in chemin.split("/")
 
 
 def test_aucun_endpoint_prive_dans_les_configs_suivies() -> None:
@@ -60,6 +77,8 @@ def test_aucun_endpoint_prive_dans_les_configs_suivies() -> None:
         for numero, ligne in enumerate(texte.splitlines(), start=1):
             nue = ligne.strip()
             if not nue or nue.startswith("#") or nue.startswith(";"):
+                continue
+            if _MARQUEUR_FIXTURE in ligne:
                 continue
             if _RE_IP_PRIVEE.search(ligne) or _RE_CHEMIN_HOME.search(ligne):
                 violations.append(f"{chemin}:{numero}: {ligne.strip()}")
@@ -84,7 +103,16 @@ def test_config_locale_forge_non_suivie() -> None:
     assert ".forge/config.ini" not in suivis, (
         ".forge/config.ini (config locale, cf. config.ini.example) est encore suivi par git"
     )
-    lignes = (RACINE / ".gitignore").read_text(encoding="utf-8").splitlines()
-    assert ".forge/config.ini" in [ligne.strip() for ligne in lignes], (
-        ".gitignore ne contient pas la ligne exacte '.forge/config.ini'"
+    # Oracle deterministe plutot que textuel (revue scellee, GPT-5.6-Luna-Pro) : lire une ligne
+    # dans .gitignore ne prouve pas que git ignore le fichier -- une regle de negation posee plus
+    # bas, ou dans un autre fichier d'exclusion, pourrait l'annuler sans faire echouer le test.
+    # `git check-ignore -q` interroge la decision reelle de git, tous fichiers de regles combines.
+    decision = subprocess.run(
+        ["git", "check-ignore", "-q", ".forge/config.ini"],
+        cwd=RACINE,
+        capture_output=True,
+    )
+    assert decision.returncode == 0, (
+        "git n'ignore PAS .forge/config.ini (git check-ignore rend "
+        f"{decision.returncode}) : le fichier reapparaitra en '??' au prochain statut"
     )
