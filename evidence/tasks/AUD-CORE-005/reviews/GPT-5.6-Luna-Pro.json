@@ -1,0 +1,10 @@
+{
+  "verdict": "APPROVE",
+  "objections": [],
+  "resume": "Le diff ajoute uniquement les trois fichiers annoncés et ne modifie ni le contrat de périmètre, ni les scripts existants, ni les workflows. Le README co-localisé déclare explicitement le fragment non exécutable, documente l'origine et les dépendances absentes sans affirmer l'existence d'un pack externe récupérable. Le test vérifie l'existence et le contenu minimal de cette déclaration, exécute chaque script uniquement avec l'interpréteur Python sur un fichier du dépôt, exige un échec et la présence du message `No module named 'common'`, puis vérifie que la racine reste dans `python_roots`. L'ADR est cohérent avec ces éléments et avec la décision de ne rien supprimer ni inventer. Aucune contradiction fondée sur le diff ne justifie un rejet.",
+  "date_heure": "1788589575.344946",
+  "prompt_sha256": "0e5ea28f5a5b7b7647da6cdec703daf54bbf8483a8af05d3a0f3b0a2720d6578",
+  "reviewer_model": "GPT-5.6-Luna-Pro",
+  "modele_servi": "GPT-5.6-Luna-Pro",
+  "job_id": "36ab2691-543b-4c1f-ac7b-f4181015f6e0"
+}
