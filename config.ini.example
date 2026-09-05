@@ -236,7 +236,8 @@ reviewers = automatic_before_approval
 evidence_synthesizer = automatic_before_done
 
 [proof]
-profile = PROOF-Solo
+profile = PROOF-Team
+; aligné sur [forge].profile (ligne 9) — motif ligne 11 ; #585
 require_story = true
 require_claim = true
 require_branch = true
