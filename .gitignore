@@ -24,4 +24,8 @@ id_ed25519*
 # Forge instance (etat local, coffre — jamais versionnes)
 .forge/state/
 .forge/secrets/
+# .forge/config.ini est la config LOCALE (cf. START_HERE.md : `cp config.ini.example .forge/config.ini`).
+# Elle a été suivie par erreur jusqu'à c243af6 et dé-suivie par AUD-QUAL-003 (#618) : si un pull la
+# fait disparaître de votre copie de travail, récupérez-la telle qu'elle était avec
+#   git show c243af6:.forge/config.ini > .forge/config.ini
 .forge/config.ini
