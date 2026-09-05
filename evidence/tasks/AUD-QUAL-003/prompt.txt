@@ -1,0 +1,619 @@
+Tu es un reviewer indépendant. Tu juges un changement proposé au merge dans le dépôt OPSYS-AI.
+Tu ne sais rien de son auteur, ni d'aucun verdict antérieur. Juge la pièce, pas l'intention.
+Tâche : AUD-QUAL-003 — Hygiene du snapshot : config locale de-suivie et ignoree, sauvegardes archivees, 3 tests durcis (AUD-QUAL-003, #618) - round 2
+Scellé le 2026-09-05T17:48:29+00:00.
+
+Revue scellée — PR à venir sur leon36000/OPSYS-AI, tâche AUD-QUAL-003 (issue #618), branche
+claude/aud-qual-003-hygiene, base origin/main c243af6.
+
+OBJET. Hygiène du snapshot : (1) `.forge/config.ini` était SUIVI alors qu'il est la configuration
+LOCALE — mesuré : mêmes sections et mêmes clés que `config.ini.example`, seules 5 valeurs diffèrent
+(project_id/name = OPSYS-AI, litellm_base_url = http://192.168.1.149:4000/v1 soit un endpoint privé
+RFC1918, api_key_env, profile), et START_HERE.md:32 prescrit `cp config.ini.example .forge/config.ini`.
+Il est donc dé-suivi (`git rm --cached`, le fichier reste sur disque) et ignoré, dans le MÊME commit ;
+`config.ini.example` (gabarit à champs vides) n'est pas touché. (2) Deux sauvegardes suivies à la
+racine (`AGENTS.md.pre-proof.bak`, `CLAUDE.md.pre-proof.bak`, introduites par d3c76ac le 2026-07-23)
+sont déplacées sous `archive/pre-proof/` par `git mv` (renommage R100, contenu inchangé) avec un
+README, et la référence de `audit/hypotheses/PACK-DISTRIBUE.md` est mise à jour. (3) Trois tests de
+non-régression dans `scripts/tests/test_hygiene_snapshot.py` : aucun endpoint privé RFC1918 ni chemin
+/home/<user>/ dans un fichier de config suivi (scan via `git ls-files -z`, lignes commentées
+ignorées) ; aucun artefact de sauvegarde suivi À LA RACINE ; `.forge/config.ini` non suivi ET ignoré.
+
+PREUVES MESURÉES. Les 3 tests ÉCHOUENT sur origin/main (3 failed, rejoué dans un worktree détaché
+sur c243af6) et passent sur la branche. scripts/tests : 569 passed. core/tests/bootstrap : 152 passed.
+structure_lint.py : STRUCTURE_LINT VERT. git diff --check : exit 0. git status --porcelain : vide
+(le fichier dé-suivi est `!!` ignoré, pas `??`). Périmètre : exactement 8 chemins, aucun sous
+`Modules M/`, `core/`, `.github/workflows/`, ni START_HERE.md / AGENTS.md / CLAUDE.md / config.ini.example.
+La conséquence pour un clone existant (au pull, git supprime la copie de travail) est documentée
+DANS l'arbre, en commentaire de .gitignore, avec la commande de récupération
+`git show c243af6:.forge/config.ini > .forge/config.ini`.
+
+CE QUI N'EST PAS FAIT, ASSUMÉ. Six autres fichiers mentionnent encore "pre-proof.bak"
+(registries/ledger/preuves.jsonl, audit/hypotheses_adverses.json, audit/hypotheses/brutes/*.txt,
+audit/MANIFESTE.sha256, audit/core-baseline/FILE-INVENTORY.csv, reviews/P0-1/*.verdict.json) : ce sont
+des enregistrements d'audit datés et rétrospectifs, non des consignes courantes — non modifiés, et
+audit/core-baseline/ appartient de toute façon à une autre PR. Le secret du fichier était déjà assaini
+avant ce lot (keyring, pas de littéral) ; ce lot traite l'endpoint et le statut git, pas un secret.
+
+JUGE ce diff tel qu'il est. Cherche en particulier : un test qui ne peut pas échouer ou dont la regex
+laisse passer un endpoint privé réel (la plage 172.16-31 est-elle exacte, 172.99 exclu ?) ; une
+conséquence non documentée du dé-suivi ; une référence devenue fausse ; un fichier hors périmètre.
+
+ROUND 2 (ce diff) — les trois MAJEURES du round 1 corrigées dans scripts/tests/test_hygiene_snapshot.py :
+extensions élargies à .json/.conf/.properties (mesuré avant : zéro fichier suivi ne matche, donc aucune
+dette masquée) ; exclusion en bloc des répertoires `tests` RETIRÉE, remplacée par un marqueur de ligne
+visible (`hygiene: fixture-endpoint-autorise`, utilisé nulle part aujourd'hui) ; le troisième test
+n'inspecte plus le texte de .gitignore mais interroge `git check-ignore -q`, la décision réelle de git.
+RED rejoué après durcissement : 3 failed sur origin/main, 3 passed ici ; scripts/tests 569 passed.
+
+
+## Diff complet (`git diff origin/main...HEAD`, hors evidence/)
+
+```diff
+diff --git a/.forge/config.ini b/.forge/config.ini
+deleted file mode 100644
+index 608f6ac..0000000
+--- a/.forge/config.ini
++++ /dev/null
+@@ -1,377 +0,0 @@
+-; ForgeAI PROOF IDE System — configuration exemple
+-; Copier vers .forge/config.ini dans un projet ou vers la configuration globale.
+-; NE JAMAIS placer une clé réelle dans ce fichier.
+-
+-[forge]
+-config_version = 1
+-mode = connected
+-; Valeurs: native | standalone | connected
+-profile = PROOF-Team
+-; Valeurs: PROOF-Solo | PROOF-Team
+-; PROOF-Team car projet GRS/OPSYS-AI touche finance/legal/donnees personnelles (T2/T3 frequents)
+-fail_closed = true
+-auto_start = true
+-auto_mini_agents = true
+-project_id = OPSYS-AI
+-
+-[project]
+-name = OPSYS-AI
+-repository_root = .
+-default_branch = main
+-require_git = true
+-require_worktree_for_parallel = true
+-
+-[connected]
+-; L'édition interne ForgeAI peut préremplir cette URL.
+-litellm_base_url = http://192.168.1.149:4000/v1
+-key_source = os_keyring
+-key_name = forgeai-litellm
+-api_key_env = FORGE_LITELLM_API_KEY
+-; SANITIZED by Cursor bootstrap 2026-07-23: literal key removed; use OS keyring / forge secrets set litellm
+-verify_tls = true
+-timeout_seconds = 120
+-max_retries = 2
+-
+-; Utilisation recommandée:
+-;   forge secrets set litellm
+-; La clé est alors enregistrée dans le coffre du système d'exploitation.
+-
+-[provider.openrouter]
+-enabled = false
+-protocol = openai_compatible
+-base_url =
+-api_key_env = OPENROUTER_API_KEY
+-vendor_label = openrouter-gateway
+-verify_tls = true
+-
+-[provider.deepinfra]
+-enabled = false
+-protocol = openai_compatible
+-base_url =
+-api_key_env = DEEPINFRA_API_KEY
+-vendor_label = deepinfra-gateway
+-verify_tls = true
+-
+-[provider.custom_1]
+-enabled = false
+-protocol = openai_compatible
+-base_url =
+-api_key_env = CUSTOM_PROVIDER_API_KEY
+-vendor_label =
+-verify_tls = true
+-
+-; En mode connected, gateway_alias est utilisé.
+-; En mode standalone, renseigner provider, model_id et vendor réel.
+-; vendor doit représenter le fournisseur du modèle, pas seulement la passerelle.
+-
+-[role.orchestrator]
+-gateway_alias = forge-orchestrator
+-provider = native
+-model_id =
+-vendor = ide-native
+-required_capabilities = tools,structured_output
+-fallback_role =
+-
+-[role.architect]
+-gateway_alias = forge-architect
+-provider = litellm
+-model_id =
+-; Nathan: remplir avec l'alias LiteLLM exact de GLM-5.2
+-vendor = zhipu
+-required_capabilities = tools,structured_output,long_context
+-fallback_role =
+-
+-[role.hard_coder]
+-; Profil ForgeAI interne declare: Kimi K3 (code complique/long/1M ctx)
+-gateway_alias = forge-hard-coder
+-provider = litellm
+-model_id =
+-; Nathan: remplir avec l'alias LiteLLM exact de Kimi K3
+-vendor = moonshot
+-required_capabilities = tools,code,multi_file
+-fallback_role = forge-bulk-coder
+-
+-[role.bulk_coder]
+-; NOUVEAU role - critere de difficulte confirme par Nathan (23 juillet 2026)
+-; Profil ForgeAI interne declare: Kimi Code 2.7 (code facile/standard)
+-gateway_alias = forge-bulk-coder
+-provider = litellm
+-model_id =
+-; Nathan: remplir avec l'alias LiteLLM exact de Kimi Code 2.7
+-vendor = moonshot
+-required_capabilities = tools,code
+-fallback_role =
+-
+-[role.canon_keeper]
+-; Profil ForgeAI interne declare: Gemini Flash 3.6 (CORRIGE depuis brouillon v0.2 qui disait 3.5)
+-; Modele puissant, ne pas sous-estimer (confirme Nathan, 23 juillet 2026). Ce role est TOUJOURS proposal_only.
+-gateway_alias = forge-canon-keeper
+-provider = litellm
+-model_id =
+-; Nathan: remplir avec l'alias LiteLLM exact de Gemini Flash 3.6
+-vendor = google
+-required_capabilities = structured_output,long_context
+-write_policy = proposal_only
+-fallback_role =
+-
+-[role.reviewer_1]
+-; Profil ForgeAI interne declare: DeepSeek V4 Pro
+-gateway_alias = forge-reviewer-1
+-provider = litellm
+-model_id =
+-vendor = deepseek
+-required_capabilities = structured_output,code_review
+-write_policy = verdict_only
+-fallback_role =
+-
+-[role.reviewer_2]
+-; Profil ForgeAI interne declare: Gemini 3.1 Pro
+-gateway_alias = forge-reviewer-2
+-provider = litellm
+-model_id =
+-vendor = google
+-required_capabilities = structured_output,code_review,multimodal_optional
+-write_policy = verdict_only
+-fallback_role =
+-
+-[role.reviewer_3]
+-; Profil ForgeAI interne declare: LongCat 2.0
+-gateway_alias = forge-reviewer-3
+-provider = litellm
+-model_id =
+-vendor = meituan
+-required_capabilities = structured_output,code_review,security
+-write_policy = verdict_only
+-fallback_role =
+-
+-[role.security]
+-; Pas de modele dedie distinct confirme par Nathan - porte par reviewer_3 (LongCat 2.0) par defaut.
+-; Alias separe conserve pour permettre une specialisation future sans casser la config.
+-gateway_alias = forge-security
+-provider = litellm
+-model_id =
+-vendor = meituan
+-required_capabilities = structured_output,security
+-write_policy = report_only
+-fallback_role = forge-reviewer-3
+-
+-[role.test_runner]
+-gateway_alias = forge-test-runner
+-provider = native
+-model_id =
+-vendor = ide-native
+-required_capabilities = tools,terminal,structured_output
+-fallback_role =
+-
+-[role.evidence]
+-; Profil ForgeAI interne declare: MiMo 2.5 Pro (1M ctx, synthese de preuves)
+-gateway_alias = forge-evidence
+-provider = litellm
+-model_id =
+-vendor = xiaomi
+-required_capabilities = structured_output,long_context
+-write_policy = evidence_only
+-fallback_role =
+-
+-[role.sentinelle_a]
+-; NOUVEAU role tandem - etabli par Nathan, absent du brouillon v0.2 original
+-; Tandem Sentinelle = 2 modeles distincts, controle continu, peut ROUVRIR une story, ne valide JAMAIS
+-gateway_alias = forge-sentinelle-a
+-provider = litellm
+-model_id =
+-vendor = deepseek
+-required_capabilities = structured_output,code_review
+-write_policy = reopen_only
+-fallback_role =
+-
+-[role.sentinelle_b]
+-gateway_alias = forge-sentinelle-b
+-provider = litellm
+-model_id =
+-vendor = zhipu
+-required_capabilities = structured_output,code_review
+-write_policy = reopen_only
+-fallback_role =
+-
+-[role.parallel]
+-; NOUVEAU role - Grok 4.5, parallelisme/worktrees, absent du brouillon v0.2 original
+-; ATTENTION CIV: Grok 4.5 sert aussi de modele natif Cursor (voir ide.cursor ci-dessous).
+-; Toute PR co-ecrite avec Grok, peu importe la porte d'entree, EXCLUT Grok de sa propre revue.
+-gateway_alias = forge-parallel
+-provider = litellm
+-model_id =
+-vendor = xai
+-required_capabilities = tools,code,multi_file
+-fallback_role = forge-bulk-coder
+-
+-[model_policy]
+-run_firing_test_before_autonomy = true
+-minimum_firing_success_rate = 0.90
+-record_served_model = true
+-record_served_vendor = true
+-allow_silent_fallback = false
+-allow_same_vendor_author_reviewer = false
+-require_distinct_review_vendors = true
+-
+-; Pool de rotation (hors alias de role fixe) : Kimi (generique), Qwen 3.7 Max, MiMo 2.5 Pro,
+-; MiniMax M3 (donnees synthetiques / tests E2E / volume - ajoute par Nathan, absent du brouillon v0.2).
+-; Reassignation journalisee, pilotee par les metriques de gouvernance (taux de rejet, bugs par poste).
+-
+-[mini_agents]
+-max_parallel = 3
+-max_depth = 1
+-default_timeout_seconds = 900
+-require_structured_output = true
+-context_scout = automatic
+-design_analyst = automatic
+-architect = automatic_on_trigger
+-hard_coder = automatic_on_trigger
+-test_runner = automatic_after_code
+-drift_checker = automatic_on_resume_and_pre_merge
+-docs_canon = automatic_after_functional_change
+-security_reviewer = automatic_for_t2_t3
+-reviewers = automatic_before_approval
+-evidence_synthesizer = automatic_before_done
+-
+-[proof]
+-profile = PROOF-Solo
+-require_story = true
+-require_claim = true
+-require_branch = true
+-require_pr = true
+-require_tdd = true
+-require_tdad_for_t2_t3 = true
+-require_no_stub = true
+-require_secret_scan = true
+-require_symbol_sweep = true
+-require_evidence_before_done = true
+-require_docs_canon_check = true
+-sealed_reviews = true
+-tally_by_script = true
+-human_approval_t3 = true
+-reviewers_t0 = 0
+-reviewers_t1 = 1
+-reviewers_t2 = 3
+-reviewers_t3 = 3
+-max_delphi_rounds = 2
+-
+-[context]
+-policy = strict
+-reserve_percent = 20
+-stable_prefixes = true
+-require_context_manifest = true
+-require_provenance = true
+-reload_after_compaction = true
+-
+-; C0/C1 ne doivent jamais être compressés avec perte.
+-compress_c0 = false
+-compress_c1 = false
+-compress_c2 = selective
+-compress_c3 = true
+-
+-[headroom]
+-enabled = true
+-mode = audit
+-; Valeurs recommandées par progression: audit | c3_only | c2_c3
+-allow_instruction_file_mutation = false
+-allow_canon_mutation = false
+-allow_code_compression = false
+-allow_diff_compression = false
+-allow_test_compression = false
+-allow_review_compression = false
+-allow_evidence_compression = false
+-
+-[llmlingua2]
+-enabled = true
+-mode = selective_docs_only
+-allow_c0 = false
+-allow_c1 = false
+-allow_code = false
+-allow_diff = false
+-allow_tests = false
+-allow_reviews = false
+-allow_evidence = false
+-fallback_without_gpu = no_compression
+-prevent_double_compression = true
+-
+-[superpowers]
+-enabled = true
+-integration = pending_decision
+-; Valeurs après ADR: fork | overlay | vendored_patches | plugin
+-upstream_version =
+-replace_inline_self_review = true
+-propagate_proof_to_subagents = true
+-route_implementers_by_role = true
+-require_passthrough_test = true
+-
+-[state]
+-backend = sqlite
+-database_path = .forge/state/forge.db
+-claims_backend = local_git
+-ledger_format = jsonl_hash_chain
+-session_resume = true
+-remote_claims_url =
+-
+-[optimization]
+-dspy_enabled = true
+-gepa_enabled = true
+-runtime_auto_optimization = false
+-require_holdout = true
+-require_independent_review = true
+-require_canary = true
+-require_rollback = true
+-allow_canon_mutation = false
+-allow_gate_mutation = false
+-allow_t3_mutation = false
+-
+-[security]
+-allow_plaintext_secrets = false
+-allow_keys_in_config = false
+-allow_keys_in_git = false
+-redact_logs = true
+-verify_tls = true
+-require_secret_scan = true
+-require_signed_updates = true
+-allow_bypass_hooks = false
+-sandbox_untrusted_tools = true
+-
+-[ide.claude_code]
+-enabled = true
+-auto_load = true
+-install_agents = true
+-install_hooks = true
+-install_mcp = true
+-
+-[ide.codex]
+-enabled = true
+-auto_load = true
+-install_agents_md = true
+-install_tools = true
+-install_mcp = true
+-
+-[ide.cursor]
+-enabled = true
+-auto_load = true
+-install_rules = true
+-install_mcp = true
+-; Modele natif Cursor: Grok 4.5 ou Composer 2.5 (inclus abonnement, ne PAS router via LiteLLM)
+-native_model_note = grok-4.5-or-composer-2.5
+-
+-[ide.github_copilot_native]
+-; Remplace ide.vscode_copilot - decision Nathan 23 juillet 2026 (pas d'installation locale VS Code)
+-enabled = true
+-auto_load = true
+-install_repo_instructions = true
+-; .github/copilot-instructions.md - lu par Copilot Chat ET le coding agent (cloud)
+-enable_coding_agent = true
+-; Si true: le coding agent est un FRONT DE CONSTRUCTION soumis aux memes regles PROOF
+-; (claim avant assignation d'issue, zones bornees, pipeline complet) - jamais un passe-droit.
+-coding_agent_requires_claim = true
+-
+-[telemetry]
+-enabled = false
+-remote_export = false
+-include_code = false
+-include_prompts = false
+-include_secrets = false
+-retention_days = 30
+diff --git a/.gitignore b/.gitignore
+index 72fd9c1..8da85b9 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -24,3 +24,8 @@ id_ed25519*
+ # Forge instance (etat local, coffre — jamais versionnes)
+ .forge/state/
+ .forge/secrets/
++# .forge/config.ini est la config LOCALE (cf. START_HERE.md : `cp config.ini.example .forge/config.ini`).
++# Elle a été suivie par erreur jusqu'à c243af6 et dé-suivie par AUD-QUAL-003 (#618) : si un pull la
++# fait disparaître de votre copie de travail, récupérez-la telle qu'elle était avec
++#   git show c243af6:.forge/config.ini > .forge/config.ini
++.forge/config.ini
+diff --git a/AGENTS.md.pre-proof.bak b/archive/pre-proof/AGENTS.md.pre-proof.bak
+similarity index 100%
+rename from AGENTS.md.pre-proof.bak
+rename to archive/pre-proof/AGENTS.md.pre-proof.bak
+diff --git a/CLAUDE.md.pre-proof.bak b/archive/pre-proof/CLAUDE.md.pre-proof.bak
+similarity index 100%
+rename from CLAUDE.md.pre-proof.bak
+rename to archive/pre-proof/CLAUDE.md.pre-proof.bak
+diff --git a/archive/pre-proof/README.md b/archive/pre-proof/README.md
+new file mode 100644
+index 0000000..db4354e
+--- /dev/null
++++ b/archive/pre-proof/README.md
+@@ -0,0 +1,5 @@
++# archive/pre-proof/
++
++`AGENTS.md.pre-proof.bak` et `CLAUDE.md.pre-proof.bak` sont les copies de `AGENTS.md` et `CLAUDE.md` telles qu'elles existaient juste avant la fusion PROOF STACK v1.1, introduites comme filet de secours par le commit `d3c76ac` (2026-07-23).
++
++Elles ne sont pas autoritatives : le contenu qui fait foi reste `AGENTS.md` / `CLAUDE.md` à la racine. Conservées ici pour l'audit et la traçabilité historique — déplacées hors racine par AUD-QUAL-003 (#618) pour ne pas laisser d'artefacts de sauvegarde dans le snapshot suivi.
+diff --git a/audit/hypotheses/PACK-DISTRIBUE.md b/audit/hypotheses/PACK-DISTRIBUE.md
+index 7a02f26..13469ac 100644
+--- a/audit/hypotheses/PACK-DISTRIBUE.md
++++ b/audit/hypotheses/PACK-DISTRIBUE.md
+@@ -40,9 +40,9 @@ Une hypothèse trop vague pour être mesurée sera écartée — écrivez-les do
+   .sonarcloud.properties
+   00-DIGEST.md
+   AGENTS.md
+-  AGENTS.md.pre-proof.bak
++  archive/pre-proof/AGENTS.md.pre-proof.bak
+   CLAUDE.md
+-  CLAUDE.md.pre-proof.bak
++  archive/pre-proof/CLAUDE.md.pre-proof.bak
+   CODEOWNERS
+   FORGE_METHOD.md
+   IMPLEMENTATION_SPEC.md
+diff --git a/scripts/tests/test_hygiene_snapshot.py b/scripts/tests/test_hygiene_snapshot.py
+new file mode 100644
+index 0000000..ff552bc
+--- /dev/null
++++ b/scripts/tests/test_hygiene_snapshot.py
+@@ -0,0 +1,118 @@
++"""AUD-QUAL-003 (#618) : hygiene du snapshot -- config d'hote et backups suivis par git.
++
++Trois regressions scellees, mesurees sur main @ c243af6 (2026-09-05) :
++(1) aucun endpoint prive RFC1918 ni chemin /home/<user>/ dans un fichier de config suivi
++    -- mesure : .forge/config.ini:26, `litellm_base_url = http://192.168.1.149:4000/v1` ;
++(2) aucun artefact de sauvegarde (*.bak/*.orig/*~/*.old) suivi a la racine
++    -- mesure : AGENTS.md.pre-proof.bak, CLAUDE.md.pre-proof.bak (introduits par d3c76ac) ;
++(3) .forge/config.ini est la config LOCALE (copie de config.ini.example, START_HERE.md:32
++    prescrit `cp config.ini.example .forge/config.ini`) : elle ne doit pas etre suivie, et
++    .gitignore doit l'ignorer explicitement.
++"""
++from __future__ import annotations
++
++import fnmatch
++import re
++import subprocess
++from pathlib import Path
++from typing import Final
++
++RACINE: Final[Path] = Path(__file__).resolve().parents[2]
++
++# Elargie apres la revue scellee (GPT-5.6-Luna-Pro et GLM-5.3-Flash, memes constats) : la liste
++# fermee d'origine laissait passer un endpoint prive dans un .json/.conf/.properties suivi, alors
++# que l'invariant annonce porte sur « un fichier de config suivi ». Mesure faite avant d'elargir :
++# avec cette liste et SANS aucune exclusion de repertoire, zero fichier suivi ne matche aujourd'hui.
++# La prose (.md, .txt) et les enregistrements d'audit dates restent hors perimetre par choix
++# explicite : ce sont des constats retrospectifs, pas de la configuration active.
++_EXTENSIONS_CONFIG: Final[tuple[str, ...]] = (
++    ".ini", ".toml", ".yaml", ".yml", ".env", ".cfg", ".json", ".conf", ".properties",
++)
++
++# Echappatoire VISIBLE et volontairement etroite, a la place de l'ancienne exclusion en bloc des
++# repertoires `tests` : une fixture qui doit vraiment porter une adresse privee le declare sur SA
++# ligne. Rien dans le depot ne l'utilise aujourd'hui -- si une ligne l'invoque, elle est lisible en
++# revue, ce qu'une exclusion de repertoire entiere n'etait pas.
++_MARQUEUR_FIXTURE: Final[str] = "hygiene: fixture-endpoint-autorise"
++
++_RE_IP_PRIVEE: Final[re.Pattern[str]] = re.compile(
++    r"\b(?:10\.\d{1,3}\.\d{1,3}\.\d{1,3}"
++    r"|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}"
++    r"|192\.168\.\d{1,3}\.\d{1,3})\b"
++)
++_RE_CHEMIN_HOME: Final[re.Pattern[str]] = re.compile(r"/home/[^/\s]+/")
++
++
++def _fichiers_suivis() -> list[str]:
++    """Chemins suivis par git (git ls-files -z, decoupe sur NUL, tel quel)."""
++    resultat = subprocess.run(
++        ["git", "ls-files", "-z"],
++        cwd=RACINE,
++        check=True,
++        capture_output=True,
++        text=True,
++    )
++    return [chemin for chemin in resultat.stdout.split("\0") if chemin]
++
++
++def _hors_perimetre(chemin: str) -> bool:
++    """Seul `Modules M/` est hors perimetre : il est interdit a la modification par ce lot.
++
++    L'exclusion en bloc de tout repertoire nomme `tests` a ete RETIREE apres la revue scellee :
++    elle masquait une fuite reelle dans un fichier de config vivant sous un repertoire de test,
++    silencieusement. Les fixtures qui ont besoin d'une adresse privee utilisent desormais le
++    marqueur de ligne `_MARQUEUR_FIXTURE`, qui se voit en revue."""
++    return "Modules M" in chemin.split("/")
++
++
++def test_aucun_endpoint_prive_dans_les_configs_suivies() -> None:
++    violations: list[str] = []
++    for chemin in _fichiers_suivis():
++        if not chemin.endswith(_EXTENSIONS_CONFIG) or _hors_perimetre(chemin):
++            continue
++        cible = RACINE / chemin
++        if not cible.is_file():
++            continue
++        texte = cible.read_text(encoding="utf-8", errors="replace")
++        for numero, ligne in enumerate(texte.splitlines(), start=1):
++            nue = ligne.strip()
++            if not nue or nue.startswith("#") or nue.startswith(";"):
++                continue
++            if _MARQUEUR_FIXTURE in ligne:
++                continue
++            if _RE_IP_PRIVEE.search(ligne) or _RE_CHEMIN_HOME.search(ligne):
++                violations.append(f"{chemin}:{numero}: {ligne.strip()}")
++    assert violations == [], (
++        "endpoint(s) prive(s) ou chemin(s) /home/<user>/ dans une config suivie : "
++        + "; ".join(violations)
++    )
++
++
++def test_aucun_artefact_de_sauvegarde_a_la_racine() -> None:
++    motifs = ("*.bak", "*.orig", "*~", "*.old")
++    violations = [
++        chemin
++        for chemin in _fichiers_suivis()
++        if "/" not in chemin and any(fnmatch.fnmatch(chemin, motif) for motif in motifs)
++    ]
++    assert violations == [], f"artefact(s) de sauvegarde suivi(s) a la racine : {violations}"
++
++
++def test_config_locale_forge_non_suivie() -> None:
++    suivis = _fichiers_suivis()
++    assert ".forge/config.ini" not in suivis, (
++        ".forge/config.ini (config locale, cf. config.ini.example) est encore suivi par git"
++    )
++    # Oracle deterministe plutot que textuel (revue scellee, GPT-5.6-Luna-Pro) : lire une ligne
++    # dans .gitignore ne prouve pas que git ignore le fichier -- une regle de negation posee plus
++    # bas, ou dans un autre fichier d'exclusion, pourrait l'annuler sans faire echouer le test.
++    # `git check-ignore -q` interroge la decision reelle de git, tous fichiers de regles combines.
++    decision = subprocess.run(
++        ["git", "check-ignore", "-q", ".forge/config.ini"],
++        cwd=RACINE,
++        capture_output=True,
++    )
++    assert decision.returncode == 0, (
++        "git n'ignore PAS .forge/config.ini (git check-ignore rend "
++        f"{decision.returncode}) : le fichier reapparaitra en '??' au prochain statut"
++    )
+
+```
+
+## Format de réponse — JSON strict, rien d'autre
+
+Réponds UNIQUEMENT par un objet JSON (pas de balise markdown, pas de texte autour) :
+{"verdict":"APPROVE"|"REJECT",
+ "objections":[{"fichier":"...","severite":"critique|majeure|mineure","description":"...","correctif_attendu":"..."}],
+ "raisonnement":"..."}
+
+REJECT s'il reste une objection critique ou majeure fondée sur le diff ci-dessus. APPROVE sinon,
+même s'il reste des objections mineures. Une objection doit citer le fichier et la ligne du diff.

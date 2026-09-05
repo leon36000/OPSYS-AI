@@ -40,9 +40,9 @@ Une hypothèse trop vague pour être mesurée sera écartée — écrivez-les do
   .sonarcloud.properties
   00-DIGEST.md
   AGENTS.md
-  AGENTS.md.pre-proof.bak
+  archive/pre-proof/AGENTS.md.pre-proof.bak
   CLAUDE.md
-  CLAUDE.md.pre-proof.bak
+  archive/pre-proof/CLAUDE.md.pre-proof.bak
   CODEOWNERS
   FORGE_METHOD.md
   IMPLEMENTATION_SPEC.md
