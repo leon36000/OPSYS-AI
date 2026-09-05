@@ -1,0 +1,269 @@
+Tu es un reviewer indépendant. Tu juges un changement proposé au merge dans le dépôt OPSYS-AI.
+Tu ne sais rien de son auteur, ni d'aucun verdict antérieur. Juge la pièce, pas l'intention.
+Tâche : AUD-CORE-005 — Requalifier le validateur GitHub control pack orphelin (.opsys/tools/github-control) en fragment NON-EXECUTABLE declare et scelle par test (#568, ADR-0005)
+Scellé le 2026-09-05T06:24:05+00:00.
+
+## Ce que fait ce changement (issue #568, AUD-CORE-005 — décision REQUALIFIER, ADR-0005)
+
+`.opsys/tools/github-control/` (4 scripts, commit `fac74ea`) ne s'exécute pas : `common.py` et les 7 jeux de données
+qu'ils consomment n'ont jamais été versionnés (`ModuleNotFoundError: No module named 'common'`). Le retirer casserait
+deux gates fail-closed sur l'existence du répertoire (`core/scripts/run_security_scan.py`, `run_codeql_scan.py`) et
+5 tests du contrat `core/quality-scopes.toml` ; le restaurer imposerait d'inventer des données. Ce changement REQUALIFIE :
+un README co-localisé déclare le fragment NON-EXECUTABLE (origine, dépendances manquantes, reproduction, consigne de
+reprise), un test `core/tests/bootstrap/test_github_control_fragment_non_executable.py` scelle l'état (A : la déclaration
+existe — RED avant ; B : les 4 scripts échouent bien avec `No module named 'common'` — rougira le jour où le pack sera
+livré ; C : la racine reste dans `python_roots`), et `docs/decisions/ADR-0005-…` consigne la décision au format ADR-0004.
+Rien n'est modifié ni supprimé : 3 fichiers créés.
+
+## Ce que tu vérifies dans le diff
+
+- Aucun fichier existant modifié ; en particulier `core/quality-scopes.toml`, `core/scripts/*`, `.github/workflows/*`,
+  `coordination/*` sont absents du diff.
+- Le test n'assert que des faits vérifiables (existence + contenu du README, code retour ≠ 0 et message exact,
+  présence de la racine dans le TOML) ; il n'exécute rien de dangereux (sous-processus = l'interpréteur sur un fichier du dépôt).
+- README et ADR sont factuels (n'affirment pas que le pack externe existe ailleurs) et cohérents avec le test.
+Si une affirmation est contredite par le diff, REJECT en citant fichier et ligne.
+
+
+## Diff complet (`git diff origin/main...HEAD`, hors evidence/)
+
+```diff
+diff --git a/.opsys/tools/github-control/README.md b/.opsys/tools/github-control/README.md
+new file mode 100644
+index 0000000..649db59
+--- /dev/null
++++ b/.opsys/tools/github-control/README.md
+@@ -0,0 +1,80 @@
++# `.opsys/tools/github-control/` — fragment NON-EXECUTABLE
++
++**Statut : NON-EXECUTABLE.** Les 4 scripts de ce répertoire ne s'exécutent pas : chacun échoue
++à l'import avec `ModuleNotFoundError: No module named 'common'`. Ce répertoire est un fragment
++livré partiellement, pas une capacité en service.
++
++## Origine
++
++Copie partielle d'un pack externe, installée par le commit `fac74ea` (2026-08-09,
++« installer le plan de contrôle Core v2.3.0 »). Seuls les 4 scripts Python ont été versionnés ;
++le module partagé qu'ils importent et les données qu'ils lisent ne l'ont jamais été.
++
++## Ce qui manque
++
++- **`common.py`** — absent du dépôt. Les 4 scripts l'importent en repli après l'échec de
++  `tools.common` (`validate_github_control_pack.py` lignes 5 et 7 :
++  `from tools.common import ...` puis `from common import ...`, même schéma dans
++  `github_issue_sync.py`, `github_project_sync.py`, `github_task_status.py`). Il doit fournir
++  au minimum `PACK`, `EXPECTED_REPO`, `EXPECTED_OWNER`, `canonical_bytes`, `load_tasks`,
++  `load_phases` (signatures lues dans `validate_github_control_pack.py`).
++- **Les jeux de données `github/catalog/*`** que `validate_github_control_pack.py` lit sous la
++  racine `PACK` (jamais versionnée) : `phase-epics.jsonl`, `task-issues.jsonl`,
++  `deferred-bugs.jsonl`, `labels.json`, `milestones.json`, `issue-creation-manifest.csv` — et,
++  côté `github_project_sync.py`, `project-spec.json`. Sept fichiers au total.
++- **`github/issue-bodies/`** — les corps d'issues (ex. `META-CORE-GITHUB-CONTROL.md`) que le
++  validateur vérifie un par un (marqueur `OPSYS_..._ID:`, hash SHA-256 du corps).
++
++## Reproduction
++
++```
++$ python3 .opsys/tools/github-control/validate_github_control_pack.py
++Traceback (most recent call last):
++  File ".../validate_github_control_pack.py", line 5, in <module>
++    from tools.common import PACK, EXPECTED_REPO, EXPECTED_OWNER, canonical_bytes, load_tasks, load_phases
++ModuleNotFoundError: No module named 'tools'
++
++During handling of the above exception, another exception occurred:
++
++Traceback (most recent call last):
++  File ".../validate_github_control_pack.py", line 7, in <module>
++    from common import PACK, EXPECTED_REPO, EXPECTED_OWNER, canonical_bytes, load_tasks, load_phases
++ModuleNotFoundError: No module named 'common'
++```
++
++Le même repli (`tools.common` absent, puis `common` absent) échoue à l'identique, exécuté
++directement, pour les 3 autres scripts : `github_issue_sync.py`, `github_project_sync.py`,
++`github_task_status.py`.
++
++## Pourquoi ce fragment n'est pas restauré
++
++Fabriquer `common.py` et les sept jeux de données pour faire passer le validateur reviendrait
++à **inventer une source de vérité** : les comptes que le validateur impose littéralement
++(`validate_github_control_pack.py:14`, catalogue attendu à `(148,25,25,148,12,51,25)` ;
++lignes 45-46, 186 entrées attendues dans `issue-creation-manifest.csv`) n'ont aucune donnée
++réelle derrière eux tant que le pack externe correspondant n'est pas livré. Ce document
++n'affirme pas que ce pack externe existe ou reste récupérable ailleurs que dans l'historique
++git de ce dépôt (`fac74ea`) — aucune preuve de cela n'a été établie.
++
++## Statut dans le périmètre qualité
++
++Ce répertoire **reste** l'une des racines de `core/quality-scopes.toml` (ligne 9) : il est
++scanné par ruff, bandit, CodeQL et le gate no-stub comme toute autre racine Python du contrat.
++Cela n'en fait à aucun moment une **capacité de contrôle Core active** — seulement une source
++qui doit rester propre pendant qu'elle attend son pack.
++
++## Consigne de reprise
++
++Toute PR qui livre `common.py` et le catalogue (`github/catalog/*` + `github/issue-bodies/`)
++**met à jour ce README ET**
++`core/tests/bootstrap/test_github_control_fragment_non_executable.py` **dans le même commit**.
++
++Ce test est une **déclaration d'état** — « aujourd'hui ce fragment n'exécute rien » — pas une
++spécification de ce que le pack doit devenir. Le jour où les 4 scripts s'exécutent réellement,
++`test_les_quatre_scripts_sont_reellement_inexecutables` rougit ; c'est ce rougissement qui
++interdit de promouvoir silencieusement le fragment en capacité.
++
++## Référence
++
++Issue #568 (AUD-CORE-005), ADR-0005
++(`docs/decisions/ADR-0005-fragment-github-control-non-executable.md`).
+diff --git a/core/tests/bootstrap/test_github_control_fragment_non_executable.py b/core/tests/bootstrap/test_github_control_fragment_non_executable.py
+new file mode 100644
+index 0000000..f9b82fd
+--- /dev/null
++++ b/core/tests/bootstrap/test_github_control_fragment_non_executable.py
+@@ -0,0 +1,47 @@
++"""#568 / ADR-0005 : le validateur GitHub control pack (.opsys/tools/github-control) est un fragment
++orphelin — module `common.py` et données jamais versionnés. Plutôt que fabriquer une source de vérité
++ou casser deux gates fail-closed sur l'existence du répertoire, il est DÉCLARÉ non exécutable et ce
++test scelle l'état : (A) la déclaration existe, (B) les 4 scripts échouent bien comme déclaré — le
++jour où quelqu'un livre le pack, (B) rougit et force la mise à jour de la déclaration — (C) la
++requalification n'a retiré aucune racine au périmètre qualité scellé."""
++from __future__ import annotations
++
++import subprocess
++import sys
++import tomllib
++from pathlib import Path
++
++import pytest
++
++_REPO_ROOT = Path(__file__).resolve().parents[3]
++_FRAGMENT = _REPO_ROOT / ".opsys" / "tools" / "github-control"
++_DECLARATION = _FRAGMENT / "README.md"
++_SCRIPTS = (
++    "validate_github_control_pack.py",
++    "github_issue_sync.py",
++    "github_project_sync.py",
++    "github_task_status.py",
++)
++
++
++def test_le_fragment_est_declare_non_executable() -> None:
++    assert _DECLARATION.is_file(), "fragment sans declaration de non-executabilite"
++    texte = _DECLARATION.read_text(encoding="utf-8")
++    assert "NON-EXECUTABLE" in texte
++    assert "fac74ea" in texte
++    assert "common.py" in texte
++
++
++@pytest.mark.parametrize("nom", _SCRIPTS)
++def test_les_quatre_scripts_sont_reellement_inexecutables(nom: str) -> None:
++    resultat = subprocess.run(
++        [sys.executable, str(_FRAGMENT / nom)], capture_output=True, text=True, timeout=30, cwd=_REPO_ROOT
++    )
++    assert resultat.returncode != 0
++    assert "No module named 'common'" in resultat.stderr
++
++
++def test_la_requalification_ne_reduit_pas_le_perimetre_qualite() -> None:
++    assert _FRAGMENT.is_dir()
++    with (_REPO_ROOT / "core" / "quality-scopes.toml").open("rb") as flux:
++        assert ".opsys/tools/github-control" in tomllib.load(flux)["python_roots"]
+diff --git a/docs/decisions/ADR-0005-fragment-github-control-non-executable.md b/docs/decisions/ADR-0005-fragment-github-control-non-executable.md
+new file mode 100644
+index 0000000..7427551
+--- /dev/null
++++ b/docs/decisions/ADR-0005-fragment-github-control-non-executable.md
+@@ -0,0 +1,82 @@
++# ADR-0005 — Requalification du fragment GitHub-control (`.opsys/tools/github-control/`) en NON-EXECUTABLE
++
++Statut: Proposé
++Date: 2026-09-05
++
++## Contexte
++
++L'issue #568 (AUD-CORE-005) documente que `.opsys/tools/github-control/` — 4 scripts Python
++installés par le commit `fac74ea` (2026-08-09, « installer le plan de contrôle Core v2.3.0 »,
++copie partielle d'un pack externe) — est orphelin : le module `common.py` qu'ils importent tous
++et les jeux de données qu'ils consomment (`github/catalog/*`, `github/issue-bodies/`) n'ont
++jamais été versionnés. Exécuté, chacun des 4 scripts échoue avec
++`ModuleNotFoundError: No module named 'common'` (après un premier échec intercepté sur
++`No module named 'tools'`) — reproduction et détail dans
++`.opsys/tools/github-control/README.md`.
++
++Ce répertoire n'est pas un fragment isolable sans conséquence : c'est l'une des cinq racines
++déclarées dans `core/quality-scopes.toml:9`, lues par les outils qualité du dépôt. Une décision
++doit trancher entre retirer le fragment, restaurer une version fonctionnelle, ou le requalifier
++en place.
++
++## Options considérées
++
++### 1. RETIRER le répertoire
++
++Écarté. `core/scripts/run_security_scan.py:52-55` et `core/scripts/run_codeql_scan.py:136-140`
++sont fail-closed sur l'EXISTENCE de chacune des racines du contrat (une racine manquante lève
++respectivement `OutilSecuriteAbsent` et `OutilCodeQLAbsent`) ; `core/tests/bootstrap/test_security_tool_scope.py:29-30`
++scelle `is_dir()` sur les cinq racines et `scripts/tests/test_quality_scope_contract.py:74-78`
++scelle la liste exacte du contrat. Le job `security` de `.github/workflows/core-ci.yml`
++(vérifié ici) invoque directement `run_security_scan.py` : retirer la racine casse ce gate CI.
++Selon les précisions du lead (consultation Opus scellée), retirer le chemin partout où il est
++engagé demande en outre l'édition d'environ 8 fichiers de gouvernance et touche un second job
++CI, et entrerait en collision avec l'issue ouverte #573, qui planifie d'ajouter ce même chemin
++au déclencheur `proof-sealed` plutôt que de l'en retirer. Le commit `9646437`
++(« eliminate unallocated CodeQL findings ») avait par ailleurs corrigé dans ce répertoire des
++findings CodeQL réels ; un retrait effacerait la trace de cette remédiation sans la rendre
++caduque.
++
++### 2. RESTAURER une version fonctionnelle
++
++Écarté. `validate_github_control_pack.py` impose des comptes exacts sur le catalogue attendu
++(ligne 14 : `(148,25,25,148,12,51,25)` ; lignes 45-46 : 186 entrées uniques attendues dans
++`issue-creation-manifest.csv`) ainsi que des hachages SHA-256 par enregistrement. Aucune de ces
++données n'existe dans ce dépôt. Les fabriquer pour faire passer le validateur reviendrait à
++**inventer une source de vérité** plutôt qu'à en restaurer une réelle.
++
++### 3. REQUALIFIER le fragment en NON-EXECUTABLE (retenue)
++
++Rien n'est supprimé (le contrat qualité, les gates CI et les 4 scripts restent inchangés),
++rien n'est inventé (aucune donnée fabriquée). Le fragment est déclaré NON-EXECUTABLE dans
++`.opsys/tools/github-control/README.md`, et cette non-exécutabilité est scellée par
++`core/tests/bootstrap/test_github_control_fragment_non_executable.py` : le test constate
++l'échec réel des 4 scripts au lieu de le supposer, si bien qu'une livraison future du pack le
++fait rougir au lieu de laisser le fragment glisser silencieusement au statut de capacité.
++
++## Décision
++
++**REQUALIFIER.** `.opsys/tools/github-control/` reste une racine scannée de
++`core/quality-scopes.toml`, documentée comme fragment non exécutable par son propre README
++co-localisé, et cet état est scellé par un test dans `core/tests/bootstrap/`.
++
++## Conséquences
++
++- Aucun gate CI existant n'est modifié : `core/quality-scopes.toml`, `core/scripts/*` et
++  `.github/workflows/*` restent inchangés par cette décision.
++- Le répertoire continue d'être scanné (ruff/bandit/CodeQL/no-stub) comme toute autre racine
++  du contrat qualité, sans jamais être traité comme une capacité de contrôle Core active.
++- Toute PR qui livre `common.py` et le catalogue doit mettre à jour, dans le même commit, le
++  README du fragment et `test_github_control_fragment_non_executable.py` — sous peine de
++  laisser une déclaration de non-exécutabilité mentir sur un pack devenu réel.
++- Le test scellé documente un état constaté, pas une spécification cible : il rougira le jour
++  où le pack sera livré, ce qui est le signal attendu, pas une régression à corriger sur place.
++
++## Réversibilité
++
++Entièrement réversible par un `git revert` du commit qui introduit cette requalification : il
++n'ajoute que 3 fichiers nouveaux (le README du fragment, le test, cet ADR) et ne modifie ni ne
++supprime aucun fichier existant. Si le pack externe dont ce fragment est une copie partielle
++redevient disponible, la copie actuelle reste consultable à partir du commit `fac74ea` pour
++comparaison — sans qu'aucune preuve n'établisse ici que ce pack existe ou est accessible
++ailleurs que dans cet historique git.
+
+```
+
+## Format de réponse — JSON strict, rien d'autre
+
+Réponds UNIQUEMENT par un objet JSON (pas de balise markdown, pas de texte autour) :
+{"verdict":"APPROVE"|"REJECT",
+ "objections":[{"fichier":"...","severite":"critique|majeure|mineure","description":"...","correctif_attendu":"..."}],
+ "raisonnement":"..."}
+
+REJECT s'il reste une objection critique ou majeure fondée sur le diff ci-dessus. APPROVE sinon,
+même s'il reste des objections mineures. Une objection doit citer le fichier et la ligne du diff.

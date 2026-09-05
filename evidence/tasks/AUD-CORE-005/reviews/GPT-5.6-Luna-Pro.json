@@ -1,0 +1,10 @@
+{
+  "verdict": "APPROVE",
+  "objections": [],
+  "resume": "Le diff ajoute uniquement les trois fichiers annoncés et ne modifie ni le contrat de périmètre qualité, ni les scripts, ni les workflows. Le README et l’ADR déclarent de façon cohérente le fragment comme non exécutable sans affirmer que le pack externe est disponible ailleurs. Le test vérifie l’existence et le contenu minimal de la déclaration, l’échec des quatre scripts avec le message attendu et le maintien de la racine dans python_roots. Aucun défaut critique ou majeur fondé sur le diff n’est établi.",
+  "date_heure": "1788589473.1200507",
+  "prompt_sha256": "3da18df8ea02661c6a7a93cb08f803be917b61820d5a18633f0ff2c6e9e76003",
+  "reviewer_model": "GPT-5.6-Luna-Pro",
+  "modele_servi": "GPT-5.6-Luna-Pro",
+  "job_id": "e3019b5e-8540-48e4-a571-828f29e1f86b"
+}

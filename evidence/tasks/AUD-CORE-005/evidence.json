@@ -1,0 +1,26 @@
+{
+  "task_id": "AUD-CORE-005",
+  "description": "Requalifier le validateur GitHub control pack orphelin (.opsys/tools/github-control) en fragment NON-EXECUTABLE declare et scelle par test (#568, ADR-0005)",
+  "branche": "claude/aud-core-005-requalify",
+  "base": "merge-base @ bab4cf00b6d484f9097f8d141fa869b7bd0f58e0",
+  "merge_base": "bab4cf00b6d484f9097f8d141fa869b7bd0f58e0",
+  "merge_base_note": "base reelle du diff scelle — git diff bab4cf00b6d484f9097f8d141fa869b7bd0f58e0...HEAD sur le perimetre scelle",
+  "main_au_scellement": "origin/main @ bab4cf00b6d484f9097f8d141fa869b7bd0f58e0",
+  "code_diff_sha256": "41249843313d9ad7f74361fcfde04e7dc133e08ea3da251a4b4fbd91cbd760b0",
+  "code_diff_sha256_note": "Calcule par core/scripts/verify_proof_sealed.py --emit-code-diff-sha256 du worktree, la MEME fonction que celle executee par le gate en CI, sur le perimetre scelle.",
+  "prompt_sha256": "3da18df8ea02661c6a7a93cb08f803be917b61820d5a18633f0ff2c6e9e76003",
+  "prompt_note": "Prompt unique transmis a l'identique aux sieges (sha256 verifie avant chaque envoi), preimage : prompt.txt. Il contient le diff complet de la PR.",
+  "reviews": {
+    "GPT-5.6-Luna-Pro.json": "732d3a6d07a7d77231504055dd678f123019e8c7ed10862794ae1445afefc3d7",
+    "Muse-Spark-1.2-Contributor.json": "91c9f9df9ae9c315fb810b1dfb5909eca5cb204d531de193438709bcdd304cb6"
+  },
+  "consensus": {
+    "profil": "Revue aveugle desancree : chaque siege ne recoit que le prompt, sans voir les autres verdicts.",
+    "outil": "trio_seal.py (hors depot) via forge-model-bridge /v1/jobs"
+  },
+  "preuves_jointes": {
+    "prompt.txt": "3da18df8ea02661c6a7a93cb08f803be917b61820d5a18633f0ff2c6e9e76003",
+    "full.diff": "c4be61c45f72ec19b6a5dac09ed472e5ab01de5d3f17b86429e22654b6569fa3"
+  },
+  "preuves_jointes_note": "prompt.txt hache a prompt_sha256 (preimage) ; full.diff = git diff origin/main...HEAD hors evidence/."
+}
