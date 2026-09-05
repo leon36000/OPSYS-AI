@@ -1,0 +1,61 @@
+{
+  "task_id": "CORE-CAS-PUT-INTEGRITY",
+  "issue": 620,
+  "status": "LOCAL_TARGETED_TESTS_VERIFIED_PENDING_INDEPENDENT_REVIEW",
+  "branche": "chatgpt/issue-620-cas-put-integrity",
+  "base": "b78bf1e74d2352185a8d868c2ea3cdceef70f8d4",
+  "base_tree": "411c9b6aa2c6cb1f60f1eedd9150aec8daeb6393",
+  "code_diff_sha256": "01a1eae9165cef1db2bcc5eac73d22b658164dbc805892c7be0507c48f1158f4",
+  "code_diff_sha256_note": "git diff --cached sur snapshot partiel avec blobs source verifies, memes pathspecs que verify_proof_sealed.py. Le verificateur canonique complet ne fut pas execute localement; controle CI a faire sur le SHA publie.",
+  "reviews": {},
+  "independent_review_status": "NOT_RUN",
+  "merge_authorized": false,
+  "local_tests": {
+    "scope": "core/tests/persistence/test_cas_put_integrity.py uniquement; pas la suite Core complete",
+    "python": "3.13.5",
+    "pytest": "9.0.2",
+    "red": "9 failed, 8 passed, returncode=1, avant modification du code",
+    "green": "17 passed, returncode=0",
+    "mutant_guard_removed": "9 failed, 8 passed, returncode=1",
+    "mutant_tombstone_removed_before_verification": "4 failed, 13 passed, returncode=1",
+    "healthy_concurrent_resurrection": "5 repetitions independantes vertes du meme test",
+    "rollback": "application, annulation et reapplication byte-exactes dans snapshot partiel isole",
+    "get_read_block": "instructions AST du bloc de verification existant inchangees apres extraction"
+  },
+  "candidate_sha256": {
+    "core/tests/persistence/test_cas_put_integrity.py": "1ba992238c5130c74a59fea7d8c092f76927e502b18a189150f5bab52032ea15",
+    "core/src/opsys_core/objects/local_cas.py": "354d92c1450512ae215a3ddbe4b6cd255fd3be05a3c784f956fc6651668bd910"
+  },
+  "external_local_receipts_sha256": {
+    "RED.log": "ea7764844e22ee7189079e0748b87bea54bf7a104377315df2c28e376aa5ecdd",
+    "GREEN_FINAL.stdout": "e4c0c618ce1c326456771af833546fea51520615a3c2e055f04f16fcdefdc8a6",
+    "MUTANT_GARDE_RETIREE.stdout": "f9f432c80185ae373dca81387d25396bd923b448fc74cc6d3c2dc1b958140d7f",
+    "MUTANT_TOMBSTONE_RETIRE_AVANT_VERIFICATION.stdout": "f8fcc423716bda9c56f298ab599bbafc8938bf98187b0b41f1b4a3a05fcb9522",
+    "verification.json": "a73d8c9f6c0c508ef00711177d2d3b8f556809787825893a625dfe955fbb9164"
+  },
+  "limitations": [
+    "Source snapshot partiel, pas clone complet ni preuve des suites historiques.",
+    "Aucun verdict independant fabrique; la PR doit rester draft.",
+    "CI distante, typage et scanners complets non verifies a la creation de ce manifeste.",
+    "Aucun traitement du secret #612, aucune modification des workflows reserves.",
+    "Pas de garantie nouvelle sur concurrence put/purge, mutations disque adversariales ou fsync de repertoire."
+  ],
+  "type_followup": {
+    "initial_head": "5c7d8f6789f9d3e8fadeba7ad23c5fc33a339a43",
+    "initial_run": 33995388516,
+    "initial_types_job": 101384927109,
+    "observed": "mypy-core: 6 erreur(s) (0 en baseline, 6 nouvelle(s))",
+    "change": "Les trois spies de lecture acceptent Literal[\"rb\"] au lieu de str. Aucune suppression, cast ou baseline ajoutee.",
+    "remote_types_after_change": "PENDING",
+    "local_mypy_install": "BLOCKED: Temporary failure in name resolution; aucun mypy local execute."
+  },
+  "first_remote_ci": {
+    "head": "5c7d8f6789f9d3e8fadeba7ad23c5fc33a339a43",
+    "run": 33995388516,
+    "tests": "success",
+    "security": "success",
+    "pack-validation": "success",
+    "types": "failure",
+    "proof-sealed": "failure: code_diff_sha256 conforme; aucun verdict de revue committe"
+  }
+}
