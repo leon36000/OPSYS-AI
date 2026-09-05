@@ -1,0 +1,17 @@
+{
+  "verdict": "APPROVE",
+  "objections": [
+    {
+      "fichier": "scripts/tests/test_sonarcloud_properties.py",
+      "severite": "mineure",
+      "description": "Lignes 30-32 : le test de régression n'extrait qu'un seul des six motifs de sonar.cpd.exclusions (« Modules M/**/encodage.py »). Si un motif des cinq autres (horodatage.py, verdicts.py, registre.py, adaptateurs.py, fixtures_garde.py) disparaissait lors d'une retouche future, le tripwire resterait au vert, alors que son commentaire (ligne 31) annonce figer « la clé » entière.",
+      "correctif_attendu": "Asserter la valeur complète de sonar.cpd.exclusions (égalité sur la chaîne des six motifs séparés par des virgules, ou présence des six motifs) plutôt que le seul encodage.py."
+    }
+  ],
+  "resume": "Le diff est conforme à toutes les vérifications demandées. (1) .sonarcloud.properties : la ligne sonar.cpd.exclusions apparaît en pur contexte (préfixe espace, aucune modification) ; l'ajout se limite à une ligne vide, 10 lignes de commentaire et la clé sonar.test.inclusions=**/tests/**,**/test_*.py,**/conftest.py — cohérent avec le hunk @@ -20,3 +20,15 @@ (3+12=15). (2) Le test lit bien le vrai fichier : RACINE = parents[2] depuis scripts/tests/ remonte à la racine du dépôt ; le parseur ignore les lignes vides et celles commençant par #, et coupe au premier = via partition, exactement comme spécifié. Avant correctif, la clé absente donne [''.split(',')] == [''] et les trois assertions échouent (RED) ; après, les trois motifs sont présents (VERT). L'assertion de conservation de « Modules M/**/encodage.py » dans sonar.cpd.exclusions est présente et vérifiable sur la valeur visible en contexte. (3) Le motif **/tests/** ne recouvre que des répertoires de suites selon l'énoncé ; scripts/tests/ lui-même est une suite de scripts. (4) Aucun autre fichier touché. Le commentaire documente la mesure (77 287 LOC, dates, révision 4026dcd) et le plan de vérification post-merge via /api/ce/activity et /api/components/tree, ce qui est de la documentation et non du comportement exécutable. L'objection résiduelle sur la couverture partielle de la clé CPD est mineure et ne bloque pas le merge.",
+  "date_heure": "1788588963.1990118",
+  "prompt_sha256": "ea1d24d8999b2a2938edb86460012b8beba3b77fec9a22de03f6277e847d05b8",
+  "reviewer_model": "GLM-5.3-Flash",
+  "modele_servi": "GLM-5.3-Flash",
+  "job_id": "76a469f9-98a1-4d1d-8ab7-0991de738bf3"
+}

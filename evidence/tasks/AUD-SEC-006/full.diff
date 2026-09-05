@@ -1,0 +1,58 @@
+diff --git a/.sonarcloud.properties b/.sonarcloud.properties
+index e58509a..e850dc5 100644
+--- a/.sonarcloud.properties
++++ b/.sonarcloud.properties
+@@ -20,3 +20,15 @@
+ # la condition duplication du prochain PR de socle M4 (S002, registre copié-adapté) doit
+ # passer — sinon cette exclusion sera corrigée sur mesure, pas sur hypothèse.
+ sonar.cpd.exclusions=Modules M/**/encodage.py,Modules M/**/horodatage.py,Modules M/**/verdicts.py,Modules M/**/registre.py,Modules M/**/adaptateurs.py,Modules M/**/fixtures_garde.py
++
++# sonar.test.inclusions : classe comme code de TEST tout ce qui vit sous un répertoire tests/ et les
++# fichiers test_*.py / conftest.py (clé honorée par l'Automatic Analysis). POURQUOI (issue #595, mesuré le
++# 2026-09-05 via GET /api/ce/activity) : depuis le 2026-08-28 chaque analyse complète de main ÉCHOUE au
++# plafond de 50 000 lignes de l'organisation (77 287 LOC comptées, dont 76 777 Python) ; la dernière analyse
++# réussie de main date du 2026-08-01 (révision 4026dcd, 495 commits en arrière), avant la création d'audit/ —
++# d'où « Component not found ». Sans déclaration, SonarCloud compte les tests comme code principal :
++# ~53 000 lignes de tests sur ~90 000 (mesure locale, blancs et commentaires exclus) ; les classer en tests
++# ramène le code principal facturé à ~37 000. Vérification après merge, en GET : /api/ce/activity doit montrer
++# une tâche REPORT en SUCCESS sur main, puis /api/components/tree?...&q=audit doit lister audit/. Si l'analyse
++# échoue encore au plafond, la suite est une décision de plan/facturation (hors dépôt), pas une exclusion de plus.
++sonar.test.inclusions=**/tests/**,**/test_*.py,**/conftest.py
+diff --git a/scripts/tests/test_sonarcloud_properties.py b/scripts/tests/test_sonarcloud_properties.py
+new file mode 100644
+index 0000000..ac0bd41
+--- /dev/null
++++ b/scripts/tests/test_sonarcloud_properties.py
+@@ -0,0 +1,32 @@
++"""#595 : SonarCloud ne facturait AUCUN fichier comme test, faute de déclaration — chaque analyse de
++main dépassait le plafond LOC de l'organisation et échouait depuis le 2026-08-28 (mesuré via
++/api/ce/activity). Ce test fige la déclaration des tests dans .sonarcloud.properties : si quelqu'un
++la retire ou la rétrécit, il rougit avant que SonarCloud ne retombe en panne silencieuse."""
++from __future__ import annotations
++
++from pathlib import Path
++
++RACINE = Path(__file__).resolve().parents[2]
++
++
++def _proprietes() -> dict[str, str]:
++    props: dict[str, str] = {}
++    for ligne in (RACINE / ".sonarcloud.properties").read_text(encoding="utf-8").splitlines():
++        s = ligne.strip()
++        if not s or s.startswith("#"):
++            continue
++        cle, _, valeur = s.partition("=")
++        props[cle.strip()] = valeur.strip()
++    return props
++
++
++def test_les_tests_sont_declares_comme_code_de_test_pour_sonarcloud():
++    motifs = _proprietes().get("sonar.test.inclusions", "").split(",")
++    assert "**/tests/**" in motifs
++    assert "**/test_*.py" in motifs
++    assert "**/conftest.py" in motifs
++
++
++def test_l_exclusion_cpd_des_socles_de_modules_est_conservee():
++    # Régression : l'ajout ne doit pas faire disparaître la clé déjà justifiée dans le fichier.
++    assert "Modules M/**/encodage.py" in _proprietes()["sonar.cpd.exclusions"]
