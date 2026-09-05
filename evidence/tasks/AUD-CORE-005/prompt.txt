@@ -1,7 +1,7 @@
 Tu es un reviewer indépendant. Tu juges un changement proposé au merge dans le dépôt OPSYS-AI.
 Tu ne sais rien de son auteur, ni d'aucun verdict antérieur. Juge la pièce, pas l'intention.
 Tâche : AUD-CORE-005 — Requalifier le validateur GitHub control pack orphelin (.opsys/tools/github-control) en fragment NON-EXECUTABLE declare et scelle par test (#568, ADR-0005)
-Scellé le 2026-09-05T06:24:05+00:00.
+Scellé le 2026-09-05T06:25:53+00:00.
 
 ## Ce que fait ce changement (issue #568, AUD-CORE-005 — décision REQUALIFIER, ADR-0005)
 

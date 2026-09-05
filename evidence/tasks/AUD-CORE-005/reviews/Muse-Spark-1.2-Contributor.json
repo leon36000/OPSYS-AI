@@ -1,10 +1,10 @@
 {
   "verdict": "APPROVE",
   "objections": [],
-  "resume": "Diff vérifié : 3 fichiers créés uniquement, aucun fichier existant modifié (core/quality-scopes.toml, core/scripts/*, .github/workflows/*, coordination/* absents). Test scelle 3 faits vérifiables : A existence README + contenu NON-EXECUTABLE/fac74ea/common.py, B exécution des 4 scripts via sys.executable capture_output avec assert returncode!=0 et 'No module named \\'common\\'' in stderr (non dangereux), C is_dir + présence '.opsys/tools/github-control' dans python_roots via tomllib. README et ADR-0005 factuels, n'affirment pas existence externe du pack, cohérents entre eux et avec le test (origine fac74ea, dépendances manquantes, reproduction, consigne de reprise dans même commit). Réversible par revert, sans invention de données ni casse de gates fail-closed.",
-  "date_heure": "1788589452.5786731",
-  "prompt_sha256": "3da18df8ea02661c6a7a93cb08f803be917b61820d5a18633f0ff2c6e9e76003",
+  "resume": "Diff vérifié : 3 fichiers créés uniquement (.opsys/tools/github-control/README.md, core/tests/bootstrap/test_github_control_fragment_non_executable.py, docs/decisions/ADR-0005-fragment-github-control-non-executable.md), aucun fichier existant modifié — core/quality-scopes.toml, core/scripts/*, .github/workflows/*, coordination/* absents du diff. Test scellé A/B/C conforme : A vérifie existence+contenu README (NON-EXECUTABLE, fac74ea, common.py), B exécute les 4 scripts via sys.executable en sous-processus isolé (timeout 30, capture) et n'assert que returncode!=0 et \"No module named 'common'\" in stderr, C vérifie présence racine dans python_roots via tomllib — rien de dangereux, pas d'effet de bord. README et ADR factuels, n'affirment pas l'existence d'un pack externe ailleurs (README: \"n'affirme pas que ce pack externe existe...\", ADR réversibilité idem), cohérents entre eux et avec le test (reproduction double import tools.common/common, 7 fichiers catalogue, counts (148,25,25,148,12,51,25) et 186 entrées). Requalification RED avant/GREEN après : déclaration existe maintenant, rougira si pack livré comme voulu.",
+  "date_heure": "1788589566.3982885",
+  "prompt_sha256": "0e5ea28f5a5b7b7647da6cdec703daf54bbf8483a8af05d3a0f3b0a2720d6578",
   "reviewer_model": "Muse-Spark-1.2-Contributor",
   "modele_servi": "Muse-Spark-1.2-Contributor",
-  "job_id": "65746981-dd84-4bff-bdd2-007ba6e8e99b"
+  "job_id": "53b7e8d9-5c63-4170-808a-7ba168348730"
 }
