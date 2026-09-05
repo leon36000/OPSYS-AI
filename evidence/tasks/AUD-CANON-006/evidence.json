@@ -1,0 +1,24 @@
+{
+  "task_id": "AUD-CANON-006",
+  "description": "config.ini.example : aligner [proof].profile sur [forge].profile = PROOF-Team (#585)",
+  "branche": "claude/aud-canon-006-proof-profile",
+  "base": "origin/main @ 0aff240aa74a082fb9b71f2318f07eb6c30bae87",
+  "code_diff_sha256": "d4c5a2ab6e69bfe8246401276a2e4abc5905dfbfdeeba852eb0c5baad4abae3f",
+  "code_diff_sha256_note": "Calcule par core/scripts/verify_proof_sealed.py --emit-code-diff-sha256 du worktree, la MEME fonction que celle executee par le gate en CI, sur le perimetre scelle.",
+  "prompt_sha256": "6e395c897940aa16bcae136b896d527f63645441a69407554557cd1586cffd42",
+  "prompt_note": "Prompt unique transmis a l'identique aux sieges (sha256 verifie avant chaque envoi), preimage : prompt.txt. Il contient le diff complet de la PR.",
+  "reviews": {
+    "GLM-5.3-Flash.json": "15709d409650ca0966d53567199ff86c810d1d08b94fca8618da7dab05dc3e5a",
+    "GPT-5.6-Luna-Pro.json": "c1ef8c220b39720fc87386b25345cb66c7fb3c2bf2121da832aa3351eccb4be7",
+    "Muse-Spark-1.2-Contributor.json": "4d3044242764f99acb7c0fb70a56c0e362f2041c6fd765e21299587c4bd0ec2e"
+  },
+  "consensus": {
+    "profil": "Revue aveugle desancree : chaque siege ne recoit que le prompt, sans voir les autres verdicts.",
+    "outil": "trio_seal.py (hors depot) via forge-model-bridge /v1/jobs"
+  },
+  "preuves_jointes": {
+    "prompt.txt": "6e395c897940aa16bcae136b896d527f63645441a69407554557cd1586cffd42",
+    "full.diff": "3946ed5329902c09e0dce55b4edc515fd56de264eb7ff9fa6599db8a601a6f64"
+  },
+  "preuves_jointes_note": "prompt.txt hache a prompt_sha256 (preimage) ; full.diff = git diff origin/main...HEAD hors evidence/."
+}
