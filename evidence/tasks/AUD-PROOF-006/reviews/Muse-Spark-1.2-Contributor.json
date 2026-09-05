@@ -1,0 +1,10 @@
+{
+  "verdict": "APPROVE",
+  "objections": [],
+  "resume": "Diff conforme a AUD-PROOF-006/#591 : README ajoute une section ARCHIVE ancree (07106d8, 2026-08-27, 711 verdicts) sans effacer la convention round-N/, enumere les 9 cles rencontrees et precise ce qui est atteste (3 voix, texte identique) et non atteste (quel code, non mergability), sans pretendre prouver du code et en renvoyant vers evidence/tasks/<ID>/. Chiffres presentes comme mesures datees, non comme comptes courants. Test lit le README reel et le corpus reel via rglob, (A) scelle 4 invariants textuels (Statut ARCHIVE, #591, Aucun champ..., aucune preimage) et (B) assert qu'aucun JSON sous reviews/ ne porte une cle liant au code via une liste explicite incluant code_diff_sha256/reviewed_commit/commit/tree... donc non tautologique et rougira a l'apparition d'un verdict lie. 2 fichiers seulement, aucune affirmation contredite par le diff.",
+  "date_heure": "1788590005.073339",
+  "prompt_sha256": "d2b75e79cfb1cade709aae2f0e390943a6ab8cf05ade79feb71c68204c251109",
+  "reviewer_model": "Muse-Spark-1.2-Contributor",
+  "modele_servi": "Muse-Spark-1.2-Contributor",
+  "job_id": "75d5174b-35f7-44fd-a07b-897e673d047f"
+}
