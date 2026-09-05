@@ -1,0 +1,10 @@
+{
+  "verdict": "APPROVE",
+  "objections": [],
+  "resume": "Le diff respecte le périmètre annoncé : la configuration locale est retirée de l'index et explicitement ignorée, les sauvegardes sont déplacées sous archive/pre-proof avec leur contenu inchangé, et la référence distribuée est mise à jour. Le test de configuration interroge bien la décision effective de Git via git check-ignore plutôt que de rechercher seulement du texte dans .gitignore. La regex RFC1918 couvre exactement 10/8, 172.16/12 (172.16 à 172.31, donc 172.99 est exclu) et 192.168/16 ; elle est conservatrice sur les octets mais ne laisse pas passer une adresse privée réelle valide. L'exemption par marqueur est explicite, étroite, visible et inutilisée dans le dépôt. Les tests sont exécutables et peuvent échouer sur l'état de origin/main, tandis que les changements hors périmètre annoncés ne sont pas modifiés. Aucune objection critique ou majeure fondée sur le diff ne subsiste.",
+  "date_heure": "1788630534.5454614",
+  "prompt_sha256": "4dd38448e9b37cc89c22084481d51a5517a4dd0483bf1d9af4203dbe5fd4bbee",
+  "reviewer_model": "GPT-5.6-Luna-Pro",
+  "modele_servi": "GPT-5.6-Luna-Pro",
+  "job_id": "3ecd7c68-f517-4312-afe2-9e977a1f3e7f"
+}
