@@ -24,6 +24,11 @@ AVANT code, cf. port.py). Un tombstone est un fichier sidecar
 caractères hexadécimaux sans point, donc aucune collision possible avec
 ce suffixe.
 
+Réinsertion : avant de réutiliser un fichier existant, `put()` vérifie
+son hash et sa taille. Une corruption lève `HashMismatch` sans remplacer
+les octets ni retirer le tombstone éventuel. Aucune réparation implicite ;
+le temporaire est nettoyé même en cas de refus.
+
 Concurrence bornée : deux `put()` du même contenu peuvent résurrecter
 concurremment le même tombstone sans exception, car son retrait est
 idempotent. `supprimer_logiquement()` et `purger()` ne forment pas une
@@ -140,9 +145,10 @@ class CasLocal:
             )
 
             if chemin_final.exists():
-                # CAS : contenu déjà présent et identique par construction
-                # (adressé par son propre hash) — idempotent, rien à
-                # réécrire.
+                # Le nom par hash ne prouve pas l'intégrité actuelle.
+                # Vérifier avant de jeter le flux sain ou de retirer un
+                # tombstone ; une corruption reste un refus, pas une réparation.
+                self._ouvrir_contenu_verifie(ref, chemin_final).close()
                 chemin_tmp.unlink(missing_ok=True)
             else:
                 os.replace(chemin_tmp, chemin_final)
@@ -165,6 +171,14 @@ class CasLocal:
         chemin_tombstone = chemin.with_name(chemin.name + _SUFFIXE_TOMBSTONE)
         if chemin_tombstone.exists():
             raise ObjetSupprimeLogiquement(f"objet {ref.sha256} supprimé logiquement")
+        return self._ouvrir_contenu_verifie(ref, chemin)
+
+    def _ouvrir_contenu_verifie(self, ref: ObjectRef, chemin: Path) -> BinaryIO:
+        """Ouvre et vérifie les octets ; l'appelant ferme le flux retourné.
+
+        Le tombstone est traité par get(), pas ici : put() doit pouvoir
+        vérifier un objet supprimé avant d'autoriser sa résurrection.
+        """
         try:
             f = open(chemin, "rb")
         except FileNotFoundError:
