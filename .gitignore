@@ -24,3 +24,4 @@ id_ed25519*
 # Forge instance (etat local, coffre — jamais versionnes)
 .forge/state/
 .forge/secrets/
+.forge/config.ini
