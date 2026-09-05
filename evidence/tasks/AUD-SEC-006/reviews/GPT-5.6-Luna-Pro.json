@@ -1,10 +1,10 @@
 {
   "verdict": "APPROVE",
   "objections": [],
-  "resume": "Le diff correspond aux exigences : .sonarcloud.properties conserve intacte la ligne sonar.cpd.exclusions et ajoute uniquement le commentaire ainsi que sonar.test.inclusions avec les trois motifs requis. Le test scripts/tests/test_sonarcloud_properties.py lit le véritable fichier racine via RACINE, ignore les commentaires et blancs, parse au premier « = », vérifie les trois motifs et la conservation de Modules M/**/encodage.py. Aucun autre fichier n'est modifié et aucune affirmation du changement n'est contredite par le diff.",
-  "date_heure": "1788588782.3353553",
-  "prompt_sha256": "af602d1cdccd30e0a2b11b39f456e8eade20f4aed1b06299ca8c82ed0ce7bc77",
+  "resume": "Le diff est limité aux deux fichiers annoncés. Dans .sonarcloud.properties, la ligne sonar.cpd.exclusions existante est conservée intacte et l'unique ajout fonctionnel déclare les trois motifs demandés via sonar.test.inclusions. Le test scripts/tests/test_sonarcloud_properties.py lit le véritable fichier à la racine, ignore correctement commentaires et lignes vides, découpe au premier '=', vérifie les trois motifs et la conservation de Modules M/**/encodage.py. Aucune contradiction fondée sur le diff ne justifie une objection majeure ou critique.",
+  "date_heure": "1788588911.7843678",
+  "prompt_sha256": "ea1d24d8999b2a2938edb86460012b8beba3b77fec9a22de03f6277e847d05b8",
   "reviewer_model": "GPT-5.6-Luna-Pro",
   "modele_servi": "GPT-5.6-Luna-Pro",
-  "job_id": "3e00dab5-8e5b-49d3-b636-2060ba565505"
+  "job_id": "1669eeca-0464-490f-a790-35d8b0b54096"
 }

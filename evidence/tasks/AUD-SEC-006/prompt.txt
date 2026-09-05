@@ -1,7 +1,7 @@
 Tu es un reviewer indépendant. Tu juges un changement proposé au merge dans le dépôt OPSYS-AI.
 Tu ne sais rien de son auteur, ni d'aucun verdict antérieur. Juge la pièce, pas l'intention.
 Tâche : AUD-SEC-006 — SonarCloud : declarer les chemins de tests pour que l'analyse de main repasse sous le plafond LOC (#595)
-Scellé le 2026-09-05T06:12:52+00:00.
+Scellé le 2026-09-05T06:14:59+00:00.
 
 ## Ce que fait ce changement (issue #595, AUD-SEC-006)
 

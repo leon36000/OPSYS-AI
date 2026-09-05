@@ -1,10 +1,10 @@
 {
   "verdict": "APPROVE",
   "objections": [],
-  "resume": "Diff conforme à l'issue #595 : .sonarcloud.properties conserve intacte la ligne sonar.cpd.exclusions (Modules M/**/encodage.py etc.) et ajoute uniquement le bloc commentaire documentant la mesure du 2026-09-05 (77 287 LOC, plafond 50k) et la clé sonar.test.inclusions=**/tests/**,**/test_*.py,**/conftest.py honorée par l'Automatic Analysis. Le test scripts/tests/test_sonarcloud_properties.py lit le vrai fichier (strip, ignore #/blancs, partition au premier =), assert les 3 motifs et la conservation de l'exclusion CPD (RED avant, VERT après). Aucun autre fichier modifié. Le motif **/tests/** ne reclasse pas de code de production d'après l'inventaire fourni. Aucune contradiction diff vs affirmations.",
-  "date_heure": "1788588785.1695073",
-  "prompt_sha256": "af602d1cdccd30e0a2b11b39f456e8eade20f4aed1b06299ca8c82ed0ce7bc77",
+  "resume": "Diff minimal et ciblé : .sonarcloud.properties conserve intacte la ligne sonar.cpd.exclusions (l.23) et ajoute uniquement le commentaire documenté et sonar.test.inclusions=**/tests/**,**/test_*.py,**/conftest.py — clé honorée par Automatic Analysis. Valeur suffisante pour reclasser ~53k LOC de tests et ramener ~77k LOC à ~37k < plafond 50k, conforme au diagnostic /api/ce/activity du 2026-09-05. Test tripwire scripts/tests/test_sonarcloud_properties.py lit le vrai fichier (ignore vides/#, split au premier =), assert les 3 motifs et la conservation de Modules M/**/encodage.py — RED avant, VERT après. Motif **/tests/** sans faux positif sur code prod (tous les tests/ sont des suites). Aucun autre fichier modifié.",
+  "date_heure": "1788588909.6454492",
+  "prompt_sha256": "ea1d24d8999b2a2938edb86460012b8beba3b77fec9a22de03f6277e847d05b8",
   "reviewer_model": "Muse-Spark-1.2-Contributor",
   "modele_servi": "Muse-Spark-1.2-Contributor",
-  "job_id": "e5dbf698-8b6a-45ec-b03a-0e250e749396"
+  "job_id": "9f28b8fe-ba79-4243-9859-c23cbe9f761d"
 }
