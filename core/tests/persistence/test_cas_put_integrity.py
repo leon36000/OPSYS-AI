@@ -11,7 +11,7 @@ from io import BytesIO
 from pathlib import Path
 import sys
 from threading import Barrier
-from typing import BinaryIO
+from typing import BinaryIO, Literal
 
 import pytest
 
@@ -85,7 +85,7 @@ def test_verification_put_ferme_le_descripteur_du_contenu_existant(
     ref = cas.put(BytesIO(contenu))
     ouverts: list[BinaryIO] = []
 
-    def ouvrir(chemin: Path, mode: str) -> BinaryIO:
+    def ouvrir(chemin: Path, mode: Literal["rb"]) -> BinaryIO:
         flux = builtins.open(chemin, mode)
         ouverts.append(flux)
         return flux
@@ -106,7 +106,7 @@ def test_verification_corruption_ferme_le_descripteur(
     chemin.write_bytes(b"objet faux")
     ouverts: list[BinaryIO] = []
 
-    def ouvrir(cible: Path, mode: str) -> BinaryIO:
+    def ouvrir(cible: Path, mode: Literal["rb"]) -> BinaryIO:
         flux = builtins.open(cible, mode)
         ouverts.append(flux)
         return flux
@@ -147,7 +147,7 @@ def test_get_retourne_le_descripteur_deja_verifie(
     ref = cas.put(BytesIO(contenu))
     ouverts: list[BinaryIO] = []
 
-    def ouvrir(chemin: Path, mode: str) -> BinaryIO:
+    def ouvrir(chemin: Path, mode: Literal["rb"]) -> BinaryIO:
         flux = builtins.open(chemin, mode)
         ouverts.append(flux)
         return flux
