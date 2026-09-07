@@ -6,6 +6,7 @@ import hashlib
 import importlib.util
 import io
 import json
+import secrets
 from pathlib import Path
 import sys
 import urllib.error
@@ -15,7 +16,7 @@ import pytest
 SOURCE = Path(__file__).resolve().parents[1] / "sonar_diagnostics.py"
 PROJECT = "leon36000_OPSYS-AI"
 SHA = "a" * 40
-TOKEN = "fixture-auth-value-not-a-real-credential"
+TOKEN = secrets.token_urlsafe(32)  # Jeton éphémère de test, jamais utilisé sur un service réel.
 
 
 def subject():
@@ -496,3 +497,22 @@ def test_erreur_disque_cli_est_explicite_et_ne_fuit_pas(tmp_path, monkeypatch, c
     err = capsys.readouterr().err
     assert "OUTPUT_IO_ERROR" in err and TOKEN not in err
     assert not dest.exists()
+
+
+def test_credential_de_test_regenere_a_chaque_chargement(monkeypatch):
+    import runpy
+    import secrets
+
+    samples = iter(("first-ephemeral-fixture", "second-ephemeral-fixture"))
+    calls = []
+
+    def generate(size):
+        calls.append(size)
+        return next(samples)
+
+    monkeypatch.setattr(secrets, "token_urlsafe", generate)
+    first = runpy.run_path(str(Path(__file__)))
+    second = runpy.run_path(str(Path(__file__)))
+    assert calls == [32, 32]
+    assert first["TOKEN"] == "first-ephemeral-fixture"
+    assert second["TOKEN"] == "second-ephemeral-fixture"
