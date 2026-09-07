@@ -1,71 +1,41 @@
 {
   "task_id": "SONAR-DIAGNOSTICS-182",
   "issue": 182,
-  "status": "DRAFT_PENDING_CI_RECEIPT_CAPTURE",
+  "status": "DRAFT_PENDING_FINAL_CI_CAPTURE",
   "base": "fcb65bcf20980a0b36847dbd41808527ba616d52",
   "base_tree": "62fa18d7cf1b837f19885763505a527de504067c",
   "proof_policy": "EXECUTION_RECEIPTS_V1",
-  "code_diff_sha256": "59154d994ce4dcc5e7ccf42ce4ce6d73195e62a764bf1ba9589996fbebb74aa0",
+  "code_diff_sha256": "f51f350acd6ccc13e35859b3dc86e8287f98a805e23a6e21afcb6d3481215fc5",
   "reviews": {},
   "review_disposition": "NOT_PERFORMED: Nathan requested no trio; no approval fabricated",
   "merge_authorized": false,
   "quality_verified": false,
   "private_export": "NOT_RUN",
-  "historical_evidence_commit": "6f6aaa69a936eb32d5469e75562f575d89b8dfb1",
+  "historical_evidence_commit": "799ab3eb72dfe2a972aaaa30c566d895219b661e",
   "policy_document": "docs/audit/PROOF-NO-TRIO-182.md",
   "execution": {
     "input_files": {
       "scripts/sonar_diagnostics.py": "f8191d55b5902f908f27ca4c074b58f5b45c7c18c6cbe6b1f837bf90ed76f351",
       "scripts/tests/test_sonar_diagnostics.py": "03a0ad8e34c11021bfc3acc2cc9c1d48e7375f2ac4bf0edd89c4f52fb7a4a757",
-      "core/scripts/verify_proof_sealed.py": "4673e7ecfab5f51d06ef786c68d0ead6a1fb92386d41bc780b47d3736e270055",
-      "core/scripts/proof_execution_receipts.py": "bba24d3888717a9d3cd52768851ca3a11c66ba74f30bef0a69c59dcce92ac71d",
+      "core/scripts/verify_proof_sealed.py": "6a1ae3c2cb0cc3cba8011c37e7fbb7cc48cdc2d3a3c8a5e22f7c60d74e2d5741",
+      "core/scripts/proof_execution_receipts.py": "659ead5ad447574e8a9c98d7546e7a4524add2c9faf92e9fe0a727171d3754d6",
       "core/tests/bootstrap/test_proof_execution_receipts.py": "8b36052743eb6913b95414907d5fff956697a53462c623dd9d143cd127fbfddf",
       "core/tests/bootstrap/test_proof_sealed.py": "3a604b7cc95f2099e744989eef9e1bf60d6a5ffd00f6af91f398bbbc5231c23c"
     },
-    "artifacts": {
-      "exporter.json.zlib": "c4f091f95d0e8d0ea2d50615d37cb001bc7109502c1a23456f07b26896bb069b",
-      "exporter.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "exporter.stdout.txt": "ff986e6190180b379c5ef74b3e32894d2754068555d84a4bc1d60cef83fea260",
-      "legacy.json.zlib": "829e4119651f5807c22152abd6430cbe3b0347a18039e0a21823c9812861fbe0",
-      "legacy.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "legacy.stdout.txt": "a4ba55c7ec7daeede2ecfea3dda9a793665ee142066911215af4f033a9e8412a",
-      "policy.json.zlib": "01a7aaac43e469e9bcb26efe88572a2141b7f3a6892b55c2d97c64bdaef2c56b",
-      "policy.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "policy.stdout.txt": "b53866f7a853267d7eca16c2faa2f71689f462d5b06ee572ef078a18d6b0409a"
-    }
+    "artifacts": {}
   },
-  "local_test_counts": {
-    "exporter": 112,
-    "policy": 58,
-    "legacy": 28
-  },
-  "local_mutants_detected": {
-    "input_hash": 1,
-    "artifact_hash": 2,
-    "test_outcome": 5,
-    "count_floor": 1,
-    "code_scope": 2,
-    "stale_receipt": 2,
-    "failed_execution": 12
-  },
-  "limitations": [
-    "Pending artifact capture intentionally fails closed; empty artifacts cannot satisfy this policy.",
-    "Unsigned receipts prove integrity and consistency, not independent cryptographic execution provenance.",
-    "Existing CI jobs separately rerun suites; all applicable checks must be read on the final SHA.",
-    "No private Sonar collection, imported coverage or main-debt resolution is claimed.",
-    "Temporary capture workflow must be removed; no existing workflow or branch protection is changed."
+  "local_test_counts": {"exporter": 112, "policy": 58, "legacy": 28},
+  "negative_results": [
+    "Initial CI ran 198 tests but pytest mutated submitted argv with configured addopts; capture now freezes the submitted list and records normalization separately. COMMAND_MISMATCH was retained, not suppressed.",
+    "Two mypy errors on optional execution mapping fixed by returning and using a runtime-validated typed mapping. No ignore, cast or baseline added.",
+    "Sonar requested a shared origin/main constant; defaults centralized without changing their value.",
+    "One input-hash mutant initially survived due to overlapping refusal paths; an independently discriminating regression test was added."
   ],
-  "receipt_capture": {
-    "origin": "GitHub Actions",
-    "run_id": "34109229422",
-    "source_commit": "a22851ad498e9d5b7a3efdc1a535aee76b62f3f0",
-    "source_tree": "dc2436424623b88f12a34c5e5ee8024c35b06af1",
-    "source_inputs_verified": true,
-    "signed_attestation": false,
-    "counts": {
-      "exporter": 112,
-      "policy": 58,
-      "legacy": 28
-    }
-  }
+  "limitations": [
+    "Previous receipts are not evidence for changed source; final capture must replace them. Empty artifact manifest fails closed.",
+    "Unsigned receipts prove integrity and consistency, not independent cryptographic execution provenance.",
+    "Existing CI jobs separately rerun suites; results must be checked on the final SHA.",
+    "No private Sonar collection, imported coverage or main-debt resolution is claimed.",
+    "Temporary capture workflow must be removed; no existing workflow or protection changed."
+  ]
 }

@@ -61,8 +61,10 @@ def _pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
-def _keys(value: Any, keys: set[str], code: str) -> None:
-    _require(isinstance(value, dict) and set(value) == keys, code)
+def _keys(value: Any, keys: set[str], code: str) -> dict[str, Any]:
+    if not isinstance(value, dict) or set(value) != keys:
+        raise ReceiptInvalid(code)
+    return value
 
 
 def _events(events: Any, target: str, minimum: int) -> int:
@@ -124,8 +126,8 @@ def verify_execution(task_id: str, root: Path, task_dir: Path, manifest: dict,
         _require(bool(changed_paths) and changed_paths <= set(SUBJECT_FILES), 'CODE_SCOPE_MISMATCH')
         _require(bool(re.fullmatch(r'[0-9a-f]{64}', expected_diff)), 'DIFF_INVALID')
         _require(manifest.get('code_diff_sha256') == expected_diff, 'DIFF_MISMATCH')
-        execution = manifest.get('execution')
-        _keys(execution, {'input_files', 'artifacts'}, 'EXECUTION_MANIFEST_MISSING')
+        execution = _keys(manifest.get('execution'), {'input_files', 'artifacts'},
+                          'EXECUTION_MANIFEST_MISSING')
         inputs = execution['input_files']
         _keys(inputs, set(SUBJECT_FILES), 'INPUT_MANIFEST_INCOMPLETE')
         measured = {path: _hash(_read(root, path)) for path in SUBJECT_FILES}

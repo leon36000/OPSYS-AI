@@ -105,6 +105,7 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _EVIDENCE_ROOT = _REPO_ROOT / "evidence" / "tasks"
+_DEFAULT_DIFF_BASE = "origin/main"
 
 # Périmètre scellé : core/ (le code) + tools/proof/ et le contrôle GitHub
 # sous .opsys/ (outils de preuve/contrôle, racines du contrat qualité) + LES
@@ -232,7 +233,7 @@ class RefGitInvalide(ValueError):
 _REF_GIT_AUTORISEE_RE = re.compile(r"\A[A-Za-z0-9_./-]+\Z")
 
 
-def _diff_sha256_actuel(*, base: str = "origin/main") -> str:
+def _diff_sha256_actuel(*, base: str = _DEFAULT_DIFF_BASE) -> str:
     """Sha256 du diff RÉEL (texte complet, verbatim) entre `base` et HEAD
     sur `_PATHSPEC_SCELLE`. MÊME fonction utilisée pour (a) calculer la
     valeur embarquée dans evidence.json au moment du scellement local et
@@ -383,7 +384,7 @@ def _verifier_vendors_suffisants(verdicts: list[dict], min_vendors_approve: int)
     return True, lignes
 
 
-def verifier_task(task_id: str, *, min_vendors_approve: int = 1, diff_sha256_attendu: str | None, diff_base: str = "origin/main") -> tuple[bool, str]:
+def verifier_task(task_id: str, *, min_vendors_approve: int = 1, diff_sha256_attendu: str | None, diff_base: str = _DEFAULT_DIFF_BASE) -> tuple[bool, str]:
     """Pipeline séquentiel — chaque étape peut arrêter avec un rapport
     d'échec ; complexité cognitive volontairement réduite en extrayant
     chaque contrôle dans sa propre fonction (`_verifier_*`), voir SonarCloud
@@ -478,7 +479,7 @@ class _Options:
     def __init__(self) -> None:
         self.task_ids: list[str] = []
         self.min_vendors = 1
-        self.diff_base = "origin/main"
+        self.diff_base = _DEFAULT_DIFF_BASE
         self.emettre_hash_seul = False
 
 

@@ -1,12 +1,11 @@
 name: proof-policy-capture-622
-# Temporary evidence capture and diagnosis; remove before any merge.
+# Final capture after typed mapping and shared-default fixes; remove before merge.
 on:
   push:
     branches: [chatgpt/issue-182-sonar-diagnostics]
     paths: [.github/workflows/proof-policy-capture-622.yml]
 permissions:
   contents: write
-  checks: read
 jobs:
   capture:
     if: github.repository == 'leon36000/OPSYS-AI'
@@ -34,31 +33,17 @@ jobs:
           pathlib.Path('/tmp/opsys-ci-capture.py').write_text(source)
           compile(source, '/tmp/opsys-ci-capture.py', 'exec')
           PY
-      - name: Read diagnostic findings without changing gates
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Recheck exact configured type command before capture
         run: |
           python3 - <<'PY'
-          import json, os, runpy, subprocess, tomllib, urllib.request
-          cfg = tomllib.load(open('core/quality-gates.toml','rb'))
+          import subprocess, sys, tomllib
+          with open('core/quality-gates.toml','rb') as stream:
+              cfg = tomllib.load(stream)
           command = next(g['argv'] for g in cfg['gates'] if g['name'] == 'mypy-core')
           result = subprocess.run(command, capture_output=True, text=True, timeout=120)
-          print('MYPY_DIAGNOSTIC_RC', result.returncode)
           print(result.stdout)
           print(result.stderr)
-          helper = runpy.run_path('/tmp/opsys-ci-capture.py')
-          opener = urllib.request.build_opener(helper['NoRedirect']())
-          root = 'https://api.github.com/repos/leon36000/OPSYS-AI/check-runs/101700217667'
-          def get(url):
-              request = urllib.request.Request(url, headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'], 'Accept':'application/vnd.github+json'})
-              with opener.open(request, timeout=20) as response:
-                  return json.load(response)
-          info = get(root)
-          assert info['head_sha'] == '3183c625de5105047fab2953c2fbc337557a1539' and info['app']['id'] == 12526
-          rows = get(root + '/annotations?per_page=100')
-          assert len(rows) == info['output']['annotations_count'] and len(rows) <= 100
-          fields = ('path','start_line','end_line','annotation_level','title','message')
-          print('SONAR_ANNOTATIONS', json.dumps([{k:r.get(k) for k in fields} for r in rows]))
+          sys.exit(result.returncode)
           PY
       - name: Capture actual test execution
         env:
