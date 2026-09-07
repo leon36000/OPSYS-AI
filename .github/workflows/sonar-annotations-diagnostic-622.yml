@@ -1,0 +1,97 @@
+name: sonar-annotations-diagnostic-622
+# Temporary branch-only, read-only probe. Remove after collecting diagnostics.
+on:
+  push:
+    branches: [chatgpt/issue-182-sonar-diagnostics]
+    paths: [.github/workflows/sonar-annotations-diagnostic-622.yml]
+permissions:
+  checks: read
+jobs:
+  read-annotations:
+    if: github.repository == 'leon36000/OPSYS-AI'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Read the exact Sonar check (no checkout, no Sonar credential)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PYPROBE'
+          """Temporary bounded annotation reader for the one failing PR622 check."""
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+          
+          CHECK = 101584689339
+          HEAD = 'ccf530bc24fe76a8975cf1e90f5d06bf7e82e0e7'
+          ROOT = 'https://api.github.com/repos/leon36000/OPSYS-AI/'
+          ALLOWED = {f'check-runs/{CHECK}', f'check-runs/{CHECK}/annotations?per_page=100&page=1'}
+          
+          class ProbeError(Exception):
+              """Only fixed error codes are surfaced."""
+          
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  fp.close()
+                  raise ProbeError('REDIRECT_REFUSED')
+          
+          def collect(get):
+              info = get(f'check-runs/{CHECK}')
+              if (info.get('id') != CHECK or info.get('head_sha') != HEAD
+                      or info.get('name') != 'SonarCloud Code Analysis'
+                      or info.get('app', {}).get('id') != 12526
+                      or info.get('status') != 'completed'):
+                  raise ProbeError('CHECK_IDENTITY_MISMATCH')
+              count = info.get('output', {}).get('annotations_count')
+              if type(count) is not int or not 0 <= count <= 100:
+                  raise ProbeError('COUNT_LIMIT')
+              rows = get(f'check-runs/{CHECK}/annotations?per_page=100&page=1')
+              if not isinstance(rows, list) or len(rows) != count:
+                  raise ProbeError('INCOMPLETE')
+              clean = []
+              for row in rows:
+                  if (not isinstance(row, dict)
+                          or row.get('annotation_level') not in {'notice','warning','failure'}):
+                      raise ProbeError('ANNOTATION_INVALID')
+                  clean.append({k: row.get(k) for k in ('path','start_line','end_line','annotation_level','title','message')})
+              return {'check_id':CHECK, 'head':HEAD, 'check_conclusion':info['conclusion'], 'annotations':clean}
+          
+          def emit(result, token):
+              text = json.dumps(result, ensure_ascii=True, sort_keys=True)
+              if token and token in text:
+                  raise ProbeError('CREDENTIAL_IN_OUTPUT')
+              print('SONAR_ANNOTATIONS_JSON=' + text)
+          
+          def main():
+              token = os.environ.get('GH_TOKEN', '')
+              if not token:
+                  raise ProbeError('AUTH_REQUIRED')
+              opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+              def get(path):
+                  if path not in ALLOWED:
+                      raise ProbeError('ENDPOINT_REFUSED')
+                  req = urllib.request.Request(ROOT + path, method='GET', headers={
+                      'Accept':'application/vnd.github+json',
+                      'Authorization':'Bearer ' + token,
+                      'X-GitHub-Api-Version':'2022-11-28',
+                  })
+                  with opener.open(req, timeout=15) as r:
+                      raw = r.read(1048577)
+                  if len(raw)>1048576:
+                      raise ProbeError('RESPONSE_LIMIT')
+                  return json.loads(raw)
+              emit(collect(get), token)
+          
+          if __name__ == '__main__':
+              try:
+                  main()
+              except urllib.error.HTTPError as exc:
+                  exc.close()
+                  print('ANNOTATIONS_BLOCKED_HTTP_' + str(exc.code))
+                  sys.exit(1)
+              except (ProbeError, OSError, ValueError) as exc:
+                  print('ANNOTATIONS_BLOCKED_' + (str(exc) if isinstance(exc, ProbeError) else type(exc).__name__))
+                  sys.exit(1)
+          PYPROBE
