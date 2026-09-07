@@ -1,0 +1,35 @@
+{
+  "task_id": "SONAR-DIAGNOSTICS-182",
+  "issue": 182,
+  "status": "DRAFT_DIAGNOSTIC_CANDIDATE",
+  "base": "fcb65bcf20980a0b36847dbd41808527ba616d52",
+  "base_tree": "62fa18d7cf1b837f19885763505a527de504067c",
+  "code_diff_sha256": "8ea38a176dbbd477533197dfdd8a8bc94e2613a464b248ba207953ec053b8d23",
+  "code_diff_note": "Calculated with git diff on the two added scripts in a verified partial snapshot. The complete upstream verifier was not run locally; remote verification is pending.",
+  "reviews": {},
+  "independent_review_status": "NOT_RUN",
+  "merge_authorized": false,
+  "quality_verified": false,
+  "private_export": "NOT_RUN_TOKEN_UNAVAILABLE_IN_THIS_RUNTIME",
+  "local_replay": {
+    "tests": "91 passed, no skips",
+    "mutants_failed_counts": {"AUTH_REMOVED": 4, "REVISION_REMOVED": 3, "FIRST_PAGE_ONLY": 4, "TOKEN_LEAK_ALLOWED": 1, "RED_GATE_AS_SUCCESS": 4},
+    "returncode": 0,
+    "scope": "Exporter only. Synthetic network responses. Not full repository qualification.",
+    "stdout_sha256": "574996123fbaff980d2f18b1629e2f09f6e00fee24af6433b765300bcd9cd6d1"
+  },
+  "provenance": {
+    "input_archive_sha256": "e2d382d35858256075c7542d0dccdecc6c6216375c0adf8d3609e5d68e635150",
+    "source_sha256": "8978cd90f124b30c48f1da73e7374634733881773169e2d6a0c0713a455c5cce",
+    "tests_sha256": "788080bc7a298cda53db3e8ddee17487032a14b220a3ba7a659e4fc0e573ac74",
+    "historical_red": "59 failures before implementation; hardening negative results retained in original archive",
+    "source_and_test_bytes_unchanged": true
+  },
+  "limitations": [
+    "No authenticated private Sonar collection; no claim to resolve issue 182.",
+    "Public API response inspection is not a private project audit or authentication test.",
+    "Remote CI and scanner outcomes pending at candidate creation.",
+    "No review verdict fabricated; any proof-sealed failure must remain visible.",
+    "No changes to workflows, locks, thresholds, exclusions, branch protection, services or modules."
+  ]
+}
