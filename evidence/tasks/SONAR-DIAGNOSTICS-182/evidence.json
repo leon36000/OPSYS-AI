@@ -22,15 +22,50 @@
       "core/tests/bootstrap/test_proof_execution_receipts.py": "8b36052743eb6913b95414907d5fff956697a53462c623dd9d143cd127fbfddf",
       "core/tests/bootstrap/test_proof_sealed.py": "3a604b7cc95f2099e744989eef9e1bf60d6a5ffd00f6af91f398bbbc5231c23c"
     },
-    "artifacts": {}
+    "artifacts": {
+      "exporter.json.zlib": "c4f091f95d0e8d0ea2d50615d37cb001bc7109502c1a23456f07b26896bb069b",
+      "exporter.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exporter.stdout.txt": "ff986e6190180b379c5ef74b3e32894d2754068555d84a4bc1d60cef83fea260",
+      "legacy.json.zlib": "829e4119651f5807c22152abd6430cbe3b0347a18039e0a21823c9812861fbe0",
+      "legacy.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "legacy.stdout.txt": "a4ba55c7ec7daeede2ecfea3dda9a793665ee142066911215af4f033a9e8412a",
+      "policy.json.zlib": "01a7aaac43e469e9bcb26efe88572a2141b7f3a6892b55c2d97c64bdaef2c56b",
+      "policy.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "policy.stdout.txt": "b53866f7a853267d7eca16c2faa2f71689f462d5b06ee572ef078a18d6b0409a"
+    }
   },
-  "local_test_counts": {"exporter": 112, "policy": 58, "legacy": 28},
-  "local_mutants_detected": {"input_hash": 1, "artifact_hash": 2, "test_outcome": 5, "count_floor": 1, "code_scope": 2, "stale_receipt": 2, "failed_execution": 12},
+  "local_test_counts": {
+    "exporter": 112,
+    "policy": 58,
+    "legacy": 28
+  },
+  "local_mutants_detected": {
+    "input_hash": 1,
+    "artifact_hash": 2,
+    "test_outcome": 5,
+    "count_floor": 1,
+    "code_scope": 2,
+    "stale_receipt": 2,
+    "failed_execution": 12
+  },
   "limitations": [
     "Pending artifact capture intentionally fails closed; empty artifacts cannot satisfy this policy.",
     "Unsigned receipts prove integrity and consistency, not independent cryptographic execution provenance.",
     "Existing CI jobs separately rerun suites; all applicable checks must be read on the final SHA.",
     "No private Sonar collection, imported coverage or main-debt resolution is claimed.",
     "Temporary capture workflow must be removed; no existing workflow or branch protection is changed."
-  ]
+  ],
+  "receipt_capture": {
+    "origin": "GitHub Actions",
+    "run_id": "34109229422",
+    "source_commit": "a22851ad498e9d5b7a3efdc1a535aee76b62f3f0",
+    "source_tree": "dc2436424623b88f12a34c5e5ee8024c35b06af1",
+    "source_inputs_verified": true,
+    "signed_attestation": false,
+    "counts": {
+      "exporter": 112,
+      "policy": 58,
+      "legacy": 28
+    }
+  }
 }
