@@ -22,9 +22,23 @@
       "core/tests/bootstrap/test_proof_execution_receipts.py": "8b36052743eb6913b95414907d5fff956697a53462c623dd9d143cd127fbfddf",
       "core/tests/bootstrap/test_proof_sealed.py": "3a604b7cc95f2099e744989eef9e1bf60d6a5ffd00f6af91f398bbbc5231c23c"
     },
-    "artifacts": {}
+    "artifacts": {
+      "exporter.json.zlib": "6d1a00245df9e980c3c80ccf9c89690a1501aef45c9cf7ef28e8fa8611f0aa11",
+      "exporter.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exporter.stdout.txt": "ff986e6190180b379c5ef74b3e32894d2754068555d84a4bc1d60cef83fea260",
+      "legacy.json.zlib": "cd2dc26931e2c3088cd0634a2598c8010dade3d52d427ff3c00712e533a67947",
+      "legacy.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "legacy.stdout.txt": "a4ba55c7ec7daeede2ecfea3dda9a793665ee142066911215af4f033a9e8412a",
+      "policy.json.zlib": "e8fd993fa50b1b6433d128850af17104de9a64da4e4c27e8b13a4ae0558535ca",
+      "policy.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "policy.stdout.txt": "b53866f7a853267d7eca16c2faa2f71689f462d5b06ee572ef078a18d6b0409a"
+    }
   },
-  "local_test_counts": {"exporter": 112, "policy": 58, "legacy": 28},
+  "local_test_counts": {
+    "exporter": 112,
+    "policy": 58,
+    "legacy": 28
+  },
   "negative_results": [
     "Initial CI ran 198 tests but pytest mutated submitted argv with configured addopts; capture now freezes the submitted list and records normalization separately. COMMAND_MISMATCH was retained, not suppressed.",
     "Two mypy errors on optional execution mapping fixed by returning and using a runtime-validated typed mapping. No ignore, cast or baseline added.",
@@ -37,5 +51,18 @@
     "Existing CI jobs separately rerun suites; results must be checked on the final SHA.",
     "No private Sonar collection, imported coverage or main-debt resolution is claimed.",
     "Temporary capture workflow must be removed; no existing workflow or protection changed."
-  ]
+  ],
+  "receipt_capture": {
+    "origin": "GitHub Actions",
+    "run_id": "34110150269",
+    "source_commit": "e0d218be2ea7def2b96035cebdb633475cfbec22",
+    "source_tree": "46a82b4cb96f4b9e6cc40c1f5adb777722b414b4",
+    "source_inputs_verified": true,
+    "signed_attestation": false,
+    "counts": {
+      "exporter": 112,
+      "policy": 58,
+      "legacy": 28
+    }
+  }
 }
