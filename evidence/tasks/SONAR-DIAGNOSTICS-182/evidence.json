@@ -1,7 +1,7 @@
 {
   "task_id": "SONAR-DIAGNOSTICS-182",
   "issue": 182,
-  "status": "DRAFT_PENDING_FINAL_CI_CAPTURE",
+  "status": "CI_RECEIPTS_CAPTURED_FINAL_CHECKS_PENDING",
   "base": "fcb65bcf20980a0b36847dbd41808527ba616d52",
   "base_tree": "62fa18d7cf1b837f19885763505a527de504067c",
   "proof_policy": "EXECUTION_RECEIPTS_V1",
@@ -34,35 +34,33 @@
       "policy.stdout.txt": "b53866f7a853267d7eca16c2faa2f71689f462d5b06ee572ef078a18d6b0409a"
     }
   },
-  "local_test_counts": {
-    "exporter": 112,
-    "policy": 58,
-    "legacy": 28
-  },
-  "negative_results": [
-    "Initial CI ran 198 tests but pytest mutated submitted argv with configured addopts; capture now freezes the submitted list and records normalization separately. COMMAND_MISMATCH was retained, not suppressed.",
-    "Two mypy errors on optional execution mapping fixed by returning and using a runtime-validated typed mapping. No ignore, cast or baseline added.",
-    "Sonar requested a shared origin/main constant; defaults centralized without changing their value.",
-    "One input-hash mutant initially survived due to overlapping refusal paths; an independently discriminating regression test was added."
-  ],
-  "limitations": [
-    "Previous receipts are not evidence for changed source; final capture must replace them. Empty artifact manifest fails closed.",
-    "Unsigned receipts prove integrity and consistency, not independent cryptographic execution provenance.",
-    "Existing CI jobs separately rerun suites; results must be checked on the final SHA.",
-    "No private Sonar collection, imported coverage or main-debt resolution is claimed.",
-    "Temporary capture workflow must be removed; no existing workflow or protection changed."
-  ],
+  "local_test_counts": {"exporter": 112, "policy": 58, "legacy": 28},
   "receipt_capture": {
     "origin": "GitHub Actions",
     "run_id": "34110150269",
+    "job_id": "101704243184",
     "source_commit": "e0d218be2ea7def2b96035cebdb633475cfbec22",
     "source_tree": "46a82b4cb96f4b9e6cc40c1f5adb777722b414b4",
     "source_inputs_verified": true,
     "signed_attestation": false,
-    "counts": {
-      "exporter": 112,
-      "policy": 58,
-      "legacy": 28
-    }
-  }
+    "counts": {"exporter": 112, "policy": 58, "legacy": 28},
+    "evidence_commit": "8d9634002025de5f7cd64c16c1ebd7247a9c67bc",
+    "artifact_id": 10013995089,
+    "archive_sha256": "d5e2a356cbac44085b757cd1ee0c415205f9fee20cb24cb671b2b9e06d2b0a56",
+    "download_readback": "Archive hash, six input hashes and nine artifact hashes verified; local gate accepted the downloaded CI receipts."
+  },
+  "temporary_workflow_removed": true,
+  "negative_results": [
+    "Initial CI ran 198 tests but pytest mutated submitted argv with configured addopts; capture now freezes the submitted list and records normalization separately. COMMAND_MISMATCH retained, not suppressed.",
+    "Two mypy errors on optional execution mapping fixed by returning and using a runtime-validated typed mapping. CI capture then reported zero errors in 77 source files; no ignore, cast or baseline added.",
+    "Sonar requested a shared origin/main constant; defaults centralized without changing their value. Final Sonar check remains to be observed.",
+    "One input-hash mutant initially survived due to overlapping refusal paths; an independently discriminating regression test was added."
+  ],
+  "limitations": [
+    "Unsigned receipts prove integrity and consistency, not independent cryptographic execution provenance.",
+    "Receipt source tree includes the temporary capture job; final code inputs and scoped diff remain byte-identical after its removal.",
+    "Existing CI jobs separately rerun suites; results must be checked on the final SHA.",
+    "No private Sonar collection, imported coverage or main-debt resolution is claimed.",
+    "No existing workflow, scanner threshold or branch protection changed."
+  ]
 }
