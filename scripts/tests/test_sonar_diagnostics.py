@@ -30,6 +30,13 @@ def subject():
     return module
 
 
+def output_directory(mod, tmp_path):
+    mod._REPO_ROOT = tmp_path
+    directory = tmp_path / ".opsys" / "diagnostics"
+    directory.mkdir(parents=True)
+    return directory
+
+
 class FakeAPI:
     """Double du service externe ; aucune réponse n'est une mesure OPSYS-AI."""
 
@@ -287,6 +294,7 @@ def test_json_invalide_ou_ambigu_refuse(payload):
 
 def test_sortie_pas_de_token_et_pas_ecrasement(tmp_path):
     mod = subject()
+    tmp_path = output_directory(mod, tmp_path)
     report = mod.collect(FakeAPI(mod), SHA)
     target = tmp_path / "export.json"
     mod.write_export(target, report, TOKEN)
@@ -305,6 +313,7 @@ def test_sortie_pas_de_token_et_pas_ecrasement(tmp_path):
 
 def test_cli_sans_token_ne_cree_pas_un_faux_export(tmp_path, monkeypatch, capsys):
     mod = subject()
+    tmp_path = output_directory(mod, tmp_path)
     monkeypatch.delenv("SONAR_TOKEN", raising=False)
     dest = tmp_path / "export.json"
     assert mod.main(["--revision", SHA, "--output", str(dest)]) == 2
@@ -396,6 +405,7 @@ def test_mesures_periodiques_conservent_la_forme_et_pas_de_faux_zero():
 
 def test_sortie_en_cas_erreur_ne_publie_rien_et_preserve_symlink(tmp_path, monkeypatch):
     mod = subject()
+    tmp_path = output_directory(mod, tmp_path)
     report = mod.collect(FakeAPI(mod), SHA)
     existing = tmp_path / "important"
     existing.write_text("preserved")
@@ -414,6 +424,7 @@ def test_sortie_en_cas_erreur_ne_publie_rien_et_preserve_symlink(tmp_path, monke
 
 def test_cli_exporte_rouge_sans_annoncer_qualification(tmp_path, monkeypatch, capsys):
     mod = subject()
+    tmp_path = output_directory(mod, tmp_path)
     api = FakeAPI(mod)
     monkeypatch.setenv("SONAR_TOKEN", TOKEN)
     monkeypatch.setattr(mod.SonarClient, "get", lambda self, path, params: api(path, params))
@@ -489,10 +500,12 @@ def test_zero_duplication_ne_demande_pas_de_blocs():
 
 def test_erreur_disque_cli_est_explicite_et_ne_fuit_pas(tmp_path, monkeypatch, capsys):
     mod = subject()
+    tmp_path = output_directory(mod, tmp_path)
     api = FakeAPI(mod)
     monkeypatch.setenv("SONAR_TOKEN", TOKEN)
     monkeypatch.setattr(mod.SonarClient, "get", lambda self, path, params: api(path, params))
-    dest = tmp_path / "missing-directory" / "export.json"
+    tmp_path.rmdir()
+    dest = tmp_path / "export.json"
     assert mod.main(["--revision", SHA, "--output", str(dest)]) == 2
     err = capsys.readouterr().err
     assert "OUTPUT_IO_ERROR" in err and TOKEN not in err
@@ -516,3 +529,113 @@ def test_credential_de_test_regenere_a_chaque_chargement(monkeypatch):
     assert calls == [32, 32]
     assert first["TOKEN"] == "first-ephemeral-fixture"
     assert second["TOKEN"] == "second-ephemeral-fixture"
+
+
+@pytest.mark.parametrize("kind", ["outside", "dotdot", "prefix", "nested", "backslash", "bad_suffix"])
+def test_destination_non_confinee_refusee_avant_ecriture(tmp_path, monkeypatch, kind):
+    mod = subject()
+    root = output_directory(mod, tmp_path)
+    monkeypatch.chdir(tmp_path)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    prefix = tmp_path / ".opsys" / "diagnostics-extra"
+    prefix.mkdir()
+    (root / "nested").mkdir()
+    choices = {
+        "outside": outside / "export.json",
+        "dotdot": root / ".." / "export.json",
+        "prefix": prefix / "export.json",
+        "nested": root / "nested" / "export.json",
+        "backslash": root / "bad\\name.json",
+        "bad_suffix": root / "export.py",
+    }
+    before = sorted(str(p.relative_to(tmp_path)) for p in tmp_path.rglob("*"))
+    with pytest.raises(mod.ExportError, match="OUTPUT_PATH_REFUSED"):
+        mod.write_export(choices[kind], mod.collect(FakeAPI(mod), SHA), TOKEN)
+    assert sorted(str(p.relative_to(tmp_path)) for p in tmp_path.rglob("*")) == before
+
+
+def test_nom_simple_est_ancre_au_repertoire_du_depot(tmp_path, monkeypatch):
+    mod = subject()
+    root = output_directory(mod, tmp_path)
+    elsewhere = tmp_path / "cwd"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    mod.write_export(Path("diagnostic.json"), mod.collect(FakeAPI(mod), SHA), TOKEN)
+    assert (root / "diagnostic.json").is_file()
+    assert (root / "diagnostic.json").stat().st_mode & 0o777 == 0o600
+    assert list(elsewhere.iterdir()) == []
+
+
+@pytest.mark.parametrize("component", [".opsys", "diagnostics"])
+def test_symlink_du_repertoire_export_refuse(tmp_path, component):
+    mod = subject()
+    root = output_directory(mod, tmp_path)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    if component == ".opsys":
+        (outside / "diagnostics").mkdir()
+        root.rmdir()
+        root.parent.rmdir()
+        root.parent.symlink_to(outside, target_is_directory=True)
+    else:
+        root.rmdir()
+        root.symlink_to(outside, target_is_directory=True)
+    with pytest.raises(mod.ExportError, match="OUTPUT_ROOT_UNSAFE"):
+        mod.write_export(root / "diagnostic.json", mod.collect(FakeAPI(mod), SHA), TOKEN)
+    assert not list(outside.rglob("*.json"))
+    assert not list(outside.rglob(".sonar-export-*"))
+
+
+def test_remplacement_du_repertoire_pendant_ecriture_ne_redirige_pas(tmp_path, monkeypatch):
+    mod = subject()
+    root = output_directory(mod, tmp_path)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    moved = root.with_name("diagnostics-moved")
+    fsync = mod.os.fsync
+    def replace_directory(fd):
+        fsync(fd)
+        root.rename(moved)
+        root.symlink_to(outside, target_is_directory=True)
+    monkeypatch.setattr(mod.os, "fsync", replace_directory)
+    mod.write_export(root / "diagnostic.json", mod.collect(FakeAPI(mod), SHA), TOKEN)
+    assert list(outside.iterdir()) == []
+    assert sorted(p.name for p in moved.iterdir()) == ["diagnostic.json"]
+
+
+def test_cli_refuse_destination_hors_scope_sans_requete_reseau(tmp_path, monkeypatch, capsys):
+    mod = subject()
+    output_directory(mod, tmp_path)
+    monkeypatch.setenv("SONAR_TOKEN", TOKEN)
+    calls = []
+    api = FakeAPI(mod)
+    def get(self, path, params):
+        calls.append(path)
+        return api(path, params)
+    monkeypatch.setattr(mod.SonarClient, "get", get)
+    output = tmp_path / "outside.json"
+    assert mod.main(["--revision", SHA, "--output", str(output)]) == 2
+    assert "OUTPUT_PATH_REFUSED" in capsys.readouterr().err
+    assert calls == [] and not output.exists()
+
+
+@pytest.mark.parametrize("value", ["١", "１２", "²", "1٢"])
+def test_compte_duplication_refuse_chiffres_non_ascii(value):
+    mod = subject()
+    api = FakeAPI(mod)
+    api.files[0]["measures"][0]["value"] = value
+    with pytest.raises(mod.ExportError, match="DUPLICATION_METRIC_MISSING"):
+        mod.collect(api, SHA)
+
+
+@pytest.mark.parametrize("error", [urllib.error.URLError("fixture"), TimeoutError("fixture"), OSError("fixture")])
+def test_erreurs_transport_redundantes_restent_capturees(error):
+    mod = subject()
+    client = mod.SonarClient(TOKEN)
+    class Failing:
+        def open(self, request, timeout):
+            raise error
+    client.opener = Failing()
+    with pytest.raises(mod.ExportError, match="TRANSPORT_UNAVAILABLE"):
+        client.get("api/users/current", {})

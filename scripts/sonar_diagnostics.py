@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Callable
+from contextlib import contextmanager
+import errno
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 import hashlib
@@ -17,15 +19,16 @@ import os
 from pathlib import Path
 import re
 import sys
-import tempfile
+import secrets
 from typing import Any
-from urllib.error import HTTPError, URLError
+from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 PROJECT = "leon36000_OPSYS-AI"
 BRANCH = "main"
 HOST = "https://sonarcloud.io/"
+_REPO_ROOT = Path(__file__).resolve().parents[1]
 MAX_ITEMS = 10_000
 MAX_RESPONSE = 8 * 1024 * 1024
 METRICS = (
@@ -90,7 +93,7 @@ class SonarClient:
         except HTTPError as exc:
             exc.close()
             raise ExportError(f"HTTP_{exc.code}") from None
-        except (URLError, OSError, TimeoutError):
+        except OSError:
             raise ExportError("TRANSPORT_UNAVAILABLE") from None
         if len(raw) > MAX_RESPONSE:
             raise ExportError("RESPONSE_LIMIT")
@@ -195,6 +198,13 @@ def _pages(get: JsonGet, path: str, key: str, params: dict[str, Any]) -> list[di
     raise ExportError("PAGINATION_LIMIT")
 
 
+def _measure_period(value: Any, field: str) -> Any:
+    fields = ("index", "value")
+    if field == "period":
+        return _pick(_object(value, "METRICS_INVALID"), fields)
+    return [_pick(p, fields) for p in _rows(value, "METRICS_INVALID")]
+
+
 def _measures(obj: dict[str, Any]) -> list[dict[str, Any]]:
     result = []
     seen = set()
@@ -206,9 +216,7 @@ def _measures(obj: dict[str, Any]) -> list[dict[str, Any]]:
         clean = _pick(measure, ("metric", "value"))
         for field in ("period", "periods"):
             if field in measure:
-                entries = [measure[field]] if field == "period" else measure[field]
-                projected = [_pick(p, ("index", "value")) for p in _rows(entries, "METRICS_INVALID")]
-                clean[field] = projected[0] if field == "period" else projected
+                clean[field] = _measure_period(measure[field], field)
         result.append(clean)
     return result
 
@@ -262,7 +270,7 @@ def _duplication_count(file: dict[str, Any]) -> int:
     if file.get("qualifier") not in {"FIL", "UTS"}:
         raise ExportError("DUPLICATION_INVALID")
     values = [m.get("value") for m in _measures(file) if m["metric"] == "duplicated_blocks"]
-    if len(values) != 1 or not isinstance(values[0], str) or not re.fullmatch(r"[0-9]+", values[0]):
+    if len(values) != 1 or not isinstance(values[0], str) or not re.fullmatch(r"\d+", values[0], flags=re.ASCII):
         raise ExportError("DUPLICATION_METRIC_MISSING")
     return int(values[0])
 
@@ -357,24 +365,60 @@ def canonical(data: Any) -> bytes:
     return json.dumps(data, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
 
 
+def _output_name(path: Path) -> str:
+    """Confine l'entrée CLI à un fichier JSON de la racine fixe du dépôt."""
+    root = _REPO_ROOT / ".opsys" / "diagnostics"
+    candidate = path if path.is_absolute() else root / path
+    if candidate.parent != root or not re.fullmatch(r"\w[\w.-]{0,119}\.json", candidate.name, flags=re.ASCII):
+        raise ExportError("OUTPUT_PATH_REFUSED")
+    return candidate.name
+
+
+@contextmanager
+def _export_directory():
+    """Ancre les opérations à un descripteur, sans suivre les symlinks."""
+    if (not hasattr(os, "O_NOFOLLOW") or not hasattr(os, "O_DIRECTORY")
+            or not {os.open, os.link, os.unlink}.issubset(os.supports_dir_fd)):
+        raise ExportError("OUTPUT_PLATFORM_UNSUPPORTED")
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    try:
+        fd = os.open(_REPO_ROOT, flags)
+        try:
+            for part in (".opsys", "diagnostics"):
+                child = os.open(part, flags, dir_fd=fd)
+                os.close(fd)
+                fd = child
+            yield fd
+        finally:
+            os.close(fd)
+    except OSError as exc:
+        if exc.errno in (errno.ELOOP, errno.ENOTDIR):
+            raise ExportError("OUTPUT_ROOT_UNSAFE") from None
+        raise
+
+
 def write_export(path: Path, report: dict[str, Any], token: str) -> None:
+    name = _output_name(path)
     payload = canonical({"report": report, "sha256": hashlib.sha256(canonical(report)).hexdigest()}) + b"\n"
     if token and token.encode("utf-8") in payload:
         raise ExportError("TOKEN_IN_OUTPUT")
-    # Création atomique sans écrasement : lien dur vers un temporaire du même FS.
-    # Refus explicite si le FS ne le permet pas ; aucun repli non atomique.
-    fd, name = tempfile.mkstemp(dir=path.parent, prefix=".sonar-export-")
-    try:
-        with os.fdopen(fd, "wb") as stream:
-            stream.write(payload)
-            stream.flush()
-            os.fsync(stream.fileno())
+    with _export_directory() as directory:
+        # Nom généré, relatif au même descripteur pour écrire, publier et nettoyer.
+        temporary = ".sonar-export-" + secrets.token_hex(16)
+        fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                     0o600, dir_fd=directory)
         try:
-            os.link(name, path)
-        except FileExistsError:
-            raise ExportError("OUTPUT_EXISTS") from None
-    finally:
-        Path(name).unlink(missing_ok=True)
+            with os.fdopen(fd, "wb") as stream:
+                stream.write(payload)
+                stream.flush()
+                os.fsync(stream.fileno())
+            try:
+                os.link(temporary, name, src_dir_fd=directory, dst_dir_fd=directory,
+                        follow_symlinks=False)
+            except FileExistsError:
+                raise ExportError("OUTPUT_EXISTS") from None
+        finally:
+            os.unlink(temporary, dir_fd=directory)
 
 
 class SafeParser(argparse.ArgumentParser):
@@ -386,9 +430,10 @@ class SafeParser(argparse.ArgumentParser):
 def main(argv: list[str] | None = None) -> int:
     parser = SafeParser(description=__doc__)
     parser.add_argument("--revision", required=True, help="Commit Git exact attendu, 40 hex minuscules")
-    parser.add_argument("--output", type=Path, required=True, help="Nouveau fichier JSON ; parent existant")
+    parser.add_argument("--output", type=Path, required=True, help="Nom JSON dans .opsys/diagnostics du dépôt ; répertoire existant")
     args = parser.parse_args(argv)
     try:
+        _output_name(args.output)
         token = os.environ.get("SONAR_TOKEN", "")
         report = collect(SonarClient(token).get, args.revision)
         write_export(args.output, report, token)

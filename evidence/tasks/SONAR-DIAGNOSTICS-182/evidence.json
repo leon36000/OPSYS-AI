@@ -1,57 +1,52 @@
 {
   "task_id": "SONAR-DIAGNOSTICS-182",
   "issue": 182,
-  "status": "DRAFT_DIAGNOSTIC_CANDIDATE",
+  "status": "DRAFT_SONAR_ANNOTATIONS_ADDRESSED_PENDING_RESCAN",
   "base": "fcb65bcf20980a0b36847dbd41808527ba616d52",
   "base_tree": "62fa18d7cf1b837f19885763505a527de504067c",
-  "code_diff_sha256": "7515ef886dc436ab219a0a4b4b650bad5f3394c26ab8daec33234565875a1d4d",
-  "code_diff_note": "Calculated with git diff on the two added scripts in a verified partial snapshot. The initial diff was independently confirmed by remote proof-sealed; revised remote verification pending.",
+  "code_diff_sha256": "46c944052b5a69b84fde247dc8206423c19abf0ff87e1b96bc8e215a59a999dd",
+  "code_diff_note": "Real git diff on the two scripts in a partial snapshot; verify independently in remote CI on this revision.",
   "reviews": {},
   "independent_review_status": "NOT_RUN",
-  "supplementary_review": "Single Copilot request on PR622; no sealed approval claimed",
+  "supplementary_review": "Historical single Copilot review COMMENTED; author replies do not count as independent reviews",
   "merge_authorized": false,
   "quality_verified": false,
-  "private_export": "NOT_RUN_TOKEN_UNAVAILABLE_IN_THIS_RUNTIME",
+  "private_export": "NOT_RUN",
+  "annotations_diagnostic": {
+    "check": 101584689339,
+    "reviewed_head": "ccf530bc24fe76a8975cf1e90f5d06bf7e82e0e7",
+    "run": 34070652062,
+    "job": 101587244353,
+    "count": 5,
+    "permission_observed": ["checks:read", "metadata:read"],
+    "temporary_workflow_removed": true,
+    "findings": ["CLI filesystem destination confinement", "cognitive complexity 16 above 15", "ASCII digit expression simplification", "two redundant exception types"],
+    "not_a_private_sonar_export": true
+  },
   "local_replay": {
-    "tests": "92 passed, no skips",
-    "mutants_failed_counts": {"AUTH_REMOVED": 4, "REVISION_REMOVED": 3, "FIRST_PAGE_ONLY": 4, "TOKEN_LEAK_ALLOWED": 1, "RED_GATE_AS_SUCCESS": 4},
-    "returncode": 0,
-    "scope": "Exporter only. Synthetic network responses. Not full repository qualification.",
-    "stdout_sha256": "600f3f704077d043d80b6c63b4ac25b71859689125acec8e7329d2fc9efcbd46"
+    "red": "11 failed, 99 passed before filesystem fix",
+    "green": "110 passed, no skips",
+    "mutants_failed_counts": {"NO_OUTPUT_PATH_GUARD": 7, "FOLLOW_DIRECTORY_SYMLINKS": 2, "UNICODE_DIGITS_ACCEPTED": 3, "NO_AUTH": 4, "NO_REVISION": 3, "FIRST_PAGE_ONLY": 4, "RED_GATE_SUCCESS": 4, "NO_TOKEN_PROTECTION": 1},
+    "rollback": "apply/reverse/reapply byte-exact; git diff --check rc0",
+    "scope": "Exporter only, synthetic network responses and real temporary filesystem. Not a full repository clone."
   },
-  "provenance": {
-    "input_archive_sha256": "e2d382d35858256075c7542d0dccdecc6c6216375c0adf8d3609e5d68e635150",
-    "source_sha256": "8978cd90f124b30c48f1da73e7374634733881773169e2d6a0c0713a455c5cce",
-    "initial_tests_sha256": "788080bc7a298cda53db3e8ddee17487032a14b220a3ba7a659e4fc0e573ac74",
-    "tests_sha256": "b0fd026b74b498920aeaff40f6aa0b06790dc7e5939127d8ade43815d161866f",
-    "historical_red": "59 failures before implementation; hardening negative results retained in original archive",
-    "source_bytes_unchanged": true,
-    "tests_changed": "Ephemeral generated test credential plus regression test; no suppression or scanner exception"
+  "files": {
+    "scripts/sonar_diagnostics.py": {"sha256": "a30128768529fcf5585d6808ad710b7ce8b28913df2c96e7b474de31e5092fb7", "blob": "9a9af9f01c207e70cd81b740ec9cae03758e182d"},
+    "scripts/tests/test_sonar_diagnostics.py": {"sha256": "9f36c53709a95ba3500957f9a9ee31c9d2556eebc162f48a6d542d8ca63ded14", "blob": "8b762d82be6364e3d823575e55c1738ac845a426"}
   },
-  "security_followup": {
-    "initial_head": "9c51e5515bac00027f01eb1c35be3e599f086c0e",
-    "initial_run": 34069324858,
-    "initial_security_job": 101583632856,
-    "observed": "Bandit B105 at scripts/tests/test_sonar_diagnostics.py:18; synthetic hardcoded fixture, not an actual credential. pip-audit: zero vulnerable dependencies.",
-    "correction": "Generate a disposable token with secrets.token_urlsafe(32) instead of storing a constant; fixture never contacts a service. No nosec, allowlist, threshold or workflow change.",
-    "red": "1 failed, 91 passed before correction, rc1",
-    "green": "92 passed after correction, rc0",
-    "red_stdout_sha256": "a41c95c810d6dfc2d9677e5453f2458be9be078fbb694df3527a2ceb3156269a",
-    "green_stdout_sha256": "af7497a9bd973cbbee5053711cd6c1f59c54e1a8f0beae39fb162d382c6af70f",
-    "remote_rescan": "PENDING"
-  },
-  "initial_proof_gate": {
-    "job": 101583632805,
-    "result": "FAILURE",
-    "diff_verified": "8ea38a176dbbd477533197dfdd8a8bc94e2613a464b248ba207953ec053b8d23",
-    "reason": "aucun verdict de revue committe sous reviews/"
+  "historical_results": {
+    "input_archive_sha256": "ef1803b7f0acc6baab7ed04f749d7d3601f9ba5e1edc4c4fdb5b3ff716729d02",
+    "original_implementation_red": "59 failures before implementation, preserved in prior archive",
+    "initial_security_failure": "B105 synthetic hardcoded test value; changed to ephemeral generated credential with RED 1 failed/91 passed, then 92 passed",
+    "previous_sonar": "C security, five actual annotations; do not overwrite or relabel this result",
+    "previous_proof_sealed": "diff hash matched; refused missing reviews"
   },
   "limitations": [
-    "No authenticated private Sonar collection; no claim to resolve issue 182.",
-    "Public API response inspection is not a private project audit or authentication test.",
-    "Remote CI and scanner outcomes for this revised candidate pending.",
-    "The types CI job only checks core/ and must not be claimed to type-check these scripts.",
-    "No review verdict fabricated; any proof-sealed failure must remain visible.",
-    "No changes to workflows, locks, thresholds, exclusions, branch protection, services or modules."
+    "New remote CI and Sonar rescan pending at candidate creation; no all-green claim.",
+    "No private Sonar export and no claim to resolve issue182 or main quality debt.",
+    "No threshold, exclusion, existing workflow, branch protection or module change.",
+    "No review invented and no trio started.",
+    "Publication requires a pre-existing real .opsys/diagnostics directory in the script repository and POSIX dir_fd/no-follow support.",
+    "Historical types CI covers core only, not these scripts."
   ]
 }
