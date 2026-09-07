@@ -1,0 +1,30 @@
+name: proof-policy-snapshot-622
+# Temporary source transport; never merge this diagnostic workflow.
+on:
+  push:
+    branches: [chatgpt/issue-182-sonar-diagnostics]
+    paths: [.github/workflows/proof-policy-snapshot-622.yml]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    if: github.repository == 'leon36000/OPSYS-AI'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          ref: 6f6aaa69a936eb32d5469e75562f575d89b8dfb1
+          persist-credentials: false
+      - name: Archive tracked proof sources only
+        run: |
+          set -eu
+          test "$(git rev-parse HEAD)" = 6f6aaa69a936eb32d5469e75562f575d89b8dfb1
+          git archive --format=tar HEAD core/scripts core/tests/bootstrap scripts/sonar_diagnostics.py scripts/tests/test_sonar_diagnostics.py .github/workflows/core-ci.yml evidence/tasks/SONAR-DIAGNOSTICS-182 docs/audit/SONAR-DIAGNOSTICS.md > /tmp/proof-source.tar
+          sha256sum /tmp/proof-source.tar
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: proof-source-622
+          path: /tmp/proof-source.tar
+          if-no-files-found: error
+          retention-days: 1
