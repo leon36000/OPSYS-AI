@@ -430,13 +430,12 @@ class SafeParser(argparse.ArgumentParser):
 def main(argv: list[str] | None = None) -> int:
     parser = SafeParser(description=__doc__)
     parser.add_argument("--revision", required=True, help="Commit Git exact attendu, 40 hex minuscules")
-    parser.add_argument("--output", type=Path, required=True, help="Nom JSON dans .opsys/diagnostics du dépôt ; répertoire existant")
     args = parser.parse_args(argv)
     try:
-        _output_name(args.output)
         token = os.environ.get("SONAR_TOKEN", "")
         report = collect(SonarClient(token).get, args.revision)
-        write_export(args.output, report, token)
+        destination = Path("sonar-main-" + secrets.token_hex(16) + ".json")
+        write_export(destination, report, token)
     except ExportError as exc:
         print(f"SONAR_EXPORT_BLOCKED: {exc}", file=sys.stderr)
         return 2
@@ -444,7 +443,7 @@ def main(argv: list[str] | None = None) -> int:
         print("SONAR_EXPORT_BLOCKED: OUTPUT_IO_ERROR", file=sys.stderr)
         return 2
     code = diagnostic_exit_code(report)
-    print(f"SONAR_DIAGNOSTIC_EXPORTED: gate={report['quality_gate']['status']} rc={code}; quality_verified=false")
+    print(f"SONAR_DIAGNOSTIC_EXPORTED: file={destination.name} gate={report['quality_gate']['status']} rc={code}; quality_verified=false")
     return code
 
 

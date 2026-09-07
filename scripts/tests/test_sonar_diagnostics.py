@@ -316,7 +316,7 @@ def test_cli_sans_token_ne_cree_pas_un_faux_export(tmp_path, monkeypatch, capsys
     tmp_path = output_directory(mod, tmp_path)
     monkeypatch.delenv("SONAR_TOKEN", raising=False)
     dest = tmp_path / "export.json"
-    assert mod.main(["--revision", SHA, "--output", str(dest)]) == 2
+    assert mod.main(["--revision", SHA]) == 2
     assert "TOKEN_REQUIRED" in capsys.readouterr().err
     assert not dest.exists()
 
@@ -387,7 +387,7 @@ def test_reponse_bornee_et_timeout_sans_fuite(monkeypatch):
 def test_erreur_arguments_ne_reimprime_pas_une_valeur_sensible(capsys):
     mod = subject()
     with pytest.raises(SystemExit) as caught:
-        mod.main(["--revision", SHA, "--output", "x.json", "--token", TOKEN])
+        mod.main(["--revision", SHA, "--token", TOKEN])
     assert caught.value.code == 2
     assert TOKEN not in capsys.readouterr().err
 
@@ -428,9 +428,10 @@ def test_cli_exporte_rouge_sans_annoncer_qualification(tmp_path, monkeypatch, ca
     api = FakeAPI(mod)
     monkeypatch.setenv("SONAR_TOKEN", TOKEN)
     monkeypatch.setattr(mod.SonarClient, "get", lambda self, path, params: api(path, params))
-    output = tmp_path / "diagnostic.json"
-    assert mod.main(["--revision", SHA, "--output", str(output)]) == 1
-    assert output.exists()
+    assert mod.main(["--revision", SHA]) == 1
+    outputs = list(tmp_path.glob("sonar-main-*.json"))
+    assert len(outputs) == 1
+    output = outputs[0]
     assert "quality_verified=false" in capsys.readouterr().out
     assert json.loads(output.read_text())["report"]["quality_gate"]["status"] == "ERROR"
 
@@ -506,7 +507,7 @@ def test_erreur_disque_cli_est_explicite_et_ne_fuit_pas(tmp_path, monkeypatch, c
     monkeypatch.setattr(mod.SonarClient, "get", lambda self, path, params: api(path, params))
     tmp_path.rmdir()
     dest = tmp_path / "export.json"
-    assert mod.main(["--revision", SHA, "--output", str(dest)]) == 2
+    assert mod.main(["--revision", SHA]) == 2
     err = capsys.readouterr().err
     assert "OUTPUT_IO_ERROR" in err and TOKEN not in err
     assert not dest.exists()
@@ -615,8 +616,10 @@ def test_cli_refuse_destination_hors_scope_sans_requete_reseau(tmp_path, monkeyp
         return api(path, params)
     monkeypatch.setattr(mod.SonarClient, "get", get)
     output = tmp_path / "outside.json"
-    assert mod.main(["--revision", SHA, "--output", str(output)]) == 2
-    assert "OUTPUT_PATH_REFUSED" in capsys.readouterr().err
+    with pytest.raises(SystemExit) as caught:
+        mod.main(["--revision", SHA, "--output", str(output)])
+    assert caught.value.code == 2
+    assert "ARGUMENTS_INVALID" in capsys.readouterr().err
     assert calls == [] and not output.exists()
 
 
@@ -639,3 +642,32 @@ def test_erreurs_transport_redundantes_restent_capturees(error):
     client.opener = Failing()
     with pytest.raises(mod.ExportError, match="TRANSPORT_UNAVAILABLE"):
         client.get("api/users/current", {})
+
+
+def test_cli_genere_deux_exports_distincts_sans_argument_destination(tmp_path, monkeypatch, capsys):
+    mod = subject()
+    root = output_directory(mod, tmp_path)
+    api = FakeAPI(mod)
+    monkeypatch.setenv("SONAR_TOKEN", TOKEN)
+    monkeypatch.setattr(mod.SonarClient, "get", lambda self, path, params: api(path, params))
+    assert mod.main(["--revision", SHA]) == 1
+    assert mod.main(["--revision", SHA]) == 1
+    paths = sorted(root.glob("sonar-main-*.json"))
+    assert len(paths) == 2
+    for path in paths:
+        assert path.stat().st_mode & 0o777 == 0o600
+        assert json.loads(path.read_text())["report"]["quality_gate"]["status"] == "ERROR"
+    assert "quality_verified=false" in capsys.readouterr().out
+
+
+def test_cli_refuse_ancien_argument_destination_avant_reseau(tmp_path, monkeypatch, capsys):
+    mod = subject()
+    root = output_directory(mod, tmp_path)
+    api = FakeAPI(mod)
+    monkeypatch.setenv("SONAR_TOKEN", TOKEN)
+    monkeypatch.setattr(mod.SonarClient, "get", lambda self, path, params: api(path, params))
+    with pytest.raises(SystemExit) as caught:
+        mod.main(["--revision", SHA, "--output", str(root / "unwanted.json")])
+    assert caught.value.code == 2
+    assert api.calls == [] and list(root.iterdir()) == []
+    assert "ARGUMENTS_INVALID" in capsys.readouterr().err

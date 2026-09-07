@@ -1,52 +1,44 @@
 {
   "task_id": "SONAR-DIAGNOSTICS-182",
   "issue": 182,
-  "status": "DRAFT_SONAR_ANNOTATIONS_ADDRESSED_PENDING_RESCAN",
+  "status": "DRAFT_CLI_DESTINATION_REMOVED_PENDING_RESCAN",
   "base": "fcb65bcf20980a0b36847dbd41808527ba616d52",
   "base_tree": "62fa18d7cf1b837f19885763505a527de504067c",
-  "code_diff_sha256": "46c944052b5a69b84fde247dc8206423c19abf0ff87e1b96bc8e215a59a999dd",
-  "code_diff_note": "Real git diff on the two scripts in a partial snapshot; verify independently in remote CI on this revision.",
+  "code_diff_sha256": "3f7ed108ea9167d4418d3013fd55e88c3f0663c613dc64bf4965824e38e81546",
+  "code_diff_note": "Computed from tested local UTF-8 source/test in partial Git snapshot; remote verifier must confirm exact published diff.",
   "reviews": {},
   "independent_review_status": "NOT_RUN",
-  "supplementary_review": "Historical single Copilot review COMMENTED; author replies do not count as independent reviews",
   "merge_authorized": false,
   "quality_verified": false,
   "private_export": "NOT_RUN",
-  "annotations_diagnostic": {
-    "check": 101584689339,
-    "reviewed_head": "ccf530bc24fe76a8975cf1e90f5d06bf7e82e0e7",
-    "run": 34070652062,
-    "job": 101587244353,
-    "count": 5,
-    "permission_observed": ["checks:read", "metadata:read"],
-    "temporary_workflow_removed": true,
-    "findings": ["CLI filesystem destination confinement", "cognitive complexity 16 above 15", "ASCII digit expression simplification", "two redundant exception types"],
-    "not_a_private_sonar_export": true
+  "annotations_diagnostics": [
+    {"check":101584689339,"head":"ccf530bc24fe76a8975cf1e90f5d06bf7e82e0e7","run":34070652062,"job":101587244353,"annotations":5},
+    {"check":101588758936,"head":"459ac4cf638686ed8bc558f6092413599edbd593","run":34071280202,"job":101588975482,"annotations":1}
+  ],
+  "temporary_workflow_removed": true,
+  "local_tests": {
+    "filesystem_red":"11 failed, 99 passed before confinement",
+    "cli_red":"2 failed, 110 deselected before removal of output argument",
+    "green":"112 passed, no skips",
+    "mutant_failures":{"NO_OUTPUT_PATH_GUARD":6,"FOLLOW_DIRECTORY_SYMLINKS":2,"UNICODE_DIGITS_ACCEPTED":3,"NO_AUTH":4,"NO_REVISION":3,"FIRST_PAGE_ONLY":4,"RED_GATE_SUCCESS":5,"NO_TOKEN_PROTECTION":1},
+    "rollback":"apply/reverse/reapply byte-exact, diff-check rc0",
+    "scope":"Synthetic network replies and temporary filesystem. No full clone or production qualification."
   },
-  "local_replay": {
-    "red": "11 failed, 99 passed before filesystem fix",
-    "green": "110 passed, no skips",
-    "mutants_failed_counts": {"NO_OUTPUT_PATH_GUARD": 7, "FOLLOW_DIRECTORY_SYMLINKS": 2, "UNICODE_DIGITS_ACCEPTED": 3, "NO_AUTH": 4, "NO_REVISION": 3, "FIRST_PAGE_ONLY": 4, "RED_GATE_SUCCESS": 4, "NO_TOKEN_PROTECTION": 1},
-    "rollback": "apply/reverse/reapply byte-exact; git diff --check rc0",
-    "scope": "Exporter only, synthetic network responses and real temporary filesystem. Not a full repository clone."
+  "tested_content": {
+    "scripts/sonar_diagnostics.py":{"sha256":"f8191d55b5902f908f27ca4c074b58f5b45c7c18c6cbe6b1f837bf90ed76f351","git_blob":"fe01a28dfdb442e6de9e4a6b62987c7f94421fd8"},
+    "scripts/tests/test_sonar_diagnostics.py":{"sha256":"03a0ad8e34c11021bfc3acc2cc9c1d48e7375f2ac4bf0edd89c4f52fb7a4a757","git_blob":"abad8f03cec502acc30ad50cfd2eb16abcc37715"}
   },
-  "files": {
-    "scripts/sonar_diagnostics.py": {"sha256": "a30128768529fcf5585d6808ad710b7ce8b28913df2c96e7b474de31e5092fb7", "blob": "9a9af9f01c207e70cd81b740ec9cae03758e182d"},
-    "scripts/tests/test_sonar_diagnostics.py": {"sha256": "9f36c53709a95ba3500957f9a9ee31c9d2556eebc162f48a6d542d8ca63ded14", "blob": "8b762d82be6364e3d823575e55c1738ac845a426"}
-  },
-  "historical_results": {
-    "input_archive_sha256": "ef1803b7f0acc6baab7ed04f749d7d3601f9ba5e1edc4c4fdb5b3ff716729d02",
-    "original_implementation_red": "59 failures before implementation, preserved in prior archive",
-    "initial_security_failure": "B105 synthetic hardcoded test value; changed to ephemeral generated credential with RED 1 failed/91 passed, then 92 passed",
-    "previous_sonar": "C security, five actual annotations; do not overwrite or relabel this result",
-    "previous_proof_sealed": "diff hash matched; refused missing reviews"
-  },
-  "limitations": [
-    "New remote CI and Sonar rescan pending at candidate creation; no all-green claim.",
-    "No private Sonar export and no claim to resolve issue182 or main quality debt.",
-    "No threshold, exclusion, existing workflow, branch protection or module change.",
-    "No review invented and no trio started.",
-    "Publication requires a pre-existing real .opsys/diagnostics directory in the script repository and POSIX dir_fd/no-follow support.",
-    "Historical types CI covers core only, not these scripts."
+  "negative_results_preserved":[
+    "Initial synthetic constant token triggered Bandit B105; corrected by ephemeral generation, no suppression.",
+    "First confinement candidate remained Sonar C with one annotation despite 110 passing tests; destination CLI subsequently removed, no suppression.",
+    "Local verifier initially copied generated __pycache__ files and could not reverse a binary-free patch. Copier corrected to exclude caches, then complete replay succeeded. One intermediate tool timeout was not counted as success.",
+    "Before publishing, blob verification detected accidental transcription of _duplication_group: bare list instead of mapping. The unreferenced intermediate commit d6e4164 never reached the branch. Cause verified by the GitHub compare patch; correct tested blob fe01a28 was recreated and hash-verified."
+  ],
+  "limitations":[
+    "Remote CI/Sonar rescan pending at manifest creation; no all-green claim.",
+    "No private Sonar collection or correction of main quality debt.",
+    "No existing workflow, threshold, exclusion, protection, dependency or module modified.",
+    "Historical types job covers core, not these scripts.",
+    "No reviewer approval fabricated and no trio started."
   ]
 }
