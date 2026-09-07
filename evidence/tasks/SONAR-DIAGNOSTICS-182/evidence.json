@@ -1,44 +1,36 @@
 {
   "task_id": "SONAR-DIAGNOSTICS-182",
   "issue": 182,
-  "status": "DRAFT_CLI_DESTINATION_REMOVED_PENDING_RESCAN",
+  "status": "DRAFT_PENDING_CI_RECEIPT_CAPTURE",
   "base": "fcb65bcf20980a0b36847dbd41808527ba616d52",
   "base_tree": "62fa18d7cf1b837f19885763505a527de504067c",
-  "code_diff_sha256": "3f7ed108ea9167d4418d3013fd55e88c3f0663c613dc64bf4965824e38e81546",
-  "code_diff_note": "Computed from tested local UTF-8 source/test in partial Git snapshot; remote verifier must confirm exact published diff.",
+  "proof_policy": "EXECUTION_RECEIPTS_V1",
+  "code_diff_sha256": "59154d994ce4dcc5e7ccf42ce4ce6d73195e62a764bf1ba9589996fbebb74aa0",
   "reviews": {},
-  "independent_review_status": "NOT_RUN",
+  "review_disposition": "NOT_PERFORMED: Nathan requested no trio; no approval fabricated",
   "merge_authorized": false,
   "quality_verified": false,
   "private_export": "NOT_RUN",
-  "annotations_diagnostics": [
-    {"check":101584689339,"head":"ccf530bc24fe76a8975cf1e90f5d06bf7e82e0e7","run":34070652062,"job":101587244353,"annotations":5},
-    {"check":101588758936,"head":"459ac4cf638686ed8bc558f6092413599edbd593","run":34071280202,"job":101588975482,"annotations":1}
-  ],
-  "temporary_workflow_removed": true,
-  "local_tests": {
-    "filesystem_red":"11 failed, 99 passed before confinement",
-    "cli_red":"2 failed, 110 deselected before removal of output argument",
-    "green":"112 passed, no skips",
-    "mutant_failures":{"NO_OUTPUT_PATH_GUARD":6,"FOLLOW_DIRECTORY_SYMLINKS":2,"UNICODE_DIGITS_ACCEPTED":3,"NO_AUTH":4,"NO_REVISION":3,"FIRST_PAGE_ONLY":4,"RED_GATE_SUCCESS":5,"NO_TOKEN_PROTECTION":1},
-    "rollback":"apply/reverse/reapply byte-exact, diff-check rc0",
-    "scope":"Synthetic network replies and temporary filesystem. No full clone or production qualification."
+  "historical_evidence_commit": "6f6aaa69a936eb32d5469e75562f575d89b8dfb1",
+  "policy_document": "docs/audit/PROOF-NO-TRIO-182.md",
+  "execution": {
+    "input_files": {
+      "scripts/sonar_diagnostics.py": "f8191d55b5902f908f27ca4c074b58f5b45c7c18c6cbe6b1f837bf90ed76f351",
+      "scripts/tests/test_sonar_diagnostics.py": "03a0ad8e34c11021bfc3acc2cc9c1d48e7375f2ac4bf0edd89c4f52fb7a4a757",
+      "core/scripts/verify_proof_sealed.py": "4673e7ecfab5f51d06ef786c68d0ead6a1fb92386d41bc780b47d3736e270055",
+      "core/scripts/proof_execution_receipts.py": "bba24d3888717a9d3cd52768851ca3a11c66ba74f30bef0a69c59dcce92ac71d",
+      "core/tests/bootstrap/test_proof_execution_receipts.py": "8b36052743eb6913b95414907d5fff956697a53462c623dd9d143cd127fbfddf",
+      "core/tests/bootstrap/test_proof_sealed.py": "3a604b7cc95f2099e744989eef9e1bf60d6a5ffd00f6af91f398bbbc5231c23c"
+    },
+    "artifacts": {}
   },
-  "tested_content": {
-    "scripts/sonar_diagnostics.py":{"sha256":"f8191d55b5902f908f27ca4c074b58f5b45c7c18c6cbe6b1f837bf90ed76f351","git_blob":"fe01a28dfdb442e6de9e4a6b62987c7f94421fd8"},
-    "scripts/tests/test_sonar_diagnostics.py":{"sha256":"03a0ad8e34c11021bfc3acc2cc9c1d48e7375f2ac4bf0edd89c4f52fb7a4a757","git_blob":"abad8f03cec502acc30ad50cfd2eb16abcc37715"}
-  },
-  "negative_results_preserved":[
-    "Initial synthetic constant token triggered Bandit B105; corrected by ephemeral generation, no suppression.",
-    "First confinement candidate remained Sonar C with one annotation despite 110 passing tests; destination CLI subsequently removed, no suppression.",
-    "Local verifier initially copied generated __pycache__ files and could not reverse a binary-free patch. Copier corrected to exclude caches, then complete replay succeeded. One intermediate tool timeout was not counted as success.",
-    "Before publishing, blob verification detected accidental transcription of _duplication_group: bare list instead of mapping. The unreferenced intermediate commit d6e4164 never reached the branch. Cause verified by the GitHub compare patch; correct tested blob fe01a28 was recreated and hash-verified."
-  ],
-  "limitations":[
-    "Remote CI/Sonar rescan pending at manifest creation; no all-green claim.",
-    "No private Sonar collection or correction of main quality debt.",
-    "No existing workflow, threshold, exclusion, protection, dependency or module modified.",
-    "Historical types job covers core, not these scripts.",
-    "No reviewer approval fabricated and no trio started."
+  "local_test_counts": {"exporter": 112, "policy": 58, "legacy": 28},
+  "local_mutants_detected": {"input_hash": 1, "artifact_hash": 2, "test_outcome": 5, "count_floor": 1, "code_scope": 2, "stale_receipt": 2, "failed_execution": 12},
+  "limitations": [
+    "Pending artifact capture intentionally fails closed; empty artifacts cannot satisfy this policy.",
+    "Unsigned receipts prove integrity and consistency, not independent cryptographic execution provenance.",
+    "Existing CI jobs separately rerun suites; all applicable checks must be read on the final SHA.",
+    "No private Sonar collection, imported coverage or main-debt resolution is claimed.",
+    "Temporary capture workflow must be removed; no existing workflow or branch protection is changed."
   ]
 }
