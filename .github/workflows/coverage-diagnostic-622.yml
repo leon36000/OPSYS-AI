@@ -1,0 +1,68 @@
+name: coverage-diagnostic-622
+# Temporary branch-only measurement. Remove after collecting coverage.
+on:
+  push:
+    branches: [chatgpt/issue-182-sonar-diagnostics]
+    paths: [.github/workflows/coverage-diagnostic-622.yml]
+permissions:
+  contents: read
+jobs:
+  measure:
+    if: github.repository == 'leon36000/OPSYS-AI'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          persist-credentials: false
+      - name: Verify target and install measurement tools
+        run: |
+          set -eu
+          test "$(git rev-parse HEAD^)" = 5dcac3ee5ddf6800526b5f288ba8c66c882ba466
+          python3 --version
+          python3 -m pip install --quiet pytest==9.1.1 PyYAML==6.0.1
+          cat >/tmp/coverage-requirements.txt <<'REQ'
+          coverage==7.16.0 --hash=sha256:245f7de6d023a5bba375dbec9f2e0869bfa26ac0cc639bbb7b4c814884000b73
+          REQ
+          python3 -m pip install --quiet --only-binary=:all: --require-hashes -r /tmp/coverage-requirements.txt
+          python3 -m coverage --version
+      - name: Measure exact candidate implementation coverage
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTEST_ADDOPTS: ''
+        run: |
+          set -eu
+          INCLUDE='scripts/sonar_diagnostics.py,core/scripts/verify_proof_sealed.py,core/scripts/proof_execution_receipts.py'
+          python3 -m coverage erase
+          python3 -m coverage run --branch --include="$INCLUDE" -m pytest -q -p no:cacheprovider scripts/tests/test_sonar_diagnostics.py
+          python3 -m coverage run --append --branch --include="$INCLUDE" -m pytest -q -p no:cacheprovider core/tests/bootstrap/test_proof_execution_receipts.py
+          python3 -m coverage run --append --branch --include="$INCLUDE" -m pytest -q -p no:cacheprovider core/tests/bootstrap/test_proof_sealed.py
+          python3 -m coverage report -m
+          python3 -m coverage xml -o coverage.xml
+          python3 -m coverage json -o coverage.json
+          python3 - <<'PY'
+          import hashlib, json, pathlib
+          report=json.loads(pathlib.Path('coverage.json').read_text())
+          totals=report['totals']
+          print('COVERAGE_TOTALS_JSON='+json.dumps(totals,sort_keys=True))
+          print('COVERAGE_XML_SHA256='+hashlib.sha256(pathlib.Path('coverage.xml').read_bytes()).hexdigest())
+          print('COVERAGE_JSON_SHA256='+hashlib.sha256(pathlib.Path('coverage.json').read_bytes()).hexdigest())
+          PY
+      - name: Check Sonar migration prerequisite without exposing any secret
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if [ -n "${SONAR_TOKEN:-}" ]; then
+            echo 'SONAR_TOKEN_PRESENT=true'
+          else
+            echo 'SONAR_TOKEN_PRESENT=false'
+          fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: coverage-diagnostic-622
+          path: |
+            coverage.xml
+            coverage.json
+          if-no-files-found: error
+          retention-days: 1
