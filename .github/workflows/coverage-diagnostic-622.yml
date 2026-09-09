@@ -14,11 +14,13 @@ jobs:
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
+          fetch-depth: 0
           persist-credentials: false
       - name: Verify target and install measurement tools
         run: |
           set -eu
-          test "$(git rev-parse HEAD^)" = 5dcac3ee5ddf6800526b5f288ba8c66c882ba466
+          git cat-file -e 5dcac3ee5ddf6800526b5f288ba8c66c882ba466^{commit}
+          test -z "$(git diff --name-only 5dcac3ee5ddf6800526b5f288ba8c66c882ba466...HEAD -- . ':(exclude).github/workflows/coverage-diagnostic-622.yml')"
           python3 --version
           python3 -m pip install --quiet pytest==9.1.1 PyYAML==6.0.1
           cat >/tmp/coverage-requirements.txt <<'REQ'
