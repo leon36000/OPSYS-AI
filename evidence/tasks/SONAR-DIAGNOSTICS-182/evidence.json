@@ -1,0 +1,66 @@
+{
+  "task_id": "SONAR-DIAGNOSTICS-182",
+  "issue": 182,
+  "status": "CI_RECEIPTS_CAPTURED_FINAL_CHECKS_PENDING",
+  "base": "fcb65bcf20980a0b36847dbd41808527ba616d52",
+  "base_tree": "62fa18d7cf1b837f19885763505a527de504067c",
+  "proof_policy": "EXECUTION_RECEIPTS_V1",
+  "code_diff_sha256": "f51f350acd6ccc13e35859b3dc86e8287f98a805e23a6e21afcb6d3481215fc5",
+  "reviews": {},
+  "review_disposition": "NOT_PERFORMED: Nathan requested no trio; no approval fabricated",
+  "merge_authorized": false,
+  "quality_verified": false,
+  "private_export": "NOT_RUN",
+  "historical_evidence_commit": "799ab3eb72dfe2a972aaaa30c566d895219b661e",
+  "policy_document": "docs/audit/PROOF-NO-TRIO-182.md",
+  "execution": {
+    "input_files": {
+      "scripts/sonar_diagnostics.py": "f8191d55b5902f908f27ca4c074b58f5b45c7c18c6cbe6b1f837bf90ed76f351",
+      "scripts/tests/test_sonar_diagnostics.py": "03a0ad8e34c11021bfc3acc2cc9c1d48e7375f2ac4bf0edd89c4f52fb7a4a757",
+      "core/scripts/verify_proof_sealed.py": "6a1ae3c2cb0cc3cba8011c37e7fbb7cc48cdc2d3a3c8a5e22f7c60d74e2d5741",
+      "core/scripts/proof_execution_receipts.py": "659ead5ad447574e8a9c98d7546e7a4524add2c9faf92e9fe0a727171d3754d6",
+      "core/tests/bootstrap/test_proof_execution_receipts.py": "8b36052743eb6913b95414907d5fff956697a53462c623dd9d143cd127fbfddf",
+      "core/tests/bootstrap/test_proof_sealed.py": "3a604b7cc95f2099e744989eef9e1bf60d6a5ffd00f6af91f398bbbc5231c23c"
+    },
+    "artifacts": {
+      "exporter.json.zlib": "6d1a00245df9e980c3c80ccf9c89690a1501aef45c9cf7ef28e8fa8611f0aa11",
+      "exporter.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exporter.stdout.txt": "ff986e6190180b379c5ef74b3e32894d2754068555d84a4bc1d60cef83fea260",
+      "legacy.json.zlib": "cd2dc26931e2c3088cd0634a2598c8010dade3d52d427ff3c00712e533a67947",
+      "legacy.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "legacy.stdout.txt": "a4ba55c7ec7daeede2ecfea3dda9a793665ee142066911215af4f033a9e8412a",
+      "policy.json.zlib": "e8fd993fa50b1b6433d128850af17104de9a64da4e4c27e8b13a4ae0558535ca",
+      "policy.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "policy.stdout.txt": "b53866f7a853267d7eca16c2faa2f71689f462d5b06ee572ef078a18d6b0409a"
+    }
+  },
+  "local_test_counts": {"exporter": 112, "policy": 58, "legacy": 28},
+  "receipt_capture": {
+    "origin": "GitHub Actions",
+    "run_id": "34110150269",
+    "job_id": "101704243184",
+    "source_commit": "e0d218be2ea7def2b96035cebdb633475cfbec22",
+    "source_tree": "46a82b4cb96f4b9e6cc40c1f5adb777722b414b4",
+    "source_inputs_verified": true,
+    "signed_attestation": false,
+    "counts": {"exporter": 112, "policy": 58, "legacy": 28},
+    "evidence_commit": "8d9634002025de5f7cd64c16c1ebd7247a9c67bc",
+    "artifact_id": 10013995089,
+    "archive_sha256": "d5e2a356cbac44085b757cd1ee0c415205f9fee20cb24cb671b2b9e06d2b0a56",
+    "download_readback": "Archive hash, six input hashes and nine artifact hashes verified; local gate accepted the downloaded CI receipts."
+  },
+  "temporary_workflow_removed": true,
+  "negative_results": [
+    "Initial CI ran 198 tests but pytest mutated submitted argv with configured addopts; capture now freezes the submitted list and records normalization separately. COMMAND_MISMATCH retained, not suppressed.",
+    "Two mypy errors on optional execution mapping fixed by returning and using a runtime-validated typed mapping. CI capture then reported zero errors in 77 source files; no ignore, cast or baseline added.",
+    "Sonar requested a shared origin/main constant; defaults centralized without changing their value. Final Sonar check remains to be observed.",
+    "One input-hash mutant initially survived due to overlapping refusal paths; an independently discriminating regression test was added."
+  ],
+  "limitations": [
+    "Unsigned receipts prove integrity and consistency, not independent cryptographic execution provenance.",
+    "Receipt source tree includes the temporary capture job; final code inputs and scoped diff remain byte-identical after its removal.",
+    "Existing CI jobs separately rerun suites; results must be checked on the final SHA.",
+    "No private Sonar collection, imported coverage or main-debt resolution is claimed.",
+    "No existing workflow, scanner threshold or branch protection changed."
+  ]
+}

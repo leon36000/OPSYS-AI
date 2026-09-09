@@ -1,3 +1,5 @@
+# Politique supplémentaire EXECUTION_RECEIPTS_V1 : voir
+# docs/audit/PROOF-NO-TRIO-182.md. L'historique ci-dessous décrit SEALED_REVIEWS.
 """Vérification RÉELLE du scellement des Evidence Bundles/revues
 (proof-sealed, C02-005) — remplace le placeholder BLOCKED de
 core-ci.yml.
@@ -103,6 +105,7 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _EVIDENCE_ROOT = _REPO_ROOT / "evidence" / "tasks"
+_DEFAULT_DIFF_BASE = "origin/main"
 
 # Périmètre scellé : core/ (le code) + tools/proof/ et le contrôle GitHub
 # sous .opsys/ (outils de preuve/contrôle, racines du contrat qualité) + LES
@@ -230,7 +233,7 @@ class RefGitInvalide(ValueError):
 _REF_GIT_AUTORISEE_RE = re.compile(r"\A[A-Za-z0-9_./-]+\Z")
 
 
-def _diff_sha256_actuel(*, base: str = "origin/main") -> str:
+def _diff_sha256_actuel(*, base: str = _DEFAULT_DIFF_BASE) -> str:
     """Sha256 du diff RÉEL (texte complet, verbatim) entre `base` et HEAD
     sur `_PATHSPEC_SCELLE`. MÊME fonction utilisée pour (a) calculer la
     valeur embarquée dans evidence.json au moment du scellement local et
@@ -381,7 +384,7 @@ def _verifier_vendors_suffisants(verdicts: list[dict], min_vendors_approve: int)
     return True, lignes
 
 
-def verifier_task(task_id: str, *, min_vendors_approve: int = 1, diff_sha256_attendu: str | None) -> tuple[bool, str]:
+def verifier_task(task_id: str, *, min_vendors_approve: int = 1, diff_sha256_attendu: str | None, diff_base: str = _DEFAULT_DIFF_BASE) -> tuple[bool, str]:
     """Pipeline séquentiel — chaque étape peut arrêter avec un rapport
     d'échec ; complexité cognitive volontairement réduite en extrayant
     chaque contrôle dans sa propre fonction (`_verifier_*`), voir SonarCloud
@@ -404,6 +407,13 @@ def verifier_task(task_id: str, *, min_vendors_approve: int = 1, diff_sha256_att
     if erreurs_manifeste:
         lignes.extend(erreurs_manifeste)
         return False, "\n".join(lignes)
+
+    policy = manifeste.get("proof_policy", "SEALED_REVIEWS")
+    if policy == "EXECUTION_RECEIPTS_V1":
+        return _verifier_execution_sans_trio(task_id, dossier_task, manifeste,
+                                           diff_sha256_attendu, diff_base, lignes)
+    if policy != "SEALED_REVIEWS":
+        return False, "\n".join(lignes + ["  politique de preuve inconnue — REFUS"])
 
     verdicts = _charger_verdicts(dossier_task)
     if not verdicts:
@@ -434,6 +444,33 @@ def verifier_task(task_id: str, *, min_vendors_approve: int = 1, diff_sha256_att
     return True, "\n".join(lignes)
 
 
+def _verifier_execution_sans_trio(task_id: str, dossier: Path, manifeste: dict,
+                                  diff: str | None, base: str,
+                                  lignes: list[str]) -> tuple[bool, str]:
+    """Reçus sans vote : politique limitée, code et artefacts toujours liés.
+
+    La décision Nathan retire le trio pour ce travail. Le résultat atteste
+    l'intégrité des reçus, pas une revue LLM ni une réexécution dans ce job.
+    Les suites restent exécutées séparément par les jobs CI existants.
+    """
+    from proof_execution_receipts import verify_execution
+
+    if not diff or not _REF_GIT_AUTORISEE_RE.fullmatch(base) or base.startswith("-"):
+        return False, "\n".join(lignes + ["  base/diff invalide — REFUS"])
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--name-only", f"{base}...HEAD", "--", *_PATHSPEC_SCELLE],
+            capture_output=True, text=True, cwd=_REPO_ROOT, timeout=60,
+        )
+        if result.returncode != 0:
+            return False, "\n".join(lignes + ["  inventaire Git indisponible — REFUS"])
+        ok, detail = verify_execution(task_id, _REPO_ROOT, dossier, manifeste,
+                                      diff, set(result.stdout.splitlines()))
+    except (OSError, subprocess.TimeoutExpired):
+        return False, "\n".join(lignes + ["  inventaire Git indisponible — REFUS"])
+    return ok, "\n".join(lignes + [detail])
+
+
 class _Options:
     """Options CLI parsées — regroupées pour garder `main()` simple
     (complexité cognitive réduite, cf. SonarCloud sur la revision
@@ -442,7 +479,7 @@ class _Options:
     def __init__(self) -> None:
         self.task_ids: list[str] = []
         self.min_vendors = 1
-        self.diff_base = "origin/main"
+        self.diff_base = _DEFAULT_DIFF_BASE
         self.emettre_hash_seul = False
 
 
@@ -530,12 +567,12 @@ def main(argv: list[str] | None = None) -> int:
 
     tout_ok = True
     for task_id in cibles:
-        ok, rapport = verifier_task(task_id, min_vendors_approve=opts.min_vendors, diff_sha256_attendu=diff_sha256_attendu)
+        ok, rapport = verifier_task(task_id, min_vendors_approve=opts.min_vendors, diff_sha256_attendu=diff_sha256_attendu, diff_base=opts.diff_base)
         print(rapport)
         tout_ok = tout_ok and ok
 
     if tout_ok:
-        print(f"PROOF_SEALED: VERT ({len(cibles)} tâche(s) scellée(s) vérifiée(s), liées au code réel)")
+        print(f"PROOF_SEALED: VERT ({len(cibles)} tâche(s) : preuves vérifiées selon leur politique, liées au code réel)")
         return 0
     print("PROOF_SEALED: ROUGE — voir détail ci-dessus.", file=sys.stderr)
     return 1
