@@ -7,10 +7,10 @@ on:
 permissions:
   contents: read
 jobs:
-  measure:
+  current-gates-coverage:
     if: github.repository == 'leon36000/OPSYS-AI'
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
@@ -22,49 +22,109 @@ jobs:
           git cat-file -e 5dcac3ee5ddf6800526b5f288ba8c66c882ba466^{commit}
           test -z "$(git diff --name-only 5dcac3ee5ddf6800526b5f288ba8c66c882ba466...HEAD -- . ':(exclude).github/workflows/coverage-diagnostic-622.yml')"
           python3 --version
-          python3 -m pip install --quiet pytest==9.1.1 PyYAML==6.0.1
+          python3 -m pip install --quiet pytest==9.1.1 PyYAML==6.0.1 psycopg==3.2.3 psycopg-binary==3.2.3
           cat >/tmp/coverage-requirements.txt <<'REQ'
           coverage==7.16.0 --hash=sha256:245f7de6d023a5bba375dbec9f2e0869bfa26ac0cc639bbb7b4c814884000b73
           REQ
           python3 -m pip install --quiet --only-binary=:all: --require-hashes -r /tmp/coverage-requirements.txt
+          cat >/tmp/.coveragerc <<'RC'
+          [run]
+          branch = True
+          relative_files = True
+          source =
+              core/src
+              core/scripts
+              scripts
+              audit/core-baseline
+              surfaces/dashboard
+              Modules M/M1-front-office
+              Modules M/M2-revenue-crm
+              Modules M/M3-estimation
+              Modules M/M4-field-ops
+              Modules M/M5-financecore
+              Modules M/M6-material-control
+              Modules M/M7-marketing
+              Modules M/M8-analytics
+              Modules M/M9-strategic-intelligence
+              Modules M/M10-memoire
+          omit =
+              */tests/*
+              */test_*.py
+              */conftest.py
+              */__pycache__/*
+          [report]
+          skip_empty = True
+          RC
           python3 -m coverage --version
-      - name: Measure exact candidate implementation coverage
+      - name: Measure current gates and Core suites with module isolation preserved
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
           PYTHONDONTWRITEBYTECODE: '1'
           PYTEST_ADDOPTS: ''
         run: |
           set -eu
-          INCLUDE='scripts/sonar_diagnostics.py,core/scripts/verify_proof_sealed.py,core/scripts/proof_execution_receipts.py'
+          COV='python3 -m coverage run --rcfile=/tmp/.coveragerc --append'
           python3 -m coverage erase
-          python3 -m coverage run --branch --include="$INCLUDE" -m pytest -q -p no:cacheprovider scripts/tests/test_sonar_diagnostics.py
-          python3 -m coverage run --append --branch --include="$INCLUDE" -m pytest -q -p no:cacheprovider core/tests/bootstrap/test_proof_execution_receipts.py
-          python3 -m coverage run --append --branch --include="$INCLUDE" -m pytest -q -p no:cacheprovider core/tests/bootstrap/test_proof_sealed.py
-          python3 -m coverage report -m
-          python3 -m coverage xml -o coverage.xml
-          python3 -m coverage json -o coverage.json
+          $COV scripts/structure_lint.py
+          $COV scripts/ledger_append.py verify
+          $COV scripts/statut_lint.py
+          $COV -m pytest -q -p no:cacheprovider scripts/tests
+          $COV -m pytest -q -p no:cacheprovider surfaces/dashboard/tests
+          $COV -m pytest -q -p no:cacheprovider core/src/authz/tests
+          $COV -m pytest -q -p no:cacheprovider core/src/config/tests
+          $COV -m pytest -q -p no:cacheprovider core/tests/bootstrap core/tests/architecture core/tests/persistence
+          $COV -m pytest -q -p no:cacheprovider 'Modules M/M7-marketing/tests'
+          $COV core/scripts/check_module_isolation.py
+          $COV -m pytest -q -p no:cacheprovider 'Modules M/M1-front-office/tests'
+          $COV -m pytest -q -p no:cacheprovider 'Modules M/M2-revenue-crm/tests'
+          $COV -m pytest -q -p no:cacheprovider 'Modules M/M4-field-ops/tests'
+          $COV -m pytest -q -p no:cacheprovider 'Modules M/M3-estimation/tests'
+          $COV -m pytest -q -p no:cacheprovider 'Modules M/M6-material-control/tests'
+          $COV -m pytest -q -p no:cacheprovider 'Modules M/M8-analytics/tests'
+          $COV -m pytest -q -p no:cacheprovider 'Modules M/M5-financecore/tests'
+          $COV -m pytest -q -p no:cacheprovider 'Modules M/M9-strategic-intelligence/tests'
+          $COV -m pytest -q -p no:cacheprovider 'Modules M/M10-memoire/tests'
+          python3 -m coverage report --rcfile=/tmp/.coveragerc -m
+          python3 -m coverage xml --rcfile=/tmp/.coveragerc -o coverage-current-gates.xml
+          python3 -m coverage json --rcfile=/tmp/.coveragerc -o coverage-current-gates.json
           python3 - <<'PY'
-          import hashlib, json, pathlib
-          report=json.loads(pathlib.Path('coverage.json').read_text())
-          totals=report['totals']
-          print('COVERAGE_TOTALS_JSON='+json.dumps(totals,sort_keys=True))
-          print('COVERAGE_XML_SHA256='+hashlib.sha256(pathlib.Path('coverage.xml').read_bytes()).hexdigest())
-          print('COVERAGE_JSON_SHA256='+hashlib.sha256(pathlib.Path('coverage.json').read_bytes()).hexdigest())
+          import hashlib,json,pathlib
+          p=pathlib.Path('coverage-current-gates.json')
+          t=json.loads(p.read_text())['totals']
+          print('CURRENT_GATES_COVERAGE_JSON='+json.dumps(t,sort_keys=True))
+          print('CURRENT_GATES_COVERAGE_SHA256='+hashlib.sha256(p.read_bytes()).hexdigest())
+          print('CURRENT_GATES_XML_SHA256='+hashlib.sha256(pathlib.Path('coverage-current-gates.xml').read_bytes()).hexdigest())
           PY
-      - name: Check Sonar migration prerequisite without exposing any secret
+      - name: Confirm Sonar CI prerequisite without exposing any secret
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          if [ -n "${SONAR_TOKEN:-}" ]; then
-            echo 'SONAR_TOKEN_PRESENT=true'
-          else
-            echo 'SONAR_TOKEN_PRESENT=false'
-          fi
+          if [ -n "${SONAR_TOKEN:-}" ]; then echo 'SONAR_TOKEN_PRESENT=true'; else echo 'SONAR_TOKEN_PRESENT=false'; fi
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: coverage-diagnostic-622
+          name: coverage-current-gates-622
           path: |
-            coverage.xml
-            coverage.json
+            coverage-current-gates.xml
+            coverage-current-gates.json
           if-no-files-found: error
           retention-days: 1
+
+  audit-baseline-probe:
+    if: github.repository == 'leon36000/OPSYS-AI'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          persist-credentials: false
+      - name: Probe non-custody audit/core-baseline tests not yet in required CI
+        run: |
+          set -eu
+          python3 -m pip install --quiet pytest==9.1.1 PyYAML==6.0.1
+          python3 -m pytest -q \
+            audit/core-baseline/tests/test_business_authority_map.py \
+            audit/core-baseline/tests/test_core_canon_coverage.py \
+            audit/core-baseline/tests/test_issue_reconciliation.py \
+            audit/core-baseline/tests/test_no_hardcoded_host_paths.py \
+            audit/core-baseline/tests/test_path_and_authority_map.py \
+            audit/core-baseline/tests/test_stage_reconstruction.py
