@@ -36,3 +36,17 @@ def session(opsys_home):
     stockage.migrer()
     yield etat.session
     stockage.liberer()
+
+
+MOT_DE_PASSE_NATHAN = "mot-de-passe-de-test-nathan-1234"
+
+
+@pytest.fixture
+def nathan(session) -> str:
+    """Personne 'nathan', rôle `nathan_owner` (ADR-0009 §5) : signe les décisions dans les tests du
+    socle qui ne portent pas eux-mêmes sur l'identité. Rend son identifiant ('nathan')."""
+    from opsys import identite
+
+    with session() as cnx:
+        identite.creer_personne(cnx, "nathan", "Nathan St-Louis", MOT_DE_PASSE_NATHAN, ["nathan_owner"])
+    return "nathan"

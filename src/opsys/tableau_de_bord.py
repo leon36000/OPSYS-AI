@@ -135,10 +135,12 @@ def decider_approbation(
     departements: Mapping[str, Departement],
     ident: str,
     decision: str,
-    par: str,
+    identifiant: str,
     motif: str = "",
+    attestation: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Approuve (exécute l'outil avec les arguments enregistrés) ou refuse une demande, signée `par`.
+    """Approuve (exécute l'outil avec les arguments enregistrés) ou refuse une demande, signée par
+    `identifiant` (une personne active, ADR-0009 §5 — voir `opsys.approbations.decider`).
 
     Un refus ne charge aucun outil : il reste possible même si le code d'un département est cassé.
     """
@@ -148,9 +150,17 @@ def decider_approbation(
     index: dict[str, Outil] = {}
     if approuver:
         index = outils_executables(departements, lambda: contextlib.nullcontext(cnx))
-    resultat = approbations.decider(cnx, ident, approuver, par, index, motif)
-    logger.info("demande %s : %s par %s", ident, resultat["statut"], par)
+    resultat = approbations.decider(cnx, ident, approuver, identifiant, index, departements, motif, attestation)
+    logger.info("demande %s : %s par %s", ident, resultat["statut"], identifiant)
     return resultat
+
+
+def file_proprietaire(
+    cnx: Connection, departements: Mapping[str, Departement], limite: int = 100
+) -> list[dict[str, Any]]:
+    """Demandes d'approbation en attente du socle, plus les attentes déclarées par les départements
+    (ADR-0009 §5, PLAN T1.3-a §6) : voir `opsys.approbations.file_proprietaire`."""
+    return approbations.file_proprietaire(cnx, departements, limite)
 
 
 def budgets(

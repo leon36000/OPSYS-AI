@@ -1,4 +1,5 @@
-"""Console web OPSYS : authentification, session signée, CSRF, approbations, modes, paliers, pages HTML."""
+"""Console web OPSYS : authentification par personne, session signée, CSRF, approbations, modes,
+paliers, pages HTML (ADR-0009 §5, PLAN T1.3-a)."""
 
 from __future__ import annotations
 
@@ -11,32 +12,42 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
-from opsys import approbations, console, modeles
+from opsys import approbations, console, identite, modeles
 from opsys.capacites import Capacites
 from opsys.console import application, pages, securite
 from opsys.console.securite import Configuration
 
-MOT_DE_PASSE = "phrase-de-passe-de-test-console"
 SECRET = "secret-de-signature-de-test-" + "x" * 32
-UTILISATEUR = "Gérante Test"
+IDENTIFIANT = "nathan"
+MOT_DE_PASSE = "mot-de-passe-de-console-test-1234"
 PREFIXE = "/opsys"  # préfixe par défaut derrière Caddy
-ENV_OK = {"OPSYS_CONSOLE_MOT_DE_PASSE": MOT_DE_PASSE, "OPSYS_CONSOLE_SECRET": SECRET}
+ENV_OK = {"OPSYS_CONSOLE_SECRET": SECRET}
+ATTESTATION_TEST = {"nom": "Alex Comptable", "profession": "CPA", "reference_document": "piece-jointe-test.pdf"}
+
+
+@pytest.fixture
+def personne_nathan(session):
+    """Personne 'nathan', rôle nathan_owner (ADR-0009 §5) : connexion console + décisions de test."""
+    with session() as cnx:
+        identite.creer_personne(cnx, IDENTIFIANT, "Nathan St-Louis", MOT_DE_PASSE, ["nathan_owner"])
+    return IDENTIFIANT
 
 
 @pytest.fixture
 def client(departements_demo, session):
     demo_outils.JOURNAL.clear()
-    app = application.creer_application(Configuration(MOT_DE_PASSE, SECRET), departements_demo, session)
+    app = application.creer_application(Configuration(SECRET), departements_demo, session)
     with TestClient(app, base_url=f"https://testserver{PREFIXE}") as client:
         yield client
 
 
-def _connecter(client, nom=UTILISATEUR, mot_de_passe=MOT_DE_PASSE):
-    return client.post("/connexion", data={"nom": nom, "mot_de_passe": mot_de_passe}, follow_redirects=False)
+def _connecter(client, identifiant=IDENTIFIANT, mot_de_passe=MOT_DE_PASSE):
+    return client.post("/connexion", data={"identifiant": identifiant, "mot_de_passe": mot_de_passe},
+                       follow_redirects=False)
 
 
 @pytest.fixture
-def connecte(client):
+def connecte(client, personne_nathan):
     assert _connecter(client).status_code == 303
     return client
 
@@ -47,9 +58,17 @@ def _csrf(client) -> str:
 
 @pytest.fixture
 def demande(departements_demo, session):
-    """Demande en attente créée par le vrai chemin des capacités (T2 en mode supervise)."""
+    """Demande en attente créée par le vrai chemin des capacités (T2/N4 en mode supervise)."""
     arguments = {"destinataire": "client", "texte": "<script>alert(1)</script>"}
     reponse = Capacites(departements_demo, session).appeler("m9_envoyer_message", arguments)
+    assert reponse["statut"] == "en_attente_approbation"
+    return reponse["demande_id"]
+
+
+@pytest.fixture
+def demande_n5(departements_demo, session):
+    """Demande N5 (m9_payer, T3) en attente : exerce l'attestation professionnelle (ADR-0009 §5)."""
+    reponse = Capacites(departements_demo, session).appeler("m9_payer", {"montant": 250})
     assert reponse["statut"] == "en_attente_approbation"
     return reponse["demande_id"]
 
@@ -60,11 +79,8 @@ def demande(departements_demo, session):
 @pytest.mark.parametrize(
     ("environ", "message"),
     [
-        ({}, "OPSYS_CONSOLE_MOT_DE_PASSE"),
-        ({"OPSYS_CONSOLE_MOT_DE_PASSE": "court"}, "12 caractères"),
-        ({"OPSYS_CONSOLE_MOT_DE_PASSE": MOT_DE_PASSE}, "OPSYS_CONSOLE_SECRET"),
-        ({"OPSYS_CONSOLE_MOT_DE_PASSE": MOT_DE_PASSE, "OPSYS_CONSOLE_SECRET": "trop-court"}, "32 caractères"),
-        ({"OPSYS_CONSOLE_MOT_DE_PASSE": SECRET, "OPSYS_CONSOLE_SECRET": SECRET}, "différer"),
+        ({}, "OPSYS_CONSOLE_SECRET"),
+        ({"OPSYS_CONSOLE_SECRET": "trop-court"}, "32 caractères"),
         ({**ENV_OK, "OPSYS_CONSOLE_COOKIE_SECURISE": "peut-etre"}, "OPSYS_CONSOLE_COOKIE_SECURISE"),
         ({**ENV_OK, "OPSYS_CONSOLE_PREFIXE": "opsys"}, "OPSYS_CONSOLE_PREFIXE"),
         ({**ENV_OK, "OPSYS_CONSOLE_PREFIXE": "/op sys"}, "OPSYS_CONSOLE_PREFIXE"),
@@ -75,41 +91,39 @@ def test_configuration_refusee_sans_secrets_solides(environ, message):
         Configuration.depuis_environnement(environ)
 
 
-def test_configuration_depuis_l_environnement_ne_revele_pas_les_secrets():
+def test_configuration_depuis_l_environnement_ne_revele_pas_le_secret():
     conf = Configuration.depuis_environnement(ENV_OK)
     assert (conf.cookie_securise, conf.prefixe) == (True, PREFIXE)
-    assert MOT_DE_PASSE not in repr(conf) and SECRET not in repr(conf)
+    assert SECRET not in repr(conf)
     assert Configuration.depuis_environnement({**ENV_OK, "OPSYS_CONSOLE_COOKIE_SECURISE": "0"}).cookie_securise is False
     assert Configuration.depuis_environnement({**ENV_OK, "OPSYS_CONSOLE_PREFIXE": "/console/"}).prefixe == "/console"
     assert Configuration.depuis_environnement({**ENV_OK, "OPSYS_CONSOLE_PREFIXE": ""}).prefixe == ""
 
 
 def test_session_signee_aller_retour_falsification_et_expiration():
-    ouverte = securite.ouvrir_session("  Gérante   Test ", duree=60, maintenant=1000)
-    assert (ouverte.utilisateur, ouverte.expire) == (UTILISATEUR, 1060) and len(ouverte.csrf) >= 32
+    ouverte = securite.ouvrir_session("nathan", ["nathan_owner"], duree=60, maintenant=1000)
+    assert (ouverte.utilisateur, ouverte.roles, ouverte.expire) == ("nathan", frozenset({"nathan_owner"}), 1060)
+    assert len(ouverte.csrf) >= 32
     jeton = securite.signer_session(ouverte, SECRET)
     assert securite.lire_session(jeton, SECRET, maintenant=1059) == ouverte
     assert securite.lire_session(jeton, SECRET, maintenant=1060) is None  # expirée
     assert securite.lire_session(jeton, "un-autre-secret-" + "y" * 32, maintenant=1000) is None
-    usurpee = securite.signer_session(dataclasses.replace(ouverte, utilisateur="Intrus"), SECRET).split(".")[0]
+    usurpee = securite.signer_session(dataclasses.replace(ouverte, utilisateur="intrus"), SECRET).split(".")[0]
     assert securite.lire_session(f"{usurpee}.{jeton.split('.')[1]}", SECRET, maintenant=1000) is None
     for invalide in (None, "", "sans-point", "a.b.c", "é.é", jeton + "x"):
         assert securite.lire_session(invalide, SECRET, maintenant=1000) is None
 
 
-def test_mot_de_passe_et_jeton_csrf():
-    assert securite.mot_de_passe_valide(MOT_DE_PASSE, MOT_DE_PASSE)
-    assert not securite.mot_de_passe_valide(MOT_DE_PASSE + "x", MOT_DE_PASSE)
-    assert not securite.mot_de_passe_valide("", MOT_DE_PASSE)
-    ouverte = securite.ouvrir_session(UTILISATEUR, 60)
+def test_jeton_csrf():
+    ouverte = securite.ouvrir_session("nathan", ["nathan_owner"], 60)
     assert securite.csrf_valide(ouverte.csrf, ouverte)
     assert not securite.csrf_valide("", ouverte) and not securite.csrf_valide(None, ouverte)
     assert not securite.csrf_valide("é" + ouverte.csrf[1:], ouverte)
 
 
-@pytest.mark.parametrize(("nom", "message"), [("   ", "indiquez votre nom"), ("x" * 81, "trop long"),
+@pytest.mark.parametrize(("nom", "message"), [("   ", "manquant"), ("x" * 81, "trop long"),
                                               ("a\x00b", "invalide")])
-def test_nom_de_signature_valide(nom, message):
+def test_identifiant_de_session_valide(nom, message):
     with pytest.raises(ValueError, match=message):
         securite.valider_nom(nom)
 
@@ -122,7 +136,7 @@ def test_pages_et_api_exigent_une_session(client):
         reponse = client.get(chemin, follow_redirects=False)
         assert (reponse.status_code, reponse.headers["location"]) == (303, f"{PREFIXE}/connexion")
     for methode, chemin in [("get", "/api/session"), ("get", "/api/departements"), ("get", "/api/approbations"),
-                            ("get", "/api/budgets"), ("get", "/api/paliers"),
+                            ("get", "/api/approbations/file"), ("get", "/api/budgets"), ("get", "/api/paliers"),
                             ("post", "/api/departements/m09-demo/mode"), ("post", "/api/approbations/x/decision"),
                             ("put", "/api/paliers/local")]:
         assert client.request(methode, chemin, json={}).status_code == 401
@@ -136,39 +150,51 @@ def test_pages_et_api_exigent_une_session(client):
     assert client.get("/statique/console.js").headers["content-type"].startswith("text/javascript")
 
 
-def test_connexion_refusee_avec_mauvais_mot_de_passe(client):
+def test_connexion_refusee_avec_mauvais_mot_de_passe(client, personne_nathan):
     reponse = _connecter(client, mot_de_passe="mauvais-mot-de-passe")
-    assert reponse.status_code == 401 and "Mot de passe incorrect" in reponse.text
+    assert reponse.status_code == 401 and "Identifiant ou mot de passe incorrect" in reponse.text
     assert "set-cookie" not in reponse.headers
     assert client.get("/api/session").status_code == 401
 
 
-def test_connexion_exige_un_nom_de_signature(client):
-    reponse = _connecter(client, nom="  ")
-    assert reponse.status_code == 400 and "il signe chaque décision" in reponse.text
+def test_connexion_refusee_pour_identifiant_inconnu_ou_personne_inactive(client, session, personne_nathan):
+    inconnu = _connecter(client, identifiant="fantome")
+    assert inconnu.status_code == 401 and "Identifiant ou mot de passe incorrect" in inconnu.text
+    with session() as cnx:
+        identite.activer(cnx, IDENTIFIANT, False)
+    inactive = _connecter(client)
+    assert inactive.status_code == 401 and "Identifiant ou mot de passe incorrect" in inactive.text
+
+
+def test_connexion_avec_identifiant_vide_refusee(client, personne_nathan):
+    """Un identifiant vide ne peut jamais correspondre à une personne (`opsys.identite` ne crée
+    aucun identifiant vide) : même refus générique qu'un identifiant inconnu, rien de plus révélé."""
+    reponse = _connecter(client, identifiant="  ")
+    assert reponse.status_code == 401 and "Identifiant ou mot de passe incorrect" in reponse.text
     assert "set-cookie" not in reponse.headers
 
 
-def test_connexion_pose_un_cookie_de_session_protege(client):
+def test_connexion_pose_un_cookie_de_session_protege(client, personne_nathan):
     reponse = _connecter(client)
     assert (reponse.status_code, reponse.headers["location"]) == (303, f"{PREFIXE}/departements")
     cookie = reponse.headers["set-cookie"]
     assert cookie.startswith("opsys_session=")
     for attribut in ("HttpOnly", "Secure", "SameSite=strict", f"Path={PREFIXE};", "Max-Age=28800"):
         assert attribut in cookie
-    assert client.get("/api/session").json()["utilisateur"] == UTILISATEUR
+    session_api = client.get("/api/session").json()
+    assert session_api["utilisateur"] == IDENTIFIANT and session_api["roles"] == ["nathan_owner"]
 
 
 def test_cookie_falsifie_ou_expire_refuse(client):
     maintenant = int(time.time())
-    expiree = securite.Session(utilisateur="Intrus", csrf="c" * 43, expire=maintenant - 1)
+    expiree = securite.Session(utilisateur="intrus", roles=frozenset(), csrf="c" * 43, expire=maintenant - 1)
     client.cookies.set("opsys_session", securite.signer_session(expiree, SECRET))
     assert client.get("/api/session").status_code == 401
-    valide = securite.Session(utilisateur="Intrus", csrf="c" * 43, expire=maintenant + 60)
+    valide = securite.Session(utilisateur="intrus", roles=frozenset({"admin"}), csrf="c" * 43, expire=maintenant + 60)
     client.cookies.set("opsys_session", securite.signer_session(valide, "un-autre-secret-" + "z" * 32))
     assert client.get("/api/session").status_code == 401
     client.cookies.set("opsys_session", securite.signer_session(valide, SECRET))  # témoin : bien signé
-    assert client.get("/api/session").json()["utilisateur"] == "Intrus"
+    assert client.get("/api/session").json() == {"utilisateur": "intrus", "roles": ["admin"], "csrf": "c" * 43}
 
 
 def test_deconnexion(connecte):
@@ -197,14 +223,15 @@ def test_parcours_approbation_par_l_api(connecte, session, demande):
     assert sans_jeton.status_code == 403 and demo_outils.JOURNAL == []
 
     entetes = {"X-CSRF-Token": _csrf(connecte)}
-    corps = {"decision": "approuver", "motif": "vu avec le client", "par": "Quelqu'un d'autre"}
+    corps = {"decision": "approuver", "motif": "vu avec le client"}
     reponse = connecte.post(url, json=corps, headers=entetes)
     assert reponse.status_code == 200 and reponse.json()["statut"] == "executee"
     assert demo_outils.JOURNAL == [{"a": "client", "texte": "<script>alert(1)</script>"}]
     with session() as cnx:
         [traitee] = approbations.lister(cnx, "executee")
-    # La signature vient de la session, jamais du corps de la requête.
-    assert (traitee["decide_par"], traitee["motif_decision"]) == (UTILISATEUR, "vu avec le client")
+    # La signature vient de la session, jamais du corps de la requête ; le rôle utilisé est enregistré.
+    assert (traitee["decide_par"], traitee["decide_role"], traitee["motif_decision"]) == (
+        IDENTIFIANT, "nathan_owner", "vu avec le client")
 
     deja = connecte.post(url, json={"decision": "refuser"}, headers=entetes)
     assert deja.status_code == 400 and "déjà traitée" in deja.json()["detail"]
@@ -227,11 +254,75 @@ def test_refus_par_formulaire_html_avec_arguments_exacts_echappes(connecte, sess
     assert "Demande refusée" in connecte.get("/approbations?ok=refusee").text
     with session() as cnx:
         [refusee] = approbations.lister(cnx, "refusee")
-    assert (refusee["decide_par"], refusee["motif_decision"]) == (UTILISATEUR, "non")
+    assert (refusee["decide_par"], refusee["decide_role"], refusee["motif_decision"]) == (
+        IDENTIFIANT, "nathan_owner", "non")
     assert demo_outils.JOURNAL == []
 
     deja = connecte.post(url, data={"decision": "approuver", "csrf": jeton}, follow_redirects=False)
     assert deja.status_code == 400 and "déjà traitée" in deja.text
+
+
+def test_approbation_employe_refusee_proprietaire_acceptee(connecte, session, departements_demo, demande):
+    """Un rôle non autorisé pour le niveau N de la demande est un refus nommé, rien exécuté, la
+    demande reste en attente (ADR-0009 §5). Ici : politique par défaut, seul nathan_owner décide."""
+    with session() as cnx:
+        identite.creer_personne(cnx, "employe1", "Un Employé", "mot-de-passe-employe-1234", ["employee"])
+    entetes = {"X-CSRF-Token": _csrf(connecte)}
+    corps = {"decision": "approuver"}
+    # Un employé n'a pas de session ici (la console authentifie par cookie) : on exerce directement
+    # le socle, la garde exacte que la console traverse.
+    with session() as cnx:
+        with pytest.raises(ValueError, match="aucun rôle autorisé"):
+            approbations.decider(cnx, demande, True, "employe1", {}, departements_demo)
+        [encore] = approbations.lister(cnx, "en_attente")
+    assert encore["id"] == demande
+    # Le propriétaire, lui, peut : le même chemin HTTP que testé plus haut le confirme déjà
+    # (`test_parcours_approbation_par_l_api`) ; ici on vérifie la page ne montre pas d'erreur pour lui.
+    reponse = connecte.post(f"/api/approbations/{demande}/decision", json=corps, headers=entetes)
+    assert reponse.status_code == 200 and reponse.json()["statut"] == "executee"
+
+
+def test_decision_n5_exige_l_attestation_par_l_api_et_le_formulaire(connecte, session, demande_n5):
+    entetes = {"X-CSRF-Token": _csrf(connecte)}
+    sans_attestation = connecte.post(f"/api/approbations/{demande_n5}/decision", json={"decision": "approuver"},
+                                     headers=entetes)
+    assert sans_attestation.status_code == 400 and "attestation" in sans_attestation.json()["detail"]
+    with session() as cnx:
+        [encore] = approbations.lister(cnx, "en_attente")
+    assert encore["id"] == demande_n5 and demo_outils.JOURNAL == []
+
+    avec_attestation = connecte.post(f"/api/approbations/{demande_n5}/decision",
+                                     json={"decision": "approuver", "attestation": ATTESTATION_TEST},
+                                     headers=entetes)
+    assert avec_attestation.status_code == 200 and avec_attestation.json()["statut"] == "executee"
+    with session() as cnx:
+        [traitee] = approbations.lister(cnx, "executee")
+    assert traitee["attestation"] == ATTESTATION_TEST
+    page = connecte.get("/approbations?statut=executee").text
+    assert "Attestation du professionnel" in page and ATTESTATION_TEST["nom"] in page
+
+
+def test_decision_n5_par_formulaire_html_avec_attestation(connecte, demande_n5):
+    page = connecte.get("/approbations").text
+    assert "attestation_nom" in page and "Niveau N5" in page
+    jeton = _csrf(connecte)
+    reponse = connecte.post(
+        f"/approbations/{demande_n5}/decision",
+        data={"decision": "approuver", "csrf": jeton, "attestation_nom": ATTESTATION_TEST["nom"],
+             "attestation_profession": ATTESTATION_TEST["profession"],
+             "attestation_document": ATTESTATION_TEST["reference_document"]},
+        follow_redirects=False,
+    )
+    assert (reponse.status_code, reponse.headers["location"]) == (303, f"{PREFIXE}/approbations?ok=executee")
+
+
+def test_file_du_proprietaire_agrege_socle_et_attentes(connecte, demande):
+    reponse = connecte.get("/api/approbations/file")
+    assert reponse.status_code == 200
+    file = reponse.json()["file"]
+    assert any(item["id"] == demande and item["type"] == "approbation" for item in file)
+    for item in file:
+        assert set(item) >= {"type", "id", "resume", "niveau", "depuis", "action_proposee", "departement"}
 
 
 # -- modes et paliers ----------------------------------------------------------------------------
@@ -243,7 +334,7 @@ def test_changement_de_mode_signe(connecte, session):
     url = "/api/departements/m09-demo/mode"
     reponse = connecte.post(url, json={"mode": "autonome"}, headers=entetes)
     assert reponse.status_code == 200
-    assert reponse.json() == {"departement": "m09-demo", "mode": "autonome", "par": UTILISATEUR}
+    assert reponse.json() == {"departement": "m09-demo", "mode": "autonome", "par": IDENTIFIANT}
     assert connecte.post(url, json={"mode": "libre"}, headers=entetes).status_code == 400
     inconnu = connecte.post("/api/departements/m09-inconnu/mode", json={"mode": "ombre"}, headers=entetes)
     assert inconnu.status_code == 404 and "département inconnu" in inconnu.json()["detail"]
@@ -258,7 +349,7 @@ def test_changement_de_mode_signe(connecte, session):
         ligne = cnx.execute(
             text("SELECT modifie_par FROM modes_departements WHERE departement = 'm09-demo'")
         ).mappings().fetchone()
-    assert ligne["modifie_par"] == UTILISATEUR
+    assert ligne["modifie_par"] == IDENTIFIANT
     invalide = connecte.post("/departements/m09-demo/mode", data={"mode": "libre", "csrf": jeton},
                              follow_redirects=False)
     assert invalide.status_code == 400 and "mode inconnu" in invalide.text
@@ -277,7 +368,7 @@ def test_paliers_invalides_400_et_valides_persistes(connecte, opsys_home):
 
     local = {"provider": "custom", "model": "qwen3:8b", "base_url": "http://ollama:11434/v1"}
     reponse = connecte.put("/api/paliers/local", json=local, headers=entetes)
-    assert reponse.status_code == 200 and reponse.json()["par"] == UTILISATEUR
+    assert reponse.status_code == 200 and reponse.json()["par"] == IDENTIFIANT
     assert modeles.charger_paliers() == {"local": local}
     assert connecte.get("/api/paliers").json()["manquants"] == ["rapide", "standard"]
 
@@ -321,8 +412,8 @@ def test_pages_en_francais_protegees_et_sans_ressource_externe(connecte, demande
     assert "Approuver" in approbations_page and "Refuser" in approbations_page
 
 
-def test_console_servie_a_la_racine_sans_prefixe(departements_demo, session):
-    app = application.creer_application(Configuration(MOT_DE_PASSE, SECRET, prefixe=""), departements_demo, session)
+def test_console_servie_a_la_racine_sans_prefixe(departements_demo, session, personne_nathan):
+    app = application.creer_application(Configuration(SECRET, prefixe=""), departements_demo, session)
     with TestClient(app, base_url="https://testserver") as client:
         assert client.get("/departements", follow_redirects=False).headers["location"] == "/connexion"
         reponse = _connecter(client)

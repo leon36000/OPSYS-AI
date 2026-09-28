@@ -125,10 +125,10 @@ def test_changer_mode_refuse_sans_rien_modifier(departements_demo, session, iden
 # -- approbations --------------------------------------------------------------------------------
 
 
-def test_lister_approbations_en_attente_d_abord_et_enrichies(departements_demo, session, demandes):
+def test_lister_approbations_en_attente_d_abord_et_enrichies(departements_demo, session, demandes, nathan):
     paiement, message = demandes
     with session() as cnx:
-        approbations.decider(cnx, message, False, "nathan", {}, "non")
+        approbations.decider(cnx, message, False, nathan, {}, departements_demo, "non")
         toutes = tableau_de_bord.lister_approbations(cnx, departements_demo)
         refusees = tableau_de_bord.lister_approbations(cnx, departements_demo, "refusee")
         en_attente = tableau_de_bord.nombre_en_attente(cnx)
@@ -160,53 +160,55 @@ def test_statuts_connus_de_la_base(session, demandes):
             cnx.execute(text("UPDATE approbations SET statut = 'bidon' WHERE id = :id"), {"id": message})
 
 
-def test_approuver_execute_l_outil_avec_les_arguments_exacts(departements_demo, session, demandes):
+def test_approuver_execute_l_outil_avec_les_arguments_exacts(departements_demo, session, demandes, nathan):
     _, message = demandes
     with session() as cnx:
         resultat = tableau_de_bord.decider_approbation(
-            cnx, departements_demo, message, "approuver", "nathan", "client d'accord"
+            cnx, departements_demo, message, "approuver", nathan, "client d'accord"
         )
     assert resultat["statut"] == "executee" and resultat["reponse"]["ok"] is True
     assert demo_outils.JOURNAL == [{"a": "client", "texte": "Bonjour <b>"}]
     with session() as cnx:
         [traitee] = tableau_de_bord.lister_approbations(cnx, departements_demo, "executee")
     assert (traitee["decide_par"], traitee["motif_decision"]) == ("nathan", "client d'accord")
+    assert traitee["decide_role"] == "nathan_owner"
 
 
-def test_refuser_n_execute_rien(departements_demo, session, demandes):
+def test_refuser_n_execute_rien(departements_demo, session, demandes, nathan):
     paiement, _ = demandes
     with session() as cnx:
         resultat = tableau_de_bord.decider_approbation(
-            cnx, departements_demo, paiement, "refuser", "nathan", "pas maintenant"
+            cnx, departements_demo, paiement, "refuser", nathan, "pas maintenant"
         )
     assert resultat == {"id": paiement, "statut": "refusee"}
     assert demo_outils.JOURNAL == []
 
 
-def test_refus_possible_meme_si_les_outils_sont_illisibles(departements_demo, session, demandes):
+def test_refus_possible_meme_si_les_outils_sont_illisibles(departements_demo, session, demandes, nathan):
     paiement, message = demandes
     casses = {"m09-demo": dataclasses.replace(departements_demo["m09-demo"], module_outils="module_absent_opsys")}
     with session() as cnx:
-        assert tableau_de_bord.decider_approbation(cnx, casses, paiement, "refuser", "nathan")["statut"] == "refusee"
+        assert tableau_de_bord.decider_approbation(cnx, casses, paiement, "refuser",
+                                                    nathan)["statut"] == "refusee"
         with pytest.raises(ModuleNotFoundError):
-            tableau_de_bord.decider_approbation(cnx, casses, message, "approuver", "nathan")
+            tableau_de_bord.decider_approbation(cnx, casses, message, "approuver", nathan)
         [restante] = tableau_de_bord.lister_approbations(cnx, casses, "en_attente")
     assert restante["id"] == message  # fail-closed : rien n'est exécuté, la demande reste en attente
     assert demo_outils.JOURNAL == []
 
 
-def test_decisions_invalides_refusees(departements_demo, session, demandes):
+def test_decisions_invalides_refusees(departements_demo, session, demandes, nathan):
     paiement, message = demandes
     with session() as cnx:
         with pytest.raises(ValueError, match="décision inconnue"):
-            tableau_de_bord.decider_approbation(cnx, departements_demo, paiement, "peut-etre", "nathan")
+            tableau_de_bord.decider_approbation(cnx, departements_demo, paiement, "peut-etre", nathan)
         with pytest.raises(ValueError, match="signée"):
             tableau_de_bord.decider_approbation(cnx, departements_demo, paiement, "approuver", " ")
         with pytest.raises(KeyError, match="demande inconnue"):
-            tableau_de_bord.decider_approbation(cnx, departements_demo, "inconnue", "refuser", "nathan")
-        tableau_de_bord.decider_approbation(cnx, departements_demo, message, "refuser", "nathan")
+            tableau_de_bord.decider_approbation(cnx, departements_demo, "inconnue", "refuser", nathan)
+        tableau_de_bord.decider_approbation(cnx, departements_demo, message, "refuser", nathan)
         with pytest.raises(ValueError, match="déjà traitée"):
-            tableau_de_bord.decider_approbation(cnx, departements_demo, message, "approuver", "nathan")
+            tableau_de_bord.decider_approbation(cnx, departements_demo, message, "approuver", nathan)
     assert demo_outils.JOURNAL == []
 
 

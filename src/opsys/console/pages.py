@@ -121,13 +121,14 @@ def gabarit(titre: str, contenu: str, *, prefixe: str, session: Session | None =
     )
 
 
-def page_connexion(*, prefixe: str, erreur: str = "", nom: str = "") -> str:
+def page_connexion(*, prefixe: str, erreur: str = "", identifiant: str = "") -> str:
     contenu = (
         f'<form method="post" action="{e(prefixe)}/connexion" class="carte pile connexion">'
-        '<label for="nom">Votre nom</label>'
-        f'<input id="nom" name="nom" autocomplete="username" required maxlength="80" value="{e(nom)}">'
-        '<p class="note">Il signe chaque décision, changement de mode et palier.</p>'
-        '<label for="mot_de_passe">Mot de passe administrateur</label>'
+        '<label for="identifiant">Identifiant</label>'
+        f'<input id="identifiant" name="identifiant" autocomplete="username" required maxlength="80" '
+        f'value="{e(identifiant)}">'
+        '<p class="note">Votre compte signe chaque décision, changement de mode et palier.</p>'
+        '<label for="mot_de_passe">Mot de passe</label>'
         '<input id="mot_de_passe" name="mot_de_passe" type="password" autocomplete="current-password" required>'
         '<button type="submit" class="principal">Se connecter</button></form>'
     )
@@ -244,11 +245,24 @@ def _formulaire_decision(d: Mapping[str, Any], prefixe: str, csrf: str) -> str:
     if d.get("autonomie") == "T3":
         confirmation = ("Action T3 (frontière humaine : paiement, écriture financière, publication, engagement "
                         f"ou suppression). {confirmation}")
+    attestation = ""
+    if d.get("niveau") == "N5":
+        attestation = (
+            '<p class="note">Niveau N5 (ADR-0009 §5) : approuver exige, en plus de votre signature, '
+            "l'attestation du professionnel concerné (comptable, fiscaliste, avocat, prêteur…).</p>"
+            f'<label for="attestation_nom-{e(ident)}">Nom du professionnel</label>'
+            f'<input id="attestation_nom-{e(ident)}" name="attestation_nom" maxlength="200">'
+            f'<label for="attestation_profession-{e(ident)}">Profession</label>'
+            f'<input id="attestation_profession-{e(ident)}" name="attestation_profession" maxlength="200">'
+            f'<label for="attestation_document-{e(ident)}">Référence du document joint</label>'
+            f'<input id="attestation_document-{e(ident)}" name="attestation_document" maxlength="200">'
+        )
     return (
         f'<form method="post" action="{e(prefixe)}/approbations/{_segment(ident)}/decision" class="pile">'
         f'<input type="hidden" name="csrf" value="{e(csrf)}">'
         f'<label for="motif-{e(ident)}">Motif (facultatif)</label>'
         f'<textarea id="motif-{e(ident)}" name="motif" rows="2" maxlength="1000"></textarea>'
+        f"{attestation}"
         '<div class="actions">'
         f'<button type="submit" name="decision" value="approuver" class="principal" data-confirmer="{e(confirmation)}">'
         "Approuver et exécuter</button>"
@@ -268,15 +282,28 @@ def _carte_demande(d: Mapping[str, Any], prefixe: str, csrf: str) -> str:
     if d.get("motif_demande"):
         meta.append(("Motif de la demande", d["motif_demande"]))
     if statut != "en_attente":
-        meta += [("Décidée par", d.get("decide_par")), ("Décidée le", _date(d.get("decide_le"))),
+        decideur = d.get("decide_par")
+        if d.get("decide_role"):
+            decideur = f"{decideur} ({d['decide_role']})"
+        meta += [("Décidée par", decideur), ("Décidée le", _date(d.get("decide_le"))),
                  ("Motif de la décision", d.get("motif_decision") or "—")]
     details = "".join(f"<dt>{e(cle)}</dt><dd>{e(valeur)}</dd>" for cle, valeur in meta)
     resultat = "" if d.get("resultat") is None else f'<h4>Résultat</h4><pre>{e(_json(d["resultat"]))}</pre>'
+    attestation = ""
+    if d.get("attestation"):
+        att = d["attestation"]
+        attestation = (
+            "<h4>Attestation du professionnel (N5)</h4>"
+            f'<dl class="meta"><dt>Nom</dt><dd>{e(att.get("nom"))}</dd>'
+            f'<dt>Profession</dt><dd>{e(att.get("profession"))}</dd>'
+            f'<dt>Document</dt><dd>{e(att.get("reference_document"))}</dd></dl>'
+        )
     return (
         f'<article class="carte" id="demande-{e(d["id"])}"><header class="carte-entete">'
         f'{_badge(autonomie or "T?", CLASSES_AUTONOMIE.get(autonomie or "", ""))}'
         f'<h3><code>{e(d["outil"])}</code></h3>{_badge(libelle, classe)}</header>'
-        f'<dl class="meta">{details}</dl><h4>Arguments exacts</h4><pre>{e(_json(d["arguments"]))}</pre>{resultat}'
+        f'<dl class="meta">{details}</dl><h4>Arguments exacts</h4><pre>{e(_json(d["arguments"]))}</pre>'
+        f"{attestation}{resultat}"
         + (_formulaire_decision(d, prefixe, csrf) if statut == "en_attente" else "")
         + "</article>"
     )

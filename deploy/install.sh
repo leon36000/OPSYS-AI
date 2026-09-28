@@ -120,7 +120,9 @@ ensure_env() {
     set_if_placeholder LITELLM_MASTER_KEY "sk-$(gen_secret 40)"
     set_if_placeholder POSTGRES_OPSYS_PASSWORD "$(gen_secret 32)"
     set_if_placeholder POSTGRES_LITELLM_PASSWORD "$(gen_secret 32)"
-    set_if_placeholder OPSYS_CONSOLE_MOT_DE_PASSE "$(gen_secret 24)"
+    # Pas de mot de passe partagé pour la console (ADR-0009 §5) : OPSYS_CONSOLE_SECRET signe
+    # seulement les sessions ; chaque personne se connecte avec son propre mot de passe, créé par
+    # `opsys personnes creer` (voir print_summary ci-dessous).
     set_if_placeholder OPSYS_CONSOLE_SECRET "$(gen_secret 44)"
     for i in 1 2 3 4 5 6 7 8 9 10; do
         set_if_placeholder "OPSYS_CLE_M${i}" "sk-opsys-m${i}-$(gen_secret 28)"
@@ -232,11 +234,15 @@ Installation OPSYS terminée.
 
   Secrets (deploy/.env, chmod 600) :
     - jeton Control UI    : OPENCLAW_GATEWAY_TOKEN
-    - mot de passe console : OPSYS_CONSOLE_MOT_DE_PASSE
 
 Prochaines étapes (docs/ops/INSTALLATION-VPS.md) :
-  1. Connectez-vous à la console OPSYS (https://console.${OPSYS_DOMAINE}/) et configurez au
-     moins le palier de modèle "standard" (onglet Modèles), puis les départements à activer.
+  0. Amorçage (une seule fois, ADR-0009 §5 — la console n'a plus de mot de passe partagé) :
+       docker compose -f deploy/docker-compose.yml exec opsys \\
+         opsys personnes creer nathan --nom "Nathan" --role nathan_owner
+     (mot de passe demandé sans écho ; garder l'identifiant et le mot de passe en lieu sûr).
+  1. Connectez-vous à la console OPSYS (https://console.${OPSYS_DOMAINE}/) avec cette personne et
+     configurez au moins le palier de modèle "standard" (onglet Modèles), puis les départements à
+     activer.
   2. Connectez-vous au Control UI OpenClaw (/) avec le jeton ci-dessus.
   3. Les agents des départements apparaissent dans OpenClaw dans les
      ${OPSYS_SYNC_INTERVAL_SECONDS:-300}s suivant la configuration des modèles (synchro

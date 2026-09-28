@@ -35,6 +35,41 @@ class Autonomie(enum.StrEnum):
     T3 = "T3"  # frontière humaine : paiement, écriture financière, publication, engagement, suppression
 
 
+class Niveau(enum.StrEnum):
+    """Échelle unique d'approbation humaine (ADR-0009 §4, DEFINITION-PRODUIT §5) : N0 lecture,
+    N1 brouillon, N2 tâche interne — automatique ; N3 action externe à faible risque ou modification
+    interne non finale — validation humaine au départ ; N4 engagement (dépense, prix, envoi sensible,
+    écriture finale) — le propriétaire ; N5 argent réel, fiscal, légal, paie, RH, achat majeur — le
+    propriétaire ET l'attestation du professionnel concerné, jamais automatique."""
+
+    N0 = "N0"
+    N1 = "N1"
+    N2 = "N2"
+    N3 = "N3"
+    N4 = "N4"
+    N5 = "N5"
+
+
+_RANG_NIVEAU: dict[Niveau, int] = {niveau: rang for rang, niveau in enumerate(Niveau)}
+
+# Correspondance par défaut T -> N (ADR-0009 §4). T0 recouvre N0 à N2 (lecture, brouillon, tâche
+# interne) : les trois sont "automatique" dans l'ADR, aucun n'exige jamais d'approbation, donc le
+# choix exact parmi les trois ne change aucun comportement d'approbation ; on retient N0 (lecture),
+# le sens premier de T0 ("calcul pur, sans effet de bord"). T1, T2 et T3 ont chacun une
+# correspondance ponctuelle documentée dans l'ADR : T1 -> N3, T2 -> N4, T3 -> N5.
+_NIVEAU_PAR_DEFAUT: dict[Autonomie, Niveau] = {
+    Autonomie.T0: Niveau.N0,
+    Autonomie.T1: Niveau.N3,
+    Autonomie.T2: Niveau.N4,
+    Autonomie.T3: Niveau.N5,
+}
+
+
+def niveau_par_defaut(autonomie: Autonomie) -> Niveau:
+    """Niveau N par défaut d'un outil qui ne fixe pas `Outil.niveau` explicitement (ADR-0009 §4)."""
+    return _NIVEAU_PAR_DEFAUT[autonomie]
+
+
 @dataclasses.dataclass(frozen=True)
 class Outil:
     nom: str
@@ -42,6 +77,10 @@ class Outil:
     parametres: Mapping[str, Any]
     fonction: Callable[..., Any]
     autonomie: Autonomie = Autonomie.T0
+    # N explicite (ADR-0009 §4) : optionnel, sinon `niveau_effectif` retombe sur la correspondance
+    # par défaut depuis `autonomie` (`niveau_par_defaut`). Aucune régression des paliers T existants :
+    # tant qu'aucun outil ne fixe `niveau`, tout se comporte exactement comme avant.
+    niveau: Niveau | None = None
 
     def __post_init__(self) -> None:
         if not _NOM_OUTIL.match(self.nom):
@@ -60,6 +99,13 @@ class Outil:
             raise ValueError(f"{self.nom} : paramètres requis non décrits : {sorted(manquants)}")
         if not isinstance(self.autonomie, Autonomie):
             raise ValueError(f"{self.nom} : autonomie invalide {self.autonomie!r}")
+        if self.niveau is not None and not isinstance(self.niveau, Niveau):
+            raise ValueError(f"{self.nom} : niveau invalide {self.niveau!r}")
+
+    @property
+    def niveau_effectif(self) -> Niveau:
+        """N explicite si fixé (`niveau`), sinon la correspondance par défaut depuis `autonomie`."""
+        return self.niveau if self.niveau is not None else niveau_par_defaut(self.autonomie)
 
     @property
     def departement_code(self) -> str:

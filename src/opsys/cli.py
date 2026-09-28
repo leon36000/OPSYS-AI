@@ -1,20 +1,24 @@
-"""CLI `opsys` : vérifier, générer les profils, piloter approbations, modes, budgets, paliers."""
+"""CLI `opsys` : vérifier, générer les profils, piloter approbations, modes, budgets, paliers, identité."""
 
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
+import os
 import sys
 from pathlib import Path
 
 from sqlalchemy import func, select
 from sqlalchemy.engine import make_url
 
-from . import __version__, approbations, etat, evenements, jetons, modeles, openclaw, passerelle, stockage
+from . import __version__, approbations, etat, evenements, identite, jetons, modeles, openclaw, passerelle, stockage
 from .capacites import outils_executables
-from .departements import charger_departements, dependances_manquantes, tous_les_outils
+from .departements import charger_departements, dependances_manquantes, tous_les_outils, verifier_attentes
 from .profils import generer_distribution
 from .stockage.schema import REGISTRES
+
+ENV_MOT_DE_PASSE_PERSONNE = "OPSYS_PERSONNE_MOT_DE_PASSE"
 
 
 def _afficher(donnees: object) -> None:
@@ -46,6 +50,12 @@ def cmd_verifier(args: argparse.Namespace) -> int:
         for probleme in problemes_evenements:
             print(f"  - {probleme}", file=sys.stderr)
         return 1
+    problemes_attentes = verifier_attentes(deps)
+    if problemes_attentes:
+        print("ERREUR : attentes() de département invalide :", file=sys.stderr)
+        for probleme in problemes_attentes:
+            print(f"  - {probleme}", file=sys.stderr)
+        return 1
     print(f"OK : {len(deps)} départements, {len(index)} outils, noms uniques, manifestes valides, "
           "événements cohérents.")
     if args.paliers:
@@ -71,13 +81,69 @@ def cmd_profils(args: argparse.Namespace) -> int:
     return 0
 
 
+def _attestation_depuis_args(args: argparse.Namespace) -> dict[str, str] | None:
+    valeurs = {"nom": args.attestation_nom, "profession": args.attestation_profession,
+               "reference_document": args.attestation_document}
+    if all(v is None for v in valeurs.values()):
+        return None  # aucune option d'attestation fournie : validée (ou pas requise) par `decider`
+    return valeurs
+
+
 def cmd_approbations(args: argparse.Namespace) -> int:
+    deps = charger_departements()
     with etat.session() as cnx:
         if args.action == "lister":
             _afficher(approbations.lister(cnx, args.statut))
             return 0
-        index = outils_executables(charger_departements(), etat.session)
-        _afficher(approbations.decider(cnx, args.id, args.action == "approuver", args.par, index, args.motif))
+        if args.action == "file":
+            _afficher(approbations.file_proprietaire(cnx, deps))
+            return 0
+        index = outils_executables(deps, etat.session)
+        _afficher(approbations.decider(cnx, args.id, args.action == "approuver", args.par, index, deps,
+                                       args.motif, _attestation_depuis_args(args)))
+    return 0
+
+
+def _lire_mot_de_passe_personne() -> str:
+    """Jamais en argument de ligne de commande (ADR-0009 §5) : `getpass` sans écho, ou la variable
+    d'environnement OPSYS_PERSONNE_MOT_DE_PASSE (tests, scripts)."""
+    valeur = os.environ.get(ENV_MOT_DE_PASSE_PERSONNE)
+    return valeur if valeur is not None else getpass.getpass("Mot de passe : ")
+
+
+def cmd_personnes(args: argparse.Namespace) -> int:
+    if args.action != "lister" and not args.identifiant:
+        print("identifiant requis", file=sys.stderr)
+        return 2
+    with etat.session() as cnx:
+        if args.action == "lister":
+            _afficher([identite.vers_json(p) for p in identite.lister(cnx)])
+            return 0
+        if args.action == "creer":
+            if not args.nom:
+                print("--nom requis", file=sys.stderr)
+                return 2
+            personne = identite.creer_personne(cnx, args.identifiant, args.nom, _lire_mot_de_passe_personne(),
+                                               args.role)
+            _afficher(identite.vers_json(personne))
+            return 0
+        if args.action == "roles":
+            for role in args.ajouter_role:
+                identite.ajouter_role(cnx, args.identifiant, role)
+            for role in args.retirer_role:
+                identite.retirer_role(cnx, args.identifiant, role)
+            personne = identite.personne(cnx, args.identifiant)
+            if personne is None:
+                print(f"personne inconnue : {args.identifiant}", file=sys.stderr)
+                return 1
+            _afficher(identite.vers_json(personne))
+            return 0
+        if args.action in ("activer", "desactiver"):
+            identite.activer(cnx, args.identifiant, args.action == "activer")
+            _afficher({"identifiant": args.identifiant, "actif": args.action == "activer"})
+            return 0
+        identite.changer_mot_de_passe(cnx, args.identifiant, _lire_mot_de_passe_personne())
+        _afficher({"identifiant": args.identifiant, "mot_de_passe": "modifié"})
     return 0
 
 
@@ -209,12 +275,25 @@ def construire_parseur() -> argparse.ArgumentParser:
     g.set_defaults(fn=cmd_profils)
 
     a = sous.add_parser("approbations", help="file d'approbation humaine")
-    a.add_argument("action", choices=["lister", "approuver", "refuser"])
+    a.add_argument("action", choices=["lister", "approuver", "refuser", "file"])
     a.add_argument("id", nargs="?")
     a.add_argument("--statut")
-    a.add_argument("--par", default="")
+    a.add_argument("--par", default="", help="identifiant de la personne qui décide (ADR-0009 §5)")
     a.add_argument("--motif", default="")
+    a.add_argument("--attestation-nom", help="N5 seulement : nom du professionnel (ADR-0009 §5)")
+    a.add_argument("--attestation-profession", help="N5 seulement : profession du professionnel")
+    a.add_argument("--attestation-document", help="N5 seulement : référence du document joint")
     a.set_defaults(fn=cmd_approbations)
+
+    pe = sous.add_parser("personnes", help="identité : personnes et rôles (ADR-0009 §5)")
+    pe.add_argument("action", choices=["creer", "lister", "roles", "activer", "desactiver", "mot-de-passe"])
+    pe.add_argument("identifiant", nargs="?")
+    pe.add_argument("--nom", help="creer : nom de la personne")
+    pe.add_argument("--role", action="append", default=[], choices=sorted(identite.ROLES),
+                    help="creer : rôle initial (répétable)")
+    pe.add_argument("--ajouter-role", action="append", default=[], choices=sorted(identite.ROLES))
+    pe.add_argument("--retirer-role", action="append", default=[], choices=sorted(identite.ROLES))
+    pe.set_defaults(fn=cmd_personnes)
 
     b = sous.add_parser("base", help="base de l'instance : migrations et état (ADR-0009)")
     b.add_argument("action", choices=["migrer", "etat"])
@@ -261,7 +340,7 @@ def construire_parseur() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = construire_parseur().parse_args(argv)
-    if args.commande == "approbations" and args.action != "lister" and not args.id:
+    if args.commande == "approbations" and args.action not in ("lister", "file") and not args.id:
         print("id de demande requis", file=sys.stderr)
         return 2
     if args.commande == "paliers" and args.action == "definir" and not (args.palier and args.provider and args.model):

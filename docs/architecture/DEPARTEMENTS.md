@@ -126,6 +126,62 @@ consommé existe au catalogue, que chaque type consommé a sa fonction, et qu'au
 Un nouveau département démarre en `ombre`. Le propriétaire le promeut depuis le dashboard ou avec
 `opsys mode <id> supervise --par <nom>`.
 
+## Niveaux N et politique d'approbation par département (ADR-0009 §4/§5)
+
+Chaque outil porte aussi un niveau N (`opsys.outils.Niveau`), l'échelle unique de la définition
+produit (§5) : c'est en N que s'exprime la règle d'approbation (`opsys.politiques.
+approbation_requise_niveau`), T reste la classification historique du socle. Un `Outil` fixe N
+explicitement (`niveau=Niveau.N2`, par exemple) ou laisse la correspondance par défaut depuis T
+s'appliquer (`niveau_effectif`, documentée dans `opsys/outils.py`) :
+
+| T | N par défaut | Règle |
+|---|---|---|
+| T0 | N0 (lecture, lus N0–N2 : tous automatiques, le choix exact ne change rien) | automatique |
+| T1 | N3 | validation humaine au départ (`ombre`) |
+| T2 | N4 | le propriétaire (`ombre`, `supervise`) |
+| T3 | N5 | le propriétaire **et** l'attestation du professionnel ; jamais automatique |
+
+Un département déclare, dans `department.yaml`, quels rôles (ADR-0009 §5 : `nathan_owner`,
+`admin`, `finance`, `manager`, `seller`, `employee`, `client`, `system_agent`) peuvent décider
+(approuver ou refuser) une demande de niveau N3 ou N4 — bloc `approbations`, entièrement optionnel :
+
+```yaml
+approbations:              # optionnel ; n3/n4, chacun optionnel
+  n3: [manager, nathan_owner]
+  n4: [nathan_owner]
+```
+
+Absent, ou un niveau qu'il ne couvre pas : politique par défaut la plus restrictive, `nathan_owner`
+seul (fail-closed). `opsys.approbations.decider` exige une personne active (`opsys.identite`) dont
+un rôle figure dans la politique du DÉPARTEMENT DE LA DEMANDE pour son niveau N ; sinon, refus
+nommé, rien exécuté, la demande reste en attente.
+
+**N5 ne se déclare pas** : c'est une frontière fixe de l'ADR (« la signature de `nathan_owner` »,
+jamais automatique, jamais déléguée à un autre rôle) — un manifeste qui tente `approbations.n5`
+est rejeté au chargement. Une demande N5 exige, en plus de `nathan_owner`, une attestation
+structurée du professionnel (nom, profession, référence du document joint) pour être approuvée.
+
+## File du propriétaire (ADR-0009 §5)
+
+`opsys.approbations.file_proprietaire` (CLI `opsys approbations file`, API `GET
+/api/approbations/file` de la console) rassemble, de façon compacte, les demandes d'approbation du
+socle en attente et les « attentes » que chaque département déclare lui-même — mêmes chantiers en
+révision, mêmes bons de commande à approuver, mais pas encore une demande formelle du socle. Un
+département optionnel expose, au même endroit que `outils()` et `consommateurs()` :
+
+```python
+def attentes() -> list[dict]:                         # optionnel, même mécanisme que consommateurs()
+    return [{"type": "chantier_a_reviser", "id": "wct-123", "resume": "Écart matériaux 42 %",
+             "niveau": "N4", "depuis": "2026-09-28T12:00:00+00:00", "action_proposee": "réviser"}]
+```
+
+Forme commune de chaque élément : `type`, `id`, `resume`, `niveau`, `depuis`, `action_proposee`
+(plus `departement`, ajouté par `file_proprietaire`). `opsys verifier` vérifie que `attentes()`, si
+présent, se charge (`opsys.departements.verifier_attentes`) ; un département dont l'appel échoue à
+l'usage est journalisé et sauté, jamais bloquant pour les autres. Aucun département de production
+n'implémente `attentes()` pour l'instant (PLAN T1.3-b/c) ; le mécanisme est exercé par le
+département de démonstration des tests du socle (`tests/fixtures/demo_outils.py`).
+
 ## SOUL.md
 
 Une page maximum : identité, ce que l'agent fait, ce qu'il ne fait jamais. Les capacités et les

@@ -5,13 +5,16 @@
 - Données et actions passent toutes par `opsys.tableau_de_bord`, donc par le socle.
 
 Sécurité (voir `securite`) :
-- mot de passe administrateur obligatoire ; session par cookie signé (HttpOnly, Secure,
-  SameSite=Strict), limité au préfixe de la console ;
+- connexion PAR PERSONNE (identifiant + mot de passe propre, `opsys.identite.authentifier`) — plus
+  de mot de passe partagé (ADR-0009 §5). Amorçage de la toute première personne (`nathan_owner`) :
+  CLI `opsys personnes creer`, avant la première connexion.
+- session par cookie signé (HttpOnly, Secure, SameSite=Strict), limité au préfixe de la console,
+  portant l'identifiant de la personne ET ses rôles (`securite.Session`) ;
 - jeton CSRF sur chaque écriture : champ `csrf` des formulaires, en-tête `X-CSRF-Token` de l'API ;
-- chaque écriture est signée par l'utilisateur connecté, jamais par une valeur envoyée ;
+- chaque écriture est signée par la personne connectée, jamais par une valeur envoyée ;
 - CSP stricte : aucune ressource externe, aucun script en ligne.
 
-Client de l'API : POST <préfixe>/connexion (formulaire nom, mot_de_passe) pose le cookie ;
+Client de l'API : POST <préfixe>/connexion (formulaire identifiant, mot_de_passe) pose le cookie ;
 GET <préfixe>/api/session donne le jeton CSRF ; les écritures portent l'en-tête X-CSRF-Token.
 Derrière Caddy, la console vit sous OPSYS_CONSOLE_PREFIXE (défaut /opsys), que le proxy retire
 ce préfixe ou non.
@@ -38,7 +41,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from .. import etat, stockage, tableau_de_bord
+from .. import etat, identite, stockage, tableau_de_bord
 from ..departements import Departement, charger_departements
 from . import pages, ressources, securite
 from .securite import Configuration, Session
@@ -132,6 +135,17 @@ async def _objet_json(request: Request) -> dict[str, Any]:
     return donnees
 
 
+def _attestation_depuis_formulaire(champs: Mapping[str, str]) -> dict[str, str] | None:
+    """N5 seulement (ADR-0009 §5) : trois champs plats du formulaire HTML (pas d'objet imbriqué en
+    `application/x-www-form-urlencoded`) ; absents pour toute autre décision. `approbations.decider`
+    valide le contenu — ce formulaire ne fait que le rassembler."""
+    valeurs = {"nom": champs.get("attestation_nom", ""), "profession": champs.get("attestation_profession", ""),
+              "reference_document": champs.get("attestation_document", "")}
+    if not any(v.strip() for v in valeurs.values()):
+        return None
+    return valeurs
+
+
 def creer_application(
     configuration: Configuration,
     departements: Mapping[str, Departement] | None = None,
@@ -189,13 +203,19 @@ def creer_application(
         return HTMLResponse(pages.page_erreur("Action refusée", texte, prefixe=prefixe), status_code=403)
 
     # -- actions (fil de travail : SQLite et outils sont bloquants) --------------------------------
+    def authentifier(identifiant: str, mot_de_passe: str) -> identite.Personne | None:
+        with cnx_factory() as cnx:
+            return identite.authentifier(cnx, identifiant, mot_de_passe)
+
     def changer_mode(ident: str, mode: Any, session: Session) -> dict[str, Any]:
         with cnx_factory() as cnx:
             return tableau_de_bord.changer_mode(cnx, deps, ident, mode, session.utilisateur)
 
-    def decider(ident: str, decision: Any, motif: str, session: Session) -> dict[str, Any]:
+    def decider(ident: str, decision: Any, motif: str, attestation: Mapping[str, Any] | None,
+               session: Session) -> dict[str, Any]:
         with cnx_factory() as cnx:
-            return tableau_de_bord.decider_approbation(cnx, deps, ident, decision, session.utilisateur, motif.strip())
+            return tableau_de_bord.decider_approbation(cnx, deps, ident, decision, session.utilisateur,
+                                                        motif.strip(), attestation)
 
     def ecrire_palier(palier: str, conf: Any, session: Session) -> dict[str, Any]:
         return tableau_de_bord.ecrire_palier(palier, conf, session.utilisateur, chemin_paliers)
@@ -277,15 +297,19 @@ def creer_application(
     @app.post("/connexion")
     async def connexion(request: Request) -> Response:
         champs = await _formulaire(request)
-        nom = champs.get("nom", "")
-        if not securite.mot_de_passe_valide(champs.get("mot_de_passe", ""), configuration.mot_de_passe):
-            logger.warning("échec de connexion")
-            page = pages.page_connexion(prefixe=prefixe, erreur="Mot de passe incorrect.", nom=nom)
+        identifiant = champs.get("identifiant", "").strip()
+        authentifiee = await run_in_threadpool(authentifier, identifiant, champs.get("mot_de_passe", ""))
+        if authentifiee is None:
+            logger.warning("échec de connexion pour %r", identifiant)
+            page = pages.page_connexion(prefixe=prefixe, erreur="Identifiant ou mot de passe incorrect.",
+                                        identifiant=identifiant)
             return HTMLResponse(page, status_code=401)
         try:
-            session = securite.ouvrir_session(nom, configuration.duree_session)
+            session = securite.ouvrir_session(authentifiee.identifiant, authentifiee.roles,
+                                              configuration.duree_session)
         except ValueError as exc:
-            return HTMLResponse(pages.page_connexion(prefixe=prefixe, erreur=str(exc), nom=nom), status_code=400)
+            return HTMLResponse(pages.page_connexion(prefixe=prefixe, erreur=str(exc), identifiant=identifiant),
+                                status_code=400)
         reponse = RedirectResponse(f"{prefixe}/departements", status_code=303)
         reponse.set_cookie(
             securite.NOM_COOKIE, securite.signer_session(session, configuration.secret),
@@ -329,9 +353,10 @@ def creer_application(
         session = session_page(request)
         champs = await _formulaire(request)
         verifier_formulaire(champs, session)
+        attestation = _attestation_depuis_formulaire(champs)
         try:
             resultat = await run_in_threadpool(decider, ident, champs.get("decision", ""), champs.get("motif", ""),
-                                               session)
+                                               attestation, session)
         except (ValueError, KeyError) as exc:
             return await run_in_threadpool(page_approbations, session, "", _code(exc), (_message(exc), "erreur"))
         except ImportError as exc:
@@ -361,9 +386,9 @@ def creer_application(
 
     # -- API JSON ----------------------------------------------------------------------------------
     @app.get("/api/session")
-    def api_session(request: Request) -> dict[str, str]:
+    def api_session(request: Request) -> dict[str, Any]:
         session = session_api(request)
-        return {"utilisateur": session.utilisateur, "csrf": session.csrf}
+        return {"utilisateur": session.utilisateur, "roles": sorted(session.roles), "csrf": session.csrf}
 
     @app.get("/api/departements")
     def api_departements(request: Request) -> dict[str, Any]:
@@ -387,6 +412,14 @@ def creer_application(
             except ValueError as exc:
                 raise HTTPException(400, str(exc)) from exc
 
+    @app.get("/api/approbations/file")
+    def api_approbations_file(request: Request) -> dict[str, Any]:
+        """File du propriétaire (ADR-0009 §5, PLAN T1.3-a §6) : demandes du socle en attente, plus
+        les attentes déclarées par les départements (`opsys.approbations.file_proprietaire`)."""
+        session_api(request)
+        with cnx_factory() as cnx:
+            return {"file": tableau_de_bord.file_proprietaire(cnx, deps)}
+
     @app.post("/api/approbations/{ident}/decision")
     async def api_decision(ident: str, request: Request) -> dict[str, Any]:
         session = ecriture_api(request)
@@ -394,7 +427,10 @@ def creer_application(
         motif = corps.get("motif", "")
         if not isinstance(motif, str):
             raise HTTPException(400, "motif : texte attendu")
-        return await executer_api(decider, ident, corps.get("decision", ""), motif, session)
+        attestation = corps.get("attestation")
+        if attestation is not None and not isinstance(attestation, dict):
+            raise HTTPException(400, "attestation : objet attendu")
+        return await executer_api(decider, ident, corps.get("decision", ""), motif, attestation, session)
 
     @app.get("/api/budgets")
     def api_budgets(request: Request) -> dict[str, Any]:

@@ -15,13 +15,14 @@ from __future__ import annotations
 import dataclasses
 import importlib
 import re
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-from .outils import Outil
+from .identite import ROLES, Role
+from .outils import Niveau, Outil
 from .politiques import valider_mode
 
 SCHEMA = "opsys.departement/v1"
@@ -30,6 +31,15 @@ _ID = re.compile(r"^m(0[1-9]|10)-[a-z][a-z0-9-]+$")
 _CODE = re.compile(r"^M(10|[1-9])$")
 _CRON = re.compile(r"^(\S+\s+){4}\S+$")
 _SKILL = re.compile(r"^[a-z0-9][a-z0-9-]{1,63}$")
+# Niveaux qu'un département peut configurer dans son bloc `approbations` (ADR-0009 §5). N3 et N4
+# seulement : en dessous de N3, une action est automatique et ne crée jamais de demande (ADR-0009
+# §4) ; N5 est une frontière FIXE de l'ADR (« la signature de nathan_owner », jamais automatique,
+# jamais déléguée) — `DEFAUT_ROLES_NIVEAU` s'applique toujours à N5, aucun manifeste ne peut
+# l'élargir ni le restreindre (voir `_politique_approbation`).
+_CLES_POLITIQUE = {"n3": Niveau.N3, "n4": Niveau.N4}
+# Politique par défaut, fail-closed (ADR-0009 §5) : absente du manifeste, ou un niveau non déclaré,
+# retombe sur le rôle le plus restrictif seul.
+DEFAUT_ROLES_NIVEAU: frozenset[str] = frozenset({Role.NATHAN_OWNER.value})
 
 
 @dataclasses.dataclass(frozen=True)
@@ -53,6 +63,25 @@ class Kpi:
 
 
 @dataclasses.dataclass(frozen=True)
+class PolitiqueApprobation:
+    """Rôles autorisés à décider (approuver ou refuser) une demande, par niveau N3/N4/N5
+    (ADR-0009 §5). `approbations.decider` exige une personne active dont un rôle figure dans
+    `roles_pour(niveau)` de SON département ; sinon, refus nommé, rien exécuté.
+
+    Un niveau non couvert par `roles` (bloc absent du manifeste, ou niveau non déclaré dans le
+    bloc) retombe sur `DEFAUT_ROLES_NIVEAU` — le rôle le plus restrictif seul (fail-closed).
+    """
+
+    roles: Mapping[Niveau, frozenset[str]] = dataclasses.field(default_factory=dict)
+
+    def roles_pour(self, niveau: Niveau) -> frozenset[str]:
+        return self.roles.get(niveau, DEFAUT_ROLES_NIVEAU)
+
+
+POLITIQUE_PAR_DEFAUT = PolitiqueApprobation()
+
+
+@dataclasses.dataclass(frozen=True)
 class Departement:
     id: str
     code: str
@@ -71,11 +100,16 @@ class Departement:
     racine: Path
     evenements_publie: tuple[str, ...] = ()
     evenements_consomme: tuple[str, ...] = ()
+    politique_approbation: PolitiqueApprobation = POLITIQUE_PAR_DEFAUT
 
     @property
     def prefixe_outils(self) -> str:
         """'m3' pour M3 : préfixe obligatoire des noms d'outils du département."""
         return self.code.lower()
+
+    def roles_autorises(self, niveau: Niveau) -> frozenset[str]:
+        """Rôles pouvant décider une demande de ce niveau N dans ce département (ADR-0009 §5)."""
+        return self.politique_approbation.roles_pour(niveau)
 
     @property
     def numero(self) -> int:
@@ -123,6 +157,23 @@ class Departement:
                 )
         return dict(consommateurs)
 
+    def charger_attentes(self) -> Callable[[], Sequence[Mapping[str, Any]]] | None:
+        """Importe `module_outils.attentes` s'il existe (ADR-0009 §5, PLAN T1.3-a) ; None sinon.
+
+        Même mécanisme que `charger_consommateurs` : fonction optionnelle exposée par le module qui
+        définit `outils()`, découverte par `getattr`, jamais déclarée dans le manifeste. Elle n'est
+        PAS appelée ici (aucune connexion disponible à ce point) : `approbations.file_proprietaire`
+        l'appelle dans la transaction courante, pour que le département puisse lire ses propres
+        registres (`opsys.stockage.maillons`). Aucun département de production ne l'implémente
+        encore (PLAN T1.3-b/c) ; le mécanisme est exercé par les départements de démonstration des
+        tests du socle.
+        """
+        module = importlib.import_module(self.module_outils)
+        fonction = getattr(module, "attentes", None)
+        if fonction is not None and not callable(fonction):
+            raise TypeError(f"{self.id} : {self.module_outils}.attentes doit être appelable")
+        return fonction
+
 
 def _texte(donnees: Mapping[str, Any], cle: str, contexte: str) -> str:
     valeur = donnees.get(cle)
@@ -145,6 +196,45 @@ def _entier_positif(donnees: Mapping[str, Any], cle: str, contexte: str) -> int:
     if isinstance(valeur, bool) or not isinstance(valeur, int) or valeur <= 0:
         raise ValueError(f"{contexte} : {cle} doit être un entier strictement positif")
     return valeur
+
+
+def _politique_approbation(donnees: Mapping[str, Any], ctx: str) -> PolitiqueApprobation:
+    """`approbations: {n3, n4}` (ADR-0009 §5) : rôles autorisés à décider par niveau N.
+
+    Bloc entièrement optionnel ; absent, ou un niveau qu'il ne couvre pas, retombe sur
+    `DEFAUT_ROLES_NIVEAU` (fail-closed, ADR-0009 §5). N5 ne se déclare PAS ici : c'est une
+    frontière fixe de l'ADR (« la signature de nathan_owner », en plus de l'attestation du
+    professionnel, jamais automatique, jamais déléguée) — elle retombe donc toujours sur
+    `DEFAUT_ROLES_NIVEAU` (nathan_owner seul), sans exception possible depuis un manifeste.
+    """
+    brut = donnees.get("approbations")
+    if brut is None:
+        return POLITIQUE_PAR_DEFAUT
+    if not isinstance(brut, Mapping):
+        raise ValueError(f"{ctx} : approbations doit être un objet ({{n3, n4}})")
+    if "n5" in brut:
+        raise ValueError(
+            f"{ctx} : approbations.n5 ne se déclare pas dans un manifeste : N5 est fixé système à "
+            "nathan_owner seul (ADR-0009 §5 — jamais automatique, jamais délégué à un autre rôle)"
+        )
+    inconnues = sorted(set(brut) - set(_CLES_POLITIQUE))
+    if inconnues:
+        raise ValueError(f"{ctx} : approbations : clé(s) inconnue(s) {inconnues} (attendu : n3, n4)")
+    roles: dict[Niveau, frozenset[str]] = {}
+    for cle, niveau in _CLES_POLITIQUE.items():
+        if cle not in brut:
+            continue
+        valeur = brut[cle]
+        if not isinstance(valeur, list) or not valeur or not all(isinstance(r, str) and r for r in valeur):
+            raise ValueError(f"{ctx} : approbations.{cle} doit être une liste non vide de rôles")
+        ensemble = frozenset(valeur)
+        inconnus = sorted(ensemble - ROLES)
+        if inconnus:
+            raise ValueError(
+                f"{ctx} : approbations.{cle} : rôle(s) inconnu(s) {inconnus} (ADR-0009 §5 : {sorted(ROLES)})"
+            )
+        roles[niveau] = ensemble
+    return PolitiqueApprobation(roles=roles)
 
 
 def lire_manifeste(dossier: Path) -> Departement:
@@ -235,6 +325,7 @@ def lire_manifeste(dossier: Path) -> Departement:
         racine=dossier,
         evenements_publie=evenements_publie,
         evenements_consomme=evenements_consomme,
+        politique_approbation=_politique_approbation(donnees, ctx),
     )
 
 
@@ -275,3 +366,19 @@ def tous_les_outils(departements: Iterable[Departement]) -> dict[str, tuple[Depa
                 raise ValueError(f"outil {outil.nom} déclaré par deux départements")
             index[outil.nom] = (dep, outil)
     return index
+
+
+def verifier_attentes(departements: Mapping[str, Departement]) -> list[str]:
+    """`opsys verifier` : chaque `attentes()` déclaré (s'il y en a un) doit au moins se charger.
+
+    Même esprit que `evenements.verifier_coherence` : un département cassé est signalé, jamais une
+    panne de la commande. `file_proprietaire` retente le même chargement (et l'appel) à l'usage ;
+    cette fonction ne fait que le vérifier tôt, en CI.
+    """
+    problemes: list[str] = []
+    for dep in departements.values():
+        try:
+            dep.charger_attentes()
+        except Exception as exc:  # noqa: BLE001 — signalé, jamais une panne de `opsys verifier`
+            problemes.append(f"{dep.id} : attentes() illisible ({type(exc).__name__}: {exc})")
+    return problemes

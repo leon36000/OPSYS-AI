@@ -126,8 +126,9 @@ services:
       # voir Caddyfile) plutôt que sous /opsys du domaine principal — origines séparées de la
       # Control UI OpenClaw (cookies de session isolés), recommandation sécurité.
       OPSYS_CONSOLE_PREFIXE: ""
-      OPSYS_CONSOLE_MOT_DE_PASSE: ${OPSYS_CONSOLE_MOT_DE_PASSE:?OPSYS_CONSOLE_MOT_DE_PASSE manquant dans .env (>=12 caractères)}
-      OPSYS_CONSOLE_SECRET: ${OPSYS_CONSOLE_SECRET:?OPSYS_CONSOLE_SECRET manquant dans .env (>=32 caractères, different du mot de passe)}
+      # Pas de mot de passe partagé (ADR-0009 §5) : ce secret signe seulement les sessions, chaque
+      # personne se connecte avec son propre mot de passe (amorçage : `opsys personnes creer`).
+      OPSYS_CONSOLE_SECRET: ${OPSYS_CONSOLE_SECRET:?OPSYS_CONSOLE_SECRET manquant dans .env (>=32 caractères)}
       OPSYS_CONSOLE_COOKIE_SECURISE: "1"
       # uvicorn n'accepte X-Forwarded-For que de Caddy : IP réelle du client dans les journaux.
       FORWARDED_ALLOW_IPS: ${OPSYS_IP_CADDY:-172.30.87.10}

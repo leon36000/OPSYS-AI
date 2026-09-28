@@ -24,6 +24,8 @@ from opsys.serveur_mcp import application_http_departements
 JETON = "jeton-de-test-suffisamment-long-0123456789"
 VUS: list[str | None] = []
 _SCHEMA = {"type": "object", "properties": {"note": {"type": "string"}}, "required": ["note"]}
+# opsys_effacer est T3 -> niveau par défaut N5 (ADR-0009 §4) : attestation obligatoire pour approuver.
+ATTESTATION_TEST = {"nom": "Alex Comptable", "profession": "CPA", "reference_document": "piece-jointe-test.pdf"}
 
 
 def _noter(note: str) -> dict:
@@ -46,7 +48,7 @@ def test_outil_commun_sans_appelant_refuse(departements_demo, session):
     assert VUS == []
 
 
-def test_outil_commun_execute_au_nom_de_l_appelant(departements_demo, session):
+def test_outil_commun_execute_au_nom_de_l_appelant(departements_demo, session, nathan):
     cap = Capacites(departements_demo, session, appelant="m09-demo")  # mode supervise : T1 passe
     assert cap.appeler("opsys_noter", {"note": "x"})["resultat"]["departement"] == "m09-demo"
     demande = cap.appeler("opsys_effacer", {"note": "y"})  # T3 : toujours approuvé
@@ -54,23 +56,28 @@ def test_outil_commun_execute_au_nom_de_l_appelant(departements_demo, session):
     index = {o.nom: o for o in cap.lister()}
     with session() as cnx:
         assert approbations.lister(cnx)[0]["departement"] == "m09-demo"
-        approbations.decider(cnx, demande["demande_id"], True, "nathan", index)
+        approbations.decider(cnx, demande["demande_id"], True, nathan, index, departements_demo,
+                             attestation=ATTESTATION_TEST)
     assert VUS == ["m09-demo", "m09-demo"]  # l'exécution approuvée garde le département d'origine
 
 
 def test_outil_commun_approuve_depuis_la_console_et_la_cli(departements_demo, racine_demo, session, monkeypatch,
-                                                          capsys):
+                                                          capsys, nathan):
     """Une demande pour un outil commun (mémoire) doit s'exécuter quelle que soit la surface qui l'approuve."""
     cap = Capacites(departements_demo, session, appelant="m09-demo")
     par_console = cap.appeler("opsys_effacer", {"note": "console"})["demande_id"]
     par_cli = cap.appeler("opsys_effacer", {"note": "cli"})["demande_id"]
     with session() as cnx:
-        resultat = tableau_de_bord.decider_approbation(cnx, departements_demo, par_console, "approuver", "nathan")
+        resultat = tableau_de_bord.decider_approbation(cnx, departements_demo, par_console, "approuver", nathan,
+                                                        attestation=ATTESTATION_TEST)
     assert resultat["statut"] == "executee"
 
     monkeypatch.setenv("OPSYS_DEPARTMENTS", str(racine_demo))
     capsys.readouterr()
-    assert cli.main(["approbations", "approuver", par_cli, "--par", "nathan"]) == 0
+    assert cli.main(["approbations", "approuver", par_cli, "--par", nathan,
+                     "--attestation-nom", ATTESTATION_TEST["nom"],
+                     "--attestation-profession", ATTESTATION_TEST["profession"],
+                     "--attestation-document", ATTESTATION_TEST["reference_document"]]) == 0
     assert json.loads(capsys.readouterr().out)["statut"] == "executee"
     assert VUS == ["m09-demo", "m09-demo"]
 

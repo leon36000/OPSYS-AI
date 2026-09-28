@@ -83,9 +83,19 @@ OPSYS ne peut générer la configuration des agents OpenClaw tant qu'aucun **pal
 n'est associé à un fournisseur — c'est un choix délibéré (fail-closed) : mieux vaut un message
 clair « configurez les modèles » qu'un agent pointant vers un modèle inexistant.
 
-1. Ouvrez `https://console.<OPSYS_DOMAINE>` (console OPSYS, sous-domaine dédié — voir §1) et
-   connectez-vous avec `OPSYS_CONSOLE_MOT_DE_PASSE` (`deploy/.env`).
-2. Onglet **Modèles** : associez au moins le palier `standard` à un fournisseur.
+1. Amorçage, une seule fois (ADR-0009 §5 : plus de mot de passe partagé, chaque personne a le
+   sien) — créez la première personne, `nathan_owner` :
+   ```
+   docker compose -f deploy/docker-compose.yml exec opsys \
+     opsys personnes creer nathan --nom "Nathan" --role nathan_owner
+   ```
+   Le mot de passe est demandé sans écho (jamais en argument de ligne de commande) ; gardez-le en
+   lieu sûr avec l'identifiant (`nathan`). D'autres personnes et rôles ensuite : `opsys personnes
+   creer <identifiant> --nom "…" --role <rôle>` (rôles : `nathan_owner`, `admin`, `finance`,
+   `manager`, `seller`, `employee`, `client`, `system_agent` — ADR-0009 §5).
+2. Ouvrez `https://console.<OPSYS_DOMAINE>` (console OPSYS, sous-domaine dédié — voir §1) et
+   connectez-vous avec cet identifiant et ce mot de passe.
+3. Onglet **Modèles** : associez au moins le palier `standard` à un fournisseur.
    - **Cloud** : fournisseur (`anthropic`, `openai`, `deepseek`, `gemini`, `openrouter`,
      `mistral`, `xai`, `groq`, `moonshot`) + nom de modèle exact. La clé API correspondante doit
      déjà être dans `deploy/.env` (`ANTHROPIC_API_KEY`, etc.) — redémarrez `litellm` si vous
@@ -94,7 +104,7 @@ clair « configurez les modèles » qu'un agent pointant vers un modèle inexist
      `docker compose -f docker-compose.yml --profile ollama up -d ollama`, puis
      `docker compose -f docker-compose.yml exec ollama ollama pull <modele>` — et associez le
      palier au fournisseur `ollama` (URL interne `http://ollama:11434`, jamais `/v1`).
-3. Les paliers `local`, `rapide` et `fort` sont optionnels ; un département sans palier
+4. Les paliers `local`, `rapide` et `fort` sont optionnels ; un département sans palier
    spécifique dédié utilise `standard`.
 
 La synchronisation reprend automatiquement dans les 5 minutes (`OPSYS_SYNC_INTERVAL_SECONDS`), ou

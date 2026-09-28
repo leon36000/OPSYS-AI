@@ -22,7 +22,7 @@ from . import approbations, idempotence, jetons
 from .contexte import HorodatageAppareil, appeler_en_tant_que, receptionne_de
 from .departements import Departement, tous_les_outils
 from .outils import Autonomie, Outil, executer_atomique, valider_arguments
-from .politiques import approbation_requise
+from .politiques import approbation_requise_niveau
 
 _SCHEMA_VIDE = {"type": "object", "properties": {}, "additionalProperties": False}
 logger = logging.getLogger("opsys.capacites")
@@ -203,14 +203,16 @@ class Capacites:
                         "details": "Budget de tokens épuisé : termine brièvement et escalade à un humain.",
                         "budget": budget}
             mode = approbations.mode_effectif(cnx, departement.id, departement.mode)
-            if approbation_requise(outil.autonomie, mode):
+            if approbation_requise_niveau(outil.niveau_effectif, mode):
                 erreurs = valider_arguments(outil.parametres, arguments)
                 if erreurs:
                     return {"ok": False, "erreur": "arguments_invalides", "details": erreurs}
-                ident = approbations.creer_demande(cnx, departement.id, nom, arguments)
+                ident = approbations.creer_demande(cnx, departement.id, nom, arguments,
+                                                   niveau=outil.niveau_effectif)
                 return {"ok": True, "statut": "en_attente_approbation", "demande_id": ident,
-                        "details": f"Action {outil.autonomie.value} en mode {mode} : un humain doit "
-                                   "l'approuver dans la console OPSYS. Ne la présente pas comme faite."}
+                        "details": f"Action {outil.autonomie.value} ({outil.niveau_effectif.value}) en mode "
+                                   f"{mode} : un humain doit l'approuver dans la console OPSYS. Ne la "
+                                   "présente pas comme faite."}
         with appeler_en_tant_que(departement.id):
             return self._tronquer(executer_atomique(outil, arguments), nom)
 

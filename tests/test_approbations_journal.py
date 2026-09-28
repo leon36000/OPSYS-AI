@@ -9,10 +9,16 @@ import pytest
 from memoire.doubles import postgres_ephemere, raison_sans_docker
 from sqlalchemy import text
 
-from opsys import approbations, etat, modeles, stockage
-from opsys.outils import Autonomie, Outil
+from opsys import approbations, etat, identite, modeles, stockage
+from opsys.outils import Autonomie, Niveau, Outil
 
 _SCHEMA = {"type": "object", "properties": {"x": {"type": "integer"}}, "required": ["x"]}
+# Les outils de ce module sont T2 (engagement) -> niveau par défaut N4 (ADR-0009 §4) : seul
+# `nathan_owner` les décide sous la politique par défaut (fail-closed, ADR-0009 §5). N4, pas N5 :
+# ce module teste la mécanique générale de la file (atomicité, concurrence, journal), pas
+# l'attestation professionnelle propre à N5 (voir `tests/test_identite_approbations.py`).
+DEPARTEMENTS: dict = {}  # aucun manifeste chargé : `decider` retombe sur la politique par défaut
+NIVEAU_TEST = Niveau.N4
 APPELS: list[int] = []
 
 
@@ -44,12 +50,12 @@ def _lente(x: int) -> dict:
 
 
 OUTILS = {
-    "m9_panne": Outil("m9_panne", "Outil qui tombe en panne.", _SCHEMA, _panne, Autonomie.T3),
-    "m9_ok": Outil("m9_ok", "Outil qui réussit.", _SCHEMA, _ok, Autonomie.T3),
+    "m9_panne": Outil("m9_panne", "Outil qui tombe en panne.", _SCHEMA, _panne, Autonomie.T2),
+    "m9_ok": Outil("m9_ok", "Outil qui réussit.", _SCHEMA, _ok, Autonomie.T2),
     "m9_panne_ecrit": Outil("m9_panne_ecrit", "Écrit puis tombe en panne.", _SCHEMA,
-                            _panne_apres_ecriture, Autonomie.T3),
-    "m9_refuse_ecrit": Outil("m9_refuse_ecrit", "Écrit puis refuse.", _SCHEMA, _refus_apres_ecriture, Autonomie.T3),
-    "m9_lent": Outil("m9_lent", "Outil lent, pour la course entre deux décisions.", _SCHEMA, _lente, Autonomie.T3),
+                            _panne_apres_ecriture, Autonomie.T2),
+    "m9_refuse_ecrit": Outil("m9_refuse_ecrit", "Écrit puis refuse.", _SCHEMA, _refus_apres_ecriture, Autonomie.T2),
+    "m9_lent": Outil("m9_lent", "Outil lent, pour la course entre deux décisions.", _SCHEMA, _lente, Autonomie.T2),
 }
 
 
@@ -58,30 +64,50 @@ def _vider():
     APPELS.clear()
 
 
-def test_panne_pendant_execution_termine_en_echec_sans_rejeu(session):
+def _creer(cnx, outil: str, arguments: dict) -> str:
+    return approbations.creer_demande(cnx, "m09-demo", outil, arguments, niveau=NIVEAU_TEST)
+
+
+def test_panne_pendant_execution_termine_en_echec_sans_rejeu(session, nathan):
     with session() as cnx:
-        ident = approbations.creer_demande(cnx, "m09-demo", "m9_panne", {"x": 1})
-        decision = approbations.decider(cnx, ident, True, "nathan", OUTILS)
+        ident = _creer(cnx, "m9_panne", {"x": 1})
+        decision = approbations.decider(cnx, ident, True, nathan, OUTILS, DEPARTEMENTS)
         assert decision["statut"] == "echec"
         assert decision["reponse"]["erreur"] == "panne_execution"
         with pytest.raises(ValueError, match="déjà traitée"):
-            approbations.decider(cnx, ident, True, "nathan", OUTILS)
+            approbations.decider(cnx, ident, True, nathan, OUTILS, DEPARTEMENTS)
     assert APPELS == [1]  # exécuté une seule fois
 
 
 def test_reservation_concurrente_refusee(session):
     with session() as cnx:
-        ident = approbations.creer_demande(cnx, "m09-demo", "m9_ok", {"x": 2})
+        ident = _creer(cnx, "m9_ok", {"x": 2})
         cnx.execute(text("UPDATE approbations SET statut = 'en_cours' WHERE id = :id"), {"id": ident})
+        # La demande est déjà prise en charge : le refus intervient avant même la vérification de
+        # rôle, donc "autre" n'a pas besoin d'être une personne enregistrée pour ce test.
         with pytest.raises(ValueError, match="déjà traitée"):
-            approbations.decider(cnx, ident, True, "autre", OUTILS)
+            approbations.decider(cnx, ident, True, "autre", OUTILS, DEPARTEMENTS)
     assert APPELS == []
 
 
-def test_journal_trace_decisions_modes_et_paliers(session, opsys_home):
+def test_decision_refusee_sans_personne_active(session):
+    """Fail-closed (ADR-0009 §5) : un identifiant inconnu, ou une personne inactive, ne décide rien —
+    la demande reste `en_attente`, rien n'est exécuté."""
     with session() as cnx:
-        ident = approbations.creer_demande(cnx, "m09-demo", "m9_ok", {"x": 3})
-        approbations.decider(cnx, ident, True, "nathan", OUTILS, "ok pour moi")
+        ident = _creer(cnx, "m9_ok", {"x": 99})
+        with pytest.raises(ValueError, match="personne inconnue ou inactive"):
+            approbations.decider(cnx, ident, True, "fantome", OUTILS, DEPARTEMENTS)
+        with pytest.raises(ValueError, match="doit être signée par une personne"):
+            approbations.decider(cnx, ident, True, "  ", OUTILS, DEPARTEMENTS)
+        [demande] = approbations.lister(cnx, "en_attente")
+    assert demande["id"] == ident and demande["decide_par"] is None
+    assert APPELS == []
+
+
+def test_journal_trace_decisions_modes_et_paliers(session, opsys_home, nathan):
+    with session() as cnx:
+        ident = _creer(cnx, "m9_ok", {"x": 3})
+        approbations.decider(cnx, ident, True, nathan, OUTILS, DEPARTEMENTS, "ok pour moi")
         approbations.fixer_mode(cnx, "m09-demo", "supervise", "nathan")
     modeles.enregistrer_paliers({"rapide": {"provider": "anthropic", "model": "claude-haiku-4-5-20251001"}},
                                 par="nathan")
@@ -90,17 +116,17 @@ def test_journal_trace_decisions_modes_et_paliers(session, opsys_home):
     actions = [(e["action"], e["par"]) for e in journal]
     assert actions == [("modeles.paliers", "nathan"), ("departement.mode", "nathan"),
                        ("approbation.approuver", "nathan")]
-    assert journal[2]["details"] == {"outil": "m9_ok", "statut": "executee"}
+    assert journal[2]["details"] == {"outil": "m9_ok", "statut": "executee", "role": "nathan_owner"}
 
 
 # -- ADR-0009 : décision et exécution dans une seule transaction --------------------------------
 
 
-def test_panne_apres_ecriture_annule_le_maillon_mais_garde_le_statut_echec(session):
+def test_panne_apres_ecriture_annule_le_maillon_mais_garde_le_statut_echec(session, nathan):
     """`executer_atomique` ouvre un point de sauvegarde : la panne n'annule que l'écriture métier."""
     with session() as cnx:
-        ident = approbations.creer_demande(cnx, "m09-demo", "m9_panne_ecrit", {"x": 7})
-        decision = approbations.decider(cnx, ident, True, "nathan", OUTILS)
+        ident = _creer(cnx, "m9_panne_ecrit", {"x": 7})
+        decision = approbations.decider(cnx, ident, True, nathan, OUTILS, DEPARTEMENTS)
     assert decision["statut"] == "echec" and decision["reponse"]["erreur"] == "panne_execution"
     with session() as cnx:
         [demande] = approbations.lister(cnx)
@@ -108,10 +134,10 @@ def test_panne_apres_ecriture_annule_le_maillon_mais_garde_le_statut_echec(sessi
     assert len(stockage.maillons("m09-demo", "principal")) == 0
 
 
-def test_refus_metier_apres_ecriture_annule_le_maillon_mais_garde_le_statut_echec(session):
+def test_refus_metier_apres_ecriture_annule_le_maillon_mais_garde_le_statut_echec(session, nathan):
     with session() as cnx:
-        ident = approbations.creer_demande(cnx, "m09-demo", "m9_refuse_ecrit", {"x": 8})
-        decision = approbations.decider(cnx, ident, True, "nathan", OUTILS)
+        ident = _creer(cnx, "m9_refuse_ecrit", {"x": 8})
+        decision = approbations.decider(cnx, ident, True, nathan, OUTILS, DEPARTEMENTS)
     assert decision["statut"] == "echec" and decision["reponse"]["erreur"] == "refus_metier"
     with session() as cnx:
         [demande] = approbations.lister(cnx)
@@ -119,18 +145,18 @@ def test_refus_metier_apres_ecriture_annule_le_maillon_mais_garde_le_statut_eche
     assert len(stockage.maillons("m09-demo", "principal")) == 0
 
 
-def test_panne_apres_reservation_annule_toute_la_transaction(session, monkeypatch):
+def test_panne_apres_reservation_annule_toute_la_transaction(session, monkeypatch, nathan):
     """Une panne juste avant le commit (après réservation ET exécution) n'écrit RIEN : la demande
     reste `en_attente` et le maillon métier disparaît — décision et exécution sont une transaction."""
     with session() as cnx:
-        ident = approbations.creer_demande(cnx, "m09-demo", "m9_ok", {"x": 9})
+        ident = _creer(cnx, "m9_ok", {"x": 9})
 
     def _crash(*_args: object, **_kwargs: object) -> None:
         raise RuntimeError("panne simulée juste avant le commit")
 
     monkeypatch.setattr(approbations, "journaliser", _crash)  # dernier appel de `decider`, avant le commit
     with pytest.raises(RuntimeError, match="panne simulée"), session() as cnx:
-        approbations.decider(cnx, ident, True, "nathan", OUTILS)
+        approbations.decider(cnx, ident, True, nathan, OUTILS, DEPARTEMENTS)
     # Nouvelle transaction : la précédente n'a jamais committé, y compris sa propre réservation.
     with session() as cnx:
         [demande] = approbations.lister(cnx)
@@ -141,15 +167,15 @@ def test_panne_apres_reservation_annule_toute_la_transaction(session, monkeypatc
 def _decider_concurremment(session, ident: str, resultats: list) -> None:
     try:
         with session() as cnx:
-            resultats.append(approbations.decider(cnx, ident, True, "nathan", OUTILS))
+            resultats.append(approbations.decider(cnx, ident, True, "nathan", OUTILS, DEPARTEMENTS))
     except ValueError as exc:
         resultats.append(exc)
 
 
-def test_deux_decisions_concurrentes_une_seule_execution(session):
+def test_deux_decisions_concurrentes_une_seule_execution(session, nathan):
     """Deux humains approuvent la même demande en même temps : l'outil ne s'exécute qu'une fois."""
     with session() as cnx:
-        ident = approbations.creer_demande(cnx, "m09-demo", "m9_lent", {"x": 10})
+        ident = _creer(cnx, "m9_lent", {"x": 10})
     resultats: list[dict | ValueError] = []
     fils = [threading.Thread(target=_decider_concurremment, args=(session, ident, resultats)) for _ in range(2)]
     for fil in fils:
@@ -174,11 +200,14 @@ def test_atomicite_et_concurrence_sur_postgresql(monkeypatch):
         try:
             stockage.migrer(url)
             with stockage.transaction() as cnx:
-                ident_echec = approbations.creer_demande(cnx, "m09-demo", "m9_panne_ecrit", {"x": 1})
-                ident_course = approbations.creer_demande(cnx, "m09-demo", "m9_lent", {"x": 2})
+                identite.creer_personne(cnx, "nathan", "Nathan St-Louis", "mot-de-passe-de-test-pg-1234",
+                                        ["nathan_owner"])
+                ident_echec = approbations.creer_demande(cnx, "m09-demo", "m9_panne_ecrit", {"x": 1},
+                                                         niveau=NIVEAU_TEST)
+                ident_course = approbations.creer_demande(cnx, "m09-demo", "m9_lent", {"x": 2}, niveau=NIVEAU_TEST)
 
             with stockage.transaction() as cnx:
-                decision = approbations.decider(cnx, ident_echec, True, "nathan", OUTILS)
+                decision = approbations.decider(cnx, ident_echec, True, "nathan", OUTILS, DEPARTEMENTS)
             assert decision["statut"] == "echec"
             with stockage.transaction() as cnx:
                 [demande] = [d for d in approbations.lister(cnx) if d["id"] == ident_echec]

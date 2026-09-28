@@ -108,3 +108,13 @@ def consommateurs() -> dict:
     tant qu'un test ne fournit pas explicitement cette déclaration (`opsys.departements.Departement`
     en mémoire, ou un manifeste temporaire — voir `docs/architecture/DEPARTEMENTS.md`)."""
     return {"opsys.demo_complete": _recevoir_demo_complete}
+
+
+# Attentes déclarées par ce département de démonstration (ADR-0009 §5, PLAN T1.3-a §6) : même
+# mécanisme de découverte que `consommateurs()`. Vide par défaut ; un test peuple cette liste pour
+# exercer `approbations.file_proprietaire` (`tests/test_approbations_identite.py`), puis la vide.
+ATTENTES_DEMO: list[dict] = []
+
+
+def attentes() -> list[dict]:
+    return list(ATTENTES_DEMO)

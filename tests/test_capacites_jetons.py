@@ -30,27 +30,28 @@ def test_refus_metier_et_outil_inconnu(capacites):
     assert capacites.appeler("m9_inexistant", {})["erreur"] == "outil_inconnu"
 
 
-def test_t2_en_mode_supervise_passe_par_approbation(capacites, session):
+def test_t2_en_mode_supervise_passe_par_approbation(capacites, session, departements_demo, nathan):
     reponse = capacites.appeler("m9_envoyer_message", {"destinataire": "client", "texte": "Bonjour"})
     assert reponse["statut"] == "en_attente_approbation"
     assert demo_outils.JOURNAL == []  # rien n'a été envoyé
 
     index = {o.nom: o for o in capacites.lister()}
     with session() as cnx:
-        decision = approbations.decider(cnx, reponse["demande_id"], True, "nathan", index)
+        decision = approbations.decider(cnx, reponse["demande_id"], True, nathan, index, departements_demo)
         assert decision["statut"] == "executee"
         with pytest.raises(ValueError, match="déjà traitée"):
-            approbations.decider(cnx, reponse["demande_id"], True, "nathan", index)
+            approbations.decider(cnx, reponse["demande_id"], True, nathan, index, departements_demo)
     assert demo_outils.JOURNAL == [{"a": "client", "texte": "Bonjour"}]
 
 
-def test_t3_toujours_approuve_meme_en_autonome(capacites, session):
+def test_t3_toujours_approuve_meme_en_autonome(capacites, session, departements_demo, nathan):
     with session() as cnx:
         approbations.fixer_mode(cnx, "m09-demo", "autonome", "nathan")
     reponse = capacites.appeler("m9_payer", {"montant": 100})
     assert reponse["statut"] == "en_attente_approbation"
     with session() as cnx:
-        refus = approbations.decider(cnx, reponse["demande_id"], False, "nathan", {}, "pas maintenant")
+        refus = approbations.decider(cnx, reponse["demande_id"], False, nathan, {}, departements_demo,
+                                     "pas maintenant")
     assert refus == {"id": reponse["demande_id"], "statut": "refusee"}
     assert demo_outils.JOURNAL == []
 

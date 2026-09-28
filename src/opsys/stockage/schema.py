@@ -6,6 +6,7 @@ Toute évolution passe par une migration Alembic (`migrations/versions/`), jamai
 from __future__ import annotations
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Column,
     DateTime,
@@ -66,10 +67,51 @@ APPROBATIONS = Table(
     Column("decide_le", Text),
     Column("motif_decision", Text),
     Column("resultat", Text),
+    # Niveau N (ADR-0009 §4) figé à la création de la demande (`approbations.creer_demande`), pour
+    # que la décision (rôle autorisé, ADR-0009 §5) et l'affichage humain restent ceux montrés au
+    # moment de la demande même si le catalogue d'outils change ensuite. Nullable : les demandes
+    # importées de l'ancien `etat.db` (pré-ADR-0009, migration 0002) n'en portent pas ; `decider`
+    # retombe alors sur le niveau le plus restrictif (N5), fail-closed.
+    Column("niveau", String(4)),
+    # Rôle de la personne (`decide_par`, désormais un identifiant de `personnes`) utilisé pour cette
+    # décision (ADR-0009 §5) : une personne peut porter plusieurs rôles, celui-ci est celui qui a
+    # autorisé la décision. Renseigné par `approbations.decider`, jamais par un appelant.
+    Column("decide_role", Text),
+    # Attestation du professionnel (nom, profession, référence du document joint), JSON, obligatoire
+    # pour approuver une demande N5 en plus de la signature du propriétaire (ADR-0009 §5) ; absente
+    # sinon.
+    Column("attestation", Text),
     CheckConstraint(
         "statut IN ('en_attente','en_cours','refusee','executee','echec')", name="statut_valide"
     ),
     Index("ix_approbations_statut", "statut", "cree_le"),
+)
+
+# Identité (ADR-0009 §5) : une personne, ses rôles. Remplace le mot de passe partagé de la console —
+# toute décision (approbation, connexion) est désormais signée par une personne active. `actif` coupe
+# l'accès sans supprimer l'historique (une décision passée garde son `decide_par`) ; réactivable.
+PERSONNES = Table(
+    "personnes",
+    META,
+    Column("identifiant", String(64), primary_key=True),
+    Column("nom", Text, nullable=False),
+    Column("actif", Boolean, nullable=False, server_default=text("true")),
+    Column("mot_de_passe_hash", Text, nullable=False),  # hashlib.scrypt, jamais de clair (opsys.identite)
+    Column("cree_le", Text, nullable=False),
+)
+
+# Rôles d'une personne (ADR-0009 §5) : enum fermé porté par une CHECK, jamais un texte libre. Une
+# personne peut porter plusieurs rôles (ex. nathan_owner ET finance) ; la clé (identifiant, role)
+# interdit le doublon.
+ROLES_PERSONNES = Table(
+    "roles",
+    META,
+    Column("identifiant", String(64), ForeignKey("personnes.identifiant"), primary_key=True),
+    Column("role", String(32), primary_key=True),
+    CheckConstraint(
+        "role IN ('nathan_owner','admin','finance','manager','seller','employee','client','system_agent')",
+        name="role_valide",
+    ),
 )
 
 USAGE_TOKENS = Table(
