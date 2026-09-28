@@ -12,8 +12,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # `gates` est le contexte requis par la protection de branche de `main` : garder ce nom.
-  gates:
+  # Socle : lint, cohérence des départements, tests du socle.
+  socle:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -29,9 +29,46 @@ jobs:
         run: OPSYS_HOME="$RUNNER_TEMP/opsys" opsys verifier
       - name: Tests du socle
         run: pytest
-      - name: Tests des départements
+
+  # Un job par département, en parallèle : la suite M3 (outils de mutation compris) prend à elle
+  # seule près de 20 minutes, et une boucle séquentielle dépassait le délai du job unique.
+  departement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        dossier:
+          - m01-front-office
+          - m02-revenue-crm
+          - m03-estimation
+          - m04-field-ops
+          - m05-financecore
+          - m06-material-control
+          - m07-marketing
+          - m08-analytics
+          - m09-strategic-intelligence
+          - m10-memoire
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: "3.12"
+      - name: Installation (socle + départements)
+        run: python -m pip install --quiet -e ".[dev]"
+      - name: Tests du département ${{ matrix.dossier }}
+        run: python -m pytest "departments/${{ matrix.dossier }}/tests" -q --import-mode=importlib -p no:cacheprovider
+
+  # `gates` est le contexte requis par la protection de branche de `main` : garder ce nom. Il
+  # tourne toujours (`if: always()`) et échoue explicitement si un job requis n'a pas réussi : un
+  # job requis sauté ou annulé ne doit jamais passer pour un succès.
+  gates:
+    needs: [socle, departement]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Tous les jobs requis ont réussi
         run: |
-          set -e
-          for d in departments/*/; do
-            python -m pytest "$d/tests" -q --import-mode=importlib -p no:cacheprovider
-          done
+          test "${{ needs.socle.result }}" = "success"
+          test "${{ needs.departement.result }}" = "success"
