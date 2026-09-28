@@ -22,7 +22,7 @@ identifiants du propriétaire, repli livré en attendant.
       depuis le tag (`outils/fork/elaguer_core.py`) redonne exactement les 36 213 fichiers suivis de
       `core/`, octet pour octet, sauf `pnpm-lock.yaml` (régénéré sans script de paquet) ; fermeture des
       dépendances de workspace vérifiée ; aucun fichier de plus de 5 Mo, aucun LFS.
-- [ ] T0.5 CI du core : job GitHub qui installe Node et pnpm, construit et teste le core tel
+- [x] T0.5 CI du core : job GitHub qui installe Node et pnpm, construit et teste le core tel
       qu'importé (référence verte avant toute modification). En cours : `.github/workflows/core.yml`
       (Node 24, pnpm 12.4, `pnpm build`, `pnpm test:fast`, réglages de la CI d'origine) ; la release
       intacte s'est construite en 9 min ; il construit maintenant `core/`.
@@ -40,10 +40,28 @@ identifiants du propriétaire, repli livré en attendant.
       - run 12 (2474cd1) : CI entièrement verte, mais seulement parce que ce cas active la
         journalisation verbeuse. Ce vert n'est pas retenu comme preuve : la journalisation change
         le minutage, et l'on soupçonne une écriture tardive qui recrée la session supprimée. La
-        correction à la source est en cours (T0.6).
-- [ ] T0.6 Élagage selon R11 (canaux et fournisseurs inutiles, docs, apps natives…), CI verte.
+        correction à la source est en cours (T0.6) ;
+      - run 13 (7a43c25) : l'erreur avalée, capturée sans effet de minutage, est un dépassement
+        du délai de requête de `sessions.delete` ;
+      - **run 14 (6503887) : CI du core entièrement verte**, construction et 6 morceaux de tests,
+        sans artifice. Le `beforeAll` précharge les deux modules du chemin `sessions.delete` qui
+        manquaient, comme le prévoyait déjà l'amont.
+- [x] T0.6 Élagage selon R11 (canaux et fournisseurs inutiles, docs, apps natives…), CI verte.
       Fait à l'import (T0.4) : apps, docs, 120 extensions. Reste : `scripts/` et `test/` qui visent
       des chemins élagués (scripts iOS, Android et macOS orphelins, R14), guidé par la CI du core.
+
+      Preuve (run 14, 6503887), en six itérations guidées par la CI :
+      - données de test adaptées à une extension conservée, assertions inchangées : google au
+        lieu de venice et de codex, imap au lieu d'acpx, openai au lieu de groq ;
+      - tests de la CI ou de la publication amont supprimés (`.github/` élagué, SHA amont
+        introuvable dans un fork dur) ;
+      - fichiers de données du produit rétablis et gardés par `outils/fork/elaguer_core.py`
+        (`tool-display.json`, `docs/install/docker.md`…) ;
+      - banc de test mis à la racine git (monorepo) ;
+      - préchargement du graphe de nettoyage ACP.
+
+      Les deux cas `setup-inference-turn` propres au harnais codex sont supprimés : aucune
+      extension conservée ne porte ce contrat. Suivi : `scripts/` orphelins à nettoyer avec T0.7.
 - [ ] T0.7 Renommage OpenClaw → OPSYS en quatre lots (R14), CI verte à chaque lot. L'API interne
       du fork (`openclaw/plugin-sdk/*`, `@openclaw/*`, `OPENCLAW_*`) reste telle quelle (R14, décision 2).
   - [ ] Lot 1 : marque visible (interface, locales `fr-CA` par défaut et glossaires, invites système,
