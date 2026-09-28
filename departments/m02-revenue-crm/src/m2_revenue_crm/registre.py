@@ -1,7 +1,7 @@
 """Registre chaîné, append-only, déterministe et immuable."""
 import copy
-from . import horodatage
-from . import encodage
+
+from . import encodage, horodatage
 
 __all__ = ["Registre", "VerificationError"]
 
@@ -27,10 +27,19 @@ class VerificationError(Exception):
 class Registre:
     """Journal immuable chaîné par empreintes cryptographiques (M2-S001, S002)."""
 
-    def __init__(self):
-        self._chain = []
-        # Empreinte de la chaîne vide, sert de référence pour valider_chaine.
-        self._empreinte = encodage.encoder_canonique()
+    def __init__(self, maillons=None):
+        """`maillons` accepte tout objet list-like (len, index négatif, tranche, itération,
+        append, extend, copie profonde -> liste) : une vraie liste en mémoire par défaut (tests
+        unitaires), ou `opsys.stockage.maillons(...)` côté adaptateur (`outils.py`) pour le
+        stockage durable de l'instance (ADR-0009). Ce module reste pur : il ignore ce que
+        `maillons` est réellement, il ne s'appuie que sur son comportement de liste — aucun
+        import de `opsys` ni de SQLAlchemy ici.
+        """
+        self._chain = maillons if maillons is not None else []
+        # Empreinte de la chaîne COURANTE, toujours recalculée depuis les maillons reçus : jamais
+        # supposée vide, car un registre durable peut être chargé avec des maillons déjà écrits
+        # par un appel précédent (ou par un autre processus).
+        self._empreinte = _hash_chaine(self._chain)
 
     # ----------------------------------------------------------------
     # API publique

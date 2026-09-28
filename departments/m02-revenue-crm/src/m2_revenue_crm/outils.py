@@ -8,32 +8,60 @@ en particulier qu'un doublon probable est toujours signalé à l'ingestion
 (correctif d'audit), jamais fusionné : la fusion n'existe nulle part dans ce
 paquet, l'arbitrage humain se limite à confirmer deux dossiers distincts.
 
-État partagé : ce module tient un registre en mémoire, partagé par tous les
-outils du département (ingestion, statuts, doublons, interactions, readiness,
-digest). `reinitialiser_registre()` n'est pas un outil d'agent : c'est un point
-d'entrée réservé aux tests, pour repartir d'un état propre entre deux scénarios.
+État partagé : ce module tient le registre du département, partagé par tous les
+outils (ingestion, statuts, doublons, interactions, readiness, digest). En
+production, il est adossé au stockage durable de l'instance (ADR-0009) via
+`opsys.stockage.maillons(...)`, relu à chaque appel et jamais touché au
+chargement du module. `reinitialiser_registre()` (réservé aux tests) le bascule
+sur un registre EN MÉMOIRE vide ; `utiliser_stockage_durable()` revient au
+stockage durable. Ce module est l'unique endroit du département qui connaît
+`opsys` au-delà du contrat `Outil` — `registre.py` reste pur (ni `opsys` ni
+SQLAlchemy).
 """
 
 from __future__ import annotations
 
 from typing import Any
 
+from opsys import stockage
 from opsys.outils import Autonomie, Outil
 
 from . import contrats, digest, doublons, ingestion, interactions, readiness, statuts
 from .registre import Registre
 
-_registre = Registre()
+_DEPARTEMENT = "m02-revenue-crm"
+_NOM_REGISTRE = "principal"
+
+_registre_memoire = Registre()
+_stockage_durable_actif = True
 
 
 def reinitialiser_registre() -> None:
-    """Réinitialise le registre partagé du département (réservé aux tests)."""
-    global _registre
-    _registre = Registre()
+    """Réinitialise le registre partagé du département sur un registre EN MÉMOIRE vide
+    (réservé aux tests). Annule aussi un éventuel branchement sur le stockage durable :
+    après cet appel, `_obtenir_registre()` revient toujours à la mémoire."""
+    global _registre_memoire, _stockage_durable_actif
+    _registre_memoire = Registre()
+    _stockage_durable_actif = False
+
+
+def utiliser_stockage_durable() -> None:
+    """Revient au registre de production, adossé au stockage durable de l'instance (ADR-0009) :
+    `opsys.stockage.maillons("m02-revenue-crm", "principal")`, dans la base et la transaction de
+    l'appel courant (`opsys.outils.executer_atomique` en ouvre une autour de chaque appel
+    d'outil). C'est l'état au chargement du module ; les tests l'utilisent après
+    `reinitialiser_registre()`."""
+    global _stockage_durable_actif
+    _stockage_durable_actif = True
 
 
 def _obtenir_registre() -> Registre:
-    return _registre
+    if _stockage_durable_actif:
+        # Jamais de cache ici, à dessein (même principe que `opsys.stockage.maillons`) : une
+        # instance fraîche à chaque appel relit l'état réel depuis la base, pour ne jamais figer
+        # une empreinte devenue périmée entre deux appels d'outil (concurrence, autre processus).
+        return Registre(maillons=stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE))
+    return _registre_memoire
 
 
 # ---------------------------------------------------------------------------
