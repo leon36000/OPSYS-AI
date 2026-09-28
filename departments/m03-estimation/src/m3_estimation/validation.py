@@ -141,9 +141,10 @@ def _valider_contrat(contrat):
         )
     cles_presentes = set(contrat.keys())
     cles_attendues = set(contrats.CHAMPS_CONTRAT_GELE)
-    if cles_presentes != cles_attendues:
-        manquantes = sorted(cles_attendues - cles_presentes)
-        inconnues = sorted(cles_presentes - cles_attendues)
+    cles_permises = cles_attendues | set(contrats.CHAMPS_CONTRAT_OPTIONNELS)
+    manquantes = sorted(cles_attendues - cles_presentes)
+    inconnues = sorted(cles_presentes - cles_permises)
+    if manquantes or inconnues:
         return verdicts.construire_verdict(
             "REJ-CONTRAT-INVALIDE",
             detail=(
@@ -181,6 +182,41 @@ def _valider_contrat(contrat):
             "REJ-CONTRAT-INVALIDE",
             detail="champ 'urgence_declaree' : booléen strict exigé",
         )
+    return _valider_champs_optionnels(contrat)
+
+
+def _valider_champs_optionnels(contrat):
+    """Clés optionnelles du LeadQualifie (PLAN T2.2), validées À L'IDENTIQUE de M2 SI PRÉSENTES.
+
+    Absentes : aucune erreur et aucune valeur par défaut. Présentes : ``source`` et
+    ``campagne`` sont des chaînes non vides ; ``utm`` est un dictionnaire non vide dont les
+    clés appartiennent à ``CHAMPS_UTM`` et dont les valeurs sont des chaînes non vides. Un
+    consommateur plus souple ou plus strict que M2 accepterait ou rejetterait des leads que
+    son voisin traite autrement. M3 ne se sert d'aucune de ces clés pour estimer. Retourne
+    un verdict ou None."""
+    for champ in ("source", "campagne"):
+        if champ in contrat and not _est_chaine_non_vide(contrat[champ]):
+            return verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE",
+                detail=f"champ optionnel {champ!r} : chaîne non vide exigée s'il est fourni",
+            )
+    if "utm" not in contrat:
+        return None
+    utm = contrat["utm"]
+    if not isinstance(utm, dict) or not utm:
+        return verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE",
+            detail="champ optionnel 'utm' : dictionnaire non vide exigé s'il est fourni",
+        )
+    for cle, valeur in utm.items():
+        if cle not in contrats.CHAMPS_UTM or not _est_chaine_non_vide(valeur):
+            return verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE",
+                detail=(
+                    f"champ optionnel 'utm' : sous-clé {cle!r} hors de CHAMPS_UTM "
+                    f"ou valeur qui n'est pas une chaîne non vide"
+                ),
+            )
     return None
 
 

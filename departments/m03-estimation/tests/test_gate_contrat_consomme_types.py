@@ -139,3 +139,62 @@ def test_acces_direct_urgence_declaree_continue_d_etre_confronte(tmp_path):
     assert len(erreurs) == 1
     assert "clé « urgence_declaree »" in erreurs[0]
     assert "M2 impose « bool »" in erreurs[0]
+
+
+def _architecture_avec_optionnelles(gelees, optionnelles):
+    lignes = ["#### `LeadQualifie`", "", "```yaml", "LeadQualifie:"]
+    lignes.extend(f"  {nom}: {type_decl}  # gelée" for nom, type_decl in gelees.items())
+    lignes.extend(
+        f"  {nom}: {type_decl}  # OPTIONNEL (PLAN T2.2)" for nom, type_decl in optionnelles.items()
+    )
+    lignes.extend(["```", "", "#### `type_travaux`", "", "`autre`"])
+    return "\n".join(lignes)
+
+
+def _source_m2_avec_optionnelles(gelees, optionnelles, corps):
+    source = _source_m2(gelees, corps)
+    optionnels_python = ", ".join(f'"{champ}"' for champ in optionnelles)
+    return f"CHAMPS_CONTRAT_OPTIONNELS = ({optionnels_python},)\n" + source
+
+
+_CORPS_UTM = 'utm = contrat["utm"]\nif not isinstance(utm, dict):\n    return False'
+
+
+def test_cles_optionnelles_declarees_des_deux_cotes_sont_confrontees(tmp_path):
+    chemin = _ecrire_source(
+        tmp_path, _source_m2_avec_optionnelles(("contact",), ("utm",), _CORPS_UTM))
+
+    assert verifier_contrat_consomme_existe_vraiment(
+        _architecture_avec_optionnelles({"contact": "dict"}, {"utm": "dict"}), chemin
+    ) == []
+
+    erreurs = verifier_contrat_consomme_existe_vraiment(
+        _architecture_avec_optionnelles({"contact": "dict"}, {"utm": "str"}), chemin)
+    assert any("clé « utm »" in erreur and "M2 impose « dict »" in erreur for erreur in erreurs)
+
+
+def test_cle_optionnelle_de_m2_absente_de_l_architecture_est_signalee(tmp_path):
+    chemin = _ecrire_source(
+        tmp_path, _source_m2_avec_optionnelles(("contact",), ("utm",), _CORPS_UTM))
+
+    erreurs = verifier_contrat_consomme_existe_vraiment(
+        _architecture_avec_optionnelles({"contact": "dict"}, {}), chemin)
+    assert erreurs and "OPTIONNELLES" in erreurs[0] and "'utm'" in erreurs[0]
+
+
+def test_cle_optionnelle_non_marquee_est_confondue_avec_une_cle_gelee(tmp_path):
+    chemin = _ecrire_source(
+        tmp_path, _source_m2_avec_optionnelles(("contact",), ("utm",), _CORPS_UTM))
+
+    erreurs = verifier_contrat_consomme_existe_vraiment(
+        _architecture({"contact": "dict", "utm": "dict"}), chemin)
+    assert erreurs and "DIFFÈRE" in erreurs[0] and "'utm'" in erreurs[0]
+
+
+def test_cle_marquee_optionnelle_inconnue_du_producteur_est_signalee(tmp_path):
+    chemin = _ecrire_source(tmp_path, _source_m2(
+        ("contact",), 'nom = contrat["contact"]\nif not isinstance(nom, dict):\n    return False'))
+
+    erreurs = verifier_contrat_consomme_existe_vraiment(
+        _architecture_avec_optionnelles({"contact": "dict"}, {"source": "str"}), chemin)
+    assert erreurs and "OPTIONNELLES" in erreurs[0] and "'source'" in erreurs[0]

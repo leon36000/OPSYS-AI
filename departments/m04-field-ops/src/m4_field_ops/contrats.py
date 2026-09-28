@@ -14,6 +14,12 @@ TYPES_TRAVAUX = (
 )
 CANAUX = ("telephone", "courriel", "formulaire", "texte")
 CLES_CONTACT = ("nom", "telephone", "courriel")
+# Clés OPTIONNELLES du LeadQualifie (PLAN T2.2), copiées de M2 (CHAMPS_CONTRAT_OPTIONNELS et
+# CLES_UTM de departments/m02-revenue-crm/src/m2_revenue_crm/contrats.py) : M2 les accepte si
+# elles sont fournies ; M4 les accepte à l'identique (même forme exigée, même code de refus), sans
+# jamais les exiger ni leur inventer de valeur. Le contrat gelé reste celui des sept clés.
+CHAMPS_CONTRAT_OPTIONNELS = ("source", "utm", "campagne")
+CLES_UTM = ("utm_source", "utm_medium", "utm_campaign", "utm_content")
 
 __all__ = [
     "valider_structure",
@@ -37,8 +43,8 @@ def valider_structure(contrat: Any) -> Tuple[bool, str]:
         if champ not in contrat:
             return False, "REJ-CHAMP-MANQUANT"
 
-    # 3. Aucune clé étrangère hors des 7
-    if set(contrat.keys()) != set(CHAMPS_CONTRAT_GELE):
+    # 3. Aucune clé étrangère hors des 7 gelées et des 3 optionnelles (PLAN T2.2)
+    if not set(contrat.keys()) <= set(CHAMPS_CONTRAT_GELE) | set(CHAMPS_CONTRAT_OPTIONNELS):
         return False, "REJ-CONTRAT-INVALIDE"
 
     # 4. Validation des chaînes non vides (lead_id, conversation_id, ville)
@@ -74,8 +80,30 @@ def valider_structure(contrat: Any) -> Tuple[bool, str]:
     if type(contrat["urgence_declaree"]) is not bool:
         return False, "REJ-CONTRAT-INVALIDE"
 
-    # 8. Succès
+    # 8. source/utm/campagne (PLAN T2.2) : validés seulement s'ils sont fournis, comme chez M2
+    if _champ_optionnel_invalide(contrat):
+        return False, "REJ-CONTRAT-INVALIDE"
+
+    # 9. Succès
     return True, ""
+
+
+def _champ_optionnel_invalide(contrat: dict) -> bool:
+    """Vrai si une clé optionnelle FOURNIE n'a pas la forme exigée par M2 : `source` et
+    `campagne` chaînes non vides ; `utm` dictionnaire non vide, sous-clés dans CLES_UTM,
+    valeurs chaînes non vides. Une clé absente n'est jamais une faute."""
+    for champ in ("source", "campagne"):
+        if champ in contrat and (not isinstance(contrat[champ], str) or contrat[champ] == ""):
+            return True
+    if "utm" not in contrat:
+        return False
+    utm = contrat["utm"]
+    if not isinstance(utm, dict) or not utm:
+        return True
+    return any(
+        cle not in CLES_UTM or not isinstance(valeur, str) or valeur == ""
+        for cle, valeur in utm.items()
+    )
 
 
 def valider_marqueur_readiness(marqueur: Any, lead_id: str) -> Tuple[bool, str]:

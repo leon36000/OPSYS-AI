@@ -56,7 +56,7 @@ Le paquet `m3_estimation` est autonome. Il réutilise le patron prouvé des modu
 > chemin inexistant en production, propagé aux neuf stories. La description ci-dessous est celle
 > de l'interface RÉELLE, celle que M4 consomme déjà depuis 427 tests.
 
-#### `LeadQualifie` — contrat gelé émis par M2 (liste FERMÉE de sept clés)
+#### `LeadQualifie` — contrat gelé émis par M2 (liste FERMÉE : sept clés gelées, trois optionnelles)
 
 ```yaml
 LeadQualifie:
@@ -67,11 +67,20 @@ LeadQualifie:
   canal: str                # Canal d'entrée : telephone | courriel | formulaire | texte.
   contact: dict             # Clés autorisées : nom, telephone, courriel — au moins une non vide.
   urgence_declaree: bool    # Booléen STRICT (1 et 0 sont refusés).
+  source: str               # OPTIONNEL (PLAN T2.2) — canal d'acquisition déclaré par M7 ; chaîne non vide s'il est fourni.
+  utm: dict                 # OPTIONNEL (PLAN T2.2) — clés autorisées : utm_source, utm_medium, utm_campaign, utm_content ; non vide, valeurs chaînes non vides.
+  campagne: str             # OPTIONNEL (PLAN T2.2) — campagne marketing déclarée par M7 ; chaîne non vide s'il est fourni.
 ```
 
 M3 valide ce contrat **à l'identique** de ce que fait M4 : mêmes clés, mêmes énumérés, même
 sémantique de rejet. Un consommateur qui durcit unilatéralement un contrat gelé rejetterait des
 leads que son voisin accepte.
+
+Les trois clés marquées OPTIONNEL (PLAN T2.2, provenance marketing) ne changent pas le contrat
+gelé v1 : M2 les accepte si elles sont fournies, et M3 comme M4 les acceptent à l'identique.
+Absentes, elles ne produisent ni erreur ni valeur par défaut ; présentes, elles sont validées avec
+la même forme que chez M2 (`CHAMPS_CONTRAT_OPTIONNELS`, `CLES_UTM`), et toute autre clé reste
+refusée. M3 ne s'en sert pas pour estimer.
 
 #### Marqueur de readiness — émis et signé par M2
 
@@ -453,7 +462,8 @@ facilité, c'est une impossibilité.
 
 L'avis rendu avant #166 décidait que « M3 recalcule l'empreinte du contrat complet MOINS le champ
 `sha256` ». Les deux moitiés sont fausses sur le contrat réel, et la mesure le montre : le contrat
-`LeadQualifie` émis par M2 a SEPT clés dont aucune n'est une empreinte — il n'y a pas de `sha256` à
+`LeadQualifie` émis par M2 a SEPT clés gelées (plus, depuis PLAN T2.2, trois clés optionnelles de
+provenance marketing) dont aucune n'est une empreinte — il n'y a pas de `sha256` à
 exclure ; et l'empreinte qui existe, celle du marqueur, couvre des conditions extraites du registre
 de M2, hors de portée de M3. L'avis raisonnait sur le contrat fantôme que ce correctif supprime.
 La story S001 repart donc de la mesure, jamais de cet avis, qui reste au journal comme réfutation.

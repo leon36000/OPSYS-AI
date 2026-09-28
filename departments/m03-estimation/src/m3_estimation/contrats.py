@@ -9,6 +9,8 @@ tests.
 
 __all__ = [
     "CHAMPS_CONTRAT_GELE",
+    "CHAMPS_CONTRAT_OPTIONNELS",
+    "CHAMPS_UTM",
     "CHAMPS_MARQUEUR",
     "TYPES_TRAVAUX",
     "CLES_INTERDITES",
@@ -36,6 +38,18 @@ CHAMPS_CONTRAT_GELE = (
     "contact",
     "urgence_declaree",
 )
+
+# Clés OPTIONNELLES du LeadQualifie (PLAN T2.2) : copie épinglée de CHAMPS_CONTRAT_OPTIONNELS du
+# source departments/m02-revenue-crm/src/m2_revenue_crm/contrats.py, dans l'ordre du producteur.
+# M2 les accepte si elles sont fournies (provenance marketing déclarée par M7) ; M3 les accepte À
+# L'IDENTIQUE — même forme exigée, même refus — sans jamais les exiger, sans leur inventer de
+# valeur, et sans s'en servir pour estimer. Le contrat GELÉ reste celui des sept clés ci-dessus.
+CHAMPS_CONTRAT_OPTIONNELS = ("source", "utm", "campagne")
+
+# Sous-clés fermées de `utm` : copie épinglée de CLES_UTM du même source M2, dans l'ordre du
+# producteur. Nommée CHAMPS_ comme CHAMPS_CONTACT (copie de CLES_CONTACT) : ce sont des noms de
+# champs, pas un énuméré de domaine qui appellerait une échappatoire INDETERMINE.
+CHAMPS_UTM = ("utm_source", "utm_medium", "utm_campaign", "utm_content")
 
 # Marqueur de readiness M2 : CINQ clés.
 CHAMPS_MARQUEUR = (

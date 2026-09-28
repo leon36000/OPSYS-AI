@@ -489,13 +489,19 @@ def verifier_contrat_consomme_existe_vraiment(
     et le flot complet de `champ`. Ne rien conclure dans ce cas est volontaire :
     mieux vaut aucune information qu'une information fausse.
 
-    COUVERTURE RÉELLE, MESURÉE (issue #169) : sur la source actuelle de M2,
-    DEUX clés du contrat sur sept sont désormais confrontées —
-    `urgence_declaree` (accès direct) et `contact` (via la variable
-    intermédiaire `contact = contrat["contact"]`). Le suivi des affectations
-    simples a doublé la couverture sans en promettre plus : la boucle
-    `for champ in ...: valeur = contrat[champ]` de la même source reste hors
-    de portée, à raison, car sa clé n'est jamais littérale.
+    COUVERTURE RÉELLE, MESURÉE (issue #169, puis PLAN T2.2) : sur la source
+    actuelle de M2, TROIS clés sur dix (sept gelées, trois optionnelles) sont
+    confrontées — `urgence_declaree` (accès direct), `contact` (via la variable
+    intermédiaire `contact = contrat["contact"]`) et la clé optionnelle `utm`
+    (via `utm = contrat["utm"]`). Les boucles `for champ in ...: valeur =
+    contrat[champ]` de la même source restent hors de portée, à raison, car
+    leur clé n'est jamais littérale.
+
+    CLÉS OPTIONNELLES (PLAN T2.2) : M2 accepte, en plus des clés gelées, celles
+    de `CHAMPS_CONTRAT_OPTIONNELS` si elles sont fournies. L'architecture de M3
+    les déclare dans le même bloc, chacune marquée du mot OPTIONNEL dans le
+    commentaire de sa ligne. Les deux ensembles sont confrontés SÉPARÉMENT : une
+    clé gelée déclarée optionnelle, ou l'inverse, est une divergence.
     """
     if chemin_source_m2 is None:
         depot = Path(__file__).resolve().parents[4]
@@ -527,6 +533,15 @@ def verifier_contrat_consomme_existe_vraiment(
             "extracteur vide, contrôle non probant."
         ]
     cles_m2 = set(re.findall(r'"([a-z_][a-z0-9_]*)"', bloc.group(1)))
+    # PLAN T2.2 : clés OPTIONNELLES que le producteur accepte en plus des clés
+    # gelées. La constante peut manquer (producteur sans clé optionnelle : ensemble
+    # vide) ; présente, elle est lue exactement comme CHAMPS_CONTRAT_GELE.
+    bloc_optionnel = re.search(
+        r"CHAMPS_CONTRAT_OPTIONNELS\s*=\s*\((.*?)\)", texte_m2, re.DOTALL)
+    cles_m2_optionnelles = (
+        set(re.findall(r'"([a-z_][a-z0-9_]*)"', bloc_optionnel.group(1)))
+        if bloc_optionnel else set()
+    )
 
     titre = re.search(r"^#### `LeadQualifie`.*$", archi, re.MULTILINE)
     if not titre:
@@ -542,15 +557,28 @@ def verifier_contrat_consomme_existe_vraiment(
             "contrôle non probant."
         ]
     cles_m3 = set(re.findall(r"^  ([a-z_][a-z0-9_]*):", corps, re.MULTILINE))
+    # Une clé optionnelle est déclarée par le mot OPTIONNEL dans le commentaire de
+    # SA ligne ; toute autre clé du bloc est une clé gelée.
+    cles_m3_optionnelles = set(re.findall(
+        r"^  ([a-z_][a-z0-9_]*):[^\n#]*#[^\n]*\bOPTIONNEL\b", corps, re.MULTILINE))
+    cles_m3_gelees = cles_m3 - cles_m3_optionnelles
 
     if not cles_m3:
         return ["Aucune clé extraite du contrat LeadQualifie de M3 — contrôle vide."]
-    if cles_m3 != cles_m2:
+    if cles_m3_gelees != cles_m2:
         return [
-            f"Le contrat LeadQualifie consommé par M3 {sorted(cles_m3)} DIFFÈRE "
+            f"Le contrat LeadQualifie consommé par M3 {sorted(cles_m3_gelees)} DIFFÈRE "
             f"de celui que M2 émet réellement {sorted(cles_m2)} — écart "
-            f"{sorted(cles_m3 ^ cles_m2)}. Un consommateur qui décrit une entrée "
+            f"{sorted(cles_m3_gelees ^ cles_m2)}. Un consommateur qui décrit une entrée "
             "que le producteur n'émet pas valide un chemin inexistant en production."
+        ]
+    if cles_m3_optionnelles != cles_m2_optionnelles:
+        return [
+            f"Les clés OPTIONNELLES du LeadQualifie déclarées par M3 "
+            f"{sorted(cles_m3_optionnelles)} DIFFÈRENT de celles que M2 accepte "
+            f"(CHAMPS_CONTRAT_OPTIONNELS) {sorted(cles_m2_optionnelles)} — écart "
+            f"{sorted(cles_m3_optionnelles ^ cles_m2_optionnelles)}. Un consommateur "
+            "qui refuse une clé que son producteur accepte rejette des leads valides."
         ]
 
     try:
@@ -1886,8 +1914,8 @@ def main(dossier_str: str = None) -> int:
         print("OK : Le contrat LeadQualifie consommé correspond à celui que le module "
               "producteur émet — clés, énuméré type_travaux, et les types que M2 "
               "impose (accès direct ou variable intermédiaire) sur les clés "
-              "« urgence_declaree » et « contact » — 2 clés sur 7, couverture "
-              "mesurée, pas devinée.")
+              "« urgence_declaree », « contact » et « utm » — 3 clés sur 10 "
+              "(7 gelées, 3 optionnelles), couverture mesurée, pas devinée.")
 
     errs = verifier_marqueur_consomme_existe_vraiment(archi)
     if errs:
