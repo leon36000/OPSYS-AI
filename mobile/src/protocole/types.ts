@@ -18,6 +18,23 @@ export interface RequeteOutilsInvoke {
   readonly agentId?: string;
   /** = `mutation_id` de src/outbox pour tout appel émis par la file sortante (R12 §4). */
   readonly idempotencyKey?: string;
+  /**
+   * `deviceId`/`deviceTimestamp` : PAS ENCORE lus par le fork aujourd'hui (T1.4-c non fait) —
+   * ajoutés ici par anticipation, au nom exact et à l'emplacement (corps de `/tools/invoke`,
+   * à côté de `idempotencyKey`) que `docs/architecture/IDEMPOTENCE.md` §7 documente comme le
+   * changement recommandé pour `ToolsInvokeInput` (`tools-invoke-shared.ts`) : « ajouter deux
+   * champs optionnels à côté de `idempotencyKey` — p. ex. `deviceId?: unknown` et
+   * `deviceTimestamp?: unknown` ». Les envoyer maintenant évite toute réécriture côté mobile
+   * quand T1.4-c câblera leur lecture (`_meta` MCP `opsys/appareil`/`opsys/horodatageAppareil`) ;
+   * tant que ce n'est pas fait, le serveur les ignore (aucune idempotence de bout en bout tant
+   * que T1.4-c n'est pas livré — la file sortante reste néanmoins sûre : un renvoi après une
+   * réponse perdue porte toujours la même `idempotencyKey`, prêt à être exploité).
+   */
+  readonly deviceId?: string;
+  /** ISO 8601 AVEC fuseau — `mutation.createdAtLocal` (src/outbox/mutation.ts), jamais l'heure
+   * serveur (R12 §4 : « une horloge d'appareil déréglée ne peut pas fausser un calcul » — c'est
+   * pourquoi ce champ reste un AFFICHAGE côté serveur, jamais une valeur de calcul). */
+  readonly deviceTimestamp?: string;
 }
 
 /** Catalogue fermé lu dans `ToolsInvokeOutcome` (tools-invoke-shared.ts). */

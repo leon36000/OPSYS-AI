@@ -13,6 +13,27 @@ export interface RessourcesCommunes {
     admin: { accueil: string };
     client: { accueil: string };
   };
+  pointage: {
+    titre: string;
+    champIntervention: string;
+    champTechnicien: string;
+    champsRequis: string;
+    aucunPointage: string;
+    boutons: {
+      entree: string;
+      sortie: string;
+      pauseDebut: string;
+      pauseFin: string;
+    };
+    pointeA: string;
+    etatSynchro: {
+      enAttente: string;
+      envoi: string;
+      envoyee: string;
+      echecPermanent: string;
+      echecPermanentAvecVerdict: string;
+    };
+  };
 }
 
 /**
@@ -32,6 +53,27 @@ const frCA: RessourcesCommunes = {
     seller: { accueil: "Accueil — vendeur" },
     admin: { accueil: "Accueil — admin" },
     client: { accueil: "Accueil — client" },
+  },
+  pointage: {
+    titre: "Pointage",
+    champIntervention: "Intervention",
+    champTechnicien: "Technicien",
+    champsRequis: "Entrez l'intervention et le technicien avant de pointer.",
+    aucunPointage: "Aucun pointage pour l'instant.",
+    boutons: {
+      entree: "Entrée",
+      sortie: "Sortie",
+      pauseDebut: "Début de pause",
+      pauseFin: "Fin de pause",
+    },
+    pointeA: "Pointé à {{heures}} h {{minutes}}",
+    etatSynchro: {
+      enAttente: "En attente d'envoi",
+      envoi: "Envoi en cours…",
+      envoyee: "Envoyé",
+      echecPermanent: "Échec définitif",
+      echecPermanentAvecVerdict: "Échec définitif ({{code}}) : {{detail}}",
+    },
   },
 };
 

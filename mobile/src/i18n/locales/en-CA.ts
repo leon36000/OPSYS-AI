@@ -15,6 +15,27 @@ const enCA: RessourcesCommunes = {
     admin: { accueil: "Home — admin" },
     client: { accueil: "Home — client" },
   },
+  pointage: {
+    titre: "Time clock",
+    champIntervention: "Job",
+    champTechnicien: "Technician",
+    champsRequis: "Enter the job and technician before punching.",
+    aucunPointage: "No punch yet.",
+    boutons: {
+      entree: "Clock in",
+      sortie: "Clock out",
+      pauseDebut: "Start break",
+      pauseFin: "End break",
+    },
+    pointeA: "Punched at {{heures}}:{{minutes}}",
+    etatSynchro: {
+      enAttente: "Waiting to send",
+      envoi: "Sending…",
+      envoyee: "Sent",
+      echecPermanent: "Permanent failure",
+      echecPermanentAvecVerdict: "Permanent failure ({{code}}): {{detail}}",
+    },
+  },
 };
 
 export default enCA;
