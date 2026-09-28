@@ -1,10 +1,21 @@
-"""Capacités d'agent de M3 : contrat des outils et chaîne d'estimation composée."""
+"""Capacités d'agent de M3 : contrat des outils et chaîne d'estimation composée (PLAN T2.3).
+
+`estimer_projet` (et donc l'outil `m3_estimer_projet`) appelle désormais l'orchestrateur complet
+(`estimation.orchestrer_estimation`, testé en détail par `test_estimation.py`) : ces tests
+vérifient le CÂBLAGE agent (schéma JSON, forme réelle du contrat rendu à l'appelant) — jamais la
+logique métier elle-même, déjà couverte ailleurs. La forme a changé par rapport à l'ancien
+`estimer_projet` ad hoc : `contrat`/`marqueur` sont désormais des entrées requises,
+`type_travaux` vit DANS `contrat`, et la réponse porte `estimation` (le contrat gelé EstimationV1,
+avec `intervalle_confiance`, jamais `intervalle`) plutôt que des champs épars — `docs/departements/
+M3-audit.md` §0/§4 phase 1, point 2 : « les 9 tests actuels de test_outils_agent.py sont adaptés à
+la forme réelle du contrat, jamais affaiblis »."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from m3_estimation.outils import estimer_projet, outils
+from m3_estimation import contrats
+from m3_estimation.outils import outils
 
 from opsys.departements import lire_manifeste
 from opsys.outils import Autonomie, executer
@@ -22,6 +33,32 @@ def _photo(i, reference=None, largeur=3000, angle="face"):
             "eclairage": 7, "angle": angle, "reference_echelle": reference}
 
 
+def _contrat(**surcharges):
+    contrat = {
+        "lead_id": "lead-agent-001",
+        "conversation_id": "conv-agent-001",
+        "type_travaux": "ravalement",
+        "ville": "Quebec",
+        "canal": "formulaire_web",
+        "contact": {"nom": "Durand", "telephone": "5145550000"},
+        "urgence_declaree": False,
+    }
+    contrat.update(surcharges)
+    return contrat
+
+
+def _marqueur(**surcharges):
+    marqueur = {
+        "readiness_ok": True,
+        "lead_id": "lead-agent-001",
+        "hash_tete_registre": "f" * 64,
+        "horodatage": "2026-09-28T10:00:00-04:00",
+        "empreinte": "a" * 64,
+    }
+    marqueur.update(surcharges)
+    return marqueur
+
+
 def test_manifeste_et_outils_coherents():
     dep = lire_manifeste(Path(__file__).resolve().parents[1])
     noms = [o.nom for o in dep.charger_outils()]
@@ -29,94 +66,43 @@ def test_manifeste_et_outils_coherents():
     assert all(nom.startswith("m3_") for nom in noms)
 
 
-def test_photos_insuffisantes_bloquent_le_prix():
-    reponse = estimer_projet([_photo(1, largeur=500)], SEUILS, BAREME, "ravalement", 1200, 9000)
-    assert reponse["prix_bloque"] is True
-    assert "intervalle" not in reponse
-    assert reponse["elements_manquants"]
-
-
-def test_estimation_complete_avec_reference_d_echelle():
-    reponse = estimer_projet(
-        [_photo(1, reference={"type": "porte", "dimensions_connues": True})],
-        SEUILS, BAREME, "ravalement", 1200, 9000,
-    )
-    assert reponse["etape"] == "complet" and reponse["prix_bloque"] is False
-    intervalle = reponse["intervalle"]
-    assert 8.0 * 1200 <= intervalle["borne_basse"] < intervalle["borne_haute"] <= 14.0 * 1200
-    assert reponse["niveau_confiance"] == "REFERENCE_ECHELLE"
-
-
-def test_meme_demande_meme_intervalle():
-    photos = [_photo(1), _photo(2, angle="gauche")]
-    a = estimer_projet(photos, SEUILS, BAREME, "ravalement", 800, 5000)
-    b = estimer_projet(photos, SEUILS, BAREME, "ravalement", 800, 5000)
-    assert a["intervalle"] == b["intervalle"] and a["graine_monte_carlo"] == b["graine_monte_carlo"]
-
-
-def test_type_de_travaux_hors_contrat_refuse_par_le_schema():
+def test_estimer_projet_autonomie_t1_car_il_ecrit_desormais_au_registre():
+    """`m3_estimer_projet` écrit maintenant au registre durable "principal" (PLAN T2.3) : T1
+    (écriture interne, docs/architecture/DEPARTEMENTS.md), plus T0 (audit M3 §2.4)."""
     outil = next(o for o in outils() if o.nom == "m3_estimer_projet")
-    reponse = executer(outil, {"photos": [], "seuils": SEUILS, "bareme": BAREME,
-                               "type_travaux": "piscine", "quantite": 1, "plancher_rentable": 1})
+    assert outil.autonomie == Autonomie.T1
+
+
+def test_estimer_projet_arguments_invalides_ne_touche_jamais_le_stockage():
+    """Un rejet de SCHÉMA (contrat manquant) court-circuite `executer()` avant tout appel à
+    `estimer_projet`, donc avant tout accès au registre durable — même patron que
+    `test_creer_devis_champ_requis_manquant_refuse_par_le_schema` ci-dessous. Le comportement
+    d'exécution réelle (registre durable, devis_id, élargissement de l'intervalle, blocage,
+    REFERENCE_ECHELLE_ABSENTE, arrondi au cent) est éprouvé par `test_estimation.py` (orchestrateur
+    pur) et `test_estimation_stockage.py` (câblage durable réel)."""
+    outil = next(o for o in outils() if o.nom == "m3_estimer_projet")
+    reponse = executer(outil, {
+        "marqueur": _marqueur(), "photos": [_photo(1, largeur=500)],
+        "seuils": SEUILS, "bareme": BAREME, "quantite": 1200, "plancher_rentable": 9000,
+    })
+    assert reponse["ok"] is False
     assert reponse["erreur"] == "arguments_invalides"
+    assert any("contrat" in detail for detail in reponse["details"])
 
 
-# ------------------------------------------------------------------ largeur d'intervalle vs niveau de confiance
-def _largeur(reponse):
-    intervalle = reponse["intervalle"]
-    return float(intervalle["borne_haute"]) - float(intervalle["borne_basse"])
-
-
-def test_intervalle_plus_etroit_avec_reference_echelle_quavec_multi_vues_ou_mono_vue():
-    """BUG CORRIGÉ : l'intervalle Monte Carlo ne dépendait jamais du niveau de
-    confiance — REFERENCE_ECHELLE (mesure certifiée) rendait exactement le
-    même intervalle que MONO_VUE_BORNES_LARGES (dont le NOM MÊME annonce des
-    bornes larges, brief analyste §3 : « MAE ~0,45 m au mieux »). Même
-    barème, même type de travaux, même quantité : seule la classification de
-    confiance change, donc seule elle doit expliquer un écart de largeur."""
-    reponse_reference = estimer_projet(
-        [_photo(1, reference={"type": "porte", "dimensions_connues": True})],
-        SEUILS, BAREME, "ravalement", 1200, 9000,
+def test_contrat_required_dans_le_schema_de_loutil():
+    outil = next(o for o in outils() if o.nom == "m3_estimer_projet")
+    assert "contrat" in outil.parametres["required"]
+    assert "marqueur" in outil.parametres["required"]
+    assert "type_travaux" not in outil.parametres["properties"], (
+        "type_travaux ne doit plus être un paramètre séparé : il vit dans contrat"
     )
-    reponse_multi_vues = estimer_projet(
-        [_photo(1, angle="face"), _photo(2, angle="gauche"), _photo(3, angle="droite")],
-        SEUILS, BAREME, "ravalement", 1200, 9000,
-    )
-    reponse_mono_vue = estimer_projet(
-        [_photo(1), _photo(2, angle="gauche")],
-        SEUILS, BAREME, "ravalement", 1200, 9000,
-    )
-    assert reponse_reference["niveau_confiance"] == "REFERENCE_ECHELLE"
-    assert reponse_multi_vues["niveau_confiance"] == "MULTI_VUES"
-    assert reponse_mono_vue["niveau_confiance"] == "MONO_VUE_BORNES_LARGES"
-
-    largeur_reference = _largeur(reponse_reference)
-    largeur_multi_vues = _largeur(reponse_multi_vues)
-    largeur_mono_vue = _largeur(reponse_mono_vue)
-
-    assert largeur_reference < largeur_multi_vues < largeur_mono_vue
 
 
-def test_elargissement_reste_dans_les_bornes_du_bareme():
-    reponse = estimer_projet(
-        [_photo(1), _photo(2, angle="gauche")],  # MONO_VUE_BORNES_LARGES : le plus élargi
-        SEUILS, BAREME, "ravalement", 1200, 9000,
-    )
-    intervalle = reponse["intervalle"]
-    assert 8.0 * 1200 <= float(intervalle["borne_basse"]) < float(intervalle["borne_haute"]) <= 14.0 * 1200
-
-
-# ------------------------------------------------------------------ montants arrondis au cent (Decimal, CAD)
-def test_bornes_de_intervalle_sont_arrondies_au_cent():
-    from decimal import Decimal
-    reponse = estimer_projet(
-        [_photo(1, reference={"type": "porte", "dimensions_connues": True})],
-        SEUILS, BAREME, "ravalement", 1200, 9000,
-    )
-    intervalle = reponse["intervalle"]
-    for cle in ("borne_basse", "borne_haute"):
-        valeur = Decimal(str(intervalle[cle]))
-        assert valeur == valeur.quantize(Decimal("0.01")), f"{cle}={intervalle[cle]!r} pas arrondi au cent"
+def test_contrat_declare_lenumere_type_travaux_dans_son_sous_schema():
+    outil = next(o for o in outils() if o.nom == "m3_estimer_projet")
+    enum_declare = outil.parametres["properties"]["contrat"]["properties"]["type_travaux"]["enum"]
+    assert list(enum_declare) == list(contrats.TYPES_TRAVAUX)
 
 
 def test_simuler_intervalle_outil_arrondit_aussi_au_cent():

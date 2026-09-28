@@ -12,6 +12,7 @@ Ce répertoire contient les politiques de protection des renseignements personne
 2. [`POLITIQUE-enregistrements-appels.md`](./POLITIQUE-enregistrements-appels.md) — Enregistrements d'appels (M1 Front Office).
 3. [`POLITIQUE-geolocalisation.md`](./POLITIQUE-geolocalisation.md) — Géolocalisation et punch géorépéré (M4).
 4. [`POLITIQUE-session-replay.md`](./POLITIQUE-session-replay.md) — Session replay et CRO (M7).
+5. [`POLITIQUE-photos-non-contractuelles.md`](./POLITIQUE-photos-non-contractuelles.md) — Photos non contractuelles, collecte, consentement, rétention et floutage (M3 Estimation). Gardée par le code fail-closed (`m3_estimation.politique_photos`, PLAN T2.3) tant qu'elle n'est pas validée.
 
 ## Politiques à venir (backlog, hors périmètre P0-7)
 
@@ -19,7 +20,6 @@ Les politiques suivantes sont exigées par le Plan maître §14.2. Elles doivent
 
 - **Tracking client** — Politique de traçage et analytics comportementaux.
 - **Profilage** — Politique de profilage automatisé et scoring.
-- **Photos non contractuelles** — Politique de conservation et d'utilisation des photos non contractuelles.
 
 ## Renvois
 

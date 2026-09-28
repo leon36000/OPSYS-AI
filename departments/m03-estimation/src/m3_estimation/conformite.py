@@ -67,6 +67,22 @@ _DEROGATIONS_ECHAPPATOIRE = {
             "l'absence — cet énuméré n'a donc besoin d'aucune échappatoire d'indétermination."
         ),
     },
+    "STATUTS_SANS_REPONSE": {
+        # Même raisonnement que STATUTS_DEVIS ci-dessus, un cran plus étroit : c'est un SOUS-
+        # ENSEMBLE FIXE et FERMÉ de STATUTS_DEVIS (les deux statuts qui précèdent "accepte"),
+        # jamais une classification incertaine — "brouillon" sert ici seulement de point de
+        # comparaison réel exigé par ce contrôle.
+        "echappatoire": "brouillon",
+        "raison": (
+            "STATUTS_SANS_REPONSE (devis_relance.py, PLAN T2.3) est un sous-ensemble FIXE et "
+            "FERMÉ de devis_durable.STATUTS_DEVIS (les statuts autres que 'accepte') — un filtre "
+            "déterministe sur un état de registre TENU PAR LE CODE (même raison que STATUTS_DEVIS "
+            "ci-dessus), jamais une mesure incertaine. Une entrée malformée (devis sans 'statut' "
+            "ou 'horodatage', délai ou horodatage invalide) est un rejet nommé à part "
+            "(REJ-RELANCE-HORODATAGE-INVALIDE/REJ-RELANCE-DELAI-INVALIDE), jamais un statut "
+            "« inconnu » inventé pour combler l'absence."
+        ),
+    },
 }
 
 

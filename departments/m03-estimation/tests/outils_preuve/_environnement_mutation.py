@@ -38,6 +38,14 @@ Python (souvent en retard sur le dépôt réel, ex. un type d'événement du cat
 dernière installation) plutôt que sur les sources réelles du dépôt qu'on prétend mesurer — constaté
 le 2026-09-28 (PLAN T2.3-a) : ``opsys.evenements.publier`` levait ``type d'événement inconnu`` sur
 un type ajouté au catalogue dans ce commit, uniquement à l'intérieur de la copie de mutation.
+
+``docs/`` racine (ex. les politiques Loi 25, ``docs/compliance/politiques/*.md``) est lié par le
+MÊME motif, à partir de PLAN T2.3 : un test de garde (``test_politique_photos.py``) lit un
+document de politique hors de ``departments/m03-estimation`` pour constater son statut de
+validation réel — sans ce lien, la copie de mutation ne le trouve pas (``is_file()`` faux) et la
+suite y est FAUSSEMENT rouge dès AVANT tout sabotage, pour une raison sans rapport avec le module
+muté (mesuré : les neuf outils de mutation échouaient tous à ``test_chaque_outil_est_sain_avant_
+sabotage`` sans ce lien). Jamais copié, jamais écrit : aucun test M3 n'écrit dans ``docs/``.
 """
 
 from __future__ import annotations
@@ -78,6 +86,8 @@ class EnvironnementMutation:
         # sources réelles du dépôt plutôt qu'une installation figée (cf. docstring du module).
         (self.dossier / "src").symlink_to(self.racine_reelle / "src", target_is_directory=True)
         (self.dossier / "pyproject.toml").symlink_to(self.racine_reelle / "pyproject.toml")
+        # docs/ racine (PLAN T2.3) : même motif, même lecture seule — voir la docstring du module.
+        (self.dossier / "docs").symlink_to(self.racine_reelle / "docs", target_is_directory=True)
 
         self.dossier_departement = departements / "m03-estimation"
         self.dossier_source = self.dossier_departement / "src" / "m3_estimation"

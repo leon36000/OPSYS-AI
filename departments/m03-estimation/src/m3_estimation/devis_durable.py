@@ -98,6 +98,7 @@ __all__ = [
     "charge_evenement_devis_accepte",
     "creer_devis",
     "lire_devis",
+    "lister_devis",
     "marquer_devis_accepte",
     "marquer_devis_envoye",
     "projeter_devis",
@@ -354,6 +355,15 @@ def lire_devis(registre_cible: Any, devis_id: str) -> tuple[dict[str, Any] | Non
     if etat is None:
         return None, verdicts.construire_verdict("REJ-DEVIS-INTROUVABLE", detail=f"devis inconnu : {devis_id!r}")
     return etat, None
+
+
+def lister_devis(registre_cible: Any) -> list[dict[str, Any]]:
+    """Liste l'état courant (fusion de tous ses maillons, cf. ``_etats_courants``) de TOUS les
+    devis connus de ``registre_cible``, triés par ``devis_id`` — ordre déterministe et
+    reproductible, indépendant de l'ordre d'écriture du registre. PLAN T2.3 (relance devis sans
+    réponse, ``devis_relance.py``) : premier appelant de cette fonction, mais lecture pure
+    générique, sans aucun lien avec la relance elle-même."""
+    return [etat for _, etat in sorted(_etats_courants(registre_cible).items())]
 
 
 def marquer_devis_envoye(

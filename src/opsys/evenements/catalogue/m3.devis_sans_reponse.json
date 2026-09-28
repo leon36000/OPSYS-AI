@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m3.devis_sans_reponse",
+  "title": "M3 — Devis sans réponse",
+  "description": "Émis par M3 (departments/m03-estimation/src/m3_estimation/devis_relance.py::construire_fait_devis_sans_reponse, outil m3_detecter_devis_sans_reponse, PLAN T2.3) quand un devis durable (devis_durable.py) reste au statut brouillon ou envoye — jamais accepte — depuis au moins delai_relance_jours jours par rapport à horodatage_reference. Les deux horodatages et le délai sont FOURNIS par l'appelant (paramètre ou configuration) : aucune échéance n'est inventée ni déduite d'une horloge interne. Idempotent par devis_id (evenement_id = f\"m3-devis-sans-reponse-{devis_id}\") : une redélivrance ou un second contrôle sur le même devis republie un no-op, jamais un second événement. Fait strictement descriptif : aucune cause de retard, aucune prochaine action, aucune échéance future n'est portée — un consommateur (M2, PLAN futur) en tire l'action commerciale.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "devis_id": {
+      "type": "string",
+      "description": "Identifiant du devis resté sans réponse (devis_durable.py::creer_devis)."
+    },
+    "lead_id": {
+      "type": "string",
+      "description": "Lead M2 d'origine, porté tel quel depuis la création du devis."
+    },
+    "chantier_id": {
+      "type": ["string", "null"],
+      "description": "Chantier M4, si déjà connu au moment de la création du devis ; null sinon."
+    },
+    "statut": {
+      "type": "string",
+      "enum": ["brouillon", "envoye"],
+      "description": "Statut courant du devis au moment du constat — jamais 'accepte' (qui aurait reçu sa réponse)."
+    },
+    "horodatage_devis": {
+      "type": "string",
+      "description": "Horodatage du dernier état connu du devis (création ou dernière transition), ISO-8601 avec fuseau."
+    },
+    "horodatage_reference": {
+      "type": "string",
+      "description": "Instant de référence ('maintenant' du constat) fourni par l'appelant, ISO-8601 avec fuseau — jamais lu d'une horloge interne."
+    },
+    "delai_relance_jours": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Délai en jours appliqué par ce contrôle, fourni par l'appelant (paramètre ou configuration) — jamais codé en dur."
+    }
+  },
+  "required": [
+    "devis_id",
+    "lead_id",
+    "chantier_id",
+    "statut",
+    "horodatage_devis",
+    "horodatage_reference",
+    "delai_relance_jours"
+  ]
+}

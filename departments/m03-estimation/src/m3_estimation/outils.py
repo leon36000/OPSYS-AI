@@ -8,25 +8,38 @@ jamais calculé quand il doit être bloqué.
 
 from __future__ import annotations
 
-import hashlib
-import json
 from collections.abc import Callable
-from decimal import ROUND_HALF_UP, Decimal
+from pathlib import Path
 from typing import Any
 
 from opsys import evenements, stockage
 from opsys.outils import Autonomie, Outil, depuis_couple
 
 from . import (
-    blocage_prix,
     contrats,
     devis_durable,
+    devis_relance,
+    estimation,
     estime_vs_reel,
     hierarchie_echelle,
     monte_carlo,
     plancher,
+    politique_photos,
     qualite_photos,
     registre,
+    soumission,
+)
+
+# Chemin du document de politique Loi 25 « photos » (PLAN T2.3, docs/departements/M3-audit.md §5
+# point 2), dérivé de __file__ — JAMAIS du répertoire courant (même discipline que les tests M3,
+# ex. tests/_commun_contrats.py). parents[4] depuis src/m3_estimation/outils.py atteint la racine
+# du dépôt : m3_estimation -> src -> m03-estimation -> departments -> racine.
+_CHEMIN_POLITIQUE_PHOTOS = (
+    Path(__file__).resolve().parents[4]
+    / "docs"
+    / "compliance"
+    / "politiques"
+    / "POLITIQUE-photos-non-contractuelles.md"
 )
 
 _PHOTO = {
@@ -51,9 +64,41 @@ _SEUILS = {
 }
 _BAREME = {
     "type": "object",
-    "description": "{version, unite, postes: {type_travaux: {cout_unitaire_min, cout_unitaire_max}}}",
+    "description": (
+        "{version, unite, postes: {type_travaux: {cout_unitaire_min, cout_unitaire_max, "
+        "duree_minutes_par_unite (optionnel — minutes de main-d'œuvre par unité de quantite ; "
+        "absent : aucune durée n'est calculée)}}}"
+    ),
 }
 _TYPE_TRAVAUX = {"type": "string", "enum": list(contrats.TYPES_TRAVAUX)}
+_CONTRAT = {
+    "type": "object",
+    "description": "LeadQualifie émis par M2 (contrats.CHAMPS_CONTRAT_GELE), sept clés gelées.",
+    "properties": {
+        "lead_id": {"type": "string"},
+        "conversation_id": {"type": "string"},
+        "type_travaux": _TYPE_TRAVAUX,
+        "ville": {"type": "string"},
+        "canal": {"type": "string"},
+        "contact": {"type": "object"},
+        "urgence_declaree": {"type": "boolean"},
+    },
+    "required": list(contrats.CHAMPS_CONTRAT_GELE),
+    "additionalProperties": False,
+}
+_MARQUEUR = {
+    "type": "object",
+    "description": "Marqueur de readiness signé par M2 (contrats.CHAMPS_MARQUEUR), cinq clés gelées.",
+    "properties": {
+        "readiness_ok": {"type": "boolean"},
+        "lead_id": {"type": "string"},
+        "hash_tete_registre": {"type": ["string", "null"]},
+        "horodatage": {"type": "string"},
+        "empreinte": {"type": "string"},
+    },
+    "required": list(contrats.CHAMPS_MARQUEUR),
+    "additionalProperties": False,
+}
 _LIGNE_DEVIS = {
     "type": "object",
     "properties": {
@@ -93,8 +138,8 @@ def simuler_intervalle(
     if rejet is not None:
         return depuis_couple((intervalle, rejet))
     intervalle = {
-        "borne_basse": arrondir_au_cent(intervalle["borne_basse"]),
-        "borne_haute": arrondir_au_cent(intervalle["borne_haute"]),
+        "borne_basse": estimation.arrondir_au_cent(intervalle["borne_basse"]),
+        "borne_haute": estimation.arrondir_au_cent(intervalle["borne_haute"]),
         "niveau": intervalle["niveau"],
     }
     return depuis_couple((intervalle, None))
@@ -104,111 +149,26 @@ def confronter_plancher(intervalle: dict[str, Any], plancher_rentable: float) ->
     return depuis_couple(plancher.confronter_au_plancher(intervalle, plancher_rentable))
 
 
-def graine_stable(bareme: dict[str, Any], type_travaux: str, quantite: float) -> int:
-    """Graine reproductible dérivée des entrées : même demande, même intervalle."""
-    empreinte = json.dumps([bareme.get("version"), type_travaux, quantite], sort_keys=True)
-    return int(hashlib.sha256(empreinte.encode("utf-8")).hexdigest()[:8], 16)
-
-
-_CENT = Decimal("0.01")
-
-
-def arrondir_au_cent(valeur: float) -> float:
-    """Arrondit un montant CAD au cent le plus proche via Decimal.
-
-    ``Decimal(str(valeur))`` (jamais ``Decimal(valeur)``) : convertir depuis
-    la représentation DÉCIMALE du float évite de figer les artefacts de son
-    codage binaire (ex. 9979.771554055122 plutôt que la valeur "ronde"
-    voulue). Le résultat reste un float — le contrat gelé EstimationV1
-    (PRD §5) type ``borne_basse``/``borne_haute`` en ``float`` — mais chaque
-    cent est déterminé par un calcul décimal exact, jamais par l'arrondi
-    binaire implicite du float.
-    """
-    return float(Decimal(str(valeur)).quantize(_CENT, rounding=ROUND_HALF_UP))
-
-
-# Niveau statistique (couverture du Monte Carlo — PRD §5 : "niveau : float,
-# ex. 0.90 pour 90 %, configurable par l'appelant") retenu par rang de
-# FIABILITÉ DE MESURE dans la hiérarchie ratifiée (hierarchie_echelle.
-# NIVEAUX_CONFIANCE, ordre épinglé). Politique ÉNONCÉE, pas une mesure —
-# REFERENCE_ECHELLE (rang 0, objet de dimensions CERTIFIÉES visible dans le
-# cadre — "condition nécessaire et suffisante pour une estimation précise",
-# PRD §4.1) reprend SANS changement le niveau nominal déclaré par
-# l'architecture (blocage_prix.NIVEAU_CONFIANCE_NOMINAL = 0.90). Chaque cran
-# de MOINS de fiabilité de mesure élève la couverture statistique demandée :
-# MULTI_VUES ("précision moindre", PRD §4.1) puis MONO_VUE_BORNES_LARGES
-# (BORNES LARGES dès son nom, MAE ~0,45 m au mieux sans référence, brief
-# analyste §3). Une couverture statistique plus large élargit MÉCANIQUEMENT
-# l'intervalle rendu par monte_carlo.simuler_intervalle SANS jamais dépasser
-# le support du barème : la borne "NON NÉGOCIABLE" déjà imposée par
-# monte_carlo.py (chaque tirage est borné à [cout_min, cout_max] * quantite)
-# s'applique intacte, sans clamp supplémentaire à ajouter ici. INDETERMINE
-# n'atteint jamais cette table : le prix y est bloqué en amont par
-# blocage_prix.decider_blocage, avant tout calcul d'intervalle.
-NIVEAUX_STATISTIQUES_PAR_CONFIANCE = {
-    hierarchie_echelle.NIVEAUX_CONFIANCE[0]: blocage_prix.NIVEAU_CONFIANCE_NOMINAL,  # REFERENCE_ECHELLE : 0.90
-    hierarchie_echelle.NIVEAUX_CONFIANCE[1]: 0.95,  # MULTI_VUES
-    hierarchie_echelle.NIVEAUX_CONFIANCE[2]: 0.99,  # MONO_VUE_BORNES_LARGES
-}
-
-
 def estimer_projet(
+    contrat: dict[str, Any],
+    marqueur: dict[str, Any],
     photos: list[dict[str, Any]],
     seuils: dict[str, Any],
     bareme: dict[str, Any],
-    type_travaux: str,
     quantite: float,
     plancher_rentable: float,
     graine: int | None = None,
 ) -> dict[str, Any]:
-    """Chaîne complète : qualité photos → confiance → blocage → intervalle → plancher."""
-    qualification, verdict = qualite_photos.qualifier_photos(photos, seuils)
-    if verdict is not None:
-        return {"etape": "qualite_photos", "accepte": False, "verdict": verdict}
-    niveau, motifs = hierarchie_echelle.classifier_niveau_confiance(photos, seuils)
-    if niveau is None:
-        return {"etape": "niveau_confiance", "accepte": False, "verdict": motifs}
-    decision, rejet = blocage_prix.decider_blocage(niveau, qualification)
-    if rejet is not None:
-        return {"etape": "blocage", "accepte": False, "verdict": rejet}
-    if decision["prix_bloque"]:
-        return {
-            "etape": "blocage",
-            "accepte": True,
-            "prix_bloque": True,
-            "niveau_confiance": niveau,
-            "motifs_confiance": motifs,
-            "verdict_estimation": decision["verdict_estimation"],
-            "raison_blocage": decision["raison_blocage"],
-            "elements_manquants": qualification["elements_manquants"],
-        }
-    graine_effective = graine if graine is not None else graine_stable(bareme, type_travaux, quantite)
-    niveau_statistique = NIVEAUX_STATISTIQUES_PAR_CONFIANCE[niveau]
-    intervalle, rejet = monte_carlo.simuler_intervalle(
-        bareme, type_travaux, quantite, graine_effective, niveau_statistique
+    """Point d'entrée agent (PLAN T2.3) : appelle l'orchestrateur pur
+    `estimation.orchestrer_estimation` sur le registre DURABLE de production. Toute la logique
+    métier vit dans `estimation.py` (validation, qualité photos, hiérarchie d'échelle, blocage,
+    Monte Carlo, plancher, alerte REFERENCE_ECHELLE_ABSENTE, durée main-d'œuvre, registre,
+    contrat gelé EstimationV1) ; cette fonction ne fait que choisir le support durable — même
+    patron que `creer_devis`/`lire_devis` ci-dessous pour le registre des devis."""
+    return estimation.orchestrer_estimation(
+        contrat, marqueur, photos, seuils, bareme, quantite, plancher_rentable,
+        registre_production(), graine,
     )
-    if rejet is not None:
-        return {"etape": "intervalle", "accepte": False, "verdict": rejet}
-    intervalle = {
-        "borne_basse": arrondir_au_cent(intervalle["borne_basse"]),
-        "borne_haute": arrondir_au_cent(intervalle["borne_haute"]),
-        "niveau": intervalle["niveau"],
-    }
-    constat, rejet = plancher.confronter_au_plancher(intervalle, plancher_rentable)
-    if rejet is not None:
-        return {"etape": "plancher", "accepte": False, "verdict": rejet}
-    return {
-        "etape": "complet",
-        "accepte": True,
-        "prix_bloque": False,
-        "niveau_confiance": niveau,
-        "motifs_confiance": motifs,
-        "intervalle": intervalle,
-        "alerte_plancher": constat["alerte_plancher"],
-        "verdict_estimation": constat["verdict_estimation"],
-        "graine_monte_carlo": graine_effective,
-        "bareme_version": bareme.get("version"),
-    }
 
 
 def registre_production() -> registre.Registre:
@@ -343,6 +303,68 @@ def lire_ecarts_estime_reel(
     )
 
 
+def detecter_devis_sans_reponse(horodatage_reference: str, delai_relance_jours: int) -> dict[str, Any]:
+    """Parcourt TOUS les devis durables connus (PLAN T2.3, `devis_relance.py`) et publie
+    `m3.devis_sans_reponse` (idempotent par `devis_id`) pour chacun resté sans réponse selon la
+    règle fournie — `horodatage_reference` et `delai_relance_jours` sont FOURNIS par l'appelant
+    (paramètre ou configuration), jamais déduits d'une horloge ni codés en dur. Un devis dont
+    l'entrée est malformée est signalé dans `erreurs`, sans bloquer les autres."""
+    tous = devis_durable.lister_devis(registre_devis_production())
+    relances: list[str] = []
+    erreurs: list[dict[str, Any]] = []
+    for devis in tous:
+        fait, verdict = devis_relance.construire_fait_devis_sans_reponse(
+            devis, horodatage_reference, delai_relance_jours
+        )
+        if verdict is not None:
+            erreurs.append({"devis_id": devis.get("devis_id"), "verdict": verdict})
+            continue
+        if fait is None:
+            continue
+        evenements.publier(
+            "m3.devis_sans_reponse",
+            "m03-estimation",
+            fait,
+            evenement_id=f"m3-devis-sans-reponse-{fait['devis_id']}",
+        )
+        relances.append(fait["devis_id"])
+    return {"devis_verifies": len(tous), "relances_publiees": relances, "erreurs": erreurs}
+
+
+def generer_soumission_brouillon(devis_id: str) -> dict[str, Any]:
+    """Lit le devis durable par `devis_id` et rend un brouillon HTML lisible pour le client
+    (PLAN T2.3, `soumission.py`) — jamais un envoi (SOUL.md, T1.3 : l'envoi reste derrière les
+    approbations du socle)."""
+    devis, verdict = devis_durable.lire_devis(registre_devis_production(), devis_id)
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    return depuis_couple(soumission.generer_brouillon_html(devis))
+
+
+def _politique_photos_texte() -> str:
+    """Lit le texte réel de la politique Loi 25 « photos » sur disque — seul point du paquet à
+    toucher le système de fichiers pour cette garde (`politique_photos.py` reste pur). Un fichier
+    absent ou illisible rend une chaîne vide : `politique_photos.lire_statut_validation` la
+    traite comme un statut ABSENT, donc un refus fail-closed, jamais une exception qui masquerait
+    la vraie cause à l'agent appelant."""
+    try:
+        return _CHEMIN_POLITIQUE_PHOTOS.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+
+
+def verifier_politique_photos() -> dict[str, Any]:
+    """Constate si la politique Loi 25 « photos » est marquée VALIDÉE (PLAN T2.3,
+    `politique_photos.py`) — lecture pure, aucun effet de bord. Tout futur code qui collecterait
+    un octet d'image réel doit appeler ce même contrôle (ou `politique_photos.
+    verifier_collecte_photo_autorisee` directement) avant d'agir."""
+    texte = _politique_photos_texte()
+    verdict = politique_photos.verifier_collecte_photo_autorisee(texte)
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    return {"accepte": True, "resultat": {"statut_validation": politique_photos.lire_statut_validation(texte)}}
+
+
 def consommateurs() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
     return {
         "m4.travaux_termines": _recevoir_travaux_termines,
@@ -356,25 +378,34 @@ def outils() -> tuple[Outil, ...]:
         Outil(
             nom="m3_estimer_projet",
             description=(
-                "Estime un projet de bout en bout à partir des photos, seuils, barème, type de travaux, "
-                "quantité et plancher de rentabilité. Bloque le prix si les photos ou la référence "
-                "d'échelle sont insuffisantes et liste alors les éléments manquants à demander."
+                "Estime un projet de bout en bout (PLAN T2.3) : compose validation du contrat "
+                "LeadQualifie et du marqueur de readiness M2, qualité des photos, hiérarchie "
+                "d'échelle, blocage anti-précision-inventée, Monte Carlo, plancher de rentabilité "
+                "et assemble le contrat gelé EstimationV1 (devis_id stable), inscrit au registre "
+                "durable des estimations. Bloque le prix si les photos ou la référence d'échelle "
+                "sont insuffisantes et liste alors les éléments manquants à demander ; signale "
+                "(sans bloquer) l'absence de référence d'échelle en confiance MULTI_VUES ou "
+                "MONO_VUE_BORNES_LARGES (REFERENCE_ECHELLE_ABSENTE). Si le poste du barème pour "
+                "le type de travaux demandé porte duree_minutes_par_unite, calcule aussi la durée "
+                "de main-d'œuvre estimée (quantite x duree_minutes_par_unite)."
             ),
             parametres={
                 "type": "object",
                 "properties": {
+                    "contrat": _CONTRAT,
+                    "marqueur": _MARQUEUR,
                     "photos": {"type": "array", "items": _PHOTO},
                     "seuils": _SEUILS,
                     "bareme": _BAREME,
-                    "type_travaux": _TYPE_TRAVAUX,
                     "quantite": {"type": "number"},
                     "plancher_rentable": {"type": "number"},
                     "graine": {"type": "integer"},
                 },
-                "required": ["photos", "seuils", "bareme", "type_travaux", "quantite", "plancher_rentable"],
+                "required": ["contrat", "marqueur", "photos", "seuils", "bareme", "quantite", "plancher_rentable"],
                 "additionalProperties": False,
             },
             fonction=estimer_projet,
+            autonomie=Autonomie.T1,
         ),
         Outil(
             nom="m3_qualifier_photos",
@@ -531,6 +562,59 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=lire_ecarts_estime_reel,
+            autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m3_detecter_devis_sans_reponse",
+            description=(
+                "Parcourt tous les devis durables et publie m3.devis_sans_reponse (idempotent "
+                "par devis_id) pour chaque devis resté au statut brouillon ou envoye (jamais "
+                "accepte) depuis au moins delai_relance_jours jours par rapport à "
+                "horodatage_reference — les deux sont fournis par l'appelant, jamais déduits "
+                "d'une horloge ni codés en dur (audit M3, signal de relance vers M2)."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "horodatage_reference": {
+                        "type": "string",
+                        "description": "instant de référence du constat, ISO-8601 avec fuseau",
+                    },
+                    "delai_relance_jours": {"type": "integer", "minimum": 1},
+                },
+                "required": ["horodatage_reference", "delai_relance_jours"],
+                "additionalProperties": False,
+            },
+            fonction=detecter_devis_sans_reponse,
+            autonomie=Autonomie.T1,
+        ),
+        Outil(
+            nom="m3_generer_soumission_brouillon",
+            description=(
+                "Génère un brouillon de soumission HTML lisible pour le client depuis un devis "
+                "durable existant (description, quantités, prix par ligne, prix total — jamais "
+                "coût ni marge). Brouillon seulement : aucun envoi, aucune approbation requise "
+                "pour le générer (l'envoi reste derrière les approbations du socle, T1.3)."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"devis_id": {"type": "string"}},
+                "required": ["devis_id"],
+                "additionalProperties": False,
+            },
+            fonction=generer_soumission_brouillon,
+            autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m3_verifier_politique_photos",
+            description=(
+                "Constate si la politique Loi 25 « photos non contractuelles » "
+                "(docs/compliance/politiques/POLITIQUE-photos-non-contractuelles.md) est marquée "
+                "VALIDÉE. Lecture seule ; refuse fail-closed (statut absent ou 'proposition') "
+                "tant que Nathan ou un juriste ne l'a pas validée."
+            ),
+            parametres={"type": "object", "properties": {}, "required": [], "additionalProperties": False},
+            fonction=verifier_politique_photos,
             autonomie=Autonomie.T0,
         ),
     )

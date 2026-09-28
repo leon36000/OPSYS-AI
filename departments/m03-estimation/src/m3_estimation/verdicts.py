@@ -78,6 +78,11 @@ CODES_M3_LIST = [
     "REJ-ECART-FILTRE-ABSENT",
     "REJ-ECART-PERIODE-INCOMPLETE",
     "REJ-ECART-PERIODE-INVALIDE",
+    # PLAN T2.3 (relance devis sans réponse) : codes du module devis_relance.py.
+    "REJ-RELANCE-HORODATAGE-INVALIDE",
+    "REJ-RELANCE-DELAI-INVALIDE",
+    # PLAN T2.3 (politique Loi 25 « photos ») : code du module politique_photos.py.
+    "REJ-PHOTO-POLITIQUE-NON-VALIDEE",
 ]
 CODES_M3 = set(CODES_M3_LIST)
 

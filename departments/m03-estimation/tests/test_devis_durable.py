@@ -651,3 +651,41 @@ def test_tous_les_codes_rej_devis_du_catalogue_sont_exerces_par_ce_fichier():
     doit couvrir EXACTEMENT les codes REJ-DEVIS-* du catalogue, ni plus ni moins."""
     codes_devis_du_catalogue = {code for code in verdicts.CODES_M3_LIST if code.startswith("REJ-DEVIS-")}
     assert codes_devis_du_catalogue == _CODES_EXERCES_PAR_CE_FICHIER
+
+
+# -- lister_devis (PLAN T2.3, premier appelant : devis_relance.py) --------------------------------
+def test_lister_devis_registre_vide_rend_une_liste_vide():
+    assert devis_durable.lister_devis([]) == []
+
+
+def test_lister_devis_rend_letat_courant_de_chaque_devis_connu():
+    registre = []
+    _creer(registre, devis_id="M3-DEVIS-liste-001", lead_id="lead-liste-1")
+    _creer(registre, devis_id="M3-DEVIS-liste-002", lead_id="lead-liste-2")
+
+    devis = devis_durable.lister_devis(registre)
+
+    assert [d["devis_id"] for d in devis] == ["M3-DEVIS-liste-001", "M3-DEVIS-liste-002"]
+    assert {d["lead_id"] for d in devis} == {"lead-liste-1", "lead-liste-2"}
+
+
+def test_lister_devis_est_triee_par_devis_id_independamment_de_lordre_decriture():
+    registre = []
+    _creer(registre, devis_id="M3-DEVIS-zzz", lead_id="lead-z")
+    _creer(registre, devis_id="M3-DEVIS-aaa", lead_id="lead-a")
+
+    devis = devis_durable.lister_devis(registre)
+
+    assert [d["devis_id"] for d in devis] == ["M3-DEVIS-aaa", "M3-DEVIS-zzz"]
+
+
+def test_lister_devis_reflete_les_transitions_pas_seulement_la_creation():
+    registre = []
+    _creer(registre, devis_id="M3-DEVIS-liste-003", lead_id="lead-liste-3")
+    devis_durable.marquer_devis_accepte("M3-DEVIS-liste-003", "nathan", _HORODATAGE, registre)
+
+    devis = devis_durable.lister_devis(registre)
+
+    assert len(devis) == 1
+    assert devis[0]["statut"] == "accepte"
+    assert devis[0]["lignes"]  # les champs posés à la création restent visibles après transition

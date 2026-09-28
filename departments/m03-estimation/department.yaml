@@ -19,6 +19,13 @@ planifications:
     consigne: >-
       Résume en 5 lignes les estimations de la veille : nombre, prix bloqués et pourquoi,
       alertes de plancher. Aucune estimation nouvelle.
+  - nom: relance-devis-sans-reponse
+    cron: "0 8 * * 1"
+    consigne: >-
+      Appelle m3_detecter_devis_sans_reponse avec l'horodatage courant et le délai de relance (en
+      jours) que Nathan a fixé pour l'entreprise ; ne choisis et n'invente jamais ce délai
+      toi-même, demande-le s'il n'est pas déjà connu. Ne transmets rien au client : ce contrôle
+      publie seulement le fait m3.devis_sans_reponse vers M2.
 budget:
   tokens_jour: 300000
   tokens_mois: 4000000
@@ -33,4 +40,4 @@ kpis:
     description: Part des demandes dont le prix est bloqué faute d'entrées suffisantes.
 evenements:
   consomme: [m4.travaux_termines, m6.variance_chantier]  # PLAN T1.2-d, estimé vs réel en second ordre
-  publie: [m3.devis_accepte]
+  publie: [m3.devis_accepte, m3.devis_sans_reponse]  # PLAN T2.3 : signal de relance vers M2
