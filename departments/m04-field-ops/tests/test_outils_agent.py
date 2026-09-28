@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from m4_field_ops.outils import outils
+from m4_field_ops.registre import Registre
+
 from opsys.departements import lire_manifeste
 from opsys.outils import Autonomie, executer
-
-from m4_field_ops.outils import outils
 
 SEL = "sel-de-test-agent"
 VILLE = "Montreal"
@@ -34,7 +35,11 @@ ATTESTATION = {"fictif": True, "appareil_id": "APP-1"}
 
 
 def _outils_par_nom():
-    return {o.nom: o for o in outils()}
+    """Registre EN MÉMOIRE, explicite : `outils()` sans argument adosse le registre de
+    production au stockage durable de l'instance (ADR-0009), qu'aucun test unitaire de ce
+    fichier ne monte — voir `departments/m04-field-ops/tests/test_registre_durable.py` pour la
+    preuve du branchement durable lui-même."""
+    return {o.nom: o for o in outils(Registre())}
 
 
 def _appeler(nom_a_outil, nom, **kwargs):

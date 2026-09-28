@@ -2,12 +2,23 @@
 
 Chaque outil enveloppe une fonction métier déterministe existante (etats,
 cedule, pointage, ecarts, outbox, digest) : aucune n'est réécrite. Comme le
-registre M4 (`registre.Registre`) est un journal EN MÉMOIRE que les fonctions
-métier reçoivent en paramètre vivant — jamais un objet JSON-sérialisable —
-`outils()` crée UNE instance partagée à l'installation du département et la
-referme par fermeture (closure) sur chaque fonction exposée : c'est ce qui
-permet à l'agent d'enchaîner inscription → pointage → complétion → digest par
-de simples appels d'outils, sans jamais manipuler le registre lui-même.
+registre M4 (`registre.Registre`) est un journal que les fonctions métier
+reçoivent en paramètre vivant — jamais un objet JSON-sérialisable —
+`outils()` referme par fermeture (closure) sur chaque fonction exposée l'accès
+au registre du département : c'est ce qui permet à l'agent d'enchaîner
+inscription → pointage → complétion → digest par de simples appels d'outils,
+sans jamais manipuler le registre lui-même.
+
+Registre de production (ADR-0009) : par défaut, `outils()` adosse ce registre
+au stockage durable de l'instance (`opsys.stockage.maillons`, dans la
+transaction que `Capacites.appeler` ouvre pour chaque appel d'outil), relu à
+chaque usage car la console et le serveur MCP écrivent la même chaîne —
+`registre.py` reste pur (aucun import `opsys`/SQLAlchemy) et ignore que ses
+maillons survivent au redémarrage : c'est cet adaptateur, seul, qui fait le
+lien. Le paramètre `registre_cible` est le point d'injection : les tests
+unitaires du département y passent explicitement un `registre.Registre()` EN
+MÉMOIRE (aucune base montée), sans toucher au comportement par défaut utilisé
+par `charger_outils()` en production.
 
 `m4_planifier_intervention` compose inscription + cédule en un seul appel
 (gain : deux allers-retours évités). Chaque outil unitaire reste disponible
@@ -18,6 +29,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from opsys import stockage
 from opsys.outils import Autonomie, Outil, depuis_couple
 
 from . import cedule, digest, ecarts, etats, outbox, pointage, registre
@@ -32,18 +44,30 @@ _REFERENTIEL_VILLES = {"type": "object", "description": "{ville_tokenisee: {lati
 _VERSION_METIER = {"type": "object", "description": "{duree_minutes, perimetre, materiaux}."}
 
 
-def outils() -> tuple[Outil, ...]:
-    """Capacités exposées aux agents. Une instance de Registre par installation."""
-    registre_cible = registre.Registre()
+def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]:
+    """Capacités exposées aux agents, qui partagent le registre du département.
 
-    # -- fonctions enveloppes (closures sur registre_cible) -----------------
+    `registre_cible` : `None` (défaut, utilisé par `charger_outils()` en production) adosse le
+    registre au stockage durable de l'instance ; un `registre.Registre()` explicite (tests) reste
+    en mémoire, jamais touché à la base.
+    """
+    if registre_cible is None:
+        def registre_courant() -> registre.Registre:
+            # Neuf à chaque usage : relu depuis la base dans la transaction de l'appel, il ne
+            # garde jamais l'empreinte d'un état qu'un autre processus a depuis prolongé.
+            return registre.Registre(stockage.maillons("m04-field-ops", "principal"))
+    else:
+        def registre_courant() -> registre.Registre:
+            return registre_cible
+
+    # -- fonctions enveloppes (closures sur registre_courant) ---------------
 
     def planifier_intervention(
         contrat: dict[str, Any], marqueur: dict[str, Any], horodatage: str, sel: str,
         techniciens_disponibles: list[str], fenetres_disponibles: list[dict[str, Any]],
     ) -> dict[str, Any]:
         """Inscrit l'intervention PUIS calcule sa cédule en un seul appel."""
-        accuse, verdict = etats.inscrire_intervention(contrat, marqueur, registre_cible, horodatage, sel)
+        accuse, verdict = etats.inscrire_intervention(contrat, marqueur, registre_courant(), horodatage, sel)
         if verdict is not None:
             return {"etape": "inscription", "accepte": False, "verdict": verdict}
         intervention_pour_cedule = {
@@ -72,18 +96,20 @@ def outils() -> tuple[Outil, ...]:
 
     def demarrer_route(intervention_id: str, technicien_id: str, horodatage: str) -> dict[str, Any]:
         return depuis_couple(etats.transitionner(
-            intervention_id, "en_route", registre_cible, horodatage,
+            intervention_id, "en_route", registre_courant(), horodatage,
             assignation={"intervention_id": intervention_id, "technicien_id": technicien_id},
         ))
 
     def signaler_report(intervention_id: str, motif: str, horodatage: str) -> dict[str, Any]:
-        return depuis_couple(etats.transitionner(intervention_id, "reportee", registre_cible, horodatage, motif=motif))
+        return depuis_couple(
+            etats.transitionner(intervention_id, "reportee", registre_courant(), horodatage, motif=motif)
+        )
 
     def annuler_intervention(intervention_id: str, horodatage: str) -> dict[str, Any]:
-        return depuis_couple(etats.transitionner(intervention_id, "annulee", registre_cible, horodatage))
+        return depuis_couple(etats.transitionner(intervention_id, "annulee", registre_courant(), horodatage))
 
     def statut_intervention(intervention_id: str) -> dict[str, Any]:
-        statut = etats.statut_courant(registre_cible, intervention_id)
+        statut = etats.statut_courant(registre_courant(), intervention_id)
         return {"intervention_id": intervention_id, "statut": statut}
 
     def pointer(
@@ -94,35 +120,35 @@ def outils() -> tuple[Outil, ...]:
         return depuis_couple(pointage.enregistrer_pointage(
             intervention_id, technicien_id, action, horodatage, fix_gps, attestation,
             {"intervention_id": intervention_id, "technicien_id": technicien_id},
-            fenetre_travail, referentiel_villes, ville, sel, registre_cible,
+            fenetre_travail, referentiel_villes, ville, sel, registre_courant(),
         ))
 
     def creer_demande_ecart(
         intervention_id: str, version_prevue: dict[str, Any], version_declaree: dict[str, Any], horodatage: str,
     ) -> dict[str, Any]:
         return depuis_couple(ecarts.creer_demande_ecart(
-            intervention_id, version_prevue, version_declaree, horodatage, registre_cible
+            intervention_id, version_prevue, version_declaree, horodatage, registre_courant()
         ))
 
     def resoudre_demande(demande_id: str, decision: str, horodatage: str, motif: str | None = None) -> dict[str, Any]:
-        return depuis_couple(ecarts.resoudre_demande(demande_id, decision, horodatage, registre_cible, motif=motif))
+        return depuis_couple(ecarts.resoudre_demande(demande_id, decision, horodatage, registre_courant(), motif=motif))
 
     def lister_pending_review(type_demande: str | None = None) -> list[dict[str, Any]]:
-        return ecarts.lister_pending_review(registre_cible, type_demande=type_demande)
+        return ecarts.lister_pending_review(registre_courant(), type_demande=type_demande)
 
     def volumetrie_pending_review() -> dict[str, Any]:
-        return ecarts.volumetrie_pending_review(registre_cible)
+        return ecarts.volumetrie_pending_review(registre_courant())
 
     def completer_intervention(intervention_id: str, horodatage: str) -> dict[str, Any]:
-        return depuis_couple(outbox.completer_intervention(intervention_id, horodatage, registre_cible))
+        return depuis_couple(outbox.completer_intervention(intervention_id, horodatage, registre_courant()))
 
     def lire_outbox(depuis_index: int = 0) -> list[dict[str, Any]]:
-        return [{"index": i, "wct": w} for i, w in outbox.lire_outbox(registre_cible, depuis_index)]
+        return [{"index": i, "wct": w} for i, w in outbox.lire_outbox(registre_courant(), depuis_index)]
 
     def notifier_client_completion(intervention_id: str) -> dict[str, Any]:
         """Prépare le brouillon de message client (T2) : jamais GPS/technicien/lead_id en clair."""
         wct = None
-        for _, candidat in outbox.lire_outbox(registre_cible):
+        for _, candidat in outbox.lire_outbox(registre_courant()):
             if candidat["intervention_id"] == intervention_id:
                 wct = candidat
         if wct is None:
@@ -137,7 +163,7 @@ def outils() -> tuple[Outil, ...]:
         }
 
     def produire_digest(date_cible: str, horodatage_reference: str) -> dict[str, Any]:
-        return depuis_couple(digest.produire_digest(registre_cible, date_cible, horodatage_reference))
+        return depuis_couple(digest.produire_digest(registre_courant(), date_cible, horodatage_reference))
 
     return (
         Outil(
@@ -284,7 +310,9 @@ def outils() -> tuple[Outil, ...]:
             description="Liste les demandes de revue en attente (écarts métier et anomalies de pointage).",
             parametres={
                 "type": "object",
-                "properties": {"type_demande": {"type": ["string", "null"], "enum": list(ecarts.TYPES_DEMANDE) + [None]}},
+                "properties": {
+                    "type_demande": {"type": ["string", "null"], "enum": list(ecarts.TYPES_DEMANDE) + [None]},
+                },
                 "additionalProperties": False,
             },
             fonction=lister_pending_review,

@@ -5,6 +5,17 @@ cryptographiquement l'identifiant du maillon précédent. Ce chaînage garantit
 la détection de toute suppression, insertion ou altération d'une entrée.
 L'intégrité complète est vérifiable via l'ancre (tête de chaîne) et le recalcul
 déterministe de l'empreinte globale, offrant ainsi une piste d'audit append-only.
+
+Module pur (ADR-0009) : aucun import d'``opsys`` ni de SQLAlchemy. ``Registre`` ne sait pas où
+vivent ses maillons — une liste Python en mémoire par défaut (perdue à l'arrêt du processus,
+comportement historique), ou tout objet qui s'en comporte comme une (``len``, index positif et
+négatif, tranche, itération, ``append``, ``extend``, copie profonde en liste), notamment
+``opsys.stockage.MaillonsDurables`` — c'est `outils.py` (l'adaptateur, seul) qui fait ce choix pour
+le registre de production. L'empreinte globale et tout état dérivé sont recalculés DEPUIS les
+maillons reçus (jamais supposés vides), paresseusement au premier besoin réel (`ajouter()` ou
+`valider_chaine()`/`assert_chaine()`) : construire un `Registre` ne lit rien au support, et une
+instance rouverte sur un registre durable déjà peuplé (relecture après redémarrage) reflète l'état
+réel dès sa première vérification.
 """
 import copy
 from datetime import datetime
@@ -33,7 +44,7 @@ def _valider_horodatage_local(chaine: str) -> None:
     try:
         dt = datetime.fromisoformat(chaine)
     except Exception:
-        raise ValueError("horodatage invalide (format ISO 8601 avec timezone requis)")
+        raise ValueError("horodatage invalide (format ISO 8601 avec timezone requis)") from None
     if dt.tzinfo is None:
         raise ValueError("horodatage invalide (timezone absente)")
 
@@ -41,10 +52,21 @@ def _valider_horodatage_local(chaine: str) -> None:
 class Registre:
     """Journal immuable chaîné par empreintes cryptographiques (M4)."""
 
-    def __init__(self):
-        self._chain = []
-        # Empreinte de la chaîne vide, sert de référence pour valider_chaine.
-        self._empreinte = encodage.empreinte()
+    def __init__(self, maillons=None):
+        """``maillons`` : la suite où vivent les maillons (protocole liste, cf. docstring du
+        module). ``None`` (par défaut) garde le comportement historique : une liste Python en
+        mémoire, vide au départ.
+
+        L'empreinte globale n'est JAMAIS supposée être celle d'une chaîne vide : elle se calcule
+        depuis ``maillons`` tel que reçu, au premier besoin (voir ``_empreinte_reference``), pour
+        qu'une instance rouverte sur un registre durable déjà peuplé (redémarrage du processus)
+        reflète un état exact dès sa première vérification — sans jamais supposer une chaîne
+        vide. Calcul PARESSEUX, pas seulement pour l'efficacité : construire un ``Registre`` ne
+        doit rien lire au support (utile à un appelant qui construit l'objet sans forcément s'en
+        servir, ex. `charger_outils()` qui liste seulement les outils exposés).
+        """
+        self._chain = maillons if maillons is not None else []
+        self._empreinte = None  # calculée au premier besoin, cf. _empreinte_reference
 
     # ----------------------------------------------------------------
     # API publique
@@ -85,7 +107,18 @@ class Registre:
         maillon["precedent_ligne_id"] = precedent
 
         self._chain.append(maillon)
-        # Mise à jour de l'empreinte globale
+        # Mise à jour de l'empreinte globale : recalcul intégral depuis self._chain, PAS un
+        # pliage incrémental (empreinte_precedente, nouveau ligne_id). Un pliage incrémental
+        # serait correct (sha256 est un digest en flux, `_hash_chaine` ne fait que concaténer un
+        # segment canonique par ligne_id avant de hacher), mais seulement en dupliquant, ici, la
+        # forme exacte de ce segment — un détail interne et privé d'`encodage.encoder_canonique`
+        # que ce module n'importe pas pour rester en accord avec lui (cf. docstring d'encodage.py
+        # : cette même canonicalisation a déjà été corrigée à deux reprises ailleurs). Le
+        # recalcul intégral reste O(n) par ajout, mais chaque lecture métier (`lire()`,
+        # `statut_courant`, ...) est déjà O(n) par appel sur ce registre : ce n'est pas une
+        # nouvelle classe de coût, et `valider_chaine()` relit de toute façon l'intégralité de
+        # `self._chain` pour ce même calcul. Comportement inchangé, prouvé par
+        # test_registre_durable.py (mêmes ligne_id, mêmes têtes, en mémoire et en durable).
         self._empreinte = _hash_chaine(self._chain)
 
         return ligne_id
@@ -126,10 +159,21 @@ class Registre:
         if not ok:
             raise VerificationError(msg)
 
+    def _empreinte_reference(self) -> str:
+        """Empreinte globale mémorisée (souvenir du dernier `ajouter()`), calculée depuis
+        `self._chain` au premier besoin si aucun ajout n'a encore eu lieu sur cette instance —
+        notamment une instance neuve rouverte sur un registre durable déjà peuplé, jamais
+        supposée vide. Une fois calculée, elle n'est PAS recalculée ici : c'est le "avant" fixe
+        auquel `_diagnostiquer` compare un recalcul frais, ce qui détecte une troncature de queue
+        (cf. test_troncature_de_queue_detectee_sans_ancre) que `ajouter()` seul maintient à jour."""
+        if self._empreinte is None:
+            self._empreinte = _hash_chaine(self._chain)
+        return self._empreinte
+
     def _diagnostiquer(self, ancre=None):
         """Retourne (bool, str) : True + '' si valide, sinon False + message explicatif."""
         # 1) Empreinte globale
-        if _hash_chaine(self._chain) != self._empreinte:
+        if _hash_chaine(self._chain) != self._empreinte_reference():
             return False, "chaîne invalide ou altérée (empreinte globale incohérente)"
         # 2) Vérification de chaque maillon
         prec_attendu = None
