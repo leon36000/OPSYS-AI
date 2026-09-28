@@ -217,16 +217,28 @@ metrics:
     return tmp_path
 
 
-def test_compiler_dictionnaire_accepte_une_unite_monetaire_en_cad(tmp_path):
+@pytest.mark.parametrize("unite", ["CAD", "CAD/lead", "cad", "Cad", "cad/lead"])
+def test_compiler_dictionnaire_accepte_une_unite_monetaire_en_cad(tmp_path, unite):
+    """T3.4 (M8-audit.md §2/§5) : CAD est accepté NU ("CAD") comme avec dénominateur
+    ("CAD/lead"), et la comparaison est insensible à la casse — une unité "cad" mal saisie
+    n'est pas un refus, seule une devise ÉTRANGÈRE l'est."""
     resultat, erreurs = dictionnaire.compiler_dictionnaire(
-        _fichier_metrique_unite(tmp_path, "CAD/lead")
+        _fichier_metrique_unite(tmp_path, unite)
     )
 
     assert erreurs == []
     assert "x_metric" in resultat["X"]
+    assert resultat["X"]["x_metric"]["unite"] == unite
 
 
-@pytest.mark.parametrize("unite", ["EUR/soumission", "USD/lead", "GBP/lead"])
+@pytest.mark.parametrize(
+    "unite",
+    [
+        "EUR/soumission", "USD/lead", "GBP/lead",  # forme "DEVISE/quelquechose" (déjà couverte avant T3.4)
+        "USD", "EUR", "GBP",  # T3.4 : devise NUE, sans dénominateur — le trou comblé par ce fix
+        "usd", "eur",  # T3.4 : devise nue en minuscules — comparaison insensible à la casse
+    ],
+)
 def test_compiler_dictionnaire_refuse_une_devise_non_cad(tmp_path, unite):
     resultat, erreurs = dictionnaire.compiler_dictionnaire(
         _fichier_metrique_unite(tmp_path, unite)
@@ -240,7 +252,15 @@ def test_compiler_dictionnaire_refuse_une_devise_non_cad(tmp_path, unite):
 
 @pytest.mark.parametrize(
     "unite",
-    ["ratio", "pourcentage", "entier", "dict {note: entier}", "float (jours)", "ratio (0.0–1.0)"],
+    [
+        "ratio", "pourcentage", "entier", "dict {note: entier}", "float (jours)", "ratio (0.0–1.0)",
+        "dict {categorie: entier}", "float (1.0–5.0)",  # les deux unités réelles qui manquaient ici
+        # Unités non monétaires que d'autres départements sont susceptibles de publier
+        # (M8-audit.md T0 : m3_duree_estimee_h, m4_duree_reelle_minutes…) — aucune ne doit
+        # jamais être traitée comme une devise, y compris "min" (3 lettres, la même longueur
+        # qu'un code ISO 4217, mais "MIN" n'en est pas un — vérifié dans _CODES_ISO_4217).
+        "min", "%", "km", "h", "jours", "nb",
+    ],
 )
 def test_compiler_dictionnaire_accepte_les_unites_non_monetaires(tmp_path, unite):
     resultat, erreurs = dictionnaire.compiler_dictionnaire(
@@ -249,6 +269,32 @@ def test_compiler_dictionnaire_accepte_les_unites_non_monetaires(tmp_path, unite
 
     assert erreurs == []
     assert "x_metric" in resultat["X"]
+
+
+def test_compiler_dictionnaire_reel_aucun_faux_positif_sur_les_unites_existantes():
+    """T3.4 (M8-audit.md §2/§5) : la garde de devise corrigée ne doit rejeter AUCUNE unité
+    réellement définie dans le dépôt aujourd'hui — preuve EXHAUSTIVE (toutes les unités
+    présentes dans le dictionnaire compilé), pas un échantillon choisi à la main.
+
+    compiler_dictionnaire retire du résultat toute métrique dont l'unité est une devise non
+    CAD (test_compiler_dictionnaire_refuse_une_devise_non_cad ci-dessus) : parcourir la
+    totalité des unités PRÉSENTES dans le dictionnaire compilé prouve donc, par construction,
+    qu'aucune d'elles n'a été signalée par erreur (sinon elle serait absente du résultat).
+    """
+    resultat, _ = dictionnaire.compiler_dictionnaire(_MODULES_M)
+
+    unites_examinees = 0
+    for module, metriques in resultat.items():
+        for metric_id, definition in metriques.items():
+            unites_examinees += 1
+            assert dictionnaire.devise_non_autorisee(definition["unite"]) is None, (
+                f"faux positif de la garde de devise : {module}/{metric_id} "
+                f"unite={definition['unite']!r}"
+            )
+
+    # Preuve que la boucle ci-dessus a réellement examiné quelque chose : un dictionnaire vide
+    # la rendrait vacuement vraie. _METRIC_IDS_M7_ATTENDUS (plus haut) porte 15 métriques.
+    assert unites_examinees >= len(_METRIC_IDS_M7_ATTENDUS) - 1
 
 
 def test_compiler_dictionnaire_compile_deux_modules_valides(tmp_path):
