@@ -341,6 +341,23 @@ def test_creer_facture_brouillon_est_idempotente_par_devis_id():
     assert len(registre_cible.lire()) == 1
 
 
+def test_facture_active_pour_devis_rend_none_si_aucune():
+    """PLAN T1.2-d (suite) : fonction publique extraite de `creer_facture_brouillon`, exposée
+    pour un appelant qui a seulement besoin de savoir si une facture existe déjà."""
+    assert facturation.facture_active_pour_devis(registre.Registre(), "DEVIS-INCONNU") is None
+
+
+def test_facture_active_pour_devis_retrouve_la_facture_creee():
+    maillon, verdict, registre_cible = _creer(facture_id="FACT-A", devis_id="DEVIS-DUP")
+    assert verdict is None
+
+    existante = facturation.facture_active_pour_devis(registre_cible, "DEVIS-DUP")
+
+    assert existante is not None
+    assert existante["facture_id"] == "FACT-A"
+    assert existante["statut"] == "BROUILLON"
+
+
 def test_creer_facture_brouillon_accepte_un_nouveau_devis_different():
     _, verdict1, registre_cible = _creer(facture_id="FACT-A", devis_id="DEVIS-1")
     maillon2, verdict2, _ = _creer(facture_id="FACT-B", devis_id="DEVIS-2", registre_cible=registre_cible)

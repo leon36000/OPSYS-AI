@@ -9,7 +9,9 @@ mission: >-
   proposition tant qu'un humain ne les a pas validées sur pièces.
 outils: m5_financecore.outils
 mode: ombre
-dependances: [m02-revenue-crm, m04-field-ops, m06-material-control]
+dependances: [m02-revenue-crm, m03-estimation, m04-field-ops, m06-material-control]
+evenements:                                          # ADR-0009 §3, PLAN T1.2-d (suite)
+  consomme: [m3.devis_accepte, m4.travaux_termines]  # facture brouillon, quel que soit l'ordre
 modeles:
   defaut: standard
   extraction: rapide

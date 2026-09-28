@@ -38,10 +38,28 @@ dès que `_stockage_durable_actif` l'est (même bascule que les mouvements), jam
 chargement, relu à chaque appel, `stockage.maillons("m05-financecore", "factures")` en
 production. Le registre des MOUVEMENTS reste strictement celui déjà en place : aucune fonction
 de ce fichier n'écrit un ENCAISSEMENT à partir d'une facture.
+
+Consommateurs d'événements (ADR-0009 §3, PLAN T1.2-d, suite) : `consommateurs()` abonne
+`_recevoir_devis_accepte` (`m3.devis_accepte`) et `_recevoir_travaux_termines`
+(`m4.travaux_termines`), chacun sur son propre registre durable dédié (`devis_recus.py`,
+`wct_recus.py` — DISTINCTS des mouvements et des factures : ni une écriture financière, ni une
+facture, seulement ce qui a été REÇU). Les deux délèguent à `_essayer_facture_brouillon`,
+fonction UNIQUE (même patron que M6 `_evaluer_et_publier_variance`) qui tente la facture
+BROUILLON dès que devis ET complétion sont connus, quel que soit l'ordre d'arrivée. Fail-closed :
+devis inconnu, complétion inconnue, `chantier_id` absent du devis ou WCT sans `devis_id` donnent
+un statut d'attente nommé, jamais une facture inventée — `lister_attentes_facturation` (T0) les
+recalcule EN DIRECT depuis les registres reçus et celui des factures à chaque appel, aucun
+troisième registre d'« attentes » à tenir synchronisé à part. Une incohérence interne (ex.
+`prix_total` du devis qui ne concorde pas avec la somme recalculée des lignes) LÈVE : le
+répartiteur réessaie puis met en quarantaine, jamais une facture fabriquée sur une donnée qui ne
+tient pas debout. Ce module reste le seul point du département qui connaît `opsys.evenements`,
+comme il est déjà le seul à connaître `opsys.stockage` — `facturation.py` n'importe ni l'un ni
+l'autre (DA-M5-04).
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
@@ -49,7 +67,7 @@ from typing import Any
 from opsys import stockage
 from opsys.outils import Autonomie, Outil, depuis_couple
 
-from . import approbation, etat_financier, facturation, taux_fiscaux, taxes, validation
+from . import approbation, devis_recus, etat_financier, facturation, taux_fiscaux, taxes, validation, wct_recus
 from . import registre as registre_module
 
 _CHEMIN_TAUX_FISCAUX = Path(__file__).resolve().parents[2] / "contracts" / "taux_fiscaux.v1.yaml"
@@ -57,6 +75,8 @@ _CHEMIN_TAUX_FISCAUX = Path(__file__).resolve().parents[2] / "contracts" / "taux
 _DEPARTEMENT = "m05-financecore"
 _NOM_REGISTRE_MOUVEMENTS = "principal"
 _NOM_REGISTRE_FACTURES = "factures"
+_NOM_REGISTRE_DEVIS_RECUS = "devis_recus"
+_NOM_REGISTRE_WCT_RECUS = "wct_recus"
 
 # Registre de production des mouvements (ADR-0009) : durable dès le chargement du module. Les tests
 # unitaires en mémoire le rebasculent par `reinitialiser_stockage_mouvements()`.
@@ -280,6 +300,178 @@ def creer_facture_brouillon(
     return {"accepte": True, "resultat": resultat, **_etat_factures(factures_historique, registre_cible)}
 
 
+def _essayer_facture_brouillon(devis_id: str) -> dict[str, Any]:
+    """Fonction UNIQUE qui tente de créer la facture BROUILLON pour ce devis_id (PLAN T1.2-d,
+    suite). Les deux consommateurs ci-dessous l'appellent avec le MÊME devis_id dès qu'ils
+    viennent de garder leur propre pièce (`devis_recus.py`/`wct_recus.py`), quel que soit l'ordre
+    d'arrivée entre `m3.devis_accepte` et `m4.travaux_termines` — jamais de calcul différent selon
+    qui a déclenché l'appel (même patron que M6 `_evaluer_et_publier_variance`, PLAN T1.2-b).
+    Appelable SEULEMENT dans la transaction du répartiteur (`stockage.maillons` y fait autorité).
+
+    Fail-closed, jamais une facture inventée : devis inconnu, complétion inconnue, ou
+    `chantier_id` absent du devis (nul ou vide) rendent un statut d'attente nommé (`en_attente_*`)
+    — états normaux du flux réel (R12 §4/§9.7), jamais une panne. `lister_attentes_facturation`
+    recalcule ces mêmes statuts EN DIRECT pour l'outil T0, sans rien stocker de plus ici.
+
+    Idempotent : une facture déjà active pour ce devis_id (`facturation.facture_active_pour_devis`)
+    court-circuite AVANT toute tentative de création — couvre la redélivrance de l'un ou l'autre
+    événement, la double publication du même devis, et le second appel de cette fonction quand les
+    deux pièces sont déjà connues (chaque consommateur rappelle systématiquement cette fonction).
+
+    Incohérence interne (ex. taux fiscal illisible, ou `prix_total` du devis qui ne concorde pas
+    avec la somme recalculée des lignes) : LÈVE. `creer_facture_brouillon` a déjà validé la forme
+    de chaque ligne et le total à la source (M3, `devis_durable.py`) ; un refus ici trahirait une
+    incohérence entre départements, jamais un cas d'usage normal — mieux vaut une panne explicite
+    (réessais puis quarantaine par le répartiteur) qu'une facture fabriquée ou un statut inventé
+    pour un cas qu'on n'a pas su nommer.
+    """
+    devis_recu = devis_recus.pour_devis_id(devis_id, stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_DEVIS_RECUS))
+    if devis_recu is None:
+        return {"traite": True, "devis_id": devis_id, "statut": "en_attente_devis_accepte"}
+
+    wct_recu = wct_recus.pour_devis_id(devis_id, stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_WCT_RECUS))
+    if wct_recu is None:
+        return {"traite": True, "devis_id": devis_id, "statut": "en_attente_travaux_termines"}
+
+    chantier_id = devis_recu.get("chantier_id")
+    if not isinstance(chantier_id, str) or not chantier_id.strip():
+        return {"traite": True, "devis_id": devis_id, "statut": "en_attente_chantier_id"}
+
+    registre_cible = _registre_factures(None)
+    if facturation.facture_active_pour_devis(registre_cible, devis_id) is not None:
+        return {"traite": True, "devis_id": devis_id, "statut": "facture_deja_existante"}
+
+    dictionnaire_taux, erreurs = taux_fiscaux.charger_taux_fiscaux(_CHEMIN_TAUX_FISCAUX)
+    if erreurs:
+        raise RuntimeError(f"taux fiscaux illisibles ({_CHEMIN_TAUX_FISCAUX}) : {'; '.join(erreurs)}")
+
+    lignes = [
+        {
+            "description": ligne["description"],
+            "quantite": ligne["quantite"],
+            "unite": ligne["unite"],
+            "prix_unitaire": ligne["prix_unitaire"],
+            "reference_ligne_devis": ligne["reference_ligne"],
+        }
+        for ligne in devis_recu["lignes"]
+    ]
+
+    resultat, verdict = facturation.creer_facture_brouillon(
+        facture_id=f"fac-{devis_id}",
+        chantier_id=chantier_id,
+        devis_id=devis_id,
+        # T2.2 (Client 360) pas encore construit : lead_id fait office de client_id le temps que
+        # ce département existe — documenté ici, à réconcilier par T2.2, jamais un identifiant
+        # fabriqué en attendant (le lead_id, lui, est réel : porté tel quel depuis M3/M2).
+        client_id=devis_recu["lead_id"],
+        lignes=lignes,
+        horodatage=wct_recu["horodatage_completion"],
+        dictionnaire_taux=dictionnaire_taux,
+        registre_cible=registre_cible,
+        montant_avant_taxes_fourni=devis_recu["prix_total"],
+    )
+    if verdict is not None:
+        if verdict["code"] == "REJ-FACTURE-DEVIS-DEJA-FACTURE":
+            return {"traite": True, "devis_id": devis_id, "statut": "facture_deja_existante"}
+        raise RuntimeError(f"creer_facture_brouillon a refusé une entrée déjà validée par M3 : {verdict}")
+
+    return {
+        "traite": True,
+        "devis_id": devis_id,
+        "statut": "facture_creee",
+        "facture_id": resultat["facture_id"],
+    }
+
+
+def _recevoir_devis_accepte(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme `m3.devis_accepte` : garde ce que M5 a reçu de ce devis (`devis_recus.py`,
+    idempotent par devis_id), puis délègue toute la décision de facturer à
+    `_essayer_facture_brouillon`, fonction UNIQUE partagée avec `_recevoir_travaux_termines`."""
+    devis_id = charge["devis_id"]
+    registre = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_DEVIS_RECUS)
+    if devis_recus.pour_devis_id(devis_id, registre) is None:
+        registre.append(
+            devis_recus.construire(
+                devis_id=devis_id,
+                lead_id=charge["lead_id"],
+                chantier_id=charge["chantier_id"],
+                lignes=charge["lignes"],
+                prix_total=charge["prix_total"],
+                horodatage_acceptation=charge["horodatage_acceptation"],
+            )
+        )
+    return _essayer_facture_brouillon(devis_id)
+
+
+def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme `m4.travaux_termines` : garde ce que M5 a reçu de ce WCT (`wct_recus.py`,
+    idempotent par wct_id — y compris quand `devis_id` est nul, pour que
+    `lister_attentes_facturation` puisse le signaler), puis délègue à
+    `_essayer_facture_brouillon` SEULEMENT si `devis_id` est connu : une intervention inscrite
+    sans devis n'a rien à joindre, jamais deviné (fail-closed, PLAN T1.2-d)."""
+    wct_id = charge["wct_id"]
+    registre = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_WCT_RECUS)
+    wct_recu = wct_recus.pour_wct_id(wct_id, registre)
+    if wct_recu is None:
+        wct_recu = wct_recus.construire(
+            wct_id=wct_id,
+            intervention_id=charge["intervention_id"],
+            devis_id=charge.get("devis_id"),
+            horodatage_completion=charge["horodatage_completion"],
+        )
+        registre.append(wct_recu)
+    if wct_recu["devis_id"] is None:
+        return {"traite": True, "wct_id": wct_id, "statut": "wct_sans_devis_id"}
+    return _essayer_facture_brouillon(wct_recu["devis_id"])
+
+
+def lister_attentes_facturation() -> dict[str, Any]:
+    """Outil T0 compact : liste les devis/WCT en attente d'une facture BROUILLON (T1.3 s'en
+    servira pour la file d'approbation du propriétaire). Recalculée EN DIRECT depuis les
+    registres reçus (`devis_recus.py`, `wct_recus.py`) et celui des factures à CHAQUE appel — le
+    même état que `_essayer_facture_brouillon` recalculerait pour chaque devis_id, sans effet de
+    bord ni troisième registre d'« attentes » à tenir synchronisé à part."""
+    devis_recus_registre = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_DEVIS_RECUS)
+    wct_recus_registre = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_WCT_RECUS)
+    factures_registre = _registre_factures(None)
+
+    devis_ids_connus = {maillon["devis_id"] for maillon in devis_recus_registre}
+    devis_ids_connus |= {
+        maillon["devis_id"] for maillon in wct_recus_registre if maillon.get("devis_id") is not None
+    }
+
+    attentes_devis: list[dict[str, Any]] = []
+    for devis_id in sorted(devis_ids_connus):
+        if facturation.facture_active_pour_devis(factures_registre, devis_id) is not None:
+            continue
+        devis_recu = devis_recus.pour_devis_id(devis_id, devis_recus_registre)
+        if devis_recu is None:
+            attentes_devis.append({"devis_id": devis_id, "statut": "en_attente_devis_accepte"})
+            continue
+        wct_recu = wct_recus.pour_devis_id(devis_id, wct_recus_registre)
+        if wct_recu is None:
+            attentes_devis.append({"devis_id": devis_id, "statut": "en_attente_travaux_termines"})
+            continue
+        chantier_id = devis_recu.get("chantier_id")
+        if not isinstance(chantier_id, str) or not chantier_id.strip():
+            attentes_devis.append({"devis_id": devis_id, "statut": "en_attente_chantier_id"})
+
+    attentes_wct_sans_devis_id = [
+        {"wct_id": maillon["wct_id"], "intervention_id": maillon["intervention_id"], "statut": "wct_sans_devis_id"}
+        for maillon in wct_recus_registre
+        if maillon.get("devis_id") is None
+    ]
+
+    return {"attentes_devis": attentes_devis, "attentes_wct_sans_devis_id": attentes_wct_sans_devis_id}
+
+
+def consommateurs() -> dict[str, Callable[[dict], dict]]:
+    return {
+        "m3.devis_accepte": _recevoir_devis_accepte,
+        "m4.travaux_termines": _recevoir_travaux_termines,
+    }
+
+
 def creer_demande_approbation(
     demande_id: str,
     palier: str,
@@ -411,6 +603,21 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=creer_facture_brouillon,
             autonomie=Autonomie.T1,
+        ),
+        Outil(
+            nom="m5_lister_attentes_facturation",
+            description=(
+                "Liste compacte (PLAN T1.2-d, suite) des devis acceptés (m3.devis_accepte) et "
+                "des interventions terminées (m4.travaux_termines) qui n'ont PAS encore produit "
+                "de facture BROUILLON, avec le statut nommé qui dit quoi demander : "
+                "en_attente_devis_accepte, en_attente_travaux_termines, en_attente_chantier_id, "
+                "ou wct_sans_devis_id (intervention inscrite sans devis, jamais reliée seule). "
+                "Lecture pure recalculée à chaque appel, aucune écriture. T1.3 s'en servira pour "
+                "la file d'approbation du propriétaire."
+            ),
+            parametres={"type": "object", "properties": {}, "additionalProperties": False},
+            fonction=lister_attentes_facturation,
+            autonomie=Autonomie.T0,
         ),
         Outil(
             nom="m5_creer_demande_approbation",

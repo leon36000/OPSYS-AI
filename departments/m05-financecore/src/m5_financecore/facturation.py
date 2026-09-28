@@ -202,6 +202,24 @@ def _etat_facture(registre_cible: Any, facture_id: str) -> dict[str, Any] | None
     return _etats_courants(registre_cible).get(facture_id)
 
 
+def facture_active_pour_devis(registre_cible: Any, devis_id: str) -> dict[str, Any] | None:
+    """La facture ACTIVE (statut != ANNULEE) pour ce devis_id, ou None si aucune.
+
+    Un devis ne porte jamais plus d'une facture active à la fois — `creer_facture_brouillon` le
+    garantit (REJ-FACTURE-DEVIS-DEJA-FACTURE) en appelant CETTE fonction ci-dessous ; exposée
+    publiquement (PLAN T1.2-d, suite) pour un appelant qui a seulement besoin de SAVOIR si une
+    facture existe déjà pour un devis (ex. `outils.lister_attentes_facturation`), sans
+    reconstruire lignes/montant/horodatage pour le découvrir en retentant une création."""
+    return next(
+        (
+            etat
+            for etat in _etats_courants(registre_cible).values()
+            if etat.get("devis_id") == devis_id and etat.get("statut") != "ANNULEE"
+        ),
+        None,
+    )
+
+
 def creer_facture_brouillon(
     facture_id: str,
     chantier_id: str,
@@ -261,14 +279,7 @@ def creer_facture_brouillon(
     if verdict_taxes is not None:
         return None, verdict_taxes
 
-    existante = next(
-        (
-            etat
-            for etat in _etats_courants(registre_cible).values()
-            if etat.get("devis_id") == devis_id and etat.get("statut") != "ANNULEE"
-        ),
-        None,
-    )
+    existante = facture_active_pour_devis(registre_cible, devis_id)
     if existante is not None:
         return None, validation.construire_verdict(
             "REJ-FACTURE-DEVIS-DEJA-FACTURE",
