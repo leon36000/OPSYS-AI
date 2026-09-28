@@ -13,8 +13,9 @@ identifiants du propriétaire, repli livré en attendant.
 
 - [x] T0.1 Définition produit injectée (`docs/produit/`, révision 3 annotée). Preuve : commit du 2026-09-28.
 - [x] T0.2 ADR-0008 : fork dur d'OpenClaw, trois couches, points ouverts décidés. Preuve : même commit.
-- [ ] T0.3 Audits sans modification M1–M10 (`docs/departements/`) et études R11 (fork), R12 (mobile),
-      R13 (socle métier) ; vérifier chaque sortie, puis détailler T1–T4 ci-dessous.
+- [x] T0.3 Audits sans modification M1–M10 (`docs/departements/`) et études R11 (fork), R12 (mobile),
+      R13 (socle métier) ; vérifier chaque sortie, puis détailler T1–T4 ci-dessous. Preuve : 13 documents
+      commités, suites de tests des départements vertes pendant les audits, constats intégrés ci-dessous.
 - [ ] T0.4 Import du fork : instantané de `v2026.9.6` (commit `eb377ac5`) dans `core/`,
       `core/NOTICE` (MIT, © OpenClaw Foundation), `core/PROVENANCE.md` ; retrait de `core/UPSTREAM.md`.
 - [ ] T0.5 CI du core : job GitHub qui installe Node et pnpm, construit et teste le core tel
@@ -51,8 +52,15 @@ identifiants du propriétaire, repli livré en attendant.
 
 Première tranche métier : elle traverse neuf départements et l'app mobile.
 
-- [ ] T1.0 Persistance des registres des départements : le registre de M2 est une liste en mémoire
-      effacée à chaque redémarrage (audit M2). Bloquant de production, traité avec ADR-0009.
+- [x] T1.0-a Socle de stockage `opsys.stockage` (ADR-0009) : base de l'instance SQLite ou PostgreSQL,
+      transaction par appel d'outil avec points de sauvegarde (`executer_atomique` dans `Capacites` et
+      les approbations), codec JSON typé, maillons durables « comme une liste », migrations Alembic au
+      démarrage, `opsys base migrer|etat`. Preuve : `pytest tests/test_stockage.py` 11 verts (dont
+      PostgreSQL réel), socle 188 verts.
+- [ ] T1.0-b Registres des départements branchés sur `opsys.stockage.maillons` (M1, M2, M3, M4, M5, M6,
+      M8, M9, M10), état dérivé recalculé au chargement, non-régression des hash mémoire contre base.
+- [ ] T1.0-c Plan de contrôle (`etat.db` : approbations, journal, usage, modes) migré dans la base de
+      l'instance, pour que décision humaine et exécution soient dans la même transaction.
 - [ ] T1.1 Données et API : jobs et machine à états (M4), sessions de travail et punch (M4.4),
       matériaux prévus et utilisés (M6.10–M6.12), facture brouillon (M5.2), activité client (M2).
 - [ ] T1.2 Événements : l'événement de fin de travaux de M4 porte les montants (M5) et les champs

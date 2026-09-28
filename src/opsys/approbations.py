@@ -16,7 +16,7 @@ from typing import Any
 
 from .contexte import appeler_en_tant_que
 from .etat import journaliser
-from .outils import Outil, executer
+from .outils import Outil, executer_atomique
 from .politiques import MODES, valider_mode
 
 
@@ -94,7 +94,7 @@ def decider(
         raise ValueError(f"demande {ident} déjà prise en charge par une autre décision")
     try:
         with appeler_en_tant_que(ligne["departement"]):
-            reponse = executer(outil, json.loads(ligne["arguments"]))
+            reponse = executer_atomique(outil, json.loads(ligne["arguments"]))
     except Exception as exc:  # noqa: BLE001 — toute panne clôt la demande, sans la rejouer
         reponse = {"ok": False, "erreur": "panne_execution", "details": f"{type(exc).__name__}: {exc}"}
     statut = "executee" if reponse["ok"] else "echec"

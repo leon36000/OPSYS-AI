@@ -10,7 +10,9 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "PyYAML>=6.0.1,<7",
-    "mcp>=2.0.0,<3",  # Hermes v2026.9.24 épingle mcp==2.0.0 : rester compatible
+    "mcp>=2.0.0,<3",
+    "SQLAlchemy>=2.1,<3",  # base de l'instance : SQLite par défaut, PostgreSQL en option (ADR-0009)
+    "alembic>=1.16,<2",
 ]
 
 [project.optional-dependencies]
@@ -30,7 +32,7 @@ version = { attr = "opsys.__version__" }
 packages = [
     "opsys",
     "opsys.console",
-    "opsys.memoire",
+    "opsys.memoire", "opsys.stockage", "opsys.stockage.migrations", "opsys.stockage.migrations.versions",
     "m1_front_office",
     "m2_revenue_crm",
     "m3_estimation",

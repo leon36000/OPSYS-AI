@@ -156,3 +156,29 @@ def executer(outil: Outil, arguments: Mapping[str, Any]) -> dict[str, Any]:
     except (ValueError, TypeError, KeyError) as exc:
         return {"ok": False, "erreur": "refus_metier", "details": str(exc)}
     return {"ok": True, "resultat": vers_json(resultat)}
+
+
+class _Annulation(Exception):
+    """Transporte une réponse en échec hors de la transaction, qui est alors annulée."""
+
+    def __init__(self, reponse: dict[str, Any]) -> None:
+        super().__init__(reponse.get("erreur"))
+        self.reponse = reponse
+
+
+def executer_atomique(outil: Outil, arguments: Mapping[str, Any]) -> dict[str, Any]:
+    """`executer` dans une transaction de la base de l'instance (ADR-0009).
+
+    Toutes les écritures d'un appel (registres, événements, audit) sont validées ensemble si la
+    réponse est un succès, annulées ensemble si elle est un échec ou si une exception survient.
+    """
+    from .stockage import transaction
+
+    try:
+        with transaction():
+            reponse = executer(outil, arguments)
+            if not reponse.get("ok"):
+                raise _Annulation(reponse)
+            return reponse
+    except _Annulation as annulation:
+        return annulation.reponse

@@ -7,10 +7,14 @@ import json
 import sys
 from pathlib import Path
 
-from . import __version__, approbations, etat, jetons, modeles, openclaw, passerelle
+from sqlalchemy import func, select
+from sqlalchemy.engine import make_url
+
+from . import __version__, approbations, etat, jetons, modeles, openclaw, passerelle, stockage
 from .capacites import outils_executables
 from .departements import charger_departements, dependances_manquantes, tous_les_outils
 from .profils import generer_distribution
+from .stockage.schema import REGISTRES
 
 
 def _afficher(donnees: object) -> None:
@@ -67,6 +71,27 @@ def cmd_approbations(args: argparse.Namespace) -> int:
             return 0
         index = outils_executables(charger_departements(), etat.session)
         _afficher(approbations.decider(cnx, args.id, args.action == "approuver", args.par, index, args.motif))
+    return 0
+
+
+def _url_masquee(url: str) -> str:
+    """URL de base affichable : le mot de passe n'apparaît jamais dans une sortie."""
+    return make_url(url).render_as_string(hide_password=True)
+
+
+def cmd_base(args: argparse.Namespace) -> int:
+    url = stockage.url_base()
+    if args.action == "migrer":
+        _afficher({"base": _url_masquee(url), "revision": stockage.migrer(url)})
+        return 0
+    registres = []
+    with stockage.transaction(url) as cnx:
+        requete = (select(REGISTRES.c.departement, REGISTRES.c.registre, func.count().label("maillons"))
+                   .group_by(REGISTRES.c.departement, REGISTRES.c.registre)
+                   .order_by(REGISTRES.c.departement, REGISTRES.c.registre))
+        registres = [dict(ligne._mapping) for ligne in cnx.execute(requete)]
+    _afficher({"base": _url_masquee(url), "moteur": stockage.moteur(url).dialect.name,
+               "revision": stockage.revision_courante(url), "registres": registres})
     return 0
 
 
@@ -174,6 +199,10 @@ def construire_parseur() -> argparse.ArgumentParser:
     a.add_argument("--par", default="")
     a.add_argument("--motif", default="")
     a.set_defaults(fn=cmd_approbations)
+
+    b = sous.add_parser("base", help="base de l'instance : migrations et état (ADR-0009)")
+    b.add_argument("action", choices=["migrer", "etat"])
+    b.set_defaults(fn=cmd_base)
 
     m = sous.add_parser("mode", help="fixer le mode d'autonomie d'un département")
     m.add_argument("departement")

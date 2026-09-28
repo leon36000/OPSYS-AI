@@ -24,7 +24,7 @@ import mcp_types as types
 from mcp.server.lowlevel import Server
 from mcp.server.stdio import stdio_server
 
-from . import __version__, etat
+from . import __version__, etat, stockage
 from .capacites import Capacites
 from .departements import charger_departements
 from .outils import Autonomie
@@ -148,6 +148,7 @@ def main(argv: list[str] | None = None) -> None:
     parseur.add_argument("--hote", default="0.0.0.0")  # noqa: S104 — réseau interne docker
     parseur.add_argument("--port", type=int, default=8765)
     args = parseur.parse_args(argv)
+    stockage.migrer()  # base de l'instance à jour avant le premier appel d'outil (ADR-0009)
     departements = charger_departements()
     if not args.http:
         appelant = args.departement[0] if len(args.departement) == 1 else None

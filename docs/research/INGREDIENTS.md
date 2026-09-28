@@ -78,6 +78,7 @@
 |---|---|---|---|---|---|
 | **Traefik** (défaut) | MIT | Reverse proxy + TLS auto, `forwardAuth` pour fédérer les logins (dashboard, Grafana, Langfuse…) | Service sidecar docker | Phase 2 | R5 |
 | **Caddy** (profil minimal) | Apache-2.0 | Alternative plus simple si une seule interface est exposée | Service sidecar docker | Phase 2 (alternative) | R5 |
+| **SQLAlchemy 2.1** (Core) + **Alembic 1.20** | MIT (les deux, fichiers LICENSE vérifiés le 2026-09-28) | Base de l'instance : même code pour SQLite (défaut) et PostgreSQL (option), migrations versionnées | Dépendances directes (`pyproject.toml`), paquet `opsys.stockage` | Adopté (ADR-0009) | R13 |
 | **PostgreSQL 17** + **pgvector** | PostgreSQL License (les deux) | Base relationnelle métier + RAG, déjà la stack visée (psycopg) | Image officielle `pgvector/pgvector:pg17` | Phase 2 (dépendance `psycopg` déclarée en optionnelle dans `pyproject.toml`, mais aucun service déployé) | R5 |
 | **Valkey** (jamais Redis) | BSD-3-Clause | Cache + files + pub/sub, protocole compatible Redis | Image officielle sidecar | Phase 2 | R5 |
 | **pgBackRest** | MIT | Sauvegarde Postgres parallèle/incrémentale par bloc, multi-repo S3 | Sidecar/cron docker + repo S3 canadien | Phase 2 | R5 |

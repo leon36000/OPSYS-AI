@@ -38,7 +38,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from .. import etat, tableau_de_bord
+from .. import etat, stockage, tableau_de_bord
 from ..departements import Departement, charger_departements
 from . import pages, ressources, securite
 from .securite import Configuration, Session
@@ -426,6 +426,7 @@ def lancer(argv: list[str] | None = None, environ: Mapping[str, str] | None = No
     parseur.add_argument("--hote", default=HOTE, help=f"adresse d'écoute (défaut : {HOTE})")
     parseur.add_argument("--port", type=int, default=PORT, help=f"port d'écoute (défaut : {PORT})")
     args = parseur.parse_args(argv)
+    stockage.migrer()  # base de l'instance à jour avant la première approbation (ADR-0009)
     try:
         application = creer_application(Configuration.depuis_environnement(os.environ if environ is None else environ))
     except (OSError, ValueError) as exc:

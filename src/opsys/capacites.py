@@ -19,7 +19,7 @@ from typing import Any
 from . import approbations, jetons
 from .contexte import appeler_en_tant_que
 from .departements import Departement, tous_les_outils
-from .outils import Autonomie, Outil, executer, valider_arguments
+from .outils import Autonomie, Outil, executer_atomique, valider_arguments
 from .politiques import approbation_requise
 
 _SCHEMA_VIDE = {"type": "object", "properties": {}, "additionalProperties": False}
@@ -138,7 +138,7 @@ class Capacites:
         if departement is None:  # outil commun : exécuté au nom du département appelant
             if outil.autonomie is Autonomie.T0:
                 with appeler_en_tant_que(self.appelant.id if self.appelant else None):
-                    return self._tronquer(executer(outil, arguments), nom)
+                    return self._tronquer(executer_atomique(outil, arguments), nom)
             if self.appelant is None:
                 return {"ok": False, "erreur": "departement_appelant_inconnu",
                         "details": "Cette action doit passer par le point d'accès MCP d'un département."}
@@ -159,7 +159,7 @@ class Capacites:
                         "details": f"Action {outil.autonomie.value} en mode {mode} : un humain doit "
                                    "l'approuver dans la console OPSYS. Ne la présente pas comme faite."}
         with appeler_en_tant_que(departement.id):
-            return self._tronquer(executer(outil, arguments), nom)
+            return self._tronquer(executer_atomique(outil, arguments), nom)
 
     def _tronquer(self, reponse: dict[str, Any], source: str) -> dict[str, Any]:
         texte = json.dumps(reponse, ensure_ascii=False)
