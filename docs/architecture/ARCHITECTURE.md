@@ -1,10 +1,33 @@
 # Architecture OPSYS-AI v2
 
-> Décisions : [ADR-0006](../decisions/ADR-0006-restructuration-v2-core-hermes.md) (restructuration)
-> et [ADR-0007](../decisions/ADR-0007-core-openclaw.md) (Core = OpenClaw).
-> Recherche et ingrédients : [`docs/research/`](../research/).
+> QUOI : [définition produit](../produit/DEFINITION-PRODUIT.md). Décision en vigueur :
+> [ADR-0008](../decisions/ADR-0008-fork-openclaw-opsys-core.md) (OpenClaw devient OPSYS-CORE par fork
+> dur). Recherche et ingrédients : [`docs/research/`](../research/).
 
-## En une image
+## Architecture cible (ADR-0008)
+
+```
+ App mobile Expo (admin · vendeur · employé · client)        Dashboard web (Control UI étendue)
+                        │   HTTPS + WebSocket, appareils appairés   │
+ ┌──────────────────────┴───────────────────────────────────────────┴──────────────────────┐
+ │ OPSYS-CORE (TypeScript, fork dur d'OpenClaw v2026.9.6)                                  │
+ │ passerelle (seul point d'entrée, authentification) · agents M1…M10 et sous-agents ·     │
+ │ canaux (SMS, WhatsApp, courriel, Teams…) · mémoire native + moteur de contexte « RAM » · │
+ │ fournisseurs de modèles cloud et locaux · planificateur · superviseur du moteur métier  │
+ └──────────────────────────────────────────┬──────────────────────────────────────────────┘
+                                            │ MCP (agents) · API interne (interfaces)
+ ┌──────────────────────────────────────────┴──────────────────────────────────────────────┐
+ │ Moteur métier OPSYS (Python) : sources de vérité des dix départements (§8), moteurs     │
+ │ déterministes, événements entre départements, approbations N0–N5, RBAC, audit, métriques │
+ └──────────────────────────────────────────┬──────────────────────────────────────────────┘
+                                   base de l'instance · fichiers (photos, preuves)
+```
+
+Une installation, une commande, partout (portable, serveur, VPS). La section suivante décrit l'état
+**transitoire** actuel (OpenClaw consommé de l'extérieur), remplacé au fil des tâches T0 de
+[`PLAN.md`](../programme/PLAN.md).
+
+## En une image (état transitoire)
 
 ```
                  ┌────────────────────────────── VPS (docker compose) ──────────────────────────────┐

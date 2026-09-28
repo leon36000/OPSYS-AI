@@ -4,10 +4,16 @@ Instructions pour tout agent (Claude Code, Codex, Cursor, Copilot…) qui travai
 
 ## Le produit
 
-OPSYS-AI est un système d'entreprise autonome clé en main pour PME, installé sur un VPS.
-- 10 départements (M1–M10) pilotés par des agents IA.
-- OPSYS-CORE = OpenClaw épinglé (voir `core/UPSTREAM.md`, ADR-0007).
-- Architecture : `docs/architecture/ARCHITECTURE.md`.
+OPSYS-AI (anciennement GRS) est un système d'exploitation d'entreprise piloté par IA : dix
+départements virtuels qui opèrent sur une seule vérité partagée. Premier client : Gouttières et
+Revêtements Synergy (rénovation extérieure, Québec) ; ensuite, SaaS pour PME québécoises.
+- **Le QUOI fait foi dans [`docs/produit/DEFINITION-PRODUIT.md`](docs/produit/DEFINITION-PRODUIT.md).**
+  Lire §1, §5, §6 et la section du département (§7) avant toute livraison.
+- **Test de dérive** : un livrable qui pourrait décrire n'importe quelle entreprise, sans leads,
+  soumissions, chantiers, équipes, factures ou matériaux, est de l'infrastructure. Retour à §1.
+- OPSYS-CORE = **fork dur d'OpenClaw**, renommé, sans dépendance aux mises à jour amont (ADR-0008).
+- L'app mobile (4 profils, hors ligne d'abord) est un pilier du produit, pas un complément (§9).
+- Architecture : `docs/architecture/ARCHITECTURE.md`. Plan d'exécution : `docs/programme/PLAN.md`.
 
 ## Arborescence
 

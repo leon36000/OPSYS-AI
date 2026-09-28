@@ -149,7 +149,7 @@ def decider_blocage(niveau_confiance, qualification):
     intervalle_confiance = {
         "borne_basse": None,
         "borne_haute": None,
-        "niveau": NIVEAU_CONFIANCE_NOMINAL,
+        "niveau": niveau_confiance,
     }
 
     # LA RÈGLE : bloqué si le niveau est INDETERMINE, OU si la qualification
