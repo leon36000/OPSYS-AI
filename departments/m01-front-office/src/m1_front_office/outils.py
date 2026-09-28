@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from opsys import stockage
+from opsys import stockage, taxonomie
 from opsys.outils import Autonomie, Outil
 
 from . import adaptateurs, consentement, contrats, digest, garde_fou, phases_voix, provenance, qualification
@@ -67,9 +67,18 @@ def filtrer_provenance(contenu_brut: str) -> dict[str, Any]:
 
 
 def qualifier_signal(
-    contenu_filtre: str, canal: str, conversation_id: str, zone_desservie: list[str]
+    contenu_filtre: str,
+    canal: str,
+    conversation_id: str,
+    zone_desservie: list[str],
+    source: str | None = None,
+    utm: dict[str, str] | None = None,
+    campagne: str | None = None,
 ) -> dict[str, Any]:
-    return qualification.qualifier(contenu_filtre, canal, conversation_id, zone_desservie)
+    return qualification.qualifier(
+        contenu_filtre, canal, conversation_id, zone_desservie,
+        source=source, utm=utm, campagne=campagne,
+    )
 
 
 def verifier_garde_fou(texte: str) -> dict[str, Any]:
@@ -134,6 +143,9 @@ def traiter_demande_entrante(
     horodatage: str,
     zone_desservie: list[str],
     consentement_enregistrement: str | None = None,
+    source: str | None = None,
+    utm: dict[str, str] | None = None,
+    campagne: str | None = None,
 ) -> dict[str, Any]:
     """Chaîne complète d'une demande entrante : provenance → registre anti-perte
     → consentement (si vocal) → qualification → décision de routage.
@@ -141,7 +153,18 @@ def traiter_demande_entrante(
     Chaque signal produit exactement une ligne au registre anti-perte (M1-R-10),
     qu'il soit qualifié ou non : un client qui ne fournit pas assez d'informations
     n'est jamais perdu, seulement redirigé vers une demande de précisions.
+
+    Le lead émis est un `LeadQualifie` v2 (`service` de la taxonomie du socle, lu dans le profil
+    d'entreprise de l'instance). Sans service déclaré par l'instance, l'appel est refusé
+    (ValueError qui dit quoi configurer) et rien n'est écrit : c'est une configuration à faire,
+    pas une demande à préciser. `source`, `utm`, `campagne` sont transmis tels que fournis.
     """
+    # 0. Configuration avant tout effet : sans service déclaré par l'instance, on refuse ici,
+    #    avant d'écrire au registre (fail-closed, le message dit quoi configurer).
+    services, verdict_profil = taxonomie.charger_services()
+    if verdict_profil is not None:
+        raise ValueError(f"{verdict_profil['code']}: {verdict_profil['detail']}")
+
     reg = _obtenir_registre()
 
     # 1. Provenance : neutralise toute tentative d'injection AVANT tout traitement
@@ -169,7 +192,10 @@ def traiter_demande_entrante(
         )
 
     # 4. Qualification par règles déterministes, zéro LLM, zéro ville inventée.
-    resultat_qualif = qualification.qualifier(contenu_filtre, canal, conversation_id, zone_desservie)
+    resultat_qualif = qualification.qualifier(
+        contenu_filtre, canal, conversation_id, zone_desservie,
+        services=services, source=source, utm=utm, campagne=campagne,
+    )
     if "verdict" in resultat_qualif:
         return {
             "etape": "qualification",
@@ -182,10 +208,10 @@ def traiter_demande_entrante(
             "decision": "DEMANDER_PRECISIONS",
         }
 
-    # 5. Décision : lead conforme au contrat gelé M1->M2 (vérification défensive :
+    # 5. Décision : lead conforme au contrat gelé M1->M2 v2 (vérification défensive :
     #    qualifier() garantit déjà la conformité, valider_lead le confirme et
     #    lèverait sinon — fail-closed, jamais silencieux).
-    contrats.valider_lead(resultat_qualif)
+    contrats.valider_lead(resultat_qualif, services=services)
 
     ligne_id_lead = reg.ajouter({
         "type_entree": "lead_emis",
@@ -219,6 +245,12 @@ _ZONE_DESSERVIE = {
     "items": {"type": "string"},
     "description": "Villes desservies par l'entreprise (configuration métier, jamais devinée).",
 }
+_SOURCE = {"type": ["string", "null"], "description": "Optionnel : canal d'acquisition déclaré, jamais deviné."}
+_UTM = {
+    "type": ["object", "null"],
+    "description": "Optionnel : paramètres UTM tels que fournis (utm_source, utm_medium, utm_campaign, utm_content).",
+}
+_CAMPAGNE = {"type": ["string", "null"], "description": "Optionnel : campagne marketing déclarée, jamais devinée."}
 _CONVERSATION = {
     "type": "object",
     "description": "Objet conversation renvoyé par m1_ouvrir_conversation ou une transition précédente.",
@@ -249,6 +281,9 @@ def outils() -> tuple[Outil, ...]:
                         "type": ["string", "null"],
                         "description": "'accorde' ou autre ; pertinent seulement si canal=telephone",
                     },
+                    "source": _SOURCE,
+                    "utm": _UTM,
+                    "campagne": _CAMPAGNE,
                 },
                 "required": [
                     "contenu_brut", "canal", "conversation_id", "signal_id", "horodatage", "zone_desservie",
@@ -272,8 +307,9 @@ def outils() -> tuple[Outil, ...]:
         Outil(
             nom="m1_qualifier_signal",
             description=(
-                "Extrait type de travaux, ville (dans zone_desservie) et urgence déclarée d'un "
-                "contenu déjà filtré. Ne renvoie qu'un lead complet ou un verdict de rejet."
+                "Extrait le service (déclaré par le profil d'entreprise), la ville (dans zone_desservie) "
+                "et l'urgence déclarée d'un contenu déjà filtré. Ne renvoie qu'un lead v2 complet ou "
+                "un verdict de rejet ; plusieurs services évoqués ou aucun : rejet, demander lequel."
             ),
             parametres={
                 "type": "object",
@@ -282,6 +318,9 @@ def outils() -> tuple[Outil, ...]:
                     "canal": _CANAL,
                     "conversation_id": {"type": "string"},
                     "zone_desservie": _ZONE_DESSERVIE,
+                    "source": _SOURCE,
+                    "utm": _UTM,
+                    "campagne": _CAMPAGNE,
                 },
                 "required": ["contenu_filtre", "canal", "conversation_id", "zone_desservie"],
                 "additionalProperties": False,

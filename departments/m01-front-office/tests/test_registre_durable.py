@@ -39,7 +39,7 @@ def _scenario() -> list[dict]:
             "canal": "texte",
             "conversation_id": "conv-1",
             "signal_id": "sig-1",
-            "contenu_filtre": "Rénovation totale à Montréal, urgent.",
+            "contenu_filtre": "Gouttières à Montréal, urgent.",
             "provenance_saine": True,
         },
         {
@@ -50,7 +50,8 @@ def _scenario() -> list[dict]:
             "signal_id": "sig-1",
             "lead": {
                 "ville": "Montréal",
-                "type_travaux": "renovation_totale",
+                "schema_version": 2,
+                "service": "gouttieres",
                 "urgence_declaree": True,
             },
         },

@@ -1,15 +1,14 @@
 import re
 import hashlib
+import unicodedata
+
+from opsys import taxonomie
+
 from . import verdicts
 
-# Motifs d'extraction déterministes
-_RENOVATION_TOTALE = re.compile(
-    r"rénovation\s+(?:totale|complète|intégrale|majeure)|rénover\s+au\s+complet",
-    re.IGNORECASE
-)
-_EXTENSION = re.compile(r"\bextension\b", re.IGNORECASE)
-_RAVALEMENT = re.compile(r"\bravalement\b", re.IGNORECASE)
-_ISOLATION_THERMIQUE = re.compile(r"isolation\s+thermique", re.IGNORECASE)
+# Le service demandé n'est plus reconnu par des motifs codés ici : la liste des services, et les
+# termes qui les évoquent, viennent de la taxonomie du socle (`opsys.taxonomie`, PLAN T0.13),
+# paramétrée par le profil d'entreprise de l'instance. Ce module ne connaît aucun service.
 
 # Correctif d'audit : aucune ville n'est codée en dur dans ce module. La zone
 # desservie (quelles villes l'entreprise dessert) est une donnée de
@@ -29,9 +28,6 @@ _URGENCE_PATTERNS = [
 # Marqueur de neutralisation posé par S005, à ignorer
 _MARQUEUR = re.compile(r"\[CONTENU_NON_FIABLE\]", re.IGNORECASE)
 
-# Mot-clé autorisé pour le type "autre" (après échec des quatre types concrets)
-_AUTRE = re.compile(r"\bautre\b", re.IGNORECASE)
-
 # Expression régulière pour détecter une ville (utilisée avec \b et escape)
 _VILLE_REGEX_CACHE = {}
 
@@ -50,9 +46,9 @@ _PHONE_REGEX = re.compile(
 _EMAIL_REGEX = re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b')
 
 
-def _rejet():
+def _rejet(detail: str | None = None):
     """Verdict de rejet normalisé."""
-    return {"verdict": verdicts.construire_verdict("REJ-QUALIF-INSUFFISANTE")}
+    return {"verdict": verdicts.construire_verdict("REJ-QUALIF-INSUFFISANTE", detail=detail)}
 
 
 def _clean(contenu_filtre: str) -> str:
@@ -60,19 +56,49 @@ def _clean(contenu_filtre: str) -> str:
     return _MARQUEUR.sub("", contenu_filtre).strip()
 
 
-def _extraire_type(contenu: str):
-    """Retourne le type de travaux ou None."""
-    if _RENOVATION_TOTALE.search(contenu):
-        return "renovation_totale"
-    if _EXTENSION.search(contenu):
-        return "extension"
-    if _RAVALEMENT.search(contenu):
-        return "ravalement"
-    if _ISOLATION_THERMIQUE.search(contenu):
-        return "isolation_thermique"
-    if _AUTRE.search(contenu):
-        return "autre"
-    return None
+def _sans_accent(texte: str) -> str:
+    """Minuscules sans accents, apostrophe typographique ramenée à l'apostrophe droite."""
+    decompose = unicodedata.normalize("NFKD", texte.replace("\u2019", "'").lower())
+    return "".join(c for c in decompose if not unicodedata.combining(c))
+
+
+_MOTIFS_SERVICE_CACHE = {}
+
+
+def _motif_service(service: taxonomie.Service):
+    """Regex du service : un de ses mots-clés, mot entier, pluriel admis, accents et casse ignorés."""
+    cle = (service.code, service.mots_cles)
+    if cle not in _MOTIFS_SERVICE_CACHE:
+        alternatives = []
+        for terme in service.mots_cles:
+            mots = [re.escape(m) + "s?" for m in _sans_accent(terme).split()]
+            alternatives.append(r"\s+".join(mots))
+        _MOTIFS_SERVICE_CACHE[cle] = (
+            re.compile(r"\b(?:" + "|".join(alternatives) + r")\b") if alternatives else None
+        )
+    return _MOTIFS_SERVICE_CACHE[cle]
+
+
+def _extraire_service(contenu: str, services):
+    """Retourne `(code, None)` si UN SEUL service déclaré est évoqué, sinon `(None, raison)`.
+
+    Le lead porte un seul `service` : un signal qui en évoque plusieurs, ou aucun, n'est pas
+    qualifié (fail-closed, jamais un choix arbitraire). L'agent demande alors lequel. La règle de
+    précédence (p. ex. « réparation de gouttières ») reste une décision du propriétaire (T2.1).
+    """
+    texte = _sans_accent(contenu)
+    evoques = []
+    for service in services:
+        motif = _motif_service(service)
+        if motif is not None and motif.search(texte):
+            evoques.append(service.code)
+    if len(evoques) == 1:
+        return evoques[0], None
+    if not evoques:
+        return None, "aucun service déclaré n'est reconnu dans la demande : demander quel service est visé"
+    return None, (
+        f"plusieurs services évoqués ({', '.join(evoques)}) : demander lequel traiter en premier"
+    )
 
 
 def _extraire_ville(contenu: str, zone_desservie):
@@ -117,29 +143,47 @@ def _materiau_lead_id(conversation_id: str, contenu: str) -> str:
     return f"{len(conversation_id)}:{conversation_id}|{len(contenu)}:{contenu}"
 
 
-def qualifier(contenu_filtre: str, canal: str, conversation_id: str, zone_desservie) -> dict:
+def qualifier(
+    contenu_filtre: str,
+    canal: str,
+    conversation_id: str,
+    zone_desservie,
+    services=None,
+    source: str | None = None,
+    utm: dict | None = None,
+    campagne: str | None = None,
+) -> dict:
     """
     Extrait les informations obligatoires d'un message filtré.
-    Retourne un LeadQualifie selon le contrat M1-M2,
+    Retourne un LeadQualifie v2 selon le contrat M1-M2 (`m1-lead-qualifie.v2.yaml`),
     ou un verdict de rejet REJ-QUALIF-INSUFFISANTE.
 
     zone_desservie : villes desservies par l'entreprise, fournies par l'appelant
         (configuration métier propre à l'installation). Requise et non vide :
         aucune ville n'est codée en dur dans ce module (correctif d'audit) ;
         sans zone, le module refuse plutôt que d'inventer une couverture.
+    services : services que l'entreprise offre (`opsys.taxonomie.Service`, avec leurs mots-clés).
+        Absent, le profil d'entreprise de l'instance est lu. Sans service déclaré, le module
+        refuse (ValueError qui dit quoi configurer) plutôt que d'inventer un service.
+    source, utm, campagne : provenance marketing, transmise telle que fournie par l'appelant ;
+        jamais devinée, absente du lead si elle n'est pas fournie.
     """
     if not zone_desservie:
         raise ValueError(
             "zone_desservie requise et non vide : aucune ville n'est codée en dur "
             "dans qualification.py, l'appelant doit fournir la zone desservie"
         )
+    if services is None:
+        services, verdict_profil = taxonomie.charger_services()
+        if verdict_profil is not None:
+            raise ValueError(f"{verdict_profil['code']}: {verdict_profil['detail']}")
     contenu = _clean(contenu_filtre)
     if not contenu:
         return _rejet()
 
-    type_travaux = _extraire_type(contenu)
-    if type_travaux is None:
-        return _rejet()
+    service, raison = _extraire_service(contenu, services)
+    if service is None:
+        return _rejet(raison)
 
     ville = _extraire_ville(contenu, zone_desservie)
     if ville is None:
@@ -155,12 +199,16 @@ def qualifier(contenu_filtre: str, canal: str, conversation_id: str, zone_desser
     lead_id = hashlib.sha256(materiau.encode("utf-8")).hexdigest()
 
     lead = {
+        "schema_version": 2,
         "lead_id": lead_id,
-        "type_travaux": type_travaux,
+        "service": service,
         "ville": ville,
         "urgence_declaree": urgence,
         "canal": canal,
         "conversation_id": conversation_id,
         "contact": contact,
     }
+    for cle, valeur in (("source", source), ("utm", utm), ("campagne", campagne)):
+        if valeur is not None:
+            lead[cle] = valeur
     return lead

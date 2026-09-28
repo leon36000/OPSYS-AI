@@ -1,0 +1,67 @@
+# CONTRAT GELÉ — modification interdite ; évolution = v3
+# Remplace m1-lead-qualifie.v1.yaml pour ce que M1 ÉMET. La v1 reste intacte et reste acceptée
+# telle quelle par M2 et M3 (registres déjà écrits). Différences avec la v1 :
+#   - `service` (code de la taxonomie du socle) remplace `type_travaux` ;
+#   - `schema_version` est porté par le lead : la version est explicite, jamais devinée ;
+#   - `source`, `utm`, `campagne` sont acceptés (optionnels, déjà acceptés par M2, M3 et M4).
+schema_version: 2
+fields:
+  - name: schema_version
+    type: int
+    required: true
+    constraints:
+      - "vaut exactement 2 (entier, pas un booléen) ; un lead v1 ne porte pas ce champ"
+  - name: lead_id
+    type: str
+    required: true
+  - name: conversation_id
+    type: str
+    required: true
+  - name: contact
+    type: dict
+    required: true
+    fields:
+      - name: nom
+        type: str
+      - name: telephone
+        type: str
+      - name: courriel
+        type: str
+    constraints:
+      - "Au moins un des champs (nom, telephone, courriel) doit être non vide"
+  - name: service
+    type: str
+    required: true
+    constraints:
+      - "code d'un service DÉCLARÉ par le profil d'entreprise de l'instance ($OPSYS_HOME/entreprise.yaml, clé services ; opsys.taxonomie)"
+      - "catalogue de référence : gouttieres, revetement, soffite_fascia, reparation"
+      - "aucune valeur de repli (pas de « autre ») : un service non déclaré est refusé"
+  - name: ville
+    type: str
+    required: true
+    constraints:
+      - "chaîne non vide"
+  - name: urgence_declaree
+    type: bool
+    required: true
+  - name: canal
+    type: str
+    required: true
+    constraints:
+      - "enum fermé : telephone, courriel, formulaire, texte"
+  - name: source
+    type: str
+    required: false
+    constraints:
+      - "chaîne non vide si fournie ; jamais de valeur par défaut"
+  - name: utm
+    type: dict
+    required: false
+    constraints:
+      - "dictionnaire non vide si fourni ; clés fermées : utm_source, utm_medium, utm_campaign, utm_content"
+      - "chaque valeur est une chaîne non vide"
+  - name: campagne
+    type: str
+    required: false
+    constraints:
+      - "chaîne non vide si fournie ; jamais de valeur par défaut"
