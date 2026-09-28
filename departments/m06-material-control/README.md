@@ -12,9 +12,18 @@ destinataire (S007), registre append-only hash-chaîné (S008), conformité
 statique + digest (S009). Couche département ajoutée : `department.yaml`,
 `SOUL.md`, 3 skills (`receptionner-une-commande`,
 `consommer-du-materiel-terrain`, `compter-l-inventaire`),
-`src/m6_material_control/outils.py` (5 outils agent, dont
+`src/m6_material_control/outils.py` (6 outils agent, dont
 `m6_receptionner_commande` : réception → stock → variance de bout en bout),
 `tests/test_outils_agent.py`.
+
+PLAN T1.1-d — formulaire de fin de chantier enrichi et variance de chantier (ajout postérieur
+à la passe ci-dessus) : `materiel.soumettre_materiaux_utilises` (nouvelle fonction, lignes
+typées prevu/non_prevu/retour/perte/bris/achat_terrain, `REJ-ACHAT-TERRAIN-PREUVE-MANQUANTE`
+fail-closed si aucune photo ni reçu ; `m6_consommer_materiaux` inchangé) ;
+`variance_chantier.py` (nouveau module, **distinct** de `variance.py` : estimé M3 vs réel
+déclaré, verdict neutre, `cause_possible` toujours `None`, jamais « vol ») ; outil
+`m6_evaluer_variance_chantier` (T0) qui émet `SignalVarianceChantierCritique` sur un seuil
+fourni par l'appelant — M6 signale, ne touche jamais le statut M4.
 
 Bugs corrigés (test rouge → vert) lors de cette passe :
 - `materiel.py` n'exposait que `consommer_materiaux`. `enregistrer_reception`

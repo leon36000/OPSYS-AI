@@ -78,6 +78,52 @@ def test_confirmation_consommation_terrain_ne_contient_aucune_cle_monetaire():
     assert not cles.intersection(CLES_MONETAIRES_INTERDITES)
 
 
+def test_construire_confirmation_materiaux_utilises_porte_les_six_types_de_ligne():
+    lignes = [
+        {"type_ligne": "prevu", "materiau_id": "MAT-1", "quantite": 8.0, "unite": "boite", "quantite_estimee": 10.0},
+        {"type_ligne": "retour", "materiau_id": "MAT-2", "quantite": 1.0, "unite": "piece"},
+        {
+            "type_ligne": "achat_terrain", "materiau_id": "MAT-3", "quantite": 2.0, "unite": "vis",
+            "photo_fournie": True, "recu_fourni": False,
+        },
+    ]
+
+    confirmation = contrats_sortie.construire_confirmation_materiaux_utilises(
+        "intervention-1", "CHANTIER-1", lignes,
+    )
+
+    assert confirmation["lignes_declarees"][0]["quantite_estimee"] == 10.0
+    assert "quantite_estimee" not in confirmation["lignes_declarees"][1]
+    assert confirmation["lignes_declarees"][2]["photo_fournie"] is True
+    assert confirmation["lignes_declarees"][2]["recu_fourni"] is False
+
+
+def test_confirmation_materiaux_utilises_ne_contient_aucune_cle_monetaire():
+    lignes = [{"type_ligne": "non_prevu", "materiau_id": "MAT-1", "quantite": 3.0, "unite": "boite"}]
+
+    confirmation = contrats_sortie.construire_confirmation_materiaux_utilises(
+        "intervention-1", "CHANTIER-1", lignes,
+    )
+
+    assert not collecter_cles_recursivement(confirmation).intersection(CLES_MONETAIRES_INTERDITES)
+
+
+def test_construire_resultat_variance_chantier_ne_contient_aucune_cle_monetaire():
+    verdicts = [{
+        "materiau_id": "MAT-1", "unite": "boite", "quantite_estimee": 100.0, "quantite_reelle": 140.0,
+        "ecart": 40.0, "ecart_pourcentage": 0.4, "verdict_variance": "ECART_REEL_SUPERIEUR",
+        "cause_possible": None, "classification_requise": True,
+    }]
+    signal = {
+        "chantier_id": "CHANTIER-1", "seuil_pourcentage": 0.3, "ecart_maximal_pourcentage": 0.4,
+        "materiaux_en_ecart_critique": ["MAT-1"], "verdicts_materiaux": verdicts,
+    }
+
+    resultat = contrats_sortie.construire_resultat_variance_chantier(verdicts, signal)
+
+    assert not collecter_cles_recursivement(resultat).intersection(CLES_MONETAIRES_INTERDITES)
+
+
 def test_le_paquet_ne_contient_aucune_cle_de_paiement_dans_ses_litteraux_dict():
     cles_paiement_interdites = {
         "statut_paiement",

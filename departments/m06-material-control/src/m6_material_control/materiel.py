@@ -128,6 +128,41 @@ def consommer_materiaux(wct, formulaire, registre) -> tuple[dict | None, str | N
     )
 
 
+def soumettre_materiaux_utilises(wct, formulaire) -> tuple[dict | None, str | None]:
+    """Formulaire de fin de chantier enrichi (PLAN T1.1-d point 1, M6.10/M6.11).
+
+    NOUVELLE fonction, distincte de consommer_materiaux : elle ne le remplace pas, ne
+    l'appelle pas et n'écrit aucun mouvement au registre (garde_ecriture_stock de
+    conformite.py n'autorise "type_mouvement" que dans enregistrer_reception/
+    consommer_materiaux/soumettre_comptage — l'ajuster serait une modification
+    structurelle hors PLAN T1.1-d, cf. ARCHITECTURE.md). m6_consommer_materiaux garde
+    donc son contrat {materiau_id, quantite} exact et ses tests existants restent verts.
+
+    Ici : validation fail-closed du formulaire enrichi à 6 types de ligne (prevu/
+    non_prevu/retour/perte/bris/achat_terrain, REJ-ACHAT-TERRAIN-PREUVE-MANQUANTE si un
+    achat terrain n'a ni photo ni reçu) puis construction du « réel déclaré » que
+    variance_chantier.evaluer consomme en entrée (PLAN T1.1-d point 2). Le rattachement
+    de ces lignes à un mouvement de stock réel (registre, coûts) est le travail du
+    consommateur côté M4 (T1.2) — hors de cette fonction.
+    """
+    ok, code = validation.valider_wct(wct)
+    if not ok:
+        return None, code
+
+    ok, code = validation.valider_formulaire_materiaux_utilises(formulaire, wct)
+    if not ok:
+        return None, code
+
+    return (
+        contrats_sortie.construire_confirmation_materiaux_utilises(
+            formulaire["intervention_id"],
+            formulaire["chantier_id"],
+            formulaire["lignes_materiaux"],
+        ),
+        None,
+    )
+
+
 def enregistrer_reception(bon_demande, reception_po, catalogue, registre, seuils=None):
     """Orchestrateur RECEPTION (docs/bmad/03-ARCHITECTURE.md l.51, DA-M6-11).
 

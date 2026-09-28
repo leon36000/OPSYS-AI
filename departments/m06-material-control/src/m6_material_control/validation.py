@@ -1,3 +1,5 @@
+import math
+
 from . import contrats, frontieres
 
 # Ordre épinglé (docs/bmad/03-ARCHITECTURE.md, responsabilité de validation.py) :
@@ -117,6 +119,156 @@ def valider_comptage(comptage) -> tuple[bool, str | None]:
     if set(comptage.keys()) != contrats.CHAMPS_COMPTAGE:
         return False, "REJ-COMPTAGE-STRUCTURE-INVALIDE"
 
+    return True, None
+
+
+def _valider_quantite_positive(quantite) -> tuple[bool, str | None]:
+    """Même garde que consommer_materiaux (NEW-PROD-004) : rejette non-numérique, bool,
+    NaN, +-inf, 0 et négatif. Partagée par le formulaire de fin de chantier et par
+    variance_chantier pour rester cohérente avec la convention déjà en place."""
+    if isinstance(quantite, bool) or not isinstance(quantite, (int, float)):
+        return False, "REJ-LIGNE-MATERIAUX-QUANTITE-INVALIDE"
+    if isinstance(quantite, float) and not math.isfinite(quantite):
+        return False, "REJ-LIGNE-MATERIAUX-QUANTITE-INVALIDE"
+    if quantite <= 0:
+        return False, "REJ-LIGNE-MATERIAUX-QUANTITE-INVALIDE"
+    return True, None
+
+
+def _valider_ligne_materiaux_utilises(ligne) -> tuple[bool, str | None]:
+    """Une ligne du formulaire de fin de chantier enrichi (PLAN T1.1-d, M6.10/M6.11).
+
+    Partagée par valider_formulaire_materiaux_utilises (formulaire soumis par l'employé)
+    et par variance_chantier (lignes_declarees fournies directement à
+    m6_evaluer_variance_chantier) : même forme, même discipline fail-closed aux deux
+    frontières.
+    """
+    if not isinstance(ligne, dict):
+        return False, "REJ-LIGNE-MATERIAUX-STRUCTURE-INVALIDE"
+
+    type_ligne = ligne.get("type_ligne")
+    if type_ligne not in contrats.TYPES_LIGNE_MATERIAUX_UTILISES:
+        return False, "REJ-LIGNE-MATERIAUX-TYPE-INVALIDE"
+
+    if set(ligne.keys()) != contrats.CHAMPS_LIGNE_MATERIAUX_UTILISES_PAR_TYPE[type_ligne]:
+        return False, "REJ-LIGNE-MATERIAUX-STRUCTURE-INVALIDE"
+
+    if not isinstance(ligne.get("materiau_id"), str) or not ligne["materiau_id"]:
+        return False, "REJ-LIGNE-MATERIAUX-STRUCTURE-INVALIDE"
+
+    if not isinstance(ligne.get("unite"), str) or not ligne["unite"]:
+        return False, "REJ-LIGNE-MATERIAUX-UNITE-INVALIDE"
+
+    ok, code = _valider_quantite_positive(ligne.get("quantite"))
+    if not ok:
+        return False, code
+
+    if type_ligne == "prevu":
+        ok, code = _valider_quantite_positive(ligne.get("quantite_estimee"))
+        if not ok:
+            return False, code
+
+    if type_ligne == "achat_terrain":
+        photo_fournie = ligne.get("photo_fournie")
+        recu_fourni = ligne.get("recu_fourni")
+        if not isinstance(photo_fournie, bool) or not isinstance(recu_fourni, bool):
+            return False, "REJ-LIGNE-MATERIAUX-STRUCTURE-INVALIDE"
+        # Règle dure PLAN T1.1-d : un achat terrain sans photo NI reçu est un rejet
+        # fail-closed nommé, pas une acceptation silencieuse (M6.11/M6.17).
+        if not (photo_fournie or recu_fourni):
+            return False, "REJ-ACHAT-TERRAIN-PREUVE-MANQUANTE"
+
+    return True, None
+
+
+def valider_formulaire_materiaux_utilises(formulaire, wct) -> tuple[bool, str | None]:
+    """Formulaire de fin de chantier enrichi (PLAN T1.1-d) : lignes typées prevu/
+    non_prevu/retour/perte/bris/achat_terrain. Étend CHAMPS_FORMULAIRE_CONSOMMATION
+    sans le remplacer — m6_consommer_materiaux et valider_formulaire_consommation
+    restent inchangés et verts."""
+    if not isinstance(formulaire, dict):
+        return False, "REJ-FORMULAIRE-MATERIAUX-STRUCTURE-INVALIDE"
+
+    ok, code = frontieres.verifier_frontieres(formulaire)
+    if not ok:
+        return False, code
+
+    if set(formulaire.keys()) != contrats.CHAMPS_FORMULAIRE_MATERIAUX_UTILISES:
+        return False, "REJ-FORMULAIRE-MATERIAUX-STRUCTURE-INVALIDE"
+
+    if formulaire["wct_id"] != wct["wct_id"]:
+        return False, "REJ-FORMULAIRE-MATERIAUX-WCT-INCOHERENT"
+
+    if not isinstance(formulaire["lignes_materiaux"], list) or not formulaire["lignes_materiaux"]:
+        return False, "REJ-FORMULAIRE-MATERIAUX-STRUCTURE-INVALIDE"
+
+    for ligne in formulaire["lignes_materiaux"]:
+        ok, code = _valider_ligne_materiaux_utilises(ligne)
+        if not ok:
+            return False, code
+
+    return True, None
+
+
+def valider_besoins_estimes_chantier(besoins_estimes) -> tuple[bool, str | None]:
+    """BesoinEstimeChantier (variance_chantier.py) : le « prévu » fourni en entrée par
+    l'appelant (intake M3 -> M6 hors PLAN T1.1-d, PRD M6.4)."""
+    if not isinstance(besoins_estimes, list):
+        return False, "REJ-BESOIN-CHANTIER-STRUCTURE-INVALIDE"
+
+    materiaux_vus: set[str] = set()
+    for besoin in besoins_estimes:
+        if not isinstance(besoin, dict) or set(besoin.keys()) != contrats.CHAMPS_BESOIN_ESTIME_CHANTIER:
+            return False, "REJ-BESOIN-CHANTIER-STRUCTURE-INVALIDE"
+
+        ok, code = frontieres.verifier_frontieres(besoin)
+        if not ok:
+            return False, code
+
+        materiau_id = besoin.get("materiau_id")
+        if not isinstance(materiau_id, str) or not materiau_id:
+            return False, "REJ-BESOIN-CHANTIER-STRUCTURE-INVALIDE"
+        if materiau_id in materiaux_vus:
+            # Fail-closed : agréger silencieusement deux lignes du même matériau
+            # inventerait une quantité estimée que personne n'a fournie telle quelle.
+            return False, "REJ-BESOIN-CHANTIER-DUPLIQUE"
+        materiaux_vus.add(materiau_id)
+
+        if not isinstance(besoin.get("unite"), str) or not besoin["unite"]:
+            return False, "REJ-LIGNE-MATERIAUX-UNITE-INVALIDE"
+
+        ok, code = _valider_quantite_positive(besoin.get("quantite_estimee"))
+        if not ok:
+            return False, code
+
+    return True, None
+
+
+def valider_lignes_declarees_chantier(lignes_declarees) -> tuple[bool, str | None]:
+    """Réel déclaré (variance_chantier.py) : même forme de ligne que le formulaire de fin
+    de chantier (_valider_ligne_materiaux_utilises), validée à nouveau ici parce que
+    m6_evaluer_variance_chantier est un point d'entrée public indépendant — il ne suppose
+    jamais que l'appelant a déjà validé via m6_soumettre_materiaux_utilises."""
+    if not isinstance(lignes_declarees, list):
+        return False, "REJ-VARIANCE-CHANTIER-LIGNES-INVALIDES"
+
+    for ligne in lignes_declarees:
+        ok, code = _valider_ligne_materiaux_utilises(ligne)
+        if not ok:
+            return False, code
+
+    return True, None
+
+
+def valider_seuil_variance_chantier(seuil_pourcentage) -> tuple[bool, str | None]:
+    """Seuil de criticité (PLAN T1.1-d point 3) : toujours fourni par l'appelant, jamais
+    codé en dur ici ni ailleurs dans variance_chantier.py."""
+    if isinstance(seuil_pourcentage, bool) or not isinstance(seuil_pourcentage, (int, float)):
+        return False, "REJ-SEUIL-VARIANCE-CHANTIER-INVALIDE"
+    if isinstance(seuil_pourcentage, float) and not math.isfinite(seuil_pourcentage):
+        return False, "REJ-SEUIL-VARIANCE-CHANTIER-INVALIDE"
+    if seuil_pourcentage <= 0:
+        return False, "REJ-SEUIL-VARIANCE-CHANTIER-INVALIDE"
     return True, None
 
 

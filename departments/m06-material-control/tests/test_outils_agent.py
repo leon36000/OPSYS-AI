@@ -70,6 +70,8 @@ def test_autonomie_respecte_la_regle_finance():
     assert _outil("m6_soumettre_comptage").autonomie == Autonomie.T1
     assert _outil("m6_produire_digest").autonomie == Autonomie.T0
     assert _outil("m6_resoudre_prix_materiau").autonomie == Autonomie.T0
+    # PLAN T1.1-d point 3 : lecture/calcul pur (aucune écriture registre) -> T0.
+    assert _outil("m6_evaluer_variance_chantier").autonomie == Autonomie.T0
 
 
 # --- m6_receptionner_commande : composé de bout en bout ---------------------
@@ -247,3 +249,97 @@ def test_resoudre_prix_materiau_indetermine_sans_catalogue_ni_historique():
     assert reponse["ok"] is True
     assert reponse["resultat"]["verdict_resolution_prix"] == "INDETERMINE"
     assert reponse["resultat"]["cout_unitaire_resolu"] is None
+
+
+# --- m6_evaluer_variance_chantier : PLAN T1.1-d points 2 et 3 ---------------
+
+
+def _besoin_estime(materiau_id="MAT-1", quantite_estimee=100.0, unite="boite"):
+    return {"materiau_id": materiau_id, "quantite_estimee": quantite_estimee, "unite": unite}
+
+
+def _ligne_declaree(quantite, materiau_id="MAT-1", unite="boite"):
+    return {
+        "type_ligne": "prevu", "materiau_id": materiau_id, "quantite": quantite,
+        "unite": unite, "quantite_estimee": quantite,
+    }
+
+
+def test_evaluer_variance_chantier_quarante_pourcent_emet_un_signal():
+    reponse = executer(
+        _outil("m6_evaluer_variance_chantier"),
+        {
+            "chantier_id": "C1",
+            "besoins_estimes": [_besoin_estime(quantite_estimee=100.0)],
+            "lignes_declarees": [_ligne_declaree(140.0)],
+            "seuil_pourcentage": 0.30,
+        },
+    )
+
+    assert reponse["ok"] is True
+    resultat = reponse["resultat"]["resultat"]
+    signal = resultat["signal_variance_critique"]
+    assert signal is not None
+    assert signal["materiaux_en_ecart_critique"] == ["MAT-1"]
+    assert signal["ecart_maximal_pourcentage"] == 0.4
+
+
+def test_evaluer_variance_chantier_cinq_pourcent_n_emet_aucun_signal():
+    reponse = executer(
+        _outil("m6_evaluer_variance_chantier"),
+        {
+            "chantier_id": "C1",
+            "besoins_estimes": [_besoin_estime(quantite_estimee=100.0)],
+            "lignes_declarees": [_ligne_declaree(105.0)],
+            "seuil_pourcentage": 0.30,
+        },
+    )
+
+    assert reponse["ok"] is True
+    resultat = reponse["resultat"]["resultat"]
+    assert resultat["signal_variance_critique"] is None
+    assert resultat["verdicts_materiaux"][0]["cause_possible"] is None
+
+
+def test_evaluer_variance_chantier_ne_renvoie_aucune_cle_monetaire():
+    reponse = executer(
+        _outil("m6_evaluer_variance_chantier"),
+        {
+            "chantier_id": "C1",
+            "besoins_estimes": [_besoin_estime(quantite_estimee=100.0)],
+            "lignes_declarees": [_ligne_declaree(140.0)],
+            "seuil_pourcentage": 0.30,
+        },
+    )
+
+    assert reponse["ok"] is True
+    cles = collecter_cles_recursivement(reponse["resultat"])
+    assert not cles.intersection(
+        {"cout_unitaire", "cout", "prix", "montant", "devise", "unite_monetaire", "montant_total_estime"}
+    )
+
+
+def test_evaluer_variance_chantier_seuil_manquant_est_un_refus_de_schema():
+    reponse = executer(
+        _outil("m6_evaluer_variance_chantier"),
+        {
+            "chantier_id": "C1",
+            "besoins_estimes": [_besoin_estime()],
+            "lignes_declarees": [_ligne_declaree(140.0)],
+        },
+    )
+
+    assert reponse["ok"] is False
+    assert reponse["erreur"] == "arguments_invalides"
+
+
+def collecter_cles_recursivement(valeur):
+    cles = set()
+    if isinstance(valeur, dict):
+        for cle, sous_valeur in valeur.items():
+            cles.add(cle)
+            cles.update(collecter_cles_recursivement(sous_valeur))
+    elif isinstance(valeur, list):
+        for element in valeur:
+            cles.update(collecter_cles_recursivement(element))
+    return cles

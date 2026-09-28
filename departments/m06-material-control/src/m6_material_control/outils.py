@@ -35,7 +35,7 @@ from opsys import stockage
 from opsys.outils import Autonomie, Outil
 
 from . import catalogue as catalogue_module
-from . import digest, materiel
+from . import digest, materiel, variance_chantier
 from . import registre as registre_module
 
 _DEPARTEMENT = "m06-material-control"
@@ -124,6 +124,40 @@ _COMPTAGE = {
     },
     "required": ["chantier_id", "materiau_id", "quantite_comptee", "horodatage"],
 }
+_BESOIN_ESTIME_CHANTIER = {
+    "type": "object",
+    "description": "BesoinEstimeChantier : ce que M3 a estimé pour ce matériau sur ce chantier.",
+    "properties": {
+        "materiau_id": {"type": "string"},
+        "quantite_estimee": {"type": "number"},
+        "unite": {"type": "string"},
+    },
+    "required": ["materiau_id", "quantite_estimee", "unite"],
+}
+_BESOINS_ESTIMES_CHANTIER = {"type": "array", "items": _BESOIN_ESTIME_CHANTIER}
+_LIGNE_DECLAREE_CHANTIER = {
+    "type": "object",
+    "description": (
+        "Ligne du formulaire de fin de chantier enrichi (materiel.soumettre_materiaux_utilises) : "
+        "type_ligne parmi prevu/non_prevu/retour/perte/bris/achat_terrain, materiau_id, quantite, "
+        "unite ; quantite_estimee en plus si prevu ; photo_fournie et recu_fourni en plus si "
+        "achat_terrain (au moins l'un des deux requis)."
+    ),
+    "properties": {
+        "type_ligne": {
+            "type": "string",
+            "enum": ["prevu", "non_prevu", "retour", "perte", "bris", "achat_terrain"],
+        },
+        "materiau_id": {"type": "string"},
+        "quantite": {"type": "number"},
+        "unite": {"type": "string"},
+        "quantite_estimee": {"type": "number"},
+        "photo_fournie": {"type": "boolean"},
+        "recu_fourni": {"type": "boolean"},
+    },
+    "required": ["type_ligne", "materiau_id", "quantite", "unite"],
+}
+_LIGNES_DECLAREES_CHANTIER = {"type": "array", "items": _LIGNE_DECLAREE_CHANTIER}
 
 
 def _rejouer_registre(historique: list[dict[str, Any]] | None) -> registre_module.Registre:
@@ -233,6 +267,20 @@ def resoudre_prix_materiau(
     return catalogue_module.resoudre_prix(materiau_id, catalogue_materiaux, registre_cible)
 
 
+def evaluer_variance_chantier(
+    chantier_id: str,
+    besoins_estimes: list[dict[str, Any]],
+    lignes_declarees: list[dict[str, Any]],
+    seuil_pourcentage: float,
+) -> dict[str, Any]:
+    """PLAN T1.1-d points 2 et 3. Aucun registre : variance_chantier.evaluer ne lit ni
+    n'écrit le registre M6 (module pur), donc pas de _registre_de_l_appel ici."""
+    resultat, code = variance_chantier.evaluer(chantier_id, besoins_estimes, lignes_declarees, seuil_pourcentage)
+    if code is not None:
+        return {"accepte": False, "verdict": {"code": code}}
+    return {"accepte": True, "resultat": resultat}
+
+
 def outils() -> tuple[Outil, ...]:
     return (
         Outil(
@@ -329,6 +377,39 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=resoudre_prix_materiau,
+            autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m6_evaluer_variance_chantier",
+            description=(
+                "Compare les besoins matériaux estimés (M3) au réel déclaré au formulaire de fin de "
+                "chantier enrichi (lignes typées prévu/non prévu/retour/perte/bris/achat terrain) et "
+                "calcule un verdict neutre par matériau. Ne classe jamais la cause : cause_possible "
+                "reste toujours null (classification humaine uniquement parmi les 6 causes nommées "
+                "de la définition produit, jamais « vol ») et classification_requise indique si un "
+                "écart attend cette classification. Émet SignalVarianceChantierCritique quand l'écart "
+                "d'au moins un matériau atteint ou dépasse seuil_pourcentage, toujours fourni par "
+                "l'appelant, jamais codé en dur. M6 signale seulement : ce signal ne modifie jamais "
+                "le statut du chantier côté M4. Lecture et calcul purs, aucune écriture au registre."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "chantier_id": {"type": "string"},
+                    "besoins_estimes": _BESOINS_ESTIMES_CHANTIER,
+                    "lignes_declarees": _LIGNES_DECLAREES_CHANTIER,
+                    "seuil_pourcentage": {
+                        "type": "number",
+                        "description": (
+                            "Fraction (0.40 = 40 %). Toujours fourni par l'appelant : aucune valeur "
+                            "par défaut n'existe dans le code."
+                        ),
+                    },
+                },
+                "required": ["chantier_id", "besoins_estimes", "lignes_declarees", "seuil_pourcentage"],
+                "additionalProperties": False,
+            },
+            fonction=evaluer_variance_chantier,
             autonomie=Autonomie.T0,
         ),
     )

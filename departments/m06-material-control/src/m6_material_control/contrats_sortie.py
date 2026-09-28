@@ -46,6 +46,59 @@ def construire_confirmation_consommation_terrain(
     return confirmation
 
 
+def construire_confirmation_materiaux_utilises(
+    intervention_id,
+    chantier_id,
+    lignes_materiaux,
+) -> dict:
+    """Confirmation du formulaire de fin de chantier enrichi (PLAN T1.1-d, point 1).
+
+    Distincte de construire_confirmation_consommation_terrain (m6_consommer_materiaux,
+    {materiau_id, quantite} seulement) : porte les 6 types de ligne de M6.11. Comme sa
+    cousine, ne porte jamais de coût (garde _verifier_absence_cles_monetaires) ni de nom
+    d'employé — seul le type de ligne déclaré par le formulaire, jamais une cause.
+    """
+    lignes_declarees = []
+    for ligne in lignes_materiaux:
+        ligne_declaree = {
+            "type_ligne": ligne["type_ligne"],
+            "materiau_id": ligne["materiau_id"],
+            "quantite": ligne["quantite"],
+            "unite": ligne["unite"],
+        }
+        if ligne["type_ligne"] == "prevu":
+            ligne_declaree["quantite_estimee"] = ligne["quantite_estimee"]
+        if ligne["type_ligne"] == "achat_terrain":
+            ligne_declaree["photo_fournie"] = ligne["photo_fournie"]
+            ligne_declaree["recu_fourni"] = ligne["recu_fourni"]
+        lignes_declarees.append(ligne_declaree)
+
+    confirmation = {
+        "intervention_id": intervention_id,
+        "chantier_id": chantier_id,
+        "lignes_declarees": lignes_declarees,
+    }
+
+    _verifier_absence_cles_monetaires(confirmation)
+    return confirmation
+
+
+def construire_resultat_variance_chantier(verdicts_materiaux, signal_variance_critique) -> dict:
+    """Résultat de variance_chantier.evaluer (PLAN T1.1-d, points 2 et 3).
+
+    Verdict neutre par matériau + SignalVarianceChantierCritique (ou None sous le seuil).
+    Ni coût (garde _verifier_absence_cles_monetaires, comme les autres contrats de
+    sortie M6), ni nom d'employé : aucun des deux ne transite par variance_chantier.py.
+    """
+    resultat = {
+        "verdicts_materiaux": verdicts_materiaux,
+        "signal_variance_critique": signal_variance_critique,
+    }
+
+    _verifier_absence_cles_monetaires(resultat)
+    return resultat
+
+
 def montant_decimal_a_la_frontiere(montant_m6):
     """Convertit un montant M6 (float, contrat gelé §2.6/§2.8) en Decimal EXACT
     pour toute frontière qui l'exige (ex. M5-FinanceCore, CA-M5-01 : Decimal
