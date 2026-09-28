@@ -99,8 +99,9 @@
 
 ## Mobile
 
-> Squelette Expo Router livré par PLAN T1.4-a (`mobile/`, aucun écran métier) — voir
-> [`docs/architecture/MOBILE.md`](../architecture/MOBILE.md) et
+> Squelette Expo Router livré par PLAN T1.4-a (`mobile/`, aucun écran métier), étendu par
+> T1.4-c3 (appairage), T1.4-d (punch) et **T1.4-e (chantier du jour, transitions, checklist,
+> photos, signature)** — voir [`docs/architecture/MOBILE.md`](../architecture/MOBILE.md) et
 > [`R12`](R12-app-mobile.md) §3 pour le détail. Licences vérifiées en lisant le fichier `LICENSE`
 > de chaque paquet dans `mobile/node_modules/<paquet>/`, sauf mention contraire ci-dessous.
 
@@ -124,6 +125,10 @@
 | **@react-native/jest-preset** 0.86.3 | MIT (`package.json` ; le tarball publié n'inclut pas de fichier `LICENSE` — vérifiée en lisant celui, identique, de `react-native` : même éditeur Meta, même monorepo `facebook/react-native`) | Pair requis par `jest-expo` (config Jest React Native) | Dépendance directe (dev), version = celle de `react-native` 0.86.3 | **Intégré** | R12 |
 | **TypeScript** 6.0.3 | Apache-2.0 | Mode strict (`strict: true`, R12 §5 et mission) | Dépendance directe (dev) — non pinnée par R12 §3 ; version reprise du gabarit officiel `expo-template-default@57.0.25` | **Intégré** | Gabarit SDK 57 |
 | **@types/react** 19.2.18 + **@types/jest** 29.5.14 | MIT (les deux, Microsoft/DefinitelyTyped) | Typage | Dépendances directes (dev) | **Intégré** | — |
+| **expo-camera** 57.0.5 | MIT (fichier `LICENSE` lu) | Capture photo avant/pendant/après (`CameraView`), bridage de résolution ≈1600 px de long côté + qualité JPEG 0,8 (`src/photos/`, R12 §4) — `CameraPictureOptions` n'offre pas de redimensionnement direct, voir MOBILE.md « Photos » pour la limite exacte lue dans les types | Dépendance directe, version épinglée = celle de R12 §3 | **Intégré** (T1.4-e) | R12 · PLAN T1.4-e |
+| **expo-file-system** 57.0.7 | MIT (fichier `LICENSE` lu) | Stockage local géré des photos/signature (API `File`/`Directory`/`Paths` de SDK 57, pas l'ancienne API `FileSystem.*`) — copie hors du cache caméra vers `Paths.document`, lecture des octets pour le hachage SHA-256 (`src/photos/service.ts`, `src/signature/service.ts`) | Dépendance directe, version épinglée = celle de R12 §3 | **Intégré** (T1.4-e) | R12 · PLAN T1.4-e |
+| **react-native-signature-canvas** 5.1.1 | MIT (fichier `LICENSE` lu) | Capture de la signature du client, rendu WebView (`signature.tsx`) — logique de décodage de sa DataURL isolée en fonction pure testée (`src/signature/dataUrl.ts`), la brique elle-même n'étant pas testable sous Jest (mission item 4) | Dépendance directe, version épinglée = celle de R12 §3 | **Intégré** (T1.4-e) | R12 · PLAN T1.4-e |
+| **react-native-webview** 13.16.1 | MIT (fichier `LICENSE` lu) | Pair REQUIS de `react-native-signature-canvas` (`peerDependencies`, non listé par R12 §3) — `react-native-signature-canvas` rend sa capture dans une WebView | Dépendance directe — **écart de source** : non fournie par R12 §3 (péri­phérique d'une autre brique) ; version lue dans `node_modules/expo/bundledNativeModules.json` (le tableau que consulte `expo install` en interne), le CLI `expo install` lui-même étant indisponible ici (vérificateur de compatibilité en ligne bloqué par le proxy sortant du bac à sable) — installée explicitement car `legacy-peer-deps=true` n'installe jamais un pair automatiquement | **Intégré** (T1.4-e) | PLAN T1.4-e |
 
 **`.npmrc` : `legacy-peer-deps=true`.** `react-dom` est un pair **optionnel** de
 `expo`/`expo-router`/`@expo/metro-runtime` (support web, non utilisé — app mobile iOS/Android
@@ -308,9 +313,11 @@ hors périmètre strict de R10 ») et documente en plus, pour M10 spécifiquemen
 - **Modèles/tokens** : 9 retenues (2 intégrées, 6 phase 2, 1 référence) + 6 refusées.
 - **Mémoire/RAG** : 16 retenues (14 phase 2/optionnelles, 2 référence) + 6 refusées.
 - **Déploiement/observabilité** : 18 retenues (16 phase 2, 2 référence — WAL-G, et le trio Coolify/Dokploy/Supabase en une seule ligne) + 2 refusées.
-- **Mobile** : 19 retenues (19 intégrées — squelette Expo Router de PLAN T1.4-a, +4 pour le
+- **Mobile** : 23 retenues (23 intégrées — squelette Expo Router de PLAN T1.4-a, +4 pour le
   client d'appairage de PLAN T1.4-c3 : `expo-secure-store`, `@noble/curves`, `@noble/hashes`,
-  `@types/node`) + 0 refusée.
+  `@types/node`, +4 pour le chantier du jour/checklist/photos/signature de PLAN T1.4-e :
+  `expo-camera`, `expo-file-system`, `react-native-signature-canvas`, `react-native-webview`)
+  + 0 refusée.
 - **M1** : 11 retenues (1 intégrée — code interne conservé —, 10 phase 2) + 2 refusées.
 - **M2** : 4 retenues (phase 2) + 2 refusées.
 - **M3** : 6 retenues (phase 2) + 3 refusées.
@@ -322,7 +329,7 @@ hors périmètre strict de R10 ») et documente en plus, pour M10 spécifiquemen
 - **M9** : 13 retenues (2 intégrées — format Agent Skills et patron `civ_review.py` —, 11 phase 2) + 4 refusées.
 - **M10** : renvoie au domaine Mémoire/RAG + 2 éléments propres (1 intégrée — modèle Département —, 1 phase 2).
 
-**Total : 133 briques/patrons retenus** (dont 27 déjà intégrés au code ou à la méthode : **OpenClaw**
+**Total : 137 briques/patrons retenus** (dont 31 déjà intégrés au code ou à la méthode : **OpenClaw**
 comme core par défaut, **Hermes Agent** comme adaptateur/runtime optionnel, **LiteLLM** comme
 passerelle de modèles par défaut, la discipline de cache-boundary (désormais native au runtime
 OpenClaw), `garde_fou.py` M1 conservé, le format Agent Skills, le patron
@@ -331,7 +338,9 @@ squelette de l'app mobile — PLAN T1.4-a : Expo/Expo Router/expo-sqlite/expo-lo
 expo-crypto, i18next/react-i18next, React/React Native et les dépendances de navigation
 requises par Expo Router, Jest/jest-expo/babel-preset-expo/@react-native/jest-preset,
 TypeScript — et les 4 briques du client d'appairage mobile — PLAN T1.4-c3 :
-`expo-secure-store`, `@noble/curves`, `@noble/hashes`, `@types/node`) **et 38 refusées
+`expo-secure-store`, `@noble/curves`, `@noble/hashes`, `@types/node` — et les 4 briques du
+chantier du jour/checklist/photos/signature — PLAN T1.4-e : `expo-camera`, `expo-file-system`,
+`react-native-signature-canvas`, `react-native-webview`) **et 38 refusées
 explicitement**, sur les 10 rapports `docs/research/R1`–`R10` et
 R12 ; mise à jour du choix de core par
 [ADR-0007](../decisions/ADR-0007-core-openclaw.md), vérifiée directement dans le code, les tests et le

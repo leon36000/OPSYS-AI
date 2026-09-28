@@ -16,6 +16,7 @@ import { genererMutationId } from "@/outbox/id";
 import { creerMutation, formaterHorodatageLocal, soumettreMutation } from "@/outbox/mutation";
 import { declencherVidange, obtenirDepot } from "@/outbox/service";
 import type { MutationOutbox } from "@/outbox/types";
+import { obtenirConfigurationAppel } from "@/protocole/configuration";
 
 /**
  * `punch.tsx` (M4.4, R12 §5 étape 2) : entrée/sortie/pause, en file AVANT tout réseau. La
@@ -45,6 +46,7 @@ export default function EcranPointage() {
   const [dernierVerdict, setDernierVerdict] = useState<{ code: string; detail: string } | null>(null);
   const [enTraitement, setEnTraitement] = useState(false);
   const [erreurValidation, setErreurValidation] = useState(false);
+  const [erreurAppareil, setErreurAppareil] = useState(false);
 
   const derniereMutationIdRef = useRef<string | null>(null);
 
@@ -78,12 +80,24 @@ export default function EcranPointage() {
       if (!resolue) {
         return; // fail-closed : ne devrait pas arriver, actionsDisponibles(phase) filtre déjà.
       }
+      // Mission T1.4-e item 3 : UN SEUL identifiant d'appareil dans toute l'app — celui de la
+      // VRAIE session appairée (`src/appairage/`), jamais un identifiant provisoire par
+      // processus. `obtenirConfigurationAppel()` est TOUJOURS non nulle à l'intérieur du groupe
+      // `(employee)` (gardé par `evaluerGarde`, qui exige une session posée par le MÊME appel
+      // que `definirConfigurationAppel` — `app/pairing/index.tsx`/`app/_layout.tsx`) ; on reste
+      // fail-closed plutôt que de le supposer : sans configuration, aucune mutation n'est créée.
+      const configuration = obtenirConfigurationAppel();
+      if (!configuration) {
+        setErreurAppareil(true);
+        return;
+      }
       setErreurValidation(false);
+      setErreurAppareil(false);
       setEnTraitement(true);
       try {
         const horloge = { maintenant: new Date(), decalageMinutesUTC: -new Date().getTimezoneOffset() };
         const horodatageLocal = formaterHorodatageLocal(horloge);
-        const contexte = obtenirContextePointageProvisoire(genererMutationId);
+        const contexte = obtenirContextePointageProvisoire(configuration.appareilId);
         const args = construireArgumentsPointer(interventionId, technicienId, resolue.action, horodatageLocal, contexte);
 
         const brouillon = creerMutation(
@@ -145,6 +159,7 @@ export default function EcranPointage() {
         accessibilityLabel={t("pointage.champTechnicien")}
       />
       {erreurValidation && !champsValides ? <Text style={styles.erreur}>{t("pointage.champsRequis")}</Text> : null}
+      {erreurAppareil ? <Text style={styles.erreur}>{t("pointage.appareilNonAppaire")}</Text> : null}
 
       <View style={styles.boutons}>
         {actionsDisponibles(phase).map((action) => (

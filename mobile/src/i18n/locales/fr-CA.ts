@@ -53,6 +53,84 @@ export interface RessourcesCommunes {
       echecPermanent: string;
       echecPermanentAvecVerdict: string;
     };
+    appareilNonAppaire: string;
+  };
+  today: {
+    titre: string;
+    chargement: string;
+    aucunChantier: string;
+    rafraichir: string;
+    source: {
+      cache: string;
+      aucune: string;
+    };
+    statut: {
+      planifiee: string;
+      en_route: string;
+      sur_site: string;
+      en_revue: string;
+      reportee: string;
+      completed_pending_review: string;
+      completed_verified: string;
+      annulee: string;
+    };
+  };
+  job: {
+    titre: string;
+    champTechnicien: string;
+    champsRequis: string;
+    appareilNonAppaire: string;
+    statutInconnu: string;
+    source: {
+      cache: string;
+      aucune: string;
+    };
+    boutons: {
+      enRoute: string;
+      arrive: string;
+      pauseDebut: string;
+      pauseFin: string;
+    };
+    liens: {
+      checklist: string;
+      photos: string;
+      signature: string;
+    };
+    verdict: {
+      echecPermanent: string;
+      echecPermanentAvecVerdict: string;
+    };
+  };
+  checklist: {
+    titre: string;
+    champNouvelItem: string;
+    ajouter: string;
+    vide: string;
+    retirer: string;
+    etat: {
+      terminee: string;
+      nonTerminee: string;
+    };
+  };
+  photos: {
+    titre: string;
+    natures: {
+      avant: string;
+      pendant: string;
+      apres: string;
+    };
+    capturer: string;
+    aucunePhoto: string;
+    permissionRefusee: string;
+    enregistrement: string;
+  };
+  signature: {
+    titre: string;
+    effacer: string;
+    confirmer: string;
+    requise: string;
+    enregistree: string;
+    vide: string;
   };
 }
 
@@ -114,6 +192,84 @@ const frCA: RessourcesCommunes = {
       echecPermanent: "Échec définitif",
       echecPermanentAvecVerdict: "Échec définitif ({{code}}) : {{detail}}",
     },
+    appareilNonAppaire: "Appareil non apparié : impossible de pointer pour l'instant.",
+  },
+  today: {
+    titre: "Chantiers du jour",
+    chargement: "Chargement des chantiers…",
+    aucunChantier: "Aucun chantier actif pour l'instant.",
+    rafraichir: "Rafraîchir",
+    source: {
+      cache: "Hors ligne — dernières données reçues à {{heure}}",
+      aucune: "Aucune donnée locale disponible hors ligne.",
+    },
+    statut: {
+      planifiee: "Planifié",
+      en_route: "En route",
+      sur_site: "Sur place",
+      en_revue: "En revue",
+      reportee: "Reportée",
+      completed_pending_review: "Terminé — en revue",
+      completed_verified: "Terminé — vérifié",
+      annulee: "Annulée",
+    },
+  },
+  job: {
+    titre: "Chantier",
+    champTechnicien: "Technicien",
+    champsRequis: "Entrez le technicien avant de continuer.",
+    appareilNonAppaire: "Appareil non apparié : impossible de continuer pour l'instant.",
+    statutInconnu: "Statut inconnu",
+    source: {
+      cache: "Hors ligne — dernier statut connu",
+      aucune: "Aucun statut connu localement.",
+    },
+    boutons: {
+      enRoute: "En route",
+      arrive: "Arrivé",
+      pauseDebut: "Pause",
+      pauseFin: "Fin de pause",
+    },
+    liens: {
+      checklist: "Checklist",
+      photos: "Photos",
+      signature: "Signature",
+    },
+    verdict: {
+      echecPermanent: "Échec définitif",
+      echecPermanentAvecVerdict: "Échec définitif ({{code}}) : {{detail}}",
+    },
+  },
+  checklist: {
+    titre: "Checklist",
+    champNouvelItem: "Nouvel élément",
+    ajouter: "Ajouter",
+    vide: "Aucun élément — ajoutez au moins une étape avant de terminer.",
+    retirer: "Retirer",
+    etat: {
+      terminee: "Checklist terminée",
+      nonTerminee: "Checklist non terminée",
+    },
+  },
+  photos: {
+    titre: "Photos",
+    natures: {
+      avant: "Avant",
+      pendant: "Pendant",
+      apres: "Après",
+    },
+    capturer: "Prendre une photo",
+    aucunePhoto: "Aucune photo pour cette catégorie.",
+    permissionRefusee: "Accès à la caméra refusé. Autorisez-le dans les réglages de l'appareil.",
+    enregistrement: "Enregistrement de la photo…",
+  },
+  signature: {
+    titre: "Signature du client",
+    effacer: "Effacer",
+    confirmer: "Confirmer",
+    requise: "Signature requise pour ce chantier.",
+    enregistree: "Signature enregistrée.",
+    vide: "Tracez une signature avant de confirmer.",
   },
 };
 

@@ -7,26 +7,30 @@
 > dans [`docs/research/R12-app-mobile.md`](../research/R12-app-mobile.md) (pile §3, synchro §4,
 > écrans §5, sécurité §6). Ce fichier résume ; R12 fait foi sur le détail et les preuves.
 
-## État actuel : appairage réel + premier écran métier (T1.4-c3)
+## État actuel : chantier du jour, transitions, checklist, photos, signature (T1.4-e)
 
 `mobile/` contenait, jusqu'à T1.4-a, un **squelette** (projet, routage par rôle, file sortante
 et client protocole en logique pure) sans écran métier. T1.4-d a livré `punch.tsx` (M4.4) et le
-« vidangeur » qui relie `src/outbox` à `src/protocole` (R12 §5 étape 2), mais sans configuration
-de connexion réelle (`obtenirConfigurationAppel` renvoyait toujours `null`, faute d'appairage).
-**T1.4-c3 livre le CLIENT D'APPAIRAGE réel** (`src/appairage/`) : identité d'appareil Ed25519
-générée sur l'appareil, protocole `connect`/`connect.challenge`/`hello-ok` lu et reproduit
-fidèlement depuis le fork, écran de saisie de code, stockage sécurisé du jeton, et branchement
-du rôle reçu sur la garde de routes existante — voir « Appairage » ci-dessous pour le détail et
-les limites. **Précision (T1.4-c4) :** le rôle *reçu par la poignée de main* (`hello.auth.role`,
-ce que cette garde regarde) reste le rôle de transport générique du fork (`"operator"`) même après
-T1.4-c2/T1.4-c4 — ce n'est pas ce que ces deux tranches livrent. Ce qu'elles livrent : le rôle
-OPSYS nommé (`admin`/`employee`/`seller`) résolu et appliqué à CHAQUE appel `/tools/invoke`,
-indépendamment de la poignée de main (« Idempotence et identité d'appareil de bout en bout »
-ci-dessous). Étapes suivantes (R12 §5, ordre de livraison) :
-`today.tsx`/`job/[id]`, `checklist`/`photos`/`signature`, `complete`→`materials` (M6.10),
-`(admin)/approvals`, E2E Maestro. T1.4-b (idempotence côté socle) est fait côté serveur — voir
-[`IDEMPOTENCE.md`](IDEMPOTENCE.md) — mais son branchement CÔTÉ CORE (`_meta` MCP) reste à faire
-en T1.4-c1 (détail dans la section « `/tools/invoke` » ci-dessous).
+« vidangeur » qui relie `src/outbox` à `src/protocole` (R12 §5 étape 2). T1.4-c3 a livré le
+**CLIENT D'APPAIRAGE réel** (`src/appairage/`, voir « Appairage » ci-dessous). **Précision
+(T1.4-c4) :** le rôle *reçu par la poignée de main* (`hello.auth.role`, ce que la garde de routes
+regarde) reste le rôle de transport générique du fork (`"operator"`) même après T1.4-c2/T1.4-c4 ;
+ces deux tranches livrent le rôle OPSYS nommé (`admin`/`employee`/`seller`) résolu et appliqué à
+CHAQUE appel `/tools/invoke`, indépendamment de la poignée de main (« Idempotence et identité
+d'appareil de bout en bout » ci-dessous). **T1.4-e livre R12 §5 étapes 3 et 4** : `today.tsx`
+(chantiers du jour, lecture `m4_lister_interventions` + cache local hors ligne — voir « Chantiers
+du jour »), `job/[id]/index.tsx` (statut et transitions en route/arrivé/pause par la file
+sortante, verdict serveur affiché — voir « Écran `job/[id]/index.tsx` »), `checklist.tsx`,
+`photos.tsx`, `signature.tsx` (preuves de chantier, fichier local + SHA-256, jamais de binaire
+dans une mutation — voir les sections dédiées) et la préparation de la structure
+`PreuvesCompletion` pour T1.4-f (`src/m4/preuvesCompletion.ts`). **Un seul identifiant d'appareil
+dans toute l'app depuis cette tranche** : `punch.tsx` et `job/[id]/index.tsx` lisent tous les
+deux `src/protocole/configuration.ts::obtenirConfigurationAppel()` (la VRAIE identité
+d'appairage) — voir « Écran `punch.tsx` » pour ce qui a changé. Étapes suivantes (R12 §5, ordre
+de livraison) : `complete.tsx`→`materials.tsx` (M6.10), `(admin)/approvals`, E2E Maestro. T1.4-b
+(idempotence côté socle) et T1.4-c1 (le core transmet la clé, l'appareil et son heure dans le
+`_meta` MCP) sont faits côté serveur — voir [`IDEMPOTENCE.md`](IDEMPOTENCE.md) et la section
+« `/tools/invoke` » ci-dessous ; le trajet réel appareil → core → moteur reste à prouver (T1.5).
 
 ## Pile (R12 §3 — versions et licences vérifiées)
 
@@ -42,14 +46,26 @@ T1.4-a.
 Depuis T1.4-c3 : `expo-secure-store` (jeton d'appareil et clé secrète Ed25519, jamais SQLite ni
 `AsyncStorage` — R12 §6) et, pour la signature du défi d'appairage, `@noble/curves` (Ed25519,
 algorithme confirmé en lisant le fork — voir « Appairage ») + `@noble/hashes` (SHA-256, dérivation
-du `deviceId`). Volontairement **pas encore installés** à ce stade (aucun écran n'en a encore
-besoin) : caméra (donc pas de lecture QR — voir « Appairage », code saisi seulement),
-notifications, signature manuscrite, formulaires (react-hook-form/zod), TanStack Query,
+du `deviceId`).
+
+Depuis T1.4-e : **`expo-camera`** 57.0.5 (capture photo, `CameraView` — voir « Photos »),
+**`expo-file-system`** 57.0.7 (API `File`/`Directory`/`Paths` de SDK 57, pas l'ancienne API
+`FileSystem.*` — stockage local des photos/signature, hachage — voir « Photos », « Signature »),
+**`react-native-signature-canvas`** 5.1.1 (rendu WebView, voir « Signature ») et son pair
+**`react-native-webview`** 13.16.1 (version lue dans `node_modules/expo/bundledNativeModules.json`
+— le même tableau que consulte `expo install`, indisponible ici via le CLI lui-même, le
+vérificateur de compatibilité en ligne de `expo install` étant bloqué par le proxy sortant du bac
+à sable ; installé explicitement car `legacy-peer-deps=true` — §3 — n'installe jamais
+automatiquement un pair). Toutes MIT (fichiers `LICENSE` lus). Volontairement **pas encore
+installés** à ce stade (aucun écran n'en a encore besoin) : lecture QR (voir « Appairage », code
+saisi seulement), notifications, formulaires (react-hook-form/zod), TanStack Query,
 `expo-location`/`expo-task-manager` (GPS — voir « Écran `punch.tsx` » : la lecture Loi 25
 « fenêtre bornée » de R12 §6 n'est pas encore confirmée par Nathan/juriste),
-`@testing-library/react-native` (absent de la pile installée — `punch.tsx` et l'écran
-d'appairage sont donc testés via leur logique extraite en fonctions pures, jamais en rendu). Ils
-entrent avec les tranches qui en ont besoin, jamais par anticipation.
+`expo-image-manipulator` (aucun redimensionnement post-capture — voir « Photos », le bridage
+« ≈1600 px » se fait par choix de résolution de capture, pas par redimensionnement),
+`@testing-library/react-native` (absent de la pile installée — tous les écrans de cette tranche
+sont donc testés via leur logique extraite en fonctions pures, jamais en rendu). Ils entrent avec
+les tranches qui en ont besoin, jamais par anticipation.
 
 ## Rôles et routage (`src/roles/`)
 
@@ -61,10 +77,15 @@ tous les trois, vers `/pairing`). Chaque `_layout.tsx` de groupe appelle cette g
 rendre quoi que ce soit — un jeton `employee` n'atteint donc jamais `(admin)`, y compris par URL
 directe. `src/roles/contexte.tsx` porte l'état de session en React Context ; il démarre toujours
 `{ presente: false }` au premier rendu (`app/_layout.tsx` la restaure ensuite depuis
-`expo-secure-store` si une session persistée existe — voir « Appairage » ci-dessous). 312 tests
-Jest couvrent la garde (matrice rôle × groupe complète, session absente, rôles inconnus), la
-file sortante, le vidangeur (faux transport), le contrat `m4_pointer`, les déclencheurs, la
-logique de `punch.tsx`, et désormais le client d'appairage (`src/appairage/`, T1.4-c3).
+`expo-secure-store` si une session persistée existe — voir « Appairage » ci-dessous). 446 tests
+Jest (PLAN T1.4-e ; 312 à T1.4-c3) couvrent la garde (matrice rôle × groupe complète, session
+absente, rôles inconnus), la file sortante, le vidangeur (faux transport), le contrat
+`m4_pointer`, les déclencheurs, la logique de `punch.tsx`, le client d'appairage
+(`src/appairage/`, T1.4-c3), et désormais (T1.4-e) les contrats `m4_lister_interventions`/
+`m4_statut_intervention`/`m4_demarrer_route` (`src/m4/interventions.ts`), la sélection/le cache
+des chantiers du jour (`src/today/`), les transitions de `job/[id]/index.tsx` (`src/ecrans/job.ts`),
+la checklist (`src/checklist/`), le bridage/hachage des photos (`src/photos/`,
+`src/fichiers/empreinte.ts`) et le décodage/la mutation de signature (`src/signature/`).
 
 Chaque groupe a un écran d'accueil minimal et distinctement nommé (`(employee)/employee.tsx`,
 etc.) plutôt qu'un `index.tsx` par groupe : Expo Router retire les segments `(parenthèses)` de
@@ -339,19 +360,34 @@ impose aujourd'hui (« mode ombre uniquement », `outils.py` `_ATTESTATION`) :
   encore au mobile — l'appairage (T1.4-c3) fournit désormais une connexion authentifiée, mais
   ces données de cédule/référentiel arrivent avec `today.tsx` (R12 §5 étape 3), pas avant ;
 - `technicien_id`/`intervention_id` NE sont PAS dans ce contexte provisoire : ce sont les deux
-  seuls champs que l'employé saisit lui-même à l'écran (`today.tsx`/`job/[id]` les connaîtront
-  automatiquement) ;
-- `appareil_id`/`deviceId` : **toujours** un identifiant généré une fois par processus
-  (`expo-crypto`), jamais persisté ici — `punch.tsx` n'a PAS été reconnecté à la vraie identité
-  d'appareil que T1.4-c3 introduit (`src/appairage/identite.ts`, persistée dans
-  `expo-secure-store`, stable d'un lancement à l'autre) : ce sont deux identifiants D'APPAREIL
-  DIFFÉRENTS aujourd'hui, l'un pour l'appairage (réel, stable), l'autre pour `m4_pointer` (encore
-  provisoire, par processus). Les faire converger — `punch.tsx`/`m4/pointage.ts` lisant
-  `src/appairage/stockage.ts` plutôt que de générer leur propre id — est un point d'extension
-  explicite pour une prochaine tranche, PAS fait ici (mission T1.4-c3 : appairage seulement).
-  Sans convergence, l'idempotence de bout en bout `(appareil, idempotencyKey)` reste non garantie
-  d'une session à l'autre pour les mutations `punch_in`/`punch_out` — sans conséquence tant que
-  T1.4-c1 n'a pas câblé la lecture de ces champs côté core (section suivante).
+  seuls champs que l'employé saisit lui-même à l'écran (`job/[id]/index.tsx`, depuis T1.4-e,
+  connaît `intervention_id` automatiquement — voir « Écran `job/[id]/index.tsx` » ; `technicien_id`
+  reste saisi à la main des deux côtés, aucune identité employé/technicien n'est encore exposée
+  par le serveur au mobile, limite reportée telle quelle, pas résolue par cette tranche).
+
+**CONVERGENCE FAITE (PLAN T1.4-e, mission item 3) : un seul identifiant d'appareil dans toute
+l'app.** Avant cette tranche, `appareil_id`/`deviceId` (le champ `attestation.appareil_id` de
+`m4_pointer`) était **toujours** un identifiant généré une fois par processus (`expo-crypto`),
+jamais persisté — DIFFÉRENT de la vraie identité d'appareil que T1.4-c3 introduit
+(`src/appairage/identite.ts`, persistée dans `expo-secure-store`, stable d'un lancement à
+l'autre). `src/m4/contextePointageProvisoire.ts::obtenirContextePointageProvisoire` a été changé
+pour PRENDRE `appareilId` en PARAMÈTRE plutôt que de le générer lui-même (le générateur par
+processus, `genererAppareilIdProvisoire`, est supprimé) ; `punch.tsx` ET `job/[id]/index.tsx`
+lisent tous les deux la même source, `src/protocole/configuration.ts::obtenirConfigurationAppel()`
+(`ConfigurationAppel.appareilId` = `SessionAppairee.appareilId` = `identite.deviceId`, posé au
+même endroit que le jeton d'appareil à l'appairage ou à la restauration de session — voir
+`app/pairing/index.tsx`/`app/_layout.tsx`). Fail-closed si absente : les deux écrans refusent
+l'action (message dédié, `pointage.appareilNonAppaire`/`job.appareilNonAppaire`) plutôt que de
+générer un id de repli — cas normalement impossible à l'intérieur du groupe `(employee)`, gardé
+par `evaluerGarde`, qui n'admet que des sessions où cette configuration existe déjà. L'identité
+d'APPAREIL envoyée au TRANSPORT (`deviceId` du corps `/tools/invoke`, `src/protocole/types.ts`)
+était déjà la vraie depuis T1.4-c3 (`src/outbox/service.ts` la lit de la même configuration) —
+c'était SEULEMENT l'attestation `m4_pointer` (à l'intérieur du `payload`, propre à M4) qui restait
+provisoire ; les deux convergent maintenant sur la MÊME valeur. Conséquence : l'idempotence de
+bout en bout `(appareil, idempotencyKey)` est stable d'une session à l'autre pour toutes les
+mutations `punch_in`/`punch_out`/`job_status_change`, sans attendre T1.4-c1 pour ce point précis
+(T1.4-c1 reste nécessaire pour que le CORE lise et applique ces champs — section « Idempotence »
+ci-dessous, inchangée par cette tranche).
 
 **Verdict serveur métier vs succès/échec HTTP** (`src/m4/pointage.ts`,
 `interpreterResultatPointage`) : un HTTP 200 peut être un REJET métier définitif
@@ -373,6 +409,196 @@ forcément ce texte détaillé si elle aboutit à un nouvel échec permanent pen
 resté ouvert sans redéclencher lui-même. Amélioration possible d'une tranche future : persister
 le dernier verdict dans la ligne `outbox` (colonne supplémentaire, DDL + `MutationOutbox` à
 faire évoluer).
+
+## Chantiers du jour (`today.tsx`, M4.7, R12 §5 étape 3, PLAN T1.4-e)
+
+`app/(employee)/today.tsx` : liste, en LECTURE SEULE, via `m4_lister_interventions`
+(`departments/m04-field-ops/src/m4_field_ops/outils.py`, lu, jamais exécuté ni modifié ici —
+contrat exact et enveloppe HTTP documentés dans `src/m4/interventions.ts`). Cache local lisible
+hors ligne : `src/today/cache.ts` (JSON sérialisé) au-dessus d'un dépôt clé/valeur PARTAGÉ,
+`src/stockage/depotCleValeur.ts` (mémoire, testé) + `depotCleValeur.sqlite.ts` (`expo-sqlite`,
+base séparée `opsys-local.db`, non testé — même limite que `src/outbox/depot.sqlite.ts`) — brique
+commune à `today` et `checklist` plutôt que deux adaptateurs SQLite quasi identiques.
+
+**« Chantiers du jour » est un PROXY assumé, pas une vraie date — limite documentée, pas une
+invention.** `m4_lister_interventions` (lu dans `etats.py`, `lister_interventions`) ne renvoie
+QUE `{intervention_id, statut, lead_id, type_travaux, devis_id}` : ni date/fenêtre de cédule, ni
+`technicien_id` assigné, structurellement (même absence que les données de contact). Filtrer par
+« aujourd'hui » ou par « mes chantiers » exigerait un champ que le serveur n'expose pas — interdit
+d'inventer (AGENTS.md). `src/today/selection.ts::filtrerChantiersActifs` retient donc les
+interventions dont le statut représente un travail en cours ou à démarrer
+(`planifiee`/`en_route`/`sur_site`/`en_revue`, PAS `reportee` : une intervention reportée est
+sortie du flux du jour tant qu'un nouveau `planifiee` ne l'y remet pas), triées par urgence
+d'affichage puis par `intervention_id` — un choix de présentation, documenté, jamais une donnée
+de cédule réelle. **À corriger dès qu'une route serveur exposera une vraie date/fenêtre par
+intervention et un filtre par technicien** (aucune des deux n'existe aujourd'hui parmi les quatre
+outils lus pour cette tranche).
+
+Orchestration : `src/today/orchestrateur.ts::creerChargeurChantiers` (pure, testée avec un faux
+transport et un dépôt mémoire, `orchestrateur.test.ts`) — tente `m4_lister_interventions` en
+ligne, écrit le cache (TOUTES les interventions reçues, le filtrage ne s'applique qu'À LA
+LECTURE) sur un succès, retombe sur le dernier cache écrit (avec la raison de l'échec portée,
+`raisonHorsLigne`) sur un échec réseau/HTTP/technique — jamais une liste inventée si ni le réseau
+ni le cache ne répondent (`source: "aucune"`). `src/today/service.ts` fournit le câblage réel
+(`expo-sqlite`, `fetch`, `obtenirConfigurationAppel()`), non testé, même limite que
+`src/outbox/service.ts`.
+
+## Écran `job/[id]/index.tsx` (M4.7, R12 §5 étape 3, PLAN T1.4-e)
+
+`app/(employee)/job/[id]/index.tsx` : statut du chantier et transitions légales, par la file
+sortante, verdict serveur affiché — mission item 1.
+
+**Statut** : lecture directe (PAS mise en file, c'est une lecture pas une mutation) via
+`m4_statut_intervention`, avec repli sur le cache de `today.tsx` hors ligne
+(`src/today/statut.ts::obtenirStatutChantier`, même patron source
+serveur/cache/aucune qu'`orchestrateur.ts`, testé avec un faux transport,
+`statut.test.ts`). `statut: null` (intervention inconnue du serveur) N'EST PAS une erreur — lu et
+distingué explicitement (`interpreterResultatStatutIntervention`, `src/m4/interventions.ts`).
+
+**Transitions — DÉCISION DOCUMENTÉE sur « démarrer ».** DEFINITION-PRODUIT.md §9.3 nomme quatre
+transitions : « en route, arrivé, démarrer, pause ». La machine à états serveur (`etats.py`, lu)
+n'en connaît que DEUX au niveau de l'intervention : `planifiee -> en_route`
+(`m4_demarrer_route`, exige une assignation technicien effective) et `en_route -> sur_site`
+(`m4_pointer(action="arrivee")`, `pointage.py` étape 13) — la docstring de `etats.py` dit
+EXPLICITEMENT que `sur_site` « regroupe arrived+started du produit, qu'un seul état M4 porte
+encore ». Il n'existe donc PAS de transition serveur distincte pour « démarrer » :
+`src/ecrans/job.ts` (logique pure, testée exhaustivement — matrice phase × action complète,
+`job.test.ts`) ne lui associe AUCUNE action ; le bouton « Arrivé » couvre les deux côté produit,
+plutôt que d'inventer un bouton sans rien à appeler. « Pause » réutilise TEL QUEL le mécanisme
+`m4_pointer`/`pointage.ACTIONS` déjà câblé par `punch.tsx` (T1.4-d) — borné à CE chantier
+(`intervention_id` fixé par la route), la phase `en_pause` restant PUREMENT locale (une pause est
+« sans effet sur le statut », `pointage.py`) : un rechargement du statut serveur ne remet jamais
+l'écran en pause par lui-même (`phaseDepuisStatutServeur`, `sur_site -> sur_place`, jamais
+`en_pause`).
+
+Mutations : « En route » crée un `job_status_change` (nouveau descripteur
+`src/outbox/descripteurs.ts`, `-> m4_demarrer_route`, testé) ; « Arrivé »/« Pause » créent des
+`punch_in`/`punch_out` (descripteurs T1.4-d inchangés, réutilisés tels quels). `technicien_id`
+reste saisi à la main (même limite que `punch.tsx`, non résolue ici) ; `appareilId` vient de la
+VRAIE session appairée (voir « Écran `punch.tsx` » ci-dessus). Verdict serveur affiché sur un
+échec définitif — même patron que `punch.tsx` (`RapportVidange.echecsPermanents`).
+
+**`job_status_change` : une seule direction aujourd'hui.** `DescripteurTypeMutation` associe UN
+outil fixe par type de mutation ; `job_status_change -> m4_demarrer_route` est correct tant que
+« en route » est la SEULE transition de ce type créée par l'app. Une tranche future qui ajouterait
+un report (`m4_signaler_report`) ou une annulation (`m4_annuler_intervention`) — hors périmètre de
+cette tranche, la mission ne listant que les quatre outils déjà cités — devra soit ajouter un type
+de mutation dédié par transition, soit faire porter l'outil par le payload plutôt que par le
+descripteur.
+
+## Checklist (`checklist.tsx`, R12 §5 étape 4, PLAN T1.4-e)
+
+`app/(employee)/job/[id]/checklist.tsx`. **AUCUN catalogue d'items n'existe côté serveur —
+décision documentée, pas un oubli.** `preuves.py`/`outils.py` (lus) n'attendent qu'un BOOLÉEN
+(`checklist_complete`, `CLES_PREUVES_COMPLETION`) ; le contenu détaillé (quelles étapes, pour
+quel service — gouttières, revêtement, soffite/fascia…) n'est modélisé NULLE PART dans le produit
+(`DEFINITION-PRODUIT.md` ne liste aucune liste d'étapes par service). Inventer une liste fixe
+d'étapes de pose serait de la donnée métier inventée (interdit, AGENTS.md). L'écran laisse donc
+l'employé COMPOSER sa propre liste pour le chantier (texte libre, ajouter/cocher/retirer),
+persistée localement PAR CHANTIER (même dépôt clé/valeur partagé que `today.tsx`,
+`src/checklist/cache.ts`). `checklist_complete` (préparé pour T1.4-f, voir plus bas) n'est vrai
+QUE si la liste n'est pas vide ET que tous les items sont cochés — fail-closed, même lecture que
+`photos_apres` côté serveur (« une checklist "en cours" ne clôt rien », `preuves.py`). Logique
+pure et sa persistance testées intégralement (`src/checklist/logique.test.ts`,
+`cache.test.ts`) ; l'écran lui-même n'est pas testé en rendu.
+
+## Photos (`photos.tsx`, avant/pendant/après, R12 §5 étape 4, PLAN T1.4-e)
+
+`app/(employee)/job/[id]/photos.tsx` : `expo-camera` (`CameraView`), capture bridée et fichier
+local + SHA-256 — R12 §4, « jamais en base64 dans une mutation ».
+
+**Bridage « ≈1600 px de long côté, JPEG ~0,8 » — limite exacte d'`expo-camera` lue dans ses
+types, pas devinée.** `CameraPictureOptions` (`node_modules/expo-camera/build/Camera.types.d.ts`,
+lu) n'offre AUCUNE option de largeur/hauteur maximale ni de redimensionnement — seulement
+`quality` (0-1, réglé à 0.8) et `imageType` (réglé à `"jpg"`). Le SEUL levier pour approcher
+« ≈1600 px » est de choisir, PARMI LES RÉSOLUTIONS RÉELLEMENT SUPPORTÉES par l'appareil
+(`CameraView.getAvailablePictureSizesAsync()`), celle dont le plus long côté est le plus proche de
+la cible — `src/photos/taille.ts::choisirTaillePhoto`, fonction pure, testée
+(`taille.test.ts`) — d'où le « ≈ » de R12 §4, jamais une valeur exacte.
+`expo-image-manipulator` (qui permettrait un vrai redimensionnement post-capture) N'EST PAS dans
+la pile retenue par R12 §3 : ajouter une brique non prévue pour ce seul besoin est hors périmètre.
+
+**Fichier local + hachage.** `src/photos/service.ts::enregistrerPhotoCapturee` copie le fichier
+TEMPORAIRE produit par `takePictureAsync` (cache système, documenté « temporary » par
+expo-camera) vers `Paths.document` (PAS `Paths.cache` : R12 §4 exige que le fichier survive
+jusqu'à la purge post-confirmation, que le système peut vider sans préavis sous pression de
+stockage), le hache (SHA-256, `src/fichiers/empreinte.ts`, brique PARTAGÉE avec la signature —
+voir plus bas) et construit la mutation `photo_upload`. **SHA-256 des octets RÉELS du fichier,
+pas d'un détour texte** — `expo-crypto` expose `digest(algorithm, data: BufferSource):
+Promise<ArrayBuffer>` (hache des octets bruts directement), retenu plutôt que
+`digestStringAsync` (hache une CHAÎNE ; son `options.encoding` ne contrôle QUE le format de
+SORTIE, jamais l'interprétation de l'entrée — le détour par une chaîne base64 aurait haché le
+TEXTE base64, pas les octets, un SHA-256 qui n'aurait pas correspondu à ce qu'un futur point
+d'envoi calculerait après décodage). Testé contre Node `crypto` comme oracle indépendant
+(vecteurs NIST `sha256("")`/`sha256("abc")`, `empreinte.test.ts` — même discipline que
+`identite.test.ts`).
+
+**GAP CÔTÉ SERVEUR, à ne pas confondre avec un oubli mobile — voir aussi « Angle mort à combler »
+de R12 §6.** Le mission item 2 le demande explicitement : documenter précisément, sans inventer.
+- La mutation `photo_upload` est construite (URI local + SHA-256 + cible `intervention_id`/
+  `nature` — jamais le binaire) mais reste DÉLIBÉRÉMENT `brouillon` pour toujours (jamais
+  `soumettreMutation`) : **aucune route serveur (core ou moteur Python) n'existe pour recevoir le
+  binaire de la photo**. Sans une telle route, il n'y a rien à référencer pour un envoi.
+- **Aucun descripteur `photo_upload`** n'est enregistré dans `src/outbox/descripteurs.ts` — pas un
+  oubli : si une future régression soumettait quand même ce type par erreur, le vidangeur
+  échouerait FORT (`Error`, `vidangeur.ts`, « aucun descripteur enregistré ») plutôt que
+  d'échouer en silence ou de bloquer les AUTRES mutations en file (punch, etc.).
+- **Ce qu'il manque concrètement pour clore ce gap** (hors périmètre de cette tranche, lecture
+  seule de `core/`/`departments/`) : (1) un point d'entrée HTTP/MCP acceptant un envoi binaire
+  repriseable par hachage (R12 §4, « requête distincte … déclenchant le marquage `envoyee`
+  seulement à l'accusé de réception ») — absent de `core/src/gateway/` à la lecture ; (2) un
+  moteur métier (probablement M4 ou un nouveau module) qui reçoit ce binaire, le vérifie contre le
+  SHA-256 annoncé, le stocke, et ÉMET une RÉFÉRENCE stable que le mobile pourra alors placer dans
+  `photos_apres` — actuellement `preuves.py` n'attend qu'une LISTE DE CHAÎNES sans préciser leur
+  provenance, donc la FORME exacte de cette référence (id opaque ? URL signée ?) reste à définir
+  avec cette route ; (3) une fois cette route écrite, `src/outbox/descripteurs.ts` gagne un
+  descripteur `photo_upload`, et `photos.tsx`/`src/photos/service.ts` appellent
+  `soumettreMutation` au lieu de laisser le brouillon inerte.
+- **Purge post-confirmation (R12 §4)** : non implémentée, pour la même raison — rien à confirmer
+  tant qu'aucun accusé de réception d'envoi n'existe. Le fichier local reste donc indéfiniment
+  dans `Paths.document/opsys-photos/` jusqu'à ce que cette route existe.
+
+`src/m4/preuvesCompletion.ts::extraireReferencesPhotosLocales`/`extraireReferencePhotosApres`
+lisent ces mutations `brouillon` par `mutation_id` comme référence LOCALE PLACEHOLDER pour
+`photos_apres` (T1.4-f) — nommé et documenté comme tel, PAS la vraie référence serveur que le
+point (2) ci-dessus émettra un jour.
+
+## Signature (`signature.tsx`, R12 §5 étape 4, PLAN T1.4-e)
+
+`app/(employee)/job/[id]/signature.tsx` : `react-native-signature-canvas` (rendu WebView,
+`react-native-webview` en pair — voir « Pile »), MÊME PRINCIPE que les photos (R12 §4, « même
+principe » pour la signature) — fichier local + SHA-256, jamais de binaire inline dans une
+mutation, et le MÊME gap serveur documenté ci-dessus (aucune route d'envoi, mutation
+`signature_capture` délibérément `brouillon`, aucun descripteur enregistré).
+
+**Brique non testable, logique isolée en fonctions pures (mission item 4).** La capture livre une
+DataURL (`data:<mimeType>;base64,<...>`) via son callback `onOK` — décodée par
+`src/signature/dataUrl.ts::decoderDataUrl` (fonction PURE, testée, `dataUrl.test.ts` : rejette une
+DataURL malformée ou vide, fail-closed, jamais un fichier vide écrit) avant que
+`src/signature/service.ts::enregistrerSignatureCapturee` (non testé, WebView/`expo-file-system`
+natifs) n'écrive les octets décodés sur disque (`Paths.document/opsys-signatures/`), les hache
+(`src/fichiers/empreinte.ts`, RÉUTILISÉ des photos — brique partagée plutôt que dupliquée) et
+construise la mutation. `signature.tsx` lui-même ne fait que le câblage React (boutons
+« Confirmer »/« Effacer » rendus PAR la WebView elle-même via `confirmText`/`clearText`, pas
+réimplémentés côté RN).
+
+## Préparation des preuves de complétion (`src/m4/preuvesCompletion.ts`, PLAN T1.4-e)
+
+Mission item 2, dernière phrase : « prépare la structure attendue par
+`CLES_PREUVES_COMPLETION`, sans encore appeler la complétion. » `CLES_PREUVES_COMPLETION`
+(`"checklist_complete", "photos_apres", "notes", "signature"`) est une copie EXACTE, clé pour
+clé, de `preuves.py` (lu, jamais importé ni exécuté). `construirePreuvesCompletion` assemble ces
+quatre champs — AUCUNE validation métier dupliquée (le serveur, `preuves.py`, reste la SEULE
+autorité fail-closed). `extraireReferencesPhotosLocales`/`extraireReferencePhotosApres` et
+`extraireReferenceSignatureLocale` lisent la file sortante RÉELLE (mutations `photo_upload`/
+`signature_capture` `brouillon`, voir « Photos »/« Signature » ci-dessus) pour composer
+`photos_apres`/`signature` — avec le PLACEHOLDER documenté (`mutation_id` local, pas une vraie
+référence serveur). `notes` (texte libre d'imprévus) N'A PAS d'écran dédié dans cette tranche :
+DEFINITION-PRODUIT.md §9.7 la rattache au geste « Terminer » lui-même
+(`complete.tsx`, T1.4-f), pas à un écran séparé de R12 §5 étape 4 — cette fonction accepte déjà le
+paramètre, prête pour que `complete.tsx` le fournisse. `m4_completer_intervention` N'EST PAS
+appelé par cette tranche (mission), et ne le sera que par T1.4-f. Testé intégralement
+(`preuvesCompletion.test.ts`).
 
 ## `/tools/invoke` sans tour de modèle (`src/protocole/`)
 
@@ -474,39 +700,49 @@ d'appairage (`connect`/`hello-ok`) ne rend toujours que le rôle de transport g�
 (`"operator"`), jamais un rôle nommé OPSYS — `evaluerGarde` bloque donc toujours tout accès métier
 (fail-closed, voir « Appairage » et « Idempotence et identité d'appareil de bout en bout »
 ci-dessus) même si `/tools/invoke` authentifie désormais correctement l'appareil et résout
-`admin`/`employee`/`seller` pour CHAQUE appel d'outil (T1.4-c2 + T1.4-c4, fait — voir juste
-au-dessus). Combler cet écart (faire porter un rôle nommé par la poignée de main elle-même, ou
-donner à l'app un autre moyen d'apprendre son rôle OPSYS) reste une tranche core séparée, non
-commencée. `GATEWAY_CLIENT_IDS.OPSYS_MOBILE` (`"opsys-mobile"`) a été enregistré (T1.4-c4,
-`core/packages/gateway-protocol/src/client-info.ts`, vérifié sans risque de casse par lecture),
-mais **non câblé** : `src/appairage/clientInfo.ts` emprunte toujours
-`openclaw-ios`/`openclaw-android`, et `isNativeAppUiClient` (classification de confiance à
-l'appairage, `handshake-auth-helpers.ts`) ne reconnaît pas encore le nouvel identifiant — passer
-au véritable identifiant OPSYS est un changement de comportement de confiance à l'appairage que ce
-travail, core-seul et jamais exécuté dans ce bac à sable, ne peut pas vérifier de bout en bout ;
-laissé à une tranche dédiée, mobile ET core ensemble. Branchement `_meta` MCP
-`deviceId`/`deviceTimestamp` (T1.4-c1, IDEMPOTENCE.md §7) — un renvoi duplique encore l'effet
-serveur, ET le `deviceId` que `punch.tsx`/`m4/pointage.ts` envoient encore aujourd'hui (un
-identifiant provisoire par processus, jamais celui, réel et stable, de l'appairage — voir « Écran
-`punch.tsx` » ci-dessous) ne correspondra structurellement JAMAIS au `deviceId` authentifié par le
-jeton une fois `punch.tsx` appelé via un appareil réellement apparié : T1.4-c4 refuse (403) tout
-`deviceId` de corps qui diffère de l'appareil authentifié, donc cette convergence — déjà notée
-comme point d'extension explicite avant T1.4-c4 — devient un PRÉALABLE bloquant, pas seulement une
-garantie d'idempotence plus faible, pour que `punch.tsx` réussisse contre un core réel.
+`admin`/`employee`/`seller` pour CHAQUE appel d'outil (T1.4-c2 + T1.4-c4). Combler cet écart
+(faire porter un rôle nommé par la poignée de main elle-même, ou donner à l'app un autre moyen
+d'apprendre son rôle OPSYS) reste une tranche core séparée, non commencée.
+`GATEWAY_CLIENT_IDS.OPSYS_MOBILE` (`"opsys-mobile"`) a été enregistré (T1.4-c4,
+`core/packages/gateway-protocol/src/client-info.ts`), mais **non câblé** :
+`src/appairage/clientInfo.ts` emprunte toujours `openclaw-ios`/`openclaw-android`, et
+`isNativeAppUiClient` (classification de confiance à l'appairage, `handshake-auth-helpers.ts`) ne
+reconnaît pas encore le nouvel identifiant — une tranche dédiée, mobile ET core ensemble.
+T1.4-c4 refuse (403) tout `deviceId` de corps qui diffère de l'appareil authentifié par le jeton :
+depuis T1.4-e, `punch.tsx` et `job/[id]/index.tsx` envoient l'identité d'appairage réelle
+(`obtenirConfigurationAppel().appareilId`, le `deviceId` calculé par le client d'appairage), qui
+coïncide par construction avec celle que le core authentifie ; la preuve contre un core réel reste
+à faire (T1.5). Autres manques côté serveur : **aucune route (core ou moteur Python) pour recevoir
+l'envoi BINAIRE d'une photo ou d'une signature** (PLAN T1.4-e, détaillé dans « Photos » ci-dessus
+— le point bloquant principal laissé par cette tranche) ; aucune route serveur n'expose de
+date/fenêtre de cédule ni de technicien assigné par intervention à `m4_lister_interventions`
+(détaillé dans « Chantiers du jour » ci-dessus).
 
-**Côté mobile :** pas de lecture QR (code saisi seulement, voir « Appairage » — `expo-camera`
-non installé) ; `punch.tsx`/`m4/pointage.ts` n'utilisent pas encore la vraie identité d'appareil
-que l'appairage introduit — ils gardent leur propre `appareilId` provisoire par processus (voir
-« Écran `punch.tsx` », point d'extension explicite pour une prochaine tranche) ; pas de capture
-GPS réelle (Loi 25 non confirmée, `expo-location` non installé), ni de fenêtre de
-travail/référentiel de villes fournis par le serveur au mobile — `punch.tsx` envoie un contexte
-provisoire clairement documenté pour ces champs (`src/m4/contextePointageProvisoire.ts`) ; pas de
-persistance du dernier verdict serveur dans la ligne `outbox` (limite documentée dans « Écran
-`punch.tsx` ») ; pas d'écran métier au-delà de `punch.tsx` (cédule, checklist, matériaux,
-approbations, etc.) ; `identifierMutationsAReprendre` n'a encore aucun appelant réel (la reprise
-au démarrage passe directement par `selectionnerProchainesEnvoyables`, qui inclut déjà les
-`envoi` — cette fonction reste utile pour une future traçabilité/journalisation dédiée, R12 §4
-P3) ; pas de caméra, notifications push, signature manuscrite ; pas de rotation/révocation de
-jeton d'appareil câblée côté app (`device.token.rotate/revoke`, R12 §1.3 — l'app n'appelle
-jamais ces méthodes, seulement `connect`) ; pas de tests E2E Maestro ; pas de build EAS ni de
-publication store (frontière humaine T3, R12 §3).
+**Côté mobile :** pas de lecture QR (code saisi seulement, voir « Appairage » — `expo-camera` est
+installé depuis T1.4-e mais seulement pour la capture photo, aucun scan QR câblé) ; pas de
+capture GPS réelle (Loi 25 non confirmée, `expo-location` non installé), ni de fenêtre de
+travail/référentiel de villes fournis par le serveur au mobile — `punch.tsx`/`job/[id]/index.tsx`
+envoient un contexte provisoire clairement documenté pour ces champs
+(`src/m4/contextePointageProvisoire.ts`) ; pas de persistance du dernier verdict serveur dans la
+ligne `outbox` (limite documentée dans « Écran `punch.tsx` ») ; `identifierMutationsAReprendre`
+n'a encore aucun appelant réel (la reprise au démarrage passe directement par
+`selectionnerProchainesEnvoyables`, qui inclut déjà les `envoi` — cette fonction reste utile pour
+une future traçabilité/journalisation dédiée, R12 §4 P3) ; pas de notifications push ; pas de
+rotation/révocation de jeton d'appareil câblée côté app (`device.token.rotate/revoke`, R12 §1.3 —
+l'app n'appelle jamais ces méthodes, seulement `connect`) ; pas de tests E2E Maestro ; pas de
+build EAS ni de publication store (frontière humaine T3, R12 §3).
+
+**Nouveau depuis T1.4-e, hors périmètre de cette tranche :** pas d'écran `complete.tsx`
+(« Terminer », déclenche la cascade §9.7 — T1.4-f) ni `materials.tsx` (M6.10) ; `notes`
+(imprévus) n'a pas d'écran de saisie (rattachée à `complete.tsx`, voir « Préparation des preuves
+de complétion ») ; `technicien_id` reste saisi à la main sur `punch.tsx` ET `job/[id]/index.tsx`
+(aucune identité employé/technicien exposée par le serveur au mobile — pas résolu par cette
+tranche, contrairement à `appareilId` qui, lui, converge maintenant — voir « Écran `punch.tsx` ») ;
+pas de suppression/reprise de photo une fois capturée (`DepotOutbox` n'expose aucune méthode de
+suppression, volontairement non étendue ici pour ne pas risquer une régression sur `punch.tsx`
+déjà en production) ; pas de rafraîchissement automatique de `today.tsx` au retour au premier
+plan/réseau (seuls `punch.tsx`/le vidangeur ont ces déclencheurs, R12 §4 les prévoyant
+spécifiquement pour la file sortante, pas pour une liste en lecture — un bouton « Rafraîchir »
+manuel couvre cette tranche) ; aucun catalogue serveur de checklist par service (décision
+documentée, voir « Checklist » — pas un gap à combler mais un choix de conception assumé tant
+qu'aucune donnée produit n'existe pour le remplacer).
