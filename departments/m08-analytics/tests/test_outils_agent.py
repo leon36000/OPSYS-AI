@@ -5,16 +5,15 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import pytest
-
 _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from m8_analytics.outils import outils, rapport_metriques
+from m8_analytics.outils import outils  # noqa: E402
+from m8_analytics.registre import RegistreSnapshots  # noqa: E402
 
-from opsys.departements import lire_manifeste
-from opsys.outils import executer
+from opsys.departements import lire_manifeste  # noqa: E402
+from opsys.outils import executer  # noqa: E402
 
 _DEFINITION = {
     "id": "m_cpl",
@@ -35,6 +34,18 @@ def _snapshot(module_source, horodatage, valeur):
     return {"module_source": module_source, "horodatage": horodatage, "valeurs": {"m_cpl": valeur}}
 
 
+def _outils_par_nom():
+    """Registre EN MÉMOIRE, explicite : `outils()` sans argument adosse le registre de
+    production au stockage durable de l'instance (ADR-0009), qu'aucun test unitaire de ce
+    fichier ne monte — voir `departments/m08-analytics/tests/test_registre_durable.py` pour la
+    preuve du branchement durable lui-même."""
+    return {o.nom: o for o in outils(RegistreSnapshots())}
+
+
+def _appeler(par_nom, nom, **kwargs):
+    return executer(par_nom[nom], kwargs)
+
+
 def test_manifeste_et_outils_coherents():
     dep = lire_manifeste(Path(__file__).resolve().parents[1])
     noms = [o.nom for o in dep.charger_outils()]
@@ -43,8 +54,10 @@ def test_manifeste_et_outils_coherents():
 
 
 def test_rapport_metriques_complet_porte_provenance_et_aucun_signal_sous_le_seuil():
+    par_nom = _outils_par_nom()
     module_source = "M-nominal"
-    reponse = rapport_metriques(
+    reponse = _appeler(
+        par_nom, "m8_rapport_metriques",
         dictionnaire=_dictionnaire(module_source),
         snapshot=_snapshot(module_source, "2026-01-04T00:00:00Z", "42.5"),
         metric_ids=["m_cpl"],
@@ -52,8 +65,10 @@ def test_rapport_metriques_complet_porte_provenance_et_aucun_signal_sous_le_seui
         n_minimal=3,
     )
 
-    assert reponse["etape"] == "complet" and reponse["accepte"] is True
-    rapport = reponse["rapport"]
+    assert reponse["ok"] is True
+    resultat = reponse["resultat"]
+    assert resultat["etape"] == "complet" and resultat["accepte"] is True
+    rapport = resultat["rapport"]
     assert rapport["metriques"][0]["metric_id"] == "m_cpl"
     assert rapport["metriques"][0]["valeur"] == 42.5
     assert rapport["metriques"][0]["n"] == 1
@@ -63,8 +78,10 @@ def test_rapport_metriques_complet_porte_provenance_et_aucun_signal_sous_le_seui
 
 
 def test_rapport_metriques_snapshot_refuse_bloque_avant_ecriture():
+    par_nom = _outils_par_nom()
     module_source = "M-refuse"
-    reponse = rapport_metriques(
+    reponse = _appeler(
+        par_nom, "m8_rapport_metriques",
         dictionnaire=_dictionnaire(module_source),
         snapshot=_snapshot(module_source, "2026-01-04T00:00:00Z", 42.5),  # valeur NUMÉRIQUE
         metric_ids=["m_cpl"],
@@ -72,13 +89,17 @@ def test_rapport_metriques_snapshot_refuse_bloque_avant_ecriture():
         n_minimal=3,
     )
 
-    assert reponse["etape"] == "validation" and reponse["accepte"] is False
-    assert reponse["verdict"] == "REJ-SNAPSHOT-VALEUR-NON-TEXTE"
+    assert reponse["ok"] is True
+    resultat = reponse["resultat"]
+    assert resultat["etape"] == "validation" and resultat["accepte"] is False
+    assert resultat["verdict"] == "REJ-SNAPSHOT-VALEUR-NON-TEXTE"
 
 
 def test_rapport_metriques_metric_id_non_declare_est_bloque():
+    par_nom = _outils_par_nom()
     module_source = "M-metric-inconnu"
-    reponse = rapport_metriques(
+    reponse = _appeler(
+        par_nom, "m8_rapport_metriques",
         dictionnaire=_dictionnaire(module_source),
         snapshot=_snapshot(module_source, "2026-01-04T00:00:00Z", "1"),
         metric_ids=["m_inconnu"],
@@ -86,11 +107,13 @@ def test_rapport_metriques_metric_id_non_declare_est_bloque():
         n_minimal=3,
     )
 
-    assert reponse["etape"] == "definition" and reponse["accepte"] is False
-    assert "m_inconnu" in reponse["verdict"]
+    resultat = reponse["resultat"]
+    assert resultat["etape"] == "definition" and resultat["accepte"] is False
+    assert "m_inconnu" in resultat["verdict"]
 
 
 def test_rapport_metriques_detecte_un_signal_xmr_hors_limite_apres_plusieurs_ingestions():
+    par_nom = _outils_par_nom()
     module_source = "M-xmr"
     dictionnaire = _dictionnaire(module_source)
     horodatages = [
@@ -105,8 +128,9 @@ def test_rapport_metriques_detecte_un_signal_xmr_hors_limite_apres_plusieurs_ing
     # limite_haute=18+2.66*10=44.6 < 50 → HORS_LIMITE_SUPERIEURE garanti.
     valeurs = ["10", "10", "10", "10", "50"]
 
-    for horodatage, valeur in zip(horodatages[:-1], valeurs[:-1]):
-        rapport_metriques(
+    for horodatage, valeur in zip(horodatages[:-1], valeurs[:-1], strict=True):
+        _appeler(
+            par_nom, "m8_rapport_metriques",
             dictionnaire=dictionnaire,
             snapshot=_snapshot(module_source, horodatage, valeur),
             metric_ids=["m_cpl"],
@@ -114,7 +138,8 @@ def test_rapport_metriques_detecte_un_signal_xmr_hors_limite_apres_plusieurs_ing
             n_minimal=3,
         )
 
-    reponse = rapport_metriques(
+    reponse = _appeler(
+        par_nom, "m8_rapport_metriques",
         dictionnaire=dictionnaire,
         snapshot=_snapshot(module_source, horodatages[-1], valeurs[-1]),
         metric_ids=["m_cpl"],
@@ -122,25 +147,23 @@ def test_rapport_metriques_detecte_un_signal_xmr_hors_limite_apres_plusieurs_ing
         n_minimal=3,
     )
 
-    signaux = reponse["rapport"]["signaux"]
+    signaux = reponse["resultat"]["rapport"]["signaux"]
     assert signaux and signaux[0]["type_signal"] == "HORS_LIMITE_SUPERIEURE"
     assert signaux[0]["n"] == 5
 
 
 def test_rapport_metriques_role_sans_liste_est_refus_metier_via_executer():
+    par_nom = _outils_par_nom()
     module_source = "M-role-refuse"
-    outil = next(o for o in outils() if o.nom == "m8_rapport_metriques")
 
-    reponse = executer(
-        outil,
-        {
-            "dictionnaire": _dictionnaire(module_source),
-            "snapshot": _snapshot(module_source, "2026-01-04T00:00:00Z", "1"),
-            "metric_ids": ["m_cpl"],
-            "horodatage_reference": "2026-01-04T00:00:00Z",
-            "n_minimal": 1,
-            "role": "terrain",
-        },
+    reponse = _appeler(
+        par_nom, "m8_rapport_metriques",
+        dictionnaire=_dictionnaire(module_source),
+        snapshot=_snapshot(module_source, "2026-01-04T00:00:00Z", "1"),
+        metric_ids=["m_cpl"],
+        horodatage_reference="2026-01-04T00:00:00Z",
+        n_minimal=1,
+        role="terrain",
     )
 
     assert reponse["ok"] is False
@@ -153,9 +176,9 @@ def test_snapshot_avec_devise_non_cad_refuse_par_le_dictionnaire_reel_et_par_l_o
     (elle est absente du dictionnaire compilé, donc traitée comme non déclarée).
     """
     depart = Path(__file__).resolve().parents[2]  # departments/
-    outil_dictionnaire = next(o for o in outils() if o.nom == "m8_compiler_dictionnaire")
+    par_nom = _outils_par_nom()
 
-    reponse = executer(outil_dictionnaire, {"racine_modules": str(depart)})
+    reponse = _appeler(par_nom, "m8_compiler_dictionnaire", racine_modules=str(depart))
 
     assert reponse["ok"] is True
     dictionnaire_reel = reponse["resultat"]["dictionnaire"]
@@ -165,16 +188,39 @@ def test_snapshot_avec_devise_non_cad_refuse_par_le_dictionnaire_reel_et_par_l_o
 
 
 def test_n_minimal_de_mauvais_type_refuse_par_le_schema():
-    outil = next(o for o in outils() if o.nom == "m8_detecter_signal_xmr")
-    reponse = executer(outil, {"metric_id": "m", "valeurs_historiques": [], "n_minimal": "trois"})
+    par_nom = _outils_par_nom()
+    reponse = executer(
+        par_nom["m8_detecter_signal_xmr"],
+        {"metric_id": "m", "valeurs_historiques": [], "n_minimal": "trois"},
+    )
     assert reponse["erreur"] == "arguments_invalides"
 
 
 def test_construire_rapport_role_sans_liste_via_executer_est_refus_metier():
-    outil = next(o for o in outils() if o.nom == "m8_construire_rapport")
+    par_nom = _outils_par_nom()
     reponse = executer(
-        outil,
+        par_nom["m8_construire_rapport"],
         {"metriques": [], "signaux": [], "role": "admin", "metric_ids_autorises": None},
     )
     assert reponse["ok"] is False
     assert reponse["erreur"] == "refus_metier"
+
+
+def test_outils_partagent_le_meme_registre_entre_deux_appels():
+    """Preuve de la fermeture (closure) sur registre_cible : deux outils de la même instance
+    voient les écritures l'un de l'autre, comme avant le passage à l'injection."""
+    registre_memoire = RegistreSnapshots()
+    par_nom = {o.nom: o for o in outils(registre_memoire)}
+    module_source = "M-partage"
+
+    _appeler(
+        par_nom, "m8_rapport_metriques",
+        dictionnaire=_dictionnaire(module_source),
+        snapshot=_snapshot(module_source, "2026-01-04T00:00:00Z", "1"),
+        metric_ids=["m_cpl"],
+        horodatage_reference="2026-01-04T00:00:00Z",
+        n_minimal=1,
+    )
+
+    assert len(registre_memoire.lire()) == 1
+    assert registre_memoire.lire()[0]["module_source"] == module_source

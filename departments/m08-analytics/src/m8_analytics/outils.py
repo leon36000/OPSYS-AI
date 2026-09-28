@@ -6,24 +6,26 @@ couche sémantique → XmR → rapport) en un seul appel, ce qui évite à l'age
 allers-retours et garantit l'ordre des contrôles : aucun signal XmR n'est jamais calculé sur
 un snapshot refusé, et aucune dérivation n'a lieu pour un metric_id non déclaré.
 
-Le registre de snapshots est un singleton en mémoire du PROCESSUS MCP de ce département (un
-serveur MCP stdio par profil, cf. docs/architecture/ARCHITECTURE.md) : il vit le temps de la
-session du département. La persistance sur disque est hors périmètre v1 (PRD §3.2 : « v1 =
-stdlib-only, JSON/JSONL en mémoire ») — ne jamais prétendre qu'un snapshot survit à un
-redémarrage du serveur MCP tant que cette limite n'est pas levée par une story dédiée.
+Registre de production (ADR-0009) : par défaut, `outils()` adosse le registre de snapshots au
+stockage durable de l'instance (`opsys.stockage.maillons`, dans la transaction que
+`Capacites.appeler` ouvre pour chaque appel d'outil) — `registre.py` reste pur (aucun import
+`opsys`/SQLAlchemy) et ignore que ses maillons survivent au redémarrage : c'est cet adaptateur,
+seul, qui fait le lien. Le paramètre `registre_cible` est le point d'injection : les tests
+unitaires du département y passent explicitement un `registre.RegistreSnapshots()` EN MÉMOIRE
+(aucune base montée), sans toucher au comportement par défaut utilisé par `charger_outils()` en
+production.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
+from opsys import stockage
 from opsys.outils import Autonomie, Outil, depuis_couple
 
 from . import dictionnaire as dictionnaire_module
 from . import digest as digest_module
 from . import rapports, registre, semantique, validation, xmr
-
-_REGISTRE = registre.RegistreSnapshots()
 
 _SNAPSHOT = {
     "type": "object",
@@ -63,25 +65,6 @@ def valider_snapshot(snapshot: dict[str, Any], dictionnaire: dict[str, Any]) -> 
     return depuis_couple(validation.valider_snapshot(snapshot, dictionnaire))
 
 
-def _historique_numerique(module_source: str, metric_id: str) -> list[float]:
-    """Série chronologique (ordre du registre) des valeurs numériques d'un metric_id.
-
-    Même règle de conversion que semantique.deriver_metrique : une valeur qui ne convertit
-    pas en float est exclue du compte, jamais une erreur ni une valeur inventée.
-    """
-    valeurs: list[float] = []
-    for maillon in _REGISTRE.lire():
-        if maillon["module_source"] != module_source:
-            continue
-        if metric_id not in maillon["valeurs"]:
-            continue
-        try:
-            valeurs.append(float(maillon["valeurs"][metric_id]))
-        except (TypeError, ValueError):
-            continue
-    return valeurs
-
-
 def detecter_signal_xmr(
     metric_id: str, valeurs_historiques: list[float], n_minimal: int
 ) -> dict[str, Any]:
@@ -101,56 +84,81 @@ def produire_digest_quotidien(signaux: list[dict[str, Any]]) -> dict[str, Any]:
     return digest_module.produire_digest_quotidien(signaux)
 
 
-def rapport_metriques(
-    dictionnaire: dict[str, Any],
-    snapshot: dict[str, Any],
-    metric_ids: list[str],
-    horodatage_reference: str,
-    n_minimal: int,
-    role: str | None = None,
-    metric_ids_autorises: list[str] | None = None,
-) -> dict[str, Any]:
-    """Chaîne complète : validation → écriture registre → sémantique → XmR → rapport.
+def outils(registre_cible: registre.RegistreSnapshots | None = None) -> tuple[Outil, ...]:
+    """Capacités exposées aux agents. Une instance de RegistreSnapshots par installation.
 
-    Bloque avant d'écrire si le snapshot est refusé (etape="validation") ; bloque avant de
-    dériver une métrique si son metric_id n'est pas déclaré par module_source dans le
-    dictionnaire fourni (etape="definition"). Un rôle fourni sans metric_ids_autorises est un
-    refus métier (ValueError, fail-closed — voir rapports.construire_rapport).
+    `registre_cible` : `None` (défaut, utilisé par `charger_outils()` en production) adosse le
+    registre au stockage durable de l'instance ; un `registre.RegistreSnapshots()` explicite
+    (tests) reste en mémoire, jamais touché à la base.
     """
-    valide, verdict = validation.valider_snapshot(snapshot, dictionnaire)
-    if not valide:
-        return {"etape": "validation", "accepte": False, "verdict": verdict}
+    if registre_cible is None:
+        registre_cible = registre.RegistreSnapshots(maillons=stockage.maillons("m08-analytics", "snapshots"))
 
-    _REGISTRE.ajouter(snapshot)
+    def _historique_numerique(module_source: str, metric_id: str) -> list[float]:
+        """Série chronologique (ordre du registre) des valeurs numériques d'un metric_id.
 
-    module_source = snapshot["module_source"]
-    metriques_module = dictionnaire.get(module_source, {})
-    metriques: list[dict[str, Any]] = []
-    signaux: list[dict[str, Any]] = []
-    for metric_id in metric_ids:
-        definition = metriques_module.get(metric_id)
-        if definition is None:
-            return {
-                "etape": "definition",
-                "accepte": False,
-                "verdict": f"REJ-METRIC-ID-NON-DEFINI:{metric_id}",
-            }
-        valeur_metrique = semantique.deriver_metrique(
-            module_source, metric_id, definition, _REGISTRE, horodatage_reference
-        )
-        metriques.append(valeur_metrique)
+        Même règle de conversion que semantique.deriver_metrique : une valeur qui ne convertit
+        pas en float est exclue du compte, jamais une erreur ni une valeur inventée.
+        """
+        valeurs: list[float] = []
+        for maillon in registre_cible.lire():
+            if maillon["module_source"] != module_source:
+                continue
+            if metric_id not in maillon["valeurs"]:
+                continue
+            try:
+                valeurs.append(float(maillon["valeurs"][metric_id]))
+            except (TypeError, ValueError):
+                continue
+        return valeurs
 
-        historique = _historique_numerique(module_source, metric_id)
-        signal = xmr.detecter_signal(metric_id, historique, n_minimal)
-        if signal is not None:
-            signaux.append(signal)
+    def rapport_metriques(
+        dictionnaire: dict[str, Any],
+        snapshot: dict[str, Any],
+        metric_ids: list[str],
+        horodatage_reference: str,
+        n_minimal: int,
+        role: str | None = None,
+        metric_ids_autorises: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Chaîne complète : validation → écriture registre → sémantique → XmR → rapport.
 
-    rapport = rapports.construire_rapport(metriques, signaux, role, metric_ids_autorises)
-    return {"etape": "complet", "accepte": True, "rapport": rapport}
+        Bloque avant d'écrire si le snapshot est refusé (etape="validation") ; bloque avant de
+        dériver une métrique si son metric_id n'est pas déclaré par module_source dans le
+        dictionnaire fourni (etape="definition"). Un rôle fourni sans metric_ids_autorises est un
+        refus métier (ValueError, fail-closed — voir rapports.construire_rapport).
+        """
+        valide, verdict = validation.valider_snapshot(snapshot, dictionnaire)
+        if not valide:
+            return {"etape": "validation", "accepte": False, "verdict": verdict}
 
+        registre_cible.ajouter(snapshot)
 
-def outils() -> tuple[Outil, ...]:
-    """Capacités exposées aux agents (fonction : les constantes publiques du paquet sont des énumérés)."""
+        module_source = snapshot["module_source"]
+        metriques_module = dictionnaire.get(module_source, {})
+        metriques: list[dict[str, Any]] = []
+        signaux: list[dict[str, Any]] = []
+        for metric_id in metric_ids:
+            definition = metriques_module.get(metric_id)
+            if definition is None:
+                return {
+                    "etape": "definition",
+                    "accepte": False,
+                    "verdict": f"REJ-METRIC-ID-NON-DEFINI:{metric_id}",
+                }
+            valeur_metrique = semantique.deriver_metrique(
+                module_source, metric_id, definition, registre_cible, horodatage_reference
+            )
+            metriques.append(valeur_metrique)
+
+            historique = _historique_numerique(module_source, metric_id)
+            signal = xmr.detecter_signal(metric_id, historique, n_minimal)
+            if signal is not None:
+                signaux.append(signal)
+
+        rapport = rapports.construire_rapport(metriques, signaux, role, metric_ids_autorises)
+        return {"etape": "complet", "accepte": True, "rapport": rapport}
+
     return (
         Outil(
             nom="m8_rapport_metriques",
