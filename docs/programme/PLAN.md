@@ -28,7 +28,9 @@ identifiants du propriétaire, repli livré en attendant.
       Preuve : `docs/decisions/ADR-0009-socle-metier.md` (SQLite par défaut, PostgreSQL en option,
       une transaction métier + événement + audit, échelle N unique, rôles P8).
 - [ ] T0.9 ADR-0010 mémoire (RAM par moteur de contexte, M10 gouvernance, RAG d'entreprise)
-      d'après l'audit M10.
+      d'après l'audit M10 : RAM dans `assemble()`, PREFLIGHT/POSTFLIGHT sur les hooks du core,
+      registre M10 = validation au-dessus de la mémoire d'entreprise, SQLite + FTS5 + sqlite-vec par
+      défaut, embedding local partagé.
 - [ ] T0.10 Superviseur : le core lance et surveille le moteur métier Python (via `uv`), santé et
       journaux unifiés, une seule authentification.
 - [ ] T0.12 M3 : l'outillage de mutation (`tests/outils_preuve/muter_*.py`) travaille sur une copie
@@ -55,7 +57,10 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       activité et prochaine action, M7 demande d'avis, M3 estimé vs réel, M8 métriques, M10 mémoire).
 - [ ] T1.3 Approbations N3–N4 (complétion, facture, écart matériaux), file du propriétaire.
 - [ ] T1.4 App mobile Expo : squelette, appairage, profils, punch, chantier du jour, « Terminer »,
-      formulaire des matériaux, hors ligne ; approbations côté propriétaire.
+      formulaire des matériaux, hors ligne ; approbations côté propriétaire. Pile et ordre de livraison :
+      R12 (Expo SDK 57, expo-sqlite + file sortante maison, client de protocole TypeScript du core,
+      `POST /tools/invoke` sans tour de modèle). Rôles d'opérateur nommés dans le core d'abord : le jeton
+      partagé d'OpenClaw donne un accès complet (R12). Réécrire `docs/architecture/MOBILE.md` (périmé).
 - [ ] T1.5 E2E : travaux terminés normaux ; écart de 40 % → `completed_pending_review` et alerte
       sur le mobile de l'admin.
 
@@ -115,6 +120,11 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
 - Identifiants : Twilio, QuickBooks, CCube, Stripe, Plaid, Google (Ads, Search Console, Business
   Profile), Meta, TikTok, LinkedIn, YouTube.
 - Rotation de la clé fuitée (#612).
+- **Géolocalisation** : `POLITIQUE-geolocalisation.md` interdit tout suivi continu (points au punch
+  seulement) alors que la définition §9.2 prévoit la localisation en arrière-plan pendant le travail.
+  Proposition R12 : arrière-plan seulement pendant la fenêtre « en route » d'un chantier. À valider
+  (Nathan ou juriste) avant toute livraison du GPS. Même besoin : une politique pour les photos et les
+  signatures.
 - **Prompts maîtres d'origine des départements** (annexe A de la définition) : ils portent le
   détail fonctionnel (routes, tables, KPI, scénarios de test). Exemple : les 21 sections du rapport
   de décision M9, dont la définition ne liste qu'une douzaine (audit M9).
