@@ -19,4 +19,9 @@ description: Procédure pour qualifier un lead, enregistrer ses interactions com
    liste, n'improvise pas une explication.
 4. Le passage à `converti` exige une décision humaine explicite ET une référence de devis M3
    déjà acceptée ; le passage à `perdu` exige une décision humaine explicite ET un motif. Un
-   dossier converti ou perdu est définitivement clos : n'essaie plus d'y écrire.
+   dossier perdu est définitivement clos : n'essaie plus d'y écrire. Un dossier converti, lui,
+   continue son cycle de vie (cédule, chantier, facture, paiement, avis) — seul un retour vers
+   `nouveau` ou `qualifie` reste refusé (protection commerciale). Quand M4 termine le chantier,
+   c'est `m2_marquer_chantier_termine` (pas `m2_transitionner_statut`) qui avance le dossier
+   vers `facture` et écrit l'activité système ; il exige une prochaine action fournie par
+   l'appelant, jamais inventée par toi.

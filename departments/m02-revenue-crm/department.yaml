@@ -7,10 +7,16 @@ mission: >-
   détecter et signaler les doublons probables sans jamais les fusionner, faire progresser
   chaque dossier selon une machine à états où toute transition exige une décision humaine
   explicite, et n'annoncer un lead prêt pour M3 que lorsque la readiness gate — owner, type
-  de travaux, ville, interaction post-qualification — est réellement satisfaite.
+  de travaux, ville, interaction post-qualification — est réellement satisfaite. Après
+  l'acceptation, suit le reste du cycle de vie (cédule, chantier, facture, paiement, avis) et
+  marque le chantier terminé — activité et prochaine action — quand M4 y met fin.
 outils: m2_revenue_crm.outils
 mode: ombre
-dependances: [m01-front-office]
+# m04-field-ops : M2 consomme le signal de fin de chantier de M4 (DEFINITION-PRODUIT §6,
+# cascade « travaux terminés », ligne M2) via m2_marquer_chantier_termine (PLAN T1.1-a). Ce
+# n'est pas un ordre de construction strict — §6 « Boucles de rétroaction » documente déjà des
+# dépendances de retour de ce type (ex. M4→M3) dans ce système à événements, pas un DAG pur.
+dependances: [m01-front-office, m04-field-ops]
 modeles:
   defaut: standard
 skills: [ingerer-un-lead, faire-progresser-vers-m3, arbitrer-un-doublon]

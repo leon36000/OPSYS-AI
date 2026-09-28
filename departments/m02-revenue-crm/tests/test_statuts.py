@@ -42,7 +42,11 @@ def registre_avec_lead(lead_id="L1"):
     return reg
 
 def amener_a(registre_cible, lead_id, statut):
-    """Amène un lead au statut donné en enchaînant des transitions légales."""
+    """Amène un lead au statut donné en enchaînant des transitions légales.
+
+    Aucune branche pour 'nouveau' : c'est déjà le statut d'un lead qui vient d'être ingéré, donc
+    un appel avec statut='nouveau' est un no-op silencieux voulu (utilisé par les appelants qui
+    itèrent sur une liste de statuts de départ, y compris 'nouveau', sans cas particulier)."""
     if statut == "qualifie":
         accuse, verdict = statuts.transitionner(
             lead_id, "qualifie", registre_cible, "2026-03-01T12:00:00+01:00",
@@ -72,6 +76,45 @@ def amener_a(registre_cible, lead_id, statut):
         )
         assert accuse is not None, f"Transition vers perdu échouée: {verdict}"
         assert verdict is None
+    # PLAN T1.1-a — suite du cycle de vie après l'acceptation (§7 M2) : chaque branche amène
+    # d'abord au statut précédent de la chaîne (voir statuts.TRANSITIONS_AUTORISEES), puis
+    # applique la seule transition manquante.
+    elif statut == "cedule":
+        amener_a(registre_cible, lead_id, "converti")
+        accuse, verdict = statuts.transitionner(
+            lead_id, "cedule", registre_cible, "2026-03-01T13:15:00+01:00",
+        )
+        assert accuse is not None, f"Transition vers cedule échouée: {verdict}"
+        assert verdict is None
+    elif statut == "chantier":
+        amener_a(registre_cible, lead_id, "cedule")
+        accuse, verdict = statuts.transitionner(
+            lead_id, "chantier", registre_cible, "2026-03-01T13:30:00+01:00",
+        )
+        assert accuse is not None, f"Transition vers chantier échouée: {verdict}"
+        assert verdict is None
+    elif statut == "facture":
+        amener_a(registre_cible, lead_id, "chantier")
+        accuse, verdict = statuts.transitionner(
+            lead_id, "facture", registre_cible, "2026-03-01T13:45:00+01:00",
+            prochaine_action={"description": "Émettre la facture", "echeance": "2026-03-15T09:00:00+01:00"}
+        )
+        assert accuse is not None, f"Transition vers facture échouée: {verdict}"
+        assert verdict is None
+    elif statut == "paiement":
+        amener_a(registre_cible, lead_id, "facture")
+        accuse, verdict = statuts.transitionner(
+            lead_id, "paiement", registre_cible, "2026-03-01T14:00:00+01:00",
+        )
+        assert accuse is not None, f"Transition vers paiement échouée: {verdict}"
+        assert verdict is None
+    elif statut == "avis":
+        amener_a(registre_cible, lead_id, "paiement")
+        accuse, verdict = statuts.transitionner(
+            lead_id, "avis", registre_cible, "2026-03-01T14:15:00+01:00",
+        )
+        assert accuse is not None, f"Transition vers avis échouée: {verdict}"
+        assert verdict is None
 
 
 # ---------------------------------------------------------------------------
@@ -81,33 +124,48 @@ class TestTableDesTransitions:
     """Vérifie la table des transitions autorisées et son usage nominal."""
 
     def test_transitions_autorisees_exactes(self):
-        """TRANSITIONS_AUTORISEES contient exactement les quatre couples de la table."""
-        attendus = {("nouveau", "qualifie"), ("qualifie", "converti"), ("qualifie", "perdu"), ("nouveau", "perdu")}
+        """TRANSITIONS_AUTORISEES contient exactement les neuf couples de la table (PLAN
+        T1.1-a : quatre d'origine + cinq pour la suite du cycle de vie après l'acceptation)."""
+        attendus = {
+            ("nouveau", "qualifie"), ("qualifie", "converti"), ("qualifie", "perdu"), ("nouveau", "perdu"),
+            ("converti", "cedule"), ("cedule", "chantier"), ("chantier", "facture"),
+            ("facture", "paiement"), ("paiement", "avis"),
+        }
         obtenus = set(statuts.TRANSITIONS_AUTORISEES)
         assert obtenus == attendus, f"Écart: manquants {attendus - obtenus}, en trop {obtenus - attendus}"
         assert len(statuts.TRANSITIONS_AUTORISEES) > 0
 
     def test_statuts_enum(self):
-        """STATUTS et STATUTS_TERMINAUX ont les bonnes valeurs."""
-        assert set(statuts.STATUTS) == {"nouveau", "qualifie", "converti", "perdu"}, "STATUTS incorrect"
-        assert set(statuts.STATUTS_TERMINAUX) == {"converti", "perdu"}, "STATUTS_TERMINAUX incorrect"
+        """STATUTS et STATUTS_TERMINAUX ont les bonnes valeurs (PLAN T1.1-a : cinq statuts
+        ajoutés pour la suite du cycle de vie après l'acceptation, seul 'perdu' reste terminal —
+        voir les commentaires de statuts.py pour la justification ligne par ligne)."""
+        assert set(statuts.STATUTS) == {
+            "nouveau", "qualifie", "converti", "perdu",
+            "cedule", "chantier", "facture", "paiement", "avis",
+        }, "STATUTS incorrect"
+        assert set(statuts.STATUTS_TERMINAUX) == {"perdu"}, "STATUTS_TERMINAUX incorrect"
 
     @pytest.mark.parametrize("depart,cible,setup_kwargs", [
         ("nouveau", "qualifie", {"owner": "Alice", "prochaine_action": {"description": "Appel", "echeance": "2026-03-10T10:00:00+02:00"}}),
         ("qualifie", "converti", {"reference_devis_m3": "D123"}),
         ("qualifie", "perdu", {"motif": "Non prioritaire"}),
         ("nouveau", "perdu", {"motif": "Annulé"}),
-    ], ids=["nouveau-vers-qualifie", "qualifie-vers-converti", "qualifie-vers-perdu", "nouveau-vers-perdu"])
+        ("converti", "cedule", {}),
+        ("cedule", "chantier", {}),
+        ("chantier", "facture",
+         {"prochaine_action": {"description": "Facturer", "echeance": "2026-03-20T10:00:00+02:00"}}),
+        ("facture", "paiement", {}),
+        ("paiement", "avis", {}),
+    ], ids=[
+        "nouveau-vers-qualifie", "qualifie-vers-converti", "qualifie-vers-perdu", "nouveau-vers-perdu",
+        "converti-vers-cedule", "cedule-vers-chantier", "chantier-vers-facture",
+        "facture-vers-paiement", "paiement-vers-avis",
+    ])
     def test_transitions_legales_reussissent(self, depart, cible, setup_kwargs):
-        """Les quatre transitions autorisées fonctionnent avec conditions remplies."""
+        """Les neuf transitions autorisées fonctionnent avec conditions remplies (PLAN T1.1-a :
+        converti n'est plus un cul-de-sac, la suite du cycle de vie est accessible)."""
         reg = registre_avec_lead("L1")
-        if depart == "qualifie":
-            amener_a(reg, "L1", "qualifie")
-        elif depart == "converti":
-            amener_a(reg, "L1", "converti")
-        elif depart == "perdu":
-            amener_a(reg, "L1", "perdu")
-        # Pour depart == nouveau, le lead est déjà nouveau
+        amener_a(reg, "L1", depart)  # no-op silencieux si depart == "nouveau"
         accuse, verdict = statuts.transitionner("L1", cible, reg, "2026-03-01T15:00:00+02:00", **setup_kwargs)
         assert accuse is not None, f"Accusé absent"
         assert verdict is None, f"Verdict inattendu: {verdict}"
@@ -123,15 +181,19 @@ class TestTransitionsIllegales:
     couples_illegaux_non_terminaux = [
         ("nouveau", "converti"),
         ("qualifie", "nouveau"),
+        # PLAN T1.1-a : la suite du cycle de vie est une chaîne strictement linéaire, pas de
+        # saut ni de retour en arrière.
+        ("converti", "facture"),
+        ("chantier", "cedule"),
     ]
 
     @pytest.mark.parametrize("depart,cible", couples_illegaux_non_terminaux,
-                             ids=["nouveau-vers-converti", "qualifie-vers-nouveau"])
+                             ids=["nouveau-vers-converti", "qualifie-vers-nouveau",
+                                  "converti-saute-vers-facture", "chantier-recule-vers-cedule"])
     def test_transition_illegale_rejetee(self, depart, cible):
         """Un chemin hors table depuis un état non terminal retourne REJ-TRANSITION-ILLEGALE."""
         reg = registre_avec_lead("L1")
-        if depart == "qualifie":
-            amener_a(reg, "L1", "qualifie")
+        amener_a(reg, "L1", depart)  # no-op silencieux si depart == "nouveau"
         taille_avant = reg.taille()
         accuse, verdict = statuts.transitionner("L1", cible, reg, "2026-03-01T16:00:00+02:00")
         assert accuse is None, "Accusé inattendu"
@@ -198,6 +260,12 @@ class TestConditionsManquantes:
         ("qualifie", "converti", {"reference_devis_m3": "   "}, "REJ-DEVIS-ABSENT"),
         ("qualifie", "perdu", {}, "REJ-MOTIF-ABSENT"),
         ("nouveau", "perdu", {"motif": ""}, "REJ-MOTIF-ABSENT"),
+        # PLAN T1.1-a : chantier->facture exige prochaine_action, comme nouveau->qualifie
+        # (même condition, factorisée dans statuts._prochaine_action_invalide).
+        ("chantier", "facture", {}, "REJ-ACTION-ABSENTE"),
+        ("chantier", "facture",
+         {"prochaine_action": {"description": "", "echeance": "2026-03-20T10:00:00+02:00"}},
+         "REJ-ACTION-ABSENTE"),
     ], ids=[
         "nouveau-vers-qualifie-sans-owner",
         "nouveau-vers-qualifie-sans-prochaine-action",
@@ -209,12 +277,13 @@ class TestConditionsManquantes:
         "qualifie-vers-converti-devis-blanc",
         "qualifie-vers-perdu-sans-motif",
         "nouveau-vers-perdu-motif-vide",
+        "chantier-vers-facture-sans-prochaine-action",
+        "chantier-vers-facture-description-vide",
     ])
     def test_condition_manquante(self, depart, cible, kwargs, code_attendu):
         """Chaque condition manquante sur un chemin autorisé donne son verdict spécifique."""
         reg = registre_avec_lead("L2")
-        if depart == "qualifie":
-            amener_a(reg, "L2", "qualifie")
+        amener_a(reg, "L2", depart)  # no-op silencieux si depart == "nouveau"
         taille_avant = reg.taille()
         accuse, verdict = statuts.transitionner("L2", cible, reg, "2026-03-01T19:00:00+02:00", **kwargs)
         assert accuse is None, "Accusé inattendu"
@@ -243,19 +312,28 @@ class TestEtatsTerminaux:
     @pytest.mark.parametrize("cible", ["nouveau", "qualifie", "converti", "perdu"],
                              ids=["vers-nouveau", "vers-qualifie", "vers-converti", "vers-perdu"])
     def test_depuis_converti_toute_cible_close(self, cible):
-        """Depuis converti, toute transition donne REJ-CONVERSATION-CLOSE."""
+        """PLAN T1.1-a — ADAPTÉ, intention conservée : depuis converti, ces quatre cibles
+        restent TOUTES rejetées (protection commerciale — définition §7 M2, « Règles dures » —
+        et pas de saut ni de self-loop) ; seul le CODE change. converti n'est plus dans
+        STATUTS_TERMINAUX (voir statuts.py), donc l'étape 4 (terminal) ne s'exécute plus pour ces
+        cas : c'est l'étape 5 (couple hors table) qui rejette, avec REJ-TRANSITION-ILLEGALE au
+        lieu de REJ-CONVERSATION-CLOSE. Le seul couple désormais légal depuis converti est
+        ('converti', 'cedule'), couvert par test_transitions_legales_reussissent — absent d'ici
+        à dessein."""
         reg = registre_avec_lead("L4")
         amener_a(reg, "L4", "converti")
         taille_avant = reg.taille()
         accuse, verdict = statuts.transitionner("L4", cible, reg, "2026-03-01T21:00:00+02:00")
         assert accuse is None
-        assert verdict["code"] == "REJ-CONVERSATION-CLOSE", f"Code: {verdict['code']}"
+        assert verdict["code"] == "REJ-TRANSITION-ILLEGALE", f"Code: {verdict['code']}"
         assert reg.taille() == taille_avant
 
     @pytest.mark.parametrize("cible", ["nouveau", "qualifie", "converti", "perdu"],
                              ids=["vers-nouveau", "vers-qualifie", "vers-converti", "vers-perdu"])
     def test_depuis_perdu_toute_cible_close(self, cible):
-        """Depuis perdu, toute transition donne REJ-CONVERSATION-CLOSE."""
+        """Depuis perdu, toute transition donne REJ-CONVERSATION-CLOSE. PLAN T1.1-a : perdu est
+        désormais le SEUL statut de STATUTS_TERMINAUX (« un dossier vraiment clos », définition
+        §7 M2) — ce test n'a pas changé de sens, seul son pendant côté converti a changé."""
         reg = registre_avec_lead("L5")
         amener_a(reg, "L5", "perdu")
         taille_avant = reg.taille()
@@ -265,9 +343,14 @@ class TestEtatsTerminaux:
         assert reg.taille() == taille_avant
 
     def test_ordre_controle_terminal_avant_table(self):
-        """Depuis converti vers qualifie (terminal + chemin absent), le verdict est CONVERSATION-CLOSE."""
+        """Depuis perdu vers qualifie (terminal + chemin absent), le verdict est
+        CONVERSATION-CLOSE : preuve que l'étape 4 (contrôle terminal) est évaluée avant l'étape 5
+        (table des transitions). PLAN T1.1-a : cet exemple utilisait 'converti', qui n'est plus
+        terminal (voir statuts.py) ; 'perdu' est le seul statut encore terminal et prouve
+        l'invariant à l'identique (('perdu', 'qualifie') n'est, de toute façon, dans la table
+        pour aucun statut de départ — seul le CODE renvoyé distingue les deux étapes)."""
         reg = registre_avec_lead("L6")
-        amener_a(reg, "L6", "converti")
+        amener_a(reg, "L6", "perdu")
         taille_avant = reg.taille()
         accuse, verdict = statuts.transitionner("L6", "qualifie", reg, "2026-03-01T23:00:00+02:00")
         assert accuse is None
@@ -381,12 +464,22 @@ class TestMaillonEtAccuse:
                 "motif",
                 "sans reponse",
             ),
+            (
+                # PLAN T1.1-a : chantier->facture porte aussi prochaine_action (même exigence
+                # que nouveau->qualifie), pour le même bénéfice de piste d'audit.
+                "chantier",
+                "facture",
+                {"prochaine_action": {"description": "Facturer", "echeance": "2026-03-20T09:00:00+02:00"}},
+                "prochaine_action",
+                {"description": "Facturer", "echeance": "2026-03-20T09:00:00+02:00"},
+            ),
         ],
         ids=[
             "nouveau->qualifie",
             "qualifie->converti",
             "qualifie->perdu",
             "nouveau->perdu",
+            "chantier->facture",
         ],
     )
     def test_maillon_porte_les_donnees_metier_de_la_transition(

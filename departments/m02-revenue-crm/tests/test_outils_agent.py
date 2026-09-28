@@ -19,6 +19,7 @@ from m2_revenue_crm.outils import (
     enregistrer_interaction,
     evaluer_readiness,
     ingerer_lead,
+    marquer_chantier_termine,
     outils,
     produire_digest,
     reinitialiser_registre,
@@ -59,9 +60,13 @@ def test_manifeste_et_outils_coherents():
     dep = lire_manifeste(Path(__file__).resolve().parents[1])
     noms = [o.nom for o in dep.charger_outils()]
     assert noms[0] == "m2_ingerer_lead"
+    assert "m2_marquer_chantier_termine" in noms
     assert all(nom.startswith("m2_") for nom in noms)
     assert len(noms) == len(set(noms)), "noms d'outils en double"
-    assert dep.dependances == ("m01-front-office",)
+    # PLAN T1.1-a : m04-field-ops ajouté — M2 consomme le signal de fin de chantier de M4
+    # (DEFINITION-PRODUIT §6, cascade « travaux terminés », ligne M2) via
+    # m2_marquer_chantier_termine.
+    assert dep.dependances == ("m01-front-office", "m04-field-ops")
     assert dep.mode == "ombre"
 
 
@@ -177,10 +182,13 @@ class TestCycleDeVieComplet:
         assert conversion["accepte"] is True
         assert conversion["resultat"]["statut"] == "converti"
 
-        # Statut terminal : toute écriture ultérieure est refusée.
+        # PLAN T1.1-a : converti n'est plus un statut terminal (la suite du cycle de vie —
+        # cédule, chantier, facture, paiement, avis — lui succède, DEFINITION-PRODUIT §7 M2).
+        # Le retour vers qualifie reste refusé (protection commerciale), mais via
+        # REJ-TRANSITION-ILLEGALE (couple hors table) et non plus REJ-CONVERSATION-CLOSE.
         reouverture = transitionner_statut("C1", "qualifie", "2026-06-17T09:00:00+00:00", owner="Bob")
         assert reouverture["accepte"] is False
-        assert reouverture["verdict"]["code"] == "REJ-CONVERSATION-CLOSE"
+        assert reouverture["verdict"]["code"] == "REJ-TRANSITION-ILLEGALE"
 
     def test_transition_vers_perdu_exige_un_motif(self):
         ingerer_lead(_contrat("P1"), "2026-06-15T09:00:00+00:00")
@@ -191,6 +199,100 @@ class TestCycleDeVieComplet:
         perte = transitionner_statut("P1", "perdu", "2026-06-15T09:30:00+00:00", motif="Ne répond plus")
         assert perte["accepte"] is True
         assert perte["resultat"]["statut"] == "perdu"
+
+
+# ---------------------------------------------------------------------------
+# m2_marquer_chantier_termine (PLAN T1.1-a) : chorégraphie « travaux terminés » côté M2
+# (DEFINITION-PRODUIT §6, cascade, ligne M2 ; §9.7).
+# ---------------------------------------------------------------------------
+class TestMarquerChantierTermine:
+    def _lead_au_chantier(self, lead_id):
+        """Amène un lead jusqu'au statut 'chantier', par les outils composés (pas d'accès
+        direct au registre)."""
+        ingerer_lead(_contrat(lead_id), "2026-06-15T09:00:00+00:00")
+        transitionner_statut(
+            lead_id, "qualifie", "2026-06-15T09:05:00+00:00",
+            owner="Alice",
+            prochaine_action={"description": "Appeler", "echeance": "2026-06-20T09:00:00+00:00"},
+        )
+        transitionner_statut(lead_id, "converti", "2026-06-15T09:10:00+00:00", reference_devis_m3="DEVIS-1")
+        transitionner_statut(lead_id, "cedule", "2026-06-15T09:15:00+00:00")
+        transitionner_statut(lead_id, "chantier", "2026-06-15T09:20:00+00:00")
+
+    def test_nominal_ecrit_deux_maillons_et_avance_a_facture(self):
+        self._lead_au_chantier("WCT1")
+        taille_avant = _obtenir_registre().taille()
+
+        reponse = marquer_chantier_termine(
+            "WCT1", "2026-06-20T16:00:00+00:00",
+            prochaine_action={
+                "description": "M5 : émettre la facture",
+                "echeance": "2026-06-25T09:00:00+00:00",
+            },
+        )
+
+        assert reponse["accepte"] is True
+        assert reponse["resultat"]["transition"]["statut"] == "facture"
+        assert reponse["resultat"]["transition"]["statut_precedent"] == "chantier"
+        assert _obtenir_registre().taille() == taille_avant + 2, "exactement deux maillons"
+
+        maillons_interaction = [
+            m for m in _obtenir_registre().lire() if m["type_entree"] == "interaction" and m["lead_id"] == "WCT1"
+        ]
+        assert len(maillons_interaction) == 1
+        interaction = maillons_interaction[0]
+        assert interaction["auteur"] == "system:m4", "jamais un humain pour cette interaction système"
+        assert "WCT1" in interaction["resume"]
+        assert "M5 : émettre la facture" in interaction["resume"], "résumé construit depuis les champs reçus"
+        assert reponse["resultat"]["interaction"]["ligne_id"] == interaction["ligne_id"]
+
+    def test_sans_prochaine_action_rejete_fail_closed_sans_ecriture(self):
+        self._lead_au_chantier("WCT2")
+        taille_avant = _obtenir_registre().taille()
+
+        reponse = marquer_chantier_termine("WCT2", "2026-06-20T16:00:00+00:00")
+
+        assert reponse["accepte"] is False
+        assert reponse["verdict"]["code"] == "REJ-ACTION-ABSENTE"
+        assert _obtenir_registre().taille() == taille_avant, "rejet fail-closed : aucun maillon écrit"
+
+        # Preuve positive que le lead est resté exactement à 'chantier' (pas de maillon
+        # orphelin, pas d'état intermédiaire) : le même appel réussit une fois la prochaine
+        # action fournie.
+        reponse_ok = marquer_chantier_termine(
+            "WCT2", "2026-06-20T16:01:00+00:00",
+            prochaine_action={"description": "Facturer", "echeance": "2026-06-25T09:00:00+00:00"},
+        )
+        assert reponse_ok["accepte"] is True
+        assert reponse_ok["resultat"]["transition"]["statut_precedent"] == "chantier"
+
+    def test_hors_statut_chantier_rejete_sans_ecriture(self):
+        """Un lead qui n'est pas encore au chantier (encore 'nouveau') ne peut pas être marqué
+        terminé : REJ-TRANSITION-ILLEGALE, et aucun des deux maillons n'est écrit."""
+        ingerer_lead(_contrat("WCT3"), "2026-06-15T09:00:00+00:00")
+        taille_avant = _obtenir_registre().taille()
+
+        reponse = marquer_chantier_termine(
+            "WCT3", "2026-06-20T16:00:00+00:00",
+            prochaine_action={"description": "Appeler", "echeance": "2026-06-25T09:00:00+00:00"},
+        )
+
+        assert reponse["accepte"] is False
+        assert reponse["verdict"]["code"] == "REJ-TRANSITION-ILLEGALE"
+        assert _obtenir_registre().taille() == taille_avant
+
+    def test_outil_expose_en_t1_avec_prochaine_action_obligatoire(self):
+        outil = next(o for o in outils() if o.nom == "m2_marquer_chantier_termine")
+        assert outil.autonomie.value == "T1", "écriture interne au registre, comme les autres outils d'écriture de M2"
+        assert set(outil.parametres["required"]) == {"lead_id", "horodatage", "prochaine_action"}
+
+    def test_prochaine_action_absente_refusee_par_le_schema(self):
+        """Double filet : la couche schéma (arguments_invalides) rejette déjà l'absence de
+        prochaine_action avant même d'exécuter la fonction métier — qui la rejette aussi
+        (test_sans_prochaine_action_rejete_fail_closed_sans_ecriture)."""
+        outil = next(o for o in outils() if o.nom == "m2_marquer_chantier_termine")
+        reponse = executer(outil, {"lead_id": "WCT4", "horodatage": "2026-06-20T16:00:00+00:00"})
+        assert reponse["erreur"] == "arguments_invalides"
 
 
 # ---------------------------------------------------------------------------

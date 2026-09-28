@@ -140,6 +140,51 @@ def enregistrer_interaction(lead_id: str, auteur: str, resume: str, horodatage: 
     return {"accepte": True, "resultat": accuse}
 
 
+def marquer_chantier_termine(
+    lead_id: str,
+    horodatage: str,
+    prochaine_action: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Chorégraphie « travaux terminés » côté M2 (DEFINITION-PRODUIT §6, cascade, ligne M2 :
+    « Marque le chantier terminé, écrit l'activité, définit la prochaine action »).
+
+    Transitionne le lead de 'chantier' à 'facture' (statuts.transitionner porte déjà, pour ce
+    chemin, la condition prochaine_action — REJ-ACTION-ABSENTE sinon, avant toute écriture),
+    puis écrit une interaction système (auteur 'system:m4', jamais un humain ni un texte libre
+    généré par un modèle) dont le résumé est composé par ce module depuis les seuls champs
+    reçus (lead_id, prochaine_action).
+
+    Exactement deux maillons en cas de succès (transition puis interaction), zéro en cas de
+    rejet : la validation de statuts.transitionner précède toute écriture, et par construction
+    rien dans ce chemin ne peut faire échouer l'interaction une fois la transition acceptée
+    (même horodatage déjà validé, lead désormais non terminal — la correction des statuts
+    ci-dessus le garantit —, auteur et résumé non vides par construction) : sinon RuntimeError,
+    jamais un maillon orphelin. Le registre est obtenu une seule fois et réutilisé pour les deux
+    écritures (même patron que ingerer_lead), et — appelé via opsys.outils.executer_atomique,
+    comme tout outil — les deux écritures partagent la transaction de base ouverte par cet
+    appel (ADR-0009) : tout est annulé ensemble si quoi que ce soit échoue."""
+    reg = _obtenir_registre()
+    transition, verdict = statuts.transitionner(
+        lead_id, "facture", reg, horodatage, prochaine_action=prochaine_action,
+    )
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+
+    resume = (
+        f"Chantier terminé (lead {lead_id}). Prochaine action : "
+        f"{prochaine_action['description']} (échéance {prochaine_action['echeance']})."
+    )
+    interaction, verdict_interaction = interactions.enregistrer(
+        lead_id, "system:m4", resume, reg, horodatage,
+    )
+    if verdict_interaction is not None:
+        raise RuntimeError(
+            "interaction système refusée après une transition chantier->facture réussie "
+            f"(incohérence interne, pas un refus métier normal) : {verdict_interaction}"
+        )
+    return {"accepte": True, "resultat": {"transition": transition, "interaction": interaction}}
+
+
 def evaluer_readiness(lead_id: str, horodatage: str) -> dict[str, Any]:
     """Émet le marqueur de readiness (aucune écriture au registre) : soit le lead
     satisfait déjà les quatre conditions et le marqueur est signé, soit un
@@ -182,6 +227,13 @@ _HORODATAGE = {"type": "string", "description": "ISO-8601 avec fuseau horaire, f
 _PROCHAINE_ACTION = {
     "type": ["object", "null"],
     "description": "{description (non vide), echeance (ISO-8601 avec fuseau)} — jamais générée par ce module",
+}
+_PROCHAINE_ACTION_OBLIGATOIRE = {
+    "type": "object",
+    "description": (
+        "{description (non vide), echeance (ISO-8601 avec fuseau)} — jamais générée par ce "
+        "module, obligatoire pour cet outil (jamais de lead sans prochaine action)."
+    ),
 }
 
 
@@ -317,5 +369,26 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=produire_digest,
+        ),
+        Outil(
+            nom="m2_marquer_chantier_termine",
+            description=(
+                "Marque le chantier d'un lead converti comme terminé (statut chantier→facture) et "
+                "écrit l'interaction système correspondante (auteur system:m4, résumé factuel "
+                "construit depuis les champs reçus, jamais un texte libre). prochaine_action est "
+                "obligatoire : jamais de lead sans prochaine action."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "lead_id": {"type": "string"},
+                    "horodatage": _HORODATAGE,
+                    "prochaine_action": _PROCHAINE_ACTION_OBLIGATOIRE,
+                },
+                "required": ["lead_id", "horodatage", "prochaine_action"],
+                "additionalProperties": False,
+            },
+            fonction=marquer_chantier_termine,
+            autonomie=Autonomie.T1,
         ),
     )
