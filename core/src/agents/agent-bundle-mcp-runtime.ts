@@ -32,6 +32,7 @@ import type {
   SessionMcpRuntime,
   SessionMcpRuntimeManager,
 } from "./agent-bundle-mcp-types.js";
+import { currentMcpCallMeta } from "./mcp-call-meta.js";
 import {
   connectMcpClient,
   disposeMcpClient,
@@ -1054,9 +1055,17 @@ function createServerMcpRuntime(
     async callTool(requestedServer, toolName, input) {
       const session = await getActiveSession(requestedServer);
       const validateResult = session.toolMetadata?.validatorForCall(toolName);
+      // OPSYS `_meta` (IDEMPOTENCE.md §7): host-minted ambient context from `/tools/invoke`
+      // (`tools-invoke-shared.ts`), never a caller-supplied param — absent outside that path, so
+      // every other `callTool` (agent-driven tool use, other gateway callers) is unaffected.
+      const mcpCallMeta = currentMcpCallMeta();
       const result = (await runGuardedMcpRequest(session, (signal) =>
         session.client.callTool(
-          { name: toolName, arguments: isRecord(input) ? input : {} },
+          {
+            name: toolName,
+            arguments: isRecord(input) ? input : {},
+            ...(mcpCallMeta ? { _meta: mcpCallMeta } : {}),
+          },
           undefined,
           { timeout: session.requestTimeoutMs, signal },
         ),

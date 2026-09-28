@@ -7,6 +7,7 @@ import {
 import { runBeforeToolCallHook } from "../agents/agent-tools.before-tool-call.js";
 import { resolveToolLoopDetectionConfig } from "../agents/agent-tools.js";
 import { getChannelAgentToolMeta } from "../agents/channel-tools.js";
+import { withMcpCallMeta } from "../agents/mcp-call-meta.js";
 import { isKnownCoreToolId } from "../agents/tool-catalog.js";
 import {
   AUTOMATIONS_TOOL_NAME,
@@ -54,6 +55,17 @@ export type ToolsInvokeInput = {
   sessionKey?: unknown;
   agentId?: unknown;
   idempotencyKey?: unknown;
+  /**
+   * OPSYS device identity (OPSYS-AI docs/architecture/IDEMPOTENCE.md §7): the paired device that
+   * created this mutation, and its local clock at creation time (ISO 8601 with a UTC offset —
+   * never used for a calculation, only for display; the receiving instant is what OPSYS's
+   * business engine treats as authoritative). Both travel unverified from the wire, exactly like
+   * `idempotencyKey` itself; OPSYS's business engine is the one that gives them meaning, in its
+   * own MCP `_meta` contract (`opsys/appareil`, `opsys/horodatageAppareil`) once `idempotencyKey`
+   * is present. Same field names as the mobile client (`mobile/src/protocole/types.ts`).
+   */
+  deviceId?: unknown;
+  deviceTimestamp?: unknown;
   dryRun?: unknown;
 };
 
@@ -403,6 +415,8 @@ async function invokeGatewayToolWithSignal(
   try {
     const gatewayTool: AnyAgentTool = tool;
     const idempotencyKey = normalizeOptionalString(params.input.idempotencyKey);
+    const deviceId = normalizeOptionalString(params.input.deviceId);
+    const deviceTimestamp = normalizeOptionalString(params.input.deviceTimestamp);
     const toolCallId = idempotencyKey
       ? `${params.toolCallIdPrefix}-${conversationReadOrigin}-${idempotencyKey}`
       : `${params.toolCallIdPrefix}-${conversationReadOrigin}-${Date.now()}`;
@@ -438,6 +452,18 @@ async function invokeGatewayToolWithSignal(
         },
       };
     }
+    const executeGatewayTool = async () =>
+      await gatewayTool.execute?.(toolCallId, hookResult.params, params.signal);
+    // OPSYS `_meta` MCP (IDEMPOTENCE.md §7): only set when idempotencyKey is present, so a caller
+    // that does not know this contract (Hermes, Claude Code, a future internal tool) sees the
+    // exact same `tools/call` as before this field existed — no ambient `_meta` at all.
+    const mcpCallMeta: Record<string, unknown> | undefined = idempotencyKey
+      ? {
+          "opsys/idempotencyKey": idempotencyKey,
+          ...(deviceId !== undefined ? { "opsys/appareil": deviceId } : {}),
+          ...(deviceTimestamp !== undefined ? { "opsys/horodatageAppareil": deviceTimestamp } : {}),
+        }
+      : undefined;
     const result = await withOperatorToolGatewayAuthority(
       {
         authenticatedUserProfile,
@@ -447,7 +473,9 @@ async function invokeGatewayToolWithSignal(
       },
       async () => {
         assertInvocationCurrent();
-        return await gatewayTool.execute?.(toolCallId, hookResult.params, params.signal);
+        return mcpCallMeta
+          ? await withMcpCallMeta(mcpCallMeta, executeGatewayTool)
+          : await executeGatewayTool();
       },
     );
     return {

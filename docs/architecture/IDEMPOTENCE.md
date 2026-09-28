@@ -160,13 +160,15 @@ tools/call "m4_pointer_entree"
 Renvoi, **même** `_meta`, **mêmes** arguments → **exactement** la même réponse, avec
 `"rejoue": true` — sans second pointage.
 
-## 7. Ce qu'il reste à faire dans OPSYS-CORE (T1.4-c) — non modifié ici
+## 7. OPSYS-CORE : transmission du `_meta` (T1.4-c1, fait)
 
-Le core (`core/`) est lu, jamais modifié ni exécuté par T1.4-b (règle du dépôt : il ne se construit
-et ne se teste qu'en CI). Constat de lecture, précis, pour T1.4-c :
+Le core (`core/`) reste lu et modifié sans être exécuté dans le bac à sable (règle du dépôt : il ne
+se construit et ne se teste qu'en CI, `.github/workflows/core.yml`). Ce qui suit décrit le
+comportement livré par T1.4-c1 — la lecture ci-dessous (constat avant le changement) reste comme
+trace du raisonnement.
 
-**Aujourd'hui, `idempotencyKey` de `POST /tools/invoke` n'atteint jamais le `_meta` MCP.** Il ne
-sert qu'à construire un `toolCallId` local (déduplication du hook `beforeToolCall`/détection de
+**Avant T1.4-c1**, `idempotencyKey` de `POST /tools/invoke` n'atteignait jamais le `_meta` MCP. Il ne
+servait qu'à construire un `toolCallId` local (déduplication du hook `beforeToolCall`/détection de
 boucle) :
 
 - `core/src/gateway/tools-invoke-shared.ts`, `ToolsInvokeInput` (ligne 56) déclare déjà
@@ -196,28 +198,52 @@ boucle) :
   (`mcp_types.RequestParamsMeta`, un `TypedDict` ouvert — le SDK TypeScript expose la même forme
   ouverte sur `CallToolRequest["params"]._meta`).
 
-**Changement recommandé pour T1.4-c** (précédent déjà dans ce fichier :
+**Changement livré par T1.4-c1** (précédent déjà dans ce fichier :
 `core/src/gateway/server-plugin-in-process-dispatch.ts`, ligne 65,
 `new AsyncLocalStorage<OperatorToolGatewayAuthority>()`, exactement pour une donnée « host-minted,
 jamais dérivée des paramètres du fil » — la même propriété que `_meta` d'idempotence exige) :
 
-1. `ToolsInvokeInput` (`tools-invoke-shared.ts`) : ajouter deux champs optionnels à côté de
-   `idempotencyKey` — p. ex. `deviceId?: unknown` et `deviceTimestamp?: unknown`.
-2. Nouveau, petit module (p. ex. `core/src/agents/mcp-call-meta.ts`) : un
+1. `ToolsInvokeInput` (`tools-invoke-shared.ts`) : deux champs optionnels ajoutés à côté de
+   `idempotencyKey` — `deviceId?: unknown` et `deviceTimestamp?: unknown`, mêmes noms que le client
+   mobile (`mobile/src/protocole/types.ts`, `RequeteOutilsInvoke`).
+2. Nouveau, petit module `core/src/agents/mcp-call-meta.ts` : un
    `AsyncLocalStorage<Record<string, unknown>>` avec `withMcpCallMeta(meta, run)` et
    `currentMcpCallMeta()`, sur le patron exact de `withOperatorToolGatewayAuthority`.
-3. `invokeGatewayToolWithSignal` : quand `idempotencyKey` est fourni, construire
+3. `invokeGatewayToolWithSignal` : quand `idempotencyKey` est fourni, construit
    `{"opsys/idempotencyKey": idempotencyKey, "opsys/appareil": deviceId,
-   "opsys/horodatageAppareil": deviceTimestamp}` et envelopper l'appel existant à
+   "opsys/horodatageAppareil": deviceTimestamp}` (les deux derniers champs omis, pas envoyés
+   `undefined`, quand absents du corps — c'est `opsys.idempotence.depuis_meta_mcp`, côté socle, qui
+   refuse proprement s'ils manquent, T1.4-b) et enveloppe l'appel existant à
    `gatewayTool.execute?.(...)` dans `withMcpCallMeta(...)`. **Aucun changement** à la signature
-   `execute` ni aux outils non-MCP.
-4. `agent-bundle-mcp-runtime.ts`, méthode `callTool` (ligne 1054) : lire `currentMcpCallMeta()` et
-   l'ajouter en `_meta` au premier argument de `session.client.callTool(...)` quand présent. **Aucun
-   changement** à la signature `ServerMcpRuntime.callTool` (`agent-bundle-mcp-types.ts`, ligne 159) :
-   c'est précisément pourquoi la propagation par contexte ambiant (plutôt qu'un paramètre
-   supplémentaire filé à travers `agent-bundle-mcp-materialize.ts`) est préférable ici — rayon
-   d'impact nul sur les types partagés par tous les outils.
+   `execute` ni aux outils non-MCP ; sans `idempotencyKey`, aucun `_meta` ambiant n'est posé —
+   comportement byte-for-byte identique à avant T1.4-c1.
+4. `agent-bundle-mcp-runtime.ts`, méthode `callTool` : lit `currentMcpCallMeta()` et l'ajoute en
+   `_meta` au premier argument de `session.client.callTool(...)` quand présent. **Aucun changement**
+   à la signature `ServerMcpRuntime.callTool` (`agent-bundle-mcp-types.ts`) : c'est précisément
+   pourquoi la propagation par contexte ambiant (plutôt qu'un paramètre supplémentaire filé à
+   travers `agent-bundle-mcp-materialize.ts`) est préférable ici — rayon d'impact nul sur les types
+   partagés par tous les outils.
 
-Ce plan ne touche ni `AnyAgentTool.execute`, ni `ServerMcpRuntime.callTool`, ni aucun outil non-MCP :
-seuls les trois fichiers ci-dessus changent, et seulement pour le chemin
-`POST /tools/invoke` → outil MCP.
+Seuls ces trois fichiers changent (plus le nouveau module), et seulement pour le chemin
+`POST /tools/invoke` → outil MCP ; `AnyAgentTool.execute` et `ServerMcpRuntime.callTool` sont
+inchangés, tout comme les outils non-MCP. Tests vitest (jamais exécutés dans ce bac à sable, la CI
+`core.yml` tranche) : `core/src/agents/mcp-call-meta.test.ts` (le primitif seul),
+`core/src/agents/agent-bundle-mcp-runtime.mcp-call-meta.test.ts` (bout en bout sur un vrai
+sous-processus MCP stdio : le `_meta` reçu sur le fil, avec et sans `withMcpCallMeta`), et
+`core/src/gateway/tools-invoke-http.device-identity.test.ts` (construction du `_meta` depuis le
+corps HTTP de `/tools/invoke`, y compris l'absence de `idempotencyKey` et l'absence partielle de
+`deviceId`/`deviceTimestamp`).
+
+Ce que T1.4-c1 ne fait PAS : rien côté rôles nommés ni portée d'outil — voir §7 bis (T1.4-c2).
+
+## 7 bis. OPSYS-CORE : rôles nommés et portée d'outil (T1.4-c2)
+
+Voir `docs/architecture/MOBILE.md` (section rôles) pour le contrat complet (jeton d'appareil,
+appairage, refus fermé par défaut) : ce paragraphe ne fait que situer T1.4-c2 dans le fil de ce
+fichier. `/tools/invoke` transmet, en plus des trois clés `_meta` ci-dessus,
+`opsys/personne`/`opsys/role` (résolus depuis `deviceId` par un fragment généré côté OPSYS, jamais
+écrit à la main dans le core) et refuse un outil hors de la portée du rôle avant même d'émettre
+`tools/call` — un appareil non reconnu, ou un rôle non résolu, est un refus, jamais un accès
+implicite complet. Côté socle, `opsys.contexte.depuis_meta_mcp_identite`/`appele_par_appareil`
+exposent cette identité par le même patron de `ContextVar` que `horodatage_reception` (§5) ; aucun
+outil de département ne les lit encore (M3 restera à adapter dans une tâche séparée).
