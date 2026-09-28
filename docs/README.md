@@ -58,8 +58,8 @@ non audités ici au-delà de leur existence) :
 
 | Document | Contenu |
 |---|---|
-| [`../core/UPSTREAM.md`](../core/UPSTREAM.md) | Provenance et épinglage du core (**OpenClaw**, release/commit/digest — ADR-0007), surfaces amont utilisées, procédure de mise à jour, note sur Hermes Agent en runtime alternatif. |
-| [`../core/patches/README.md`](../core/patches/README.md) | Format des patchs sur le code source amont (aucun à ce jour). |
+| [`../core/PROVENANCE.md`](../core/PROVENANCE.md) | Provenance du fork dur OPSYS-CORE (release et commit OpenClaw d'origine, élagage reproductible, veille de sécurité — ADR-0008) et surfaces de configuration consommées par la couche Python. |
+| [`../core/patches/README.md`](../core/patches/README.md) | Patchs pnpm de dépendances tierces du core, hérités de la release d'origine (texte d'origine en anglais). |
 | `ops/INSTALLATION-VPS.md` | Installation sur un VPS neuf (public : opérateur), renvoie à `ARCHITECTURE.md` et ADR-0007. |
 | `ops/EXPLOITATION.md` | Commandes d'exploitation courantes depuis `deploy/` (`docker compose logs`, etc.), suite d'INSTALLATION-VPS.md. |
 | `../deploy/` (hors `docs/`) | `docker-compose.yml`, `Dockerfile`, `install.sh`, `backup.sh`/`restore.sh`, `Caddyfile`, `.env.example` — plus câblé que ce que R5 anticipait comme entièrement prévu. |

@@ -2,8 +2,10 @@
 
 Public : opérateur qui installe OPSYS sur un VPS neuf. Architecture détaillée :
 [`docs/architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.md), décision Core :
-[ADR-0007](../decisions/ADR-0007-core-openclaw.md). Provenance amont, versions épinglées :
-[`core/UPSTREAM.md`](../../core/UPSTREAM.md).
+[ADR-0007](../decisions/ADR-0007-core-openclaw.md), remplacée par le fork
+[ADR-0008](../decisions/ADR-0008-fork-openclaw-opsys-core.md). Provenance du fork :
+[`core/PROVENANCE.md`](../../core/PROVENANCE.md). Tant que l'installateur OPSYS (PLAN T0.11)
+n'est pas livré, ce guide déploie l'image officielle épinglée de la release d'origine.
 
 ## 1. Prérequis
 

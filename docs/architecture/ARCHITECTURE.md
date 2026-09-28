@@ -54,7 +54,7 @@ Une installation, une commande, partout (portable, serveur, VPS). La section sui
 
 | Couche | Rôle | Où |
 |---|---|---|
-| **OPSYS-CORE** | Boucle d'agents, canaux (SMS, WhatsApp, courriel, chat, voix), mémoire d'agent, automatisations, Control UI, apps mobiles | OpenClaw épinglé : `core/UPSTREAM.md` |
+| **OPSYS-CORE** | Boucle d'agents, canaux (SMS, WhatsApp, courriel, chat, voix), mémoire d'agent, automatisations, Control UI, apps mobiles | Fork dur d'OpenClaw (ADR-0008) : `core/`, provenance `core/PROVENANCE.md` |
 | **Capacités (MCP)** | Outils des départements et outils communs (`opsys_*`, dont la mémoire). Un point d'accès par département (`/mcp/<id>`) : les outils communs s'exécutent au nom de ce département, jamais d'un nom choisi par le modèle. Applique autonomie, approbations, budget et troncature | `src/opsys/serveur_mcp.py`, `capacites.py`, `contexte.py` |
 | **Départements M1–M10** | Code métier déterministe, manifeste, SOUL, skills, tests | `departments/mNN-*/` |
 | **Configuration du Core** | Un agent par département, fournisseur de modèles dédié, serveur MCP dédié (`opsys_mN`) et refus des serveurs des autres départements (`tools.deny`), `$include` | `src/opsys/openclaw.py` |

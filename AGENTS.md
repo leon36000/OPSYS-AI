@@ -21,7 +21,7 @@ Revêtements Synergy (rénovation extérieure, Québec) ; ensuite, SaaS pour PME
 |---|---|
 | `src/opsys/` | Couche OPSYS : contrat d'outil, manifestes, politiques, capacités MCP (stdio/HTTP), approbations, tokens, paliers, passerelle LiteLLM, configuration OpenClaw, console, mémoire, CLI (adaptateur Hermes optionnel) |
 | `departments/mNN-*/` | Départements : `department.yaml`, `SOUL.md`, `skills/`, `src/`, `tests/` (guide : `docs/architecture/DEPARTEMENTS.md`) |
-| `core/` | Épinglage d'OpenClaw + patchs amont versionnés |
+| `core/` | OPSYS-CORE (TypeScript) : fork dur d'OpenClaw v2026.9.6, provenance `core/PROVENANCE.md` ; construit et testé en CI (`core.yml`) |
 | `deploy/` | Image, docker compose, `install.sh`, sauvegardes |
 | `docs/` | Architecture, décisions, recherche (ingrédients), mémoire/RAG, exploitation, conformité Loi 25, plan maître |
 | `tests/` | Tests du socle `opsys` |
@@ -57,7 +57,7 @@ opsys openclaw configurer --config-dir /tmp/oc   # fragments OpenClaw des dépar
 - Test sans assertion, `assert True`.
 - Données inventées (les fixtures portent `fictif: true`).
 - Secret dans git, `--no-verify`, commit direct ou force-push sur `main`.
-- Modifier le code amont hors de `core/patches/`.
+- Ajouter à `core/` du code d'une autre source sans licence vérifiée ni trace dans `core/PROVENANCE.md`.
 
 ## Briques open source
 

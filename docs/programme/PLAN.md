@@ -16,11 +16,16 @@ identifiants du propriétaire, repli livré en attendant.
 - [x] T0.3 Audits sans modification M1–M10 (`docs/departements/`) et études R11 (fork), R12 (mobile),
       R13 (socle métier) ; vérifier chaque sortie, puis détailler T1–T4 ci-dessous. Preuve : 13 documents
       commités, suites de tests des départements vertes pendant les audits, constats intégrés ci-dessous.
-- [ ] T0.4 Import du fork : instantané de `v2026.9.6` (commit `eb377ac5`) dans `core/`,
+- [x] T0.4 Import du fork : instantané de `v2026.9.6` (commit `eb377ac5`) dans `core/`,
       `core/NOTICE` (MIT, © OpenClaw Foundation), `core/PROVENANCE.md` ; retrait de `core/UPSTREAM.md`.
+      Preuve : `ls-remote` confirme le tag (`ce5bbdc2`, pointant sur `eb377ac5`) ; l'élagage rejoué
+      depuis le tag (`outils/fork/elaguer_core.py`) redonne exactement les 36 213 fichiers suivis de
+      `core/`, octet pour octet, sauf `pnpm-lock.yaml` (régénéré sans script de paquet) ; fermeture des
+      dépendances de workspace vérifiée ; aucun fichier de plus de 5 Mo, aucun LFS.
 - [ ] T0.5 CI du core : job GitHub qui installe Node et pnpm, construit et teste le core tel
       qu'importé (référence verte avant toute modification). En cours : `.github/workflows/core.yml`
-      construit d'abord la release amont intacte (Node 24, pnpm 12.4, `pnpm build`, `pnpm test:fast`).
+      (Node 24, pnpm 12.4, `pnpm build`, `pnpm test:fast`, réglages de la CI d'origine) ; la release
+      intacte s'est construite en 9 min ; il construit maintenant `core/`.
 - [ ] T0.6 Élagage selon R11 (canaux et fournisseurs inutiles, docs, apps natives…), CI verte.
 - [ ] T0.7 Renommage OpenClaw → OPSYS (CLI `opsys`, `~/.opsys`, paquets, variables, UI), CI verte.
 - [x] T0.8 ADR-0009 socle métier (base de données, événements, workflows à validation humaine,
