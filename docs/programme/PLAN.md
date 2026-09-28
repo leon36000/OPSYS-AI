@@ -368,7 +368,7 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       par chantier, T2.2) ;
     - la file du propriétaire doit montrer le signal de variance à côté de la facture brouillon
       (T1.3-c).
-- [ ] T1.3 Approbations N3–N4 (complétion, facture, écart matériaux), file du propriétaire.
+- [x] T1.3 Approbations N3–N4 (complétion, facture, écart matériaux), file du propriétaire.
       Envoi et paiement de facture exposés en T3 seulement, par les approbations du socle : la
       vérification de forme du maillon F4 de `facturation.envoyer_facture` ne suffit pas seule.
       Les approbations internes de M5 (F0–F7) rejoignent l'échelle unique (ADR-0009).
@@ -397,9 +397,18 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
     - le retrait du mot de passe partagé ;
     - l'ordre des vérifications dans `decider`.
 
-  - [ ] T1.3-b M4 : revue humaine d'une complétion `completed_pending_review` (vérifiée ou
+  - [x] T1.3-b M4 : revue humaine d'une complétion `completed_pending_review` (vérifiée ou
         corrigée), décision signée ; l'alerte d'écart matériaux (signal critique M6) entre dans
         la file.
+
+        Preuve (5b4b92c) :
+        - `m4_resoudre_revue_completion` (N4 : `manager`, `admin` ou `nathan_owner`) mène à
+          verified ou à une correction motivée ;
+        - c'est le troisième et dernier chemin d'écriture d'un statut de complétion, gardé par
+          l'AST ;
+        - `attentes()` : complétions en revue, avec le signal de variance critique ;
+        - M4 670.
+
   - [x] T1.3-c M5 :
     - envoi et paiement de facture par les approbations du socle ;
     - attentes de facturation dans la file ;
@@ -485,6 +494,15 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
           fork, jeton dans `expo-secure-store`), testé contre le protocole lu dans le core.
 
   - [ ] T1.4-d `punch.tsx` (M4.4) de bout en bout par la file sortante (R12 §5, étape 2).
+
+    Avancement :
+    - mobile (b178178, bdd0ac8) : écran, vidangeur de la file (recul, reprise avec la même clé,
+      verdict métier lu), déclencheurs de premier plan et de réseau ; Jest 227 ;
+    - serveur (5c3c7ee) : pendant un appel d'appareil, l'heure de réception fait foi pour la
+      paie, et l'heure de l'appareil est gardée à côté.
+
+    Reste : le trajet réel appareil → core → moteur, qui attend T1.4-c (appairage et `_meta`
+    transmis). Aussi `m4_demarrer_route`, qui ne lit pas encore l'heure serveur.
   - [ ] T1.4-e Chantier du jour, transitions, checklist, photos et signature (étapes 3 et 4).
   - [ ] T1.4-f « Terminer », qui lance la cascade §9.7, puis le formulaire des matériaux (étape 5).
     Approbations côté propriétaire après T1.3 (étape 6).
