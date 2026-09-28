@@ -152,17 +152,29 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         - `m6_declarer_materiaux_utilises` ;
         - la variance lit le réel persisté ;
         - idempotence par `wct_id`.
-  - [ ] T1.1-e M5 :
+  - [x] T1.1-e M5 :
         - `FactureBrouillonV1` sur un registre dédié, idempotente par `devis_id` ;
         - aucun `ENCAISSEMENT` avant `PAYEE` ;
         - `m5_creer_facture_brouillon` ;
         - âge des créances ;
         - envoi seulement par approbation F4 ; `PAYEE` seulement par un approbateur humain (T3).
+
+        Preuve (7493ca5, puis la garde de non-exposition) :
+        - totaux et taxes recalculés, un total fourni divergent est rejeté ;
+        - 17 codes `REJ-FACTURE-*` et `REJ-CREANCES-*` ;
+        - le piège de l'ENCAISSEMENT est testé en pur et sur la base réelle ;
+        - 272 tests M5, 79 outils.
+
+        Code critique, revue externe requise. Envoi et paiement non exposés tant que T1.3 ne les
+        met pas derrière les approbations du socle.
 - [ ] T1.2 Événements : l'événement de fin de travaux de M4 porte les montants (M5) et les champs
       marketing (photos, ville, consentement : M7) ; M3 et M9 la reçoivent en second ordre (M6/M5 et
       M8, ADR-0009) (audits M4, M5, M7). `job.completed` déclenche la cascade (M6 variance, M5 facture brouillon, M2
       activité et prochaine action, M7 demande d'avis, M3 estimé vs réel, M8 métriques, M10 mémoire).
 - [ ] T1.3 Approbations N3–N4 (complétion, facture, écart matériaux), file du propriétaire.
+      Envoi et paiement de facture exposés en T3 seulement, par les approbations du socle : la
+      vérification de forme du maillon F4 de `facturation.envoyer_facture` ne suffit pas seule.
+      Les approbations internes de M5 (F0–F7) rejoignent l'échelle unique (ADR-0009).
 - [ ] T1.4 App mobile Expo : squelette, appairage, profils, punch, chantier du jour, « Terminer »,
       formulaire des matériaux, hors ligne ; approbations côté propriétaire. Pile et ordre de livraison :
       R12 (Expo SDK 57, expo-sqlite + file sortante maison, client de protocole TypeScript du core,
