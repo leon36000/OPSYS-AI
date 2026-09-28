@@ -38,8 +38,9 @@ aussi.
      consommateur)` pour l'idempotence.
    - Un répartiteur dans le moteur métier livre les événements : réveil après commit, plus un
      sondage de secours toutes les 2 à 5 s. Sous PostgreSQL, il utilise aussi `LISTEN/NOTIFY`.
-   - Catalogue versionné `opsys.evenement/v1`, en JSON Schema, validé par
-     `outils.valider_arguments`.
+   - Catalogue versionné `opsys.evenement/v1`, en JSON Schema, validé en entier par `jsonschema`
+     (Draft 2020-12), objets et tableaux imbriqués compris (le validateur minimal des outils ne
+     regarde que le premier niveau).
    - Consommateurs directs de la fin de travaux : M6, M5, M2, M7, M8, M10.
    - M3 et M9 la reçoivent en second ordre, conformément aux boucles de §6 de la définition :
      - M3 par la variance de M6 et le coût réel de M5 ;

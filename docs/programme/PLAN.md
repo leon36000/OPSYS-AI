@@ -35,7 +35,12 @@ identifiants du propriétaire, repli livré en attendant.
       - run 10 (9b34a6d) : construction verte et morceaux 1, 2, 4 et 6 verts. Il reste 3 tests :
         - un import `fs` retiré à tort ;
         - un cas de tarification (« native owner ») ;
-        - le nettoyage ACP « live Gateway ownership », en échec identique aux runs 9 et 10.
+        - le nettoyage ACP « live Gateway ownership », en échec identique aux runs 9 et 10 ;
+      - run 11 (e3c4151) : seul ce cas ACP échoue encore ;
+      - run 12 (2474cd1) : CI entièrement verte, mais seulement parce que ce cas active la
+        journalisation verbeuse. Ce vert n'est pas retenu comme preuve : la journalisation change
+        le minutage, et l'on soupçonne une écriture tardive qui recrée la session supprimée. La
+        correction à la source est en cours (T0.6).
 - [ ] T0.6 Élagage selon R11 (canaux et fournisseurs inutiles, docs, apps natives…), CI verte.
       Fait à l'import (T0.4) : apps, docs, 120 extensions. Reste : `scripts/` et `test/` qui visent
       des chemins élagués (scripts iOS, Android et macOS orphelins, R14), guidé par la CI du core.
@@ -284,17 +289,44 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         À suivre : le répartiteur transmet la charge, mais pas la provenance (`evenement_id`,
         producteur). M10 déduit l'identifiant du `wct_id` ; il faudrait passer la provenance aux
         consommateurs qui la demandent.
-  - [ ] T1.2-d Consommateurs à données amont :
+  - [x] T1.2-d Consommateurs à données amont :
         - M6 : variance, où un prévu absent donne un verdict qui le demande ;
         - M5 : facture brouillon, où des lignes de devis absentes donnent un verdict qui les
           demande, jamais un montant inventé ;
         - M3, en second ordre : estimé contre réel.
+
+        Preuve :
+        - M6 (7f78797) : le prévu vient de `m3.devis_accepte`. Un devis sans matériau est un prévu
+          vide connu, jamais un prévu absent. Un chantier nul se résout depuis la déclaration ;
+        - M5 (119a594, 23df6eb) :
+          - arrondi `ROUND_HALF_UP` cité (ARC RC4022, Revenu Québec) ;
+          - facture brouillon quel que soit l'ordre d'arrivée, montant égal au prix du devis ;
+          - attentes nommées ;
+        - M3 (50b88da, 2d7b17f) : prix unitaire arrondi comme la facture ; estimé contre réel
+          (écart relatif signé, aucun barème ajusté) ;
+        - socle (4c9fbff) : toute charge du bus est validée par son JSON Schema complet. Un coût
+          par ligne de devis ne peut plus sortir de M3 ;
+        - suites : M3 698, M5 290, M6 291, M4 611 ; socle 275.
   - [ ] T1.2-e Test de bout en bout : de la complétion jusqu'à la cascade, avec une relivraison
         idempotente et un consommateur en échec mis en quarantaine sans bloquer les autres.
 - [ ] T1.3 Approbations N3–N4 (complétion, facture, écart matériaux), file du propriétaire.
       Envoi et paiement de facture exposés en T3 seulement, par les approbations du socle : la
       vérification de forme du maillon F4 de `facturation.envoyer_facture` ne suffit pas seule.
       Les approbations internes de M5 (F0–F7) rejoignent l'échelle unique (ADR-0009).
+  - [ ] T1.3-a Socle (ADR-0009 §4 et §5) :
+    - échelle unique N0–N5, avec la correspondance T et F ;
+    - décision signée par une personne et son rôle, jamais un mot de passe partagé ;
+    - rôles approbateurs de chaque niveau N déclarés dans `department.yaml` ;
+    - N5 exige la signature de `nathan_owner` et l'attestation du professionnel ;
+    - file du propriétaire, par CLI et console : demandes du socle plus attentes déclarées par
+      les départements.
+  - [ ] T1.3-b M4 : revue humaine d'une complétion `completed_pending_review` (vérifiée ou
+        corrigée), décision signée ; l'alerte d'écart matériaux (signal critique M6) entre dans
+        la file.
+  - [ ] T1.3-c M5 :
+    - envoi et paiement de facture par les approbations du socle ;
+    - attentes de facturation dans la file ;
+    - les approbations internes F0–F7 rejoignent l'échelle unique.
 - [ ] T1.4 App mobile Expo : squelette, appairage, profils, punch, chantier du jour, « Terminer »,
       formulaire des matériaux, hors ligne ; approbations côté propriétaire. Pile et ordre de livraison :
       R12 (Expo SDK 57, expo-sqlite + file sortante maison, client de protocole TypeScript du core,
@@ -325,12 +357,26 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
     - client `/tools/invoke` conforme au code du fork ;
     - typecheck propre, Jest 169 réussis ; CI `mobile` verte sur GitHub.
 
-  - [ ] T1.4-b Socle : idempotence des mutations d'appareil.
+  - [x] T1.4-b Socle : idempotence des mutations d'appareil.
     - Table `mutations_appliquees`, de clé `(appareil, idempotencyKey)`.
     - Un renvoi rejoue le même résultat, dans la même transaction que l'outil.
     - L'heure du serveur fait foi ; celle de l'appareil est gardée à côté.
     - Le chemin de la clé, du core jusqu'au moteur, est établi en lisant le code du fork
       (`/tools/invoke`, client MCP).
+
+    Preuve (764c292, 2474cd1) :
+    - la clé voyage dans le `_meta` MCP (`opsys/idempotencyKey`, `opsys/appareil`,
+      `opsys/horodatageAppareil`), jamais dans les arguments ;
+    - réclamation et exécution dans une seule transaction, migration `0004` ;
+    - un renvoi rejoue la réponse, et une clé réutilisée pour un autre outil ou d'autres arguments
+      est refusée (`mutation_conflit`) ;
+    - une panne interne ou un refus passager n'est pas enregistré ;
+    - un appel d'appareil n'est pas soumis au budget de jetons ;
+    - concurrence : une seule exécution (SQLite et PostgreSQL réels) ;
+    - heure de réception exposée par `contexte.horodatage_reception()` ;
+    - changement requis dans le core documenté (`IDEMPOTENCE.md` §7) ;
+    - socle 275.
+
   - [ ] T1.4-c Core, après T0.5 (CI du core verte) :
     - rôles d'opérateur nommés (`admin`, `employee`, `seller`) sur le jeton d'appareil ;
     - portées d'outils par rôle ;
@@ -384,7 +430,15 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       - verdict `REJ-DEVISE-NON-AUTORISEE` ;
       - aucun faux positif sur toutes les unités du dictionnaire réel.
 - [ ] T3.2 M9 : briefing du matin sourcé, décisions en attente sur mobile.
-- [ ] T3.3 M10 : paquets de contexte en couches, consolidation nocturne, audit « non-oubli ».
+- [x] T3.3 M10 : paquets de contexte en couches, consolidation nocturne, audit « non-oubli ».
+      Preuve (d239485) :
+      - paquet en 4 couches avec provenance, budget calculé par le code, troncature déclarée ;
+      - consolidation idempotente par (affaire, jour), `maintenant` fourni ;
+      - audit des faits attendus et des deux chaînes de hachage ;
+      - consommation de `m6.variance_chantier` ;
+      - M10 263, verifier 93 outils.
+  - [ ] T3.3-suite : greffe du moteur de contexte dans le core (PREFLIGHT et POSTFLIGHT) ;
+        résolution des signaux critiques ; paquet injecté avant une estimation M3.
 
 ## T4 — Profondeur des départements
 
