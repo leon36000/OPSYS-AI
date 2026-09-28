@@ -138,11 +138,18 @@ def decider_approbation(
     identifiant: str,
     motif: str = "",
     attestation: Mapping[str, Any] | None = None,
+    *,
+    role: str | None = None,
+    appareil: str | None = None,
 ) -> dict[str, Any]:
     """Approuve (exécute l'outil avec les arguments enregistrés) ou refuse une demande, signée par
     `identifiant` (une personne active, ADR-0009 §5 — voir `opsys.approbations.decider`).
 
     Un refus ne charge aucun outil : il reste possible même si le code d'un département est cassé.
+
+    `role` et `appareil` (T1.4-f) : le rôle sous lequel signer et l'appareil d'où vient la décision, tels
+    que `approbations.decider` les documente. La console et la CLI ne les passent pas ; l'app du
+    propriétaire (`opsys.approbations_appareil`) les passe : c'est le même chemin, une trace de plus.
     """
     if decision not in DECISIONS:
         raise ValueError(f"décision inconnue {decision!r} (attendu : approuver ou refuser)")
@@ -150,7 +157,8 @@ def decider_approbation(
     index: dict[str, Outil] = {}
     if approuver:
         index = outils_executables(departements, lambda: contextlib.nullcontext(cnx))
-    resultat = approbations.decider(cnx, ident, approuver, identifiant, index, departements, motif, attestation)
+    resultat = approbations.decider(cnx, ident, approuver, identifiant, index, departements, motif, attestation,
+                                    role=role, appareil=appareil)
     logger.info("demande %s : %s par %s", ident, resultat["statut"], identifiant)
     return resultat
 

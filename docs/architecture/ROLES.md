@@ -63,7 +63,7 @@ qui travaille sur un toit, un gestionnaire qui reprend un dossier).
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 48 outils sur 119 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 50 outils sur 121 sont déclarés.
 
 ### `employee` (11 outils) : §9.3, le terrain
 
@@ -103,7 +103,7 @@ M10.
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (48 outils) : §9.5 + employé + vendeur
+### `admin` (50 outils) : §9.5 + employé + vendeur
 
 Les 11 outils de l'employé, les 9 du vendeur, et :
 
@@ -121,10 +121,40 @@ Les 11 outils de l'employé, les 9 du vendeur, et :
 | M6 | `m6_produire_digest`, `m6_evaluer_variance_chantier` | §9.5 « stock critique », « rapport de pertes et bris », « écarts de chantier ». |
 | M7 | `m7_lister_file_approbation` | §9.5 M7 : contenus et réponses aux avis à approuver. |
 | M9 | `m9_produire_briefing_matin`, `m9_lire_alertes_m8`, `m9_lire_etat_consolide` | §7 M9 mobile : « Admin/Nathan seulement ». |
+| M9 | `m9_lister_demandes_approbation` (T0), `m9_decider_demande_approbation` (T1, N2) | §9.2 « le propriétaire approuve tout depuis le téléphone », §9.5 « Approbations » (T1.4-f). Règles ci-dessous : `admin` ouvre l'outil, la PERSONNE doit être le propriétaire. |
 | M10 | `m10_statut_decision`, `m10_statut_revision`, `m10_arbitrer_revision`, `m10_paquet_contexte_affaire` | §7 M10 mobile : décisions à valider, contradictions, recherche dans la mémoire. |
 
 M8 n'a aucun outil d'appareil : ses outils ingèrent ou calculent à partir de données que l'appelant
 fournit ; aucun ne rend de valeurs pour le tableau de bord exécutif (§9.5).
+
+### Les deux outils d'approbation de l'app (T1.4-f, étape 6)
+
+`m9_lister_demandes_approbation` et `m9_decider_demande_approbation` sont les seuls outils dont la portée
+`admin` ne suffit pas : c'est la PERSONNE du jeton qui décide (`src/opsys/approbations_appareil.py`). Chaque
+ligne dit ce qui est déclaré et pourquoi.
+
+| Déclaration ou garde | Pourquoi |
+|---|---|
+| `roles_appareil = {"admin"}` sur les deux | §9.5 : l'admin est le profil qui voit les approbations. Ni `employee` ni `seller` : la file contient des prix, des factures, des bons de commande. |
+| Hébergés par M9, pas par le socle | `roles_outils` et `opsys verifier` ne lisent que les outils de département. Un outil commun `opsys_*` serait absent de `roles.json` (donc injoignable) et présent sur les dix serveurs à la fois (`Capacites` les liste tous). M9 lit déjà cette file (`m9_produire_briefing_matin`) et son mobile est « Admin/Nathan seulement » (§7). La logique reste au socle ; M9 ne décide rien. |
+| Liste : T0, pas d'écriture | Lecture pure : `N0`, aucune approbation. |
+| Décision : T1 mais **N2**, pas le N3 par défaut | L'outil EST la décision humaine. En mode `ombre`, N3 le renverrait dans la file qu'il sert à vider (circulaire). Sa garde est ailleurs (lignes suivantes). Même choix que `m4_deposer_fichier`. |
+| L'identité vient de `contexte.identite_appelante()`, relue en base | Jamais un argument : les outils n'ont ni `personne` ni `role`, et `additionalProperties: false` refuse tout paramètre inconnu. Sans identité, personne inactive, ou rôle retiré depuis l'appairage : refus. |
+| Rôle d'appareil `admin` revérifié dans le socle | Le core refuse déjà l'outil hors portée ; le socle ne s'y fie pas seul. |
+| **Plafond : `nathan_owner`** pour décider N3 et N4 | L'appareil du propriétaire est appairé `admin`, mais un gestionnaire l'est aussi. Le rôle du jeton ne prouve pas qui est le propriétaire ; la personne, si (`identite.Role.NATHAN_OWNER`). Un `admin` qui ne l'est pas voit la file sans les arguments, en lecture seule. La décision est signée `nathan_owner` (et non `admin`, premier rôle alphabétique autorisé dans M4/M6). |
+| La politique du département s'applique en plus | `Departement.roles_autorises`, inchangée : si N4 d'un département ne nomme pas `nathan_owner`, l'app ne l'élargit pas (`politique_du_departement`). |
+| **N5 jamais** (et l'absence de niveau, lue N5) | L'attestation du professionnel (ADR-0009 §5) n'a pas d'écran dans l'app. La demande est montrée en lecture seule, « à décider à la console ». Approuver comme refuser. |
+| Outil T3 jamais, même à un niveau N4 enregistré | `Outil.frontiere_humaine`. Défense en profondeur : `roles_outils` ne projette déjà aucun T3/N5. |
+| Arguments affichés en entier, sinon lecture seule | On ne décide pas depuis un téléphone ce qu'il ne peut pas lire. `fix_gps` est masqué (`approbations.arguments_masques`, comme la trace). Au-delà de 1500 caractères : console. |
+| Appareil obligatoire (clé d'idempotence et appareil du `_meta`) | Sans lui, refus. L'appareil entre au journal d'audit (`approbation.approuver` / `approbation.refuser`, champ `appareil`). |
+| L'outil approuvé s'exécute sans l'identité ni les horloges de l'appareil | Comme depuis la console. Sinon `m4_pointer`, qui prend l'heure de réception de l'appareil courant, daterait le pointage d'un tiers à l'heure de l'approbation. |
+| Refus d'une personne authentifiée : entrée d'audit `approbation.refus_appareil` | Une tentative de décider hors de ses droits (un gestionnaire, un N5) se voit. Pas d'audit pour une demande inconnue ou déjà décidée. |
+| Rejeu : réponse enregistrée ; autre clé : `deja_decidee` | L'idempotence est celle du transport. La même clé rend la même réponse sans rien refaire ; une autre clé pour une demande déjà décidée reçoit un verdict clair. |
+| La liste est bornée (`limite`, 4 600 caractères) | `Capacites` tronque au-delà de 6 000 caractères, et le téléphone ne lirait pas la suite. `reste` compte ce qui n'est pas montré. |
+
+Décision attendue de Nathan : un `admin` qui n'est pas le propriétaire (un gestionnaire) ne décide rien depuis
+l'app, même un N3 que le manifeste de son département lui laisse décider à la console (M4, M6). Le laisser
+décider N3 depuis l'app est un changement de `approbations_appareil._lecture_seule` et un amendement d'ADR-0009 §4.
 
 ### Fermés à tous les appareils
 

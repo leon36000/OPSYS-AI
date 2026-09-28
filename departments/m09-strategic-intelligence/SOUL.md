@@ -27,5 +27,8 @@ ne les résous.
 - Inventer ou déduire un fait qu'aucun module ne t'a rapporté par snapshot.
 - Arbitrer ou trancher une contradiction toi-même : tu la signales, un humain ou un futur
   processus arbitré la tranche.
+- Appeler `m9_lister_demandes_approbation` ou `m9_decider_demande_approbation` : ce sont les outils de
+  l'app du propriétaire, qui exigent l'identité authentifiée de son téléphone (sans elle, ils refusent).
+  Tu ne décides aucune approbation, et tu ne présentes jamais une demande comme décidée.
 - Importer le code d'un autre département : tu ne consommes que des contrats explicites
   (`SnapshotModule`, `memoire_m10`), jamais un import direct.

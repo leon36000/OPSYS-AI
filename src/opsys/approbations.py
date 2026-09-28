@@ -34,7 +34,7 @@ import uuid
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from sqlalchemy import Connection, insert, select, update
+from sqlalchemy import Connection, func, insert, select, update
 
 from . import identite
 from .contexte import IdentiteAppelante, appeler_en_tant_que
@@ -85,20 +85,40 @@ def creer_demande(
     return ident
 
 
-def lister(cnx: Connection, statut: str | None = None, limite: int = 100) -> list[dict[str, Any]]:
-    requete = select(APPROBATIONS).order_by(APPROBATIONS.c.cree_le.desc()).limit(limite)
+def _demande_depuis_ligne(ligne: Mapping[str, Any]) -> dict[str, Any]:
+    """Une ligne de `approbations`, avec ses colonnes JSON décodées (arguments, résultat, attestation)."""
+    demande = dict(ligne)
+    demande["arguments"] = json.loads(demande["arguments"])
+    if demande["resultat"]:
+        demande["resultat"] = json.loads(demande["resultat"])
+    if demande["attestation"]:
+        demande["attestation"] = json.loads(demande["attestation"])
+    return demande
+
+
+def lister(
+    cnx: Connection, statut: str | None = None, limite: int = 100, *, plus_anciennes_d_abord: bool = False
+) -> list[dict[str, Any]]:
+    """Demandes d'approbation, la plus récente d'abord ; `plus_anciennes_d_abord` renverse l'ordre AVANT
+    de limiter (la file du propriétaire traite la plus ancienne en premier : une limite ne doit jamais
+    la faire tomber)."""
+    ordre = APPROBATIONS.c.cree_le.asc() if plus_anciennes_d_abord else APPROBATIONS.c.cree_le.desc()
+    requete = select(APPROBATIONS).order_by(ordre).limit(limite)
     if statut:
         requete = requete.where(APPROBATIONS.c.statut == statut)
-    resultat = []
-    for ligne in cnx.execute(requete).mappings():
-        demande = dict(ligne)
-        demande["arguments"] = json.loads(demande["arguments"])
-        if demande["resultat"]:
-            demande["resultat"] = json.loads(demande["resultat"])
-        if demande["attestation"]:
-            demande["attestation"] = json.loads(demande["attestation"])
-        resultat.append(demande)
-    return resultat
+    return [_demande_depuis_ligne(ligne) for ligne in cnx.execute(requete).mappings()]
+
+
+def lire(cnx: Connection, ident: str) -> dict[str, Any] | None:
+    """Une demande par identifiant, ou None si elle n'existe pas. Lecture seule."""
+    ligne = cnx.execute(select(APPROBATIONS).where(APPROBATIONS.c.id == ident)).mappings().fetchone()
+    return None if ligne is None else _demande_depuis_ligne(ligne)
+
+
+def compter(cnx: Connection, statut: str) -> int:
+    """Nombre exact de demandes à ce statut (`tableau_de_bord.nombre_en_attente` plafonne, pas ceci)."""
+    return int(cnx.execute(select(func.count()).select_from(APPROBATIONS)
+                           .where(APPROBATIONS.c.statut == statut)).scalar_one())
 
 
 def _valider_attestation(attestation: Mapping[str, Any] | None) -> dict[str, str]:
@@ -127,6 +147,9 @@ def decider(
     departements: Mapping[str, Departement],
     motif: str = "",
     attestation: Mapping[str, Any] | None = None,
+    *,
+    role: str | None = None,
+    appareil: str | None = None,
 ) -> dict[str, Any]:
     """Refuse ou approuve (et exécute) une demande en attente, une seule fois.
 
@@ -139,6 +162,13 @@ def decider(
     La demande est ensuite réservée atomiquement (`en_attente` → `en_cours`) : deux approbations
     concurrentes ne peuvent jamais exécuter l'outil deux fois. Toute exception pendant l'exécution
     termine la demande en `echec` : jamais de retour à `en_attente`.
+
+    `role` (T1.4-f, décision depuis l'app) : le rôle sous lequel la personne signe, s'il faut le
+    nommer plutôt que prendre le premier rôle autorisé dans l'ordre alphabétique (une personne qui
+    porte `admin` ET `nathan_owner` signerait sinon `admin`). Il doit être porté par la personne ET
+    autorisé pour ce niveau dans ce département : sinon le même refus nommé, rien exécuté. Sans lui,
+    comportement inchangé. `appareil` (T1.4-f) : l'appareil d'où vient la décision, ajouté au journal
+    d'audit à côté de la personne et du rôle ; absent, l'entrée de journal ne change pas.
     """
     if not identifiant or not identifiant.strip():
         raise ValueError("la décision doit être signée par une personne active (identifiant)")
@@ -159,12 +189,18 @@ def decider(
         raise ValueError(
             f"{identifiant!r} : personne inconnue ou inactive ; décision refusée, rien exécuté"
         )
-    role_utilise = next((role for role in sorted(roles_autorises) if role in personne.roles), None)
+    if role is None:
+        role_utilise = next((r for r in sorted(roles_autorises) if r in personne.roles), None)
+    else:
+        role_utilise = role if (role in roles_autorises and role in personne.roles) else None
     if role_utilise is None:
+        demande_de_role = f" ; rôle demandé : {role}" if role is not None else ""
         raise ValueError(
             f"{identifiant} : aucun rôle autorisé pour {niveau.value} dans {ligne['departement']} "
-            f"(autorisés : {', '.join(sorted(roles_autorises)) or 'aucun'}) ; décision refusée, rien exécuté"
+            f"(autorisés : {', '.join(sorted(roles_autorises)) or 'aucun'}{demande_de_role}) ; "
+            "décision refusée, rien exécuté"
         )
+    trace_appareil = {"appareil": appareil} if appareil else {}
     attestation_valide = _valider_attestation(attestation) if (approuver and niveau is Niveau.N5) else None
 
     if not approuver:
@@ -175,7 +211,7 @@ def decider(
                     motif_decision=motif)
         )
         journaliser(cnx, identifiant, "approbation.refuser", ident,
-                   {"outil": ligne["outil"], "motif": motif, "role": role_utilise})
+                   {"outil": ligne["outil"], "motif": motif, "role": role_utilise, **trace_appareil})
         return {"id": ident, "statut": "refusee"}
     outil = outils.get(ligne["outil"])
     if outil is None:
@@ -200,7 +236,7 @@ def decider(
         .values(statut=statut, motif_decision=motif, resultat=json.dumps(reponse, ensure_ascii=False))
     )
     journaliser(cnx, identifiant, "approbation.approuver", ident,
-               {"outil": ligne["outil"], "statut": statut, "role": role_utilise})
+               {"outil": ligne["outil"], "statut": statut, "role": role_utilise, **trace_appareil})
     return {"id": ident, "statut": statut, "reponse": reponse}
 
 
@@ -229,13 +265,18 @@ def signataire_valide(cnx: Connection, appelante: IdentiteAppelante | None) -> I
     return appelante
 
 
-def _arguments_de_la_trace(arguments: Mapping[str, Any]) -> dict[str, Any]:
+def arguments_masques(arguments: Mapping[str, Any]) -> dict[str, Any]:
     """Copie des arguments où les valeurs de `ARGUMENTS_MASQUES_DANS_LA_TRACE` sont remplacées par
-    `VALEUR_MASQUEE` (une valeur nulle reste nulle : rien à masquer, et « masqué » serait faux)."""
+    `VALEUR_MASQUEE` (une valeur nulle reste nulle : rien à masquer, et « masqué » serait faux).
+    Pour la trace d'une validation au départ ET pour tout affichage d'arguments hors de la console
+    (l'app du propriétaire, T1.4-f) : une seule règle de masquage."""
     return {
         cle: VALEUR_MASQUEE if (cle in ARGUMENTS_MASQUES_DANS_LA_TRACE and valeur is not None) else valeur
         for cle, valeur in arguments.items()
     }
+
+
+_arguments_de_la_trace = arguments_masques  # nom d'origine (la trace), gardé : un test l'appelle
 
 
 def tracer_validation_au_depart(
@@ -267,7 +308,7 @@ def tracer_validation_au_depart(
         issue["accepte"] = resultat["accepte"]
     cnx.execute(insert(APPROBATIONS).values(
         id=ident, cree_le=maintenant, departement=departement, outil=outil,
-        arguments=json.dumps(_arguments_de_la_trace(arguments), ensure_ascii=False),
+        arguments=json.dumps(arguments_masques(arguments), ensure_ascii=False),
         statut="executee", niveau=Niveau(niveau).value,
         decide_par=signataire.personne, decide_role=signataire.role, decide_le=maintenant,
         motif_decision=MOTIF_VALIDATION_AU_DEPART, resultat=json.dumps(issue, ensure_ascii=False),

@@ -12,6 +12,12 @@ propriétaire (`opsys.approbations.file_proprietaire`), les alertes M8 déjà re
 gabarit déterministe (`briefing_matin.assembler_briefing_matin`, module pur). Boucle M8 → M9 des
 preuves (ADR-0009 §3) : M9 ne lit jamais le registre M8 directement, seulement le bus.
 
+PLAN T1.4-f (étape 6) : `m9_lister_demandes_approbation` et `m9_decider_demande_approbation` sont les deux
+outils de l'app du propriétaire pour la file d'approbation du socle. M9 les PORTE (il lit déjà cette
+file, et son mobile est réservé à l'admin, §7 M9) ; la logique est dans `opsys.approbations_appareil`,
+qui décide par le chemin de la console. Ce ne sont pas des outils de l'agent M9, qui ne décide jamais :
+sans l'identité authentifiée d'un appareil, ils refusent.
+
 Registre de production (ADR-0009) : par défaut, `outils()` adosse le registre de snapshots au
 stockage durable de l'instance (`opsys.stockage.maillons`, dans la transaction que
 `Capacites.appeler` ouvre pour chaque appel d'outil) — même convention que
@@ -27,9 +33,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from opsys import approbations, stockage
+from opsys import approbations, approbations_appareil, contexte, stockage
 from opsys.departements import charger_departements
-from opsys.outils import Autonomie, Outil, depuis_couple
+from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
 from . import briefing_matin, contrats, rapport_strategique, registre, validation
 from . import etat_consolide as etat_consolide_module
@@ -150,6 +156,22 @@ def outils(
         faits = registre_cible.lire()
         return briefing_matin.assembler_briefing_matin(maintenant, decisions, alertes, faits)
 
+    def lister_demandes_approbation(limite: int = approbations_appareil.LIMITE_LISTE_DEFAUT) -> dict[str, Any]:
+        """Demandes d'approbation en attente, pour l'app du propriétaire (T1.4-f). L'identité vient du
+        contexte authentifié, jamais des arguments (`opsys.approbations_appareil`). Lecture seule."""
+        with stockage.transaction() as cnx:
+            return depuis_couple(approbations_appareil.lister_demandes(
+                cnx, charger_departements(), contexte.identite_appelante(), limite=limite))
+
+    def decider_demande_approbation(demande_id: str, decision: str, motif: str = "") -> dict[str, Any]:
+        """Approuve ou refuse une demande, au nom de la personne authentifiée de l'appareil (T1.4-f). Le
+        signataire et l'appareil viennent du contexte de l'appel (`_meta`), jamais des arguments."""
+        reception = contexte.horodatage_reception()
+        with stockage.transaction() as cnx:
+            return depuis_couple(approbations_appareil.decider_demande(
+                cnx, charger_departements(), contexte.identite_appelante(), demande_id, decision, motif,
+                appareil=reception.appareil if reception is not None else None))
+
     return (
         Outil(
             nom="m9_etat_consolide",
@@ -235,6 +257,70 @@ def outils(
             },
             fonction=produire_briefing_matin,
             # §7 M9 mobile : « Admin/Nathan seulement » (briefing du matin).
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m9_lister_demandes_approbation",
+            description=(
+                "Liste les demandes d'approbation EN ATTENTE du socle, la plus ancienne d'abord, pour l'app "
+                "du propriétaire : département, outil, niveau N, arguments exacts (donnée personnelle "
+                "masquée), et si la demande se décide depuis l'app ou seulement à la console (N5, outil "
+                "T3, arguments trop gros). La personne vient de l'identité authentifiée de l'appareil, "
+                "jamais d'un argument ; sans elle, refus. Un `admin` qui n'est pas le propriétaire "
+                "voit la file sans les arguments. Réservé à l'humain : l'agent M9 ne l'appelle pas."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "limite": {
+                        "type": "integer", "minimum": 1, "maximum": approbations_appareil.LIMITE_LISTE_MAX,
+                        "description": "Nombre maximal de demandes (défaut "
+                                       f"{approbations_appareil.LIMITE_LISTE_DEFAUT}).",
+                    },
+                },
+                "additionalProperties": False,
+            },
+            fonction=lister_demandes_approbation,
+            # T0 : lecture pure, aucune écriture (même pas d'audit : rien n'est décidé).
+            autonomie=Autonomie.T0,
+            # §9.5 « Approbations » et §9.2 « le propriétaire approuve tout depuis le téléphone » : la file
+            # elle-même. Admin seulement ; le propriétaire (personne) voit les arguments, l'admin non.
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m9_decider_demande_approbation",
+            description=(
+                "Approuve ou refuse UNE demande d'approbation N3 ou N4 du socle, au nom du propriétaire "
+                "authentifié de l'appareil, par le chemin de la console (mêmes vérifications, mêmes "
+                "arguments exacts, même journal, plus l'appareil). Refuse sans identité de propriétaire, "
+                "une demande N5 ou T3 (à la console), une demande déjà décidée. Idempotent par la clé de "
+                "l'appel. Réservé à l'humain : l'agent M9 ne l'appelle jamais, et aucun paramètre ne "
+                "désigne le décideur."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "demande_id": {"type": "string", "description": "Identifiant lu dans la liste."},
+                    "decision": {"type": "string", "enum": list(approbations_appareil.DECISIONS)},
+                    "motif": {
+                        "type": "string",
+                        "description": f"Note du propriétaire, facultative ({approbations_appareil.LIMITE_MOTIF} "
+                                       "caractères au plus).",
+                    },
+                },
+                "required": ["demande_id", "decision"],
+                "additionalProperties": False,
+            },
+            fonction=decider_demande_approbation,
+            # T1 (écriture interne : le registre d'approbation) mais N2, et non le N3 par défaut : cet outil
+            # EST la décision humaine. Le mettre lui-même en attente d'une approbation serait circulaire
+            # (le mode ombre le renverrait dans la file qu'il sert à vider) ; sa garde est ailleurs, dans
+            # l'identité du propriétaire, le plafond N3/N4 et la portée du rôle (`approbations_appareil`).
+            # Même choix que `m4_deposer_fichier`.
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N2,
+            # §9.5 et §9.2 : le propriétaire approuve depuis son téléphone. Admin seulement ; la PERSONNE doit
+            # de plus être le propriétaire (`nathan_owner`), sinon refus nommé et trace d'audit.
             roles_appareil=frozenset({"admin"}),
         ),
     )
