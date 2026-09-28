@@ -32,3 +32,19 @@ kpis:
     description: Part des réceptions dont le verdict est CONFORME (quantité reçue = quantité demandée sur chaque ligne).
   - id: taux_prix_indetermine
     description: Part des lignes reçues dont le prix reste INDETERMINE (ni catalogue fourni ni historique du registre).
+evenements:                        # ADR-0009 §3, PLAN T1.2-b
+  consomme: [m4.travaux_termines]  # garde le prévu (m6_enregistrer_besoins_prevus) contre le réel
+  publie: [m6.variance_chantier]   # nouveau type, M6 en est propriétaire (catalogue)
+configuration:
+  # Seuil de criticité de la variance de CHANTIER (m6.variance_chantier, distinct du seuil de
+  # variance d'INVENTAIRE physique qui reste fourni par l'appelant de m6_soumettre_comptage).
+  # Configuration EXPLICITE du département (comme budget/modeles ci-dessus), jamais un nombre
+  # codé en dur dans variance_chantier.py ni dans outils.py (AGENTS.md) : le seul endroit qu'un
+  # non-développeur peut déjà éditer pour ce département, sans toucher au socle (src/opsys/,
+  # hors périmètre de cette tranche) ni à variance_chantier.py, qui reste pur (aucun import
+  # opsys). Absente ou invalide, m6.variance_chantier porte statut_variance=seuil_absent
+  # (fail-closed) plutôt qu'une valeur par défaut inventée. 0.30 reprend le seuil déjà utilisé
+  # par les tests existants de m6_evaluer_variance_chantier (test_outils_agent.py) pour l'écart
+  # « important » cité en exemple par DEFINITION-PRODUIT.md §7 M6 (« ex. 40 % de plus que
+  # prévu ») : 0.30 déclenche bien sur 0.40.
+  seuil_variance_chantier_pourcentage: 0.30

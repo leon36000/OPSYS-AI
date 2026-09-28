@@ -477,6 +477,57 @@ def test_evaluer_variance_chantier_sans_lignes_declarees_ni_declaration_prealabl
     assert resultat["signal_variance_critique"]["materiaux_en_ecart_critique"] == ["MAT-1"]
 
 
+# --- m6_enregistrer_besoins_prevus : PLAN T1.2-b, « M6 garde le prévu » ---------------------
+
+
+def test_enregistrer_besoins_prevus_nominal_accepte():
+    reponse = executer(_outil("m6_enregistrer_besoins_prevus"), {
+        "chantier_id": "C1", "devis_id": "DEVIS-1",
+        "lignes": [_besoin_estime(quantite_estimee=10.0)],
+    })
+    assert reponse["ok"] is True
+    assert reponse["resultat"]["accepte"] is True
+    assert reponse["resultat"]["resultat"]["chantier_id"] == "C1"
+    assert reponse["resultat"]["registre_historique"][0]["devis_id"] == "DEVIS-1"
+
+
+def test_enregistrer_besoins_prevus_autonomie_t1():
+    assert _outil("m6_enregistrer_besoins_prevus").autonomie == Autonomie.T1
+
+
+def test_enregistrer_besoins_prevus_idempotent_par_devis_id():
+    r1 = executer(_outil("m6_enregistrer_besoins_prevus"), {
+        "chantier_id": "C1", "devis_id": "DEVIS-1", "lignes": [_besoin_estime(quantite_estimee=10.0)],
+    })
+    historique = r1["resultat"]["registre_historique"]
+
+    r2 = executer(_outil("m6_enregistrer_besoins_prevus"), {
+        "chantier_id": "C1", "devis_id": "DEVIS-1", "lignes": [_besoin_estime(quantite_estimee=999.0)],
+        "registre_historique": historique,
+    })
+    assert r2["ok"] is True
+    assert r2["resultat"]["accepte"] is False
+    assert r2["resultat"]["verdict"]["code"] == "REJ-BESOINS-PREVUS-DEJA-ENREGISTRES"
+    # rien de nouveau écrit : la clé registre_historique est absente du refus (même patron
+    # que m6_declarer_materiaux_utilises sur REJ-DECLARATION-DEJA-SOUMISE)
+    assert "registre_historique" not in r2["resultat"]
+
+
+def test_enregistrer_besoins_prevus_lignes_vides_refuse_nomme():
+    reponse = executer(_outil("m6_enregistrer_besoins_prevus"), {
+        "chantier_id": "C1", "devis_id": "DEVIS-1", "lignes": [],
+    })
+    assert reponse["ok"] is True
+    assert reponse["resultat"]["accepte"] is False
+    assert reponse["resultat"]["verdict"]["code"] == "REJ-BESOINS-PREVUS-LIGNES-VIDES"
+
+
+def test_enregistrer_besoins_prevus_parametre_requis_manquant_est_un_refus_de_schema():
+    reponse = executer(_outil("m6_enregistrer_besoins_prevus"), {"chantier_id": "C1", "devis_id": "DEVIS-1"})
+    assert reponse["ok"] is False
+    assert reponse["erreur"] == "arguments_invalides"
+
+
 def collecter_cles_recursivement(valeur):
     cles = set()
     if isinstance(valeur, dict):

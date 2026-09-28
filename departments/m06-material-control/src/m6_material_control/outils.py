@@ -32,17 +32,23 @@ un registre interne : T1. Lecture et calcul purs : T0.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
-from opsys import stockage
+import yaml
+
+from opsys import evenements, stockage
 from opsys.outils import Autonomie, Outil
 
+from . import besoins_prevus, digest, materiel, validation, variance_chantier
 from . import catalogue as catalogue_module
-from . import digest, materiel, variance_chantier
 from . import registre as registre_module
 
 _DEPARTEMENT = "m06-material-control"
 _NOM_REGISTRE = "principal"
+_NOM_REGISTRE_BESOINS_PREVUS = "besoins_prevus"
+_MANIFESTE = Path(__file__).resolve().parents[2] / "department.yaml"
 
 _MAILLON = {"type": "object", "description": "Maillon tel que renvoyé par un appel précédent."}
 _REGISTRE_HISTORIQUE = {
@@ -233,6 +239,55 @@ def _etat_registre(registre_cible: registre_module.Registre) -> dict[str, Any]:
     if stockage.connexion_courante() is not None:
         return {"registre": {"taille": registre_cible.taille(), "hash_tete": registre_cible.hash_tete()}}
     return {"registre_historique": registre_cible.lire()}
+
+
+# --------------------------------------------------------------------------------------- T1.2-b
+# Besoins prévus (« M6 garde le prévu ») : registre durable DISTINCT du registre de mouvements
+# de stock ci-dessus (besoins_prevus.py, docstring) — même patron durable/en mémoire que
+# `_registre_de_l_appel`, mais sans passer par `registre_module.Registre` (aucune forme de
+# mouvement, aucune garde de type_mouvement à respecter).
+def _besoins_prevus_de_l_appel(historique: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    if stockage.connexion_courante() is not None:
+        return stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_BESOINS_PREVUS)
+    return list(historique or [])
+
+
+def _seuil_variance_chantier() -> float | None:
+    """Seuil de criticité de la variance de CHANTIER (m6.variance_chantier, PLAN T1.2) : lu
+    depuis `department.yaml/configuration` — JAMAIS un nombre codé en dur ici ni dans
+    `variance_chantier.py` (AGENTS.md). Choisi à cet endroit précis (le manifeste du
+    département, déjà la source de configuration explicite pour `budget`/`modeles`/`kpis` —
+    voir `docs/architecture/DEPARTEMENTS.md`) plutôt qu'une constante Python ou un fichier
+    séparé : c'est le seul endroit qu'un non-développeur peut déjà éditer pour ce département,
+    et `opsys.departements.lire_manifeste` ignore silencieusement les clés top-niveau qu'il ne
+    connaît pas — ajouter `configuration:` ne touche donc AUCUN contrat du socle (`src/opsys/`,
+    hors périmètre de cette tranche).
+
+    Fail-closed : absente ou invalide (`validation.valider_seuil_variance_chantier`), rend
+    `None` — jamais un défaut inventé. Le consommateur d'événement rapporte alors
+    `statut_variance="seuil_absent"` plutôt que d'évaluer quoi que ce soit.
+    """
+    donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8")) or {}
+    configuration = donnees.get("configuration") or {}
+    seuil = configuration.get("seuil_variance_chantier_pourcentage")
+    ok, _ = validation.valider_seuil_variance_chantier(seuil)
+    return seuil if ok else None
+
+
+def enregistrer_besoins_prevus(
+    chantier_id: str, devis_id: str, lignes: list[dict[str, Any]],
+    registre_historique: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """PLAN T1.2-b, point 2 : garde le prévu (source M3, T2.3-a — fourni directement par
+    l'appelant pour l'instant, par événement plus tard). Idempotent par devis_id."""
+    maillons = _besoins_prevus_de_l_appel(registre_historique)
+    enregistrement, code = besoins_prevus.enregistrer(chantier_id, devis_id, lignes, maillons)
+    if code is not None:
+        return {"accepte": False, "verdict": {"code": code}}
+    maillons.append(enregistrement)
+    if stockage.connexion_courante() is not None:
+        return {"accepte": True, "resultat": enregistrement}
+    return {"accepte": True, "resultat": enregistrement, "registre_historique": list(maillons)}
 
 
 def receptionner_commande(
@@ -508,4 +563,125 @@ def outils() -> tuple[Outil, ...]:
             fonction=evaluer_variance_chantier,
             autonomie=Autonomie.T0,
         ),
+        Outil(
+            nom="m6_enregistrer_besoins_prevus",
+            description=(
+                "Enregistre les besoins matériaux ESTIMÉS d'un chantier (le prévu : matériau, "
+                "quantité estimée, unité — source le devis M3, fourni directement pour l'instant, "
+                "par événement plus tard). Aucun montant. Idempotent par devis_id : une seconde "
+                "tentative pour le même devis_id est refusée nommément, jamais réécrite ni "
+                "fusionnée. C'est ce prévu que le consommateur de m4.travaux_termines compare "
+                "au réel déclaré (m6_declarer_materiaux_utilises) pour publier m6.variance_chantier."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "chantier_id": {"type": "string"},
+                    "devis_id": {"type": "string"},
+                    "lignes": _BESOINS_ESTIMES_CHANTIER,
+                    "registre_historique": _REGISTRE_HISTORIQUE,
+                },
+                "required": ["chantier_id", "devis_id", "lignes"],
+                "additionalProperties": False,
+            },
+            fonction=enregistrer_besoins_prevus,
+            autonomie=Autonomie.T1,
+        ),
     )
+
+
+# ---------------------------------------------------------------------------------------------
+# Consommateurs d'événements (ADR-0009 §3, PLAN T1.2, point 3)
+# ---------------------------------------------------------------------------------------------
+# Même module que `outils()` (docs/architecture/DEPARTEMENTS.md) : seul cet adaptateur connaît
+# `opsys`/`opsys.evenements` ; `variance_chantier.py` (module pur) fait le calcul déterministe.
+# Le répartiteur (`opsys.evenements.repartir`) n'appelle cette fonction que dans une transaction
+# déjà ouverte : le registre durable fait donc TOUJOURS autorité ici (comme `enregistrer_besoins_prevus`
+# en transaction), sans le mode « en mémoire » des tests unitaires hors transaction ci-dessus.
+def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme `m4.travaux_termines` : garde le prévu (`m6_enregistrer_besoins_prevus`) contre
+    le réel déclaré pour ce wct_id (`m6_declarer_materiaux_utilises`, T1.1-d2) et publie
+    `m6.variance_chantier`. DÉTERMINISTE (DEPARTEMENTS.md), aucune donnée inventée.
+
+    Le seuil vient TOUJOURS de `_seuil_variance_chantier()` (department.yaml/configuration),
+    jamais d'un nombre codé en dur ici : absent ou invalide, `statut_variance="seuil_absent"`
+    AVANT toute tentative de lecture du prévu ou de la déclaration (fail-closed le plus tôt
+    possible). Sinon, prévu absent (aucun besoin enregistré pour le devis_id du WCT) donne
+    `prevu_absent` ; prévu présent mais aucune déclaration pour ce wct_id donne
+    `declaration_absente` ; les deux présents donnent `evaluee`.
+
+    `chantier_id` (minimum requis par le catalogue, PLAN T1.2 point 3) est résolu depuis
+    QUELLE QUE SOIT la source disponible (le prévu, s'il existe — sinon la déclaration, si
+    elle existe déjà malgré l'absence de prévu) ; `None` si aucune des deux ne le connaît
+    encore — jamais deviné.
+
+    `evenement_id` déterministe (`f"m6-variance-{wct_id}"`, JAMAIS le wct_id nu : évitons une
+    collision avec la ligne `evenements_sortants` déjà occupée par m4.travaux_termines, qui
+    utilise le wct_id comme SON PROPRE evenement_id) : une redélivrance de m4.travaux_termines
+    (impossible en pratique, le bus ne la produit jamais deux fois — défense en profondeur)
+    republierait donc un no-op, jamais un second m6.variance_chantier pour le même WCT.
+    """
+    wct_id = charge["wct_id"]
+    intervention_id = charge["intervention_id"]
+    devis_id = charge.get("devis_id")
+    horodatage_completion = charge["horodatage_completion"]
+
+    mouvements = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE)
+    besoins = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_BESOINS_PREVUS)
+
+    def _chantier_id_depuis_declaration() -> str | None:
+        for mouvement in mouvements:
+            if mouvement.get("wct_id") == wct_id:
+                return mouvement["chantier_id"]
+        return None
+
+    seuil = _seuil_variance_chantier()
+    besoin = besoins_prevus.pour_devis(devis_id, besoins) if devis_id else None
+    declaration_existe = any(mouvement.get("wct_id") == wct_id for mouvement in mouvements)
+
+    if seuil is None:
+        statut_variance = "seuil_absent"
+        signal_critique = None
+        chantier_id = besoin["chantier_id"] if besoin is not None else _chantier_id_depuis_declaration()
+    elif besoin is None:
+        statut_variance = "prevu_absent"
+        signal_critique = None
+        chantier_id = _chantier_id_depuis_declaration()
+    elif not declaration_existe:
+        statut_variance = "declaration_absente"
+        signal_critique = None
+        chantier_id = besoin["chantier_id"]
+    else:
+        chantier_id = besoin["chantier_id"]
+        registre_cible = registre_module.Registre(maillons=mouvements)
+        resultat, code = variance_chantier.evaluer(
+            chantier_id, besoin["lignes"], seuil_pourcentage=seuil,
+            registre=registre_cible, wct_id=wct_id,
+        )
+        if code is not None:
+            # Entrées déjà validées à l'écriture (besoins_prevus.enregistrer,
+            # soumettre_materiaux_utilises, _seuil_variance_chantier) : un refus ici trahirait
+            # une incohérence interne, jamais un cas d'usage normal — mieux vaut une panne
+            # explicite (retraitée par le répartiteur : réessais puis quarantaine) qu'un statut
+            # d'événement fabriqué pour un cas qu'on n'a pas su nommer.
+            raise RuntimeError(f"variance_chantier.evaluer a refusé une entrée déjà validée : {code}")
+        statut_variance = "evaluee"
+        signal_critique = resultat["signal_variance_critique"] is not None
+
+    ident = f"m6-variance-{wct_id}"
+    resultat_evenement = {
+        "evenement_id": ident,
+        "wct_id": wct_id,
+        "intervention_id": intervention_id,
+        "chantier_id": chantier_id,
+        "statut_variance": statut_variance,
+        "signal_critique": signal_critique,
+        "seuil_pourcentage": seuil,
+        "horodatage_completion": horodatage_completion,
+    }
+    evenements.publier("m6.variance_chantier", _DEPARTEMENT, resultat_evenement, evenement_id=ident)
+    return {"traite": True, "statut_variance": statut_variance}
+
+
+def consommateurs() -> dict[str, Callable[[dict], dict]]:
+    return {"m4.travaux_termines": _recevoir_travaux_termines}

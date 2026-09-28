@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m6.variance_chantier",
+  "title": "M6 — Variance de chantier (prévu vs réel)",
+  "description": "Émis par M6 (departments/m06-material-control/src/m6_material_control/outils.py::_recevoir_travaux_termines) en réponse à m4.travaux_termines : compare les besoins prévus enregistrés par m6_enregistrer_besoins_prevus (PLAN T1.2-b/M6) au réel déclaré par m6_declarer_materiaux_utilises (T1.1-d2) pour le même wct_id, via variance_chantier.evaluer. M4 (departments/m04-field-ops/src/m4_field_ops/outbox.py::confirmer_verification) est le seul consommateur prévu : il fait passer l'intervention de completed_pending_review à completed_verified seulement si statut_variance=evaluee et signal_critique=false. Toutes les propriétés sont REQUISES même quand leur valeur est nulle : un consommateur ne doit jamais deviner qu'un champ absent équivaut à null.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "evenement_id": {
+      "type": "string",
+      "description": "Identifiant de CET événement (outils.py : f'm6-variance-{wct_id}', jamais le wct_id nu — evenement_id est une clé primaire globale du bus, partagée avec m4.travaux_termines, qui utilise déjà wct_id). Répété ici (et pas seulement porté par la ligne evenements_sortants) pour que le consommateur, qui ne reçoit que la charge, puisse tracer la base de sa décision (PLAN T1.2, M4 point 4)."
+    },
+    "wct_id": {
+      "type": "string",
+      "description": "Work Completion Trigger évalué, tel que reçu dans m4.travaux_termines."
+    },
+    "intervention_id": {
+      "type": "string",
+      "description": "Intervention M4 concernée, tel que reçu dans m4.travaux_termines."
+    },
+    "chantier_id": {
+      "type": ["string", "null"],
+      "description": "Chantier M6 (concept distinct de intervention_id — M6-audit.md). Résolu depuis les besoins prévus enregistrés (m6_enregistrer_besoins_prevus) ou, à défaut, depuis la déclaration de matériaux déjà soumise pour ce wct_id (m6_declarer_materiaux_utilises) ; null si aucune des deux sources n'existe encore — jamais deviné."
+    },
+    "statut_variance": {
+      "type": "string",
+      "enum": ["evaluee", "prevu_absent", "declaration_absente", "seuil_absent"],
+      "description": "evaluee : prévu ET déclaration trouvés, variance_chantier.evaluer a tourné. prevu_absent : aucun besoin enregistré pour le devis_id du WCT (m6_enregistrer_besoins_prevus jamais appelé). declaration_absente : prévu trouvé mais m6_declarer_materiaux_utilises pas encore soumis pour ce wct_id. seuil_absent : configuration department.yaml/configuration.seuil_variance_chantier_pourcentage absente ou invalide (fail-closed, vérifié avant toute autre lecture)."
+    },
+    "signal_critique": {
+      "type": ["boolean", "null"],
+      "description": "true si au moins un matériau atteint ou dépasse le seuil (SignalVarianceChantierCritique non nul) ; false si évalué sans dépassement ; null si statut_variance != evaluee (jamais un booléen inventé pour un cas non évalué)."
+    },
+    "seuil_pourcentage": {
+      "type": ["number", "null"],
+      "description": "Seuil réellement utilisé (department.yaml/configuration.seuil_variance_chantier_pourcentage), tracé même quand statut_variance != evaluee ; null seulement si statut_variance=seuil_absent."
+    },
+    "horodatage_completion": {
+      "type": "string",
+      "description": "Horodatage RFC 3339 du WCT évalué, porté tel quel depuis m4.travaux_termines : permet à confirmer_verification de dater sa transition sans jamais consulter une horloge (garde_absence_horloge de M4, garde HORLOGE_INTERNE de M6)."
+    }
+  },
+  "required": [
+    "evenement_id",
+    "wct_id",
+    "intervention_id",
+    "chantier_id",
+    "statut_variance",
+    "signal_critique",
+    "seuil_pourcentage",
+    "horodatage_completion"
+  ]
+}
