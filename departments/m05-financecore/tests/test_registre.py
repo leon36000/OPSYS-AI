@@ -37,6 +37,26 @@ def test_type_entree_valide_est_present_dans_l_enumeration_privee():
     assert "mouvement_enregistre" in registre._TYPE_ENTREE_VALIDES
 
 
+def test_types_entree_facture_sont_presents_dans_l_enumeration_privee():
+    """M5.2 (facturation.py) : troisième famille sur le même registre générique."""
+    assert "facture_creee" in registre._TYPE_ENTREE_VALIDES
+    assert "transition_facture" in registre._TYPE_ENTREE_VALIDES
+
+
+def test_ajouter_accepte_un_maillon_facture_creee_sans_validation_specifique():
+    """Contrairement à `mouvement_enregistre`, `facture_creee` n'a aucune validation de structure
+    dans `Registre.ajouter` (comme `demande_creee`/`transition_approbation`) : la validation vit
+    entièrement dans `facturation.py`, avant l'appel à `ajouter`."""
+    journal = registre.Registre()
+
+    ligne_id = journal.ajouter(
+        {"type_entree": "facture_creee", "facture_id": "FACT-1", "horodatage": HORODATAGE}
+    )
+
+    assert journal.lire()[0]["ligne_id"] == ligne_id
+    assert journal.valider_chaine() == (True, "")
+
+
 def test_ajouter_retourne_un_ligne_id_et_lire_retourne_le_maillon_complet():
     journal = registre.Registre()
 

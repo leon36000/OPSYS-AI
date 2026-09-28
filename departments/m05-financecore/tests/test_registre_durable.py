@@ -36,7 +36,7 @@ _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from m5_financecore import outils, registre, soldes, taux_fiscaux, taxes  # noqa: E402
+from m5_financecore import facturation, outils, registre, soldes, taux_fiscaux, taxes  # noqa: E402
 
 from opsys import stockage  # noqa: E402
 from opsys.stockage import codec  # noqa: E402
@@ -253,3 +253,95 @@ def test_reinitialiser_stockage_mouvements_revient_a_la_memoire(base_durable):
     etat = outils.etat_tresorerie(role="gestionnaire", autorise_couts=True)
     assert etat["solde"] == Decimal("0")
     assert etat["argent_disponible"] == Decimal("0")
+
+
+# -- outils.py : le registre des FACTURES (mandat T1.1-e), même patron que les mouvements ------
+
+_LIGNES_FACTURE = [
+    {
+        "description": "Gouttières 5po aluminium",
+        "quantite": "40",
+        "unite": "pi",
+        "prix_unitaire": "8.50",
+        "reference_ligne_devis": "L1",
+    },
+    {
+        "description": "Main d'oeuvre installation",
+        "quantite": "1",
+        "unite": "forfait",
+        "prix_unitaire": "260.00",
+        "reference_ligne_devis": "L2",
+    },
+]
+
+
+def test_registre_des_factures_persiste_entre_deux_appels_d_outil_sans_historique_transmis(base_durable):
+    """Même bascule `_stockage_durable_actif` que les mouvements (une seule, mandat T1.1-e) :
+    une fois active, deux appels successifs à `outils.creer_facture_brouillon` SANS
+    `factures_historique` s'enchaînent sur le registre durable dédié « factures », distinct de
+    celui des mouvements (« principal »)."""
+    outils.reinitialiser_stockage_mouvements()
+    try:
+        outils.utiliser_stockage_durable()
+
+        with stockage.transaction():
+            r1 = outils.creer_facture_brouillon(
+                facture_id="FACT-001",
+                chantier_id="CHANTIER-001",
+                devis_id="DEVIS-001",
+                client_id="CLIENT-001",
+                lignes=_LIGNES_FACTURE,
+                horodatage=HORODATAGE,
+            )
+        assert r1["accepte"] is True
+        assert r1["registre_factures"]["taille"] == 1
+
+        with stockage.transaction():
+            r2 = outils.creer_facture_brouillon(
+                facture_id="FACT-002",
+                chantier_id="CHANTIER-002",
+                devis_id="DEVIS-002",
+                client_id="CLIENT-001",
+                lignes=_LIGNES_FACTURE,
+                horodatage=HORODATAGE,
+            )
+        assert r2["accepte"] is True
+        # Deuxième appel, aucun historique transmis : il enchaîne quand même sur le premier —
+        # la continuité vit dans la base (registre « factures »), pas chez l'appelant.
+        assert r2["resultat"]["precedent_ligne_id"] == r1["resultat"]["ligne_id"]
+        assert r2["registre_factures"]["taille"] == 2
+
+        # Le registre des MOUVEMENTS, lui, n'a jamais été touché par ces deux appels de facture.
+        etat = outils.etat_tresorerie(role="gestionnaire", autorise_couts=True)
+        assert etat["solde"] == Decimal("0")
+        assert etat["argent_disponible"] == Decimal("0")
+    finally:
+        outils.reinitialiser_stockage_mouvements()
+
+
+def test_registre_des_factures_relu_par_une_nouvelle_instance_apres_redemarrage(base_durable):
+    """Même preuve que pour les mouvements (`test_solde_et_argent_disponible_identiques_...`) :
+    l'état d'un registre durable survit à une nouvelle instance Python, montants Decimal compris,
+    sans qu'aucun état ne soit mis en cache côté module."""
+    ecrivain = registre.Registre(maillons=stockage.maillons(_DEPARTEMENT, "factures"))
+    with stockage.transaction():
+        maillon, verdict = facturation.creer_facture_brouillon(
+            facture_id="FACT-001",
+            chantier_id="CHANTIER-001",
+            devis_id="DEVIS-001",
+            client_id="CLIENT-001",
+            lignes=_LIGNES_FACTURE,
+            horodatage=HORODATAGE,
+            dictionnaire_taux=taux_fiscaux.charger_taux_fiscaux(_CHEMIN_TAUX_FISCAUX)[0],
+            registre_cible=ecrivain,
+        )
+    assert verdict is None
+
+    # Nouvelle instance Python, aucun état partagé avec `ecrivain` : simule un redémarrage.
+    relu = registre.Registre(maillons=stockage.maillons(_DEPARTEMENT, "factures"))
+    assert relu is not ecrivain
+    assert relu.tete() == maillon["ligne_id"]
+    assert relu.lire()[0]["facture_id"] == "FACT-001"
+    assert relu.lire()[0]["montant_avant_taxes"] == Decimal("600.00")
+    assert type(relu.lire()[0]["montant_avant_taxes"]) is Decimal
+    assert relu.valider_chaine() == (True, "")

@@ -22,7 +22,22 @@ RÈGLE FINANCE (autonomie) : toute écriture financière (registre des mouvement
 toute décision d'approbation sont T3 — une action qui engage ou meut de l'argent
 n'est jamais autonome, quel que soit le mode du département. Créer une demande
 d'approbation (sans la trancher) est une écriture de gouvernance interne, T1.
-Lecture et calcul purs (état, taxes) sont T0.
+Lecture et calcul purs (état, taxes) sont T0. Créer une facture BROUILLON (M5.2,
+`m5_creer_facture_brouillon`) suit le même raisonnement que créer une demande
+d'approbation : c'est une écriture interne non finale sur un registre dédié — elle
+n'envoie rien au client et n'engage aucun argent (le registre des MOUVEMENTS n'est
+jamais touché) — donc T1, jamais T3 à ce stade. Les transitions qui, elles,
+engagent (BROUILLON -> ENVOYEE derrière une approbation F4, ENVOYEE -> PAYEE
+derrière un approbateur humain) restent en `facturation.py`, gardées par construction,
+sans outil agent exposé ici pour l'instant.
+
+Registre des FACTURES (M5.2, `facturation.py`) : troisième registre du département, sur
+exactement le même patron d'adaptateur que celui des mouvements (`_registre_factures`/
+`_etat_factures` ci-dessous, symétriques à `_registre_mouvements`/`_etat_mouvements`) — durable
+dès que `_stockage_durable_actif` l'est (même bascule que les mouvements), jamais ouvert au
+chargement, relu à chaque appel, `stockage.maillons("m05-financecore", "factures")` en
+production. Le registre des MOUVEMENTS reste strictement celui déjà en place : aucune fonction
+de ce fichier n'écrit un ENCAISSEMENT à partir d'une facture.
 """
 
 from __future__ import annotations
@@ -34,13 +49,14 @@ from typing import Any
 from opsys import stockage
 from opsys.outils import Autonomie, Outil, depuis_couple
 
-from . import approbation, etat_financier, taux_fiscaux, taxes, validation
+from . import approbation, etat_financier, facturation, taux_fiscaux, taxes, validation
 from . import registre as registre_module
 
 _CHEMIN_TAUX_FISCAUX = Path(__file__).resolve().parents[2] / "contracts" / "taux_fiscaux.v1.yaml"
 
 _DEPARTEMENT = "m05-financecore"
 _NOM_REGISTRE_MOUVEMENTS = "principal"
+_NOM_REGISTRE_FACTURES = "factures"
 
 # Registre de production des mouvements (ADR-0009) : durable dès le chargement du module. Les tests
 # unitaires en mémoire le rebasculent par `reinitialiser_stockage_mouvements()`.
@@ -85,6 +101,27 @@ _MONTANT_TEXTE = {
 _TYPE_MOUVEMENT = {"type": "string", "enum": ["ENCAISSEMENT", "DECAISSEMENT", "PROVISION", "AJUSTEMENT", "AUTRE"]}
 _CLASSE_RETENTION = {"type": "string", "enum": ["FISCALE_6_ANS", "STANDARD"]}
 _PALIER = {"type": "string", "enum": ["F0", "F1", "F2", "F3", "F4", "F5", "F6", "F7"]}
+_LIGNE_FACTURE = {
+    "type": "object",
+    "properties": {
+        "description": {"type": "string"},
+        "quantite": _MONTANT_TEXTE,
+        "unite": {"type": "string"},
+        "prix_unitaire": _MONTANT_TEXTE,
+        "reference_ligne_devis": {"type": "string"},
+    },
+    "required": ["description", "quantite", "unite", "prix_unitaire", "reference_ligne_devis"],
+    "additionalProperties": False,
+}
+_HISTORIQUE_FACTURES = {
+    "type": "array",
+    "items": _MAILLON,
+    "description": (
+        "Optionnel. Fourni : simulation en mémoire sur cet historique, sans toucher au registre "
+        "durable des factures. Omis (cas normal en production) : lit/écrit le registre des "
+        "factures de l'instance."
+    ),
+}
 
 
 def _rejouer_registre(historique: list[dict[str, Any]] | None) -> registre_module.Registre:
@@ -135,6 +172,26 @@ def _etat_mouvements(historique: list[dict[str, Any]] | None, registre_cible: re
     if historique is None and _stockage_durable_actif:
         return {"registre_mouvements": {"taille": registre_cible.taille(), "tete": registre_cible.tete()}}
     return {"mouvements_historique": registre_cible.lire()}
+
+
+def _registre_factures(historique: list[dict[str, Any]] | None) -> registre_module.Registre:
+    """Registre des FACTURES pour un appel — même patron d'adaptateur que `_registre_mouvements`
+    (mandat T1.1-e, tâche 2), y compris la bascule `_stockage_durable_actif` déjà en place pour
+    les mouvements (un seul interrupteur pour tout le module : `utiliser_stockage_durable()`/
+    `reinitialiser_stockage_mouvements()` couvrent donc aussi le registre des factures)."""
+    if historique is not None:
+        return _rejouer_registre(historique)
+    if _stockage_durable_actif:
+        return registre_module.Registre(maillons=stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_FACTURES))
+    return registre_module.Registre()
+
+
+def _etat_factures(historique: list[dict[str, Any]] | None, registre_cible: registre_module.Registre) -> dict:
+    """Même règle que `_etat_mouvements` : registre durable -> tête et taille seulement (jamais
+    tout l'historique) ; simulation en mémoire -> historique complet à retransmettre."""
+    if historique is None and _stockage_durable_actif:
+        return {"registre_factures": {"taille": registre_cible.taille(), "tete": registre_cible.tete()}}
+    return {"factures_historique": registre_cible.lire()}
 
 
 def _vers_montant_decimal(montant_texte: str) -> Decimal:
@@ -191,6 +248,36 @@ def enregistrer_mouvement(
     except validation.MouvementInvalide as exc:
         return {"accepte": False, "verdict": exc.verdict}
     return {"accepte": True, "resultat": maillon, **_etat_mouvements(mouvements_historique, registre_cible)}
+
+
+def creer_facture_brouillon(
+    facture_id: str,
+    chantier_id: str,
+    devis_id: str,
+    client_id: str,
+    lignes: list[dict[str, Any]],
+    horodatage: str,
+    montant_avant_taxes: str | None = None,
+    factures_historique: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    dictionnaire_taux, erreurs = taux_fiscaux.charger_taux_fiscaux(_CHEMIN_TAUX_FISCAUX)
+    if erreurs:
+        return {"accepte": False, "verdict": {"code": "REJ-TAUX-FICHIER-INVALIDE", "detail": "; ".join(erreurs)}}
+    registre_cible = _registre_factures(factures_historique)
+    resultat, verdict = facturation.creer_facture_brouillon(
+        facture_id=facture_id,
+        chantier_id=chantier_id,
+        devis_id=devis_id,
+        client_id=client_id,
+        lignes=lignes,
+        horodatage=horodatage,
+        dictionnaire_taux=dictionnaire_taux,
+        registre_cible=registre_cible,
+        montant_avant_taxes_fourni=montant_avant_taxes,
+    )
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    return {"accepte": True, "resultat": resultat, **_etat_factures(factures_historique, registre_cible)}
 
 
 def creer_demande_approbation(
@@ -290,6 +377,40 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=enregistrer_mouvement,
             autonomie=Autonomie.T3,
+        ),
+        Outil(
+            nom="m5_creer_facture_brouillon",
+            description=(
+                "Crée une facture BROUILLON (M5.2) sur le registre dédié des factures, distinct "
+                "du registre des mouvements. Recalcule tous les totaux et les taxes TPS/TVQ "
+                "depuis les lignes — ne fait jamais confiance à un montant_avant_taxes fourni "
+                "(rejet s'il diffère). Idempotente par devis_id : refuse un second brouillon "
+                "actif pour le même devis. Écriture interne non finale (T1) : n'envoie rien au "
+                "client, n'encaisse rien, ne touche jamais le registre des mouvements."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "facture_id": {"type": "string"},
+                    "chantier_id": {"type": "string"},
+                    "devis_id": {"type": "string"},
+                    "client_id": {"type": "string"},
+                    "lignes": {"type": "array", "items": _LIGNE_FACTURE, "minItems": 1},
+                    "horodatage": {"type": "string", "description": "ISO 8601 avec fuseau"},
+                    "montant_avant_taxes": {
+                        "type": ["string", "null"],
+                        "description": (
+                            "Optionnel : contrôle défensif. Si fourni, doit correspondre "
+                            "exactement au total recalculé depuis les lignes, sinon rejet."
+                        ),
+                    },
+                    "factures_historique": _HISTORIQUE_FACTURES,
+                },
+                "required": ["facture_id", "chantier_id", "devis_id", "client_id", "lignes", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=creer_facture_brouillon,
+            autonomie=Autonomie.T1,
         ),
         Outil(
             nom="m5_creer_demande_approbation",

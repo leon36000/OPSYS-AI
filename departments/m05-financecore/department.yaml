@@ -9,7 +9,7 @@ mission: >-
   proposition tant qu'un humain ne les a pas validées sur pièces.
 outils: m5_financecore.outils
 mode: ombre
-dependances: [m04-field-ops, m06-material-control]
+dependances: [m02-revenue-crm, m04-field-ops, m06-material-control]
 modeles:
   defaut: standard
   extraction: rapide

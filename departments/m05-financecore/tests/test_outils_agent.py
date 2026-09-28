@@ -39,16 +39,19 @@ def test_manifeste_et_outils_coherents():
     assert noms[0] == "m5_etat_tresorerie"
     assert all(nom.startswith("m5_") for nom in noms)
     assert dep.mode == "ombre"
+    assert "m02-revenue-crm" in dep.dependances  # M5.2 : la facture porte un client_id (M2)
     assert "m06-material-control" in dep.dependances
     assert "m04-field-ops" in dep.dependances
 
 
 def test_autonomie_respecte_la_regle_finance():
     """RÈGLE FINANCE : écriture financière et décision d'approbation = T3,
-    lecture/calcul = T0, création d'une demande (registre interne) = T1."""
+    lecture/calcul = T0, création d'une demande (registre interne) = T1.
+    Créer une facture BROUILLON est une écriture interne non finale, T1 elle aussi."""
     assert _outil("m5_etat_tresorerie").autonomie == Autonomie.T0
     assert _outil("m5_calculer_taxes_tps_tvq").autonomie == Autonomie.T0
     assert _outil("m5_enregistrer_mouvement").autonomie == Autonomie.T3
+    assert _outil("m5_creer_facture_brouillon").autonomie == Autonomie.T1
     assert _outil("m5_creer_demande_approbation").autonomie == Autonomie.T1
     assert _outil("m5_decider_approbation").autonomie == Autonomie.T3
 
@@ -203,6 +206,142 @@ def test_enregistrer_mouvement_bloque_un_montant_non_texte_au_niveau_schema():
             "source": "test",
         },
     )
+
+    assert reponse["ok"] is False
+    assert reponse["erreur"] == "arguments_invalides"
+
+
+# --- m5_creer_facture_brouillon : registre dédié, T1, jamais les mouvements ------------------
+
+_LIGNES_FACTURE = [
+    {
+        "description": "Gouttières 5po aluminium",
+        "quantite": "40",
+        "unite": "pi",
+        "prix_unitaire": "8.50",
+        "reference_ligne_devis": "L1",
+    },
+    {
+        "description": "Main d'oeuvre installation",
+        "quantite": "1",
+        "unite": "forfait",
+        "prix_unitaire": "260.00",
+        "reference_ligne_devis": "L2",
+    },
+]
+
+_ARGUMENTS_FACTURE = {
+    "facture_id": "FACT-001",
+    "chantier_id": "CHANTIER-001",
+    "devis_id": "DEVIS-001",
+    "client_id": "CLIENT-001",
+    "lignes": _LIGNES_FACTURE,
+    "horodatage": HORODATAGE,
+}
+
+
+def test_creer_facture_brouillon_nominal_via_historique_en_memoire():
+    """Simulation en mémoire : l'appelant transporte l'historique d'un appel à l'autre, sans
+    toucher au registre durable — même patron que m5_enregistrer_mouvement."""
+    reponse = executer(
+        _outil("m5_creer_facture_brouillon"),
+        {**_ARGUMENTS_FACTURE, "factures_historique": []},
+    )
+
+    assert reponse["ok"] is True
+    assert reponse["resultat"]["accepte"] is True
+    resultat = reponse["resultat"]["resultat"]
+    assert resultat["statut"] == "BROUILLON"
+    assert resultat["montant_avant_taxes"] == "600.00"
+    assert resultat["montant_apres_taxes"] == "689.85"
+    assert reponse["resultat"]["factures_historique"] == [resultat]
+
+
+def test_creer_facture_brouillon_en_production_le_registre_durable_porte_les_factures_sans_historique_transmis():
+    """Registre de production (troisième registre, distinct de celui des mouvements) : aucun
+    historique transporté, la réponse ne renvoie que la tête et la taille."""
+    reponse = executer(_outil("m5_creer_facture_brouillon"), _ARGUMENTS_FACTURE)
+
+    assert reponse["ok"] is True
+    assert reponse["resultat"]["accepte"] is True
+    assert "factures_historique" not in reponse["resultat"]
+    registre_factures = reponse["resultat"]["registre_factures"]
+    assert registre_factures["taille"] == 1
+    assert registre_factures["tete"] == reponse["resultat"]["resultat"]["ligne_id"]
+
+    # Un deuxième appel, sans historique non plus, enchaîne bien sur le premier : la continuité
+    # vit dans la base, pas chez l'appelant (même preuve que pour les mouvements).
+    deuxieme = executer(
+        _outil("m5_creer_facture_brouillon"),
+        {**_ARGUMENTS_FACTURE, "facture_id": "FACT-002", "devis_id": "DEVIS-002"},
+    )
+    assert deuxieme["resultat"]["registre_factures"]["taille"] == 2
+    assert deuxieme["resultat"]["resultat"]["precedent_ligne_id"] == registre_factures["tete"]
+
+
+def test_creer_facture_brouillon_ne_touche_jamais_le_registre_des_mouvements():
+    """LE PIÈGE, au niveau outil et sur le stockage durable réel : créer une facture brouillon
+    n'écrit jamais dans le registre des MOUVEMENTS (registre 'principal'), même quand les deux
+    registres partagent la même base et le même interrupteur de durabilité."""
+    reponse = executer(_outil("m5_creer_facture_brouillon"), _ARGUMENTS_FACTURE)
+    assert reponse["ok"] is True and reponse["resultat"]["accepte"] is True
+
+    etat = module_outils.etat_tresorerie(role="gestionnaire", autorise_couts=True)
+    assert etat["solde"] == Decimal("0")
+    assert etat["argent_disponible"] == Decimal("0")
+
+
+def test_creer_facture_brouillon_est_idempotente_par_devis_id_via_l_outil():
+    premier = executer(_outil("m5_creer_facture_brouillon"), _ARGUMENTS_FACTURE)
+    assert premier["resultat"]["accepte"] is True
+
+    second = executer(
+        _outil("m5_creer_facture_brouillon"), {**_ARGUMENTS_FACTURE, "facture_id": "FACT-002"}
+    )
+
+    assert second["ok"] is True
+    assert second["resultat"]["accepte"] is False
+    assert second["resultat"]["verdict"]["code"] == "REJ-FACTURE-DEVIS-DEJA-FACTURE"
+
+
+def test_creer_facture_brouillon_rejette_un_montant_avant_taxes_fourni_incoherent():
+    reponse = executer(
+        _outil("m5_creer_facture_brouillon"), {**_ARGUMENTS_FACTURE, "montant_avant_taxes": "1.00"}
+    )
+
+    assert reponse["ok"] is True
+    assert reponse["resultat"]["accepte"] is False
+    assert reponse["resultat"]["verdict"]["code"] == "REJ-FACTURE-MONTANT-INCOHERENT"
+
+
+def test_creer_facture_brouillon_bloque_un_montant_avant_taxes_non_texte_au_niveau_schema():
+    """Même garde qu'à `m5_enregistrer_mouvement` (mandat, tâche 3) : un float JSON pour le
+    contrôle défensif `montant_avant_taxes` est bloqué avant même d'atteindre le code métier."""
+    reponse = executer(
+        _outil("m5_creer_facture_brouillon"), {**_ARGUMENTS_FACTURE, "montant_avant_taxes": 600.0}
+    )
+
+    assert reponse["ok"] is False
+    assert reponse["erreur"] == "arguments_invalides"
+
+
+def test_creer_facture_brouillon_rejette_une_quantite_de_ligne_non_texte_en_defense_en_profondeur():
+    """Le schéma JSON minimal (`opsys.outils.valider_arguments`) ne recurse pas dans les items
+    d'un tableau : un float caché dans une ligne n'est donc bloqué QUE par le code métier — cette
+    même garde que `m5_enregistrer_mouvement`, appliquée ici à chaque ligne, pas seulement au
+    total. Appel direct de la fonction (hors `executer`) pour le prouver en défense en profondeur."""
+    reponse = module_outils.creer_facture_brouillon(
+        **{**_ARGUMENTS_FACTURE, "lignes": [{**_LIGNES_FACTURE[0], "quantite": 40.0}, _LIGNES_FACTURE[1]]}
+    )
+
+    assert reponse["accepte"] is False
+    assert reponse["verdict"]["code"] == "REJ-FACTURE-LIGNE-INVALIDE"
+
+
+def test_creer_facture_brouillon_parametre_requis_manquant_est_un_refus_de_schema():
+    arguments_sans_lignes = {k: v for k, v in _ARGUMENTS_FACTURE.items() if k != "lignes"}
+
+    reponse = executer(_outil("m5_creer_facture_brouillon"), arguments_sans_lignes)
 
     assert reponse["ok"] is False
     assert reponse["erreur"] == "arguments_invalides"

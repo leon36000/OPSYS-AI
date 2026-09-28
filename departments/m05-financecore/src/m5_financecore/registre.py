@@ -21,6 +21,12 @@ _TYPE_ENTREE_VALIDES = {
     "mouvement_enregistre",
     "demande_creee",
     "transition_approbation",
+    # M5.2 (facturation.py) : troisième famille sur le même registre générique, patron déjà
+    # établi par les deux premières (mouvements, approbations) — aucune validation spécifique
+    # ici, exactement comme "demande_creee"/"transition_approbation" : facturation.py valide
+    # avant d'appeler `ajouter`.
+    "facture_creee",
+    "transition_facture",
 }
 
 _CHAMPS_MOUVEMENT = (
