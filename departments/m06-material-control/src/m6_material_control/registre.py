@@ -11,8 +11,20 @@ _CHAMPS_MOUVEMENT_REQUIS = {"type_mouvement", "chantier_id", "materiau_id", "qua
 
 
 class Registre:
-    def __init__(self):
-        self._maillons = []
+    """Registre append-only hash-chaîné de M6.
+
+    Module pur : aucun import `opsys` ni SQLAlchemy (AGENTS.md, docs/decisions/ADR-0009-socle-
+    metier.md). `Registre` ignore où vivent ses maillons — une liste Python en mémoire
+    (`maillons=None`, comportement historique, perdue à l'arrêt du processus) ou tout objet qui
+    s'en comporte comme une : `len`, index positif/négatif, tranche, itération, `append`,
+    `extend`, copie profonde en liste. `opsys.stockage.maillons(...)` (ADR-0009) satisfait ce
+    protocole ; c'est `outils.py`, seul, qui l'y branche pour le registre de production. Aucun
+    état dérivé (tête, taille) n'est mis en cache : tout est relu ou recalculé depuis les
+    maillons à chaque appel, donc rien n'est jamais supposé vide ou petit.
+    """
+
+    def __init__(self, maillons=None):
+        self._maillons = [] if maillons is None else maillons
 
     def _construire_maillon(self, mouvement, index, hash_precedent):
         hash_maillon = encodage.empreinte(
@@ -72,6 +84,9 @@ class Registre:
 
     def lire(self):
         return copy.deepcopy(self._maillons)
+
+    def taille(self):
+        return len(self._maillons)
 
     def hash_tete(self):
         if not self._maillons:

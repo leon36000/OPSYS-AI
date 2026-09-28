@@ -6,11 +6,15 @@ par type de mouvement — RECEPTION/CONSOMMATION/VARIANCE_INVENTAIRE, DA-M6-11).
 stock -> résolution de prix -> variance de réception -> signal à M5 -> suggestion
 de réapprovisionnement, en un seul appel.
 
-Le registre (append-only hash-chaîné) est en mémoire pour la durée d'un appel : ce
-paquet ne possède aucune persistance (hors périmètre, couche MCP/dashboard).
-L'appelant transmet l'historique renvoyé par le précédent appel dans
-`registre_historique` ; ce module le rejoue pour retrouver un registre valide et
-chaîné avant d'y écrire la suite.
+Le registre (append-only hash-chaîné) est durable en production (ADR-0009) : à l'intérieur de la
+transaction que `Capacites.appeler`/`executer_atomique` ouvre pour chaque appel d'outil (point de
+passage unique), chaque fonction ci-dessous lit et écrit le registre durable du département via
+`opsys.stockage.maillons` — plus besoin que l'appelant transporte un historique. Hors transaction
+(appel direct de ce module, tests unitaires du département, qui ne montent aucune base) :
+comportement historique inchangé — l'appelant transmet l'historique renvoyé par le précédent appel
+dans `registre_historique` ; ce module le rejoue pour retrouver un registre en mémoire valide et
+chaîné avant d'y écrire la suite. `registre.py` reste pur (aucun import `opsys`/SQLAlchemy) : c'est
+ici, et seulement ici, que le paquet touche `opsys.stockage`.
 
 Frontière M6 -> M5 (financier) : `signal_po_a_payer.montant_total_estime` reste un
 float (contrat gelé M6, PRD §2.8/§5.8) — quiconque le transmet à M5 (qui exige un
@@ -27,17 +31,24 @@ from __future__ import annotations
 
 from typing import Any
 
+from opsys import stockage
 from opsys.outils import Autonomie, Outil
 
 from . import catalogue as catalogue_module
 from . import digest, materiel
 from . import registre as registre_module
 
+_DEPARTEMENT = "m06-material-control"
+_NOM_REGISTRE = "principal"
+
 _MAILLON = {"type": "object", "description": "Maillon tel que renvoyé par un appel précédent."}
 _REGISTRE_HISTORIQUE = {
     "type": "array",
     "items": _MAILLON,
-    "description": "Historique du registre M6 renvoyé par le dernier appel connu ; [] ou omis si aucun.",
+    "description": (
+        "À omettre : le registre M6 est durable et relu par l'outil. Ne sert qu'aux appels directs "
+        "hors transaction, qui retransmettent l'historique renvoyé par l'appel précédent."
+    ),
 }
 _LIGNE_DEMANDEE = {
     "type": "object",
@@ -139,6 +150,34 @@ def _rejouer_registre(historique: list[dict[str, Any]] | None) -> registre_modul
     return registre_cible
 
 
+def _registre_de_l_appel(historique: list[dict[str, Any]] | None) -> registre_module.Registre:
+    """Registre à utiliser pour CET appel.
+
+    À l'intérieur de la transaction que `Capacites.appeler`/`executer_atomique` ouvre pour chaque
+    appel d'outil (ADR-0009, point de passage unique) : le registre durable du département fait
+    autorité — `stockage.maillons(...)`, rien à rejouer, c'est le registre de PRODUCTION, et
+    `ajouter`/`ajouter_lot` s'y exécutent dans cette même transaction (tout ou rien). Hors
+    transaction (appel direct des fonctions de ce module, tests unitaires du département qui ne
+    montent aucune base) : comportement historique inchangé, `_rejouer_registre` reconstruit un
+    registre en mémoire depuis `registre_historique`.
+    """
+    if stockage.connexion_courante() is not None:
+        return registre_module.Registre(maillons=stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE))
+    return _rejouer_registre(historique)
+
+
+def _etat_registre(registre_cible: registre_module.Registre) -> dict[str, Any]:
+    """Ce que la réponse dit du registre après l'appel.
+
+    Registre durable (production) : la tête de chaîne et la taille, jamais l'historique complet,
+    qui grossit sans limite et coûterait des tokens à chaque appel. Hors transaction : l'historique
+    complet, que l'appelant doit retransmettre au prochain appel (contrat historique).
+    """
+    if stockage.connexion_courante() is not None:
+        return {"registre": {"taille": registre_cible.taille(), "hash_tete": registre_cible.hash_tete()}}
+    return {"registre_historique": registre_cible.lire()}
+
+
 def receptionner_commande(
     bon_demande: dict[str, Any],
     reception_po: dict[str, Any],
@@ -146,13 +185,13 @@ def receptionner_commande(
     seuils_reorder: list[dict[str, Any]] | None = None,
     registre_historique: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    registre_cible = _rejouer_registre(registre_historique)
+    registre_cible = _registre_de_l_appel(registre_historique)
     resultat, code = materiel.enregistrer_reception(
         bon_demande, reception_po, catalogue_materiaux, registre_cible, seuils=seuils_reorder
     )
     if code is not None:
         return {"accepte": False, "verdict": {"code": code}}
-    return {"accepte": True, "resultat": resultat, "registre_historique": registre_cible.lire()}
+    return {"accepte": True, "resultat": resultat, **_etat_registre(registre_cible)}
 
 
 def consommer_materiaux(
@@ -160,28 +199,28 @@ def consommer_materiaux(
     formulaire: dict[str, Any],
     registre_historique: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    registre_cible = _rejouer_registre(registre_historique)
+    registre_cible = _registre_de_l_appel(registre_historique)
     resultat, code = materiel.consommer_materiaux(wct, formulaire, registre_cible)
     if code is not None:
         return {"accepte": False, "verdict": {"code": code}}
-    return {"accepte": True, "resultat": resultat, "registre_historique": registre_cible.lire()}
+    return {"accepte": True, "resultat": resultat, **_etat_registre(registre_cible)}
 
 
 def soumettre_comptage(
     comptage: dict[str, Any], registre_historique: list[dict[str, Any]] | None = None
 ) -> dict[str, Any]:
-    registre_cible = _rejouer_registre(registre_historique)
+    registre_cible = _registre_de_l_appel(registre_historique)
     resultat, code = materiel.soumettre_comptage(comptage, registre_cible)
     if code is not None:
         return {"accepte": False, "verdict": {"code": code}}
-    return {"accepte": True, "resultat": resultat, "registre_historique": registre_cible.lire()}
+    return {"accepte": True, "resultat": resultat, **_etat_registre(registre_cible)}
 
 
 def produire_digest(
     registre_historique: list[dict[str, Any]] | None = None,
     seuils_reorder: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    registre_cible = _rejouer_registre(registre_historique)
+    registre_cible = _registre_de_l_appel(registre_historique)
     return digest.produire_digest_quotidien(registre_cible, seuils_reorder or [])
 
 
@@ -190,7 +229,7 @@ def resoudre_prix_materiau(
     catalogue_materiaux: dict[str, Any] | None = None,
     registre_historique: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    registre_cible = _rejouer_registre(registre_historique)
+    registre_cible = _registre_de_l_appel(registre_historique)
     return catalogue_module.resoudre_prix(materiau_id, catalogue_materiaux, registre_cible)
 
 
