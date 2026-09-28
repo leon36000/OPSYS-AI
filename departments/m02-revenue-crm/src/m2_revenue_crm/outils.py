@@ -791,6 +791,8 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=transitionner_statut,
             autonomie=Autonomie.T1,
+            # §9.4 (vendeur : pipeline personnel, perdu avec motif). Le vendeur agit seul en N3 (T1.4-h).
+            roles_appareil=frozenset({"seller", "admin"}),
         ),
         Outil(
             nom="m2_detecter_doublons",
@@ -802,6 +804,8 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=detecter_doublons,
+            # §9.5 M2 (admin : doublons).
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m2_signaler_doublon",
@@ -818,6 +822,8 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=signaler_doublon,
             autonomie=Autonomie.T1,
+            # §9.5 M2 (admin : doublons).
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m2_arbitrer_doublon",
@@ -837,6 +843,8 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=arbitrer_doublon,
             autonomie=Autonomie.T1,
+            # §9.5 M2 (admin : doublons) ; arbitrage humain, jamais le vendeur.
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m2_enregistrer_interaction",
@@ -854,6 +862,8 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=enregistrer_interaction,
             autonomie=Autonomie.T1,
+            # §9.4 (vendeur : notes). `auteur` vient encore de l'appelant : à lier à la personne (suite de T1.4-k).
+            roles_appareil=frozenset({"seller", "admin"}),
         ),
         Outil(
             nom="m2_trouver_client_de_lead",
@@ -868,6 +878,8 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=trouver_client_de_lead,
+            # §9.4 (vendeur : Client 360).
+            roles_appareil=frozenset({"seller", "admin"}),
         ),
         Outil(
             nom="m2_obtenir_client_360",
@@ -882,6 +894,8 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=obtenir_client_360,
+            # §9.4 (vendeur : Client 360).
+            roles_appareil=frozenset({"seller", "admin"}),
         ),
         Outil(
             nom="m2_evaluer_readiness",
@@ -897,6 +911,8 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=evaluer_readiness,
+            # §9.4 M3 (vendeur : « lead prêt pour l'estimation »).
+            roles_appareil=frozenset({"seller", "admin"}),
         ),
         Outil(
             nom="m2_suggerer_prochaine_action",
@@ -912,6 +928,8 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=suggerer_prochaine_action,
+            # §9.4 (vendeur : prochaine meilleure action).
+            roles_appareil=frozenset({"seller", "admin"}),
         ),
         Outil(
             nom="m2_produire_digest",
@@ -923,6 +941,8 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=produire_digest,
+            # §9.5 M2 (admin : pipeline, leads chauds) ; le vendeur n'a que le sien.
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m2_marquer_chantier_termine",

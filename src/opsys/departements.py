@@ -21,6 +21,7 @@ from typing import Any
 
 import yaml
 
+from .appareils import ROLES_APPAREIL
 from .identite import ROLES, Role
 from .outils import Niveau, Outil
 from .politiques import valider_mode
@@ -381,4 +382,40 @@ def verifier_attentes(departements: Mapping[str, Departement]) -> list[str]:
             dep.charger_attentes()
         except Exception as exc:  # noqa: BLE001 — signalé, jamais une panne de `opsys verifier`
             problemes.append(f"{dep.id} : attentes() illisible ({type(exc).__name__}: {exc})")
+    return problemes
+
+
+def verifier_portees(departements: Mapping[str, Departement]) -> list[str]:
+    """`opsys verifier` : chaque `Outil.roles_appareil` déclaré (T1.4-j) ne cite que des rôles
+    d'appareil (`opsys.appareils.ROLES_APPAREIL`), et aucun outil T3/N5 n'en déclare.
+
+    Un rôle hors de `ROLES_APPAREIL` n'accorderait rien (`openclaw.roles_outils` l'ignore) mais serait
+    une déclaration trompeuse : `client` passe par un lien tokenisé et jamais par un appareil apparié
+    (R12 §6), l'appareil du propriétaire est appairé `admin`. Un outil T3/N5 n'est jamais projeté non
+    plus (`Outil.frontiere_humaine`) : le déclarer est refusé pour que l'erreur se voie, pas
+    seulement pour qu'elle soit sans effet. Une liste vide est le défaut (fermé), jamais un problème.
+    """
+    problemes: list[str] = []
+    for dep in departements.values():
+        for outil in dep.charger_outils():
+            if not outil.roles_appareil:
+                continue
+            declares = sorted(outil.roles_appareil)
+            if outil.frontiere_humaine:
+                problemes.append(
+                    f"{dep.id} : {outil.nom} est T3/N5 (frontière humaine, ADR-0009 §5) et déclare "
+                    f"roles_appareil {declares} : aucun rôle d'appareil ne peut l'appeler"
+                )
+            for role in sorted(outil.roles_appareil - ROLES_APPAREIL):
+                if role in ROLES:
+                    raison = (
+                        "rôle OPSYS mais pas un rôle d'appareil (le client passe par un lien tokenisé, "
+                        "l'appareil du propriétaire est appairé admin)"
+                    )
+                else:
+                    raison = "rôle inconnu"
+                problemes.append(
+                    f"{dep.id} : {outil.nom} : roles_appareil cite {role!r}, {raison} "
+                    f"(attendu : {sorted(ROLES_APPAREIL)})"
+                )
     return problemes

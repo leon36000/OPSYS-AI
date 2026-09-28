@@ -564,6 +564,8 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=qualifier_photos,
+            # §9.4 « demander des photos au client » : fonction pure, ne lit aucune donnée interne.
+            roles_appareil=frozenset({"seller", "admin"}),
         ),
         Outil(
             nom="m3_classifier_confiance",
@@ -669,6 +671,10 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=lire_devis,
             autonomie=Autonomie.T0,
+            # §9.4 (vendeur : « voir risques et marge », M5 « marge estimée de la soumission »,
+            # « ne voit pas les coûts internes au-delà de sa soumission »). Jamais `employee` :
+            # `role` est choisi par l'appelant, rien ne l'empêche de demander la vue interne.
+            roles_appareil=frozenset({"seller", "admin"}),
         ),
         Outil(
             nom="m3_marquer_devis_accepte",
@@ -756,6 +762,8 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=generer_soumission_brouillon,
             autonomie=Autonomie.T0,
+            # §9.4 (vendeur : soumissions de ses leads) ; ne porte jamais coût ni marge.
+            roles_appareil=frozenset({"seller", "admin"}),
         ),
         Outil(
             nom="m3_verifier_politique_photos",

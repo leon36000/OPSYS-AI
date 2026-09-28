@@ -719,6 +719,9 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=etat_tresorerie,
             autonomie=Autonomie.T0,
+            # §9.5 M5 (trésorerie et cash libre réel). `role` et `autorise_couts` viennent de l'appelant :
+            # jamais un autre rôle que l'admin.
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m5_calculer_taxes_tps_tvq",
@@ -806,6 +809,8 @@ def outils() -> tuple[Outil, ...]:
             parametres={"type": "object", "properties": {}, "additionalProperties": False},
             fonction=lister_attentes_facturation,
             autonomie=Autonomie.T0,
+            # §9.5 M5 (factures à préparer et à approuver).
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m5_envoyer_facture",

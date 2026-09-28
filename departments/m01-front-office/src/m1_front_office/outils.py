@@ -370,6 +370,8 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=produire_digest,
+            # §9.5 M1 (appels manqués, rappels, messages urgents) : digest du registre anti-perte.
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m1_emettre_notification",

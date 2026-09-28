@@ -81,6 +81,14 @@ class Outil:
     # par défaut depuis `autonomie` (`niveau_par_defaut`). Aucune régression des paliers T existants :
     # tant qu'aucun outil ne fixe `niveau`, tout se comporte exactement comme avant.
     niveau: Niveau | None = None
+    # Rôles d'appareil (`opsys.appareils.ROLES_APPAREIL` : `employee`, `seller`, `admin`) qui peuvent
+    # appeler cet outil depuis un téléphone appairé (T1.4-j, `docs/architecture/ROLES.md`). VIDE par
+    # défaut : un outil sans déclaration n'est appelable par AUCUN appareil (fermé, jamais un accès
+    # implicite). La déclaration vit ici, à côté de l'autonomie et des paramètres, pour que la
+    # relecture d'un outil montre qui peut l'appeler, et qu'un renommage n'orpheline aucune entrée.
+    # `opsys.openclaw.roles_outils` est la seule projection vers le core ; un outil T3/N5 n'est
+    # jamais projeté, quoi que déclare cet attribut (`opsys verifier` le refuse aussi).
+    roles_appareil: frozenset[str] = frozenset()
 
     def __post_init__(self) -> None:
         if not _NOM_OUTIL.match(self.nom):
@@ -101,11 +109,28 @@ class Outil:
             raise ValueError(f"{self.nom} : autonomie invalide {self.autonomie!r}")
         if self.niveau is not None and not isinstance(self.niveau, Niveau):
             raise ValueError(f"{self.nom} : niveau invalide {self.niveau!r}")
+        # Forme seulement : le contenu (rôle connu, outil non T3) est contrôlé par `opsys verifier`
+        # (`departements.verifier_portees`) et rejoué par `roles_outils`. Une chaîne nue serait
+        # itérée caractère par caractère : refusée d'office.
+        if not isinstance(self.roles_appareil, frozenset) or not all(
+            isinstance(role, str) and role for role in self.roles_appareil
+        ):
+            raise ValueError(
+                f"{self.nom} : roles_appareil doit être un frozenset de noms de rôle non vides, "
+                f"reçu {self.roles_appareil!r}"
+            )
 
     @property
     def niveau_effectif(self) -> Niveau:
         """N explicite si fixé (`niveau`), sinon la correspondance par défaut depuis `autonomie`."""
         return self.niveau if self.niveau is not None else niveau_par_defaut(self.autonomie)
+
+    @property
+    def frontiere_humaine(self) -> bool:
+        """Vrai pour un outil T3 ou de niveau N5 (argent réel, fiscal, légal, paie, RH, achat majeur,
+        suppression, publication) : `nathan_owner` et l'attestation du professionnel seulement
+        (ADR-0009 §5). Aucun rôle d'appareil ne peut l'appeler, quelle que soit sa déclaration."""
+        return self.autonomie is Autonomie.T3 or self.niveau_effectif is Niveau.N5
 
     @property
     def departement_code(self) -> str:

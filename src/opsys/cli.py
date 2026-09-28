@@ -26,7 +26,13 @@ from . import (
     stockage,
 )
 from .capacites import outils_executables
-from .departements import charger_departements, dependances_manquantes, tous_les_outils, verifier_attentes
+from .departements import (
+    charger_departements,
+    dependances_manquantes,
+    tous_les_outils,
+    verifier_attentes,
+    verifier_portees,
+)
 from .profils import generer_distribution
 from .stockage.schema import REGISTRES
 
@@ -49,7 +55,8 @@ def cmd_departements(args: argparse.Namespace) -> int:
 
 
 def cmd_verifier(args: argparse.Namespace) -> int:
-    """Contrôle de cohérence utilisé en CI : manifestes, outils, dépendances, événements, paliers."""
+    """Contrôle de cohérence utilisé en CI : manifestes, outils, dépendances, événements, portées
+    d'appareil, paliers."""
     deps = charger_departements()
     index = tous_les_outils(deps.values())
     manquantes = dependances_manquantes(deps)
@@ -68,8 +75,16 @@ def cmd_verifier(args: argparse.Namespace) -> int:
         for probleme in problemes_attentes:
             print(f"  - {probleme}", file=sys.stderr)
         return 1
+    problemes_portees = verifier_portees(deps)
+    if problemes_portees:
+        print("ERREUR : portée d'appareil invalide (Outil.roles_appareil) :", file=sys.stderr)
+        for probleme in problemes_portees:
+            print(f"  - {probleme}", file=sys.stderr)
+        return 1
+    avec_portee = sum(1 for _dep, outil in index.values() if outil.roles_appareil)
     print(f"OK : {len(deps)} départements, {len(index)} outils, noms uniques, manifestes valides, "
-          "événements cohérents.")
+          f"événements cohérents, portées d'appareil valides ({avec_portee} outils déclarés, "
+          "les autres fermés aux appareils).")
     if args.paliers:
         paliers = modeles.charger_paliers()
         manquants = sorted({d.modeles[u] for d in deps.values() for u in d.modeles} - set(paliers))

@@ -545,6 +545,8 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             },
             fonction=demarrer_route,
             autonomie=Autonomie.T1,
+            # §9.3 exécution (« en route »).
+            roles_appareil=frozenset({"employee", "admin"}),
         ),
         Outil(
             nom="m4_signaler_report",
@@ -561,6 +563,8 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             },
             fonction=signaler_report,
             autonomie=Autonomie.T1,
+            # §9.3 exécution (client absent, météo) ; le motif `decision_admin` reste celui de l'admin.
+            roles_appareil=frozenset({"employee", "admin"}),
         ),
         Outil(
             nom="m4_annuler_intervention",
@@ -585,6 +589,8 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             },
             fonction=statut_intervention,
             autonomie=Autonomie.T0,
+            # §9.3 (chantiers du jour).
+            roles_appareil=frozenset({"employee", "admin"}),
         ),
         Outil(
             nom="m4_pointer",
@@ -612,6 +618,8 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             },
             fonction=pointer,
             autonomie=Autonomie.T1,
+            # §9.3 (punch). `technicien_id` vient encore de l'appelant (T1.4-k).
+            roles_appareil=frozenset({"employee", "admin"}),
         ),
         Outil(
             nom="m4_creer_demande_ecart",
@@ -627,6 +635,8 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             },
             fonction=creer_demande_ecart,
             autonomie=Autonomie.T1,
+            # §9.3 (demande de support ou de changement) ; c'est l'admin qui l'arbitre.
+            roles_appareil=frozenset({"employee", "admin"}),
         ),
         Outil(
             nom="m4_resoudre_demande",
@@ -647,6 +657,8 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             },
             fonction=resoudre_demande,
             autonomie=Autonomie.T1,
+            # §9.5 M4 (approbation des complétions) ; « validee » sur un écart complète l'intervention.
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m4_resoudre_revue_completion",
@@ -690,6 +702,8 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             # niveau étant fixé sur l'outil entier, jamais par argument.
             autonomie=Autonomie.T1,
             niveau=Niveau.N4,
+            # §9.5 M4 (approbation des complétions), N4 : propose seulement.
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m4_lister_pending_review",
@@ -703,6 +717,8 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             },
             fonction=lister_pending_review,
             autonomie=Autonomie.T0,
+            # §9.5 M4 (file de complétion) ; liste les anomalies de pointage de tous : jamais l'employé.
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m4_volumetrie_pending_review",
@@ -710,6 +726,8 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             parametres={"type": "object", "properties": {}, "additionalProperties": False},
             fonction=volumetrie_pending_review,
             autonomie=Autonomie.T0,
+            # §9.5 M4 (file de complétion).
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m4_deposer_fichier",
@@ -753,6 +771,8 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             # sert (m4_completer_intervention) qui reste soumise aux approbations. En N3, le mode
             # ombre mettrait chaque bloc d'une photo en attente d'approbation.
             niveau=Niveau.N2,
+            # §9.3 (photos, signature du client : les preuves du chantier).
+            roles_appareil=frozenset({"employee", "admin"}),
         ),
         Outil(
             nom="m4_etat_fichier",
@@ -769,6 +789,8 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             },
             fonction=etat_fichier,
             autonomie=Autonomie.T0,
+            # §9.3 (reprise d'un dépôt de preuve interrompu).
+            roles_appareil=frozenset({"employee", "admin"}),
         ),
         Outil(
             nom="m4_completer_intervention",
@@ -829,6 +851,8 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             },
             fonction=completer_intervention,
             autonomie=Autonomie.T1,
+            # §9.3 et §9.7 (« Terminer »).
+            roles_appareil=frozenset({"employee", "admin"}),
         ),
         Outil(
             nom="m4_lire_outbox",
@@ -871,6 +895,8 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             },
             fonction=produire_digest,
             autonomie=Autonomie.T0,
+            # §9.5 M4 (dispatch du jour, retards, file de complétion).
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m4_lister_interventions",
@@ -890,6 +916,9 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             },
             fonction=lister_interventions,
             autonomie=Autonomie.T0,
+            # §9.3 (chantiers du jour). Rend toutes les interventions, dont le technicien assigné :
+            # seule exception connue à « rien qui lise les données des autres », levée par T1.4-k.
+            roles_appareil=frozenset({"employee", "admin"}),
         ),
         Outil(
             nom="m4_produire_brouillon_temps",
@@ -912,6 +941,8 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             },
             fonction=produire_brouillon_temps,
             autonomie=Autonomie.T0,
+            # §9.5 (feuille de temps envoyée à M5) ; agrège le temps de tous les techniciens : jamais l'employé.
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m4_definir_consentement_gps",
@@ -938,6 +969,9 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             },
             fonction=definir_consentement_gps,
             autonomie=Autonomie.T1,
+            # Consigne un consentement Loi 25 (retrait « par écrit », POLITIQUE-geolocalisation §4) pour un
+            # technicien. Jamais `employee` tant que `technicien_id` vient de l'appelant (T1.4-k).
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m4_lire_position_gps",
@@ -966,6 +1000,9 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             # Écriture interne (le journal d'accès, §6) au sens de l'ADR-0009 §4 : T1, pas T0,
             # même si son propos premier est une lecture — voir Autonomie.T1 dans opsys.outils.
             autonomie=Autonomie.T1,
+            # §9.2 (« accès admin journalisé »), POLITIQUE-geolocalisation §6. `accede_par` vient encore
+            # de l'appelant : à lier à la personne authentifiée (suite de T1.4-k).
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m4_purger_retention_gps",

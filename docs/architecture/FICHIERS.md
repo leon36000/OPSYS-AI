@@ -22,9 +22,9 @@ convergent vers la même ligne — dédoublonnage naturel.
   sauvegardes (un seul fichier SQLite, ou un `pg_dump`) restent cohérentes avec le reste du plan
   de contrôle, sans coordination supplémentaire.
 - **Deux outils M4** (`departments/m04-field-ops/src/m4_field_ops/outils.py`) : `m4_deposer_fichier`
-  (écrit) et `m4_etat_fichier` (lit), tous deux en portée `employee`/`admin` **automatique**
-  (`src/opsys/openclaw.py::roles_outils` inclut tout outil M4 non-T3 — aucune déclaration
-  supplémentaire nécessaire).
+  (écrit) et `m4_etat_fichier` (lit), tous deux déclarés `roles_appareil=frozenset({"employee",
+  "admin"})` (T1.4-j : la portée n'est plus automatique, chaque outil déclare ses rôles ;
+  [ROLES.md](ROLES.md)).
 
 ## 2. Schéma (migration `0008`)
 

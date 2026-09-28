@@ -343,6 +343,8 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=arbitrer_revision,
             autonomie=Autonomie.T1,
+            # §7 M10 mobile (admin : contradictions) ; arbitrage humain.
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m10_statut_decision",
@@ -354,6 +356,8 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=statut_decision,
+            # §7 M10 mobile (admin : décisions à valider).
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m10_statut_revision",
@@ -365,6 +369,8 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=statut_revision,
+            # §7 M10 mobile (admin : contradictions).
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m10_verifier_reference",
@@ -399,6 +405,8 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=paquet_contexte_affaire,
+            # §7 M10 mobile (admin : recherche dans la mémoire).
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m10_consolider_affaire",

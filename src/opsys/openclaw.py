@@ -21,10 +21,11 @@ openai-completions, `models` obligatoire), `mcp.servers` (streamable-http, heade
 Deux fragments supplémentaires (T1.4-c2, `docs/architecture/IDEMPOTENCE.md` §7 bis) ne sont PAS
 `$include`s dans `openclaw.json` — comme `automatisations.sh` ci-dessous, ce sont des fichiers annexes
 qu'OPSYS-CORE lit lui-même directement (`core/src/gateway/opsys-device-roles.ts`), jamais à travers
-la configuration validée par son schéma Zod strict : `roles.json` (`roles_outils`, écrit par
-`generer()`, aucune dépendance à la base) et `appareils.json` (`ecrire_appareils`, lit la table
-`appareils`, ADR-0009 §5 — appelé séparément, PAS par `generer()`/`opsys openclaw configurer`, tant
-qu'aucune surface d'appairage n'existe encore pour le déclencher automatiquement).
+la configuration validée par son schéma Zod strict : `roles.json` (`roles_outils`, tiré des
+`Outil.roles_appareil` déclarés, écrit par `generer()`, aucune dépendance à la base) et
+`appareils.json` (`ecrire_appareils`, lit la table `appareils`, ADR-0009 §5 — appelé séparément, PAS
+par `generer()`/`opsys openclaw configurer`, tant qu'aucune surface d'appairage n'existe encore pour
+le déclencher automatiquement).
 """
 
 from __future__ import annotations
@@ -32,17 +33,15 @@ from __future__ import annotations
 import json
 import shlex
 import shutil
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 from sqlalchemy import Connection
 
 from . import appareils
-from .departements import PALIERS, Departement, tous_les_outils
-from .identite import Role
+from .departements import PALIERS, Departement, tous_les_outils, verifier_portees
 from .memoire.embeddings import ENV_CLE, ENV_MODELE, ENV_URL, ClientEmbeddings
-from .outils import Autonomie, Outil
 from .passerelle import alias_palier
 from .profils import REGLES_COMMUNES, rendre_soul
 
@@ -169,51 +168,49 @@ def _configuration_plugins(fuseau: str) -> dict[str, Any]:
 
 
 def roles_outils(departements: Mapping[str, Departement]) -> dict[str, tuple[str, ...]]:
-    """Outils permis par rôle nommé de jeton d'appareil (T1.4-c2 ; sans rôles nommés, un jeton
-    employé aurait la même portée qu'un jeton propriétaire, R12 §6). Générée ici, jamais écrite à
-    la main dans le core (`opsys-device-roles.ts` ne fait que lire le fragment JSON produit par
-    `generer()` à partir de cette fonction).
+    """Outils permis par rôle nommé de jeton d'appareil (T1.4-c2, portée par outil depuis T1.4-j ;
+    sans rôles nommés, un jeton employé aurait la même portée qu'un jeton propriétaire, R12 §6).
+    Générée ici, jamais écrite à la main dans le core (`opsys-device-roles.ts` ne fait que lire le
+    fragment JSON produit par `generer()` à partir de cette fonction). Table commentée et
+    justifiée : `docs/architecture/ROLES.md`.
 
-    Règle simple, par département et par niveau d'autonomie (correspondance N/T d'ADR-0009 §4 :
-    T3 du socle = N5 de la définition — argent réel, fiscal, légal, paie, RH, achat majeur) :
+    Règle : **fermée par défaut, pour TOUS les rôles.** Un rôle ne reçoit que les outils qui le
+    citent dans leur `Outil.roles_appareil`, déclaré outil par outil à côté du code de l'outil
+    (jamais « tout un département » ni « tout hors T3 » : un outil ajouté demain n'est appelable
+    par aucun appareil tant que quelqu'un n'a pas écrit, en relecture, qui peut l'appeler). Les
+    outils communs `opsys_*` (`capacites.py`, mémoire) n'ont pas de déclaration : refusés à tout
+    appareil.
 
-    - `employee` : les départements de terrain — M4 (opérations/dispatch, pointage, complétion de
-      chantier) et M6 (matériaux, réception, soumission de matériaux utilisés) — SAUF T3 ;
-    - `seller` : les départements commerciaux — M2 (leads/pipeline) et M3 (estimation/soumissions)
-      — SAUF T3 ;
-    - `admin` : tous les départements, SAUF T3.
-
-    T3 (= N5) est exclu de TOUS ces rôles, quel que soit le département : c'est une frontière
-    système fixe (ADR-0009 §5, « jamais automatique, jamais délégué à un autre rôle », réservée à
-    `nathan_owner` ET une attestation professionnelle) — un jeton employé, vendeur ou admin ne doit
+    T3/N5 (`Outil.frontiere_humaine` : argent réel, fiscal, légal, paie, RH, achat majeur,
+    suppression, publication) est exclu de TOUS les rôles, quoi que déclare l'outil : c'est une
+    frontière système fixe (ADR-0009 §5, « jamais automatique, jamais délégué à un autre rôle »,
+    réservée à `nathan_owner` ET une attestation professionnelle) — un jeton d'appareil ne doit
     jamais pouvoir même *tenter* un outil de ce niveau, en plus du fait qu'`outils.executer` le
     ferait de toute façon passer par une demande d'approbation (défense en profondeur, pas la
-    seule barrière). Il n'y a PAS d'entrée `nathan_owner` ici : un jeton d'appareil ne peut jamais
-    porter ce rôle (`opsys.appareils.ROLES_APPAREIL` — le mobile a un type `Profil` fermé à
-    `admin`/`employee`/`seller`/`client`, `mobile/src/roles/types.ts`, un rôle hors de ce type
-    ferait refuser tout routage côté app). L'appareil du propriétaire est donc appairé `admin` ;
-    sa portée d'outils supplémentaire (N5) ne passe jamais par le rôle du jeton — elle continue de
-    dépendre de la PERSONNE (`opsys/personne`, ADR-0009 §5, comme `approbations.decider` le fait
-    déjà pour une décision prise depuis la console).
+    seule barrière). `opsys verifier` (`departements.verifier_portees`) refuse en plus qu'un outil
+    T3/N5 déclare un rôle, pour que l'erreur se voie.
 
-    `ROLES_APPAREIL` (`opsys.appareils`) fixe l'ensemble des rôles : les deux dicts restent en
-    phase par construction, une seule source. Un futur `department.yaml` pourra affiner cette règle
-    (ex. exclure un outil M4 précis d'`employee`) ; cette fonction reste la source unique tant
-    qu'aucun manifeste ne le fait.
+    Il n'y a PAS d'entrée `nathan_owner` ni `client` : un jeton d'appareil ne peut jamais porter ces
+    rôles (`opsys.appareils.ROLES_APPAREIL` — le mobile a un type `Profil` fermé à `admin`/
+    `employee`/`seller`/`client`, `mobile/src/roles/types.ts`, un rôle hors de ce type ferait
+    refuser tout routage côté app ; le client passe par un lien tokenisé, R12 §6). L'appareil du
+    propriétaire est donc appairé `admin` ; sa portée d'outils supplémentaire (N5) ne passe jamais
+    par le rôle du jeton — elle continue de dépendre de la PERSONNE (`opsys/personne`, ADR-0009
+    §5, comme `approbations.decider` le fait déjà pour une décision prise depuis la console).
+
+    `ROLES_APPAREIL` (`opsys.appareils`) fixe l'ensemble des clés du résultat, toutes présentes
+    même vides : les deux restent en phase par construction, une seule source. Un rôle inconnu dans
+    une déclaration n'accorde rien ici (`generer` le refuse avant d'écrire, `opsys verifier` aussi).
     """
     index = tous_les_outils(departements.values())
-
-    def _noms(garder: Callable[[Departement, Outil], bool]) -> tuple[str, ...]:
-        return tuple(sorted(
-            nom for nom, (dep, outil) in index.items()
-            if outil.autonomie is not Autonomie.T3 and garder(dep, outil)
-        ))
-
-    return {
-        Role.EMPLOYEE.value: _noms(lambda dep, _outil: dep.prefixe_outils in {"m4", "m6"}),
-        Role.SELLER.value: _noms(lambda dep, _outil: dep.prefixe_outils in {"m2", "m3"}),
-        Role.ADMIN.value: _noms(lambda _dep, _outil: True),
-    }
+    portees: dict[str, list[str]] = {role: [] for role in sorted(appareils.ROLES_APPAREIL)}
+    for nom in sorted(index):
+        _dep, outil = index[nom]
+        if outil.frontiere_humaine:
+            continue
+        for role in sorted(outil.roles_appareil & appareils.ROLES_APPAREIL):
+            portees[role].append(nom)
+    return {role: tuple(noms) for role, noms in portees.items()}
 
 
 def ecrire_appareils(cnx: Connection, dossier_config: Path) -> Path:
@@ -252,6 +249,14 @@ def generer(
     `environ` (défaut `os.environ`) fournit `OPSYS_EMBEDDINGS_{URL,MODELE,CLE}` pour la mémoire
     Couche A ; validé avant l'écriture des fragments (fail-closed, voir `_configuration_memoire`).
     """
+    # Fail-closed avant toute écriture : une portée d'appareil invalide (rôle inconnu, outil T3/N5
+    # déclaré) n'est jamais écrite dans `roles.json`, pas même partiellement (T1.4-j).
+    problemes_portees = verifier_portees(departements)
+    if problemes_portees:
+        raise ValueError(
+            "portée d'appareil invalide (Outil.roles_appareil), rien n'est écrit :\n  - "
+            + "\n  - ".join(problemes_portees)
+        )
     base = dossier_config / "opsys"
     espaces = base / "espaces"
     if espaces.exists():

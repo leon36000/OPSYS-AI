@@ -176,6 +176,8 @@ def outils(
             ),
             parametres={"type": "object", "properties": {}, "additionalProperties": False},
             fonction=lire_etat_consolide,
+            # §7 M9 mobile : « Admin/Nathan seulement » (décisions en attente).
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m9_valider_snapshot",
@@ -213,6 +215,8 @@ def outils(
             ),
             parametres={"type": "object", "properties": {}, "additionalProperties": False},
             fonction=lire_alertes_m8,
+            # §7 M9 mobile : « Admin/Nathan seulement » (alertes critiques).
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m9_produire_briefing_matin",
@@ -230,5 +234,7 @@ def outils(
                 "additionalProperties": False,
             },
             fonction=produire_briefing_matin,
+            # §7 M9 mobile : « Admin/Nathan seulement » (briefing du matin).
+            roles_appareil=frozenset({"admin"}),
         ),
     )

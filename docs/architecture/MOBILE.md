@@ -935,8 +935,12 @@ authentifie l'appareil par son propre jeton ».
   - le socle rejoue la réponse d'un renvoi, sans rien exécuter deux fois ;
   - détail dans [`IDEMPOTENCE.md`](IDEMPOTENCE.md) §7.
 - **Rôles nommés et portée d'outil, fait** (T1.4-c2 + T1.4-c4, IDEMPOTENCE.md §7 bis) :
+  - portée par outil (T1.4-j) : un outil n'est appelable par un rôle que s'il le déclare
+    (`Outil.roles_appareil`, fermé par défaut, T3/N5 jamais) ; table et règle dans
+    [`ROLES.md`](ROLES.md) ;
   - OPSYS génère deux fragments : `opsys/roles.json` (outils permis par rôle) et
-    `opsys/appareils.json` (appareil → personne et rôle `admin`, `employee`, `seller` ou `client`),
+    `opsys/appareils.json` (appareil → personne et rôle `admin`, `employee` ou `seller` ; jamais
+    `client`, qui passe par un lien tokenisé),
     ce dernier régénéré par `opsys appareils appairer <deviceId> --personne <p> --role <r>
     --config-dir <dossier>` (T1.4-c4 : la surface d'attribution manquante en T1.4-c2, deux temps —
     approbation native de l'appairage côté core, puis attribution OPSYS de la personne et du rôle) ;

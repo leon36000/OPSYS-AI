@@ -161,6 +161,15 @@ jamais automatique, jamais déléguée à un autre rôle) — un manifeste qui t
 est rejeté au chargement. Une demande N5 exige, en plus de `nathan_owner`, une attestation
 structurée du professionnel (nom, profession, référence du document joint) pour être approuvée.
 
+## Portée d'appareil : qui peut appeler l'outil depuis un téléphone (T1.4-j)
+
+Un outil n'est appelable par un jeton d'appareil (`employee`, `seller`, `admin`) que s'il le
+déclare : `roles_appareil=frozenset({"employee", "admin"})` sur l'`Outil`, avec en commentaire la
+ligne de la définition produit §9 qui le justifie. **Défaut : vide, donc fermé à tous les appareils**
+(les agents gardent leur accès par le serveur MCP). T3/N5 n'est jamais projeté, quoi qu'il déclare ;
+`opsys verifier` refuse un rôle qui n'est pas un rôle d'appareil et un outil T3/N5 qui en déclare un.
+Règle, table et questions de relecture : [ROLES.md](ROLES.md).
+
 ## File du propriétaire (ADR-0009 §5)
 
 `opsys.approbations.file_proprietaire` (CLI `opsys approbations file`, API `GET

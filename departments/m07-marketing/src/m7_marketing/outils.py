@@ -598,6 +598,8 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=lister_file_approbation,
+            # §9.5 M7 (contenus et réponses aux avis à approuver).
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m7_preparer_contenu_public",

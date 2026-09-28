@@ -1,13 +1,22 @@
-"""Outils permis par rôle nommé de jeton d'appareil (T1.4-c2) : `opsys.openclaw.roles_outils` et
-`opsys.openclaw.ecrire_appareils`. Contrat : `docs/architecture/IDEMPOTENCE.md` §7 bis."""
+"""Outils permis par rôle nommé de jeton d'appareil (T1.4-c2, portée par outil T1.4-j) :
+`opsys.openclaw.roles_outils`, `opsys.openclaw.ecrire_appareils`, `opsys.departements.verifier_portees`.
+Contrat : `docs/architecture/IDEMPOTENCE.md` §7 bis ; table et règle : `docs/architecture/ROLES.md`.
+
+Ces tests portent sur des départements fictifs (fixtures) ; la table des départements réels est
+épinglée dans `tests/test_portees_appareil.py`."""
 
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
-from opsys import appareils, identite, openclaw
-from opsys.departements import Budget, Departement
+import pytest
+import yaml
+
+from opsys import appareils, cli, identite, modeles, openclaw
+from opsys.departements import Budget, Departement, charger_departements, verifier_portees
+from opsys.outils import Outil
 
 FICTIF = True  # tout identifiant d'appareil ci-dessous est fictif (AGENTS.md)
 
@@ -20,6 +29,7 @@ PALIERS = {
 }
 ENVIRON_EMBEDDINGS = {"OPSYS_EMBEDDINGS_URL": "http://embeddings-test:11434/v1",
                       "OPSYS_EMBEDDINGS_MODELE": "bge-m3"}
+_VIDE = {"type": "object", "properties": {}, "additionalProperties": False}
 
 
 def _departement(code: str, module_outils: str) -> Departement:
@@ -43,31 +53,136 @@ def _departements_demo_roles() -> dict[str, Departement]:
     return {d.id: d for d in deps}
 
 
-def test_roles_outils_repartit_par_departement_et_exclut_t3():
+def _racine_avec_outils(racine_demo: Path, tmp_path: Path, module_outils: str) -> Path:
+    """Copie des départements de démonstration dont le manifeste M9 charge `module_outils`."""
+    cible = tmp_path / "departements"
+    shutil.copytree(racine_demo, cible)
+    manifeste = cible / "m09-demo" / "department.yaml"
+    donnees = yaml.safe_load(manifeste.read_text(encoding="utf-8"))
+    donnees["outils"] = module_outils
+    manifeste.write_text(yaml.safe_dump(donnees, allow_unicode=True), encoding="utf-8")
+    return cible
+
+
+# -- La table rôle -> outils : fermée par défaut ------------------------------------------------
+
+
+def test_roles_outils_n_accorde_que_ce_qui_est_declare():
     roles = openclaw.roles_outils(_departements_demo_roles())
 
-    # Pas d'entrée nathan_owner : un jeton d'appareil ne peut jamais porter ce rôle (le mobile a un
-    # type Profil fermé à admin/employee/seller/client, opsys.appareils.ROLES_APPAREIL).
+    # Pas d'entrée nathan_owner ni client : un jeton d'appareil ne peut jamais porter ces rôles (le
+    # mobile a un type Profil fermé à admin/employee/seller/client, opsys.appareils.ROLES_APPAREIL ;
+    # le client passe par un lien tokenisé, R12 §6).
     assert set(roles) == appareils.ROLES_APPAREIL == {"employee", "seller", "admin"}
     assert roles["seller"] == ("m2_lire_leads", "m3_lire_devis")
     assert roles["employee"] == ("m4_pointer_entree", "m6_soumettre_materiaux")
+    assert roles["admin"] == (
+        "m2_lire_leads", "m3_lire_devis", "m4_pointer_entree", "m6_approuver_bon_commande",
+        "m6_soumettre_materiaux",
+    )
+    # Un outil déclaré `admin` seulement n'est ni chez l'employé ni chez le vendeur.
+    assert "m6_approuver_bon_commande" not in roles["employee"]
+    assert "m6_approuver_bon_commande" not in roles["seller"]
+
+
+def test_un_outil_sans_declaration_est_ferme_pour_tous_les_roles_admin_compris():
+    """Fail-closed : `m4_lire_outbox_gps` (départements M4, lecture) et `m2_exporter_tous_les_leads`
+    (M2) sont dans le département d'un rôle, mais aucune déclaration ne les cite : aucun appareil ne
+    peut les appeler. Avant T1.4-j, `employee` recevait tout M4 hors T3, et `admin` tout hors T3."""
+    roles = openclaw.roles_outils(_departements_demo_roles())
+    for role, outils in roles.items():
+        assert "m4_lire_outbox_gps" not in outils, role
+        assert "m2_exporter_tous_les_leads" not in outils, role
+
+
+def test_t3_jamais_projete_dans_aucun_role():
+    roles = openclaw.roles_outils(_departements_demo_roles())
     # T3 (m4_payer_sous_traitant) exclu de tous les rôles, y compris admin (ADR-0009 §5 : réservé à
     # nathan_owner, qui n'a pas d'entrée ici puisqu'aucun appareil ne peut porter ce rôle).
-    assert "m4_payer_sous_traitant" not in roles["employee"]
-    assert "m4_payer_sous_traitant" not in roles["admin"]
-    assert roles["admin"] == (
-        "m2_lire_leads", "m3_lire_devis", "m4_pointer_entree", "m6_soumettre_materiaux",
-    )
+    for role, outils in roles.items():
+        assert "m4_payer_sous_traitant" not in outils, role
 
 
-def test_roles_outils_sans_departement_terrain_ni_commercial(departements_demo):
-    """Fixture par défaut (M9 seul) : employee/seller restent vides, admin couvre M9 sauf le T3
-    `m9_payer`."""
+def test_roles_outils_ignore_t3_n5_et_roles_inconnus_meme_declares():
+    """Défense en profondeur : même si une déclaration invalide existe (`opsys verifier` la refuse),
+    la projection ne l'accorde jamais — ni T3, ni N5 explicite, ni un rôle hors `ROLES_APPAREIL`."""
+    roles = openclaw.roles_outils({"m09": _departement("M9", "demo_outils_portee_invalide")})
+
+    assert set(roles) == {"admin", "employee", "seller"}  # ni `client`, ni `nathan_owner`, ni `superviseur`
+    assert roles["admin"] == ()  # m9_payer_declare (T3) et m9_n5_declare (N5) écartés
+    assert roles["seller"] == ()  # m9_payer_declare écarté
+    assert roles["employee"] == ("m9_role_inconnu", "m9_valide")  # seul le rôle connu est retenu
+
+
+def test_roles_outils_sans_declaration_donne_des_portees_vides(departements_demo):
+    """Fixture par défaut (M9 seul, aucune déclaration) : rien n'est appelable par un appareil, pas
+    même les outils de lecture T0 (`m9_additionner`) ni pour admin."""
     roles = openclaw.roles_outils(departements_demo)
-    assert roles["employee"] == ()
-    assert roles["seller"] == ()
-    assert "m9_payer" not in roles["admin"]
-    assert "m9_additionner" in roles["admin"]
+    assert roles == {"admin": (), "employee": (), "seller": ()}
+
+
+# -- La forme de la déclaration -----------------------------------------------------------------
+
+
+def test_un_outil_est_ferme_par_defaut():
+    assert Outil("m9_exemple", "Sans déclaration.", _VIDE, lambda: {}).roles_appareil == frozenset()
+
+
+@pytest.mark.parametrize("invalide", ["employee", ["employee"], {"employee"}, frozenset({""}), frozenset({1})])
+def test_un_outil_refuse_une_declaration_de_mauvaise_forme(invalide):
+    """Une chaîne nue serait itérée caractère par caractère ; on exige un frozenset de noms."""
+    with pytest.raises(ValueError, match="roles_appareil"):
+        Outil("m9_exemple", "Déclaration mal formée.", _VIDE, lambda: {}, roles_appareil=invalide)
+
+
+# -- `opsys verifier` : rôle inconnu ou outil T3 ------------------------------------------------
+
+
+def test_verifier_portees_ne_signale_rien_pour_des_declarations_valides():
+    assert verifier_portees(_departements_demo_roles()) == []
+    assert verifier_portees({"m09": _departement("M9", "demo_outils_portee_valide")}) == []
+
+
+def test_verifier_portees_signale_role_inconnu_role_non_appareil_et_t3():
+    problemes = verifier_portees({"m09": _departement("M9", "demo_outils_portee_invalide")})
+
+    texte = "\n".join(problemes)
+    assert len(problemes) == 5, texte
+    # Outil T3 et outil N5 : aucun rôle d'appareil ne peut les appeler.
+    assert any("m9_payer_declare est T3/N5" in p for p in problemes), texte
+    assert any("m9_n5_declare est T3/N5" in p for p in problemes), texte
+    # Rôle inconnu, rôle OPSYS qui n'est pas un rôle d'appareil (client, nathan_owner).
+    assert any("m9_role_inconnu" in p and "'superviseur'" in p and "rôle inconnu" in p for p in problemes), texte
+    assert any("m9_role_client" in p and "'client'" in p and "pas un rôle d'appareil" in p for p in problemes), texte
+    assert any("m9_role_proprietaire" in p and "'nathan_owner'" in p and "pas un rôle d'appareil" in p
+               for p in problemes), texte
+    # Le témoin valide n'est jamais cité.
+    assert not any("m9_valide" in p for p in problemes), texte
+
+
+def test_cli_verifier_echoue_sur_une_declaration_invalide(racine_demo, tmp_path, monkeypatch, capsys):
+    cible = _racine_avec_outils(racine_demo, tmp_path, "demo_outils_portee_invalide")
+    monkeypatch.setenv("OPSYS_DEPARTMENTS", str(cible))
+
+    assert cli.main(["verifier"]) == 1
+
+    erreur = capsys.readouterr().err
+    assert "portée d'appareil invalide" in erreur
+    assert "m9_payer_declare est T3/N5" in erreur
+    assert "'superviseur'" in erreur
+
+
+def test_cli_verifier_accepte_des_declarations_valides(racine_demo, tmp_path, monkeypatch, capsys):
+    cible = _racine_avec_outils(racine_demo, tmp_path, "demo_outils_portee_valide")
+    monkeypatch.setenv("OPSYS_DEPARTMENTS", str(cible))
+
+    assert cli.main(["verifier"]) == 0
+
+    sortie = capsys.readouterr().out
+    assert "portées d'appareil valides (3 outils déclarés" in sortie
+
+
+# -- Le fragment roles.json généré --------------------------------------------------------------
 
 
 def test_roles_ecrit_par_generer(departements_demo, tmp_path):
@@ -79,6 +194,65 @@ def test_roles_ecrit_par_generer(departements_demo, tmp_path):
     # Pas de $include vers roles.json dans le squelette openclaw.json (lu directement par le core).
     racine = openclaw.racine_si_absente(tmp_path / "autre")
     assert "roles" not in json.loads(racine.read_text(encoding="utf-8"))
+
+
+def test_generer_ecrit_la_table_declaree_dans_roles_json(racine_demo, tmp_path):
+    deps = charger_departements(_racine_avec_outils(racine_demo, tmp_path / "src", "demo_outils_portee_valide"))
+    fichiers = openclaw.generer(deps, tmp_path / "oc", PALIERS, environ=ENVIRON_EMBEDDINGS)
+
+    fragment = json.loads(fichiers["roles"].read_text(encoding="utf-8"))
+    assert fragment == {"roles": {
+        "admin": ["m9_approuver", "m9_lire_client", "m9_pointer_terrain"],
+        "employee": ["m9_pointer_terrain"],
+        "seller": ["m9_lire_client"],
+    }}
+    # L'outil sans déclaration et l'outil T3 n'apparaissent dans aucun rôle.
+    assert "m9_interne" not in json.dumps(fragment)
+    assert "m9_payer" not in json.dumps(fragment)
+
+
+def test_generer_refuse_une_portee_invalide_et_n_ecrit_rien(racine_demo, tmp_path):
+    deps = charger_departements(_racine_avec_outils(racine_demo, tmp_path / "src", "demo_outils_portee_invalide"))
+    sortie = tmp_path / "oc"
+
+    with pytest.raises(ValueError, match="portée d'appareil invalide"):
+        openclaw.generer(deps, sortie, PALIERS, environ=ENVIRON_EMBEDDINGS)
+
+    assert not (sortie / "opsys").exists()
+
+
+def test_cli_openclaw_configurer_ecrit_roles_json(racine_demo, tmp_path, monkeypatch, capsys):
+    """`opsys openclaw configurer` (la commande réelle) produit le fragment lu par le core."""
+    cible = _racine_avec_outils(racine_demo, tmp_path / "src", "demo_outils_portee_valide")
+    monkeypatch.setenv("OPSYS_DEPARTMENTS", str(cible))
+    monkeypatch.setenv("OPSYS_EMBEDDINGS_URL", ENVIRON_EMBEDDINGS["OPSYS_EMBEDDINGS_URL"])
+    monkeypatch.setenv("OPSYS_EMBEDDINGS_MODELE", ENVIRON_EMBEDDINGS["OPSYS_EMBEDDINGS_MODELE"])
+    modeles.enregistrer_paliers(PALIERS)
+    config = tmp_path / "oc"
+
+    assert cli.main(["openclaw", "configurer", "--config-dir", str(config)]) == 0
+
+    capsys.readouterr()
+    fragment = json.loads((config / "opsys" / "roles.json").read_text(encoding="utf-8"))
+    assert fragment["roles"]["employee"] == ["m9_pointer_terrain"]
+    assert set(fragment["roles"]) == appareils.ROLES_APPAREIL
+
+
+def test_cli_openclaw_configurer_refuse_une_portee_invalide(racine_demo, tmp_path, monkeypatch):
+    cible = _racine_avec_outils(racine_demo, tmp_path / "src", "demo_outils_portee_invalide")
+    monkeypatch.setenv("OPSYS_DEPARTMENTS", str(cible))
+    monkeypatch.setenv("OPSYS_EMBEDDINGS_URL", ENVIRON_EMBEDDINGS["OPSYS_EMBEDDINGS_URL"])
+    monkeypatch.setenv("OPSYS_EMBEDDINGS_MODELE", ENVIRON_EMBEDDINGS["OPSYS_EMBEDDINGS_MODELE"])
+    modeles.enregistrer_paliers(PALIERS)
+    config = tmp_path / "oc"
+
+    with pytest.raises(ValueError, match="portée d'appareil invalide"):
+        cli.main(["openclaw", "configurer", "--config-dir", str(config)])
+
+    assert not (config / "opsys").exists()
+
+
+# -- La table appareils.json (inchangée par T1.4-j) ---------------------------------------------
 
 
 def test_ecrire_appareils_projette_la_table(session, tmp_path):

@@ -934,6 +934,8 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=receptionner_commande,
             autonomie=Autonomie.T1,
+            # §9.5 M6 (réception rapide). Pas `employee` : la réponse porte des prix (§9.3 « aucun coût »).
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m6_consommer_materiaux",
@@ -982,6 +984,8 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=declarer_materiaux_utilises,
             autonomie=Autonomie.T1,
+            # §9.3 et §9.7 (formulaire des matériaux utilisés, sans coût affiché). M6 relit le WCT (T1.4-i).
+            roles_appareil=frozenset({"employee", "admin"}),
         ),
         Outil(
             nom="m6_soumettre_comptage",
@@ -998,6 +1002,8 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=soumettre_comptage,
             autonomie=Autonomie.T1,
+            # §9 (inventaire) : comptage physique, constat de stock.
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m6_produire_digest",
@@ -1016,6 +1022,8 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=produire_digest,
             autonomie=Autonomie.T0,
+            # §9.5 M6 (stock critique, rapport de pertes et bris).
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m6_resoudre_prix_materiau",
@@ -1087,6 +1095,8 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=evaluer_variance_chantier,
             autonomie=Autonomie.T0,
+            # §9.5 M6 (écarts de chantier, validation d'usage).
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m6_enregistrer_besoins_prevus",
@@ -1230,6 +1240,8 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=approuver_po,
             autonomie=Autonomie.T1,
+            # §9.2 et §9.5 (le propriétaire approuve les bons de commande).
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m6_annuler_po",
@@ -1247,6 +1259,8 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=annuler_po,
             autonomie=Autonomie.T1,
+            # §9.5 M6 (PO à approuver : le refus est une annulation avec motif).
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m6_generer_courriel_po",

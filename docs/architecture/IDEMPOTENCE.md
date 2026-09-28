@@ -240,8 +240,10 @@ Ce que T1.4-c1 ne fait PAS : rien côté rôles nommés ni portée d'outil — v
 
 Voir `docs/architecture/MOBILE.md` (section rôles) pour le contrat complet (jeton d'appareil,
 appairage, refus fermé par défaut) : ce paragraphe ne fait que situer T1.4-c2/T1.4-c4 dans le fil
-de ce fichier. `/tools/invoke` transmet, en plus des trois clés `_meta` ci-dessus,
-`opsys/personne`/`opsys/role` (résolus depuis un `deviceId` — désormais **authentifié**, voir
+de ce fichier. Depuis T1.4-j, la liste des outils de chaque rôle n'est plus « tout un
+département » : chaque outil déclare ses rôles (`Outil.roles_appareil`, fermé par défaut, T3/N5
+jamais), table et règle dans [`ROLES.md`](ROLES.md). `/tools/invoke` transmet, en plus des trois
+clés `_meta` ci-dessus, `opsys/personne`/`opsys/role` (résolus depuis un `deviceId` — désormais **authentifié**, voir
 ci-dessous — par deux fragments générés côté OPSYS, `opsys/roles.json` et `opsys/appareils.json`,
 lus directement par `core/src/gateway/opsys-device-roles.ts` — jamais écrits à la main dans le
 core, jamais via `$include`) et refuse un outil hors de la portée du rôle avant même d'émettre
