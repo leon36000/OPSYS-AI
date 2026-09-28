@@ -461,6 +461,17 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       Exemple : `m3_lire_devis(role=...)` retire coût, marge et prix pour un employé, mais c'est
       aujourd'hui l'appelant qui choisit le rôle ;
     - appairage mobile, avec l'algorithme de signature lu dans le fork.
+    - [ ] T1.4-c1 Core : `/tools/invoke` transmet au moteur, dans le `_meta` MCP, la clé
+          d'idempotence, l'appareil et son heure (`IDEMPOTENCE.md` §7).
+    - [ ] T1.4-c2 Core et socle :
+      - rôles nommés sur le jeton d'appareil, attribués à l'approbation de l'appairage avec la
+        personne OPSYS ;
+      - outils permis par rôle, générés par `opsys openclaw configurer` ;
+      - `opsys/personne` et `opsys/role` transmis au moteur, qui s'en sert pour les projections
+        et les signatures.
+    - [ ] T1.4-c3 Mobile : client d'appairage (QR ou code, défi signé selon l'algorithme du
+          fork, jeton dans `expo-secure-store`), testé contre le protocole lu dans le core.
+
   - [ ] T1.4-d `punch.tsx` (M4.4) de bout en bout par la file sortante (R12 §5, étape 2).
   - [ ] T1.4-e Chantier du jour, transitions, checklist, photos et signature (étapes 3 et 4).
   - [ ] T1.4-f « Terminer », qui lance la cascade §9.7, puis le formulaire des matériaux (étape 5).
