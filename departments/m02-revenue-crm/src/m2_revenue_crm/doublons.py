@@ -59,6 +59,16 @@ def _non_vide(valeur) -> bool:
     return valeur is not None and valeur != "" and valeur != {}
 
 
+def _travaux(contrat):
+    """Les travaux demandés, avec la clé qui les porte : `("service", ...)` pour un lead v2,
+    `("type_travaux", ...)` pour un lead v1. Deux leads ne se rapprochent que dans la MÊME version :
+    un `type_travaux` v1 et un `service` v2 ne partagent pas de vocabulaire, même si les chaînes
+    coïncidaient. Absent ou vide : None (l'absence n'est jamais une similitude)."""
+    cle = "service" if "schema_version" in contrat else "type_travaux"
+    valeur = contrat.get(cle)
+    return (cle, valeur) if _non_vide(valeur) else None
+
+
 def contact_identique(contrat_a, contrat_b) -> bool:
     """Vrai si les deux contrats portent EXACTEMENT le même contact (dict), non vide.
 
@@ -83,9 +93,9 @@ def _critere_entre(contrat_a, contrat_b):
     if contact_identique(contrat_a, contrat_b):
         return "contact_identique"
     ville_a, ville_b = contrat_a.get("ville"), contrat_b.get("ville")
-    travaux_a, travaux_b = contrat_a.get("type_travaux"), contrat_b.get("type_travaux")
+    travaux_a, travaux_b = _travaux(contrat_a), _travaux(contrat_b)
     if (_non_vide(ville_a) and ville_a == ville_b
-            and _non_vide(travaux_a) and travaux_a == travaux_b):
+            and travaux_a is not None and travaux_a == travaux_b):
         return "ville_et_travaux"
     return None
 

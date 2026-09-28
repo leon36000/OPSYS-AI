@@ -4,23 +4,26 @@
 à l'étape d'estimation. Le contrat de recalcul du marqueur est le suivant :
 l'empreinte est calculée par encoder_canonique(conditions, lead_id, tete) où
 conditions est un dict déterministe contenant les valeurs réelles de owner,
-type_travaux, ville et le booléen interaction_post_qualification. M3 doit
-reproduire exactement ce calcul pour vérifier le marqueur.
+des travaux demandés, ville et le booléen interaction_post_qualification. Les
+travaux demandés sont portés par `type_travaux` pour un lead v1 (contrat gelé,
+octets inchangés) et par `service` pour un lead v2 (PLAN T0.13) : la clé suit la
+version déclarée du contrat. M3 doit reproduire exactement ce calcul pour
+vérifier le marqueur.
 Fonctions pures (evaluer) ou produisant un marqueur horodaté signé.
 """
 
 from datetime import datetime
+
+from opsys import taxonomie
+
 from . import horodatage as _horodatage
+from .contrats import TYPES_TRAVAUX, VERSION_CONTRAT_V2
 from .encodage import encoder_canonique
 from .verdicts import construire_verdict
 from .statuts import statut_courant
 
-
-# Types de travaux autorisés (énumération fermée)
-TYPES_TRAVAUX = {
-    "renovation_totale", "extension", "ravalement",
-    "isolation_thermique", "autre"
-}
+# Types de travaux autorisés en v1 (énumération fermée) : UNE seule copie, celle de contrats.py.
+# En v2, le service est validé contre le profil d'entreprise de l'instance (opsys.taxonomie).
 
 
 def _maillon_lead_ingere(registre_cible, lead_id):
@@ -50,8 +53,11 @@ def _extraire_conditions(registre_cible, lead_id):
     sont absentes.
 
     Les clés retournées :
-    - owner, type_travaux, ville : valeurs brutes (chaînes après strip)
-    - owner_valide, type_travaux_valide, ville_valide : booléens de conformité
+    - owner, travaux, ville : valeurs brutes (chaînes après strip) ; `travaux` est le
+      `type_travaux` d'un lead v1 ou le `service` d'un lead v2
+    - cle_travaux : "type_travaux" (lead v1) ou "service" (lead v2), la clé du contrat
+    - owner_valide, travaux_valide, ville_valide : booléens de conformité
+      (`travaux_valide` : énuméré v1, ou service déclaré par le profil d'entreprise en v2)
     - interaction_ok : booléen indiquant une interaction post-qualification
     - transition_horodatage : horodatage de la transition vers qualifié (chaîne)
     """
@@ -65,7 +71,10 @@ def _extraire_conditions(registre_cible, lead_id):
     if ingere is None:
         return None
     contrat = ingere.get("contrat", {})
-    type_travaux = contrat.get("type_travaux", "").strip()
+    # Version explicite du contrat ingéré : `schema_version` présent = v2, sinon v1.
+    est_v2 = contrat.get("schema_version") == VERSION_CONTRAT_V2
+    cle_travaux = "service" if est_v2 else "type_travaux"
+    travaux = contrat.get(cle_travaux, "").strip()
     ville = contrat.get("ville", "").strip()
 
     # Dernier changement de statut vers qualifié (contient l'owner)
@@ -106,12 +115,20 @@ def _extraire_conditions(registre_cible, lead_id):
             except (ValueError, TypeError):
                 continue
 
+    # v2 : le service doit être déclaré par le profil d'entreprise AU MOMENT de la readiness
+    # (fail-closed : un profil retiré ou cassé depuis l'ingestion rend le lead non prêt).
+    if est_v2:
+        travaux_valide = taxonomie.valider_service(travaux)[1] is None
+    else:
+        travaux_valide = travaux in TYPES_TRAVAUX
+
     return {
         "owner": owner,
-        "type_travaux": type_travaux,
+        "travaux": travaux,
+        "cle_travaux": cle_travaux,
         "ville": ville,
         "owner_valide": bool(owner),
-        "type_travaux_valide": type_travaux in TYPES_TRAVAUX,
+        "travaux_valide": travaux_valide,
         "ville_valide": bool(ville),
         "interaction_ok": interaction_ok,
         "transition_horodatage": horodatage_trans,
@@ -124,7 +141,7 @@ def evaluer(registre_cible, lead_id):
     PRÉ-REQUIS : le statut courant doit être "qualifie" (sinon False).
     Conditions (conjointes) :
     - owner non vide (extrait du dernier transition_statut qualifie)
-    - type_travaux dans l'énumération fermée
+    - type_travaux dans l'énumération fermée (v1), ou service déclaré par le profil d'entreprise (v2)
     - ville non vide
     - au moins une interaction postérieure ou égale à la transition qualifie.
 
@@ -134,7 +151,7 @@ def evaluer(registre_cible, lead_id):
     if cond is None:
         return False
     return (cond["owner_valide"] and
-            cond["type_travaux_valide"] and
+            cond["travaux_valide"] and
             cond["ville_valide"] and
             cond["interaction_ok"])
 
@@ -170,8 +187,8 @@ def emettre_marqueur(registre_cible, lead_id, horodatage):
             manques = []
             if not cond["owner_valide"]:
                 manques.append("owner manquant")
-            if not cond["type_travaux_valide"]:
-                manques.append(f"type_travaux invalide '{cond['type_travaux']}'")
+            if not cond["travaux_valide"]:
+                manques.append(f"{cond['cle_travaux']} invalide '{cond['travaux']}'")
             if not cond["ville_valide"]:
                 manques.append("ville manquante")
             if not cond["interaction_ok"]:
@@ -185,7 +202,7 @@ def emettre_marqueur(registre_cible, lead_id, horodatage):
     tete = registre_cible.tete()
     conditions = {
         "owner": cond["owner"],
-        "type_travaux": cond["type_travaux"],
+        cond["cle_travaux"]: cond["travaux"],
         "ville": cond["ville"],
         "interaction_post_qualification": True,
     }
@@ -235,14 +252,14 @@ def verifier_marqueur(marqueur, registre_cible):
         cond = _extraire_conditions(registre_cible, lead_id)
         if cond is None:
             return False
-        if not (cond["owner_valide"] and cond["type_travaux_valide"]
+        if not (cond["owner_valide"] and cond["travaux_valide"]
                 and cond["ville_valide"] and cond["interaction_ok"]):
             # Si les conditions ont changé entre-temps, le marqueur devient invalide
             return False
 
         conditions_recalc = {
             "owner": cond["owner"],
-            "type_travaux": cond["type_travaux"],
+            cond["cle_travaux"]: cond["travaux"],
             "ville": cond["ville"],
             "interaction_post_qualification": True,
         }

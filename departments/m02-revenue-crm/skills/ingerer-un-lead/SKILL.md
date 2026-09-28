@@ -5,9 +5,11 @@ description: Procédure pour ingérer un lead qualifié transmis en amont, en d�
 
 # Ingérer un lead
 
-1. Réunis le contrat du lead (les sept champs : lead_id, conversation_id, contact,
-   type_travaux, ville, urgence_declaree, canal) et l'horodatage de l'appelant. N'en invente
-   aucun champ : un champ manquant est un motif de demander la donnée, pas de la deviner.
+1. Réunis le contrat du lead tel que M1 l'a émis, avec sa version : v2 (`schema_version: 2`,
+   champ `service`) ou v1 historique (sans `schema_version`, champ `type_travaux`) — jamais
+   l'un déguisé en l'autre. Champs : lead_id, conversation_id, contact, service (v2) ou
+   type_travaux (v1), ville, urgence_declaree, canal ; puis l'horodatage de l'appelant. N'en
+   invente aucun champ : un champ manquant est un motif de demander la donnée, pas de la deviner.
 2. Appelle `m2_ingerer_lead` une seule fois. L'outil valide la structure et les frontières de
    vérité (aucun prix, aucune date d'exécution dans le contrat), écrit le lead au registre,
    détecte les doublons probables et signale ceux qui existent, puis rapporte le statut et la

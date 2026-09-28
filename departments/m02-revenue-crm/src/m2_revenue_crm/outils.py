@@ -716,14 +716,21 @@ _UTM = {
 _CONTRAT = {
     "type": "object",
     "description": (
-        "Contrat transmis par le module amont : les sept champs gelés (obligatoires), plus "
-        "source/utm/campagne (PLAN T2.2, optionnels — jamais de valeur par défaut si absents)."
+        "Lead transmis par le module amont, dans la version qu'il DÉCLARE. v1 (gelée, sans "
+        "schema_version) : sept champs obligatoires dont type_travaux (énuméré fermé). v2 "
+        "(schema_version = 2) : service (code déclaré par le profil d'entreprise de l'instance) "
+        "remplace type_travaux. source/utm/campagne optionnels dans les deux versions (PLAN T2.2) — "
+        "jamais de valeur par défaut si absents."
     ),
     "properties": {
+        "schema_version": {"type": "integer", "enum": [contrats.VERSION_CONTRAT_V2], "description": "v2 seulement."},
         "lead_id": {"type": "string"},
         "conversation_id": {"type": "string"},
         "contact": _CONTACT,
-        "type_travaux": {"type": "string", "enum": list(contrats.TYPES_TRAVAUX)},
+        "type_travaux": {
+            "type": "string", "enum": list(contrats.TYPES_TRAVAUX), "description": "v1 seulement.",
+        },
+        "service": {"type": "string", "description": "v2 seulement : code d'un service déclaré par l'entreprise."},
         "ville": {"type": "string"},
         "urgence_declaree": {"type": "boolean"},
         "canal": {"type": "string", "enum": list(contrats.CANAUX)},
@@ -731,7 +738,7 @@ _CONTRAT = {
         "campagne": {"type": "string", "description": "Optionnel : campagne marketing déclarée par M7."},
         "utm": _UTM,
     },
-    "required": list(contrats.CHAMPS_CONTRAT_GELE),
+    "required": [c for c in contrats.CHAMPS_CONTRAT_GELE if c != "type_travaux"],
     "additionalProperties": False,
 }
 _HORODATAGE = {"type": "string", "description": "ISO-8601 avec fuseau horaire, fourni par l'appelant"}

@@ -40,9 +40,11 @@ def ingerer(contrat, registre_cible, horodatage) -> tuple[dict | None, dict | No
         )
 
     # 2. Structure.
-    ok, code = contrats.valider_structure(contrat)
+    # Version explicite (PLAN T0.13) : v1 gelée sans `schema_version`, v2 avec. Le détail du refus
+    # dit quoi corriger, et quoi configurer quand le service n'est pas déclaré par l'instance.
+    ok, code, detail = contrats.valider_structure_avec_detail(contrat)
     if not ok:
-        return _construire(verdict=verdicts.construire_verdict(code))
+        return _construire(verdict=verdicts.construire_verdict(code, detail=detail))
 
     # 3. Frontières de vérité (prix, date d’exécution…).
     ok, raison = frontieres.inspecter_contrat(contrat)

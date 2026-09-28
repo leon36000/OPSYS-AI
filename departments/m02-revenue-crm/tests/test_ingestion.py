@@ -5,6 +5,7 @@ import inspect
 import subprocess
 from pathlib import Path
 import pytest
+import opsys
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
 _PKG = _SRC / "m2_revenue_crm"  # répertoire du paquet, pour les scans de sources
@@ -812,8 +813,9 @@ class TestInvariantsIngestion:
         for graine in graines:
             env_mod = os.environ.copy()
             env_mod["PYTHONHASHSEED"] = graine
-            # ajout du src au PYTHONPATH pour simplifier
-            env_mod["PYTHONPATH"] = str(src_path)
+            # ajout du src au PYTHONPATH pour simplifier ; `contrats.py` importe la taxonomie du socle
+            # (PLAN T0.13) : le sous-processus doit voir le MÊME `opsys` que ce test, pas un autre.
+            env_mod["PYTHONPATH"] = os.pathsep.join([str(src_path), str(Path(opsys.__file__).resolve().parents[1])])
             res = subprocess.run(
                 [sys.executable, "-c", script],
                 capture_output=True,

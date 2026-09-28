@@ -211,7 +211,10 @@ def vue_360(registre_cible, client_id: str) -> dict | None:
                 "lead_id": lead_id,
                 "statut": statut_courant(registre_cible, lead_id),
                 "ville": contrat.get("ville"),
+                # Lead v1 : `type_travaux` ; lead v2 : `service` (PLAN T0.13). L'autre vaut None,
+                # jamais une valeur devinée.
                 "type_travaux": contrat.get("type_travaux"),
+                "service": contrat.get("service"),
                 "canal": contrat.get("canal"),
                 # PLAN T2.2 — lead structuré : absents pour tout contrat qui ne les fournit pas
                 # (le contrat gelé v1 du front office ne les porte pas encore) — jamais devinés.

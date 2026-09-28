@@ -1,5 +1,12 @@
 # M2-S003 — Validation structurelle du contrat LeadQualifie
 # Respecte la liste blanche stricte et l'ordre de contrôle imposé.
+#
+# Deux versions du contrat sont acceptées (PLAN T0.13) : la v1 GELÉE (`type_travaux`, énuméré
+# fermé) et la v2 (`service`, code de la taxonomie du socle). La version est EXPLICITE : un lead
+# qui porte `schema_version` est validé en v2 ; sans ce champ (le contrat v1 n'en a pas), en v1.
+# Elle n'est jamais devinée à partir des autres champs.
+
+from opsys import taxonomie
 
 CHAMPS_CONTRAT_GELE = (
     "lead_id",
@@ -17,6 +24,21 @@ TYPES_TRAVAUX = (
     "ravalement",
     "isolation_thermique",
     "autre",
+)
+
+# Contrat LeadQualifie v2 (`departments/m01-front-office/contracts/m1-lead-qualifie.v2.yaml`) :
+# `service` remplace `type_travaux` ; `schema_version` porte la version. Les trois clés
+# optionnelles ci-dessous (CHAMPS_CONTRAT_OPTIONNELS) sont communes aux deux versions.
+VERSION_CONTRAT_V2 = 2
+CHAMPS_CONTRAT_GELE_V2 = (
+    "schema_version",
+    "lead_id",
+    "conversation_id",
+    "service",
+    "ville",
+    "canal",
+    "contact",
+    "urgence_declaree",
 )
 
 CANAUX = (
@@ -71,8 +93,50 @@ def _champ_optionnel_invalide(contrat) -> str | None:
     return None
 
 
-def valider_structure(contrat) -> tuple[bool, str]:
-    """Valide la structure d’un contrat LeadQualifie selon la spec M2-S003.
+def _identifiants_invalides(contrat) -> str | None:
+    """lead_id, conversation_id, ville : chaînes non vides (communs aux versions v1 et v2)."""
+    for champ in ("lead_id", "conversation_id", "ville"):
+        valeur = contrat[champ]
+        if not isinstance(valeur, str):
+            return "REJ-CONTRAT-INVALIDE"
+        if valeur == "":
+            return "REJ-CHAMP-VIDE"
+    return None
+
+
+def _canal_contact_urgence_invalides(contrat) -> str | None:
+    """canal, contact, urgence_declaree (communs aux versions v1 et v2). None si conformes."""
+    # canal : énumération fermée.
+    if contrat["canal"] not in CANAUX:
+        return "REJ-ENUM-INVALIDE"
+
+    # contact : dict autorisant uniquement les clés de CLES_CONTACT.
+    contact = contrat["contact"]
+    if not isinstance(contact, dict):
+        return "REJ-CONTRAT-INVALIDE"
+    for cle in contact:
+        if cle not in CLES_CONTACT:
+            return "REJ-CONTRAT-INVALIDE"
+
+    # Au moins une des trois valeurs de contact doit être une chaîne non vide.
+    non_vide = False
+    for cle in CLES_CONTACT:
+        if cle in contact:
+            val = contact[cle]
+            if isinstance(val, str) and val != "":
+                non_vide = True
+                break
+    if not non_vide:
+        return "REJ-CHAMP-VIDE"
+
+    # urgence_declaree : booléen strict (True/False, pas 1/0).
+    if type(contrat["urgence_declaree"]) is not bool:
+        return "REJ-CONTRAT-INVALIDE"
+    return None
+
+
+def _valider_structure_v1(contrat) -> tuple[bool, str]:
+    """Valide la structure d’un contrat LeadQualifie v1 (gelé) selon la spec M2-S003.
 
     Ordre d’évaluation (la première faute rencontrée détermine le code) :
         1. type de l’entrée (doit être un dict)
@@ -100,43 +164,18 @@ def valider_structure(contrat) -> tuple[bool, str]:
 
     # 4. Types et valeurs.
     # lead_id, conversation_id, ville : str non vide.
-    for champ in ("lead_id", "conversation_id", "ville"):
-        valeur = contrat[champ]
-        if not isinstance(valeur, str):
-            return False, "REJ-CONTRAT-INVALIDE"
-        if valeur == "":
-            return False, "REJ-CHAMP-VIDE"
+    code_identifiants = _identifiants_invalides(contrat)
+    if code_identifiants is not None:
+        return False, code_identifiants
 
     # type_travaux : énumération fermée.
     if contrat["type_travaux"] not in TYPES_TRAVAUX:
         return False, "REJ-ENUM-INVALIDE"
 
-    # canal : énumération fermée.
-    if contrat["canal"] not in CANAUX:
-        return False, "REJ-ENUM-INVALIDE"
-
-    # contact : dict autorisant uniquement les clés de CLES_CONTACT.
-    contact = contrat["contact"]
-    if not isinstance(contact, dict):
-        return False, "REJ-CONTRAT-INVALIDE"
-    for cle in contact:
-        if cle not in CLES_CONTACT:
-            return False, "REJ-CONTRAT-INVALIDE"
-
-    # Au moins une des trois valeurs de contact doit être une chaîne non vide.
-    non_vide = False
-    for cle in CLES_CONTACT:
-        if cle in contact:
-            val = contact[cle]
-            if isinstance(val, str) and val != "":
-                non_vide = True
-                break
-    if not non_vide:
-        return False, "REJ-CHAMP-VIDE"
-
-    # urgence_declaree : booléen strict (True/False, pas 1/0).
-    if type(contrat["urgence_declaree"]) is not bool:
-        return False, "REJ-CONTRAT-INVALIDE"
+    # canal, contact, urgence_declaree : mêmes contrôles qu'en v2.
+    code_commun = _canal_contact_urgence_invalides(contrat)
+    if code_commun is not None:
+        return False, code_commun
 
     # 5. source/utm/campagne (PLAN T2.2) : optionnels, validés seulement s'ils sont fournis.
     code_optionnel = _champ_optionnel_invalide(contrat)
@@ -144,3 +183,74 @@ def valider_structure(contrat) -> tuple[bool, str]:
         return False, code_optionnel
 
     return True, ""
+
+
+def _valider_structure_v2(contrat) -> tuple[bool, str, str]:
+    """Valide un contrat LeadQualifie v2 (`schema_version` == 2, `service` de la taxonomie du socle).
+
+    Même ordre d'évaluation qu'en v1 : version, champs manquants, champs inconnus (dont l'ancien
+    `type_travaux`), types et valeurs, puis source/utm/campagne si présents. Retourne
+    `(True, "", "")` ou `(False, code_verdict, detail)` ; le détail dit quoi corriger ou configurer
+    (service hors du profil d'entreprise).
+    """
+    # 1. Version explicite : l'entier 2 exactement (ni True, ni "2", ni 2.0).
+    if type(contrat["schema_version"]) is not int or contrat["schema_version"] != VERSION_CONTRAT_V2:
+        return False, "REJ-CONTRAT-INVALIDE", f"schema_version doit valoir {VERSION_CONTRAT_V2}"
+
+    # 2. Champs manquants.
+    for champ in CHAMPS_CONTRAT_GELE_V2:
+        if champ not in contrat:
+            return False, "REJ-CHAMP-MANQUANT", f"champ manquant : {champ}"
+
+    # 3. Champs inconnus (hors des huit de la v2 ET des trois optionnels).
+    for champ in contrat:
+        if champ not in CHAMPS_CONTRAT_GELE_V2 and champ not in CHAMPS_CONTRAT_OPTIONNELS:
+            return False, "REJ-CONTRAT-INVALIDE", f"champ inconnu en v2 : {champ}"
+
+    # 4. Types et valeurs.
+    code_identifiants = _identifiants_invalides(contrat)
+    if code_identifiants is not None:
+        return False, code_identifiants, ""
+
+    # service : chaîne non vide, code d'un service déclaré par le profil d'entreprise de l'instance.
+    if not isinstance(contrat["service"], str):
+        return False, "REJ-CONTRAT-INVALIDE", "service doit être une chaîne"
+    if contrat["service"] == "":
+        return False, "REJ-CHAMP-VIDE", "service ne doit pas être vide"
+    _, verdict_service = taxonomie.valider_service(contrat["service"])
+    if verdict_service is not None:
+        return False, "REJ-ENUM-INVALIDE", f"{verdict_service['code']} : {verdict_service['detail']}"
+
+    code_commun = _canal_contact_urgence_invalides(contrat)
+    if code_commun is not None:
+        return False, code_commun, ""
+
+    # 5. source/utm/campagne : optionnels, validés seulement s'ils sont fournis.
+    code_optionnel = _champ_optionnel_invalide(contrat)
+    if code_optionnel is not None:
+        return False, code_optionnel, ""
+
+    return True, "", ""
+
+
+def valider_structure_avec_detail(contrat) -> tuple[bool, str, str]:
+    """`(ok, code_verdict, detail)` : valide le contrat dans la version qu'il DÉCLARE.
+
+    `schema_version` présent : v2. Absent : v1 (le contrat gelé v1 n'a pas ce champ). Le détail est
+    vide pour la v1 (le code suffit) ; en v2 il dit quoi corriger, dont la configuration du profil
+    d'entreprise quand le service n'y est pas déclaré.
+    """
+    if isinstance(contrat, dict) and "schema_version" in contrat:
+        return _valider_structure_v2(contrat)
+    ok, code = _valider_structure_v1(contrat)
+    return ok, code, ""
+
+
+def valider_structure(contrat) -> tuple[bool, str]:
+    """Valide la structure d'un contrat LeadQualifie, v1 (gelé) ou v2 selon sa version déclarée.
+
+    Retourne (True, "") si le contrat est conforme, sinon (False, code_verdict) avec un code du
+    catalogue. Voir `valider_structure_avec_detail` pour le détail du refus.
+    """
+    ok, code, _detail = valider_structure_avec_detail(contrat)
+    return ok, code
