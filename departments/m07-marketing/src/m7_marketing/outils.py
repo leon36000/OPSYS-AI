@@ -19,6 +19,7 @@ from typing import Any
 
 import yaml
 
+from opsys import stockage
 from opsys.outils import Autonomie, Outil, depuis_couple
 
 from .ads import intelligence as ads_intelligence
@@ -29,6 +30,7 @@ from .competitive import report as competitive_report
 from .content import approval as content_approval
 from .content import factory as content_factory
 from .reputation import classifier as reputation_classifier
+from .reputation import demande_avis as reputation_demande_avis
 from .reputation import ingestion as reputation_ingestion
 from .reputation import metrics as reputation_metrics
 from .reputation import response_builder as reputation_response_builder
@@ -282,6 +284,50 @@ def publier_post_social(
         return {"publie": False, "statut": "desactive", "raison": str(exc)}
     except NotAutorise as exc:
         return {"publie": False, "statut": "non_autorise", "raison": str(exc)}
+
+
+# ---------------------------------------------------------------------------
+# Bus d'événements (ADR-0009 §3, PLAN T1.2-c) : consommateur de m4.travaux_termines
+# ---------------------------------------------------------------------------
+_REGISTRE_DEMANDES_AVIS = ("m07-marketing", "demandes_avis")
+
+
+def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consommateur `m4.travaux_termines` (ADR-0009 §3, DEPARTEMENTS.md « Événements ») :
+    prépare une demande d'avis EN BROUILLON (écriture interne au registre du département,
+    jamais un envoi — voir `reputation.demande_avis`). L'envoi réel reste une action externe
+    derrière une approbation, hors de ce consommateur et de tout outil exposé ici.
+
+    Fail-closed : `consentement_marketing` absent ou faux, ou `client_satisfait` absent ou faux,
+    refuse la préparation (aucun brouillon écrit) avec un motif explicite dans le résumé rendu.
+
+    Idempotent par `wct_id` : un brouillon déjà déposé pour ce wct_id (relivraison de
+    l'événement, ou `repartir()` rejoué) n'est jamais dupliqué — no-op qui rend
+    `deja_enregistre=True`.
+    """
+    wct_id = charge["wct_id"]
+    registre_demandes = stockage.maillons(*_REGISTRE_DEMANDES_AVIS)
+    for brouillon_existant in registre_demandes:
+        if brouillon_existant.get("wct_id") == wct_id:
+            return {"brouillon_cree": False, "deja_enregistre": True, "wct_id": wct_id}
+
+    brouillon, motif = reputation_demande_avis.construire_brouillon(charge)
+    if brouillon is None:
+        return {"brouillon_cree": False, "deja_enregistre": False, "wct_id": wct_id, "motif": motif}
+
+    registre_demandes.append(brouillon)
+    return {
+        "brouillon_cree": True,
+        "deja_enregistre": False,
+        "wct_id": wct_id,
+        "demande_avis_id": brouillon["id"],
+    }
+
+
+def consommateurs() -> dict[str, Any]:
+    """Types d'événements consommés par M7 (ADR-0009 §3) — voir `department.yaml:evenements.consomme`
+    et `docs/architecture/DEPARTEMENTS.md` § Événements."""
+    return {"m4.travaux_termines": _recevoir_travaux_termines}
 
 
 # ---------------------------------------------------------------------------

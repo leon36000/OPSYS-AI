@@ -10,7 +10,7 @@ mission: >-
   LLM, ni inventer une métrique pour un module qui n'en déclare aucune.
 outils: m8_analytics.outils
 mode: ombre
-dependances: [m07-marketing]
+dependances: [m07-marketing, m04-field-ops]
 modeles:
   defaut: standard
   digest: rapide
@@ -29,6 +29,8 @@ budget:
 memoire:
   lecture: [dictionnaire_metriques, snapshots_modules]
   ecriture: [snapshots_modules]
+evenements:
+  consomme: [m4.travaux_termines]
 kpis:
   - id: taux_snapshots_rejetes
     description: Part des snapshots reçus rejetés par la validation d'entrée (structure, devise, valeurs non texte).

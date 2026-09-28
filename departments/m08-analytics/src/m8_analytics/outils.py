@@ -84,6 +84,65 @@ def produire_digest_quotidien(signaux: list[dict[str, Any]]) -> dict[str, Any]:
     return digest_module.produire_digest_quotidien(signaux)
 
 
+# ---------------------------------------------------------------------------
+# Bus d'événements (ADR-0009 §3, PLAN T1.2-c) : consommateur de m4.travaux_termines
+# ---------------------------------------------------------------------------
+_MODULE_SOURCE_TRAVAUX = "m04-field-ops"
+
+
+def _valeurs_travaux_termines(charge: dict[str, Any]) -> dict[str, str]:
+    """Faits mesurables du WCT, en texte (SnapshotModule, PRD §5.2) : durée réelle, et type de
+    travaux s'il est présent. Jamais un coût ni une marge — M8 ne les reçoit pas dans cet
+    événement (mission department.yaml ; DEFINITION-PRODUIT.md §7 M8 : « M8 ne fait pas la
+    comptabilité »)."""
+    valeurs = {
+        "m4_wct_id": charge["wct_id"],
+        "m4_intervention_id": charge["intervention_id"],
+        "m4_duree_reelle_minutes": str(charge["duree_reelle_minutes"]),
+    }
+    type_travaux = charge.get("type_travaux")
+    if type_travaux is not None:
+        valeurs["m4_type_travaux"] = type_travaux
+    return valeurs
+
+
+def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consommateur `m4.travaux_termines` (ADR-0009 §3, DEPARTEMENTS.md « Événements ») :
+    enregistre au registre des snapshots (production : adossé au stockage durable de l'instance,
+    même table que `m8_rapport_metriques`) les faits mesurables du chantier terminé.
+
+    Idempotent par `wct_id` : un maillon déjà enregistré pour ce wct_id (relivraison de
+    l'événement, ou `repartir()` rejoué) n'est jamais dupliqué — no-op qui rend
+    `deja_enregistre=True`.
+    """
+    registre_cible = registre.RegistreSnapshots(maillons=stockage.maillons("m08-analytics", "snapshots"))
+    wct_id = charge["wct_id"]
+    for maillon in registre_cible.lire():
+        deja_source_m4 = maillon["module_source"] == _MODULE_SOURCE_TRAVAUX
+        if deja_source_m4 and maillon["valeurs"].get("m4_wct_id") == wct_id:
+            return {"enregistre": False, "deja_enregistre": True, "wct_id": wct_id}
+
+    valeurs = _valeurs_travaux_termines(charge)
+    registre_cible.ajouter({
+        "module_source": _MODULE_SOURCE_TRAVAUX,
+        "horodatage": charge["horodatage_completion"],
+        "valeurs": valeurs,
+    })
+    return {
+        "enregistre": True,
+        "deja_enregistre": False,
+        "wct_id": wct_id,
+        "duree_reelle_minutes": charge["duree_reelle_minutes"],
+        "type_travaux": charge.get("type_travaux"),
+    }
+
+
+def consommateurs() -> dict[str, Any]:
+    """Types d'événements consommés par M8 (ADR-0009 §3) — voir `department.yaml:evenements.consomme`
+    et `docs/architecture/DEPARTEMENTS.md` § Événements."""
+    return {"m4.travaux_termines": _recevoir_travaux_termines}
+
+
 def outils(registre_cible: registre.RegistreSnapshots | None = None) -> tuple[Outil, ...]:
     """Capacités exposées aux agents. Une instance de RegistreSnapshots par installation.
 
