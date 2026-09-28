@@ -17,9 +17,9 @@ from sqlalchemy import select
 
 from ..stockage import codec, inserer, transaction
 from ..stockage.schema import EVENEMENTS_SORTANTS
-from .schemas import TypeEvenementInconnu, erreurs_charge
+from .schemas import TypeEvenementInconnu, erreurs_charge, schema
 
-__all__ = ["ChargeInvalide", "TypeEvenementInconnu", "deja_publie", "publier"]
+__all__ = ["ChargeInvalide", "TypeEvenementInconnu", "charge_publiee", "deja_publie", "publier"]
 
 
 class ChargeInvalide(ValueError):
@@ -76,3 +76,29 @@ def deja_publie(evenement_id: str) -> bool:
             select(EVENEMENTS_SORTANTS.c.evenement_id).where(EVENEMENTS_SORTANTS.c.evenement_id == evenement_id)
         ).first()
     return ligne is not None
+
+
+def charge_publiee(type_evenement: str, evenement_id: str) -> dict[str, Any] | None:
+    """Charge d'un événement déjà publié, lue dans `evenements_sortants` (la source de vérité du
+    bus, jamais une copie tenue par un consommateur), ou `None` si ce couple (type, id) n'y est pas.
+
+    Sert à un département qui doit se fier à un fait publié par un autre plutôt qu'à ce qu'un
+    appelant lui affirme : M6 relit ainsi le WCT `m4.travaux_termines` de `wct_id` au lieu de
+    l'accepter en argument (AGENTS.md : un fait vient de sa source de vérité). Lue dans la
+    transaction courante, donc cohérente avec ce que cette transaction vient de publier ; en
+    lecture seule, jamais rien n'est écrit. Le type est vérifié : un `evenement_id` qui existe
+    sous un AUTRE type rend `None`, jamais la charge d'un événement qui n'est pas celui demandé.
+
+    Lève `TypeEvenementInconnu` si `type_evenement` n'est pas au catalogue (erreur de
+    programmation, comme pour `publier` : un type qui n'existe pas n'a jamais rien publié). La
+    charge rendue est décodée à chaque appel : la modifier ne touche jamais le bus.
+    """
+    schema(type_evenement)  # TypeEvenementInconnu si absent du catalogue
+    with transaction() as cnx:
+        ligne = cnx.execute(
+            select(EVENEMENTS_SORTANTS.c.charge).where(
+                EVENEMENTS_SORTANTS.c.evenement_id == evenement_id,
+                EVENEMENTS_SORTANTS.c.type_evenement == type_evenement,
+            )
+        ).first()
+    return None if ligne is None else codec.decoder(ligne[0])

@@ -35,7 +35,6 @@ import m5_financecore.outils as m5_outils
 import pytest
 from m2_revenue_crm import statuts as m2_statuts
 from m4_field_ops import cedule
-from m4_field_ops.outbox import CHAMPS_WCT
 from sqlalchemy import select
 
 from opsys import evenements, stockage
@@ -323,12 +322,15 @@ def _m4_completer(m4, intervention_id: str, base: dt.datetime, offset: int = 114
     return r["resultat"]["resultat"]
 
 
-def _m6_declarer(m6, wct_pour_m6: dict, chantier_id: str, materiau_id: str, quantite_declaree: float) -> None:
+def _m6_declarer(m6, wct_id: str, chantier_id: str, materiau_id: str, quantite_declaree: float) -> None:
+    """Déclaration de fin de chantier (M6.10) : l'appelant ne donne que le `wct_id` de l'accusé de
+    complétion. M6 relit lui-même le WCT que M4 a publié (PLAN T1.4-i) ; `intervention_id` du
+    formulaire est celui de cette publication, jamais une valeur retapée à la main."""
+    intervention_id = _charge_publiee("m4.travaux_termines", wct_id)["intervention_id"]
     r = executer_atomique(m6["m6_declarer_materiaux_utilises"], {
-        "wct": wct_pour_m6,
+        "wct_id": wct_id,
         "formulaire": {
-            "wct_id": wct_pour_m6["wct_id"], "intervention_id": wct_pour_m6["intervention_id"],
-            "chantier_id": chantier_id,
+            "wct_id": wct_id, "intervention_id": intervention_id, "chantier_id": chantier_id,
             "lignes_materiaux": [{
                 "type_ligne": "prevu", "materiau_id": materiau_id, "quantite": quantite_declaree,
                 "unite": "pi", "quantite_estimee": quantite_declaree,
@@ -338,20 +340,23 @@ def _m6_declarer(m6, wct_pour_m6: dict, chantier_id: str, materiau_id: str, quan
     assert r["ok"] and r["resultat"]["accepte"], r
 
 
-def _wct_sans_statut(wct_charge: dict) -> dict:
-    """WctRecu attendu par M6 (m6_material_control.contrats.CHAMPS_WCT, copie épinglée gelée
-    des 12 clés de M4 SANS `statut`).
-
-    T1.2-f : le WCT réel porte désormais, EN PLUS de CHAMPS_WCT (M4), les champs optionnels
-    réservés à M7/M8 quand ils sont connus (`m4_field_ops.outbox.CHAMPS_WCT_OPTIONNELS`, ex.
-    `type_travaux` — quasi toujours connu depuis le contrat gelé). Le contrat WctRecu de M6
-    reste, lui, strictement fermé : `validation.valider_wct` y refuse toute clé « en trop »
-    (REJ-WCT-CHAMP-INATTENDU) — sans le filtre `k in CHAMPS_WCT` ci-dessous, cet appel casserait
-    pour CHAQUE intervention. M10 (`m10_memoire.outils._recevoir_travaux_termines`) filtre déjà
-    ainsi son propre bus ; M6 ne le fait pas encore côté outil `m6_declarer_materiaux_utilises`
-    — gap hors périmètre de M4 (departments/m06-material-control/ non touché ici), documenté au
-    rapport de T1.2-f."""
-    return {k: v for k, v in wct_charge.items() if k in CHAMPS_WCT and k != "statut"}
+def _m6_declarer_wct_fabrique(m6, chantier_id: str, materiau_id: str) -> None:
+    """Un appelant qui invente un `wct_id` (formulaire par ailleurs impeccable, coût unitaire connu
+    par la réception faite plus haut) : M6 ne le trouve pas au bus et refuse, rien n'est écrit."""
+    avant = list(stockage.maillons("m06-material-control", "principal"))
+    r = executer_atomique(m6["m6_declarer_materiaux_utilises"], {
+        "wct_id": "wct-fabrique",
+        "formulaire": {
+            "wct_id": "wct-fabrique", "intervention_id": "int-fabriquee", "chantier_id": chantier_id,
+            "lignes_materiaux": [{
+                "type_ligne": "prevu", "materiau_id": materiau_id, "quantite": 40.0,
+                "unite": "pi", "quantite_estimee": 40.0,
+            }],
+        },
+    })
+    assert r["ok"], r
+    assert r["resultat"] == {"accepte": False, "verdict": {"code": "REJ-WCT-INCONNU"}}, r
+    assert list(stockage.maillons("m06-material-control", "principal")) == avant
 
 
 # =============================================================================================
@@ -398,8 +403,8 @@ def test_nominal_cascade_complete_sans_quarantaine(base_durable):
     for champ in ("consentement_marketing", "client_satisfait", "photos", "description_factuelle", "ville"):
         assert champ not in wct_charge, f"{champ} inattendu dans le WCT réel (hors appel d'appareil)"
 
-    wct_pour_m6 = _wct_sans_statut(wct_charge)
-    _m6_declarer(m6, wct_pour_m6, chantier_id, MATERIAU_ID, 40.0)
+    _m6_declarer_wct_fabrique(m6, chantier_id, MATERIAU_ID)
+    _m6_declarer(m6, wct_id, chantier_id, MATERIAU_ID, 40.0)
 
     total = _drainer(deps, base + dt.timedelta(hours=1))
     assert total["echecs"] == 0, total
@@ -533,8 +538,7 @@ def test_ecart_quarante_pourcent_reste_pending_review_et_facture_quand_meme(base
     _m6_receptionner(m6, chantier_id, MATERIAU_ID, 200.0, f"PO-{devis_id}", base)
     wct_resultat = _m4_completer(m4, intervention_id, base)
     wct_id = wct_resultat["wct_id"]
-    wct_pour_m6 = _wct_sans_statut(_charge_publiee("m4.travaux_termines", wct_id))
-    _m6_declarer(m6, wct_pour_m6, chantier_id, MATERIAU_ID, 56.0)  # prévu 40 -> +40 % (seuil 30 %)
+    _m6_declarer(m6, wct_id, chantier_id, MATERIAU_ID, 56.0)  # prévu 40 -> +40 % (seuil 30 %)
 
     total = _drainer(deps, base + dt.timedelta(hours=1))
     assert total["echecs"] == 0, total
@@ -590,8 +594,7 @@ def test_relivraison_meme_fait_nouvel_evenement_id_aucun_doublon(base_durable):
     wct_resultat = _m4_completer(m4, intervention_id, base)
     wct_id = wct_resultat["wct_id"]
     wct_charge = _charge_publiee("m4.travaux_termines", wct_id)
-    wct_pour_m6 = _wct_sans_statut(wct_charge)
-    _m6_declarer(m6, wct_pour_m6, chantier_id, MATERIAU_ID, 40.0)
+    _m6_declarer(m6, wct_id, chantier_id, MATERIAU_ID, 40.0)
 
     total1 = _drainer(deps, base + dt.timedelta(hours=1))
     assert total1["echecs"] == 0 and total1["quarantaines"] == 0, total1
@@ -673,8 +676,7 @@ def test_consommateur_en_echec_m2_quarantaine_sans_bloquer_les_autres(base_durab
     _m6_receptionner(m6, chantier_id, MATERIAU_ID, 200.0, f"PO-{devis_id}", base)
     wct_resultat = _m4_completer(m4, intervention_id, base)
     wct_id = wct_resultat["wct_id"]
-    wct_pour_m6 = _wct_sans_statut(_charge_publiee("m4.travaux_termines", wct_id))
-    _m6_declarer(m6, wct_pour_m6, chantier_id, MATERIAU_ID, 40.0)
+    _m6_declarer(m6, wct_id, chantier_id, MATERIAU_ID, 40.0)
 
     t = base + dt.timedelta(hours=1)
     resume1 = evenements.repartir(deps, maintenant=_iso(t, 0))
@@ -744,8 +746,7 @@ def test_ordre_inverse_completion_avant_acceptation_devis_converge_comme_nominal
     # La complétion (et le WCT publié) arrive AVANT l'acceptation du devis.
     wct_resultat = _m4_completer(m4, intervention_id, base)
     wct_id = wct_resultat["wct_id"]
-    wct_pour_m6 = _wct_sans_statut(_charge_publiee("m4.travaux_termines", wct_id))
-    _m6_declarer(m6, wct_pour_m6, chantier_id, MATERIAU_ID, 40.0)
+    _m6_declarer(m6, wct_id, chantier_id, MATERIAU_ID, 40.0)
 
     assert _facture_active(devis_id) is None, "le devis n'est pas encore accepté : rien à facturer"
 

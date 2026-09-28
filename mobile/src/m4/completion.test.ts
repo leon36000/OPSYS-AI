@@ -2,8 +2,6 @@ import {
   construireArgumentsCompleterIntervention,
   estAccuseCompletionM4,
   interpreterResultatCompleterIntervention,
-  interpreterResultatLireOutbox,
-  trouverWctParId,
 } from "./completion";
 import type { PreuvesCompletionM4 } from "./preuvesCompletion";
 
@@ -93,42 +91,4 @@ describe("estAccuseCompletionM4", () => {
       expect(estAccuseCompletionM4(valeur)).toBe(false);
     },
   );
-});
-
-describe("interpreterResultatLireOutbox / trouverWctParId", () => {
-  const WCT_1 = { wct_id: "W1", intervention_id: "I1", lead_id: "L1", statut: "completed_pending_review" };
-  const WCT_2 = { wct_id: "W2", intervention_id: "I2", lead_id: "L2", statut: "completed_verified" };
-
-  test("lit un tableau d'entrées {index, wct} valides", () => {
-    const resultat = interpreterResultatLireOutbox({
-      ok: true,
-      resultat: [{ index: 0, wct: WCT_1 }, { index: 1, wct: WCT_2 }],
-    });
-    expect(resultat).toEqual({ ok: true, entrees: [{ index: 0, wct: WCT_1 }, { index: 1, wct: WCT_2 }] });
-  });
-
-  test("entrée mal formée -> exclue, jamais un plantage", () => {
-    const resultat = interpreterResultatLireOutbox({
-      ok: true,
-      resultat: [{ index: 0, wct: WCT_1 }, { index: 1, wct: { wct_id: "sans-intervention" } }, "texte-invalide"],
-    });
-    expect(resultat).toEqual({ ok: true, entrees: [{ index: 0, wct: WCT_1 }] });
-  });
-
-  test("forme non reconnue -> liste vide, jamais inventée", () => {
-    expect(interpreterResultatLireOutbox({ ok: true, resultat: null })).toEqual({ ok: true, entrees: [] });
-  });
-
-  test("erreur technique -> ok:false", () => {
-    expect(interpreterResultatLireOutbox({ ok: false, erreur: "refus_metier", details: "depuis_index négatif" })).toEqual({
-      ok: false,
-      verdict: { code: "refus_metier", detail: "depuis_index négatif" },
-    });
-  });
-
-  test("trouverWctParId : apparie par wct_id, jamais seulement intervention_id", () => {
-    const entrees = [{ index: 0, wct: WCT_1 }, { index: 1, wct: WCT_2 }];
-    expect(trouverWctParId(entrees, "W2")).toEqual(WCT_2);
-    expect(trouverWctParId(entrees, "W-inconnu")).toBeNull();
-  });
 });

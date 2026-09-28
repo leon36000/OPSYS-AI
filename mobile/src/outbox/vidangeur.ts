@@ -70,12 +70,12 @@ export interface RapportVidange {
   /**
    * Même information que `envoyees`, mais avec le `resume` métier de CHAQUE mutation acceptée
    * (PLAN T1.4-f) — jusqu'ici calculé par `descripteur.interpreterResultat` puis jeté : `job_
-   * completion` (« Terminer ») a besoin du WCT renvoyé par `m4_completer_intervention` pour
-   * enchaîner `materials_submit` (`m6_declarer_materiaux_utilises` exige le WCT tel quel, voir
-   * `src/m4/completion.ts`/`src/m6/materiaux.ts`) — sans ce champ, le seul moyen de le retrouver
-   * aurait été un second appel réseau (`m4_lire_outbox` ou équivalent), inutile ET plus fragile
-   * (un rejeu ne serait pas garanti de renvoyer exactement le même WCT). Additif, ne change rien
-   * au comportement existant : `envoyees` reste inchangé pour tout code déjà écrit contre lui.
+   * completion` (« Terminer ») a besoin du `wct_id` de l'accusé renvoyé par
+   * `m4_completer_intervention` pour enchaîner `materials_submit` (`m6_declarer_materiaux_utilises`
+   * prend ce `wct_id` et relit lui-même le WCT publié, voir `src/m4/completion.ts`/
+   * `src/m6/materiaux.ts`) — sans ce champ, le seul moyen de le retrouver aurait été un second
+   * appel réseau, inutile ET plus fragile. Additif, ne change rien au comportement existant :
+   * `envoyees` reste inchangé pour tout code déjà écrit contre lui.
    */
   readonly resultatsAcceptes: readonly MutationAcceptee[];
   /** Remises `en_attente` après un échec réessayable (recul appliqué). */

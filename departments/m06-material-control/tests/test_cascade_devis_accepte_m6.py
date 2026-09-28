@@ -161,13 +161,6 @@ def _statut(deps, intervention_id):
     return r["resultat"]["statut"]
 
 
-def _wct_pour_m6(deps, wct_id):
-    m4 = _outils(deps, "m04-field-ops")
-    boite = executer_atomique(m4["m4_lire_outbox"], {})
-    wct_complet = next(e["wct"] for e in boite["resultat"] if e["wct"]["wct_id"] == wct_id)
-    return {k: v for k, v in wct_complet.items() if k != "statut"}
-
-
 def _receptionner(deps, chantier_id, materiau_id, quantite, po_id):
     m6 = _outils(deps, "m06-material-control")
     r = executer_atomique(m6["m6_receptionner_commande"], {
@@ -193,7 +186,7 @@ def _declarer_materiaux_utilises(deps, wct_id, intervention_id, chantier_id, qua
     m6 = _outils(deps, "m06-material-control")
     _receptionner(deps, chantier_id, materiau_id, max(quantite, 1.0) * 2, po_id=f"PO-{wct_id}")
     r = executer_atomique(m6["m6_declarer_materiaux_utilises"], {
-        "wct": _wct_pour_m6(deps, wct_id),
+        "wct_id": wct_id,
         "formulaire": {
             "wct_id": wct_id, "intervention_id": intervention_id, "chantier_id": chantier_id,
             "lignes_materiaux": [{

@@ -360,7 +360,7 @@ def test_completion_champs_client_hors_appel_appareil_refuse_nomme_rien_ecrit_ni
 # ==================================================================================
 # T1.2-f, bout en bout M4 -> M7 : le VRAI consommateur M7 (charger_departements(), comme en
 # production), evenements.repartir SCOPÉ À M7 SEUL (patron déjà établi par
-# test_cascade_travaux_termines_variance.py::_wct_pour_m6 / son docstring _deps_bus — les
+# test_cascade_travaux_termines_variance.py::_deps_bus — les
 # autres consommateurs, dont M2, sont hors du périmètre de cette preuve et un lead de test
 # inconnu de M2 y déclencherait une quarantaine sans rapport).
 # ==================================================================================

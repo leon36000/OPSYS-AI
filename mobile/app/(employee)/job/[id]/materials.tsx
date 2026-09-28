@@ -16,8 +16,7 @@ import {
 import type { LigneEnSaisie } from "@/ecrans/materials";
 import { construireArgumentsDeclarerMateriauxUtilises } from "@/m6/materiaux";
 import type { VerdictServeurMateriaux } from "@/m6/materiaux";
-import { lireWctEnCache } from "@/m4/wctCache";
-import type { WctRecuM4 } from "@/m4/completion";
+import { lireWctIdCompletion } from "@/m4/wctIdCompletion";
 import { genererMutationId } from "@/outbox/id";
 import { creerMutation, formaterHorodatageLocal, soumettreMutation } from "@/outbox/mutation";
 import { declencherVidange, obtenirDepot } from "@/outbox/service";
@@ -33,10 +32,11 @@ import { obtenirDepotLocal } from "@/stockage/service";
  * pré-remplit rien : l'employé saisit, le serveur calcule le coût unitaire
  * (`_dernier_cout_unitaire_connu`, jamais transmis par le mobile).
  *
- * **`wct` lu depuis le cache posé par `complete.tsx`** (`src/m4/wctCache.ts`) — jamais reconstruit
- * ici : voir la docstring de `src/m4/completion.ts` pour le pont `m4_lire_outbox` qui l'a peuplé.
- * Aucun WCT en cache -> `materials.aucunWct`, formulaire bloqué (fail-closed, jamais un WCT
- * deviné) : l'employé doit retourner à l'écran « Terminer ».
+ * **Seul le `wct_id` de l'accusé de complétion est envoyé, avec le formulaire** (PLAN T1.4-i) : il a
+ * été mémorisé par `complete.tsx` (`src/m4/wctIdCompletion.ts`) ; M6 relit lui-même le WCT publié par
+ * M4 pour cet identifiant et refuse un `wct_id` qu'il ne connaît pas (`REJ-WCT-INCONNU`, affiché tel
+ * quel). Aucun `wct_id` mémorisé -> `materials.aucunWct`, formulaire bloqué (fail-closed, jamais un
+ * identifiant deviné) : l'employé doit retourner à l'écran « Terminer ».
  *
  * Écran non testé en rendu (même limite que les autres écrans de cette tranche) :
  * `src/ecrans/materials.ts`, `src/m6/materiaux.ts` portent la logique, testée là.
@@ -46,7 +46,7 @@ export default function EcranMateriaux() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const interventionId = typeof id === "string" ? id : "";
 
-  const [wct, setWct] = useState<WctRecuM4 | null>(null);
+  const [wctId, setWctId] = useState<string | null>(null);
   const [charge, setCharge] = useState(false);
   const [lignes, setLignes] = useState<LigneEnSaisie[]>([]);
   const [enTraitement, setEnTraitement] = useState(false);
@@ -56,25 +56,25 @@ export default function EcranMateriaux() {
   const [soumis, setSoumis] = useState(false);
   const [enAttenteConfirmation, setEnAttenteConfirmation] = useState(false);
 
-  const rafraichirWct = useCallback(async () => {
+  const rafraichirWctId = useCallback(async () => {
     if (!interventionId) {
       return;
     }
-    const valeur = await lireWctEnCache(await obtenirDepotLocal(), interventionId);
-    setWct(valeur);
+    const valeur = await lireWctIdCompletion(await obtenirDepotLocal(), interventionId);
+    setWctId(valeur);
     setCharge(true);
   }, [interventionId]);
 
   useEffect(() => {
-    void rafraichirWct();
-  }, [rafraichirWct]);
+    void rafraichirWctId();
+  }, [rafraichirWctId]);
 
   const surAjouterLigne = useCallback(() => {
     setLignes((actuelles) => ajouterLigne(actuelles, creerLigneVide(Crypto.randomUUID())));
   }, []);
 
   const surSoumettre = useCallback(async () => {
-    if (!interventionId || !wct) {
+    if (!interventionId || !wctId) {
       return;
     }
     const configuration = obtenirConfigurationAppel();
@@ -86,21 +86,22 @@ export default function EcranMateriaux() {
     setDernierVerdict(null);
     setEnTraitement(true);
     try {
-      const etat = evaluerPreparationFormulaire(wct.wct_id, interventionId, interventionId, lignes);
+      const etat = evaluerPreparationFormulaire(wctId, interventionId, interventionId, lignes);
       if (!etat.pret) {
         setBlocage(etat.raison);
         return;
       }
       setBlocage(null);
 
-      const args = construireArgumentsDeclarerMateriauxUtilises(wct, etat.formulaire);
+      const args = construireArgumentsDeclarerMateriauxUtilises(etat.formulaire);
       const horloge = { maintenant: new Date(), decalageMinutesUTC: -new Date().getTimezoneOffset() };
 
       const depot = await obtenirDepot();
       const toutes = await depot.lister();
-      // Lien de traçabilité vers la complétion dont ce WCT provient (P3) — sans effet sur
-      // l'envoi lui-même : au moment où ce formulaire est soumissible, le WCT est déjà connu, donc
-      // sa mutation `job_completion` est nécessairement déjà `envoyee` (voir src/m4/wctCache.ts).
+      // Lien de traçabilité vers la complétion dont ce `wct_id` provient (P3) — sans effet sur
+      // l'envoi lui-même : au moment où ce formulaire est soumissible, le `wct_id` est déjà connu,
+      // donc sa mutation `job_completion` est nécessairement déjà `envoyee` (voir
+      // src/m4/wctIdCompletion.ts).
       const completion = toutes.find((m) => m.type === "job_completion" && m.chantierId === interventionId && m.statut === "envoyee");
 
       const brouillon = creerMutation(
@@ -131,7 +132,7 @@ export default function EcranMateriaux() {
     } finally {
       setEnTraitement(false);
     }
-  }, [interventionId, wct, lignes]);
+  }, [interventionId, wctId, lignes]);
 
   return (
     <ScrollView contentContainerStyle={styles.conteneur}>
@@ -139,9 +140,9 @@ export default function EcranMateriaux() {
       <Text style={styles.identifiant}>{interventionId}</Text>
 
       {!charge ? <ActivityIndicator /> : null}
-      {charge && !wct ? <Text style={styles.erreur}>{t("materials.aucunWct")}</Text> : null}
+      {charge && !wctId ? <Text style={styles.erreur}>{t("materials.aucunWct")}</Text> : null}
 
-      {wct ? (
+      {wctId ? (
         <>
           {lignes.length === 0 ? <Text style={styles.vide}>{t("materials.aucuneLigne")}</Text> : null}
 

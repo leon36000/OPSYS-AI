@@ -40,6 +40,17 @@ comparer_depuis_registre` relit le réel déclaré directement au registre (par 
 `chantier_id`) ; `m6_evaluer_variance_chantier` l'utilise quand `lignes_declarees` est omis
 — l'entrée explicite reste disponible pour les appels directs.
 
+PLAN T1.4-i — `m6_declarer_materiaux_utilises` prend un `wct_id`, plus le WCT : un fait vient de sa
+source de vérité (AGENTS.md), et l'ancien contrat laissait un appareil (ou un modèle) fabriquer un
+WCT dont M6 ne vérifiait que la forme. M6 relit la charge `m4.travaux_termines` publiée par M4 pour
+ce `wct_id` (`opsys.evenements.charge_publiee`, le magasin du bus, privée de `statut` que le
+`WctRecu` de M6 ne porte pas) et la valide comme avant (`valider_wct`,
+`valider_formulaire_materiaux_utilises`). Un `wct_id` que M4 n'a jamais publié : `REJ-WCT-INCONNU`,
+rien n'est écrit. L'outil ne tourne plus qu'en transaction (registre durable + bus) : il n'a plus de
+mode `registre_historique` en mémoire, et hors transaction rien n'est connu, donc tout est refusé.
+Idempotence par `wct_id`, arrivée tardive et réévaluation de la variance : inchangées.
+`m6_consommer_materiaux` garde, lui, un `wct` fourni par l'appelant (non modifié).
+
 Bugs corrigés (test rouge → vert) lors de cette passe :
 - `materiel.py` n'exposait que `consommer_materiaux`. `enregistrer_reception`
   et `soumettre_comptage`, prescrits par `docs/bmad/03-ARCHITECTURE.md`

@@ -243,6 +243,69 @@ def test_deja_publie_reflete_la_table_du_bus(session):
     assert evenements.deja_publie("fixe-3") is False
 
 
+# -- charge_publiee : relit la charge dans le magasin du bus, jamais une copie ------------------------
+def test_charge_publiee_rend_la_charge_publiee_telle_quelle(session):
+    charge = _wct_exemple(ville="Repentigny", photos=["chantier-1.jpg"], type_travaux="gouttières")
+    evenements.publier("m4.travaux_termines", "m04-field-ops", charge, evenement_id=charge["wct_id"])
+
+    relue = evenements.charge_publiee("m4.travaux_termines", charge["wct_id"])
+
+    assert relue == charge  # objets et tableaux imbriqués compris (fix_gps_completion, photos)
+
+
+def test_charge_publiee_inconnue_rend_none(session):
+    evenements.publier("m4.travaux_termines", "m04-field-ops", _wct_exemple(), evenement_id="wct-abc123")
+
+    assert evenements.charge_publiee("m4.travaux_termines", "wct-jamais-publie") is None
+
+
+def test_charge_publiee_ne_rend_jamais_la_charge_d_un_autre_type(session):
+    # L'id existe, mais pour `opsys.demo_complete` : demander ce même id comme un WCT n'en donne rien.
+    evenements.publier("opsys.demo_complete", "test", {"message": "a"}, evenement_id="partage-1")
+
+    assert evenements.charge_publiee("m4.travaux_termines", "partage-1") is None
+    assert evenements.charge_publiee("opsys.demo_complete", "partage-1") == {"message": "a"}
+
+
+def test_charge_publiee_type_hors_catalogue_est_une_erreur_de_programmation(session):
+    with pytest.raises(evenements.TypeEvenementInconnu):
+        evenements.charge_publiee("type.qui.nexiste.pas", "n-importe-quoi")
+
+
+def test_charge_publiee_est_decodee_a_chaque_appel_et_n_ecrit_rien(session):
+    evenements.publier("m4.travaux_termines", "m04-field-ops", _wct_exemple(), evenement_id="wct-abc123")
+    avant = _compte_sortants()
+
+    premiere = evenements.charge_publiee("m4.travaux_termines", "wct-abc123")
+    premiere["fix_gps_completion"]["latitude"] = 0.0  # un appelant qui abîme sa copie...
+    premiere["devis_id"] = "devis-forge"
+
+    seconde = evenements.charge_publiee("m4.travaux_termines", "wct-abc123")
+    assert seconde["fix_gps_completion"]["latitude"] == 45.75  # ...n'abîme jamais le bus
+    assert seconde["devis_id"] == "devis-1"
+    assert _compte_sortants() == avant
+
+
+def _publier_puis_relire_dans_l_outil(echouer: bool) -> dict:
+    evenements.publier("opsys.demo_complete", "m-demo-lecture", {"message": "vu"}, evenement_id="lu-dans-tx")
+    assert evenements.charge_publiee("opsys.demo_complete", "lu-dans-tx") == {"message": "vu"}
+    if echouer:
+        raise ValueError("refus métier après publication")
+    return {"ok": True}
+
+
+def test_charge_publiee_lit_dans_la_transaction_courante(session):
+    outil = Outil("m9_lecture_demo", "Publie puis relit un événement dans la même transaction.",
+                  _SCHEMA_ECHOUER, _publier_puis_relire_dans_l_outil)
+
+    # Dans l'outil, la charge non commitée est visible ; si l'outil échoue, elle disparaît avec lui.
+    assert executer_atomique(outil, {"echouer": True})["ok"] is False
+    assert evenements.charge_publiee("opsys.demo_complete", "lu-dans-tx") is None
+
+    assert executer_atomique(outil, {"echouer": False})["ok"] is True
+    assert evenements.charge_publiee("opsys.demo_complete", "lu-dans-tx") == {"message": "vu"}
+
+
 def test_idempotence_evenement_id_par_defaut_est_unique(session):
     id1 = evenements.publier("opsys.demo_complete", "test", {"message": "a"})
     id2 = evenements.publier("opsys.demo_complete", "test", {"message": "b"})

@@ -1,19 +1,22 @@
 /**
  * Contrat mobile de `m6_declarer_materiaux_utilises` (M6.10, PLAN T1.4-f, DEFINITION-PRODUIT.md
- * §9.3/§9.7 étape 3).
+ * §9.3/§9.7 étape 3 ; PLAN T1.4-i pour l'origine du WCT).
  *
  * Lecture SEULE de `departments/m06-material-control/src/m6_material_control/outils.py`
- * (closure `declarer_materiaux_utilises`, lignes 635-652, et l'entrée `Outil` correspondante,
- * schémas `_WCT`/`_FORMULAIRE_MATERIAUX_UTILISES`/`_LIGNE_DECLAREE_CHANTIER`, lignes 130,
- * 169-202) et de `materiel.py::soumettre_materiaux_utilises` (lignes 131 et suivantes, pour les
- * codes `REJ-*` cités dans sa docstring) — jamais exécuté ni modifié ici (ADR-0008), même
- * discipline que `src/m4/pointage.ts`.
+ * (fonction `declarer_materiaux_utilises` et l'entrée `Outil` correspondante, schémas
+ * `_WCT_ID`/`_FORMULAIRE_MATERIAUX_UTILISES`/`_LIGNE_DECLAREE_CHANTIER`) et de
+ * `materiel.py::soumettre_materiaux_utilises` (pour les codes `REJ-*` cités dans sa docstring) —
+ * jamais exécuté ni modifié ici (ADR-0008), même discipline que `src/m4/pointage.ts`.
  *
- * **`wct` voyage TEL QUEL, jamais retypé champ par champ.** `_WCT` (`outils.py:130`) : « WctRecu
- * — 12 clés exactes émises par M4, reproduites telles quelles. » Ce module ne connaît donc pas la
- * forme interne du WCT (c'est `src/m4/completion.ts::WctRecuM4` qui la porte, opaque au-delà de
- * `wct_id`/`intervention_id`) — le passer VERBATIM, sans reconstruction, est la seule façon de ne
- * jamais inventer un champ qu'il porte peut-être (AGENTS.md).
+ * **Le mobile n'envoie que le `wct_id`, jamais le WCT (PLAN T1.4-i).** Avant T1.4-i, l'outil
+ * exigeait le WCT complet (12 clés) de l'APPELANT et M6 n'en vérifiait que la forme : un appareil
+ * pouvait fabriquer un WCT et rattacher des matériaux à un chantier qui n'existe pas, et l'app
+ * relisait `m4_lire_outbox` pour en garder une copie. Désormais l'outil prend `wct_id` (celui de
+ * l'accusé de `m4_completer_intervention`, `src/m4/completion.ts`) et le formulaire ; M6 relit
+ * lui-même la charge `m4.travaux_termines` publiée par M4 pour cet identifiant. Un `wct_id` que M4
+ * n'a jamais publié est refusé (`REJ-WCT-INCONNU`, affiché TEL QUEL par `materials.tsx`) sans rien
+ * écrire. Ce module ne connaît donc plus rien de la forme du WCT (AGENTS.md : un fait vient de sa
+ * source de vérité, jamais de l'appelant).
  *
  * **Aucune liste « prévue » (M3/M6) pré-remplie — décision documentée, pas un oubli.** Le contrat
  * fixe donné pour cette tranche ne couvre QUE `m4_deposer_fichier`/`m4_etat_fichier` ; aucune
@@ -59,19 +62,19 @@ export interface FormulaireMateriauxUtilisesM6 {
   readonly lignes_materiaux: readonly LigneDeclareeChantierM6[];
 }
 
-/** Args exacts de `m6_declarer_materiaux_utilises` (`wct`, `formulaire` — `registre_historique`
- * omis, réservé aux appels hors transaction/tests du département lui-même, jamais envoyé par
- * l'app). `wct` reste `Readonly<Record<string, unknown>>` : voir en-tête (passthrough opaque). */
+/** Args exacts de `m6_declarer_materiaux_utilises` : `wct_id` et `formulaire`, rien d'autre (le
+ * schéma de l'outil est fermé, `additionalProperties: false`). `wct_id` est TOUJOURS celui du
+ * formulaire : une seule source, jamais deux valeurs qui pourraient diverger (le serveur refuse
+ * de toute façon un formulaire dont le `wct_id` diffère, `REJ-FORMULAIRE-MATERIAUX-WCT-INCOHERENT`). */
 export interface ArgumentsM6DeclarerMateriauxUtilises {
-  readonly wct: Readonly<Record<string, unknown>>;
+  readonly wct_id: string;
   readonly formulaire: FormulaireMateriauxUtilisesM6;
 }
 
 export function construireArgumentsDeclarerMateriauxUtilises(
-  wct: Readonly<Record<string, unknown>>,
   formulaire: FormulaireMateriauxUtilisesM6,
 ): ArgumentsM6DeclarerMateriauxUtilises {
-  return { wct, formulaire };
+  return { wct_id: formulaire.wct_id, formulaire };
 }
 
 export interface VerdictServeurMateriaux {
@@ -98,12 +101,12 @@ function verdictDepuisErreurTechnique(enveloppe: Record<string, unknown>): Verdi
 /**
  * Interprète la réponse BUSINESS de `m6_declarer_materiaux_utilises` — même patron défensif que
  * `interpreterResultatPointage`. **Différence de forme confirmée en lisant `outils.py`
- * (`declarer_materiaux_utilises`, ligne 649) : le verdict de refus ne porte que `{"code": code}`,
+ * (`declarer_materiaux_utilises`) : le verdict de refus ne porte que `{"code": code}`,
  * JAMAIS de `detail`** (contrairement à `verdicts.construire_verdict` utilisé par M4) — `detail`
  * est donc TOUJOURS lu défensivement (`texteOu(..., "")`) ici, une chaîne vide n'étant pas une
  * erreur de lecture mais la forme réelle et attendue de cette réponse précise. Les codes `REJ-*`
  * cités par `materiel.soumettre_materiaux_utilises` (`REJ-ACHAT-TERRAIN-PREUVE-MANQUANTE`,
- * `REJ-DECLARATION-DEJA-SOUMISE`, `REJ-COUT-UNITAIRE-INTROUVABLE`, et ceux de
+ * `REJ-DECLARATION-DEJA-SOUMISE`, `REJ-COUT-UNITAIRE-INTROUVABLE`, `REJ-WCT-INCONNU` (T1.4-i), et ceux de
  * `validation.valider_wct`/`valider_formulaire_materiaux_utilises`, non lus ici) sont affichés
  * TEL QUELS par `materials.tsx`, jamais retraduits en dur dans ce module (même discipline que
  * `complete.tsx`, mission item 2).

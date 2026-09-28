@@ -5,8 +5,6 @@ import {
   interpreterResultatDeclarerMateriauxUtilises,
 } from "./materiaux";
 
-const WCT = { wct_id: "W1", intervention_id: "I1", lead_id: "L1", statut: "completed_pending_review" };
-
 describe("construireLigneDeclaree", () => {
   test("type 'prevu' avec quantite_estimee -> clé incluse", () => {
     const ligne = construireLigneDeclaree({
@@ -56,15 +54,19 @@ describe("construireFormulaireMateriauxUtilises / construireArgumentsDeclarerMat
     expect(formulaire).toEqual({ wct_id: "W1", intervention_id: "I1", chantier_id: "I1", lignes_materiaux: lignes });
     expect(JSON.stringify(formulaire)).not.toMatch(/cout|prix|price/i);
 
-    const args = construireArgumentsDeclarerMateriauxUtilises(WCT, formulaire);
-    expect(args).toEqual({ wct: WCT, formulaire });
+    const args = construireArgumentsDeclarerMateriauxUtilises(formulaire);
+    expect(args).toEqual({ wct_id: "W1", formulaire });
   });
 
-  test("le wct voyage VERBATIM, jamais reconstruit champ par champ", () => {
-    const wctEtendu = { ...WCT, un_champ_futur_inconnu: "valeur" };
-    const args = construireArgumentsDeclarerMateriauxUtilises(wctEtendu, construireFormulaireMateriauxUtilises("W1", "I1", "I1", []));
-    expect(args.wct).toBe(wctEtendu);
-    expect(args.wct.un_champ_futur_inconnu).toBe("valeur");
+  test("n'envoie que wct_id et formulaire : jamais un WCT, jamais un registre", () => {
+    const formulaire = construireFormulaireMateriauxUtilises("W1", "I1", "I1", []);
+    const args = construireArgumentsDeclarerMateriauxUtilises(formulaire);
+    expect(Object.keys(args).sort()).toEqual(["formulaire", "wct_id"]);
+  });
+
+  test("le wct_id est TOUJOURS celui du formulaire : une seule source, jamais deux valeurs divergentes", () => {
+    const formulaire = construireFormulaireMateriauxUtilises("W-accuse", "I1", "I1", []);
+    expect(construireArgumentsDeclarerMateriauxUtilises(formulaire).wct_id).toBe(formulaire.wct_id);
   });
 });
 
@@ -94,6 +96,14 @@ describe("interpreterResultatDeclarerMateriauxUtilises", () => {
     if (!resultat.accepte) {
       expect(resultat.verdict.code).toBe("REJ-DECLARATION-DEJA-SOUMISE");
     }
+  });
+
+  test("REJ-WCT-INCONNU (wct_id que M4 n'a jamais publié) affiché tel quel", () => {
+    const resultat = interpreterResultatDeclarerMateriauxUtilises({
+      ok: true,
+      resultat: { accepte: false, verdict: { code: "REJ-WCT-INCONNU" } },
+    });
+    expect(resultat).toEqual({ accepte: false, verdict: { code: "REJ-WCT-INCONNU", detail: "" } });
   });
 
   test("erreur technique -> accepte:false", () => {

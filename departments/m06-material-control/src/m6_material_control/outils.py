@@ -7,7 +7,10 @@ compose de bout en bout : réception -> écriture du stock -> résolution de pri
 de réception -> signal à M5 -> suggestion de réapprovisionnement, en un seul appel.
 `m6_declarer_materiaux_utilises` (PLAN T1.1-d2) fait de même pour la fin de chantier :
 formulaire enrichi -> mouvements typés (CONSOMMATION/RETOUR/PERTE/BRIS) -> stock théorique
-cohérent, idempotent par wct_id.
+cohérent, idempotent par wct_id. Depuis PLAN T1.4-i, l'appelant ne fournit plus le WCT, seulement
+son `wct_id` : M6 relit la charge `m4.travaux_termines` publiée par M4 (`evenements.charge_publiee`,
+le magasin du bus — AGENTS.md : un fait vient de sa source de vérité, jamais de l'appelant) et la
+valide comme avant ; un `wct_id` que M4 n'a jamais publié est refusé (`REJ-WCT-INCONNU`).
 
 Le registre (append-only hash-chaîné) est durable en production (ADR-0009) : à l'intérieur de la
 transaction que `Capacites.appeler`/`executer_atomique` ouvre pour chaque appel d'outil (point de
@@ -71,6 +74,7 @@ _NOM_REGISTRE_FOURNISSEURS = "fournisseurs"
 _NOM_REGISTRE_LIVRE_PRIX = "livre_prix"
 _NOM_REGISTRE_BONS_COMMANDE = "bons_commande"
 _MANIFESTE = Path(__file__).resolve().parents[2] / "department.yaml"
+_TYPE_EVENEMENT_WCT = "m4.travaux_termines"
 
 _MAILLON = {"type": "object", "description": "Maillon tel que renvoyé par un appel précédent."}
 _REGISTRE_HISTORIQUE = {
@@ -128,6 +132,10 @@ _SEUILS_REORDER = {
     },
 }
 _WCT = {"type": "object", "description": "WctRecu — 12 clés exactes émises par M4, reproduites telles quelles."}
+_WCT_ID = {
+    "type": "string",
+    "description": "Identifiant du WCT tel que M4 l'a publié (m4.travaux_termines) ; M6 en relit la charge.",
+}
 _FORMULAIRE_CONSOMMATION = {
     "type": "object",
     "properties": {
@@ -632,23 +640,51 @@ def consommer_materiaux(
     return {"accepte": True, "resultat": resultat, **_etat_registre(registre_cible)}
 
 
-def declarer_materiaux_utilises(
-    wct: dict[str, Any],
-    formulaire: dict[str, Any],
-    registre_historique: list[dict[str, Any]] | None = None,
-) -> dict[str, Any]:
-    """PLAN T1.1-d2 point 2. En transaction (production) : registre durable, réponse
-    tête + taille seulement (_etat_registre), comme les autres outils d'écriture.
+def _wct_publie_par_m4(wct_id: str) -> dict[str, Any] | None:
+    """Le `WctRecu` de ce `wct_id`, relu dans le bus, ou `None` si M4 ne l'a jamais publié.
+
+    M4 publie `m4.travaux_termines` avec `evenement_id = wct_id`, dans la même transaction que le
+    WCT lui-même (`m4_completer_intervention`) : le magasin du bus est donc la source de vérité du
+    WCT, et un appelant (appareil, modèle) ne peut plus en fabriquer un pour rattacher des
+    matériaux à un chantier qui n'existe pas. `contrats.CHAMPS_WCT` (le `WctRecu` de M6) ne porte
+    pas `statut`, que le catalogue d'événement requiert et dont M6 ne se sert pas : il est retiré
+    ici, tout le reste — clés optionnelles comprises — passe tel quel à `validation.valider_wct`.
+
+    Seule la transaction de l'outil consulte le bus, comme le registre durable et la réévaluation
+    (`_reevaluer_si_wct_connu_par_wct_id`) : hors transaction (appel direct, tests en mémoire),
+    aucune source de vérité n'est joignable, donc rien n'est connu — fail-closed.
+    """
+    if stockage.connexion_courante() is None or not isinstance(wct_id, str) or not wct_id:
+        return None
+    charge = evenements.charge_publiee(_TYPE_EVENEMENT_WCT, wct_id)
+    if charge is None:
+        return None
+    return {cle: valeur for cle, valeur in charge.items() if cle != "statut"}
+
+
+def declarer_materiaux_utilises(wct_id: str, formulaire: dict[str, Any]) -> dict[str, Any]:
+    """PLAN T1.1-d2 point 2, PLAN T1.4-i pour l'origine du WCT. Réponse tête + taille seulement
+    (`_etat_registre`), comme les autres outils d'écriture.
+
+    L'appelant donne le `wct_id` ; M6 lit lui-même la charge `m4.travaux_termines` publiée par M4
+    pour cet identifiant (`_wct_publie_par_m4`) et la valide comme avant (`valider_wct`,
+    `valider_formulaire_materiaux_utilises`, dont la cohérence `formulaire["wct_id"] == wct_id`).
+    `wct_id` inconnu : `REJ-WCT-INCONNU`, avant toute lecture ou écriture du registre.
+
+    Cet outil ne fonctionne que dans la transaction de l'outil (registre durable et bus) : il n'a
+    donc plus de mode `registre_historique` en mémoire.
 
     Correctif (la déclaration arrive presque toujours APRÈS la complétion, R12 §4/§9.7) : si un
     WCT déjà reçu porte ce wct_id, réévalue et republie m6.variance_chantier tout de suite — sans
     attendre une prochaine livraison de m4.travaux_termines qui n'arrivera jamais deux fois."""
-    registre_cible = _registre_de_l_appel(registre_historique)
+    wct = _wct_publie_par_m4(wct_id)
+    if wct is None:
+        return {"accepte": False, "verdict": {"code": "REJ-WCT-INCONNU"}}
+    registre_cible = _registre_de_l_appel(None)
     resultat, code = materiel.soumettre_materiaux_utilises(wct, formulaire, registre_cible)
     if code is not None:
         return {"accepte": False, "verdict": {"code": code}}
-    if stockage.connexion_courante() is not None:
-        _reevaluer_si_wct_connu_par_wct_id(formulaire["wct_id"])
+    _reevaluer_si_wct_connu_par_wct_id(wct_id)
     return {"accepte": True, "resultat": resultat, **_etat_registre(registre_cible)}
 
 
@@ -929,17 +965,19 @@ def outils() -> tuple[Outil, ...]:
                 "bris (sortent du stock sans être une consommation de chantier). Même règle de coût "
                 "unitaire fail-closed que m6_consommer_materiaux, aucun coût inventé. Idempotente par "
                 "wct_id : une seconde déclaration pour le même WCT est refusée nommément, jamais "
-                "réécrite. Distincte de m6_consommer_materiaux, qui garde son contrat "
-                "{materiau_id, quantite} exact et n'est pas remplacé."
+                "réécrite. On ne fournit que le wct_id (celui de l'accusé de m4_completer_intervention) : "
+                "M6 lit lui-même le WCT publié par M4 pour cet identifiant, et refuse un wct_id que M4 "
+                "n'a jamais publié (REJ-WCT-INCONNU) sans rien écrire. Distincte de "
+                "m6_consommer_materiaux, qui garde son contrat {materiau_id, quantite} exact et n'est "
+                "pas remplacé."
             ),
             parametres={
                 "type": "object",
                 "properties": {
-                    "wct": _WCT,
+                    "wct_id": _WCT_ID,
                     "formulaire": _FORMULAIRE_MATERIAUX_UTILISES,
-                    "registre_historique": _REGISTRE_HISTORIQUE,
                 },
-                "required": ["wct", "formulaire"],
+                "required": ["wct_id", "formulaire"],
                 "additionalProperties": False,
             },
             fonction=declarer_materiaux_utilises,

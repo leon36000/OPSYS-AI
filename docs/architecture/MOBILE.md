@@ -776,26 +776,24 @@ n'a PAS de champ « temps réel »** : `duree_reelle_minutes` est calculée PAR 
 pointages déjà envoyés (`outbox.py::calculer_duree_reelle`, lu) — l'écran n'a donc rien à
 transmettre ni à calculer pour §9.7 « temps réel ».
 
-**ÉCART découvert en lisant le serveur (à documenter, cadre de travail) : l'accusé direct de
-`m4_completer_intervention` N'EST PAS le WCT complet.** `outbox.py::completer_intervention`
-(étape 13) renvoie un résumé de 8 clés (`wct_id`, `intervention_id`, `ligne_id`, `statut`,
-`hash_maillon`, `duree_reelle_minutes`, `ecart_signale`, `tete_chaine`) — PAS les 12 clés du
-`WctRecu` complet (`lead_id`, `technicien_id`, `horodatage_completion`, `fix_gps_completion`,
-`revue_id`, `consommateurs_cibles`, `devis_id`, `type_travaux`? en plus des 8 précédentes) que
-`m6_declarer_materiaux_utilises` exige VERBATIM (`_WCT`, « 12 clés exactes émises par M4,
-reproduites telles quelles », `m06.../outils.py:130`). Ce WCT complet n'est PAS dans le contrat
-fixe donné pour cette tranche. **Pont retenu, en lisant le serveur EXISTANT (jamais une
-invention) :** `m4_lire_outbox` (`outils.py`, déjà livré, T1.1-b#3, lecture seule, autonomie T0)
-renvoie `[{"index", "wct"}, ...]` avec le WCT COMPLET (`outbox.lire_outbox`, `maillon[CLE_WCT]`)
-— `complete.tsx` l'appelle DIRECTEMENT (pas par la file, comme `m4_statut_intervention`) juste
-après une complétion acceptée, apparie par `wct_id` (`src/m4/completion.ts::trouverWctParId`,
-jamais seulement `intervention_id`) et met le résultat en cache
-(`src/m4/wctCache.ts::ecrireWctEnCache`, même dépôt clé/valeur partagé que `today.tsx`/
-`checklist.tsx`) pour `materials.tsx`. `m4_lire_outbox` relit l'outbox COMPLET depuis l'index 0 à
-chaque appel (aucun filtre par `wct_id`/`intervention_id` exposé) : un coût à surveiller si
-l'outbox grossit beaucoup (P11) — acceptable pour V1, non optimisé ici. Si le serveur PARALLÈLE
-finit par exposer le WCT complet directement dans l'accusé de `m4_completer_intervention`, ce
-pont devient superflu mais reste inoffensif (une lecture de plus, jamais une écriture).
+**L'accusé direct de `m4_completer_intervention` n'est pas le WCT complet, et n'a pas à l'être
+(PLAN T1.4-i).** `outbox.py::completer_intervention` (étape 13) renvoie un résumé de 8 clés
+(`wct_id`, `intervention_id`, `ligne_id`, `statut`, `hash_maillon`, `duree_reelle_minutes`,
+`ecart_signale`, `tete_chaine`). Il porte `wct_id`, et c'est tout ce que `materials.tsx` envoie à
+`m6_declarer_materiaux_utilises` : M6 relit lui-même la charge `m4.travaux_termines` que M4 a
+publiée pour ce `wct_id` (`evenement_id = wct_id`, même transaction que le WCT). **Avant T1.4-i**,
+l'outil exigeait le WCT complet (12 clés) de l'appelant et n'en vérifiait que la forme : un appareil
+(ou un modèle) pouvait fabriquer un WCT et rattacher des matériaux à un chantier qui n'existe pas,
+et l'app relisait `m4_lire_outbox` (l'outbox COMPLET, sans filtre) pour en garder une copie en
+cache. Cette relecture, le cache du WCT (`src/m4/wctCache.ts`) et les types qui les portaient
+(`WctRecuM4`, `trouverWctParId`, `interpreterResultatLireOutbox`) sont supprimés : un fait vient de
+sa source de vérité, jamais de l'appareil (AGENTS.md). Ce qui reste sur l'appareil, par chantier :
+le seul `wct_id` de l'accusé (`src/m4/wctIdCompletion.ts`, clé `wct_id_<chantier>_v1`, une chaîne),
+parce que l'accusé n'est lu qu'une fois, ici, à la réponse du serveur, et que le lien vers
+`materials.tsx` doit survivre à une navigation ou à un redémarrage (R12 §4). Les anciennes entrées
+`wct_<chantier>_v1` (WCT complet en JSON) ne sont ni lues ni effacées : un appareil dont l'employé a
+terminé un chantier avec l'ancienne version sans avoir rempli les matériaux devra les remplir
+autrement que par ce lien.
 
 **Le verdict serveur est affiché TEL QUEL** (mission item 2) : `complete.succes.statut` porte
 `resultatCompletion.statut` — `completed_pending_review` ou toute autre valeur renvoyée par le
@@ -817,8 +815,11 @@ state PUREMENT local) n'est pas reconstitué à la réouverture — seul le STAT
 mutation (`envoyee`/`echec_permanent`) l'est, et l'écran s'appuie dessus pour ne jamais afficher
 un mensonge (ex. ne jamais dire « en attente d'envoi » pour une mutation déjà `envoyee`, ne
 jamais réactiver le bouton « Terminer » pour une complétion déjà acceptée). Le lien vers
-`materials.tsx` reste lui accessible dans ce cas : il se fonde sur le CACHE WCT
-(`src/m4/wctCache.ts`), pas sur l'état React local. Amélioration possible d'une tranche future :
+`materials.tsx` reste lui accessible dans ce cas : il se fonde sur le `wct_id` mémorisé
+(`src/m4/wctIdCompletion.ts`), pas sur l'état React local. **Exception : si la mutation
+`job_completion` est acceptée par un déclencheur d'arrière-plan, l'accusé (donc le `wct_id`) n'est
+vu par aucun écran** — `wct_id` non mémorisé, lien absent ; même limite qu'avant T1.4-i pour le
+cache du WCT. Amélioration possible d'une tranche future :
 persister le verdict détaillé dans la ligne `outbox` elle-même (même remarque déjà faite pour
 `punch.tsx`).
 
@@ -831,13 +832,23 @@ persister le verdict détaillé dans la ligne `outbox` elle-même (même remarqu
 « Terminer » — DEFINITION-PRODUIT.md §9.3/§9.7 étape 3. Envoie `m6_declarer_materiaux_utilises`
 par la file sortante (mission item 3).
 
-**`wct` lu depuis le cache posé par `complete.tsx`, jamais reconstruit ici** — voir « Écran
-`complete.tsx` » pour le pont `m4_lire_outbox` qui l'a peuplé. `_WCT` (`outils.py:130`) : « 12
-clés exactes émises par M4, reproduites telles quelles » — `src/m6/materiaux.ts` ne connaît donc
-QUE `wct_id`/`intervention_id` (nécessaires pour retrouver/tracer), le reste voyage en
-`Readonly<Record<string, unknown>>` opaque, jamais retypé champ par champ (jamais un champ
-deviné). Aucun WCT en cache -> `materials.aucunWct`, formulaire bloqué (fail-closed) : l'employé
-doit retourner à l'écran « Terminer ».
+**Seul le `wct_id` de l'accusé de complétion est envoyé, avec le formulaire** (PLAN T1.4-i) :
+`m6_declarer_materiaux_utilises({wct_id, formulaire})`, schéma fermé
+(`additionalProperties: false`, plus de `wct` ni de `registre_historique`). `wct_id` vient de
+`src/m4/wctIdCompletion.ts`, écrit par `complete.tsx` à l'acceptation de la complétion ; le
+formulaire porte le même `wct_id` (`construireArgumentsDeclarerMateriauxUtilises` le prend du
+formulaire : une seule source). **M6 lit lui-même le WCT** : la charge `m4.travaux_termines` publiée
+par M4 pour ce `wct_id`, validée comme avant (`valider_wct`, `valider_formulaire_materiaux_utilises`).
+Un `wct_id` que M4 n'a jamais publié est refusé, sans rien écrire : `REJ-WCT-INCONNU`, affiché tel
+quel (échec définitif, comme les autres codes). Aucun `wct_id` mémorisé -> `materials.aucunWct`,
+formulaire bloqué (fail-closed) : l'employé doit retourner à l'écran « Terminer ».
+
+**Ce que ce changement ne règle pas :** le serveur sait
+maintenant que le WCT existe, pas que CET appareil a le droit d'y déclarer. Un appareil appairé peut
+encore envoyer le `wct_id` d'un autre employé (les `wct_id` sont des empreintes non secrètes, publiées
+sur le bus), et `chantier_id`/`intervention_id` du formulaire restent des affirmations de l'appareil.
+Le contrôle d'accès appartient au serveur (M6/M4 avec l'identité authentifiée de l'appel,
+`opsys.contexte.identite_appelante()`), jamais au mobile.
 
 **Aucune quantité ni aucun prix proposés par défaut** (mission item 3, DEFINITION-PRODUIT.md
 §9.3 : « quantités réelles ajustables… **Aucun coût affiché** ») —
@@ -865,9 +876,9 @@ pour éviter un aller-retour réseau voué à l'échec, l'autorité finale reste
 
 **Verdict serveur affiché TEL QUEL** (même discipline que `complete.tsx`) : `REJ-ACHAT-TERRAIN-PREUVE-MANQUANTE`,
 `REJ-DECLARATION-DEJA-SOUMISE` (idempotence par `wct_id` — une seconde déclaration pour le même
-WCT est refusée nommément), `REJ-COUT-UNITAIRE-INTROUVABLE`, et tout autre code de
+WCT est refusée nommément), `REJ-COUT-UNITAIRE-INTROUVABLE`, `REJ-WCT-INCONNU` (T1.4-i), et tout autre code de
 `validation.valider_wct`/`valider_formulaire_materiaux_utilises` (non lus ici, jamais devinés).
-**Forme confirmée en lisant `outils.py` (`declarer_materiaux_utilises`, ligne 649) : le verdict
+**Forme confirmée en lisant `outils.py` (`declarer_materiaux_utilises`) : le verdict
 de refus de CET outil ne porte que `{"code": code}`, JAMAIS de `detail`** — contrairement au
 patron `verdicts.construire_verdict` de M4 ; `src/m6/materiaux.ts` lit donc `detail`
 défensivement (chaîne vide, jamais un plantage).

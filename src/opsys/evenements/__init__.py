@@ -3,6 +3,7 @@
 API fixée (§3, T1.2-a) — d'autres départements la consomment, sa signification ne change pas :
 
     publier(type_evenement, producteur, charge, *, evenement_id=None) -> str
+    charge_publiee(type_evenement, evenement_id) -> dict | None
     repartir(departements, *, limite=100, maintenant=None) -> dict
     etat() -> dict
 
@@ -21,13 +22,14 @@ fonction orpheline.
 
 from __future__ import annotations
 
-from .bus import ChargeInvalide, deja_publie, publier
+from .bus import ChargeInvalide, charge_publiee, deja_publie, publier
 from .repartiteur import etat, repartir, verifier_coherence
 from .schemas import TypeEvenementInconnu, schema, types_connus
 
 __all__ = [
     "ChargeInvalide",
     "TypeEvenementInconnu",
+    "charge_publiee",
     "deja_publie",
     "etat",
     "publier",

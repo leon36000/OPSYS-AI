@@ -14,6 +14,10 @@
   statut redondant republie un id déjà pris (no-op du bus) ; un CHANGEMENT de statut publie un
   événement distinct, que M4 reçoit ; `evaluee` est terminal (court-circuit explicite).
 
+- PLAN T1.4-i : `m6_declarer_materiaux_utilises` prend un `wct_id`, pas un WCT — M6 relit la
+  charge `m4.travaux_termines` publiée par M4 (le bus, source de vérité) ; un `wct_id` jamais publié
+  est refusé (`REJ-WCT-INCONNU`) sans rien écrire. Voir la dernière section de ce fichier.
+
 Base SQLite temporaire migrée (ADR-0009) : ces fonctions touchent TOUJOURS le registre
 durable (`stockage.maillons` direct), jamais le mode `registre_historique` en mémoire de
 `outils.py` (réservé aux outils d'agent testés hors transaction, `test_outils_agent.py`).
@@ -27,7 +31,7 @@ from m6_material_control import besoins_prevus
 from m6_material_control.outils import consommateurs, outils
 from sqlalchemy import func, select
 
-from opsys import stockage
+from opsys import evenements, stockage
 from opsys.outils import executer_atomique
 from opsys.stockage import codec
 from opsys.stockage.schema import EVENEMENTS_SORTANTS
@@ -74,11 +78,15 @@ def _wct_charge(wct_id="wct-1", intervention_id="int-1", devis_id="DEVIS-1", **o
     return base
 
 
-def _wct_pour_m6(**overrides):
-    """WctRecu (contrats.CHAMPS_WCT, 12 clés) : le WCT de M4 SANS son champ `statut`, que
-    seul le catalogue d'événement m4.travaux_termines porte."""
-    wct = _wct_charge(**overrides)
-    return {k: v for k, v in wct.items() if k != "statut"}
+def _publier_wct(wct_id="wct-1", intervention_id="int-1", **overrides):
+    """Ce que M4 fait en complétant une intervention : publie `m4.travaux_termines` avec
+    `evenement_id = wct_id`. C'est là que `m6_declarer_materiaux_utilises` relit le WCT (PLAN
+    T1.4-i) — jamais dans un argument de l'appelant. Idempotent, comme `publier`."""
+    with stockage.transaction():
+        evenements.publier(
+            "m4.travaux_termines", "m04-field-ops",
+            _wct_charge(wct_id=wct_id, intervention_id=intervention_id, **overrides), evenement_id=wct_id,
+        )
 
 
 def _enregistrer_besoins(m6, chantier_id, devis_id, quantite_estimee=10.0, materiau_id="MAT-1"):
@@ -113,9 +121,10 @@ def _receptionner(m6, chantier_id, materiau_id, quantite, po_id):
 
 
 def _declarer_materiaux(m6, wct_id, intervention_id, chantier_id, quantite, materiau_id="MAT-1"):
+    _publier_wct(wct_id, intervention_id)
     _receptionner(m6, chantier_id, materiau_id, max(quantite, 1.0) * 2, po_id=f"PO-{wct_id}")
     reponse = executer_atomique(m6["m6_declarer_materiaux_utilises"], {
-        "wct": _wct_pour_m6(wct_id=wct_id, intervention_id=intervention_id),
+        "wct_id": wct_id,
         "formulaire": {
             "wct_id": wct_id, "intervention_id": intervention_id, "chantier_id": chantier_id,
             "lignes_materiaux": [{
@@ -228,8 +237,9 @@ def test_lignes_reprend_plusieurs_materiaux_dans_lordre_trie(base_durable):
     _receptionner(m6, "C1", "MAT-A", 40.0, po_id="PO-A")
     _receptionner(m6, "C1", "MAT-B", 10.0, po_id="PO-B")
     _receptionner(m6, "C1", "MAT-C", 5.0, po_id="PO-C")
+    _publier_wct("wct-1", "int-1")
     r = executer_atomique(m6["m6_declarer_materiaux_utilises"], {
-        "wct": _wct_pour_m6(wct_id="wct-1", intervention_id="int-1"),
+        "wct_id": "wct-1",
         "formulaire": {
             "wct_id": "wct-1", "intervention_id": "int-1", "chantier_id": "C1",
             "lignes_materiaux": [
@@ -431,7 +441,7 @@ def test_double_appel_declarer_materiaux_utilises_naucun_doublon(base_durable):
     assert _compte_sortants("m6.variance_chantier") == 2  # prevu_absent (WCT reçu) puis evaluee
 
     reponse = executer_atomique(m6["m6_declarer_materiaux_utilises"], {
-        "wct": _wct_pour_m6(wct_id="wct-1", intervention_id="int-1"),
+        "wct_id": "wct-1",
         "formulaire": {
             "wct_id": "wct-1", "intervention_id": "int-1", "chantier_id": "C1",
             "lignes_materiaux": [{
@@ -584,3 +594,138 @@ def test_texte_decimal_ne_touche_pas_un_vrai_negatif():
 
 def test_texte_decimal_valeur_positive():
     assert outils_mod._texte_decimal(0.4) == "0.4"
+
+
+# -- PLAN T1.4-i : `m6_declarer_materiaux_utilises` relit le WCT au bus, jamais chez l'appelant -----
+def _formulaire_declaration(wct_id="wct-1", chantier_id="C1", quantite=10.0):
+    return {
+        "wct_id": wct_id, "intervention_id": "int-1", "chantier_id": chantier_id,
+        "lignes_materiaux": [{
+            "type_ligne": "prevu", "materiau_id": "MAT-1", "quantite": quantite,
+            "unite": "boite", "quantite_estimee": quantite,
+        }],
+    }
+
+
+def _mouvements_du_registre():
+    with stockage.transaction():
+        return list(stockage.maillons("m06-material-control", "principal"))
+
+
+def _declarer(m6, wct_id, formulaire):
+    return executer_atomique(m6["m6_declarer_materiaux_utilises"], {"wct_id": wct_id, "formulaire": formulaire})
+
+
+def test_wct_id_jamais_publie_est_refuse_sans_rien_ecrire(base_durable):
+    """Le cas que l'ancien contrat laissait passer : un WCT fabriqué par l'appelant. Le coût
+    unitaire est connu (réception faite), donc SEULE l'origine du WCT manque."""
+    m6 = {o.nom: o for o in outils()}
+    _receptionner(m6, "C1", "MAT-1", 20.0, po_id="PO-1")
+    registre_avant, sortants_avant = _mouvements_du_registre(), _compte_sortants()
+
+    reponse = _declarer(m6, "wct-fabrique", _formulaire_declaration("wct-fabrique"))
+
+    assert reponse["ok"] is True
+    assert reponse["resultat"] == {"accepte": False, "verdict": {"code": "REJ-WCT-INCONNU"}}
+    assert _mouvements_du_registre() == registre_avant, "aucun mouvement de stock n'est écrit"
+    assert _compte_sortants() == sortants_avant, "aucun événement n'est publié"
+
+
+def test_wct_id_d_un_evenement_d_un_autre_type_est_refuse(base_durable):
+    """L'identifiant existe au bus, mais pas comme `m4.travaux_termines` : ce n'est pas un WCT."""
+    m6 = {o.nom: o for o in outils()}
+    _receptionner(m6, "C1", "MAT-1", 20.0, po_id="PO-1")
+    with stockage.transaction():
+        evenements.publier("opsys.demo_complete", "test", {"message": "pas un WCT"}, evenement_id="wct-autre-type")
+    registre_avant = _mouvements_du_registre()
+
+    reponse = _declarer(m6, "wct-autre-type", _formulaire_declaration("wct-autre-type"))
+
+    assert reponse["resultat"] == {"accepte": False, "verdict": {"code": "REJ-WCT-INCONNU"}}
+    assert _mouvements_du_registre() == registre_avant
+
+
+def test_formulaire_d_un_autre_wct_est_refuse_meme_si_le_wct_id_est_publie(base_durable):
+    m6 = {o.nom: o for o in outils()}
+    _publier_wct("wct-1")
+    _publier_wct("wct-2")
+    _receptionner(m6, "C1", "MAT-1", 20.0, po_id="PO-1")
+    registre_avant = _mouvements_du_registre()
+
+    reponse = _declarer(m6, "wct-1", _formulaire_declaration("wct-2"))
+
+    assert reponse["resultat"]["accepte"] is False
+    assert reponse["resultat"]["verdict"]["code"] == "REJ-FORMULAIRE-MATERIAUX-WCT-INCOHERENT"
+    assert _mouvements_du_registre() == registre_avant
+
+
+def test_wct_publie_est_valide_comme_avant(base_durable):
+    """La charge relue passe par `valider_wct` : un événement publié dont les cibles n'incluent
+    pas M6 reste refusé, avec le même code nommé qu'avant."""
+    m6 = {o.nom: o for o in outils()}
+    _publier_wct("wct-1", consommateurs_cibles=["M5"])
+    _receptionner(m6, "C1", "MAT-1", 20.0, po_id="PO-1")
+    registre_avant = _mouvements_du_registre()
+
+    reponse = _declarer(m6, "wct-1", _formulaire_declaration())
+
+    assert reponse["resultat"]["accepte"] is False
+    assert reponse["resultat"]["verdict"]["code"] == "REJ-WCT-CONSOMMATEUR-M6-ABSENT"
+    assert _mouvements_du_registre() == registre_avant
+
+
+def test_wct_publie_avec_ses_champs_optionnels_est_accepte(base_durable):
+    """Le WCT réel porte `statut` (requis par le catalogue, pas par le `WctRecu` de M6) et, quand
+    M4 les connaît, `type_travaux` et les faits du client : tout passe, rien n'est demandé de plus."""
+    m6 = {o.nom: o for o in outils()}
+    _publier_wct(
+        "wct-1", type_travaux="gouttières", ville="Repentigny", photos=["fichier:sha256:ab"],
+        description_factuelle="Gouttières en aluminium posées.", consentement_marketing=True,
+        client_satisfait=None,
+    )
+    _receptionner(m6, "C1", "MAT-1", 20.0, po_id="PO-1")
+
+    reponse = _declarer(m6, "wct-1", _formulaire_declaration())
+
+    assert reponse["ok"] is True and reponse["resultat"]["accepte"] is True, reponse
+    ecrits = [m for m in _mouvements_du_registre() if m.get("wct_id") == "wct-1"]
+    assert [(m["type_mouvement"], m["quantite"]) for m in ecrits] == [("CONSOMMATION", -10.0)]
+
+
+def test_l_appelant_ne_peut_plus_fournir_le_wct(base_durable):
+    """Ni à la place du `wct_id`, ni en plus : le schéma de l'outil est fermé."""
+    m6 = {o.nom: o for o in outils()}
+    _publier_wct("wct-1")
+    wct_fabrique = {k: v for k, v in _wct_charge().items() if k != "statut"}
+    registre_avant = _mouvements_du_registre()
+
+    en_plus = executer_atomique(m6["m6_declarer_materiaux_utilises"], {
+        "wct_id": "wct-1", "wct": wct_fabrique, "formulaire": _formulaire_declaration(),
+    })
+    a_la_place = executer_atomique(m6["m6_declarer_materiaux_utilises"], {
+        "wct": wct_fabrique, "formulaire": _formulaire_declaration(),
+    })
+
+    assert en_plus["ok"] is False and en_plus["erreur"] == "arguments_invalides"
+    assert a_la_place["ok"] is False and a_la_place["erreur"] == "arguments_invalides"
+    assert _mouvements_du_registre() == registre_avant
+
+
+def test_hors_transaction_meme_un_wct_publie_reste_inconnu(base_durable):
+    """Hors transaction (appel direct, tests en mémoire), ni le registre durable ni le bus ne sont
+    joignables : fail-closed, jamais un WCT deviné ni un registre en mémoire qui l'accepterait."""
+    _publier_wct("wct-1")
+
+    resultat = outils_mod.declarer_materiaux_utilises("wct-1", _formulaire_declaration())
+
+    assert resultat == {"accepte": False, "verdict": {"code": "REJ-WCT-INCONNU"}}
+
+
+@pytest.mark.parametrize("wct_id", ["", None, 12, {"wct_id": "wct-1"}])
+def test_wct_id_qui_n_est_pas_un_texte_est_refuse_sans_erreur_technique(base_durable, wct_id):
+    _publier_wct("wct-1")
+
+    with stockage.transaction():
+        resultat = outils_mod.declarer_materiaux_utilises(wct_id, _formulaire_declaration())
+
+    assert resultat == {"accepte": False, "verdict": {"code": "REJ-WCT-INCONNU"}}

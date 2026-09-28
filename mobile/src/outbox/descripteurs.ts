@@ -44,7 +44,7 @@ function versInterpretationGeneriqueDeposerFichier(resultatBrut: unknown): Inter
 /** Même rôle, pour `m4_completer_intervention` (`src/m4/completion.ts`, PLAN T1.4-f) —
  * `complete.tsx`, « Terminer ». `resume` porte l'accusé (8 clés, PAS le WCT complet — voir
  * `completion.ts` en-tête) : `complete.tsx` lit `RapportVidange.resultatsAcceptes` pour
- * retrouver ce `resume` et enchaîner le pont `m4_lire_outbox` avant `materials.tsx`. */
+ * retrouver ce `resume` et mémoriser son `wct_id` avant `materials.tsx`. */
 function versInterpretationGeneriqueCompletion(resultatBrut: unknown): InterpretationResultatMetier {
   const interpretation = interpreterResultatCompleterIntervention(resultatBrut);
   if (interpretation.accepte) {

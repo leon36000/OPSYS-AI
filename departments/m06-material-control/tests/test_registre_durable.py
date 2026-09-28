@@ -23,7 +23,7 @@ from m6_material_control import bons_commande, fournisseurs, livre_prix, materie
 from m6_material_control.registre import Registre
 from sqlalchemy import select, update
 
-from opsys import stockage
+from opsys import evenements, stockage
 from opsys.stockage import EcritureConcurrente, MaillonsDurables, codec
 from opsys.stockage.schema import REGISTRES
 
@@ -302,9 +302,14 @@ def test_soumettre_materiaux_utilises_survit_au_stockage_durable_wct_id_inclus(b
 def test_outils_declarer_materiaux_utilises_utilise_le_registre_durable_en_production(base_sqlite):
     with stockage.transaction():
         outils.receptionner_commande(_bon_demande(), _reception_po(), _catalogue())
+        # PLAN T1.4-i : le WCT vient du bus, là où M4 le publie en complétant l'intervention.
+        evenements.publier(
+            "m4.travaux_termines", "m04-field-ops", {**_wct(), "statut": "completed_pending_review"},
+            evenement_id=_wct()["wct_id"],
+        )
 
     with stockage.transaction():
-        reponse = outils.declarer_materiaux_utilises(_wct(), _formulaire_materiaux_utilises())
+        reponse = outils.declarer_materiaux_utilises(_wct()["wct_id"], _formulaire_materiaux_utilises())
 
     assert reponse["accepte"] is True
     relu = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE)

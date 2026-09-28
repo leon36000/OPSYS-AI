@@ -1,13 +1,19 @@
-"""Capacités d'agent de M6 : contrat des outils et chaîne matériel composée."""
+"""Capacités d'agent de M6 : contrat des outils et chaîne matériel composée.
+
+Hors transaction (registre en mémoire, `registre_historique` retransmis d'un appel à l'autre),
+sauf `m6_declarer_materiaux_utilises` : depuis PLAN T1.4-i cet outil relit le WCT dans le bus, donc
+ne tourne que dans la transaction de l'instance (fixture `base_durable`, `executer_atomique`)."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from m6_material_control.outils import outils
 
+from opsys import evenements, stockage
 from opsys.departements import lire_manifeste
-from opsys.outils import Autonomie, executer
+from opsys.outils import Autonomie, executer, executer_atomique
 
 
 def _outil(nom):
@@ -51,6 +57,44 @@ def _wct():
         "consommateurs_cibles": ["M6"],
         "devis_id": None,
     }
+
+
+@pytest.fixture
+def base_durable(tmp_path, monkeypatch):
+    """Base SQLite temporaire migrée (ADR-0009) : registre durable de M6 et bus, comme en production."""
+    url = f"sqlite:///{tmp_path / 'm6-outils-agent.db'}"
+    monkeypatch.setenv(stockage.ENV_URL, url)
+    stockage.migrer(url)
+    yield url
+    stockage.liberer()
+
+
+def _publier_wct():
+    """Ce que M4 publie en complétant l'intervention (`evenement_id = wct_id`) : la source de
+    vérité du WCT pour `m6_declarer_materiaux_utilises`. `statut` s'ajoute aux 12 clés de `_wct()`."""
+    wct = _wct()
+    with stockage.transaction():
+        evenements.publier(
+            "m4.travaux_termines", "m04-field-ops", {**wct, "statut": "completed_pending_review"},
+            evenement_id=wct["wct_id"],
+        )
+
+
+def _receptionner_durable():
+    reponse = executer_atomique(
+        _outil("m6_receptionner_commande"),
+        {"bon_demande": _bon_demande(), "reception_po": _reception_po(), "catalogue_materiaux": _catalogue()},
+    )
+    assert reponse["ok"] is True and reponse["resultat"]["accepte"] is True, reponse
+
+
+def _declarer_durable(formulaire, wct_id="w1"):
+    return executer_atomique(_outil("m6_declarer_materiaux_utilises"), {"wct_id": wct_id, "formulaire": formulaire})
+
+
+def _mouvements_durables():
+    with stockage.transaction():
+        return list(stockage.maillons("m06-material-control", "principal"))
 
 
 def test_manifeste_et_outils_coherents():
@@ -200,73 +244,68 @@ def _ligne_prevu(materiau_id="MAT-1", quantite=4.0, quantite_estimee=4.0, unite=
     }
 
 
-def test_declarer_materiaux_utilises_apres_reception_ecrit_une_consommation():
-    r1 = executer(
-        _outil("m6_receptionner_commande"),
-        {"bon_demande": _bon_demande(), "reception_po": _reception_po(), "catalogue_materiaux": _catalogue()},
-    )
-    historique = r1["resultat"]["registre_historique"]
+def test_declarer_materiaux_utilises_apres_reception_ecrit_une_consommation(base_durable):
+    _publier_wct()
+    _receptionner_durable()
+    avant = _mouvements_durables()
 
-    r2 = executer(
-        _outil("m6_declarer_materiaux_utilises"),
-        {"wct": _wct(), "formulaire": _formulaire_materiaux([_ligne_prevu()]), "registre_historique": historique},
-    )
+    r2 = _declarer_durable(_formulaire_materiaux([_ligne_prevu()]))
 
     assert r2["ok"] is True
     assert r2["resultat"]["accepte"] is True
-    nouveaux = r2["resultat"]["registre_historique"][len(historique):]
+    nouveaux = _mouvements_durables()[len(avant):]
     assert len(nouveaux) == 1
     assert nouveaux[0]["type_mouvement"] == "CONSOMMATION"
     assert nouveaux[0]["quantite"] == -4.0
     assert nouveaux[0]["wct_id"] == "w1"
+    # Registre durable : tête + taille, jamais l'historique (contrat des outils d'écriture en production).
+    assert "registre_historique" not in r2["resultat"]
+    assert r2["resultat"]["registre"]["taille"] == len(avant) + 1
 
 
-def test_declarer_materiaux_utilises_achat_terrain_sans_preuve_est_refuse_nomme():
-    r1 = executer(
-        _outil("m6_receptionner_commande"),
-        {"bon_demande": _bon_demande(), "reception_po": _reception_po(), "catalogue_materiaux": _catalogue()},
-    )
-    historique = r1["resultat"]["registre_historique"]
+def test_declarer_materiaux_utilises_achat_terrain_sans_preuve_est_refuse_nomme(base_durable):
+    _publier_wct()
+    _receptionner_durable()
+    avant = _mouvements_durables()
     ligne = {
         "type_ligne": "achat_terrain", "materiau_id": "MAT-1", "quantite": 1.0,
         "unite": "boite", "photo_fournie": False, "recu_fourni": False,
     }
 
-    r2 = executer(
-        _outil("m6_declarer_materiaux_utilises"),
-        {"wct": _wct(), "formulaire": _formulaire_materiaux([ligne]), "registre_historique": historique},
-    )
+    r2 = _declarer_durable(_formulaire_materiaux([ligne]))
 
     assert r2["ok"] is True
     assert r2["resultat"]["accepte"] is False
     assert r2["resultat"]["verdict"]["code"] == "REJ-ACHAT-TERRAIN-PREUVE-MANQUANTE"
+    assert _mouvements_durables() == avant
 
 
-def test_declarer_materiaux_utilises_une_seconde_fois_pour_le_meme_wct_est_refuse():
-    r1 = executer(
-        _outil("m6_receptionner_commande"),
-        {"bon_demande": _bon_demande(), "reception_po": _reception_po(), "catalogue_materiaux": _catalogue()},
-    )
-    historique = r1["resultat"]["registre_historique"]
+def test_declarer_materiaux_utilises_une_seconde_fois_pour_le_meme_wct_est_refuse(base_durable):
+    _publier_wct()
+    _receptionner_durable()
     formulaire = _formulaire_materiaux([_ligne_prevu()])
 
-    r2 = executer(
-        _outil("m6_declarer_materiaux_utilises"),
-        {"wct": _wct(), "formulaire": formulaire, "registre_historique": historique},
-    )
-    historique_apres_r2 = r2["resultat"]["registre_historique"]
-    r3 = executer(
-        _outil("m6_declarer_materiaux_utilises"),
-        {"wct": _wct(), "formulaire": formulaire, "registre_historique": historique_apres_r2},
-    )
+    r2 = _declarer_durable(formulaire)
+    apres_r2 = _mouvements_durables()
+    r3 = _declarer_durable(formulaire)
 
     assert r2["resultat"]["accepte"] is True
     assert r3["ok"] is True
     assert r3["resultat"]["accepte"] is False
     assert r3["resultat"]["verdict"]["code"] == "REJ-DECLARATION-DEJA-SOUMISE"
-    # Un refus n'écrit rien : pas de clé registre_historique dans la réponse (même
-    # patron que m6_consommer_materiaux/m6_receptionner_commande sur refus).
-    assert "registre_historique" not in r3["resultat"]
+    # Un refus n'écrit rien : ni mouvement, ni clé `registre` dans la réponse (même patron que
+    # m6_consommer_materiaux/m6_receptionner_commande sur refus).
+    assert _mouvements_durables() == apres_r2
+    assert "registre" not in r3["resultat"]
+
+
+def test_declarer_materiaux_utilises_sans_registre_historique_ni_wct_dans_le_schema():
+    """T1.4-i : l'outil ne prend que `wct_id` et `formulaire` — plus de WCT fourni par l'appelant, plus
+    de registre en mémoire (il ne tourne que dans la transaction de l'instance)."""
+    schema = _outil("m6_declarer_materiaux_utilises").parametres
+    assert set(schema["properties"]) == {"wct_id", "formulaire"}
+    assert set(schema["required"]) == {"wct_id", "formulaire"}
+    assert schema["additionalProperties"] is False
 
 
 # --- m6_soumettre_comptage ---------------------------------------------------
@@ -418,33 +457,21 @@ def test_evaluer_variance_chantier_seuil_manquant_est_un_refus_de_schema():
     assert reponse["erreur"] == "arguments_invalides"
 
 
-def test_evaluer_variance_chantier_lit_le_reel_directement_au_registre_par_wct_id():
+def test_evaluer_variance_chantier_lit_le_reel_directement_au_registre_par_wct_id(base_durable):
     """PLAN T1.1-d2 point 3 : m6_declarer_materiaux_utilises écrit, puis
     m6_evaluer_variance_chantier relit sans que lignes_declarees soit retransporté."""
-    r1 = executer(
-        _outil("m6_receptionner_commande"),
-        {"bon_demande": _bon_demande(), "reception_po": _reception_po(), "catalogue_materiaux": _catalogue()},
-    )
-    historique = r1["resultat"]["registre_historique"]
+    _publier_wct()
+    _receptionner_durable()
+    r2 = _declarer_durable(_formulaire_materiaux([_ligne_prevu(quantite=4.0, quantite_estimee=4.0)]))
+    assert r2["resultat"]["accepte"] is True
 
-    r2 = executer(
-        _outil("m6_declarer_materiaux_utilises"),
-        {
-            "wct": _wct(),
-            "formulaire": _formulaire_materiaux([_ligne_prevu(quantite=4.0, quantite_estimee=4.0)]),
-            "registre_historique": historique,
-        },
-    )
-    historique_apres_declaration = r2["resultat"]["registre_historique"]
-
-    r3 = executer(
+    r3 = executer_atomique(
         _outil("m6_evaluer_variance_chantier"),
         {
             "chantier_id": "C1",
             "besoins_estimes": [_besoin_estime(quantite_estimee=4.0)],
             "wct_id": "w1",
             "seuil_pourcentage": 0.30,
-            "registre_historique": historique_apres_declaration,
         },
     )
 

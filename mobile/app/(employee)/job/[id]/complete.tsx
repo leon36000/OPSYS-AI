@@ -10,14 +10,13 @@ import { candidatSignature, candidatsPhotosApres } from "@/fichiers/candidats";
 import { envoyerFichiersDuChantier } from "@/fichiers/service";
 import { evaluerPreparationCompletion } from "@/ecrans/complete";
 import type { RaisonBlocageCompletion } from "@/ecrans/complete";
-import { construireArgumentsCompleterIntervention, estAccuseCompletionM4, interpreterResultatLireOutbox, trouverWctParId } from "@/m4/completion";
+import { construireArgumentsCompleterIntervention, estAccuseCompletionM4 } from "@/m4/completion";
 import type { VerdictServeurCompletion } from "@/m4/completion";
-import { ecrireWctEnCache, lireWctEnCache } from "@/m4/wctCache";
+import { ecrireWctIdCompletion, lireWctIdCompletion } from "@/m4/wctIdCompletion";
 import { genererMutationId } from "@/outbox/id";
 import { creerMutation, formaterHorodatageLocal, soumettreMutation } from "@/outbox/mutation";
 import { declencherVidange, obtenirDepot } from "@/outbox/service";
 import type { MutationOutbox } from "@/outbox/types";
-import { invoquerOutil } from "@/protocole/client";
 import { obtenirConfigurationAppel } from "@/protocole/configuration";
 import { obtenirDepotLocal } from "@/stockage/service";
 
@@ -46,10 +45,10 @@ import { obtenirDepotLocal } from "@/stockage/service";
  * (`src/outbox/declencheurs.ts`, premier plan/retour réseau) reprennent ensuite ce qui reste en
  * file même si l'employé quitte cet écran avant la fin.
  *
- * **Pont `m4_lire_outbox` vers le WCT complet** : voir la docstring de `src/m4/completion.ts`
- * pour l'écart découvert (l'accusé direct de `m4_completer_intervention` n'est PAS le WCT complet
- * que `m6_declarer_materiaux_utilises` exige) — cet écran lit `m4_lire_outbox` juste après une
- * complétion acceptée et met le WCT complet en cache (`src/m4/wctCache.ts`) pour `materials.tsx`.
+ * **Seul le `wct_id` de l'accusé est mémorisé pour `materials.tsx`** (`src/m4/wctIdCompletion.ts`) :
+ * depuis PLAN T1.4-i, `m6_declarer_materiaux_utilises` prend ce `wct_id` et M6 relit lui-même le
+ * WCT que M4 a publié — plus de relecture de `m4_lire_outbox` ni de copie du WCT sur l'appareil
+ * (voir la docstring de `src/m4/completion.ts`).
  *
  * Écran non testé en rendu (même limite que les autres écrans de cette tranche) :
  * `src/ecrans/complete.ts`, `src/fichiers/*`, `src/m4/completion.ts` portent la logique, testée
@@ -87,17 +86,17 @@ export default function EcranCompletion() {
       }
       const items = await chargerChecklist(interventionId);
       await rafraichirMutations();
-      // Un WCT déjà en cache signifie qu'une complétion a déjà réussi PAR LE PASSÉ (cet écran ou
-      // une session précédente) : rend le lien vers `materials.tsx` accessible dès ce montage,
-      // sans dépendre de `resultatCompletion` (purement local à CETTE instance de l'écran — voir
-      // la note sur `enAttenteConfirmation` plus bas, même limite documentée que `punch.tsx`).
-      const wctDejaConnu = await lireWctEnCache(await obtenirDepotLocal(), interventionId);
+      // Un `wct_id` déjà mémorisé signifie qu'une complétion a déjà réussi PAR LE PASSÉ (cet
+      // écran ou une session précédente) : rend le lien vers `materials.tsx` accessible dès ce
+      // montage, sans dépendre de `resultatCompletion` (purement local à CETTE instance de l'écran
+      // — voir la note sur `enAttenteConfirmation` plus bas, même limite documentée que `punch.tsx`).
+      const wctIdDejaConnu = await lireWctIdCompletion(await obtenirDepotLocal(), interventionId);
       if (annule) {
         return;
       }
       setChecklistItems(items);
       setCharge(true);
-      if (wctDejaConnu) {
+      if (wctIdDejaConnu) {
         setPretPourMateriaux(true);
       }
       // Meilleur effort : démarre l'envoi des fichiers dès l'arrivée sur cet écran (photos
@@ -173,24 +172,10 @@ export default function EcranCompletion() {
       if (accepte && estAccuseCompletionM4(accepte.resume)) {
         setResultatCompletion({ statut: accepte.resume.statut });
 
-        // Pont m4_lire_outbox -> WCT complet (voir src/m4/completion.ts, en-tête).
-        const wctId = accepte.resume.wct_id;
-        const resultatLecture = await invoquerOutil({
-          fetchImpl: fetch,
-          urlBase: configuration.urlBase,
-          jeton: configuration.jeton,
-          requete: { tool: "m4_lire_outbox", args: {}, deviceId: configuration.appareilId },
-        });
-        if (resultatLecture.ok) {
-          const interpretation = interpreterResultatLireOutbox(resultatLecture.result);
-          if (interpretation.ok) {
-            const wct = trouverWctParId(interpretation.entrees, wctId);
-            if (wct) {
-              await ecrireWctEnCache(await obtenirDepotLocal(), interventionId, wct);
-              setPretPourMateriaux(true);
-            }
-          }
-        }
+        // Le `wct_id` de l'accusé est tout ce que `materials.tsx` enverra à M6, qui relit le WCT
+        // publié par M4 (voir src/m4/completion.ts, en-tête).
+        await ecrireWctIdCompletion(await obtenirDepotLocal(), interventionId, accepte.resume.wct_id);
+        setPretPourMateriaux(true);
       }
       // Ni accepté ni rejeté après cette tentative : la mutation reste `en_attente` (hors ligne) —
       // pas une erreur, voir complete.enAttenteEnvoi ci-dessous.
