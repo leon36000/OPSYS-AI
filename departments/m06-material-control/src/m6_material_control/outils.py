@@ -45,11 +45,9 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from sqlalchemy import select
 
 from opsys import evenements, stockage
 from opsys.outils import Autonomie, Outil
-from opsys.stockage.schema import EVENEMENTS_SORTANTS
 
 from . import besoins_prevus, digest, materiel, validation, variance_chantier, wct_recus
 from . import catalogue as catalogue_module
@@ -308,17 +306,6 @@ def _texte_decimal(valeur: float | None) -> str | None:
     return None if valeur is None else str(valeur + 0.0)
 
 
-def _evenement_deja_publie(evenement_id: str) -> bool:
-    """Une ligne `evenements_sortants` porte déjà cet id, tel quel — la même vérité que
-    `evenements.publier` utilise pour son propre no-op (`ON CONFLICT DO NOTHING`), lue ici pour
-    éviter le travail (et l'écriture) d'une réévaluation qu'on sait déjà terminale."""
-    with stockage.transaction() as cnx:
-        ligne = cnx.execute(
-            select(EVENEMENTS_SORTANTS.c.evenement_id).where(EVENEMENTS_SORTANTS.c.evenement_id == evenement_id)
-        ).first()
-    return ligne is not None
-
-
 def _evaluer_et_publier_variance(wct_recu: dict[str, Any]) -> dict[str, Any]:
     """Compare le prévu (m6_enregistrer_besoins_prevus) au réel déclaré pour ce wct_id
     (m6_declarer_materiaux_utilises, T1.1-d2) et publie `m6.variance_chantier`. DÉTERMINISTE
@@ -362,7 +349,7 @@ def _evaluer_et_publier_variance(wct_recu: dict[str, Any]) -> dict[str, Any]:
     devis_id = wct_recu.get("devis_id")
     horodatage_completion = wct_recu["horodatage_completion"]
 
-    if _evenement_deja_publie(f"m6-variance-{wct_id}-evaluee"):
+    if evenements.deja_publie(f"m6-variance-{wct_id}-evaluee"):
         return {"traite": True, "statut_variance": "evaluee"}
 
     mouvements = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE)

@@ -167,6 +167,13 @@ def test_idempotence_evenement_id_fourni_deux_fois(session):
     assert _compte_sortants(EVENEMENTS_SORTANTS.c.evenement_id == "fixe-1") == 1
 
 
+def test_deja_publie_reflete_la_table_du_bus(session):
+    assert evenements.deja_publie("fixe-2") is False
+    evenements.publier("opsys.demo_complete", "test", {"message": "a"}, evenement_id="fixe-2")
+    assert evenements.deja_publie("fixe-2") is True
+    assert evenements.deja_publie("fixe-3") is False
+
+
 def test_idempotence_evenement_id_par_defaut_est_unique(session):
     id1 = evenements.publier("opsys.demo_complete", "test", {"message": "a"})
     id2 = evenements.publier("opsys.demo_complete", "test", {"message": "b"})

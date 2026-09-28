@@ -466,10 +466,6 @@ def test_evaluee_deja_publie_court_circuite_sans_reevaluer(base_durable):
     assert _compte_sortants("m6.variance_chantier") == nb_avant, "aucune republication après evaluee"
 
 
-def test_evenement_deja_publie_detecte_par_id_exact(base_durable):
-    assert outils_mod._evenement_deja_publie("id-qui-nexiste-pas") is False
-
-
 # -- _texte_decimal : quantités/écart de m6.variance_chantier.lignes en texte -------------------
 def test_texte_decimal_none_reste_none():
     assert outils_mod._texte_decimal(None) is None

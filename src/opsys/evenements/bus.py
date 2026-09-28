@@ -13,13 +13,15 @@ import uuid
 from collections.abc import Mapping
 from typing import Any
 
+from sqlalchemy import select
+
 from ..outils import valider_arguments
 from ..stockage import codec, inserer, transaction
 from ..stockage.schema import EVENEMENTS_SORTANTS
 from .schemas import TypeEvenementInconnu
 from .schemas import schema as schema_catalogue
 
-__all__ = ["ChargeInvalide", "TypeEvenementInconnu", "publier"]
+__all__ = ["ChargeInvalide", "TypeEvenementInconnu", "deja_publie", "publier"]
 
 
 class ChargeInvalide(ValueError):
@@ -63,3 +65,17 @@ def publier(
         )
         cnx.execute(insertion.on_conflict_do_nothing(index_elements=[EVENEMENTS_SORTANTS.c.evenement_id]))
     return ident
+
+
+def deja_publie(evenement_id: str) -> bool:
+    """Vrai si `evenements_sortants` porte déjà cet `evenement_id`, lu dans la transaction courante.
+
+    Pour un producteur dont l'identifiant d'événement encode un état terminal (ex. M6,
+    `m6-variance-<wct_id>-evaluee`) : il évite de recalculer ce qu'il sait déjà publié. Les
+    départements passent par cette fonction plutôt que par la table du bus, qui reste au socle.
+    """
+    with transaction() as cnx:
+        ligne = cnx.execute(
+            select(EVENEMENTS_SORTANTS.c.evenement_id).where(EVENEMENTS_SORTANTS.c.evenement_id == evenement_id)
+        ).first()
+    return ligne is not None
