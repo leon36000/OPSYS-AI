@@ -152,7 +152,7 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
         return ecarts.volumetrie_pending_review(registre_courant())
 
     def completer_intervention(
-        intervention_id: str, horodatage: str, ecart_detecte: bool,
+        intervention_id: str, horodatage: str,
         preuves_completion: dict[str, Any], signature_requise: bool = False,
     ) -> dict[str, Any]:
         # Contrat PreuvesCompletion (T1.1-b#3) : validé AVANT tout appel à
@@ -160,8 +160,11 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
         ok, verdict = preuves.valider_preuves_completion(preuves_completion, signature_requise)
         if not ok:
             return {"accepte": False, "verdict": verdict}
+        # Un agent ne peut pas affirmer l'absence d'écart : le matériel n'est pas encore comparé
+        # au prévu à ce stade. La complétion reste donc à revoir ; completed_verified viendra du
+        # code (variance M6 et preuves, PLAN T1.2) ou d'une décision humaine (T1.3).
         return depuis_couple(outbox.completer_intervention(
-            intervention_id, horodatage, registre_courant(), ecart_detecte=ecart_detecte,
+            intervention_id, horodatage, registre_courant(), ecart_detecte=True,
         ))
 
     def lire_outbox(depuis_index: int = 0) -> list[dict[str, Any]]:
@@ -366,23 +369,20 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             description=(
                 "Termine une intervention et émet le Work Completion Trigger dans l'outbox, "
                 "en une seule écriture atomique (CA-M4-11). Exige le dossier PreuvesCompletion "
-                "(checklist, photos après, notes, signature si requise, §6/§9.7) et un signal "
-                "explicite ecart_detecte, jamais déduit : vrai -> completed_pending_review, "
-                "faux -> completed_verified. Calcule la durée réelle depuis les pointages, nette "
-                "des pauses ; refuse fail-closed si indéterminable ou si les preuves manquent."
+                "(checklist, photos après, notes, signature si requise, §6/§9.7). Le statut est "
+                "toujours completed_pending_review : la vérification se fait ensuite, par la "
+                "variance des matériaux et une revue. Calcule la durée réelle depuis les "
+                "pointages, nette des pauses ; refuse fail-closed si indéterminable ou si les "
+                "preuves manquent."
             ),
             parametres={
                 "type": "object",
                 "properties": {
                     "intervention_id": {"type": "string"}, "horodatage": {"type": "string"},
-                    "ecart_detecte": {
-                        "type": "boolean",
-                        "description": "vrai -> completed_pending_review ; faux -> completed_verified.",
-                    },
                     "preuves_completion": _PREUVES_COMPLETION,
                     "signature_requise": {"type": "boolean", "description": "Défaut : faux."},
                 },
-                "required": ["intervention_id", "horodatage", "ecart_detecte", "preuves_completion"],
+                "required": ["intervention_id", "horodatage", "preuves_completion"],
                 "additionalProperties": False,
             },
             fonction=completer_intervention,

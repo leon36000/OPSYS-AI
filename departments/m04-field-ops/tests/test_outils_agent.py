@@ -175,7 +175,6 @@ def test_chaine_complete_planification_pointage_completion_digest_notification()
     completion = _appeler(
         par_nom, "m4_completer_intervention",
         intervention_id=i_id, horodatage="2025-06-02T11:35:00+00:00",
-        ecart_detecte=False,
         preuves_completion={
             "checklist_complete": True,
             "photos_apres": ["photo-apres-1.jpg"],
@@ -185,7 +184,7 @@ def test_chaine_complete_planification_pointage_completion_digest_notification()
     )
     assert completion["ok"] is True and completion["resultat"]["accepte"] is True
     assert completion["resultat"]["resultat"]["duree_reelle_minutes"] == 150
-    assert completion["resultat"]["resultat"]["statut"] == "completed_verified"
+    assert completion["resultat"]["resultat"]["statut"] == "completed_pending_review"
 
     boite = _appeler(par_nom, "m4_lire_outbox")
     assert boite["ok"] is True
@@ -309,10 +308,24 @@ def test_completer_intervention_preuves_valides_accepte():
     completion = _appeler(
         par_nom, "m4_completer_intervention",
         intervention_id=i_id, horodatage="2025-06-02T11:35:00+00:00",
-        ecart_detecte=False, preuves_completion=_PREUVES_OK,
+        preuves_completion=_PREUVES_OK,
     )
     assert completion["ok"] is True and completion["resultat"]["accepte"] is True
-    assert completion["resultat"]["resultat"]["statut"] == "completed_verified"
+    assert completion["resultat"]["resultat"]["statut"] == "completed_pending_review"
+
+
+def test_un_agent_ne_peut_pas_declarer_l_absence_d_ecart():
+    """Le code calcule, le modèle orchestre : completed_verified n'est pas à la portée d'un
+    argument d'outil. `ecart_detecte` ne fait plus partie du schéma : le fournir est refusé."""
+    par_nom = _outils_par_nom()
+    i_id = _mener_a_sur_site(par_nom, lead_id="L-SANS-ECART-AFFIRME")
+    completion = executer(par_nom["m4_completer_intervention"], {
+        "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
+        "preuves_completion": _PREUVES_OK, "ecart_detecte": False,
+    })
+    assert completion["ok"] is False and completion["erreur"] == "arguments_invalides"
+    statut = _appeler(par_nom, "m4_statut_intervention", intervention_id=i_id)
+    assert statut["resultat"]["statut"] == "sur_site"
 
 
 def test_completer_intervention_checklist_incomplete_refuse_rien_ecrit():
@@ -322,7 +335,7 @@ def test_completer_intervention_checklist_incomplete_refuse_rien_ecrit():
     completion = _appeler(
         par_nom, "m4_completer_intervention",
         intervention_id=i_id, horodatage="2025-06-02T11:35:00+00:00",
-        ecart_detecte=False, preuves_completion=preuves_incompletes,
+        preuves_completion=preuves_incompletes,
     )
     assert completion["ok"] is True
     assert completion["resultat"]["accepte"] is False
@@ -340,7 +353,7 @@ def test_completer_intervention_photos_apres_vide_refuse():
     completion = _appeler(
         par_nom, "m4_completer_intervention",
         intervention_id=i_id, horodatage="2025-06-02T11:35:00+00:00",
-        ecart_detecte=False, preuves_completion={**_PREUVES_OK, "photos_apres": []},
+        preuves_completion={**_PREUVES_OK, "photos_apres": []},
     )
     assert completion["resultat"]["accepte"] is False
     assert completion["resultat"]["verdict"]["code"] == "REJ-CHAMP-VIDE"
@@ -352,7 +365,7 @@ def test_completer_intervention_signature_requise_absente_refuse():
     completion = _appeler(
         par_nom, "m4_completer_intervention",
         intervention_id=i_id, horodatage="2025-06-02T11:35:00+00:00",
-        ecart_detecte=False, preuves_completion=_PREUVES_OK, signature_requise=True,
+        preuves_completion=_PREUVES_OK, signature_requise=True,
     )
     assert completion["resultat"]["accepte"] is False
     assert completion["resultat"]["verdict"]["code"] == "REJ-CHAMP-MANQUANT"
@@ -364,16 +377,16 @@ def test_completer_intervention_signature_requise_fournie_accepte():
     completion = _appeler(
         par_nom, "m4_completer_intervention",
         intervention_id=i_id, horodatage="2025-06-02T11:35:00+00:00",
-        ecart_detecte=True, preuves_completion={**_PREUVES_OK, "signature": "Client X"},
+        preuves_completion={**_PREUVES_OK, "signature": "Client X"},
         signature_requise=True,
     )
     assert completion["resultat"]["accepte"] is True
     assert completion["resultat"]["resultat"]["statut"] == "completed_pending_review"
 
 
-def test_completer_intervention_sans_preuves_ni_ecart_detecte_arguments_invalides():
-    """Les deux paramètres sont REQUIS par le schéma de l'outil : les omettre
-    est un refus de schéma, pas une exécution silencieuse."""
+def test_completer_intervention_sans_preuves_arguments_invalides():
+    """Les preuves sont REQUISES par le schéma de l'outil : les omettre est un refus
+    de schéma, pas une exécution silencieuse."""
     par_nom = _outils_par_nom()
     i_id = _mener_a_sur_site(par_nom, lead_id="L-PREUVES-MANQUANTES")
     completion = executer(par_nom["m4_completer_intervention"], {
@@ -428,7 +441,7 @@ def test_produire_brouillon_temps_nominal():
     completion = _appeler(
         par_nom, "m4_completer_intervention",
         intervention_id=i_id, horodatage="2025-06-02T11:35:00+00:00",
-        ecart_detecte=False, preuves_completion=_PREUVES_OK,
+        preuves_completion=_PREUVES_OK,
     )
     assert completion["resultat"]["accepte"] is True
 
@@ -448,7 +461,7 @@ def test_produire_brouillon_temps_seuil_minutes_signale_depassement():
     _appeler(
         par_nom, "m4_completer_intervention",
         intervention_id=i_id, horodatage="2025-06-02T11:35:00+00:00",
-        ecart_detecte=False, preuves_completion=_PREUVES_OK,
+        preuves_completion=_PREUVES_OK,
     )
     brouillon = _appeler(
         par_nom, "m4_produire_brouillon_temps",
