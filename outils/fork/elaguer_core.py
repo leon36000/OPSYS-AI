@@ -19,10 +19,31 @@ from pathlib import Path
 
 # Premier niveau retiré. `git-hooks/` : sans lui, `scripts/prepare-git-hooks.mjs` (lancé par
 # `pnpm install`) ne reconfigure pas `core.hooksPath` du dépôt OPSYS-AI qui contient core/.
+# `docs/` n'est pas ici : la construction et les tests lisent trois sous-ensembles précis
+# (DOCS_SOUS_ENSEMBLES_GARDES ci-dessous), retirés au cas par cas dans `_ignorer`.
 RETIRER_RACINE = frozenset({
-    ".git", ".github", ".agents", ".claude", ".vscode", "apps", "crates", "docs", "CHANGELOG",
+    ".git", ".github", ".agents", ".claude", ".vscode", "apps", "crates", "CHANGELOG",
     "CHANGELOG.md", "qa", "examples", "appcast.xml", "fly.toml", "render.yaml", "git-hooks",
 })
+
+# `docs/` est élagué à un fichier près (T0.6, PROVENANCE.md « Transformation ») : seuls ces
+# sous-ensembles sont encore lus par du code non-test.
+#   - `docs/reference/templates/` (au complet) : gabarits d'espace de travail des agents,
+#     lus par `src/agents/workspace-templates.ts` (`resolveWorkspaceTemplateSearchDirs`) et
+#     par `src/agents/agent-roles.ts` (`roles/<role>/CLAW.md`, `roles/presets/team.json`).
+#   - `docs/.generated/` : seuls les 4 fichiers suivis en amont (ligne de base de config, lue
+#     par `src/config/doc-baseline.ts` ; les JSON dérivés restent générés localement, ignorés
+#     par le `.gitignore` amont).
+#   - `docs/assets/openclaw-hero-dark.png` : seule image de `docs/assets/` lue par la
+#     construction de l'UI (`ui/config/control-ui-social-card.ts`, via `ui/vite.config.ts`).
+DOCS_SOUS_ENSEMBLES_GARDES = frozenset({"reference", ".generated", "assets"})
+DOCS_GENERATED_GARDES = frozenset({
+    "README.md",
+    "config-baseline.counts.json",
+    "config-baseline.sha256",
+    "sqlite-session-transcript-schema-baseline.sha256",
+})
+DOCS_ASSETS_GARDES = frozenset({"openclaw-hero-dark.png"})
 
 # 40 extensions retenues par R11 §3.2, plus deux dépendances d'appui (tests et génération d'images
 # des fournisseurs conservés).
@@ -53,6 +74,8 @@ _CHAMPS_DEPENDANCES = ("dependencies", "devDependencies", "optionalDependencies"
 
 
 def _ignorer(racine: Path):
+    docs = racine / "docs"
+
     def ignorer(dossier: str, noms: list[str]) -> set[str]:
         courant = Path(dossier)
         if courant == racine:
@@ -61,8 +84,30 @@ def _ignorer(racine: Path):
             return {n for n in noms if (courant / n).is_dir() and n not in EXTENSIONS_GARDEES}
         if courant == racine / "patches":
             return {Path(chemin).name for chemin in PATCHS_RETIRES.values()} & set(noms)
+        if courant == docs:
+            return {n for n in noms if n not in DOCS_SOUS_ENSEMBLES_GARDES}
+        if courant == docs / "reference":
+            return {n for n in noms if n != "templates"}
+        if courant == docs / ".generated":
+            return {n for n in noms if n not in DOCS_GENERATED_GARDES}
+        if courant == docs / "assets":
+            return {n for n in noms if n not in DOCS_ASSETS_GARDES}
         return set()
     return ignorer
+
+
+def _verifier_sous_ensembles_docs(source: Path) -> list[str]:
+    """Fail-closed : les sous-ensembles de docs/ attendus doivent exister dans la release."""
+    manquants = []
+    if not (source / "docs" / "reference" / "templates" / "roles").is_dir():
+        manquants.append("docs/reference/templates/roles")
+    for nom in DOCS_GENERATED_GARDES:
+        if not (source / "docs" / ".generated" / nom).is_file():
+            manquants.append(f"docs/.generated/{nom}")
+    for nom in DOCS_ASSETS_GARDES:
+        if not (source / "docs" / "assets" / nom).is_file():
+            manquants.append(f"docs/assets/{nom}")
+    return manquants
 
 
 def _ajuster_workspace(fichier: Path) -> None:
@@ -101,6 +146,9 @@ def elaguer(source: Path, destination: Path) -> None:
     manquantes = sorted(n for n in EXTENSIONS_GARDEES if not (source / "extensions" / n).is_dir())
     if manquantes:
         raise SystemExit(f"extensions retenues absentes de la release : {manquantes}")
+    manquants_docs = _verifier_sous_ensembles_docs(source)
+    if manquants_docs:
+        raise SystemExit(f"sous-ensembles de docs/ retenus absents de la release : {manquants_docs}")
     shutil.copytree(source, destination, ignore=_ignorer(source), symlinks=True, dirs_exist_ok=True)
     _ajuster_workspace(destination / "pnpm-workspace.yaml")
     ruptures = verifier_fermeture(source, destination)

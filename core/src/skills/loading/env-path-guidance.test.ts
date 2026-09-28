@@ -18,15 +18,6 @@ const CASES: GuidanceCase[] = [
     forbidden: ["cat ~/.openclaw/openclaw.json"],
   },
   {
-    file: "extensions/canvas/skills/canvas/SKILL.md",
-    forbidden: [
-      "OPENCLAW_CONFIG_PATH",
-      "OPENCLAW_STATE_DIR",
-      "~/.openclaw/canvas",
-      "cat ~/.openclaw/openclaw.json",
-    ],
-  },
-  {
     file: "skills/openai-whisper-api/SKILL.md",
     required: ["OPENCLAW_CONFIG_PATH"],
   },

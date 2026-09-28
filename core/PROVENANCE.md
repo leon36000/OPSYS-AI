@@ -21,18 +21,36 @@ Elle est reproductible depuis le tag. Le script est
 1. **Retiré au premier niveau** :
    - `.github/`, `.agents/`, `.claude/`, `.vscode/` ;
    - `apps/` : les apps natives. L'app OPSYS est en Expo, voir R12 ;
-   - `crates/`, `docs/`, `CHANGELOG/`, `CHANGELOG.md`, `qa/`, `examples/` ;
+   - `crates/`, `CHANGELOG/`, `CHANGELOG.md`, `qa/`, `examples/` ;
    - `appcast.xml`, `fly.toml`, `render.yaml` ;
    - `git-hooks/`. Sans lui, le script `prepare` de pnpm ne reconfigure pas les hooks git du dépôt
      OPSYS-AI.
 2. **Extensions** : 42 conservées sur 162, soit les 40 de R11 §3.2 et deux d'appui (`test-support`,
    `image-generation-core`).
-3. **Patch pnpm retiré** : `matrix-js-sdk`, avec l'extension Matrix.
-4. **`pnpm-lock.yaml` régénéré sans exécuter aucun script de paquet** :
+3. **`docs/`** : élagué à trois sous-ensembles près (T0.6), lus par du code non-test que l'élagage
+   des extensions ne suffit pas à neutraliser :
+   - `docs/reference/templates/` (au complet, gabarits d'espace de travail des agents) : lu par
+     `src/agents/workspace-templates.ts` et `src/agents/agent-roles.ts` (`roles/<role>/CLAW.md`,
+     `roles/presets/team.json`) — sans lui, tout agent embarqué échoue à l'amorçage
+     (« Bundled agent role is missing »).
+   - `docs/.generated/` (les 4 fichiers suivis en amont seulement : `README.md`,
+     `config-baseline.{counts.json,sha256}`, `sqlite-session-transcript-schema-baseline.sha256`) :
+     ligne de base de configuration, lue par `src/config/doc-baseline.ts`.
+   - `docs/assets/openclaw-hero-dark.png` : seule image de `docs/assets/` que lit la construction
+     de l'UI (`ui/config/control-ui-social-card.ts`, plugin vite de `ui/vite.config.ts`) ; sans
+     elle, `pnpm build` échoue sur `ui:build`.
+
+   Le reste de `docs/` (documentation produit amont) reste élagué : OPSYS écrit sa propre
+   documentation dans `docs/` du dépôt OPSYS-AI. Les tests qui vérifiaient des pages non
+   restaurées (`src/docs/*.test.ts`, huit fichiers) sont retirés, voir le commit qui introduit ce
+   paragraphe.
+4. **Patch pnpm retiré** : `matrix-js-sdk`, avec l'extension Matrix.
+5. **`pnpm-lock.yaml` régénéré sans exécuter aucun script de paquet** :
    `pnpm install --lockfile-only --ignore-scripts --ignore-pnpmfile` (pnpm 12.4.0). Résultat : 63
    projets de workspace, 1 687 entrées, contrôles de chaîne d'approvisionnement de pnpm passés.
-5. **Fichiers suivis** : exactement ceux que la release suit, moins l'élagage. Au total, 36 213
-   fichiers sur 48 575.
+6. **Fichiers suivis** : exactement ceux que la release suit, moins l'élagage, plus les 26 fichiers
+   de `docs/` restaurés au point 3. Au total, 36 213 fichiers sur 48 575 à l'import ; le chiffre se
+   déplace légèrement à chaque vague d'élagage ultérieure de `scripts/`/`test/` (T0.6, T0.7).
 
 ## Suite de la transformation
 
