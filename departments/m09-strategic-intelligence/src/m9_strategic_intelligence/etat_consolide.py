@@ -1,6 +1,6 @@
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 def _analyser_horodatage(horodatage):
@@ -15,7 +15,7 @@ def _analyser_horodatage(horodatage):
     valeur = horodatage[:-1] + "+00:00" if horodatage.endswith("Z") else horodatage
     analyse = datetime.fromisoformat(valeur)
     if analyse.tzinfo is None:
-        analyse = analyse.replace(tzinfo=timezone.utc)
+        analyse = analyse.replace(tzinfo=UTC)
     return analyse
 
 

@@ -12,22 +12,14 @@ test_evenements_alerte_proposee_m8.py`.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
+from m8_analytics.outils import outils
 from sqlalchemy import select
 
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from m8_analytics.outils import outils  # noqa: E402
-
-from opsys import stockage  # noqa: E402
-from opsys.outils import executer_atomique  # noqa: E402
-from opsys.stockage import codec  # noqa: E402
-from opsys.stockage.schema import EVENEMENTS_SORTANTS  # noqa: E402
+from opsys import stockage
+from opsys.outils import executer_atomique
+from opsys.stockage import codec
+from opsys.stockage.schema import EVENEMENTS_SORTANTS
 
 _DEFINITION_M4 = {
     "metric_id": "m4_duree_reelle_minutes",

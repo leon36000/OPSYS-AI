@@ -10,10 +10,10 @@
 # (ce serait un faux négatif garanti) — il vérifie à la place que l'ABSENCE
 # d'énuméré fermé est documentée explicitement, jamais fabriquée en silence.
 
-import sys
 import re
-from pathlib import Path
+import sys
 from collections import Counter
+from pathlib import Path
 
 BASE = Path(__file__).parent
 FICHIERS = {

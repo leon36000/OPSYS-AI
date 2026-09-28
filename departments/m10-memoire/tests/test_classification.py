@@ -7,15 +7,8 @@ classifieur naïf pourrait confondre les deux types sur ce seul champ — `test_
 ci-dessous couvre ce piège explicitement.
 """
 
-import sys
-from pathlib import Path
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
 
 from m10_memoire import classification
-
 
 HORODATAGE = "2026-09-15T14:00:00-04:00"
 

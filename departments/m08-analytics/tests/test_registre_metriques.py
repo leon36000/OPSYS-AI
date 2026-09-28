@@ -1,13 +1,5 @@
-import sys
-from pathlib import Path
-
 import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from m8_analytics import registre_metriques  # noqa: E402
+from m8_analytics import registre_metriques
 
 
 def _definition(**remplacements):

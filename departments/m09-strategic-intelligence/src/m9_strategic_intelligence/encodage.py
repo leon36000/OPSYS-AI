@@ -8,9 +8,9 @@ avant de les incorporer.
 """
 import hashlib
 import json
-from uuid import UUID
 from datetime import date, datetime, time
 from decimal import Decimal
+from uuid import UUID
 
 __all__ = ["encoder_canonique", "empreinte"]
 

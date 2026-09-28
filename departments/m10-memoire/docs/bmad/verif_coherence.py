@@ -14,10 +14,10 @@
 # les énumérés de révision (DA-M10-05 — réviser n'est jamais fusionner, le piège
 # central du module).
 
-import sys
 import re
-from pathlib import Path
+import sys
 from collections import Counter
+from pathlib import Path
 
 BASE = Path(__file__).parent
 FICHIERS = {

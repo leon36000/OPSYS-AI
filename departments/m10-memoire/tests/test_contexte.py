@@ -1,16 +1,8 @@
-import sys
 from copy import deepcopy
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from m10_memoire import contrats, contexte, registre, validation
-
+from m10_memoire import contexte, contrats, registre, validation
 
 HORODATAGE = "2026-08-04T12:00:00+00:00"
 

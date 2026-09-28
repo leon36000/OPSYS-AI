@@ -2,16 +2,8 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from m9_strategic_intelligence import briefing_matin  # noqa: E402
+from m9_strategic_intelligence import briefing_matin
 
 _MAINTENANT = "2026-09-28T07:00:00-04:00"  # jour = 2026-09-28, veille = 2026-09-27
 

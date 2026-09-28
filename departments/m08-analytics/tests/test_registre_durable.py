@@ -13,21 +13,17 @@ aucune adaptation n'a donc été nécessaire (mandat, règle 4).
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
+from m8_analytics import registre
 from sqlalchemy import select, update
 
+from opsys import stockage
+from opsys.stockage import codec
+from opsys.stockage.schema import REGISTRES
+
 _SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from m8_analytics import registre  # noqa: E402
-
-from opsys import stockage  # noqa: E402
-from opsys.stockage import codec  # noqa: E402
-from opsys.stockage.schema import REGISTRES  # noqa: E402
 
 DEPARTEMENT = "m08-analytics"
 REGISTRE_NOM = "snapshots"

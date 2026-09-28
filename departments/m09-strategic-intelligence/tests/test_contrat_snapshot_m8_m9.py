@@ -9,15 +9,6 @@ déjà rejetée par M9 (m9_strategic_intelligence/validation.py:22) — ce test
 verrouille la cohérence désormais rétablie.
 """
 
-import sys
-from pathlib import Path
-
-_SRC_M8 = Path(__file__).resolve().parents[2] / "m08-analytics" / "src"
-_SRC_M9 = Path(__file__).resolve().parents[1] / "src"
-for _chemin in (_SRC_M8, _SRC_M9):
-    if str(_chemin) not in sys.path:
-        sys.path.insert(0, str(_chemin))
-
 from m8_analytics import validation as m8_validation
 from m9_strategic_intelligence import validation as m9_validation
 

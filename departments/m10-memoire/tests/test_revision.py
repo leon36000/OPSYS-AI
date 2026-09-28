@@ -1,15 +1,7 @@
-import sys
 from copy import deepcopy
-from pathlib import Path
 
 import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
 from m10_memoire import contrats, registre, revision
-
 
 HORODATAGE = "2026-08-04T12:00:00+00:00"
 

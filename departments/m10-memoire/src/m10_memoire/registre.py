@@ -27,8 +27,8 @@ _TYPE_ENTREE_VALIDES = {
 def _valider_horodatage_local(chaine):
     try:
         dt = datetime.fromisoformat(chaine)
-    except Exception:
-        raise ValueError("horodatage invalide (format ISO 8601 avec fuseau requis)")
+    except Exception as erreur:
+        raise ValueError("horodatage invalide (format ISO 8601 avec fuseau requis)") from erreur
     if dt.tzinfo is None:
         raise ValueError("horodatage invalide (fuseau horaire absent)")
 

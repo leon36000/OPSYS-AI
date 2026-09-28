@@ -1,6 +1,5 @@
 from . import contrats
 
-
 _TYPE_ENTREE_REVISION = "revision_signalee"
 _STATUT_INITIAL = "en_attente"
 

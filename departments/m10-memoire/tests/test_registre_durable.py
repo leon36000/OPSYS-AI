@@ -12,17 +12,9 @@ altération faite directement en base, hors de toute méthode du registre, est d
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
-from sqlalchemy import update
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
 from m10_memoire import decisions, registre, wct
+from sqlalchemy import update
 
 from opsys import stockage
 from opsys.stockage import codec

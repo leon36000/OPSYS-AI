@@ -2,18 +2,13 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
+from m9_strategic_intelligence.outils import consommateurs, outils
+from m9_strategic_intelligence.registre import RegistreSnapshots
 
-from m9_strategic_intelligence.outils import consommateurs, outils  # noqa: E402
-from m9_strategic_intelligence.registre import RegistreSnapshots  # noqa: E402
-
-from opsys.departements import lire_manifeste  # noqa: E402
-from opsys.outils import Autonomie, executer  # noqa: E402
+from opsys.departements import lire_manifeste
+from opsys.outils import Autonomie, executer
 
 
 def _snapshot(module_source, horodatage, valeurs):

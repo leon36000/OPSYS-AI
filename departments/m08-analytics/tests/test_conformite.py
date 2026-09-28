@@ -1,11 +1,8 @@
-import sys
 from pathlib import Path
 
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
 from m8_analytics import conformite, contrats
+
+_SRC = Path(__file__).resolve().parents[1] / "src"
 
 
 def _ecrire_source(repertoire, nom, contenu):

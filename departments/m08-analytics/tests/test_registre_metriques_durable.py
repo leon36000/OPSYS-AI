@@ -10,18 +10,14 @@ jamais `tests/` (voir test_conformite.py) — aucune adaptation n'a donc été n
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
+from m8_analytics import registre_metriques
+
+from opsys import stockage
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from m8_analytics import registre_metriques  # noqa: E402
-
-from opsys import stockage  # noqa: E402
 
 DEPARTEMENT = "m08-analytics"
 REGISTRE_NOM = "definitions_metriques"

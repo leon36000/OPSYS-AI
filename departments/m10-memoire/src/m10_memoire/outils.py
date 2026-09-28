@@ -348,7 +348,10 @@ def outils() -> tuple[Outil, ...]:
         ),
         Outil(
             nom="m10_statut_decision",
-            description="Statut courant d'une décision, calculé par relecture du registre Affaires (jamais un champ positionnable).",
+            description=(
+                "Statut courant d'une décision, calculé par relecture du registre Affaires "
+                "(jamais un champ positionnable)."
+            ),
             parametres={
                 "type": "object",
                 "properties": {"decision_id": {"type": "string"}},

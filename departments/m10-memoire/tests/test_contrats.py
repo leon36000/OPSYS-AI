@@ -1,30 +1,22 @@
-import sys
-from pathlib import Path
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
 from m10_memoire import contrats
 
 
 def test_champs_evenement_memoire_est_un_frozenset_exact():
+    attendu = frozenset({"evenement", "resume", "preuves", "impact", "prochaine_action"})
+
     assert isinstance(contrats.CHAMPS_EVENEMENT_MEMOIRE, frozenset)
-    assert contrats.CHAMPS_EVENEMENT_MEMOIRE == frozenset(
-        {"evenement", "resume", "preuves", "impact", "prochaine_action"}
-    )
+    assert attendu == contrats.CHAMPS_EVENEMENT_MEMOIRE
 
 
 def test_champs_decision_est_un_frozenset_exact():
+    attendu = frozenset({"decision_id", "raison", "statut", "options_ecartees"})
+
     assert isinstance(contrats.CHAMPS_DECISION, frozenset)
-    assert contrats.CHAMPS_DECISION == frozenset(
-        {"decision_id", "raison", "statut", "options_ecartees"}
-    )
+    assert attendu == contrats.CHAMPS_DECISION
 
 
 def test_champs_wct_est_un_frozenset_exact_de_douze_elements():
-    assert isinstance(contrats.CHAMPS_WCT, frozenset)
-    assert contrats.CHAMPS_WCT == frozenset(
+    attendu = frozenset(
         {
             "wct_id",
             "intervention_id",
@@ -40,14 +32,17 @@ def test_champs_wct_est_un_frozenset_exact_de_douze_elements():
             "devis_id",
         }
     )
+
+    assert isinstance(contrats.CHAMPS_WCT, frozenset)
+    assert attendu == contrats.CHAMPS_WCT
     assert len(contrats.CHAMPS_WCT) == 12
 
 
 def test_champs_reference_memoire_est_un_frozenset_exact():
+    attendu = frozenset({"ligne_id", "registre", "hash_tete"})
+
     assert isinstance(contrats.CHAMPS_REFERENCE_MEMOIRE, frozenset)
-    assert contrats.CHAMPS_REFERENCE_MEMOIRE == frozenset(
-        {"ligne_id", "registre", "hash_tete"}
-    )
+    assert attendu == contrats.CHAMPS_REFERENCE_MEMOIRE
 
 
 def test_consommateur_attendu_est_m10():

@@ -13,23 +13,15 @@ sourcés, rien d'inventé.
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
+from m8_analytics.outils import outils as m8_outils
+from m9_strategic_intelligence.outils import outils as m9_outils
 
-_SRC_M8 = Path(__file__).resolve().parents[2] / "m08-analytics" / "src"
-_SRC_M9 = Path(__file__).resolve().parents[1] / "src"
-for _chemin in (_SRC_M8, _SRC_M9):
-    if str(_chemin) not in sys.path:
-        sys.path.insert(0, str(_chemin))
-
-from m8_analytics.outils import outils as m8_outils  # noqa: E402
-from m9_strategic_intelligence.outils import outils as m9_outils  # noqa: E402
-
-from opsys import approbations, evenements, stockage  # noqa: E402
-from opsys.departements import charger_departements  # noqa: E402
-from opsys.outils import Niveau, executer_atomique  # noqa: E402
+from opsys import approbations, evenements, stockage
+from opsys.departements import charger_departements
+from opsys.outils import Niveau, executer_atomique
 
 _RACINE_DEPARTEMENTS = Path(__file__).resolve().parents[2]
 _DEFINITION_M4 = {

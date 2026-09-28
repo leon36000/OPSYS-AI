@@ -14,19 +14,13 @@ même patron que `tests/test_evenements.py::_wct_exemple` du socle.
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
+from m8_analytics import registre as m8_registre
 
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from m8_analytics import registre as m8_registre  # noqa: E402
-
-from opsys import evenements, stockage  # noqa: E402
-from opsys.departements import charger_departements  # noqa: E402
+from opsys import evenements, stockage
+from opsys.departements import charger_departements
 
 _RACINE_DEPARTEMENTS = Path(__file__).resolve().parents[2]
 _MODULE_SOURCE_TRAVAUX = "m04-field-ops"

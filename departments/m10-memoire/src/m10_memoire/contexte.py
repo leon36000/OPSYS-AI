@@ -1,6 +1,5 @@
 from . import contrats, validation
 
-
 _TYPE_ENTREE_REVISION = "revision_signalee"
 _CLE_REFERENCES = "references_decisions"
 

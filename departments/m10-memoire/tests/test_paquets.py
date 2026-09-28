@@ -1,16 +1,8 @@
 """paquets.py : paquet de contexte en 4 couches ordonnées pour une affaire."""
 
-import sys
-from pathlib import Path
 
 import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
 from m10_memoire import consolidation, decisions, paquets, registre, variance, wct
-
 
 HORODATAGE = "2026-09-15T14:00:00-04:00"
 HORODATAGE_PAQUET = "2026-09-16T08:00:00-04:00"

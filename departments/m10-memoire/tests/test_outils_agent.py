@@ -8,15 +8,9 @@ isole donc chaque test derrière sa propre base SQLite temporaire (jamais `~/.op
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
 from m10_memoire.outils import (
     arbitrer_revision,
     auditer_non_oubli,

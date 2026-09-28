@@ -6,15 +6,8 @@ possible dans le module (conformite.py::HORLOGE_INTERNE le détecterait de toute
 même nuit ne crée rien de plus, même avec un `horodatage` d'appel différent.
 """
 
-import sys
-from pathlib import Path
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
 
 from m10_memoire import consolidation, registre, variance, wct
-
 
 JOUR = "2026-09-15"
 HORODATAGE_EVENEMENT = "2026-09-15T14:00:00-04:00"
