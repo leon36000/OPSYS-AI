@@ -400,10 +400,22 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
   - [ ] T1.3-b M4 : revue humaine d'une complétion `completed_pending_review` (vérifiée ou
         corrigée), décision signée ; l'alerte d'écart matériaux (signal critique M6) entre dans
         la file.
-  - [ ] T1.3-c M5 :
+  - [x] T1.3-c M5 :
     - envoi et paiement de facture par les approbations du socle ;
     - attentes de facturation dans la file ;
     - les approbations internes F0–F7 rejoignent l'échelle unique.
+
+    Preuve (commit « T1.3-c » ci-dessous, 96d8546 dans l'agent) :
+    - `m5_envoyer_facture` (N4 : `finance` ou `nathan_owner`) ne dépend plus de la forme d'un
+      maillon F4, seulement de la décision signée du socle ;
+    - `m5_enregistrer_paiement_facture` (N5 : `nathan_owner` et une attestation) compare par le
+      code le montant payé au montant dû. Un écart est nommé, jamais toléré ;
+    - correspondance F→N en un seul endroit ; les outils F0–F7 sont retirés des agents
+      (`approbation.py` reste sans appelant, à trancher) ;
+    - `attentes()` : attentes de facturation, factures prêtes à envoyer et signal de variance
+      critique à côté, sans blocage ;
+    - M5 318, M6 293, M4 628 ; socle 362.
+
 - [ ] T1.4 App mobile Expo : squelette, appairage, profils, punch, chantier du jour, « Terminer »,
       formulaire des matériaux, hors ligne ; approbations côté propriétaire. Pile et ordre de livraison :
       R12 (Expo SDK 57, expo-sqlite + file sortante maison, client de protocole TypeScript du core,
@@ -559,8 +571,15 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
 - **Seuils métier** (définition §13.11) : M6 démarre avec un seuil de variance de chantier de
   30 % (`department.yaml`, `configuration`). La valeur est à confirmer par le propriétaire, et elle
   deviendra un réglage par instance (tableau de bord).
+- **Mode autonome et N4** : ADR-0009 fait exécuter automatiquement un N4 (engagement : envoi de
+  facture, prix, dépense) en mode autonome, alors qu'AGENTS.md réserve les engagements externes
+  aux humains.
+  - Proposition : aucun mode n'exécute un N4 sans approbation, et le seuil du mode autonome passe
+    à N4.
+  - Aucun risque immédiat : les dix départements sont en mode ombre, qui exige une approbation dès
+    N3.
 - **Revue externe du code critique** (AGENTS.md), avant tout passage sur `main` :
-  - M5 : 119a594, 23df6eb ;
+  - M5 : 119a594, 23df6eb, T1.3-c ;
   - idempotence du socle : 764c292, 2474cd1 ;
   - approbations : 718b9bb ;
   - validation du bus : 4c9fbff ;
