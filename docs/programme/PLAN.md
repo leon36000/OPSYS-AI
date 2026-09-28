@@ -201,7 +201,7 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       marketing (photos, ville, consentement : M7) ; M3 et M9 la reçoivent en second ordre (M6/M5 et
       M8, ADR-0009) (audits M4, M5, M7). `job.completed` déclenche la cascade (M6 variance, M5 facture brouillon, M2
       activité et prochaine action, M7 demande d'avis, M3 estimé vs réel, M8 métriques, M10 mémoire).
-  - [ ] T1.2-a Socle, bus d'événements (ADR-0009 §3) :
+  - [x] T1.2-a Socle, bus d'événements (ADR-0009 §3) :
         - `evenements_sortants` et `evenements_recus`, avec l'unicité (événement, consommateur),
           migration 0003 ;
         - `publier()` dans la transaction métier ;
@@ -210,6 +210,20 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         - répartiteur idempotent : réessais espacés, quarantaine, sondage de secours ;
         - `opsys evenements etat|repartir` ;
         - parité PostgreSQL.
+
+        Preuve (aee1041) :
+        - chaque paire (événement, consommateur) est livrée dans sa propre transaction et réclamée
+          sous verrou ;
+        - un échec annule les écritures mais garde le reçu ; réessai après `2**n` s, quarantaine au
+          5e échec ;
+        - `m4.travaux_termines` : 13 champs requis égaux au WCT, champs optionnels de M7 cités de
+          l'audit ;
+        - socle 252 verts, dont PostgreSQL réel ; verifier « événements cohérents ».
+  - [ ] T2.3-a (préalable à T1.2-d, extrait de T2.3) M3, devis durable :
+        - lignes, coût et prix calculés par le code, avec un taux de marge fourni, jamais codé en
+          dur ;
+        - statuts brouillon, envoyé et accepté ; l'envoi est derrière une approbation ;
+        - lecture par `devis_id`, pour M5 (facture) et M4 (`devis_id` du WCT).
   - [ ] T1.2-b M4 : publier `m4.travaux_termines/v1` avec le WCT, dans la même transaction ; porter
         dans la charge ce que les audits M5 et M7 exigent. Passer de `completed_pending_review` à
         `completed_verified` quand le code a sa base : preuves complètes et variance M6 sans signal
