@@ -15,13 +15,17 @@ Import : comme `test_registre_durable.py`, ce fichier ne touche pas `sys.path` (
 
 from __future__ import annotations
 
+import datetime as dt
+
 import pytest
 from m4_field_ops import cedule
 from m4_field_ops.outbox import CHAMPS_WCT
 from m4_field_ops.outils import consommateurs, outils
 from sqlalchemy import func, select
 
-from opsys import stockage
+from opsys import contexte, evenements, stockage
+from opsys.departements import charger_departements
+from opsys.evenements import schemas
 from opsys.outils import executer, executer_atomique
 from opsys.stockage import codec
 from opsys.stockage.schema import EVENEMENTS_SORTANTS
@@ -125,7 +129,10 @@ def test_completion_acceptee_publie_m4_travaux_termines_dans_la_meme_transaction
     assert charge["wct_id"] == wct_id
     assert charge["intervention_id"] == i_id
     assert charge["statut"] == "completed_pending_review"
-    assert set(charge) == set(CHAMPS_WCT)
+    # T1.2-f : type_travaux (CHAMPS_WCT_OPTIONNELS) s'ajoute AU-DESSUS de CHAMPS_WCT, connu ici
+    # puisque _contrat() en porte un — jamais ville (Loi 25, tokenisée dans le registre M4).
+    assert set(charge) == set(CHAMPS_WCT) | {"type_travaux"}
+    assert charge["type_travaux"] == "renovation_totale"
 
 
 def test_completion_refusee_ne_publie_rien(base_durable):
@@ -253,3 +260,117 @@ def test_recevoir_variance_chantier_redelivrance_ne_change_rien(base_durable):
 
     statut = executer_atomique(par_nom["m4_statut_intervention"], {"intervention_id": i_id})
     assert statut["resultat"]["statut"] == "completed_verified"
+
+
+# ==================================================================================
+# T1.2-f : les champs CLIENT (Loi 25) ne sont acceptés que pendant un appel d'appareil
+# (opsys.contexte.receptionne_de, socle T1.4-b) ; le WCT et la charge publiée les portent
+# alors, catalogue-valides ; hors appel d'appareil, leur seule présence est un refus nommé.
+# ==================================================================================
+_HORODATAGE_APPAREIL_TEST = contexte.HorodatageAppareil(
+    appareil="tel-employe-t1-2-f-fictif",
+    horodatage_appareil=dt.datetime(2025, 6, 2, 11, 35, 0, tzinfo=dt.UTC),
+    recu_le=dt.datetime(2025, 6, 2, 11, 35, 5, tzinfo=dt.UTC),
+)
+
+
+def test_completion_appel_appareil_avec_consentement_porte_les_champs_client_et_publie_valide(base_durable):
+    par_nom = {o.nom: o for o in outils()}
+    i_id = _mener_a_sur_site(par_nom, "L-EVT-APPAREIL-CONSENT")
+
+    with contexte.receptionne_de(_HORODATAGE_APPAREIL_TEST):
+        completion = executer_atomique(par_nom["m4_completer_intervention"], {
+            "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
+            "preuves_completion": _PREUVES_OK,
+            "photos": ["chantier-apres-1.jpg"],
+            "description_factuelle": "Gouttières remplacées, aucun incident.",
+            "consentement_marketing": True, "client_satisfait": True,
+        })
+    assert completion["ok"] is True and completion["resultat"]["accepte"] is True, completion
+    wct_id = completion["resultat"]["resultat"]["wct_id"]
+
+    # -- le WCT (registre, m4_lire_outbox) porte les champs fournis ------------------------
+    wct = _wct_pour(par_nom, i_id)
+    assert wct["photos"] == ["chantier-apres-1.jpg"]
+    assert wct["description_factuelle"] == "Gouttières remplacées, aucun incident."
+    assert wct["consentement_marketing"] is True
+    assert wct["client_satisfait"] is True
+    assert wct["type_travaux"] == "renovation_totale"
+
+    # -- la charge publiée les porte AUSSI, et valide intégralement le schéma JSON du catalogue
+    ligne, charge = _charge_publiee("m4.travaux_termines")
+    assert ligne["evenement_id"] == wct_id
+    assert charge["photos"] == ["chantier-apres-1.jpg"]
+    assert charge["consentement_marketing"] is True
+    assert charge["client_satisfait"] is True
+    assert schemas.erreurs_charge("m4.travaux_termines", charge) == []
+
+
+def test_completion_champs_client_hors_appel_appareil_refuse_nomme_rien_ecrit_ni_publie(base_durable):
+    """Hors d'un appel d'appareil (aucun ``contexte.receptionne_de`` actif), la seule PRÉSENCE
+    d'un champ client est un refus nommé — même avec des preuves par ailleurs valides, même un
+    seul des quatre champs fourni (ici ``client_satisfait=None``, valeur pourtant permise par le
+    catalogue : c'est la PRÉSENCE, jamais la valeur, qui est jugée)."""
+    par_nom = {o.nom: o for o in outils()}
+    i_id = _mener_a_sur_site(par_nom, "L-EVT-SANS-APPAREIL")
+    assert _compte_sortants("m4.travaux_termines") == 0
+
+    completion = executer_atomique(par_nom["m4_completer_intervention"], {
+        "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
+        "preuves_completion": _PREUVES_OK, "client_satisfait": None,
+    })
+    assert completion["ok"] is True
+    assert completion["resultat"]["accepte"] is False
+    assert completion["resultat"]["verdict"]["code"] == "REJ-CHAMPS-CLIENT-HORS-APPAREIL"
+
+    # Rien n'a été écrit : l'intervention reste sur_site, aucun WCT dans l'outbox, rien publié.
+    statut = executer_atomique(par_nom["m4_statut_intervention"], {"intervention_id": i_id})
+    assert statut["resultat"]["statut"] == "sur_site"
+    boite = executer_atomique(par_nom["m4_lire_outbox"], {})
+    assert not any(e["wct"]["intervention_id"] == i_id for e in boite["resultat"])
+    assert _compte_sortants("m4.travaux_termines") == 0
+
+
+# ==================================================================================
+# T1.2-f, bout en bout M4 -> M7 : le VRAI consommateur M7 (charger_departements(), comme en
+# production), evenements.repartir SCOPÉ À M7 SEUL (patron déjà établi par
+# test_cascade_travaux_termines_variance.py::_wct_pour_m6 / son docstring _deps_bus — les
+# autres consommateurs, dont M2, sont hors du périmètre de cette preuve et un lead de test
+# inconnu de M2 y déclencherait une quarantaine sans rapport).
+# ==================================================================================
+def test_completion_appel_appareil_consentement_et_satisfaction_produit_un_brouillon_avis_m7_reel(base_durable):
+    deps = charger_departements()
+    par_nom = {o.nom: o for o in outils()}
+    i_id = _mener_a_sur_site(par_nom, "L-EVT-M7-CONSENT")
+
+    with contexte.receptionne_de(_HORODATAGE_APPAREIL_TEST):
+        completion = executer_atomique(par_nom["m4_completer_intervention"], {
+            "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
+            "preuves_completion": _PREUVES_OK,
+            "consentement_marketing": True, "client_satisfait": True,
+        })
+    assert completion["ok"] is True and completion["resultat"]["accepte"] is True, completion
+
+    resume = evenements.repartir({"m07-marketing": deps["m07-marketing"]}, maintenant="2025-06-02T12:00:00+00:00")
+    assert resume["echecs"] == 0 and resume["quarantaines"] == 0 and resume["traites"] == 1, resume
+
+    demandes = list(stockage.maillons("m07-marketing", "demandes_avis"))
+    assert any(d.get("intervention_id") == i_id for d in demandes)
+
+
+def test_completion_sans_consentement_ne_produit_aucun_brouillon_avis_m7_reel(base_durable):
+    deps = charger_departements()
+    par_nom = {o.nom: o for o in outils()}
+    i_id = _mener_a_sur_site(par_nom, "L-EVT-M7-SANS-CONSENT")
+
+    completion = executer_atomique(par_nom["m4_completer_intervention"], {
+        "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
+        "preuves_completion": _PREUVES_OK,
+    })
+    assert completion["ok"] is True and completion["resultat"]["accepte"] is True, completion
+
+    resume = evenements.repartir({"m07-marketing": deps["m07-marketing"]}, maintenant="2025-06-02T12:00:00+00:00")
+    assert resume["echecs"] == 0 and resume["quarantaines"] == 0 and resume["traites"] == 1, resume
+
+    demandes = list(stockage.maillons("m07-marketing", "demandes_avis"))
+    assert not any(d.get("intervention_id") == i_id for d in demandes)

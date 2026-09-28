@@ -31,6 +31,7 @@ import m5_financecore.outils as m5_outils
 import pytest
 from m2_revenue_crm import statuts as m2_statuts
 from m4_field_ops import cedule
+from m4_field_ops.outbox import CHAMPS_WCT
 from sqlalchemy import select
 
 from opsys import evenements, stockage
@@ -300,7 +301,19 @@ def _m6_declarer(m6, wct_pour_m6: dict, chantier_id: str, materiau_id: str, quan
 
 
 def _wct_sans_statut(wct_charge: dict) -> dict:
-    return {k: v for k, v in wct_charge.items() if k != "statut"}
+    """WctRecu attendu par M6 (m6_material_control.contrats.CHAMPS_WCT, copie épinglée gelée
+    des 12 clés de M4 SANS `statut`).
+
+    T1.2-f : le WCT réel porte désormais, EN PLUS de CHAMPS_WCT (M4), les champs optionnels
+    réservés à M7/M8 quand ils sont connus (`m4_field_ops.outbox.CHAMPS_WCT_OPTIONNELS`, ex.
+    `type_travaux` — quasi toujours connu depuis le contrat gelé). Le contrat WctRecu de M6
+    reste, lui, strictement fermé : `validation.valider_wct` y refuse toute clé « en trop »
+    (REJ-WCT-CHAMP-INATTENDU) — sans le filtre `k in CHAMPS_WCT` ci-dessous, cet appel casserait
+    pour CHAQUE intervention. M10 (`m10_memoire.outils._recevoir_travaux_termines`) filtre déjà
+    ainsi son propre bus ; M6 ne le fait pas encore côté outil `m6_declarer_materiaux_utilises`
+    — gap hors périmètre de M4 (departments/m06-material-control/ non touché ici), documenté au
+    rapport de T1.2-f."""
+    return {k: v for k, v in wct_charge.items() if k in CHAMPS_WCT and k != "statut"}
 
 
 # =============================================================================================
@@ -335,12 +348,17 @@ def test_nominal_cascade_complete_sans_quarantaine(base_durable):
     )
 
     wct_charge = _charge_publiee("m4.travaux_termines", wct_id)
-    # Constat (rapport) : aucun outil réel de M4 ne renseigne aujourd'hui les champs optionnels
-    # réservés à M7 par le catalogue (ville, type_travaux, photos, description_factuelle,
-    # consentement_marketing, client_satisfait) — completer_intervention publie le WCT nu
-    # (outbox.CHAMPS_WCT, 13 clés) sans jamais les composer.
+    # T1.2-f : type_travaux (connu depuis le contrat gelé à l'inscription, jamais deviné) est
+    # désormais composé par M4 — voir departments/m04-field-ops/tests/test_outbox.py et
+    # test_evenements_m4.py pour la preuve dédiée. Les quatre faits CLIENT (Loi 25 :
+    # consentement_marketing, client_satisfait, photos, description_factuelle) restent
+    # absents ICI car cette complétion n'est PAS un appel d'appareil (m4_completer_intervention
+    # les refuse nommément hors d'un tel appel) ; `ville` reste un cas à part, structurellement
+    # absent du WCT — M4 ne connaît la ville qu'au travers de sa tokenisation Loi 25
+    # (registre immuable, jamais en clair, docs/bmad/03-ARCHITECTURE.md §2 de M4).
+    assert wct_charge["type_travaux"] == "renovation_totale"
     for champ in ("consentement_marketing", "client_satisfait", "photos", "description_factuelle", "ville"):
-        assert champ not in wct_charge, f"{champ} inattendu dans le WCT réel : le gap M7 seraît-il comblé ?"
+        assert champ not in wct_charge, f"{champ} inattendu dans le WCT réel (hors appel d'appareil)"
 
     wct_pour_m6 = _wct_sans_statut(wct_charge)
     _m6_declarer(m6, wct_pour_m6, chantier_id, MATERIAU_ID, 40.0)
@@ -425,7 +443,9 @@ def test_nominal_cascade_complete_sans_quarantaine(base_durable):
         m for m in snapshots if m.get("module_source") == "m04-field-ops" and m["valeurs"].get("m4_wct_id") == wct_id
     )
     assert snap["valeurs"]["m4_duree_reelle_minutes"] == str(wct_charge["duree_reelle_minutes"])
-    assert "m4_type_travaux" not in snap["valeurs"], "type_travaux absent du WCT réel (constat)"
+    # T1.2-f : type_travaux est maintenant composé par M4 (ci-dessus) — M8 le reprend
+    # opportunément (m8_analytics.outils._valeurs_travaux_termines, déjà écrit pour ce cas).
+    assert snap["valeurs"]["m4_type_travaux"] == "renovation_totale"
 
     # -- M10 : SES traces — mémoire (WCT et variance) -----------------------------------------
     evenements_m10 = list(stockage.maillons("m10-memoire", "evenements"))

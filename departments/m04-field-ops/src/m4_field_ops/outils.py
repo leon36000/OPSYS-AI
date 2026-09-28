@@ -31,10 +31,10 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from opsys import evenements, stockage
+from opsys import contexte, evenements, stockage
 from opsys.outils import Autonomie, Outil, depuis_couple
 
-from . import cedule, digest, ecarts, etats, outbox, pointage, preuves, registre, temps
+from . import cedule, digest, ecarts, etats, outbox, pointage, preuves, registre, temps, verdicts
 
 _DEPARTEMENT = "m04-field-ops"
 _NOM_REGISTRE = "principal"
@@ -158,7 +158,32 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
     def completer_intervention(
         intervention_id: str, horodatage: str,
         preuves_completion: dict[str, Any], signature_requise: bool = False,
+        photos: Any = outbox.NON_FOURNI, description_factuelle: Any = outbox.NON_FOURNI,
+        consentement_marketing: Any = outbox.NON_FOURNI, client_satisfait: Any = outbox.NON_FOURNI,
     ) -> dict[str, Any]:
+        # T1.2-f : photos/description_factuelle/consentement_marketing/client_satisfait sont
+        # des faits du CLIENT (Loi 25) — un agent ne peut JAMAIS les affirmer, même principe
+        # que ecart_detecte déjà retiré du schéma de cet outil. Ils ne sont acceptés que
+        # PENDANT un appel d'appareil (opsys.contexte.horodatage_reception() non None, socle
+        # T1.4-b, docs/architecture/IDEMPOTENCE.md) : leur seule PRÉSENCE hors d'un tel appel
+        # est un refus nommé — AVANT même de valider les preuves, rien n'est écrit ni publié.
+        champs_client_fournis = any(
+            v is not outbox.NON_FOURNI
+            for v in (photos, description_factuelle, consentement_marketing, client_satisfait)
+        )
+        if champs_client_fournis and contexte.horodatage_reception() is None:
+            return {
+                "accepte": False,
+                "verdict": verdicts.construire_verdict(
+                    "REJ-CHAMPS-CLIENT-HORS-APPAREIL",
+                    detail=(
+                        "photos/description_factuelle/consentement_marketing/client_satisfait "
+                        "ne sont acceptés que pendant un appel d'appareil (Loi 25) : un agent "
+                        "ne peut jamais les affirmer à la place du client"
+                    ),
+                ),
+            }
+
         # Contrat PreuvesCompletion (T1.1-b#3) : validé AVANT tout appel à
         # l'outbox — aucune écriture si le dossier de preuves est incomplet.
         ok, verdict = preuves.valider_preuves_completion(preuves_completion, signature_requise)
@@ -170,6 +195,8 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
         reg = registre_courant()
         accuse, verdict = outbox.completer_intervention(
             intervention_id, horodatage, reg, ecart_detecte=True,
+            photos=photos, description_factuelle=description_factuelle,
+            consentement_marketing=consentement_marketing, client_satisfait=client_satisfait,
         )
         if verdict is not None:
             return {"accepte": False, "verdict": verdict}
@@ -400,7 +427,12 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
                 "toujours completed_pending_review : la vérification se fait ensuite, par la "
                 "variance des matériaux et une revue. Calcule la durée réelle depuis les "
                 "pointages, nette des pauses ; refuse fail-closed si indéterminable ou si les "
-                "preuves manquent."
+                "preuves manquent. T1.2-f : consentement_marketing, client_satisfait, photos et "
+                "description_factuelle sont des faits du CLIENT (Loi 25) — un agent ne peut "
+                "JAMAIS les affirmer à sa place. Ils ne sont acceptés QUE pendant un appel "
+                "d'appareil (formulaire de complétion de l'app mobile), jamais depuis une "
+                "conversation avec un agent : les fournir hors d'un appel d'appareil est un "
+                "refus nommé (REJ-CHAMPS-CLIENT-HORS-APPAREIL), rien n'est écrit ni publié."
             ),
             parametres={
                 "type": "object",
@@ -408,6 +440,37 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
                     "intervention_id": {"type": "string"}, "horodatage": {"type": "string"},
                     "preuves_completion": _PREUVES_COMPLETION,
                     "signature_requise": {"type": "boolean", "description": "Défaut : faux."},
+                    "photos": {
+                        "type": "array", "items": {"type": "string"},
+                        "description": (
+                            "Références de photos après-chantier (jamais de binaire). Fait "
+                            "CLIENT (Loi 25) : accepté SEULEMENT pendant un appel d'appareil "
+                            "(app mobile), jamais fourni par un agent."
+                        ),
+                    },
+                    "description_factuelle": {
+                        "type": "string",
+                        "description": (
+                            "Description factuelle du chantier. Fait CLIENT (Loi 25) : accepté "
+                            "SEULEMENT pendant un appel d'appareil, jamais fourni par un agent."
+                        ),
+                    },
+                    "consentement_marketing": {
+                        "type": "boolean",
+                        "description": (
+                            "Consentement explicite du client à un usage marketing (Loi 25), "
+                            "jamais déduit. Accepté SEULEMENT pendant un appel d'appareil, "
+                            "jamais fourni ni affirmé par un agent."
+                        ),
+                    },
+                    "client_satisfait": {
+                        "type": ["boolean", "null"],
+                        "description": (
+                            "Signal de satisfaction du client ; null si demandé mais non "
+                            "recueilli (jamais inventé). Fait CLIENT (Loi 25) : accepté "
+                            "SEULEMENT pendant un appel d'appareil, jamais fourni par un agent."
+                        ),
+                    },
                 },
                 "required": ["intervention_id", "horodatage", "preuves_completion"],
                 "additionalProperties": False,

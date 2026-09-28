@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import pytest
 from m4_field_ops import cedule
+from m4_field_ops.outbox import CHAMPS_WCT
 from sqlalchemy import select
 
 from opsys import departements, evenements, stockage
@@ -126,11 +127,22 @@ def _statut(deps, intervention_id):
 
 
 def _wct_pour_m6(deps, wct_id):
-    """WctRecu (contrats.CHAMPS_WCT de M6, 12 clés) : le WCT de M4 SANS son champ `statut`."""
+    """WctRecu (contrats.CHAMPS_WCT de M6, 12 clés) : le WCT de M4 SANS son champ `statut`.
+
+    T1.2-f : le WCT réel porte désormais, EN PLUS de CHAMPS_WCT (M4), les champs optionnels
+    réservés à M7/M8 quand ils sont connus (`m4_field_ops.outbox.CHAMPS_WCT_OPTIONNELS`,
+    ex. `type_travaux`). Le contrat WctRecu de M6 (`m6_material_control.contrats.CHAMPS_WCT`,
+    12 clés, copie épinglée gelée AVANT cette extension) reste, lui, strictement fermé :
+    `validation.valider_wct` y refuse toute clé « en trop » (REJ-WCT-CHAMP-INATTENDU) — sans
+    ce filtre, cet appel casserait pour CHAQUE intervention, puisque `type_travaux` est
+    désormais connu dans la quasi-totalité des cas réels. M10 (`m10_memoire.outils`,
+    `_recevoir_travaux_termines`) filtre déjà exactement ainsi sur son propre bus ; M6 ne le
+    fait pas encore côté outil `m6_declarer_materiaux_utilises` — gap hors périmètre de M4
+    (departments/m06-material-control/ non touché ici), documenté au rapport de T1.2-f."""
     m4 = _outils(deps, "m04-field-ops")
     boite = executer_atomique(m4["m4_lire_outbox"], {})
     wct_complet = next(e["wct"] for e in boite["resultat"] if e["wct"]["wct_id"] == wct_id)
-    return {k: v for k, v in wct_complet.items() if k != "statut"}
+    return {k: v for k, v in wct_complet.items() if k in CHAMPS_WCT and k != "statut"}
 
 
 def _receptionner(deps, chantier_id, materiau_id, quantite, po_id):

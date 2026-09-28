@@ -158,7 +158,11 @@ def test_contrat_wct_complet():
     maillon = reg.lire()[-1]
     wct = maillon[outbox_mod.CLE_WCT]
 
-    assert set(wct.keys()) == set(outbox_mod.CHAMPS_WCT)
+    # T1.2-f : type_travaux (CHAMPS_WCT_OPTIONNELS) s'ajoute désormais AU-DESSUS de CHAMPS_WCT,
+    # toujours connu ici puisque CONTRAT_VALIDE en porte un — jamais deviné, voir test dédié
+    # (test_type_travaux_absent_si_intervention_ne_le_connait_pas) pour le cas absent.
+    assert set(wct.keys()) == set(outbox_mod.CHAMPS_WCT) | {"type_travaux"}
+    assert wct["type_travaux"] == CONTRAT_VALIDE["type_travaux"]
     assert wct["consommateurs_cibles"] == list(outbox_mod.CONSOMMATEURS_CIBLES)
     assert wct["devis_id"] is None
     assert wct["ecart_signale"] is False
@@ -1035,4 +1039,132 @@ def test_garde_ecriture_unique_violation_statut_hors_fonctions_autorisees(tmp_pa
     ok, msg = outbox_mod.garde_ecriture_unique(chemin_source=str(tmp_path))
     assert not ok
     assert "completed_verified" in msg
+
+
+# ==================================================================================
+# 14. T1.2-f — CHAMPS_WCT_OPTIONNELS : type_travaux (tiré de l'inscription) et les quatre
+# faits CLIENT (photos, description_factuelle, consentement_marketing, client_satisfait).
+# La forme (types) est vérifiée ICI, dans outbox.py (module pur) ; la garde d'appel
+# d'appareil (Loi 25) appartient à outils.py — voir test_evenements_m4.py.
+# ==================================================================================
+def test_type_travaux_absent_si_intervention_ne_le_connait_pas():
+    """Compat : un maillon d'inscription SANS type_travaux (antérieur à T1.2-f, ou tout
+    autre chemin d'entrée qui ne le porte pas) laisse le WCT SANS ce champ — jamais une
+    valeur devinée, exactement ce que le catalogue permet (champ optionnel)."""
+    reg = registre_mod.Registre()
+    i_id = encodage_mod.empreinte("intervention", "L-SANS-TYPE", H1)
+    reg.ajouter({
+        "type_entree": etats_mod.TYPE_INSCRIPTION, "intervention_id": i_id, "lead_id": "L-SANS-TYPE",
+        "devis_id": None, "statut": "planifiee", "horodatage": H1,
+    })
+    assign = {"intervention_id": i_id, "technicien_id": "T1"}
+    acc2, ver2 = etats_mod.transitionner(i_id, "en_route", reg, H_ARRIVEE, assignation=assign)
+    assert acc2 is not None, f"transition en_route échouée : {ver2}"
+    for action, horo in (("arrivee", H_ARRIVEE), ("depart", H_DEPART)):
+        acc_p, ver_p = pointage_mod.enregistrer_pointage(
+            i_id, "T1", action, horo, GPS_PROCHE, ATTESTATION, assign, FENETRE, REFERENTIEL, VILLE, SEL, reg,
+        )
+        assert acc_p is not None, f"{action} refusé : {ver_p}"
+
+    accuse, verdict = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
+    assert accuse is not None, f"complétion refusée : {verdict}"
+    wct = reg.lire()[-1][outbox_mod.CLE_WCT]
+    assert "type_travaux" not in wct
+    assert set(wct.keys()) == set(outbox_mod.CHAMPS_WCT)
+    ok, msg = outbox_mod.verifier_invariants_outbox(reg)
+    assert ok, msg
+
+
+def test_ville_jamais_dans_le_wct_meme_avec_les_champs_optionnels():
+    """Loi 25 : ``ville`` n'appartient PAS à CHAMPS_WCT_OPTIONNELS — même en fournissant les
+    quatre champs client, le WCT ne porte jamais la ville en clair (test_wct_sans_donnees_
+    sensibles le prouve déjà pour le cas nu ; ceci le reconfirme avec les champs T1.2-f)."""
+    assert "ville" not in outbox_mod.CHAMPS_WCT_OPTIONNELS
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    accuse, verdict = outbox_mod.completer_intervention(
+        i_id, H_COMPLETION, reg, ecart_detecte=False,
+        photos=["photo-1.jpg"], description_factuelle="Gouttières posées.",
+        consentement_marketing=True, client_satisfait=True,
+    )
+    assert accuse is not None, f"complétion refusée : {verdict}"
+    wct = reg.lire()[-1][outbox_mod.CLE_WCT]
+    assert "ville" not in wct
+    assert VILLE not in str(wct)
+
+
+@pytest.mark.parametrize("champ,mauvaise_valeur", [
+    ("consentement_marketing", "true"),
+    ("consentement_marketing", 1),
+    ("client_satisfait", "oui"),
+    ("client_satisfait", 1),
+    ("photos", "photo.jpg"),
+    ("photos", [1, 2]),
+    ("description_factuelle", 123),
+])
+def test_completer_champs_optionnels_mal_types_refuse_rien_ecrit(champ, mauvaise_valeur):
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    taille_avant = len(reg.lire())
+    accuse, verdict = outbox_mod.completer_intervention(
+        i_id, H_COMPLETION, reg, ecart_detecte=False, **{champ: mauvaise_valeur},
+    )
+    assert accuse is None
+    assert verdict["code"] == "REJ-CONTRAT-INVALIDE"
+    assert len(reg.lire()) == taille_avant
+
+
+def test_completer_champs_optionnels_fournis_valides_portes_par_le_wct():
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    accuse, verdict = outbox_mod.completer_intervention(
+        i_id, H_COMPLETION, reg, ecart_detecte=False,
+        photos=["chantier-apres-1.jpg", "chantier-apres-2.jpg"],
+        description_factuelle="Installation de gouttières en aluminium 5po.",
+        consentement_marketing=True, client_satisfait=True,
+    )
+    assert accuse is not None, f"complétion refusée : {verdict}"
+    wct = reg.lire()[-1][outbox_mod.CLE_WCT]
+    assert wct["photos"] == ["chantier-apres-1.jpg", "chantier-apres-2.jpg"]
+    assert wct["description_factuelle"] == "Installation de gouttières en aluminium 5po."
+    assert wct["consentement_marketing"] is True
+    assert wct["client_satisfait"] is True
+    assert set(wct.keys()) == set(outbox_mod.CHAMPS_WCT) | {
+        "type_travaux", "photos", "description_factuelle", "consentement_marketing", "client_satisfait",
+    }
+    ok, msg = outbox_mod.verifier_invariants_outbox(reg)
+    assert ok, msg
+
+
+def test_completer_client_satisfait_null_explicite_distinct_d_absent():
+    """catalogue : client_satisfait est ``[boolean, null]`` — null (« demandé mais non
+    recueilli ») DOIT rester distinct d'une simple absence de clé (« jamais demandé »)."""
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    accuse, verdict = outbox_mod.completer_intervention(
+        i_id, H_COMPLETION, reg, ecart_detecte=False, client_satisfait=None,
+    )
+    assert accuse is not None, f"complétion refusée : {verdict}"
+    wct = reg.lire()[-1][outbox_mod.CLE_WCT]
+    assert "client_satisfait" in wct
+    assert wct["client_satisfait"] is None
+
+
+def test_completer_sans_champs_optionnels_wct_nu_inchange():
+    """Non-régression : un appel qui ne fournit AUCUN des quatre champs client (comme avant
+    T1.2-f) laisse le WCT exactement à CHAMPS_WCT plus type_travaux — jamais une clé fantôme."""
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    accuse, verdict = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
+    assert accuse is not None, f"complétion refusée : {verdict}"
+    wct = reg.lire()[-1][outbox_mod.CLE_WCT]
+    for champ in ("photos", "description_factuelle", "consentement_marketing", "client_satisfait"):
+        assert champ not in wct
+
+
+def test_verifier_invariants_rejette_cle_optionnelle_inconnue():
+    """Défense en profondeur : une clé qui n'appartient ni à CHAMPS_WCT ni à
+    CHAMPS_WCT_OPTIONNELS reste un wct incohérent, même après T1.2-f."""
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
+    chain = reg._chain
+    chain[-1][outbox_mod.CLE_WCT]["champ_etranger"] = "intrus"
+    ok, msg = outbox_mod.verifier_invariants_outbox(reg)
+    assert not ok
+    assert msg != ""
 

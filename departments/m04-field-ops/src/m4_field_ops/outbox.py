@@ -29,6 +29,30 @@ CHAMPS_WCT = (
     "hash_maillon", "consommateurs_cibles", "devis_id", "statut",
 )
 
+# T1.2-f : champs OPTIONNELS du WCT/événement publié (catalogue socle,
+# src/opsys/evenements/catalogue/m4.travaux_termines.json) — JAMAIS dans CHAMPS_WCT : ce
+# contrat requis reste figé à ses 13 clés (M6/M10 en gardent chacun une copie épinglée,
+# ``valider_wct``, qui refuse toute clé « inattendue » : un consommateur qui n'a pas encore
+# appris à filtrer ces nouvelles clés optionnelles doit les recevoir seulement là où il sait
+# déjà les ignorer — cf. m10_memoire.outils._recevoir_travaux_termines, déjà écrit ainsi).
+# Présents SEULEMENT quand M4 les connaît réellement :
+#   - ``type_travaux`` : tiré de l'inscription (contrat LeadQualifie gelé), jamais deviné ;
+#   - les quatre autres : des faits du CLIENT (Loi 25), acceptés par
+#     ``m4_completer_intervention`` SEULEMENT pendant un appel d'appareil (voir outils.py).
+# ``ville`` N'EST PAS dans ce tuple : M4 ne connaît la ville qu'au travers de
+# ``ville_tokenisee`` (registre immuable, Architecture §2 — docs/bmad/03-ARCHITECTURE.md ;
+# invariant testé par test_aucune_ville_en_clair_dans_le_registre). La révéler en clair, même
+# dans le WCT, romprait cet invariant Loi 25 déjà prouvé ; le champ reste donc
+# structurellement absent, exactement comme le catalogue (optionnel) le permet.
+CHAMPS_WCT_OPTIONNELS = (
+    "type_travaux", "photos", "description_factuelle", "consentement_marketing", "client_satisfait",
+)
+
+# Sentinelle interne : distincte de ``None``, qui est une valeur VALIDE pour
+# ``client_satisfait`` (« non recueilli », catalogue). Un paramètre resté à cette valeur par
+# défaut signifie « l'appelant n'a rien fourni », jamais « fourni comme vide ».
+NON_FOURNI = object()
+
 CLE_WCT = "wct"
 
 # T1.1-b#2 : les deux SEULES cibles que la complétion peut écrire (ex-``terminee``
@@ -56,6 +80,18 @@ def _extraire_devis_id(registre_cible, intervention_id):
         if (maillon.get("type_entree") == etats.TYPE_INSCRIPTION
                 and maillon.get("intervention_id") == intervention_id):
             return maillon.get("devis_id")
+    return None
+
+
+def _extraire_type_travaux(registre_cible, intervention_id):
+    """Renvoie le ``type_travaux`` (T1.2-f) du maillon d'inscription, ou None si absent (un
+    registre écrit avant ce champ, ou une intervention introuvable) — jamais deviné, symétrique
+    à ``_extraire_devis_id``. Porté TEL QUEL par le WCT quand connu (catalogue, champ optionnel :
+    CHAMPS_WCT_OPTIONNELS)."""
+    for maillon in registre_cible.lire():
+        if (maillon.get("type_entree") == etats.TYPE_INSCRIPTION
+                and maillon.get("intervention_id") == intervention_id):
+            return maillon.get("type_travaux")
     return None
 
 
@@ -218,7 +254,11 @@ def calculer_duree_reelle(registre_cible, intervention_id):
     return minutes, None
 
 
-def completer_intervention(intervention_id, horodatage_arg, registre_cible, *, ecart_detecte, revue_id=None):
+def completer_intervention(
+    intervention_id, horodatage_arg, registre_cible, *, ecart_detecte, revue_id=None,
+    photos=NON_FOURNI, description_factuelle=NON_FOURNI,
+    consentement_marketing=NON_FOURNI, client_satisfait=NON_FOURNI,
+):
     """
     Réalise la complétion et émet le WCT en une unique écriture.
 
@@ -238,6 +278,15 @@ def completer_intervention(intervention_id, horodatage_arg, registre_cible, *, e
             métier déjà confirmé : ``ecart_detecte`` doit alors valoir vrai
             (cohérence vérifiée ci-dessous) — une revue validée ne peut pas
             prétendre qu'aucun écart n'a été détecté.
+        photos, description_factuelle, consentement_marketing, client_satisfait
+            (T1.2-f, CHAMPS_WCT_OPTIONNELS) : des faits du CLIENT, restés à la
+            sentinelle ``NON_FOURNI`` par défaut (« l'appelant n'a rien fourni »,
+            distinct d'un ``None`` explicite — significatif pour
+            ``client_satisfait``, catalogue ``[boolean, null]``, « non recueilli »).
+            Cette fonction ne vérifie QUE leur FORME si fournis (fail-closed) ;
+            savoir SI l'appelant a le droit de les fournir (appel d'appareil,
+            Loi 25) est une décision de ``outils.py`` — ce module reste pur,
+            sans import ``opsys``, et ne la prend jamais.
 
     Returns:
         (accusé, None) ou (None, verdict).
@@ -256,6 +305,32 @@ def completer_intervention(intervention_id, horodatage_arg, registre_cible, *, e
             detail="ecart_detecte doit être un booléen explicite (jamais déduit)",
         )
     statut_cible = "completed_pending_review" if ecart_detecte else "completed_verified"
+
+    # 2 bis. T1.2-f : forme des champs CLIENT optionnels, SI fournis (NON_FOURNI sinon) —
+    # fail-closed, jamais une valeur mal typée acceptée silencieusement.
+    if consentement_marketing is not NON_FOURNI and type(consentement_marketing) is not bool:
+        return None, verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE",
+            detail="consentement_marketing doit être un booléen explicite (jamais déduit)",
+        )
+    if (client_satisfait is not NON_FOURNI and client_satisfait is not None
+            and type(client_satisfait) is not bool):
+        return None, verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE",
+            detail="client_satisfait doit être un booléen ou null explicite (« non recueilli »)",
+        )
+    if photos is not NON_FOURNI and (
+        not isinstance(photos, list) or not all(isinstance(p, str) for p in photos)
+    ):
+        return None, verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE",
+            detail="photos doit être une liste de chaînes (références, jamais de binaire)",
+        )
+    if description_factuelle is not NON_FOURNI and not isinstance(description_factuelle, str):
+        return None, verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE",
+            detail="description_factuelle doit être une chaîne",
+        )
 
     # 3. Statut courant
     courant = etats.statut_courant(registre_cible, intervention_id)
@@ -315,6 +390,8 @@ def completer_intervention(intervention_id, horodatage_arg, registre_cible, *, e
     # l'intervention a été inscrite sans devis (M3 n'alimente pas encore tous
     # les chemins d'entrée).
     devis_id = _extraire_devis_id(registre_cible, intervention_id)
+    # T1.2-f : porté TEL QUEL quand connu, jamais deviné — voir CHAMPS_WCT_OPTIONNELS.
+    type_travaux = _extraire_type_travaux(registre_cible, intervention_id)
 
     depart = _dernier_depart(registre_cible, intervention_id)
     if depart is None:
@@ -355,6 +432,18 @@ def completer_intervention(intervention_id, horodatage_arg, registre_cible, *, e
         "devis_id": devis_id,
         "statut": statut_cible,
     }
+    # T1.2-f (CHAMPS_WCT_OPTIONNELS) : ajoutés SEULEMENT quand connus/fournis — jamais une clé
+    # absente traitée comme null, jamais une clé null traitée comme absente (client_satisfait).
+    if type_travaux is not None:
+        wct["type_travaux"] = type_travaux
+    if photos is not NON_FOURNI:
+        wct["photos"] = photos
+    if description_factuelle is not NON_FOURNI:
+        wct["description_factuelle"] = description_factuelle
+    if consentement_marketing is not NON_FOURNI:
+        wct["consentement_marketing"] = consentement_marketing
+    if client_satisfait is not NON_FOURNI:
+        wct["client_satisfait"] = client_satisfait
 
     # 12. Maillon composite : exactement UN appel à ajouter
     maillon = copy.deepcopy(partie_transition)
@@ -528,8 +617,13 @@ def verifier_invariants_outbox(registre_cible):
         if statut in STATUTS_COMPLETION:
             if wct is None:
                 return False, f"maillon {statut} sans wct (index implicite)"
-            if set(wct.keys()) != set(CHAMPS_WCT):
-                return False, f"wct avec clés incorrectes: {set(wct.keys())}"
+            # T1.2-f : le wct porte AU MOINS les 13 clés requises (CHAMPS_WCT), et JAMAIS
+            # rien d'autre que celles-ci plus un sous-ensemble des optionnelles connues
+            # (CHAMPS_WCT_OPTIONNELS) — toujours fermé, jamais une clé étrangère tolérée.
+            cles_wct = set(wct.keys())
+            cles_permises = set(CHAMPS_WCT) | set(CHAMPS_WCT_OPTIONNELS)
+            if not set(CHAMPS_WCT) <= cles_wct or not cles_wct <= cles_permises:
+                return False, f"wct avec clés incorrectes: {cles_wct}"
             if wct["consommateurs_cibles"] != list(CONSOMMATEURS_CIBLES):
                 return False, "consommateurs_cibles du wct invalides"
             if wct["intervention_id"] != maillon.get("intervention_id"):
@@ -751,6 +845,8 @@ class ConsommateurReference:
 __all__ = [
     "CONSOMMATEURS_CIBLES",
     "CHAMPS_WCT",
+    "CHAMPS_WCT_OPTIONNELS",
+    "NON_FOURNI",
     "CLE_WCT",
     "STATUTS_COMPLETION",
     "calculer_minutes_pause",

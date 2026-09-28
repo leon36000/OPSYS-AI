@@ -25,6 +25,8 @@ EXPECTED_CODES_M4_LIST = [
     "REJ-CHAMP-VIDE",
     "REJ-ENUM-INVALIDE",
     "REJ-HORODATAGE-INVALIDE",
+    # Groupe 2 bis — T1.2-f : faits CLIENT (Loi 25) hors d'un appel d'appareil
+    "REJ-CHAMPS-CLIENT-HORS-APPAREIL",
     # Groupe 3 — succès
     "OK",
 ]
