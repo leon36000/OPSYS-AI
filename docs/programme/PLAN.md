@@ -300,7 +300,7 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       R12 (Expo SDK 57, expo-sqlite + file sortante maison, client de protocole TypeScript du core,
       `POST /tools/invoke` sans tour de modèle). Rôles d'opérateur nommés dans le core d'abord : le jeton
       partagé d'OpenClaw donne un accès complet (R12). Réécrire `docs/architecture/MOBILE.md` (périmé).
-  - [ ] T1.4-a Squelette `mobile/` (R12 §5, étape 1) :
+  - [x] T1.4-a Squelette `mobile/` (R12 §5, étape 1) :
     - Expo SDK 57, Expo Router et TypeScript strict ; i18n fr-CA ;
     - groupes de routes par rôle, gardés par une fonction pure testée ;
     - file sortante (R12 §4) en logique pure testée, avec un adaptateur expo-sqlite :
@@ -314,6 +314,17 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
     - `MOBILE.md` réécrit et briques inscrites dans INGREDIENTS.md.
 
     Aucun écran métier.
+
+    Preuve (a6964d6, 5b8896c) :
+    - versions de R12 §3 vérifiées une à une, sans écart ;
+    - licences lues dans chaque `LICENSE` (MIT, TypeScript Apache-2.0) ;
+    - file sortante :
+      - recul appliqué à la sélection ;
+      - ordre par `sequence` monotone, sûr au changement d'heure ;
+      - mutations bloquées par un ancêtre en échec définitif identifiées ;
+    - client `/tools/invoke` conforme au code du fork ;
+    - typecheck propre, Jest 169 réussis ; CI `mobile` verte sur GitHub.
+
   - [ ] T1.4-b Socle : idempotence des mutations d'appareil.
     - Table `mutations_appliquees`, de clé `(appareil, idempotencyKey)`.
     - Un renvoi rejoue le même résultat, dans la même transaction que l'outil.
