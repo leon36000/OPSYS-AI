@@ -27,8 +27,8 @@ budget:
   tokens_mois: 2500000
   alerte_pct: 80
 memoire:
-  lecture: [registre_forge, registre_business]
-  ecriture: [registre_forge, registre_business]
+  lecture: [registre_evenements, registre_affaires]
+  ecriture: [registre_evenements, registre_affaires]
 kpis:
   - id: taux_revisions_arbitrees
     description: Part des révisions signalées ayant reçu au moins un arbitrage humain consigné.

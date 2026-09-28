@@ -282,7 +282,7 @@ def test_verifier_reference_refuse_un_champ_registre_non_texte_ou_vide(registre_
     registre_cible = registre.Registre()
     registre_cible.ajouter(_evenement())
     reference = contexte.construire_reference(
-        registre_cible.lire()[-1], "forge", registre_cible
+        registre_cible.lire()[-1], "evenements", registre_cible
     )
     reference["registre"] = registre_invalide
 
@@ -307,7 +307,7 @@ def test_verifier_reference_detecte_un_hash_tete_positionne_avant_la_ligne_refer
     registre_cible.ajouter(_evenement("second"))
     second_maillon = registre_cible.lire()[-1]
 
-    reference = contexte.construire_reference(second_maillon, "forge", registre_cible)
+    reference = contexte.construire_reference(second_maillon, "evenements", registre_cible)
     reference["hash_tete"] = premier_ligne_id
 
     verdict, erreur = contexte.verifier_reference(reference, registre_cible)
@@ -328,7 +328,7 @@ def test_verifier_reference_accepte_un_hash_tete_avance_depuis_l_ecriture():
     registre_cible.ajouter(_evenement("second"))
     dernier_ligne_id = registre_cible.lire()[-1]["ligne_id"]
 
-    reference = contexte.construire_reference(premier_maillon, "forge", registre_cible)
+    reference = contexte.construire_reference(premier_maillon, "evenements", registre_cible)
     reference["hash_tete"] = dernier_ligne_id
 
     assert contexte.verifier_reference(reference, registre_cible) == (True, None)
@@ -346,7 +346,7 @@ def test_verifier_reference_rejette_une_reference_sur_une_chaine_falsifiee():
     registre_cible = registre.Registre()
     ligne_id = registre_cible.ajouter(_evenement())
     maillon = [m for m in registre_cible.lire() if m["ligne_id"] == ligne_id][0]
-    reference = contexte.construire_reference(maillon, "forge", registre_cible)
+    reference = contexte.construire_reference(maillon, "evenements", registre_cible)
 
     assert contexte.verifier_reference(reference, registre_cible) == (True, None)
     assert registre_cible.valider_chaine()[0] is True

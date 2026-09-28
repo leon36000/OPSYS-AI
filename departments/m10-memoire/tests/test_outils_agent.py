@@ -1,9 +1,17 @@
-"""Capacités d'agent de M10 : contrat des outils et chaînes composées (décision, préflight)."""
+"""Capacités d'agent de M10 : contrat des outils et chaînes composées (décision, préflight).
+
+Ce module exerce les singletons de PRODUCTION de `outils.py`, câblés sur le stockage durable de
+l'instance (ADR-0009/0010) — contrairement aux autres fichiers de tests du département, qui
+gardent leur propre `registre.Registre()` en mémoire. La fixture `_base_durable_m10` ci-dessous
+isole donc chaque test derrière sa propre base SQLite temporaire (jamais `~/.opsys` par défaut).
+"""
 
 from __future__ import annotations
 
 import sys
 from pathlib import Path
+
+import pytest
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
@@ -20,10 +28,25 @@ from m10_memoire.outils import (
     verifier_reference,
 )
 
+from opsys import stockage
 from opsys.departements import lire_manifeste
 from opsys.outils import executer
 
 HORODATAGE = "2026-08-04T12:00:00+00:00"
+
+
+@pytest.fixture(autouse=True)
+def _base_durable_m10(tmp_path, monkeypatch):
+    """Base SQLite temporaire migrée pour chaque test (ADR-0009) : les singletons de production
+    `_REGISTRE_EVENEMENTS`/`_REGISTRE_AFFAIRES` de `outils.py` y écrivent réellement — sans elle,
+    ils viseraient la base par défaut de l'hôte (`~/.opsys`), un effet de bord inacceptable en
+    test. Libérée après chaque test : aucun état ne fuit d'un test à l'autre.
+    """
+    url = f"sqlite:///{tmp_path / 'm10-outils.db'}"
+    monkeypatch.setenv(stockage.ENV_URL, url)
+    stockage.migrer(url)
+    yield
+    stockage.liberer()
 
 
 def _decision(decision_id, statut="proposee", raison="Raison suffisante et tracée."):
@@ -78,7 +101,7 @@ def test_journaliser_decision_valide_ecrit_et_retourne_une_reference_verifiable(
     assert reponse["decision"]["decision_id"] == "DEC-AGENT-001"
     reference = reponse["reference"]
     assert set(reference) == {"ligne_id", "registre", "hash_tete"}
-    assert reference["registre"] == "business"
+    assert reference["registre"] == "affaires"
 
     verification = verifier_reference(reference)
     assert verification["accepte"] is True
@@ -117,13 +140,14 @@ def test_memoriser_wct_puis_signaler_et_arbitrer_une_revision():
     ligne_id_a = premier["resultat"]["ligne_id"]
     ligne_id_b = second["resultat"]["ligne_id"]
 
-    # signaler_revision cible le registre Business, memoriser_wct écrit au Forge : deux
-    # ligne_id du Forge sont donc introuvables au Business (CA-M10-06, registres distincts).
+    # signaler_revision cible le registre Affaires, memoriser_wct écrit au registre Événements :
+    # deux ligne_id d'Événements sont donc introuvables aux Affaires (CA-M10-06, registres
+    # distincts).
     refus_registre_croise = signaler_revision(ligne_id_a, ligne_id_b, HORODATAGE)
     assert refus_registre_croise["accepte"] is False
 
 
-def test_signaler_puis_arbitrer_une_revision_sur_le_registre_business():
+def test_signaler_puis_arbitrer_une_revision_sur_le_registre_affaires():
     depart = journaliser_decision(_decision("DEC-REV-A"), HORODATAGE)
     arrivee = journaliser_decision(_decision("DEC-REV-B"), HORODATAGE)
     ligne_id_a = depart["decision"]["ligne_id"]

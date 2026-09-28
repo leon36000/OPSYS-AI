@@ -4,10 +4,11 @@ Mémoire Long Terme — non-oubli, PREFLIGHT tracé (POSTFLIGHT applicatif hors 
 
 Statut : département OPSYS complet (manifeste, SOUL, 2 skills, outils d'agent) sur le modèle
 de M3-estimation, mode `ombre`. Les six stories de domaine S001-S006 du PRD sont livrées et
-vertes : contrats gelés, deux registres append-only hash-chaînés distincts (Forge/Business),
-consommation du Work Completion Trigger de M4 sans recalcul de hash, décisions à raison
-obligatoire (statut par relecture), révision sans fusion, prédicat de contexte suffisant avec
-trace du refus, référence `memoire_m10` vérifiable, conformité statique (dont la garde
+vertes : contrats gelés, deux registres append-only hash-chaînés distincts (Événements/Affaires,
+anciennement Forge/Business — ADR-0010 décision 2), câblés sur le stockage durable de l'instance
+(ADR-0009), consommation du Work Completion Trigger de M4 sans recalcul de hash, décisions à
+raison obligatoire (statut par relecture), révision sans fusion, prédicat de contexte suffisant
+avec trace du refus, référence `memoire_m10` vérifiable, conformité statique (dont la garde
 anti-mutation).
 
 - `department.yaml` — manifeste (`m10_memoire.outils`, aucune dépendance — M10 est la fondation
@@ -15,7 +16,7 @@ anti-mutation).
 - `SOUL.md` — identité de l'agent.
 - `skills/journaliser-une-decision/` et `skills/preflight-contexte-suffisant/` — procédures.
 - `src/m10_memoire/outils.py` — deux outils composés, `m10_journaliser_decision` (validation →
-  écriture Business → référence) et `m10_contexte_preflight` (PREFLIGHT, trace le refus sans
+  écriture Affaires → référence) et `m10_contexte_preflight` (PREFLIGHT, trace le refus sans
   jamais interrompre l'appelant), + 6 outils unitaires (WCT, révision, statuts, vérification de
   référence).
 - Correctifs de fiabilité (TDD, tests dans `tests/`) :

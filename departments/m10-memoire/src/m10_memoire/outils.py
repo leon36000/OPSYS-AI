@@ -1,29 +1,32 @@
 """Capacités d'agent du département M10 Mémoire.
 
 Chaque outil enveloppe une fonction métier déterministe existante. `m10_journaliser_decision`
-compose validation → écriture au registre Business → référence vérifiable en un seul appel ;
+compose validation → écriture au registre Affaires → référence vérifiable en un seul appel ;
 `m10_contexte_preflight` est le PREFLIGHT (D-014, docs/research/R4-memory-rag.md §10) qui
 vérifie si un dossier de contexte est suffisant et, sinon, trace le refus au registre — sans
 jamais interrompre l'appelant.
 
-Deux registres DISTINCTS (CA-M10-06), chacun un singleton en mémoire du processus MCP de ce
-département (même convention que m8_analytics/outils.py) : `_REGISTRE_FORGE` pour les
-événements opérationnels (Work Completion Trigger de M4), `_REGISTRE_BUSINESS` pour les
-décisions, révisions et traces de préflight. Aucune fonction ci-dessous n'accepte les deux
-registres en argument.
+Deux registres DISTINCTS (CA-M10-06), chacun un singleton du processus de ce département, câblés
+sur le stockage durable de l'instance (ADR-0009 décision 2, ADR-0010 décision 2) via
+`opsys.stockage.maillons` : `_REGISTRE_EVENEMENTS` pour les événements opérationnels (Work
+Completion Trigger de M4 — anciennement nommé « Forge », renommé pour ne plus prêter à confusion
+avec l'outillage de développement), `_REGISTRE_AFFAIRES` pour les décisions, révisions et traces
+de préflight. Aucune fonction ci-dessous n'accepte les deux registres en argument. `registre.py`
+reste pur : c'est ici, et seulement ici, que le paquet touche `opsys`.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
+from opsys import stockage
 from opsys.outils import Autonomie, Outil, depuis_couple
 
 from . import contexte, contrats, decisions, registre, revision, wct
 
-_REGISTRE_FORGE = registre.Registre()
-_REGISTRE_BUSINESS = registre.Registre()
-_REGISTRES_NOMMES = {"forge": _REGISTRE_FORGE, "business": _REGISTRE_BUSINESS}
+_REGISTRE_EVENEMENTS = registre.Registre(maillons=stockage.maillons("m10-memoire", "evenements"))
+_REGISTRE_AFFAIRES = registre.Registre(maillons=stockage.maillons("m10-memoire", "affaires"))
+_REGISTRES_NOMMES = {"evenements": _REGISTRE_EVENEMENTS, "affaires": _REGISTRE_AFFAIRES}
 
 _DECISION = {
     "type": "object",
@@ -69,56 +72,56 @@ _REFERENCE_MEMOIRE = {
 
 
 def journaliser_decision(decision: dict[str, Any], horodatage: str) -> dict[str, Any]:
-    """Chaîne complète : validation (raison, statut) → écriture (registre Business) → référence.
+    """Chaîne complète : validation (raison, statut) → écriture (registre Affaires) → référence.
 
     N'écrit rien si la décision est refusée (raison absente, statut hors énuméré).
     """
-    maillon, code = decisions.enregistrer_decision(decision, _REGISTRE_BUSINESS, horodatage)
+    maillon, code = decisions.enregistrer_decision(decision, _REGISTRE_AFFAIRES, horodatage)
     if maillon is None:
         return {"etape": "validation", "accepte": False, "verdict": code}
-    reference = contexte.construire_reference(maillon, "business", _REGISTRE_BUSINESS)
+    reference = contexte.construire_reference(maillon, "affaires", _REGISTRE_AFFAIRES)
     return {"etape": "complet", "accepte": True, "decision": maillon, "reference": reference}
 
 
 def contexte_preflight(dossier: dict[str, Any], horodatage: str) -> dict[str, Any]:
     """PREFLIGHT (D-014) : vérifie qu'un dossier de contexte est suffisant.
 
-    Si insuffisant, trace le refus au registre Business et rend la main — n'interrompt jamais
+    Si insuffisant, trace le refus au registre Affaires et rend la main — n'interrompt jamais
     l'appelant, ne bloque aucune action à sa place (le hook applicatif est un GATED futur).
     """
-    trace, code = contexte.tracer_refus_contexte(dossier, _REGISTRE_BUSINESS, horodatage)
+    trace, code = contexte.tracer_refus_contexte(dossier, _REGISTRE_AFFAIRES, horodatage)
     if trace is None and code is None:
         return {"suffisant": True, "verdict": None, "trace": None}
     return {"suffisant": False, "verdict": code, "trace": trace}
 
 
 def memoriser_wct(wct_recu: dict[str, Any]) -> dict[str, Any]:
-    return depuis_couple(wct.memoriser_wct(wct_recu, _REGISTRE_FORGE))
+    return depuis_couple(wct.memoriser_wct(wct_recu, _REGISTRE_EVENEMENTS))
 
 
 def signaler_revision(ligne_id_a: str, ligne_id_b: str, horodatage: str) -> dict[str, Any]:
     return depuis_couple(
-        revision.signaler_revision(_REGISTRE_BUSINESS, ligne_id_a, ligne_id_b, horodatage)
+        revision.signaler_revision(_REGISTRE_AFFAIRES, ligne_id_a, ligne_id_b, horodatage)
     )
 
 
 def arbitrer_revision(revision_ligne_id: str, statut: str, horodatage: str) -> dict[str, Any]:
     return depuis_couple(
-        revision.arbitrer_revision(_REGISTRE_BUSINESS, revision_ligne_id, statut, horodatage)
+        revision.arbitrer_revision(_REGISTRE_AFFAIRES, revision_ligne_id, statut, horodatage)
     )
 
 
 def statut_decision(decision_id: str) -> dict[str, Any]:
     """Statut courant, TOUJOURS calculé par relecture de la chaîne (jamais un champ positionnable)."""
-    return {"statut": decisions.statut_courant(_REGISTRE_BUSINESS, decision_id)}
+    return {"statut": decisions.statut_courant(_REGISTRE_AFFAIRES, decision_id)}
 
 
 def statut_revision(revision_ligne_id: str) -> dict[str, Any]:
-    return {"statut": revision.statut_revision(_REGISTRE_BUSINESS, revision_ligne_id)}
+    return {"statut": revision.statut_revision(_REGISTRE_AFFAIRES, revision_ligne_id)}
 
 
 def verifier_reference(reference: dict[str, Any]) -> dict[str, Any]:
-    """Vérifie une ReferenceMemoireM10 contre le registre qu'elle nomme (forge ou business)."""
+    """Vérifie une ReferenceMemoireM10 contre le registre qu'elle nomme (evenements ou affaires)."""
     nom_registre = reference.get("registre") if isinstance(reference, dict) else None
     registre_cible = _REGISTRES_NOMMES.get(nom_registre)
     if registre_cible is None:
@@ -133,7 +136,7 @@ def outils() -> tuple[Outil, ...]:
             nom="m10_journaliser_decision",
             description=(
                 "Enregistre une décision motivée de bout en bout : validation (raison "
-                "obligatoire, statut dans l'énuméré fermé) → écriture au registre Business → "
+                "obligatoire, statut dans l'énuméré fermé) → écriture au registre Affaires → "
                 "référence vérifiable. Refuse une décision sans raison non vide."
             ),
             parametres={
@@ -165,8 +168,8 @@ def outils() -> tuple[Outil, ...]:
             nom="m10_memoriser_wct",
             description=(
                 "Consomme un Work Completion Trigger de M4 (12 champs exacts, 'M10' requis "
-                "dans consommateurs_cibles) et le mémorise comme événement au registre Forge — "
-                "le hash_maillon de M4 n'est jamais recalculé."
+                "dans consommateurs_cibles) et le mémorise comme événement au registre "
+                "Événements — le hash_maillon de M4 n'est jamais recalculé."
             ),
             parametres={
                 "type": "object",
@@ -180,7 +183,7 @@ def outils() -> tuple[Outil, ...]:
         Outil(
             nom="m10_signaler_revision",
             description=(
-                "Signale une révision entre deux maillons EXISTANTS du registre Business (deux "
+                "Signale une révision entre deux maillons EXISTANTS du registre Affaires (deux "
                 "souvenirs qui se ressemblent, ou un fait devenu obsolète) — jamais une fusion."
             ),
             parametres={
@@ -218,7 +221,7 @@ def outils() -> tuple[Outil, ...]:
         ),
         Outil(
             nom="m10_statut_decision",
-            description="Statut courant d'une décision, calculé par relecture du registre Business (jamais un champ positionnable).",
+            description="Statut courant d'une décision, calculé par relecture du registre Affaires (jamais un champ positionnable).",
             parametres={
                 "type": "object",
                 "properties": {"decision_id": {"type": "string"}},

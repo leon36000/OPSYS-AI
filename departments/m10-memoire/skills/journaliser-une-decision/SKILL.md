@@ -1,6 +1,6 @@
 ---
 name: journaliser-une-decision
-description: Procédure pour journaliser une décision motivée au registre Business et obtenir sa référence vérifiable, ou pour signaler puis arbitrer une révision entre deux souvenirs, sans jamais fusionner ni muter un maillon existant.
+description: Procédure pour journaliser une décision motivée au registre Affaires et obtenir sa référence vérifiable, ou pour signaler puis arbitrer une révision entre deux souvenirs, sans jamais fusionner ni muter un maillon existant.
 ---
 
 # Journaliser une décision

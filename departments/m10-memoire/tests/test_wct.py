@@ -160,25 +160,25 @@ def test_memoriser_wct_chaine_deux_maillons_successifs(registre_cible):
 
 
 def test_memoriser_wct_dans_deux_registres_distincts_ne_les_affecte_pas_mutuellement():
-    registre_forge = registre.Registre()
-    registre_business = registre.Registre()
+    registre_evenements = registre.Registre()
+    registre_affaires = registre.Registre()
 
-    maillon_forge, code_forge = wct.memoriser_wct(_wct(), registre_forge)
+    maillon_evenements, code_evenements = wct.memoriser_wct(_wct(), registre_evenements)
 
-    business_wct = _wct()
-    business_wct["wct_id"] = "WCT-002"
-    maillon_business, code_business = wct.memoriser_wct(
-        business_wct,
-        registre_business,
+    affaires_wct = _wct()
+    affaires_wct["wct_id"] = "WCT-002"
+    maillon_affaires, code_affaires = wct.memoriser_wct(
+        affaires_wct,
+        registre_affaires,
     )
 
-    assert code_forge is None
-    assert code_business is None
-    assert len(registre_forge.lire()) == 1
-    assert len(registre_business.lire()) == 1
-    assert registre_forge.lire()[0] == maillon_forge
-    assert registre_business.lire()[0] == maillon_business
-    assert maillon_forge != maillon_business
+    assert code_evenements is None
+    assert code_affaires is None
+    assert len(registre_evenements.lire()) == 1
+    assert len(registre_affaires.lire()) == 1
+    assert registre_evenements.lire()[0] == maillon_evenements
+    assert registre_affaires.lire()[0] == maillon_affaires
+    assert maillon_evenements != maillon_affaires
 
 
 def test_valider_wct_n_accepte_qu_un_seul_argument_positionnel():

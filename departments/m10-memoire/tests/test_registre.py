@@ -182,23 +182,23 @@ def test_trois_types_de_maillon_cohabitent_dans_une_meme_chaine():
 
 
 def test_deux_instances_sont_totalement_independantes():
-    registre_forge = registre.Registre()
-    registre_business = registre.Registre()
+    registre_evenements = registre.Registre()
+    registre_affaires = registre.Registre()
     entree = _entree(valeur={"contenu": "partage"})
 
-    ligne_id_forge = registre_forge.ajouter(entree)
+    ligne_id_evenements = registre_evenements.ajouter(entree)
 
-    assert registre_business.lire() == []
-    assert registre_business.tete() is None
+    assert registre_affaires.lire() == []
+    assert registre_affaires.tete() is None
 
-    ligne_id_business = registre_business.ajouter(entree)
+    ligne_id_affaires = registre_affaires.ajouter(entree)
 
-    assert ligne_id_forge == ligne_id_business
-    assert registre_forge._chain is not registre_business._chain
+    assert ligne_id_evenements == ligne_id_affaires
+    assert registre_evenements._chain is not registre_affaires._chain
 
-    registre_forge._chain[0]["valeur"]["contenu"] = "falsifie"
+    registre_evenements._chain[0]["valeur"]["contenu"] = "falsifie"
 
-    assert registre_business.lire()[0]["valeur"]["contenu"] == "partage"
+    assert registre_affaires.lire()[0]["valeur"]["contenu"] == "partage"
 
 
 def test_aucun_maillon_ne_porte_de_champ_de_permission():

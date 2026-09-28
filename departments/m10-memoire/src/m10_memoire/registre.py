@@ -1,3 +1,12 @@
+"""Registre append-only générique de M10 : la chaîne de hash, rien d'autre.
+
+Module pur (DA-M10-08) : aucun import d'``opsys`` ni de SQLAlchemy. ``Registre`` ne sait pas où
+vivent ses maillons — en mémoire (une simple liste, valeur par défaut) ou dans le stockage
+durable de l'instance (``opsys.stockage.maillons(...)``, qui se comporte comme une liste). Tout
+état dérivé (tête, validité de la chaîne) est recalculé à chaque appel depuis les maillons reçus,
+jamais mis en cache : le module reste correct quel que soit l'objet injecté.
+"""
+
 from __future__ import annotations
 
 import copy
@@ -24,8 +33,12 @@ def _valider_horodatage_local(chaine):
 
 
 class Registre:
-    def __init__(self):
-        self._chain = []
+    def __init__(self, maillons=None):
+        """``maillons`` : la liste (ou tout objet compatible liste, cf. docstring du module) où
+        vivent les maillons. ``None`` (par défaut) garde le comportement historique : une liste
+        Python en mémoire, perdue à l'arrêt du processus — c'est le mode des tests unitaires.
+        """
+        self._chain = maillons if maillons is not None else []
 
     def ajouter(self, entree):
         if not isinstance(entree, dict):
