@@ -36,6 +36,10 @@ CODES_M4_LIST = [
     "REJ-IDENTITE-APPAREIL-INVALIDE",         # l'identité du jeton n'est pas confirmée par la base.
     "REJ-INTERVENTION-NON-ASSIGNEE",          # un employé agit sur l'intervention d'un autre.
     "REJ-IDENTITE-FOURNIE-DIFFERENTE",         # technicien_id ou accede_par != personne authentifiée.
+    # Groupe 7 — PLAN T4.1-a : localisation des chantiers (localisation.py, R15 §3 et §4)
+    "REJ-COORDONNEES-A-CONFIRMER",   # « coordonnées manquantes : à confirmer » : jamais une position inventée.
+    "REJ-INDEX-RQA-ABSENT",          # l'index local du RQA n'est pas importé : dit quoi faire, pas « introuvable ».
+    "REJ-LOCALISATION-DETRUITE",     # clé du chantier détruite : la position n'est plus lisible (voulu).
     # Groupe 3 — succès
     "OK",
 ]

@@ -42,8 +42,8 @@ VENDEUR = frozenset({
 ADMIN_SEUL = frozenset({
     "m1_produire_digest",
     "m2_arbitrer_doublon", "m2_detecter_doublons", "m2_produire_digest", "m2_signaler_doublon",
-    "m4_lire_position_gps", "m4_lister_pending_review",
-    "m4_produire_brouillon_temps", "m4_produire_digest", "m4_resoudre_demande",
+    "m4_confirmer_localisation", "m4_lire_position_gps", "m4_lister_pending_review",
+    "m4_produire_brouillon_temps", "m4_produire_digest", "m4_proposer_localisation", "m4_resoudre_demande",
     "m4_resoudre_revue_completion", "m4_volumetrie_pending_review",
     "m5_etat_tresorerie", "m5_lister_attentes_facturation",
     "m6_annuler_po", "m6_approuver_po", "m6_evaluer_variance_chantier", "m6_produire_digest",
@@ -120,6 +120,7 @@ def test_outils_qui_lisent_ou_approuvent_pour_les_autres_absents_de_l_employe(ro
     "m4_produire_digest", "m6_approuver_po", "m6_annuler_po", "m6_consommer_materiaux",
     "m6_receptionner_commande", "m6_soumettre_comptage", "m6_produire_digest", "m5_etat_tresorerie",
     "m3_lire_devis", "m2_transitionner_statut", "m10_paquet_contexte_affaire",
+    "m4_confirmer_localisation", "m4_proposer_localisation",  # l'adresse d'un client : jamais l'employé (T4.1-a)
 ])
 def test_l_employe_ne_lit_ni_n_approuve_rien_des_autres(roles_reels, outil):
     assert outil not in roles_reels["employee"]
@@ -129,6 +130,7 @@ def test_l_employe_ne_lit_ni_n_approuve_rien_des_autres(roles_reels, outil):
     "m5_etat_tresorerie", "m5_lister_attentes_facturation", "m6_approuver_po", "m6_receptionner_commande",
     "m6_produire_digest", "m6_enregistrer_prix", "m3_lire_ecarts_estime_reel", "m3_creer_devis",
     "m3_estimer_projet", "m4_lire_outbox", "m9_produire_briefing_matin", "m8_rapport_metriques",
+    "m4_confirmer_localisation", "m4_proposer_localisation",
 ])
 def test_le_vendeur_n_a_ni_finances_ni_couts_du_proprietaire(roles_reels, outil):
     assert outil not in roles_reels["seller"]

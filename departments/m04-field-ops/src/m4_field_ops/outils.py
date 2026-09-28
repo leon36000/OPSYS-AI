@@ -29,6 +29,7 @@ pour les cas où seule une étape est nécessaire (ex. un pointage isolé).
 from __future__ import annotations
 
 from collections.abc import Callable
+from functools import partial
 from typing import Any
 
 from opsys import approbations, cles_chiffrement, contexte, evenements, fichiers, stockage
@@ -41,6 +42,7 @@ from . import (
     digest,
     ecarts,
     etats,
+    localisation,
     outbox,
     pointage,
     preuves,
@@ -78,6 +80,14 @@ _PREUVE_CONSENTEMENT = {
     "description": (
         "{fictif: true, reference} — référence au formulaire/preuve signé (jamais le document "
         "lui-même). Mode ombre : seule une preuve fictive est supportée (POLITIQUE-geolocalisation.md §4)."
+    ),
+}
+_ADRESSE_CHANTIER = {
+    "type": ["object", "string"],
+    "description": (
+        "Adresse du chantier. Objet {numero_municipal, odonyme, municipalite} obligatoires, plus "
+        "suffixe, unite, code_municipalite, code_postal si connus ; ou une ligne « [unité-]numéro "
+        "[suffixe] odonyme, municipalité [code postal] ». Jamais complétée ni devinée."
     ),
 }
 _VERSION_METIER = {"type": "object", "description": "{duree_minutes, perimetre, materiaux}."}
@@ -630,6 +640,80 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
         return depuis_couple(
             temps.produire_brouillon_temps(registre_courant(), periode, seuil_minutes=seuil_minutes)
         )
+
+    def proposer_localisation(adresse: Any, chantier_id: str | None = None) -> dict[str, Any]:
+        """Lecture seule : cherche l'adresse dans l'index RQA LOCAL (aucun réseau) et PROPOSE, sans rien
+        écrire. Rien n'est une confirmation : la position n'entre au registre que par
+        ``m4_confirmer_localisation``."""
+        acteur, verdict_acteur = _acteur_appareil()
+        if verdict_acteur is not None:
+            return _refus(verdict_acteur)
+        verdict_role = acces.controler_administrateur(acteur)
+        if verdict_role is not None:
+            return _refus(verdict_role)
+        if chantier_id is not None and (not isinstance(chantier_id, str) or chantier_id.strip() == ""):
+            return _refus(verdicts.construire_verdict("REJ-CHAMP-VIDE", detail="chantier_id vide"))
+        # Adresse d'abord : une adresse illisible se dit telle, même quand l'index manque aussi.
+        _, verdict_adresse = localisation.analyser_adresse(adresse)
+        if verdict_adresse is not None:
+            return _refus(verdict_adresse)
+        index, verdict_index = localisation.ouvrir_index(_chemin_index_rqa())
+        if verdict_index is not None:
+            return _refus(verdict_index)
+        try:
+            resultat, verdict = localisation.proposer(index, adresse)
+        finally:
+            index.fermer()
+        if verdict is not None:
+            reponse: dict[str, Any] = {"accepte": False, "verdict": verdict, **(resultat or {})}
+        else:
+            reponse = {"accepte": True, "resultat": resultat}
+        if chantier_id is not None:
+            # Métadonnées seulement (version, source, précision, signataire) : aucune coordonnée déchiffrée.
+            reponse["confirmation_actuelle"] = localisation.confirmation_courante(registre_courant(), chantier_id)
+        return reponse
+
+    def confirmer_localisation(
+        chantier_id: str, action: str, horodatage: str, confirme_par: str,
+        adresse: Any = None, source: str | None = None, rqa_identifiant: str | None = None,
+        latitude_microdegres: int | None = None, longitude_microdegres: int | None = None, motif: str = "",
+    ) -> dict[str, Any]:
+        """Écrit le maillon ``localisation_chantier`` (coordonnées chiffrées, versionné). Toutes les
+        vérifications précèdent la moindre écriture, clé de chiffrement comprise : un refus ne laisse rien."""
+        acteur, verdict_acteur = _acteur_appareil()
+        if verdict_acteur is not None:
+            return _refus(verdict_acteur)
+        verdict_acces = acces.controler_administrateur(acteur) or acces.controler_confirmant(acteur, confirme_par)
+        if verdict_acces is not None:
+            return _refus(verdict_acces)
+        # Même patron que m4_pointer (T1.4-d) : pendant un appel d'appareil, l'heure de RÉCEPTION DU
+        # SERVEUR fait foi, jamais l'horloge de l'appareil ni l'`horodatage` fourni.
+        reception = contexte.horodatage_reception()
+        horodatage_faisant_foi = reception.recu_le.isoformat() if reception is not None else horodatage
+        index = None
+        if action == "confirmee" and source == "rqa":
+            index, verdict_index = localisation.ouvrir_index(_chemin_index_rqa())
+            if verdict_index is not None:
+                return _refus(verdict_index)
+        cnx = _cnx_durable()
+        # Sans base durable, aucune clé ne peut exister : la confirmation est refusée (jamais écrite en clair).
+        fournir_cle = None if cnx is None else partial(
+            cles_chiffrement.obtenir_ou_creer, cnx, localisation.PORTEE_CLES_LOCALISATION, chantier_id,
+            horodatage_faisant_foi,
+        )
+        try:
+            reponse = depuis_couple(localisation.confirmer(
+                registre_courant(), chantier_id, action, horodatage_faisant_foi, confirme_par,
+                adresse=adresse, source=source, rqa_identifiant=rqa_identifiant,
+                latitude_microdegres=latitude_microdegres, longitude_microdegres=longitude_microdegres,
+                motif=motif, index=index, fournir_cle=fournir_cle,
+            ))
+        finally:
+            if index is not None:
+                index.fermer()
+        if reception is not None and reponse["accepte"]:
+            reponse["resultat"]["horodatage_appareil"] = reception.horodatage_appareil.isoformat()
+        return reponse
 
     return (
         Outil(
@@ -1206,7 +1290,107 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             # l'attestation du professionnel (approbations._valider_attestation), jamais automatique.
             autonomie=Autonomie.T3,
         ),
+        Outil(
+            nom="m4_proposer_localisation",
+            description=(
+                "Cherche l'adresse d'un chantier dans l'index LOCAL du Référentiel québécois des adresses "
+                "(RQA, aucun réseau) et PROPOSE des coordonnées : correspondance EXACTE unique et de bonne "
+                "qualité seulement. Sinon, verdict REJ-COORDONNEES-A-CONFIRMER (« coordonnées manquantes : "
+                "à confirmer », jamais une position inventée) avec la raison et les candidats à montrer à "
+                "l'humain, ou REJ-INDEX-RQA-ABSENT si l'index n'est pas importé. Lecture seule : rien "
+                "n'est écrit ni confirmé. Afficher `attribution` (CC-BY 4.0). `chantier_id` optionnel : "
+                "ajoute le résumé de la confirmation actuelle, sans coordonnées."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "adresse": _ADRESSE_CHANTIER,
+                    "chantier_id": {
+                        "type": ["string", "null"],
+                        "description": "Identifiant du chantier (v1 : le lead_id).",
+                    },
+                },
+                "required": ["adresse"],
+                "additionalProperties": False,
+            },
+            fonction=proposer_localisation,
+            autonomie=Autonomie.T0,
+            # §9.5 (dispatch) : l'admin confirme la localisation d'un chantier depuis son téléphone et doit
+            # voir la proposition. Aucune donnée du registre ni d'autrui n'est lue (adresse fournie,
+            # référentiel public) ; l'employé et le vendeur n'ont aucun besoin d'une adresse à géocoder.
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_confirmer_localisation",
+            description=(
+                "CONFIRME (ou retire) la localisation d'un chantier : écrit le maillon localisation_chantier, "
+                "versionné (le dernier gagne, l'historique reste), coordonnées chiffrées avec une clé par "
+                "chantier, adresse jamais en clair (empreinte seulement). source=rqa : rqa_identifiant d'une "
+                "adresse de l'index qui correspond EXACTEMENT à `adresse` (coordonnées lues dans l'index, "
+                "jamais des arguments) ; source=manuel : coordonnées en microdegrés saisies par l'humain, "
+                "marquées manuel. `motif` obligatoire pour remplacer, retirer, ou confirmer une position de "
+                "qualité faible ou une adresse non certifiée. Aucune coordonnée n'entre au solveur de "
+                "tournées sans cette confirmation humaine. Pour un appel d'appareil, `confirme_par` doit "
+                "être la personne authentifiée (REJ-IDENTITE-FOURNIE-DIFFERENTE sinon)."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "chantier_id": {"type": "string", "description": "Identifiant du chantier (v1 : le lead_id)."},
+                    "action": {"type": "string", "enum": list(localisation.ACTIONS_LOCALISATION)},
+                    "horodatage": {"type": "string"},
+                    "confirme_par": {"type": "string", "description": "Personne qui confirme, nommément."},
+                    "adresse": _ADRESSE_CHANTIER,
+                    "source": {"type": ["string", "null"], "enum": list(localisation.SOURCES_LOCALISATION) + [None]},
+                    "rqa_identifiant": {"type": ["string", "null"], "description": "Identifiant RQA (source rqa)."},
+                    "latitude_microdegres": {
+                        "type": ["integer", "null"], "description": "Degrés × 1 000 000 (source manuel).",
+                    },
+                    "longitude_microdegres": {
+                        "type": ["integer", "null"], "description": "Degrés × 1 000 000 (source manuel).",
+                    },
+                    "motif": {"type": "string", "description": "Pourquoi (obligatoire dans les cas listés)."},
+                },
+                "required": ["chantier_id", "action", "horodatage", "confirme_par"],
+                "additionalProperties": False,
+            },
+            fonction=confirmer_localisation,
+            autonomie=Autonomie.T1,
+            # Niveau : N3, le défaut de T1 (ADR-0009 §4, « modification interne non finale, validation humaine
+            # au départ »), laissé implicite comme pour les autres écritures internes de M4. Ce n'est PAS N2 :
+            # N2 est automatique, or R15 §3 exige une confirmation humaine avant qu'une coordonnée entre au
+            # solveur. En N3, un appel d'agent en mode ombre part en file d'approbation ; un appel de l'admin
+            # depuis son téléphone s'exécute sur-le-champ (validation au départ par la personne qui agit,
+            # addendum T1.4-h) et `confirme_par` porte son nom. Ce n'est pas N4 : le geste est versionné et se
+            # corrige (`retiree`), il n'engage rien hors de l'entreprise. Limite : en `supervise` et `autonome`,
+            # un N3 s'exécute sans file (ROLES.md, « Ce qui reste »).
+            # §9.5 (dispatch) : réservé à l'admin ; l'employé ne confirme pas une adresse de client.
+            roles_appareil=frozenset({"admin"}),
+        ),
     )
+
+
+def lire_localisation_confirmee(
+    registre_cible: registre.Registre, chantier_id: str, adresse: Any = None,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Lecture pour le solveur de tournées (T4.1-c) : ``(position, None)`` avec les coordonnées
+    confirmées en microdegrés, ou ``(None, verdict)`` : ``REJ-COORDONNEES-A-CONFIRMER`` (jamais
+    confirmée, retirée, ou adresse changée), ``REJ-LOCALISATION-DETRUITE`` (clé détruite). Le dernier
+    maillon gagne. À appeler dans l'appel d'outil en cours (la clé est lue dans sa transaction) ; hors
+    transaction, une lecture s'ouvre pour l'occasion. ``adresse`` optionnelle : si elle diffère de
+    celle qui a été confirmée, la position n'est pas rendue."""
+    cnx = stockage.connexion_courante()
+    if cnx is not None:
+        cle = cles_chiffrement.lire(cnx, localisation.PORTEE_CLES_LOCALISATION, chantier_id)
+    else:
+        with stockage.transaction() as cnx_lecture:
+            cle = cles_chiffrement.lire(cnx_lecture, localisation.PORTEE_CLES_LOCALISATION, chantier_id)
+    return localisation.position_confirmee(registre_cible, chantier_id, cle, adresse=adresse)
+
+
+def _chemin_index_rqa():
+    """Index RQA de l'instance : ``<OPSYS_HOME>/rqa/index.sqlite`` (``localisation.importer_rqa``)."""
+    return stockage.dossier_opsys() / localisation.SOUS_DOSSIER_INDEX / localisation.NOM_FICHIER_INDEX
 
 
 # ---------------------------------------------------------------------------------------------

@@ -71,11 +71,12 @@ def test_autonomie_attendue_par_outil():
         "m4_planifier_intervention", "m4_demarrer_route", "m4_signaler_report",
         "m4_annuler_intervention", "m4_pointer", "m4_creer_demande_ecart",
         "m4_resoudre_demande", "m4_completer_intervention", "m4_resoudre_revue_completion",
+        "m4_confirmer_localisation",  # PLAN T4.1-a : N3 implicite (test_localisation_outils.py)
     ]
     lectures_t0 = [
         "m4_statut_intervention", "m4_lister_pending_review",
         "m4_volumetrie_pending_review", "m4_lire_outbox", "m4_produire_digest",
-        "m4_lister_interventions", "m4_produire_brouillon_temps",
+        "m4_lister_interventions", "m4_produire_brouillon_temps", "m4_proposer_localisation",
     ]
     for nom in ecritures_t1:
         assert par_nom[nom].autonomie == Autonomie.T1, nom

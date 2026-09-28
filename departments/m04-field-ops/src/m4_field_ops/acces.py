@@ -44,6 +44,8 @@ __all__ = [
     "acteur_de",
     "controler_technicien",
     "controler_consultant",
+    "controler_administrateur",
+    "controler_confirmant",
     "controler_intervention",
     "interventions_visibles",
 ]
@@ -110,6 +112,41 @@ def controler_consultant(acteur, accede_par):
             detail=(
                 "accede_par ne correspond pas à la personne authentifiée : le journal d'accès "
                 "GPS nomme celui qui consulte, pas un autre"
+            ),
+        )
+    return None
+
+
+def controler_administrateur(acteur):
+    """``None`` si l'acteur peut appeler un outil réservé à l'``admin``, sinon un verdict.
+
+    La portée par outil (``Outil.roles_appareil``, ``docs/architecture/ROLES.md``) est déjà tenue par
+    le core ; ce contrôle la double dans l'outil même, pour qu'un jeton qui la franchirait (portée mal
+    déclarée, appel direct) n'écrive rien. Sans acteur (agent, console) : rien à contrôler."""
+    if acteur is None or acteur.role == ROLE_ADMIN:
+        return None
+    return verdicts.construire_verdict(
+        "REJ-IDENTITE-APPAREIL-INVALIDE",
+        detail=f"rôle d'appareil {acteur.role!r} sans portée sur cet outil, réservé à l'admin",
+    )
+
+
+def controler_confirmant(acteur, confirme_par):
+    """``None`` si ``confirme_par`` (qui confirme la localisation d'un chantier, PLAN T4.1-a) est admis
+    pour cet acteur, sinon un verdict.
+
+    Même règle que ``controler_consultant`` : pour tout appel d'appareil, la confirmation nomme la
+    personne AUTHENTIFIÉE ; un autre nom est refusé, jamais remplacé en silence (une confirmation
+    signée d'un autre nom ne prouverait plus qu'un humain l'a faite). Sans acteur : l'argument reste
+    celui de l'appelant, comme pour les autres outils sans identité."""
+    if acteur is None:
+        return None
+    if confirme_par != acteur.personne:
+        return verdicts.construire_verdict(
+            "REJ-IDENTITE-FOURNIE-DIFFERENTE",
+            detail=(
+                "confirme_par ne correspond pas à la personne authentifiée : la confirmation d'une "
+                "localisation nomme celui qui la fait, pas un autre"
             ),
         )
     return None

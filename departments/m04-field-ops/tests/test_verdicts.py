@@ -36,6 +36,10 @@ EXPECTED_CODES_M4_LIST = [
     "REJ-IDENTITE-APPAREIL-INVALIDE",
     "REJ-INTERVENTION-NON-ASSIGNEE",
     "REJ-IDENTITE-FOURNIE-DIFFERENTE",
+    # Groupe 7 — PLAN T4.1-a : localisation des chantiers (localisation.py, R15 §3 et §4)
+    "REJ-COORDONNEES-A-CONFIRMER",
+    "REJ-INDEX-RQA-ABSENT",
+    "REJ-LOCALISATION-DETRUITE",
     # Groupe 3 — succès
     "OK",
 ]

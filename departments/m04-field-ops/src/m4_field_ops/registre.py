@@ -44,6 +44,10 @@ _TYPE_ENTREE_VALIDES = {
     # Sans ce maillon, l'assignation n'entrait au registre qu'avec la transition en_route, donc
     # rien ne permettait de dire, avant de partir, quelles interventions sont celles d'un employé.
     "assignation_technicien",
+    # PLAN T4.1-a (R15 §4) : localisation confirmée d'un chantier, coordonnées CHIFFRÉES (clé par
+    # chantier, effacement cryptographique), versionnée ; le dernier maillon gagne. Jamais l'adresse
+    # en clair : seulement une empreinte HMAC (localisation.py).
+    "localisation_chantier",
 }
 
 

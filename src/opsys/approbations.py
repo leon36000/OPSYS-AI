@@ -59,10 +59,14 @@ MOTIF_VALIDATION_AU_DEPART = "validation humaine au départ par la personne qui 
 ACTION_VALIDATION_AU_DEPART = "approbation.valider_au_depart"
 # Arguments dont la valeur n'entre JAMAIS telle quelle dans la trace : une donnée personnelle que le
 # département conserve chiffrée, avec une clé destructible (PLAN T4.2, POLITIQUE-geolocalisation.md
-# §5 — le fix GPS d'un pointage). `approbations.arguments` n'est ni chiffrée ni purgée : y copier la
-# valeur en clair défairait la destruction cryptographique. La trace garde l'empreinte des arguments
-# réels (`empreinte_arguments`, celle de l'idempotence) : elle reste vérifiable sans les révéler.
-ARGUMENTS_MASQUES_DANS_LA_TRACE = frozenset({"fix_gps"})
+# §5 — le fix GPS d'un pointage ; PLAN T4.1-a — l'adresse d'un chantier de client et les coordonnées
+# saisies à la main, que M4 ne garde qu'en empreinte et chiffrées). `approbations.arguments` n'est ni
+# chiffrée ni purgée : y copier la valeur en clair défairait la destruction cryptographique. La trace
+# garde l'empreinte des arguments réels (`empreinte_arguments`, celle de l'idempotence) : elle reste
+# vérifiable sans les révéler.
+ARGUMENTS_MASQUES_DANS_LA_TRACE = frozenset({
+    "fix_gps", "adresse", "latitude_microdegres", "longitude_microdegres",
+})
 VALEUR_MASQUEE = "[masqué : donnée personnelle, conservée chiffrée dans le registre du département]"
 
 
