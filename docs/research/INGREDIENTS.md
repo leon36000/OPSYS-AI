@@ -96,6 +96,36 @@
 | Extension du dashboard **Hermes** (plugin `dashboard/` : manifest + bundle IIFE + `plugin_api.py`) | MIT (mécanisme du core Hermes, cf. domaine Core) | Onglets OPSYS (Départements, Budgets et coûts, Approbations, Entreprise, Mémoire) plutôt qu'une console séparée | Extension native du core, sans build | Phase 2 (mécanisme disponible côté Hermes, aucun plugin dashboard OPSYS écrit à ce jour) | R5 · ADR-0006 |
 | **Coolify**, **Dokploy** (cœur), **Supabase** (self-host) | Coolify : Apache-2.0 · Dokploy : Apache-2.0 cœur (+ `/proprietary` à ne jamais copier) · Supabase : Apache-2.0 | Patrons d'installateur one-liner idempotent + profils `docker compose --profile` — aucun n'est vendorisé (langages/paradigmes hors stack Python, ou trop lourd) | Lecture/inspiration seulement | Référence | R5 |
 
+## Mobile
+
+> Squelette Expo Router livré par PLAN T1.4-a (`mobile/`, aucun écran métier) — voir
+> [`docs/architecture/MOBILE.md`](../architecture/MOBILE.md) et
+> [`R12`](R12-app-mobile.md) §3 pour le détail. Licences vérifiées en lisant le fichier `LICENSE`
+> de chaque paquet dans `mobile/node_modules/<paquet>/`, sauf mention contraire ci-dessous.
+
+| Brique | Licence vérifiée | Rôle dans OPSYS | Intégration | Phase | Rapport source |
+|---|---|---|---|---|---|
+| **expo** 57.0.25 | MIT | SDK/runtime de l'app mobile | Dépendance directe `mobile/package.json`, version épinglée = celle de R12 §3 | **Intégré** | R12 |
+| **expo-router** 57.0.23 | MIT (`package.json` ; le tarball publié n'inclut **pas** de fichier `LICENSE` — vérifiée en lisant celui, identique, de `expo` : même éditeur 650 Industries, même monorepo `expo/expo`) | Navigation par fichiers, groupes de routes gardés par rôle (R12 §5) | Dépendance directe, version épinglée = celle de R12 §3 | **Intégré** | R12 |
+| **expo-sqlite** 57.0.3 | MIT | Stockage local de la file sortante (`src/outbox/depot.sqlite.ts`, DDL `outbox` de R12 §4) | Dépendance directe, version épinglée = celle de R12 §3 | **Intégré** | R12 |
+| **expo-localization** 57.0.2 | MIT | Détection de la langue de l'appareil (`src/i18n`) | Dépendance directe, version épinglée = celle de R12 §3 | **Intégré** | R12 |
+| **expo-crypto** 57.0.3 | MIT | `mutation_id` UUID généré sur l'appareil avant tout réseau (`src/outbox/id.ts`, `randomUUID()`) | Dépendance directe — **écart** : R12 §3 cite la brique sans version pinnée (« à confirmer ») ; version choisie ici = dernière du train SDK 57 (`57.0.3`) | **Intégré** | R12 (version : mission T1.4-a) |
+| **i18next** 26.4.2 + **react-i18next** 17.0.15 | MIT (les deux) | Moteur i18n + bindings React, fr-CA par défaut / en-CA en réserve | Dépendances directes, versions épinglées = celles de R12 §3 | **Intégré** | R12 |
+| **react** 19.2.3 + **react-native** 0.86.3 | MIT (les deux, Meta) | Runtime requis par Expo SDK 57 | Dépendances directes — non listées par R12 §3 (choix de version délégué au SDK) ; versions = celles du gabarit officiel `expo-template-default@57.0.25` (React Native 0.86, conforme à R12 §3) | **Intégré** | R12 · gabarit SDK 57 |
+| **react-native-screens** 4.26.2, **react-native-safe-area-context** 5.7.0, **react-native-gesture-handler** 2.32.0, **react-native-reanimated** 4.5.1 + **react-native-worklets** 0.10.1, **expo-linking** 57.0.11, **expo-constants** 57.0.19, **@expo/log-box** 57.0.4, **@expo/metro-runtime** 57.0.16 | MIT (tous, vérifié fichier par fichier) | Dépendances **requises** (peer non optionnels) d'`expo-router` pour la navigation par fichiers (écrans, pile, sécurité des zones, gestes) | Dépendances directes — non listées par R12 §3 (détail d'implémentation d'Expo Router, pas un choix produit) ; versions reprises du gabarit officiel `expo-template-default@57.0.25`, cohérentes avec `expo`/`expo-router` 57.0.25/57.0.23 | **Intégré** | Gabarit SDK 57 |
+| **Jest** (fourni par Expo) 29.7.0 + **jest-expo** 57.0.5 | MIT (les deux) | Tests unitaires de la logique pure (`src/roles`, `src/outbox`, `src/protocole`, `src/i18n`) | Dépendances directes (dev) | **Intégré** | R12 |
+| **babel-preset-expo** 57.0.13 | MIT | Préréglage Babel (Metro et Jest) | Dépendance transitive d'`expo` rendue **directe** (dev) : npm ne la hissait pas à la racine de `node_modules`, ce qui cassait la résolution Jest/Babel — épinglée à la version déjà résolue | **Intégré** | Détail d'implémentation |
+| **@react-native/jest-preset** 0.86.3 | MIT (`package.json` ; le tarball publié n'inclut pas de fichier `LICENSE` — vérifiée en lisant celui, identique, de `react-native` : même éditeur Meta, même monorepo `facebook/react-native`) | Pair requis par `jest-expo` (config Jest React Native) | Dépendance directe (dev), version = celle de `react-native` 0.86.3 | **Intégré** | R12 |
+| **TypeScript** 6.0.3 | Apache-2.0 | Mode strict (`strict: true`, R12 §5 et mission) | Dépendance directe (dev) — non pinnée par R12 §3 ; version reprise du gabarit officiel `expo-template-default@57.0.25` | **Intégré** | Gabarit SDK 57 |
+| **@types/react** 19.2.18 + **@types/jest** 29.5.14 | MIT (les deux, Microsoft/DefinitelyTyped) | Typage | Dépendances directes (dev) | **Intégré** | — |
+
+**`.npmrc` : `legacy-peer-deps=true`.** `react-dom` est un pair **optionnel** de
+`expo`/`expo-router`/`@expo/metro-runtime` (support web, non utilisé — app mobile iOS/Android
+seulement). Selon l'ordre de résolution, npm 10 le fait parfois échouer en erreur `ERESOLVE` dure
+plutôt qu'en avertissement tolérable ; ce réglage évite ce faux blocage sans changer une seule
+version réellement installée (toutes vérifiées une à une ci-dessus). Aucun paquet web
+(`react-dom`, `react-native-web`) n'est installé.
+
 ## M1 — Front Office
 
 | Brique | Licence vérifiée | Rôle dans OPSYS | Intégration | Phase | Rapport source |
@@ -272,6 +302,7 @@ hors périmètre strict de R10 ») et documente en plus, pour M10 spécifiquemen
 - **Modèles/tokens** : 9 retenues (2 intégrées, 6 phase 2, 1 référence) + 6 refusées.
 - **Mémoire/RAG** : 16 retenues (14 phase 2/optionnelles, 2 référence) + 6 refusées.
 - **Déploiement/observabilité** : 18 retenues (16 phase 2, 2 référence — WAL-G, et le trio Coolify/Dokploy/Supabase en une seule ligne) + 2 refusées.
+- **Mobile** : 15 retenues (15 intégrées — squelette Expo Router de PLAN T1.4-a) + 0 refusée.
 - **M1** : 11 retenues (1 intégrée — code interne conservé —, 10 phase 2) + 2 refusées.
 - **M2** : 4 retenues (phase 2) + 2 refusées.
 - **M3** : 6 retenues (phase 2) + 3 refusées.
@@ -283,11 +314,15 @@ hors périmètre strict de R10 ») et documente en plus, pour M10 spécifiquemen
 - **M9** : 13 retenues (2 intégrées — format Agent Skills et patron `civ_review.py` —, 11 phase 2) + 4 refusées.
 - **M10** : renvoie au domaine Mémoire/RAG + 2 éléments propres (1 intégrée — modèle Département —, 1 phase 2).
 
-**Total : 114 briques/patrons retenus** (dont 8 déjà intégrés au code ou à la méthode : **OpenClaw**
+**Total : 129 briques/patrons retenus** (dont 23 déjà intégrés au code ou à la méthode : **OpenClaw**
 comme core par défaut, **Hermes Agent** comme adaptateur/runtime optionnel, **LiteLLM** comme
 passerelle de modèles par défaut, la discipline de cache-boundary (désormais native au runtime
 OpenClaw), `garde_fou.py` M1 conservé, le format Agent Skills, le patron
-`civ_review.py`/`tally_reviews.py`, et le modèle « Département » de M10) **et 38 refusées
-explicitement**, sur les 10 rapports `docs/research/R1`–`R10` ; mise à jour du choix de core par
+`civ_review.py`/`tally_reviews.py`, le modèle « Département » de M10, et les 15 briques du
+squelette de l'app mobile — PLAN T1.4-a : Expo/Expo Router/expo-sqlite/expo-localization/
+expo-crypto, i18next/react-i18next, React/React Native et les dépendances de navigation
+requises par Expo Router, Jest/jest-expo/babel-preset-expo/@react-native/jest-preset,
+TypeScript) **et 38 refusées explicitement**, sur les 10 rapports `docs/research/R1`–`R10` et
+R12 ; mise à jour du choix de core par
 [ADR-0007](../decisions/ADR-0007-core-openclaw.md), vérifiée directement dans le code, les tests et le
 clone local d'OpenClaw (pas seulement relayée).

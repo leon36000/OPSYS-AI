@@ -1,49 +1,109 @@
 # Application mobile OPSYS
 
-Base : les applications officielles d'OpenClaw (`apps/ios`, `apps/android`, compagnons Wear OS et
-Apple Watch ; MIT). Elles se connectent à la passerelle comme un **nœud** (`role: node`).
+> Réécrit par PLAN T1.4-a (2026-09-28) : remplace la version périmée qui prévoyait un fork des
+> apps natives OpenClaw (« phase 2 »). Décision en vigueur : **nouvelle app Expo/React Native,
+> réutilisant le protocole et l'appairage d'OpenClaw, pas son code d'interface** — voir
+> [ADR-0008](../decisions/ADR-0008-fork-openclaw-opsys-core.md) et le détail technique complet
+> dans [`docs/research/R12-app-mobile.md`](../research/R12-app-mobile.md) (pile §3, synchro §4,
+> écrans §5, sécurité §6). Ce fichier résume ; R12 fait foi sur le détail et les preuves.
 
-## Ce qu'elles font déjà (README amont, v2026.9.6)
+## État actuel : squelette seulement
 
-- Appairage à la passerelle par QR code ou code de configuration. Identifiants chiffrés sur
-  l'appareil.
-- Chat en flux, choix du modèle et de l'agent, sessions épinglées.
-- Voix : mot d'éveil, mode Talk.
-- **Approbations.**
-- Pièces jointes photo et vidéo depuis la caméra.
-- Localisation, notifications.
-- SMS (Android, builds tiers).
-- Gestion des skills et des automatisations.
+`mobile/` contient le **squelette** livré par PLAN T1.4-a : projet, routage par rôle, file
+sortante et client protocole en logique pure et testée — **aucun écran métier**. Étapes
+suivantes (R12 §5, ordre de livraison) : T1.4-b (idempotence côté socle), T1.4-c (protocole
+d'appairage), puis `punch.tsx`, `today.tsx`/`job/[id]`, `checklist`/`photos`/`signature`,
+`complete`→`materials` (M6.10), `(admin)/approvals`, E2E Maestro.
 
-## Phase 1 — sans développement
+## Pile (R12 §3 — versions et licences vérifiées)
 
-Le patron et les équipes installent l'app OpenClaw officielle et l'appairent à la passerelle OPSYS
-de leur VPS. Tout de suite :
+Expo SDK 57 (`expo` 57.0.25) + Expo Router 57.0.23 + TypeScript strict, React Native 0.86.3.
+Stockage local : `expo-sqlite` (moteur libSQL). i18n : i18next + react-i18next +
+expo-localization. Génération d'UUID côté appareil : `expo-crypto`. Toutes MIT, sauf TypeScript
+(Apache-2.0) — les deux licences sont acceptées (AGENTS.md). Détail brique par brique, licences
+et écarts de version : [`docs/research/INGREDIENTS.md`](../research/INGREDIENTS.md) (section
+« Mobile ») et le rapport final de PLAN T1.4-a.
 
-| Besoin OPSYS | Comment |
-|---|---|
-| M3 : photos de chantier pour l'estimation | Caméra → message à l'agent M3 → `m3_estimer_projet` |
-| M4 : pointage et suivi terrain | Localisation du nœud + outils M4 (pointage, écarts, fin de travaux) |
-| M1 : réception vocale | Talk / mot d'éveil vers l'agent M1 |
-| Direction : approbations | Approbations natives de l'app pour les actions OpenClaw ; demandes T2/T3 d'OPSYS visibles dans la console `/opsys` (navigateur mobile) |
+Volontairement **pas encore installés** à ce stade (aucun écran ne les utilise) : caméra,
+notifications, signature, formulaires (react-hook-form/zod), TanStack Query, `expo-secure-store`.
+Ils entrent avec les tranches qui en ont besoin, jamais par anticipation.
 
-## Phase 2 — application OPSYS (fork rebrandé)
+## Rôles et routage (`src/roles/`)
 
-Fork de `apps/ios` et `apps/android`, épinglé sur la même release que la passerelle :
-1. Identité OPSYS : nom, icônes, thème. La licence MIT est conservée avec l'attribution.
-2. Écrans par profil :
-   - Patron : approbations OPSYS, budgets, digest ;
-   - Estimateur : prise de photos guidée avec référence d'échelle, retour immédiat « prix bloqué :
-     il manque… » ;
-   - Chef d'équipe : cédule du jour, pointage, déclaration de fin de travaux ;
-   - Réception : file des demandes.
-3. Les écrans consomment les mêmes capacités MCP que les agents. Aucune logique métier dans l'app.
-4. **Publication App Store / Google Play : frontière humaine (T3).** Comptes développeur, signature
-   et fiche store relèvent du propriétaire.
+Quatre profils (DEFINITION-PRODUIT §9) = quatre groupes Expo Router : `(employee)`, `(seller)`,
+`(admin)`, `(client)`. `src/roles/garde.ts` exporte `evaluerGarde(session, groupeCible)`, une
+fonction **pure** : rôle du jeton d'appareil → groupe autorisé (mappage un-à-un, R12 §6), fail-
+closed (session absente, rôle inconnu et rôle valide mais différent du groupe visé refusent
+tous les trois, vers `/pairing`). Chaque `_layout.tsx` de groupe appelle cette garde avant de
+rendre quoi que ce soit — un jeton `employee` n'atteint donc jamais `(admin)`, y compris par URL
+directe. `src/roles/contexte.tsx` porte l'état de session en React Context ; il démarre toujours
+`{ presente: false }` (voir Appairage ci-dessous). 147 tests Jest couvrent la garde (matrice rôle
+× groupe complète, session absente, rôles inconnus) et la file sortante.
 
-## Points à valider sur un VPS réel
+Chaque groupe a un écran d'accueil minimal et distinctement nommé (`(employee)/employee.tsx`,
+etc.) plutôt qu'un `index.tsx` par groupe : Expo Router retire les segments `(parenthèses)` de
+l'URL, donc quatre `index.tsx` entreraient tous en conflit sur `/`.
 
-- Appairage à travers Caddy (TLS) et authentification de la passerelle.
-- Transmission des photos du nœud vers l'outil M3 : format, taille, métadonnées d'échelle.
-- Localisation du nœud utilisable par les outils M4, avec consentement Loi 25 (politique
-  géolocalisation dans `docs/compliance/politiques/`).
+## Appairage — à faire (PLAN T1.4-c)
+
+`app/pairing/index.tsx` explique l'appairage et affiche l'état (toujours « non apparié » pour
+l'instant) : **aucun protocole n'est implémenté**, ni QR, ni code, ni écriture de jeton. R12 §1.3
+documente le protocole du fork à reprendre (`connect` → `connect.challenge` → charge signée v3 →
+`hello-ok`, jeton d'appareil scellé par rôle) ; l'algorithme de signature exact restait à
+confirmer dans le code du fork au moment de R12 (§6, recommandation de suivi). R12 §6 signale
+aussi un préalable côté fork : des **rôles d'opérateur nommés** (`admin`/`employee`/`seller`),
+faute de quoi un jeton employé aurait la portée d'un jeton propriétaire — à durcir avant de
+livrer l'appairage réel, pas seulement côté app.
+
+## File sortante (`src/outbox/`, R12 §4)
+
+Logique pure, séparée du stockage :
+- `mutation.ts` : `creerMutation` (id fourni par l'appelant — `src/outbox/id.ts` l'obtient de
+  `expo-crypto` `randomUUID()` sur l'appareil, avant tout réseau) et les transitions
+  `brouillon → en_attente → envoi → envoyee | echec_permanent` ; toute autre transition lève
+  (`transitions.ts` tient le graphe fermé, testé exhaustivement sur les 25 paires possibles).
+- `recul.ts` : recul exponentiel 1 s → 30 s (×2), fonction pure à partir d'un `maintenant`
+  injecté.
+- `planification.ts` : ordre d'envoi par chantier puis par heure de création, une mutation
+  jamais envoyée avant que sa `dependsOn` soit `envoyee` ; une ligne retrouvée `envoi` au
+  démarrage est resélectionnée avec le même id (reprise, jamais recréée).
+- `depot.ts` (interface `DepotOutbox` + implémentation mémoire, utilisée par les tests) et
+  `depot.sqlite.ts` (adaptateur réel, DDL de la table `outbox`) — non exercé par les tests
+  unitaires (pas de SQLite natif sous Jest), seulement par une future vérification sur appareil.
+
+## `/tools/invoke` sans tour de modèle (`src/protocole/`)
+
+Client typé de `POST /tools/invoke`, conforme à la lecture directe du fork (lecture seule —
+`core/src/gateway/tools-invoke-http.ts`, `tools-invoke-shared.ts` ; jamais exécuté ici, ADR-0008 :
+le core ne se construit/teste qu'en CI). Requête `{ tool, args, action?, sessionKey?, agentId?,
+idempotencyKey? }`, en-tête `authorization: Bearer <jeton>`, réponse `{ ok: true, result }` ou
+`{ ok: false, error: { type, message } }` (types fermés : `invalid_request`, `not_found`,
+`tool_call_blocked`, `tool_error`). `fetch` est injecté (testable sans réseau). Classement des
+échecs : réseau/délai et HTTP 408/429/5xx → réessayable ; les autres 4xx → permanent —
+`src/protocole/classification.ts`. `idempotencyKey` doit porter le `mutation_id` de
+`src/outbox` pour tout appel émis par la file sortante ; **le branchement réel entre les deux
+(boucle de vidage) n'est pas encore écrit**, seuls les deux modules indépendants le sont.
+
+## Idempotence côté socle — à faire (PLAN T1.4-b)
+
+`idempotencyKey` protège contre le double envoi côté client (reprise après crash, réseau
+instable) ; il ne vaut que si le moteur métier Python l'applique en vérité (R12 §4 : table
+`mutations_appliquees`, clé `(appareil, idempotencyKey)`, avant d'agir). C'est le travail de
+PLAN T1.4-b, côté `src/opsys`/départements — hors périmètre de `mobile/`.
+
+## Sécurité
+
+Jeton d'appareil et clé d'appairage : `expo-secure-store` (Keychain iOS / Keystore Android),
+jamais en base SQLite ni `AsyncStorage` (R12 §6) — **pas encore câblé** : rien ne stocke de
+jeton tant que l'appairage (T1.4-c) n'existe pas. Vues par rôle appliquées deux fois (serveur ET
+app, R12 §6) ; ici, uniquement la moitié app (`evaluerGarde`) est livrée. Consentement GPS,
+photos/signature : politiques Loi 25 citées par R12 §6, hors périmètre de ce squelette (aucun
+écran ne capte encore ces données).
+
+## Ce qui n'est PAS encore fait
+
+Pas d'écran métier (cédule, punch, checklist, matériaux, approbations, etc.) ; pas de protocole
+d'appairage réel (T1.4-c) ; pas de stockage sécurisé de jeton (`expo-secure-store` non installé) ;
+pas de boucle de vidage reliant `src/outbox` à `src/protocole` ; pas d'idempotence côté socle
+(T1.4-b) ; pas de caméra, notifications push, signature, ni de GPS ; pas de tests E2E Maestro ;
+pas de build EAS ni de publication store (frontière humaine T3, R12 §3).

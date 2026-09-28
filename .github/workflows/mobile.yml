@@ -1,0 +1,39 @@
+name: mobile
+on:
+  push:
+    branches: [main, "claude/**"]
+    paths: ["mobile/**", ".github/workflows/mobile.yml"]
+  pull_request:
+    paths: ["mobile/**", ".github/workflows/mobile.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: mobile
+
+jobs:
+  # Squelette Expo Router de l'app mobile OPSYS (PLAN T1.4-a, docs/research/R12-app-mobile.md
+  # §3). Le bac à sable de développement n'exécute pas le core (core.yml s'en charge) ; ce job
+  # est la preuve de construction/tests côté mobile.
+  gates:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: "22.x"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - name: Installation
+        run: npm ci
+      - name: Vérification des types (TypeScript strict)
+        run: npm run typecheck
+      - name: Tests unitaires (Jest, preset jest-expo)
+        run: npm test -- --ci
