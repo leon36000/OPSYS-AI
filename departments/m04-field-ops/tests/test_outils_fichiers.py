@@ -188,12 +188,9 @@ def test_deposer_fichier_idempotence_appareil_meme_cle_rejoue_sans_reexecuter(ba
     `Capacites._appeler_idempotent` (docs/architecture/IDEMPOTENCE.md), pas seulement par
     l'idempotence de contenu de `opsys.fichiers` elle-même.
 
-    `m4_deposer_fichier` est T1 (N3 par défaut) ; le département `m04-field-ops` est en mode
-    `ombre` (department.yaml) : un appel RÉEL via `Capacites` (comme le ferait le core pour un
-    appareil) met donc en attente d'approbation plutôt que d'exécuter directement — même chemin
-    que pour tout autre outil T1 de M4 (`m4_pointer`, `m4_completer_intervention`) en mode ombre.
-    La preuve porte ici sur l'idempotence elle-même (IDEMPOTENCE.md §3.2 : « une mise en attente
-    d'approbation... n'est donc jamais dupliquée par un renvoi ») : la MÊME demande, jamais deux."""
+    `m4_deposer_fichier` est N2 (tâche interne, automatique dans tous les modes, ADR-0009 §4) :
+    un appel RÉEL via `Capacites` (comme le ferait le core pour un appareil) s'exécute tout de suite,
+    même en mode `ombre`. Le renvoi rend la même réponse, marquée rejouée, sans nouvelle écriture."""
     from opsys import etat
 
     deps = charger_departements()
@@ -209,12 +206,15 @@ def test_deposer_fichier_idempotence_appareil_meme_cle_rejoue_sans_reexecuter(ba
         horodatage_appareil="2026-09-28T10:00:00-04:00",
     )
     premier = cap.appeler("m4_deposer_fichier", arguments, meta=meta)
-    assert premier["ok"] is True and premier.get("rejoue") is False
-    assert premier["statut"] == "en_attente_approbation"
+    assert premier["ok"] is True and premier["rejoue"] is False
+    assert "statut" not in premier, "N2 : jamais mis en attente d'approbation"
+    resultat = premier["resultat"]
+    assert resultat["accepte"] is True
+    assert resultat["resultat"]["complet"] is True
+    assert resultat["resultat"]["reference"] == f"fichier:sha256:{arguments['empreinte_sha256']}"
     second = cap.appeler("m4_deposer_fichier", arguments, meta=meta)
     assert second["ok"] is True and second["rejoue"] is True
-    # La MÊME demande d'approbation, jamais une deuxième créée par le renvoi.
-    assert second["demande_id"] == premier["demande_id"]
+    assert second["resultat"] == premier["resultat"]
 
 
 # ------------------------------------------------------------------ m4_completer_intervention : preuves fichier

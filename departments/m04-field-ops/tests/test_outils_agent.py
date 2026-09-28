@@ -88,6 +88,11 @@ def test_autonomie_attendue_par_outil():
     for nom in ecritures_t1:
         if nom != "m4_resoudre_revue_completion":
             assert par_nom[nom].niveau is None, f"{nom} : niveau devrait rester implicite (N3 via T1)"
+    # PLAN T1.4-e2 : le dépôt d'un bloc de preuve est une tâche interne (N2, automatique) ; la
+    # lecture de l'état d'un dépôt est une lecture.
+    assert par_nom["m4_deposer_fichier"].autonomie == Autonomie.T1
+    assert par_nom["m4_deposer_fichier"].niveau_effectif is Niveau.N2
+    assert par_nom["m4_etat_fichier"].autonomie == Autonomie.T0
 
 
 # ------------------------------------------------------------------ outil composé de bout en bout

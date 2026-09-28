@@ -748,6 +748,11 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             },
             fonction=deposer_fichier,
             autonomie=Autonomie.T1,
+            # N2 « tâche interne » (ADR-0009 §4, automatique) et non le défaut T1 -> N3 : déposer
+            # un bloc de preuve ne décide rien et n'engage personne ; c'est la complétion qui s'en
+            # sert (m4_completer_intervention) qui reste soumise aux approbations. En N3, le mode
+            # ombre mettrait chaque bloc d'une photo en attente d'approbation.
+            niveau=Niveau.N2,
         ),
         Outil(
             nom="m4_etat_fichier",

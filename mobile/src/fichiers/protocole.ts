@@ -1,11 +1,11 @@
 /**
  * Contrat mobile de `m4_deposer_fichier`/`m4_etat_fichier` (PLAN T1.4-f).
  *
- * CONTRAT FIXE donné par la mission, PAS lu dans `departments/` : au moment d'écrire ce module,
- * aucune trace de ces deux outils n'existe dans ce dépôt (`m4_deposer_fichier`/`m4_etat_fichier`
- * absents de `departments/`, `core/`, `docs/`, vérifié par recherche) — un autre agent livre la
- * route serveur EN PARALLÈLE (voir MOBILE.md, section dédiée). Ce module encode donc le contrat
- * TEL QUE DONNÉ, jamais un contrat deviné ou lu ailleurs :
+ * CONTRAT FIXE, écrit avant la route serveur puis confronté à elle à l'intégration : les deux
+ * outils sont livrés par PLAN T1.4-e2 (`departments/m04-field-ops/src/m4_field_ops/outils.py`,
+ * dépôt `src/opsys/fichiers.py`, `docs/architecture/FICHIERS.md`) avec exactement ces paramètres
+ * et ces formes de réponse. `m4_deposer_fichier` est N2 (tâche interne, jamais mis en attente
+ * d'approbation) ; la complétion qui s'en sert reste soumise aux approbations :
  *
  *  - `m4_deposer_fichier(empreinte_sha256, taille_octets, type_mime, index_bloc, nombre_blocs,
  *    bloc_base64) -> {"accepte": true, "resultat": {"reference", "complet", "blocs_recus"}} |
