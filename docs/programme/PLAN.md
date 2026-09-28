@@ -114,8 +114,10 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       Réserve pour T1.2 : l'outil approuvé s'exécute dans la transaction et garde le verrou
       d'écriture. Un effet externe (SMS, courriel, paiement) passe donc par l'outbox, jamais dans la
       transaction.
-- [ ] T1.1 Données et API : jobs et machine à états (M4), sessions de travail et punch (M4.4),
+- [x] T1.1 Données et API : jobs et machine à états (M4), sessions de travail et punch (M4.4),
       matériaux prévus et utilisés (M6.10–M6.12), facture brouillon (M5.2), activité client (M2).
+      Preuve : les sous-tâches a à e ci-dessous. Socle 222, 83 outils. Suites :
+      M2 581, M4 585, M5 272, M6 242.
       Analyse d'écart du 2026-09-28 (définition §6, §7, §9.7 contre le code) ; la cascade entre
       départements reste T1.2.
   - [x] T1.1-a M2 (une correction, donc en premier) :
