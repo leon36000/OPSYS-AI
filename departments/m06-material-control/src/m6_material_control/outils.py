@@ -326,8 +326,13 @@ def _evaluer_et_publier_variance(wct_recu: dict[str, Any]) -> dict[str, Any]:
     `declaration_absente` ; les deux présents donnent `evaluee`.
 
     `chantier_id` (minimum requis par le catalogue) est résolu depuis QUELLE QUE SOIT la source
-    disponible (le prévu, s'il existe — sinon la déclaration, si elle existe déjà malgré
-    l'absence de prévu) ; `None` si aucune des deux ne le connaît encore — jamais deviné.
+    disponible (le prévu, s'il existe et le connaît — sinon la déclaration, si elle existe déjà)
+    ; `None` si aucune des deux ne le connaît encore — jamais deviné. Depuis T1.2-d, le prévu
+    PEUT exister sans connaître son chantier (`m3.devis_accepte.chantier_id` est nullable : un
+    devis peut être accepté avant que M4 planifie) : la déclaration, qui le connaît TOUJOURS
+    (`m6_declarer_materiaux_utilises` l'exige), le résout alors — la seule fois où ça compte
+    vraiment est celle où `variance_chantier.evaluer` en a besoin pour filtrer les BONS
+    mouvements, dans la branche `evaluee` ci-dessous.
 
     `evenement_id` = `f"m6-variance-{wct_id}-{statut_variance}"` (correctif : plus seulement
     `f"m6-variance-{wct_id}"`) : chaque STATUT distinct d'un WCT n'est publié qu'une fois — une
@@ -381,7 +386,14 @@ def _evaluer_et_publier_variance(wct_recu: dict[str, Any]) -> dict[str, Any]:
         signal_critique = None
         chantier_id = besoin["chantier_id"]
     else:
-        chantier_id = besoin["chantier_id"]
+        # T1.2-d : le prévu peut ne pas connaître son chantier (devis accepté avant planification
+        # M4) ; la déclaration, elle, le connaît toujours (`m6_declarer_materiaux_utilises`
+        # l'exige) -- on la préfère ici, JAMAIS `besoin["chantier_id"]` seul, parce que
+        # `variance_chantier.evaluer` s'en sert pour FILTRER les mouvements déclarés
+        # (`comparer_depuis_registre` compare par chantier_id ET wct_id) : lui passer None alors
+        # que de vrais mouvements existent sous un chantier_id réel ferait tout apparaître comme
+        # non déclaré.
+        chantier_id = besoin["chantier_id"] or _chantier_id_depuis_declaration()
         registre_cible = registre_module.Registre(maillons=mouvements)
         resultat, code = variance_chantier.evaluer(
             chantier_id, besoin["lignes"], seuil_pourcentage=seuil,
@@ -817,5 +829,45 @@ def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
     return _evaluer_et_publier_variance(wct_recu)
 
 
+def _recevoir_devis_accepte(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme `m3.devis_accepte` (T1.2-d, « le prévu vient du devis accepté par le bus, plus
+    d'un appel manuel ») : les lignes dont `reference_besoin_materiau` n'est PAS nul deviennent
+    le prévu — materiau_id = cette référence, quantité et unité portées telles quelles, JAMAIS un
+    montant (`prix_unitaire`/`prix_ligne` existent sur la ligne mais M6 planifie des quantités de
+    matériaux, pas des prix — même séparation coût/prix que le catalogue documente déjà pour
+    `cout_total`/`prix_total`). `quantite` du catalogue est un texte décimal (frontière M3,
+    comme `m6.variance_chantier` l'est en sortie) : converti en `float` ICI, à l'entrée, pour
+    rejoindre `validation.valider_besoins_estimes_chantier`/`variance_chantier.evaluer`, qui
+    n'acceptent qu'un nombre — esprit inverse de `_texte_decimal`.
+
+    Passe par LA MÊME LOGIQUE que l'outil manuel `m6_enregistrer_besoins_prevus` : cette fonction
+    EST `enregistrer_besoins_prevus`, appelée avec les lignes dérivées du devis plutôt que
+    fournies par un appelant humain — idempotent par devis_id, et le prévu tardif (un WCT déjà
+    reçu pour ce devis_id) y est réévalué exactement de la même façon, aucune logique dupliquée.
+
+    `chantier_id` du devis PEUT être `None` (M3 accepte un devis avant que M4 planifie le
+    chantier) : jamais deviné ici — `besoins_prevus.enregistrer` l'accepte tel quel (T1.2-d) et
+    `_evaluer_et_publier_variance` le résout plus tard depuis la déclaration au besoin.
+
+    Un devis accepté SANS AUCUNE ligne reliée à un besoin matériau (`reference_besoin_materiau`
+    nul partout) donne `lignes == []` : un PRÉVU VIDE CONNU (besoins_prevus.py), pas une absence
+    — le chantier reste évaluable normalement (tout matériau déclaré devient NON_PREVU,
+    `variance_chantier.evaluer`), jamais bloqué en revue faute de prévu.
+    """
+    lignes = [
+        {
+            "materiau_id": ligne["reference_besoin_materiau"],
+            "quantite_estimee": float(ligne["quantite"]),
+            "unite": ligne["unite"],
+        }
+        for ligne in charge["lignes"]
+        if ligne.get("reference_besoin_materiau") is not None
+    ]
+    return enregistrer_besoins_prevus(charge["chantier_id"], charge["devis_id"], lignes)
+
+
 def consommateurs() -> dict[str, Callable[[dict], dict]]:
-    return {"m4.travaux_termines": _recevoir_travaux_termines}
+    return {
+        "m4.travaux_termines": _recevoir_travaux_termines,
+        "m3.devis_accepte": _recevoir_devis_accepte,
+    }

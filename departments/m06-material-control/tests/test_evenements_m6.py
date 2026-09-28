@@ -21,8 +21,9 @@ durable (`stockage.maillons` direct), jamais le mode `registre_historique` en m�
 
 from __future__ import annotations
 
-import pytest
 import m6_material_control.outils as outils_mod
+import pytest
+from m6_material_control import besoins_prevus
 from m6_material_control.outils import consommateurs, outils
 from sqlalchemy import func, select
 
@@ -128,7 +129,7 @@ def _declarer_materiaux(m6, wct_id, intervention_id, chantier_id, quantite, mate
 
 # -- déclaration du module ---------------------------------------------------------------------
 def test_declaration_module_consommateurs():
-    assert set(consommateurs()) == {"m4.travaux_termines"}
+    assert set(consommateurs()) == {"m4.travaux_termines", "m3.devis_accepte"}
 
 
 # -- seuil de configuration (fail-closed, PLAN point 3) ------------------------------------------
@@ -464,6 +465,108 @@ def test_evaluee_deja_publie_court_circuite_sans_reevaluer(base_durable):
         resultat = outils_mod._evaluer_et_publier_variance(wct_recu)
     assert resultat == {"traite": True, "statut_variance": "evaluee"}
     assert _compte_sortants("m6.variance_chantier") == nb_avant, "aucune republication après evaluee"
+
+
+# -- correctif T1.2-d : le prévu vient du devis accepté par le bus (m3.devis_accepte) ----------
+def _ligne_devis(reference_ligne, quantite, unite, reference_besoin_materiau, prix_unitaire="10.00"):
+    return {
+        "reference_ligne": reference_ligne, "description": "ligne de test",
+        "quantite": quantite, "unite": unite, "prix_unitaire": prix_unitaire,
+        "prix_ligne": prix_unitaire, "reference_besoin_materiau": reference_besoin_materiau,
+    }
+
+
+def _devis_charge(devis_id="DEVIS-1", chantier_id="C1", lignes=None, **overrides):
+    base = {
+        "devis_id": devis_id, "lead_id": "lead-1", "chantier_id": chantier_id,
+        "lignes": lignes if lignes is not None else [_ligne_devis(f"{devis_id}-L1", "10", "boite", "MAT-1")],
+        "cout_total": "100.00", "prix_total": "135.00", "taux_marge": "0.35",
+        "horodatage_acceptation": "2026-01-01T09:00:00-05:00",
+    }
+    base.update(overrides)
+    return base
+
+
+def _besoins_prevus_durables():
+    with stockage.transaction():
+        return list(stockage.maillons("m06-material-control", "besoins_prevus"))
+
+
+def test_recevoir_devis_accepte_filtre_lignes_sans_reference_besoin_materiau(base_durable):
+    # Une ligne de main-d'oeuvre (reference_besoin_materiau nul) n'est JAMAIS un besoin matériau.
+    charge = _devis_charge(lignes=[
+        _ligne_devis("DEVIS-1-L1", "10", "boite", "MAT-1"),
+        _ligne_devis("DEVIS-1-L2", "5", "heure", None),
+    ])
+    with stockage.transaction():
+        resultat = consommateurs()["m3.devis_accepte"](charge)
+    assert resultat["accepte"] is True
+
+    maillon = besoins_prevus.pour_devis("DEVIS-1", _besoins_prevus_durables())
+    assert maillon["lignes"] == [{"materiau_id": "MAT-1", "quantite_estimee": 10.0, "unite": "boite"}]
+
+
+def test_recevoir_devis_accepte_convertit_la_quantite_texte_decimal_en_nombre(base_durable):
+    # m3.devis_accepte.lignes[].quantite est un texte décimal (frontière M3) : converti en
+    # float à l'entrée pour rejoindre validation.valider_besoins_estimes_chantier, qui exige
+    # un nombre -- jamais une chaîne.
+    charge = _devis_charge(lignes=[_ligne_devis("DEVIS-1-L1", "12.5", "boite", "MAT-1")])
+    with stockage.transaction():
+        consommateurs()["m3.devis_accepte"](charge)
+    ligne = besoins_prevus.pour_devis("DEVIS-1", _besoins_prevus_durables())["lignes"][0]
+    assert ligne["quantite_estimee"] == 12.5
+    assert isinstance(ligne["quantite_estimee"], float)
+
+
+def test_recevoir_devis_accepte_idempotent_par_devis_id_meme_logique_que_loutil_manuel(base_durable):
+    charge = _devis_charge()
+    with stockage.transaction():
+        r1 = consommateurs()["m3.devis_accepte"](charge)
+    assert r1["accepte"] is True
+    with stockage.transaction():
+        r2 = consommateurs()["m3.devis_accepte"](charge)
+    assert r2["accepte"] is False
+    assert r2["verdict"]["code"] == "REJ-BESOINS-PREVUS-DEJA-ENREGISTRES"
+    assert len(_besoins_prevus_durables()) == 1
+
+
+def test_recevoir_devis_accepte_chantier_id_null_jamais_devine(base_durable):
+    charge = _devis_charge(chantier_id=None)
+    with stockage.transaction():
+        resultat = consommateurs()["m3.devis_accepte"](charge)
+    assert resultat["accepte"] is True
+    maillon = besoins_prevus.pour_devis("DEVIS-1", _besoins_prevus_durables())
+    assert maillon["chantier_id"] is None
+
+
+def test_recevoir_devis_accepte_sans_aucun_materiau_donne_prevu_vide_connu(base_durable):
+    charge = _devis_charge(lignes=[_ligne_devis("DEVIS-1-L1", "5", "heure", None)])
+    with stockage.transaction():
+        resultat = consommateurs()["m3.devis_accepte"](charge)
+    assert resultat["accepte"] is True
+    maillon = besoins_prevus.pour_devis("DEVIS-1", _besoins_prevus_durables())
+    assert maillon["lignes"] == []
+
+
+def test_recevoir_devis_accepte_tardif_reevalue_wct_deja_recu(base_durable):
+    """Symétrique de test_prevu_arrive_apres_completion_reevalue_et_publie_evaluee (le prévu
+    manuel arrivé après la complétion), mais le prévu arrive ici par le bus."""
+    m6 = {o.nom: o for o in outils()}
+    _declarer_materiaux(m6, "wct-1", "int-1", "C1", quantite=10.0)
+
+    with stockage.transaction():
+        premier = consommateurs()["m4.travaux_termines"](_wct_charge())
+    assert premier["statut_variance"] == "prevu_absent"
+    assert _compte_sortants("m6.variance_chantier") == 1
+
+    with stockage.transaction():
+        consommateurs()["m3.devis_accepte"](_devis_charge())
+
+    evenements_variance = _charges_publiees()
+    assert len(evenements_variance) == 2, "le prévu tardif par le bus doit publier un second événement"
+    assert evenements_variance[0]["statut_variance"] == "prevu_absent"
+    assert evenements_variance[1]["statut_variance"] == "evaluee"
+    assert evenements_variance[1]["signal_critique"] is False
 
 
 # -- _texte_decimal : quantités/écart de m6.variance_chantier.lignes en texte -------------------

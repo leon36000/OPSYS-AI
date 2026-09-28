@@ -21,6 +21,23 @@ Idempotent par `devis_id` (même discipline que `materiel.soumettre_materiaux_ut
 `wct_id`, REJ-DECLARATION-DEJA-SOUMISE) : une seconde tentative pour le même devis_id est
 refusée nommément, JAMAIS réécrite ni fusionnée avec la première — fusionner inventerait un
 jeu de besoins que personne n'a affirmé tel quel (P2, AGENTS.md).
+
+PLAN T1.2-d (partie M6) : `m3.devis_accepte` (catalogue) est maintenant la source normale
+(`outils.py::_recevoir_devis_accepte`), `m6_enregistrer_besoins_prevus` restant la voie
+manuelle. Deux assouplissements, en service des deux besoins réels de ce flux :
+- `chantier_id` PEUT être `None` (mais pas une chaîne vide, toujours refusée) : un devis peut
+  être accepté avant que M4 planifie le chantier (M3 ne le connaît pas encore à la création du
+  devis, `m3.devis_accepte.json::chantier_id` est nullable) — jamais un chantier inventé ici ;
+  `outils.py::_evaluer_et_publier_variance` le résout plus tard depuis la déclaration, qui le
+  connaît toujours.
+- `lignes` PEUT être vide : un devis accepté sans aucune ligne reliée à un besoin matériau
+  (`reference_besoin_materiau` toujours nul côté M3) est un PRÉVU VIDE CONNU, distinct d'un
+  prévu ABSENT (aucun maillon enregistré pour ce devis_id — `pour_devis` rend `None`, jamais
+  confondu avec un maillon dont `lignes == []`) : l'ancien refus `REJ-BESOINS-PREVUS-LIGNES-
+  VIDES` masquait cette distinction pour rien — `variance_chantier.evaluer` traite déjà
+  chaque matériau déclaré sans prévu comme `NON_PREVU` (`ecart_pourcentage` indéfini, jamais
+  critique), donc un chantier sans aucun matériau prévu reste évaluable normalement, jamais
+  bloqué en revue pour la seule raison qu'aucune ligne n'était prévue.
 """
 
 from __future__ import annotations
@@ -43,7 +60,10 @@ def enregistrer(
         (maillon, None) si accepté, (None, code) sinon — aucune écriture dans les deux cas,
         cette fonction ne mute jamais `maillons_existants`.
     """
-    if not isinstance(chantier_id, str) or not chantier_id:
+    # chantier_id : None accepté (T1.2-d, devis accepté avant que M4 planifie -- jamais deviné
+    # ici), une chaîne vide ne l'est jamais (ce serait un champ fourni mais vidé, pas « inconnu
+    # pour l'instant »).
+    if chantier_id is not None and (not isinstance(chantier_id, str) or not chantier_id):
         return None, "REJ-BESOINS-PREVUS-CHANTIER-MANQUANT"
     if not isinstance(devis_id, str) or not devis_id:
         return None, "REJ-BESOINS-PREVUS-DEVIS-MANQUANT"
@@ -51,11 +71,9 @@ def enregistrer(
     ok, code = validation.valider_besoins_estimes_chantier(lignes)
     if not ok:
         return None, code
-    # Une liste VALIDE mais vide n'est pas un « prévu » : ce serait indistinguable, plus loin
-    # dans la chaîne, d'un devis qui n'a simplement jamais été enregistré (prevu_absent) —
-    # fail-closed nommé plutôt qu'un prévu silencieusement vide.
-    if not lignes:
-        return None, "REJ-BESOINS-PREVUS-LIGNES-VIDES"
+    # lignes VIDE est un prévu VIDE CONNU (T1.2-d, docstring du module), pas un refus : distinct
+    # d'un prévu ABSENT parce que pour_devis(devis_id, ...) rend None seulement quand AUCUN
+    # maillon n'existe pour ce devis_id, jamais quand un maillon existe avec lignes == [].
 
     for maillon in maillons_existants:
         if maillon.get("devis_id") == devis_id:

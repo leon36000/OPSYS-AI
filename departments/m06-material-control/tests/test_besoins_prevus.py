@@ -1,4 +1,4 @@
-"""besoins_prevus.py — PLAN T1.2-b (M6), « M6 garde le prévu ». Module pur : aucune base,
+"""besoins_prevus.py — PLAN T1.2-b/T1.2-d (M6), « M6 garde le prévu ». Module pur : aucune base,
 `maillons_existants` est une simple liste Python en mémoire ici."""
 
 from __future__ import annotations
@@ -24,16 +24,27 @@ def test_enregistrer_chantier_id_manquant_refuse_nomme():
     assert code == "REJ-BESOINS-PREVUS-CHANTIER-MANQUANT"
 
 
+def test_enregistrer_chantier_id_none_accepte_resolu_plus_tard_par_la_declaration():
+    # T1.2-d : un devis M3 peut être accepté avant que M4 planifie le chantier -- jamais deviné
+    # ici (distinct d'une chaîne vide, toujours refusée ci-dessus).
+    maillon, code = besoins_prevus.enregistrer(None, "DEVIS-1", [_ligne()], [])
+    assert code is None
+    assert maillon == {"chantier_id": None, "devis_id": "DEVIS-1", "lignes": [_ligne()]}
+
+
 def test_enregistrer_devis_id_manquant_refuse_nomme():
     maillon, code = besoins_prevus.enregistrer("C1", None, [_ligne()], [])
     assert maillon is None
     assert code == "REJ-BESOINS-PREVUS-DEVIS-MANQUANT"
 
 
-def test_enregistrer_lignes_vides_refuse_nomme():
+def test_enregistrer_lignes_vides_accepte_prevu_vide_connu():
+    # T1.2-d : un devis accepté sans aucune ligne reliée à un besoin matériau est un PRÉVU VIDE
+    # CONNU (jamais bloquant), distinct d'un prévu ABSENT (aucun maillon du tout) -- voir
+    # test_pour_devis_maillon_lignes_vides_distinct_de_prevu_absent ci-dessous.
     maillon, code = besoins_prevus.enregistrer("C1", "DEVIS-1", [], [])
-    assert maillon is None
-    assert code == "REJ-BESOINS-PREVUS-LIGNES-VIDES"
+    assert code is None
+    assert maillon == {"chantier_id": "C1", "devis_id": "DEVIS-1", "lignes": []}
 
 
 def test_enregistrer_ligne_invalide_reutilise_le_verdict_de_validation():
@@ -77,3 +88,14 @@ def test_pour_devis_trouve_le_maillon_enregistre():
 def test_pour_devis_absent_rend_none():
     assert besoins_prevus.pour_devis("DEVIS-INCONNU", []) is None
     assert besoins_prevus.pour_devis(None, [{"devis_id": "DEVIS-1"}]) is None
+
+
+def test_pour_devis_maillon_lignes_vides_distinct_de_prevu_absent():
+    # T1.2-d, point 2 : prévu VIDE CONNU (un maillon existe, lignes == []) n'est JAMAIS confondu
+    # avec un prévu ABSENT (aucun maillon, pour_devis rend None) -- outils.py::
+    # _evaluer_et_publier_variance en dépend pour distinguer prevu_absent de evaluee.
+    maillon, code = besoins_prevus.enregistrer("C1", "DEVIS-VIDE", [], [])
+    assert code is None
+    trouve = besoins_prevus.pour_devis("DEVIS-VIDE", [maillon])
+    assert trouve is not None
+    assert trouve["lignes"] == []

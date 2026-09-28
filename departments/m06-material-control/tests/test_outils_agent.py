@@ -513,13 +513,16 @@ def test_enregistrer_besoins_prevus_idempotent_par_devis_id():
     assert "registre_historique" not in r2["resultat"]
 
 
-def test_enregistrer_besoins_prevus_lignes_vides_refuse_nomme():
+def test_enregistrer_besoins_prevus_lignes_vides_accepte_prevu_vide_connu():
+    # T1.2-d : un devis accepté sans aucune ligne matériau est un PRÉVU VIDE CONNU -- accepté,
+    # jamais un refus (l'ancien REJ-BESOINS-PREVUS-LIGNES-VIDES bloquait le chantier en revue
+    # pour toujours faute de prévu, exactement le trou que ce correctif comble).
     reponse = executer(_outil("m6_enregistrer_besoins_prevus"), {
         "chantier_id": "C1", "devis_id": "DEVIS-1", "lignes": [],
     })
     assert reponse["ok"] is True
-    assert reponse["resultat"]["accepte"] is False
-    assert reponse["resultat"]["verdict"]["code"] == "REJ-BESOINS-PREVUS-LIGNES-VIDES"
+    assert reponse["resultat"]["accepte"] is True
+    assert reponse["resultat"]["resultat"]["lignes"] == []
 
 
 def test_enregistrer_besoins_prevus_parametre_requis_manquant_est_un_refus_de_schema():
