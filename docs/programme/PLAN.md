@@ -102,11 +102,18 @@ identifiants du propriétaire, repli livré en attendant.
       Preuve (96ebd73) : `EnvironnementMutation` copie le département, lie les voisins en lecture
       seule et ne les supprime jamais. Preuves structurelle (AST) et dynamique (SHA-256 de `src/`).
       La suite M3 donne 583 réussis ; l'empreinte de `src/` est identique avant et après la batterie.
-  - [ ] T0.12-suite M3 : l'épreuve des gardes de `tests/test_gardes_des_outils.py` dépose encore
+  - [x] T0.12-suite M3 : l'épreuve des gardes de `tests/test_gardes_des_outils.py` dépose encore
         ses fichiers volontairement rouges (`test_epreuve_garde_suite_rouge.py`,
         `epreuve_module_sans_garde.py`) dans les vrais dossiers de M3. Si une exécution est
         interrompue, le fichier reste, la suite suivante échoue, et un `git add -A` le
         commiterait. La faire travailler sur une copie temporaire, comme `EnvironnementMutation`.
+        Preuve (a2dc2a0 intégré) :
+        - les trois artefacts rouges (dont une copie non compilable oubliée) sont écrits dans une
+          copie jetable créée par `EnvironnementMutation`, jamais sous la vraie racine ;
+        - preuve structurelle (AST : aucun appel d'écriture sur une racine du département) et
+          dynamique (SHA-256 de `src/` et `tests/` identique après une épreuve) ;
+        - épreuve tuée par `SIGKILL` : `git status` de M3 inchangé, suite suivante verte ;
+        - M3 823 (outils de mutation compris).
 - [ ] T0.11 Installateur en une commande (dérivé de `install.sh` / `install.ps1`), désinstallation
       et export documentés ; Docker Compose en option serveur.
 
