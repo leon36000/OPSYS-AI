@@ -28,6 +28,9 @@ identifiants du propriétaire, repli livré en attendant.
       d'après l'audit M10.
 - [ ] T0.10 Superviseur : le core lance et surveille le moteur métier Python (via `uv`), santé et
       journaux unifiés, une seule authentification.
+- [ ] T0.12 M3 : l'outillage de mutation (`tests/outils_preuve/muter_*.py`) travaille sur une copie
+      temporaire, jamais sur la vraie source. Une exécution tuée a laissé une mutation dans
+      `blocage_prix.py`, restaurée depuis le commit le 2026-09-28.
 - [ ] T0.11 Installateur en une commande (dérivé de `install.sh` / `install.ps1`), désinstallation
       et export documentés ; Docker Compose en option serveur.
 
@@ -35,6 +38,8 @@ identifiants du propriétaire, repli livré en attendant.
 
 Première tranche métier : elle traverse neuf départements et l'app mobile.
 
+- [ ] T1.0 Persistance des registres des départements : le registre de M2 est une liste en mémoire
+      effacée à chaque redémarrage (audit M2). Bloquant de production, traité avec ADR-0009.
 - [ ] T1.1 Données et API : jobs et machine à états (M4), sessions de travail et punch (M4.4),
       matériaux prévus et utilisés (M6.10–M6.12), facture brouillon (M5.2), activité client (M2).
 - [ ] T1.2 Événements : `job.completed` déclenche la cascade (M6 variance, M5 facture brouillon, M2
@@ -76,3 +81,6 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
 - Identifiants : Twilio, QuickBooks, CCube, Stripe, Plaid, Google (Ads, Search Console, Business
   Profile), Meta, TikTok, LinkedIn, YouTube.
 - Rotation de la clé fuitée (#612).
+- **Prompts maîtres d'origine des départements** (annexe A de la définition) : ils portent le
+  détail fonctionnel (routes, tables, KPI, scénarios de test). Exemple : les 21 sections du rapport
+  de décision M9, dont la définition ne liste qu'une douzaine (audit M9).
