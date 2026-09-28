@@ -879,10 +879,31 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       haversine × détour puis OSRM local en option ; géocodage local par le Référentiel québécois
       des adresses, CC-BY 4.0 ; pyvroom refusé en processus, sa roue embarque GLPK sous GPL).
       `cedule.py` reste le repli « sans coordonnées », affiché comme mode bridé.
-  - [ ] T4.1-a Localisation : `localisation.py`, maillon `localisation_chantier` chiffré et
+  - [x] T4.1-a Localisation : `localisation.py`, maillon `localisation_chantier` chiffré et
         versionné (patron T4.2), `m4_proposer_localisation` et `m4_confirmer_localisation` (rôle
         `admin`) ; aucune coordonnée n'entre au solveur sans confirmation humaine ; aucun accès
         réseau.
+        Preuve (4349de4, fbb1af3) :
+        - normalisation d'adresse québécoise, import du CSV du RQA en index SQLite (remplacement
+          atomique, un import vide garde l'index), correspondance exacte ; une seule adresse de
+          bonne qualité → proposition en microdegrés ; sinon `REJ-COORDONNEES-A-CONFIRMER` avec
+          les candidats, jamais une position choisie ; index absent → `REJ-INDEX-RQA-ABSENT` ;
+        - maillon `localisation_chantier` : coordonnées chiffrées par chantier (clé détruite →
+          position illisible, chaîne valide), `empreinte_adresse` en HMAC d'une clé dérivée de
+          celle du chantier, jamais l'adresse en clair ; source `rqa` relue dans l'index, jamais
+          des arguments ; dernier maillon gagne ;
+        - `m4_confirmer_localisation` N3, `admin` seulement, contrôles avant toute écriture ;
+          la trace « validation au départ » masque adresse et coordonnées
+          (`ARGUMENTS_MASQUES_DANS_LA_TRACE`) ; attribution CC-BY rendue par la proposition ;
+        - aucun accès réseau (sockets bloqués), 12 mutations tuées ; démonstration : import (MRC
+          60), proposition, adresse inconnue « à confirmer », confirmation par un admin
+          authentifié ; M4 1316, M6 425, socle 640, verifier 123 outils (52 déclarés).
+
+        Limites : format du RQA lu dans son guide v1.2, pas sur un vrai fichier (téléchargement
+        bloqué dans le bac à sable) ; en mode `supervise` ou `autonome`, un appel d'agent N3
+        s'exécute sans file et « un humain a confirmé » ne repose plus que sur `confirme_par` ;
+        l'adresse saisie reste en clair dans la file d'approbation tant que l'appel n'est pas
+        validé ; aucun outil d'effacement de la clé d'un chantier.
   - [x] T4.1-b Matrice : `distances.py` (haversine entier, détour, vitesse et marge fournis par
         l'entreprise, sinon verdict), port `FournisseurMatrice`, adaptateur OSRM optionnel.
         Preuve (4ad01f6) :
@@ -975,6 +996,9 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
 - Identifiants : Twilio, QuickBooks, CCube, Stripe, Plaid, Google (Ads, Search Console, Business
   Profile), Meta, TikTok, LinkedIn, YouTube.
 - Rotation de la clé fuitée (#612).
+- **Localisation des chantiers (T4.1-a)** : garder `m4_confirmer_localisation` en N3, exiger une
+  identité d'appareil, ou passer en N4 avant de promouvoir M4 hors du mode ombre ; échéance de
+  rétention des adresses et coordonnées de chantier (aucune politique ne la fixe encore).
 - **Cédule et géocodage (R15 §7)** : confirmation humaine de chaque correspondance d'adresse
   « Bâtiment » en v1 (recommandée) ; RAM et disque du VPS pour un sidecar OSRM et l'extrait
   régional ; avis d'un juriste sur le graphe OSRM dérivé (ODbL), l'attribution CC-BY du RQA et
@@ -999,7 +1023,8 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
   - validation du bus : 4c9fbff ;
   - authentification de `/tools/invoke` par jeton d'appareil : 42bbf6a ; `_meta` MCP unique par
     processus : d7d77d5 ;
-  - chiffrement et purge des positions GPS : ff0c118 ;
+  - chiffrement et purge des positions GPS : ff0c118 ; localisation chiffrée des chantiers et
+    masquage de la trace (T4.1-a) : 4349de4 ;
   - commits plus anciens déjà listés dans les preuves de T1.0 et T1.1.
 - **Arrondi monétaire** : M5 arrondissait au pair (mode par défaut de Python) alors que M3
   arrondit au demi supérieur. La correction cite la règle de l'ARC (TPS) et de Revenu Québec
