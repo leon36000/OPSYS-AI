@@ -4,4 +4,4 @@ Le code calcule (prix, soldes, scores, cédules), le LLM orchestre et rédige. A
 Frontières humaines (T3) : paiements, secrets de prod, suppression définitive de données, publication/déploiement public, engagements externes.
 Interdits : stubs dans src/, TODO/FIXME dans un diff, test sans assertion, secret dans git, --no-verify, commit direct ou force-push sur main.
 Économie de tokens : lire le minimum, déterministe d'abord, sorties courtes, contexte ciblé.
-Briques open source : licence vérifiée + provenance dans vendor/*/UPSTREAM.md ; AGPL/GPL seulement en service séparé non modifié.
+Briques open source : licence vérifiée (docs/research/INGREDIENTS.md), amont épinglé (core/UPSTREAM.md) ; AGPL/GPL seulement en service séparé non modifié.

@@ -1,0 +1,101 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "opsys-ai"
+dynamic = ["version"]
+description = "OPSYS-AI — départements d'entreprise autonomes au-dessus d'OPSYS-CORE (Hermes Agent)"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "PyYAML>=6.0.1,<7",
+    "mcp>=2.0.0,<3",  # Hermes v2026.9.24 épingle mcp==2.0.0 : rester compatible
+]
+
+[project.optional-dependencies]
+postgres = ["psycopg[binary]==3.2.3"]
+console = ["fastapi==0.133.1", "uvicorn>=0.31.1,<1"]
+dev = ["pytest==9.1.1", "ruff>=0.6", "fastapi==0.133.1", "uvicorn>=0.31.1,<1", "psycopg[binary]==3.2.3"]
+
+[project.scripts]
+opsys = "opsys.cli:main"
+opsys-mcp = "opsys.serveur_mcp:main"
+opsys-console = "opsys.console:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "opsys.__version__" }
+
+[tool.setuptools]
+packages = [
+    "opsys",
+    "opsys.console",
+    "opsys.memoire",
+    "m1_front_office",
+    "m2_revenue_crm",
+    "m3_estimation",
+    "m4_field_ops",
+    "m5_financecore",
+    "m6_material_control",
+    "m7_marketing",
+    "m7_marketing.ads",
+    "m7_marketing.aeo",
+    "m7_marketing.attribution",
+    "m7_marketing.brand",
+    "m7_marketing.competitive",
+    "m7_marketing.content",
+    "m7_marketing.reputation",
+    "m7_marketing.roi",
+    "m7_marketing.seo",
+    "m7_marketing.site",
+    "m7_marketing.social",
+    "m7_marketing.utm",
+    "m7_marketing.workflows",
+    "m8_analytics",
+    "m9_strategic_intelligence",
+    "m10_memoire",
+]
+
+[tool.setuptools.package-dir]
+opsys = "src/opsys"
+"opsys.console" = "src/opsys/console"
+"opsys.memoire" = "src/opsys/memoire"
+m1_front_office = "departments/m01-front-office/src/m1_front_office"
+m2_revenue_crm = "departments/m02-revenue-crm/src/m2_revenue_crm"
+m3_estimation = "departments/m03-estimation/src/m3_estimation"
+m4_field_ops = "departments/m04-field-ops/src/m4_field_ops"
+m5_financecore = "departments/m05-financecore/src/m5_financecore"
+m6_material_control = "departments/m06-material-control/src/m6_material_control"
+m7_marketing = "departments/m07-marketing/src/m7_marketing"
+m8_analytics = "departments/m08-analytics/src/m8_analytics"
+m9_strategic_intelligence = "departments/m09-strategic-intelligence/src/m9_strategic_intelligence"
+m10_memoire = "departments/m10-memoire/src/m10_memoire"
+
+[tool.pytest.ini_options]
+addopts = "-q --import-mode=importlib -p no:cacheprovider"
+testpaths = ["tests"]
+pythonpath = [
+    "src",
+    "departments/m01-front-office/src",
+    "departments/m02-revenue-crm/src",
+    "departments/m03-estimation/src",
+    "departments/m04-field-ops/src",
+    "departments/m05-financecore/src",
+    "departments/m06-material-control/src",
+    "departments/m07-marketing/src",
+    "departments/m08-analytics/src",
+    "departments/m09-strategic-intelligence/src",
+    "departments/m10-memoire/src",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+
+[tool.setuptools.package-data]
+"opsys.memoire" = ["schema.sql"]
+m7_marketing = ["**/*.yaml", "**/*.html", "**/*.svg", "**/*.txt"]

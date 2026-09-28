@@ -1,0 +1,33 @@
+schema: opsys.departement/v1
+id: m03-estimation
+code: M3
+nom: Estimation
+mission: >-
+  Produire des estimations justes et défendables à partir des demandes qualifiées par M2,
+  sans jamais inventer de précision : pas de référence d'échelle ou photos insuffisantes,
+  alors pas de prix, seulement la liste de ce qui manque.
+outils: m3_estimation.outils
+mode: ombre
+dependances: [m02-revenue-crm]
+modeles:
+  defaut: standard
+  extraction: rapide
+skills: [estimer-un-projet]
+planifications:
+  - nom: digest-estimations
+    cron: "0 7 * * 1-5"
+    consigne: >-
+      Résume en 5 lignes les estimations de la veille : nombre, prix bloqués et pourquoi,
+      alertes de plancher. Aucune estimation nouvelle.
+budget:
+  tokens_jour: 300000
+  tokens_mois: 4000000
+  alerte_pct: 80
+memoire:
+  lecture: [clients, chantiers, estimations, baremes]
+  ecriture: [estimations]
+kpis:
+  - id: ecart_estime_reel_pct
+    description: Écart moyen entre prix estimé et coût réel des chantiers terminés (M4).
+  - id: taux_prix_bloques
+    description: Part des demandes dont le prix est bloqué faute d'entrées suffisantes.

@@ -1,0 +1,336 @@
+# deploy/docker-compose.yml — pile OPSYS clé en main sur un VPS unique.
+#
+# Architecture (ADR-0007, docs/architecture/ARCHITECTURE.md) :
+#   openclaw-gateway : Core OPSYS (OpenClaw, image officielle scellée) — agents des départements,
+#                       canaux, Control UI.
+#   opsys            : NOTRE image (deploy/Dockerfile) — serveur MCP des départements (HTTP),
+#                       console OPSYS, job d'init idempotent (config LiteLLM + clés virtuelles +
+#                       config des agents OpenClaw).
+#   litellm          : passerelle de modèles PAR DÉFAUT — clés virtuelles et budgets/jour par
+#                       département, un seul point d'accès aux fournisseurs cloud/locaux.
+#   postgres          : PostgreSQL + pgvector — mémoire RAG OPSYS ET plan de contrôle LiteLLM
+#                       (deux bases séparées, jamais mélangées : voir postgres-init/01-init.sh).
+#   valkey            : cache LiteLLM (protocole compatible Redis, licence BSD — jamais Redis).
+#   caddy             : seul service qui publie des ports sur l'hôte (80/443), TLS automatique,
+#                       reverse proxy vers openclaw-gateway (OPSYS_DOMAINE) et la console opsys
+#                       (console.OPSYS_DOMAINE — sous-domaine dédié, origine séparée).
+#   ollama            : profil optionnel — modèles locaux.
+#
+# Réseau : un unique bridge défini ci-dessous, PAS `internal: true` — un réseau interne Docker
+# bloquerait aussi la sortie Internet des conteneurs (appels API des fournisseurs de modèles,
+# émission ACME de Caddy), ce que cette pile doit garder. "Interne" ici veut dire : isolé des
+# autres piles Docker de l'hôte et aucun port de service publié sur l'hôte au-delà de Caddy —
+# jamais un réseau air-gapped.
+#
+# Ordre de démarrage réel (voir deploy/entrypoint.sh pour le détail et le raisonnement) :
+#   postgres -> opsys (écrit la config LiteLLM AVANT de s'annoncer en bonne santé) -> litellm
+#   -> openclaw-gateway. La synchronisation des clés virtuelles et de la config des agents
+#   OpenClaw (qui exige LiteLLM déjà debout) tourne en arrière-plan dans le conteneur opsys, rejouée
+#   toutes les OPSYS_SYNC_INTERVAL_SECONDS (défaut 300s) — jamais un blocage dur au démarrage.
+#
+# À VALIDER SUR UN VRAI VPS (ce bac à sable interdit d'exécuter OpenClaw/LiteLLM — voir
+# docs/ops/EXPLOITATION.md "Validation de premier déploiement") : chargement effectif des
+# $include par OpenClaw, résolution ${OPSYS_CLE_Mx}/${OPSYS_MCP_JETON}, CLI exacte de l'image
+# litellm-database (--config), endpoint de santé LiteLLM, globs `tools.deny` des agents.
+
+networks:
+  opsys_internal:
+    driver: bridge
+    # Sous-réseau fixe : il donne à Caddy une adresse stable, la seule dont la console accepte
+    # X-Forwarded-For (IP réelle des clients dans ses journaux, donc pour fail2ban). À changer
+    # dans .env, avec OPSYS_IP_CADDY, si ce sous-réseau est déjà pris sur l'hôte.
+    ipam:
+      config:
+        - subnet: ${OPSYS_SOUS_RESEAU:-172.30.87.0/24}
+
+volumes:
+  postgres_data:
+  valkey_data:
+  opsys_data:
+  openclaw_config:
+  openclaw_auth_secrets:
+  litellm_config:
+  caddy_data:
+  caddy_config:
+  ollama_data:
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17@sha256:cf134a767f474095eeba57e0117be8e568e011a63f33fbf252f14c9b760f8e6f
+    restart: unless-stopped
+    networks: [opsys_internal]
+    environment:
+      POSTGRES_USER: opsys
+      POSTGRES_PASSWORD: ${POSTGRES_OPSYS_PASSWORD:?POSTGRES_OPSYS_PASSWORD manquant dans .env}
+      POSTGRES_DB: opsys
+      LITELLM_DB_PASSWORD: ${POSTGRES_LITELLM_PASSWORD:?POSTGRES_LITELLM_PASSWORD manquant dans .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # -h 127.0.0.1 : TCP obligatoire. Pendant les scripts d'init, le serveur temporaire de l'image
+      # n'écoute que sur le socket Unix ; sans -h, le service serait « healthy » trop tôt.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    mem_limit: 1g
+    # Aucun port publié : jamais accessible hors du réseau opsys_internal (aucune base exposée).
+
+  valkey:
+    image: valkey/valkey:8-alpine@sha256:081c2f5cb575efc901aa80ff9cdbd1ec6a301682fd35e1ebb4b0990a4a4a8507
+    restart: unless-stopped
+    networks: [opsys_internal]
+    # Pas de --requirepass : la config LiteLLM générée par `opsys passerelle config`
+    # (src/opsys/passerelle.py::config_litellm) se connecte à Valkey sans authentification
+    # (cache_params sans mot de passe, vérifié dans le code). La frontière de sécurité est donc
+    # purement réseau — jamais de port publié, réseau bridge interne seulement.
+    command: ["valkey-server", "--save", "60", "1", "--appendonly", "yes"]
+    volumes:
+      - valkey_data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    mem_limit: 256m
+
+  opsys:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    # Nom fixe (indépendant du nom du dossier/projet compose) : la cible stable dont a besoin le
+    # jail fail2ban de la console (journald, voir deploy/fail2ban/ et docs/ops/EXPLOITATION.md).
+    container_name: opsys
+    restart: unless-stopped
+    init: true
+    networks: [opsys_internal]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # journald (plutôt que le pilote json-file par défaut) : fail2ban lit ce conteneur via
+    # `backend = systemd` + `journalmatch = SYSLOG_IDENTIFIER=opsys` — stable même si le
+    # conteneur est recréé (contrairement à un chemin /var/lib/docker/containers/<id>/...).
+    logging:
+      driver: journald
+      options:
+        tag: opsys
+    environment:
+      OPSYS_HOME: /opt/data
+      OPSYS_MCP_PORT: "8765"
+      OPSYS_MCP_JETON: ${OPSYS_MCP_JETON:?OPSYS_MCP_JETON manquant dans .env (>=24 caractères)}
+      OPSYS_CONSOLE_PORT: "8700"
+      # Vide : la console est servie à la racine de son propre sous-domaine (console.<domaine>,
+      # voir Caddyfile) plutôt que sous /opsys du domaine principal — origines séparées de la
+      # Control UI OpenClaw (cookies de session isolés), recommandation sécurité.
+      OPSYS_CONSOLE_PREFIXE: ""
+      OPSYS_CONSOLE_MOT_DE_PASSE: ${OPSYS_CONSOLE_MOT_DE_PASSE:?OPSYS_CONSOLE_MOT_DE_PASSE manquant dans .env (>=12 caractères)}
+      OPSYS_CONSOLE_SECRET: ${OPSYS_CONSOLE_SECRET:?OPSYS_CONSOLE_SECRET manquant dans .env (>=32 caractères, different du mot de passe)}
+      OPSYS_CONSOLE_COOKIE_SECURISE: "1"
+      # uvicorn n'accepte X-Forwarded-For que de Caddy : IP réelle du client dans les journaux.
+      FORWARDED_ALLOW_IPS: ${OPSYS_IP_CADDY:-172.30.87.10}
+      # Mémoire d'entreprise (docs/memory/RAG-PREMIUM.md). Le rôle `opsys` est le POSTGRES_USER de
+      # l'image : administrateur, donc `python -m opsys.memoire migrer` peut créer l'extension vector.
+      OPSYS_DATABASE_URL: postgresql://opsys:${POSTGRES_OPSYS_PASSWORD}@postgres:5432/opsys
+      # Embeddings bge-m3 : vide = recherche plein texte seule (mode explicite, signalé à l'agent).
+      # Profil ollama : http://ollama:11434/v1, modèle bge-m3, LOCAL=1 (docs/ops/EXPLOITATION.md).
+      OPSYS_EMBEDDINGS_URL: ${OPSYS_EMBEDDINGS_URL:-}
+      OPSYS_EMBEDDINGS_MODELE: ${OPSYS_EMBEDDINGS_MODELE:-}
+      OPSYS_EMBEDDINGS_CLE: ${OPSYS_EMBEDDINGS_CLE:-}
+      OPSYS_EMBEDDINGS_LOCAL: ${OPSYS_EMBEDDINGS_LOCAL:-0}
+      OPSYS_PURGE_INTERVAL_SECONDS: "86400"
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:?LITELLM_MASTER_KEY manquant dans .env}
+      LITELLM_URL: http://litellm:4000
+      OPENCLAW_CONFIG_DIR: /openclaw-config
+      LITELLM_CONFIG_DIR: /shared/litellm-config
+      OPSYS_SYNC_INTERVAL_SECONDS: "300"
+      TZ: ${TZ:-America/Toronto}
+      # Une clé virtuelle par département (M1..M10) — lues par `opsys passerelle cles`.
+      OPSYS_CLE_M1: ${OPSYS_CLE_M1:?OPSYS_CLE_M1 manquant dans .env}
+      OPSYS_CLE_M2: ${OPSYS_CLE_M2:?OPSYS_CLE_M2 manquant dans .env}
+      OPSYS_CLE_M3: ${OPSYS_CLE_M3:?OPSYS_CLE_M3 manquant dans .env}
+      OPSYS_CLE_M4: ${OPSYS_CLE_M4:?OPSYS_CLE_M4 manquant dans .env}
+      OPSYS_CLE_M5: ${OPSYS_CLE_M5:?OPSYS_CLE_M5 manquant dans .env}
+      OPSYS_CLE_M6: ${OPSYS_CLE_M6:?OPSYS_CLE_M6 manquant dans .env}
+      OPSYS_CLE_M7: ${OPSYS_CLE_M7:?OPSYS_CLE_M7 manquant dans .env}
+      OPSYS_CLE_M8: ${OPSYS_CLE_M8:?OPSYS_CLE_M8 manquant dans .env}
+      OPSYS_CLE_M9: ${OPSYS_CLE_M9:?OPSYS_CLE_M9 manquant dans .env}
+      OPSYS_CLE_M10: ${OPSYS_CLE_M10:?OPSYS_CLE_M10 manquant dans .env}
+    volumes:
+      - opsys_data:/opt/data
+      - openclaw_config:/openclaw-config
+      - litellm_config:/shared/litellm-config
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8700/connexion', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    mem_limit: 512m
+    # Aucun port publié : le MCP (8765) n'est joint que par openclaw-gateway, la console (8700)
+    # n'est jointe que par Caddy — toutes deux via opsys_internal.
+
+  litellm:
+    image: ghcr.io/berriai/litellm-database:v1.103.0@sha256:f4f114b1996c5923c4d62a7bbdcecb2ccf9df17bdebce76050f609be97f75f5c
+    restart: unless-stopped
+    networks: [opsys_internal]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      opsys:
+        condition: service_healthy
+    # --config : chemin conventionnel de l'image officielle LiteLLM (voir la note "À valider" en
+    # tête de fichier — confiance moyenne, à confirmer contre la doc LiteLLM au premier déploiement).
+    command: ["--config", "/etc/litellm/config.yaml", "--port", "4000", "--num_workers", "1"]
+    environment:
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:?LITELLM_MASTER_KEY manquant dans .env}
+      DATABASE_URL: postgresql://litellm:${POSTGRES_LITELLM_PASSWORD}@postgres:5432/litellm
+      # Clés des fournisseurs de modèles cloud : au moins une requise (voir deploy/.env.example).
+      # Référencées par la config générée via `os.environ/<NOM>` (src/opsys/passerelle.py).
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      XAI_API_KEY: ${XAI_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      MOONSHOT_API_KEY: ${MOONSHOT_API_KEY:-}
+    volumes:
+      - litellm_config:/etc/litellm:ro
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4000/health/liveliness', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    mem_limit: 768m
+    # Aucun port publié : atteint uniquement par opsys (admin /key/*) et openclaw-gateway (/v1).
+
+  openclaw-gateway:
+    image: ghcr.io/openclaw/openclaw:2026.9.6@sha256:0a5ff5e682e62afa19149df126aa50063bf65ef885b5c94713ce32dc0eb12e15
+    restart: unless-stopped
+    init: true
+    networks: [opsys_internal]
+    depends_on:
+      litellm:
+        condition: service_healthy
+    cap_drop:
+      - NET_RAW
+      - NET_ADMIN
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      HOME: /home/node
+      OPENCLAW_HOME: /home/node
+      TERM: xterm-256color
+      OPENCLAW_STATE_DIR: /home/node/.openclaw
+      OPENCLAW_CONFIG_PATH: /home/node/.openclaw/openclaw.json
+      OPENCLAW_CONFIG_DIR: /home/node/.openclaw
+      OPENCLAW_WORKSPACE_DIR: /home/node/.openclaw/workspace
+      OPENCLAW_GATEWAY_PORT: "18789"
+      OPENCLAW_GATEWAY_BIND: lan
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:?OPENCLAW_GATEWAY_TOKEN manquant dans .env}
+      OPENCLAW_DISABLE_BONJOUR: "1"
+      # Résolvent les ${...} des fragments $include générés par `opsys openclaw configurer`
+      # (opsys/mcp.json, opsys/models.json) — jamais de secret en clair dans ces fichiers.
+      OPSYS_MCP_JETON: ${OPSYS_MCP_JETON:?OPSYS_MCP_JETON manquant dans .env}
+      OPSYS_CLE_M1: ${OPSYS_CLE_M1:?OPSYS_CLE_M1 manquant dans .env}
+      OPSYS_CLE_M2: ${OPSYS_CLE_M2:?OPSYS_CLE_M2 manquant dans .env}
+      OPSYS_CLE_M3: ${OPSYS_CLE_M3:?OPSYS_CLE_M3 manquant dans .env}
+      OPSYS_CLE_M4: ${OPSYS_CLE_M4:?OPSYS_CLE_M4 manquant dans .env}
+      OPSYS_CLE_M5: ${OPSYS_CLE_M5:?OPSYS_CLE_M5 manquant dans .env}
+      OPSYS_CLE_M6: ${OPSYS_CLE_M6:?OPSYS_CLE_M6 manquant dans .env}
+      OPSYS_CLE_M7: ${OPSYS_CLE_M7:?OPSYS_CLE_M7 manquant dans .env}
+      OPSYS_CLE_M8: ${OPSYS_CLE_M8:?OPSYS_CLE_M8 manquant dans .env}
+      OPSYS_CLE_M9: ${OPSYS_CLE_M9:?OPSYS_CLE_M9 manquant dans .env}
+      OPSYS_CLE_M10: ${OPSYS_CLE_M10:?OPSYS_CLE_M10 manquant dans .env}
+      TZ: ${TZ:-America/Toronto}
+    volumes:
+      - openclaw_config:/home/node/.openclaw
+      - openclaw_auth_secrets:/home/node/.config/openclaw
+      ## Sandbox Docker des sessions agent : DÉSACTIVÉ par défaut, conformément à la doc amont
+      ## (docs/install/docker.md, docs/vps.md — sandboxing "is off by default and does not
+      ## require the Gateway itself to run in a container"). Ne monter le socket Docker QUE si ce
+      ## profil est explicitement voulu : il élargit la surface d'attaque (évasion de conteneur)
+      ## bien au-delà de ce qu'exige une installation OPSYS où les agents appellent des outils MCP
+      ## métier, pas un bac à sable de code arbitraire. Pour l'activer : décommenter les deux
+      ## lignes suivantes, définir DOCKER_GID=$(stat -c '%g' /var/run/docker.sock) dans .env, et
+      ## suivre /install/docker#enable-agent-sandbox-for-docker-gateway côté image (CLI docker
+      ## requise dans l'image officielle, ou variante -browser/slim selon le besoin).
+      # - /var/run/docker.sock:/var/run/docker.sock
+    # group_add:
+    #   - "${DOCKER_GID:-999}"
+    command:
+      [
+        "node",
+        "dist/index.js",
+        "gateway",
+        "--bind",
+        "lan",
+        "--port",
+        "18789",
+      ]
+    healthcheck:
+      test: ["CMD", "node", "dist/docker-healthcheck.js"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    mem_limit: 2g
+    # Aucun port publié : Control UI et WS joints uniquement via Caddy sur opsys_internal.
+
+  caddy:
+    image: caddy:2-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
+    restart: unless-stopped
+    networks:
+      opsys_internal:
+        # Adresse fixe : la console ne fait confiance à X-Forwarded-For que venant d'elle.
+        ipv4_address: ${OPSYS_IP_CADDY:-172.30.87.10}
+    # PAS de depends_on ici, volontairement : Caddy tolère un amont indisponible (502 jusqu'à ce
+    # qu'il réponde, reverse_proxy est paresseux) et `docker compose up -d postgres valkey caddy`
+    # doit pouvoir démarrer CES TROIS SEULS services sans entraîner en cascade openclaw-gateway/
+    # opsys/litellm (comportement par défaut de Compose : démarrer un service démarre aussi ses
+    # dépendances). C'est exactement le sous-ensemble que valide deploy/install.sh en pratique
+    # (voir docs/ops/EXPLOITATION.md, procédure de validation) et que la mission de déploiement
+    # exige de pouvoir tester isolément. L'ordre réel de démarrage complet reste piloté par
+    # deploy/install.sh, pas par depends_on.
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      OPSYS_DOMAINE: ${OPSYS_DOMAINE:-localhost}
+      ACME_EMAIL: ${ACME_EMAIL:-admin@example.com}
+      OPSYS_CONSOLE_PORT: "8700"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    healthcheck:
+      # HTTPS directe (pas de http://, Caddy redirige 80->443) sur le NOM de domaine, pas
+      # 127.0.0.1 : Caddy sélectionne son certificat par SNI, donc interroger l'IP nue échoue la
+      # poignée de main TLS ("tlsv1 alert internal error", vérifié à la main). --no-check-certificate
+      # est nécessaire car ce test tourne DANS le conteneur, avant que l'autorité interne de Caddy
+      # (mode OPSYS_DOMAINE=localhost) ne soit dans le magasin de confiance de BusyBox wget.
+      test: ["CMD", "wget", "--no-check-certificate", "--spider", "-q", "https://${OPSYS_DOMAINE:-localhost}/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    mem_limit: 128m
+    # SEUL service exposant des ports sur l'hôte, volontairement (voir en-tête de fichier).
+
+  ollama:
+    image: ollama/ollama:0.34.4@sha256:8262851b2846b87c649eddf3e76beb270c52f4d1bc94559f47efde16b0841551
+    restart: unless-stopped
+    profiles: ["ollama"]
+    networks: [opsys_internal]
+    volumes:
+      - ollama_data:/root/.ollama
+    mem_limit: 8g
+    # Aucun port publié : atteint par litellm/opsys/openclaw-gateway via http://ollama:11434
+    # (API native Ollama pour les modèles de chat — jamais /v1, voir docs/providers/ollama.md de
+    # l'amont OpenClaw). Seule exception : les embeddings de la mémoire OPSYS, qui passent par
+    # l'endpoint OpenAI-compatible http://ollama:11434/v1/embeddings (modèle bge-m3).

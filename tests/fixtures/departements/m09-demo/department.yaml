@@ -1,0 +1,25 @@
+schema: opsys.departement/v1
+id: m09-demo
+code: M9
+nom: Démo
+mission: Département fictif des tests du socle.
+outils: demo_outils
+mode: supervise
+modeles:
+  defaut: standard
+  extraction: rapide
+skills: [procedure-demo]
+planifications:
+  - nom: digest
+    cron: "0 7 * * 1-5"
+    consigne: Résume la journée.
+budget:
+  tokens_jour: 1000
+  tokens_mois: 20000
+  alerte_pct: 80
+memoire:
+  lecture: [clients]
+  ecriture: [notes]
+kpis:
+  - id: exemple
+    description: KPI d'exemple.

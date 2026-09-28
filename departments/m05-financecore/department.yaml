@@ -1,0 +1,35 @@
+schema: opsys.departement/v1
+id: m05-financecore
+code: M5
+nom: FinanceCore
+mission: >-
+  Tenir le registre financier de l'entreprise — mouvements, solde, argent disponible,
+  taxes TPS/TVQ, approbations F0-F7 — sans jamais engager, payer ou approuver de
+  lui-même : toute écriture financière et toute décision d'approbation restent une
+  proposition tant qu'un humain ne les a pas validées sur pièces.
+outils: m5_financecore.outils
+mode: ombre
+dependances: [m04-field-ops, m06-material-control]
+modeles:
+  defaut: standard
+  extraction: rapide
+skills: [tenir-le-registre-financier, gerer-les-approbations-f0-f7]
+planifications:
+  - nom: digest-financier
+    cron: "0 7 * * 1-5"
+    consigne: >-
+      Résume en 5 lignes l'état financier de la veille : solde, argent disponible,
+      demandes d'approbation en attente par palier. Aucune écriture nouvelle,
+      aucune approbation.
+budget:
+  tokens_jour: 200000
+  tokens_mois: 3000000
+  alerte_pct: 80
+memoire:
+  lecture: [mouvements, approbations, taux_fiscaux]
+  ecriture: [mouvements, approbations]
+kpis:
+  - id: delai_moyen_approbation_f6_f7
+    description: Délai moyen entre la création d'une demande F6/F7 et sa décision (approuvée ou refusée).
+  - id: taux_mouvements_rejetes
+    description: Part des mouvements soumis rejetés par la validation structurelle ou de signe avant écriture.

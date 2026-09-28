@@ -1,0 +1,71 @@
+# deploy/Caddyfile — TLS automatique + reverse proxy interne.
+#
+# Seuls 80/443 sont publiés côté hôte (voir docker-compose.yml) ; ce fichier route tout le trafic
+# public vers les services internes du réseau bridge, sans jamais exposer leurs ports directement.
+#
+# OPSYS_DOMAINE=localhost (valeur par défaut de deploy/.env.example) fait basculer automatiquement Caddy
+# sur son autorité de certification interne (auto-signée, aucun appel ACME sortant) : c'est le mode
+# attendu pour la validation locale de cette pile. Un vrai déploiement doit fixer OPSYS_DOMAINE sur un nom
+# DNS public déjà pointé vers ce VPS (voir docs/ops/INSTALLATION-VPS.md) pour obtenir un certificat
+# Let's Encrypt réel.
+#
+# Deux enregistrements DNS distincts, deux origines distinctes (recommandation sécurité) :
+#   - {$OPSYS_DOMAINE}         -> Control UI OpenClaw (agents, canaux, sessions)
+#   - console.{$OPSYS_DOMAINE} -> console OPSYS (départements, approbations, budgets, modèles)
+# Des origines séparées isolent les cookies de session de la console de ceux du Control UI (pas
+# de partage de domaine parent par défaut entre les deux apps) — voir docs/ops/INSTALLATION-VPS.md
+# pour les deux enregistrements A/AAAA à créer, et docs/ops/EXPLOITATION.md pour la limitation des
+# tentatives de connexion (fail2ban) sur la console.
+{
+	# Pas d'API d'admin exposée : aucun besoin de pilotage à distance de Caddy dans cette pile.
+	admin off
+	email {$ACME_EMAIL:admin@example.com}
+}
+
+{$OPSYS_DOMAINE:localhost} {
+	encode gzip zstd
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Sonde de santé du reverse proxy lui-même — répond même quand les services en amont
+	# (openclaw-gateway, opsys) ne sont pas encore démarrés. Utilisée par le HEALTHCHECK du
+	# service caddy dans docker-compose.yml et par la validation de déploiement.
+	handle /healthz {
+		respond "ok" 200
+	}
+
+	# Control UI OpenClaw (agents, canaux, sessions) : racine du site, WebSocket compris —
+	# reverse_proxy transmet Upgrade/Connection et les en-têtes X-Forwarded-* automatiquement.
+	handle {
+		reverse_proxy openclaw-gateway:18789
+	}
+}
+
+# Console OPSYS sur son propre sous-domaine (origine séparée de la Control UI ci-dessus) :
+# OPSYS_CONSOLE_PREFIXE="" côté conteneur opsys (l'application est servie à la racine de CE
+# sous-domaine, aucun retrait de préfixe nécessaire ici, contrairement à un montage sous /chemin).
+console.{$OPSYS_DOMAINE:localhost} {
+	encode gzip zstd
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	handle /healthz {
+		respond "ok" 200
+	}
+
+	handle {
+		reverse_proxy opsys:{$OPSYS_CONSOLE_PORT:8700}
+	}
+}

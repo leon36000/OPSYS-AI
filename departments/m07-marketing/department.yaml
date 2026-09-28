@@ -1,0 +1,38 @@
+schema: opsys.departement/v1
+id: m07-marketing
+code: M7
+nom: Marketing
+mission: >-
+  Piloter le marketing d'une entreprise de rénovation extérieure au Québec : Brand Core,
+  visibilité SEO/AEO, UTM et attribution/ROI, fabrique de contenu saisonnier, réputation
+  et veille concurrentielle. Ne calcule jamais un chiffre de tête et ne fabrique jamais
+  un coût, un lead ou une plateforme publicitaire quand le lien manque : le lien
+  manquant devient une donnee_insuffisante explicite, jamais un zéro silencieux.
+outils: m7_marketing.outils
+mode: ombre
+dependances: [m02-revenue-crm]
+modeles:
+  defaut: standard
+  extraction: rapide
+skills: [audit-seo-local, plan-de-contenu-saisonnier, reponse-aux-avis]
+planifications:
+  - nom: digest-marketing
+    cron: "0 7 * * 1-5"
+    consigne: >-
+      Résume en 5 lignes la veille marketing : contenus proposés (file d'approbation),
+      avis nécessitant une réponse, alertes ROI (donnees_insuffisantes par canal).
+      Aucune publication, aucune nouvelle proposition.
+budget:
+  tokens_jour: 300000
+  tokens_mois: 4000000
+  alerte_pct: 80
+memoire:
+  lecture: [clients, chantiers, campagnes, avis]
+  ecriture: [contenus_proposes, roi_snapshots]
+kpis:
+  - id: m7_cout_par_lead_global
+    description: Coût publicitaire joignable divisé par les leads attribués aux canaux correspondants (CAD/lead).
+  - id: m7_rep_taux_reponse
+    description: Proportion d'avis ayant reçu au moins une réponse PROPOSÉE (jamais auto-publiée).
+  - id: m7_part_non_attribuables
+    description: Part des leads CRM sans visitor_id ou hors fenêtre d'attribution de 30 jours.

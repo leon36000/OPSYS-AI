@@ -1,0 +1,34 @@
+schema: opsys.departement/v1
+id: m04-field-ops
+code: M4
+nom: Field Ops
+mission: >-
+  Planifier, cédules et suivre les interventions terrain — états de chantier, pointage
+  horodaté et géolocalisé, écarts arbitrés, Work Completion Trigger — sans jamais porter
+  de prix, de date ferme imposée par le client ou de scoring des techniciens.
+outils: m4_field_ops.outils
+mode: ombre
+dependances: [m03-estimation]
+modeles:
+  defaut: standard
+  extraction: rapide
+skills: [gerer-une-intervention, arbitrer-un-ecart]
+planifications:
+  - nom: digest-field-ops
+    cron: "0 7 * * 1-5"
+    consigne: >-
+      Résume en 5 lignes la journée de la veille : interventions terminées, interventions
+      en revue, volumétrie de la file d'attente, et les demandes bloquées plus de 24h.
+      Aucune nouvelle intervention, aucune résolution de revue.
+budget:
+  tokens_jour: 300000
+  tokens_mois: 4000000
+  alerte_pct: 80
+memoire:
+  lecture: [clients, chantiers, techniciens]
+  ecriture: [interventions]
+kpis:
+  - id: taux_anomalies_pointage
+    description: Part des pointages produisant une anomalie de cohérence GPS (CA-M4-08).
+  - id: delai_moyen_resolution_revue
+    description: Délai moyen entre l'ouverture d'une demande de revue et sa résolution.

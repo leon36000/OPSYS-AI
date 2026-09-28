@@ -1,0 +1,37 @@
+schema: opsys.departement/v1
+id: m02-revenue-crm
+code: M2
+nom: Revenue CRM
+mission: >-
+  Ingérer chaque lead qualifié transmis par M1 dans un registre append-only vérifiable,
+  détecter et signaler les doublons probables sans jamais les fusionner, faire progresser
+  chaque dossier selon une machine à états où toute transition exige une décision humaine
+  explicite, et n'annoncer un lead prêt pour M3 que lorsque la readiness gate — owner, type
+  de travaux, ville, interaction post-qualification — est réellement satisfaite.
+outils: m2_revenue_crm.outils
+mode: ombre
+dependances: [m01-front-office]
+modeles:
+  defaut: standard
+skills: [ingerer-un-lead, faire-progresser-vers-m3, arbitrer-un-doublon]
+planifications:
+  - nom: digest-commercial
+    cron: "0 7 * * 1-5"
+    consigne: >-
+      Résume en 5 lignes le pipeline commercial de la veille : leads en attente par statut,
+      leads orphelins sans owner depuis plus de 48 heures, doublons signalés en attente
+      d'arbitrage humain. Aucune transition, aucun arbitrage, aucune donnée inventée.
+budget:
+  tokens_jour: 220000
+  tokens_mois: 3000000
+  alerte_pct: 80
+memoire:
+  lecture: [leads, doublons]
+  ecriture: [leads, doublons]
+kpis:
+  - id: taux_doublons_confirmes_distincts_pct
+    description: Part des signalements de doublons arbitrés comme distincts (jamais fusionnés).
+  - id: delai_moyen_premiere_action_heures
+    description: >-
+      Délai moyen entre l'ingestion d'un lead nouveau et l'assignation d'un owner
+      (transition vers qualifie).

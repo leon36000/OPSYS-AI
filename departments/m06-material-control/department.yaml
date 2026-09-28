@@ -1,0 +1,34 @@
+schema: opsys.departement/v1
+id: m06-material-control
+code: M6
+nom: Material Control
+mission: >-
+  Tenir la vérité unique des quantités de matériaux — réception de commande,
+  consommation terrain, inventaire — sans jamais fixer de prix de vente, planifier
+  une date, payer un fournisseur ou désigner un responsable d'écart : variance
+  toujours neutre, réapprovisionnement suggéré, jamais exécuté.
+outils: m6_material_control.outils
+mode: ombre
+dependances: [m04-field-ops]
+modeles:
+  defaut: standard
+  extraction: rapide
+skills: [receptionner-une-commande, consommer-du-materiel-terrain, compter-l-inventaire]
+planifications:
+  - nom: digest-materiel
+    cron: "0 7 * * 1-5"
+    consigne: >-
+      Résume en 5 lignes les variances d'inventaire et les suggestions de
+      réapprovisionnement de la veille. Aucun mouvement nouveau.
+budget:
+  tokens_jour: 200000
+  tokens_mois: 3000000
+  alerte_pct: 80
+memoire:
+  lecture: [chantiers, materiaux, catalogue]
+  ecriture: [mouvements_stock]
+kpis:
+  - id: taux_reception_conforme
+    description: Part des réceptions dont le verdict est CONFORME (quantité reçue = quantité demandée sur chaque ligne).
+  - id: taux_prix_indetermine
+    description: Part des lignes reçues dont le prix reste INDETERMINE (ni catalogue fourni ni historique du registre).

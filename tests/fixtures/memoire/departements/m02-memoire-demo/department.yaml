@@ -1,0 +1,14 @@
+schema: opsys.departement/v1
+fictif: true
+id: m02-memoire-demo
+code: M2
+nom: CRM (démo mémoire)
+mission: Département fictif des tests de la mémoire d'entreprise.
+outils: demo_outils
+mode: ombre
+budget:
+  tokens_jour: 1000
+  tokens_mois: 20000
+memoire:
+  lecture: [clients]
+  ecriture: [clients]

@@ -1,19 +1,12 @@
 @AGENTS.md
 
-# CLAUDE.md — Projet OPSYS-AI
+# CLAUDE.md — OPSYS-AI
 
-La constitution globale (`~/.claude/CLAUDE.md`) et les hooks globaux s'appliquent déjà.
-Ici : uniquement le spécifique projet.
-
-- Profil PROOF : voir `AGENTS.md` (PROOF-Team). Team ⇒ CIV_MODELS 3 vendors.
-- Subagents (noms LiteLLM dédiés, jamais opus/sonnet/haiku) : crew-coder-long=Kimi K2.7 Code · crew-coder-bulk=DeepSeek V4 Pro. Architecte = **Kimi-K3** via `--difficulty difficile` (l'alias crew-architect→GLM-5.2 est RETIRÉ pour ce rôle — GLM fuit son raisonnement, ADR-0003 R-038). opus/sonnet/haiku = passthrough Claude réel réservé à l'Orchestrateur (toi, cette session).
-- Packs : `pack_build.sh` (doc compressée si `PROOF_COMPRESS=1` ; diff toujours verbatim ; revue = 0).
-
-## Arrêts durs projet
-
-- Lire `00-DIGEST.md` puis `docs/canon/REGLES.md` avant toute story ; plan maître PDF = source de vérité.
-- `python3 scripts/structure_lint.py` VERT avant tout commit (arborescence D-038).
-- Registres projet : `registries/ledger/*.jsonl` via `scripts/ledger_append.py` UNIQUEMENT (jamais à la main) ; registre méthode : `Registres/` (proof-method). Cf. ADR-0002.
-- Story pilote : `Modules M/M7-marketing/stories/M7-S000-story-pilote.md`. Ne JAMAIS sauter une phase (ordre : `PROMPT_BOOTSTRAP_CLAUDE_CODE.md`).
-- Les fichiers ForgeAI PROOF IDE System à la racine = référence produit distinct, ne gouvernent pas cette exécution (ADR-0002).
-
+- Lire `AGENTS.md`, puis `docs/architecture/ARCHITECTURE.md` avant toute modification structurelle.
+- Nouveau département ou nouvel outil : suivre `docs/architecture/DEPARTEMENTS.md`. La référence
+  vivante est `departments/m03-estimation/`.
+- Avant chaque commit : `pytest`, `ruff check src tests`, `opsys verifier`.
+- Sous-agents : chaque sortie se termine par `PREUVE:` (commandes exécutées + résultats) ou
+  `BLOCKED:` (raison).
+- Ne jamais exécuter du code amont non épinglé. OpenClaw se met à jour uniquement selon
+  `core/UPSTREAM.md`.

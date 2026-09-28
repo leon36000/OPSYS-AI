@@ -1,0 +1,38 @@
+schema: opsys.departement/v1
+id: m08-analytics
+code: M8
+nom: Analytics
+mission: >-
+  Produire la vérité chiffrée unique de l'entreprise à partir des snapshots que chaque module
+  lui rapporte : compiler le dictionnaire canonique de métriques, dériver leur valeur avec
+  provenance complète (version, fraîcheur, n), détecter les signaux XmR hors limites
+  naturelles et assembler des rapports filtrés par rôle — sans jamais calculer un chiffre par
+  LLM, ni inventer une métrique pour un module qui n'en déclare aucune.
+outils: m8_analytics.outils
+mode: ombre
+dependances: [m07-marketing]
+modeles:
+  defaut: standard
+  digest: rapide
+skills: [rapport-analytique-quotidien]
+planifications:
+  - nom: digest-analytics
+    cron: "0 7 * * 1-5"
+    consigne: >-
+      Assemble le digest quotidien à partir des signaux XmR déjà calculés la veille : nombre de
+      signaux actifs, liste des signaux hors limites. N'ingère aucun nouveau snapshot, ne
+      calcule aucun chiffre de tête.
+budget:
+  tokens_jour: 300000
+  tokens_mois: 4000000
+  alerte_pct: 80
+memoire:
+  lecture: [dictionnaire_metriques, snapshots_modules]
+  ecriture: [snapshots_modules]
+kpis:
+  - id: taux_snapshots_rejetes
+    description: Part des snapshots reçus rejetés par la validation d'entrée (structure, devise, valeurs non texte).
+  - id: nb_signaux_actifs_digest
+    description: Nombre de signaux XmR actifs (hors DONNEES_INSUFFISANTES) dans le dernier digest quotidien.
+  - id: fraicheur_moyenne_metriques
+    description: Âge moyen, en jours, des métriques dérivées et citées dans les rapports du jour.

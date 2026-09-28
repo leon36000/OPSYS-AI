@@ -1,0 +1,38 @@
+schema: opsys.departement/v1
+id: m09-strategic-intelligence
+code: M9
+nom: Strategic Intelligence
+mission: >-
+  Tenir l'état consolidé factuel de l'entreprise (Business State Graph) à partir des
+  snapshots que les autres modules lui rapportent : le dernier fait connu par module, calculé
+  par relecture chronologique pure de la chaîne (jamais une comparaison alphabétique des
+  horodatages), et toute contradiction interne signalée nommément — sans jamais inventer un
+  chiffre, sans jamais recommander ni décider (v1 est un harnais pur, zéro contenu
+  délibératif).
+outils: m9_strategic_intelligence.outils
+mode: ombre
+dependances: [m08-analytics, m10-memoire]
+modeles:
+  defaut: standard
+skills: [etat-consolide-et-contradictions]
+planifications:
+  - nom: digest-etat-consolide
+    cron: "0 7 * * 1-5"
+    consigne: >-
+      Résume en 5 lignes l'état consolidé courant (m9_lire_etat_consolide) : nombre de modules
+      à jour, contradictions actives. N'ingère aucun nouveau snapshot, ne rédige aucun
+      diagnostic ni recommandation.
+budget:
+  tokens_jour: 200000
+  tokens_mois: 2500000
+  alerte_pct: 80
+memoire:
+  lecture: [snapshots_modules, memoire_m10]
+  ecriture: [snapshots_modules, etat_consolide]
+kpis:
+  - id: taux_contradictions_non_arbitrees
+    description: Part des contradictions internes détectées sans arbitrage humain consigné dans M10.
+  - id: taux_rejet_structurel_rapport
+    description: Part des rapports stratégiques soumis rejetés pour clé manquante ou en trop.
+  - id: nb_modules_a_jour
+    description: Nombre de module_source ayant un fait dans l'état consolidé (couverture de la vérité factuelle).

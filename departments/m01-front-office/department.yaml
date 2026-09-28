@@ -1,0 +1,38 @@
+schema: opsys.departement/v1
+id: m01-front-office
+code: M1
+nom: Front Office
+mission: >-
+  Recevoir chaque demande entrante (téléphone, courriel, formulaire, texte), la filtrer
+  contre toute tentative d'injection, la qualifier par règles déterministes (zéro LLM) et
+  la router vers le bon module aval — sans jamais produire de prix, de date de chantier,
+  d'engagement ferme ni d'aveu de responsabilité, et sans jamais perdre un signal : chaque
+  demande laisse exactement une ligne dans le registre anti-perte.
+outils: m1_front_office.outils
+mode: ombre
+dependances: []
+modeles:
+  defaut: standard
+  redaction: rapide
+skills: [traiter-une-demande-entrante, mener-un-appel-vocal]
+planifications:
+  - nom: digest-front-office
+    cron: "0 7 * * 1-5"
+    consigne: >-
+      Résume en 5 lignes le registre anti-perte de la veille : signaux reçus par canal,
+      qualifications réussies vs rejetées, tentatives d'injection neutralisées, appels
+      manqués ou sans consentement. Aucun nouveau traitement, aucune donnée inventée.
+budget:
+  tokens_jour: 200000
+  tokens_mois: 2500000
+  alerte_pct: 80
+memoire:
+  lecture: [signaux]
+  ecriture: [signaux]
+kpis:
+  - id: taux_signaux_qualifies_pct
+    description: Part des signaux entrants aboutissant à un lead qualifié transmis à M2.
+  - id: taux_interdits_bloques_pct
+    description: >-
+      Part des tentatives de violation des interdits absolus (prix, date, engagement,
+      aveu) bloquées avant toute sortie — doit rester à 100 %.

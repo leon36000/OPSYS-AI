@@ -1,0 +1,38 @@
+schema: opsys.departement/v1
+id: m10-memoire
+code: M10
+nom: Mémoire
+mission: >-
+  Ne rien oublier de ce qui compte et ne jamais écraser une vérité en silence : consommer les
+  Work Completion Trigger de M4 sans jamais recalculer leur preuve, journaliser toute décision
+  avec sa raison obligatoire (statut toujours calculé par relecture de la chaîne), signaler les
+  révisions sans jamais fusionner ni muter un maillon existant, et vérifier avant toute action
+  qu'un dossier de contexte est suffisant (PREFLIGHT) — en traçant le refus plutôt qu'en
+  interrompant l'appelant.
+outils: m10_memoire.outils
+mode: ombre
+dependances: []
+modeles:
+  defaut: standard
+skills: [journaliser-une-decision, preflight-contexte-suffisant]
+planifications:
+  - nom: digest-memoire
+    cron: "0 7 * * 1-5"
+    consigne: >-
+      Résume en 5 lignes l'activité de la veille des deux registres : décisions journalisées
+      (par statut), révisions signalées vs arbitrées, refus de préflight tracés. Ne journalise
+      aucune décision, ne signale aucune révision.
+budget:
+  tokens_jour: 200000
+  tokens_mois: 2500000
+  alerte_pct: 80
+memoire:
+  lecture: [registre_forge, registre_business]
+  ecriture: [registre_forge, registre_business]
+kpis:
+  - id: taux_revisions_arbitrees
+    description: Part des révisions signalées ayant reçu au moins un arbitrage humain consigné.
+  - id: taux_preflight_insuffisant
+    description: Part des dossiers de contexte soumis au préflight jugés insuffisants (refus tracés).
+  - id: nb_references_forgees_detectees
+    description: Nombre de ReferenceMemoireM10 rejetées par m10_verifier_reference (registre, ligne_id ou hash_tete incohérents).

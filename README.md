@@ -1,34 +1,44 @@
-# OPSYS-AI / Systèmes complets d'automatisation d'entreprise par intelligence artificielle
+# OPSYS-AI
 
-Core d'entreprise autonome, clé en main. Ce repo exécute la méthode **PROOF STACK v1.1** (kit `GRS_KIT_DEMARRAGE_v1.0`, ratifié D-039). Source de vérité : le plan maître `docs/GRS_Plan_Squelette_Maitre_v1.1_PERFECTION.pdf`.
+**Système d'entreprise autonome clé en main pour PME, installé sur votre propre VPS.**
 
-## Profils d'installation (D-043)
+Dix départements pilotés par des agents IA, gérés depuis la console OPSYS et le Control UI :
+M1 Réception, M2 CRM, M3 Estimation, M4 Terrain, M5 Finance, M6 Matériel, M7 Marketing,
+M8 Analytique, M9 Stratégie, M10 Mémoire.
 
-- **infra-existante** : branchement sur passerelle LLM, Langfuse, base vectorielle et PostgreSQL fournis par l'hôte.
-- **starter** : auto-déploiement des prérequis en conteneurs (à venir en Phase 0/P0-2).
+- **OPSYS-CORE** : [OpenClaw](https://github.com/openclaw/openclaw) (MIT) épinglé et étendu :
+  canaux (SMS, WhatsApp, courriel, chat, voix), mémoire d'agent à provenance, automatisations,
+  Control UI et **apps mobiles iOS/Android officielles**.
+- **Capacités des départements** exposées en MCP par OPSYS : outils déterministes, politiques
+  d'autonomie, approbations humaines, budgets.
+- **Modèles cloud ou locaux** via LiteLLM, avec des paliers `local`, `rapide`, `standard` et `fort`
+  configurés dans la console OPSYS, et une clé virtuelle avec plafond de tokens par département.
+- **Économie de tokens** :
+  - calculs par des outils déterministes, pas par le modèle ;
+  - budgets par département ;
+  - troncature des sorties ;
+  - recherche d'outils à la demande.
+- **Humain dans la boucle** : les actions sensibles attendent une approbation (console OPSYS ou app mobile).
+  Paiements et engagements ne sont jamais autonomes.
+- **Mémoire d'entreprise** : PostgreSQL + pgvector (conception : `docs/memory/RAG-PREMIUM.md`).
 
-## Démarrage
+## Installation (VPS Ubuntu/Debian, 4 vCPU, 8–16 Go)
 
-Le repo est déjà câblé, `main` est protégée. Ordre d'exécution :
+Voir [`docs/ops/INSTALLATION-VPS.md`](docs/ops/INSTALLATION-VPS.md).
 
-1. Phase C — consensus outillé (`python3 scripts/consensus_run.py --mock`, puis mode live après configuration de la passerelle et rotation de la clef).
-2. Phase 0 — dans l'ordre v1.1 (P0-1 → P0-4 → P0-2 → P0-3/P0-6 → tests des scripts de méthode → harnais e2e → … → P0-10).
-3. Story pilote **M7-S000** (mode ombre, ≤ 1 h).
-4. M7 vague 1 — fondations sans dépendances.
+## Développement
 
-Suivre `PROMPT_BOOTSTRAP_CLAUDE_CODE.md` sans sauter d'étape.
+```bash
+python -m venv .venv && . .venv/bin/activate && pip install -e ".[dev,postgres]"
+pytest && ruff check src tests && opsys verifier
+```
 
-## Sources de vérité
-
-- Plan maître : `docs/GRS_Plan_Squelette_Maitre_v1.1_PERFECTION.pdf` (28 p., nom historique GRS).
-- Pack Phase C : `PACK_CONSENSUS_GRS_v2.md`.
-- Constitution d'exécution : `00-DIGEST.md` + `docs/canon/REGLES.md`.
-
-## ForgeAI PROOF IDE System
-
-Les fichiers `VISION.md`, `FORGE_METHOD.md`, `IMPLEMENTATION_SPEC.md`, `RECONCILIATION.md`, `START_HERE.md` et `config.ini.example` présents à la racine sont le référentiel d'un **produit-méthode distinct** (chantier séparé). Ils ne gouvernent pas l'exécution de ce repo, qui suit PROOF STACK v1.1 du kit (cf. ADR-0002).
+Architecture : [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) · Décisions :
+[ADR-0006](docs/decisions/ADR-0006-restructuration-v2-core-hermes.md),
+[ADR-0007](docs/decisions/ADR-0007-core-openclaw.md) · Mobile : [`MOBILE.md`](docs/architecture/MOBILE.md) · Historique v1 :
+[`docs/history/`](docs/history/README.md) · Règles de contribution : [`AGENTS.md`](AGENTS.md).
 
 ## Licence
 
-Apache-2.0
-
+À trancher par le propriétaire : `LICENSE` (Apache-2.0) et ADR-0003 (propriétaire) se
+contredisent. Les composants amont gardent leur licence (OpenClaw : MIT).
