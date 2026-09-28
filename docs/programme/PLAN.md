@@ -84,10 +84,48 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       PostgreSQL réel), socle 188 verts.
 - [ ] T1.0-b Registres des départements branchés sur `opsys.stockage.maillons` (M1, M2, M3, M4, M5, M6,
       M8, M9, M10), état dérivé recalculé au chargement, non-régression des hash mémoire contre base.
+      Livrés : M1, M2, M4, M5, M6, M8, M9, M10 (commits 3ab2cc3 à bd689e9). M3 est en cours, avec
+      T0.12.
+
+      Règles communes :
+      - durable par défaut, relu à chaque appel, aucune base ouverte au chargement ;
+      - réponses sans historique complet (tête et taille) ;
+      - tests unitaires en mémoire ou sur une base temporaire, jamais `~/.opsys`.
 - [ ] T1.0-c Plan de contrôle (`etat.db` : approbations, journal, usage, modes) migré dans la base de
       l'instance, pour que décision humaine et exécution soient dans la même transaction.
 - [ ] T1.1 Données et API : jobs et machine à états (M4), sessions de travail et punch (M4.4),
       matériaux prévus et utilisés (M6.10–M6.12), facture brouillon (M5.2), activité client (M2).
+      Analyse d'écart du 2026-09-28 (définition §6, §7, §9.7 contre le code) ; la cascade entre
+      départements reste T1.2.
+  - [ ] T1.1-a M2 (une correction, donc en premier) :
+        - « converti » est terminal et interdit toute interaction, alors que §6 exige qu'après le
+          chantier M2 écrive l'activité et la prochaine action ;
+        - statuts après conversion (`chantier_en_cours`, `chantier_termine`, `facture_envoyee`,
+          `payee`) ;
+        - `m2_marquer_chantier_termine` : prochaine action fournie par l'appelant, fail-closed ;
+        - dépendance à M4.
+  - [ ] T1.1-b M4 :
+        - `devis_id` réel propagé jusqu'au WCT (toujours `None` aujourd'hui) ;
+        - complétion `completed_pending_review` ou `completed_verified`, selon un `ecart_detecte`
+          explicite ;
+        - contrat `PreuvesCompletion` (checklist, photos après, notes, signature), fail-closed ;
+        - `m4_lister_interventions` en lecture.
+  - [ ] T1.1-c M4.4 :
+        - pauses (`pause_debut`, `pause_fin`) et temps de déplacement distinct ;
+        - `m4_produire_brouillon_temps` : minutes par technicien et chantier, aucun taux ni montant ;
+        - dépassement signalé sur un seuil fourni par l'appelant.
+  - [ ] T1.1-d M6 :
+        - formulaire de fin de chantier enrichi (prévu, non prévu, retour, perte, bris, achat
+          terrain avec photo ou reçu) ;
+        - `variance_chantier.py`, prévu contre réel, distinct de la variance d'inventaire ;
+        - les 6 causes de §7 M6.12, jamais attribuées seules ;
+        - signal d'écart critique sur un seuil fourni par l'appelant.
+  - [ ] T1.1-e M5 :
+        - `FactureBrouillonV1` sur un registre dédié, idempotente par `devis_id` ;
+        - aucun `ENCAISSEMENT` avant `PAYEE` ;
+        - `m5_creer_facture_brouillon` ;
+        - âge des créances ;
+        - envoi seulement par approbation F4 ; `PAYEE` seulement par un approbateur humain (T3).
 - [ ] T1.2 Événements : l'événement de fin de travaux de M4 porte les montants (M5) et les champs
       marketing (photos, ville, consentement : M7) ; M3 et M9 la reçoivent en second ordre (M6/M5 et
       M8, ADR-0009) (audits M4, M5, M7). `job.completed` déclenche la cascade (M6 variance, M5 facture brouillon, M2
