@@ -9,6 +9,7 @@ import time
 import demo_outils
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 
 from opsys import approbations, console, modeles
 from opsys.capacites import Capacites
@@ -254,7 +255,9 @@ def test_changement_de_mode_signe(connecte, session):
     assert formulaire.headers["location"].startswith(f"{PREFIXE}/departements?ok=mode")
     with session() as cnx:
         assert approbations.mode_effectif(cnx, "m09-demo", "supervise") == "ombre"
-        ligne = cnx.execute("SELECT modifie_par FROM modes_departements WHERE departement = 'm09-demo'").fetchone()
+        ligne = cnx.execute(
+            text("SELECT modifie_par FROM modes_departements WHERE departement = 'm09-demo'")
+        ).mappings().fetchone()
     assert ligne["modifie_par"] == UTILISATEUR
     invalide = connecte.post("/departements/m09-demo/mode", data={"mode": "libre", "csrf": jeton},
                              follow_redirects=False)

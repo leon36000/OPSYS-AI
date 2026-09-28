@@ -1,109 +1,85 @@
-"""État du plan de contrôle OPSYS (SQLite en WAL, partagé par tous les processus d'un hôte).
+"""Plan de contrôle OPSYS : approbations, consommation de tokens, artefacts tronqués, journal
+d'audit, modes des départements.
 
-Plan de contrôle et données métier sont séparés :
-- ici (SQLite) : approbations, consommation de tokens, artefacts tronqués, modes des départements ;
-- PostgreSQL : données métier et mémoire RAG (voir `opsys.stockage`, `opsys.memoire`).
+Depuis ADR-0009, ces tables vivent dans la base de l'instance (`opsys.stockage`), comme le métier :
+une même transaction couvre la décision humaine sur une approbation et l'exécution de l'outil
+approuvé. `session()` reste le nom public utilisé par la CLI, la console, le plugin Hermes et le
+serveur MCP : c'est un alias de `stockage.transaction`, qui fournit une connexion SQLAlchemy
+(SQLite par défaut, PostgreSQL en option).
+
+`dossier_opsys()` est ré-exportée ici pour compatibilité ; elle est définie dans
+`opsys.stockage.moteur`, qui en a besoin pour situer la base par défaut.
 """
 
 from __future__ import annotations
 
 import datetime as dt
 import json
-import os
 import sqlite3
-from collections.abc import Iterator
-from contextlib import contextmanager
-from pathlib import Path
+from contextlib import AbstractContextManager
+from typing import Any
 
-_SCHEMA = """
-CREATE TABLE IF NOT EXISTS approbations (
-    id TEXT PRIMARY KEY,
-    cree_le TEXT NOT NULL,
-    departement TEXT NOT NULL,
-    outil TEXT NOT NULL,
-    arguments TEXT NOT NULL,
-    motif_demande TEXT NOT NULL DEFAULT '',
-    statut TEXT NOT NULL CHECK (statut IN ('en_attente','en_cours','refusee','executee','echec')),
-    decide_par TEXT,
-    decide_le TEXT,
-    motif_decision TEXT,
-    resultat TEXT
-);
-CREATE INDEX IF NOT EXISTS approbations_statut ON approbations(statut, cree_le);
+from sqlalchemy import Connection, func, insert, select
 
-CREATE TABLE IF NOT EXISTS usage_tokens (
-    jour TEXT NOT NULL,
-    departement TEXT NOT NULL,
-    modele TEXT NOT NULL,
-    appels INTEGER NOT NULL DEFAULT 0,
-    tokens_entree INTEGER NOT NULL DEFAULT 0,
-    tokens_sortie INTEGER NOT NULL DEFAULT 0,
-    tokens_cache_lus INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (jour, departement, modele)
-);
+from .stockage.moteur import dossier_opsys, transaction
+from .stockage.schema import APPROBATIONS, ARTEFACTS, JOURNAL, MODES_DEPARTEMENTS, USAGE_TOKENS
 
-CREATE TABLE IF NOT EXISTS artefacts (
-    id TEXT PRIMARY KEY,
-    cree_le TEXT NOT NULL,
-    source TEXT NOT NULL,
-    taille INTEGER NOT NULL,
-    contenu TEXT NOT NULL
-);
+__all__ = ["dossier_opsys", "importer_etat_si_necessaire", "journaliser", "lire_journal", "session"]
 
-CREATE TABLE IF NOT EXISTS journal (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    quand TEXT NOT NULL,
-    par TEXT NOT NULL,
-    action TEXT NOT NULL,
-    cible TEXT NOT NULL,
-    details TEXT NOT NULL DEFAULT '{}'
-);
-
-CREATE TABLE IF NOT EXISTS modes_departements (
-    departement TEXT PRIMARY KEY,
-    mode TEXT NOT NULL CHECK (mode IN ('ombre','supervise','autonome')),
-    modifie_par TEXT NOT NULL,
-    modifie_le TEXT NOT NULL
-);
-"""
+# Tables du plan de contrôle héritées de l'ancien `etat.db` (ordre d'import : sans dépendance entre
+# elles, le journal est traité à part pour ne pas rejouer ses anciens identifiants auto-incrémentés).
+_TABLES_HERITEES = (APPROBATIONS, USAGE_TOKENS, ARTEFACTS, JOURNAL, MODES_DEPARTEMENTS)
 
 
-def dossier_opsys() -> Path:
-    """Dossier d'état : OPSYS_HOME, sinon ~/.opsys."""
-    return Path(os.environ.get("OPSYS_HOME", Path.home() / ".opsys"))
+def session() -> AbstractContextManager[Connection]:
+    """Connexion transactionnelle à la base de l'instance ; alias de `stockage.transaction` (ADR-0009)."""
+    return transaction()
 
 
-def connexion(chemin: Path | None = None) -> sqlite3.Connection:
-    """Ouvre (et migre) la base d'état. Une connexion par appelant : SQLite gère le partage."""
-    fichier = chemin or dossier_opsys() / "etat.db"
-    fichier.parent.mkdir(parents=True, exist_ok=True)
-    cnx = sqlite3.connect(fichier, timeout=30, isolation_level=None)
-    cnx.row_factory = sqlite3.Row
-    cnx.execute("PRAGMA journal_mode=WAL")
-    cnx.execute("PRAGMA busy_timeout=30000")
-    cnx.executescript(_SCHEMA)
-    return cnx
-
-
-@contextmanager
-def session(chemin: Path | None = None) -> Iterator[sqlite3.Connection]:
-    """Connexion courte, toujours fermée : à utiliser pour chaque opération."""
-    cnx = connexion(chemin)
-    try:
-        yield cnx
-    finally:
-        cnx.close()
-
-
-def journaliser(cnx: sqlite3.Connection, par: str, action: str, cible: str, details: dict | None = None) -> None:
+def journaliser(cnx: Connection, par: str, action: str, cible: str, details: dict | None = None) -> None:
     """Journal d'audit append-only des décisions humaines et changements de configuration."""
-    cnx.execute(
-        "INSERT INTO journal (quand, par, action, cible, details) VALUES (?, ?, ?, ?, ?)",
-        (dt.datetime.now(dt.UTC).isoformat(timespec="seconds"), par, action, cible,
-         json.dumps(details or {}, ensure_ascii=False, default=str)),
-    )
+    cnx.execute(insert(JOURNAL).values(
+        quand=dt.datetime.now(dt.UTC).isoformat(timespec="seconds"), par=par, action=action, cible=cible,
+        details=json.dumps(details or {}, ensure_ascii=False, default=str),
+    ))
 
 
-def lire_journal(cnx: sqlite3.Connection, limite: int = 200) -> list[dict]:
-    lignes = cnx.execute("SELECT * FROM journal ORDER BY id DESC LIMIT ?", (limite,)).fetchall()
+def lire_journal(cnx: Connection, limite: int = 200) -> list[dict[str, Any]]:
+    lignes = cnx.execute(select(JOURNAL).order_by(JOURNAL.c.id.desc()).limit(limite)).mappings().all()
     return [{**dict(ligne), "details": json.loads(ligne["details"])} for ligne in lignes]
+
+
+def importer_etat_si_necessaire(cnx: Connection) -> bool:
+    """Importe une seule fois l'ancien `OPSYS_HOME/etat.db` (sqlite3 brut, pré-ADR-0009) dans la
+    base de l'instance, puis renomme le fichier ; rend `True` si un import a eu lieu.
+
+    N'écrit rien si l'ancien fichier est absent, ou si une des tables cibles contient déjà des
+    lignes (installation déjà migrée, ou déjà utilisée depuis) : idempotent, et jamais destructeur
+    (T3 — la suppression définitive est une frontière humaine), l'ancien fichier est renommé, pas
+    effacé. Appelée par `stockage.migrer()`, donc au démarrage de la console et du serveur MCP.
+    """
+    ancien = dossier_opsys() / "etat.db"
+    if not ancien.is_file():
+        return False
+    deja_peuplees = any(
+        cnx.execute(select(func.count()).select_from(table)).scalar_one() > 0 for table in _TABLES_HERITEES
+    )
+    if deja_peuplees:
+        return False
+    # Lecture ponctuelle de l'ancien format : le plan de contrôle n'écrit plus jamais en sqlite3 brut.
+    source = sqlite3.connect(ancien)
+    source.row_factory = sqlite3.Row
+    try:
+        for table in (MODES_DEPARTEMENTS, ARTEFACTS, APPROBATIONS, USAGE_TOKENS):
+            lignes = [dict(ligne) for ligne in source.execute(f"SELECT * FROM {table.name}").fetchall()]
+            if lignes:
+                cnx.execute(insert(table), lignes)
+        journal = [dict(ligne) for ligne in source.execute("SELECT * FROM journal ORDER BY id").fetchall()]
+        for ligne in journal:
+            del ligne["id"]  # nouvel identifiant auto ; l'ordre d'insertion préserve la chronologie
+            cnx.execute(insert(JOURNAL).values(**ligne))
+    finally:
+        source.close()
+    horodatage = dt.datetime.now(dt.UTC).strftime("%Y%m%d")
+    ancien.rename(ancien.with_name(f"etat.db.migre-{horodatage}"))
+    return True

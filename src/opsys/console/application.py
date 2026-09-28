@@ -23,7 +23,6 @@ import argparse
 import json
 import logging
 import os
-import sqlite3
 import sys
 from collections.abc import Callable, Mapping
 from contextlib import AbstractContextManager
@@ -34,6 +33,7 @@ from urllib.parse import parse_qs, quote
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from sqlalchemy import Connection
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -55,7 +55,7 @@ _STATIQUES = {
     "console.js": (ressources.JS, "text/javascript; charset=utf-8"),
 }
 
-FabriqueConnexion = Callable[[], AbstractContextManager[sqlite3.Connection]]
+FabriqueConnexion = Callable[[], AbstractContextManager[Connection]]
 
 
 class _ConnexionRequise(Exception):

@@ -14,11 +14,11 @@ from alembic import command
 from alembic.config import Config
 
 from .maillons import EcritureConcurrente, MaillonsDurables, maillons
-from .moteur import ENV_URL, connexion_courante, liberer, moteur, transaction, url_base
+from .moteur import ENV_URL, connexion_courante, dossier_opsys, inserer, liberer, moteur, transaction, url_base
 
 __all__ = [
-    "ENV_URL", "EcritureConcurrente", "MaillonsDurables", "connexion_courante", "liberer", "maillons",
-    "migrer", "moteur", "revision_courante", "transaction", "url_base",
+    "ENV_URL", "EcritureConcurrente", "MaillonsDurables", "connexion_courante", "dossier_opsys", "inserer",
+    "liberer", "maillons", "migrer", "moteur", "revision_courante", "transaction", "url_base",
 ]
 
 _MIGRATIONS = Path(__file__).parent / "migrations"
@@ -31,11 +31,15 @@ def _config() -> Config:
 
 
 def migrer(url: str | None = None) -> str:
-    """Applique les migrations manquantes (idempotent) et rend la révision atteinte."""
+    """Applique les migrations manquantes (idempotent), importe une seule fois l'ancien `etat.db`
+    si un en reste (ADR-0009), et rend la révision atteinte."""
+    from ..etat import importer_etat_si_necessaire  # import différé : etat dépend de stockage
+
     config = _config()
     with moteur(url).begin() as connexion:
         config.attributes["connection"] = connexion
         command.upgrade(config, "head")
+        importer_etat_si_necessaire(connexion)
     return revision_courante(url)
 
 

@@ -30,6 +30,9 @@ def departements_demo(racine_demo):
 
 @pytest.fixture
 def session(opsys_home):
-    from opsys import etat
+    """Base de l'instance migrée (ADR-0009) ; `etat.session` (alias de `stockage.transaction`)."""
+    from opsys import etat, stockage
 
-    return etat.session
+    stockage.migrer()
+    yield etat.session
+    stockage.liberer()

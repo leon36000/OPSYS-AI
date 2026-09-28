@@ -4,8 +4,8 @@ La console web (`opsys.console`) appelle ces fonctions ; les tests aussi, sans s
 passe par les modules du socle (départements, approbations, jetons, modèles, politiques) : aucune
 règle n'est réécrite ici. Toute écriture est signée (`par`) et journalisée.
 
-Les connexions SQLite sont fournies par l'appelant (`opsys.etat.session`), ce qui laisse la
-maîtrise des transactions et des fils d'exécution au transport.
+La connexion à la base de l'instance est fournie par l'appelant (`opsys.etat.session`, ADR-0009),
+ce qui laisse la maîtrise des transactions et des fils d'exécution au transport.
 """
 
 from __future__ import annotations
@@ -13,10 +13,11 @@ from __future__ import annotations
 import contextlib
 import datetime as dt
 import logging
-import sqlite3
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
+
+from sqlalchemy import Connection
 
 from . import approbations, jetons, modeles
 from .capacites import outils_executables
@@ -50,7 +51,7 @@ def modes_disponibles() -> list[dict[str, str]]:
 
 
 def vue_departements(
-    cnx: sqlite3.Connection, departements: Mapping[str, Departement], jour: dt.date | None = None
+    cnx: Connection, departements: Mapping[str, Departement], jour: dt.date | None = None
 ) -> list[dict[str, Any]]:
     """Vue d'ensemble : manifeste, mode effectif, outils, budget consommé, dépendances manquantes."""
     manquantes = dependances_manquantes(departements)
@@ -84,7 +85,7 @@ def vue_departements(
 
 
 def changer_mode(
-    cnx: sqlite3.Connection, departements: Mapping[str, Departement], ident: str, mode: str, par: str
+    cnx: Connection, departements: Mapping[str, Departement], ident: str, mode: str, par: str
 ) -> dict[str, str]:
     """Fixe le mode d'autonomie d'un département ; la signature est exigée par le socle."""
     if ident not in departements:
@@ -95,13 +96,13 @@ def changer_mode(
             "par": par}
 
 
-def nombre_en_attente(cnx: sqlite3.Connection, limite: int = 100) -> int:
+def nombre_en_attente(cnx: Connection, limite: int = 100) -> int:
     """Nombre de demandes en attente d'une décision humaine (plafonné à `limite`)."""
     return len(approbations.lister(cnx, "en_attente", limite))
 
 
 def lister_approbations(
-    cnx: sqlite3.Connection,
+    cnx: Connection,
     departements: Mapping[str, Departement],
     statut: str | None = None,
     limite: int = 100,
@@ -130,7 +131,7 @@ def lister_approbations(
 
 
 def decider_approbation(
-    cnx: sqlite3.Connection,
+    cnx: Connection,
     departements: Mapping[str, Departement],
     ident: str,
     decision: str,
@@ -153,7 +154,7 @@ def decider_approbation(
 
 
 def budgets(
-    cnx: sqlite3.Connection, departements: Mapping[str, Departement], jour: dt.date | None = None
+    cnx: Connection, departements: Mapping[str, Departement], jour: dt.date | None = None
 ) -> list[dict[str, Any]]:
     """Consommation jour/mois face au budget, pour chaque département."""
     return [

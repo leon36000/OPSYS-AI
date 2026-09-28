@@ -8,14 +8,19 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
-import sqlite3
 from collections.abc import Mapping
 from typing import Any
 
+from sqlalchemy import Connection, func, select
+
 from .departements import Budget
+from .stockage.moteur import inserer
+from .stockage.schema import ARTEFACTS, USAGE_TOKENS
 
 LIMITE_SORTIE_DEFAUT = 6000  # caractères renvoyés tels quels au modèle
 _TETE = 0.7  # part de la limite gardée au début ; le reste va à la fin
+
+_CLES_USAGE_TOKENS = (USAGE_TOKENS.c.jour, USAGE_TOKENS.c.departement, USAGE_TOKENS.c.modele)
 
 
 def _entier(usage: Mapping[str, Any], *cles: str) -> int:
@@ -36,7 +41,7 @@ def normaliser_usage(usage: Mapping[str, Any] | None) -> dict[str, int]:
 
 
 def enregistrer_usage(
-    cnx: sqlite3.Connection,
+    cnx: Connection,
     departement: str,
     modele: str,
     usage: Mapping[str, Any] | None,
@@ -44,45 +49,54 @@ def enregistrer_usage(
 ) -> dict[str, int]:
     compteurs = normaliser_usage(usage)
     cle_jour = (jour or dt.date.today()).isoformat()
-    cnx.execute(
-        "INSERT INTO usage_tokens (jour, departement, modele, appels, tokens_entree, tokens_sortie,"
-        " tokens_cache_lus) VALUES (?, ?, ?, 1, ?, ?, ?)"
-        " ON CONFLICT(jour, departement, modele) DO UPDATE SET appels = appels + 1,"
-        " tokens_entree = tokens_entree + excluded.tokens_entree,"
-        " tokens_sortie = tokens_sortie + excluded.tokens_sortie,"
-        " tokens_cache_lus = tokens_cache_lus + excluded.tokens_cache_lus",
-        (cle_jour, departement, modele or "inconnu", compteurs["tokens_entree"],
-         compteurs["tokens_sortie"], compteurs["tokens_cache_lus"]),
+    insertion = inserer(cnx)(USAGE_TOKENS).values(
+        jour=cle_jour, departement=departement, modele=modele or "inconnu", appels=1,
+        tokens_entree=compteurs["tokens_entree"], tokens_sortie=compteurs["tokens_sortie"],
+        tokens_cache_lus=compteurs["tokens_cache_lus"],
     )
+    cnx.execute(insertion.on_conflict_do_update(
+        index_elements=_CLES_USAGE_TOKENS,
+        set_={
+            "appels": USAGE_TOKENS.c.appels + 1,
+            "tokens_entree": USAGE_TOKENS.c.tokens_entree + insertion.excluded.tokens_entree,
+            "tokens_sortie": USAGE_TOKENS.c.tokens_sortie + insertion.excluded.tokens_sortie,
+            "tokens_cache_lus": USAGE_TOKENS.c.tokens_cache_lus + insertion.excluded.tokens_cache_lus,
+        },
+    ))
     return compteurs
 
 
-def fixer_usage(cnx: sqlite3.Connection, jour: dt.date, departement: str, modele: str,
+def fixer_usage(cnx: Connection, jour: dt.date, departement: str, modele: str,
                 appels: int, compteurs: Mapping[str, int]) -> None:
     """Écrit une valeur ABSOLUE (synchronisation idempotente depuis la passerelle)."""
-    cnx.execute(
-        "INSERT INTO usage_tokens (jour, departement, modele, appels, tokens_entree, tokens_sortie,"
-        " tokens_cache_lus) VALUES (?, ?, ?, ?, ?, ?, ?)"
-        " ON CONFLICT(jour, departement, modele) DO UPDATE SET appels = excluded.appels,"
-        " tokens_entree = excluded.tokens_entree, tokens_sortie = excluded.tokens_sortie,"
-        " tokens_cache_lus = excluded.tokens_cache_lus",
-        (jour.isoformat(), departement, modele, appels, compteurs["tokens_entree"],
-         compteurs["tokens_sortie"], compteurs["tokens_cache_lus"]),
+    insertion = inserer(cnx)(USAGE_TOKENS).values(
+        jour=jour.isoformat(), departement=departement, modele=modele, appels=appels,
+        tokens_entree=compteurs["tokens_entree"], tokens_sortie=compteurs["tokens_sortie"],
+        tokens_cache_lus=compteurs["tokens_cache_lus"],
     )
+    cnx.execute(insertion.on_conflict_do_update(
+        index_elements=_CLES_USAGE_TOKENS,
+        set_={
+            "appels": insertion.excluded.appels,
+            "tokens_entree": insertion.excluded.tokens_entree,
+            "tokens_sortie": insertion.excluded.tokens_sortie,
+            "tokens_cache_lus": insertion.excluded.tokens_cache_lus,
+        },
+    ))
 
 
-def consommation(cnx: sqlite3.Connection, departement: str, depuis: dt.date, jusqu_a: dt.date) -> int:
+def consommation(cnx: Connection, departement: str, depuis: dt.date, jusqu_a: dt.date) -> int:
     """Tokens facturables (entrée + sortie) consommés sur la période, bornes incluses."""
-    ligne = cnx.execute(
-        "SELECT COALESCE(SUM(tokens_entree + tokens_sortie), 0) AS total FROM usage_tokens"
-        " WHERE departement = ? AND jour BETWEEN ? AND ?",
-        (departement, depuis.isoformat(), jusqu_a.isoformat()),
-    ).fetchone()
-    return int(ligne["total"])
+    total = cnx.execute(
+        select(func.coalesce(func.sum(USAGE_TOKENS.c.tokens_entree + USAGE_TOKENS.c.tokens_sortie), 0))
+        .where(USAGE_TOKENS.c.departement == departement,
+               USAGE_TOKENS.c.jour.between(depuis.isoformat(), jusqu_a.isoformat()))
+    ).scalar_one()
+    return int(total)
 
 
 def etat_budget(
-    cnx: sqlite3.Connection, departement: str, budget: Budget, jour: dt.date | None = None
+    cnx: Connection, departement: str, budget: Budget, jour: dt.date | None = None
 ) -> dict[str, Any]:
     """Niveau 'ok' / 'alerte' / 'epuise' sur le jour et le mois en cours."""
     aujourd_hui = jour or dt.date.today()
@@ -100,7 +114,7 @@ def etat_budget(
     }
 
 
-def tronquer(cnx: sqlite3.Connection, texte: str, source: str, limite: int = LIMITE_SORTIE_DEFAUT) -> str:
+def tronquer(cnx: Connection, texte: str, source: str, limite: int = LIMITE_SORTIE_DEFAUT) -> str:
     """Garde début et fin d'une sortie trop longue ; le texte complet reste lisible par artefact.
 
     Le modèle ne paie que ce qu'il lit : il relit l'artefact par tranches s'il en a besoin.
@@ -108,10 +122,11 @@ def tronquer(cnx: sqlite3.Connection, texte: str, source: str, limite: int = LIM
     if len(texte) <= limite:
         return texte
     ident = hashlib.sha256(texte.encode("utf-8")).hexdigest()[:16]
-    cnx.execute(
-        "INSERT OR IGNORE INTO artefacts (id, cree_le, source, taille, contenu) VALUES (?, ?, ?, ?, ?)",
-        (ident, dt.datetime.now(dt.UTC).isoformat(timespec="seconds"), source, len(texte), texte),
+    insertion = inserer(cnx)(ARTEFACTS).values(
+        id=ident, cree_le=dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
+        source=source, taille=len(texte), contenu=texte,
     )
+    cnx.execute(insertion.on_conflict_do_nothing(index_elements=[ARTEFACTS.c.id]))
     tete = int(limite * _TETE)
     queue = limite - tete
     omis = len(texte) - tete - queue
@@ -121,10 +136,12 @@ def tronquer(cnx: sqlite3.Connection, texte: str, source: str, limite: int = LIM
     )
 
 
-def lire_artefact(cnx: sqlite3.Connection, ident: str, debut: int = 0, longueur: int = 4000) -> dict[str, Any]:
+def lire_artefact(cnx: Connection, ident: str, debut: int = 0, longueur: int = 4000) -> dict[str, Any]:
     if debut < 0 or not 0 < longueur <= 20000:
         raise ValueError("debut >= 0 et 0 < longueur <= 20000")
-    ligne = cnx.execute("SELECT taille, contenu FROM artefacts WHERE id = ?", (ident,)).fetchone()
+    ligne = cnx.execute(
+        select(ARTEFACTS.c.taille, ARTEFACTS.c.contenu).where(ARTEFACTS.c.id == ident)
+    ).mappings().fetchone()
     if ligne is None:
         raise KeyError(f"artefact inconnu : {ident}")
     fin = min(debut + longueur, ligne["taille"])

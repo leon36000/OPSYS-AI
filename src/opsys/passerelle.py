@@ -14,12 +14,13 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
-import sqlite3
 import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Iterable, Mapping
 from typing import Any
+
+from sqlalchemy import Connection
 
 from . import jetons
 from .departements import PALIERS, Departement
@@ -152,7 +153,7 @@ class ClientLiteLLM:
 
 
 def synchroniser_usage(
-    client: ClientLiteLLM, cnx: sqlite3.Connection, departements: Iterable[Departement],
+    client: ClientLiteLLM, cnx: Connection, departements: Iterable[Departement],
     debut: dt.date, fin: dt.date,
 ) -> int:
     """Recopie la consommation mesurée par LiteLLM (tag = id du département) dans l'état OPSYS.

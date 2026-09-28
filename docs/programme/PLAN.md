@@ -91,8 +91,21 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       - durable par défaut, relu à chaque appel, aucune base ouverte au chargement ;
       - réponses sans historique complet (tête et taille) ;
       - tests unitaires en mémoire ou sur une base temporaire, jamais `~/.opsys`.
-- [ ] T1.0-c Plan de contrôle (`etat.db` : approbations, journal, usage, modes) migré dans la base de
+- [x] T1.0-c Plan de contrôle (`etat.db` : approbations, journal, usage, modes) migré dans la base de
       l'instance, pour que décision humaine et exécution soient dans la même transaction.
+      - `etat.session` devient un alias de `stockage.transaction`.
+      - `decider` réserve la demande, exécute l'outil par `executer_atomique` (point de sauvegarde),
+        puis clôt le statut, le tout dans cette seule transaction.
+      - Migration 0002, dont la rétrogradation est refusée.
+      - L'ancien `etat.db` est importé une fois, puis renommé et jamais supprimé (T3).
+
+      Preuve : `pytest tests` 202 verts, dont l'atomicité, la panne après réservation, deux décisions
+      concurrentes, l'import de l'ancien `etat.db` et la parité PostgreSQL réelle ; `ruff` propre ;
+      `opsys verifier` OK. Code critique : revue externe requise avant `main`.
+
+      Réserve pour T1.2 : l'outil approuvé s'exécute dans la transaction et garde le verrou
+      d'écriture. Un effet externe (SMS, courriel, paiement) passe donc par l'outbox, jamais dans la
+      transaction.
 - [ ] T1.1 Données et API : jobs et machine à états (M4), sessions de travail et punch (M4.4),
       matériaux prévus et utilisés (M6.10–M6.12), facture brouillon (M5.2), activité client (M2).
       Analyse d'écart du 2026-09-28 (définition §6, §7, §9.7 contre le code) ; la cascade entre

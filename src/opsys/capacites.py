@@ -11,10 +11,11 @@ from __future__ import annotations
 
 import json
 import logging
-import sqlite3
 from collections.abc import Callable, Mapping
 from contextlib import AbstractContextManager
 from typing import Any
+
+from sqlalchemy import Connection
 
 from . import approbations, jetons
 from .contexte import appeler_en_tant_que
@@ -38,7 +39,7 @@ def _outils_memoire() -> tuple[Outil, ...]:
 
 def outils_executables(
     departements: Mapping[str, Departement],
-    cnx_factory: Callable[[], AbstractContextManager[sqlite3.Connection]],
+    cnx_factory: Callable[[], AbstractContextManager[Connection]],
 ) -> dict[str, Outil]:
     """Tout ce qu'une approbation humaine peut exécuter : outils des départements et outils communs.
 
@@ -52,7 +53,7 @@ class Capacites:
     def __init__(
         self,
         departements: Mapping[str, Departement],
-        cnx_factory: Callable[[], AbstractContextManager[sqlite3.Connection]],
+        cnx_factory: Callable[[], AbstractContextManager[Connection]],
         filtre: set[str] | None = None,
         limite_sortie: int = jetons.LIMITE_SORTIE_DEFAUT,
         appelant: str | None = None,

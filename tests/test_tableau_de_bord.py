@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import dataclasses
 import datetime as dt
-import sqlite3
 
 import demo_outils
 import pytest
+import sqlalchemy.exc
+from sqlalchemy import text
 
 from opsys import approbations, jetons, modeles, tableau_de_bord
 from opsys.capacites import Capacites
@@ -152,9 +153,10 @@ def test_statuts_connus_de_la_base(session, demandes):
     _, message = demandes
     with session() as cnx:
         for statut in tableau_de_bord.STATUTS:
-            cnx.execute("UPDATE approbations SET statut = ? WHERE id = ?", (statut, message))
-        with pytest.raises(sqlite3.IntegrityError):
-            cnx.execute("UPDATE approbations SET statut = 'bidon' WHERE id = ?", (message,))
+            cnx.execute(text("UPDATE approbations SET statut = :statut WHERE id = :id"),
+                       {"statut": statut, "id": message})
+        with pytest.raises(sqlalchemy.exc.IntegrityError):
+            cnx.execute(text("UPDATE approbations SET statut = 'bidon' WHERE id = :id"), {"id": message})
 
 
 def test_approuver_execute_l_outil_avec_les_arguments_exacts(departements_demo, session, demandes):
@@ -235,7 +237,7 @@ def test_lire_paliers_sans_fichier_signale_les_paliers_requis(departements_demo,
     assert vue["fichier"] == str(opsys_home / "paliers.yaml")
 
 
-def test_ecrire_palier_valide_par_le_socle_et_persiste(departements_demo, opsys_home):
+def test_ecrire_palier_valide_par_le_socle_et_persiste(departements_demo, opsys_home, session):
     local = {"provider": "custom", "model": " qwen3:8b ", "base_url": "http://ollama:11434/v1"}
     resultat = tableau_de_bord.ecrire_palier("local", local, "nathan")
     attendu = {"provider": "custom", "model": "qwen3:8b", "base_url": "http://ollama:11434/v1"}
