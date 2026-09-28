@@ -235,6 +235,89 @@ def test_alteration_d_un_maillon_en_base_est_detectee(base_sqlite):
     assert "0" in message
 
 
+def _formulaire_materiaux_utilises():
+    return {
+        "wct_id": "wct-1",
+        "intervention_id": "intervention-1",
+        "chantier_id": _CHANTIER,
+        "lignes_materiaux": [
+            {
+                "type_ligne": "prevu", "materiau_id": _MATERIAU, "quantite": 3.0,
+                "unite": "boite", "quantite_estimee": 3.0,
+            },
+            {"type_ligne": "retour", "materiau_id": _MATERIAU, "quantite": 1.0, "unite": "boite"},
+        ],
+    }
+
+
+def test_soumettre_materiaux_utilises_survit_au_stockage_durable_wct_id_inclus(base_sqlite):
+    """PLAN T1.1-d2 : preuve que wct_id (optionnel, hors des huit clés historiques) et les
+    nouveaux types RETOUR/PERTE/BRIS ne sont pas qu'un détail en mémoire — ils survivent
+    un aller-retour Postgres/SQLite réel (codec JSON typé, opsys.stockage), relus par une
+    instance TOUTE NEUVE (simulation de redémarrage, comme les tests voisins)."""
+    with stockage.transaction():
+        ecrivain = _registre_durable()
+        resultat, code = materiel.enregistrer_reception(_bon_demande(), _reception_po(), _catalogue(), ecrivain)
+        assert code is None, code
+
+    with stockage.transaction():
+        ecrivain = _registre_durable()
+        confirmation, code = materiel.soumettre_materiaux_utilises(_wct(), _formulaire_materiaux_utilises(), ecrivain)
+        assert code is None, code
+
+    redemarre = _registre_durable()
+    maillons = redemarre.lire()
+    assert len(maillons) == 3
+    assert maillons[1]["type_mouvement"] == "CONSOMMATION" and maillons[1]["wct_id"] == "wct-1"
+    assert maillons[2]["type_mouvement"] == "RETOUR" and maillons[2]["wct_id"] == "wct-1"
+    assert redemarre.valider_chaine() == (True, "")
+
+    # Idempotence relue depuis le stockage durable, pas seulement en mémoire : une seconde
+    # déclaration pour le même wct_id est refusée même après un « redémarrage » complet.
+    with stockage.transaction():
+        rejeu = _registre_durable()
+        confirmation_2, code_2 = materiel.soumettre_materiaux_utilises(
+            _wct(), _formulaire_materiaux_utilises(), rejeu
+        )
+    assert confirmation_2 is None
+    assert code_2 == "REJ-DECLARATION-DEJA-SOUMISE"
+
+    # Stock théorique cohérent (point 1) après écriture durable : 10 reçus - 3 consommés
+    # (prevu) + 1 réintégré (retour) = 8.
+    assert stock.deriver_stock_theorique(_CHANTIER, _MATERIAU, redemarre) == 8.0
+
+    # variance_chantier.comparer_depuis_registre relit le même réel déclaré, durablement.
+    from m6_material_control import variance_chantier
+
+    verdicts = variance_chantier.comparer_depuis_registre(
+        [{"materiau_id": _MATERIAU, "quantite_estimee": 3.0, "unite": "boite"}],
+        _CHANTIER,
+        redemarre,
+        wct_id="wct-1",
+    )
+    assert verdicts[0]["quantite_reelle"] == 2.0  # 3 consommé - 1 rendu
+    assert verdicts[0]["cause_possible"] is None
+
+
+def test_outils_declarer_materiaux_utilises_utilise_le_registre_durable_en_production(base_sqlite):
+    with stockage.transaction():
+        outils.receptionner_commande(_bon_demande(), _reception_po(), _catalogue())
+
+    with stockage.transaction():
+        reponse = outils.declarer_materiaux_utilises(_wct(), _formulaire_materiaux_utilises())
+
+    assert reponse["accepte"] is True
+    relu = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE)
+    assert len(relu) == 3
+    assert relu[1]["type_mouvement"] == "CONSOMMATION"
+    assert relu[2]["type_mouvement"] == "RETOUR"
+
+    # Même patron que m6_receptionner_commande en production : tête + taille, jamais
+    # l'historique complet.
+    assert "registre_historique" not in reponse
+    assert reponse["registre"] == {"taille": 3, "hash_tete": relu[-1]["hash_maillon"]}
+
+
 def test_outils_receptionner_commande_utilise_le_registre_durable_en_production(base_sqlite):
     """`outils.py` bascule sur `stockage.maillons(...)` dès qu'une transaction de l'instance est
     ouverte (`Capacites.appeler`/`executer_atomique`, ADR-0009) : c'est le registre de PRODUCTION,

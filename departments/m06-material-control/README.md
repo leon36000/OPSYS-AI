@@ -12,7 +12,7 @@ destinataire (S007), registre append-only hash-chaîné (S008), conformité
 statique + digest (S009). Couche département ajoutée : `department.yaml`,
 `SOUL.md`, 3 skills (`receptionner-une-commande`,
 `consommer-du-materiel-terrain`, `compter-l-inventaire`),
-`src/m6_material_control/outils.py` (6 outils agent, dont
+`src/m6_material_control/outils.py` (7 outils agent, dont
 `m6_receptionner_commande` : réception → stock → variance de bout en bout),
 `tests/test_outils_agent.py`.
 
@@ -24,6 +24,21 @@ fail-closed si aucune photo ni reçu ; `m6_consommer_materiaux` inchangé) ;
 déclaré, verdict neutre, `cause_possible` toujours `None`, jamais « vol ») ; outil
 `m6_evaluer_variance_chantier` (T0) qui émet `SignalVarianceChantierCritique` sur un seuil
 fourni par l'appelant — M6 signale, ne touche jamais le statut M4.
+
+PLAN T1.1-d2 — la déclaration de fin de chantier est maintenant persistée : `materiel.
+soumettre_materiaux_utilises` prend un `registre` et écrit des mouvements typés (CONSOMMATION
+pour prevu/non_prevu/achat_terrain ; nouveaux types `RETOUR`/`PERTE`/`BRIS`, ajoutés à
+`registre.TYPES_MOUVEMENT_VALIDES` et autorisés explicitement dans `conformite.
+DESIGNATION_TYPE_MOUVEMENT` — « et rien d'autre » n'a changé à la garde AST), tout ou rien
+(`ajouter_lot`), idempotente par `wct_id` (`REJ-DECLARATION-DEJA-SOUMISE` sur une seconde
+déclaration). `registre.py` porte désormais un `wct_id` optionnel sur chaque maillon —
+absent, forme et hash restent identiques bit à bit à avant ce changement (rétrocompatibilité
+prouvée, `test_registre.py`) ; présent, il entre dans le hash (tamper-evident). `stock.
+deriver_stock_theorique` inclut RETOUR (réintègre)/PERTE/BRIS (sortent sans être une
+CONSOMMATION). Nouvel outil `m6_declarer_materiaux_utilises` (T1). `variance_chantier.
+comparer_depuis_registre` relit le réel déclaré directement au registre (par `wct_id` ou
+`chantier_id`) ; `m6_evaluer_variance_chantier` l'utilise quand `lignes_declarees` est omis
+— l'entrée explicite reste disponible pour les appels directs.
 
 Bugs corrigés (test rouge → vert) lors de cette passe :
 - `materiel.py` n'exposait que `consommer_materiaux`. `enregistrer_reception`

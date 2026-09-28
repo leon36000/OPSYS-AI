@@ -1,9 +1,17 @@
+# PLAN T1.1-d2 : RETOUR (matériel jamais utilisé, réintégré — stocké positif, comme
+# RECEPTION) et PERTE/BRIS (matériel sorti sans consommation de chantier — stockés
+# négatifs, comme CONSOMMATION) entrent dans le théorique au même titre. Chaque type
+# porte déjà le bon signe à l'écriture (materiel.soumettre_materiaux_utilises) : la simple
+# somme reste juste, aucun signe spécial à réappliquer ici.
+_TYPES_STOCK_THEORIQUE = frozenset({"RECEPTION", "CONSOMMATION", "RETOUR", "PERTE", "BRIS"})
+
+
 def deriver_stock_theorique(chantier_id, materiau_id, registre) -> float:
     return sum(
         (
             mouvement["quantite"]
             for mouvement in registre.lire()
-            if mouvement.get("type_mouvement") in {"RECEPTION", "CONSOMMATION"}
+            if mouvement.get("type_mouvement") in _TYPES_STOCK_THEORIQUE
             and mouvement.get("chantier_id") == chantier_id
             and mouvement.get("materiau_id") == materiau_id
         ),

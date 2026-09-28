@@ -24,10 +24,20 @@ _PROFONDEUR_RESOLUTION_MAXIMALE = 32
 
 _DEROGATIONS_ECHAPPATOIRE: dict[str, dict[str, str]] = {}
 
+# PLAN T1.1-d2 : materiel.soumettre_materiaux_utilises est la SEULE autre fonction
+# autorisée à écrire un mouvement (formulaire de fin de chantier enrichi, M6.11) — pour
+# CONSOMMATION (lignes prevu/non_prevu/achat_terrain), en plus de consommer_materiaux
+# (WCT -> {materiau_id, quantite} simple, inchangé), et pour RETOUR/PERTE/BRIS (nouveaux
+# types, qu'elle est seule à écrire). Chaque type_mouvement pointe vers un TUPLE des
+# fonctions autorisées, jamais une seule string : "et rien d'autre" que cette
+# autorisation explicite n'est changé au vérificateur.
 DESIGNATION_TYPE_MOUVEMENT = {
-    "RECEPTION": "enregistrer_reception",
-    "CONSOMMATION": "consommer_materiaux",
-    "VARIANCE_INVENTAIRE": "soumettre_comptage",
+    "RECEPTION": ("enregistrer_reception",),
+    "CONSOMMATION": ("consommer_materiaux", "soumettre_materiaux_utilises"),
+    "VARIANCE_INVENTAIRE": ("soumettre_comptage",),
+    "RETOUR": ("soumettre_materiaux_utilises",),
+    "PERTE": ("soumettre_materiaux_utilises",),
+    "BRIS": ("soumettre_materiaux_utilises",),
 }
 
 
@@ -735,8 +745,8 @@ def garde_ecriture_stock(repertoire: str | Path) -> tuple[bool, str]:
                     ):
                         continue
                     type_mouvement = valeur.value
-                    attendue = DESIGNATION_TYPE_MOUVEMENT[type_mouvement]
-                    if attendue not in pile_fonctions:
+                    attendues = DESIGNATION_TYPE_MOUVEMENT[type_mouvement]
+                    if not any(nom in pile_fonctions for nom in attendues):
                         trouvee = pile_fonctions[-1] if pile_fonctions else "portée module"
                         violations.append(
                             f"{fichier}:{noeud.lineno}: {type_mouvement} "

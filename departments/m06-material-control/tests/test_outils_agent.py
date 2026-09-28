@@ -72,6 +72,8 @@ def test_autonomie_respecte_la_regle_finance():
     assert _outil("m6_resoudre_prix_materiau").autonomie == Autonomie.T0
     # PLAN T1.1-d point 3 : lecture/calcul pur (aucune écriture registre) -> T0.
     assert _outil("m6_evaluer_variance_chantier").autonomie == Autonomie.T0
+    # PLAN T1.1-d2 point 2 : écriture registre interne (CONSOMMATION/RETOUR/PERTE/BRIS) -> T1.
+    assert _outil("m6_declarer_materiaux_utilises").autonomie == Autonomie.T1
 
 
 # --- m6_receptionner_commande : composé de bout en bout ---------------------
@@ -182,6 +184,89 @@ def test_consommer_materiaux_sans_stock_prealable_est_refuse_nomme():
     assert reponse["ok"] is True
     assert reponse["resultat"]["accepte"] is False
     assert reponse["resultat"]["verdict"]["code"] == "REJ-STOCK-INSUFFISANT"
+
+
+# --- m6_declarer_materiaux_utilises : PLAN T1.1-d2 point 2 ------------------
+
+
+def _formulaire_materiaux(lignes, wct_id="w1", chantier_id="C1"):
+    return {"wct_id": wct_id, "intervention_id": "i1", "chantier_id": chantier_id, "lignes_materiaux": lignes}
+
+
+def _ligne_prevu(materiau_id="MAT-1", quantite=4.0, quantite_estimee=4.0, unite="boite"):
+    return {
+        "type_ligne": "prevu", "materiau_id": materiau_id, "quantite": quantite,
+        "unite": unite, "quantite_estimee": quantite_estimee,
+    }
+
+
+def test_declarer_materiaux_utilises_apres_reception_ecrit_une_consommation():
+    r1 = executer(
+        _outil("m6_receptionner_commande"),
+        {"bon_demande": _bon_demande(), "reception_po": _reception_po(), "catalogue_materiaux": _catalogue()},
+    )
+    historique = r1["resultat"]["registre_historique"]
+
+    r2 = executer(
+        _outil("m6_declarer_materiaux_utilises"),
+        {"wct": _wct(), "formulaire": _formulaire_materiaux([_ligne_prevu()]), "registre_historique": historique},
+    )
+
+    assert r2["ok"] is True
+    assert r2["resultat"]["accepte"] is True
+    nouveaux = r2["resultat"]["registre_historique"][len(historique):]
+    assert len(nouveaux) == 1
+    assert nouveaux[0]["type_mouvement"] == "CONSOMMATION"
+    assert nouveaux[0]["quantite"] == -4.0
+    assert nouveaux[0]["wct_id"] == "w1"
+
+
+def test_declarer_materiaux_utilises_achat_terrain_sans_preuve_est_refuse_nomme():
+    r1 = executer(
+        _outil("m6_receptionner_commande"),
+        {"bon_demande": _bon_demande(), "reception_po": _reception_po(), "catalogue_materiaux": _catalogue()},
+    )
+    historique = r1["resultat"]["registre_historique"]
+    ligne = {
+        "type_ligne": "achat_terrain", "materiau_id": "MAT-1", "quantite": 1.0,
+        "unite": "boite", "photo_fournie": False, "recu_fourni": False,
+    }
+
+    r2 = executer(
+        _outil("m6_declarer_materiaux_utilises"),
+        {"wct": _wct(), "formulaire": _formulaire_materiaux([ligne]), "registre_historique": historique},
+    )
+
+    assert r2["ok"] is True
+    assert r2["resultat"]["accepte"] is False
+    assert r2["resultat"]["verdict"]["code"] == "REJ-ACHAT-TERRAIN-PREUVE-MANQUANTE"
+
+
+def test_declarer_materiaux_utilises_une_seconde_fois_pour_le_meme_wct_est_refuse():
+    r1 = executer(
+        _outil("m6_receptionner_commande"),
+        {"bon_demande": _bon_demande(), "reception_po": _reception_po(), "catalogue_materiaux": _catalogue()},
+    )
+    historique = r1["resultat"]["registre_historique"]
+    formulaire = _formulaire_materiaux([_ligne_prevu()])
+
+    r2 = executer(
+        _outil("m6_declarer_materiaux_utilises"),
+        {"wct": _wct(), "formulaire": formulaire, "registre_historique": historique},
+    )
+    historique_apres_r2 = r2["resultat"]["registre_historique"]
+    r3 = executer(
+        _outil("m6_declarer_materiaux_utilises"),
+        {"wct": _wct(), "formulaire": formulaire, "registre_historique": historique_apres_r2},
+    )
+
+    assert r2["resultat"]["accepte"] is True
+    assert r3["ok"] is True
+    assert r3["resultat"]["accepte"] is False
+    assert r3["resultat"]["verdict"]["code"] == "REJ-DECLARATION-DEJA-SOUMISE"
+    # Un refus n'écrit rien : pas de clé registre_historique dans la réponse (même
+    # patron que m6_consommer_materiaux/m6_receptionner_commande sur refus).
+    assert "registre_historique" not in r3["resultat"]
 
 
 # --- m6_soumettre_comptage ---------------------------------------------------
@@ -331,6 +416,65 @@ def test_evaluer_variance_chantier_seuil_manquant_est_un_refus_de_schema():
 
     assert reponse["ok"] is False
     assert reponse["erreur"] == "arguments_invalides"
+
+
+def test_evaluer_variance_chantier_lit_le_reel_directement_au_registre_par_wct_id():
+    """PLAN T1.1-d2 point 3 : m6_declarer_materiaux_utilises écrit, puis
+    m6_evaluer_variance_chantier relit sans que lignes_declarees soit retransporté."""
+    r1 = executer(
+        _outil("m6_receptionner_commande"),
+        {"bon_demande": _bon_demande(), "reception_po": _reception_po(), "catalogue_materiaux": _catalogue()},
+    )
+    historique = r1["resultat"]["registre_historique"]
+
+    r2 = executer(
+        _outil("m6_declarer_materiaux_utilises"),
+        {
+            "wct": _wct(),
+            "formulaire": _formulaire_materiaux([_ligne_prevu(quantite=4.0, quantite_estimee=4.0)]),
+            "registre_historique": historique,
+        },
+    )
+    historique_apres_declaration = r2["resultat"]["registre_historique"]
+
+    r3 = executer(
+        _outil("m6_evaluer_variance_chantier"),
+        {
+            "chantier_id": "C1",
+            "besoins_estimes": [_besoin_estime(quantite_estimee=4.0)],
+            "wct_id": "w1",
+            "seuil_pourcentage": 0.30,
+            "registre_historique": historique_apres_declaration,
+        },
+    )
+
+    assert r3["ok"] is True
+    assert r3["resultat"]["accepte"] is True
+    resultat = r3["resultat"]["resultat"]
+    verdict = next(v for v in resultat["verdicts_materiaux"] if v["materiau_id"] == "MAT-1")
+    assert verdict["quantite_reelle"] == 4.0
+    assert verdict["verdict_variance"] == "AUCUN_ECART"
+
+
+def test_evaluer_variance_chantier_sans_lignes_declarees_ni_declaration_prealable_est_non_utilise():
+    """Sans lignes_declarees ni déclaration préalable au registre, le réel vaut zéro
+    partout : pas d'erreur (registre vide légitime), juste NON_UTILISE — et le signal
+    critique se déclenche bien (100 % d'écart >= 30 % de seuil), sans exception ni refus."""
+    reponse = executer(
+        _outil("m6_evaluer_variance_chantier"),
+        {
+            "chantier_id": "C-VIDE",
+            "besoins_estimes": [_besoin_estime(quantite_estimee=10.0)],
+            "seuil_pourcentage": 0.30,
+        },
+    )
+
+    assert reponse["ok"] is True
+    assert reponse["resultat"]["accepte"] is True
+    resultat = reponse["resultat"]["resultat"]
+    assert resultat["verdicts_materiaux"][0]["verdict_variance"] == "NON_UTILISE"
+    assert resultat["verdicts_materiaux"][0]["quantite_reelle"] == 0.0
+    assert resultat["signal_variance_critique"]["materiaux_en_ecart_critique"] == ["MAT-1"]
 
 
 def collecter_cles_recursivement(valeur):

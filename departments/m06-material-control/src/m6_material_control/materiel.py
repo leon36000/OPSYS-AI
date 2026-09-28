@@ -128,22 +128,33 @@ def consommer_materiaux(wct, formulaire, registre) -> tuple[dict | None, str | N
     )
 
 
-def soumettre_materiaux_utilises(wct, formulaire) -> tuple[dict | None, str | None]:
-    """Formulaire de fin de chantier enrichi (PLAN T1.1-d point 1, M6.10/M6.11).
+def soumettre_materiaux_utilises(wct, formulaire, registre) -> tuple[dict | None, str | None]:
+    """Formulaire de fin de chantier enrichi (PLAN T1.1-d/d2, M6.10/M6.11).
 
     NOUVELLE fonction, distincte de consommer_materiaux : elle ne le remplace pas, ne
-    l'appelle pas et n'écrit aucun mouvement au registre (garde_ecriture_stock de
-    conformite.py n'autorise "type_mouvement" que dans enregistrer_reception/
-    consommer_materiaux/soumettre_comptage — l'ajuster serait une modification
-    structurelle hors PLAN T1.1-d, cf. ARCHITECTURE.md). m6_consommer_materiaux garde
-    donc son contrat {materiau_id, quantite} exact et ses tests existants restent verts.
+    l'appelle pas — m6_consommer_materiaux garde son contrat {materiau_id, quantite}
+    exact et ses tests existants restent verts. garde_ecriture_stock de conformite.py
+    l'autorise explicitement (DESIGNATION_TYPE_MOUVEMENT) pour CONSOMMATION, en plus de
+    consommer_materiaux, et pour RETOUR/PERTE/BRIS, qu'elle est seule à écrire.
 
-    Ici : validation fail-closed du formulaire enrichi à 6 types de ligne (prevu/
+    Étapes : validation fail-closed du formulaire enrichi à 6 types de ligne (prevu/
     non_prevu/retour/perte/bris/achat_terrain, REJ-ACHAT-TERRAIN-PREUVE-MANQUANTE si un
-    achat terrain n'a ni photo ni reçu) puis construction du « réel déclaré » que
-    variance_chantier.evaluer consomme en entrée (PLAN T1.1-d point 2). Le rattachement
-    de ces lignes à un mouvement de stock réel (registre, coûts) est le travail du
-    consommateur côté M4 (T1.2) — hors de cette fonction.
+    achat terrain n'a ni photo ni reçu) -> idempotence par wct_id (REJ-DECLARATION-DEJA-
+    SOUMISE : une déclaration par WCT, jamais deux — la corriger est une autre
+    fonctionnalité, non faite ici) -> résolution du coût unitaire par ligne, même règle
+    fail-closed que consommer_materiaux (_dernier_cout_unitaire_connu,
+    REJ-COUT-UNITAIRE-INTROUVABLE, jamais de coût inventé) -> écriture tout-ou-rien
+    (ajouter_lot) des mouvements typés :
+      - prevu/non_prevu/achat_terrain -> CONSOMMATION (quantité négative, sort du stock) ;
+      - retour -> RETOUR (quantité positive, réintègre le stock théorique) ;
+      - perte/bris -> PERTE/BRIS (quantité négative, sort du stock SANS être une
+        consommation de chantier — type distinct, jamais confondu avec CONSOMMATION).
+    stock.deriver_stock_theorique inclut déjà ces types (PLAN T1.1-d2) : le théorique
+    reste cohérent immédiatement après l'écriture, sans code spécial ici.
+
+    variance_chantier.comparer_depuis_registre (PLAN T1.1-d2 point 3) relit ensuite ces
+    mêmes mouvements, filtrés par wct_id, pour construire le « réel déclaré » sans que
+    l'appelant ait besoin de le retransporter.
     """
     ok, code = validation.valider_wct(wct)
     if not ok:
@@ -153,10 +164,72 @@ def soumettre_materiaux_utilises(wct, formulaire) -> tuple[dict | None, str | No
     if not ok:
         return None, code
 
+    wct_id = wct["wct_id"]
+    if any(mouvement.get("wct_id") == wct_id for mouvement in registre.lire()):
+        return None, "REJ-DECLARATION-DEJA-SOUMISE"
+
+    chantier_id = formulaire["chantier_id"]
+    mouvements_a_persister = []
+    for ligne in formulaire["lignes_materiaux"]:
+        materiau_id = ligne["materiau_id"]
+        cout = _dernier_cout_unitaire_connu(chantier_id, materiau_id, registre)
+        if cout is None:
+            return None, "REJ-COUT-UNITAIRE-INTROUVABLE"
+
+        type_ligne = ligne["type_ligne"]
+        if type_ligne in ("prevu", "non_prevu", "achat_terrain"):
+            mouvements_a_persister.append(
+                {
+                    "type_mouvement": "CONSOMMATION",
+                    "chantier_id": chantier_id,
+                    "materiau_id": materiau_id,
+                    "quantite": -ligne["quantite"],
+                    "cout_unitaire": cout,
+                    "wct_id": wct_id,
+                }
+            )
+        elif type_ligne == "retour":
+            mouvements_a_persister.append(
+                {
+                    "type_mouvement": "RETOUR",
+                    "chantier_id": chantier_id,
+                    "materiau_id": materiau_id,
+                    "quantite": ligne["quantite"],
+                    "cout_unitaire": cout,
+                    "wct_id": wct_id,
+                }
+            )
+        elif type_ligne == "perte":
+            mouvements_a_persister.append(
+                {
+                    "type_mouvement": "PERTE",
+                    "chantier_id": chantier_id,
+                    "materiau_id": materiau_id,
+                    "quantite": -ligne["quantite"],
+                    "cout_unitaire": cout,
+                    "wct_id": wct_id,
+                }
+            )
+        else:  # "bris"
+            mouvements_a_persister.append(
+                {
+                    "type_mouvement": "BRIS",
+                    "chantier_id": chantier_id,
+                    "materiau_id": materiau_id,
+                    "quantite": -ligne["quantite"],
+                    "cout_unitaire": cout,
+                    "wct_id": wct_id,
+                }
+            )
+
+    _, erreur = registre.ajouter_lot(mouvements_a_persister)
+    if erreur is not None:
+        return None, erreur
+
     return (
         contrats_sortie.construire_confirmation_materiaux_utilises(
             formulaire["intervention_id"],
-            formulaire["chantier_id"],
+            chantier_id,
             formulaire["lignes_materiaux"],
         ),
         None,

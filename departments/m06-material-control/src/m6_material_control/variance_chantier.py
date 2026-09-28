@@ -3,10 +3,13 @@ chantier, M4) — PLAN T1.1-d, points 2 et 3.
 
 DISTINCT de variance.py (M6-audit.md §3.1/§4) : variance.py compare un comptage
 physique au stock théorique dérivé du registre — un audit d'inventaire. Ici, on compare
-deux structures fournies en entrée par l'appelant : les besoins matériaux estimés
-(BesoinEstimeChantier, l'intake M3 -> M6 de M6.4, hors PLAN T1.1-d) et le réel déclaré
-au formulaire de fin de chantier (materiel.soumettre_materiaux_utilises). Ce module ne
-lit ni n'écrit le registre M6 — module pur, comme variance.py.
+les besoins matériaux estimés (BesoinEstimeChantier, l'intake M3 -> M6 de M6.4, hors
+PLAN T1.1-d, toujours fourni en entrée par l'appelant) au réel déclaré au formulaire de
+fin de chantier (materiel.soumettre_materiaux_utilises). Ce module n'écrit JAMAIS le
+registre M6 (comme variance.py). Il peut, depuis PLAN T1.1-d2 point 3, le LIRE : le réel
+déclaré peut venir soit explicitement (lignes_declarees, `comparer` — module pur, comme
+avant), soit relu directement au registre pour un wct_id ou un chantier_id
+(`comparer_depuis_registre`, T1.1-d2), au lieu d'être retransporté par l'appelant.
 
 Règles dures (DEFINITION-PRODUIT.md §7 M6, « Règles dures », et M6.12 l.515) :
 - Le verdict est neutre (AUCUN_ECART/ECART_REEL_SUPERIEUR/ECART_REEL_INFERIEUR/
@@ -52,32 +55,28 @@ def _quantite_nette_declaree(materiau_id, lignes_declarees) -> tuple[float, str 
     return total, unite, unite_ambigue
 
 
-def _comparer_materiau(materiau_id, besoin, lignes_declarees) -> dict:
-    quantite_estimee = besoin["quantite_estimee"] if besoin else 0.0
-    unite_besoin = besoin["unite"] if besoin else None
+def _indetermine(materiau_id, quantite_estimee, quantite_reelle) -> dict:
+    # Fail-closed (P2/AGENTS.md) : comparer des quantités d'unités incohérentes (ou
+    # inconnues, côté registre — PLAN T1.1-d2) inventerait un écart. On dit ce qui
+    # manque (unité cohérente), pas un chiffre.
+    return {
+        "materiau_id": materiau_id,
+        "unite": None,
+        "quantite_estimee": quantite_estimee,
+        "quantite_reelle": quantite_reelle,
+        "ecart": None,
+        "ecart_pourcentage": None,
+        "verdict_variance": "INDETERMINE",
+        "cause_possible": None,
+        "classification_requise": True,
+    }
 
-    quantite_reelle, unite_declaree, unite_ambigue = _quantite_nette_declaree(materiau_id, lignes_declarees)
 
-    unite_incoherente = unite_ambigue or (
-        unite_besoin is not None and unite_declaree is not None and unite_besoin != unite_declaree
-    )
-
-    if unite_incoherente:
-        # Fail-closed (P2/AGENTS.md) : comparer des quantités d'unités différentes
-        # inventerait un écart. On dit ce qui manque (unité cohérente), pas un chiffre.
-        return {
-            "materiau_id": materiau_id,
-            "unite": None,
-            "quantite_estimee": quantite_estimee,
-            "quantite_reelle": quantite_reelle,
-            "ecart": None,
-            "ecart_pourcentage": None,
-            "verdict_variance": "INDETERMINE",
-            "cause_possible": None,
-            "classification_requise": True,
-        }
-
-    unite = unite_besoin or unite_declaree
+def _verdict_neutre(materiau_id, unite, quantite_estimee, quantite_reelle) -> dict:
+    """Verdict neutre pour un matériau dont l'estimé et le réel sont déjà résolus dans
+    la MÊME unité (ou dont l'unité est simplement inconnue, PLAN T1.1-d2). Partagé par
+    `comparer` (lignes_declarees explicites) et `comparer_depuis_registre` (mouvements
+    persistés, qui ne portent pas d'unité)."""
     ecart = quantite_reelle - quantite_estimee
 
     if quantite_estimee == 0 and quantite_reelle > 0:
@@ -108,6 +107,22 @@ def _comparer_materiau(materiau_id, besoin, lignes_declarees) -> dict:
     }
 
 
+def _comparer_materiau(materiau_id, besoin, lignes_declarees) -> dict:
+    quantite_estimee = besoin["quantite_estimee"] if besoin else 0.0
+    unite_besoin = besoin["unite"] if besoin else None
+
+    quantite_reelle, unite_declaree, unite_ambigue = _quantite_nette_declaree(materiau_id, lignes_declarees)
+
+    unite_incoherente = unite_ambigue or (
+        unite_besoin is not None and unite_declaree is not None and unite_besoin != unite_declaree
+    )
+
+    if unite_incoherente:
+        return _indetermine(materiau_id, quantite_estimee, quantite_reelle)
+
+    return _verdict_neutre(materiau_id, unite_besoin or unite_declaree, quantite_estimee, quantite_reelle)
+
+
 def comparer(besoins_estimes, lignes_declarees) -> list[dict]:
     """Verdict neutre par matériau (PLAN T1.1-d point 2). Suppose une entrée déjà
     validée (validation.valider_besoins_estimes_chantier / valider_lignes_declarees_chantier) —
@@ -122,6 +137,62 @@ def comparer(besoins_estimes, lignes_declarees) -> list[dict]:
         _comparer_materiau(materiau_id, estimes_par_materiau.get(materiau_id), lignes_declarees)
         for materiau_id in materiaux
     ]
+
+
+# PLAN T1.1-d2 point 3 : types de mouvement du registre qui composent le « réel déclaré »
+# d'un chantier — exactement ceux écrits par materiel.soumettre_materiaux_utilises.
+# CONSOMMATION est aussi écrit par l'ancien m6_consommer_materiaux (WCT simple) : cette
+# consommation-là compte légitimement dans le réel du chantier au même titre.
+_TYPES_MOUVEMENT_REEL_DECLARE = frozenset({"CONSOMMATION", "RETOUR", "PERTE", "BRIS"})
+
+
+def _quantite_reelle_depuis_registre(chantier_id, materiau_id, wct_id, registre) -> float:
+    """Sortie nette (positive = matière sortie) reconstruite depuis les mouvements du
+    registre : CONSOMMATION/PERTE/BRIS sont stockés négatifs (materiel.py), RETOUR
+    positif — la somme signée négée donne directement la même quantité que
+    `_quantite_nette_declaree` calculerait depuis les lignes déclarées d'origine."""
+    total_signe = 0.0
+    for mouvement in registre.lire():
+        if (
+            mouvement.get("type_mouvement") in _TYPES_MOUVEMENT_REEL_DECLARE
+            and mouvement.get("chantier_id") == chantier_id
+            and mouvement.get("materiau_id") == materiau_id
+            and (wct_id is None or mouvement.get("wct_id") == wct_id)
+        ):
+            total_signe += mouvement["quantite"]
+    return -total_signe
+
+
+def comparer_depuis_registre(besoins_estimes, chantier_id, registre, wct_id=None) -> list[dict]:
+    """Verdict neutre par matériau (PLAN T1.1-d2 point 3), réel déclaré relu directement
+    au registre M6 (persisté par materiel.soumettre_materiaux_utilises) au lieu d'être
+    reçu de l'appelant. `wct_id=None` agrège tout le réel déclaré du chantier (toutes
+    déclarations confondues) ; un `wct_id` cible une seule déclaration.
+
+    Le registre ne porte pas d'unité (contrat gelé de `registre.py`, PLAN T1.1-d) : seule
+    celle du besoin estimé est rapportée, sans vérification croisée possible côté réel —
+    à la différence de `comparer`, ce chemin ne peut jamais renvoyer INDETERMINE pour
+    incohérence d'unité.
+    """
+    estimes_par_materiau = {besoin["materiau_id"]: besoin for besoin in besoins_estimes}
+
+    materiaux_declares = {
+        mouvement["materiau_id"]
+        for mouvement in registre.lire()
+        if mouvement.get("type_mouvement") in _TYPES_MOUVEMENT_REEL_DECLARE
+        and mouvement.get("chantier_id") == chantier_id
+        and (wct_id is None or mouvement.get("wct_id") == wct_id)
+    }
+    materiaux = sorted(set(estimes_par_materiau) | materiaux_declares)
+
+    verdicts = []
+    for materiau_id in materiaux:
+        besoin = estimes_par_materiau.get(materiau_id)
+        quantite_estimee = besoin["quantite_estimee"] if besoin else 0.0
+        unite = besoin["unite"] if besoin else None
+        quantite_reelle = _quantite_reelle_depuis_registre(chantier_id, materiau_id, wct_id, registre)
+        verdicts.append(_verdict_neutre(materiau_id, unite, quantite_estimee, quantite_reelle))
+    return verdicts
 
 
 def _construire_signal_si_critique(chantier_id, verdicts, seuil_pourcentage) -> dict | None:
@@ -151,11 +222,23 @@ def _construire_signal_si_critique(chantier_id, verdicts, seuil_pourcentage) -> 
 def evaluer(
     chantier_id,
     besoins_estimes,
-    lignes_declarees,
-    seuil_pourcentage,
+    lignes_declarees=None,
+    seuil_pourcentage=None,
+    *,
+    registre=None,
+    wct_id=None,
 ) -> tuple[dict | None, str | None]:
-    """Orchestrateur PLAN T1.1-d (points 2 et 3) : valide puis compare. Aucune écriture —
-    m6_evaluer_variance_chantier (outils.py) est T0, lecture/calcul pur."""
+    """Orchestrateur PLAN T1.1-d/d2 (points 2 et 3) : valide puis compare. Aucune
+    écriture — m6_evaluer_variance_chantier (outils.py) est T0, lecture/calcul pur.
+
+    Deux sources pour le réel déclaré, au choix de l'appelant (PLAN T1.1-d2 point 3) :
+    - `lignes_declarees` explicite (appel direct, signature et comportement INCHANGÉS
+      depuis PLAN T1.1-d — l'entrée explicite reste disponible, comme demandé) ;
+    - `registre` (+ `wct_id` optionnel) : lit le réel déclaré directement au registre M6
+      via `comparer_depuis_registre`, sans que l'appelant le retransporte. `lignes_declarees`
+      doit alors être omis (None) — les deux sources ne se mélangent jamais dans un même
+      appel, pour ne jamais construire un résultat partiellement fourni/partiellement lu.
+    """
     if not isinstance(chantier_id, str) or not chantier_id:
         return None, "REJ-VARIANCE-CHANTIER-CHANTIER-MANQUANT"
 
@@ -163,15 +246,20 @@ def evaluer(
     if not ok:
         return None, code
 
-    ok, code = validation.valider_lignes_declarees_chantier(lignes_declarees)
-    if not ok:
-        return None, code
-
     ok, code = validation.valider_seuil_variance_chantier(seuil_pourcentage)
     if not ok:
         return None, code
 
-    verdicts = comparer(besoins_estimes, lignes_declarees)
+    if lignes_declarees is not None:
+        ok, code = validation.valider_lignes_declarees_chantier(lignes_declarees)
+        if not ok:
+            return None, code
+        verdicts = comparer(besoins_estimes, lignes_declarees)
+    elif registre is not None:
+        verdicts = comparer_depuis_registre(besoins_estimes, chantier_id, registre, wct_id)
+    else:
+        return None, "REJ-VARIANCE-CHANTIER-SOURCE-MANQUANTE"
+
     signal = _construire_signal_si_critique(chantier_id, verdicts, seuil_pourcentage)
 
     return contrats_sortie.construire_resultat_variance_chantier(verdicts, signal), None

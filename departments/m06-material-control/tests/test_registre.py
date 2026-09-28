@@ -203,6 +203,114 @@ def test_ajouter_lot_ne_modifie_rien_si_un_mouvement_du_lot_manque_un_champ():
     assert registre.lire() == []
 
 
+def _retour():
+    return {
+        "type_mouvement": "RETOUR",
+        "chantier_id": "chantier-A",
+        "materiau_id": "beton-C25",
+        "quantite": 2.0,
+        "cout_unitaire": 110.0,
+    }
+
+
+def _perte():
+    return {
+        "type_mouvement": "PERTE",
+        "chantier_id": "chantier-A",
+        "materiau_id": "beton-C25",
+        "quantite": -1.0,
+        "cout_unitaire": 110.0,
+    }
+
+
+def _bris():
+    return {
+        "type_mouvement": "BRIS",
+        "chantier_id": "chantier-A",
+        "materiau_id": "beton-C25",
+        "quantite": -1.0,
+        "cout_unitaire": 110.0,
+    }
+
+
+# --- PLAN T1.1-d2 : RETOUR/PERTE/BRIS, wct_id optionnel et rétrocompatible -------------
+
+
+def test_types_mouvement_retour_perte_bris_sont_acceptes():
+    registre = Registre()
+
+    for mouvement in (_retour(), _perte(), _bris()):
+        maillon, erreur = registre.ajouter(mouvement)
+        assert erreur is None
+        assert maillon["type_mouvement"] == mouvement["type_mouvement"]
+
+    assert registre.valider_chaine() == (True, "")
+
+
+def test_maillon_sans_wct_id_garde_exactement_les_huit_cles_historiques():
+    """Rétrocompatibilité PLAN T1.1-d2 : un mouvement sans wct_id (tout appelant
+    antérieur) produit un maillon STRICTEMENT identique en forme à avant ce changement."""
+    registre = Registre()
+
+    maillon, erreur = registre.ajouter(_reception())
+
+    assert erreur is None
+    assert set(maillon) == _CLES_MAILLON
+
+
+def test_maillon_avec_wct_id_porte_la_cle_en_plus_et_reste_valide():
+    registre = Registre()
+
+    maillon, erreur = registre.ajouter({**_consommation(), "wct_id": "wct-1"})
+
+    assert erreur is None
+    assert set(maillon) == _CLES_MAILLON | {"wct_id"}
+    assert maillon["wct_id"] == "wct-1"
+    assert registre.valider_chaine() == (True, "")
+
+
+def test_wct_id_entre_dans_le_hash_deux_wct_id_differents_donnent_des_hash_differents():
+    registre_1 = Registre()
+    registre_2 = Registre()
+
+    maillon_1, _ = registre_1.ajouter({**_consommation(), "wct_id": "wct-1"})
+    maillon_2, _ = registre_2.ajouter({**_consommation(), "wct_id": "wct-2"})
+
+    assert maillon_1["hash_maillon"] != maillon_2["hash_maillon"]
+
+
+def test_alteration_du_wct_id_est_detectee_par_valider_chaine():
+    registre = Registre()
+    registre.ajouter({**_consommation(), "wct_id": "wct-1"})
+
+    registre._maillons[0]["wct_id"] = "wct-falsifie"
+
+    valide, message = registre.valider_chaine()
+    assert valide is False
+    assert "0" in message
+
+
+def test_mouvement_sans_wct_id_produit_le_meme_hash_qu_avant_ce_changement():
+    """Preuve de non-régression directe : le hash d'un mouvement SANS wct_id est
+    identique, avec ou sans le code PLAN T1.1-d2 — recalculé ici à la main avec la
+    formule d'origine (7 arguments, sans wct_id)."""
+    from m6_material_control import encodage
+
+    registre = Registre()
+    maillon, _ = registre.ajouter(_reception())
+
+    hash_attendu_formule_dorigine = encodage.empreinte(
+        0,
+        _reception()["type_mouvement"],
+        _reception()["chantier_id"],
+        _reception()["materiau_id"],
+        _reception()["quantite"],
+        _reception()["cout_unitaire"],
+        "",
+    )
+    assert maillon["hash_maillon"] == hash_attendu_formule_dorigine
+
+
 def test_ajouter_lot_produit_un_chainage_de_hash_identique_au_cas_ajouter_un_par_un():
     mouvements = [_reception(), _consommation(), _variance()]
 

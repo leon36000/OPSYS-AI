@@ -1,10 +1,13 @@
 """Capacités d'agent du département M6 Material Control.
 
-Chaque outil enveloppe l'orchestrateur unique `materiel.py` (seul point d'écriture
-par type de mouvement — RECEPTION/CONSOMMATION/VARIANCE_INVENTAIRE, DA-M6-11).
-`m6_receptionner_commande` compose de bout en bout : réception -> écriture du
-stock -> résolution de prix -> variance de réception -> signal à M5 -> suggestion
-de réapprovisionnement, en un seul appel.
+Chaque outil enveloppe l'orchestrateur unique `materiel.py` (seul point d'écriture par
+type de mouvement — RECEPTION/CONSOMMATION/VARIANCE_INVENTAIRE, DA-M6-11 ; RETOUR/PERTE/
+BRIS depuis PLAN T1.1-d2, garde_ecriture_stock de conformite.py). `m6_receptionner_commande`
+compose de bout en bout : réception -> écriture du stock -> résolution de prix -> variance
+de réception -> signal à M5 -> suggestion de réapprovisionnement, en un seul appel.
+`m6_declarer_materiaux_utilises` (PLAN T1.1-d2) fait de même pour la fin de chantier :
+formulaire enrichi -> mouvements typés (CONSOMMATION/RETOUR/PERTE/BRIS) -> stock théorique
+cohérent, idempotent par wct_id.
 
 Le registre (append-only hash-chaîné) est durable en production (ADR-0009) : à l'intérieur de la
 transaction que `Capacites.appeler`/`executer_atomique` ouvre pour chaque appel d'outil (point de
@@ -158,26 +161,46 @@ _LIGNE_DECLAREE_CHANTIER = {
     "required": ["type_ligne", "materiau_id", "quantite", "unite"],
 }
 _LIGNES_DECLAREES_CHANTIER = {"type": "array", "items": _LIGNE_DECLAREE_CHANTIER}
+_FORMULAIRE_MATERIAUX_UTILISES = {
+    "type": "object",
+    "description": "Formulaire de fin de chantier enrichi (M6.10/M6.11), 6 types de ligne.",
+    "properties": {
+        "wct_id": {"type": "string"},
+        "intervention_id": {"type": "string"},
+        "chantier_id": {"type": "string"},
+        "lignes_materiaux": {"type": "array", "items": _LIGNE_DECLAREE_CHANTIER},
+    },
+    "required": ["wct_id", "intervention_id", "chantier_id", "lignes_materiaux"],
+}
 
 
 def _rejouer_registre(historique: list[dict[str, Any]] | None) -> registre_module.Registre:
     """Reconstruit le registre M6 en rejouant l'historique fourni par l'appelant
     (mêmes maillons, même ordre -> mêmes hachages : reconstruction fidèle, pas une
-    vérification contre une vérité externe que ce paquet ne détient pas)."""
+    vérification contre une vérité externe que ce paquet ne détient pas).
+
+    PLAN T1.1-d2 : wct_id, quand un maillon en porte un, est repris tel quel — sinon la
+    rejoue perdrait l'idempotence (materiel.soumettre_materiaux_utilises) et le ciblage
+    par wct_id (variance_chantier.comparer_depuis_registre) dès le deuxième appel hors
+    transaction. Absent (tous les maillons antérieurs à PLAN T1.1-d2), rien ne change :
+    même reconstruction qu'avant.
+    """
     registre_cible = registre_module.Registre()
     historique = historique or []
     if not historique:
         return registre_cible
-    mouvements = [
-        {
+    mouvements = []
+    for maillon in historique:
+        mouvement = {
             "type_mouvement": maillon["type_mouvement"],
             "chantier_id": maillon["chantier_id"],
             "materiau_id": maillon["materiau_id"],
             "quantite": maillon["quantite"],
             "cout_unitaire": maillon["cout_unitaire"],
         }
-        for maillon in historique
-    ]
+        if "wct_id" in maillon:
+            mouvement["wct_id"] = maillon["wct_id"]
+        mouvements.append(mouvement)
     _, erreur = registre_cible.ajouter_lot(mouvements)
     if erreur is not None:
         raise ValueError(f"registre_historique incohérent : {erreur}")
@@ -240,6 +263,20 @@ def consommer_materiaux(
     return {"accepte": True, "resultat": resultat, **_etat_registre(registre_cible)}
 
 
+def declarer_materiaux_utilises(
+    wct: dict[str, Any],
+    formulaire: dict[str, Any],
+    registre_historique: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """PLAN T1.1-d2 point 2. En transaction (production) : registre durable, réponse
+    tête + taille seulement (_etat_registre), comme les autres outils d'écriture."""
+    registre_cible = _registre_de_l_appel(registre_historique)
+    resultat, code = materiel.soumettre_materiaux_utilises(wct, formulaire, registre_cible)
+    if code is not None:
+        return {"accepte": False, "verdict": {"code": code}}
+    return {"accepte": True, "resultat": resultat, **_etat_registre(registre_cible)}
+
+
 def soumettre_comptage(
     comptage: dict[str, Any], registre_historique: list[dict[str, Any]] | None = None
 ) -> dict[str, Any]:
@@ -270,12 +307,26 @@ def resoudre_prix_materiau(
 def evaluer_variance_chantier(
     chantier_id: str,
     besoins_estimes: list[dict[str, Any]],
-    lignes_declarees: list[dict[str, Any]],
     seuil_pourcentage: float,
+    lignes_declarees: list[dict[str, Any]] | None = None,
+    wct_id: str | None = None,
+    registre_historique: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """PLAN T1.1-d points 2 et 3. Aucun registre : variance_chantier.evaluer ne lit ni
-    n'écrit le registre M6 (module pur), donc pas de _registre_de_l_appel ici."""
-    resultat, code = variance_chantier.evaluer(chantier_id, besoins_estimes, lignes_declarees, seuil_pourcentage)
+    """PLAN T1.1-d/d2 points 2 et 3. variance_chantier.evaluer n'écrit jamais le registre
+    (T0, lecture/calcul pur) mais peut désormais le LIRE (PLAN T1.1-d2 point 3) : le
+    registre est donc toujours résolu (comme m6_produire_digest/m6_resoudre_prix_materiau,
+    d'autres outils T0 qui lisent sans écrire), et utilisé seulement si `lignes_declarees`
+    est omis. `lignes_declarees` explicite reste utilisable tel quel (entrée directe
+    gardée, comme demandé)."""
+    registre_cible = _registre_de_l_appel(registre_historique)
+    resultat, code = variance_chantier.evaluer(
+        chantier_id,
+        besoins_estimes,
+        lignes_declarees,
+        seuil_pourcentage,
+        registre=registre_cible,
+        wct_id=wct_id,
+    )
     if code is not None:
         return {"accepte": False, "verdict": {"code": code}}
     return {"accepte": True, "resultat": resultat}
@@ -324,6 +375,32 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=consommer_materiaux,
+            autonomie=Autonomie.T1,
+        ),
+        Outil(
+            nom="m6_declarer_materiaux_utilises",
+            description=(
+                "Déclare le formulaire de fin de chantier enrichi (M6.10/M6.11 ; lignes typées "
+                "prévu/non prévu/retour/perte/bris/achat terrain — achat terrain refusé fail-closed "
+                "sans photo ni reçu) et l'écrit au registre : CONSOMMATION pour prévu/non prévu/achat "
+                "terrain, RETOUR pour un retour (réintègre le stock), PERTE/BRIS pour une perte ou un "
+                "bris (sortent du stock sans être une consommation de chantier). Même règle de coût "
+                "unitaire fail-closed que m6_consommer_materiaux, aucun coût inventé. Idempotente par "
+                "wct_id : une seconde déclaration pour le même WCT est refusée nommément, jamais "
+                "réécrite. Distincte de m6_consommer_materiaux, qui garde son contrat "
+                "{materiau_id, quantite} exact et n'est pas remplacé."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "wct": _WCT,
+                    "formulaire": _FORMULAIRE_MATERIAUX_UTILISES,
+                    "registre_historique": _REGISTRE_HISTORIQUE,
+                },
+                "required": ["wct", "formulaire"],
+                "additionalProperties": False,
+            },
+            fonction=declarer_materiaux_utilises,
             autonomie=Autonomie.T1,
         ),
         Outil(
@@ -382,22 +459,40 @@ def outils() -> tuple[Outil, ...]:
         Outil(
             nom="m6_evaluer_variance_chantier",
             description=(
-                "Compare les besoins matériaux estimés (M3) au réel déclaré au formulaire de fin de "
-                "chantier enrichi (lignes typées prévu/non prévu/retour/perte/bris/achat terrain) et "
-                "calcule un verdict neutre par matériau. Ne classe jamais la cause : cause_possible "
-                "reste toujours null (classification humaine uniquement parmi les 6 causes nommées "
-                "de la définition produit, jamais « vol ») et classification_requise indique si un "
-                "écart attend cette classification. Émet SignalVarianceChantierCritique quand l'écart "
-                "d'au moins un matériau atteint ou dépasse seuil_pourcentage, toujours fourni par "
-                "l'appelant, jamais codé en dur. M6 signale seulement : ce signal ne modifie jamais "
-                "le statut du chantier côté M4. Lecture et calcul purs, aucune écriture au registre."
+                "Compare les besoins matériaux estimés (M3, toujours fournis en entrée) au réel "
+                "déclaré au formulaire de fin de chantier enrichi (lignes typées prévu/non prévu/"
+                "retour/perte/bris/achat terrain) et calcule un verdict neutre par matériau. Le réel "
+                "vient soit de lignes_declarees fourni explicitement, soit — si omis — relu "
+                "directement au registre pour wct_id (une déclaration précise) ou chantier_id seul "
+                "(tout le réel déclaré du chantier), déjà écrit par m6_declarer_materiaux_utilises. Ne "
+                "classe jamais la cause : cause_possible reste toujours null (classification humaine "
+                "uniquement parmi les 6 causes nommées de la définition produit, jamais « vol ») et "
+                "classification_requise indique si un écart attend cette classification. Émet "
+                "SignalVarianceChantierCritique quand l'écart d'au moins un matériau atteint ou "
+                "dépasse seuil_pourcentage, toujours fourni par l'appelant, jamais codé en dur. M6 "
+                "signale seulement : ce signal ne modifie jamais le statut du chantier côté M4. "
+                "Lecture et calcul purs, aucune écriture au registre."
             ),
             parametres={
                 "type": "object",
                 "properties": {
                     "chantier_id": {"type": "string"},
                     "besoins_estimes": _BESOINS_ESTIMES_CHANTIER,
-                    "lignes_declarees": _LIGNES_DECLAREES_CHANTIER,
+                    "lignes_declarees": {
+                        **_LIGNES_DECLAREES_CHANTIER,
+                        "description": (
+                            "Réel déclaré explicite. À omettre pour lire le réel directement au "
+                            "registre (wct_id ou chantier_id seul) plutôt que de le retransporter."
+                        ),
+                    },
+                    "wct_id": {
+                        "type": "string",
+                        "description": (
+                            "Utilisé seulement quand lignes_declarees est omis : cible une seule "
+                            "déclaration au registre. Omis avec lignes_declarees : agrège tout le réel "
+                            "déclaré du chantier."
+                        ),
+                    },
                     "seuil_pourcentage": {
                         "type": "number",
                         "description": (
@@ -405,8 +500,9 @@ def outils() -> tuple[Outil, ...]:
                             "par défaut n'existe dans le code."
                         ),
                     },
+                    "registre_historique": _REGISTRE_HISTORIQUE,
                 },
-                "required": ["chantier_id", "besoins_estimes", "lignes_declarees", "seuil_pourcentage"],
+                "required": ["chantier_id", "besoins_estimes", "seuil_pourcentage"],
                 "additionalProperties": False,
             },
             fonction=evaluer_variance_chantier,

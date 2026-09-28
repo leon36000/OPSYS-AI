@@ -14,6 +14,7 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from m6_material_control import contrats, variance_chantier
+from m6_material_control.registre import Registre
 
 
 CLES_MONETAIRES_INTERDITES = {
@@ -301,3 +302,124 @@ def test_resultat_de_evaluer_ne_contient_aucune_cle_monetaire():
 
     assert code is None
     assert not collecter_cles_recursivement(resultat).intersection(CLES_MONETAIRES_INTERDITES)
+
+
+# --- comparer_depuis_registre / evaluer(registre=...) : PLAN T1.1-d2 point 3 -----------
+
+
+def _mouvement(type_mouvement, quantite, materiau_id="MAT-1", chantier_id="CHANTIER-1", wct_id=None):
+    mouvement = {
+        "type_mouvement": type_mouvement, "chantier_id": chantier_id,
+        "materiau_id": materiau_id, "quantite": quantite, "cout_unitaire": 5.0,
+    }
+    if wct_id is not None:
+        mouvement["wct_id"] = wct_id
+    return mouvement
+
+
+def test_comparer_depuis_registre_reconstruit_la_meme_quantite_reelle_que_comparer():
+    registre = Registre()
+    registre.ajouter(_mouvement("CONSOMMATION", -8.0, wct_id="wct-1"))
+    registre.ajouter(_mouvement("RETOUR", 1.0, wct_id="wct-1"))
+    registre.ajouter(_mouvement("PERTE", -2.0, materiau_id="MAT-3", wct_id="wct-1"))
+    registre.ajouter(_mouvement("BRIS", -1.0, materiau_id="MAT-4", wct_id="wct-1"))
+
+    verdicts = variance_chantier.comparer_depuis_registre(
+        [besoin(materiau_id="MAT-1", quantite_estimee=10.0)], "CHANTIER-1", registre,
+    )
+
+    verdict_mat1 = next(v for v in verdicts if v["materiau_id"] == "MAT-1")
+    assert verdict_mat1["quantite_reelle"] == 7.0  # 8 consommé - 1 rendu
+    assert verdict_mat1["verdict_variance"] == "ECART_REEL_INFERIEUR"
+
+    materiaux = {v["materiau_id"] for v in verdicts}
+    assert {"MAT-1", "MAT-3", "MAT-4"}.issubset(materiaux)
+    verdict_mat3 = next(v for v in verdicts if v["materiau_id"] == "MAT-3")
+    assert verdict_mat3["quantite_reelle"] == 2.0
+    assert verdict_mat3["verdict_variance"] == "NON_PREVU"  # aucun besoin fourni pour MAT-3
+
+
+def test_comparer_depuis_registre_filtre_par_wct_id_quand_fourni():
+    registre = Registre()
+    registre.ajouter(_mouvement("CONSOMMATION", -5.0, wct_id="wct-1"))
+    registre.ajouter(_mouvement("CONSOMMATION", -3.0, wct_id="wct-2"))
+
+    verdicts_wct1 = variance_chantier.comparer_depuis_registre(
+        [besoin(quantite_estimee=5.0)], "CHANTIER-1", registre, wct_id="wct-1",
+    )
+    verdicts_wct2 = variance_chantier.comparer_depuis_registre(
+        [besoin(quantite_estimee=5.0)], "CHANTIER-1", registre, wct_id="wct-2",
+    )
+    verdicts_tous = variance_chantier.comparer_depuis_registre(
+        [besoin(quantite_estimee=5.0)], "CHANTIER-1", registre,
+    )
+
+    assert verdicts_wct1[0]["quantite_reelle"] == 5.0
+    assert verdicts_wct2[0]["quantite_reelle"] == 3.0
+    assert verdicts_tous[0]["quantite_reelle"] == 8.0  # les deux déclarations agrégées
+
+
+def test_comparer_depuis_registre_ignore_les_mouvements_d_un_autre_chantier():
+    registre = Registre()
+    registre.ajouter(_mouvement("CONSOMMATION", -9.0, chantier_id="CHANTIER-AUTRE"))
+
+    verdicts = variance_chantier.comparer_depuis_registre(
+        [besoin(quantite_estimee=5.0)], "CHANTIER-1", registre,
+    )
+
+    assert verdicts[0]["quantite_reelle"] == 0.0
+    assert verdicts[0]["verdict_variance"] == "NON_UTILISE"
+
+
+def test_comparer_depuis_registre_n_utilise_jamais_l_unite_du_registre_absente():
+    """Le registre ne porte pas d'unité (contrat gelé) : l'unité rapportée vient
+    uniquement du besoin — jamais INDETERMINE par incohérence côté réel ici."""
+    registre = Registre()
+    registre.ajouter(_mouvement("CONSOMMATION", -5.0))
+
+    verdicts = variance_chantier.comparer_depuis_registre(
+        [besoin(quantite_estimee=5.0, unite="boite")], "CHANTIER-1", registre,
+    )
+
+    assert verdicts[0]["unite"] == "boite"
+    assert verdicts[0]["verdict_variance"] != "INDETERMINE"
+
+
+def test_evaluer_avec_registre_produit_le_meme_signal_que_evaluer_avec_lignes_declarees():
+    registre = Registre()
+    registre.ajouter(_mouvement("CONSOMMATION", -140.0, wct_id="wct-1"))
+
+    resultat_registre, code_registre = variance_chantier.evaluer(
+        "CHANTIER-1", [besoin(quantite_estimee=100.0)], None, 0.30,
+        registre=registre, wct_id="wct-1",
+    )
+    resultat_lignes, code_lignes = variance_chantier.evaluer(
+        "CHANTIER-1", [besoin(quantite_estimee=100.0)], [ligne("prevu", quantite=140.0)], 0.30,
+    )
+
+    assert code_registre is None and code_lignes is None
+    assert resultat_registre["signal_variance_critique"] is not None
+    assert (
+        resultat_registre["signal_variance_critique"]["materiaux_en_ecart_critique"]
+        == resultat_lignes["signal_variance_critique"]["materiaux_en_ecart_critique"]
+    )
+
+
+def test_evaluer_sans_lignes_declarees_ni_registre_est_un_refus_nomme():
+    resultat, code = variance_chantier.evaluer("CHANTIER-1", [besoin()], None, 0.30)
+
+    assert resultat is None
+    assert code == "REJ-VARIANCE-CHANTIER-SOURCE-MANQUANTE"
+
+
+def test_evaluer_avec_registre_ne_contient_toujours_aucune_cle_monetaire_ni_vol():
+    registre = Registre()
+    registre.ajouter(_mouvement("CONSOMMATION", -140.0, wct_id="wct-1"))
+
+    resultat, code = variance_chantier.evaluer(
+        "CHANTIER-1", [besoin(quantite_estimee=100.0)], None, 0.30, registre=registre, wct_id="wct-1",
+    )
+
+    assert code is None
+    assert not collecter_cles_recursivement(resultat).intersection(CLES_MONETAIRES_INTERDITES)
+    assert "vol" not in repr(resultat).lower()
