@@ -35,6 +35,10 @@ identifiants du propriétaire, repli livré en attendant.
 - [ ] T0.11 Installateur en une commande (dérivé de `install.sh` / `install.ps1`), désinstallation
       et export documentés ; Docker Compose en option serveur.
 
+- [ ] T0.13 Taxonomie métier partagée : M1, M2 et M3 utilisent un même `TYPES_TRAVAUX` qui ne
+      contient aucun des 4 services réels (gouttières, revêtement, soffite-fascia, réparation). Une
+      seule taxonomie, dans le socle, paramétrable par le profil d'entreprise (audits M1, M2, M3).
+
 ## T1 — « Travaux terminés » : la chorégraphie centrale (§6, §9.7)
 
 Première tranche métier : elle traverse neuf départements et l'app mobile.
@@ -62,6 +66,11 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       (audit M1).
 - [ ] T2.2 M2 : lead structuré, Client 360, préparation à l'estimation, prochaine action.
 - [ ] T2.3 M3 : estimation honnête, soumission brouillon, approbation, besoins matériaux vers M6.
+      L'outil `m3_estimer_projet` n'assemble que 6 des 15 modules : écrire l'orchestrateur qui compose
+      validation, devis (`devis_id` requis par M4), registre estimé vs réel, signal de relance M2, et
+      émet `REFERENCE_ECHELLE_ABSENTE` en alerte non bloquante ; séparer coût et prix (taux de marge
+      fourni, jamais codé en dur) ; contrat `BesoinsMateriauxM3` ; soumission brouillon PDF ; politique
+      Loi 25 « photos » avant toute collecte réelle (audit M3).
 - [ ] T2.4 M6 : catalogue, livre de prix, PO brouillon, courriel fournisseur via M1 (repli manuel).
 - [ ] T2.5 M6 : lever la décision interne DA-M6-12 (« M6 ne persiste pas les PO »), contraire à la
       définition (moteur de PO à 12 statuts) ; ajouter le moteur de variance estimé M3 vs réel M4, distinct
