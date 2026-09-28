@@ -10,7 +10,7 @@ from pathlib import Path
 from sqlalchemy import func, select
 from sqlalchemy.engine import make_url
 
-from . import __version__, approbations, etat, jetons, modeles, openclaw, passerelle, stockage
+from . import __version__, approbations, etat, evenements, jetons, modeles, openclaw, passerelle, stockage
 from .capacites import outils_executables
 from .departements import charger_departements, dependances_manquantes, tous_les_outils
 from .profils import generer_distribution
@@ -33,14 +33,21 @@ def cmd_departements(args: argparse.Namespace) -> int:
 
 
 def cmd_verifier(args: argparse.Namespace) -> int:
-    """Contrôle de cohérence utilisé en CI : manifestes, outils, dépendances, paliers."""
+    """Contrôle de cohérence utilisé en CI : manifestes, outils, dépendances, événements, paliers."""
     deps = charger_departements()
     index = tous_les_outils(deps.values())
     manquantes = dependances_manquantes(deps)
     if manquantes:
         print(f"ERREUR : dépendances non installées : {manquantes}", file=sys.stderr)
         return 1
-    print(f"OK : {len(deps)} départements, {len(index)} outils, noms uniques, manifestes valides.")
+    problemes_evenements = evenements.verifier_coherence(deps)
+    if problemes_evenements:
+        print("ERREUR : bus d'événements incohérent :", file=sys.stderr)
+        for probleme in problemes_evenements:
+            print(f"  - {probleme}", file=sys.stderr)
+        return 1
+    print(f"OK : {len(deps)} départements, {len(index)} outils, noms uniques, manifestes valides, "
+          "événements cohérents.")
     if args.paliers:
         paliers = modeles.charger_paliers()
         manquants = sorted({d.modeles[u] for d in deps.values() for u in d.modeles} - set(paliers))
@@ -92,6 +99,15 @@ def cmd_base(args: argparse.Namespace) -> int:
         registres = [dict(ligne._mapping) for ligne in cnx.execute(requete)]
     _afficher({"base": _url_masquee(url), "moteur": stockage.moteur(url).dialect.name,
                "revision": stockage.revision_courante(url), "registres": registres})
+    return 0
+
+
+def cmd_evenements(args: argparse.Namespace) -> int:
+    """Bus d'événements (ADR-0009 §3) : comptes/quarantaine, ou livraison manuelle immédiate."""
+    if args.action == "etat":
+        _afficher(evenements.etat())
+        return 0
+    _afficher(evenements.repartir(charger_departements(), limite=args.limite))
     return 0
 
 
@@ -203,6 +219,11 @@ def construire_parseur() -> argparse.ArgumentParser:
     b = sous.add_parser("base", help="base de l'instance : migrations et état (ADR-0009)")
     b.add_argument("action", choices=["migrer", "etat"])
     b.set_defaults(fn=cmd_base)
+
+    ev = sous.add_parser("evenements", help="bus d'événements du socle (ADR-0009 §3)")
+    ev.add_argument("action", choices=["etat", "repartir"])
+    ev.add_argument("--limite", type=int, default=100, help="repartir : paires (événement, consommateur) max")
+    ev.set_defaults(fn=cmd_evenements)
 
     m = sous.add_parser("mode", help="fixer le mode d'autonomie d'un département")
     m.add_argument("departement")

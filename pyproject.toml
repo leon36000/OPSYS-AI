@@ -32,6 +32,7 @@ version = { attr = "opsys.__version__" }
 packages = [
     "opsys",
     "opsys.console",
+    "opsys.evenements",
     "opsys.memoire", "opsys.stockage", "opsys.stockage.migrations", "opsys.stockage.migrations.versions",
     "m1_front_office",
     "m2_revenue_crm",
@@ -100,4 +101,5 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM"]
 
 [tool.setuptools.package-data]
 "opsys.memoire" = ["schema.sql"]
+"opsys.evenements" = ["catalogue/*.json"]
 m7_marketing = ["**/*.yaml", "**/*.html", "**/*.svg", "**/*.txt"]

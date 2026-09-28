@@ -15,7 +15,7 @@ from __future__ import annotations
 import dataclasses
 import importlib
 import re
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -69,6 +69,8 @@ class Departement:
     memoire_ecriture: tuple[str, ...]
     kpis: tuple[Kpi, ...]
     racine: Path
+    evenements_publie: tuple[str, ...] = ()
+    evenements_consomme: tuple[str, ...] = ()
 
     @property
     def prefixe_outils(self) -> str:
@@ -98,6 +100,28 @@ class Departement:
                 raise ValueError(f"{self.id} : outil en double {outil.nom}")
             vus.add(outil.nom)
         return outils
+
+    def charger_consommateurs(self) -> dict[str, Callable[[Mapping[str, Any]], Any]]:
+        """Importe `module_outils.consommateurs()` (fonctions d'événements, ADR-0009 §3).
+
+        Même module que `charger_outils()` (`docs/architecture/DEPARTEMENTS.md`) : un département
+        qui ne consomme aucun événement n'a pas besoin de définir `consommateurs`. Absence de la
+        fonction : dict vide, jamais une erreur — `evenements.verifier_coherence` signale l'écart
+        pour un département qui *déclare* consommer un type sans fournir sa fonction.
+        """
+        module = importlib.import_module(self.module_outils)
+        fabrique = getattr(module, "consommateurs", None)
+        if fabrique is None:
+            return {}
+        consommateurs = fabrique()
+        if not isinstance(consommateurs, Mapping):
+            raise TypeError(f"{self.id} : {self.module_outils}.consommateurs() doit renvoyer un dict")
+        for type_evenement, fonction in consommateurs.items():
+            if not isinstance(type_evenement, str) or not callable(fonction):
+                raise TypeError(
+                    f"{self.id} : consommateurs() doit associer un type (str) à une fonction appelable"
+                )
+        return dict(consommateurs)
 
 
 def _texte(donnees: Mapping[str, Any], cle: str, contexte: str) -> str:
@@ -179,6 +203,11 @@ def lire_manifeste(dossier: Path) -> Departement:
         raise ValueError(f"{ctx} : budget.tokens_mois doit être >= tokens_jour")
 
     memoire = donnees.get("memoire", {}) or {}
+    evenements = donnees.get("evenements", {}) or {}
+    if not isinstance(evenements, dict):
+        raise ValueError(f"{ctx} : evenements doit être un objet ({{publie, consomme}})")
+    evenements_publie = _liste(evenements, "publie", ctx)
+    evenements_consomme = _liste(evenements, "consomme", ctx)
     kpis = []
     for brut in donnees.get("kpis", []) or []:
         if not isinstance(brut, dict):
@@ -204,6 +233,8 @@ def lire_manifeste(dossier: Path) -> Departement:
         memoire_ecriture=_liste(memoire, "ecriture", ctx),
         kpis=tuple(kpis),
         racine=dossier,
+        evenements_publie=evenements_publie,
+        evenements_consomme=evenements_consomme,
     )
 
 

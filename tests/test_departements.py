@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import shutil
 
 import pytest
@@ -29,6 +30,7 @@ def test_manifeste_demo_valide(departements_demo):
     assert dep.budget.tokens_jour == 1000
     assert dep.planifications[0].cron == "0 7 * * 1-5"
     assert [o.nom for o in dep.charger_outils()][:2] == ["m9_additionner", "m9_refuser_si_negatif"]
+    assert dep.evenements_publie == () and dep.evenements_consomme == ()  # absent du manifeste : défaut vide
 
 
 @pytest.mark.parametrize(
@@ -43,6 +45,8 @@ def test_manifeste_demo_valide(departements_demo):
         ({"planifications": [{"nom": "x", "cron": "tous les jours", "consigne": "y"}]}, "cron invalide"),
         ({"budget": {"tokens_jour": 10, "tokens_mois": 5}}, "tokens_mois"),
         ({"budget": {"tokens_jour": 0, "tokens_mois": 5}}, "strictement positif"),
+        ({"evenements": "pas un objet"}, "evenements doit être un objet"),
+        ({"evenements": {"consomme": "pas une liste"}}, "doit être une liste de chaînes"),
     ],
 )
 def test_manifestes_invalides(racine_demo, tmp_path, changements, message):
@@ -73,3 +77,25 @@ def test_index_global_des_outils(departements_demo):
     index = tous_les_outils(departements_demo.values())
     assert set(index) >= {"m9_additionner", "m9_payer"}
     assert index["m9_payer"][0].id == "m09-demo"
+
+
+# -- evenements: {publie, consomme} (ADR-0009 §3) -----------------------------------------------
+def test_manifeste_avec_evenements_valide(racine_demo, tmp_path):
+    dossier = _copie(racine_demo, tmp_path)
+    _modifier(dossier, evenements={"publie": ["opsys.demo_complete"], "consomme": ["m4.travaux_termines"]})
+    dep = lire_manifeste(dossier)
+    assert dep.evenements_publie == ("opsys.demo_complete",)
+    assert dep.evenements_consomme == ("m4.travaux_termines",)
+
+
+def test_charger_consommateurs_absent_rend_dict_vide(departements_demo):
+    # m3_estimation.outils (département réel, non touché par T1.2-a) n'expose pas consommateurs().
+    dep = dataclasses.replace(departements_demo["m09-demo"], module_outils="m3_estimation.outils")
+    assert dep.charger_consommateurs() == {}
+
+
+def test_charger_consommateurs_present(departements_demo):
+    dep = departements_demo["m09-demo"]  # demo_outils.consommateurs() (T1.2-a)
+    fonctions = dep.charger_consommateurs()
+    assert set(fonctions) == {"opsys.demo_complete"}
+    assert callable(fonctions["opsys.demo_complete"])

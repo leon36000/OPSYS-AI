@@ -24,10 +24,14 @@ import mcp_types as types
 from mcp.server.lowlevel import Server
 from mcp.server.stdio import stdio_server
 
-from . import __version__, etat, stockage
+from . import __version__, etat, evenements, stockage
 from .capacites import Capacites
-from .departements import charger_departements
+from .departements import Departement, charger_departements
 from .outils import Autonomie
+
+ENV_REPARTITEUR = "OPSYS_EVENEMENTS_REPARTITEUR"
+_INTERVALLE_REPARTITEUR_S = 3.0
+_DESACTIVE = {"0", "false", "non", "off"}
 
 _ANNOTATIONS = {
     Autonomie.T0: types.ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True),
@@ -106,8 +110,22 @@ def application_http(capacites: Capacites, jeton: str, hote: str = "0.0.0.0") ->
     return _ExigerJeton(serveur.streamable_http_app(streamable_http_path="/mcp", host=hote), jeton)
 
 
+def _repartiteur_desactive() -> bool:
+    return os.environ.get(ENV_REPARTITEUR, "1").strip().lower() in _DESACTIVE
+
+
+async def _boucle_repartiteur(
+    departements: Mapping[str, Departement], intervalle: float = _INTERVALLE_REPARTITEUR_S
+) -> None:
+    """Appelle `evenements.repartir` en boucle (sondage de secours, ADR-0009 §3), jusqu'à l'annulation
+    de la portée qui l'a lancée (arrêt propre : le prochain réveil, sommeil compris, est interrompu)."""
+    while True:
+        await anyio.to_thread.run_sync(evenements.repartir, departements)
+        await anyio.sleep(intervalle)
+
+
 def application_http_departements(
-    departements: Mapping[str, Any], cnx_factory: Any, jeton: str, hote: str = "0.0.0.0",  # noqa: S104
+    departements: Mapping[str, Departement], cnx_factory: Any, jeton: str, hote: str = "0.0.0.0",  # noqa: S104
 ) -> Any:
     """Un point d'accès MCP par département, `/mcp/<id>`, plus `/mcp` pour la direction.
 
@@ -134,7 +152,13 @@ def application_http_departements(
         async with contextlib.AsyncExitStack() as pile:
             for sous in sous_applications:
                 await pile.enter_async_context(sous.router.lifespan_context(sous))
-            yield
+            if _repartiteur_desactive():
+                yield
+            else:
+                async with anyio.create_task_group() as taches:
+                    taches.start_soon(_boucle_repartiteur, departements)
+                    yield
+                    taches.cancel_scope.cancel()  # arrêt propre : la boucle est interrompue puis attendue
 
     routes = [route for sous in sous_applications for route in sous.routes]
     return _ExigerJeton(Starlette(routes=routes, lifespan=cycle_de_vie), jeton)

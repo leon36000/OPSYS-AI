@@ -5,7 +5,20 @@ Toute évolution passe par une migration Alembic (`migrations/versions/`), jamai
 
 from __future__ import annotations
 
-from sqlalchemy import CheckConstraint, Column, DateTime, Index, Integer, MetaData, String, Table, Text, func, text
+from sqlalchemy import (
+    CheckConstraint,
+    Column,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    MetaData,
+    String,
+    Table,
+    Text,
+    func,
+    text,
+)
 
 META = MetaData(naming_convention={
     "ix": "ix_%(column_0_label)s",
@@ -100,4 +113,40 @@ MODES_DEPARTEMENTS = Table(
     Column("modifie_par", Text, nullable=False),
     Column("modifie_le", Text, nullable=False),
     CheckConstraint("mode IN ('ombre','supervise','autonome')", name="mode_valide"),
+)
+
+# Bus d'événements (ADR-0009 §3) : outbox durcie. `publier()` insère dans EVENEMENTS_SORTANTS dans
+# la transaction métier courante (même point de sauvegarde que l'écriture qui le déclenche) ; le
+# répartiteur (`opsys.evenements.repartir`) livre chaque événement à chacun de ses consommateurs
+# abonnés et trace le résultat dans EVENEMENTS_RECUS. `evenement_id` est fourni (idempotence du
+# producteur) ou un uuid4 hex généré par défaut ; sa clé primaire porte l'unicité exigée par
+# l'ADR. `charge` est le JSON typé du codec (`stockage.codec`), comme les maillons de registre.
+EVENEMENTS_SORTANTS = Table(
+    "evenements_sortants",
+    META,
+    Column("evenement_id", String(128), primary_key=True),
+    Column("type_evenement", String(128), nullable=False),
+    Column("producteur", String(64), nullable=False),
+    Column("charge", Text, nullable=False),
+    Column("cree_le", Text, nullable=False),
+    Index("ix_evenements_sortants_type", "type_evenement", "cree_le"),
+)
+
+# Un reçu par (événement, consommateur) : UNIQUE(evenement_id, consommateur) est la clé primaire
+# elle-même, donc une relivraison ne peut jamais créer un second reçu « traité » pour la même paire
+# (idempotence effective). `statut` : 'echec' (réessai plus tard selon `prochaine_tentative`,
+# backoff exponentiel), 'traite' (résumé du consommateur dans `resultat`, jamais rejoué), ou
+# 'quarantaine' (5 échecs : plus aucune relivraison automatique, visible dans `opsys evenements etat`).
+EVENEMENTS_RECUS = Table(
+    "evenements_recus",
+    META,
+    Column("evenement_id", String(128), ForeignKey("evenements_sortants.evenement_id"), primary_key=True),
+    Column("consommateur", String(64), primary_key=True),
+    Column("statut", String(16), nullable=False),
+    Column("tentatives", Integer, nullable=False, server_default=text("0")),
+    Column("prochaine_tentative", Text),
+    Column("resultat", Text),
+    Column("derniere_erreur", Text),
+    CheckConstraint("statut IN ('echec','traite','quarantaine')", name="statut_valide"),
+    Index("ix_evenements_recus_statut", "statut", "prochaine_tentative"),
 )

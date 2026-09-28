@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m4.travaux_termines",
+  "title": "M4 — Travaux terminés",
+  "description": "Émis par M4 quand une intervention atteint completed_pending_review ou completed_verified (Work Completion Trigger, departments/m04-field-ops/src/m4_field_ops/outbox.py::completer_intervention). Les champs requis sont exactement les clés du WCT (outbox.py::CHAMPS_WCT, lignes 26-30). Les champs optionnels sont ceux que les audits réclament pour les consommateurs avals : M5-audit.md lignes 110-115 (devis_id, déjà requis, suffit à M5 pour retrouver le prix chez M3 — aucun champ supplémentaire n'est demandé pour M5) ; M7-audit.md lignes 114-120 (ville, type de travaux, photos, description factuelle, consentement client, signal de qualité absents du WCT actuel).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "wct_id": {
+      "type": "string",
+      "description": "Identifiant du Work Completion Trigger (outbox.py::CHAMPS_WCT)."
+    },
+    "intervention_id": {
+      "type": "string",
+      "description": "Intervention M4 complétée."
+    },
+    "lead_id": {
+      "type": "string",
+      "description": "Lead M2 d'origine, porté tel quel depuis l'inscription (outbox.py::_extraire_lead_id)."
+    },
+    "technicien_id": {
+      "type": "string",
+      "description": "Technicien du dernier pointage de départ (outbox.py::_dernier_depart)."
+    },
+    "horodatage_completion": {
+      "type": "string",
+      "description": "Horodatage RFC 3339 du dernier départ (outbox.py::_dernier_depart)."
+    },
+    "fix_gps_completion": {
+      "type": "object",
+      "description": "{latitude, longitude} du dernier pointage de départ ; peut être absent de coordonnées si le terrain n'en a pas fourni."
+    },
+    "duree_reelle_minutes": {
+      "type": "integer",
+      "description": "Durée réelle sur site, pauses déduites (outbox.py::calculer_duree_reelle)."
+    },
+    "ecart_signale": {
+      "type": "boolean",
+      "description": "Booléen explicite de l'appelant (jamais déduit) ; détermine completed_pending_review (true) ou completed_verified (false)."
+    },
+    "revue_id": {
+      "type": ["string", "null"],
+      "description": "Demande de revue ayant motivé la complétion, si ecart_signale est vrai ; sinon null."
+    },
+    "hash_maillon": {
+      "type": "string",
+      "description": "Empreinte de la partie transition du maillon (sans le WCT), pour vérifier l'intégrité."
+    },
+    "consommateurs_cibles": {
+      "type": "array",
+      "description": "Cibles déclarées par M4 au moment de l'émission (outbox.py::CONSOMMATEURS_CIBLES) ; la liste vivante des consommateurs réels est la déclaration department.yaml/evenements.consomme du catalogue, pas ce champ figé dans le maillon."
+    },
+    "devis_id": {
+      "type": ["string", "null"],
+      "description": "Devis M3, porté tel quel depuis l'inscription ; null si l'intervention a été inscrite sans devis. M5-audit.md L110-115 : M5 retrouve le prix chez M3 par ce champ, déjà requis — aucun montant n'est porté par l'événement lui-même."
+    },
+    "statut": {
+      "type": "string",
+      "enum": ["completed_pending_review", "completed_verified"],
+      "description": "Les deux seules issues de complétion (outbox.py::STATUTS_COMPLETION)."
+    },
+    "ville": {
+      "type": "string",
+      "description": "M7-audit.md L117 : absente du WCT actuel, nécessaire à la cascade marketing (usine à contenu, ROI géographique)."
+    },
+    "type_travaux": {
+      "type": "string",
+      "description": "M7-audit.md L117 : type de travaux (gouttières, revêtement, soffite-fascia, réparation), absent du WCT actuel."
+    },
+    "photos": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "M7-audit.md L117 : références de photos après-chantier, absentes du WCT actuel ; jamais composées en contenu sans consentement_marketing explicite (M7-audit.md L322-324)."
+    },
+    "description_factuelle": {
+      "type": "string",
+      "description": "M7-audit.md L117-118 : description factuelle du chantier, absente du WCT actuel."
+    },
+    "consentement_marketing": {
+      "type": "boolean",
+      "description": "M7-audit.md L118 : « consentement client » absent du WCT actuel — trou le plus grave de l'audit M7 (L374-376) ; obligatoire avant toute composition de contenu à partir d'une photo de chantier, jamais déduit."
+    },
+    "client_satisfait": {
+      "type": ["boolean", "null"],
+      "description": "M7-audit.md L118 : signal de qualité (« client satisfait oui/non »), absent du WCT actuel ; null si non recueilli, jamais inventé."
+    }
+  },
+  "required": [
+    "wct_id",
+    "intervention_id",
+    "lead_id",
+    "technicien_id",
+    "horodatage_completion",
+    "fix_gps_completion",
+    "duree_reelle_minutes",
+    "ecart_signale",
+    "revue_id",
+    "hash_maillon",
+    "consommateurs_cibles",
+    "devis_id",
+    "statut"
+  ]
+}

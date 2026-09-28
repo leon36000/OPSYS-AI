@@ -47,10 +47,13 @@ budget: {tokens_jour: 300000, tokens_mois: 4000000, alerte_pct: 80}
 memoire: {lecture: [clients, chantiers], ecriture: [estimations]}
 kpis:
   - {id: ecart_estime_reel_pct, description: "…"}
+evenements:                   # optionnel (ADR-0009 §3) — voir « Événements » ci-dessous
+  consomme: [m4.travaux_termines]   # types du catalogue src/opsys/evenements/catalogue/*.json
 ```
 
-`opsys verifier` valide tous les manifestes, l'unicité des outils et les dépendances. Il tourne
-en CI.
+`opsys verifier` valide tous les manifestes, l'unicité des outils, les dépendances et la cohérence
+des événements (types déclarés au catalogue, fonction présente pour chaque type consommé, aucune
+fonction orpheline). Il tourne en CI.
 
 ## `outils.py` : le contrat d'outil
 
@@ -82,6 +85,34 @@ Règles :
 4. **Résultats JSON sûrs.** Les `Decimal` sont convertis en chaîne, les dates en ISO. Montants en
    CAD.
 5. **Descriptions courtes.** Chaque caractère est payé à chaque tour. Le détail va dans une skill.
+
+## Événements (ADR-0009 §3, bus dans `opsys.evenements`)
+
+Un département déclare ce qu'il publie et consomme dans `department.yaml` (`evenements:`, voir plus
+haut ; les deux clés sont optionnelles). Le catalogue versionné (`opsys.evenement/v1`, un fichier
+JSON Schema par type) vit dans `src/opsys/evenements/catalogue/*.json` — c'est le socle qui le
+possède, pas les départements.
+
+Les fonctions qui consomment un événement vivent dans le **même module que `outils()`**
+(`module_outils` du manifeste), sous la forme :
+
+```python
+def _recevoir_travaux_termines(charge: dict) -> dict:
+    ...  # fonction DÉTERMINISTE, jamais un modèle ; écrit dans les registres du département,
+         # peut publier des événements de second ordre (evenements.publier) ; petit dict de résumé
+    return {"traite": True}
+
+def consommateurs() -> dict[str, Callable[[dict], dict]]:   # clé = type_evenement consommé
+    return {"m4.travaux_termines": _recevoir_travaux_termines}
+```
+
+Un département qui ne consomme aucun événement n'a pas besoin de définir `consommateurs`. Le
+répartiteur (`opsys.evenements.repartir`) l'appelle avec la charge déjà validée contre son schéma ;
+un échec annule ses écritures (point de sauvegarde), garde le reçu en échec avec un backoff
+exponentiel, et passe en quarantaine après 5 échecs — sans jamais bloquer les autres consommateurs
+du même événement ni les événements suivants. `opsys verifier` vérifie que chaque type publié ou
+consommé existe au catalogue, que chaque type consommé a sa fonction, et qu'aucune fonction de
+`consommateurs()` n'est orpheline (absente de `evenements.consomme`).
 
 ## Politiques : autonomie des outils et modes
 

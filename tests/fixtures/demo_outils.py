@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from opsys import stockage
 from opsys.outils import Autonomie, Outil
 
 JOURNAL: list[dict] = []
@@ -50,3 +51,17 @@ OUTILS = (
           {"type": "object", "properties": {"lignes": {"type": "integer"}}, "required": ["lignes"]},
           gros_rapport),
 )
+
+
+def _recevoir_demo_complete(charge: dict) -> dict:
+    """Consommateur de démo pour `opsys.demo_complete` (bus d'événements, ADR-0009 §3)."""
+    stockage.maillons("m09-demo", "evenements_recus").append({"message": charge["message"]})
+    return {"recu": True, "message": charge["message"]}
+
+
+def consommateurs() -> dict:
+    """Utilisé par les tests du bus d'événements (`tests/test_evenements.py`) ; `m09-demo` ne
+    déclare rien dans `evenements.consomme` par défaut, donc cette fonction n'est jamais appelée
+    tant qu'un test ne fournit pas explicitement cette déclaration (`opsys.departements.Departement`
+    en mémoire, ou un manifeste temporaire — voir `docs/architecture/DEPARTEMENTS.md`)."""
+    return {"opsys.demo_complete": _recevoir_demo_complete}
