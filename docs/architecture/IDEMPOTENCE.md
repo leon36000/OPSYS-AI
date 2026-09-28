@@ -86,7 +86,8 @@ est retirée et un renvoi réessaie.
 
 Un appel d'appareil n'est pas soumis au budget de jetons du département
 (`Capacites._distribuer(appel_appareil=True)`) : ce budget borne la dépense de modèle, et un appel
-déterministe par `/tools/invoke` n'en consomme aucun. Les approbations s'appliquent toujours. N'est **jamais** enregistrée une panne interne : toute exception non attrapée pendant
+déterministe par `/tools/invoke` n'en consomme aucun. Les approbations s'appliquent toujours, sauf pour l'humain qui agit lui-même (N3 au plus, identité
+valide, outil dans la portée de son rôle) : voir §8. N'est **jamais** enregistrée une panne interne : toute exception non attrapée pendant
 l'exécution (un bug, pas un refus métier — `outils.executer` ne convertit que `ValueError`,
 `TypeError`, `KeyError`) sort de la transaction entière, qui s'annule — réclamation comprise. Un
 renvoi après une panne réelle réessaie donc réellement l'exécution, il ne rejoue pas un échec figé.
@@ -341,7 +342,73 @@ d'autres routes HTTP (lecture Control UI, routes de plugin) :
   peut, structurellement (`depuis_meta_mcp_identite` ne reçoit que `meta` en paramètre).
 
 **Ce qui reste, volontairement hors de cette tranche :** aucun outil de département ne lit encore
-`identite_appelante()` pour signer ou projeter (M3, tâche séparée) ; l'identifiant de client OPSYS
+`identite_appelante()` pour signer ou projeter (M3, tâche séparée) — le socle, lui, la lit depuis
+T1.4-h pour la validation humaine au départ (§8) ; l'identifiant de client OPSYS
 n'est pas câblé côté mobile ni dans `isNativeAppUiClient` ; une revue externe (code de sécurité,
 AGENTS.md) reste requise avant mise en service, comme pour toute PR touchant M5/les politiques/les
 approbations.
+
+## 8. Validation humaine au départ (T1.4-h)
+
+Les départements sont en mode `ombre` : tout outil N3 et plus part en file d'approbation du
+propriétaire, ce qui est voulu pour ce qu'un AGENT propose. Mais un appel d'appareil qui porte
+l'identité authentifiée de l'humain (`opsys/personne`, `opsys/role`, §7 bis) est l'action de cet
+humain, pas une proposition : mettre son pointage ou sa complétion en attente rendrait l'app
+inutilisable. La règle et sa justification sont dans l'addendum T1.4-h d'ADR-0009 §4 ; ce qui suit
+décrit comment elle s'articule avec l'idempotence.
+
+**Où.** `Capacites._distribuer` → `Capacites._valider_au_depart`, seulement pour `appel_appareil=True`
+(donc dans la transaction de `_appeler_idempotent`) et seulement quand l'approbation serait requise.
+
+**Conditions cumulées** (la première qui manque renvoie au chemin normal, sauf la 3) :
+
+1. niveau effectif de l'outil N3 au plus (`politiques.validation_au_depart_possible`) ;
+2. identité de jeton d'appareil présente ET confirmée en base à l'instant de l'appel
+   (`approbations.signataire_valide` : `identite.personne_active`, et la personne porte toujours ce
+   rôle) — sans identité, ou avec une identité invalide, inactive ou dont le rôle a été retiré, la
+   demande va en file comme avant ;
+3. outil dans la portée du rôle, par `openclaw.roles_outils` (la fonction qui écrit `roles.json` pour
+   le core, appelée telle quelle, jamais recopiée) — sinon refus nommé `hors_portee_role`.
+
+**Trace.** Une exécution réussie écrit, dans le même point de sauvegarde que l'outil : une ligne
+`approbations` au statut `executee` (`decide_par`/`decide_role` = la personne et le rôle, `outil`,
+`arguments`, `niveau`, `cree_le`/`decide_le`, `motif_decision` = « validation humaine au départ par la
+personne qui agit, ADR-0009 §4 ») et l'entrée d'audit `approbation.valider_au_depart` du journal
+existant (appareil, empreinte des arguments réels). Pas de table ni de journal nouveaux. Le fix GPS
+(`fix_gps`) n'est jamais copié en clair dans la trace (POLITIQUE-geolocalisation §5).
+
+**Interaction avec l'idempotence.**
+
+- Un renvoi de la même clé rejoue la réponse enregistrée (§3.2) : il ne repasse ni par la validation
+  ni par l'outil, donc ni seconde exécution ni seconde trace — même si la personne a été désactivée
+  entre-temps.
+- Exécution et trace sont atomiques : si l'écriture de la trace échoue, l'exécution, la ligne, l'entrée
+  d'audit et la réclamation `(appareil, cle)` sont annulées ensemble (panne interne, §3.2) ; un renvoi
+  réessaie réellement.
+- Une réponse d'exécution validée au départ s'enregistre comme toute réponse fraîche (`ok`) ; un refus
+  métier ou `arguments_invalides` n'exécute rien et ne laisse aucune trace.
+- `hors_portee_role` s'enregistre comme un refus métier (`refus_metier`) et se rejoue au renvoi :
+  la portée d'un rôle est une règle du code, pas un état passager de l'instance. Il n'est donc pas
+  dans `idempotence.ERREURS_PASSAGERES`. Si l'on préfère qu'un renvoi réessaie après un changement de
+  portée, c'est une entrée à y ajouter.
+- Appel sans `opsys/idempotencyKey` : `appel_appareil` reste faux, la voie n'est jamais empruntée,
+  comportement strictement inchangé (§2).
+
+**Ce qui ne change pas.** N4 et N5 vont toujours au propriétaire (N5 exige toujours l'attestation) ;
+un appel sans identité (agent, secret partagé) suit la file ; un outil hors portée d'un rôle qui
+serait N4 ou N5 suit aussi la file, comme avant (le core le refuse déjà en amont) ; en mode
+`supervise` ou `autonome`, un N3 s'exécute déjà sans approbation, donc sans trace de ce type.
+
+**Limites connues.**
+
+- L'authenticité de l'identité repose sur OPSYS-CORE (jeton d'appareil vérifié, T1.4-c4) : le socle
+  relit la personne et le rôle en base, il ne peut pas authentifier l'appareil. Qui détient
+  `OPSYS_MCP_JETON` pourrait écrire `opsys/personne`/`opsys/role` dans un `_meta` : ce canal doit rester
+  réservé au core. La table `appareils` n'est pas relue par le socle.
+- La règle hérite de la granularité de `openclaw.roles_outils` : `employee` couvre tous les outils M4 et
+  M6 hors T3. Ce que la file du propriétaire filtrait pour un employé passe désormais sans elle, par
+  exemple `m6_approuver_po`, `m4_resoudre_demande`, `m4_definir_consentement_gps`,
+  `m4_lire_position_gps`. À resserrer (portée par outil dans les manifestes) avant la mise en service ;
+  le resserrement de `roles_outils` profitera automatiquement à cette règle.
+- La console affiche la ligne `executee` avec le libellé des demandes approuvées ; c'est le motif et
+  le rôle de la décision qui la distinguent d'une approbation du propriétaire.

@@ -16,6 +16,13 @@ recalculé à la décision : la politique lue au moment de la demande reste cell
 décision enregistre la personne (`decide_par`, un identifiant de `personnes`) ET le rôle utilisé
 (`decide_role`). Une demande N5 exige en plus une attestation du professionnel (ADR-0009 §5) :
 sans elle, refus nommé.
+
+Validation humaine au départ (ADR-0009 §4, addendum T1.4-h) : la file ci-dessus sert les actions
+qu'un AGENT propose. Quand la personne authentifiée d'un appareil lance elle-même une action N3, il
+n'y a rien à mettre en attente : `signataire_valide` revérifie son identité en base et
+`tracer_validation_au_depart` laisse, dans cette même table `approbations` (statut `executee`) et
+dans le même journal d'audit que `decider`, la trace de qui a lancé quoi. Aucun second journal ; c'est
+`opsys.capacites` qui décide QUAND cette voie s'applique (niveau, portée du rôle, appel d'appareil).
 """
 
 from __future__ import annotations
@@ -30,9 +37,10 @@ from typing import Any
 from sqlalchemy import Connection, insert, select, update
 
 from . import identite
-from .contexte import appeler_en_tant_que
+from .contexte import IdentiteAppelante, appeler_en_tant_que
 from .departements import DEFAUT_ROLES_NIVEAU, Departement
 from .etat import journaliser
+from .idempotence import empreinte_arguments
 from .outils import Niveau, Outil, executer_atomique
 from .politiques import MODES, valider_mode
 from .stockage.moteur import inserer
@@ -45,6 +53,17 @@ logger = logging.getLogger("opsys.approbations")
 CHAMPS_ATTENTE = ("type", "id", "resume", "niveau", "depuis", "action_proposee")
 # Champs de l'attestation professionnelle exigée pour approuver une demande N5 (ADR-0009 §5).
 CHAMPS_ATTESTATION = ("nom", "profession", "reference_document")
+
+# Trace d'une validation humaine au départ (ADR-0009 §4, addendum T1.4-h).
+MOTIF_VALIDATION_AU_DEPART = "validation humaine au départ par la personne qui agit, ADR-0009 §4"
+ACTION_VALIDATION_AU_DEPART = "approbation.valider_au_depart"
+# Arguments dont la valeur n'entre JAMAIS telle quelle dans la trace : une donnée personnelle que le
+# département conserve chiffrée, avec une clé destructible (PLAN T4.2, POLITIQUE-geolocalisation.md
+# §5 — le fix GPS d'un pointage). `approbations.arguments` n'est ni chiffrée ni purgée : y copier la
+# valeur en clair défairait la destruction cryptographique. La trace garde l'empreinte des arguments
+# réels (`empreinte_arguments`, celle de l'idempotence) : elle reste vérifiable sans les révéler.
+ARGUMENTS_MASQUES_DANS_LA_TRACE = frozenset({"fix_gps"})
+VALEUR_MASQUEE = "[masqué : donnée personnelle, conservée chiffrée dans le registre du département]"
 
 
 def _maintenant() -> str:
@@ -183,6 +202,82 @@ def decider(
     journaliser(cnx, identifiant, "approbation.approuver", ident,
                {"outil": ligne["outil"], "statut": statut, "role": role_utilise})
     return {"id": ident, "statut": statut, "reponse": reponse}
+
+
+# -- validation humaine au départ (ADR-0009 §4, addendum T1.4-h) -----------------------------------
+
+
+def signataire_valide(cnx: Connection, appelante: IdentiteAppelante | None) -> IdentiteAppelante | None:
+    """L'identité de jeton d'appareil `appelante`, si et seulement si elle est encore valide EN BASE ;
+    None sinon (chemin normal : rien n'est refusé ici, l'appelant retombe sur la file d'approbation).
+
+    Valide = la personne existe ET est active ET porte encore le rôle que le jeton déclare
+    (`identite.personne_active`, relu à chaque appel : une personne désactivée ou dont on a retiré
+    le rôle depuis l'appairage n'obtient aucun passe-droit). `IdentiteAppelante` ne fait que rendre ce
+    que le core a transmis en `_meta` (`contexte.identite_appelante`) ; c'est ici qu'on la revérifie.
+
+    Ne vérifie PAS l'authenticité de l'appel, que le socle ne peut pas établir seul : elle repose sur
+    OPSYS-CORE, qui n'émet `opsys/personne`/`opsys/role` que pour un jeton d'appareil vérifié
+    (docs/architecture/IDEMPOTENCE.md §7 bis). Ne vérifie pas non plus la portée d'outil du rôle :
+    c'est `opsys.capacites` qui la contrôle. Aucune écriture.
+    """
+    if appelante is None:
+        return None
+    personne = identite.personne_active(cnx, appelante.personne)
+    if personne is None or appelante.role not in personne.roles:
+        return None
+    return appelante
+
+
+def _arguments_de_la_trace(arguments: Mapping[str, Any]) -> dict[str, Any]:
+    """Copie des arguments où les valeurs de `ARGUMENTS_MASQUES_DANS_LA_TRACE` sont remplacées par
+    `VALEUR_MASQUEE` (une valeur nulle reste nulle : rien à masquer, et « masqué » serait faux)."""
+    return {
+        cle: VALEUR_MASQUEE if (cle in ARGUMENTS_MASQUES_DANS_LA_TRACE and valeur is not None) else valeur
+        for cle, valeur in arguments.items()
+    }
+
+
+def tracer_validation_au_depart(
+    cnx: Connection, departement: str, outil: str, arguments: Mapping[str, Any], *, niveau: Niveau,
+    signataire: IdentiteAppelante, reponse: Mapping[str, Any], appareil: str | None = None,
+) -> str:
+    """Trace, dans la transaction de `cnx`, une action que `signataire` a lancée lui-même et que
+    l'outil a déjà exécutée ; rend l'identifiant de la trace.
+
+    Deux écritures, aucune autre : (1) une ligne `approbations` au statut `executee` — qui
+    (`decide_par`, `decide_role`), quoi (`outil`, `arguments`, `niveau`), quand (`cree_le`,
+    `decide_le`), pourquoi (`motif_decision` = `MOTIF_VALIDATION_AU_DEPART`) ; c'est la même table que
+    celle de la file, donc `opsys_demandes_approbation` et la console la montrent ; (2) l'entrée
+    d'audit `ACTION_VALIDATION_AU_DEPART` dans le journal que `decider` alimente déjà (appareil et
+    empreinte des arguments réels y figurent). Pas de table ni de journal nouveaux.
+
+    `arguments` est conservé tel quel, sauf `ARGUMENTS_MASQUES_DANS_LA_TRACE`. `resultat` ne garde que
+    l'issue (`ok`, et `accepte` quand l'outil rend un verdict au sens de `outils.depuis_couple`) : les
+    données produites vivent dans les registres du département, écrits dans la même transaction.
+
+    L'appelant (`Capacites._valider_au_depart`) l'appelle DANS le même point de sauvegarde que
+    l'exécution de l'outil : si cette insertion échoue, l'exécution est annulée avec elle.
+    """
+    ident = uuid.uuid4().hex[:12]
+    maintenant = _maintenant()
+    issue: dict[str, Any] = {"ok": bool(reponse.get("ok"))}
+    resultat = reponse.get("resultat")
+    if isinstance(resultat, Mapping) and "accepte" in resultat:
+        issue["accepte"] = resultat["accepte"]
+    cnx.execute(insert(APPROBATIONS).values(
+        id=ident, cree_le=maintenant, departement=departement, outil=outil,
+        arguments=json.dumps(_arguments_de_la_trace(arguments), ensure_ascii=False),
+        statut="executee", niveau=Niveau(niveau).value,
+        decide_par=signataire.personne, decide_role=signataire.role, decide_le=maintenant,
+        motif_decision=MOTIF_VALIDATION_AU_DEPART, resultat=json.dumps(issue, ensure_ascii=False),
+    ))
+    journaliser(cnx, signataire.personne, ACTION_VALIDATION_AU_DEPART, ident, {
+        "outil": outil, "departement": departement, "niveau": Niveau(niveau).value,
+        "role": signataire.role, "appareil": appareil, "motif": MOTIF_VALIDATION_AU_DEPART,
+        "empreinte_arguments": empreinte_arguments(arguments),
+    })
+    return ident
 
 
 def mode_effectif(cnx: Connection, departement: str, mode_manifeste: str) -> str:

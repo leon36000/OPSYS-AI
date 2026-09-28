@@ -5,6 +5,13 @@ Logique pure, indépendante du transport. Elle fait trois choses :
 - appliquer le budget ;
 - appliquer la troncature des sorties.
 `opsys.serveur_mcp` l'expose en MCP ; les tests l'appellent directement.
+
+Politique d'autonomie et humain qui agit (ADR-0009 §4, addendum T1.4-h) : la file d'approbation
+sert les actions qu'un agent PROPOSE. Un appel d'appareil dont l'identité de jeton est valide est
+l'action d'un humain, qui a déjà validé au départ en la lançant : `Capacites._valider_au_depart`
+l'exécute sans file d'attente, à quatre conditions cumulées (niveau N3 au plus, identité relue en
+base, outil dans la portée du rôle, appel d'appareil), et la trace dans le journal des approbations.
+N4 et N5, et tout appel sans identité valide, suivent le chemin de la file, inchangé.
 """
 
 from __future__ import annotations
@@ -18,11 +25,17 @@ from typing import Any
 
 from sqlalchemy import Connection
 
-from . import approbations, idempotence, jetons
-from .contexte import HorodatageAppareil, appeler_en_tant_que, receptionne_de
+from . import approbations, idempotence, jetons, openclaw
+from .contexte import (
+    HorodatageAppareil,
+    appeler_en_tant_que,
+    horodatage_reception,
+    identite_appelante,
+    receptionne_de,
+)
 from .departements import Departement, tous_les_outils
 from .outils import Autonomie, Outil, executer_atomique, valider_arguments
-from .politiques import approbation_requise_niveau
+from .politiques import approbation_requise_niveau, validation_au_depart_possible
 
 _SCHEMA_VIDE = {"type": "object", "properties": {}, "additionalProperties": False}
 logger = logging.getLogger("opsys.capacites")
@@ -71,6 +84,7 @@ class Capacites:
         self.appelant = departements[appelant] if appelant else None
         self._cnx_factory = cnx_factory
         self._limite = limite_sortie
+        self._portees_roles: dict[str, frozenset[str]] | None = None  # calculé au besoin, voir _outils_du_role
         self.index: dict[str, tuple[Departement | None, Outil]] = dict(
             tous_les_outils(self.departements.values())
         )
@@ -181,7 +195,8 @@ class Capacites:
         `appel_appareil` : appel déterministe d'un appareil apparié (`_meta` d'idempotence, T1.4-b),
         sans tour de modèle. Le budget de jetons borne la dépense de modèle d'un département ; un tel
         appel n'en consomme aucun et n'y est donc pas soumis. Les approbations, elles, s'appliquent
-        toujours.
+        toujours — sauf pour l'humain qui agit lui-même : voir `_valider_au_depart`, seul endroit où
+        un appel d'appareil échappe à la file, et seulement quand l'approbation serait requise.
         """
         entree = self.index.get(nom)
         if entree is None:
@@ -204,6 +219,10 @@ class Capacites:
                         "budget": budget}
             mode = approbations.mode_effectif(cnx, departement.id, departement.mode)
             if approbation_requise_niveau(outil.niveau_effectif, mode):
+                if appel_appareil:
+                    au_depart = self._valider_au_depart(cnx, departement, outil, arguments)
+                    if au_depart is not None:
+                        return au_depart
                 erreurs = valider_arguments(outil.parametres, arguments)
                 if erreurs:
                     return {"ok": False, "erreur": "arguments_invalides", "details": erreurs}
@@ -215,6 +234,71 @@ class Capacites:
                                    "présente pas comme faite."}
         with appeler_en_tant_que(departement.id):
             return self._tronquer(executer_atomique(outil, arguments), nom)
+
+    def _outils_du_role(self, role: str) -> frozenset[str]:
+        """Noms des outils dans la portée du rôle de jeton d'appareil `role` ; vide si le rôle est
+        inconnu (fail-closed : un rôle sans entrée n'a aucune portée).
+
+        SOURCE UNIQUE : c'est `openclaw.roles_outils`, la fonction même qui génère `roles.json` que le
+        core applique avant d'émettre `tools/call` — aucune règle recopiée ici, donc socle et core ne
+        peuvent pas diverger. Calculée à la première demande puis gardée : les départements d'une
+        instance `Capacites` ne changent pas (`self.index` est figé de la même façon).
+        """
+        if self._portees_roles is None:
+            self._portees_roles = {r: frozenset(noms)
+                                   for r, noms in openclaw.roles_outils(self.departements).items()}
+        return self._portees_roles.get(role, frozenset())
+
+    def _valider_au_depart(
+        self, cnx: Connection, departement: Departement, outil: Outil, arguments: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        """Voie de l'humain qui agit (ADR-0009 §4, addendum T1.4-h). Appelée seulement pour un appel
+        d'appareil dont l'approbation serait requise. Rend None (chemin normal : l'appelant continue
+        vers la file d'approbation, RIEN n'a changé) ou la réponse finale de l'appel.
+
+        ADR-0009 §4 définit N3 comme « validation humaine au départ » ; quand la personne authentifiée
+        lance elle-même l'action, cette validation est faite : la mettre en attente du propriétaire
+        rendrait chaque geste de terrain inutilisable. Conditions, vérifiées dans cet ordre, la
+        première qui manque renvoie au chemin normal (sauf la 3, un refus nommé) :
+
+        1. le niveau effectif de l'outil est N3 au plus (`politiques.validation_au_depart_possible`) ;
+           N4 et N5 vont TOUJOURS au propriétaire, N5 exigeant toujours l'attestation ;
+        2. l'appel porte une identité de jeton d'appareil (`contexte.identite_appelante`) que la base
+           confirme à l'instant même : personne active portant ce rôle (`approbations.signataire_valide`).
+           Sans identité (agent, secret partagé) ou avec une identité invalide, révoquée ou périmée :
+           chemin normal, aucun passe-droit ;
+        3. l'outil est dans la portée du rôle (`_outils_du_role`) ; sinon refus nommé `hors_portee_role`,
+           ni exécuté ni mis en attente (le core le refuse déjà en amont : défense en profondeur).
+
+        Alors l'outil s'exécute au nom du département, comme après une approbation, et — si l'exécution
+        réussit — `approbations.tracer_validation_au_depart` écrit la trace DANS LE MÊME point de
+        sauvegarde : l'exécution et sa trace réussissent ou échouent ensemble, sans trace pour une
+        exécution annulée ni exécution sans trace. Un refus ou une panne de l'outil ne laisse aucune
+        trace (rien n'a changé) : refus métier rendu tel quel, panne propagée comme partout ailleurs.
+
+        Ne lit que `contexte.identite_appelante()`, posé par la plateforme d'après `_meta`, jamais un
+        argument produit par le modèle. L'idempotence d'appareil (`_appeler_idempotent`) enveloppe cet
+        appel : un renvoi rejoue la réponse enregistrée sans repasser ici, donc sans seconde trace.
+        """
+        if not validation_au_depart_possible(outil.niveau_effectif):
+            return None
+        signataire = approbations.signataire_valide(cnx, identite_appelante())
+        if signataire is None:
+            return None
+        if outil.nom not in self._outils_du_role(signataire.role):
+            return {"ok": False, "erreur": "hors_portee_role",
+                    "details": f"{outil.nom} est hors de la portée du rôle {signataire.role} "
+                               "(openclaw.roles_outils) : ni exécuté ni mis en attente."}
+        reception = horodatage_reception()
+        with cnx.begin_nested():
+            with appeler_en_tant_que(departement.id):
+                reponse = executer_atomique(outil, arguments)
+            if reponse.get("ok"):
+                approbations.tracer_validation_au_depart(
+                    cnx, departement.id, outil.nom, arguments, niveau=outil.niveau_effectif,
+                    signataire=signataire, reponse=reponse,
+                    appareil=reception.appareil if reception is not None else None)
+        return self._tronquer(reponse, outil.nom)
 
     def _tronquer(self, reponse: dict[str, Any], source: str) -> dict[str, Any]:
         texte = json.dumps(reponse, ensure_ascii=False)

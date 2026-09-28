@@ -81,3 +81,76 @@ aussi.
 - Premier chantier : T1.0 du plan. Registres des départements persistants, en commençant par M4,
   puis la cascade de fin de travaux de bout en bout.
 - Postgres et Valkey sortent du chemin par défaut du déploiement et restent des options serveur.
+
+## Addendum T1.4-h (2026-09-28) — §4 : la validation humaine au départ, faite par la personne qui agit
+
+- Statut : **Proposé** (PLAN T1.4-h) ; relecture humaine requise avant mise en service (approbations :
+  code critique, AGENTS.md).
+- Précise : décision 4 (échelle N0–N5). Ne change ni les seuils des modes ni les niveaux des outils.
+
+### Constat
+
+La décision 4 définit N3 comme « validation humaine au départ ». Les dix départements sont en mode
+`ombre` : tout outil N3 et plus part en file d'approbation du propriétaire. C'est voulu pour ce qu'un
+**agent propose**. Mais depuis T1.4-c4, un appel d'appareil porte l'identité **authentifiée** de
+l'humain qui agit lui-même (`opsys/personne`, `opsys/role`, `docs/architecture/IDEMPOTENCE.md` §7 bis).
+Mettre son pointage (`m4_pointer`) ou sa complétion (`m4_completer_intervention`) en attente du
+propriétaire rendait l'application inutilisable, alors que la validation « au départ » est faite : c'est
+lui qui lance l'action.
+
+### Règle
+
+Pour un appel d'appareil (mutation portant un `_meta` d'idempotence) dont l'approbation serait requise
+par le mode du département, l'action **s'exécute sans file d'attente** si et seulement si les quatre
+conditions suivantes sont réunies :
+
+1. le niveau effectif de l'outil est **N3 au plus** ;
+2. l'appel porte une identité de jeton d'appareil (personne, rôle) que **la base confirme à l'instant de
+   l'appel** : la personne existe, est active et porte toujours ce rôle ;
+3. l'outil est **dans la portée de ce rôle**, au sens de `openclaw.roles_outils` — la fonction qui
+   génère `roles.json` pour le core, appelée telle quelle : une seule source ; hors portée, refus nommé
+   `hors_portee_role`, ni exécuté ni mis en attente ;
+4. l'appel vient d'un appareil (il n'y a rien à valider au départ pour ce qu'un agent propose).
+
+Dans tous les autres cas, **rien ne change** : N4 et N5 vont toujours au propriétaire (N5 exige toujours
+l'attestation du professionnel, jamais automatique) ; un appel sans identité (agent, secret partagé)
+suit la file ; une identité invalide, désactivée ou dont le rôle a été retiré ne donne aucun passe-droit
+(chemin normal, fail-closed).
+
+Les rôles que `department.yaml` déclare sous `approbations.n3`/`n4` (décision 5) gouvernent **qui décide
+une demande en file**. Ils ne gouvernent pas l'action que la personne lance elle-même : là, la portée
+est celle du rôle de son appareil (condition 3).
+
+### Trace
+
+Chaque exécution ainsi validée écrit, dans le même point de sauvegarde que l'outil, donc atomiquement
+avec lui :
+
+- une ligne du **journal des approbations existant** (`approbations`, statut `executee`) : qui
+  (`decide_par`, `decide_role`), quoi (`outil`, `arguments`, `niveau`), quand (`cree_le`, `decide_le`),
+  pourquoi (`motif_decision` : « validation humaine au départ par la personne qui agit, ADR-0009 §4 ») ;
+- l'entrée `approbation.valider_au_depart` du journal d'audit que `decider` alimente déjà (appareil,
+  empreinte des arguments réels).
+
+Pas de table ni de journal nouveaux. Une exécution refusée ou en panne ne laisse aucune trace (rien n'a
+changé) ; une panne d'écriture de la trace annule l'exécution. La trace ne copie jamais en clair une
+donnée personnelle que le département garde chiffrée avec une clé destructible : le fix GPS d'un
+pointage y figure masqué (POLITIQUE-geolocalisation §5, décision 6 : renseignements personnels masqués
+dans les journaux). L'idempotence d'appareil (T1.4-b) est intacte : un renvoi de la même clé rejoue la
+réponse sans ré-exécuter ni écrire une seconde trace.
+
+### Limites
+
+- **L'authenticité vient du core, pas du socle.** Le socle relit la personne et le rôle en base ; il ne
+  peut pas authentifier l'appareil. La règle suppose que seul OPSYS-CORE, après vérification du jeton
+  d'appareil (T1.4-c4), écrit `opsys/personne`/`opsys/role` dans le `_meta` : le canal MCP
+  (`OPSYS_MCP_JETON`) doit lui rester réservé. Les tests vitest de cette chaîne ne tournent qu'en CI.
+- **La sûreté dépend de la finesse de `roles_outils`, aujourd'hui grossière.** `employee` couvre tous
+  les outils M4 et M6 hors T3, dont plusieurs que la file du propriétaire filtrait jusqu'ici :
+  `m6_approuver_po`, `m4_resoudre_demande`, `m4_definir_consentement_gps`, `m4_lire_position_gps`. Une
+  portée par outil, déclarée dans les manifestes, est à faire avant la mise en service ; elle profitera
+  d'elle-même à cette règle puisque la source est unique.
+- **Les modes `supervise` et `autonome` ne changent pas** : un N3 s'y exécute déjà sans approbation, et
+  donc sans cette trace.
+- **Un `nathan_owner` n'a pas d'appareil** (décision 5 et `appareils.ROLES_APPAREIL`) : l'appareil du
+  propriétaire est appairé `admin`, et ses N4/N5 vont en file comme ceux de tout autre appareil.
