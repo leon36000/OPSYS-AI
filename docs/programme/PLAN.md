@@ -714,8 +714,23 @@ météo et GPS M4, vision M3, conseil d'agents M9…
 
       Reste : les décisions « Rétention du GPS » ci-dessous ; la ligne GPS de l'EFVP (§6) ; la
       revue externe du chiffrement.
-- [ ] T4.3 M7 : consentement client et floutage visages et plaques avant tout contenu public ;
+- [x] T4.3 M7 : consentement client et floutage visages et plaques avant tout contenu public ;
       profil de marque par défaut remplacé par celui du client (audit M7).
+      Preuve (cc8a64a, 92a843a) :
+      - le consentement est lu dans le WCT reçu par le bus (registre `wct_recus` de M7), jamais
+        dans les arguments de l'outil ; `wct_id` inconnu ou consentement faux : aucun brouillon ;
+      - floutage par pixellisation déterministe, détecteur injectable ; sous le seuil de confiance
+        fourni, le brouillon exige une revue humaine ; rien n'est jamais publié par M7 ;
+      - briques retenues : OpenCV (Apache-2.0), YuNet (MIT), cascade Haar d'OpenCV (Apache-2.0) ;
+        YOLO d'Ultralytics refusé (AGPL-3.0) ;
+      - profil de marque fermé tant que l'identité n'est pas configurée (nom commercial en GATE
+        NATHAN) ; l'identité d'OPSYS-AI n'y figure plus ;
+      - M7 568, socle 392, M4 741, verifier 117 outils.
+
+      Reste : brancher l'adaptateur OpenCV réel (`opencv-python-headless` n'est pas installable
+      dans le bac à sable) et le décodage des photos déposées (T1.4-e2) ; un registre de retrait
+      du consentement marketing (Loi 25) ; les consommateurs du bus ne voient pas l'`evenement_id`
+      (contrat du répartiteur).
 
 ## T5 — Durcissement et SaaS
 
