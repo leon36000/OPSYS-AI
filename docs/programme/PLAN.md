@@ -326,12 +326,23 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         - lead inconnu : M2 en quarantaine, sans bloquer les autres ;
         - complétion avant l'acceptation du devis : même état final ;
         - socle 281, M2 590, M10 265.
-  - [ ] T1.2-f Le WCT porte les champs de M7 :
+  - [x] T1.2-f Le WCT porte les champs de M7 :
     - `ville` et `type_travaux`, tirés du contrat de l'intervention, déterministes ;
     - le consentement, la satisfaction, les photos et la description factuelle, tirés du
       formulaire de complétion (T1.4-f), jamais inventés.
 
     Aujourd'hui, aucun chemin réel ne les produit : aucune demande d'avis ne naît de la cascade.
+
+    Preuve (3c7b7ca, et la correction M6 qui suit) :
+    - `type_travaux` est tiré de l'intervention ;
+    - le consentement, la satisfaction, les photos et la description ne sont acceptés que pendant
+      un appel d'appareil. Venant d'un agent, ils donnent le refus `REJ-CHAMPS-CLIENT-HORS-APPAREIL` ;
+    - M6 accepte ces champs sans les lire ;
+    - M4 628, M6 293, M7 503 ; socle 362.
+
+    Décision : la ville reste hors du WCT. M4 ne la garde que hachée (Loi 25, invariant déjà
+    testé sur tous ses maillons). M7 devra la tenir de M2 (lead), par un événement ou une
+    décision d'architecture à prendre.
 
     Relevés à reprendre :
     - M3 n'a aucune durée estimée de main-d'œuvre (`duree_estimee_minutes`) (T2.3) ;
