@@ -609,9 +609,17 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
 
         Reste de T2.3 : séparer coût et prix dans `m3_estimer_projet` ; contrat
         `BesoinsMateriauxM3` vers M6 ; PDF ; `niveau_confiance` est un nombre dans le code et une
-        chaîne dans le PRD (à trancher) ; `signaux.py` (demande de photos) n'est jamais appelé ;
-        M2 ne consomme pas encore `m3.devis_sans_reponse`, qui vise aussi les brouillons (M2 devra
-        distinguer un devis jamais envoyé).
+        chaîne dans le PRD (à trancher) ; `signaux.py` (demande de photos) n'est jamais appelé.
+  - [x] T2.3-c (M2.7) M2 consomme `m3.devis_sans_reponse` et propose une relance, jamais appliquée.
+        Preuve (ecee75a, e832b74) :
+        - une interaction système rattache le fait au lead et au Client 360, sans transition de
+          statut ; idempotent par `evenement_id` et par `devis_id` ;
+        - devis envoyé : « relancer le client » ; brouillon : « envoyer ou abandonner », jamais
+          « relancer » un client qui n'a rien reçu ; délai et horodatages recopiés du fait ;
+        - lead perdu : fait gardé (`lead_clos`), sans interaction ni quarantaine ;
+        - bout en bout par le vrai bus avec les outils de M3 ; M2 671, socle 392, verifier 116.
+
+        Reste : aucun outil ne liste encore les relances en attente (visibles dans le Client 360).
 - [x] T2.4 M6 : catalogue, livre de prix, PO brouillon, courriel fournisseur via M1 (repli manuel).
       Preuve (fbe272a) :
       - livre de prix versionné, daté et par fournisseur, jamais inventé (`PRIX_LIVRE` ou
