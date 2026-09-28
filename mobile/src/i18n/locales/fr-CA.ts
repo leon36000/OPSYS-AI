@@ -95,6 +95,7 @@ export interface RessourcesCommunes {
       checklist: string;
       photos: string;
       signature: string;
+      complete: string;
     };
     verdict: {
       echecPermanent: string;
@@ -131,6 +132,75 @@ export interface RessourcesCommunes {
     requise: string;
     enregistree: string;
     vide: string;
+  };
+  complete: {
+    titre: string;
+    champNotes: string;
+    signatureRequise: {
+      question: string;
+      oui: string;
+      non: string;
+    };
+    bouton: string;
+    boutonEnCours: string;
+    appareilNonAppaire: string;
+    blocages: {
+      checklist_incomplete: string;
+      aucune_photo_apres: string;
+      signature_requise_non_choisie: string;
+      signature_requise_mais_absente: string;
+      fichiers_en_echec: string;
+      fichiers_en_cours: string;
+    };
+    verdict: {
+      echecPermanentAvecVerdict: string;
+    };
+    enAttenteEnvoi: string;
+    succes: {
+      titre: string;
+      statut: string;
+    };
+    lienMateriaux: string;
+  };
+  materials: {
+    titre: string;
+    aucunWct: string;
+    champMateriau: string;
+    champQuantite: string;
+    champUnite: string;
+    champQuantiteEstimee: string;
+    typeLigne: {
+      prevu: string;
+      non_prevu: string;
+      retour: string;
+      perte: string;
+      bris: string;
+      achat_terrain: string;
+    };
+    photoFournie: string;
+    recuFourni: string;
+    ajouterLigne: string;
+    retirerLigne: string;
+    aucuneLigne: string;
+    erreurs: {
+      materiau_id_manquant: string;
+      unite_manquante: string;
+      quantite_invalide: string;
+      quantite_estimee_invalide: string;
+      achat_terrain_preuve_manquante: string;
+    };
+    blocages: {
+      aucune_ligne: string;
+      lignes_invalides: string;
+    };
+    bouton: string;
+    boutonEnCours: string;
+    appareilNonAppaire: string;
+    enAttenteEnvoi: string;
+    succes: string;
+    verdict: {
+      echecPermanentAvecVerdict: string;
+    };
   };
 }
 
@@ -234,6 +304,7 @@ const frCA: RessourcesCommunes = {
       checklist: "Checklist",
       photos: "Photos",
       signature: "Signature",
+      complete: "Terminer",
     },
     verdict: {
       echecPermanent: "Échec définitif",
@@ -270,6 +341,76 @@ const frCA: RessourcesCommunes = {
     requise: "Signature requise pour ce chantier.",
     enregistree: "Signature enregistrée.",
     vide: "Tracez une signature avant de confirmer.",
+  },
+  complete: {
+    titre: "Terminer le chantier",
+    champNotes: "Notes (imprévus, laissez vide si aucun)",
+    signatureRequise: {
+      question: "Une signature du client est-elle requise pour ce chantier ?",
+      oui: "Oui, requise",
+      non: "Non, pas requise",
+    },
+    bouton: "Terminer",
+    boutonEnCours: "Envoi en cours…",
+    appareilNonAppaire: "Appareil non apparié : impossible de terminer pour l'instant.",
+    blocages: {
+      checklist_incomplete: "La checklist n'est pas terminée. Complétez-la avant de continuer.",
+      aucune_photo_apres: "Aucune photo « après » capturée. Prenez au moins une photo avant de continuer.",
+      signature_requise_non_choisie: "Précisez si une signature du client est requise pour ce chantier.",
+      signature_requise_mais_absente: "Signature requise mais pas encore capturée. Allez à l'écran Signature.",
+      fichiers_en_echec:
+        "L'envoi d'une photo ou de la signature a été refusé de façon définitive. Reprenez la photo ou la signature concernée, puis réessayez.",
+      fichiers_en_cours: "Envoi des photos et de la signature en cours. Réessayez une fois la connexion rétablie.",
+    },
+    verdict: {
+      echecPermanentAvecVerdict: "Échec définitif ({{code}}) : {{detail}}",
+    },
+    enAttenteEnvoi: "En attente d'envoi (hors ligne). La complétion est en file ; appuyez sur Rafraîchir une fois en ligne.",
+    succes: {
+      titre: "Complétion envoyée.",
+      statut: "Statut retourné par le serveur : {{statut}}",
+    },
+    lienMateriaux: "Continuer vers les matériaux utilisés",
+  },
+  materials: {
+    titre: "Matériaux utilisés",
+    aucunWct: "Aucune complétion trouvée pour ce chantier. Retournez à l'écran Terminer.",
+    champMateriau: "Matériau",
+    champQuantite: "Quantité réelle",
+    champUnite: "Unité",
+    champQuantiteEstimee: "Quantité prévue (optionnel)",
+    typeLigne: {
+      prevu: "Prévu",
+      non_prevu: "Non prévu",
+      retour: "Retour",
+      perte: "Perte",
+      bris: "Bris",
+      achat_terrain: "Achat terrain",
+    },
+    photoFournie: "Photo fournie",
+    recuFourni: "Reçu fourni",
+    ajouterLigne: "Ajouter un matériau",
+    retirerLigne: "Retirer",
+    aucuneLigne: "Aucun matériau ajouté pour l'instant.",
+    erreurs: {
+      materiau_id_manquant: "Indiquez le matériau.",
+      unite_manquante: "Indiquez l'unité.",
+      quantite_invalide: "Quantité réelle invalide.",
+      quantite_estimee_invalide: "Quantité prévue invalide.",
+      achat_terrain_preuve_manquante: "Achat terrain : fournissez une photo ou un reçu.",
+    },
+    blocages: {
+      aucune_ligne: "Ajoutez au moins un matériau avant de soumettre.",
+      lignes_invalides: "Corrigez les lignes en erreur avant de soumettre.",
+    },
+    bouton: "Soumettre les matériaux",
+    boutonEnCours: "Envoi en cours…",
+    appareilNonAppaire: "Appareil non apparié : impossible de soumettre pour l'instant.",
+    enAttenteEnvoi: "En attente d'envoi (hors ligne). La déclaration est en file ; appuyez sur Rafraîchir une fois en ligne.",
+    succes: "Matériaux soumis.",
+    verdict: {
+      echecPermanentAvecVerdict: "Échec définitif ({{code}}) : {{detail}}",
+    },
   },
 };
 

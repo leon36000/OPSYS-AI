@@ -1,7 +1,19 @@
 /** Statuts de la file sortante, dans l'ordre du cycle de vie normal (R12 §4). */
 export type StatutMutation = "brouillon" | "en_attente" | "envoi" | "envoyee" | "echec_permanent";
 
-/** Catalogue fermé des types de mutation terrain (R12 §4). */
+/**
+ * Catalogue fermé des types de mutation terrain (R12 §4, dont la liste documentée se termine par
+ * « … » — extensible). PLAN T1.4-f ajoute deux entrées :
+ *  - `fichier_bloc` : UN bloc (262 144 octets, contrat `m4_deposer_fichier`) d'un envoi de fichier
+ *    par la file sortante — distinct de `photo_upload`/`signature_capture`, qui restent les
+ *    enregistrements LOCAUX (URI + SHA-256 capturés, toujours `brouillon`, T1.4-e inchangé) : un
+ *    fichier capturé produit PLUSIEURS mutations `fichier_bloc` (une par bloc), voir
+ *    `src/fichiers/envoiOrchestrateur.ts`.
+ *  - `job_completion` : `m4_completer_intervention` (« Terminer », `complete.tsx`) — type DÉDIÉ
+ *    plutôt que de réutiliser `job_status_change` (déjà à sens unique vers `m4_demarrer_route`,
+ *    voir `src/outbox/descripteurs.ts`), même principe que documenté dans `src/ecrans/job.ts`
+ *    pour une future transition distincte (report, annulation…).
+ */
 export type TypeMutation =
   | "punch_in"
   | "punch_out"
@@ -11,7 +23,9 @@ export type TypeMutation =
   | "incident_report"
   | "photo_upload"
   | "signature_capture"
-  | "po_receive_scan";
+  | "po_receive_scan"
+  | "fichier_bloc"
+  | "job_completion";
 
 /**
  * Une ligne de la file sortante SQLite (`outbox`, R12 §4). `id` est le `mutation_id` UUID créé

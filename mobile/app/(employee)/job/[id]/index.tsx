@@ -182,6 +182,9 @@ export default function EcranChantier() {
         <Link href={{ pathname: "/job/[id]/signature", params: { id: interventionId } }} style={styles.lien}>
           {t("job.liens.signature")}
         </Link>
+        <Link href={{ pathname: "/job/[id]/complete", params: { id: interventionId } }} style={styles.lien}>
+          {t("job.liens.complete")}
+        </Link>
       </View>
     </View>
   );

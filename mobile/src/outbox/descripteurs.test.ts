@@ -10,9 +10,82 @@ describe("DESCRIPTEURS_MUTATION", () => {
     expect(DESCRIPTEURS_MUTATION.get("job_status_change")?.tool).toBe("m4_demarrer_route");
   });
 
-  test("photo_upload/signature_capture : AUCUN descripteur (pas de route serveur d'envoi du binaire)", () => {
+  test("fichier_bloc -> m4_deposer_fichier (PLAN T1.4-f)", () => {
+    expect(DESCRIPTEURS_MUTATION.get("fichier_bloc")?.tool).toBe("m4_deposer_fichier");
+  });
+
+  test("job_completion -> m4_completer_intervention (PLAN T1.4-f)", () => {
+    expect(DESCRIPTEURS_MUTATION.get("job_completion")?.tool).toBe("m4_completer_intervention");
+  });
+
+  test("materials_submit -> m6_declarer_materiaux_utilises (PLAN T1.4-f)", () => {
+    expect(DESCRIPTEURS_MUTATION.get("materials_submit")?.tool).toBe("m6_declarer_materiaux_utilises");
+  });
+
+  test("photo_upload/signature_capture : AUCUN descripteur — le transport passe par fichier_bloc (PLAN T1.4-f)", () => {
     expect(DESCRIPTEURS_MUTATION.get("photo_upload")).toBeUndefined();
     expect(DESCRIPTEURS_MUTATION.get("signature_capture")).toBeUndefined();
+  });
+
+  describe("interprète fichier_bloc (m4_deposer_fichier)", () => {
+    const interpreter = DESCRIPTEURS_MUTATION.get("fichier_bloc")!.interpreterResultat;
+
+    test("bloc accepté -> accepte:true avec le résumé (reference/complet/blocsRecus)", () => {
+      const resultat = interpreter({
+        ok: true,
+        resultat: { accepte: true, resultat: { reference: null, complet: false, blocs_recus: [0] } },
+      });
+      expect(resultat).toEqual({ accepte: true, resume: { reference: null, complet: false, blocsRecus: [0] } });
+    });
+
+    test("rejet (ex. empreinte discordante) -> accepte:false avec le verdict", () => {
+      const resultat = interpreter({
+        ok: true,
+        resultat: { accepte: false, verdict: { code: "REJ-FICHIER-EMPREINTE-DISCORDANTE", detail: "hachage différent" } },
+      });
+      expect(resultat).toEqual({ accepte: false, verdict: { code: "REJ-FICHIER-EMPREINTE-DISCORDANTE", detail: "hachage différent" } });
+    });
+  });
+
+  describe("interprète job_completion (m4_completer_intervention)", () => {
+    const interpreter = DESCRIPTEURS_MUTATION.get("job_completion")!.interpreterResultat;
+
+    test("accepté -> accepte:true, statut porté tel quel (jamais maquillé)", () => {
+      const accuse = {
+        wct_id: "W1",
+        intervention_id: "I1",
+        ligne_id: "L1",
+        statut: "completed_pending_review",
+        hash_maillon: "h",
+        duree_reelle_minutes: 90,
+        ecart_signale: true,
+        tete_chaine: "t",
+      };
+      const resultat = interpreter({ ok: true, resultat: { accepte: true, resultat: accuse } });
+      expect(resultat).toEqual({ accepte: true, resume: accuse });
+    });
+
+    test("preuves incomplètes -> accepte:false, jamais un succès silencieux", () => {
+      const resultat = interpreter({
+        ok: true,
+        resultat: { accepte: false, verdict: { code: "REJ-CHAMP-VIDE", detail: "photos_apres vide" } },
+      });
+      expect(resultat).toEqual({ accepte: false, verdict: { code: "REJ-CHAMP-VIDE", detail: "photos_apres vide" } });
+    });
+  });
+
+  describe("interprète materials_submit (m6_declarer_materiaux_utilises)", () => {
+    const interpreter = DESCRIPTEURS_MUTATION.get("materials_submit")!.interpreterResultat;
+
+    test("accepté -> accepte:true", () => {
+      const resultat = interpreter({ ok: true, resultat: { accepte: true, resultat: { ok: true } } });
+      expect(resultat).toEqual({ accepte: true, resume: { ok: true } });
+    });
+
+    test("rejet sans detail (forme réelle du contrat M6) -> verdict avec detail vide", () => {
+      const resultat = interpreter({ ok: true, resultat: { accepte: false, verdict: { code: "REJ-DECLARATION-DEJA-SOUMISE" } } });
+      expect(resultat).toEqual({ accepte: false, verdict: { code: "REJ-DECLARATION-DEJA-SOUMISE", detail: "" } });
+    });
   });
 
   describe("interprète job_status_change (m4_demarrer_route)", () => {

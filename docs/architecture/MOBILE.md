@@ -7,7 +7,7 @@
 > dans [`docs/research/R12-app-mobile.md`](../research/R12-app-mobile.md) (pile §3, synchro §4,
 > écrans §5, sécurité §6). Ce fichier résume ; R12 fait foi sur le détail et les preuves.
 
-## État actuel : chantier du jour, transitions, checklist, photos, signature (T1.4-e)
+## État actuel : chorégraphie « Travaux terminés » complète (T1.4-f)
 
 `mobile/` contenait, jusqu'à T1.4-a, un **squelette** (projet, routage par rôle, file sortante
 et client protocole en logique pure) sans écran métier. T1.4-d a livré `punch.tsx` (M4.4) et le
@@ -17,20 +17,27 @@ et client protocole en logique pure) sans écran métier. T1.4-d a livré `punch
 regarde) reste le rôle de transport générique du fork (`"operator"`) même après T1.4-c2/T1.4-c4 ;
 ces deux tranches livrent le rôle OPSYS nommé (`admin`/`employee`/`seller`) résolu et appliqué à
 CHAQUE appel `/tools/invoke`, indépendamment de la poignée de main (« Idempotence et identité
-d'appareil de bout en bout » ci-dessous). **T1.4-e livre R12 §5 étapes 3 et 4** : `today.tsx`
+d'appareil de bout en bout » ci-dessous). T1.4-e a livré R12 §5 étapes 3 et 4 : `today.tsx`
 (chantiers du jour, lecture `m4_lister_interventions` + cache local hors ligne — voir « Chantiers
 du jour »), `job/[id]/index.tsx` (statut et transitions en route/arrivé/pause par la file
 sortante, verdict serveur affiché — voir « Écran `job/[id]/index.tsx` »), `checklist.tsx`,
 `photos.tsx`, `signature.tsx` (preuves de chantier, fichier local + SHA-256, jamais de binaire
-dans une mutation — voir les sections dédiées) et la préparation de la structure
-`PreuvesCompletion` pour T1.4-f (`src/m4/preuvesCompletion.ts`). **Un seul identifiant d'appareil
-dans toute l'app depuis cette tranche** : `punch.tsx` et `job/[id]/index.tsx` lisent tous les
-deux `src/protocole/configuration.ts::obtenirConfigurationAppel()` (la VRAIE identité
-d'appairage) — voir « Écran `punch.tsx` » pour ce qui a changé. Étapes suivantes (R12 §5, ordre
-de livraison) : `complete.tsx`→`materials.tsx` (M6.10), `(admin)/approvals`, E2E Maestro. T1.4-b
-(idempotence côté socle) et T1.4-c1 (le core transmet la clé, l'appareil et son heure dans le
-`_meta` MCP) sont faits côté serveur — voir [`IDEMPOTENCE.md`](IDEMPOTENCE.md) et la section
-« `/tools/invoke` » ci-dessous ; le trajet réel appareil → core → moteur reste à prouver (T1.5).
+dans une mutation) et la préparation de la structure `PreuvesCompletion`
+(`src/m4/preuvesCompletion.ts`, INCHANGÉ par cette tranche). **T1.4-f livre R12 §5 étape 5 — la
+dernière étape qui manquait pour fermer la chorégraphie « Travaux terminés » de bout en bout côté
+mobile** : l'envoi RÉEL des fichiers (photos après/signature) par blocs via la file sortante
+(`src/fichiers/`, voir « Envoi de fichiers par blocs » ci-dessous — comble le GAP documenté par
+T1.4-e), `complete.tsx` (« Terminer », références serveur résolues, dépendance d'ordre
+fichiers-avant-complétion) et `materials.tsx` (M6.10, formulaire des matériaux utilisés) — voir
+« Écran `complete.tsx` » et « Écran `materials.tsx` » ci-dessous. **Un seul identifiant d'appareil
+dans toute l'app depuis T1.4-e** : `punch.tsx` et `job/[id]/index.tsx` lisent tous les deux
+`src/protocole/configuration.ts::obtenirConfigurationAppel()` (la VRAIE identité d'appairage) —
+voir « Écran `punch.tsx` ». Étapes suivantes (R12 §5, ordre de livraison) : `(admin)/approvals`
+(revue de complétion, alerte d'écart matériaux), puis E2E Maestro contre un core réel — voir « Ce
+qui n'est PAS encore fait ». T1.4-b (idempotence côté socle) et T1.4-c1 (le core transmet la clé,
+l'appareil et son heure dans le `_meta` MCP) sont faits côté serveur — voir
+[`IDEMPOTENCE.md`](IDEMPOTENCE.md) et la section « `/tools/invoke` » ci-dessous ; le trajet réel
+appareil → core → moteur reste à prouver (T1.5).
 
 ## Pile (R12 §3 — versions et licences vérifiées)
 
@@ -66,6 +73,13 @@ saisi seulement), notifications, formulaires (react-hook-form/zod), TanStack Que
 `@testing-library/react-native` (absent de la pile installée — tous les écrans de cette tranche
 sont donc testés via leur logique extraite en fonctions pures, jamais en rendu). Ils entrent avec
 les tranches qui en ont besoin, jamais par anticipation.
+
+**T1.4-f n'ajoute AUCUNE brique** : l'envoi de fichiers par blocs (`src/fichiers/`, voir « Envoi
+de fichiers par blocs ») n'utilise que des modules déjà présents (`expo-file-system` pour la
+lecture d'octets, `expo-crypto` pour le hachage, `expo-sqlite` via `src/outbox/service.ts`) plus
+un encodeur base64 standard écrit à la main (`src/fichiers/base64.ts`, même raison que
+`src/appairage/base64url.ts` : RN/Hermes ne garantit ni `btoa` ni `Buffer`) — donc rien à
+inscrire dans `docs/research/INGREDIENTS.md`.
 
 ## Rôles et routage (`src/roles/`)
 
@@ -600,6 +614,275 @@ paramètre, prête pour que `complete.tsx` le fournisse. `m4_completer_intervent
 appelé par cette tranche (mission), et ne le sera que par T1.4-f. Testé intégralement
 (`preuvesCompletion.test.ts`).
 
+**INCHANGÉ par T1.4-f, précision sur son rôle réel.** `extraireReferencesPhotosLocales`/
+`extraireReferencePhotosApres`/`extraireReferenceSignatureLocale` servent encore aujourd'hui,
+mais SEULEMENT comme DÉCOUVERTE de candidats (« quelles captures locales existent pour ce
+chantier »), jamais comme source des références FINALES envoyées à `m4_completer_intervention` :
+`complete.tsx` (ci-dessous) résout les vraies références serveur via
+`src/fichiers/etatEnvoi.ts::calculerEtatEnvoiFichier`, une fois l'envoi par blocs `complet`. Les
+deux mécanismes coexistent sciemment plutôt que d'être fusionnés : le premier (T1.4-e, `src/photos/`,
+`src/signature/`) reste la structure de capture locale, inchangée ; le second (T1.4-f, `src/fichiers/`)
+est le transport, entièrement nouveau — voir « Envoi de fichiers par blocs » ci-dessous.
+
+## Envoi de fichiers par blocs (`src/fichiers/`, R12 §4, PLAN T1.4-f)
+
+**Comble le GAP documenté par T1.4-e** (« aucune route serveur pour recevoir l'envoi BINAIRE
+d'une photo ou d'une signature ») : un autre agent livre la route serveur EN PARALLÈLE
+(`m4_deposer_fichier`/`m4_etat_fichier`, absents de `departments/`/`core/` au moment d'écrire ce
+module — vérifié par recherche, rien à lire) ; ce module implémente le CONTRAT FIXE donné par la
+mission, testé UNIQUEMENT contre un transport/lecteur de fichier factices, jamais contre un
+serveur réel (mission, cadre de travail) — voir « Ce qui n'est PAS encore fait » pour la preuve
+qui reste à faire contre un core réel (T1.5).
+
+**Contrat** (`src/fichiers/protocole.ts`) :
+- `m4_deposer_fichier(empreinte_sha256, taille_octets, type_mime, index_bloc, nombre_blocs,
+  bloc_base64) -> {"accepte": true, "resultat": {"reference", "complet", "blocs_recus"}} |
+  {"accepte": false, "verdict": {"code", "detail"}}` — même patron `depuis_couple` que
+  `m4_pointer`. `type_mime` : `"image/jpeg" | "image/png"` seulement (`TypeMimeFichier`).
+  `reference` = `"fichier:sha256:<empreinte>"`, DÉTERMINISTE depuis l'empreinte déjà connue
+  localement (`construireReferenceFichier`) — le mobile n'a donc jamais besoin de relire la
+  chaîne exacte renvoyée par le serveur pour la calculer, seulement pour savoir QUAND le fichier
+  est `complet`.
+- `m4_etat_fichier(empreinte_sha256) -> {"accepte": true, "resultat": {"existe", "complet",
+  "blocs_recus", "reference"}}` — même patron, utilisé pour la REPRISE (voir plus bas).
+
+**Découpage** (`src/fichiers/decoupage.ts`) : blocs FIXES de `TAILLE_BLOC_OCTETS` = 262 144
+octets décodés, sauf le dernier (1..262 144) — `decouperEnBlocs` (vue `subarray`, jamais une
+copie du fichier complet). `validerTailleFichier` refuse localement, AVANT toute tentative
+réseau, un `taille_octets` hors 1..`TAILLE_FICHIER_MAX_OCTETS` (10 485 760, 10 MiB) — avec le
+MÊME code `REJ-FICHIER-TROP-VOLUMINEUX` que le serveur utiliserait, pour un vocabulaire unique
+peu importe où le refus est détecté ; `nombre_blocs` (borne contractuelle 1..64) n'est pas
+revalidé séparément, la borne de taille le couvre déjà entièrement (10 485 760 / 262 144 = 40).
+Encodage base64 STANDARD (`src/fichiers/base64.ts::encoderBase64Standard`, alphabet `+/` avec
+remplissage `=`) — DIFFÉRENT du base64url de `src/appairage/base64url.ts` (charge d'appairage
+v3) : deux modules distincts pour ne jamais mélanger les deux alphabets sous un seul nom, testés
+chacun contre l'oracle Node `Buffer`/`crypto`.
+
+**Vérification fail-closed avant tout envoi** (mission item 1 : « vérifie que le SHA-256 relu
+correspond à celui capturé ; sinon état d'erreur explicite, jamais d'envoi ») —
+`src/fichiers/verification.ts::verifierEmpreinteFichier` relit les octets RÉELS du fichier local
+(`expo-file-system`, injecté) et les rehache (même brique partagée `src/fichiers/empreinte.ts`
+que la capture, T1.4-e) ; toute discordance (fichier modifié/corrompu entre la capture et l'envoi,
+potentiellement bien plus tard) bloque `preparerEnvoiFichier` AVANT le moindre découpage/appel
+réseau — `envoiOrchestrateur.test.ts` le prouve : aucune mutation `fichier_bloc` n'est créée dans
+ce cas.
+
+**Une mutation `fichier_bloc` par bloc, par la file sortante** (`src/outbox/types.ts` : nouveau
+`TypeMutation`, catalogue R12 §4 explicitement ouvert par son « … » terminal) —
+`src/fichiers/envoiOrchestrateur.ts::preparerEnvoiFichier` construit et enfile (`creerMutation`
+→ `soumettreMutation` → `depot.inserer`, MÊME discipline que tout le reste de `src/outbox`) un
+bloc à la fois, chacun avec SA PROPRE clé d'idempotence (son propre `mutation.id`, jamais
+partagée entre blocs) ; le descripteur `fichier_bloc -> m4_deposer_fichier`
+(`src/outbox/descripteurs.ts`) branche l'envoi RÉEL sur le vidangeur GÉNÉRIQUE déjà existant
+(T1.4-d) — aucune boucle d'envoi dupliquée, `envoiOrchestrateur.ts` ne fait jamais lui-même
+d'appel `/tools/invoke` à l'exception de la lecture de `m4_etat_fichier` ci-dessous.
+`photo_upload`/`signature_capture` (T1.4-e) restent TELS QUELS, toujours sans descripteur, sans
+jamais devenir `en_attente` : ce sont les enregistrements LOCAUX de capture (URI + SHA-256), pas
+le transport — `src/fichiers/candidats.ts` les lit (payload complet, pas seulement l'id, à la
+différence de `preuvesCompletion.ts::extraireReferencesPhotosLocales`) pour construire la liste
+des fichiers à envoyer.
+
+**État d'un fichier calculé PUREMENT depuis la file locale** (`src/fichiers/etatEnvoi.ts`,
+`calculerEtatEnvoiFichier`) : `non_demarre` (aucun bloc encore enfilé) / `en_cours` (au moins un
+bloc pas `envoyee`, aucun `echec_permanent`) / `complet` (TOUS les blocs `envoyee` — reference
+alors dérivée localement) / `echec_permanent` (au moins UN bloc en échec permanent, PRIORITAIRE
+même si les autres ont réussi — reprendre les mêmes octets sous une nouvelle clé d'idempotence ne
+changerait pas l'issue d'un rejet business, voir plus bas). Jamais un appel réseau supplémentaire
+pour cette lecture : le statut `envoyee` d'un bloc N'EST posé par le vidangeur QU'À l'accusé de
+réception du serveur pour CE bloc précis (R12 §4), donc « tous les blocs envoyee » est déjà la
+même vérité que le serveur porterait dans `blocs_recus`/`complet`.
+
+**Reprise via `m4_etat_fichier`** (mission item 1) : AVANT de découper/encoder, `preparerEnvoiFichier`
+consulte optionnellement `config.obtenirEtatServeur` (lecture DIRECTE, PAS par la file — même
+patron que `m4_statut_intervention`, `src/today/statut.ts` — câblée réellement dans
+`src/fichiers/service.ts::obtenirEtatServeurReel`) et NE RÉ-ENFILE QUE les indices de bloc que le
+serveur n'a pas déjà reçus (`blocsRecus`) — évite de retransmettre un fichier déjà partiellement
+envoyé après une interruption (redémarrage, app fermée en plein envoi). Un échec de cette lecture
+(hors ligne, technique) N'EST JAMAIS bloquant : traité comme « aucune information de reprise »,
+tous les blocs manquants localement sont alors enfilés — la file reste sûre de toute façon
+(R12 §4).
+
+**Refus fail-closed, jamais un envoi ni une nouvelle tentative automatique** — `preparerEnvoiFichier`
+renvoie un résultat typé (`ResultatPreparationEnvoiFichier`) sans jamais lever :
+`type_non_permis` (extension autre que `.jpg`/`.jpeg`/`.png`, voir
+`src/fichiers/candidats.ts::deduireTypeMimeDepuisUri` — DÉRIVÉ de l'extension RÉELLE du fichier
+local, jamais deviné : les photos sont toujours `.jpg` — capture `imageType: "jpg"`,
+`src/photos/service.ts` — et la signature toujours `.png` par défaut de
+`react-native-signature-canvas`, vérifié en lisant `node_modules/react-native-signature-canvas
+/index.js`, `imageType || "image/png"`, jamais surchargé par `signature.tsx`), `taille_invalide`,
+`empreinte_discordante` (voir plus haut), `echec_permanent` (un bloc de CE fichier a déjà été
+refusé de façon définitive — l'appelant, `complete.tsx`, doit dire à l'employé de reprendre la
+photo/signature, jamais un réessai automatique silencieux).
+
+**Câblage réel** (`src/fichiers/service.ts`, non testé unitairement — même limite documentée que
+`src/photos/service.ts`/`src/outbox/service.ts`, pas de FS/réseau natif sous Jest) :
+`envoyerFichiersDuChantier(chantierId)` liste TOUS les candidats (photos « après » + signature)
+de la file sortante réelle et appelle `preparerEnvoiFichier` sur chacun, séquentiellement (même
+raison que `vidangeur.ts` : jamais `Promise.all`).
+
+**Déclenché depuis `complete.tsx` (au montage ET à l'appui sur « Terminer »), jamais depuis
+`photos.tsx`/`signature.tsx`** — décision documentée, pas un oubli : ces deux écrans restent
+INCHANGÉS par cette tranche (déjà livrés, testés, en usage) plutôt que d'y ajouter un
+déclenchement d'envoi qui risquerait une régression. Les déclencheurs GÉNÉRIQUES déjà existants
+(`src/outbox/declencheurs.ts`, premier plan/retour réseau, T1.4-d) reprennent ensuite tout ce qui
+reste en file même si l'employé quitte `complete.tsx` avant la fin — aucune mutation `fichier_bloc`
+n'est jamais perdue. Une tranche future pourrait démarrer l'envoi dès la capture
+(`photos.tsx`/`signature.tsx`, plus proche de « photos envoyées en arrière-plan », DEFINITION-PRODUIT.md
+§9.2) une fois ce pipeline éprouvé — non fait ici pour limiter le risque sur des écrans déjà en
+production (P5, ne pas casser).
+
+**RÉGRESSION-SÛRE, additive** : `RapportVidange` (`src/outbox/vidangeur.ts`) gagne un champ
+`resultatsAcceptes: readonly {id, resume}[]` (le `resume` métier de CHAQUE mutation acceptée,
+jusqu'ici calculé puis jeté) — nécessaire pour que `complete.tsx` retrouve l'accusé de
+`m4_completer_intervention` sans second appel réseau. Purement additif : `envoyees` (déjà
+utilisé par `punch.tsx`/`job/[id]/index.tsx`) reste inchangé, testé par les mêmes assertions
+qu'avant (`vidangeur.test.ts`, aucune ne comparait l'objet complet).
+
+## Écran `complete.tsx` (« Terminer », R12 §5 étape 5, PLAN T1.4-f)
+
+`app/(employee)/job/[id]/complete.tsx` : construit `PreuvesCompletionM4` avec les RÉFÉRENCES
+SERVEUR (jamais les placeholders `mutation_id` de T1.4-e) puis appelle `m4_completer_intervention`
+par la file sortante — mission item 2, DEFINITION-PRODUIT.md §9.7 étapes 1-2.
+
+**Dépendance d'ordre obligatoire, structurellement garantie** (mission item 2) —
+`src/ecrans/complete.ts::evaluerPreparationCompletion` (fonction PURE, `complete.test.ts`) est
+la SEULE porte qui produit `PreuvesCompletionM4` : elle ne rend `pret: true` qu'après avoir
+vérifié, DANS CET ORDRE, la checklist (`checklist_complete`), qu'au moins une photo « après »
+existe, que l'employé a choisi si une signature est requise, que la signature est présente si
+requise, PUIS l'état d'envoi (`calculerEtatEnvoiFichier`) de CHAQUE fichier attendu — `pret`
+reste `false` (`fichiers_en_cours`) tant qu'un seul n'est pas `complet`. Il n'existe donc aucun
+chemin de code qui construise la mutation `job_completion` avant que ses fichiers ne le soient.
+Un SEUL bloc en échec permanent bloque tout (`fichiers_en_echec`, PRIORITAIRE sur `fichiers_en_cours`) :
+l'écran affiche `complete.blocages.fichiers_en_echec` et NE RETENTE JAMAIS automatiquement —
+l'employé doit reprendre la photo/signature en cause (`photos.tsx`/`signature.tsx`) puis revenir.
+
+**`signature_requise` : demandé explicitement, jamais déduit — limite documentée.** Aucune
+donnée serveur n'indique, pour un chantier donné, si une signature client est exigée (même
+absence structurelle que le catalogue de checklist, T1.4-e) : plutôt que de le déduire
+silencieusement de « une signature a-t-elle été capturée » (ce qui masquerait un chantier où une
+signature EST requise mais n'a pas pu être obtenue), l'écran demande un choix explicite
+(oui/non, AUCUN par défaut — `signatureRequise: boolean | null`) avant de laisser « Terminer »
+avancer, même patron fail-closed que le champ technicien de `job/[id]/index.tsx`.
+
+**Portée volontairement réduite du schéma `m4_completer_intervention`.** Seuls `intervention_id`,
+`horodatage`, `preuves_completion`, `signature_requise` sont envoyés
+(`src/m4/completion.ts::construireArgumentsCompleterIntervention`) — `photos`,
+`description_factuelle`, `consentement_marketing`, `client_satisfait` (des FAITS DU CLIENT, Loi
+25, T1.2-f) restent `NON_FOURNI` côté serveur : aucun écran de capture de consentement client
+n'existe dans cette tranche ni dans l'ordre de livraison R12 §5 pour T1 — les envoyer sans
+capture réelle serait une donnée inventée (AGENTS.md). Une tranche future (rattachée à M7,
+DEFINITION-PRODUIT.md §9.3) devra ajouter cet écran avant de les fournir. **`m4_completer_intervention`
+n'a PAS de champ « temps réel »** : `duree_reelle_minutes` est calculée PAR LE SERVEUR depuis les
+pointages déjà envoyés (`outbox.py::calculer_duree_reelle`, lu) — l'écran n'a donc rien à
+transmettre ni à calculer pour §9.7 « temps réel ».
+
+**ÉCART découvert en lisant le serveur (à documenter, cadre de travail) : l'accusé direct de
+`m4_completer_intervention` N'EST PAS le WCT complet.** `outbox.py::completer_intervention`
+(étape 13) renvoie un résumé de 8 clés (`wct_id`, `intervention_id`, `ligne_id`, `statut`,
+`hash_maillon`, `duree_reelle_minutes`, `ecart_signale`, `tete_chaine`) — PAS les 12 clés du
+`WctRecu` complet (`lead_id`, `technicien_id`, `horodatage_completion`, `fix_gps_completion`,
+`revue_id`, `consommateurs_cibles`, `devis_id`, `type_travaux`? en plus des 8 précédentes) que
+`m6_declarer_materiaux_utilises` exige VERBATIM (`_WCT`, « 12 clés exactes émises par M4,
+reproduites telles quelles », `m06.../outils.py:130`). Ce WCT complet n'est PAS dans le contrat
+fixe donné pour cette tranche. **Pont retenu, en lisant le serveur EXISTANT (jamais une
+invention) :** `m4_lire_outbox` (`outils.py`, déjà livré, T1.1-b#3, lecture seule, autonomie T0)
+renvoie `[{"index", "wct"}, ...]` avec le WCT COMPLET (`outbox.lire_outbox`, `maillon[CLE_WCT]`)
+— `complete.tsx` l'appelle DIRECTEMENT (pas par la file, comme `m4_statut_intervention`) juste
+après une complétion acceptée, apparie par `wct_id` (`src/m4/completion.ts::trouverWctParId`,
+jamais seulement `intervention_id`) et met le résultat en cache
+(`src/m4/wctCache.ts::ecrireWctEnCache`, même dépôt clé/valeur partagé que `today.tsx`/
+`checklist.tsx`) pour `materials.tsx`. `m4_lire_outbox` relit l'outbox COMPLET depuis l'index 0 à
+chaque appel (aucun filtre par `wct_id`/`intervention_id` exposé) : un coût à surveiller si
+l'outbox grossit beaucoup (P11) — acceptable pour V1, non optimisé ici. Si le serveur PARALLÈLE
+finit par exposer le WCT complet directement dans l'accusé de `m4_completer_intervention`, ce
+pont devient superflu mais reste inoffensif (une lecture de plus, jamais une écriture).
+
+**Le verdict serveur est affiché TEL QUEL** (mission item 2) : `complete.succes.statut` porte
+`resultatCompletion.statut` — `completed_pending_review` ou toute autre valeur renvoyée par le
+serveur — jamais reformulé ni maquillé en « succès » générique. Un rejet définitif
+(`m4_completer_intervention` refuse, ex. preuves jugées incomplètes côté serveur malgré le
+contrôle local, ou `REJ-PREUVE-FICHIER-INTROUVABLE` si une référence ne correspond à aucun fichier
+réellement déposé et complet) est affiché de la même façon que `job/[id]/index.tsx`
+(`complete.verdict.echecPermanentAvecVerdict`).
+
+**Envoi des fichiers déclenché au montage ET à l'appui sur « Terminer »** — voir « Envoi de
+fichiers par blocs » ci-dessus pour la justification (photos/signature déjà capturées
+commencent à s'envoyer dès l'arrivée sur cet écran, meilleur effort, jamais bloquant).
+
+**Limite documentée, même famille que celle déjà acceptée pour `punch.tsx` (« portée de
+l'affichage du verdict »).** Si la mutation `job_completion` est acceptée/rejetée par un
+déclencheur d'ARRIÈRE-PLAN (retour au premier plan, reconnexion) pendant que l'écran est FERMÉ,
+ou par une session PRÉCÉDENTE, le texte détaillé (`resultatCompletion`/`dernierVerdict`, React
+state PUREMENT local) n'est pas reconstitué à la réouverture — seul le STATUT persisté de la
+mutation (`envoyee`/`echec_permanent`) l'est, et l'écran s'appuie dessus pour ne jamais afficher
+un mensonge (ex. ne jamais dire « en attente d'envoi » pour une mutation déjà `envoyee`, ne
+jamais réactiver le bouton « Terminer » pour une complétion déjà acceptée). Le lien vers
+`materials.tsx` reste lui accessible dans ce cas : il se fonde sur le CACHE WCT
+(`src/m4/wctCache.ts`), pas sur l'état React local. Amélioration possible d'une tranche future :
+persister le verdict détaillé dans la ligne `outbox` elle-même (même remarque déjà faite pour
+`punch.tsx`).
+
+Écran non testé en rendu (même limite que les autres écrans de cette tranche) :
+`src/ecrans/complete.ts`, `src/fichiers/*`, `src/m4/completion.ts` portent la logique, testée là.
+
+## Écran `materials.tsx` (M6.10, R12 §5 étape 5, PLAN T1.4-f)
+
+`app/(employee)/job/[id]/materials.tsx` : formulaire des matériaux utilisés, ouvert APRÈS
+« Terminer » — DEFINITION-PRODUIT.md §9.3/§9.7 étape 3. Envoie `m6_declarer_materiaux_utilises`
+par la file sortante (mission item 3).
+
+**`wct` lu depuis le cache posé par `complete.tsx`, jamais reconstruit ici** — voir « Écran
+`complete.tsx` » pour le pont `m4_lire_outbox` qui l'a peuplé. `_WCT` (`outils.py:130`) : « 12
+clés exactes émises par M4, reproduites telles quelles » — `src/m6/materiaux.ts` ne connaît donc
+QUE `wct_id`/`intervention_id` (nécessaires pour retrouver/tracer), le reste voyage en
+`Readonly<Record<string, unknown>>` opaque, jamais retypé champ par champ (jamais un champ
+deviné). Aucun WCT en cache -> `materials.aucunWct`, formulaire bloqué (fail-closed) : l'employé
+doit retourner à l'écran « Terminer ».
+
+**Aucune quantité ni aucun prix proposés par défaut** (mission item 3, DEFINITION-PRODUIT.md
+§9.3 : « quantités réelles ajustables… **Aucun coût affiché** ») —
+`src/ecrans/materials.ts::creerLigneVide` ne pré-remplit RIEN : l'employé compose chaque ligne à
+la main (type parmi `prevu`/`non_prevu`/`retour`/`perte`/`bris`/`achat_terrain`, matériau,
+quantité, unité) ; le serveur résout seul le coût unitaire
+(`materiel.py::_dernier_cout_unitaire_connu`), jamais transmis par le mobile.
+
+**Aucune liste « prévue » (M3/M6) pré-remplie — décision documentée, pas un oubli.** Le contrat
+fixe donné pour cette tranche ne couvre QUE `m4_deposer_fichier`/`m4_etat_fichier` ; aucune route
+de lecture des besoins estimés (`besoins_prevus`, lue par `m6_creer_po_brouillon` mais jamais
+exposée à ce module) n'a été confirmée pour le mobile. L'employé saisit donc chaque ligne « prévu »
+à la main plutôt que de choisir dans une liste pré-remplie — cohérent avec la mission (« l'employé
+saisit, le serveur calcule »), mais moins guidé que ce que DEFINITION-PRODUIT.md §9.3 (« liste
+prévue (M3/M6) ») laisse entendre. Une tranche future pourrait ajouter ce pré-remplissage une
+fois une route de lecture confirmée.
+
+**Saisie en texte, conversion à la validation** (`src/ecrans/materials.ts`) : une `LigneEnSaisie`
+garde ses nombres en texte brut (`quantiteTexte`, virgule décimale fr-CA tolérée en plus du
+point) plutôt qu'en `number | null` — un champ numérique React Native qui convertirait à chaque
+frappe perdrait un « 12. » en cours de composition. `validerLigne`/`convertirLigne` (pures,
+testées) n'agissent qu'à la soumission ; `achat_terrain` exige `photo_fournie` OU `recu_fourni`
+(même règle que `REJ-ACHAT-TERRAIN-PREUVE-MANQUANTE`, `materiel.py`, lu — revérifiée côté client
+pour éviter un aller-retour réseau voué à l'échec, l'autorité finale reste le serveur).
+
+**Verdict serveur affiché TEL QUEL** (même discipline que `complete.tsx`) : `REJ-ACHAT-TERRAIN-PREUVE-MANQUANTE`,
+`REJ-DECLARATION-DEJA-SOUMISE` (idempotence par `wct_id` — une seconde déclaration pour le même
+WCT est refusée nommément), `REJ-COUT-UNITAIRE-INTROUVABLE`, et tout autre code de
+`validation.valider_wct`/`valider_formulaire_materiaux_utilises` (non lus ici, jamais devinés).
+**Forme confirmée en lisant `outils.py` (`declarer_materiaux_utilises`, ligne 649) : le verdict
+de refus de CET outil ne porte que `{"code": code}`, JAMAIS de `detail`** — contrairement au
+patron `verdicts.construire_verdict` de M4 ; `src/m6/materiaux.ts` lit donc `detail`
+défensivement (chaîne vide, jamais un plantage).
+
+**Limite acceptée, même famille que `complete.tsx`/`punch.tsx` : pas de garde locale contre une
+double soumission après un remontage de l'écran.** `soumis`/`enAttenteConfirmation` sont des
+`useState` purement locaux, jamais persistés ; si l'employé quitte puis revient sur cet écran
+après qu'un déclencheur d'arrière-plan a déjà fait accepter la déclaration, le bouton reste
+actif et une nouvelle soumission est possible — SANS RISQUE : le serveur refuse nommément
+(`REJ-DECLARATION-DEJA-SOUMISE`), affiché normalement comme un échec définitif. Non durci
+davantage ici pour rester au périmètre de la mission (item 3).
+
+Écran non testé en rendu (même limite que les autres écrans de cette tranche) :
+`src/ecrans/materials.ts`, `src/m6/materiaux.ts` portent la logique, testée là.
+
 ## `/tools/invoke` sans tour de modèle (`src/protocole/`)
 
 Client typé de `POST /tools/invoke`, conforme à la lecture directe du fork (lecture seule —
@@ -712,11 +995,26 @@ T1.4-c4 refuse (403) tout `deviceId` de corps qui diffère de l'appareil authent
 depuis T1.4-e, `punch.tsx` et `job/[id]/index.tsx` envoient l'identité d'appairage réelle
 (`obtenirConfigurationAppel().appareilId`, le `deviceId` calculé par le client d'appairage), qui
 coïncide par construction avec celle que le core authentifie ; la preuve contre un core réel reste
-à faire (T1.5). Autres manques côté serveur : **aucune route (core ou moteur Python) pour recevoir
-l'envoi BINAIRE d'une photo ou d'une signature** (PLAN T1.4-e, détaillé dans « Photos » ci-dessus
-— le point bloquant principal laissé par cette tranche) ; aucune route serveur n'expose de
-date/fenêtre de cédule ni de technicien assigné par intervention à `m4_lister_interventions`
-(détaillé dans « Chantiers du jour » ci-dessus).
+à faire (T1.5). **La route de réception du binaire (`m4_deposer_fichier`/`m4_etat_fichier`),
+point bloquant principal laissé par T1.4-e, est livrée EN PARALLÈLE de T1.4-f par un autre
+agent** — voir « Envoi de fichiers par blocs » ci-dessus pour le CONTRAT FIXE que le mobile
+implémente contre elle. **Non vérifié : la conformité RÉELLE entre les deux côtés.** Le mobile
+n'a lu ni exécuté aucun code serveur pour ces deux outils (absents de `departments/`/`core/` au
+moment d'écrire cette tranche) ; le contrat a été donné par la mission, jamais lu dans le code —
+`m4_completer_intervention` exigera des références `fichier:sha256:<hex>` réellement déposées et
+complètes pour `photos_apres`/`signature`, avec un nouveau `REJ-PREUVE-FICHIER-INTROUVABLE`
+annoncé par la mission mais absent de `preuves.py` au moment de lire ce fichier (avant la
+livraison parallèle) — la préparation à ce refus est donc l'affichage GÉNÉRIQUE du verdict
+(`complete.verdict.echecPermanentAvecVerdict`, jamais un texte codé en dur pour ce code précis),
+pas une vérification de forme spécifique. Tout écart entre le contrat donné et la route
+réellement livrée (nom de champ, forme du `verdict`, taille de bloc, etc.) ne sera découvert qu'au
+premier test de bout en bout contre le core/moteur réels (T1.5, R12 §5 étape 7 E2E Maestro) — même
+prudence que documentée pour `m4_pointer` (« lecture défensive, jamais vérifiée contre un core
+réel dans ce bac à sable »). Aucune route serveur n'expose de date/fenêtre de cédule ni de
+technicien assigné par intervention à `m4_lister_interventions` (détaillé dans « Chantiers du
+jour » ci-dessus) ; aucune route de lecture des besoins matériaux estimés (`besoins_prevus`)
+n'est exposée au mobile pour pré-remplir `materials.tsx` (détaillé dans « Écran `materials.tsx` »
+ci-dessus).
 
 **Côté mobile :** pas de lecture QR (code saisi seulement, voir « Appairage » — `expo-camera` est
 installé depuis T1.4-e mais seulement pour la capture photo, aucun scan QR câblé) ; pas de
@@ -724,25 +1022,44 @@ capture GPS réelle (Loi 25 non confirmée, `expo-location` non installé), ni d
 travail/référentiel de villes fournis par le serveur au mobile — `punch.tsx`/`job/[id]/index.tsx`
 envoient un contexte provisoire clairement documenté pour ces champs
 (`src/m4/contextePointageProvisoire.ts`) ; pas de persistance du dernier verdict serveur dans la
-ligne `outbox` (limite documentée dans « Écran `punch.tsx` ») ; `identifierMutationsAReprendre`
+ligne `outbox` (limite documentée dans « Écran `punch.tsx` », même limite acceptée pour
+`complete.tsx`/`materials.tsx`, voir leurs sections) ; `identifierMutationsAReprendre`
 n'a encore aucun appelant réel (la reprise au démarrage passe directement par
 `selectionnerProchainesEnvoyables`, qui inclut déjà les `envoi` — cette fonction reste utile pour
 une future traçabilité/journalisation dédiée, R12 §4 P3) ; pas de notifications push ; pas de
 rotation/révocation de jeton d'appareil câblée côté app (`device.token.rotate/revoke`, R12 §1.3 —
 l'app n'appelle jamais ces méthodes, seulement `connect`) ; pas de tests E2E Maestro ; pas de
-build EAS ni de publication store (frontière humaine T3, R12 §3).
+build EAS ni de publication store (frontière humaine T3, R12 §3). **Nouveau depuis T1.4-f :**
+`complete.tsx` ne capture aucun des quatre champs client optionnels de `m4_completer_intervention`
+(`photos`, `description_factuelle`, `consentement_marketing`, `client_satisfait` — faits du
+client, Loi 25, T1.2-f) faute d'écran dédié (rattaché à M7, DEFINITION-PRODUIT.md §9.3, hors
+ordre de livraison R12 §5 pour T1) ; `materials.tsx` ne pré-remplit aucune ligne « prévue »
+depuis M3/M6 (aucune route de lecture confirmée pour le mobile, voir plus haut) — l'employé
+compose chaque ligne à la main ; l'envoi de fichiers ne démarre qu'à l'arrivée sur `complete.tsx`
+(montage + « Terminer »), pas dès la capture dans `photos.tsx`/`signature.tsx` (décision
+documentée, voir « Envoi de fichiers par blocs » — écrans T1.4-e volontairement inchangés).
 
-**Nouveau depuis T1.4-e, hors périmètre de cette tranche :** pas d'écran `complete.tsx`
-(« Terminer », déclenche la cascade §9.7 — T1.4-f) ni `materials.tsx` (M6.10) ; `notes`
-(imprévus) n'a pas d'écran de saisie (rattachée à `complete.tsx`, voir « Préparation des preuves
-de complétion ») ; `technicien_id` reste saisi à la main sur `punch.tsx` ET `job/[id]/index.tsx`
-(aucune identité employé/technicien exposée par le serveur au mobile — pas résolu par cette
-tranche, contrairement à `appareilId` qui, lui, converge maintenant — voir « Écran `punch.tsx` ») ;
-pas de suppression/reprise de photo une fois capturée (`DepotOutbox` n'expose aucune méthode de
-suppression, volontairement non étendue ici pour ne pas risquer une régression sur `punch.tsx`
-déjà en production) ; pas de rafraîchissement automatique de `today.tsx` au retour au premier
-plan/réseau (seuls `punch.tsx`/le vidangeur ont ces déclencheurs, R12 §4 les prévoyant
-spécifiquement pour la file sortante, pas pour une liste en lecture — un bouton « Rafraîchir »
-manuel couvre cette tranche) ; aucun catalogue serveur de checklist par service (décision
-documentée, voir « Checklist » — pas un gap à combler mais un choix de conception assumé tant
-qu'aucune donnée produit n'existe pour le remplacer).
+**Nouveau depuis T1.4-f, hors périmètre de cette tranche :** l'écran `(admin)/approvals` (revue
+de complétion, alerte d'écart matériaux — R12 §5 étape 6) n'existe pas : la chorégraphie
+« Travaux terminés » va jusqu'à `materials.tsx` côté employé, mais **rien côté propriétaire** ne
+ferme la boucle d'accusé de réception (P6, « la tranche n'est pas faite tant que l'accusé de
+réception côté propriétaire ne ferme pas la boucle », R12 §5) ; pas de tests E2E Maestro contre
+un core/moteur réels (R12 §5 étape 7 — le scénario exact, « travaux terminés normaux ; écart de
+40 % -> `completed_pending_review` + alerte mobile admin », PLAN.md T1.5, reste à exécuter, voir
+la remarque ci-dessus sur la conformité non vérifiée du contrat fichiers) ; `technicien_id` reste
+saisi à la main sur `punch.tsx`/`job/[id]/index.tsx` (aucune identité employé/technicien exposée
+par le serveur au mobile — pas résolu par cette tranche, contrairement à `appareilId` qui, lui,
+converge maintenant — voir « Écran `punch.tsx` ») ; pas de suppression/reprise de photo une fois
+capturée (`DepotOutbox` n'expose aucune méthode de suppression, volontairement non étendue ici
+pour ne pas risquer une régression sur `punch.tsx` déjà en production — une photo capturée par
+erreur ne peut être « annulée » qu'en ne la déposant jamais, ce que rien n'empêche aujourd'hui) ;
+pas de rafraîchissement automatique de `today.tsx` au retour au premier plan/réseau (seuls
+`punch.tsx`/le vidangeur ont ces déclencheurs, R12 §4 les prévoyant spécifiquement pour la file
+sortante, pas pour une liste en lecture — un bouton « Rafraîchir » manuel couvre cette tranche) ;
+aucun catalogue serveur de checklist par service (décision documentée, voir « Checklist » — pas
+un gap à combler mais un choix de conception assumé tant qu'aucune donnée produit n'existe pour
+le remplacer) ; pas de purge post-confirmation des fichiers locaux une fois un envoi `complet`
+(R12 §4, « le fichier local est purgé après un court délai de grâce post-confirmation » — les
+photos/signatures restent indéfiniment dans `Paths.document/opsys-photos|opsys-signatures/`
+même après un envoi réussi, même limite que celle documentée par T1.4-e avant que la route
+d'envoi n'existe, non résolue par cette tranche faute de temps/périmètre restant).

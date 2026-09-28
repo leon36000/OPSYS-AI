@@ -56,8 +56,28 @@ export interface EchecMutation {
   readonly verdict: VerdictServeur;
 }
 
+/** Une mutation acceptée, avec le `resume` métier renvoyé par son interprète (PLAN T1.4-f,
+ * `RapportVidange.resultatsAcceptes` ci-dessous) — `resume` reste `unknown` à ce niveau
+ * générique (le vidangeur ne connaît aucun contrat M4/M6 précis, voir `DescripteurTypeMutation`
+ * ci-dessus) ; l'appelant (écran) le retype selon le type de mutation qu'il a lui-même soumis. */
+export interface MutationAcceptee {
+  readonly id: string;
+  readonly resume: unknown;
+}
+
 export interface RapportVidange {
   readonly envoyees: readonly string[];
+  /**
+   * Même information que `envoyees`, mais avec le `resume` métier de CHAQUE mutation acceptée
+   * (PLAN T1.4-f) — jusqu'ici calculé par `descripteur.interpreterResultat` puis jeté : `job_
+   * completion` (« Terminer ») a besoin du WCT renvoyé par `m4_completer_intervention` pour
+   * enchaîner `materials_submit` (`m6_declarer_materiaux_utilises` exige le WCT tel quel, voir
+   * `src/m4/completion.ts`/`src/m6/materiaux.ts`) — sans ce champ, le seul moyen de le retrouver
+   * aurait été un second appel réseau (`m4_lire_outbox` ou équivalent), inutile ET plus fragile
+   * (un rejeu ne serait pas garanti de renvoyer exactement le même WCT). Additif, ne change rien
+   * au comportement existant : `envoyees` reste inchangé pour tout code déjà écrit contre lui.
+   */
+  readonly resultatsAcceptes: readonly MutationAcceptee[];
   /** Remises `en_attente` après un échec réessayable (recul appliqué). */
   readonly remisesEnAttente: readonly string[];
   readonly echecsPermanents: readonly EchecMutation[];
@@ -73,6 +93,7 @@ export interface RapportVidange {
 
 const RAPPORT_VERROU_ACTIF: RapportVidange = {
   envoyees: [],
+  resultatsAcceptes: [],
   remisesEnAttente: [],
   echecsPermanents: [],
   bloquees: [],
@@ -89,7 +110,7 @@ export interface Vidangeur {
 }
 
 type IssueEnvoi =
-  | { readonly genre: "envoyee" }
+  | { readonly genre: "envoyee"; readonly resume: unknown }
   | { readonly genre: "remise_en_attente" }
   | { readonly genre: "echec_permanent"; readonly verdict: VerdictServeur };
 
@@ -156,7 +177,7 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
     const interpretation = descripteur.interpreterResultat(resultatAppel.result);
     if (interpretation.accepte) {
       await config.depot.mettreAJour(marquerEnvoyee(enEnvoi));
-      return { genre: "envoyee" };
+      return { genre: "envoyee", resume: interpretation.resume };
     }
     // Rejet métier (HTTP 200, mais `accepte: false`) : définitif — réessayer le MÊME payload ne
     // changerait pas l'issue (fenêtre dépassée, contrat mal formé…). R12 §4 : jamais perdu
@@ -170,6 +191,7 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
     const envoyables = selectionnerProchainesEnvoyables(toutes, config.maintenant());
 
     const envoyees: string[] = [];
+    const resultatsAcceptes: MutationAcceptee[] = [];
     const remisesEnAttente: string[] = [];
     const echecsPermanents: EchecMutation[] = [];
 
@@ -180,6 +202,7 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
       const issue = await envoyerUneMutation(mutation);
       if (issue.genre === "envoyee") {
         envoyees.push(mutation.id);
+        resultatsAcceptes.push({ id: mutation.id, resume: issue.resume });
       } else if (issue.genre === "remise_en_attente") {
         remisesEnAttente.push(mutation.id);
       } else {
@@ -190,7 +213,7 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
     const toutesApres = await config.depot.lister();
     const bloquees = identifierMutationsBloqueesParEchecPermanent(toutesApres).map((m) => m.id);
 
-    return { envoyees, remisesEnAttente, echecsPermanents, bloquees, ignoreeVerrouActif: false };
+    return { envoyees, resultatsAcceptes, remisesEnAttente, echecsPermanents, bloquees, ignoreeVerrouActif: false };
   }
 
   return {

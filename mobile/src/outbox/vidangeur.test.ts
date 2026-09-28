@@ -153,6 +153,59 @@ describe("vidangeur — idempotence du socle", () => {
   });
 });
 
+describe("vidangeur — resultatsAcceptes (PLAN T1.4-f)", () => {
+  test("une mutation acceptée porte son resume dans resultatsAcceptes, pas seulement son id", async () => {
+    const depot = new DepotOutboxMemoire();
+    const mutation = await inserer(depot, { type: "punch_in", chantierId: "interv-1", payload: { action: "arrivee" } });
+    const fetchImpl = jest.fn().mockResolvedValueOnce(reponseAcceptee({ statut: "sur_site", intervention_id: "interv-1" }));
+    const vidangeur = creerVidangeur(creerConfig(depot, fetchImpl as unknown as typeof fetch, () => HORLOGE.maintenant));
+
+    const rapport = await vidangeur.vidangerFileSortante();
+    expect(rapport.envoyees).toEqual([mutation.id]);
+    expect(rapport.resultatsAcceptes).toEqual([{ id: mutation.id, resume: { statut: "sur_site", intervention_id: "interv-1" } }]);
+  });
+
+  test("plusieurs mutations acceptées -> un resultatsAcceptes par mutation, dans l'ordre d'envoi", async () => {
+    const depot = new DepotOutboxMemoire();
+    const m1 = await inserer(depot, { type: "punch_in", chantierId: "interv-1", payload: { action: "arrivee" } });
+    const m2 = await inserer(depot, { type: "punch_out", chantierId: "interv-1", payload: { action: "depart" } });
+    const fetchImpl = jest
+      .fn()
+      .mockResolvedValueOnce(reponseAcceptee({ statut: "sur_site" }))
+      .mockResolvedValueOnce(reponseAcceptee({ statut: "termine" }));
+    const vidangeur = creerVidangeur(creerConfig(depot, fetchImpl as unknown as typeof fetch, () => HORLOGE.maintenant));
+
+    const rapport = await vidangeur.vidangerFileSortante();
+    expect(rapport.resultatsAcceptes.map((r) => r.id)).toEqual([m1.id, m2.id]);
+    expect(rapport.resultatsAcceptes[0].resume).toEqual({ statut: "sur_site" });
+    expect(rapport.resultatsAcceptes[1].resume).toEqual({ statut: "termine" });
+  });
+
+  test("un échec (réessayable ou permanent) n'ajoute rien à resultatsAcceptes", async () => {
+    const depot = new DepotOutboxMemoire();
+    await inserer(depot, { type: "punch_in", chantierId: "interv-1", payload: { action: "arrivee" } });
+    const fetchImpl = jest.fn().mockResolvedValueOnce(reponseRejetee("REJ-TRANSITION-ILLEGALE"));
+    const vidangeur = creerVidangeur(creerConfig(depot, fetchImpl as unknown as typeof fetch, () => HORLOGE.maintenant));
+
+    const rapport = await vidangeur.vidangerFileSortante();
+    expect(rapport.echecsPermanents).toHaveLength(1);
+    expect(rapport.resultatsAcceptes).toEqual([]);
+  });
+
+  test("verrou actif -> resultatsAcceptes vide (même forme que les autres champs)", async () => {
+    const depot = new DepotOutboxMemoire();
+    const fetchImpl = jest.fn().mockResolvedValueOnce(reponseAcceptee());
+    const vidangeur = creerVidangeur(creerConfig(depot, fetchImpl as unknown as typeof fetch, () => HORLOGE.maintenant));
+
+    // Le premier appel démarre et pose le verrou de façon SYNCHRONE (avant son premier `await`,
+    // voir vidangeur.ts) ; le second, déclenché pendant que le premier est encore en cours, est
+    // donc TOUJOURS celui que le verrou ignore — même discipline que les autres champs du rapport.
+    const [, rapportSeconde] = await Promise.all([vidangeur.vidangerFileSortante(), vidangeur.vidangerFileSortante()]);
+    expect(rapportSeconde.ignoreeVerrouActif).toBe(true);
+    expect(rapportSeconde.resultatsAcceptes).toEqual([]);
+  });
+});
+
 describe("vidangeur — classification des échecs", () => {
   test("erreur réessayable (HTTP 500) : recul respecté, pas de renvoi avant l'heure", async () => {
     const depot = new DepotOutboxMemoire();

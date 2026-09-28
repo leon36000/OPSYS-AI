@@ -1,5 +1,8 @@
+import { interpreterResultatCompleterIntervention } from "../m4/completion";
 import { interpreterResultatDemarrerRoute } from "../m4/interventions";
 import { interpreterResultatPointage } from "../m4/pointage";
+import { interpreterResultatDeclarerMateriauxUtilises } from "../m6/materiaux";
+import { interpreterResultatDeposerFichier } from "../fichiers/protocole";
 import type { DescripteurTypeMutation, InterpretationResultatMetier } from "./vidangeur";
 import type { TypeMutation } from "./types";
 
@@ -28,6 +31,38 @@ function versInterpretationGeneriqueDemarrerRoute(resultatBrut: unknown): Interp
   return { accepte: false, verdict: interpretation.verdict };
 }
 
+/** Même rôle que `versInterpretationGenerique` ci-dessus, pour `m4_deposer_fichier`
+ * (`src/fichiers/protocole.ts`, PLAN T1.4-f) — un bloc par mutation `fichier_bloc`. */
+function versInterpretationGeneriqueDeposerFichier(resultatBrut: unknown): InterpretationResultatMetier {
+  const interpretation = interpreterResultatDeposerFichier(resultatBrut);
+  if (interpretation.accepte) {
+    return { accepte: true, resume: interpretation.resultat };
+  }
+  return { accepte: false, verdict: interpretation.verdict };
+}
+
+/** Même rôle, pour `m4_completer_intervention` (`src/m4/completion.ts`, PLAN T1.4-f) —
+ * `complete.tsx`, « Terminer ». `resume` porte l'accusé (8 clés, PAS le WCT complet — voir
+ * `completion.ts` en-tête) : `complete.tsx` lit `RapportVidange.resultatsAcceptes` pour
+ * retrouver ce `resume` et enchaîner le pont `m4_lire_outbox` avant `materials.tsx`. */
+function versInterpretationGeneriqueCompletion(resultatBrut: unknown): InterpretationResultatMetier {
+  const interpretation = interpreterResultatCompleterIntervention(resultatBrut);
+  if (interpretation.accepte) {
+    return { accepte: true, resume: interpretation.resultat };
+  }
+  return { accepte: false, verdict: interpretation.verdict };
+}
+
+/** Même rôle, pour `m6_declarer_materiaux_utilises` (`src/m6/materiaux.ts`, PLAN T1.4-f) —
+ * `materials.tsx`, M6.10. */
+function versInterpretationGeneriqueMateriaux(resultatBrut: unknown): InterpretationResultatMetier {
+  const interpretation = interpreterResultatDeclarerMateriauxUtilises(resultatBrut);
+  if (interpretation.accepte) {
+    return { accepte: true, resume: interpretation.resultat };
+  }
+  return { accepte: false, verdict: interpretation.verdict };
+}
+
 /**
  * Association type de mutation -> outil réel (`/tools/invoke`, `tool`) + interprète de sa
  * réponse business. `punch_in`/`punch_out` : T1.4-d, R12 §5 étape 2 — voir
@@ -40,16 +75,25 @@ function versInterpretationGeneriqueDemarrerRoute(resultatBrut: unknown): Interp
  * dédié par transition, soit faire porter l'outil par le PAYLOAD plutôt que par le descripteur —
  * non fait ici, hors périmètre.
  *
- * `photo_upload`/`signature_capture` (T1.4-e, `src/photos/`, `src/signature/`) : DÉLIBÉRÉMENT
- * SANS DESCRIPTEUR — ces mutations restent `brouillon` pour toujours (jamais
- * `soumettreMutation`, voir `src/photos/mutation.ts`/`src/signature/mutation.ts`), tant qu'aucune
- * route serveur n'existe pour envoyer le binaire (R12 §4, gap documenté dans MOBILE.md). Un
- * descripteur enregistré ici SANS outil réel derrière ferait échouer le vidangeur (`Error`,
- * `vidangeur.ts`) le jour où l'une de ces mutations serait, par erreur, soumise — l'ABSENCE de
- * descripteur est le filet de sécurité, pas un oubli.
+ * `photo_upload`/`signature_capture` (T1.4-e, `src/photos/`, `src/signature/`) : TOUJOURS SANS
+ * DESCRIPTEUR — ces mutations restent `brouillon` pour toujours (jamais `soumettreMutation`, voir
+ * `src/photos/mutation.ts`/`src/signature/mutation.ts`) : ce sont les enregistrements LOCAUX de
+ * capture (URI + SHA-256), pas le transport lui-même. Le transport passe désormais par
+ * `fichier_bloc` (PLAN T1.4-f, `src/fichiers/envoiOrchestrateur.ts`) : UNE mutation par bloc de
+ * 262 144 octets, construite et enfilée séparément — voir `src/fichiers/`. Un descripteur
+ * enregistré ici SANS outil réel derrière ferait échouer le vidangeur (`Error`, `vidangeur.ts`) le
+ * jour où l'une de ces mutations serait, par erreur, soumise — l'ABSENCE de descripteur pour
+ * `photo_upload`/`signature_capture` reste le filet de sécurité, pas un oubli.
+ *
+ * `fichier_bloc` -> `m4_deposer_fichier`, `job_completion` -> `m4_completer_intervention`,
+ * `materials_submit` -> `m6_declarer_materiaux_utilises` : les trois ajouts de PLAN T1.4-f (voir
+ * `src/fichiers/`, `src/m4/completion.ts`, `src/m6/materiaux.ts`).
  */
 export const DESCRIPTEURS_MUTATION: ReadonlyMap<TypeMutation, DescripteurTypeMutation> = new Map([
   ["punch_in", { tool: "m4_pointer", interpreterResultat: versInterpretationGenerique }],
   ["punch_out", { tool: "m4_pointer", interpreterResultat: versInterpretationGenerique }],
   ["job_status_change", { tool: "m4_demarrer_route", interpreterResultat: versInterpretationGeneriqueDemarrerRoute }],
+  ["fichier_bloc", { tool: "m4_deposer_fichier", interpreterResultat: versInterpretationGeneriqueDeposerFichier }],
+  ["job_completion", { tool: "m4_completer_intervention", interpreterResultat: versInterpretationGeneriqueCompletion }],
+  ["materials_submit", { tool: "m6_declarer_materiaux_utilises", interpreterResultat: versInterpretationGeneriqueMateriaux }],
 ]);
