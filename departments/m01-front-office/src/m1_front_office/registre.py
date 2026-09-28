@@ -1,10 +1,10 @@
+import copy
 import hashlib
 import json
-import copy
-from pathlib import Path
+
 import yaml
-from . import horodatage
-from . import verdicts
+
+from . import horodatage, verdicts
 
 _TYPES_ENTREE_VALIDES = {
     "signal",
@@ -42,10 +42,20 @@ class Registre:
     maillon rompu, suppression recousue naïvement) ; contre une réécriture
     COMPLÈTE de la suite, la détection exige la comparaison de tete() à une
     ancre conservée à l'extérieur.
+
+    `maillons` porte la suite des entrées : une liste Python en mémoire par défaut
+    (comportement historique), ou tout objet qui s'en comporte comme une — len(),
+    index positif/négatif, tranche, itération, append, extend, copie profonde en
+    liste —, notamment `opsys.stockage.MaillonsDurables`, que l'adaptateur
+    `outils.py` y branche pour le registre de production. Ce module reste pur :
+    il ne connaît que ce protocole, jamais l'implémentation qui le porte. Aucune
+    valeur dérivée (tête, index, compteur) n'est mise en cache : tout est relu ou
+    recalculé depuis `maillons` à chaque appel, donc rien n'est jamais supposé
+    vide.
     """
 
-    def __init__(self) -> None:
-        self._entrees: list[dict] = []
+    def __init__(self, maillons: list[dict] | None = None) -> None:
+        self._entrees: list[dict] = maillons if maillons is not None else []
 
     def ajouter(self, entree: dict) -> str:
         """Ajoute une entrée immuable. Retourne le ligne_id (SHA-256)."""
@@ -159,10 +169,10 @@ def charger_signaux(chemin: str) -> list:
     et valide chaque signal (signal_id, canal, horodatage, contenu_brut).
     Retourne la liste des signaux.
     """
-    with open(chemin, "r", encoding="utf-8") as f:
+    with open(chemin, encoding="utf-8") as f:
         data = yaml.safe_load(f)
 
-    if not isinstance(data, dict) or not data.get("fictif") is True:
+    if not isinstance(data, dict) or data.get("fictif") is not True:
         raise ValueError("fictif manquant ou faux")
 
     signaux = data.get("signaux", [])

@@ -8,17 +8,23 @@ particulier que TOUT signal entrant laisse une ligne au registre, qualifié ou n
 (M1-R-10), et qu'aucun contenu externe n'est traité avant d'être passé par le
 filtre de provenance (M1-R-08).
 
-État partagé : ce module tient un registre en mémoire, partagé par tous les
-outils qui écrivent ou lisent l'historique du département (signal unique par
-demande, phases voix, digest). `reinitialiser_registre()` n'est pas un outil
-d'agent : c'est un point d'entrée réservé aux tests, pour repartir d'un état
-propre entre deux scénarios.
+État partagé : ce module tient un registre, partagé par tous les outils qui
+écrivent ou lisent l'historique du département (signal unique par demande,
+phases voix, digest). En production, ce registre est adossé au stockage
+durable de l'instance (`opsys.stockage`, ADR-0009) : `registre.py` reste pur
+(aucun import `opsys`/SQLAlchemy) et ignore que ses maillons survivent au
+redémarrage — c'est cet adaptateur, seul, qui fait le lien.
+`reinitialiser_registre()` n'est pas un outil d'agent : c'est un point
+d'entrée réservé aux tests, pour repartir d'un registre EN MÉMOIRE propre
+entre deux scénarios (comportement inchangé pour les tests unitaires du
+département, qui ne montent pas de base).
 """
 
 from __future__ import annotations
 
 from typing import Any
 
+from opsys import stockage
 from opsys.outils import Autonomie, Outil
 
 from . import adaptateurs, consentement, contrats, digest, garde_fou, phases_voix, provenance, qualification
@@ -26,12 +32,22 @@ from .phases_voix import TransitionInterdite
 from .registre import Registre
 
 _CANAUX = ("telephone", "courriel", "formulaire", "texte")
+_DEPARTEMENT = "m01-front-office"
+_NOM_REGISTRE = "principal"
 
-_registre = Registre()
+
+def _registre_durable() -> Registre:
+    """Registre de production : maillons portés par `opsys.stockage` (ADR-0009),
+    dans la transaction que `Capacites.appeler` ouvre pour chaque appel d'outil."""
+    return Registre(maillons=stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE))
+
+
+_registre = _registre_durable()
 
 
 def reinitialiser_registre() -> None:
-    """Réinitialise le registre partagé du département (réservé aux tests)."""
+    """Réinitialise le registre partagé du département à un registre EN MÉMOIRE
+    (réservé aux tests unitaires du département, qui ne montent pas de base)."""
     global _registre
     _registre = Registre()
 
