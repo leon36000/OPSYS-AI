@@ -131,6 +131,18 @@ outil N5 (ADR-0009 §4) : il PROPOSE une destruction définitive, jamais ne l'ex
 le propriétaire, avec l'attestation d'un professionnel, peut approuver.
 
 Chaque lecture d'une position déchiffrée (`m4_lire_position_gps`, droit d'accès §7) écrit un
-maillon `acces_position_gps` — qui, qui, quand, quel résultat — jamais la position elle-même (§6 :
+maillon `acces_position_gps` — qui, quoi, quand, quel résultat — jamais la position elle-même (§6 :
 journal des accès). C'est la même discipline de minimisation que la ville tokenisée (section 2) :
 ce qui n'entre jamais en clair dans le registre n'a jamais besoin d'en être retiré.
+
+**Limite déclarée : les sauvegardes.** La clé vit dans la même base que le registre (ADR-0009 §2).
+Détruire la clé ne la retire donc pas des sauvegardes déjà faites : `deploy/backup.sh` garde 14
+jours de copies locales et, si restic est configuré, 14 quotidiennes, 8 hebdomadaires et 12
+mensuelles. Pendant cette période, la position reste récupérable par quiconque restaure une
+sauvegarde, et une restauration ressusciterait la clé détruite. L'effacement n'est donc complet
+qu'à l'expiration de la dernière sauvegarde qui contient la clé. Deux décisions restent à prendre
+(PLAN, GATE NATHAN) : la durée de conservation des sauvegardes au regard de la Loi 25, et une
+procédure qui réapplique les purges après toute restauration, à partir d'un journal de purge tenu
+hors des sauvegardes. Le chiffrement lui-même (flux HMAC-SHA256, nonce déterministe par pointage,
+sans authentification) protège la confidentialité ; l'intégrité est assurée par la chaîne du
+registre. Il relève du code critique et demande une revue externe avant la mise en service.
