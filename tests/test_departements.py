@@ -89,8 +89,10 @@ def test_manifeste_avec_evenements_valide(racine_demo, tmp_path):
 
 
 def test_charger_consommateurs_absent_rend_dict_vide(departements_demo):
-    # m3_estimation.outils (département réel, non touché par T1.2-a) n'expose pas consommateurs().
-    dep = dataclasses.replace(departements_demo["m09-demo"], module_outils="m3_estimation.outils")
+    # m1_front_office.outils (département réel qui n'expose pas encore de consommateurs()) —
+    # m3_estimation.outils en exposait un au moment de T1.2-a, mais plus depuis PLAN T1.2-d
+    # (estimé vs réel, M3 consomme désormais m4.travaux_termines/m6.variance_chantier).
+    dep = dataclasses.replace(departements_demo["m09-demo"], module_outils="m1_front_office.outils")
     assert dep.charger_consommateurs() == {}
 
 

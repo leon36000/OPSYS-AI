@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Callable
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
@@ -20,6 +21,7 @@ from . import (
     blocage_prix,
     contrats,
     devis_durable,
+    estime_vs_reel,
     hierarchie_echelle,
     monte_carlo,
     plancher,
@@ -292,6 +294,62 @@ def marquer_devis_accepte(devis_id: str, approbateur: str, horodatage: str) -> d
     return {"accepte": True, "resultat": devis}
 
 
+def registre_estime_vs_reel_production() -> stockage.MaillonsDurables:
+    """Registre M3 dédié à l'estimé-vs-réel (PLAN T1.2-d, en second ordre) : `stockage.maillons(
+    "m03-estimation", "estime_vs_reel")`, relu à chaque appel, jamais mis en cache — même
+    discipline que `registre_devis_production`/`registre_production` ci-dessus. Distinct de
+    `registre_production()` ("principal") : celui-ci reste le registre D'ORIGINE des estimations
+    (S008, jamais écrit ici — lu seulement, voir `estime_vs_reel.py`) ; "estime_vs_reel" est la
+    collection propre aux RÉSULTATS de comparaison (durée réelle vs estimée, variance matériaux),
+    jamais mélangée aux deux autres."""
+    return stockage.maillons("m03-estimation", "estime_vs_reel")
+
+
+# ---------------------------------------------------------------------------------------------
+# Consommateurs d'événements (ADR-0009 §3, PLAN T1.2-d) : seul cet adaptateur connaît `opsys` ;
+# `estime_vs_reel.py` (module pur) fait le rapprochement et l'enregistrement déterministes. Le
+# répartiteur (`opsys.evenements.repartir`) n'appelle ces fonctions que dans une transaction déjà
+# ouverte : le registre durable fait donc TOUJOURS autorité ici (comme les outils T1/T3
+# ci-dessus), sans le mode « en mémoire » des tests unitaires du module pur.
+# ---------------------------------------------------------------------------------------------
+def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme `m4.travaux_termines` : relie le WCT à son devis puis, si le lien existe déjà, à
+    l'estimation d'origine (`estime_vs_reel.enregistrer_travaux_termines`, DÉTERMINISTE). Toujours
+    `traite: true` — une comparaison main-d'œuvre incomplète est une lacune nommée dans le
+    résultat, jamais un échec de consommation."""
+    resultat = estime_vs_reel.enregistrer_travaux_termines(
+        charge, registre_devis_production(), registre_production().lire(), registre_estime_vs_reel_production()
+    )
+    return {"traite": True, "wct_id": resultat["wct_id"]}
+
+
+def _recevoir_variance_chantier(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme `m6.variance_chantier` : n'alimente la partie matériaux que si `statut_variance
+    == "evaluee"` (`estime_vs_reel.enregistrer_variance_chantier`) ; les autres statuts sont
+    reconnus sans écriture. Laisse volontairement remonter `LookupError` si le wct_id est inconnu
+    (ordre d'arrivée inversé, jamais un cas normal) : le répartiteur réessaie puis met en
+    quarantaine, comme toute panne de consommateur."""
+    resultat = estime_vs_reel.enregistrer_variance_chantier(charge, registre_estime_vs_reel_production())
+    if resultat is None:
+        return {"traite": True, "ignore_statut": charge["statut_variance"]}
+    return {"traite": True, "wct_id": resultat["wct_id"]}
+
+
+def lire_ecarts_estime_reel(
+    devis_id: str | None = None, depuis: str | None = None, jusqua: str | None = None
+) -> dict[str, Any]:
+    return depuis_couple(
+        estime_vs_reel.lire_ecarts(registre_estime_vs_reel_production(), devis_id, depuis, jusqua)
+    )
+
+
+def consommateurs() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
+    return {
+        "m4.travaux_termines": _recevoir_travaux_termines,
+        "m6.variance_chantier": _recevoir_variance_chantier,
+    }
+
+
 def outils() -> tuple[Outil, ...]:
     """Capacités exposées aux agents (fonction : les constantes publiques du paquet sont des énumérés)."""
     return (
@@ -451,5 +509,28 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=marquer_devis_accepte,
             autonomie=Autonomie.T3,
+        ),
+        Outil(
+            nom="m3_lire_ecarts_estime_reel",
+            description=(
+                "Rend les écarts estimé-vs-réel (PLAN T1.2-d) pour un devis_id ou sur une période "
+                "[depuis, jusqua[ (horodatage_completion, ISO-8601 avec fuseau) — au moins un des "
+                "deux requis. Par WCT : main_doeuvre (durée réelle vs estimée, écart relatif, ou un "
+                "verdict nommé si la durée estimée est introuvable) et materiaux (lignes de "
+                "variance M6 telles quelles, absentes tant qu'aucune variance evaluee n'est reçue). "
+                "Lecture pure (T0), aucun barème ajusté."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "devis_id": {"type": ["string", "null"]},
+                    "depuis": {"type": ["string", "null"], "description": "borne incluse, ISO-8601 avec fuseau"},
+                    "jusqua": {"type": ["string", "null"], "description": "borne exclue, ISO-8601 avec fuseau"},
+                },
+                "required": [],
+                "additionalProperties": False,
+            },
+            fonction=lire_ecarts_estime_reel,
+            autonomie=Autonomie.T0,
         ),
     )

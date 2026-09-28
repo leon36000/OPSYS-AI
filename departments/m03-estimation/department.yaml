@@ -8,7 +8,7 @@ mission: >-
   alors pas de prix, seulement la liste de ce qui manque.
 outils: m3_estimation.outils
 mode: ombre
-dependances: [m02-revenue-crm]
+dependances: [m02-revenue-crm, m04-field-ops, m06-material-control]
 modeles:
   defaut: standard
   extraction: rapide
@@ -32,4 +32,5 @@ kpis:
   - id: taux_prix_bloques
     description: Part des demandes dont le prix est bloqué faute d'entrées suffisantes.
 evenements:
+  consomme: [m4.travaux_termines, m6.variance_chantier]  # PLAN T1.2-d, estimé vs réel en second ordre
   publie: [m3.devis_accepte]
