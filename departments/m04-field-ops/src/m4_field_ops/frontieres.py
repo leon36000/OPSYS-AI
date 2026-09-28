@@ -1,6 +1,6 @@
 """Détection des champs interdits dans un objet JSON (clés uniquement)."""
 import unicodedata
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
 from . import verdicts
 
@@ -30,13 +30,13 @@ def _normaliser_cle(cle: Any) -> str:
     return normalise
 
 
-def scanner_frontieres(objet: Any) -> List[str]:
+def scanner_frontieres(objet: Any) -> list[str]:
     """Retourne la liste triée des chemins des clés interdites présentes dans l'objet.
 
     Le scan est récursif sur les dictionnaires, listes et tuples.
     La clé est normalisée avant comparaison, et le chemin utilise la clé normalisée.
     """
-    violations: List[str] = []
+    violations: list[str] = []
 
     def _scan(element: Any, chemin: str):
         if isinstance(element, dict):
@@ -62,7 +62,7 @@ def scanner_frontieres(objet: Any) -> List[str]:
     return violations
 
 
-def verifier_frontieres(objet: Any) -> Tuple[bool, Optional[dict]]:
+def verifier_frontieres(objet: Any) -> tuple[bool, dict | None]:
     """Vérifie si l'objet contient des champs interdits.
 
     Retourne (True, None) si aucune violation, sinon (False, verdict_dict).

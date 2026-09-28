@@ -4,16 +4,9 @@ Absentes : aucune faute. Présentes : `source`/`campagne` chaînes non vides, `u
 non vide à sous-clés fermées et valeurs chaînes non vides ; sinon REJ-CONTRAT-INVALIDE, le code
 de M2. Toute autre clé reste refusée.
 """
-import sys
-from pathlib import Path
-
-import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
 
 import m4_field_ops.contrats as contrats_mod
+import pytest
 
 
 def _contrat(**optionnels):

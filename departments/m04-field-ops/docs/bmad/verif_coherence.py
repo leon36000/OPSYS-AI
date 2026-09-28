@@ -4,10 +4,10 @@
 # Sortie : une ligne par contrôle, puis VERDICT : TOUT VERT ou ÉCARTS: n
 # Exit 1 si écarts.
 
-import sys
 import re
-from pathlib import Path
+import sys
 from collections import Counter
+from pathlib import Path
 
 BASE = Path(__file__).parent
 FICHIERS = {
@@ -20,8 +20,10 @@ ETATS_ATTENDUS = {"planifiee", "en_route", "sur_site", "en_revue", "reportee", "
 MOTS_INTERDITS = {"prix", "facture", "montant"}
 # Négatifs valant garde
 NEG_PATTERNS = [re.compile(r'\b' + re.escape(w) + r'\b', re.IGNORECASE) for w in
-                {"jamais","interdit","interdits","interdites","aucun","aucune","hors","absence","rejet","rejette","rejetee","rejete","REJ-","ne produit","pas de","sans"}] + \
+                {"jamais", "interdit", "interdits", "interdites", "aucun", "aucune", "hors", "absence",
+                 "rejet", "rejette", "rejetee", "rejete", "REJ-", "ne produit", "pas de", "sans"}] + \
                [re.compile(r'\bpas\s+de\b', re.IGNORECASE)]
+PREFIXES_SECTION_STORIES = ("### S0", "Périmètre", "Critères portés", "Tier", "Dépendances")
 
 def lire_fichier(chemin: Path) -> str | None:
     try:
@@ -66,7 +68,7 @@ def check_numerotation_ca(contenu_prd):
     return ecarts
 
 def check_ca_portes_par_stories(contenu_prd):
-    sect = '\n'.join(l for l in contenu_prd.splitlines() if l.startswith('### S0') or l.startswith('Périmètre') or l.startswith('Critères portés') or l.startswith('Tier') or l.startswith('Dépendances'))
+    sect = '\n'.join(ligne for ligne in contenu_prd.splitlines() if ligne.startswith(PREFIXES_SECTION_STORIES))
     if not sect:
         return ["Section 'Stories' non trouvée"]
     tous_ca = set(re.findall(r'\bCA-M4-\d{2}\b', contenu_prd))
@@ -82,7 +84,7 @@ def check_ca_portes_par_stories(contenu_prd):
     return ecarts
 
 def check_tier_stories(contenu_prd):
-    sect = '\n'.join(l for l in contenu_prd.splitlines() if l.startswith('### S0') or l.startswith('Périmètre') or l.startswith('Critères portés') or l.startswith('Tier') or l.startswith('Dépendances'))
+    sect = '\n'.join(ligne for ligne in contenu_prd.splitlines() if ligne.startswith(PREFIXES_SECTION_STORIES))
     if not sect:
         return ["Section Stories absente, impossible de vérifier les Tiers"]
     ecarts = []

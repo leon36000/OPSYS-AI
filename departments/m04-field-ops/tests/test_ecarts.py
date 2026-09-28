@@ -1,22 +1,14 @@
 # Tests de m4_field_ops.ecarts — M4-S007 (écarts, file pending_review, arbitrage).
 import copy
 import json
-import sys
-from pathlib import Path
 
-import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
+import m4_field_ops.cedule as cedule_mod
 import m4_field_ops.ecarts as ecarts_mod
 import m4_field_ops.etats as etats_mod
 import m4_field_ops.outbox as outbox_mod
-import m4_field_ops.registre as registre_mod
-import m4_field_ops.cedule as cedule_mod
 import m4_field_ops.pointage as pointage_mod
-
+import m4_field_ops.registre as registre_mod
+import pytest
 
 # ------------------------------------------------------------------ helpers
 SEL = "sel-de-test"
@@ -203,8 +195,10 @@ def test_versions_identiques_refus():
     ({"duree_minutes": 120, "perimetre": "sdb"}, VERSION_DECLAREE, "REJ-CONTRAT-INVALIDE", None),
     (VERSION_PREVUE, {"duree_minutes": 180, "perimetre": "hall"}, "REJ-CONTRAT-INVALIDE", None),
     # clé étrangère
-    ({"duree_minutes": 120, "perimetre": "sdb", "materiaux": [], "extra": 1}, VERSION_DECLAREE, "REJ-CONTRAT-INVALIDE", None),
-    (VERSION_PREVUE, {"duree_minutes": 180, "perimetre": "hall", "materiaux": [], "autre": True}, "REJ-CONTRAT-INVALIDE", None),
+    ({"duree_minutes": 120, "perimetre": "sdb", "materiaux": [], "extra": 1},
+     VERSION_DECLAREE, "REJ-CONTRAT-INVALIDE", None),
+    (VERSION_PREVUE, {"duree_minutes": 180, "perimetre": "hall", "materiaux": [], "autre": True},
+     "REJ-CONTRAT-INVALIDE", None),
     # duree_minutes booléen
     ({"duree_minutes": True, "perimetre": "sdb", "materiaux": []}, VERSION_DECLAREE, "REJ-CONTRAT-INVALIDE", None),
     # duree_minutes négatif
@@ -213,11 +207,13 @@ def test_versions_identiques_refus():
     ({"duree_minutes": 120, "perimetre": "", "materiaux": []}, VERSION_DECLAREE, "REJ-CHAMP-VIDE", None),
     (VERSION_PREVUE, {"duree_minutes": 180, "perimetre": "", "materiaux": []}, "REJ-CHAMP-VIDE", None),
     # materiaux non-liste
-    ({"duree_minutes": 120, "perimetre": "sdb", "materiaux": "string"}, VERSION_DECLAREE, "REJ-CONTRAT-INVALIDE", None),
+    ({"duree_minutes": 120, "perimetre": "sdb", "materiaux": "string"},
+     VERSION_DECLAREE, "REJ-CONTRAT-INVALIDE", None),
     (VERSION_PREVUE, {"duree_minutes": 180, "perimetre": "hall", "materiaux": 123}, "REJ-CONTRAT-INVALIDE", None),
     # materiaux contient élément vide
     ({"duree_minutes": 120, "perimetre": "sdb", "materiaux": [""]}, VERSION_DECLAREE, "REJ-CONTRAT-INVALIDE", None),
-    (VERSION_PREVUE, {"duree_minutes": 180, "perimetre": "hall", "materiaux": ["ok", ""]}, "REJ-CONTRAT-INVALIDE", None),
+    (VERSION_PREVUE, {"duree_minutes": 180, "perimetre": "hall", "materiaux": ["ok", ""]},
+     "REJ-CONTRAT-INVALIDE", None),
     # materiaux contient non-str
     ({"duree_minutes": 120, "perimetre": "sdb", "materiaux": [1]}, VERSION_DECLAREE, "REJ-CONTRAT-INVALIDE", None),
 ])
@@ -464,8 +460,10 @@ def test_types_ne_confluent_pas():
     reg2, i_id2 = _registre_sur_site()
     # remettre en_route? Non, on part d'un registre en_route.
     # Re-utilisons le helper _registre_en_route de fait nous n'avons pas -> on va le construire localement.
-    # On peut juste changer l'état pour le pointage: on repart de _registre_sur_site et on fait transitionner vers en_route (non, illégal depuis sur_site).
-    # On va créer un troisieme registre avec intervention en_route (inscrire, transition en_route) et appeler enregistrer_pointage avec GPS_LOIN.
+    # On peut juste changer l'état pour le pointage: on repart de _registre_sur_site et on fait
+    # transitionner vers en_route (non, illégal depuis sur_site).
+    # On va créer un troisieme registre avec intervention en_route (inscrire, transition en_route)
+    # et appeler enregistrer_pointage avec GPS_LOIN.
     reg3 = registre_mod.Registre()
     acc, _ = etats_mod.inscrire_intervention(CONTRAT_VALIDE, MARQUEUR_VALIDE, reg3, H1, SEL)
     i_id3 = acc["intervention_id"]
@@ -476,7 +474,8 @@ def test_types_ne_confluent_pas():
     # Enregistrer pointage avec GPS_LOIN pour créer une anomalie
     # On a besoin d'assignation, fenêtre, référentiel, etc.
     # On reprend les constantes de test_pointage.
-    # On importe cedule_mod? Mais on ne doit pas importer autre chose. On peut le faire via le module cedule importé? Non.
+    # On importe cedule_mod? Mais on ne doit pas importer autre chose. On peut le faire via le module
+    # cedule importé? Non.
     # On va devoir créer un token, etc. Pour rester simple, on peut juste créer manuellement un maillon d'anomalie
     # en utilisant pointage_mod.TYPE_DEMANDE_REVUE directement.
     # L'énoncé dit: "ET une demande anomalie_pointage (en ecrivant directement au registre un maillon ...)"
@@ -568,7 +567,8 @@ def test_whitelist_cles_resolution():
     assert set(resolution.keys()) == cles_attendues, f"cles inattendues: {sorted(resolution.keys())}"
 
 
-# ------------------------------------------------------------------ 10 suite (motif vide) => on doit avoir un test specific: nous l'avons dans parametrize, mais il faut corriger parametrize bug
+# ------------------------------------------------------------------ 10 suite (motif vide)
+# On doit avoir un test spécifique : nous l'avons dans parametrize, mais il faut corriger parametrize bug
 
 @pytest.mark.parametrize("decision, horodatage, demande_id_prov, motif, code_attendu, detail_partiel", [
     ("inconnue", H5, "fake", None, "REJ-ENUM-INVALIDE", None),

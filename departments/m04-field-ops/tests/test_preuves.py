@@ -1,14 +1,7 @@
 """Tests du contrat PreuvesCompletion — T1.1-b#3."""
-import sys
-from pathlib import Path
-
-import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
 
 import m4_field_ops.preuves as preuves_mod
+import pytest
 
 
 def _preuves_valides(**overrides):

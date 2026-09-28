@@ -1,17 +1,15 @@
+import datetime
+import decimal
+import os
+import subprocess
 import sys
+import uuid
 from pathlib import Path
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from m4_field_ops import encodage  # noqa: E402
 
 import pytest
-import subprocess
-import decimal
-import datetime
-import uuid
-import os
+from m4_field_ops import encodage
+
+_SRC = Path(__file__).resolve().parents[1] / "src"
 
 
 class TestInjectivite:
@@ -111,7 +109,7 @@ class TestTypesTagues:
     CAS_TYPES = [
         (decimal.Decimal("1.5"), "__decimal__", "1.5", None),
         (
-            datetime.datetime(2025, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc),
+            datetime.datetime(2025, 1, 1, 12, 0, 0, tzinfo=datetime.UTC),
             "__datetime__",
             "2025-01-01T12:00:00+00:00",
             "__date__",

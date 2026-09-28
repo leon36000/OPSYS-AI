@@ -6,12 +6,7 @@ demandes de revue.  Respecte le cahier M4-S007.
 
 import copy
 
-from . import encodage
-from . import etats
-from . import horodatage
-from . import outbox
-from . import pointage
-from . import verdicts
+from . import encodage, etats, horodatage, outbox, pointage, verdicts
 
 # ------------------------------------------------------------------ constantes
 TYPES_DEMANDE = ("ecart_metier", "anomalie_pointage")
@@ -309,15 +304,14 @@ def resoudre_demande(
     intervention_id = maillon_demande["intervention_id"]
 
     # 5. motif
-    if motif is not None:
-        if not isinstance(motif, str) or motif == "":
-            return (
-                None,
-                verdicts.construire_verdict(
-                    "REJ-CONTRAT-INVALIDE",
-                    detail="motif invalide",
-                ),
-            )
+    if motif is not None and (not isinstance(motif, str) or motif == ""):
+        return (
+            None,
+            verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE",
+                detail="motif invalide",
+            ),
+        )
 
     # 6. suite d'état
     # Un écart métier VALIDÉ mène à la complétion, qui doit émettre le WCT dans

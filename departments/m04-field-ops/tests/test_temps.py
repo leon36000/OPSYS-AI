@@ -1,12 +1,4 @@
 """Tests du brouillon de temps — T1.1-c#3/#4 (pont M4 -> M5, M4.4, M4.23)."""
-import sys
-from pathlib import Path
-
-import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
 
 import m4_field_ops.cedule as cedule_mod
 import m4_field_ops.etats as etats_mod
@@ -14,6 +6,7 @@ import m4_field_ops.outbox as outbox_mod
 import m4_field_ops.pointage as pointage_mod
 import m4_field_ops.registre as registre_mod
 import m4_field_ops.temps as temps_mod
+import pytest
 
 # ------------------------------------------------------------------ helpers
 SEL = "sel-de-test"

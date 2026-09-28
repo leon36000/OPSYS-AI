@@ -1,13 +1,5 @@
-import sys
-from pathlib import Path
-
-import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
 import m4_field_ops.frontieres as frontieres_mod
+
 
 # --- CHAMPS_INTERDITS ---
 def test_champs_interdits_epingle():
@@ -15,7 +7,7 @@ def test_champs_interdits_epingle():
         "prix", "montant", "date_ferme", "date_ferme_imposee",
         "engagement", "engagement_financier",
     })
-    assert frontieres_mod.CHAMPS_INTERDITS == expected
+    assert expected == frontieres_mod.CHAMPS_INTERDITS
 
 # --- scanner_frontieres ---
 def test_scanner_cle_premier_niveau():

@@ -18,16 +18,12 @@ lui-même, le signal ``m6.variance_chantier`` reçu quand il ne mène PAS à une
 automatique — pour que ``attentes()`` (file du propriétaire) puisse l'afficher sans deviner.
 """
 
-import copy
 import ast
-from pathlib import Path
+import copy
 from datetime import datetime
+from pathlib import Path
 
-from . import horodatage
-from . import verdicts
-from . import encodage
-from . import etats
-from . import pointage
+from . import encodage, etats, horodatage, pointage, verdicts
 
 # --------------------------------------------------------------------- constantes
 # L'ordre exact des tuples ci-dessous fait partie du contrat Ratifié WorkCompletionTriggerV1.
@@ -895,10 +891,14 @@ def garde_ecriture_unique(chemin_source=None):
         pile_fonctions = []
 
         class Visitor(ast.NodeVisitor):
+            def __init__(self, nom_fichier, pile_fonctions):
+                self.nom_fichier = nom_fichier
+                self.pile_fonctions = pile_fonctions
+
             def visit_FunctionDef(self, node):
-                pile_fonctions.append(node.name)
+                self.pile_fonctions.append(node.name)
                 self.generic_visit(node)
-                pile_fonctions.pop()
+                self.pile_fonctions.pop()
 
             def visit_Call(self, node):
                 # 1. Appels à ajouter(...) avec un dict littéral contenant CLE_WCT ou
@@ -911,9 +911,9 @@ def garde_ecriture_unique(chemin_source=None):
                             isinstance(key, ast.Constant) and key.value == CLE_WCT
                             for key in arg.keys
                         )
-                        if porte_wct and "completer_intervention" not in pile_fonctions:
+                        if porte_wct and "completer_intervention" not in self.pile_fonctions:
                             violations.append(
-                                f"{path.name}: appel à ajouter avec clé {CLE_WCT} "
+                                f"{self.nom_fichier}: appel à ajouter avec clé {CLE_WCT} "
                                 f"hors de completer_intervention"
                             )
                         for key, valeur in zip(arg.keys, arg.values, strict=True):
@@ -921,9 +921,9 @@ def garde_ecriture_unique(chemin_source=None):
                                 continue
                             if not (isinstance(valeur, ast.Constant) and valeur.value in STATUTS_COMPLETION):
                                 continue
-                            if not any(f in pile_fonctions for f in _FONCTIONS_AUTORISEES_STATUT_COMPLETION):
+                            if not any(f in self.pile_fonctions for f in _FONCTIONS_AUTORISEES_STATUT_COMPLETION):
                                 violations.append(
-                                    f"{path.name}: appel à ajouter avec statut={valeur.value!r} "
+                                    f"{self.nom_fichier}: appel à ajouter avec statut={valeur.value!r} "
                                     f"hors de {_FONCTIONS_AUTORISEES_STATUT_COMPLETION}"
                                 )
 
@@ -940,7 +940,7 @@ def garde_ecriture_unique(chemin_source=None):
                     for arg in node.args:
                         if isinstance(arg, ast.Constant) and arg.value in STATUTS_COMPLETION:
                             violations.append(
-                                f"{path.name}: appel à transitionner avec {arg.value!r}"
+                                f"{self.nom_fichier}: appel à transitionner avec {arg.value!r}"
                             )
                     for kw in node.keywords:
                         # BUG CORRIGÉ : kw.value est le NŒUD ast.Constant lui-même,
@@ -952,12 +952,12 @@ def garde_ecriture_unique(chemin_source=None):
                         # positionnelle, elle, était bien détectée juste au-dessus.
                         if isinstance(kw.value, ast.Constant) and kw.value.value in STATUTS_COMPLETION:
                             violations.append(
-                                f"{path.name}: appel à transitionner avec keyword {kw.value.value!r}"
+                                f"{self.nom_fichier}: appel à transitionner avec keyword {kw.value.value!r}"
                             )
 
                 self.generic_visit(node)
 
-        Visitor().visit(arbre)
+        Visitor(path.name, pile_fonctions).visit(arbre)
 
     # Vérification additionnelle : completer_intervention ET confirmer_verification
     # n'appellent ajouter qu'une seule fois (textuellement) chacune. On rouvre spécifiquement

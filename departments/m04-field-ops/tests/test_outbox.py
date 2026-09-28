@@ -1,20 +1,11 @@
-import copy
-import sys
-from pathlib import Path
-
-import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-import m4_field_ops.outbox as outbox_mod
-import m4_field_ops.etats as etats_mod
+import m4_field_ops.cedule as cedule_mod
 import m4_field_ops.ecarts as ecarts_mod
+import m4_field_ops.encodage as encodage_mod
+import m4_field_ops.etats as etats_mod
+import m4_field_ops.outbox as outbox_mod
 import m4_field_ops.pointage as pointage_mod
 import m4_field_ops.registre as registre_mod
-import m4_field_ops.encodage as encodage_mod
-import m4_field_ops.cedule as cedule_mod
+import pytest
 
 # ------------------------------------------------------------------ module-level constants / helpers
 SEL = "sel-de-test"
@@ -107,7 +98,10 @@ def _intervention_sur_site_avec_pointages():
 
     return reg, i_id
 
-ASSIGNATION = lambda i_id: {"intervention_id": i_id, "technicien_id": "T1"}
+
+def ASSIGNATION(i_id):
+    return {"intervention_id": i_id, "technicien_id": "T1"}
+
 
 # ======================================================================= Tests
 
@@ -777,7 +771,6 @@ def test_lire_outbox_copie_profonde():
     reg, i_id = _intervention_sur_site_avec_pointages()
     outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     resultat = outbox_mod.lire_outbox(reg)
-    wct_original = reg.lire()[-1][outbox_mod.CLE_WCT]
     wct_resultat = resultat[0][1]
     # Modifier la copie ne doit pas altérer le registre
     wct_resultat["intervention_id"] = "bidon"

@@ -184,10 +184,8 @@ def enregistrer_pointage(
 
     # -- 6. Statut courant compatible avec l'action
     statut_courant = etats.statut_courant(registre_cible, intervention_id)
-    if action == "arrivee":
-        attendu = "en_route"
-    else:  # depart, pause_debut, pause_fin : toutes exigent d'être déjà sur_site
-        attendu = "sur_site"
+    # depart, pause_debut, pause_fin : toutes exigent d'être déjà sur_site
+    attendu = "en_route" if action == "arrivee" else "sur_site"
     if statut_courant != attendu:
         detail = f"statut courant={statut_courant}, attendu={attendu} pour action={action}"
         return (None, verdicts.construire_verdict("REJ-PUNCH-SANS-INTERVENTION",
@@ -336,7 +334,6 @@ def enregistrer_pointage(
     ligne_id = registre_cible.ajouter(maillon_pointage)
 
     # 13. Suite d'état selon la table ratifiée
-    transition_verdict = None
     if action in ("pause_debut", "pause_fin"):
         # T1.1-c#1 (M4.4) : une pause est SANS EFFET sur le statut, quelle que
         # soit la cohérence GPS — elle ne pilote ni la machine à états ni

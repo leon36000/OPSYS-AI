@@ -53,11 +53,9 @@ de cible produit une transition illégale nommée (REJ-TRANSITION-ILLEGALE).
 """
 
 import copy
-from . import cedule
-from . import contrats
-from . import horodatage
-from . import verdicts
-from . import encodage
+
+from . import cedule, contrats, encodage, horodatage, verdicts
+
 # registre n’est pas importé en tant que module car on n’en utilise que les instances passées.
 
 # ---------------------------------------------------------------------------

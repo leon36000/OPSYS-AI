@@ -1,9 +1,7 @@
 """Validation structurelle d'un contrat et de son marqueur de readiness."""
-from typing import Any, Optional, Tuple
+from typing import Any
 
-from . import frontieres
-from . import horodatage
-from . import verdicts
+from . import frontieres, horodatage, verdicts
 
 CHAMPS_CONTRAT_GELE = (
     "lead_id", "conversation_id", "type_travaux", "ville", "canal",
@@ -28,7 +26,7 @@ __all__ = [
 ]
 
 
-def valider_structure(contrat: Any) -> Tuple[bool, str]:
+def valider_structure(contrat: Any) -> tuple[bool, str]:
     """Valide la structure d'un contrat selon les règles M4.
 
     Retourne (True, "") si valide, sinon (False, code_verdict).
@@ -106,7 +104,7 @@ def _champ_optionnel_invalide(contrat: dict) -> bool:
     )
 
 
-def valider_marqueur_readiness(marqueur: Any, lead_id: str) -> Tuple[bool, str]:
+def valider_marqueur_readiness(marqueur: Any, lead_id: str) -> tuple[bool, str]:
     """Validation structurelle du marqueur de readiness.
 
     Limitation : cette validation est purement structurelle. Le module ne possède pas
@@ -154,7 +152,7 @@ def valider_marqueur_readiness(marqueur: Any, lead_id: str) -> Tuple[bool, str]:
     return True, ""
 
 
-def valider_entree(contrat: Any, marqueur: Any) -> Tuple[bool, Optional[dict]]:
+def valider_entree(contrat: Any, marqueur: Any) -> tuple[bool, dict | None]:
     """Validation complète d'une entrée (contrat + marqueur).
 
     L'ordre est déterminé par la priorité des verdicts : toute intervention dont

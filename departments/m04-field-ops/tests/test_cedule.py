@@ -1,17 +1,7 @@
-import sys
-from pathlib import Path
-
-import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
+import copy
 
 import m4_field_ops.cedule as cedule_mod
 import m4_field_ops.encodage as encodage_mod
-
-import copy
-from datetime import datetime
 
 # ------------------------------------------------------------------ #
 # fixtures de base (utilisées et modifiées localement dans les tests)
@@ -230,7 +220,10 @@ class TestAssignationRonde:
             {"intervention_id": "intv5", "lead_id": "L5", "type_travaux": "renovation_totale", "ville": "Paris"},
         ])
         # Tous même ville, même type, donc l'ordre sera par lead_id croissant:
-        ordre_tri = sorted(intvs, key=lambda i: (cedule_mod.tokeniser_ville(SEL, i["ville"]), i["type_travaux"], i["lead_id"]))
+        ordre_tri = sorted(
+            intvs,
+            key=lambda i: (cedule_mod.tokeniser_ville(SEL, i["ville"]), i["type_travaux"], i["lead_id"]),
+        )
         ids_ordre = [i["intervention_id"] for i in ordre_tri]
 
         techs_desordonnes = ["t2", "t1"]
@@ -304,7 +297,9 @@ class TestAbsenceVilleEnClair:
         c, _ = cedule_mod.generer_cedule(intv, tech, fen, SEL)
         for assign in c["assignations"]:
             # Recalcul depuis les interventions originales
-            expected_token = cedule_mod.tokeniser_ville(SEL, next(i["ville"] for i in intv if i["intervention_id"] == assign["intervention_id"]))
+            expected_token = cedule_mod.tokeniser_ville(
+                SEL, next(i["ville"] for i in intv if i["intervention_id"] == assign["intervention_id"]),
+            )
             assert assign["ville_tokenisee"] == expected_token
 
 

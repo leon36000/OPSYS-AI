@@ -1,16 +1,13 @@
-import copy
-import json
 import os
 import subprocess
 import sys
-import pytest
 from pathlib import Path
 
-# Configuration du chemin pour importer le package m4_field_ops
-_SRC = Path(__file__).resolve().parents[1] / "src"
-sys.path.insert(0, str(_SRC))
+import m4_field_ops.registre as registre_mod
+import pytest
 
-import m4_field_ops.registre as registre_mod  # noqa: E402
+_SRC = Path(__file__).resolve().parents[1] / "src"
+
 
 # Alias pour simplifier
 Registre = registre_mod.Registre
@@ -194,7 +191,8 @@ class TestChainage:
         del chaine[1]
         # Maintenant on doit "recoudre" : le precedent_ligne_id de l'élément désormais en position 1
         # pointe vers l'élément 0. Si on ne fait rien, il pointe encore vers l'ancien prédécesseur ?
-        # En fait, après suppression, le precedent_ligne_id n'est pas modifié, il peut encore pointer vers un élément absent.
+        # En fait, après suppression, le precedent_ligne_id n'est pas modifié, il peut encore pointer vers un
+        # élément absent.
         # Selon le contrat, même une simple suppression sans recousure doit être détectée.
         # On ne fait rien de plus, le simple fait d'avoir supprimé un maillon casse la chaîne.
         assert reg.valider_chaine() is False, "La suppression d'un maillon doit invalider la chaîne"

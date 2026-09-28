@@ -1,14 +1,5 @@
-import sys
-from pathlib import Path
-
-import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
 import m4_field_ops.verdicts as verdicts_mod
-
+import pytest
 
 EXPECTED_CODES_M4_LIST = [
     # Groupe 1 — verdicts ratifiés par le PRD M4 (CA-M4-01 à CA-M4-21)
@@ -60,7 +51,7 @@ def test_codes_m4_list_sans_doublon():
 
 def test_codes_m4_est_set_de_la_liste():
     assert isinstance(verdicts_mod.CODES_M4, set)
-    assert verdicts_mod.CODES_M4 == set(verdicts_mod.CODES_M4_LIST)
+    assert set(verdicts_mod.CODES_M4_LIST) == verdicts_mod.CODES_M4
 
 
 def test_est_verdict_vrai_pour_tous_les_codes_catalogue():

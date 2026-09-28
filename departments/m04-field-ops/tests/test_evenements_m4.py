@@ -212,7 +212,7 @@ def test_declaration_module_consommateurs():
 def test_recevoir_variance_chantier_evaluee_sans_signal_passe_a_completed_verified(base_durable, deposer_photo_test):
     par_nom = {o.nom: o for o in outils()}
     i_id = _mener_a_sur_site(par_nom, "L-EVT-VERIFIE")
-    completion = executer_atomique(par_nom["m4_completer_intervention"], {
+    executer_atomique(par_nom["m4_completer_intervention"], {
         "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
         "preuves_completion": _preuves_ok(par_nom, deposer_photo_test),
     })

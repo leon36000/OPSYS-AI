@@ -1,14 +1,5 @@
-import sys
-from pathlib import Path
-
-import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
 import m4_field_ops.horodatage as horodatage_mod
-
+import pytest
 
 HORODATAGES_VALIDES = [
     "2025-04-14T12:00:00+00:00",

@@ -7,18 +7,12 @@ Les gardes associées vérifient statiquement l'absence d'horloge et l'absence d
 termes de scoring dans les noms, clés et attributs du code source.
 """
 
-import copy
 import ast
-from pathlib import Path
+import copy
 from datetime import datetime, timedelta
+from pathlib import Path
 
-from . import horodatage
-from . import verdicts
-from . import encodage
-from . import etats
-from . import pointage
-from . import ecarts
-from . import outbox
+from . import ecarts, encodage, etats, horodatage, outbox, verdicts
 
 # ---------------------------------------------------------------------------
 # Constantes épinglées (contrat S009)
@@ -30,7 +24,8 @@ CHAMPS_DIGEST = (
     "interventions_bloquees_en_revue", "empreinte",
 )
 
-SEUIL_BLOCAGE_HEURES = 24  # heures *simulées*, comptées depuis l'horodatage_reference fourni, jamais depuis une horloge système.
+# heures *simulées*, comptées depuis l'horodatage_reference fourni, jamais depuis une horloge système.
+SEUIL_BLOCAGE_HEURES = 24
 
 FONCTIONS_HORLOGE_INTERDITES = (
     # Toute fonction qui INTERROGE une horloge, quelle que soit sa bibliothèque.
@@ -217,15 +212,18 @@ def garde_absence_horloge(chemin_source=None):
             continue
 
         class Visitor(ast.NodeVisitor):
+            def __init__(self, nom_fichier):
+                self.nom_fichier = nom_fichier
+
             def visit_Import(self, node):
                 for alias in node.names:
                     if alias.name == "time":
-                        violations.append(f"{path.name}: import du module time")
+                        violations.append(f"{self.nom_fichier}: import du module time")
                 self.generic_visit(node)
 
             def visit_ImportFrom(self, node):
                 if node.module == "time":
-                    violations.append(f"{path.name}: import from time")
+                    violations.append(f"{self.nom_fichier}: import from time")
                 self.generic_visit(node)
 
             def visit_Call(self, node):
@@ -235,10 +233,10 @@ def garde_absence_horloge(chemin_source=None):
                 elif isinstance(node.func, ast.Name):
                     nom = node.func.id
                 if nom is not None and nom in FONCTIONS_HORLOGE_INTERDITES:
-                    violations.append(f"{path.name}: appel à {nom} interdit")
+                    violations.append(f"{self.nom_fichier}: appel à {nom} interdit")
                 self.generic_visit(node)
 
-        Visitor().visit(tree)
+        Visitor(path.name).visit(tree)
 
     if violations:
         return False, "; ".join(violations)
@@ -281,32 +279,37 @@ def garde_conformite_r020(chemin_source=None):
             continue
 
         class Visitor(ast.NodeVisitor):
+            def __init__(self, nom_fichier):
+                self.nom_fichier = nom_fichier
+
             def _contient_terme(self, texte):
                 return any(terme in texte.lower() for terme in termes_lower)
 
             def visit_Dict(self, node):
                 for key in node.keys:
-                    if isinstance(key, ast.Constant) and isinstance(key.value, str):
-                        if self._contient_terme(key.value):
-                            violations.append(
-                                f"{path.name}: clé de dict littéral contenant un "
-                                f"terme interdit: {key.value!r}"
-                            )
+                    if (
+                        isinstance(key, ast.Constant)
+                        and isinstance(key.value, str)
+                        and self._contient_terme(key.value)
+                    ):
+                        violations.append(
+                            f"{self.nom_fichier}: clé de dict littéral contenant un "
+                            f"terme interdit: {key.value!r}"
+                        )
                 self.generic_visit(node)
 
             def visit_Name(self, node):
                 if self._contient_terme(node.id):
                     violations.append(
-                        f"{path.name}: nom '{node.id}' contient un terme interdit"
+                        f"{self.nom_fichier}: nom '{node.id}' contient un terme interdit"
                     )
                 self.generic_visit(node)
 
             def visit_Attribute(self, node):
-                if hasattr(node, 'attr') and isinstance(node.attr, str):
-                    if self._contient_terme(node.attr):
-                        violations.append(
-                            f"{path.name}: attribut '{node.attr}' contient un terme interdit"
-                        )
+                if hasattr(node, 'attr') and isinstance(node.attr, str) and self._contient_terme(node.attr):
+                    violations.append(
+                        f"{self.nom_fichier}: attribut '{node.attr}' contient un terme interdit"
+                    )
                 self.generic_visit(node)
 
             def visit_arg(self, node):
@@ -314,7 +317,7 @@ def garde_conformite_r020(chemin_source=None):
                 # revue r2) : le paramètre est un nom comme un autre.
                 if self._contient_terme(node.arg):
                     violations.append(
-                        f"{path.name}: paramètre '{node.arg}' contient un terme interdit"
+                        f"{self.nom_fichier}: paramètre '{node.arg}' contient un terme interdit"
                     )
                 self.generic_visit(node)
 
@@ -322,14 +325,14 @@ def garde_conformite_r020(chemin_source=None):
                 # ... ou dans un mot-clé d'appel (f(score_technicien=1)).
                 if isinstance(node.arg, str) and self._contient_terme(node.arg):
                     violations.append(
-                        f"{path.name}: mot-clé d'appel '{node.arg}' contient un terme interdit"
+                        f"{self.nom_fichier}: mot-clé d'appel '{node.arg}' contient un terme interdit"
                     )
                 self.generic_visit(node)
 
             def visit_FunctionDef(self, node):
                 if self._contient_terme(node.name):
                     violations.append(
-                        f"{path.name}: fonction '{node.name}' contient un terme interdit"
+                        f"{self.nom_fichier}: fonction '{node.name}' contient un terme interdit"
                     )
                 self.generic_visit(node)
 
@@ -337,18 +340,18 @@ def garde_conformite_r020(chemin_source=None):
                 # Une coroutine est une fonction : même contrôle (objection r2).
                 if self._contient_terme(node.name):
                     violations.append(
-                        f"{path.name}: coroutine '{node.name}' contient un terme interdit"
+                        f"{self.nom_fichier}: coroutine '{node.name}' contient un terme interdit"
                     )
                 self.generic_visit(node)
 
             def visit_ClassDef(self, node):
                 if self._contient_terme(node.name):
                     violations.append(
-                        f"{path.name}: classe '{node.name}' contient un terme interdit"
+                        f"{self.nom_fichier}: classe '{node.name}' contient un terme interdit"
                     )
                 self.generic_visit(node)
 
-        Visitor().visit(tree)
+        Visitor(path.name).visit(tree)
 
     if violations:
         return False, "; ".join(violations)

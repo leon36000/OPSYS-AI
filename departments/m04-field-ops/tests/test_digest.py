@@ -1,22 +1,14 @@
 import copy
-import sys
-from pathlib import Path
 
-import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
+import m4_field_ops.cedule as cedule_mod
 import m4_field_ops.digest as digest_mod
 import m4_field_ops.ecarts as ecarts_mod
+import m4_field_ops.encodage as encodage_mod
 import m4_field_ops.etats as etats_mod
 import m4_field_ops.outbox as outbox_mod
 import m4_field_ops.pointage as pointage_mod
 import m4_field_ops.registre as registre_mod
-import m4_field_ops.cedule as cedule_mod
-import m4_field_ops.encodage as encodage_mod
-
+import pytest
 
 # ==============================================================================
 # Constants and helpers
