@@ -188,9 +188,20 @@ def test_elements_manquants_liste_explicite_quand_bloque():
     assert all(isinstance(e, str) and e for e in reponse["elements_manquants"])
 
 
-def test_elements_manquants_vide_quand_non_bloque():
-    reponse = _orchestrer()
+def test_elements_manquants_vide_quand_non_bloque_et_taux_marge_fourni():
+    """`taux_marge` fourni et valide : plus rien à signaler (ni photos, ni prix manquant)."""
+    reponse = _orchestrer(taux_marge="0.25")
     assert reponse["elements_manquants"] == []
+
+
+def test_elements_manquants_signale_taux_marge_absent_quand_non_bloque():
+    """PLAN T2.3 (reste de T2.3-b, séparer coût et prix) : `taux_marge` ABSENT sur la voie NON
+    bloquée n'est pas une erreur, mais `elements_manquants` le dit explicitement — jamais un
+    silence sur l'absence de prix recommandé."""
+    reponse = _orchestrer()  # taux_marge omis
+    assert reponse["elements_manquants"] != []
+    assert any("taux_marge" in element for element in reponse["elements_manquants"])
+    assert reponse["prix_recommande"] is None
 
 
 # ----------------------------------------------------------------------- REFERENCE_ECHELLE_ABSENTE
@@ -387,3 +398,96 @@ def test_aucune_exception_neschappe_jamais_meme_sur_des_entrees_hostiles():
         assert reponse["accepte"] is False
         assert "verdict" in reponse
         assert reponse["verdict"]["code"] in verdicts.CODES_M3_LIST
+
+
+# --------------------------------------------------------- prix recommandé (PLAN T2.3, reste T2.3-b)
+def test_prix_recommande_derive_du_cout_par_le_taux_de_marge_fourni():
+    """`prix_recommande` reprend EXACTEMENT la formule de `devis_durable.prix_depuis_cout`
+    (réutilisée, jamais dupliquée) — bornes basse/haute du COÛT x (1 + taux_marge), ROUND_HALF_UP
+    au cent."""
+    reponse = _orchestrer(taux_marge="0.25")
+    cout = reponse["estimation"]["intervalle_confiance"]
+    prix = reponse["prix_recommande"]
+    attendu_basse = (Decimal(str(cout["borne_basse"])) * Decimal("1.25")).quantize(Decimal("0.01"))
+    attendu_haute = (Decimal(str(cout["borne_haute"])) * Decimal("1.25")).quantize(Decimal("0.01"))
+    assert Decimal(str(prix["borne_basse"])) == attendu_basse
+    assert Decimal(str(prix["borne_haute"])) == attendu_haute
+    assert set(prix) == {"borne_basse", "borne_haute"}
+
+
+def test_prix_recommande_ne_touche_jamais_les_champs_geles_destimationv1():
+    """P5 : EstimationV1 ne se modifie pas en place — `prix_recommande` vit à côté, jamais dedans."""
+    reponse = _orchestrer(taux_marge="0.25")
+    assert set(reponse["estimation"]) == set(contrats.CHAMPS_ESTIMATION_V1)
+    assert "prix_recommande" not in reponse["estimation"]
+
+
+def test_prix_recommande_absent_quand_taux_marge_absent_sans_bloquer_le_prix():
+    reponse = _orchestrer()  # taux_marge omis
+    assert reponse["accepte"] is True
+    assert reponse["estimation"]["prix_bloque"] is False
+    assert reponse["prix_recommande"] is None
+
+
+def test_prix_recommande_reste_none_sur_la_voie_bloquee_meme_taux_marge_fourni():
+    """Un prix sans coût produit n'aurait pas de socle — même raisonnement que la durée de
+    main-d'œuvre : `prix_recommande` reste `None`, `elements_manquants` continue de porter les
+    éléments PHOTO manquants (jamais mêlé à la note taux_marge)."""
+    reponse = _orchestrer(photos=[_photo(1, largeur=10)], taux_marge="0.25")
+    assert reponse["estimation"]["prix_bloque"] is True
+    assert reponse["prix_recommande"] is None
+    assert all("taux_marge" not in element for element in reponse["elements_manquants"])
+
+
+@pytest.mark.parametrize("taux_marge", ["pas-un-nombre", "-1", "-2"])
+def test_taux_marge_invalide_est_un_verdict_nomme(taux_marge):
+    """Fournie de travers (texte non décimal, ou <= -1) : rejet NOMMÉ de l'orchestrateur entier —
+    jamais un prix silencieusement absent, même discipline que `plancher_rentable`."""
+    reponse = _orchestrer(taux_marge=taux_marge)
+    assert reponse["accepte"] is False
+    assert reponse["etape"] == "prix_recommande"
+    assert reponse["verdict"]["code"] == "REJ-DEVIS-TAUX-MARGE-INVALIDE"
+
+
+def test_taux_marge_non_texte_est_un_verdict_nomme():
+    reponse = _orchestrer(taux_marge=0.25)  # nombre JSON, jamais accepté (texte décimal attendu)
+    assert reponse["accepte"] is False
+    assert reponse["etape"] == "prix_recommande"
+    assert reponse["verdict"]["code"] == "REJ-DEVIS-TAUX-MARGE-INVALIDE"
+
+
+# --------------------------------------------------- signal de relance M2 (PLAN T2.3, signaux.py)
+def test_signal_relance_m2_emis_quand_qualite_photo_insuffisante():
+    reponse = _orchestrer(photos=[_photo(1, largeur=10)])
+    assert reponse["estimation"]["verdict_estimation"] == "QUALITE_ENTREE_INSUFFISANTE"
+    signal = reponse["signal_relance_m2"]
+    assert signal is not None
+    assert signal["type"] == "DEMANDE_ENTREES_VISUELLES"
+    assert signal["lead_id"] == reponse["estimation"]["lead_id"]
+    assert signal["devis_id"] == reponse["estimation"]["devis_id"]
+    assert signal["elements_manquants"] == reponse["elements_manquants"]
+    assert signal["emission_count"] == 1
+
+
+def test_signal_relance_m2_absent_quand_aucun_blocage():
+    reponse = _orchestrer()
+    assert reponse["signal_relance_m2"] is None
+
+
+def test_signal_relance_m2_absent_sur_indetermine_seul():
+    """INDETERMINE (photos structurellement acceptables mais hiérarchie indécidable) peut porter
+    `elements_manquants == []` : câbler le signal ici casserait `construire_signal_relance`
+    (liste vide refusée). Le signal reste donc réservé à QUALITE_ENTREE_INSUFFISANTE."""
+    photos = [_photo(1, angle="face"), _photo(2, angle="face"), _photo(3, angle="gauche")]
+    reponse = _orchestrer(photos=photos)
+    assert reponse["niveau_confiance_hierarchie"] == "INDETERMINE"
+    assert reponse["estimation"]["verdict_estimation"] == "INDETERMINE"
+    assert reponse["estimation"]["prix_bloque"] is True
+    assert reponse["elements_manquants"] == []
+    assert reponse["signal_relance_m2"] is None
+
+
+def test_signal_relance_m2_liste_vide_de_photos():
+    reponse = _orchestrer(photos=[])
+    assert reponse["estimation"]["verdict_estimation"] == "QUALITE_ENTREE_INSUFFISANTE"
+    assert reponse["signal_relance_m2"]["elements_manquants"] == ["aucune entrée visuelle n'a été fournie"]

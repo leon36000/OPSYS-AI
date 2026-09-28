@@ -83,6 +83,10 @@ CODES_M3_LIST = [
     "REJ-RELANCE-DELAI-INVALIDE",
     # PLAN T2.3 (politique Loi 25 « photos ») : code du module politique_photos.py.
     "REJ-PHOTO-POLITIQUE-NON-VALIDEE",
+    # PLAN T1.4-c4 (projection par l'identité authentifiée du jeton d'appareil) : codes de
+    # l'adaptateur outils.py, jamais utilisés dans un module pur du paquet.
+    "REJ-IDENTITE-APPAREIL-INVALIDE",
+    "REJ-ROLE-ELARGI",
 ]
 CODES_M3 = set(CODES_M3_LIST)
 

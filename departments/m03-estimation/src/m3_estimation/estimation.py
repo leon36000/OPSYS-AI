@@ -80,6 +80,45 @@ au tuple des candidats ne change alors rien puisque ce verdict n'y figure jamais
 L'assembleur choisit seul, par priorité déjà éprouvée (``devis._PRIORITE_VERDICTS``), le verdict le
 plus fort parmi les candidats ; ``alerte_plancher``/``prix_bloque`` restent des booléens EXACTS,
 indépendants du verdict affiché en tête.
+
+Signal de relance M2 (PLAN T2.3, ``signaux.py``, ``docs/departements/M3-audit.md`` §2.3/§4 point 4
+— « le signal ... est écrit et testé mais ... jamais appelé ») : câblé UNIQUEMENT quand
+``decision["verdict_estimation"] == QUALITE_ENTREE_INSUFFISANTE`` — jamais sur la voie INDETERMINE
+seule, dont ``qualification["elements_manquants"]`` peut être vide (photos structurellement
+acceptables, classification hiérarchique quand même indéterminée) : ``signaux.
+construire_signal_relance`` refuse fail-closed une liste vide (``REJ-SIGNAL-INVALIDE``), et cette
+voie ne le garantit pas. La voie QUALITE_ENTREE_INSUFFISANTE, elle, le garantit TOUJOURS
+(``qualite_photos.qualifier_photos`` ne retourne ce verdict que lorsque ``elements_manquants`` est
+déjà non vide) : ``lead_id``/``devis_id`` sont eux aussi déjà validés à ce point de l'orchestrateur,
+donc cet appel ne peut jamais échouer en pratique — le verdict éventuel reste géré (jamais une
+exception qui s'échappe), fidèle au reste du fichier. Rendu sous la clé ``signal_relance_m2``,
+``None`` quand aucun signal n'est dû — jamais un effet de bord inventé (l'ORCHESTRATEUR ne publie
+rien lui-même ; c'est un futur consommateur de M2, hors périmètre de cette tranche, qui agira sur ce
+signal rendu).
+
+Prix recommandé (PLAN T2.3, reste de T2.3-b — « séparer coût et prix ... le mot "prix" de
+l'interface désigne en réalité un coût », ``docs/departements/M3-audit.md`` §2.1) : le barème
+(``BaremeCouts``) est un barème de COÛT, et ``intervalle_confiance`` (dans ``EstimationV1``, champ
+GELÉ, INCHANGÉ) reste donc un intervalle de coût. ``prix_recommande`` est une clé SUPPLÉMENTAIRE de
+la réponse de l'orchestrateur — jamais dans ``EstimationV1`` (même choix que
+``duree_estimee_minutes`` ci-dessus : un contrat gelé ne se modifie pas en place, P5) — dérivée de
+``intervalle_confiance`` par un ``taux_marge`` FOURNI PAR L'APPELANT (jamais codé en dur, même
+discipline que ``plancher_rentable``/``bareme``), en réutilisant TELLES QUELLES les fonctions de
+prix de ``devis_durable.py`` (``texte_vers_taux_marge``, ``prix_depuis_cout`` — même formule,
+même arrondi ``ROUND_HALF_UP`` au cent, jamais dupliquée). Calculé SEULEMENT sur la voie NON
+bloquée (un prix sans coût produit n'aurait pas de socle, même raisonnement que la durée de
+main-d'œuvre). Trois issues, jamais une quatrième inventée :
+  - ``taux_marge`` ABSENT (``None``) : ``prix_recommande`` reste ``None`` — PAS une erreur, le
+    coût seul reste exploitable. Le fait est noté dans ``elements_manquants`` (qui vaut alors
+    cette seule note, la voie n'étant pas bloquée par les photos) pour que l'appelant sache
+    explicitement pourquoi aucun prix n'a été calculé.
+  - ``taux_marge`` PRÉSENT mais invalide (texte non décimal, ``<= -1``) : un verdict NOMMÉ
+    (``REJ-DEVIS-TAUX-MARGE-INVALIDE``, catalogue déjà existant de ``devis_durable.py`` — jamais
+    dupliqué), l'orchestrateur entier rejette (étape ``prix_recommande``) — même discipline que
+    ``plancher_rentable``/``duree_minutes_par_unite`` invalides ailleurs dans ce fichier : une
+    donnée fournie DE TRAVERS est signalée, jamais silencieusement ignorée.
+  - ``taux_marge`` valide : ``prix_recommande = {borne_basse, borne_haute}``, chaque borne dérivée
+    de la borne de COÛT correspondante par ``devis_durable.prix_depuis_cout``.
 """
 
 from __future__ import annotations
@@ -93,10 +132,12 @@ from . import (
     blocage_prix,
     contrats,
     devis,
+    devis_durable,
     hierarchie_echelle,
     monte_carlo,
     plancher,
     qualite_photos,
+    signaux,
     validation,
     verdicts,
 )
@@ -185,6 +226,32 @@ def _duree_estimee_minutes_texte(
     return str(quantite_decimale * taux_decimal), None
 
 
+def _prix_recommande_depuis_intervalle(
+    intervalle_confiance: dict[str, Any], taux_marge: str | None
+) -> tuple[dict[str, float] | None, dict | None]:
+    """Dérive ``prix_recommande`` (``{borne_basse, borne_haute}``) depuis l'intervalle de COÛT
+    Monte Carlo et un ``taux_marge`` FOURNI — voir la docstring du module pour la justification
+    complète. Réutilise ``devis_durable.texte_vers_taux_marge``/``prix_depuis_cout`` telles
+    quelles, jamais une seconde copie de la formule de prix.
+
+    ``taux_marge is None`` : ``(None, None)`` — absent n'est PAS une erreur ici (à la différence de
+    ``creer_devis``, où le taux est obligatoire) : l'appelant (ci-dessous) note le fait dans
+    ``elements_manquants``, jamais un rejet. ``taux_marge`` invalide : ``(None, verdict)``, un rejet
+    NOMMÉ qui fait échouer l'orchestrateur entier — même discipline que ``plancher_rentable``/
+    ``duree_minutes_par_unite``."""
+    if taux_marge is None:
+        return None, None
+    taux, verdict = devis_durable.texte_vers_taux_marge(taux_marge)
+    if verdict is not None:
+        return None, verdict
+    borne_basse_cout = Decimal(str(intervalle_confiance["borne_basse"]))
+    borne_haute_cout = Decimal(str(intervalle_confiance["borne_haute"]))
+    return {
+        "borne_basse": float(devis_durable.prix_depuis_cout(borne_basse_cout, taux)),
+        "borne_haute": float(devis_durable.prix_depuis_cout(borne_haute_cout, taux)),
+    }, None
+
+
 def orchestrer_estimation(
     contrat: dict[str, Any],
     marqueur: dict[str, Any],
@@ -195,6 +262,7 @@ def orchestrer_estimation(
     plancher_rentable: float,
     registre_cible: Any,
     graine: int | None = None,
+    taux_marge: str | None = None,
 ) -> dict[str, Any]:
     """Compose la chaîne complète d'estimation M3 — voir la docstring du module pour l'ordre et
     les décisions de conception. Chaque étape qui échoue rend un verdict NOMMÉ qui dit quoi
@@ -236,10 +304,22 @@ def orchestrer_estimation(
     bareme_version: str | None = None
     alerte_plancher = False
     duree_estimee_minutes: str | None = None
+    prix_recommande: dict[str, float] | None = None
+    elements_manquants_prix: list[str] = []
+    signal_relance_m2: dict[str, Any] | None = None
     niveau_confiance_numerique = NIVEAUX_STATISTIQUES_PAR_CONFIANCE.get(
         niveau_hierarchie, blocage_prix.NIVEAU_CONFIANCE_NOMINAL
     )
     graine_effective = graine if graine is not None else graine_stable(bareme, type_travaux, quantite)
+
+    # Signal de relance M2 (voir la docstring du module) : UNIQUEMENT sur la qualité photo
+    # insuffisante, jamais sur INDETERMINE seul (elements_manquants y serait parfois vide).
+    if decision["verdict_estimation"] == contrats.VERDICT_QUALITE_ENTREE_INSUFFISANTE:
+        signal_relance_m2, verdict_signal = signaux.construire_signal_relance(
+            lead_id, devis_id, elements_manquants
+        )
+        if verdict_signal is not None:
+            return {"etape": "signal_relance", "accepte": False, "verdict": verdict_signal}
 
     if not prix_bloque:
         niveau_statistique = NIVEAUX_STATISTIQUES_PAR_CONFIANCE[niveau_hierarchie]
@@ -270,6 +350,16 @@ def orchestrer_estimation(
         duree_estimee_minutes, verdict = _duree_estimee_minutes_texte(quantite, bareme, type_travaux)
         if verdict is not None:
             return {"etape": "duree_main_doeuvre", "accepte": False, "verdict": verdict}
+
+        prix_recommande, verdict = _prix_recommande_depuis_intervalle(intervalle_confiance, taux_marge)
+        if verdict is not None:
+            return {"etape": "prix_recommande", "accepte": False, "verdict": verdict}
+        if prix_recommande is None:
+            # taux_marge ABSENT (pas invalide : ce cas a déjà rejeté ci-dessus) : pas une erreur,
+            # mais l'appelant doit savoir explicitement pourquoi aucun prix n'a été calculé.
+            elements_manquants_prix.append(
+                "taux_marge non fourni : aucun prix recommandé calculé (coût seulement disponible)"
+            )
 
     charge: dict[str, Any] = {
         "devis_id": devis_id,
@@ -310,8 +400,17 @@ def orchestrer_estimation(
         "motifs_confiance": motifs,
         "duree_estimee_minutes": duree_estimee_minutes,
         # SOUL.md : « quand le prix est bloqué, tu expliques simplement au client ce qui manque »
-        # — liste EXPLICITE (jamais seulement la phrase composée de raison_blocage), vide quand le
-        # prix n'est pas bloqué. Reprise directe de qualite_photos.qualifier_photos, jamais
-        # recalculée ici.
-        "elements_manquants": elements_manquants if prix_bloque else [],
+        # — liste EXPLICITE (jamais seulement la phrase composée de raison_blocage) sur la voie
+        # bloquée (reprise directe de qualite_photos.qualifier_photos, jamais recalculée ici) ;
+        # sur la voie NON bloquée, ne porte que la note taux_marge absent le cas échéant (jamais
+        # les deux à la fois : les deux causes de blocage/incomplétude sont mutuellement
+        # exclusives par construction — voir _prix_recommande_depuis_intervalle ci-dessus).
+        "elements_manquants": elements_manquants if prix_bloque else elements_manquants_prix,
+        # Séparation coût/prix (PLAN T2.3, reste de T2.3-b) : dérivé de intervalle_confiance par
+        # taux_marge, jamais dans EstimationV1 (champ gelé, inchangé). None sur la voie bloquée ou
+        # quand taux_marge est absent — voir la docstring du module.
+        "prix_recommande": prix_recommande,
+        # Signal de relance M2 (signaux.py, DEMANDE_ENTREES_VISUELLES) : None sauf sur la qualité
+        # photo insuffisante — voir la docstring du module pour la justification du câblage exact.
+        "signal_relance_m2": signal_relance_m2,
     }

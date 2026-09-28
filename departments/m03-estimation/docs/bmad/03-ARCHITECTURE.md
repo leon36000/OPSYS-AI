@@ -39,8 +39,8 @@ Le paquet `m3_estimation` est autonome. Il réutilise le patron prouvé des modu
 | `devis.py` | Dérivation du `devis_id` par encodage canonique injectif (préfixage par longueur + sha256). | Copie-adaptation du patron d'encodage canonique prouvé dans les modules voisins. |
 | `registre.py` | Registre append-only hash-chaîné des estimations émises ; API ajouter / lire / valider chaîne. | Copie-adaptation du patron de registre hash-chaîné prouvé dans M2. |
 | `digest.py` | Production du digest quotidien déterministe des estimations bloquées et des alertes de plancher vers Nathan. | Isolé car consommateur en lecture seule du registre, sans effet sur l'estimation. |
-| `signaux.py` | Émission du signal de relance structuré vers M2 sur photos faibles (max 1 par estimation). | Isolé pour garantir la contrainte de fréquence et l'absence de boucle. |
-| `estimation.py` | Orchestrateur principal : séquence validation du lead → **validation du barème** → qualité → hiérarchie → Monte Carlo → plancher → contrat de sortie → registre. La validation du barème précède TOUTE production de bornes (CA-M3-21) : un tirage sans bornes de coût produirait des valeurs arbitraires. | Un seul orchestrateur garantit que l'ordre des étapes ne peut être altéré. |
+| `signaux.py` | Émission du signal de relance structuré vers M2 sur photos faibles (max 1 par estimation). Câblé par `estimation.py` (PLAN T2.3, DA-M3-12 et suivants) quand la qualité photo est insuffisante — plus un module orphelin. | Isolé pour garantir la contrainte de fréquence et l'absence de boucle. |
+| `estimation.py` | Orchestrateur principal : séquence validation du lead → **validation du barème** → qualité → hiérarchie → Monte Carlo → plancher → signal de relance M2 (`signaux.py`, qualité insuffisante) → prix recommandé (`taux_marge` fourni, formule réutilisée de `devis_durable.py`, DA-M3-12) → durée main-d'œuvre → contrat de sortie → registre. La validation du barème précède TOUTE production de bornes (CA-M3-21) : un tirage sans bornes de coût produirait des valeurs arbitraires. | Un seul orchestrateur garantit que l'ordre des étapes ne peut être altéré. |
 
 ---
 
@@ -478,6 +478,38 @@ codé en dur deviendrait faux au premier changement de tarif sans que rien ne le
 reproductible — alors que ses paramètres sont inventés. Sans barème utilisable pour le
 `type_travaux` demandé, l'estimation est BLOQUÉE avec `INDETERMINE` (CA-M3-21).
 
+### DA-M3-12 — Le prix recommandé est dérivé du coût, jamais un second champ gelé
+
+**Constat** (`docs/departements/M3-audit.md` §2.1) : `bareme_couts` (DA-M3-09) est un barème de
+COÛT, et `intervalle_confiance` du contrat gelé `EstimationV1` (2.2) reste donc un intervalle de
+COÛT — jamais un prix client. Aucun champ `marge`/`taux_marge`/`prix_recommande` n'existait dans
+`EstimationV1`, alors que le mot « prix » de l'interface (`m3_estimer_projet`) désignait en
+réalité ce coût.
+
+**Décision** : `prix_recommande` (`{borne_basse, borne_haute}`) est une clé SUPPLÉMENTAIRE de la
+réponse de l'orchestrateur — JAMAIS un champ d'`EstimationV1` (2.2), qui reste GELÉ et INCHANGÉ
+(P5, DEFINITION-PRODUIT.md §5) — dérivée d'`intervalle_confiance` par un `taux_marge` FOURNI PAR
+L'APPELANT (§6, jamais codé en dur, même discipline que `plancher_rentable`) : `prix = cout x (1
++ taux_marge)`, arrondi `ROUND_HALF_UP` au cent. La formule n'est PAS réécrite ici : le module
+`devis_durable.py` (PLAN T2.3-a, devis commercial) la possédait déjà pour `prix_unitaire` — elle
+en est extraite (`prix_depuis_cout`, `texte_vers_taux_marge`) et réutilisée TELLE QUELLE par
+`estimation.py`, jamais dupliquée. Calculé SEULEMENT sur la voie NON bloquée (un prix sans coût
+produit n'aurait pas de socle, même raisonnement que la durée de main-d'œuvre, T1.2-f).
+
+`taux_marge` ABSENT n'est PAS une erreur (`prix_recommande` reste `None`, le coût seul demeure
+exploitable — le fait est noté dans `elements_manquants`, jamais un silence) ; `taux_marge`
+PRÉSENT mais invalide (texte non décimal, `<= -1`) EST un rejet NOMMÉ de l'orchestrateur entier —
+même distinction, et même discipline fail-closed, que `plancher_rentable`/
+`duree_minutes_par_unite` ailleurs dans ce fichier : une donnée fournie DE TRAVERS est signalée,
+jamais silencieusement ignorée ni inventée.
+
+**Justification** : un contrat gelé qui change de forme à chaque nouveau besoin cesse d'être gelé
+(P5, DA-M3-07 pour le même principe appliqué à `devis_id`) ; une clé additionnelle non gelée,
+absente quand elle ne peut pas être calculée honnêtement, ferme cet écart sans réouvrir
+`EstimationV1`. Piège écarté : dupliquer la formule de prix dans deux modules qui pourraient
+diverger d'un cent (déjà observé une fois entre `devis_durable.py` T2.3-a et T2.3-b, voir sa
+docstring) — la réutilisation directe rend cette divergence structurellement impossible.
+
 ## 5. CE QUE CHAQUE STORY PROUVE
 
 | Story | Ce qu'elle prouve |
@@ -504,6 +536,7 @@ reproductible — alors que ses paramètres sont inventés. Sans barème utilisa
 | `plancher_rentable` | Coût minimal en dessous duquel l'alerte rouge est émise. | Fourni par l'appelant à chaque estimation. |
 | `nb_iterations_monte_carlo` | Nombre d'itérations de la simulation Monte Carlo. | Défini par le PM. |
 | `bareme_couts` | Contrat gelé `BaremeCouts` (2.3) : versions, unité, postes par type de travaux. | **Fourni par l'appelant à chaque estimation. Aucune valeur par défaut : un barème par défaut serait un coût inventé.** |
+| `taux_marge` | Taux de marge appliqué au COÛT (intervalle Monte Carlo) pour dériver `prix_recommande` (PLAN T2.3, reste de T2.3-b — voir DA-M3-12). Texte décimal, ex. `"0.35"` pour 35 %. | **Fourni par l'appelant à chaque estimation (paramètre optionnel de `m3_estimer_projet`). Aucune valeur par défaut : absent, aucun prix recommandé n'est calculé (le coût seul reste exploitable) — jamais une marge inventée.** |
 
 ---
 

@@ -101,7 +101,9 @@ __all__ = [
     "lister_devis",
     "marquer_devis_accepte",
     "marquer_devis_envoye",
+    "prix_depuis_cout",
     "projeter_devis",
+    "texte_vers_taux_marge",
 ]
 
 _DEUX_DECIMALES = Decimal("0.01")
@@ -157,8 +159,17 @@ def _texte_vers_decimal(valeur: Any, nom_champ: str, code_erreur: str) -> tuple[
     return decimal_valeur, None
 
 
-def _texte_vers_taux_marge(taux_marge: Any) -> tuple[Decimal | None, dict | None]:
-    """``taux_marge`` n'est jamais codé en dur ni déduit : son absence est un rejet fail-closed."""
+def texte_vers_taux_marge(taux_marge: Any) -> tuple[Decimal | None, dict | None]:
+    """``taux_marge`` n'est jamais codé en dur ni déduit : son absence est un rejet fail-closed.
+
+    PUBLIQUE (PLAN T2.3, reste de T2.3-b) : ``estimation.py`` la réutilise pour dériver
+    ``prix_recommande`` depuis l'intervalle de coût Monte Carlo, exactement comme ``creer_devis``
+    ci-dessous — une seule règle de validation du taux de marge pour tout le paquet, jamais deux
+    copies qui pourraient diverger. Un appelant qui sait déjà que l'ABSENCE de taux n'est pas une
+    erreur pour son propre cas (``estimation.py`` : absent = aucun prix calculé, pas un rejet)
+    n'appelle cette fonction que lorsque ``taux_marge is not None`` — le rejet
+    ``REJ-DEVIS-TAUX-MARGE-MANQUANT`` ci-dessous reste correct pour ``creer_devis``, où le taux est
+    OBLIGATOIRE."""
     if taux_marge is None:
         return None, verdicts.construire_verdict(
             "REJ-DEVIS-TAUX-MARGE-MANQUANT",
@@ -172,6 +183,16 @@ def _texte_vers_taux_marge(taux_marge: Any) -> tuple[Decimal | None, dict | None
             "REJ-DEVIS-TAUX-MARGE-INVALIDE", detail=f"taux_marge doit être strictement supérieur à -1 (donné : {taux})"
         )
     return taux, None
+
+
+def prix_depuis_cout(cout: Decimal, taux_marge: Decimal) -> Decimal:
+    """``prix = cout x (1 + taux_marge)``, arrondi ``ROUND_HALF_UP`` au cent — LA formule de prix
+    unique du paquet (voir la docstring du module pour pourquoi cet arrondi précis n'est pas
+    arbitraire). ``_valider_ligne`` l'utilise pour ``prix_unitaire`` ; ``estimation.py`` la
+    réutilise TELLE QUELLE pour dériver ``prix_recommande`` depuis les bornes de l'intervalle de
+    coût Monte Carlo (PLAN T2.3, reste de T2.3-b : séparer coût et prix sans dupliquer la logique
+    de prix)."""
+    return (cout * (Decimal("1") + taux_marge)).quantize(_DEUX_DECIMALES, rounding=ROUND_HALF_UP)
 
 
 def _valider_ligne(
@@ -215,12 +236,13 @@ def _valider_ligne(
 
     # Coût et prix (PLAN T2.3-a/b — voir la docstring du module pour la justification complète de
     # l'ordre des arrondis). cout_ligne est indépendant du prix : cout_unitaire x quantite, arrondi
-    # une fois. prix_unitaire = cout_unitaire x (1 + taux_marge), arrondi ROUND_HALF_UP au cent
-    # D'ABORD (jamais depuis cout_ligne) ; prix_ligne = CE prix_unitaire déjà arrondi x quantite,
-    # arrondi une seconde fois — exactement l'ordre que la facture M5 rejouera plus tard depuis le
-    # seul prix_unitaire qu'elle connaît (montant = quantite x prix_unitaire, arrondi une fois).
+    # une fois. prix_unitaire = prix_depuis_cout(cout_unitaire, taux_marge), arrondi ROUND_HALF_UP
+    # au cent D'ABORD (jamais depuis cout_ligne) ; prix_ligne = CE prix_unitaire déjà arrondi x
+    # quantite, arrondi une seconde fois — exactement l'ordre que la facture M5 rejouera plus tard
+    # depuis le seul prix_unitaire qu'elle connaît (montant = quantite x prix_unitaire, arrondi une
+    # fois).
     cout_ligne = (cout_unitaire * quantite).quantize(_DEUX_DECIMALES, rounding=ROUND_HALF_UP)
-    prix_unitaire = (cout_unitaire * (Decimal("1") + taux_marge)).quantize(_DEUX_DECIMALES, rounding=ROUND_HALF_UP)
+    prix_unitaire = prix_depuis_cout(cout_unitaire, taux_marge)
     prix_ligne = (prix_unitaire * quantite).quantize(_DEUX_DECIMALES, rounding=ROUND_HALF_UP)
 
     ligne = LigneDevis(
@@ -295,7 +317,7 @@ def creer_devis(
     if not isinstance(lignes, (list, tuple)) or not lignes:
         return None, verdicts.construire_verdict("REJ-DEVIS-LIGNES-VIDES", detail="au moins une ligne est requise")
 
-    taux, verdict = _texte_vers_taux_marge(taux_marge)
+    taux, verdict = texte_vers_taux_marge(taux_marge)
     if verdict is not None:
         return None, verdict
 

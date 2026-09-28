@@ -12,7 +12,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from opsys import evenements, stockage
+from opsys import contexte, evenements, identite, stockage
 from opsys.outils import Autonomie, Outil, depuis_couple
 
 from . import (
@@ -28,6 +28,7 @@ from . import (
     qualite_photos,
     registre,
     soumission,
+    verdicts,
 )
 
 # Chemin du document de politique Loi 25 « photos » (PLAN T2.3, docs/departements/M3-audit.md §5
@@ -119,6 +120,120 @@ _LIGNE_DEVIS = {
 }
 
 
+# -- projection par l'identité AUTHENTIFIÉE du jeton d'appareil (PLAN T1.4-c4) -------------------
+#
+# `opsys.contexte.identite_appelante()` porte la personne et le rôle d'un appel d'appareil,
+# AUTHENTIFIÉS par OPSYS-CORE (jeton d'appareil vérifié, jamais le corps de la requête) ; hors
+# appel d'appareil (Hermes, Claude Code, un outil interne), elle vaut None. Chaque rôle de jeton
+# d'appareil (`opsys.appareils.ROLES_APPAREIL` : admin/employee/seller, le sous-ensemble mobile de
+# `opsys.identite.Role`) est ici associé à une des DEUX vues de projection connues de M3
+# (`devis_durable._ROLES_CONNUS` : "interne" = complète, "employe" = sans coût, marge ni prix) :
+#
+#   - EMPLOYEE -> "employe" : DEFINITION-PRODUIT.md §9.2, ligne 706 — « l'employé ne voit jamais
+#     coûts, marges ni finances ».
+#   - SELLER (vendeur) -> "interne" : §9.4 (lignes 723-724) — le vendeur voit les « risques et
+#     marge » et la « marge estimée de la soumission » de SES leads ; §9.4 (ligne 727) ne lui
+#     retire que les finances GLOBALES et les coûts internes AU-DELÀ de sa propre soumission —
+#     jamais la marge/le prix de CE devis_id précis, seul niveau que M3 projette ici. Il n'existe
+#     aucune troisième vue (« voit le prix mais pas le coût ») dans `devis_durable.py` à ce jour :
+#     ajouter cette nuance serait un contrat de projection de plus, hors du périmètre de cette
+#     tranche (voir le rapport de livraison).
+#   - ADMIN -> "interne" : §9.5 — approuve tout (factures, PO, soumissions risquées), l'appareil du
+#     propriétaire est apparié avec role="admin" (opsys.appareils, même module) : mêmes routes
+#     qu'un admin, jamais moins.
+_VUE_PAR_ROLE_APPAREIL: dict[str, str] = {
+    identite.Role.EMPLOYEE.value: "employe",
+    identite.Role.SELLER.value: "interne",
+    identite.Role.ADMIN.value: "interne",
+}
+
+
+def _vue_projection_effective(role_demande: str | None) -> dict[str, Any]:
+    """Résout le rôle de PROJECTION M3 ("interne"/"employe") pour l'appel courant.
+
+    Hors appel d'appareil (`contexte.identite_appelante() is None`) : rend `role_demande` s'il est
+    fourni, sinon "interne" — comportement HISTORIQUE inchangé (PLAN T2.3-a), documenté ici plutôt
+    que redécidé à chaque appelant.
+
+    Pendant un appel d'appareil (PLAN T1.4-c4) : la vue DÉCOULE du rôle authentifié par
+    OPSYS-CORE — REVÉRIFIÉ ici contre `opsys.identite.personne_active` (la personne existe encore,
+    est active, ET porte encore ce rôle ; `IdentiteAppelante` ne garantit ni l'un ni l'autre, voir
+    sa docstring) : une personne désactivée ou un rôle retiré APRÈS l'émission du jeton ne doit
+    jamais continuer de projeter une vue périmée. `role_demande` ne peut alors que RESTREINDRE
+    cette vue, jamais l'élargir :
+      - absent (None) : vaut la vue authentifiée ;
+      - fourni, ÉGAL ou plus étroit ("employe" demandé sous une vue "interne" autorisée) : honoré ;
+      - fourni PLUS LARGE que la vue autorisée ("interne" demandé sous une vue "employe") : refus
+        NOMMÉ (`REJ-ROLE-ELARGI`) — jamais élargi, jamais rabattu silencieusement sur la vue
+        autorisée (un appelant qui se trompe de rôle doit le savoir, pas être corrigé en silence).
+
+    Rend toujours `{"accepte": True, "role": <vue>}` ou `{"accepte": False, "verdict": <verdict>}`
+    — jamais une exception."""
+    identite_dispositif = contexte.identite_appelante()
+    if identite_dispositif is None:
+        return {"accepte": True, "role": role_demande if role_demande is not None else "interne"}
+
+    cnx = stockage.connexion_courante()
+    personne = identite.personne_active(cnx, identite_dispositif.personne) if cnx is not None else None
+    if personne is None or identite_dispositif.role not in personne.roles:
+        return {
+            "accepte": False,
+            "verdict": verdicts.construire_verdict(
+                "REJ-IDENTITE-APPAREIL-INVALIDE",
+                detail=(
+                    f"personne {identite_dispositif.personne!r} inconnue, inactive, ou ne porte "
+                    f"plus le rôle {identite_dispositif.role!r} porté par le jeton d'appareil"
+                ),
+            ),
+        }
+
+    vue_autorisee = _VUE_PAR_ROLE_APPAREIL.get(identite_dispositif.role)
+    if vue_autorisee is None:
+        return {
+            "accepte": False,
+            "verdict": verdicts.construire_verdict(
+                "REJ-IDENTITE-APPAREIL-INVALIDE",
+                detail=f"rôle d'appareil {identite_dispositif.role!r} sans vue M3 connue",
+            ),
+        }
+    if role_demande is None:
+        return {"accepte": True, "role": vue_autorisee}
+    if vue_autorisee == "interne" or role_demande == vue_autorisee:
+        return {"accepte": True, "role": role_demande}
+    return {
+        "accepte": False,
+        "verdict": verdicts.construire_verdict(
+            "REJ-ROLE-ELARGI",
+            detail=(
+                f"role={role_demande!r} demandé, mais l'appareil authentifié (rôle "
+                f"{identite_dispositif.role!r}) n'autorise que {vue_autorisee!r} — le paramètre "
+                "role ne peut que restreindre, jamais élargir"
+            ),
+        ),
+    }
+
+
+def _projeter_estimation_employe(reponse: dict[str, Any]) -> dict[str, Any]:
+    """Retire coût et prix de la réponse de `m3_estimer_projet` pour la vue "employe" —
+    DEFINITION-PRODUIT.md §9.2 : « l'employé ne voit jamais coûts, marges ni finances ». Même
+    principe que `devis_durable.projeter_devis`, appliqué à un contrat différent (la réponse
+    composée de l'orchestrateur, pas un devis) : `intervalle_confiance` (l'intervalle de COÛT,
+    EstimationV1, champ gelé) garde sa forme et son `niveau`, seules ses bornes chiffrées sont
+    retirées — même convention que la voie `prix_bloque` de `blocage_prix.py` (None, jamais 0).
+    `prix_recommande` (marge) est entièrement retiré. Rien d'autre ne change : verdicts, ids,
+    signal de relance, durée de main-d'œuvre ne sont ni de l'argent ni un risque de fuite."""
+    projection = dict(reponse)
+    if isinstance(projection.get("estimation"), dict):
+        intervalle = projection["estimation"].get("intervalle_confiance")
+        if isinstance(intervalle, dict):
+            projection["estimation"] = {
+                **projection["estimation"],
+                "intervalle_confiance": {**intervalle, "borne_basse": None, "borne_haute": None},
+            }
+    projection["prix_recommande"] = None
+    return projection
+
+
 def qualifier_photos(photos: list[dict[str, Any]], seuils: dict[str, Any]) -> dict[str, Any]:
     return depuis_couple(qualite_photos.qualifier_photos(photos, seuils))
 
@@ -158,17 +273,31 @@ def estimer_projet(
     quantite: float,
     plancher_rentable: float,
     graine: int | None = None,
+    taux_marge: str | None = None,
 ) -> dict[str, Any]:
     """Point d'entrée agent (PLAN T2.3) : appelle l'orchestrateur pur
     `estimation.orchestrer_estimation` sur le registre DURABLE de production. Toute la logique
     métier vit dans `estimation.py` (validation, qualité photos, hiérarchie d'échelle, blocage,
-    Monte Carlo, plancher, alerte REFERENCE_ECHELLE_ABSENTE, durée main-d'œuvre, registre,
-    contrat gelé EstimationV1) ; cette fonction ne fait que choisir le support durable — même
-    patron que `creer_devis`/`lire_devis` ci-dessous pour le registre des devis."""
-    return estimation.orchestrer_estimation(
+    Monte Carlo, plancher, alerte REFERENCE_ECHELLE_ABSENTE, durée main-d'œuvre, prix recommandé,
+    signal de relance M2, registre, contrat gelé EstimationV1) ; cette fonction ne fait que choisir
+    le support durable — même patron que `creer_devis`/`lire_devis` ci-dessous pour le registre des
+    devis.
+
+    Projection par l'identité authentifiée (PLAN T1.4-c4, `_vue_projection_effective`) : résolue
+    AVANT tout appel à l'orchestrateur, pour qu'une identité d'appareil périmée n'écrive jamais au
+    registre durable (aucun effet de bord avant un refus). Vue "employe" : la réponse retire coût
+    et prix (`_projeter_estimation_employe`) — hors appel d'appareil, ou appareil admin/vendeur,
+    comportement inchangé (PLAN T2.3-b)."""
+    vue = _vue_projection_effective(None)
+    if not vue["accepte"]:
+        return {"etape": "identite_appareil", "accepte": False, "verdict": vue["verdict"]}
+    resultat = estimation.orchestrer_estimation(
         contrat, marqueur, photos, seuils, bareme, quantite, plancher_rentable,
-        registre_production(), graine,
+        registre_production(), graine, taux_marge,
     )
+    if vue["role"] == "employe" and resultat.get("accepte") is True:
+        return _projeter_estimation_employe(resultat)
+    return resultat
 
 
 def registre_production() -> registre.Registre:
@@ -222,11 +351,19 @@ def creer_devis(
     )
 
 
-def lire_devis(devis_id: str, role: str = "interne") -> dict[str, Any]:
+def lire_devis(devis_id: str, role: str | None = None) -> dict[str, Any]:
+    """Lit un devis durable, projeté par la vue AUTHENTIFIÉE (PLAN T1.4-c4,
+    `_vue_projection_effective`) plutôt que par le seul choix de l'appelant — voir sa docstring
+    pour la table rôle d'appareil -> vue et la règle « role ne peut que restreindre ». La
+    résolution de vue précède la lecture du registre : un refus d'identité ne révèle même pas si
+    `devis_id` existe."""
+    vue = _vue_projection_effective(role)
+    if not vue["accepte"]:
+        return {"accepte": False, "verdict": vue["verdict"]}
     devis, verdict = devis_durable.lire_devis(registre_devis_production(), devis_id)
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
-    return depuis_couple(devis_durable.projeter_devis(devis, role))
+    return depuis_couple(devis_durable.projeter_devis(devis, vue["role"]))
 
 
 def marquer_devis_accepte(devis_id: str, approbateur: str, horodatage: str) -> dict[str, Any]:
@@ -383,11 +520,14 @@ def outils() -> tuple[Outil, ...]:
                 "d'échelle, blocage anti-précision-inventée, Monte Carlo, plancher de rentabilité "
                 "et assemble le contrat gelé EstimationV1 (devis_id stable), inscrit au registre "
                 "durable des estimations. Bloque le prix si les photos ou la référence d'échelle "
-                "sont insuffisantes et liste alors les éléments manquants à demander ; signale "
-                "(sans bloquer) l'absence de référence d'échelle en confiance MULTI_VUES ou "
-                "MONO_VUE_BORNES_LARGES (REFERENCE_ECHELLE_ABSENTE). Si le poste du barème pour "
-                "le type de travaux demandé porte duree_minutes_par_unite, calcule aussi la durée "
-                "de main-d'œuvre estimée (quantite x duree_minutes_par_unite)."
+                "sont insuffisantes et liste alors les éléments manquants ; émet signal_relance_m2 "
+                "(DEMANDE_ENTREES_VISUELLES) dans ce cas. Signale sans bloquer l'absence de "
+                "référence d'échelle en confiance MULTI_VUES/MONO_VUE_BORNES_LARGES "
+                "(REFERENCE_ECHELLE_ABSENTE). Calcule la durée de main-d'œuvre si le barème porte "
+                "duree_minutes_par_unite. Si taux_marge est fourni (texte décimal, ex. \"0.35\" — "
+                "jamais codé en dur), calcule aussi prix_recommande depuis le coût ; absent, aucun "
+                "prix n'est calculé et elements_manquants le dit. Pendant un appel d'appareil "
+                "authentifié en rôle employee, coût et prix sont toujours retirés de la réponse."
             ),
             parametres={
                 "type": "object",
@@ -400,6 +540,13 @@ def outils() -> tuple[Outil, ...]:
                     "quantite": {"type": "number"},
                     "plancher_rentable": {"type": "number"},
                     "graine": {"type": "integer"},
+                    "taux_marge": {
+                        "type": ["string", "null"],
+                        "description": (
+                            "texte décimal, ex. \"0.35\" pour 35 % — jamais codé en dur ; absent "
+                            "ou null : aucun prix_recommande calculé (coût seulement)"
+                        ),
+                    },
                 },
                 "required": ["contrat", "marqueur", "photos", "seuils", "bareme", "quantite", "plancher_rentable"],
                 "additionalProperties": False,
@@ -504,7 +651,12 @@ def outils() -> tuple[Outil, ...]:
             description=(
                 "Lit l'état courant d'un devis par devis_id (registre durable, relu à chaque appel, "
                 "jamais mis en cache). role=\"employe\" retire coût, marge ET prix (séparation "
-                "coût/prix, audit M3) ; role=\"interne\" (défaut) rend la vue complète."
+                "coût/prix, audit M3) ; role=\"interne\" rend la vue complète. Pendant un appel "
+                "d'appareil authentifié (PLAN T1.4-c4), la vue vient du rôle authentifié — employee "
+                "-> employe, admin/seller -> interne — et role ne peut que RESTREINDRE cette vue, "
+                "jamais l'élargir (une demande plus large est un refus nommé). Hors appel "
+                "d'appareil, role choisit librement la vue (défaut : interne, comportement "
+                "historique)."
             ),
             parametres={
                 "type": "object",
