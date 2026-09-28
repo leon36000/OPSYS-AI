@@ -1,4 +1,5 @@
 import { interpreterResultatCompleterIntervention } from "../m4/completion";
+import { interpreterResultatDefinirConsentementGps } from "../m4/consentementGps";
 import { interpreterResultatDemarrerRoute } from "../m4/interventions";
 import { interpreterResultatPointage } from "../m4/pointage";
 import { interpreterResultatDeclarerMateriauxUtilises } from "../m6/materiaux";
@@ -63,6 +64,16 @@ function versInterpretationGeneriqueMateriaux(resultatBrut: unknown): Interpreta
   return { accepte: false, verdict: interpretation.verdict };
 }
 
+/** Même rôle, pour `m4_definir_consentement_gps` (`src/m4/consentementGps.ts`, PLAN T1.4-k) —
+ * `consent.tsx`. `resume` porte l'accusé (`actif` : l'état APRÈS l'appel). */
+function versInterpretationGeneriqueConsentementGps(resultatBrut: unknown): InterpretationResultatMetier {
+  const interpretation = interpreterResultatDefinirConsentementGps(resultatBrut);
+  if (interpretation.accepte) {
+    return { accepte: true, resume: interpretation.accuse };
+  }
+  return { accepte: false, verdict: interpretation.verdict };
+}
+
 /**
  * Association type de mutation -> outil réel (`/tools/invoke`, `tool`) + interprète de sa
  * réponse business. `punch_in`/`punch_out` : T1.4-d, R12 §5 étape 2 — voir
@@ -88,6 +99,8 @@ function versInterpretationGeneriqueMateriaux(resultatBrut: unknown): Interpreta
  * `fichier_bloc` -> `m4_deposer_fichier`, `job_completion` -> `m4_completer_intervention`,
  * `materials_submit` -> `m6_declarer_materiaux_utilises` : les trois ajouts de PLAN T1.4-f (voir
  * `src/fichiers/`, `src/m4/completion.ts`, `src/m6/materiaux.ts`).
+ *
+ * `gps_consent_change` -> `m4_definir_consentement_gps` : PLAN T1.4-k (`src/m4/consentementGps.ts`).
  */
 export const DESCRIPTEURS_MUTATION: ReadonlyMap<TypeMutation, DescripteurTypeMutation> = new Map([
   ["punch_in", { tool: "m4_pointer", interpreterResultat: versInterpretationGenerique }],
@@ -96,4 +109,5 @@ export const DESCRIPTEURS_MUTATION: ReadonlyMap<TypeMutation, DescripteurTypeMut
   ["fichier_bloc", { tool: "m4_deposer_fichier", interpreterResultat: versInterpretationGeneriqueDeposerFichier }],
   ["job_completion", { tool: "m4_completer_intervention", interpreterResultat: versInterpretationGeneriqueCompletion }],
   ["materials_submit", { tool: "m6_declarer_materiaux_utilises", interpreterResultat: versInterpretationGeneriqueMateriaux }],
+  ["gps_consent_change", { tool: "m4_definir_consentement_gps", interpreterResultat: versInterpretationGeneriqueConsentementGps }],
 ]);

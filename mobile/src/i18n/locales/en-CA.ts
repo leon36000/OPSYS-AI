@@ -57,6 +57,25 @@ const enCA: RessourcesCommunes = {
     },
     appareilNonAppaire: "Device not paired: cannot punch right now.",
   },
+  consentementGps: {
+    titre: "Location consent",
+    explication:
+      "Your position is only recorded when you punch, if you have consented. Withdrawing your " +
+      "consent turns off position capture at punch right away: you then punch by hand. You can " +
+      "give it again later.",
+    champTechnicien: "Your employee ID",
+    champRequis: "Enter your employee ID before withdrawing your consent.",
+    retirer: "Withdraw my GPS consent",
+    appareilNonAppaire: "Device not paired: cannot send the withdrawal right now.",
+    etat: {
+      enAttente: "Withdrawal waiting to be sent (it will go out as soon as the network is back)",
+      envoi: "Sending the withdrawal…",
+      envoye: "Withdrawal recorded: your position is no longer taken at punch",
+      echecPermanentAvecVerdict: "Withdrawal refused ({{code}}): {{detail}}",
+      echecPermanent: "Withdrawal refused",
+    },
+    aucunChangement: "Nothing sent yet.",
+  },
   today: {
     titre: "Today's jobs",
     chargement: "Loading jobs…",

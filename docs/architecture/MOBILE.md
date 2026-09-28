@@ -377,7 +377,13 @@ impose aujourd'hui (« mode ombre uniquement », `outils.py` `_ATTESTATION`) :
   seuls champs que l'employé saisit lui-même à l'écran (`job/[id]/index.tsx`, depuis T1.4-e,
   connaît `intervention_id` automatiquement — voir « Écran `job/[id]/index.tsx` » ; `technicien_id`
   reste saisi à la main des deux côtés, aucune identité employé/technicien n'est encore exposée
-  par le serveur au mobile, limite reportée telle quelle, pas résolue par cette tranche).
+  par le serveur au mobile, limite reportée telle quelle, pas résolue par cette tranche). **Depuis
+  T1.4-k**, ce champ n'est plus libre côté serveur : pour un appel d'appareil d'un employé,
+  `technicien_id` DOIT être l'identifiant OPSYS de la personne authentifiée (l'identifiant de
+  technicien EST celui de la personne), sinon `REJ-IDENTITE-FOURNIE-DIFFERENTE` (jamais remplacé en
+  silence), et l'intervention doit lui être assignée (`REJ-INTERVENTION-NON-ASSIGNEE`). L'employé
+  saisit donc SON identifiant ; le remplacer par l'identité de la session appairée exige que le
+  serveur la donne à l'app (réponse d'appairage), ce que rien ne fait encore.
 
 **CONVERGENCE FAITE (PLAN T1.4-e, mission item 3) : un seul identifiant d'appareil dans toute
 l'app.** Avant cette tranche, `appareil_id`/`deviceId` (le champ `attestation.appareil_id` de
@@ -447,6 +453,14 @@ d'affichage puis par `intervention_id` — un choix de présentation, documenté
 de cédule réelle. **À corriger dès qu'une route serveur exposera une vraie date/fenêtre par
 intervention et un filtre par technicien** (aucune des deux n'existe aujourd'hui parmi les quatre
 outils lus pour cette tranche).
+
+**Depuis T1.4-k, le serveur filtre pour l'employé** : `m4_lister_interventions` ne rend, pour un appel
+d'appareil `employee`, que les interventions qui lui sont assignées (`technicien_assigne` = sa
+personne, consigné par `m4_planifier_intervention` avant le départ) ; l'admin voit toutes celles du
+dispatch. Une intervention non cédulée n'est à personne : aucun employé ne la voit.
+`m4_statut_intervention` répond `statut: null` pour l'intervention d'un autre, comme pour une
+inconnue (indiscernable) : `interpreterResultatStatutIntervention` le lit déjà comme un statut
+inconnu, pas comme une erreur. Le mobile n'a rien à filtrer de son côté.
 
 Orchestration : `src/today/orchestrateur.ts::creerChargeurChantiers` (pure, testée avec un faux
 transport et un dépôt mémoire, `orchestrateur.test.ts`) — tente `m4_lister_interventions` en
@@ -843,12 +857,17 @@ Un `wct_id` que M4 n'a jamais publié est refusé, sans rien écrire : `REJ-WCT-
 quel (échec définitif, comme les autres codes). Aucun `wct_id` mémorisé -> `materials.aucunWct`,
 formulaire bloqué (fail-closed) : l'employé doit retourner à l'écran « Terminer ».
 
-**Ce que ce changement ne règle pas :** le serveur sait
-maintenant que le WCT existe, pas que CET appareil a le droit d'y déclarer. Un appareil appairé peut
-encore envoyer le `wct_id` d'un autre employé (les `wct_id` sont des empreintes non secrètes, publiées
-sur le bus), et `chantier_id`/`intervention_id` du formulaire restent des affirmations de l'appareil.
-Le contrôle d'accès appartient au serveur (M6/M4 avec l'identité authentifiée de l'appel,
-`opsys.contexte.identite_appelante()`), jamais au mobile.
+**Ce que T1.4-i ne réglait pas, et que T1.4-k règle côté SERVEUR** (le mobile n'a pas changé) : le
+serveur savait que le WCT existait, pas que CET appareil avait le droit d'y déclarer. Depuis T1.4-k,
+M6 confronte la personne authentifiée de l'appel (`opsys.contexte.identite_appelante()`, revérifiée en
+base) au `technicien_id` du WCT : un employé qui envoie le `wct_id` d'un collègue (les `wct_id` sont
+des empreintes non secrètes, publiées sur le bus) reçoit `REJ-INTERVENTION-NON-ASSIGNEE`, affiché tel
+quel, sans rien écrire. `intervention_id` du formulaire doit être celui du WCT
+(`REJ-FORMULAIRE-MATERIAUX-INTERVENTION-INCOHERENTE`), et `chantier_id` celui que la source impose —
+le prévu du devis du WCT s'il le connaît, sinon, pour un employé, l'`intervention_id` (ce que l'app
+envoie déjà : `materials.tsx` prend l'identifiant de la route pour les deux) :
+`REJ-FORMULAIRE-MATERIAUX-CHANTIER-INCOHERENT` sinon. Détail : [`ROLES.md`](ROLES.md). Le contrôle
+d'accès appartient au serveur, jamais au mobile.
 
 **Aucune quantité ni aucun prix proposés par défaut** (mission item 3, DEFINITION-PRODUIT.md
 §9.3 : « quantités réelles ajustables… **Aucun coût affiché** ») —
@@ -893,6 +912,50 @@ davantage ici pour rester au périmètre de la mission (item 3).
 
 Écran non testé en rendu (même limite que les autres écrans de cette tranche) :
 `src/ecrans/materials.ts`, `src/m6/materiaux.ts` portent la logique, testée là.
+
+## Consentement GPS (`consent.tsx`, POLITIQUE-geolocalisation §4, PLAN T1.4-k)
+
+`app/(employee)/consent.tsx` : l'employé retire SON consentement à la géolocalisation depuis
+l'app (POLITIQUE-geolocalisation.md §4 : « l'employé peut retirer son consentement via l'app
+employé » ; §7 : droit de retrait à tout moment). Avant T1.4-k l'outil `m4_definir_consentement_gps`
+n'était ouvert qu'à l'`admin` (il prenait un `technicien_id` de l'appelant : un employé aurait pu
+retirer le consentement d'un collègue) ; il l'est maintenant à `employee`, à condition que
+`technicien_id` soit sa propre personne (`REJ-IDENTITE-FOURNIE-DIFFERENTE` sinon, rien d'écrit).
+Détail des contrôles : [`ROLES.md`](ROLES.md).
+
+- **Type de mutation** `gps_consent_change` -> `m4_definir_consentement_gps`
+  (`src/outbox/descripteurs.ts`), par la file sortante comme tout le reste : le retrait est en file
+  AVANT tout réseau, rejoué avec la même clé d'idempotence après une coupure, jamais perdu (R12 §4).
+- **Logique pure** : `src/m4/consentementGps.ts` (args exacts du schéma serveur,
+  `creerMutationConsentementGps`, interprète du verdict), testée dans `consentementGps.test.ts`.
+  `consent.tsx` ne fait que le câblage React, non testé en rendu (même limite que les autres écrans).
+- **Ordre** : `chantierId = "0-consentement-gps"` se trie avant tout identifiant d'intervention
+  (hexadécimal) dans `selectionnerProchainesEnvoyables` : un retrait en file part avant les
+  pointages en attente. Sans cela, un pointage créé APRÈS le retrait pourrait arriver au serveur
+  avant lui, et enregistrer une position que l'employé avait refusée (test dans
+  `consentementGps.test.ts`).
+- **Effet** : immédiat côté serveur. Dès le maillon écrit, `m4_pointer` ignore le fix fourni et bascule
+  en mode manuel (`mode_pointage: "manuel"`). L'heure du retrait est celle de RÉCEPTION du serveur
+  (T1.4-d), pas `horodatage`, que l'appareil envoie pour l'affichage seulement.
+- **Verdict affiché tel quel** (`deriverEtatSynchroAffiche`, comme `punch.tsx`) : un retrait refusé
+  (`REJ-IDENTITE-FOURNIE-DIFFERENTE`, `REJ-IDENTITE-APPAREIL-INVALIDE`…) se voit, il n'est jamais rendu
+  comme un succès.
+
+**Limites, dites plutôt que masquées :**
+- seul le RETRAIT est proposé. Donner son consentement demande le formulaire d'accueil avec
+  l'explication des finalités et la case à cocher (POLITIQUE §4), que rien ne présente encore ; le
+  serveur accepte déjà `donne` pour la propre personne de l'employé, et `consentementGps.ts`
+  construit les deux actions ;
+- `technicien` est saisi à la main (comme `punch.tsx`) : l'app ne connaît pas encore la personne
+  appairée ; le serveur, lui, le confronte à l'identité authentifiée ;
+- `preuve` reste `{fictif: true, reference}` (`consentement.py` refuse toute preuve réelle en mode
+  ombre) et `version_politique` nomme la PROPOSITION P0-7, que Nathan n'a pas encore validée
+  (`VERSION_POLITIQUE_GEOLOCALISATION`) : à remplacer quand la politique sera publiée ;
+- aucun lien de navigation ne mène à cet écran (comme `punch.tsx` : l'accueil employé n'a pas encore de
+  navigation) ; l'écran n'a pas été rendu dans ce bac à sable (ADR-0008 : pas d'appareil ni
+  d'émulateur), seuls `tsc` et Jest l'ont vérifié ;
+- l'employé ne peut pas encore consulter ses propres positions (§7, droit d'accès) :
+  `m4_lire_position_gps` reste à l'admin.
 
 ## `/tools/invoke` sans tour de modèle (`src/protocole/`)
 
@@ -1062,9 +1125,10 @@ réception côté propriétaire ne ferme pas la boucle », R12 §5) ; pas de tes
 un core/moteur réels (R12 §5 étape 7 — le scénario exact, « travaux terminés normaux ; écart de
 40 % -> `completed_pending_review` + alerte mobile admin », PLAN.md T1.5, reste à exécuter, voir
 la remarque ci-dessus sur la conformité non vérifiée du contrat fichiers) ; `technicien_id` reste
-saisi à la main sur `punch.tsx`/`job/[id]/index.tsx` (aucune identité employé/technicien exposée
-par le serveur au mobile — pas résolu par cette tranche, contrairement à `appareilId` qui, lui,
-converge maintenant — voir « Écran `punch.tsx` ») ; pas de suppression/reprise de photo une fois
+saisi à la main sur `punch.tsx`/`job/[id]/index.tsx`/`consent.tsx` (aucune identité employé/technicien
+exposée par le serveur au mobile — pas résolu, contrairement à `appareilId` qui, lui, converge
+maintenant — voir « Écran `punch.tsx` » ; depuis T1.4-k, le serveur exige que ce soit l'identifiant de
+la personne authentifiée) ; pas de suppression/reprise de photo une fois
 capturée (`DepotOutbox` n'expose aucune méthode de suppression, volontairement non étendue ici
 pour ne pas risquer une régression sur `punch.tsx` déjà en production — une photo capturée par
 erreur ne peut être « annulée » qu'en ne la déposant jamais, ce que rien n'empêche aujourd'hui) ;

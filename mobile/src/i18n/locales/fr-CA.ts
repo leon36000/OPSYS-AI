@@ -55,6 +55,22 @@ export interface RessourcesCommunes {
     };
     appareilNonAppaire: string;
   };
+  consentementGps: {
+    titre: string;
+    explication: string;
+    champTechnicien: string;
+    champRequis: string;
+    retirer: string;
+    appareilNonAppaire: string;
+    etat: {
+      enAttente: string;
+      envoi: string;
+      envoye: string;
+      echecPermanentAvecVerdict: string;
+      echecPermanent: string;
+    };
+    aucunChangement: string;
+  };
   today: {
     titre: string;
     chargement: string;
@@ -263,6 +279,25 @@ const frCA: RessourcesCommunes = {
       echecPermanentAvecVerdict: "Échec définitif ({{code}}) : {{detail}}",
     },
     appareilNonAppaire: "Appareil non apparié : impossible de pointer pour l'instant.",
+  },
+  consentementGps: {
+    titre: "Consentement à la géolocalisation",
+    explication:
+      "Votre position n'est enregistrée qu'au moment de votre pointage, si vous y avez consenti. " +
+      "Retirer votre consentement désactive tout de suite la position au pointage : vous pointez " +
+      "alors à la main. Vous pouvez le donner de nouveau plus tard.",
+    champTechnicien: "Votre identifiant d'employé",
+    champRequis: "Entrez votre identifiant d'employé avant de retirer votre consentement.",
+    retirer: "Retirer mon consentement GPS",
+    appareilNonAppaire: "Appareil non apparié : impossible d'envoyer le retrait pour l'instant.",
+    etat: {
+      enAttente: "Retrait en attente d'envoi (il partira dès que le réseau revient)",
+      envoi: "Envoi du retrait en cours…",
+      envoye: "Retrait enregistré : votre position n'est plus prise au pointage",
+      echecPermanentAvecVerdict: "Retrait refusé ({{code}}) : {{detail}}",
+      echecPermanent: "Retrait refusé",
+    },
+    aucunChangement: "Aucun changement envoyé pour l'instant.",
   },
   today: {
     titre: "Chantiers du jour",

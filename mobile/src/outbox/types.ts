@@ -13,6 +13,9 @@ export type StatutMutation = "brouillon" | "en_attente" | "envoi" | "envoyee" | 
  *    plutôt que de réutiliser `job_status_change` (déjà à sens unique vers `m4_demarrer_route`,
  *    voir `src/outbox/descripteurs.ts`), même principe que documenté dans `src/ecrans/job.ts`
  *    pour une future transition distincte (report, annulation…).
+ * PLAN T1.4-k ajoute `gps_consent_change` : `m4_definir_consentement_gps` — l'employé retire (ou
+ * donne) SON consentement à la géolocalisation (POLITIQUE-geolocalisation §4), `consent.tsx`, voir
+ * `src/m4/consentementGps.ts`. Type DÉDIÉ : ce n'est ni un pointage ni une transition de statut.
  */
 export type TypeMutation =
   | "punch_in"
@@ -25,7 +28,8 @@ export type TypeMutation =
   | "signature_capture"
   | "po_receive_scan"
   | "fichier_bloc"
-  | "job_completion";
+  | "job_completion"
+  | "gps_consent_change";
 
 /**
  * Une ligne de la file sortante SQLite (`outbox`, R12 §4). `id` est le `mutation_id` UUID créé
