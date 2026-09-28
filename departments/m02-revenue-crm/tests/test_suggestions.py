@@ -170,3 +170,55 @@ class TestParStatut:
         resultat, v = suggestions.suggerer(reg, "AV1", "2026-06-15T10:00:00+00:00")
         assert v is None
         assert resultat["regle"] == "relance_avis_reference"
+
+
+def _charge_devis_sans_reponse(**surcharges):
+    """Charge minimale conforme au catalogue m3.devis_sans_reponse (schéma déjà validé par
+    opsys.evenements.publier avant que suggerer_relance_devis_sans_reponse ne la reçoive)."""
+    base = {
+        "devis_id": "devis-test-1",
+        "lead_id": "lead-test-1",
+        "chantier_id": None,
+        "statut": "envoye",
+        "horodatage_devis": "2026-09-01T10:00:00-04:00",
+        "horodatage_reference": "2026-09-20T10:00:00-04:00",
+        "delai_relance_jours": 14,
+    }
+    base.update(surcharges)
+    return base
+
+
+class TestSuggererRelanceDevisSansReponse:
+    """M2.7 (Relances) : fonction PURE, calcule uniquement depuis la charge déjà validée du fait
+    m3.devis_sans_reponse — aucun registre, aucune horloge, rien d'inventé ni de recalculé."""
+
+    def test_devis_envoye_propose_de_relancer_le_client(self):
+        resultat = suggestions.suggerer_relance_devis_sans_reponse(_charge_devis_sans_reponse(statut="envoye"))
+        assert resultat["regle"] == "relancer_client_devis_envoye"
+        assert resultat["statut_devis"] == "envoye"
+        assert "Relancer le client" in resultat["suggestion"]
+        assert resultat["devis_id"] == "devis-test-1"
+        assert resultat["lead_id"] == "lead-test-1"
+
+    def test_devis_brouillon_ne_propose_jamais_de_relancer(self):
+        """Un devis jamais envoyé n'a pas de client à relancer (§7 M2, M2.7) : la proposition est
+        d'envoyer ou d'abandonner, jamais une relance."""
+        resultat = suggestions.suggerer_relance_devis_sans_reponse(_charge_devis_sans_reponse(statut="brouillon"))
+        assert resultat["regle"] == "decider_envoi_ou_abandon_devis_brouillon"
+        assert resultat["statut_devis"] == "brouillon"
+        assert "relance" not in resultat["suggestion"].lower()
+        assert "envoyer" in resultat["suggestion"] and "abandonner" in resultat["suggestion"]
+
+    def test_delai_et_horodatage_du_devis_apparaissent_verbatim_jamais_recalcules(self):
+        charge = _charge_devis_sans_reponse(
+            statut="envoye", horodatage_devis="2026-01-15T08:30:00-05:00", delai_relance_jours=30
+        )
+        resultat = suggestions.suggerer_relance_devis_sans_reponse(charge)
+        assert "2026-01-15T08:30:00-05:00" in resultat["motif"]
+        assert "30" in resultat["motif"]
+
+    def test_statut_hors_catalogue_leve_defense_en_profondeur(self):
+        """Ne devrait jamais arriver (le catalogue n'admet que brouillon/envoye), mais une
+        charge malformée ne doit jamais produire une suggestion par défaut silencieuse."""
+        with pytest.raises(RuntimeError):
+            suggestions.suggerer_relance_devis_sans_reponse(_charge_devis_sans_reponse(statut="accepte"))

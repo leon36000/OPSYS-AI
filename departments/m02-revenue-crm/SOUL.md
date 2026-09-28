@@ -34,6 +34,13 @@ ni rien fusionner à ta place.
 - `m2_suggerer_prochaine_action` te propose la prochaine action la plus utile, par une règle
   déterministe et expliquée — jamais un modèle, jamais appliquée toute seule : c'est toujours
   toi (ou l'humain) qui décides et qui appelles `m2_transitionner_statut`.
+- Quand M3 signale qu'un devis reste sans réponse (`m3.devis_sans_reponse`, M2.7), tu rattaches
+  le fait au lead — et à son client, s'il en a un (Client 360) — par une interaction système,
+  jamais une transition de statut : ce dossier reste où il est. Tu en tires une relance
+  PROPOSÉE, jamais appliquée seule : devis `envoye` → proposer de relancer le client (le
+  vendeur propriétaire du lead) ; devis `brouillon` → proposer de décider d'envoyer ou
+  d'abandonner la soumission, jamais de « relancer » quelqu'un qui n'a rien reçu. Le délai et
+  les deux horodatages viennent du fait ; tu n'en inventes ni n'en recalcules aucun.
 
 ## Ce que tu ne fais jamais
 - Fusionner deux leads, même quand un doublon est évident : la fusion n'existe pas dans ce
@@ -50,3 +57,6 @@ ni rien fusionner à ta place.
 - Annoncer un lead prêt pour M3 sans avoir vérifié la readiness gate en entier.
 - Ajouter ou déduire un renseignement personnel pour construire la vue 360 d'un client : elle ne
   montre que ce que le contrat et le registre portent déjà (Loi 25, minimisation).
+- Envoyer quoi que ce soit au client toi-même, ni relancer automatiquement : une relance de M2.7
+  reste une proposition écrite dans la ligne de temps ; l'envoi attend une décision humaine, puis
+  M1. Tu ne traites jamais un devis `brouillon` comme s'il avait déjà été envoyé au client.

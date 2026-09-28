@@ -28,7 +28,7 @@ from .readiness import emettre_marqueur
 from .statuts import STATUTS, STATUTS_TERMINAUX, statut_courant
 from .verdicts import construire_verdict
 
-__all__ = ["suggerer"]
+__all__ = ["suggerer", "suggerer_relance_devis_sans_reponse"]
 
 # Statuts couverts par chaque règle, dans l'ordre de priorité où la table est parcourue —
 # STATUTS_ATTENTE_CYCLE et STATUTS_POST_FACTURATION nommés pour que la table reste lisible et que
@@ -156,4 +156,66 @@ def suggerer(registre_cible, lead_id: str, horodatage: str) -> tuple[dict | None
     raise RuntimeError(
         f"prochaine_action.suggerer : statut {statut!r} de statuts.STATUTS {STATUTS!r} non couvert "
         "par la table de règles — mise à jour requise, jamais une suggestion par défaut."
+    )
+
+
+def suggerer_relance_devis_sans_reponse(charge: dict) -> dict:
+    """M2.7 (Relances) : suggestion déterministe tirée du fait `m3.devis_sans_reponse` (ADR-0009
+    §3, catalogue ``src/opsys/evenements/catalogue/m3.devis_sans_reponse.json``), appelée par le
+    consommateur d'événements de M2 (``outils._recevoir_devis_sans_reponse``) — jamais appliquée
+    seule (§7 M2, règles dures : « pas de spam... validation humaine au départ »). Frontière T3 du
+    socle : M2 ne relance jamais elle-même, elle PROPOSE ; un humain décide, M1 enverra plus tard.
+
+    Fonction PURE (T0, même discipline que ``suggerer`` ci-dessus) : calcule uniquement depuis
+    ``charge``, déjà validée par le schéma JSON du catalogue avant de quitter M3
+    (``opsys.evenements.publier``) — ne relit, ne recalcule ni n'invente ni le délai
+    (``delai_relance_jours``), ni les horodatages, ni le statut du devis : les trois viennent tels
+    quels de la charge.
+
+    Distingue exactement les deux statuts qu'un devis « sans réponse » peut porter (jamais
+    ``accepte``, qui aurait reçu sa réponse — voir le catalogue) :
+
+    - ``envoye`` : le devis a été transmis au client, qui n'a pas répondu dans le délai -> propose
+      de RELANCER LE CLIENT (le vendeur propriétaire du lead, M2.7).
+    - ``brouillon`` : le devis n'a JAMAIS été envoyé -> propose de décider de l'envoyer ou de
+      l'abandonner — jamais de « relancer » un client qui n'a rien reçu.
+    """
+    devis_id = charge["devis_id"]
+    lead_id = charge["lead_id"]
+    statut_devis = charge["statut"]
+    horodatage_devis = charge["horodatage_devis"]
+    delai = charge["delai_relance_jours"]
+
+    if statut_devis == "envoye":
+        return {
+            "lead_id": lead_id,
+            "devis_id": devis_id,
+            "statut_devis": statut_devis,
+            "regle": "relancer_client_devis_envoye",
+            "suggestion": f"Relancer le client au sujet du devis {devis_id}.",
+            "motif": (
+                f"Devis envoyé le {horodatage_devis}, resté sans réponse au moins {delai} "
+                "jour(s) (M2.7)."
+            ),
+        }
+    if statut_devis == "brouillon":
+        return {
+            "lead_id": lead_id,
+            "devis_id": devis_id,
+            "statut_devis": statut_devis,
+            "regle": "decider_envoi_ou_abandon_devis_brouillon",
+            "suggestion": f"Décider d'envoyer ou d'abandonner le devis {devis_id}.",
+            "motif": (
+                f"Devis créé le {horodatage_devis}, toujours en brouillon après au moins {delai} "
+                "jour(s) — le client n'a encore rien reçu, aucune relance possible avant l'envoi "
+                "(M2.7)."
+            ),
+        }
+    # Défense en profondeur : le catalogue m3.devis_sans_reponse n'admet que "brouillon"/"envoye"
+    # pour 'statut' (jsonschema valide la charge avant publication) — jamais atteint en usage
+    # normal, même patron que suggerer() ci-dessus.
+    raise RuntimeError(
+        f"suggerer_relance_devis_sans_reponse : statut de devis {statut_devis!r} hors du "
+        "catalogue m3.devis_sans_reponse ('brouillon'/'envoye') — mise à jour requise, jamais une "
+        "suggestion par défaut."
     )

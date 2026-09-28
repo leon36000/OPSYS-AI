@@ -68,8 +68,9 @@ def test_manifeste_et_outils_coherents():
     assert len(noms) == len(set(noms)), "noms d'outils en double"
     # PLAN T1.1-a : m04-field-ops ajouté — M2 consomme le signal de fin de chantier de M4
     # (DEFINITION-PRODUIT §6, cascade « travaux terminés », ligne M2) via
-    # m2_marquer_chantier_termine.
-    assert dep.dependances == ("m01-front-office", "m04-field-ops")
+    # m2_marquer_chantier_termine. M2.7 : m03-estimation ajouté — M2 consomme le signal de devis
+    # sans réponse de M3 (voir test_evenements.py::TestManifeste).
+    assert dep.dependances == ("m01-front-office", "m03-estimation", "m04-field-ops")
     assert dep.mode == "ombre"
     # PLAN T2.2 : Client 360 + suggestion de prochaine action, trois nouveaux outils T0 (lecture).
     for nom_attendu in ("m2_trouver_client_de_lead", "m2_obtenir_client_360", "m2_suggerer_prochaine_action"):

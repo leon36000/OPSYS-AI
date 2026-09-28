@@ -35,6 +35,10 @@ _DEPARTEMENT = "m02-revenue-crm"
 # evenement_id est un « déjà appliqué », jamais une quarantaine. Même patron que `wct_recus` de
 # M5 et M6.
 _NOM_REGISTRE_WCT_RECUS = "wct_recus"
+# Faits m3.devis_sans_reponse déjà appliqués (clé métier : devis_id, M2.7) : même patron que
+# _NOM_REGISTRE_WCT_RECUS ci-dessus — un même devis republié sous un autre evenement_id est un
+# « déjà appliqué », jamais une quarantaine.
+_NOM_REGISTRE_RELANCES_DEVIS_RECUES = "relances_devis_recues"
 _NOM_REGISTRE = "principal"
 
 _registre_memoire = Registre()
@@ -284,10 +288,14 @@ def marquer_chantier_termine(
 
 
 class LeadIntrouvable(LookupError):
-    """m4.travaux_termines : lead_id absent du registre M2 — incohérence de données entre M4 et
-    M2 (DEFINITION-PRODUIT §7 M2 : « Aucun lead sans statut, propriétaire, prochaine action ou
-    historique »). Jamais un refus métier normal : le répartiteur réessaie puis met en
-    quarantaine (ADR-0009 §3), sans qu'aucune écriture n'ait eu lieu."""
+    """lead_id absent du registre M2 — incohérence de données entre M2 et le département qui a
+    publié l'événement (DEFINITION-PRODUIT §7 M2 : « Aucun lead sans statut, propriétaire,
+    prochaine action ou historique »). Partagée par tous les consommateurs d'événements de ce
+    module qui exigent un lead déjà connu : m4.travaux_termines (M4) et m3.devis_sans_reponse
+    (M3, M2.7 — voir _recevoir_devis_sans_reponse plus bas). Jamais un refus métier normal : le
+    répartiteur réessaie puis met en quarantaine (ADR-0009 §3), sans qu'aucune écriture n'ait eu
+    lieu ; le fait lui-même reste dans evenements_sortants (jamais supprimé), donc disponible
+    pour une arrivée tardive si un humain republie l'événement une fois le lead connu de M2."""
 
 
 class StatutIncompatibleAvecCompletion(ValueError):
@@ -564,9 +572,99 @@ def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------
+# Consommateur d'événements (ADR-0009 §3, M2.7 Relances) : m3.devis_sans_reponse
+# ---------------------------------------------------------------------------
+# DEFINITION-PRODUIT §6, flux principal : « M3 estime et rédige la soumission → M2 suit la
+# soumission (relances) ». §7 M2 : « M2.7 Relances : séquences, dormants, ancien client,
+# saisonnier, avis, référence » ; règles dures « pas de spam, pas d'agressivité, opt-in respecté,
+# fréquence limitée, validation humaine au départ ». M2 ne relance jamais elle-même : elle
+# rattache le fait au lead (et au client, s'il existe) et en tire une relance PROPOSÉE
+# (suggestions.suggerer_relance_devis_sans_reponse) — un humain décide, M1 enverra plus tard
+# (frontière T3 du socle : aucun envoi au client par M2, jamais).
+
+
+def _recevoir_devis_sans_reponse(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme m3.devis_sans_reponse (ADR-0009 §3, M2.7 — voir le commentaire ci-dessus).
+
+    Rattache le fait au lead par UNE interaction système (auteur ``system:m3``) — jamais une
+    transition de statut : la relance reste une PROPOSITION, jamais appliquée seule (§7 M2). Cette
+    même interaction rattache aussi le fait au CLIENT (Client 360, ligne de temps) quand le lead en
+    a un (``clients.client_de_lead``) : ``clients.vue_360``/``_interactions_du_lead`` parcourt déjà
+    les interactions par ``lead_id``, aucun code supplémentaire n'est nécessaire ici. Un lead
+    jamais lié à un client (antérieur à PLAN T2.2, ou ingéré hors de ``ingerer_lead``) reste traité
+    normalement : ``client_id`` est simplement ``None`` dans le résultat. N'ÉCRASE JAMAIS
+    l'historique : ``interactions.enregistrer`` n'ajoute qu'un maillon (registre append-only).
+
+    Le délai, les deux horodatages et le statut viennent TELS QUELS de la charge (déjà produite et
+    validée par M3, catalogue ``m3.devis_sans_reponse.json``) : rien n'est recalculé ni inventé ici
+    — voir ``suggestions.suggerer_relance_devis_sans_reponse``, seule à décider du texte de la
+    relance, à partir de ces mêmes champs.
+
+    Idempotent à deux niveaux, même patron que ``_recevoir_travaux_termines``/``wct_recus`` :
+    le répartiteur n'appelle cette fonction qu'une fois par (evenement_id, consommateur) traité
+    avec succès (``EVENEMENTS_RECUS`` UNIQUE, ADR-0009 §3) ; et un même devis republié sous un
+    autre ``evenement_id`` (rejeu du producteur — M3 utilise déjà un identifiant déterministe par
+    ``devis_id``, mais ce consommateur reste défensif, comme M4/WCT) est reconnu par son
+    ``devis_id`` (``_NOM_REGISTRE_RELANCES_DEVIS_RECUES``) : rien ne s'écrit une seconde fois,
+    aucune quarantaine pour une redélivrance.
+
+    Lead introuvable : ``LeadIntrouvable`` (même erreur nommée que ``m4.travaux_termines`` —
+    incohérence de données, jamais un refus métier normal) ; le répartiteur réessaie puis met en
+    quarantaine (ADR-0009 §3), visible par un humain (``opsys evenements etat``), sans qu'aucune
+    écriture n'ait eu lieu.
+    """
+    devis_id = charge["devis_id"]
+    lead_id = charge["lead_id"]
+    relances_recues = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RELANCES_DEVIS_RECUES)
+    if any(recu.get("devis_id") == devis_id for recu in relances_recues):
+        return {"traite": True, "lead_id": lead_id, "devis_id": devis_id, "deja_applique": True}
+
+    reg = _obtenir_registre()
+    statut_lead = statuts.statut_courant(reg, lead_id)
+    if statut_lead is None:
+        raise LeadIntrouvable(f"m3.devis_sans_reponse : lead {lead_id!r} introuvable au registre M2")
+
+    suggestion = suggestions.suggerer_relance_devis_sans_reponse(charge)
+    client_id = clients.client_de_lead(reg, lead_id)
+    resume = f"Devis {devis_id} sans réponse : {suggestion['suggestion']} {suggestion['motif']}"
+    _, verdict_interaction = interactions.enregistrer(
+        lead_id, "system:m3", resume, reg, charge["horodatage_reference"]
+    )
+    if verdict_interaction is not None:
+        # Ne devrait jamais arriver pour un lead trouvé avec un horodatage et un résumé déjà
+        # valides (construits ci-dessus) — SAUF un lead déjà clos (perdu) au moment où ce fait
+        # arrive : une incohérence de données réelle (M3 pas informé de la perte), jamais un
+        # cas silencieux — défense en profondeur, même patron que marquer_chantier_termine.
+        raise RuntimeError(
+            "m3.devis_sans_reponse : interaction système refusée pour un lead trouvé "
+            f"(lead {lead_id!r}, statut {statut_lead!r}) : {verdict_interaction}"
+        )
+
+    relances_recues.append({
+        "devis_id": devis_id,
+        "lead_id": lead_id,
+        "statut_devis": charge["statut"],
+        "horodatage_devis": charge["horodatage_devis"],
+        "horodatage_reference": charge["horodatage_reference"],
+        "delai_relance_jours": charge["delai_relance_jours"],
+        "client_id": client_id,
+    })
+    return {
+        "traite": True,
+        "lead_id": lead_id,
+        "devis_id": devis_id,
+        "client_id": client_id,
+        "relance_proposee": suggestion,
+    }
+
+
 def consommateurs() -> dict[str, Callable[[dict], dict]]:
     """Types d'événements consommés par M2 (ADR-0009 §3) — voir `department.yaml/evenements`."""
-    return {"m4.travaux_termines": _recevoir_travaux_termines}
+    return {
+        "m4.travaux_termines": _recevoir_travaux_termines,
+        "m3.devis_sans_reponse": _recevoir_devis_sans_reponse,
+    }
 
 
 def evaluer_readiness(lead_id: str, horodatage: str) -> dict[str, Any]:

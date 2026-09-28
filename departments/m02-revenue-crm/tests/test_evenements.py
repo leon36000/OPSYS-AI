@@ -1,14 +1,22 @@
-"""M2 consomme `m4.travaux_termines` (ADR-0009 §3, PLAN T1.2-c partie 1) : le lead avance de
-façon déterministe jusqu'à `chantier` puis `marquer_chantier_termine` l'amène à `facture`, la
-prochaine action suit une table de règles documentée, une incohérence de données (lead introuvable
-ou statut incompatible) est mise en quarantaine sans écriture, une relivraison n'a aucun effet.
+"""M2 consomme `m4.travaux_termines` (ADR-0009 §3, PLAN T1.2-c partie 1) et `m3.devis_sans_reponse`
+(ADR-0009 §3, M2.7 Relances) : le premier fait avancer le lead de façon déterministe jusqu'à
+`chantier` puis `marquer_chantier_termine` l'amène à `facture`, la prochaine action suit une table
+de règles documentée ; le second rattache le fait au lead (et au client, s'il existe) par une
+interaction système sans jamais transitionner son statut, et en tire une relance PROPOSÉE qui
+distingue devis `envoye` (relancer le client) et devis `brouillon` (envoyer ou abandonner). Les
+deux consommateurs partagent le même traitement d'une incohérence de données (lead introuvable :
+quarantaine sans écriture) et d'une relivraison (aucun effet).
 
 Utilise le VRAI bus (`evenements.repartir` + `opsys.departements.charger_departements()`, sur les
 manifestes réels de `departments/` — pas une racine de démonstration : c'est le seul moyen de
 prouver que `department.yaml` de M2 déclare bien `evenements.consomme` et que `consommateurs()`
 s'y raccorde), sur une base SQLite temporaire migrée (patron de
-`test_registre_durable.py::base_durable`). Les WCT publiés sont des événements de test fictifs
-(clients, techniciens et identifiants de test — DEFINITION-PRODUIT §1, jamais des données réelles).
+`test_registre_durable.py::base_durable`). Les WCT et devis publiés sont des événements de test
+fictifs (clients, techniciens et identifiants de test — DEFINITION-PRODUIT §1, jamais des données
+réelles). `TestDevisSansReponseBoutEnBout` va plus loin pour ce second événement : plutôt qu'une
+charge composée à la main, elle appelle les VRAIS outils de M3 (`m3_creer_devis`,
+`m3_detecter_devis_sans_reponse`) pour prouver le câblage inter-départements de bout en bout, pas
+seulement le contrat JSON du catalogue.
 """
 
 from __future__ import annotations
@@ -16,11 +24,19 @@ from __future__ import annotations
 import datetime as dt
 
 import pytest
-from m2_revenue_crm import outils, statuts
+from m2_revenue_crm import clients, ingestion, outils, statuts
+
+# Cross-département (TestDevisSansReponseBoutEnBout seulement) : PYTHONPATH inclut déjà
+# departments/*/src (AGENTS.md), même mécanisme que opsys.departements.charger_departements()
+# pour charger le module outils d'un département depuis son department.yaml.
+from m3_estimation import devis_durable  # noqa: E402
+from m3_estimation.outils import outils as _outils_m3  # noqa: E402
+from m3_estimation.outils import registre_devis_production as _registre_devis_m3  # noqa: E402
 from sqlalchemy import select
 
 from opsys import evenements, stockage
 from opsys.departements import charger_departements
+from opsys.outils import executer_atomique
 from opsys.stockage import codec
 from opsys.stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS
 
@@ -54,6 +70,22 @@ def _wct(lead_id: str, horodatage_completion: str, **overrides) -> dict:
         "consommateurs_cibles": ["M6", "M5", "M2", "M7", "M8", "M10"],
         "devis_id": f"devis-{lead_id}",
         "statut": "completed_verified",
+    }
+    base.update(overrides)
+    return base
+
+
+def _devis_sans_reponse(
+    devis_id: str, lead_id: str, horodatage_devis: str, horodatage_reference: str, **overrides
+) -> dict:
+    base = {
+        "devis_id": devis_id,
+        "lead_id": lead_id,
+        "chantier_id": None,
+        "statut": "envoye",
+        "horodatage_devis": horodatage_devis,
+        "horodatage_reference": horodatage_reference,
+        "delai_relance_jours": 14,
     }
     base.update(overrides)
     return base
@@ -131,10 +163,12 @@ def _deps_bus():
 
 
 class TestManifeste:
-    def test_m2_declare_consommer_travaux_termines(self):
+    def test_m2_declare_consommer_travaux_termines_et_devis_sans_reponse(self):
         dep = charger_departements()["m02-revenue-crm"]
-        assert dep.evenements_consomme == ("m4.travaux_termines",)
-        assert "m4.travaux_termines" in dep.charger_consommateurs()
+        assert dep.evenements_consomme == ("m4.travaux_termines", "m3.devis_sans_reponse")
+        consommateurs = dep.charger_consommateurs()
+        assert "m4.travaux_termines" in consommateurs
+        assert "m3.devis_sans_reponse" in consommateurs
 
     def test_m2_declare_publier_client_associe(self):
         """PLAN T2.2 (Client 360)."""
@@ -494,3 +528,276 @@ class TestOpportuniteAmbigue:
         lignes = [ligne for ligne in evenements.etat()["quarantaine"] if ligne["consommateur"] == "m02-revenue-crm"]
         assert len(lignes) == 1
         assert "OpportuniteAmbigue" in lignes[0]["derniere_erreur"]
+
+
+class TestDevisSansReponseNominal:
+    """M2.7 (Relances) : le fait m3.devis_sans_reponse est rattaché au lead par UNE interaction
+    système, JAMAIS une transition de statut — la relance reste une proposition. La suggestion
+    (suggestions.suggerer_relance_devis_sans_reponse) distingue les deux statuts non terminaux
+    d'un devis M3 (catalogue m3.devis_sans_reponse : 'brouillon'/'envoye')."""
+
+    @pytest.mark.parametrize(
+        ("statut_devis", "regle_attendue", "mot_attendu"),
+        [
+            ("envoye", "relancer_client_devis_envoye", "Relancer le client"),
+            ("brouillon", "decider_envoi_ou_abandon_devis_brouillon", "envoyer ou d'abandonner"),
+        ],
+        ids=["envoye", "brouillon"],
+    )
+    def test_interaction_ecrite_lead_inchange_selon_le_statut(
+        self, base_durable, statut_devis, regle_attendue, mot_attendu
+    ):
+        lead_id = f"RELANCE-{statut_devis}"
+        _amener_a(lead_id, "qualifie")
+        assert statuts.statut_courant(_registre(), lead_id) == "qualifie"
+
+        charge = _devis_sans_reponse(
+            f"devis-{lead_id}", lead_id, "2026-09-01T10:00:00-04:00", "2026-09-20T10:00:00-04:00",
+            statut=statut_devis,
+        )
+        evenements.publier("m3.devis_sans_reponse", "m03-estimation", charge)
+        resume = evenements.repartir(_deps_bus(), maintenant="2026-09-20T10:05:00-04:00")
+        assert resume["echecs"] == 0 and resume["quarantaines"] == 0, resume
+
+        # Le lead n'a PAS bougé : une relance proposée n'est jamais une transition (M2.7, §7 M2).
+        assert statuts.statut_courant(_registre(), lead_id) == "qualifie"
+
+        interactions = [
+            m for m in _registre().lire() if m["type_entree"] == "interaction" and m["lead_id"] == lead_id
+        ]
+        assert len(interactions) == 1, "une seule interaction système écrite"
+        assert interactions[0]["auteur"] == "system:m3"
+        assert mot_attendu in interactions[0]["resume"]
+        assert charge["devis_id"] in interactions[0]["resume"]
+
+        recu = next(iter(stockage.maillons("m02-revenue-crm", "relances_devis_recues")))
+        assert recu["devis_id"] == charge["devis_id"]
+        assert recu["statut_devis"] == statut_devis
+
+    def test_delai_et_horodatages_viennent_du_fait_jamais_recalcules(self, base_durable):
+        lead_id = "RELANCE-FIDELE"
+        _amener_a(lead_id, "qualifie")
+        charge = _devis_sans_reponse(
+            "devis-fidele", lead_id, "2026-08-01T08:00:00-04:00", "2026-09-25T08:00:00-04:00",
+            statut="envoye", delai_relance_jours=21,
+        )
+        evenements.publier("m3.devis_sans_reponse", "m03-estimation", charge)
+        resume = evenements.repartir(_deps_bus(), maintenant="2026-09-25T08:05:00-04:00")
+        assert resume["echecs"] == 0 and resume["quarantaines"] == 0, resume
+
+        interaction = next(
+            m for m in _registre().lire() if m["type_entree"] == "interaction" and m["lead_id"] == lead_id
+        )
+        assert "2026-08-01T08:00:00-04:00" in interaction["resume"], "l'horodatage du devis vient du fait"
+        assert "21" in interaction["resume"], "le délai appliqué vient du fait, jamais recalculé"
+        assert interaction["horodatage"] == "2026-09-25T08:00:00-04:00", (
+            "l'horodatage de l'interaction est horodatage_reference du fait, jamais une horloge interne"
+        )
+
+
+class TestDevisSansReponseClient360:
+    """Rattache le fait au CLIENT (Client 360, ligne de temps) quand le lead en a un — sans code
+    supplémentaire : clients.vue_360 parcourt déjà les interactions par lead_id (clients.py). Un
+    lead jamais lié à un client (antérieur à PLAN T2.2) reste traité normalement."""
+
+    def test_relance_visible_dans_la_vue_360_du_client(self, base_durable):
+        lead_id = "RELANCE-360"
+        _amener_a(lead_id, "qualifie")
+        client_id = outils.trouver_client_de_lead(lead_id)["resultat"]["client_id"]
+
+        charge = _devis_sans_reponse(
+            "devis-360", lead_id, "2026-09-01T10:00:00-04:00", "2026-09-20T10:00:00-04:00", statut="envoye",
+        )
+        evenements.publier("m3.devis_sans_reponse", "m03-estimation", charge)
+        resume = evenements.repartir(_deps_bus(), maintenant="2026-09-20T10:05:00-04:00")
+        assert resume["echecs"] == 0 and resume["quarantaines"] == 0, resume
+
+        vue = outils.obtenir_client_360(client_id)["resultat"]
+        resumes = [interaction["resume"] for interaction in vue["interactions_recentes"]]
+        assert any("Relancer le client" in r and charge["devis_id"] in r for r in resumes), resumes
+
+    def test_lead_sans_client_associe_reste_traite_sans_echec(self, base_durable):
+        """Un lead ingéré hors de m2_ingerer_lead (donnée antérieure à PLAN T2.2, ou provenant
+        d'un autre chemin) n'a aucun maillon client_associe — le consommateur reste défensif :
+        client_id est simplement None dans le résultat, l'interaction s'écrit quand même."""
+        lead_id = "RELANCE-SANS-CLIENT"
+        reg = outils._obtenir_registre()
+        accuse, verdict = ingestion.ingerer(_contrat(lead_id), reg, "2026-09-01T09:00:00-04:00")
+        assert verdict is None, verdict
+        assert clients.client_de_lead(reg, lead_id) is None
+
+        charge = _devis_sans_reponse(
+            "devis-sans-client", lead_id, "2026-09-01T10:00:00-04:00", "2026-09-20T10:00:00-04:00",
+            statut="brouillon",
+        )
+        evenements.publier("m3.devis_sans_reponse", "m03-estimation", charge)
+        resume = evenements.repartir(_deps_bus(), maintenant="2026-09-20T10:05:00-04:00")
+        assert resume["echecs"] == 0 and resume["quarantaines"] == 0, resume
+
+        interactions = [
+            m for m in _registre().lire() if m["type_entree"] == "interaction" and m["lead_id"] == lead_id
+        ]
+        assert len(interactions) == 1
+        assert clients.client_de_lead(_registre(), lead_id) is None, "aucun client n'est inventé"
+
+        recu = next(
+            r for r in stockage.maillons("m02-revenue-crm", "relances_devis_recues")
+            if r["devis_id"] == "devis-sans-client"
+        )
+        assert recu["client_id"] is None
+
+
+class TestDevisSansReponseLeadIntrouvable:
+    def test_lead_inconnu_va_en_quarantaine_apres_reessais_sans_ecriture(self, base_durable):
+        lead_id = "LEAD-INCONNU-DEVIS"
+        charge = _devis_sans_reponse(
+            "devis-inconnu", lead_id, "2026-09-01T10:00:00-04:00", "2026-09-20T10:00:00-04:00",
+        )
+        evenements.publier("m3.devis_sans_reponse", "m03-estimation", charge)
+
+        taille_avant = _registre().taille()
+        deps = _deps_bus()
+        t = dt.datetime(2026, 9, 20, 10, 5, tzinfo=dt.UTC)
+        resume = None
+        for _ in range(5):
+            resume = evenements.repartir(deps, maintenant=t.isoformat())
+            t += dt.timedelta(seconds=100)
+
+        assert resume["quarantaines"] == 1, resume
+        assert _registre().taille() == taille_avant, "un lead introuvable n'écrit rien"
+        assert statuts.statut_courant(_registre(), lead_id) is None
+
+        lignes = [ligne for ligne in evenements.etat()["quarantaine"] if ligne["consommateur"] == "m02-revenue-crm"]
+        assert len(lignes) == 1
+        assert lignes[0]["tentatives"] == 5
+        assert "LeadIntrouvable" in lignes[0]["derniere_erreur"]
+
+
+class TestDevisSansReponseRedelivraison:
+    def test_meme_devis_sous_un_nouvel_evenement_id_est_un_no_op(self, base_durable):
+        """Un même devis_id republié sous un autre evenement_id (rejeu du producteur, ou second
+        contrôle M3 sur le même devis) ne met jamais M2 en quarantaine ni n'écrit une seconde
+        fois : la relance est déjà proposée, reconnue par relances_devis_recues (devis_id)."""
+        lead_id = "RELANCE-REJEU"
+        _amener_a(lead_id, "qualifie")
+        charge = _devis_sans_reponse(
+            "devis-rejeu", lead_id, "2026-09-01T10:00:00-04:00", "2026-09-20T10:00:00-04:00", statut="envoye",
+        )
+        evenements.publier("m3.devis_sans_reponse", "m03-estimation", charge, evenement_id="evt-devis-rejeu-1")
+        deps = _deps_bus()
+        evenements.repartir(deps, maintenant="2026-09-20T10:05:00-04:00")
+        taille_apres_1 = _registre().taille()
+        interactions_apres_1 = [
+            m for m in _registre().lire() if m["type_entree"] == "interaction" and m["lead_id"] == lead_id
+        ]
+        assert len(interactions_apres_1) == 1
+
+        evenements.publier("m3.devis_sans_reponse", "m03-estimation", charge, evenement_id="evt-devis-rejeu-2")
+        resume = evenements.repartir(deps, maintenant="2026-09-20T10:10:00-04:00")
+        assert resume["echecs"] == 0 and resume["quarantaines"] == 0, resume
+        with stockage.transaction() as cnx:
+            statut_recu = cnx.execute(select(EVENEMENTS_RECUS.c.statut).where(
+                EVENEMENTS_RECUS.c.evenement_id == "evt-devis-rejeu-2",
+                EVENEMENTS_RECUS.c.consommateur == "m02-revenue-crm",
+            )).scalar_one()
+        assert statut_recu == "traite"
+        assert _registre().taille() == taille_apres_1, "aucun maillon M2 de plus"
+        interactions_apres_2 = [
+            m for m in _registre().lire() if m["type_entree"] == "interaction" and m["lead_id"] == lead_id
+        ]
+        assert interactions_apres_2 == interactions_apres_1, "aucune seconde interaction"
+
+    def test_relivraison_naffecte_rien(self, base_durable):
+        lead_id = "RELANCE-REDELIVRE"
+        _amener_a(lead_id, "qualifie")
+        charge = _devis_sans_reponse(
+            "devis-redelivre", lead_id, "2026-09-01T10:00:00-04:00", "2026-09-20T10:00:00-04:00",
+            statut="brouillon",
+        )
+        evenements.publier(
+            "m3.devis_sans_reponse", "m03-estimation", charge, evenement_id="evt-devis-redelivre-1"
+        )
+
+        deps = _deps_bus()
+        resume1 = evenements.repartir(deps, maintenant="2026-09-20T10:05:00-04:00")
+        assert resume1["echecs"] == 0 and resume1["quarantaines"] == 0, resume1
+        with stockage.transaction() as cnx:
+            statut_recu = cnx.execute(select(EVENEMENTS_RECUS.c.statut).where(
+                EVENEMENTS_RECUS.c.evenement_id == "evt-devis-redelivre-1",
+                EVENEMENTS_RECUS.c.consommateur == "m02-revenue-crm",
+            )).scalar_one()
+        assert statut_recu == "traite"
+        taille_apres_1 = _registre().taille()
+
+        resume2 = evenements.repartir(deps, maintenant="2026-09-20T11:00:00-04:00")
+        assert resume2 == {"livres": 0, "traites": 0, "echecs": 0, "quarantaines": 0, "ignores": 0}
+        assert _registre().taille() == taille_apres_1, "aucun maillon M2 supplémentaire"
+
+
+class TestDevisSansReponseBoutEnBout:
+    """M3 publie m3.devis_sans_reponse par ses VRAIS outils (m3_creer_devis,
+    m3_detecter_devis_sans_reponse — executer_atomique, comme un agent), jamais une charge
+    composée à la main : preuve du câblage inter-départements de bout en bout, pas seulement du
+    contrat JSON du catalogue. M2 le consomme ensuite par le vrai bus, comme les autres tests de
+    ce fichier."""
+
+    @staticmethod
+    def _outil_m3(nom: str):
+        return next(o for o in _outils_m3() if o.nom == nom)
+
+    def _creer_devis_m3(self, devis_id: str, lead_id: str, horodatage: str) -> dict:
+        arguments = {
+            "devis_id": devis_id,
+            "lead_id": lead_id,
+            "chantier_id": None,
+            "lignes": [{
+                "description": "Gouttière alu 5 po",
+                "quantite": "30",
+                "unite": "pi_lin",
+                "cout_unitaire": "10.00",
+                "reference_besoin_materiau": "besoin-goutt-001",
+            }],
+            "taux_marge": "0.20",
+            "horodatage": horodatage,
+        }
+        reponse = executer_atomique(self._outil_m3("m3_creer_devis"), arguments)
+        assert reponse["ok"], reponse
+        return reponse["resultat"]
+
+    @pytest.mark.parametrize(
+        ("statut_devis", "mot_attendu"),
+        [("brouillon", "envoyer ou d'abandonner"), ("envoye", "Relancer le client")],
+        ids=["brouillon", "envoye"],
+    )
+    def test_m3_detecte_et_publie_m2_consomme_par_le_vrai_bus(self, base_durable, statut_devis, mot_attendu):
+        lead_id = f"E2E-DEVIS-{statut_devis}"
+        _amener_a(lead_id, "qualifie")
+
+        devis_id = f"devis-e2e-{statut_devis}"
+        self._creer_devis_m3(devis_id, lead_id, "2026-09-01T10:00:00-04:00")
+        if statut_devis == "envoye":
+            _, verdict = devis_durable.marquer_devis_envoye(
+                devis_id, "2026-09-02T10:00:00-04:00", _registre_devis_m3()
+            )
+            assert verdict is None, verdict
+
+        horodatage_reference = "2026-09-20T10:00:00-04:00"
+        reponse = executer_atomique(
+            self._outil_m3("m3_detecter_devis_sans_reponse"),
+            {"horodatage_reference": horodatage_reference, "delai_relance_jours": 14},
+        )
+        assert reponse["ok"], reponse
+        assert devis_id in reponse["resultat"]["relances_publiees"]
+        assert evenements.deja_publie(f"m3-devis-sans-reponse-{devis_id}")
+
+        resume = evenements.repartir(_deps_bus(), maintenant="2026-09-20T10:05:00-04:00")
+        assert resume["echecs"] == 0 and resume["quarantaines"] == 0, resume
+
+        assert statuts.statut_courant(_registre(), lead_id) == "qualifie", "aucune transition côté M2"
+        interactions = [
+            m for m in _registre().lire() if m["type_entree"] == "interaction" and m["lead_id"] == lead_id
+        ]
+        assert len(interactions) == 1
+        assert interactions[0]["auteur"] == "system:m3"
+        assert mot_attendu in interactions[0]["resume"]
+        assert devis_id in interactions[0]["resume"]
