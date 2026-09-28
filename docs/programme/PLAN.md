@@ -141,6 +141,17 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         - `variance_chantier.py`, prévu contre réel, distinct de la variance d'inventaire ;
         - les 6 causes de §7 M6.12, jamais attribuées seules ;
         - signal d'écart critique sur un seuil fourni par l'appelant.
+
+        Fait (5488b49) : formulaire validé (`REJ-ACHAT-TERRAIN-PREUVE-MANQUANTE`), verdicts neutres,
+        `cause_possible` toujours nul avec `classification_requise`, signal sur seuil,
+        `m6_evaluer_variance_chantier` (T0). 213 tests.
+
+        Reste (T1.1-d2) :
+        - persister la déclaration en mouvements typés, tout ou rien, par le chemin d'écriture
+          autorisé ;
+        - `m6_declarer_materiaux_utilises` ;
+        - la variance lit le réel persisté ;
+        - idempotence par `wct_id`.
   - [ ] T1.1-e M5 :
         - `FactureBrouillonV1` sur un registre dédié, idempotente par `devis_id` ;
         - aucun `ENCAISSEMENT` avant `PAYEE` ;
