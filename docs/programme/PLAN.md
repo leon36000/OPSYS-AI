@@ -246,10 +246,22 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         - `reference_ligne`, `prix_unitaire` et `prix_ligne` par ligne dans l'événement ;
         - `horodatage_acceptation` ;
         - `evenement_id` déterministe.
-  - [ ] T1.2-b M4 : publier `m4.travaux_termines/v1` avec le WCT, dans la même transaction ; porter
+  - [x] T1.2-b M4 : publier `m4.travaux_termines/v1` avec le WCT, dans la même transaction ; porter
         dans la charge ce que les audits M5 et M7 exigent. Passer de `completed_pending_review` à
         `completed_verified` quand le code a sa base : preuves complètes et variance M6 sans signal
         critique.
+
+        Preuve (9ab0894, 96bc031, 8991331, f885bf3) :
+        - M4 publie le WCT dans la transaction de la complétion (`evenement_id` = `wct_id`) ;
+        - M6 garde le prévu (`m6_enregistrer_besoins_prevus`, T1), consomme la complétion et
+          publie `m6.variance_chantier` (`evaluee`, `prevu_absent`, `declaration_absente` ou
+          `seuil_absent`), avec le détail par matériau quand elle est évaluée ;
+        - une déclaration ou un prévu arrivé après la complétion relance l'évaluation, sous un id
+          qui encode l'état ; `evaluee` est terminal ;
+        - M4 passe à `completed_verified` seulement sur `evaluee` sans signal critique ; un écart
+          de 40 % reste en revue ;
+        - suites : M4 611, M6 279, M2 589, M10 194 ; socle 253 ; verifier « événements
+          cohérents ».
   - [x] T1.2-c Consommateurs de premier ordre :
         - M2 : activité et prochaine action, par une table de règles déterministe ;
         - M10 : mémoire du WCT ;
@@ -340,9 +352,22 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
 
 ## T3 — Mesure, direction, mémoire
 
-- [ ] T3.1 M8 : registre de métriques, qualité et fraîcheur, alertes qui proposent une action.
-- [ ] T3.4 M8 : la garde de devise ne contrôle que les unités « DEVISE/x » ; une unité nue non CAD
+- [x] T3.1 M8 : registre de métriques, qualité et fraîcheur, alertes qui proposent une action.
+      Preuve (c8d515e) :
+      - registre des définitions versionné et durable, unité validée par le dictionnaire ;
+      - qualité calculée par le code : donnée absente (verdict nommé), fraîcheur, plage ;
+      - alertes structurées (quoi, à qui, pourquoi, preuve), jamais exécutées ;
+      - 3 outils : `m8_enregistrer_definition_metrique` (T1), `m8_resoudre_definition_metrique`
+        et `m8_evaluer_qualite_metrique` (T0) ;
+      - M8 202, M9 92, verifier 90 outils.
+  - [ ] T3.1-suite : règles d'unicité et de cohérence entre tables ; alertes dans le digest
+        quotidien ; listage compact du registre.
+- [x] T3.4 M8 : la garde de devise ne contrôle que les unités « DEVISE/x » ; une unité nue non CAD
       (ex. « USD ») passe. Correction TDD (audit M8, vérifié dans `dictionnaire.py`).
+      Preuve (988c62d) :
+      - unité nue ou préfixée, sans égard à la casse, comparée aux 178 codes ISO 4217 actifs ;
+      - verdict `REJ-DEVISE-NON-AUTORISEE` ;
+      - aucun faux positif sur toutes les unités du dictionnaire réel.
 - [ ] T3.2 M9 : briefing du matin sourcé, décisions en attente sur mobile.
 - [ ] T3.3 M10 : paquets de contexte en couches, consolidation nocturne, audit « non-oubli ».
 
