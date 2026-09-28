@@ -650,9 +650,11 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
 - Identifiants : Twilio, QuickBooks, CCube, Stripe, Plaid, Google (Ads, Search Console, Business
   Profile), Meta, TikTok, LinkedIn, YouTube.
 - Rotation de la clé fuitée (#612).
-- **Seuils métier** (définition §13.11) : M6 démarre avec un seuil de variance de chantier de
-  30 % (`department.yaml`, `configuration`). M6 signale aussi un écart de prix à la réception au-delà de 15 %. La valeur est à confirmer par le propriétaire, et elle
-  deviendra un réglage par instance (tableau de bord).
+- **Seuils métier** (définition §13.11) :
+  - M6 démarre avec un seuil de variance de chantier de 30 % ;
+  - M6 signale un écart de prix à la réception au-delà de 15 % (`department.yaml`) ;
+  - ces valeurs sont à confirmer par le propriétaire, et elles deviendront des réglages par
+    instance (tableau de bord).
 - **Mode autonome et N4** : ADR-0009 fait exécuter automatiquement un N4 (engagement : envoi de
   facture, prix, dépense) en mode autonome, alors qu'AGENTS.md réserve les engagements externes
   aux humains.
