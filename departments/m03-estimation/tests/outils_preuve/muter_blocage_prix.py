@@ -20,20 +20,20 @@ est déjà rouge.
 import os
 import pathlib
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
+
 # Ces batteries sont des SCRIPTS lancés directement ; le dossier du script est alors en
 # tête de sys.path et l'import ci-dessous fonctionne. On ne s'appuie pas sur cet effet de
 # bord : le chemin est inséré explicitement, pour que l'import tienne quel que soit le
 # répertoire courant et le mode de lancement.
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from lecture_junit import echecs_junit as _echecs_junit, nom_balise as _nom_balise
+from _environnement_mutation import EnvironnementMutation
+from lecture_junit import echecs_junit as _echecs_junit
 
 RACINE = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".")
 SRC = RACINE / "departments/m03-estimation/src/m3_estimation/blocage_prix.py"
-TESTS = RACINE / "departments/m03-estimation/tests"
 original = SRC.read_text(encoding="utf-8")
 
 MUTATIONS = [
@@ -41,8 +41,10 @@ MUTATIONS = [
      '        "borne_basse": None,\n        "borne_haute": None,',
      '        "borne_basse": 0.0,\n        "borne_haute": 0.0,'),
     ("ordre EPINGLE : le verdict qui NOMME cede a l echappatoire",
-     "        if qualite_insuffisante:\n            verdict_estimation = VERDICT_QUALITE_INSUFFISANTE\n        else:\n            verdict_estimation = VERDICT_INDETERMINE",
-     "        if niveau_indetermine:\n            verdict_estimation = VERDICT_INDETERMINE\n        else:\n            verdict_estimation = VERDICT_QUALITE_INSUFFISANTE"),
+     "        if qualite_insuffisante:\n            verdict_estimation = VERDICT_QUALITE_INSUFFISANTE\n"
+     "        else:\n            verdict_estimation = VERDICT_INDETERMINE",
+     "        if niveau_indetermine:\n            verdict_estimation = VERDICT_INDETERMINE\n"
+     "        else:\n            verdict_estimation = VERDICT_QUALITE_INSUFFISANTE"),
     ("la regle de blocage : OU -> ET (une seule cause ne bloque plus)",
      "    if qualite_insuffisante or niveau_indetermine:",
      "    if qualite_insuffisante and niveau_indetermine:"),
@@ -53,7 +55,8 @@ MUTATIONS = [
      "    if qualite_insuffisante or niveau_indetermine:",
      "    if niveau_indetermine:"),
     ("raison_blocage : le constat disparait du chemin bloque",
-     '            "raison_blocage": _construire_raison(\n                verdict_estimation, qualification["elements_manquants"]\n            ),',
+     '            "raison_blocage": _construire_raison(\n                verdict_estimation, '
+     'qualification["elements_manquants"]\n            ),',
      '            "raison_blocage": "blocage",'),
     ("taux nominal de l intervalle -> le nom du niveau (le defaut d origine)",
      '        "niveau": NIVEAU_CONFIANCE_NOMINAL,',
@@ -77,8 +80,7 @@ REDONDANCES_DECLAREES = []
 
 
 def purge():
-    for c in SRC.parent.rglob("__pycache__"):
-        shutil.rmtree(c, ignore_errors=True)
+    _ENV.purger_caches()
 
 
 
@@ -106,8 +108,12 @@ def executer_tests():
             # sources MUTÉES sur le disque. Une sentinelle sur disque ne suffit pas : elle ne
             # survit pas aux exécutions concurrentes. L'exclusion est explicite et locale.
             [
-                sys.executable, "-B", "-m", "pytest", str(TESTS), "-q",
-                f"--ignore={TESTS / 'test_gardes_des_outils.py'}",
+                sys.executable, "-B", "-m", "pytest", str(_ENV.dossier_tests), "-q",
+                f"--ignore={_ENV.dossier_tests / 'test_gardes_des_outils.py'}",
+                # test_outils_de_preuve.py lance lui-meme une batterie complete (preuve
+                # dynamique PLAN T0.12) : l'inclure crée la même récursion mutuelle que
+                # test_gardes_des_outils.py ci-dessus.
+                f"--ignore={_ENV.dossier_tests / 'test_outils_de_preuve.py'}",
                 "-p", "no:cacheprovider", "--color=no", f"--junitxml={rapport}",
             ],
             capture_output=True,
@@ -137,6 +143,8 @@ if not MUTATIONS:
 
 echecs = []
 mutations_mordues = 0
+_ENV = EnvironnementMutation(RACINE)
+_CIBLE = _ENV.cible(SRC)
 try:
     purge()
     reference, echecs_reference, sortie_reference = executer_tests()
@@ -160,13 +168,13 @@ try:
                 print(f"{nom:<52} -> SANS EFFET")
                 continue
             try:
-                compile(mutant, str(SRC), "exec")
+                compile(mutant, str(_CIBLE), "exec")
             except SyntaxError as erreur:
                 echecs.append(f"{nom} : ne compile pas ({erreur.msg})")
                 print(f"{nom:<52} -> NE COMPILE PAS")
                 continue
 
-            SRC.write_text(mutant, encoding="utf-8")
+            _CIBLE.write_text(mutant, encoding="utf-8")
             purge()
             resultat, echecs_mutant, sortie_mutant = executer_tests()
             nouveaux_echecs = echecs_mutant - echecs_reference
@@ -195,8 +203,8 @@ try:
             if mutant == original:
                 echecs.append(f"[redondance] {nom} : mutation SANS EFFET (texte inchange)")
                 continue
-            compile(mutant, str(SRC), "exec")
-            SRC.write_text(mutant, encoding="utf-8")
+            compile(mutant, str(_CIBLE), "exec")
+            _CIBLE.write_text(mutant, encoding="utf-8")
             purge()
             resultat, _, _ = executer_tests()
             if resultat.returncode != 0:
@@ -210,8 +218,7 @@ try:
             print(f"[declaree] {nom:<52} -> {etat}")
             print(f"           raison : {raison}")
 finally:
-    SRC.write_text(original, encoding="utf-8")
-    purge()
+    _ENV.nettoyer()
 
 intact = SRC.read_text(encoding="utf-8") == original
 print(

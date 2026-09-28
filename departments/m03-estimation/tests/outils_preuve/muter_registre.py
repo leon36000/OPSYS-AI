@@ -18,17 +18,16 @@ redondance au lieu de la supposer.
 import os
 import pathlib
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from _environnement_mutation import EnvironnementMutation
 from lecture_junit import echecs_junit as _echecs_junit
 
 RACINE = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".")
 SRC = RACINE / "departments/m03-estimation/src/m3_estimation/registre.py"
-TESTS = RACINE / "departments/m03-estimation/tests"
 original = SRC.read_text(encoding="utf-8")
 
 MUTATIONS = [
@@ -100,8 +99,7 @@ REDONDANCES_DECLAREES = [
 
 
 def purge():
-    for cache in SRC.parent.rglob("__pycache__"):
-        shutil.rmtree(cache, ignore_errors=True)
+    _ENV.purger_caches()
 
 
 def _echecs_sortie(sortie):
@@ -127,9 +125,13 @@ def executer_tests():
                 "-B",
                 "-m",
                 "pytest",
-                str(TESTS),
+                str(_ENV.dossier_tests),
                 "-q",
-                f"--ignore={TESTS / 'test_gardes_des_outils.py'}",
+                f"--ignore={_ENV.dossier_tests / 'test_gardes_des_outils.py'}",
+                # test_outils_de_preuve.py lance lui-meme une batterie complete (preuve
+                # dynamique PLAN T0.12) : l'inclure crée la même récursion mutuelle que
+                # test_gardes_des_outils.py ci-dessus.
+                f"--ignore={_ENV.dossier_tests / 'test_outils_de_preuve.py'}",
                 "-p",
                 "no:cacheprovider",
                 "--color=no",
@@ -151,12 +153,12 @@ def appliquer(texte, avant, apres):
     resultat = texte.replace(avant, apres, 1)
     if resultat == texte:
         raise ValueError("mutation sans effet")
-    compile(resultat, str(SRC), "exec")
+    compile(resultat, str(_CIBLE), "exec")
     return resultat
 
 
 def lancer_mutant(nom, mutant, echecs_reference, attend_rouge):
-    SRC.write_text(mutant, encoding="utf-8")
+    _CIBLE.write_text(mutant, encoding="utf-8")
     purge()
     resultat, echecs_mutant, sortie = executer_tests()
     nouveaux = echecs_mutant - echecs_reference
@@ -183,6 +185,8 @@ if not MUTATIONS:
 
 echecs = []
 mordues = 0
+_ENV = EnvironnementMutation(RACINE)
+_CIBLE = _ENV.cible(SRC)
 try:
     purge()
     reference, echecs_reference, sortie_reference = executer_tests()
@@ -239,8 +243,7 @@ try:
             except (SyntaxError, ValueError) as erreur:
                 echecs.append(f"combinaison des controles de rang : {erreur}")
 finally:
-    SRC.write_text(original, encoding="utf-8")
-    purge()
+    _ENV.nettoyer()
 
 intact = SRC.read_text(encoding="utf-8") == original
 print(

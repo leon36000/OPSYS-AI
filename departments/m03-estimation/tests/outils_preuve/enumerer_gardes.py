@@ -48,9 +48,15 @@ les messages de commit de la branche) :
 import ast
 import pathlib
 import re
-import shutil
 import subprocess
 import sys
+
+# Cette batterie n'importait jusqu'ici aucun module frère ; l'import ci-dessous en ajoute un.
+# Le chemin est inséré explicitement — l'effet de bord du lancement direct (le dossier du
+# script en tête de sys.path) n'est pas invoqué, par cohérence avec les autres outils de ce
+# dossier.
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from _environnement_mutation import EnvironnementMutation
 
 RACINE = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".")
 MODULE = sys.argv[2] if len(sys.argv) > 2 else "qualite_photos"
@@ -122,7 +128,7 @@ def _est_blocage(noeud_return):
     """
     for n in ast.walk(noeud_return):
         if isinstance(n, ast.Dict):
-            for cle, val in zip(n.keys, n.values):
+            for cle, val in zip(n.keys, n.values, strict=True):
                 if (
                     isinstance(cle, ast.Constant)
                     and cle.value == "prix_bloque"
@@ -161,12 +167,16 @@ def lancer_suite():
             "-B",
             "-m",
             "pytest",
-            str(TESTS),
+            str(_ENV.dossier_tests),
             # Ce dossier contient les tests qui LANCENT cet outil ; les inclure crée
             # une récursion mutuelle qui a mesurablement ramené la détection à 0 et
             # laissé des sources MUTÉES sur le disque. Une sentinelle sur disque ne
             # suffit pas : elle ne survit pas aux exécutions concurrentes.
-            f"--ignore={TESTS / 'test_gardes_des_outils.py'}",
+            f"--ignore={_ENV.dossier_tests / 'test_gardes_des_outils.py'}",
+            # test_outils_de_preuve.py lance lui-meme une batterie complete (preuve
+            # dynamique PLAN T0.12) : l'inclure crée la même récursion mutuelle que
+            # test_gardes_des_outils.py ci-dessus.
+            f"--ignore={_ENV.dossier_tests / 'test_outils_de_preuve.py'}",
             "-q",
             "-p",
             "no:cacheprovider",
@@ -250,6 +260,9 @@ if not gardes:
     assert SRC.read_text(encoding="utf-8") == original, "source non restaurée"
     sys.exit(1)
 
+_ENV = EnvironnementMutation(RACINE)
+_CIBLE = _ENV.cible(SRC)
+
 reference = lancer_suite()
 echecs_reference = extraire_tests_echoues(reference)
 if reference.returncode != 0:
@@ -265,6 +278,7 @@ if reference.returncode != 0:
         f"rien. Tests échouant déjà : {deja_echoues}"
     )
     assert SRC.read_text(encoding="utf-8") == original, "source non restaurée"
+    _ENV.nettoyer()
     sys.exit(1)
 
 print("référence VERTE : aucun échec préexistant")
@@ -289,14 +303,13 @@ try:
             sans_effet.append(garde.lineno)
             continue
         try:
-            compile(mutant, str(SRC), "exec")
+            compile(mutant, str(_CIBLE), "exec")
         except SyntaxError as e:
             sans_effet.append(garde.lineno)
             print(f"  [{i:02d}] L{garde.lineno:<4} NON COMPILABLE : {e.msg}")
             continue
-        SRC.write_text(mutant, encoding="utf-8")
-        for c in SRC.parent.rglob("__pycache__"):
-            shutil.rmtree(c, ignore_errors=True)
+        _CIBLE.write_text(mutant, encoding="utf-8")
+        _ENV.purger_caches()
         resultat = lancer_suite()
         if resultat.returncode == 0:
             etat = "VERT (NUE)"
@@ -338,9 +351,7 @@ try:
             f"{cond:<48} -> {etat}"
         )
 finally:
-    SRC.write_text(original, encoding="utf-8")
-    for c in SRC.parent.rglob("__pycache__"):
-        shutil.rmtree(c, ignore_errors=True)
+    _ENV.nettoyer()
 
 print(
     f"\ncontroles={len(gardes)}  nus={len(nues)}  sans effet={len(sans_effet)}  "

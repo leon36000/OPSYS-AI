@@ -15,21 +15,21 @@ pas appliquée, si la référence est déjà rouge, ou si aucune mutation n'est 
 import os
 import pathlib
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
+
 # Ces batteries sont des SCRIPTS lancés directement ; le dossier du script est alors en
 # tête de sys.path et l'import ci-dessous fonctionne. On ne s'appuie pas sur cet effet de
 # bord : le chemin est inséré explicitement, pour que l'import tienne quel que soit le
 # répertoire courant et le mode de lancement.
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from lecture_junit import echecs_junit as _echecs_junit, nom_balise as _nom_balise
+from _environnement_mutation import EnvironnementMutation
+from lecture_junit import echecs_junit as _echecs_junit
 
 RACINE = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
 D = RACINE / "departments/m03-estimation/src/m3_estimation"
 Q, S, C = D/"qualite_photos.py", D/"signaux.py", D/"contrats.py"
-TESTS = RACINE / "departments/m03-estimation/tests"
 TQ, TS = (
     RACINE / "departments/m03-estimation/tests/test_qualite_photos.py",
     RACINE / "departments/m03-estimation/tests/test_signaux.py",
@@ -38,12 +38,36 @@ SOURCES = (Q, S, C)
 originaux = {p: p.read_text(encoding="utf-8") for p in SOURCES}
 
 MUTATIONS = [
- ("regle des DEUX dimensions : min -> max", Q, TQ, "        plus_petite_dimension = min(", "        plus_petite_dimension = max("),
- ("borne resolution : < devient <=", Q, TQ, "        if plus_petite_dimension < resolution_minimale:", "        if plus_petite_dimension <= resolution_minimale:"),
- ("borne eclairage : < devient <=", Q, TQ, '        if photo["eclairage"] < eclairage_minimal:', '        if photo["eclairage"] <= eclairage_minimal:'),
- ("echelle 0-10 retiree", Q, TQ, "    if type(eclairage) not in (int, float) or not 0 <= eclairage <= 10:", "    if type(eclairage) not in (int, float):"),
- ("typage STRICT -> isinstance (accepte True)", Q, TQ, '    if type(seuils["resolution_minimale"]) is not int:', '    if not isinstance(seuils["resolution_minimale"], int):'),
- ("cles des seuils : egalite -> sous-ensemble", Q, TQ, "    if set(seuils) != set(contrats.CHAMPS_SEUILS_QUALITE):", "    if not set(seuils) <= set(contrats.CHAMPS_SEUILS_QUALITE):"),
+ (
+     "regle des DEUX dimensions : min -> max", Q, TQ,
+     "        plus_petite_dimension = min(",
+     "        plus_petite_dimension = max(",
+ ),
+ (
+     "borne resolution : < devient <=", Q, TQ,
+     "        if plus_petite_dimension < resolution_minimale:",
+     "        if plus_petite_dimension <= resolution_minimale:",
+ ),
+ (
+     "borne eclairage : < devient <=", Q, TQ,
+     '        if photo["eclairage"] < eclairage_minimal:',
+     '        if photo["eclairage"] <= eclairage_minimal:',
+ ),
+ (
+     "echelle 0-10 retiree", Q, TQ,
+     "    if type(eclairage) not in (int, float) or not 0 <= eclairage <= 10:",
+     "    if type(eclairage) not in (int, float):",
+ ),
+ (
+     "typage STRICT -> isinstance (accepte True)", Q, TQ,
+     '    if type(seuils["resolution_minimale"]) is not int:',
+     '    if not isinstance(seuils["resolution_minimale"], int):',
+ ),
+ (
+     "cles des seuils : egalite -> sous-ensemble", Q, TQ,
+     "    if set(seuils) != set(contrats.CHAMPS_SEUILS_QUALITE):",
+     "    if not set(seuils) <= set(contrats.CHAMPS_SEUILS_QUALITE):",
+ ),
  ("CHAMPS_SEUILS_QUALITE tronque", C, TQ, '"resolution_minimale", "eclairage_minimal"', '"resolution_minimale"'),
  ("emission_count devient un compteur", S, TS, "EMISSION_UNIQUE = 1", "EMISSION_UNIQUE = 2"),
 ]
@@ -53,14 +77,21 @@ REDONDANCES_DECLAREES = []
 GARDES_TARDIVES = [
  ("garde « photos est une liste »", Q, TQ, "    if not isinstance(photos, list):", "    if False:"),
  ("borne INFERIEURE de l echelle 0-10", Q, TQ, "not 0 <= eclairage <= 10", "eclairage > 10"),
- ("cles exactes de reference_echelle", Q, TQ, '        if not isinstance(reference, dict) or set(reference) != {', '        if not isinstance(reference, dict) or not set(reference) <= {'),
- ("type booleen STRICT de dimensions_connues", Q, TQ, '        if type(reference["dimensions_connues"]) is not bool:', "        if False:"),
+ (
+     "cles exactes de reference_echelle", Q, TQ,
+     '        if not isinstance(reference, dict) or set(reference) != {',
+     '        if not isinstance(reference, dict) or not set(reference) <= {',
+ ),
+ (
+     "type booleen STRICT de dimensions_connues", Q, TQ,
+     '        if type(reference["dimensions_connues"]) is not bool:',
+     "        if False:",
+ ),
 ]
 
 
 def purge():
-    for cache in RACINE.joinpath("departments/m03-estimation/src").rglob("__pycache__"):
-        shutil.rmtree(cache, ignore_errors=True)
+    _ENV.purger_caches()
 
 
 
@@ -90,8 +121,12 @@ def executer_tests():
             # sources MUTÉES sur le disque. Une sentinelle sur disque ne suffit pas : elle ne
             # survit pas aux exécutions concurrentes. L'exclusion est explicite et locale.
             [
-                sys.executable, "-B", "-m", "pytest", str(TESTS), "-q",
-                f"--ignore={TESTS / 'test_gardes_des_outils.py'}",
+                sys.executable, "-B", "-m", "pytest", str(_ENV.dossier_tests), "-q",
+                f"--ignore={_ENV.dossier_tests / 'test_gardes_des_outils.py'}",
+                # test_outils_de_preuve.py lance lui-meme une batterie complete (preuve
+                # dynamique PLAN T0.12) : l'inclure crée la même récursion mutuelle que
+                # test_gardes_des_outils.py ci-dessus.
+                f"--ignore={_ENV.dossier_tests / 'test_outils_de_preuve.py'}",
                 "-p", "no:cacheprovider", "--color=no", f"--junitxml={rapport}",
             ],
             capture_output=True,
@@ -180,6 +215,7 @@ mutations_dynamiques, erreurs_preparation = construire_mutations_dynamiques()
 mutations = list(MUTATIONS) + mutations_dynamiques + list(GARDES_TARDIVES)
 echecs = list(erreurs_preparation)
 mutations_mordues = 0
+_ENV = EnvironnementMutation(RACINE)
 
 try:
     purge()
@@ -193,7 +229,7 @@ try:
         )
         print("ABANDON : muter une suite non verte ne prouve rien.")
     else:
-        for nom, fichier, cible, avant, apres in mutations:
+        for nom, fichier, _cible, avant, apres in mutations:
             original = originaux[fichier]
             if original.count(avant) != 1:
                 echecs.append(f"{nom} : ancre x{original.count(avant)}")
@@ -214,11 +250,11 @@ try:
                 continue
 
             try:
-                fichier.write_text(mutant, encoding="utf-8")
+                _ENV.cible(fichier).write_text(mutant, encoding="utf-8")
                 purge()
                 resultat, echecs_mutant, sortie_mutant = executer_tests()
             finally:
-                fichier.write_text(original, encoding="utf-8")
+                _ENV.cible(fichier).write_text(original, encoding="utf-8")
                 purge()
 
             nouveaux_echecs = echecs_mutant - echecs_reference
@@ -256,11 +292,11 @@ try:
                 continue
 
             try:
-                fichier.write_text(mutant, encoding="utf-8")
+                _ENV.cible(fichier).write_text(mutant, encoding="utf-8")
                 purge()
                 resultat, _, _ = executer_tests()
             finally:
-                fichier.write_text(original, encoding="utf-8")
+                _ENV.cible(fichier).write_text(original, encoding="utf-8")
                 purge()
 
             if resultat.returncode != 0:
@@ -274,9 +310,7 @@ try:
             print(f"[declaree] {nom:<52} -> {etat}")
             print(f"           raison : {raison}")
 finally:
-    for fichier, original in originaux.items():
-        fichier.write_text(original, encoding="utf-8")
-    purge()
+    _ENV.nettoyer()
 
 intactes = all(
     fichier.read_text(encoding="utf-8") == original

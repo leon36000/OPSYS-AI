@@ -8,10 +8,10 @@ produites sur une AUTRE branche — donc irreproductibles là où on les montrai
 """
 
 import ast
+import hashlib
+import subprocess
 import sys
 from pathlib import Path
-
-import pytest
 
 _RACINE = Path(__file__).resolve().parents[1]
 _OUTILS = Path(__file__).resolve().parent / "outils_preuve"
@@ -156,6 +156,100 @@ def test_chaque_outil_de_mutation_declare_sa_cible_dans_son_code():
     assert not discordances, (
         "le nom du script ne correspond pas au module qu'il mesure :\n  "
         + "\n  ".join(discordances)
+    )
+
+
+def _racine_nom(expression):
+    """Nom de la racine d'une chaîne d'attributs/appels (ex. ``SRC.parent`` -> ``"SRC"``)."""
+    while isinstance(expression, (ast.Attribute, ast.Subscript)):
+        expression = expression.value
+    if isinstance(expression, ast.Call):
+        return _racine_nom(expression.func)
+    if isinstance(expression, ast.Name):
+        return expression.id
+    return None
+
+
+def test_aucun_outil_de_preuve_n_ecrit_jamais_dans_la_vraie_source():
+    """Preuve STRUCTURELLE (PLAN T0.12) : aucun outil n'écrit jamais ``SRC``/``TESTS`` eux-mêmes.
+
+    C'est cette propriété qui rend un ``kill -9`` en cours de mutation sans danger pour
+    ``departments/m03-estimation/src`` : le code ne contient tout simplement plus aucun appel
+    qui y écrit, donc plus aucune fenêtre temporelle où l'écrire serait possible — contrairement
+    à l'ancien schéma « écrire le mutant dans la vraie source, la restaurer dans un ``finally`` ».
+    C'est arrivé le 2026-09-28 dans ``blocage_prix.py`` : ``muter_blocage_prix.py`` écrivait
+    ``SRC.write_text(mutant)`` puis restaurait dans un ``finally`` — un processus tué entre les
+    deux a laissé le mutant en place, jusqu'à son commit accidentel par une story sans rapport
+    (``899bbad``, cf. ``git blame`` sur la ligne corrigée de ``blocage_prix.py``). Chaque outil
+    reçoit désormais sa propre copie jetable (``_environnement_mutation.EnvironnementMutation``)
+    et n'écrit plus que dans celle-ci ; ce test échouerait si un ``SRC.write_text(...)`` ou
+    ``TESTS.write_text(...)`` réapparaissait dans un outil, sous quelque forme que ce soit
+    (``SRC.write_text(...)``, ``SRC.parent.write_text(...)``, etc.).
+    """
+    racines_interdites = {"SRC", "TESTS"}
+    fautifs = []
+    for outil in _outils_python():
+        arbre = ast.parse(outil.read_text(encoding="utf-8"))
+        for noeud in ast.walk(arbre):
+            if (
+                isinstance(noeud, ast.Call)
+                and isinstance(noeud.func, ast.Attribute)
+                and noeud.func.attr == "write_text"
+            ):
+                racine = _racine_nom(noeud.func.value)
+                if racine in racines_interdites:
+                    fautifs.append(f"{outil.name}:{noeud.lineno} écrit {racine}.write_text(...)")
+
+    assert not fautifs, (
+        "outil(s) de preuve écrivant directement dans la vraie source/tests du dépôt :\n  "
+        + "\n  ".join(fautifs)
+    )
+
+
+def test_empreinte_de_la_source_reelle_identique_avant_et_apres_une_batterie_complete():
+    """Preuve DYNAMIQUE (PLAN T0.12), complément du test structurel ci-dessus.
+
+    Empreinte SHA-256 de chaque fichier de ``src/m3_estimation`` avant et après l'exécution
+    complète d'une batterie de mutation nominale : identiques. La batterie choisie comporte à
+    la fois des mutations qui mordent ET deux redondances déclarées volontairement INERTES —
+    des mutations dont la tentative échoue délibérément à faire rougir la suite — ce qui
+    couvre « y compris si une mutation échoue » sans dépendre d'un scénario de sabotage
+    séparé : dans les deux cas, aucune écriture ne doit atteindre la vraie source.
+    """
+    outil = _OUTILS / "muter_registre.py"
+    assert outil.exists(), f"outil de référence absent : {outil}"
+    # `_RACINE` ci-dessus est le DÉPARTEMENT (parents[1]) ; les outils attendent le DÉPÔT
+    # (argv[1] == RACINE dans muter_registre.py, qui reconstruit lui-même le chemin complet
+    # "departments/m03-estimation/..." à partir de là) — comme le fait `_lancer` de
+    # test_gardes_des_outils.py avec son propre `_RACINE = parents[3]`.
+    depot = Path(__file__).resolve().parents[3]
+
+    def empreintes():
+        return {
+            str(chemin.relative_to(_SOURCE)): hashlib.sha256(chemin.read_bytes()).hexdigest()
+            for chemin in sorted(_SOURCE.rglob("*.py"))
+        }
+
+    avant = empreintes()
+    resultat = subprocess.run(
+        [sys.executable, "-B", str(outil), str(depot)],
+        capture_output=True,
+        text=True,
+        cwd=depot,
+    )
+    apres = empreintes()
+
+    assert resultat.returncode == 0, (
+        f"la batterie de référence n'est pas saine :\n{resultat.stdout}\n{resultat.stderr}"
+    )
+    ecarts = {
+        cle: (avant.get(cle), apres.get(cle))
+        for cle in set(avant) | set(apres)
+        if avant.get(cle) != apres.get(cle)
+    }
+    assert avant == apres, (
+        "la source réelle a changé pendant l'exécution de la batterie — "
+        f"écarts : {ecarts}"
     )
 
 
