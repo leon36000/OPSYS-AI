@@ -88,14 +88,6 @@ export interface Vidangeur {
   vidangerFileSortante(): Promise<RapportVidange>;
 }
 
-/**
- * Le « vidangeur » (R12 §4, PLAN T1.4-d item 1) : relie `src/outbox` (logique de file, déjà
- * pure et testée) à `src/protocole` (client `/tools/invoke`, déjà pur et testé) — le seul
- * branchement qui manquait encore (MOBILE.md, « pas de boucle de vidage reliant src/outbox à
- * src/protocole »). Cette fonction elle-même reste pure côté ORCHESTRATION (aucune horloge ni
- * accès réseau en dur, tout est injecté par `ConfigurationVidangeur`) ; c'est l'adaptateur —
- * `src/outbox/service.ts` fournit la configuration réelle (SQLite, `fetch`, déclencheurs).
- */
 type IssueEnvoi =
   | { readonly genre: "envoyee" }
   | { readonly genre: "remise_en_attente" }
@@ -111,6 +103,14 @@ function verdictDepuisEchecHttp(echec: { readonly message: string; readonly erre
   return { code: "erreur_reseau", detail: echec.message };
 }
 
+/**
+ * Le « vidangeur » (R12 §4, PLAN T1.4-d item 1) : relie `src/outbox` (logique de file, déjà
+ * pure et testée) à `src/protocole` (client `/tools/invoke`, déjà pur et testé) — le seul
+ * branchement qui manquait encore (MOBILE.md, « pas de boucle de vidage reliant src/outbox à
+ * src/protocole »). Cette fonction elle-même reste pure côté ORCHESTRATION (aucune horloge ni
+ * accès réseau en dur, tout est injecté par `ConfigurationVidangeur`) ; c'est l'adaptateur —
+ * `src/outbox/service.ts` fournit la configuration réelle (SQLite, `fetch`, déclencheurs).
+ */
 export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
   let vidangeEnCours = false;
 
