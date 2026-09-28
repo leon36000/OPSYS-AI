@@ -497,14 +497,30 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       - refus fermé hors de la portée du rôle ;
       - `opsys/personne` et `opsys/role` transmis au moteur.
 
-      Reste : attribuer la personne et le rôle à l'approbation de l'appairage (aucune surface ne
-      le fait encore), et T1.4-c4.
+      Reste : la CI du core sur T1.4-c4. L'attribution existe depuis T1.4-c4 (42bbf6a) :
+      `opsys appareils appairer`, `lister` et `revoquer` attribuent la personne et le rôle (refus
+      fermé) et régénèrent `opsys/appareils.json`, en second temps après l'approbation native de
+      l'appairage par le core.
     - [ ] T1.4-c4 Core : `/tools/invoke` authentifie l'appareil par son jeton d'appairage, et non
           par le secret partagé (accès complet).
       - L'identité (appareil, personne, rôle) vient du jeton vérifié, jamais du corps.
       - Tant que ce n'est pas fait, `opsys/personne` n'est pas authentifié : aucun outil ne s'en
         sert pour signer ou projeter, et le téléphone ne reçoit jamais le secret partagé.
       - Aussi : un identifiant de client OPSYS dans `GATEWAY_CLIENT_IDS`.
+
+      Livré (42bbf6a), à cocher quand la CI du core sera verte :
+      - `/tools/invoke` accepte le jeton d'appareil par le mécanisme natif du fork
+        (`verifyHttpOperatorDeviceToken`, qui rend aussi le `deviceId`) ; le secret partagé ne
+        porte jamais `opsys/personne` ni `opsys/role`, quel que soit le corps ;
+      - un `deviceId` de corps différent de l'appareil authentifié est refusé (403) ; le contrôle de
+        rôle est obligatoire pour tout appel par jeton ;
+      - `GATEWAY_CLIENT_IDS.OPSYS_MOBILE` ajouté, pas encore câblé ;
+      - socle 392, ruff, verifier ; démonstration de la CLI (personne, appairage, refus d'un rôle
+        non porté, révocation) ; vitest (7 et 11 tests) exécutés par la CI du core seulement.
+
+      Reste : le rôle nommé sur la poignée de main WebSocket (l'app ne l'apprend pas encore) ;
+      câbler `opsys-mobile` dans l'app et dans la classification de confiance du core. Code
+      critique : revue externe.
     - [x] T1.4-c3 Mobile : client d'appairage (QR ou code, défi signé selon l'algorithme du
           fork, jeton dans `expo-secure-store`), testé contre le protocole lu dans le core.
 
@@ -528,9 +544,24 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
     - serveur (5c3c7ee) : pendant un appel d'appareil, l'heure de réception fait foi pour la
       paie, et l'heure de l'appareil est gardée à côté.
 
-    Reste : le trajet réel appareil → core → moteur, qui attend T1.4-c (appairage et `_meta`
-    transmis). Aussi `m4_demarrer_route`, qui ne lit pas encore l'heure serveur.
-  - [ ] T1.4-e Chantier du jour, transitions, checklist, photos et signature (étapes 3 et 4).
+    Reste : le trajet réel appareil → core → moteur contre un core réel (T1.5).
+    `m4_demarrer_route` lit l'heure serveur depuis T4.2 (ff0c118).
+  - [x] T1.4-e Chantier du jour, transitions, checklist, photos et signature (étapes 3 et 4).
+
+    Preuve (873f3d3) :
+    - `today.tsx` (statuts actifs de `m4_lister_interventions`, cache SQLite lu hors ligne) ;
+    - `job/[id]` : en route par `m4_demarrer_route`, arrivée et pause par le pointage, verdict du
+      serveur affiché ;
+    - `checklist.tsx`, `photos.tsx`, `signature.tsx` : fichier local et SHA-256 des octets ;
+    - un seul identifiant d'appareil dans l'app : l'identité d'appairage réelle ;
+    - Jest 446 (312 avant), `tsc` sans erreur ; `expo-camera`, `expo-file-system`,
+      `react-native-signature-canvas` et `react-native-webview` (MIT) inscrits.
+
+    Reste : « chantiers du jour » filtre par statut, faute de date et de technicien dans
+    `m4_lister_interventions` ; les photos et la signature ne partent pas encore (T1.4-e2).
+  - [ ] T1.4-e2 Serveur : recevoir l'envoi binaire des photos et de la signature (reprise par
+    empreinte, SHA-256 vérifié, référence stable rendue) ; exposer la date et le technicien assigné
+    dans `m4_lister_interventions`.
   - [ ] T1.4-f « Terminer », qui lance la cascade §9.7, puis le formulaire des matériaux (étape 5).
     Approbations côté propriétaire après T1.3 (étape 6).
 - [ ] T1.5 E2E : travaux terminés normaux ; écart de 40 % → `completed_pending_review` et alerte
@@ -554,13 +585,33 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       - M2 656, M5 321, verifier 110 outils.
 
       Reste : M1 n'envoie pas encore ces champs (son contrat v1 est gelé, T2.1) ; les
-      14 segments de M2.11.
+      14 segments de M2.11. M3 et M4 acceptent ces trois clés à l'identique de M2 depuis e3b910c
+      (le gate BMAD de M3 les confronte à M2 séparément des clés gelées).
 - [ ] T2.3 M3 : estimation honnête, soumission brouillon, approbation, besoins matériaux vers M6.
       L'outil `m3_estimer_projet` n'assemble que 6 des 15 modules : écrire l'orchestrateur qui compose
       validation, devis (`devis_id` requis par M4), registre estimé vs réel, signal de relance M2, et
       émet `REFERENCE_ECHELLE_ABSENTE` en alerte non bloquante ; séparer coût et prix (taux de marge
       fourni, jamais codé en dur) ; contrat `BesoinsMateriauxM3` ; soumission brouillon PDF ; politique
       Loi 25 « photos » avant toute collecte réelle (audit M3).
+  - [x] T2.3-b Orchestrateur de `m3_estimer_projet`, durée de main-d'œuvre, relance des devis sans
+        réponse, soumission brouillon, politique « photos ».
+        Preuve (cc28f4a) :
+        - `estimation.py` compose validation, qualité des photos, hiérarchie d'échelle, blocage,
+          Monte Carlo, plancher, alerte `REFERENCE_ECHELLE_ABSENTE`, `devis_id` déterministe et
+          registre ; une estimation bloquée porte aussi son `devis_id` ;
+        - durée de main-d'œuvre = quantité × durée par unité du barème, jamais codée en dur ;
+          l'estimé vs réel la relit ;
+        - `m3.devis_sans_reponse` (délai et instant fournis, idempotent par devis) ; soumission
+          brouillon HTML sans coût ni marge ; garde fermée tant que la politique « photos » n'est
+          pas validée ;
+        - M3 821 (outils de mutation compris, correction e3b910c incluse) ; socle, M5 et M6
+          verts.
+
+        Reste de T2.3 : séparer coût et prix dans `m3_estimer_projet` ; contrat
+        `BesoinsMateriauxM3` vers M6 ; PDF ; `niveau_confiance` est un nombre dans le code et une
+        chaîne dans le PRD (à trancher) ; `signaux.py` (demande de photos) n'est jamais appelé ;
+        M2 ne consomme pas encore `m3.devis_sans_reponse`, qui vise aussi les brouillons (M2 devra
+        distinguer un devis jamais envoyé).
 - [x] T2.4 M6 : catalogue, livre de prix, PO brouillon, courriel fournisseur via M1 (repli manuel).
       Preuve (fbe272a) :
       - livre de prix versionné, daté et par fournisseur, jamais inventé (`PRIX_LIVRE` ou
@@ -640,8 +691,21 @@ météo et GPS M4, vision M3, conseil d'agents M9…
 
 - [ ] T4.1 M4 : la cédule trie sur un hachage de ville, sans sens géographique ; la remplacer par
       de vraies coordonnées et un VRP (audit M4).
-- [ ] T4.2 M4 : consentement et rétention du GPS (`POLITIQUE-geolocalisation.md`) non câblés dans
+- [x] T4.2 M4 : consentement et rétention du GPS (`POLITIQUE-geolocalisation.md`) non câblés dans
       le pointage (audit M4) ; bloquant avant tout GPS continu.
+      Preuve (ff0c118, 7e5ccab) :
+      - consentement donné ou retiré, tenu dans le registre de M4 ; sans consentement actif, le fix
+        est ignoré et le pointage passe en mode manuel, en revue ;
+      - positions chiffrées avant écriture ; une clé par technicien dans `opsys.cles_chiffrement`
+        (migration 0007), détruite à l'échéance : le maillon ne change pas et la position devient
+        irrécupérable ;
+      - échéance citée de la politique (12 mois) ; `fin_contrat_travail` fournie par l'appelant,
+        sinon purge refusée ; la purge est N5 (propriétaire et attestation) ;
+      - chaque lecture d'une position est journalisée ; `m4_demarrer_route` suit l'heure serveur ;
+      - M4 741, M6 382, socle 392, gate BMAD de M4 vert.
+
+      Reste : les décisions « Rétention du GPS » ci-dessous ; la ligne GPS de l'EFVP (§6) ; la
+      revue externe du chiffrement.
 - [ ] T4.3 M7 : consentement client et floutage visages et plaques avant tout contenu public ;
       profil de marque par défaut remplacé par celui du client (audit M7).
 
@@ -678,6 +742,8 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
   - idempotence du socle : 764c292, 2474cd1 ;
   - approbations : 718b9bb ;
   - validation du bus : 4c9fbff ;
+  - authentification de `/tools/invoke` par jeton d'appareil : 42bbf6a ;
+  - chiffrement et purge des positions GPS : ff0c118 ;
   - commits plus anciens déjà listés dans les preuves de T1.0 et T1.1.
 - **Arrondi monétaire** : M5 arrondissait au pair (mode par défaut de Python) alors que M3
   arrondit au demi supérieur. La correction cite la règle de l'ARC (TPS) et de Revenu Québec
@@ -687,6 +753,19 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
   Proposition R12 : arrière-plan seulement pendant la fenêtre « en route » d'un chantier. À valider
   (Nathan ou juriste) avant toute livraison du GPS. Même besoin : une politique pour les photos et les
   signatures.
+- **Rétention du GPS (T4.2)** :
+  - la politique fixe 12 mois avec la mention « À VÉRIFIER — juriste » ; le code l'applique telle
+    quelle ;
+  - aucun département ne connaît la date de fin du contrat de travail : elle est demandée à chaque
+    purge ; un futur registre RH pourrait la fournir ;
+  - sans fix GPS, un pointage part en revue (choix prudent) ; l'autre option est de croire la
+    déclaration manuelle ;
+  - une clé détruite survit dans les sauvegardes (14 jours en local ; avec restic, jusqu'à 12
+    copies mensuelles), et une restauration la ressusciterait : durée des sauvegardes et
+    réapplication des purges après restauration à décider ;
+  - `GABARIT-EFVP.md` §6 n'a pas encore de ligne pour les positions GPS.
+- **Politique « photos »** : `POLITIQUE-photos-non-contractuelles.md` est une proposition ; la
+  garde de M3 refuse toute collecte réelle tant qu'elle n'est pas validée (Nathan ou juriste).
 - **Prompts maîtres d'origine des départements** (annexe A de la définition) : ils portent le
   détail fonctionnel (routes, tables, KPI, scénarios de test). Exemple : les 21 sections du rapport
   de décision M9, dont la définition ne liste qu'une douzaine (audit M9).
