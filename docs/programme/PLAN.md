@@ -211,7 +211,7 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
 
         Code critique, revue externe requise. Envoi et paiement non exposés tant que T1.3 ne les
         met pas derrière les approbations du socle.
-- [ ] T1.2 Événements (`completed_verified` calculé par le code : preuves complètes et aucune variance
+- [x] T1.2 Événements (`completed_verified` calculé par le code : preuves complètes et aucune variance
       critique de M6 pour ce WCT ; sinon, revue humaine en T1.3) : l'événement de fin de travaux de M4 porte les montants (M5) et les champs
       marketing (photos, ville, consentement : M7) ; M3 et M9 la reçoivent en second ordre (M6/M5 et
       M8, ADR-0009) (audits M4, M5, M7). `job.completed` déclenche la cascade (M6 variance, M5 facture brouillon, M2
@@ -307,8 +307,33 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         - socle (4c9fbff) : toute charge du bus est validée par son JSON Schema complet. Un coût
           par ligne de devis ne peut plus sortir de M3 ;
         - suites : M3 698, M5 290, M6 291, M4 611 ; socle 275.
-  - [ ] T1.2-e Test de bout en bout : de la complétion jusqu'à la cascade, avec une relivraison
+  - [x] T1.2-e Test de bout en bout : de la complétion jusqu'à la cascade, avec une relivraison
         idempotente et un consommateur en échec mis en quarantaine sans bloquer les autres.
+
+        Preuve (`tests/test_cascade_travaux_termines.py`, 6cbfa29, 362e380, et la correction
+        M2 qui suit) :
+        - vrais départements, vrai bus, drainé jusqu'au repos ;
+        - nominal : completed_verified, facture exacte, variance évaluée, M2 à facture, M8, M10
+          et M3 alimentés ;
+        - écart de 40 % : reste en revue, et la facture brouillon est créée quand même ;
+        - relivraison sous un autre id : aucun doublon, et aucune quarantaine. Deux défauts
+          corrigés : M10 mémorisait deux fois le même WCT ; M2 partait en quarantaine ;
+        - lead inconnu : M2 en quarantaine, sans bloquer les autres ;
+        - complétion avant l'acceptation du devis : même état final ;
+        - socle 281, M2 590, M10 265.
+  - [ ] T1.2-f Le WCT porte les champs de M7 :
+    - `ville` et `type_travaux`, tirés du contrat de l'intervention, déterministes ;
+    - le consentement, la satisfaction, les photos et la description factuelle, tirés du
+      formulaire de complétion (T1.4-f), jamais inventés.
+
+    Aujourd'hui, aucun chemin réel ne les produit : aucune demande d'avis ne naît de la cascade.
+
+    Relevés à reprendre :
+    - M3 n'a aucune durée estimée de main-d'œuvre (`duree_estimee_minutes`) (T2.3) ;
+    - un second chantier pour un lead déjà à `facture` part en quarantaine chez M2 (cycle de vie
+      par chantier, T2.2) ;
+    - la file du propriétaire doit montrer le signal de variance à côté de la facture brouillon
+      (T1.3-c).
 - [ ] T1.3 Approbations N3–N4 (complétion, facture, écart matériaux), file du propriétaire.
       Envoi et paiement de facture exposés en T3 seulement, par les approbations du socle : la
       vérification de forme du maillon F4 de `facturation.envoyer_facture` ne suffit pas seule.
