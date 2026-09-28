@@ -8,20 +8,23 @@ mission: >-
   par relecture chronologique pure de la chaîne (jamais une comparaison alphabétique des
   horodatages), et toute contradiction interne signalée nommément — sans jamais inventer un
   chiffre, sans jamais recommander ni décider (v1 est un harnais pur, zéro contenu
-  délibératif).
+  délibératif). Assemble aussi, pour un instant de référence fourni, le briefing du matin
+  (décisions en attente de la file du propriétaire, alertes proposées par M8 reçues du bus,
+  faits de la veille, manques) : un gabarit déterministe et sourcé, jamais une rédaction.
 outils: m9_strategic_intelligence.outils
 mode: ombre
 dependances: [m08-analytics, m10-memoire]
 modeles:
   defaut: standard
-skills: [etat-consolide-et-contradictions]
+skills: [etat-consolide-et-contradictions, briefing-du-matin]
 planifications:
-  - nom: digest-etat-consolide
+  - nom: briefing-du-matin
     cron: "0 7 * * 1-5"
     consigne: >-
-      Résume en 5 lignes l'état consolidé courant (m9_lire_etat_consolide) : nombre de modules
-      à jour, contradictions actives. N'ingère aucun nouveau snapshot, ne rédige aucun
-      diagnostic ni recommandation.
+      Assemble le briefing du matin (m9_produire_briefing_matin, maintenant = l'heure réelle de
+      déclenchement de la planification) : décisions en attente, alertes M8 du jour, faits de la
+      veille, manques. N'ingère aucun nouveau snapshot, ne rédige aucun diagnostic ni
+      recommandation — présente les quatre sections telles quelles, une section vide reste vide.
 budget:
   tokens_jour: 200000
   tokens_mois: 2500000
@@ -29,6 +32,8 @@ budget:
 memoire:
   lecture: [snapshots_modules, memoire_m10]
   ecriture: [snapshots_modules, etat_consolide]
+evenements:
+  consomme: [m8.alerte_proposee]
 kpis:
   - id: taux_contradictions_non_arbitrees
     description: Part des contradictions internes détectées sans arbitrage humain consigné dans M10.
@@ -36,3 +41,7 @@ kpis:
     description: Part des rapports stratégiques soumis rejetés pour clé manquante ou en trop.
   - id: nb_modules_a_jour
     description: Nombre de module_source ayant un fait dans l'état consolidé (couverture de la vérité factuelle).
+  - id: taux_sections_briefing_vides
+    description: >-
+      Part des quatre sections du dernier briefing du matin produites vides (aucune décision en
+      attente, aucune alerte M8 du jour, aucun fait de la veille) — jamais remplies par défaut.

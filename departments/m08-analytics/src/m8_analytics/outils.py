@@ -26,7 +26,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from opsys import stockage
+from opsys import evenements, stockage
 from opsys.outils import Autonomie, Outil, depuis_couple
 
 from . import alertes, qualite, rapports, registre, registre_metriques, semantique, validation, xmr
@@ -157,6 +157,54 @@ def consommateurs() -> dict[str, Any]:
     return {"m4.travaux_termines": _recevoir_travaux_termines}
 
 
+# ---------------------------------------------------------------------------
+# Bus d'événements (ADR-0009 §3, PLAN T3.2) : M9 a besoin des alertes proposées par M8 pour son
+# briefing du matin. Plutôt qu'une lecture directe du registre M8 par M9 (refusée par PLAN T3.2 —
+# préférer un événement), M8 publie chaque AlerteProposee sur le bus (m8.alerte_proposee) ; M9 la
+# consomme de façon idempotente (m9_strategic_intelligence.outils._recevoir_alerte_proposee).
+# ---------------------------------------------------------------------------
+_DEPARTEMENT = "m08-analytics"
+
+
+def _publier_alerte_proposee(metric_id: str, alerte: dict[str, Any], horodatage_reference: str) -> None:
+    """Publie l'AlerteProposee sur le bus, DANS LA MÊME TRANSACTION que l'évaluation qui vient de
+    la produire (`evenements.publier` ouvre un point de sauvegarde sur la transaction déjà ouverte
+    par `executer_atomique`, jamais une transaction indépendante — même patron que
+    `m4_field_ops.outils.completer_intervention` pour `m4.travaux_termines`).
+
+    `evenement_id` déterministe (metric_id + type_alerte + horodatage_reference) : une
+    réévaluation identique republie le même id, donc un no-op de l'outbox (ADR-0009 §3) — jamais
+    un doublon pour la même alerte le même jour de référence.
+
+    Gardé par `stockage.connexion_courante() is not None` (même garde que
+    `m4_field_ops.outils.completer_intervention` et `m6_material_control.outils.
+    _registre_de_l_appel`) : seule la production (appel enveloppé par `executer_atomique`/
+    `Capacites.appeler`) publie ; les tests unitaires de ce fichier, qui appellent
+    `m8_evaluer_qualite_metrique` via `opsys.outils.executer` (sans transaction), ne touchent
+    jamais la base — publier quand même y ouvrirait une transaction hors de propos pour une
+    alerte qui n'existe que dans un dict Python local, jamais dans `evenements_sortants`. Ceci ne
+    change ni la réponse ni l'autonomie T0 de `m8_evaluer_qualite_metrique` (elle n'exécute
+    toujours rien et n'appelle toujours aucun autre département — elle publie un FAIT, comme le
+    fait déjà M6 pour `m6.variance_chantier` depuis un outil T1) ;
+    `test_paliers_t3_1_coherents_avec_departements_md` verrouille ce choix.
+    """
+    if stockage.connexion_courante() is None:
+        return
+    ident = f"m8-alerte-{metric_id}-{alerte['type_alerte']}-{horodatage_reference}"
+    charge = {
+        "evenement_id": ident,
+        "metric_id": metric_id,
+        "type_alerte": alerte["type_alerte"],
+        "quoi": alerte["quoi"],
+        "a_qui": alerte["a_qui"],
+        "pourquoi": alerte["pourquoi"],
+        "preuve": alerte["preuve"],
+        "source": alerte["source"],
+        "horodatage_reference": horodatage_reference,
+    }
+    evenements.publier("m8.alerte_proposee", _DEPARTEMENT, charge, evenement_id=ident)
+
+
 def outils(
     registre_cible: registre.RegistreSnapshots | None = None,
     definitions_cible: Any = None,
@@ -260,6 +308,11 @@ def outils(
         plage — PUREMENT à partir de `horodatage_reference` fourni (qualite.py ne lit jamais
         l'horloge). Propose 0 à 2 alertes structurées (jamais exécutées, jamais un appel à un
         autre département) ; réponse compacte, aucun historique complet renvoyé.
+
+        Chaque alerte proposée est aussi PUBLIÉE sur le bus (`m8.alerte_proposee`, PLAN T3.2,
+        `_publier_alerte_proposee`) pour que M9 la consomme sans lire directement le registre M8
+        — seulement en production (garde `stockage.connexion_courante`) ; la réponse ci-dessous et
+        l'autonomie T0 de cet outil restent inchangées (voir `_publier_alerte_proposee`).
         """
         definition = registre_metriques.resoudre(metric_id, definitions_cible)
         if definition is None:
@@ -291,6 +344,9 @@ def outils(
             )
             if hors_plage is not None:
                 alertes_proposees.append(alertes.proposer_action(hors_plage, definition))
+
+        for alerte in alertes_proposees:
+            _publier_alerte_proposee(metric_id, alerte, horodatage_reference)
 
         return {
             "metric_id": metric_id,
@@ -464,7 +520,8 @@ def outils(
                 "âge vs fraîcheur attendue, plage), à partir d'un horodatage de référence fourni "
                 "— jamais l'horloge interne — et propose une alerte structurée "
                 "(quoi/à qui/pourquoi/preuve) par problème détecté. Ne l'exécute jamais et n'agit "
-                "sur aucun autre département."
+                "sur aucun autre département ; publie chaque alerte sur le bus (m8.alerte_proposee) "
+                "pour que d'autres départements (M9) la consomment sans lire le registre M8."
             ),
             parametres={
                 "type": "object",

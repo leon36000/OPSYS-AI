@@ -9,11 +9,11 @@ _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from m9_strategic_intelligence.outils import outils  # noqa: E402
+from m9_strategic_intelligence.outils import consommateurs, outils  # noqa: E402
 from m9_strategic_intelligence.registre import RegistreSnapshots  # noqa: E402
 
 from opsys.departements import lire_manifeste  # noqa: E402
-from opsys.outils import executer  # noqa: E402
+from opsys.outils import Autonomie, executer  # noqa: E402
 
 
 def _snapshot(module_source, horodatage, valeurs):
@@ -24,12 +24,14 @@ def _rapport_complet(champs):
     return {cle: "valeur" for cle in champs}
 
 
-def _outils_par_nom():
-    """Registre EN MÉMOIRE, explicite : `outils()` sans argument adosse le registre de
-    production au stockage durable de l'instance (ADR-0009), qu'aucun test unitaire de ce
-    fichier ne monte — voir `departments/m09-strategic-intelligence/tests/test_registre_durable.py`
-    pour la preuve du branchement durable lui-même."""
-    return {o.nom: o for o in outils(RegistreSnapshots())}
+def _outils_par_nom(alertes=None):
+    """Registre ET registre d'alertes EN MÉMOIRE, explicites : `outils()` sans argument adosse le
+    registre de production au stockage durable de l'instance (ADR-0009), qu'aucun test unitaire
+    de ce fichier ne monte — voir `departments/m09-strategic-intelligence/tests/
+    test_registre_durable.py` pour la preuve du branchement durable lui-même, et
+    `test_evenements_alerte_proposee_m8.py` pour `m9_produire_briefing_matin` (qui exige une base
+    réelle via `opsys.approbations.file_proprietaire`, donc hors de ce fichier)."""
+    return {o.nom: o for o in outils(RegistreSnapshots(), alertes_cible=alertes if alertes is not None else [])}
 
 
 def _appeler(par_nom, nom, **kwargs):
@@ -165,3 +167,64 @@ def test_outils_partagent_le_meme_registre_entre_deux_appels():
     assert len(registre_memoire.lire()) == 1
     relu = _appeler(par_nom, "m9_lire_etat_consolide")["resultat"]
     assert relu["faits_par_module"][module_source]["valeurs"] == {"a": "1"}
+
+
+# ---------------------------------------------------------------------------
+# PLAN T3.2 — briefing du matin : m9_lire_alertes_m8 (en mémoire) et cohérence du câblage bus.
+# m9_produire_briefing_matin exige une base réelle (file du propriétaire) : couvert par
+# test_evenements_alerte_proposee_m8.py, pas ici.
+# ---------------------------------------------------------------------------
+def _alerte_m8(**overrides):
+    base = {
+        "evenement_id": "m8-alerte-x-REJ-QUALITE-DONNEE-PERIMEE-2026-09-28T00:00:00Z",
+        "metric_id": "x", "type_alerte": "REJ-QUALITE-DONNEE-PERIMEE",
+        "quoi": "Valeur périmée pour x.", "a_qui": "m04-field-ops", "pourquoi": "…",
+        "preuve": {"metric_id": "x", "fraicheur_jours": 10.0, "fraicheur_attendue_jours": 2},
+        "source": "src", "horodatage_reference": "2026-09-28T00:00:00Z",
+    }
+    base.update(overrides)
+    return base
+
+
+def test_lire_alertes_m8_relecture_pure_sans_filtre():
+    alertes_memoire = [_alerte_m8()]
+    par_nom = _outils_par_nom(alertes=alertes_memoire)
+
+    reponse = _appeler(par_nom, "m9_lire_alertes_m8")
+
+    assert reponse["ok"] is True
+    assert reponse["resultat"] == alertes_memoire
+    # Relecture pure : n'a rien ingéré, la liste source n'a pas grossi.
+    assert len(alertes_memoire) == 1
+
+
+def test_lire_alertes_m8_vide_par_defaut():
+    par_nom = _outils_par_nom()
+    assert _appeler(par_nom, "m9_lire_alertes_m8")["resultat"] == []
+
+
+def test_manifeste_et_outils_incluent_le_briefing_du_matin():
+    dep = lire_manifeste(Path(__file__).resolve().parents[1])
+    noms = [o.nom for o in dep.charger_outils()]
+    assert {"m9_lire_alertes_m8", "m9_produire_briefing_matin"}.issubset(noms)
+
+
+def test_briefing_matin_et_lire_alertes_sont_t0_lecture_seule():
+    """Point 4 du PLAN T3.2 : les outils du briefing sont T0 (lecture), jamais une écriture —
+    seul m9_etat_consolide (ingestion) reste T1."""
+    par_nom = _outils_par_nom()
+    assert par_nom["m9_lire_alertes_m8"].autonomie == Autonomie.T0
+    assert par_nom["m9_produire_briefing_matin"].autonomie == Autonomie.T0
+
+
+def test_produire_briefing_matin_sans_argument_refuse_par_le_schema():
+    par_nom = _outils_par_nom()
+    reponse = executer(par_nom["m9_produire_briefing_matin"], {})
+    assert reponse["erreur"] == "arguments_invalides"
+
+
+def test_consommateurs_expose_m8_alerte_proposee():
+    """Cohérence avec `department.yaml:evenements.consomme` (vérifiée par `opsys verifier`) :
+    exactement un consommateur, pour m8.alerte_proposee."""
+    assert set(consommateurs()) == {"m8.alerte_proposee"}
+    assert callable(consommateurs()["m8.alerte_proposee"])

@@ -15,6 +15,10 @@ ne les résous.
   automatique.
 - Un rapport stratégique soumis est validé contre les 15 clés exactes attendues, rien de plus,
   rien de moins — une clé manquante ou en trop est un rejet nommé.
+- Tu produis le briefing du matin par `m9_produire_briefing_matin` (instant de référence fourni,
+  jamais l'horloge) : décisions en attente de la file du propriétaire, alertes M8 reçues du bus
+  pour le jour, faits déjà consolidés pour la veille, et ce qui manque. Une section sans donnée
+  reste vide — jamais remplie d'une supposition.
 
 ## Ce que tu ne fais jamais
 

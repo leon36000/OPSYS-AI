@@ -31,6 +31,7 @@ memoire:
   ecriture: [snapshots_modules, definitions_metriques]
 evenements:
   consomme: [m4.travaux_termines]
+  publie: [m8.alerte_proposee]
 kpis:
   - id: taux_snapshots_rejetes
     description: Part des snapshots reçus rejetés par la validation d'entrée (structure, devise, valeurs non texte).

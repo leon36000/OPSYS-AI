@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m8.alerte_proposee",
+  "title": "M8 — Alerte de qualité proposée",
+  "description": "Émis par M8 (departments/m08-analytics/src/m8_analytics/outils.py::_publier_alerte_proposee, appelé depuis m8_evaluer_qualite_metrique) pour chaque AlerteProposee que m8_analytics.alertes.proposer_action construit (DEFINITION-PRODUIT.md §7 M8.9 : « chaque alerte propose une action »). PLAN T3.2 (M9, briefing du matin) : préférence explicite pour un événement publié plutôt qu'une lecture directe du registre M8 par M9 — M8 ne décide toujours rien et n'exécute jamais l'action proposée ; il publie seulement le FAIT qu'une alerte a été proposée, à qui, et pourquoi. evenement_id est déterministe (metric_id + type_alerte + horodatage_reference) : une réévaluation identique (même métrique, même verdict, même horodatage_reference) republie le même id, donc un no-op de l'outbox (ADR-0009 §3) — jamais un doublon pour la même alerte le même jour de référence. Toutes les propriétés sont REQUISES même quand leur valeur est structurée : un consommateur ne doit jamais deviner un champ absent.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "evenement_id": {
+      "type": "string",
+      "description": "outils.py : f'm8-alerte-{metric_id}-{type_alerte}-{horodatage_reference}' — clé primaire globale du bus. Répété ici (comme pour m6.variance_chantier) pour que le consommateur trace la base de sa décision sans relire evenements_sortants."
+    },
+    "metric_id": {
+      "type": "string",
+      "description": "Métrique évaluée par m8_evaluer_qualite_metrique (registre durable des définitions, T3.1)."
+    },
+    "type_alerte": {
+      "type": "string",
+      "enum": ["REJ-QUALITE-DONNEE-ABSENTE", "REJ-QUALITE-DONNEE-PERIMEE", "REJ-QUALITE-HORS-PLAGE"],
+      "description": "Verdict m8_analytics.qualite.py à l'origine de l'alerte (VERDICT_DONNEE_ABSENTE, VERDICT_DONNEE_PERIMEE, VERDICT_HORS_PLAGE) — les trois seuls que m8_analytics.alertes.proposer_action sait transformer en action proposée."
+    },
+    "quoi": {
+      "type": "string",
+      "description": "m8_analytics.alertes.proposer_action : le fait observé (ex. « Valeur périmée pour m4_duree_reelle_minutes. »), jamais une cause."
+    },
+    "a_qui": {
+      "type": "string",
+      "description": "Département propriétaire suggéré (definition['departement_proprietaire'] du registre de métriques) — M8 NOMME un destinataire, n'appelle et ne notifie personne lui-même."
+    },
+    "pourquoi": {
+      "type": "string",
+      "description": "La règle ou le seuil franchi, chiffré (ex. « âge observé 10.00 jours > fraîcheur attendue 2 jours. ») — jamais une cause métier ni un responsable (conformite.verifier_aucune_cause_signalee, appliqué aux DEUX départements)."
+    },
+    "preuve": {
+      "description": "m8_analytics.alertes.proposer_action : le détail chiffré à l'appui de pourquoi, une forme par type_alerte — jamais un mélange, jamais un champ inventé pour un verdict qui ne le produit pas.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["metric_id", "n"],
+          "properties": {
+            "metric_id": {"type": "string"},
+            "n": {"type": "integer", "description": "Taille d'échantillon observée (0 pour REJ-QUALITE-DONNEE-ABSENTE)."}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["metric_id", "fraicheur_jours", "fraicheur_attendue_jours"],
+          "properties": {
+            "metric_id": {"type": "string"},
+            "fraicheur_jours": {"type": "number"},
+            "fraicheur_attendue_jours": {"type": "number"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["metric_id", "valeur", "plage_min", "plage_max"],
+          "properties": {
+            "metric_id": {"type": "string"},
+            "valeur": {"type": "number"},
+            "plage_min": {"type": ["number", "null"]},
+            "plage_max": {"type": ["number", "null"]}
+          }
+        }
+      ]
+    },
+    "source": {
+      "type": "string",
+      "description": "definition['source'] du registre de métriques (T3.1) : provenance déclarée de la définition évaluée, portée telle quelle."
+    },
+    "horodatage_reference": {
+      "type": "string",
+      "description": "Instant de référence RFC 3339 fourni à m8_evaluer_qualite_metrique (M8 n'a pas d'horloge) — jamais l'instant de publication. C'est le jour que le briefing du matin de M9 compare à sa propre date de référence pour retenir ou écarter l'alerte (PLAN T3.2)."
+    }
+  },
+  "required": [
+    "evenement_id",
+    "metric_id",
+    "type_alerte",
+    "quoi",
+    "a_qui",
+    "pourquoi",
+    "preuve",
+    "source",
+    "horodatage_reference"
+  ]
+}
