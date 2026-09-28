@@ -75,17 +75,41 @@ def _creer(registre, **surcharges):
 
 
 # -- formule de prix et de totaux, arrondis --------------------------------------------------
-def test_prix_calcule_cout_fois_quantite_fois_un_plus_taux_marge():
-    """cout_ligne = cout_unitaire * quantite ; prix_ligne = cout_ligne * (1 + taux_marge)."""
+# PLAN T2.3-b : la facture M5 (facturation.creer_facture_brouillon) recalcule chaque ligne en
+# `montant = quantite * prix_unitaire`, arrondi une fois au cent. Pour que la facture retombe
+# EXACTEMENT sur le devis accepté, prix_unitaire doit être arrondi D'ABORD (depuis cout_unitaire),
+# puis prix_ligne = prix_unitaire (déjà arrondi) * quantite, arrondi une seconde fois — jamais
+# l'inverse (arrondir cout_ligne puis multiplier par (1+taux), l'ancien ordre PLAN T2.3-a).
+def test_prix_unitaire_calcule_cout_unitaire_fois_un_plus_taux_marge():
+    """prix_unitaire = arrondi_HALF_UP(cout_unitaire * (1 + taux_marge), cent)."""
     registre = []
     devis, verdict = _creer(registre, lignes=[_ligne(cout_unitaire="10.00", quantite="30")], taux_marge="0.20")
     assert verdict is None
     ligne = devis["lignes"][0]
-    assert ligne["cout_ligne"] == Decimal("300.00")  # 10.00 * 30
-    assert ligne["prix_ligne"] == Decimal("360.00")  # 300.00 * 1.20
+    assert ligne["prix_unitaire"] == Decimal("12.00")  # 10.00 * 1.20
+    assert isinstance(ligne["prix_unitaire"], Decimal)
+
+
+def test_prix_ligne_calcule_prix_unitaire_deja_arrondi_fois_quantite():
+    """prix_ligne = arrondi_HALF_UP(prix_unitaire * quantite, cent) — depuis prix_unitaire déjà
+    arrondi, jamais depuis cout_unitaire * quantite * (1 + taux_marge) en une seule opération."""
+    registre = []
+    devis, verdict = _creer(registre, lignes=[_ligne(cout_unitaire="10.00", quantite="30")], taux_marge="0.20")
+    assert verdict is None
+    ligne = devis["lignes"][0]
+    assert ligne["prix_ligne"] == Decimal("360.00")  # 12.00 * 30
     assert devis["cout_total"] == Decimal("300.00")
     assert devis["prix_total"] == Decimal("360.00")
     assert devis["taux_marge"] == Decimal("0.20")
+
+
+def test_cout_ligne_independant_du_prix_cout_unitaire_fois_quantite():
+    """cout_ligne = arrondi_HALF_UP(cout_unitaire * quantite, cent) : ne dépend jamais de
+    taux_marge ni de prix_unitaire, seulement du coût et de la quantité."""
+    registre = []
+    devis, verdict = _creer(registre, lignes=[_ligne(cout_unitaire="10.00", quantite="30")], taux_marge="0.20")
+    assert verdict is None
+    assert devis["lignes"][0]["cout_ligne"] == Decimal("300.00")  # 10.00 * 30, sans la marge
 
 
 def test_totaux_sont_la_somme_exacte_des_lignes_deux_lignes():
@@ -96,19 +120,26 @@ def test_totaux_sont_la_somme_exacte_des_lignes_deux_lignes():
     ]
     devis, verdict = _creer(registre, lignes=lignes, taux_marge="0.25")
     assert verdict is None
-    # ligne 1 : cout 300.00, prix 375.00 (x1.25) ; ligne 2 : cout 62.00, prix 77.50
+    # ligne 1 : cout 300.00, prix_unitaire 12.50 (10.00*1.25), prix 375.00 (12.50*30).
+    # ligne 2 : cout 62.00, prix_unitaire 19.38 (15.50*1.25=19.375, HALF_UP -> 19.38),
+    #           prix 77.52 (19.38*4 — PAS 77.50 : c'est l'écart que PLAN T2.3-b corrige,
+    #           15.50*1.25*4=77.50 arrondi en une fois diffère de 19.38*4=77.52 arrondi en deux
+    #           temps ; c'est ce DERNIER chiffre que la facture M5 obtiendra en recalculant
+    #           quantite * prix_unitaire).
     assert devis["lignes"][0]["cout_ligne"] == Decimal("300.00")
+    assert devis["lignes"][0]["prix_unitaire"] == Decimal("12.50")
     assert devis["lignes"][0]["prix_ligne"] == Decimal("375.00")
     assert devis["lignes"][1]["cout_ligne"] == Decimal("62.00")
-    assert devis["lignes"][1]["prix_ligne"] == Decimal("77.50")
+    assert devis["lignes"][1]["prix_unitaire"] == Decimal("19.38")
+    assert devis["lignes"][1]["prix_ligne"] == Decimal("77.52")
     assert devis["cout_total"] == Decimal("362.00")
-    assert devis["prix_total"] == Decimal("452.50")
+    assert devis["prix_total"] == Decimal("452.52")
 
 
 def test_arrondi_round_half_up_au_cent_explicite_pas_le_defaut_round_half_even():
     """0.125 x 1 est un cas limite : ROUND_HALF_UP (choisi ici) arrondit à 0.13 ; le mode par
     défaut du module decimal (ROUND_HALF_EVEN) arrondirait à 0.12. Verrouille le choix documenté
-    dans devis_durable.py."""
+    dans devis_durable.py, sur cout_ligne (indépendant du prix)."""
     registre = []
     devis, verdict = _creer(
         registre, lignes=[_ligne(cout_unitaire="0.125", quantite="1")], taux_marge="0"
@@ -116,6 +147,25 @@ def test_arrondi_round_half_up_au_cent_explicite_pas_le_defaut_round_half_even()
     assert verdict is None
     assert devis["lignes"][0]["cout_ligne"] == Decimal("0.13")
     assert Decimal("0.125").quantize(Decimal("0.01")) == Decimal("0.12")  # confirme le contraste
+
+
+def test_arrondi_half_up_du_prix_unitaire_avant_la_multiplication_par_quantite():
+    """cout_unitaire=1.00, taux_marge=0.005 -> 1.00 x 1.005 = 1.005, tie exact au cent (2e
+    décimale "0", paire) : ROUND_HALF_UP arrondit prix_unitaire à 1.01 (ROUND_HALF_EVEN,
+    non retenu, donnerait 1.00). Avec quantite=2.5, prix_unitaire (1.01) x 2.5 = 2.525, un
+    second tie exact : ROUND_HALF_UP arrondit prix_ligne à 2.53 (HALF_EVEN donnerait 2.52).
+    Les deux arrondis sont donc bien appliqués en SÉQUENCE, chacun HALF_UP."""
+    registre = []
+    devis, verdict = _creer(
+        registre, lignes=[_ligne(cout_unitaire="1.00", quantite="2.5")], taux_marge="0.005"
+    )
+    assert verdict is None
+    ligne = devis["lignes"][0]
+    assert ligne["prix_unitaire"] == Decimal("1.01")
+    assert ligne["prix_ligne"] == Decimal("2.53")
+    # Contraste : la même opération sous ROUND_HALF_EVEN (défaut du module decimal) diffère.
+    assert Decimal("1.005").quantize(Decimal("0.01")) == Decimal("1.00")
+    assert Decimal("2.525").quantize(Decimal("0.01")) == Decimal("2.52")
 
 
 def test_taux_marge_zero_prix_egal_au_cout():
@@ -133,10 +183,25 @@ def test_montants_sont_des_decimal_jamais_des_float():
         assert isinstance(ligne["cout_unitaire"], Decimal)
         assert isinstance(ligne["quantite"], Decimal)
         assert isinstance(ligne["cout_ligne"], Decimal)
+        assert isinstance(ligne["prix_unitaire"], Decimal)
         assert isinstance(ligne["prix_ligne"], Decimal)
     assert isinstance(devis["cout_total"], Decimal)
     assert isinstance(devis["prix_total"], Decimal)
     assert isinstance(devis["taux_marge"], Decimal)
+
+
+def test_reference_ligne_est_stable_devis_id_et_index():
+    """PLAN T2.3-b : identifiant stable par ligne, `f"{devis_id}-L{index}"`, pour que M5 puisse
+    relier chaque ligne de facture à sa ligne de devis d'origine (reference_ligne_devis)."""
+    registre = []
+    devis, verdict = _creer(
+        registre,
+        devis_id="M3-DEVIS-ref-001",
+        lignes=[_ligne(description="Gouttière"), _ligne(description="Descente")],
+    )
+    assert verdict is None
+    assert devis["lignes"][0]["reference_ligne"] == "M3-DEVIS-ref-001-L0"
+    assert devis["lignes"][1]["reference_ligne"] == "M3-DEVIS-ref-001-L1"
 
 
 # -- marge absente ou invalide : rejet fail-closed --------------------------------------------
@@ -431,9 +496,9 @@ def test_projection_employe_retire_cout_marge_et_prix():
     assert not (interdits_devis & set(projection)), projection
 
     for ligne in projection["lignes"]:
-        interdits_ligne = {"cout_unitaire", "cout_ligne", "prix_ligne"}
+        interdits_ligne = {"cout_unitaire", "cout_ligne", "prix_unitaire", "prix_ligne"}
         assert not (interdits_ligne & set(ligne)), ligne
-        assert set(ligne) == {"description", "quantite", "unite", "reference_besoin_materiau"}
+        assert set(ligne) == {"reference_ligne", "description", "quantite", "unite", "reference_besoin_materiau"}
 
 
 def test_projection_employe_garde_les_champs_operationnels():
@@ -445,6 +510,7 @@ def test_projection_employe_garde_les_champs_operationnels():
     assert projection["statut"] == "brouillon"
     assert projection["lignes"][0]["description"] == devis["lignes"][0]["description"]
     assert projection["lignes"][0]["quantite"] == devis["lignes"][0]["quantite"]
+    assert projection["lignes"][0]["reference_ligne"] == devis["lignes"][0]["reference_ligne"]
 
 
 def test_projection_role_inconnu_rejetee():
@@ -459,6 +525,9 @@ def test_projection_devis_absent_rejetee():
 
 # -- charge de l'événement m3.devis_accepte -------------------------------------------------------
 def test_charge_evenement_devis_accepte_est_json_sur_decimales_en_texte():
+    """PLAN T2.3-b : la charge porte ce qu'il faut pour que M5 facture sans rien recalculer
+    différemment — reference_ligne, prix_unitaire et prix_ligne par ligne (jamais le coût),
+    horodatage_acceptation en plus des totaux."""
     registre = []
     _creer(registre)
     accepte, verdict = devis_durable.marquer_devis_accepte(
@@ -473,17 +542,102 @@ def test_charge_evenement_devis_accepte_est_json_sur_decimales_en_texte():
     assert charge["cout_total"] == "300.00" and isinstance(charge["cout_total"], str)
     assert charge["prix_total"] == "360.00" and isinstance(charge["prix_total"], str)
     assert charge["taux_marge"] == "0.20" and isinstance(charge["taux_marge"], str)
+    assert charge["horodatage_acceptation"] == _HORODATAGE
     assert charge["lignes"] == [
         {
+            "reference_ligne": "M3-DEVIS-durable-001-L0",
             "description": "Gouttière alu 5 po",
             "quantite": "30",
             "unite": "pi_lin",
+            "prix_unitaire": "12.00",
+            "prix_ligne": "360.00",
             "reference_besoin_materiau": "besoin-goutt-001",
         }
     ]
-    # Aucun coût ni prix par ligne dans la charge de l'événement (M6 planifie des quantités).
+    # Aucun coût par ligne dans la charge de l'événement (M6 planifie des quantités, jamais des
+    # montants — séparation coût/prix, audit M3 §2.1) ; le prix, lui, EST porté (PLAN T2.3-b).
     assert "cout_unitaire" not in charge["lignes"][0]
-    assert "prix_ligne" not in charge["lignes"][0]
+    assert "cout_ligne" not in charge["lignes"][0]
+
+
+def test_charge_evenement_horodatage_acceptation_est_celui_de_lacceptation_pas_de_la_creation():
+    """Un devis brouillon -> envoyé -> accepté à des horodatages distincts : la charge porte
+    l'horodatage de l'ACCEPTATION (dernier maillon), jamais celui de la création."""
+    registre = []
+    devis_durable.creer_devis(
+        "M3-DEVIS-horo-001", "lead-001", None, [_ligne()], "0.20", "2026-01-01T00:00:00-05:00", registre
+    )
+    devis_durable.marquer_devis_envoye("M3-DEVIS-horo-001", "2026-01-02T00:00:00-05:00", registre)
+    accepte, verdict = devis_durable.marquer_devis_accepte(
+        "M3-DEVIS-horo-001", "nathan", "2026-01-03T00:00:00-05:00", registre
+    )
+    assert verdict is None
+    charge = devis_durable.charge_evenement_devis_accepte(accepte)
+    assert charge["horodatage_acceptation"] == "2026-01-03T00:00:00-05:00"
+
+
+# -- trois devis couvrant des cas de demi-cent : Σ prix_ligne = prix_total = recalcul « à la M5 » --
+def _montant_a_la_m5(quantite: Decimal, prix_unitaire: Decimal) -> Decimal:
+    """Reproduit INDÉPENDAMMENT la formule de `facturation.creer_facture_brouillon` (M5) :
+    montant = quantite * prix_unitaire, arrondi ROUND_HALF_UP au cent — jamais un appel à
+    devis_durable, pour que ce test vérifie une PROPRIÉTÉ algébrique, pas une tautologie."""
+    from decimal import ROUND_HALF_UP
+    return (quantite * prix_unitaire).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+@pytest.mark.parametrize(
+    "devis_id,lignes_brutes,taux_marge",
+    [
+        (
+            # prix_unitaire : 1.00 x 1.005 = 1.00500, tie exact -> HALF_UP 1.01 (HALF_EVEN: 1.00).
+            # prix_ligne : 1.01 x 2.5 = 2.525, tie exact -> HALF_UP 2.53 (HALF_EVEN : 2.52).
+            "M3-DEVIS-demicent-001",
+            [{"cout_unitaire": "1.00", "quantite": "2.5"}],
+            "0.005",
+        ),
+        (
+            # L0 prix_unitaire : 5.00 x 1.005 = 5.02500, tie -> HALF_UP 5.03 (HALF_EVEN : 5.02).
+            # L0 prix_ligne : 5.03 x 0.5 = 2.515, tie -> 2.52 (HALF_UP et HALF_EVEN concordent ici).
+            # L1 prix_ligne : 2.01 x 4.5 = 9.045, tie -> HALF_UP 9.05 (HALF_EVEN : 9.04).
+            "M3-DEVIS-demicent-002",
+            [
+                {"cout_unitaire": "5.00", "quantite": "0.5"},
+                {"cout_unitaire": "2.00", "quantite": "4.5"},
+            ],
+            "0.005",
+        ),
+        (
+            # prix_unitaire : 0.04 x 1.25 = 0.0500 (exact, pas de tie).
+            # prix_ligne : 0.05 x 0.5 = 0.025, tie exact -> HALF_UP 0.03 (HALF_EVEN : 0.02).
+            "M3-DEVIS-demicent-003",
+            [{"cout_unitaire": "0.04", "quantite": "0.5"}],
+            "0.25",
+        ),
+    ],
+)
+def test_trois_devis_demi_cent_somme_prix_ligne_egale_prix_total_egale_recalcul_m5(
+    devis_id, lignes_brutes, taux_marge
+):
+    registre = []
+    lignes = [_ligne(cout_unitaire=b["cout_unitaire"], quantite=b["quantite"]) for b in lignes_brutes]
+    devis, verdict = _creer(registre, devis_id=devis_id, lignes=lignes, taux_marge=taux_marge)
+    assert verdict is None
+
+    somme_prix_ligne = sum((ligne["prix_ligne"] for ligne in devis["lignes"]), Decimal("0"))
+    assert somme_prix_ligne == devis["prix_total"]
+
+    for ligne in devis["lignes"]:
+        recalcule_m5 = _montant_a_la_m5(ligne["quantite"], ligne["prix_unitaire"])
+        assert recalcule_m5 == ligne["prix_ligne"], (
+            f"{devis_id} {ligne['reference_ligne']} : facture recalculée ({recalcule_m5}) "
+            f"diffère du devis accepté ({ligne['prix_ligne']})"
+        )
+
+    somme_recalcul_m5 = sum(
+        (_montant_a_la_m5(ligne["quantite"], ligne["prix_unitaire"]) for ligne in devis["lignes"]),
+        Decimal("0"),
+    )
+    assert somme_recalcul_m5 == devis["prix_total"]
 
 
 # -- catalogue fermé de verdicts ------------------------------------------------------------------

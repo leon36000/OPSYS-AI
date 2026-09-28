@@ -1,15 +1,33 @@
-"""Devis durable de M3 (PLAN T2.3-a) : quote commerciale multi-lignes, prix calculé, cycle de vie gardé.
+"""Devis durable de M3 (PLAN T2.3-a/b) : quote commerciale multi-lignes, prix calculé, cycle de vie gardé.
 
 Module pur (ADR-0009, même règle que ``registre.py``/``devis.py``) : aucun import ``opsys``, aucune
 horloge interne, aucun accès réseau. Tous les montants sont des ``Decimal`` construits depuis du
-texte — jamais un float. Le PRIX de chaque ligne est TOUJOURS calculé par le code, jamais fourni :
-``prix_ligne = cout_ligne x (1 + taux_marge)``, arrondi ``ROUND_HALF_UP`` au cent — même mode
-d'arrondi qu'``outils.arrondir_au_cent`` (déjà utilisé ailleurs dans ce département), choisi ici
-explicitement plutôt que le mode par défaut du module ``decimal`` (``ROUND_HALF_EVEN``), pour que
-deux devis du même département arrondissent de la même façon. ``taux_marge`` n'est JAMAIS codé en
-dur ici : c'est un paramètre obligatoire de ``creer_devis``, fourni par l'appelant (explicitement,
-ou par une future configuration d'entreprise que l'appelant aura lue) ; son absence est un rejet
-fail-closed (``REJ-DEVIS-TAUX-MARGE-MANQUANT``), jamais une valeur par défaut inventée.
+texte — jamais un float. Le PRIX de chaque ligne est TOUJOURS calculé par le code, jamais fourni,
+en DEUX arrondis ``ROUND_HALF_UP`` au cent, dans cet ORDRE PRÉCIS (PLAN T2.3-b) :
+
+    prix_unitaire = arrondi(cout_unitaire x (1 + taux_marge), cent)   # arrondi D'ABORD
+    prix_ligne    = arrondi(prix_unitaire x quantite, cent)           # PUIS multiplié, arrondi
+
+``ROUND_HALF_UP`` (jamais le défaut du module ``decimal``, ``ROUND_HALF_EVEN``) — même mode
+qu'``outils.arrondir_au_cent``, déjà utilisé ailleurs dans ce département. Cet ordre n'est pas
+arbitraire : la facture brouillon de M5 (``facturation.creer_facture_brouillon``) recalcule
+chaque ligne en ``montant = quantite x prix_unitaire``, arrondi UNE fois — c'est exactement la
+seconde étape ci-dessus, appliquée au ``prix_unitaire`` que M3 a DÉJÀ arrondi et publié. Arrondir
+plutôt ``cout_ligne`` puis le multiplier par ``(1 + taux_marge)`` (l'ordre de PLAN T2.3-a, corrigé
+ici) donne un résultat qui peut diverger d'un cent de ce que M5 recalculera à partir du seul
+``prix_unitaire`` qu'il connaît — constaté sur un cas réel (``cout_unitaire=15.50, quantite=4,
+taux_marge=0.25`` : ancien ordre 77.50, nouvel ordre 77.52, et c'est ce dernier chiffre que M5
+obtiendra en recalculant 4 x 19.38). ``cout_ligne`` reste indépendant du prix : ``cout_unitaire x
+quantite``, arrondi une fois, jamais mêlé au calcul de ``prix_unitaire``/``prix_ligne``.
+``taux_marge`` n'est JAMAIS codé en dur ici : c'est un paramètre obligatoire de ``creer_devis``,
+fourni par l'appelant (explicitement, ou par une future configuration d'entreprise que l'appelant
+aura lue) ; son absence est un rejet fail-closed (``REJ-DEVIS-TAUX-MARGE-MANQUANT``), jamais une
+valeur par défaut inventée.
+
+Chaque ligne porte aussi ``reference_ligne`` (``f"{devis_id}-L{index}"``, calculé une fois à la
+création, jamais recalculé), un identifiant stable qui permet à M5 de relier chaque ligne de
+facture à sa ligne de devis d'origine — même rôle que ``reference_ligne_devis`` côté
+``facturation.LigneFacture``.
 
 Ce module est DISTINCT de ``devis.py`` (qui assemble le contrat gelé interne ``EstimationV1`` —
 mesure/Monte Carlo, S007) : le « devis » de PLAN T2.3-a est un document commercial multi-lignes
@@ -58,7 +76,11 @@ role="employe")`` retire ``cout_unitaire``, ``cout_ligne``, ``cout_total``, ``ta
 Motif : si l'employé connaît (ou devine) le coût réel des matériaux/main-d'œuvre qu'il pose, lui
 montrer le PRIX suffit à lui laisser déduire la marge par soustraction ; cacher le coût sans cacher
 le prix ne protégerait donc rien. La vue "employe" ne garde que ce qui sert le travail terrain :
-description, quantité, unité, référence de besoin matériau, plus l'identité et le statut du devis.
+référence de ligne, description, quantité, unité, référence de besoin matériau, plus l'identité et
+le statut du devis. L'événement ``m3.devis_accepte`` (``charge_evenement_devis_accepte``) suit la
+même règle par ligne : ``prix_unitaire``/``prix_ligne`` y figurent (M5 en a besoin pour facturer),
+mais jamais ``cout_unitaire``/``cout_ligne`` — M6, qui consomme cet événement pour ses besoins
+matériaux prévus, planifie des quantités, jamais des montants.
 """
 
 from __future__ import annotations
@@ -93,23 +115,26 @@ _CHAMPS_LIGNE_REQUIS = frozenset(
 _CLES_CONTENU_DEVIS = ("lead_id", "chantier_id", "taux_marge", "lignes", "cout_total", "prix_total")
 
 _ROLES_CONNUS = ("interne", "employe")
-_CLES_LIGNE_EMPLOYE = ("description", "quantite", "unite", "reference_besoin_materiau")
+_CLES_LIGNE_EMPLOYE = ("reference_ligne", "description", "quantite", "unite", "reference_besoin_materiau")
 _CLES_DEVIS_EMPLOYE = ("devis_id", "lead_id", "chantier_id", "statut", "horodatage")
 
 
 @dataclasses.dataclass(frozen=True)
 class LigneDevis:
     """Une ligne de devis. ``quantite``/``cout_unitaire`` sont des ``Decimal`` déjà validés (texte
-    en entrée, jamais un float) ; ``cout_ligne``/``prix_ligne`` (= cout_unitaire * quantite, puis
-    x (1 + taux_marge), 2 décimales chacun) sont calculés une fois par ``_valider_ligne`` et
-    conservés ici, jamais recalculés ailleurs à la volée."""
+    en entrée, jamais un float). ``reference_ligne`` est un identifiant stable calculé une fois
+    (``f"{devis_id}-L{index}"``). ``cout_ligne``, ``prix_unitaire`` et ``prix_ligne`` (2 décimales
+    chacun) sont calculés une fois par ``_valider_ligne`` — voir la docstring du module pour
+    l'ordre précis des deux arrondis de prix — et conservés ici, jamais recalculés à la volée."""
 
+    reference_ligne: str
     description: str
     quantite: Decimal
     unite: str
     cout_unitaire: Decimal
     reference_besoin_materiau: str | None
     cout_ligne: Decimal
+    prix_unitaire: Decimal
     prix_ligne: Decimal
 
 
@@ -148,7 +173,9 @@ def _texte_vers_taux_marge(taux_marge: Any) -> tuple[Decimal | None, dict | None
     return taux, None
 
 
-def _valider_ligne(brute: Any, index: int, taux_marge: Decimal) -> tuple[LigneDevis | None, dict | None]:
+def _valider_ligne(
+    brute: Any, index: int, taux_marge: Decimal, devis_id: str
+) -> tuple[LigneDevis | None, dict | None]:
     if not isinstance(brute, dict) or set(brute.keys()) != _CHAMPS_LIGNE_REQUIS:
         return None, verdicts.construire_verdict(
             "REJ-DEVIS-LIGNE-INVALIDE",
@@ -185,20 +212,25 @@ def _valider_ligne(brute: Any, index: int, taux_marge: Decimal) -> tuple[LigneDe
             "REJ-DEVIS-LIGNE-INVALIDE", detail=f"ligne {index} : cout_unitaire ne peut pas être négatif"
         )
 
-    # Formule de PRIX (PLAN T2.3-a) : coût x (1 + taux de marge FOURNI). Arrondi au cent
-    # (ROUND_HALF_UP) appliqué au coût de LIGNE d'abord, puis au prix de ligne — jamais sur les
-    # facteurs bruts avant multiplication — pour que la relation affichée cout_ligne x (1 +
-    # taux_marge) == prix_ligne reste vérifiable au cent près par un humain qui relit le devis.
+    # Coût et prix (PLAN T2.3-a/b — voir la docstring du module pour la justification complète de
+    # l'ordre des arrondis). cout_ligne est indépendant du prix : cout_unitaire x quantite, arrondi
+    # une fois. prix_unitaire = cout_unitaire x (1 + taux_marge), arrondi ROUND_HALF_UP au cent
+    # D'ABORD (jamais depuis cout_ligne) ; prix_ligne = CE prix_unitaire déjà arrondi x quantite,
+    # arrondi une seconde fois — exactement l'ordre que la facture M5 rejouera plus tard depuis le
+    # seul prix_unitaire qu'elle connaît (montant = quantite x prix_unitaire, arrondi une fois).
     cout_ligne = (cout_unitaire * quantite).quantize(_DEUX_DECIMALES, rounding=ROUND_HALF_UP)
-    prix_ligne = (cout_ligne * (Decimal("1") + taux_marge)).quantize(_DEUX_DECIMALES, rounding=ROUND_HALF_UP)
+    prix_unitaire = (cout_unitaire * (Decimal("1") + taux_marge)).quantize(_DEUX_DECIMALES, rounding=ROUND_HALF_UP)
+    prix_ligne = (prix_unitaire * quantite).quantize(_DEUX_DECIMALES, rounding=ROUND_HALF_UP)
 
     ligne = LigneDevis(
+        reference_ligne=f"{devis_id}-L{index}",
         description=brute["description"],
         quantite=quantite,
         unite=brute["unite"],
         cout_unitaire=cout_unitaire,
         reference_besoin_materiau=reference,
         cout_ligne=cout_ligne,
+        prix_unitaire=prix_unitaire,
         prix_ligne=prix_ligne,
     )
     return ligne, None
@@ -270,7 +302,7 @@ def creer_devis(
     cout_total = Decimal("0")
     prix_total = Decimal("0")
     for index, brute in enumerate(lignes):
-        ligne, verdict = _valider_ligne(brute, index, taux)
+        ligne, verdict = _valider_ligne(brute, index, taux, devis_id)
         if verdict is not None:
             return None, verdict
         lignes_validees.append(ligne)
@@ -415,16 +447,26 @@ def charge_evenement_devis_accepte(devis: dict[str, Any]) -> dict[str, Any]:
     ``opsys.evenements.catalogue/m3.devis_accepte.json``) depuis l'état courant d'un devis déjà
     ACCEPTE. Ne publie rien elle-même — module pur : c'est ``outils.py``, seul, qui appelle
     ``opsys.evenements.publier`` après une acceptation réussie, dans la même transaction. Tous les
-    montants sont convertis en texte décimal (jamais un float JSON)."""
+    montants sont convertis en texte décimal (jamais un float JSON).
+
+    PLAN T2.3-b : porte ce qu'il faut pour que M5 facture sans rien recalculer différemment —
+    ``reference_ligne``/``prix_unitaire``/``prix_ligne`` par ligne (jamais ``cout_unitaire``/
+    ``cout_ligne`` : séparation coût/prix, audit M3 §2.1), et ``horodatage_acceptation`` (celui
+    fourni à ``marquer_devis_accepte``, déjà le ``horodatage`` du dernier maillon fusionné — voir
+    ``_etats_courants`` — donc TOUJOURS celui de l'acceptation, jamais celui d'une création ou
+    d'un envoi antérieurs)."""
     return {
         "devis_id": devis["devis_id"],
         "lead_id": devis["lead_id"],
         "chantier_id": devis["chantier_id"],
         "lignes": [
             {
+                "reference_ligne": ligne["reference_ligne"],
                 "description": ligne["description"],
                 "quantite": str(ligne["quantite"]),
                 "unite": ligne["unite"],
+                "prix_unitaire": str(ligne["prix_unitaire"]),
+                "prix_ligne": str(ligne["prix_ligne"]),
                 "reference_besoin_materiau": ligne["reference_besoin_materiau"],
             }
             for ligne in devis["lignes"]
@@ -432,4 +474,5 @@ def charge_evenement_devis_accepte(devis: dict[str, Any]) -> dict[str, Any]:
         "cout_total": str(devis["cout_total"]),
         "prix_total": str(devis["prix_total"]),
         "taux_marge": str(devis["taux_marge"]),
+        "horodatage_acceptation": devis["horodatage"],
     }

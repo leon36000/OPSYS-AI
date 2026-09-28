@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "opsys.evenement/v1/m3.devis_accepte",
   "title": "M3 — Devis accepté",
-  "description": "Émis par M3 quand un devis passe à ACCEPTE (departments/m03-estimation/src/m3_estimation/devis_durable.py::marquer_devis_accepte, outil m3_marquer_devis_accepte, PLAN T2.3-a). Publié dans la MÊME transaction que l'acceptation, et seulement à ce moment (jamais à la création ou à l'envoi d'un devis). M6 le consommera pour ses besoins matériaux prévus (docs/produit/DEFINITION-PRODUIT.md §6, flux M3 -> M6) ; M5 lit le devis complet par devis_id (m3_lire_devis) plutôt que de dépendre de la charge de cet événement pour facturer.",
+  "description": "Émis par M3 quand un devis passe à ACCEPTE (departments/m03-estimation/src/m3_estimation/devis_durable.py::marquer_devis_accepte, outil m3_marquer_devis_accepte, PLAN T2.3-a/b). Publié dans la MÊME transaction que l'acceptation, et seulement à ce moment (jamais à la création ou à l'envoi d'un devis), sous un evenement_id déterministe (f\"m3-devis-accepte-{devis_id}\", défense en profondeur contre une redélivrance). M6 le consommera pour ses besoins matériaux prévus (docs/produit/DEFINITION-PRODUIT.md §6, flux M3 -> M6). Porte ce qu'il faut pour que M5 facture SANS RIEN RECALCULER DIFFÉREMMENT (PLAN T2.3-b) : prix_unitaire/prix_ligne par ligne, déjà arrondis dans le même ordre que facturation.creer_facture_brouillon (montant = quantite x prix_unitaire, arrondi une fois) refera.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -22,9 +22,9 @@
       "type": "array",
       "items": {
         "type": "object",
-        "description": "{description, quantite (texte décimal), unite, reference_besoin_materiau (ou null)} — jamais de coût ni de prix par ligne : M6 planifie des quantités de matériaux, pas des montants (séparation coût/prix, docs/departements/M3-audit.md §2.1)."
+        "description": "{reference_ligne (identifiant stable f\"{devis_id}-L{index}\", pour relier une ligne de facture M5 à sa ligne de devis), description, quantite (texte décimal), unite, prix_unitaire (texte décimal CAD, déjà arrondi ROUND_HALF_UP au cent depuis cout_unitaire x (1 + taux_marge)), prix_ligne (texte décimal CAD, = prix_unitaire x quantite, arrondi une seconde fois), reference_besoin_materiau (ou null)} — JAMAIS de coût par ligne (cout_unitaire/cout_ligne) : M6 planifie des quantités de matériaux, pas des montants (séparation coût/prix, docs/departements/M3-audit.md §2.1) ; le PRIX, lui, est porté : M5 en a besoin pour facturer sans recalculer différemment."
       },
-      "description": "Lignes du devis accepté, sans coût ni prix unitaire — voir la description de chaque élément."
+      "description": "Lignes du devis accepté, avec prix (jamais de coût) — voir la description de chaque élément."
     },
     "cout_total": {
       "type": "string",
@@ -32,11 +32,15 @@
     },
     "prix_total": {
       "type": "string",
-      "description": "Texte décimal CAD : prix total recommandé au client, recalculé par le code (coût x (1 + taux_marge))."
+      "description": "Texte décimal CAD : prix total recommandé au client, recalculé par le code (somme des prix_ligne, déjà arrondis)."
     },
     "taux_marge": {
       "type": "string",
       "description": "Texte décimal (ex. \"0.35\" pour 35 %) : taux de marge appliqué à ce devis, fourni explicitement à sa création — jamais codé en dur."
+    },
+    "horodatage_acceptation": {
+      "type": "string",
+      "description": "Horodatage fourni à m3_marquer_devis_accepte (jamais celui de la création ou d'un envoi antérieur du même devis)."
     }
   },
   "required": [
@@ -46,6 +50,7 @@
     "lignes",
     "cout_total",
     "prix_total",
-    "taux_marge"
+    "taux_marge",
+    "horodatage_acceptation"
   ]
 }

@@ -25,8 +25,8 @@ if str(_SRC) not in sys.path:
 from m3_estimation import devis_durable  # noqa: E402
 from m3_estimation.outils import outils, registre_devis_production  # noqa: E402
 
-from opsys import stockage  # noqa: E402
-from opsys.outils import executer_atomique  # noqa: E402
+from opsys import evenements, stockage  # noqa: E402
+from opsys.outils import executer_atomique, valider_arguments  # noqa: E402
 from opsys.stockage import codec  # noqa: E402
 from opsys.stockage.schema import EVENEMENTS_SORTANTS  # noqa: E402
 
@@ -164,6 +164,10 @@ def test_marquer_devis_accepte_publie_levenement_dans_la_meme_transaction(base_d
             select(EVENEMENTS_SORTANTS).where(EVENEMENTS_SORTANTS.c.type_evenement == "m3.devis_accepte")
         ).mappings().one()
     assert ligne["producteur"] == "m03-estimation"
+    # evenement_id déterministe (PLAN T2.3-b, même patron que m6.variance_chantier :
+    # f"m6-variance-{wct_id}") : défense en profondeur, jamais le devis_id nu comme identifiant
+    # d'événement (cohérence de nommage avec le reste du bus).
+    assert ligne["evenement_id"] == "m3-devis-accepte-M3-DEVIS-stock-004"
     charge = codec.decoder(ligne["charge"])
     assert charge["devis_id"] == "M3-DEVIS-stock-004"
     assert charge["lead_id"] == "lead-001"
@@ -171,17 +175,48 @@ def test_marquer_devis_accepte_publie_levenement_dans_la_meme_transaction(base_d
     assert charge["cout_total"] == "300.00"
     assert charge["prix_total"] == "360.00"
     assert charge["taux_marge"] == "0.20"
+    assert charge["horodatage_acceptation"] == _HORODATAGE
     assert charge["lignes"] == [
         {
+            "reference_ligne": "M3-DEVIS-stock-004-L0",
             "description": "Gouttière alu 5 po",
             "quantite": "30",
             "unite": "pi_lin",
+            "prix_unitaire": "12.00",
+            "prix_ligne": "360.00",
             "reference_besoin_materiau": "besoin-goutt-001",
         }
     ]
-    # Séparation coût/prix (audit M3) : aucun coût ni prix PAR LIGNE dans l'événement.
+    # Séparation coût/prix (audit M3) : aucun COÛT par ligne dans l'événement (le prix, lui, EST
+    # porté — PLAN T2.3-b, pour que M5 facture sans rien recalculer différemment).
     assert "cout_unitaire" not in charge["lignes"][0]
-    assert "prix_ligne" not in charge["lignes"][0]
+    assert "cout_ligne" not in charge["lignes"][0]
+
+    # La charge publiée est VALIDE au sens du catalogue (aucune erreur de schéma) : le fait que
+    # evenements.publier n'ait pas levé ChargeInvalide le prouve déjà, mais on le vérifie ici
+    # directement et explicitement, sur la charge relue en base (pas un objet Python interne).
+    schema = evenements.schema("m3.devis_accepte")
+    assert valider_arguments(schema, charge) == []
+
+
+def test_evenement_devis_accepte_redelivre_avec_le_meme_evenement_id_est_un_no_op(base_durable):
+    """Relivraison (PLAN T2.3-b) : publier deux fois la MÊME charge sous le MÊME evenement_id
+    déterministe (ex. un rejeu après une panne réseau entre l'écriture et la réponse au
+    producteur) ne crée jamais un second événement — défense en profondeur, même garantie que
+    `opsys.evenements.publier` documente pour tout evenement_id fourni explicitement."""
+    _creer("M3-DEVIS-stock-008")
+    with stockage.transaction():
+        devis, verdict = devis_durable.marquer_devis_accepte(
+            "M3-DEVIS-stock-008", "nathan", _HORODATAGE, registre_devis_production()
+        )
+        assert verdict is None
+        charge = devis_durable.charge_evenement_devis_accepte(devis)
+        ident = "m3-devis-accepte-M3-DEVIS-stock-008"
+        premier = evenements.publier("m3.devis_accepte", "m03-estimation", charge, evenement_id=ident)
+        second = evenements.publier("m3.devis_accepte", "m03-estimation", charge, evenement_id=ident)
+
+    assert premier == second == ident
+    assert _compte_evenements() == 1
 
 
 def test_marquer_devis_accepte_une_deuxieme_fois_rejete_et_ne_republie_pas_levenement(base_durable):

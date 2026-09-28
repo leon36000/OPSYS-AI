@@ -271,6 +271,12 @@ def marquer_devis_accepte(devis_id: str, approbateur: str, horodatage: str) -> d
     """Marque un devis ACCEPTE et publie `m3.devis_accepte` dans la MÊME transaction (ADR-0009
     §3) — seulement quand la transition réussit réellement (`verdict is None`) : un rejet
     (devis introuvable, transition illégale, approbateur absent) n'écrit et ne publie jamais rien.
+
+    `evenement_id` déterministe (`f"m3-devis-accepte-{devis_id}"`, PLAN T2.3-b, même patron que
+    M6 pour `m6.variance_chantier` : `f"m6-variance-{wct_id}"`) : défense en profondeur — un
+    rejeu de cet appel (ex. panne réseau entre l'écriture et la réponse au producteur) republie
+    donc un no-op (`evenements.publier` sur un `evenement_id` déjà connu), jamais un second
+    événement pour la même acceptation.
     """
     devis, verdict = devis_durable.marquer_devis_accepte(
         devis_id, approbateur, horodatage, registre_devis_production()
@@ -278,7 +284,10 @@ def marquer_devis_accepte(devis_id: str, approbateur: str, horodatage: str) -> d
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
     evenements.publier(
-        "m3.devis_accepte", "m03-estimation", devis_durable.charge_evenement_devis_accepte(devis)
+        "m3.devis_accepte",
+        "m03-estimation",
+        devis_durable.charge_evenement_devis_accepte(devis),
+        evenement_id=f"m3-devis-accepte-{devis_id}",
     )
     return {"accepte": True, "resultat": devis}
 
@@ -367,9 +376,11 @@ def outils() -> tuple[Outil, ...]:
             nom="m3_creer_devis",
             description=(
                 "Crée un devis BROUILLON (PLAN T2.3-a) sur le registre dédié des devis, distinct du "
-                "registre d'estimations. Le prix de chaque ligne est TOUJOURS calculé par le code : "
-                "cout_unitaire x quantite x (1 + taux_marge) — jamais fourni. Les totaux sont "
-                "recalculés depuis les lignes ; un prix_total fourni qui diffère est rejeté. "
+                "registre d'estimations. Le prix de chaque ligne est TOUJOURS calculé par le code, "
+                "jamais fourni : prix_unitaire = cout_unitaire x (1 + taux_marge) arrondi au cent, "
+                "puis prix_ligne = prix_unitaire x quantite, arrondi une seconde fois — même ordre "
+                "que la facture M5 recalculera. Les totaux sont recalculés depuis les lignes ; un "
+                "prix_total fourni qui diffère est rejeté. "
                 "Idempotente par devis_id : un second appel identique est un no-op, un contenu "
                 "différent est rejeté. Écriture interne non finale (T1) : n'envoie rien au client."
             ),
