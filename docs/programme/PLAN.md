@@ -566,8 +566,18 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       - 3 outils : `m8_enregistrer_definition_metrique` (T1), `m8_resoudre_definition_metrique`
         et `m8_evaluer_qualite_metrique` (T0) ;
       - M8 202, M9 92, verifier 90 outils.
-  - [ ] T3.1-suite : règles d'unicité et de cohérence entre tables ; alertes dans le digest
+  - [x] T3.1-suite : règles d'unicité et de cohérence entre tables ; alertes dans le digest
         quotidien ; listage compact du registre.
+        Preuve (commit « T3.1-suite » ci-dessous) :
+        - doublons (`REJ-QUALITE-DOUBLON`) ;
+        - cohérence d'une métrique dérivée avec ses composantes, recalculées par le code et
+          jamais reçues de l'appelant (`REJ-QUALITE-INCOHERENCE`, tolérance fournie) ;
+        - alertes dédupliquées dans le digest ;
+        - outil `m8_lister_definitions_metriques` paginé ;
+        - M8 243, M9 119.
+
+        Reste : ces deux alertes ne sont pas encore publiées sur `m8.alerte_proposee`, dont le
+        catalogue fige les types.
 - [x] T3.4 M8 : la garde de devise ne contrôle que les unités « DEVISE/x » ; une unité nue non CAD
       (ex. « USD ») passe. Correction TDD (audit M8, vérifié dans `dictionnaire.py`).
       Preuve (988c62d) :
