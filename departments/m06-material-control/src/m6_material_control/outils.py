@@ -28,6 +28,14 @@ float).
 Autonomie (RÈGLE FINANCE) : M6 ne porte aucune écriture financière — elle SIGNALE
 un montant à payer, sans jamais l'exécuter. Ses écritures (stock, inventaire) sont
 un registre interne : T1. Lecture et calcul purs : T0.
+
+Événements (ADR-0009 §3, PLAN T1.2-b et son correctif) : `_evaluer_et_publier_variance` est la
+fonction UNIQUE qui compare le prévu au réel déclaré et publie `m6.variance_chantier` — partagée
+par `_recevoir_travaux_termines` (consommateur de `m4.travaux_termines`) ET par
+`declarer_materiaux_utilises`/`enregistrer_besoins_prevus`, qui la rappellent quand leur propre
+écriture comble après coup ce qui manquait à un WCT déjà reçu (`wct_recus.py`) — le flux réel
+(R12 §4/§9.7) livre presque toujours la déclaration, et parfois le prévu M3 (T1.2-d), APRÈS la
+complétion, jamais avant.
 """
 
 from __future__ import annotations
@@ -37,17 +45,20 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from sqlalchemy import select
 
 from opsys import evenements, stockage
 from opsys.outils import Autonomie, Outil
+from opsys.stockage.schema import EVENEMENTS_SORTANTS
 
-from . import besoins_prevus, digest, materiel, validation, variance_chantier
+from . import besoins_prevus, digest, materiel, validation, variance_chantier, wct_recus
 from . import catalogue as catalogue_module
 from . import registre as registre_module
 
 _DEPARTEMENT = "m06-material-control"
 _NOM_REGISTRE = "principal"
 _NOM_REGISTRE_BESOINS_PREVUS = "besoins_prevus"
+_NOM_REGISTRE_WCT_RECUS = "wct_recus"
 _MANIFESTE = Path(__file__).resolve().parents[2] / "department.yaml"
 
 _MAILLON = {"type": "object", "description": "Maillon tel que renvoyé par un appel précédent."}
@@ -274,18 +285,208 @@ def _seuil_variance_chantier() -> float | None:
     return seuil if ok else None
 
 
+# --------------------------------------------------------------------------------- correctif T1.2-b
+# WCT reçus (garde le trou du flux réel — voir wct_recus.py) + la fonction UNIQUE d'évaluation et
+# de publication de m6.variance_chantier, partagée par les TROIS déclencheurs : le consommateur de
+# m4.travaux_termines ci-dessous, et les deux outils qui peuvent combler après coup ce qui manquait
+# à un WCT déjà reçu (declarer_materiaux_utilises, enregistrer_besoins_prevus).
+def _wct_recus_de_l_appel(historique: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    if stockage.connexion_courante() is not None:
+        return stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_WCT_RECUS)
+    return list(historique or [])
+
+
+def _texte_decimal(valeur: float | None) -> str | None:
+    """Représentation décimale en texte d'une quantité ou d'un écart déjà calculé par
+    variance_chantier.evaluer -- jamais un nombre JSON (précision de lecture non garantie d'un
+    consommateur à l'autre), même discipline que contrats_sortie.montant_decimal_a_la_frontiere
+    (str() sur le float source, jamais un recalcul). None reste None (ecart_pourcentage
+    indéfini, jamais une valeur inventée). `+ 0.0` normalise le seul cas où IEEE 754 distingue
+    -0.0 de 0.0 (un matériau prévu jamais déclaré : _quantite_reelle_depuis_registre rend
+    -0.0) : même valeur mathématique, jamais un signe fabriqué pour un vrai négatif — inchangé
+    pour toute valeur non nulle."""
+    return None if valeur is None else str(valeur + 0.0)
+
+
+def _evenement_deja_publie(evenement_id: str) -> bool:
+    """Une ligne `evenements_sortants` porte déjà cet id, tel quel — la même vérité que
+    `evenements.publier` utilise pour son propre no-op (`ON CONFLICT DO NOTHING`), lue ici pour
+    éviter le travail (et l'écriture) d'une réévaluation qu'on sait déjà terminale."""
+    with stockage.transaction() as cnx:
+        ligne = cnx.execute(
+            select(EVENEMENTS_SORTANTS.c.evenement_id).where(EVENEMENTS_SORTANTS.c.evenement_id == evenement_id)
+        ).first()
+    return ligne is not None
+
+
+def _evaluer_et_publier_variance(wct_recu: dict[str, Any]) -> dict[str, Any]:
+    """Compare le prévu (m6_enregistrer_besoins_prevus) au réel déclaré pour ce wct_id
+    (m6_declarer_materiaux_utilises, T1.1-d2) et publie `m6.variance_chantier`. DÉTERMINISTE
+    (DEPARTEMENTS.md), aucune donnée inventée — SEULE fonction qui calcule ce verdict et publie
+    l'événement ; les trois déclencheurs (voir docstring du module) l'appellent avec le MÊME
+    `wct_recu` (wct_id, intervention_id, devis_id, horodatage_completion — `wct_recus.py`).
+
+    N'écrit jamais le registre de mouvements ni celui des besoins prévus (lecture seule) ;
+    appelable SEULEMENT dans la transaction de l'outil (`stockage.connexion_courante() is not
+    None`) — les trois appelants le garantissent déjà, chacun pour la même raison que
+    `m4_completer_intervention` : publier hors transaction n'aurait aucun sens à écrire.
+
+    Le seuil vient TOUJOURS de `_seuil_variance_chantier()` (department.yaml/configuration),
+    jamais d'un nombre codé en dur ici : absent ou invalide, `statut_variance="seuil_absent"`
+    AVANT toute tentative de lecture du prévu ou de la déclaration (fail-closed le plus tôt
+    possible). Sinon, prévu absent (aucun besoin enregistré pour le devis_id du WCT) donne
+    `prevu_absent` ; prévu présent mais aucune déclaration pour ce wct_id donne
+    `declaration_absente` ; les deux présents donnent `evaluee`.
+
+    `chantier_id` (minimum requis par le catalogue) est résolu depuis QUELLE QUE SOIT la source
+    disponible (le prévu, s'il existe — sinon la déclaration, si elle existe déjà malgré
+    l'absence de prévu) ; `None` si aucune des deux ne le connaît encore — jamais deviné.
+
+    `evenement_id` = `f"m6-variance-{wct_id}-{statut_variance}"` (correctif : plus seulement
+    `f"m6-variance-{wct_id}"`) : chaque STATUT distinct d'un WCT n'est publié qu'une fois — une
+    réévaluation qui retombe sur le MÊME statut qu'avant (ex. deux appels de suite alors que la
+    déclaration manque encore) republie le même id, donc un no-op du bus, jamais un doublon ; une
+    réévaluation qui change de statut (ex. la déclaration arrive enfin : declaration_absente ->
+    evaluee) publie un événement DISTINCT, que le consommateur de M4 reçoit et traite normalement
+    — c'est exactement ce que corrige cette fonction : avant, le même id pour tous les statuts
+    faisait taire toute réévaluation après la première publication.
+
+    `evaluee` est TERMINAL pour un WCT : `evaluee` déjà publié -> court-circuit immédiat, aucune
+    réévaluation ni republication, quel que soit le déclencheur qui rappelle cette fonction. En
+    pratique, les trois déclencheurs sont chacun déjà idempotents en amont (un WCT redélivré, une
+    déclaration ou un devis_id déjà enregistrés ne rappellent jamais cette fonction une seconde
+    fois pour le même WCT), donc ce court-circuit est une défense EXPLICITE de plus, pas la seule.
+    """
+    wct_id = wct_recu["wct_id"]
+    intervention_id = wct_recu["intervention_id"]
+    devis_id = wct_recu.get("devis_id")
+    horodatage_completion = wct_recu["horodatage_completion"]
+
+    if _evenement_deja_publie(f"m6-variance-{wct_id}-evaluee"):
+        return {"traite": True, "statut_variance": "evaluee"}
+
+    mouvements = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE)
+    besoins = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_BESOINS_PREVUS)
+
+    def _chantier_id_depuis_declaration() -> str | None:
+        for mouvement in mouvements:
+            if mouvement.get("wct_id") == wct_id:
+                return mouvement["chantier_id"]
+        return None
+
+    seuil = _seuil_variance_chantier()
+    besoin = besoins_prevus.pour_devis(devis_id, besoins) if devis_id else None
+    declaration_existe = any(mouvement.get("wct_id") == wct_id for mouvement in mouvements)
+    lignes = None  # requis, mais nul tant que statut_variance != "evaluee" (même patron que
+    # signal_critique) : le détail par matériau n'existe que quand variance_chantier.evaluer a
+    # réellement tourné.
+
+    if seuil is None:
+        statut_variance = "seuil_absent"
+        signal_critique = None
+        chantier_id = besoin["chantier_id"] if besoin is not None else _chantier_id_depuis_declaration()
+    elif besoin is None:
+        statut_variance = "prevu_absent"
+        signal_critique = None
+        chantier_id = _chantier_id_depuis_declaration()
+    elif not declaration_existe:
+        statut_variance = "declaration_absente"
+        signal_critique = None
+        chantier_id = besoin["chantier_id"]
+    else:
+        chantier_id = besoin["chantier_id"]
+        registre_cible = registre_module.Registre(maillons=mouvements)
+        resultat, code = variance_chantier.evaluer(
+            chantier_id, besoin["lignes"], seuil_pourcentage=seuil,
+            registre=registre_cible, wct_id=wct_id,
+        )
+        if code is not None:
+            # Entrées déjà validées à l'écriture (besoins_prevus.enregistrer,
+            # soumettre_materiaux_utilises, _seuil_variance_chantier) : un refus ici trahirait
+            # une incohérence interne, jamais un cas d'usage normal — mieux vaut une panne
+            # explicite (retraitée par le répartiteur : réessais puis quarantaine, ou propagée
+            # tel quel à l'outil appelant si déclenchée hors répartiteur) qu'un statut d'événement
+            # fabriqué pour un cas qu'on n'a pas su nommer.
+            raise RuntimeError(f"variance_chantier.evaluer a refusé une entrée déjà validée : {code}")
+        statut_variance = "evaluee"
+        signal = resultat["signal_variance_critique"]
+        signal_critique = signal is not None
+        # Détail par matériau (M3 T1.2-d en second ordre, M8) : dérivé TEL QUEL des verdicts déjà
+        # calculés par variance_chantier.evaluer -- aucun nouveau calcul. "critique" par ligne
+        # reprend la MÊME appartenance à materiaux_en_ecart_critique que
+        # variance_chantier._construire_signal_si_critique a déjà décidée (le seuil comparé une
+        # seule fois, là-bas), jamais une comparaison au seuil refaite ici. Quantités et écart en
+        # texte décimal (_texte_decimal) : jamais un nombre JSON, dont la précision de lecture
+        # varierait d'un consommateur à l'autre -- même discipline que
+        # contrats_sortie.montant_decimal_a_la_frontiere (str() avant toute conversion Decimal).
+        materiaux_critiques = set(signal["materiaux_en_ecart_critique"]) if signal is not None else set()
+        lignes = [
+            {
+                "materiau": verdict["materiau_id"],
+                "unite": verdict["unite"],
+                "quantite_prevue": _texte_decimal(verdict["quantite_estimee"]),
+                "quantite_reelle": _texte_decimal(verdict["quantite_reelle"]),
+                "ecart_pourcentage": _texte_decimal(verdict["ecart_pourcentage"]),
+                "critique": verdict["materiau_id"] in materiaux_critiques,
+            }
+            for verdict in resultat["verdicts_materiaux"]
+        ]
+
+    ident = f"m6-variance-{wct_id}-{statut_variance}"
+    resultat_evenement = {
+        "evenement_id": ident,
+        "wct_id": wct_id,
+        "intervention_id": intervention_id,
+        "chantier_id": chantier_id,
+        "statut_variance": statut_variance,
+        "signal_critique": signal_critique,
+        "seuil_pourcentage": seuil,
+        "horodatage_completion": horodatage_completion,
+        "lignes": lignes,
+    }
+    evenements.publier("m6.variance_chantier", _DEPARTEMENT, resultat_evenement, evenement_id=ident)
+    return {"traite": True, "statut_variance": statut_variance}
+
+
+def _reevaluer_si_wct_connu_par_wct_id(wct_id: str) -> None:
+    """Rappelle `_evaluer_et_publier_variance` SEULEMENT si M6 a déjà reçu ce WCT (sinon, rien à
+    réévaluer : `_recevoir_travaux_termines`, quand ce WCT sera livré, partira d'un registre où
+    cette déclaration existe déjà et calculera `evaluee` directement). Seulement dans la
+    transaction de l'outil — jamais hors transaction (tests en mémoire), où rien n'est publié."""
+    if stockage.connexion_courante() is None:
+        return
+    wct_recu = wct_recus.pour_wct_id(wct_id, stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_WCT_RECUS))
+    if wct_recu is not None:
+        _evaluer_et_publier_variance(wct_recu)
+
+
+def _reevaluer_si_wct_connu_par_devis_id(devis_id: str) -> None:
+    """Symétrique de `_reevaluer_si_wct_connu_par_wct_id`, mais pour le déclencheur
+    `m6_enregistrer_besoins_prevus` (le prévu arrive après la complétion, T1.2-d)."""
+    if stockage.connexion_courante() is None:
+        return
+    wct_recu = wct_recus.pour_devis_id(devis_id, stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_WCT_RECUS))
+    if wct_recu is not None:
+        _evaluer_et_publier_variance(wct_recu)
+
+
 def enregistrer_besoins_prevus(
     chantier_id: str, devis_id: str, lignes: list[dict[str, Any]],
     registre_historique: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """PLAN T1.2-b, point 2 : garde le prévu (source M3, T2.3-a — fourni directement par
-    l'appelant pour l'instant, par événement plus tard). Idempotent par devis_id."""
+    l'appelant pour l'instant, par événement plus tard). Idempotent par devis_id.
+
+    Correctif (le prévu peut arriver APRÈS la complétion, T1.2-d) : si un WCT déjà reçu porte ce
+    devis_id, réévalue et republie m6.variance_chantier tout de suite — sans attendre une
+    prochaine livraison de m4.travaux_termines qui n'arrivera jamais deux fois."""
     maillons = _besoins_prevus_de_l_appel(registre_historique)
     enregistrement, code = besoins_prevus.enregistrer(chantier_id, devis_id, lignes, maillons)
     if code is not None:
         return {"accepte": False, "verdict": {"code": code}}
     maillons.append(enregistrement)
     if stockage.connexion_courante() is not None:
+        _reevaluer_si_wct_connu_par_devis_id(devis_id)
         return {"accepte": True, "resultat": enregistrement}
     return {"accepte": True, "resultat": enregistrement, "registre_historique": list(maillons)}
 
@@ -324,11 +525,17 @@ def declarer_materiaux_utilises(
     registre_historique: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """PLAN T1.1-d2 point 2. En transaction (production) : registre durable, réponse
-    tête + taille seulement (_etat_registre), comme les autres outils d'écriture."""
+    tête + taille seulement (_etat_registre), comme les autres outils d'écriture.
+
+    Correctif (la déclaration arrive presque toujours APRÈS la complétion, R12 §4/§9.7) : si un
+    WCT déjà reçu porte ce wct_id, réévalue et republie m6.variance_chantier tout de suite — sans
+    attendre une prochaine livraison de m4.travaux_termines qui n'arrivera jamais deux fois."""
     registre_cible = _registre_de_l_appel(registre_historique)
     resultat, code = materiel.soumettre_materiaux_utilises(wct, formulaire, registre_cible)
     if code is not None:
         return {"accepte": False, "verdict": {"code": code}}
+    if stockage.connexion_courante() is not None:
+        _reevaluer_si_wct_connu_par_wct_id(formulaire["wct_id"])
     return {"accepte": True, "resultat": resultat, **_etat_registre(registre_cible)}
 
 
@@ -591,7 +798,7 @@ def outils() -> tuple[Outil, ...]:
 
 
 # ---------------------------------------------------------------------------------------------
-# Consommateurs d'événements (ADR-0009 §3, PLAN T1.2, point 3)
+# Consommateurs d'événements (ADR-0009 §3, PLAN T1.2, point 3 ; correctif : le trou du flux réel)
 # ---------------------------------------------------------------------------------------------
 # Même module que `outils()` (docs/architecture/DEPARTEMENTS.md) : seul cet adaptateur connaît
 # `opsys`/`opsys.evenements` ; `variance_chantier.py` (module pur) fait le calcul déterministe.
@@ -599,88 +806,28 @@ def outils() -> tuple[Outil, ...]:
 # déjà ouverte : le registre durable fait donc TOUJOURS autorité ici (comme `enregistrer_besoins_prevus`
 # en transaction), sans le mode « en mémoire » des tests unitaires hors transaction ci-dessus.
 def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
-    """Consomme `m4.travaux_termines` : garde le prévu (`m6_enregistrer_besoins_prevus`) contre
-    le réel déclaré pour ce wct_id (`m6_declarer_materiaux_utilises`, T1.1-d2) et publie
-    `m6.variance_chantier`. DÉTERMINISTE (DEPARTEMENTS.md), aucune donnée inventée.
+    """Consomme `m4.travaux_termines` : garde ce que M6 vient de recevoir de ce WCT (wct_id,
+    intervention_id, devis_id, horodatage_completion — `wct_recus.py`, idempotent par wct_id),
+    puis délègue tout le calcul et la publication à `_evaluer_et_publier_variance` (fonction
+    UNIQUE, partagée avec `m6_declarer_materiaux_utilises` et `m6_enregistrer_besoins_prevus` —
+    voir sa docstring pour le détail des statuts, du seuil et de `chantier_id`).
 
-    Le seuil vient TOUJOURS de `_seuil_variance_chantier()` (department.yaml/configuration),
-    jamais d'un nombre codé en dur ici : absent ou invalide, `statut_variance="seuil_absent"`
-    AVANT toute tentative de lecture du prévu ou de la déclaration (fail-closed le plus tôt
-    possible). Sinon, prévu absent (aucun besoin enregistré pour le devis_id du WCT) donne
-    `prevu_absent` ; prévu présent mais aucune déclaration pour ce wct_id donne
-    `declaration_absente` ; les deux présents donnent `evaluee`.
-
-    `chantier_id` (minimum requis par le catalogue, PLAN T1.2 point 3) est résolu depuis
-    QUELLE QUE SOIT la source disponible (le prévu, s'il existe — sinon la déclaration, si
-    elle existe déjà malgré l'absence de prévu) ; `None` si aucune des deux ne le connaît
-    encore — jamais deviné.
-
-    `evenement_id` déterministe (`f"m6-variance-{wct_id}"`, JAMAIS le wct_id nu : évitons une
-    collision avec la ligne `evenements_sortants` déjà occupée par m4.travaux_termines, qui
-    utilise le wct_id comme SON PROPRE evenement_id) : une redélivrance de m4.travaux_termines
-    (impossible en pratique, le bus ne la produit jamais deux fois — défense en profondeur)
-    republierait donc un no-op, jamais un second m6.variance_chantier pour le même WCT.
+    Dans le flux réel (R12 §4, §9.7), la déclaration des matériaux — et parfois le prévu M3
+    (T1.2-d) — arrivent presque toujours APRÈS ce WCT : ce premier appel publiera donc le plus
+    souvent `prevu_absent` ou `declaration_absente`. Ce n'est plus terminal : garder ce WCT ici
+    permet aux deux autres déclencheurs de le retrouver (par wct_id, par devis_id) quand la
+    pièce qui manquait arrive, et de réévaluer par la MÊME fonction — le correctif au trou où,
+    avant, rien ne rappelait jamais ce consommateur une seconde fois pour le même WCT.
     """
-    wct_id = charge["wct_id"]
-    intervention_id = charge["intervention_id"]
-    devis_id = charge.get("devis_id")
-    horodatage_completion = charge["horodatage_completion"]
-
-    mouvements = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE)
-    besoins = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_BESOINS_PREVUS)
-
-    def _chantier_id_depuis_declaration() -> str | None:
-        for mouvement in mouvements:
-            if mouvement.get("wct_id") == wct_id:
-                return mouvement["chantier_id"]
-        return None
-
-    seuil = _seuil_variance_chantier()
-    besoin = besoins_prevus.pour_devis(devis_id, besoins) if devis_id else None
-    declaration_existe = any(mouvement.get("wct_id") == wct_id for mouvement in mouvements)
-
-    if seuil is None:
-        statut_variance = "seuil_absent"
-        signal_critique = None
-        chantier_id = besoin["chantier_id"] if besoin is not None else _chantier_id_depuis_declaration()
-    elif besoin is None:
-        statut_variance = "prevu_absent"
-        signal_critique = None
-        chantier_id = _chantier_id_depuis_declaration()
-    elif not declaration_existe:
-        statut_variance = "declaration_absente"
-        signal_critique = None
-        chantier_id = besoin["chantier_id"]
-    else:
-        chantier_id = besoin["chantier_id"]
-        registre_cible = registre_module.Registre(maillons=mouvements)
-        resultat, code = variance_chantier.evaluer(
-            chantier_id, besoin["lignes"], seuil_pourcentage=seuil,
-            registre=registre_cible, wct_id=wct_id,
+    wct_recus_registre = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_WCT_RECUS)
+    wct_recu = wct_recus.pour_wct_id(charge["wct_id"], wct_recus_registre)
+    if wct_recu is None:
+        wct_recu = wct_recus.construire(
+            charge["wct_id"], charge["intervention_id"], charge.get("devis_id"),
+            charge["horodatage_completion"],
         )
-        if code is not None:
-            # Entrées déjà validées à l'écriture (besoins_prevus.enregistrer,
-            # soumettre_materiaux_utilises, _seuil_variance_chantier) : un refus ici trahirait
-            # une incohérence interne, jamais un cas d'usage normal — mieux vaut une panne
-            # explicite (retraitée par le répartiteur : réessais puis quarantaine) qu'un statut
-            # d'événement fabriqué pour un cas qu'on n'a pas su nommer.
-            raise RuntimeError(f"variance_chantier.evaluer a refusé une entrée déjà validée : {code}")
-        statut_variance = "evaluee"
-        signal_critique = resultat["signal_variance_critique"] is not None
-
-    ident = f"m6-variance-{wct_id}"
-    resultat_evenement = {
-        "evenement_id": ident,
-        "wct_id": wct_id,
-        "intervention_id": intervention_id,
-        "chantier_id": chantier_id,
-        "statut_variance": statut_variance,
-        "signal_critique": signal_critique,
-        "seuil_pourcentage": seuil,
-        "horodatage_completion": horodatage_completion,
-    }
-    evenements.publier("m6.variance_chantier", _DEPARTEMENT, resultat_evenement, evenement_id=ident)
-    return {"traite": True, "statut_variance": statut_variance}
+        wct_recus_registre.append(wct_recu)
+    return _evaluer_et_publier_variance(wct_recu)
 
 
 def consommateurs() -> dict[str, Callable[[dict], dict]]:

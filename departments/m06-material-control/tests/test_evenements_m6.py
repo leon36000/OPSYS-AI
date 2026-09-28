@@ -1,12 +1,18 @@
-"""M6 côté bus d'événements (ADR-0009 §3, PLAN T1.2-b, points 2 et 3) :
+"""M6 côté bus d'événements (ADR-0009 §3, PLAN T1.2-b, points 2 et 3, et son correctif) :
 
 - `_seuil_variance_chantier()` lit `department.yaml/configuration`, fail-closed si absent
   ou invalide.
-- `consommateurs()["m4.travaux_termines"]` (`_recevoir_travaux_termines`) garde le prévu
-  (`m6_enregistrer_besoins_prevus`) contre le réel déclaré (`m6_declarer_materiaux_utilises`)
-  et publie `m6.variance_chantier` avec le bon `statut_variance`/`signal_critique`/
-  `chantier_id`, dans les quatre cas du PLAN (évalué sans signal, écart critique, prévu
-  absent, déclaration absente) plus le fail-closed de configuration (seuil absent).
+- `consommateurs()["m4.travaux_termines"]` (`_recevoir_travaux_termines`) garde ce WCT
+  (`wct_recus.py`) et délègue à `_evaluer_et_publier_variance`, la fonction UNIQUE qui compare
+  le prévu (`m6_enregistrer_besoins_prevus`) au réel déclaré (`m6_declarer_materiaux_utilises`)
+  et publie `m6.variance_chantier` — `evaluee`, `prevu_absent`, `declaration_absente` ou
+  `seuil_absent`.
+- CORRECTIF : dans le flux réel (R12 §4/§9.7), la déclaration (et parfois le prévu M3, T1.2-d)
+  arrivent presque toujours APRÈS la complétion — `m6_declarer_materiaux_utilises` et
+  `m6_enregistrer_besoins_prevus` réévaluent et republient dès qu'ils comblent, pour un WCT
+  déjà reçu, ce qui manquait. `evenement_id = f"m6-variance-{wct_id}-{statut_variance}"` : un
+  statut redondant republie un id déjà pris (no-op du bus) ; un CHANGEMENT de statut publie un
+  événement distinct, que M4 reçoit ; `evaluee` est terminal (court-circuit explicite).
 
 Base SQLite temporaire migrée (ADR-0009) : ces fonctions touchent TOUJOURS le registre
 durable (`stockage.maillons` direct), jamais le mode `registre_historique` en mémoire de
@@ -165,7 +171,15 @@ def test_evaluee_sans_ecart_ne_signale_rien(base_durable):
     assert charge["signal_critique"] is False
     assert charge["seuil_pourcentage"] == 0.30
     assert charge["horodatage_completion"] == "2026-01-01T10:00:00-05:00"
-    assert charge["evenement_id"] == "m6-variance-wct-1"
+    assert charge["evenement_id"] == "m6-variance-wct-1-evaluee"
+
+    # Détail par matériau (M3 en second ordre T1.2-d, M8) : dérivé tel quel de
+    # variance_chantier.evaluer, quantités/écart en texte décimal, jamais un nombre JSON.
+    assert charge["lignes"] == [{
+        "materiau": "MAT-1", "unite": "boite",
+        "quantite_prevue": "10.0", "quantite_reelle": "10.0",
+        "ecart_pourcentage": "0.0", "critique": False,
+    }]
 
 
 def test_evaluee_avec_ecart_quarante_pourcent_signale_critique(base_durable):
@@ -179,6 +193,74 @@ def test_evaluee_avec_ecart_quarante_pourcent_signale_critique(base_durable):
     charge = _charges_publiees()[0]
     assert charge["statut_variance"] == "evaluee"
     assert charge["signal_critique"] is True
+    assert charge["lignes"] == [{
+        "materiau": "MAT-1", "unite": "boite",
+        "quantite_prevue": "10.0", "quantite_reelle": "14.0",
+        "ecart_pourcentage": "0.4", "critique": True,
+    }]
+
+
+def test_lignes_est_nulle_quand_statut_variance_nest_pas_evaluee(base_durable):
+    m6 = {o.nom: o for o in outils()}
+    # Aucun m6_enregistrer_besoins_prevus pour DEVIS-1 : prevu_absent, donc lignes=null.
+    _declarer_materiaux(m6, "wct-1", "int-1", "C1", quantite=5.0)
+
+    with stockage.transaction():
+        consommateurs()["m4.travaux_termines"](_wct_charge())
+
+    charge = _charges_publiees()[0]
+    assert charge["statut_variance"] == "prevu_absent"
+    assert charge["lignes"] is None
+
+
+def test_lignes_reprend_plusieurs_materiaux_dans_lordre_trie(base_durable):
+    m6 = {o.nom: o for o in outils()}
+    reponse = executer_atomique(m6["m6_enregistrer_besoins_prevus"], {
+        "chantier_id": "C1", "devis_id": "DEVIS-1",
+        "lignes": [
+            {"materiau_id": "MAT-B", "quantite_estimee": 5.0, "unite": "boite"},
+            {"materiau_id": "MAT-A", "quantite_estimee": 20.0, "unite": "boite"},
+        ],
+    })
+    assert reponse["ok"] is True and reponse["resultat"]["accepte"] is True, reponse
+
+    _receptionner(m6, "C1", "MAT-A", 40.0, po_id="PO-A")
+    _receptionner(m6, "C1", "MAT-B", 10.0, po_id="PO-B")
+    _receptionner(m6, "C1", "MAT-C", 5.0, po_id="PO-C")
+    r = executer_atomique(m6["m6_declarer_materiaux_utilises"], {
+        "wct": _wct_pour_m6(wct_id="wct-1", intervention_id="int-1"),
+        "formulaire": {
+            "wct_id": "wct-1", "intervention_id": "int-1", "chantier_id": "C1",
+            "lignes_materiaux": [
+                {"type_ligne": "prevu", "materiau_id": "MAT-A", "quantite": 20.0,
+                 "unite": "boite", "quantite_estimee": 20.0},
+                {"type_ligne": "non_prevu", "materiau_id": "MAT-C", "quantite": 2.0, "unite": "boite"},
+            ],
+        },
+    })
+    assert r["ok"] is True and r["resultat"]["accepte"] is True, r
+
+    with stockage.transaction():
+        consommateurs()["m4.travaux_termines"](_wct_charge())
+
+    charge = _charges_publiees()[0]
+    assert charge["statut_variance"] == "evaluee"
+    materiaux = [ligne["materiau"] for ligne in charge["lignes"]]
+    assert materiaux == sorted(materiaux), "même ordre trié que verdicts_materiaux"
+    par_materiau = {ligne["materiau"]: ligne for ligne in charge["lignes"]}
+    assert par_materiau["MAT-A"]["quantite_reelle"] == "20.0"
+    assert par_materiau["MAT-A"]["critique"] is False
+    # MAT-B : prévu (5.0) mais jamais déclaré -> NON_UTILISE, écart de 100 % (positif, abs()).
+    assert par_materiau["MAT-B"]["quantite_reelle"] == "0.0"
+    assert par_materiau["MAT-B"]["ecart_pourcentage"] == "1.0"
+    assert par_materiau["MAT-B"]["critique"] is True  # 1.0 >= seuil configuré 0.30
+    # MAT-C : déclaré (non_prevu) sans avoir été prévu -> NON_PREVU, ecart_pourcentage indéfini
+    # (quantité prévue nulle) et unité inconnue (le registre de mouvements ne porte pas d'unité,
+    # comparer_depuis_registre : seule celle du besoin estimé est rapportée, absent ici).
+    assert par_materiau["MAT-C"]["quantite_prevue"] == "0.0"
+    assert par_materiau["MAT-C"]["ecart_pourcentage"] is None
+    assert par_materiau["MAT-C"]["unite"] is None
+    assert par_materiau["MAT-C"]["critique"] is False
 
 
 def test_prevu_absent_chantier_id_resolu_depuis_la_declaration(base_durable):
@@ -250,3 +332,156 @@ def test_idempotent_evenement_id_deterministe_une_seule_ligne(base_durable):
         consommateurs()["m4.travaux_termines"](_wct_charge())
 
     assert _compte_sortants("m6.variance_chantier") == 1
+
+
+# -- correctif : le trou du flux réel (déclaration/prévu APRÈS la complétion) ------------------
+def _compte_wct_recus():
+    with stockage.transaction():
+        return len(stockage.maillons("m06-material-control", "wct_recus"))
+
+
+def test_declaration_arrivee_apres_completion_reevalue_et_publie_evaluee(base_durable):
+    """R12 §4/§9.7 : l'employé termine PUIS remplit le formulaire. Le répartiteur (toutes les
+    3 s en production) livre donc presque toujours m4.travaux_termines AVANT la déclaration."""
+    m6 = {o.nom: o for o in outils()}
+    _enregistrer_besoins(m6, "C1", "DEVIS-1", quantite_estimee=10.0)
+
+    with stockage.transaction():
+        premier = consommateurs()["m4.travaux_termines"](_wct_charge())
+    assert premier["statut_variance"] == "declaration_absente"
+    assert _compte_sortants("m6.variance_chantier") == 1
+    assert _charges_publiees()[0]["evenement_id"] == "m6-variance-wct-1-declaration_absente"
+
+    # La déclaration arrive ENSUITE : m6_declarer_materiaux_utilises doit réévaluer tout seul.
+    _declarer_materiaux(m6, "wct-1", "int-1", "C1", quantite=10.0)
+
+    evenements_variance = _charges_publiees()
+    assert len(evenements_variance) == 2, "la déclaration tardive doit publier un second événement"
+    assert evenements_variance[0]["statut_variance"] == "declaration_absente"
+    assert evenements_variance[1]["statut_variance"] == "evaluee"
+    assert evenements_variance[1]["evenement_id"] == "m6-variance-wct-1-evaluee"
+    assert evenements_variance[1]["signal_critique"] is False
+    assert evenements_variance[1]["wct_id"] == "wct-1"
+    assert evenements_variance[1]["chantier_id"] == "C1"
+    assert evenements_variance[1]["horodatage_completion"] == "2026-01-01T10:00:00-05:00"
+
+
+def test_prevu_arrive_apres_completion_reevalue_et_publie_evaluee(base_durable):
+    """Symétrique : le devis M3 (T1.2-d) arrive après la complétion."""
+    m6 = {o.nom: o for o in outils()}
+    _declarer_materiaux(m6, "wct-1", "int-1", "C1", quantite=10.0)
+
+    with stockage.transaction():
+        premier = consommateurs()["m4.travaux_termines"](_wct_charge())
+    assert premier["statut_variance"] == "prevu_absent"
+    assert _compte_sortants("m6.variance_chantier") == 1
+
+    # Le prévu arrive ENSUITE : m6_enregistrer_besoins_prevus doit réévaluer tout seul.
+    _enregistrer_besoins(m6, "C1", "DEVIS-1", quantite_estimee=10.0)
+
+    evenements_variance = _charges_publiees()
+    assert len(evenements_variance) == 2
+    assert evenements_variance[0]["statut_variance"] == "prevu_absent"
+    assert evenements_variance[1]["statut_variance"] == "evaluee"
+    assert evenements_variance[1]["signal_critique"] is False
+
+
+def test_declaration_tardive_avec_ecart_critique_reste_signalee(base_durable):
+    m6 = {o.nom: o for o in outils()}
+    _enregistrer_besoins(m6, "C1", "DEVIS-1", quantite_estimee=10.0)
+
+    with stockage.transaction():
+        consommateurs()["m4.travaux_termines"](_wct_charge())
+
+    _declarer_materiaux(m6, "wct-1", "int-1", "C1", quantite=14.0)  # +40 %, seuil configuré 0.30
+
+    evenement_final = _charges_publiees()[-1]
+    assert evenement_final["statut_variance"] == "evaluee"
+    assert evenement_final["signal_critique"] is True
+
+
+def test_wct_recus_idempotent_par_wct_id_redelivrance_sans_doublon(base_durable):
+    m6 = {o.nom: o for o in outils()}
+    _enregistrer_besoins(m6, "C1", "DEVIS-1", quantite_estimee=10.0)
+    _declarer_materiaux(m6, "wct-1", "int-1", "C1", quantite=10.0)
+
+    with stockage.transaction():
+        consommateurs()["m4.travaux_termines"](_wct_charge())
+    assert _compte_wct_recus() == 1
+    assert _compte_sortants("m6.variance_chantier") == 1
+
+    # Relivraison du MÊME m4.travaux_termines (le bus ne le fait jamais en pratique — unicité
+    # (evenement_id, consommateur) — mais un appel direct au consommateur doit rester sans danger).
+    with stockage.transaction():
+        resultat = consommateurs()["m4.travaux_termines"](_wct_charge())
+    assert resultat["statut_variance"] == "evaluee"
+    assert _compte_wct_recus() == 1, "aucun doublon de maillon wct_recus"
+    assert _compte_sortants("m6.variance_chantier") == 1, "aucun doublon d'événement"
+
+
+def test_double_appel_declarer_materiaux_utilises_naucun_doublon(base_durable):
+    """Une seconde déclaration pour le même wct_id est refusée (REJ-DECLARATION-DEJA-SOUMISE,
+    T1.1-d2, inchangé) avant même d'atteindre la réévaluation : aucun événement supplémentaire."""
+    m6 = {o.nom: o for o in outils()}
+    _enregistrer_besoins(m6, "C1", "DEVIS-1", quantite_estimee=10.0)
+    with stockage.transaction():
+        consommateurs()["m4.travaux_termines"](_wct_charge())
+    _declarer_materiaux(m6, "wct-1", "int-1", "C1", quantite=10.0)
+    assert _compte_sortants("m6.variance_chantier") == 2  # prevu_absent (WCT reçu) puis evaluee
+
+    reponse = executer_atomique(m6["m6_declarer_materiaux_utilises"], {
+        "wct": _wct_pour_m6(wct_id="wct-1", intervention_id="int-1"),
+        "formulaire": {
+            "wct_id": "wct-1", "intervention_id": "int-1", "chantier_id": "C1",
+            "lignes_materiaux": [{
+                "type_ligne": "prevu", "materiau_id": "MAT-1", "quantite": 10.0,
+                "unite": "boite", "quantite_estimee": 10.0,
+            }],
+        },
+    })
+    assert reponse["resultat"]["accepte"] is False
+    assert reponse["resultat"]["verdict"]["code"] == "REJ-DECLARATION-DEJA-SOUMISE"
+    assert _compte_sortants("m6.variance_chantier") == 2, "le refus n'ajoute aucun événement"
+
+
+def test_evaluee_deja_publie_court_circuite_sans_reevaluer(base_durable):
+    """`evaluee` est TERMINAL : une fois publié pour un wct_id, un rappel direct de la fonction
+    partagée (concurrence, défense en profondeur) ne réévalue ni ne republie rien."""
+    m6 = {o.nom: o for o in outils()}
+    _enregistrer_besoins(m6, "C1", "DEVIS-1", quantite_estimee=10.0)
+    with stockage.transaction():
+        consommateurs()["m4.travaux_termines"](_wct_charge())
+    _declarer_materiaux(m6, "wct-1", "int-1", "C1", quantite=10.0)
+    assert _charges_publiees()[-1]["statut_variance"] == "evaluee"
+    nb_avant = _compte_sortants("m6.variance_chantier")
+    assert nb_avant == 2  # prevu_absent (WCT reçu) puis evaluee (déclaration tardive)
+
+    wct_recu = {
+        "wct_id": "wct-1", "intervention_id": "int-1", "devis_id": "DEVIS-1",
+        "horodatage_completion": "2026-01-01T10:00:00-05:00",
+    }
+    with stockage.transaction():
+        resultat = outils_mod._evaluer_et_publier_variance(wct_recu)
+    assert resultat == {"traite": True, "statut_variance": "evaluee"}
+    assert _compte_sortants("m6.variance_chantier") == nb_avant, "aucune republication après evaluee"
+
+
+def test_evenement_deja_publie_detecte_par_id_exact(base_durable):
+    assert outils_mod._evenement_deja_publie("id-qui-nexiste-pas") is False
+
+
+# -- _texte_decimal : quantités/écart de m6.variance_chantier.lignes en texte -------------------
+def test_texte_decimal_none_reste_none():
+    assert outils_mod._texte_decimal(None) is None
+
+
+def test_texte_decimal_normalise_zero_negatif():
+    assert outils_mod._texte_decimal(-0.0) == "0.0"
+
+
+def test_texte_decimal_ne_touche_pas_un_vrai_negatif():
+    assert outils_mod._texte_decimal(-5.2) == "-5.2"
+
+
+def test_texte_decimal_valeur_positive():
+    assert outils_mod._texte_decimal(0.4) == "0.4"

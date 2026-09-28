@@ -2,13 +2,13 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "opsys.evenement/v1/m6.variance_chantier",
   "title": "M6 — Variance de chantier (prévu vs réel)",
-  "description": "Émis par M6 (departments/m06-material-control/src/m6_material_control/outils.py::_recevoir_travaux_termines) en réponse à m4.travaux_termines : compare les besoins prévus enregistrés par m6_enregistrer_besoins_prevus (PLAN T1.2-b/M6) au réel déclaré par m6_declarer_materiaux_utilises (T1.1-d2) pour le même wct_id, via variance_chantier.evaluer. M4 (departments/m04-field-ops/src/m4_field_ops/outbox.py::confirmer_verification) est le seul consommateur prévu : il fait passer l'intervention de completed_pending_review à completed_verified seulement si statut_variance=evaluee et signal_critique=false. Toutes les propriétés sont REQUISES même quand leur valeur est nulle : un consommateur ne doit jamais deviner qu'un champ absent équivaut à null.",
+  "description": "Émis par M6 (departments/m06-material-control/src/m6_material_control/outils.py::_evaluer_et_publier_variance) : compare les besoins prévus enregistrés par m6_enregistrer_besoins_prevus (PLAN T1.2-b/M6) au réel déclaré par m6_declarer_materiaux_utilises (T1.1-d2) pour le même wct_id, via variance_chantier.evaluer. Une fonction UNIQUE calcule et publie, partagée par TROIS déclencheurs : le consommateur de m4.travaux_termines (_recevoir_travaux_termines), et les deux outils eux-mêmes quand ils comblent après coup ce qui manquait à un WCT déjà reçu (le flux réel, R12 §4/§9.7, livre presque toujours la déclaration — et parfois le prévu M3, T1.2-d — APRÈS la complétion) : m6_declarer_materiaux_utilises et m6_enregistrer_besoins_prevus réévaluent et republient dès que leur propre écriture réussit. M4 (departments/m04-field-ops/src/m4_field_ops/outbox.py::confirmer_verification) est le seul consommateur prévu : il fait passer l'intervention de completed_pending_review à completed_verified seulement si statut_variance=evaluee et signal_critique=false. Toutes les propriétés sont REQUISES même quand leur valeur est nulle : un consommateur ne doit jamais deviner qu'un champ absent équivaut à null.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
     "evenement_id": {
       "type": "string",
-      "description": "Identifiant de CET événement (outils.py : f'm6-variance-{wct_id}', jamais le wct_id nu — evenement_id est une clé primaire globale du bus, partagée avec m4.travaux_termines, qui utilise déjà wct_id). Répété ici (et pas seulement porté par la ligne evenements_sortants) pour que le consommateur, qui ne reçoit que la charge, puisse tracer la base de sa décision (PLAN T1.2, M4 point 4)."
+      "description": "Identifiant de CET événement (outils.py : f'm6-variance-{wct_id}-{statut_variance}', jamais le wct_id nu seul — evenement_id est une clé primaire globale du bus, partagée avec m4.travaux_termines, qui utilise déjà wct_id). Le STATUT fait partie de l'id : chaque statut distinct d'un même WCT n'est publié qu'une fois (une réévaluation qui retombe sur le même statut republie le même id, donc un no-op du bus ; une réévaluation qui change de statut, ex. declaration_absente -> evaluee quand la déclaration arrive enfin après la complétion, publie un événement DISTINCT que M4 reçoit normalement). evaluee est terminal : une fois publié pour un wct_id, plus rien ne réévalue ni ne republie pour ce WCT. Répété ici (et pas seulement porté par la ligne evenements_sortants) pour que le consommateur, qui ne reçoit que la charge, puisse tracer la base de sa décision (PLAN T1.2, M4 point 4)."
     },
     "wct_id": {
       "type": "string",
@@ -38,6 +38,39 @@
     "horodatage_completion": {
       "type": "string",
       "description": "Horodatage RFC 3339 du WCT évalué, porté tel quel depuis m4.travaux_termines : permet à confirmer_verification de dater sa transition sans jamais consulter une horloge (garde_absence_horloge de M4, garde HORLOGE_INTERNE de M6)."
+    },
+    "lignes": {
+      "type": ["array", "null"],
+      "description": "Détail par matériau (M3 en second ordre — estimé vs réel, T1.2-d — et M8 en ont besoin : sans ce détail, ils ne sauraient que « critique ou pas »). Dérivé TEL QUEL des verdicts déjà calculés par variance_chantier.evaluer, aucun nouveau calcul ; même ordre que verdicts_materiaux (trié par materiau). null si statut_variance != evaluee (même patron que signal_critique) : le détail n'existe que quand variance_chantier.evaluer a réellement tourné.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Une ligne = un matériau du chantier, prévu et/ou réel.",
+        "properties": {
+          "materiau": {"type": "string", "description": "materiau_id de variance_chantier.py."},
+          "unite": {
+            "type": ["string", "null"],
+            "description": "null seulement si l'unité prévue et l'unité déclarée sont incohérentes (verdict INDETERMINE)."
+          },
+          "quantite_prevue": {
+            "type": "string",
+            "description": "Texte décimal (jamais un nombre JSON), 0 si le matériau n'était pas prévu (NON_PREVU)."
+          },
+          "quantite_reelle": {
+            "type": "string",
+            "description": "Texte décimal, 0 si le matériau prévu n'a finalement pas été utilisé (NON_UTILISE)."
+          },
+          "ecart_pourcentage": {
+            "type": ["string", "null"],
+            "description": "Texte décimal, fraction (0.4 = 40 %) ; null si non défini (quantité prévue nulle, ou verdict INDETERMINE) — jamais un ratio inventé."
+          },
+          "critique": {
+            "type": "boolean",
+            "description": "true si CE matériau atteint ou dépasse seuil_pourcentage (même appartenance que materiaux_en_ecart_critique, calculée une seule fois par variance_chantier.evaluer, jamais recomparée ici)."
+          }
+        },
+        "required": ["materiau", "unite", "quantite_prevue", "quantite_reelle", "ecart_pourcentage", "critique"]
+      }
     }
   },
   "required": [
@@ -48,6 +81,7 @@
     "statut_variance",
     "signal_critique",
     "seuil_pourcentage",
-    "horodatage_completion"
+    "horodatage_completion",
+    "lignes"
   ]
 }

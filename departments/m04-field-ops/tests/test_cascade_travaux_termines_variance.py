@@ -11,6 +11,14 @@ scénario du PLAN, T1.2-b, section Tests :
   prevu_absent ;
 - une relivraison ne change rien.
 
+PLUS le correctif du trou du flux réel (R12 §4/§9.7) : la déclaration des matériaux — et
+parfois le prévu M3, T1.2-d — arrivent presque toujours APRÈS la complétion
+(`materials_submit` dépend de la complétion ; le répartiteur tourne toutes les 3 s en
+production). Une deuxième famille de tests reproduit cet ORDRE exact (complétion -> repartir
+-> pièce manquante enregistrée ensuite) et vérifie qu'un second `m6.variance_chantier`
+`evaluee` est publié et livré sans attendre une seconde `m4.travaux_termines` qui n'arrive
+jamais deux fois.
+
 `repartir` snapshot les événements sortants une seule fois par appel (voir docstring de
 `opsys.evenements.repartiteur._candidats`) : un événement publié par un consommateur PENDANT
 un appel (ici, m6.variance_chantier publié par M6 en réaction à m4.travaux_termines) n'est
@@ -263,3 +271,112 @@ def test_relivraison_ne_change_rien(base_migree, deps):
     assert _statut(deps, i_id) == "completed_verified"
     assert len(_evenements_publies("m6.variance_chantier")) == 1
     assert len(_evenements_publies("m4.travaux_termines")) == 1
+
+
+# ---- correctif : le trou du flux réel (R12 §4/§9.7 — déclaration/prévu APRÈS la complétion) ----
+# Dans ces quatre tests, la pièce manquante (déclaration ou prévu) est enregistrée SEULEMENT
+# APRÈS que `repartir` a déjà livré m4.travaux_termines à M6 (contrairement aux tests ci-dessus,
+# où tout est en place avant le premier passage) : exactement l'ordre du flux réel, où
+# `materials_submit` dépend de la complétion et où le répartiteur tourne toutes les 3 s.
+
+
+def test_declaration_tardive_apres_repartition_donne_un_second_evenement_evaluee(base_migree, deps):
+    i_id, wct_id = _completer_intervention(deps, "L-CASCADE-DECL-TARDIVE", "DEVIS-DECL-TARDIVE")
+    _enregistrer_besoins_prevus(deps, "CHANTIER-DECL-TARDIVE", "DEVIS-DECL-TARDIVE", quantite_estimee=10.0)
+
+    _repartir_jusqua_stable(deps)  # m4.travaux_termines livré à M6 AVANT toute déclaration
+    assert _statut(deps, i_id) == "completed_pending_review"
+    premiere_variance = _evenements_publies("m6.variance_chantier")[0]
+    assert premiere_variance["statut_variance"] == "declaration_absente"
+
+    # La déclaration arrive ENSUITE : m6_declarer_materiaux_utilises réévalue tout seul et
+    # publie un SECOND m6.variance_chantier, sans attendre une nouvelle livraison de
+    # m4.travaux_termines (qui n'arrivera jamais deux fois — c'était le trou).
+    _declarer_materiaux_utilises(deps, wct_id, i_id, "CHANTIER-DECL-TARDIVE", quantite=10.0)
+    variances = _evenements_publies("m6.variance_chantier")
+    assert len(variances) == 2
+    assert variances[1]["statut_variance"] == "evaluee"
+    assert variances[1]["signal_critique"] is False
+    assert variances[1]["evenement_id"] == f"m6-variance-{wct_id}-evaluee"
+
+    _repartir_jusqua_stable(deps)
+    assert _statut(deps, i_id) == "completed_verified"
+
+
+def test_prevu_tardif_apres_repartition_donne_un_second_evenement_evaluee(base_migree, deps):
+    i_id, wct_id = _completer_intervention(deps, "L-CASCADE-PREVU-TARDIF", "DEVIS-PREVU-TARDIF")
+    _declarer_materiaux_utilises(deps, wct_id, i_id, "CHANTIER-PREVU-TARDIF", quantite=10.0)
+
+    _repartir_jusqua_stable(deps)
+    assert _statut(deps, i_id) == "completed_pending_review"
+    assert _evenements_publies("m6.variance_chantier")[0]["statut_variance"] == "prevu_absent"
+
+    # Le devis M3 (T1.2-d, ailleurs) arrive ENSUITE : m6_enregistrer_besoins_prevus réévalue.
+    _enregistrer_besoins_prevus(deps, "CHANTIER-PREVU-TARDIF", "DEVIS-PREVU-TARDIF", quantite_estimee=10.0)
+    variances = _evenements_publies("m6.variance_chantier")
+    assert len(variances) == 2
+    assert variances[1]["statut_variance"] == "evaluee"
+    assert variances[1]["signal_critique"] is False
+
+    _repartir_jusqua_stable(deps)
+    assert _statut(deps, i_id) == "completed_verified"
+
+
+def test_declaration_tardive_avec_ecart_critique_reste_en_revue(base_migree, deps):
+    i_id, wct_id = _completer_intervention(deps, "L-CASCADE-DECL-TARDIVE-ECART", "DEVIS-DECL-TARDIVE-ECART")
+    _enregistrer_besoins_prevus(
+        deps, "CHANTIER-DECL-TARDIVE-ECART", "DEVIS-DECL-TARDIVE-ECART", quantite_estimee=10.0,
+    )
+
+    _repartir_jusqua_stable(deps)
+    assert _statut(deps, i_id) == "completed_pending_review"
+
+    _declarer_materiaux_utilises(deps, wct_id, i_id, "CHANTIER-DECL-TARDIVE-ECART", quantite=14.0)  # +40 %
+    variances = _evenements_publies("m6.variance_chantier")
+    assert variances[-1]["statut_variance"] == "evaluee"
+    assert variances[-1]["signal_critique"] is True
+
+    _repartir_jusqua_stable(deps)
+    assert _statut(deps, i_id) == "completed_pending_review", "signal_critique=true : reste en revue"
+
+
+def test_relivraisons_et_doubles_appels_apres_arrivee_tardive_aucun_doublon(base_migree, deps):
+    i_id, wct_id = _completer_intervention(deps, "L-CASCADE-DOUBLE", "DEVIS-DOUBLE")
+    _enregistrer_besoins_prevus(deps, "CHANTIER-DOUBLE", "DEVIS-DOUBLE", quantite_estimee=10.0)
+
+    _repartir_jusqua_stable(deps)
+    _declarer_materiaux_utilises(deps, wct_id, i_id, "CHANTIER-DOUBLE", quantite=10.0)
+    _repartir_jusqua_stable(deps)
+    assert _statut(deps, i_id) == "completed_verified"
+    assert len(_evenements_publies("m6.variance_chantier")) == 2  # declaration_absente puis evaluee
+
+    # Une redélivrance directe du consommateur M6 (le bus ne la produit jamais en pratique —
+    # unicité (evenement_id, consommateur) — mais un appel direct doit rester sans danger, comme
+    # pour une éventuelle concurrence) ne republie rien de plus : m6-variance-{wct_id}-evaluee
+    # est déjà publié, court-circuité par _evaluer_et_publier_variance.
+    charge_wct = _evenements_publies("m4.travaux_termines")[0]
+    with stockage.transaction():
+        deps["m06-material-control"].charger_consommateurs()["m4.travaux_termines"](charge_wct)
+    assert len(_evenements_publies("m6.variance_chantier")) == 2
+
+    # Une seconde soumission de matériaux pour le même wct_id est refusée nommément (T1.1-d2,
+    # inchangé) avant même d'atteindre la réévaluation.
+    reponse = executer_atomique(_outils(deps, "m06-material-control")["m6_declarer_materiaux_utilises"], {
+        "wct": _wct_pour_m6(deps, wct_id),
+        "formulaire": {
+            "wct_id": wct_id, "intervention_id": i_id, "chantier_id": "CHANTIER-DOUBLE",
+            "lignes_materiaux": [{
+                "type_ligne": "prevu", "materiau_id": "MAT-1", "quantite": 10.0,
+                "unite": "boite", "quantite_estimee": 10.0,
+            }],
+        },
+    })
+    assert reponse["resultat"]["accepte"] is False
+    assert reponse["resultat"]["verdict"]["code"] == "REJ-DECLARATION-DEJA-SOUMISE"
+    assert len(_evenements_publies("m6.variance_chantier")) == 2
+
+    # Un second passage de repartir (tout est déjà « traite ») ne change rien non plus.
+    resume = _repartir_jusqua_stable(deps)
+    assert resume["livres"] == 0
+    assert _statut(deps, i_id) == "completed_verified"
+    assert len(_evenements_publies("m6.variance_chantier")) == 2
