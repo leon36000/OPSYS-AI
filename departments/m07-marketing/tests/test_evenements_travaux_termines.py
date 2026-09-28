@@ -41,7 +41,10 @@ def departements():
     """Manifestes réels de `departments/` (pas une fixture de démonstration) : preuve que
     `department.yaml:evenements.consomme` et `m7_marketing.outils.consommateurs()` s'accordent
     pour de vrai, exactement comme `opsys verifier` et `opsys evenements repartir` en production."""
-    return charger_departements(_RACINE_DEPARTEMENTS)
+    # Seul ce département reçoit les événements : les autres consommateurs (M2, M10…) ont
+    # leurs propres préconditions et leurs propres tests.
+    tous = charger_departements(_RACINE_DEPARTEMENTS)
+    return {"m07-marketing": tous["m07-marketing"]}
 
 
 def _wct_travaux_termines(**overrides):
@@ -80,7 +83,7 @@ def test_consentement_vrai_et_client_satisfait_depose_un_brouillon(base_durable,
 
     resume = evenements.repartir(departements, maintenant="2026-09-28T18:00:00+00:00")
     # M7 ET M8 sont tous deux abonnés à m4.travaux_termines (T1.2-c) : les deux sont traités.
-    assert resume == {"livres": 2, "traites": 2, "echecs": 0, "quarantaines": 0, "ignores": 0}
+    assert resume == {"livres": 1, "traites": 1, "echecs": 0, "quarantaines": 0, "ignores": 0}
 
     demandes = _demandes_avis()
     assert len(demandes) == 1
@@ -100,7 +103,7 @@ def test_consentement_absent_ne_depose_aucun_brouillon(base_durable, departement
     evenements.publier("m4.travaux_termines", "m04-field-ops", charge)
 
     resume = evenements.repartir(departements, maintenant="2026-09-28T18:00:00+00:00")
-    assert resume == {"livres": 2, "traites": 2, "echecs": 0, "quarantaines": 0, "ignores": 0}
+    assert resume == {"livres": 1, "traites": 1, "echecs": 0, "quarantaines": 0, "ignores": 0}
     assert _demandes_avis() == []
 
 
@@ -111,7 +114,7 @@ def test_consentement_faux_et_client_insatisfait_ne_depose_aucun_brouillon(base_
     evenements.publier("m4.travaux_termines", "m04-field-ops", charge)
 
     resume = evenements.repartir(departements, maintenant="2026-09-28T18:00:00+00:00")
-    assert resume == {"livres": 2, "traites": 2, "echecs": 0, "quarantaines": 0, "ignores": 0}
+    assert resume == {"livres": 1, "traites": 1, "echecs": 0, "quarantaines": 0, "ignores": 0}
     assert _demandes_avis() == []
 
 
@@ -146,7 +149,7 @@ def test_relivraison_est_idempotente_un_seul_brouillon(base_durable, departement
     # (ex. producteur qui rejoue l'émission après une panne réseau sans réutiliser l'id).
     evenements.publier("m4.travaux_termines", "m04-field-ops", charge, evenement_id="evt-m7-2")
     resume2 = evenements.repartir(departements, maintenant="2026-09-28T18:05:00+00:00")
-    assert resume2 == {"livres": 2, "traites": 2, "echecs": 0, "quarantaines": 0, "ignores": 0}
+    assert resume2 == {"livres": 1, "traites": 1, "echecs": 0, "quarantaines": 0, "ignores": 0}
 
     demandes_apres_2 = _demandes_avis()
     assert len(demandes_apres_2) == 1  # jamais un second brouillon pour le même wct_id

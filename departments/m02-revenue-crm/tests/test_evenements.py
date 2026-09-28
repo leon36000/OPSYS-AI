@@ -17,9 +17,11 @@ import datetime as dt
 
 import pytest
 from m2_revenue_crm import outils, statuts
+from sqlalchemy import select
 
 from opsys import evenements, stockage
 from opsys.departements import charger_departements
+from opsys.stockage.schema import EVENEMENTS_RECUS
 
 
 def _contrat(lead_id: str, **surcharges) -> dict:
@@ -223,7 +225,15 @@ class TestRedelivraison:
 
         deps = charger_departements()
         resume1 = evenements.repartir(deps, maintenant="2026-09-15T14:05:00-04:00")
-        assert resume1["traites"] == 2 and resume1["echecs"] == 0, resume1  # M2 + M10
+        # Le nombre total de consommateurs dépend des autres départements : on vérifie seulement
+        # qu'aucun n'a échoué et que le reçu de M2 est traité.
+        assert resume1["echecs"] == 0 and resume1["quarantaines"] == 0, resume1
+        with stockage.transaction() as cnx:
+            statut_recu = cnx.execute(select(EVENEMENTS_RECUS.c.statut).where(
+                EVENEMENTS_RECUS.c.evenement_id == "evt-redelivre-1",
+                EVENEMENTS_RECUS.c.consommateur == "m02-revenue-crm",
+            )).scalar_one()
+        assert statut_recu == "traite"
 
         statut_apres_1 = statuts.statut_courant(_registre(), lead_id)
         assert statut_apres_1 == "facture"
