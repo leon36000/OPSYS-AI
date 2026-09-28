@@ -27,10 +27,14 @@ identifiants du propriétaire, repli livré en attendant.
       disjointes : N0–N5 (définition), T0–T3 (socle), F0–F7 (M5), niveaux 0–6 (M7) (audit M5).
       Preuve : `docs/decisions/ADR-0009-socle-metier.md` (SQLite par défaut, PostgreSQL en option,
       une transaction métier + événement + audit, échelle N unique, rôles P8).
-- [ ] T0.9 ADR-0010 mémoire (RAM par moteur de contexte, M10 gouvernance, RAG d'entreprise)
+- [x] T0.9 ADR-0010 mémoire (RAM par moteur de contexte, M10 gouvernance, RAG d'entreprise)
       d'après l'audit M10 : RAM dans `assemble()`, PREFLIGHT/POSTFLIGHT sur les hooks du core,
       registre M10 = validation au-dessus de la mémoire d'entreprise, SQLite + FTS5 + sqlite-vec par
       défaut, embedding local partagé.
+      Preuve : `docs/decisions/ADR-0010-memoire.md`.
+- [ ] T0.14 Cloisonnement de la mémoire des agents : désactiver le partage entre agents de
+      département (`tools.agentToAgent`, actif par défaut) et écrire la configuration mémoire des
+      agents (embeddings, dreaming, provenance) (ADR-0010, audit M10).
 - [ ] T0.10 Superviseur : le core lance et surveille le moteur métier Python (via `uv`), santé et
       journaux unifiés, une seule authentification.
 - [ ] T0.12 M3 : l'outillage de mutation (`tests/outils_preuve/muter_*.py`) travaille sur une copie
