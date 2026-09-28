@@ -118,13 +118,24 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       matériaux prévus et utilisés (M6.10–M6.12), facture brouillon (M5.2), activité client (M2).
       Analyse d'écart du 2026-09-28 (définition §6, §7, §9.7 contre le code) ; la cascade entre
       départements reste T1.2.
-  - [ ] T1.1-a M2 (une correction, donc en premier) :
+  - [x] T1.1-a M2 (une correction, donc en premier) :
         - « converti » est terminal et interdit toute interaction, alors que §6 exige qu'après le
           chantier M2 écrive l'activité et la prochaine action ;
         - statuts après conversion (`chantier_en_cours`, `chantier_termine`, `facture_envoyee`,
           `payee`) ;
         - `m2_marquer_chantier_termine` : prochaine action fournie par l'appelant, fail-closed ;
         - dépendance à M4.
+
+        Preuve (7ddd751) :
+        - statuts `cedule`, `chantier`, `facture`, `paiement`, `avis` (définition l. 319) ; seul
+          `perdu` reste terminal ; le retour de « converti » vers `nouveau` ou `qualifie` reste
+          interdit ;
+        - la prochaine action est exigée dans la transition elle-même ;
+        - deux maillons, tout ou rien ;
+        - 581 tests M2, 80 outils.
+
+        Le cycle de dépendances M2 → M4 → M3 → M2 est sans effet : les dépendances ne servent
+        qu'à vérifier l'existence ; c'est une boucle de rétroaction voulue (§6).
   - [ ] T1.1-b M4 :
         - `devis_id` réel propagé jusqu'au WCT (toujours `None` aujourd'hui) ;
         - complétion `completed_pending_review` ou `completed_verified`, selon un `ecart_detecte`
