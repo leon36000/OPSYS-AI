@@ -9,10 +9,11 @@ _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from m9_strategic_intelligence.outils import etat_consolide, lire_etat_consolide, outils
+from m9_strategic_intelligence.outils import outils  # noqa: E402
+from m9_strategic_intelligence.registre import RegistreSnapshots  # noqa: E402
 
-from opsys.departements import lire_manifeste
-from opsys.outils import executer
+from opsys.departements import lire_manifeste  # noqa: E402
+from opsys.outils import executer  # noqa: E402
 
 
 def _snapshot(module_source, horodatage, valeurs):
@@ -23,6 +24,18 @@ def _rapport_complet(champs):
     return {cle: "valeur" for cle in champs}
 
 
+def _outils_par_nom():
+    """Registre EN MÉMOIRE, explicite : `outils()` sans argument adosse le registre de
+    production au stockage durable de l'instance (ADR-0009), qu'aucun test unitaire de ce
+    fichier ne monte — voir `departments/m09-strategic-intelligence/tests/test_registre_durable.py`
+    pour la preuve du branchement durable lui-même."""
+    return {o.nom: o for o in outils(RegistreSnapshots())}
+
+
+def _appeler(par_nom, nom, **kwargs):
+    return executer(par_nom[nom], kwargs)
+
+
 def test_manifeste_et_outils_coherents():
     dep = lire_manifeste(Path(__file__).resolve().parents[1])
     noms = [o.nom for o in dep.charger_outils()]
@@ -31,29 +44,44 @@ def test_manifeste_et_outils_coherents():
 
 
 def test_etat_consolide_snapshot_valide_ecrit_et_retourne_l_etat():
-    reponse = etat_consolide(_snapshot("M-nominal", "2026-01-04T00:00:00Z", {"a": "1"}))
+    par_nom = _outils_par_nom()
+    reponse = _appeler(
+        par_nom, "m9_etat_consolide",
+        snapshot=_snapshot("M-nominal", "2026-01-04T00:00:00Z", {"a": "1"}),
+    )
 
-    assert reponse["etape"] == "complet" and reponse["accepte"] is True
-    etat = reponse["etat_consolide"]
+    resultat = reponse["resultat"]
+    assert resultat["etape"] == "complet" and resultat["accepte"] is True
+    etat = resultat["etat_consolide"]
     assert etat["type"] == "ETAT_CONSOLIDE"
     assert etat["faits_par_module"]["M-nominal"]["valeurs"] == {"a": "1"}
     assert etat["contradictions"] == []
 
 
 def test_etat_consolide_snapshot_invalide_est_bloque_avant_ecriture():
-    reponse = etat_consolide(_snapshot("M-invalide", "2026-01-04T00:00:00Z", {"a": 1}))  # valeur NUMÉRIQUE
+    par_nom = _outils_par_nom()
+    reponse = _appeler(
+        par_nom, "m9_etat_consolide",
+        snapshot=_snapshot("M-invalide", "2026-01-04T00:00:00Z", {"a": 1}),  # valeur NUMÉRIQUE
+    )
 
-    assert reponse["etape"] == "validation" and reponse["accepte"] is False
-    assert reponse["verdict"] == "REJ-SNAPSHOT-VALEUR-NON-TEXTE"
+    resultat = reponse["resultat"]
+    assert resultat["etape"] == "validation" and resultat["accepte"] is False
+    assert resultat["verdict"] == "REJ-SNAPSHOT-VALEUR-NON-TEXTE"
 
 
 def test_etat_consolide_detecte_une_contradiction_meme_source_meme_horodatage():
+    par_nom = _outils_par_nom()
     module_source = "M-contradiction"
     horodatage = "2026-01-04T00:00:00Z"
-    etat_consolide(_snapshot(module_source, horodatage, {"prevision": "100"}))
-    reponse = etat_consolide(_snapshot(module_source, horodatage, {"prevision": "120"}))
+    _appeler(
+        par_nom, "m9_etat_consolide", snapshot=_snapshot(module_source, horodatage, {"prevision": "100"}),
+    )
+    reponse = _appeler(
+        par_nom, "m9_etat_consolide", snapshot=_snapshot(module_source, horodatage, {"prevision": "120"}),
+    )
 
-    contradictions = reponse["etat_consolide"]["contradictions"]
+    contradictions = reponse["resultat"]["etat_consolide"]["contradictions"]
     assert len(contradictions) == 1
     assert contradictions[0]["module_source"] == module_source
     assert contradictions[0]["horodatage"] == horodatage
@@ -62,18 +90,30 @@ def test_etat_consolide_detecte_une_contradiction_meme_source_meme_horodatage():
 def test_etat_consolide_choisit_le_dernier_fait_chronologiquement_pas_alphabetiquement():
     """Même cas limite que le correctif de etat_consolide.py, exercé de bout en bout via
     l'outil composé plutôt que la fonction métier nue."""
+    par_nom = _outils_par_nom()
     module_source = "M-fuseaux-outil"
-    etat_consolide(_snapshot(module_source, "2026-01-01T01:00:00+09:00", {"v": "plus-vieux"}))
-    reponse = etat_consolide(_snapshot(module_source, "2026-01-01T00:30:00+00:00", {"v": "plus-recent"}))
+    _appeler(
+        par_nom, "m9_etat_consolide",
+        snapshot=_snapshot(module_source, "2026-01-01T01:00:00+09:00", {"v": "plus-vieux"}),
+    )
+    reponse = _appeler(
+        par_nom, "m9_etat_consolide",
+        snapshot=_snapshot(module_source, "2026-01-01T00:30:00+00:00", {"v": "plus-recent"}),
+    )
 
-    assert reponse["etat_consolide"]["faits_par_module"][module_source]["valeurs"]["v"] == "plus-recent"
+    etat = reponse["resultat"]["etat_consolide"]
+    assert etat["faits_par_module"][module_source]["valeurs"]["v"] == "plus-recent"
 
 
 def test_lire_etat_consolide_n_ingere_rien_de_nouveau():
+    par_nom = _outils_par_nom()
     module_source = "M-lecture-seule"
-    avant = etat_consolide(_snapshot(module_source, "2026-01-04T00:00:00Z", {"a": "1"}))["etat_consolide"]
+    avant = _appeler(
+        par_nom, "m9_etat_consolide",
+        snapshot=_snapshot(module_source, "2026-01-04T00:00:00Z", {"a": "1"}),
+    )["resultat"]["etat_consolide"]
 
-    relu = lire_etat_consolide()
+    relu = _appeler(par_nom, "m9_lire_etat_consolide")["resultat"]
 
     assert relu["faits_par_module"][module_source] == avant["faits_par_module"][module_source]
     assert relu["etat_id"] == avant["etat_id"]
@@ -82,8 +122,11 @@ def test_lire_etat_consolide_n_ingere_rien_de_nouveau():
 def test_valider_rapport_strategique_via_executer_accepte_les_15_cles_exactes():
     from m9_strategic_intelligence import contrats
 
-    outil = next(o for o in outils() if o.nom == "m9_valider_rapport_strategique")
-    reponse = executer(outil, {"rapport": _rapport_complet(contrats.CHAMPS_RAPPORT_STRATEGIQUE)})
+    par_nom = _outils_par_nom()
+    reponse = _appeler(
+        par_nom, "m9_valider_rapport_strategique",
+        rapport=_rapport_complet(contrats.CHAMPS_RAPPORT_STRATEGIQUE),
+    )
 
     assert reponse["ok"] is True
     assert reponse["resultat"]["accepte"] is True
@@ -94,9 +137,9 @@ def test_valider_rapport_strategique_via_executer_rejette_une_cle_manquante():
 
     rapport = _rapport_complet(contrats.CHAMPS_RAPPORT_STRATEGIQUE)
     rapport.pop(next(iter(contrats.CHAMPS_RAPPORT_STRATEGIQUE)))
-    outil = next(o for o in outils() if o.nom == "m9_valider_rapport_strategique")
+    par_nom = _outils_par_nom()
 
-    reponse = executer(outil, {"rapport": rapport})
+    reponse = _appeler(par_nom, "m9_valider_rapport_strategique", rapport=rapport)
 
     assert reponse["ok"] is True
     assert reponse["resultat"]["accepte"] is False
@@ -104,6 +147,21 @@ def test_valider_rapport_strategique_via_executer_rejette_une_cle_manquante():
 
 
 def test_snapshot_sans_champ_requis_refuse_par_le_schema():
-    outil = next(o for o in outils() if o.nom == "m9_etat_consolide")
-    reponse = executer(outil, {})
+    par_nom = _outils_par_nom()
+    reponse = executer(par_nom["m9_etat_consolide"], {})
     assert reponse["erreur"] == "arguments_invalides"
+
+
+def test_outils_partagent_le_meme_registre_entre_deux_appels():
+    """Preuve de la fermeture (closure) sur registre_cible : m9_etat_consolide et
+    m9_lire_etat_consolide de la même instance voient le même registre, comme avant le passage
+    à l'injection."""
+    registre_memoire = RegistreSnapshots()
+    par_nom = {o.nom: o for o in outils(registre_memoire)}
+    module_source = "M-partage"
+
+    _appeler(par_nom, "m9_etat_consolide", snapshot=_snapshot(module_source, "2026-01-04T00:00:00Z", {"a": "1"}))
+
+    assert len(registre_memoire.lire()) == 1
+    relu = _appeler(par_nom, "m9_lire_etat_consolide")["resultat"]
+    assert relu["faits_par_module"][module_source]["valeurs"] == {"a": "1"}

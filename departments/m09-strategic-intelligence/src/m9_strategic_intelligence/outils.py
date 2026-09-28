@@ -6,22 +6,25 @@ consolidé (Business State Graph) et signale les contradictions internes, sans j
 ni recommander. `m9_etat_consolide` compose ingestion → écriture au registre → construction de
 l'état consolidé (contradictions comprises) en un seul appel.
 
-Le registre est un singleton en mémoire du processus MCP de ce département — même convention
-que m8_analytics/outils.py (un serveur MCP stdio par profil, cf.
-docs/architecture/ARCHITECTURE.md) ; la persistance sur disque est hors périmètre v1.
+Registre de production (ADR-0009) : par défaut, `outils()` adosse le registre de snapshots au
+stockage durable de l'instance (`opsys.stockage.maillons`, dans la transaction que
+`Capacites.appeler` ouvre pour chaque appel d'outil) — même convention que
+m8_analytics/outils.py. `registre.py` reste pur (aucun import `opsys`/SQLAlchemy) et ignore que
+ses maillons survivent au redémarrage : c'est cet adaptateur, seul, qui fait le lien. Le
+paramètre `registre_cible` est le point d'injection : les tests unitaires du département y
+passent explicitement un `registre.RegistreSnapshots()` EN MÉMOIRE (aucune base montée), sans
+toucher au comportement par défaut utilisé par `charger_outils()` en production.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
+from opsys import stockage
 from opsys.outils import Autonomie, Outil, depuis_couple
 
-from . import contrats
+from . import contrats, rapport_strategique, registre, validation
 from . import etat_consolide as etat_consolide_module
-from . import rapport_strategique, registre, validation
-
-_REGISTRE = registre.RegistreSnapshots()
 
 _SNAPSHOT = {
     "type": "object",
@@ -47,29 +50,37 @@ def valider_rapport_strategique(rapport: dict[str, Any]) -> dict[str, Any]:
     return depuis_couple(rapport_strategique.valider_rapport_strategique(rapport))
 
 
-def lire_etat_consolide() -> dict[str, Any]:
-    """État consolidé courant par relecture pure du registre — n'ingère rien de nouveau."""
-    return etat_consolide_module.construire_etat_consolide(_REGISTRE)
+def outils(registre_cible: registre.RegistreSnapshots | None = None) -> tuple[Outil, ...]:
+    """Capacités exposées aux agents. Une instance de RegistreSnapshots par installation.
 
-
-def etat_consolide(snapshot: dict[str, Any]) -> dict[str, Any]:
-    """Chaîne complète : validation → écriture registre → état consolidé.
-
-    Bloque avant d'écrire si le snapshot est structurellement refusé (etape="validation").
-    L'état consolidé retourné porte toujours `contradictions` (même liste vide) : une
-    contradiction interne n'est jamais résolue automatiquement, seulement nommée.
+    `registre_cible` : `None` (défaut, utilisé par `charger_outils()` en production) adosse le
+    registre au stockage durable de l'instance ; un `registre.RegistreSnapshots()` explicite
+    (tests) reste en mémoire, jamais touché à la base.
     """
-    valide, verdict = validation.valider_snapshot(snapshot)
-    if not valide:
-        return {"etape": "validation", "accepte": False, "verdict": verdict}
+    if registre_cible is None:
+        registre_cible = registre.RegistreSnapshots(
+            maillons=stockage.maillons("m09-strategic-intelligence", "snapshots")
+        )
 
-    _REGISTRE.ajouter(snapshot)
-    etat = etat_consolide_module.construire_etat_consolide(_REGISTRE)
-    return {"etape": "complet", "accepte": True, "etat_consolide": etat}
+    def lire_etat_consolide() -> dict[str, Any]:
+        """État consolidé courant par relecture pure du registre — n'ingère rien de nouveau."""
+        return etat_consolide_module.construire_etat_consolide(registre_cible)
 
+    def etat_consolide(snapshot: dict[str, Any]) -> dict[str, Any]:
+        """Chaîne complète : validation → écriture registre → état consolidé.
 
-def outils() -> tuple[Outil, ...]:
-    """Capacités exposées aux agents (fonction : les constantes publiques du paquet sont des énumérés)."""
+        Bloque avant d'écrire si le snapshot est structurellement refusé (etape="validation").
+        L'état consolidé retourné porte toujours `contradictions` (même liste vide) : une
+        contradiction interne n'est jamais résolue automatiquement, seulement nommée.
+        """
+        valide, verdict = validation.valider_snapshot(snapshot)
+        if not valide:
+            return {"etape": "validation", "accepte": False, "verdict": verdict}
+
+        registre_cible.ajouter(snapshot)
+        etat = etat_consolide_module.construire_etat_consolide(registre_cible)
+        return {"etape": "complet", "accepte": True, "etat_consolide": etat}
+
     return (
         Outil(
             nom="m9_etat_consolide",
