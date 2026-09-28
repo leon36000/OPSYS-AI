@@ -21,6 +21,17 @@ export const GATEWAY_CLIENT_IDS = {
   IOS_APP: "openclaw-ios",
   WATCHOS_APP: "openclaw-watchos",
   ANDROID_APP: "openclaw-android",
+  // OPSYS-AI mobile app (PLAN T1.4-c4; R12 §1.3/§6, docs/architecture/MOBILE.md "Appairage"):
+  // registered so it no longer has to borrow `openclaw-ios`/`openclaw-android` to pass
+  // `ConnectParams.client.id` schema validation (`GatewayClientIdSchema` derives straight from
+  // this object, so adding a key here needs no matching change anywhere else to keep compiling —
+  // verified by reading every consumer of `GATEWAY_CLIENT_IDS`/`GatewayClientId`, none of which
+  // switches on it exhaustively). NOT yet wired into `isNativeAppUiClient`
+  // (`server/ws-connection/handshake-auth-helpers.ts`) or any other trust classifier, and the
+  // mobile client (`mobile/src/appairage/clientInfo.ts`) does not send it yet either: both are a
+  // deliberately separate, mobile-side decision with real pairing-trust behavior implications this
+  // core-only, un-executed tranche cannot verify end to end.
+  OPSYS_MOBILE: "opsys-mobile",
   NODE_HOST: "node-host",
   WORKER: "openclaw-worker",
   TEST: "test",

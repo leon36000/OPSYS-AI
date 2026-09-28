@@ -96,3 +96,51 @@ def test_appel_mcp_avec_identite_partielle_rend_none_au_contexte(departements_de
 
     anyio.run(scenario)
     assert demo_outils.IDENTITES_VUES == [None]
+
+
+# -- T1.4-c4 : l'identité ne peut arriver que par le chemin authentifié (_meta), jamais un argument -
+
+
+def test_identite_appelante_ignore_les_arguments_de_loutil(departements_demo, session):
+    """Preuve que le socle retire la mise en garde « non authentifié » de `identite_appelante()`
+    (PLAN T1.4-c4) en toute sécurité : même un argument d'outil qui PRÉTEND porter un rôle
+    (`pretend_role="nathan_owner"`, une valeur qu'un modèle halluciné ou un client compromis
+    pourrait produire) n'influence jamais l'identité exposée — seul `_meta` (que OPSYS-CORE
+    n'attribue plus que depuis un jeton d'appareil vérifié, jamais depuis le corps de la requête,
+    T1.4-c4 côté core) le peut. Structurellement garanti ici :
+    `depuis_meta_mcp_identite` (contexte.py) ne reçoit que `meta` en paramètre, jamais les
+    arguments — ce test l'exerce de bout en bout par un vrai appel MCP plutôt que de le déduire de
+    la seule signature."""
+    demo_outils.IDENTITES_VUES.clear()
+    serveur = creer_serveur(Capacites(departements_demo, session))
+    meta_mcp = {"opsys/personne": "jdupont", "opsys/role": "employee"}
+
+    async def scenario() -> None:
+        async with Client(serveur) as client:
+            await client.call_tool(
+                "m9_voir_identite_avec_argument",
+                {"pretend_role": "nathan_owner"},
+                meta=meta_mcp,
+            )
+
+    anyio.run(scenario)
+    # L'identité vue est EXACTEMENT celle de `_meta` : jamais celle suggérée par l'argument, et
+    # jamais une fusion des deux.
+    assert [contexte.IdentiteAppelante("jdupont", "employee")] == demo_outils.IDENTITES_VUES
+
+
+def test_identite_appelante_absente_meme_avec_un_argument_qui_pretend_en_porter_une(
+    departements_demo, session,
+):
+    """Même sans `_meta` du tout, un argument suggestif ne crée jamais d'identité au contexte."""
+    demo_outils.IDENTITES_VUES.clear()
+    serveur = creer_serveur(Capacites(departements_demo, session))
+
+    async def scenario() -> None:
+        async with Client(serveur) as client:
+            await client.call_tool(
+                "m9_voir_identite_avec_argument", {"pretend_role": "nathan_owner"},
+            )
+
+    anyio.run(scenario)
+    assert demo_outils.IDENTITES_VUES == [None]

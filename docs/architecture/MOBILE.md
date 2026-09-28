@@ -17,8 +17,12 @@ de connexion réelle (`obtenirConfigurationAppel` renvoyait toujours `null`, fau
 générée sur l'appareil, protocole `connect`/`connect.challenge`/`hello-ok` lu et reproduit
 fidèlement depuis le fork, écran de saisie de code, stockage sécurisé du jeton, et branchement
 du rôle reçu sur la garde de routes existante — voir « Appairage » ci-dessous pour le détail et
-les limites (T1.4-c2, encore côté core, reste un préalable pour que le rôle reçu soit
-`admin`/`employee`/`seller` en production). Étapes suivantes (R12 §5, ordre de livraison) :
+les limites. **Précision (T1.4-c4) :** le rôle *reçu par la poignée de main* (`hello.auth.role`,
+ce que cette garde regarde) reste le rôle de transport générique du fork (`"operator"`) même après
+T1.4-c2/T1.4-c4 — ce n'est pas ce que ces deux tranches livrent. Ce qu'elles livrent : le rôle
+OPSYS nommé (`admin`/`employee`/`seller`) résolu et appliqué à CHAQUE appel `/tools/invoke`,
+indépendamment de la poignée de main (« Idempotence et identité d'appareil de bout en bout »
+ci-dessous). Étapes suivantes (R12 §5, ordre de livraison) :
 `today.tsx`/`job/[id]`, `checklist`/`photos`/`signature`, `complete`→`materials` (M6.10),
 `(admin)/approvals`, E2E Maestro. T1.4-b (idempotence côté socle) est fait côté serveur — voir
 [`IDEMPOTENCE.md`](IDEMPOTENCE.md) — mais son branchement CÔTÉ CORE (`_meta` MCP) reste à faire
@@ -157,14 +161,19 @@ recoupent :
    littéralement des tests du fork (lus, jamais exécutés) et contre Node `crypto` comme oracle
    indépendant pour la partie cryptographique — voir ci-dessus.
 
-**Limite connue, à lever une fois le fork durci (T1.4-c2 ou une tâche core dédiée) :**
-`GATEWAY_CLIENT_IDS` (`core/packages/gateway-protocol/src/client-info.ts:10-29`) est un
-catalogue FERMÉ sans identifiant OPSYS — `ConnectParams.client.id` doit être une valeur connue
-du fork, sous peine d'échec de schéma. `src/appairage/clientInfo.ts` emprunte donc
-`openclaw-ios`/`openclaw-android` selon la plateforme, faute de mieux. Ce n'est pas cosmétique :
-`isNativeAppUiClient` (`handshake-auth-helpers.ts:37-45`) classe ces id comme des clients natifs
-de confiance OpenClaw — un enregistrement dédié (`GATEWAY_CLIENT_IDS.OPSYS_MOBILE` ou
-équivalent) est un changement CORE, hors périmètre (lecture seule) de cette tranche.
+**Limite partiellement levée (T1.4-c4) :** `GATEWAY_CLIENT_IDS`
+(`core/packages/gateway-protocol/src/client-info.ts:10-29`) était un catalogue FERMÉ sans
+identifiant OPSYS — `ConnectParams.client.id` doit être une valeur connue du fork, sous peine
+d'échec de schéma. T1.4-c4 y ajoute `OPSYS_MOBILE: "opsys-mobile"`, vérifié sans risque de casse
+par lecture (le schéma `Type.Enum(GATEWAY_CLIENT_IDS)` en dérive directement, aucun switch
+exhaustif ni liste séparée ne dépend de ce registre). **Non câblé** pour autant :
+`src/appairage/clientInfo.ts` emprunte toujours `openclaw-ios`/`openclaw-android` selon la
+plateforme, faute de mieux. Ce n'est pas cosmétique : `isNativeAppUiClient`
+(`handshake-auth-helpers.ts:37-45`) classe ces id comme des clients natifs de confiance OpenClaw —
+faire adopter le véritable identifiant OPSYS au mobile, et éventuellement enseigner à
+`isNativeAppUiClient` (ou une autre politique) à le reconnaître, change un comportement de
+confiance à l'appairage que cette tranche, core-seule et jamais exécutée dans ce bac à sable, ne
+peut pas vérifier de bout en bout — laissé à une tranche dédiée, mobile ET core ensemble.
 
 ### Ce que fait l'écran (`app/pairing/index.tsx`)
 
@@ -184,24 +193,33 @@ au démarrage (`RestaurationSession`, lit `expo-secure-store` une fois) sans rep
 nouvel appairage. Écran non testé en rendu (même limite que `punch.tsx`, pas de
 `@testing-library/react-native`) ; toute la logique sous-jacente l'est, exhaustivement.
 
-### Rôle reçu -> garde de routes existante, et ce qui attend T1.4-c2
+### Rôle reçu -> garde de routes existante, et ce que T1.4-c2/T1.4-c4 livrent EN RÉALITÉ
 
 `hello.auth.role` (chaîne libre côté protocole) est stocké TEL QUEL dans `SessionAppareil.role`
 et alimente directement `src/roles/garde.ts` (`evaluerGarde`), sans traduction ni mappage codé en
-dur ici — c'est voulu. **Aujourd'hui, le fork non modifié ne connaît que deux rôles de
-transport, `"operator"`/`"node"`** (`core/src/gateway/role-policy.types.ts:2`), pas de rôles
-nommés OPSYS (`admin`/`employee`/`seller`) : `src/appairage/client.ts` demande `role:"operator"`
-(seule valeur qui passe la validation du fork actuel pour un appareil humain), et c'est très
-probablement CE QUE le serveur renverra dans `hello.auth.role` tant que **T1.4-c2** (« rôles
-nommés sur le jeton d'appareil, attribués à l'approbation de l'appairage avec la personne OPSYS »,
-PLAN.md) n'est pas livré côté core. `"operator"` n'est PAS un profil connu de
-`src/roles/types.ts` (`PROFILS = admin|employee|seller|client`), donc `evaluerGarde` le refuse
-déjà correctement (`role_inconnu`, fail-closed, testé exhaustivement dans `garde.test.ts`,
-INCHANGÉ par cette tranche) et renvoie vers `/pairing` — **l'appairage réussit, le jeton et le
-rôle sont bien stockés, mais aucun écran métier n'est atteignable en production tant que
-T1.4-c2 n'a pas remplacé `"operator"` par un rôle nommé.** C'est le comportement CORRECT
-(P2, fail-closed) : mieux vaut un appareil apparié mais bloqué à `/pairing` qu'un rôle deviné.
-Rien côté mobile n'a besoin de changer quand T1.4-c2 livrera les rôles nommés : le chemin
+dur ici — c'est voulu. **Le fork non modifié ne connaît que deux rôles de transport,
+`"operator"`/`"node"`** (`core/src/gateway/role-policy.types.ts:2`), pas de rôles nommés OPSYS
+(`admin`/`employee`/`seller`) : `src/appairage/client.ts` demande `role:"operator"` (seule valeur
+qui passe la validation du fork actuel pour un appareil humain), et c'est CE QUE le serveur rend
+dans `hello.auth.role`. **Correction après coup (T1.4-c4, une fois T1.4-c2 réellement livré) :**
+le paragraphe précédent, écrit avant T1.4-c2, anticipait que cette tranche remplacerait
+`"operator"` par un rôle nommé DANS `hello.auth.role` lui-même. Ce n'est PAS ce que T1.4-c2 ni
+T1.4-c4 livrent, en lisant leur code réel : les deux portent sur `/tools/invoke` (authentification
+de l'appareil, résolution `deviceId` → personne/rôle → portée d'outil à CHAQUE appel), jamais sur
+la poignée de main `connect`/`hello-ok` — voir « Idempotence et identité d'appareil de bout en
+bout » ci-dessous pour le détail exact livré. `hello.auth.role` reste donc `"operator"` même pour
+un appareil dont l'attribution OPSYS existe (`opsys appareils appairer`, T1.4-c4) et dont
+`/tools/invoke` résout correctement `admin`/`employee`/`seller`. `"operator"` n'est PAS un profil
+connu de `src/roles/types.ts` (`PROFILS = admin|employee|seller|client`), donc `evaluerGarde` le
+refuse déjà correctement (`role_inconnu`, fail-closed, testé exhaustivement dans `garde.test.ts`,
+INCHANGÉ par T1.4-c2 ET T1.4-c4) et renvoie vers `/pairing` — **l'appairage réussit, le jeton et
+le rôle sont bien stockés, `/tools/invoke` fonctionne et applique le bon rôle OPSYS pour chaque
+appel d'outil, mais aucun écran métier n'est atteignable en production tant qu'une tranche core
+séparée (non commencée) ne fait pas porter un rôle nommé par la poignée de main elle-même — ou que
+l'app n'apprend son rôle OPSYS par un autre moyen que `hello.auth.role`.** C'est le comportement
+CORRECT en attendant (P2, fail-closed) : mieux vaut un appareil apparié mais bloqué à `/pairing`
+qu'un rôle deviné. Rien côté mobile n'a besoin de changer quand une future tranche livrera un rôle
+nommé sur la poignée de main : le chemin
 `hello.auth.role → SessionAppareil.role → evaluerGarde` est déjà générique.
 
 ## File sortante (`src/outbox/`, R12 §4)
@@ -377,12 +395,18 @@ soit nécessaire quand T1.4-c1 câblera leur lecture vers `_meta` MCP
 (`opsys/appareil`/`opsys/horodatageAppareil`). **Le core ne les lit pas encore** : envoyés dès
 maintenant, ignorés jusqu'à T1.4-c1. Le jeton d'appareil qu'`app/pairing/index.tsx` obtient
 désormais (T1.4-c3, section « Appairage » ci-dessus) EST un jeton `authMethod === "device-token"`
-reconnu par l'autorisation HTTP de `/tools/invoke` (vérifié en lisant
+que le mécanisme d'authentification HTTP du fork reconnaît (vérifié en lisant
 `core/src/gateway/http-auth-utils.ts:179,267,477,495,559` — lecture seule, jamais exécuté) : le
 Bearer envoyé par `src/protocole/client.ts` après un appairage réussi est donc un jeton que le
-fork accepte réellement, pas une supposition.
+fork accepte réellement, pas une supposition. **Précision (T1.4-c4) :** au moment de T1.4-c3, ce
+mécanisme existait dans le fork pour D'AUTRES routes HTTP (lecture Control UI, routes de plugin),
+mais `/tools/invoke` lui-même ne l'appelait pas encore avec `allowDeviceToken: true` — jusqu'à
+T1.4-c4, `/tools/invoke` n'acceptait donc en pratique QUE le secret partagé, et un Bearer de jeton
+d'appareil y était refusé (401). C'est corrigé : `/tools/invoke` réutilise désormais ce même
+mécanisme pour de vrai — voir [`IDEMPOTENCE.md`](IDEMPOTENCE.md) §7 bis, « `/tools/invoke`
+authentifie l'appareil par son propre jeton ».
 
-## Idempotence et identité d'appareil de bout en bout (T1.4-b, T1.4-c1, T1.4-c2 partiel)
+## Idempotence et identité d'appareil de bout en bout (T1.4-b, T1.4-c1, T1.4-c2, T1.4-c4)
 
 - **Idempotence, fait de bout en bout** (T1.4-b pour le socle, T1.4-c1 pour le core) :
   - `/tools/invoke` accepte `idempotencyKey`, `deviceId` et `deviceTimestamp` ;
@@ -390,20 +414,39 @@ fork accepte réellement, pas une supposition.
     `opsys/appareil`, `opsys/horodatageAppareil`) ;
   - le socle rejoue la réponse d'un renvoi, sans rien exécuter deux fois ;
   - détail dans [`IDEMPOTENCE.md`](IDEMPOTENCE.md) §7.
-- **Rôles nommés, partiel** (T1.4-c2, IDEMPOTENCE.md §7 bis) :
+- **Rôles nommés et portée d'outil, fait** (T1.4-c2 + T1.4-c4, IDEMPOTENCE.md §7 bis) :
   - OPSYS génère deux fragments : `opsys/roles.json` (outils permis par rôle) et
-    `opsys/appareils.json` (appareil → personne et rôle `admin`, `employee`, `seller` ou `client`) ;
+    `opsys/appareils.json` (appareil → personne et rôle `admin`, `employee`, `seller` ou `client`),
+    ce dernier régénéré par `opsys appareils appairer <deviceId> --personne <p> --role <r>
+    --config-dir <dossier>` (T1.4-c4 : la surface d'attribution manquante en T1.4-c2, deux temps —
+    approbation native de l'appairage côté core, puis attribution OPSYS de la personne et du rôle) ;
   - le core refuse d'office un outil hors de la portée du rôle ;
-  - il transmet `opsys/personne` et `opsys/role` au moteur.
-- **Limite de sécurité, à lever avant toute mise en service** :
-  - `/tools/invoke` authentifie encore par le secret partagé de la Gateway, qui donne un accès
-    complet ;
-  - le `deviceId` du corps n'est pas lié à l'appelant authentifié, et l'identité transmise
-    (`opsys/personne`) peut donc être usurpée par qui détient le secret ;
-  - le téléphone ne doit jamais recevoir ce secret ;
-  - aucun outil ne doit se fier à `opsys/personne` pour une signature ou une projection tant que
-    `/tools/invoke` n'authentifie pas l'appareil par son propre jeton, avec l'identité tirée du
-    jeton et non du corps (PLAN T1.4-c4).
+  - il transmet `opsys/personne` et `opsys/role` au moteur — **authentifiés** depuis T1.4-c4 (juste
+    en dessous), jamais depuis le corps de la requête.
+- **`/tools/invoke` authentifie l'appareil par son propre jeton (T1.4-c4, fait) :**
+  - `/tools/invoke` accepte le jeton d'appareil (`hello-ok`) comme authentification, en réutilisant
+    le mécanisme de jeton d'appareil déjà présent dans le fork pour d'autres routes HTTP
+    (`verifyHttpOperatorDeviceToken`, `core/src/gateway/http-auth-utils.ts`) — pas un nouveau
+    mécanisme écrit pour l'occasion ; `deviceId`, `opsys/personne` et `opsys/role` viennent
+    désormais du jeton **vérifié**, jamais du corps de la requête ; un `deviceId` de corps
+    différent de l'appareil authentifié est refusé (403) plutôt que silencieusement préféré à
+    l'un ou l'autre ; jeton révoqué/inconnu → 401 ; appareil authentifié sans entrée dans
+    `appareils.json` → refus fermé (403), désormais **obligatoire** (il n'existe plus de « corps
+    sans `deviceId` » qui contournait ce contrôle pour un appelant par jeton d'appareil) ;
+  - le chemin par secret partagé reste pour les appelants serveur de confiance (accès complet,
+    documenté et voulu), mais ne transmet plus jamais `opsys/personne`/`opsys/role` et ne peut
+    plus « emprunter » l'identité d'un appareil via le `deviceId` du corps ;
+  - **le téléphone ne doit toujours jamais recevoir ce secret** (inchangé) ;
+  - détail complet, fichiers et preuve : [`IDEMPOTENCE.md`](IDEMPOTENCE.md) §7 bis.
+  - **Ce que T1.4-c4 NE change PAS** : la poignée de main WebSocket d'appairage (`connect` →
+    `hello-ok`) reste inchangée — `hello.auth.role` continue de rendre le rôle de transport
+    générique du fork (`"operator"`), jamais un rôle nommé OPSYS. La sécurité de `/tools/invoke`
+    (quels outils un appareil peut appeler) est maintenant correcte et authentifiée de bout en
+    bout ; le ROUTAGE ÉCRAN du mobile (`evaluerGarde`, section « Appairage » ci-dessus) reste donc
+    bloqué à `/pairing` pour tout appareil réel tant qu'une tranche séparée n'apprend pas à la
+    poignée de main elle-même à rendre un rôle nommé (ou que l'app n'obtient son rôle OPSYS par un
+    autre moyen que `hello.auth.role`) — un problème d'UX/routage distinct du trou de sécurité que
+    T1.4-c4 ferme, non traité ici.
 
 ## Sécurité
 
@@ -418,20 +461,38 @@ construit le vidangeur réel — sans appairage, il renvoie toujours `null` (mê
 `src/roles/contexte.tsx` — « on n'invente aucun faux état apparié »), et la file sortante
 continue d'accumuler les mutations en sécurité sans jamais tenter d'appel réseau. Vues par rôle
 appliquées deux fois (serveur ET app, R12 §6) ; côté app, `evaluerGarde` est câblé sur le rôle
-REÇU du serveur (pas encore un rôle nommé OPSYS tant que T1.4-c2 n'est pas livré — voir
-« Appairage » ci-dessus, fail-closed en attendant). Consentement GPS, photos/signature :
+REÇU du serveur (toujours le rôle de transport générique `"operator"`, pas un rôle nommé OPSYS —
+la poignée de main elle-même n'est pas ce que T1.4-c2/T1.4-c4 ont changé, voir « Rôle reçu ->
+garde de routes » ci-dessus, fail-closed en attendant une tranche core séparée). Consentement GPS, photos/signature :
 politiques Loi 25 citées par R12 §6 — `punch.tsx` ne capte AUCUNE géolocalisation réelle (voir
 « Écran `punch.tsx` »).
 
 ## Ce qui n'est PAS encore fait
 
-**Côté core (hors périmètre de ce dépôt mobile, lecture seule) :** rôles d'opérateur nommés sur
-le jeton d'appareil (T1.4-c2) — tant que ce n'est pas livré, le rôle reçu par l'app reste
-`"operator"` générique et `evaluerGarde` bloque tout accès métier (fail-closed, voir
-« Appairage ») ; branchement `_meta` MCP `deviceId`/`deviceTimestamp` (T1.4-c1, IDEMPOTENCE.md
-§7) — un renvoi duplique encore l'effet serveur ; identifiant OPSYS dédié dans
-`GATEWAY_CLIENT_IDS` (limite documentée dans « Appairage », `src/appairage/clientInfo.ts`
-emprunte `openclaw-ios`/`openclaw-android` en attendant.
+**Côté core (hors périmètre de ce dépôt mobile, lecture seule) :** la poignée de main WebSocket
+d'appairage (`connect`/`hello-ok`) ne rend toujours que le rôle de transport générique du fork
+(`"operator"`), jamais un rôle nommé OPSYS — `evaluerGarde` bloque donc toujours tout accès métier
+(fail-closed, voir « Appairage » et « Idempotence et identité d'appareil de bout en bout »
+ci-dessus) même si `/tools/invoke` authentifie désormais correctement l'appareil et résout
+`admin`/`employee`/`seller` pour CHAQUE appel d'outil (T1.4-c2 + T1.4-c4, fait — voir juste
+au-dessus). Combler cet écart (faire porter un rôle nommé par la poignée de main elle-même, ou
+donner à l'app un autre moyen d'apprendre son rôle OPSYS) reste une tranche core séparée, non
+commencée. `GATEWAY_CLIENT_IDS.OPSYS_MOBILE` (`"opsys-mobile"`) a été enregistré (T1.4-c4,
+`core/packages/gateway-protocol/src/client-info.ts`, vérifié sans risque de casse par lecture),
+mais **non câblé** : `src/appairage/clientInfo.ts` emprunte toujours
+`openclaw-ios`/`openclaw-android`, et `isNativeAppUiClient` (classification de confiance à
+l'appairage, `handshake-auth-helpers.ts`) ne reconnaît pas encore le nouvel identifiant — passer
+au véritable identifiant OPSYS est un changement de comportement de confiance à l'appairage que ce
+travail, core-seul et jamais exécuté dans ce bac à sable, ne peut pas vérifier de bout en bout ;
+laissé à une tranche dédiée, mobile ET core ensemble. Branchement `_meta` MCP
+`deviceId`/`deviceTimestamp` (T1.4-c1, IDEMPOTENCE.md §7) — un renvoi duplique encore l'effet
+serveur, ET le `deviceId` que `punch.tsx`/`m4/pointage.ts` envoient encore aujourd'hui (un
+identifiant provisoire par processus, jamais celui, réel et stable, de l'appairage — voir « Écran
+`punch.tsx` » ci-dessous) ne correspondra structurellement JAMAIS au `deviceId` authentifié par le
+jeton une fois `punch.tsx` appelé via un appareil réellement apparié : T1.4-c4 refuse (403) tout
+`deviceId` de corps qui diffère de l'appareil authentifié, donc cette convergence — déjà notée
+comme point d'extension explicite avant T1.4-c4 — devient un PRÉALABLE bloquant, pas seulement une
+garantie d'idempotence plus faible, pour que `punch.tsx` réussisse contre un core réel.
 
 **Côté mobile :** pas de lecture QR (code saisi seulement, voir « Appairage » — `expo-camera`
 non installé) ; `punch.tsx`/`m4/pointage.ts` n'utilisent pas encore la vraie identité d'appareil

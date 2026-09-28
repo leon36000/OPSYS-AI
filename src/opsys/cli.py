@@ -12,7 +12,19 @@ from pathlib import Path
 from sqlalchemy import func, select
 from sqlalchemy.engine import make_url
 
-from . import __version__, approbations, etat, evenements, identite, jetons, modeles, openclaw, passerelle, stockage
+from . import (
+    __version__,
+    appareils,
+    approbations,
+    etat,
+    evenements,
+    identite,
+    jetons,
+    modeles,
+    openclaw,
+    passerelle,
+    stockage,
+)
 from .capacites import outils_executables
 from .departements import charger_departements, dependances_manquantes, tous_les_outils, verifier_attentes
 from .profils import generer_distribution
@@ -221,6 +233,43 @@ def cmd_openclaw(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_appareils(args: argparse.Namespace) -> int:
+    """Attribution personne/rôle d'un appareil déjà approuvé côté core (ADR-0009 §5, PLAN T1.4-c4).
+
+    Deux temps distincts, jamais fusionnés ici : (1) l'approbation NATIVE de l'appairage, faite par
+    le propriétaire côté OPSYS-CORE — le jeton d'appareil scellé n'existe qu'après cette étape,
+    hors de portée d'`opsys` (R12 §1.3) ; (2) CETTE commande, qui attribue une personne et un rôle
+    OPSYS au `deviceId` déjà approuvé et régénère `opsys/appareils.json`
+    (`openclaw.ecrire_appareils`), le fragment que `/tools/invoke` lit directement
+    (docs/architecture/IDEMPOTENCE.md §7 bis). Une entrée ici pour un `deviceId` jamais approuvé
+    côté core est sans effet concret : `/tools/invoke` exige de toute façon un jeton d'appareil
+    valide, émis uniquement par une approbation native — attribuer une personne à un `deviceId`
+    fictif n'ouvre donc aucun accès par lui-même.
+    """
+    if args.action != "lister" and not args.identifiant:
+        print("identifiant (deviceId) requis", file=sys.stderr)
+        return 2
+    dossier = Path(args.config_dir)
+    with etat.session() as cnx:
+        if args.action == "lister":
+            _afficher([appareils.vers_json(a) for a in appareils.lister(cnx)])
+            return 0
+        if args.action == "appairer":
+            if not args.personne or not args.role:
+                print("--personne et --role requis", file=sys.stderr)
+                return 2
+            appareil = appareils.appairer(cnx, args.identifiant, args.personne, args.role)
+            chemin = openclaw.ecrire_appareils(cnx, dossier)
+            print(f"opsys/appareils.json régénéré : {chemin}")
+            _afficher(appareils.vers_json(appareil))
+            return 0
+        appareils.revoquer(cnx, args.identifiant)
+        chemin = openclaw.ecrire_appareils(cnx, dossier)
+        print(f"opsys/appareils.json régénéré : {chemin}")
+        _afficher({"identifiant": args.identifiant, "appareil": "revoque"})
+    return 0
+
+
 def cmd_passerelle(args: argparse.Namespace) -> int:
     import os
 
@@ -327,6 +376,19 @@ def construire_parseur() -> argparse.ArgumentParser:
     oc.add_argument("--espaces", default="./opsys/espaces", help="chemin des espaces vu par OpenClaw")
     oc.add_argument("--fuseau", default="America/Toronto")
     oc.set_defaults(fn=cmd_openclaw)
+
+    ap = sous.add_parser(
+        "appareils",
+        help="attribution personne/rôle des appareils appairés côté core (ADR-0009 §5, T1.4-c4)",
+    )
+    ap.add_argument("action", choices=["appairer", "lister", "revoquer"])
+    ap.add_argument("identifiant", nargs="?", help="deviceId (hex sha256 de la clé publique, R12 §1.3)")
+    ap.add_argument("--personne", help="appairer : identifiant de la personne OPSYS")
+    ap.add_argument("--role", choices=sorted(appareils.ROLES_APPAREIL),
+                    help="appairer : rôle du jeton d'appareil (la personne doit déjà le porter)")
+    ap.add_argument("--config-dir", required=True,
+                    help="dossier de openclaw.json (volume partagé) : où régénérer opsys/appareils.json")
+    ap.set_defaults(fn=cmd_appareils)
 
     pg = sous.add_parser("passerelle", help="passerelle LiteLLM : configuration et clés par département")
     pg.add_argument("action", choices=["config", "cles", "synchroniser"])

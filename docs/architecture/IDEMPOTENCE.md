@@ -236,26 +236,110 @@ corps HTTP de `/tools/invoke`, y compris l'absence de `idempotencyKey` et l'abse
 
 Ce que T1.4-c1 ne fait PAS : rien côté rôles nommés ni portée d'outil — voir §7 bis (T1.4-c2).
 
-## 7 bis. OPSYS-CORE : rôles nommés et portée d'outil (T1.4-c2)
+## 7 bis. OPSYS-CORE : rôles nommés et portée d'outil (T1.4-c2, durci par T1.4-c4)
 
 Voir `docs/architecture/MOBILE.md` (section rôles) pour le contrat complet (jeton d'appareil,
-appairage, refus fermé par défaut) : ce paragraphe ne fait que situer T1.4-c2 dans le fil de ce
-fichier. `/tools/invoke` transmet, en plus des trois clés `_meta` ci-dessus,
-`opsys/personne`/`opsys/role` (résolus depuis `deviceId` par deux fragments générés côté OPSYS,
-`opsys/roles.json` et `opsys/appareils.json`, lus directement par
-`core/src/gateway/opsys-device-roles.ts` — jamais écrits à la main dans le core, jamais via
-`$include`) et refuse un outil hors de la portée du rôle avant même d'émettre `tools/call` — un
-appareil non reconnu, un rôle sans entrée dans `roles.json`, ou un outil hors de la liste du rôle
-sont trois refus, jamais un accès implicite complet. Côté socle,
+appairage, refus fermé par défaut) : ce paragraphe ne fait que situer T1.4-c2/T1.4-c4 dans le fil
+de ce fichier. `/tools/invoke` transmet, en plus des trois clés `_meta` ci-dessus,
+`opsys/personne`/`opsys/role` (résolus depuis un `deviceId` — désormais **authentifié**, voir
+ci-dessous — par deux fragments générés côté OPSYS, `opsys/roles.json` et `opsys/appareils.json`,
+lus directement par `core/src/gateway/opsys-device-roles.ts` — jamais écrits à la main dans le
+core, jamais via `$include`) et refuse un outil hors de la portée du rôle avant même d'émettre
+`tools/call` — un appareil non reconnu, un rôle sans entrée dans `roles.json`, ou un outil hors de
+la liste du rôle sont trois refus, jamais un accès implicite complet. Côté socle,
 `opsys.contexte.depuis_meta_mcp_identite`/`appele_par_appareil`/`identite_appelante` exposent
 cette identité par le même patron de `ContextVar` que `horodatage_reception` (§5) ; aucun outil de
-département ne les lit encore (M3 restera à adapter dans une tâche séparée).
+département ne les lit encore pour signer ou projeter (M3 restera à adapter dans une tâche
+séparée), mais la mise en garde « non authentifié » a été retirée de
+`opsys.contexte.identite_appelante()` — voir plus bas pourquoi c'est sûr.
 
-**Limite de sécurité (à lever par T1.4-c4 avant toute mise en service)** : `/tools/invoke`
-authentifie encore par le secret partagé de la Gateway, qui donne un accès complet. Le `deviceId`
-du corps n'est pas lié à l'appelant authentifié : un détenteur du secret peut l'omettre, ce qui
-donne l'accès complet, ou présenter celui d'un autre appareil. `opsys/personne` et `opsys/role`
-restent donc des indications non authentifiées. Le socle ne s'en sert ni pour signer une
-décision ni pour une projection (`contexte.identite_appelante`), tant que `/tools/invoke`
-n'authentifie pas l'appareil par son propre jeton d'appairage, avec l'identité tirée du jeton
-vérifié et jamais du corps.
+### `opsys appareils` : attribuer une personne et un rôle (T1.4-c4, fait)
+
+`opsys.appareils.appairer` (T1.4-c2) et `opsys.openclaw.ecrire_appareils` existaient déjà, mais
+sans surface pour les enchaîner (« aucune surface d'appairage n'existe encore côté console/CLI/app »,
+T1.4-c2). `opsys appareils appairer <deviceId> --personne <p> --role <r> --config-dir <dossier>`
+comble ce trou : il attribue la personne et le rôle (fail-closed, `appareils.appairer` — la
+personne doit déjà porter elle-même ce rôle, ADR-0009 §5), PUIS régénère
+`opsys/appareils.json` (`ecrire_appareils`) dans la même commande, pour qu'`opsys-device-roles.ts`
+voie l'attribution au prochain appel. `opsys appareils lister`/`revoquer` complètent le trio,
+`revoquer` régénérant lui aussi le fragment. **Deux temps distincts, jamais fusionnés** : (1)
+l'approbation NATIVE de l'appairage, faite par le propriétaire côté OPSYS-CORE — hors de portée
+d'`opsys`, c'est elle qui scelle le jeton d'appareil (R12 §1.3) ; (2) `opsys appareils appairer`,
+qui attribue la personne/le rôle OPSYS au `deviceId` déjà approuvé. Une attribution pour un
+`deviceId` jamais approuvé côté core reste sans effet concret, par construction : sans jeton
+d'appareil valide émis par une approbation native, `/tools/invoke` ne laisse jamais ce `deviceId`
+s'authentifier (section suivante) — attribuer une personne à un `deviceId` fictif n'ouvre donc
+aucun accès par lui-même.
+
+### `/tools/invoke` authentifie l'appareil par son propre jeton (T1.4-c4, fait)
+
+**Le défaut corrigé.** Avant T1.4-c4, `/tools/invoke` authentifiait tout appelant HTTP par le seul
+secret partagé de la Gateway (`token`/`password`), qui donne un accès opérateur complet — c'est le
+modèle documenté et voulu pour les appelants serveur de confiance (OpenAI-compatible, automations),
+mais le `deviceId` d'`_meta` venait alors du **corps de la requête**, jamais vérifié : un détenteur
+du secret partagé pouvait l'omettre (accès complet, aucun rôle appliqué) ou déclarer celui d'un
+autre appareil (`opsys/personne`/`opsys/role` usurpés). Corrigé en réutilisant, sans rien écrire de
+nouveau, le mécanisme d'authentification par jeton d'appareil déjà présent dans le fork pour
+d'autres routes HTTP (lecture Control UI, routes de plugin) :
+
+- **Authentification.** `core/src/gateway/http-auth-utils.ts`, `verifyHttpOperatorDeviceToken` :
+  déjà la fonction qui, pour un bearer donné, parcourt les appareils appairés
+  (`listDevicePairing`), trouve celui dont le jeton de rôle `"operator"` correspond
+  (`verifyPairingToken`), puis le vérifie réellement (révocation, génération de secret partagé,
+  portées — `verifyDeviceToken`, `core/src/infra/device-pairing-tokens.ts`). Seul changement : elle
+  rend aussi le `deviceId` de l'appareil apparié qui a matché — pas seulement ses portées — puisque
+  c'est la seule façon de savoir QUEL appareil s'est authentifié (le bearer lui-même ne porte pas
+  de `deviceId`). Ce `deviceId`, jamais le corps, remonte jusqu'à `AuthorizedGatewayHttpRequest.
+  deviceId`, exposé uniquement quand `authMethod === "device-token"`.
+- **Activation pour `/tools/invoke`.** `authorizeScopedGatewayHttpRequestOrReply` (même fichier)
+  gagne un `allowDeviceToken` optionnel (faux par défaut, donc sans effet sur les 6 autres appelants
+  existants) ; `tools-invoke-http.ts` est le premier à le passer à `true`, avec un nouveau
+  résolveur de portées, `resolveToolsInvokeHttpOperatorScopes` : secret partagé → portées complètes
+  documentées (inchangé) ; jeton d'appareil → seulement les portées réellement accordées à CET
+  appareil à l'approbation de l'appairage (jamais l'accès complet).
+- **Identité, jamais depuis le corps.** `tools-invoke-shared.ts` (`invokeGatewayTool`) reçoit un
+  nouveau paramètre hôte, `authenticatedDeviceId` — du même patron que `operatorRoleActor`
+  (« host-minted, jamais dérivé des paramètres du fil ») : `tools-invoke-http.ts` ne le renseigne
+  que depuis `requestAuth.deviceId` (donc jamais pour un appelant secret partagé). La résolution
+  `opsys/personne`/`opsys/role` (`authorizeOpsysDeviceTool`, inchangée) ne se déclenche plus que sur
+  `authenticatedDeviceId` : un appelant secret partagé n'en porte jamais, quel que soit le
+  `deviceId` de son corps — il ne peut donc plus « emprunter » une identité d'appareil.
+  `input.deviceId` (le corps) garde son seul rôle historique (T1.4-c1) : nommer l'appareil pour
+  `opsys/appareil` (bookkeeping d'idempotence), utilisé seulement en l'absence d'identité
+  authentifiée. Si le corps déclare un `deviceId` **différent** de l'appareil authentifié, l'appel
+  est refusé (403, `tool_call_blocked`) avant même de consulter `roles.json` — jamais une
+  préférence silencieuse pour l'un ou l'autre.
+- **Refus fermé, à chaque étage.** Jeton révoqué, inconnu, ou dont la génération de secret partagé
+  a tourné → 401 (`checkHttpOperatorCredentials` échoue, chemin inchangé). Portées de l'appareil
+  insuffisantes pour la méthode `agent` (`operator.write`) → 403 (portée manquante, avant même
+  d'atteindre `invokeGatewayTool`). Appareil authentifié mais sans entrée dans `appareils.json`, ou
+  rôle sans entrée dans `roles.json`, ou outil hors de la portée du rôle → 403 (`tool_call_blocked`,
+  inchangé depuis T1.4-c2, mais dorénavant **obligatoire** pour tout appelant authentifié par jeton
+  d'appareil — il n'existe plus de « corps sans `deviceId` » qui contournerait le contrôle pour ce
+  chemin).
+- **Identifiant de client OPSYS.** `GATEWAY_CLIENT_IDS.OPSYS_MOBILE` (`opsys-mobile`) ajouté au
+  registre fermé du fork (`core/packages/gateway-protocol/src/client-info.ts`) — vérifié par
+  lecture qu'aucun switch exhaustif ni schéma séparé n'en dépend (le schéma de poignée de main
+  `Type.Enum(GATEWAY_CLIENT_IDS)` dérive directement de cet objet). **Non câblé** : le mobile
+  continue d'emprunter `openclaw-ios`/`openclaw-android` (`mobile/src/appairage/clientInfo.ts`,
+  limite documentée dans `MOBILE.md` « Appairage ») et `isNativeAppUiClient`
+  (`handshake-auth-helpers.ts`) ne reconnaît pas encore le nouvel identifiant — un changement de
+  classification de confiance à l'appairage, hors de portée d'une tranche core-seule non exécutée
+  dans ce bac à sable.
+- **Preuve.** Tests vitest ajoutés (la CI `core.yml` les exécute, jamais ce bac à sable) :
+  `tools-invoke-http.device-token-auth.test.ts` (bout en bout, appairage/jeton réels via
+  `requestDevicePairing`/`approveDevicePairing`/`revokeDeviceToken`, contre un `OPENCLAW_HOME`
+  temporaire par test — jeton valide, jeton révoqué, jeton inconnu, `deviceId` de corps
+  concordant/discordant, secret partagé qui ne peut pas emprunter d'identité) et
+  `tools-invoke-http.opsys-roles.test.ts` (réécrit : un bloc HTTP prouve que le secret partagé ne
+  déclenche plus jamais la résolution de rôle, un bloc appelle `invokeGatewayTool` directement pour
+  isoler la logique `authenticatedDeviceId`). Côté socle, `tests/test_contexte.py` gagne
+  `test_identite_appelante_ignore_les_arguments_de_loutil` : preuve qu'un argument d'outil, même
+  nommé pour ressembler à un rôle, n'influence jamais `identite_appelante()` — seul `_meta` le
+  peut, structurellement (`depuis_meta_mcp_identite` ne reçoit que `meta` en paramètre).
+
+**Ce qui reste, volontairement hors de cette tranche :** aucun outil de département ne lit encore
+`identite_appelante()` pour signer ou projeter (M3, tâche séparée) ; l'identifiant de client OPSYS
+n'est pas câblé côté mobile ni dans `isNativeAppUiClient` ; une revue externe (code de sécurité,
+AGENTS.md) reste requise avant mise en service, comme pour toute PR touchant M5/les politiques/les
+approbations.

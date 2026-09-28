@@ -16,8 +16,8 @@ import {
 import {
   authorizeScopedGatewayHttpRequestOrReply,
   getHeader,
-  resolveSharedSecretHttpOperatorScopes,
   resolveOpenAiCompatibleHttpSenderIsOwner,
+  resolveToolsInvokeHttpOperatorScopes,
 } from "./http-utils.js";
 import { resolveGatewayOperatorRoleActor } from "./operator-role-policy.js";
 import type { GatewayContextResolver } from "./server-methods/types.js";
@@ -52,20 +52,29 @@ export async function handleToolsInvokeHttpRequest(
     return true;
   }
 
-  // /tools/invoke intentionally uses the same shared-secret HTTP trust model as
-  // the OpenAI-compatible APIs: token/password bearer auth is full operator
-  // access for the gateway, not a narrower per-request scope boundary.
+  // /tools/invoke keeps the shared-secret HTTP trust model of the OpenAI-compatible APIs for
+  // trusted server callers: token/password bearer auth is full operator access, not a narrower
+  // per-request scope boundary. It ALSO accepts a paired device's own device token (OPSYS-AI PLAN
+  // T1.4-c4): `resolveToolsInvokeHttpOperatorScopes` caps a device-token caller to the scopes that
+  // device was actually granted, never the shared secret's full access, and `requestAuth.deviceId`
+  // — set only from a verified device-token match, never from the request body — is the sole
+  // source `invokeGatewayTool` trusts for that caller's OPSYS device identity below.
   const authResult = await authorizeScopedGatewayHttpRequestOrReply({
     ...opts,
     req,
     res,
     operatorMethod: "agent",
-    resolveOperatorScopes: resolveSharedSecretHttpOperatorScopes,
+    resolveOperatorScopes: resolveToolsInvokeHttpOperatorScopes,
+    allowDeviceToken: true,
   });
   if (!authResult) {
     return true;
   }
   const { cfg, requestAuth, operatorScopes } = authResult;
+  // Host-minted, never derived from `body.deviceId` (see comment above and
+  // `tools-invoke-shared.ts`'s handling of `authenticatedDeviceId`).
+  const authenticatedDeviceId =
+    requestAuth.authMethod === "device-token" ? requestAuth.deviceId : undefined;
   if (req.socket.destroyed || res.destroyed || res.socket?.destroyed) {
     return true;
   }
@@ -129,6 +138,7 @@ export async function handleToolsInvokeHttpRequest(
           authenticatedUserProfile: requestAuth.authenticatedUserProfile,
           operatorRoleActor: requestAuth.operatorRoleActor,
           operatorScopes,
+          authenticatedDeviceId,
           senderIsOwner,
           conversationReadOrigin: "direct-operator",
           toolCallIdPrefix: "http",

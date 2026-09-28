@@ -48,6 +48,7 @@ export {
   getHeader,
   resolveOpenAiCompatibleHttpSenderIsOwner,
   resolveSharedSecretHttpOperatorScopes,
+  resolveToolsInvokeHttpOperatorScopes,
   resolveTrustedHttpOperatorScopes,
   type AuthorizedGatewayHttpRequest,
 } from "./http-auth-utils.js";

@@ -78,6 +78,15 @@ def voir_identite() -> dict:
     return {"vu": True}
 
 
+def voir_identite_avec_argument(pretend_role: str) -> dict:
+    """Preuve T1.4-c4 : un argument d'outil, même nommé pour ressembler à une identité, n'influence
+    jamais `contexte.identite_appelante()` — seul `_meta` (transmis par OPSYS-CORE depuis un jeton
+    d'appareil vérifié, jamais depuis les arguments) le peut. `pretend_role` n'est lu nulle part
+    ailleurs qu'ici, dans la valeur de retour — jamais passé à `identite_appelante()`."""
+    IDENTITES_VUES.append(contexte.identite_appelante())
+    return {"argument_recu": pretend_role}
+
+
 _NB = {"type": "number"}
 OUTILS = (
     Outil("m9_additionner", "Additionne deux nombres.",
@@ -106,6 +115,11 @@ OUTILS = (
     Outil("m9_voir_identite", "Capture l'identité de jeton d'appareil exposée par le contexte.",
           {"type": "object", "properties": {}, "additionalProperties": False}, voir_identite,
           Autonomie.T0),
+    Outil("m9_voir_identite_avec_argument",
+          "Capture l'identité de contexte à côté d'un argument qui prétend en porter une (T1.4-c4).",
+          {"type": "object", "properties": {"pretend_role": {"type": "string"}},
+           "required": ["pretend_role"], "additionalProperties": False},
+          voir_identite_avec_argument, Autonomie.T0),
 )
 
 

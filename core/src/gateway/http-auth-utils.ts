@@ -79,6 +79,15 @@ export type AuthorizedGatewayHttpRequest = {
   user?: string;
   trustDeclaredOperatorScopes: boolean;
   deviceOperatorScopes?: string[];
+  /**
+   * The paired device that authenticated this request via ITS OWN device token
+   * (`authMethod === "device-token"`), resolved by matching the bearer against each paired
+   * device's stored token server-side (OPSYS-AI PLAN T1.4-c4). Absent for every other auth
+   * method, including the shared secret — a shared-secret caller proves possession of the
+   * gateway operator secret, never a specific device's identity, so it must never be treated as
+   * one, no matter what a request body claims.
+   */
+  deviceId?: string;
   revalidate?: () => Promise<void>;
   hasCurrentClientAuthority?: () => boolean;
   authenticatedUserProfile?: GatewayClient["authenticatedUserProfile"];
@@ -141,11 +150,14 @@ function resolveControlUiReadAuthToken(
   }
 }
 
+/** A device-token HTTP auth match: which paired device presented it, and its granted scopes. */
+type VerifiedHttpOperatorDeviceToken = { deviceId: string; scopes: string[] };
+
 async function verifyHttpOperatorDeviceToken(
   token: string,
   requiredSharedGatewaySessionGeneration: string | undefined,
   requiredScopes: readonly string[] = [],
-): Promise<string[] | null> {
+): Promise<VerifiedHttpOperatorDeviceToken | null> {
   const pairing = await listDevicePairing();
   for (const device of pairing.paired) {
     const operatorToken = device.tokens?.[CONTROL_UI_OPERATOR_ROLE];
@@ -165,7 +177,12 @@ async function verifyHttpOperatorDeviceToken(
       scopes: [CONTROL_UI_OPERATOR_READ_SCOPE, ...operatorToken.scopes, ...requiredScopes],
       requiredSharedGatewaySessionGeneration,
     });
-    return verified.ok ? [...operatorToken.scopes] : null;
+    // `device.deviceId` is the only way an HTTP caller's bearer token maps back to a specific
+    // paired device: the bearer itself carries no deviceId, it is found by matching it against
+    // each paired device's stored token above. Callers that need to know WHICH device
+    // authenticated (OPSYS-AI PLAN T1.4-c4: `/tools/invoke` resolves the OPSYS person/role from
+    // this deviceId, never from the request body) rely on this match, not on client-declared input.
+    return verified.ok ? { deviceId: device.deviceId, scopes: [...operatorToken.scopes] } : null;
   }
   return null;
 }
@@ -192,6 +209,8 @@ type HttpOperatorCredentialResult = {
   authResult: GatewayAuthResult;
   authGeneration?: string;
   deviceOperatorScopes?: string[];
+  /** The paired device that authenticated, when `authResult.method === "device-token"`. */
+  deviceId?: string;
 };
 
 async function checkHttpOperatorCredentials(
@@ -229,6 +248,7 @@ async function checkHttpOperatorCredentials(
     const authGeneration = resolveSharedGatewaySessionGeneration(auth, params.trustedProxies);
     let resolvedAuthResult = authResult;
     let deviceScopes: string[] | undefined;
+    let matchedDeviceId: string | undefined;
     if (
       !authResult.ok &&
       authResult.reason !== PROXY_ATTRIBUTION_REQUIRED_REASON &&
@@ -256,13 +276,14 @@ async function checkHttpOperatorCredentials(
           retryAfterMs: deviceRateCheck.retryAfterMs,
         };
       } else {
-        const verifiedScopes = await verifyHttpOperatorDeviceToken(
+        const verifiedDevice = await verifyHttpOperatorDeviceToken(
           token,
           authGeneration,
           params.requiredDeviceScopes,
         );
-        if (verifiedScopes) {
-          deviceScopes = verifiedScopes;
+        if (verifiedDevice) {
+          deviceScopes = verifiedDevice.scopes;
+          matchedDeviceId = verifiedDevice.deviceId;
           params.rateLimiter?.reset(clientIp, AUTH_RATE_LIMIT_SCOPE_DEVICE_TOKEN);
           resolvedAuthResult = { ok: true, method: "device-token" };
         } else {
@@ -278,6 +299,7 @@ async function checkHttpOperatorCredentials(
       authResult: resolvedAuthResult,
       authGeneration,
       ...(deviceScopes ? { deviceOperatorScopes: deviceScopes } : {}),
+      ...(matchedDeviceId ? { deviceId: matchedDeviceId } : {}),
     };
   };
 
@@ -510,19 +532,20 @@ export async function checkGatewayHttpRequestAuth(
   const cfg = params.cfg ?? getRuntimeConfig();
   const hasCurrentClientAuthority = captureHttpRequestAuthority(params);
   const token = getBearerToken(params.req);
-  const { authResult, deviceOperatorScopes }: HttpOperatorCredentialResult = allowDeviceToken
-    ? await checkHttpOperatorCredentials({ ...params, cfg, token }, authorizeHttpGatewayConnect)
-    : {
-        authResult: await authorizeHttpGatewayConnect({
-          auth: params.auth,
-          connectAuth: token ? { token, password: token } : null,
-          req: params.req,
-          trustedProxies: params.trustedProxies,
-          allowRealIpFallback: params.allowRealIpFallback,
-          rateLimiter: params.rateLimiter,
-          browserOriginPolicy: resolveHttpBrowserOriginPolicy(params.req, cfg),
-        }),
-      };
+  const { authResult, deviceOperatorScopes, deviceId }: HttpOperatorCredentialResult =
+    allowDeviceToken
+      ? await checkHttpOperatorCredentials({ ...params, cfg, token }, authorizeHttpGatewayConnect)
+      : {
+          authResult: await authorizeHttpGatewayConnect({
+            auth: params.auth,
+            connectAuth: token ? { token, password: token } : null,
+            req: params.req,
+            trustedProxies: params.trustedProxies,
+            allowRealIpFallback: params.allowRealIpFallback,
+            rateLimiter: params.rateLimiter,
+            browserOriginPolicy: resolveHttpBrowserOriginPolicy(params.req, cfg),
+          }),
+        };
   if (!authResult.ok) {
     return { ok: false, authResult };
   }
@@ -557,6 +580,9 @@ export async function checkGatewayHttpRequestAuth(
       // full trusted-operator surface.
       trustDeclaredOperatorScopes:
         authResult.method !== "device-token" && !usesSharedSecretGatewayMethod(authResult.method),
+      // The authenticated device's own id (OPSYS-AI PLAN T1.4-c4): never derived from the request
+      // body, only from the device token match above (`verifyHttpOperatorDeviceToken`).
+      ...(deviceId ? { deviceId } : {}),
       ...(deviceOperatorScopes
         ? {
             deviceOperatorScopes: applyHttpOperatorRoleScopeCeiling(
@@ -581,6 +607,14 @@ export async function authorizeScopedGatewayHttpRequestOrReply(
       req: IncomingMessage,
       requestAuth: AuthorizedGatewayHttpRequest,
     ) => string[];
+    /**
+     * Also accept a paired device's own device token, not just the shared secret (OPSYS-AI PLAN
+     * T1.4-c4). Defaults to false, unchanged for every existing caller of this function; a caller
+     * that opts in MUST pass a `resolveOperatorScopes` that scopes a `device-token` result to that
+     * device's own granted scopes (never the shared secret's full-access default), or a device
+     * token would inherit full operator access.
+     */
+    allowDeviceToken?: boolean;
   },
 ): Promise<{
   cfg: OpenClawConfig;
@@ -588,12 +622,15 @@ export async function authorizeScopedGatewayHttpRequestOrReply(
   operatorScopes: string[];
 } | null> {
   const cfg = params.cfg ?? getRuntimeConfig();
-  const requestAuth = await authorizeGatewayHttpRequestOrReply({
-    ...params,
-    cfg,
-    trustedProxies: params.trustedProxies ?? cfg.gateway?.trustedProxies,
-    allowRealIpFallback: params.allowRealIpFallback ?? cfg.gateway?.allowRealIpFallback,
-  });
+  const requestAuth = await authorizeGatewayHttpRequestOrReply(
+    {
+      ...params,
+      cfg,
+      trustedProxies: params.trustedProxies ?? cfg.gateway?.trustedProxies,
+      allowRealIpFallback: params.allowRealIpFallback ?? cfg.gateway?.allowRealIpFallback,
+    },
+    params.allowDeviceToken ?? false,
+  );
   if (!requestAuth) {
     return null;
   }
@@ -645,6 +682,25 @@ export function resolveSharedSecretHttpOperatorScopes(
     return [...CLI_DEFAULT_OPERATOR_SCOPES];
   }
   return resolveTrustedHttpOperatorScopes(req, requestAuth);
+}
+
+/**
+ * Resolves gateway operator scopes for `/tools/invoke` (OPSYS-AI PLAN T1.4-c4). Shared-secret
+ * bearer auth keeps `resolveSharedSecretHttpOperatorScopes`'s documented full-access default; a
+ * caller authenticated by a paired device's OWN device token is capped to the scopes that device
+ * was actually granted at pairing approval — mirroring `resolveControlUiReadOperatorScopes`'s
+ * device-token branch above, for the identical reason: scopes embedded in that device's own
+ * token, never self-asserted from a header or the request body. A device token must never inherit
+ * the shared secret's full operator access.
+ */
+export function resolveToolsInvokeHttpOperatorScopes(
+  req: IncomingMessage,
+  requestAuth: AuthorizedGatewayHttpRequest,
+): string[] {
+  if (requestAuth.authMethod === "device-token") {
+    return applyHttpOperatorRoleScopeCeiling(requestAuth.deviceOperatorScopes ?? [], requestAuth);
+  }
+  return resolveSharedSecretHttpOperatorScopes(req, requestAuth);
 }
 
 export function resolveOpenAiCompatibleHttpSenderIsOwner(

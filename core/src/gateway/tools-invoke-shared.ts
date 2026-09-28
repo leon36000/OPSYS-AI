@@ -63,7 +63,9 @@ export type ToolsInvokeInput = {
    * business engine treats as authoritative). Both travel unverified from the wire, exactly like
    * `idempotencyKey` itself; OPSYS's business engine is the one that gives them meaning, in its
    * own MCP `_meta` contract (`opsys/appareil`, `opsys/horodatageAppareil`) once `idempotencyKey`
-   * is present. Same field names as the mobile client (`mobile/src/protocole/types.ts`).
+   * is present. Same field names as the mobile client (`mobile/src/protocole/types.ts`). Never a
+   * source of OPSYS identity by itself (PLAN T1.4-c4): a device-token caller whose body `deviceId`
+   * disagrees with its authenticated device is refused outright rather than trusted either way.
    */
   deviceId?: unknown;
   deviceTimestamp?: unknown;
@@ -193,6 +195,16 @@ type InvokeGatewayToolParams = {
   authenticatedUserProfile?: GatewayClient["authenticatedUserProfile"];
   /** Host-minted authority from the calling connection; never derived from wire params. */
   operatorRoleActor?: NonNullable<GatewayClient["internal"]>["operatorRoleActor"];
+  /**
+   * The OPSYS-AI paired device that authenticated this call by ITS OWN device token (OPSYS-AI
+   * PLAN T1.4-c4), resolved by the HTTP boundary (`tools-invoke-http.ts`) from the verified
+   * bearer — host-minted, exactly like `operatorRoleActor`, and for the same reason: never derived
+   * from `input.deviceId`, which is client-supplied wire data a compromised or buggy caller can
+   * set to any string. Undefined for every caller that did not authenticate with a device token
+   * (a dashboard operator, the CLI, an OpenAI-compatible API client, or the trusted shared
+   * secret): OPSYS device-role scoping and `opsys/personne`/`opsys/role` never apply to them.
+   */
+  authenticatedDeviceId?: string;
   operatorScopes?: readonly string[];
   senderIsOwner?: boolean;
   clientCaps?: string[];
@@ -229,16 +241,43 @@ async function invokeGatewayToolWithSignal(
     };
   }
 
-  // OPSYS named device roles (IDEMPOTENCE.md §7 bis): only when the request carries a deviceId at
-  // all — a caller with no OPSYS device identity (dashboard operator, CLI, an OpenAI-compatible
-  // API client) is completely unaffected, exactly the existing shared-secret-is-full-access model
-  // for this endpoint. A recognized device is checked against its role's tool scope, closed by
-  // default: an unrecognized device, an unrecognized role, or a tool outside the role's declared
-  // list are all a refusal, never an implicit full-access grant.
-  const deviceId = normalizeOptionalString(params.input.deviceId);
+  // OPSYS named device roles (IDEMPOTENCE.md §7 bis, hardened by PLAN T1.4-c4): the OPSYS identity
+  // check runs ONLY off `params.authenticatedDeviceId` — set by the HTTP boundary exclusively from
+  // a verified device token, never off `input.deviceId` (client-supplied wire data). A caller with
+  // no authenticated device identity at all (dashboard operator, CLI, an OpenAI-compatible API
+  // client, or the trusted shared secret) is completely unaffected: the existing shared-secret-is-
+  // full-access model for this endpoint, minus the identity fields, which such a caller can now
+  // never attach (`opsys/personne`/`opsys/role` are only ever set from an authenticated device
+  // below). A device-token caller is NEVER unaffected: once authenticated as a device, the OPSYS
+  // role check is mandatory and closed by default — an unrecognized device, an unrecognized role,
+  // or a tool outside the role's declared list are all a refusal, never an implicit full-access
+  // grant, and a request body `deviceId` that disagrees with the authenticated device is refused
+  // outright rather than silently ignored or silently preferred either way.
+  const bodyDeviceId = normalizeOptionalString(params.input.deviceId);
+  const authenticatedDeviceId = params.authenticatedDeviceId;
+  if (
+    authenticatedDeviceId !== undefined &&
+    bodyDeviceId !== undefined &&
+    bodyDeviceId !== authenticatedDeviceId
+  ) {
+    return {
+      ok: false,
+      status: 403,
+      toolName,
+      error: {
+        type: "tool_call_blocked",
+        message: "Request body deviceId does not match the authenticated device.",
+      },
+    };
+  }
+  // Idempotence bookkeeping (`opsys/appareil`, IDEMPOTENCE.md §7) only ever needs SOME deviceId
+  // label, authenticated or not — the authenticated one takes precedence once it exists (it is
+  // also the more reliable of the two: unlike a client-generated `input.deviceId`, it cannot be
+  // omitted by a buggy caller once a device token was actually presented).
+  const deviceId = authenticatedDeviceId ?? bodyDeviceId;
   let opsysDeviceIdentity: { personne: string; role: string } | undefined;
-  if (deviceId !== undefined) {
-    const authorization = authorizeOpsysDeviceTool(deviceId, toolName);
+  if (authenticatedDeviceId !== undefined) {
+    const authorization = authorizeOpsysDeviceTool(authenticatedDeviceId, toolName);
     if (!authorization.ok) {
       return {
         ok: false,

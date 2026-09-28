@@ -112,9 +112,18 @@ def appele_par_appareil(identite: IdentiteAppelante | None) -> Iterator[None]:
 def identite_appelante() -> IdentiteAppelante | None:
     """Personne et rôle transmis par OPSYS-CORE pour l'appel MCP en cours, ou None hors contexte.
 
-    NON AUTHENTIFIÉS tant que `/tools/invoke` n'authentifie pas l'appareil par son propre jeton
-    (PLAN T1.4-c4, `docs/architecture/IDEMPOTENCE.md` §7 bis) : aucun outil ne s'en sert pour
-    signer une décision ni pour choisir une projection par rôle.
+    AUTHENTIFIÉS depuis PLAN T1.4-c4 (`docs/architecture/IDEMPOTENCE.md` §7 bis) : OPSYS-CORE
+    (`/tools/invoke`) n'attribue `opsys/personne`/`opsys/role` que lorsque l'appelant s'est
+    authentifié par son propre jeton d'appareil vérifié (jamais par le corps de la requête, jamais
+    par le secret partagé — un appelant par secret partagé ne porte jamais ces deux clés `_meta`).
+    Le `deviceId` qui a produit cette identité vient du même jeton vérifié, avec refus fermé si le
+    corps en déclare un différent ; côté socle, `depuis_meta_mcp_identite` (juste en dessous) ne
+    lit que `_meta`, jamais les arguments de l'outil (que le modèle produit et pourrait halluciner,
+    omettre ou falsifier) — voir `tests/test_contexte.py`,
+    `test_identite_appelante_ignore_les_arguments_de_loutil`. Un outil peut donc s'en servir pour
+    signer une décision ou choisir une projection par rôle ; il doit tout de même revérifier que la
+    personne existe encore et porte encore ce rôle (`opsys.identite.personne_active`), comme le
+    signale déjà `IdentiteAppelante` ci-dessus.
     """
     return _IDENTITE_APPELANTE.get()
 
