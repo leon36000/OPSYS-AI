@@ -552,8 +552,8 @@ describe("SystemAgentChatEngine approval", () => {
     String.raw`channels.synology-chat.accounts.prod\ guild.webhookUrl`,
     "channels.synology-chat.incomingUrl",
     "channels.synology-chat.accounts[work].incomingUrl",
-    "plugins.entries.codex.config.appServer.headers",
-    "plugins.entries.codex.config.appServer.headers.Authorization",
+    "plugins.entries.voice-call.config.telnyx.publicKey",
+    "plugins.entries.google.config.webSearch.apiKey",
     "channels.synology-chat",
   ])("keeps hint-sensitive config set %s away from every model path", async (path) => {
     useTempStateDir();
@@ -719,8 +719,8 @@ describe("SystemAgentChatEngine approval", () => {
     "config set gateway.auth.tokenabcDEF123 please",
     "config set gateway.auth.token_abcDEF123 please",
     "config set gateway.auth.token$abcDEF123 please",
-    "config set plugins.entries.codex.config.appServer.headersabcDEF123 please",
-    "config set plugins.entries.codex.config.appServer.headers.Authorization=Bearer-abc please",
+    "config set plugins.entries.google.config.webSearch.apiKeyabcDEF123 please",
+    "config set plugins.entries.google.config.webSearch.headers.Authorization=Bearer-abc please",
     'config set channels.synology-chat["webhookUrl=abcDEF123"] please',
     'config set channels.buzz.groups["gateway.auth.token=abcDEF123"].enabled true',
     'config set hooks.mappings["token=abcDEF123"].agentId main',
@@ -757,7 +757,7 @@ describe("SystemAgentChatEngine approval", () => {
     "config set gateway.auth.tokenabcDEF123 please",
     "config set gateway.auth.token_abcDEF123 please",
     "config set gateway.auth.token$abcDEF123 please",
-    "config set plugins.entries.codex.config.appServer.headersabcDEF123 please",
+    "config set plugins.entries.google.config.webSearch.apiKeyabcDEF123 please",
     'config set hooks.mappings["token=abcDEF123"].agentId main',
     "config set-ref gateway.auth.tokenabcDEF123 env GATEWAY_TOKEN",
     "config set-ref gateway.auth.token=abcDEF123 env GATEWAY_TOKEN",
@@ -792,7 +792,7 @@ describe("SystemAgentChatEngine approval", () => {
   it.each([
     "config set channels.missing.opaque.abcDEF123 please",
     "config set plugins.entries.missing.config.opaque.abcDEF123 please",
-    "config set plugins.entries.codex.config.opaque=abcDEF123 please",
+    "config set plugins.entries.google.config.opaque=abcDEF123 please",
     "config set channels.telegram.opaque=abcDEF123 please",
     "config set gateway.auth.token.abcDEF123 please",
     'config set channels.synology-chat.accounts["prod.guild"].webhookUrl.abcDEF123 please',
@@ -828,8 +828,8 @@ describe("SystemAgentChatEngine approval", () => {
     "gateway.auth..token",
     "channels.synology-chat.incomingUrl",
     "channels.synology-chat.accounts[work].incomingUrl",
-    "plugins.entries.codex.config.appServer.headers",
-    "plugins.entries.codex.config.appServer.headers.Authorization",
+    "plugins.entries.voice-call.config.telnyx.publicKey",
+    "plugins.entries.google.config.webSearch.apiKey",
     "channels.synology-chat",
   ])("redacts config-set value at %s from conversation history", async (path) => {
     const engine = new SystemAgentChatEngine({

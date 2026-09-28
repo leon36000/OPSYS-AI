@@ -185,7 +185,7 @@ function testHarnessBinding(route: SystemAgentConfiguredRoute) {
   const agentHarnessId =
     route.agentHarnessRuntimeOverride === "auto"
       ? "openclaw"
-      : (route.agentHarnessRuntimeOverride ?? "codex");
+      : (route.agentHarnessRuntimeOverride ?? "openclaw");
   if (agentHarnessId === "openclaw") {
     return { auth: { agentHarnessId }, deps: {} };
   }

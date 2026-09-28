@@ -363,7 +363,7 @@ describe("system agent operations", () => {
   });
 
   it("reads installed plugin field schemas and authored help from the active metadata", async () => {
-    const config = { plugins: { entries: { codex: { enabled: true } } } };
+    const config = { plugins: { entries: { google: { enabled: true } } } };
     mockConfig.setConfig(config);
     setRuntimeConfigSnapshot(config, config);
     const metadata = createSystemAgentPluginMetadataTestSnapshot(config);
@@ -371,34 +371,36 @@ describe("system agent operations", () => {
     try {
       await metadata.run(() =>
         executeSystemAgentOperation(
-          { kind: "config-schema", path: "plugins.entries.codex.config.codexDynamicToolsLoading" },
+          { kind: "config-schema", path: "plugins.entries.google.config.webSearch.headers" },
           runtime,
         ),
       );
-      expect(lines.join("\n")).toContain("searchable");
-      expect(lines.join("\n")).toContain("Use searchable to defer OpenClaw dynamic tools");
+      expect(lines.join("\n")).toContain("SecretRef");
+      expect(lines.join("\n")).toContain(
+        "Use a SecretRef value when a header contains a secret.",
+      );
     } finally {
       clearRuntimeConfigSnapshot();
     }
   });
 
   it("redacts config values marked sensitive only by active plugin metadata", async () => {
-    const authorization = "Bearer plugin-only-secret";
+    const publicKey = "plugin-only-secret";
     const config = {
       plugins: {
         entries: {
-          codex: { config: { appServer: { headers: { Authorization: authorization } } } },
+          "voice-call": { config: { telnyx: { publicKey } } },
         },
       },
     };
     mockConfig.setConfig(config);
     const pluginMetadata = createSystemAgentPluginMetadataTestSnapshot(config);
     const output = await pluginMetadata.run(() =>
-      readConfigOutput("plugins.entries.codex.config.appServer"),
+      readConfigOutput("plugins.entries.voice-call.config.telnyx"),
     );
 
-    expect(output).toContain('"headers": "<redacted>"');
-    expect(output).not.toContain(authorization);
+    expect(output).toContain('"publicKey": "<redacted>"');
+    expect(output).not.toContain(publicKey);
   });
 
   it("keeps sensitive channel callback URLs out of model-visible config reads", async () => {

@@ -102,7 +102,7 @@ describe("isSystemAgentSensitiveConfigPathEmbedding", () => {
     "gateway.auth.tokenabcDEF123",
     "gateway.auth.token_abcDEF123",
     "gateway.auth.token$abcDEF123",
-    "plugins.entries.codex.config.appServer.headersabcDEF123",
+    "plugins.entries.google.config.webSearch.apiKeyabcDEF123",
     'gateway.auth["token=abcDEF123"]',
     'gateway.auth["token abcDEF123"]',
     'gateway.auth["token:abcDEF123"]',
@@ -120,9 +120,9 @@ describe("isSystemAgentSensitiveConfigPathEmbedding", () => {
   });
 
   it.each([
-    "plugins.entries.codex.config.appServer.headers.Authorization",
-    'plugins.entries.codex.config.appServer.headers["X-Test"]',
-    String.raw`plugins.entries.codex.config.appServer.headers.X\-Test`,
+    "plugins.entries.google.config.webSearch.headers.Authorization",
+    'plugins.entries.google.config.webSearch.headers["X-Test"]',
+    String.raw`plugins.entries.google.config.webSearch.headers.X\-Test`,
     'channels.synology-chat.accounts["token=prod"].webhookUrl',
     String.raw`channels.synology-chat.accounts.token\=prod.webhookUrl`,
     'channels.synology-chat.accounts["token=prod"].webhookPath',
@@ -149,9 +149,9 @@ describe("isSystemAgentSensitiveConfigPathEmbedding", () => {
   it.each([
     "channels.missing.opaque.abcDEF123",
     "plugins.entries.missing.config.opaque.abcDEF123",
-    "plugins.entries.codex.config.opaque=abcDEF123",
+    "plugins.entries.google.config.opaque=abcDEF123",
     'channels.synology-chat["webhookUrl=abcDEF123"]',
-    'plugins.entries.codex.config.appServer.headers["Authorization=Bearer-abc"]',
+    'plugins.entries.google.config.webSearch.headers["Authorization=Bearer-abc"]',
     'hooks.mappings["token=abcDEF123"].agentId',
     'channels.buzz.groups["gateway.auth.token=ACTUAL_GATEWAY_TOKEN"].enabled',
   ])("redacts unknown-owner or secret-bearing path %s", (path) => {
@@ -160,8 +160,8 @@ describe("isSystemAgentSensitiveConfigPathEmbedding", () => {
 
   it.each([
     'channels.synology-chat.accounts["prod=us"].enabled',
-    "plugins.entries.codex.config.appServer.headers.AuthorizationabcDEF123",
-    'plugins.entries.codex.config.appServer.headers["X-Test"]',
+    "plugins.entries.google.config.webSearch.headers.AuthorizationabcDEF123",
+    'plugins.entries.google.config.webSearch.headers["X-Test"]',
     'channels.synology-chat.accounts["token=prod"].enabled',
     'broadcast["token=prod"]',
     'session.identityLinks["token=prod"]',
