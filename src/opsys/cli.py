@@ -1,4 +1,5 @@
-"""CLI `opsys` : vérifier, générer les profils, piloter approbations, modes, budgets, paliers, identité."""
+"""CLI `opsys` : vérifier, générer les profils, piloter approbations, modes, budgets, paliers, services,
+identité."""
 
 from __future__ import annotations
 
@@ -24,6 +25,7 @@ from . import (
     openclaw,
     passerelle,
     stockage,
+    taxonomie,
 )
 from .capacites import outils_executables
 from .departements import (
@@ -81,10 +83,19 @@ def cmd_verifier(args: argparse.Namespace) -> int:
         for probleme in problemes_portees:
             print(f"  - {probleme}", file=sys.stderr)
         return 1
+    problemes_taxonomie = taxonomie.verifier_profil() + taxonomie.copies_locales_du_catalogue(
+        [Path(__file__).resolve().parent, *(dep.racine / "src" for dep in deps.values())]
+    )
+    if problemes_taxonomie:
+        print("ERREUR : taxonomie métier incohérente (profil d'entreprise, copie locale du catalogue) :",
+              file=sys.stderr)
+        for probleme in problemes_taxonomie:
+            print(f"  - {probleme}", file=sys.stderr)
+        return 1
     avec_portee = sum(1 for _dep, outil in index.values() if outil.roles_appareil)
     print(f"OK : {len(deps)} départements, {len(index)} outils, noms uniques, manifestes valides, "
           f"événements cohérents, portées d'appareil valides ({avec_portee} outils déclarés, "
-          "les autres fermés aux appareils).")
+          "les autres fermés aux appareils), taxonomie sans copie locale.")
     if args.paliers:
         paliers = modeles.charger_paliers()
         manquants = sorted({d.modeles[u] for d in deps.values() for u in d.modeles} - set(paliers))
@@ -219,6 +230,34 @@ def cmd_budgets(args: argparse.Namespace) -> int:
     deps = charger_departements()
     with etat.session() as cnx:
         _afficher([jetons.etat_budget(cnx, d.id, d.budget) for d in deps.values()])
+    return 0
+
+
+def cmd_services(args: argparse.Namespace) -> int:
+    """Profil d'entreprise (PLAN T0.13) : les services que CETTE instance offre.
+
+    `lister` montre le fichier, les services déclarés et le catalogue de référence. `declarer`
+    remplace la liste par des codes du catalogue, signée au journal d'audit ; un service propre
+    (autre PME) se déclare en éditant `$OPSYS_HOME/entreprise.yaml` (docs/architecture/TAXONOMIE.md).
+    """
+    if args.action == "declarer":
+        try:
+            fichier = taxonomie.enregistrer_services(args.codes, par=args.par)
+        except taxonomie.ProfilInvalide as exc:
+            print(f"ERREUR : {exc}", file=sys.stderr)
+            return 1
+        print(fichier)
+        return 0
+    try:
+        declares = taxonomie.lire_services()
+    except taxonomie.ProfilInvalide as exc:
+        print(f"ERREUR : {exc}", file=sys.stderr)
+        return 1
+    _afficher({
+        "fichier": str(taxonomie.fichier_profil()),
+        "declares": [{"code": s.code, "libelle": s.libelle} for s in declares],
+        "catalogue_de_reference": [{"code": s.code, "libelle": s.libelle} for s in taxonomie.CATALOGUE_REFERENCE],
+    })
     return 0
 
 
@@ -376,6 +415,11 @@ def construire_parseur() -> argparse.ArgumentParser:
 
     sous.add_parser("budgets", help="consommation de tokens par département").set_defaults(fn=cmd_budgets)
 
+    sv = sous.add_parser("services", help="profil d'entreprise : les services offerts (taxonomie métier)")
+    sv.add_argument("action", choices=["lister", "declarer"])
+    sv.add_argument("codes", nargs="*", help="codes du catalogue de référence à déclarer")
+    sv.add_argument("--par", help="qui déclare (journal d'audit)")
+    sv.set_defaults(fn=cmd_services)
     pa = sous.add_parser("paliers", help="associer les paliers de modèles à des fournisseurs")
     pa.add_argument("action", choices=["lister", "definir"])
     pa.add_argument("palier", nargs="?", choices=["local", "rapide", "standard", "fort"])
@@ -419,6 +463,9 @@ def main(argv: list[str] | None = None) -> int:
     args = construire_parseur().parse_args(argv)
     if args.commande == "approbations" and args.action not in ("lister", "file") and not args.id:
         print("id de demande requis", file=sys.stderr)
+        return 2
+    if args.commande == "services" and args.action == "declarer" and not (args.codes and args.par):
+        print("au moins un code de service et --par requis", file=sys.stderr)
         return 2
     if args.commande == "paliers" and args.action == "definir" and not (args.palier and args.provider and args.model):
         print("palier, --provider et --model requis", file=sys.stderr)

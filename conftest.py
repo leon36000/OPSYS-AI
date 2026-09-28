@@ -19,3 +19,20 @@ def _instance_isolee(tmp_path, monkeypatch):
     from opsys import stockage
 
     stockage.liberer()
+
+
+@pytest.fixture
+def declarer_services():
+    """Fabrique : écrit le profil d'entreprise de l'instance de test (`$OPSYS_HOME/entreprise.yaml`).
+
+    Sans argument, déclare les quatre services du catalogue de référence (`opsys.taxonomie`) ;
+    sinon, les services donnés (codes du catalogue, ou objets `{code, libelle}`). Sans cet appel,
+    l'instance de test n'a aucun service déclaré et la taxonomie refuse tout (fail-closed).
+    """
+
+    def _declarer(*services):
+        from opsys import taxonomie
+
+        return taxonomie.enregistrer_services(services or taxonomie.codes_catalogue())
+
+    return _declarer

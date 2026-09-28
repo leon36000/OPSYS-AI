@@ -86,6 +86,14 @@ Règles :
    CAD.
 5. **Descriptions courtes.** Chaque caractère est payé à chaque tour. Le détail va dans une skill.
 
+## Taxonomie des services (PLAN T0.13)
+
+Un département qui parle des services de l'entreprise (gouttières, revêtement, soffite/fascia,
+réparation, ou ceux d'une autre PME) ne recopie jamais la liste : il valide un code avec
+`opsys.taxonomie.valider_service` (profil d'entreprise `$OPSYS_HOME/entreprise.yaml`). Sans profil,
+tout service est refusé avec un verdict qui dit quoi configurer. `opsys verifier` échoue si une
+source recopie le catalogue. Voir [TAXONOMIE](TAXONOMIE.md).
+
 ## Événements (ADR-0009 §3, bus dans `opsys.evenements`)
 
 Un département déclare ce qu'il publie et consomme dans `department.yaml` (`evenements:`, voir plus

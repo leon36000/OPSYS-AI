@@ -83,6 +83,7 @@ La greffe est dans `core/` (liste : `core/PROVENANCE.md`, « Greffes OPSYS »).
 | **Configuration du Core** | Un agent par département, fournisseur de modèles dédié, serveur MCP dédié (`opsys_mN`) et refus des serveurs des autres départements (`tools.deny`), `$include` | `src/opsys/openclaw.py` |
 | **Passerelle de modèles** | LiteLLM : paliers → fournisseurs cloud ou locaux, clé virtuelle et plafonds par département, cache | `src/opsys/passerelle.py`, `modeles.py` |
 | **Mémoire** | 2 couches : mémoire d'agent OpenClaw + base de connaissances d'entreprise PostgreSQL/pgvector (MCP) | `docs/memory/RAG-PREMIUM.md`, `src/opsys/memoire/` |
+| **Taxonomie métier** | Une seule liste des services de l'entreprise (catalogue de référence + profil `$OPSYS_HOME/entreprise.yaml`), lue par M1, M2 et M3 ; fail-closed sans profil ; contrat `LeadQualifie` v2 | `src/opsys/taxonomie.py`, `docs/architecture/TAXONOMIE.md` |
 | **Console OPSYS** | Départements (modes), approbations, budgets, paliers de modèles | `src/opsys/console/`, `tableau_de_bord.py` |
 | **Mobile** | Nouvelle app Expo Router (pas un fork OpenClaw — ADR-0008, R12) : routage gardé par rôle, file sortante et client `/tools/invoke` en logique pure ; squelette seulement (PLAN T1.4-a), aucun écran métier | `mobile/`, `docs/architecture/MOBILE.md` |
 | **Déploiement** | compose, `install.sh`, sauvegardes | `deploy/`, `docs/ops/` |
