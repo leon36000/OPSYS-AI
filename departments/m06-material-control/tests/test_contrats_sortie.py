@@ -1,12 +1,9 @@
 import ast
-import sys
 from pathlib import Path
 
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
 from m6_material_control import contrats_sortie
+
+_SRC = Path(__file__).resolve().parents[1] / "src"
 
 
 CLES_MONETAIRES_INTERDITES = {

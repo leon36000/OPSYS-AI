@@ -1,16 +1,8 @@
 import ast
-import sys
 from pathlib import Path
 
 import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from m6_material_control import frontieres
-from m6_material_control import validation
-from m6_material_control import verdicts
+from m6_material_control import frontieres, validation, verdicts
 
 
 @pytest.fixture
@@ -74,9 +66,9 @@ def test_valider_wct_accepte_les_champs_optionnels_du_catalogue(wct_valide):
 
 
 def test_champs_wct_optionnels_alignes_sur_le_catalogue():
-    from opsys import evenements
-
     from m6_material_control import contrats
+
+    from opsys import evenements
 
     schema = evenements.schema("m4.travaux_termines")
     optionnels = set(schema["properties"]) - set(schema["required"])

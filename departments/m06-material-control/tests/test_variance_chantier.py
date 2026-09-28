@@ -6,16 +6,9 @@ fin de chantier (M4) — verdict neutre, cause_possible jamais attribuée par le
 SignalVarianceChantierCritique sur un seuil fourni par l'appelant.
 """
 
-import sys
-from pathlib import Path
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
 
 from m6_material_control import contrats, variance_chantier
 from m6_material_control.registre import Registre
-
 
 CLES_MONETAIRES_INTERDITES = {
     "cout_unitaire",

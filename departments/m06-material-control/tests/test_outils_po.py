@@ -7,24 +7,18 @@ Identifiants et coordonnées fictifs (DEFINITION-PRODUIT §1, AGENTS.md « ficti
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
+import m6_material_control.outils as m6_outils
 import pytest
+from m6_material_control import livre_prix
+from m6_material_control.outils import Autonomie
 
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-import m6_material_control.outils as m6_outils  # noqa: E402
-from m6_material_control import livre_prix  # noqa: E402
-from m6_material_control.outils import Autonomie  # noqa: E402
-
-from opsys import approbations as opsys_approbations  # noqa: E402
-from opsys import identite, stockage  # noqa: E402
-from opsys.capacites import Capacites, outils_executables  # noqa: E402
-from opsys.departements import lire_manifeste  # noqa: E402
-from opsys.outils import Niveau  # noqa: E402
+from opsys import approbations as opsys_approbations
+from opsys import identite, stockage
+from opsys.capacites import Capacites, outils_executables
+from opsys.departements import lire_manifeste
+from opsys.outils import Niveau
 
 _RACINE_M6 = Path(__file__).resolve().parents[1]
 _DEPARTEMENT = "m06-material-control"

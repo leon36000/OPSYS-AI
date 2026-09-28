@@ -723,18 +723,22 @@ def garde_ecriture_stock(repertoire: str | Path) -> tuple[bool, str]:
         pile_fonctions: list[str] = []
 
         class Visitor(ast.NodeVisitor):
+            def __init__(self, fichier, pile_fonctions):
+                self.fichier = fichier
+                self.pile_fonctions = pile_fonctions
+
             def visit_FunctionDef(self, noeud: ast.FunctionDef) -> None:
-                pile_fonctions.append(noeud.name)
+                self.pile_fonctions.append(noeud.name)
                 self.generic_visit(noeud)
-                pile_fonctions.pop()
+                self.pile_fonctions.pop()
 
             def visit_AsyncFunctionDef(self, noeud: ast.AsyncFunctionDef) -> None:
-                pile_fonctions.append(noeud.name)
+                self.pile_fonctions.append(noeud.name)
                 self.generic_visit(noeud)
-                pile_fonctions.pop()
+                self.pile_fonctions.pop()
 
             def visit_Dict(self, noeud: ast.Dict) -> None:
-                for cle, valeur in zip(noeud.keys, noeud.values):
+                for cle, valeur in zip(noeud.keys, noeud.values, strict=True):
                     if not (
                         isinstance(cle, ast.Constant)
                         and isinstance(cle.value, str)
@@ -746,15 +750,15 @@ def garde_ecriture_stock(repertoire: str | Path) -> tuple[bool, str]:
                         continue
                     type_mouvement = valeur.value
                     attendues = DESIGNATION_TYPE_MOUVEMENT[type_mouvement]
-                    if not any(nom in pile_fonctions for nom in attendues):
-                        trouvee = pile_fonctions[-1] if pile_fonctions else "portée module"
+                    if not any(nom in self.pile_fonctions for nom in attendues):
+                        trouvee = self.pile_fonctions[-1] if self.pile_fonctions else "portée module"
                         violations.append(
-                            f"{fichier}:{noeud.lineno}: {type_mouvement} "
+                            f"{self.fichier}:{noeud.lineno}: {type_mouvement} "
                             f"dans {trouvee}"
                         )
                 self.generic_visit(noeud)
 
-        Visitor().visit(arbre)
+        Visitor(fichier, pile_fonctions).visit(arbre)
 
     if violations:
         return False, "; ".join(violations)

@@ -1,11 +1,6 @@
 import math
 
-from . import contrats_sortie
-from . import reception
-from . import reorder
-from . import stock
-from . import validation
-from . import variance
+from . import contrats_sortie, reception, reorder, stock, validation, variance
 
 
 def _dernier_cout_unitaire_connu(chantier_id, materiau_id, registre):

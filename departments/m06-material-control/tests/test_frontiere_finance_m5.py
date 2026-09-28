@@ -9,18 +9,9 @@ paquet m6_material_control n'importe jamais m5_financecore en dehors des tests
 (#109).
 """
 
-import sys
 from decimal import Decimal
-from pathlib import Path
 
 import pytest
-
-_SRC_M6 = Path(__file__).resolve().parents[1] / "src"
-_SRC_M5 = Path(__file__).resolve().parents[2] / "m05-financecore" / "src"
-for _chemin in (_SRC_M6, _SRC_M5):
-    if str(_chemin) not in sys.path:
-        sys.path.insert(0, str(_chemin))
-
 from m6_material_control.contrats_sortie import montant_decimal_a_la_frontiere
 
 
@@ -61,7 +52,6 @@ def test_signal_po_a_payer_converti_est_accepte_par_le_vrai_validateur_m5():
     m5_financecore.validation.valider_mouvement (le VRAI validateur M5, jamais
     réécrit ni simulé)."""
     from m5_financecore import validation as validation_m5
-
     from m6_material_control import materiel
     from m6_material_control.registre import Registre
 

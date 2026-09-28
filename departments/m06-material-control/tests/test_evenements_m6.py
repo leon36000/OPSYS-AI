@@ -306,7 +306,6 @@ def test_declaration_absente_chantier_id_resolu_depuis_le_prevu(base_durable):
 
 
 def test_prevu_et_declaration_absents_chantier_id_null_jamais_devine(base_durable):
-    m6 = {o.nom: o for o in outils()}
     with stockage.transaction():
         consommateurs()["m4.travaux_termines"](_wct_charge())
 

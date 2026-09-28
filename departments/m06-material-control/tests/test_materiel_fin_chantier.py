@@ -3,16 +3,9 @@
 consommer_materiaux (m6_consommer_materiaux). T1.1-d2 : la déclaration validée est
 persistée au registre (mouvements typés, tout-ou-rien, idempotente par wct_id)."""
 
-import sys
-from pathlib import Path
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
 
 from m6_material_control import materiel, stock
 from m6_material_control.registre import Registre
-
 
 CLES_MONETAIRES_INTERDITES = {
     "cout_unitaire",

@@ -1,10 +1,3 @@
-import sys
-from pathlib import Path
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
 from m6_material_control.reception import traiter_reception
 
 
@@ -38,7 +31,10 @@ def test_reception_conforme_pour_deux_lignes_aux_quantites_identiques():
     catalogue = {
         "version": "2025.01",
         "unite_monetaire": "CAD",
-        "postes": {"BETON": {"cout_unitaire": 100.0, "libelle": "BETON"}, "ACIER": {"cout_unitaire": 50.0, "libelle": "ACIER"}},
+        "postes": {
+            "BETON": {"cout_unitaire": 100.0, "libelle": "BETON"},
+            "ACIER": {"cout_unitaire": 50.0, "libelle": "ACIER"},
+        },
     }
 
     accuse = traiter_reception(bon_demande, reception_po, catalogue, RegistreVide())
@@ -73,7 +69,10 @@ def test_reception_inferieure_lorsqu_une_ligne_est_strictement_inferieure():
     catalogue = {
         "version": "2025.01",
         "unite_monetaire": "CAD",
-        "postes": {"BETON": {"cout_unitaire": 100.0, "libelle": "BETON"}, "ACIER": {"cout_unitaire": 50.0, "libelle": "ACIER"}},
+        "postes": {
+            "BETON": {"cout_unitaire": 100.0, "libelle": "BETON"},
+            "ACIER": {"cout_unitaire": 50.0, "libelle": "ACIER"},
+        },
     }
 
     accuse = traiter_reception(bon_demande, reception_po, catalogue, RegistreVide())
@@ -105,7 +104,10 @@ def test_reception_superieure_lorsqu_une_ligne_est_strictement_superieure():
     catalogue = {
         "version": "2025.01",
         "unite_monetaire": "CAD",
-        "postes": {"BETON": {"cout_unitaire": 100.0, "libelle": "BETON"}, "ACIER": {"cout_unitaire": 50.0, "libelle": "ACIER"}},
+        "postes": {
+            "BETON": {"cout_unitaire": 100.0, "libelle": "BETON"},
+            "ACIER": {"cout_unitaire": 50.0, "libelle": "ACIER"},
+        },
     }
 
     accuse = traiter_reception(bon_demande, reception_po, catalogue, RegistreVide())
@@ -137,7 +139,10 @@ def test_reception_mixte_lorsqu_une_ligne_est_inferieure_et_une_autre_superieure
     catalogue = {
         "version": "2025.01",
         "unite_monetaire": "CAD",
-        "postes": {"BETON": {"cout_unitaire": 100.0, "libelle": "BETON"}, "ACIER": {"cout_unitaire": 50.0, "libelle": "ACIER"}},
+        "postes": {
+            "BETON": {"cout_unitaire": 100.0, "libelle": "BETON"},
+            "ACIER": {"cout_unitaire": 50.0, "libelle": "ACIER"},
+        },
     }
 
     accuse = traiter_reception(bon_demande, reception_po, catalogue, RegistreVide())
@@ -197,7 +202,10 @@ def test_reception_indeterminee_lorsqu_une_ligne_demandee_n_a_pas_de_reception()
     catalogue = {
         "version": "2025.01",
         "unite_monetaire": "CAD",
-        "postes": {"BETON": {"cout_unitaire": 100.0, "libelle": "BETON"}, "ACIER": {"cout_unitaire": 50.0, "libelle": "ACIER"}},
+        "postes": {
+            "BETON": {"cout_unitaire": 100.0, "libelle": "BETON"},
+            "ACIER": {"cout_unitaire": 50.0, "libelle": "ACIER"},
+        },
     }
 
     accuse = traiter_reception(bon_demande, reception_po, catalogue, RegistreVide())
@@ -228,7 +236,10 @@ def test_montant_total_estime_est_la_somme_exacte_lorsque_tous_les_prix_sont_res
     catalogue = {
         "version": "2025.01",
         "unite_monetaire": "CAD",
-        "postes": {"BETON": {"cout_unitaire": 12.5, "libelle": "BETON"}, "ACIER": {"cout_unitaire": 7.0, "libelle": "ACIER"}},
+        "postes": {
+            "BETON": {"cout_unitaire": 12.5, "libelle": "BETON"},
+            "ACIER": {"cout_unitaire": 7.0, "libelle": "ACIER"},
+        },
     }
 
     accuse = traiter_reception(bon_demande, reception_po, catalogue, RegistreVide())

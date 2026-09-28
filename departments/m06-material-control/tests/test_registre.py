@@ -1,14 +1,6 @@
-import sys
-from pathlib import Path
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
 import re
 
 from m6_material_control.registre import Registre
-
 
 _CLES_MAILLON = {
     "index",
@@ -326,7 +318,7 @@ def test_ajouter_lot_produit_un_chainage_de_hash_identique_au_cas_ajouter_un_par
 
     assert erreur_lot is None
     assert len(maillons_lot) == len(maillons_un_par_un)
-    for a, b in zip(maillons_un_par_un, maillons_lot):
+    for a, b in zip(maillons_un_par_un, maillons_lot, strict=True):
         assert a["hash_maillon"] == b["hash_maillon"]
         assert a["hash_precedent"] == b["hash_precedent"]
         assert a["index"] == b["index"]

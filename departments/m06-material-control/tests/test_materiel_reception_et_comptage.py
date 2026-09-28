@@ -5,12 +5,6 @@ jamais écrit au registre. Une consommation ultérieure du même matériau écho
 donc par REJ-STOCK-INSUFFISANT faute de stock réellement enregistré.
 """
 
-import sys
-from pathlib import Path
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
 
 from m6_material_control import materiel
 from m6_material_control.registre import Registre
