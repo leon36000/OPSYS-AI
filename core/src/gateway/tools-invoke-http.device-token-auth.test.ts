@@ -7,8 +7,10 @@
 // own in `opsys-device-roles.test.ts`) is mandatory once a device token authenticates.
 //
 // Auth is exercised for real: `requestDevicePairing`/`approveDevicePairing`/`ensureDeviceToken`/
-// `revokeDeviceToken` against a fresh `OPENCLAW_HOME` per test (same pattern as
-// `control-ui.http.test.ts`'s `withPairedOperatorDeviceToken`), so a bearer is verified by the
+// `revokeDeviceToken` inside `withOpenClawTestState` per test (same pattern as
+// `http-auth-utils.paired-device.test.ts`, which provides the shared-state admission a vitest
+// worker thread needs — a bare `OPENCLAW_HOME` fails with "Shared-state admission requires the
+// host broker" in this project), so a bearer is verified by the
 // REAL `checkGatewayHttpRequestAuth`/`checkHttpOperatorCredentials`/`verifyHttpOperatorDeviceToken`
 // chain, not a stub. Tool dispatch itself is mocked (`./tool-resolution.js`) so these tests stay
 // about authentication and OPSYS identity, not the unrelated owner-only gateway tool deny-list
@@ -16,21 +18,24 @@
 // is, by design (`resolveOpenAiCompatibleHttpSenderIsOwner`, unchanged by this PLAN) — is subject
 // to for REAL core tools.
 import { randomUUID } from "node:crypto";
-import fs from "node:fs/promises";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import os from "node:os";
-import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { approveDevicePairing } from "../infra/device-pairing-approval.js";
-import { revokeDeviceToken } from "../infra/device-pairing-tokens.js";
+import { ensureDeviceToken, revokeDeviceToken } from "../infra/device-pairing-tokens.js";
 import { requestDevicePairing } from "../infra/device-pairing.js";
-import { closeOpenClawStateDatabaseByPathAsync } from "../state/openclaw-state-db-cache.js";
-import { resolveOpenClawStateSqlitePath } from "../state/openclaw-state-db.paths.js";
-import { withEnvAsync } from "../test-utils/env.js";
+import { withOpenClawTestState } from "../test-utils/openclaw-test-state.js";
+import type { ResolvedGatewayAuth } from "./auth-resolve.js";
 import type { OpsysDeviceAuthorization } from "./opsys-device-roles.js";
+import { resolveSharedGatewaySessionGeneration } from "./server/ws-shared-generation.js";
 
 const SHARED_GATEWAY_TOKEN = "test-gateway-token-shared-1234567890";
+const SHARED_GATEWAY_AUTH: ResolvedGatewayAuth = {
+  mode: "token",
+  token: SHARED_GATEWAY_TOKEN,
+  password: undefined,
+  allowTailscale: false,
+};
 const OPSYS_TOOL_NAME = "m4_pointer";
 const resolveToolLoopDetectionConfig = () => ({ warnAt: 3 });
 const runBeforeToolCallHook = async (args: { params: unknown }) => ({
@@ -121,7 +126,7 @@ beforeAll(async () => {
   server = createServer((req, res) => {
     void (async () => {
       const handled = await handleToolsInvokeHttpRequest(req, res, {
-        auth: { mode: "token", token: SHARED_GATEWAY_TOKEN, allowTailscale: false },
+        auth: SHARED_GATEWAY_AUTH,
       });
       if (handled) {
         return;
@@ -160,51 +165,51 @@ beforeEach(() => {
   authorization = { ok: false, reason: "device_unknown" };
 });
 
-/** A real approved "operator"-role paired device, in an isolated `OPENCLAW_HOME`, per PLAN T1.4-c4
- * ("réutilise le mécanisme natif" — same pairing/token issuance the mobile appairage flow uses,
- * R12 §1.3): `fn` gets the device's own real bearer token, verified by the unmocked auth chain. */
+/** A real approved "operator"-role paired device, in an isolated OpenClaw test state, per PLAN
+ * T1.4-c4 ("réutilise le mécanisme natif" — same pairing/token issuance the mobile appairage flow
+ * uses, R12 §1.3): `fn` gets the device's own real bearer token, verified by the unmocked auth
+ * chain. The token is issued for the CURRENT shared gateway session generation, exactly like
+ * `http-auth-utils.paired-device.test.ts`, since `verifyHttpOperatorDeviceToken` checks it. */
 async function withPairedDeviceToken<T>(
   deviceId: string,
   fn: (deviceToken: string, ctx: { revoke: () => Promise<void> }) => Promise<T>,
 ): Promise<T> {
-  const tempHome = await fs.mkdtemp(
-    path.join(os.tmpdir(), "opsys-tools-invoke-device-token-"),
-  );
-  let databasePath: string | undefined;
-  try {
-    return await withEnvAsync({ OPENCLAW_HOME: tempHome }, async () => {
-      databasePath = resolveOpenClawStateSqlitePath();
-      const requested = await requestDevicePairing({
-        deviceId,
-        publicKey: `test-public-key-${randomUUID()}`,
-        role: "operator",
-        scopes: ["operator.read", "operator.write"],
-      });
-      const approved = await approveDevicePairing(requested.request.requestId, {
-        callerScopes: ["operator.read", "operator.write"],
-      });
-      if (approved?.status !== "approved") {
-        throw new Error(`pairing approval failed: ${approved?.status}`);
-      }
-      const deviceToken = approved.device.tokens?.operator?.token;
-      if (!deviceToken) {
-        throw new Error("no operator device token issued");
-      }
-      return await fn(deviceToken, {
-        revoke: async () => {
-          const revoked = await revokeDeviceToken({ deviceId, role: "operator" });
-          if (revoked.ok !== true) {
-            throw new Error(`revoke failed: ${JSON.stringify(revoked)}`);
-          }
-        },
-      });
+  return await withOpenClawTestState({ label: "opsys-tools-invoke-device-token" }, async () => {
+    const scopes = ["operator.read", "operator.write"];
+    const requested = await requestDevicePairing({
+      deviceId,
+      publicKey: `test-public-key-${randomUUID()}`,
+      role: "operator",
+      scopes,
     });
-  } finally {
-    if (databasePath) {
-      await closeOpenClawStateDatabaseByPathAsync(databasePath);
+    const approved = await approveDevicePairing(requested.request.requestId, {
+      callerScopes: scopes,
+    });
+    if (approved?.status !== "approved") {
+      throw new Error(`pairing approval failed: ${approved?.status}`);
     }
-    await fs.rm(tempHome, { recursive: true, force: true });
-  }
+    const generation = resolveSharedGatewaySessionGeneration(SHARED_GATEWAY_AUTH, []);
+    if (!generation) {
+      throw new Error("no shared gateway session generation for the test auth");
+    }
+    const issued = await ensureDeviceToken({
+      deviceId,
+      role: "operator",
+      scopes,
+      issuer: { kind: "shared-gateway-auth", generation },
+    });
+    if (!issued?.token) {
+      throw new Error("no operator device token issued");
+    }
+    return await fn(issued.token, {
+      revoke: async () => {
+        const revoked = await revokeDeviceToken({ deviceId, role: "operator" });
+        if (revoked.ok !== true) {
+          throw new Error(`revoke failed: ${JSON.stringify(revoked)}`);
+        }
+      },
+    });
+  });
 }
 
 async function invoke(token: string, body: Record<string, unknown> = {}) {

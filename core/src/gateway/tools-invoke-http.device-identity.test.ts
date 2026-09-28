@@ -1,6 +1,8 @@
 // OPSYS device identity tests cover `POST /tools/invoke` building the OPSYS `_meta` MCP payload
 // (docs/architecture/IDEMPOTENCE.md §7) from `idempotencyKey`/`deviceId`/`deviceTimestamp`, on the
-// same lightweight mock stack as `tools-invoke-http.cron-regression.test.ts`.
+// same lightweight mock stack as `tools-invoke-http.cron-regression.test.ts`. The probe tool is a
+// neutral `opsys_sonde`: `automations` is denied on the HTTP surface by default
+// (`security/dangerous-tools.ts`), which would answer 404 before any `_meta` is built.
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -66,11 +68,11 @@ vi.mock("../agents/openclaw-tools.js", async () => {
   const { currentMcpCallMeta } = await import("../agents/mcp-call-meta.js");
   const tools = [
     {
-      name: "automations",
+      name: "opsys_sonde",
       parameters: { type: "object", properties: { action: { type: "string" } } },
       execute: async () => {
         capturedMeta = currentMcpCallMeta();
-        return { ok: true, via: "automations" };
+        return { ok: true, via: "opsys_sonde" };
       },
     },
   ];
@@ -133,7 +135,7 @@ async function invoke(body: Record<string, unknown>) {
       authorization: `Bearer ${TEST_GATEWAY_TOKEN}`,
       "x-openclaw-scopes": "operator.write",
     },
-    body: JSON.stringify({ tool: "automations", action: "status", args: {}, sessionKey: "main", ...body }),
+    body: JSON.stringify({ tool: "opsys_sonde", action: "status", args: {}, sessionKey: "main", ...body }),
   });
 }
 

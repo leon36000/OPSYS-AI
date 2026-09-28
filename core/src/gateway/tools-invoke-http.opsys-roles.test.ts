@@ -90,11 +90,11 @@ vi.mock("../agents/openclaw-tools.js", async () => {
   const { currentMcpCallMeta } = await import("../agents/mcp-call-meta.js");
   const tools = [
     {
-      name: "automations",
+      name: "opsys_sonde",
       parameters: { type: "object", properties: { action: { type: "string" } } },
       execute: async () => {
         capturedMeta = currentMcpCallMeta();
-        return { ok: true, via: "automations" };
+        return { ok: true, via: "opsys_sonde" };
       },
     },
   ];
@@ -159,7 +159,7 @@ async function invoke(body: Record<string, unknown>) {
       "content-type": "application/json",
       authorization: `Bearer ${TEST_GATEWAY_TOKEN}`,
     },
-    body: JSON.stringify({ tool: "automations", action: "status", args: {}, sessionKey: "main", ...body }),
+    body: JSON.stringify({ tool: "opsys_sonde", action: "status", args: {}, sessionKey: "main", ...body }),
   });
 }
 
@@ -201,9 +201,10 @@ describe("tools invoke HTTP: shared-secret bearer auth never borrows an OPSYS de
 
 describe("invokeGatewayTool: OPSYS device identity resolution from authenticatedDeviceId (PLAN T1.4-c4)", () => {
   // Exactly the shape `tools-invoke-http.ts` passes once it has verified a device token: a
-  // trusted-operator-equivalent caller otherwise, so the mocked "automations" core tool stays
-  // visible through the REAL (unmocked in this file) tool-resolution policy — isolating these
-  // tests to the identity logic in `tools-invoke-shared.ts`, not tool-visibility policy.
+  // trusted-operator-equivalent caller otherwise. The probe tool is a neutral `opsys_sonde`: the
+  // REAL (unmocked in this file) tool-resolution policy denies `automations` on the HTTP surface by
+  // default (`security/dangerous-tools.ts`), whoever the caller — isolating these tests to the
+  // identity logic in `tools-invoke-shared.ts`, not tool-visibility policy.
   const baseParams = () => ({
     cfg,
     toolCallIdPrefix: "test",
@@ -216,7 +217,7 @@ describe("invokeGatewayTool: OPSYS device identity resolution from authenticated
     authorization = { ok: false, reason: "device_unknown" };
     const outcome = await invokeGatewayTool({
       ...baseParams(),
-      input: { tool: "automations", action: "status", args: {}, sessionKey: "main" },
+      input: { tool: "opsys_sonde", action: "status", args: {}, sessionKey: "main" },
       authenticatedDeviceId: "tel-inconnu",
     });
 
@@ -226,7 +227,7 @@ describe("invokeGatewayTool: OPSYS device identity resolution from authenticated
       expect(outcome.error.type).toBe("tool_call_blocked");
       expect(outcome.error.message).toContain("device_unknown");
     }
-    expect(authorizeCalls).toEqual([{ deviceId: "tel-inconnu", toolName: "automations" }]);
+    expect(authorizeCalls).toEqual([{ deviceId: "tel-inconnu", toolName: "opsys_sonde" }]);
     expect(capturedMeta).toBeUndefined();
   });
 
@@ -234,7 +235,7 @@ describe("invokeGatewayTool: OPSYS device identity resolution from authenticated
     authorization = { ok: false, reason: "tool_out_of_scope" };
     const outcome = await invokeGatewayTool({
       ...baseParams(),
-      input: { tool: "automations", action: "status", args: {}, sessionKey: "main" },
+      input: { tool: "opsys_sonde", action: "status", args: {}, sessionKey: "main" },
       authenticatedDeviceId: "tel-employe-42",
     });
 
@@ -250,7 +251,7 @@ describe("invokeGatewayTool: OPSYS device identity resolution from authenticated
     authorization = { ok: false, reason: "role_unknown" };
     const outcome = await invokeGatewayTool({
       ...baseParams(),
-      input: { tool: "automations", action: "status", args: {}, sessionKey: "main" },
+      input: { tool: "opsys_sonde", action: "status", args: {}, sessionKey: "main" },
       authenticatedDeviceId: "tel-employe-42",
     });
 
@@ -264,12 +265,12 @@ describe("invokeGatewayTool: OPSYS device identity resolution from authenticated
     authorization = { ok: true, personne: "jdupont", role: "employee" };
     const outcome = await invokeGatewayTool({
       ...baseParams(),
-      input: { tool: "automations", action: "status", args: {}, sessionKey: "main" },
+      input: { tool: "opsys_sonde", action: "status", args: {}, sessionKey: "main" },
       authenticatedDeviceId: "tel-employe-42",
     });
 
     expect(outcome.ok).toBe(true);
-    expect(authorizeCalls).toEqual([{ deviceId: "tel-employe-42", toolName: "automations" }]);
+    expect(authorizeCalls).toEqual([{ deviceId: "tel-employe-42", toolName: "opsys_sonde" }]);
     expect(capturedMeta).toEqual({ "opsys/personne": "jdupont", "opsys/role": "employee" });
   });
 
@@ -278,7 +279,7 @@ describe("invokeGatewayTool: OPSYS device identity resolution from authenticated
     const outcome = await invokeGatewayTool({
       ...baseParams(),
       input: {
-        tool: "automations",
+        tool: "opsys_sonde",
         action: "status",
         args: {},
         sessionKey: "main",
@@ -303,7 +304,7 @@ describe("invokeGatewayTool: OPSYS device identity resolution from authenticated
     const outcome = await invokeGatewayTool({
       ...baseParams(),
       input: {
-        tool: "automations",
+        tool: "opsys_sonde",
         action: "status",
         args: {},
         sessionKey: "main",
@@ -326,7 +327,7 @@ describe("invokeGatewayTool: OPSYS device identity resolution from authenticated
     const outcome = await invokeGatewayTool({
       ...baseParams(),
       input: {
-        tool: "automations",
+        tool: "opsys_sonde",
         action: "status",
         args: {},
         sessionKey: "main",
@@ -336,14 +337,14 @@ describe("invokeGatewayTool: OPSYS device identity resolution from authenticated
     });
 
     expect(outcome.ok).toBe(true);
-    expect(authorizeCalls).toEqual([{ deviceId: "tel-employe-42", toolName: "automations" }]);
+    expect(authorizeCalls).toEqual([{ deviceId: "tel-employe-42", toolName: "opsys_sonde" }]);
   });
 
   it("never attaches an OPSYS identity, and never queries the role check, without an authenticated device — a body-only deviceId is not enough (the shared-secret/CLI/RPC caller shape)", async () => {
     const outcome = await invokeGatewayTool({
       ...baseParams(),
       input: {
-        tool: "automations",
+        tool: "opsys_sonde",
         action: "status",
         args: {},
         sessionKey: "main",
