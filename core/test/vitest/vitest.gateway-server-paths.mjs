@@ -169,6 +169,8 @@ export const gatewayDatabaseWorkerTestFiles = [
   "src/gateway/test-helpers.acquisition.test.ts",
   "src/gateway/tool-resolution.cron-capture.test.ts",
   "src/gateway/tools-invoke-authorization.test.ts",
+  // OPSYS (PLAN T1.4-c4) : appairage réel, besoin du broker SQLite de l'hôte (processus forké).
+  "src/gateway/tools-invoke-http.device-token-auth.test.ts",
   "src/gateway/tools-invoke-http.test.ts",
   "src/gateway/tui-session-description-wire.test.ts",
   "src/gateway/user-profiles-http.auth.test.ts",
