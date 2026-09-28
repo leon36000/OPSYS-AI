@@ -490,8 +490,20 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       - outils permis par rôle, générés par `opsys openclaw configurer` ;
       - `opsys/personne` et `opsys/role` transmis au moteur, qui s'en sert pour les projections
         et les signatures.
-    - [ ] T1.4-c3 Mobile : client d'appairage (QR ou code, défi signé selon l'algorithme du
+    - [x] T1.4-c3 Mobile : client d'appairage (QR ou code, défi signé selon l'algorithme du
           fork, jeton dans `expo-secure-store`), testé contre le protocole lu dans le core.
+
+          Preuve (c171a2a) :
+          - défi `connect.challenge`, charge v3 et signature Ed25519 pure (RFC 8032), établis par
+            lecture du fork avec références ;
+          - `deviceId` = sha256 de la clé publique ;
+          - vecteurs vérifiés octet pour octet, dont un vecteur croisé avec Node `crypto` ;
+          - code `oc-pair://` ; jeton dans `expo-secure-store` ;
+          - Jest 312, `@noble/curves` et `@noble/hashes` (MIT) inscrits.
+
+          Reste (dépend de T1.4-c2) : le core ne renvoie que le rôle générique `operator`, que la
+          garde refuse. Le catalogue des clients du core n'a pas d'identifiant OPSYS. L'écran de
+          pointage garde un identifiant d'appareil provisoire, à relier à la vraie identité.
 
   - [ ] T1.4-d `punch.tsx` (M4.4) de bout en bout par la file sortante (R12 §5, étape 2).
 
