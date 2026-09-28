@@ -49,4 +49,9 @@ jobs:
         run: pnpm build
       - name: Tests unitaires rapides
         working-directory: ${{ env.CORE_DIR }}
+        # Mêmes réglages que la CI amont (ci.yml) : la config unitaire partage ses workers
+        # (isolate: false), elle tourne avec peu de workers et 8 Go de tas Node.
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+          OPENCLAW_VITEST_MAX_WORKERS: "2"
         run: pnpm test:fast
