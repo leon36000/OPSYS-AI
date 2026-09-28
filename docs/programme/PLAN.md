@@ -94,9 +94,11 @@ identifiants du propriétaire, repli livré en attendant.
 
       Résultats : 20 tests, dont chaque clé retrouvée dans le schéma du fork ; socle 208 verts ;
       verifier OK.
-- [ ] T0.10 Superviseur : le core lance et surveille le moteur métier Python (via `uv`), santé et
+- [x] T0.10 Superviseur : le core lance et surveille le moteur métier Python (via `uv`), santé et
       journaux unifiés, une seule authentification.
-      Livré (096512f, 533f6a6), à cocher quand le job `tests-opsys` du core sera vert :
+      Preuve (096512f, 533f6a6 ; CI core 22, job `tests-opsys` vert : 28 fichiers sur 28 cibles,
+      dont `opsys-metier-config` 30 tests, `opsys-metier-env` 11, `opsys-metier-supervisor` 19,
+      `health.owner-routing` 17) :
       - réutilise `ProcessSupervisor` (lancement, sortie relayée, arrêt de l'arbre) et
         `RetrySupervisor` du fork ; désactivé par défaut (`opsys/metier.json`, `"actif": true`) ;
       - `uv run opsys-mcp --http` sur 127.0.0.1 ; sonde `GET /sante` (sans jeton ni donnée
