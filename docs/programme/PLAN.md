@@ -55,7 +55,11 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
 
 ## T2 — Du lead à la soumission (§6, flux principal)
 
-- [ ] T2.1 M1 : intake omnicanal par les canaux du core, qualification, appel manqué.
+- [ ] T2.1 M1 : intake omnicanal par les canaux du core, qualification, appel manqué. Câbler les
+      extensions du fork (`voice-call` Twilio, `sms`, `imap`, `tts-local-cli`) au lieu de reconstruire la
+      voix ; taxonomie des 4 services réels (gouttières, revêtement, soffite-fascia, réparation) ; contrat
+      M1→M2 avec `source`, `utm`, `campagne` ; tests qui passent par `Capacites` (approbations réelles)
+      (audit M1).
 - [ ] T2.2 M2 : lead structuré, Client 360, préparation à l'estimation, prochaine action.
 - [ ] T2.3 M3 : estimation honnête, soumission brouillon, approbation, besoins matériaux vers M6.
 - [ ] T2.4 M6 : catalogue, livre de prix, PO brouillon, courriel fournisseur via M1 (repli manuel).
@@ -88,6 +92,9 @@ météo et GPS M4, vision M3, conseil d'agents M9…
 
 Secrets chiffrés, RBAC par métrique, Loi 25 (consentements, rétention, export, effacement),
 multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mensuelle).
+
+- [ ] T5.1 Lint des départements : `ruff` ne couvre aujourd'hui que le socle (`src`, `tests`) ; l'audit M1
+      relève 122 avertissements dans M1. Étendre la CI aux départements après correction.
 
 ## Décisions attendues de Nathan (GATE NATHAN, ne bloquent pas la boucle)
 
