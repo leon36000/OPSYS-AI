@@ -13,9 +13,10 @@ import json
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
+from opsys import stockage
 from opsys.outils import Autonomie, Outil, depuis_couple
 
-from . import blocage_prix, contrats, hierarchie_echelle, monte_carlo, plancher, qualite_photos
+from . import blocage_prix, contrats, hierarchie_echelle, monte_carlo, plancher, qualite_photos, registre
 
 _PHOTO = {
     "type": "object",
@@ -179,6 +180,19 @@ def estimer_projet(
         "graine_monte_carlo": graine_effective,
         "bareme_version": bareme.get("version"),
     }
+
+
+def registre_production() -> registre.Registre:
+    """Registre M3 adossé au stockage durable de l'instance (ADR-0009).
+
+    `registre.py` reste pur : il ignore que ses maillons viennent d'une liste Python ou de
+    `opsys.stockage.MaillonsDurables`. C'est ce point d'entrée — jamais `registre.py` — qui
+    choisit le support durable pour un registre de production, dans la transaction courante
+    (`opsys.stockage.transaction()`, ouverte par l'appelant ou par `Capacites.appeler`). Les
+    tests unitaires du département construisent `registre.Registre()` EN MÉMOIRE, explicitement,
+    sans passer par cette fonction.
+    """
+    return registre.Registre(stockage.maillons("m03-estimation", "principal"))
 
 
 def outils() -> tuple[Outil, ...]:

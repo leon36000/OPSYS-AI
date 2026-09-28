@@ -120,10 +120,24 @@ def _hash_maillon(rang, hash_precedent, charge, cout_reel):
 
 
 class Registre:
-    """Journal en mémoire append-only des charges d'estimation M3."""
+    """Journal append-only des charges d'estimation M3.
 
-    def __init__(self):
-        self._maillons = []
+    Module pur (ADR-0009) : aucun import d'``opsys`` ni de SQLAlchemy. ``Registre`` ignore où
+    vivent ses maillons — une liste Python en mémoire par défaut (perdue à l'arrêt du
+    processus, comportement historique), ou tout objet qui s'en comporte comme une (``len``,
+    index positif et négatif, tranche, itération, ``append``), notamment
+    ``opsys.stockage.MaillonsDurables`` : c'est l'appelant (l'adaptateur de production dans
+    ``outils.py``, jamais ce module) qui fait ce choix. Aucun état dérivé n'est mis en cache :
+    ``hash_tete()`` et ``valider_chaine()`` relisent ``self._maillons`` à chaque appel, donc une
+    instance rouverte sur un registre durable déjà peuplé (redémarrage du processus) reflète
+    l'état réel dès son premier appel, sans jamais supposer une chaîne vide.
+    """
+
+    def __init__(self, maillons=None):
+        """``maillons`` : le support où vivent les maillons (protocole liste, cf. docstring de
+        la classe). ``None`` (par défaut) garde le comportement historique : une liste Python en
+        mémoire, vide au départ."""
+        self._maillons = maillons if maillons is not None else []
 
     def ajouter(self, charge):
         """Ajoute une charge valide et retourne ``(maillon, None)``."""
