@@ -201,6 +201,31 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       marketing (photos, ville, consentement : M7) ; M3 et M9 la reçoivent en second ordre (M6/M5 et
       M8, ADR-0009) (audits M4, M5, M7). `job.completed` déclenche la cascade (M6 variance, M5 facture brouillon, M2
       activité et prochaine action, M7 demande d'avis, M3 estimé vs réel, M8 métriques, M10 mémoire).
+  - [ ] T1.2-a Socle, bus d'événements (ADR-0009 §3) :
+        - `evenements_sortants` et `evenements_recus`, avec l'unicité (événement, consommateur),
+          migration 0003 ;
+        - `publier()` dans la transaction métier ;
+        - catalogue JSON Schema `opsys.evenement/v1` ;
+        - consommateurs déclarés par les départements et vérifiés par `opsys verifier` ;
+        - répartiteur idempotent : réessais espacés, quarantaine, sondage de secours ;
+        - `opsys evenements etat|repartir` ;
+        - parité PostgreSQL.
+  - [ ] T1.2-b M4 : publier `m4.travaux_termines/v1` avec le WCT, dans la même transaction ; porter
+        dans la charge ce que les audits M5 et M7 exigent. Passer de `completed_pending_review` à
+        `completed_verified` quand le code a sa base : preuves complètes et variance M6 sans signal
+        critique.
+  - [ ] T1.2-c Consommateurs de premier ordre :
+        - M2 : activité et prochaine action, par une table de règles déterministe ;
+        - M10 : mémoire du WCT ;
+        - M8 : métriques ;
+        - M7 : demande d'avis, soumise au consentement.
+  - [ ] T1.2-d Consommateurs à données amont :
+        - M6 : variance, où un prévu absent donne un verdict qui le demande ;
+        - M5 : facture brouillon, où des lignes de devis absentes donnent un verdict qui les
+          demande, jamais un montant inventé ;
+        - M3, en second ordre : estimé contre réel.
+  - [ ] T1.2-e Test de bout en bout : de la complétion jusqu'à la cascade, avec une relivraison
+        idempotente et un consommateur en échec mis en quarantaine sans bloquer les autres.
 - [ ] T1.3 Approbations N3–N4 (complétion, facture, écart matériaux), file du propriétaire.
       Envoi et paiement de facture exposés en T3 seulement, par les approbations du socle : la
       vérification de forme du maillon F4 de `facturation.envoyer_facture` ne suffit pas seule.
