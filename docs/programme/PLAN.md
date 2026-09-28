@@ -609,9 +609,33 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
     lance lui-même depuis l'app, dans la portée de son rôle, vaut la « validation humaine au
     départ » d'un N3 (ADR-0009 §4) ; les N4 et N5 restent au propriétaire. Code critique : revue
     externe, et confirmation par Nathan (GATE ci-dessous).
-  - [ ] T1.4-i M6 lit le WCT à la source : `m6_declarer_materiaux_utilises` prend le `wct_id` et
+
+    Livré sur la branche `agent/t1-4-h-approbations` (5b7615d), NON intégré : plafond N3, identité
+    relue en base, portée du rôle tirée de `openclaw.roles_outils`, trace atomique dans le journal
+    des approbations (fix GPS masqué), idempotence intacte ; socle 434. Mais la portée actuelle
+    des rôles est trop large : un employé exécuterait seul `m6_approuver_po`,
+    `m4_resoudre_demande` ou `m4_lire_position_gps`. Dépend de T1.4-j.
+  - [x] T1.4-i M6 lit le WCT à la source : `m6_declarer_materiaux_utilises` prend le `wct_id` et
     lit la charge publiée par M4 dans le magasin d'événements du socle, au lieu de la recevoir de
     l'appelant.
+    Preuve (bbd08df) :
+    - socle : `evenements.charge_publiee(type, evenement_id)` lit le magasin du bus, sans copie ;
+    - M6 : `wct_id` inconnu, fabriqué ou d'un autre type → `REJ-WCT-INCONNU`, avant toute
+      écriture ; la charge lue passe par les mêmes validations qu'avant ;
+    - mobile : plus de relecture de l'outbox ni de cache du WCT, seul le `wct_id` est gardé ;
+    - socle 412, M6 394, M4 761, M5 321, Jest 585, verifier 119.
+
+    Reste (T1.4-k) : M6 sait que le WCT existe, pas que l'appareil a le droit d'y déclarer.
+  - [ ] T1.4-j Portée par outil des rôles d'appareil : chaque outil déclare les rôles qui peuvent
+    l'appeler (manifeste), fermé par défaut ; `openclaw.roles_outils` en devient la seule source
+    (core et socle). Aujourd'hui `employee` reçoit tous les outils M4 et M6 hors T3, dont
+    `m4_lire_outbox` (positions GPS de tous les techniciens), `m6_approuver_po` et
+    `m6_consommer_materiaux` (qui prend encore un WCT fourni par l'appelant). Profils : définition
+    §9.
+  - [ ] T1.4-k Contrôle d'accès par intervention : M4 lie la personne authentifiée au pointage et
+    à la complétion ; M6 et M4 refusent une action sur l'intervention d'un autre technicien, sauf
+    rôle `admin` ; `chantier_id` et `intervention_id` du formulaire des matériaux confrontés au
+    WCT.
 - [ ] T1.5 E2E : travaux terminés normaux ; écart de 40 % → `completed_pending_review` et alerte
       sur le mobile de l'admin.
 
