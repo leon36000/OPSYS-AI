@@ -85,6 +85,49 @@ def test_calculer_taxes_est_reproductible():
     assert premier == second
 
 
+def test_calculer_taxes_tps_arrondit_un_demi_cent_vers_le_haut():
+    """4,50 $ x 5 % = 0,225 $ pile : un demi-cent exact. ROUND_HALF_UP (choisi ici) arrondit à
+    0,23 $ ; le mode par défaut du module decimal (ROUND_HALF_EVEN) arrondirait à 0,22 $.
+
+    Règle légale (source officielle, vérifiée par recherche web le 2026-09-28) : Agence du revenu
+    du Canada, « Renseignements généraux sur la TPS/TVH pour les inscrits » (RC4022), section
+    « Arrondir les montants fractionnaires » :
+    « Arrondissez les montants de la TPS/TVH au cent près, de l'une des façons suivantes :
+    Si le montant est inférieur à la moitié d'un cent, vous pouvez arrondir au cent inférieur.
+    Si le montant est égal ou supérieur à la moitié d'un cent, arrondissez au cent supérieur. »
+    https://www.canada.ca/fr/agence-revenu/services/formulaires-publications/publications/rc4022/renseignements-generaux-tps-tvh-inscrits.html#H2_221
+    """
+    resultat, verdict = taxes.calculer_taxes(
+        Decimal("4.50"), _dictionnaire_reel(), ids_taux=("tps_federale",)
+    )
+
+    assert verdict is None
+    assert resultat["taxes"][0]["montant"] == Decimal("0.23")
+    # confirme le contraste : sans rounding= explicite, le module decimal arrondirait à 0.22
+    assert Decimal("4.50") * Decimal("0.05") == Decimal("0.225")
+    assert Decimal("0.225").quantize(Decimal("0.01")) == Decimal("0.22")
+
+
+def test_calculer_taxes_tvq_arrondit_un_demi_cent_vers_le_haut():
+    """60,00 $ x 9,975 % = 5,985 $ pile : un demi-cent exact. ROUND_HALF_UP (choisi ici) arrondit
+    à 5,99 $ ; le mode par défaut du module decimal (ROUND_HALF_EVEN) arrondirait à 5,98 $.
+
+    Règle légale (source officielle, vérifiée par recherche web le 2026-09-28) : Revenu Québec,
+    « Calcul des taxes » :
+    « Seules les fractions égales ou supérieures à 0,005 $ doivent être arrondies à 0,01 $. »
+    https://www.revenuquebec.ca/fr/entreprises/taxes/tpstvh-et-tvq/perception-de-la-tps-et-de-la-tvq/calcul-des-taxes/
+    """
+    resultat, verdict = taxes.calculer_taxes(
+        Decimal("60.00"), _dictionnaire_reel(), ids_taux=("tvq_quebec",)
+    )
+
+    assert verdict is None
+    assert resultat["taxes"][0]["montant"] == Decimal("5.99")
+    # confirme le contraste : sans rounding= explicite, le module decimal arrondirait à 5.98
+    assert Decimal("60.00") * Decimal("0.09975") == Decimal("5.98500")
+    assert Decimal("5.98500").quantize(Decimal("0.01")) == Decimal("5.98")
+
+
 def test_calculer_taxes_utilise_le_taux_lu_du_fichier_jamais_code_en_dur():
     """Un taux modifié dans la déclaration versionnée doit changer le résultat :
     preuve que le calcul lit bien `dictionnaire_taux`, pas une constante interne."""

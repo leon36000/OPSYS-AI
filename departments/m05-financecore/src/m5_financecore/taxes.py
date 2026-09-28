@@ -7,11 +7,27 @@ taux est TOUJOURS lu via `taux_fiscaux.rechercher_taux` (jamais codé en dur ici
 ailleurs, CA-M5-14) et converti en Decimal depuis sa représentation textuelle
 (`Decimal(str(taux["taux"]))`, jamais `Decimal(taux["taux"])` qui importerait
 l'imprécision binaire du float source).
+
+PLAN T1.2-d (arrondi monétaire) : le montant de chaque taxe est arrondi au cent avec
+`rounding=ROUND_HALF_UP` explicite — jamais le mode par défaut du module `decimal`
+(`ROUND_HALF_EVEN`, « arrondi du banquier »). C'est une exigence LÉGALE, pas un choix de
+style, pour la TPS/TVH comme pour la TVQ :
+- Agence du revenu du Canada, « Renseignements généraux sur la TPS/TVH pour les inscrits »
+  (RC4022), section « Arrondir les montants fractionnaires » : « Si le montant est égal ou
+  supérieur à la moitié d'un cent, arrondissez au cent supérieur. »
+  https://www.canada.ca/fr/agence-revenu/services/formulaires-publications/publications/rc4022/renseignements-generaux-tps-tvh-inscrits.html#H2_221
+- Revenu Québec, « Calcul des taxes » : « Seules les fractions égales ou supérieures à
+  0,005 $ doivent être arrondies à 0,01 $. »
+  https://www.revenuquebec.ca/fr/entreprises/taxes/tpstvh-et-tvq/perception-de-la-tps-et-de-la-tvq/calcul-des-taxes/
+Les deux règles décrivent ROUND_HALF_UP (une fraction égale à un demi-cent monte toujours),
+jamais ROUND_HALF_EVEN, qui aurait arrondi certains demi-cents vers le bas (voir
+`test_calculer_taxes_tps_arrondit_un_demi_cent_vers_le_haut` /
+`..._tvq_arrondit_un_demi_cent_vers_le_haut`).
 """
 
 from __future__ import annotations
 
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from . import taux_fiscaux, validation
 
@@ -41,7 +57,7 @@ def calculer_taxes(montant_avant_taxes, dictionnaire_taux, ids_taux=_IDS_TAXES_Q
         if verdict is not None:
             return None, verdict
         taux_decimal = Decimal(str(taux["taux"]))
-        montant_taxe = (montant_avant_taxes * taux_decimal).quantize(_DEUX_DECIMALES)
+        montant_taxe = (montant_avant_taxes * taux_decimal).quantize(_DEUX_DECIMALES, rounding=ROUND_HALF_UP)
         detail_taxes.append(
             {
                 "id": taux_id,

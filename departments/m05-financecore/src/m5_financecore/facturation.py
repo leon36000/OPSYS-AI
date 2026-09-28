@@ -38,12 +38,19 @@ from __future__ import annotations
 
 import dataclasses
 from datetime import date, datetime
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any
 
 from . import taxes, validation
 
 _DEUX_DECIMALES = Decimal("0.01")
+# PLAN T1.2-d (arrondi monétaire) : ROUND_HALF_UP explicite partout où ce module arrondit de
+# l'argent, jamais le mode par défaut du module `decimal` (ROUND_HALF_EVEN, « arrondi du
+# banquier »). Même mode que M3 (`devis_durable.creer_devis`, `outils.arrondir_au_cent`) : un
+# montant de ligne doit arrondir comme la ligne de devis dont il provient (T1.2 le sourcera
+# directement de M3), sinon la facture envoyée peut différer d'un cent du devis que le client a
+# accepté. Contrairement au montant d'une taxe (`taxes.py`), ce choix n'est pas dicté par la loi —
+# c'est une cohérence interne au département — d'où le commentaire distinct ici.
 
 _CHAMPS_LIGNE_REQUIS = frozenset(
     {"description", "quantite", "unite", "prix_unitaire", "reference_ligne_devis"}
@@ -57,8 +64,9 @@ _TRANCHES_CREANCES = ("0-30", "31-60", "61-90", "90+")
 @dataclasses.dataclass(frozen=True)
 class LigneFacture:
     """Une ligne de facture. `quantite` et `prix_unitaire` sont des `Decimal` déjà validés (texte
-    en entrée, jamais un float) ; `montant` (= quantite * prix_unitaire, 2 décimales) est calculé
-    une fois par `_valider_ligne` et conservé ici, jamais recalculé ailleurs à la volée."""
+    en entrée, jamais un float) ; `montant` (= quantite * prix_unitaire, 2 décimales,
+    ROUND_HALF_UP explicite) est calculé une fois par `_valider_ligne` et conservé ici, jamais
+    recalculé ailleurs à la volée."""
 
     description: str
     quantite: Decimal
@@ -132,7 +140,7 @@ def _valider_ligne(brute: Any, index: int) -> tuple[LigneFacture | None, dict | 
     if verdict is not None:
         return None, verdict
 
-    montant = (quantite * prix_unitaire).quantize(_DEUX_DECIMALES)
+    montant = (quantite * prix_unitaire).quantize(_DEUX_DECIMALES, rounding=ROUND_HALF_UP)
     ligne = LigneFacture(
         description=brute["description"],
         quantite=quantite,

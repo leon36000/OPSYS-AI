@@ -144,6 +144,21 @@ def test_creer_facture_brouillon_nominal_recalcule_les_totaux_et_les_taxes_sur_l
     assert maillon["lignes"][1]["montant"] == Decimal("260.00")
 
 
+def test_creer_facture_brouillon_arrondit_un_demi_cent_de_ligne_vers_le_haut():
+    """3 x 0.375 $ = 1.125 $ pile : un demi-cent exact. ROUND_HALF_UP (choisi ici) arrondit à
+    1.13 $ ; le mode par défaut du module decimal (ROUND_HALF_EVEN) arrondirait à 1.12 $. Même
+    mode que M3 (`devis_durable.creer_devis`, `outils.arrondir_au_cent`) : une ligne de facture
+    doit arrondir comme la ligne de devis dont elle provient, sinon la facture envoyée peut
+    différer du devis accepté d'un cent (PLAN T1.2-d)."""
+    maillon, verdict, _ = _creer(lignes=_lignes(quantite="3", prix_unitaire="0.375"))
+
+    assert verdict is None
+    assert maillon["lignes"][0]["montant"] == Decimal("1.13")
+    # confirme le contraste : sans rounding= explicite, le module decimal arrondirait à 1.12
+    assert Decimal("3") * Decimal("0.375") == Decimal("1.125")
+    assert Decimal("1.125").quantize(Decimal("0.01")) == Decimal("1.12")
+
+
 def test_creer_facture_brouillon_accepte_un_montant_fourni_qui_correspond_exactement():
     maillon, verdict, _ = _creer(montant_avant_taxes_fourni="600.00")
 

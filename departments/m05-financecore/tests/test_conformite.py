@@ -263,3 +263,51 @@ def test_verifier_aucune_cause_signalee_accepte_evenement_sans_cle_interdite(
     )
 
     assert conformite.verifier_aucune_cause_signalee(tmp_path) == (True, "")
+
+
+# --- verifier_arrondi_monetaire_explicite : PLAN T1.2-d, arrondi monétaire ---------------------
+#
+# Règle : Decimal.quantize() sans argument `rounding=` prend le mode par défaut du module
+# (ROUND_HALF_EVEN), jamais le ROUND_HALF_UP exigé par la loi pour les taxes (Agence du revenu du
+# Canada, RC4022, « Arrondir les montants fractionnaires » ; Revenu Québec, « Calcul des taxes »)
+# et par cohérence avec M3 pour les montants de ligne (devis_durable.py). Cette garde échoue si un
+# seul appel `.quantize(` du paquet omet `rounding=`, quelle que soit la valeur passée.
+
+
+def test_verifier_arrondi_monetaire_explicite_du_vrai_paquet():
+    assert conformite.verifier_arrondi_monetaire_explicite(
+        _SRC / "m5_financecore"
+    ) == (True, "")
+
+
+def test_verifier_arrondi_monetaire_explicite_signale_quantize_sans_rounding(tmp_path):
+    _ecrire_source(
+        tmp_path,
+        "arrondi_implicite.py",
+        "from decimal import Decimal\n\n"
+        "_DEUX_DECIMALES = Decimal('0.01')\n"
+        "montant = Decimal('1.125').quantize(_DEUX_DECIMALES)\n",
+    )
+
+    conforme, message = conformite.verifier_arrondi_monetaire_explicite(tmp_path)
+
+    assert conforme is False
+    assert "arrondi_implicite.py" in message
+
+
+def test_verifier_arrondi_monetaire_explicite_accepte_quantize_avec_rounding(tmp_path):
+    _ecrire_source(
+        tmp_path,
+        "arrondi_explicite.py",
+        "from decimal import ROUND_HALF_UP, Decimal\n\n"
+        "_DEUX_DECIMALES = Decimal('0.01')\n"
+        "montant = Decimal('1.125').quantize(_DEUX_DECIMALES, rounding=ROUND_HALF_UP)\n",
+    )
+
+    assert conformite.verifier_arrondi_monetaire_explicite(tmp_path) == (True, "")
+
+
+def test_verifier_arrondi_monetaire_explicite_accepte_fichier_sans_quantize(tmp_path):
+    _ecrire_source(tmp_path, "neutre.py", "valeur = 1 + 1\n")
+
+    assert conformite.verifier_arrondi_monetaire_explicite(tmp_path) == (True, "")

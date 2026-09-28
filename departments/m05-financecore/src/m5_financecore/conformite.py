@@ -7,9 +7,14 @@ littéraux numériques en contexte de coût ou de taux). `verifier_aucun_import_
 couvre CA-M5-16 (aucune fonction de M5 n'écrit dans le registre d'un autre module —
 garde structurelle : aucun import, absolu ou depuis, d'un paquet `mX_*` de domaine).
 `verifier_aucune_cause_signalee` renforce transversalement CA-M5-18 en interdisant
-tout champ de cause ou de responsabilité dans un littéral `dict`. Aucune de ces
-trois gardes ne prouve l'absence de comportement dynamique, les imports construits
-à l'exécution, ni les coûts masqués sous des noms neutres.
+tout champ de cause ou de responsabilité dans un littéral `dict`. `verifier_arrondi_monetaire_explicite`
+(PLAN T1.2-d, préalable arrondi monétaire) interdit tout appel `.quantize(` sans argument
+`rounding=` explicite : sans lui, `Decimal.quantize` prend le mode par défaut du module `decimal`
+(ROUND_HALF_EVEN, « arrondi du banquier ») plutôt que le ROUND_HALF_UP exigé par la loi pour les
+taxes (`taxes.py` — Agence du revenu du Canada, Revenu Québec) et par cohérence avec M3 pour les
+montants de ligne (`facturation.py`). Aucune de ces quatre gardes ne prouve l'absence de
+comportement dynamique, les imports construits à l'exécution, ni les coûts masqués sous des noms
+neutres.
 
 Les constantes ``CHAMPS_*`` sont volontairement exclues des énumérés de domaine :
 elles décrivent des noms de propriétés de contrat et non des valeurs métier parmi
@@ -721,6 +726,51 @@ def verifier_aucun_import_domaine(repertoire: str | Path) -> tuple[bool, str]:
                     violations.append(
                         f"{fichier}: import interdit {noeud.module}"
                     )
+
+    if violations:
+        return False, "; ".join(violations)
+    return True, ""
+
+
+def verifier_arrondi_monetaire_explicite(repertoire: str | Path) -> tuple[bool, str]:
+    """Vérifie qu'aucun appel `.quantize(` du paquet n'omet `rounding=` (PLAN T1.2-d).
+
+    Sans `rounding=` explicite, `Decimal.quantize` prend le mode par défaut du module `decimal`
+    (ROUND_HALF_EVEN, « arrondi du banquier ») au lieu du ROUND_HALF_UP exigé par la loi pour les
+    taxes (`taxes.py` — Agence du revenu du Canada, RC4022 ; Revenu Québec, « Calcul des taxes »)
+    et par cohérence avec M3 pour les montants de ligne (`facturation.py`). Garde purement
+    syntaxique (AST, même patron que `verifier_aucun_import_domaine`) : elle signale tout appel
+    dont l'attribut se nomme `quantize`, sans inférer si la cible est un `Decimal` — dans ce
+    paquet, seul `Decimal.quantize` porte ce nom (aucun faux positif mesuré,
+    `test_verifier_arrondi_monetaire_explicite_du_vrai_paquet`). Elle exige seulement la
+    PRÉSENCE du mot-clé `rounding=`, jamais une valeur précise : un mode mal choisi mais explicite
+    ne serait pas détecté ici.
+    """
+    racine = Path(repertoire)
+    violations: list[str] = []
+
+    try:
+        fichiers = sorted(
+            chemin for chemin in racine.rglob("*.py") if chemin.is_file()
+        )
+    except OSError:
+        fichiers = []
+
+    for chemin in fichiers:
+        try:
+            arbre = ast.parse(chemin.read_text(encoding="utf-8"), filename=str(chemin))
+        except (OSError, UnicodeError, SyntaxError):
+            continue
+
+        fichier = chemin.relative_to(racine).as_posix()
+        for noeud in ast.walk(arbre):
+            if not isinstance(noeud, ast.Call):
+                continue
+            if not isinstance(noeud.func, ast.Attribute) or noeud.func.attr != "quantize":
+                continue
+            if any(mot_cle.arg == "rounding" for mot_cle in noeud.keywords):
+                continue
+            violations.append(f"{fichier}:{noeud.lineno}: quantize() sans rounding= explicite")
 
     if violations:
         return False, "; ".join(violations)
