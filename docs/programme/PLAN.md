@@ -566,11 +566,45 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
 
     Reste : « chantiers du jour » filtre par statut, faute de date et de technicien dans
     `m4_lister_interventions` ; les photos et la signature ne partent pas encore (T1.4-e2).
-  - [ ] T1.4-e2 Serveur : recevoir l'envoi binaire des photos et de la signature (reprise par
+  - [x] T1.4-e2 Serveur : recevoir l'envoi binaire des photos et de la signature (reprise par
     empreinte, SHA-256 vérifié, référence stable rendue) ; exposer la date et le technicien assigné
     dans `m4_lister_interventions`.
+
+    Preuve (7eea631, 1527c34) :
+    - dépôt adressé par contenu dans le socle (`opsys.fichiers`, migration 0008) : blocs de taille
+      fixe, idempotents, assemblage vérifié (taille, SHA-256, octets magiques JPEG ou PNG) ;
+    - `m4_deposer_fichier` (N2, tâche interne) et `m4_etat_fichier` (lecture) ; cinq refus nommés ;
+    - `m4_completer_intervention` refuse toute référence de photo ou de signature qui n'est pas un
+      fichier déposé et complet (`REJ-PREUVE-FICHIER-INTROUVABLE`) ; les tests et cascades déposent
+      de vrais PNG ;
+    - `m4_lister_interventions` rend le technicien assigné ;
+    - socle 406 (38 tests PostgreSQL ignorés faute de Docker, la CI les exécute), M4 761, M6 382,
+      M5 321, verifier 119 outils ; `docs/architecture/FICHIERS.md`.
+
+    Reste : la fenêtre planifiée reste `null` (la cédule n'est pas persistée) ; ni rétention ni
+    purge des fichiers ; aucune politique « photos » pour M4 ; ni contrôle d'accès par
+    intervention, ni quota.
   - [ ] T1.4-f « Terminer », qui lance la cascade §9.7, puis le formulaire des matériaux (étape 5).
     Approbations côté propriétaire après T1.3 (étape 6).
+
+    Avancement (fc8f269) : étape 5 côté mobile. Envoi des fichiers par blocs dans la file
+    sortante, avec reprise et SHA-256 relu avant envoi ; `complete.tsx` ne part jamais avant que
+    ses fichiers soient complets ; `materials.tsx` sans quantité ni prix par défaut ; contrat
+    confronté à T1.4-e2 ; Jest 587, `tsc` propre.
+
+    Bloquant :
+    - en mode ombre, `m4_pointer` et `m4_completer_intervention` (N3) partent en file
+      d'approbation même quand l'employé authentifié agit lui-même (T1.4-h) ;
+    - `m6_declarer_materiaux_utilises` exige que l'app lui renvoie le WCT complet, dont M6 ne
+      vérifie que la forme (T1.4-i) ;
+    - l'écran `(admin)/approvals` (étape 6) reste à faire.
+  - [ ] T1.4-h Appels d'appareil et approbations : une action qu'un humain authentifié (T1.4-c4)
+    lance lui-même depuis l'app, dans la portée de son rôle, vaut la « validation humaine au
+    départ » d'un N3 (ADR-0009 §4) ; les N4 et N5 restent au propriétaire. Code critique : revue
+    externe, et confirmation par Nathan (GATE ci-dessous).
+  - [ ] T1.4-i M6 lit le WCT à la source : `m6_declarer_materiaux_utilises` prend le `wct_id` et
+    lit la charge publiée par M4 dans le magasin d'événements du socle, au lieu de la recevoir de
+    l'appelant.
 - [ ] T1.5 E2E : travaux terminés normaux ; écart de 40 % → `completed_pending_review` et alerte
       sur le mobile de l'admin.
 
@@ -794,6 +828,10 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
     copies mensuelles), et une restauration la ressusciterait : durée des sauvegardes et
     réapplication des purges après restauration à décider ;
   - `GABARIT-EFVP.md` §6 n'a pas encore de ligne pour les positions GPS.
+- **Actions d'un employé depuis l'app (T1.4-h)** : en mode ombre, chaque pointage et chaque
+  complétion d'un employé part en approbation chez le propriétaire, ce qui rend l'app inutilisable.
+  Proposition : l'employé authentifié qui agit lui-même dans la portée de son rôle valide au départ
+  les N3 ; les N4 et N5 restent au propriétaire.
 - **Politique « photos »** : `POLITIQUE-photos-non-contractuelles.md` est une proposition ; la
   garde de M3 refuse toute collecte réelle tant qu'elle n'est pas validée (Nathan ou juriste).
 - **Prompts maîtres d'origine des départements** (annexe A de la définition) : ils portent le
