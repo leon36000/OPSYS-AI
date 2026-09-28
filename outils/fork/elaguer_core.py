@@ -45,6 +45,16 @@ DOCS_GENERATED_GARDES = frozenset({
 })
 DOCS_ASSETS_GARDES = frozenset({"openclaw-hero-dark.png"})
 
+# `apps/` (applications natives) est retiré, sauf deux fichiers partagés que la construction lit :
+#   - `tool-display.json` : importé par `ui/src/lib/chat/tool-display.ts` et listé dans
+#     `ui/config/control-ui-boot-modules.json` (métadonnées d'affichage des outils) ;
+#   - `apps/shared/mermaid/.gitignore` : garde le dossier de sortie de
+#     `packages/mermaid-renderer` (`vite.config.ts`), dont les fichiers générés restent hors git.
+APPS_FICHIERS_GARDES = (
+    "apps/shared/OpenClawKit/Sources/OpenClawKit/Resources/tool-display.json",
+    "apps/shared/mermaid/.gitignore",
+)
+
 # 40 extensions retenues par R11 §3.2, plus deux dépendances d'appui (tests et génération d'images
 # des fournisseurs conservés).
 EXTENSIONS_GARDEES = frozenset({
@@ -107,7 +117,15 @@ def _verifier_sous_ensembles_docs(source: Path) -> list[str]:
     for nom in DOCS_ASSETS_GARDES:
         if not (source / "docs" / "assets" / nom).is_file():
             manquants.append(f"docs/assets/{nom}")
+    manquants += [chemin for chemin in APPS_FICHIERS_GARDES if not (source / chemin).is_file()]
     return manquants
+
+
+def _copier_fichiers_apps(source: Path, destination: Path) -> None:
+    for chemin in APPS_FICHIERS_GARDES:
+        cible = destination / chemin
+        cible.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source / chemin, cible)
 
 
 def _ajuster_workspace(fichier: Path) -> None:
@@ -148,8 +166,9 @@ def elaguer(source: Path, destination: Path) -> None:
         raise SystemExit(f"extensions retenues absentes de la release : {manquantes}")
     manquants_docs = _verifier_sous_ensembles_docs(source)
     if manquants_docs:
-        raise SystemExit(f"sous-ensembles de docs/ retenus absents de la release : {manquants_docs}")
+        raise SystemExit(f"sous-ensembles de docs/ ou apps/ retenus absents de la release : {manquants_docs}")
     shutil.copytree(source, destination, ignore=_ignorer(source), symlinks=True, dirs_exist_ok=True)
+    _copier_fichiers_apps(source, destination)
     _ajuster_workspace(destination / "pnpm-workspace.yaml")
     ruptures = verifier_fermeture(source, destination)
     if ruptures:

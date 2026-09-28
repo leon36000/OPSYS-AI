@@ -44,6 +44,13 @@ Elle est reproductible depuis le tag. Le script est
    documentation dans `docs/` du dépôt OPSYS-AI. Les tests qui vérifiaient des pages non
    restaurées (`src/docs/*.test.ts`, huit fichiers) sont retirés, voir le commit qui introduit ce
    paragraphe.
+
+   Même traitement pour deux fichiers partagés d'`apps/`, que la construction lit (T0.6, CI) :
+   - `apps/shared/OpenClawKit/Sources/OpenClawKit/Resources/tool-display.json` : importé par
+     `ui/src/lib/chat/tool-display.ts` ;
+   - `apps/shared/mermaid/.gitignore` : dossier de sortie de `packages/mermaid-renderer`.
+
+   Ils sont listés dans `APPS_FICHIERS_GARDES` du script d'élagage.
 4. **Patch pnpm retiré** : `matrix-js-sdk`, avec l'extension Matrix.
 5. **`pnpm-lock.yaml` régénéré sans exécuter aucun script de paquet** :
    `pnpm install --lockfile-only --ignore-scripts --ignore-pnpmfile` (pnpm 12.4.0). Résultat : 63

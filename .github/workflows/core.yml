@@ -63,4 +63,14 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=8192
           OPENCLAW_VITEST_MAX_WORKERS: "2"
-        run: pnpm test:fast --shard=${{ matrix.morceau }}/6
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm test:fast --shard=${{ matrix.morceau }}/6 2>&1 | tee "$RUNNER_TEMP/vitest.log"
+      - name: Tests en échec (résumé en fin de journal)
+        if: failure()
+        shell: bash
+        # La liste compacte finit le journal : on la lit sans télécharger le journal complet.
+        run: |
+          grep -E "^ *(FAIL|×) " "$RUNNER_TEMP/vitest.log" | sed -E 's/ [0-9]+ms$//' | sort -u | head -300 || true
+          grep -E "Test Files|Tests  " "$RUNNER_TEMP/vitest.log" | tail -4 || true
