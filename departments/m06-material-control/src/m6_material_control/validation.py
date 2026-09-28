@@ -22,7 +22,7 @@ def valider_wct(wct) -> tuple[bool, str | None]:
             return False, "REJ-WCT-CHAMP-MANQUANT"
 
     for cle in wct:
-        if cle not in contrats.CHAMPS_WCT:
+        if cle not in contrats.CHAMPS_WCT and cle not in contrats.CHAMPS_WCT_OPTIONNELS:
             return False, "REJ-WCT-CHAMP-INATTENDU"
 
     if contrats.CONSOMMATEUR_ATTENDU not in wct["consommateurs_cibles"]:

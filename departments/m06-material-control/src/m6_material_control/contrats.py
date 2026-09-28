@@ -13,6 +13,18 @@ CHAMPS_WCT = (
     "devis_id",
 )
 
+# Champs optionnels du WCT prévus par le catalogue `m4.travaux_termines` (ceux dont M7 a besoin).
+# M6 ne les lit pas : il les accepte sans s'en servir, et refuse toujours une clé inconnue.
+# `tests/test_validation_entrees.py` garde cette liste alignée sur le catalogue.
+CHAMPS_WCT_OPTIONNELS = (
+    "ville",
+    "type_travaux",
+    "photos",
+    "description_factuelle",
+    "consentement_marketing",
+    "client_satisfait",
+)
+
 CONSOMMATEUR_ATTENDU = "M6"
 
 CHAMPS_FORMULAIRE_CONSOMMATION = (

@@ -62,6 +62,27 @@ def test_valider_wct_rejette_une_cle_manquante_avec_verdict_nomme(wct_valide):
     )
 
 
+def test_valider_wct_accepte_les_champs_optionnels_du_catalogue(wct_valide):
+    """Le WCT de M4 peut porter les champs de M7 (catalogue `m4.travaux_termines`) : M6 les
+    accepte sans les lire. Une clé inconnue reste refusée (test suivant)."""
+    wct_valide.update({
+        "type_travaux": "gouttieres", "consentement_marketing": True, "client_satisfait": None,
+        "photos": ["photo-apres-1.jpg"], "description_factuelle": "Gouttières posées.",
+        "ville": "Repentigny",
+    })
+    assert validation.valider_wct(wct_valide) == (True, None)
+
+
+def test_champs_wct_optionnels_alignes_sur_le_catalogue():
+    from opsys import evenements
+
+    from m6_material_control import contrats
+
+    schema = evenements.schema("m4.travaux_termines")
+    optionnels = set(schema["properties"]) - set(schema["required"])
+    assert set(contrats.CHAMPS_WCT_OPTIONNELS) == optionnels
+
+
 def test_valider_wct_rejette_une_cle_en_trop_avec_verdict_nomme(wct_valide):
     wct_valide["origine"] = "import-externe"
 
