@@ -426,7 +426,14 @@ describe("hosted model pricing", () => {
   });
 
   it.each([
-    { name: "native owner", policy: { google: { provider: "google" } }, known: true },
+    // The inner key must be an authoritative MODEL_PRICING_SOURCES id (an external pricing
+    // feed listed in packages/model-catalog-core/src/model-catalog-pricing.ts, unrelated to
+    // installed extensions): buildPricingContext's `authoritative` flag
+    // (src/model-catalog/pricing.ts:103-105) only checks that some authoritative source id is
+    // present as a key, regardless of provider. "openCode" (also used two cases below, for
+    // "other native source") stays authoritative and untouched by pruning; the pruned "venice"
+    // extension only collided by name with the "venice" pricing source, which still exists.
+    { name: "native owner", policy: { openCode: { provider: "google" } }, known: true },
     { name: "other native source", policy: { openCode: { provider: "upstream" } }, known: true },
     { name: "missing policy", policy: undefined, known: false },
     {
