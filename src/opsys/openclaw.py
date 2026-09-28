@@ -6,10 +6,17 @@ Pour chaque département :
 - un fournisseur de modèles dédié, qui pointe sur LiteLLM avec la clé virtuelle du département ;
 - des automatisations (cron).
 
+Globalement (ADR-0010, cloisonnement et mémoire native des agents) :
+- `tools.agentToAgent`/`tools.sessions.visibility` : un agent de département ne partage ni
+  session ni mémoire avec un autre agent, ni avec un autre utilisateur du même agent ;
+- `memory.search` : fournisseur d'embeddings local partagé avec la Couche B (`opsys.memoire`) ;
+- `plugins.entries.memory-core.config.dreaming` : consolidation nocturne de la Couche A.
+
 OPSYS n'écrit que ses propres fragments, inclus par `$include` depuis `openclaw.json`. Les
 réglages faits par l'utilisateur (canaux, authentification, Control UI) ne sont donc jamais
 écrasés. Surfaces amont utilisées : `agents.entries`, `models.providers` (api
-openai-completions, `models` obligatoire), `mcp.servers` (streamable-http, headers), `$include`.
+openai-completions, `models` obligatoire), `mcp.servers` (streamable-http, headers), `tools`,
+`memory.search`, `plugins.entries.*.config`, `$include` (`core/src/config/zod-schema.*.ts`).
 """
 
 from __future__ import annotations
@@ -22,6 +29,7 @@ from pathlib import Path
 from typing import Any
 
 from .departements import PALIERS, Departement
+from .memoire.embeddings import ENV_CLE, ENV_MODELE, ENV_URL, ClientEmbeddings
 from .passerelle import alias_palier
 from .profils import REGLES_COMMUNES, rendre_soul
 
@@ -29,6 +37,9 @@ FICHIER_RACINE_MODELE = {
     "models": {"$include": ["./opsys/models.json"]},
     "agents": {"$include": ["./opsys/agents.json"]},
     "mcp": {"$include": ["./opsys/mcp.json"]},
+    "tools": {"$include": ["./opsys/tools.json"]},
+    "memory": {"$include": ["./opsys/memory.json"]},
+    "plugins": {"$include": ["./opsys/plugins.json"]},
 }
 
 INSTRUCTIONS = """\
@@ -75,6 +86,75 @@ def fournisseur_departement(
     }
 
 
+def _configuration_outils() -> dict[str, Any]:
+    """Cloisonnement inter-agents (ADR-0010, décision 6) : `tools.agentToAgent.enabled`
+    (`core/src/config/zod-schema.agent-runtime.ts:791-802`, défaut `true`) désactivé, et
+    `tools.sessions.visibility` (même fichier, `:770-781`, défaut `"all"`) resserré à `"tree"`.
+
+    `"tree"` (pas `"self"`) : la vérification réelle
+    (`core/src/plugin-sdk/session-visibility-internal.ts::createSessionVisibilityDecisionChecker`)
+    n'autorise l'accès à un sous-agent natif/enfant ACP engendré par la session courante que si
+    `visibility` vaut `"tree"` ou `"all"` (ligne ~162) ; avec `"self"`, ce même sous-agent est
+    refusé (`self_visibility_restricted`, ligne ~197) car ce n'est pas la session courante elle-
+    même. `"tree"` refuse en revanche les sessions d'un autre agent (`cross_agent_visibility_
+    restricted`, ligne ~185-190) et celles d'un autre utilisateur du même agent, non engendrées
+    par la session courante (`tree_visibility_restricted`, ligne ~204-210) : c'est donc la valeur
+    la plus restrictive qui ne casse pas les sous-agents natifs.
+    """
+    return {
+        "agentToAgent": {"enabled": False},
+        "sessions": {"visibility": "tree"},
+    }
+
+
+def _configuration_memoire(environ: Mapping[str, str] | None = None) -> dict[str, Any]:
+    """Mémoire native Couche A (ADR-0010, décision 5) : même fournisseur d'embeddings que la
+    Couche B (`opsys.memoire`), sur `memory.search` (`core/src/config/zod-schema.root-shape.ts`,
+    clé `memory`, et `zod-schema.memory-search.ts` pour `provider`/`model`/`remote.{baseUrl,
+    apiKey}`). Valeur `"openai-compatible"` vérifiée dans le fork, pas seulement dans l'ADR :
+    `core/src/config/schema.help.models.ts:226`.
+
+    Fail-closed : contrairement à la Couche B (repli plein texte si les embeddings sont absents),
+    la Couche A n'a pas de repli — `ClientEmbeddings.depuis_env` (déjà utilisé par
+    `opsys.memoire`) fournit la même validation et les mêmes noms de variables, jamais réinventés.
+
+    Provenance (ADR-0010, décision 1) : pas de clé de configuration à écrire ici. Lecture intégrale
+    de `core/extensions/memory-core/openclaw.plugin.json::configSchema` : owner/agent/untrusted/
+    system sont structurels au plugin, non exposés en configuration (confirmé aussi par l'audit
+    M10, §1.1 règle 6).
+    """
+    client = ClientEmbeddings.depuis_env(environ)
+    if client is None:
+        raise ValueError(
+            f"configuration mémoire (ADR-0010, Couche A) : {ENV_URL} absente — définir {ENV_URL} "
+            f"et {ENV_MODELE} (voir deploy/.env.example, service bge-m3 partagé) avant "
+            "`opsys openclaw configurer`"
+        )
+    recherche: dict[str, Any] = {
+        "provider": "openai-compatible",
+        "model": client.modele,
+        "remote": {"baseUrl": client.base_url},
+    }
+    if client.cle:
+        recherche["remote"]["apiKey"] = "${" + ENV_CLE + "}"
+    return {"search": recherche}
+
+
+def _configuration_plugins(fuseau: str) -> dict[str, Any]:
+    """« Dreaming » du plugin `memory-core` (ADR-0010, décision 1) : activé, fuseau aligné sur
+    celui des automatisations OPSYS (même paramètre `fuseau` que `--tz` plus bas — un seul réglage
+    d'horaire pour tout OPSYS, rien d'inventé). Clés vérifiées contre `configSchema` de
+    `core/extensions/memory-core/openclaw.plugin.json` (`dreaming.enabled`, défaut `true` ;
+    `dreaming.timezone`), lui-même accroché à `plugins.entries.<id>.config`
+    (`core/src/config/zod-schema.root-support.ts::PluginEntrySchema`).
+    """
+    return {
+        "entries": {
+            "memory-core": {"config": {"dreaming": {"enabled": True, "timezone": fuseau}}},
+        }
+    }
+
+
 def generer(
     departements: Mapping[str, Departement],
     dossier_config: Path,
@@ -83,10 +163,13 @@ def generer(
     url_passerelle: str = "http://litellm:4000/v1",
     racine_espaces: str = "./opsys/espaces",
     fuseau: str = "America/Toronto",
+    environ: Mapping[str, str] | None = None,
 ) -> dict[str, Path]:
     """Écrit les fragments et les espaces de travail dans `<dossier_config>/opsys/`.
 
     `racine_espaces` est le chemin vu par la passerelle OpenClaw, relatif au dossier de config.
+    `environ` (défaut `os.environ`) fournit `OPSYS_EMBEDDINGS_{URL,MODELE,CLE}` pour la mémoire
+    Couche A ; validé avant l'écriture des fragments (fail-closed, voir `_configuration_memoire`).
     """
     base = dossier_config / "opsys"
     espaces = base / "espaces"
@@ -132,10 +215,17 @@ def generer(
                 "--message", shlex.quote(plan.consigne),
             ]))
 
+    # Fail-closed avant toute écriture de fragment (les espaces de travail ci-dessus sont déjà
+    # écrits, comme le reste de generer() : seule la config OpenClaw doit rester cohérente).
+    memoire_config = _configuration_memoire(environ)
+
     fichiers = {
         "models": base / "models.json",
         "agents": base / "agents.json",
         "mcp": base / "mcp.json",
+        "tools": base / "tools.json",
+        "memory": base / "memory.json",
+        "plugins": base / "plugins.json",
         "automatisations": base / "automatisations.sh",
     }
     _ecrire_json(fichiers["models"], {"mode": "merge", "providers": fournisseurs})
@@ -155,6 +245,9 @@ def generer(
         }
         for dep in departements.values()
     }})
+    _ecrire_json(fichiers["tools"], _configuration_outils())
+    _ecrire_json(fichiers["memory"], memoire_config)
+    _ecrire_json(fichiers["plugins"], _configuration_plugins(fuseau))
     fichiers["automatisations"].write_text(
         "#!/bin/sh\n# Généré par `opsys openclaw configurer` : automatisations des départements.\nset -e\n"
         + "\n".join(automatisations) + "\n",

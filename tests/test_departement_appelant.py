@@ -84,7 +84,9 @@ def test_isolation_des_agents_openclaw(tmp_path):
     deps = charger_departements()
     paliers = {p: {"provider": "anthropic", "model": "claude-sonnet-5"} for p in ("rapide", "standard", "fort")}
     paliers["local"] = {"provider": "custom", "model": "qwen3:8b", "base_url": "http://ollama:11434/v1"}
-    fichiers = openclaw.generer(deps, tmp_path, paliers)
+    # ADR-0010 : mémoire Couche A fail-closed, cf. tests/test_openclaw_memoire.py.
+    environ = {"OPSYS_EMBEDDINGS_URL": "http://embeddings-test:11434/v1", "OPSYS_EMBEDDINGS_MODELE": "bge-m3"}
+    fichiers = openclaw.generer(deps, tmp_path, paliers, environ=environ)
     agents = json.loads(fichiers["agents"].read_text(encoding="utf-8"))["entries"]
     serveurs = json.loads(fichiers["mcp"].read_text(encoding="utf-8"))["servers"]
     assert len(agents) == len(serveurs) == 10

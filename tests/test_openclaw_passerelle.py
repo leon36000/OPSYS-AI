@@ -14,9 +14,15 @@ PALIERS = {
     "local": {"provider": "custom", "model": "qwen3:8b", "base_url": "http://ollama:11434/v1"},
 }
 
+# Mêmes noms que `deploy/.env.example`/`src/opsys/memoire/embeddings.py` (voir aussi
+# tests/test_openclaw_memoire.py) : requis depuis que generer() écrit la config mémoire (ADR-0010).
+ENVIRON_EMBEDDINGS = {"OPSYS_EMBEDDINGS_URL": "http://embeddings-test:11434/v1",
+                      "OPSYS_EMBEDDINGS_MODELE": "bge-m3"}
+
 
 def test_fragments_openclaw(departements_demo, tmp_path):
-    fichiers = openclaw.generer(departements_demo, tmp_path, PALIERS, fuseau="America/Toronto")
+    fichiers = openclaw.generer(departements_demo, tmp_path, PALIERS, fuseau="America/Toronto",
+                                 environ=ENVIRON_EMBEDDINGS)
     modeles = json.loads(fichiers["models"].read_text(encoding="utf-8"))
     fournisseur = modeles["providers"]["opsys-m9"]
     assert modeles["mode"] == "merge"
