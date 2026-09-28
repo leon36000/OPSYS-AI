@@ -146,7 +146,7 @@ def test_constantes_epinglees():
 def test_determinisme():
     reg = registre_mod.Registre()
     i_id = _ajouter_intervention(reg, "L1", H_INSCRIPTION)
-    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
+    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
 
     d1, err1 = digest_mod.produire_digest(reg, DATE_CIBLE, H_REFERENCE)
     d2, err2 = digest_mod.produire_digest(reg, DATE_CIBLE, H_REFERENCE)
@@ -159,7 +159,7 @@ def test_determinisme():
 def test_cles_exactes():
     reg = registre_mod.Registre()
     i_id = _ajouter_intervention(reg, "L1", H_INSCRIPTION)
-    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
+    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     digest, err = digest_mod.produire_digest(reg, DATE_CIBLE, H_REFERENCE)
     assert err is None
     assert set(digest.keys()) == set(digest_mod.CHAMPS_DIGEST)
@@ -243,9 +243,9 @@ def test_interventions_terminees_tri():
     i_id2 = _ajouter_intervention(reg, "A", H_INSCRIPTION)
     i_id3 = _ajouter_intervention(reg, "B", H_INSCRIPTION)
 
-    outbox_mod.completer_intervention(i_id1, H_COMPLETION, reg)
-    outbox_mod.completer_intervention(i_id2, H_COMPLETION, reg)
-    outbox_mod.completer_intervention(i_id3, H_COMPLETION, reg)
+    outbox_mod.completer_intervention(i_id1, H_COMPLETION, reg, ecart_detecte=False)
+    outbox_mod.completer_intervention(i_id2, H_COMPLETION, reg, ecart_detecte=False)
+    outbox_mod.completer_intervention(i_id3, H_COMPLETION, reg, ecart_detecte=False)
 
     digest, err = digest_mod.produire_digest(reg, DATE_CIBLE, H_REFERENCE)
     assert err is None
@@ -268,7 +268,7 @@ def test_filtre_par_date():
     reg = registre_mod.Registre()
     # Intervention completed within DATE_CIBLE
     i_id_ok = _ajouter_intervention(reg, "L_OK", H_INSCRIPTION)
-    outbox_mod.completer_intervention(i_id_ok, H_COMPLETION, reg)
+    outbox_mod.completer_intervention(i_id_ok, H_COMPLETION, reg, ecart_detecte=False)
 
     # Intervention completed on another day (June 3rd)
     H_INSCR_3 = "2025-06-03T08:00:00+00:00"
@@ -291,7 +291,7 @@ def test_filtre_par_date():
     pointage_mod.enregistrer_pointage(
         i_id3, "T1", "depart", H_DEP_3, GPS_PROCHE, ATTESTATION,
         assign3, FENETRE, REFERENTIEL, VILLE, SEL, reg)
-    outbox_mod.completer_intervention(i_id3, H_COMP_3, reg)
+    outbox_mod.completer_intervention(i_id3, H_COMP_3, reg, ecart_detecte=False)
 
     digest, err = digest_mod.produire_digest(reg, DATE_CIBLE, H_REFERENCE)
     assert err is None
@@ -374,7 +374,7 @@ def test_ancre_registre():
     assert digest_vide["ancre_registre"] is None
 
     i_id = _ajouter_intervention(reg, "L1", H_INSCRIPTION)
-    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
+    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     digest_plein, _ = digest_mod.produire_digest(reg, DATE_CIBLE, H_REFERENCE)
     assert digest_plein["ancre_registre"] == reg.tete()
 
@@ -389,7 +389,7 @@ def test_ancre_registre():
 def test_empreinte_non_circulaire():
     reg = registre_mod.Registre()
     i_id = _ajouter_intervention(reg, "L1", H_INSCRIPTION)
-    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
+    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     digest, _ = digest_mod.produire_digest(reg, DATE_CIBLE, H_REFERENCE)
 
     without_empr = {k: v for k, v in digest.items() if k != "empreinte"}
@@ -401,7 +401,7 @@ def test_empreinte_non_circulaire():
 def test_verifier_digest_sain():
     reg = registre_mod.Registre()
     i_id = _ajouter_intervention(reg, "L1", H_INSCRIPTION)
-    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
+    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     digest, _ = digest_mod.produire_digest(reg, DATE_CIBLE, H_REFERENCE)
     ok, msg = digest_mod.verifier_digest(digest)
     assert ok
@@ -410,7 +410,7 @@ def test_verifier_digest_sain():
 def test_verifier_digest_empreinte_falsifiee():
     reg = registre_mod.Registre()
     i_id = _ajouter_intervention(reg, "L1", H_INSCRIPTION)
-    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
+    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     digest, _ = digest_mod.produire_digest(reg, DATE_CIBLE, H_REFERENCE)
     fals = copy.deepcopy(digest)
     fals["empreinte"] = "falsified"
@@ -421,7 +421,7 @@ def test_verifier_digest_empreinte_falsifiee():
 def test_verifier_digest_cle_retiree():
     reg = registre_mod.Registre()
     i_id = _ajouter_intervention(reg, "L1", H_INSCRIPTION)
-    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
+    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     digest, _ = digest_mod.produire_digest(reg, DATE_CIBLE, H_REFERENCE)
     fals = copy.deepcopy(digest)
     del fals["interventions_terminees"]
@@ -444,7 +444,7 @@ def test_verifier_digest_non_dict():
 def test_rejet_date_cible(date_cible, code_attendu):
     reg = registre_mod.Registre()
     i_id = _ajouter_intervention(reg, "L1", H_INSCRIPTION)
-    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
+    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     digest, verdict = digest_mod.produire_digest(reg, date_cible, H_REFERENCE)
     if code_attendu is None:
         assert verdict is None
@@ -455,7 +455,7 @@ def test_rejet_date_cible(date_cible, code_attendu):
 def test_rejet_horodatage_sans_fuseau():
     reg = registre_mod.Registre()
     i_id = _ajouter_intervention(reg, "L1", H_INSCRIPTION)
-    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
+    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     digest, verdict = digest_mod.produire_digest(reg, DATE_CIBLE, "2025-06-02T20:00:00")
     assert digest is None
     assert verdict["code"] == "REJ-HORODATAGE-INVALIDE"
@@ -531,7 +531,7 @@ def test_garde_conformite_r020_chaine_hors_cle(tmp_path):
 def test_digest_sans_termes_scoring():
     reg = registre_mod.Registre()
     i_id = _ajouter_intervention(reg, "L1", H_INSCRIPTION)
-    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
+    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     digest, _ = digest_mod.produire_digest(reg, DATE_CIBLE, H_REFERENCE)
     representation = str(digest).lower()
     for terme in digest_mod.TERMES_INTERDITS_R020:

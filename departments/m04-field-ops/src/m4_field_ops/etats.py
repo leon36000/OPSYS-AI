@@ -12,7 +12,44 @@ condition) : planifiee -> en_route exige une ``assignation`` (PRD §4,
 « conditionnée à l’assignation effective d’un technicien et au pointage de
 départ du dépôt ») validée ICI, dans ``transitionner``, et non déléguée à un
 appelant — parce qu’aucun autre module n’écrit cette transition (contrairement
-à ``terminee``, dont l’écriture appartient exclusivement à ``outbox.py``).
+à ``completed_pending_review``/``completed_verified``, dont l’écriture
+appartient exclusivement à ``outbox.py``).
+
+CORRESPONDANCE ANCIEN -> NOUVEAU (T1.1-b#2, alignement sur le cycle de vie de
+DEFINITION-PRODUIT.md §7 M4 « Statuts d'un job », dans la seule mesure utile à
+la tranche « travaux terminés » — les autres états ne sont PAS étendus au
+catalogue complet du produit, hors périmètre de cette tranche) :
+
+    planifiee                 -> planifiee (inchangé ; regroupe, en v1, les
+                                  statuts produit ready_to_schedule..assigned,
+                                  qu'un seul état M4 porte encore)
+    en_route                  -> en_route (inchangé : déjà le mot du produit)
+    sur_site                  -> sur_site (inchangé ; regroupe arrived+started
+                                  du produit, qu'un seul état M4 porte encore)
+    en_revue                  -> en_revue (inchangé : arbitrage interne M4 —
+                                  GPS incohérent ou écart métier déclaré — SANS
+                                  équivalent direct au catalogue produit ; il
+                                  précède toujours la complétion, jamais après)
+    reportee                  -> reportee (inchangé ; proche de rescheduled,
+                                  mais PAS terminal ici : reportee->planifiee
+                                  reste légal, alors que rescheduled est un
+                                  sous-état de closed côté produit)
+    terminee                  -> SCINDÉ, selon ecart_detecte (jamais déduit,
+                                  fourni par l'appelant à la complétion) :
+                                    vrai  -> completed_pending_review
+                                    faux  -> completed_verified
+                                  (DEFINITION-PRODUIT.md §6 : « S'il manque
+                                  quelque chose ou si le matériel diffère du
+                                  prévu, le statut devient
+                                  completed_pending_review, pas
+                                  completed_verified. »)
+    annulee                   -> annulee (inchangé ; proche de cancelled)
+
+``completed_pending_review``/``completed_verified`` restent, comme
+``terminee`` avant elles, refusées ICI comme cible directe de
+``transitionner`` (voir plus bas) : seul ``outbox.completer_intervention``
+les écrit, dans le MÊME maillon que le WCT (CA-M4-11). Toute autre tentative
+de cible produit une transition illégale nommée (REJ-TRANSITION-ILLEGALE).
 """
 
 import copy
@@ -32,10 +69,11 @@ ETATS = (
     "sur_site",
     "en_revue",
     "reportee",
-    "terminee",
+    "completed_pending_review",
+    "completed_verified",
     "annulee",
 )
-ETATS_TERMINAUX = ("terminee", "annulee")
+ETATS_TERMINAUX = ("completed_pending_review", "completed_verified", "annulee")
 MOTIFS_REPORT = ("client_absent", "meteo", "decision_admin")
 TRANSITIONS_AUTORISEES = (
     ("planifiee", "en_route"),
@@ -45,8 +83,10 @@ TRANSITIONS_AUTORISEES = (
     ("en_route", "reportee"),
     ("en_route", "annulee"),
     ("sur_site", "en_revue"),
-    ("sur_site", "terminee"),
-    ("en_revue", "terminee"),
+    ("sur_site", "completed_pending_review"),
+    ("sur_site", "completed_verified"),
+    ("en_revue", "completed_pending_review"),
+    ("en_revue", "completed_verified"),
     ("en_revue", "annulee"),
     ("en_revue", "sur_site"),
     ("en_route", "en_revue"),
@@ -67,6 +107,7 @@ __all__ = [
     "statut_courant",
     "inscrire_intervention",
     "transitionner",
+    "lister_interventions",
 ]
 
 # ---------------------------------------------------------------------------
@@ -94,7 +135,7 @@ def statut_courant(registre_cible, intervention_id):
     return dernier_statut
 
 
-def inscrire_intervention(contrat, marqueur, registre_cible, horodatage_arg, sel):
+def inscrire_intervention(contrat, marqueur, registre_cible, horodatage_arg, sel, devis_id=None):
     """
     Enregistre une nouvelle intervention (transition vide → planifiee).
 
@@ -104,6 +145,16 @@ def inscrire_intervention(contrat, marqueur, registre_cible, horodatage_arg, sel
         registre_cible: instance de Registre.
         horodatage_arg: horodatage chaîne (RFC 3339 avec fuseau).
         sel: sel de tokenisation de la ville, fourni par l’appelant (obligatoire).
+        devis_id: identifiant du devis M3 accepté (T1.1-b#1), OPTIONNEL. Fourni
+            À L'INSCRIPTION plutôt qu'à la complétion : M4.5 (« Réception d’un
+            job depuis M2/M3, soumission acceptée ») fait du devis accepté la
+            RAISON D'ÊTRE de l'intervention dès sa création, donc la donnée est
+            déjà connue à ce moment-là ; la porter tel quel jusqu'au WCT
+            (``outbox._extraire_devis_id``) évite de la redemander à la
+            complétion, des heures ou des jours plus tard. Omis (None), aucun
+            rejet : M3 n'alimente pas encore tous les chemins d'entrée (P10,
+            dégradation gracieuse) — et les appels existants à 5 arguments
+            positionnels restent valides tels quels.
 
     Returns:
         (accusé, None) en cas de succès, ou (None, verdict) en cas d’échec.
@@ -119,6 +170,18 @@ def inscrire_intervention(contrat, marqueur, registre_cible, horodatage_arg, sel
         return None, verdicts.construire_verdict(
             "REJ-CONTRAT-INVALIDE", detail="sel de tokenisation absent"
         )
+
+    # 1 ter. devis_id (T1.1-b#1) : optionnel, jamais un défaut inventé si
+    # fourni mais malformé — fail-closed comme le reste du contrat.
+    if devis_id is not None:
+        if not isinstance(devis_id, str):
+            return None, verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE", detail="devis_id doit être une chaîne ou null"
+            )
+        if devis_id == "":
+            return None, verdicts.construire_verdict(
+                "REJ-CHAMP-VIDE", detail="devis_id vide"
+            )
 
     # 2. Validation de l’horodatage
     try:
@@ -153,6 +216,7 @@ def inscrire_intervention(contrat, marqueur, registre_cible, horodatage_arg, sel
         # Le registre est immuable : une ville en clair y serait irrattrapable.
         "ville_tokenisee": cedule.tokeniser_ville(sel, contrat["ville"]),
         "urgence_declaree": copy.deepcopy(contrat["urgence_declaree"]),
+        "devis_id": devis_id,
         "statut": "planifiee",
         "horodatage": horodatage_arg,
         "empreinte_contrat": encodage.empreinte(contrat),
@@ -241,19 +305,21 @@ def transitionner(
             detail=f"transition non autorisée : {courant} -> {statut_cible}",
         )
 
-    # 5 bis. La cible terminee est REFUSÉE ici : la transition vers terminee et
-    # l'événement WCT doivent être écrits par UNE SEULE opération d'ajout
-    # (CA-M4-11), donc par l'outbox seul. La table conserve les couples légaux
-    # (sur_site, terminee) et (en_revue, terminee) : elle dit ce qui est LÉGAL,
-    # l'outbox est le seul qui ÉCRIT.
-    if statut_cible == "terminee":
+    # 5 bis. Les cibles completed_pending_review et completed_verified sont
+    # REFUSÉES ici (T1.1-b#2, ex-``terminee`` scindée en deux issues selon
+    # ecart_detecte) : la transition vers l'une d'elles et l'événement WCT
+    # doivent être écrits par UNE SEULE opération d'ajout (CA-M4-11), donc par
+    # l'outbox seul. La table conserve les quatre couples légaux
+    # (sur_site|en_revue, completed_pending_review|completed_verified) : elle
+    # dit ce qui est LÉGAL, l'outbox est le seul qui ÉCRIT.
+    if statut_cible in ("completed_pending_review", "completed_verified"):
         return None, verdicts.construire_verdict(
             "REJ-TRANSITION-ILLEGALE",
             statut=courant,
             detail=(
                 "la complétion passe exclusivement par l'outbox : la transition vers "
-                "terminee et l'événement WCT doivent être écrits par UNE SEULE opération "
-                "d'ajout (CA-M4-11)"
+                "completed_pending_review ou completed_verified et l'événement WCT "
+                "doivent être écrits par UNE SEULE opération d'ajout (CA-M4-11)"
             ),
         )
 
@@ -342,3 +408,51 @@ def transitionner(
         "horodatage": horodatage_arg,
     }
     return accuse, None
+
+
+def lister_interventions(registre_cible, statut=None):
+    """
+    Liste les interventions connues, sans AUCUNE donnée de contact (T1.1-b#4).
+
+    Lecture pure (T0) : rejoue le registre pour dériver, par intervention, son
+    statut courant (même logique que ``statut_courant``, appliquée à toutes les
+    interventions plutôt qu'à une seule). Le contact (nom/téléphone/courriel)
+    n'entre JAMAIS au registre (cf. ``inscrire_intervention``) : il est donc
+    structurellement absent d'ici, pas seulement filtré.
+
+    Args:
+        registre_cible: instance de Registre.
+        statut: None (toutes les interventions) ou un état parmi ETATS.
+
+    Returns:
+        Liste de dicts {intervention_id, statut, lead_id, type_travaux,
+        devis_id}, triée par intervention_id pour un résultat déterministe.
+
+    Raises:
+        ValueError: si `statut` est fourni et n'appartient pas à ETATS.
+    """
+    if statut is not None and statut not in ETATS:
+        raise ValueError("statut inconnu")
+
+    inscriptions = {}
+    for maillon in registre_cible.lire():
+        if maillon["type_entree"] != TYPE_INSCRIPTION:
+            continue
+        iid = maillon["intervention_id"]
+        if iid not in inscriptions:
+            inscriptions[iid] = maillon
+
+    resultat = []
+    for iid, inscription in inscriptions.items():
+        statut_iid = statut_courant(registre_cible, iid)
+        if statut is not None and statut_iid != statut:
+            continue
+        resultat.append({
+            "intervention_id": iid,
+            "statut": statut_iid,
+            "lead_id": inscription["lead_id"],
+            "type_travaux": inscription["type_travaux"],
+            "devis_id": inscription.get("devis_id"),
+        })
+    resultat.sort(key=lambda e: e["intervention_id"])
+    return resultat

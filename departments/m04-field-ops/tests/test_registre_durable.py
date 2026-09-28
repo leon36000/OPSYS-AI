@@ -109,7 +109,7 @@ def _jouer_scenario(reg: Registre) -> str:
         assert acc_p is not None, f"pointage {action} refusé : {ver_p}"
         assert acc_p["gps_coherent"] is True, "le scénario suppose un GPS cohérent (pas de revue)"
 
-    accuse, verdict = outbox.completer_intervention(i_id, H_COMPLETION, reg)
+    accuse, verdict = outbox.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     assert accuse is not None, f"complétion refusée : {verdict}"
     assert accuse["duree_reelle_minutes"] == 150
 

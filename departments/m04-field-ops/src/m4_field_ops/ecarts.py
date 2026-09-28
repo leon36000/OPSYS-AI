@@ -322,24 +322,30 @@ def resoudre_demande(
     # 6. suite d'état
     # Un écart métier VALIDÉ mène à la complétion, qui doit émettre le WCT dans
     # le même maillon (CA-M4-10 + CA-M4-11) : ce chemin passe donc par l'outbox,
-    # seul écrivain autorisé vers terminee. Une ANOMALIE DE POINTAGE validée,
-    # elle, ne dit pas « le travail est fini » : elle dit « l'administrateur a
-    # résolu l'incohérence, le technicien ÉTAIT bien là » — la table PRD (§4)
-    # prévoit précisément en_revue -> sur_site pour cette reprise (amendement
-    # #145). Router les deux types vers l'outbox faisait échouer la reprise :
-    # une arrivée en anomalie n'a par construction ni départ, donc aucune durée
-    # calculable (« durée réelle indéterminable »), et en_revue -> sur_site
-    # restait inatteignable faute d'appelant. Une décision REJETÉE, quel que
-    # soit le type, annule l'intervention : la machine à états reste l'autorité
-    # de ce chemin.
+    # seul écrivain autorisé vers une issue de complétion. Une ANOMALIE DE
+    # POINTAGE validée, elle, ne dit pas « le travail est fini » : elle dit
+    # « l'administrateur a résolu l'incohérence, le technicien ÉTAIT bien
+    # là » — la table PRD (§4) prévoit précisément en_revue -> sur_site pour
+    # cette reprise (amendement #145). Router les deux types vers l'outbox
+    # faisait échouer la reprise : une arrivée en anomalie n'a par construction
+    # ni départ, donc aucune durée calculable (« durée réelle indéterminable »),
+    # et en_revue -> sur_site restait inatteignable faute d'appelant. Une
+    # décision REJETÉE, quel que soit le type, annule l'intervention : la
+    # machine à états reste l'autorité de ce chemin.
     if decision == "validee":
         if maillon_demande.get("type_demande") == pointage.TYPE_REVUE_ANOMALIE:
             acc_trans, ver_trans = etats.transitionner(
                 intervention_id, "sur_site", registre_cible, horodatage_arg
             )
         else:
+            # ecart_detecte=True EXPLICITE (T1.1-b#2, jamais déduit PAR
+            # L'OUTBOX) : c'est ce module-ci, qui vient de valider une demande
+            # d'écart métier, qui le décide — un écart métier confirmé EST par
+            # définition un écart détecté, donc l'issue est
+            # completed_pending_review, jamais completed_verified.
             acc_trans, ver_trans = outbox.completer_intervention(
-                intervention_id, horodatage_arg, registre_cible, revue_id=demande_id
+                intervention_id, horodatage_arg, registre_cible,
+                ecart_detecte=True, revue_id=demande_id,
             )
     else:
         acc_trans, ver_trans = etats.transitionner(

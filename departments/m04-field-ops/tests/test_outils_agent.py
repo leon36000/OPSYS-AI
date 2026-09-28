@@ -63,6 +63,7 @@ def test_autonomie_attendue_par_outil():
     lectures_t0 = [
         "m4_statut_intervention", "m4_lister_pending_review",
         "m4_volumetrie_pending_review", "m4_lire_outbox", "m4_produire_digest",
+        "m4_lister_interventions",
     ]
     for nom in ecritures_t1:
         assert par_nom[nom].autonomie == Autonomie.T1, nom
@@ -174,9 +175,17 @@ def test_chaine_complete_planification_pointage_completion_digest_notification()
     completion = _appeler(
         par_nom, "m4_completer_intervention",
         intervention_id=i_id, horodatage="2025-06-02T11:35:00+00:00",
+        ecart_detecte=False,
+        preuves_completion={
+            "checklist_complete": True,
+            "photos_apres": ["photo-apres-1.jpg"],
+            "notes": "Aucun imprévu.",
+            "signature": None,
+        },
     )
     assert completion["ok"] is True and completion["resultat"]["accepte"] is True
     assert completion["resultat"]["resultat"]["duree_reelle_minutes"] == 150
+    assert completion["resultat"]["resultat"]["statut"] == "completed_verified"
 
     boite = _appeler(par_nom, "m4_lire_outbox")
     assert boite["ok"] is True
@@ -253,7 +262,160 @@ def test_resoudre_demande_ecart_metier_via_outils_complete_avec_wct():
         horodatage="2025-06-02T12:00:00+00:00",
     )
     assert resolution["ok"] is True and resolution["resultat"]["accepte"] is True
-    assert resolution["resultat"]["resultat"]["statut"] == "terminee"
+    # Un écart métier validé EST un écart détecté (ecarts.py fixe ecart_detecte=True) :
+    # l'issue est completed_pending_review, jamais completed_verified (T1.1-b#2).
+    assert resolution["resultat"]["resultat"]["statut"] == "completed_pending_review"
 
     boite = _appeler(par_nom, "m4_lire_outbox")["resultat"]
     assert any(e["wct"]["intervention_id"] == i_id and e["wct"]["ecart_signale"] is True for e in boite)
+
+
+# ------------------------------------------------------------------ T1.1-b#3 : PreuvesCompletion
+_PREUVES_OK = {
+    "checklist_complete": True,
+    "photos_apres": ["photo-apres-1.jpg"],
+    "notes": "Aucun imprévu.",
+    "signature": None,
+}
+
+
+def _mener_a_sur_site(par_nom, lead_id="L-PREUVES"):
+    plan = _appeler(
+        par_nom, "m4_planifier_intervention",
+        contrat={**CONTRAT_VALIDE, "lead_id": lead_id},
+        marqueur={**MARQUEUR_VALIDE, "lead_id": lead_id},
+        horodatage="2025-06-02T08:00:00+00:00", sel=SEL,
+        techniciens_disponibles=["T1"], fenetres_disponibles=[FENETRE],
+    )["resultat"]
+    i_id = plan["intervention_id"]
+    _appeler(par_nom, "m4_demarrer_route", intervention_id=i_id, technicien_id="T1",
+             horodatage="2025-06-02T08:30:00+00:00")
+    import m4_field_ops.cedule as cedule_mod
+    token = cedule_mod.tokeniser_ville(SEL, VILLE)
+    referentiel_villes = {token: {"latitude": 45.5017, "longitude": -73.5673, "rayon_km": 25.0}}
+    for action, horo in (("arrivee", "2025-06-02T09:00:00+00:00"), ("depart", "2025-06-02T11:30:00+00:00")):
+        r = _appeler(
+            par_nom, "m4_pointer", intervention_id=i_id, technicien_id="T1", action=action,
+            horodatage=horo, fix_gps=FIX_GPS, attestation=ATTESTATION,
+            fenetre_travail=FENETRE, referentiel_villes=referentiel_villes, ville=VILLE, sel=SEL,
+        )
+        assert r["resultat"]["accepte"] is True, r
+    return i_id
+
+
+def test_completer_intervention_preuves_valides_accepte():
+    par_nom = _outils_par_nom()
+    i_id = _mener_a_sur_site(par_nom)
+    completion = _appeler(
+        par_nom, "m4_completer_intervention",
+        intervention_id=i_id, horodatage="2025-06-02T11:35:00+00:00",
+        ecart_detecte=False, preuves_completion=_PREUVES_OK,
+    )
+    assert completion["ok"] is True and completion["resultat"]["accepte"] is True
+    assert completion["resultat"]["resultat"]["statut"] == "completed_verified"
+
+
+def test_completer_intervention_checklist_incomplete_refuse_rien_ecrit():
+    par_nom = _outils_par_nom()
+    i_id = _mener_a_sur_site(par_nom, lead_id="L-PREUVES-CHECKLIST")
+    preuves_incompletes = {**_PREUVES_OK, "checklist_complete": False}
+    completion = _appeler(
+        par_nom, "m4_completer_intervention",
+        intervention_id=i_id, horodatage="2025-06-02T11:35:00+00:00",
+        ecart_detecte=False, preuves_completion=preuves_incompletes,
+    )
+    assert completion["ok"] is True
+    assert completion["resultat"]["accepte"] is False
+    assert completion["resultat"]["verdict"]["code"] == "REJ-CHAMP-VIDE"
+    # Rien n'a été écrit : aucun WCT, l'intervention reste sur_site.
+    statut = _appeler(par_nom, "m4_statut_intervention", intervention_id=i_id)
+    assert statut["resultat"]["statut"] == "sur_site"
+    boite = _appeler(par_nom, "m4_lire_outbox")["resultat"]
+    assert not any(e["wct"]["intervention_id"] == i_id for e in boite)
+
+
+def test_completer_intervention_photos_apres_vide_refuse():
+    par_nom = _outils_par_nom()
+    i_id = _mener_a_sur_site(par_nom, lead_id="L-PREUVES-PHOTOS")
+    completion = _appeler(
+        par_nom, "m4_completer_intervention",
+        intervention_id=i_id, horodatage="2025-06-02T11:35:00+00:00",
+        ecart_detecte=False, preuves_completion={**_PREUVES_OK, "photos_apres": []},
+    )
+    assert completion["resultat"]["accepte"] is False
+    assert completion["resultat"]["verdict"]["code"] == "REJ-CHAMP-VIDE"
+
+
+def test_completer_intervention_signature_requise_absente_refuse():
+    par_nom = _outils_par_nom()
+    i_id = _mener_a_sur_site(par_nom, lead_id="L-PREUVES-SIGNATURE")
+    completion = _appeler(
+        par_nom, "m4_completer_intervention",
+        intervention_id=i_id, horodatage="2025-06-02T11:35:00+00:00",
+        ecart_detecte=False, preuves_completion=_PREUVES_OK, signature_requise=True,
+    )
+    assert completion["resultat"]["accepte"] is False
+    assert completion["resultat"]["verdict"]["code"] == "REJ-CHAMP-MANQUANT"
+
+
+def test_completer_intervention_signature_requise_fournie_accepte():
+    par_nom = _outils_par_nom()
+    i_id = _mener_a_sur_site(par_nom, lead_id="L-PREUVES-SIGNATURE-OK")
+    completion = _appeler(
+        par_nom, "m4_completer_intervention",
+        intervention_id=i_id, horodatage="2025-06-02T11:35:00+00:00",
+        ecart_detecte=True, preuves_completion={**_PREUVES_OK, "signature": "Client X"},
+        signature_requise=True,
+    )
+    assert completion["resultat"]["accepte"] is True
+    assert completion["resultat"]["resultat"]["statut"] == "completed_pending_review"
+
+
+def test_completer_intervention_sans_preuves_ni_ecart_detecte_arguments_invalides():
+    """Les deux paramètres sont REQUIS par le schéma de l'outil : les omettre
+    est un refus de schéma, pas une exécution silencieuse."""
+    par_nom = _outils_par_nom()
+    i_id = _mener_a_sur_site(par_nom, lead_id="L-PREUVES-MANQUANTES")
+    completion = executer(par_nom["m4_completer_intervention"], {
+        "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
+    })
+    assert completion["ok"] is False
+    assert completion["erreur"] == "arguments_invalides"
+
+
+# ------------------------------------------------------------------ T1.1-b#4 : m4_lister_interventions
+def test_lister_interventions_sans_donnee_de_contact():
+    par_nom = _outils_par_nom()
+    plan = _appeler(
+        par_nom, "m4_planifier_intervention",
+        contrat={**CONTRAT_VALIDE, "lead_id": "L-LISTE"},
+        marqueur={**MARQUEUR_VALIDE, "lead_id": "L-LISTE"},
+        horodatage="2025-06-02T08:00:00+00:00", sel=SEL,
+        techniciens_disponibles=["T1"], fenetres_disponibles=[FENETRE],
+        devis_id="DEVIS-LISTE-1",
+    )["resultat"]
+    i_id = plan["intervention_id"]
+
+    toutes = _appeler(par_nom, "m4_lister_interventions")
+    assert toutes["ok"] is True
+    entrees = {e["intervention_id"]: e for e in toutes["resultat"]}
+    assert entrees[i_id]["statut"] == "planifiee"
+    assert entrees[i_id]["lead_id"] == "L-LISTE"
+    assert entrees[i_id]["devis_id"] == "DEVIS-LISTE-1"
+    for e in toutes["resultat"]:
+        assert "contact" not in e
+        for cle_interdite in ("nom", "telephone", "courriel"):
+            assert cle_interdite not in e
+
+    filtrees = _appeler(par_nom, "m4_lister_interventions", statut="planifiee")
+    assert i_id in {e["intervention_id"] for e in filtrees["resultat"]}
+
+    vides = _appeler(par_nom, "m4_lister_interventions", statut="annulee")
+    assert vides["resultat"] == []
+
+
+def test_lister_interventions_statut_hors_schema_arguments_invalides():
+    par_nom = _outils_par_nom()
+    reponse = executer(par_nom["m4_lister_interventions"], {"statut": "statut_pirate"})
+    assert reponse["ok"] is False
+    assert reponse["erreur"] == "arguments_invalides"

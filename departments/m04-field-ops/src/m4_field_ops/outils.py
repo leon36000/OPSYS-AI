@@ -1,7 +1,8 @@
 """Capacités d'agent du département M4 Field Ops.
 
 Chaque outil enveloppe une fonction métier déterministe existante (etats,
-cedule, pointage, ecarts, outbox, digest) : aucune n'est réécrite. Comme le
+cedule, pointage, ecarts, outbox, digest, preuves) : aucune n'est
+réécrite. Comme le
 registre M4 (`registre.Registre`) est un journal que les fonctions métier
 reçoivent en paramètre vivant — jamais un objet JSON-sérialisable —
 `outils()` referme par fermeture (closure) sur chaque fonction exposée l'accès
@@ -32,7 +33,7 @@ from typing import Any
 from opsys import stockage
 from opsys.outils import Autonomie, Outil, depuis_couple
 
-from . import cedule, digest, ecarts, etats, outbox, pointage, registre
+from . import cedule, digest, ecarts, etats, outbox, pointage, preuves, registre
 
 _CONTRAT = {"type": "object", "description": "LeadQualifie M2 : sept clés gelées (lead_id, "
             "conversation_id, type_travaux, ville, canal, contact, urgence_declaree)."}
@@ -42,6 +43,13 @@ _ATTESTATION = {"type": "object", "description": "{fictif: true, appareil_id} �
 _FENETRE = {"type": "object", "description": "{debut, fin} ISO-8601 avec fuseau."}
 _REFERENTIEL_VILLES = {"type": "object", "description": "{ville_tokenisee: {latitude, longitude, rayon_km}}."}
 _VERSION_METIER = {"type": "object", "description": "{duree_minutes, perimetre, materiaux}."}
+_PREUVES_COMPLETION = {
+    "type": "object",
+    "description": (
+        "{checklist_complete: bool (doit être true), photos_apres: [string,...] non vide, "
+        "notes: string, signature: string|null}. Exigé pour clore une intervention (§6/§9.7)."
+    ),
+}
 
 
 def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]:
@@ -65,9 +73,12 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
     def planifier_intervention(
         contrat: dict[str, Any], marqueur: dict[str, Any], horodatage: str, sel: str,
         techniciens_disponibles: list[str], fenetres_disponibles: list[dict[str, Any]],
+        devis_id: str | None = None,
     ) -> dict[str, Any]:
         """Inscrit l'intervention PUIS calcule sa cédule en un seul appel."""
-        accuse, verdict = etats.inscrire_intervention(contrat, marqueur, registre_courant(), horodatage, sel)
+        accuse, verdict = etats.inscrire_intervention(
+            contrat, marqueur, registre_courant(), horodatage, sel, devis_id=devis_id,
+        )
         if verdict is not None:
             return {"etape": "inscription", "accepte": False, "verdict": verdict}
         intervention_pour_cedule = {
@@ -139,8 +150,18 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
     def volumetrie_pending_review() -> dict[str, Any]:
         return ecarts.volumetrie_pending_review(registre_courant())
 
-    def completer_intervention(intervention_id: str, horodatage: str) -> dict[str, Any]:
-        return depuis_couple(outbox.completer_intervention(intervention_id, horodatage, registre_courant()))
+    def completer_intervention(
+        intervention_id: str, horodatage: str, ecart_detecte: bool,
+        preuves_completion: dict[str, Any], signature_requise: bool = False,
+    ) -> dict[str, Any]:
+        # Contrat PreuvesCompletion (T1.1-b#3) : validé AVANT tout appel à
+        # l'outbox — aucune écriture si le dossier de preuves est incomplet.
+        ok, verdict = preuves.valider_preuves_completion(preuves_completion, signature_requise)
+        if not ok:
+            return {"accepte": False, "verdict": verdict}
+        return depuis_couple(outbox.completer_intervention(
+            intervention_id, horodatage, registre_courant(), ecart_detecte=ecart_detecte,
+        ))
 
     def lire_outbox(depuis_index: int = 0) -> list[dict[str, Any]]:
         return [{"index": i, "wct": w} for i, w in outbox.lire_outbox(registre_courant(), depuis_index)]
@@ -165,6 +186,9 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
     def produire_digest(date_cible: str, horodatage_reference: str) -> dict[str, Any]:
         return depuis_couple(digest.produire_digest(registre_courant(), date_cible, horodatage_reference))
 
+    def lister_interventions(statut: str | None = None) -> list[dict[str, Any]]:
+        return etats.lister_interventions(registre_courant(), statut=statut)
+
     return (
         Outil(
             nom="m4_planifier_intervention",
@@ -180,6 +204,10 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
                     "horodatage": {"type": "string"}, "sel": {"type": "string"},
                     "techniciens_disponibles": {"type": "array", "items": {"type": "string"}},
                     "fenetres_disponibles": {"type": "array", "items": _FENETRE},
+                    "devis_id": {
+                        "type": ["string", "null"],
+                        "description": "Identifiant du devis M3 accepté, si déjà connu. Omis, reste null.",
+                    },
                 },
                 "required": ["contrat", "marqueur", "horodatage", "sel",
                              "techniciens_disponibles", "fenetres_disponibles"],
@@ -329,13 +357,24 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             nom="m4_completer_intervention",
             description=(
                 "Termine une intervention et émet le Work Completion Trigger dans l'outbox, "
-                "en une seule écriture atomique (CA-M4-11). Calcule la durée réelle depuis les "
-                "pointages ; refuse fail-closed si elle est indéterminable."
+                "en une seule écriture atomique (CA-M4-11). Exige le dossier PreuvesCompletion "
+                "(checklist, photos après, notes, signature si requise, §6/§9.7) et un signal "
+                "explicite ecart_detecte, jamais déduit : vrai -> completed_pending_review, "
+                "faux -> completed_verified. Calcule la durée réelle depuis les pointages, nette "
+                "des pauses ; refuse fail-closed si indéterminable ou si les preuves manquent."
             ),
             parametres={
                 "type": "object",
-                "properties": {"intervention_id": {"type": "string"}, "horodatage": {"type": "string"}},
-                "required": ["intervention_id", "horodatage"],
+                "properties": {
+                    "intervention_id": {"type": "string"}, "horodatage": {"type": "string"},
+                    "ecart_detecte": {
+                        "type": "boolean",
+                        "description": "vrai -> completed_pending_review ; faux -> completed_verified.",
+                    },
+                    "preuves_completion": _PREUVES_COMPLETION,
+                    "signature_requise": {"type": "boolean", "description": "Défaut : faux."},
+                },
+                "required": ["intervention_id", "horodatage", "ecart_detecte", "preuves_completion"],
                 "additionalProperties": False,
             },
             fonction=completer_intervention,
@@ -381,6 +420,22 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
                 "additionalProperties": False,
             },
             fonction=produire_digest,
+            autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m4_lister_interventions",
+            description=(
+                "Liste les interventions connues (id, statut, lead, type de travaux, devis), "
+                "sans aucune donnée de contact. Filtre optionnel par statut."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "statut": {"type": ["string", "null"], "enum": list(etats.ETATS) + [None]},
+                },
+                "additionalProperties": False,
+            },
+            fonction=lister_interventions,
             autonomie=Autonomie.T0,
         ),
     )

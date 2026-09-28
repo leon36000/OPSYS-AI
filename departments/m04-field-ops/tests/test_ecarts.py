@@ -248,9 +248,9 @@ def test_intervention_inexistante():
 
 def test_intervention_terminale():
     reg, i_id = _registre_sur_site()
-    # amener a terminee
-    # Depuis S008, seule l'outbox écrit vers terminee (maillon composite, CA-M4-11).
-    acc, _ = outbox_mod.completer_intervention(i_id, H4, reg)
+    # amener à un état terminal (T1.1-b#2 : completed_verified ici)
+    # Depuis S008, seule l'outbox écrit vers une issue de complétion (maillon composite, CA-M4-11).
+    acc, _ = outbox_mod.completer_intervention(i_id, H4, reg, ecart_detecte=False)
     assert acc is not None
     statut = etats_mod.statut_courant(reg, i_id)
     assert statut in etats_mod.ETATS_TERMINAUX
@@ -323,15 +323,18 @@ def test_resolution_append_only():
     assert reg.valider_chaine() is True
 
 
-# ------------------------------------------------------------------ 8. Resolution validee/terminee, rejetee/annulee
-def test_resolution_validee_terminee():
+# ------------------------------------------------------------------ 8. Resolutions validee/rejetee
+def test_resolution_validee_completed_pending_review():
+    """Un écart métier validé EST un écart détecté : ecarts.py fixe
+    ecart_detecte=True, l'issue est donc completed_pending_review (T1.1-b#2),
+    jamais completed_verified."""
     reg, i_id = _registre_sur_site()
     acc, _ = ecarts_mod.creer_demande_ecart(
         i_id, VERSION_PREVUE, VERSION_DECLAREE, H4, reg
     )
     demande_id = acc["demande_id"]
     ecarts_mod.resoudre_demande(demande_id, "validee", H5, reg)
-    assert etats_mod.statut_courant(reg, i_id) == "terminee"
+    assert etats_mod.statut_courant(reg, i_id) == "completed_pending_review"
 
 
 def test_resolution_rejetee_annulee():
@@ -624,7 +627,7 @@ def test_resolution_refusee_si_la_transition_est_illegale():
     assert ecarts_mod.lister_pending_review(reg), "la demande reste EN ATTENTE"
 
 @pytest.mark.parametrize("decision, statut_attendu", [
-    ("validee", "terminee"),
+    ("validee", "completed_pending_review"),
     ("rejetee", "annulee"),
 ])
 def test_maillon_resolution_porte_la_decision_arbitree(decision, statut_attendu):

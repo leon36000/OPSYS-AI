@@ -26,10 +26,16 @@ CONSOMMATEURS_CIBLES = ("M6", "M5", "M2", "M7", "M8", "M10")
 CHAMPS_WCT = (
     "wct_id", "intervention_id", "lead_id", "technicien_id", "horodatage_completion",
     "fix_gps_completion", "duree_reelle_minutes", "ecart_signale", "revue_id",
-    "hash_maillon", "consommateurs_cibles", "devis_id",
+    "hash_maillon", "consommateurs_cibles", "devis_id", "statut",
 )
 
 CLE_WCT = "wct"
+
+# T1.1-b#2 : les deux SEULES cibles que la complétion peut écrire (ex-``terminee``
+# scindée selon ``ecart_detecte``, jamais déduit). Centralisé ici : c'est la
+# même paire que ``completer_intervention`` calcule, que ``garde_ecriture_unique``
+# protège et que ``verifier_invariants_outbox`` reconnaît comme terminale-WCT.
+STATUTS_COMPLETION = ("completed_pending_review", "completed_verified")
 
 # --------------------------------------------------------------------- helpers
 def _extraire_lead_id(registre_cible, intervention_id):
@@ -38,6 +44,18 @@ def _extraire_lead_id(registre_cible, intervention_id):
         if (maillon.get("type_entree") == etats.TYPE_INSCRIPTION
                 and maillon.get("intervention_id") == intervention_id):
             return maillon["lead_id"]
+    return None
+
+
+def _extraire_devis_id(registre_cible, intervention_id):
+    """Renvoie le ``devis_id`` (T1.1-b#1) du maillon d'inscription, ou None si
+    l'intervention a été inscrite sans devis (M3 n'alimente pas encore tous
+    les chemins d'entrée) — jamais une valeur inventée, symétrique à
+    ``_extraire_lead_id``. Porté TEL QUEL par le WCT."""
+    for maillon in registre_cible.lire():
+        if (maillon.get("type_entree") == etats.TYPE_INSCRIPTION
+                and maillon.get("intervention_id") == intervention_id):
+            return maillon.get("devis_id")
     return None
 
 
@@ -101,7 +119,7 @@ def calculer_duree_reelle(registre_cible, intervention_id):
     return minutes, None
 
 
-def completer_intervention(intervention_id, horodatage_arg, registre_cible, revue_id=None):
+def completer_intervention(intervention_id, horodatage_arg, registre_cible, *, ecart_detecte, revue_id=None):
     """
     Réalise la complétion et émet le WCT en une unique écriture.
 
@@ -109,7 +127,18 @@ def completer_intervention(intervention_id, horodatage_arg, registre_cible, revu
         intervention_id: identifiant de l'intervention à terminer.
         horodatage_arg: horodatage RFC 3339 avec fuseau.
         registre_cible: instance de Registre.
-        revue_id: éventuel identifiant de la demande de revue ayant déclenché la complétion.
+        ecart_detecte: booléen EXPLICITE (mot-clé obligatoire, aucun défaut,
+            T1.1-b#2), JAMAIS déduit par cette fonction d'un autre signal
+            (ex. la seule présence de ``revue_id``) : l'appelant décide, cette
+            fonction applique. Détermine l'ISSUE de la complétion :
+                vrai  -> statut completed_pending_review
+                faux  -> statut completed_verified
+            (DEFINITION-PRODUIT.md §6). Porté tel quel dans wct.ecart_signale.
+        revue_id: éventuel identifiant de la demande de revue ayant déclenché
+            la complétion. S'il est fourni, il DOIT correspondre à un écart
+            métier déjà confirmé : ``ecart_detecte`` doit alors valoir vrai
+            (cohérence vérifiée ci-dessous) — une revue validée ne peut pas
+            prétendre qu'aucun écart n'a été détecté.
 
     Returns:
         (accusé, None) ou (None, verdict).
@@ -120,7 +149,16 @@ def completer_intervention(intervention_id, horodatage_arg, registre_cible, revu
     except ValueError:
         return None, verdicts.construire_verdict("REJ-HORODATAGE-INVALIDE")
 
-    # 2. Statut courant
+    # 2. ecart_detecte : booléen STRICT, jamais une valeur approchante (int,
+    # None...) qu'on interpréterait à sa place — ce serait déduire.
+    if type(ecart_detecte) is not bool:
+        return None, verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE",
+            detail="ecart_detecte doit être un booléen explicite (jamais déduit)",
+        )
+    statut_cible = "completed_pending_review" if ecart_detecte else "completed_verified"
+
+    # 3. Statut courant
     courant = etats.statut_courant(registre_cible, intervention_id)
     if courant is None:
         return None, verdicts.construire_verdict(
@@ -128,15 +166,19 @@ def completer_intervention(intervention_id, horodatage_arg, registre_cible, revu
             detail="intervention inexistante",
         )
 
-    # 3. La table des transitions reste l'autorité sur la légalité théorique
-    if (courant, "terminee") not in etats.TRANSITIONS_AUTORISEES:
+    # 4. La table des transitions reste l'autorité sur la légalité théorique
+    if (courant, statut_cible) not in etats.TRANSITIONS_AUTORISEES:
         return None, verdicts.construire_verdict(
             "REJ-TRANSITION-ILLEGALE",
             statut=courant,
-            detail=f"{courant} -> terminee",
+            detail=f"{courant} -> {statut_cible}",
         )
 
-    # 4. Revue_id (si fourni) doit exister
+    # 5. Revue_id (si fourni) doit exister ET impliquer un écart détecté :
+    # une demande d'écart métier VALIDÉE (le seul chemin qui fournit revue_id,
+    # cf. ecarts.resoudre_demande) constate justement qu'un écart existe —
+    # prétendre ecart_detecte=faux en même temps serait une incohérence que le
+    # fail-closed doit fermer, pas seulement ignorer.
     if revue_id is not None:
         trouve = False
         for maillon in registre_cible.lire():
@@ -149,8 +191,13 @@ def completer_intervention(intervention_id, horodatage_arg, registre_cible, revu
                 "REJ-CONTRAT-INVALIDE",
                 detail="revue introuvable",
             )
+        if not ecart_detecte:
+            return None, verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE",
+                detail="revue_id fourni implique ecart_detecte=true",
+            )
 
-    # 5. Durée réelle
+    # 6. Durée réelle
     duree_minutes, code_duree = calculer_duree_reelle(registre_cible, intervention_id)
     if duree_minutes is None:
         return None, verdicts.construire_verdict(
@@ -158,13 +205,17 @@ def completer_intervention(intervention_id, horodatage_arg, registre_cible, revu
             detail="durée réelle indéterminable",
         )
 
-    # 6. Extraction des données terrain (ne fait pas confiance à l'appelant)
+    # 7. Extraction des données terrain (ne fait pas confiance à l'appelant)
     lead_id = _extraire_lead_id(registre_cible, intervention_id)
     if lead_id is None:
         return None, verdicts.construire_verdict(
             "REJ-CONTRAT-INVALIDE",
             detail="lead_id introuvable dans le registre",
         )
+    # T1.1-b#1 : porté TEL QUEL, jamais redemandé ni recalculé — None si
+    # l'intervention a été inscrite sans devis (M3 n'alimente pas encore tous
+    # les chemins d'entrée).
+    devis_id = _extraire_devis_id(registre_cible, intervention_id)
 
     depart = _dernier_depart(registre_cible, intervention_id)
     if depart is None:
@@ -174,22 +225,22 @@ def completer_intervention(intervention_id, horodatage_arg, registre_cible, revu
         )
     technicien_id, horodatage_depart, lat, lon = depart
 
-    # 7. Partie transition SEULE (sans le wct)
+    # 8. Partie transition SEULE (sans le wct)
     partie_transition = {
         "type_entree": etats.TYPE_TRANSITION,
         "intervention_id": intervention_id,
-        "statut": "terminee",
+        "statut": statut_cible,
         "statut_precedent": courant,
         "horodatage": horodatage_arg,
     }
 
-    # 8. Empreinte de la partie transition (jamais circulaire car le wct n'y figure pas)
+    # 9. Empreinte de la partie transition (jamais circulaire car le wct n'y figure pas)
     hash_maillon = encodage.empreinte(partie_transition)
 
-    # 9. Identifiant du wct
+    # 10. Identifiant du wct
     wct_id = encodage.empreinte("wct", intervention_id, horodatage_arg)
 
-    # 10. Assemblage du wct
+    # 11. Assemblage du wct
     wct = {
         "wct_id": wct_id,
         "intervention_id": intervention_id,
@@ -198,27 +249,28 @@ def completer_intervention(intervention_id, horodatage_arg, registre_cible, revu
         "horodatage_completion": horodatage_depart,
         "fix_gps_completion": {"latitude": lat, "longitude": lon},
         "duree_reelle_minutes": duree_minutes,
-        "ecart_signale": revue_id is not None,
+        "ecart_signale": ecart_detecte,
         "revue_id": revue_id,
         "hash_maillon": hash_maillon,
         "consommateurs_cibles": list(CONSOMMATEURS_CIBLES),
-        "devis_id": None,  # M3 n'existe pas en v1
+        "devis_id": devis_id,
+        "statut": statut_cible,
     }
 
-    # 11. Maillon composite : exactement UN appel à ajouter
+    # 12. Maillon composite : exactement UN appel à ajouter
     maillon = copy.deepcopy(partie_transition)
     maillon[CLE_WCT] = wct
     ligne_id = registre_cible.ajouter(maillon)
 
-    # 12. Accusé
+    # 13. Accusé
     accuse = {
         "wct_id": wct_id,
         "intervention_id": intervention_id,
         "ligne_id": ligne_id,
-        "statut": "terminee",
+        "statut": statut_cible,
         "hash_maillon": hash_maillon,
         "duree_reelle_minutes": duree_minutes,
-        "ecart_signale": revue_id is not None,
+        "ecart_signale": ecart_detecte,
         "tete_chaine": registre_cible.tete(),
     }
     return accuse, None
@@ -261,16 +313,18 @@ def verifier_invariants_outbox(registre_cible):
         statut = maillon.get("statut")
         wct = maillon.get(CLE_WCT)
 
-        # Tout maillon terminé doit porter un wct
-        if statut == "terminee":
+        # Tout maillon complété (l'une des deux issues T1.1-b#2) doit porter un wct
+        if statut in STATUTS_COMPLETION:
             if wct is None:
-                return False, f"maillon terminee sans wct (index implicite)"
+                return False, f"maillon {statut} sans wct (index implicite)"
             if set(wct.keys()) != set(CHAMPS_WCT):
                 return False, f"wct avec clés incorrectes: {set(wct.keys())}"
             if wct["consommateurs_cibles"] != list(CONSOMMATEURS_CIBLES):
                 return False, "consommateurs_cibles du wct invalides"
             if wct["intervention_id"] != maillon.get("intervention_id"):
                 return False, "wct.intervention_id # maillon.intervention_id"
+            if wct["statut"] != statut:
+                return False, "wct.statut # maillon.statut"
 
             # Recalcul du hash sur la partie transition (sans wct, ligne_id, precedent_ligne_id)
             partie = {
@@ -281,9 +335,9 @@ def verifier_invariants_outbox(registre_cible):
             if wct["hash_maillon"] != recalcul:
                 return False, "hash_maillon incohérent"
 
-        # Aucun maillon non-terminé ne doit porter la clé wct
-        elif statut != "terminee" and wct is not None:
-            return False, f"maillon non-terminee porte un wct (statut={statut})"
+        # Aucun maillon non-complété ne doit porter la clé wct
+        elif statut not in STATUTS_COMPLETION and wct is not None:
+            return False, f"maillon non complété porte un wct (statut={statut})"
 
     return True, ""
 
@@ -294,8 +348,8 @@ def garde_ecriture_unique(chemin_source=None):
     et que ``completer_intervention`` n'appelle ``ajouter`` qu'une fois.
 
     Limite connue : un appel indirect (getattr, alias) échapperait à la garde.
-    Le refus au runtime de ``transitionner(..., "terminee", ...)`` constitue la
-    défense en profondeur.
+    Le refus au runtime de ``transitionner(..., "completed_pending_review"/
+    "completed_verified", ...)`` constitue la défense en profondeur.
 
     Args:
         chemin_source: dossier des sources à analyser (défaut : dossier du module).
@@ -345,7 +399,9 @@ def garde_ecriture_unique(chemin_source=None):
                                             f"hors de completer_intervention"
                                         )
 
-                # Vérification des appels à transitionner(..., "terminee", ...)
+                # Vérification des appels à transitionner(..., "completed_pending_review"
+                # / "completed_verified", ...) — les deux SEULES cibles de complétion
+                # (T1.1-b#2, ex-"terminee").
                 nom_fonc = None
                 if isinstance(node.func, ast.Attribute):
                     nom_fonc = node.func.attr
@@ -353,21 +409,21 @@ def garde_ecriture_unique(chemin_source=None):
                     nom_fonc = node.func.id
                 if nom_fonc == "transitionner":
                     for arg in node.args:
-                        if isinstance(arg, ast.Constant) and arg.value == "terminee":
+                        if isinstance(arg, ast.Constant) and arg.value in STATUTS_COMPLETION:
                             violations.append(
-                                f"{path.name}: appel à transitionner avec 'terminee'"
+                                f"{path.name}: appel à transitionner avec {arg.value!r}"
                             )
                     for kw in node.keywords:
                         # BUG CORRIGÉ : kw.value est le NŒUD ast.Constant lui-même,
-                        # jamais égal à la chaîne "terminee" (comparaison objet-vs-str
+                        # jamais égal à la chaîne visée (comparaison objet-vs-str
                         # toujours fausse) — c'est sa .value qui porte la constante
                         # Python réelle. Sans .value, la forme mot-clé
-                        # (transitionner(..., statut_cible="terminee")) échappait
-                        # entièrement à la garde alors que la forme positionnelle,
-                        # elle, était bien détectée juste au-dessus.
-                        if isinstance(kw.value, ast.Constant) and kw.value.value == "terminee":
+                        # (transitionner(..., statut_cible="completed_verified"))
+                        # échappait entièrement à la garde alors que la forme
+                        # positionnelle, elle, était bien détectée juste au-dessus.
+                        if isinstance(kw.value, ast.Constant) and kw.value.value in STATUTS_COMPLETION:
                             violations.append(
-                                f"{path.name}: appel à transitionner avec keyword 'terminee'"
+                                f"{path.name}: appel à transitionner avec keyword {kw.value.value!r}"
                             )
 
                 self.generic_visit(node)
@@ -462,6 +518,7 @@ __all__ = [
     "CONSOMMATEURS_CIBLES",
     "CHAMPS_WCT",
     "CLE_WCT",
+    "STATUTS_COMPLETION",
     "calculer_duree_reelle",
     "completer_intervention",
     "lire_outbox",

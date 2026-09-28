@@ -30,13 +30,14 @@ ATTESTATION_TEST = {"fictif": True, "appareil_id": "APP-1"}
 FENETRE_TEST = {"debut": "2025-06-02T07:00:00+00:00", "fin": "2025-06-02T19:00:00+00:00"}
 
 
-def _completer_par_outbox(registre, intervention_id, horodatage):
-    """Amène une intervention à `terminee` par le chemin RÉEL de production.
+def _completer_par_outbox(registre, intervention_id, horodatage, ecart_detecte=False):
+    """Amène une intervention à completed_pending_review/completed_verified
+    par le chemin RÉEL de production (T1.1-b#2, ex-`terminee`).
 
-    Depuis S008, `transitionner` REFUSE la cible terminee : la transition et
-    l'événement WCT doivent être écrits par UNE SEULE opération d'ajout
-    (CA-M4-11), donc par l'outbox. Fabriquer le maillon à la main validerait un
-    chemin qui n'existe pas en production.
+    Depuis S008, `transitionner` REFUSE les deux cibles de complétion : la
+    transition et l'événement WCT doivent être écrits par UNE SEULE opération
+    d'ajout (CA-M4-11), donc par l'outbox. Fabriquer le maillon à la main
+    validerait un chemin qui n'existe pas en production.
     """
     assert etats_mod.statut_courant(registre, intervention_id) == "en_route", (
         "ce helper part de en_route : le pointage d'arrivée l'exige"
@@ -49,7 +50,9 @@ def _completer_par_outbox(registre, intervention_id, horodatage):
             assign, FENETRE_TEST, REFERENTIEL_TEST, VILLE_TEST, SEL, registre,
         )
         assert acc is not None, f"pointage {action} refusé : {verd}"
-    acc, verd = outbox_mod.completer_intervention(intervention_id, horodatage, registre)
+    acc, verd = outbox_mod.completer_intervention(
+        intervention_id, horodatage, registre, ecart_detecte=ecart_detecte,
+    )
     assert acc is not None, f"complétion refusée : {verd}"
     return acc
 H_VALIDE2 = "2025-06-02T10:00:00+00:00"
@@ -90,7 +93,8 @@ CHEMINS = {
     "sur_site": [("en_route", None), ("sur_site", None)],
     "en_revue": [("en_route", None), ("sur_site", None), ("en_revue", None)],
     "reportee": [("reportee", "meteo")],
-    # terminee est ABSENT : il n'est plus atteignable par transitionner (S008).
+    # completed_pending_review/completed_verified sont ABSENTS : ils ne sont
+    # plus atteignables par transitionner (S008) — voir preparer_chemin.
     "annulee": [("annulee", None)],
 }
 
@@ -106,15 +110,18 @@ def preparer_chemin(registre, contrat, marqueur, etat_cible, horodatage_inscript
     , SEL)
     assert accuse is not None, f"Échec d'inscription : {verdict}"
     intervention_id = accuse["intervention_id"]
-    if etat_cible == "terminee":
+    if etat_cible in ("completed_pending_review", "completed_verified"):
         # Chemin RÉEL : en_route, puis pointages, puis outbox (transitionner
-        # refuse terminee depuis S008).
+        # refuse les deux cibles de complétion depuis S008).
         acc, verd = etats_mod.transitionner(
             intervention_id, "en_route", registre, "2025-06-02T08:30:00+00:00",
             assignation=ASSIGNATION_ETATS(intervention_id),
         )
         assert acc is not None, f"transition en_route refusée : {verd}"
-        _completer_par_outbox(registre, intervention_id, "2025-06-02T12:00:00+00:00")
+        _completer_par_outbox(
+            registre, intervention_id, "2025-06-02T12:00:00+00:00",
+            ecart_detecte=(etat_cible == "completed_pending_review"),
+        )
         return intervention_id, registre
     chemin = CHEMINS.get(etat_cible, [])
     horo = horodatage_inscription
@@ -136,9 +143,12 @@ def preparer_chemin(registre, contrat, marqueur, etat_cible, horodatage_inscript
 # 1. Épinglage des constantes
 def test_constantes_epinglage():
     assert etats_mod.ETATS == (
-        "planifiee", "en_route", "sur_site", "en_revue", "reportee", "terminee", "annulee"
+        "planifiee", "en_route", "sur_site", "en_revue", "reportee",
+        "completed_pending_review", "completed_verified", "annulee",
     )
-    assert etats_mod.ETATS_TERMINAUX == ("terminee", "annulee")
+    assert etats_mod.ETATS_TERMINAUX == (
+        "completed_pending_review", "completed_verified", "annulee",
+    )
     assert etats_mod.MOTIFS_REPORT == ("client_absent", "meteo", "decision_admin")
     assert etats_mod.TRANSITIONS_AUTORISEES == (
         ("planifiee", "en_route"),
@@ -148,8 +158,10 @@ def test_constantes_epinglage():
         ("en_route", "reportee"),
         ("en_route", "annulee"),
         ("sur_site", "en_revue"),
-        ("sur_site", "terminee"),
-        ("en_revue", "terminee"),
+        ("sur_site", "completed_pending_review"),
+        ("sur_site", "completed_verified"),
+        ("en_revue", "completed_pending_review"),
+        ("en_revue", "completed_verified"),
         ("en_revue", "annulee"),
         ("en_revue", "sur_site"),
         ("en_route", "en_revue"),
@@ -452,8 +464,8 @@ def test_parcours_complet_valider(contrat_valide, marqueur_valide, registre_vide
     # par le chemin RÉEL, ce qui prouve que les deux écrivains composent sans
     # rompre la chaîne.
     accuse_wct = _completer_par_outbox(registre_vide, i_id, "2025-06-02T12:00:00+00:00")
-    assert accuse_wct["statut"] == "terminee"
-    assert etats_mod.statut_courant(registre_vide, i_id) == "terminee"
+    assert accuse_wct["statut"] == "completed_verified"
+    assert etats_mod.statut_courant(registre_vide, i_id) == "completed_verified"
     assert registre_vide.valider_chaine() is True
     # assert_chaine ne lève pas
     registre_vide.assert_chaine()   # doit passer sans exception
@@ -465,7 +477,7 @@ def test_transition_depuis_terminal_diagnostic_dedie(contrat_valide, marqueur_va
     distinct du refus générique de table. Sans ce test, retirer le contrôle
     terminal est invisible (aucune paire (terminal, x) dans la table — mutation
     mesurée non détectée) : le diagnostic actionnable serait perdu en silence."""
-    i_id, reg = preparer_chemin(registre_vide, contrat_valide, marqueur_valide, "terminee")
+    i_id, reg = preparer_chemin(registre_vide, contrat_valide, marqueur_valide, "completed_verified")
     accuse, verdict = etats_mod.transitionner(i_id, "en_route", reg, H_VALIDE3)
     assert accuse is None
     assert verdict["code"] == "REJ-TRANSITION-ILLEGALE"
@@ -594,4 +606,98 @@ def test_en_route_vers_en_revue_est_legale(contrat_valide, marqueur_valide, regi
     acc, v = etats_mod.transitionner(i_id, "sur_site", registre_vide, "2025-06-02T14:00:00+00:00")
     assert acc is not None, f"en_revue -> sur_site doit rester légale : {v}"
     assert registre_vide.valider_chaine() is True
+
+
+# ------------------------------------------------------------------ T1.1-b#1 : devis_id (M3)
+def test_devis_id_omis_reste_null(contrat_valide, marqueur_valide, registre_vide):
+    """Omis, devis_id reste None — rétrocompatibilité avec les appels à 5
+    arguments positionnels (les 451 tests d'origine)."""
+    accuse, verdict = etats_mod.inscrire_intervention(
+        contrat_valide, marqueur_valide, registre_vide, H_VALIDE, SEL
+    )
+    assert accuse is not None, f"inscription refusée : {verdict}"
+    assert registre_vide.lire()[-1]["devis_id"] is None
+
+
+def test_devis_id_fourni_porte_sur_le_maillon(contrat_valide, marqueur_valide, registre_vide):
+    accuse, verdict = etats_mod.inscrire_intervention(
+        contrat_valide, marqueur_valide, registre_vide, H_VALIDE, SEL, devis_id="DEVIS-42",
+    )
+    assert accuse is not None, f"inscription refusée : {verdict}"
+    assert registre_vide.lire()[-1]["devis_id"] == "DEVIS-42"
+    # jamais recopié dans l'accusé : l'accusé reste épinglé (test #3 ci-dessus)
+    assert "devis_id" not in accuse
+
+
+@pytest.mark.parametrize("devis_id_bad, code_attendu", [
+    ("", "REJ-CHAMP-VIDE"),
+    (42, "REJ-CONTRAT-INVALIDE"),
+    (["D1"], "REJ-CONTRAT-INVALIDE"),
+])
+def test_devis_id_invalide_refuse(contrat_valide, marqueur_valide, registre_vide, devis_id_bad, code_attendu):
+    taille_avant = registre_vide.taille()
+    accuse, verdict = etats_mod.inscrire_intervention(
+        contrat_valide, marqueur_valide, registre_vide, H_VALIDE, SEL, devis_id=devis_id_bad,
+    )
+    assert accuse is None
+    assert verdict["code"] == code_attendu
+    assert registre_vide.taille() == taille_avant
+
+
+# ------------------------------------------------------------------ T1.1-b#4 : m4_lister_interventions
+def test_lister_interventions_vide(registre_vide):
+    assert etats_mod.lister_interventions(registre_vide) == []
+
+
+def test_lister_interventions_toutes_sans_filtre(contrat_valide, marqueur_valide, registre_vide):
+    acc1, _ = etats_mod.inscrire_intervention(
+        contrat_valide, marqueur_valide, registre_vide, H_VALIDE, SEL, devis_id="D1",
+    )
+    contrat2 = contrat_valide.copy()
+    contrat2["lead_id"] = "L2"
+    marqueur2 = marqueur_valide.copy()
+    marqueur2["lead_id"] = "L2"
+    acc2, _ = etats_mod.inscrire_intervention(contrat2, marqueur2, registre_vide, H_VALIDE2, SEL)
+
+    resultat = etats_mod.lister_interventions(registre_vide)
+    assert [e["intervention_id"] for e in resultat] == sorted(
+        [acc1["intervention_id"], acc2["intervention_id"]]
+    )
+    par_id = {e["intervention_id"]: e for e in resultat}
+    assert par_id[acc1["intervention_id"]]["statut"] == "planifiee"
+    assert par_id[acc1["intervention_id"]]["lead_id"] == "L1"
+    assert par_id[acc1["intervention_id"]]["type_travaux"] == contrat_valide["type_travaux"]
+    assert par_id[acc1["intervention_id"]]["devis_id"] == "D1"
+    assert par_id[acc2["intervention_id"]]["devis_id"] is None
+    # aucune donnée de contact
+    for entree in resultat:
+        assert "contact" not in entree
+        for cle_interdite in ("nom", "telephone", "courriel"):
+            assert cle_interdite not in entree
+
+
+def test_lister_interventions_filtre_par_statut(contrat_valide, marqueur_valide, registre_vide):
+    acc1, _ = etats_mod.inscrire_intervention(contrat_valide, marqueur_valide, registre_vide, H_VALIDE, SEL)
+    contrat2 = contrat_valide.copy()
+    contrat2["lead_id"] = "L2"
+    marqueur2 = marqueur_valide.copy()
+    marqueur2["lead_id"] = "L2"
+    acc2, _ = etats_mod.inscrire_intervention(contrat2, marqueur2, registre_vide, H_VALIDE2, SEL)
+    etats_mod.transitionner(
+        acc2["intervention_id"], "en_route", registre_vide, H_VALIDE3,
+        assignation=ASSIGNATION_ETATS(acc2["intervention_id"]),
+    )
+
+    planifiees = etats_mod.lister_interventions(registre_vide, statut="planifiee")
+    assert [e["intervention_id"] for e in planifiees] == [acc1["intervention_id"]]
+
+    en_route = etats_mod.lister_interventions(registre_vide, statut="en_route")
+    assert [e["intervention_id"] for e in en_route] == [acc2["intervention_id"]]
+
+    assert etats_mod.lister_interventions(registre_vide, statut="annulee") == []
+
+
+def test_lister_interventions_statut_inconnu_leve_valueerror(registre_vide):
+    with pytest.raises(ValueError):
+        etats_mod.lister_interventions(registre_vide, statut="statut_pirate")
 

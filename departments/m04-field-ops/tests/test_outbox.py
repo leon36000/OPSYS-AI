@@ -116,32 +116,33 @@ def test_constantes_epinglees():
     assert outbox_mod.CHAMPS_WCT == (
         "wct_id", "intervention_id", "lead_id", "technicien_id", "horodatage_completion",
         "fix_gps_completion", "duree_reelle_minutes", "ecart_signale", "revue_id",
-        "hash_maillon", "consommateurs_cibles", "devis_id",
+        "hash_maillon", "consommateurs_cibles", "devis_id", "statut",
     )
+    assert outbox_mod.STATUTS_COMPLETION == ("completed_pending_review", "completed_verified")
 
 # ------------------------------------------------------------------ 1. CA-M4-11 — UN SEUL maillon
 def test_completer_un_seul_maillon():
     reg, i_id = _intervention_sur_site_avec_pointages()
     taille_avant = len(reg.lire())
-    accuse, verdict = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
+    accuse, verdict = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     assert accuse is not None, f"completer_intervention échec: {verdict}"
     assert len(reg.lire()) == taille_avant + 1
 
     dernier = reg.lire()[-1]
     assert dernier["type_entree"] == etats_mod.TYPE_TRANSITION
-    assert dernier["statut"] == "terminee"
+    assert dernier["statut"] == "completed_verified"
     assert dernier["statut_precedent"] == "sur_site"
     assert outbox_mod.CLE_WCT in dernier
 
-    # Aucun autre maillon terminee sans wct
+    # Aucun autre maillon complété sans wct
     for m in reg.lire():
-        if m.get("statut") == "terminee":
+        if m.get("statut") in outbox_mod.STATUTS_COMPLETION:
             assert outbox_mod.CLE_WCT in m
 
-    # Aucun wct hors d'un maillon terminee
+    # Aucun wct hors d'un maillon complété
     for m in reg.lire():
         if outbox_mod.CLE_WCT in m:
-            assert m["statut"] == "terminee"
+            assert m["statut"] in outbox_mod.STATUTS_COMPLETION
 
 # ------------------------------------------------------------------ 2. CA-M4-10 — rien avant terminee
 def test_lire_outbox_vide_avant_completion():
@@ -153,7 +154,7 @@ def test_lire_outbox_vide_avant_completion():
 # ------------------------------------------------------------------ 3. Contrat WCT complet
 def test_contrat_wct_complet():
     reg, i_id = _intervention_sur_site_avec_pointages()
-    accuse, _ = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
+    accuse, _ = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     maillon = reg.lire()[-1]
     wct = maillon[outbox_mod.CLE_WCT]
 
@@ -162,6 +163,7 @@ def test_contrat_wct_complet():
     assert wct["devis_id"] is None
     assert wct["ecart_signale"] is False
     assert wct["revue_id"] is None
+    assert wct["statut"] == "completed_verified"
     assert wct["duree_reelle_minutes"] == 150
     assert wct["horodatage_completion"] == H_DEPART
     assert wct["fix_gps_completion"] == {"latitude": 45.5088, "longitude": -73.5878}
@@ -171,7 +173,7 @@ def test_contrat_wct_complet():
 # ------------------------------------------------------------------ 4. hash_maillon non circulaire et EXACT
 def test_hash_maillon_exact():
     reg, i_id = _intervention_sur_site_avec_pointages()
-    accuse, _ = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
+    accuse, _ = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     maillon = reg.lire()[-1]
     wct = maillon[outbox_mod.CLE_WCT]
 
@@ -186,14 +188,50 @@ def test_hash_maillon_exact():
 # ------------------------------------------------------------------ 5. wct_id dérivé
 def test_wct_id_derive():
     reg, i_id = _intervention_sur_site_avec_pointages()
-    accuse, _ = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
+    accuse, _ = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     wct = reg.lire()[-1][outbox_mod.CLE_WCT]
     attendu = encodage_mod.empreinte("wct", i_id, H_COMPLETION)
     assert wct["wct_id"] == attendu
 
-# ------------------------------------------------------------------ 6. transitionner REFUSE terminee
+
+# ------------------------------------------------------------------ 5 bis. T1.1-b#1 — devis_id porté par le WCT
+def test_devis_id_fourni_a_inscription_porte_tel_quel_par_le_wct():
+    reg = registre_mod.Registre()
+    acc, ver = etats_mod.inscrire_intervention(
+        CONTRAT_VALIDE, MARQUEUR_VALIDE, reg, H1, SEL, devis_id="DEVIS-M3-42",
+    )
+    assert acc is not None, f"inscription refusée : {ver}"
+    i_id = acc["intervention_id"]
+    assign = ASSIGNATION(i_id)
+    acc2, ver2 = etats_mod.transitionner(i_id, "en_route", reg, H_ARRIVEE, assignation=assign)
+    assert acc2 is not None, f"transition en_route échouée : {ver2}"
+    for action, horo in (("arrivee", H_ARRIVEE), ("depart", H_DEPART)):
+        acc_p, ver_p = pointage_mod.enregistrer_pointage(
+            i_id, "T1", action, horo, GPS_PROCHE, ATTESTATION, assign, FENETRE, REFERENTIEL, VILLE, SEL, reg,
+        )
+        assert acc_p is not None, f"{action} refusé : {ver_p}"
+
+    accuse, verdict = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
+    assert accuse is not None, f"complétion refusée : {verdict}"
+    wct = reg.lire()[-1][outbox_mod.CLE_WCT]
+    assert wct["devis_id"] == "DEVIS-M3-42"
+
+
+def test_devis_id_omis_reste_null_dans_le_wct():
+    """Omis à l'inscription (comportement historique), le WCT porte null —
+    jamais une valeur inventée, jamais le commentaire périmé « M3 n'existe pas
+    en v1 »."""
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    accuse, verdict = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
+    assert accuse is not None, f"complétion refusée : {verdict}"
+    wct = reg.lire()[-1][outbox_mod.CLE_WCT]
+    assert wct["devis_id"] is None
+
+
+# ------------------------------------------------------------------ 6. transitionner refuse la complétion directe
 @pytest.mark.parametrize("statut_depart", ["sur_site", "en_revue"])
-def test_transitionner_refuse_terminee(statut_depart):
+@pytest.mark.parametrize("statut_cible", ["completed_pending_review", "completed_verified"])
+def test_transitionner_refuse_completion(statut_depart, statut_cible):
     reg, i_id = _intervention_sur_site_avec_pointages()
     if statut_depart == "en_revue":
         # Mettre l'intervention en_revue (pointage incohérent)
@@ -207,16 +245,18 @@ def test_transitionner_refuse_terminee(statut_depart):
         assert etats_mod.statut_courant(reg, i_id) == "en_revue"
 
     taille_avant = len(reg.lire())
-    acc, verdict = etats_mod.transitionner(i_id, "terminee", reg, H_COMPLETION)
+    acc, verdict = etats_mod.transitionner(i_id, statut_cible, reg, H_COMPLETION)
     assert acc is None
     assert verdict["code"] == "REJ-TRANSITION-ILLEGALE"
     assert "outbox" in verdict["detail"].lower()
     assert len(reg.lire()) == taille_avant
 
 # ------------------------------------------------------------------ 7. La table reste l'autorité
-def test_transitions_autorisees_contenant_terminee():
-    assert ("sur_site", "terminee") in etats_mod.TRANSITIONS_AUTORISEES
-    assert ("en_revue", "terminee") in etats_mod.TRANSITIONS_AUTORISEES
+def test_transitions_autorisees_contenant_completion():
+    assert ("sur_site", "completed_pending_review") in etats_mod.TRANSITIONS_AUTORISEES
+    assert ("sur_site", "completed_verified") in etats_mod.TRANSITIONS_AUTORISEES
+    assert ("en_revue", "completed_pending_review") in etats_mod.TRANSITIONS_AUTORISEES
+    assert ("en_revue", "completed_verified") in etats_mod.TRANSITIONS_AUTORISEES
 
 # ------------------------------------------------------------------ 8. Chemin illégal (completer sans pointages)
 def test_completer_illegal_planifiee():
@@ -224,7 +264,7 @@ def test_completer_illegal_planifiee():
     acc, _ = etats_mod.inscrire_intervention(CONTRAT_VALIDE, MARQUEUR_VALIDE, reg, H1, SEL)
     i_id = acc["intervention_id"]
     taille_avant = len(reg.lire())
-    accuse, verdict = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
+    accuse, verdict = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     assert accuse is None
     assert verdict["code"] == "REJ-TRANSITION-ILLEGALE"
     assert len(reg.lire()) == taille_avant
@@ -239,9 +279,64 @@ def test_completer_illegal_en_route():
     )
     assert acc_tr is not None, f"transition en_route refusée : {ver_tr}"
     taille_avant = len(reg.lire())
-    accuse, verdict = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
+    accuse, verdict = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     assert accuse is None
     assert verdict["code"] == "REJ-TRANSITION-ILLEGALE"
+    assert len(reg.lire()) == taille_avant
+
+
+# ------------------------------------------------------------------ 8 bis. ecart_detecte : contrat explicite (T1.1-b#2)
+@pytest.mark.parametrize("ecart_bad", [None, 1, 0, "true", "false"])
+def test_completer_ecart_detecte_non_booleen_refuse(ecart_bad):
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    taille_avant = len(reg.lire())
+    accuse, verdict = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=ecart_bad)
+    assert accuse is None
+    assert verdict["code"] == "REJ-CONTRAT-INVALIDE"
+    assert len(reg.lire()) == taille_avant
+
+
+def test_completer_ecart_detecte_obligatoire_sans_defaut():
+    """T1.1-b#2 : « jamais déduit » se prouve aussi par l'ABSENCE de défaut —
+    omettre ecart_detecte est une TypeError, pas un faux silencieux."""
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    with pytest.raises(TypeError):
+        outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
+
+
+def test_completer_ecart_detecte_true_donne_completed_pending_review():
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    accuse, verdict = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=True)
+    assert accuse is not None, f"complétion refusée : {verdict}"
+    assert accuse["statut"] == "completed_pending_review"
+    assert reg.lire()[-1]["statut"] == "completed_pending_review"
+    assert reg.lire()[-1][outbox_mod.CLE_WCT]["ecart_signale"] is True
+
+
+def test_completer_ecart_detecte_false_donne_completed_verified():
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    accuse, verdict = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
+    assert accuse is not None, f"complétion refusée : {verdict}"
+    assert accuse["statut"] == "completed_verified"
+    assert reg.lire()[-1]["statut"] == "completed_verified"
+    assert reg.lire()[-1][outbox_mod.CLE_WCT]["ecart_signale"] is False
+
+
+def test_completer_revue_id_sans_ecart_detecte_refuse():
+    """Une revue_id fournie sans ecart_detecte=true est une incohérence fermée
+    fail-closed : une demande d'écart métier validée EST un écart détecté."""
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    acc_demande, ver_demande = ecarts_mod.creer_demande_ecart(
+        i_id, _VERSION_PREVUE_OUTBOX, _VERSION_DECLAREE_OUTBOX, H_ANOMALIE, reg
+    )
+    assert acc_demande is not None, f"demande d'écart refusée : {ver_demande}"
+    taille_avant = len(reg.lire())
+    accuse, verdict = outbox_mod.completer_intervention(
+        i_id, H_COMPLETION, reg, ecart_detecte=False, revue_id=acc_demande["demande_id"],
+    )
+    assert accuse is None
+    assert verdict["code"] == "REJ-CONTRAT-INVALIDE"
+    assert "ecart_detecte" in verdict["detail"].lower()
     assert len(reg.lire()) == taille_avant
 
 # ------------------------------------------------------------------ 9. Durée fail-closed — registre inchangé
@@ -295,7 +390,7 @@ def test_duree_fail_closed(scenario):
         }
         reg.ajouter(maillon)
     taille_avant = len(reg.lire())
-    accuse, verdict = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
+    accuse, verdict = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     assert accuse is None
     assert verdict["code"] == "REJ-CONTRAT-INVALIDE"
     assert "durée" in verdict["detail"].lower()
@@ -351,10 +446,11 @@ def test_calculer_duree_reelle_arrivee_apres_depart():
     assert minutes is None
     assert code == "REJ-HORODATAGE-ANTERIEUR"
 
+
 # ------------------------------------------------------------------ 11. CA-M4-13 — wct sans données sensibles
 def test_wct_sans_donnees_sensibles():
     reg, i_id = _intervention_sur_site_avec_pointages()
-    accuse, _ = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
+    accuse, _ = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     wct = reg.lire()[-1][outbox_mod.CLE_WCT]
     wct_str = str(wct)
     # Pas de ville en clair
@@ -367,7 +463,7 @@ def test_wct_sans_donnees_sensibles():
 # ------------------------------------------------------------------ 12. verifier_invariants_outbox
 def test_verifier_invariants_sain():
     reg, i_id = _intervention_sur_site_avec_pointages()
-    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
+    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     ok, msg = outbox_mod.verifier_invariants_outbox(reg)
     assert ok
     assert msg == ""
@@ -379,7 +475,7 @@ def test_verifier_invariants_sain():
 ])
 def test_verifier_invariants_falsifies(falsification):
     reg, i_id = _intervention_sur_site_avec_pointages()
-    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
+    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     chain = reg._chain
     if falsification == "retirer_wct":
         # supprimer la clé wct du dernier maillon (terminee)
@@ -422,38 +518,40 @@ def test_garde_ecriture_unique_violation_ajouter(tmp_path):
     assert not ok
     assert msg != ""
 
-def test_garde_ecriture_unique_violation_transitionner_terminee(tmp_path):
+@pytest.mark.parametrize("statut_vise", ["completed_pending_review", "completed_verified"])
+def test_garde_ecriture_unique_violation_transitionner_completion(tmp_path, statut_vise):
     fake_module2 = tmp_path / "fake2.py"
-    fake_module2.write_text("""
+    fake_module2.write_text(f"""
 def violer():
-    etats.transitionner(x, "terminee", r, h)
+    etats.transitionner(x, "{statut_vise}", r, h)
 """)
     ok, msg = outbox_mod.garde_ecriture_unique(chemin_source=str(tmp_path))
     assert not ok
     assert msg != ""
 
-def test_garde_ecriture_unique_violation_transitionner_terminee_forme_mot_cle(tmp_path):
+@pytest.mark.parametrize("statut_vise", ["completed_pending_review", "completed_verified"])
+def test_garde_ecriture_unique_violation_transitionner_completion_forme_mot_cle(tmp_path, statut_vise):
     """BUG CORRIGÉ : la forme mot-clé échappait à la garde.
 
     ``kw.value`` est le nœud ``ast.Constant`` lui-même : comparé DIRECTEMENT à
-    la chaîne ``"terminee"``, il n'est JAMAIS égal (objet AST vs str), donc la
+    la chaîne visée, il n'est JAMAIS égal (objet AST vs str), donc la
     condition ne se déclenchait jamais — seule ``kw.value.value`` porte la
     constante Python réelle. Avant correction, ce fichier passait la garde
-    alors qu'il appelle bien ``transitionner(..., statut_cible="terminee")``.
+    alors qu'il appelle bien ``transitionner(..., statut_cible=...)``.
     """
     fake_module3 = tmp_path / "fake3.py"
-    fake_module3.write_text("""
+    fake_module3.write_text(f"""
 def violer():
-    etats.transitionner(x, r, h, statut_cible="terminee")
+    etats.transitionner(x, r, h, statut_cible="{statut_vise}")
 """)
     ok, msg = outbox_mod.garde_ecriture_unique(chemin_source=str(tmp_path))
-    assert not ok, "la forme mot-clé statut_cible=\"terminee\" doit être détectée"
-    assert "terminee" in msg.lower()
+    assert not ok, f"la forme mot-clé statut_cible=\"{statut_vise}\" doit être détectée"
+    assert statut_vise in msg.lower()
 
 # ------------------------------------------------------------------ 14. lire_outbox
 def test_lire_outbox_un_element():
     reg, i_id = _intervention_sur_site_avec_pointages()
-    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
+    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     resultat = outbox_mod.lire_outbox(reg)
     assert len(resultat) == 1
     index, wct = resultat[0]
@@ -462,13 +560,13 @@ def test_lire_outbox_un_element():
 
 def test_lire_outbox_depuis_index():
     reg, i_id = _intervention_sur_site_avec_pointages()
-    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
+    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     # Créer une deuxième intervention complétée pour avoir un index plus loin
     reg2, i_id2 = _intervention_sur_site_avec_pointages()
     # Copier les maillons dans reg (artificiel mais suffisant)
     for m in reg2.lire()[1:]:  # skip le premier (marqueur)
         reg.ajouter(m)
-    outbox_mod.completer_intervention(i_id2, H_COMPLETION, reg)
+    outbox_mod.completer_intervention(i_id2, H_COMPLETION, reg, ecart_detecte=False)
 
     tout = outbox_mod.lire_outbox(reg)
     assert len(tout) == 2
@@ -486,7 +584,7 @@ def test_lire_outbox_index_negatif():
 
 def test_lire_outbox_copie_profonde():
     reg, i_id = _intervention_sur_site_avec_pointages()
-    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
+    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     resultat = outbox_mod.lire_outbox(reg)
     wct_original = reg.lire()[-1][outbox_mod.CLE_WCT]
     wct_resultat = resultat[0][1]
@@ -497,11 +595,11 @@ def test_lire_outbox_copie_profonde():
 # ------------------------------------------------------------------ 15. Consommateur idempotent (CA-M4-11 preuve 3)
 def test_consommateur_idempotent():
     reg, i_id1 = _intervention_sur_site_avec_pointages()
-    outbox_mod.completer_intervention(i_id1, H_COMPLETION, reg)
+    outbox_mod.completer_intervention(i_id1, H_COMPLETION, reg, ecart_detecte=False)
 
     # Deuxième intervention, RÉELLEMENT distincte (autre lead_id)
     i_id2 = _ajouter_intervention_sur_site(reg, "L2", H1)
-    acc2, ver2 = outbox_mod.completer_intervention(i_id2, H_COMPLETION, reg)
+    acc2, ver2 = outbox_mod.completer_intervention(i_id2, H_COMPLETION, reg, ecart_detecte=False)
     assert acc2 is not None, f"complétion 2 refusée : {ver2}"
 
     cons = outbox_mod.ConsommateurReference()
@@ -521,7 +619,7 @@ def test_consommateur_idempotent():
 
     # Troisième intervention, consommation incrémentale
     i_id3 = _ajouter_intervention_sur_site(reg, "L3", H1)
-    acc3, ver3 = outbox_mod.completer_intervention(i_id3, H_COMPLETION, reg)
+    acc3, ver3 = outbox_mod.completer_intervention(i_id3, H_COMPLETION, reg, ecart_detecte=False)
     assert acc3 is not None, f"complétion 3 refusée : {ver3}"
 
     nb4 = cons.consommer(reg)
@@ -547,7 +645,10 @@ def test_ecart_valide_produit_wct():
     assert acc_demande is not None, f"demande d'écart refusée : {ver_demande}"
     demande_id = acc_demande["demande_id"]
 
-    # Résoudre validee -> doit créer la transition terminee (avec wct)
+    # Résoudre validee -> doit créer la transition de complétion (avec wct).
+    # Un écart métier validé EST un écart détecté (ecarts.py fixe
+    # ecart_detecte=True) : l'issue est donc completed_pending_review, jamais
+    # completed_verified (T1.1-b#2).
     acc, ver = ecarts_mod.resoudre_demande(demande_id, "validee", H_COMPLETION, reg)
     assert acc is not None, f"resoudre_demande échec: {ver}"
     # Le composite n'est PAS le dernier maillon : l'entrée de résolution est
@@ -556,10 +657,11 @@ def test_ecart_valide_produit_wct():
     assert len(composites) == 1
     dernier = composites[0]
     assert dernier["type_entree"] == etats_mod.TYPE_TRANSITION
-    assert dernier["statut"] == "terminee"
+    assert dernier["statut"] == "completed_pending_review"
     wct = dernier[outbox_mod.CLE_WCT]
     assert wct["ecart_signale"] is True
     assert wct["revue_id"] == demande_id
+    assert wct["statut"] == "completed_pending_review"
     ok, _ = outbox_mod.verifier_invariants_outbox(reg)
     assert ok
 
@@ -614,7 +716,9 @@ def test_ecart_metier_vs_anomalie_pointage_resolution_validee_diverge():
 def test_completer_revue_id_inconnu():
     reg, i_id = _intervention_sur_site_avec_pointages()
     taille_avant = len(reg.lire())
-    accuse, verdict = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, revue_id="inconnu")
+    accuse, verdict = outbox_mod.completer_intervention(
+        i_id, H_COMPLETION, reg, ecart_detecte=True, revue_id="inconnu",
+    )
     assert accuse is None
     assert verdict["code"] == "REJ-CONTRAT-INVALIDE"
     assert "revue" in verdict["detail"].lower()
@@ -623,7 +727,7 @@ def test_completer_revue_id_inconnu():
 # ------------------------------------------------------------------ 19. Chaîne intacte après parcours complet
 def test_chaine_intacte_apres_completion():
     reg, i_id = _intervention_sur_site_avec_pointages()
-    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg)
+    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     assert reg.valider_chaine() is True
     reg.assert_chaine()  # ne doit pas lever
 
@@ -651,7 +755,7 @@ def test_duree_du_premier_arrivee_au_dernier_depart():
     assert duree == 160, f"attendu 160 (premier arrivée -> dernier départ), obtenu {duree}"
 
     # et la complétion qui en découle porte bien cette durée
-    acc, verd = outbox_mod.completer_intervention(i_id, H_APRES_ANOMALIE, reg)
+    acc, verd = outbox_mod.completer_intervention(i_id, H_APRES_ANOMALIE, reg, ecart_detecte=False)
     assert acc is not None, f"complétion refusée : {verd}"
     assert acc["duree_reelle_minutes"] == 160
 
