@@ -10,8 +10,8 @@ on:
 permissions:
   contents: read
 
-# Un run commencé va à son terme : ce job dure plus de 30 min et chaque résultat complet sert de
-# référence. GitHub ne garde qu'un run en attente par groupe, le plus récent.
+# Un run commencé va à son terme : chaque résultat complet sert de référence. GitHub ne garde
+# qu'un run en attente par groupe, le plus récent.
 concurrency:
   group: core-${{ github.ref }}
   cancel-in-progress: false
@@ -21,12 +21,11 @@ defaults:
     working-directory: core
 
 jobs:
-  # Construit et teste OPSYS-CORE, fork dur d'OpenClaw v2026.9.6 (ADR-0008, core/PROVENANCE.md).
-  # Le bac à sable de développement n'exécute pas ce code : cette CI est la seule preuve de
-  # construction.
-  core:
+  # Construit OPSYS-CORE, fork dur d'OpenClaw v2026.9.6 (ADR-0008, core/PROVENANCE.md). Le bac à
+  # sable de développement n'exécute pas ce code : cette CI est la seule preuve de construction.
+  construction:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
@@ -38,10 +37,30 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Construction
         run: pnpm build
-      - name: Tests unitaires rapides
-        # Mêmes réglages que la CI amont (ci.yml) : la config unitaire partage ses workers
+
+  # Tests unitaires rapides, découpés en six morceaux : sur un seul runner à 4 cœurs, la suite
+  # dépasse une heure (la CI d'origine la découpe en 6 à 12 morceaux sur 16 cœurs). Le lanceur
+  # construit lui-même les prérequis des rares tests qui lisent le dist.
+  tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        morceau: [1, 2, 3, 4, 5, 6]
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: "24.x"
+      - name: pnpm (version fixée par packageManager)
+        run: corepack enable && pnpm --version
+      - name: Installation
+        run: pnpm install --frozen-lockfile
+      - name: Tests unitaires rapides (morceau ${{ matrix.morceau }}/6)
+        # Mêmes réglages que la CI d'origine : la config unitaire partage ses workers
         # (isolate: false), elle tourne avec peu de workers et 8 Go de tas Node.
         env:
           NODE_OPTIONS: --max-old-space-size=8192
           OPENCLAW_VITEST_MAX_WORKERS: "2"
-        run: pnpm test:fast
+        run: pnpm test:fast --shard=${{ matrix.morceau }}/6

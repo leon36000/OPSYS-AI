@@ -27,7 +27,17 @@ identifiants du propriétaire, repli livré en attendant.
       (Node 24, pnpm 12.4, `pnpm build`, `pnpm test:fast`, réglages de la CI d'origine) ; la release
       intacte s'est construite en 9 min ; il construit maintenant `core/`.
 - [ ] T0.6 Élagage selon R11 (canaux et fournisseurs inutiles, docs, apps natives…), CI verte.
-- [ ] T0.7 Renommage OpenClaw → OPSYS (CLI `opsys`, `~/.opsys`, paquets, variables, UI), CI verte.
+      Fait à l'import (T0.4) : apps, docs, 120 extensions. Reste : `scripts/` et `test/` qui visent
+      des chemins élagués (scripts iOS, Android et macOS orphelins, R14), guidé par la CI du core.
+- [ ] T0.7 Renommage OpenClaw → OPSYS en quatre lots (R14), CI verte à chaque lot. L'API interne
+      du fork (`openclaw/plugin-sdk/*`, `@openclaw/*`, `OPENCLAW_*`) reste telle quelle (R14, décision 2).
+  - [ ] Lot 1 : marque visible (interface, locales `fr-CA` par défaut et glossaires, invites système,
+        bannière, notifications) et les 539 assertions qui la figent.
+  - [ ] Lot 2 : une seule commande `opsys` (le core, alias `openclaw`), `opsys metier` pour le moteur
+        Python (renommé `opsys-metier`) ; AGENTS.md et CI mis à jour.
+  - [ ] Lot 3 : dossier d'instance `~/.opsys` (état du core dans `core/`), `opsys.json`, anciens noms
+        relus par la migration Doctor existante.
+  - [ ] Lot 4 : services système `opsys-gateway`, anciens noms nettoyés.
 - [x] T0.8 ADR-0009 socle métier (base de données, événements, workflows à validation humaine,
       RBAC, audit, observabilité) d'après R13. Doit unifier les échelles d'autonomie aujourd'hui
       disjointes : N0–N5 (définition), T0–T3 (socle), F0–F7 (M5), niveaux 0–6 (M7) (audit M5).
