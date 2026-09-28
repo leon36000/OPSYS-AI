@@ -1,0 +1,83 @@
+{
+  "task_id": "CORE-CANON-PROMOTION-597",
+  "description": "PR #597 — promotion de docs/core/CANON-INDEX.md comme point d'entrée canonique unique et réduction des fichiers racine en portails/adaptateurs dérivés.",
+  "issue": "https://github.com/leon36000/OPSYS-AI/pull/597",
+  "branche": "codex/canon-promotion-v14",
+    "base": "origin/main @ 0aff240aa74a082fb9b71f2318f07eb6c30bae87",
+    "base_tree": "6c8235b2ee8fe2be6aa721e96511dfe6293199aa",
+    "reviewed_commit": "f21d0c3f31e98ee22bf71810c1127bee26167023",
+    "reviewed_tree": "09c5cd66e9e3b513beab066dc61460c61fd22e26",
+  "code_diff_sha256": "72943a928bfe9b6e7c3d216dbedcdb60a4b2cb9e2f8cc79cc56fd48c565807e8",
+  "code_diff_sha256_scope": "git diff origin/main...HEAD -- core/ tools/proof/ .opsys/tools/github-control/ .github/workflows/core-ci.yml .github/workflows/ci.yml scripts/ ; calculé par core/scripts/verify_proof_sealed.py",
+  "diff_verbatim_sha256": "0b3c012ff09390b075c2421557872eaf70cf43b6c364060c08b0116e60da2163",
+  "sealed_at": "2026-08-29T01:16:12Z",
+  "verification": {
+    "red": {
+            "base": "origin/main @ 0aff240aa74a082fb9b71f2318f07eb6c30bae87",
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m pytest core/tests/bootstrap/test_root_canon_entrypoints.py -q",
+      "result": "3 échecs déterministes sur une copie du test contractuel injectée dans un worktree temporaire détaché de la base : index canonique absent, portails racine historiques et AGENTS/CLAUDE non dérivés; GREEN vérifié sur le head exact f21d0c3."
+    },
+    "green": [
+      "PYTHONDONTWRITEBYTECODE=1 python3 -m pytest core/tests/bootstrap/test_root_canon_entrypoints.py -q : 3 passed",
+      "PYTHONDONTWRITEBYTECODE=1 python3 -m pytest scripts/tests -q : exit 0",
+      "PYTHONDONTWRITEBYTECODE=1 python3 -m pytest core/tests/bootstrap -q : exit 0",
+      "python3 scripts/structure_lint.py : exit 0 — 10 modules, 0 frameworks, bijection OK",
+      "git diff --check : exit 0"
+    ],
+    "scope": "Diff contrôlé : huit chemins autorisés seulement ; aucun coordination/**, .claude/**, .codex/**, workflow, Core source, audit, quality-gate ou test hors contrat canonique.",
+    "remote_status_before_bundle": "Le head distant était f21d0c3, identique au head exact soumis à la revue r12; ses checks verts sont connus mais la preuve précédente ne liait pas ce head dans reviewed_commit. Le nouveau bundle corrige uniquement cette liaison et les verdicts bruts.",
+    "bundle_commit_note": "Ce bundle r12 remplace le bundle r11 après constat du mismatch reviewed_commit/head. Le commit d’évidence ne modifie aucun chemin du périmètre code scellé et conserve le code_diff_sha256 calculé par le vérificateur. Les checks distants doivent être verts sur le head poussé avant toute décision d’intégration ; aucun merge n’est effectué dans ce cycle."
+  },
+  "review_inputs": {
+    "round": "OPSYS-CANON-PROMOTION-597-r12-f21d0c3",
+    "mode": "T2, trois reviewers indépendants en parallèle, prompt neutre commun, sans rôles",
+    "prompt_sha256": "5a53bb3f647898a4edcccc9f1e972fbe4988779a46e9dd4870e2908f24744ab4",
+    "pack_sha256": "8ae5927eb64875738abeb8dfbb525687890bebc95963d49ac37306079c4ba98f",
+    "pack_bytes": 32411,
+    "diff_verbatim_sha256": "0b3c012ff09390b075c2421557872eaf70cf43b6c364060c08b0116e60da2163",
+    "review_neutrality": {
+      "previous_incomplete_batches_excluded": true,
+      "reviewers_received_same_pack": true
+    },
+    "runner": {
+      "repository": "proof-method",
+      "sources_sha256": {
+        "scripts/civ_review.py": "4176f8734d91417a87a96c26df40a059281b0a6aff9def9aecf4ab18b91c3c45",
+        "scripts/tally_reviews.py": "cbdb4f4b55b6972ebe83d0078177a28fd511dc87962367eb63b8f3cb695e40c7",
+        "reviews/TEMPLATE-prompt-revue-neutre.md": "fa03341c225031aa209d29c2e9d40e422e080934fe6aa8e3b03bef6f832fc6a8"
+      }
+    }
+  },
+  "reviews": {
+    "DeepSeek-V4-Pro-0813.verdict.json": "ef5b2a98547a97491dfe02d82d7c3c66c5bf708a9b150f8ae23e665461ee69b9",
+    "Gemini-3.7-Flash.verdict.json": "1a811b02181d7015f83f27f498f052e9bd06b31d7ef7140819da376543bccb12",
+    "Muse-Spark-1.2-Contributor.verdict.json": "9720eaa8d32524ead945cfe52e7e6ebb332e42a8613ce4a2ecfbc8667d1dccc0"
+  },
+  "consensus": {
+    "outcome": "APPROVE 3/3",
+    "major_or_critical_objections": 0,
+        "minor_objections": 0,
+    "tally": "DRAIN SPOOL: ligne illisible conservée telle quelle; APPROVE 3/3 | vendors distincts: 3 ['deepseek-v4-pro-0813', 'gemini-3.7-flash', 'muse-spark-1.2-contributor'] | objections critiques: 0 | objections majeures non résolues: 0",
+    "reviewers": {
+      "DeepSeek-V4-Pro-0813": {
+        "vendor": "deepseek",
+        "served_model": "deepseek-v4-pro-0813-openrouter",
+        "retries": 0,
+        "fallbacks": 0
+      },
+      "Gemini-3.7-Flash": {
+        "vendor": "google",
+        "served_model": "gemini-37-flash-openrouter",
+        "retries": 0,
+        "fallbacks": 0
+      },
+      "Muse-Spark-1.2-Contributor": {
+        "vendor": "meta",
+        "served_model": "muse-spark-12-contributor-openrouter",
+        "retries": 0,
+        "fallbacks": 0
+      }
+    },
+    "minor_objection_note": "Aucune objection mineure n’a été émise dans ce round r12."
+  }
+}
