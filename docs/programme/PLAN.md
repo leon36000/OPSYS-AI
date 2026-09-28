@@ -63,9 +63,12 @@ identifiants du propriétaire, repli livré en attendant.
       verifier OK.
 - [ ] T0.10 Superviseur : le core lance et surveille le moteur métier Python (via `uv`), santé et
       journaux unifiés, une seule authentification.
-- [ ] T0.12 M3 : l'outillage de mutation (`tests/outils_preuve/muter_*.py`) travaille sur une copie
-      temporaire, jamais sur la vraie source. Une exécution tuée a laissé une mutation dans
-      `blocage_prix.py`, restaurée depuis le commit le 2026-09-28.
+- [x] T0.12 M3 : l'outillage de mutation (`tests/outils_preuve/muter_*.py`) travaille sur une copie
+      temporaire, jamais sur la vraie source. Une exécution tuée avait laissé une mutation dans
+      `blocage_prix.py`, et elle a été commitée par erreur (899bbad). Elle est corrigée par 7ad0377.
+      Preuve (96ebd73) : `EnvironnementMutation` copie le département, lie les voisins en lecture
+      seule et ne les supprime jamais. Preuves structurelle (AST) et dynamique (SHA-256 de `src/`).
+      La suite M3 donne 583 réussis ; l'empreinte de `src/` est identique avant et après la batterie.
 - [ ] T0.11 Installateur en une commande (dérivé de `install.sh` / `install.ps1`), désinstallation
       et export documentés ; Docker Compose en option serveur.
 
@@ -82,10 +85,15 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       les approbations), codec JSON typé, maillons durables « comme une liste », migrations Alembic au
       démarrage, `opsys base migrer|etat`. Preuve : `pytest tests/test_stockage.py` 11 verts (dont
       PostgreSQL réel), socle 188 verts.
-- [ ] T1.0-b Registres des départements branchés sur `opsys.stockage.maillons` (M1, M2, M3, M4, M5, M6,
+- [x] T1.0-b Registres des départements branchés sur `opsys.stockage.maillons` (M1, M2, M3, M4, M5, M6,
       M8, M9, M10), état dérivé recalculé au chargement, non-régression des hash mémoire contre base.
-      Livrés : M1, M2, M4, M5, M6, M8, M9, M10 (commits 3ab2cc3 à bd689e9). M3 est en cours, avec
-      T0.12.
+      Preuve : commits 3ab2cc3 à bd689e9, puis cd55663 pour M3. Chaque département a un
+      `test_registre_durable.py` qui couvre :
+      - les mêmes hash en mémoire et en base ;
+      - la relecture par une nouvelle instance ;
+      - la détection d'une altération SQL.
+
+      Suites vertes : M1 369, M2 566, M3 583, M4 455, M5 183, M6 163, M8 113, M9 92, M10 191.
 
       Règles communes :
       - durable par défaut, relu à chaque appel, aucune base ouverte au chargement ;
