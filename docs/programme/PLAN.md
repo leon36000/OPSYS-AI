@@ -838,6 +838,13 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
 
 - [ ] T5.1 Lint des départements : `ruff` ne couvre aujourd'hui que le socle (`src`, `tests`) ; l'audit M1
       relève 122 avertissements dans M1. Étendre la CI aux départements après correction.
+      Avancement, partiel (T5.1 reste ouverte : M1 à M6 à corriger) :
+      - M7 à M10 passent `ruff check` à zéro (M7 257, M8 18, M9 22, M10 46 avertissements avant) ;
+        sans `noqa`, sans changement de configuration. Le contournement `sys.path.insert` des
+        tests M8 à M10 est retiré : `pythonpath` de `pyproject.toml` suffit (M7 l'avait déjà fait).
+      - CI : l'étape « Lint du département » du job `departement` ne tourne que pour les dossiers de
+        `DEPARTEMENTS_LINT` (M7 à M10). Pour étendre : corriger un département, puis ajouter son
+        dossier à cette liste unique ; `tests/test_ci_departements.py` vérifie qu'il est propre.
 
 ## Décisions attendues de Nathan (GATE NATHAN, ne bloquent pas la boucle)
 

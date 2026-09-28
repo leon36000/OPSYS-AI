@@ -35,6 +35,18 @@ jobs:
   departement:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      # Départements dont `ruff check` est à zéro : le lint y est bloquant (PLAN T5.1). Ajouter un
+      # dossier ici dès qu'il est propre ; M1 à M6 restent à corriger. Un département absent de
+      # cette liste n'est pas linté. `tests/test_ci_departements.py` vérifie que chaque dossier
+      # listé existe, figure dans la matrice et passe `ruff check`.
+      DEPARTEMENTS_LINT: >-
+        [
+          "m07-marketing",
+          "m08-analytics",
+          "m09-strategic-intelligence",
+          "m10-memoire"
+        ]
     strategy:
       fail-fast: false
       matrix:
@@ -56,6 +68,9 @@ jobs:
           python-version: "3.12"
       - name: Installation (socle + départements)
         run: python -m pip install --quiet -e ".[dev]"
+      - name: Lint du département ${{ matrix.dossier }}
+        if: contains(fromJSON(env.DEPARTEMENTS_LINT), matrix.dossier)
+        run: ruff check "departments/${{ matrix.dossier }}"
       - name: Tests du département ${{ matrix.dossier }}
         run: python -m pytest "departments/${{ matrix.dossier }}/tests" -q --import-mode=importlib -p no:cacheprovider
 
