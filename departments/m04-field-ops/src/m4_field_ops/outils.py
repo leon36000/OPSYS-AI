@@ -32,7 +32,7 @@ from collections.abc import Callable
 from typing import Any
 
 from opsys import contexte, evenements, stockage
-from opsys.outils import Autonomie, Outil, depuis_couple
+from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
 from . import cedule, digest, ecarts, etats, outbox, pointage, preuves, registre, temps, verdicts
 
@@ -148,6 +148,16 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
 
     def resoudre_demande(demande_id: str, decision: str, horodatage: str, motif: str | None = None) -> dict[str, Any]:
         return depuis_couple(ecarts.resoudre_demande(demande_id, decision, horodatage, registre_courant(), motif=motif))
+
+    def resoudre_revue_completion(
+        intervention_id: str, decision: str, horodatage: str, motif: str,
+    ) -> dict[str, Any]:
+        # PLAN T1.3-b : niveau N4 (déclaré sur l'Outil ci-dessous) — un agent PROPOSE, la
+        # signature (personne, rôle) appartient au socle (opsys.approbations.decider), jamais à
+        # cette fonction pure : voir outbox.resoudre_revue_completion.
+        return depuis_couple(outbox.resoudre_revue_completion(
+            intervention_id, decision, horodatage, registre_courant(), motif=motif,
+        ))
 
     def lister_pending_review(type_demande: str | None = None) -> list[dict[str, Any]]:
         return ecarts.lister_pending_review(registre_courant(), type_demande=type_demande)
@@ -399,6 +409,49 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             autonomie=Autonomie.T1,
         ),
         Outil(
+            nom="m4_resoudre_revue_completion",
+            description=(
+                "Revue HUMAINE d'une complétion completed_pending_review (PLAN T1.3-b), jamais "
+                "un agent seul : decision=verifiee confirme (-> completed_verified, comme le "
+                "ferait un signal M6 sans dépassement, mais décidé par une personne) ; "
+                "decision=correction NOMME un problème SANS rouvrir le chantier (-> "
+                "completed_pending_review, nouveau maillon d'audit ; motif obligatoire, la "
+                "décision cite toujours pourquoi). Niveau N4 (écriture finale, ADR-0009 §4) : "
+                "cet appel passe par la file d'approbation du socle — il PROPOSE seulement ; "
+                "seule une personne dont le rôle figure dans department.yaml/approbations.n4 "
+                "peut l'exécuter (opsys approbations decider, signé personne + rôle)."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "intervention_id": {"type": "string"},
+                    "decision": {"type": "string", "enum": list(outbox.DECISIONS_REVUE)},
+                    "horodatage": {"type": "string"},
+                    "motif": {
+                        "type": "string",
+                        "description": (
+                            "Pourquoi cette décision : la confirmation, ou — pour une correction "
+                            "— ce qui doit être corrigé. Jamais vide."
+                        ),
+                    },
+                },
+                "required": ["intervention_id", "decision", "horodatage", "motif"],
+                "additionalProperties": False,
+            },
+            fonction=resoudre_revue_completion,
+            # T1 (écriture interne, registre) : autonomie descriptive. Niveau EXPLICITE N4 plutôt
+            # que le défaut T1->N3 (ADR-0009 §4, opsys.outils.niveau_par_defaut) — justification :
+            # cette décision produit une ÉCRITURE FINALE (« engagement... écriture finale » de la
+            # table ADR-0009 §4) — elle clôt définitivement, ou rouvre nommément, la vérification
+            # d'une complétion déjà publiée aux 6 départements consommateurs (m4.travaux_termines) ;
+            # contrairement aux autres outils T1 de M4 (pointer, compléter…), qui restent des
+            # écritures INTERNES NON FINALES (N3), celle-ci ne l'est jamais : le niveau le plus
+            # élevé de la paire l'emporte, pour les DEUX issues (verifiee ET correction), le
+            # niveau étant fixé sur l'outil entier, jamais par argument.
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N4,
+        ),
+        Outil(
             nom="m4_lister_pending_review",
             description="Liste les demandes de revue en attente (écarts métier et anomalies de pointage).",
             parametres={
@@ -578,6 +631,12 @@ def _recevoir_variance_chantier(charge: dict[str, Any]) -> dict[str, Any]:
     (`evenements_recus`, ADR-0009 §3) et, en plus, `confirmer_verification` lui-même est un
     no-op si l'intervention est déjà `completed_verified` — une redélivrance ou un second
     événement pour le même WCT ne change jamais rien.
+
+    PLAN T1.3-b : quand ce signal ne mène PAS à une vérification automatique (branche
+    ci-dessous), il est TRACÉ dans le registre de M4 (`outbox.enregistrer_signal_variance`) —
+    sans ce maillon, `attentes()` (file du propriétaire) n'aurait aucun moyen de savoir, en ne
+    lisant que le registre de M4, qu'un signal critique attend une revue humaine
+    (`m4_resoudre_revue_completion`).
     """
     reg = registre.Registre(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE))
     intervention_id = charge["intervention_id"]
@@ -586,6 +645,7 @@ def _recevoir_variance_chantier(charge: dict[str, Any]) -> dict[str, Any]:
     # (jamais une absence de signal traitée comme faux — le schéma du catalogue impose déjà
     # `signal_critique` non nul seulement quand `statut_variance == "evaluee"`).
     if charge["statut_variance"] != "evaluee" or charge["signal_critique"] is not False:
+        outbox.enregistrer_signal_variance(intervention_id, charge, reg)
         return {
             "traite": True, "verifie": False,
             "intervention_id": intervention_id, "raison": charge["statut_variance"],
@@ -608,3 +668,65 @@ def _recevoir_variance_chantier(charge: dict[str, Any]) -> dict[str, Any]:
 
 def consommateurs() -> dict[str, Callable[[dict], dict]]:
     return {"m6.variance_chantier": _recevoir_variance_chantier}
+
+
+# ---------------------------------------------------------------------------------------------
+# Attentes du propriétaire (ADR-0009 §5, PLAN T1.3-b)
+# ---------------------------------------------------------------------------------------------
+# Même mécanisme de découverte que `consommateurs()` (`opsys.departements.Departement.
+# charger_attentes`) : fonction module-level, sans argument, appelée par
+# `approbations.file_proprietaire` DANS SA transaction déjà ouverte — jamais construite en dehors
+# de cet appel (aucune connexion garantie ailleurs, `departements.py`).
+def attentes() -> list[dict[str, Any]]:
+    """Une entrée par intervention actuellement `completed_pending_review` : la complétion
+    existe déjà (WCT écrit, preuves garanties par `m4_completer_intervention`, T1.1-b#3), reste
+    à vérifier ou à corriger par une personne autorisée (`m4_resoudre_revue_completion`, jamais
+    un agent seul). Le résumé porte le signal de variance critique de M6 QUAND il existe
+    (`outbox.dernier_signal_variance`, tracé par `_recevoir_variance_chantier` ci-dessus) — son
+    absence est dite telle quelle (« pas encore de nouvelles »), jamais traitée comme « pas de
+    problème » (fail-closed)."""
+    reg = registre.Registre(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE))
+    return [
+        {
+            "type": "completion_en_revue",
+            "id": pendante["intervention_id"],
+            "resume": _resume_completion_en_revue(reg, pendante["intervention_id"]),
+            "niveau": Niveau.N4.value,
+            "depuis": _depuis_pending_review(reg, pendante["intervention_id"]),
+            "action_proposee": (
+                "m4_resoudre_revue_completion : verifiee (confirme) ou correction (nomme le "
+                "problème)"
+            ),
+        }
+        for pendante in etats.lister_interventions(reg, statut="completed_pending_review")
+    ]
+
+
+def _depuis_pending_review(reg: registre.Registre, intervention_id: str) -> str:
+    """Horodatage du DERNIER maillon `completed_pending_review` de l'intervention — l'entrée en
+    revue, ou la dernière correction nommée si une ou plusieurs ont déjà eu lieu. Jamais une
+    horloge consultée ici (même garde d'esprit que `digest.py`) : uniquement des horodatages déjà
+    écrits au registre. Ne peut pas être `None` : `attentes()` n'appelle cette fonction que pour
+    une intervention dont `etats.lister_interventions` vient de constater ce statut courant, donc
+    au moins un tel maillon existe forcément."""
+    dernier = None
+    for maillon in reg.lire():
+        if (maillon.get("type_entree") == etats.TYPE_TRANSITION
+                and maillon.get("intervention_id") == intervention_id
+                and maillon.get("statut") == "completed_pending_review"):
+            dernier = maillon["horodatage"]
+    return dernier
+
+
+def _resume_completion_en_revue(reg: registre.Registre, intervention_id: str) -> str:
+    base = f"Complétion en revue ({intervention_id})"
+    signal = outbox.dernier_signal_variance(reg, intervention_id)
+    if signal is None:
+        return f"{base} — variance M6 non encore reçue"
+    if signal["statut_variance"] != "evaluee":
+        return f"{base} — variance M6 non finalisée ({signal['statut_variance']})"
+    if signal["signal_critique"] is True:
+        return f"{base} — écart matériaux CRITIQUE signalé par M6 (seuil {signal['seuil_pourcentage']})"
+    # Atteint seulement si confirmer_verification a, pour une autre raison, échoué à vérifier
+    # malgré un signal non critique (défensif : jamais supposé impossible, jamais deviné).
+    return f"{base} — variance M6 évaluée sans signal critique"

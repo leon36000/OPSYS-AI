@@ -35,3 +35,12 @@ kpis:
 evenements:                        # ADR-0009 §3, PLAN T1.2-b
   publie: [m4.travaux_termines]    # même transaction que le WCT (outbox.completer_intervention)
   consomme: [m6.variance_chantier] # confirme completed_verified (outbox.confirmer_verification)
+approbations:                      # ADR-0009 §5, PLAN T1.3-b : rôles autorisés à décider N3/N4.
+  # N3 : écritures internes courantes du terrain (pointer, compléter, arbitrer un écart) — le
+  # manager ou l'admin de Field Ops n'a pas besoin du propriétaire pour ça au quotidien.
+  n3: [manager, admin, nathan_owner]
+  # N4 : revue humaine d'une complétion completed_pending_review (m4_resoudre_revue_completion,
+  # écriture finale, ADR-0009 §4). admin explicitement inclus : DEFINITION-PRODUIT §6/§9.7 décrit
+  # l'écart matériaux critique comme une « alerte sur le mobile de l'admin ». employee, seller,
+  # client, finance, system_agent restent exclus (fail-closed, DEFAUT_ROLES_NIVEAU sinon).
+  n4: [manager, admin, nathan_owner]

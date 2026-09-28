@@ -303,6 +303,7 @@ def test_enumere_des_types_est_fige():
         "pointage",
         "demande_revue",
         "resolution_revue",
+        "variance_m6_recue",  # T1.3-b : outbox.enregistrer_signal_variance
     }
     assert set(registre_mod._TYPE_ENTREE_VALIDES) == attendu, (
         f"énuméré modifié sans ratification : {set(registre_mod._TYPE_ENTREE_VALIDES) ^ attendu}"

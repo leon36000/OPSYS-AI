@@ -8,7 +8,7 @@ from m4_field_ops.outils import outils
 from m4_field_ops.registre import Registre
 
 from opsys.departements import lire_manifeste
-from opsys.outils import Autonomie, executer
+from opsys.outils import Autonomie, Niveau, executer
 
 SEL = "sel-de-test-agent"
 VILLE = "Montreal"
@@ -58,7 +58,7 @@ def test_autonomie_attendue_par_outil():
     ecritures_t1 = [
         "m4_planifier_intervention", "m4_demarrer_route", "m4_signaler_report",
         "m4_annuler_intervention", "m4_pointer", "m4_creer_demande_ecart",
-        "m4_resoudre_demande", "m4_completer_intervention",
+        "m4_resoudre_demande", "m4_completer_intervention", "m4_resoudre_revue_completion",
     ]
     lectures_t0 = [
         "m4_statut_intervention", "m4_lister_pending_review",
@@ -70,6 +70,12 @@ def test_autonomie_attendue_par_outil():
     for nom in lectures_t0:
         assert par_nom[nom].autonomie == Autonomie.T0, nom
     assert par_nom["m4_notifier_client_completion"].autonomie == Autonomie.T2
+    # PLAN T1.3-b : seul outil M4 dont le niveau N est EXPLICITE (N4, pas le défaut T1->N3) —
+    # revue humaine d'une complétion, écriture finale (ADR-0009 §4), jamais un agent seul.
+    assert par_nom["m4_resoudre_revue_completion"].niveau_effectif is Niveau.N4
+    for nom in ecritures_t1:
+        if nom != "m4_resoudre_revue_completion":
+            assert par_nom[nom].niveau is None, f"{nom} : niveau devrait rester implicite (N3 via T1)"
 
 
 # ------------------------------------------------------------------ outil composé de bout en bout

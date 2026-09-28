@@ -32,6 +32,7 @@ _TYPE_ENTREE_VALIDES = {
     "pointage",
     "demande_revue",
     "resolution_revue",
+    "variance_m6_recue",  # T1.3-b : trace du signal m6.variance_chantier reçu par M4 (outbox.py)
 }
 
 

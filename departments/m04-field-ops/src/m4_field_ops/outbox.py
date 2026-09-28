@@ -6,6 +6,16 @@ Contient le Work Completion Trigger, le seul chemin d'écriture vers l'état
 transition et le wct.  Fournit également les fonctions de lecture, de vérification
 d'invariants, la garde statique d'unicité d'écriture et un consommateur de
 référence idempotent.
+
+PLAN T1.3-b ajoute le TROISIÈME et dernier chemin d'écriture d'un statut de complétion,
+``resoudre_revue_completion`` : la revue HUMAINE d'une complétion ``completed_pending_review``
+(vérifiée -> ``completed_verified``, ou correction NOMMÉE -> ``completed_pending_review``, un
+nouveau maillon d'audit sans jamais rouvrir le chantier). Comme ``confirmer_verification``, ce
+module reste pur (aucune identité, aucun rôle) : la signature humaine appartient au socle
+(``opsys.approbations``), que l'outil qui l'enveloppe (``outils.py``) déclare au niveau N4.
+``enregistrer_signal_variance``/``dernier_signal_variance`` tracent, dans le registre de M4
+lui-même, le signal ``m6.variance_chantier`` reçu quand il ne mène PAS à une vérification
+automatique — pour que ``attentes()`` (file du propriétaire) puisse l'afficher sans deviner.
 """
 
 import copy
@@ -60,6 +70,18 @@ CLE_WCT = "wct"
 # même paire que ``completer_intervention`` calcule, que ``garde_ecriture_unique``
 # protège et que ``verifier_invariants_outbox`` reconnaît comme terminale-WCT.
 STATUTS_COMPLETION = ("completed_pending_review", "completed_verified")
+
+# PLAN T1.3-b : décisions possibles de la revue HUMAINE d'une complétion
+# ``completed_pending_review`` (``resoudre_revue_completion`` ci-dessous). ``verifiee`` confirme
+# (même transition que ``confirmer_verification``, mais décidée par une personne plutôt que
+# déduite d'un signal M6 sans dépassement) ; ``correction`` NOMME un problème sans jamais rouvrir
+# le chantier (le WCT déjà publié aux 6 départements consommateurs reste le fait déclaré).
+DECISIONS_REVUE = ("verifiee", "correction")
+
+# PLAN T1.3-b : type d'entrée de la trace, dans le registre de M4, d'un signal m6.variance_chantier
+# reçu qui ne mène PAS à une vérification automatique (``confirmer_verification``) — pour que
+# ``attentes()`` (outils.py, file du propriétaire) puisse l'afficher sans jamais le deviner.
+TYPE_SIGNAL_VARIANCE = "variance_m6_recue"
 
 # --------------------------------------------------------------------- helpers
 def _extraire_lead_id(registre_cible, intervention_id):
@@ -553,6 +575,148 @@ def confirmer_verification(intervention_id, horodatage_arg, registre_cible, *, e
     }, None
 
 
+def resoudre_revue_completion(
+    intervention_id, decision, horodatage_arg, registre_cible, *, motif,
+):
+    """
+    TROISIÈME et DERNIER chemin d'écriture d'un statut de complétion (avec
+    ``completer_intervention`` et ``confirmer_verification``) : la revue HUMAINE d'une
+    complétion ``completed_pending_review`` (PLAN T1.3-b), jamais un agent seul.
+
+    Le code calcule, jamais un agent (T1.1-b) : cette fonction reste pure, elle ne connaît ni
+    personne ni rôle. La signature humaine (« qui », « quel rôle ») appartient au SOCLE
+    (``opsys.approbations.decider``, ADR-0009 §5) : l'outil qui enveloppe cette fonction
+    (``m4_field_ops.outils.resoudre_revue_completion``) déclare le niveau N4, ce qui force
+    TOUTE demande à passer par la file d'approbation du socle avant exécution — un agent peut
+    PROPOSER une décision, jamais l'exécuter lui-même. ``motif`` (mot-clé obligatoire, aucun
+    défaut) est le contenu MÉTIER de la décision : pourquoi elle vérifie, ou ce qu'elle nomme à
+    corriger — distinct du motif d'approbation que le socle enregistre séparément sur sa propre
+    demande (``APPROBATIONS.motif_decision``).
+
+    Args:
+        intervention_id: identifiant de l'intervention, actuellement ``completed_pending_review``
+            (sinon REJ-TRANSITION-ILLEGALE : cette fonction n'accepte que cette entrée, comme
+            ``confirmer_verification``).
+        decision: l'une de ``DECISIONS_REVUE`` :
+            ``verifiee``   -> completed_verified (même transition que ``confirmer_verification``,
+                              décidée par une personne). AUCUN wct : il vit déjà sur le premier
+                              maillon (complétion).
+            ``correction`` -> completed_pending_review (self-loop : même statut, NOUVEAU maillon
+                              d'audit portant le motif). Ne rouvre JAMAIS le chantier (aucune
+                              transition FSM vers sur_site/en_revue, aucun nouveau WCT) : le fait
+                              déjà publié aux 6 départements consommateurs (``m4.travaux_termines``)
+                              reste ce qu'il est ; ``motif`` documente ce qui doit être corrigé EN
+                              DEHORS de cette machine à états (ex. une correction d'inventaire M6),
+                              jamais deviné ici.
+        horodatage_arg: horodatage RFC 3339 avec fuseau de la décision.
+        registre_cible: instance de Registre.
+        motif: chaîne non vide obligatoire — la décision cite TOUJOURS pourquoi (personne, rôle,
+            motif : les deux premiers sont ceux de l'approbation du socle, le motif est ici).
+
+    Returns:
+        (accusé, None) ou (None, verdict). Fail-closed : ``decision`` hors ``DECISIONS_REVUE``,
+        motif vide, horodatage invalide, ou intervention hors ``completed_pending_review`` sont
+        tous des refus nommés — rien n'est écrit. Contrairement à ``confirmer_verification``
+        (redélivrance d'événement), cette fonction n'est PAS idempotente : une seconde décision
+        sur une intervention déjà résolue par la première (``verifiee``) est un refus nommé, pas
+        un no-op silencieux — une décision humaine tardive doit être visible, jamais masquée.
+    """
+    try:
+        horodatage.valider_horodatage(horodatage_arg)
+    except ValueError:
+        return None, verdicts.construire_verdict("REJ-HORODATAGE-INVALIDE")
+
+    if decision not in DECISIONS_REVUE:
+        return None, verdicts.construire_verdict(
+            "REJ-ENUM-INVALIDE", detail=f"decision doit être l'une de {DECISIONS_REVUE}"
+        )
+
+    if not isinstance(motif, str) or not motif.strip():
+        return None, verdicts.construire_verdict(
+            "REJ-CHAMP-VIDE", detail="motif requis : la décision cite toujours pourquoi"
+        )
+
+    courant = etats.statut_courant(registre_cible, intervention_id)
+    if courant != "completed_pending_review":
+        return None, verdicts.construire_verdict(
+            "REJ-TRANSITION-ILLEGALE",
+            statut=courant,
+            detail="resoudre_revue_completion n'accepte que completed_pending_review en entrée",
+        )
+
+    statut_cible = "completed_verified" if decision == "verifiee" else "completed_pending_review"
+    maillon = {
+        "type_entree": etats.TYPE_TRANSITION,
+        "intervention_id": intervention_id,
+        "statut": statut_cible,
+        "statut_precedent": courant,
+        "horodatage": horodatage_arg,
+        "decision_revue": decision,
+        "motif_revue": motif.strip(),
+    }
+    ligne_id = registre_cible.ajouter(maillon)
+
+    return {
+        "intervention_id": intervention_id,
+        "statut": statut_cible,
+        "decision": decision,
+        "ligne_id": ligne_id,
+        "tete_chaine": registre_cible.tete(),
+    }, None
+
+
+def enregistrer_signal_variance(intervention_id, charge_variance, registre_cible):
+    """
+    Trace, dans le registre de M4 lui-même, qu'une charge ``m6.variance_chantier`` a été reçue
+    pour cette intervention SANS mener à ``confirmer_verification`` (PLAN T1.3-b) — appelée par
+    ``outils.py::_recevoir_variance_chantier`` dans la branche qui NE vérifie PAS automatiquement
+    (signal critique, ou ``statut_variance`` pas encore ``evaluee``). Sans ce maillon,
+    ``attentes()`` (file du propriétaire) n'aurait aucune trace DURABLE, dans le registre de M4,
+    du signal M6 : le seul autre enregistrement (``opsys.evenements``/``EVENEMENTS_RECUS``)
+    appartient au socle, jamais lu depuis ce paquet (M4 reste pur du point de vue de son propre
+    registre — c'est ``outils.py``, l'adaptateur, seul, qui a lu la charge sur le bus).
+
+    Ne DÉCIDE rien : l'appelant a déjà décidé de ne PAS appeler ``confirmer_verification``. Porte
+    tel quel les champs utiles au résumé de l'attente (jamais recalculés) : ``statut_variance``,
+    ``signal_critique``, ``seuil_pourcentage``, ``evenement_id`` de la charge M6 d'origine
+    (catalogue ``opsys.evenements.catalogue.m6.variance_chantier``).
+
+    Returns:
+        ligne_id (str) du maillon écrit.
+    """
+    maillon = {
+        "type_entree": TYPE_SIGNAL_VARIANCE,
+        "intervention_id": intervention_id,
+        "horodatage": charge_variance["horodatage_completion"],
+        "evenement_id_variance": charge_variance["evenement_id"],
+        "statut_variance": charge_variance["statut_variance"],
+        "signal_critique": charge_variance["signal_critique"],
+        "seuil_pourcentage": charge_variance["seuil_pourcentage"],
+    }
+    return registre_cible.ajouter(maillon)
+
+
+def dernier_signal_variance(registre_cible, intervention_id):
+    """
+    Dernier signal ``m6.variance_chantier`` connu pour cette intervention (PLAN T1.3-b,
+    ``attentes()`` de ``outils.py``) : celui au statut ``evaluee`` s'il existe (terminal — au
+    plus un par WCT, catalogue ``m6.variance_chantier``), sinon le plus récent des autres statuts
+    (``prevu_absent``/``declaration_absente``/``seuil_absent``). ``None`` si M4 n'a encore rien
+    reçu pour cette intervention — jamais deviné (``attentes()`` doit pouvoir dire « pas encore
+    de nouvelles de M6 » plutôt que de supposer un signal absent).
+    """
+    candidats = [
+        m for m in registre_cible.lire()
+        if m.get("type_entree") == TYPE_SIGNAL_VARIANCE and m.get("intervention_id") == intervention_id
+    ]
+    if not candidats:
+        return None
+    for candidat in candidats:
+        if candidat["statut_variance"] == "evaluee":
+            return candidat
+    return candidats[-1]
+
+
 def lire_outbox(registre_cible, depuis_index=0):
     """
     Lit les WCT émis depuis un certain index (inclus) du registre.
@@ -581,18 +745,25 @@ def lire_outbox(registre_cible, depuis_index=0):
 
 def verifier_invariants_outbox(registre_cible):
     """
-    Vérifie l'intégrité des WCT présents dans le registre, PLUS (PLAN T1.2, point 4) la
-    cohérence de la confirmation ``completed_pending_review -> completed_verified`` écrite
-    par ``confirmer_verification``.
+    Vérifie l'intégrité des WCT présents dans le registre, PLUS (PLAN T1.2, point 4 ; PLAN
+    T1.3-b) la cohérence des DEUX transitions de confirmation qui suivent une complétion.
 
     Depuis PLAN T1.2, un maillon de statut ``completed_verified`` peut être :
     - la PREMIÈRE complétion (``statut_precedent`` hors ``STATUTS_COMPLETION``, ex.
       ``sur_site``) : porte le wct, exactement comme avant (contrôles inchangés) ;
-    - une CONFIRMATION (``statut_precedent == "completed_pending_review"``, écrite par
-      ``confirmer_verification``) : ne porte JAMAIS de wct — il vit déjà sur le premier
-      maillon de cette même intervention — et ne peut viser que ``completed_verified``
-      depuis ``completed_pending_review`` (la seule paire que ``confirmer_verification``
-      écrit).
+    - une CONFIRMATION AUTOMATIQUE (``statut_precedent == "completed_pending_review"``, sans
+      ``decision_revue``, écrite par ``confirmer_verification`` sur un signal M6 sans
+      dépassement) : ne porte JAMAIS de wct — il vit déjà sur le premier maillon de cette même
+      intervention — et ne peut viser que ``completed_verified`` depuis
+      ``completed_pending_review`` (la seule paire que ``confirmer_verification`` écrit).
+
+    Depuis PLAN T1.3-b, un maillon PORTANT LA CLÉ ``decision_revue`` (écrit exclusivement par
+    ``resoudre_revue_completion``, la revue HUMAINE) est une confirmation d'une autre forme, elle
+    aussi sans jamais de wct :
+    - ``decision_revue == "verifiee"``   : ``completed_pending_review -> completed_verified``
+      (même paire que la confirmation automatique, mais décidée par une personne) ;
+    - ``decision_revue == "correction"`` : ``completed_pending_review -> completed_pending_review``
+      (self-loop NOMMÉ : un nouveau maillon d'audit, jamais une réouverture du chantier).
 
     Returns:
         (True, "") ou (False, message) en cas d'incohérence.
@@ -601,11 +772,27 @@ def verifier_invariants_outbox(registre_cible):
         statut = maillon.get("statut")
         statut_precedent = maillon.get("statut_precedent")
         wct = maillon.get(CLE_WCT)
-        confirmation = statut in STATUTS_COMPLETION and statut_precedent in STATUTS_COMPLETION
+        decision_revue = maillon.get("decision_revue")
+        confirmation = (
+            (statut in STATUTS_COMPLETION and statut_precedent in STATUTS_COMPLETION)
+            or decision_revue is not None
+        )
 
         if confirmation:
             if wct is not None:
                 return False, "maillon de confirmation porte un wct (devrait vivre sur le premier)"
+            if decision_revue is not None:
+                # PLAN T1.3-b : revue humaine — seules ces deux paires exactes sont légales.
+                attendu = {
+                    "verifiee": ("completed_pending_review", "completed_verified"),
+                    "correction": ("completed_pending_review", "completed_pending_review"),
+                }.get(decision_revue)
+                if attendu is None or (statut_precedent, statut) != attendu:
+                    return False, (
+                        f"revue de complétion illégale : decision_revue={decision_revue!r} "
+                        f"{statut_precedent} -> {statut}"
+                    )
+                continue
             if statut != "completed_verified" or statut_precedent != "completed_pending_review":
                 return False, (
                     f"confirmation illégale : {statut_precedent} -> {statut} "
@@ -648,12 +835,17 @@ def verifier_invariants_outbox(registre_cible):
 
 
 #: Fonctions autorisées à écrire, chacune, LEUR forme précise de maillon de complétion
-#: (PLAN T1.2, point 4) : ``completer_intervention`` écrit le maillon composite avec wct
-#: (première complétion, T1.1-b#2/CA-M4-11) ; ``confirmer_verification`` écrit SEULEMENT le
-#: maillon de confirmation sans wct (``completed_pending_review -> completed_verified``,
-#: PLAN T1.2). Aucune autre fonction, dans ce fichier ou ailleurs, ne peut écrire l'un ou
-#: l'autre : c'est exactement ce que ``garde_ecriture_unique`` vérifie ci-dessous.
-_FONCTIONS_AUTORISEES_STATUT_COMPLETION = ("completer_intervention", "confirmer_verification")
+#: (PLAN T1.2, point 4 ; PLAN T1.3-b) : ``completer_intervention`` écrit le maillon composite
+#: avec wct (première complétion, T1.1-b#2/CA-M4-11) ; ``confirmer_verification`` écrit
+#: SEULEMENT le maillon de confirmation AUTOMATIQUE sans wct (``completed_pending_review ->
+#: completed_verified``, PLAN T1.2) ; ``resoudre_revue_completion`` (PLAN T1.3-b) écrit SEULEMENT
+#: le maillon de revue HUMAINE sans wct (même paire, ou le self-loop de correction nommée —
+#: jamais un agent seul, la signature appartient au socle des approbations). Aucune autre
+#: fonction, dans ce fichier ou ailleurs, ne peut écrire l'un de ces trois : c'est exactement ce
+#: que ``garde_ecriture_unique`` vérifie ci-dessous.
+_FONCTIONS_AUTORISEES_STATUT_COMPLETION = (
+    "completer_intervention", "confirmer_verification", "resoudre_revue_completion",
+)
 
 
 def garde_ecriture_unique(chemin_source=None):
@@ -662,19 +854,21 @@ def garde_ecriture_unique(chemin_source=None):
 
     Trois contrôles :
     1. Seul ``completer_intervention`` écrit un maillon portant la clé ``CLE_WCT`` (le WCT).
-    2. Seuls ``completer_intervention`` et ``confirmer_verification`` (PLAN T1.2, point 4)
-       écrivent, par ``ajouter(...)``, un maillon dont la clé ``"statut"`` littérale vaut
-       ``completed_pending_review`` ou ``completed_verified`` — ce qui couvre le maillon
-       composite de ``completer_intervention`` ET le maillon de confirmation, sans wct, de
-       ``confirmer_verification`` : les deux SEULS chemins d'écriture de ces statuts.
-    3. Chacune de ces deux fonctions n'appelle ``ajouter`` qu'une fois (textuellement).
+    2. Seules ``completer_intervention``, ``confirmer_verification`` (PLAN T1.2, point 4) et
+       ``resoudre_revue_completion`` (PLAN T1.3-b) écrivent, par ``ajouter(...)``, un maillon
+       dont la clé ``"statut"`` littérale vaut ``completed_pending_review`` ou
+       ``completed_verified`` — ce qui couvre le maillon composite de ``completer_intervention``
+       ET les maillons de confirmation, sans wct, des deux autres : les trois SEULS chemins
+       d'écriture de ces statuts.
+    3. Chacune de ces trois fonctions n'appelle ``ajouter`` qu'une fois (textuellement).
 
     Limite connue : un appel indirect (getattr, alias) échapperait à la garde, de même
     qu'une valeur ``statut`` construite dynamiquement (variable plutôt que littéral) —
-    ``completer_intervention`` y échappe déjà ainsi (``statut_cible`` est une variable), sans
-    conséquence puisque cette fonction reste de toute façon autorisée. Le refus au runtime de
-    ``transitionner(..., "completed_pending_review"/"completed_verified", ...)`` et le rejet
-    de ``confirmer_verification`` en dehors de ``completed_pending_review`` constituent la
+    ``completer_intervention`` et ``resoudre_revue_completion`` y échappent déjà ainsi
+    (``statut_cible`` est une variable dans les deux), sans conséquence puisque ces fonctions
+    restent de toute façon autorisées. Le refus au runtime de ``transitionner(...,
+    "completed_pending_review"/"completed_verified", ...)``, le rejet de ``confirmer_verification``
+    et de ``resoudre_revue_completion`` en dehors de ``completed_pending_review`` constituent la
     défense en profondeur.
 
     Args:
@@ -849,11 +1043,16 @@ __all__ = [
     "NON_FOURNI",
     "CLE_WCT",
     "STATUTS_COMPLETION",
+    "DECISIONS_REVUE",
+    "TYPE_SIGNAL_VARIANCE",
     "calculer_minutes_pause",
     "calculer_minutes_deplacement",
     "calculer_duree_reelle",
     "completer_intervention",
     "confirmer_verification",
+    "resoudre_revue_completion",
+    "enregistrer_signal_variance",
+    "dernier_signal_variance",
     "lire_outbox",
     "verifier_invariants_outbox",
     "garde_ecriture_unique",

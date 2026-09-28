@@ -1042,6 +1042,215 @@ def test_garde_ecriture_unique_violation_statut_hors_fonctions_autorisees(tmp_pa
 
 
 # ==================================================================================
+# 16. resoudre_revue_completion / enregistrer_signal_variance / dernier_signal_variance
+#     (PLAN T1.3-b) — le TROISIÈME chemin d'écriture d'un statut de complétion : la revue
+#     HUMAINE. Ce module reste pur (aucune identité, aucun rôle) : les tests d'identité/rôle
+#     (department.yaml, opsys.approbations) vivent dans test_approbations_m4.py.
+# ==================================================================================
+def test_resoudre_revue_completion_verifiee_passe_a_completed_verified():
+    reg, i_id = _intervention_en_pending_review()
+    acc, verd = outbox_mod.resoudre_revue_completion(
+        i_id, "verifiee", H_COMPLETION, reg, motif="Photos et checklist conformes.",
+    )
+    assert acc is not None, f"revue refusée : {verd}"
+    assert acc["statut"] == "completed_verified"
+    assert acc["decision"] == "verifiee"
+    assert etats_mod.statut_courant(reg, i_id) == "completed_verified"
+
+
+def test_resoudre_revue_completion_verifiee_ne_porte_jamais_de_wct():
+    """Comme confirmer_verification : le WCT vit déjà sur le premier maillon (complétion)."""
+    reg, i_id = _intervention_en_pending_review()
+    outbox_mod.resoudre_revue_completion(i_id, "verifiee", H_COMPLETION, reg, motif="Confirmé.")
+    dernier = reg.lire()[-1]
+    assert outbox_mod.CLE_WCT not in dernier
+    assert dernier["statut"] == "completed_verified"
+    assert dernier["statut_precedent"] == "completed_pending_review"
+    assert dernier["decision_revue"] == "verifiee"
+    assert dernier["motif_revue"] == "Confirmé."
+
+
+def test_resoudre_revue_completion_correction_reste_pending_review_nouveau_maillon():
+    reg, i_id = _intervention_en_pending_review()
+    taille_avant = len(reg.lire())
+    acc, verd = outbox_mod.resoudre_revue_completion(
+        i_id, "correction", H_COMPLETION, reg, motif="Photo après-chantier manquante.",
+    )
+    assert acc is not None, f"revue refusée : {verd}"
+    assert acc["statut"] == "completed_pending_review"
+    assert acc["decision"] == "correction"
+    assert len(reg.lire()) == taille_avant + 1, "un NOUVEAU maillon d'audit, jamais une réécriture"
+    dernier = reg.lire()[-1]
+    assert outbox_mod.CLE_WCT not in dernier, "une correction ne rouvre jamais le chantier (aucun WCT)"
+    assert dernier["statut"] == "completed_pending_review"
+    assert dernier["statut_precedent"] == "completed_pending_review"
+    assert dernier["decision_revue"] == "correction"
+    assert dernier["motif_revue"] == "Photo après-chantier manquante."
+    # Le chantier reste en revue : aucune transition FSM vers sur_site/en_revue.
+    assert etats_mod.statut_courant(reg, i_id) == "completed_pending_review"
+
+
+def test_resoudre_revue_completion_apres_correction_peut_encore_etre_verifiee():
+    """Plusieurs rounds : correction puis correction encore puis, enfin, vérifiée."""
+    reg, i_id = _intervention_en_pending_review()
+    outbox_mod.resoudre_revue_completion(i_id, "correction", H_COMPLETION, reg, motif="Manque 1.")
+    outbox_mod.resoudre_revue_completion(i_id, "correction", H_APRES_ANOMALIE, reg, motif="Manque 2.")
+    acc, verd = outbox_mod.resoudre_revue_completion(
+        i_id, "verifiee", H_ANOMALIE, reg, motif="Tout est réglé.",
+    )
+    assert acc is not None, f"revue refusée : {verd}"
+    assert etats_mod.statut_courant(reg, i_id) == "completed_verified"
+
+
+@pytest.mark.parametrize("decision_invalide", ["confirmee", "rejetee", "", None, 1])
+def test_resoudre_revue_completion_decision_invalide_refuse(decision_invalide):
+    reg, i_id = _intervention_en_pending_review()
+    taille_avant = len(reg.lire())
+    acc, verd = outbox_mod.resoudre_revue_completion(
+        i_id, decision_invalide, H_COMPLETION, reg, motif="Peu importe.",
+    )
+    assert acc is None
+    assert verd["code"] == "REJ-ENUM-INVALIDE"
+    assert len(reg.lire()) == taille_avant
+
+
+@pytest.mark.parametrize("motif_invalide", ["", "   ", None, 123])
+@pytest.mark.parametrize("decision", list(outbox_mod.DECISIONS_REVUE))
+def test_resoudre_revue_completion_motif_vide_refuse(decision, motif_invalide):
+    reg, i_id = _intervention_en_pending_review()
+    taille_avant = len(reg.lire())
+    acc, verd = outbox_mod.resoudre_revue_completion(
+        i_id, decision, H_COMPLETION, reg, motif=motif_invalide,
+    )
+    assert acc is None
+    assert verd["code"] == "REJ-CHAMP-VIDE"
+    assert len(reg.lire()) == taille_avant
+
+
+def test_resoudre_revue_completion_motif_obligatoire_sans_defaut():
+    reg, i_id = _intervention_en_pending_review()
+    with pytest.raises(TypeError):
+        outbox_mod.resoudre_revue_completion(i_id, "verifiee", H_COMPLETION, reg)
+
+
+def test_resoudre_revue_completion_refuse_hors_pending_review():
+    reg, i_id = _intervention_sur_site_avec_pointages()   # encore sur_site, jamais complétée
+    acc, verd = outbox_mod.resoudre_revue_completion(
+        i_id, "verifiee", H_COMPLETION, reg, motif="Trop tôt.",
+    )
+    assert acc is None
+    assert verd["code"] == "REJ-TRANSITION-ILLEGALE"
+    assert etats_mod.statut_courant(reg, i_id) == "sur_site"
+
+
+def test_resoudre_revue_completion_refuse_une_seconde_fois_apres_verifiee():
+    """Contrairement à confirmer_verification (redélivrance d'événement), une décision humaine
+    tardive sur une intervention déjà tranchée est un refus nommé, jamais un no-op silencieux."""
+    reg, i_id = _intervention_en_pending_review()
+    acc1, _ = outbox_mod.resoudre_revue_completion(i_id, "verifiee", H_COMPLETION, reg, motif="Ok.")
+    assert acc1 is not None
+    acc2, verd2 = outbox_mod.resoudre_revue_completion(
+        i_id, "correction", H_APRES_ANOMALIE, reg, motif="Trop tard.",
+    )
+    assert acc2 is None
+    assert verd2["code"] == "REJ-TRANSITION-ILLEGALE"
+
+
+def test_resoudre_revue_completion_horodatage_invalide_refuse():
+    reg, i_id = _intervention_en_pending_review()
+    acc, verd = outbox_mod.resoudre_revue_completion(
+        i_id, "verifiee", "pas-un-horodatage", reg, motif="Ok.",
+    )
+    assert acc is None
+    assert verd["code"] == "REJ-HORODATAGE-INVALIDE"
+
+
+def test_verifier_invariants_outbox_sain_apres_revue_verifiee():
+    reg, i_id = _intervention_en_pending_review()
+    outbox_mod.resoudre_revue_completion(i_id, "verifiee", H_COMPLETION, reg, motif="Ok.")
+    ok, msg = outbox_mod.verifier_invariants_outbox(reg)
+    assert ok, msg
+
+
+def test_verifier_invariants_outbox_sain_apres_revue_correction():
+    reg, i_id = _intervention_en_pending_review()
+    outbox_mod.resoudre_revue_completion(i_id, "correction", H_COMPLETION, reg, motif="Manque photo.")
+    ok, msg = outbox_mod.verifier_invariants_outbox(reg)
+    assert ok, msg
+
+
+def test_garde_ecriture_unique_reel_couvre_resoudre_revue_completion():
+    """La garde réelle reste verte MAINTENANT que resoudre_revue_completion écrit, elle aussi,
+    des maillons statut=completed_verified/completed_pending_review."""
+    ok, msg = outbox_mod.garde_ecriture_unique()
+    assert ok, msg
+
+
+def _charge_variance(**overrides):
+    base = {
+        "evenement_id": "m6-variance-test-t13b", "horodatage_completion": H_COMPLETION,
+        "statut_variance": "evaluee", "signal_critique": True, "seuil_pourcentage": 0.30,
+    }
+    base.update(overrides)
+    return base
+
+
+def test_enregistrer_signal_variance_puis_dernier_signal_variance_le_retrouve():
+    reg, i_id = _intervention_en_pending_review()
+    charge = _charge_variance()
+    ligne_id = outbox_mod.enregistrer_signal_variance(i_id, charge, reg)
+    assert isinstance(ligne_id, str) and ligne_id
+
+    dernier = reg.lire()[-1]
+    assert dernier["type_entree"] == outbox_mod.TYPE_SIGNAL_VARIANCE
+    assert dernier["intervention_id"] == i_id
+    assert dernier["evenement_id_variance"] == charge["evenement_id"]
+    assert dernier["statut_variance"] == "evaluee"
+    assert dernier["signal_critique"] is True
+    assert dernier["seuil_pourcentage"] == 0.30
+
+    signal = outbox_mod.dernier_signal_variance(reg, i_id)
+    assert signal == dernier
+
+
+def test_dernier_signal_variance_absent_rend_none():
+    reg, i_id = _intervention_en_pending_review()
+    assert outbox_mod.dernier_signal_variance(reg, i_id) is None
+    assert outbox_mod.dernier_signal_variance(reg, "intervention-inconnue") is None
+
+
+def test_dernier_signal_variance_prefere_evaluee_aux_statuts_intermediaires():
+    reg, i_id = _intervention_en_pending_review()
+    outbox_mod.enregistrer_signal_variance(
+        i_id, _charge_variance(
+            evenement_id="m6-variance-declaration-absente", statut_variance="declaration_absente",
+            signal_critique=None,
+        ), reg,
+    )
+    outbox_mod.enregistrer_signal_variance(
+        i_id, _charge_variance(evenement_id="m6-variance-evaluee", statut_variance="evaluee",
+                                signal_critique=True), reg,
+    )
+    signal = outbox_mod.dernier_signal_variance(reg, i_id)
+    assert signal["evenement_id_variance"] == "m6-variance-evaluee"
+    assert signal["statut_variance"] == "evaluee"
+
+
+def test_dernier_signal_variance_sans_evaluee_rend_le_plus_recent():
+    reg, i_id = _intervention_en_pending_review()
+    outbox_mod.enregistrer_signal_variance(
+        i_id, _charge_variance(evenement_id="m6-variance-prevu-absent",
+                                statut_variance="prevu_absent", signal_critique=None), reg,
+    )
+    outbox_mod.enregistrer_signal_variance(
+        i_id, _charge_variance(evenement_id="m6-variance-declaration-absente",
+                                statut_variance="declaration_absente", signal_critique=None), reg,
+    )
+    signal = outbox_mod.dernier_signal_variance(reg, i_id)
+    assert signal["evenement_id_variance"] == "m6-variance-declaration-absente"
+
+
+# ==================================================================================
 # 14. T1.2-f — CHAMPS_WCT_OPTIONNELS : type_travaux (tiré de l'inscription) et les quatre
 # faits CLIENT (photos, description_factuelle, consentement_marketing, client_satisfait).
 # La forme (types) est vérifiée ICI, dans outbox.py (module pur) ; la garde d'appel
