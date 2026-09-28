@@ -56,6 +56,21 @@ CODES_M3_LIST = [
     # M3-S002 : REJ-SEUILS-INVALIDES est ajouté ; REJ-PHOTOS-INVALIDES figure
     # déjà ci-dessus dans le catalogue et n'est donc pas dupliqué.
     "REJ-SEUILS-INVALIDES",
+    # PLAN T2.3-a (devis durable) : codes du module devis_durable.py, jamais utilisés ailleurs.
+    "REJ-DEVIS-DEVIS-ID-VIDE",
+    "REJ-DEVIS-LEAD-ID-VIDE",
+    "REJ-DEVIS-CHANTIER-ID-INVALIDE",
+    "REJ-DEVIS-HORODATAGE-VIDE",
+    "REJ-DEVIS-LIGNES-VIDES",
+    "REJ-DEVIS-LIGNE-INVALIDE",
+    "REJ-DEVIS-TAUX-MARGE-MANQUANT",
+    "REJ-DEVIS-TAUX-MARGE-INVALIDE",
+    "REJ-DEVIS-TOTAL-INCOHERENT",
+    "REJ-DEVIS-ID-DEJA-UTILISE",
+    "REJ-DEVIS-INTROUVABLE",
+    "REJ-DEVIS-TRANSITION-ILLEGALE",
+    "REJ-DEVIS-APPROBATEUR-ABSENT",
+    "REJ-DEVIS-ROLE-INCONNU",
 ]
 CODES_M3 = set(CODES_M3_LIST)
 

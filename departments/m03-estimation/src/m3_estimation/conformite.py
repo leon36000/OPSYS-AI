@@ -51,6 +51,22 @@ _DEROGATIONS_ECHAPPATOIRE = {
             "niveau de confiance ou un verdict indéterminé doit bloquer."
         ),
     },
+    "STATUTS_DEVIS": {
+        # "brouillon" n'est PAS un marqueur d'indétermination au sens de VERDICT_INDETERMINE :
+        # c'est l'état initial réel, toujours connu avec certitude. Il est choisi ici seulement
+        # parce que ce contrôle exige un élément RÉEL de l'énuméré comme point de comparaison ;
+        # aucune valeur de STATUTS_DEVIS ne joue le rôle d'un « je ne sais pas » (voir raison).
+        "echappatoire": "brouillon",
+        "raison": (
+            "Le statut d'un devis (devis_durable.py, PLAN T2.3-a) est un état de registre TENU "
+            "PAR LE CODE, jamais une classification issue d'une mesure incertaine : le registre "
+            "sait toujours avec certitude dans quel état se trouve un devis qu'il connaît, là où "
+            "un niveau de confiance ou un verdict d'estimation peut légitimement rester "
+            "indéterminé faute de données suffisantes. Un devis introuvable est un rejet nommé à "
+            "part (REJ-DEVIS-INTROUVABLE), jamais un statut « inconnu » inventé pour combler "
+            "l'absence — cet énuméré n'a donc besoin d'aucune échappatoire d'indétermination."
+        ),
+    },
 }
 
 

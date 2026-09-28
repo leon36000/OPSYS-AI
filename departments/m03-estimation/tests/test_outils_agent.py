@@ -7,7 +7,7 @@ from pathlib import Path
 from m3_estimation.outils import estimer_projet, outils
 
 from opsys.departements import lire_manifeste
-from opsys.outils import executer
+from opsys.outils import Autonomie, executer
 
 SEUILS = {"resolution_minimale": 1000, "eclairage_minimal": 4}
 BAREME = {
@@ -129,3 +129,102 @@ def test_simuler_intervalle_outil_arrondit_aussi_au_cent():
     for cle in ("borne_basse", "borne_haute"):
         valeur = Decimal(str(intervalle[cle]))
         assert valeur == valeur.quantize(Decimal("0.01")), f"{cle}={intervalle[cle]!r} pas arrondi au cent"
+
+
+# ------------------------------------------------------------------ devis durable (PLAN T2.3-a) : contrat des outils
+# Ces tests portent seulement sur le SCHÉMA JSON et l'autonomie déclarés : un rejet de schéma
+# (`arguments_invalides`) court-circuite `executer()` avant tout appel à la fonction, donc avant
+# tout accès au stockage — aucune base durable n'est nécessaire ici. Le comportement métier
+# (calculs, idempotence, transitions, événement) est éprouvé par test_devis_durable.py et
+# test_devis_durable_stockage.py.
+_LIGNE_DEVIS_VALIDE = {
+    "description": "Gouttière alu 5 po",
+    "quantite": "30",
+    "unite": "pi_lin",
+    "cout_unitaire": "10.00",
+    "reference_besoin_materiau": None,
+}
+
+
+def _outil_devis(nom):
+    return next(o for o in outils() if o.nom == nom)
+
+
+def test_les_trois_outils_devis_durable_sont_exposes_avec_lautonomie_attendue():
+    """T1 pour la création (brouillon interne, PLAN T2.3-a), T0 pour la lecture, T3 pour
+    l'acceptation (frontière humaine, AGENTS.md « engagements externes »)."""
+    assert _outil_devis("m3_creer_devis").autonomie == Autonomie.T1
+    assert _outil_devis("m3_lire_devis").autonomie == Autonomie.T0
+    assert _outil_devis("m3_marquer_devis_accepte").autonomie == Autonomie.T3
+
+
+def test_aucun_outil_denvoi_de_devis_au_client_nest_expose():
+    """SOUL.md : « Envoyer un devis au client sans approbation : c'est une action externe. »
+    L'envoi ira derrière les approbations du socle en T1.3 (PLAN T2.3-a) : aucun outil ne
+    l'expose encore, exactement comme `m3_envoyer_devis_client` documenté mais absent (audit M3)."""
+    noms = {o.nom for o in outils()}
+    assert not any("envoy" in nom for nom in noms)
+
+
+def test_creer_devis_champ_requis_manquant_refuse_par_le_schema():
+    outil = _outil_devis("m3_creer_devis")
+    arguments = {
+        "devis_id": "M3-DEVIS-schema-001",
+        "lead_id": "lead-1",
+        "chantier_id": None,
+        "lignes": [_LIGNE_DEVIS_VALIDE],
+        "horodatage": "2026-09-28T14:00:00-04:00",
+        # taux_marge manquant : requis par le schéma, jamais codé en dur.
+    }
+    reponse = executer(outil, arguments)
+    assert reponse["ok"] is False
+    assert reponse["erreur"] == "arguments_invalides"
+    assert any("taux_marge" in detail for detail in reponse["details"])
+
+
+def test_creer_devis_chantier_id_doit_etre_present_meme_null():
+    """`chantier_id` est nullable mais REQUIS (présence de la clé) — même patron que `revue_id`
+    dans le catalogue m4.travaux_termines.json : fail-closed, jamais un défaut silencieux."""
+    outil = _outil_devis("m3_creer_devis")
+    arguments = {
+        "devis_id": "M3-DEVIS-schema-002",
+        "lead_id": "lead-1",
+        "lignes": [_LIGNE_DEVIS_VALIDE],
+        "taux_marge": "0.20",
+        "horodatage": "2026-09-28T14:00:00-04:00",
+    }
+    reponse = executer(outil, arguments)
+    assert reponse["ok"] is False
+    assert reponse["erreur"] == "arguments_invalides"
+
+
+def test_creer_devis_proprietes_inconnues_refusees_par_le_schema():
+    outil = _outil_devis("m3_creer_devis")
+    arguments = {
+        "devis_id": "M3-DEVIS-schema-003",
+        "lead_id": "lead-1",
+        "chantier_id": None,
+        "lignes": [_LIGNE_DEVIS_VALIDE],
+        "taux_marge": "0.20",
+        "horodatage": "2026-09-28T14:00:00-04:00",
+        "prix": "1.00",  # jamais accepté en entrée (CLES_INTERDITES, cf. contrats.py)
+    }
+    reponse = executer(outil, arguments)
+    assert reponse["ok"] is False
+    assert reponse["erreur"] == "arguments_invalides"
+
+
+def test_lire_devis_role_hors_enum_refuse_par_le_schema():
+    outil = _outil_devis("m3_lire_devis")
+    reponse = executer(outil, {"devis_id": "M3-DEVIS-schema-004", "role": "proprietaire"})
+    assert reponse["ok"] is False
+    assert reponse["erreur"] == "arguments_invalides"
+
+
+def test_marquer_devis_accepte_approbateur_manquant_refuse_par_le_schema():
+    outil = _outil_devis("m3_marquer_devis_accepte")
+    reponse = executer(
+        outil, {"devis_id": "M3-DEVIS-schema-005", "horodatage": "2026-09-28T14:00:00-04:00"}
+    )
+    assert reponse["ok"] is False
+    assert reponse["erreur"] == "arguments_invalides"

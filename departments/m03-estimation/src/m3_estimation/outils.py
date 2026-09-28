@@ -13,10 +13,19 @@ import json
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
-from opsys import stockage
+from opsys import evenements, stockage
 from opsys.outils import Autonomie, Outil, depuis_couple
 
-from . import blocage_prix, contrats, hierarchie_echelle, monte_carlo, plancher, qualite_photos, registre
+from . import (
+    blocage_prix,
+    contrats,
+    devis_durable,
+    hierarchie_echelle,
+    monte_carlo,
+    plancher,
+    qualite_photos,
+    registre,
+)
 
 _PHOTO = {
     "type": "object",
@@ -43,6 +52,24 @@ _BAREME = {
     "description": "{version, unite, postes: {type_travaux: {cout_unitaire_min, cout_unitaire_max}}}",
 }
 _TYPE_TRAVAUX = {"type": "string", "enum": list(contrats.TYPES_TRAVAUX)}
+_LIGNE_DEVIS = {
+    "type": "object",
+    "properties": {
+        "description": {"type": "string"},
+        "quantite": {"type": "string", "description": "texte décimal, ex. \"12.5\" (jamais un nombre JSON)"},
+        "unite": {"type": "string"},
+        "cout_unitaire": {
+            "type": "string",
+            "description": "texte décimal CAD, coût unitaire — jamais un prix, le prix est calculé",
+        },
+        "reference_besoin_materiau": {
+            "type": ["string", "null"],
+            "description": "référence du besoin matériau (M6), ou null si cette ligne n'en a pas",
+        },
+    },
+    "required": ["description", "quantite", "unite", "cout_unitaire", "reference_besoin_materiau"],
+    "additionalProperties": False,
+}
 
 
 def qualifier_photos(photos: list[dict[str, Any]], seuils: dict[str, Any]) -> dict[str, Any]:
@@ -195,6 +222,67 @@ def registre_production() -> registre.Registre:
     return registre.Registre(stockage.maillons("m03-estimation", "principal"))
 
 
+def registre_devis_production() -> stockage.MaillonsDurables:
+    """Registre M3 des DEVIS (PLAN T2.3-a), adossé au stockage durable de l'instance (ADR-0009) :
+    `opsys.stockage.maillons("m03-estimation", "devis")`, dans la base et la transaction de
+    l'appel courant, relu à chaque appel, jamais mis en cache — même discipline que
+    `registre_production` ci-dessus, mais DÉLIBÉRÉMENT une collection distincte ("devis", jamais
+    "principal") : le registre "principal" porte les charges d'ESTIMATION Monte Carlo (S008, six
+    clés fixes dont `niveau_confiance`/`bareme_version`/`graine_monte_carlo`, hash-chaînées par
+    `registre.Registre`), pas les lignes commerciales d'un devis (voir la docstring de
+    `devis_durable.py`). `devis_durable.py` reste pur : il ignore que ses maillons viennent d'une
+    liste Python (tests unitaires, construite EN MÉMOIRE, explicitement, sans passer par cette
+    fonction) ou de `opsys.stockage.MaillonsDurables` (production, ce point d'entrée) — c'est ce
+    point d'entrée, jamais `devis_durable.py`, qui choisit le support durable."""
+    return stockage.maillons("m03-estimation", "devis")
+
+
+def creer_devis(
+    devis_id: str,
+    lead_id: str,
+    chantier_id: str | None,
+    lignes: list[dict[str, Any]],
+    taux_marge: str,
+    horodatage: str,
+    prix_total: str | None = None,
+) -> dict[str, Any]:
+    return depuis_couple(
+        devis_durable.creer_devis(
+            devis_id,
+            lead_id,
+            chantier_id,
+            lignes,
+            taux_marge,
+            horodatage,
+            registre_devis_production(),
+            prix_total_fourni=prix_total,
+        )
+    )
+
+
+def lire_devis(devis_id: str, role: str = "interne") -> dict[str, Any]:
+    devis, verdict = devis_durable.lire_devis(registre_devis_production(), devis_id)
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    return depuis_couple(devis_durable.projeter_devis(devis, role))
+
+
+def marquer_devis_accepte(devis_id: str, approbateur: str, horodatage: str) -> dict[str, Any]:
+    """Marque un devis ACCEPTE et publie `m3.devis_accepte` dans la MÊME transaction (ADR-0009
+    §3) — seulement quand la transition réussit réellement (`verdict is None`) : un rejet
+    (devis introuvable, transition illégale, approbateur absent) n'écrit et ne publie jamais rien.
+    """
+    devis, verdict = devis_durable.marquer_devis_accepte(
+        devis_id, approbateur, horodatage, registre_devis_production()
+    )
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    evenements.publier(
+        "m3.devis_accepte", "m03-estimation", devis_durable.charge_evenement_devis_accepte(devis)
+    )
+    return {"accepte": True, "resultat": devis}
+
+
 def outils() -> tuple[Outil, ...]:
     """Capacités exposées aux agents (fonction : les constantes publiques du paquet sont des énumérés)."""
     return (
@@ -274,5 +362,83 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=confronter_plancher,
             autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m3_creer_devis",
+            description=(
+                "Crée un devis BROUILLON (PLAN T2.3-a) sur le registre dédié des devis, distinct du "
+                "registre d'estimations. Le prix de chaque ligne est TOUJOURS calculé par le code : "
+                "cout_unitaire x quantite x (1 + taux_marge) — jamais fourni. Les totaux sont "
+                "recalculés depuis les lignes ; un prix_total fourni qui diffère est rejeté. "
+                "Idempotente par devis_id : un second appel identique est un no-op, un contenu "
+                "différent est rejeté. Écriture interne non finale (T1) : n'envoie rien au client."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "devis_id": {"type": "string"},
+                    "lead_id": {"type": "string", "description": "lien avec le lead M2"},
+                    "chantier_id": {"type": ["string", "null"], "description": "chantier M4, si déjà connu"},
+                    "lignes": {"type": "array", "items": _LIGNE_DEVIS, "minItems": 1},
+                    "taux_marge": {
+                        "type": "string",
+                        "description": "texte décimal, ex. \"0.35\" pour 35 % — jamais codé en dur",
+                    },
+                    "horodatage": {"type": "string"},
+                    "prix_total": {
+                        "type": ["string", "null"],
+                        "description": (
+                            "Optionnel : contrôle défensif, doit correspondre exactement au total "
+                            "recalculé depuis les lignes, sinon rejet."
+                        ),
+                    },
+                },
+                "required": ["devis_id", "lead_id", "chantier_id", "lignes", "taux_marge", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=creer_devis,
+            autonomie=Autonomie.T1,
+        ),
+        Outil(
+            nom="m3_lire_devis",
+            description=(
+                "Lit l'état courant d'un devis par devis_id (registre durable, relu à chaque appel, "
+                "jamais mis en cache). role=\"employe\" retire coût, marge ET prix (séparation "
+                "coût/prix, audit M3) ; role=\"interne\" (défaut) rend la vue complète."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "devis_id": {"type": "string"},
+                    "role": {"type": "string", "enum": ["interne", "employe"]},
+                },
+                "required": ["devis_id"],
+                "additionalProperties": False,
+            },
+            fonction=lire_devis,
+            autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m3_marquer_devis_accepte",
+            description=(
+                "Marque un devis (brouillon ou envoyé) ACCEPTE et publie m3.devis_accepte dans la "
+                "même transaction. T3 (frontière humaine, AGENTS.md) : l'acceptation du client est "
+                "un engagement externe — approbateur doit être un humain qui CONSTATE l'acceptation "
+                "réelle (signature, courriel, appel), jamais déduite. L'ENVOI du devis au client "
+                "n'est pas un outil exposé (action externe, ira derrière les approbations du socle "
+                "en T1.3) : marquer_devis_accepte accepte donc aussi depuis brouillon."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "devis_id": {"type": "string"},
+                    "approbateur": {"type": "string", "description": "humain qui constate l'acceptation"},
+                    "horodatage": {"type": "string"},
+                },
+                "required": ["devis_id", "approbateur", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=marquer_devis_accepte,
+            autonomie=Autonomie.T3,
         ),
     )

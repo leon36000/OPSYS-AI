@@ -31,3 +31,5 @@ kpis:
     description: Écart moyen entre prix estimé et coût réel des chantiers terminés (M4).
   - id: taux_prix_bloques
     description: Part des demandes dont le prix est bloqué faute d'entrées suffisantes.
+evenements:
+  publie: [m3.devis_accepte]

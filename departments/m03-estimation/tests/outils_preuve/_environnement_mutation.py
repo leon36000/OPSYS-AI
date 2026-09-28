@@ -26,6 +26,18 @@ son ``__file__`` en tête de ``sys.path`` — c'est cette réinsertion tardive q
 plaçant réellement le fichier de test (donc son ``__file__``) dans la copie. Les autres
 départements ne sont jamais mutés : ils sont liés par lien symbolique vers le dépôt réel,
 jamais copiés, jamais réécrits.
+
+``src/`` (le socle ``opsys``, dont ``opsys.evenements`` et son catalogue JSON) et le
+``pyproject.toml`` racine sont liés par lien symbolique en lecture seule, par le MÊME motif que
+les départements voisins ci-dessus, jamais copiés : les scripts ``muter_*.py`` invoquent pytest
+avec la copie comme chemin de test mais le dépôt réel comme ``cwd`` (``cwd=RACINE``), et pytest
+détermine son ``rootdir``/fichier d'options depuis le chemin des arguments, pas depuis ``cwd`` —
+sans ce lien, aucun ``pyproject.toml`` n'est trouvé en remontant depuis la copie, ``pythonpath``
+ne s'applique jamais, et ``import opsys`` retombe sur l'installation du paquet dans l'environnement
+Python (souvent en retard sur le dépôt réel, ex. un type d'événement du catalogue ajouté après la
+dernière installation) plutôt que sur les sources réelles du dépôt qu'on prétend mesurer — constaté
+le 2026-09-28 (PLAN T2.3-a) : ``opsys.evenements.publier`` levait ``type d'événement inconnu`` sur
+un type ajouté au catalogue dans ce commit, uniquement à l'intérieur de la copie de mutation.
 """
 
 from __future__ import annotations
@@ -59,6 +71,13 @@ class EnvironnementMutation:
             if voisin.name == "m03-estimation":
                 continue
             (departements / voisin.name).symlink_to(voisin, target_is_directory=voisin.is_dir())
+
+        # Socle opsys (src/) et pyproject.toml racine : même motif, lien symbolique en lecture
+        # seule — jamais copiés. Nécessaires pour que pytest retrouve le pyproject.toml racine
+        # (donc son option pythonpath) en remontant depuis la copie, et que import opsys voie les
+        # sources réelles du dépôt plutôt qu'une installation figée (cf. docstring du module).
+        (self.dossier / "src").symlink_to(self.racine_reelle / "src", target_is_directory=True)
+        (self.dossier / "pyproject.toml").symlink_to(self.racine_reelle / "pyproject.toml")
 
         self.dossier_departement = departements / "m03-estimation"
         self.dossier_source = self.dossier_departement / "src" / "m3_estimation"

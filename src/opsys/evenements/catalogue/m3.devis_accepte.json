@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m3.devis_accepte",
+  "title": "M3 — Devis accepté",
+  "description": "Émis par M3 quand un devis passe à ACCEPTE (departments/m03-estimation/src/m3_estimation/devis_durable.py::marquer_devis_accepte, outil m3_marquer_devis_accepte, PLAN T2.3-a). Publié dans la MÊME transaction que l'acceptation, et seulement à ce moment (jamais à la création ou à l'envoi d'un devis). M6 le consommera pour ses besoins matériaux prévus (docs/produit/DEFINITION-PRODUIT.md §6, flux M3 -> M6) ; M5 lit le devis complet par devis_id (m3_lire_devis) plutôt que de dépendre de la charge de cet événement pour facturer.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "devis_id": {
+      "type": "string",
+      "description": "Identifiant du devis accepté (devis_durable.py::creer_devis)."
+    },
+    "lead_id": {
+      "type": "string",
+      "description": "Lead M2 d'origine, porté tel quel depuis la création du devis."
+    },
+    "chantier_id": {
+      "type": ["string", "null"],
+      "description": "Chantier M4, si déjà connu au moment de la création du devis ; null sinon."
+    },
+    "lignes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "description": "{description, quantite (texte décimal), unite, reference_besoin_materiau (ou null)} — jamais de coût ni de prix par ligne : M6 planifie des quantités de matériaux, pas des montants (séparation coût/prix, docs/departements/M3-audit.md §2.1)."
+      },
+      "description": "Lignes du devis accepté, sans coût ni prix unitaire — voir la description de chaque élément."
+    },
+    "cout_total": {
+      "type": "string",
+      "description": "Texte décimal CAD : coût total recalculé par le code (avant marge). Réservé aux consommateurs financiers (M5) ; jamais transmis à un profil employé (cf. m3_estimation.devis_durable.projeter_devis)."
+    },
+    "prix_total": {
+      "type": "string",
+      "description": "Texte décimal CAD : prix total recommandé au client, recalculé par le code (coût x (1 + taux_marge))."
+    },
+    "taux_marge": {
+      "type": "string",
+      "description": "Texte décimal (ex. \"0.35\" pour 35 %) : taux de marge appliqué à ce devis, fourni explicitement à sa création — jamais codé en dur."
+    }
+  },
+  "required": [
+    "devis_id",
+    "lead_id",
+    "chantier_id",
+    "lignes",
+    "cout_total",
+    "prix_total",
+    "taux_marge"
+  ]
+}
