@@ -123,7 +123,9 @@ def identite_appelante() -> IdentiteAppelante | None:
     `test_identite_appelante_ignore_les_arguments_de_loutil`. Un outil peut donc s'en servir pour
     signer une décision ou choisir une projection par rôle ; il doit tout de même revérifier que la
     personne existe encore et porte encore ce rôle (`opsys.identite.personne_active`), comme le
-    signale déjà `IdentiteAppelante` ci-dessus.
+    signale déjà `IdentiteAppelante` ci-dessus. Réserve (PLAN T1.4-c1) : les tests vitest de cette
+    chaîne côté core ne tournent que depuis le job CI `tests-opsys` ; tant qu'il n'est pas vert, la
+    garantie repose sur la lecture du code, pas sur une preuve exécutée.
     """
     return _IDENTITE_APPELANTE.get()
 

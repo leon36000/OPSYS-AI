@@ -1,0 +1,38 @@
+# Tests des zones du core modifiées par OPSYS (T1.4-c1, T1.4-c2, T1.4-c4).
+#
+# `pnpm test:fast` (les six morceaux de la CI) exclut `src/gateway/**`, `src/agents/**` et
+# `packages/gateway-protocol/**` : ces tests appartiennent à d'autres projets vitest. Le job
+# « tests-opsys » de `.github/workflows/core.yml` les lance ici par `pnpm test <fichiers>`, qui
+# route chaque fichier vers le projet qui le possède et échoue si une cible ne correspond à rien.
+#
+# Règle : tout fichier source du core modifié par OPSYS a ses tests (nouveaux ET voisins d'origine)
+# dans cette liste, sauf s'ils tournent déjà dans `test:fast`.
+
+# T1.4-c1 : transmission du _meta MCP (src/agents/mcp-call-meta.ts, agent-bundle-mcp-runtime.ts)
+src/agents/mcp-call-meta.test.ts
+src/agents/agent-bundle-mcp-runtime.mcp-call-meta.test.ts
+src/agents/agent-bundle-mcp-runtime.test.ts
+src/agents/agent-bundle-mcp-runtime.agent-bundle.test.ts
+src/agents/agent-bundle-mcp-runtime.sse-recovery.test.ts
+src/agents/agent-bundle-mcp-runtime-shared.test.ts
+src/agents/agent-bundle-mcp-runtime-config.test.ts
+src/agents/agent-bundle-mcp-runtime-config.cache.test.ts
+
+# T1.4-c1, T1.4-c2, T1.4-c4 : /tools/invoke, rôles OPSYS, jeton d'appareil
+src/gateway/opsys-device-roles.test.ts
+src/gateway/tools-invoke-http.test.ts
+src/gateway/tools-invoke-http.device-identity.test.ts
+src/gateway/tools-invoke-http.opsys-roles.test.ts
+src/gateway/tools-invoke-http.device-token-auth.test.ts
+src/gateway/tools-invoke-http.abort.test.ts
+src/gateway/tools-invoke-http.cron-regression.test.ts
+src/gateway/tools-invoke-authorization.test.ts
+src/gateway/http-auth-utils.test.ts
+src/gateway/http-auth-utils.paired-device.test.ts
+src/gateway/http-utils.authorize-request.test.ts
+src/gateway/http-utils.request-context.test.ts
+src/gateway/http-utils.model-override.test.ts
+
+# T1.4-c4 : GATEWAY_CLIENT_IDS.OPSYS_MOBILE (packages/gateway-protocol/src/client-info.ts)
+src/gateway/gateway-misc.test.ts
+packages/gateway-protocol/src/schema/worker-admission.test.ts

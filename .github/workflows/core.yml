@@ -82,3 +82,41 @@ jobs:
           echo "== détail des échecs (message d'assertion et ligne du test)"
           sed -n '/Failed Tests [0-9]/,/Test Files/p' "$RUNNER_TEMP/vitest.txt" | grep -vE "^ *$" | head -250 || true
           grep -E "Test Files|Tests  " "$RUNNER_TEMP/vitest.txt" | tail -4 || true
+
+  # Tests des zones du core modifiées par OPSYS. `test:fast` exclut src/gateway, src/agents et
+  # packages/gateway-protocol (d'autres projets vitest) : sans ce job, les tests de T1.4-c1, c2
+  # et c4 ne tourneraient jamais. `pnpm test <fichiers>` route chaque fichier vers son projet et
+  # échoue si une cible ne correspond à rien. Liste : core/test/opsys-tests-cibles.txt.
+  tests-opsys:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: "24.x"
+      - name: pnpm (version fixée par packageManager)
+        run: corepack enable && pnpm --version
+      - name: Installation
+        run: pnpm install --frozen-lockfile
+      - name: Tests ciblés OPSYS (projets gateway, agents, gateway-protocol)
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+          OPENCLAW_VITEST_MAX_WORKERS: "2"
+        shell: bash
+        run: |
+          set -o pipefail
+          mapfile -t cibles < <(grep -vE '^[[:space:]]*(#|$)' test/opsys-tests-cibles.txt)
+          echo "${#cibles[@]} fichiers ciblés"
+          pnpm test "${cibles[@]}" 2>&1 | tee "$RUNNER_TEMP/vitest.log"
+      - name: Tests en échec (résumé en fin de journal)
+        if: failure()
+        shell: bash
+        run: |
+          sed -E 's/\x1b\[[0-9;]*m//g' "$RUNNER_TEMP/vitest.log" > "$RUNNER_TEMP/vitest.txt"
+          echo "== fichiers en échec"
+          grep -E "^ *FAIL " "$RUNNER_TEMP/vitest.txt" | sed -E 's/ > .*//; s/ +\[.*//' | sort -u | head -150 || true
+          echo "== détail des échecs (message d'assertion et ligne du test)"
+          sed -n '/Failed Tests [0-9]/,/Test Files/p' "$RUNNER_TEMP/vitest.txt" | grep -vE "^ *$" | head -250 || true
+          echo "== fin du journal"
+          tail -60 "$RUNNER_TEMP/vitest.txt"

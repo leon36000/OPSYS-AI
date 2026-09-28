@@ -482,10 +482,15 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       Exemple : `m3_lire_devis(role=...)` retire coût, marge et prix pour un employé, mais c'est
       aujourd'hui l'appelant qui choisit le rôle ;
     - appairage mobile, avec l'algorithme de signature lu dans le fork.
-    - [x] T1.4-c1 Core : `/tools/invoke` transmet au moteur, dans le `_meta` MCP, la clé
+    - [ ] T1.4-c1 Core : `/tools/invoke` transmet au moteur, dans le `_meta` MCP, la clé
           d'idempotence, l'appareil et son heure (`IDEMPOTENCE.md` §7).
-          Preuve (6dffd04) : contexte `AsyncLocalStorage` jusqu'au `tools/call` ; tests vitest
-          (dont un vrai sous-processus MCP) exécutés par la CI du core.
+          Livré (6dffd04) : contexte `AsyncLocalStorage` jusqu'au `tools/call`, tests vitest (dont
+          un vrai sous-processus MCP).
+          DÉCOCHÉE (correction) : cette tâche était cochée sur la foi d'une CI du core verte, mais
+          `pnpm test:fast`, seule suite de cette CI, exclut `src/agents/**`, `src/gateway/**` et
+          `packages/gateway-protocol/**`. Ses tests, comme ceux de T1.4-c2 et T1.4-c4, n'avaient
+          donc jamais tourné. Le job `tests-opsys` de `core.yml` les lance désormais
+          (`core/test/opsys-tests-cibles.txt`) ; à recocher quand il sera vert.
     - [ ] T1.4-c2 Core et socle :
       - rôles nommés sur le jeton d'appareil, attribués à l'approbation de l'appairage avec la
         personne OPSYS ;
@@ -497,7 +502,8 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       - refus fermé hors de la portée du rôle ;
       - `opsys/personne` et `opsys/role` transmis au moteur.
 
-      Reste : la CI du core sur T1.4-c4. L'attribution existe depuis T1.4-c4 (42bbf6a) :
+      Reste : le job `tests-opsys` vert (tests des rôles jamais exécutés jusqu'ici, voir
+      T1.4-c1). L'attribution existe depuis T1.4-c4 (42bbf6a) :
       `opsys appareils appairer`, `lister` et `revoquer` attribuent la personne et le rôle (refus
       fermé) et régénèrent `opsys/appareils.json`, en second temps après l'approbation native de
       l'appairage par le core.
@@ -508,7 +514,8 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         sert pour signer ou projeter, et le téléphone ne reçoit jamais le secret partagé.
       - Aussi : un identifiant de client OPSYS dans `GATEWAY_CLIENT_IDS`.
 
-      Livré (42bbf6a), à cocher quand la CI du core sera verte :
+      Livré (42bbf6a), à cocher quand le job `tests-opsys` sera vert (la CI core 16, verte, ne
+      lançait pas ces tests : voir T1.4-c1) :
       - `/tools/invoke` accepte le jeton d'appareil par le mécanisme natif du fork
         (`verifyHttpOperatorDeviceToken`, qui rend aussi le `deviceId`) ; le secret partagé ne
         porte jamais `opsys/personne` ni `opsys/role`, quel que soit le corps ;
@@ -516,7 +523,7 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         rôle est obligatoire pour tout appel par jeton ;
       - `GATEWAY_CLIENT_IDS.OPSYS_MOBILE` ajouté, pas encore câblé ;
       - socle 392, ruff, verifier ; démonstration de la CLI (personne, appairage, refus d'un rôle
-        non porté, révocation) ; vitest (7 et 11 tests) exécutés par la CI du core seulement.
+        non porté, révocation) ; vitest (7 et 11 tests), à exécuter par le job `tests-opsys`.
 
       Reste : le rôle nommé sur la poignée de main WebSocket (l'app ne l'apprend pas encore) ;
       câbler `opsys-mobile` dans l'app et dans la classification de confiance du core. Code
