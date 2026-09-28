@@ -24,7 +24,7 @@ import mcp_types as types
 from mcp.server.lowlevel import Server
 from mcp.server.stdio import stdio_server
 
-from . import __version__, etat, evenements, stockage
+from . import __version__, etat, evenements, idempotence, stockage
 from .capacites import Capacites
 from .departements import Departement, charger_departements
 from .outils import Autonomie
@@ -58,7 +58,19 @@ def creer_serveur(capacites: Capacites) -> Server[Any]:
 
     async def appeler_outil(ctx: Any, params: types.CallToolRequestParams) -> types.CallToolResult:
         del ctx
-        reponse = await anyio.to_thread.run_sync(capacites.appeler, params.name, params.arguments or {})
+        # Idempotence d'appareil (T1.4-b) : clé et identité voyagent dans le `_meta` MCP de
+        # `tools/call`, jamais dans les arguments que le modèle produit (contrat complet :
+        # docs/architecture/IDEMPOTENCE.md). Sans `opsys/idempotencyKey`, `meta` est None et
+        # `Capacites.appeler` se comporte exactement comme avant T1.4-b.
+        try:
+            meta = idempotence.depuis_meta_mcp(params.meta)
+        except ValueError as exc:
+            reponse: dict[str, Any] = {"ok": False, "erreur": "meta_invalide", "details": str(exc)}
+            return types.CallToolResult(
+                content=[types.TextContent(type="text", text=json.dumps(reponse, ensure_ascii=False))],
+                isError=True,
+            )
+        reponse = await anyio.to_thread.run_sync(capacites.appeler, params.name, params.arguments or {}, meta)
         return types.CallToolResult(
             content=[types.TextContent(type="text", text=json.dumps(reponse, ensure_ascii=False))],
             isError=not reponse.get("ok", False),

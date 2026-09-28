@@ -9,6 +9,7 @@ Logique pure, indépendante du transport. Elle fait trois choses :
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import logging
 from collections.abc import Callable, Mapping
@@ -17,8 +18,8 @@ from typing import Any
 
 from sqlalchemy import Connection
 
-from . import approbations, jetons
-from .contexte import appeler_en_tant_que
+from . import approbations, idempotence, jetons
+from .contexte import HorodatageAppareil, appeler_en_tant_que, receptionne_de
 from .departements import Departement, tous_les_outils
 from .outils import Autonomie, Outil, executer_atomique, valider_arguments
 from .politiques import approbation_requise
@@ -130,7 +131,49 @@ class Capacites:
     def lister(self) -> list[Outil]:
         return [outil for _, outil in self.index.values()]
 
-    def appeler(self, nom: str, arguments: Mapping[str, Any] | None) -> dict[str, Any]:
+    def appeler(
+        self, nom: str, arguments: Mapping[str, Any] | None, meta: idempotence.Meta | None = None
+    ) -> dict[str, Any]:
+        """Exécute `nom`. `meta` (idempotence d'appareil, T1.4-b) vient du `_meta` MCP de
+        `tools/call` (`serveur_mcp.appeler_outil`), jamais des arguments produits par le modèle.
+        Sans `meta`, comportement strictement inchangé : voir `docs/architecture/IDEMPOTENCE.md`.
+        """
+        if meta is None:
+            return self._distribuer(nom, arguments)
+        return self._appeler_idempotent(nom, dict(arguments or {}), meta)
+
+    def _appeler_idempotent(
+        self, nom: str, arguments: dict[str, Any], meta: idempotence.Meta
+    ) -> dict[str, Any]:
+        """Réclame `(appareil, cle)` puis exécute, dans une seule transaction : un renvoi de la
+        même clé, du même outil et des mêmes arguments rejoue la réponse enregistrée sans
+        ré-exécuter ni redemander d'approbation ; une clé réutilisée pour un outil ou des arguments
+        différents est un refus nommé (`mutation_conflit`), rien n'est exécuté ; une panne interne
+        annule toute la transaction, réclamation comprise, pour qu'un renvoi réel réessaie.
+
+        `stockage.transaction` (ADR-0009) imbrique `_distribuer` — donc `executer_atomique` et la
+        création d'une demande d'approbation — comme point de sauvegarde de cette même transaction :
+        aucun changement à ces fonctions n'est requis pour obtenir l'atomicité demandée.
+        """
+        recu_le = dt.datetime.now(dt.UTC)
+        with self._cnx_factory() as cnx:
+            try:
+                reclamation = idempotence.reclamer(cnx, meta, nom, arguments, recu_le)
+            except idempotence.MutationConflit as exc:
+                return {"ok": False, "erreur": "mutation_conflit", "details": str(exc)}
+            if reclamation.rejouee:
+                return {**reclamation.reponse, "rejoue": True}
+            horodatage = HorodatageAppareil(
+                appareil=meta.appareil,
+                horodatage_appareil=dt.datetime.fromisoformat(meta.horodatage_appareil),
+                recu_le=recu_le,
+            )
+            with receptionne_de(horodatage):
+                reponse = self._distribuer(nom, arguments)
+            idempotence.finaliser(cnx, meta, reponse)
+            return {**reponse, "rejoue": False}
+
+    def _distribuer(self, nom: str, arguments: Mapping[str, Any] | None) -> dict[str, Any]:
         entree = self.index.get(nom)
         if entree is None:
             return {"ok": False, "erreur": "outil_inconnu", "details": nom}

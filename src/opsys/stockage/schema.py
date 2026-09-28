@@ -150,3 +150,29 @@ EVENEMENTS_RECUS = Table(
     CheckConstraint("statut IN ('echec','traite','quarantaine')", name="statut_valide"),
     Index("ix_evenements_recus_statut", "statut", "prochaine_tentative"),
 )
+
+# Idempotence des mutations d'appareil (T1.4-b ; contrat R12 §4, `docs/architecture/IDEMPOTENCE.md`).
+# `(appareil, cle_idempotence)` est la clé posée par `opsys.idempotence.reclamer`, dans la MÊME
+# transaction que l'exécution de l'outil (`opsys.capacites.Capacites._appeler_idempotent`) : un
+# renvoi de la même clé, du même outil et des mêmes arguments (`empreinte_arguments`) rejoue
+# `reponse` (encodée par `stockage.codec`, comme les maillons de registre) sans ré-exécuter.
+# `statut='en_cours'` n'est jamais visible hors de sa transaction : `finaliser` l'écrase avant le
+# commit, ou la transaction entière (réclamation comprise) s'annule avec une panne interne — jamais
+# enregistrée, pour qu'un renvoi réel réessaie. `horodatage_appareil` (heure de l'appareil, affichage
+# seulement) et `recu_le` (heure du serveur, fait foi — ex. la paie, M4/T1.4-d) sont du texte ISO,
+# comme les autres dates du plan de contrôle (voir la note sur APPROBATIONS ci-dessus).
+MUTATIONS_APPLIQUEES = Table(
+    "mutations_appliquees",
+    META,
+    Column("appareil", String(128), primary_key=True),
+    Column("cle_idempotence", String(128), primary_key=True),
+    Column("outil", String(128), nullable=False),
+    Column("empreinte_arguments", String(64), nullable=False),
+    Column("reponse", Text, nullable=False),
+    Column("horodatage_appareil", Text, nullable=False),
+    Column("recu_le", Text, nullable=False),
+    Column("statut", String(24), nullable=False),
+    CheckConstraint(
+        "statut IN ('en_cours','ok','refus_metier','en_attente_approbation')", name="statut_valide"
+    ),
+)

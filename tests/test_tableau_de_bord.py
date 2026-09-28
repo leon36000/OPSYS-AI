@@ -50,7 +50,8 @@ def test_vue_departements_reprend_manifeste_mode_outils_et_consommation(departem
     assert demo["mode"] == demo["mode_manifeste"] == "supervise"
     outils = {o["nom"]: o for o in demo["outils"]}
     assert list(outils) == ["m9_additionner", "m9_refuser_si_negatif", "m9_envoyer_message", "m9_payer",
-                            "m9_gros_rapport"]
+                            "m9_gros_rapport", "m9_echouer_puis_reussir", "m9_pointer",
+                            "m9_voir_horodatage"]
     assert outils["m9_additionner"] == {"nom": "m9_additionner", "description": "Additionne deux nombres.",
                                         "autonomie": "T0", "approbation_requise": False}
     assert (outils["m9_envoyer_message"]["autonomie"], outils["m9_envoyer_message"]["approbation_requise"]) == (
