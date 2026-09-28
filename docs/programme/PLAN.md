@@ -268,6 +268,34 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       R12 (Expo SDK 57, expo-sqlite + file sortante maison, client de protocole TypeScript du core,
       `POST /tools/invoke` sans tour de modèle). Rôles d'opérateur nommés dans le core d'abord : le jeton
       partagé d'OpenClaw donne un accès complet (R12). Réécrire `docs/architecture/MOBILE.md` (périmé).
+  - [ ] T1.4-a Squelette `mobile/` (R12 §5, étape 1) :
+    - Expo SDK 57, Expo Router et TypeScript strict ; i18n fr-CA ;
+    - groupes de routes par rôle, gardés par une fonction pure testée ;
+    - file sortante (R12 §4) en logique pure testée, avec un adaptateur expo-sqlite :
+      - `mutation_id` créé sur l'appareil ;
+      - statuts ;
+      - recul de 1 s à 30 s ;
+      - `depends_on` ;
+      - reprise avec la même clé ;
+    - client typé de `POST /tools/invoke` ;
+    - job CI `mobile` (tsc, jest) ;
+    - `MOBILE.md` réécrit et briques inscrites dans INGREDIENTS.md.
+
+    Aucun écran métier.
+  - [ ] T1.4-b Socle : idempotence des mutations d'appareil.
+    - Table `mutations_appliquees`, de clé `(appareil, idempotencyKey)`.
+    - Un renvoi rejoue le même résultat, dans la même transaction que l'outil.
+    - L'heure du serveur fait foi ; celle de l'appareil est gardée à côté.
+    - Le chemin de la clé, du core jusqu'au moteur, est établi en lisant le code du fork
+      (`/tools/invoke`, client MCP).
+  - [ ] T1.4-c Core, après T0.5 (CI du core verte) :
+    - rôles d'opérateur nommés (`admin`, `employee`, `seller`) sur le jeton d'appareil ;
+    - portées d'outils par rôle ;
+    - appairage mobile, avec l'algorithme de signature lu dans le fork.
+  - [ ] T1.4-d `punch.tsx` (M4.4) de bout en bout par la file sortante (R12 §5, étape 2).
+  - [ ] T1.4-e Chantier du jour, transitions, checklist, photos et signature (étapes 3 et 4).
+  - [ ] T1.4-f « Terminer », qui lance la cascade §9.7, puis le formulaire des matériaux (étape 5).
+    Approbations côté propriétaire après T1.3 (étape 6).
 - [ ] T1.5 E2E : travaux terminés normaux ; écart de 40 % → `completed_pending_review` et alerte
       sur le mobile de l'admin.
 
