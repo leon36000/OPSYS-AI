@@ -53,7 +53,9 @@ _PHOTOS_UNE_PHOTO = [("chantier-apres.jpg", _image_unie())]
 
 
 # ---------------------------------------------------------------------------
-# Consentement : absent, faux, retiré -> refus nommé, fail-closed
+# Consentement : absent ou faux -> refus nommé, fail-closed. Pas de notion de « retrait » ici :
+# aucune source de vérité n'existe pour ça aujourd'hui (voir docstring du module,
+# README.md/SOUL.md) — seul l'état tel que reçu du WCT fait foi.
 # ---------------------------------------------------------------------------
 def test_consentement_absent_refuse():
     charge = {k: v for k, v in _WCT_BASE.items() if k != "consentement_marketing"}
@@ -72,17 +74,6 @@ def test_consentement_faux_refuse():
     )
     assert brouillon is None
     assert motif == contenu_public.REFUS_CONSENTEMENT_FAUX
-
-
-def test_consentement_retire_refuse_meme_si_initialement_accorde():
-    """Un retrait explicite prime toujours : jamais republié sur la foi d'un consentement
-    initial périmé."""
-    charge = _wct(consentement_marketing=True, consentement_marketing_retire=True)
-    brouillon, motif = contenu_public.preparer_brouillon_contenu_public(
-        charge, _PHOTOS_UNE_PHOTO, BRAND_VALIDE, _DetecteurFixe(), seuil_confiance=0.8
-    )
-    assert brouillon is None
-    assert motif == contenu_public.REFUS_CONSENTEMENT_RETIRE
 
 
 # ---------------------------------------------------------------------------

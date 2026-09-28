@@ -54,14 +54,33 @@ python3 -m pytest "departments/m07-marketing/tests" -q
   (Apache-2.0) + YuNet (MIT) pour les visages, cascade Haar OpenCV (Apache-2.0) pour les
   plaques — `cv2` n'étant pas installé dans ce dépôt, `detecteur_opencv_par_defaut()` échoue
   avec `DetecteurIndisponible`, un refus nommé et testé, jamais un faux vert.
-- `m7_marketing.content.contenu_public` + l'outil `m7_preparer_contenu_public` (T1) :
-  prépare un brouillon flouté avec la preuve du consentement et le rapport de floutage. Refuse
-  (fail-closed, aucun brouillon) si `consentement_marketing` est absent/faux/retiré, ou si le
-  profil de marque n'est pas configuré. Une détection sous le seuil de confiance fourni ne
-  bloque pas la préparation (le floutage est déjà appliqué par prudence) mais marque le
-  brouillon `revue_humaine_requise: true` avec le motif — jamais un passage silencieux. Jamais
-  une publication : la publication réelle reste N5 (approbation signée du socle), hors de ce
-  module.
+- `m7_marketing.content.contenu_public` + l'outil `m7_preparer_contenu_public(wct_id, photos,
+  seuil_confiance)` (T1) : prépare un brouillon flouté avec la preuve du consentement et le
+  rapport de floutage. **Ni le consentement ni l'identité de marque ne sont des arguments** de
+  cet outil (relecture 0a7aaef, AGENTS.md « le LLM orchestre, il ne fournit jamais un fait ») :
+  - le consentement vient du WCT `m4.travaux_termines` déjà reçu par le bus pour `wct_id`,
+    enregistré tel quel dans le registre durable `wct_recus` par le consommateur d'événements
+    (`outils.py::_recevoir_travaux_termines`/`_enregistrer_wct_recu`) — **quel que soit** le sort
+    de la demande d'avis associée (un refus de demande d'avis n'empêche jamais d'enregistrer le
+    fait). `wct_id` inconnu de ce registre → `statut: "wct_inconnu"`, jamais un brouillon ;
+  - l'identité de marque vient du profil client configuré (`brand.profil_client`, non configuré
+    → `statut: "profil_marque_non_configure"`).
+
+  Refuse (fail-closed, aucun brouillon) si `wct_id` est inconnu, si `consentement_marketing` est
+  absent/faux dans le WCT reçu, ou si le profil de marque n'est pas configuré. Une détection sous
+  le seuil de confiance fourni ne bloque pas la préparation (le floutage est déjà appliqué par
+  prudence) mais marque le brouillon `revue_humaine_requise: true` avec le motif — jamais un
+  passage silencieux. Jamais une publication : la publication réelle reste N5 (approbation
+  signée du socle), hors de ce module.
+
+  **Trou documenté, jamais caché — retrait de consentement (Loi 25)** : le catalogue
+  `src/opsys/evenements/catalogue/m4.travaux_termines.json` ne porte aucun champ de retrait, et
+  **aucun registre de retrait de consentement marketing n'existe aujourd'hui** dans ce dépôt
+  (ni côté M1/M2 où un client pourrait le signaler, ni côté M7). Ce module ne prétend donc jamais
+  savoir qu'un consentement autrefois accordé a été retiré depuis — seul l'état
+  `consentement_marketing` tel que reçu du WCT fait foi. Construire un registre de retrait
+  (source de vérité, canal de signalement, effet rétroactif sur un brouillon déjà préparé) reste
+  un travail à faire, hors périmètre de ce correctif.
 
 ## Contrat gelé v1
 

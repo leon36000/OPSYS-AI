@@ -71,6 +71,10 @@ def _demandes_avis() -> list[dict]:
     return list(stockage.maillons("m07-marketing", "demandes_avis"))
 
 
+def _wct_recus() -> list[dict]:
+    return list(stockage.maillons("m07-marketing", "wct_recus"))
+
+
 # ---------------------------------------------------------------------------
 # Autorisation : consentement vrai ET client satisfait -> brouillon déposé, jamais envoyé
 # ---------------------------------------------------------------------------
@@ -179,6 +183,68 @@ def test_brouillon_ne_porte_jamais_de_photo(base_durable, departements):
         "id", "type", "wct_id", "intervention_id", "lead_id", "ville", "type_travaux", "texte",
         "approval_status",
     }
+
+
+# ---------------------------------------------------------------------------
+# Registre `wct_recus` (correctif de relecture, 0a7aaef) : source de vérité du consentement pour
+# `m7_preparer_contenu_public` — alimenté par le SEUL fait de la réception du bus, jamais par le
+# sort de la demande d'avis, jamais par un argument d'outil (AGENTS.md « le LLM orchestre, il ne
+# fournit jamais un fait »).
+# ---------------------------------------------------------------------------
+def test_wct_recu_enregistre_quand_la_demande_avis_est_autorisee(base_durable, departements):
+    charge = _wct_travaux_termines(
+        wct_id="wct-m7-recu-ok", consentement_marketing=True, client_satisfait=True,
+    )
+    evenements.publier("m4.travaux_termines", "m04-field-ops", charge)
+    evenements.repartir(departements, maintenant="2026-09-28T18:00:00+00:00")
+
+    recus = _wct_recus()
+    assert len(recus) == 1
+    assert recus[0]["wct_id"] == "wct-m7-recu-ok"
+    assert recus[0]["consentement_marketing"] is True
+
+
+def test_wct_recu_enregistre_meme_si_la_demande_avis_est_refusee(base_durable, departements):
+    """Le point central du correctif : un refus de demande d'avis (ici, consentement absent)
+    n'empêche JAMAIS d'enregistrer le fait reçu — c'est justement ce fait, tel quel, que
+    `m7_preparer_contenu_public` doit pouvoir consulter plus tard par wct_id."""
+    charge = _wct_travaux_termines(wct_id="wct-m7-recu-refuse", client_satisfait=True)
+    assert "consentement_marketing" not in charge
+    evenements.publier("m4.travaux_termines", "m04-field-ops", charge)
+    evenements.repartir(departements, maintenant="2026-09-28T18:00:00+00:00")
+
+    assert _demandes_avis() == []  # la demande d'avis, elle, reste bien refusée (inchangé)
+
+    recus = _wct_recus()
+    assert len(recus) == 1
+    assert recus[0]["wct_id"] == "wct-m7-recu-refuse"
+    assert "consentement_marketing" not in recus[0]  # le fait reçu, tel quel, rien d'ajouté
+
+
+def test_wct_recu_consentement_faux_est_enregistre_tel_quel(base_durable, departements):
+    charge = _wct_travaux_termines(
+        wct_id="wct-m7-recu-faux", consentement_marketing=False, client_satisfait=False,
+    )
+    evenements.publier("m4.travaux_termines", "m04-field-ops", charge)
+    evenements.repartir(departements, maintenant="2026-09-28T18:00:00+00:00")
+
+    recus = _wct_recus()
+    assert len(recus) == 1
+    assert recus[0]["consentement_marketing"] is False
+
+
+def test_wct_recu_idempotent_sur_relivraison(base_durable, departements):
+    charge = _wct_travaux_termines(
+        wct_id="wct-m7-recu-relivraison", consentement_marketing=True, client_satisfait=True,
+    )
+    evenements.publier("m4.travaux_termines", "m04-field-ops", charge, evenement_id="evt-wct-1")
+    evenements.repartir(departements, maintenant="2026-09-28T18:00:00+00:00")
+    assert len(_wct_recus()) == 1
+
+    evenements.publier("m4.travaux_termines", "m04-field-ops", charge, evenement_id="evt-wct-2")
+    evenements.repartir(departements, maintenant="2026-09-28T18:05:00+00:00")
+    recus = _wct_recus()
+    assert len(recus) == 1  # jamais un second enregistrement pour le même wct_id
 
 
 def test_module_pur_demande_avis_naimporte_jamais_opsys():

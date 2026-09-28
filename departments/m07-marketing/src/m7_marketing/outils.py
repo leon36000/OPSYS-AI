@@ -26,6 +26,7 @@ from .ads import intelligence as ads_intelligence
 from .aeo import aeo_engine
 from .attribution import attribution_engine
 from .brand import brand_schema
+from .brand import profil_client as brand_profil_client
 from .competitive import report as competitive_report
 from .content import approval as content_approval
 from .content import contenu_public as content_contenu_public
@@ -71,15 +72,6 @@ _SUJET = {
     },
     "required": ["titre", "description"],
     "additionalProperties": True,
-}
-_CHARGE_TRAVAUX_TERMINES = {
-    "type": "object",
-    "description": (
-        "Charge WCT m4.travaux_termines (ou sous-ensemble utile) : wct_id (requis), "
-        "consentement_marketing (booléen explicite, jamais déduit), consentement_marketing_retire "
-        "(optionnel — un retrait explicite refuse toujours, même si consentement_marketing est "
-        "vrai), intervention_id, lead_id, ville, type_travaux."
-    ),
 }
 _IMAGE_SYNTHETIQUE = {
     "type": "object",
@@ -236,8 +228,19 @@ def lister_file_approbation(statut: str | None = None) -> list[dict[str, Any]]:
 
 # ---------------------------------------------------------------------------
 # Contenu public (photo de chantier) — consentement + floutage (PLAN T4.3, T1, jamais publié)
+#
+# Correctif de relecture (0a7aaef) : ni le consentement ni l'identité de marque ne sont plus des
+# arguments de cet outil. AGENTS.md « le code calcule, le LLM orchestre » : un modèle qui appelle
+# l'outil ne peut ni inventer ni élargir un consentement — celui-ci vient EXCLUSIVEMENT du WCT
+# `m4.travaux_termines` déjà reçu et enregistré par `_recevoir_travaux_termines` (registre
+# `wct_recus`, ci-dessous) ; l'identité de marque vient EXCLUSIVEMENT du profil client configuré
+# (`brand.profil_client`), jamais d'un paramètre fourni par l'appelant.
 # ---------------------------------------------------------------------------
 _REGISTRE_CONTENU_PUBLIC = ("m07-marketing", "contenu_public")
+_REGISTRE_WCT_RECUS = ("m07-marketing", "wct_recus")
+
+STATUT_WCT_INCONNU = "wct_inconnu"
+STATUT_PROFIL_MARQUE_NON_CONFIGURE = "profil_marque_non_configure"
 
 
 def _image_depuis_dict(donnees: dict[str, Any]) -> ImageSynthetique:
@@ -245,30 +248,61 @@ def _image_depuis_dict(donnees: dict[str, Any]) -> ImageSynthetique:
     return ImageSynthetique(largeur=donnees["largeur"], hauteur=donnees["hauteur"], pixels=pixels)
 
 
+def _wct_recu(wct_id: str) -> dict[str, Any] | None:
+    """Le WCT `m4.travaux_termines` déjà reçu pour `wct_id` (registre `wct_recus`, alimenté
+    uniquement par `_recevoir_travaux_termines`, jamais par un argument d'outil), ou `None`."""
+    for enregistrement in stockage.maillons(*_REGISTRE_WCT_RECUS):
+        if enregistrement.get("wct_id") == wct_id:
+            return enregistrement
+    return None
+
+
 def preparer_contenu_public(
-    charge: dict[str, Any],
+    wct_id: str,
     photos: list[dict[str, Any]],
-    brand: dict[str, Any],
     seuil_confiance: float,
 ) -> dict[str, Any]:
     """Prépare un brouillon de contenu public (photo de chantier) FLOUTÉ, avec la preuve du
     consentement et le rapport de floutage — jamais une publication (T1). La publication réelle
     reste N5 (approbation signée du socle), hors de cet outil.
 
-    Fail-closed : consentement absent/faux/retiré, profil de marque non configuré, aucune photo,
-    ou détecteur réel indisponible dans cet environnement -> `statut != "propose"` et
-    `brouillon: None`, jamais une exception qui casse l'appel, jamais un brouillon composé sous
-    une identité ou un consentement inventés.
+    Le CONSENTEMENT vient uniquement du WCT `m4.travaux_termines` déjà reçu par le bus pour
+    `wct_id` (registre durable `wct_recus`) : un `wct_id` inconnu de ce registre refuse
+    (`statut: "wct_inconnu"`), jamais un brouillon composé sur un consentement supposé ou fourni
+    par l'appelant. L'IDENTITÉ DE MARQUE vient uniquement du profil client configuré
+    (`brand.profil_client.charger_profil_client`), jamais d'un argument.
+
+    Fail-closed : `wct_id` inconnu, profil de marque non configuré, aucune photo, consentement
+    absent/faux dans le WCT reçu, ou détecteur réel indisponible dans cet environnement ->
+    `statut != "propose"` et `brouillon: None`, jamais une exception qui casse l'appel, jamais un
+    brouillon composé sous une identité ou un consentement inventés.
 
     Idempotent par `wct_id` : un brouillon déjà déposé pour ce chantier n'est jamais dupliqué (un
     nouvel appel le retourne tel quel, `statut: "deja_prepare"`).
     """
-    wct_id = charge.get("wct_id")
+    charge = _wct_recu(wct_id)
+    if charge is None:
+        return {
+            "brouillon": None,
+            "statut": STATUT_WCT_INCONNU,
+            "motif": f"wct_id inconnu : {wct_id!r} — aucun m4.travaux_termines reçu pour ce wct_id",
+        }
+
     registre = stockage.maillons(*_REGISTRE_CONTENU_PUBLIC)
-    if wct_id:
-        for existant in registre:
-            if existant.get("wct_id") == wct_id:
-                return {"brouillon": existant, "statut": "deja_prepare", "motif": None}
+    for existant in registre:
+        if existant.get("wct_id") == wct_id:
+            return {"brouillon": existant, "statut": "deja_prepare", "motif": None}
+
+    # Consentement vérifié TÔT, avant de résoudre un profil de marque ou un détecteur : le motif
+    # le plus fondamental d'abord, jamais un travail inutile sur une charge qu'on va refuser de
+    # toute façon (`preparer_brouillon_contenu_public` la revérifie aussi, en profondeur).
+    motif_consentement = content_contenu_public.verifier_consentement(charge)
+    if motif_consentement is not None:
+        return {"brouillon": None, "statut": "refuse", "motif": motif_consentement}
+
+    profil, motif = brand_profil_client.charger_profil_client()
+    if profil is None:
+        return {"brouillon": None, "statut": STATUT_PROFIL_MARQUE_NON_CONFIGURE, "motif": motif}
 
     try:
         detecteur = moderation_detection.detecteur_opencv_par_defaut()
@@ -277,7 +311,7 @@ def preparer_contenu_public(
 
     images = [(p["reference"], _image_depuis_dict(p["image"])) for p in photos]
     brouillon, motif = content_contenu_public.preparer_brouillon_contenu_public(
-        charge, images, brand, detecteur, seuil_confiance
+        charge, images, profil, detecteur, seuil_confiance
     )
     if brouillon is None:
         return {"brouillon": None, "statut": "refuse", "motif": motif}
@@ -380,19 +414,49 @@ def publier_post_social(
 _REGISTRE_DEMANDES_AVIS = ("m07-marketing", "demandes_avis")
 
 
+def _enregistrer_wct_recu(charge: dict[str, Any]) -> None:
+    """Enregistre CHAQUE WCT `m4.travaux_termines` reçu dans le registre durable `wct_recus`,
+    QUEL QUE SOIT le sort de la demande d'avis ci-dessous (le FAIT reçu du bus — dont
+    `consentement_marketing` — est distinct de la décision prise dessus) : idempotent par
+    `wct_id`. C'est désormais la SEULE source de vérité du consentement pour l'outil
+    `m7_preparer_contenu_public` (correctif de relecture, 0a7aaef) — AGENTS.md « le LLM
+    orchestre, il ne fournit jamais un fait » : aucun outil n'accepte plus le consentement en
+    argument, il vient toujours de ce que M4 a réellement publié sur le bus.
+
+    Note d'architecture (limite documentée, jamais cachée) : le répartiteur
+    (`opsys.evenements.repartiteur._livrer_une_paire`) n'appelle un consommateur qu'avec la
+    charge (`fonction(dict(charge))`) — ni `evenement_id` ni horodatage de réception ne sont
+    accessibles ici. Le champ `horodatage_completion`, déjà présent dans `charge` (fait réel de
+    l'événement, jamais une horloge interne), sert de référence temporelle pour ce qui est
+    enregistré. Exposer `evenement_id` au consommateur nécessiterait un changement du contrat du
+    répartiteur (partagé par tous les départements) — hors périmètre d'un correctif M7 seul.
+    """
+    wct_id = charge["wct_id"]
+    registre = stockage.maillons(*_REGISTRE_WCT_RECUS)
+    for existant in registre:
+        if existant.get("wct_id") == wct_id:
+            return  # déjà enregistré (relivraison de l'événement, ou repartir() rejoué)
+    registre.append(dict(charge))
+
+
 def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
     """Consommateur `m4.travaux_termines` (ADR-0009 §3, DEPARTEMENTS.md « Événements ») :
-    prépare une demande d'avis EN BROUILLON (écriture interne au registre du département,
-    jamais un envoi — voir `reputation.demande_avis`). L'envoi réel reste une action externe
-    derrière une approbation, hors de ce consommateur et de tout outil exposé ici.
+    enregistre d'abord le WCT reçu (`_enregistrer_wct_recu`, inconditionnel), puis prépare une
+    demande d'avis EN BROUILLON (écriture interne au registre du département, jamais un envoi —
+    voir `reputation.demande_avis`). L'envoi réel reste une action externe derrière une
+    approbation, hors de ce consommateur et de tout outil exposé ici.
 
     Fail-closed : `consentement_marketing` absent ou faux, ou `client_satisfait` absent ou faux,
-    refuse la préparation (aucun brouillon écrit) avec un motif explicite dans le résumé rendu.
+    refuse la préparation de la demande d'avis (aucun brouillon écrit) avec un motif explicite
+    dans le résumé rendu — mais le WCT reste enregistré dans `wct_recus` dans tous les cas : un
+    refus de demande d'avis n'empêche jamais d'enregistrer le fait reçu.
 
     Idempotent par `wct_id` : un brouillon déjà déposé pour ce wct_id (relivraison de
     l'événement, ou `repartir()` rejoué) n'est jamais dupliqué — no-op qui rend
     `deja_enregistre=True`.
     """
+    _enregistrer_wct_recu(charge)
+
     wct_id = charge["wct_id"]
     registre_demandes = stockage.maillons(*_REGISTRE_DEMANDES_AVIS)
     for brouillon_existant in registre_demandes:
@@ -539,23 +603,31 @@ def outils() -> tuple[Outil, ...]:
             nom="m7_preparer_contenu_public",
             description=(
                 "Prépare un brouillon de contenu public (photo de chantier) FLOUTÉ (visages et "
-                "plaques), avec la preuve du consentement et le rapport de floutage. Refuse "
-                "(fail-closed) si consentement_marketing est absent/faux/retiré, si le profil de "
+                "plaques), avec la preuve du consentement et le rapport de floutage. Le "
+                "consentement vient UNIQUEMENT du WCT m4.travaux_termines déjà reçu par le bus "
+                "pour ce wct_id (jamais d'un argument) ; l'identité de marque vient UNIQUEMENT du "
+                "profil client configuré (jamais d'un argument). Refuse (fail-closed) si wct_id "
+                "est inconnu, si le consentement du WCT reçu est absent/faux, si le profil de "
                 "marque n'est pas configuré, ou si le détecteur réel est indisponible. Jamais une "
                 "publication : la publication réelle reste N5 (approbation signée du socle)."
             ),
             parametres={
                 "type": "object",
                 "properties": {
-                    "charge": _CHARGE_TRAVAUX_TERMINES,
+                    "wct_id": {
+                        "type": "string",
+                        "description": (
+                            "Identifiant du WCT m4.travaux_termines déjà reçu par le bus (jamais "
+                            "un consentement ou une identité de marque fournis ici)."
+                        ),
+                    },
                     "photos": {"type": "array", "items": _PHOTO},
-                    "brand": _BRAND,
                     "seuil_confiance": {
                         "type": "number",
                         "description": "Seuil [0,1] sous lequel une détection force une revue humaine ; jamais deviné.",
                     },
                 },
-                "required": ["charge", "photos", "brand", "seuil_confiance"],
+                "required": ["wct_id", "photos", "seuil_confiance"],
                 "additionalProperties": False,
             },
             fonction=preparer_contenu_public,

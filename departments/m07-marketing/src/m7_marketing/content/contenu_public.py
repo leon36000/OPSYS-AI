@@ -4,11 +4,18 @@ Doctrine :
   - `docs/departements/M7-audit.md` §3.5, §4-Phase1.4 ; `docs/produit/DEFINITION-PRODUIT.md` §7
     M7, garde-fous (« photo de client sans autorisation, adresse ou visage ou plaque visibles »
     = blocage).
-  - Fail-closed (P2, AGENTS.md) : `consentement_marketing` absent, faux ou retiré refuse la
-    préparation ; profil de marque absent ou non configuré (encore le gabarit,
-    `brand.profil_client`) refuse aussi — jamais un contenu public composé sous l'identité
-    d'OPSYS-AI ou un nom inventé (`SOUL.md`). Le consentement n'est jamais supposé : il vient
-    tel quel de la charge fournie par l'appelant (WCT `m4.travaux_termines`), jamais déduit.
+  - Fail-closed (P2, AGENTS.md) : `consentement_marketing` absent ou faux refuse la préparation ;
+    profil de marque absent ou non configuré (encore le gabarit, `brand.profil_client`) refuse
+    aussi — jamais un contenu public composé sous l'identité d'OPSYS-AI ou un nom inventé
+    (`SOUL.md`). Le consentement n'est jamais supposé : il vient tel quel de `charge`, jamais
+    déduit — et `charge` elle-même vient exclusivement du WCT `m4.travaux_termines` déjà reçu par
+    le bus (registre durable `wct_recus`, `outils.py`), jamais d'un argument fourni par
+    l'appelant/le modèle (AGENTS.md « le LLM orchestre, il ne fournit jamais un fait »).
+  - PAS de mécanisme de retrait de consentement : le catalogue `m4.travaux_termines.json` ne
+    porte aucun champ de retrait, et aucun registre de retrait de consentement marketing n'existe
+    aujourd'hui dans le dépôt (Loi 25, gestion des droits — à construire, voir `SOUL.md`/
+    `README.md`). Ce module ne prétend donc PAS savoir si un consentement autrefois accordé a été
+    retiré depuis — seul `consentement_marketing` du WCT reçu fait foi, tel quel.
   - Floutage déterministe obligatoire (`moderation.floutage`) pour chaque photo AVANT toute mise
     en file : toute détection sous le seuil de confiance fourni force `revue_humaine_requise`,
     jamais une publication automatique sur un doute de détection.
@@ -33,17 +40,19 @@ from ..moderation.image import ImageSynthetique
 
 REFUS_CONSENTEMENT_ABSENT = "consentement_marketing absent (fail-closed) : aucun contenu public"
 REFUS_CONSENTEMENT_FAUX = "consentement_marketing = false : le client n'a pas consenti au contenu public"
-REFUS_CONSENTEMENT_RETIRE = "consentement_marketing_retire = true : consentement retiré, aucun contenu public"
 REFUS_AUCUNE_PHOTO = "aucune photo fournie : rien à préparer"
 REFUS_WCT_ID_ABSENT = "wct_id absent de la charge (fail-closed) : identifiant de brouillon impossible"
 
 
-def _motif_consentement(charge: Mapping[str, Any]) -> str | None:
-    """Fail-closed, dans l'ordre : un retrait explicite prime toujours sur l'état d'origine du
-    consentement — un client qui retire son consentement APRÈS l'avoir donné doit être refusé,
-    jamais republié sur la foi d'un `consentement_marketing: true` périmé."""
-    if charge.get("consentement_marketing_retire") is True:
-        return REFUS_CONSENTEMENT_RETIRE
+def verifier_consentement(charge: Mapping[str, Any]) -> str | None:
+    """Fail-closed : `consentement_marketing` absent ou pas strictement `True` refuse (`None` si
+    accordé). Aucune notion de « retrait » ici — pas de source de vérité pour ça aujourd'hui (voir
+    docstring du module) : seul l'état tel que reçu du WCT fait foi.
+
+    Exposée (pas de `_` initial) pour que l'adaptateur (`outils.py`) puisse refuser tôt, AVANT de
+    résoudre un profil de marque ou un détecteur, sur le motif le plus fondamental — mais
+    `preparer_brouillon_contenu_public` ci-dessous la rappelle aussi elle-même : jamais de
+    confiance aveugle en un appelant qui aurait sauté l'étape."""
     if "consentement_marketing" not in charge:
         return REFUS_CONSENTEMENT_ABSENT
     if charge["consentement_marketing"] is not True:
@@ -58,8 +67,8 @@ def preparer_brouillon_contenu_public(
     detecteur: Detecteur,
     seuil_confiance: float,
 ) -> tuple[dict[str, Any] | None, str | None]:
-    """`(brouillon, None)` si le consentement est accordé (et non retiré), le profil de marque
-    est configuré, et le floutage réussit pour chaque photo ; sinon `(None, motif)`.
+    """`(brouillon, None)` si le consentement est accordé, le profil de marque est configuré, et
+    le floutage réussit pour chaque photo ; sinon `(None, motif)`.
 
     `photos` est une séquence de `(reference, image)` déjà décodée en mémoire (voir
     `moderation.image` — le décodage d'un vrai fichier JPEG/PNG reste hors de ce module).
@@ -70,7 +79,7 @@ def preparer_brouillon_contenu_public(
     de détecteur n'est pas un refus métier ordinaire, l'appelant (`outils.py`) la traite comme un
     incident, pas comme un simple avis.
     """
-    motif = _motif_consentement(charge)
+    motif = verifier_consentement(charge)
     if motif is not None:
         return None, motif
 
@@ -124,7 +133,6 @@ def preparer_brouillon_contenu_public(
         "photos": photos_traitees,
         "preuve_consentement": {
             "consentement_marketing": charge.get("consentement_marketing"),
-            "consentement_marketing_retire": charge.get("consentement_marketing_retire", False),
             "source": "wct_m4_travaux_termines",
             "wct_id": wct_id,
         },
