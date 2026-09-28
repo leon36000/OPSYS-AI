@@ -42,6 +42,14 @@ vi.mock("./github-oauth-lifecycle.js", () => ({
   installActiveGitHubOAuthLifecycle: oauth.install,
 }));
 
+const opsysMetier = vi.hoisted(() => ({
+  start: vi.fn<() => { stop: () => Promise<void> } | undefined>(),
+}));
+
+vi.mock("./opsys-metier-supervisor.js", () => ({
+  startOpsysMetierSidecar: opsysMetier.start,
+}));
+
 const roots: string[] = [];
 
 function createStateDir(): string {
@@ -87,6 +95,7 @@ describe("gateway lifetime sidecars", () => {
       stop: oauth.stop,
     });
     oauth.install.mockReset().mockReturnValue(oauth.uninstall);
+    opsysMetier.start.mockReset();
   });
 
   test("keeps scheduled secret expiry responsive and joins its accepted sweep on shutdown", async () => {
@@ -344,6 +353,65 @@ describe("gateway lifetime sidecars", () => {
     expect(() =>
       modelAccounts?.status({ owner: "profile-1", assertCurrent: () => {} }, "stale-flow"),
     ).toThrow("current authorized connection");
+  });
+
+  test("ties the OPSYS business engine supervisor to the Gateway lifetime", async () => {
+    const owner = createGatewaySidecarStopOwner();
+    const engine = { stop: vi.fn(async () => {}) };
+    opsysMetier.start.mockReturnValueOnce(engine);
+
+    await attachInitialGatewayLifetimeSidecars({
+      chatMetadataLifecycle: { attachContext: vi.fn(async () => {}) } as never,
+      gatewayRequestContext: { getRuntimeConfig: vi.fn(() => ({})) } as never,
+      flushPendingSessionsChangedEvents: vi.fn(),
+      minimalTestGateway: false,
+      logWarning: vi.fn(),
+      publishSidecars: owner.publish,
+    });
+
+    expect(opsysMetier.start).toHaveBeenCalledOnce();
+    expect(owner.snapshot()).toContain(engine);
+    await owner.stop();
+    expect(engine.stop).toHaveBeenCalledOnce();
+  });
+
+  test("adds a sidecar only when OPSYS engine supervision is on", async () => {
+    const countSidecars = async (): Promise<number> => {
+      const owner = createGatewaySidecarStopOwner();
+      await attachInitialGatewayLifetimeSidecars({
+        chatMetadataLifecycle: { attachContext: vi.fn(async () => {}) } as never,
+        gatewayRequestContext: { getRuntimeConfig: vi.fn(() => ({})) } as never,
+        flushPendingSessionsChangedEvents: vi.fn(),
+        minimalTestGateway: false,
+        logWarning: vi.fn(),
+        publishSidecars: owner.publish,
+      });
+      const count = owner.snapshot().length;
+      await owner.stop();
+      return count;
+    };
+
+    const withoutEngine = await countSidecars();
+    opsysMetier.start.mockReturnValueOnce({ stop: vi.fn(async () => {}) });
+    const withEngine = await countSidecars();
+
+    expect(withEngine).toBe(withoutEngine + 1);
+  });
+
+  test("never starts the OPSYS engine supervisor in a minimal test Gateway", async () => {
+    const owner = createGatewaySidecarStopOwner();
+
+    await attachInitialGatewayLifetimeSidecars({
+      chatMetadataLifecycle: { attachContext: vi.fn(async () => {}) } as never,
+      gatewayRequestContext: {} as never,
+      flushPendingSessionsChangedEvents: vi.fn(),
+      minimalTestGateway: true,
+      logWarning: vi.fn(),
+      publishSidecars: owner.publish,
+    });
+
+    expect(opsysMetier.start).not.toHaveBeenCalled();
+    await owner.stop();
   });
 
   test.each([

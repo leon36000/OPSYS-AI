@@ -9,6 +9,7 @@ import type { GatewayHotReloadStatus } from "../config-reload-status.types.js";
 import { buildContextEngineHealthSummary } from "../health/context-engine.js";
 import { buildDeliveryQueueHealthSummary } from "../health/delivery-queue.js";
 import type { ChannelHealthSummary, HealthSummary } from "../health/types.js";
+import { getOpsysMetierStatus } from "../opsys-metier-status.js";
 import { createGatewayServerActiveWorkInspectors } from "../server-active-work.js";
 import type { ChannelRuntimeSnapshot } from "../server-channel-runtime.types.js";
 import { HEALTH_REFRESH_INTERVAL_MS } from "../server-constants.js";
@@ -21,6 +22,12 @@ import { respondUnavailableOnThrow } from "./response.js";
 import type { GatewayRequestHandlers } from "./types.js";
 
 const ADMIN_SCOPE = "operator.admin";
+
+/** OPSYS business engine state (PLAN T0.10); absent unless the Gateway supervises the engine. */
+function readOpsysMetierHealthFields(): Pick<HealthSummary, "opsysMetier"> {
+  const opsysMetier = getOpsysMetierStatus();
+  return opsysMetier ? { opsysMetier } : {};
+}
 
 function cachedLifecycleDiffersFromRuntime(params: {
   cachedAccount: ChannelHealthSummary | undefined;
@@ -112,6 +119,7 @@ async function mergeCachedHealthRuntimeState(params: {
   return {
     ...cached,
     modelRuntime: getPreparedModelRuntimeStartupStatus(),
+    ...readOpsysMetierHealthFields(),
     ...(eventLoop ? { eventLoop } : {}),
     ...(contextEngines ? { contextEngines } : {}),
     ...(deliveryQueues ? { deliveryQueues } : {}),
@@ -167,7 +175,15 @@ export const healthHandlers: GatewayRequestHandlers = {
     }
     await respondUnavailableOnThrow(respond, async () => {
       const snap = await refreshHealthSnapshot({ probe: wantsProbe, includeSensitive });
-      respond(true, { ...snap, modelRuntime: getPreparedModelRuntimeStartupStatus() }, undefined);
+      respond(
+        true,
+        {
+          ...snap,
+          modelRuntime: getPreparedModelRuntimeStartupStatus(),
+          ...readOpsysMetierHealthFields(),
+        },
+        undefined,
+      );
     });
   },
   status: async ({ respond, client, params, context }) => {
@@ -198,6 +214,7 @@ export const healthHandlers: GatewayRequestHandlers = {
       {
         ...status,
         modelRuntime: getPreparedModelRuntimeStartupStatus(),
+        ...readOpsysMetierHealthFields(),
         ...readGatewayProcessVitals(context.getEventLoopHealth),
         workerPools,
         pid: process.pid,

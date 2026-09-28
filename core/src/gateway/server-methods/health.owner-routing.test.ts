@@ -13,12 +13,14 @@ import { beginLifecycleWriteCustody } from "../../infra/lifecycle-write-custody.
 import { recordStartupMigrationWarnings } from "../../infra/state-migrations.messages.js";
 import { withStateDirEnv } from "../../test-helpers/state-dir-env.js";
 import type { HealthSummary } from "../health/types.js";
+import { setOpsysMetierStatus } from "../opsys-metier-status.js";
 import type { GatewayHostLifecycle } from "../server-public.js";
 import { resolveRequestedSessionAgentId } from "../session-request-agent.js";
 import { healthHandlers } from "./health.js";
 
 afterEach(() => {
   setPreparedModelRuntimeStartupStatus(undefined);
+  setOpsysMetierStatus(undefined);
   resetConfigRuntimeState();
   vi.restoreAllMocks();
 });
@@ -150,6 +152,62 @@ describe("Gateway status owner routing", () => {
         const recovered = await read();
         expect(recovered.mock.calls[0]?.[0]).toBe(true);
         expect(recovered.mock.calls[0]?.[1].modelRuntime).toEqual(complete);
+      });
+    },
+  );
+
+  it.each(["status", "cached health", "refreshed health"] as const)(
+    "reports the supervised OPSYS business engine through %s only while it is supervised",
+    async (surface) => {
+      await withStateDirEnv("openclaw-gateway-opsys-status-", async ({ stateDir }) => {
+        const config = {
+          agents: { entries: { main: {} } },
+          session: { store: path.join(stateDir, "sessions.json") },
+        } satisfies OpenClawConfig;
+        const snapshot: HealthSummary = {
+          ok: true,
+          ts: Date.now(),
+          durationMs: 1,
+          channels: {},
+          channelOrder: [],
+          channelLabels: {},
+          heartbeatSeconds: 0,
+          agents: [],
+          sessions: { path: path.join(stateDir, "sessions.json"), count: 0, recent: [] },
+        };
+        const read = async () => {
+          if (surface === "status") {
+            return callStatus(config);
+          }
+          const respond = vi.fn();
+          await healthHandlers.health!({
+            req: {} as never,
+            params: { probe: surface === "refreshed health" },
+            respond: respond as never,
+            context: {
+              getHealthCache: () => snapshot,
+              refreshHealthSnapshot: vi.fn(async () => snapshot),
+              getRuntimeSnapshot: () => ({ channels: {}, channelAccounts: {} }),
+              logHealth: { error: vi.fn() },
+            } as never,
+            client: { connect: { role: "operator", scopes: ["operator.read"] } } as never,
+            isWebchatConnect: () => false,
+          });
+          return respond;
+        };
+
+        const unsupervised = await read();
+        expect(unsupervised.mock.calls[0]?.[0]).toBe(true);
+        expect(unsupervised.mock.calls[0]?.[1]).not.toHaveProperty("opsysMetier");
+
+        const failed = { state: "failed", restarts: 3, error: "gave up after 3 restarts" } as const;
+        setOpsysMetierStatus(failed);
+        const supervised = await read();
+        expect(supervised.mock.calls[0]?.[1]).toMatchObject({ opsysMetier: failed });
+
+        setOpsysMetierStatus(undefined);
+        const stopped = await read();
+        expect(stopped.mock.calls[0]?.[1]).not.toHaveProperty("opsysMetier");
       });
     },
   );

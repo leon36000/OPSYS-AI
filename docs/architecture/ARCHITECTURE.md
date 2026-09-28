@@ -50,6 +50,29 @@ Une installation, une commande, partout (portable, serveur, VPS). La section sui
                  └──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
+## Supervision du moteur métier (PLAN T0.10)
+
+Dans l'installation cible, le core lance le moteur Python et le surveille (ADR-0008, décision 2).
+La greffe est dans `core/` (liste : `core/PROVENANCE.md`, « Greffes OPSYS »).
+
+- **Activation.** Désactivée par défaut. Elle exige `<dossier de config>/opsys/metier.json` avec
+  `"actif": true` et `"dossier"` (chemin absolu du dépôt du moteur). Le format est décrit en tête de
+  `core/src/gateway/opsys-metier-config.ts`. Sans ce fichier, le Gateway se comporte comme avant.
+- **Lancement.** `uv run opsys-mcp --http --hote 127.0.0.1 --port 8765` dans ce dossier, avec un
+  environnement filtré : ni `OPENCLAW_*` ni clés de fournisseurs.
+- **Santé.** Le core sonde `GET /sante` (`src/opsys/serveur_mcp.py`, sans jeton ni donnée métier).
+  Trois échecs de suite, ou un arrêt du processus : le core termine l'arbre de processus et le
+  relance avec un recul de 1 s à 60 s (dix relances de suite au plus, puis état `failed`). L'état
+  paraît dans la charge des RPC `health` et `status` (clé `opsysMetier`).
+- **Journaux.** Chaque ligne de sortie du moteur passe dans le journal du core, sous-système
+  `opsys-metier`. Les sondes ne remplissent pas le journal d'accès d'uvicorn.
+- **Une seule authentification.** Le core lit `OPSYS_MCP_JETON` (ou génère un jeton de 256 bits),
+  le donne au moteur par l'environnement de l'enfant, et ne l'écrit dans aucun journal. Un jeton
+  généré ne sert qu'aux lectures ultérieures de la configuration : la première lecture de
+  `${OPSYS_MCP_JETON}` exige que la variable existe déjà (fichier `.env` posé par l'installateur).
+- **Docker Compose.** Inchangé pour l'instant : `deploy/` lance encore le moteur et le core dans
+  deux conteneurs. Il passera à ce mode quand l'installateur unique (T0.x) sera livré.
+
 ## Couches
 
 | Couche | Rôle | Où |

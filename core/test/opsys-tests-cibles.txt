@@ -36,3 +36,12 @@ src/gateway/http-utils.model-override.test.ts
 # T1.4-c4 : GATEWAY_CLIENT_IDS.OPSYS_MOBILE (packages/gateway-protocol/src/client-info.ts)
 src/gateway/gateway-misc.test.ts
 packages/gateway-protocol/src/schema/worker-admission.test.ts
+
+# T0.10 : superviseur du moteur métier Python (src/gateway/opsys-metier-*.ts). Les trois fichiers
+# neufs et les tests d'origine des fichiers modifiés : le sidecar de durée de vie
+# (server-lifetime-sidecars.ts) et l'état exposé par les RPC health et status (server-methods/health.ts).
+src/gateway/opsys-metier-config.test.ts
+src/gateway/opsys-metier-env.test.ts
+src/gateway/opsys-metier-supervisor.test.ts
+src/gateway/server-lifetime-sidecars.test.ts
+src/gateway/server-methods/health.owner-routing.test.ts

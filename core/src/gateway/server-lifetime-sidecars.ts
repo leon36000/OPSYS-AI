@@ -5,6 +5,7 @@ import {
   installActiveGitHubOAuthLifecycle,
 } from "./github-oauth-lifecycle.js";
 import { createModelAccountConnectService } from "./model-account-connect.js";
+import { startOpsysMetierSidecar } from "./opsys-metier-supervisor.js";
 import {
   broadcastChatMetadataChanged,
   type createGatewayChatMetadataLifecycle,
@@ -132,6 +133,12 @@ export async function attachInitialGatewayLifetimeSidecars(params: {
   });
   if (!params.minimalTestGateway) {
     params.publishSidecars(startSecretStoreExpiryMaintenance(params.logWarning));
+    // OPSYS (PLAN T0.10): launches and supervises the Python business engine when
+    // `opsys/metier.json` enables it; returns nothing otherwise, so upstream behavior is intact.
+    const opsysMetier = startOpsysMetierSidecar();
+    if (opsysMetier) {
+      params.publishSidecars(opsysMetier);
+    }
   }
   if (params.reconcileGitHubPublications) {
     params.publishSidecars(

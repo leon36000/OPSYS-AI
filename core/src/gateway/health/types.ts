@@ -35,6 +35,8 @@ export type PluginHealthSummary = Omit<ProtocolPlugin, "unavailable"> & {
 /** Full gateway health payload consumed by `openclaw health`. */
 export type HealthSummary = ProtocolHealth & {
   modelRuntime?: import("../../agents/prepared-model-runtime.startup-status.js").PreparedModelRuntimeStartupStatus;
+  /** OPSYS business engine supervised by the Gateway (PLAN T0.10); absent when supervision is off. */
+  opsysMetier?: import("../opsys-metier-status.js").OpsysMetierStatus;
   ok: true;
   ts: number;
   durationMs: number;

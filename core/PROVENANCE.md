@@ -81,6 +81,55 @@ Elle est reproductible depuis le tag. Le script est
 Elle se fait dans des commits séparés : renommage de la marque visible, greffes OPSYS, puis élagage
 de `scripts/` et de `test/` guidé par la CI. Voir `docs/programme/PLAN.md` (T0.6, T0.7).
 
+## Greffes OPSYS
+
+Code propre à OPSYS ajouté ou modifié dans le fork, hors élagage et renommage. Chaque greffe
+préfère des fichiers neufs, et ses tests sont dans `test/opsys-tests-cibles.txt` (job `tests-opsys`
+de `.github/workflows/core.yml`).
+
+### T1.4-c : identité d'appareil sur `/tools/invoke` et dans le `_meta` MCP
+
+- Ajoutés : `src/agents/mcp-call-meta.ts`, `src/gateway/opsys-device-roles.ts`.
+- Modifiés : `src/agents/agent-bundle-mcp-runtime.ts`, `src/gateway/http-auth-utils.ts`,
+  `src/gateway/http-utils.ts`, `src/gateway/tools-invoke-http.ts`,
+  `src/gateway/tools-invoke-shared.ts`, `packages/gateway-protocol/src/client-info.ts`.
+
+### T0.10 : le core lance et surveille le moteur métier Python
+
+Le Gateway lance `uv run opsys-mcp --http` (`src/opsys/serveur_mcp.py`), sonde `GET /sante`, le
+relance avec un recul exponentiel borné et l'arrête avec lui. **Désactivé par défaut** : sans
+`<dossier de config>/opsys/metier.json` portant `"actif": true`, rien ne change au comportement
+amont. Le fichier est lu hors du schéma Zod (comme `roles.json`), car le schéma racine est strict.
+Format : commentaire d'en-tête de `src/gateway/opsys-metier-config.ts`.
+
+Réutilisé plutôt que réécrit :
+- `ProcessSupervisor` (`src/process/supervisor`) : lancement, relais de sortie, arrêt de l'arbre
+  de processus (même usage que `src/gateway/desktop/managed-linux.ts`) ;
+- `RetrySupervisor` (`packages/retry`) : recul exponentiel (même usage que
+  `src/gateway/server-channels.ts`) ;
+- registre de masquage des secrets (`src/logging/secret-redaction-registry.ts`) ;
+- sidecar de durée de vie du Gateway (`GatewayPostReadySidecarHandle`).
+
+Une seule authentification : le Gateway lit `OPSYS_MCP_JETON` (ou en génère un de 256 bits) et
+le passe au moteur par l'environnement du processus enfant, jamais par argument, fichier ni
+journal. Les en-têtes `mcp.servers.opsys_mN` lisent la même variable. L'enfant ne reçoit pas les
+secrets du Gateway (`OPENCLAW_*`, clés de fournisseurs) : liste blanche dans
+`src/gateway/opsys-metier-env.ts`, extensible par la clé `env` de `metier.json`.
+
+- Ajoutés : `src/gateway/opsys-metier-config.ts`, `src/gateway/opsys-metier-env.ts`,
+  `src/gateway/opsys-metier-status.ts`, `src/gateway/opsys-metier-supervisor.ts`, et leurs tests
+  `src/gateway/opsys-metier-{config,env,supervisor}.test.ts`.
+- Modifiés :
+  - `src/gateway/server-lifetime-sidecars.ts` : démarre le superviseur et publie son arrêt
+    (six lignes, hors Gateway de test minimal) ;
+  - `src/gateway/server-methods/health.ts` et `src/gateway/health/types.ts` : la charge des RPC
+    `health` et `status` porte `opsysMetier` tant que le moteur est supervisé ;
+  - tests d'origine complétés : `src/gateway/server-lifetime-sidecars.test.ts`,
+    `src/gateway/server-methods/health.owner-routing.test.ts`.
+- Côté Python : `GET /sante` sans jeton ni donnée métier dans `src/opsys/serveur_mcp.py`, et le
+  journal d'accès d'uvicorn ignore cette sonde.
+- Surface consommée ajoutée au tableau ci-dessous : `opsys/metier.json`.
+
 ## Sécurité
 
 Il n'y a plus de mises à jour automatiques. Une veille mensuelle des avis de sécurité d'OpenClaw
@@ -105,3 +154,4 @@ jour `src/opsys/openclaw.py` et ses tests dans le même commit.
 | Substitution `${VAR}` | clés `OPSYS_CLE_Mx`, `OPSYS_MCP_JETON` | `src/config/env-substitution.ts` |
 | `automations add --cron --tz --session isolated --agent --message` | planifications des départements | `src/cli/cron-cli.ts` |
 | Espace de travail : `SOUL.md`, `AGENTS.md`, `skills/` | identité, règles, procédures | `src/agents/` (amorçage de l'espace de travail) |
+| `opsys/metier.json` (hors schéma Zod) | active et règle le superviseur du moteur métier (T0.10) ; `openclaw.py` ne l'écrit pas encore | `src/gateway/opsys-metier-config.ts` |
