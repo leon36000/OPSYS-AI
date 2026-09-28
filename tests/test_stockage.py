@@ -153,12 +153,14 @@ def test_cli_base_migrer_et_etat(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv(stockage.ENV_URL, url)
     try:
         assert cli.main(["base", "migrer"]) == 0
-        assert json.loads(capsys.readouterr().out)["revision"] == "0006"
+        # PLAN T4.2 : migration 0007 (cles_chiffrement, crypto-shredding GPS) — voir
+        # src/opsys/stockage/migrations/versions/0007_cles_chiffrement.py.
+        assert json.loads(capsys.readouterr().out)["revision"] == "0007"
         with stockage.transaction():
             stockage.maillons("m04-field-ops", "principal").append({"n": 1})
         assert cli.main(["base", "etat"]) == 0
         etat_base = json.loads(capsys.readouterr().out)
-        assert etat_base["moteur"] == "sqlite" and etat_base["revision"] == "0006"
+        assert etat_base["moteur"] == "sqlite" and etat_base["revision"] == "0007"
         assert etat_base["registres"] == [{"departement": "m04-field-ops", "registre": "principal", "maillons": 1}]
     finally:
         stockage.liberer()

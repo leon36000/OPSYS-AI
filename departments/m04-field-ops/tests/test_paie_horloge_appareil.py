@@ -74,6 +74,15 @@ def _planifier_et_router(par_nom, lead_id):
     assert plan["ok"] is True, plan
     i_id = plan["resultat"]["intervention_id"]
 
+    # PLAN T4.2 (POLITIQUE-geolocalisation.md §4) : m4_pointer n'enregistre un fix GPS QUE si le
+    # consentement est actif — précondition nécessaire avant tout pointage à fix réel ci-dessous.
+    consentement = executer_atomique(par_nom["m4_definir_consentement_gps"], {
+        "technicien_id": "T1", "action": "donne", "horodatage": "2025-06-02T06:00:00+00:00",
+        "version_politique": "POLITIQUE-geolocalisation-v1-test",
+        "preuve": {"fictif": True, "reference": "consentement-test"},
+    })
+    assert consentement["ok"] is True and consentement["resultat"]["accepte"] is True, consentement
+
     depart = executer_atomique(par_nom["m4_demarrer_route"], {
         "intervention_id": i_id, "technicien_id": "T1", "horodatage": "2025-06-02T07:30:00+00:00",
     })
@@ -174,3 +183,91 @@ def test_pointage_hors_appel_appareil_comportement_inchange(base_durable):
         if entree["intervention_id"] == i_id
     ]
     assert ligne["minutes_travail"] == 150
+
+
+# ==================================================================================
+# PLAN T4.2 : m4_demarrer_route suit le MÊME patron que m4_pointer ci-dessus (T1.4-d, R12 §4) —
+# pendant un appel d'appareil, l'heure de RÉCEPTION DU SERVEUR fait foi pour la transition
+# en_route, jamais l'horloge de l'appareil ni la valeur `horodatage` fournie ; l'heure d'appareil
+# reste lisible À CÔTÉ, sur l'accusé SEULEMENT (``etats.transitionner`` reste inchangé — le
+# maillon de transition, lui, ne porte jamais ``horodatage_appareil``, décision de ``outils.py``
+# seul, comme documenté dans ``outils.py::demarrer_route``).
+# ==================================================================================
+def _planifier_seul(par_nom, lead_id):
+    contrat = {
+        "lead_id": lead_id, "conversation_id": "C1", "type_travaux": "renovation_totale",
+        "ville": VILLE, "canal": "telephone",
+        "contact": {"nom": "Client", "telephone": "0102030405"}, "urgence_declaree": False,
+    }
+    marqueur = {
+        "readiness_ok": True, "lead_id": lead_id, "hash_tete_registre": None,
+        "horodatage": "2025-06-01T12:00:00+00:00", "empreinte": "ab" * 32,
+    }
+    plan = executer_atomique(par_nom["m4_planifier_intervention"], {
+        "contrat": contrat, "marqueur": marqueur,
+        "horodatage": "2025-06-02T07:00:00+00:00", "sel": SEL,
+        "techniciens_disponibles": ["T1"], "fenetres_disponibles": [FENETRE],
+    })
+    assert plan["ok"] is True, plan
+    return plan["resultat"]["intervention_id"]
+
+
+def test_demarrer_route_appareil_horloge_dereglee_heure_serveur_fait_foi(base_durable):
+    par_nom = {o.nom: o for o in outils()}
+    i_id = _planifier_seul(par_nom, "L-ROUTE-T14D-DEREGLE")
+
+    recu_le = dt.datetime(2025, 6, 2, 7, 30, 0, tzinfo=dt.UTC)
+    with contexte.receptionne_de(_horodatage_appareil(recu_le)):
+        depart = executer_atomique(par_nom["m4_demarrer_route"], {
+            "intervention_id": i_id, "technicien_id": "T1",
+            # Volontairement absurde (même valeur que l'horloge d'appareil déréglée) : PROUVE
+            # qu'elle est bien ignorée, pas seulement que l'une des deux valeurs, par coïncidence,
+            # était correcte — même patron que le test m4_pointer ci-dessus.
+            "horodatage": _HORLOGE_APPAREIL_DEREGLEE.isoformat(),
+        })
+    assert depart["ok"] is True and depart["resultat"]["accepte"] is True, depart
+    accuse = depart["resultat"]["resultat"]
+    assert accuse["horodatage"] == recu_le.isoformat()
+    assert accuse["horodatage_appareil"] == _HORLOGE_APPAREIL_DEREGLEE.isoformat()
+    assert accuse["statut"] == "en_route"
+
+    statut = executer_atomique(par_nom["m4_statut_intervention"], {"intervention_id": i_id})
+    assert statut["resultat"]["statut"] == "en_route"
+
+    # Le maillon de transition lui-même (registre durable) porte l'heure de RÉCEPTION DU SERVEUR
+    # qui fait foi — jamais l'horloge d'appareil, qui n'apparaît nulle part dans le registre.
+    with stockage.transaction():
+        from m4_field_ops.registre import Registre
+        reg = Registre(stockage.maillons("m04-field-ops", "principal"))
+        maillon = next(
+            m for m in reg.lire()
+            if m.get("intervention_id") == i_id and m.get("statut") == "en_route"
+        )
+    assert maillon["horodatage"] == recu_le.isoformat()
+    assert "horodatage_appareil" not in maillon
+
+
+def test_demarrer_route_hors_appel_appareil_comportement_inchange(base_durable):
+    """Sans `contexte.receptionne_de` actif : `horodatage` fait foi comme avant PLAN T4.2, et
+    aucune clé `horodatage_appareil` n'apparaît nulle part (ni accusé, ni maillon)."""
+    par_nom = {o.nom: o for o in outils()}
+    i_id = _planifier_seul(par_nom, "L-ROUTE-T14D-SANS-APPAREIL")
+
+    h_route = "2025-06-02T07:30:00+00:00"
+    depart = executer_atomique(par_nom["m4_demarrer_route"], {
+        "intervention_id": i_id, "technicien_id": "T1", "horodatage": h_route,
+    })
+    assert depart["ok"] is True and depart["resultat"]["accepte"] is True, depart
+    accuse = depart["resultat"]["resultat"]
+    assert accuse["horodatage"] == h_route
+    assert "horodatage_appareil" not in accuse
+
+    with stockage.transaction():
+        from m4_field_ops.registre import Registre
+        reg = Registre(stockage.maillons("m04-field-ops", "principal"))
+        maillon = next(
+            m for m in reg.lire()
+            if m.get("intervention_id") == i_id and m.get("statut") == "en_route"
+        )
+    assert maillon["horodatage"] == h_route
+    assert "horodatage_appareil" not in maillon

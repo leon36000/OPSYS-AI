@@ -17,6 +17,13 @@ CODES_M4_LIST = [
     "REJ-HORODATAGE-INVALIDE",
     # Groupe 2 bis — T1.2-f : faits CLIENT (Loi 25) hors d'un appel d'appareil
     "REJ-CHAMPS-CLIENT-HORS-APPAREIL",
+    # Groupe 4 — PLAN T4.2 (POLITIQUE-geolocalisation.md) : consentement, rétention et destruction
+    "REJ-CONSENTEMENT-INVALIDE",       # §4 : enregistrement de consentement mal formé.
+    "REJ-RETENTION-DONNEE-MANQUANTE",  # §5 : fin de contrat inconnue, fail-closed, aucune purge.
+    "REJ-RETENTION-NON-ECHUE",         # §5 : échéance (12 mois) pas encore atteinte.
+    "REJ-POSITION-INTROUVABLE",        # §7 : aucun fix GPS chiffré à cette ligne du registre.
+    "REJ-POSITION-DETRUITE",           # §5 : clé détruite par une purge antérieure (succès de la
+                                        # destruction, pas une anomalie).
     # Groupe 3 — succès
     "OK",
 ]

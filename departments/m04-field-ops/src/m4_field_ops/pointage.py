@@ -18,7 +18,7 @@ appel d'appareil, de faire foi de l'heure de RÉCEPTION DU SERVEUR plutôt que d
 import math
 from datetime import datetime
 
-from . import horodatage, verdicts, encodage, cedule, etats
+from . import cedule, encodage, etats, horodatage, retention, verdicts
 
 # ---------------------------------------------------------------------------
 # Constantes
@@ -38,6 +38,13 @@ CAUSES_NEUTRES = (
     "referentiel_ville_a_verifier",
     "conditions_de_captation_a_confirmer",
 )
+# PLAN T4.2 (POLITIQUE-geolocalisation.md §4) : mode manuel (consentement GPS inactif) — liste
+# SÉPARÉE de CAUSES_NEUTRES, jamais fusionnée : les trois causes ci-dessus présupposent toutes
+# qu'un fix GPS existe (mais serait douteux), alors qu'un pointage manuel n'en a AUCUN. Les
+# mélanger laisserait croire, sur une revue GPS incohérente ordinaire, qu'un retrait de
+# consentement pourrait être en cause — et inversement, sur un pointage manuel, qu'un fix GPS
+# a été observé hors périmètre alors qu'aucun n'a jamais existé.
+CAUSES_NEUTRES_MODE_MANUEL = ("mode_manuel_sans_fix_gps",)
 
 # ---------------------------------------------------------------------------
 # Fonctions publiques
@@ -70,6 +77,7 @@ def enregistrer_pointage(
     sel,
     registre_cible,
     horodatage_appareil=None,
+    cle_chiffrement_gps=None,
 ):
     """Enregistre un pointage horodaté et géolocalisé.
 
@@ -92,6 +100,16 @@ def enregistrer_pointage(
             aval : une horloge d'appareil peut dériver. ``None`` (défaut) hors d'un appel
             d'appareil — comportement strictement inchangé, la clé n'apparaît alors ni sur le
             maillon ni sur l'accusé.
+        cle_chiffrement_gps: PLAN T4.2 (POLITIQUE-geolocalisation.md §5), optionnel — clé de
+            chiffrement du fix GPS, fournie par l'appelant (``outils.py``, jamais fabriquée ici :
+            même patron que ``sel`` pour ``cedule.tokeniser_ville``). ``None`` (défaut) : le
+            maillon porte ``latitude``/``longitude`` en clair, comportement STRICTEMENT INCHANGÉ
+            (tous les appels existants, qui ne connaissent pas cet argument). Fournie : le fix est
+            chiffré (``retention.chiffrer_position``) et c'est ``position_chiffree`` (jamais
+            ``latitude``/``longitude`` en clair) qui est écrit — la destruction de cette clé,
+            hors du registre append-only, rend alors le fix irrécupérable sans jamais toucher au
+            maillon déjà écrit (voir ``retention.py`` pour l'étude complète du mécanisme). Ignorée
+            si ``fix_gps`` est ``None`` (mode manuel : aucun fix à chiffrer).
     """
     # -- 1. action valide
     if action not in ACTIONS:
@@ -201,25 +219,31 @@ def enregistrer_pointage(
         return (None, verdicts.construire_verdict("REJ-CONTRAT-INVALIDE",
                                                    detail="appareil_id manquant ou vide"))
 
-    # -- 9. fix_gps valide
-    if not isinstance(fix_gps, dict) or set(fix_gps.keys()) != {"latitude", "longitude"}:
-        return (None, verdicts.construire_verdict("REJ-CONTRAT-INVALIDE",
-                                                   detail="fix_gps mal formé"))
-    lat = fix_gps["latitude"]
-    lon = fix_gps["longitude"]
-    # valeur numérique mais pas bool
-    if isinstance(lat, bool) or not isinstance(lat, (int, float)):
-        return (None, verdicts.construire_verdict("REJ-CONTRAT-INVALIDE",
-                                                   detail="latitude non numérique"))
-    if isinstance(lon, bool) or not isinstance(lon, (int, float)):
-        return (None, verdicts.construire_verdict("REJ-CONTRAT-INVALIDE",
-                                                   detail="longitude non numérique"))
-    if not (-90 <= lat <= 90):
-        return (None, verdicts.construire_verdict("REJ-CONTRAT-INVALIDE",
-                                                   detail="latitude hors [-90, 90]"))
-    if not (-180 <= lon <= 180):
-        return (None, verdicts.construire_verdict("REJ-CONTRAT-INVALIDE",
-                                                   detail="longitude hors [-180, 180]"))
+    # -- 9. fix_gps valide — PLAN T4.2 : ``None`` est un mode manuel LÉGITIME (consentement GPS
+    # inactif, POLITIQUE-geolocalisation.md §4 : « le retrait désactive immédiatement le punch
+    # géorépéré ; un mode manuel est proposé »). C'est ``outils.py`` (jamais ce module) qui décide
+    # QUAND passer ``None`` — ici, on accepte seulement la FORME : un dict {latitude, longitude}
+    # valide, ou rien du tout.
+    lat = lon = None
+    if fix_gps is not None:
+        if not isinstance(fix_gps, dict) or set(fix_gps.keys()) != {"latitude", "longitude"}:
+            return (None, verdicts.construire_verdict("REJ-CONTRAT-INVALIDE",
+                                                       detail="fix_gps mal formé"))
+        lat = fix_gps["latitude"]
+        lon = fix_gps["longitude"]
+        # valeur numérique mais pas bool
+        if isinstance(lat, bool) or not isinstance(lat, (int, float)):
+            return (None, verdicts.construire_verdict("REJ-CONTRAT-INVALIDE",
+                                                       detail="latitude non numérique"))
+        if isinstance(lon, bool) or not isinstance(lon, (int, float)):
+            return (None, verdicts.construire_verdict("REJ-CONTRAT-INVALIDE",
+                                                       detail="longitude non numérique"))
+        if not (-90 <= lat <= 90):
+            return (None, verdicts.construire_verdict("REJ-CONTRAT-INVALIDE",
+                                                       detail="latitude hors [-90, 90]"))
+        if not (-180 <= lon <= 180):
+            return (None, verdicts.construire_verdict("REJ-CONTRAT-INVALIDE",
+                                                       detail="longitude hors [-180, 180]"))
 
     # -- 10. ville, sel, référentiel valide
     if not isinstance(ville, str) or ville == "":
@@ -265,9 +289,15 @@ def enregistrer_pointage(
 
     # --- Tous les contrôles passés : le pointage a effectivement eu lieu ---
 
-    # 11. Cohérence GPS
-    dist = distance_km(lat, lon, ref["latitude"], ref["longitude"])
-    coherent = dist <= rayon
+    # 11. Cohérence GPS — indéterminable sans fix (mode manuel, PLAN T4.2) : ``coherent = None``,
+    # FAUX au sens Python (``not None`` vrai), qui route vers en_revue au même titre qu'un fix
+    # incohérent (étapes 13/14 ci-dessous, INCHANGÉES) — sans jamais AFFIRMER une incohérence
+    # observée là où aucun fix n'a simplement été capté (§6 : jamais d'accusation automatique).
+    if fix_gps is None:
+        coherent = None
+    else:
+        dist = distance_km(lat, lon, ref["latitude"], ref["longitude"])
+        coherent = dist <= rayon
 
     # 12. Écriture du maillon de pointage (toujours, cohérent ou non)
     #     La ville en clair reste à l'extérieur du registre (minimisation).
@@ -277,13 +307,27 @@ def enregistrer_pointage(
         "technicien_id": technicien_id,
         "action": action,
         "horodatage": horodatage_arg,
-        "latitude": lat,
-        "longitude": lon,
         "appareil_id": appareil,
         "fictif": True,
         "ville_tokenisee": token_ville,
         "gps_coherent": coherent,
     }
+    if fix_gps is None:
+        # PLAN T4.2 (§4) : mode manuel — aucune donnée géographique écrite. Ce qui n'est jamais
+        # inscrit n'a jamais besoin d'être détruit (minimisation la plus forte possible).
+        maillon_pointage["mode_pointage"] = "manuel"
+    elif cle_chiffrement_gps is None:
+        # Comportement HISTORIQUE, strictement inchangé : aucun appelant existant (avant PLAN
+        # T4.2) ne connaît ``cle_chiffrement_gps`` — latitude/longitude restent en clair.
+        maillon_pointage["latitude"] = lat
+        maillon_pointage["longitude"] = lon
+    else:
+        # PLAN T4.2 (§5) : chiffré, jamais en clair — voir retention.py pour l'étude complète du
+        # mécanisme de destruction compatible avec un registre append-only.
+        nonce = retention.nonce_position(intervention_id, technicien_id, action, horodatage_arg)
+        maillon_pointage["position_chiffree"] = retention.chiffrer_position(
+            cle_chiffrement_gps, nonce, lat, lon)
+        maillon_pointage["gps_chiffre"] = True
     if horodatage_appareil is not None:
         # T1.4-d : DISPLAY seulement, jamais relu par calculer_duree_reelle/calculer_minutes_*
         # (outbox.py) ni par statut_courant/fenêtre/cohérence GPS ci-dessus — tous restent sur
@@ -323,13 +367,16 @@ def enregistrer_pointage(
     demande_id = None
     if not coherent and action not in ("pause_debut", "pause_fin"):
         demande_id = encodage.empreinte("demande_revue", intervention_id, horodatage_arg)
+        # PLAN T4.2 : causes DISTINCTES selon qu'un fix existe (incohérent) ou qu'aucun fix n'a
+        # jamais été capté (mode manuel) — jamais mélangées, voir CAUSES_NEUTRES_MODE_MANUEL.
+        causes = CAUSES_NEUTRES_MODE_MANUEL if fix_gps is None else CAUSES_NEUTRES
         maillon_demande = {
             "type_entree": TYPE_DEMANDE_REVUE,
             "intervention_id": intervention_id,
             "horodatage": horodatage_arg,
             "type_demande": TYPE_REVUE_ANOMALIE,
             "pointage_ligne_id": ligne_id,
-            "causes_possibles": list(CAUSES_NEUTRES),
+            "causes_possibles": list(causes),
             "statut_arbitrage": "en_attente",
             "demande_id": demande_id,
         }
@@ -352,6 +399,10 @@ def enregistrer_pointage(
     }
     if horodatage_appareil is not None:
         accuse["horodatage_appareil"] = horodatage_appareil  # T1.4-d : lisible, jamais un calcul
+    if fix_gps is None:
+        accuse["mode_pointage"] = "manuel"  # PLAN T4.2 : additif, absent hors mode manuel
+    elif cle_chiffrement_gps is not None:
+        accuse["gps_chiffre"] = True  # PLAN T4.2 : additif, absent quand aucune clé n'est fournie
     return (accuse, None)
 
 
@@ -361,6 +412,7 @@ __all__ = [
     "TYPE_DEMANDE_REVUE",
     "TYPE_REVUE_ANOMALIE",
     "CAUSES_NEUTRES",
+    "CAUSES_NEUTRES_MODE_MANUEL",
     "distance_km",
     "enregistrer_pointage",
 ]

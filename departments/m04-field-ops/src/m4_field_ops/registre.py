@@ -33,6 +33,13 @@ _TYPE_ENTREE_VALIDES = {
     "demande_revue",
     "resolution_revue",
     "variance_m6_recue",  # T1.3-b : trace du signal m6.variance_chantier reçu par M4 (outbox.py)
+    # PLAN T4.2 (POLITIQUE-geolocalisation.md) : consentement GPS et gouvernance associée. Ces
+    # trois types vivent dans LE MÊME registre hash-chaîné (pas un second registre séparé) : ils
+    # bénéficient ainsi, sans code supplémentaire, de la même immuabilité et de la même preuve
+    # d'intégrité que le reste de M4.
+    "consentement_gps",       # §4 : consentement donné/retiré, horodaté, preuve documentée.
+    "acces_position_gps",     # §6 : journal de chaque consultation d'un fix GPS déchiffré.
+    "purge_retention_gps",    # §5 : trace d'une destruction (jamais la position elle-même).
 }
 
 

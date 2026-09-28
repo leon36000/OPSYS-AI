@@ -234,6 +234,15 @@ def _m4_planifier_router_pointer(m4, contrat: dict, marqueur: dict, devis_id: st
     assert plan["ok"] and plan["resultat"]["accepte"], plan
     intervention_id = plan["resultat"]["intervention_id"]
 
+    # PLAN T4.2 (POLITIQUE-geolocalisation.md §4) : m4_pointer n'enregistre un fix GPS QUE si le
+    # consentement est actif — précondition nécessaire avant tout pointage à fix réel ci-dessous.
+    consentement = executer_atomique(m4["m4_definir_consentement_gps"], {
+        "technicien_id": TECHNICIEN, "action": "donne", "horodatage": _iso(base, 0),
+        "version_politique": "POLITIQUE-geolocalisation-v1-test",
+        "preuve": {"fictif": True, "reference": "consentement-test"},
+    })
+    assert consentement["ok"] and consentement["resultat"]["accepte"], consentement
+
     depart = executer_atomique(m4["m4_demarrer_route"], {
         "intervention_id": intervention_id, "technicien_id": TECHNICIEN, "horodatage": _iso(base, 1800),
     })

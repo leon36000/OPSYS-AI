@@ -46,6 +46,18 @@ def _appeler(nom_a_outil, nom, **kwargs):
     return executer(nom_a_outil[nom], kwargs)
 
 
+def _donner_consentement_gps(par_nom, technicien_id="T1"):
+    """PLAN T4.2 (POLITIQUE-geolocalisation.md §4) : m4_pointer n'enregistre un fix GPS QUE si
+    le consentement est actif — précondition désormais nécessaire pour tout scénario de ce
+    fichier qui pointe avec un fix réel (sinon : bascule silencieuse en mode manuel, en_revue)."""
+    reponse = _appeler(
+        par_nom, "m4_definir_consentement_gps", technicien_id=technicien_id, action="donne",
+        horodatage="2025-06-02T07:00:00+00:00", version_politique="POLITIQUE-geolocalisation-v1-test",
+        preuve={"fictif": True, "reference": "consentement-test"},
+    )
+    assert reponse["ok"] is True and reponse["resultat"]["accepte"] is True, reponse
+
+
 def test_manifeste_et_outils_coherents():
     dep = lire_manifeste(Path(__file__).resolve().parents[1])
     noms = [o.nom for o in dep.charger_outils()]
@@ -139,6 +151,7 @@ def test_type_hors_contrat_refuse_par_le_schema():
 # ------------------------------------------------------------------ chaîne complète via les outils unitaires
 def test_chaine_complete_planification_pointage_completion_digest_notification():
     par_nom = _outils_par_nom()
+    _donner_consentement_gps(par_nom)
 
     plan = _appeler(
         par_nom, "m4_planifier_intervention",
@@ -229,6 +242,7 @@ def test_notifier_client_sans_wct_refus_metier():
 # ------------------------------------------------------------------ écart métier vs anomalie de pointage
 def test_resoudre_demande_ecart_metier_via_outils_complete_avec_wct():
     par_nom = _outils_par_nom()
+    _donner_consentement_gps(par_nom)
     plan = _appeler(
         par_nom, "m4_planifier_intervention",
         contrat={**CONTRAT_VALIDE, "lead_id": "L-ECART"},
@@ -285,6 +299,7 @@ _PREUVES_OK = {
 
 
 def _mener_a_sur_site(par_nom, lead_id="L-PREUVES"):
+    _donner_consentement_gps(par_nom)
     plan = _appeler(
         par_nom, "m4_planifier_intervention",
         contrat={**CONTRAT_VALIDE, "lead_id": lead_id},

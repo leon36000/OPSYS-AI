@@ -31,10 +31,29 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from opsys import contexte, evenements, stockage
+from opsys import cles_chiffrement, contexte, evenements, stockage
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
-from . import cedule, digest, ecarts, etats, outbox, pointage, preuves, registre, temps, verdicts
+from . import (
+    cedule,
+    consentement,
+    digest,
+    ecarts,
+    etats,
+    outbox,
+    pointage,
+    preuves,
+    registre,
+    retention,
+    temps,
+    verdicts,
+)
+
+# PLAN T4.2 (POLITIQUE-geolocalisation.md §5) : portée des clés de chiffrement GPS dans le coffre
+# du socle (opsys.cles_chiffrement) — une seule portée pour tout M4, l'identifiant est le
+# technicien_id (une clé par employé, alignée sur l'unité de rétention/purge de la politique,
+# jamais par pointage individuel).
+_PORTEE_CLES_GPS = "m04-field-ops/gps"
 
 _DEPARTEMENT = "m04-field-ops"
 _NOM_REGISTRE = "principal"
@@ -42,10 +61,24 @@ _NOM_REGISTRE = "principal"
 _CONTRAT = {"type": "object", "description": "LeadQualifie M2 : sept clés gelées (lead_id, "
             "conversation_id, type_travaux, ville, canal, contact, urgence_declaree)."}
 _MARQUEUR = {"type": "object", "description": "Marqueur de readiness signé par M2 (cinq clés)."}
-_FIX_GPS = {"type": "object", "description": "{latitude, longitude}."}
+_FIX_GPS = {
+    "type": ["object", "null"],
+    "description": (
+        "{latitude, longitude}, ou null. PLAN T4.2 (POLITIQUE-geolocalisation.md §4) : même fourni "
+        "réel, un fix est IGNORÉ si le consentement GPS du technicien n'est pas actif — le pointage "
+        "bascule alors en mode manuel (accusé.mode_pointage == 'manuel'), jamais rejeté."
+    ),
+}
 _ATTESTATION = {"type": "object", "description": "{fictif: true, appareil_id} — mode ombre uniquement."}
 _FENETRE = {"type": "object", "description": "{debut, fin} ISO-8601 avec fuseau."}
 _REFERENTIEL_VILLES = {"type": "object", "description": "{ville_tokenisee: {latitude, longitude, rayon_km}}."}
+_PREUVE_CONSENTEMENT = {
+    "type": "object",
+    "description": (
+        "{fictif: true, reference} — référence au formulaire/preuve signé (jamais le document "
+        "lui-même). Mode ombre : seule une preuve fictive est supportée (POLITIQUE-geolocalisation.md §4)."
+    ),
+}
 _VERSION_METIER = {"type": "object", "description": "{duree_minutes, perimetre, materiaux}."}
 _PREUVES_COMPLETION = {
     "type": "object",
@@ -72,6 +105,21 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
     else:
         def registre_courant() -> registre.Registre:
             return registre_cible
+
+    def _cnx_durable():
+        """Connexion durable RÉELLE, ou None (PLAN T4.2). Contrairement à ``stockage.
+        connexion_courante() is not None`` seul (garde historique de ``completer_intervention``
+        pour ``evenements.publier``, jamais mise en défaut jusqu'ici), ce coffre a besoin d'une
+        garde plus stricte : ``registre_cible is None`` (donc production, adossée au stockage
+        durable) EST exigé en plus d'une transaction active — un test qui fournit un
+        ``registre.Registre()`` EN MÉMOIRE explicite peut malgré tout être enveloppé par
+        ``executer_atomique`` (ex. ``test_evenements_m4.py::test_completion_hors_transaction_...``,
+        qui migre pourtant AUCUNE base) ; sans cette double condition, ``cles_chiffrement.
+        obtenir_ou_creer`` tenterait d'écrire dans une table qui n'existe pas.
+        """
+        if registre_cible is not None:
+            return None
+        return stockage.connexion_courante()
 
     # -- fonctions enveloppes (closures sur registre_courant) ---------------
 
@@ -111,10 +159,26 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
         }
 
     def demarrer_route(intervention_id: str, technicien_id: str, horodatage: str) -> dict[str, Any]:
-        return depuis_couple(etats.transitionner(
-            intervention_id, "en_route", registre_courant(), horodatage,
+        # PLAN T4.2 — même patron que m4_pointer (T1.4-d, R12 §4) : pendant un appel d'appareil,
+        # l'heure de RÉCEPTION DU SERVEUR fait foi, jamais l'horloge de l'appareil ni la valeur
+        # `horodatage` fournie par l'appelant ; l'heure d'appareil reste lisible À CÔTÉ, sur
+        # l'accusé, jamais consultée pour un calcul (`etats.transitionner` reste inchangé : la
+        # décision appartient à cet adaptateur seul, comme pour tous les outils T1.4-d de M4).
+        # Hors appel d'appareil : comportement strictement inchangé.
+        horodatage_appareil_ctx = contexte.horodatage_reception()
+        if horodatage_appareil_ctx is not None:
+            horodatage_faisant_foi = horodatage_appareil_ctx.recu_le.isoformat()
+            horodatage_appareil = horodatage_appareil_ctx.horodatage_appareil.isoformat()
+        else:
+            horodatage_faisant_foi = horodatage
+            horodatage_appareil = None
+        reponse = depuis_couple(etats.transitionner(
+            intervention_id, "en_route", registre_courant(), horodatage_faisant_foi,
             assignation={"intervention_id": intervention_id, "technicien_id": technicien_id},
         ))
+        if horodatage_appareil is not None and reponse["accepte"]:
+            reponse["resultat"]["horodatage_appareil"] = horodatage_appareil
+        return reponse
 
     def signaler_report(intervention_id: str, motif: str, horodatage: str) -> dict[str, Any]:
         return depuis_couple(
@@ -130,7 +194,7 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
 
     def pointer(
         intervention_id: str, technicien_id: str, action: str, horodatage: str,
-        fix_gps: dict[str, Any], attestation: dict[str, Any], fenetre_travail: dict[str, Any],
+        fix_gps: dict[str, Any] | None, attestation: dict[str, Any], fenetre_travail: dict[str, Any],
         referentiel_villes: dict[str, Any], ville: str, sel: str,
     ) -> dict[str, Any]:
         # T1.4-d (R12 §4, docs/architecture/IDEMPOTENCE.md §5) : pendant un appel d'appareil,
@@ -148,12 +212,105 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
         else:
             horodatage_faisant_foi = horodatage
             horodatage_appareil = None
+
+        # PLAN T4.2 (POLITIQUE-geolocalisation.md §4) : un fix GPS n'est JAMAIS enregistré sans
+        # consentement ACTIF — même si l'appelant en fournit un réel, il est ici IGNORÉ (jamais
+        # laissé au bon vouloir du client/agent) et le pointage bascule en mode manuel (§4 : « le
+        # retrait désactive immédiatement le punch géorépéré ; un mode manuel est proposé »). Le
+        # retrait prend donc effet IMMÉDIATEMENT : aucun état mis en cache, `consentement_actif`
+        # rejoue le registre à chaque appel.
+        reg = registre_courant()
+        fix_gps_retenu = fix_gps if consentement.consentement_actif(reg, technicien_id) else None
+
+        # PLAN T4.2 (§5) : le fix retenu est chiffré avant d'entrer dans le registre append-only
+        # (retention.py explique pourquoi), avec une clé par technicien obtenue du coffre du
+        # socle. Hors registre durable (tests unitaires avec un Registre() en mémoire) : aucune
+        # clé disponible, comportement historique préservé (fix en clair) — voir `_cnx_durable`.
+        cle_chiffrement_gps = None
+        cnx = _cnx_durable()
+        if fix_gps_retenu is not None and cnx is not None:
+            cle_chiffrement_gps = cles_chiffrement.obtenir_ou_creer(
+                cnx, _PORTEE_CLES_GPS, technicien_id, horodatage_faisant_foi,
+            )
+
         return depuis_couple(pointage.enregistrer_pointage(
-            intervention_id, technicien_id, action, horodatage_faisant_foi, fix_gps, attestation,
+            intervention_id, technicien_id, action, horodatage_faisant_foi, fix_gps_retenu, attestation,
             {"intervention_id": intervention_id, "technicien_id": technicien_id},
-            fenetre_travail, referentiel_villes, ville, sel, registre_courant(),
+            fenetre_travail, referentiel_villes, ville, sel, reg,
             horodatage_appareil=horodatage_appareil,
+            cle_chiffrement_gps=cle_chiffrement_gps,
         ))
+
+    def definir_consentement_gps(
+        technicien_id: str, action: str, horodatage: str, version_politique: str, preuve: dict[str, Any],
+    ) -> dict[str, Any]:
+        return depuis_couple(consentement.enregistrer_consentement(
+            technicien_id, action, horodatage, version_politique, preuve, registre_courant(),
+        ))
+
+    def lire_position_gps(ligne_id: str, accede_par: str, horodatage: str) -> dict[str, Any]:
+        """§7 (droit d'accès) : déchiffre un fix déjà écrit tant que sa clé existe. §6 : journalise
+        CET accès (succès ou non) dans le même registre append-only, jamais la position elle-même."""
+        reg = registre_courant()
+        maillon = next(
+            (m for m in reg.lire()
+             if m.get("ligne_id") == ligne_id and m.get("type_entree") == pointage.TYPE_POINTAGE),
+            None,
+        )
+        if maillon is None:
+            return {"accepte": False, "verdict": verdicts.construire_verdict(
+                "REJ-POSITION-INTROUVABLE", detail=f"ligne_id introuvable ou pas un pointage : {ligne_id}")}
+
+        technicien_id = maillon["technicien_id"]
+        if maillon.get("gps_chiffre") is not True:
+            resultat_journal = "introuvable"
+            reponse: dict[str, Any] = {"accepte": False, "verdict": verdicts.construire_verdict(
+                "REJ-POSITION-INTROUVABLE",
+                detail="ce maillon ne porte aucune position chiffrée (mode manuel, ou pointage en clair)")}
+        else:
+            cnx = _cnx_durable()
+            cle = cles_chiffrement.lire(cnx, _PORTEE_CLES_GPS, technicien_id) if cnx is not None else None
+            if cle is None:
+                resultat_journal = "position_detruite"
+                reponse = {"accepte": False, "verdict": verdicts.construire_verdict(
+                    "REJ-POSITION-DETRUITE",
+                    detail="clé détruite par une purge de rétention (POLITIQUE-geolocalisation.md §5)")}
+            else:
+                nonce = retention.nonce_position(
+                    maillon["intervention_id"], technicien_id, maillon["action"], maillon["horodatage"])
+                lat, lon = retention.dechiffrer_position(cle, nonce, maillon["position_chiffree"])
+                resultat_journal = "dechiffre"
+                reponse = {"accepte": True, "resultat": {"latitude": lat, "longitude": lon}}
+        reg.ajouter(retention.construire_maillon_acces(
+            technicien_id, ligne_id, accede_par, horodatage, resultat_journal))
+        return reponse
+
+    def purger_retention_gps(
+        technicien_id: str, fin_contrat_travail: str, horodatage: str, motif: str,
+    ) -> dict[str, Any]:
+        """N5 (ADR-0009 §4/§5, AGENTS.md « frontières humaines T3 ») : PROPOSE seulement — une
+        suppression définitive ne s'exécute jamais pour un agent seul, voir ``m4_purger_retention_gps``
+        ci-dessous (Autonomie.T3) et ``opsys.approbations.decider`` (signature nathan_owner PLUS
+        attestation du professionnel concerné)."""
+        reg = registre_courant()
+        accuse_eligibilite, verdict = retention.evaluer_eligibilite_purge(
+            reg, technicien_id, fin_contrat_travail, horodatage)
+        if verdict is not None:
+            return {"accepte": False, "verdict": verdict}
+        if not isinstance(motif, str) or motif.strip() == "":
+            return {"accepte": False, "verdict": verdicts.construire_verdict(
+                "REJ-CHAMP-VIDE", detail="motif obligatoire : pourquoi cette purge maintenant")}
+        cnx = _cnx_durable()
+        if cnx is None:
+            # Ne devrait jamais survenir en production (executer_atomique/decider ouvrent toujours
+            # une transaction sur le registre durable) : fail-closed plutôt qu'une purge qui ne
+            # détruirait rien en silence.
+            return {"accepte": False, "verdict": verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE", detail="aucune connexion durable : purge refusée")}
+        cle_detruite = cles_chiffrement.detruire(cnx, _PORTEE_CLES_GPS, technicien_id)
+        reg.ajouter(retention.construire_maillon_purge(
+            technicien_id, fin_contrat_travail, horodatage, motif, cle_detruite))
+        return {"accepte": True, "resultat": {**accuse_eligibilite, "motif": motif, "cle_detruite": cle_detruite}}
 
     def creer_demande_ecart(
         intervention_id: str, version_prevue: dict[str, Any], version_declaree: dict[str, Any], horodatage: str,
@@ -629,6 +786,94 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             },
             fonction=produire_brouillon_temps,
             autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m4_definir_consentement_gps",
+            description=(
+                "Enregistre le consentement GPS d'un technicien : donné (activation du punch "
+                "géorépéré) ou retiré (POLITIQUE-geolocalisation.md §4). Le retrait prend effet "
+                "IMMÉDIATEMENT : dès ce maillon écrit, m4_pointer bascule ce technicien en mode "
+                "manuel (aucun fix GPS enregistré), quelle que soit la position fournie par la suite."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "technicien_id": {"type": "string"},
+                    "action": {"type": "string", "enum": list(consentement.ACTIONS_CONSENTEMENT)},
+                    "horodatage": {"type": "string"},
+                    "version_politique": {
+                        "type": "string",
+                        "description": "Version du document présenté à l'employé — jamais devinée.",
+                    },
+                    "preuve": _PREUVE_CONSENTEMENT,
+                },
+                "required": ["technicien_id", "action", "horodatage", "version_politique", "preuve"],
+                "additionalProperties": False,
+            },
+            fonction=definir_consentement_gps,
+            autonomie=Autonomie.T1,
+        ),
+        Outil(
+            nom="m4_lire_position_gps",
+            description=(
+                "Déchiffre un fix GPS déjà enregistré par m4_pointer (droit d'accès, "
+                "POLITIQUE-geolocalisation.md §7), à partir du ligne_id du maillon de pointage. "
+                "Journalise CET accès dans le registre (§6), jamais la position elle-même. Verdict "
+                "nommé (jamais une exception) si le maillon ne porte aucun fix chiffré, ou si sa "
+                "clé a été détruite par une purge de rétention antérieure (§5) : dans ce dernier "
+                "cas, le refus EST la preuve que la destruction a fonctionné."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "ligne_id": {"type": "string"},
+                    "accede_par": {
+                        "type": "string",
+                        "description": "Identifiant de la personne qui consulte (§6 : tracé nommément).",
+                    },
+                    "horodatage": {"type": "string"},
+                },
+                "required": ["ligne_id", "accede_par", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=lire_position_gps,
+            # Écriture interne (le journal d'accès, §6) au sens de l'ADR-0009 §4 : T1, pas T0,
+            # même si son propos premier est une lecture — voir Autonomie.T1 dans opsys.outils.
+            autonomie=Autonomie.T1,
+        ),
+        Outil(
+            nom="m4_purger_retention_gps",
+            description=(
+                "Détruit la clé de chiffrement des fixes GPS d'un technicien une fois l'échéance "
+                "de rétention atteinte (POLITIQUE-geolocalisation.md §5 : 12 mois après la fin du "
+                "contrat de travail ou le dernier punch, selon la plus longue des deux périodes — "
+                "fail-closed si fin_contrat_travail est inconnue, ou si l'échéance n'est pas "
+                "atteinte : aucune destruction). Suppression DÉFINITIVE d'une donnée personnelle "
+                "(AGENTS.md, frontière T3) : cet outil ne fait que PROPOSER — seul nathan_owner, "
+                "avec l'attestation du professionnel concerné (ADR-0009 §5, Niveau N5), peut "
+                "l'exécuter. Écrit toujours un maillon d'audit (jamais la position détruite)."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "technicien_id": {"type": "string"},
+                    "fin_contrat_travail": {
+                        "type": "string",
+                        "description": "Horodatage RFC 3339 de fin de contrat (donnée RH, jamais devinée).",
+                    },
+                    "horodatage": {"type": "string"},
+                    "motif": {"type": "string", "description": "Pourquoi cette purge maintenant."},
+                },
+                "required": ["technicien_id", "fin_contrat_travail", "horodatage", "motif"],
+                "additionalProperties": False,
+            },
+            fonction=purger_retention_gps,
+            # T3 (ADR-0009 §4) : « frontière humaine ... suppression » -> N5 par défaut
+            # (niveau_par_defaut), jamais configurable par department.yaml (opsys.departements.
+            # DEFAUT_ROLES_NIVEAU, vérifié par test_department_yaml_declare_n3_n4_manager_admin_
+            # nathan_owner ci-contre dans test_approbations_m4.py) : nathan_owner seul, PLUS
+            # l'attestation du professionnel (approbations._valider_attestation), jamais automatique.
+            autonomie=Autonomie.T3,
         ),
     )
 

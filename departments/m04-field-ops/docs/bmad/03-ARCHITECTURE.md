@@ -8,7 +8,7 @@
 
 ## 1. Arborescence du module
 
-Le paquet m4_field_ops est découpé en treize modules isolés, chacun portant une responsabilité unique pour faciliter la preuve en CI et éviter les dépendances circulaires.
+Le paquet m4_field_ops est découpé en modules isolés, chacun portant une responsabilité unique pour faciliter la preuve en CI et éviter les dépendances circulaires.
 
 Le module encodage fournit l'encodage canonique injectif par préfixage de longueur pour dériver les identifiants et les empreintes.
 Le module horodatage valide la conformité ISO-8601 avec fuseau explicite et rejette toute ambiguïté temporelle.
@@ -23,12 +23,19 @@ Le module ecarts gère la détection des anomalies et la file d'attente de revue
 Le module outbox matérialise l'émission transactionnelle du Work Completion Trigger.
 Le module digest agrège les données quotidiennes de manière déterministe et hash-chaînée.
 Le module fixtures_garde fournit les données fictives pour les tests, explicitement marquées comme telles.
+Le module consentement tient le registre du consentement GPS par employé — donné, retiré, avec
+preuve et version de politique — et dit si le consentement d'un technicien est actif à l'instant
+où le registre est rejoué, jamais un état tenu à part (PLAN T4.2, POLITIQUE-geolocalisation.md §4).
+Le module retention porte l'arithmétique d'échéance de rétention (12 mois, la plus longue des deux
+périodes citées par la politique), le chiffrement/déchiffrement d'un fix GPS avec une clé fournie
+par l'appelant, et la construction des maillons d'accès et de purge — jamais la destruction
+elle-même, qui appartient à l'adaptateur impur (PLAN T4.2, POLITIQUE-geolocalisation.md §5).
 
 ## 2. Schémas de données
 
 L'entité Intervention représente le cycle de vie complet d'un travail terrain. Elle contient l'identifiant unique, la référence au lead, le technicien assigné, la ville tokenisée, le type de travaux, la fenêtre horaire prévue, le statut actuel, et la liste ordonnée des pointages. Aucun champ financier n'y figure.
 
-L'entité Pointage capture l'action du technicien. Elle inclut l'identifiant du pointage, la référence à l'intervention, le type d'action (arrivée ou départ), l'horodatage ISO-8601 avec fuseau, le fix GPS (latitude et longitude), et l'attestation d'appareil simulée.
+L'entité Pointage capture l'action du technicien. Elle inclut l'identifiant du pointage, la référence à l'intervention, le type d'action (arrivée, départ ou pause), l'horodatage ISO-8601 avec fuseau, et l'attestation d'appareil simulée. Le fix GPS (PLAN T4.2, POLITIQUE-geolocalisation.md) n'y figure QUE si le consentement du technicien était actif au moment du pointage, et alors CHIFFRÉ (jamais latitude/longitude en clair) — sinon l'entité porte un mode manuel explicite, sans aucune donnée géographique. Voir la section 6 pour le mécanisme complet.
 
 L'entité DemandeRevue matérialise un écart. Elle stocke l'identifiant de la revue, la référence à l'intervention, la version prévue des faits, la version déclarée par le technicien, le motif de l'écart, et le statut de l'arbitrage (en attente, validé, rejeté).
 
@@ -88,3 +95,42 @@ La story S007 prouve la transparence des écarts, démontrée par la conservatio
 La story S008 prouve l'atomicité de la cascade du Work Completion Trigger — écriture en UNE opération d'ajout, invariants de balayage, consommateur de référence idempotent — ainsi que la tokenisation du lien client dans la charge utile (CA-M4-13).
 
 La story S009 prouve l'indépendance temporelle du digest quotidien, démontrée par l'absence d'appel à l'horloge système et la reproductibilité du hash de synthèse.
+
+## 6. Consentement, chiffrement et rétention GPS (PLAN T4.2, POLITIQUE-geolocalisation.md)
+
+Le consentement (§4 de la politique) vit dans le même registre hash-chaîné que le reste de M4 — un
+maillon `consentement_gps` par événement (donné ou retiré), jamais un second registre : le module
+consentement rejoue la chaîne et retient le DERNIER événement par technicien, exactement comme
+`etats.statut_courant` retient le dernier statut d'une intervention. `m4_pointer` (outils.py, la
+seule frontière impure autorisée à cette décision) consulte ce module avant chaque pointage : le
+fix fourni par l'appelant n'est retenu QUE si le consentement est actif, sinon il est ignoré et le
+pointage bascule en mode manuel — jamais rejeté, l'employé peut toujours pointer. Un retrait prend
+effet au maillon suivant, sans file d'attente.
+
+Le mécanisme de destruction (§5) répond à une contrainte structurelle : le registre append-only ne
+permet ni modification ni suppression d'un maillon déjà écrit (le stockage durable de l'instance
+n'expose même pas d'opération UPDATE ou DELETE sur un maillon), donc une coordonnée écrite en clair
+y resterait pour toujours. Trois options ont été étudiées : garder la position hors chaîne, ne
+porter qu'une empreinte à sens unique, ou chiffrer avant écriture avec une clé détruite à échéance.
+La troisième est retenue : `pointage.enregistrer_pointage` reçoit la clé comme un argument pur
+supplémentaire (même patron que `sel` pour `cedule.tokeniser_ville`), calcule la cohérence GPS sur
+le texte clair comme avant PLAN T4.2, puis écrit le chiffré (module retention, HMAC-SHA256 en mode
+compteur, bibliothèque standard uniquement) à la place de latitude/longitude. La clé elle-même vit
+hors du registre, dans une table dédiée du socle (`opsys.cles_chiffrement`) qui autorise une VRAIE
+suppression — une par technicien, alignée sur l'unité de rétention de la politique (l'échéance ne
+distingue pas un pointage d'un autre pour un même employé). `m4_purger_retention_gps` détruit cette
+clé une fois l'échéance atteinte ; le maillon déjà écrit ne bouge pas d'un octet, sa chaîne reste
+intègre pour toujours, mais la position redevient irrécupérable — l'effacement cryptographique.
+
+L'échéance (12 mois après la fin du contrat de travail ou le dernier punch, selon la plus longue
+des deux périodes) est CITÉE telle quelle depuis la politique, jamais recalculée ni approximée ;
+`fin_contrat_travail` est une donnée RH que M4 ne connaît pas de lui-même (son registre ne porte
+que des interventions terrain), donc TOUJOURS fournie par l'appelant — son absence bloque toute
+purge (REJ-RETENTION-DONNEE-MANQUANTE), jamais un défaut inventé. `m4_purger_retention_gps` est un
+outil N5 (ADR-0009 §4) : il PROPOSE une destruction définitive, jamais ne l'exécute lui-même — seul
+le propriétaire, avec l'attestation d'un professionnel, peut approuver.
+
+Chaque lecture d'une position déchiffrée (`m4_lire_position_gps`, droit d'accès §7) écrit un
+maillon `acces_position_gps` — qui, qui, quand, quel résultat — jamais la position elle-même (§6 :
+journal des accès). C'est la même discipline de minimisation que la ville tokenisée (section 2) :
+ce qui n'entre jamais en clair dans le registre n'a jamais besoin d'en être retiré.

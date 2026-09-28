@@ -147,6 +147,23 @@ JOURNAL = Table(
     Column("details", Text, nullable=False, server_default=text("'{}'")),
 )
 
+# Clés de chiffrement destructibles (PLAN T4.2, POLITIQUE-geolocalisation.md §5) : effacement
+# cryptographique (crypto-shredding) pour une donnée personnelle qu'un registre append-only ne
+# peut ni modifier ni supprimer une fois écrite (REGISTRES ci-dessus, INSERT seul). Un maillon
+# chiffré avec la clé (portee, identifiant) reste dans la chaîne pour toujours, intact ; DÉTRUIRE
+# la ligne ici (vrai DELETE, contrairement à REGISTRES) rend ce maillon irrécupérable sans jamais
+# toucher au registre ni à son empreinte. `portee` namespace l'usage (ex. "m04-field-ops/gps") ;
+# `identifiant` est la clé métier dans cette portée (ex. un technicien_id) — une seule clé par
+# (portee, identifiant), jamais de rotation en v1 (voir `opsys.cles_chiffrement`).
+CLES_CHIFFREMENT = Table(
+    "cles_chiffrement",
+    META,
+    Column("portee", String(128), primary_key=True),
+    Column("identifiant", String(128), primary_key=True),
+    Column("cle", Text, nullable=False),
+    Column("cree_le", Text, nullable=False),
+)
+
 MODES_DEPARTEMENTS = Table(
     "modes_departements",
     META,

@@ -98,6 +98,15 @@ def _completer_intervention(deps, lead_id, devis_id):
     assert plan["ok"] is True, plan
     i_id = plan["resultat"]["intervention_id"]
 
+    # PLAN T4.2 (POLITIQUE-geolocalisation.md §4) : m4_pointer n'enregistre un fix GPS QUE si le
+    # consentement est actif — précondition nécessaire avant tout pointage à fix réel ci-dessous.
+    consentement = executer_atomique(m4["m4_definir_consentement_gps"], {
+        "technicien_id": "T1", "action": "donne", "horodatage": "2025-06-02T07:00:00+00:00",
+        "version_politique": "POLITIQUE-geolocalisation-v1-test",
+        "preuve": {"fictif": True, "reference": "consentement-test"},
+    })
+    assert consentement["ok"] is True and consentement["resultat"]["accepte"] is True, consentement
+
     depart = executer_atomique(m4["m4_demarrer_route"], {
         "intervention_id": i_id, "technicien_id": "T1", "horodatage": "2025-06-02T08:30:00+00:00",
     })

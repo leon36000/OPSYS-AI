@@ -27,6 +27,12 @@ EXPECTED_CODES_M4_LIST = [
     "REJ-HORODATAGE-INVALIDE",
     # Groupe 2 bis — T1.2-f : faits CLIENT (Loi 25) hors d'un appel d'appareil
     "REJ-CHAMPS-CLIENT-HORS-APPAREIL",
+    # Groupe 4 — PLAN T4.2 (POLITIQUE-geolocalisation.md) : consentement, rétention et destruction
+    "REJ-CONSENTEMENT-INVALIDE",
+    "REJ-RETENTION-DONNEE-MANQUANTE",
+    "REJ-RETENTION-NON-ECHUE",
+    "REJ-POSITION-INTROUVABLE",
+    "REJ-POSITION-DETRUITE",
     # Groupe 3 — succès
     "OK",
 ]

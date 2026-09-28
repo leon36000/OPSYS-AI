@@ -303,6 +303,9 @@ def test_enumere_des_types_est_fige():
         "pointage",
         "demande_revue",
         "resolution_revue",
+        "consentement_gps",     # PLAN T4.2 : §4 de POLITIQUE-geolocalisation.md
+        "acces_position_gps",   # PLAN T4.2 : §6
+        "purge_retention_gps",  # PLAN T4.2 : §5
         "variance_m6_recue",  # T1.3-b : outbox.enregistrer_signal_variance
     }
     assert set(registre_mod._TYPE_ENTREE_VALIDES) == attendu, (
