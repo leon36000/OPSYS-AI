@@ -27,8 +27,8 @@ budget:
   tokens_mois: 4000000
   alerte_pct: 80
 memoire:
-  lecture: [dictionnaire_metriques, snapshots_modules]
-  ecriture: [snapshots_modules]
+  lecture: [dictionnaire_metriques, snapshots_modules, definitions_metriques]
+  ecriture: [snapshots_modules, definitions_metriques]
 evenements:
   consomme: [m4.travaux_termines]
 kpis:
@@ -38,3 +38,7 @@ kpis:
     description: Nombre de signaux XmR actifs (hors DONNEES_INSUFFISANTES) dans le dernier digest quotidien.
   - id: fraicheur_moyenne_metriques
     description: Âge moyen, en jours, des métriques dérivées et citées dans les rapports du jour.
+  - id: nb_alertes_qualite_proposees
+    description: >-
+      Nombre d'alertes de qualité (donnée absente, périmée ou hors plage) proposées par
+      m8_evaluer_qualite_metrique sur la période — jamais exécutées, seulement proposées.

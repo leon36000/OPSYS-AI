@@ -14,6 +14,12 @@ seul, qui fait le lien. Le paramètre `registre_cible` est le point d'injection 
 unitaires du département y passent explicitement un `registre.RegistreSnapshots()` EN MÉMOIRE
 (aucune base montée), sans toucher au comportement par défaut utilisé par `charger_outils()` en
 production.
+
+Même patron pour le registre DURABLE des définitions de métriques (T3.1, `registre_metriques.py`)
+: `definitions_cible` est le second point d'injection (`opsys.stockage.maillons("m08-analytics",
+"definitions_metriques")` par défaut, une liste en mémoire dans les tests), utilisé par
+`m8_enregistrer_definition_metrique`, `m8_resoudre_definition_metrique` et
+`m8_evaluer_qualite_metrique`.
 """
 
 from __future__ import annotations
@@ -23,9 +29,9 @@ from typing import Any
 from opsys import stockage
 from opsys.outils import Autonomie, Outil, depuis_couple
 
+from . import alertes, qualite, rapports, registre, registre_metriques, semantique, validation, xmr
 from . import dictionnaire as dictionnaire_module
 from . import digest as digest_module
-from . import rapports, registre, semantique, validation, xmr
 
 _SNAPSHOT = {
     "type": "object",
@@ -54,6 +60,14 @@ _SIGNAL = {
 }
 _ROLE = {"type": ["string", "null"]}
 _METRIC_IDS_AUTORISES = {"type": ["array", "null"], "items": {"type": "string"}}
+_DEFINITION_REGISTRE = {
+    "type": "object",
+    "description": (
+        "DefinitionMetriqueRegistre {metric_id, departement_proprietaire, unite (validée "
+        "contre le dictionnaire ISO 4217), source, fraicheur_attendue_jours, "
+        "regles_qualite: {plage_min, plage_max}} (T3.1)."
+    ),
+}
 
 
 def compiler_dictionnaire(racine_modules: str) -> dict[str, Any]:
@@ -143,15 +157,24 @@ def consommateurs() -> dict[str, Any]:
     return {"m4.travaux_termines": _recevoir_travaux_termines}
 
 
-def outils(registre_cible: registre.RegistreSnapshots | None = None) -> tuple[Outil, ...]:
+def outils(
+    registre_cible: registre.RegistreSnapshots | None = None,
+    definitions_cible: Any = None,
+) -> tuple[Outil, ...]:
     """Capacités exposées aux agents. Une instance de RegistreSnapshots par installation.
 
     `registre_cible` : `None` (défaut, utilisé par `charger_outils()` en production) adosse le
     registre au stockage durable de l'instance ; un `registre.RegistreSnapshots()` explicite
     (tests) reste en mémoire, jamais touché à la base.
+
+    `definitions_cible` (T3.1) : même patron pour le registre durable des définitions de
+    métriques — `None` (défaut) l'adosse à `opsys.stockage.maillons("m08-analytics",
+    "definitions_metriques")` ; une `list` explicite (tests) reste en mémoire.
     """
     if registre_cible is None:
         registre_cible = registre.RegistreSnapshots(maillons=stockage.maillons("m08-analytics", "snapshots"))
+    if definitions_cible is None:
+        definitions_cible = stockage.maillons("m08-analytics", "definitions_metriques")
 
     def _historique_numerique(module_source: str, metric_id: str) -> list[float]:
         """Série chronologique (ordre du registre) des valeurs numériques d'un metric_id.
@@ -217,6 +240,67 @@ def outils(registre_cible: registre.RegistreSnapshots | None = None) -> tuple[Ou
 
         rapport = rapports.construire_rapport(metriques, signaux, role, metric_ids_autorises)
         return {"etape": "complet", "accepte": True, "rapport": rapport}
+
+    def enregistrer_definition_metrique(definition: dict[str, Any]) -> dict[str, Any]:
+        return registre_metriques.enregistrer_definition(definition, definitions_cible)
+
+    def resoudre_definition_metrique(metric_id: str) -> dict[str, Any]:
+        definition = registre_metriques.resoudre(metric_id, definitions_cible)
+        if definition is None:
+            return {
+                "trouvee": False,
+                "verdict": f"REJ-DEFINITION-METRIQUE-INCONNUE:{metric_id}",
+                "definition": None,
+            }
+        return {"trouvee": True, "verdict": None, "definition": definition}
+
+    def evaluer_qualite_metrique(metric_id: str, horodatage_reference: str) -> dict[str, Any]:
+        """Résout la définition enregistrée, dérive la valeur courante (sémantique.py, contre le
+        même registre de snapshots que `rapport_metriques`), puis évalue présence, fraîcheur et
+        plage — PUREMENT à partir de `horodatage_reference` fourni (qualite.py ne lit jamais
+        l'horloge). Propose 0 à 2 alertes structurées (jamais exécutées, jamais un appel à un
+        autre département) ; réponse compacte, aucun historique complet renvoyé.
+        """
+        definition = registre_metriques.resoudre(metric_id, definitions_cible)
+        if definition is None:
+            return {
+                "metric_id": metric_id,
+                "definition_trouvee": False,
+                "verdict": f"REJ-DEFINITION-METRIQUE-INCONNUE:{metric_id}",
+                "alertes_proposees": [],
+            }
+
+        valeur_metrique = semantique.deriver_metrique(
+            definition["departement_proprietaire"], metric_id, definition, registre_cible, horodatage_reference
+        )
+
+        alertes_proposees: list[dict[str, Any]] = []
+        absence = qualite.evaluer_presence(metric_id, valeur_metrique["n"], valeur_metrique["valeur"])
+        if absence is not None:
+            alertes_proposees.append(alertes.proposer_action(absence, definition))
+        else:
+            perimee = qualite.evaluer_fraicheur(
+                metric_id, valeur_metrique["fraicheur"], definition["fraicheur_attendue_jours"]
+            )
+            if perimee is not None:
+                alertes_proposees.append(alertes.proposer_action(perimee, definition))
+
+            regles = definition["regles_qualite"]
+            hors_plage = qualite.evaluer_plage(
+                metric_id, valeur_metrique["valeur"], regles["plage_min"], regles["plage_max"]
+            )
+            if hors_plage is not None:
+                alertes_proposees.append(alertes.proposer_action(hors_plage, definition))
+
+        return {
+            "metric_id": metric_id,
+            "definition_trouvee": True,
+            "verdict": None,
+            "n": valeur_metrique["n"],
+            "valeur": valeur_metrique["valeur"],
+            "fraicheur_jours": valeur_metrique["fraicheur"],
+            "alertes_proposees": alertes_proposees,
+        }
 
     return (
         Outil(
@@ -340,5 +424,60 @@ def outils(registre_cible: registre.RegistreSnapshots | None = None) -> tuple[Ou
                 "additionalProperties": False,
             },
             fonction=produire_digest_quotidien,
+        ),
+        Outil(
+            nom="m8_enregistrer_definition_metrique",
+            description=(
+                "Enregistre (idempotent) une définition dans le registre durable des métriques "
+                "surveillées par M8 : département propriétaire, unité validée contre le "
+                "dictionnaire (garde ISO 4217), source, fraîcheur attendue, règles de qualité. "
+                "Rejoue le même enregistrement sans faire grossir le registre ; refuse nommément "
+                "une structure invalide, un département inconnu ou une devise non CAD."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"definition": _DEFINITION_REGISTRE},
+                "required": ["definition"],
+                "additionalProperties": False,
+            },
+            fonction=enregistrer_definition_metrique,
+            autonomie=Autonomie.T1,
+        ),
+        Outil(
+            nom="m8_resoudre_definition_metrique",
+            description=(
+                "Dernière définition connue pour un metric_id dans le registre durable, ou un "
+                "verdict nommé si aucune n'a jamais été enregistrée."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"metric_id": {"type": "string"}},
+                "required": ["metric_id"],
+                "additionalProperties": False,
+            },
+            fonction=resoudre_definition_metrique,
+        ),
+        Outil(
+            nom="m8_evaluer_qualite_metrique",
+            description=(
+                "Évalue la qualité et la fraîcheur d'une métrique déjà enregistrée (présence, "
+                "âge vs fraîcheur attendue, plage), à partir d'un horodatage de référence fourni "
+                "— jamais l'horloge interne — et propose une alerte structurée "
+                "(quoi/à qui/pourquoi/preuve) par problème détecté. Ne l'exécute jamais et n'agit "
+                "sur aucun autre département."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "metric_id": {"type": "string"},
+                    "horodatage_reference": {
+                        "type": "string",
+                        "description": "Instant de référence pour la fraîcheur (M8 n'a pas d'horloge).",
+                    },
+                },
+                "required": ["metric_id", "horodatage_reference"],
+                "additionalProperties": False,
+            },
+            fonction=evaluer_qualite_metrique,
         ),
     )
