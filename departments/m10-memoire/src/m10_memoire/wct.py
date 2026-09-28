@@ -25,9 +25,24 @@ def valider_wct(wct_recu):
 
 
 def memoriser_wct(wct_recu, registre_cible):
+    """Mémorise le WCT reçu ; rend ``(maillon, None)``.
+
+    Idempotent par ``wct_id`` (PLAN T1.2-e) : un WCT déjà mémorisé rend le maillon EXISTANT sans
+    rien réécrire. Un WCT donné n'est censé arriver qu'une fois (`m4.travaux_termines` publie sous
+    `evenement_id = wct_id`, ADR-0009 §3) ; le répartiteur ne rappelle d'ailleurs jamais cette
+    fonction deux fois pour le même (evenement_id, consommateur). Mais cette garde-là seule ne
+    protège pas contre une relivraison du MÊME fait sous un evenement_id DIFFÉRENT (producteur en
+    défaut, rejeu manuel) : sans elle, un second appel écrirait un second maillon pour le même
+    wct_id — un doublon mémoire, contrairement à `wct_recus.py` (M5/M6) et aux registres
+    d'idempotence de M7/M8, qui vérifient déjà tous le wct_id avant d'écrire."""
     valide, code = valider_wct(wct_recu)
     if not valide:
         return None, code
+
+    wct_id = wct_recu["wct_id"]
+    for maillon in registre_cible.lire():
+        if maillon.get("type_entree") == "evenement_memorise" and maillon.get("wct_id") == wct_id:
+            return maillon, None
 
     entree = {
         **wct_recu,

@@ -184,3 +184,31 @@ def test_memoriser_wct_dans_deux_registres_distincts_ne_les_affecte_pas_mutuelle
 def test_valider_wct_n_accepte_qu_un_seul_argument_positionnel():
     with pytest.raises(TypeError):
         wct.valider_wct(_wct(), None)
+
+
+def test_memoriser_wct_meme_wct_id_deux_fois_ne_duplique_pas(registre_cible):
+    """PLAN T1.2-e (test de bout en bout, scénario relivraison) : un second appel pour le MÊME
+    wct_id — ce qu'une relivraison du fait sous un evenement_id différent produit, hors de la
+    déduplication (evenement_id, consommateur) du bus (ADR-0009 §3) — ne doit jamais écrire un
+    second maillon. Même discipline que `wct_recus.py` (M5/M6) ou les registres d'idempotence de
+    M7/M8, qui vérifient déjà le wct_id avant d'écrire."""
+    premier, code1 = wct.memoriser_wct(_wct(), registre_cible)
+    second, code2 = wct.memoriser_wct(_wct(), registre_cible)
+
+    assert code1 is None
+    assert code2 is None
+    assert second == premier
+    assert len(registre_cible.lire()) == 1
+
+
+def test_memoriser_wct_idempotent_naffecte_pas_un_wct_id_different(registre_cible):
+    premier, _ = wct.memoriser_wct(_wct(), registre_cible)
+
+    autre_wct = _wct()
+    autre_wct["wct_id"] = "WCT-002"
+    second, code2 = wct.memoriser_wct(autre_wct, registre_cible)
+
+    assert code2 is None
+    assert second["wct_id"] == "WCT-002"
+    assert second["ligne_id"] != premier["ligne_id"]
+    assert len(registre_cible.lire()) == 2
