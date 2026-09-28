@@ -9,6 +9,8 @@ tests.
 
 __all__ = [
     "CHAMPS_CONTRAT_GELE",
+    "CHAMPS_CONTRAT_GELE_V2",
+    "VERSION_CONTRAT_V2",
     "CHAMPS_CONTRAT_OPTIONNELS",
     "CHAMPS_UTM",
     "CHAMPS_MARQUEUR",
@@ -39,6 +41,25 @@ CHAMPS_CONTRAT_GELE = (
     "urgence_declaree",
 )
 
+# Contrat LeadQualifie v2 (PLAN T0.13) : `service` (code de la taxonomie du socle, `opsys.taxonomie`)
+# remplace `type_travaux`, et `schema_version` porte la version, EXPLICITE (jamais devinée : un lead
+# sans `schema_version` est un lead v1, le contrat gelé v1 n'ayant pas ce champ). Copie épinglée de
+# CHAMPS_CONTRAT_GELE_V2 du source departments/m02-revenue-crm/src/m2_revenue_crm/contrats.py, dans
+# l'ordre du producteur ; le gate de cohérence du cadrage (docs/bmad/verif_coherence.py, contrôle
+# 13 ter) la confronte à M2 et à l'architecture. Les trois clés optionnelles ci-dessous s'y ajoutent
+# à l'identique de la v1.
+VERSION_CONTRAT_V2 = 2
+CHAMPS_CONTRAT_GELE_V2 = (
+    "schema_version",
+    "lead_id",
+    "conversation_id",
+    "service",
+    "ville",
+    "canal",
+    "contact",
+    "urgence_declaree",
+)
+
 # Clés OPTIONNELLES du LeadQualifie (PLAN T2.2) : copie épinglée de CHAMPS_CONTRAT_OPTIONNELS du
 # source departments/m02-revenue-crm/src/m2_revenue_crm/contrats.py, dans l'ordre du producteur.
 # M2 les accepte si elles sont fournies (provenance marketing déclarée par M7) ; M3 les accepte À
@@ -60,6 +81,9 @@ CHAMPS_MARQUEUR = (
     "empreinte",
 )
 
+# Énuméré du contrat GELÉ v1 seulement : les leads v2 n'ont plus d'énuméré local, leur `service`
+# est validé contre la taxonomie du socle (`opsys.taxonomie`, profil d'entreprise de l'instance) ;
+# aucune copie des services n'existe dans ce paquet.
 # Provenance : constante TYPES_TRAVAUX du fichier source
 # departments/m02-revenue-crm/src/m2_revenue_crm/contrats.py.
 # Cette copie est épinglée parce que la décision #109 interdit tout import

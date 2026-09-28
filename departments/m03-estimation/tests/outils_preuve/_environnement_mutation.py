@@ -39,6 +39,10 @@ dernière installation) plutôt que sur les sources réelles du dépôt qu'on pr
 le 2026-09-28 (PLAN T2.3-a) : ``opsys.evenements.publier`` levait ``type d'événement inconnu`` sur
 un type ajouté au catalogue dans ce commit, uniquement à l'intérieur de la copie de mutation.
 
+``conftest.py`` racine (garde « instance isolée » et fixtures communes, dont ``declarer_services``,
+PLAN T0.13) est lié par le même motif : sans lui, ``fixture 'declarer_services' not found`` fait
+échouer la copie avant tout sabotage.
+
 ``docs/`` racine (ex. les politiques Loi 25, ``docs/compliance/politiques/*.md``) est lié par le
 MÊME motif, à partir de PLAN T2.3 : un test de garde (``test_politique_photos.py``) lit un
 document de politique hors de ``departments/m03-estimation`` pour constater son statut de
@@ -88,6 +92,11 @@ class EnvironnementMutation:
         (self.dossier / "pyproject.toml").symlink_to(self.racine_reelle / "pyproject.toml")
         # docs/ racine (PLAN T2.3) : même motif, même lecture seule — voir la docstring du module.
         (self.dossier / "docs").symlink_to(self.racine_reelle / "docs", target_is_directory=True)
+        # conftest.py racine (PLAN T0.13) : la garde commune à tous les tests (instance isolée) et
+        # ses fixtures partagées, dont `declarer_services` (profil d'entreprise de l'instance de test,
+        # requis par les tests de leads v2). Même motif, même lecture seule : sans ce lien, la copie
+        # échoue à `fixture 'declarer_services' not found` AVANT tout sabotage.
+        (self.dossier / "conftest.py").symlink_to(self.racine_reelle / "conftest.py")
 
         self.dossier_departement = departements / "m03-estimation"
         self.dossier_source = self.dossier_departement / "src" / "m3_estimation"

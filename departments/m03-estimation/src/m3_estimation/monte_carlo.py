@@ -44,15 +44,20 @@ def _est_nombre_fini(valeur):
     return math.isfinite(valeur)
 
 
-def simuler_intervalle(bareme, type_travaux, quantite, graine, niveau):
-    """Simule un intervalle de coût déterministe pour un type de travaux.
+def simuler_intervalle(bareme, type_travaux, quantite, graine, niveau, services=()):
+    """Simule un intervalle de coût déterministe pour un type de travaux ou un service.
 
     Paramètres :
         bareme        dict ``{"version", "unite", "postes"}`` ; ``postes``
                       associe à chaque type de travaux couvert un poste
                       ``{"cout_unitaire_min", "cout_unitaire_max"}``.
         type_travaux  type demandé ; doit appartenir au contrat ET être
-                      couvert par le barème.
+                      couvert par le barème. Un type de travaux v1 est reconnu
+                      par l'énuméré gelé ; un SERVICE (lead v2, PLAN T0.13) l'est
+                      seulement s'il figure dans ``services`` : l'appelant (qui a
+                      validé le lead contre la taxonomie du socle) les fournit, ce
+                      module ne lit aucun profil et reste pur et déterministe.
+        services      codes de service déjà validés par l'appelant (défaut : aucun).
         quantite      nombre strictement positif (booléens refusés).
         graine        entier (booléens refusés) seedant le générateur.
         niveau        flottant strictement entre 0 et 1, bornes exclues.
@@ -89,12 +94,18 @@ def simuler_intervalle(bareme, type_travaux, quantite, graine, niveau):
     # Empêche : l'extrapolation depuis un autre poste ou des bornes par
     # défaut. Un type_travaux absent du barème rend l'estimation
     # IMPOSSIBLE : on rejette, on n'invente jamais un modèle de coût.
-    if type_travaux not in contrats.TYPES_TRAVAUX:
+    est_service = type_travaux not in contrats.TYPES_TRAVAUX
+    if est_service and type_travaux not in services:
         return None, verdicts.construire_verdict(
             "REJ-CONTRAT-INVALIDE",
             "type_travaux hors contrat : " + repr(type_travaux),
         )
     if type_travaux not in postes:
+        if est_service:
+            return None, verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE",
+                "barème du service " + repr(type_travaux) + " absent : à fournir",
+            )
         return None, verdicts.construire_verdict(
             "REJ-CONTRAT-INVALIDE",
             "barème sans poste pour le type demandé : "

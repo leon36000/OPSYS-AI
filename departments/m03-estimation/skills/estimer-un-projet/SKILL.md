@@ -7,7 +7,8 @@ description: Procédure pour estimer un projet de rénovation extérieure à par
 
 1. Vérifie que la demande vient de M2 avec un marqueur de readiness. Sinon : demande-la, stop.
 2. Rassemble : photos (avec résolution, éclairage, angle, référence d'échelle), seuils de
-   qualité, barème en vigueur, type de travaux, quantité mesurée, plancher de rentabilité.
+   qualité, barème en vigueur (avec un poste pour le service demandé), service (ou type de
+   travaux d'un lead v1), quantité mesurée, plancher de rentabilité.
    Si une donnée manque, demande-la. N'en invente aucune.
 3. Appelle `m3_estimer_projet` une seule fois avec toutes les données.
 4. Lis la réponse :

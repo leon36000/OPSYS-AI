@@ -461,6 +461,94 @@ def verifier_contrats_ont_un_proprietaire(archi: str) -> List[str]:
     return erreurs
 
 
+def _types_imposes_par_m2(texte_m2: str) -> Dict[str, Set[str]]:
+    """Types que la source de M2 impose aux clés du contrat (formes reconnues : voir le contrôle
+    13). Lit l'arbre `ast.parse` ; lève `SyntaxError` si la source n'est pas analysable. Partagée
+    par le contrôle 13 (clés de la v1) et 13 ter (clés propres à la v2)."""
+    arbre_m2 = ast.parse(texte_m2)
+
+    def cle_litterale_acces_contrat(noeud):
+        """Retourne la clé de `contrat["cle"]`, ou None si elle n'est pas littérale."""
+        if not (
+            isinstance(noeud, ast.Subscript)
+            and isinstance(noeud.value, ast.Name)
+            and noeud.value.id == "contrat"
+        ):
+            return None
+        tranche = noeud.slice
+        constante = tranche if isinstance(tranche, ast.Constant) else getattr(
+            tranche, "value", None
+        )
+        if isinstance(constante, ast.Constant) and isinstance(constante.value, str):
+            return constante.value
+        return None
+
+    nom_vers_cle = {}
+    noms_ambigus = set()
+    affectations = sorted(
+        (noeud for noeud in ast.walk(arbre_m2) if isinstance(noeud, ast.Assign)),
+        key=lambda noeud: (noeud.lineno, noeud.col_offset),
+    )
+    for affectation in affectations:
+        cle = cle_litterale_acces_contrat(affectation.value)
+        for cible in affectation.targets:
+            if not isinstance(cible, ast.Name):
+                continue
+            nom = cible.id
+            if nom in noms_ambigus:
+                continue
+            if cle is None:
+                nom_vers_cle.pop(nom, None)
+                noms_ambigus.add(nom)
+                continue
+            cle_precedente = nom_vers_cle.get(nom)
+            if cle_precedente is None:
+                nom_vers_cle[nom] = cle
+            elif cle_precedente != cle:
+                nom_vers_cle.pop(nom, None)
+                noms_ambigus.add(nom)
+
+    types_par_cle = {}
+    for noeud in ast.walk(arbre_m2):
+        cible = None
+        type_impose = None
+        if (
+            isinstance(noeud, ast.Compare)
+            and len(noeud.ops) == 1
+            and isinstance(noeud.ops[0], ast.IsNot)
+            and isinstance(noeud.left, ast.Call)
+            and isinstance(noeud.left.func, ast.Name)
+            and noeud.left.func.id == "type"
+            and len(noeud.left.args) == 1
+            and len(noeud.comparators) == 1
+            and isinstance(noeud.comparators[0], ast.Name)
+        ):
+            cible = noeud.left.args[0]
+            type_impose = noeud.comparators[0].id
+        elif (
+            isinstance(noeud, ast.Call)
+            and isinstance(noeud.func, ast.Name)
+            and noeud.func.id == "isinstance"
+            and len(noeud.args) == 2
+            and isinstance(noeud.args[1], ast.Name)
+        ):
+            cible = noeud.args[0]
+            type_impose = noeud.args[1].id
+
+        if cible is None:
+            continue
+
+        cle = cle_litterale_acces_contrat(cible)
+        if cle is None and isinstance(cible, ast.Name):
+            cle = nom_vers_cle.get(cible.id)
+        if cle is None:
+            continue
+
+        types_par_cle.setdefault(cle, set()).add(type_impose)
+
+    return types_par_cle
+
+
 def verifier_contrat_consomme_existe_vraiment(
         archi: str, chemin_source_m2: Optional[Path] = None) -> List[str]:
     """Contrôle 13 : le contrat consommé est celui que le module PRODUCTEUR émet.
@@ -582,88 +670,15 @@ def verifier_contrat_consomme_existe_vraiment(
         ]
 
     try:
-        arbre_m2 = ast.parse(texte_m2)
+        types_par_cle = _types_imposes_par_m2(texte_m2)
     except SyntaxError as exc:
         return [f"Source de M2 non analysable par ast.parse ({exc}) — contrôle non probant."]
-
-    def cle_litterale_acces_contrat(noeud):
-        """Retourne la clé de `contrat["cle"]`, ou None si elle n'est pas littérale."""
-        if not (
-            isinstance(noeud, ast.Subscript)
-            and isinstance(noeud.value, ast.Name)
-            and noeud.value.id == "contrat"
-        ):
-            return None
-        tranche = noeud.slice
-        constante = tranche if isinstance(tranche, ast.Constant) else getattr(
-            tranche, "value", None
-        )
-        if isinstance(constante, ast.Constant) and isinstance(constante.value, str):
-            return constante.value
-        return None
-
-    nom_vers_cle = {}
-    noms_ambigus = set()
-    affectations = sorted(
-        (noeud for noeud in ast.walk(arbre_m2) if isinstance(noeud, ast.Assign)),
-        key=lambda noeud: (noeud.lineno, noeud.col_offset),
-    )
-    for affectation in affectations:
-        cle = cle_litterale_acces_contrat(affectation.value)
-        for cible in affectation.targets:
-            if not isinstance(cible, ast.Name):
-                continue
-            nom = cible.id
-            if nom in noms_ambigus:
-                continue
-            if cle is None:
-                nom_vers_cle.pop(nom, None)
-                noms_ambigus.add(nom)
-                continue
-            cle_precedente = nom_vers_cle.get(nom)
-            if cle_precedente is None:
-                nom_vers_cle[nom] = cle
-            elif cle_precedente != cle:
-                nom_vers_cle.pop(nom, None)
-                noms_ambigus.add(nom)
-
-    types_par_cle = {}
-    for noeud in ast.walk(arbre_m2):
-        cible = None
-        type_impose = None
-        if (
-            isinstance(noeud, ast.Compare)
-            and len(noeud.ops) == 1
-            and isinstance(noeud.ops[0], ast.IsNot)
-            and isinstance(noeud.left, ast.Call)
-            and isinstance(noeud.left.func, ast.Name)
-            and noeud.left.func.id == "type"
-            and len(noeud.left.args) == 1
-            and len(noeud.comparators) == 1
-            and isinstance(noeud.comparators[0], ast.Name)
-        ):
-            cible = noeud.left.args[0]
-            type_impose = noeud.comparators[0].id
-        elif (
-            isinstance(noeud, ast.Call)
-            and isinstance(noeud.func, ast.Name)
-            and noeud.func.id == "isinstance"
-            and len(noeud.args) == 2
-            and isinstance(noeud.args[1], ast.Name)
-        ):
-            cible = noeud.args[0]
-            type_impose = noeud.args[1].id
-
-        if cible is None:
-            continue
-
-        cle = cle_litterale_acces_contrat(cible)
-        if cle is None and isinstance(cible, ast.Name):
-            cle = nom_vers_cle.get(cible.id)
-        if cle is None:
-            continue
-
-        types_par_cle.setdefault(cle, set()).add(type_impose)
+    # PLAN T0.13 : les clés propres à la v2 (`schema_version`, `service`) sont confrontées par le
+    # contrôle 13 ter. Ici, seules les clés du contrat v1 (gelées et optionnelles) le sont.
+    types_par_cle = {
+        cle: types for cle, types in types_par_cle.items()
+        if cle in cles_m2 or cle in cles_m2_optionnelles
+    }
 
     if not types_par_cle:
         return [
@@ -753,6 +768,176 @@ def verifier_contrat_consomme_existe_vraiment(
             f"Énuméré type_travaux divergent : M3 déclare {sorted(types_m3)}, "
             f"M2 émet {sorted(types_m2)} — écart {sorted(types_m3 ^ types_m2)}."
         ]
+    return []
+
+
+def _lire_source(chemin: Path, role: str) -> Tuple[Optional[str], List[str]]:
+    """Lit une source confrontée ; `(None, [erreur])` si elle manque ou est illisible — jamais un
+    contrôle silencieusement vert."""
+    if not chemin.is_file():
+        return None, [
+            f"Source du {role} introuvable ({chemin}) — contrôle non probant, "
+            "jamais silencieusement vert."
+        ]
+    try:
+        return chemin.read_text(encoding="utf-8"), []
+    except (OSError, UnicodeDecodeError) as exc:
+        return None, [
+            f"Source du {role} illisible ({chemin}) : {exc} — contrôle non probant, "
+            "jamais silencieusement vert."
+        ]
+
+
+def _codes_catalogue_du_socle(texte_taxonomie: str) -> Optional[Set[str]]:
+    """Codes de `CATALOGUE_REFERENCE` dans `src/opsys/taxonomie.py`, lus sur l'arbre `ast.parse`
+    (les appels `Service("code", ...)` de la constante). None si la constante est introuvable."""
+    try:
+        arbre = ast.parse(texte_taxonomie)
+    except SyntaxError:
+        return None
+    for noeud in ast.walk(arbre):
+        cible = None
+        valeur = None
+        if isinstance(noeud, ast.AnnAssign) and isinstance(noeud.target, ast.Name):
+            cible, valeur = noeud.target.id, noeud.value
+        elif isinstance(noeud, ast.Assign) and len(noeud.targets) == 1 and isinstance(
+                noeud.targets[0], ast.Name):
+            cible, valeur = noeud.targets[0].id, noeud.value
+        if cible != "CATALOGUE_REFERENCE" or not isinstance(valeur, (ast.Tuple, ast.List)):
+            continue
+        codes = set()
+        for element in valeur.elts:
+            if (
+                isinstance(element, ast.Call)
+                and isinstance(element.func, ast.Name)
+                and element.func.id == "Service"
+                and element.args
+                and isinstance(element.args[0], ast.Constant)
+                and isinstance(element.args[0].value, str)
+            ):
+                codes.add(element.args[0].value)
+        return codes or None
+    return None
+
+
+def verifier_contrat_v2_consomme_existe_vraiment(
+        archi: str, chemin_source_m2: Optional[Path] = None,
+        chemin_taxonomie: Optional[Path] = None) -> List[str]:
+    """Contrôle 13 ter (PLAN T0.13) : le LeadQualifie v2 consommé est celui que M2 accepte, et les
+    services que l'architecture cite sont ceux du catalogue du socle.
+
+    Le contrôle 13 confronte le contrat v1 (gelé, `type_travaux`). Celui-ci confronte la v2 :
+    - les clés du bloc `LeadQualifie_v2` de l'architecture à `CHAMPS_CONTRAT_GELE_V2` et
+      `CHAMPS_CONTRAT_OPTIONNELS` de M2, lus dans sa source (gelées et optionnelles SÉPARÉMENT) ;
+    - les types que M2 impose aux clés propres à la v2 (`schema_version`, `service`) à ceux du
+      bloc, par le même extracteur `ast` que le contrôle 13 ;
+    - `VERSION_CONTRAT_V2` de M2 à la version que l'architecture déclare (2) ;
+    - les codes du catalogue cités à la section `service` de l'architecture au catalogue de
+      `src/opsys/taxonomie.py` : `service` n'est pas un énuméré de M3, la taxonomie du socle fait
+      foi, et une liste recopiée ici dériverait en silence.
+    """
+    depot = Path(__file__).resolve().parents[4]
+    source_m2 = Path(chemin_source_m2) if chemin_source_m2 is not None else (
+        depot / "departments" / "m02-revenue-crm" / "src" / "m2_revenue_crm" / "contrats.py")
+    source_taxonomie = Path(chemin_taxonomie) if chemin_taxonomie is not None else (
+        depot / "src" / "opsys" / "taxonomie.py")
+
+    texte_m2, erreurs = _lire_source(source_m2, "module producteur")
+    if texte_m2 is None:
+        return erreurs
+    texte_taxonomie, erreurs = _lire_source(source_taxonomie, "socle (taxonomie)")
+    if texte_taxonomie is None:
+        return erreurs
+
+    def cles_de(constante: str) -> Optional[Set[str]]:
+        bloc = re.search(constante + r"\s*=\s*\((.*?)\)", texte_m2, re.DOTALL)
+        return set(re.findall(r'"([a-z_][a-z0-9_]*)"', bloc.group(1))) if bloc else None
+
+    cles_v1 = cles_de("CHAMPS_CONTRAT_GELE")
+    cles_v2 = cles_de("CHAMPS_CONTRAT_GELE_V2")
+    if not cles_v2 or not cles_v1:
+        return ["Constante CHAMPS_CONTRAT_GELE_V2 (ou CHAMPS_CONTRAT_GELE) introuvable dans la "
+                "source de M2 — extracteur vide, contrôle non probant."]
+    optionnelles_m2 = cles_de("CHAMPS_CONTRAT_OPTIONNELS") or set()
+    version = re.search(r"^VERSION_CONTRAT_V2\s*=\s*(\d+)\s*$", texte_m2, re.MULTILINE)
+    if not version:
+        return ["Constante VERSION_CONTRAT_V2 introuvable dans la source de M2 — contrôle non probant."]
+
+    titre = re.search(r"^#### `LeadQualifie v2`.*$", archi, re.MULTILINE)
+    if not titre:
+        return ["Section du contrat LeadQualifie v2 introuvable dans l'architecture M3."]
+    bloc_m3 = re.search(r"```yaml\s*\n(.*?)\n```", archi[titre.end():], re.DOTALL)
+    if not bloc_m3:
+        return ["Bloc YAML du contrat LeadQualifie v2 introuvable dans l'architecture M3."]
+    corps = bloc_m3.group(1)
+    if not corps.lstrip().startswith("LeadQualifie_v2:"):
+        return [f"Bloc YAML capturé n'est pas LeadQualifie_v2 mais "
+                f"« {corps.lstrip().splitlines()[0]} » — ancrage erroné, contrôle non probant."]
+    cles_m3 = set(re.findall(r"^  ([a-z_][a-z0-9_]*):", corps, re.MULTILINE))
+    optionnelles_m3 = set(re.findall(
+        r"^  ([a-z_][a-z0-9_]*):[^\n#]*#[^\n]*\bOPTIONNEL\b", corps, re.MULTILINE))
+    gelees_m3 = cles_m3 - optionnelles_m3
+    if gelees_m3 != cles_v2:
+        return [f"Le contrat LeadQualifie v2 consommé par M3 {sorted(gelees_m3)} DIFFÈRE de celui "
+                f"que M2 accepte {sorted(cles_v2)} — écart {sorted(gelees_m3 ^ cles_v2)}."]
+    if optionnelles_m3 != optionnelles_m2:
+        return [f"Les clés OPTIONNELLES du LeadQualifie v2 déclarées par M3 {sorted(optionnelles_m3)} "
+                f"DIFFÈRENT de celles que M2 accepte {sorted(optionnelles_m2)} — écart "
+                f"{sorted(optionnelles_m3 ^ optionnelles_m2)}."]
+    if "type_travaux" in cles_m3:
+        return ["Le contrat LeadQualifie v2 ne porte plus `type_travaux` : `service` le remplace."]
+    if not re.search(r"Vaut " + version.group(1) + r"\b", corps):
+        return [f"La version déclarée par M2 (VERSION_CONTRAT_V2 = {version.group(1)}) n'est pas celle "
+                "que la ligne `schema_version` de l'architecture annonce (« Vaut N »)."]
+
+    try:
+        types_par_cle = _types_imposes_par_m2(texte_m2)
+    except SyntaxError as exc:
+        return [f"Source de M2 non analysable par ast.parse ({exc}) — contrôle non probant."]
+    propres_v2 = sorted(cles_v2 - cles_v1)
+    types_declares = dict(re.findall(
+        r"^  ([a-z_][a-z0-9_]*):[ \t]*([a-zA-Z_][a-zA-Z0-9_]*)", corps, re.MULTILINE))
+    controles = {cle: types_par_cle[cle] for cle in propres_v2 if cle in types_par_cle}
+    if not controles:
+        return [f"Aucun contrôle de type extrait de la source de M2 pour les clés propres à la v2 "
+                f"{propres_v2} — extracteur vide, contrôle non probant."]
+    erreurs = []
+    for cle in sorted(controles):
+        if len(controles[cle]) > 1:
+            erreurs.append(f"Types incompatibles imposés par M2 pour la clé « {cle} » : "
+                           f"{sorted(controles[cle])} — le contrôle ne peut choisir arbitrairement.")
+            continue
+        impose = next(iter(controles[cle]))
+        declare = types_declares.get(cle)
+        if declare is None:
+            erreurs.append(f"La clé « {cle} » est soumise par M2 à un contrôle de type « {impose} » "
+                           "mais aucun type n'est extractible de sa ligne dans le bloc "
+                           "LeadQualifie_v2 — contrôle non probant.")
+        elif declare != impose:
+            erreurs.append(f"Type divergent pour la clé « {cle} » : l'architecture M3 déclare "
+                           f"« {declare} », M2 impose « {impose} ».")
+    if erreurs:
+        return erreurs
+
+    codes_socle = _codes_catalogue_du_socle(texte_taxonomie)
+    if not codes_socle:
+        return ["Constante CATALOGUE_REFERENCE introuvable dans src/opsys/taxonomie.py — "
+                "extracteur vide, contrôle non probant."]
+    titre_service = re.search(r"^#### `service`.*$", archi, re.MULTILINE)
+    if not titre_service:
+        return ["Section « service » (énumérés fermés) introuvable dans l'architecture M3."]
+    section = archi[titre_service.end():]
+    suivante = re.search(r"^#", section, re.MULTILINE)
+    section = section[:suivante.start()] if suivante else section
+    citation = re.search(r"Codes du catalogue de référence\s*:(.*?)\.\s*(?:\n\s*\n|$)", section, re.DOTALL)
+    if not citation:
+        return ["Phrase « Codes du catalogue de référence : ... » introuvable à la section service "
+                "de l'architecture — contrôle non probant."]
+    codes_m3 = set(re.findall(r"`([a-z][a-z0-9_]*)`", citation.group(1)))
+    if codes_m3 != codes_socle:
+        return [f"Catalogue de services divergent : l'architecture M3 cite {sorted(codes_m3)}, le "
+                f"catalogue du socle porte {sorted(codes_socle)} — écart "
+                f"{sorted(codes_m3 ^ codes_socle)}. `service` n'est pas un énuméré de M3."]
     return []
 
 
@@ -1916,6 +2101,16 @@ def main(dossier_str: str = None) -> int:
               "impose (accès direct ou variable intermédiaire) sur les clés "
               "« urgence_declaree », « contact » et « utm » — 3 clés sur 10 "
               "(7 gelées, 3 optionnelles), couverture mesurée, pas devinée.")
+
+    errs = verifier_contrat_v2_consomme_existe_vraiment(archi)
+    if errs:
+        erreurs.extend(errs)
+        for e in errs:
+            print(f"ECHEC : {e}")
+    else:
+        print("OK : Le contrat LeadQualifie v2 consommé correspond à celui que M2 accepte "
+              "(clés gelées et optionnelles, version, types des clés propres à la v2), et les "
+              "services cités sont ceux du catalogue du socle (PLAN T0.13).")
 
     errs = verifier_marqueur_consomme_existe_vraiment(archi)
     if errs:

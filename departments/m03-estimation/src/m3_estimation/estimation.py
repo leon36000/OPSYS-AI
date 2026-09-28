@@ -272,7 +272,11 @@ def orchestrer_estimation(
         return {"etape": "validation", "accepte": False, "verdict": verdict}
 
     lead_id = accuse["lead_id"]
-    type_travaux = accuse["type_travaux"]
+    # Lead v2 : `service` (taxonomie du socle, validé par `valider_entrees`) ; lead v1 : `type_travaux`.
+    # Dans les deux cas c'est la clé du poste du barème : une clé absente du barème BLOQUE l'estimation
+    # (« barème du service X absent : à fournir »), jamais un repli sur un autre poste.
+    est_lead_v2 = "service" in accuse
+    type_travaux = accuse["service"] if est_lead_v2 else accuse["type_travaux"]
     empreinte_marqueur_m2 = accuse["empreinte_marqueur_m2"]
 
     qualification, verdict = qualite_photos.qualifier_photos(photos, seuils)
@@ -324,7 +328,8 @@ def orchestrer_estimation(
     if not prix_bloque:
         niveau_statistique = NIVEAUX_STATISTIQUES_PAR_CONFIANCE[niveau_hierarchie]
         intervalle, verdict = monte_carlo.simuler_intervalle(
-            bareme, type_travaux, quantite, graine_effective, niveau_statistique
+            bareme, type_travaux, quantite, graine_effective, niveau_statistique,
+            services=(type_travaux,) if est_lead_v2 else (),
         )
         if verdict is not None:
             return {"etape": "intervalle", "accepte": False, "verdict": verdict}

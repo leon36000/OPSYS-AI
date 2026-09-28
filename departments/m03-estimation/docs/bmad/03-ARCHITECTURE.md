@@ -78,6 +78,32 @@ leads que son voisin accepte.
 
 Les trois clés marquées OPTIONNEL (PLAN T2.2, provenance marketing) ne changent pas le contrat
 gelé v1 : M2 les accepte si elles sont fournies, et M3 comme M4 les acceptent à l'identique.
+
+#### `LeadQualifie v2` — contrat émis par M2 depuis PLAN T0.13 (liste FERMÉE : huit clés, trois optionnelles)
+
+Le contrat gelé v1 ci-dessus reste accepté tel quel. La v2 (`departments/m01-front-office/contracts/
+m1-lead-qualifie.v2.yaml`) remplace `type_travaux` par `service` et porte sa version. M3 choisit la
+validation d'après `schema_version` : présent, v2 ; absent, v1. Il ne devine jamais la version à
+partir des autres clés.
+
+```yaml
+LeadQualifie_v2:
+  schema_version: int       # Vaut 2 (entier strict, ni booléen ni chaîne). Version EXPLICITE.
+  lead_id: str              # Identifiant stable du lead.
+  conversation_id: str      # Référence de la conversation d'origine.
+  service: str              # Code d'un service DÉCLARÉ par l'entreprise (section `service` des énumérés) ; remplace type_travaux.
+  ville: str                # Ville renseignée, non vide.
+  canal: str                # Canal d'entrée : telephone | courriel | formulaire | texte.
+  contact: dict             # Clés autorisées : nom, telephone, courriel — au moins une non vide.
+  urgence_declaree: bool    # Booléen STRICT (1 et 0 sont refusés).
+  source: str               # OPTIONNEL (PLAN T2.2) — canal d'acquisition déclaré par M7 ; chaîne non vide s'il est fourni.
+  utm: dict                 # OPTIONNEL (PLAN T2.2) — clés autorisées : utm_source, utm_medium, utm_campaign, utm_content ; non vide, valeurs chaînes non vides.
+  campagne: str             # OPTIONNEL (PLAN T2.2) — campagne marketing déclarée par M7 ; chaîne non vide s'il est fourni.
+```
+
+Un lead v2 qui porte `type_travaux`, ou un lead sans `schema_version` qui porte `service`, est refusé.
+Le barème est indexé par `service` pour un lead v2 : un service sans poste au barème BLOQUE
+l'estimation (« barème du service X absent : à fournir »), jamais un repli sur un autre poste.
 Absentes, elles ne produisent ni erreur ni valeur par défaut ; présentes, elles sont validées avec
 la même forme que chez M2 (`CHAMPS_CONTRAT_OPTIONNELS`, `CLES_UTM`), et toute autre clé reste
 refusée. M3 ne s'en sert pas pour estimer.
@@ -262,6 +288,20 @@ cette liste à la constante que M2 déclare dans sa source, et **deux valeurs ma
 (`ravalement`, `isolation_thermique`) avant que ce contrôle ne l'établisse : le consommateur
 ignorait des valeurs que le producteur émet. Filet secondaire déjà ratifié : le barème étant indexé
 par `type_travaux`, un type accepté mais absent du barème bloque l'estimation en aval (CA-M3-21).
+
+#### `service` — aucune copie locale : la taxonomie du socle fait foi
+
+Pour un lead v2, `service` n'est PAS un énuméré de M3. Sa valeur est validée contre la taxonomie
+du socle (`src/opsys/taxonomie.py`) : le catalogue de référence dit quels codes existent, le profil
+d'entreprise de l'instance (`$OPSYS_HOME/entreprise.yaml`, clé `services`) dit lesquels cette
+entreprise offre. Codes du catalogue de référence : `gouttieres`, `revetement`, `soffite_fascia`,
+`reparation`.
+
+Sans profil, ou pour un code non déclaré, M3 rejette avec `REJ-CONTRAT-INVALIDE` et un détail qui
+dit quoi configurer. Il n'existe aucune valeur d'échappatoire `autre` pour un service : l'issue que
+D-032 exige est ici un verdict de refus nommé (avec sa consigne de configuration), jamais une valeur
+fabriquée. Le contrôle de cohérence confronte la liste ci-dessus au catalogue du socle (contrôle
+13 ter).
 
 #### NiveauConfiance
 

@@ -12,7 +12,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from opsys import contexte, evenements, identite, stockage
+from opsys import contexte, evenements, identite, stockage, taxonomie
 from opsys.outils import Autonomie, Outil, depuis_couple
 
 from . import (
@@ -66,25 +66,45 @@ _SEUILS = {
 _BAREME = {
     "type": "object",
     "description": (
-        "{version, unite, postes: {type_travaux: {cout_unitaire_min, cout_unitaire_max, "
+        "{version, unite, postes: {service (lead v2) ou type_travaux (lead v1) : {cout_unitaire_min, "
+        "cout_unitaire_max, "
         "duree_minutes_par_unite (optionnel — minutes de main-d'œuvre par unité de quantite ; "
         "absent : aucune durée n'est calculée)}}}"
     ),
 }
-_TYPE_TRAVAUX = {"type": "string", "enum": list(contrats.TYPES_TRAVAUX)}
+# Type de travaux v1 (énuméré gelé) OU code de service v2 (taxonomie du socle, profil d'entreprise) :
+# le schéma ne fige pas d'énuméré, la validation métier tranche et dit quoi configurer.
+_TYPE_TRAVAUX = {
+    "type": "string",
+    "description": (
+        "type de travaux v1 (" + ", ".join(contrats.TYPES_TRAVAUX) + ") ou code d'un service "
+        "déclaré par l'entreprise (lead v2)"
+    ),
+}
 _CONTRAT = {
     "type": "object",
-    "description": "LeadQualifie émis par M2 (contrats.CHAMPS_CONTRAT_GELE), sept clés gelées.",
+    "description": (
+        "LeadQualifie émis par M2, dans la version qu'il déclare. v1 (gelée, sans schema_version) : "
+        "sept clés dont type_travaux. v2 (schema_version = 2) : service (code déclaré par le profil "
+        "d'entreprise) remplace type_travaux. source/utm/campagne optionnels."
+    ),
     "properties": {
+        "schema_version": {"type": "integer", "enum": [contrats.VERSION_CONTRAT_V2], "description": "v2 seulement."},
         "lead_id": {"type": "string"},
         "conversation_id": {"type": "string"},
-        "type_travaux": _TYPE_TRAVAUX,
+        "type_travaux": {
+            "type": "string", "enum": list(contrats.TYPES_TRAVAUX), "description": "v1 seulement (énuméré gelé).",
+        },
+        "service": {"type": "string", "description": "v2 seulement : code d'un service déclaré."},
         "ville": {"type": "string"},
         "canal": {"type": "string"},
         "contact": {"type": "object"},
         "urgence_declaree": {"type": "boolean"},
+        "source": {"type": "string"},
+        "campagne": {"type": "string"},
+        "utm": {"type": "object"},
     },
-    "required": list(contrats.CHAMPS_CONTRAT_GELE),
+    "required": [c for c in contrats.CHAMPS_CONTRAT_GELE if c != "type_travaux"],
     "additionalProperties": False,
 }
 _MARQUEUR = {
@@ -249,7 +269,20 @@ def classifier_confiance(photos: list[dict[str, Any]], seuils: dict[str, Any]) -
 def simuler_intervalle(
     bareme: dict[str, Any], type_travaux: str, quantite: float, graine: int, niveau: float = 0.9
 ) -> dict[str, Any]:
-    intervalle, rejet = monte_carlo.simuler_intervalle(bareme, type_travaux, quantite, graine, niveau)
+    services: tuple[str, ...] = ()
+    if isinstance(type_travaux, str) and type_travaux not in contrats.TYPES_TRAVAUX:
+        # Ni type v1 ni rien d'autre : c'est un service, qui doit être déclaré par l'entreprise. Le
+        # refus porte le verdict du socle (quoi configurer), jamais un repli sur un autre poste.
+        service, verdict_service = taxonomie.valider_service(type_travaux)
+        if verdict_service is not None:
+            return {"accepte": False, "verdict": verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE",
+                detail=f"service {type_travaux!r} : {verdict_service['code']} : {verdict_service['detail']}",
+            )}
+        services = (service.code,)
+    intervalle, rejet = monte_carlo.simuler_intervalle(
+        bareme, type_travaux, quantite, graine, niveau, services=services
+    )
     if rejet is not None:
         return depuis_couple((intervalle, rejet))
     intervalle = {

@@ -28,6 +28,8 @@ ne peut donc ni vérifier ni reconstruire la chaîne de hachage amont.
 
 from datetime import datetime
 
+from opsys import taxonomie
+
 from . import contrats
 from . import verdicts
 
@@ -57,6 +59,7 @@ NOEUDS_MAX = 10000
 _CHIFFRES_HEXA = frozenset("0123456789abcdefABCDEF")
 
 _CHAMPS_CHAINES_CONTRAT = ("lead_id", "conversation_id", "ville", "canal")
+_CHAMPS_CHAINES_CONTRAT_V2 = ("lead_id", "conversation_id", "ville", "canal", "service")
 
 
 def _est_chaine_non_vide(valeur):
@@ -132,13 +135,16 @@ def _garde_noire(entrees):
     return None
 
 
-def _valider_contrat(contrat):
-    """Garde blanche du contrat LeadQualifie. Retourne un verdict ou None."""
+def _valider_contrat(contrat, services=None):
+    """Garde blanche du contrat LeadQualifie, dans la version qu'il DÉCLARE (PLAN T0.13) :
+    `schema_version` présent = v2, absent = v1 gelé. Retourne un verdict ou None."""
     if not isinstance(contrat, dict):
         return verdicts.construire_verdict(
             "REJ-CONTRAT-INVALIDE",
             detail="le contrat n'est pas un dictionnaire",
         )
+    if "schema_version" in contrat:
+        return _valider_contrat_v2(contrat, services)
     cles_presentes = set(contrat.keys())
     cles_attendues = set(contrats.CHAMPS_CONTRAT_GELE)
     cles_permises = cles_attendues | set(contrats.CHAMPS_CONTRAT_OPTIONNELS)
@@ -166,6 +172,50 @@ def _valider_contrat(contrat):
                 f"{contrat['type_travaux']!r} hors énuméré"
             ),
         )
+    return _valider_contact_urgence_optionnels(contrat)
+
+
+def _valider_contrat_v2(contrat, services):
+    """Contrat v2 : `service` validé contre la taxonomie du socle, jamais contre un énuméré local.
+
+    Un service hors du profil d'entreprise de l'instance, ou l'absence de profil, est un refus
+    NOMMÉ dont le détail dit quoi configurer : aucun service par défaut, aucun repli sur « autre ».
+    """
+    if type(contrat["schema_version"]) is not int or contrat["schema_version"] != contrats.VERSION_CONTRAT_V2:
+        return verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE",
+            detail=f"champ 'schema_version' : la valeur {contrats.VERSION_CONTRAT_V2} (entier) est exigée",
+        )
+    cles_presentes = set(contrat.keys())
+    cles_attendues = set(contrats.CHAMPS_CONTRAT_GELE_V2)
+    cles_permises = cles_attendues | set(contrats.CHAMPS_CONTRAT_OPTIONNELS)
+    manquantes = sorted(cles_attendues - cles_presentes)
+    inconnues = sorted(cles_presentes - cles_permises)
+    if manquantes or inconnues:
+        return verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE",
+            detail=(
+                f"clés du contrat v2 non conformes "
+                f"(manquantes={manquantes}, inconnues={inconnues})"
+            ),
+        )
+    for champ in _CHAMPS_CHAINES_CONTRAT_V2:
+        if not _est_chaine_non_vide(contrat[champ]):
+            return verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE",
+                detail=f"champ {champ!r} : chaîne non vide exigée",
+            )
+    _, verdict_service = taxonomie.valider_service(contrat["service"], services)
+    if verdict_service is not None:
+        return verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE",
+            detail=f"champ 'service' : {verdict_service['code']} : {verdict_service['detail']}",
+        )
+    return _valider_contact_urgence_optionnels(contrat)
+
+
+def _valider_contact_urgence_optionnels(contrat):
+    """Suite commune aux versions v1 et v2 : contact, urgence déclarée, clés optionnelles."""
     contact = contrat["contact"]
     if not isinstance(contact, dict) or not set(contact.keys()) <= set(
         contrats.CHAMPS_CONTACT
@@ -280,7 +330,7 @@ def _valider_photos(photos):
     return None
 
 
-def valider_entrees(contrat, marqueur, photos):
+def valider_entrees(contrat, marqueur, photos, services=None):
     """Valide les trois entrées de M3 et produit un accusé ou un verdict.
 
     Ordre ÉPINGLÉ ; rien n'est produit si un contrôle échoue. La garde
@@ -290,9 +340,13 @@ def valider_entrees(contrat, marqueur, photos):
     ``lead_id`` vient APRÈS la validation structurelle du marqueur, parce
     que comparer un champ qu'on n'a pas encore validé n'a pas de sens.
 
+    ``services`` : déclaration de services à confronter pour un lead v2 (tests, appelant qui l'a
+    déjà lue) ; absente, le profil d'entreprise de l'instance est lu (`opsys.taxonomie`).
+
     Returns:
         (accuse, None) si toutes les entrées sont valides, (None, verdict)
-        sinon.
+        sinon. L'accusé d'un lead v1 porte `type_travaux` (inchangé) ; celui d'un lead v2 porte
+        `service` et `schema_version`, jamais `type_travaux`.
     """
     # 1. Garde NOIRE d'abord, sur les TROIS entrées : c'est l'ORDRE des
     #    gardes qui protège le diagnostic. La garde noire s'exécute AVANT
@@ -306,7 +360,7 @@ def valider_entrees(contrat, marqueur, photos):
         return None, verdict
 
     # 2. Garde blanche du contrat LeadQualifie.
-    verdict = _valider_contrat(contrat)
+    verdict = _valider_contrat(contrat, services)
     if verdict is not None:
         return None, verdict
 
@@ -342,11 +396,15 @@ def valider_entrees(contrat, marqueur, photos):
     #    recalculée.
     accuse = {
         "lead_id": contrat["lead_id"],
-        "type_travaux": contrat["type_travaux"],
         "ville": contrat["ville"],
         "empreinte_marqueur_m2": marqueur["empreinte"],
         "nombre_photos": len(photos),
     }
+    if "schema_version" in contrat:
+        accuse["service"] = contrat["service"]
+        accuse["schema_version"] = contrat["schema_version"]
+    else:
+        accuse["type_travaux"] = contrat["type_travaux"]
     return accuse, None
 
 
