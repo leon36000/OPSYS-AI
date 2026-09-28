@@ -72,6 +72,27 @@ beforeAll(async () => {
     import("../../agents/embedded-agent.js"),
     import("../../agents/agent-bundle-mcp-tools.js"),
     import("../../agents/bash-process-registry.js"),
+    // T0.6: the "live Gateway" case drives the real sessions.delete dispatch (the
+    // other two cases never reach it, for lack of a live Gateway context), which
+    // reaches these two unconditionally on its own, still-uncovered path:
+    //   - dispatchGatewayRequestInProcessRaw (server-in-process-dispatch.ts) itself
+    //     lazily imports the central request handler `../../gateway/server-methods.js`
+    //     (handleGatewayRequest) -- a different file from the server-methods/
+    //     directory already listed above -- for every method, not only sessions.delete.
+    //   - cleanupSessionBeforeMutation's first step, ensureSessionRuntimeCleanup
+    //     (session-reset-service.ts), lazily imports
+    //     `../../agents/embedded-agent-runner/runs.js` -- distinct from
+    //     `../../agents/embedded-agent.js` above, which does not import it.
+    import("../../gateway/server-methods.js"),
+    import("../../agents/embedded-agent-runner/runs.js"),
+    // Reached conditionally, inside handleGatewayRequest's authorizeGatewayRequestPreDispatch,
+    // when canonical session validation for this request's freshly opened test database has
+    // not yet been certified ready (withCanonicalSessionValidationDeferral resolves "pending"):
+    // `../../config/sessions/session-canonical-validation-readiness.js`. Included for the same
+    // reason as the two above -- on the reachable graph for this exact dispatch, even where its
+    // own guard (`params.method.startsWith("sessions.groups.")`) rules out a sibling import in
+    // the same function for our method.
+    import("../../config/sessions/session-canonical-validation-readiness.js"),
   ]);
 });
 afterEach(() => vi.restoreAllMocks());
