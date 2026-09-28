@@ -81,14 +81,45 @@ l'ont amélioré — et à chaque itération il gagnait un défaut propre : deux
 identifiant, une variable hors portée, un motif présent dans la sortie normale. **Sa
 complexité était devenue le goulot.**
 
-Les mêmes propriétés s'expriment en six tests courts : chaque batterie refuse une suite déjà
+Les mêmes propriétés s'expriment en dix tests courts : chaque batterie refuse une suite déjà
 rouge, l'énumérateur refuse aussi un module sans garde, les deux abandons sont DISTINCTS,
-chaque outil est SAIN avant sabotage (rc nul ET phrase d'abandon absente), et aucune trace ne
-subsiste — empreinte, mode d'accès, chemins apparus ou disparus.
+chaque outil est SAIN avant sabotage (rc nul ET phrase d'abandon absente), une mutation non
+compilable est signalée par sa propre phrase, et aucune trace ne subsiste — empreinte, mode
+d'accès, chemins apparus ou disparus.
 
 Une PHRASE, jamais un mot. Le motif « ROUGE » avait été retenu puis rejeté : il apparaît dans
 la sortie normale des batteries, où chaque mutation qui mord imprime `-> ROUGE`. C'est le
 contrôle « sain avant sabotage » qui l'a démasqué, dès sa première exécution.
+
+### L'épreuve elle-même travaille sur une copie (PLAN T0.12-suite)
+
+Pour éprouver les gardes, `test_gardes_des_outils.py` doit faire échouer les outils sur
+COMMANDE : un test déjà rouge, un module sans aucun `if`, une mutation non compilable. Jusqu'à
+T0.12-suite, ces trois artefacts étaient écrits DIRECTEMENT dans les vrais dossiers du
+département (`departments/m03-estimation/tests`, `.../tests/outils_preuve` et
+`.../src/m3_estimation`), puis retirés dans un `finally` — le même schéma « écrire puis
+restaurer » dont l'incident du 2026-09-28 avait déjà montré le risque pour les outils de
+mutation eux-mêmes (T0.12, ci-dessus) : une exécution interrompue (délai dépassé, processus
+tué) laisse le fichier en place, la suite suivante échoue, et un `git add -A` le commiterait.
+
+L'épreuve utilise désormais la MÊME `EnvironnementMutation` que les outils qu'elle éprouve,
+plutôt qu'un second mécanisme : chaque artefact est écrit dans une copie jetable du
+département, et l'outil à éprouver est lancé avec cette copie comme racine — il y construit à
+son tour SA PROPRE copie interne (le même « chaque appelant obtient une copie complète et
+jetable » que documente `_environnement_mutation.py`), si bien que l'artefact n'est jamais
+visible que depuis des dossiers temporaires, imbriqués mais tous jetables. Un `kill -9` en
+cours de route laisse au pire un dossier orphelin sous le répertoire temporaire du système ;
+jamais une trace dans le dépôt.
+
+Deux preuves, dans l'esprit de celles de T0.12 mais portant sur l'épreuve elle-même plutôt que
+sur les outils : `test_l_epreuve_des_gardes_n_ecrit_jamais_sous_la_vraie_racine_du_departement`
+vérifie STRUCTURELLEMENT (AST, résolution des affectations simples) qu'aucun appel d'écriture
+du fichier ne cible les constantes désignant le vrai dépôt ou le vrai département ;
+`test_empreinte_de_src_et_tests_identique_apres_confection_d_une_epreuve` fabrique réellement
+les deux artefacts et compare l'empreinte SHA-256 (et le mode d'accès) de CHAQUE fichier sous
+`src/` ET `tests/` avant et après : identiques. Volontairement sans sous-processus, pour isoler
+la seule opération qui écrivait sur disque de la confection d'une batterie complète, déjà
+éprouvée par ailleurs dans ce même fichier.
 
 ## `bilan_preuves.py` — le bilan des gates, produit par un instrument
 
