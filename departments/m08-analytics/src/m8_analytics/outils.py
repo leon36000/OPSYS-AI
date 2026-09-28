@@ -68,6 +68,23 @@ _DEFINITION_REGISTRE = {
         "regles_qualite: {plage_min, plage_max}} (T3.1)."
     ),
 }
+_ALERTE = {
+    "type": "object",
+    "description": "AlerteProposee {type_alerte, quoi, a_qui, pourquoi, preuve, source} (alertes.proposer_action).",
+}
+_COMPOSANTES = {
+    "type": ["object", "null"],
+    "description": (
+        "T3.1-suite : {metric_id_composante: coefficient signé} pour un contrôle de cohérence "
+        "optionnel (ex. {\"m5_revenu_cad\": 1.0, \"m5_cout_cad\": -1.0} pour une marge). Chaque "
+        "valeur de composante est re-dérivée par M8 depuis le registre, jamais transmise brute. "
+        "Fourni seulement avec tolerance_coherence, jamais l'un sans l'autre."
+    ),
+}
+_TOLERANCE_COHERENCE = {
+    "type": ["number", "null"],
+    "description": "Écart absolu accepté entre la valeur observée et la somme pondérée de composantes.",
+}
 
 
 def compiler_dictionnaire(racine_modules: str) -> dict[str, Any]:
@@ -94,8 +111,10 @@ def construire_rapport(
     return rapports.construire_rapport(metriques, signaux, role, metric_ids_autorises)
 
 
-def produire_digest_quotidien(signaux: list[dict[str, Any]]) -> dict[str, Any]:
-    return digest_module.produire_digest_quotidien(signaux)
+def produire_digest_quotidien(
+    signaux: list[dict[str, Any]], alertes_proposees: list[dict[str, Any]] | None = None
+) -> dict[str, Any]:
+    return digest_module.produire_digest_quotidien(signaux, alertes_proposees)
 
 
 # ---------------------------------------------------------------------------
@@ -165,6 +184,20 @@ def consommateurs() -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 _DEPARTEMENT = "m08-analytics"
 
+# T3.1-suite : le schéma du catalogue (src/opsys/evenements/catalogue/m8.alerte_proposee.json)
+# fige encore `type_alerte` (enum) et `preuve` (oneOf) aux TROIS verdicts de T3.1 — l'étendre est
+# hors périmètre de ce lot (catalogue d'événements touché seulement si nécessaire, ce qui n'est
+# pas encore le cas : ces deux nouvelles alertes restent pleinement utiles sans le bus, via la
+# réponse de l'outil et digest.py). Publier un `type_alerte` hors énuméré ferait échouer la
+# validation JSON Schema de `evenements.publier` (ChargeInvalide) : cette liste blanche est donc
+# un fail-closed VOLONTAIRE, pas un oubli — `test_alerte_doublon_nest_jamais_publiee_sur_le_bus_
+# catalogue_non_etendu` (test_evenements_alerte_proposee.py) le verrouille.
+_TYPES_ALERTE_SUR_BUS = frozenset({
+    qualite.VERDICT_DONNEE_ABSENTE,
+    qualite.VERDICT_DONNEE_PERIMEE,
+    qualite.VERDICT_HORS_PLAGE,
+})
+
 
 def _publier_alerte_proposee(metric_id: str, alerte: dict[str, Any], horodatage_reference: str) -> None:
     """Publie l'AlerteProposee sur le bus, DANS LA MÊME TRANSACTION que l'évaluation qui vient de
@@ -187,8 +220,14 @@ def _publier_alerte_proposee(metric_id: str, alerte: dict[str, Any], horodatage_
     toujours rien et n'appelle toujours aucun autre département — elle publie un FAIT, comme le
     fait déjà M6 pour `m6.variance_chantier` depuis un outil T1) ;
     `test_paliers_t3_1_coherents_avec_departements_md` verrouille ce choix.
+
+    Gardé aussi par `_TYPES_ALERTE_SUR_BUS` (T3.1-suite) : un `type_alerte` absent de cette liste
+    (doublon, incohérence) n'est jamais envoyé au bus — voir le commentaire au-dessus de la
+    constante.
     """
     if stockage.connexion_courante() is None:
+        return
+    if alerte["type_alerte"] not in _TYPES_ALERTE_SUR_BUS:
         return
     ident = f"m8-alerte-{metric_id}-{alerte['type_alerte']}-{horodatage_reference}"
     charge = {
@@ -224,23 +263,48 @@ def outils(
     if definitions_cible is None:
         definitions_cible = stockage.maillons("m08-analytics", "definitions_metriques")
 
-    def _historique_numerique(module_source: str, metric_id: str) -> list[float]:
-        """Série chronologique (ordre du registre) des valeurs numériques d'un metric_id.
+    def _candidats_numeriques(module_source: str, metric_id: str) -> list[tuple[str, float]]:
+        """Paires (horodatage, valeur) valides, ordre du registre, pour un module_source+metric_id.
 
         Même règle de conversion que semantique.deriver_metrique : une valeur qui ne convertit
-        pas en float est exclue du compte, jamais une erreur ni une valeur inventée.
+        pas en float est exclue du compte, jamais une erreur ni une valeur inventée. Source
+        commune à `_historique_numerique` (XmR, T3.1) et à la détection de doublons d'observation
+        (T3.1-suite, `qualite.evaluer_unicite`) — un seul passage sur le registre, deux usages.
         """
-        valeurs: list[float] = []
+        candidats: list[tuple[str, float]] = []
         for maillon in registre_cible.lire():
             if maillon["module_source"] != module_source:
                 continue
             if metric_id not in maillon["valeurs"]:
                 continue
             try:
-                valeurs.append(float(maillon["valeurs"][metric_id]))
+                valeur = float(maillon["valeurs"][metric_id])
             except (TypeError, ValueError):
                 continue
-        return valeurs
+            candidats.append((maillon["horodatage"], valeur))
+        return candidats
+
+    def _historique_numerique(module_source: str, metric_id: str) -> list[float]:
+        """Série chronologique (ordre du registre) des valeurs numériques d'un metric_id."""
+        return [valeur for _, valeur in _candidats_numeriques(module_source, metric_id)]
+
+    def _resoudre_valeur_composante(metric_id_composante: str, horodatage_reference: str) -> float | None:
+        """Valeur DÉRIVÉE d'une composante pour le contrôle de cohérence (T3.1-suite) — jamais une
+        valeur fournie brute par l'appelant : résout la PROPRE définition enregistrée de cette
+        composante dans le registre durable, puis la dérive contre CE MÊME registre de snapshots,
+        exactement comme pour la métrique dérivée elle-même. `None` si la composante n'est pas
+        enregistrée ou n'a encore aucune valeur — fail-closed mais SILENCIEUX : le contrôle de
+        cohérence est alors simplement ignoré pour cet appel (voir `evaluer_qualite_metrique`),
+        jamais une composante devinée ni une exception qui ferait perdre les autres alertes déjà
+        trouvées pour la métrique dérivée.
+        """
+        definition_composante = registre_metriques.resoudre(metric_id_composante, definitions_cible)
+        if definition_composante is None:
+            return None
+        return semantique.deriver_metrique(
+            definition_composante["departement_proprietaire"], metric_id_composante,
+            definition_composante, registre_cible, horodatage_reference,
+        )["valeur"]
 
     def rapport_metriques(
         dictionnaire: dict[str, Any],
@@ -302,18 +366,42 @@ def outils(
             }
         return {"trouvee": True, "verdict": None, "definition": definition}
 
-    def evaluer_qualite_metrique(metric_id: str, horodatage_reference: str) -> dict[str, Any]:
+    def evaluer_qualite_metrique(
+        metric_id: str,
+        horodatage_reference: str,
+        composantes: dict[str, float] | None = None,
+        tolerance_coherence: float | None = None,
+    ) -> dict[str, Any]:
         """Résout la définition enregistrée, dérive la valeur courante (sémantique.py, contre le
-        même registre de snapshots que `rapport_metriques`), puis évalue présence, fraîcheur et
-        plage — PUREMENT à partir de `horodatage_reference` fourni (qualite.py ne lit jamais
-        l'horloge). Propose 0 à 2 alertes structurées (jamais exécutées, jamais un appel à un
-        autre département) ; réponse compacte, aucun historique complet renvoyé.
+        même registre de snapshots que `rapport_metriques`), puis évalue présence, fraîcheur,
+        plage et unicité — PUREMENT à partir de `horodatage_reference` fourni (qualite.py ne lit
+        jamais l'horloge). Propose 0 à N alertes structurées (jamais exécutées, jamais un appel à
+        un autre département) ; réponse compacte, aucun historique complet renvoyé.
 
-        Chaque alerte proposée est aussi PUBLIÉE sur le bus (`m8.alerte_proposee`, PLAN T3.2,
-        `_publier_alerte_proposee`) pour que M9 la consomme sans lire directement le registre M8
-        — seulement en production (garde `stockage.connexion_courante`) ; la réponse ci-dessous et
-        l'autonomie T0 de cet outil restent inchangées (voir `_publier_alerte_proposee`).
+        `composantes` (T3.1-suite, optionnel) déclenche EN PLUS un contrôle de cohérence entre
+        séries : `{metric_id_composante: coefficient}`, où `coefficient` encode le signe attendu
+        (ex. `-1.0` pour une composante soustraite, comme un coût dans une marge). Chaque valeur
+        de composante est RE-DÉRIVÉE par M8 depuis sa propre définition enregistrée (jamais reçue
+        brute de l'appelant — voir `_resoudre_valeur_composante`) ; une composante non enregistrée
+        ou sans donnée fait simplement ignorer le contrôle de cohérence pour cet appel (silencieux,
+        jamais une exception qui ferait perdre les autres alertes déjà trouvées). `tolerance_
+        coherence` est alors REQUISE (fail-closed : jamais une tolérance devinée) — fournir l'un
+        sans l'autre est un refus métier (`ValueError`).
+
+        Chaque alerte proposée D'UN TYPE DÉJÀ CATALOGUÉ est aussi PUBLIÉE sur le bus
+        (`m8.alerte_proposee`, PLAN T3.2, `_publier_alerte_proposee`) pour que M9 la consomme sans
+        lire directement le registre M8 — seulement en production (garde
+        `stockage.connexion_courante`) ; la réponse ci-dessous et l'autonomie T0 de cet outil
+        restent inchangées. Les alertes de doublon et de cohérence (T3.1-suite) ne sont PAS encore
+        publiées sur le bus (schéma du catalogue non étendu par ce lot, voir
+        `_TYPES_ALERTE_SUR_BUS`) ; elles restent dans la réponse et alimentent le digest quotidien.
         """
+        if (composantes is None) != (tolerance_coherence is None):
+            raise ValueError(
+                "composantes et tolerance_coherence doivent être fournis ensemble ou pas du "
+                "tout : jamais une tolérance de cohérence devinée."
+            )
+
         definition = registre_metriques.resoudre(metric_id, definitions_cible)
         if definition is None:
             return {
@@ -345,6 +433,32 @@ def outils(
             if hors_plage is not None:
                 alertes_proposees.append(alertes.proposer_action(hors_plage, definition))
 
+            horodatages = [
+                horodatage
+                for horodatage, _ in _candidats_numeriques(definition["departement_proprietaire"], metric_id)
+            ]
+            doublon = qualite.evaluer_unicite(metric_id, horodatages)
+            if doublon is not None:
+                alertes_proposees.append(alertes.proposer_action(doublon, definition))
+
+            if composantes is not None:
+                composantes_resolues: dict[str, dict[str, float]] = {}
+                toutes_connues = True
+                for metric_id_composante, coefficient in composantes.items():
+                    valeur_composante = _resoudre_valeur_composante(metric_id_composante, horodatage_reference)
+                    if valeur_composante is None:
+                        toutes_connues = False
+                        break
+                    composantes_resolues[metric_id_composante] = {
+                        "coefficient": coefficient, "valeur": valeur_composante,
+                    }
+                if toutes_connues:
+                    incoherence = qualite.evaluer_coherence(
+                        metric_id, valeur_metrique["valeur"], composantes_resolues, tolerance_coherence
+                    )
+                    if incoherence is not None:
+                        alertes_proposees.append(alertes.proposer_action(incoherence, definition))
+
         for alerte in alertes_proposees:
             _publier_alerte_proposee(metric_id, alerte, horodatage_reference)
 
@@ -357,6 +471,11 @@ def outils(
             "fraicheur_jours": valeur_metrique["fraicheur"],
             "alertes_proposees": alertes_proposees,
         }
+
+    def lister_definitions_metriques(limite: int, curseur: int = 0) -> dict[str, Any]:
+        """Listage compact et paginé du registre durable des définitions (T3.1-suite) : voir
+        `registre_metriques.lister` — jamais l'historique complet."""
+        return registre_metriques.lister(definitions_cible, limite, curseur)
 
     return (
         Outil(
@@ -471,11 +590,16 @@ def outils(
             nom="m8_produire_digest_quotidien",
             description=(
                 "Assemble le digest quotidien déterministe à partir de signaux XmR déjà "
-                "calculés (signaux actifs seulement, jamais DONNEES_INSUFFISANTES)."
+                "calculés (signaux actifs seulement, jamais DONNEES_INSUFFISANTES) et d'alertes "
+                "de qualité déjà proposées (T3.1-suite) — sourcées, dédupliquées par contenu "
+                "exact ; une journée sans alerte le dit explicitement (resume_alertes)."
             ),
             parametres={
                 "type": "object",
-                "properties": {"signaux": {"type": "array", "items": _SIGNAL}},
+                "properties": {
+                    "signaux": {"type": "array", "items": _SIGNAL},
+                    "alertes_proposees": {"type": ["array", "null"], "items": _ALERTE},
+                },
                 "required": ["signaux"],
                 "additionalProperties": False,
             },
@@ -517,11 +641,14 @@ def outils(
             nom="m8_evaluer_qualite_metrique",
             description=(
                 "Évalue la qualité et la fraîcheur d'une métrique déjà enregistrée (présence, "
-                "âge vs fraîcheur attendue, plage), à partir d'un horodatage de référence fourni "
-                "— jamais l'horloge interne — et propose une alerte structurée "
-                "(quoi/à qui/pourquoi/preuve) par problème détecté. Ne l'exécute jamais et n'agit "
-                "sur aucun autre département ; publie chaque alerte sur le bus (m8.alerte_proposee) "
-                "pour que d'autres départements (M9) la consomment sans lire le registre M8."
+                "âge vs fraîcheur attendue, plage, doublon d'observation, et cohérence avec ses "
+                "composantes si fournies), à partir d'un horodatage de référence fourni — jamais "
+                "l'horloge interne — et propose une alerte structurée (quoi/à qui/pourquoi/preuve) "
+                "par problème détecté. Ne l'exécute jamais et n'agit sur aucun autre département ; "
+                "publie sur le bus (m8.alerte_proposee) chaque alerte d'un type déjà catalogué "
+                "(absence, péremption, hors plage) pour que d'autres départements (M9) la "
+                "consomment sans lire le registre M8 — les alertes de doublon et de cohérence "
+                "restent dans la réponse (catalogue non encore étendu)."
             ),
             parametres={
                 "type": "object",
@@ -531,10 +658,37 @@ def outils(
                         "type": "string",
                         "description": "Instant de référence pour la fraîcheur (M8 n'a pas d'horloge).",
                     },
+                    "composantes": _COMPOSANTES,
+                    "tolerance_coherence": _TOLERANCE_COHERENCE,
                 },
                 "required": ["metric_id", "horodatage_reference"],
                 "additionalProperties": False,
             },
             fonction=evaluer_qualite_metrique,
+        ),
+        Outil(
+            nom="m8_lister_definitions_metriques",
+            description=(
+                "Listage compact et paginé du registre durable des définitions surveillées par "
+                "M8 : identifiant, département propriétaire, unité, fraîcheur attendue et numéro "
+                "de version — une ligne par métrique (dernière version seulement), jamais "
+                "l'historique complet."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "limite": {
+                        "type": "integer",
+                        "description": "Nombre maximal de définitions retournées (strictement positif).",
+                    },
+                    "curseur": {
+                        "type": "integer",
+                        "description": "Décalage de pagination, 0 = première page (défaut : 0).",
+                    },
+                },
+                "required": ["limite"],
+                "additionalProperties": False,
+            },
+            fonction=lister_definitions_metriques,
         ),
     )

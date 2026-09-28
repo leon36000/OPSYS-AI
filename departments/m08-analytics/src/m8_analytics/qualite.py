@@ -1,7 +1,7 @@
 """Évaluation de qualité et de fraîcheur d'une métrique (T3.1, DEFINITION-PRODUIT.md §7 M8.4/M8.5).
 
-Module PUR (ADR-0009) : aucun import d'``opsys``, aucune horloge. Les trois fonctions ci-dessous
-ne lisent JAMAIS le temps elles-mêmes — la fraîcheur qu'elles comparent (``fraicheur_jours``) est
+Module PUR (ADR-0009) : aucun import d'``opsys``, aucune horloge. Les fonctions ci-dessous ne
+lisent JAMAIS le temps elles-mêmes — la fraîcheur qu'elles comparent (``fraicheur_jours``) est
 TOUJOURS un nombre déjà calculé par l'appelant à partir d'un horodatage de référence explicite
 (même discipline que ``semantique.py::deriver_metrique(horodatage_reference=...)``, dont la
 sortie ``fraicheur`` est la source attendue de ce paramètre — voir ``outils.py`` pour la
@@ -11,11 +11,17 @@ dates, seulement des comparaisons de nombres déjà connus.
 
 Fail-closed : une donnée absente (``n == 0`` ou ``valeur is None``) n'est JAMAIS remplacée par un
 zéro ou une moyenne devinée — ``evaluer_presence`` renvoie un verdict nommé qui dit quoi
-demander. Une valeur périmée ou hors plage devient une évaluation renvoyée à l'appelant (jamais
-un silence) ; ``alertes.py`` la transforme ensuite en action PROPOSÉE, jamais exécutée.
+demander. Une valeur périmée, hors plage, en double ou incohérente avec ses composantes devient
+une évaluation renvoyée à l'appelant (jamais un silence) ; ``alertes.py`` la transforme ensuite
+en action PROPOSÉE, jamais exécutée.
 
 Chaque fonction renvoie ``None`` quand il n'y a rien à signaler (même patron que
 ``xmr.py::detecter_signal``), ou un dict avec un ``verdict`` nommé sinon.
+
+T3.1-suite (docs/programme/PLAN.md) ajoute deux familles « au-delà de la plage » :
+``evaluer_unicite`` (doublons d'observation pour une même métrique) et ``evaluer_coherence``
+(une métrique dérivée qui ne concorde pas avec ses composantes, elles-mêmes déjà dérivées —
+jamais une valeur de composante fournie brute par l'appelant, voir ``outils.py``).
 """
 
 from __future__ import annotations
@@ -25,6 +31,8 @@ from typing import Any
 VERDICT_DONNEE_ABSENTE = "REJ-QUALITE-DONNEE-ABSENTE"
 VERDICT_DONNEE_PERIMEE = "REJ-QUALITE-DONNEE-PERIMEE"
 VERDICT_HORS_PLAGE = "REJ-QUALITE-HORS-PLAGE"
+VERDICT_DOUBLON = "REJ-QUALITE-DOUBLON"
+VERDICT_INCOHERENT = "REJ-QUALITE-INCOHERENCE"
 
 
 def evaluer_presence(metric_id: str, n: int, valeur: float | None) -> dict[str, Any] | None:
@@ -77,4 +85,70 @@ def evaluer_plage(
         "valeur": valeur,
         "plage_min": plage_min,
         "plage_max": plage_max,
+    }
+
+
+def evaluer_unicite(metric_id: str, horodatages: list[str]) -> dict[str, Any] | None:
+    """``VERDICT_DOUBLON`` si au moins un horodatage apparaît plus d'une fois dans
+    ``horodatages`` — la liste des horodatages de TOUTES les observations numériques valides déjà
+    trouvées pour ce ``metric_id`` (même filtre que ``semantique.deriver_metrique`` : une valeur
+    non convertible en nombre est déjà exclue par l'appelant avant d'arriver ici).
+
+    Deux maillons distincts du registre qui prétendent au MÊME instant pour la MÊME métrique sont
+    une anomalie de qualité — que leurs valeurs concordent ou non, et peu importe laquelle
+    ``semantique.deriver_metrique`` choisit d'afficher (la plus récemment écrite) : ce choix
+    masque l'ambiguïté que cette fonction signale explicitement, jamais en silence.
+
+    Aucun horodatage, ou tous distincts : rien à signaler, ``None`` (même patron que
+    ``evaluer_presence``/``evaluer_plage``)."""
+    occurrences: dict[str, int] = {}
+    for horodatage in horodatages:
+        occurrences[horodatage] = occurrences.get(horodatage, 0) + 1
+    doublons = {horodatage: n for horodatage, n in occurrences.items() if n > 1}
+    if not doublons:
+        return None
+    return {
+        "metric_id": metric_id,
+        "verdict": VERDICT_DOUBLON,
+        "horodatages_doublons": dict(sorted(doublons.items())),
+        "n_observations": len(horodatages),
+    }
+
+
+def evaluer_coherence(
+    metric_id: str,
+    valeur: float,
+    composantes: dict[str, dict[str, float]],
+    tolerance: float,
+) -> dict[str, Any] | None:
+    """``VERDICT_INCOHERENT`` si ``valeur`` (la métrique DÉRIVÉE, déjà dérivée par le même
+    mécanisme que les autres contrôles de ce module) s'écarte de plus de ``tolerance`` de la
+    somme pondérée de ``composantes`` — ``{metric_id_composante: {"coefficient": ..., "valeur":
+    ...}}``, où ``coefficient`` encode le signe attendu dans la formule (ex. ``-1.0`` pour une
+    composante soustraite, comme un coût dans un calcul de marge) et ``valeur`` est la valeur
+    DÉJÀ dérivée de cette composante par le même registre (``outils.py`` la résout via
+    ``semantique.deriver_metrique``, jamais une valeur transmise brute par l'appelant — sans
+    quoi un agent pourrait « inventer » la valeur d'une composante).
+
+    ``tolerance`` est TOUJOURS fournie par l'appelant (jamais un défaut interne, même discipline
+    que ``fraicheur_attendue_jours`` ou ``n_minimal`` de ``xmr.py``) : une tolérance de calcul
+    (arrondi, unité) diffère d'une métrique à l'autre, M8 ne peut pas la deviner. Limite
+    inclusive, même convention que ``evaluer_fraicheur`` : un écart exactement égal à la
+    tolérance n'est pas encore une incohérence, seul un dépassement STRICT l'est.
+
+    ``composantes`` vide : la somme attendue est 0 — un choix assumé de l'appelant (ex. une
+    métrique censée être nulle), pas une absence de données (``evaluer_presence`` couvre déjà ce
+    cas pour la métrique dérivée elle-même)."""
+    valeur_attendue = sum(detail["coefficient"] * detail["valeur"] for detail in composantes.values())
+    ecart = valeur - valeur_attendue
+    if abs(ecart) <= tolerance:
+        return None
+    return {
+        "metric_id": metric_id,
+        "verdict": VERDICT_INCOHERENT,
+        "valeur": valeur,
+        "valeur_attendue": valeur_attendue,
+        "ecart": ecart,
+        "tolerance": tolerance,
+        "composantes": {cle: dict(detail) for cle, detail in composantes.items()},
     }

@@ -136,3 +136,42 @@ def test_evaluer_qualite_metrique_sans_transaction_ne_publie_rien(base_durable):
     assert reponse["ok"] is True
     assert len(reponse["resultat"]["alertes_proposees"]) == 1  # l'évaluation elle-même fonctionne
     assert _evenements_publies("m8.alerte_proposee") == []  # mais rien n'est publié hors transaction
+
+
+def test_alerte_doublon_nest_jamais_publiee_sur_le_bus_catalogue_non_etendu(base_durable):
+    """T3.1-suite : REJ-QUALITE-DOUBLON et REJ-QUALITE-INCOHERENCE ne figurent pas dans l'énuméré
+    `type_alerte` du catalogue (src/opsys/evenements/catalogue/m8.alerte_proposee.json),
+    volontairement non étendu par ce lot (catalogue d'événements touché seulement si nécessaire —
+    ce ne l'était pas ici). Publier l'une de ces deux alertes ferait échouer la validation JSON
+    Schema du bus ; `outils.py::_publier_alerte_proposee` filtre donc explicitement par
+    `_TYPES_ALERTE_SUR_BUS`. L'alerte reste néanmoins dans la réponse de l'outil (et peut nourrir
+    le digest quotidien), jamais perdue — seule sa publication sur le bus est omise."""
+    par_nom = {o.nom: o for o in outils()}
+    executer_atomique(par_nom["m8_enregistrer_definition_metrique"], {"definition": _DEFINITION_M4})
+    for valeur in ("42", "43"):  # même horodatage : doublon d'observation
+        executer_atomique(
+            par_nom["m8_rapport_metriques"],
+            {
+                "dictionnaire": {"m04-field-ops": {"m4_duree_reelle_minutes": {}}},
+                "snapshot": {
+                    "module_source": "m04-field-ops",
+                    "horodatage": "2026-01-01T00:00:00Z",
+                    "valeurs": {"m4_duree_reelle_minutes": valeur},
+                },
+                "metric_ids": ["m4_duree_reelle_minutes"],
+                "horodatage_reference": "2026-01-01T00:00:00Z",
+                "n_minimal": 1,
+            },
+        )
+
+    reponse = executer_atomique(
+        par_nom["m8_evaluer_qualite_metrique"],
+        # +12h < fraicheur_attendue_jours=2 : fraîche, donc seul le doublon est en jeu ici.
+        {"metric_id": "m4_duree_reelle_minutes", "horodatage_reference": "2026-01-01T12:00:00Z"},
+    )
+
+    assert reponse["ok"] is True
+    alertes = reponse["resultat"]["alertes_proposees"]
+    assert len(alertes) == 1 and alertes[0]["type_alerte"] == "REJ-QUALITE-DOUBLON"
+
+    assert _evenements_publies("m8.alerte_proposee") == []

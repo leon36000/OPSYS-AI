@@ -19,9 +19,10 @@ planifications:
   - nom: digest-analytics
     cron: "0 7 * * 1-5"
     consigne: >-
-      Assemble le digest quotidien à partir des signaux XmR déjà calculés la veille : nombre de
-      signaux actifs, liste des signaux hors limites. N'ingère aucun nouveau snapshot, ne
-      calcule aucun chiffre de tête.
+      Assemble le digest quotidien à partir des signaux XmR et des alertes de qualité déjà
+      calculés la veille : nombre de signaux actifs, liste des signaux hors limites, alertes
+      proposées sourcées (une journée sans alerte le dit explicitement). N'ingère aucun nouveau
+      snapshot, ne calcule aucun chiffre de tête.
 budget:
   tokens_jour: 300000
   tokens_mois: 4000000
@@ -41,5 +42,6 @@ kpis:
     description: Âge moyen, en jours, des métriques dérivées et citées dans les rapports du jour.
   - id: nb_alertes_qualite_proposees
     description: >-
-      Nombre d'alertes de qualité (donnée absente, périmée ou hors plage) proposées par
-      m8_evaluer_qualite_metrique sur la période — jamais exécutées, seulement proposées.
+      Nombre d'alertes de qualité (donnée absente, périmée, hors plage, doublon d'observation ou
+      incohérence entre séries) proposées par m8_evaluer_qualite_metrique sur la période —
+      jamais exécutées, seulement proposées.

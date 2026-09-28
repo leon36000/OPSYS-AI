@@ -192,3 +192,104 @@ def test_enregistrer_definition_regles_qualite_bornes_egales_est_valide():
     )
 
     assert reponse["enregistree"] is True
+
+
+# ---------------------------------------------------------------------------
+# T3.1-suite : listage compact et paginé (jamais l'historique complet).
+# ---------------------------------------------------------------------------
+
+
+def test_lister_registre_vide_retourne_une_page_vide():
+    resultat = registre_metriques.lister([], limite=10)
+
+    assert resultat == {"definitions": [], "total": 0, "curseur": 0, "curseur_suivant": None}
+
+
+def test_lister_une_ligne_par_metric_id_jamais_par_version():
+    registre = []
+    registre_metriques.enregistrer_definition(_definition(), registre)
+    registre_metriques.enregistrer_definition(_definition(fraicheur_attendue_jours=5), registre)
+
+    resultat = registre_metriques.lister(registre, limite=10)
+
+    assert resultat["total"] == 1
+    assert len(resultat["definitions"]) == 1
+
+
+def test_lister_projette_les_champs_compacts_et_la_derniere_version():
+    registre = []
+    registre_metriques.enregistrer_definition(_definition(), registre)
+    registre_metriques.enregistrer_definition(_definition(fraicheur_attendue_jours=5), registre)
+
+    resultat = registre_metriques.lister(registre, limite=10)
+
+    assert resultat["definitions"] == [
+        {
+            "metric_id": "m4_duree_reelle_minutes",
+            "departement_proprietaire": "m04-field-ops",
+            "unite": "min",
+            "fraicheur_attendue_jours": 5,  # la DERNIÈRE version, jamais la première
+            "version": 2,
+        }
+    ]
+
+
+def test_lister_trie_par_metric_id_ordre_deterministe():
+    registre = []
+    registre_metriques.enregistrer_definition(_definition(metric_id="zzz"), registre)
+    registre_metriques.enregistrer_definition(_definition(metric_id="aaa"), registre)
+
+    resultat = registre_metriques.lister(registre, limite=10)
+
+    assert [d["metric_id"] for d in resultat["definitions"]] == ["aaa", "zzz"]
+
+
+def test_lister_pagine_avec_curseur_suivant():
+    registre = []
+    for i in range(3):
+        registre_metriques.enregistrer_definition(_definition(metric_id=f"m_{i}"), registre)
+
+    page_1 = registre_metriques.lister(registre, limite=2)
+    assert [d["metric_id"] for d in page_1["definitions"]] == ["m_0", "m_1"]
+    assert page_1["total"] == 3
+    assert page_1["curseur_suivant"] == 2
+
+    page_2 = registre_metriques.lister(registre, limite=2, curseur=page_1["curseur_suivant"])
+    assert [d["metric_id"] for d in page_2["definitions"]] == ["m_2"]
+    assert page_2["curseur_suivant"] is None
+
+
+def test_lister_curseur_au_dela_du_total_retourne_une_page_vide_sans_erreur():
+    registre = []
+    registre_metriques.enregistrer_definition(_definition(), registre)
+
+    resultat = registre_metriques.lister(registre, limite=10, curseur=999)
+
+    assert resultat["definitions"] == []
+    assert resultat["curseur_suivant"] is None
+
+
+@pytest.mark.parametrize("limite", [0, -1])
+def test_lister_limite_non_positive_est_refusee(limite):
+    with pytest.raises(ValueError, match="limite"):
+        registre_metriques.lister([], limite=limite)
+
+
+def test_lister_curseur_negatif_est_refuse():
+    with pytest.raises(ValueError, match="curseur"):
+        registre_metriques.lister([], limite=10, curseur=-1)
+
+
+def test_lister_ne_renvoie_jamais_l_historique_complet():
+    """Preuve directe de la contrainte « jamais l'historique complet » : quel que soit le nombre
+    de versions enregistrées pour UNE métrique, une seule ligne apparaît dans le listage — même
+    quand la limite dépasse largement le nombre de versions."""
+    registre = []
+    for i in range(5):
+        registre_metriques.enregistrer_definition(_definition(fraicheur_attendue_jours=i + 1), registre)
+
+    resultat = registre_metriques.lister(registre, limite=1000)
+
+    assert len(registre) == 5  # l'historique complet existe bien, append-only...
+    assert resultat["total"] == 1  # ...mais le listage n'en montre jamais qu'une ligne par métrique
+    assert resultat["definitions"][0]["version"] == 5

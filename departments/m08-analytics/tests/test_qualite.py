@@ -99,3 +99,97 @@ def test_evaluer_plage_borne_basse_seule():
     """plage_max=None : seule la borne basse contraint, une valeur très grande passe."""
     assert qualite.evaluer_plage("m_cpl", 10_000.0, 0, None) is None
     assert qualite.evaluer_plage("m_cpl", -1.0, 0, None)["verdict"] == qualite.VERDICT_HORS_PLAGE
+
+
+# ---------------------------------------------------------------------------
+# T3.1-suite : unicité (doublons d'observation) et cohérence entre séries.
+# ---------------------------------------------------------------------------
+
+
+def test_evaluer_unicite_sans_horodatage_ne_signale_rien():
+    assert qualite.evaluer_unicite("m_cpl", []) is None
+
+
+def test_evaluer_unicite_horodatages_tous_distincts_ne_signale_rien():
+    horodatages = ["2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z", "2026-01-03T00:00:00Z"]
+    assert qualite.evaluer_unicite("m_cpl", horodatages) is None
+
+
+def test_evaluer_unicite_horodatage_en_double_est_signale():
+    resultat = qualite.evaluer_unicite(
+        "m_cpl", ["2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z", "2026-01-01T00:00:00Z"]
+    )
+
+    assert resultat == {
+        "metric_id": "m_cpl",
+        "verdict": qualite.VERDICT_DOUBLON,
+        "horodatages_doublons": {"2026-01-01T00:00:00Z": 2},
+        "n_observations": 3,
+    }
+
+
+def test_evaluer_unicite_plusieurs_horodatages_en_double_sont_tous_rapportes():
+    horodatages = [
+        "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z",
+        "2026-01-02T00:00:00Z", "2026-01-02T00:00:00Z", "2026-01-02T00:00:00Z",
+        "2026-01-03T00:00:00Z",
+    ]
+
+    resultat = qualite.evaluer_unicite("m_cpl", horodatages)
+
+    assert resultat["horodatages_doublons"] == {
+        "2026-01-01T00:00:00Z": 2,
+        "2026-01-02T00:00:00Z": 3,
+    }
+    assert resultat["n_observations"] == 6
+
+
+def test_evaluer_coherence_dans_la_tolerance_ne_signale_rien():
+    composantes = {
+        "m5_revenu_cad": {"coefficient": 1.0, "valeur": 500.0},
+        "m5_cout_cad": {"coefficient": -1.0, "valeur": 350.0},
+    }
+    assert qualite.evaluer_coherence("m5_marge_cad", 150.0, composantes, 0.01) is None
+
+
+def test_evaluer_coherence_exactement_a_la_tolerance_ne_signale_rien():
+    """Limite inclusive, même convention que evaluer_fraicheur : égal au seuil n'est pas encore
+    une incohérence."""
+    composantes = {"a": {"coefficient": 1.0, "valeur": 100.0}}
+    assert qualite.evaluer_coherence("m", 105.0, composantes, 5.0) is None
+
+
+def test_evaluer_coherence_hors_tolerance_est_signalee():
+    composantes = {
+        "m5_revenu_cad": {"coefficient": 1.0, "valeur": 500.0},
+        "m5_cout_cad": {"coefficient": -1.0, "valeur": 350.0},
+    }
+
+    resultat = qualite.evaluer_coherence("m5_marge_cad", 100.0, composantes, 0.01)
+
+    assert resultat == {
+        "metric_id": "m5_marge_cad",
+        "verdict": qualite.VERDICT_INCOHERENT,
+        "valeur": 100.0,
+        "valeur_attendue": 150.0,
+        "ecart": -50.0,
+        "tolerance": 0.01,
+        "composantes": composantes,
+    }
+
+
+def test_evaluer_coherence_sans_composante_compare_a_zero():
+    """composantes={} : la somme attendue est 0, un choix assumé de l'appelant."""
+    resultat = qualite.evaluer_coherence("m", 10.0, {}, 0.0)
+
+    assert resultat["valeur_attendue"] == 0.0
+    assert resultat["ecart"] == 10.0
+
+
+def test_evaluer_coherence_poids_positif_seul_verifie_une_simple_somme():
+    composantes = {
+        "a": {"coefficient": 1.0, "valeur": 10.0},
+        "b": {"coefficient": 1.0, "valeur": 20.0},
+        "c": {"coefficient": 1.0, "valeur": 30.0},
+    }
+    assert qualite.evaluer_coherence("total", 60.0, composantes, 0.0) is None

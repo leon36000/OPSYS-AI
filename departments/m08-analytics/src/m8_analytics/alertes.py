@@ -11,6 +11,14 @@ le SEUIL franchi — un fait mesuré et chiffré — jamais une cause métier ou
 clé ``cause``/``responsable``/``raison_signalee`` n'apparaît ici, et la garde AST transversale du
 paquet le vérifie sur tout ``src/m8_analytics``.
 
+T3.1-suite : ``proposer_action`` gère désormais 5 verdicts (absence, péremption, hors plage,
+doublon d'observation, incohérence entre séries). Les deux derniers ne sont PAS encore publiés
+sur le bus ``m8.alerte_proposee`` par ``outils.py`` — le schéma du catalogue
+(``src/opsys/evenements/catalogue/m8.alerte_proposee.json``) fige encore ``type_alerte`` et
+``preuve`` aux trois premiers, volontairement non étendu par ce lot (portée du worktree). Ces deux
+alertes restent pleinement utilisables via la réponse de l'outil et le digest quotidien
+(``digest.py``).
+
 Module PUR (ADR-0009) : aucun import d'``opsys``.
 """
 
@@ -61,6 +69,33 @@ def proposer_action(evaluation: dict[str, Any], definition: dict[str, Any]) -> d
             "valeur": evaluation["valeur"],
             "plage_min": evaluation["plage_min"],
             "plage_max": evaluation["plage_max"],
+        }
+    elif verdict == qualite.VERDICT_DOUBLON:
+        horodatages = evaluation["horodatages_doublons"]
+        quoi = f"Observations en double pour {metric_id}."
+        pourquoi = (
+            f"{len(horodatages)} horodatage(s) portent plus d'une observation dans le registre : "
+            f"{', '.join(sorted(horodatages))}."
+        )
+        preuve = {
+            "metric_id": metric_id,
+            "horodatages_doublons": horodatages,
+            "n_observations": evaluation["n_observations"],
+        }
+    elif verdict == qualite.VERDICT_INCOHERENT:
+        quoi = f"Valeur incohérente avec ses composantes pour {metric_id}."
+        pourquoi = (
+            f"valeur observée {evaluation['valeur']} ≠ somme attendue des composantes "
+            f"{evaluation['valeur_attendue']:.4f} (écart {evaluation['ecart']:+.4f}, "
+            f"tolérance {evaluation['tolerance']})."
+        )
+        preuve = {
+            "metric_id": metric_id,
+            "valeur": evaluation["valeur"],
+            "valeur_attendue": evaluation["valeur_attendue"],
+            "ecart": evaluation["ecart"],
+            "tolerance": evaluation["tolerance"],
+            "composantes": evaluation["composantes"],
         }
     else:
         raise ValueError(f"verdict d'évaluation sans action associée, aucune action inventée : {verdict!r}")

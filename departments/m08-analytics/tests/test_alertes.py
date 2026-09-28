@@ -63,3 +63,43 @@ def test_proposer_action_verdict_inconnu_leve_value_error_jamais_une_action_inve
 
     with pytest.raises(ValueError, match="REJ-INCONNU"):
         alertes.proposer_action(evaluation, _DEFINITION)
+
+
+# ---------------------------------------------------------------------------
+# T3.1-suite : doublon d'observation et incohérence entre séries.
+# ---------------------------------------------------------------------------
+
+
+def test_proposer_action_doublon_nomme_les_horodatages_en_double():
+    evaluation = qualite.evaluer_unicite(
+        _DEFINITION["metric_id"], ["2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"]
+    )
+
+    alerte = alertes.proposer_action(evaluation, _DEFINITION)
+
+    assert alerte["type_alerte"] == qualite.VERDICT_DOUBLON
+    assert alerte["a_qui"] == "m04-field-ops"
+    assert _DEFINITION["metric_id"] in alerte["quoi"]
+    assert "2026-01-01T00:00:00Z" in alerte["pourquoi"]
+    assert alerte["preuve"] == {
+        "metric_id": _DEFINITION["metric_id"],
+        "horodatages_doublons": {"2026-01-01T00:00:00Z": 2},
+        "n_observations": 2,
+    }
+    # DA-M8-07 : jamais un champ de cause ou de responsabilité.
+    assert set(alerte) == {"type_alerte", "quoi", "a_qui", "pourquoi", "preuve", "source"}
+
+
+def test_proposer_action_incoherence_chiffre_la_preuve():
+    composantes = {"m4_autre_composante": {"coefficient": 1.0, "valeur": 10.0}}
+    evaluation = qualite.evaluer_coherence(_DEFINITION["metric_id"], 100.0, composantes, 0.01)
+
+    alerte = alertes.proposer_action(evaluation, _DEFINITION)
+
+    assert alerte["type_alerte"] == qualite.VERDICT_INCOHERENT
+    assert _DEFINITION["metric_id"] in alerte["quoi"]
+    assert alerte["preuve"]["valeur"] == 100.0
+    assert alerte["preuve"]["valeur_attendue"] == 10.0
+    assert alerte["preuve"]["ecart"] == 90.0
+    assert alerte["preuve"]["composantes"] == composantes
+    assert set(alerte) == {"type_alerte", "quoi", "a_qui", "pourquoi", "preuve", "source"}

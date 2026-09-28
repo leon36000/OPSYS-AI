@@ -24,6 +24,10 @@ chaque déploiement d'un module, ne fait jamais grossir le registre). ``resoudre
 toujours la DERNIÈRE version connue ; l'historique complet reste disponible via
 ``maillons_cible`` pour qui veut le lire directement — un progrès mesuré sur le constat de
 l'audit (« version = un hash de contenu, jamais un historique de versions »).
+
+``lister`` (T3.1-suite) offre un troisième mode de lecture, compact et paginé : une ligne par
+``metric_id`` (jamais par version), pour un outil T0 qui ne doit jamais renvoyer l'historique
+complet d'un coup.
 """
 
 from __future__ import annotations
@@ -134,3 +138,56 @@ def resoudre(metric_id: str, maillons_cible: Any) -> dict[str, Any] | None:
         if maillon["metric_id"] == metric_id:
             derniere = maillon
     return copy.deepcopy(derniere) if derniere is not None else None
+
+
+def lister(maillons_cible: Any, limite: int, curseur: int = 0) -> dict[str, Any]:
+    """Listage compact et PAGINÉ du registre (T3.1-suite) : une ligne PAR ``metric_id`` connu —
+    identifiant, département propriétaire, unité, fraîcheur attendue et numéro de version — la
+    DERNIÈRE définition seulement, jamais une ligne par version et jamais l'historique complet
+    (celui-ci reste disponible en lisant ``maillons_cible`` directement, sa seule source de
+    vérité). ``version`` est le nombre d'enregistrements successifs vus pour ce ``metric_id``
+    dans ``maillons_cible`` — dérivé de l'append-only lui-même, jamais un compteur stocké à part
+    qui pourrait diverger.
+
+    Ordre déterministe : trié par ``metric_id``. L'ordre d'arrivée dans ``maillons_cible`` dépend
+    du backend (liste Python en mémoire ou ``opsys.stockage.MaillonsDurables``) et n'est donc pas
+    une base de pagination stable d'un appel à l'autre.
+
+    Fail-closed sur la pagination elle-même : ``limite`` doit être strictement positive (une
+    page vide silencieuse masquerait un appel mal formé, jamais un défaut interne comme
+    ``n_minimal`` dans ``xmr.py``) ; ``curseur`` doit être positif ou nul.
+    """
+    if limite <= 0:
+        raise ValueError(f"limite doit être strictement positive, reçu {limite!r}")
+    if curseur < 0:
+        raise ValueError(f"curseur doit être positif ou nul, reçu {curseur!r}")
+
+    dernieres_par_metrique: dict[str, dict[str, Any]] = {}
+    nb_versions: dict[str, int] = {}
+    for maillon in maillons_cible:
+        metric_id = maillon["metric_id"]
+        nb_versions[metric_id] = nb_versions.get(metric_id, 0) + 1
+        dernieres_par_metrique[metric_id] = maillon
+
+    lignes = [
+        {
+            "metric_id": metric_id,
+            "departement_proprietaire": derniere["departement_proprietaire"],
+            "unite": derniere["unite"],
+            "fraicheur_attendue_jours": derniere["fraicheur_attendue_jours"],
+            "version": nb_versions[metric_id],
+        }
+        for metric_id, derniere in sorted(dernieres_par_metrique.items())
+    ]
+
+    total = len(lignes)
+    page = lignes[curseur:curseur + limite]
+    fin_page = curseur + len(page)
+    curseur_suivant = fin_page if fin_page < total else None
+
+    return {
+        "definitions": page,
+        "total": total,
+        "curseur": curseur,
+        "curseur_suivant": curseur_suivant,
+    }
