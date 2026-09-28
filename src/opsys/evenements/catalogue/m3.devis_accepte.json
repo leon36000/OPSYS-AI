@@ -15,16 +15,60 @@
       "description": "Lead M2 d'origine, porté tel quel depuis la création du devis."
     },
     "chantier_id": {
-      "type": ["string", "null"],
+      "type": [
+        "string",
+        "null"
+      ],
       "description": "Chantier M4, si déjà connu au moment de la création du devis ; null sinon."
     },
     "lignes": {
       "type": "array",
       "items": {
         "type": "object",
-        "description": "{reference_ligne (identifiant stable f\"{devis_id}-L{index}\", pour relier une ligne de facture M5 à sa ligne de devis), description, quantite (texte décimal), unite, prix_unitaire (texte décimal CAD, déjà arrondi ROUND_HALF_UP au cent depuis cout_unitaire x (1 + taux_marge)), prix_ligne (texte décimal CAD, = prix_unitaire x quantite, arrondi une seconde fois), reference_besoin_materiau (ou null)} — JAMAIS de coût par ligne (cout_unitaire/cout_ligne) : M6 planifie des quantités de matériaux, pas des montants (séparation coût/prix, docs/departements/M3-audit.md §2.1) ; le PRIX, lui, est porté : M5 en a besoin pour facturer sans recalculer différemment."
+        "description": "{reference_ligne (identifiant stable f\"{devis_id}-L{index}\", pour relier une ligne de facture M5 à sa ligne de devis), description, quantite (texte décimal), unite, prix_unitaire (texte décimal CAD, déjà arrondi ROUND_HALF_UP au cent depuis cout_unitaire x (1 + taux_marge)), prix_ligne (texte décimal CAD, = prix_unitaire x quantite, arrondi une seconde fois), reference_besoin_materiau (ou null)} — JAMAIS de coût par ligne (cout_unitaire/cout_ligne) : M6 planifie des quantités de matériaux, pas des montants (séparation coût/prix, docs/departements/M3-audit.md §2.1) ; le PRIX, lui, est porté : M5 en a besoin pour facturer sans recalculer différemment.",
+        "additionalProperties": false,
+        "properties": {
+          "reference_ligne": {
+            "type": "string",
+            "description": "Identifiant stable dans le devis : f\"{devis_id}-L{index}\"."
+          },
+          "description": {
+            "type": "string"
+          },
+          "quantite": {
+            "type": "string",
+            "description": "Texte décimal."
+          },
+          "unite": {
+            "type": "string"
+          },
+          "prix_unitaire": {
+            "type": "string",
+            "description": "Texte décimal CAD, arrondi ROUND_HALF_UP au cent."
+          },
+          "prix_ligne": {
+            "type": "string",
+            "description": "Texte décimal CAD : prix_unitaire x quantite, arrondi ROUND_HALF_UP."
+          },
+          "reference_besoin_materiau": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "reference_ligne",
+          "description",
+          "quantite",
+          "unite",
+          "prix_unitaire",
+          "prix_ligne",
+          "reference_besoin_materiau"
+        ]
       },
-      "description": "Lignes du devis accepté, avec prix (jamais de coût) — voir la description de chaque élément."
+      "description": "Lignes du devis accepté, avec prix (jamais de coût) — voir la description de chaque élément.",
+      "minItems": 1
     },
     "cout_total": {
       "type": "string",

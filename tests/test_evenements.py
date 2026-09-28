@@ -102,6 +102,75 @@ def test_catalogue_charge_invalide_rejetee_sans_ecriture(session):
     assert _compte_sortants() == 0
 
 
+# -- validation complète (JSON Schema 2020-12) : objets et tableaux imbriqués compris -------------
+def _variance_evaluee(**overrides) -> dict:
+    base = {
+        "evenement_id": "m6-variance-wct-1-evaluee",
+        "wct_id": "wct-1",
+        "intervention_id": "int-1",
+        "chantier_id": "ch-1",
+        "statut_variance": "evaluee",
+        "signal_critique": False,
+        "seuil_pourcentage": 0.3,
+        "horodatage_completion": "2026-09-28T14:00:00-04:00",
+        "lignes": [{
+            "materiau": "gouttiere-5po", "unite": "pi", "quantite_prevue": "100",
+            "quantite_reelle": "104", "ecart_pourcentage": "4.0", "critique": False,
+        }],
+    }
+    base.update(overrides)
+    return base
+
+
+def _devis_accepte(**overrides) -> dict:
+    base = {
+        "devis_id": "devis-1",
+        "lead_id": "lead-1",
+        "chantier_id": "ch-1",
+        "lignes": [{
+            "reference_ligne": "devis-1-L0", "description": "Gouttière 5 po", "quantite": "4",
+            "unite": "pi", "prix_unitaire": "19.38", "prix_ligne": "77.52",
+            "reference_besoin_materiau": "gouttiere-5po",
+        }],
+        "cout_total": "62.00",
+        "prix_total": "77.52",
+        "taux_marge": "0.25",
+        "horodatage_acceptation": "2026-09-20T10:00:00-04:00",
+    }
+    base.update(overrides)
+    return base
+
+
+def test_catalogue_schemas_sont_des_json_schema_valides():
+    from jsonschema import Draft202012Validator
+
+    for type_evenement in evenements.types_connus():
+        Draft202012Validator.check_schema(evenements.schema(type_evenement))
+
+
+def test_catalogue_accepte_des_charges_imbriquees_conformes(session):
+    evenements.publier("m6.variance_chantier", "m06-material-control", _variance_evaluee())
+    evenements.publier("m3.devis_accepte", "m03-estimation", _devis_accepte())
+    assert _compte_sortants() == 2
+
+
+def test_catalogue_valide_les_elements_dun_tableau_imbrique(session):
+    ligne_incomplete = dict(_variance_evaluee()["lignes"][0])
+    del ligne_incomplete["critique"]
+    with pytest.raises(evenements.ChargeInvalide, match="critique"):
+        evenements.publier("m6.variance_chantier", "m06-material-control",
+                           _variance_evaluee(lignes=[ligne_incomplete]))
+    assert _compte_sortants() == 0
+
+
+def test_catalogue_m3_devis_accepte_refuse_un_cout_par_ligne(session):
+    """Séparation coût/prix (audit M3) : le coût d'une ligne ne sort jamais de M3 par le bus."""
+    ligne = dict(_devis_accepte()["lignes"][0], cout_unitaire="15.50")
+    with pytest.raises(evenements.ChargeInvalide, match="cout_unitaire"):
+        evenements.publier("m3.devis_accepte", "m03-estimation", _devis_accepte(lignes=[ligne]))
+    assert _compte_sortants() == 0
+
+
 # -- catalogue m4.travaux_termines : le WCT réel de M4 (outbox.py::CHAMPS_WCT), plus les champs
 # optionnels M5/M7 (audits) -- voir src/opsys/evenements/catalogue/m4.travaux_termines.json.
 def _wct_exemple(**overrides) -> dict:
