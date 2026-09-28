@@ -18,7 +18,8 @@ identifiants du propriétaire, repli livré en attendant.
 - [ ] T0.4 Import du fork : instantané de `v2026.9.6` (commit `eb377ac5`) dans `core/`,
       `core/NOTICE` (MIT, © OpenClaw Foundation), `core/PROVENANCE.md` ; retrait de `core/UPSTREAM.md`.
 - [ ] T0.5 CI du core : job GitHub qui installe Node et pnpm, construit et teste le core tel
-      qu'importé (référence verte avant toute modification).
+      qu'importé (référence verte avant toute modification). En cours : `.github/workflows/core.yml`
+      construit d'abord la release amont intacte (Node 24, pnpm 12.4, `pnpm build`, `pnpm test:fast`).
 - [ ] T0.6 Élagage selon R11 (canaux et fournisseurs inutiles, docs, apps natives…), CI verte.
 - [ ] T0.7 Renommage OpenClaw → OPSYS (CLI `opsys`, `~/.opsys`, paquets, variables, UI), CI verte.
 - [ ] T0.8 ADR-0009 socle métier (base de données, événements, workflows à validation humaine,

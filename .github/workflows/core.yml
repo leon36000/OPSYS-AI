@@ -1,0 +1,52 @@
+name: core
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, "claude/**"]
+    paths: ["core/**", ".github/workflows/core.yml"]
+  pull_request:
+    paths: ["core/**", ".github/workflows/core.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Release d'OpenClaw dont OPSYS-CORE est le fork dur (ADR-0008).
+  AMONT_TAG: v2026.9.6
+
+jobs:
+  # Construit et teste OPSYS-CORE. Le bac à sable de développement n'exécute pas ce code : cette CI
+  # est la seule preuve de construction. Tant que core/ n'est pas importé (PLAN T0.4), elle construit
+  # la release amont intacte, référence verte avant toute modification (PLAN T0.5).
+  core:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
+      - name: Source du core (fork importé, sinon release amont intacte)
+        run: |
+          if [ -f core/package.json ]; then
+            echo "CORE_DIR=core" >> "$GITHUB_ENV"
+          else
+            git clone --depth 1 --branch "$AMONT_TAG" https://github.com/openclaw/openclaw core-amont
+            echo "CORE_DIR=core-amont" >> "$GITHUB_ENV"
+          fi
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: "24.x"
+      - name: pnpm (version fixée par packageManager)
+        working-directory: ${{ env.CORE_DIR }}
+        run: corepack enable && pnpm --version
+      - name: Installation
+        working-directory: ${{ env.CORE_DIR }}
+        run: pnpm install --frozen-lockfile
+      - name: Construction
+        working-directory: ${{ env.CORE_DIR }}
+        run: pnpm build
+      - name: Tests unitaires rapides
+        working-directory: ${{ env.CORE_DIR }}
+        run: pnpm test:fast
