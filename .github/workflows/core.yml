@@ -72,5 +72,11 @@ jobs:
         shell: bash
         # La liste compacte finit le journal : on la lit sans télécharger le journal complet.
         run: |
-          grep -E "^ *(FAIL|×) " "$RUNNER_TEMP/vitest.log" | sed -E 's/ [0-9]+ms$//' | sort -u | head -300 || true
-          grep -E "Test Files|Tests  " "$RUNNER_TEMP/vitest.log" | tail -4 || true
+          sed -E 's/\x1b\[[0-9;]*m//g' "$RUNNER_TEMP/vitest.log" > "$RUNNER_TEMP/vitest.txt"
+          echo "== fichiers en échec"
+          grep -E "^ *FAIL " "$RUNNER_TEMP/vitest.txt" | sed -E 's/ > .*//; s/ +\[.*//' | sort -u | head -150 || true
+          echo "== tests en échec"
+          grep -E "^ *(FAIL|×) .* > " "$RUNNER_TEMP/vitest.txt" | sed -E 's/ [0-9]+ms$//' | sort -u | head -150 || true
+          echo "== erreurs hors test"
+          grep -E "^(Error|TypeError|ReferenceError|SyntaxError): " "$RUNNER_TEMP/vitest.txt" | sort | uniq -c | sort -rn | head -20 || true
+          grep -E "Test Files|Tests  " "$RUNNER_TEMP/vitest.txt" | tail -4 || true

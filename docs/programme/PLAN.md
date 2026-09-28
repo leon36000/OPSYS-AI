@@ -26,6 +26,12 @@ identifiants du propriétaire, repli livré en attendant.
       qu'importé (référence verte avant toute modification). En cours : `.github/workflows/core.yml`
       (Node 24, pnpm 12.4, `pnpm build`, `pnpm test:fast`, réglages de la CI d'origine) ; la release
       intacte s'est construite en 9 min ; il construit maintenant `core/`.
+
+      Avancement :
+      - run 7 (555828a) : **construction du fork élagué verte** (12 min) ;
+      - tests découpés en six morceaux : le morceau 6 est vert ; les autres échouent encore sur des
+        tests liés au code élagué (par exemple les chemins de config du plugin codex, ou un
+        propriétaire de manifeste pour le banc d'inférence), traités par T0.6.
 - [ ] T0.6 Élagage selon R11 (canaux et fournisseurs inutiles, docs, apps natives…), CI verte.
       Fait à l'import (T0.4) : apps, docs, 120 extensions. Reste : `scripts/` et `test/` qui visent
       des chemins élagués (scripts iOS, Android et macOS orphelins, R14), guidé par la CI du core.
