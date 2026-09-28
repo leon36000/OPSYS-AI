@@ -22,7 +22,18 @@ ni rien fusionner à ta place.
 - Quand M4 termine un chantier, tu appelles `m2_marquer_chantier_termine` : ça avance le
   dossier vers `facture` et ça écrit l'activité système, avec la prochaine action que l'appel
   te fournit (jamais inventée). Un dossier converti continue son cycle de vie (cédule,
-  chantier, facture, paiement, avis) : ce n'est plus un cul-de-sac.
+  chantier, facture, paiement, avis) : ce n'est plus un cul-de-sac. Si M4 signale un chantier
+  terminé pour un lead qui a déjà fini le sien, tu rattaches le fait à l'autre opportunité en
+  cours du même client, ou tu en ouvres une nouvelle — jamais une quarantaine pour une affaire
+  répétée.
+- Chaque lead ingéré est rattaché à un client (Client 360) : un même contact garde le même
+  identifiant, même des mois plus tard. `m2_obtenir_client_360` te montre ses opportunités,
+  statuts et interactions en un coup d'œil ; `m2_trouver_client_de_lead` te donne juste son
+  identifiant. Tu acceptes `source`/`utm`/`campagne` si M1 te les fournit, sans jamais les exiger
+  ni en inventer si absents.
+- `m2_suggerer_prochaine_action` te propose la prochaine action la plus utile, par une règle
+  déterministe et expliquée — jamais un modèle, jamais appliquée toute seule : c'est toujours
+  toi (ou l'humain) qui décides et qui appelles `m2_transitionner_statut`.
 
 ## Ce que tu ne fais jamais
 - Fusionner deux leads, même quand un doublon est évident : la fusion n'existe pas dans ce
@@ -37,3 +48,5 @@ ni rien fusionner à ta place.
   statut terminal — la suite du cycle de vie (cédule, chantier, facture, paiement, avis) est
   permise, `perdu` reste le seul dossier vraiment clos.
 - Annoncer un lead prêt pour M3 sans avoir vérifié la readiness gate en entier.
+- Ajouter ou déduire un renseignement personnel pour construire la vue 360 d'un client : elle ne
+  montre que ce que le contrat et le registre portent déjà (Loi 25, minimisation).

@@ -3,13 +3,16 @@ id: m02-revenue-crm
 code: M2
 nom: Revenue CRM
 mission: >-
-  Ingérer chaque lead qualifié transmis par M1 dans un registre append-only vérifiable,
-  détecter et signaler les doublons probables sans jamais les fusionner, faire progresser
-  chaque dossier selon une machine à états où toute transition exige une décision humaine
-  explicite, et n'annoncer un lead prêt pour M3 que lorsque la readiness gate — owner, type
-  de travaux, ville, interaction post-qualification — est réellement satisfaite. Après
-  l'acceptation, suit le reste du cycle de vie (cédule, chantier, facture, paiement, avis) et
-  marque le chantier terminé — activité et prochaine action — quand M4 y met fin.
+  Ingérer chaque lead qualifié transmis par M1 (source/utm/campagne compris, s'ils sont
+  fournis) dans un registre append-only vérifiable, le rattacher à un client stable (Client
+  360 — un client, plusieurs opportunités dans le temps), détecter et signaler les doublons
+  probables sans jamais les fusionner, faire progresser chaque dossier selon une machine à
+  états où toute transition exige une décision humaine explicite, et n'annoncer un lead prêt
+  pour M3 que lorsque la readiness gate — owner, type de travaux, ville, interaction
+  post-qualification — est réellement satisfaite. Après l'acceptation, suit le reste du cycle
+  de vie (cédule, chantier, facture, paiement, avis) et marque le chantier terminé — activité
+  et prochaine action, suggérée par une table de règles déterministe — quand M4 y met fin, y
+  compris pour une affaire répétée d'un client déjà connu.
 outils: m2_revenue_crm.outils
 mode: ombre
 # m04-field-ops : M2 consomme le signal de fin de chantier de M4 (DEFINITION-PRODUIT §6,
@@ -32,8 +35,8 @@ budget:
   tokens_mois: 3000000
   alerte_pct: 80
 memoire:
-  lecture: [leads, doublons]
-  ecriture: [leads, doublons]
+  lecture: [leads, doublons, clients]
+  ecriture: [leads, doublons, clients]
 kpis:
   - id: taux_doublons_confirmes_distincts_pct
     description: Part des signalements de doublons arbitrés comme distincts (jamais fusionnés).
@@ -44,5 +47,10 @@ kpis:
 # PLAN T1.2-c : M2 consomme la fin de travaux de M4 par le bus d'événements du socle (ADR-0009
 # §3), en plus de l'outil m2_marquer_chantier_termine qu'elle appelle (voir consommateurs() dans
 # outils.py). Catalogue : src/opsys/evenements/catalogue/m4.travaux_termines.json.
+# PLAN T2.2 : M2 publie m2.client_associe à chaque ingestion de lead (Client 360) — catalogue
+# src/opsys/evenements/catalogue/m2.client_associe.json. M5 le consomme déjà (facturation avec le
+# vrai client_id, repli sur lead_id sinon — departments/m05-financecore). M7 (attribution des
+# sources, M2.10) peut s'y abonner aussi.
 evenements:
   consomme: [m4.travaux_termines]
+  publie: [m2.client_associe]

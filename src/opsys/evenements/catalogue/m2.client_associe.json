@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m2.client_associe",
+  "title": "M2 — Client associé à un lead",
+  "description": "Émis par M2 à l'ingestion de chaque lead, dans la MÊME transaction que l'ingestion (departments/m02-revenue-crm/src/m2_revenue_crm/outils.py::ingerer_lead, PLAN T2.2, Client 360). Porte le lien lead_id -> client_id, jamais un renseignement personnel (client_id est une empreinte SHA256 du contact, irréversible ; voir clients.py). evenement_id déterministe (f\"m2-client-associe-{lead_id}\", même patron que M3/M6) : une redélivrance est un no-op, jamais un second lien. Consommateur visé en premier lieu : M5 (departments/m05-financecore/src/m5_financecore/outils.py::_essayer_facture_brouillon documente aujourd'hui `client_id = lead_id` en attendant ce Client 360 — PLAN T2.2) ; M7 (attribution des sources, DEFINITION-PRODUIT §7 M2 M2.10) peut aussi s'y abonner.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "lead_id": {
+      "type": "string",
+      "description": "Lead M2 (opportunité) qui vient d'être ingéré."
+    },
+    "client_id": {
+      "type": "string",
+      "description": "Identifiant stable du client (clients.py::identifiant_client — empreinte canonique du seul contact, jamais le contact en clair)."
+    },
+    "horodatage_association": {
+      "type": "string",
+      "description": "Horodatage RFC 3339 fourni à m2_ingerer_lead (jamais une horloge ambiante)."
+    }
+  },
+  "required": ["lead_id", "client_id", "horodatage_association"]
+}

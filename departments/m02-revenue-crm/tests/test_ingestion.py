@@ -827,3 +827,103 @@ class TestInvariantsIngestion:
         assert len(set(sorties)) == 1, (
             f"Les ligne_id diffèrent entre processus : {sorties}"
         )
+
+
+class TestLeadStructureOptionnel:
+    """PLAN T2.2 (lead structuré) : source/utm/campagne sont ACCEPTÉS s'ils sont fournis,
+    VALIDÉS comme toute autre donnée, et jamais requis — leur absence n'est jamais une erreur ni
+    une valeur par défaut inventée (audit du front office, docs/produit/DEFINITION-PRODUIT.md
+    §6/§7)."""
+
+    def test_absents_les_trois_contrat_toujours_accepte(self):
+        """Un contrat sans source/utm/campagne (le contrat gelé v1 actuel) reste accepté à
+        l'identique : ce sont des ajouts strictement additifs."""
+        ok, code = contrats.valider_structure(contrat_valide())
+        assert ok is True, f"contrat sans champs optionnels refusé à tort: ({ok!r}, {code!r})"
+        assert code == ""
+
+    def test_source_et_campagne_fournis_acceptes(self):
+        ok, code = contrats.valider_structure(
+            contrat_valide(source="google_ads", campagne="promo-printemps-2026")
+        )
+        assert ok is True, f"source/campagne valides refusés à tort: ({ok!r}, {code!r})"
+        assert code == ""
+
+    def test_utm_complet_fourni_accepte(self):
+        utm = {
+            "utm_source": "google",
+            "utm_medium": "cpc",
+            "utm_campaign": "fenetre-promo-printemps-2026",
+            "utm_content": "annonce-a",
+        }
+        ok, code = contrats.valider_structure(contrat_valide(utm=utm))
+        assert ok is True, f"utm complet refusé à tort: ({ok!r}, {code!r})"
+        assert code == ""
+
+    def test_utm_partiel_fourni_accepte(self):
+        """Aucune sous-clé de utm n'est individuellement obligatoire : M2 n'est pas propriétaire
+        de la taxonomie UTM (M7 l'est, docs/produit/DEFINITION-PRODUIT.md §8)."""
+        ok, code = contrats.valider_structure(contrat_valide(utm={"utm_source": "facebook"}))
+        assert ok is True, f"utm partiel refusé à tort: ({ok!r}, {code!r})"
+        assert code == ""
+
+    @pytest.mark.parametrize("champ", ["source", "campagne"], ids=["source_vide", "campagne_vide"])
+    def test_source_ou_campagne_vide_refuse(self, champ):
+        """Une chaîne vide n'est jamais silencieusement traitée comme une absence : le fournisseur
+        doit soit donner une vraie valeur, soit omettre la clé (fail-closed, AGENTS.md)."""
+        ok, code = contrats.valider_structure(contrat_valide(**{champ: ""}))
+        assert ok is False, f"{champ} vide accepté à tort: ({ok!r}, {code!r})"
+        assert code == "REJ-CONTRAT-INVALIDE"
+
+    @pytest.mark.parametrize("champ", ["source", "campagne"], ids=["source_type", "campagne_type"])
+    def test_source_ou_campagne_type_invalide_refuse(self, champ):
+        ok, code = contrats.valider_structure(contrat_valide(**{champ: 42}))
+        assert ok is False, f"{champ} de type entier accepté à tort: ({ok!r}, {code!r})"
+        assert code == "REJ-CONTRAT-INVALIDE"
+
+    def test_utm_dict_vide_refuse(self):
+        ok, code = contrats.valider_structure(contrat_valide(utm={}))
+        assert ok is False, f"utm={{}} accepté à tort: ({ok!r}, {code!r})"
+        assert code == "REJ-CONTRAT-INVALIDE"
+
+    def test_utm_type_invalide_refuse(self):
+        ok, code = contrats.valider_structure(contrat_valide(utm="google"))
+        assert ok is False, f"utm de type chaîne accepté à tort: ({ok!r}, {code!r})"
+        assert code == "REJ-CONTRAT-INVALIDE"
+
+    def test_utm_cle_inconnue_refusee(self):
+        ok, code = contrats.valider_structure(contrat_valide(utm={"utm_source": "google", "utm_id": "abc"}))
+        assert ok is False, f"utm avec clé inconnue accepté à tort: ({ok!r}, {code!r})"
+        assert code == "REJ-CONTRAT-INVALIDE"
+
+    def test_utm_sous_valeur_vide_refusee(self):
+        ok, code = contrats.valider_structure(contrat_valide(utm={"utm_source": ""}))
+        assert ok is False, f"utm_source vide accepté à tort: ({ok!r}, {code!r})"
+        assert code == "REJ-CONTRAT-INVALIDE"
+
+    def test_champ_manquant_obligatoire_prioritaire_sur_champ_optionnel_invalide(self):
+        """L'ORDRE de validation (contrats.py) place les champs obligatoires (étape 2) avant les
+        champs optionnels (étape 5) : un contrat qui cumule les deux fautes retourne le code de la
+        faute obligatoire, jamais celui du champ optionnel."""
+        contrat = contrat_valide(source="", ville=SUPPRIMER)
+        ok, code = contrats.valider_structure(contrat)
+        assert ok is False
+        assert code == "REJ-CHAMP-MANQUANT", (
+            f"attendu REJ-CHAMP-MANQUANT (ville absente, étape 2), obtenu {code!r}"
+        )
+
+    def test_lead_avec_champs_optionnels_ingere_et_conserve_tel_quel(self):
+        """« garde-les » (PLAN T2.2) : ingestion.ingerer copie le contrat en entier — les champs
+        optionnels fournis sont donc conservés tels quels dans le maillon lead_ingere, sans
+        transformation ni perte."""
+        r = registre.Registre()
+        contrat = contrat_valide(
+            lead_id="LS-1", source="referral", campagne="parrainage-2026",
+            utm={"utm_source": "infolettre", "utm_medium": "courriel", "utm_campaign": "printemps-2026"},
+        )
+        accuse, verdict = ingestion.ingerer(contrat, r, "2026-06-15T10:00:00+00:00")
+        assert verdict is None, f"ingestion refusée à tort : {verdict}"
+        maillon = r.lire()[-1]
+        assert maillon["contrat"]["source"] == "referral"
+        assert maillon["contrat"]["campagne"] == "parrainage-2026"
+        assert maillon["contrat"]["utm"]["utm_source"] == "infolettre"

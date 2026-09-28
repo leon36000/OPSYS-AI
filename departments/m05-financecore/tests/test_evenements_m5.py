@@ -96,6 +96,14 @@ def _devis_accepte(devis_id="DEVIS-1", chantier_id="CHANTIER-1", prix_total="600
     return base
 
 
+def _client_associe(
+    lead_id="LEAD-1", client_id="CLIENT-1-fictif", horodatage_association="2026-09-15T08:00:00-04:00", **overrides
+):
+    base = {"lead_id": lead_id, "client_id": client_id, "horodatage_association": horodatage_association}
+    base.update(overrides)
+    return base
+
+
 def _wct(wct_id="WCT-1", devis_id="DEVIS-1", horodatage_completion="2026-09-25T16:30:00-04:00", **overrides):
     base = {
         "wct_id": wct_id,
@@ -145,6 +153,7 @@ def _quarantaine_m5():
 
 def test_declaration_module_consommateurs():
     assert set(outils_mod.consommateurs()) == {
+        "m2.client_associe",
         "m3.devis_accepte",
         "m4.travaux_termines",
         "m6.variance_chantier",
@@ -153,8 +162,11 @@ def test_declaration_module_consommateurs():
 
 def test_m5_declare_consommer_devis_accepte_et_travaux_termines():
     dep = charger_departements()["m05-financecore"]
-    assert dep.evenements_consomme == ("m3.devis_accepte", "m4.travaux_termines", "m6.variance_chantier")
+    assert dep.evenements_consomme == (
+        "m2.client_associe", "m3.devis_accepte", "m4.travaux_termines", "m6.variance_chantier",
+    )
     fonctions = dep.charger_consommateurs()
+    assert "m2.client_associe" in fonctions
     assert "m3.devis_accepte" in fonctions
     assert "m4.travaux_termines" in fonctions
     assert "m6.variance_chantier" in fonctions
@@ -224,6 +236,59 @@ def test_completion_puis_devis_produit_la_meme_facture(base_durable):
     assert facture["total_taxes"] == Decimal("89.85")
     assert facture["montant_apres_taxes"] == Decimal("689.85")
     assert facture["statut"] == "BROUILLON"
+
+
+# -- Client 360 (PLAN T2.2) : client_id RÉEL quand connu, repli historique sinon ------------------
+
+
+def test_client_associe_connu_avant_la_facture_donne_le_vrai_client_id(base_durable):
+    """m2.client_associe arrive normalement en PREMIER dans le flux réel (publié à l'ingestion du
+    lead, bien avant qu'un devis existe) : la facture porte alors le VRAI client_id du Client 360
+    M2, jamais lead_id."""
+    deps = _deps_bus()
+    evenements.publier("m2.client_associe", "m02-revenue-crm", _client_associe())
+    evenements.publier("m3.devis_accepte", "m03-estimation", _devis_accepte())
+    evenements.publier("m4.travaux_termines", "m04-field-ops", _wct())
+    resume = evenements.repartir(deps, maintenant="2026-09-25T16:35:00-04:00")
+    assert resume["echecs"] == 0 and resume["quarantaines"] == 0, resume
+
+    facture = _facture_active("DEVIS-1")
+    assert facture is not None
+    assert facture["client_id"] == "CLIENT-1-fictif", "le vrai client_id du Client 360, jamais lead_id"
+
+
+def test_client_associe_absent_replie_sur_lead_id_jamais_bloquant(base_durable):
+    """Sans m2.client_associe (ordre inhabituel, ou lead antérieur à PLAN T2.2) : la facture se
+    crée quand même, avec le repli historique documenté — jamais un blocage, jamais une valeur
+    fabriquée (lead_id est une donnée réelle)."""
+    deps = _deps_bus()
+    evenements.publier("m3.devis_accepte", "m03-estimation", _devis_accepte())
+    evenements.publier("m4.travaux_termines", "m04-field-ops", _wct())
+    resume = evenements.repartir(deps, maintenant="2026-09-25T16:35:00-04:00")
+    assert resume["echecs"] == 0 and resume["quarantaines"] == 0, resume
+
+    facture = _facture_active("DEVIS-1")
+    assert facture is not None
+    assert facture["client_id"] == "LEAD-1", "repli sur lead_id, comportement historique inchangé"
+
+
+def test_client_associe_arrivant_apres_coup_ne_corrige_pas_la_facture_deja_creee(base_durable):
+    """Immuabilité des écritures financières : m2.client_associe reçu APRÈS la création de la
+    facture (repliée sur lead_id) ne la modifie jamais rétroactivement."""
+    deps = _deps_bus()
+    evenements.publier("m3.devis_accepte", "m03-estimation", _devis_accepte())
+    evenements.publier("m4.travaux_termines", "m04-field-ops", _wct())
+    evenements.repartir(deps, maintenant="2026-09-25T16:35:00-04:00")
+    facture_avant = _facture_active("DEVIS-1")
+    assert facture_avant["client_id"] == "LEAD-1"
+
+    evenements.publier("m2.client_associe", "m02-revenue-crm", _client_associe())
+    resume = evenements.repartir(deps, maintenant="2026-09-25T16:40:00-04:00")
+    assert resume["echecs"] == 0 and resume["quarantaines"] == 0, resume
+
+    facture_apres = _facture_active("DEVIS-1")
+    assert facture_apres["client_id"] == "LEAD-1", "aucune correction rétroactive"
+    assert _compte_factures_creees() == 1, "toujours une seule facture, pas une seconde"
 
 
 # -- fail-closed : attentes nommées, jamais une facture inventée ---------------------------------

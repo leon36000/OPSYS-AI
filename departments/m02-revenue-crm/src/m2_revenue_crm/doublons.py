@@ -59,6 +59,20 @@ def _non_vide(valeur) -> bool:
     return valeur is not None and valeur != "" and valeur != {}
 
 
+def contact_identique(contrat_a, contrat_b) -> bool:
+    """Vrai si les deux contrats portent EXACTEMENT le même contact (dict), non vide.
+
+    Extrait du critère le plus strict de ``_critere_entre`` (priorité la plus haute,
+    prioritaire sur ``ville_et_travaux``) pour être réutilisé tel quel par ``clients.py``
+    (PLAN T2.2, Client 360) : un client est identifié par son contact seul — jamais par
+    ville+type_travaux, un critère trop faible pour de l'identité (deux clients distincts de
+    la même ville qui demandent le même type de travaux ne sont pas le même client). Aucune
+    logique dupliquée : ``_critere_entre`` ci-dessous appelle cette même fonction, donc les
+    deux endroits ne peuvent pas diverger.
+    """
+    return _non_vide(contrat_a.get("contact")) and contrat_a.get("contact") == contrat_b.get("contact")
+
+
 def _critere_entre(contrat_a, contrat_b):
     """Critère de rapprochement entre deux contrats, ou None si aucun.
 
@@ -66,8 +80,7 @@ def _critere_entre(contrat_a, contrat_b):
     retenu que si les valeurs comparées sont NON VIDES des deux côtés (voir
     _non_vide) — l'absence de données ne constitue pas une similitude.
     """
-    contact_a, contact_b = contrat_a.get("contact"), contrat_b.get("contact")
-    if _non_vide(contact_a) and contact_a == contact_b:
+    if contact_identique(contrat_a, contrat_b):
         return "contact_identique"
     ville_a, ville_b = contrat_a.get("ville"), contrat_b.get("ville")
     travaux_a, travaux_b = contrat_a.get("type_travaux"), contrat_b.get("type_travaux")

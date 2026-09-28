@@ -17,6 +17,10 @@ _TYPE_ENTREE_VALIDES = {
     "interaction",
     "doublon_signale",
     "alerte",
+    # PLAN T2.2 (Client 360) : lie un lead_id (une opportunité) à un client_id stable. Ne
+    # remplace ni ne duplique aucune donnée personnelle : une simple référence, dans le MÊME
+    # registre append-only que le reste (clients.py reste pur, aucun stockage séparé).
+    "client_associe",
 }
 
 

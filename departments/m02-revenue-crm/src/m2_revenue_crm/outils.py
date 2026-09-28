@@ -24,10 +24,10 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from opsys import stockage
+from opsys import evenements, stockage
 from opsys.outils import Autonomie, Outil
 
-from . import contrats, digest, doublons, ingestion, interactions, readiness, statuts
+from . import clients, contrats, digest, doublons, ingestion, interactions, readiness, statuts, suggestions, verdicts
 from .registre import Registre
 
 _DEPARTEMENT = "m02-revenue-crm"
@@ -69,6 +69,55 @@ def _obtenir_registre() -> Registre:
     return _registre_memoire
 
 
+def _publier_si_durable(type_evenement: str, charge: dict[str, Any], evenement_id: str) -> None:
+    """Publie un événement (ADR-0009 §3) SEULEMENT si le registre de production est adossé au
+    stockage durable (voir `_obtenir_registre`). En mode mémoire (tests unitaires, après
+    `reinitialiser_registre()`), il n'existe ni base migrée ni consommateur réel : le bus
+    d'événements est par nature un mécanisme durable inter-processus, et `evenements.repartir` ne
+    tournera de toute façon jamais contre un registre en mémoire — publier échouerait sur une
+    table absente pour rien plutôt que d'être un simple no-op silencieux."""
+    if _stockage_durable_actif:
+        evenements.publier(type_evenement, _DEPARTEMENT, charge, evenement_id=evenement_id)
+
+
+def _ingerer_et_lier(
+    contrat: dict[str, Any], horodatage: str, reg: Registre
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Ingestion + lien Client 360 (PLAN T2.2), chemin PARTAGÉ par `ingerer_lead` et par
+    l'ouverture automatique d'une nouvelle opportunité pour un client existant
+    (`_ouvrir_nouvelle_opportunite_pour_wct`) — pour que les deux endroits ne puissent jamais
+    diverger sur ce que « ingérer un lead » signifie. Publie `m2.client_associe` (catalogue
+    `src/opsys/evenements/catalogue/m2.client_associe.json`) dans la MÊME transaction que
+    l'ingestion (ADR-0009 §3) : M5 (aujourd'hui `client_id = lead_id`, en attente de ceci —
+    `departments/m05-financecore/src/m5_financecore/outils.py::_essayer_facture_brouillon`) et M7
+    (attribution des sources, M2.10) peuvent s'y abonner. N'écrit AUCUN signalement de doublon :
+    c'est la responsabilité de l'appelant (voir `ingerer_lead`), pas de ce socle commun.
+    """
+    accuse, verdict = ingestion.ingerer(contrat, reg, horodatage)
+    if verdict is not None:
+        return None, verdict
+
+    lead_id = contrat["lead_id"]
+    # lier_lead ne peut refuser qu'un horodatage invalide, déjà validé ci-dessus par
+    # ingestion.ingerer : un refus ici serait une incohérence interne, jamais un refus métier
+    # normal à ce stade (même patron que marquer_chantier_termine pour son interaction système).
+    lien_client, verdict_client = clients.lier_lead(reg, lead_id, contrat, horodatage)
+    if verdict_client is not None:
+        raise RuntimeError(f"clients.lier_lead a refusé un lead déjà ingéré avec succès : {verdict_client}")
+
+    _publier_si_durable(
+        "m2.client_associe",
+        {
+            "lead_id": lead_id,
+            "client_id": lien_client["client_id"],
+            "horodatage_association": accuse["horodatage"],
+        },
+        f"m2-client-associe-{lead_id}",
+    )
+    accuse["client_id"] = lien_client["client_id"]
+    return accuse, None
+
+
 # ---------------------------------------------------------------------------
 # Fonctions enveloppes — chacune appelle le code métier existant tel quel.
 # ---------------------------------------------------------------------------
@@ -77,9 +126,10 @@ def _obtenir_registre() -> Registre:
 def ingerer_lead(contrat: dict[str, Any], horodatage: str) -> dict[str, Any]:
     """Ingestion de bout en bout : validation + frontières (ingestion.ingerer),
     dédoublonnage (chaque doublon détecté à l'ingestion est signalé, jamais
-    fusionné — correctif d'audit PRD §2b), statut courant, readiness pour M3."""
+    fusionné — correctif d'audit PRD §2b), lien Client 360 (PLAN T2.2), statut
+    courant, readiness pour M3."""
     reg = _obtenir_registre()
-    accuse, verdict = ingestion.ingerer(contrat, reg, horodatage)
+    accuse, verdict = _ingerer_et_lier(contrat, horodatage, reg)
     if verdict is not None:
         return {"etape": "ingestion", "accepte": False, "verdict": verdict}
 
@@ -94,6 +144,7 @@ def ingerer_lead(contrat: dict[str, Any], horodatage: str) -> dict[str, Any]:
         "etape": "complet",
         "accepte": True,
         "lead_id": lead_id,
+        "client_id": accuse["client_id"],
         "accuse_ingestion": accuse,
         "doublons_signales": doublons_signales,
         "statut": statuts.statut_courant(reg, lead_id),
@@ -143,6 +194,37 @@ def enregistrer_interaction(lead_id: str, auteur: str, resume: str, horodatage: 
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
     return {"accepte": True, "resultat": accuse}
+
+
+def trouver_client_de_lead(lead_id: str) -> dict[str, Any]:
+    """PLAN T2.2 (Client 360) : le client_id auquel ce lead (opportunité) est rattaché."""
+    client_id = clients.client_de_lead(_obtenir_registre(), lead_id)
+    if client_id is None:
+        return {
+            "accepte": False,
+            "verdict": verdicts.construire_verdict(
+                "REJ-TRANSITION-ILLEGALE", detail=f"lead {lead_id} introuvable ou non lié à un client"
+            ),
+        }
+    return {"accepte": True, "resultat": {"lead_id": lead_id, "client_id": client_id}}
+
+
+def obtenir_client_360(client_id: str) -> dict[str, Any]:
+    """PLAN T2.2 (Client 360) : vue compacte des opportunités, statuts, prochaines actions
+    connues et interactions récentes d'un client. Lecture pure, aucune écriture."""
+    vue, verdict = clients.obtenir_vue_360(_obtenir_registre(), client_id)
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    return {"accepte": True, "resultat": vue}
+
+
+def suggerer_prochaine_action(lead_id: str, horodatage: str) -> dict[str, Any]:
+    """PLAN T2.2 (M2.6) : suggestion déterministe de prochaine meilleure action, par table de
+    règles citée (suggestions.suggerer) — jamais appliquée automatiquement au registre."""
+    suggestion, verdict = suggestions.suggerer(_obtenir_registre(), lead_id, horodatage)
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    return {"accepte": True, "resultat": suggestion}
 
 
 def marquer_chantier_termine(
@@ -211,11 +293,23 @@ class LeadIntrouvable(LookupError):
 class StatutIncompatibleAvecCompletion(ValueError):
     """m4.travaux_termines : le lead existe mais son statut commercial est incompatible avec une
     complétion de chantier — antérieur à la conversion (nouveau, qualifie), clos sans avoir
-    jamais été converti (perdu : statuts.STATUTS_TERMINAUX n'admet aucune transition sortante) ou
-    déjà postérieur au chantier (facture, paiement, avis : la complétion a déjà été appliquée par
-    un événement antérieur). Incohérence de données (DEFINITION-PRODUIT §7 M2 « Cycle de vie
-    couvert »), jamais un refus métier normal : le répartiteur réessaie puis met en quarantaine
-    (ADR-0009 §3), sans écriture."""
+    jamais été converti (perdu : statuts.STATUTS_TERMINAUX n'admet aucune transition sortante), ou
+    déjà postérieur au chantier (facture, paiement, avis) SANS client associé retrouvable
+    (incohérence de données : chaque lead ingéré depuis PLAN T2.2 est lié à un client — voir
+    `OpportuniteAmbigue` et `_ouvrir_nouvelle_opportunite_pour_wct` pour le cas normal, avec
+    client, d'une affaire répétée). Jamais un refus métier normal : le répartiteur réessaie puis
+    met en quarantaine (ADR-0009 §3), sans écriture."""
+
+
+class OpportuniteAmbigue(ValueError):
+    """m4.travaux_termines : le lead d'origine a déjà terminé SON propre cycle (facture, paiement
+    ou avis — PLAN T2.2, relevé T1.2-e) et le CLIENT associé (clients.py, Client 360) porte
+    PLUSIEURS opportunités actuellement EN COURS (converti, cedule ou chantier) : impossible de
+    déterminer, sans décision humaine, à laquelle rattacher ce WCT. Jamais un choix arbitraire
+    (ex. la plus récente) : §7 M2 interdit toute transition sans décision humaine explicite. Le
+    répartiteur réessaie puis met en quarantaine (ADR-0009 §3) — visible par un humain
+    (`opsys evenements etat`), qui arbitre manuellement (une interaction ou une transition
+    explicite sur la bonne opportunité) puis, au besoin, republie le WCT."""
 
 
 # Table de règles déterministe : statut commercial courant du lead -> étapes de transition à
@@ -224,12 +318,20 @@ class StatutIncompatibleAvecCompletion(ValueError):
 # Chaque étape est un couple déjà autorisé SANS condition additionnelle par
 # statuts.TRANSITIONS_AUTORISEES (seul chantier->facture, parcouru par marquer_chantier_termine
 # juste après, exige prochaine_action). Un statut absent de cette table est, par définition,
-# incompatible avec une complétion de chantier (StatutIncompatibleAvecCompletion ci-dessus).
+# incompatible avec une complétion de chantier (StatutIncompatibleAvecCompletion ci-dessus) —
+# SAUF les trois de _STATUTS_POST_CHANTIER ci-dessous, gérés séparément (PLAN T2.2).
 _ETAPES_VERS_CHANTIER: dict[str, tuple[str, ...]] = {
     "converti": ("cedule", "chantier"),
     "cedule": ("chantier",),
     "chantier": (),
 }
+
+# PLAN T2.2, relevé T1.2-e : « un second chantier pour un lead déjà à facture part en quarantaine
+# (le cycle de vie est par lead, pas par chantier) ». Un lead à l'un de ces trois statuts a DÉJÀ
+# terminé son propre cycle jusqu'au chantier : un second WCT pour ce même lead_id n'est plus une
+# incohérence de données, c'est le signe d'une affaire répétée pour le même CLIENT (M4 n'a pas
+# d'autre identifiant à reporter que le lead_id d'origine — voir _recevoir_travaux_termines).
+_STATUTS_POST_CHANTIER: tuple[str, ...] = ("facture", "paiement", "avis")
 
 
 def _regle_prochaine_action(charge: dict[str, Any]) -> dict[str, Any]:
@@ -248,6 +350,11 @@ def _regle_prochaine_action(charge: dict[str, Any]) -> dict[str, Any]:
     - Règle 3 (client_satisfait absent de la charge, ou explicitement null — jamais déduit) :
       repli par défaut sur le segment M2.11 `invoice_pending`, cohérent avec le statut
       `facture` que la transition vient d'atteindre.
+
+    PLAN T2.2 : `charge["lead_id"]` doit être l'opportunité RÉELLEMENT visée par la transition
+    (`lead_cible` dans `_recevoir_travaux_termines`, jamais forcément le `lead_id` d'origine du
+    WCT quand celui-ci a été rattaché à une autre opportunité du même client) — une seule table,
+    jamais un second calcul divergent selon qui appelle.
     """
     lead_id = charge["lead_id"]
     echeance = charge["horodatage_completion"]
@@ -270,16 +377,101 @@ def _regle_prochaine_action(charge: dict[str, Any]) -> dict[str, Any]:
     return {"description": description, "echeance": echeance}
 
 
+def _ouvrir_nouvelle_opportunite_pour_wct(
+    reg: Registre,
+    wct_recus,
+    lead_id_origine: str,
+    client_id: str,
+    wct_id: str,
+    horodatage: str,
+) -> dict[str, Any]:
+    """Ouvre une NOUVELLE opportunité pour le même client, AU LIEU D'UNE QUARANTAINE (PLAN T2.2,
+    relevé T1.2-e), quand un WCT arrive pour un lead déjà au bout de son propre cycle
+    (`_STATUTS_POST_CHANTIER`) et qu'aucune autre opportunité de ce client n'est en cours.
+
+    Contact, ville, type de travaux et canal sont copiés VERBATIM depuis le contrat déjà validé
+    du lead d'origine (des faits déjà connus de ce client, jamais une nouvelle donnée inventée) ;
+    ``conversation_id`` aussi, faute d'une nouvelle conversation M1 à référencer. La nouvelle
+    opportunité reste au statut `nouveau` : AUCUNE transition n'est fabriquée sans owner ni
+    décision humaine (§7 M2, « jamais...laisser un lead sans prochaine action » — mais aussi
+    jamais de transition sans décision humaine explicite). Elle devient orpheline au sens du
+    digest (`digest.py`, 48 h sans owner) comme n'importe quel autre lead sans propriétaire
+    assigné ; une interaction système explique pourquoi elle existe.
+
+    Ne signale PAS de doublon (`doublons.signaler`) contre le lead d'origine : ce n'est pas un
+    doublon accidentel à arbitrer, c'est une affaire répétée intentionnellement reconnue par ce
+    correctif (M2.14 « Références et affaires répétées ») — un signalement forcerait un arbitrage
+    humain sans objet.
+    """
+    contrat_origine = None
+    for m in reg.lire():
+        if m.get("type_entree") == "lead_ingere" and m.get("lead_id") == lead_id_origine:
+            contrat_origine = m.get("contrat")
+    if contrat_origine is None:
+        # Ne devrait jamais arriver : le lead d'origine existe forcément (statut déjà lu par
+        # l'appelant) — défense en profondeur, même famille d'incohérence que LeadIntrouvable.
+        raise LeadIntrouvable(
+            f"m4.travaux_termines : contrat introuvable pour le lead d'origine {lead_id_origine!r}"
+        )
+
+    nouveau_lead_id = f"{lead_id_origine}~opp~{wct_id}"
+    nouveau_contrat = dict(contrat_origine, lead_id=nouveau_lead_id)
+    _accuse, verdict = _ingerer_et_lier(nouveau_contrat, horodatage, reg)
+    if verdict is not None:
+        # Ne devrait jamais arriver : nouveau_contrat n'est qu'une copie d'un contrat déjà validé
+        # (seul lead_id change, garanti frais par la présence de wct_id dans son suffixe).
+        raise RuntimeError(
+            "m4.travaux_termines : réouverture d'opportunité refusée pour un contrat déjà validé "
+            f"à l'origine ({lead_id_origine!r}) : {verdict}"
+        )
+
+    resume = (
+        f"Nouvelle opportunité ouverte pour le client {client_id} (affaire répétée, M2.14) suite "
+        f"au WCT {wct_id} du lead {lead_id_origine} — celui-ci a déjà terminé son propre cycle. "
+        "Aucun représentant assigné : qualifier avant de pouvoir facturer ce chantier déjà exécuté."
+    )
+    _, verdict_interaction = interactions.enregistrer(nouveau_lead_id, "system:m4", resume, reg, horodatage)
+    if verdict_interaction is not None:
+        raise RuntimeError(
+            "m4.travaux_termines : interaction système refusée sur la nouvelle opportunité "
+            f"{nouveau_lead_id!r} juste après son ingestion : {verdict_interaction}"
+        )
+
+    wct_recus.append({
+        "wct_id": wct_id,
+        "lead_id": lead_id_origine,
+        "lead_id_applique": None,
+        "nouvelle_opportunite": nouveau_lead_id,
+        "horodatage_completion": horodatage,
+    })
+    return {
+        "traite": True,
+        "lead_id": lead_id_origine,
+        "wct_id": wct_id,
+        "client_id": client_id,
+        "nouvelle_opportunite": nouveau_lead_id,
+        "statut_nouvelle_opportunite": "nouveau",
+    }
+
+
 def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
     """Consomme m4.travaux_termines (ADR-0009 §3, PLAN T1.2-c ; DEFINITION-PRODUIT §6 cascade
-    « travaux terminés », ligne M2). Retrouve le lead (lead_id du WCT) et le fait avancer de
-    façon déterministe : s'il est à `converti` ou `cedule`, il avance jusqu'à `chantier`
-    (`_ETAPES_VERS_CHANTIER`), puis applique `marquer_chantier_termine` (chantier -> facture,
-    interaction système, prochaine action tirée de `_regle_prochaine_action`).
+    « travaux terminés », ligne M2). Détermine l'opportunité RÉELLE à faire progresser :
 
-    Un lead introuvable ou dans un statut incompatible est une incohérence de données : cette
-    fonction lève une erreur NOMMÉE (`LeadIntrouvable` ou `StatutIncompatibleAvecCompletion`),
-    jamais une écriture partielle — le répartiteur livre chaque paire (événement, consommateur)
+    - le lead du WCT est à `converti`/`cedule`/`chantier` -> chemin nominal inchangé, il avance
+      jusqu'à `chantier` (`_ETAPES_VERS_CHANTIER`) puis `marquer_chantier_termine` ;
+    - le lead du WCT a DÉJÀ terminé son propre cycle (`_STATUTS_POST_CHANTIER` : facture, paiement,
+      avis) -> PLAN T2.2 (relevé T1.2-e), plus une incohérence en soi : cherche, PARMI LES AUTRES
+      OPPORTUNITÉS DU MÊME CLIENT (clients.py, Client 360), celle qui est actuellement en cours —
+      exactement une : le WCT s'y rattache ; aucune : une NOUVELLE opportunité s'ouvre pour ce
+      client au lieu d'une quarantaine (`_ouvrir_nouvelle_opportunite_pour_wct`) ; plusieurs :
+      `OpportuniteAmbigue`, jamais un choix arbitraire ;
+    - tout autre statut (nouveau, qualifie, perdu, ou post-chantier sans client associé — ne
+      devrait jamais arriver depuis PLAN T2.2) -> incohérence de données réelle,
+      `StatutIncompatibleAvecCompletion`, inchangé.
+
+    Une erreur NOMMÉE (`LeadIntrouvable`, `StatutIncompatibleAvecCompletion`, `OpportuniteAmbigue`)
+    n'écrit jamais rien de partiel — le répartiteur livre chaque paire (événement, consommateur)
     dans son propre point de sauvegarde (ADR-0009 §3) : un lever ici annule toute transition déjà
     amorcée par CET appel, et le répartiteur réessaie puis met en quarantaine après 5 échecs,
     visible par un humain.
@@ -301,37 +493,71 @@ def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
     if statut is None:
         raise LeadIntrouvable(f"m4.travaux_termines : lead {lead_id!r} introuvable au registre M2")
 
-    etapes = _ETAPES_VERS_CHANTIER.get(statut)
+    lead_cible = lead_id
+    if statut in _STATUTS_POST_CHANTIER:
+        client_id = clients.client_de_lead(reg, lead_id)
+        if client_id is None:
+            # Ne devrait jamais arriver pour un lead ingéré depuis ce correctif (chaque ingestion
+            # lie un client, _ingerer_et_lier) : fail-closed, même famille que les statuts
+            # antérieurs à la conversion ci-dessous — incohérence de données, pas un cas normal.
+            raise StatutIncompatibleAvecCompletion(
+                f"m4.travaux_termines : lead {lead_id!r} au statut {statut!r} sans client associé "
+                "(Client 360, PLAN T2.2) — incohérence de données, impossible de chercher une "
+                "opportunité de reprise pour ce client."
+            )
+        candidats = sorted(
+            autre for autre in clients.opportunites_du_client(reg, client_id)
+            if autre != lead_id and statuts.statut_courant(reg, autre) in _ETAPES_VERS_CHANTIER
+        )
+        if len(candidats) > 1:
+            raise OpportuniteAmbigue(
+                f"m4.travaux_termines : le client {client_id!r} porte {len(candidats)} "
+                f"opportunités en cours ({candidats!r}) — impossible de déterminer laquelle "
+                f"rattacher au WCT {wct_id!r} sans décision humaine."
+            )
+        if len(candidats) == 1:
+            lead_cible = candidats[0]
+        else:
+            return _ouvrir_nouvelle_opportunite_pour_wct(reg, wct_recus, lead_id, client_id, wct_id, horodatage)
+
+    statut_cible_depart = statuts.statut_courant(reg, lead_cible)
+    etapes = _ETAPES_VERS_CHANTIER.get(statut_cible_depart)
     if etapes is None:
         raise StatutIncompatibleAvecCompletion(
             f"m4.travaux_termines : lead {lead_id!r} au statut {statut!r}, incompatible avec une "
             "complétion de chantier (attendu converti, cedule ou chantier)"
         )
 
-    depuis = statut
+    depuis = statut_cible_depart
     for statut_cible in etapes:
-        _, verdict = statuts.transitionner(lead_id, statut_cible, reg, horodatage)
+        _, verdict = statuts.transitionner(lead_cible, statut_cible, reg, horodatage)
         if verdict is not None:
             # Jamais attendu : _ETAPES_VERS_CHANTIER ne propose que des couples autorisés sans
             # condition additionnelle par statuts.py — défense en profondeur, même patron que
             # marquer_chantier_termine ci-dessus pour son écriture d'interaction.
             raise RuntimeError(
                 f"m4.travaux_termines : transition {depuis}->{statut_cible} refusée de façon "
-                f"inattendue pour le lead {lead_id!r} : {verdict}"
+                f"inattendue pour le lead {lead_cible!r} : {verdict}"
             )
         depuis = statut_cible
 
-    prochaine_action = _regle_prochaine_action(charge)
-    resultat = marquer_chantier_termine(lead_id, horodatage, prochaine_action)
+    prochaine_action = _regle_prochaine_action({**charge, "lead_id": lead_cible})
+    resultat = marquer_chantier_termine(lead_cible, horodatage, prochaine_action)
     if not resultat["accepte"]:
         raise RuntimeError(
             "m4.travaux_termines : marquer_chantier_termine refusé après une transition validée "
-            f"pour le lead {lead_id!r} : {resultat['verdict']}"
+            f"pour le lead {lead_cible!r} : {resultat['verdict']}"
         )
-    wct_recus.append({"wct_id": wct_id, "lead_id": lead_id, "horodatage_completion": horodatage})
+    wct_recus.append({
+        "wct_id": wct_id,
+        "lead_id": lead_id,
+        "lead_id_applique": lead_cible,
+        "horodatage_completion": horodatage,
+    })
     return {
         "traite": True,
         "lead_id": lead_id,
+        "lead_id_applique": lead_cible,
         "wct_id": wct_id,
         "statut_final": resultat["resultat"]["transition"]["statut"],
         "prochaine_action": prochaine_action,
@@ -366,9 +592,18 @@ _CONTACT = {
     "properties": {cle: {"type": "string"} for cle in contrats.CLES_CONTACT},
     "additionalProperties": False,
 }
+_UTM = {
+    "type": "object",
+    "description": "Optionnel (PLAN T2.2) : paramètres UTM tels que fournis, aucune énumération M7 revalidée ici.",
+    "properties": {cle: {"type": "string"} for cle in contrats.CLES_UTM},
+    "additionalProperties": False,
+}
 _CONTRAT = {
     "type": "object",
-    "description": "Contrat gelé transmis par le module amont (les sept champs exacts, aucun de plus).",
+    "description": (
+        "Contrat transmis par le module amont : les sept champs gelés (obligatoires), plus "
+        "source/utm/campagne (PLAN T2.2, optionnels — jamais de valeur par défaut si absents)."
+    ),
     "properties": {
         "lead_id": {"type": "string"},
         "conversation_id": {"type": "string"},
@@ -377,6 +612,9 @@ _CONTRAT = {
         "ville": {"type": "string"},
         "urgence_declaree": {"type": "boolean"},
         "canal": {"type": "string", "enum": list(contrats.CANAUX)},
+        "source": {"type": "string", "description": "Optionnel : canal d'acquisition déclaré par M7."},
+        "campagne": {"type": "string", "description": "Optionnel : campagne marketing déclarée par M7."},
+        "utm": _UTM,
     },
     "required": list(contrats.CHAMPS_CONTRAT_GELE),
     "additionalProperties": False,
@@ -503,6 +741,34 @@ def outils() -> tuple[Outil, ...]:
             autonomie=Autonomie.T1,
         ),
         Outil(
+            nom="m2_trouver_client_de_lead",
+            description=(
+                "PLAN T2.2 (Client 360) : retrouve le client_id auquel un lead (opportunité) est "
+                "rattaché. Lecture pure."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"lead_id": {"type": "string"}},
+                "required": ["lead_id"],
+                "additionalProperties": False,
+            },
+            fonction=trouver_client_de_lead,
+        ),
+        Outil(
+            nom="m2_obtenir_client_360",
+            description=(
+                "PLAN T2.2 (M2.2) : vue 360 compacte d'un client — ses opportunités, statuts, "
+                "prochaines actions connues et interactions récentes. Lecture pure, jamais d'écriture."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"client_id": {"type": "string"}},
+                "required": ["client_id"],
+                "additionalProperties": False,
+            },
+            fonction=obtenir_client_360,
+        ),
+        Outil(
             nom="m2_evaluer_readiness",
             description=(
                 "Évalue si un lead qualifié est prêt pour M3 (owner, type de travaux valide, ville, "
@@ -516,6 +782,21 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=evaluer_readiness,
+        ),
+        Outil(
+            nom="m2_suggerer_prochaine_action",
+            description=(
+                "PLAN T2.2 (M2.6) : suggère la prochaine meilleure action pour un lead, par table de "
+                "règles déterministe et citée — jamais un modèle, jamais appliquée automatiquement au "
+                "registre. Lecture pure."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"lead_id": {"type": "string"}, "horodatage": _HORODATAGE},
+                "required": ["lead_id", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=suggerer_prochaine_action,
         ),
         Outil(
             nom="m2_produire_digest",

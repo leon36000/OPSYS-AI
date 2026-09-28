@@ -20,11 +20,14 @@ from m2_revenue_crm.outils import (
     evaluer_readiness,
     ingerer_lead,
     marquer_chantier_termine,
+    obtenir_client_360,
     outils,
     produire_digest,
     reinitialiser_registre,
     signaler_doublon,
+    suggerer_prochaine_action,
     transitionner_statut,
+    trouver_client_de_lead,
 )
 
 from opsys.departements import lire_manifeste
@@ -68,6 +71,11 @@ def test_manifeste_et_outils_coherents():
     # m2_marquer_chantier_termine.
     assert dep.dependances == ("m01-front-office", "m04-field-ops")
     assert dep.mode == "ombre"
+    # PLAN T2.2 : Client 360 + suggestion de prochaine action, trois nouveaux outils T0 (lecture).
+    for nom_attendu in ("m2_trouver_client_de_lead", "m2_obtenir_client_360", "m2_suggerer_prochaine_action"):
+        assert nom_attendu in noms
+        outil = next(o for o in dep.charger_outils() if o.nom == nom_attendu)
+        assert outil.autonomie.value == "T0", f"{nom_attendu} doit être une lecture pure (T0)"
 
 
 # ---------------------------------------------------------------------------
@@ -81,6 +89,9 @@ class TestIngererLeadNominal:
         assert reponse["pret_pour_m3"] is False, "aucun owner ni interaction encore : pas prêt"
         assert reponse["doublons_signales"] == []
         assert reponse["accuse_ingestion"]["doublons_detectes"] == []
+        # PLAN T2.2 (Client 360) : chaque lead ingéré est rattaché à un client.
+        assert reponse["client_id"], "client_id doit être présent et non vide"
+        assert reponse["client_id"] == reponse["accuse_ingestion"]["client_id"]
 
     def test_doublon_probable_detecte_et_signale(self):
         """Correctif d'audit PRD §2b : un doublon probable est signalé à l'ingestion."""
@@ -387,3 +398,76 @@ class TestCorrectifsAudit:
 
         texte = produire_digest("2026-06-16", "2026-06-16T12:00:00+00:00")
         assert sig_id not in texte, "un signalement arbitré ne doit plus figurer en attente"
+
+
+# ---------------------------------------------------------------------------
+# Client 360 (PLAN T2.2)
+# ---------------------------------------------------------------------------
+class TestClient360:
+    def test_trouver_client_de_lead_et_obtenir_client_360(self):
+        reponse = ingerer_lead(_contrat("CL1"), "2026-06-15T09:00:00+00:00")
+        client_id = reponse["client_id"]
+
+        trouve = trouver_client_de_lead("CL1")
+        assert trouve["accepte"] is True
+        assert trouve["resultat"] == {"lead_id": "CL1", "client_id": client_id}
+
+        vue = obtenir_client_360(client_id)
+        assert vue["accepte"] is True
+        assert vue["resultat"]["client_id"] == client_id
+        assert len(vue["resultat"]["opportunites"]) == 1
+        assert vue["resultat"]["opportunites"][0]["lead_id"] == "CL1"
+
+    def test_deux_leads_du_meme_contact_partagent_le_meme_client_et_la_meme_vue(self):
+        contact = {"nom": "Client Répété", "telephone": "418-555-7777", "courriel": "repete@example.test"}
+        r1 = ingerer_lead(_contrat("CL2", contact=contact), "2026-01-10T09:00:00+00:00")
+        r2 = ingerer_lead(_contrat("CL3", contact=contact), "2026-08-15T09:00:00+00:00")
+        assert r1["client_id"] == r2["client_id"]
+
+        vue = obtenir_client_360(r1["client_id"])
+        assert vue["accepte"] is True
+        leads_vus = sorted(o["lead_id"] for o in vue["resultat"]["opportunites"])
+        assert leads_vus == ["CL2", "CL3"]
+
+    def test_client_id_introuvable_rend_un_verdict_nomme(self):
+        reponse = obtenir_client_360("client-jamais-vu")
+        assert reponse["accepte"] is False
+        assert reponse["verdict"]["code"] == "REJ-TRANSITION-ILLEGALE"
+
+    def test_lead_introuvable_pour_trouver_client_rend_un_verdict_nomme(self):
+        reponse = trouver_client_de_lead("lead-jamais-vu")
+        assert reponse["accepte"] is False
+        assert reponse["verdict"]["code"] == "REJ-TRANSITION-ILLEGALE"
+
+    def test_outils_client_360_exposes_en_t0_lecture_pure(self):
+        for nom in ("m2_trouver_client_de_lead", "m2_obtenir_client_360"):
+            outil = next(o for o in outils() if o.nom == nom)
+            arguments = {"lead_id": "peu-importe"} if "lead" in nom else {"client_id": "peu-importe"}
+            reponse = executer(outil, arguments)
+            # Lecture pure : même un identifiant inconnu rend une réponse normale (verdict), pas
+            # une exception ; l'outil n'écrit jamais (T0 déjà vérifié par le manifeste ci-dessus).
+            assert reponse["ok"] is True
+
+
+# ---------------------------------------------------------------------------
+# Suggestion de prochaine action (PLAN T2.2, M2.6)
+# ---------------------------------------------------------------------------
+class TestSuggererProchaineAction:
+    def test_lead_nouveau_suggere_assigner_owner(self):
+        ingerer_lead(_contrat("SG1"), "2026-06-15T09:00:00+00:00")
+        reponse = suggerer_prochaine_action("SG1", "2026-06-15T10:00:00+00:00")
+        assert reponse["accepte"] is True
+        assert reponse["resultat"]["regle"] == "assigner_owner"
+
+    def test_jamais_applique_automatiquement_au_registre(self):
+        """La suggestion ne modifie JAMAIS statut/prochaine_action réels du lead : seul un humain
+        les fixe via m2_transitionner_statut."""
+        ingerer_lead(_contrat("SG2"), "2026-06-15T09:00:00+00:00")
+        taille_avant = _obtenir_registre().taille()
+        suggerer_prochaine_action("SG2", "2026-06-15T10:00:00+00:00")
+        assert _obtenir_registre().taille() == taille_avant
+
+    def test_lead_introuvable_rend_un_verdict_nomme(self):
+        reponse = suggerer_prochaine_action("jamais-ingere", "2026-06-15T10:00:00+00:00")
+        assert reponse["accepte"] is False
+        assert reponse["verdict"]["code"] == "REJ-TRANSITION-ILLEGALE"

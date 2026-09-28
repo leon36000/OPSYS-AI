@@ -75,6 +75,17 @@ d'une facture BROUILLON dans `attentes()`, sans jamais bloquer son envoi (M6 « 
 seulement »). Ce module reste le seul point du département qui connaît `opsys.evenements`,
 comme il est déjà le seul à connaître `opsys.stockage` — `facturation.py` n'importe ni l'un ni
 l'autre (DA-M5-04).
+
+PLAN T2.2 (Client 360 de M2) : `consommateurs()` abonne en plus `_recevoir_client_associe`
+(`m2.client_associe`, catalogue M2) sur `clients_recus.py` (même patron que les autres registres
+« reçus »). `_essayer_facture_brouillon` facture avec le VRAI `client_id` du Client 360 quand il
+est connu, sinon reprend le repli historique (`client_id = lead_id`, une donnée réelle, jamais
+inventée) — JAMAIS bloquant : `m2.client_associe` est publié à l'ingestion du lead, bien avant
+qu'un devis ou une complétion puisse exister pour lui, donc ce repli ne devrait normalement jamais
+s'activer en usage réel ; il reste le filet pour un ordre d'arrivée inhabituel. Aucune facture
+déjà créée n'est corrigée rétroactivement si `m2.client_associe` arrive après coup (immuabilité
+des écritures, même principe que `variance_recus.py` : le signal est gardé pour l'AVENIR, jamais
+appliqué au passé).
 """
 
 from __future__ import annotations
@@ -87,7 +98,17 @@ from typing import Any
 from opsys import stockage
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
-from . import devis_recus, etat_financier, facturation, taux_fiscaux, taxes, validation, variance_recus, wct_recus
+from . import (
+    clients_recus,
+    devis_recus,
+    etat_financier,
+    facturation,
+    taux_fiscaux,
+    taxes,
+    validation,
+    variance_recus,
+    wct_recus,
+)
 from . import registre as registre_module
 
 _CHEMIN_TAUX_FISCAUX = Path(__file__).resolve().parents[2] / "contracts" / "taux_fiscaux.v1.yaml"
@@ -98,6 +119,7 @@ _NOM_REGISTRE_FACTURES = "factures"
 _NOM_REGISTRE_DEVIS_RECUS = "devis_recus"
 _NOM_REGISTRE_WCT_RECUS = "wct_recus"
 _NOM_REGISTRE_VARIANCE_RECUE = "variance_recue"
+_NOM_REGISTRE_CLIENTS_RECUS = "clients_recus"
 
 # Correspondance F -> N (ADR-0009 §4), établie en UN SEUL endroit pour M5 (PLAN T1.3-c point 3) :
 # F0-F2 automatique (N0-N2, le choix exact ne change aucun comportement d'approbation, même
@@ -388,14 +410,20 @@ def _essayer_facture_brouillon(devis_id: str) -> dict[str, Any]:
         for ligne in devis_recu["lignes"]
     ]
 
+    # PLAN T2.2 (Client 360 de M2) : client_id RÉEL si M5 a déjà reçu m2.client_associe pour ce
+    # lead (clients_recus.py) ; sinon repli sur lead_id, EXACTEMENT le comportement historique
+    # d'avant ce correctif — jamais bloquant (voir docstring du module) et jamais une valeur
+    # inventée (lead_id est une donnée réelle, portée telle quelle depuis M3/M2).
+    client_recu = clients_recus.pour_lead_id(
+        devis_recu["lead_id"], stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_CLIENTS_RECUS)
+    )
+    client_id = client_recu["client_id"] if client_recu is not None else devis_recu["lead_id"]
+
     resultat, verdict = facturation.creer_facture_brouillon(
         facture_id=f"fac-{devis_id}",
         chantier_id=chantier_id,
         devis_id=devis_id,
-        # T2.2 (Client 360) pas encore construit : lead_id fait office de client_id le temps que
-        # ce département existe — documenté ici, à réconcilier par T2.2, jamais un identifiant
-        # fabriqué en attendant (le lead_id, lui, est réel : porté tel quel depuis M3/M2).
-        client_id=devis_recu["lead_id"],
+        client_id=client_id,
         lignes=lignes,
         horodatage=wct_recu["horodatage_completion"],
         dictionnaire_taux=dictionnaire_taux,
@@ -515,8 +543,28 @@ def _recevoir_variance_chantier(charge: dict[str, Any]) -> dict[str, Any]:
     return {"traite": True, "wct_id": charge["wct_id"], "statut_variance": charge["statut_variance"]}
 
 
+def _recevoir_client_associe(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme `m2.client_associe` (PLAN T2.2, catalogue M2) : garde le lien lead_id -> client_id
+    (`clients_recus.py`, idempotent par lead_id), pour que `_essayer_facture_brouillon` facture le
+    VRAI client_id du Client 360 M2 dès qu'il est connu. N'essaie PAS de facturer ici : ce type
+    d'événement arrive à l'ingestion du lead, bien avant qu'un devis_id soit même connaissable
+    (voir docstring du module) — rien à tenter tant qu'aucun devis n'existe pour ce lead."""
+    lead_id = charge["lead_id"]
+    registre = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_CLIENTS_RECUS)
+    if clients_recus.pour_lead_id(lead_id, registre) is None:
+        registre.append(
+            clients_recus.construire(
+                lead_id=lead_id,
+                client_id=charge["client_id"],
+                horodatage_association=charge["horodatage_association"],
+            )
+        )
+    return {"traite": True, "lead_id": lead_id, "client_id": charge["client_id"]}
+
+
 def consommateurs() -> dict[str, Callable[[dict], dict]]:
     return {
+        "m2.client_associe": _recevoir_client_associe,
         "m3.devis_accepte": _recevoir_devis_accepte,
         "m4.travaux_termines": _recevoir_travaux_termines,
         "m6.variance_chantier": _recevoir_variance_chantier,
