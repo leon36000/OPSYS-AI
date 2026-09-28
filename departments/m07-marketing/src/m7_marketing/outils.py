@@ -20,7 +20,7 @@ from typing import Any
 import yaml
 
 from opsys import stockage
-from opsys.outils import Autonomie, Outil, depuis_couple
+from opsys.outils import Autonomie, Outil
 
 from .ads import intelligence as ads_intelligence
 from .aeo import aeo_engine
@@ -28,7 +28,10 @@ from .attribution import attribution_engine
 from .brand import brand_schema
 from .competitive import report as competitive_report
 from .content import approval as content_approval
+from .content import contenu_public as content_contenu_public
 from .content import factory as content_factory
+from .moderation import detection as moderation_detection
+from .moderation.image import ImageSynthetique
 from .reputation import classifier as reputation_classifier
 from .reputation import demande_avis as reputation_demande_avis
 from .reputation import ingestion as reputation_ingestion
@@ -68,6 +71,39 @@ _SUJET = {
     },
     "required": ["titre", "description"],
     "additionalProperties": True,
+}
+_CHARGE_TRAVAUX_TERMINES = {
+    "type": "object",
+    "description": (
+        "Charge WCT m4.travaux_termines (ou sous-ensemble utile) : wct_id (requis), "
+        "consentement_marketing (booléen explicite, jamais déduit), consentement_marketing_retire "
+        "(optionnel — un retrait explicite refuse toujours, même si consentement_marketing est "
+        "vrai), intervention_id, lead_id, ville, type_travaux."
+    ),
+}
+_IMAGE_SYNTHETIQUE = {
+    "type": "object",
+    "description": (
+        "Image déjà décodée en pixels RGB (jamais un fichier JPEG/PNG brut : le décodage réel "
+        "reste à brancher avec la brique retenue, voir docs/research/INGREDIENTS.md § M7)."
+    ),
+    "properties": {
+        "largeur": {"type": "integer"},
+        "hauteur": {"type": "integer"},
+        "pixels": {
+            "type": "array",
+            "description": "largeur * hauteur triplets [r, g, b], rangée par rangée.",
+            "items": {"type": "array", "items": {"type": "integer"}, "minItems": 3, "maxItems": 3},
+        },
+    },
+    "required": ["largeur", "hauteur", "pixels"],
+    "additionalProperties": False,
+}
+_PHOTO = {
+    "type": "object",
+    "properties": {"reference": {"type": "string"}, "image": _IMAGE_SYNTHETIQUE},
+    "required": ["reference", "image"],
+    "additionalProperties": False,
 }
 
 
@@ -159,9 +195,9 @@ def calculer_roi(
     rapport_attribution = attribution_engine.attribuer(visites, leads, fenetre_jours=fenetre_jours)
     rapport_ads = ads_intelligence.generate_report(dossier_ads, chemin_calendrier, date_reference)
 
-    with open(chemin_calendrier, "r", encoding="utf-8") as f:
+    with open(chemin_calendrier, encoding="utf-8") as f:
         calendrier = yaml.safe_load(f)
-    with open(chemin_mapping, "r", encoding="utf-8") as f:
+    with open(chemin_mapping, encoding="utf-8") as f:
         mapping = yaml.safe_load(f)
 
     roi = roi_engine.consolider_roi(rapport_attribution, rapport_ads, mapping, calendrier, date_reference)
@@ -196,6 +232,58 @@ def lister_file_approbation(statut: str | None = None) -> list[dict[str, Any]]:
     """Liste les content-items de la file d'approbation 0-6, filtrés par statut
     (PROPOSE | APPROVED | REJECTED) si fourni."""
     return content_approval.list_items(statut)
+
+
+# ---------------------------------------------------------------------------
+# Contenu public (photo de chantier) — consentement + floutage (PLAN T4.3, T1, jamais publié)
+# ---------------------------------------------------------------------------
+_REGISTRE_CONTENU_PUBLIC = ("m07-marketing", "contenu_public")
+
+
+def _image_depuis_dict(donnees: dict[str, Any]) -> ImageSynthetique:
+    pixels = tuple((int(p[0]), int(p[1]), int(p[2])) for p in donnees["pixels"])
+    return ImageSynthetique(largeur=donnees["largeur"], hauteur=donnees["hauteur"], pixels=pixels)
+
+
+def preparer_contenu_public(
+    charge: dict[str, Any],
+    photos: list[dict[str, Any]],
+    brand: dict[str, Any],
+    seuil_confiance: float,
+) -> dict[str, Any]:
+    """Prépare un brouillon de contenu public (photo de chantier) FLOUTÉ, avec la preuve du
+    consentement et le rapport de floutage — jamais une publication (T1). La publication réelle
+    reste N5 (approbation signée du socle), hors de cet outil.
+
+    Fail-closed : consentement absent/faux/retiré, profil de marque non configuré, aucune photo,
+    ou détecteur réel indisponible dans cet environnement -> `statut != "propose"` et
+    `brouillon: None`, jamais une exception qui casse l'appel, jamais un brouillon composé sous
+    une identité ou un consentement inventés.
+
+    Idempotent par `wct_id` : un brouillon déjà déposé pour ce chantier n'est jamais dupliqué (un
+    nouvel appel le retourne tel quel, `statut: "deja_prepare"`).
+    """
+    wct_id = charge.get("wct_id")
+    registre = stockage.maillons(*_REGISTRE_CONTENU_PUBLIC)
+    if wct_id:
+        for existant in registre:
+            if existant.get("wct_id") == wct_id:
+                return {"brouillon": existant, "statut": "deja_prepare", "motif": None}
+
+    try:
+        detecteur = moderation_detection.detecteur_opencv_par_defaut()
+    except moderation_detection.DetecteurIndisponible as exc:
+        return {"brouillon": None, "statut": "detecteur_indisponible", "motif": str(exc)}
+
+    images = [(p["reference"], _image_depuis_dict(p["image"])) for p in photos]
+    brouillon, motif = content_contenu_public.preparer_brouillon_contenu_public(
+        charge, images, brand, detecteur, seuil_confiance
+    )
+    if brouillon is None:
+        return {"brouillon": None, "statut": "refuse", "motif": motif}
+
+    registre.append(brouillon)
+    return {"brouillon": brouillon, "statut": "propose", "motif": None}
 
 
 def planifier_campagne_saisonniere(date_reference: str, chemin_calendrier: str | None = None) -> dict[str, Any]:
@@ -446,6 +534,32 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=lister_file_approbation,
+        ),
+        Outil(
+            nom="m7_preparer_contenu_public",
+            description=(
+                "Prépare un brouillon de contenu public (photo de chantier) FLOUTÉ (visages et "
+                "plaques), avec la preuve du consentement et le rapport de floutage. Refuse "
+                "(fail-closed) si consentement_marketing est absent/faux/retiré, si le profil de "
+                "marque n'est pas configuré, ou si le détecteur réel est indisponible. Jamais une "
+                "publication : la publication réelle reste N5 (approbation signée du socle)."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "charge": _CHARGE_TRAVAUX_TERMINES,
+                    "photos": {"type": "array", "items": _PHOTO},
+                    "brand": _BRAND,
+                    "seuil_confiance": {
+                        "type": "number",
+                        "description": "Seuil [0,1] sous lequel une détection force une revue humaine ; jamais deviné.",
+                    },
+                },
+                "required": ["charge", "photos", "brand", "seuil_confiance"],
+                "additionalProperties": False,
+            },
+            fonction=preparer_contenu_public,
+            autonomie=Autonomie.T1,
         ),
         Outil(
             nom="m7_planifier_campagne_saisonniere",

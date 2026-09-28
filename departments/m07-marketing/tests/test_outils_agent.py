@@ -130,6 +130,23 @@ class TestPlanifierCampagneSaisonniere:
         yield
         content_approval.reset()
 
+    # PLAN T4.3 : `campagne_saisonniere._charger_brand` réel est désormais fail-closed
+    # (`brand.profil_client`) et refuse le gabarit par défaut non configuré (`profile.yaml`,
+    # M7-audit.md §2.1) — cette classe teste la planification saisonnière via l'outil composé,
+    # pas la configuration de marque (couverte par `tests/test_brand_profil_client.py`).
+    @pytest.fixture(autouse=True)
+    def _brand_client_test(self, monkeypatch):
+        from m7_marketing.workflows import campagne_saisonniere
+
+        brand_test = {
+            "name": "TestCo",
+            "tagline": "Tagline de test",
+            "tone": "professionnel",
+            "colors": ["#111111"],
+            "langue": "fr",
+        }
+        monkeypatch.setattr(campagne_saisonniere, "_charger_brand", lambda: dict(brand_test))
+
     def test_nominal_juillet_haute_saison(self):
         plan = outils.planifier_campagne_saisonniere("2026-07-15T00:00:00+00:00")
         assert plan["compteurs"]["fenetres_actives"] == 1

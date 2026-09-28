@@ -3,8 +3,9 @@ from pathlib import Path
 
 import yaml
 
-from ..content.factory import build_content_item
+from ..brand import profil_client as brand_profil_client
 from ..content import approval
+from ..content.factory import build_content_item
 
 _HERE = Path(__file__).resolve().parent  # m7_marketing/workflows
 _PKG = _HERE.parent  # m7_marketing
@@ -13,14 +14,17 @@ __all__ = ["planifier_campagne_saisonniere"]
 
 
 def _charger_brand():
-    """Charge le brand RÉEL depuis m7_marketing/brand/profile.yaml."""
-    brand_path = _PKG / "brand" / "profile.yaml"
-    with open(brand_path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
+    """Charge le profil de marque du CLIENT, fail-closed (PLAN T4.3, M7-audit.md §2.1) : jamais
+    le gabarit par défaut. Lève `ValueError` nommé si le fichier est absent ou si le profil n'est
+    pas encore configuré (encore `brand.profil_client.PLACEHOLDER_NOM`)."""
+    profil, motif = brand_profil_client.charger_profil_client()
+    if profil is None:
+        raise ValueError(motif)
+    return profil
 
 
 def _charger_calendrier(chemin: str) -> dict:
-    with open(chemin, "r", encoding="utf-8") as f:
+    with open(chemin, encoding="utf-8") as f:
         data = yaml.safe_load(f)
     if not isinstance(data, dict):
         raise ValueError("calendrier invalide : clé 'fenetres_marketing' manquante")

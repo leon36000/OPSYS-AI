@@ -41,6 +41,28 @@ Le serveur se bind sur `127.0.0.1` et affiche le `host:port` réel.
 python3 -m pytest "departments/m07-marketing/tests" -q
 ```
 
+## Contenu public : consentement + floutage (PLAN T4.3)
+
+- `m7_marketing.brand.profil_client` : chargement fail-closed du profil de marque du CLIENT
+  (`brand/profile.yaml`, versionné). Tant que `name` porte le repère `PLACEHOLDER_NOM`
+  (« À CONFIGURER (GATE NATHAN) »), le profil est refusé — le nom commercial exact reste une
+  décision de Nathan, jamais deviné ici.
+- `m7_marketing.moderation.{image,detection,floutage}` : floutage déterministe (pixellisation
+  par bloc) de visages et de plaques, détecteur injectable (`Detecteur`, protocole), testé par
+  des images synthétiques. Briques retenues pour l'implémentation réelle (voir
+  [`docs/research/INGREDIENTS.md`](../../docs/research/INGREDIENTS.md) § M7) : OpenCV
+  (Apache-2.0) + YuNet (MIT) pour les visages, cascade Haar OpenCV (Apache-2.0) pour les
+  plaques — `cv2` n'étant pas installé dans ce dépôt, `detecteur_opencv_par_defaut()` échoue
+  avec `DetecteurIndisponible`, un refus nommé et testé, jamais un faux vert.
+- `m7_marketing.content.contenu_public` + l'outil `m7_preparer_contenu_public` (T1) :
+  prépare un brouillon flouté avec la preuve du consentement et le rapport de floutage. Refuse
+  (fail-closed, aucun brouillon) si `consentement_marketing` est absent/faux/retiré, ou si le
+  profil de marque n'est pas configuré. Une détection sous le seuil de confiance fourni ne
+  bloque pas la préparation (le floutage est déjà appliqué par prudence) mais marque le
+  brouillon `revue_humaine_requise: true` avec le motif — jamais un passage silencieux. Jamais
+  une publication : la publication réelle reste N5 (approbation signée du socle), hors de ce
+  module.
+
 ## Contrat gelé v1
 
 - **Source unique de vérité** : [contracts/brand-contract.v1.yaml](contracts/brand-contract.v1.yaml)

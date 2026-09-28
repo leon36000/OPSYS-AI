@@ -36,6 +36,25 @@ def _reset_approval():
     approval.reset()
 
 
+# PLAN T4.3 : `_charger_brand` réel est désormais fail-closed (`brand.profil_client`) et refuse
+# le gabarit par défaut non configuré (`profile.yaml`, M7-audit.md §2.1) — ces tests portent sur
+# la planification de campagne saisonnière, pas sur la configuration de marque (couverte par
+# `tests/test_brand_profil_client.py`). Un profil de marque de test valide et explicitement
+# fictif est donc injecté par défaut pour tout ce module.
+_BRAND_TEST = {
+    "name": "TestCo",  # court : certains thèmes saisonniers sont proches de la limite 100 car (S006)
+    "tagline": "Tagline de test — jamais une donnée réelle",
+    "tone": "professionnel",
+    "colors": ["#111111"],
+    "langue": "fr",
+}
+
+
+@pytest.fixture(autouse=True)
+def _brand_client_test(monkeypatch):
+    monkeypatch.setattr(campagne_saisonniere, "_charger_brand", lambda: dict(_BRAND_TEST))
+
+
 def _make_iso(date_str: str) -> str:
     return f"{date_str}T00:00:00+00:00"
 

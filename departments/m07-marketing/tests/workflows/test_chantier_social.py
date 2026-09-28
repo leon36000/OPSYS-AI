@@ -21,6 +21,25 @@ TIMESTAMP = "2026-07-25T00:00:00+00:00"
 ACTEUR_PROPOSE = "alice"
 ACTEUR_APPROUVE = "bob"
 
+# PLAN T4.3 : `_charger_brand` réel est désormais fail-closed (`brand.profil_client`) et refuse
+# le gabarit par défaut non configuré (`profile.yaml`, M7-audit.md §2.1) — ces tests portent sur
+# l'orchestration chantier -> contenu social, pas sur la configuration de marque (couverte par
+# `tests/test_brand_profil_client.py` et `tests/workflows/test_chantier_social.py::...non_autorise`
+# ci-dessous, qui patche déjà `_charger_brand` explicitement). Un profil de marque de test valide
+# et explicitement fictif est donc injecté par défaut pour tout ce module.
+_BRAND_TEST = {
+    "name": "TestCo",  # court : évite de dépasser la limite de 100 caractères du titre (S006)
+    "tagline": "Tagline de test — jamais une donnée réelle",
+    "tone": "professionnel",
+    "colors": ["#111111"],
+    "langue": "fr",
+}
+
+
+@pytest.fixture(autouse=True)
+def _brand_client_test(monkeypatch):
+    monkeypatch.setattr(chantier_social, "_charger_brand", lambda: dict(_BRAND_TEST))
+
 
 def _creer_fixture(
     tmp_path: Path,

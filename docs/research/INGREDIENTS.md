@@ -217,6 +217,8 @@ version réellement installée (toutes vérifiées une à une ci-dessus). Aucun 
 | **Listmonk** | AGPL-3.0 | Emailing (newsletters, annonces de chantier), binaire Go unique très léger | **Service sidecar non modifié** | Phase 2 | R9 |
 | **FLUX.1-schnell** / **Qwen-Image** | Apache-2.0 (les deux) | Génération de visuels promotionnels sans condition commerciale | Poids locaux ou API | Phase 2 | R9 |
 | **changedetection.io** | Apache-2.0 | Veille concurrentielle continue (alertes sur changement de page), complète le snapshot ponctuel Scrapy | Sidecar Docker | Phase 2 | R9 |
+| **OpenCV** (`opencv-python-headless`, CODE) + **YuNet** (`face_detection_yunet_2023mar.onnx`, POIDS) | OpenCV ≥4.5.0 : Apache-2.0 (vérifié <https://opencv.org/license/>) · YuNet : **MIT** (vérifié dans `models/face_detection_yunet/LICENSE` du dépôt github.com/opencv/opencv_zoo, Shiqi Yu 2020 — distinct de la licence Apache-2.0 du dépôt `opencv_zoo` lui-même) | Détection de VISAGES avant floutage obligatoire de tout contenu public (`m7_marketing.moderation.detection`, PLAN T4.3, M7-audit.md §3.5), via `cv2.FaceDetectorYN` | Dépendance pip (non installée dans ce bac à sable — `ModuleNotFoundError` vérifié) ; interface `Detecteur` injectable déjà écrite et testée (images synthétiques), adaptateur réel à brancher une fois la dépendance disponible | Phase 2 (logique et interface livrées et testées ; adaptateur réel non branché) | M7-audit.md §3.5 |
+| Cascade Haar `haarcascade_russian_plate_number.xml` | **Apache-2.0** (livré DANS le dépôt principal `github.com/opencv/opencv`, `data/haarcascades/` — même licence que le code OpenCV ci-dessus, aucun poids ni dépôt tiers séparé) | Détection de PLAQUES avant floutage obligatoire de tout contenu public, via `cv2.CascadeClassifier`. Limite documentée : entraîné sur les proportions des plaques russes, imprécis sur les plaques québécoises — mitigé par la revue humaine obligatoire sous le seuil de confiance (`moderation.floutage`), à réévaluer avant tout volume réel | Dépendance pip (même paquet OpenCV que ci-dessus) ; même statut d'adaptateur (interface prête, branchement réel à faire) | Phase 2 | M7-audit.md §3.5 |
 
 ## M8 — Analytics
 
@@ -298,6 +300,7 @@ hors périmètre strict de R10 ») et documente en plus, pour M10 spécifiquemen
 | FLUX.1-dev | M7 | Licence commerciale payante requise ; usage non-commercial gratuit seulement | R9 |
 | SDXL / SD 1.5 | M7 | CreativeML OpenRAIL-M : clauses comportementales non-OSI, catégorie « source-available » à signaler | R9 |
 | Mautic | M7 | Redondant avec le scoring de leads déjà couvert par M2, stack PHP plus lourde que Listmonk pour le besoin réel | R9 |
+| YOLOv8 / YOLO11 (Ultralytics) **en dépendance directe vendorisée**, pour la détection de visages/plaques | M7 | Licence **AGPL-3.0** du dépôt `ultralytics/ultralytics` ; incompatible avec AGENTS.md hors service séparé non modifié — OpenCV + YuNet (MIT) retenus à la place, voir tableau ci-dessus | M7-audit.md §3.5 (PLAN T4.3) |
 | Metabase (OSS) en usage **client-facing** | M8 | AGPL-3.0 ; l'embedding vers des tiers exige une licence commerciale séparée même en restant AGPL en interne — usage interne seul reste gratuit | R9 |
 | Robyn (Meta) | M8 | Le moins actif des trois candidats MMM (push 2026-01), historiquement R-first (Python en second plan) | R9 |
 | `pyMCDM` | M9 | GPL-3.0 (contredit une source secondaire qui l'annonçait « MIT ») — incompatible en dépendance directe d'un produit commercial fermé | R10 |
@@ -324,7 +327,7 @@ hors périmètre strict de R10 ») et documente en plus, pour M10 spécifiquemen
 - **M4** : 4 retenues (phase 2) + 1 refusée.
 - **M5** : 8 retenues (7 phase 2, 1 référence) + 5 refusées.
 - **M6** : 4 retenues (phase 2) + 1 refusée.
-- **M7** : 9 retenues (phase 2) + 3 refusées.
+- **M7** : 11 retenues (phase 2) + 4 refusées.
 - **M8** : 8 retenues (phase 2) + 2 refusées.
 - **M9** : 13 retenues (2 intégrées — format Agent Skills et patron `civ_review.py` —, 11 phase 2) + 4 refusées.
 - **M10** : renvoie au domaine Mémoire/RAG + 2 éléments propres (1 intégrée — modèle Département —, 1 phase 2).

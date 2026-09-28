@@ -48,6 +48,7 @@ packages = [
     "m7_marketing.brand",
     "m7_marketing.competitive",
     "m7_marketing.content",
+    "m7_marketing.moderation",
     "m7_marketing.reputation",
     "m7_marketing.roi",
     "m7_marketing.seo",

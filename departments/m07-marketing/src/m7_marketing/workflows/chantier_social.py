@@ -2,9 +2,10 @@ from pathlib import Path
 
 import yaml
 
-from ..content.factory import build_content_item
+from ..brand import profil_client as brand_profil_client
 from ..content import approval
-from ..social.postiz_adapter import PostizAdapter, SocialPost, Canal, NotAutorise, AdapterDisabled
+from ..content.factory import build_content_item
+from ..social.postiz_adapter import AdapterDisabled, Canal, NotAutorise, PostizAdapter, SocialPost
 
 _HERE = Path(__file__).resolve().parent  # m7_marketing/workflows
 _PKG = _HERE.parent  # m7_marketing
@@ -13,10 +14,13 @@ __all__ = ["orchestrer_chantier_vers_social"]
 
 
 def _charger_brand():
-    """Charge le brand RÉEL depuis m7_marketing/brand/profile.yaml."""
-    brand_path = _PKG / "brand" / "profile.yaml"
-    with open(brand_path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
+    """Charge le profil de marque du CLIENT, fail-closed (PLAN T4.3, M7-audit.md §2.1) : jamais
+    le gabarit par défaut. Lève `ValueError` nommé si le fichier est absent ou si le profil n'est
+    pas encore configuré (encore `brand.profil_client.PLACEHOLDER_NOM`)."""
+    profil, motif = brand_profil_client.charger_profil_client()
+    if profil is None:
+        raise ValueError(motif)
+    return profil
 
 
 def orchestrer_chantier_vers_social(
@@ -45,7 +49,7 @@ def orchestrer_chantier_vers_social(
     # 1. Chargement et validation de la fixture
     # ------------------------------------------------------------------
     chemin = Path(chemin_chantier)
-    with open(chemin, "r", encoding="utf-8") as f:
+    with open(chemin, encoding="utf-8") as f:
         chantier = yaml.safe_load(f)
 
     if not chantier.get("fictif"):
@@ -61,9 +65,6 @@ def orchestrer_chantier_vers_social(
         )
 
     slug = chemin.parent.name  # slug du chantier (ex: residence-quebec-2026)
-
-    # Charger le brand une fois pour toutes
-    brand = _charger_brand()
 
     # Initialisation des métriques et de la liste d'étapes
     metriques = {
@@ -85,9 +86,12 @@ def orchestrer_chantier_vers_social(
     )
 
     # ------------------------------------------------------------------
-    # 3. Étape compose
+    # 3. Étape compose — inclut le chargement fail-closed du profil de marque du CLIENT
+    # (PLAN T4.3, M7-audit.md §2.1) : jamais le gabarit par défaut, sans ajouter d'étape au
+    # chemin de succès (le contrat "5 étapes" de ce workflow reste inchangé).
     # ------------------------------------------------------------------
     try:
+        brand = _charger_brand()
         sujet = {
             "titre": f"{chantier['type_travaux'].replace('_', ' ').capitalize()} à {chantier['ville']}",
             "description": chantier["description_factuelle"],
