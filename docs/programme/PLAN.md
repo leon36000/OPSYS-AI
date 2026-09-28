@@ -225,11 +225,27 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         - `m4.travaux_termines` : 13 champs requis égaux au WCT, champs optionnels de M7 cités de
           l'audit ;
         - socle 252 verts, dont PostgreSQL réel ; verifier « événements cohérents ».
-  - [ ] T2.3-a (préalable à T1.2-d, extrait de T2.3) M3, devis durable :
+  - [x] T2.3-a (préalable à T1.2-d, extrait de T2.3) M3, devis durable :
         - lignes, coût et prix calculés par le code, avec un taux de marge fourni, jamais codé en
           dur ;
         - statuts brouillon, envoyé et accepté ; l'envoi est derrière une approbation ;
         - lecture par `devis_id`, pour M5 (facture) et M4 (`devis_id` du WCT).
+
+        Preuve (f793ff1) :
+        - registre durable `devis`, distinct du registre des estimations ;
+        - montants en `Decimal` à partir de texte, arrondis `ROUND_HALF_UP` ;
+        - trois outils : `m3_creer_devis` (T1), `m3_lire_devis` (T0), `m3_marquer_devis_accepte`
+          (T3, un humain constate l'acceptation) ; aucun outil d'envoi exposé ;
+        - `m3.devis_accepte` publié dans la même transaction ; un échec après l'acceptation annule
+          aussi l'écriture ;
+        - `role="employe"` retire coût, marge et prix ;
+        - suite M3 : 652 réussis ; socle 252 ; verifier « 87 outils, événements cohérents ».
+
+        À suivre (T1.2-d) :
+        - prix unitaire arrondi avant la multiplication, comme la facture M5 le recalcule ;
+        - `reference_ligne`, `prix_unitaire` et `prix_ligne` par ligne dans l'événement ;
+        - `horodatage_acceptation` ;
+        - `evenement_id` déterministe.
   - [ ] T1.2-b M4 : publier `m4.travaux_termines/v1` avec le WCT, dans la même transaction ; porter
         dans la charge ce que les audits M5 et M7 exigent. Passer de `completed_pending_review` à
         `completed_verified` quand le code a sa base : preuves complètes et variance M6 sans signal
@@ -358,6 +374,12 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
 - Identifiants : Twilio, QuickBooks, CCube, Stripe, Plaid, Google (Ads, Search Console, Business
   Profile), Meta, TikTok, LinkedIn, YouTube.
 - Rotation de la clé fuitée (#612).
+- **Seuils métier** (définition §13.11) : M6 démarre avec un seuil de variance de chantier de
+  30 % (`department.yaml`, `configuration`). La valeur est à confirmer par le propriétaire, et elle
+  deviendra un réglage par instance (tableau de bord).
+- **Arrondi monétaire** : M5 arrondissait au pair (mode par défaut de Python) alors que M3
+  arrondit au demi supérieur. La correction cite la règle de l'ARC (TPS) et de Revenu Québec
+  (TVQ) ; elle passera par la revue externe du code critique.
 - **Géolocalisation** : `POLITIQUE-geolocalisation.md` interdit tout suivi continu (points au punch
   seulement) alors que la définition §9.2 prévoit la localisation en arrière-plan pendant le travail.
   Proposition R12 : arrière-plan seulement pendant la fenêtre « en route » d'un chantier. À valider
