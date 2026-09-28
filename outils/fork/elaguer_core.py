@@ -20,7 +20,8 @@ from pathlib import Path
 # Premier niveau retiré. `git-hooks/` : sans lui, `scripts/prepare-git-hooks.mjs` (lancé par
 # `pnpm install`) ne reconfigure pas `core.hooksPath` du dépôt OPSYS-AI qui contient core/.
 # `docs/` n'est pas ici : la construction et les tests lisent trois sous-ensembles précis
-# (DOCS_SOUS_ENSEMBLES_GARDES ci-dessous), retirés au cas par cas dans `_ignorer`.
+# (DOCS_SOUS_ENSEMBLES_GARDES ci-dessous), retirés au cas par cas dans `_ignorer`, plus un
+# fichier individuel (DOCS_FICHIERS_GARDES, sur le modèle d'APPS_FICHIERS_GARDES).
 RETIRER_RACINE = frozenset({
     ".git", ".github", ".agents", ".claude", ".vscode", "apps", "crates", "CHANGELOG",
     "CHANGELOG.md", "qa", "examples", "appcast.xml", "fly.toml", "render.yaml", "git-hooks",
@@ -44,6 +45,14 @@ DOCS_GENERATED_GARDES = frozenset({
     "sqlite-session-transcript-schema-baseline.sha256",
 })
 DOCS_ASSETS_GARDES = frozenset({"openclaw-hero-dark.png"})
+
+# `docs/install/docker.md` (hors des trois sous-ensembles ci-dessus) : deux tests de
+# `src/dockerfile.test.ts` (T0.6) comparent son contenu documenté au comportement réel —
+# la commande de santé Compose (`scripts/docker/...` setup) et les arguments de provenance
+# (`GIT_COMMIT`/`OPENCLAW_BUILD_TIMESTAMP`) du Dockerfile — pour détecter une dérive
+# doc/produit. Ce sont des tests de comportement produit, pas de CI amont ; le fichier est
+# donc gardé, comme APPS_FICHIERS_GARDES, plutôt que le test supprimé.
+DOCS_FICHIERS_GARDES = ("docs/install/docker.md",)
 
 # `apps/` (applications natives) est retiré, sauf deux fichiers partagés que la construction lit :
 #   - `tool-display.json` : importé par `ui/src/lib/chat/tool-display.ts` et listé dans
@@ -118,11 +127,19 @@ def _verifier_sous_ensembles_docs(source: Path) -> list[str]:
         if not (source / "docs" / "assets" / nom).is_file():
             manquants.append(f"docs/assets/{nom}")
     manquants += [chemin for chemin in APPS_FICHIERS_GARDES if not (source / chemin).is_file()]
+    manquants += [chemin for chemin in DOCS_FICHIERS_GARDES if not (source / chemin).is_file()]
     return manquants
 
 
 def _copier_fichiers_apps(source: Path, destination: Path) -> None:
     for chemin in APPS_FICHIERS_GARDES:
+        cible = destination / chemin
+        cible.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source / chemin, cible)
+
+
+def _copier_fichiers_docs(source: Path, destination: Path) -> None:
+    for chemin in DOCS_FICHIERS_GARDES:
         cible = destination / chemin
         cible.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source / chemin, cible)
@@ -169,6 +186,7 @@ def elaguer(source: Path, destination: Path) -> None:
         raise SystemExit(f"sous-ensembles de docs/ ou apps/ retenus absents de la release : {manquants_docs}")
     shutil.copytree(source, destination, ignore=_ignorer(source), symlinks=True, dirs_exist_ok=True)
     _copier_fichiers_apps(source, destination)
+    _copier_fichiers_docs(source, destination)
     _ajuster_workspace(destination / "pnpm-workspace.yaml")
     ruptures = verifier_fermeture(source, destination)
     if ruptures:

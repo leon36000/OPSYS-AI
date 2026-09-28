@@ -995,8 +995,8 @@ describe("CORE_HEALTH_CHECKS", () => {
               primary: "openai-codex/gpt-5.6-sol",
               fallbacks: [
                 "codex-cli/gpt-5.6-sol",
-                "groq/llama3-70b-8192",
-                "groq/llama-3.3-70b-versatile",
+                "openai/gpt-4o",
+                "openai/gpt-5.5",
                 "openai/not-in-the-local-catalog",
                 "google/gemini-2.5-flash",
                 "google/gemini-3.8-flash",
@@ -1014,7 +1014,7 @@ describe("CORE_HEALTH_CHECKS", () => {
     for (const [source, target, severity] of [
       ["openai-codex/gpt-5.6-sol", "openai/gpt-5.6-sol", "warning"],
       ["codex-cli/gpt-5.6-sol", "openai/gpt-5.6-sol", "warning"],
-      ["groq/llama3-70b-8192", "groq/llama-3.3-70b-versatile", "info"],
+      ["openai/gpt-4o", "openai/gpt-5.5", "info"],
       ["google-gemini-cli/gemini-2.5-pro", "google/gemini-2.5-pro", "info"],
     ] as const) {
       expect(findings).toContainEqual(
@@ -1049,7 +1049,7 @@ describe("CORE_HEALTH_CHECKS", () => {
       ]),
     );
     expect(findings).not.toContainEqual(
-      expect.objectContaining({ target: "groq/llama-3.3-70b-versatile" }),
+      expect.objectContaining({ target: "openai/gpt-5.5" }),
     );
     expect(findings).not.toContainEqual(
       expect.objectContaining({ target: "google/gemini-2.5-flash" }),

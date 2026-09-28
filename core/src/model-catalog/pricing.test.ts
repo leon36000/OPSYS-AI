@@ -426,48 +426,48 @@ describe("hosted model pricing", () => {
   });
 
   it.each([
-    { name: "native owner", policy: { venice: { provider: "venice" } }, known: true },
+    { name: "native owner", policy: { google: { provider: "google" } }, known: true },
     { name: "other native source", policy: { openCode: { provider: "upstream" } }, known: true },
     { name: "missing policy", policy: undefined, known: false },
     {
       name: "external disabled",
-      policy: { external: false, venice: { provider: "venice" } },
+      policy: { external: false, google: { provider: "google" } },
       known: false,
     },
-    { name: "source disabled", policy: { venice: false }, known: false },
+    { name: "source disabled", policy: { google: false }, known: false },
     {
       name: "non-authoritative source",
-      policy: { openRouter: { provider: "venice" } },
+      policy: { openRouter: { provider: "google" } },
       known: false,
     },
     {
       name: "unowned policy",
-      policy: { venice: { provider: "venice" } },
+      policy: { google: { provider: "google" } },
       unowned: true,
       known: false,
     },
     {
       name: "disabled plugin",
-      policy: { venice: { provider: "venice" } },
+      policy: { google: { provider: "google" } },
       disabled: true,
       known: false,
     },
     {
       name: "private endpoint",
-      policy: { venice: { provider: "venice" } },
+      policy: { google: { provider: "google" } },
       private: true,
       known: false,
     },
     {
       name: "normalized hosted alias",
-      policy: { venice: { provider: "venice" } },
+      policy: { google: { provider: "google" } },
       alias: true,
       known: false,
     },
     { name: "policy-free hosted alias", policy: undefined, alias: true, known: false },
     {
       name: "foreign owner key",
-      policy: { venice: { provider: "venice" } },
+      policy: { google: { provider: "google" } },
       foreign: true,
       known: false,
     },
@@ -475,21 +475,21 @@ describe("hosted model pricing", () => {
     const agentDir = tempDirs.make("openclaw-native-zero-policy-");
     vi.stubEnv("OPENCLAW_STATE_DIR", agentDir);
     const config: OpenClawConfig = {
-      plugins: { allow: ["venice"], entries: { venice: { enabled: !scenario.disabled } } },
+      plugins: { allow: ["google"], entries: { google: { enabled: !scenario.disabled } } },
       ...(scenario.private
         ? {
-            models: { providers: { venice: { baseUrl: "http://127.0.0.1:8080/v1", models: [] } } },
+            models: { providers: { google: { baseUrl: "http://127.0.0.1:8080/v1", models: [] } } },
           }
         : {}),
     };
     const snapshot = pluginMetadata.resolvePluginMetadataSnapshot({ config, env: process.env });
     const plugins = [...snapshot.manifestRegistry.plugins];
-    const ownerIndex = plugins.findIndex((plugin) => plugin.id === "venice");
+    const ownerIndex = plugins.findIndex((plugin) => plugin.id === "google");
     plugins[ownerIndex] = {
-      ...expectDefined(plugins[ownerIndex], "Venice manifest owner"),
+      ...expectDefined(plugins[ownerIndex], "Google manifest owner"),
       modelPricing: normalizeManifestModelPricing(
-        { providers: { venice: scenario.policy } },
-        { ownedProviders: new Set(scenario.unowned ? [] : ["venice"]) },
+        { providers: { google: scenario.policy } },
+        { ownedProviders: new Set(scenario.unowned ? [] : ["google"]) },
       ),
     };
     vi.spyOn(pluginMetadata, "resolvePluginMetadataSnapshot").mockReturnValue({
@@ -502,9 +502,9 @@ describe("hosted model pricing", () => {
         schemaVersion: 1,
         generatedAt: 200,
         sourceCommit: "native-zero-policy",
-        providers: { venice: { models: [{ id: "zero-fixture", cost: { input: 0, output: 0 } }] } },
+        providers: { google: { models: [{ id: "zero-fixture", cost: { input: 0, output: 0 } }] } },
         pricing: {
-          [`${scenario.foreign ? "opencode" : scenario.alias ? "Venice" : "venice"}/zero-fixture`]:
+          [`${scenario.foreign ? "opencode" : scenario.alias ? "Google" : "google"}/zero-fixture`]:
             { input: 0, output: 0 },
         },
       }),
@@ -512,7 +512,7 @@ describe("hosted model pricing", () => {
     const cost = resolveModelCostConfig({
       config,
       agentDir,
-      provider: "venice",
+      provider: "google",
       model: "zero-fixture",
     });
     expect(cost).toEqual(

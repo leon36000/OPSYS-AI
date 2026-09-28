@@ -22,6 +22,11 @@ export type DebugProxyCoverageSummary = {
   uncovered: number;
 };
 
+// T0.6 : retiré les six entrées pour discord/mattermost/microsoft/feishu (extensions
+// élaguées, `extensions/<id>` absent du fork) — un rapport de couverture qui les listait
+// encore induirait en erreur un opérateur sur des canaux non installés. Les deux seules
+// entrées « proxy-only » étaient feishu-client-http/-ws ; avec elles disparaît aussi tout
+// canal « proxy-only » connu parmi les extensions conservées (voir le test associé).
 const DEBUG_PROXY_COVERAGE_ENTRIES: readonly DebugProxyCoverageEntry[] = [
   {
     id: "provider-transport-fetch",
@@ -33,23 +38,6 @@ const DEBUG_PROXY_COVERAGE_ENTRIES: readonly DebugProxyCoverageEntry[] = [
       "Central provider fetch seam routes through explicit proxy overrides and records request/response payloads.",
   },
   {
-    id: "discord-rest",
-    label: "Discord REST monitor fetch",
-    modulePath: "extensions/discord/src/monitor/rest-fetch.ts",
-    protocols: ["http", "https"],
-    status: "captured",
-    notes: "Discord monitor REST calls inherit the debug proxy and record HTTP exchanges.",
-  },
-  {
-    id: "discord-gateway",
-    label: "Discord gateway monitor",
-    modulePath: "extensions/discord/src/monitor/gateway-plugin.ts",
-    protocols: ["https", "wss"],
-    status: "captured",
-    notes:
-      "Gateway metadata fetches and websocket lifecycle events are captured for monitor traffic.",
-  },
-  {
     id: "telegram-fetch",
     label: "Telegram fetch resolver",
     modulePath: "extensions/telegram/src/fetch.ts",
@@ -57,14 +45,6 @@ const DEBUG_PROXY_COVERAGE_ENTRIES: readonly DebugProxyCoverageEntry[] = [
     status: "captured",
     notes:
       "Telegram API fetch fallback picks up debug proxy env and records outbound/inbound exchanges.",
-  },
-  {
-    id: "mattermost-ws",
-    label: "Mattermost monitor websocket",
-    modulePath: "extensions/mattermost/src/mattermost/monitor-websocket.ts",
-    protocols: ["ws", "wss"],
-    status: "captured",
-    notes: "Mattermost websocket monitor uses the debug proxy agent and records frame activity.",
   },
   {
     id: "openai-realtime-voice",
@@ -93,40 +73,15 @@ const DEBUG_PROXY_COVERAGE_ENTRIES: readonly DebugProxyCoverageEntry[] = [
     notes:
       "Direct OpenAI TTS fetches record request/response payloads while inheriting proxy env routing.",
   },
-  {
-    id: "microsoft-voices",
-    label: "Microsoft voice discovery",
-    modulePath: "extensions/microsoft/speech-provider.ts",
-    protocols: ["https"],
-    status: "captured",
-    notes:
-      "Microsoft voice listing fetches record HTTP exchanges and follow process-wide proxy routing.",
-  },
-  {
-    id: "feishu-client-http",
-    label: "Feishu SDK HTTP client",
-    modulePath: "extensions/feishu/src/client.ts",
-    protocols: ["https"],
-    status: "proxy-only",
-    notes:
-      "Feishu SDK traffic can inherit ambient proxying, but decrypted request/response capture is not yet wired at the SDK seam.",
-  },
-  {
-    id: "feishu-client-ws",
-    label: "Feishu SDK websocket client",
-    modulePath: "extensions/feishu/src/client.ts",
-    protocols: ["wss"],
-    status: "proxy-only",
-    notes:
-      "Feishu websocket creation can inherit ambient proxying, but websocket frame capture is not yet wired.",
-  },
 ];
 
 let warnedCoverageSessionKey: string | null = null;
 
-function listDebugProxyCoverageEntries(): DebugProxyCoverageEntry[] {
+function listDebugProxyCoverageEntries(
+  entries: readonly DebugProxyCoverageEntry[] = DEBUG_PROXY_COVERAGE_ENTRIES,
+): DebugProxyCoverageEntry[] {
   // Return copies because callers may render/sort/filter entries for CLI output.
-  return DEBUG_PROXY_COVERAGE_ENTRIES.map((entry) => ({
+  return entries.map((entry) => ({
     ...entry,
     protocols: [...entry.protocols],
   }));
@@ -157,8 +112,10 @@ function summarizeDebugProxyCoverage(
   };
 }
 
-export function buildDebugProxyCoverageReport() {
-  const entries = listDebugProxyCoverageEntries();
+export function buildDebugProxyCoverageReport(
+  sourceEntries: readonly DebugProxyCoverageEntry[] = DEBUG_PROXY_COVERAGE_ENTRIES,
+) {
+  const entries = listDebugProxyCoverageEntries(sourceEntries);
   return {
     summary: summarizeDebugProxyCoverage(entries),
     entries,
@@ -168,6 +125,10 @@ export function buildDebugProxyCoverageReport() {
 export function maybeWarnAboutDebugProxyCoverage(
   settings: DebugProxySettings = resolveDebugProxySettings(),
   warn: (message: string) => void = (message) => console.warn(message),
+  // Test-only seam (default: the real, live entries): lets a test exercise the warning's
+  // message format for a gap deterministically, without asserting that some specific kept
+  // extension is truthfully incomplete — see the T0.6 note above DEBUG_PROXY_COVERAGE_ENTRIES.
+  sourceEntries: readonly DebugProxyCoverageEntry[] = DEBUG_PROXY_COVERAGE_ENTRIES,
 ): void {
   if (!settings.enabled || !settings.required) {
     return;
@@ -180,7 +141,7 @@ export function maybeWarnAboutDebugProxyCoverage(
   }
   warnedCoverageSessionKey = sessionKey;
 
-  const report = buildDebugProxyCoverageReport();
+  const report = buildDebugProxyCoverageReport(sourceEntries);
   const { summary } = report;
   const partial = report.entries.filter((entry) => entry.status !== "captured");
   if (partial.length === 0) {

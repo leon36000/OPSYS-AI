@@ -4,7 +4,6 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expectDefined } from "@openclaw/normalization-core";
 import { describe, expect, it } from "vitest";
-import { parse } from "yaml";
 
 const repoRoot = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
 
@@ -20,21 +19,6 @@ const DIGEST_PINNED_DOCKERFILES = [
   "scripts/e2e/Dockerfile.qr-import",
   "scripts/e2e/plugin-binding-command-escape.Dockerfile",
 ] as const;
-
-type DependabotDockerGroup = {
-  patterns?: string[];
-};
-
-type DependabotUpdate = {
-  "package-ecosystem"?: string;
-  directory?: string;
-  schedule?: { interval?: string };
-  groups?: Record<string, DependabotDockerGroup>;
-};
-
-type DependabotConfig = {
-  updates?: DependabotUpdate[];
-};
 
 function resolveArgDefaults(dockerfile: string): Map<string, string> {
   const argDefaults = new Map<string, string>();
@@ -110,24 +94,6 @@ function requireFirstFromReference(dockerfile: string, dockerfilePath: string): 
   return imageRef;
 }
 
-function requireDependabotDockerUpdate(config: DependabotConfig): DependabotUpdate {
-  const dockerUpdate = config.updates?.find(
-    (update) => update["package-ecosystem"] === "docker" && update.directory === "/",
-  );
-  if (!dockerUpdate) {
-    throw new Error("expected Dependabot Docker update entry for root Dockerfiles");
-  }
-  return dockerUpdate;
-}
-
-function requireDockerImageGroup(update: DependabotUpdate): DependabotDockerGroup {
-  const group = update.groups?.["docker-images"];
-  if (!group) {
-    throw new Error("expected Dependabot docker-images group");
-  }
-  return group;
-}
-
 describe("docker base image pinning", () => {
   it("pins selected Dockerfile FROM lines to immutable sha256 digests", async () => {
     for (const dockerfilePath of DIGEST_PINNED_DOCKERFILES) {
@@ -149,15 +115,5 @@ describe("docker base image pinning", () => {
         );
       }
     }
-  });
-
-  it("keeps Dependabot Docker updates enabled for root Dockerfiles", async () => {
-    const raw = await readFile(resolve(repoRoot, ".github/dependabot.yml"), "utf8");
-    const config = parse(raw) as DependabotConfig;
-    const dockerUpdate = requireDependabotDockerUpdate(config);
-    const dockerImagesGroup = requireDockerImageGroup(dockerUpdate);
-
-    expect(dockerUpdate.schedule?.interval).toBe("weekly");
-    expect(dockerImagesGroup.patterns).toContain("*");
   });
 });

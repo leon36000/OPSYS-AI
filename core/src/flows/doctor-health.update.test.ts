@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -248,7 +249,17 @@ describe("runDoctorHealthFlow update outcomes", () => {
           const cfg: OpenClawConfig = { gateway: { mode: "local" } };
           await state.writeConfig(cfg);
           mocks.config.mockReturnValue(cfg);
-          mocks.packageRoot.mockReturnValue(process.cwd());
+          // `process.cwd()` (this vitest worker's cwd, inside core/) is not its own git
+          // toplevel here: OPSYS-CORE is nested, without its own `.git`, inside the OPSYS-AI
+          // monorepo (core/PROVENANCE.md). `detectOpenClawGitCheckout` would see
+          // `git -C <cwd> rev-parse --show-toplevel` resolve one level up and report
+          // "not-git", short-circuiting `maybeOfferUpdateBeforeDoctor` before it ever calls
+          // `updateCommand` — for all four outcomes, unrelated to which extensions are
+          // pruned. An isolated, freshly `git init`-ed directory is its own toplevel
+          // regardless of nesting, so it exercises the intended "git" branch again.
+          const gitCheckoutRoot = dirs.make("doctor-update-git-checkout-");
+          execFileSync("git", ["init", "--quiet", gitCheckoutRoot]);
+          mocks.packageRoot.mockReturnValue(gitCheckoutRoot);
           const updateResult: UpdateRunResult = {
             status: outcome === "failed" || outcome === "pending" ? "error" : outcome,
             mode: "git",

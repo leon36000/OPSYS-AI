@@ -44,14 +44,18 @@ describe("collectEnabledInsecureOrDangerousFlags", () => {
         },
         plugins: {
           entries: {
-            acpx: { config: { permissionMode: "approve-all" } },
+            imap: {
+              config: { accounts: { work: { senderAuth: { acceptTrustedAuthservId: true } } } },
+            },
             "workspace-danger": { config: { mode: "danger" } },
           },
         },
       }),
     );
 
-    expect(flags).toContain("plugins.entries.acpx.config.permissionMode=approve-all");
+    expect(flags).toContain(
+      "plugins.entries.imap.config.accounts.work.senderAuth.acceptTrustedAuthservId=true",
+    );
     expect(flags).toContain("plugins.entries.workspace-danger.config.mode=danger");
   });
 

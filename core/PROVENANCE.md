@@ -27,8 +27,9 @@ Elle est reproductible depuis le tag. Le script est
      OPSYS-AI.
 2. **Extensions** : 42 conservées sur 162, soit les 40 de R11 §3.2 et deux d'appui (`test-support`,
    `image-generation-core`).
-3. **`docs/`** : élagué à trois sous-ensembles près (T0.6), lus par du code non-test que l'élagage
-   des extensions ne suffit pas à neutraliser :
+3. **`docs/`** : élagué à trois sous-ensembles et un fichier individuel près (T0.6), lus par du
+   code non-test ou par des tests de comportement produit que l'élagage des extensions ne suffit
+   pas à neutraliser :
    - `docs/reference/templates/` (au complet, gabarits d'espace de travail des agents) : lu par
      `src/agents/workspace-templates.ts` et `src/agents/agent-roles.ts` (`roles/<role>/CLAW.md`,
      `roles/presets/team.json`) — sans lui, tout agent embarqué échoue à l'amorçage
@@ -39,6 +40,20 @@ Elle est reproductible depuis le tag. Le script est
    - `docs/assets/openclaw-hero-dark.png` : seule image de `docs/assets/` que lit la construction
      de l'UI (`ui/config/control-ui-social-card.ts`, plugin vite de `ui/vite.config.ts`) ; sans
      elle, `pnpm build` échoue sur `ui:build`.
+
+   Même traitement pour un fichier individuel hors de ces trois sous-ensembles (T0.6, liste
+   `DOCS_FICHIERS_GARDES` du script d'élagage, sur le modèle d'`APPS_FICHIERS_GARDES`) :
+   - `docs/install/docker.md` : deux tests de `src/dockerfile.test.ts` comparent son contenu
+     documenté au comportement réel — la commande de santé Compose du script de configuration et
+     les arguments de provenance (`GIT_COMMIT`/`OPENCLAW_BUILD_TIMESTAMP`) du Dockerfile — pour
+     détecter une dérive doc/produit. Ce sont des tests de comportement produit, pas de CI amont ;
+     contrairement au test de `src/audit/message-delivery-progress-store.test.ts` qui lisait
+     `.github/actions/git-owner/test-prerequisites.json` (retiré, pas restauré : ce test exécutait
+     un `git fetch origin <commit historique d'OpenClaw>` puis un `git worktree add` pour lancer
+     l'ancien code de ce commit — un mécanisme qui suppose une continuité d'historique avec l'amont
+     qu'un fork dur sans dépendance aux mises à jour amont (ADR-0008) n'a pas : le commit épinglé
+     n'existe ni dans ce dépôt ni sur son `origin` réel. Restaurer seul le fichier JSON n'aurait pas
+     suffi à faire passer ce test ; il est supprimé plutôt qu'affaibli).
 
    Le reste de `docs/` (documentation produit amont) reste élagué : OPSYS écrit sa propre
    documentation dans `docs/` du dépôt OPSYS-AI. Les tests qui vérifiaient des pages non
@@ -55,9 +70,11 @@ Elle est reproductible depuis le tag. Le script est
 5. **`pnpm-lock.yaml` régénéré sans exécuter aucun script de paquet** :
    `pnpm install --lockfile-only --ignore-scripts --ignore-pnpmfile` (pnpm 12.4.0). Résultat : 63
    projets de workspace, 1 687 entrées, contrôles de chaîne d'approvisionnement de pnpm passés.
-6. **Fichiers suivis** : exactement ceux que la release suit, moins l'élagage, plus les 26 fichiers
-   de `docs/` restaurés au point 3. Au total, 36 213 fichiers sur 48 575 à l'import ; le chiffre se
-   déplace légèrement à chaque vague d'élagage ultérieure de `scripts/`/`test/` (T0.6, T0.7).
+6. **Fichiers suivis** : exactement ceux que la release suit, moins l'élagage, plus les 27 fichiers
+   de `docs/` restaurés au point 3 (26 avant `docs/install/docker.md`, T0.6). Au total, environ
+   36 213 fichiers sur 48 575 à l'import ; le chiffre se déplace légèrement à chaque vague
+   d'élagage ultérieure de `scripts/`/`test/` et à chaque fichier restauré au cas par cas (T0.6,
+   T0.7).
 
 ## Suite de la transformation
 
