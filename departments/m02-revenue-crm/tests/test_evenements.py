@@ -226,6 +226,30 @@ class TestStatutIncompatible:
 
 
 class TestRedelivraison:
+    def test_meme_wct_sous_un_nouvel_evenement_id_est_un_no_op(self, base_durable):
+        """Un même fait republié sous un autre evenement_id (rejeu du producteur) ne met jamais
+        M2 en quarantaine : la complétion est déjà appliquée, rien ne s'écrit une seconde fois."""
+        lead_id = "WCT-REDELIVRE-2"
+        _amener_a(lead_id, "converti")
+        charge = _wct(lead_id, "2026-09-15T14:00:00-04:00", client_satisfait=True)
+        evenements.publier("m4.travaux_termines", "m04-field-ops", charge, evenement_id="evt-rejeu-1")
+        deps = _deps_bus()
+        evenements.repartir(deps, maintenant="2026-09-15T14:05:00-04:00")
+        assert statuts.statut_courant(_registre(), lead_id) == "facture"
+        taille_apres_1 = _registre().taille()
+
+        evenements.publier("m4.travaux_termines", "m04-field-ops", charge, evenement_id="evt-rejeu-2")
+        resume = evenements.repartir(deps, maintenant="2026-09-15T14:10:00-04:00")
+        assert resume["echecs"] == 0 and resume["quarantaines"] == 0, resume
+        with stockage.transaction() as cnx:
+            statut_recu = cnx.execute(select(EVENEMENTS_RECUS.c.statut).where(
+                EVENEMENTS_RECUS.c.evenement_id == "evt-rejeu-2",
+                EVENEMENTS_RECUS.c.consommateur == "m02-revenue-crm",
+            )).scalar_one()
+        assert statut_recu == "traite"
+        assert _registre().taille() == taille_apres_1, "aucun maillon M2 de plus"
+        assert statuts.statut_courant(_registre(), lead_id) == "facture"
+
     def test_relivraison_naffecte_rien(self, base_durable):
         lead_id = "WCT-REDELIVRE-1"
         _amener_a(lead_id, "converti")

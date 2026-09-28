@@ -562,20 +562,12 @@ def test_relivraison_meme_fait_nouvel_evenement_id_aucun_doublon(base_durable):
 
     total2 = _drainer(deps, base + dt.timedelta(hours=3), max_tours=10)
 
-    # Constat (rapport) : le lead est maintenant à `facture`, un statut absent de la table
-    # _ETAPES_VERS_CHANTIER de M2 — StatutIncompatibleAvecCompletion est le mécanisme VOULU
-    # (docstring de la classe : « déjà postérieur au chantier ... la complétion a déjà été
-    # appliquée par un événement antérieur ») : M2 part donc en quarantaine sur CETTE paire,
-    # sans jamais rien écrire de plus (fail-closed), pendant que tous les autres consommateurs
-    # traitent la relivraison normalement (idempotents par leur propre clé métier).
-    assert total2["quarantaines"] == 1, total2
-    recu_m2 = _recu(nouvel_id, "m02-revenue-crm")
-    assert recu_m2 is not None and recu_m2["statut"] == "quarantaine"
-    assert recu_m2["tentatives"] == 5
-    assert "StatutIncompatibleAvecCompletion" in recu_m2["derniere_erreur"]
+    # Chaque consommateur reconnaît le même fait par sa propre clé métier (wct_id pour M2, M5,
+    # M6, M8, M10…) : la relivraison est traitée sans rien écrire de plus, sans quarantaine.
+    assert total2["echecs"] == 0 and total2["quarantaines"] == 0, total2
 
     for consommateur in (
-        "m03-estimation", "m05-financecore", "m06-material-control",
+        "m02-revenue-crm", "m03-estimation", "m05-financecore", "m06-material-control",
         "m07-marketing", "m08-analytics", "m10-memoire",
     ):
         recu = _recu(nouvel_id, consommateur)
@@ -594,8 +586,7 @@ def test_relivraison_meme_fait_nouvel_evenement_id_aucun_doublon(base_durable):
     # M10 « mémoire » : PREUVE du correctif wct.py (PLAN T1.2-e) — sans lui, ce compte double.
     assert len(list(stockage.maillons("m10-memoire", "evenements"))) == evenements_m10_avant
 
-    # M2 : la mise en quarantaine n'a écrit AUCUN maillon (fail-closed, ADR-0009 §3) — ni
-    # transition ni interaction supplémentaire, malgré les 5 tentatives.
+    # M2 : aucune transition ni interaction supplémentaire pour un fait déjà appliqué.
     registre_m2_apres = _m2_registre()
     interactions_apres = len([
         m for m in registre_m2_apres.lire() if m.get("type_entree") == "interaction" and m.get("lead_id") == lead_id

@@ -31,6 +31,10 @@ from . import contrats, digest, doublons, ingestion, interactions, readiness, st
 from .registre import Registre
 
 _DEPARTEMENT = "m02-revenue-crm"
+# WCT déjà appliqués au lead (clé métier : wct_id) : un même fait republié sous un autre
+# evenement_id est un « déjà appliqué », jamais une quarantaine. Même patron que `wct_recus` de
+# M5 et M6.
+_NOM_REGISTRE_WCT_RECUS = "wct_recus"
 _NOM_REGISTRE = "principal"
 
 _registre_memoire = Registre()
@@ -280,12 +284,17 @@ def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
     amorcée par CET appel, et le répartiteur réessaie puis met en quarantaine après 5 échecs,
     visible par un humain.
 
-    Idempotent : le répartiteur n'appelle cette fonction qu'une fois par (evenement_id,
-    consommateur) traité avec succès (`EVENEMENTS_RECUS` UNIQUE, ADR-0009 §3) — une relivraison
-    de la même publication ne la rappelle jamais.
+    Idempotent à deux niveaux : le répartiteur n'appelle cette fonction qu'une fois par
+    (evenement_id, consommateur) traité avec succès (`EVENEMENTS_RECUS` UNIQUE, ADR-0009 §3), et
+    un même WCT republié sous un autre evenement_id est reconnu par son `wct_id`
+    (`_NOM_REGISTRE_WCT_RECUS`) : rien ne s'écrit une seconde fois, aucune quarantaine.
     """
     lead_id = charge["lead_id"]
+    wct_id = charge["wct_id"]
     horodatage = charge["horodatage_completion"]
+    wct_recus = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_WCT_RECUS)
+    if any(recu.get("wct_id") == wct_id for recu in wct_recus):
+        return {"traite": True, "lead_id": lead_id, "wct_id": wct_id, "deja_applique": True}
     reg = _obtenir_registre()
 
     statut = statuts.statut_courant(reg, lead_id)
@@ -319,10 +328,11 @@ def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
             "m4.travaux_termines : marquer_chantier_termine refusé après une transition validée "
             f"pour le lead {lead_id!r} : {resultat['verdict']}"
         )
+    wct_recus.append({"wct_id": wct_id, "lead_id": lead_id, "horodatage_completion": horodatage})
     return {
         "traite": True,
         "lead_id": lead_id,
-        "wct_id": charge.get("wct_id"),
+        "wct_id": wct_id,
         "statut_final": resultat["resultat"]["transition"]["statut"],
         "prochaine_action": prochaine_action,
     }
