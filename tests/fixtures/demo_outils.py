@@ -68,6 +68,16 @@ def voir_horodatage() -> dict:
     return {"vu": True}
 
 
+IDENTITES_VUES: list[contexte.IdentiteAppelante | None] = []
+
+
+def voir_identite() -> dict:
+    """Capture `contexte.identite_appelante()` pendant l'exécution, pour `test_contexte.py`
+    (T1.4-c2 : identité `opsys/personne`/`opsys/role` transmise en `_meta` MCP par OPSYS-CORE)."""
+    IDENTITES_VUES.append(contexte.identite_appelante())
+    return {"vu": True}
+
+
 _NB = {"type": "number"}
 OUTILS = (
     Outil("m9_additionner", "Additionne deux nombres.",
@@ -93,6 +103,9 @@ OUTILS = (
     Outil("m9_voir_horodatage", "Capture les horloges de réception exposées par le contexte.",
           {"type": "object", "properties": {}, "additionalProperties": False}, voir_horodatage,
           Autonomie.T1),
+    Outil("m9_voir_identite", "Capture l'identité de jeton d'appareil exposée par le contexte.",
+          {"type": "object", "properties": {}, "additionalProperties": False}, voir_identite,
+          Autonomie.T0),
 )
 
 

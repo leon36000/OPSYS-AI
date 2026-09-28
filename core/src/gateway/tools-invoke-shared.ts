@@ -31,6 +31,7 @@ import {
 } from "../sessions/agent-harness-session-key.js";
 import { ADMIN_SCOPE } from "./method-scopes.js";
 import { authorizeGatewaySessionCreation } from "./operator-role-policy.js";
+import { authorizeOpsysDeviceTool } from "./opsys-device-roles.js";
 import type { GatewayClient } from "./server-methods/shared-types.js";
 import { withOperatorToolGatewayAuthority } from "./server-plugin-in-process-dispatch.js";
 import { createSyntheticPluginRuntimeClient } from "./server-plugin-runtime-client.js";
@@ -228,6 +229,30 @@ async function invokeGatewayToolWithSignal(
     };
   }
 
+  // OPSYS named device roles (IDEMPOTENCE.md §7 bis): only when the request carries a deviceId at
+  // all — a caller with no OPSYS device identity (dashboard operator, CLI, an OpenAI-compatible
+  // API client) is completely unaffected, exactly the existing shared-secret-is-full-access model
+  // for this endpoint. A recognized device is checked against its role's tool scope, closed by
+  // default: an unrecognized device, an unrecognized role, or a tool outside the role's declared
+  // list are all a refusal, never an implicit full-access grant.
+  const deviceId = normalizeOptionalString(params.input.deviceId);
+  let opsysDeviceIdentity: { personne: string; role: string } | undefined;
+  if (deviceId !== undefined) {
+    const authorization = authorizeOpsysDeviceTool(deviceId, toolName);
+    if (!authorization.ok) {
+      return {
+        ok: false,
+        status: 403,
+        toolName,
+        error: {
+          type: "tool_call_blocked",
+          message: `OPSYS device is not authorized to call "${toolName}" (${authorization.reason}).`,
+        },
+      };
+    }
+    opsysDeviceIdentity = { personne: authorization.personne, role: authorization.role };
+  }
+
   if (process.env.VITEST && MEMORY_TOOL_NAMES.has(toolName)) {
     const reasons = resolveMemoryToolDisableReasons(params.cfg);
     if (reasons.length > 0) {
@@ -415,7 +440,6 @@ async function invokeGatewayToolWithSignal(
   try {
     const gatewayTool: AnyAgentTool = tool;
     const idempotencyKey = normalizeOptionalString(params.input.idempotencyKey);
-    const deviceId = normalizeOptionalString(params.input.deviceId);
     const deviceTimestamp = normalizeOptionalString(params.input.deviceTimestamp);
     const toolCallId = idempotencyKey
       ? `${params.toolCallIdPrefix}-${conversationReadOrigin}-${idempotencyKey}`
@@ -454,16 +478,27 @@ async function invokeGatewayToolWithSignal(
     }
     const executeGatewayTool = async () =>
       await gatewayTool.execute?.(toolCallId, hookResult.params, params.signal);
-    // OPSYS `_meta` MCP (IDEMPOTENCE.md §7): only set when idempotencyKey is present, so a caller
-    // that does not know this contract (Hermes, Claude Code, a future internal tool) sees the
-    // exact same `tools/call` as before this field existed — no ambient `_meta` at all.
-    const mcpCallMeta: Record<string, unknown> | undefined = idempotencyKey
-      ? {
-          "opsys/idempotencyKey": idempotencyKey,
-          ...(deviceId !== undefined ? { "opsys/appareil": deviceId } : {}),
-          ...(deviceTimestamp !== undefined ? { "opsys/horodatageAppareil": deviceTimestamp } : {}),
-        }
-      : undefined;
+    // OPSYS `_meta` MCP (IDEMPOTENCE.md §7, §7 bis): `opsys/idempotencyKey`/`opsys/appareil`/
+    // `opsys/horodatageAppareil` only when idempotencyKey is present (unchanged from T1.4-c1);
+    // `opsys/personne`/`opsys/role` whenever a device identity was resolved above, independently
+    // of idempotencyKey — a read-only lookup from a paired device carries no idempotencyKey but
+    // still needs its caller's identity for a role-based projection. A caller with neither gets no
+    // ambient `_meta` at all: the exact same `tools/call` as before either field existed.
+    const mcpCallMeta: Record<string, unknown> = {};
+    if (idempotencyKey !== undefined) {
+      mcpCallMeta["opsys/idempotencyKey"] = idempotencyKey;
+      if (deviceId !== undefined) {
+        mcpCallMeta["opsys/appareil"] = deviceId;
+      }
+      if (deviceTimestamp !== undefined) {
+        mcpCallMeta["opsys/horodatageAppareil"] = deviceTimestamp;
+      }
+    }
+    if (opsysDeviceIdentity) {
+      mcpCallMeta["opsys/personne"] = opsysDeviceIdentity.personne;
+      mcpCallMeta["opsys/role"] = opsysDeviceIdentity.role;
+    }
+    const hasMcpCallMeta = Object.keys(mcpCallMeta).length > 0;
     const result = await withOperatorToolGatewayAuthority(
       {
         authenticatedUserProfile,
@@ -473,7 +508,7 @@ async function invokeGatewayToolWithSignal(
       },
       async () => {
         assertInvocationCurrent();
-        return mcpCallMeta
+        return hasMcpCallMeta
           ? await withMcpCallMeta(mcpCallMeta, executeGatewayTool)
           : await executeGatewayTool();
       },

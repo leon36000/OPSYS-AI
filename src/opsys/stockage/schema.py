@@ -218,3 +218,25 @@ MUTATIONS_APPLIQUEES = Table(
         "statut IN ('en_cours','ok','refus_metier','en_attente_approbation')", name="statut_valide"
     ),
 )
+
+# Appairage d'appareil (ADR-0009 §5 : table `appareils` appairés à une personne ; T1.4-c2, R12
+# §1.3/§6/§9). `identifiant` est le même `deviceId` que le core transmet en `_meta` MCP
+# `opsys/appareil` (T1.4-b/c1, colonne `appareil` de MUTATIONS_APPLIQUEES ci-dessus) : la même
+# identité sert l'idempotence des mutations et la portée du rôle nommé du jeton. `role` est
+# EXACTEMENT le type `Profil` fermé du client mobile (`mobile/src/roles/types.ts`), moins `client`
+# (lien tokenisé, jamais un appareil apparié durablement, R12 §6) — pas `finance`/`manager`/
+# `system_agent`, sans profil mobile, ni `nathan_owner` : un rôle de jeton hors de `Profil` ferait
+# refuser tout routage côté app (`evaluerGarde`, fail-closed) ; l'appareil du propriétaire est donc
+# appairé `admin`, sa portée additionnelle passant par la PERSONNE (`opsys/personne`), jamais par le
+# rôle du jeton (voir `opsys.appareils.ROLES_APPAREIL`).
+APPAREILS = Table(
+    "appareils",
+    META,
+    Column("identifiant", String(128), primary_key=True),
+    Column("personne", String(64), ForeignKey("personnes.identifiant"), nullable=False),
+    Column("role", String(32), nullable=False),
+    Column("appaire_le", Text, nullable=False),
+    CheckConstraint(
+        "role IN ('admin','employee','seller')", name="role_appareil_valide"
+    ),
+)

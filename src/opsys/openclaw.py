@@ -17,6 +17,14 @@ réglages faits par l'utilisateur (canaux, authentification, Control UI) ne sont
 écrasés. Surfaces amont utilisées : `agents.entries`, `models.providers` (api
 openai-completions, `models` obligatoire), `mcp.servers` (streamable-http, headers), `tools`,
 `memory.search`, `plugins.entries.*.config`, `$include` (`core/src/config/zod-schema.*.ts`).
+
+Deux fragments supplémentaires (T1.4-c2, `docs/architecture/IDEMPOTENCE.md` §7 bis) ne sont PAS
+`$include`s dans `openclaw.json` — comme `automatisations.sh` ci-dessous, ce sont des fichiers annexes
+qu'OPSYS-CORE lit lui-même directement (`core/src/gateway/opsys-device-roles.ts`), jamais à travers
+la configuration validée par son schéma Zod strict : `roles.json` (`roles_outils`, écrit par
+`generer()`, aucune dépendance à la base) et `appareils.json` (`ecrire_appareils`, lit la table
+`appareils`, ADR-0009 §5 — appelé séparément, PAS par `generer()`/`opsys openclaw configurer`, tant
+qu'aucune surface d'appairage n'existe encore pour le déclencher automatiquement).
 """
 
 from __future__ import annotations
@@ -24,12 +32,17 @@ from __future__ import annotations
 import json
 import shlex
 import shutil
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
-from .departements import PALIERS, Departement
+from sqlalchemy import Connection
+
+from . import appareils
+from .departements import PALIERS, Departement, tous_les_outils
+from .identite import Role
 from .memoire.embeddings import ENV_CLE, ENV_MODELE, ENV_URL, ClientEmbeddings
+from .outils import Autonomie, Outil
 from .passerelle import alias_palier
 from .profils import REGLES_COMMUNES, rendre_soul
 
@@ -155,6 +168,74 @@ def _configuration_plugins(fuseau: str) -> dict[str, Any]:
     }
 
 
+def roles_outils(departements: Mapping[str, Departement]) -> dict[str, tuple[str, ...]]:
+    """Outils permis par rôle nommé de jeton d'appareil (T1.4-c2 ; sans rôles nommés, un jeton
+    employé aurait la même portée qu'un jeton propriétaire, R12 §6). Générée ici, jamais écrite à
+    la main dans le core (`opsys-device-roles.ts` ne fait que lire le fragment JSON produit par
+    `generer()` à partir de cette fonction).
+
+    Règle simple, par département et par niveau d'autonomie (correspondance N/T d'ADR-0009 §4 :
+    T3 du socle = N5 de la définition — argent réel, fiscal, légal, paie, RH, achat majeur) :
+
+    - `employee` : les départements de terrain — M4 (opérations/dispatch, pointage, complétion de
+      chantier) et M6 (matériaux, réception, soumission de matériaux utilisés) — SAUF T3 ;
+    - `seller` : les départements commerciaux — M2 (leads/pipeline) et M3 (estimation/soumissions)
+      — SAUF T3 ;
+    - `admin` : tous les départements, SAUF T3.
+
+    T3 (= N5) est exclu de TOUS ces rôles, quel que soit le département : c'est une frontière
+    système fixe (ADR-0009 §5, « jamais automatique, jamais délégué à un autre rôle », réservée à
+    `nathan_owner` ET une attestation professionnelle) — un jeton employé, vendeur ou admin ne doit
+    jamais pouvoir même *tenter* un outil de ce niveau, en plus du fait qu'`outils.executer` le
+    ferait de toute façon passer par une demande d'approbation (défense en profondeur, pas la
+    seule barrière). Il n'y a PAS d'entrée `nathan_owner` ici : un jeton d'appareil ne peut jamais
+    porter ce rôle (`opsys.appareils.ROLES_APPAREIL` — le mobile a un type `Profil` fermé à
+    `admin`/`employee`/`seller`/`client`, `mobile/src/roles/types.ts`, un rôle hors de ce type
+    ferait refuser tout routage côté app). L'appareil du propriétaire est donc appairé `admin` ;
+    sa portée d'outils supplémentaire (N5) ne passe jamais par le rôle du jeton — elle continue de
+    dépendre de la PERSONNE (`opsys/personne`, ADR-0009 §5, comme `approbations.decider` le fait
+    déjà pour une décision prise depuis la console).
+
+    `ROLES_APPAREIL` (`opsys.appareils`) fixe l'ensemble des rôles : les deux dicts restent en
+    phase par construction, une seule source. Un futur `department.yaml` pourra affiner cette règle
+    (ex. exclure un outil M4 précis d'`employee`) ; cette fonction reste la source unique tant
+    qu'aucun manifeste ne le fait.
+    """
+    index = tous_les_outils(departements.values())
+
+    def _noms(garder: Callable[[Departement, Outil], bool]) -> tuple[str, ...]:
+        return tuple(sorted(
+            nom for nom, (dep, outil) in index.items()
+            if outil.autonomie is not Autonomie.T3 and garder(dep, outil)
+        ))
+
+    return {
+        Role.EMPLOYEE.value: _noms(lambda dep, _outil: dep.prefixe_outils in {"m4", "m6"}),
+        Role.SELLER.value: _noms(lambda dep, _outil: dep.prefixe_outils in {"m2", "m3"}),
+        Role.ADMIN.value: _noms(lambda _dep, _outil: True),
+    }
+
+
+def ecrire_appareils(cnx: Connection, dossier_config: Path) -> Path:
+    """Projette la table `appareils` (ADR-0009 §5) en `opsys/appareils.json`, lu directement par
+    OPSYS-CORE (T1.4-c2, `docs/architecture/IDEMPOTENCE.md` §7 bis) — jamais via `$include`
+    (config Zod stricte du core, voir la note de tête de ce fichier).
+
+    Séparée de `generer()` : `generer()` reste une fonction pure des manifestes de départements
+    (déjà testée sans base de données) ; l'appairage d'appareil a un cycle de vie propre (une
+    approbation à la fois, pas un redéploiement complet). Appelée séparément, à chaque appairage ou
+    révocation, tant qu'aucune surface (CLI, console) ne le fait automatiquement — hors périmètre de
+    T1.4-c2, voir `docs/architecture/MOBILE.md`.
+    """
+    chemin = dossier_config / "opsys" / "appareils.json"
+    contenu = {
+        a.identifiant: {"personne": a.personne, "role": a.role}
+        for a in appareils.lister(cnx)
+    }
+    _ecrire_json(chemin, {"appareils": contenu})
+    return chemin
+
+
 def generer(
     departements: Mapping[str, Departement],
     dossier_config: Path,
@@ -227,6 +308,9 @@ def generer(
         "memory": base / "memory.json",
         "plugins": base / "plugins.json",
         "automatisations": base / "automatisations.sh",
+        # Lu directement par OPSYS-CORE (T1.4-c2), pas via `$include` — voir la note de tête de ce
+        # fichier.
+        "roles": base / "roles.json",
     }
     _ecrire_json(fichiers["models"], {"mode": "merge", "providers": fournisseurs})
     # Économie de tokens côté Core : après une période d'inactivité, les anciens résultats
@@ -248,6 +332,7 @@ def generer(
     _ecrire_json(fichiers["tools"], _configuration_outils())
     _ecrire_json(fichiers["memory"], memoire_config)
     _ecrire_json(fichiers["plugins"], _configuration_plugins(fuseau))
+    _ecrire_json(fichiers["roles"], {"roles": roles_outils(departements)})
     fichiers["automatisations"].write_text(
         "#!/bin/sh\n# Généré par `opsys openclaw configurer` : automatisations des départements.\nset -e\n"
         + "\n".join(automatisations) + "\n",

@@ -24,7 +24,7 @@ import mcp_types as types
 from mcp.server.lowlevel import Server
 from mcp.server.stdio import stdio_server
 
-from . import __version__, etat, evenements, idempotence, stockage
+from . import __version__, contexte, etat, evenements, idempotence, stockage
 from .capacites import Capacites
 from .departements import Departement, charger_departements
 from .outils import Autonomie
@@ -70,7 +70,17 @@ def creer_serveur(capacites: Capacites) -> Server[Any]:
                 content=[types.TextContent(type="text", text=json.dumps(reponse, ensure_ascii=False))],
                 isError=True,
             )
-        reponse = await anyio.to_thread.run_sync(capacites.appeler, params.name, params.arguments or {}, meta)
+        # Identité de jeton d'appareil (T1.4-c2) : `opsys/personne`/`opsys/role`, transmis par
+        # OPSYS-CORE (qui a déjà refusé un outil hors de la portée du rôle avant d'émettre cet
+        # appel) — un appel sans ces clés (Hermes, Claude Code, un outil interne) rend None, sans
+        # erreur (docs/architecture/IDEMPOTENCE.md §7 bis). Aucun outil de département ne lit encore
+        # `contexte.identite_appelante()` (M3 reste à adapter, tâche séparée) ; l'exposer ici ne
+        # change donc le comportement d'aucun outil existant.
+        identite = contexte.depuis_meta_mcp_identite(params.meta)
+        with contexte.appele_par_appareil(identite):
+            reponse = await anyio.to_thread.run_sync(
+                capacites.appeler, params.name, params.arguments or {}, meta
+            )
         return types.CallToolResult(
             content=[types.TextContent(type="text", text=json.dumps(reponse, ensure_ascii=False))],
             isError=not reponse.get("ok", False),

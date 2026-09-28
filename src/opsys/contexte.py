@@ -10,6 +10,13 @@ l'appareil (affichée à l'employé, jamais fiable pour un calcul — une horlog
 dériver) et celle de réception du serveur (fait foi, ex. la paie brouillon de M4, T1.4-d). Un outil
 qui en a besoin les lit ici, jamais dans ses propres arguments : ni l'une ni l'autre ne vient du
 modèle.
+
+L'identité portée par un jeton d'appareil (personne, rôle — T1.4-c2, `docs/architecture/
+IDEMPOTENCE.md` §7 bis) suit le même principe : OPSYS-CORE la résout (fragment de configuration
+généré par `opsys.openclaw.ecrire_appareils`/`roles_outils`, jamais écrit à la main dans le core)
+et la transmet en `_meta` MCP (`opsys/personne`, `opsys/role`) ; le socle ne fait que l'exposer ici,
+pendant l'appel, pour qu'un outil ou une projection par rôle (ex. `m3_lire_devis`, pas encore
+adapté) la lise par cet accesseur plutôt que par un paramètre fourni par l'appelant.
 """
 
 from __future__ import annotations
@@ -18,7 +25,8 @@ import contextlib
 import contextvars
 import dataclasses
 import datetime as dt
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
+from typing import Any
 
 DEPARTEMENT_APPELANT: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "opsys_departement_appelant", default=None
@@ -62,3 +70,69 @@ def receptionne_de(horodatage: HorodatageAppareil | None) -> Iterator[None]:
 def horodatage_reception() -> HorodatageAppareil | None:
     """Horloges de la mutation d'appareil en cours d'exécution, ou None hors de ce contexte."""
     return _HORODATAGE_APPAREIL.get()
+
+
+# -- identité portée par un jeton d'appareil (T1.4-c2) -------------------------------------------
+
+PERSONNE_META = "opsys/personne"
+ROLE_META = "opsys/role"
+
+
+@dataclasses.dataclass(frozen=True)
+class IdentiteAppelante:
+    """Personne et rôle OPSYS portés par le jeton d'appareil ayant fait l'appel en cours (`_meta`
+    MCP `opsys/personne`/`opsys/role`, docs/architecture/IDEMPOTENCE.md §7 bis).
+
+    Un rôle de jeton d'appareil est toujours un des quatre noms de `opsys.appareils.ROLES_APPAREIL`
+    au moment où OPSYS-CORE le résout — mais cette structure ne fait que rendre ce que le core a
+    transmis ; elle ne revérifie ni que la personne existe encore, ni qu'elle porte encore ce rôle
+    (un outil qui en a besoin le revérifie via `opsys.identite.personne_active`, comme toute autre
+    lecture d'identité)."""
+
+    personne: str
+    role: str
+
+
+_IDENTITE_APPELANTE: contextvars.ContextVar[IdentiteAppelante | None] = contextvars.ContextVar(
+    "opsys_identite_appelante", default=None
+)
+
+
+@contextlib.contextmanager
+def appele_par_appareil(identite: IdentiteAppelante | None) -> Iterator[None]:
+    """Fixe l'identité (personne, rôle) du jeton d'appareil pour les appels faits dans ce contexte
+    (None = aucune, appel sans jeton d'appareil : Hermes, Claude Code, un outil interne)."""
+    jeton = _IDENTITE_APPELANTE.set(identite)
+    try:
+        yield
+    finally:
+        _IDENTITE_APPELANTE.reset(jeton)
+
+
+def identite_appelante() -> IdentiteAppelante | None:
+    """Personne et rôle transmis par OPSYS-CORE pour l'appel MCP en cours, ou None hors contexte.
+
+    NON AUTHENTIFIÉS tant que `/tools/invoke` n'authentifie pas l'appareil par son propre jeton
+    (PLAN T1.4-c4, `docs/architecture/IDEMPOTENCE.md` §7 bis) : aucun outil ne s'en sert pour
+    signer une décision ni pour choisir une projection par rôle.
+    """
+    return _IDENTITE_APPELANTE.get()
+
+
+def depuis_meta_mcp_identite(meta: Mapping[str, Any] | None) -> IdentiteAppelante | None:
+    """Lit `opsys/personne`/`opsys/role` du `_meta` MCP (T1.4-c2, transmis par OPSYS-CORE) ; None si
+    l'un des deux manque ou n'est pas une chaîne non vide.
+
+    Fail-closed *silencieux* ici, à la différence d'`opsys.idempotence.depuis_meta_mcp` : un appel
+    MCP sans identité de jeton d'appareil reste un appel valide (Hermes, Claude Code, un outil
+    interne n'envoient jamais ces clés) — c'est OPSYS-CORE (`/tools/invoke`) qui applique le refus
+    fermé sur la portée du rôle, avant même d'émettre `tools/call` ; ce module ne fait que
+    transporter ce que le core a déjà décidé de laisser passer.
+    """
+    if not meta:
+        return None
+    personne, role = meta.get(PERSONNE_META), meta.get(ROLE_META)
+    if (not isinstance(personne, str) or not personne.strip()
+            or not isinstance(role, str) or not role.strip()):
+        return None
+    return IdentiteAppelante(personne=personne.strip(), role=role.strip())

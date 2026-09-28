@@ -382,20 +382,28 @@ reconnu par l'autorisation HTTP de `/tools/invoke` (vérifié en lisant
 Bearer envoyé par `src/protocole/client.ts` après un appairage réussi est donc un jeton que le
 fork accepte réellement, pas une supposition.
 
-## Idempotence côté socle — fait (PLAN T1.4-b), branchement core à faire (T1.4-c1)
+## Idempotence et identité d'appareil de bout en bout (T1.4-b, T1.4-c1, T1.4-c2 partiel)
 
-`idempotencyKey` protège contre le double envoi côté client (reprise après crash, réseau
-instable) ; il ne vaut que si le moteur métier Python l'applique en vérité. **C'est fait** côté
-socle (`_meta` MCP `opsys/idempotencyKey`/`opsys/appareil`/`opsys/horodatageAppareil`, table
-`mutations_appliquees`, clé `(appareil, cle_idempotence)`, avant d'agir — détail complet,
-schéma, concurrence SQLite/PostgreSQL : [`IDEMPOTENCE.md`](IDEMPOTENCE.md)). **Ce qui manque
-encore** (IDEMPOTENCE.md §7, lu, jamais modifié ici) : le core (`core/src/gateway/tools-invoke-
-shared.ts`, `agent-bundle-mcp-runtime.ts`) ne construit pas encore ce `_meta` à partir du corps
-de `/tools/invoke` — `idempotencyKey` n'y sert aujourd'hui qu'à un `toolCallId` local de
-déduplication, et `deviceId`/`deviceTimestamp` n'existent pas encore dans `ToolsInvokeInput`. Tant
-que ce câblage (T1.4-c1) n'est pas fait, un renvoi après une réponse perdue **duplique** l'effet
-côté serveur — connu, documenté, sans solution côté mobile (la file sortante fait déjà tout ce
-qui lui revient : même id, même clé, à chaque renvoi).
+- **Idempotence, fait de bout en bout** (T1.4-b pour le socle, T1.4-c1 pour le core) :
+  - `/tools/invoke` accepte `idempotencyKey`, `deviceId` et `deviceTimestamp` ;
+  - le core les porte jusqu'au `tools/call` MCP, dans le `_meta` (`opsys/idempotencyKey`,
+    `opsys/appareil`, `opsys/horodatageAppareil`) ;
+  - le socle rejoue la réponse d'un renvoi, sans rien exécuter deux fois ;
+  - détail dans [`IDEMPOTENCE.md`](IDEMPOTENCE.md) §7.
+- **Rôles nommés, partiel** (T1.4-c2, IDEMPOTENCE.md §7 bis) :
+  - OPSYS génère deux fragments : `opsys/roles.json` (outils permis par rôle) et
+    `opsys/appareils.json` (appareil → personne et rôle `admin`, `employee`, `seller` ou `client`) ;
+  - le core refuse d'office un outil hors de la portée du rôle ;
+  - il transmet `opsys/personne` et `opsys/role` au moteur.
+- **Limite de sécurité, à lever avant toute mise en service** :
+  - `/tools/invoke` authentifie encore par le secret partagé de la Gateway, qui donne un accès
+    complet ;
+  - le `deviceId` du corps n'est pas lié à l'appelant authentifié, et l'identité transmise
+    (`opsys/personne`) peut donc être usurpée par qui détient le secret ;
+  - le téléphone ne doit jamais recevoir ce secret ;
+  - aucun outil ne doit se fier à `opsys/personne` pour une signature ou une projection tant que
+    `/tools/invoke` n'authentifie pas l'appareil par son propre jeton, avec l'identité tirée du
+    jeton et non du corps (PLAN T1.4-c4).
 
 ## Sécurité
 

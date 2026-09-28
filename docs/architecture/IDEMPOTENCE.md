@@ -241,9 +241,21 @@ Ce que T1.4-c1 ne fait PAS : rien côté rôles nommés ni portée d'outil — v
 Voir `docs/architecture/MOBILE.md` (section rôles) pour le contrat complet (jeton d'appareil,
 appairage, refus fermé par défaut) : ce paragraphe ne fait que situer T1.4-c2 dans le fil de ce
 fichier. `/tools/invoke` transmet, en plus des trois clés `_meta` ci-dessus,
-`opsys/personne`/`opsys/role` (résolus depuis `deviceId` par un fragment généré côté OPSYS, jamais
-écrit à la main dans le core) et refuse un outil hors de la portée du rôle avant même d'émettre
-`tools/call` — un appareil non reconnu, ou un rôle non résolu, est un refus, jamais un accès
-implicite complet. Côté socle, `opsys.contexte.depuis_meta_mcp_identite`/`appele_par_appareil`
-exposent cette identité par le même patron de `ContextVar` que `horodatage_reception` (§5) ; aucun
-outil de département ne les lit encore (M3 restera à adapter dans une tâche séparée).
+`opsys/personne`/`opsys/role` (résolus depuis `deviceId` par deux fragments générés côté OPSYS,
+`opsys/roles.json` et `opsys/appareils.json`, lus directement par
+`core/src/gateway/opsys-device-roles.ts` — jamais écrits à la main dans le core, jamais via
+`$include`) et refuse un outil hors de la portée du rôle avant même d'émettre `tools/call` — un
+appareil non reconnu, un rôle sans entrée dans `roles.json`, ou un outil hors de la liste du rôle
+sont trois refus, jamais un accès implicite complet. Côté socle,
+`opsys.contexte.depuis_meta_mcp_identite`/`appele_par_appareil`/`identite_appelante` exposent
+cette identité par le même patron de `ContextVar` que `horodatage_reception` (§5) ; aucun outil de
+département ne les lit encore (M3 restera à adapter dans une tâche séparée).
+
+**Limite de sécurité (à lever par T1.4-c4 avant toute mise en service)** : `/tools/invoke`
+authentifie encore par le secret partagé de la Gateway, qui donne un accès complet. Le `deviceId`
+du corps n'est pas lié à l'appelant authentifié : un détenteur du secret peut l'omettre, ce qui
+donne l'accès complet, ou présenter celui d'un autre appareil. `opsys/personne` et `opsys/role`
+restent donc des indications non authentifiées. Le socle ne s'en sert ni pour signer une
+décision ni pour une projection (`contexte.identite_appelante`), tant que `/tools/invoke`
+n'authentifie pas l'appareil par son propre jeton d'appairage, avec l'identité tirée du jeton
+vérifié et jamais du corps.
