@@ -550,11 +550,29 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       émet `REFERENCE_ECHELLE_ABSENTE` en alerte non bloquante ; séparer coût et prix (taux de marge
       fourni, jamais codé en dur) ; contrat `BesoinsMateriauxM3` ; soumission brouillon PDF ; politique
       Loi 25 « photos » avant toute collecte réelle (audit M3).
-- [ ] T2.4 M6 : catalogue, livre de prix, PO brouillon, courriel fournisseur via M1 (repli manuel).
-- [ ] T2.5 M6 : lever la décision interne DA-M6-12 (« M6 ne persiste pas les PO »), contraire à la
+- [x] T2.4 M6 : catalogue, livre de prix, PO brouillon, courriel fournisseur via M1 (repli manuel).
+      Preuve (fbe272a) :
+      - livre de prix versionné, daté et par fournisseur, jamais inventé (`PRIX_LIVRE` ou
+        `INDETERMINE`) ;
+      - outil `m6_enregistrer_prix` ;
+      - courriel au fournisseur produit comme texte seulement, avec un repli manuel si l'adresse
+        est inconnue ; l'envoi réel attend M1.
+- [x] T2.5 M6 : lever la décision interne DA-M6-12 (« M6 ne persiste pas les PO »), contraire à la
       définition (moteur de PO à 12 statuts) ; ajouter le moteur de variance estimé M3 vs réel M4, distinct
       de la variance d'inventaire physique existante ; registre des fournisseurs (Gentek, Royal, O.A.M.,
       Kaycan) (audit M6).
+      Preuve (bc3dbf0) :
+      - DA-M6-12 révisée : bons de commande persistés, avec exactement les 12 statuts de §7 M6.5
+        et une table de transitions testée en entier ;
+      - registre des fournisseurs (identité seulement, rien d'inventé) ;
+      - bon de commande brouillon calculé comme l'écart entre le prévu et le stock ;
+      - l'approbation est refusée tant qu'un prix est indéterminé ;
+      - envoi N4 (`admin` ou `nathan_owner`) ;
+      - la réception est rattachée au bon, avec un signal d'écart de prix ;
+      - M6 382 ; verifier 107 outils.
+
+      Reste : les outils pour `supplier_confirmed`, `disputed`, `invoiced` et `closed` ; la
+      réception cumulée sur plusieurs livraisons ; l'enrichissement du catalogue (M6.1).
 
 ## T3 — Mesure, direction, mémoire
 
@@ -633,7 +651,7 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
   Profile), Meta, TikTok, LinkedIn, YouTube.
 - Rotation de la clé fuitée (#612).
 - **Seuils métier** (définition §13.11) : M6 démarre avec un seuil de variance de chantier de
-  30 % (`department.yaml`, `configuration`). La valeur est à confirmer par le propriétaire, et elle
+  30 % (`department.yaml`, `configuration`). M6 signale aussi un écart de prix à la réception au-delà de 15 %. La valeur est à confirmer par le propriétaire, et elle
   deviendra un réglage par instance (tableau de bord).
 - **Mode autonome et N4** : ADR-0009 fait exécuter automatiquement un N4 (engagement : envoi de
   facture, prix, dépense) en mode autonome, alors qu'AGENTS.md réserve les engagements externes
