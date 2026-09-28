@@ -52,6 +52,12 @@ CODES_M5_LIST = [
     "REJ-FACTURE-PAIEMENT-MONTANT-INVALIDE",
     "REJ-FACTURE-PAIEMENT-PARTIEL",
     "REJ-FACTURE-PAIEMENT-ECART",
+    # PLAN T1.4-k2 (acces.py) : la vue financière d'un appel d'appareil vient de l'identité
+    # AUTHENTIFIÉE, jamais des arguments. Mêmes noms que M3, M4 et M6 pour que l'app les traite pareil.
+    "REJ-IDENTITE-APPAREIL-INVALIDE",
+    "REJ-IDENTITE-FOURNIE-DIFFERENTE",
+    "REJ-ROLE-ELARGI",
+    "REJ-AUTORISE-COUTS-REQUIS",
 ]
 CODES_M5 = set(CODES_M5_LIST)
 

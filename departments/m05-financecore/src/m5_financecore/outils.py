@@ -86,6 +86,12 @@ s'activer en usage réel ; il reste le filet pour un ordre d'arrivée inhabituel
 déjà créée n'est corrigée rétroactivement si `m2.client_associe` arrive après coup (immuabilité
 des écritures, même principe que `variance_recus.py` : le signal est gardé pour l'AVENIR, jamais
 appliqué au passé).
+
+PLAN T1.4-k2 (identité authentifiée, `acces.py`, docs/architecture/ROLES.md) : pour un appel
+d'appareil, `m5_etat_tresorerie` ne croit plus `role` ni `autorise_couts` — la vue vient du rôle de la
+personne authentifiée, confirmée en base à chaque appel (`_acteur_appareil`) ; un argument ne peut que
+restreindre. `m5_lister_attentes_facturation` exige la même identité confirmée. Sans identité d'appareil
+(agent, console), comportement d'avant, sans contrôle de personne (« voie des agents »).
 """
 
 from __future__ import annotations
@@ -95,10 +101,11 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
-from opsys import stockage
+from opsys import approbations, contexte, stockage
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
 from . import (
+    acces,
     clients_recus,
     devis_recus,
     etat_financier,
@@ -277,19 +284,71 @@ def _vers_montant_decimal(montant_texte: str) -> Decimal:
         raise ValueError(f"montant décimal invalide : {montant_texte!r}") from exc
 
 
+# Portée des rôles d'appareil sur les deux outils de lecture financière : la source UNIQUE, reprise
+# par `Outil.roles_appareil` (plus bas) et par le contrôle de `_acteur_appareil`. §9.5 (M5, trésorerie et
+# factures à approuver) : l'admin seul ; ni l'employé (§9.2) ni le vendeur (§9.4) ne voient les finances.
+_ROLES_APPAREIL_FINANCE = frozenset({acces.ROLE_ADMIN})
+
+
+def _acteur_appareil() -> tuple[acces.Acteur | None, dict[str, Any] | None]:
+    """Qui appelle : ``(None, None)`` hors appel d'appareil, ``(acteur, None)`` si l'identité du jeton
+    est CONFIRMÉE en base et dans la portée de l'outil, ``(None, verdict)`` sinon (PLAN T1.4-k2).
+
+    ``contexte.identite_appelante()`` ne rend que ce que le core a transmis en `_meta` : la personne
+    a pu être désactivée, ou perdre le rôle, depuis l'émission du jeton (le fragment de
+    configuration du core n'est régénéré qu'à la demande). On la revérifie donc à chaque appel avec
+    la même fonction que la validation humaine au départ (``approbations.signataire_valide``, T1.4-h :
+    personne active portant encore ce rôle), au lieu d'une seconde règle qui pourrait diverger.
+    Hors transaction (aucune base jointe), rien n'est vérifiable : refus fermé, jamais une identité
+    crue sur parole. Ne lit JAMAIS les arguments de l'outil, n'écrit rien."""
+    appelante = contexte.identite_appelante()
+    if appelante is None:
+        return None, None
+    cnx = stockage.connexion_courante()
+    confirmee = approbations.signataire_valide(cnx, appelante) if cnx is not None else None
+    if confirmee is None:
+        return None, validation.construire_verdict(
+            "REJ-IDENTITE-APPAREIL-INVALIDE",
+            detail=(
+                f"personne {appelante.personne!r} inconnue, inactive, ou ne porte plus le rôle "
+                f"{appelante.role!r} porté par le jeton d'appareil (ou identité non vérifiable "
+                "hors transaction)"
+            ),
+        )
+    return acces.acteur_de(confirmee.personne, confirmee.role, _ROLES_APPAREIL_FINANCE)
+
+
+def _refus(verdict: dict[str, Any]) -> dict[str, Any]:
+    return {"accepte": False, "verdict": verdict}
+
+
 def etat_tresorerie(
-    role: str | None,
-    autorise_couts: bool,
+    role: str | None = None,
+    autorise_couts: bool | None = None,
     mouvements_historique: list[dict[str, Any]] | None = None,
     taux_utilises: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Composé de bout en bout : obtient le registre des mouvements (§`_registre_mouvements`),
-    calcule solde + argent disponible réel, filtre par rôle. `autorise_couts` est un argument
-    OBLIGATOIRE et explicite (fail-closed) : aucune valeur par défaut n'expose jamais une donnée
-    financière."""
+    calcule solde + argent disponible réel, filtre par rôle.
+
+    Pour un appel d'appareil (PLAN T1.4-k2), la vue vient du rôle authentifié et CONFIRMÉ en base
+    (`_acteur_appareil`, `acces.resoudre_vue`) : `autorise_couts` est dérivé du rôle, un argument
+    ne peut que la restreindre, `role` ne peut pas contredire le jeton. Un refus est un verdict nommé
+    (`{"accepte": False, "verdict": ...}`), rendu AVANT de lire le registre ; la réponse d'un accord
+    garde sa forme d'avant.
+
+    Sans identité d'appareil (agent, console) : `autorise_couts` reste OBLIGATOIRE et explicite
+    (fail-closed, absent = `REJ-AUTORISE-COUTS-REQUIS`) : aucune valeur par défaut n'expose jamais une
+    donnée financière."""
+    acteur, refus = _acteur_appareil()
+    if refus is not None:
+        return _refus(refus)
+    vue, verdict = acces.resoudre_vue(acteur, role, autorise_couts)
+    if verdict is not None:
+        return _refus(verdict)
     registre_cible = _registre_mouvements(mouvements_historique)
     return etat_financier.construire_etat_financier(
-        registre_cible, taux_utilises or [], role=role, autorise_couts=autorise_couts
+        registre_cible, taux_utilises or [], role=vue["role"], autorise_couts=vue["autorise_couts"]
     )
 
 
@@ -525,6 +584,18 @@ def lister_attentes_facturation() -> dict[str, Any]:
     return {"attentes_devis": attentes_devis, "attentes_wct_sans_devis_id": attentes_wct_sans_devis_id}
 
 
+def lister_attentes_facturation_appareil() -> dict[str, Any]:
+    """L'outil `m5_lister_attentes_facturation` : la même liste, précédée de l'identité (PLAN
+    T1.4-k2). Un appel d'appareil doit venir d'une personne confirmée en base dans la portée de l'outil
+    (admin) : une personne désactivée, ou qui a perdu le rôle depuis l'appairage, ne lit plus rien.
+    Sans identité d'appareil (agent, console) : la liste, comme avant. `attentes()` (file du
+    propriétaire) et les tests appellent `lister_attentes_facturation` directement, sans ce contrôle."""
+    _acteur, refus = _acteur_appareil()
+    if refus is not None:
+        return _refus(refus)
+    return lister_attentes_facturation()
+
+
 def _recevoir_variance_chantier(charge: dict[str, Any]) -> dict[str, Any]:
     """Consomme `m6.variance_chantier` (PLAN T1.3-c point 4, catalogue existant, M6 en est
     propriétaire) : garde le DERNIER signal connu par wct_id (`variance_recus.py`) — jamais un
@@ -703,25 +774,43 @@ def outils() -> tuple[Outil, ...]:
             nom="m5_etat_tresorerie",
             description=(
                 "État financier de bout en bout : solde et argent disponible réel (solde moins "
-                "provisions), filtrés par rôle. autorise_couts doit être explicitement vrai pour "
-                "voir un montant ; sinon l'état ne porte ni solde, ni argent disponible, ni taux."
+                "provisions), filtrés par rôle. Sans montant (ni solde, ni argent disponible, ni taux) "
+                "sauf autorisation. Pendant un appel d'appareil authentifié (PLAN T1.4-k2), la vue "
+                "vient du rôle authentifié — admin : montants ; les autres n'ont pas accès — et "
+                "autorise_couts ne peut que la RESTREINDRE (faux), jamais l'élargir (refus nommé "
+                "REJ-ROLE-ELARGI) ; role, s'il est fourni, doit être celui du jeton. Hors appel "
+                "d'appareil (agent), autorise_couts est obligatoire et explicite : vrai pour voir un "
+                "montant, faux pour l'état sans montant."
             ),
             parametres={
                 "type": "object",
                 "properties": {
-                    "role": {"type": ["string", "null"]},
-                    "autorise_couts": {"type": "boolean"},
+                    "role": {
+                        "type": ["string", "null"],
+                        "description": (
+                            "Étiquette du rôle portée par la réponse. Appel d'appareil : omis, ou égal au "
+                            "rôle authentifié ; un autre est refusé (REJ-IDENTITE-FOURNIE-DIFFERENTE)."
+                        ),
+                    },
+                    "autorise_couts": {
+                        "type": ["boolean", "null"],
+                        "description": (
+                            "Vrai pour voir solde, argent disponible et taux. Appel d'appareil : omis, il "
+                            "vaut le droit du rôle authentifié ; faux restreint la vue ; vrai sans ce "
+                            "droit est refusé (REJ-ROLE-ELARGI). Sans appareil (agent, console) : "
+                            "obligatoire et explicite (REJ-AUTORISE-COUTS-REQUIS)."
+                        ),
+                    },
                     "mouvements_historique": _HISTORIQUE_MOUVEMENTS,
                     "taux_utilises": {"type": "array", "items": {"type": "object"}},
                 },
-                "required": ["role", "autorise_couts"],
                 "additionalProperties": False,
             },
             fonction=etat_tresorerie,
             autonomie=Autonomie.T0,
-            # §9.5 M5 (trésorerie et cash libre réel). `role` et `autorise_couts` viennent de l'appelant :
-            # jamais un autre rôle que l'admin.
-            roles_appareil=frozenset({"admin"}),
+            # §9.5 M5 (trésorerie et cash libre réel) : l'admin seul. Pour un appel d'appareil, la vue vient
+            # du rôle authentifié et confirmé en base (T1.4-k2, acces.py), pas de `role` ni d'`autorise_couts`.
+            roles_appareil=_ROLES_APPAREIL_FINANCE,
         ),
         Outil(
             nom="m5_calculer_taxes_tps_tvq",
@@ -807,10 +896,10 @@ def outils() -> tuple[Outil, ...]:
                 "la file d'approbation du propriétaire."
             ),
             parametres={"type": "object", "properties": {}, "additionalProperties": False},
-            fonction=lister_attentes_facturation,
+            fonction=lister_attentes_facturation_appareil,
             autonomie=Autonomie.T0,
-            # §9.5 M5 (factures à préparer et à approuver).
-            roles_appareil=frozenset({"admin"}),
+            # §9.5 M5 (factures à préparer et à approuver). Identité confirmée en base (T1.4-k2).
+            roles_appareil=_ROLES_APPAREIL_FINANCE,
         ),
         Outil(
             nom="m5_envoyer_facture",

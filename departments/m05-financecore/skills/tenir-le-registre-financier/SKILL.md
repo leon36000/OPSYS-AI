@@ -11,9 +11,12 @@ description: Procédure pour consulter l'état financier (solde, argent disponib
    dirigeant, rôle financier) ou non (ex. terrain).
 2. Appelle `m5_etat_tresorerie` avec `mouvements_historique` (l'historique renvoyé
    par le dernier appel connu, `[]` si aucun), le `role`, et `autorise_couts` réglé
-   explicitement selon l'étape 1 — jamais laissé implicite.
+   explicitement selon l'étape 1 — jamais laissé implicite. (Un appel venu de l'app
+   mobile n'a pas à le dire : la vue vient du jeton de la personne authentifiée, et
+   un argument ne peut que la restreindre. Tu n'y changes rien.)
 3. Si `autorise_couts=false`, l'état renvoyé ne contient ni solde, ni argent
-   disponible, ni taux : c'est le comportement attendu, pas une panne.
+   disponible, ni taux : c'est le comportement attendu, pas une panne. Un verdict
+   `REJ-AUTORISE-COUTS-REQUIS` dit que tu as oublié de le préciser : ajoute-le.
 4. Présente toujours `solde` ET `argent_disponible` séparément — jamais l'un pour
    l'autre : l'argent disponible exclut les provisions.
 

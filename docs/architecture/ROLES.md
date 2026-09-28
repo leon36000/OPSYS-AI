@@ -4,7 +4,8 @@
 > §7 bis (le core refuse un outil hors portée) et [ADR-0009](../decisions/ADR-0009-socle-metier.md)
 > §4-§5. Les profils viennent de la [définition produit](../produit/DEFINITION-PRODUIT.md) §9.
 > La table ci-dessous est épinglée par `tests/test_portees_appareil.py` ; le contrôle d'accès par personne
-> et par intervention (T1.4-k) par `tests/test_acces_par_intervention.py` et les tests de M4 et de M6.
+> et par intervention (T1.4-k) par `tests/test_acces_par_intervention.py` et les tests de M4 et de M6 ; la
+> vue financière de M5 (T1.4-k2) par `tests/test_acces_tresorerie.py` et les tests de M5.
 
 ## La règle
 
@@ -115,7 +116,7 @@ Les 11 outils de l'employé, les 9 du vendeur, et :
 | M4 | `m4_resoudre_demande`, `m4_resoudre_revue_completion` (N4) | §9.5 M4 : approbation des complétions. |
 | M4 | `m4_produire_brouillon_temps` | §9.3 : brouillon de feuille de temps envoyé à M5. |
 | M4 | `m4_lire_position_gps` | §9.2 « accès admin journalisé » ; POLITIQUE-geolocalisation §6. `accede_par` doit être sa propre personne (T1.4-k). |
-| M5 | `m5_etat_tresorerie`, `m5_lister_attentes_facturation` | §9.5 M5 : trésorerie, cash libre réel, factures à approuver. |
+| M5 | `m5_etat_tresorerie`, `m5_lister_attentes_facturation` | §9.5 M5 : trésorerie, cash libre réel, factures à approuver. Identité confirmée en base ; la vue vient du rôle authentifié, jamais des arguments (T1.4-k2, plus bas). |
 | M6 | `m6_approuver_po`, `m6_annuler_po` | §9.2 « le propriétaire approuve les bons de commande » ; §9.5 « PO à approuver ». |
 | M6 | `m6_receptionner_commande`, `m6_soumettre_comptage` | §9.5 « réception rapide » ; §9 « inventaire ». |
 | M6 | `m6_produire_digest`, `m6_evaluer_variance_chantier` | §9.5 « stock critique », « rapport de pertes et bris », « écarts de chantier ». |
@@ -248,13 +249,91 @@ source par le devis du WCT (`devis_id` -> besoins prévus, écrits depuis `m3.de
 Le refus ne révèle jamais le chantier attendu. Cela ferme le dernier champ libre qui décidait où le stock
 sort : `wct_id` (lu à la source), `intervention_id` (confronté), `chantier_id` (confronté ou dérivé).
 
+## La vue financière de M5 (T1.4-k2, `m5_etat_tresorerie`)
+
+Avant T1.4-k2, `m5_etat_tresorerie(role, autorise_couts)` laissait l'appelant choisir ce qu'il avait le
+droit de voir : un appel d'appareil pouvait se déclarer autorisé aux coûts. Le module pur
+`departments/m05-financecore/src/m5_financecore/acces.py` décide (il ne lit jamais l'identité) ;
+`outils.py` la lit dans `contexte.identite_appelante()` et la fait confirmer en base à chaque appel
+(`approbations.signataire_valide`, la règle de T1.4-h et de M4).
+
+**La règle écrite : rôle -> droit de voir solde, argent disponible et taux.** Fermée par défaut (un rôle
+absent de la table ne voit rien).
+
+| Rôle du jeton | Voit les coûts | Source |
+|---|---|---|
+| `admin` | oui | §9.5 « M5 : trésorerie et cash libre réel » ; §7 M5 Mobile « Admin : ... trésorerie » |
+| `employee` | non | §9.2 « l'employé ne voit jamais coûts, marges ni finances » |
+| `seller` | non | §9.4 « Ne voit pas : finances globales » (le solde et l'argent disponible en sont) |
+
+`employee` et `seller` n'ont de toute façon aucune portée sur l'outil (`roles_appareil` = `admin` seul,
+T1.4-j : le core ne leur donne pas M5, prouvé par `tests/test_acces_tresorerie.py` sur
+`openclaw.roles_outils`). Le socle n'applique pas `roles_appareil` aux outils T0 hors du core : le code de
+M5 refuse donc lui aussi un rôle hors portée (`REJ-IDENTITE-APPAREIL-INVALIDE`), avant de lire quoi que ce
+soit. La table garde leurs lignes pour le jour où la portée s'élargirait (ex. `seller` et la marge d'une
+soumission, §9.4) : ils obtiendraient alors la vue sans montant, jamais plus.
+
+### Ce que les arguments peuvent faire (appel d'appareil)
+
+Même règle que `m3_lire_devis` (M3, T2.3-c) : **un argument ne peut que RESTREINDRE la vue, jamais
+l'élargir**, et un refus est nommé, jamais une correction silencieuse (un appelant qui se trompe doit le
+savoir).
+
+| Argument | Effet |
+|---|---|
+| `autorise_couts` absent ou nul | vaut le droit du rôle (`admin` : montants) |
+| `autorise_couts=false` | honoré : vue sans solde, argent disponible ni taux, sous le rôle authentifié |
+| `autorise_couts=true` sans le droit du rôle | `REJ-ROLE-ELARGI`, rien n'est lu |
+| `autorise_couts` non booléen (`"false"`, `0`...) | `REJ-AUTORISE-COUTS-REQUIS` : jamais interprété par sa « vérité » |
+| `role` absent, nul ou égal au rôle authentifié | la réponse porte le rôle authentifié |
+| `role` différent | `REJ-IDENTITE-FOURNIE-DIFFERENTE`, jamais remplacé en silence |
+
+Pourquoi `role` n'est pas « restreignable » comme dans M3 : dans M5, `role` ne règle aucune vue (c'est
+`autorise_couts`) ; c'est l'étiquette que la réponse porte et que son empreinte `etat_id` scelle. La seule
+étiquette fidèle est celle du jeton. Un aperçu « comme un employé » se demande par `autorise_couts=false`.
+
+Ordre des contrôles, tous AVANT la lecture du registre (un refus n'ouvre même pas le registre des
+mouvements) et sans aucune écriture (lecture T0 : ni file, ni trace) : identité confirmée en base
+(personne inconnue, désactivée, rôle retiré depuis l'appairage, ou aucune base jointe :
+`REJ-IDENTITE-APPAREIL-INVALIDE`), rôle dans la portée de l'outil, `autorise_couts` booléen, `role`
+concordant, puis `autorise_couts` sans élargissement.
+
+### Sans identité d'appareil (agent, console, outil interne)
+
+Comportement d'avant, sans contrôle de personne : `role` est l'étiquette de l'appelant et `autorise_couts`
+reste **obligatoire et explicite** (fail-closed : jamais une valeur par défaut qui exposerait un montant).
+Le secret partagé de la passerelle garde l'accès complet (« Voie des agents »).
+
+Seul changement de contrat : `role` et `autorise_couts` ne sont plus `required` au schéma (l'app admin n'a pas
+à réclamer ce que son rôle lui donne). L'absence d'`autorise_couts` chez un agent, autrefois un refus de
+schéma (`arguments_invalides`), est maintenant un verdict nommé, `REJ-AUTORISE-COUTS-REQUIS`, qui dit quoi
+fournir : même refus fermé, sans montant. La réponse d'un accord garde exactement sa forme (mêmes clés,
+même `etat_id` que l'appel d'agent explicite pour le même rôle) ; un refus est `{"accepte": false,
+"verdict": {...}}`.
+
+`m5_lister_attentes_facturation` (sans argument) exige la même identité confirmée en base et le même rôle
+pour un appel d'appareil ; sans identité d'appareil, la liste, comme avant. La file du propriétaire
+(`attentes()`) et la console appellent la fonction métier directement, sans ce contrôle.
+
+### Ce que M5 laisse ouvert
+
+- **`m5_enregistrer_paiement_facture(approbateur)`** (T3/N5, aucun appareil : `Outil.frontiere_humaine`)
+  inscrit à la facture l'`approbateur` que la demande d'approbation a reçu en argument, pas la personne qui
+  signe la décision. La vraie signature est au journal des approbations (`nathan_owner` et l'attestation) ;
+  la facture peut nommer quelqu'un d'autre. Il faudrait que le socle transmette l'identité de la décision à
+  l'outil exécuté après approbation : hors de cette tranche.
+- **`mouvements_historique`** (simulation en mémoire) reste accepté pour un appel d'appareil : il ne
+  révèle rien qui ne vienne de l'appelant, mais l'écran « cash libre réel » de l'admin devrait lire le
+  registre de production, pas un historique fourni. À fermer quand l'app appellera l'outil.
+- **`m5_enregistrer_mouvement(source)`, `m5_creer_facture_brouillon(client_id...)`** : étiquettes ou
+  références de l'appelant, mais aucun appareil (T3, ou cascade §6).
+
 ### Ce qui reste
 
-- **M2, M3, M5** : `m2_enregistrer_interaction(auteur)` et `m5_etat_tresorerie(role, autorise_couts)`
-  prennent encore l'identité d'un argument ; pour `m3_lire_devis`, `role` ne peut que restreindre la vue du
-  rôle authentifié (T2.3-c) ; aucun filtre par propriétaire de lead (vendeur, Client 360, M3). Même
-  mécanisme à appliquer : lire `identite_appelante()`, la confirmer en base, refuser l'argument qui la
-  contredit.
+- **M2, M3** : `m2_enregistrer_interaction(auteur)` prend encore l'identité d'un argument ; pour
+  `m3_lire_devis`, `role` ne peut que restreindre la vue du rôle authentifié (T2.3-c) ; aucun filtre par
+  propriétaire de lead (vendeur, Client 360, M3). Même mécanisme à appliquer : lire `identite_appelante()`,
+  la confirmer en base, refuser l'argument qui la contredit. M5 est fait (section précédente).
 - **Aucun rattachement fichier -> intervention** : `m4_deposer_fichier` ne porte pas d'intervention (un
   fichier est adressé par son SHA-256), donc rien à contrôler au dépôt ; `m4_completer_intervention` accepte
   la référence de n'importe quel fichier complet et du bon type. Un employé qui connaît l'empreinte d'un
@@ -276,7 +355,8 @@ sort : `wct_id` (lu à la source), `intervention_id` (confronté), `chantier_id`
 ## Limites de la portée par outil (T1.4-j)
 
 La portée par outil ne dit toujours pas AU NOM DE QUI pour les départements qui n'ont pas encore
-été adaptés (M2, M3, M5, voir « Ce qui reste » ci-dessus). Pour M4 et M6, T1.4-k a fermé les deux
+été adaptés (M2 et M3 pour le propriétaire d'un lead, voir « Ce qui reste » ci-dessus ; M5 l'est depuis
+T1.4-k2). Pour M4 et M6, T1.4-k a fermé les deux
 limites que ce document listait : l'identité prise dans les arguments (`m4_pointer(technicien_id)`,
 `m4_lire_position_gps(accede_par)`, `m4_definir_consentement_gps(technicien_id)`) et la portée par
 instance (un employé voyait et agissait sur les interventions de tous).

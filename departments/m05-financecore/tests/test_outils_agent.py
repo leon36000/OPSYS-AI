@@ -161,11 +161,25 @@ def test_en_production_le_registre_durable_porte_la_tresorerie_sans_historique_t
     assert etat["resultat"]["argent_disponible"] == "420.00"
 
 
-def test_etat_tresorerie_parametre_requis_manquant_est_un_refus_de_schema():
+def test_etat_tresorerie_sans_autorise_couts_hors_appareil_est_un_refus_nomme_sans_montant():
+    """PLAN T1.4-k2 : `autorise_couts` est devenu facultatif au schéma (un appel d'appareil le dérive
+    de son rôle authentifié), mais reste OBLIGATOIRE et explicite pour un agent : son absence ne
+    devient jamais une valeur par défaut. Le refus, avant d'être un refus de schéma, est un verdict
+    nommé qui dit quoi fournir ; aucun montant ne sort."""
     reponse = executer(_outil("m5_etat_tresorerie"), {"role": "employe"})
 
-    assert reponse["ok"] is False
-    assert reponse["erreur"] == "arguments_invalides"
+    assert reponse["ok"] is True
+    assert reponse["resultat"]["accepte"] is False
+    assert reponse["resultat"]["verdict"]["code"] == "REJ-AUTORISE-COUTS-REQUIS"
+    assert "solde" not in reponse["resultat"] and "argent_disponible" not in reponse["resultat"]
+
+
+def test_etat_tresorerie_refuse_encore_au_schema_un_type_ou_une_cle_inconnue():
+    outil = _outil("m5_etat_tresorerie")
+
+    for arguments in ({"autorise_couts": "oui"}, {"autorise_couts": 1}, {"role": 3}, {"couts": True}):
+        reponse = executer(outil, arguments)
+        assert reponse["ok"] is False and reponse["erreur"] == "arguments_invalides", arguments
 
 
 # --- m5_calculer_taxes_tps_tvq ----------------------------------------------

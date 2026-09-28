@@ -40,3 +40,17 @@ PLAN T1.3-c. `outils.attentes()` alimente désormais la file du propriétaire
 BROUILLON prêtes à envoyer, et le signal de variance critique de M6
 (`m6.variance_chantier`, `variance_recus.py`) affiché à côté, sans jamais bloquer
 l'envoi.
+
+PLAN T1.4-k2 (identité authentifiée) : pour un appel d'appareil (app mobile), `m5_etat_tresorerie`
+ne croit plus `role` ni `autorise_couts`. La vue vient du rôle de la personne authentifiée,
+confirmée en base à chaque appel (`outils._acteur_appareil`, même règle que M4) ; la décision est
+dans `acces.py` (module pur). Règle écrite : `admin` voit solde, argent disponible et taux (définition
+§9.5) ; `employee` (§9.2) et `seller` (§9.4) ne les voient pas et n'ont d'ailleurs aucune portée sur l'outil
+(`roles_appareil` = `admin`). `autorise_couts` absent vaut le droit du rôle ; `false` restreint (honoré,
+comme `role` dans `m3_lire_devis`) ; `true` sans le droit est refusé (`REJ-ROLE-ELARGI`) ; un `role`
+qui contredit le jeton est refusé (`REJ-IDENTITE-FOURNIE-DIFFERENTE`) ; identité inconnue, désactivée
+ou dont le rôle a été retiré : `REJ-IDENTITE-APPAREIL-INVALIDE`. Tout refus vient avant la lecture du
+registre et sans aucune écriture. `m5_lister_attentes_facturation` exige la même identité.
+Sans identité d'appareil (agent, console) : comportement d'avant, `autorise_couts` obligatoire et
+explicite (son absence est maintenant le verdict `REJ-AUTORISE-COUTS-REQUIS`, autrefois un refus de
+schéma). Détail, cas et limites : `docs/architecture/ROLES.md`, section « La vue financière de M5 ».
