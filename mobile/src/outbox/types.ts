@@ -16,6 +16,10 @@ export type StatutMutation = "brouillon" | "en_attente" | "envoi" | "envoyee" | 
  * PLAN T1.4-k ajoute `gps_consent_change` : `m4_definir_consentement_gps` — l'employé retire (ou
  * donne) SON consentement à la géolocalisation (POLITIQUE-geolocalisation §4), `consent.tsx`, voir
  * `src/m4/consentementGps.ts`. Type DÉDIÉ : ce n'est ni un pointage ni une transition de statut.
+ *  - `approval_decision` (PLAN T1.4-f, étape 6) : la décision du propriétaire sur UNE demande
+ *    d'approbation (`m9_decider_demande_approbation`, `(admin)/approvals.tsx`). Une mutation par
+ *    décision, `chantierId` fixe (`approbations`, pas un chantier) : son id est la clé d'idempotence
+ *    qui fait qu'une décision renvoyée ne s'applique qu'une fois.
  */
 export type TypeMutation =
   | "punch_in"
@@ -29,7 +33,8 @@ export type TypeMutation =
   | "po_receive_scan"
   | "fichier_bloc"
   | "job_completion"
-  | "gps_consent_change";
+  | "gps_consent_change"
+  | "approval_decision";
 
 /**
  * Une ligne de la file sortante SQLite (`outbox`, R12 §4). `id` est le `mutation_id` UUID créé

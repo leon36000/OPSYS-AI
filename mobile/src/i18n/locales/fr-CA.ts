@@ -218,6 +218,53 @@ export interface RessourcesCommunes {
       echecPermanentAvecVerdict: string;
     };
   };
+  approvals: {
+    titre: string;
+    lienDepuisAccueil: string;
+    chargement: string;
+    rafraichir: string;
+    aucuneDemande: string;
+    enAttente: string;
+    reste: string;
+    illisibles: string;
+    lectureSeuleProprietaire: string;
+    appareilNonAppaire: string;
+    echecChargement: string;
+    niveau: string;
+    niveauInconnu: string;
+    depuis: string;
+    departement: string;
+    motifDemande: string;
+    argumentsTitre: string;
+    argumentsNonAffiches: string;
+    lectureSeule: {
+      console: string;
+      non_proprietaire: string;
+      arguments_absents: string;
+      incoherente: string;
+      serveur: string;
+    };
+    champMotif: string;
+    approuver: string;
+    refuser: string;
+    confirmerApprouver: string;
+    confirmerRefuser: string;
+    annuler: string;
+    decisionEnFile: {
+      approuver: string;
+      refuser: string;
+    };
+    enFileHorsLigne: string;
+    decisionsDeLaSession: string;
+    resultat: {
+      refusee: string;
+      executee: string;
+      executee_refusee_par_l_outil: string;
+      echec_execution: string;
+      tracee: string;
+    };
+    echecDefinitif: string;
+  };
 }
 
 /**
@@ -446,6 +493,54 @@ const frCA: RessourcesCommunes = {
     verdict: {
       echecPermanentAvecVerdict: "Échec définitif ({{code}}) : {{detail}}",
     },
+  },
+  approvals: {
+    titre: "Approbations",
+    lienDepuisAccueil: "Approbations à décider",
+    chargement: "Chargement des demandes…",
+    rafraichir: "Rafraîchir",
+    aucuneDemande: "Aucune demande en attente.",
+    enAttente: "En attente : {{total}}",
+    reste:
+      "{{nombre}} autre(s) demande(s) non affichée(s) : décidez celles-ci, puis rafraîchissez, ou passez par la console.",
+    illisibles: "{{nombre}} demande(s) illisible(s) pour cette version de l'app : à voir à la console.",
+    lectureSeuleProprietaire: "Lecture seule : décider une demande est réservé au propriétaire.",
+    appareilNonAppaire: "Appareil non apparié : impossible de charger les demandes.",
+    echecChargement: "Impossible de charger les demandes ({{code}}) : {{detail}}",
+    niveau: "Niveau {{niveau}}",
+    niveauInconnu: "Niveau inconnu",
+    depuis: "Depuis {{date}}",
+    departement: "Département : {{nom}}",
+    motifDemande: "Motif de la demande : {{motif}}",
+    argumentsTitre: "Arguments exacts",
+    argumentsNonAffiches: "Arguments non affichés.",
+    lectureSeule: {
+      console: "À décider à la console.",
+      non_proprietaire: "Réservé au propriétaire.",
+      arguments_absents: "Arguments non affichables : à décider à la console.",
+      incoherente: "Cette demande ne se décide pas depuis l'app : à voir à la console.",
+      serveur: "{{detail}} ({{code}})",
+    },
+    champMotif: "Note (facultative)",
+    approuver: "Approuver",
+    refuser: "Refuser",
+    confirmerApprouver: "Confirmer l'approbation",
+    confirmerRefuser: "Confirmer le refus",
+    annuler: "Annuler",
+    decisionEnFile: {
+      approuver: "Approbation en file d'envoi : elle partira dès que l'appareil sera en ligne.",
+      refuser: "Refus en file d'envoi : il partira dès que l'appareil sera en ligne.",
+    },
+    enFileHorsLigne: "Décision mise en file d'envoi (hors ligne) : le serveur la vérifiera à l'arrivée.",
+    decisionsDeLaSession: "Décisions envoyées",
+    resultat: {
+      refusee: "Refusée. Rien n'a été exécuté.",
+      executee: "Approuvée et exécutée.",
+      executee_refusee_par_l_outil: "Approuvée, mais l'outil a refusé sur le fond ({{code}}) : {{detail}}",
+      echec_execution: "Approuvée, mais l'exécution a échoué : {{detail}}",
+      tracee: "Signée {{decidePar}} ({{role}}), {{date}}.",
+    },
+    echecDefinitif: "Décision non appliquée ({{code}}) : {{detail}}",
   },
 };
 

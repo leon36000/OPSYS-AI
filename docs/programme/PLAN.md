@@ -625,7 +625,15 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       d'approbation même quand l'employé authentifié agit lui-même (T1.4-h) ;
     - `m6_declarer_materiaux_utilises` exige que l'app lui renvoie le WCT complet, dont M6 ne
       vérifie que la forme (T1.4-i) ;
-    - l'écran `(admin)/approvals` (étape 6) reste à faire.
+    - l'écran `(admin)/approvals` (étape 6) : livré, voir l'avancement ci-dessous ; le trajet réel
+      appareil → core → moteur reste à prouver (T1.5, T1.4-c5).
+
+    Avancement (étape 6, `agent/t1-4-f6-approbations`) : le propriétaire liste et décide N3 et N4 depuis
+    son téléphone. Socle : `opsys.approbations_appareil` (identité authentifiée seule, personne
+    `nathan_owner` exigée, N5 et T3 jamais, appareil au journal, même chemin que la console) ; outils
+    `m9_lister_demandes_approbation` et `m9_decider_demande_approbation` (`admin`, ROLES.md) ; mobile
+    `(admin)/approvals` par la file sortante, verdicts du serveur montrés tels quels. Code critique :
+    revue externe requise ; décision attendue de Nathan sur un `admin` non propriétaire (ROLES.md).
   - [x] T1.4-h Appels d'appareil et approbations : une action qu'un humain authentifié (T1.4-c4)
     lance lui-même depuis l'app, dans la portée de son rôle, vaut la « validation humaine au
     départ » d'un N3 (ADR-0009 §4) ; les N4 et N5 restent au propriétaire. Code critique : revue

@@ -32,9 +32,9 @@ fichiers-avant-complétion) et `materials.tsx` (M6.10, formulaire des matériaux
 « Écran `complete.tsx` » et « Écran `materials.tsx` » ci-dessous. **Un seul identifiant d'appareil
 dans toute l'app depuis T1.4-e** : `punch.tsx` et `job/[id]/index.tsx` lisent tous les deux
 `src/protocole/configuration.ts::obtenirConfigurationAppel()` (la VRAIE identité d'appairage) —
-voir « Écran `punch.tsx` ». Étapes suivantes (R12 §5, ordre de livraison) : `(admin)/approvals`
-(revue de complétion, alerte d'écart matériaux), puis E2E Maestro contre un core réel — voir « Ce
-qui n'est PAS encore fait ». T1.4-b (idempotence côté socle) et T1.4-c1 (le core transmet la clé,
+voir « Écran `punch.tsx` ». Étape 6 (R12 §5) livrée ensuite : `(admin)/approvals`, le propriétaire liste et décide les demandes
+d'approbation N3 et N4 (voir « Écran `approvals.tsx` »). Reste l'E2E Maestro contre un core réel — voir
+« Ce qui n'est PAS encore fait ». T1.4-b (idempotence côté socle) et T1.4-c1 (le core transmet la clé,
 l'appareil et son heure dans le `_meta` MCP) sont faits côté serveur — voir
 [`IDEMPOTENCE.md`](IDEMPOTENCE.md) et la section « `/tools/invoke` » ci-dessous ; le trajet réel
 appareil → core → moteur reste à prouver (T1.5).
@@ -1054,6 +1054,29 @@ garde de routes » ci-dessus, fail-closed en attendant une tranche core séparé
 politiques Loi 25 citées par R12 §6 — `punch.tsx` ne capte AUCUNE géolocalisation réelle (voir
 « Écran `punch.tsx` »).
 
+### Écran `approvals.tsx` (PLAN T1.4-f, étape 6)
+
+Le propriétaire liste (`m9_lister_demandes_approbation`) et décide (`m9_decider_demande_approbation`) les
+demandes d'approbation du socle. La logique est dans `src/ecrans/approvals.ts` et `src/approbations/`
+(contrat, chargeur), testée ; `app/(admin)/approvals.tsx` n'est que le câblage React (lien depuis
+`admin.tsx`). Règles côté serveur : [`ROLES.md`](ROLES.md), « Les deux outils d'approbation de l'app ».
+
+- **Le serveur décide, l'écran n'offre que ce qu'il permet.** Aucune règle d'approbation n'est recalculée.
+  Des boutons n'apparaissent que si le serveur dit `decidable`, sans raison de lecture seule, niveau N3 ou N4,
+  personne propriétaire et arguments affichés (`evaluerOffre`) ; au moindre désaccord, lecture seule.
+  N5 : « à décider à la console ». Un verdict du serveur est montré tel quel, code et détail.
+- **Rien d'inventé.** Un élément illisible est compté (`illisibles`), jamais deviné ; une réponse de
+  décision illisible n'est jamais un succès (rejet `reponse_illisible` : rouvrir la liste). Pas de cache de
+  la liste : hors ligne, elle n'est pas montrée.
+- **Une décision passe par la file sortante** (`approval_decision`, `chantierId = approbations`). Son id est la
+  clé d'idempotence : un renvoi rend la réponse enregistrée sans rien refaire, et une autre décision pour la
+  même demande reçoit `deja_decidee`. Une décision en file supprime les boutons de sa demande. Le payload est
+  exactement `{demande_id, decision, motif?}` : ni personne ni rôle ni appareil.
+- **Confirmation en deux temps** (Approuver puis Confirmer) : une décision ne se reprend pas.
+- **Limites.** Écran non testé en rendu (comme les autres) ; le trajet réel appareil → core → moteur reste à
+  prouver (T1.4-c5, T1.5) ; les « attentes » des départements qui ne sont pas des demandes du socle
+  (revue de complétion, factures prêtes) ne sont pas encore des cartes de cet écran.
+
 ## Ce qui n'est PAS encore fait
 
 **Côté core (hors périmètre de ce dépôt mobile, lecture seule) :** la poignée de main WebSocket
@@ -1117,11 +1140,12 @@ compose chaque ligne à la main ; l'envoi de fichiers ne démarre qu'à l'arriv�
 (montage + « Terminer »), pas dès la capture dans `photos.tsx`/`signature.tsx` (décision
 documentée, voir « Envoi de fichiers par blocs » — écrans T1.4-e volontairement inchangés).
 
-**Nouveau depuis T1.4-f, hors périmètre de cette tranche :** l'écran `(admin)/approvals` (revue
-de complétion, alerte d'écart matériaux — R12 §5 étape 6) n'existe pas : la chorégraphie
-« Travaux terminés » va jusqu'à `materials.tsx` côté employé, mais **rien côté propriétaire** ne
-ferme la boucle d'accusé de réception (P6, « la tranche n'est pas faite tant que l'accusé de
-réception côté propriétaire ne ferme pas la boucle », R12 §5) ; pas de tests E2E Maestro contre
+**Nouveau depuis T1.4-f, hors périmètre de cette tranche :** l'écran `(admin)/approvals` (R12 §5
+étape 6) est livré depuis (voir « Écran `approvals.tsx` »), mais la boucle « Travaux terminés » n'est
+prouvée de bout en bout qu'avec l'E2E (P6, « la tranche n'est pas faite tant que l'accusé de
+réception côté propriétaire ne ferme pas la boucle », R12 §5) : l'alerte d'écart matériaux
+(`completed_pending_review`) est un état de M4 que `m4_resoudre_revue_completion` (N4) traite, pas
+encore une carte de cet écran ; pas de tests E2E Maestro contre
 un core/moteur réels (R12 §5 étape 7 — le scénario exact, « travaux terminés normaux ; écart de
 40 % -> `completed_pending_review` + alerte mobile admin », PLAN.md T1.5, reste à exécuter, voir
 la remarque ci-dessus sur la conformité non vérifiée du contrat fichiers) ; `technicien_id` reste
