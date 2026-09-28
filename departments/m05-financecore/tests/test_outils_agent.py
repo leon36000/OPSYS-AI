@@ -6,12 +6,27 @@ import json
 from decimal import Decimal
 from pathlib import Path
 
+import pytest
+from m5_financecore import outils as module_outils
 from m5_financecore.outils import outils
 
+from opsys import stockage
 from opsys.departements import lire_manifeste
 from opsys.outils import Autonomie, executer
 
 HORODATAGE = "2026-08-03T12:00:00+00:00"
+
+
+@pytest.fixture(autouse=True)
+def _base_durable_m5(tmp_path, monkeypatch):
+    """Base SQLite temporaire migrée par test : un appel sans historique écrit au registre durable
+    de production (ADR-0009), jamais dans la base par défaut de l'hôte (~/.opsys)."""
+    url = f"sqlite:///{tmp_path / 'm5-outils.db'}"
+    monkeypatch.setenv(stockage.ENV_URL, url)
+    stockage.migrer(url)
+    module_outils.utiliser_stockage_durable()
+    yield
+    stockage.liberer()
 
 
 def _outil(nom):
@@ -51,6 +66,7 @@ def test_etat_tresorerie_refuse_par_defaut_sans_permission_explicite():
 
 
 def test_etat_tresorerie_expose_solde_et_argent_disponible_quand_autorise():
+    """Simulation en mémoire : l'appelant transporte l'historique d'un appel à l'autre."""
     enregistrer = _outil("m5_enregistrer_mouvement")
     r1 = executer(
         enregistrer,
@@ -60,6 +76,7 @@ def test_etat_tresorerie_expose_solde_et_argent_disponible_quand_autorise():
             "horodatage": HORODATAGE,
             "classe_retention": "STANDARD",
             "source": "test",
+            "mouvements_historique": [],
         },
     )
     historique = r1["resultat"]["mouvements_historique"]
@@ -88,6 +105,26 @@ def test_etat_tresorerie_expose_solde_et_argent_disponible_quand_autorise():
     assert reponse["ok"] is True
     assert reponse["resultat"]["solde"] == "500.00"
     assert reponse["resultat"]["argent_disponible"] == "420.00"
+
+
+def test_en_production_le_registre_durable_porte_la_tresorerie_sans_historique_transmis():
+    """Registre de production : aucun historique transporté, la réponse ne renvoie que la tête et
+    la taille, et l'état de trésorerie se calcule depuis la base."""
+    enregistrer = _outil("m5_enregistrer_mouvement")
+    for montant, type_mouvement in (("500.00", "ENCAISSEMENT"), ("80.00", "PROVISION")):
+        reponse = executer(enregistrer, {
+            "montant": montant, "type_mouvement": type_mouvement, "horodatage": HORODATAGE,
+            "classe_retention": "STANDARD", "source": "test",
+        })
+        assert reponse["ok"] is True and reponse["resultat"]["accepte"] is True
+    assert "mouvements_historique" not in reponse["resultat"]
+    registre = reponse["resultat"]["registre_mouvements"]
+    assert registre["taille"] == 2 and registre["tete"] == reponse["resultat"]["resultat"]["ligne_id"]
+
+    etat = executer(_outil("m5_etat_tresorerie"), {"role": "gestionnaire", "autorise_couts": True})
+    assert etat["ok"] is True
+    assert etat["resultat"]["solde"] == "500.00"
+    assert etat["resultat"]["argent_disponible"] == "420.00"
 
 
 def test_etat_tresorerie_parametre_requis_manquant_est_un_refus_de_schema():

@@ -5,12 +5,18 @@ réécrite. Les montants sont TOUJOURS des Decimal construits depuis une
 représentation textuelle (jamais un float JSON, qui importerait une imprécision
 binaire dans un registre financier).
 
-Le registre (mouvements et approbations, deux chaînes DISTINCTES, PRD §5.4) est en
-mémoire pour la durée d'un appel : ce paquet ne possède aucune persistance (hors
-périmètre, couche MCP/dashboard). L'appelant transmet l'historique renvoyé par le
-précédent appel dans `mouvements_historique`/`approbations_historique` ; ce module
-le rejoue via `Registre.ajouter` pour retrouver un registre valide et chaîné avant
-d'y écrire la suite.
+Le registre (mouvements et approbations, deux chaînes DISTINCTES, PRD §5.4) : sauf si
+l'appelant transmet explicitement `mouvements_historique`/`approbations_historique`
+(l'historique renvoyé par un appel précédent — simulation en mémoire, rejouée via
+`Registre.ajouter`, comportement historique gardé par les tests unitaires de ce
+paquet), chaque appel obtient le registre de PRODUCTION. Pour les APPROBATIONS,
+celui-ci reste en mémoire pour la durée d'un appel (registre de gouvernance interne,
+hors périmètre de ce chantier). Pour les MOUVEMENTS, il est adossé au stockage durable
+de l'instance (ADR-0009) dès le chargement du module, relu à chaque appel et jamais
+ouvert au chargement ; `reinitialiser_stockage_mouvements()` le rebascule en mémoire
+pour les tests unitaires, `utiliser_stockage_durable()` revient au durable.
+`registre.py` reste pur (ni `opsys` ni SQLAlchemy) : ce module est l'unique endroit du
+département qui connaît `opsys.stockage`.
 
 RÈGLE FINANCE (autonomie) : toute écriture financière (registre des mouvements) et
 toute décision d'approbation sont T3 — une action qui engage ou meut de l'argent
@@ -25,17 +31,52 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
+from opsys import stockage
 from opsys.outils import Autonomie, Outil, depuis_couple
 
-from . import approbation, etat_financier, registre as registre_module, taux_fiscaux, taxes, validation
+from . import approbation, etat_financier, taux_fiscaux, taxes, validation
+from . import registre as registre_module
 
 _CHEMIN_TAUX_FISCAUX = Path(__file__).resolve().parents[2] / "contracts" / "taux_fiscaux.v1.yaml"
+
+_DEPARTEMENT = "m05-financecore"
+_NOM_REGISTRE_MOUVEMENTS = "principal"
+
+# Registre de production des mouvements (ADR-0009) : durable dès le chargement du module. Les tests
+# unitaires en mémoire le rebasculent par `reinitialiser_stockage_mouvements()`.
+_stockage_durable_actif = True
+
+
+def utiliser_stockage_durable() -> None:
+    """Revient au registre de PRODUCTION des mouvements, adossé au stockage durable de l'instance
+    (ADR-0009) : `opsys.stockage.maillons("m05-financecore", "principal")`, dans la base et la
+    transaction de l'appel courant (`opsys.outils.executer_atomique`/`Capacites.appeler` en
+    ouvre une autour de chaque appel d'outil). C'est l'état au chargement du module."""
+    global _stockage_durable_actif
+    _stockage_durable_actif = True
+
+
+def reinitialiser_stockage_mouvements() -> None:
+    """Revient au registre des mouvements EN MÉMOIRE (réservé aux tests) : annule un éventuel
+    `utiliser_stockage_durable()`."""
+    global _stockage_durable_actif
+    _stockage_durable_actif = False
+
 
 _MAILLON = {"type": "object", "description": "Maillon tel que renvoyé par un appel précédent."}
 _HISTORIQUE = {
     "type": "array",
     "items": _MAILLON,
     "description": "Historique renvoyé par le dernier appel connu ; [] ou omis si aucun.",
+}
+_HISTORIQUE_MOUVEMENTS = {
+    "type": "array",
+    "items": _MAILLON,
+    "description": (
+        "Optionnel. Fourni : simulation en mémoire sur cet historique, sans toucher au registre "
+        "durable. Omis (cas normal en production) : lit/écrit le registre des mouvements de "
+        "l'instance — la continuité entre appels n'a plus besoin d'être transportée par l'appelant."
+    ),
 }
 _MONTANT_TEXTE = {
     "type": "string",
@@ -68,6 +109,34 @@ def _rejouer_registre(historique: list[dict[str, Any]] | None) -> registre_modul
     return registre_cible
 
 
+def _registre_mouvements(historique: list[dict[str, Any]] | None) -> registre_module.Registre:
+    """Registre des MOUVEMENTS pour un appel.
+
+    Un `historique` explicite (même vide, `[]`) est rejoué EN MÉMOIRE via
+    `_rejouer_registre` — simulation sans effet sur le stockage durable, le
+    comportement gardé par les tests unitaires de ce paquet. `None` (omis) rend le
+    registre de PRODUCTION : en mémoire tant que `utiliser_stockage_durable()` n'a
+    pas été appelé, adossé au stockage durable de l'instance (ADR-0009) ensuite.
+    Jamais de cache ici, à dessein (même principe que `opsys.stockage.maillons`) :
+    une instance fraîche à chaque appel relit l'état réel depuis la base, pour ne
+    jamais figer un solde devenu périmé entre deux appels d'outil (concurrence,
+    autre processus)."""
+    if historique is not None:
+        return _rejouer_registre(historique)
+    if _stockage_durable_actif:
+        return registre_module.Registre(maillons=stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_MOUVEMENTS))
+    return registre_module.Registre()
+
+
+def _etat_mouvements(historique: list[dict[str, Any]] | None, registre_cible: registre_module.Registre) -> dict:
+    """Ce que la réponse dit du registre des mouvements. Registre durable : la tête et la taille,
+    jamais tout l'historique, qui grossit sans limite et coûterait des tokens à chaque appel.
+    Simulation en mémoire : l'historique complet, que l'appelant retransmet au prochain appel."""
+    if historique is None and _stockage_durable_actif:
+        return {"registre_mouvements": {"taille": registre_cible.taille(), "tete": registre_cible.tete()}}
+    return {"mouvements_historique": registre_cible.lire()}
+
+
 def _vers_montant_decimal(montant_texte: str) -> Decimal:
     if not isinstance(montant_texte, str):
         raise ValueError("montant doit être fourni en texte décimal (jamais un nombre JSON)")
@@ -83,10 +152,11 @@ def etat_tresorerie(
     mouvements_historique: list[dict[str, Any]] | None = None,
     taux_utilises: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Composé de bout en bout : rejoue le registre, calcule solde + argent disponible
-    réel, filtre par rôle. `autorise_couts` est un argument OBLIGATOIRE et explicite
-    (fail-closed) : aucune valeur par défaut n'expose jamais une donnée financière."""
-    registre_cible = _rejouer_registre(mouvements_historique)
+    """Composé de bout en bout : obtient le registre des mouvements (§`_registre_mouvements`),
+    calcule solde + argent disponible réel, filtre par rôle. `autorise_couts` est un argument
+    OBLIGATOIRE et explicite (fail-closed) : aucune valeur par défaut n'expose jamais une donnée
+    financière."""
+    registre_cible = _registre_mouvements(mouvements_historique)
     return etat_financier.construire_etat_financier(
         registre_cible, taux_utilises or [], role=role, autorise_couts=autorise_couts
     )
@@ -108,7 +178,7 @@ def enregistrer_mouvement(
     source: str,
     mouvements_historique: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    registre_cible = _rejouer_registre(mouvements_historique)
+    registre_cible = _registre_mouvements(mouvements_historique)
     mouvement = {
         "montant": _vers_montant_decimal(montant),
         "type_mouvement": type_mouvement,
@@ -120,7 +190,7 @@ def enregistrer_mouvement(
         maillon = registre_module.enregistrer_mouvement(mouvement, registre_cible)
     except validation.MouvementInvalide as exc:
         return {"accepte": False, "verdict": exc.verdict}
-    return {"accepte": True, "resultat": maillon, "mouvements_historique": registre_cible.lire()}
+    return {"accepte": True, "resultat": maillon, **_etat_mouvements(mouvements_historique, registre_cible)}
 
 
 def creer_demande_approbation(
@@ -174,7 +244,7 @@ def outils() -> tuple[Outil, ...]:
                 "properties": {
                     "role": {"type": ["string", "null"]},
                     "autorise_couts": {"type": "boolean"},
-                    "mouvements_historique": _HISTORIQUE,
+                    "mouvements_historique": _HISTORIQUE_MOUVEMENTS,
                     "taux_utilises": {"type": "array", "items": {"type": "object"}},
                 },
                 "required": ["role", "autorise_couts"],
@@ -213,7 +283,7 @@ def outils() -> tuple[Outil, ...]:
                     "horodatage": {"type": "string", "description": "ISO 8601 avec fuseau"},
                     "classe_retention": _CLASSE_RETENTION,
                     "source": {"type": "string"},
-                    "mouvements_historique": _HISTORIQUE,
+                    "mouvements_historique": _HISTORIQUE_MOUVEMENTS,
                 },
                 "required": ["montant", "type_mouvement", "horodatage", "classe_retention", "source"],
                 "additionalProperties": False,

@@ -7,6 +7,16 @@ from . import encodage, validation
 
 __all__ = ["Registre", "enregistrer_mouvement"]
 
+# Module pur (ADR-0009) : aucun import d'`opsys` ni de SQLAlchemy. `Registre` ne sait pas où
+# vivent ses maillons — une liste Python en mémoire par défaut (comportement historique, celui
+# que gardent les tests unitaires existants), ou tout objet qui s'en comporte comme une (`len`,
+# index positif et négatif, tranche, itération, `append`, `extend`, copie profonde en liste),
+# notamment `opsys.stockage.MaillonsDurables` — c'est `outils.py` (l'adaptateur, seul) qui fait
+# ce choix pour le registre de production des mouvements. Tout état dérivé (tête, validité de la
+# chaîne) est déjà recalculé DEPUIS `self._chain` à chaque appel (`tete()`, `valider_chaine()`) :
+# aucun cache séparé à invalider, une instance construite sur un registre durable déjà peuplé
+# (relecture après redémarrage) reflète donc immédiatement l'état réel dès sa création.
+
 _TYPE_ENTREE_VALIDES = {
     "mouvement_enregistre",
     "demande_creee",
@@ -25,15 +35,18 @@ _CHAMPS_MOUVEMENT = (
 def _valider_horodatage_local(chaine):
     try:
         dt = datetime.fromisoformat(chaine)
-    except Exception:
-        raise ValueError("horodatage invalide (format ISO 8601 avec fuseau requis)")
+    except Exception as exc:
+        raise ValueError("horodatage invalide (format ISO 8601 avec fuseau requis)") from exc
     if dt.tzinfo is None:
         raise ValueError("horodatage invalide (fuseau horaire absent)")
 
 
 class Registre:
-    def __init__(self):
-        self._chain = []
+    def __init__(self, maillons=None):
+        """`maillons` : la suite où vivent les maillons (protocole liste, cf. docstring du
+        module). `None` (par défaut) garde le comportement historique : une liste Python en
+        mémoire, vide au départ."""
+        self._chain = maillons if maillons is not None else []
 
     def ajouter(self, entree):
         if not isinstance(entree, dict):
@@ -79,6 +92,9 @@ class Registre:
 
     def tete(self):
         return self._chain[-1]["ligne_id"] if self._chain else None
+
+    def taille(self):
+        return len(self._chain)
 
     def valider_chaine(self):
         precedent_attendu = None
