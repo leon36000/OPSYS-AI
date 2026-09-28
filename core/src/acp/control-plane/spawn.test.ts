@@ -15,7 +15,6 @@ import { createLazyCoreHandlers } from "../../gateway/server-methods/lazy-core-h
 import { sessionDeleteHandlers } from "../../gateway/server-methods/sessions-delete.js";
 import { withOperatorToolGatewayAuthority } from "../../gateway/server-plugin-in-process-dispatch.js";
 import { GatewayRequestEntryLifetime } from "../../gateway/server-request-entry.js";
-import { isVerbose, setVerbose } from "../../global-state.js";
 import {
   getSessionBindingService,
   registerSessionBindingAdapter,
@@ -47,6 +46,22 @@ type Initialized = Awaited<
 vi.mock("../../browser-lifecycle-cleanup.js", () => ({
   cleanupBrowserSessionsForLifecycleEnd: async () => {},
 }));
+
+// T0.6 diagnostic: record logVerbose messages without printing them. cleanupFailedAcpSpawn
+// swallows a failed Gateway deletion and only reports it through logVerbose; enabling verbose
+// output made the "live Gateway" case pass by shifting its timing, so the messages are captured
+// silently and quoted in that case's assertion message instead.
+const verboseMessages = vi.hoisted(() => [] as string[]);
+vi.mock("../../globals.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../../globals.js")>();
+  return {
+    ...original,
+    logVerbose: (message: string) => {
+      verboseMessages.push(message);
+      original.logVerbose(message);
+    },
+  };
+});
 
 beforeAll(async () => {
   // Prepare the real lazy cleanup graph outside request deadlines. Vitest source
@@ -194,79 +209,66 @@ describe("failed ACP provisional cleanup", () => {
   it.each(["live Gateway", "retired Gateway", "expired operator"] as const)(
     "retains local resource cleanup after %s ownership",
     async (owner) => {
-      // T0.6 diagnostic (temporary): "live Gateway" silently fails this test's
-      // final assertion with no thrown error reaching it -- cleanupFailedAcpSpawn
-      // (spawn.ts) swallows any error from the real sessions.delete path once its
-      // own sessionMutationCommitGuard has already fired (deletionStarted=true),
-      // logging it only through logVerbose (spawn.ts:102), which is silent unless
-      // isVerbose() is true. Enabling it here does not change any control flow;
-      // it only makes that already-captured message appear in this run's output,
-      // so the coordinator's next CI run prints the exact swallowed error instead
-      // of the investigation continuing to guess at it. Restored in `finally`.
-      const previousVerbose = isVerbose();
-      setVerbose(true);
-      try {
-        await withCleanupFixture(
-          async ({ initialize, cleanup, close, ensureSession, socket, manager }) => {
-            const scope = getPluginRuntimeGatewayRequestScope();
-            if (!scope?.context) {
-              throw new Error("Expected the local Gateway owner");
-            }
-            const initialized = await initialize();
-            const before = loadSessionEntry({ sessionKey, agentId });
-            let current = true;
-            const resolveGatewayContext = () => (current ? scope.context : undefined);
-            await withPluginRuntimeGatewayRequestScope({ ...scope, resolveGatewayContext }, () =>
-              withGatewayToolCallerIdentity(
-                {
-                  agentId,
-                  sessionKey: "agent:main:main",
-                  operationalRunInstance: { instanceId: "parent-instance", runId: "parent-run" },
-                  receiptAuthority: () => false,
-                  gatewayContextResolver: resolveGatewayContext,
-                },
-                async () => {
-                  if (owner === "expired operator") {
-                    const profile = ensureGatewayOwnerProfile("Cleanup owner");
-                    const release = createDeferredCore();
-                    let late: Promise<void> | undefined;
-                    await withOperatorToolGatewayAuthority(
-                      {
-                        authenticatedUserProfile: {
-                          profileId: profile.id,
-                          displayName: profile.displayName,
-                          hasAvatar: false,
-                          updatedAt: profile.updatedAt,
-                        },
-                        scopes: ["operator.admin"],
+      verboseMessages.length = 0;
+      await withCleanupFixture(
+        async ({ initialize, cleanup, close, ensureSession, socket, manager }) => {
+          const scope = getPluginRuntimeGatewayRequestScope();
+          if (!scope?.context) {
+            throw new Error("Expected the local Gateway owner");
+          }
+          const initialized = await initialize();
+          const before = loadSessionEntry({ sessionKey, agentId });
+          let current = true;
+          const resolveGatewayContext = () => (current ? scope.context : undefined);
+          await withPluginRuntimeGatewayRequestScope({ ...scope, resolveGatewayContext }, () =>
+            withGatewayToolCallerIdentity(
+              {
+                agentId,
+                sessionKey: "agent:main:main",
+                operationalRunInstance: { instanceId: "parent-instance", runId: "parent-run" },
+                receiptAuthority: () => false,
+                gatewayContextResolver: resolveGatewayContext,
+              },
+              async () => {
+                if (owner === "expired operator") {
+                  const profile = ensureGatewayOwnerProfile("Cleanup owner");
+                  const release = createDeferredCore();
+                  let late: Promise<void> | undefined;
+                  await withOperatorToolGatewayAuthority(
+                    {
+                      authenticatedUserProfile: {
+                        profileId: profile.id,
+                        displayName: profile.displayName,
+                        hasAvatar: false,
+                        updatedAt: profile.updatedAt,
                       },
-                      async () => {
-                        late = release.promise.then(() => cleanup(initialized));
-                      },
-                    );
-                    release.resolve();
-                    await late;
-                  } else {
-                    current = owner !== "retired Gateway";
-                    await cleanup(initialized);
-                  }
-                },
-              ),
-            );
-            expect(loadSessionEntry({ sessionKey, agentId })).toEqual(
-              owner === "live Gateway" ? undefined : before,
-            );
-            expect(close).toHaveBeenCalledOnce();
-            expect(ensureSession).toHaveBeenCalledOnce();
-            expect(socket).not.toHaveBeenCalled();
-            await initialized.closeRuntimeOnFailure();
-            await disposeAcpSessionManagerInstance(manager, "repeat-disposal");
-            expect(close).toHaveBeenCalledOnce();
-          },
-        );
-      } finally {
-        setVerbose(previousVerbose);
-      }
+                      scopes: ["operator.admin"],
+                    },
+                    async () => {
+                      late = release.promise.then(() => cleanup(initialized));
+                    },
+                  );
+                  release.resolve();
+                  await late;
+                } else {
+                  current = owner !== "retired Gateway";
+                  await cleanup(initialized);
+                }
+              },
+            ),
+          );
+          expect(
+            loadSessionEntry({ sessionKey, agentId }),
+            `logVerbose during cleanup: ${JSON.stringify(verboseMessages)}`,
+          ).toEqual(owner === "live Gateway" ? undefined : before);
+          expect(close).toHaveBeenCalledOnce();
+          expect(ensureSession).toHaveBeenCalledOnce();
+          expect(socket).not.toHaveBeenCalled();
+          await initialized.closeRuntimeOnFailure();
+          await disposeAcpSessionManagerInstance(manager, "repeat-disposal");
+          expect(close).toHaveBeenCalledOnce();
+        },
+      );
     },
   );
 
