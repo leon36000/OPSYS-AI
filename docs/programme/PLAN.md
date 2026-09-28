@@ -31,7 +31,11 @@ identifiants du propriétaire, repli livré en attendant.
       - run 7 (555828a) : **construction du fork élagué verte** (12 min) ;
       - tests découpés en six morceaux : le morceau 6 est vert ; les autres échouent encore sur des
         tests liés au code élagué (par exemple les chemins de config du plugin codex, ou un
-        propriétaire de manifeste pour le banc d'inférence), traités par T0.6.
+        propriétaire de manifeste pour le banc d'inférence), traités par T0.6 ;
+      - run 10 (9b34a6d) : construction verte et morceaux 1, 2, 4 et 6 verts. Il reste 3 tests :
+        - un import `fs` retiré à tort ;
+        - un cas de tarification (« native owner ») ;
+        - le nettoyage ACP « live Gateway ownership », en échec identique aux runs 9 et 10.
 - [ ] T0.6 Élagage selon R11 (canaux et fournisseurs inutiles, docs, apps natives…), CI verte.
       Fait à l'import (T0.4) : apps, docs, 120 extensions. Reste : `scripts/` et `test/` qui visent
       des chemins élagués (scripts iOS, Android et macOS orphelins, R14), guidé par la CI du core.
