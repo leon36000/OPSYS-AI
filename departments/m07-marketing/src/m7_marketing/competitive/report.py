@@ -2,13 +2,11 @@
 from __future__ import annotations
 
 import re
-from collections import OrderedDict
-from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
-from .loader import load_fixture
 from .analyzers import analyze_page, analyze_robots, analyze_sitemap
 from .compare import calculate_coverage
+from .loader import load_fixture
 
 
 def _strip_html(html: str) -> str:
@@ -17,7 +15,8 @@ def _strip_html(html: str) -> str:
 
 
 def _extraire_texte_cible(html: str) -> str:
-    """Extrait le texte cible pour le calcul de couverture : title + meta description + h1 + 500 premiers caractères du corps."""
+    """Extrait le texte cible pour le calcul de couverture :
+    title + meta description + h1 + 500 premiers caractères du corps."""
     if not html:
         return ""
 
@@ -52,12 +51,12 @@ def _extraire_texte_cible(html: str) -> str:
 
 
 def generate_report(
-    slugs: List[str],
+    slugs: list[str],
     notre_site: str = "",
     base_fixtures: str = ".",
     stopwords_path: str = "",
     timestamp: str = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Génère le rapport d'analyse concurrentielle.
 
     Retourne un dict avec 'timestamp' et une liste 'concurrents' triée par slug.
@@ -69,7 +68,7 @@ def generate_report(
     for slug in sorted(slugs):
         try:
             data = load_fixture(slug, base_fixtures)
-        except Exception as e:
+        except Exception:
             entry = {
                 "slug": slug,
                 "verdicts": [
@@ -87,7 +86,7 @@ def generate_report(
 
         # verdicts C-01 à C-05
         page_verdicts = analyze_page(data["index_html"], data["meta"]["url"])
-        verdicts: List[Dict[str, str]] = []
+        verdicts: list[dict[str, str]] = []
         for code in sorted(page_verdicts.keys()):
             verdicts.append(
                 {

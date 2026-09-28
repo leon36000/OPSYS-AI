@@ -1,12 +1,12 @@
 
+import copy
+import hashlib
 from pathlib import Path
-_M7 = Path(__file__).resolve().parents[2]
 
+import yaml
 from m7_marketing.aeo import aeo_engine
 
-import pytest
-import yaml
-import hashlib
+_M7 = Path(__file__).resolve().parents[2]
 
 
 SEO_KNOWLEDGE_PATH = _M7 / "docs" / "seo-knowledge.v1.yaml"
@@ -50,7 +50,10 @@ def test_a01_non_conforme():
 
 # ---------- A-02 : meta description ≤160 ----------
 def test_a02_conforme():
-    html = '<html><head><meta name="description" content="Description SEO de moins de 160 caractères."></head><body></body></html>'
+    html = (
+        '<html><head><meta name="description" '
+        'content="Description SEO de moins de 160 caractères."></head><body></body></html>'
+    )
     art = _artifact(html, "google_aio")
     v = [v for v in aeo_engine.evaluate(art)["surface_reports"]["google_aio"] if v["rule_id"] == "A-02"][0]
     assert v["verdict"] == "conforme"
@@ -232,8 +235,6 @@ def build_item_artifact(item, surface, timestamp="2026-06-01T00:00:00Z"):
 
 
 
-
-import copy
 
 def test_propagation_candidat():
     sk, _ = aeo_engine.load_seo_knowledge(SEO_KNOWLEDGE_PATH)

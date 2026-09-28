@@ -1,11 +1,12 @@
-import sys
-from pathlib import Path
+import contextlib
 import hashlib
 import json
 import re
-import yaml
+from datetime import datetime
 from html.parser import HTMLParser
-from datetime import datetime, timezone
+from pathlib import Path
+
+import yaml
 
 _M7 = Path(__file__).resolve().parents[3]
 SEO_KNOWLEDGE_PATH = _M7 / "docs" / "seo-knowledge.v1.yaml"
@@ -111,13 +112,11 @@ class _ArtifactParser(HTMLParser):
             if self._in_script and self._script_type == "ld+json":
                 script_text = "".join(self._current_data).strip()
                 parsed = None
-                try:
+                # Fail-soft voulu (parsed=None, brut conservé) ; rétréci à
+                # ValueError (JSONDecodeError) pour ne plus masquer les
+                # erreurs de programmation.
+                with contextlib.suppress(ValueError):
                     parsed = json.loads(script_text)
-                except ValueError:
-                    # Fail-soft voulu (parsed=None, brut conservé) ; rétréci à
-                    # ValueError (JSONDecodeError) pour ne plus masquer les
-                    # erreurs de programmation.
-                    pass
                 self.jsonld_scripts.append({"raw": script_text, "parsed": parsed})
             self._in_script = False
             self._script_type = None
@@ -129,9 +128,7 @@ class _ArtifactParser(HTMLParser):
             if self._in_script and self._script_type == "ld+json":
                 self._current_data.append(data)
             return
-        if self._in_title:
-            self._current_data.append(data)
-        elif self._in_h1:
+        if self._in_title or self._in_h1:
             self._current_data.append(data)
         else:
             self.text_parts.append(data)
@@ -313,10 +310,7 @@ def _a08(data, artifact, knowledge):
             txt_tel_norm = re.sub(r"[\s\-\.\(\)]", "", txt_tel).lower()
             after_tel = text[tel_match.end() :]
             parts = after_tel.split(",")
-            if len(parts) > 1:
-                txt_name = parts[-1].strip()
-            else:
-                txt_name = after_tel.strip()
+            txt_name = parts[-1].strip() if len(parts) > 1 else after_tel.strip()
             txt_name_norm = txt_name.lower()
         else:
             txt_tel_norm = None
@@ -397,7 +391,7 @@ def _a10(data, artifact, knowledge):
 # Public API
 # ---------------------------------------------------------------------------
 def build_site_artifact(html_path, sk_path, timestamp):
-    with open(html_path, "r", encoding="utf-8") as f:
+    with open(html_path, encoding="utf-8") as f:
         html = f.read()
     # Detect malformed HTML via strict parser
     parser = _ArtifactParser(strict=True)

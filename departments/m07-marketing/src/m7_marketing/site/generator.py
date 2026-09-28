@@ -23,7 +23,7 @@ REQUIRED_KEYS = {
 
 def load_content(path: str) -> dict:
     """Charge et valide le fichier YAML, lève ValueError si une clé requise manque."""
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         data = yaml.safe_load(f)
     if not isinstance(data, dict):
         raise ValueError("Le contenu YAML n'est pas un dictionnaire")

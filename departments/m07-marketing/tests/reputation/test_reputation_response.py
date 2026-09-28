@@ -8,11 +8,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from m7_marketing.reputation import response_builder
 
 _M7 = Path(__file__).resolve().parents[2]
 _REPUTATION = _M7 / "src" / "m7_marketing" / "reputation"
-
-from m7_marketing.reputation import response_builder
 
 # Plage valide du niveau de validation dans la file 0-6
 _NIVEAU_VALIDATION_MIN = 0

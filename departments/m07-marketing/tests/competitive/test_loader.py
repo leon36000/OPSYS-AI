@@ -1,15 +1,11 @@
+import inspect
 from pathlib import Path
-
-_M7 = Path(__file__).resolve().parents[2]
-
-from m7_marketing.competitive import loader
-from m7_marketing.competitive import analyzers
-from m7_marketing.competitive import compare
-from m7_marketing.competitive import report
 
 import pytest
 import yaml
-import inspect
+from m7_marketing.competitive import analyzers, compare, loader, report
+
+_M7 = Path(__file__).resolve().parents[2]
 
 
 def _creer_meta(racine: Path, fictif: bool = True):

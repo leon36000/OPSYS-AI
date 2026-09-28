@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 from m7_marketing.attribution.attribution_engine import (
-    charger_et_valider_fixtures,
     attribuer,
+    charger_et_valider_fixtures,
     rapport_vers_json,
 )
 from m7_marketing.utm.utm_engine import valider_lien_utm

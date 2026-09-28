@@ -1,6 +1,7 @@
 import json
 import unicodedata
 from datetime import date, timedelta
+
 import yaml
 
 
@@ -17,7 +18,7 @@ def charger_et_valider_fixtures(chemin_matomo: str, chemin_crm: str):
     Retourne (visites, leads).
     """
     try:
-        with open(chemin_matomo, 'r', encoding='utf-8') as f:
+        with open(chemin_matomo, encoding='utf-8') as f:
             matomo_data = yaml.safe_load(f)
     except yaml.YAMLError as e:
         msg = f"parse_error: {e}"
@@ -31,7 +32,7 @@ def charger_et_valider_fixtures(chemin_matomo: str, chemin_crm: str):
     visites = matomo_data.get('visites', [])
 
     try:
-        with open(chemin_crm, 'r', encoding='utf-8') as f:
+        with open(chemin_crm, encoding='utf-8') as f:
             crm_data = yaml.safe_load(f)
     except yaml.YAMLError as e:
         msg = f"parse_error: {e}"

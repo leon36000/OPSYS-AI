@@ -1,13 +1,13 @@
+import inspect
+import os
+import tempfile
 from pathlib import Path
-_M7 = Path(__file__).resolve().parents[2]
-
-from m7_marketing.aeo import aeo_engine
 
 import pytest
 import yaml
-import tempfile
-import os
-import inspect
+from m7_marketing.aeo import aeo_engine
+
+_M7 = Path(__file__).resolve().parents[2]
 
 SEO_KNOWLEDGE_PATH = _M7 / "docs" / "seo-knowledge.v1.yaml"
 TIMESTAMP = "2026-07-25T00:00:00+00:00"
@@ -60,7 +60,7 @@ def test_site_reel_jsonld_type_accepte_par_a08():
 def test_item_artifact_reel():
     from m7_marketing.content import factory
 
-    with open(BRAND_PROFILE_PATH, 'r') as f:
+    with open(BRAND_PROFILE_PATH) as f:
         brand = yaml.safe_load(f)
 
     sujet = {

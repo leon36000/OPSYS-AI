@@ -1,7 +1,7 @@
-import json
 import hashlib
+import json
 from pathlib import Path
-import yaml
+
 
 def _get_project_root():
     return Path(__file__).resolve().parents[3]
@@ -100,10 +100,7 @@ def consolider_roi(rapport_attribution, rapport_ads, mapping, calendrier, date_r
             })
         elif nb_campagnes_joignables == 0:
             # Aucune campagne joignable
-            if campagnes_plateforme:
-                raison = 'mapping_absent'
-            else:
-                raison = 'cout_indisponible'
+            raison = 'mapping_absent' if campagnes_plateforme else 'cout_indisponible'
             canaux_result.append({
                 'canal': canal,
                 'leads_derniere_touche': leads,

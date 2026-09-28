@@ -1,17 +1,16 @@
-import hashlib
 import inspect
-import urllib.request
-import urllib.parse
 from pathlib import Path
+
 import pytest
 import yaml
+from m7_marketing.content import (
+    approval,  # (S006 gate)
+    factory,  # (content factory M7-S006)
+)
+from m7_marketing.utm import utm_engine
+from m7_marketing.workflows import campagne_saisonniere  # (workflow S008)
 
 _M7 = Path(__file__).resolve().parents[2]
-
-from m7_marketing.utm import utm_engine
-from m7_marketing.content import factory  # (content factory M7-S006)
-from m7_marketing.workflows import campagne_saisonniere  # (workflow S008)
-from m7_marketing.content import approval  # (S006 gate)
 
 CONTRAT = _M7 / "contracts" / "utm-convention.v1.yaml"
 
@@ -33,7 +32,8 @@ class TestIntegrationS006:
             surface="google_aio",
             type="page_seo",
             sujet={"titre": "Plomberie résidentielle à Montréal",
-                   "description": "Services de plomberie résidentielle pour les propriétaires de la région de Montréal.",
+                   "description": "Services de plomberie résidentielle pour les propriétaires de la région "
+                                  "de Montréal.",
                    "mots_cles": ["plomberie", "montreal"]},
             timestamp="2026-07-26T00:00:00+00:00",
         )

@@ -123,7 +123,9 @@ def auditer_seo_site(site_dir: str | None = None) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # AEO / GEO
 # ---------------------------------------------------------------------------
-def evaluer_aeo(timestamp: str, html_path: str | None = None, content_item: dict[str, Any] | None = None) -> dict[str, Any]:
+def evaluer_aeo(
+    timestamp: str, html_path: str | None = None, content_item: dict[str, Any] | None = None
+) -> dict[str, Any]:
     """Évalue la visibilité IA (AEO) d'une page : soit le site statique généré
     (html_path, défaut : le site réel du département), soit un content-item déjà
     produit par `m7_proposer_contenu` (rendu en artefact minimal)."""
@@ -491,7 +493,9 @@ def outils() -> tuple[Outil, ...]:
     return (
         Outil(
             nom="m7_lire_profil_marque",
-            description="Valide un profil de marque (name, tagline, tone, colors, langue) contre le contrat gelé Brand Core.",
+            description=(
+                "Valide un profil de marque (name, tagline, tone, colors, langue) contre le contrat gelé Brand Core."
+            ),
             parametres={
                 "type": "object",
                 "properties": {"profil": _BRAND},
@@ -502,11 +506,17 @@ def outils() -> tuple[Outil, ...]:
         ),
         Outil(
             nom="m7_auditer_seo_site",
-            description="Audit SEO technique local (title, meta description, lang, h1 unique, JSON-LD valide, scripts externes, robots.txt). Zéro réseau.",
+            description=(
+                "Audit SEO technique local (title, meta description, lang, h1 unique, JSON-LD valide, "
+                "scripts externes, robots.txt). Zéro réseau."
+            ),
             parametres={
                 "type": "object",
                 "properties": {
-                    "site_dir": {"type": "string", "description": "Répertoire du site statique (défaut : le site généré du département)."}
+                    "site_dir": {
+                        "type": "string",
+                        "description": "Répertoire du site statique (défaut : le site généré du département).",
+                    }
                 },
                 "required": [],
                 "additionalProperties": False,
@@ -515,13 +525,25 @@ def outils() -> tuple[Outil, ...]:
         ),
         Outil(
             nom="m7_evaluer_aeo",
-            description="Évalue la visibilité IA (AEO/GEO) d'une page (règles A-01..A-10 : title, description, h1, schema.org, citations, NAP LocalBusiness, fraîcheur, cohérence brand).",
+            description=(
+                "Évalue la visibilité IA (AEO/GEO) d'une page (règles A-01..A-10 : title, description, h1, schema.org, "
+                "citations, NAP LocalBusiness, fraîcheur, cohérence brand)."
+            ),
             parametres={
                 "type": "object",
                 "properties": {
-                    "timestamp": {"type": "string", "description": "Horodatage ISO 8601 de référence (jamais d'horloge interne)."},
-                    "html_path": {"type": "string", "description": "Chemin d'une page HTML (défaut : le site statique généré)."},
-                    "content_item": {"type": "object", "description": "Content-item déjà produit (évalue ce contenu au lieu du site)."},
+                    "timestamp": {
+                        "type": "string",
+                        "description": "Horodatage ISO 8601 de référence (jamais d'horloge interne).",
+                    },
+                    "html_path": {
+                        "type": "string",
+                        "description": "Chemin d'une page HTML (défaut : le site statique généré).",
+                    },
+                    "content_item": {
+                        "type": "object",
+                        "description": "Content-item déjà produit (évalue ce contenu au lieu du site).",
+                    },
                 },
                 "required": ["timestamp"],
                 "additionalProperties": False,
@@ -530,7 +552,10 @@ def outils() -> tuple[Outil, ...]:
         ),
         Outil(
             nom="m7_generer_lien_utm",
-            description="Génère un lien UTM canonique et le valide contre le contrat S012 (U-01..U-12) en un seul appel. url_base = URL du site de l'entreprise (jamais un domaine par défaut caché).",
+            description=(
+                "Génère un lien UTM canonique et le valide contre le contrat S012 (U-01..U-12) en un seul appel. "
+                "url_base = URL du site de l'entreprise (jamais un domaine par défaut caché)."
+            ),
             parametres={
                 "type": "object",
                 "properties": {
@@ -556,7 +581,10 @@ def outils() -> tuple[Outil, ...]:
             parametres={
                 "type": "object",
                 "properties": {
-                    "date_reference": {"type": "string", "description": "Date de référence ISO (fenêtres actives, snapshot)."},
+                    "date_reference": {
+                        "type": "string",
+                        "description": "Date de référence ISO (fenêtres actives, snapshot).",
+                    },
                     "chemin_matomo": {"type": "string"},
                     "chemin_crm": {"type": "string"},
                     "fenetre_jours": {"type": "integer", "description": "Fenêtre d'attribution en jours (défaut 30)."},
@@ -571,7 +599,10 @@ def outils() -> tuple[Outil, ...]:
         ),
         Outil(
             nom="m7_proposer_contenu",
-            description="Compose un content-item (gabarit Brand Core + tactiques SEO/AEO) et le dépose PROPOSE dans la file d'approbation, en un seul appel. Ne publie jamais.",
+            description=(
+                "Compose un content-item (gabarit Brand Core + tactiques SEO/AEO) et le dépose PROPOSE dans la file "
+                "d'approbation, en un seul appel. Ne publie jamais."
+            ),
             parametres={
                 "type": "object",
                 "properties": {
@@ -590,10 +621,15 @@ def outils() -> tuple[Outil, ...]:
         ),
         Outil(
             nom="m7_lister_file_approbation",
-            description="Liste les content-items de la file d'approbation 0-6, filtrés par statut (PROPOSE | APPROVED | REJECTED) si fourni.",
+            description=(
+                "Liste les content-items de la file d'approbation 0-6, filtrés par statut (PROPOSE | APPROVED | "
+                "REJECTED) si fourni."
+            ),
             parametres={
                 "type": "object",
-                "properties": {"statut": {"type": ["string", "null"], "enum": ["PROPOSE", "APPROVED", "REJECTED", None]}},
+                "properties": {
+                    "statut": {"type": ["string", "null"], "enum": ["PROPOSE", "APPROVED", "REJECTED", None]}
+                },
                 "required": [],
                 "additionalProperties": False,
             },
@@ -645,7 +681,10 @@ def outils() -> tuple[Outil, ...]:
             parametres={
                 "type": "object",
                 "properties": {
-                    "date_reference": {"type": "string", "description": "Date ISO servant à détecter les fenêtres actives."},
+                    "date_reference": {
+                        "type": "string",
+                        "description": "Date ISO servant à détecter les fenêtres actives.",
+                    },
                     "chemin_calendrier": {"type": "string"},
                 },
                 "required": ["date_reference"],
@@ -656,11 +695,18 @@ def outils() -> tuple[Outil, ...]:
         ),
         Outil(
             nom="m7_calculer_metriques_reputation",
-            description="Charge les avis (lecture seule), les classe (litige/urgence/eloge/neutre, déterministe) et calcule les métriques agrégées m7_rep_*, en un seul appel.",
+            description=(
+                "Charge les avis (lecture seule), les classe (litige/urgence/eloge/neutre, déterministe) et calcule "
+                "les métriques agrégées m7_rep_*, en un seul appel."
+            ),
             parametres={
                 "type": "object",
                 "properties": {
-                    "reponses": {"type": "array", "items": {"type": "object"}, "description": "Réponses déjà proposées (pour taux de réponse et délai moyen)."},
+                    "reponses": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "description": "Réponses déjà proposées (pour taux de réponse et délai moyen).",
+                    },
                     "chemin_avis": {"type": "string"},
                 },
                 "required": [],
@@ -670,7 +716,10 @@ def outils() -> tuple[Outil, ...]:
         ),
         Outil(
             nom="m7_proposer_reponse_avis",
-            description="Classe un avis client puis compose une réponse PROPOSÉE (gabarits Brand Core), en un seul appel. Statut toujours PROPOSE, jamais auto-publiée.",
+            description=(
+                "Classe un avis client puis compose une réponse PROPOSÉE (gabarits Brand Core), en un seul appel. "
+                "Statut toujours PROPOSE, jamais auto-publiée."
+            ),
             parametres={
                 "type": "object",
                 "properties": {
@@ -686,11 +735,18 @@ def outils() -> tuple[Outil, ...]:
         ),
         Outil(
             nom="m7_analyser_concurrents",
-            description="Audit de snapshots concurrents locaux (balisage SEO, robots.txt, sitemap, couverture thématique) contre notre propre site généré.",
+            description=(
+                "Audit de snapshots concurrents locaux (balisage SEO, robots.txt, sitemap, couverture thématique) "
+                "contre notre propre site généré."
+            ),
             parametres={
                 "type": "object",
                 "properties": {
-                    "slugs": {"type": "array", "items": {"type": "string"}, "description": "Slugs sous fixtures/concurrents/."},
+                    "slugs": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Slugs sous fixtures/concurrents/.",
+                    },
                     "timestamp": {"type": "string"},
                     "notre_site": {"type": "string"},
                     "dossier_fixtures": {"type": "string"},

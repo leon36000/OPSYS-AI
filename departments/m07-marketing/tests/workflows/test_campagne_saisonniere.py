@@ -4,11 +4,10 @@ from pathlib import Path
 
 import pytest
 import yaml
+from m7_marketing.content import approval
+from m7_marketing.workflows import campagne_saisonniere
 
 _M7 = Path(__file__).resolve().parents[2]
-
-from m7_marketing.workflows import campagne_saisonniere
-from m7_marketing.content import approval
 
 CALENDRIER = _M7 / "data" / "saisons" / "calendrier-quebec.v1.yaml"
 
@@ -17,7 +16,7 @@ SHA256_CALENDRIER_V1 = "129160d4e64cca2c8e634cee54bb91bb9b6a4b04539530a790dc3949
 
 def charger_themes_reels():
     """Charge le YAML et retourne un dict fenetre_id -> nb_themes pour les assertions."""
-    with open(CALENDRIER, "r", encoding="utf-8") as f:
+    with open(CALENDRIER, encoding="utf-8") as f:
         data = yaml.safe_load(f)
     fenetres = data["fenetres_marketing"]
     themes_count = {}

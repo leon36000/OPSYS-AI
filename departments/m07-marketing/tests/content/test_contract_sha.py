@@ -1,6 +1,6 @@
-import sys
-from pathlib import Path
 import hashlib
+from pathlib import Path
+
 import yaml
 
 _M7 = Path(__file__).resolve().parents[2]

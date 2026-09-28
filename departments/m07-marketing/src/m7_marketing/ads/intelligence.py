@@ -6,7 +6,6 @@ import yaml
 
 from .ads_loader import load_fixtures
 
-
 RULES = ("AD-01", "AD-02", "AD-03", "AD-04", "AD-05", "AD-06")
 DEFAULT_ACTION = "surveillance"
 
@@ -18,7 +17,7 @@ def _safe_ratio(numerator: float, denominator: float) -> float | str:
 
 
 def _charger_calendrier(chemin: str) -> dict:
-    with open(chemin, "r", encoding="utf-8") as f:
+    with open(chemin, encoding="utf-8") as f:
         data = yaml.safe_load(f)
     if not isinstance(data, dict) or "fenetres_marketing" not in data:
         raise ValueError("calendrier invalide : clé 'fenetres_marketing' manquante")
@@ -84,7 +83,9 @@ def _analyser_campagne(plateforme: str, campagne: dict, active_ids: set[str]) ->
         verdicts.append(_mk_verdict("AD-02", "conforme", entonnoir_fait))
 
     if campagne["fenetre_id"] not in active_ids:
-        verdicts.append(_mk_verdict("AD-03", "action_proposee", f"fenetre_active=false ({campagne['fenetre_id']})", "réallocation"))
+        verdicts.append(
+            _mk_verdict("AD-03", "action_proposee", f"fenetre_active=false ({campagne['fenetre_id']})", "réallocation")
+        )
     else:
         verdicts.append(_mk_verdict("AD-03", "conforme", f"fenetre_active=true ({campagne['fenetre_id']})"))
 
@@ -94,7 +95,14 @@ def _analyser_campagne(plateforme: str, campagne: dict, active_ids: set[str]) ->
         verdicts.append(_mk_verdict("AD-04", "conforme", f"conversions={conversions}"))
 
     if budget > 0 and cout > budget:
-        verdicts.append(_mk_verdict("AD-05", "action_proposee", f"dépassement_budget={round(cout - budget, 2)}", "alerte dépassement budget"))
+        verdicts.append(
+            _mk_verdict(
+                "AD-05",
+                "action_proposee",
+                f"dépassement_budget={round(cout - budget, 2)}",
+                "alerte dépassement budget",
+            )
+        )
     else:
         verdicts.append(_mk_verdict("AD-05", "conforme", f"dépassement_budget={round(cout - budget, 2)}"))
 

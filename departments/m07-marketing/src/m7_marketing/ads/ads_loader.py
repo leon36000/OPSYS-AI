@@ -19,7 +19,7 @@ ALLOWED_PLATFORMS = {"google_ads", "meta"}
 
 def load_fixture(path: str) -> dict:
     fixture_path = Path(path)
-    with open(fixture_path, "r", encoding="utf-8") as f:
+    with open(fixture_path, encoding="utf-8") as f:
         data = yaml.safe_load(f)
 
     if not isinstance(data, dict):

@@ -8,13 +8,9 @@ import tempfile
 import threading
 import time
 import urllib.request
-from pathlib import Path
-from contextlib import contextmanager
-from typing import Iterator
+from collections.abc import Iterator
 
 import pytest
-import yaml
-
 from m7_marketing.brand.brand_schema import contract_version
 from m7_marketing.brand.brand_server import build_server
 

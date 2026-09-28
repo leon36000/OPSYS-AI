@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, List, Optional
+from typing import Any
 
 
 class Canal(Enum):
@@ -41,7 +41,7 @@ class SocialPost:
 
     canal: str
     texte: str
-    media: Optional[List[str]] = None
+    media: list[str] | None = None
     niveau_validation: int = 0
 
     def __post_init__(self) -> None:
@@ -58,11 +58,10 @@ class SocialPost:
             raise ValueError(
                 f"niveau_validation doit être un entier entre 0 et 6, reçu {self.niveau_validation!r}"
             )
-        if self.media is not None:
-            if not isinstance(self.media, list) or not all(
-                isinstance(m, str) for m in self.media
-            ):
-                raise ValueError("media doit être une liste de chemins (str)")
+        if self.media is not None and (
+            not isinstance(self.media, list) or not all(isinstance(m, str) for m in self.media)
+        ):
+            raise ValueError("media doit être une liste de chemins (str)")
 
 
 class PostizAdapter:
@@ -76,7 +75,7 @@ class PostizAdapter:
         }
     """
 
-    def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         cfg = config or {}
         self.enabled = bool(cfg.get("enabled", False))
         self.dry_run = bool(cfg.get("dry_run", True))
@@ -128,7 +127,7 @@ class PostizAdapter:
             "écriture réelle interdite en mode ombre — Approval Engine requis (D-010)"
         )
 
-    def file_approbation(self, posts: List[SocialPost]) -> List[SocialPost]:
+    def file_approbation(self, posts: list[SocialPost]) -> list[SocialPost]:
         """Simule localement la file d'approbation 0-6.
 
         Retourne les posts triés par niveau_validation décroissant.

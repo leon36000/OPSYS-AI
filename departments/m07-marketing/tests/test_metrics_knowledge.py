@@ -15,9 +15,9 @@ class TestMetricsKnowledge(unittest.TestCase):
             cls.base_dir, "..", "docs", "seo-knowledge.v1.yaml"
         )
 
-        with open(cls.metrics_path, "r", encoding="utf-8") as f:
+        with open(cls.metrics_path, encoding="utf-8") as f:
             cls.metrics = yaml.safe_load(f)
-        with open(cls.knowledge_path, "r", encoding="utf-8") as f:
+        with open(cls.knowledge_path, encoding="utf-8") as f:
             cls.knowledge = yaml.safe_load(f)
 
     def test_metrics_parse(self):
@@ -134,7 +134,7 @@ class TestMetricsKnowledge(unittest.TestCase):
             f"Surfaces manquantes : {required - set(surfaces.keys())}",
         )
 
-        for name, surface in surfaces.items():
+        for surface in surfaces.values():
             self.assertIsInstance(surface, dict)
             self.assertIn("position", surface)
             self.assertIn("tactiques", surface)

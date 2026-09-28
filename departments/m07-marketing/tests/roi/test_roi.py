@@ -1,19 +1,16 @@
-import os
-import json
-import copy
-import hashlib
 import inspect
+import json
 from pathlib import Path
+
 import pytest
+import yaml
+from m7_marketing.ads import intelligence as ads_intel
+from m7_marketing.attribution import attribution_engine
+from m7_marketing.roi import roi_engine
 
 # ensure module paths are discoverable
 ROOT = Path(__file__).resolve().parent.parent.parent
 SRC = ROOT / "src"
-
-from m7_marketing.roi import roi_engine
-from m7_marketing.attribution import attribution_engine
-from m7_marketing.ads import intelligence as ads_intel
-import yaml
 
 # ----------------------------------------------------------------------
 # helpers – charge les sorties réelles S013 & S014
@@ -28,7 +25,7 @@ ADS_FIXTURES_DIR = FIXTURES_DIR / "ads"
 
 
 def _load_yaml(path):
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         return yaml.safe_load(fh)
 
 
@@ -439,7 +436,8 @@ class TestRefsSha:
         )
         refs = result["refs"]
         # Vérifie que les trois clés existent
-        assert "fixture_matomo" in refs or "attribution" in refs  # selon la spec S015 : "sha256 des fixtures S013, S014 et du contrat UTM S012"
+        # selon la spec S015 : "sha256 des fixtures S013, S014 et du contrat UTM S012"
+        assert "fixture_matomo" in refs or "attribution" in refs
         # L'ADR dit : refs (sha256 des fixtures S013, S014 et du contrat UTM S012)
         # donc 3 sha256 pour les fichiers d'entrée.
         # Le test vérifie simplement la présence de 3 chaînes hex de 64 chars

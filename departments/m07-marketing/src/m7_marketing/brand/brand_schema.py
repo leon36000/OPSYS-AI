@@ -3,19 +3,18 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import yaml
 
 # ---------------------------------------------------------------------------
 # Chargement unique du contrat (source de vérité UNIQUE)
 # ---------------------------------------------------------------------------
-_CONTRACT: Optional[Dict[str, Any]] = None
+_CONTRACT: dict[str, Any] | None = None
 
 
-def _load_contract() -> Dict[str, Any]:
+def _load_contract() -> dict[str, Any]:
     """Charge brand-contract.v1.yaml depuis le dossier contracts/ (relatif à ce fichier).
 
     Lève OSError si le fichier est introuvable. Le résultat est mis en cache au niveau module.
@@ -28,7 +27,7 @@ def _load_contract() -> Dict[str, Any]:
         Path(__file__).resolve().parents[3] / "contracts" / "brand-contract.v1.yaml"
     )
     try:
-        with open(contract_path, "r", encoding="utf-8") as fh:
+        with open(contract_path, encoding="utf-8") as fh:
             raw = yaml.safe_load(fh)
     except FileNotFoundError:
         raise OSError(
@@ -44,7 +43,7 @@ def _load_contract() -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Constantes dérivées EXCLUSIVEMENT du contrat
 # ---------------------------------------------------------------------------
-def _contract_profile_schema() -> Dict[str, Any]:
+def _contract_profile_schema() -> dict[str, Any]:
     return _load_contract()["profile_schema"]
 
 
@@ -58,7 +57,7 @@ REQUIRED_FIELDS: tuple = tuple(
 )
 
 # Messages d'erreur préservés (compatibilité exacte avec les tests existants)
-_FIELD_MESSAGES: Dict[str, str] = {
+_FIELD_MESSAGES: dict[str, str] = {
     "name": "name doit être une chaîne non vide",
     "tagline": "tagline doit être une chaîne",
     "tone": "tone doit être une chaîne",
@@ -123,7 +122,6 @@ def validate_profile(obj: Any) -> dict:
                 raise ProfileError(field_name, msg)
         elif ftype == "array":
             min_items = field_def.get("min_items", 0)
-            items_type = field_def.get("items")
             if (
                 not isinstance(value, list)
                 or len(value) < min_items

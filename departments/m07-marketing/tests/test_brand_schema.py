@@ -1,9 +1,7 @@
 import datetime
 
 import pytest
-
 from m7_marketing.brand import brand_schema
-
 
 MINIMAL_PROFILE = {
     "name": "OPSYS-AI",

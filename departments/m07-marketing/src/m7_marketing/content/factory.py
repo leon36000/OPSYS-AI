@@ -3,10 +3,10 @@ import json
 import string
 import uuid
 from pathlib import Path
+
 import yaml
 
 from . import validation
-
 
 # Constante des surfaces autorisées
 SURFACES_AUTORISEES = {"google_aio", "perplexity", "assistants_ia"}
@@ -54,10 +54,10 @@ def _valider_brand_contre_contrat(brand: dict, contrat: dict) -> None:
     # 1. Vérifier que le contrat définit bien profile_schema.required_fields
     try:
         required_fields = contrat["profile_schema"]["required_fields"]
-    except (KeyError, TypeError):
+    except (KeyError, TypeError) as erreur:
         raise ValueError(
             "contrat brand-contract.v1.yaml invalide (profile_schema.required_fields absent)"
-        )
+        ) from erreur
     if not isinstance(required_fields, list):
         raise ValueError(
             "contrat brand-contract.v1.yaml invalide (profile_schema.required_fields absent)"

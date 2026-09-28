@@ -5,16 +5,14 @@ donc jusqu'à ce que le contrat soit respecté.
 """
 
 import inspect
-import shutil
 from pathlib import Path
 
 import pytest
 import yaml
+from m7_marketing.content import approval
+from m7_marketing.workflows import chantier_social
 
 _M7 = Path(__file__).resolve().parents[2]
-
-from m7_marketing.workflows import chantier_social
-from m7_marketing.content import approval
 
 FIXTURE_VALIDE = _M7 / "fixtures" / "chantiers" / "residence-quebec-2026" / "chantier.yaml"
 TIMESTAMP = "2026-07-25T00:00:00+00:00"
@@ -191,7 +189,7 @@ class TestZeroReseau:
 
 def test_type_travaux_invalide_rejete(tmp_path):
     """Un type_travaux hors énumération ADR doit être refusé fail-closed (comme fictif)."""
-    with open(FIXTURE_VALIDE, "r", encoding="utf-8") as f:
+    with open(FIXTURE_VALIDE, encoding="utf-8") as f:
         data = yaml.safe_load(f)
     data["type_travaux"] = "demolition"
     dossier = tmp_path / "chantier-invalide"

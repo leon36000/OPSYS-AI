@@ -1,9 +1,9 @@
 from pathlib import Path
+
 import pytest
+from m7_marketing.content import approval
 
 _M7 = Path(__file__).resolve().parents[2]
-
-from m7_marketing.content import approval
 
 @pytest.fixture(autouse=True)
 def clean_approval_file():

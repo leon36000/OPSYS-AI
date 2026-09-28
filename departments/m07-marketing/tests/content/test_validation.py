@@ -1,9 +1,9 @@
 from pathlib import Path
+
 import pytest
+from m7_marketing.content import validation
 
 _M7 = Path(__file__).resolve().parents[2]
-
-from m7_marketing.content import validation
 
 def _item_valide():
     """Retourne un dict complet et valide selon le schéma content-item.v1."""

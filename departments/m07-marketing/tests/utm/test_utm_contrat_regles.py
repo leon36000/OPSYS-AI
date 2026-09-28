@@ -1,11 +1,10 @@
 import hashlib
 from pathlib import Path
-import pytest
+
 import yaml
+from m7_marketing.utm import utm_engine
 
 _M7 = Path(__file__).resolve().parents[2]
-
-from m7_marketing.utm import utm_engine
 
 CONTRAT = _M7 / "contracts" / "utm-convention.v1.yaml"
 
@@ -142,7 +141,6 @@ class TestReglesU:
         assert any(v[0] == "U-07" and v[1] == "ok" for v in verdicts)
 
     def test_u07_negatif_caractere_interdit(self):
-        lien = _lien_valide() + "&utm_content=cr%E9"  # é encodé, OK.  On va plutôt injecter non encodé
         # On manipule l'URL pour avoir un é non encodé dans une valeur
         lien2 = _lien_valide().replace("utm_campaign=fenetre-ete-2026", "utm_campaign=fenetre-été-2026")
         verdicts = _valider(lien2)

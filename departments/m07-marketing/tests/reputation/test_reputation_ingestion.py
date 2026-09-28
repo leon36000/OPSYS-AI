@@ -9,12 +9,10 @@ import tempfile
 from pathlib import Path
 
 import pytest
-import yaml
+from m7_marketing.reputation import ingestion
 
 _M7 = Path(__file__).resolve().parents[2]
 _REPUTATION = _M7 / "src" / "m7_marketing" / "reputation"
-
-from m7_marketing.reputation import ingestion
 
 
 # ---------------------------------------------------------------------------
@@ -41,12 +39,10 @@ avis:
 
 def _fixture_tmp(contenu: str) -> Path:
     """Écrit une fixture YAML temporaire et retourne son chemin."""
-    tmp = tempfile.NamedTemporaryFile(
+    with tempfile.NamedTemporaryFile(
         mode="w", suffix=".yaml", delete=False, encoding="utf-8"
-    )
-    tmp.write(contenu)
-    tmp.flush()
-    tmp.close()
+    ) as tmp:
+        tmp.write(contenu)
     return Path(tmp.name)
 
 

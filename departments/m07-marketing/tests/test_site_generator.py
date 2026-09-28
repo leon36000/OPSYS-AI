@@ -1,18 +1,20 @@
 import hashlib
 from pathlib import Path
 
-_SITE = Path(__file__).resolve().parents[1] / "src" / "m7_marketing" / "site"
-
-from m7_marketing.site import guardrail
-from m7_marketing.site import generator
 import pytest
+from m7_marketing.site import generator, guardrail
+
+_SITE = Path(__file__).resolve().parents[1] / "src" / "m7_marketing" / "site"
 
 
 # Contenu YAML minimal conforme aux clés requises
 MINIMAL_CONTENT_DICT = {
     "lang": "fr",
     "title": "Mon Site Test",
-    "description": "Un site de test conforme avec une description assez longue pour valider les invariants de longueur minimale.",
+    "description": (
+        "Un site de test conforme avec une description assez longue pour valider les invariants "
+        "de longueur minimale."
+    ),
     "canonical": "https://example.com/",
     "theme_color": "#0044cc",
     "favicon": "favicon.svg",

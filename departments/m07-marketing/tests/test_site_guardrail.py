@@ -1,27 +1,40 @@
 from pathlib import Path
-_SITE = Path(__file__).resolve().parents[1] / "src" / "m7_marketing" / "site"
 
-from m7_marketing.site import guardrail
 import pytest
+from m7_marketing.site import guardrail
+
+_SITE = Path(__file__).resolve().parents[1] / "src" / "m7_marketing" / "site"
 
 
 def _html(**overrides) -> str:
     """Document HTML conforme minimal servant de référence pour les tests."""
+    description = overrides.get(
+        "description",
+        "Un site de test respectant les contrats WCAG AAA avec suffisamment de texte pour valider les invariants.",
+    )
+    header_css = (
+        f"background-color: {overrides.get('header_bg', '#f0f0f0')}; "
+        f"color: {overrides.get('header_fg', '#000000')};"
+    )
+    footer_css = (
+        f"background-color: {overrides.get('footer_bg', '#d0d0d0')}; "
+        f"color: {overrides.get('footer_fg', '#000000')};"
+    )
     return f"""<!DOCTYPE html>
 <html lang="{overrides.get('lang', 'fr')}">
 <head>
   <meta charset="utf-8">
   <title>{overrides.get('title', 'Site Test AAA')}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="{overrides.get('description', 'Un site de test respectant les contrats WCAG AAA avec suffisamment de texte pour valider les invariants.')}">
+  <meta name="description" content="{description}">
   <link rel="canonical" href="{overrides.get('canonical', 'https://example.com/page')}">
   <meta name="theme-color" content="{overrides.get('theme_color', '#0044cc')}">
   <link rel="icon" href="{overrides.get('favicon', 'favicon.svg')}">
   <style>
     body {{ background-color: {overrides.get('bg', '#ffffff')}; color: {overrides.get('fg', '#000000')}; }}
-    header {{ background-color: {overrides.get('header_bg', '#f0f0f0')}; color: {overrides.get('header_fg', '#000000')}; }}
+    header {{ {header_css} }}
     nav {{ background-color: {overrides.get('nav_bg', '#e0e0e0')}; color: {overrides.get('nav_fg', '#000000')}; }}
-    footer {{ background-color: {overrides.get('footer_bg', '#d0d0d0')}; color: {overrides.get('footer_fg', '#000000')}; }}
+    footer {{ {footer_css} }}
     a {{ color: {overrides.get('link', '#0000ee')}; }}
   </style>
 </head>
@@ -258,7 +271,8 @@ def test_positive_G_11():
 
 def test_negative_G_11():
     # supprimer <nav>
-    html = _html().replace("<nav", "<!-- nav supprimé --> <nav style=\"display:none\"", 1)  # pas bon, on veut absence totale
+    # pas bon, on veut absence totale
+    html = _html().replace("<nav", "<!-- nav supprimé --> <nav style=\"display:none\"", 1)
     # mieux : effacer la balise
     html = _html().replace("<nav ", "<div class=\"was-nav\"", 1).replace("</nav>", "</div>", 1)
     violations = guardrail.validate(html)
@@ -337,7 +351,10 @@ def test_positive_G_15():
 
 def test_negative_G_15():
     # supprimer le bloc JSON-LD
-    html = _html().replace('<script type="application/ld+json">', '<script type="application/ld+json" style="display:none">', 1)  # pas bon
+    # pas bon
+    html = _html().replace(
+        '<script type="application/ld+json">', '<script type="application/ld+json" style="display:none">', 1
+    )
     # on enlève carrément
     html = _html().replace('<script type="application/ld+json">', '<!-- ld+json retiré -->', 1)
     html = html.replace('</script>', '', 1)  # enlever la fermeture

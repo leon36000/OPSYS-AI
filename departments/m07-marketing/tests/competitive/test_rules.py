@@ -1,15 +1,11 @@
+import json
 from pathlib import Path
-
-_M7 = Path(__file__).resolve().parents[2]
-
-from m7_marketing.competitive import loader
-from m7_marketing.competitive import analyzers
-from m7_marketing.competitive import compare
-from m7_marketing.competitive import report
 
 import pytest
 import yaml
-import json
+from m7_marketing.competitive import analyzers, compare, loader, report
+
+_M7 = Path(__file__).resolve().parents[2]
 
 
 # -------------------------------------------------------------------- helpers HTML
@@ -21,10 +17,7 @@ def _html_minimal(title="Test", meta_desc=None, h1="Titre principal", liens=None
         head += f'\n<meta name="description" content="{meta_desc}">'
     if schema:
         head += '\n<script type="application/ld+json">{"@type": "Organization", "name": "Test Corp"}</script>'
-    if liens:
-        liens_html = " ".join(f'<a href="{domaine}{l}">link</a>' for l in liens)
-    else:
-        liens_html = ""
+    liens_html = " ".join(f'<a href="{domaine}{lien}">link</a>' for lien in liens) if liens else ""
     body = f"<h1>{h1}</h1>" + liens_html
     return f"<html><head>{head}</head><body>{body}</body></html>"
 

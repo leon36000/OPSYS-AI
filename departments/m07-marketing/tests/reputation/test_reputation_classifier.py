@@ -8,11 +8,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from m7_marketing.reputation import classifier
 
 _M7 = Path(__file__).resolve().parents[2]
 _REPUTATION = _M7 / "src" / "m7_marketing" / "reputation"
-
-from m7_marketing.reputation import classifier
 
 
 # ---------------------------------------------------------------------------
@@ -159,7 +158,9 @@ def test_neutre_note_4_sans_mot_cle():
 
 def test_categories_expose_valeurs_attendues():
     """CATEGORIES expose les 4 valeurs attendues."""
-    assert classifier.CATEGORIES == frozenset({"litige", "urgence", "eloge", "neutre"})
+    attendu = frozenset({"litige", "urgence", "eloge", "neutre"})
+
+    assert attendu == classifier.CATEGORIES
 
 
 # ---------------------------------------------------------------------------

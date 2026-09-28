@@ -1,10 +1,9 @@
-import html.parser
 import html.entities
+import html.parser
 import json
 import os
 import re
-from collections import OrderedDict
-from typing import Any, Dict, List, Optional, Tuple
+
 
 # ---------------------------------------------------------------------------
 # Exceptions
@@ -26,7 +25,7 @@ class GuardrailViolation(Exception):
 TYPES_ORGANISATION_ACCEPTES = frozenset({"Organization", "LocalBusiness", "HomeAndConstructionBusiness"})
 
 
-def _est_couleur_hex(valeur: Optional[str]) -> bool:
+def _est_couleur_hex(valeur: str | None) -> bool:
     """True seulement si `valeur` est une couleur hexadécimale CSS bien formée (#rgb/#rrggbb)."""
     return bool(valeur) and bool(re.fullmatch(r'#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?', valeur))
 
@@ -78,41 +77,41 @@ def contrast_ratio(hex_a: str, hex_b: str) -> float:
 class _SiteValidator(html.parser.HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=False)
-        self.html_lang: Optional[str] = None
+        self.html_lang: str | None = None
         self.html_tag_count: int = 0
-        self.title_text: Optional[str] = None
+        self.title_text: str | None = None
         self.title_count: int = 0
         self.meta_charset_ok: bool = False
-        self.meta_viewport_content: Optional[str] = None
+        self.meta_viewport_content: str | None = None
         self.meta_viewport_violation: bool = False   # true si restriction détectée
-        self.meta_description_content: Optional[str] = None
-        self.meta_description_length_ok: Optional[bool] = None
-        self.canonical_href: Optional[str] = None
-        self.theme_color: Optional[str] = None
-        self.icon_hrefs: List[str] = []
+        self.meta_description_content: str | None = None
+        self.meta_description_length_ok: bool | None = None
+        self.canonical_href: str | None = None
+        self.theme_color: str | None = None
+        self.icon_hrefs: list[str] = []
         self.h1_count: int = 0
-        self.heading_levels: List[int] = []   # dans l'ordre d'apparition
+        self.heading_levels: list[int] = []   # dans l'ordre d'apparition
         self.landmarks: set = set()
         self.element_ids: set = set()
-        self.skip_link_target: Optional[str] = None   # id sans '#'
+        self.skip_link_target: str | None = None   # id sans '#'
         self.skip_link_found: bool = False
-        self.first_a_href_id: Optional[str] = None
+        self.first_a_href_id: str | None = None
         self.imgs_without_alt: bool = False
         self.has_on_attr: bool = False
         self.has_javascript_protocol: bool = False
-        self.script_ld_json_content: Optional[str] = None
-        self.style_content: Optional[str] = None
+        self.script_ld_json_content: str | None = None
+        self.style_content: str | None = None
         self.nav_aria_label_ok: bool = True   # True si tous les <nav> ont aria-label ou aria-labelledby
         # new: anchors inside landmarks
-        self._landmark_stack: List[str] = []
+        self._landmark_stack: list[str] = []
         self.anchors_in: set = set()   # noms de landmarks qui contiennent ≥1 <a>
         # temporaires pour parsing
         self._in_title: bool = False
         self._in_style: bool = False
         self._in_script_ld: bool = False
-        self._title_buf: List[str] = []
-        self._style_buf: List[str] = []
-        self._script_buf: List[str] = []
+        self._title_buf: list[str] = []
+        self._style_buf: list[str] = []
+        self._script_buf: list[str] = []
 
     def handle_starttag(self, tag, attrs):
         tag_lower = tag.lower()
@@ -252,9 +251,12 @@ class _SiteValidator(html.parser.HTMLParser):
             self._in_script_ld = False
             self.script_ld_json_content = "".join(self._script_buf).strip()
         # dépiler landmark
-        if tag_lower in ("header", "nav", "main", "footer"):
-            if self._landmark_stack and self._landmark_stack[-1] == tag_lower:
-                self._landmark_stack.pop()
+        if (
+            tag_lower in ("header", "nav", "main", "footer")
+            and self._landmark_stack
+            and self._landmark_stack[-1] == tag_lower
+        ):
+            self._landmark_stack.pop()
 
     def handle_data(self, data):
         if self._in_title:
@@ -274,10 +276,7 @@ class _SiteValidator(html.parser.HTMLParser):
 
     def handle_charref(self, name):
         try:
-            if name.startswith("x"):
-                char = chr(int(name[1:], 16))
-            else:
-                char = chr(int(name))
+            char = chr(int(name[1:], 16)) if name.startswith("x") else chr(int(name))
             self.handle_data(char)
         except (ValueError, OverflowError):
             self.handle_data(f"&#{name};")
@@ -286,7 +285,7 @@ class _SiteValidator(html.parser.HTMLParser):
 # ---------------------------------------------------------------------------
 # CSS parsing helpers for G-16
 # ---------------------------------------------------------------------------
-def _parse_css_for_contrast(style_text: str) -> Dict[str, Dict[str, str]]:
+def _parse_css_for_contrast(style_text: str) -> dict[str, dict[str, str]]:
     """
     Extrait les propriétés color et background-color pour les sélecteurs simples
     et les sélecteurs composés à deux éléments (ex: nav a, header a, footer a).
@@ -298,7 +297,7 @@ def _parse_css_for_contrast(style_text: str) -> Dict[str, Dict[str, str]]:
     style_text = re.sub(r'/\*.*?\*/', '', style_text, flags=re.DOTALL)
     # capture blocs
     blocks = re.findall(r'([^{]+)\{([^}]+)\}', style_text)
-    styles: Dict[str, Dict[str, str]] = {}
+    styles: dict[str, dict[str, str]] = {}
     for selectors, body in blocks:
         body = body.strip()
         # Propriétés : capture TOUTE valeur (pas seulement hex) pour que G-16 puisse
@@ -325,13 +324,13 @@ def _parse_css_for_contrast(style_text: str) -> Dict[str, Dict[str, str]]:
 # ---------------------------------------------------------------------------
 # Main validation entry points
 # ---------------------------------------------------------------------------
-def validate(html_text: str, *, content: Optional[dict] = None, assets_dir: Optional[str] = None) -> List[Tuple[str, str]]:
+def validate(html_text: str, *, content: dict | None = None, assets_dir: str | None = None) -> list[tuple[str, str]]:
     """Retourne la liste des violations (code, detail), triée par code."""
     parser = _SiteValidator()
     parser.feed(html_text)
     parser.close()
 
-    violations: List[Tuple[str, str]] = []
+    violations: list[tuple[str, str]] = []
 
     # --- G-01 ---
     if parser.html_tag_count == 0:
@@ -383,9 +382,10 @@ def validate(html_text: str, *, content: Optional[dict] = None, assets_dir: Opti
     # --- G-08 ---
     if not parser.icon_hrefs:
         violations.append(("G-08", '<link rel="icon"> absent.'))
-    elif assets_dir is not None:
-        if not any(os.path.isfile(os.path.join(assets_dir, h)) for h in parser.icon_hrefs):
-            violations.append(("G-08", "Fichier favicon introuvable dans le dossier d'assets."))
+    elif assets_dir is not None and not any(
+        os.path.isfile(os.path.join(assets_dir, h)) for h in parser.icon_hrefs
+    ):
+        violations.append(("G-08", "Fichier favicon introuvable dans le dossier d'assets."))
 
     # --- G-09 ---
     if parser.h1_count != 1:
@@ -482,7 +482,10 @@ def validate(html_text: str, *, content: Optional[dict] = None, assets_dir: Opti
                 try:
                     ratio = contrast_ratio(fg, bg)
                     if ratio < 7.0:
-                        violations.append(("G-16", f"Contraste {label}: {fg} sur {bg} → {ratio:.2f} (min 7.0 requis pour AAA)."))
+                        violations.append((
+                            "G-16",
+                            f"Contraste {label}: {fg} sur {bg} → {ratio:.2f} (min 7.0 requis pour AAA).",
+                        ))
                 except ValueError:
                     violations.append(("G-16", f"Contraste {label}: couleur hexadécimale invalide ({fg!r} / {bg!r})."))
 
@@ -509,24 +512,32 @@ def validate(html_text: str, *, content: Optional[dict] = None, assets_dir: Opti
                 try:
                     ratio = contrast_ratio(fg, bg)
                     if ratio < 7.0:
-                        violations.append(("G-16", f"Contraste liens {landmark}: {fg} sur {bg} → {ratio:.2f} (min 7.0 requis pour AAA)."))
+                        violations.append((
+                            "G-16",
+                            f"Contraste liens {landmark}: {fg} sur {bg} → {ratio:.2f} (min 7.0 requis pour AAA).",
+                        ))
                 except ValueError:
-                    violations.append(("G-16", f"Contraste liens {landmark}: couleur hexadécimale invalide ({fg!r} / {bg!r})."))
+                    violations.append((
+                        "G-16",
+                        f"Contraste liens {landmark}: couleur hexadécimale invalide ({fg!r} / {bg!r}).",
+                    ))
 
     # --- G-17 ---
     if "nav" in parser.landmarks and not parser.nav_aria_label_ok:
         violations.append(("G-17", "<nav> sans aria-label ni aria-labelledby non vide."))
 
     # --- G-18 ---
-    if content and "lang" in content and parser.html_lang:
-        if content["lang"] != parser.html_lang:
-            violations.append(("G-18", f"Incohérence de langue : HTML lang={parser.html_lang} vs content.lang={content['lang']}."))
+    if content and "lang" in content and parser.html_lang and content["lang"] != parser.html_lang:
+        violations.append((
+            "G-18",
+            f"Incohérence de langue : HTML lang={parser.html_lang} vs content.lang={content['lang']}.",
+        ))
 
     violations.sort(key=lambda x: x[0])
     return violations
 
 
-def assert_valid(html_text: str, *, content: Optional[dict] = None, assets_dir: Optional[str] = None) -> None:
+def assert_valid(html_text: str, *, content: dict | None = None, assets_dir: str | None = None) -> None:
     """Lève GuardrailViolation avec le premier code (ordre croissant) si une violation existe."""
     vios = validate(html_text, content=content, assets_dir=assets_dir)
     if vios:

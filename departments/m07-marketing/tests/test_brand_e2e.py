@@ -6,10 +6,8 @@ import urllib.request
 
 import pytest
 import yaml
-
 from m7_marketing.brand import brand_schema
 from m7_marketing.brand.brand_server import build_server
-
 
 VALID_PROFILE = {
     "name": "OPSYS-AI",

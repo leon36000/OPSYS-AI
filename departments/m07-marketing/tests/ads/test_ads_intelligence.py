@@ -4,11 +4,9 @@ import math
 from pathlib import Path
 
 import pytest
+from m7_marketing.ads import ads_loader, intelligence
 
 _M7 = Path(__file__).resolve().parents[2]
-
-from m7_marketing.ads import intelligence
-from m7_marketing.ads import ads_loader
 
 FIXTURES = _M7 / "fixtures" / "ads"
 CALENDRIER = _M7 / "data" / "saisons" / "calendrier-quebec.v1.yaml"

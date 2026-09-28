@@ -9,11 +9,10 @@ from pathlib import Path
 
 import pytest
 import yaml
+from m7_marketing.reputation import metrics
 
 _M7 = Path(__file__).resolve().parents[2]
 _REPUTATION = _M7 / "src" / "m7_marketing" / "reputation"
-
-from m7_marketing.reputation import metrics
 
 # ---------------------------------------------------------------------------
 # Données de test

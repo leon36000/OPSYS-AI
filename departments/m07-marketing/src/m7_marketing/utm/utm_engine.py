@@ -22,7 +22,7 @@ _CONTRAT_PATH = (
 
 
 def _charger_contrat():
-    with open(_CONTRAT_PATH, "r", encoding="utf-8") as f:
+    with open(_CONTRAT_PATH, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 

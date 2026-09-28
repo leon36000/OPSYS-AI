@@ -6,8 +6,6 @@ import hashlib
 from pathlib import Path
 
 import yaml
-import pytest
-
 
 # ---------------------------------------------------------------------------
 # Chargement du contrat
@@ -18,7 +16,7 @@ CONTRACT_PATH = (
 
 
 def load_contract() -> dict:
-    with open(CONTRACT_PATH, "r", encoding="utf-8") as fh:
+    with open(CONTRACT_PATH, encoding="utf-8") as fh:
         return yaml.safe_load(fh)
 
 

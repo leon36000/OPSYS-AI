@@ -1,12 +1,10 @@
-import hashlib
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
+
 import pytest
-import yaml
-from urllib.parse import urlparse, parse_qs
+from m7_marketing.utm import utm_engine
 
 _M7 = Path(__file__).resolve().parents[2]
-
-from m7_marketing.utm import utm_engine
 
 CONTRAT = _M7 / "contracts" / "utm-convention.v1.yaml"
 

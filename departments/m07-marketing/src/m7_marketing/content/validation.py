@@ -1,12 +1,13 @@
 import re
 from datetime import datetime
 from pathlib import Path
+
 import yaml
 
 
 def validate_content_item(item: dict) -> bool:
     """Valide un item de contenu contre le contrat content-item.v1.yaml.
-    
+
     Lève ValueError en français si une règle n'est pas respectée.
     Retourne True si l'item est parfaitement conforme.
     """

@@ -1,10 +1,9 @@
 from pathlib import Path
+
 import pytest
+from m7_marketing.content import factory, validation
 
 _M7 = Path(__file__).resolve().parents[2]
-
-from m7_marketing.content import factory
-from m7_marketing.content import validation
 
 BRAND = {
     "name": "OPSYS-AI",

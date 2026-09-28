@@ -1,7 +1,7 @@
 import hashlib
 from pathlib import Path
 
-from m7_marketing.attribution.attribution_engine import charger_et_valider_fixtures, attribuer
+from m7_marketing.attribution.attribution_engine import attribuer, charger_et_valider_fixtures
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent.parent / "fixtures"
 VISITES_PATH = FIXTURES_DIR / "matomo" / "visites.v1.yaml"

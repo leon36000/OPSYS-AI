@@ -1,7 +1,6 @@
-from html.parser import HTMLParser
 import json
 import xml.etree.ElementTree as ET
-
+from html.parser import HTMLParser
 
 _XML_MAX_BYTES = 2_000_000  # garde-fou DoS (~2 Mo) ; ajustable selon les fixtures
 
@@ -25,7 +24,7 @@ class SEOParser(HTMLParser):
             self._in_title = True
         elif tag == 'meta':
             if attrs_dict.get('name', '').lower() == 'description':
-                self.meta_description = attrs_dict.get('content', None)
+                self.meta_description = attrs_dict.get('content')
         elif tag == 'h1':
             self._current_h1 = []
         elif tag == 'script':
@@ -59,10 +58,7 @@ class SEOParser(HTMLParser):
 
 
 def extract_domain(url: str) -> str:
-    if '://' in url:
-        domain_part = url.split('://', 1)[1]
-    else:
-        domain_part = url
+    domain_part = url.split('://', 1)[1] if '://' in url else url
     domain = domain_part.split('/')[0]
     return domain.lower().strip()
 
@@ -106,10 +102,7 @@ def analyze_page(html_str: str, url: str) -> dict:
         else:
             if extract_domain(link) == domain:
                 internal_links.add(link)
-    if len(internal_links) >= 3:
-        c05 = "conforme"
-    else:
-        c05 = "non_conforme"
+    c05 = "conforme" if len(internal_links) >= 3 else "non_conforme"
 
     return {
         "C-01": c01,

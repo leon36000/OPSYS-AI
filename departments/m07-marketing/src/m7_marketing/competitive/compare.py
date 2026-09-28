@@ -1,8 +1,7 @@
 import re
-from typing import Set
 
 
-def _load_stopwords(path: str) -> Set[str]:
+def _load_stopwords(path: str) -> set[str]:
     """Charge un ensemble de stopwords depuis un fichier (un mot par ligne).
     Retourne un set vide si le chemin est vide. Un chemin fourni mais inaccessible
     lève l'exception native (FileNotFoundError/OSError)."""
