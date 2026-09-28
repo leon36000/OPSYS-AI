@@ -543,7 +543,18 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       voix ; taxonomie des 4 services réels (gouttières, revêtement, soffite-fascia, réparation) ; contrat
       M1→M2 avec `source`, `utm`, `campagne` ; tests qui passent par `Capacites` (approbations réelles)
       (audit M1).
-- [ ] T2.2 M2 : lead structuré, Client 360, préparation à l'estimation, prochaine action.
+- [x] T2.2 M2 : lead structuré, Client 360, préparation à l'estimation, prochaine action.
+      Preuve (commit « T2.2 » ci-dessous) :
+      - Client 360 : identifiant stable tiré du contact seulement ; vue sans donnée inventée ;
+      - un second chantier pour un client ouvre une nouvelle opportunité, au lieu d'une
+        quarantaine ; un cas ambigu donne `OpportuniteAmbigue` ;
+      - `source`, `utm` et `campagne` sont acceptés et validés ;
+      - `m2_suggerer_prochaine_action`, table de règles citée, jamais appliquée seule ;
+      - `m2.client_associe` : M5 facture le vrai `client_id`, et retombe sur le lead sinon ;
+      - M2 656, M5 321, verifier 110 outils.
+
+      Reste : M1 n'envoie pas encore ces champs (son contrat v1 est gelé, T2.1) ; les
+      14 segments de M2.11.
 - [ ] T2.3 M3 : estimation honnête, soumission brouillon, approbation, besoins matériaux vers M6.
       L'outil `m3_estimer_projet` n'assemble que 6 des 15 modules : écrire l'orchestrateur qui compose
       validation, devis (`devis_id` requis par M4), registre estimé vs réel, signal de relance M2, et
