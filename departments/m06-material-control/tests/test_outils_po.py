@@ -221,6 +221,29 @@ def test_lister_fournisseurs_outil():
     assert any(f["fournisseur_id"] == "gentek" for f in resultat["resultat"])
 
 
+def test_enregistrer_prix_outil():
+    """PLAN T2.4 : l'outil agent dédié à la saisie du livre de prix, jusqu'ici alimenté seulement
+    par un appel direct à `livre_prix.enregistrer_prix` dans les autres tests de ce fichier. Le PO
+    créé à partir du livre alimenté par CET outil résout bien PRIX_LIVRE (pas seulement via un
+    appel direct à livre_prix.py, comme test_flux_complet_prevu_m3_jusqu_a_la_reception)."""
+    reponse = m6_outils.enregistrer_prix("BARDEAU", "gentek", 20.0, "CAD", "2026-01-01")
+    assert reponse["accepte"] is True
+    assert reponse["resultat"]["prix_unitaire"] == 20.0
+    lph = reponse["livre_prix_historique"]
+
+    fh = m6_outils.enregistrer_fournisseur("gentek", "Gentek", "2026-01-01T00:00:00Z")["fournisseurs_historique"]
+    bh = m6_outils.enregistrer_besoins_prevus(
+        "C-PRIX-OUTIL", "DEVIS-PRIX-OUTIL", [{"materiau_id": "BARDEAU", "quantite_estimee": 2.0, "unite": "boite"}]
+    )["registre_historique"]
+    creation = m6_outils.creer_po_brouillon(
+        "PO-PRIX-OUTIL", "DEVIS-PRIX-OUTIL", "gentek", "2026-01-02T00:00:00Z",
+        besoins_prevus_historique=bh, livre_prix_historique=lph, fournisseurs_historique=fh,
+    )
+    assert creation["accepte"] is True
+    assert creation["po"]["lignes"][0]["verdict_prix"] == "PRIX_LIVRE"
+    assert creation["po"]["lignes"][0]["prix_unitaire_prevu"] == 20.0
+
+
 # --------------------------------------------------------------------- niveaux N déclarés (ADR-0009 §4)
 
 
@@ -228,6 +251,7 @@ def test_niveaux_effectifs_des_outils_po():
     assert _outil("m6_creer_po_brouillon").autonomie is Autonomie.T1
     assert _outil("m6_approuver_po").autonomie is Autonomie.T1
     assert _outil("m6_generer_courriel_po").autonomie is Autonomie.T1
+    assert _outil("m6_enregistrer_prix").autonomie is Autonomie.T1
     # L'ENVOI au fournisseur (PLAN T2.5 point 3) est N4 (T2), jamais un simple T1/N3 interne.
     assert _outil("m6_marquer_po_envoye").autonomie is Autonomie.T2
     assert _outil("m6_marquer_po_envoye").niveau_effectif is Niveau.N4

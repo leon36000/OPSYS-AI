@@ -420,17 +420,10 @@ def test_bons_commande_flux_complet_survit_au_redemarrage(base_sqlite):
 
 def test_outils_creer_po_brouillon_utilise_le_registre_durable_en_production(base_sqlite):
     """Même preuve que `test_outils_receptionner_commande_utilise_le_registre_durable_en_production`
-    ci-dessus, pour la chaîne complète des outils PO/fournisseurs/prix (PLAN T2.5/T2.4).
-
-    Le livre de prix lui-même est alimenté directement (`livre_prix.enregistrer_prix`, pas encore
-    `outils.enregistrer_prix`, livré séparément au commit T2.4 suivant) : le moteur de PO (T2.5)
-    en a déjà besoin pour résoudre le prix attendu de chaque ligne, mais l'outil agent dédié à sa
-    saisie n'arrive qu'avec T2.4."""
+    ci-dessus, pour la chaîne complète des outils PO/fournisseurs/prix (PLAN T2.5/T2.4)."""
     with stockage.transaction():
         outils.enregistrer_fournisseur("gentek", "Gentek", "2026-01-01T00:00:00Z")
-        livre_prix.enregistrer_prix(
-            _MATERIAU, "gentek", 12.5, "CAD", "2026-01-01", stockage.maillons(_DEPARTEMENT, "livre_prix")
-        )
+        outils.enregistrer_prix(_MATERIAU, "gentek", 12.5, "CAD", "2026-01-01")
         outils.enregistrer_besoins_prevus(
             _CHANTIER, "DEVIS-DURABLE", [{"materiau_id": _MATERIAU, "quantite_estimee": 5.0, "unite": "boite"}]
         )

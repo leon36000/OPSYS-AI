@@ -54,6 +54,7 @@ from . import (
     bons_commande,
     digest,
     fournisseurs,
+    livre_prix,
     materiel,
     validation,
     variance_chantier,
@@ -738,13 +739,35 @@ def lister_fournisseurs(fournisseurs_historique: list[dict[str, Any]] | None = N
     return {"accepte": True, "resultat": fournisseurs.lister_fournisseurs(registre_cible)}
 
 
+# --------------------------------------------------------------------------------------------- T2.4
+# Livre de prix (M6.3, PLAN T2.4) : prix fournis, versionnés, datés, par fournisseur.
+# bons_commande.creer_brouillon (commit T2.5 précédent) LIT déjà ce livre pour résoudre le prix de
+# chaque ligne (fail-closed, verdict INDETERMINE si vide) ; cette fonction est l'outil agent dédié
+# à sa SAISIE — la surface manquante que ce commit ajoute.
+def enregistrer_prix(
+    materiau_id: str,
+    fournisseur_id: str,
+    prix_unitaire: float,
+    devise: str,
+    date_effet: str,
+    source_document: str | None = None,
+    livre_prix_historique: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    registre_cible = _livre_prix_de_l_appel(livre_prix_historique)
+    resultat, verdict = livre_prix.enregistrer_prix(
+        materiau_id, fournisseur_id, prix_unitaire, devise, date_effet, registre_cible,
+        source_document=source_document,
+    )
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    reponse = {"accepte": True, "resultat": resultat}
+    if stockage.connexion_courante() is None:
+        reponse["livre_prix_historique"] = list(registre_cible)
+    return reponse
+
+
 # --------------------------------------------------------------------------------------------- T2.5
 # Moteur de PO (M6.5, PLAN T2.5 point 1/3), DA-M6-12 révisée (docs/bmad/03-ARCHITECTURE.md).
-# Résolution de prix pour une ligne de PO : livre_prix.resoudre_prix_po (module déjà nécessaire au
-# moteur de PO ci-dessous). L'outil agent dédié à la SAISIE d'un prix (m6_enregistrer_prix) arrive
-# avec le commit T2.4 séparé (« Catalogue et livre de prix ») : bons_commande.creer_brouillon LIT
-# déjà le livre de prix (fail-closed, verdict INDETERMINE si vide) — seule son ALIMENTATION par un
-# outil agent est différée.
 def _reponse_po(resultat: dict[str, Any], registre_cible: list[dict[str, Any]]) -> dict[str, Any]:
     """Forme commune des outils PO : le PO à jour, plus l'historique du registre des PO hors
     transaction seulement (même convention que `enregistrer_besoins_prevus` — le registre durable
@@ -1093,8 +1116,32 @@ def outils() -> tuple[Outil, ...]:
             fonction=lister_fournisseurs,
             autonomie=Autonomie.T0,
         ),
-        # m6_enregistrer_prix (T2.4, « Catalogue et livre de prix ») arrive au commit séparé
-        # suivant — bons_commande.creer_brouillon (ci-dessous) lit déjà le livre de prix.
+        # ----------------------------------------------------------------------------------- T2.4
+        Outil(
+            nom="m6_enregistrer_prix",
+            description=(
+                "Ajoute une entrée au livre de prix (M6.3) : prix FOURNI (jamais calculé), pour un "
+                "matériau et un fournisseur donnés, daté (date_effet). Append-only et versionné : "
+                "n'écrase jamais une entrée antérieure, chaque hausse ou correction est une "
+                "nouvelle entrée. source_document (facture ou PO d'origine) optionnel."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "materiau_id": {"type": "string"},
+                    "fournisseur_id": {"type": "string"},
+                    "prix_unitaire": {"type": "number"},
+                    "devise": {"type": "string"},
+                    "date_effet": {"type": "string"},
+                    "source_document": {"type": ["string", "null"]},
+                    "livre_prix_historique": _LIVRE_PRIX_HISTORIQUE,
+                },
+                "required": ["materiau_id", "fournisseur_id", "prix_unitaire", "devise", "date_effet"],
+                "additionalProperties": False,
+            },
+            fonction=enregistrer_prix,
+            autonomie=Autonomie.T1,
+        ),
         # ----------------------------------------------------------------------------- T2.5 point 3
         Outil(
             nom="m6_creer_po_brouillon",
