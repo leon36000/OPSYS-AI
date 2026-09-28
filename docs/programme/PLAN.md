@@ -556,7 +556,16 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
     - [ ] T1.4-c5 Core et mobile : le rôle nommé sur la poignée de main WebSocket (l'app ne
           l'apprend pas encore) ; `opsys-mobile` câblé dans l'app et dans la classification de
           confiance du core.
-    - [x] T1.4-c3 Mobile : client d'appairage (QR ou code, défi signé selon l'algorithme du
+      - [ ] T1.4-c6 Core et mobile : noms d'outils de bout en bout. Le core matérialise un outil MCP
+          sous `serveur__outil` (`agent-bundle-mcp-names.ts`, p. ex. `opsys_m4__m4_pointer`),
+          alors que l'app appelle `/tools/invoke` avec le nom nu (`m4_pointer`) et que la portée
+          par rôle (`opsys/roles.json`, `authorizeOpsysDeviceTool`) compare ce nom nu. Vérifier
+          dans le fork comment `/tools/invoke` résout un nom d'outil MCP pour un appel d'appareil
+          (quel agent, quelle liste d'outils), puis aligner l'app, `roles.json` et le contrôle de
+          portée sur un seul nom ; test du core qui appelle un vrai outil MCP d'un département par
+          un jeton d'appareil. Tant que ce n'est pas prouvé, aucun écran mobile n'est réputé
+          fonctionner de bout en bout.
+  - [x] T1.4-c3 Mobile : client d'appairage (QR ou code, défi signé selon l'algorithme du
           fork, jeton dans `expo-secure-store`), testé contre le protocole lu dans le core.
 
           Preuve (c171a2a) :
@@ -620,20 +629,26 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
     ses fichiers soient complets ; `materials.tsx` sans quantité ni prix par défaut ; contrat
     confronté à T1.4-e2 ; Jest 587, `tsc` propre.
 
-    Bloquant :
-    - en mode ombre, `m4_pointer` et `m4_completer_intervention` (N3) partent en file
-      d'approbation même quand l'employé authentifié agit lui-même (T1.4-h) ;
-    - `m6_declarer_materiaux_utilises` exige que l'app lui renvoie le WCT complet, dont M6 ne
-      vérifie que la forme (T1.4-i) ;
-    - l'écran `(admin)/approvals` (étape 6) : livré, voir l'avancement ci-dessous ; le trajet réel
-      appareil → core → moteur reste à prouver (T1.5, T1.4-c5).
+    Avancement (étape 6, ed0af65, ff7cc63) : le propriétaire liste et décide N3 et N4 depuis son
+    téléphone.
+    - socle `opsys.approbations_appareil`, même chemin que la console (`approbations.decider`) :
+      identité authentifiée seule, relue en base ; N3 et N4 exigent une personne `nathan_owner`,
+      qui signe la décision ; N5, demande sans niveau et outil T3 jamais décidables (lecture seule,
+      « à décider à la console ») ; appareil au journal d'audit ; rejeu de la même clé sans
+      effet, autre clé sur une demande décidée → `deja_decidee` ; l'outil approuvé s'exécute
+      sans l'identité ni l'horloge de l'appareil du propriétaire ;
+    - outils `m9_lister_demandes_approbation` (T0) et `m9_decider_demande_approbation` (N2, l'outil
+      est la décision), portée `admin` (ROLES.md, 50 outils déclarés sur 121) ;
+    - mobile `(admin)/approvals` par la file sortante (`approval_decision`), verdicts du serveur
+      montrés tels quels, aucun cache hors ligne ;
+    - socle 628, M9 125, M4, M5, M6 verts, verifier 121 outils, Jest 697, `tsc` propre ;
+      80 tests socle, 3 mutations détectées ; démonstration par les vrais outils M9 via
+      `Capacites` (proposition, approbation, écriture unique, rejeu, `deja_decidee`).
 
-    Avancement (étape 6, `agent/t1-4-f6-approbations`) : le propriétaire liste et décide N3 et N4 depuis
-    son téléphone. Socle : `opsys.approbations_appareil` (identité authentifiée seule, personne
-    `nathan_owner` exigée, N5 et T3 jamais, appareil au journal, même chemin que la console) ; outils
-    `m9_lister_demandes_approbation` et `m9_decider_demande_approbation` (`admin`, ROLES.md) ; mobile
-    `(admin)/approvals` par la file sortante, verdicts du serveur montrés tels quels. Code critique :
-    revue externe requise ; décision attendue de Nathan sur un `admin` non propriétaire (ROLES.md).
+    Les blocages de T1.4-h et T1.4-i sont levés (intégrées). Reste avant de cocher : prouver le
+    trajet réel appareil → core → moteur (T1.4-c6 puis T1.5). Code critique : revue externe.
+    Décision attendue de Nathan : un `admin` non propriétaire ne décide rien depuis l'app, même un
+    N3 que la console lui permet (ROLES.md).
   - [x] T1.4-h Appels d'appareil et approbations : une action qu'un humain authentifié (T1.4-c4)
     lance lui-même depuis l'app, dans la portée de son rôle, vaut la « validation humaine au
     départ » d'un N3 (ADR-0009 §4) ; les N4 et N5 restent au propriétaire. Code critique : revue
@@ -949,7 +964,7 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
 - **Revue externe du code critique** (AGENTS.md), avant tout passage sur `main` :
   - M5 : 119a594, 23df6eb, T1.3-c ;
   - idempotence du socle : 764c292, 2474cd1 ;
-  - approbations : 718b9bb ; exécution directe des actions d'un humain authentifié (T1.4-h) :
+  - approbations : 718b9bb ; décision depuis l'appareil du propriétaire (T1.4-f étape 6) : ed0af65 ; exécution directe des actions d'un humain authentifié (T1.4-h) :
     688b1a4 ; portées d'outils par rôle d'appareil (T1.4-j) : a0e5150 ;
   - validation du bus : 4c9fbff ;
   - authentification de `/tools/invoke` par jeton d'appareil : 42bbf6a ; `_meta` MCP unique par
