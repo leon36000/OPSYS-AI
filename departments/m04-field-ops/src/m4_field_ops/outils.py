@@ -31,7 +31,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from opsys import cles_chiffrement, contexte, evenements, stockage
+from opsys import cles_chiffrement, contexte, evenements, fichiers, stockage
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
 from . import (
@@ -88,6 +88,25 @@ _PREUVES_COMPLETION = {
     ),
 }
 _PERIODE = {"type": "object", "description": "{debut, fin} AAAA-MM-JJ, bornes incluses."}
+_EMPREINTE_SHA256 = {
+    "type": "string",
+    "pattern": "^[0-9a-f]{64}$",
+    "description": "SHA-256 (hexadécimal minuscule) du contenu COMPLET du fichier.",
+}
+
+# T1.4-e2 : traduction des raisons génériques du dépôt socle (opsys.fichiers, département-
+# agnostique) vers le catalogue de verdicts FERMÉ de M4 — aucun autre module ne connaît ces codes.
+_RAISON_DEPOT_VERS_CODE = {
+    fichiers.RAISON_PARAMETRES_INVALIDES: "REJ-FICHIER-PARAMETRES-INVALIDES",
+    fichiers.RAISON_TROP_VOLUMINEUX: "REJ-FICHIER-TROP-VOLUMINEUX",
+    fichiers.RAISON_INCOHERENT: "REJ-FICHIER-INCOHERENT",
+    fichiers.RAISON_EMPREINTE_DISCORDANTE: "REJ-FICHIER-EMPREINTE-DISCORDANTE",
+    fichiers.RAISON_TYPE_NON_PERMIS: "REJ-FICHIER-TYPE-NON-PERMIS",
+}
+# Types permis pour une référence photos_apres (toute image) et pour une référence signature
+# (PNG seulement, T1.4-e2 point 3 du PLAN).
+_TYPES_PHOTO_APRES = fichiers.TYPES_MIME_PERMIS
+_TYPES_SIGNATURE = ("image/png",)
 
 
 def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]:
@@ -338,6 +357,44 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
     def volumetrie_pending_review() -> dict[str, Any]:
         return ecarts.volumetrie_pending_review(registre_courant())
 
+    def deposer_fichier(
+        empreinte_sha256: str, taille_octets: int, type_mime: str,
+        index_bloc: int, nombre_blocs: int, bloc_base64: str,
+    ) -> dict[str, Any]:
+        # T1.4-e2 : dépôt de fichiers adressé par contenu (opsys.fichiers, socle, département-
+        # agnostique). Idempotence de l'appareil (T1.4-b) : chaque bloc est un appel d'outil
+        # distinct — s'il porte sa propre `opsys/idempotencyKey`, le socle (Capacites.
+        # _appeler_idempotent) réclame et rejoue AUTOUR de cet appel, sans rien changer ici ;
+        # `opsys.fichiers.deposer_bloc` reste idempotent de son propre chef pour un renvoi qui
+        # arriverait sans cette clé (reprise après redémarrage de l'app, ex.).
+        cnx = stockage.connexion_courante()
+        if cnx is None:
+            # Ne devrait jamais survenir en production (executer_atomique ouvre toujours une
+            # transaction sur le registre durable, même patron que purger_retention_gps
+            # ci-dessus) : fail-closed plutôt qu'un dépôt qui n'écrirait rien en silence.
+            return {"accepte": False, "verdict": verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE", detail="aucune connexion durable : dépôt de fichier refusé")}
+        resultat = fichiers.deposer_bloc(
+            cnx, empreinte_sha256, taille_octets, type_mime, index_bloc, nombre_blocs, bloc_base64,
+            recu_le=_horodatage_depot_fichier(),
+        )
+        return _depuis_depot_fichier(resultat)
+
+    def etat_fichier(empreinte_sha256: str) -> dict[str, Any]:
+        if not fichiers.empreinte_valide(empreinte_sha256):
+            return {"accepte": False, "verdict": verdicts.construire_verdict(
+                "REJ-FICHIER-PARAMETRES-INVALIDES",
+                detail="empreinte_sha256 doit être 64 caractères hexadécimaux minuscules")}
+        # Lecture pure : contrairement à deposer_fichier (une écriture, fail-closed sans
+        # connexion), un point de sauvegarde imbriqué sur une transaction déjà ouverte, ou une
+        # transaction fraîche sinon (stockage.transaction() gère les deux), suffit toujours.
+        with stockage.transaction() as cnx:
+            etat_lu = fichiers.etat(cnx, empreinte_sha256)
+        return {"accepte": True, "resultat": {
+            "existe": etat_lu.existe, "complet": etat_lu.complet,
+            "blocs_recus": list(etat_lu.blocs_recus), "reference": etat_lu.reference,
+        }}
+
     def completer_intervention(
         intervention_id: str, horodatage: str,
         preuves_completion: dict[str, Any], signature_requise: bool = False,
@@ -371,6 +428,13 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
         # l'outbox — aucune écriture si le dossier de preuves est incomplet.
         ok, verdict = preuves.valider_preuves_completion(preuves_completion, signature_requise)
         if not ok:
+            return {"accepte": False, "verdict": verdict}
+        # T1.4-e2 : chaque référence de preuve (photos_apres, et signature si requise) doit
+        # désigner un fichier RÉELLEMENT déposé et complet — une chaîne inventée passait avant ce
+        # point. Fail-closed, APRÈS la validation structurelle (ordre épinglé comme dans
+        # preuves.py), toujours AVANT l'outbox : aucune écriture si une référence ne résout à rien.
+        verdict = _verifier_preuves_fichiers(preuves_completion, signature_requise)
+        if verdict is not None:
             return {"accepte": False, "verdict": verdict}
         # Un agent ne peut pas affirmer l'absence d'écart : le matériel n'est pas encore comparé
         # au prévu à ce stade. La complétion reste donc à revoir ; completed_verified viendra du
@@ -648,20 +712,74 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             autonomie=Autonomie.T0,
         ),
         Outil(
+            nom="m4_deposer_fichier",
+            description=(
+                "Dépose un bloc d'un fichier adressé par contenu (photo après-chantier ou "
+                "signature client, T1.4-e2). Idempotent : renvoyer un bloc déjà reçu, à "
+                f"l'identique, est un no-op accepté. Bloc de taille FIXE ({fichiers.TAILLE_BLOC_OCTETS} "
+                "octets décodés), sauf le dernier bloc du fichier. Quand tous les blocs annoncés "
+                "sont là, le contenu assemblé est vérifié (taille, SHA-256, octets magiques du "
+                "type annoncé) avant d'être marqué complet ; toute discordance efface les blocs "
+                "déjà reçus pour cette empreinte (à redéposer intégralement)."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "empreinte_sha256": _EMPREINTE_SHA256,
+                    "taille_octets": {
+                        "type": "integer", "minimum": 1, "maximum": fichiers.TAILLE_MAX_OCTETS,
+                        "description": "Taille totale déclarée du fichier COMPLET, en octets.",
+                    },
+                    "type_mime": {"type": "string", "enum": list(fichiers.TYPES_MIME_PERMIS)},
+                    "index_bloc": {
+                        "type": "integer", "minimum": 0,
+                        "description": "Position de ce bloc, 0-indexée, strictement < nombre_blocs.",
+                    },
+                    "nombre_blocs": {
+                        "type": "integer", "minimum": 1, "maximum": fichiers.NOMBRE_BLOCS_MAX,
+                    },
+                    "bloc_base64": {
+                        "type": "string", "description": "Contenu de CE bloc, en base64 standard.",
+                    },
+                },
+                "required": ["empreinte_sha256", "taille_octets", "type_mime", "index_bloc",
+                             "nombre_blocs", "bloc_base64"],
+                "additionalProperties": False,
+            },
+            fonction=deposer_fichier,
+            autonomie=Autonomie.T1,
+        ),
+        Outil(
+            nom="m4_etat_fichier",
+            description=(
+                "État d'un dépôt de fichier par empreinte SHA-256 (T1.4-e2) : blocs déjà reçus, "
+                "complétude, référence si complet — pour reprendre un envoi interrompu sans "
+                "retransmettre ce qui est déjà là."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"empreinte_sha256": _EMPREINTE_SHA256},
+                "required": ["empreinte_sha256"],
+                "additionalProperties": False,
+            },
+            fonction=etat_fichier,
+            autonomie=Autonomie.T0,
+        ),
+        Outil(
             nom="m4_completer_intervention",
             description=(
                 "Termine une intervention et émet le Work Completion Trigger dans l'outbox, "
                 "en une seule écriture atomique (CA-M4-11). Exige le dossier PreuvesCompletion "
-                "(checklist, photos après, notes, signature si requise, §6/§9.7). Le statut est "
+                "(checklist, photos après, notes, signature si requise, §6/§9.7) ; T1.4-e2 : "
+                "chaque référence photos_apres/signature doit désigner un fichier déposé et "
+                "complet (m4_deposer_fichier), sinon REJ-PREUVE-FICHIER-INTROUVABLE. Le statut est "
                 "toujours completed_pending_review : la vérification se fait ensuite, par la "
                 "variance des matériaux et une revue. Calcule la durée réelle depuis les "
                 "pointages, nette des pauses ; refuse fail-closed si indéterminable ou si les "
                 "preuves manquent. T1.2-f : consentement_marketing, client_satisfait, photos et "
-                "description_factuelle sont des faits du CLIENT (Loi 25) — un agent ne peut "
-                "JAMAIS les affirmer à sa place. Ils ne sont acceptés QUE pendant un appel "
-                "d'appareil (formulaire de complétion de l'app mobile), jamais depuis une "
-                "conversation avec un agent : les fournir hors d'un appel d'appareil est un "
-                "refus nommé (REJ-CHAMPS-CLIENT-HORS-APPAREIL), rien n'est écrit ni publié."
+                "description_factuelle sont des faits CLIENT (Loi 25), jamais affirmés par un "
+                "agent — acceptés SEULEMENT pendant un appel d'appareil (app mobile) ; les fournir "
+                "hors d'un appel est un refus nommé (REJ-CHAMPS-CLIENT-HORS-APPAREIL), rien écrit."
             ),
             parametres={
                 "type": "object",
@@ -753,7 +871,10 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             nom="m4_lister_interventions",
             description=(
                 "Liste les interventions connues (id, statut, lead, type de travaux, devis), "
-                "sans aucune donnée de contact. Filtre optionnel par statut."
+                "sans aucune donnée de contact. Filtre optionnel par statut. T1.4-e2 (écran "
+                "« chantiers du jour ») : porte aussi technicien_assigne (dernier technicien_id "
+                "d'une transition en_route, sinon null) et fenetre_planifiee (toujours null "
+                "aujourd'hui : le registre ne la porte pas encore, jamais inventée)."
             ),
             parametres={
                 "type": "object",
@@ -876,6 +997,84 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             autonomie=Autonomie.T3,
         ),
     )
+
+
+# ---------------------------------------------------------------------------------------------
+# Dépôt de fichiers (T1.4-e2) : traduction socle -> catalogue M4, et vérification des références
+# utilisées par `completer_intervention` ci-dessus. Fonctions module-level (comme
+# `_depuis_pending_review`/`_resume_completion_en_revue` plus bas) : aucune n'a besoin de
+# `registre_courant()`, seulement de la connexion durable de l'appel en cours.
+# ---------------------------------------------------------------------------------------------
+def _horodatage_depot_fichier() -> str | None:
+    """Heure de réception qui fait foi (T1.4-d/IDEMPOTENCE.md §5) : celle de l'appel d'appareil en
+    cours quand il y en a un, sinon ``None`` — `m4_deposer_fichier` ne porte aucun paramètre
+    d'horodatage (contrat fixe) et un département ne lit JAMAIS l'horloge lui-même (garde AST
+    `digest.garde_absence_horloge`) : `opsys.fichiers.deposer_bloc` lit l'heure courante à la
+    frontière impure du socle quand `recu_le` est `None`, jamais ici."""
+    ctx = contexte.horodatage_reception()
+    return ctx.recu_le.isoformat() if ctx is not None else None
+
+
+def _depuis_depot_fichier(resultat: fichiers.DepotResultat) -> dict[str, Any]:
+    if resultat.accepte:
+        return {
+            "accepte": True,
+            "resultat": {
+                "reference": resultat.reference,
+                "complet": resultat.complet,
+                "blocs_recus": list(resultat.blocs_recus),
+            },
+        }
+    code = _RAISON_DEPOT_VERS_CODE[resultat.raison]
+    return {"accepte": False, "verdict": verdicts.construire_verdict(code, detail=resultat.detail)}
+
+
+def _verifier_reference_fichier(reference: Any, types_permis: tuple[str, ...], champ: str) -> dict | None:
+    """``None`` si `reference` désigne, dans le dépôt, un fichier COMPLET d'un type permis ;
+    sinon un verdict ``REJ-PREUVE-FICHIER-INTROUVABLE`` nommé — fail-closed, jamais une exception
+    ni une acceptation optimiste. `champ` identifie l'origine dans le détail du verdict (agent :
+    quoi corriger). Lecture pure (comme `etat_fichier` ci-dessus) : `stockage.transaction()`
+    fournit une connexion, imbriquée sur celle déjà ouverte par `completer_intervention` en
+    production (executer_atomique), fraîche sinon — jamais besoin d'une connexion ambiante déjà
+    posée par l'appelant."""
+    empreinte = fichiers.empreinte_depuis_reference(reference)
+    if empreinte is None:
+        return verdicts.construire_verdict(
+            "REJ-PREUVE-FICHIER-INTROUVABLE",
+            detail=f"{champ} : forme de référence invalide (attendu fichier:sha256:<hex>), reçu {reference!r}",
+        )
+    with stockage.transaction() as cnx:
+        etat_fichier = fichiers.etat(cnx, empreinte)
+    if not etat_fichier.complet:
+        return verdicts.construire_verdict(
+            "REJ-PREUVE-FICHIER-INTROUVABLE",
+            detail=f"{champ} : aucun fichier complet pour cette référence dans le dépôt ({reference!r})",
+        )
+    if etat_fichier.type_mime not in types_permis:
+        return verdicts.construire_verdict(
+            "REJ-PREUVE-FICHIER-INTROUVABLE",
+            detail=(
+                f"{champ} : type {etat_fichier.type_mime!r} non permis ici "
+                f"(attendu {types_permis}), référence {reference!r}"
+            ),
+        )
+    return None
+
+
+def _verifier_preuves_fichiers(preuves_completion: dict[str, Any], signature_requise: bool) -> dict | None:
+    """Vérifie CHAQUE référence de `photos_apres` (toujours) et `signature` (si requise, T1.4-e2
+    point 3 du PLAN) contre le dépôt de fichiers. Structure déjà garantie par
+    `preuves.valider_preuves_completion`, appelé avant cette fonction : `photos_apres` est ici une
+    liste de chaînes non vide, `signature` une chaîne non vide quand `signature_requise`."""
+    for index, reference in enumerate(preuves_completion["photos_apres"]):
+        verdict = _verifier_reference_fichier(reference, _TYPES_PHOTO_APRES, f"photos_apres[{index}]")
+        if verdict is not None:
+            return verdict
+    if signature_requise:
+        verdict = _verifier_reference_fichier(preuves_completion["signature"], _TYPES_SIGNATURE, "signature")
+        if verdict is not None:
+            return verdict
+    return None
 
 
 # ---------------------------------------------------------------------------------------------

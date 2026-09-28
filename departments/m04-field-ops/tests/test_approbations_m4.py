@@ -27,9 +27,6 @@ VILLE = "Montreal"
 FIX_GPS = {"latitude": 45.5088, "longitude": -73.5878}
 ATTESTATION = {"fictif": True, "appareil_id": "APP-REVUE"}
 FENETRE = {"debut": "2025-06-02T07:00:00+00:00", "fin": "2025-06-02T19:00:00+00:00"}
-_PREUVES_OK = {
-    "checklist_complete": True, "photos_apres": ["photo-apres.jpg"], "notes": "RAS.", "signature": None,
-}
 
 
 @pytest.fixture
@@ -62,7 +59,7 @@ def _marqueur(lead_id):
     }
 
 
-def _completion_en_revue(par_nom, lead_id):
+def _completion_en_revue(par_nom, lead_id, deposer_photo_test):
     """Mène une intervention jusqu'à `completed_pending_review`, par les VRAIS outils (comme un
     agent le ferait) : `m4_completer_intervention` fixe toujours `ecart_detecte=True` (T1.1-b),
     jamais `completed_verified` directement — c'est exactement l'état que la revue humaine doit
@@ -99,9 +96,13 @@ def _completion_en_revue(par_nom, lead_id):
         })
         assert r["ok"] is True and r["resultat"]["accepte"] is True, r
 
+    preuves_ok = {
+        "checklist_complete": True, "photos_apres": [deposer_photo_test(par_nom)],
+        "notes": "RAS.", "signature": None,
+    }
     completion = executer_atomique(par_nom["m4_completer_intervention"], {
         "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
-        "preuves_completion": _PREUVES_OK,
+        "preuves_completion": preuves_ok,
     })
     assert completion["ok"] is True and completion["resultat"]["accepte"] is True, completion
     assert completion["resultat"]["resultat"]["statut"] == "completed_pending_review"
@@ -139,12 +140,12 @@ def test_department_yaml_declare_n3_n4_manager_admin_nathan_owner():
 # -- decider : rôle autorisé ou non, jamais un agent seul -----------------------------------------
 
 
-def test_revue_par_personne_autorisee_mene_a_completed_verified(base_durable):
+def test_revue_par_personne_autorisee_mene_a_completed_verified(base_durable, deposer_photo_test):
     dep = _dep_m4()
     par_nom = {o.nom: o for o in outils()}
     with stockage.transaction() as cnx:
         identite.creer_personne(cnx, "gerant", "Une Gérante", "mot-de-passe-gerante-1234", ["manager"])
-        i_id = _completion_en_revue(par_nom, "L-REVUE-AUTORISEE")
+        i_id = _completion_en_revue(par_nom, "L-REVUE-AUTORISEE", deposer_photo_test)
         ident = _demande_revue(cnx, i_id, "verifiee", motif="Photos et checklist conformes.")
 
         decision = approbations.decider(cnx, ident, True, "gerant", par_nom, {"m04-field-ops": dep},
@@ -159,7 +160,7 @@ def test_revue_par_personne_autorisee_mene_a_completed_verified(base_durable):
     assert statut["resultat"]["statut"] == "completed_verified"
 
 
-def test_revue_par_employe_refusee_rien_execute(base_durable):
+def test_revue_par_employe_refusee_rien_execute(base_durable, deposer_photo_test):
     """Fail-closed (ADR-0009 §5) : un employé n'est autorisé pour AUCUN niveau N3/N4 de M4,
     même si la demande est par ailleurs légitime — jamais un agent seul, jamais un rôle qui ne
     figure pas explicitement dans department.yaml/approbations.n4."""
@@ -167,7 +168,7 @@ def test_revue_par_employe_refusee_rien_execute(base_durable):
     par_nom = {o.nom: o for o in outils()}
     with stockage.transaction() as cnx:
         identite.creer_personne(cnx, "employe1", "Un Employé", "mot-de-passe-employe-1234", ["employee"])
-        i_id = _completion_en_revue(par_nom, "L-REVUE-EMPLOYE")
+        i_id = _completion_en_revue(par_nom, "L-REVUE-EMPLOYE", deposer_photo_test)
         ident = _demande_revue(cnx, i_id, "verifiee")
 
         with pytest.raises(ValueError, match="aucun rôle autorisé"):
@@ -179,7 +180,7 @@ def test_revue_par_employe_refusee_rien_execute(base_durable):
     assert statut["resultat"]["statut"] == "completed_pending_review"  # inchangé
 
 
-def test_decision_citee_personne_role_socle_et_motif_metier_m4(base_durable):
+def test_decision_citee_personne_role_socle_et_motif_metier_m4(base_durable, deposer_photo_test):
     """« La décision cite la personne, le rôle et le motif » (PLAN T1.3-b) — vérifié aux DEUX
     endroits où c'est écrit : la demande d'approbation du socle (decide_par/decide_role, signée
     par `decider`) ET le maillon de M4 (motif_revue, le contenu métier de la décision)."""
@@ -187,7 +188,7 @@ def test_decision_citee_personne_role_socle_et_motif_metier_m4(base_durable):
     par_nom = {o.nom: o for o in outils()}
     with stockage.transaction() as cnx:
         identite.creer_personne(cnx, "admin1", "Une Admin", "mot-de-passe-admin1-1234", ["admin"])
-        i_id = _completion_en_revue(par_nom, "L-REVUE-SIGNEE")
+        i_id = _completion_en_revue(par_nom, "L-REVUE-SIGNEE", deposer_photo_test)
         ident = _demande_revue(cnx, i_id, "correction", motif="Photo après-chantier manquante.")
         approbations.decider(cnx, ident, True, "admin1", par_nom, {"m04-field-ops": dep},
                               motif="Écart confirmé au téléphone avec le technicien.")
@@ -209,10 +210,10 @@ def test_decision_citee_personne_role_socle_et_motif_metier_m4(base_durable):
 # -- attentes() : file du propriétaire (ADR-0009 §5, PLAN T1.3-b §2) -----------------------------
 
 
-def test_attentes_liste_la_completion_en_revue_avant_tout_signal_m6(base_durable):
+def test_attentes_liste_la_completion_en_revue_avant_tout_signal_m6(base_durable, deposer_photo_test):
     dep = _dep_m4()
     par_nom = {o.nom: o for o in outils()}
-    i_id = _completion_en_revue(par_nom, "L-ATTENTE-SANS-M6")
+    i_id = _completion_en_revue(par_nom, "L-ATTENTE-SANS-M6", deposer_photo_test)
 
     with stockage.transaction() as cnx:
         file = approbations.file_proprietaire(cnx, {"m04-field-ops": dep})
@@ -224,10 +225,10 @@ def test_attentes_liste_la_completion_en_revue_avant_tout_signal_m6(base_durable
     assert "non encore reçue" in item["resume"]
 
 
-def test_attentes_signale_le_signal_critique_de_m6_une_fois_recu(base_durable):
+def test_attentes_signale_le_signal_critique_de_m6_une_fois_recu(base_durable, deposer_photo_test):
     dep = _dep_m4()
     par_nom = {o.nom: o for o in outils()}
-    i_id = _completion_en_revue(par_nom, "L-ATTENTE-AVEC-M6")
+    i_id = _completion_en_revue(par_nom, "L-ATTENTE-AVEC-M6", deposer_photo_test)
 
     boite = executer_atomique(par_nom["m4_lire_outbox"], {})
     wct = next(e["wct"] for e in boite["resultat"] if e["wct"]["intervention_id"] == i_id)
@@ -252,19 +253,19 @@ def test_attentes_signale_le_signal_critique_de_m6_une_fois_recu(base_durable):
     assert statut["resultat"]["statut"] == "completed_pending_review"
 
 
-def test_attentes_ne_liste_plus_apres_une_revue_verifiee(base_durable):
+def test_attentes_ne_liste_plus_apres_une_revue_verifiee(base_durable, deposer_photo_test):
     dep = _dep_m4()
     par_nom = {o.nom: o for o in outils()}
     with stockage.transaction() as cnx:
         identite.creer_personne(cnx, "nathan", "Nathan St-Louis", "mot-de-passe-nathan-1234", ["nathan_owner"])
-        i_id = _completion_en_revue(par_nom, "L-ATTENTE-RESOLUE")
+        i_id = _completion_en_revue(par_nom, "L-ATTENTE-RESOLUE", deposer_photo_test)
         ident = _demande_revue(cnx, i_id, "verifiee", motif="Conforme.")
         approbations.decider(cnx, ident, True, "nathan", par_nom, {"m04-field-ops": dep})
         file = approbations.file_proprietaire(cnx, {"m04-field-ops": dep})
     assert not any(item["id"] == i_id for item in file)
 
 
-def test_attentes_reste_listee_apres_une_correction(base_durable):
+def test_attentes_reste_listee_apres_une_correction(base_durable, deposer_photo_test):
     """Une correction NOMME un problème sans jamais réouvrir le chantier (FSM) : la complétion
     reste `completed_pending_review`, donc reste dans la file — le propriétaire sait qu'il reste
     quelque chose à trancher."""
@@ -272,7 +273,7 @@ def test_attentes_reste_listee_apres_une_correction(base_durable):
     par_nom = {o.nom: o for o in outils()}
     with stockage.transaction() as cnx:
         identite.creer_personne(cnx, "admin1", "Une Admin", "mot-de-passe-admin1-1234", ["admin"])
-        i_id = _completion_en_revue(par_nom, "L-ATTENTE-CORRIGEE")
+        i_id = _completion_en_revue(par_nom, "L-ATTENTE-CORRIGEE", deposer_photo_test)
         ident = _demande_revue(cnx, i_id, "correction", motif="Signature client manquante.")
         approbations.decider(cnx, ident, True, "admin1", par_nom, {"m04-field-ops": dep})
         file = approbations.file_proprietaire(cnx, {"m04-field-ops": dep})

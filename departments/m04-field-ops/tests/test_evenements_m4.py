@@ -35,9 +35,15 @@ VILLE = "Montreal"
 FIX_GPS = {"latitude": 45.5088, "longitude": -73.5878}
 ATTESTATION = {"fictif": True, "appareil_id": "APP-EVT"}
 FENETRE = {"debut": "2025-06-02T07:00:00+00:00", "fin": "2025-06-02T19:00:00+00:00"}
-_PREUVES_OK = {
-    "checklist_complete": True, "photos_apres": ["photo-apres.jpg"], "notes": "RAS.", "signature": None,
-}
+
+
+def _preuves_ok(par_nom, deposer_photo_test):
+    """T1.4-e2 : dossier de preuves avec une référence de photo RÉELLE (déposée par le VRAI
+    outil `m4_deposer_fichier`), jamais une chaîne inventée."""
+    return {
+        "checklist_complete": True, "photos_apres": [deposer_photo_test(par_nom)],
+        "notes": "RAS.", "signature": None,
+    }
 
 
 def _contrat(lead_id):
@@ -118,7 +124,7 @@ def _charge_publiee(type_evenement):
 
 
 # -- publication dans la même transaction que le WCT (T1.2-b, point 1) -------------------------
-def test_completion_acceptee_publie_m4_travaux_termines_dans_la_meme_transaction(base_durable):
+def test_completion_acceptee_publie_m4_travaux_termines_dans_la_meme_transaction(base_durable, deposer_photo_test):
     par_nom = {o.nom: o for o in outils()}
     i_id = _mener_a_sur_site(par_nom, "L-EVT-1")
 
@@ -126,7 +132,7 @@ def test_completion_acceptee_publie_m4_travaux_termines_dans_la_meme_transaction
 
     completion = executer_atomique(par_nom["m4_completer_intervention"], {
         "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
-        "preuves_completion": _PREUVES_OK,
+        "preuves_completion": _preuves_ok(par_nom, deposer_photo_test),
     })
     assert completion["ok"] is True and completion["resultat"]["accepte"] is True, completion
     wct_id = completion["resultat"]["resultat"]["wct_id"]
@@ -144,7 +150,7 @@ def test_completion_acceptee_publie_m4_travaux_termines_dans_la_meme_transaction
     assert charge["type_travaux"] == "renovation_totale"
 
 
-def test_completion_refusee_ne_publie_rien(base_durable):
+def test_completion_refusee_ne_publie_rien(base_durable, deposer_photo_test):
     """Preuves incomplètes -> l'outil renvoie `accepte: False` (pas un refus_metier) sans
     jamais atteindre l'outbox ni le bus."""
     par_nom = {o.nom: o for o in outils()}
@@ -152,7 +158,7 @@ def test_completion_refusee_ne_publie_rien(base_durable):
 
     completion = executer_atomique(par_nom["m4_completer_intervention"], {
         "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
-        "preuves_completion": {**_PREUVES_OK, "photos_apres": []},
+        "preuves_completion": {**_preuves_ok(par_nom, deposer_photo_test), "photos_apres": []},
     })
     assert completion["ok"] is True
     assert completion["resultat"]["accepte"] is False
@@ -160,17 +166,22 @@ def test_completion_refusee_ne_publie_rien(base_durable):
     assert _compte_sortants("m4.travaux_termines") == 0
 
 
-def test_completion_hors_transaction_ne_publie_rien_et_ne_leve_pas():
+def test_completion_hors_transaction_ne_publie_rien_et_ne_leve_pas(base_durable, deposer_photo_test):
     """Suite pure de `test_outils_agent.py` (registre EN MÉMOIRE, `executer` sans
     transaction) : `stockage.connexion_courante()` est None, donc aucun appel à
-    `evenements.publier` n'est tenté — sans base migrée, ce serait sinon une panne."""
+    `evenements.publier` n'est tenté — sans base migrée, ce serait sinon une panne. T1.4-e2 :
+    `base_durable` migre quand même une base (nécessaire pour vérifier la référence de photo,
+    une lecture pure qui ouvre sa PROPRE transaction quand aucune n'est ambiante,
+    `outils._verifier_reference_fichier`) ; `m4_deposer_fichier`/`m4_etat_fichier` ignorent
+    `registre_cible` (aucun mode « en mémoire » pour le dépôt de fichiers, par construction) —
+    seule `m4_completer_intervention` reste ici sur le registre EN MÉMOIRE, sans transaction."""
     from m4_field_ops.registre import Registre
 
     par_nom = {o.nom: o for o in outils(Registre())}
     i_id = _mener_a_sur_site(par_nom, "L-EVT-MEMOIRE")
     reponse = executer(par_nom["m4_completer_intervention"], {
         "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
-        "preuves_completion": _PREUVES_OK,
+        "preuves_completion": _preuves_ok(par_nom, deposer_photo_test),
     })
     assert reponse["ok"] is True
     assert reponse["resultat"]["accepte"] is True
@@ -198,12 +209,12 @@ def test_declaration_module_consommateurs():
     assert set(consommateurs()) == {"m6.variance_chantier"}
 
 
-def test_recevoir_variance_chantier_evaluee_sans_signal_passe_a_completed_verified(base_durable):
+def test_recevoir_variance_chantier_evaluee_sans_signal_passe_a_completed_verified(base_durable, deposer_photo_test):
     par_nom = {o.nom: o for o in outils()}
     i_id = _mener_a_sur_site(par_nom, "L-EVT-VERIFIE")
     completion = executer_atomique(par_nom["m4_completer_intervention"], {
         "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
-        "preuves_completion": _PREUVES_OK,
+        "preuves_completion": _preuves_ok(par_nom, deposer_photo_test),
     })
     wct = _wct_pour(par_nom, i_id)
 
@@ -228,12 +239,14 @@ def test_recevoir_variance_chantier_evaluee_sans_signal_passe_a_completed_verifi
         {"statut_variance": "evaluee", "signal_critique": True},
     ],
 )
-def test_recevoir_variance_chantier_ne_verifie_jamais_hors_evaluee_sans_signal(base_durable, overrides):
+def test_recevoir_variance_chantier_ne_verifie_jamais_hors_evaluee_sans_signal(
+    base_durable, overrides, deposer_photo_test,
+):
     par_nom = {o.nom: o for o in outils()}
     i_id = _mener_a_sur_site(par_nom, "L-EVT-NON-VERIFIE")
     executer_atomique(par_nom["m4_completer_intervention"], {
         "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
-        "preuves_completion": _PREUVES_OK,
+        "preuves_completion": _preuves_ok(par_nom, deposer_photo_test),
     })
     wct = _wct_pour(par_nom, i_id)
 
@@ -249,12 +262,12 @@ def test_recevoir_variance_chantier_ne_verifie_jamais_hors_evaluee_sans_signal(b
     assert statut["resultat"]["statut"] == "completed_pending_review"
 
 
-def test_recevoir_variance_chantier_redelivrance_ne_change_rien(base_durable):
+def test_recevoir_variance_chantier_redelivrance_ne_change_rien(base_durable, deposer_photo_test):
     par_nom = {o.nom: o for o in outils()}
     i_id = _mener_a_sur_site(par_nom, "L-EVT-REDELIVRE")
     executer_atomique(par_nom["m4_completer_intervention"], {
         "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
-        "preuves_completion": _PREUVES_OK,
+        "preuves_completion": _preuves_ok(par_nom, deposer_photo_test),
     })
     wct = _wct_pour(par_nom, i_id)
     charge = _variance_charge(
@@ -283,14 +296,16 @@ _HORODATAGE_APPAREIL_TEST = contexte.HorodatageAppareil(
 )
 
 
-def test_completion_appel_appareil_avec_consentement_porte_les_champs_client_et_publie_valide(base_durable):
+def test_completion_appel_appareil_avec_consentement_porte_les_champs_client_et_publie_valide(
+    base_durable, deposer_photo_test,
+):
     par_nom = {o.nom: o for o in outils()}
     i_id = _mener_a_sur_site(par_nom, "L-EVT-APPAREIL-CONSENT")
 
     with contexte.receptionne_de(_HORODATAGE_APPAREIL_TEST):
         completion = executer_atomique(par_nom["m4_completer_intervention"], {
             "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
-            "preuves_completion": _PREUVES_OK,
+            "preuves_completion": _preuves_ok(par_nom, deposer_photo_test),
             "photos": ["chantier-apres-1.jpg"],
             "description_factuelle": "Gouttières remplacées, aucun incident.",
             "consentement_marketing": True, "client_satisfait": True,
@@ -315,7 +330,9 @@ def test_completion_appel_appareil_avec_consentement_porte_les_champs_client_et_
     assert schemas.erreurs_charge("m4.travaux_termines", charge) == []
 
 
-def test_completion_champs_client_hors_appel_appareil_refuse_nomme_rien_ecrit_ni_publie(base_durable):
+def test_completion_champs_client_hors_appel_appareil_refuse_nomme_rien_ecrit_ni_publie(
+    base_durable, deposer_photo_test,
+):
     """Hors d'un appel d'appareil (aucun ``contexte.receptionne_de`` actif), la seule PRÉSENCE
     d'un champ client est un refus nommé — même avec des preuves par ailleurs valides, même un
     seul des quatre champs fourni (ici ``client_satisfait=None``, valeur pourtant permise par le
@@ -326,7 +343,7 @@ def test_completion_champs_client_hors_appel_appareil_refuse_nomme_rien_ecrit_ni
 
     completion = executer_atomique(par_nom["m4_completer_intervention"], {
         "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
-        "preuves_completion": _PREUVES_OK, "client_satisfait": None,
+        "preuves_completion": _preuves_ok(par_nom, deposer_photo_test), "client_satisfait": None,
     })
     assert completion["ok"] is True
     assert completion["resultat"]["accepte"] is False
@@ -347,7 +364,9 @@ def test_completion_champs_client_hors_appel_appareil_refuse_nomme_rien_ecrit_ni
 # autres consommateurs, dont M2, sont hors du périmètre de cette preuve et un lead de test
 # inconnu de M2 y déclencherait une quarantaine sans rapport).
 # ==================================================================================
-def test_completion_appel_appareil_consentement_et_satisfaction_produit_un_brouillon_avis_m7_reel(base_durable):
+def test_completion_appel_appareil_consentement_et_satisfaction_produit_un_brouillon_avis_m7_reel(
+    base_durable, deposer_photo_test,
+):
     deps = charger_departements()
     par_nom = {o.nom: o for o in outils()}
     i_id = _mener_a_sur_site(par_nom, "L-EVT-M7-CONSENT")
@@ -355,7 +374,7 @@ def test_completion_appel_appareil_consentement_et_satisfaction_produit_un_broui
     with contexte.receptionne_de(_HORODATAGE_APPAREIL_TEST):
         completion = executer_atomique(par_nom["m4_completer_intervention"], {
             "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
-            "preuves_completion": _PREUVES_OK,
+            "preuves_completion": _preuves_ok(par_nom, deposer_photo_test),
             "consentement_marketing": True, "client_satisfait": True,
         })
     assert completion["ok"] is True and completion["resultat"]["accepte"] is True, completion
@@ -367,14 +386,14 @@ def test_completion_appel_appareil_consentement_et_satisfaction_produit_un_broui
     assert any(d.get("intervention_id") == i_id for d in demandes)
 
 
-def test_completion_sans_consentement_ne_produit_aucun_brouillon_avis_m7_reel(base_durable):
+def test_completion_sans_consentement_ne_produit_aucun_brouillon_avis_m7_reel(base_durable, deposer_photo_test):
     deps = charger_departements()
     par_nom = {o.nom: o for o in outils()}
     i_id = _mener_a_sur_site(par_nom, "L-EVT-M7-SANS-CONSENT")
 
     completion = executer_atomique(par_nom["m4_completer_intervention"], {
         "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
-        "preuves_completion": _PREUVES_OK,
+        "preuves_completion": _preuves_ok(par_nom, deposer_photo_test),
     })
     assert completion["ok"] is True and completion["resultat"]["accepte"] is True, completion
 

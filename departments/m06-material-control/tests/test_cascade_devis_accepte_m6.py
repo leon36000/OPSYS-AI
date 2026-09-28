@@ -32,6 +32,11 @@ Les quatre scénarios du correctif (T1.2-d, point 4) :
 
 from __future__ import annotations
 
+import base64
+import hashlib
+import struct
+import zlib
+
 import pytest
 from m4_field_ops import cedule
 from sqlalchemy import select
@@ -46,9 +51,32 @@ VILLE = "Montreal"
 FIX_GPS = {"latitude": 45.5088, "longitude": -73.5878}
 ATTESTATION = {"fictif": True, "appareil_id": "APP-T1-2-D"}
 FENETRE = {"debut": "2025-06-02T07:00:00+00:00", "fin": "2025-06-02T19:00:00+00:00"}
-_PREUVES_OK = {
-    "checklist_complete": True, "photos_apres": ["photo-chantier.jpg"], "notes": "RAS.", "signature": None,
-}
+
+
+def _png_minimal() -> bytes:
+    """PNG RVB 1x1 réel (T1.4-e2 : « petits fichiers de test réels »), même construction que
+    `departments/m04-field-ops/tests/conftest.py::png_minimal` (fichier côté M6, dupliquée ici
+    plutôt qu'importée — la consigne du coordinateur est de ne pas toucher M4)."""
+    def chunk(tag: bytes, donnees: bytes) -> bytes:
+        return struct.pack(">I", len(donnees)) + tag + donnees + struct.pack(">I", zlib.crc32(tag + donnees))
+
+    ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
+    idat = zlib.compress(b"\x00\xff\xff\xff", 9)
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr) + chunk(b"IDAT", idat) + chunk(b"IEND", b"")
+
+
+def _deposer_photo_test(m4) -> str:
+    """Dépose une photo après-chantier RÉELLE (T1.4-e2) via l'API PUBLIQUE de M4
+    (`m4_deposer_fichier`) et rend sa référence `fichier:sha256:<hex>`."""
+    contenu = _png_minimal()
+    r = executer_atomique(m4["m4_deposer_fichier"], {
+        "empreinte_sha256": hashlib.sha256(contenu).hexdigest(),
+        "taille_octets": len(contenu), "type_mime": "image/png",
+        "index_bloc": 0, "nombre_blocs": 1,
+        "bloc_base64": base64.b64encode(contenu).decode("ascii"),
+    })
+    assert r["ok"] and r["resultat"]["accepte"] and r["resultat"]["resultat"]["complet"], r
+    return r["resultat"]["resultat"]["reference"]
 
 
 @pytest.fixture
@@ -114,9 +142,13 @@ def _completer_intervention(deps, lead_id, devis_id):
         })
         assert r["ok"] is True and r["resultat"]["accepte"] is True, r
 
+    preuves_ok = {
+        "checklist_complete": True, "photos_apres": [_deposer_photo_test(m4)],
+        "notes": "RAS.", "signature": None,
+    }
     completion = executer_atomique(m4["m4_completer_intervention"], {
         "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
-        "preuves_completion": _PREUVES_OK,
+        "preuves_completion": preuves_ok,
     })
     assert completion["ok"] is True and completion["resultat"]["accepte"] is True, completion
     return i_id, completion["resultat"]["resultat"]["wct_id"]

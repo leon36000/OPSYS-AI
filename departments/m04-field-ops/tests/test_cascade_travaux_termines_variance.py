@@ -51,9 +51,6 @@ VILLE = "Montreal"
 FIX_GPS = {"latitude": 45.5088, "longitude": -73.5878}
 ATTESTATION = {"fictif": True, "appareil_id": "APP-CASCADE"}
 FENETRE = {"debut": "2025-06-02T07:00:00+00:00", "fin": "2025-06-02T19:00:00+00:00"}
-_PREUVES_OK = {
-    "checklist_complete": True, "photos_apres": ["photo-chantier.jpg"], "notes": "RAS.", "signature": None,
-}
 
 
 @pytest.fixture
@@ -76,7 +73,7 @@ def _outils(deps, dep_id):
     return {o.nom: o for o in deps[dep_id].charger_outils()}
 
 
-def _completer_intervention(deps, lead_id, devis_id):
+def _completer_intervention(deps, lead_id, devis_id, deposer_photo_test):
     m4 = _outils(deps, "m04-field-ops")
     token = cedule.tokeniser_ville(SEL, VILLE)
     referentiel = {token: {"latitude": 45.5017, "longitude": -73.5673, "rayon_km": 25.0}}
@@ -120,9 +117,13 @@ def _completer_intervention(deps, lead_id, devis_id):
         })
         assert r["ok"] is True and r["resultat"]["accepte"] is True, r
 
+    preuves_ok = {
+        "checklist_complete": True, "photos_apres": [deposer_photo_test(m4)],
+        "notes": "RAS.", "signature": None,
+    }
     completion = executer_atomique(m4["m4_completer_intervention"], {
         "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
-        "preuves_completion": _PREUVES_OK,
+        "preuves_completion": preuves_ok,
     })
     assert completion["ok"] is True and completion["resultat"]["accepte"] is True, completion
     return i_id, completion["resultat"]["resultat"]["wct_id"]
@@ -228,8 +229,10 @@ def _evenements_publies(type_evenement):
 
 
 # ------------------------------------------------------------------------------------------
-def test_prevu_enregistre_declaration_conforme_aucun_signal_donne_completed_verified(base_migree, deps):
-    i_id, wct_id = _completer_intervention(deps, "L-CASCADE-NOMINAL", "DEVIS-NOMINAL")
+def test_prevu_enregistre_declaration_conforme_aucun_signal_donne_completed_verified(
+    base_migree, deps, deposer_photo_test,
+):
+    i_id, wct_id = _completer_intervention(deps, "L-CASCADE-NOMINAL", "DEVIS-NOMINAL", deposer_photo_test)
     _enregistrer_besoins_prevus(deps, "CHANTIER-NOMINAL", "DEVIS-NOMINAL", quantite_estimee=10.0)
     _declarer_materiaux_utilises(deps, wct_id, i_id, "CHANTIER-NOMINAL", quantite=10.0)
 
@@ -247,8 +250,8 @@ def test_prevu_enregistre_declaration_conforme_aucun_signal_donne_completed_veri
     assert _statut(deps, i_id) == "completed_verified"
 
 
-def test_ecart_quarante_pourcent_reste_en_revue(base_migree, deps):
-    i_id, wct_id = _completer_intervention(deps, "L-CASCADE-ECART", "DEVIS-ECART")
+def test_ecart_quarante_pourcent_reste_en_revue(base_migree, deps, deposer_photo_test):
+    i_id, wct_id = _completer_intervention(deps, "L-CASCADE-ECART", "DEVIS-ECART", deposer_photo_test)
     _enregistrer_besoins_prevus(deps, "CHANTIER-ECART", "DEVIS-ECART", quantite_estimee=10.0)
     _declarer_materiaux_utilises(deps, wct_id, i_id, "CHANTIER-ECART", quantite=14.0)  # +40 %
 
@@ -261,8 +264,8 @@ def test_ecart_quarante_pourcent_reste_en_revue(base_migree, deps):
     assert _statut(deps, i_id) == "completed_pending_review"
 
 
-def test_prevu_absent_reste_en_revue_et_evenement_porte_prevu_absent(base_migree, deps):
-    i_id, wct_id = _completer_intervention(deps, "L-CASCADE-SANS-PREVU", "DEVIS-SANS-PREVU")
+def test_prevu_absent_reste_en_revue_et_evenement_porte_prevu_absent(base_migree, deps, deposer_photo_test):
+    i_id, wct_id = _completer_intervention(deps, "L-CASCADE-SANS-PREVU", "DEVIS-SANS-PREVU", deposer_photo_test)
     # Aucun m6_enregistrer_besoins_prevus pour DEVIS-SANS-PREVU : le prévu manque.
     _declarer_materiaux_utilises(deps, wct_id, i_id, "CHANTIER-SANS-PREVU", quantite=5.0)
 
@@ -275,8 +278,8 @@ def test_prevu_absent_reste_en_revue_et_evenement_porte_prevu_absent(base_migree
     assert _statut(deps, i_id) == "completed_pending_review"
 
 
-def test_relivraison_ne_change_rien(base_migree, deps):
-    i_id, wct_id = _completer_intervention(deps, "L-CASCADE-REDELIVRE", "DEVIS-REDELIVRE")
+def test_relivraison_ne_change_rien(base_migree, deps, deposer_photo_test):
+    i_id, wct_id = _completer_intervention(deps, "L-CASCADE-REDELIVRE", "DEVIS-REDELIVRE", deposer_photo_test)
     _enregistrer_besoins_prevus(deps, "CHANTIER-REDELIVRE", "DEVIS-REDELIVRE", quantite_estimee=10.0)
     _declarer_materiaux_utilises(deps, wct_id, i_id, "CHANTIER-REDELIVRE", quantite=10.0)
 
@@ -301,8 +304,8 @@ def test_relivraison_ne_change_rien(base_migree, deps):
 # `materials_submit` dépend de la complétion et où le répartiteur tourne toutes les 3 s.
 
 
-def test_declaration_tardive_apres_repartition_donne_un_second_evenement_evaluee(base_migree, deps):
-    i_id, wct_id = _completer_intervention(deps, "L-CASCADE-DECL-TARDIVE", "DEVIS-DECL-TARDIVE")
+def test_declaration_tardive_apres_repartition_donne_un_second_evenement_evaluee(base_migree, deps, deposer_photo_test):
+    i_id, wct_id = _completer_intervention(deps, "L-CASCADE-DECL-TARDIVE", "DEVIS-DECL-TARDIVE", deposer_photo_test)
     _enregistrer_besoins_prevus(deps, "CHANTIER-DECL-TARDIVE", "DEVIS-DECL-TARDIVE", quantite_estimee=10.0)
 
     _repartir_jusqua_stable(deps)  # m4.travaux_termines livré à M6 AVANT toute déclaration
@@ -324,8 +327,8 @@ def test_declaration_tardive_apres_repartition_donne_un_second_evenement_evaluee
     assert _statut(deps, i_id) == "completed_verified"
 
 
-def test_prevu_tardif_apres_repartition_donne_un_second_evenement_evaluee(base_migree, deps):
-    i_id, wct_id = _completer_intervention(deps, "L-CASCADE-PREVU-TARDIF", "DEVIS-PREVU-TARDIF")
+def test_prevu_tardif_apres_repartition_donne_un_second_evenement_evaluee(base_migree, deps, deposer_photo_test):
+    i_id, wct_id = _completer_intervention(deps, "L-CASCADE-PREVU-TARDIF", "DEVIS-PREVU-TARDIF", deposer_photo_test)
     _declarer_materiaux_utilises(deps, wct_id, i_id, "CHANTIER-PREVU-TARDIF", quantite=10.0)
 
     _repartir_jusqua_stable(deps)
@@ -343,8 +346,12 @@ def test_prevu_tardif_apres_repartition_donne_un_second_evenement_evaluee(base_m
     assert _statut(deps, i_id) == "completed_verified"
 
 
-def test_declaration_tardive_avec_ecart_critique_reste_en_revue(base_migree, deps):
-    i_id, wct_id = _completer_intervention(deps, "L-CASCADE-DECL-TARDIVE-ECART", "DEVIS-DECL-TARDIVE-ECART")
+def test_declaration_tardive_avec_ecart_critique_reste_en_revue(
+    base_migree, deps, deposer_photo_test,
+):
+    i_id, wct_id = _completer_intervention(
+        deps, "L-CASCADE-DECL-TARDIVE-ECART", "DEVIS-DECL-TARDIVE-ECART", deposer_photo_test,
+    )
     _enregistrer_besoins_prevus(
         deps, "CHANTIER-DECL-TARDIVE-ECART", "DEVIS-DECL-TARDIVE-ECART", quantite_estimee=10.0,
     )
@@ -361,8 +368,8 @@ def test_declaration_tardive_avec_ecart_critique_reste_en_revue(base_migree, dep
     assert _statut(deps, i_id) == "completed_pending_review", "signal_critique=true : reste en revue"
 
 
-def test_relivraisons_et_doubles_appels_apres_arrivee_tardive_aucun_doublon(base_migree, deps):
-    i_id, wct_id = _completer_intervention(deps, "L-CASCADE-DOUBLE", "DEVIS-DOUBLE")
+def test_relivraisons_et_doubles_appels_apres_arrivee_tardive_aucun_doublon(base_migree, deps, deposer_photo_test):
+    i_id, wct_id = _completer_intervention(deps, "L-CASCADE-DOUBLE", "DEVIS-DOUBLE", deposer_photo_test)
     _enregistrer_besoins_prevus(deps, "CHANTIER-DOUBLE", "DEVIS-DOUBLE", quantite_estimee=10.0)
 
     _repartir_jusqua_stable(deps)

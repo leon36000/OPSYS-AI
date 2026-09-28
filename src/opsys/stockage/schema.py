@@ -257,3 +257,46 @@ APPAREILS = Table(
         "role IN ('admin','employee','seller')", name="role_appareil_valide"
     ),
 )
+
+# Dépôt de fichiers adressé par contenu (T1.4-e2, ADR-0009 §2 « tout dans la même base » : les
+# binaires de preuve — photos après-chantier, signature client — vivent dans la même base que le
+# reste, les sauvegardes restent cohérentes ; pas de service de stockage séparé). Département-
+# agnostique à dessein : `opsys.fichiers` ne connaît aucun catalogue de verdicts, pour que M5
+# (reçus) et M7 (contenus) puissent réutiliser ces deux tables sans dépendre de M4
+# (docs/architecture/FICHIERS.md). Contenu stocké en base64 texte (colonne ``Text``), comme le
+# reste du plan de contrôle (ex. ``cles_chiffrement.cle`` en hex) : pas de type BLOB propre à un
+# dialecte, portable SQLite/PostgreSQL sans code spécifique.
+#
+# ``fichiers`` porte la déclaration (immuable une fois posée : ``deposer_bloc`` refuse toute
+# redéclaration incohérente de la même empreinte) et l'état d'assemblage ; ``fichiers_blocs`` porte
+# chaque bloc reçu, un par ``(empreinte_sha256, index_bloc)`` — la liste des index déjà reçus permet
+# à un appareil hors ligne d'abord de reprendre un envoi interrompu (``m4_etat_fichier``) sans
+# retransmettre ce qui est déjà là.
+FICHIERS = Table(
+    "fichiers",
+    META,
+    Column("empreinte_sha256", String(64), primary_key=True),
+    Column("taille_octets", Integer, nullable=False),
+    Column("type_mime", String(32), nullable=False),
+    Column("nombre_blocs", Integer, nullable=False),
+    # Faux tant que tous les blocs annoncés ne sont pas reçus ET que le contenu assemblé n'a pas
+    # passé les trois vérifications (taille, SHA-256, octets magiques du type annoncé) — jamais
+    # mis à vrai avant coup (`opsys.fichiers.deposer_bloc`).
+    Column("complet", Boolean, nullable=False, server_default=text("false")),
+    Column("cree_le", Text, nullable=False),
+    Column("complete_le", Text),
+    CheckConstraint("type_mime IN ('image/jpeg','image/png')", name="type_mime_valide"),
+    CheckConstraint("taille_octets BETWEEN 1 AND 10485760", name="taille_octets_valide"),
+    CheckConstraint("nombre_blocs BETWEEN 1 AND 64", name="nombre_blocs_valide"),
+)
+
+FICHIERS_BLOCS = Table(
+    "fichiers_blocs",
+    META,
+    Column("empreinte_sha256", String(64), ForeignKey("fichiers.empreinte_sha256"), primary_key=True),
+    Column("index_bloc", Integer, primary_key=True),
+    Column("contenu_base64", Text, nullable=False),
+    Column("taille_octets", Integer, nullable=False),
+    Column("recu_le", Text, nullable=False),
+    CheckConstraint("index_bloc >= 0", name="index_bloc_valide"),
+)

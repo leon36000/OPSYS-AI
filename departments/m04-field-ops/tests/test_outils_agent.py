@@ -149,7 +149,9 @@ def test_type_hors_contrat_refuse_par_le_schema():
 
 
 # ------------------------------------------------------------------ chaîne complète via les outils unitaires
-def test_chaine_complete_planification_pointage_completion_digest_notification():
+def test_chaine_complete_planification_pointage_completion_digest_notification(
+    base_durable, deposer_photo_test,
+):
     par_nom = _outils_par_nom()
     _donner_consentement_gps(par_nom)
 
@@ -196,7 +198,7 @@ def test_chaine_complete_planification_pointage_completion_digest_notification()
         intervention_id=i_id, horodatage="2025-06-02T11:35:00+00:00",
         preuves_completion={
             "checklist_complete": True,
-            "photos_apres": ["photo-apres-1.jpg"],
+            "photos_apres": [deposer_photo_test(par_nom)],
             "notes": "Aucun imprévu.",
             "signature": None,
         },
@@ -323,13 +325,13 @@ def _mener_a_sur_site(par_nom, lead_id="L-PREUVES"):
     return i_id
 
 
-def test_completer_intervention_preuves_valides_accepte():
+def test_completer_intervention_preuves_valides_accepte(base_durable, deposer_photo_test):
     par_nom = _outils_par_nom()
     i_id = _mener_a_sur_site(par_nom)
     completion = _appeler(
         par_nom, "m4_completer_intervention",
         intervention_id=i_id, horodatage="2025-06-02T11:35:00+00:00",
-        preuves_completion=_PREUVES_OK,
+        preuves_completion={**_PREUVES_OK, "photos_apres": [deposer_photo_test(par_nom)]},
     )
     assert completion["ok"] is True and completion["resultat"]["accepte"] is True
     assert completion["resultat"]["resultat"]["statut"] == "completed_pending_review"
@@ -392,13 +394,18 @@ def test_completer_intervention_signature_requise_absente_refuse():
     assert completion["resultat"]["verdict"]["code"] == "REJ-CHAMP-MANQUANT"
 
 
-def test_completer_intervention_signature_requise_fournie_accepte():
+def test_completer_intervention_signature_requise_fournie_accepte(base_durable, deposer_photo_test):
     par_nom = _outils_par_nom()
     i_id = _mener_a_sur_site(par_nom, lead_id="L-PREUVES-SIGNATURE-OK")
+    # T1.4-e2 : signature doit désigner un fichier PNG réel et complet, pas un nom de client.
+    reference_signature = deposer_photo_test(par_nom)
     completion = _appeler(
         par_nom, "m4_completer_intervention",
         intervention_id=i_id, horodatage="2025-06-02T11:35:00+00:00",
-        preuves_completion={**_PREUVES_OK, "signature": "Client X"},
+        preuves_completion={
+            **_PREUVES_OK, "photos_apres": [deposer_photo_test(par_nom)],
+            "signature": reference_signature,
+        },
         signature_requise=True,
     )
     assert completion["resultat"]["accepte"] is True
@@ -456,13 +463,13 @@ def test_lister_interventions_statut_hors_schema_arguments_invalides():
 
 
 # ------------------------------------------------------------------ T1.1-c#3/#4 : m4_produire_brouillon_temps
-def test_produire_brouillon_temps_nominal():
+def test_produire_brouillon_temps_nominal(base_durable, deposer_photo_test):
     par_nom = _outils_par_nom()
     i_id = _mener_a_sur_site(par_nom, lead_id="L-TEMPS")
     completion = _appeler(
         par_nom, "m4_completer_intervention",
         intervention_id=i_id, horodatage="2025-06-02T11:35:00+00:00",
-        preuves_completion=_PREUVES_OK,
+        preuves_completion={**_PREUVES_OK, "photos_apres": [deposer_photo_test(par_nom)]},
     )
     assert completion["resultat"]["accepte"] is True
 
@@ -476,13 +483,13 @@ def test_produire_brouillon_temps_nominal():
     assert brouillon["resultat"]["resultat"]["depassements"] == []
 
 
-def test_produire_brouillon_temps_seuil_minutes_signale_depassement():
+def test_produire_brouillon_temps_seuil_minutes_signale_depassement(base_durable, deposer_photo_test):
     par_nom = _outils_par_nom()
     i_id = _mener_a_sur_site(par_nom, lead_id="L-TEMPS-DEPASSEMENT")
     _appeler(
         par_nom, "m4_completer_intervention",
         intervention_id=i_id, horodatage="2025-06-02T11:35:00+00:00",
-        preuves_completion=_PREUVES_OK,
+        preuves_completion={**_PREUVES_OK, "photos_apres": [deposer_photo_test(par_nom)]},
     )
     brouillon = _appeler(
         par_nom, "m4_produire_brouillon_temps",

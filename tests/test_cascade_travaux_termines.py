@@ -22,7 +22,11 @@ répartiteur.
 
 from __future__ import annotations
 
+import base64
 import datetime as dt
+import hashlib
+import struct
+import zlib
 from decimal import Decimal
 
 import m2_revenue_crm.outils as m2_outils
@@ -282,9 +286,34 @@ def _m6_receptionner(m6, chantier_id: str, materiau_id: str, quantite: float, po
     assert r["ok"] and r["resultat"]["accepte"], r
 
 
+def _png_minimal() -> bytes:
+    """PNG RVB 1x1 réel (T1.4-e2 : « petits fichiers de test réels », pas un simple préfixe
+    magique) — signature + IHDR + IDAT (zlib d'une ligne filtrée « aucun ») + IEND, CRC32 correct."""
+    def chunk(tag: bytes, donnees: bytes) -> bytes:
+        return struct.pack(">I", len(donnees)) + tag + donnees + struct.pack(">I", zlib.crc32(tag + donnees))
+
+    ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
+    idat = zlib.compress(b"\x00\xff\xff\xff", 9)
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr) + chunk(b"IDAT", idat) + chunk(b"IEND", b"")
+
+
+def _deposer_photo_test(m4) -> str:
+    """Dépose une photo après-chantier RÉELLE (T1.4-e2) et rend sa référence
+    `fichier:sha256:<hex>`, utilisable dans `preuves_completion.photos_apres`."""
+    contenu = _png_minimal()
+    r = executer_atomique(m4["m4_deposer_fichier"], {
+        "empreinte_sha256": hashlib.sha256(contenu).hexdigest(),
+        "taille_octets": len(contenu), "type_mime": "image/png",
+        "index_bloc": 0, "nombre_blocs": 1,
+        "bloc_base64": base64.b64encode(contenu).decode("ascii"),
+    })
+    assert r["ok"] and r["resultat"]["accepte"] and r["resultat"]["resultat"]["complet"], r
+    return r["resultat"]["resultat"]["reference"]
+
+
 def _m4_completer(m4, intervention_id: str, base: dt.datetime, offset: int = 11400) -> dict:
     preuves = {
-        "checklist_complete": True, "photos_apres": ["chantier-apres-1-fictif.jpg"],
+        "checklist_complete": True, "photos_apres": [_deposer_photo_test(m4)],
         "notes": "Installation terminée sans incident (fictif).", "signature": None,
     }
     r = executer_atomique(m4["m4_completer_intervention"], {

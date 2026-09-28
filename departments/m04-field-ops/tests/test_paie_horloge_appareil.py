@@ -29,9 +29,6 @@ FIX_GPS = {"latitude": 45.5088, "longitude": -73.5878}
 ATTESTATION = {"fictif": True, "appareil_id": "APP-T14D"}
 FENETRE = {"debut": "2025-06-02T00:00:00+00:00", "fin": "2025-06-03T00:00:00+00:00"}
 PERIODE = {"debut": "2025-06-02", "fin": "2025-06-02"}
-_PREUVES_OK = {
-    "checklist_complete": True, "photos_apres": ["photo-apres.jpg"], "notes": "RAS.", "signature": None,
-}
 
 # Horloge d'appareil DÉRÉGLÉE (an 2000) : si elle fuite dans un calcul, la durée deviendrait
 # négative ou aberrante — le test la détecterait immédiatement plutôt que de rester silencieux.
@@ -95,7 +92,7 @@ def _referentiel():
     return {token: {"latitude": 45.5017, "longitude": -73.5673, "rayon_km": 25.0}}
 
 
-def test_pointage_appareil_horloge_dereglee_paie_brouillon_suit_heure_serveur(base_durable):
+def test_pointage_appareil_horloge_dereglee_paie_brouillon_suit_heure_serveur(base_durable, deposer_photo_test):
     par_nom = {o.nom: o for o in outils()}
     i_id = _planifier_et_router(par_nom, "L-T14D-DEREGLE")
 
@@ -129,7 +126,10 @@ def test_pointage_appareil_horloge_dereglee_paie_brouillon_suit_heure_serveur(ba
 
     completion = executer_atomique(par_nom["m4_completer_intervention"], {
         "intervention_id": i_id, "horodatage": recu_depart.isoformat(),
-        "preuves_completion": _PREUVES_OK,
+        "preuves_completion": {
+            "checklist_complete": True, "photos_apres": [deposer_photo_test(par_nom)],
+            "notes": "RAS.", "signature": None,
+        },
     })
     assert completion["ok"] is True and completion["resultat"]["accepte"] is True, completion
 
@@ -144,7 +144,7 @@ def test_pointage_appareil_horloge_dereglee_paie_brouillon_suit_heure_serveur(ba
     assert ligne["minutes_travail"] == 150
 
 
-def test_pointage_hors_appel_appareil_comportement_inchange(base_durable):
+def test_pointage_hors_appel_appareil_comportement_inchange(base_durable, deposer_photo_test):
     """Sans `contexte.receptionne_de` actif : `horodatage` fait foi comme avant T1.4-b, et
     aucune clé `horodatage_appareil` n'apparaît nulle part (ni accusé, ni maillon)."""
     par_nom = {o.nom: o for o in outils()}
@@ -172,7 +172,11 @@ def test_pointage_hors_appel_appareil_comportement_inchange(base_durable):
     assert "horodatage_appareil" not in r_depart["resultat"]["resultat"]
 
     completion = executer_atomique(par_nom["m4_completer_intervention"], {
-        "intervention_id": i_id, "horodatage": h_depart, "preuves_completion": _PREUVES_OK,
+        "intervention_id": i_id, "horodatage": h_depart,
+        "preuves_completion": {
+            "checklist_complete": True, "photos_apres": [deposer_photo_test(par_nom)],
+            "notes": "RAS.", "signature": None,
+        },
     })
     assert completion["ok"] is True and completion["resultat"]["accepte"] is True, completion
 

@@ -420,13 +420,29 @@ def lister_interventions(registre_cible, statut=None):
     n'entre JAMAIS au registre (cf. ``inscrire_intervention``) : il est donc
     structurellement absent d'ici, pas seulement filtré.
 
+    T1.4-e2 (écran « chantiers du jour ») : ``technicien_assigne`` et
+    ``fenetre_planifiee`` sont rendus QUAND le registre les porte, jamais
+    devinés (AGENTS.md, fail-closed) :
+      - ``technicien_assigne`` : le ``technicien_id`` de la DERNIÈRE transition
+        ``en_route`` de l'intervention (seul endroit où ce fait entre au
+        registre, cf. ``transitionner``/PRD §4) — ``None`` tant qu'aucune
+        n'a eu lieu.
+      - ``fenetre_planifiee`` : TOUJOURS ``None`` aujourd'hui. La cédule
+        choisie par ``m4_planifier_intervention`` (``cedule.generer_cedule``)
+        est une fonction PURE, sans registre — son résultat est rendu à
+        l'appelant de cet outil-là, jamais écrit à un maillon. Le registre ne
+        porte donc structurellement aucune fenêtre à ce jour ; la persister
+        est un changement d'état de machine hors de portée de ce point
+        (PLAN T1.4-e2, « ce qui reste »).
+
     Args:
         registre_cible: instance de Registre.
         statut: None (toutes les interventions) ou un état parmi ETATS.
 
     Returns:
         Liste de dicts {intervention_id, statut, lead_id, type_travaux,
-        devis_id}, triée par intervention_id pour un résultat déterministe.
+        devis_id, technicien_assigne, fenetre_planifiee}, triée par
+        intervention_id pour un résultat déterministe.
 
     Raises:
         ValueError: si `statut` est fourni et n'appartient pas à ETATS.
@@ -453,6 +469,24 @@ def lister_interventions(registre_cible, statut=None):
             "lead_id": inscription["lead_id"],
             "type_travaux": inscription["type_travaux"],
             "devis_id": inscription.get("devis_id"),
+            "technicien_assigne": _technicien_assigne_durable(registre_cible, iid),
+            "fenetre_planifiee": None,
         })
     resultat.sort(key=lambda e: e["intervention_id"])
     return resultat
+
+
+def _technicien_assigne_durable(registre_cible, intervention_id):
+    """``technicien_id`` de la DERNIÈRE transition ``en_route`` de cette intervention dans le
+    registre, ou ``None`` si elle n'a jamais atteint ``en_route`` (T1.4-e2). Historique, pas un
+    statut d'assignation courante : un report ou une annulation ultérieurs laissent ce champ tel
+    quel (le fait « qui a été envoyé » reste vrai même si le chantier a ensuite été reporté), à
+    lire aux côtés de ``statut`` pour l'image complète — même discipline que
+    ``m4_field_ops.outils._depuis_pending_review``."""
+    technicien = None
+    for maillon in registre_cible.lire():
+        if (maillon.get("type_entree") == TYPE_TRANSITION
+                and maillon.get("intervention_id") == intervention_id
+                and maillon.get("statut") == "en_route"):
+            technicien = maillon.get("technicien_id")
+    return technicien

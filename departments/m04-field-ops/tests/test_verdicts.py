@@ -33,6 +33,14 @@ EXPECTED_CODES_M4_LIST = [
     "REJ-RETENTION-NON-ECHUE",
     "REJ-POSITION-INTROUVABLE",
     "REJ-POSITION-DETRUITE",
+    # Groupe 5 — PLAN T1.4-e2 : dépôt de fichiers adressé par contenu (m4_deposer_fichier)
+    "REJ-FICHIER-PARAMETRES-INVALIDES",
+    "REJ-FICHIER-TROP-VOLUMINEUX",
+    "REJ-FICHIER-INCOHERENT",
+    "REJ-FICHIER-EMPREINTE-DISCORDANTE",
+    "REJ-FICHIER-TYPE-NON-PERMIS",
+    # Groupe 5 bis — PLAN T1.4-e2 : m4_completer_intervention vérifie chaque référence de fichier
+    "REJ-PREUVE-FICHIER-INTROUVABLE",
     # Groupe 3 — succès
     "OK",
 ]

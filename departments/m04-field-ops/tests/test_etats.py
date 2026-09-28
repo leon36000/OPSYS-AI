@@ -701,3 +701,46 @@ def test_lister_interventions_statut_inconnu_leve_valueerror(registre_vide):
     with pytest.raises(ValueError):
         etats_mod.lister_interventions(registre_vide, statut="statut_pirate")
 
+
+# ------------------------------------------------------------------ T1.4-e2 : technicien_assigne/fenetre_planifiee
+def test_lister_interventions_technicien_assigne_seulement_apres_en_route(
+    contrat_valide, marqueur_valide, registre_vide,
+):
+    """`technicien_assigne` vient UNIQUEMENT du registre (la transition en_route, seul endroit où
+    ce fait est écrit) : null avant, le technicien de l'assignation effective après. Jamais
+    inventé — voir docstring de `lister_interventions`."""
+    acc1, _ = etats_mod.inscrire_intervention(contrat_valide, marqueur_valide, registre_vide, H_VALIDE, SEL)
+    contrat2 = contrat_valide.copy()
+    contrat2["lead_id"] = "L2"
+    marqueur2 = marqueur_valide.copy()
+    marqueur2["lead_id"] = "L2"
+    acc2, _ = etats_mod.inscrire_intervention(contrat2, marqueur2, registre_vide, H_VALIDE2, SEL)
+    etats_mod.transitionner(
+        acc2["intervention_id"], "en_route", registre_vide, H_VALIDE3,
+        assignation=ASSIGNATION_ETATS(acc2["intervention_id"]),
+    )
+
+    par_id = {e["intervention_id"]: e for e in etats_mod.lister_interventions(registre_vide)}
+    assert par_id[acc1["intervention_id"]]["technicien_assigne"] is None
+    assert par_id[acc2["intervention_id"]]["technicien_assigne"] == "T1"
+    # Jamais inventée aujourd'hui : le registre ne porte aucune fenêtre, pour aucune intervention.
+    assert par_id[acc1["intervention_id"]]["fenetre_planifiee"] is None
+    assert par_id[acc2["intervention_id"]]["fenetre_planifiee"] is None
+
+
+def test_lister_interventions_technicien_assigne_reste_apres_report(
+    contrat_valide, marqueur_valide, registre_vide,
+):
+    """Fait HISTORIQUE, pas un statut d'assignation courante : un report après en_route laisse
+    `technicien_assigne` tel quel (à lire aux côtés de `statut`, ici `reportee`)."""
+    acc, _ = etats_mod.inscrire_intervention(contrat_valide, marqueur_valide, registre_vide, H_VALIDE, SEL)
+    i_id = acc["intervention_id"]
+    etats_mod.transitionner(
+        i_id, "en_route", registre_vide, H_VALIDE2, assignation=ASSIGNATION_ETATS(i_id),
+    )
+    etats_mod.transitionner(i_id, "reportee", registre_vide, H_VALIDE3, motif="meteo")
+
+    [entree] = etats_mod.lister_interventions(registre_vide)
+    assert entree["statut"] == "reportee"
+    assert entree["technicien_assigne"] == "T1"
+
