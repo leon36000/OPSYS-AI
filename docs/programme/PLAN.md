@@ -838,7 +838,9 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
 
 - [ ] T5.1 Lint des départements : `ruff` ne couvre aujourd'hui que le socle (`src`, `tests`) ; l'audit M1
       relève 122 avertissements dans M1. Étendre la CI aux départements après correction.
-      Avancement, partiel (T5.1 reste ouverte : M1 à M6 à corriger) :
+      Avancement, partiel (T5.1 reste ouverte : M1 à M4 et M6 à corriger) :
+      - M5 à zéro (20 avertissements avant, dont 14 `sys.path.insert` de tests), M5 321 verts, gate
+        BMAD de M5 vert ; ajoutée à `DEPARTEMENTS_LINT` ;
       - M7 à M10 passent `ruff check` à zéro (M7 257, M8 18, M9 22, M10 46 avertissements avant) ;
         sans `noqa`, sans changement de configuration. Le contournement `sys.path.insert` des
         tests M8 à M10 est retiré : `pythonpath` de `pyproject.toml` suffit (M7 l'avait déjà fait).

@@ -1,14 +1,7 @@
-import sys
 from decimal import Decimal
-from pathlib import Path
 
 import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from m5_financecore import contrats, validation
+from m5_financecore import validation
 
 
 def _mouvement(**surcharges):
@@ -31,7 +24,7 @@ def test_catalogue_verdicts_m5_contient_les_codes_attendus():
         "REJ-MOUVEMENT-CLASSE-RETENTION-INCONNUE",
     }
     assert codes_attendus.issubset(validation.CODES_M5_LIST)
-    assert validation.CODES_M5 == set(validation.CODES_M5_LIST)
+    assert set(validation.CODES_M5_LIST) == validation.CODES_M5
 
 
 def test_construire_verdict_accepte_un_code_reconnu():

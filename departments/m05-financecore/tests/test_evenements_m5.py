@@ -22,17 +22,10 @@ restent ceux de M5, jamais les comptes globaux du bus. Identifiants et montants 
 from __future__ import annotations
 
 import datetime as dt
-import sys
 from decimal import Decimal
-from pathlib import Path
-
-import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
 
 import m5_financecore.outils as outils_mod  # noqa: E402
+import pytest
 from m5_financecore import facturation  # noqa: E402
 
 from opsys import evenements, stockage  # noqa: E402

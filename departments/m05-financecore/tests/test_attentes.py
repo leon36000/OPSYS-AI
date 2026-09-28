@@ -14,16 +14,10 @@ montants fictifs (DEFINITION-PRODUIT §1).
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
-import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
 import m5_financecore.outils as m5_outils  # noqa: E402
+import pytest
 
 from opsys import approbations, evenements, stockage  # noqa: E402
 from opsys.departements import charger_departements, lire_manifeste  # noqa: E402

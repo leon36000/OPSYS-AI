@@ -14,16 +14,10 @@ Identifiants et montants fictifs (DEFINITION-PRODUIT §1).
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
-import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
 import m5_financecore.outils as m5_outils  # noqa: E402
+import pytest
 from m5_financecore import facturation  # noqa: E402
 
 from opsys import approbations as opsys_approbations  # noqa: E402

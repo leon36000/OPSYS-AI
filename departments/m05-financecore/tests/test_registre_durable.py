@@ -25,18 +25,12 @@ pour `opsys` et `sqlalchemy`.
 
 from __future__ import annotations
 
-import sys
 from decimal import Decimal
 from pathlib import Path
 
 import pytest
-from sqlalchemy import update
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
 from m5_financecore import facturation, outils, registre, soldes, taux_fiscaux, taxes  # noqa: E402
+from sqlalchemy import update
 
 from opsys import stockage  # noqa: E402
 from opsys.stockage import codec  # noqa: E402

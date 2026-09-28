@@ -1,15 +1,7 @@
-import sys
 from decimal import Decimal
-from pathlib import Path
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
 
 import pytest
-
 from m5_financecore import registre, soldes, validation
-
 
 HORODATAGE = "2026-08-03T12:00:00+00:00"
 

@@ -1,16 +1,10 @@
 """Facturation client (M5.2) : facture brouillon, verrous d'envoi/paiement, âge des créances."""
 
 import dataclasses
-import sys
 from decimal import Decimal
 from pathlib import Path
 
 import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
 from m5_financecore import facturation, registre, taux_fiscaux  # noqa: E402
 
 HORODATAGE = "2026-08-03T12:00:00+00:00"

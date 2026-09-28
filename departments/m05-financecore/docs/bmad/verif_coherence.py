@@ -4,10 +4,10 @@
 # Sortie : une ligne par contrôle, puis VERDICT : TOUT VERT ou ÉCARTS: n
 # Exit 1 si écarts.
 
-import sys
 import re
-from pathlib import Path
+import sys
 from collections import Counter
+from pathlib import Path
 
 BASE = Path(__file__).parent
 FICHIERS = {
