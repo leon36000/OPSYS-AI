@@ -61,7 +61,7 @@ Une installation, une commande, partout (portable, serveur, VPS). La section sui
 | **Passerelle de modèles** | LiteLLM : paliers → fournisseurs cloud ou locaux, clé virtuelle et plafonds par département, cache | `src/opsys/passerelle.py`, `modeles.py` |
 | **Mémoire** | 2 couches : mémoire d'agent OpenClaw + base de connaissances d'entreprise PostgreSQL/pgvector (MCP) | `docs/memory/RAG-PREMIUM.md`, `src/opsys/memoire/` |
 | **Console OPSYS** | Départements (modes), approbations, budgets, paliers de modèles | `src/opsys/console/`, `tableau_de_bord.py` |
-| **Mobile** | Apps OpenClaw officielles (phase 1), fork OPSYS (phase 2) | `docs/architecture/MOBILE.md` |
+| **Mobile** | Nouvelle app Expo Router (pas un fork OpenClaw — ADR-0008, R12) : routage gardé par rôle, file sortante et client `/tools/invoke` en logique pure ; squelette seulement (PLAN T1.4-a), aucun écran métier | `mobile/`, `docs/architecture/MOBILE.md` |
 | **Déploiement** | compose, `install.sh`, sauvegardes | `deploy/`, `docs/ops/` |
 
 ## Principes non négociables

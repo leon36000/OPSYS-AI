@@ -1,3 +1,4 @@
+import { calculerProchaineTentativeA } from "./recul";
 import { verifierTransition } from "./transitions";
 import type { MutationOutbox, StatutMutation, TypeMutation } from "./types";
 
@@ -57,6 +58,8 @@ export function formaterHorodatageLocal(horloge: HorlogeAppareil): string {
  * Crée une mutation `brouillon`. L'id est fourni par l'appelant (`genererId`) plutôt que généré
  * ici : en production c'est `src/outbox/id.ts` (expo-crypto `randomUUID`, appareil, avant tout
  * réseau — R12 §4) ; dans les tests, un générateur déterministe. Cela garde ce module pur.
+ * `sequence` reste `null` tant que le dépôt n'a pas inséré la mutation (voir `depot.ts`) ;
+ * `prochaineTentativeA` reste `null` : elle n'a encore jamais échoué.
  */
 export function creerMutation(
   params: ParametresCreationMutation,
@@ -65,6 +68,7 @@ export function creerMutation(
 ): MutationOutbox {
   return {
     id: genererId(),
+    sequence: null,
     type: params.type,
     chantierId: params.chantierId,
     payload: params.payload,
@@ -72,6 +76,7 @@ export function creerMutation(
     statut: "brouillon",
     tentatives: 0,
     createdAtLocal: formaterHorodatageLocal(horloge),
+    prochaineTentativeA: null,
   };
 }
 
@@ -93,11 +98,23 @@ export function marquerEnvoyee(mutation: MutationOutbox): MutationOutbox {
   return { ...mutation, statut: "envoyee" };
 }
 
-/** `envoi` -> `en_attente` : échec réessayable (réseau, délai, 408/429/5xx — src/protocole).
- * Incrémente le compteur de tentatives, consommé ensuite par `src/outbox/recul.ts`. */
-export function marquerEchecReessayable(mutation: MutationOutbox): MutationOutbox {
+/**
+ * `envoi` -> `en_attente` : échec réessayable (réseau, délai, 408/429/5xx — src/protocole).
+ * Incrémente le compteur de tentatives ET pose `prochaineTentativeA` via le recul exponentiel
+ * de `src/outbox/recul.ts` — `maintenant` est injecté (fonction pure). `mutation.tentatives`
+ * (AVANT incrément) est exactement le « compteur avant l'échec courant » attendu par
+ * `calculerProchaineTentativeA`. Sans ce champ posé ici, le recul calculé n'était jamais
+ * appliqué à la sélection (`selectionnerProchainesEnvoyables` renvoyait tout de suite) —
+ * corrigé en relecture après PLAN T1.4-a.
+ */
+export function marquerEchecReessayable(mutation: MutationOutbox, maintenant: Date): MutationOutbox {
   transitionnerOuLever(mutation, "en_attente");
-  return { ...mutation, statut: "en_attente", tentatives: mutation.tentatives + 1 };
+  return {
+    ...mutation,
+    statut: "en_attente",
+    tentatives: mutation.tentatives + 1,
+    prochaineTentativeA: calculerProchaineTentativeA(mutation.tentatives, maintenant).toISOString(),
+  };
 }
 
 /** `envoi` -> `echec_permanent` : échec non réessayable (statut terminal). */

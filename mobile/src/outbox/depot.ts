@@ -9,13 +9,21 @@ import type { MutationOutbox } from "./types";
 export interface DepotOutbox {
   lister(): Promise<MutationOutbox[]>;
   obtenir(id: string): Promise<MutationOutbox | null>;
-  inserer(mutation: MutationOutbox): Promise<void>;
+  /**
+   * Insère la mutation et lui assigne sa `sequence` (entier strictement croissant, « clé
+   * auto-incrémentée SQLite ou compteur du dépôt ») — c'est pourquoi ceci renvoie la mutation
+   * PERSISTÉE (avec `sequence` non nulle), pas `void` : l'appelant doit utiliser cette valeur de
+   * retour pour toute opération ultérieure, jamais l'objet passé en argument (dont la `sequence`
+   * est encore `null`).
+   */
+  inserer(mutation: MutationOutbox): Promise<MutationOutbox>;
   mettreAJour(mutation: MutationOutbox): Promise<void>;
 }
 
 /** Implémentation mémoire de `DepotOutbox`, utilisée par les tests. */
 export class DepotOutboxMemoire implements DepotOutbox {
   private readonly lignes = new Map<string, MutationOutbox>();
+  private prochaineSequence = 1;
 
   async lister(): Promise<MutationOutbox[]> {
     return Array.from(this.lignes.values());
@@ -25,11 +33,14 @@ export class DepotOutboxMemoire implements DepotOutbox {
     return this.lignes.get(id) ?? null;
   }
 
-  async inserer(mutation: MutationOutbox): Promise<void> {
+  async inserer(mutation: MutationOutbox): Promise<MutationOutbox> {
     if (this.lignes.has(mutation.id)) {
       throw new Error(`mutation déjà présente dans le dépôt : ${mutation.id}`);
     }
-    this.lignes.set(mutation.id, mutation);
+    const persistee: MutationOutbox = { ...mutation, sequence: this.prochaineSequence };
+    this.prochaineSequence += 1;
+    this.lignes.set(mutation.id, persistee);
+    return persistee;
   }
 
   async mettreAJour(mutation: MutationOutbox): Promise<void> {

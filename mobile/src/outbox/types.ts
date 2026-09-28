@@ -19,6 +19,16 @@ export type TypeMutation =
  */
 export interface MutationOutbox {
   readonly id: string;
+  /**
+   * Entier strictement croissant assigné par le DÉPÔT à l'insertion (clé auto-incrémentée
+   * SQLite, ou compteur de `DepotOutboxMemoire`) — voir `depot.ts`/`depot.sqlite.ts`. `null`
+   * uniquement pour une mutation créée en mémoire (`creerMutation`) et pas encore insérée dans
+   * un dépôt. C'est CE champ, pas `createdAtLocal`, qui fait foi pour l'ordre d'envoi
+   * (`planification.ts`) : un texte d'heure locale avec décalage se compare mal d'un décalage à
+   * l'autre (changement d'heure, appareil qui change de fuseau) — correction relevée en relecture
+   * après PLAN T1.4-a.
+   */
+  readonly sequence: number | null;
   readonly type: TypeMutation;
   readonly chantierId: string;
   readonly payload: Readonly<Record<string, unknown>>;
@@ -26,6 +36,15 @@ export interface MutationOutbox {
   readonly dependsOn: string | null;
   readonly statut: StatutMutation;
   readonly tentatives: number;
-  /** ISO 8601 avec le décalage de fuseau de l'appareil — jamais `Z`/UTC (R12 §4). */
+  /** ISO 8601 avec le décalage de fuseau de l'appareil — jamais `Z`/UTC (R12 §4). Affichage
+   * seulement (« pointé à 14 h 32 ») — jamais utilisé pour trier ou décider, voir `sequence`. */
   readonly createdAtLocal: string;
+  /**
+   * Instant UTC (ISO 8601, `Z`) avant lequel un renvoi ne doit pas être tenté — `null` = due
+   * immédiatement (jamais encore échouée, ou reprise après crash). Posé par
+   * `marquerEchecReessayable` à partir de `src/outbox/recul.ts`, consommé par
+   * `selectionnerProchainesEnvoyables`. Sans ce champ, le recul exponentiel calculé n'était
+   * jamais appliqué à la sélection — corrigé en relecture après PLAN T1.4-a.
+   */
+  readonly prochaineTentativeA: string | null;
 }

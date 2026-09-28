@@ -37,7 +37,7 @@ closed (session absente, rôle inconnu et rôle valide mais différent du groupe
 tous les trois, vers `/pairing`). Chaque `_layout.tsx` de groupe appelle cette garde avant de
 rendre quoi que ce soit — un jeton `employee` n'atteint donc jamais `(admin)`, y compris par URL
 directe. `src/roles/contexte.tsx` porte l'état de session en React Context ; il démarre toujours
-`{ presente: false }` (voir Appairage ci-dessous). 147 tests Jest couvrent la garde (matrice rôle
+`{ presente: false }` (voir Appairage ci-dessous). 169 tests Jest couvrent la garde (matrice rôle
 × groupe complète, session absente, rôles inconnus) et la file sortante.
 
 Chaque groupe a un écran d'accueil minimal et distinctement nommé (`(employee)/employee.tsx`,
@@ -64,12 +64,40 @@ Logique pure, séparée du stockage :
   (`transitions.ts` tient le graphe fermé, testé exhaustivement sur les 25 paires possibles).
 - `recul.ts` : recul exponentiel 1 s → 30 s (×2), fonction pure à partir d'un `maintenant`
   injecté.
-- `planification.ts` : ordre d'envoi par chantier puis par heure de création, une mutation
-  jamais envoyée avant que sa `dependsOn` soit `envoyee` ; une ligne retrouvée `envoi` au
-  démarrage est resélectionnée avec le même id (reprise, jamais recréée).
+- `planification.ts` : ordre d'envoi par chantier puis par `sequence`, une mutation jamais
+  envoyée avant que sa `dependsOn` soit `envoyee` (ni avant qu'un ANCÊTRE plus lointain le soit —
+  voir « mutations bloquées » ci-dessous) ; une ligne retrouvée `envoi` au démarrage est
+  resélectionnée avec le même id (reprise, jamais recréée), sans attendre son recul.
 - `depot.ts` (interface `DepotOutbox` + implémentation mémoire, utilisée par les tests) et
   `depot.sqlite.ts` (adaptateur réel, DDL de la table `outbox`) — non exercé par les tests
   unitaires (pas de SQLite natif sous Jest), seulement par une future vérification sur appareil.
+
+**Trois corrections (relecture post-T1.4-a, avant que T1.4-d/punch ne s'appuie dessus) :**
+
+1. **Le recul est maintenant appliqué à la sélection.** `MutationOutbox.prochaineTentativeA`
+   (instant UTC, `null` = due immédiatement) est posé par `marquerEchecReessayable(mutation,
+   maintenant)` à partir de `calculerProchaineTentativeA` (`recul.ts`) — avant cette correction,
+   ce champ n'existait pas et `selectionnerProchainesEnvoyables` renvoyait tout de suite une
+   mutation qui venait d'échouer, recul ou pas. `selectionnerProchainesEnvoyables` prend
+   maintenant un `maintenant: Date` injecté et exclut toute `en_attente` pas encore due ; une
+   reprise (`envoi`) reste toujours due, recul ou pas (ce n'est pas un échec à espacer, c'est un
+   redémarrage). Colonne SQLite : `prochaine_tentative_a TEXT`.
+2. **L'ordre repose sur `sequence`, pas sur `createdAtLocal`.** `MutationOutbox.sequence` est un
+   entier strictement croissant assigné par le DÉPÔT à l'insertion (`DepotOutboxMemoire` : un
+   compteur ; `depot.sqlite.ts` : calculé par sous-requête dans le même `INSERT ... RETURNING`,
+   `id` restant la clé primaire UUID). `createdAtLocal` (texte d'heure locale AVEC décalage) ne
+   sert plus qu'à l'affichage : comparé comme du texte, il se compare mal d'un décalage à
+   l'autre — ex. le passage à l'heure normale (1er novembre, -04:00 EDT → -05:00 EST) peut faire
+   trier une mutation postérieure AVANT une antérieure. Testé explicitement
+   (`mutation.test.ts`, `planification.test.ts`).
+3. **Les mutations bloquées par un échec permanent sont maintenant identifiables.**
+   `identifierMutationsBloqueesParEchecPermanent` (nouvelle fonction pure) remonte toute la
+   chaîne `dependsOn` — pas seulement le parent direct — et retourne les mutations `en_attente`/
+   `envoi` dont un ANCÊTRE quelconque est `echec_permanent`. Avant cette correction, ces
+   mutations restaient `en_attente` indéfiniment sans que rien ne le signale — contraire à R12
+   §4 (« ne jamais perdre silencieusement un événement mis en file »). Cette fonction ne change
+   rien à l'envoi (déjà correctement bloqué) ; elle sert à ce qu'une future interface d'alerte
+   (`(admin)/approvals` ou équivalent) puisse les montrer. Testé sur une chaîne à trois niveaux.
 
 ## `/tools/invoke` sans tour de modèle (`src/protocole/`)
 
@@ -104,6 +132,8 @@ photos/signature : politiques Loi 25 citées par R12 §6, hors périmètre de ce
 
 Pas d'écran métier (cédule, punch, checklist, matériaux, approbations, etc.) ; pas de protocole
 d'appairage réel (T1.4-c) ; pas de stockage sécurisé de jeton (`expo-secure-store` non installé) ;
-pas de boucle de vidage reliant `src/outbox` à `src/protocole` ; pas d'idempotence côté socle
-(T1.4-b) ; pas de caméra, notifications push, signature, ni de GPS ; pas de tests E2E Maestro ;
-pas de build EAS ni de publication store (frontière humaine T3, R12 §3).
+pas de boucle de vidage reliant `src/outbox` à `src/protocole` — `identifierMutationsAReprendre`
+et `identifierMutationsBloqueesParEchecPermanent` n'ont donc encore aucun appelant réel, ni
+d'écran pour afficher ce que cette dernière signale ; pas d'idempotence côté socle (T1.4-b) ; pas
+de caméra, notifications push, signature, ni de GPS ; pas de tests E2E Maestro ; pas de build EAS
+ni de publication store (frontière humaine T3, R12 §3).
