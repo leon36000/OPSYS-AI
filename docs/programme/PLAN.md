@@ -489,16 +489,22 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       Exemple : `m3_lire_devis(role=...)` retire coût, marge et prix pour un employé, mais c'est
       aujourd'hui l'appelant qui choisit le rôle ;
     - appairage mobile, avec l'algorithme de signature lu dans le fork.
-    - [ ] T1.4-c1 Core : `/tools/invoke` transmet au moteur, dans le `_meta` MCP, la clé
+    - [x] T1.4-c1 Core : `/tools/invoke` transmet au moteur, dans le `_meta` MCP, la clé
           d'idempotence, l'appareil et son heure (`IDEMPOTENCE.md` §7).
           Livré (6dffd04) : contexte `AsyncLocalStorage` jusqu'au `tools/call`, tests vitest (dont
           un vrai sous-processus MCP).
-          DÉCOCHÉE (correction) : cette tâche était cochée sur la foi d'une CI du core verte, mais
+          Correction : d'abord cochée sur la foi d'une CI du core verte, alors que
           `pnpm test:fast`, seule suite de cette CI, exclut `src/agents/**`, `src/gateway/**` et
-          `packages/gateway-protocol/**`. Ses tests, comme ceux de T1.4-c2 et T1.4-c4, n'avaient
-          donc jamais tourné. Le job `tests-opsys` de `core.yml` les lance désormais
-          (`core/test/opsys-tests-cibles.txt`) ; à recocher quand il sera vert.
-    - [ ] T1.4-c2 Core et socle :
+          `packages/gateway-protocol/**` : ces tests, comme ceux de T1.4-c2 et T1.4-c4, n'avaient
+          jamais tourné. Le job `tests-opsys` de `core.yml` les lance
+          (`core/test/opsys-tests-cibles.txt`, 23 fichiers).
+
+          Preuve (CI core 21, d7d77d5, job `tests-opsys` vert, 4 morceaux vitest) : le premier
+          passage a révélé un vrai défaut, le `_meta` perdu quand le module est chargé deux fois
+          (deux `AsyncLocalStorage`) ; corrigé par un singleton de processus
+          (`resolveGlobalSingleton(Symbol.for("opsys.mcpCallMeta"))`). Correctifs de mise en place
+          des tests : 376d742, 8b5cb01.
+    - [x] T1.4-c2 Core et socle :
       - rôles nommés sur le jeton d'appareil, attribués à l'approbation de l'appairage avec la
         personne OPSYS ;
       - outils permis par rôle, générés par `opsys openclaw configurer` ;
@@ -509,20 +515,22 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       - refus fermé hors de la portée du rôle ;
       - `opsys/personne` et `opsys/role` transmis au moteur.
 
-      Reste : le job `tests-opsys` vert (tests des rôles jamais exécutés jusqu'ici, voir
-      T1.4-c1). L'attribution existe depuis T1.4-c4 (42bbf6a) :
+      Preuve finale : job `tests-opsys` vert (CI core 21, d7d77d5), dont
+      `tools-invoke-http.opsys-roles.test.ts` et `opsys-device-roles`. L'attribution existe
+      depuis T1.4-c4 (42bbf6a) :
       `opsys appareils appairer`, `lister` et `revoquer` attribuent la personne et le rôle (refus
       fermé) et régénèrent `opsys/appareils.json`, en second temps après l'approbation native de
       l'appairage par le core.
-    - [ ] T1.4-c4 Core : `/tools/invoke` authentifie l'appareil par son jeton d'appairage, et non
+    - [x] T1.4-c4 Core : `/tools/invoke` authentifie l'appareil par son jeton d'appairage, et non
           par le secret partagé (accès complet).
       - L'identité (appareil, personne, rôle) vient du jeton vérifié, jamais du corps.
       - Tant que ce n'est pas fait, `opsys/personne` n'est pas authentifié : aucun outil ne s'en
         sert pour signer ou projeter, et le téléphone ne reçoit jamais le secret partagé.
       - Aussi : un identifiant de client OPSYS dans `GATEWAY_CLIENT_IDS`.
 
-      Livré (42bbf6a), à cocher quand le job `tests-opsys` sera vert (la CI core 16, verte, ne
-      lançait pas ces tests : voir T1.4-c1) :
+      Livré (42bbf6a), prouvé par le job `tests-opsys` vert (CI core 21, d7d77d5 ; la CI core 16
+      ne lançait pas ces tests, voir T1.4-c1). `tools-invoke-http.device-token-auth.test.ts`
+      tourne dans le projet à processus séparé (courtier SQLite de l'hôte) :
       - `/tools/invoke` accepte le jeton d'appareil par le mécanisme natif du fork
         (`verifyHttpOperatorDeviceToken`, qui rend aussi le `deviceId`) ; le secret partagé ne
         porte jamais `opsys/personne` ni `opsys/role`, quel que soit le corps ;
@@ -532,9 +540,10 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       - socle 392, ruff, verifier ; démonstration de la CLI (personne, appairage, refus d'un rôle
         non porté, révocation) ; vitest (7 et 11 tests), à exécuter par le job `tests-opsys`.
 
-      Reste : le rôle nommé sur la poignée de main WebSocket (l'app ne l'apprend pas encore) ;
-      câbler `opsys-mobile` dans l'app et dans la classification de confiance du core. Code
-      critique : revue externe.
+      Code critique : revue externe (liste plus bas). Le reste passe à T1.4-c5.
+    - [ ] T1.4-c5 Core et mobile : le rôle nommé sur la poignée de main WebSocket (l'app ne
+          l'apprend pas encore) ; `opsys-mobile` câblé dans l'app et dans la classification de
+          confiance du core.
     - [x] T1.4-c3 Mobile : client d'appairage (QR ou code, défi signé selon l'algorithme du
           fork, jeton dans `expo-secure-store`), testé contre le protocole lu dans le core.
 
@@ -853,9 +862,11 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
 - **Revue externe du code critique** (AGENTS.md), avant tout passage sur `main` :
   - M5 : 119a594, 23df6eb, T1.3-c ;
   - idempotence du socle : 764c292, 2474cd1 ;
-  - approbations : 718b9bb ;
+  - approbations : 718b9bb ; exécution directe des actions d'un humain authentifié (T1.4-h) :
+    688b1a4 ; portées d'outils par rôle d'appareil (T1.4-j) : a0e5150 ;
   - validation du bus : 4c9fbff ;
-  - authentification de `/tools/invoke` par jeton d'appareil : 42bbf6a ;
+  - authentification de `/tools/invoke` par jeton d'appareil : 42bbf6a ; `_meta` MCP unique par
+    processus : d7d77d5 ;
   - chiffrement et purge des positions GPS : ff0c118 ;
   - commits plus anciens déjà listés dans les preuves de T1.0 et T1.1.
 - **Arrondi monétaire** : M5 arrondissait au pair (mode par défaut de Python) alors que M3
