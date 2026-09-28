@@ -111,7 +111,11 @@
 | **expo-sqlite** 57.0.3 | MIT | Stockage local de la file sortante (`src/outbox/depot.sqlite.ts`, DDL `outbox` de R12 §4) | Dépendance directe, version épinglée = celle de R12 §3 | **Intégré** | R12 |
 | **@react-native-community/netinfo** 12.0.1 | MIT (fichier `LICENSE` lu dans le paquet installé) | Détection du retour du réseau : déclenche la vidange de la file sortante (`mobile/src/outbox/declencheurs.ts`, R12 §4) | Dépendance directe, version épinglée = celle de R12 §3 | **Intégré** (T1.4-d) | R12 |
 | **expo-localization** 57.0.2 | MIT | Détection de la langue de l'appareil (`src/i18n`) | Dépendance directe, version épinglée = celle de R12 §3 | **Intégré** | R12 |
-| **expo-crypto** 57.0.3 | MIT | `mutation_id` UUID généré sur l'appareil avant tout réseau (`src/outbox/id.ts`, `randomUUID()`) | Dépendance directe — **écart** : R12 §3 cite la brique sans version pinnée (« à confirmer ») ; version choisie ici = dernière du train SDK 57 (`57.0.3`) | **Intégré** | R12 (version : mission T1.4-a) |
+| **expo-crypto** 57.0.3 | MIT | `mutation_id` UUID généré sur l'appareil avant tout réseau (`src/outbox/id.ts`, `randomUUID()`) ; graine aléatoire de la clé d'appareil (`src/appairage/stockage.ts`, `getRandomBytes(32)`, T1.4-c3) | Dépendance directe — **écart** : R12 §3 cite la brique sans version pinnée (« à confirmer ») ; version choisie ici = dernière du train SDK 57 (`57.0.3`) | **Intégré** | R12 (version : mission T1.4-a) |
+| **expo-secure-store** 57.0.4 | MIT | Stockage de la clé secrète d'appareil (Ed25519) et de la session appariée (jeton, rôle, `appareilId`) — `src/appairage/stockage.ts` — Keychain iOS / Keystore Android, jamais SQLite ni `AsyncStorage` (R12 §6, mission item 2 : jamais journalisée) | Dépendance directe, version épinglée = celle de R12 §3 | **Intégré** (T1.4-c3) | R12 |
+| **@noble/curves** 2.4.0 | MIT | Ed25519 (EdDSA RFC 8032 pur, sans pré-hachage) pour la clé d'appareil et la signature du défi d'appairage (`src/appairage/identite.ts`) — algorithme EXACT confirmé en lisant `core/src/infra/ed25519-signature.ts:170-174,199-211` (Node `crypto.sign(null, ...)`/`crypto.verify(null, ...)` sur une clé Ed25519) ; vérifié octet pour octet contre Node `crypto` (`src/appairage/identite.test.ts` — clé, signature et `deviceId` calculés avec `@noble/curves`/`@noble/hashes` puis revérifiés avec `crypto.verify`/`crypto.createHash` de Node, jamais avec du code de `core/`) | Dépendance directe ; R12 §3 la citait comme « piste, à confirmer selon l'algorithme exact retenu par le fork (§1.3) » — confirmée par PLAN T1.4-c3 comme LE bon algorithme, version inchangée | **Intégré** (T1.4-c3) | R12 · PLAN T1.4-c3 |
+| **@noble/hashes** 2.4.0 | MIT | SHA-256 pour dériver le `deviceId` de la clé publique (`src/appairage/identite.ts`, `deriverIdAppareil` — port de `core/src/infra/device-identity.ts:176-187`, `deriveDeviceIdFromPublicKey`) | Dépendance directe et explicite (dépendance de fait de `@noble/curves` pour Ed25519/SHA-512, mais utilisée ici directement pour SHA-256 : mieux vaut une dépendance déclarée qu'une transitive non vérifiée) | **Intégré** (T1.4-c3) | PLAN T1.4-c3 |
+| **@types/node** 26.6.3 | MIT (Microsoft/DefinitelyTyped) | Types pour l'oracle indépendant `node:crypto`/`Buffer` utilisé UNIQUEMENT dans les tests d'appairage (`src/appairage/*.test.ts`, vecteurs croisés) — jamais dans le code d'app : `/// <reference types="node" />` posée fichier par fichier plutôt qu'ajoutée à `tsconfig.json` `types`, pour ne jamais rendre les globales Node (`Buffer`, `process`, ...) disponibles côté app RN/Hermes, où elles n'existent pas à l'exécution | Dépendance directe (dev) — déjà résolvable en transitif (`"@types/node": "*"` chez plusieurs paquets de test) ; épinglée en directe pour une résolution explicite | **Intégré** (T1.4-c3) | PLAN T1.4-c3 |
 | **i18next** 26.4.2 + **react-i18next** 17.0.15 | MIT (les deux) | Moteur i18n + bindings React, fr-CA par défaut / en-CA en réserve | Dépendances directes, versions épinglées = celles de R12 §3 | **Intégré** | R12 |
 | **react** 19.2.3 + **react-native** 0.86.3 | MIT (les deux, Meta) | Runtime requis par Expo SDK 57 | Dépendances directes — non listées par R12 §3 (choix de version délégué au SDK) ; versions = celles du gabarit officiel `expo-template-default@57.0.25` (React Native 0.86, conforme à R12 §3) | **Intégré** | R12 · gabarit SDK 57 |
 | **react-native-screens** 4.26.2, **react-native-safe-area-context** 5.7.0, **react-native-gesture-handler** 2.32.0, **react-native-reanimated** 4.5.1 + **react-native-worklets** 0.10.1, **expo-linking** 57.0.11, **expo-constants** 57.0.19, **@expo/log-box** 57.0.4, **@expo/metro-runtime** 57.0.16 | MIT (tous, vérifié fichier par fichier) | Dépendances **requises** (peer non optionnels) d'`expo-router` pour la navigation par fichiers (écrans, pile, sécurité des zones, gestes) | Dépendances directes — non listées par R12 §3 (détail d'implémentation d'Expo Router, pas un choix produit) ; versions reprises du gabarit officiel `expo-template-default@57.0.25`, cohérentes avec `expo`/`expo-router` 57.0.25/57.0.23 | **Intégré** | Gabarit SDK 57 |
@@ -304,7 +308,9 @@ hors périmètre strict de R10 ») et documente en plus, pour M10 spécifiquemen
 - **Modèles/tokens** : 9 retenues (2 intégrées, 6 phase 2, 1 référence) + 6 refusées.
 - **Mémoire/RAG** : 16 retenues (14 phase 2/optionnelles, 2 référence) + 6 refusées.
 - **Déploiement/observabilité** : 18 retenues (16 phase 2, 2 référence — WAL-G, et le trio Coolify/Dokploy/Supabase en une seule ligne) + 2 refusées.
-- **Mobile** : 15 retenues (15 intégrées — squelette Expo Router de PLAN T1.4-a) + 0 refusée.
+- **Mobile** : 19 retenues (19 intégrées — squelette Expo Router de PLAN T1.4-a, +4 pour le
+  client d'appairage de PLAN T1.4-c3 : `expo-secure-store`, `@noble/curves`, `@noble/hashes`,
+  `@types/node`) + 0 refusée.
 - **M1** : 11 retenues (1 intégrée — code interne conservé —, 10 phase 2) + 2 refusées.
 - **M2** : 4 retenues (phase 2) + 2 refusées.
 - **M3** : 6 retenues (phase 2) + 3 refusées.
@@ -316,15 +322,17 @@ hors périmètre strict de R10 ») et documente en plus, pour M10 spécifiquemen
 - **M9** : 13 retenues (2 intégrées — format Agent Skills et patron `civ_review.py` —, 11 phase 2) + 4 refusées.
 - **M10** : renvoie au domaine Mémoire/RAG + 2 éléments propres (1 intégrée — modèle Département —, 1 phase 2).
 
-**Total : 129 briques/patrons retenus** (dont 23 déjà intégrés au code ou à la méthode : **OpenClaw**
+**Total : 133 briques/patrons retenus** (dont 27 déjà intégrés au code ou à la méthode : **OpenClaw**
 comme core par défaut, **Hermes Agent** comme adaptateur/runtime optionnel, **LiteLLM** comme
 passerelle de modèles par défaut, la discipline de cache-boundary (désormais native au runtime
 OpenClaw), `garde_fou.py` M1 conservé, le format Agent Skills, le patron
-`civ_review.py`/`tally_reviews.py`, le modèle « Département » de M10, et les 15 briques du
+`civ_review.py`/`tally_reviews.py`, le modèle « Département » de M10, les 15 briques du
 squelette de l'app mobile — PLAN T1.4-a : Expo/Expo Router/expo-sqlite/expo-localization/
 expo-crypto, i18next/react-i18next, React/React Native et les dépendances de navigation
 requises par Expo Router, Jest/jest-expo/babel-preset-expo/@react-native/jest-preset,
-TypeScript) **et 38 refusées explicitement**, sur les 10 rapports `docs/research/R1`–`R10` et
+TypeScript — et les 4 briques du client d'appairage mobile — PLAN T1.4-c3 :
+`expo-secure-store`, `@noble/curves`, `@noble/hashes`, `@types/node`) **et 38 refusées
+explicitement**, sur les 10 rapports `docs/research/R1`–`R10` et
 R12 ; mise à jour du choix de core par
 [ADR-0007](../decisions/ADR-0007-core-openclaw.md), vérifiée directement dans le code, les tests et le
 clone local d'OpenClaw (pas seulement relayée).

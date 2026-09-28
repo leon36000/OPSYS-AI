@@ -7,18 +7,22 @@
 > dans [`docs/research/R12-app-mobile.md`](../research/R12-app-mobile.md) (pile §3, synchro §4,
 > écrans §5, sécurité §6). Ce fichier résume ; R12 fait foi sur le détail et les preuves.
 
-## État actuel : premier écran métier de bout en bout (T1.4-d)
+## État actuel : appairage réel + premier écran métier (T1.4-c3)
 
 `mobile/` contenait, jusqu'à T1.4-a, un **squelette** (projet, routage par rôle, file sortante
-et client protocole en logique pure) sans écran métier. **T1.4-d livre `punch.tsx` (M4.4) et le
-« vidangeur »** qui relie enfin `src/outbox` à `src/protocole` (R12 §5 étape 2 : « la plus
-petite tranche verticale qui exerce toute la mécanique de file/synchro ») — voir « Vidangeur »
-et « Écran `punch.tsx` » ci-dessous. Étapes suivantes (R12 §5, ordre de livraison) : T1.4-c
-(protocole d'appairage — encore À FAIRE, voir plus bas), `today.tsx`/`job/[id]`,
-`checklist`/`photos`/`signature`, `complete`→`materials` (M6.10), `(admin)/approvals`, E2E
-Maestro. T1.4-b (idempotence côté socle) est fait côté serveur — voir
+et client protocole en logique pure) sans écran métier. T1.4-d a livré `punch.tsx` (M4.4) et le
+« vidangeur » qui relie `src/outbox` à `src/protocole` (R12 §5 étape 2), mais sans configuration
+de connexion réelle (`obtenirConfigurationAppel` renvoyait toujours `null`, faute d'appairage).
+**T1.4-c3 livre le CLIENT D'APPAIRAGE réel** (`src/appairage/`) : identité d'appareil Ed25519
+générée sur l'appareil, protocole `connect`/`connect.challenge`/`hello-ok` lu et reproduit
+fidèlement depuis le fork, écran de saisie de code, stockage sécurisé du jeton, et branchement
+du rôle reçu sur la garde de routes existante — voir « Appairage » ci-dessous pour le détail et
+les limites (T1.4-c2, encore côté core, reste un préalable pour que le rôle reçu soit
+`admin`/`employee`/`seller` en production). Étapes suivantes (R12 §5, ordre de livraison) :
+`today.tsx`/`job/[id]`, `checklist`/`photos`/`signature`, `complete`→`materials` (M6.10),
+`(admin)/approvals`, E2E Maestro. T1.4-b (idempotence côté socle) est fait côté serveur — voir
 [`IDEMPOTENCE.md`](IDEMPOTENCE.md) — mais son branchement CÔTÉ CORE (`_meta` MCP) reste à faire
-en T1.4-c (détail dans la section « `/tools/invoke` » ci-dessous).
+en T1.4-c1 (détail dans la section « `/tools/invoke` » ci-dessous).
 
 ## Pile (R12 §3 — versions et licences vérifiées)
 
@@ -26,21 +30,22 @@ Expo SDK 57 (`expo` 57.0.25) + Expo Router 57.0.23 + TypeScript strict, React Na
 Stockage local : `expo-sqlite` (moteur libSQL), désormais réellement câblé par
 `src/outbox/service.ts` (voir « Vidangeur » ci-dessous). i18n : i18next + react-i18next +
 expo-localization. Génération d'UUID côté appareil : `expo-crypto`. Détection réseau (T1.4-d) :
-`@react-native-community/netinfo` 12.0.1, MIT (licence vérifiée dans son fichier `LICENSE`
-installé — inscription dans
-[`docs/research/INGREDIENTS.md`](../research/INGREDIENTS.md) **en suspens** : cette tranche
-n'a pas le droit de modifier ce fichier, voir rapport final de T1.4-d). Toutes MIT, sauf
-TypeScript (Apache-2.0) — les deux licences sont acceptées (AGENTS.md). Détail brique par
-brique, licences et écarts de version : `docs/research/INGREDIENTS.md` (section « Mobile ») et
-le rapport final de PLAN T1.4-a.
+`@react-native-community/netinfo` 12.0.1, MIT. Toutes MIT, sauf TypeScript (Apache-2.0) — les
+deux licences sont acceptées (AGENTS.md). Détail brique par brique, licences et écarts de
+version : `docs/research/INGREDIENTS.md` (section « Mobile ») et le rapport final de PLAN
+T1.4-a.
 
-Volontairement **pas encore installés** à ce stade (aucun écran n'en a encore besoin) : caméra,
-notifications, signature, formulaires (react-hook-form/zod), TanStack Query, `expo-secure-store`,
+Depuis T1.4-c3 : `expo-secure-store` (jeton d'appareil et clé secrète Ed25519, jamais SQLite ni
+`AsyncStorage` — R12 §6) et, pour la signature du défi d'appairage, `@noble/curves` (Ed25519,
+algorithme confirmé en lisant le fork — voir « Appairage ») + `@noble/hashes` (SHA-256, dérivation
+du `deviceId`). Volontairement **pas encore installés** à ce stade (aucun écran n'en a encore
+besoin) : caméra (donc pas de lecture QR — voir « Appairage », code saisi seulement),
+notifications, signature manuscrite, formulaires (react-hook-form/zod), TanStack Query,
 `expo-location`/`expo-task-manager` (GPS — voir « Écran `punch.tsx` » : la lecture Loi 25
 « fenêtre bornée » de R12 §6 n'est pas encore confirmée par Nathan/juriste),
-`@testing-library/react-native` (absent de la pile installée — `punch.tsx` est donc testé via sa
-logique extraite en fonctions pures, `src/ecrans/punch.ts`, jamais en rendu). Ils entrent avec
-les tranches qui en ont besoin, jamais par anticipation.
+`@testing-library/react-native` (absent de la pile installée — `punch.tsx` et l'écran
+d'appairage sont donc testés via leur logique extraite en fonctions pures, jamais en rendu). Ils
+entrent avec les tranches qui en ont besoin, jamais par anticipation.
 
 ## Rôles et routage (`src/roles/`)
 
@@ -51,24 +56,153 @@ closed (session absente, rôle inconnu et rôle valide mais différent du groupe
 tous les trois, vers `/pairing`). Chaque `_layout.tsx` de groupe appelle cette garde avant de
 rendre quoi que ce soit — un jeton `employee` n'atteint donc jamais `(admin)`, y compris par URL
 directe. `src/roles/contexte.tsx` porte l'état de session en React Context ; il démarre toujours
-`{ presente: false }` (voir Appairage ci-dessous). 227 tests Jest couvrent la garde (matrice rôle
-× groupe complète, session absente, rôles inconnus), la file sortante, le vidangeur (faux
-transport), le contrat `m4_pointer`, les déclencheurs et la logique de `punch.tsx`.
+`{ presente: false }` au premier rendu (`app/_layout.tsx` la restaure ensuite depuis
+`expo-secure-store` si une session persistée existe — voir « Appairage » ci-dessous). 312 tests
+Jest couvrent la garde (matrice rôle × groupe complète, session absente, rôles inconnus), la
+file sortante, le vidangeur (faux transport), le contrat `m4_pointer`, les déclencheurs, la
+logique de `punch.tsx`, et désormais le client d'appairage (`src/appairage/`, T1.4-c3).
 
 Chaque groupe a un écran d'accueil minimal et distinctement nommé (`(employee)/employee.tsx`,
 etc.) plutôt qu'un `index.tsx` par groupe : Expo Router retire les segments `(parenthèses)` de
 l'URL, donc quatre `index.tsx` entreraient tous en conflit sur `/`.
 
-## Appairage — à faire (PLAN T1.4-c)
+## Appairage (PLAN T1.4-c3)
 
-`app/pairing/index.tsx` explique l'appairage et affiche l'état (toujours « non apparié » pour
-l'instant) : **aucun protocole n'est implémenté**, ni QR, ni code, ni écriture de jeton. R12 §1.3
-documente le protocole du fork à reprendre (`connect` → `connect.challenge` → charge signée v3 →
-`hello-ok`, jeton d'appareil scellé par rôle) ; l'algorithme de signature exact restait à
-confirmer dans le code du fork au moment de R12 (§6, recommandation de suivi). R12 §6 signale
-aussi un préalable côté fork : des **rôles d'opérateur nommés** (`admin`/`employee`/`seller`),
-faute de quoi un jeton employé aurait la portée d'un jeton propriétaire — à durcir avant de
-livrer l'appairage réel, pas seulement côté app.
+### Algorithme et format — confirmés en lisant le fork (lecture seule, jamais exécuté, ADR-0008)
+
+R12 §1.3 documentait la séquence `connect` → `connect.challenge` → charge signée v3 → `hello-ok`
+mais signalait l'algorithme de signature exact comme « à vérifier ». C'est fait :
+
+- **Séquence sur le fil** (Wire v4, un seul WebSocket par tentative) : à l'ouverture, le serveur
+  pousse SANS sollicitation un évènement `{type:"event", event:"connect.challenge",
+  payload:{nonce, ts, capabilities}}` (`core/src/gateway/server/connection.ts:333-343`). Le
+  client répond par une requête `{type:"req", id, method:"connect", params: ConnectParams}`
+  (`core/packages/gateway-client/src/protocol-client.ts:352`, forme exacte de `ConnectParams`
+  dans `core/packages/gateway-protocol/src/schema/frames.ts:38-100`). Le serveur répond soit
+  `{type:"res", ok:true, payload: HelloOk}` (`HelloOkSchema`, `frames.ts:103-156` :
+  `payload.auth = {deviceToken, role, scopes, ...}`), soit `{type:"res", ok:false,
+  error:{details:{code:"PAIRING_REQUIRED", reason:"not-paired", requestId, ...}}}` tant que le
+  propriétaire n'a pas approuvé (`core/packages/gateway-protocol/src/connect-error-details.ts:46,54-59`,
+  émis par `core/src/gateway/server/ws-connection/connect-device-pairing.ts`) — R12 §1.3
+  « approbation en deux temps » : `shouldAllowSilentLocalPairing` refuse TOUJOURS l'auto-
+  approbation silencieuse pour une connexion distante (`locality === "remote"`,
+  `handshake-auth-helpers.ts:92-93`), ce qui couvre le cas d'un téléphone sur Internet.
+- **Charge signée v3** — `buildDeviceAuthPayloadV3`/`normalizeDeviceMetadataForAuth`
+  (`core/packages/gateway-client/src/device-auth.ts:1-64`) :
+  `"v3|" + deviceId + "|" + clientId + "|" + clientMode + "|" + role + "|" + scopes.join(",") +
+  "|" + signedAtMs + "|" + (token ?? "") + "|" + nonce + "|" + normaliser(platform) + "|" +
+  normaliser(deviceFamily)`, où `normaliser` ne touche QUE les lettres ASCII A-Z (vérifié par un
+  vecteur du fork : `"İOS"` → `"İos"`, pas une casse Unicode complète). Portée sur
+  `mobile/src/appairage/chargeV3.ts`, testée OCTET PAR OCTET contre des vecteurs recopiés
+  tels quels de `core/src/gateway/device-auth.test.ts` et
+  `core/packages/gateway-client/src/browser-device-auth.test.ts` (`chargeV3.test.ts`).
+- **Signature : Ed25519 pur (EdDSA RFC 8032, sans pré-hachage)**, confirmé dans
+  `core/src/infra/ed25519-signature.ts:170-174,199-211` (`crypto.sign(null, ...)`/`crypto.verify(null,
+  ...)` sur une clé Ed25519 — l'argument `null` est ce qui distingue le EdDSA pur du variant
+  « ph » préhaché). Clé publique/signature encodées en base64url SANS remplissage
+  (`base64UrlEncode` = `Buffer#toString("base64url")`). `deviceId` = hex minuscule de
+  `sha256(clé publique brute 32 octets)` (`core/src/infra/device-identity.ts:176-187`,
+  `deriveDeviceIdFromPublicKey`) — **vérifié par le serveur à chaque connexion**
+  (`core/src/gateway/server/ws-connection/connect-device-proof.ts:64-68` : tout écart rejette la
+  connexion, `device-id-mismatch`), donc pas un détail optionnel. Signature acceptée si
+  `|Date.now() - signedAt| ≤ 2 min` (`connect-device-proof.ts:14,70-73`) et si `nonce` == celui du
+  défi reçu sur CETTE connexion (à usage unique). Brique : **`@noble/curves`** (Ed25519) +
+  **`@noble/hashes`** (SHA-256), MIT, implémentations JS auditées, confirmées comme LE bon choix
+  (R12 §3 les citait comme « piste » avant vérification). Portées sur `src/appairage/identite.ts`,
+  **vérifiées octet pour octet contre Node `crypto`** dans `identite.test.ts` — un vecteur
+  (graine fixe → clé publique/signature/`deviceId` attendus) où le test signe avec `@noble/curves`
+  ET reconstruit indépendamment une clé PEM Ed25519 (préfixes DER lus dans
+  `ed25519-signature.ts:4-5`) pour que Node `crypto.verify`/`crypto.sign(null,...)` — jamais du
+  code de `core/`, seulement le module `crypto` intégré à Node — confirme la même signature.
+- **Code/QR** — `oc-pair://` + base64url(JSON `{url, urls?, bootstrapToken, expiresAtMs?,
+  tlsFingerprint?}`), port de `decodePairingSetupCode`/`encodePairingSetupCode`
+  (`core/src/pairing/setup-code.ts:414-494`) dans `src/appairage/codeAppairage.ts` : `url` est
+  l'URL WebSocket de la passerelle, `bootstrapToken` le jeton d'amorçage à usage unique (R12
+  §1.3, 10 min — vérifié aussi côté client via `expiresAtMs` quand il est présent, le serveur
+  fait de toute façon foi). `bootstrapToken` voyage comme `auth.bootstrapToken` ET comme `token`
+  dans la charge v3 signée (même rôle que dans `selectGatewayConnectAuth`,
+  `core/packages/gateway-client/src/connect-auth.ts:45-51`).
+
+### Décision d'intégration — client minimal, pas un import de `core/`
+
+Mission : réutiliser `@openclaw/gateway-client/browser` + `@openclaw/gateway-protocol`
+(chemin local, copie vendorisée, ou publication), sinon écrire un client minimal testé contre le
+protocole lu. **Retenu : client minimal** (`src/appairage/`), pour trois raisons qui se
+recoupent :
+
+1. **La contrainte du mandat l'exige.** `core/` est lecture seule ET « n'exécute jamais son
+   code » dans ce bac à sable (AGENTS.md, mission). Un chemin local
+   (`"@openclaw/gateway-client": "file:../core/packages/gateway-client"`) ferait exécuter du
+   TypeScript de `core/` PAR `npm test`/`npm run typecheck` de `mobile/` lui-même dès que Jest
+   résout l'import — précisément ce qui est interdit, même si c'est « seulement » depuis
+   `mobile/`. Une copie vendorisée verbatim des DEUX paquets (`gateway-protocol` : ~270 fichiers
+   de schémas TypeBox, presque tous sans rapport avec l'appairage ; `gateway-client` :
+   `protocol-client.ts` à lui seul 635 lignes, machine à états pensée pour une session agent
+   persistante — reconnexion à recul, files de requêtes multiplexées, écouteurs d'évènements,
+   dépendance `@openclaw/retry`) recréerait exactement le problème que R12 §2 reproche au fork
+   natif OpenClaw rejeté : une grosse base à maintenir pour un besoin étroit. Publier ces paquets
+   en interne (npm privé/GitHub Packages) est hors de portée d'une seule tranche et ne lève de
+   toute façon pas la première objection (le code exécuté resterait celui de `core/`).
+2. **Le besoin réel est étroit.** L'app n'a besoin du protocole WebSocket que pour la POIGNÉE DE
+   MAIN d'appairage — une fois le jeton d'appareil obtenu, la socket est FERMÉE et tout le reste
+   passe par `POST /tools/invoke` (HTTP, déjà écrit dans `src/protocole/client.ts`, R12 §1.2 :
+   « la porte déterministe ... jamais par un tour de modèle/session persistante »). Un client
+   minimal qui ne fait QUE `connect`→`connect.challenge`→`hello-ok` (avec recul entre tentatives
+   pendant l'attente d'approbation) suffit entièrement ; rien dans `protocol-client.ts` au-delà
+   de cette poignée de main n'a d'utilité pour ce cas d'usage.
+3. **Testabilité totale sans jamais toucher `core/`.** Chaque brique du protocole
+   (`chargeV3.ts`, `identite.ts`, `codeAppairage.ts`, `client.ts`) est une fonction pure ou une
+   machine à états avec socket/horloge/sommeil INJECTÉS (même discipline que
+   `src/protocole/client.ts`/`src/outbox/vidangeur.ts`), testée contre des vecteurs recopiés
+   littéralement des tests du fork (lus, jamais exécutés) et contre Node `crypto` comme oracle
+   indépendant pour la partie cryptographique — voir ci-dessus.
+
+**Limite connue, à lever une fois le fork durci (T1.4-c2 ou une tâche core dédiée) :**
+`GATEWAY_CLIENT_IDS` (`core/packages/gateway-protocol/src/client-info.ts:10-29`) est un
+catalogue FERMÉ sans identifiant OPSYS — `ConnectParams.client.id` doit être une valeur connue
+du fork, sous peine d'échec de schéma. `src/appairage/clientInfo.ts` emprunte donc
+`openclaw-ios`/`openclaw-android` selon la plateforme, faute de mieux. Ce n'est pas cosmétique :
+`isNativeAppUiClient` (`handshake-auth-helpers.ts:37-45`) classe ces id comme des clients natifs
+de confiance OpenClaw — un enregistrement dédié (`GATEWAY_CLIENT_IDS.OPSYS_MOBILE` ou
+équivalent) est un changement CORE, hors périmètre (lecture seule) de cette tranche.
+
+### Ce que fait l'écran (`app/pairing/index.tsx`)
+
+Saisie du **code seulement** (pas de lecture QR — `expo-camera` alourdirait cette tranche pour un
+gain marginal tant que le code peut être copié/collé ou tapé ; à ajouter dans une tranche dédiée
+si le besoin terrain le justifie). Au bouton « Appairer » : `chargerOuCreerIdentite` (première
+fois : graine aléatoire `expo-crypto.getRandomBytes(32)` → identité Ed25519, persistée ; fois
+suivantes : relit la même identité — le `deviceId` reste stable pour l'historique d'approbation
+côté propriétaire) → `appairerAppareil` (`src/appairage/client.ts`, la machine à états décrite
+ci-dessus, avec recul exponentiel réutilisé tel quel de `src/outbox/recul.ts` entre les
+tentatives pendant l'attente d'approbation) → au succès, `sauvegarderSession` (jeton, rôle, URL,
+`appareilId`) dans `expo-secure-store`, `definirConfigurationAppel` (`src/protocole
+/configuration.ts`) et `definirSession` (`src/roles/contexte.tsx`) sont appelés, puis
+`router.replace("/")` laisse `app/index.tsx` rediriger vers le bon groupe (ou revenir à
+`/pairing` si le rôle reste inconnu — voir plus bas). `app/_layout.tsx` restaure la même session
+au démarrage (`RestaurationSession`, lit `expo-secure-store` une fois) sans repasser par un
+nouvel appairage. Écran non testé en rendu (même limite que `punch.tsx`, pas de
+`@testing-library/react-native`) ; toute la logique sous-jacente l'est, exhaustivement.
+
+### Rôle reçu -> garde de routes existante, et ce qui attend T1.4-c2
+
+`hello.auth.role` (chaîne libre côté protocole) est stocké TEL QUEL dans `SessionAppareil.role`
+et alimente directement `src/roles/garde.ts` (`evaluerGarde`), sans traduction ni mappage codé en
+dur ici — c'est voulu. **Aujourd'hui, le fork non modifié ne connaît que deux rôles de
+transport, `"operator"`/`"node"`** (`core/src/gateway/role-policy.types.ts:2`), pas de rôles
+nommés OPSYS (`admin`/`employee`/`seller`) : `src/appairage/client.ts` demande `role:"operator"`
+(seule valeur qui passe la validation du fork actuel pour un appareil humain), et c'est très
+probablement CE QUE le serveur renverra dans `hello.auth.role` tant que **T1.4-c2** (« rôles
+nommés sur le jeton d'appareil, attribués à l'approbation de l'appairage avec la personne OPSYS »,
+PLAN.md) n'est pas livré côté core. `"operator"` n'est PAS un profil connu de
+`src/roles/types.ts` (`PROFILS = admin|employee|seller|client`), donc `evaluerGarde` le refuse
+déjà correctement (`role_inconnu`, fail-closed, testé exhaustivement dans `garde.test.ts`,
+INCHANGÉ par cette tranche) et renvoie vers `/pairing` — **l'appairage réussit, le jeton et le
+rôle sont bien stockés, mais aucun écran métier n'est atteignable en production tant que
+T1.4-c2 n'a pas remplacé `"operator"` par un rôle nommé.** C'est le comportement CORRECT
+(P2, fail-closed) : mieux vaut un appareil apparié mais bloqué à `/pairing` qu'un rôle deviné.
+Rien côté mobile n'a besoin de changer quand T1.4-c2 livrera les rôles nommés : le chemin
+`hello.auth.role → SessionAppareil.role → evaluerGarde` est déjà générique.
 
 ## File sortante (`src/outbox/`, R12 §4)
 
@@ -184,16 +318,22 @@ impose aujourd'hui (« mode ombre uniquement », `outils.py` `_ATTESTATION`) :
   25 » n'est pas encore confirmée par Nathan/juriste, et `expo-location` n'est volontairement
   pas installé ;
 - `fenetre_travail`/`referentiel_villes`/`ville`/`sel` : aucune route serveur ne les expose
-  encore au mobile (pas de `today.tsx`, pas d'appairage T1.4-c) ;
+  encore au mobile — l'appairage (T1.4-c3) fournit désormais une connexion authentifiée, mais
+  ces données de cédule/référentiel arrivent avec `today.tsx` (R12 §5 étape 3), pas avant ;
 - `technicien_id`/`intervention_id` NE sont PAS dans ce contexte provisoire : ce sont les deux
-  seuls champs que l'employé saisit lui-même à l'écran (aucune session appairée pour les
-  connaître à sa place) ;
-- `appareil_id`/`deviceId` : identifiant généré une fois par processus (`expo-crypto`), jamais
-  persisté — regénéré à chaque démarrage tant que `expo-secure-store` et l'appairage (T1.4-c) ne
-  fournissent pas l'identité scellée par le serveur. Sans persistance, l'idempotence de bout en
-  bout `(appareil, idempotencyKey)` n'est pas garantie d'une session à l'autre — sans
-  conséquence tant que T1.4-c n'a pas câblé la lecture de ces champs côté core (section
-  précédente).
+  seuls champs que l'employé saisit lui-même à l'écran (`today.tsx`/`job/[id]` les connaîtront
+  automatiquement) ;
+- `appareil_id`/`deviceId` : **toujours** un identifiant généré une fois par processus
+  (`expo-crypto`), jamais persisté ici — `punch.tsx` n'a PAS été reconnecté à la vraie identité
+  d'appareil que T1.4-c3 introduit (`src/appairage/identite.ts`, persistée dans
+  `expo-secure-store`, stable d'un lancement à l'autre) : ce sont deux identifiants D'APPAREIL
+  DIFFÉRENTS aujourd'hui, l'un pour l'appairage (réel, stable), l'autre pour `m4_pointer` (encore
+  provisoire, par processus). Les faire converger — `punch.tsx`/`m4/pointage.ts` lisant
+  `src/appairage/stockage.ts` plutôt que de générer leur propre id — est un point d'extension
+  explicite pour une prochaine tranche, PAS fait ici (mission T1.4-c3 : appairage seulement).
+  Sans convergence, l'idempotence de bout en bout `(appareil, idempotencyKey)` reste non garantie
+  d'une session à l'autre pour les mutations `punch_in`/`punch_out` — sans conséquence tant que
+  T1.4-c1 n'a pas câblé la lecture de ces champs côté core (section suivante).
 
 **Verdict serveur métier vs succès/échec HTTP** (`src/m4/pointage.ts`,
 `interpreterResultatPointage`) : un HTTP 200 peut être un REJET métier définitif
@@ -230,14 +370,19 @@ sans réseau). Classement des échecs : réseau/délai et HTTP 408/429/5xx → r
 (vidangeur) est fait (T1.4-d)** — voir « Vidangeur » ci-dessus.
 
 `deviceId`/`deviceTimestamp` (T1.4-d, ajoutés à `RequeteOutilsInvoke`) anticipent le contrat que
-[`IDEMPOTENCE.md`](IDEMPOTENCE.md) §7 documente pour T1.4-c : mêmes noms, même emplacement (corps
-de `/tools/invoke`, à côté de `idempotencyKey`) que le changement recommandé pour
+[`IDEMPOTENCE.md`](IDEMPOTENCE.md) §7 documente pour T1.4-c1 : mêmes noms, même emplacement
+(corps de `/tools/invoke`, à côté de `idempotencyKey`) que le changement recommandé pour
 `ToolsInvokeInput` (`tools-invoke-shared.ts`) — choisis pour qu'aucune réécriture côté mobile ne
-soit nécessaire quand T1.4-c câblera leur lecture vers `_meta` MCP
+soit nécessaire quand T1.4-c1 câblera leur lecture vers `_meta` MCP
 (`opsys/appareil`/`opsys/horodatageAppareil`). **Le core ne les lit pas encore** : envoyés dès
-maintenant, ignorés jusqu'à T1.4-c.
+maintenant, ignorés jusqu'à T1.4-c1. Le jeton d'appareil qu'`app/pairing/index.tsx` obtient
+désormais (T1.4-c3, section « Appairage » ci-dessus) EST un jeton `authMethod === "device-token"`
+reconnu par l'autorisation HTTP de `/tools/invoke` (vérifié en lisant
+`core/src/gateway/http-auth-utils.ts:179,267,477,495,559` — lecture seule, jamais exécuté) : le
+Bearer envoyé par `src/protocole/client.ts` après un appairage réussi est donc un jeton que le
+fork accepte réellement, pas une supposition.
 
-## Idempotence côté socle — fait (PLAN T1.4-b), branchement core à faire (T1.4-c)
+## Idempotence côté socle — fait (PLAN T1.4-b), branchement core à faire (T1.4-c1)
 
 `idempotencyKey` protège contre le double envoi côté client (reprise après crash, réseau
 instable) ; il ne vaut que si le moteur métier Python l'applique en vérité. **C'est fait** côté
@@ -248,32 +393,43 @@ encore** (IDEMPOTENCE.md §7, lu, jamais modifié ici) : le core (`core/src/gate
 shared.ts`, `agent-bundle-mcp-runtime.ts`) ne construit pas encore ce `_meta` à partir du corps
 de `/tools/invoke` — `idempotencyKey` n'y sert aujourd'hui qu'à un `toolCallId` local de
 déduplication, et `deviceId`/`deviceTimestamp` n'existent pas encore dans `ToolsInvokeInput`. Tant
-que ce câblage (T1.4-c) n'est pas fait, un renvoi après une réponse perdue **duplique** l'effet
+que ce câblage (T1.4-c1) n'est pas fait, un renvoi après une réponse perdue **duplique** l'effet
 côté serveur — connu, documenté, sans solution côté mobile (la file sortante fait déjà tout ce
 qui lui revient : même id, même clé, à chaque renvoi).
 
 ## Sécurité
 
 Jeton d'appareil et clé d'appairage : `expo-secure-store` (Keychain iOS / Keystore Android),
-jamais en base SQLite ni `AsyncStorage` (R12 §6) — **pas encore câblé** : rien ne stocke de
-jeton tant que l'appairage (T1.4-c) n'existe pas. Conséquence directe pour T1.4-d :
-`src/protocole/configuration.ts` (`obtenirConfigurationAppel`) renvoie TOUJOURS `null` (même
-philosophie que `src/roles/contexte.tsx` — « on n'invente aucun faux état apparié ») ; sans
-configuration, `src/outbox/service.ts` ne construit même pas de vidangeur réel : les mutations
-créées par `punch.tsx` s'accumulent en file, en sécurité, sans jamais tenter un appel réseau tant
-que T1.4-c n'a pas fourni une vraie source (`urlBase`, `jeton`, `appareilId`). Vues par rôle
-appliquées deux fois (serveur ET app, R12 §6) ; ici, uniquement la moitié app (`evaluerGarde`)
-est livrée. Consentement GPS, photos/signature : politiques Loi 25 citées par R12 §6 — `punch.tsx`
-ne capte AUCUNE géolocalisation réelle (voir « Écran `punch.tsx` »).
+jamais en base SQLite ni `AsyncStorage` (R12 §6) — **câblé depuis T1.4-c3**
+(`src/appairage/stockage.ts` : clé secrète Ed25519 et session — jeton, rôle, `urlBase`,
+`appareilId` — dans deux entrées distinctes ; ni l'une ni l'autre n'est jamais journalisée,
+vérifié explicitement par un test — `identite.test.ts`). Une fois l'appairage réussi (ou une
+session persistée restaurée au démarrage, `app/_layout.tsx`), `src/protocole/configuration.ts`
+(`obtenirConfigurationAppel`) renvoie une vraie configuration et `src/outbox/service.ts`
+construit le vidangeur réel — sans appairage, il renvoie toujours `null` (même philosophie que
+`src/roles/contexte.tsx` — « on n'invente aucun faux état apparié »), et la file sortante
+continue d'accumuler les mutations en sécurité sans jamais tenter d'appel réseau. Vues par rôle
+appliquées deux fois (serveur ET app, R12 §6) ; côté app, `evaluerGarde` est câblé sur le rôle
+REÇU du serveur (pas encore un rôle nommé OPSYS tant que T1.4-c2 n'est pas livré — voir
+« Appairage » ci-dessus, fail-closed en attendant). Consentement GPS, photos/signature :
+politiques Loi 25 citées par R12 §6 — `punch.tsx` ne capte AUCUNE géolocalisation réelle (voir
+« Écran `punch.tsx` »).
 
 ## Ce qui n'est PAS encore fait
 
-Pas de protocole d'appairage réel (T1.4-c) ; pas de stockage sécurisé de jeton
-(`expo-secure-store` non installé) ; pas de source réelle de `urlBase`/`jeton`/`appareilId`
-(`src/protocole/configuration.ts` renvoie `null`) — tant que ça dure, le vidangeur n'est jamais
-construit en production et la file s'accumule sans se vider ; pas de branchement `_meta`
-MCP côté core (T1.4-c, IDEMPOTENCE.md §7) — un renvoi duplique encore l'effet serveur ; pas de
-capture GPS réelle (Loi 25 non confirmée, `expo-location` non installé), ni de fenêtre de
+**Côté core (hors périmètre de ce dépôt mobile, lecture seule) :** rôles d'opérateur nommés sur
+le jeton d'appareil (T1.4-c2) — tant que ce n'est pas livré, le rôle reçu par l'app reste
+`"operator"` générique et `evaluerGarde` bloque tout accès métier (fail-closed, voir
+« Appairage ») ; branchement `_meta` MCP `deviceId`/`deviceTimestamp` (T1.4-c1, IDEMPOTENCE.md
+§7) — un renvoi duplique encore l'effet serveur ; identifiant OPSYS dédié dans
+`GATEWAY_CLIENT_IDS` (limite documentée dans « Appairage », `src/appairage/clientInfo.ts`
+emprunte `openclaw-ios`/`openclaw-android` en attendant.
+
+**Côté mobile :** pas de lecture QR (code saisi seulement, voir « Appairage » — `expo-camera`
+non installé) ; `punch.tsx`/`m4/pointage.ts` n'utilisent pas encore la vraie identité d'appareil
+que l'appairage introduit — ils gardent leur propre `appareilId` provisoire par processus (voir
+« Écran `punch.tsx` », point d'extension explicite pour une prochaine tranche) ; pas de capture
+GPS réelle (Loi 25 non confirmée, `expo-location` non installé), ni de fenêtre de
 travail/référentiel de villes fournis par le serveur au mobile — `punch.tsx` envoie un contexte
 provisoire clairement documenté pour ces champs (`src/m4/contextePointageProvisoire.ts`) ; pas de
 persistance du dernier verdict serveur dans la ligne `outbox` (limite documentée dans « Écran
@@ -281,8 +437,7 @@ persistance du dernier verdict serveur dans la ligne `outbox` (limite documenté
 approbations, etc.) ; `identifierMutationsAReprendre` n'a encore aucun appelant réel (la reprise
 au démarrage passe directement par `selectionnerProchainesEnvoyables`, qui inclut déjà les
 `envoi` — cette fonction reste utile pour une future traçabilité/journalisation dédiée, R12 §4
-P3) ; pas de caméra, notifications push, signature ; pas de tests E2E Maestro ; pas de build EAS
-ni de publication store (frontière humaine T3, R12 §3) ; inscription de
-`@react-native-community/netinfo` dans `docs/research/INGREDIENTS.md` en suspens (licence MIT
-vérifiée dans cette tranche, mais ce fichier est hors du périmètre autorisé de T1.4-d — voir le
-rapport final).
+P3) ; pas de caméra, notifications push, signature manuscrite ; pas de rotation/révocation de
+jeton d'appareil câblée côté app (`device.token.rotate/revoke`, R12 §1.3 — l'app n'appelle
+jamais ces méthodes, seulement `connect`) ; pas de tests E2E Maestro ; pas de build EAS ni de
+publication store (frontière humaine T3, R12 §3).

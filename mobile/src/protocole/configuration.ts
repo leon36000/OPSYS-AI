@@ -7,18 +7,39 @@ export interface ConfigurationAppel {
 }
 
 /**
- * Source de la configuration de connexion. Renvoie TOUJOURS `null` pour l'instant : aucun
- * appairage réel n'existe (PLAN T1.4-c, docs/architecture/MOBILE.md « Appairage — à faire »),
- * donc aucune URL de passerelle ni jeton d'appareil scellé à lire nulle part dans l'app — même
- * philosophie que `src/roles/contexte.tsx` (`SessionProvider` démarre TOUJOURS
- * `{presente: false}`) : « on n'invente aucun faux état apparié ».
+ * État EN MÉMOIRE de la configuration de connexion — jamais lu directement depuis
+ * `expo-secure-store` ici (cette lecture est asynchrone ; `obtenirConfigurationAppel` doit
+ * rester synchrone, voir plus bas). `définirConfigurationAppel` est appelé :
+ * - par `app/pairing/index.tsx` juste après un appairage réussi (`src/appairage/client.ts`) ;
+ * - par le bootstrap de `app/_layout.tsx` au lancement, s'il retrouve une session déjà persistée
+ *   (`src/appairage/stockage.ts`, `chargerSession`) — restaure la configuration SANS repasser
+ *   par un nouvel appairage.
+ * Symétrique de `src/roles/contexte.tsx` (`SessionProvider`/`définirSession`), mais en dehors de
+ * React : `src/outbox/service.ts` lit `obtenirConfigurationAppel()` depuis du code qui n'est pas
+ * un composant.
+ */
+let configurationActuelle: ConfigurationAppel | null = null;
+
+/**
+ * Source de la configuration de connexion. Renvoie `null` tant qu'aucun appairage réel n'a eu
+ * lieu ET qu'aucune session persistée n'a été restaurée — même philosophie que
+ * `src/roles/contexte.tsx` (`SessionProvider` démarre TOUJOURS `{presente: false}`) : « on
+ * n'invente aucun faux état apparié ».
  *
  * Un vidangeur sans configuration n'est simplement pas construit (`src/outbox/service.ts`) :
  * la file sortante continue d'accumuler les mutations sans risque (R12 §4, « ne jamais perdre
- * silencieusement ») en attendant. Point d'extension pour T1.4-c : remplacer le corps de cette
- * fonction par une lecture de la session appairée, sans toucher à
- * `src/outbox/service.ts`/`vidangeur.ts` ni à aucun écran.
+ * silencieusement ») en attendant. Reste SYNCHRONE à dessein (PLAN T1.4-c3) : `service.ts` n'a
+ * pas eu à changer sa forme d'appel (`const configuration = obtenirConfigurationAppel();`),
+ * seule la lecture d'`expo-secure-store` — intrinsèquement asynchrone — se fait en amont, au
+ * moment de l'appairage ou du bootstrap (voir `définirConfigurationAppel`).
  */
 export function obtenirConfigurationAppel(): ConfigurationAppel | null {
-  return null;
+  return configurationActuelle;
+}
+
+/** Point d'entrée UNIQUE qui fait passer `obtenirConfigurationAppel` de `null` à une vraie
+ * configuration (ou inversement, `null`, après une révocation/déconnexion — non câblé dans cette
+ * tranche, aucun écran ne le déclenche encore). */
+export function definirConfigurationAppel(configuration: ConfigurationAppel | null): void {
+  configurationActuelle = configuration;
 }

@@ -5,9 +5,29 @@ const enCA: RessourcesCommunes = {
   pairing: {
     titre: "Device pairing",
     explication:
-      "This device is not yet paired with the OPSYS gateway. The pairing protocol " +
-      "(QR code or setup code) will be enabled in a future step.",
-    etatNonApparie: "Status: not paired",
+      "Enter the pairing code shown by the owner (QR or setup code). Once the signed " +
+      "challenge is sent, the owner's approval is required before continuing.",
+    champCode: {
+      etiquette: "Pairing code",
+      indice: "oc-pair://... or the provided code",
+    },
+    bouton: "Pair this device",
+    boutonEnCours: "Pairing…",
+    phases: {
+      connexion: "Connecting to the gateway…",
+      attenteDefi: "Waiting for the server challenge…",
+      signature: "Signing the device identity…",
+      attenteApprobation: "Waiting for the owner's approval (attempt {{tentative}})…",
+      nouvelleTentativeReseau: "Reconnecting (attempt {{tentative}})…",
+      reussi: "Pairing succeeded.",
+    },
+    erreurs: {
+      code_invalide: "Invalid pairing code. Check the entry or request a new code.",
+      code_expire: "This pairing code has expired. Ask the owner for a new one.",
+      refuse: "Pairing refused by the gateway.",
+      delai_ecoule: "Pairing timed out. Generate a new code from the owner.",
+      reponse_inattendue: "Unexpected response from the gateway. Try again later.",
+    },
   },
   groupes: {
     employee: { accueil: "Home — employee" },

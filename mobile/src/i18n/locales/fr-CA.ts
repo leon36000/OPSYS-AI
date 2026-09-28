@@ -5,7 +5,27 @@ export interface RessourcesCommunes {
   pairing: {
     titre: string;
     explication: string;
-    etatNonApparie: string;
+    champCode: {
+      etiquette: string;
+      indice: string;
+    };
+    bouton: string;
+    boutonEnCours: string;
+    phases: {
+      connexion: string;
+      attenteDefi: string;
+      signature: string;
+      attenteApprobation: string;
+      nouvelleTentativeReseau: string;
+      reussi: string;
+    };
+    erreurs: {
+      code_invalide: string;
+      code_expire: string;
+      refuse: string;
+      delai_ecoule: string;
+      reponse_inattendue: string;
+    };
   };
   groupes: {
     employee: { accueil: string };
@@ -44,9 +64,29 @@ const frCA: RessourcesCommunes = {
   pairing: {
     titre: "Appairage de l'appareil",
     explication:
-      "Cet appareil n'est pas encore apparié à la passerelle OPSYS. Le protocole d'appairage " +
-      "(code QR ou code de configuration) sera activé à une prochaine étape.",
-    etatNonApparie: "État : non apparié",
+      "Entrez le code d'appairage affiché par le propriétaire (QR ou code de configuration). " +
+      "Une fois le défi signé envoyé, l'approbation du propriétaire est requise avant de continuer.",
+    champCode: {
+      etiquette: "Code d'appairage",
+      indice: "oc-pair://... ou le code fourni",
+    },
+    bouton: "Appairer cet appareil",
+    boutonEnCours: "Appairage en cours…",
+    phases: {
+      connexion: "Connexion à la passerelle…",
+      attenteDefi: "Attente du défi du serveur…",
+      signature: "Signature de l'identité de l'appareil…",
+      attenteApprobation: "En attente de l'approbation du propriétaire (tentative {{tentative}})…",
+      nouvelleTentativeReseau: "Reconnexion en cours (tentative {{tentative}})…",
+      reussi: "Appairage réussi.",
+    },
+    erreurs: {
+      code_invalide: "Code d'appairage invalide. Vérifiez la saisie ou redemandez un code.",
+      code_expire: "Ce code d'appairage a expiré. Demandez-en un nouveau au propriétaire.",
+      refuse: "Appairage refusé par la passerelle.",
+      delai_ecoule: "Délai d'appairage dépassé. Générez un nouveau code auprès du propriétaire.",
+      reponse_inattendue: "Réponse inattendue de la passerelle. Réessayez plus tard.",
+    },
   },
   groupes: {
     employee: { accueil: "Accueil — employé" },
