@@ -96,6 +96,10 @@ TRANSITIONS_AUTORISEES = (
 
 TYPE_INSCRIPTION = "intervention_inscrite"
 TYPE_TRANSITION = "transition_statut"
+# PLAN T1.4-k : maillon « ce technicien est assigné à cette intervention », écrit AVANT le départ
+# (`m4_planifier_intervention` y consigne la cédule). Sans statut : il ne change pas l'état de
+# l'intervention, il dit seulement à qui elle est.
+TYPE_ASSIGNATION = "assignation_technicien"
 
 __all__ = [
     "ETATS",
@@ -104,8 +108,11 @@ __all__ = [
     "TRANSITIONS_AUTORISEES",
     "TYPE_INSCRIPTION",
     "TYPE_TRANSITION",
+    "TYPE_ASSIGNATION",
     "statut_courant",
     "inscrire_intervention",
+    "assigner_technicien",
+    "technicien_assigne",
     "transitionner",
     "lister_interventions",
 ]
@@ -245,6 +252,90 @@ def inscrire_intervention(contrat, marqueur, registre_cible, horodatage_arg, sel
         "horodatage": horodatage_arg,
     }
     return accuse, None
+
+
+def assigner_technicien(intervention_id, technicien_id, registre_cible, horodatage_arg):
+    """
+    Consigne qu'un technicien est assigné à une intervention, AVANT son départ (PLAN T1.4-k).
+
+    Jusqu'ici l'assignation n'entrait au registre qu'avec la transition ``en_route``
+    (``transitionner``, PRD §4) : avant de partir, aucune intervention n'était « à quelqu'un », donc
+    ni la liste du jour d'un employé ni le contrôle d'accès par intervention n'avaient de fait sur
+    quoi s'appuyer. Ce maillon n'est PAS une transition : il ne change pas le statut et n'ouvre aucun
+    droit de départ à lui seul (``planifiee -> en_route`` exige toujours l'assignation, validée à
+    ``transitionner``).
+
+    Refus, sans rien écrire (fail-closed) :
+      - horodatage invalide : REJ-HORODATAGE-INVALIDE ;
+      - intervention inexistante ou déjà dans un état terminal : REJ-TRANSITION-ILLEGALE (on
+        n'assigne pas un chantier clos) ;
+      - ``technicien_id`` absent, non textuel ou vide : REJ-CHAMP-VIDE / REJ-CONTRAT-INVALIDE —
+        jamais un technicien par défaut.
+
+    Returns:
+        (accusé, None) en cas de succès, ou (None, verdict) en cas d'échec.
+    """
+    try:
+        horodatage.valider_horodatage(horodatage_arg)
+    except ValueError:
+        return None, verdicts.construire_verdict("REJ-HORODATAGE-INVALIDE")
+
+    courant = statut_courant(registre_cible, intervention_id)
+    if courant is None:
+        return None, verdicts.construire_verdict(
+            "REJ-TRANSITION-ILLEGALE", detail="intervention inexistante"
+        )
+    if courant in ETATS_TERMINAUX:
+        return None, verdicts.construire_verdict(
+            "REJ-TRANSITION-ILLEGALE",
+            statut=courant,
+            detail=f"assignation impossible depuis un état terminal ({courant})",
+        )
+
+    if not isinstance(technicien_id, str):
+        return None, verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE", detail="technicien_id doit être une chaîne"
+        )
+    if technicien_id == "":
+        return None, verdicts.construire_verdict("REJ-CHAMP-VIDE", detail="technicien_id vide")
+
+    ligne_id = registre_cible.ajouter({
+        "type_entree": TYPE_ASSIGNATION,
+        "intervention_id": intervention_id,
+        "technicien_id": technicien_id,
+        "horodatage": horodatage_arg,
+    })
+    return {
+        "intervention_id": intervention_id,
+        "technicien_id": technicien_id,
+        "ligne_id": ligne_id,
+        "horodatage": horodatage_arg,
+        "tete_chaine": registre_cible.tete(),
+    }, None
+
+
+def technicien_assigne(registre_cible, intervention_id):
+    """
+    ``technicien_id`` assigné à cette intervention, ou ``None`` si aucun fait d'assignation n'existe.
+
+    Le DERNIER fait d'assignation du registre l'emporte, qu'il vienne de la planification
+    (``assigner_technicien``, avant le départ) ou du départ (transition ``en_route``, où
+    ``transitionner`` persiste le technicien réellement envoyé) : c'est la même question posée à
+    deux moments, et celui qui vient après la précédente décision la remplace. Historique, pas un
+    droit d'agir : un report ou une annulation ultérieurs laissent ce champ tel quel (le fait « à qui
+    elle est » reste vrai), à lire aux côtés de ``statut_courant``. Jamais déduit d'un argument
+    d'appelant : seul le registre le dit (``None`` = personne, fail-closed pour qui filtre dessus).
+    """
+    technicien = None
+    for maillon in registre_cible.lire():
+        if maillon.get("intervention_id") != intervention_id:
+            continue
+        type_entree = maillon.get("type_entree")
+        if type_entree == TYPE_ASSIGNATION or (
+            type_entree == TYPE_TRANSITION and maillon.get("statut") == "en_route"
+        ):
+            technicien = maillon.get("technicien_id")
+    return technicien
 
 
 def transitionner(
@@ -423,10 +514,13 @@ def lister_interventions(registre_cible, statut=None):
     T1.4-e2 (écran « chantiers du jour ») : ``technicien_assigne`` et
     ``fenetre_planifiee`` sont rendus QUAND le registre les porte, jamais
     devinés (AGENTS.md, fail-closed) :
-      - ``technicien_assigne`` : le ``technicien_id`` de la DERNIÈRE transition
-        ``en_route`` de l'intervention (seul endroit où ce fait entre au
-        registre, cf. ``transitionner``/PRD §4) — ``None`` tant qu'aucune
-        n'a eu lieu.
+      - ``technicien_assigne`` : le DERNIER fait d'assignation de
+        l'intervention (``technicien_assigne``) — l'assignation consignée à
+        la planification (``assigner_technicien``, PLAN T1.4-k) ou, si elle
+        est plus récente, le technicien de la transition ``en_route``
+        (cf. ``transitionner``/PRD §4) — ``None`` tant qu'aucun n'existe.
+        Avant T1.4-k, seul ``en_route`` le portait : une intervention
+        planifiée n'était encore à personne.
       - ``fenetre_planifiee`` : TOUJOURS ``None`` aujourd'hui. La cédule
         choisie par ``m4_planifier_intervention`` (``cedule.generer_cedule``)
         est une fonction PURE, sans registre — son résultat est rendu à
@@ -469,24 +563,8 @@ def lister_interventions(registre_cible, statut=None):
             "lead_id": inscription["lead_id"],
             "type_travaux": inscription["type_travaux"],
             "devis_id": inscription.get("devis_id"),
-            "technicien_assigne": _technicien_assigne_durable(registre_cible, iid),
+            "technicien_assigne": technicien_assigne(registre_cible, iid),
             "fenetre_planifiee": None,
         })
     resultat.sort(key=lambda e: e["intervention_id"])
     return resultat
-
-
-def _technicien_assigne_durable(registre_cible, intervention_id):
-    """``technicien_id`` de la DERNIÈRE transition ``en_route`` de cette intervention dans le
-    registre, ou ``None`` si elle n'a jamais atteint ``en_route`` (T1.4-e2). Historique, pas un
-    statut d'assignation courante : un report ou une annulation ultérieurs laissent ce champ tel
-    quel (le fait « qui a été envoyé » reste vrai même si le chantier a ensuite été reporté), à
-    lire aux côtés de ``statut`` pour l'image complète — même discipline que
-    ``m4_field_ops.outils._depuis_pending_review``."""
-    technicien = None
-    for maillon in registre_cible.lire():
-        if (maillon.get("type_entree") == TYPE_TRANSITION
-                and maillon.get("intervention_id") == intervention_id
-                and maillon.get("statut") == "en_route"):
-            technicien = maillon.get("technicien_id")
-    return technicien

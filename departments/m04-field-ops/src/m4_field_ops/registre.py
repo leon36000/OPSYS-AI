@@ -40,6 +40,10 @@ _TYPE_ENTREE_VALIDES = {
     "consentement_gps",       # §4 : consentement donné/retiré, horodaté, preuve documentée.
     "acces_position_gps",     # §6 : journal de chaque consultation d'un fix GPS déchiffré.
     "purge_retention_gps",    # §5 : trace d'une destruction (jamais la position elle-même).
+    # PLAN T1.4-k : qui est assigné à une intervention AVANT son départ (etats.assigner_technicien).
+    # Sans ce maillon, l'assignation n'entrait au registre qu'avec la transition en_route, donc
+    # rien ne permettait de dire, avant de partir, quelles interventions sont celles d'un employé.
+    "assignation_technicien",
 }
 
 

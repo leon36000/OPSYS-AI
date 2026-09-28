@@ -9,8 +9,12 @@ description: Procédure pour planifier une intervention terrain depuis un lead M
    Sinon : demande-le, stop. N'invente jamais un champ manquant.
 2. Rassemble les techniciens et fenêtres horaires disponibles ce jour-là, puis appelle
    `m4_planifier_intervention` une seule fois : elle inscrit l'intervention ET calcule sa cédule.
+   Un technicien EST une personne OPSYS : donne son identifiant de personne, jamais un code libre.
+   L'intervention est alors assignée (consignée au registre) au technicien que la cédule retient ;
+   c'est lui seul, parmi les employés, qui la voit et peut partir, pointer et terminer.
    - `accepte: false` → corrige l'entrée indiquée par le `verdict` ou escalade.
-   - `non_cedulee: true` → aucun technicien disponible : signale-le, ne force rien.
+   - `non_cedulee: true` → aucun technicien disponible : signale-le, ne force rien (personne n'est
+     assigné, donc aucun employé ne la voit).
 3. Le jour venu, appelle `m4_demarrer_route` avec le technicien réellement assigné (celui rendu
    à l'étape 2). Un autre technicien ne peut pas partir à sa place.
 4. À chaque pointage terrain (arrivée, départ), appelle `m4_pointer` avec l'horodatage, le fix

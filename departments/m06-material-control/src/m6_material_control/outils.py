@@ -49,10 +49,11 @@ from typing import Any
 
 import yaml
 
-from opsys import evenements, stockage
+from opsys import approbations, contexte, evenements, stockage
 from opsys.outils import Autonomie, Outil
 
 from . import (
+    acces,
     besoins_prevus,
     bons_commande,
     digest,
@@ -61,6 +62,7 @@ from . import (
     materiel,
     validation,
     variance_chantier,
+    verdicts,
     wct_recus,
 )
 from . import catalogue as catalogue_module
@@ -662,14 +664,48 @@ def _wct_publie_par_m4(wct_id: str) -> dict[str, Any] | None:
     return {cle: valeur for cle, valeur in charge.items() if cle != "statut"}
 
 
+def _declarant_appareil() -> tuple[acces.Acteur | None, dict[str, Any] | None]:
+    """Qui appelle : ``(None, None)`` hors appel d'appareil, ``(acteur, None)`` si l'identité du
+    jeton est CONFIRMÉE en base, ``(None, verdict)`` sinon (PLAN T1.4-k).
+
+    Même règle que `m4_field_ops.outils._acteur_appareil` (personne active portant encore le rôle du
+    jeton, `approbations.signataire_valide`, la fonction de T1.4-h) : `identite_appelante()` ne rend
+    que ce que le core a transmis, la personne a pu être désactivée depuis. Hors transaction, rien
+    n'est vérifiable : refus fermé. Ne lit JAMAIS les arguments de l'outil."""
+    appelante = contexte.identite_appelante()
+    if appelante is None:
+        return None, None
+    cnx = stockage.connexion_courante()
+    confirmee = approbations.signataire_valide(cnx, appelante) if cnx is not None else None
+    if confirmee is None:
+        return None, verdicts.construire_verdict(
+            "REJ-IDENTITE-APPAREIL-INVALIDE",
+            detail=(
+                f"personne {appelante.personne!r} inconnue, inactive, ou ne porte plus le rôle "
+                f"{appelante.role!r} porté par le jeton d'appareil (ou identité non vérifiable "
+                "hors transaction)"
+            ),
+        )
+    return acces.acteur_de(confirmee.personne, confirmee.role)
+
+
 def declarer_materiaux_utilises(wct_id: str, formulaire: dict[str, Any]) -> dict[str, Any]:
-    """PLAN T1.1-d2 point 2, PLAN T1.4-i pour l'origine du WCT. Réponse tête + taille seulement
-    (`_etat_registre`), comme les autres outils d'écriture.
+    """PLAN T1.1-d2 point 2, PLAN T1.4-i pour l'origine du WCT, PLAN T1.4-k pour qui déclare. Réponse
+    tête + taille seulement (`_etat_registre`), comme les autres outils d'écriture.
 
     L'appelant donne le `wct_id` ; M6 lit lui-même la charge `m4.travaux_termines` publiée par M4
     pour cet identifiant (`_wct_publie_par_m4`) et la valide comme avant (`valider_wct`,
     `valider_formulaire_materiaux_utilises`, dont la cohérence `formulaire["wct_id"] == wct_id`).
     `wct_id` inconnu : `REJ-WCT-INCONNU`, avant toute lecture ou écriture du registre.
+
+    Ordre (chaque refus intervient avant toute écriture) : identité d'appareil confirmée en base
+    (`REJ-IDENTITE-APPAREIL-INVALIDE`) ; WCT connu ; un `employee` ne déclare que pour SON WCT
+    (`REJ-INTERVENTION-NON-ASSIGNEE`, `acces.controler_declarant`) ; structure du formulaire ;
+    `intervention_id` du formulaire = celle du WCT (`REJ-FORMULAIRE-MATERIAUX-INTERVENTION-
+    INCOHERENTE`) ; `chantier_id` du formulaire = celui que la source impose
+    (`REJ-FORMULAIRE-MATERIAUX-CHANTIER-INCOHERENT`, `acces.controler_chantier`). Hors appel d'appareil
+    (agent, console) : aucun contrôle de personne, comme avant T1.4-k ; les deux concordances du
+    formulaire valent pour tous les appelants.
 
     Cet outil ne fonctionne que dans la transaction de l'outil (registre durable et bus) : il n'a
     donc plus de mode `registre_historique` en mémoire.
@@ -677,9 +713,27 @@ def declarer_materiaux_utilises(wct_id: str, formulaire: dict[str, Any]) -> dict
     Correctif (la déclaration arrive presque toujours APRÈS la complétion, R12 §4/§9.7) : si un
     WCT déjà reçu porte ce wct_id, réévalue et republie m6.variance_chantier tout de suite — sans
     attendre une prochaine livraison de m4.travaux_termines qui n'arrivera jamais deux fois."""
+    acteur, verdict_acteur = _declarant_appareil()
+    if verdict_acteur is not None:
+        return {"accepte": False, "verdict": verdict_acteur}
     wct = _wct_publie_par_m4(wct_id)
     if wct is None:
         return {"accepte": False, "verdict": {"code": "REJ-WCT-INCONNU"}}
+    verdict_declarant = acces.controler_declarant(wct, acteur)
+    if verdict_declarant is not None:
+        return {"accepte": False, "verdict": verdict_declarant}
+    # Structure puis concordance avec le WCT, AVANT d'écrire : la même validation que refait
+    # `soumettre_materiaux_utilises` (idempotente, sans effet), pour que le chantier ne soit confronté
+    # qu'à un formulaire dont la forme est déjà garantie.
+    ok, code = validation.valider_wct(wct)
+    if ok:
+        ok, code = validation.valider_formulaire_materiaux_utilises(formulaire, wct)
+    if not ok:
+        return {"accepte": False, "verdict": {"code": code}}
+    besoin = besoins_prevus.pour_devis(wct.get("devis_id"), _besoins_prevus_de_l_appel(None))
+    verdict_chantier = acces.controler_chantier(formulaire, wct, besoin, acteur)
+    if verdict_chantier is not None:
+        return {"accepte": False, "verdict": verdict_chantier}
     registre_cible = _registre_de_l_appel(None)
     resultat, code = materiel.soumettre_materiaux_utilises(wct, formulaire, registre_cible)
     if code is not None:

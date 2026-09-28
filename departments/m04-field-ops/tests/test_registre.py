@@ -307,6 +307,7 @@ def test_enumere_des_types_est_fige():
         "acces_position_gps",   # PLAN T4.2 : §6
         "purge_retention_gps",  # PLAN T4.2 : §5
         "variance_m6_recue",  # T1.3-b : outbox.enregistrer_signal_variance
+        "assignation_technicien",  # PLAN T1.4-k : etats.assigner_technicien
     }
     assert set(registre_mod._TYPE_ENTREE_VALIDES) == attendu, (
         f"énuméré modifié sans ratification : {set(registre_mod._TYPE_ENTREE_VALIDES) ^ attendu}"

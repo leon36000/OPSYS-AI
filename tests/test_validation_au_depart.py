@@ -38,6 +38,8 @@ DEPARTEMENTS_TESTES = {"m03-estimation", "m04-field-ops", "m05-financecore"}
 EMPLOYE = contexte.IdentiteAppelante(personne="employe.fictif", role="employee")
 ADMIN = contexte.IdentiteAppelante(personne="admin.fictif", role="admin")
 
+# T1.4-k : pour un appel d'appareil, l'identifiant de technicien EST celui de la personne authentifiée
+# (m4_field_ops.acces) : l'intervention est donc assignée à `employe.fictif`, pas à un « T1 » libre.
 SEL = "sel-t1-4-h-fictif"
 VILLE = "Montreal"
 # Coordonnées reconnaissables : le test vérifie qu'elles n'atterrissent jamais en clair dans la trace.
@@ -95,18 +97,18 @@ def _intervention_en_route(capacites, lead_id="L-T1-4-H-FICTIF") -> str:
     plan = executer_atomique(_outil(capacites, "m4_planifier_intervention"), {
         "contrat": _contrat(lead_id), "marqueur": _marqueur(lead_id),
         "horodatage": "2025-06-02T07:00:00+00:00", "sel": SEL,
-        "techniciens_disponibles": ["T1"], "fenetres_disponibles": [FENETRE_2025],
+        "techniciens_disponibles": [EMPLOYE.personne], "fenetres_disponibles": [FENETRE_2025],
     })
     assert plan["ok"] is True, plan
     i_id = plan["resultat"]["intervention_id"]
     consentement = executer_atomique(_outil(capacites, "m4_definir_consentement_gps"), {
-        "technicien_id": "T1", "action": "donne", "horodatage": "2025-06-02T06:00:00+00:00",
+        "technicien_id": EMPLOYE.personne, "action": "donne", "horodatage": "2025-06-02T06:00:00+00:00",
         "version_politique": "POLITIQUE-geolocalisation-v1-test",
         "preuve": {"fictif": True, "reference": "consentement-test"},
     })
     assert consentement["ok"] is True and consentement["resultat"]["accepte"] is True, consentement
     depart = executer_atomique(_outil(capacites, "m4_demarrer_route"), {
-        "intervention_id": i_id, "technicien_id": "T1", "horodatage": "2025-06-02T07:30:00+00:00",
+        "intervention_id": i_id, "technicien_id": EMPLOYE.personne, "horodatage": "2025-06-02T07:30:00+00:00",
     })
     assert depart["ok"] is True and depart["resultat"]["accepte"] is True, depart
     return i_id
@@ -117,7 +119,7 @@ def _args_pointage(i_id: str, action: str = "arrivee") -> dict:
     appel d'appareil, l'heure de réception du serveur fait foi (M4, T1.4-d)."""
     maintenant = dt.datetime.now(dt.UTC)
     return {
-        "intervention_id": i_id, "technicien_id": "T1", "action": action,
+        "intervention_id": i_id, "technicien_id": EMPLOYE.personne, "action": action,
         "horodatage": "2000-01-01T00:00:00+00:00",  # ignoré pendant un appel d'appareil
         "fix_gps": FIX_GPS, "attestation": ATTESTATION,
         "fenetre_travail": {"debut": (maintenant - dt.timedelta(hours=1)).isoformat(),

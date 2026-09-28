@@ -19,12 +19,14 @@ from opsys.departements import charger_departements, tous_les_outils, verifier_p
 FICTIF = True  # aucune donnée réelle ici : des noms d'outils et un dossier de configuration jetable
 
 # §9.3 (profil employé) : le chantier du jour, les transitions, le pointage, les preuves (dépôt de
-# fichiers), la complétion, la déclaration des matériaux. Rien qui lise les données des autres ni
-# qui approuve.
+# fichiers), la complétion, la déclaration des matériaux, et (T1.4-k, POLITIQUE-geolocalisation §4) le
+# consentement GPS de SA personne. Rien qui lise les données des autres ni qui approuve : chaque outil
+# ouvert à l'employé qui porte une identité ou une intervention la lie à la personne authentifiée
+# (tests/test_acces_par_intervention.py).
 EMPLOYE = frozenset({
-    "m4_completer_intervention", "m4_creer_demande_ecart", "m4_demarrer_route", "m4_deposer_fichier",
-    "m4_etat_fichier", "m4_lister_interventions", "m4_pointer", "m4_signaler_report",
-    "m4_statut_intervention", "m6_declarer_materiaux_utilises",
+    "m4_completer_intervention", "m4_creer_demande_ecart", "m4_definir_consentement_gps",
+    "m4_demarrer_route", "m4_deposer_fichier", "m4_etat_fichier", "m4_lister_interventions", "m4_pointer",
+    "m4_signaler_report", "m4_statut_intervention", "m6_declarer_materiaux_utilises",
 })
 
 # §9.4 (profil vendeur) : ses leads, le Client 360, les soumissions de ses leads (M2, M3). Aucun outil
@@ -40,7 +42,7 @@ VENDEUR = frozenset({
 ADMIN_SEUL = frozenset({
     "m1_produire_digest",
     "m2_arbitrer_doublon", "m2_detecter_doublons", "m2_produire_digest", "m2_signaler_doublon",
-    "m4_definir_consentement_gps", "m4_lire_position_gps", "m4_lister_pending_review",
+    "m4_lire_position_gps", "m4_lister_pending_review",
     "m4_produire_brouillon_temps", "m4_produire_digest", "m4_resoudre_demande",
     "m4_resoudre_revue_completion", "m4_volumetrie_pending_review",
     "m5_etat_tresorerie", "m5_lister_attentes_facturation",
@@ -112,7 +114,7 @@ def test_outils_qui_lisent_ou_approuvent_pour_les_autres_absents_de_l_employe(ro
 
 
 @pytest.mark.parametrize("outil", [
-    "m4_lire_outbox", "m4_lire_position_gps", "m4_definir_consentement_gps", "m4_resoudre_demande",
+    "m4_lire_outbox", "m4_lire_position_gps", "m4_resoudre_demande",
     "m4_resoudre_revue_completion", "m4_lister_pending_review", "m4_produire_brouillon_temps",
     "m4_produire_digest", "m6_approuver_po", "m6_annuler_po", "m6_consommer_materiaux",
     "m6_receptionner_commande", "m6_soumettre_comptage", "m6_produire_digest", "m5_etat_tresorerie",

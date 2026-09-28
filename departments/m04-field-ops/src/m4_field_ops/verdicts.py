@@ -32,6 +32,10 @@ CODES_M4_LIST = [
     "REJ-FICHIER-TYPE-NON-PERMIS",
     # Groupe 5 bis — PLAN T1.4-e2 : m4_completer_intervention vérifie chaque référence de fichier.
     "REJ-PREUVE-FICHIER-INTROUVABLE",
+    # Groupe 6 — PLAN T1.4-k : contrôle d'accès par intervention et par personne authentifiée.
+    "REJ-IDENTITE-APPAREIL-INVALIDE",         # l'identité du jeton n'est pas confirmée par la base.
+    "REJ-INTERVENTION-NON-ASSIGNEE",          # un employé agit sur l'intervention d'un autre.
+    "REJ-IDENTITE-FOURNIE-DIFFERENTE",         # technicien_id ou accede_par != personne authentifiée.
     # Groupe 3 — succès
     "OK",
 ]

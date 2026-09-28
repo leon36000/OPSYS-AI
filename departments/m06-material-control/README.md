@@ -51,6 +51,18 @@ mode `registre_historique` en mémoire, et hors transaction rien n'est connu, do
 Idempotence par `wct_id`, arrivée tardive et réévaluation de la variance : inchangées.
 `m6_consommer_materiaux` garde, lui, un `wct` fourni par l'appelant (non modifié).
 
+PLAN T1.4-k — qui déclare, et pour quel chantier (`acces.py`, pur ; détail et limites dans
+`docs/architecture/ROLES.md`). Pour un appel d'appareil, la personne authentifiée
+(`opsys.contexte.identite_appelante()`, revérifiée en base) est confrontée au `technicien_id` du WCT :
+un `employee` ne déclare que pour SON WCT (`REJ-INTERVENTION-NON-ASSIGNEE`), l'`admin` pour tous,
+l'identité invalide est refusée (`REJ-IDENTITE-APPAREIL-INVALIDE`), rien n'est écrit. Sans identité
+d'appareil (agent, console) : aucun contrôle de personne, comme avant. Pour TOUS les appelants,
+`intervention_id` du formulaire = celui du WCT (`REJ-FORMULAIRE-MATERIAUX-INTERVENTION-INCOHERENTE`) et
+`chantier_id` = celui du prévu du devis du WCT quand il le connaît
+(`REJ-FORMULAIRE-MATERIAUX-CHANTIER-INCOHERENT`). Le WCT ne porte pas de `chantier_id` : sans prévu qui
+le connaisse, un employé doit envoyer l'`intervention_id` du WCT (un chantier de M4 EST une
+intervention), un admin ou un agent restent libres, rien n'est deviné.
+
 Bugs corrigés (test rouge → vert) lors de cette passe :
 - `materiel.py` n'exposait que `consommer_materiaux`. `enregistrer_reception`
   et `soumettre_comptage`, prescrits par `docs/bmad/03-ARCHITECTURE.md`

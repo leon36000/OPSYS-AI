@@ -199,6 +199,11 @@ def valider_formulaire_materiaux_utilises(formulaire, wct) -> tuple[bool, str | 
     if formulaire["wct_id"] != wct["wct_id"]:
         return False, "REJ-FORMULAIRE-MATERIAUX-WCT-INCOHERENT"
 
+    # PLAN T1.4-k : l'intervention du formulaire est celle du WCT lu à la source — jamais une autre
+    # affirmée par l'appareil (le `wct_id` seul ne dit pas de quelle intervention l'appelant parle).
+    if formulaire["intervention_id"] != wct["intervention_id"]:
+        return False, "REJ-FORMULAIRE-MATERIAUX-INTERVENTION-INCOHERENTE"
+
     if not isinstance(formulaire["lignes_materiaux"], list) or not formulaire["lignes_materiaux"]:
         return False, "REJ-FORMULAIRE-MATERIAUX-STRUCTURE-INVALIDE"
 

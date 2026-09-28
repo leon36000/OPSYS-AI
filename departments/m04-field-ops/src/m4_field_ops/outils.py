@@ -31,10 +31,11 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from opsys import cles_chiffrement, contexte, evenements, fichiers, stockage
+from opsys import approbations, cles_chiffrement, contexte, evenements, fichiers, stockage
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
 from . import (
+    acces,
     cedule,
     consentement,
     digest,
@@ -109,6 +110,38 @@ _TYPES_PHOTO_APRES = fichiers.TYPES_MIME_PERMIS
 _TYPES_SIGNATURE = ("image/png",)
 
 
+def _acteur_appareil() -> tuple[acces.Acteur | None, dict[str, Any] | None]:
+    """Qui appelle : ``(None, None)`` hors appel d'appareil, ``(acteur, None)`` si l'identité du
+    jeton est CONFIRMÉE en base, ``(None, verdict)`` sinon (PLAN T1.4-k).
+
+    ``contexte.identite_appelante()`` ne rend que ce que le core a transmis en `_meta` : la personne
+    a pu être désactivée, ou perdre le rôle, depuis l'émission du jeton (le fragment de
+    configuration du core n'est régénéré qu'à la demande). On la revérifie donc à chaque appel avec
+    la même fonction que la validation humaine au départ (``approbations.signataire_valide``, T1.4-h :
+    personne active portant encore ce rôle), au lieu d'une seconde règle qui pourrait diverger.
+    Hors transaction (aucune base jointe), rien n'est vérifiable : refus fermé, jamais une identité
+    crue sur parole. Ne lit JAMAIS les arguments de l'outil."""
+    appelante = contexte.identite_appelante()
+    if appelante is None:
+        return None, None
+    cnx = stockage.connexion_courante()
+    confirmee = approbations.signataire_valide(cnx, appelante) if cnx is not None else None
+    if confirmee is None:
+        return None, verdicts.construire_verdict(
+            "REJ-IDENTITE-APPAREIL-INVALIDE",
+            detail=(
+                f"personne {appelante.personne!r} inconnue, inactive, ou ne porte plus le rôle "
+                f"{appelante.role!r} porté par le jeton d'appareil (ou identité non vérifiable "
+                "hors transaction)"
+            ),
+        )
+    return acces.acteur_de(confirmee.personne, confirmee.role)
+
+
+def _refus(verdict: dict[str, Any]) -> dict[str, Any]:
+    return {"accepte": False, "verdict": verdict}
+
+
 def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]:
     """Capacités exposées aux agents, qui partagent le registre du département.
 
@@ -170,6 +203,19 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             }
         assignations = cedule_resultat["assignations"]
         assignation = assignations[0] if assignations else None
+        if assignation is not None:
+            # PLAN T1.4-k : la cédule dit À QUI est l'intervention ; sans ce maillon, l'assignation
+            # n'entrait au registre qu'avec le départ (en_route) et aucune intervention n'était
+            # « à quelqu'un » avant. Entrées déjà validées par l'inscription et la cédule ci-dessus :
+            # un refus ici trahirait une incohérence interne, jamais un cas d'usage — on lève plutôt
+            # que de laisser une inscription orpheline (l'appel atomique annule alors les deux).
+            _, verdict_assignation = etats.assigner_technicien(
+                accuse["intervention_id"], assignation["technicien_id"], registre_courant(), horodatage,
+            )
+            if verdict_assignation is not None:
+                raise RuntimeError(
+                    f"assignation refusée après une inscription valide : {verdict_assignation['code']}"
+                )
         return {
             "etape": "complet", "accepte": True, "intervention_id": accuse["intervention_id"],
             "statut": accuse["statut"], "tete_chaine": accuse["tete_chaine"],
@@ -178,6 +224,14 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
         }
 
     def demarrer_route(intervention_id: str, technicien_id: str, horodatage: str) -> dict[str, Any]:
+        # PLAN T1.4-k : un employé ne part que sous son identifiant, sur SON intervention.
+        acteur, verdict_acteur = _acteur_appareil()
+        if verdict_acteur is not None:
+            return _refus(verdict_acteur)
+        verdict_acces = acces.controler_technicien(acteur, technicien_id) or acces.controler_intervention(
+            registre_courant(), intervention_id, acteur)
+        if verdict_acces is not None:
+            return _refus(verdict_acces)
         # PLAN T4.2 — même patron que m4_pointer (T1.4-d, R12 §4) : pendant un appel d'appareil,
         # l'heure de RÉCEPTION DU SERVEUR fait foi, jamais l'horloge de l'appareil ni la valeur
         # `horodatage` fournie par l'appelant ; l'heure d'appareil reste lisible À CÔTÉ, sur
@@ -200,6 +254,12 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
         return reponse
 
     def signaler_report(intervention_id: str, motif: str, horodatage: str) -> dict[str, Any]:
+        acteur, verdict_acteur = _acteur_appareil()
+        if verdict_acteur is not None:
+            return _refus(verdict_acteur)
+        verdict_acces = acces.controler_intervention(registre_courant(), intervention_id, acteur)
+        if verdict_acces is not None:
+            return _refus(verdict_acces)
         return depuis_couple(
             etats.transitionner(intervention_id, "reportee", registre_courant(), horodatage, motif=motif)
         )
@@ -208,7 +268,15 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
         return depuis_couple(etats.transitionner(intervention_id, "annulee", registre_courant(), horodatage))
 
     def statut_intervention(intervention_id: str) -> dict[str, Any]:
-        statut = etats.statut_courant(registre_courant(), intervention_id)
+        acteur, verdict_acteur = _acteur_appareil()
+        if verdict_acteur is not None:
+            raise ValueError(f"{verdict_acteur['code']} : {verdict_acteur['detail']}")
+        reg = registre_courant()
+        # PLAN T1.4-k : l'intervention d'un autre n'est pas montrée à un employé — la réponse est
+        # celle d'une intervention INCONNUE (statut null), donc indiscernable d'elle.
+        if acces.controler_intervention(reg, intervention_id, acteur) is not None:
+            return {"intervention_id": intervention_id, "statut": None}
+        statut = etats.statut_courant(reg, intervention_id)
         return {"intervention_id": intervention_id, "statut": statut}
 
     def pointer(
@@ -216,6 +284,16 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
         fix_gps: dict[str, Any] | None, attestation: dict[str, Any], fenetre_travail: dict[str, Any],
         referentiel_villes: dict[str, Any], ville: str, sel: str,
     ) -> dict[str, Any]:
+        # PLAN T1.4-k : AVANT toute lecture du consentement et toute clé de chiffrement créée (cette
+        # dernière écrit) — un employé ne pointe que sous son identifiant, sur SON intervention.
+        acteur, verdict_acteur = _acteur_appareil()
+        if verdict_acteur is not None:
+            return _refus(verdict_acteur)
+        verdict_acces = acces.controler_technicien(acteur, technicien_id) or acces.controler_intervention(
+            registre_courant(), intervention_id, acteur)
+        if verdict_acces is not None:
+            return _refus(verdict_acces)
+
         # T1.4-d (R12 §4, docs/architecture/IDEMPOTENCE.md §5) : pendant un appel d'appareil,
         # l'heure de RÉCEPTION DU SERVEUR fait foi pour la paie — jamais l'horloge de l'appareil
         # (potentiellement déréglée), ni la valeur `horodatage` fournie par l'appelant. L'heure de
@@ -263,13 +341,36 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
     def definir_consentement_gps(
         technicien_id: str, action: str, horodatage: str, version_politique: str, preuve: dict[str, Any],
     ) -> dict[str, Any]:
+        # PLAN T1.4-k (POLITIQUE-geolocalisation §4, §7) : l'employé donne ou retire SON consentement
+        # depuis l'app, jamais celui d'un autre ; l'admin, lui, consigne celui d'un technicien
+        # (consentement « par écrit »). Le retrait prend effet immédiatement, sur la valeur d'un
+        # appareil comme sur celle d'un agent (consentement.consentement_actif rejoue le registre).
+        acteur, verdict_acteur = _acteur_appareil()
+        if verdict_acteur is not None:
+            return _refus(verdict_acteur)
+        verdict_acces = acces.controler_technicien(acteur, technicien_id)
+        if verdict_acces is not None:
+            return _refus(verdict_acces)
+        # T1.4-d (même patron que m4_pointer) : pendant un appel d'appareil, l'heure de RÉCEPTION DU
+        # SERVEUR fait foi — un retrait de consentement prend effet à cet instant, pas à l'heure
+        # d'une horloge d'appareil qui peut avoir dérivé. Hors appel d'appareil : `horodatage` fait foi.
+        reception = contexte.horodatage_reception()
+        horodatage_faisant_foi = reception.recu_le.isoformat() if reception is not None else horodatage
         return depuis_couple(consentement.enregistrer_consentement(
-            technicien_id, action, horodatage, version_politique, preuve, registre_courant(),
+            technicien_id, action, horodatage_faisant_foi, version_politique, preuve, registre_courant(),
         ))
 
     def lire_position_gps(ligne_id: str, accede_par: str, horodatage: str) -> dict[str, Any]:
         """§7 (droit d'accès) : déchiffre un fix déjà écrit tant que sa clé existe. §6 : journalise
         CET accès (succès ou non) dans le même registre append-only, jamais la position elle-même."""
+        # PLAN T1.4-k (§6) : le journal d'accès nomme la personne AUTHENTIFIÉE qui consulte, jamais
+        # celle qu'un appelant écrit dans `accede_par`.
+        acteur, verdict_acteur = _acteur_appareil()
+        if verdict_acteur is not None:
+            return _refus(verdict_acteur)
+        verdict_acces = acces.controler_consultant(acteur, accede_par)
+        if verdict_acces is not None:
+            return _refus(verdict_acces)
         reg = registre_courant()
         maillon = next(
             (m for m in reg.lire()
@@ -334,6 +435,12 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
     def creer_demande_ecart(
         intervention_id: str, version_prevue: dict[str, Any], version_declaree: dict[str, Any], horodatage: str,
     ) -> dict[str, Any]:
+        acteur, verdict_acteur = _acteur_appareil()
+        if verdict_acteur is not None:
+            return _refus(verdict_acteur)
+        verdict_acces = acces.controler_intervention(registre_courant(), intervention_id, acteur)
+        if verdict_acces is not None:
+            return _refus(verdict_acces)
         return depuis_couple(ecarts.creer_demande_ecart(
             intervention_id, version_prevue, version_declaree, horodatage, registre_courant()
         ))
@@ -367,6 +474,12 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
         # _appeler_idempotent) réclame et rejoue AUTOUR de cet appel, sans rien changer ici ;
         # `opsys.fichiers.deposer_bloc` reste idempotent de son propre chef pour un renvoi qui
         # arriverait sans cette clé (reprise après redémarrage de l'app, ex.).
+        # PLAN T1.4-k : ce dépôt ne porte AUCUNE intervention (un fichier est adressé par son contenu,
+        # opsys.fichiers) — il n'y a donc pas d'assignation à contrôler ici ; on exige seulement que
+        # l'identité du jeton soit confirmée en base, pour qu'une personne désactivée ne dépose plus.
+        _, verdict_acteur = _acteur_appareil()
+        if verdict_acteur is not None:
+            return _refus(verdict_acteur)
         cnx = stockage.connexion_courante()
         if cnx is None:
             # Ne devrait jamais survenir en production (executer_atomique ouvre toujours une
@@ -381,6 +494,9 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
         return _depuis_depot_fichier(resultat)
 
     def etat_fichier(empreinte_sha256: str) -> dict[str, Any]:
+        _, verdict_acteur = _acteur_appareil()  # PLAN T1.4-k : identité confirmée, comme le dépôt
+        if verdict_acteur is not None:
+            return _refus(verdict_acteur)
         if not fichiers.empreinte_valide(empreinte_sha256):
             return {"accepte": False, "verdict": verdicts.construire_verdict(
                 "REJ-FICHIER-PARAMETRES-INVALIDES",
@@ -407,6 +523,14 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
         # PENDANT un appel d'appareil (opsys.contexte.horodatage_reception() non None, socle
         # T1.4-b, docs/architecture/IDEMPOTENCE.md) : leur seule PRÉSENCE hors d'un tel appel
         # est un refus nommé — AVANT même de valider les preuves, rien n'est écrit ni publié.
+        # PLAN T1.4-k : un employé ne termine que SON intervention (avant toute autre lecture).
+        acteur, verdict_acteur = _acteur_appareil()
+        if verdict_acteur is not None:
+            return _refus(verdict_acteur)
+        verdict_acces = acces.controler_intervention(registre_courant(), intervention_id, acteur)
+        if verdict_acces is not None:
+            return _refus(verdict_acces)
+
         champs_client_fournis = any(
             v is not outbox.NON_FOURNI
             for v in (photos, description_factuelle, consentement_marketing, client_satisfait)
@@ -492,7 +616,13 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
         return depuis_couple(digest.produire_digest(registre_courant(), date_cible, horodatage_reference))
 
     def lister_interventions(statut: str | None = None) -> list[dict[str, Any]]:
-        return etats.lister_interventions(registre_courant(), statut=statut)
+        acteur, verdict_acteur = _acteur_appareil()
+        if verdict_acteur is not None:
+            raise ValueError(f"{verdict_acteur['code']} : {verdict_acteur['detail']}")
+        # PLAN T1.4-k : l'employé ne voit que les interventions qui lui sont assignées ; l'admin et
+        # les agents voient toutes (hors appel d'appareil : comportement inchangé).
+        return acces.interventions_visibles(
+            etats.lister_interventions(registre_courant(), statut=statut), acteur)
 
     def produire_brouillon_temps(
         periode: dict[str, Any], seuil_minutes: int | None = None,
@@ -507,7 +637,11 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             description=(
                 "Inscrit une intervention à partir d'un lead M2 qualifié PUIS calcule sa cédule "
                 "(technicien, fenêtre horaire) en un seul appel. Bloque avec un verdict nommé si "
-                "le contrat ou le marqueur de readiness est invalide."
+                "le contrat ou le marqueur de readiness est invalide. T1.4-k : le technicien de la "
+                "cédule est CONSIGNÉ au registre (maillon assignation_technicien) ; c'est lui, et "
+                "lui seul parmi les employés, qui pourra partir, pointer et terminer. Pour un "
+                "employé, techniciens_disponibles contient donc des identifiants de PERSONNES OPSYS "
+                "(l'identifiant de technicien EST celui de la personne)."
             ),
             parametres={
                 "type": "object",
@@ -532,7 +666,11 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             nom="m4_demarrer_route",
             description=(
                 "Fait passer une intervention planifiee -> en_route : exige l'assignation "
-                "effective d'un technicien (PRD §4), jamais un départ fictif."
+                "effective d'un technicien (PRD §4), jamais un départ fictif. T1.4-k, appel "
+                "d'appareil d'un employé : seulement sur une intervention qui lui est assignée "
+                "(REJ-INTERVENTION-NON-ASSIGNEE) et sous son propre identifiant ; un technicien_id "
+                "différent de la personne authentifiée est refusé (REJ-IDENTITE-FOURNIE-DIFFERENTE), "
+                "jamais remplacé en silence. L'admin dispatche pour les autres."
             ),
             parametres={
                 "type": "object",
@@ -545,12 +683,16 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             },
             fonction=demarrer_route,
             autonomie=Autonomie.T1,
-            # §9.3 exécution (« en route »).
+            # §9.3 exécution (« en route »). Employé : sa propre intervention, sous son identifiant (T1.4-k).
             roles_appareil=frozenset({"employee", "admin"}),
         ),
         Outil(
             nom="m4_signaler_report",
-            description="Reporte une intervention (client_absent, meteo ou decision_admin).",
+            description=(
+                "Reporte une intervention (client_absent, meteo ou decision_admin). T1.4-k, appel "
+                "d'appareil d'un employé : seulement sur une intervention qui lui est assignée "
+                "(REJ-INTERVENTION-NON-ASSIGNEE)."
+            ),
             parametres={
                 "type": "object",
                 "properties": {
@@ -580,7 +722,11 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
         ),
         Outil(
             nom="m4_statut_intervention",
-            description="Lit le statut courant d'une intervention (rejoue le registre).",
+            description=(
+                "Lit le statut courant d'une intervention (rejoue le registre). T1.4-k, appel "
+                "d'appareil d'un employé : une intervention qui n'est pas la sienne rend statut null, "
+                "comme une intervention inconnue (indiscernable, aucune existence révélée)."
+            ),
             parametres={
                 "type": "object",
                 "properties": {"intervention_id": {"type": "string"}},
@@ -601,7 +747,10 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
                 "déclaration de l'appelant. Route automatiquement vers sur_site ou en_revue. "
                 "Pendant un appel d'appareil (T1.4-d) : l'heure de réception du serveur fait foi "
                 "pour la paie, quelle que soit la valeur de horodatage fournie ; l'heure de "
-                "l'appareil reste lisible mais n'est jamais utilisée pour un calcul."
+                "l'appareil reste lisible mais n'est jamais utilisée pour un calcul. T1.4-k, appel "
+                "d'appareil d'un employé : seulement sur SON intervention "
+                "(REJ-INTERVENTION-NON-ASSIGNEE) et sous son propre identifiant "
+                "(technicien_id différent de la personne authentifiée : REJ-IDENTITE-FOURNIE-DIFFERENTE)."
             ),
             parametres={
                 "type": "object",
@@ -618,12 +767,17 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             },
             fonction=pointer,
             autonomie=Autonomie.T1,
-            # §9.3 (punch). `technicien_id` vient encore de l'appelant (T1.4-k).
+            # §9.3 (punch). Employé : SON intervention et SON identifiant (T1.4-k, acces.py) ; l'admin
+            # pointe pour autrui (dispatch).
             roles_appareil=frozenset({"employee", "admin"}),
         ),
         Outil(
             nom="m4_creer_demande_ecart",
-            description="Ouvre une demande d'écart métier (durée/périmètre/matériaux prévu vs déclaré).",
+            description=(
+                "Ouvre une demande d'écart métier (durée/périmètre/matériaux prévu vs déclaré). "
+                "T1.4-k, appel d'appareil d'un employé : seulement sur une intervention qui lui est "
+                "assignée (REJ-INTERVENTION-NON-ASSIGNEE)."
+            ),
             parametres={
                 "type": "object",
                 "properties": {
@@ -771,7 +925,8 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             # sert (m4_completer_intervention) qui reste soumise aux approbations. En N3, le mode
             # ombre mettrait chaque bloc d'une photo en attente d'approbation.
             niveau=Niveau.N2,
-            # §9.3 (photos, signature du client : les preuves du chantier).
+            # §9.3 (photos, signature du client : les preuves du chantier). Ne porte aucune intervention
+            # (adressé par contenu) : T1.4-k n'y contrôle que l'identité confirmée en base.
             roles_appareil=frozenset({"employee", "admin"}),
         ),
         Outil(
@@ -806,7 +961,8 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
                 "preuves manquent. T1.2-f : consentement_marketing, client_satisfait, photos et "
                 "description_factuelle sont des faits CLIENT (Loi 25), jamais affirmés par un "
                 "agent — acceptés SEULEMENT pendant un appel d'appareil (app mobile) ; les fournir "
-                "hors d'un appel est un refus nommé (REJ-CHAMPS-CLIENT-HORS-APPAREIL), rien écrit."
+                "hors d'un appel est un refus nommé (REJ-CHAMPS-CLIENT-HORS-APPAREIL), rien écrit. "
+                "T1.4-k : un employé ne termine que SON intervention (REJ-INTERVENTION-NON-ASSIGNEE)."
             ),
             parametres={
                 "type": "object",
@@ -904,8 +1060,11 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
                 "Liste les interventions connues (id, statut, lead, type de travaux, devis), "
                 "sans aucune donnée de contact. Filtre optionnel par statut. T1.4-e2 (écran "
                 "« chantiers du jour ») : porte aussi technicien_assigne (dernier technicien_id "
-                "d'une transition en_route, sinon null) et fenetre_planifiee (toujours null "
-                "aujourd'hui : le registre ne la porte pas encore, jamais inventée)."
+                "d'une transition en_route, ou celui de la cédule consignée par "
+                "m4_planifier_intervention s'il est plus récent, sinon null) et fenetre_planifiee "
+                "(toujours null aujourd'hui : le registre ne la porte pas encore, jamais inventée). "
+                "T1.4-k, appel d'appareil d'un employé : SEULEMENT les interventions qui lui sont "
+                "assignées ; l'admin (et un agent) voient toutes."
             ),
             parametres={
                 "type": "object",
@@ -916,8 +1075,8 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             },
             fonction=lister_interventions,
             autonomie=Autonomie.T0,
-            # §9.3 (chantiers du jour). Rend toutes les interventions, dont le technicien assigné :
-            # seule exception connue à « rien qui lise les données des autres », levée par T1.4-k.
+            # §9.3 (chantiers du jour). Employé : filtré à SES interventions (T1.4-k, acces.py) ; l'admin
+            # voit toutes celles du dispatch.
             roles_appareil=frozenset({"employee", "admin"}),
         ),
         Outil(
@@ -950,7 +1109,11 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
                 "Enregistre le consentement GPS d'un technicien : donné (activation du punch "
                 "géorépéré) ou retiré (POLITIQUE-geolocalisation.md §4). Le retrait prend effet "
                 "IMMÉDIATEMENT : dès ce maillon écrit, m4_pointer bascule ce technicien en mode "
-                "manuel (aucun fix GPS enregistré), quelle que soit la position fournie par la suite."
+                "manuel (aucun fix GPS enregistré), quelle que soit la position fournie par la suite. "
+                "T1.4-k, appel d'appareil : un employé ne donne ni ne retire que SON consentement "
+                "(technicien_id différent de la personne authentifiée : "
+                "REJ-IDENTITE-FOURNIE-DIFFERENTE), l'admin consigne celui d'un technicien. Pendant un "
+                "appel d'appareil, l'heure de réception du serveur fait foi (T1.4-d), pas horodatage."
             ),
             parametres={
                 "type": "object",
@@ -969,9 +1132,10 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             },
             fonction=definir_consentement_gps,
             autonomie=Autonomie.T1,
-            # Consigne un consentement Loi 25 (retrait « par écrit », POLITIQUE-geolocalisation §4) pour un
-            # technicien. Jamais `employee` tant que `technicien_id` vient de l'appelant (T1.4-k).
-            roles_appareil=frozenset({"admin"}),
+            # POLITIQUE-geolocalisation §4 (« l'employé peut retirer son consentement via l'app employé ») et
+            # §7 (droit de retrait à tout moment) : l'employé pour SA personne seulement (T1.4-k, acces.py :
+            # jamais celui d'un autre) ; l'admin consigne aussi un consentement ou un retrait « par écrit ».
+            roles_appareil=frozenset({"employee", "admin"}),
         ),
         Outil(
             nom="m4_lire_position_gps",
@@ -989,7 +1153,11 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
                     "ligne_id": {"type": "string"},
                     "accede_par": {
                         "type": "string",
-                        "description": "Identifiant de la personne qui consulte (§6 : tracé nommément).",
+                        "description": (
+                            "Identifiant de la personne qui consulte (§6 : tracé nommément). Pendant un "
+                            "appel d'appareil (T1.4-k), doit être la personne authentifiée, sinon refus "
+                            "REJ-IDENTITE-FOURNIE-DIFFERENTE."
+                        ),
                     },
                     "horodatage": {"type": "string"},
                 },
@@ -1000,8 +1168,8 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             # Écriture interne (le journal d'accès, §6) au sens de l'ADR-0009 §4 : T1, pas T0,
             # même si son propos premier est une lecture — voir Autonomie.T1 dans opsys.outils.
             autonomie=Autonomie.T1,
-            # §9.2 (« accès admin journalisé »), POLITIQUE-geolocalisation §6. `accede_par` vient encore
-            # de l'appelant : à lier à la personne authentifiée (suite de T1.4-k).
+            # §9.2 (« accès admin journalisé »), POLITIQUE-geolocalisation §6. `accede_par` doit être la
+            # personne authentifiée pour un appel d'appareil (T1.4-k, acces.controler_consultant).
             roles_appareil=frozenset({"admin"}),
         ),
         Outil(
