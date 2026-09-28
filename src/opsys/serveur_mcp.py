@@ -73,9 +73,9 @@ def creer_serveur(capacites: Capacites) -> Server[Any]:
         # Identité de jeton d'appareil (T1.4-c2) : `opsys/personne`/`opsys/role`, transmis par
         # OPSYS-CORE (qui a déjà refusé un outil hors de la portée du rôle avant d'émettre cet
         # appel) — un appel sans ces clés (Hermes, Claude Code, un outil interne) rend None, sans
-        # erreur (docs/architecture/IDEMPOTENCE.md §7 bis). Aucun outil de département ne lit encore
-        # `contexte.identite_appelante()` (M3 reste à adapter, tâche séparée) ; l'exposer ici ne
-        # change donc le comportement d'aucun outil existant.
+        # erreur (docs/architecture/IDEMPOTENCE.md §7 bis). M3 s'en sert pour choisir la vue d'un
+        # devis ou d'une estimation (PLAN T2.3-c) : le rôle authentifié décide, le paramètre `role`
+        # ne peut que restreindre.
         identite = contexte.depuis_meta_mcp_identite(params.meta)
         with contexte.appele_par_appareil(identite):
             reponse = await anyio.to_thread.run_sync(
