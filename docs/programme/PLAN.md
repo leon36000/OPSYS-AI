@@ -338,13 +338,31 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       Envoi et paiement de facture exposés en T3 seulement, par les approbations du socle : la
       vérification de forme du maillon F4 de `facturation.envoyer_facture` ne suffit pas seule.
       Les approbations internes de M5 (F0–F7) rejoignent l'échelle unique (ADR-0009).
-  - [ ] T1.3-a Socle (ADR-0009 §4 et §5) :
+  - [x] T1.3-a Socle (ADR-0009 §4 et §5) :
     - échelle unique N0–N5, avec la correspondance T et F ;
     - décision signée par une personne et son rôle, jamais un mot de passe partagé ;
     - rôles approbateurs de chaque niveau N déclarés dans `department.yaml` ;
     - N5 exige la signature de `nathan_owner` et l'attestation du professionnel ;
     - file du propriétaire, par CLI et console : demandes du socle plus attentes déclarées par
       les départements.
+
+    Preuve (718b9bb) :
+    - niveau N explicite ou déduit de T sans régression ;
+    - personnes et rôles (migration `0005`) : mot de passe haché `scrypt`, jamais en clair ;
+    - CLI `opsys personnes` ;
+    - console avec une connexion par personne ; le mot de passe partagé est retiré, et l'on
+      amorce par la CLI ;
+    - politique `approbations: {n3, n4}` par département, `nathan_owner` seul par défaut ;
+    - N5 : `nathan_owner` seul, avec l'attestation obligatoire ;
+    - décision signée par la personne et le rôle ;
+    - file du propriétaire (`opsys approbations file`, `GET /api/approbations/file`) ;
+    - socle 362, 10 départements verts, PostgreSQL réel.
+
+    Code critique, revue externe requise avant `main`, en priorité :
+    - N5 non délégable ;
+    - le retrait du mot de passe partagé ;
+    - l'ordre des vérifications dans `decider`.
+
   - [ ] T1.3-b M4 : revue humaine d'une complétion `completed_pending_review` (vérifiée ou
         corrigée), décision signée ; l'alerte d'écart matériaux (signal critique M6) entre dans
         la file.
@@ -496,6 +514,12 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
 - **Seuils métier** (définition §13.11) : M6 démarre avec un seuil de variance de chantier de
   30 % (`department.yaml`, `configuration`). La valeur est à confirmer par le propriétaire, et elle
   deviendra un réglage par instance (tableau de bord).
+- **Revue externe du code critique** (AGENTS.md), avant tout passage sur `main` :
+  - M5 : 119a594, 23df6eb ;
+  - idempotence du socle : 764c292, 2474cd1 ;
+  - approbations : 718b9bb ;
+  - validation du bus : 4c9fbff ;
+  - commits plus anciens déjà listés dans les preuves de T1.0 et T1.1.
 - **Arrondi monétaire** : M5 arrondissait au pair (mode par défaut de Python) alors que M3
   arrondit au demi supérieur. La correction cite la règle de l'ARC (TPS) et de Revenu Québec
   (TVQ) ; elle passera par la revue externe du code critique.
