@@ -673,6 +673,27 @@ class TestDevisSansReponseLeadIntrouvable:
         assert "LeadIntrouvable" in lignes[0]["derniere_erreur"]
 
 
+class TestDevisSansReponseLeadPerdu:
+    def test_lead_perdu_fait_garde_sans_interaction_ni_quarantaine(self, base_durable):
+        lead_id = "RELANCE-PERDU"
+        _amener_a(lead_id, "qualifie")
+        outils.transitionner_statut(lead_id, "perdu", "2026-09-02T09:00:00-04:00", motif="Ne répond plus")
+        taille_avant = _registre().taille()
+
+        charge = _devis_sans_reponse(
+            "devis-perdu", lead_id, "2026-09-01T10:00:00-04:00", "2026-09-20T10:00:00-04:00",
+        )
+        evenements.publier("m3.devis_sans_reponse", "m03-estimation", charge)
+        resume = evenements.repartir(_deps_bus(), maintenant="2026-09-20T10:05:00-04:00")
+
+        assert resume["echecs"] == 0 and resume["quarantaines"] == 0, resume
+        assert _registre().taille() == taille_avant, "aucune interaction écrite sur un dossier clos"
+        assert statuts.statut_courant(_registre(), lead_id) == "perdu"
+        recu = next(iter(stockage.maillons("m02-revenue-crm", "relances_devis_recues")))
+        assert recu["devis_id"] == "devis-perdu"
+        assert recu["ignore"] == "lead_clos"
+
+
 class TestDevisSansReponseRedelivraison:
     def test_meme_devis_sous_un_nouvel_evenement_id_est_un_no_op(self, base_durable):
         """Un même devis_id republié sous un autre evenement_id (rejeu du producteur, ou second

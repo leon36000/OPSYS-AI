@@ -613,6 +613,9 @@ def _recevoir_devis_sans_reponse(charge: dict[str, Any]) -> dict[str, Any]:
     incohérence de données, jamais un refus métier normal) ; le répartiteur réessaie puis met en
     quarantaine (ADR-0009 §3), visible par un humain (``opsys evenements etat``), sans qu'aucune
     écriture n'ait eu lieu.
+
+    Lead perdu (``statuts.STATUTS_TERMINAUX``) : aucune relance n'est due ; le fait est gardé au
+    registre des relances reçues avec ``ignore: "lead_clos"``, sans interaction ni quarantaine.
     """
     devis_id = charge["devis_id"]
     lead_id = charge["lead_id"]
@@ -625,23 +628,8 @@ def _recevoir_devis_sans_reponse(charge: dict[str, Any]) -> dict[str, Any]:
     if statut_lead is None:
         raise LeadIntrouvable(f"m3.devis_sans_reponse : lead {lead_id!r} introuvable au registre M2")
 
-    suggestion = suggestions.suggerer_relance_devis_sans_reponse(charge)
     client_id = clients.client_de_lead(reg, lead_id)
-    resume = f"Devis {devis_id} sans réponse : {suggestion['suggestion']} {suggestion['motif']}"
-    _, verdict_interaction = interactions.enregistrer(
-        lead_id, "system:m3", resume, reg, charge["horodatage_reference"]
-    )
-    if verdict_interaction is not None:
-        # Ne devrait jamais arriver pour un lead trouvé avec un horodatage et un résumé déjà
-        # valides (construits ci-dessus) — SAUF un lead déjà clos (perdu) au moment où ce fait
-        # arrive : une incohérence de données réelle (M3 pas informé de la perte), jamais un
-        # cas silencieux — défense en profondeur, même patron que marquer_chantier_termine.
-        raise RuntimeError(
-            "m3.devis_sans_reponse : interaction système refusée pour un lead trouvé "
-            f"(lead {lead_id!r}, statut {statut_lead!r}) : {verdict_interaction}"
-        )
-
-    relances_recues.append({
+    fait_recu = {
         "devis_id": devis_id,
         "lead_id": lead_id,
         "statut_devis": charge["statut"],
@@ -649,7 +637,36 @@ def _recevoir_devis_sans_reponse(charge: dict[str, Any]) -> dict[str, Any]:
         "horodatage_reference": charge["horodatage_reference"],
         "delai_relance_jours": charge["delai_relance_jours"],
         "client_id": client_id,
-    })
+    }
+    if statut_lead in statuts.STATUTS_TERMINAUX:
+        # Dossier clos (perdu) : aucune relance n'est due. Le fait est gardé comme trace, aucune
+        # interaction n'est écrite (le dossier clos la refuserait) et rien ne part en quarantaine :
+        # un devis resté ouvert chez M3 pour un lead perdu n'est pas une donnée incohérente.
+        relances_recues.append({**fait_recu, "ignore": "lead_clos"})
+        return {
+            "traite": True,
+            "lead_id": lead_id,
+            "devis_id": devis_id,
+            "client_id": client_id,
+            "relance_proposee": None,
+            "motif": f"lead {lead_id!r} au statut {statut_lead!r} : dossier clos, aucune relance",
+        }
+
+    suggestion = suggestions.suggerer_relance_devis_sans_reponse(charge)
+    resume = f"Devis {devis_id} sans réponse : {suggestion['suggestion']} {suggestion['motif']}"
+    _, verdict_interaction = interactions.enregistrer(
+        lead_id, "system:m3", resume, reg, charge["horodatage_reference"]
+    )
+    if verdict_interaction is not None:
+        # Ne devrait jamais arriver pour un lead trouvé, non clos (traité ci-dessus), avec un
+        # horodatage et un résumé valides : défense en profondeur, jamais un cas silencieux, même
+        # patron que marquer_chantier_termine.
+        raise RuntimeError(
+            "m3.devis_sans_reponse : interaction système refusée pour un lead trouvé "
+            f"(lead {lead_id!r}, statut {statut_lead!r}) : {verdict_interaction}"
+        )
+
+    relances_recues.append(fait_recu)
     return {
         "traite": True,
         "lead_id": lead_id,
