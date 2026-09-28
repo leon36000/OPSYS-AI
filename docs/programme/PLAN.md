@@ -716,6 +716,21 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
     - [ ] T1.4-k2 M2 (`auteur` de `m2_enregistrer_interaction`, leads filtrés par propriétaire),
       M3 (filtre par propriétaire de lead) et M5 (`role` et `autorise_couts` de
       `m5_etat_tresorerie` tirés de l'identité authentifiée).
+      Avancement, M5 fait (1ef9499, 688b199) :
+      - `acces.py` pur ; identité relue en base à chaque appel ; `admin` voit les coûts (§9.5),
+        `employee` et `seller` non ; un argument ne peut que restreindre la vue, l'élargir donne
+        `REJ-ROLE-ELARGI` ; un `role` différent du jeton est refusé ; refus avant toute lecture et
+        sans écriture ; `m5_lister_attentes_facturation` exige aussi l'identité confirmée ;
+      - sans identité d'appareil : comportement d'avant (`autorise_couts` obligatoire, désormais
+        un verdict `REJ-AUTORISE-COUTS-REQUIS` au lieu d'`arguments_invalides`) ;
+      - M5 395, gate BMAD vert, socle 636, 18 mutations détectées.
+
+      Reste : M2 et M3 (après T0.13). À revoir en externe : la règle « `admin` voit les coûts »
+      (un `admin` n'est pas toujours Nathan) ; l'`approbateur` de
+      `m5_enregistrer_paiement_facture` vient de la demande, pas du décideur (le socle ne
+      transmet pas l'identité du décideur à l'outil) ; `mouvements_historique` encore accepté
+      d'un appareil. `_acteur_appareil` est dupliqué dans M3, M4, M5 et M6 : un seul helper du
+      socle serait plus sûr.
 - [ ] T1.5 E2E : travaux terminés normaux ; écart de 40 % → `completed_pending_review` et alerte
       sur le mobile de l'admin.
 
@@ -962,7 +977,7 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
   - Aucun risque immédiat : les dix départements sont en mode ombre, qui exige une approbation dès
     N3.
 - **Revue externe du code critique** (AGENTS.md), avant tout passage sur `main` :
-  - M5 : 119a594, 23df6eb, T1.3-c ;
+  - M5 : 119a594, 23df6eb, T1.3-c ; vue financière d'un appel d'appareil (T1.4-k2) : 1ef9499 ;
   - idempotence du socle : 764c292, 2474cd1 ;
   - approbations : 718b9bb ; décision depuis l'appareil du propriétaire (T1.4-f étape 6) : ed0af65 ; exécution directe des actions d'un humain authentifié (T1.4-h) :
     688b1a4 ; portées d'outils par rôle d'appareil (T1.4-j) : a0e5150 ;
