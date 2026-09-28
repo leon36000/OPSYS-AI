@@ -7,9 +7,13 @@ on:
 permissions:
   contents: read
 
+# Une exécution commencée va au bout : avec l'annulation, chaque push arrivé en moins de 25 minutes
+# (durée de la suite M3) annulait le précédent, et plus aucune exécution ne se terminait. Sans
+# annulation, GitHub ne garde qu'UNE exécution en attente par groupe (la plus récente) : au plus une
+# qui tourne et une qui attend.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   # Socle : lint, cohérence des départements, tests du socle.
