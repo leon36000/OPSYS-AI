@@ -59,6 +59,10 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
 - [ ] T2.2 M2 : lead structuré, Client 360, préparation à l'estimation, prochaine action.
 - [ ] T2.3 M3 : estimation honnête, soumission brouillon, approbation, besoins matériaux vers M6.
 - [ ] T2.4 M6 : catalogue, livre de prix, PO brouillon, courriel fournisseur via M1 (repli manuel).
+- [ ] T2.5 M6 : lever la décision interne DA-M6-12 (« M6 ne persiste pas les PO »), contraire à la
+      définition (moteur de PO à 12 statuts) ; ajouter le moteur de variance estimé M3 vs réel M4, distinct
+      de la variance d'inventaire physique existante ; registre des fournisseurs (Gentek, Royal, O.A.M.,
+      Kaycan) (audit M6).
 
 ## T3 — Mesure, direction, mémoire
 
