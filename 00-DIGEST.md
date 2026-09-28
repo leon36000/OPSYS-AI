@@ -1,10 +1,7 @@
-RAPPEL PROOF — OPSYS-AI (PROOF-Team). P preuve avant DONE (DONE-avec-preuve ou BLOCKED-avec-raison, rien d'autre).
-R revue aveugle scellee multi-vendor (Team 3x3), depouillee par SCRIPT — jamais d'auto-review, jamais meme vendor codeur/reviewer.
-O orchestrateur unique — ne se relit jamais. O outils deterministes = autorite — aucun LLM n'ecrit un score.
-F T3 = humain seul (paiements, secrets prod, suppressions, publication, engagements).
-Interdits: stubs, TODO en diff, tests sans assertion, donnees inventees, --no-verify, commit direct main, auto-approbation, affirmation sans source.
-Chaque story: pack scope -> codeur assigne (PAS toi) -> TDD -> gates -> PR -> revue scellee -> tally script -> merge -> registre -> docs a jour.
-Taille story: cible <=1 h humain-equivalent, cap dur 3 h — au-dela, DECOUPER (D-044).
-Arborescence D-038: Modules M/<MX>/frameworks/<Nom-exact>/ — un framework mal range ne merge pas.
-Toute sortie de subagent finit par PREUVE: ou BLOCKED:. Le blocage honnete est acceptable; l'exception silencieuse jamais.
-
+RAPPEL OPSYS-AI v2 — lire AGENTS.md avant toute modification.
+Preuve avant DONE : tests verts + démonstration exécutée, sinon BLOCKED avec raison. Jamais de faux vert.
+Le code calcule (prix, soldes, scores, cédules), le LLM orchestre et rédige. Aucune donnée inventée.
+Frontières humaines (T3) : paiements, secrets de prod, suppression définitive de données, publication/déploiement public, engagements externes.
+Interdits : stubs dans src/, TODO/FIXME dans un diff, test sans assertion, secret dans git, --no-verify, commit direct ou force-push sur main.
+Économie de tokens : lire le minimum, déterministe d'abord, sorties courtes, contexte ciblé.
+Briques open source : licence vérifiée + provenance dans vendor/*/UPSTREAM.md ; AGPL/GPL seulement en service séparé non modifié.
