@@ -177,8 +177,11 @@ version réellement installée (toutes vérifiées une à une ci-dessus). Aucun 
 
 | Brique | Licence vérifiée | Rôle dans OPSYS | Intégration | Phase | Rapport source |
 |---|---|---|---|---|---|
-| **Google OR-Tools** ou **PyVRP** | OR-Tools : Apache-2.0 · PyVRP : MIT | VRP réel (fenêtres de temps, capacités) remplaçant le tri round-robin de `cedule.py` | Dépendance pip directe | Phase 2 | R7 |
-| **OSRM** | BSD-2-Clause | Matrice temps/distance routière réelle, remplace l'Haversine à vol d'oiseau | Sidecar Docker (extrait `.osm.pbf` Québec) | Phase 2 | R7 |
+| **PyVRP** | MIT (`LICENSE.md` du dépôt PyVRP/PyVRP, lu le 2026-09-28) | Solveur de tournées avec fenêtres, quarts, flotte hétérogène, clients optionnels ; remplace le tourniquet de `cedule.py`. Compétences par profils de matrice (le natif est réservé à PyVRP Enterprise, non utilisé). Graine explicite, `MaxIterations` seulement | Extra `tournees` (`pyvrp==0.14.0`, numpy) ; roue 1,2 Mo cp311/cp312 x86_64 et arm64 ; toujours derrière `verifier_plan`, avec repli DP exact stdlib | Phase 2 | R15 |
+| **Google OR-Tools** | Apache-2.0 (`LICENSE`, branche `stable`, lu) ; la roue embarque Cbc/Clp en EPL-2.0 (non listée dans AGENTS.md : décision humaine avant adoption), HiGHS (MIT), SCIP (Apache-2.0) | Alternative documentée si les contraintes de cédule deviennent riches (compétences natives) | Aucune dépendance aujourd'hui ; roue 30 Mo, exige numpy ≥ 2 et pandas | Référence | R15 |
+| **OSRM** | BSD-2-Clause (`LICENSE.TXT`, lu) ; données OSM en ODbL 1.0 (attribution ; graphe dérivé non distribué) | Palier 1 optionnel : matrice routière (`Table`) sur extrait régional épinglé ; le palier 0 est l'haversine × détour, en mode bridé affiché | Sidecar Docker local ; estimé ≈ 2 Go de RAM pour tout le Québec (extrapolation du wiki OSRM), donc extrait régional | Phase 2 | R7 · R15 |
+| **RQA — Référentiel québécois des adresses** | Données CC-BY 4.0 (fiche MRNF et Données Québec, lues 2026-09-28 ; attribution à afficher) | Géocodage local et hors ligne des adresses de chantier ; `qualite_positionnement_geometrique` gouverne « proposée » ou « à confirmer » ; confirmation humaine unique | Import mensuel du CSV (596 Mo) filtré par MRC dans l'index de l'instance ; aucun appel réseau | Phase 2 | R15 |
+| **Haversine × détour** (patron maison, `pointage.distance_km`) | Code du dépôt | Palier 0 de la matrice de durées ; paramètres d'entreprise obligatoires (détour, vitesse, marge) | `distances.py` (T4.1-b) | Référence | R15 |
 | **Open-Meteo** (API hébergée) | Code serveur self-host : AGPL-3.0 · données : CC-BY-4.0 · API gratuite non-commerciale | Report météo pour ajuster la cédule (`motif=meteo`, déjà dans l'énuméré) | Appel HTTP de l'API hébergée (pas d'auto-hébergement du code) | Phase 2 | R7 |
 | **Traccar** (optionnel) | Apache-2.0 | GPS/télémétrie **de flotte de véhicules** (distinct du pointage ponctuel déjà couvert par `pointage.py`) | Sidecar Docker, API REST | Phase 2 (seulement si suivi flotte demandé) | R7 |
 
@@ -307,6 +310,8 @@ hors périmètre strict de R10 ») et documente en plus, pour M10 spécifiquemen
 | `langchain-ai/open_deep_research` | M9 | Dépôt **archivé** le 2026-08-21, lecture seule — référence de conception seulement | R10 |
 | `cpgoncalves/strategy-analyzer` | M9 | 2 ★, dormant depuis ~2017, licence non-OSI standard (fichier « Creative Commons » en PDF) | R10 |
 | ClawHub (OpenClaw) / HermesHub (Hermes) comme **sources d'installation automatique** de skills | M9 (transversal) | Incidents de sécurité vérifiés et massifs : 341-824+ skills malveillantes (« ClawHavoc »), CVE-2026-25253 (RCE, CVSS 8.8) — seul un fichier `SKILL.md` individuel, revu à la main, peut être vendorisé | R1 · R10 |
+| pyvroom / VROOM **en processus** | M4 | La roue pyvroom embarque `libglpk` (GPL-3.0+, vérifié dans l'en-tête glpk.h) et libgmp, alors que sa métadonnée dit BSD-2 : contraire à AGENTS.md hors service séparé non modifié ; binaire de l'image Docker officielle non vérifié | R15 |
+| Nominatim public (OSMF) et API de géocodage tierces hors Québec | M4 | La politique OSMF interdit de soumettre des renseignements personnels ; les autres imposent l'art. 17 de la Loi sur le privé (EFVP et entente écrite). Le géocodage reste local (RQA) | R15 |
 
 ---
 
@@ -324,7 +329,7 @@ hors périmètre strict de R10 ») et documente en plus, pour M10 spécifiquemen
 - **M1** : 11 retenues (1 intégrée — code interne conservé —, 10 phase 2) + 2 refusées.
 - **M2** : 4 retenues (phase 2) + 2 refusées.
 - **M3** : 6 retenues (phase 2) + 3 refusées.
-- **M4** : 4 retenues (phase 2) + 1 refusée.
+- **M4** : 7 retenues (6 phase 2, dont le patron haversine × détour, et OR-Tools en référence) + 3 refusées (R15).
 - **M5** : 8 retenues (7 phase 2, 1 référence) + 5 refusées.
 - **M6** : 4 retenues (phase 2) + 1 refusée.
 - **M7** : 11 retenues (phase 2) + 4 refusées.
@@ -332,7 +337,7 @@ hors périmètre strict de R10 ») et documente en plus, pour M10 spécifiquemen
 - **M9** : 13 retenues (2 intégrées — format Agent Skills et patron `civ_review.py` —, 11 phase 2) + 4 refusées.
 - **M10** : renvoie au domaine Mémoire/RAG + 2 éléments propres (1 intégrée — modèle Département —, 1 phase 2).
 
-**Total : 137 briques/patrons retenus** (dont 31 déjà intégrés au code ou à la méthode : **OpenClaw**
+**Total : 140 briques/patrons retenus** (dont 31 déjà intégrés au code ou à la méthode : **OpenClaw**
 comme core par défaut, **Hermes Agent** comme adaptateur/runtime optionnel, **LiteLLM** comme
 passerelle de modèles par défaut, la discipline de cache-boundary (désormais native au runtime
 OpenClaw), `garde_fou.py` M1 conservé, le format Agent Skills, le patron
@@ -343,7 +348,7 @@ requises par Expo Router, Jest/jest-expo/babel-preset-expo/@react-native/jest-pr
 TypeScript — et les 4 briques du client d'appairage mobile — PLAN T1.4-c3 :
 `expo-secure-store`, `@noble/curves`, `@noble/hashes`, `@types/node` — et les 4 briques du
 chantier du jour/checklist/photos/signature — PLAN T1.4-e : `expo-camera`, `expo-file-system`,
-`react-native-signature-canvas`, `react-native-webview`) **et 38 refusées
+`react-native-signature-canvas`, `react-native-webview`) **et 40 refusées
 explicitement**, sur les 10 rapports `docs/research/R1`–`R10` et
 R12 ; mise à jour du choix de core par
 [ADR-0007](../decisions/ADR-0007-core-openclaw.md), vérifiée directement dans le code, les tests et le

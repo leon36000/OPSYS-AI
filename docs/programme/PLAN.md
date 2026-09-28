@@ -825,6 +825,22 @@ météo et GPS M4, vision M3, conseil d'agents M9…
 
 - [ ] T4.1 M4 : la cédule trie sur un hachage de ville, sans sens géographique ; la remplacer par
       de vraies coordonnées et un VRP (audit M4).
+      Conception : `docs/research/R15-cedule-vrp.md` (PyVRP, MIT ; distances par paliers,
+      haversine × détour puis OSRM local en option ; géocodage local par le Référentiel québécois
+      des adresses, CC-BY 4.0 ; pyvroom refusé en processus, sa roue embarque GLPK sous GPL).
+      `cedule.py` reste le repli « sans coordonnées », affiché comme mode bridé.
+  - [ ] T4.1-a Localisation : `localisation.py`, maillon `localisation_chantier` chiffré et
+        versionné (patron T4.2), `m4_proposer_localisation` et `m4_confirmer_localisation` (rôle
+        `admin`) ; aucune coordonnée n'entre au solveur sans confirmation humaine ; aucun accès
+        réseau.
+  - [ ] T4.1-b Matrice : `distances.py` (haversine entier, détour, vitesse et marge fournis par
+        l'entreprise, sinon verdict), port `FournisseurMatrice`, adaptateur OSRM optionnel.
+  - [ ] T4.1-c Solveur et validateur : `tournees.py`, adaptateur PyVRP (extra `tournees`), DP exact
+        de repli et oracle, `verifier_plan`, raisons de non-cédule calculées par notre code ;
+        mêmes octets d'une exécution à l'autre.
+  - [ ] T4.1-d Outils et E2E : `m4_proposer_cedule` (brouillon) et `m4_appliquer_cedule` (N3,
+        refus si l'entrée a changé) ; scénario fictif Repentigny–Joliette, kilomètres en baisse
+        contre le tourniquet sur la même fixture.
 - [x] T4.2 M4 : consentement et rétention du GPS (`POLITIQUE-geolocalisation.md`) non câblés dans
       le pointage (audit M4) ; bloquant avant tout GPS continu.
       Preuve (ff0c118, 7e5ccab) :
@@ -894,6 +910,10 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
 - Identifiants : Twilio, QuickBooks, CCube, Stripe, Plaid, Google (Ads, Search Console, Business
   Profile), Meta, TikTok, LinkedIn, YouTube.
 - Rotation de la clé fuitée (#612).
+- **Cédule et géocodage (R15 §7)** : confirmation humaine de chaque correspondance d'adresse
+  « Bâtiment » en v1 (recommandée) ; RAM et disque du VPS pour un sidecar OSRM et l'extrait
+  régional ; avis d'un juriste sur le graphe OSRM dérivé (ODbL), l'attribution CC-BY du RQA et
+  un éventuel géocodeur gouvernemental ; fond de carte pour confirmer sur carte (EFVP §5).
 - **Seuils métier** (définition §13.11) :
   - M6 démarre avec un seuil de variance de chantier de 30 % ;
   - M6 signale un écart de prix à la réception au-delà de 15 % (`department.yaml`) ;
