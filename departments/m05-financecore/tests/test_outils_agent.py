@@ -56,6 +56,19 @@ def test_autonomie_respecte_la_regle_finance():
     assert _outil("m5_decider_approbation").autonomie == Autonomie.T3
 
 
+def test_envoi_et_paiement_de_facture_ne_sont_pas_exposes_aux_agents():
+    """`facturation.envoyer_facture` vérifie la FORME du maillon F4 qu'on lui passe : exposé tel
+    quel, un appelant pourrait en fabriquer un. L'envoi et le paiement ne deviendront des outils
+    qu'en T3, derrière les approbations du socle (décision humaine et exécution dans la même
+    transaction, PLAN T1.3) ; ce test changera avec eux, jamais avant."""
+    from m5_financecore import facturation
+
+    exposees = {getattr(o.fonction, "__name__", "") for o in outils()}
+    assert facturation.envoyer_facture.__name__ not in exposees
+    assert facturation.marquer_facture_payee.__name__ not in exposees
+    assert not [o.nom for o in outils() if "envoyer" in o.nom or "payee" in o.nom]
+
+
 # --- m5_etat_tresorerie : composé, fail-closed ------------------------------
 
 
