@@ -146,7 +146,7 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         - pauses (`pause_debut`, `pause_fin`) et temps de déplacement distinct ;
         - `m4_produire_brouillon_temps` : minutes par technicien et chantier, aucun taux ni montant ;
         - dépassement signalé sur un seuil fourni par l'appelant.
-  - [ ] T1.1-d M6 :
+  - [x] T1.1-d M6 :
         - formulaire de fin de chantier enrichi (prévu, non prévu, retour, perte, bris, achat
           terrain avec photo ou reçu) ;
         - `variance_chantier.py`, prévu contre réel, distinct de la variance d'inventaire ;
@@ -157,12 +157,16 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         `cause_possible` toujours nul avec `classification_requise`, signal sur seuil,
         `m6_evaluer_variance_chantier` (T0). 213 tests.
 
-        Reste (T1.1-d2) :
-        - persister la déclaration en mouvements typés, tout ou rien, par le chemin d'écriture
-          autorisé ;
-        - `m6_declarer_materiaux_utilises` ;
-        - la variance lit le réel persisté ;
-        - idempotence par `wct_id`.
+        T1.1-d2 fait (cea3b64) :
+        - la déclaration est persistée en `CONSOMMATION`, `RETOUR`, `PERTE` et `BRIS`, tout ou
+          rien, par la garde d'écriture autorisée ;
+        - même règle de coût fail-closed ;
+        - `wct_id` est optionnel dans le maillon : absent, le hash est inchangé bit à bit ;
+        - `m6_declarer_materiaux_utilises` (T1) ;
+        - la variance relit le réel en base ;
+        - `REJ-DECLARATION-DEJA-SOUMISE`.
+
+        242 tests M6, 81 outils.
   - [x] T1.1-e M5 :
         - `FactureBrouillonV1` sur un registre dédié, idempotente par `devis_id` ;
         - aucun `ENCAISSEMENT` avant `PAYEE` ;
