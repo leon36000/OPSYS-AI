@@ -1,26 +1,42 @@
 ---
 name: gerer-les-approbations-f0-f7
-description: Procédure pour créer une demande d'approbation F0-F7 et enregistrer la décision d'un humain — F6 (argent réel) et F7 (position fiscale) exigent une preuve structurée, jamais une chaîne libre.
+description: Procédure pour proposer l'envoi d'une facture (N4) ou l'enregistrement d'un paiement (N5) — les deux passent désormais par la file d'approbation du socle, jamais par une décision prise ici.
 ---
 
-# Gérer les approbations F0-F7
+# Envoyer une facture, enregistrer un paiement
 
-1. Crée la demande avec `m5_creer_demande_approbation` : identifiant unique,
-   palier F0-F7 choisi par le demandeur (pas déduit), description de l'action,
-   horodatage. Un palier hors F0-F7 est refusé.
-2. La décision (`APPROUVE` ou `REFUSE`) appartient toujours à un humain — tu ne la
-   prends jamais. Un fois le nom de l'approbateur connu, appelle
-   `m5_decider_approbation`. C'est une action T3 : elle passe par la file
-   d'approbation même si la décision affichée vient déjà d'un humain nommé.
-3. Pour F0-F5, un `approbateur` non vide suffit.
-4. Pour F6 (argent réel) ou F7 (position fiscale — mention CPA), `preuve` est
-   OBLIGATOIRE et doit être une chaîne JSON portant exactement trois clés :
-   `methode`, `horodatage` (ISO 8601 avec fuseau) et `identifiant_approbateur`.
-   Exemple : `{"methode": "MFA_TOTP", "horodatage": "2026-08-03T12:00:00-04:00",
-   "identifiant_approbateur": "EMP-042"}`. N'invente jamais un fournisseur MFA
-   précis dans la méthode : nomme seulement ce que l'humain a réellement utilisé.
-5. Une preuve absente, vide, ou en chaîne libre non structurée est refusée
-   (`REJ-PREUVE-ABSENTE` ou `REJ-PREUVE-STRUCTURE-INVALIDE`) : redemande la preuve
-   correctement formée, ne la fabrique jamais.
-6. Le statut courant d'une demande se relit toujours depuis la chaîne du registre
-   (`approbations_historique`) — jamais un champ que tu positionnerais toi-même.
+Depuis PLAN T1.3-c, il n'existe plus de registre d'approbation F0-F7 « libre » côté
+M5 : les deux seules actions que ce département engage réellement (envoyer une
+facture, constater un paiement) sont des outils dédiés, gardés par le socle. Tu ne
+décides jamais toi-même — tu proposes, un humain autorisé décide dans la console ou
+la CLI OPSYS (`opsys approbations`).
+
+## Envoyer une facture (N4)
+
+1. Retrouve une facture au statut BROUILLON (`m5_lister_attentes_facturation` ou la
+   file du propriétaire) et appelle `m5_envoyer_facture` avec `facture_id` et
+   `horodatage` (ISO 8601 avec fuseau).
+2. Cet appel N'ENVOIE RIEN : si le mode du département l'exige, il crée une demande
+   d'approbation `en_attente_approbation` (N4) — dis-le clairement, ne présente
+   jamais l'action comme faite.
+3. `finance` ou `nathan_owner` (`department.yaml/approbations.n4`) décide ensuite
+   dans la console/CLI. Ce n'est qu'à ce moment que la facture transitionne
+   BROUILLON -> ENVOYEE. Aucun courriel réel n'est envoyé par cet outil (M1, plus
+   tard) : c'est le statut et sa trace.
+
+## Enregistrer un paiement (N5)
+
+1. Une fois la facture ENVOYEE, appelle `m5_enregistrer_paiement_facture` avec
+   `facture_id`, `montant_paye` (texte décimal — ce qui a RÉELLEMENT été déposé,
+   ex. lu sur un relevé bancaire), `approbateur` et `horodatage`.
+2. C'est une frontière N5 : `nathan_owner` ET l'attestation du professionnel
+   (nom, profession, référence du document — ex. la référence du dépôt) sont
+   exigées par le socle avant toute exécution. Jamais automatique, jamais délégué.
+3. Le montant payé est comparé par le CODE au montant dû de la facture — ne
+   l'arrondis, ne le corrige et ne l'invente jamais toi-même. Un paiement partiel
+   (`REJ-FACTURE-PAIEMENT-PARTIEL`) ou tout autre écart (`REJ-FACTURE-PAIEMENT-ECART`)
+   revient comme un verdict nommé : redemande le bon montant ou escalade, ne force
+   jamais le passage.
+4. Un ENCAISSEMENT réel (registre des mouvements) reste un appel séparé à
+   `m5_enregistrer_mouvement`, déclenché par la constatation du dépôt — jamais
+   automatique à partir d'un paiement de facture.

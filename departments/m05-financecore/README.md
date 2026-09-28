@@ -26,3 +26,17 @@ Quatre bugs corrigés (test rouge → vert) lors de cette passe :
 - Les taux fiscaux versionnés (`contracts/taux_fiscaux.v1.yaml`) n'étaient
   utilisés par aucun calcul : `taxes.py` (nouveau) calcule TPS/TVQ en Decimal
   en les lisant via `taux_fiscaux.rechercher_taux`, jamais codés en dur.
+
+PLAN T1.3-c (branchement sur les approbations du socle) : `m5_envoyer_facture` (N4)
+et `m5_enregistrer_paiement_facture` (N5, montant comparé par le code) remplacent la
+confiance à la forme d'un maillon F4/d'un `approbateur` texte libre — les deux
+outils ne s'exécutent que derrière une décision signée de `opsys.approbations`
+(`department.yaml/approbations.n3`/`n4` ; N5 fixé à `nathan_owner` par le socle).
+`m5_creer_demande_approbation`/`m5_decider_approbation` sont retirés des outils
+agent ; `approbation.py` (registre F0-F7) reste dans le dépôt comme bibliothèque
+pure et testée, mais n'a plus aucun appelant — voir son docstring et le rapport de
+PLAN T1.3-c. `outils.attentes()` alimente désormais la file du propriétaire
+(`opsys.approbations.file_proprietaire`) : attentes de facturation, factures
+BROUILLON prêtes à envoyer, et le signal de variance critique de M6
+(`m6.variance_chantier`, `variance_recus.py`) affiché à côté, sans jamais bloquer
+l'envoi.

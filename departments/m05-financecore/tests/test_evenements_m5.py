@@ -144,15 +144,20 @@ def _quarantaine_m5():
 
 
 def test_declaration_module_consommateurs():
-    assert set(outils_mod.consommateurs()) == {"m3.devis_accepte", "m4.travaux_termines"}
+    assert set(outils_mod.consommateurs()) == {
+        "m3.devis_accepte",
+        "m4.travaux_termines",
+        "m6.variance_chantier",
+    }
 
 
 def test_m5_declare_consommer_devis_accepte_et_travaux_termines():
     dep = charger_departements()["m05-financecore"]
-    assert dep.evenements_consomme == ("m3.devis_accepte", "m4.travaux_termines")
+    assert dep.evenements_consomme == ("m3.devis_accepte", "m4.travaux_termines", "m6.variance_chantier")
     fonctions = dep.charger_consommateurs()
     assert "m3.devis_accepte" in fonctions
     assert "m4.travaux_termines" in fonctions
+    assert "m6.variance_chantier" in fonctions
 
 
 # -- nominal : quel que soit l'ordre d'arrivée ----------------------------------------------------

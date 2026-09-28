@@ -1,3 +1,19 @@
+"""Registre interne F0-F7 (M5.1) — VESTIGIAL depuis PLAN T1.3-c, gardé comme bibliothèque pure et
+testée, mais SANS AUCUN appelant dans `outils.py` : aucun outil agent n'expose plus
+`creer_demande`/`approuver`/`refuser` de ce module. Les deux paliers F que M5 réalise concrètement
+— l'envoi d'une facture (F4) et le paiement constaté (F6) — sont désormais des outils dédiés,
+gardés par le socle (`opsys.approbations`, N4/N5, ADR-0009 §4/§5 ; voir `outils.py`,
+`NIVEAU_POUR_PALIER`), jamais par ce registre : une demande créée ici n'exécute RIEN (ce module ne
+connaît même pas `opsys`), donc elle ne pouvait déjà pas gater une écriture réelle. Conservé pour
+ne pas perdre la couverture de tests existante (`tests/test_approbation.py`) et parce qu'une
+décision humaine a jugé la suppression complète hors du périmètre de PLAN T1.3-c (voir le rapport
+final de cette tâche) — un futur ménage devra soit le supprimer, soit le repositionner
+explicitement en simple JOURNAL de lecture (jamais un second chemin d'approbation).
+
+Module pur (ADR-0009, même règle que `registre.py`/`facturation.py`) : aucun import `opsys`,
+aucune horloge interne, aucun accès réseau.
+"""
+
 from __future__ import annotations
 
 import json

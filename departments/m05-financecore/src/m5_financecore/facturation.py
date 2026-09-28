@@ -28,10 +28,21 @@ transition, un maillon `transition_facture` — l'état courant d'une facture es
 maillons dans l'ordre (voir `_etats_courants`), jamais seulement le dernier (un champ posé à une
 transition antérieure, ex. `date_envoi`, doit rester visible après une transition ultérieure).
 
-Limite assumée (comme le reste de M5 v1, cf. `outils._rejouer_registre`) : `envoyer_facture`
-fait confiance à la FORME du maillon d'approbation qu'on lui passe (palier, statut, approbateur
-non vide), pas à une vérification cryptographique de sa provenance — la preuve renforcée n'existe
-qu'aux paliers F6/F7 d'`approbation.py`, hors périmètre de l'envoi d'une facture (F4).
+PLAN T1.3-c (branchement sur les approbations du socle) : `envoyer_facture` ne reçoit et ne
+vérifie plus AUCUN maillon d'approbation — l'ancienne garde sur la FORME d'un maillon F4 (palier,
+statut, approbateur non vide) est retirée, pas seulement affaiblie. La décision d'envoyer une
+facture appartient désormais exclusivement au socle (`opsys.approbations.decider`, niveau N4,
+ADR-0009 §4/§5) : l'outil agent `m5_envoyer_facture` (`outils.py`) est intercepté par
+`opsys.capacites.Capacites._distribuer` AVANT d'atteindre ce module, et n'est exécuté qu'une fois
+qu'une personne autorisée (`department.yaml/approbations.n4`) a décidé — jamais par cette fonction
+elle-même. L'exécution de `envoyer_facture` est donc déjà la preuve de cette décision ; QUI a
+décidé et QUAND restent tracés par le socle (table `approbations` : `decide_par`, `decide_role`,
+`decide_le`), jamais dupliqués dans ce registre. `marquer_facture_payee` garde son propre
+`approbateur` texte (comportement INCHANGÉ, aucune régression) ; `enregistrer_paiement_facture`,
+elle, est gardée par le socle au niveau N5 (`nathan_owner` ET l'attestation du professionnel,
+ADR-0009 §5, imposées par `opsys.approbations`, jamais par ce module) et compare en plus le
+montant RÉELLEMENT déposé au montant dû, calculé par le code — jamais une écriture PAYEE sur un
+paiement partiel ou un écart (voir plus bas).
 """
 
 from __future__ import annotations
@@ -55,8 +66,6 @@ _DEUX_DECIMALES = Decimal("0.01")
 _CHAMPS_LIGNE_REQUIS = frozenset(
     {"description", "quantite", "unite", "prix_unitaire", "reference_ligne_devis"}
 )
-_CHAMPS_APPROBATION_REQUIS = frozenset({"demande_id", "palier", "statut", "approbateur"})
-_PALIER_ENVOI_FACTURE = "F4"
 
 _TRANCHES_CREANCES = ("0-30", "31-60", "61-90", "90+")
 
@@ -220,6 +229,20 @@ def facture_active_pour_devis(registre_cible: Any, devis_id: str) -> dict[str, A
     )
 
 
+def factures_par_statut(registre_cible: Any, statut: str) -> tuple[dict[str, Any], ...]:
+    """Toutes les factures actuellement à ce statut (état courant, PLAN T1.3-c), triées par
+    `facture_id` pour un ordre stable. Même patron que `facture_active_pour_devis` : fonction
+    publique extraite de `_etats_courants`, exposée pour un appelant qui a seulement besoin de
+    RETROUVER des factures par statut (ex. `outils.attentes`, les BROUILLON prêtes à envoyer),
+    sans dupliquer la logique de fusion des maillons."""
+    return tuple(
+        sorted(
+            (etat for etat in _etats_courants(registre_cible).values() if etat.get("statut") == statut),
+            key=lambda etat: etat["facture_id"],
+        )
+    )
+
+
 def creer_facture_brouillon(
     facture_id: str,
     chantier_id: str,
@@ -307,36 +330,13 @@ def creer_facture_brouillon(
     return _ajouter_et_retrouver(entree, registre_cible), None
 
 
-def _verifier_approbation_f4(approbation_maillon: Any) -> dict | None:
-    if not isinstance(approbation_maillon, dict) or not set(approbation_maillon) >= _CHAMPS_APPROBATION_REQUIS:
-        return validation.construire_verdict(
-            "REJ-FACTURE-APPROBATION-STRUCTURE-INVALIDE",
-            detail=f"approbation_maillon doit porter {sorted(_CHAMPS_APPROBATION_REQUIS)}",
-        )
-    if approbation_maillon["palier"] != _PALIER_ENVOI_FACTURE:
-        return validation.construire_verdict(
-            "REJ-FACTURE-APPROBATION-PALIER-INVALIDE",
-            detail=f"palier {approbation_maillon['palier']!r}, attendu {_PALIER_ENVOI_FACTURE!r} (envoi client)",
-        )
-    if approbation_maillon["statut"] != "APPROUVE":
-        return validation.construire_verdict(
-            "REJ-FACTURE-APPROBATION-ABSENTE",
-            detail=f"statut d'approbation {approbation_maillon['statut']!r}, attendu 'APPROUVE'",
-        )
-    if not _est_texte_non_vide(approbation_maillon["approbateur"]):
-        return validation.construire_verdict(
-            "REJ-FACTURE-APPROBATEUR-ABSENT", detail="approbateur de l'approbation F4 vide"
-        )
-    return None
-
-
 def envoyer_facture(
-    facture_id: str, approbation_maillon: dict[str, Any], horodatage: str, registre_cible: Any
+    facture_id: str, horodatage: str, registre_cible: Any
 ) -> tuple[dict[str, Any] | None, dict | None]:
-    """Verrou d'envoi : BROUILLON -> ENVOYEE, uniquement si `approbation_maillon` est un maillon
-    APPROUVE au palier F4 (mécanisme existant de `approbation.py` : le dict que renvoient
-    `approbation.creer_demande`/`approbation.approuver`, ou l'outil `m5_decider_approbation`) ;
-    sinon rejet nommé. `date_envoi` posé ici sert de base à `calculer_age_creances`."""
+    """Verrou d'envoi : BROUILLON -> ENVOYEE. La décision d'approuver appartient exclusivement au
+    socle (N4, `opsys.approbations.decider` — voir le docstring du module) : cette fonction ne
+    reçoit et ne vérifie plus aucun maillon d'approbation. `date_envoi` posé ici sert de base à
+    `calculer_age_creances`."""
     etat = _etat_facture(registre_cible, facture_id)
     if etat is None:
         return None, validation.construire_verdict(
@@ -348,17 +348,11 @@ def envoyer_facture(
             detail=f"facture {facture_id!r} au statut {etat['statut']!r}, BROUILLON requis pour l'envoi",
         )
 
-    verdict = _verifier_approbation_f4(approbation_maillon)
-    if verdict is not None:
-        return None, verdict
-
     entree = {
         "type_entree": "transition_facture",
         "facture_id": facture_id,
         "statut": "ENVOYEE",
         "date_envoi": horodatage,
-        "demande_id_approbation": approbation_maillon["demande_id"],
-        "approbateur": approbation_maillon["approbateur"],
         "horodatage": horodatage,
     }
     return _ajouter_et_retrouver(entree, registre_cible), None
@@ -397,6 +391,63 @@ def marquer_facture_payee(
         "horodatage": horodatage,
     }
     return _ajouter_et_retrouver(entree, registre_cible), None
+
+
+def enregistrer_paiement_facture(
+    facture_id: str, montant_paye: str, approbateur: str, horodatage: str, registre_cible: Any
+) -> tuple[dict[str, Any] | None, dict | None]:
+    """Frontière N5 (PLAN T1.3-c) : le socle exige déjà `nathan_owner` ET l'attestation du
+    professionnel (ADR-0009 §5, `opsys.approbations.decider`) avant que cette fonction ne
+    s'exécute — jamais vérifié ici (voir le docstring du module). Ce que CE module ajoute : le
+    montant RÉELLEMENT déposé (`montant_paye`, ex. relevé/référence de dépôt bancaire) est
+    comparé par le CODE au montant dû de la facture (`montant_apres_taxes`, déjà calculé et
+    JAMAIS refourni par l'appelant) — jamais un montant inventé ni accepté sans contrôle. Un
+    paiement partiel (`REJ-FACTURE-PAIEMENT-PARTIEL`) ou tout autre écart, y compris un
+    excédent (`REJ-FACTURE-PAIEMENT-ECART`), est un verdict nommé : la facture n'est marquée
+    PAYEE que si le montant concorde exactement. Une fois le montant validé, délègue à
+    `marquer_facture_payee` (ENVOYEE -> PAYEE, `approbateur` non vide, aucune écriture dans le
+    registre des mouvements) : composition, pas réécriture."""
+    etat = _etat_facture(registre_cible, facture_id)
+    if etat is None:
+        return None, validation.construire_verdict(
+            "REJ-FACTURE-INTROUVABLE", detail=f"facture inconnue : {facture_id!r}"
+        )
+    montant_du = etat.get("montant_apres_taxes")
+    if not isinstance(montant_du, Decimal):
+        # Défense en profondeur (maillon corrompu ou construit à la main sans montant_apres_taxes) :
+        # jamais un montant dû inventé pour comparer quand même.
+        return None, validation.construire_verdict(
+            "REJ-FACTURE-INTROUVABLE", detail=f"facture {facture_id!r} : montant dû illisible"
+        )
+
+    montant_paye_decimal, verdict = _texte_vers_decimal(
+        montant_paye, "montant_paye", "REJ-FACTURE-PAIEMENT-MONTANT-INVALIDE"
+    )
+    if verdict is not None:
+        return None, verdict
+    if montant_paye_decimal <= 0:
+        return None, validation.construire_verdict(
+            "REJ-FACTURE-PAIEMENT-MONTANT-INVALIDE", detail="montant_paye doit être strictement positif"
+        )
+
+    if montant_paye_decimal < montant_du:
+        return None, validation.construire_verdict(
+            "REJ-FACTURE-PAIEMENT-PARTIEL",
+            detail=(
+                f"montant payé ({montant_paye_decimal}) < montant dû ({montant_du}) "
+                f"pour la facture {facture_id!r} : paiement partiel, jamais marqué PAYEE"
+            ),
+        )
+    if montant_paye_decimal > montant_du:
+        return None, validation.construire_verdict(
+            "REJ-FACTURE-PAIEMENT-ECART",
+            detail=(
+                f"montant payé ({montant_paye_decimal}) != montant dû ({montant_du}) "
+                f"pour la facture {facture_id!r} : écart, jamais marqué PAYEE sans vérification"
+            ),
+        )
+
+    return marquer_facture_payee(facture_id, approbateur, horodatage, registre_cible)
 
 
 def _tranche_pour_age(age_jours: int) -> str:

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from decimal import Decimal
 from pathlib import Path
 
@@ -12,7 +11,7 @@ from m5_financecore.outils import outils
 
 from opsys import stockage
 from opsys.departements import lire_manifeste
-from opsys.outils import Autonomie, executer
+from opsys.outils import Autonomie, Niveau, executer
 
 HORODATAGE = "2026-08-03T12:00:00+00:00"
 
@@ -45,28 +44,47 @@ def test_manifeste_et_outils_coherents():
 
 
 def test_autonomie_respecte_la_regle_finance():
-    """RÈGLE FINANCE : écriture financière et décision d'approbation = T3,
-    lecture/calcul = T0, création d'une demande (registre interne) = T1.
-    Créer une facture BROUILLON est une écriture interne non finale, T1 elle aussi."""
+    """RÈGLE FINANCE : écriture financière = T3, lecture/calcul = T0, écriture interne non
+    finale (facture BROUILLON) = T1. PLAN T1.3-c : l'envoi d'une facture (engagement client,
+    F4/F5 dans l'ancienne échelle) est désormais T2/N4 et le paiement (argent réel, F6/F7) T3/N5
+    — les deux gardés par le socle, jamais par ce département (voir `NIVEAU_POUR_PALIER`,
+    `m5_financecore.outils`)."""
     assert _outil("m5_etat_tresorerie").autonomie == Autonomie.T0
     assert _outil("m5_calculer_taxes_tps_tvq").autonomie == Autonomie.T0
     assert _outil("m5_enregistrer_mouvement").autonomie == Autonomie.T3
     assert _outil("m5_creer_facture_brouillon").autonomie == Autonomie.T1
-    assert _outil("m5_creer_demande_approbation").autonomie == Autonomie.T1
-    assert _outil("m5_decider_approbation").autonomie == Autonomie.T3
+    assert _outil("m5_envoyer_facture").autonomie == Autonomie.T2
+    assert _outil("m5_envoyer_facture").niveau_effectif == Niveau.N4
+    assert _outil("m5_enregistrer_paiement_facture").autonomie == Autonomie.T3
+    assert _outil("m5_enregistrer_paiement_facture").niveau_effectif == Niveau.N5
 
 
-def test_envoi_et_paiement_de_facture_ne_sont_pas_exposes_aux_agents():
-    """`facturation.envoyer_facture` vérifie la FORME du maillon F4 qu'on lui passe : exposé tel
-    quel, un appelant pourrait en fabriquer un. L'envoi et le paiement ne deviendront des outils
-    qu'en T3, derrière les approbations du socle (décision humaine et exécution dans la même
-    transaction, PLAN T1.3) ; ce test changera avec eux, jamais avant."""
-    from m5_financecore import facturation
+def test_ancien_registre_f0_f7_libre_n_est_plus_expose_aux_agents():
+    """PLAN T1.3-c point 3 : l'ancien registre interne F0-F7 (`approbation.py`) n'a plus aucun
+    outil agent — les deux paliers concrets que M5 réalise (envoi F4, paiement F6) sont des
+    outils dédiés, gardés par le socle (voir `test_autonomie_respecte_la_regle_finance` et
+    `test_approbations_socle.py`), jamais un registre de gouvernance parallèle."""
+    from m5_financecore import approbation
 
+    noms = {o.nom for o in outils()}
     exposees = {getattr(o.fonction, "__name__", "") for o in outils()}
-    assert facturation.envoyer_facture.__name__ not in exposees
-    assert facturation.marquer_facture_payee.__name__ not in exposees
-    assert not [o.nom for o in outils() if "envoyer" in o.nom or "payee" in o.nom]
+    assert "m5_creer_demande_approbation" not in noms
+    assert "m5_decider_approbation" not in noms
+    assert approbation.creer_demande.__name__ not in exposees
+    assert approbation.approuver.__name__ not in exposees
+    assert approbation.refuser.__name__ not in exposees
+
+
+def test_envoi_et_paiement_de_facture_sont_exposes_et_gardes_par_le_socle():
+    """PLAN T1.3-c : `envoyer_facture`/`enregistrer_paiement_facture` (wrappers `outils.py`, qui
+    composent `facturation.envoyer_facture`/`enregistrer_paiement_facture`) sont bien exposés —
+    ce test remplace `test_envoi_et_paiement_de_facture_ne_sont_pas_exposes_aux_agents` (M5.2,
+    avant le branchement sur les approbations du socle), qui affirmait l'inverse. Ce fichier
+    n'exerce que l'appel direct (`executer`, hors approbation) : le branchement réel au socle
+    (demande créée, décision signée, exécution) est prouvé par `test_approbations_socle.py`."""
+    noms = {o.nom for o in outils()}
+    assert "m5_envoyer_facture" in noms
+    assert "m5_enregistrer_paiement_facture" in noms
 
 
 # --- m5_etat_tresorerie : composé, fail-closed ------------------------------
@@ -360,112 +378,99 @@ def test_creer_facture_brouillon_parametre_requis_manquant_est_un_refus_de_schem
     assert reponse["erreur"] == "arguments_invalides"
 
 
-# --- m5_creer_demande_approbation / m5_decider_approbation -------------------
+# --- m5_envoyer_facture / m5_enregistrer_paiement_facture (PLAN T1.3-c) ------------------------
+# Appel DIRECT de l'outil (`executer`, comme le reste de ce fichier) : prouve le comportement
+# métier (nominal, refus nommé, blocage de schéma). Le branchement réel sur le socle — demande
+# créée en `en_attente_approbation`, décision signée par une personne autorisée, exécution dans
+# la même transaction, refus pour un rôle non autorisé — est prouvé par `test_approbations_socle.py`.
 
 
-def test_cycle_approbation_f6_nominal_avec_preuve_structuree():
-    creer = _outil("m5_creer_demande_approbation")
-    decider = _outil("m5_decider_approbation")
-
-    r1 = executer(
-        creer,
-        {"demande_id": "DEM-100", "palier": "F6", "action": "Virement 5000$", "horodatage": HORODATAGE},
-    )
-    historique = r1["resultat"]["approbations_historique"]
-
-    preuve = json.dumps(
-        {"methode": "MFA_TOTP", "horodatage": HORODATAGE, "identifiant_approbateur": "EMP-042"}
-    )
-    r2 = executer(
-        decider,
-        {
-            "demande_id": "DEM-100",
-            "decision": "APPROUVE",
-            "approbateur": "Nathan",
-            "horodatage": HORODATAGE,
-            "preuve": preuve,
-            "approbations_historique": historique,
-        },
-    )
-
-    assert r2["resultat"]["accepte"] is True
-    assert r2["resultat"]["resultat"]["statut"] == "APPROUVE"
-
-
-def test_decider_approbation_f6_refuse_une_preuve_en_chaine_libre():
-    creer = _outil("m5_creer_demande_approbation")
-    decider = _outil("m5_decider_approbation")
-
-    r1 = executer(
-        creer,
-        {"demande_id": "DEM-101", "palier": "F6", "action": "Virement 5000$", "horodatage": HORODATAGE},
-    )
-    historique = r1["resultat"]["approbations_historique"]
-
-    r2 = executer(
-        decider,
-        {
-            "demande_id": "DEM-101",
-            "decision": "APPROUVE",
-            "approbateur": "Nathan",
-            "horodatage": HORODATAGE,
-            "preuve": "PV-COMITE-F6-001",
-            "approbations_historique": historique,
-        },
-    )
-
-    assert r2["resultat"]["accepte"] is False
-    assert r2["resultat"]["verdict"]["code"] == "REJ-PREUVE-STRUCTURE-INVALIDE"
-
-
-def test_creer_demande_approbation_refuse_un_palier_hors_enumeration_par_le_schema():
+def _creer_facture_brouillon_durable(facture_id="FACT-ENV", devis_id="DEVIS-ENV"):
     reponse = executer(
-        _outil("m5_creer_demande_approbation"),
-        {"demande_id": "DEM-102", "palier": "F9", "action": "test", "horodatage": HORODATAGE},
+        _outil("m5_creer_facture_brouillon"),
+        {**_ARGUMENTS_FACTURE, "facture_id": facture_id, "devis_id": devis_id},
+    )
+    assert reponse["ok"] is True and reponse["resultat"]["accepte"] is True, reponse
+    return reponse["resultat"]["resultat"]
+
+
+def test_envoyer_facture_nominal_transitionne_vers_envoyee():
+    _creer_facture_brouillon_durable()
+
+    reponse = executer(_outil("m5_envoyer_facture"), {"facture_id": "FACT-ENV", "horodatage": HORODATAGE})
+
+    assert reponse["ok"] is True
+    assert reponse["resultat"]["accepte"] is True
+    assert reponse["resultat"]["resultat"]["statut"] == "ENVOYEE"
+
+
+def test_envoyer_facture_refuse_une_facture_introuvable():
+    reponse = executer(
+        _outil("m5_envoyer_facture"), {"facture_id": "FACT-INEXISTANTE", "horodatage": HORODATAGE}
+    )
+
+    assert reponse["ok"] is True
+    assert reponse["resultat"]["accepte"] is False
+    assert reponse["resultat"]["verdict"]["code"] == "REJ-FACTURE-INTROUVABLE"
+
+
+def test_envoyer_facture_parametre_requis_manquant_est_un_refus_de_schema():
+    reponse = executer(_outil("m5_envoyer_facture"), {"facture_id": "FACT-ENV"})
+
+    assert reponse["ok"] is False
+    assert reponse["erreur"] == "arguments_invalides"
+
+
+def test_enregistrer_paiement_facture_nominal_montant_exact():
+    _creer_facture_brouillon_durable(facture_id="FACT-PAY", devis_id="DEVIS-PAY")
+    executer(_outil("m5_envoyer_facture"), {"facture_id": "FACT-PAY", "horodatage": HORODATAGE})
+
+    reponse = executer(
+        _outil("m5_enregistrer_paiement_facture"),
+        {"facture_id": "FACT-PAY", "montant_paye": "689.85", "approbateur": "Nathan", "horodatage": HORODATAGE},
+    )
+
+    assert reponse["ok"] is True
+    assert reponse["resultat"]["accepte"] is True
+    assert reponse["resultat"]["resultat"]["statut"] == "PAYEE"
+
+
+def test_enregistrer_paiement_facture_partiel_est_un_verdict_nomme_jamais_paye():
+    """Le montant payé est comparé par le CODE, jamais fourni sans contrôle (mandat, point 2) :
+    un paiement partiel reste un verdict nommé, la facture reste ENVOYEE."""
+    _creer_facture_brouillon_durable(facture_id="FACT-PARTIEL", devis_id="DEVIS-PARTIEL")
+    executer(_outil("m5_envoyer_facture"), {"facture_id": "FACT-PARTIEL", "horodatage": HORODATAGE})
+
+    reponse = executer(
+        _outil("m5_enregistrer_paiement_facture"),
+        {
+            "facture_id": "FACT-PARTIEL", "montant_paye": "500.00", "approbateur": "Nathan",
+            "horodatage": HORODATAGE,
+        },
+    )
+
+    assert reponse["ok"] is True
+    assert reponse["resultat"]["accepte"] is False
+    assert reponse["resultat"]["verdict"]["code"] == "REJ-FACTURE-PAIEMENT-PARTIEL"
+
+
+def test_enregistrer_paiement_facture_parametre_requis_manquant_est_un_refus_de_schema():
+    reponse = executer(
+        _outil("m5_enregistrer_paiement_facture"),
+        {"facture_id": "FACT-PAY", "montant_paye": "689.85", "approbateur": "Nathan"},
     )
 
     assert reponse["ok"] is False
     assert reponse["erreur"] == "arguments_invalides"
 
 
-def test_decider_approbation_decision_hors_enum_est_bloquee_par_le_schema():
-    """La valeur enum du schéma est la première ligne de défense (arguments
-    invalides), avant même d'atteindre le code métier."""
-    creer = _outil("m5_creer_demande_approbation")
-    decider = _outil("m5_decider_approbation")
-
-    r1 = executer(
-        creer, {"demande_id": "DEM-103", "palier": "F0", "action": "test", "horodatage": HORODATAGE}
-    )
-    historique = r1["resultat"]["approbations_historique"]
-
+def test_enregistrer_paiement_facture_bloque_un_montant_non_texte_au_niveau_schema():
+    """Même garde que `m5_enregistrer_mouvement`/`m5_creer_facture_brouillon` (mandat) : un float
+    JSON pour un montant est bloqué avant même d'atteindre le code métier."""
     reponse = executer(
-        decider,
-        {
-            "demande_id": "DEM-103",
-            "decision": "PEUT-ETRE",
-            "approbateur": "Nathan",
-            "horodatage": HORODATAGE,
-            "approbations_historique": historique,
-        },
+        _outil("m5_enregistrer_paiement_facture"),
+        {"facture_id": "FACT-PAY", "montant_paye": 689.85, "approbateur": "Nathan", "horodatage": HORODATAGE},
     )
 
     assert reponse["ok"] is False
     assert reponse["erreur"] == "arguments_invalides"
-
-
-def test_decider_approbation_fonction_refuse_une_decision_inconnue_en_defense_en_profondeur():
-    """La fonction métier reste elle-même fail-closed (REJ-DECISION-INVALIDE),
-    indépendamment du schéma JSON qui la protège déjà — défense en profondeur,
-    pas un chemin mort : un appel direct au module (hors MCP) doit rester sûr."""
-    from m5_financecore import outils as outils_module
-
-    reponse = outils_module.decider_approbation(
-        demande_id="DEM-104",
-        decision="PEUT-ETRE",
-        approbateur="Nathan",
-        horodatage=HORODATAGE,
-    )
-
-    assert reponse["accepte"] is False
-    assert reponse["verdict"]["code"] == "REJ-DECISION-INVALIDE"

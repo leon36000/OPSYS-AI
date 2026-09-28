@@ -72,14 +72,6 @@ def _creer(
     return maillon, verdict, registre_cible
 
 
-_APPROBATION_F4_APPROUVEE = {
-    "demande_id": "DEM-F4-001",
-    "palier": "F4",
-    "statut": "APPROUVE",
-    "approbateur": "Nathan",
-}
-
-
 # --- LigneFacture / FactureBrouillonV1 : contrat gelé, immuable -------------------------------
 
 
@@ -389,30 +381,33 @@ def test_creer_facture_brouillon_autorise_un_nouveau_brouillon_apres_annulation(
     assert maillon2["facture_id"] == "FACT-C"
 
 
-# --- verrou d'envoi : BROUILLON -> ENVOYEE seulement avec une approbation F4 accordée ----------
+# --- verrou d'envoi : BROUILLON -> ENVOYEE, gardé par le socle (N4, PLAN T1.3-c) ---------------
+#
+# ADAPTATION (mandat PLAN T1.3-c, point 6) : `envoyer_facture` ne reçoit et ne vérifie plus AUCUN
+# maillon d'approbation — la garde sur la FORME d'un maillon F4 (palier, statut, approbateur non
+# vide) est retirée, remplacée par la décision réelle du socle (`opsys.approbations.decider`, N4),
+# testée à l'échelle du département dans `test_approbations_socle.py`. Les tests qui ne
+# vérifiaient QUE cette forme (structure invalide, mauvais palier, non approuvée, approbateur
+# vide) sont donc retirés ici : ils n'ont plus de sens pour une fonction qui ne prend plus cet
+# argument. Les tests encore pertinents (introuvable, transition illégale) sont conservés,
+# adaptés à la nouvelle signature à 3 arguments.
 
 
 def test_envoyer_facture_nominal_transitionne_et_pose_date_envoi():
     _, verdict_creation, registre_cible = _creer()
     assert verdict_creation is None
 
-    maillon, verdict = facturation.envoyer_facture(
-        "FACT-001", _APPROBATION_F4_APPROUVEE, "2026-08-10T09:00:00+00:00", registre_cible
-    )
+    maillon, verdict = facturation.envoyer_facture("FACT-001", "2026-08-10T09:00:00+00:00", registre_cible)
 
     assert verdict is None
     assert maillon["type_entree"] == "transition_facture"
     assert maillon["statut"] == "ENVOYEE"
     assert maillon["date_envoi"] == "2026-08-10T09:00:00+00:00"
-    assert maillon["demande_id_approbation"] == "DEM-F4-001"
-    assert maillon["approbateur"] == "Nathan"
     assert registre_cible.valider_chaine() == (True, "")
 
 
 def test_envoyer_facture_rejette_une_facture_introuvable():
-    maillon, verdict = facturation.envoyer_facture(
-        "FACT-INEXISTANTE", _APPROBATION_F4_APPROUVEE, HORODATAGE, registre.Registre()
-    )
+    maillon, verdict = facturation.envoyer_facture("FACT-INEXISTANTE", HORODATAGE, registre.Registre())
 
     assert maillon is None
     assert verdict["code"] == "REJ-FACTURE-INTROUVABLE"
@@ -420,75 +415,53 @@ def test_envoyer_facture_rejette_une_facture_introuvable():
 
 def test_envoyer_facture_rejette_une_facture_deja_envoyee():
     _, _, registre_cible = _creer()
-    premier, v1 = facturation.envoyer_facture("FACT-001", _APPROBATION_F4_APPROUVEE, HORODATAGE, registre_cible)
+    premier, v1 = facturation.envoyer_facture("FACT-001", HORODATAGE, registre_cible)
     assert v1 is None
     assert premier["statut"] == "ENVOYEE"
 
-    second, v2 = facturation.envoyer_facture("FACT-001", _APPROBATION_F4_APPROUVEE, HORODATAGE, registre_cible)
+    second, v2 = facturation.envoyer_facture("FACT-001", HORODATAGE, registre_cible)
 
     assert second is None
     assert v2["code"] == "REJ-FACTURE-TRANSITION-ILLEGALE"
 
 
-@pytest.mark.parametrize(
-    "approbation_invalide",
-    [
-        None,
-        "PV-APPROUVE-001",
-        {"demande_id": "DEM-1", "palier": "F4", "statut": "APPROUVE"},  # approbateur manquant
-        {"palier": "F4", "statut": "APPROUVE", "approbateur": "Nathan"},  # demande_id manquant
-    ],
-)
-def test_envoyer_facture_rejette_une_approbation_de_structure_invalide(approbation_invalide):
-    _, _, registre_cible = _creer()
-
-    maillon, verdict = facturation.envoyer_facture("FACT-001", approbation_invalide, HORODATAGE, registre_cible)
-
-    assert maillon is None
-    assert verdict["code"] == "REJ-FACTURE-APPROBATION-STRUCTURE-INVALIDE"
+# --- factures_par_statut : fonction publique extraite de _etats_courants (PLAN T1.3-c) ---------
 
 
-@pytest.mark.parametrize("palier", ["F0", "F3", "F5", "F6", "F7"])
-def test_envoyer_facture_rejette_un_palier_different_de_f4(palier):
-    _, _, registre_cible = _creer()
-    approbation_autre_palier = {**_APPROBATION_F4_APPROUVEE, "palier": palier}
+def test_factures_par_statut_retrouve_les_brouillon_triees_par_facture_id():
+    _, _, registre_cible = _creer(facture_id="FACT-B", devis_id="DEVIS-B")
+    _creer(facture_id="FACT-A", devis_id="DEVIS-A", registre_cible=registre_cible)
 
-    maillon, verdict = facturation.envoyer_facture("FACT-001", approbation_autre_palier, HORODATAGE, registre_cible)
+    brouillon = facturation.factures_par_statut(registre_cible, "BROUILLON")
 
-    assert maillon is None
-    assert verdict["code"] == "REJ-FACTURE-APPROBATION-PALIER-INVALIDE"
+    assert [f["facture_id"] for f in brouillon] == ["FACT-A", "FACT-B"]
 
 
-@pytest.mark.parametrize("statut", ["EN_ATTENTE", "REFUSE"])
-def test_envoyer_facture_rejette_une_approbation_non_approuvee(statut):
-    _, _, registre_cible = _creer()
-    approbation_non_approuvee = {**_APPROBATION_F4_APPROUVEE, "statut": statut}
+def test_factures_par_statut_exclut_les_autres_statuts():
+    _, _, registre_cible = _creer(facture_id="FACT-ENVOYEE", devis_id="DEVIS-ENVOYEE")
+    facturation.envoyer_facture("FACT-ENVOYEE", HORODATAGE, registre_cible)
+    _creer(facture_id="FACT-BROUILLON", devis_id="DEVIS-BROUILLON", registre_cible=registre_cible)
 
-    maillon, verdict = facturation.envoyer_facture("FACT-001", approbation_non_approuvee, HORODATAGE, registre_cible)
+    assert [f["facture_id"] for f in facturation.factures_par_statut(registre_cible, "BROUILLON")] == [
+        "FACT-BROUILLON"
+    ]
+    assert [f["facture_id"] for f in facturation.factures_par_statut(registre_cible, "ENVOYEE")] == [
+        "FACT-ENVOYEE"
+    ]
 
-    assert maillon is None
-    assert verdict["code"] == "REJ-FACTURE-APPROBATION-ABSENTE"
 
-
-@pytest.mark.parametrize("approbateur", [None, "", "   "])
-def test_envoyer_facture_rejette_une_approbation_a_l_approbateur_vide(approbateur):
-    _, _, registre_cible = _creer()
-    approbation_sans_approbateur = {**_APPROBATION_F4_APPROUVEE, "approbateur": approbateur}
-
-    maillon, verdict = facturation.envoyer_facture(
-        "FACT-001", approbation_sans_approbateur, HORODATAGE, registre_cible
-    )
-
-    assert maillon is None
-    assert verdict["code"] == "REJ-FACTURE-APPROBATEUR-ABSENT"
+def test_factures_par_statut_rend_un_tuple_vide_si_aucune_correspondance():
+    assert facturation.factures_par_statut(registre.Registre(), "PAYEE") == ()
 
 
 # --- PAYEE : jamais sans approbateur humain non vide, jamais de pont bancaire réel -------------
+# (marquer_facture_payee, INCHANGÉE — aucune régression, voir enregistrer_paiement_facture
+# plus bas pour la comparaison de montant, PLAN T1.3-c)
 
 
 def test_marquer_facture_payee_nominal():
     _, _, registre_cible = _creer()
-    facturation.envoyer_facture("FACT-001", _APPROBATION_F4_APPROUVEE, HORODATAGE, registre_cible)
+    facturation.envoyer_facture("FACT-001", HORODATAGE, registre_cible)
 
     maillon, verdict = facturation.marquer_facture_payee(
         "FACT-001", "Nathan", "2026-08-20T10:00:00+00:00", registre_cible
@@ -520,7 +493,7 @@ def test_marquer_facture_payee_rejette_une_facture_encore_brouillon():
 
 def test_marquer_facture_payee_rejette_une_facture_deja_payee():
     _, _, registre_cible = _creer()
-    facturation.envoyer_facture("FACT-001", _APPROBATION_F4_APPROUVEE, HORODATAGE, registre_cible)
+    facturation.envoyer_facture("FACT-001", HORODATAGE, registre_cible)
     premier, v1 = facturation.marquer_facture_payee("FACT-001", "Nathan", HORODATAGE, registre_cible)
     assert v1 is None
     assert premier["statut"] == "PAYEE"
@@ -535,7 +508,7 @@ def test_marquer_facture_payee_rejette_une_facture_deja_payee():
 def test_marquer_facture_payee_exige_un_approbateur_humain_non_vide(approbateur):
     """Même garde que `approbation.approuver` (mandat, tâche 6) : frontière humaine T3."""
     _, _, registre_cible = _creer()
-    facturation.envoyer_facture("FACT-001", _APPROBATION_F4_APPROUVEE, HORODATAGE, registre_cible)
+    facturation.envoyer_facture("FACT-001", HORODATAGE, registre_cible)
 
     maillon, verdict = facturation.marquer_facture_payee("FACT-001", approbateur, HORODATAGE, registre_cible)
 
@@ -552,7 +525,7 @@ def test_marquer_facture_payee_n_ecrit_jamais_dans_le_registre_des_mouvements():
     registre_mouvements_temoin = registre.Registre()
     _, _, registre_factures = _creer()
 
-    facturation.envoyer_facture("FACT-001", _APPROBATION_F4_APPROUVEE, HORODATAGE, registre_factures)
+    facturation.envoyer_facture("FACT-001", HORODATAGE, registre_factures)
     maillon_paye, verdict = facturation.marquer_facture_payee(
         "FACT-001", "Nathan", "2026-08-20T10:00:00+00:00", registre_factures
     )
@@ -570,14 +543,126 @@ def test_marquer_facture_payee_n_ecrit_jamais_dans_le_registre_des_mouvements():
     assert "ENCAISSEMENT" not in str(registre_factures.lire())
 
 
+# --- enregistrer_paiement_facture : montant comparé PAR LE CODE, jamais fourni sans contrôle ---
+# (PLAN T1.3-c point 2 — le socle garde le N5, nathan_owner + attestation ; ce module compare)
+
+
+def _facture_envoyee_689_85():
+    """Facture par défaut (`_lignes()`), montant dû après taxes = 689.85 $ (vérifié par
+    `test_creer_facture_brouillon_nominal_recalcule_les_totaux_et_les_taxes_sur_le_fichier_reel`)."""
+    _, _, registre_cible = _creer()
+    facturation.envoyer_facture("FACT-001", HORODATAGE, registre_cible)
+    return registre_cible
+
+
+def test_enregistrer_paiement_facture_nominal_montant_exact_marque_payee():
+    registre_cible = _facture_envoyee_689_85()
+
+    maillon, verdict = facturation.enregistrer_paiement_facture(
+        "FACT-001", "689.85", "Nathan", "2026-08-20T10:00:00+00:00", registre_cible
+    )
+
+    assert verdict is None
+    assert maillon["statut"] == "PAYEE"
+    assert maillon["approbateur"] == "Nathan"
+    assert maillon["date_paiement"] == "2026-08-20T10:00:00+00:00"
+    assert registre_cible.valider_chaine() == (True, "")
+
+
+def test_enregistrer_paiement_facture_partiel_refuse_sans_marquer_payee():
+    registre_cible = _facture_envoyee_689_85()
+
+    maillon, verdict = facturation.enregistrer_paiement_facture(
+        "FACT-001", "500.00", "Nathan", HORODATAGE, registre_cible
+    )
+
+    assert maillon is None
+    assert verdict["code"] == "REJ-FACTURE-PAIEMENT-PARTIEL"
+    assert "500.00" in verdict["detail"] and "689.85" in verdict["detail"]
+    # jamais marquée PAYEE sur un paiement partiel : la facture reste ENVOYEE.
+    assert facturation._etat_facture(registre_cible, "FACT-001")["statut"] == "ENVOYEE"
+
+
+def test_enregistrer_paiement_facture_excedent_refuse_sans_marquer_payee():
+    registre_cible = _facture_envoyee_689_85()
+
+    maillon, verdict = facturation.enregistrer_paiement_facture(
+        "FACT-001", "700.00", "Nathan", HORODATAGE, registre_cible
+    )
+
+    assert maillon is None
+    assert verdict["code"] == "REJ-FACTURE-PAIEMENT-ECART"
+    assert facturation._etat_facture(registre_cible, "FACT-001")["statut"] == "ENVOYEE"
+
+
+@pytest.mark.parametrize("montant_paye", ["pas-un-nombre", "0", "-10.00", 689.85])
+def test_enregistrer_paiement_facture_rejette_un_montant_invalide(montant_paye):
+    registre_cible = _facture_envoyee_689_85()
+
+    maillon, verdict = facturation.enregistrer_paiement_facture(
+        "FACT-001", montant_paye, "Nathan", HORODATAGE, registre_cible
+    )
+
+    assert maillon is None
+    assert verdict["code"] == "REJ-FACTURE-PAIEMENT-MONTANT-INVALIDE"
+    assert facturation._etat_facture(registre_cible, "FACT-001")["statut"] == "ENVOYEE"
+
+
+def test_enregistrer_paiement_facture_rejette_une_facture_introuvable():
+    maillon, verdict = facturation.enregistrer_paiement_facture(
+        "FACT-X", "689.85", "Nathan", HORODATAGE, registre.Registre()
+    )
+
+    assert maillon is None
+    assert verdict["code"] == "REJ-FACTURE-INTROUVABLE"
+
+
+def test_enregistrer_paiement_facture_rejette_une_facture_encore_brouillon():
+    """Le contrôle de montant ne devance jamais la garde de transition existante
+    (ENVOYEE requis) : une facture encore BROUILLON est refusée avant toute comparaison."""
+    _, _, registre_cible = _creer()
+
+    maillon, verdict = facturation.enregistrer_paiement_facture(
+        "FACT-001", "689.85", "Nathan", HORODATAGE, registre_cible
+    )
+
+    assert maillon is None
+    assert verdict["code"] == "REJ-FACTURE-TRANSITION-ILLEGALE"
+
+
+@pytest.mark.parametrize("approbateur", [None, "", "   "])
+def test_enregistrer_paiement_facture_exige_un_approbateur_humain_non_vide(approbateur):
+    """Le montant validé, la garde existante de `marquer_facture_payee` s'applique toujours
+    (composition, pas réécriture) : approbateur non vide, comportement inchangé."""
+    registre_cible = _facture_envoyee_689_85()
+
+    maillon, verdict = facturation.enregistrer_paiement_facture(
+        "FACT-001", "689.85", approbateur, HORODATAGE, registre_cible
+    )
+
+    assert maillon is None
+    assert verdict["code"] == "REJ-FACTURE-APPROBATEUR-ABSENT"
+
+
+def test_enregistrer_paiement_facture_n_ecrit_jamais_dans_le_registre_des_mouvements():
+    registre_mouvements_temoin = registre.Registre()
+    registre_cible = _facture_envoyee_689_85()
+
+    maillon, verdict = facturation.enregistrer_paiement_facture(
+        "FACT-001", "689.85", "Nathan", HORODATAGE, registre_cible
+    )
+
+    assert verdict is None
+    assert maillon["statut"] == "PAYEE"
+    assert registre_mouvements_temoin.lire() == []
+
+
 # --- calculer_age_creances -----------------------------------------------------------------------
 
 
 def _facture_envoyee(registre_cible, facture_id, devis_id, date_envoi):
     _creer(facture_id=facture_id, devis_id=devis_id, horodatage=date_envoi, registre_cible=registre_cible)
-    maillon, verdict = facturation.envoyer_facture(
-        facture_id, _APPROBATION_F4_APPROUVEE, date_envoi, registre_cible
-    )
+    maillon, verdict = facturation.envoyer_facture(facture_id, date_envoi, registre_cible)
     assert verdict is None
     return maillon
 

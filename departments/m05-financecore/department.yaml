@@ -10,8 +10,13 @@ mission: >-
 outils: m5_financecore.outils
 mode: ombre
 dependances: [m02-revenue-crm, m03-estimation, m04-field-ops, m06-material-control]
-evenements:                                          # ADR-0009 §3, PLAN T1.2-d (suite)
-  consomme: [m3.devis_accepte, m4.travaux_termines]  # facture brouillon, quel que soit l'ordre
+evenements:                                          # ADR-0009 §3, PLAN T1.2-d/T1.3-c
+  consomme: [m3.devis_accepte, m4.travaux_termines, m6.variance_chantier]  # brouillon + signal M6
+approbations:                                         # ADR-0009 §5, PLAN T1.3-c point 5
+  n3: [finance, nathan_owner]
+  n4: [finance, nathan_owner]                        # envoi de facture (m5_envoyer_facture)
+  # N5 (paiement, m5_enregistrer_paiement_facture) ne se déclare pas : nathan_owner seul, fixé par
+  # le socle (ADR-0009 §5).
 modeles:
   defaut: standard
   extraction: rapide
