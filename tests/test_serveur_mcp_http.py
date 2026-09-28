@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import socket
 import threading
 import time
@@ -17,7 +18,7 @@ from mcp.client.streamable_http import streamable_http_client
 from mcp.shared._httpx_utils import create_mcp_http_client
 
 from opsys.capacites import Capacites
-from opsys.serveur_mcp import application_http
+from opsys.serveur_mcp import CHEMIN_SANTE, _SansAccesSante, application_http, application_http_departements
 
 JETON = "jeton-de-test-suffisamment-long-0123456789"
 
@@ -42,6 +43,68 @@ def serveur_http(departements_demo, session):
     yield f"http://127.0.0.1:{port}/mcp"
     serveur.should_exit = True
     fil.join(timeout=5)
+
+
+@pytest.fixture(params=["un_point_d_acces", "un_point_par_departement"])
+def racine_http(request, departements_demo, session):
+    """Racine HTTP des deux applications MCP : toutes deux passent par le même garde de jeton."""
+    port = _port_libre()
+    if request.param == "un_point_d_acces":
+        app = application_http(Capacites(departements_demo, session), JETON, hote="127.0.0.1")
+    else:
+        app = application_http_departements(departements_demo, session, JETON, hote="127.0.0.1")
+    serveur = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
+    fil = threading.Thread(target=serveur.run, daemon=True)
+    fil.start()
+    for _ in range(100):
+        if serveur.started:
+            break
+        time.sleep(0.05)
+    yield f"http://127.0.0.1:{port}"
+    serveur.should_exit = True
+    fil.join(timeout=5)
+
+
+def test_sante_sans_jeton_repond_ok_sans_donnee_metier(racine_http):
+    with urllib.request.urlopen(racine_http + CHEMIN_SANTE, timeout=5) as reponse:
+        assert reponse.status == 200
+        assert reponse.headers["Content-Type"] == "application/json"
+        assert json.loads(reponse.read()) == {"statut": "ok", "service": "opsys-metier"}
+
+
+def test_sante_head_sans_corps(racine_http):
+    requete = urllib.request.Request(racine_http + CHEMIN_SANTE, method="HEAD")
+    with urllib.request.urlopen(requete, timeout=5) as reponse:
+        assert reponse.status == 200
+        assert reponse.read() == b""
+
+
+def test_sante_refuse_les_ecritures_sans_jeton(racine_http):
+    requete = urllib.request.Request(racine_http + CHEMIN_SANTE, data=b"{}", method="POST")
+    with pytest.raises(urllib.error.HTTPError) as erreur:
+        urllib.request.urlopen(requete, timeout=5)
+    assert erreur.value.code == 405
+    assert erreur.value.headers["Allow"] == "GET, HEAD"
+
+
+@pytest.mark.parametrize("chemin", ["/sante/", "/sante/x", "/SANTE", "/mcp", "/"])
+def test_seul_le_chemin_exact_de_sante_echappe_au_jeton(racine_http, chemin):
+    with pytest.raises(urllib.error.HTTPError) as erreur:
+        urllib.request.urlopen(racine_http + chemin, timeout=5)
+    assert erreur.value.code == 401
+
+
+def _acces(chemin: str) -> logging.LogRecord:
+    """Enregistrement du journal d'accès d'uvicorn (format `%s - "%s %s HTTP/%s" %d`)."""
+    return logging.LogRecord("uvicorn.access", logging.INFO, __file__, 0,
+                             '%s - "%s %s HTTP/%s" %d', ("127.0.0.1:5000", "GET", chemin, "1.1", 200), None)
+
+
+def test_journal_d_acces_ignore_seulement_les_sondes_de_sante():
+    filtre = _SansAccesSante()
+    assert filtre.filter(_acces(CHEMIN_SANTE)) is False
+    assert filtre.filter(_acces("/mcp/m03-estimation")) is True
+    assert filtre.filter(_acces("/mcp?q=/sante")) is True
 
 
 def test_sans_jeton_401(serveur_http):

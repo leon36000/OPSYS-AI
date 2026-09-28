@@ -15,6 +15,7 @@ import argparse
 import contextlib
 import hmac
 import json
+import logging
 import os
 from collections.abc import Mapping
 from typing import Any
@@ -106,8 +107,44 @@ async def _servir(capacites: Capacites) -> None:
         await serveur.run(lecture, ecriture, serveur.create_initialization_options())
 
 
+CHEMIN_SANTE = "/sante"
+_REPONSE_SANTE = json.dumps({"statut": "ok", "service": "opsys-metier"}).encode()
+
+
+async def _repondre_sante(scope: dict[str, Any], send: Any) -> None:
+    """Point de santé du moteur : vivant si le serveur répond. Aucune donnée métier, aucun jeton.
+
+    Le superviseur du core (PLAN T0.10) le sonde en boucle ; il ne prouve que la vie du processus
+    HTTP, jamais l'état d'un département. Seuls GET et HEAD sont permis.
+    """
+    entetes = [(b"content-type", b"application/json"), (b"cache-control", b"no-store")]
+    methode = scope.get("method", "GET")
+    if methode not in ("GET", "HEAD"):
+        await send({"type": "http.response.start", "status": 405,
+                    "headers": [*entetes, (b"allow", b"GET, HEAD")]})
+        await send({"type": "http.response.body", "body": b'{"erreur":"methode non permise"}'})
+        return
+    await send({"type": "http.response.start", "status": 200, "headers": entetes})
+    await send({"type": "http.response.body", "body": b"" if methode == "HEAD" else _REPONSE_SANTE})
+
+
+class _SansAccesSante(logging.Filter):
+    """Retire du journal d'accès d'uvicorn les sondes `GET /sante` : sondées en boucle par le
+    superviseur du core, elles noieraient le journal unifié sans rien dire."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        # Arguments d'uvicorn.access : (client, méthode, chemin avec requête, version HTTP, statut).
+        arguments = record.args
+        if isinstance(arguments, tuple) and len(arguments) >= 3:
+            return arguments[2] != CHEMIN_SANTE
+        return True
+
+
 class _ExigerJeton:
-    """Middleware ASGI : refuse toute requête HTTP sans `Authorization: Bearer <jeton>`."""
+    """Middleware ASGI : refuse toute requête HTTP sans `Authorization: Bearer <jeton>`.
+
+    Seule exception : `GET /sante`, sonde de vie sans donnée métier (`_repondre_sante`).
+    """
 
     def __init__(self, application: Any, jeton: str) -> None:
         self._application = application
@@ -115,6 +152,9 @@ class _ExigerJeton:
 
     async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
         if scope["type"] == "http":
+            if scope.get("path") == CHEMIN_SANTE:
+                await _repondre_sante(scope, send)
+                return
             entetes = dict(scope.get("headers") or [])
             if not hmac.compare_digest(entetes.get(b"authorization", b""), self._attendu):
                 await send({"type": "http.response.start", "status": 401,
@@ -204,6 +244,7 @@ def main(argv: list[str] | None = None) -> None:
     jeton = os.environ.get("OPSYS_MCP_JETON", "")
     import uvicorn
 
+    logging.getLogger("uvicorn.access").addFilter(_SansAccesSante())
     application = application_http_departements(departements, etat.session, jeton, args.hote)
     uvicorn.run(application, host=args.hote, port=args.port, log_level="info")
 
