@@ -234,11 +234,24 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         dans la charge ce que les audits M5 et M7 exigent. Passer de `completed_pending_review` à
         `completed_verified` quand le code a sa base : preuves complètes et variance M6 sans signal
         critique.
-  - [ ] T1.2-c Consommateurs de premier ordre :
+  - [x] T1.2-c Consommateurs de premier ordre :
         - M2 : activité et prochaine action, par une table de règles déterministe ;
         - M10 : mémoire du WCT ;
         - M8 : métriques ;
         - M7 : demande d'avis, soumise au consentement.
+
+        Preuve :
+        - M2 (1a5ed10) : avance jusqu'au chantier, puis `marquer_chantier_termine` ; prochaine
+          action par une table de règles citée ; lead introuvable mis en quarantaine ;
+        - M10 : WCT mémorisé ;
+        - M8 (99a5dcb) : faits mesurés, sans coût ;
+        - M7 : brouillon de demande d'avis seulement avec le consentement, jamais d'envoi.
+
+        Suites : M2 589, M7 503, M8 116, M10 194.
+
+        À suivre : le répartiteur transmet la charge, mais pas la provenance (`evenement_id`,
+        producteur). M10 déduit l'identifiant du `wct_id` ; il faudrait passer la provenance aux
+        consommateurs qui la demandent.
   - [ ] T1.2-d Consommateurs à données amont :
         - M6 : variance, où un prévu absent donne un verdict qui le demande ;
         - M5 : facture brouillon, où des lignes de devis absentes donnent un verdict qui les
