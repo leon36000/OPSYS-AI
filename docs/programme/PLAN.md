@@ -22,9 +22,11 @@ identifiants du propriétaire, repli livré en attendant.
       construit d'abord la release amont intacte (Node 24, pnpm 12.4, `pnpm build`, `pnpm test:fast`).
 - [ ] T0.6 Élagage selon R11 (canaux et fournisseurs inutiles, docs, apps natives…), CI verte.
 - [ ] T0.7 Renommage OpenClaw → OPSYS (CLI `opsys`, `~/.opsys`, paquets, variables, UI), CI verte.
-- [ ] T0.8 ADR-0009 socle métier (base de données, événements, workflows à validation humaine,
+- [x] T0.8 ADR-0009 socle métier (base de données, événements, workflows à validation humaine,
       RBAC, audit, observabilité) d'après R13. Doit unifier les échelles d'autonomie aujourd'hui
       disjointes : N0–N5 (définition), T0–T3 (socle), F0–F7 (M5), niveaux 0–6 (M7) (audit M5).
+      Preuve : `docs/decisions/ADR-0009-socle-metier.md` (SQLite par défaut, PostgreSQL en option,
+      une transaction métier + événement + audit, échelle N unique, rôles P8).
 - [ ] T0.9 ADR-0010 mémoire (RAM par moteur de contexte, M10 gouvernance, RAG d'entreprise)
       d'après l'audit M10.
 - [ ] T0.10 Superviseur : le core lance et surveille le moteur métier Python (via `uv`), santé et
@@ -48,8 +50,8 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
 - [ ] T1.1 Données et API : jobs et machine à états (M4), sessions de travail et punch (M4.4),
       matériaux prévus et utilisés (M6.10–M6.12), facture brouillon (M5.2), activité client (M2).
 - [ ] T1.2 Événements : l'événement de fin de travaux de M4 porte les montants (M5) et les champs
-      marketing (photos, ville, consentement : M7), et liste aussi M3 et M9 parmi ses consommateurs
-      (audits M4, M5, M7). `job.completed` déclenche la cascade (M6 variance, M5 facture brouillon, M2
+      marketing (photos, ville, consentement : M7) ; M3 et M9 la reçoivent en second ordre (M6/M5 et
+      M8, ADR-0009) (audits M4, M5, M7). `job.completed` déclenche la cascade (M6 variance, M5 facture brouillon, M2
       activité et prochaine action, M7 demande d'avis, M3 estimé vs réel, M8 métriques, M10 mémoire).
 - [ ] T1.3 Approbations N3–N4 (complétion, facture, écart matériaux), file du propriétaire.
 - [ ] T1.4 App mobile Expo : squelette, appairage, profils, punch, chantier du jour, « Terminer »,
