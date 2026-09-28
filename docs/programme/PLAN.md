@@ -605,16 +605,17 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
     - `m6_declarer_materiaux_utilises` exige que l'app lui renvoie le WCT complet, dont M6 ne
       vérifie que la forme (T1.4-i) ;
     - l'écran `(admin)/approvals` (étape 6) reste à faire.
-  - [ ] T1.4-h Appels d'appareil et approbations : une action qu'un humain authentifié (T1.4-c4)
+  - [x] T1.4-h Appels d'appareil et approbations : une action qu'un humain authentifié (T1.4-c4)
     lance lui-même depuis l'app, dans la portée de son rôle, vaut la « validation humaine au
     départ » d'un N3 (ADR-0009 §4) ; les N4 et N5 restent au propriétaire. Code critique : revue
     externe, et confirmation par Nathan (GATE ci-dessous).
 
-    Livré sur la branche `agent/t1-4-h-approbations` (5b7615d), NON intégré : plafond N3, identité
-    relue en base, portée du rôle tirée de `openclaw.roles_outils`, trace atomique dans le journal
-    des approbations (fix GPS masqué), idempotence intacte ; socle 434. Mais la portée actuelle
-    des rôles est trop large : un employé exécuterait seul `m6_approuver_po`,
-    `m4_resoudre_demande` ou `m4_lire_position_gps`. Dépend de T1.4-j.
+    Preuve (intégrée après T1.4-j) : plafond N3 ; identité relue en base (personne active portant
+    ce rôle), sinon file d'approbation comme avant ; portée tirée de `openclaw.roles_outils`
+    (désormais déclarée outil par outil), sinon refus `hors_portee_role` ; exécution et trace dans
+    le même point de sauvegarde du journal des approbations (fix GPS masqué dans la trace) ;
+    idempotence intacte ; addendum ADR-0009 §4 (statut « proposé ») ; 28 tests, socle 519.
+    Revue externe et confirmation de Nathan requises avant la mise en service.
   - [x] T1.4-i M6 lit le WCT à la source : `m6_declarer_materiaux_utilises` prend le `wct_id` et
     lit la charge publiée par M4 dans le magasin d'événements du socle, au lieu de la recevoir de
     l'appelant.
@@ -626,16 +627,24 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
     - socle 412, M6 394, M4 761, M5 321, Jest 585, verifier 119.
 
     Reste (T1.4-k) : M6 sait que le WCT existe, pas que l'appareil a le droit d'y déclarer.
-  - [ ] T1.4-j Portée par outil des rôles d'appareil : chaque outil déclare les rôles qui peuvent
+  - [x] T1.4-j Portée par outil des rôles d'appareil : chaque outil déclare les rôles qui peuvent
     l'appeler (manifeste), fermé par défaut ; `openclaw.roles_outils` en devient la seule source
     (core et socle). Aujourd'hui `employee` reçoit tous les outils M4 et M6 hors T3, dont
     `m4_lire_outbox` (positions GPS de tous les techniciens), `m6_approuver_po` et
     `m6_consommer_materiaux` (qui prend encore un WCT fourni par l'appelant). Profils : définition
     §9.
+    Preuve (00afa6e intégré) : `Outil.roles_appareil`, vide par défaut, fermé pour les trois rôles
+    (`admin` compris) ; jamais un outil T3/N5 ; `opsys verifier` refuse un rôle inconnu ou une
+    portée sur T3 ; 48 outils déclarés sur 119 (employé 10, vendeur 9, admin 48), justifiés ligne
+    à ligne dans `docs/architecture/ROLES.md` ; `m4_lire_outbox`, `m6_consommer_materiaux` et
+    `m6_approuver_po` (admin seulement) hors de portée de l'employé ; socle 491, tous les
+    départements verts.
   - [ ] T1.4-k Contrôle d'accès par intervention : M4 lie la personne authentifiée au pointage et
     à la complétion ; M6 et M4 refusent une action sur l'intervention d'un autre technicien, sauf
     rôle `admin` ; `chantier_id` et `intervention_id` du formulaire des matériaux confrontés au
-    WCT.
+    WCT. Même travail pour les champs encore fournis par l'appelant : `technicien_id`, `auteur`
+    (M2), `accede_par` (M4), `role` et `autorise_couts` (M5) ; filtrer `m4_lister_interventions`
+    et les leads (M2, M3) par personne ; retrait du consentement GPS par l'employé depuis l'app.
 - [ ] T1.5 E2E : travaux terminés normaux ; écart de 40 % → `completed_pending_review` et alerte
       sur le mobile de l'admin.
 
@@ -682,6 +691,15 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         Reste de T2.3 : séparer coût et prix dans `m3_estimer_projet` ; contrat
         `BesoinsMateriauxM3` vers M6 ; PDF ; `niveau_confiance` est un nombre dans le code et une
         chaîne dans le PRD (à trancher) ; `signaux.py` (demande de photos) n'est jamais appelé.
+  - [x] T2.3-d M3 : vue d'un devis tirée de l'identité authentifiée, prix recommandé distinct du
+        coût, signal de relance branché.
+        Preuve (5767836) : pendant un appel d'appareil, la vue découle du rôle authentifié et
+        revérifié (employé : ni coût, ni marge, ni prix) ; `role` ne peut que restreindre
+        (`REJ-ROLE-ELARGI`) ; prix recommandé = coût × (1 + taux de marge fourni), `ROUND_HALF_UP`,
+        clé sœur d'`EstimationV1` qui reste gelé ; `signaux.py` rend la demande de photos quand la
+        qualité d'entrée est insuffisante ; M3 847 (agent), 817 hors mutation après intégration.
+        Enquête `BesoinsMateriauxM3` : `m3.devis_accepte` porte matériau, quantité et unité, mais ni
+        facteur de perte ni confiance, et seulement à l'acceptation ; le contrat reste à faire.
   - [x] T2.3-c (M2.7) M2 consomme `m3.devis_sans_reponse` et propose une relance, jamais appliquée.
         Preuve (ecee75a, e832b74) :
         - une interaction système rattache le fait au lead et au Client 360, sans transition de
@@ -859,6 +877,12 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
     copies mensuelles), et une restauration la ressusciterait : durée des sauvegardes et
     réapplication des purges après restauration à décider ;
   - `GABARIT-EFVP.md` §6 n'a pas encore de ligne pour les positions GPS.
+- **Portées des rôles d'appareil (T1.4-j, `docs/architecture/ROLES.md`)** :
+  - `admin` déclaré outil par outil plutôt que « tout hors T3 » ;
+  - le vendeur voit coût et marge de ses devis (§9.4 « voir risques et marge ») ; une vue
+    « vendeur » sans coût est possible ;
+  - l'employé ne peut pas encore retirer son consentement GPS depuis l'app (T1.4-k) ;
+  - aucun filtre par propriétaire de lead : tous les vendeurs voient tous les leads (T1.4-k).
 - **Actions d'un employé depuis l'app (T1.4-h)** : en mode ombre, chaque pointage et chaque
   complétion d'un employé part en approbation chez le propriétaire, ce qui rend l'app inutilisable.
   Proposition : l'employé authentifié qui agit lui-même dans la portée de son rôle valide au départ
