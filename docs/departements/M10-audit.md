@@ -153,9 +153,14 @@ OpenClaw lui-même** avec son propre GGUF par défaut (`~0,3 Go`, un modèle d'e
 bge-m3). Configuration cible :
 
 ```json5
-{ memory: { search: { provider: "openai-compatible",
-    openaiCompatible: { baseUrl: "${OPSYS_EMBEDDINGS_URL}", model: "${OPSYS_EMBEDDINGS_MODELE}" } } } }
+{ memory: { search: { provider: "openai-compatible", model: "<valeur de OPSYS_EMBEDDINGS_MODELE>",
+    remote: { baseUrl: "<valeur de OPSYS_EMBEDDINGS_URL>", apiKey: "${OPSYS_EMBEDDINGS_CLE}" } } } }
 ```
+
+> Corrigé le 2026-09-28 (T0.14) : l'exemple d'origine utilisait une clé `openaiCompatible` qui
+> n'existe pas. Le schéma du fork place `model` à côté de `provider` et l'URL dans `remote`
+> (`core/src/config/zod-schema.memory-search.ts:29-45`). La configuration réelle est écrite par
+> `src/opsys/openclaw.py` depuis `OPSYS_EMBEDDINGS_{URL,MODELE,CLE}`.
 
 pointée sur le **même** service (`Ollama`/`llama-server`, bge-m3) que `OPSYS_EMBEDDINGS_URL` en Couche
 B. Aujourd'hui **aucune des deux configurations n'est écrite par OPSYS** : `grep -rl "memory.search\|

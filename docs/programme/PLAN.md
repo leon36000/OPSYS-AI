@@ -48,9 +48,19 @@ identifiants du propriétaire, repli livré en attendant.
       registre M10 = validation au-dessus de la mémoire d'entreprise, SQLite + FTS5 + sqlite-vec par
       défaut, embedding local partagé.
       Preuve : `docs/decisions/ADR-0010-memoire.md`.
-- [ ] T0.14 Cloisonnement de la mémoire des agents : désactiver le partage entre agents de
+- [x] T0.14 Cloisonnement de la mémoire des agents : désactiver le partage entre agents de
       département (`tools.agentToAgent`, actif par défaut) et écrire la configuration mémoire des
       agents (embeddings, dreaming, provenance) (ADR-0010, audit M10).
+      Preuve (commit 8c1cc41) :
+      - `tools.agentToAgent.enabled=false` ;
+      - `tools.sessions.visibility="tree"`, la valeur la plus restrictive qui garde les sous-agents
+        natifs (lu dans `session-visibility-internal.ts`) ;
+      - `memory.search` en `openai-compatible` depuis `OPSYS_EMBEDDINGS_*`, fail-closed si absent ;
+      - dreaming au fuseau des automatisations ;
+      - la provenance n'est pas configurable : structurelle au plugin.
+
+      Résultats : 20 tests, dont chaque clé retrouvée dans le schéma du fork ; socle 208 verts ;
+      verifier OK.
 - [ ] T0.10 Superviseur : le core lance et surveille le moteur métier Python (via `uv`), santé et
       journaux unifiés, une seule authentification.
 - [ ] T0.12 M3 : l'outillage de mutation (`tests/outils_preuve/muter_*.py`) travaille sur une copie
