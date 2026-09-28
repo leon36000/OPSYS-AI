@@ -529,7 +529,16 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       - unité nue ou préfixée, sans égard à la casse, comparée aux 178 codes ISO 4217 actifs ;
       - verdict `REJ-DEVISE-NON-AUTORISEE` ;
       - aucun faux positif sur toutes les unités du dictionnaire réel.
-- [ ] T3.2 M9 : briefing du matin sourcé, décisions en attente sur mobile.
+- [x] T3.2 M9 : briefing du matin sourcé, décisions en attente sur mobile.
+      Preuve (commit « M9 : briefing du matin » ci-dessous) :
+      - assemblage déterministe pour une date fournie, en quatre sections : décisions en attente
+        (file du propriétaire), alertes de M8, faits de la veille, ce qui manque ;
+      - chaque élément porte sa source ; une section vide est déclarée vide ;
+      - M8 publie `m8.alerte_proposee` (catalogue strict) et M9 le consomme sans doublon ;
+      - forme des décisions exposée pour l'écran admin mobile ;
+      - M9 119, M8 205, verifier 97 outils.
+
+      À suivre : le pont de M8 vers les faits de la veille de M9 (preuves métier, T1).
 - [x] T3.3 M10 : paquets de contexte en couches, consolidation nocturne, audit « non-oubli ».
       Preuve (d239485) :
       - paquet en 4 couches avec provenance, budget calculé par le code, troncature déclarée ;
