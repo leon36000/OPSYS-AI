@@ -136,16 +136,28 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
 
         Le cycle de dépendances M2 → M4 → M3 → M2 est sans effet : les dépendances ne servent
         qu'à vérifier l'existence ; c'est une boucle de rétroaction voulue (§6).
-  - [ ] T1.1-b M4 :
+  - [x] T1.1-b M4 :
         - `devis_id` réel propagé jusqu'au WCT (toujours `None` aujourd'hui) ;
         - complétion `completed_pending_review` ou `completed_verified`, selon un `ecart_detecte`
           explicite ;
         - contrat `PreuvesCompletion` (checklist, photos après, notes, signature), fail-closed ;
         - `m4_lister_interventions` en lecture.
-  - [ ] T1.1-c M4.4 :
+  - [x] T1.1-c M4.4 :
         - pauses (`pause_debut`, `pause_fin`) et temps de déplacement distinct ;
         - `m4_produire_brouillon_temps` : minutes par technicien et chantier, aucun taux ni montant ;
         - dépassement signalé sur un seuil fourni par l'appelant.
+
+        Preuve de T1.1-b et T1.1-c (f148950 et 19a99e6, puis le correctif de l'outil) :
+        - `devis_id` porté de l'inscription au WCT ;
+        - `terminee` scindé en `completed_pending_review` et `completed_verified` (paramètre
+          explicite, sans défaut) ;
+        - `PreuvesCompletion` validé avant toute écriture ;
+        - pauses et déplacement ;
+        - `temps.py` gardé contre tout montant ;
+        - `m4_lister_interventions` et `m4_produire_brouillon_temps` (T0) ;
+        - 585 tests M4, 83 outils.
+
+        Un agent n'obtient jamais `completed_verified` : l'outil complète toujours en revue.
   - [x] T1.1-d M6 :
         - formulaire de fin de chantier enrichi (prévu, non prévu, retour, perte, bris, achat
           terrain avec photo ou reçu) ;
@@ -182,7 +194,8 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
 
         Code critique, revue externe requise. Envoi et paiement non exposés tant que T1.3 ne les
         met pas derrière les approbations du socle.
-- [ ] T1.2 Événements : l'événement de fin de travaux de M4 porte les montants (M5) et les champs
+- [ ] T1.2 Événements (`completed_verified` calculé par le code : preuves complètes et aucune variance
+      critique de M6 pour ce WCT ; sinon, revue humaine en T1.3) : l'événement de fin de travaux de M4 porte les montants (M5) et les champs
       marketing (photos, ville, consentement : M7) ; M3 et M9 la reçoivent en second ordre (M6/M5 et
       M8, ADR-0009) (audits M4, M5, M7). `job.completed` déclenche la cascade (M6 variance, M5 facture brouillon, M2
       activité et prochaine action, M7 demande d'avis, M3 estimé vs réel, M8 métriques, M10 mémoire).
