@@ -482,14 +482,29 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       Exemple : `m3_lire_devis(role=...)` retire coût, marge et prix pour un employé, mais c'est
       aujourd'hui l'appelant qui choisit le rôle ;
     - appairage mobile, avec l'algorithme de signature lu dans le fork.
-    - [ ] T1.4-c1 Core : `/tools/invoke` transmet au moteur, dans le `_meta` MCP, la clé
+    - [x] T1.4-c1 Core : `/tools/invoke` transmet au moteur, dans le `_meta` MCP, la clé
           d'idempotence, l'appareil et son heure (`IDEMPOTENCE.md` §7).
+          Preuve (6dffd04) : contexte `AsyncLocalStorage` jusqu'au `tools/call` ; tests vitest
+          (dont un vrai sous-processus MCP) exécutés par la CI du core.
     - [ ] T1.4-c2 Core et socle :
       - rôles nommés sur le jeton d'appareil, attribués à l'approbation de l'appairage avec la
         personne OPSYS ;
       - outils permis par rôle, générés par `opsys openclaw configurer` ;
       - `opsys/personne` et `opsys/role` transmis au moteur, qui s'en sert pour les projections
         et les signatures.
+      Avancement (49584ea), partiel :
+      - fragments `opsys/roles.json` et `opsys/appareils.json` générés par OPSYS ;
+      - refus fermé hors de la portée du rôle ;
+      - `opsys/personne` et `opsys/role` transmis au moteur.
+
+      Reste : attribuer la personne et le rôle à l'approbation de l'appairage (aucune surface ne
+      le fait encore), et T1.4-c4.
+    - [ ] T1.4-c4 Core : `/tools/invoke` authentifie l'appareil par son jeton d'appairage, et non
+          par le secret partagé (accès complet).
+      - L'identité (appareil, personne, rôle) vient du jeton vérifié, jamais du corps.
+      - Tant que ce n'est pas fait, `opsys/personne` n'est pas authentifié : aucun outil ne s'en
+        sert pour signer ou projeter, et le téléphone ne reçoit jamais le secret partagé.
+      - Aussi : un identifiant de client OPSYS dans `GATEWAY_CLIENT_IDS`.
     - [x] T1.4-c3 Mobile : client d'appairage (QR ou code, défi signé selon l'algorithme du
           fork, jeton dans `expo-secure-store`), testé contre le protocole lu dans le core.
 
