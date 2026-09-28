@@ -63,7 +63,7 @@ def test_autonomie_attendue_par_outil():
     lectures_t0 = [
         "m4_statut_intervention", "m4_lister_pending_review",
         "m4_volumetrie_pending_review", "m4_lire_outbox", "m4_produire_digest",
-        "m4_lister_interventions",
+        "m4_lister_interventions", "m4_produire_brouillon_temps",
     ]
     for nom in ecritures_t1:
         assert par_nom[nom].autonomie == Autonomie.T1, nom
@@ -419,3 +419,49 @@ def test_lister_interventions_statut_hors_schema_arguments_invalides():
     reponse = executer(par_nom["m4_lister_interventions"], {"statut": "statut_pirate"})
     assert reponse["ok"] is False
     assert reponse["erreur"] == "arguments_invalides"
+
+
+# ------------------------------------------------------------------ T1.1-c#3/#4 : m4_produire_brouillon_temps
+def test_produire_brouillon_temps_nominal():
+    par_nom = _outils_par_nom()
+    i_id = _mener_a_sur_site(par_nom, lead_id="L-TEMPS")
+    completion = _appeler(
+        par_nom, "m4_completer_intervention",
+        intervention_id=i_id, horodatage="2025-06-02T11:35:00+00:00",
+        ecart_detecte=False, preuves_completion=_PREUVES_OK,
+    )
+    assert completion["resultat"]["accepte"] is True
+
+    brouillon = _appeler(
+        par_nom, "m4_produire_brouillon_temps",
+        periode={"debut": "2025-06-02", "fin": "2025-06-02"},
+    )
+    assert brouillon["ok"] is True and brouillon["resultat"]["accepte"] is True
+    lignes = brouillon["resultat"]["resultat"]["lignes"]
+    assert any(ligne["intervention_id"] == i_id and ligne["minutes_travail"] == 150 for ligne in lignes)
+    assert brouillon["resultat"]["resultat"]["depassements"] == []
+
+
+def test_produire_brouillon_temps_seuil_minutes_signale_depassement():
+    par_nom = _outils_par_nom()
+    i_id = _mener_a_sur_site(par_nom, lead_id="L-TEMPS-DEPASSEMENT")
+    _appeler(
+        par_nom, "m4_completer_intervention",
+        intervention_id=i_id, horodatage="2025-06-02T11:35:00+00:00",
+        ecart_detecte=False, preuves_completion=_PREUVES_OK,
+    )
+    brouillon = _appeler(
+        par_nom, "m4_produire_brouillon_temps",
+        periode={"debut": "2025-06-02", "fin": "2025-06-02"}, seuil_minutes=100,
+    )
+    assert brouillon["ok"] is True and brouillon["resultat"]["accepte"] is True
+    depassements = {d["technicien_id"]: d for d in brouillon["resultat"]["resultat"]["depassements"]}
+    assert depassements["T1"]["depassement_detecte"] is True
+
+
+def test_produire_brouillon_temps_periode_invalide_refuse():
+    par_nom = _outils_par_nom()
+    reponse = _appeler(par_nom, "m4_produire_brouillon_temps", periode={"debut": "2025-06-02"})
+    assert reponse["ok"] is True
+    assert reponse["resultat"]["accepte"] is False
+    assert reponse["resultat"]["verdict"]["code"] == "REJ-CONTRAT-INVALIDE"

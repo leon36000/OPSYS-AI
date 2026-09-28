@@ -76,6 +76,92 @@ def _dernier_depart(registre_cible, intervention_id):
 
 
 # --------------------------------------------------------------------- API publique
+def calculer_minutes_pause(registre_cible, intervention_id):
+    """
+    Somme les pauses (T1.1-c#1) d'une intervention, en minutes.
+
+    Règle DÉTERMINISTE, symétrique à ``calculer_duree_reelle`` : chaque
+    ``pause_debut`` se referme sur le PROCHAIN ``pause_fin`` qui le suit dans
+    l'ordre du registre (ordre d'écriture = ordre chronologique, CA-M4-07). Les
+    pauses sont SANS EFFET sur le statut (``pointage.enregistrer_pointage``) —
+    ce calcul est la seule chose qui les rend visibles, ici et dans le
+    brouillon de temps (``temps.produire_brouillon_temps``).
+
+    Returns:
+        (minutes, None) ou (None, code_verdict). Fail-closed : une pause
+        ouverte sans ``pause_fin``, ou un ``pause_fin`` sans ``pause_debut``
+        préalable, ne comptent JAMAIS pour 0 minute (valeur inventée) — elles
+        bloquent avec un verdict nommé. Aucune pause : 0 minute, légitimement
+        (une intervention peut n'avoir jamais fait de pause).
+    """
+    pointages = [
+        m for m in registre_cible.lire()
+        if m.get("type_entree") == pointage.TYPE_POINTAGE
+        and m.get("intervention_id") == intervention_id
+        and m.get("action") in ("pause_debut", "pause_fin")
+    ]
+
+    total_minutes = 0
+    debut_pause_ouverte = None
+    for p in pointages:
+        if p["action"] == "pause_debut":
+            if debut_pause_ouverte is not None:
+                return None, "REJ-CONTRAT-INVALIDE"
+            debut_pause_ouverte = datetime.fromisoformat(p["horodatage"])
+        else:  # pause_fin
+            if debut_pause_ouverte is None:
+                return None, "REJ-CONTRAT-INVALIDE"
+            dt_fin = datetime.fromisoformat(p["horodatage"])
+            total_minutes += int((dt_fin - debut_pause_ouverte).total_seconds() // 60)
+            debut_pause_ouverte = None
+    if debut_pause_ouverte is not None:
+        return None, "REJ-CONTRAT-INVALIDE"
+
+    return total_minutes, None
+
+
+def calculer_minutes_deplacement(registre_cible, intervention_id):
+    """
+    Calcule le temps de déplacement (T1.1-c#2) : de la transition planifiee ->
+    en_route jusqu'au PREMIER pointage d'arrivée, DISTINCT du temps sur site
+    (``calculer_duree_reelle``).
+
+    Symétrique à ``calculer_duree_reelle`` : s'il existe plusieurs transitions
+    en_route (report puis replanification), la DERNIÈRE fait foi — même
+    convention que ``pointage.enregistrer_pointage`` pour retrouver le
+    technicien réellement envoyé.
+
+    Returns:
+        (minutes, None) ou (None, code_verdict). Fail-closed : aucune
+        transition en_route, aucune arrivée, ou arrivée ANTÉRIEURE au départ
+        déclaré. Aucune valeur conventionnelle n'est jamais substituée.
+    """
+    horodatage_en_route = None
+    for maillon in registre_cible.lire():
+        if (maillon.get("type_entree") == etats.TYPE_TRANSITION
+                and maillon.get("intervention_id") == intervention_id
+                and maillon.get("statut") == "en_route"):
+            horodatage_en_route = maillon.get("horodatage")
+    if horodatage_en_route is None:
+        return None, "REJ-CONTRAT-INVALIDE"
+
+    arrivees = [
+        m for m in registre_cible.lire()
+        if m.get("type_entree") == pointage.TYPE_POINTAGE
+        and m.get("intervention_id") == intervention_id
+        and m.get("action") == "arrivee"
+    ]
+    if not arrivees:
+        return None, "REJ-CONTRAT-INVALIDE"
+
+    dt_route = datetime.fromisoformat(horodatage_en_route)
+    dt_arr = min(datetime.fromisoformat(p["horodatage"]) for p in arrivees)
+    if dt_arr < dt_route:
+        return None, "REJ-HORODATAGE-ANTERIEUR"
+
+    return int((dt_arr - dt_route).total_seconds() // 60), None
+
+
 def calculer_duree_reelle(registre_cible, intervention_id):
     """
     Calcule la durée réelle de l'intervention à partir des pointages de terrain.
@@ -85,15 +171,24 @@ def calculer_duree_reelle(registre_cible, intervention_id):
         intervention_id: identifiant de l'intervention.
 
     Règle DÉTERMINISTE : du PREMIER pointage d'arrivée au DERNIER pointage de
-    départ. La règle « exactement une paire » a été écartée après mesure : une
-    anomalie de pointage produit LÉGITIMEMENT un second départ (départ incohérent
-    -> revue), donc exiger une paire unique rendait toute intervention arbitrée
+    départ, MOINS les pauses (T1.1-c#1 : deux pauses de 15 min réduisent la
+    durée réelle de 30 min — ``calculer_minutes_pause`` ci-dessus). La règle
+    « exactement une paire » a été écartée après mesure : une anomalie de
+    pointage produit LÉGITIMEMENT un second départ (départ incohérent ->
+    revue), donc exiger une paire unique rendait toute intervention arbitrée
     IMPOSSIBLE à compléter — le chemin de revue de CA-M4-10 devenait inatteignable.
+
+    Distinct du temps de DÉPLACEMENT (``calculer_minutes_deplacement``,
+    T1.1-c#2) : celui-ci reste hors de ce calcul, comme avant — déplacement et
+    travail restent deux nombres séparés, seule leur somme, prouvée par les
+    tests existants sur des fixtures où le déplacement est nul, égale la durée
+    globale.
 
     Returns:
         (minutes, None) ou (None, code_verdict). Fail-closed : aucune arrivée,
-        aucun départ, ou dernier départ ANTÉRIEUR à la première arrivée. Aucune
-        valeur conventionnelle n'est jamais substituée.
+        aucun départ, dernier départ ANTÉRIEUR à la première arrivée, ou pauses
+        mal formées (voir ``calculer_minutes_pause``). Aucune valeur
+        conventionnelle n'est jamais substituée.
     """
     pointages = []
     for maillon in registre_cible.lire():
@@ -115,7 +210,11 @@ def calculer_duree_reelle(registre_cible, intervention_id):
     if dt_dep < dt_arr:
         return None, "REJ-HORODATAGE-ANTERIEUR"
 
-    minutes = int((dt_dep - dt_arr).total_seconds() // 60)
+    minutes_pause, code_pause = calculer_minutes_pause(registre_cible, intervention_id)
+    if minutes_pause is None:
+        return None, code_pause
+
+    minutes = int((dt_dep - dt_arr).total_seconds() // 60) - minutes_pause
     return minutes, None
 
 
@@ -519,6 +618,8 @@ __all__ = [
     "CHAMPS_WCT",
     "CLE_WCT",
     "STATUTS_COMPLETION",
+    "calculer_minutes_pause",
+    "calculer_minutes_deplacement",
     "calculer_duree_reelle",
     "completer_intervention",
     "lire_outbox",

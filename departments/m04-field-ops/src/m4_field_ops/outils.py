@@ -1,7 +1,7 @@
 """Capacités d'agent du département M4 Field Ops.
 
 Chaque outil enveloppe une fonction métier déterministe existante (etats,
-cedule, pointage, ecarts, outbox, digest, preuves) : aucune n'est
+cedule, pointage, ecarts, outbox, digest, preuves, temps) : aucune n'est
 réécrite. Comme le
 registre M4 (`registre.Registre`) est un journal que les fonctions métier
 reçoivent en paramètre vivant — jamais un objet JSON-sérialisable —
@@ -33,7 +33,7 @@ from typing import Any
 from opsys import stockage
 from opsys.outils import Autonomie, Outil, depuis_couple
 
-from . import cedule, digest, ecarts, etats, outbox, pointage, preuves, registre
+from . import cedule, digest, ecarts, etats, outbox, pointage, preuves, registre, temps
 
 _CONTRAT = {"type": "object", "description": "LeadQualifie M2 : sept clés gelées (lead_id, "
             "conversation_id, type_travaux, ville, canal, contact, urgence_declaree)."}
@@ -50,6 +50,7 @@ _PREUVES_COMPLETION = {
         "notes: string, signature: string|null}. Exigé pour clore une intervention (§6/§9.7)."
     ),
 }
+_PERIODE = {"type": "object", "description": "{debut, fin} AAAA-MM-JJ, bornes incluses."}
 
 
 def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]:
@@ -188,6 +189,13 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
 
     def lister_interventions(statut: str | None = None) -> list[dict[str, Any]]:
         return etats.lister_interventions(registre_courant(), statut=statut)
+
+    def produire_brouillon_temps(
+        periode: dict[str, Any], seuil_minutes: int | None = None,
+    ) -> dict[str, Any]:
+        return depuis_couple(
+            temps.produire_brouillon_temps(registre_courant(), periode, seuil_minutes=seuil_minutes)
+        )
 
     return (
         Outil(
@@ -436,6 +444,25 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
                 "additionalProperties": False,
             },
             fonction=lister_interventions,
+            autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m4_produire_brouillon_temps",
+            description=(
+                "Brouillon de temps agrégé par intervention complétée, pour une période "
+                "(minutes travaillées, déplacement, pause) — aucun taux ni montant, M5 validera "
+                "la paie. Signale un dépassement d'heures par technicien si seuil_minutes est fourni."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "periode": _PERIODE,
+                    "seuil_minutes": {"type": ["integer", "null"]},
+                },
+                "required": ["periode"],
+                "additionalProperties": False,
+            },
+            fonction=produire_brouillon_temps,
             autonomie=Autonomie.T0,
         ),
     )

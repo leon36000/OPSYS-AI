@@ -17,7 +17,11 @@ from . import horodatage, verdicts, encodage, cedule, etats
 # ---------------------------------------------------------------------------
 # Constantes
 # ---------------------------------------------------------------------------
-ACTIONS = ("arrivee", "depart")
+# pause_debut/pause_fin (T1.1-c#1, M4.4) : actions de pointage SANS EFFET sur
+# le statut — elles ne pilotent ni transition ni arbitrage GPS (voir étapes 13
+# et 14 de enregistrer_pointage). Elles rendent visible le temps de pause,
+# soustrait de la durée réelle par outbox.calculer_minutes_pause.
+ACTIONS = ("arrivee", "depart", "pause_debut", "pause_fin")
 TYPE_POINTAGE = "pointage"
 TYPE_DEMANDE_REVUE = "demande_revue"
 TYPE_REVUE_ANOMALIE = "anomalie_pointage"
@@ -138,7 +142,7 @@ def enregistrer_pointage(
     statut_courant = etats.statut_courant(registre_cible, intervention_id)
     if action == "arrivee":
         attendu = "en_route"
-    else:  # depart
+    else:  # depart, pause_debut, pause_fin : toutes exigent d'être déjà sur_site
         attendu = "sur_site"
     if statut_courant != attendu:
         detail = f"statut courant={statut_courant}, attendu={attendu} pour action={action}"
@@ -258,7 +262,13 @@ def enregistrer_pointage(
 
     # 13. Suite d'état selon la table ratifiée
     transition_verdict = None
-    if action == "arrivee" and coherent:
+    if action in ("pause_debut", "pause_fin"):
+        # T1.1-c#1 (M4.4) : une pause est SANS EFFET sur le statut, quelle que
+        # soit la cohérence GPS — elle ne pilote ni la machine à états ni
+        # l'arbitrage (étape 14 ci-dessous). Le fix GPS reste enregistré sur le
+        # maillon (gps_coherent) pour l'audit, sans ouvrir de dossier.
+        cible = None
+    elif action == "arrivee" and coherent:
         # Le PRD conditionne en_route -> sur_site à un fix GPS COHÉRENT.
         cible = "sur_site"
     elif not coherent:
@@ -277,9 +287,10 @@ def enregistrer_pointage(
         if acc is None:  # théoriquement impossible, mais on propage sans masquer
             return (None, v)
 
-    # 14. Demande de revue si non cohérent
+    # 14. Demande de revue si non cohérent — JAMAIS pour une pause (T1.1-c#1) :
+    # elle ne pilote pas l'arbitrage, symétrique à l'étape 13 ci-dessus.
     demande_id = None
-    if not coherent:
+    if not coherent and action not in ("pause_debut", "pause_fin"):
         demande_id = encodage.empreinte("demande_revue", intervention_id, horodatage_arg)
         maillon_demande = {
             "type_entree": TYPE_DEMANDE_REVUE,

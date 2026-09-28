@@ -199,6 +199,77 @@ def test_depart_coherent():
     # statut doit rester sur_site (pas de transition automatique vers terminee)
     assert etats_mod.statut_courant(reg, i_id) == "sur_site"
 
+
+# ------------------------------------------------------------------ 6 bis. T1.1-c#1 — pauses, sans effet sur le statut
+@pytest.mark.parametrize("action_pause", ["pause_debut", "pause_fin"])
+def test_pause_coherente_sans_effet_sur_le_statut(action_pause):
+    reg, i_id = _registre_sur_site()
+    horo = "2025-06-02T10:00:00+00:00"
+    accusé, verdict = pointage_mod.enregistrer_pointage(
+        i_id, "T1", action_pause, horo,
+        GPS_PROCHE, ATTESTATION, ASSIGNATION(i_id), FENETRE, REFERENTIEL, VILLE, SEL, reg,
+    )
+    assert accusé is not None, f"{action_pause} refusée : {verdict}"
+    assert accusé["gps_coherent"] is True
+    assert accusé["demande_id"] is None
+    assert accusé["statut"] == "sur_site"
+    assert etats_mod.statut_courant(reg, i_id) == "sur_site"
+
+
+@pytest.mark.parametrize("action_pause", ["pause_debut", "pause_fin"])
+def test_pause_incoherente_sans_effet_ni_demande_de_revue(action_pause):
+    """T1.1-c#1 : une pause est SANS EFFET sur le statut ET sur l'arbitrage,
+    même avec un GPS incohérent — elle ne pilote ni la machine à états ni la
+    file de revue (distinct d'arrivee/depart, CA-M4-08)."""
+    reg, i_id = _registre_sur_site()
+    horo = "2025-06-02T10:00:00+00:00"
+    accusé, verdict = pointage_mod.enregistrer_pointage(
+        i_id, "T1", action_pause, horo,
+        GPS_LOIN, ATTESTATION, ASSIGNATION(i_id), FENETRE, REFERENTIEL, VILLE, SEL, reg,
+    )
+    assert accusé is not None, f"{action_pause} refusée : {verdict}"
+    assert accusé["gps_coherent"] is False
+    assert accusé["demande_id"] is None, "une pause n'ouvre JAMAIS de demande de revue"
+    assert accusé["statut"] == "sur_site", "une pause ne route JAMAIS vers en_revue"
+    assert etats_mod.statut_courant(reg, i_id) == "sur_site"
+    for m in reg.lire():
+        assert m.get("type_entree") != pointage_mod.TYPE_DEMANDE_REVUE
+
+
+@pytest.mark.parametrize("action_pause", ["pause_debut", "pause_fin"])
+def test_pause_depuis_en_route_refusee(action_pause):
+    """Une pause exige d'être déjà sur_site, comme un départ — pas la
+    déclaration d'un technicien encore en trajet."""
+    reg, i_id = _registre_en_route()
+    accusé, verdict = pointage_mod.enregistrer_pointage(
+        i_id, "T1", action_pause, H_VALIDE3,
+        GPS_PROCHE, ATTESTATION, ASSIGNATION(i_id), FENETRE, REFERENTIEL, VILLE, SEL, reg,
+    )
+    assert accusé is None
+    assert verdict["code"] == "REJ-PUNCH-SANS-INTERVENTION"
+
+
+def test_pauses_multiples_enregistrees_sur_le_registre():
+    """Deux pauses complètes s'enregistrent comme quatre maillons de pointage
+    distincts, tous sur_site — la lecture agrégée (durée) appartient à
+    outbox.calculer_minutes_pause, pas à ce module."""
+    reg, i_id = _registre_sur_site()
+    assign = ASSIGNATION(i_id)
+    for action, horo in (
+        ("pause_debut", "2025-06-02T10:00:00+00:00"),
+        ("pause_fin", "2025-06-02T10:15:00+00:00"),
+        ("pause_debut", "2025-06-02T11:00:00+00:00"),
+        ("pause_fin", "2025-06-02T11:15:00+00:00"),
+    ):
+        accusé, verdict = pointage_mod.enregistrer_pointage(
+            i_id, "T1", action, horo, GPS_PROCHE, ATTESTATION, assign, FENETRE, REFERENTIEL, VILLE, SEL, reg,
+        )
+        assert accusé is not None, f"{action} refusée : {verdict}"
+    pauses = [m for m in reg.lire() if m.get("action") in ("pause_debut", "pause_fin")]
+    assert len(pauses) == 4
+    assert reg.valider_chaine() is True
+
+
 # ------------------------------------------------------------------ 7. CA-M4-20 (neutralité)
 def test_causes_neutres_sans_terme_accusateur():
     termes_interdits = ["fraude", "faute", "coupable", "mensonge", "triche"]

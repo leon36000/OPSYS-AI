@@ -447,6 +447,193 @@ def test_calculer_duree_reelle_arrivee_apres_depart():
     assert code == "REJ-HORODATAGE-ANTERIEUR"
 
 
+# ------------------------------------------------------------------ 10 bis. T1.1-c#1 — pauses, sans effet sur le statut
+def test_deux_pauses_de_15_min_reduisent_la_duree_de_30():
+    """T1.1-c#1, littéral : deux pauses de 15 min réduisent la durée réelle de
+    30 min. Fixture : arrivée 09:00, départ 11:30 (150 minutes brutes, la même
+    fixture que les tests existants), avec deux pauses interposées."""
+    reg = registre_mod.Registre()
+    acc, _ = etats_mod.inscrire_intervention(CONTRAT_VALIDE, MARQUEUR_VALIDE, reg, H1, SEL)
+    i_id = acc["intervention_id"]
+    assign = ASSIGNATION(i_id)
+    acc_route, ver_route = etats_mod.transitionner(i_id, "en_route", reg, H_ARRIVEE, assignation=assign)
+    assert acc_route is not None, f"transition en_route échouée : {ver_route}"
+
+    sequence = (
+        ("arrivee", H_ARRIVEE),                               # 09:00
+        ("pause_debut", "2025-06-02T09:30:00+00:00"),
+        ("pause_fin", "2025-06-02T09:45:00+00:00"),           # pause 1 : 15 min
+        ("pause_debut", "2025-06-02T10:30:00+00:00"),
+        ("pause_fin", "2025-06-02T10:45:00+00:00"),           # pause 2 : 15 min
+        ("depart", H_DEPART),                                 # 11:30
+    )
+    for action, horo in sequence:
+        acc_p, ver_p = pointage_mod.enregistrer_pointage(
+            i_id, "T1", action, horo, GPS_PROCHE, ATTESTATION, assign, FENETRE, REFERENTIEL, VILLE, SEL, reg,
+        )
+        assert acc_p is not None, f"{action} refusé : {ver_p}"
+        assert acc_p["statut"] == "sur_site", f"{action} doit être SANS EFFET sur le statut"
+
+    minutes_pause, code_pause = outbox_mod.calculer_minutes_pause(reg, i_id)
+    assert code_pause is None
+    assert minutes_pause == 30
+
+    duree, code = outbox_mod.calculer_duree_reelle(reg, i_id)
+    assert code is None
+    assert duree == 120, "150 minutes brutes (09:00 -> 11:30) moins 30 de pause"
+
+    # La complétion elle-même porte la durée NETTE.
+    accuse, verdict = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
+    assert accuse is not None, f"complétion refusée : {verdict}"
+    assert accuse["duree_reelle_minutes"] == 120
+
+
+def test_aucune_pause_duree_inchangee():
+    """Aucune pause : la durée réelle reste celle déjà prouvée par les tests
+    existants (150 minutes) — non-régression."""
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    minutes_pause, code_pause = outbox_mod.calculer_minutes_pause(reg, i_id)
+    assert code_pause is None
+    assert minutes_pause == 0
+    duree, code = outbox_mod.calculer_duree_reelle(reg, i_id)
+    assert code is None
+    assert duree == 150
+
+
+def test_pause_debut_sans_fin_fail_closed():
+    reg = registre_mod.Registre()
+    acc, _ = etats_mod.inscrire_intervention(CONTRAT_VALIDE, MARQUEUR_VALIDE, reg, H1, SEL)
+    i_id = acc["intervention_id"]
+    assign = ASSIGNATION(i_id)
+    etats_mod.transitionner(i_id, "en_route", reg, H_ARRIVEE, assignation=assign)
+    for action, horo in (("arrivee", H_ARRIVEE), ("pause_debut", "2025-06-02T09:30:00+00:00")):
+        acc_p, ver_p = pointage_mod.enregistrer_pointage(
+            i_id, "T1", action, horo, GPS_PROCHE, ATTESTATION, assign, FENETRE, REFERENTIEL, VILLE, SEL, reg,
+        )
+        assert acc_p is not None, f"{action} refusé : {ver_p}"
+    minutes, code = outbox_mod.calculer_minutes_pause(reg, i_id)
+    assert minutes is None
+    assert code == "REJ-CONTRAT-INVALIDE"
+
+
+def test_pause_fin_sans_debut_fail_closed():
+    reg = registre_mod.Registre()
+    acc, _ = etats_mod.inscrire_intervention(CONTRAT_VALIDE, MARQUEUR_VALIDE, reg, H1, SEL)
+    i_id = acc["intervention_id"]
+    assign = ASSIGNATION(i_id)
+    etats_mod.transitionner(i_id, "en_route", reg, H_ARRIVEE, assignation=assign)
+    for action, horo in (("arrivee", H_ARRIVEE), ("pause_fin", "2025-06-02T09:30:00+00:00")):
+        acc_p, ver_p = pointage_mod.enregistrer_pointage(
+            i_id, "T1", action, horo, GPS_PROCHE, ATTESTATION, assign, FENETRE, REFERENTIEL, VILLE, SEL, reg,
+        )
+        assert acc_p is not None, f"{action} refusé : {ver_p}"
+    minutes, code = outbox_mod.calculer_minutes_pause(reg, i_id)
+    assert minutes is None
+    assert code == "REJ-CONTRAT-INVALIDE"
+
+
+def test_pause_sans_fermeture_bloque_la_completion():
+    """Une pause ouverte sans pause_fin bloque fail-closed la complétion —
+    jamais une durée inventée."""
+    reg = registre_mod.Registre()
+    acc, _ = etats_mod.inscrire_intervention(CONTRAT_VALIDE, MARQUEUR_VALIDE, reg, H1, SEL)
+    i_id = acc["intervention_id"]
+    assign = ASSIGNATION(i_id)
+    etats_mod.transitionner(i_id, "en_route", reg, H_ARRIVEE, assignation=assign)
+    for action, horo in (
+        ("arrivee", H_ARRIVEE),
+        ("pause_debut", "2025-06-02T09:30:00+00:00"),
+        ("depart", H_DEPART),
+    ):
+        acc_p, ver_p = pointage_mod.enregistrer_pointage(
+            i_id, "T1", action, horo, GPS_PROCHE, ATTESTATION, assign, FENETRE, REFERENTIEL, VILLE, SEL, reg,
+        )
+        assert acc_p is not None, f"{action} refusé : {ver_p}"
+    taille_avant = len(reg.lire())
+    accuse, verdict = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
+    assert accuse is None
+    assert verdict["code"] == "REJ-CONTRAT-INVALIDE"
+    assert len(reg.lire()) == taille_avant
+
+
+# ------------------------------------------------------------------ 10 ter. T1.1-c#2 — temps de déplacement
+def test_calculer_minutes_deplacement_nul_sur_fixture_existante():
+    """Sur la fixture existante (transition en_route et arrivée au MÊME
+    horodatage), le déplacement est nul : déplacement + travail == la durée
+    DÉJÀ PROUVÉE par les tests existants (150 minutes, T1.1-c#2)."""
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    minutes_deplacement, code = outbox_mod.calculer_minutes_deplacement(reg, i_id)
+    assert code is None
+    assert minutes_deplacement == 0
+    duree_travail, code2 = outbox_mod.calculer_duree_reelle(reg, i_id)
+    assert code2 is None
+    assert duree_travail == 150
+    assert minutes_deplacement + duree_travail == 150
+
+
+def test_calculer_minutes_deplacement_nominal_distinct_du_travail():
+    reg = registre_mod.Registre()
+    acc, _ = etats_mod.inscrire_intervention(CONTRAT_VALIDE, MARQUEUR_VALIDE, reg, H1, SEL)
+    i_id = acc["intervention_id"]
+    assign = ASSIGNATION(i_id)
+    h_route = "2025-06-02T08:00:00+00:00"
+    h_arr = "2025-06-02T08:25:00+00:00"    # 25 minutes de trajet
+    h_dep = "2025-06-02T11:00:00+00:00"
+    acc_route, ver_route = etats_mod.transitionner(i_id, "en_route", reg, h_route, assignation=assign)
+    assert acc_route is not None, f"transition en_route échouée : {ver_route}"
+    for action, horo in (("arrivee", h_arr), ("depart", h_dep)):
+        acc_p, ver_p = pointage_mod.enregistrer_pointage(
+            i_id, "T1", action, horo, GPS_PROCHE, ATTESTATION, assign, FENETRE, REFERENTIEL, VILLE, SEL, reg,
+        )
+        assert acc_p is not None, f"{action} refusé : {ver_p}"
+
+    minutes_deplacement, code = outbox_mod.calculer_minutes_deplacement(reg, i_id)
+    assert code is None
+    assert minutes_deplacement == 25
+
+    duree_travail, code2 = outbox_mod.calculer_duree_reelle(reg, i_id)
+    assert code2 is None
+    assert duree_travail == 155  # 08:25 -> 11:00
+    assert minutes_deplacement != duree_travail, "déplacement et travail restent deux nombres distincts"
+
+
+def test_calculer_minutes_deplacement_sans_transition_en_route_fail_closed():
+    reg = registre_mod.Registre()
+    acc, _ = etats_mod.inscrire_intervention(CONTRAT_VALIDE, MARQUEUR_VALIDE, reg, H1, SEL)
+    i_id = acc["intervention_id"]
+    minutes, code = outbox_mod.calculer_minutes_deplacement(reg, i_id)
+    assert minutes is None
+    assert code == "REJ-CONTRAT-INVALIDE"
+
+
+def test_calculer_minutes_deplacement_sans_arrivee_fail_closed():
+    reg = registre_mod.Registre()
+    acc, _ = etats_mod.inscrire_intervention(CONTRAT_VALIDE, MARQUEUR_VALIDE, reg, H1, SEL)
+    i_id = acc["intervention_id"]
+    assign = ASSIGNATION(i_id)
+    etats_mod.transitionner(i_id, "en_route", reg, H_ARRIVEE, assignation=assign)
+    minutes, code = outbox_mod.calculer_minutes_deplacement(reg, i_id)
+    assert minutes is None
+    assert code == "REJ-CONTRAT-INVALIDE"
+
+
+def test_calculer_minutes_deplacement_arrivee_avant_en_route_fail_closed():
+    reg = registre_mod.Registre()
+    acc, _ = etats_mod.inscrire_intervention(CONTRAT_VALIDE, MARQUEUR_VALIDE, reg, H1, SEL)
+    i_id = acc["intervention_id"]
+    reg.ajouter({
+        "type_entree": etats_mod.TYPE_TRANSITION, "intervention_id": i_id,
+        "statut": "en_route", "statut_precedent": "planifiee", "horodatage": H_DEPART,
+        "technicien_id": "T1",
+    })
+    reg.ajouter({
+        "type_entree": pointage_mod.TYPE_POINTAGE, "intervention_id": i_id,
+        "action": "arrivee", "horodatage": H_ARRIVEE, "latitude": 0, "longitude": 0,
+    })
+    minutes, code = outbox_mod.calculer_minutes_deplacement(reg, i_id)
+    assert minutes is None
+    assert code == "REJ-HORODATAGE-ANTERIEUR"
+
 # ------------------------------------------------------------------ 11. CA-M4-13 — wct sans données sensibles
 def test_wct_sans_donnees_sensibles():
     reg, i_id = _intervention_sur_site_avec_pointages()
