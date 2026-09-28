@@ -161,11 +161,13 @@ constaté avant cette tranche) : un futur département n'importe jamais `m4_fiel
 Ajout de deux clés par intervention, rendues **seulement quand le registre les porte** — jamais
 inventées (fail-closed) :
 
-- **`technicien_assigne`** : le `technicien_id` de la **dernière** transition `en_route` de
-  l'intervention dans le registre (`etats.py::_technicien_assigne_durable`), ou `null` tant
-  qu'aucune n'a eu lieu. C'est un fait **historique** : un report ou une annulation ultérieurs
-  laissent ce champ tel quel (à lire aux côtés de `statut` pour l'image complète, pas comme une
-  affirmation d'assignation courante).
+- **`technicien_assigne`** : le `technicien_id` du **dernier** fait d'assignation de
+  l'intervention dans le registre (`etats.technicien_assigne`) : le maillon
+  `assignation_technicien` consigné par `m4_planifier_intervention` (T1.4-k), ou une transition
+  `en_route` ; `null` tant qu'aucun n'existe. C'est un fait **historique** : un report ou une
+  annulation ultérieurs laissent ce champ tel quel (à lire aux côtés de `statut` pour l'image
+  complète). Pour un appel d'appareil, c'est aussi la clé du contrôle d'accès de l'employé
+  (`acces.py`, `docs/architecture/ROLES.md`).
 - **`fenetre_planifiee`** : **toujours `null` aujourd'hui**. `m4_planifier_intervention` calcule
   une fenêtre (`cedule.generer_cedule`, fonction **pure**, sans registre) et la renvoie à
   l'appelant de CET appel, mais ne l'écrit **à aucun maillon** — le registre ne porte donc

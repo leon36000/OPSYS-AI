@@ -654,6 +654,33 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
     WCT. Même travail pour les champs encore fournis par l'appelant : `technicien_id`, `auteur`
     (M2), `accede_par` (M4), `role` et `autorise_couts` (M5) ; filtrer `m4_lister_interventions`
     et les leads (M2, M3) par personne ; retrait du consentement GPS par l'employé depuis l'app.
+    - [x] T1.4-k1 M4, M6 et mobile.
+      Preuve (69e0251, 2aad731) :
+      - l'identifiant de technicien EST celui de la personne OPSYS pour un appel d'appareil ;
+        identité relue en base à chaque appel (`signataire_valide`, règle de T1.4-h) ;
+      - `m4_planifier_intervention` consigne l'assignation (maillon `assignation_technicien`) :
+        « assignée à cette personne » devient vérifiable avant le départ ;
+      - employé : seulement ses interventions, sous son propre identifiant ; une intervention d'un
+        autre et une inconnue donnent le même refus ; un `technicien_id` ou un `accede_par`
+        différent de la personne est refusé, jamais remplacé ; contrôle avant toute écriture ;
+        liste et statut filtrés ; admin : tout ;
+      - M6 : un employé ne déclare que pour son WCT ; `intervention_id` du formulaire = celui du
+        WCT ; le WCT ne porte pas de `chantier_id` : il est confronté au prévu du devis quand il
+        le connaît ;
+      - retrait du consentement GPS par l'employé depuis l'app (file sortante, trié avant les
+        pointages en attente) ;
+      - socle 531, M4 852, M6 425, M5 321, M8 à M10 verts, verifier OK, gate BMAD de M4 vert,
+        Jest 609, `tsc` propre ; 13 mutations du contrôle, toutes détectées.
+
+      Limites connues (ROLES.md) : une intervention inscrite avant ce changement et jamais
+      partie `en_route` n'a pas d'assignation, elle est invisible aux employés jusqu'à ce que
+      l'admin la replanifie (à connaître avant la mise en service) ; l'app ne connaît pas encore
+      la personne appairée (saisie à la main, confrontée par le serveur : T1.4-c5) ; aucun
+      rattachement fichier → intervention ; le motif `decision_admin` n'est pas refusé à un
+      employé par le code ; l'employé n'accède pas encore à ses propres positions.
+    - [ ] T1.4-k2 M2 (`auteur` de `m2_enregistrer_interaction`, leads filtrés par propriétaire),
+      M3 (filtre par propriétaire de lead) et M5 (`role` et `autorise_couts` de
+      `m5_etat_tresorerie` tirés de l'identité authentifiée).
 - [ ] T1.5 E2E : travaux terminés normaux ; écart de 40 % → `completed_pending_review` et alerte
       sur le mobile de l'admin.
 
