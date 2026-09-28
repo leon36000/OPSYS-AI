@@ -865,14 +865,25 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
 
 - [ ] T5.1 Lint des départements : `ruff` ne couvre aujourd'hui que le socle (`src`, `tests`) ; l'audit M1
       relève 122 avertissements dans M1. Étendre la CI aux départements après correction.
-      Avancement, partiel (T5.1 reste ouverte : M1 à M4 et M6 à corriger) :
+      Avancement, partiel (T5.1 reste ouverte : M1 à M3 à corriger) :
       - M5 à zéro (20 avertissements avant, dont 14 `sys.path.insert` de tests), M5 321 verts, gate
         BMAD de M5 vert ; ajoutée à `DEPARTEMENTS_LINT` ;
       - M7 à M10 passent `ruff check` à zéro (M7 257, M8 18, M9 22, M10 46 avertissements avant) ;
         sans `noqa`, sans changement de configuration. Le contournement `sys.path.insert` des
         tests M8 à M10 est retiré : `pythonpath` de `pyproject.toml` suffit (M7 l'avait déjà fait).
+      - M4 (139 avertissements avant) et M6 (57 avant) passent `ruff check` à zéro ; M4 852 et M6 425
+        verts (mêmes effectifs qu'avant), gates BMAD de M4 et de M6 à sortie identique à l'avant
+        (TOUT VERT) ; ajoutées à `DEPARTEMENTS_LINT`. Le contournement `sys.path.insert` de 34 tests
+        est retiré (79 des 196 avertissements étaient des E402 qu'il causait) ; sans `noqa`, sans
+        changement de configuration, aucun texte d'outil ni de verdict touché. Hors tests, la logique
+        ne bouge pas : imports triés, annotations modernisées, conditions imbriquées fusionnées
+        (`ecarts.py`, `digest.py`), un if/else en ternaire et une variable morte retirée
+        (`pointage.py`) ; les visiteurs AST des
+        gardes (`digest.py`, `outbox.py` de M4 ; `conformite.py` de M6) reçoivent leur état par le
+        constructeur au lieu d'une fermeture sur la variable de boucle (B023). Le contrôle d'accès par
+        intervention (T1.4-k1, `acces.py`) n'est pas touché.
       - CI : l'étape « Lint du département » du job `departement` ne tourne que pour les dossiers de
-        `DEPARTEMENTS_LINT` (M7 à M10). Pour étendre : corriger un département, puis ajouter son
+        `DEPARTEMENTS_LINT` (M4 à M10). Pour étendre : corriger un département, puis ajouter son
         dossier à cette liste unique ; `tests/test_ci_departements.py` vérifie qu'il est propre.
 
 ## Décisions attendues de Nathan (GATE NATHAN, ne bloquent pas la boucle)
