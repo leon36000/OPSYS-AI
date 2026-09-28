@@ -104,6 +104,34 @@ def test_renvoi_apres_refus_metier_rejoue_le_refus(capacites, session):
     assert _lignes(session)[0]["statut"] == "refus_metier"
 
 
+# -- refus passagers et budget de jetons ----------------------------------------------------------
+def test_refus_passager_n_est_pas_enregistre_et_se_reessaie(capacites, session):
+    """`outil_inconnu` dépend de l'état de l'instance (ex. mise à jour en cours), pas de la mutation :
+    le renvoi doit réessayer, jamais rejouer un refus figé sous la même clé."""
+    meta = _meta(cle="mut-outil-absent")
+    premiere = capacites.appeler("m9_outil_absent", {}, meta)
+    assert premiere["ok"] is False and premiere["erreur"] == "outil_inconnu"
+    assert _lignes(session) == []
+    renvoi = capacites.appeler("m9_outil_absent", {}, meta)
+    assert renvoi["erreur"] == "outil_inconnu" and renvoi["rejoue"] is False
+    assert _lignes(session) == []
+
+
+def test_appel_d_appareil_n_est_pas_bloque_par_le_budget_de_jetons_du_modele(capacites, session):
+    """Le budget de jetons borne la dépense de modèle d'un département ; un pointage d'appareil n'en
+    consomme aucun et ne doit pas être refusé pour autant. L'appel d'agent, lui, reste borné."""
+    from opsys import jetons
+
+    with session() as cnx:
+        jetons.enregistrer_usage(cnx, "m09-demo", "modele-fictif", {"input_tokens": 10_000_000})
+    sans_meta = capacites.appeler("m9_pointer", {"appareil": "cam-7"})
+    assert sans_meta["ok"] is False and sans_meta["erreur"] == "budget_epuise"
+
+    avec_meta = capacites.appeler("m9_pointer", {"appareil": "cam-7"}, _meta(cle="mut-budget"))
+    assert avec_meta["ok"] is True and avec_meta["rejoue"] is False
+    assert demo_outils.JOURNAL == [{"pointage": "cam-7"}]
+
+
 # -- conflit : même clé, outil ou arguments différents -------------------------------------------
 def test_meme_cle_outil_different_est_un_conflit_nomme(capacites):
     meta = _meta(cle="mut-conflit-outil")

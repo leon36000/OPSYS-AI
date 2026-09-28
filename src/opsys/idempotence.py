@@ -27,7 +27,7 @@ import json
 from collections.abc import Mapping
 from typing import Any
 
-from sqlalchemy import Connection, insert, select, update
+from sqlalchemy import Connection, delete, insert, select, update
 from sqlalchemy.exc import IntegrityError
 
 from .outils import vers_json
@@ -142,17 +142,28 @@ def reclamer(
     return Reclamation(rejouee=True, reponse=codec.decoder(ligne["reponse"]))
 
 
+# Refus qui dépendent de l'état de l'instance au moment de l'appel, pas de la mutation elle-même :
+# outil pas encore déployé, point d'accès mal configuré, budget de jetons. Ils ne sont jamais
+# enregistrés : un renvoi de la même clé doit réessayer, pas rejouer un refus figé.
+ERREURS_PASSAGERES = frozenset({"outil_inconnu", "departement_appelant_inconnu", "budget_epuise"})
+
+
 def finaliser(cnx: Connection, meta: Meta, reponse: Mapping[str, Any]) -> None:
     """Enregistre la réponse d'une exécution fraîche (jamais appelée pour un renvoi ni un conflit).
 
-    Écrase le `en_cours` posé par `reclamer`. Si l'appelant n'atteint jamais `finaliser` (panne
+    Écrase le `en_cours` posé par `reclamer`. Une réponse d'`ERREURS_PASSAGERES` retire au contraire
+    la réclamation, pour qu'un renvoi réessaie. Si l'appelant n'atteint jamais `finaliser` (panne
     interne : exception non attrapée), `stockage.transaction` annule toute la transaction et la
     réclamation disparaît avec elle — un renvoi réel réessaiera, comme l'exige T1.4-b.
     """
-    cnx.execute(update(MUTATIONS_APPLIQUEES).where(
-        (MUTATIONS_APPLIQUEES.c.appareil == meta.appareil)
-        & (MUTATIONS_APPLIQUEES.c.cle_idempotence == meta.cle)
-    ).values(reponse=codec.encoder(dict(reponse)), statut=_statut(reponse)))
+    cible = (MUTATIONS_APPLIQUEES.c.appareil == meta.appareil) & (
+        MUTATIONS_APPLIQUEES.c.cle_idempotence == meta.cle
+    )
+    if reponse.get("erreur") in ERREURS_PASSAGERES:
+        cnx.execute(delete(MUTATIONS_APPLIQUEES).where(cible))
+        return
+    cnx.execute(update(MUTATIONS_APPLIQUEES).where(cible).values(
+        reponse=codec.encoder(dict(reponse)), statut=_statut(reponse)))
 
 
 def _statut(reponse: Mapping[str, Any]) -> str:

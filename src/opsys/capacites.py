@@ -169,11 +169,20 @@ class Capacites:
                 recu_le=recu_le,
             )
             with receptionne_de(horodatage):
-                reponse = self._distribuer(nom, arguments)
+                reponse = self._distribuer(nom, arguments, appel_appareil=True)
             idempotence.finaliser(cnx, meta, reponse)
             return {**reponse, "rejoue": False}
 
-    def _distribuer(self, nom: str, arguments: Mapping[str, Any] | None) -> dict[str, Any]:
+    def _distribuer(
+        self, nom: str, arguments: Mapping[str, Any] | None, *, appel_appareil: bool = False
+    ) -> dict[str, Any]:
+        """Aiguille un appel : outil commun, approbation requise, ou exécution atomique.
+
+        `appel_appareil` : appel déterministe d'un appareil apparié (`_meta` d'idempotence, T1.4-b),
+        sans tour de modèle. Le budget de jetons borne la dépense de modèle d'un département ; un tel
+        appel n'en consomme aucun et n'y est donc pas soumis. Les approbations, elles, s'appliquent
+        toujours.
+        """
         entree = self.index.get(nom)
         if entree is None:
             return {"ok": False, "erreur": "outil_inconnu", "details": nom}
@@ -189,7 +198,7 @@ class Capacites:
             departement = self.appelant
         with self._cnx_factory() as cnx:
             budget = jetons.etat_budget(cnx, departement.id, departement.budget)
-            if budget["niveau"] == "epuise" and outil.autonomie is not Autonomie.T0:
+            if not appel_appareil and budget["niveau"] == "epuise" and outil.autonomie is not Autonomie.T0:
                 return {"ok": False, "erreur": "budget_epuise",
                         "details": "Budget de tokens épuisé : termine brièvement et escalade à un humain.",
                         "budget": budget}

@@ -74,11 +74,19 @@ Une seule transaction (`stockage.transaction`, ADR-0009) couvre tout l'appel :
    `en_attente_approbation`, détail juste après). L'appelant reçoit cette même réponse, avec
    `rejoue: false` ajouté.
 
-Sont enregistrées : une exécution réussie (`ok`), un refus métier (`refus_metier` — y compris
-`arguments_invalides`, `outil_inconnu`, `budget_epuise` : des réponses déterministes, sans effet de
-bord à protéger, cf. `outils.py`), et une mise en attente d'approbation (`en_attente_approbation` —
-la demande d'approbation elle-même, `approbations.creer_demande`, n'est donc jamais dupliquée par un
-renvoi). N'est **jamais** enregistrée une panne interne : toute exception non attrapée pendant
+Sont enregistrées : une exécution réussie (`ok`), un refus métier (`refus_metier`, y compris
+`arguments_invalides` : la même mutation sera toujours refusée pour la même raison), et une mise en
+attente d'approbation (`en_attente_approbation` — la demande d'approbation elle-même,
+`approbations.creer_demande`, n'est donc jamais dupliquée par un renvoi).
+
+Ne sont **pas** enregistrés les refus passagers (`idempotence.ERREURS_PASSAGERES` : `outil_inconnu`,
+`departement_appelant_inconnu`, `budget_epuise`). Ils dépendent de l'état de l'instance au moment de
+l'appel (outil pas encore déployé, point d'accès mal configuré), pas de la mutation : la réclamation
+est retirée et un renvoi réessaie.
+
+Un appel d'appareil n'est pas soumis au budget de jetons du département
+(`Capacites._distribuer(appel_appareil=True)`) : ce budget borne la dépense de modèle, et un appel
+déterministe par `/tools/invoke` n'en consomme aucun. Les approbations s'appliquent toujours. N'est **jamais** enregistrée une panne interne : toute exception non attrapée pendant
 l'exécution (un bug, pas un refus métier — `outils.executer` ne convertit que `ValueError`,
 `TypeError`, `KeyError`) sort de la transaction entière, qui s'annule — réclamation comprise. Un
 renvoi après une panne réelle réessaie donc réellement l'exécution, il ne rejoue pas un échec figé.
