@@ -21,6 +21,38 @@ L'assignation entre au registre à la planification (maillon `assignation_techni
 GPS, POLITIQUE-geolocalisation §4) ; `accede_par` de `m4_lire_position_gps` doit être la personne
 authentifiée.
 
+## Localisation des chantiers
+
+PLAN T4.1-a — localisation des chantiers (`localisation.py`, pur ; conception : `docs/research/R15-cedule-vrp.md`
+§3 et §4). Sans coordonnées CONFIRMÉES, un chantier n'entre pas dans une tournée : il reste « coordonnées
+manquantes : à confirmer ». Deux outils, réservés à l'`admin` (portée : `docs/architecture/ROLES.md`) :
+- `m4_proposer_localisation` (T0, lecture seule) : normalise l'adresse (accents, `œ`, `St-`, abréviations de
+  génériques, point cardinal) et la cherche par correspondance EXACTE dans l'index local du Référentiel
+  québécois des adresses (RQA, CC-BY 4.0). Une correspondance unique de qualité `Bâtiment`, `Accès propriété`,
+  `Front lot` ou `Centre lot` donne une PROPOSITION (microdegrés entiers, précision, identifiant et version RQA).
+  Aucune, plusieurs, `Géocodée`, `Incertaine`, `Site` ou adresse non certifiée : verdict
+  `REJ-COORDONNEES-A-CONFIRMER` avec la raison et les candidats, jamais une position choisie ni le centre d'une
+  ville. Index non importé : `REJ-INDEX-RQA-ABSENT`. Aucun accès réseau (un test bloque les sockets).
+- `m4_confirmer_localisation` (T1, N3 : voir le commentaire de l'outil) : écrit le maillon `localisation_chantier`,
+  clé `chantier_id` (v1 : le `lead_id`), `version` croissante, `action` `confirmee` ou `retiree`, `source` `rqa`
+  (coordonnées lues dans l'index par `rqa_identifiant`, jamais des arguments) ou `manuel` (saisie de l'humain,
+  marquée telle). Le dernier maillon gagne, l'historique reste. Les coordonnées sont chiffrées avec une clé par
+  chantier (`opsys.cles_chiffrement`, portée `m04-field-ops/localisation`) : détruire la clé rend la position
+  illisible, la chaîne reste valide. L'adresse n'entre jamais au registre, seulement `empreinte_adresse` (HMAC
+  d'une clé dérivée de celle du chantier). `confirme_par` est la personne authentifiée pour un appel d'appareil ;
+  l'heure du serveur fait foi. Un motif est exigé pour remplacer, retirer ou confirmer une position faible.
+  Pour la suite (T4.1-c) : `outils.lire_localisation_confirmee(registre, chantier_id)` rend les coordonnées
+  confirmées ou le verdict « à confirmer ».
+
+Importer le RQA (à refaire chaque mois, l'ancien index est remplacé de façon atomique) :
+`python -m m4_field_ops.localisation importer --csv RQA.csv --index "${OPSYS_HOME:-$HOME/.opsys}/rqa/index.sqlite"
+[--mrc CODE_OU_NOM ...] [--version AAAA-MM-JJ]`. Les colonnes lues sont celles du guide d'utilisation du RQA v1.2
+(2026-09-01) ; le CSV réel (596 Mo) n'a pas pu être téléchargé depuis le bac à sable, donc le format est celui du
+guide, non celui d'un fichier vu. Les adresses détruites, sans numéro ou aux coordonnées illisibles ou hors du
+Québec sont écartées et comptées dans le rapport ; un import qui ne donne rien laisse l'index en place.
+L'attribution CC-BY 4.0 est le champ `attribution` de la réponse de `m4_proposer_localisation` : l'écran de
+confirmation de l'app admin doit l'afficher là où l'adresse est validée.
+
 ## Distances
 
 PLAN T4.1-b (conception : `docs/research/R15-cedule-vrp.md` §2 et §4). `distances.py` (pur) fabrique la
