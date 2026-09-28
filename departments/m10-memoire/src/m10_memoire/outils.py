@@ -17,6 +17,7 @@ reste pur : c'est ici, et seulement ici, que le paquet touche `opsys`.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from opsys import stockage
@@ -97,6 +98,64 @@ def contexte_preflight(dossier: dict[str, Any], horodatage: str) -> dict[str, An
 
 def memoriser_wct(wct_recu: dict[str, Any]) -> dict[str, Any]:
     return depuis_couple(wct.memoriser_wct(wct_recu, _REGISTRE_EVENEMENTS))
+
+
+# ---------------------------------------------------------------------------
+# Consommateur d'événements (ADR-0009 §3, PLAN T1.2-c) : m4.travaux_termines
+# ---------------------------------------------------------------------------
+# Seul producteur déclaré au catalogue socle pour ce type (src/opsys/evenements/catalogue/
+# m4.travaux_termines.json : « Émis par M4... ») — constante, jamais lue depuis la charge, qui
+# ne la porte pas (voir docstring de _recevoir_travaux_termines ci-dessous).
+_PRODUCTEUR_TRAVAUX_TERMINES = "m04-field-ops"
+
+
+class WctRefuse(ValueError):
+    """m4.travaux_termines : le WCT extrait de la charge est refusé par `wct.valider_wct`
+    (contrat figé `contrats.CHAMPS_WCT` — champ manquant, champ inattendu, ou 'M10' absent de
+    `consommateurs_cibles`). Incohérence de données entre le catalogue du socle et le contrat
+    M10, jamais un refus métier normal : le répartiteur réessaie puis met en quarantaine
+    (ADR-0009 §3), visible par un humain."""
+
+
+def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme m4.travaux_termines (ADR-0009 §3, PLAN T1.2-c ; docs/architecture/DEPARTEMENTS.md
+    « Événements »). Mémorise le WCT au registre Événements par la logique EXISTANTE
+    (`memoriser_wct` / `wct.valider_wct` / `contrats.CHAMPS_WCT`, inchangées) : seuls les 12
+    champs exacts du contrat WCT figé sont extraits de la charge, qui porte aussi `statut`
+    (ajouté au catalogue par T1.1-b) et les champs optionnels réservés à M7 — hors du contrat
+    M10, jamais transmis à `valider_wct` (qui rejette tout champ inattendu).
+
+    Provenance de l'événement : le WCT EST l'événement mémorisé — `wct_id` (déjà l'un des 12
+    champs du contrat, donc déjà conservé tel quel dans le maillon écrit) en est l'identifiant.
+    La charge elle-même ne porte jamais `evenements_sortants.evenement_id` : cette colonne est une
+    propriété du répartiteur, hors de portée du consommateur par construction
+    (`repartiteur._livrer_une_paire` n'appelle `fonction` qu'avec la charge décodée — API figée,
+    docs/architecture/DEPARTEMENTS.md, hors du périmètre M2/M10 de cette tâche). `producteur` est
+    donc rendu ici comme la constante déclarée au catalogue socle (seul éditeur de ce type).
+
+    Idempotent : le répartiteur n'appelle cette fonction qu'une fois par (evenement_id,
+    consommateur) traité avec succès (`EVENEMENTS_RECUS` UNIQUE, ADR-0009 §3) — une relivraison
+    de la même publication ne la rappelle jamais, donc jamais un second maillon pour le même WCT.
+    """
+    wct_extrait = {champ: charge[champ] for champ in contrats.CHAMPS_WCT}
+    reponse = memoriser_wct(wct_extrait)
+    if not reponse["accepte"]:
+        raise WctRefuse(
+            f"m4.travaux_termines : WCT {charge.get('wct_id')!r} refusé par M10 : {reponse['verdict']}"
+        )
+    maillon = reponse["resultat"]
+    return {
+        "memorise": True,
+        "wct_id": maillon["wct_id"],
+        "ligne_id": maillon["ligne_id"],
+        "evenement_id": maillon["wct_id"],
+        "producteur": _PRODUCTEUR_TRAVAUX_TERMINES,
+    }
+
+
+def consommateurs() -> dict[str, Callable[[dict], dict]]:
+    """Types d'événements consommés par M10 (ADR-0009 §3) — voir `department.yaml/evenements`."""
+    return {"m4.travaux_termines": _recevoir_travaux_termines}
 
 
 def signaler_revision(ligne_id_a: str, ligne_id_b: str, horodatage: str) -> dict[str, Any]:

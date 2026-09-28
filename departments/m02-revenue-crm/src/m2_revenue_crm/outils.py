@@ -21,6 +21,7 @@ SQLAlchemy).
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from opsys import stockage
@@ -183,6 +184,153 @@ def marquer_chantier_termine(
             f"(incohérence interne, pas un refus métier normal) : {verdict_interaction}"
         )
     return {"accepte": True, "resultat": {"transition": transition, "interaction": interaction}}
+
+
+# ---------------------------------------------------------------------------
+# Consommateur d'événements (ADR-0009 §3, PLAN T1.2-c) : m4.travaux_termines
+# ---------------------------------------------------------------------------
+# La complétion d'un chantier (WCT de M4) prouve que la cédule et le chantier ont eu lieu :
+# DEFINITION-PRODUIT §6, cascade « travaux terminés », ligne M2 « Marque le chantier terminé,
+# écrit l'activité, définit la prochaine action ». Un lead introuvable, ou dont le statut
+# commercial est incompatible avec une complétion de chantier, est une incohérence de données
+# entre M4 et M2 : les deux exceptions nommées ci-dessous en sont la preuve pour le répartiteur
+# (ADR-0009 §3) — jamais un refus métier silencieux, jamais une écriture partielle.
+
+
+class LeadIntrouvable(LookupError):
+    """m4.travaux_termines : lead_id absent du registre M2 — incohérence de données entre M4 et
+    M2 (DEFINITION-PRODUIT §7 M2 : « Aucun lead sans statut, propriétaire, prochaine action ou
+    historique »). Jamais un refus métier normal : le répartiteur réessaie puis met en
+    quarantaine (ADR-0009 §3), sans qu'aucune écriture n'ait eu lieu."""
+
+
+class StatutIncompatibleAvecCompletion(ValueError):
+    """m4.travaux_termines : le lead existe mais son statut commercial est incompatible avec une
+    complétion de chantier — antérieur à la conversion (nouveau, qualifie), clos sans avoir
+    jamais été converti (perdu : statuts.STATUTS_TERMINAUX n'admet aucune transition sortante) ou
+    déjà postérieur au chantier (facture, paiement, avis : la complétion a déjà été appliquée par
+    un événement antérieur). Incohérence de données (DEFINITION-PRODUIT §7 M2 « Cycle de vie
+    couvert »), jamais un refus métier normal : le répartiteur réessaie puis met en quarantaine
+    (ADR-0009 §3), sans écriture."""
+
+
+# Table de règles déterministe : statut commercial courant du lead -> étapes de transition à
+# parcourir avant `marquer_chantier_termine` (DEFINITION-PRODUIT §6 cascade « travaux terminés »,
+# ligne M2 ; §7 M2 « Cycle de vie couvert » : ...converti → cédule → chantier → facture...).
+# Chaque étape est un couple déjà autorisé SANS condition additionnelle par
+# statuts.TRANSITIONS_AUTORISEES (seul chantier->facture, parcouru par marquer_chantier_termine
+# juste après, exige prochaine_action). Un statut absent de cette table est, par définition,
+# incompatible avec une complétion de chantier (StatutIncompatibleAvecCompletion ci-dessus).
+_ETAPES_VERS_CHANTIER: dict[str, tuple[str, ...]] = {
+    "converti": ("cedule", "chantier"),
+    "cedule": ("chantier",),
+    "chantier": (),
+}
+
+
+def _regle_prochaine_action(charge: dict[str, Any]) -> dict[str, Any]:
+    """Table de règles déterministe pour la prochaine action après complétion (PLAN T1.2-c ;
+    DEFINITION-PRODUIT §6 cascade « travaux terminés », ligne M2 « ...définit la prochaine
+    action » ; §7 M2, règles dures : « jamais...laisser un lead sans prochaine action »).
+
+    La description est un texte FIXE choisi ci-dessous (jamais généré par un modèle) ;
+    l'échéance est l'horodatage RÉEL du WCT (horodatage_completion) — jamais une date inventée
+    ni calculée depuis une horloge ambiante.
+
+    - Règle 1 (client_satisfait est False) : segment M2.11 `complaint_risk` (§7 M2) — traiter
+      le risque de plainte avant toute autre relance.
+    - Règle 2 (client_satisfait est True) : relances M2.7 « avis, référence » et segment M2.11
+      `referral_candidate` (§7 M2).
+    - Règle 3 (client_satisfait absent de la charge, ou explicitement null — jamais déduit) :
+      repli par défaut sur le segment M2.11 `invoice_pending`, cohérent avec le statut
+      `facture` que la transition vient d'atteindre.
+    """
+    lead_id = charge["lead_id"]
+    echeance = charge["horodatage_completion"]
+    client_satisfait = charge.get("client_satisfait")
+    if client_satisfait is False:
+        description = (
+            f"Traiter le risque de plainte du lead {lead_id} avant toute relance "
+            "(client insatisfait signalé au WCT — DEFINITION-PRODUIT §7 M2.11 complaint_risk)."
+        )
+    elif client_satisfait is True:
+        description = (
+            f"Lancer la relance avis et référence du lead {lead_id} "
+            "(client satisfait signalé au WCT — DEFINITION-PRODUIT §7 M2.7, M2.11 referral_candidate)."
+        )
+    else:
+        description = (
+            f"Assurer le suivi de la facture du lead {lead_id} jusqu'au paiement "
+            "(client_satisfait non recueilli au WCT — DEFINITION-PRODUIT §7 M2.11 invoice_pending)."
+        )
+    return {"description": description, "echeance": echeance}
+
+
+def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme m4.travaux_termines (ADR-0009 §3, PLAN T1.2-c ; DEFINITION-PRODUIT §6 cascade
+    « travaux terminés », ligne M2). Retrouve le lead (lead_id du WCT) et le fait avancer de
+    façon déterministe : s'il est à `converti` ou `cedule`, il avance jusqu'à `chantier`
+    (`_ETAPES_VERS_CHANTIER`), puis applique `marquer_chantier_termine` (chantier -> facture,
+    interaction système, prochaine action tirée de `_regle_prochaine_action`).
+
+    Un lead introuvable ou dans un statut incompatible est une incohérence de données : cette
+    fonction lève une erreur NOMMÉE (`LeadIntrouvable` ou `StatutIncompatibleAvecCompletion`),
+    jamais une écriture partielle — le répartiteur livre chaque paire (événement, consommateur)
+    dans son propre point de sauvegarde (ADR-0009 §3) : un lever ici annule toute transition déjà
+    amorcée par CET appel, et le répartiteur réessaie puis met en quarantaine après 5 échecs,
+    visible par un humain.
+
+    Idempotent : le répartiteur n'appelle cette fonction qu'une fois par (evenement_id,
+    consommateur) traité avec succès (`EVENEMENTS_RECUS` UNIQUE, ADR-0009 §3) — une relivraison
+    de la même publication ne la rappelle jamais.
+    """
+    lead_id = charge["lead_id"]
+    horodatage = charge["horodatage_completion"]
+    reg = _obtenir_registre()
+
+    statut = statuts.statut_courant(reg, lead_id)
+    if statut is None:
+        raise LeadIntrouvable(f"m4.travaux_termines : lead {lead_id!r} introuvable au registre M2")
+
+    etapes = _ETAPES_VERS_CHANTIER.get(statut)
+    if etapes is None:
+        raise StatutIncompatibleAvecCompletion(
+            f"m4.travaux_termines : lead {lead_id!r} au statut {statut!r}, incompatible avec une "
+            "complétion de chantier (attendu converti, cedule ou chantier)"
+        )
+
+    depuis = statut
+    for statut_cible in etapes:
+        _, verdict = statuts.transitionner(lead_id, statut_cible, reg, horodatage)
+        if verdict is not None:
+            # Jamais attendu : _ETAPES_VERS_CHANTIER ne propose que des couples autorisés sans
+            # condition additionnelle par statuts.py — défense en profondeur, même patron que
+            # marquer_chantier_termine ci-dessus pour son écriture d'interaction.
+            raise RuntimeError(
+                f"m4.travaux_termines : transition {depuis}->{statut_cible} refusée de façon "
+                f"inattendue pour le lead {lead_id!r} : {verdict}"
+            )
+        depuis = statut_cible
+
+    prochaine_action = _regle_prochaine_action(charge)
+    resultat = marquer_chantier_termine(lead_id, horodatage, prochaine_action)
+    if not resultat["accepte"]:
+        raise RuntimeError(
+            "m4.travaux_termines : marquer_chantier_termine refusé après une transition validée "
+            f"pour le lead {lead_id!r} : {resultat['verdict']}"
+        )
+    return {
+        "traite": True,
+        "lead_id": lead_id,
+        "wct_id": charge.get("wct_id"),
+        "statut_final": resultat["resultat"]["transition"]["statut"],
+        "prochaine_action": prochaine_action,
+    }
+
+
+def consommateurs() -> dict[str, Callable[[dict], dict]]:
+    """Types d'événements consommés par M2 (ADR-0009 §3) — voir `department.yaml/evenements`."""
+    return {"m4.travaux_termines": _recevoir_travaux_termines}
 
 
 def evaluer_readiness(lead_id: str, horodatage: str) -> dict[str, Any]:

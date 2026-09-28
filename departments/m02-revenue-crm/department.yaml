@@ -41,3 +41,8 @@ kpis:
     description: >-
       Délai moyen entre l'ingestion d'un lead nouveau et l'assignation d'un owner
       (transition vers qualifie).
+# PLAN T1.2-c : M2 consomme la fin de travaux de M4 par le bus d'événements du socle (ADR-0009
+# §3), en plus de l'outil m2_marquer_chantier_termine qu'elle appelle (voir consommateurs() dans
+# outils.py). Catalogue : src/opsys/evenements/catalogue/m4.travaux_termines.json.
+evenements:
+  consomme: [m4.travaux_termines]

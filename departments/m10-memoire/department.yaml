@@ -36,3 +36,8 @@ kpis:
     description: Part des dossiers de contexte soumis au préflight jugés insuffisants (refus tracés).
   - id: nb_references_forgees_detectees
     description: Nombre de ReferenceMemoireM10 rejetées par m10_verifier_reference (registre, ligne_id ou hash_tete incohérents).
+# PLAN T1.2-c : M10 consomme la fin de travaux de M4 par le bus d'événements du socle (ADR-0009
+# §3) et mémorise le WCT au registre Événements (voir consommateurs() dans outils.py, logique
+# existante memoriser_wct). Catalogue : src/opsys/evenements/catalogue/m4.travaux_termines.json.
+evenements:
+  consomme: [m4.travaux_termines]
