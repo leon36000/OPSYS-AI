@@ -79,4 +79,6 @@ jobs:
           grep -E "^ *(FAIL|×) .* > " "$RUNNER_TEMP/vitest.txt" | sed -E 's/ [0-9]+ms$//' | sort -u | head -150 || true
           echo "== erreurs hors test"
           grep -E "^(Error|TypeError|ReferenceError|SyntaxError): " "$RUNNER_TEMP/vitest.txt" | sort | uniq -c | sort -rn | head -20 || true
+          echo "== détail des échecs (message d'assertion et ligne du test)"
+          sed -n '/Failed Tests [0-9]/,/Test Files/p' "$RUNNER_TEMP/vitest.txt" | grep -vE "^ *$" | head -250 || true
           grep -E "Test Files|Tests  " "$RUNNER_TEMP/vitest.txt" | tail -4 || true
