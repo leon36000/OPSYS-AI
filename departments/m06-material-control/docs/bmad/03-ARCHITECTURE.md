@@ -39,7 +39,9 @@ M6 porte QUATRE parcours d'écriture distincts, là où M3 et M4 n'en portent qu
 | `frontieres.py` | Scan récursif des clés interdites GLOBALES (dict/list/tuple), normalisation de clé (minuscule, NFD sans diacritiques, espaces/tirets → underscore), verdict `REJ-FRONTIERE-VIOLEE`. | Copie-adaptation de `m4_field_ops/frontieres.py`. Porte l'ensemble #1 (§DA-M6-03) : paiement, date, prix de vente — clés d'un AUTRE domaine, interdites partout. |
 | `validation.py` | Validation structurelle de toutes les entrées : `WctRecu` (12 clés exactes, `"M6"` ∈ `consommateurs_cibles`, **sans recalcul de `hash_maillon`**), `FormulaireConsommationMateriaux`, `CatalogueMateriaux`, `BonDeCommandeDemande`, `ReceptionPO`, `ComptageInventaire`, `SeuilReorder`. Ordre épinglé, première faute gagnante, frontières vérifiées EN PREMIER. | Reproduit l'ordre mesuré de `m4_field_ops.contrats.valider_entree` (frontière → structure → correspondance). Un contrat gelé sans propriétaire de validation est une promesse que personne ne tient. |
 | `catalogue.py` | Résolution du coût unitaire d'un matériau : `PRIX_CATALOGUE` → `PRIX_HISTORIQUE_FALLBACK` (ordre du registre) → `INDETERMINE`. Fonction pure sur `(materiau_id, catalogue, registre)`. | Isolé pour éprouver la garde anti-invention seule (§DA-M6-10). Aucune valeur codée en dur : patron du barème-entrée de M3 (`DA-M3-09`). |
-| `bons_commande.py` | Validation d'un `BonDeCommandeDemande` et appariement de son `po_id`/`chantier_id` avec une `ReceptionPO`. M6 ne persiste PAS les PO (§DA-M6-12) : le bon est une ENTRÉE de l'appel de réception. | Le type de maillon `PO_DEMANDE` n'existe pas dans l'énuméré gelé du registre (§2.10) : la correspondance est structurelle sur des entrées fournies, jamais sur un état caché. |
+| `fournisseurs.py` (PLAN T2.5) | Registre des fournisseurs (M6.2) : identité et coordonnées SEULEMENT (`enregistrer_fournisseur`, idempotent/correctible, `lire_fournisseur`, `lister_fournisseurs`). Son propre registre nommé (`opsys.stockage.maillons(dept, "fournisseurs")`), distinct du registre de mouvements. | Corrige le trou mesuré par l'audit M6 (« `BonDeCommandeDemande` n'a aucun champ fournisseur ») : `bons_commande.creer_brouillon` exige un `fournisseur_id` déjà enregistré ici. |
+| `livre_prix.py` (PLAN T2.4) | Livre de prix (M6.3) : prix FOURNIS (jamais inventés), versionnés (append-only), datés, PAR FOURNISSEUR (`enregistrer_prix`, `prix_en_vigueur`, `resoudre_prix_po`). Sélection du prix « en vigueur » par ORDRE D'ÉCRITURE, jamais par comparaison de `date_effet` (même raisonnement que DA-M6-10). Distinct de `catalogue.py` (résolution à la RÉCEPTION, inchangée). | Le prix d'une ligne de PO vient de ce livre EN VIGUEUR ou d'un verdict qui le demande (`PRIX_LIVRE`/`INDETERMINE`, jamais un prix par défaut) — lu par `bons_commande.creer_brouillon`. |
+| `bons_commande.py` (DA-M6-12 révisée, PLAN T2.5) | Moteur de PO PERSISTÉ (M6.5) : `creer_brouillon` (besoins prévus + écart de stock, prix résolu par ligne via `livre_prix.py`), `approuver` (refuse fail-closed si un prix reste `INDETERMINE`), `generer_courriel` (M6.6, texte seul), `marquer_envoye` (N4, aucune primitive d'envoi), `enregistrer_reception_po` (attache le verdict déjà calculé par `reception.py`, inchangé), `detecter_ecarts_prix` (M6.7, signal vers M5/M8). Machine à 12 statuts en table figée (`contrats.TRANSITIONS_PO`), même patron append-only que `m3_estimation.devis_durable` (aucun hash-chaînage, copie-adaptation #109). | Voir DA-M6-12 révisée ci-dessous : le type de maillon `PO_DEMANDE` n'existe toujours PAS dans l'énuméré gelé du registre de stock (§2.10) — le PO vit dans SA PROPRE collection nommée, jamais dans le registre de mouvements. |
 | `reception.py` | Rapprochement lignes demandées ↔ reçues, classification `VerdictReception` (conforme / inférieure / supérieure / **mixte** / indéterminé), coût par ligne via `catalogue.py`, `montant_ligne` et `montant_total_estime` avec équivalence stricte null↔INDETERMINE. Construit `AccuseReceptionPO` et, si résolu, `SignalPoAPayer`. Logique PURE (aucune écriture). | Isolé de l'orchestrateur pour tester le verdict et l'équivalence null sans traverser une écriture de registre (leçon #166 et « tester les renderers isolément masque le chemin réel » — d'où AUSSI un test bout en bout en S007). |
 | `stock.py` | Dérivation PURE du stock théorique d'un couple `(chantier_id, materiau_id)` : somme signée des `quantite` des maillons `RECEPTION` et `CONSOMMATION` jusqu'à la tête, **`VARIANCE_INVENTAIRE` exclue** (§DA-M6-09). Vérification de disponibilité pour la consommation, avec cumul des lignes d'un même matériau. Aucun cache. | « Pas d'état caché, tout dérivé du registre » — patron mesuré de `m4_field_ops.outbox.calculer_duree_reelle`/`statut_courant` qui re-dérivent à chaque appel. Un cache serait une seconde vérité divergente. |
 | `variance.py` | Comparaison stock théorique (via `stock.py`) ↔ comptage déclaré, classification `VerdictVarianceStock` neutre (R-020), `INDETERMINE` si aucun mouvement préalable. Construit `SignalVarianceStock` avec `note_investigation = null` par construction. | Isolé pour prouver qu'AUCUNE fonction de calcul ne remplit un champ de cause (CA-M6-15, inspection statique). |
@@ -413,11 +415,85 @@ Chaque **valeur de `type_mouvement`** (`"RECEPTION"`, `"CONSOMMATION"`, `"VARIAN
 
 **Justification** : Reproduit la discipline mesurée de `m4_field_ops.outbox` — `completer_intervention` est LE seul chemin d'écriture vers `terminee`, gardé par `garde_ecriture_unique` (AST vérifiant qu'aucun autre site n'écrit la clé sensible et que la fonction n'appelle `ajouter` qu'une fois). M6 généralise le patron à trois types de mouvement : un point par type rend impossible qu'un chemin détourné écrive une consommation hors de la fonction gardée.
 
-### DA-M6-12 — Réception sans état PO persistant
+### DA-M6-12 — RÉVISÉE (PLAN T2.5) — PO persisté, machine à 12 statuts
 
-**Décision** : M6 ne persiste PAS les `BonDeCommandeDemande`. Le bon est une ENTRÉE de l'appel `enregistrer_reception`, fournie par l'appelant en même temps que la `ReceptionPO`. M6 valide la correspondance structurelle (`po_id`, `chantier_id`) et reconcilie les lignes ; une non-correspondance produit `VerdictReception.INDETERMINE` et **zéro** écriture de stock.
+**Décision précédente (abrogée)** : *« M6 ne persiste PAS les `BonDeCommandeDemande`. Le bon est
+une ENTRÉE de l'appel `enregistrer_reception`... »* — reproduite en fin de section pour mémoire.
 
-**Justification** : L'énuméré gelé `type_mouvement` (§2.10) ne comporte pas de type `PO_DEMANDE` — stocker les PO exigerait d'inventer un type hors contrat. Cohérent avec « tout est fourni par l'appelant, pas d'état caché » : M3 reçoit son `LeadQualifie`+marqueur à chaque appel sans les stocker ; M6 reçoit de même son bon à chaque réception. **Limite déclarée** : M6 valide la structure, pas la provenance du bon (un appelant pourrait fournir un bon fabriqué) — même frontière d'intégrité que M3 face à son barème (DA-M3-05) ; la couche appelante est responsable de la persistance des PO ouverts.
+**Nouvelle décision** : M6 persiste le PO comme un document à cycle de vie propre, DISTINCT du
+registre de mouvements de stock, avec la machine à **12 statuts NOMMÉS par
+DEFINITION-PRODUIT.md §7 M6.5** (l.508, mot pour mot) : `draft`, `pending_admin_review`,
+`approved`, `email_ready`, `sent_to_supplier`, `supplier_confirmed`, `partially_received`,
+`received`, `cancelled`, `disputed`, `invoiced`, `closed`. Le PO vit comme une suite
+d'événements append-only dans son propre registre nommé
+(`opsys.stockage.maillons("m06-material-control", "bons_commande")`, ADR-0009) — **même patron
+que `m3_estimation.devis_durable`** (copie-adaptation, #109) : un maillon `po_cree` puis un
+maillon `transition_po` par transition, jamais hash-chaîné (comme `devis_durable.py`/
+`facturation.py`, qui n'en portent pas non plus — la garantie append-only vit dans
+`opsys.stockage` lui-même). Les transitions légales sont une **table figée**
+(`contrats.TRANSITIONS_PO`, dict de `frozenset`, `bons_commande.transition_autorisee`), testée
+exhaustivement (12×12, `test_bons_commande.py`). Nouveaux modules : `fournisseurs.py` (M6.2,
+identité/coordonnées seulement, PLAN T2.5 point 2) et `bons_commande.py` (M6.5, PLAN T2.5
+points 1/3/4) ; `livre_prix.py` (M6.3, PLAN T2.4) fournit la résolution de prix par ligne, lue par
+`bons_commande.creer_brouillon`.
+
+**Raison du changement (pourquoi DA-M6-12 était fausse)** : DA-M6-12 contredisait
+DEFINITION-PRODUIT.md §7 M6.5 dès sa rédaction — une machine à 12 statuts NOMMÉS ne peut pas
+exister sur un objet reconstruit à chaque appel sans jamais être gardé entre deux appels ; « M6
+ne persiste pas les PO » et « le PO a 12 statuts » sont incompatibles, l'un des deux doit céder.
+L'audit (`docs/departements/M6-audit.md` §3.1, §5 Phase 0/1) confirme : DA-M6-12 datait d'avant
+que la persistance de l'instance existe (ADR-0009, T1.0, livré depuis) et était motivée
+UNIQUEMENT par cette absence — le motif a disparu, pas la décision. Un PO n'est de toute façon
+**pas un mouvement de stock** (l'énuméré gelé `type_mouvement`, §2.10, RESTE inchangé : aucun
+type `PO_DEMANDE` n'y est ajouté, la garde `garde_ecriture_stock` de `conformite.py` continue de
+ne porter que sur RECEPTION/CONSOMMATION/VARIANCE_INVENTAIRE/RETOUR/PERTE/BRIS) — c'est un
+document distinct, avec sa propre collection nommée, exactement comme `devis_durable.py` (M3)
+n'est pas le registre `estimations` de `registre.py`.
+
+**Ce qui NE change PAS** : `reception.py` (`traiter_reception`) et
+`materiel.enregistrer_reception` restent **inchangés, réutilisés tels quels** (audit M6 §5 Phase 1
+tâche 9) — l'orchestrateur RECEPTION continue de recevoir un `BonDeCommandeDemande` structurel à
+chaque appel (§2.4, inchangé) ; c'est `outils.receptionner_commande`, seule, qui — en plus, quand
+`bon_demande.po_id` référence un PO persisté — vérifie la correspondance
+(`bons_commande.bon_demande_correspond`), refuse une réception hors statut recevable
+(`bons_commande.peut_recevoir`, avant toute écriture de stock), PUIS attache le verdict déjà
+calculé (jamais recalculé) au PO : `partially_received` (RECEPTION_INFERIEURE/MIXTE) ou `received`
+(CONFORME/RECEPTION_SUPERIEURE) — INDETERMINE ne transitionne rien, symétrique de l'ancien
+comportement (zéro écriture). Un `bon_demande` sans PO persisté correspondant continue de
+fonctionner EXACTEMENT comme avant (P5, « toute nouvelle route est additive ») : aucune régression
+sur les 293 tests existants avant cette tranche.
+
+**Envoi au fournisseur (N4)** : `bons_commande.marquer_envoye` (email_ready -> sent_to_supplier)
+ne porte AUCUNE primitive d'envoi réel (toujours aucun réseau, DA-M6-01 inchangée) — le verrou est
+le socle (`opsys.approbations`, `department.yaml` bloc `approbations.n4`, ADR-0009 §5), jamais une
+vérification interne à la fonction (même patron que `m5_financecore.facturation.envoyer_facture`).
+Le repli manuel documenté (point ouvert §13.10 du produit, confirmé par l'audit M6 §6) est le
+corps de courriel texte généré par `bons_commande.generer_courriel` (M6.6), à copier-coller tant
+que M1 n'envoie pas réellement.
+
+**Limite déclarée (inchangée dans son esprit)** : M6 valide la structure et la correspondance au
+PO persisté, pas la provenance première du PO lui-même (un appelant du socle pourrait, en
+théorie, forger un maillon `po_cree` hors des outils publics) — même frontière d'intégrité que M3
+face à son barème (DA-M3-05) ; les outils publics (`m6_creer_po_brouillon` et suivants) restent le
+seul chemin normal.
+
+<details>
+<summary>Ancienne décision (abrogée par ce qui précède, conservée pour l'historique)</summary>
+
+**Décision** : M6 ne persiste PAS les `BonDeCommandeDemande`. Le bon est une ENTRÉE de l'appel
+`enregistrer_reception`, fournie par l'appelant en même temps que la `ReceptionPO`. M6 valide la
+correspondance structurelle (`po_id`, `chantier_id`) et reconcilie les lignes ; une
+non-correspondance produit `VerdictReception.INDETERMINE` et **zéro** écriture de stock.
+
+**Justification (périmée)** : L'énuméré gelé `type_mouvement` (§2.10) ne comporte pas de type
+`PO_DEMANDE` — stocker les PO exigerait d'inventer un type hors contrat. Cohérent avec « tout est
+fourni par l'appelant, pas d'état caché » : M3 reçoit son `LeadQualifie`+marqueur à chaque appel
+sans les stocker ; M6 reçoit de même son bon à chaque réception. **Limite déclarée** : M6 valide
+la structure, pas la provenance du bon (un appelant pourrait fournir un bon fabriqué) — même
+frontière d'intégrité que M3 face à son barème (DA-M3-05) ; la couche appelante est responsable de
+la persistance des PO ouverts.
+
+</details>
 
 ### DA-M6-13 — Le reorder ne crée jamais de PO ni de paiement ; pas de montant `INDETERMINE` vers M5
 

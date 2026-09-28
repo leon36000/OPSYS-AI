@@ -10,6 +10,20 @@ mission: >-
 outils: m6_material_control.outils
 mode: ombre
 dependances: [m04-field-ops]
+approbations:                                        # ADR-0009 §5, PLAN T2.5 point 3
+  # Les rôles M6 nommés par DEFINITION-PRODUIT.md §7 (« inventory_manager », « field_employee »)
+  # ne figurent PAS dans l'ensemble FERMÉ des 8 rôles du socle (ADR-0009 §5, P8) ; ce bloc ne peut
+  # référencer que ces 8 rôles (src/opsys/identite.py::Role). « inventory_manager » du produit
+  # correspond au rôle générique « manager » du socle — même fonction (tenir l'inventaire/les
+  # achats au quotidien), nom différent selon la couche.
+  # N3 (interne, réversible avant tout contact fournisseur) : brouillon de PO, approbation
+  # interne, génération du corps de courriel.
+  n3: [manager, admin, nathan_owner]
+  # N4 (m6_marquer_po_envoye — engagement externe, « envoi sensible » ADR-0009 §4) : l'admin qui
+  # gère les achats au quotidien (§9.5, « PO à approuver » sur son tableau de bord), plus le
+  # propriétaire. Pas « manager » seul : envoyer une commande réelle à un fournisseur engage
+  # l'entreprise, au-delà de la tenue d'inventaire.
+  n4: [admin, nathan_owner]
 modeles:
   defaut: standard
   extraction: rapide
@@ -48,3 +62,12 @@ configuration:
   # « important » cité en exemple par DEFINITION-PRODUIT.md §7 M6 (« ex. 40 % de plus que
   # prévu ») : 0.30 déclenche bien sur 0.40.
   seuil_variance_chantier_pourcentage: 0.30
+  # Seuil de criticité de l'ÉCART DE PRIX à la réception (M6.7, PLAN T2.5 point 4) : « un prix
+  # réel qui s'écarte du prévu au-delà du seuil crée une alerte admin et un signal à M5 et M8 ».
+  # Configuration EXPLICITE (même raisonnement que seuil_variance_chantier_pourcentage
+  # ci-dessus), jamais un nombre codé en dur dans bons_commande.py/outils.py. Absente ou
+  # invalide, m6_receptionner_commande rend une liste de signaux vide (fail-closed) plutôt qu'un
+  # seuil deviné. 0.15 (15 %) est un point de départ raisonnable pour un écart de prix matériaux
+  # (aucun exemple chiffré dans DEFINITION-PRODUIT.md §7 M6.7, contrairement au 40 % de M6.12) —
+  # à ajuster par Nathan/l'admin sans toucher au code.
+  seuil_ecart_prix_reception_pourcentage: 0.15

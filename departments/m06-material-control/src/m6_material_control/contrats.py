@@ -105,6 +105,86 @@ MOTS_INTERDITS_DOMAINE = frozenset(
     }
 )
 
+# PLAN T2.5 point 2 (audit M6.2) — Registre des fournisseurs : IDENTITÉ ET COORDONNÉES
+# SEULEMENT (Gentek, Royal Solution de Bâtiment, O.A.M., Kaycan cités par la définition produit
+# et l'audit, jamais un prix/délai/condition inventé ici — le prix vit dans livre_prix.py,
+# distinct). Champs requis vs optionnels distincts : un champ optionnel omis reste None, jamais
+# une valeur devinée (AGENTS.md, « fail-closed, jamais une valeur par défaut inventée »).
+CHAMPS_FOURNISSEUR_REQUIS = frozenset({"fournisseur_id", "nom"})
+CHAMPS_FOURNISSEUR_OPTIONNELS = frozenset(
+    {"courriel_commande", "telephone", "categories_vendues", "delai_habituel_jours", "format_commande_prefere"}
+)
+
+# PLAN T2.4 — Livre de prix (M6.3) : prix FOURNIS (jamais calculés/inventés), versionnés (chaque
+# nouvelle entrée est un maillon append-only de plus, jamais une réécriture), datés
+# (date_effet), PAR FOURNISSEUR (fournisseur_id). source_document est nullable : référence une
+# facture/un PO d'origine (M6.3, « factures et PO liés ») quand elle existe, None pour un prix
+# fourni directement (ex. grille tarifaire du fournisseur).
+CHAMPS_ENTREE_PRIX_REQUIS = frozenset({"materiau_id", "fournisseur_id", "prix_unitaire", "devise", "date_effet"})
+CHAMPS_ENTREE_PRIX_OPTIONNELS = frozenset({"source_document"})
+
+# PLAN T2.5 point 3 — ligne d'un PO à la création (matériau + quantité demandée) : mêmes DEUX
+# clés que CHAMPS_LIGNE_DEMANDEE (reception.py) par cohérence de vocabulaire, mais contrat
+# SÉPARÉ et gardé séparément — CHAMPS_LIGNE_DEMANDEE reste le contrat gelé de RECEPTION
+# (§2.4 architecture), jamais modifié ici (DA-M6-12 révisée ne touche pas au cycle de réception
+# existant, réutilisé sans modification).
+CHAMPS_LIGNE_PO = frozenset({"materiau_id", "quantite_demandee"})
+
+# DEFINITION-PRODUIT.md §7 M6.5 (l.508) — les 12 statuts NOMMÉS du moteur de PO, reproduits mot
+# pour mot (12 valeurs exactement, comptées : draft, pending_admin_review, approved, email_ready,
+# sent_to_supplier, supplier_confirmed, partially_received, received, cancelled, disputed,
+# invoiced, closed). frozenset (comme CAUSES_VARIANCE_CHANTIER/TYPES_LIGNE_MATERIAUX_UTILISES
+# ci-dessus) : ce sont des noms d'état légaux du produit, pas un verdict que ce paquet invente —
+# ajouter un 13e "INDETERMINE" pour satisfaire un vérificateur violerait la liste EXACTE de la
+# définition produit (interdiction des données inventées, AGENTS.md).
+STATUTS_PO = frozenset(
+    {
+        "draft",
+        "pending_admin_review",
+        "approved",
+        "email_ready",
+        "sent_to_supplier",
+        "supplier_confirmed",
+        "partially_received",
+        "received",
+        "cancelled",
+        "disputed",
+        "invoiced",
+        "closed",
+    }
+)
+
+# Table des transitions légales (bons_commande.py, DA-M6-12 révisée — docs/bmad/03-ARCHITECTURE.md).
+# Un dict, jamais un tuple/liste/set au premier niveau : hors du contrôle "énuméré de domaine" de
+# conformite.py (qui ne porte que sur les littéraux Tuple/List/Set assignés directement — un Dict
+# ne l'est pas), parce que ceci décrit un GRAPHE d'états, pas un verdict calculé par ce paquet.
+# États TERMINAUX (aucune clé ci-dessous, donc aucune transition sortante) : cancelled, closed.
+# Raccourcis délibérés (même raisonnement que m3_estimation.devis_durable.marquer_devis_accepte,
+# qui accepte brouillon OU envoye : aucun outil dédié n'expose encore la sous-étape intermédiaire) :
+# - draft -> approved directement (sans passer par pending_admin_review, qu'aucun outil séparé
+#   n'expose pour l'instant) ;
+# - sent_to_supplier -> partially_received/received directement (sans passer par
+#   supplier_confirmed, qu'aucun outil séparé n'expose pour l'instant).
+# disputed ne revient jamais vers un statut d'exécution (sent_to_supplier/partially_received/
+# received/invoiced) : une fois un litige ouvert, sa résolution reste une décision humaine hors
+# machine à états (fermeture ou annulation), jamais une reprise automatique du flux normal.
+TRANSITIONS_PO: dict[str, frozenset[str]] = {
+    "draft": frozenset({"pending_admin_review", "approved", "cancelled"}),
+    "pending_admin_review": frozenset({"approved", "cancelled"}),
+    "approved": frozenset({"email_ready", "cancelled"}),
+    "email_ready": frozenset({"sent_to_supplier", "cancelled"}),
+    "sent_to_supplier": frozenset(
+        {"supplier_confirmed", "partially_received", "received", "disputed", "cancelled"}
+    ),
+    "supplier_confirmed": frozenset({"partially_received", "received", "disputed", "cancelled"}),
+    "partially_received": frozenset({"partially_received", "received", "disputed"}),
+    "received": frozenset({"invoiced", "disputed"}),
+    "invoiced": frozenset({"closed", "disputed"}),
+    "disputed": frozenset({"closed", "cancelled"}),
+}
+
+VERDICT_PRIX_PO = ("PRIX_LIVRE", "INDETERMINE")
+
 VERDICT_RESOLUTION_PRIX = ("PRIX_CATALOGUE", "PRIX_HISTORIQUE_FALLBACK", "INDETERMINE")
 VERDICT_RECEPTION = (
     "CONFORME", "RECEPTION_INFERIEURE", "RECEPTION_SUPERIEURE",

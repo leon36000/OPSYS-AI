@@ -19,7 +19,7 @@ Import : comme `test_outils_agent.py`, aucune insertion dans `sys.path` — le `
 from __future__ import annotations
 
 import pytest
-from m6_material_control import materiel, outils, stock
+from m6_material_control import bons_commande, fournisseurs, livre_prix, materiel, outils, stock
 from m6_material_control.registre import Registre
 from sqlalchemy import select, update
 
@@ -340,3 +340,107 @@ def test_outils_receptionner_commande_utilise_le_registre_durable_en_production(
     # la tête de chaîne et la taille, cohérentes avec la base.
     assert "registre_historique" not in reponse
     assert reponse["registre"] == {"taille": 1, "hash_tete": relu[0]["hash_maillon"]}
+
+
+# ------------------------------------------------------------------------------------- PLAN T2.4/T2.5
+# Fournisseurs, livre de prix, PO persistés : trois registres durables DE PLUS (même preuve que
+# ci-dessus — aucun cache, une instance neuve relit exactement ce qu'une autre a écrit), aucun des
+# trois hash-chaîné (bons_commande.py/fournisseurs.py/livre_prix.py, comme devis_durable.py de M3).
+
+
+def test_fournisseurs_survit_au_redemarrage(base_sqlite):
+    with stockage.transaction():
+        registre = stockage.maillons(_DEPARTEMENT, "fournisseurs")
+        fournisseurs.enregistrer_fournisseur(
+            "gentek", "Gentek", "2026-01-01T00:00:00Z", registre, courriel_commande="c@gentek.exemple-fictif.test"
+        )
+
+    redemarre = stockage.maillons(_DEPARTEMENT, "fournisseurs")
+    fiche = fournisseurs.lire_fournisseur(redemarre, "gentek")
+    assert fiche is not None
+    assert fiche["nom"] == "Gentek"
+    assert fiche["courriel_commande"] == "c@gentek.exemple-fictif.test"
+
+
+def test_livre_prix_survit_au_redemarrage(base_sqlite):
+    with stockage.transaction():
+        registre = stockage.maillons(_DEPARTEMENT, "livre_prix")
+        livre_prix.enregistrer_prix(_MATERIAU, "gentek", 12.5, "CAD", "2026-01-01", registre)
+
+    redemarre = stockage.maillons(_DEPARTEMENT, "livre_prix")
+    resolution = livre_prix.resoudre_prix_po(_MATERIAU, "gentek", redemarre)
+    assert resolution["verdict_prix"] == "PRIX_LIVRE"
+    assert resolution["prix_unitaire"] == 12.5
+
+
+def test_bons_commande_flux_complet_survit_au_redemarrage(base_sqlite):
+    """Rejoue le cycle de vie complet du PO (draft -> approved -> email_ready ->
+    sent_to_supplier -> received) sur le stockage durable, chaque étape dans sa PROPRE
+    transaction (comme un vrai appel d'outil), et prouve qu'une instance neuve relit l'état
+    final exact — la persistance elle-même (DA-M6-12 révisée, docs/bmad/03-ARCHITECTURE.md)."""
+    with stockage.transaction():
+        fournisseurs.enregistrer_fournisseur(
+            "gentek", "Gentek", "2026-01-01T00:00:00Z",
+            stockage.maillons(_DEPARTEMENT, "fournisseurs"), courriel_commande="c@gentek.exemple-fictif.test",
+        )
+        livre_prix.enregistrer_prix(
+            _MATERIAU, "gentek", 12.5, "CAD", "2026-01-01", stockage.maillons(_DEPARTEMENT, "livre_prix")
+        )
+
+    with stockage.transaction():
+        bons_commande.creer_brouillon(
+            "PO-DURABLE", _CHANTIER, "gentek", [{"materiau_id": _MATERIAU, "quantite_demandee": 5.0}],
+            "2026-01-02T00:00:00Z", stockage.maillons(_DEPARTEMENT, "bons_commande"),
+            stockage.maillons(_DEPARTEMENT, "livre_prix"), stockage.maillons(_DEPARTEMENT, "fournisseurs"),
+        )
+    with stockage.transaction():
+        bons_commande.approuver("PO-DURABLE", "2026-01-03T00:00:00Z", stockage.maillons(_DEPARTEMENT, "bons_commande"))
+    with stockage.transaction():
+        bons_commande.generer_courriel(
+            "PO-DURABLE", "2026-01-04T00:00:00Z", stockage.maillons(_DEPARTEMENT, "bons_commande"),
+            stockage.maillons(_DEPARTEMENT, "fournisseurs"), "GRS",
+        )
+    with stockage.transaction():
+        bons_commande.marquer_envoye(
+            "PO-DURABLE", "2026-01-05T00:00:00Z", stockage.maillons(_DEPARTEMENT, "bons_commande")
+        )
+    with stockage.transaction():
+        po_final, verdict = bons_commande.enregistrer_reception_po(
+            "PO-DURABLE", "CONFORME", "2026-01-06T00:00:00Z", stockage.maillons(_DEPARTEMENT, "bons_commande")
+        )
+        assert verdict is None
+        assert po_final["statut"] == "received"
+
+    redemarre = stockage.maillons(_DEPARTEMENT, "bons_commande")
+    po_relu = bons_commande.lire(redemarre, "PO-DURABLE")
+    assert po_relu["statut"] == "received"
+    assert po_relu["lignes"][0]["prix_unitaire_prevu"] == 12.5
+    assert po_relu["courriel"]["destinataire"] == "c@gentek.exemple-fictif.test"
+
+
+def test_outils_creer_po_brouillon_utilise_le_registre_durable_en_production(base_sqlite):
+    """Même preuve que `test_outils_receptionner_commande_utilise_le_registre_durable_en_production`
+    ci-dessus, pour la chaîne complète des outils PO/fournisseurs/prix (PLAN T2.5/T2.4).
+
+    Le livre de prix lui-même est alimenté directement (`livre_prix.enregistrer_prix`, pas encore
+    `outils.enregistrer_prix`, livré séparément au commit T2.4 suivant) : le moteur de PO (T2.5)
+    en a déjà besoin pour résoudre le prix attendu de chaque ligne, mais l'outil agent dédié à sa
+    saisie n'arrive qu'avec T2.4."""
+    with stockage.transaction():
+        outils.enregistrer_fournisseur("gentek", "Gentek", "2026-01-01T00:00:00Z")
+        livre_prix.enregistrer_prix(
+            _MATERIAU, "gentek", 12.5, "CAD", "2026-01-01", stockage.maillons(_DEPARTEMENT, "livre_prix")
+        )
+        outils.enregistrer_besoins_prevus(
+            _CHANTIER, "DEVIS-DURABLE", [{"materiau_id": _MATERIAU, "quantite_estimee": 5.0, "unite": "boite"}]
+        )
+
+    with stockage.transaction():
+        reponse = outils.creer_po_brouillon("PO-OUTILS-DURABLE", "DEVIS-DURABLE", "gentek", "2026-01-02T00:00:00Z")
+
+    assert reponse["accepte"] is True
+    assert "bons_commande_historique" not in reponse, "registre durable : pas d'historique à transporter"
+    relu = stockage.maillons(_DEPARTEMENT, "bons_commande")
+    assert len(relu) == 1
+    assert relu[0]["statut"] == "draft"
+    assert relu[0]["po_id"] == "PO-OUTILS-DURABLE"

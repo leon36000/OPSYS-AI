@@ -49,7 +49,16 @@ import yaml
 from opsys import evenements, stockage
 from opsys.outils import Autonomie, Outil
 
-from . import besoins_prevus, digest, materiel, validation, variance_chantier, wct_recus
+from . import (
+    besoins_prevus,
+    bons_commande,
+    digest,
+    fournisseurs,
+    materiel,
+    validation,
+    variance_chantier,
+    wct_recus,
+)
 from . import catalogue as catalogue_module
 from . import registre as registre_module
 
@@ -57,6 +66,9 @@ _DEPARTEMENT = "m06-material-control"
 _NOM_REGISTRE = "principal"
 _NOM_REGISTRE_BESOINS_PREVUS = "besoins_prevus"
 _NOM_REGISTRE_WCT_RECUS = "wct_recus"
+_NOM_REGISTRE_FOURNISSEURS = "fournisseurs"
+_NOM_REGISTRE_LIVRE_PRIX = "livre_prix"
+_NOM_REGISTRE_BONS_COMMANDE = "bons_commande"
 _MANIFESTE = Path(__file__).resolve().parents[2] / "department.yaml"
 
 _MAILLON = {"type": "object", "description": "Maillon tel que renvoyé par un appel précédent."}
@@ -187,6 +199,28 @@ _FORMULAIRE_MATERIAUX_UTILISES = {
     },
     "required": ["wct_id", "intervention_id", "chantier_id", "lignes_materiaux"],
 }
+# --------------------------------------------------------------------------------------- T2.4/T2.5
+_FOURNISSEURS_HISTORIQUE = {
+    "type": "array",
+    "items": {"type": "object"},
+    "description": "À omettre : le registre des fournisseurs est durable et relu par l'outil.",
+}
+_LIVRE_PRIX_HISTORIQUE = {
+    "type": "array",
+    "items": {"type": "object"},
+    "description": "À omettre : le livre de prix est durable et relu par l'outil.",
+}
+_BESOINS_PREVUS_HISTORIQUE = {
+    "type": "array",
+    "items": {"type": "object"},
+    "description": "À omettre : le registre des besoins prévus est durable et relu par l'outil.",
+}
+_BONS_COMMANDE_HISTORIQUE = {
+    "type": "array",
+    "items": {"type": "object"},
+    "description": "À omettre : le registre des PO est durable et relu par l'outil.",
+}
+_CATEGORIES_VENDUES = {"type": ["array", "null"], "items": {"type": "string"}}
 
 
 def _rejouer_registre(historique: list[dict[str, Any]] | None) -> registre_module.Registre:
@@ -261,6 +295,28 @@ def _besoins_prevus_de_l_appel(historique: list[dict[str, Any]] | None) -> list[
     return list(historique or [])
 
 
+# --------------------------------------------------------------------------------------- T2.4/T2.5
+# Fournisseurs, livre de prix, PO : trois registres durables DISTINCTS de plus (même patron que
+# _besoins_prevus_de_l_appel ci-dessus) — aucun des trois ne porte de mouvement de stock, donc
+# aucun ne passe par registre_module.Registre (réservé à RECEPTION/CONSOMMATION/...).
+def _fournisseurs_de_l_appel(historique: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    if stockage.connexion_courante() is not None:
+        return stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_FOURNISSEURS)
+    return list(historique or [])
+
+
+def _livre_prix_de_l_appel(historique: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    if stockage.connexion_courante() is not None:
+        return stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_LIVRE_PRIX)
+    return list(historique or [])
+
+
+def _bons_commande_de_l_appel(historique: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    if stockage.connexion_courante() is not None:
+        return stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_BONS_COMMANDE)
+    return list(historique or [])
+
+
 def _seuil_variance_chantier() -> float | None:
     """Seuil de criticité de la variance de CHANTIER (m6.variance_chantier, PLAN T1.2) : lu
     depuis `department.yaml/configuration` — JAMAIS un nombre codé en dur ici ni dans
@@ -279,6 +335,20 @@ def _seuil_variance_chantier() -> float | None:
     donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8")) or {}
     configuration = donnees.get("configuration") or {}
     seuil = configuration.get("seuil_variance_chantier_pourcentage")
+    ok, _ = validation.valider_seuil_variance_chantier(seuil)
+    return seuil if ok else None
+
+
+def _seuil_ecart_prix_reception() -> float | None:
+    """Seuil de criticité de l'ÉCART DE PRIX à la réception (M6.7, PLAN T2.5 point 4) : même
+    source (`department.yaml/configuration`) et même discipline fail-closed que
+    `_seuil_variance_chantier` (même forme de valeur — une fraction positive — donc même
+    validateur, `validation.valider_seuil_variance_chantier`, réutilisé tel quel plutôt que
+    dupliqué). Absent ou invalide : `None`, jamais un défaut inventé — `receptionner_commande`
+    rend alors une liste de signaux vide plutôt que d'évaluer quoi que ce soit."""
+    donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8")) or {}
+    configuration = donnees.get("configuration") or {}
+    seuil = configuration.get("seuil_ecart_prix_reception_pourcentage")
     ok, _ = validation.valider_seuil_variance_chantier(seuil)
     return seuil if ok else None
 
@@ -496,14 +566,57 @@ def receptionner_commande(
     catalogue_materiaux: dict[str, Any] | None = None,
     seuils_reorder: list[dict[str, Any]] | None = None,
     registre_historique: list[dict[str, Any]] | None = None,
+    bons_commande_historique: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
+    """PLAN T2.5 point 4 : `materiel.enregistrer_reception` (DA-M6-11) reste APPELÉ SANS
+    MODIFICATION — la réception éphémère (`bon_demande` fourni à l'appel) continue de fonctionner
+    exactement comme avant pour un `po_id` qui ne référence aucun PO persisté (compatibilité
+    totale, P5 : « toute nouvelle route est additive »). Quand `bon_demande["po_id"]` référence un
+    PO persisté (`m6_creer_po_brouillon`), cette fonction s'y RATTACHE en plus : vérifie que
+    `bon_demande` correspond exactement aux lignes du PO (REJ-PO-BON-DEMANDE-INCOHERENT — défend
+    contre un bon forgé), que le PO est dans un statut qui permet la réception
+    (REJ-PO-TRANSITION-ILLEGALE), PUIS écrit la réception (comme avant) et enfin transitionne le
+    PO (`partially_received`/`received` selon le verdict déjà calculé — jamais recalculé) et
+    signale tout écart de prix au-delà du seuil configuré (M6.7), vers M5 et M8 (signal retourné,
+    jamais transmis directement — même politique que `signal_po_a_payer`)."""
+    bons_registre = _bons_commande_de_l_appel(bons_commande_historique)
+    po_id = bon_demande.get("po_id") if isinstance(bon_demande, dict) else None
+    po_existant = bons_commande.lire(bons_registre, po_id) if po_id else None
+    if po_existant is not None:
+        if not bons_commande.bon_demande_correspond(po_existant, bon_demande):
+            return {"accepte": False, "verdict": {"code": "REJ-PO-BON-DEMANDE-INCOHERENT"}}
+        if not bons_commande.peut_recevoir(po_existant["statut"]):
+            return {"accepte": False, "verdict": {"code": "REJ-PO-TRANSITION-ILLEGALE"}}
+
     registre_cible = _registre_de_l_appel(registre_historique)
     resultat, code = materiel.enregistrer_reception(
         bon_demande, reception_po, catalogue_materiaux, registre_cible, seuils=seuils_reorder
     )
     if code is not None:
         return {"accepte": False, "verdict": {"code": code}}
-    return {"accepte": True, "resultat": resultat, **_etat_registre(registre_cible)}
+    reponse = {"accepte": True, "resultat": resultat, **_etat_registre(registre_cible)}
+
+    if po_existant is not None:
+        verdict_reception = resultat["accuse_reception"]["verdict_reception"]
+        po_maj, code_po = bons_commande.enregistrer_reception_po(
+            po_id, verdict_reception, reception_po["horodatage"], bons_registre
+        )
+        if code_po is not None:
+            # peut_recevoir a déjà validé le statut ci-dessus : un refus ici trahirait une
+            # incohérence interne, jamais un cas d'usage normal (même discipline que
+            # _essayer_facture_brouillon de M5 face à une entrée déjà validée).
+            raise RuntimeError(f"enregistrer_reception_po a refusé une transition déjà validée : {code_po}")
+        reponse["po"] = po_maj
+        seuil_ecart_prix = _seuil_ecart_prix_reception()
+        reponse["seuil_ecart_prix_pourcentage"] = seuil_ecart_prix
+        reponse["signaux_ecart_prix"] = (
+            bons_commande.detecter_ecarts_prix(po_maj, resultat["accuse_reception"]["lignes"], seuil_ecart_prix)
+            if seuil_ecart_prix is not None
+            else []
+        )
+        if stockage.connexion_courante() is None:
+            reponse["bons_commande_historique"] = list(bons_registre)
+    return reponse
 
 
 def consommer_materiaux(
@@ -593,6 +706,146 @@ def evaluer_variance_chantier(
     return {"accepte": True, "resultat": resultat}
 
 
+# --------------------------------------------------------------------------------------------- T2.5
+# Registre des fournisseurs (M6.2, PLAN T2.5 point 2) : identité et coordonnées seulement.
+def enregistrer_fournisseur(
+    fournisseur_id: str,
+    nom: str,
+    horodatage: str,
+    courriel_commande: str | None = None,
+    telephone: str | None = None,
+    categories_vendues: list[str] | None = None,
+    delai_habituel_jours: int | None = None,
+    format_commande_prefere: str | None = None,
+    fournisseurs_historique: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    registre_cible = _fournisseurs_de_l_appel(fournisseurs_historique)
+    resultat, verdict = fournisseurs.enregistrer_fournisseur(
+        fournisseur_id, nom, horodatage, registre_cible,
+        courriel_commande=courriel_commande, telephone=telephone, categories_vendues=categories_vendues,
+        delai_habituel_jours=delai_habituel_jours, format_commande_prefere=format_commande_prefere,
+    )
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    reponse = {"accepte": True, "resultat": resultat}
+    if stockage.connexion_courante() is None:
+        reponse["fournisseurs_historique"] = list(registre_cible)
+    return reponse
+
+
+def lister_fournisseurs(fournisseurs_historique: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    registre_cible = _fournisseurs_de_l_appel(fournisseurs_historique)
+    return {"accepte": True, "resultat": fournisseurs.lister_fournisseurs(registre_cible)}
+
+
+# --------------------------------------------------------------------------------------------- T2.5
+# Moteur de PO (M6.5, PLAN T2.5 point 1/3), DA-M6-12 révisée (docs/bmad/03-ARCHITECTURE.md).
+# Résolution de prix pour une ligne de PO : livre_prix.resoudre_prix_po (module déjà nécessaire au
+# moteur de PO ci-dessous). L'outil agent dédié à la SAISIE d'un prix (m6_enregistrer_prix) arrive
+# avec le commit T2.4 séparé (« Catalogue et livre de prix ») : bons_commande.creer_brouillon LIT
+# déjà le livre de prix (fail-closed, verdict INDETERMINE si vide) — seule son ALIMENTATION par un
+# outil agent est différée.
+def _reponse_po(resultat: dict[str, Any], registre_cible: list[dict[str, Any]]) -> dict[str, Any]:
+    """Forme commune des outils PO : le PO à jour, plus l'historique du registre des PO hors
+    transaction seulement (même convention que `enregistrer_besoins_prevus` — le registre durable
+    de production n'a rien à retransporter, `_bons_commande_de_l_appel` en fait déjà autorité)."""
+    reponse = {"accepte": True, "po": resultat}
+    if stockage.connexion_courante() is None:
+        reponse["bons_commande_historique"] = list(registre_cible)
+    return reponse
+
+
+def creer_po_brouillon(
+    po_id: str,
+    devis_id: str,
+    fournisseur_id: str,
+    horodatage: str,
+    besoins_prevus_historique: list[dict[str, Any]] | None = None,
+    registre_historique: list[dict[str, Any]] | None = None,
+    livre_prix_historique: list[dict[str, Any]] | None = None,
+    fournisseurs_historique: list[dict[str, Any]] | None = None,
+    bons_commande_historique: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Crée un PO BROUILLON à partir des besoins prévus (`m6_enregistrer_besoins_prevus`, source
+    `m3.devis_accepte`) et du stock déjà disponible pour le chantier — PAR LE CODE
+    (`bons_commande.calculer_lignes_a_commander`), jamais deviné : seul l'ÉCART entre l'estimé et
+    le disponible atterrit sur le PO. `devis_id` (pas `chantier_id`) est la clé d'entrée : c'est
+    la même clé que `besoins_prevus.py` utilise déjà. Un chantier entièrement couvert par le stock
+    rend `statut: "aucun_achat_requis"`, PAS un PO vide."""
+    besoins_registre = _besoins_prevus_de_l_appel(besoins_prevus_historique)
+    besoin = besoins_prevus.pour_devis(devis_id, besoins_registre)
+    if besoin is None:
+        return {"accepte": False, "verdict": {"code": "REJ-PO-BESOIN-INTROUVABLE"}}
+    chantier_id = besoin["chantier_id"]
+    if not chantier_id:
+        return {"accepte": False, "verdict": {"code": "REJ-PO-CHANTIER-INCONNU"}}
+
+    mouvements_registre = _registre_de_l_appel(registre_historique)
+    lignes = bons_commande.calculer_lignes_a_commander(besoin["lignes"], chantier_id, mouvements_registre)
+    if not lignes:
+        return {"accepte": True, "po": None, "statut": "aucun_achat_requis"}
+
+    prix_registre = _livre_prix_de_l_appel(livre_prix_historique)
+    fournisseurs_registre = _fournisseurs_de_l_appel(fournisseurs_historique)
+    bons_registre = _bons_commande_de_l_appel(bons_commande_historique)
+    resultat, verdict = bons_commande.creer_brouillon(
+        po_id, chantier_id, fournisseur_id, lignes, horodatage, bons_registre, prix_registre, fournisseurs_registre
+    )
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    return _reponse_po(resultat, bons_registre)
+
+
+def approuver_po(
+    po_id: str, horodatage: str, bons_commande_historique: list[dict[str, Any]] | None = None
+) -> dict[str, Any]:
+    registre_cible = _bons_commande_de_l_appel(bons_commande_historique)
+    resultat, verdict = bons_commande.approuver(po_id, horodatage, registre_cible)
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    return _reponse_po(resultat, registre_cible)
+
+
+def annuler_po(
+    po_id: str, motif: str, horodatage: str, bons_commande_historique: list[dict[str, Any]] | None = None
+) -> dict[str, Any]:
+    registre_cible = _bons_commande_de_l_appel(bons_commande_historique)
+    resultat, verdict = bons_commande.annuler(po_id, motif, horodatage, registre_cible)
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    return _reponse_po(resultat, registre_cible)
+
+
+def generer_courriel_po(
+    po_id: str,
+    horodatage: str,
+    nom_entreprise: str,
+    fournisseurs_historique: list[dict[str, Any]] | None = None,
+    bons_commande_historique: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    registre_cible = _bons_commande_de_l_appel(bons_commande_historique)
+    fournisseurs_registre = _fournisseurs_de_l_appel(fournisseurs_historique)
+    resultat, verdict = bons_commande.generer_courriel(
+        po_id, horodatage, registre_cible, fournisseurs_registre, nom_entreprise
+    )
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    return _reponse_po(resultat, registre_cible)
+
+
+def marquer_po_envoye(
+    po_id: str, horodatage: str, bons_commande_historique: list[dict[str, Any]] | None = None
+) -> dict[str, Any]:
+    """Verrou d'envoi (N4) : n'exécute qu'après la décision du socle (`opsys.approbations.decider`,
+    `department.yaml` bloc `approbations.n4`) — PLAN T2.5 point 3, « l'envoi au fournisseur est
+    N4 ». Aucune primitive d'envoi réel ici (voir bons_commande.marquer_envoye)."""
+    registre_cible = _bons_commande_de_l_appel(bons_commande_historique)
+    resultat, verdict = bons_commande.marquer_envoye(po_id, horodatage, registre_cible)
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    return _reponse_po(resultat, registre_cible)
+
+
 def outils() -> tuple[Outil, ...]:
     return (
         Outil(
@@ -601,7 +854,11 @@ def outils() -> tuple[Outil, ...]:
                 "Réceptionne une commande de bout en bout : résout le prix par ligne (catalogue -> "
                 "historique -> indéterminé), écrit le stock reçu, calcule le verdict de réception "
                 "(conforme/inférieure/supérieure/mixte), émet un signal à M5 si un montant est dû "
-                "(jamais si indéterminé) et des suggestions de réapprovisionnement si un seuil est fourni."
+                "(jamais si indéterminé) et des suggestions de réapprovisionnement si un seuil est fourni. "
+                "Si bon_demande.po_id référence un PO persisté (m6_creer_po_brouillon), s'y rattache : "
+                "vérifie que bon_demande correspond exactement au PO, transitionne son statut "
+                "(partially_received/received selon le verdict déjà calculé) et signale tout écart de "
+                "prix au-delà du seuil configuré (M6.7), destiné à M5 et M8."
             ),
             parametres={
                 "type": "object",
@@ -611,6 +868,7 @@ def outils() -> tuple[Outil, ...]:
                     "catalogue_materiaux": _CATALOGUE,
                     "seuils_reorder": _SEUILS_REORDER,
                     "registre_historique": _REGISTRE_HISTORIQUE,
+                    "bons_commande_historique": _BONS_COMMANDE_HISTORIQUE,
                 },
                 "required": ["bon_demande", "reception_po"],
                 "additionalProperties": False,
@@ -792,6 +1050,163 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=enregistrer_besoins_prevus,
             autonomie=Autonomie.T1,
+        ),
+        # ----------------------------------------------------------------------------- T2.5 point 2
+        Outil(
+            nom="m6_enregistrer_fournisseur",
+            description=(
+                "Crée ou corrige la fiche d'un fournisseur (M6.2) : identité et coordonnées "
+                "SEULEMENT (nom, courriel de commande, téléphone, catégories vendues, délai "
+                "habituel, format de commande préféré) — jamais un prix (livre_prix.py, séparé). "
+                "Champs optionnels omis restent inconnus, jamais devinés. Idempotent : rejouer la "
+                "même fiche est un no-op ; des coordonnées différentes pour le même fournisseur_id "
+                "sont une correction (fiche vivante), jamais un rejet."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "fournisseur_id": {"type": "string"},
+                    "nom": {"type": "string"},
+                    "horodatage": {"type": "string"},
+                    "courriel_commande": {"type": ["string", "null"]},
+                    "telephone": {"type": ["string", "null"]},
+                    "categories_vendues": _CATEGORIES_VENDUES,
+                    "delai_habituel_jours": {"type": ["integer", "null"]},
+                    "format_commande_prefere": {"type": ["string", "null"]},
+                    "fournisseurs_historique": _FOURNISSEURS_HISTORIQUE,
+                },
+                "required": ["fournisseur_id", "nom", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=enregistrer_fournisseur,
+            autonomie=Autonomie.T1,
+        ),
+        Outil(
+            nom="m6_lister_fournisseurs",
+            description="Liste les fournisseurs connus (état courant de chacun). Lecture seule.",
+            parametres={
+                "type": "object",
+                "properties": {"fournisseurs_historique": _FOURNISSEURS_HISTORIQUE},
+                "required": [],
+                "additionalProperties": False,
+            },
+            fonction=lister_fournisseurs,
+            autonomie=Autonomie.T0,
+        ),
+        # m6_enregistrer_prix (T2.4, « Catalogue et livre de prix ») arrive au commit séparé
+        # suivant — bons_commande.creer_brouillon (ci-dessous) lit déjà le livre de prix.
+        # ----------------------------------------------------------------------------- T2.5 point 3
+        Outil(
+            nom="m6_creer_po_brouillon",
+            description=(
+                "Crée un PO au statut BROUILLON (M6.5) à partir des besoins matériaux prévus pour "
+                "un devis (m6_enregistrer_besoins_prevus, source m3.devis_accepte) et du stock déjà "
+                "disponible pour le chantier : seul l'écart est commandé, calculé par le code, "
+                "jamais deviné. Résout le prix attendu de chaque ligne depuis le livre de prix "
+                "(PRIX_LIVRE ou INDETERMINE — jamais inventé). Refuse fail-closed si le fournisseur "
+                "n'est pas enregistré (m6_enregistrer_fournisseur d'abord). Rend "
+                "statut=\"aucun_achat_requis\" (po=null) si le stock couvre déjà tout le besoin."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "po_id": {"type": "string"},
+                    "devis_id": {"type": "string"},
+                    "fournisseur_id": {"type": "string"},
+                    "horodatage": {"type": "string"},
+                    "besoins_prevus_historique": _BESOINS_PREVUS_HISTORIQUE,
+                    "registre_historique": _REGISTRE_HISTORIQUE,
+                    "livre_prix_historique": _LIVRE_PRIX_HISTORIQUE,
+                    "fournisseurs_historique": _FOURNISSEURS_HISTORIQUE,
+                    "bons_commande_historique": _BONS_COMMANDE_HISTORIQUE,
+                },
+                "required": ["po_id", "devis_id", "fournisseur_id", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=creer_po_brouillon,
+            autonomie=Autonomie.T1,
+        ),
+        Outil(
+            nom="m6_approuver_po",
+            description=(
+                "Approuve un PO (draft ou pending_admin_review -> approved). Refuse fail-closed "
+                "(REJ-PO-PRIX-INDETERMINE) si au moins une ligne n'a pas de prix résolu au livre de "
+                "prix : un PO ne peut pas être approuvé sur un prix encore à fournir."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "po_id": {"type": "string"},
+                    "horodatage": {"type": "string"},
+                    "bons_commande_historique": _BONS_COMMANDE_HISTORIQUE,
+                },
+                "required": ["po_id", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=approuver_po,
+            autonomie=Autonomie.T1,
+        ),
+        Outil(
+            nom="m6_annuler_po",
+            description="Annule un PO (-> cancelled), depuis tout statut non terminal. motif humain requis.",
+            parametres={
+                "type": "object",
+                "properties": {
+                    "po_id": {"type": "string"},
+                    "motif": {"type": "string"},
+                    "horodatage": {"type": "string"},
+                    "bons_commande_historique": _BONS_COMMANDE_HISTORIQUE,
+                },
+                "required": ["po_id", "motif", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=annuler_po,
+            autonomie=Autonomie.T1,
+        ),
+        Outil(
+            nom="m6_generer_courriel_po",
+            description=(
+                "Génère le corps texte du courriel de commande (M6.6 : objet, destinataire, liste "
+                "des matériaux, chantier, numéro de PO) pour un PO approved -> email_ready. AUCUN "
+                "envoi réel : le courriel est retourné et persisté sur le PO pour un repli manuel "
+                "(copier-coller) tant que M1 n'envoie pas réellement. repli_manuel_requis=true si "
+                "le fournisseur n'a pas de courriel de commande enregistré."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "po_id": {"type": "string"},
+                    "horodatage": {"type": "string"},
+                    "nom_entreprise": {"type": "string"},
+                    "fournisseurs_historique": _FOURNISSEURS_HISTORIQUE,
+                    "bons_commande_historique": _BONS_COMMANDE_HISTORIQUE,
+                },
+                "required": ["po_id", "horodatage", "nom_entreprise"],
+                "additionalProperties": False,
+            },
+            fonction=generer_courriel_po,
+            autonomie=Autonomie.T1,
+        ),
+        Outil(
+            nom="m6_marquer_po_envoye",
+            description=(
+                "Verrou d'envoi au fournisseur (email_ready -> sent_to_supplier) : ENGAGEMENT "
+                "EXTERNE, N4 — passe par la file d'approbation du socle (department.yaml, bloc "
+                "approbations.n4). N'exécute qu'après décision signée ; aucune primitive d'envoi de "
+                "courriel réelle n'existe ici (repli manuel documenté, M1 plus tard)."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "po_id": {"type": "string"},
+                    "horodatage": {"type": "string"},
+                    "bons_commande_historique": _BONS_COMMANDE_HISTORIQUE,
+                },
+                "required": ["po_id", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=marquer_po_envoye,
+            autonomie=Autonomie.T2,
         ),
     )
 
