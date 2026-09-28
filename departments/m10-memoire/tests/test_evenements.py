@@ -1,16 +1,18 @@
-"""M10 consomme `m4.travaux_termines` (ADR-0009 §3, PLAN T1.2-c partie 1) : mémorise le WCT au
-registre Événements par la logique EXISTANTE (`memoriser_wct`), une seule fois par événement
-(idempotent — le répartiteur ne rappelle jamais un consommateur déjà traité pour le même
-evenement_id), et met en quarantaine sans écriture un WCT que `wct.valider_wct` refuse (contrat
-figé, « M10 » absent de `consommateurs_cibles`).
+"""M10 consomme `m4.travaux_termines` (ADR-0009 §3, PLAN T1.2-c partie 1) et `m6.variance_chantier`
+(PLAN T3.3) : mémorise chacun au registre Événements par la logique EXISTANTE (`memoriser_wct` /
+`variance.memoriser_variance`), une seule fois par événement (idempotent — le répartiteur ne
+rappelle jamais un consommateur déjà traité pour le même evenement_id), et met en quarantaine sans
+écriture un WCT que `wct.valider_wct` refuse (contrat figé, « M10 » absent de
+`consommateurs_cibles` — la variance n'a pas de chemin de refus équivalent, voir `outils.py`).
 
 Utilise le VRAI bus (`evenements.repartir` + `opsys.departements.charger_departements()`, sur les
-manifestes réels de `departments/` — donc M2, qui consomme aussi ce type depuis PLAN T1.2-c, y est
-également livré pour le même événement). Les assertions ci-dessous ne portent jamais sur le
-résumé AGRÉGÉ de `repartir` (qui mélangerait le sort de M2 — ce fichier ne fait jamais exister le
-lead_id fictif côté M2), seulement sur l'état PROPRE à m10-memoire : le registre Événements et
-`etat()` filtré par `consommateur`. Sur une base SQLite temporaire migrée (patron de
-`test_registre_durable.py::base_sqlite`). Les WCT publiés sont des événements de test fictifs.
+manifestes réels de `departments/` — donc M2/M6/M7/M8, qui consomment aussi `m4.travaux_termines`
+depuis PLAN T1.2-c, y sont également livrés pour le même événement). Les assertions ci-dessous ne
+portent jamais sur le résumé AGRÉGÉ de `repartir` (qui mélangerait leur sort — ce fichier ne fait
+jamais exister le lead_id fictif côté ces départements), seulement sur l'état PROPRE à
+m10-memoire : le registre Événements et `etat()` filtré par `consommateur`. Sur une base SQLite
+temporaire migrée (patron de `test_registre_durable.py::base_sqlite`). Les événements publiés sont
+des événements de test fictifs.
 """
 
 from __future__ import annotations
@@ -43,6 +45,22 @@ def _wct(wct_id: str, **overrides) -> dict:
     return base
 
 
+def _variance(evenement_id: str, wct_id: str, **overrides) -> dict:
+    base = {
+        "evenement_id": evenement_id,
+        "wct_id": wct_id,
+        "intervention_id": f"int-{wct_id}",
+        "chantier_id": f"chantier-{wct_id}",
+        "statut_variance": "evaluee",
+        "signal_critique": False,
+        "seuil_pourcentage": 0.1,
+        "horodatage_completion": "2026-09-15T14:00:00-04:00",
+        "lignes": [],
+    }
+    base.update(overrides)
+    return base
+
+
 @pytest.fixture
 def base_durable(tmp_path, monkeypatch):
     """Base SQLite temporaire migrée (patron de test_registre_durable.py::base_sqlite)."""
@@ -69,10 +87,12 @@ def _quarantaine_m10():
 
 
 class TestManifeste:
-    def test_m10_declare_consommer_travaux_termines(self):
+    def test_m10_declare_consommer_travaux_termines_et_variance(self):
         dep = charger_departements()["m10-memoire"]
-        assert dep.evenements_consomme == ("m4.travaux_termines",)
-        assert "m4.travaux_termines" in dep.charger_consommateurs()
+        assert dep.evenements_consomme == ("m4.travaux_termines", "m6.variance_chantier")
+        consommateurs = dep.charger_consommateurs()
+        assert "m4.travaux_termines" in consommateurs
+        assert "m6.variance_chantier" in consommateurs
 
 
 class TestNominal:
@@ -123,3 +143,52 @@ class TestWctRefuse:
         assert len(lignes) == 1
         assert lignes[0]["tentatives"] == 5
         assert "WctRefuse" in lignes[0]["derniere_erreur"]
+
+
+class TestVarianceChantier:
+    """PLAN T3.3 : consommation de m6.variance_chantier, même registre Événements que le WCT."""
+
+    def test_variance_memorisee_une_seule_fois(self, base_durable):
+        evenement_id = "m6-variance-WCT-M10-VAR-1-evaluee"
+        charge = _variance(evenement_id, "WCT-M10-VAR-1", signal_critique=True)
+        evenements.publier("m6.variance_chantier", "m06-material-control", charge)
+
+        deps = _deps_bus()
+        evenements.repartir(deps, maintenant="2026-09-15T14:05:00-04:00")
+
+        maillons_variance = [m for m in _registre_evenements() if m.get("evenement_id") == evenement_id]
+        assert len(maillons_variance) == 1, "la variance est mémorisée exactement une fois"
+        maillon = maillons_variance[0]
+        assert maillon["type_entree"] == "evenement_memorise"
+        assert maillon["horodatage"] == charge["horodatage_completion"]
+        assert maillon["wct_id"] == "WCT-M10-VAR-1"
+        assert maillon["statut_variance"] == "evaluee"
+        assert maillon["signal_critique"] is True
+        assert _quarantaine_m10() == []
+
+        # Redélivraison (même événement, même instant) : idempotent, aucun second maillon.
+        resume2 = evenements.repartir(deps, maintenant="2026-09-15T14:05:00-04:00")
+        assert resume2 == {"livres": 0, "traites": 0, "echecs": 0, "quarantaines": 0, "ignores": 0}
+        assert len([m for m in _registre_evenements() if m.get("evenement_id") == evenement_id]) == 1
+
+    def test_wct_et_sa_variance_cohabitent_dans_le_meme_registre(self, base_durable):
+        wct_id = "WCT-M10-VAR-2"
+        evenements.publier("m4.travaux_termines", "m04-field-ops", _wct(wct_id))
+        evenements.publier(
+            "m6.variance_chantier",
+            "m06-material-control",
+            _variance(f"m6-variance-{wct_id}-evaluee", wct_id),
+        )
+
+        deps = _deps_bus()
+        evenements.repartir(deps, maintenant="2026-09-15T14:05:00-04:00")
+
+        maillons = [
+            m for m in _registre_evenements() if m.get("wct_id") == wct_id
+        ]
+        assert len(maillons) == 2
+        types = {m.get("type_entree") for m in maillons}
+        assert types == {"evenement_memorise"}
+        # Les deux se distinguent par leurs champs propres (classification.py), jamais par un tag.
+        assert sum(1 for m in maillons if "duree_reelle_minutes" in m) == 1
+        assert sum(1 for m in maillons if "statut_variance" in m) == 1

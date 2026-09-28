@@ -26,13 +26,23 @@ def test_types_entree_valides_sont_exactement_ceux_de_m10():
         "evenement_memorise",
         "decision_enregistree",
         "revision_signalee",
+        "fait_consolide",  # PLAN T3.3 : consolidation.py
     }
 
     assert types_attendus.issubset(registre._TYPE_ENTREE_VALIDES)
-    assert len(registre._TYPE_ENTREE_VALIDES) == 3
+    assert len(registre._TYPE_ENTREE_VALIDES) == 4
     assert "mouvement_enregistre" not in registre._TYPE_ENTREE_VALIDES
     assert "demande_creee" not in registre._TYPE_ENTREE_VALIDES
     assert "transition_approbation" not in registre._TYPE_ENTREE_VALIDES
+
+
+def test_fait_consolide_est_un_type_entree_accepte():
+    journal = registre.Registre()
+
+    ligne_id = journal.ajouter(_entree(type_entree="fait_consolide"))
+
+    assert ligne_id
+    assert journal.lire()[0]["type_entree"] == "fait_consolide"
 
 
 def test_ajouter_retourne_ligne_id_et_premier_maillon_a_precedent_none():

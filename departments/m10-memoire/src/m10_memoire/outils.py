@@ -4,15 +4,19 @@ Chaque outil enveloppe une fonction métier déterministe existante. `m10_journa
 compose validation → écriture au registre Affaires → référence vérifiable en un seul appel ;
 `m10_contexte_preflight` est le PREFLIGHT (D-014, docs/research/R4-memory-rag.md §10) qui
 vérifie si un dossier de contexte est suffisant et, sinon, trace le refus au registre — sans
-jamais interrompre l'appelant.
+jamais interrompre l'appelant. PLAN T3.3 ajoute trois capacités : `m10_paquet_contexte_affaire`
+(paquets de contexte en couches, `paquets.py`), `m10_consolider_affaire` (consolidation nocturne
+idempotente, `consolidation.py`) et `m10_auditer_non_oubli` (audit « non-oubli », `audit.py`), plus
+la consommation de `m6.variance_chantier` (`variance.py`, même registre Événements que le WCT).
 
 Deux registres DISTINCTS (CA-M10-06), chacun un singleton du processus de ce département, câblés
 sur le stockage durable de l'instance (ADR-0009 décision 2, ADR-0010 décision 2) via
 `opsys.stockage.maillons` : `_REGISTRE_EVENEMENTS` pour les événements opérationnels (Work
-Completion Trigger de M4 — anciennement nommé « Forge », renommé pour ne plus prêter à confusion
-avec l'outillage de développement), `_REGISTRE_AFFAIRES` pour les décisions, révisions et traces
-de préflight. Aucune fonction ci-dessous n'accepte les deux registres en argument. `registre.py`
-reste pur : c'est ici, et seulement ici, que le paquet touche `opsys`.
+Completion Trigger de M4 et variance matériaux de M6 — registre anciennement nommé « Forge »,
+renommé pour ne plus prêter à confusion avec l'outillage de développement), `_REGISTRE_AFFAIRES`
+pour les décisions, révisions, traces de préflight et faits consolidés. Aucune fonction ci-dessous
+n'accepte les deux registres en argument. Tous les autres modules du paquet restent purs : c'est
+ici, et seulement ici, que le paquet touche `opsys` (stockage et bus).
 """
 
 from __future__ import annotations
@@ -23,7 +27,7 @@ from typing import Any
 from opsys import stockage
 from opsys.outils import Autonomie, Outil, depuis_couple
 
-from . import contexte, contrats, decisions, registre, revision, wct
+from . import audit, consolidation, contexte, contrats, decisions, paquets, registre, revision, variance, wct
 
 _REGISTRE_EVENEMENTS = registre.Registre(maillons=stockage.maillons("m10-memoire", "evenements"))
 _REGISTRE_AFFAIRES = registre.Registre(maillons=stockage.maillons("m10-memoire", "affaires"))
@@ -68,6 +72,15 @@ _REFERENCE_MEMOIRE = {
         "hash_tete": {"type": ["string", "null"]},
     },
     "required": sorted(contrats.CHAMPS_REFERENCE_MEMOIRE),
+    "additionalProperties": False,
+}
+_IDENTIFIANT_ATTENDU = {
+    "type": "object",
+    "properties": {
+        "type_evenement": {"type": "string", "enum": ["m4.travaux_termines", "m6.variance_chantier"]},
+        "identifiant": {"type": "string", "description": "wct_id (WCT) ou evenement_id (variance)."},
+    },
+    "required": ["type_evenement", "identifiant"],
     "additionalProperties": False,
 }
 
@@ -153,9 +166,44 @@ def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------
+# Consommateur d'événements (ADR-0009 §3, PLAN T3.3) : m6.variance_chantier
+# ---------------------------------------------------------------------------
+# Seul producteur déclaré au catalogue socle pour ce type (src/opsys/evenements/catalogue/
+# m6.variance_chantier.json : « Émis par M6... »).
+_PRODUCTEUR_VARIANCE_CHANTIER = "m06-material-control"
+
+
+def _recevoir_variance_chantier(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme m6.variance_chantier (ADR-0009 §3, PLAN T3.3 ; catalogue socle stable, neuf champs
+    tous requis). Mémorise la charge TELLE QUELLE au registre Événements (`variance.py`, même
+    registre et même `type_entree` que le WCT — `classification.py` distingue les deux à la
+    lecture). Contrairement au WCT, aucun contrat M10 séparé ne restreint les champs acceptés :
+    le catalogue socle (`additionalProperties: false`) est la seule source de vérité pour ce type,
+    donc aucun chemin de refus ici (à la différence de `WctRefuse` ci-dessus).
+
+    Idempotent : le répartiteur n'appelle cette fonction qu'une fois par (evenement_id,
+    consommateur) traité avec succès (`EVENEMENTS_RECUS` UNIQUE, ADR-0009 §3) ; M6 peut en outre
+    republier un `evenement_id` DISTINCT pour le même `wct_id` si `statut_variance` change (ex.
+    `declaration_absente` → `evaluee`) — chaque publication distincte est alors un NOUVEAU
+    maillon, représentant fidèlement l'état qui a évolué, jamais un doublon du même fait.
+    """
+    maillon, _ = variance.memoriser_variance(dict(charge), _REGISTRE_EVENEMENTS)
+    return {
+        "memorise": True,
+        "evenement_id": maillon["evenement_id"],
+        "wct_id": maillon["wct_id"],
+        "ligne_id": maillon["ligne_id"],
+        "producteur": _PRODUCTEUR_VARIANCE_CHANTIER,
+    }
+
+
 def consommateurs() -> dict[str, Callable[[dict], dict]]:
     """Types d'événements consommés par M10 (ADR-0009 §3) — voir `department.yaml/evenements`."""
-    return {"m4.travaux_termines": _recevoir_travaux_termines}
+    return {
+        "m4.travaux_termines": _recevoir_travaux_termines,
+        "m6.variance_chantier": _recevoir_variance_chantier,
+    }
 
 
 def signaler_revision(ligne_id_a: str, ligne_id_b: str, horodatage: str) -> dict[str, Any]:
@@ -186,6 +234,24 @@ def verifier_reference(reference: dict[str, Any]) -> dict[str, Any]:
     if registre_cible is None:
         return {"accepte": False, "verdict": "REJ-REFERENCE-REGISTRE-INCONNU-DE-L-OUTIL"}
     return depuis_couple(contexte.verifier_reference(reference, registre_cible))
+
+
+def paquet_contexte_affaire(affaire_id: str, horodatage: str) -> dict[str, Any]:
+    """Paquet de contexte en 4 couches ordonnées pour une affaire (PLAN T3.3, `paquets.py`) : budget
+    de caractères fixé par le code (non exposé à l'appelant — P11, économie de tokens)."""
+    return paquets.assembler_paquet_contexte(affaire_id, horodatage, _REGISTRE_EVENEMENTS, _REGISTRE_AFFAIRES)
+
+
+def consolider_affaire(affaire_id: str, jour: str, horodatage: str) -> dict[str, Any]:
+    """Consolidation nocturne d'une affaire pour un jour donné (PLAN T3.3, `consolidation.py`) :
+    idempotente (`ecrit=False, deja_consolide=True` si déjà faite pour ce `(affaire_id, jour)`)."""
+    return consolidation.consolider_affaire(affaire_id, jour, horodatage, _REGISTRE_EVENEMENTS, _REGISTRE_AFFAIRES)
+
+
+def auditer_non_oubli(identifiants_attendus: list[dict[str, str]]) -> dict[str, Any]:
+    """Audit « non-oubli » (PLAN T3.3, `audit.py`) : intégrité des deux chaînes + liste compacte des
+    faits attendus sans trace au registre Événements."""
+    return audit.auditer_non_oubli(identifiants_attendus, _REGISTRE_EVENEMENTS, _REGISTRE_AFFAIRES)
 
 
 def outils() -> tuple[Outil, ...]:
@@ -314,5 +380,61 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=verifier_reference,
+        ),
+        Outil(
+            nom="m10_paquet_contexte_affaire",
+            description=(
+                "Paquet de contexte en 4 couches ORDONNÉES pour une affaire (lead/chantier) : "
+                "règles de l'entreprise → faits durables de l'affaire → événements récents → "
+                "signaux critiques non résolus. Budget de caractères et troncature calculés par "
+                "le code ; une couche vide est déclarée vide, jamais absente en silence."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "affaire_id": {"type": "string", "description": "lead_id de l'affaire."},
+                    "horodatage": {"type": "string"},
+                },
+                "required": ["affaire_id", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=paquet_contexte_affaire,
+        ),
+        Outil(
+            nom="m10_consolider_affaire",
+            description=(
+                "Consolidation nocturne : condense les événements d'une affaire pour un jour "
+                "donné en UN fait durable au registre Affaires, sans perdre la trace vers ses "
+                "sources. Idempotente : rejouer le même (affaire_id, jour) ne crée rien de plus."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "affaire_id": {"type": "string", "description": "lead_id de l'affaire."},
+                    "jour": {"type": "string", "description": "AAAA-MM-JJ, jour consolidé."},
+                    "horodatage": {"type": "string"},
+                },
+                "required": ["affaire_id", "jour", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=consolider_affaire,
+            autonomie=Autonomie.T1,
+        ),
+        Outil(
+            nom="m10_auditer_non_oubli",
+            description=(
+                "Audit « non-oubli » : intégrité des deux chaînes (registre.valider_chaine) et, "
+                "pour chaque fait ATTENDU fourni (WCT ou variance), vérifie sa trace au registre "
+                "Événements. Rend une liste compacte des oublis, jamais une valeur par défaut."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "identifiants_attendus": {"type": "array", "items": _IDENTIFIANT_ATTENDU},
+                },
+                "required": ["identifiants_attendus"],
+                "additionalProperties": False,
+            },
+            fonction=auditer_non_oubli,
         ),
     )

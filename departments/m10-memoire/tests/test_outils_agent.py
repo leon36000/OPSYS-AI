@@ -19,10 +19,13 @@ if str(_SRC) not in sys.path:
 
 from m10_memoire.outils import (
     arbitrer_revision,
+    auditer_non_oubli,
+    consolider_affaire,
     contexte_preflight,
     journaliser_decision,
     memoriser_wct,
     outils,
+    paquet_contexte_affaire,
     signaler_revision,
     statut_decision,
     verifier_reference,
@@ -92,6 +95,7 @@ def test_manifeste_et_outils_coherents():
     assert noms[0] == "m10_journaliser_decision"
     assert noms[1] == "m10_contexte_preflight"
     assert all(nom.startswith("m10_") for nom in noms)
+    assert {"m10_paquet_contexte_affaire", "m10_consolider_affaire", "m10_auditer_non_oubli"} <= set(noms)
 
 
 def test_journaliser_decision_valide_ecrit_et_retourne_une_reference_verifiable():
@@ -194,3 +198,77 @@ def test_statut_hors_enumeration_refuse_par_le_schema_de_arbitrer_revision():
         {"revision_ligne_id": "x", "statut": "fusionnes", "horodatage": HORODATAGE},
     )
     assert reponse["erreur"] == "arguments_invalides"
+
+
+def test_paquet_contexte_affaire_declare_les_couches_vides_pour_une_affaire_inconnue():
+    paquet = paquet_contexte_affaire("LEAD-AGENT-INCONNUE", HORODATAGE)
+
+    assert paquet["affaire_id"] == "LEAD-AGENT-INCONNUE"
+    assert all(couche["vide"] is True for couche in paquet["couches"])
+
+
+def test_paquet_contexte_affaire_reflete_un_wct_memorise():
+    memoriser_wct(_wct("WCT-PAQUET-1"))
+
+    paquet = paquet_contexte_affaire("LEAD-001", HORODATAGE)
+
+    couche_evenements = next(c for c in paquet["couches"] if c["nom"] == "evenements_recents")
+    assert couche_evenements["vide"] is False
+    assert couche_evenements["faits"][0]["identifiant"] == "WCT-PAQUET-1"
+
+
+def test_paquet_contexte_affaire_via_executer_refuse_un_budget_hors_schema():
+    outil = next(o for o in outils() if o.nom == "m10_paquet_contexte_affaire")
+    reponse = executer(outil, {"affaire_id": "LEAD-001", "horodatage": HORODATAGE, "budget_caracteres": 1})
+    assert reponse["erreur"] == "arguments_invalides"  # non exposé à l'appelant (P11)
+
+
+def test_consolider_affaire_est_idempotente_par_jour():
+    memoriser_wct(_wct("WCT-CONSO-1"))
+
+    premier = consolider_affaire("LEAD-001", "2026-08-04", HORODATAGE)
+    second = consolider_affaire("LEAD-001", "2026-08-04", "2026-08-05T03:00:00+00:00")
+
+    assert premier["ecrit"] is True
+    assert second["ecrit"] is False
+    assert second["deja_consolide"] is True
+    assert second["fait"]["ligne_id"] == premier["fait"]["ligne_id"]
+
+
+def test_consolider_affaire_sans_evenement_ce_jour_refuse_nommement():
+    reponse = consolider_affaire("LEAD-SANS-EVENEMENT", "2026-08-04", HORODATAGE)
+    assert reponse["ecrit"] is False
+    assert reponse["verdict"] is not None
+
+
+def test_auditer_non_oubli_detecte_un_wct_jamais_memorise():
+    rapport = auditer_non_oubli([{"type_evenement": "m4.travaux_termines", "identifiant": "WCT-JAMAIS-VU"}])
+
+    assert rapport["nb_oublis"] == 1
+    assert rapport["chaine_evenements_intacte"] is True
+    assert rapport["chaine_affaires_intacte"] is True
+
+
+def test_auditer_non_oubli_trouve_un_wct_memorise_par_un_autre_outil():
+    memoriser_wct(_wct("WCT-AUDIT-1"))
+
+    rapport = auditer_non_oubli([{"type_evenement": "m4.travaux_termines", "identifiant": "WCT-AUDIT-1"}])
+
+    assert rapport["nb_oublis"] == 0
+
+
+def test_auditer_non_oubli_via_executer_refuse_une_liste_mal_typee():
+    outil = next(o for o in outils() if o.nom == "m10_auditer_non_oubli")
+    reponse = executer(outil, {"identifiants_attendus": "pas-une-liste"})
+    assert reponse["erreur"] == "arguments_invalides"
+
+
+def test_auditer_non_oubli_via_executer_un_element_sans_identifiant_devient_un_oubli():
+    """La validation JSON Schema d'OPSYS ne vérifie pas la structure des ÉLÉMENTS d'un tableau
+    (opsys/outils.py::valider_arguments, volontairement réduite — voir sa docstring) : un élément
+    incomplet n'est pas un refus_metier, il se traduit en oubli explicite (identifiant=None),
+    jamais une exception ni une valeur par défaut optimiste."""
+    outil = next(o for o in outils() if o.nom == "m10_auditer_non_oubli")
+    reponse = executer(outil, {"identifiants_attendus": [{"type_evenement": "m4.travaux_termines"}]})
+    assert reponse["ok"] is True
+    assert reponse["resultat"]["nb_oublis"] == 1

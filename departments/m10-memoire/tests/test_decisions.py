@@ -158,6 +158,33 @@ def test_enregistrements_successifs_sont_chainés_et_valides():
     assert chaine_valide is True
 
 
+def test_decisions_par_statut_ne_garde_que_le_statut_courant():
+    registre_cible = registre.Registre()
+    decisions.enregistrer_decision(_decision("DEC-001", "validee"), registre_cible, HORODATAGE)
+    decisions.enregistrer_decision(_decision("DEC-002", "proposee"), registre_cible, HORODATAGE)
+
+    validees = decisions.decisions_par_statut(registre_cible, "validee")
+
+    assert [m["decision_id"] for m in validees] == ["DEC-001"]
+
+
+def test_decisions_par_statut_exclut_une_decision_revalidee_puis_remplacee():
+    registre_cible = registre.Registre()
+    decisions.enregistrer_decision(_decision("DEC-001", "validee"), registre_cible, HORODATAGE)
+    decisions.enregistrer_decision(_decision("DEC-001", "remplacee"), registre_cible, HORODATAGE)
+
+    validees = decisions.decisions_par_statut(registre_cible, "validee")
+
+    assert validees == []
+
+
+def test_decisions_par_statut_rend_une_liste_vide_sans_correspondance():
+    registre_cible = registre.Registre()
+    decisions.enregistrer_decision(_decision("DEC-001", "proposee"), registre_cible, HORODATAGE)
+
+    assert decisions.decisions_par_statut(registre_cible, "validee") == []
+
+
 def test_decisions_cohabitent_avec_evenements_et_les_ignorent():
     registre_cible = registre.Registre()
     registre_cible.ajouter(

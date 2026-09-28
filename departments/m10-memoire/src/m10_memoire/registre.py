@@ -20,6 +20,7 @@ _TYPE_ENTREE_VALIDES = {
     "evenement_memorise",
     "decision_enregistree",
     "revision_signalee",
+    "fait_consolide",  # PLAN T3.3 : consolidation.py, un fait durable qui cite ses sources
 }
 
 

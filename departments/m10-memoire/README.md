@@ -11,14 +11,25 @@ raison obligatoire (statut par relecture), révision sans fusion, prédicat de c
 avec trace du refus, référence `memoire_m10` vérifiable, conformité statique (dont la garde
 anti-mutation).
 
+PLAN T3.3 ajoute (mêmes garanties, mêmes registres) : consommation de la variance matériaux de M6
+(`m6.variance_chantier`, même registre Événements que le WCT, distinguée à la lecture par
+`classification.py`) ; paquets de contexte en couches pour une affaire (`paquets.py`,
+`m10_paquet_contexte_affaire`) — budget de caractères et troncature calculés par le code, jamais
+par un modèle, provenance sur chaque fait ; consolidation nocturne idempotente par jour
+(`consolidation.py`, `m10_consolider_affaire`) qui condense les événements d'une affaire en UN
+fait durable citant ses sources ; audit « non-oubli » (`audit.py`, `m10_auditer_non_oubli`) qui
+vérifie l'intégrité des deux chaînes et la trace de chaque fait attendu (WCT, variance).
+
 - `department.yaml` — manifeste (`m10_memoire.outils`, aucune dépendance — M10 est la fondation
   mémoire que M9 consomme).
 - `SOUL.md` — identité de l'agent.
 - `skills/journaliser-une-decision/` et `skills/preflight-contexte-suffisant/` — procédures.
-- `src/m10_memoire/outils.py` — deux outils composés, `m10_journaliser_decision` (validation →
-  écriture Affaires → référence) et `m10_contexte_preflight` (PREFLIGHT, trace le refus sans
-  jamais interrompre l'appelant), + 6 outils unitaires (WCT, révision, statuts, vérification de
-  référence).
+- `src/m10_memoire/outils.py` — outils composés : `m10_journaliser_decision` (validation →
+  écriture Affaires → référence), `m10_contexte_preflight` (PREFLIGHT, trace le refus sans
+  jamais interrompre l'appelant), `m10_paquet_contexte_affaire`, `m10_consolider_affaire`,
+  `m10_auditer_non_oubli` (PLAN T3.3), + outils unitaires (WCT, révision, statuts, vérification
+  de référence). Seul ce module touche `opsys` (stockage, bus) : `classification.py`,
+  `variance.py`, `consolidation.py`, `paquets.py` et `audit.py` restent purs (DA-M10-08).
 - Correctifs de fiabilité (TDD, tests dans `tests/`) :
   - `revision.py` — l'arbitrage d'une révision qui n'a jamais été signalée était accepté ;
     refusé nommément désormais (`REJ-REVISION-SIGNALEMENT-INTROUVABLE`).

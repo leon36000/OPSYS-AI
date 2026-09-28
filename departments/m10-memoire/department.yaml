@@ -22,6 +22,14 @@ planifications:
       Résume en 5 lignes l'activité de la veille des deux registres : décisions journalisées
       (par statut), révisions signalées vs arbitrées, refus de préflight tracés. Ne journalise
       aucune décision, ne signale aucune révision.
+  - nom: consolidation-nocturne
+    cron: "0 3 * * *"
+    consigne: >-
+      Pour chaque affaire (lead_id) ayant reçu au moins un événement (WCT ou variance matériaux)
+      la veille, appelle m10_consolider_affaire(affaire_id, jour=<veille AAAA-MM-JJ>,
+      horodatage=<maintenant>) — jamais de résumé calculé par toi-même, l'outil condense
+      déterministiquement et cite ses sources. Idempotente : un jour déjà consolidé pour une
+      affaire ne crée rien de plus, relance sans crainte celles qui restent incertaines.
 budget:
   tokens_jour: 200000
   tokens_mois: 2500000
@@ -36,8 +44,17 @@ kpis:
     description: Part des dossiers de contexte soumis au préflight jugés insuffisants (refus tracés).
   - id: nb_references_forgees_detectees
     description: Nombre de ReferenceMemoireM10 rejetées par m10_verifier_reference (registre, ligne_id ou hash_tete incohérents).
+  - id: nb_affaires_consolidees_jour
+    description: Nombre d'affaires distinctes ayant reçu un nouveau fait consolidé (ecrit=true) lors du dernier cycle de consolidation nocturne.
+  - id: nb_oublis_detectes_audit
+    description: Nombre de faits attendus (WCT, variance) sans trace trouvée au registre Événements lors du dernier audit non-oubli.
 # PLAN T1.2-c : M10 consomme la fin de travaux de M4 par le bus d'événements du socle (ADR-0009
 # §3) et mémorise le WCT au registre Événements (voir consommateurs() dans outils.py, logique
 # existante memoriser_wct). Catalogue : src/opsys/evenements/catalogue/m4.travaux_termines.json.
+# PLAN T3.3 : M10 consomme aussi la variance matériaux de M6 (catalogue existant, stable :
+# src/opsys/evenements/catalogue/m6.variance_chantier.json), mémorisée au même registre Événements
+# (variance.py, distinguée du WCT à la lecture par classification.py) — alimente les paquets de
+# contexte en couches (paquets.py), la consolidation nocturne (consolidation.py) et l'audit
+# « non-oubli » (audit.py).
 evenements:
-  consomme: [m4.travaux_termines]
+  consomme: [m4.travaux_termines, m6.variance_chantier]
