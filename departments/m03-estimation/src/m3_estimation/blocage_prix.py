@@ -18,9 +18,7 @@ l'échappatoire « on ne sait pas pourquoi », retenu seulement quand aucune
 cause nommable ne classifie le blocage.
 """
 
-from . import hierarchie_echelle
-from . import verdicts
-from . import contrats
+from . import contrats, hierarchie_echelle, verdicts
 
 # Niveau de confiance nominal ÉNONCÉ par l'architecture pour les intervalles
 # de M3 : valeur déclarée en constante nommée, pas un chiffre inventé. Ce
@@ -136,11 +134,7 @@ def decider_blocage(niveau_confiance, qualification):
 
     # Les bornes valent TOUJOURS None : ce module ne CALCULE aucun prix, il
     # décide du blocage — le calcul est la story suivante. Empêche : un
-    # « 0 » lu comme un prix là où None dit l'absence de prix. Le champ
-    # ``niveau`` porte le niveau issu de la hiérarchie ; le niveau de
-    # confiance nominal énoncé par l'architecture (NIVEAU_CONFIANCE_NOMINAL)
-    # n'est volontairement pas émis : aucun chiffre ne quitte un module qui
-    # ne calcule rien.
+    # « 0 » lu comme un prix là où None dit l'absence de prix.
     # Ce que la confusion produisait : le champ portait le NOM du niveau de
     # confiance là où le contrat attend le TAUX numérique de l'intervalle —
     # deux grandeurs différentes qui partagent un mot. Le contrat déclare
@@ -149,7 +143,7 @@ def decider_blocage(niveau_confiance, qualification):
     intervalle_confiance = {
         "borne_basse": None,
         "borne_haute": None,
-        "niveau": niveau_confiance,
+        "niveau": NIVEAU_CONFIANCE_NOMINAL,
     }
 
     # LA RÈGLE : bloqué si le niveau est INDETERMINE, OU si la qualification
