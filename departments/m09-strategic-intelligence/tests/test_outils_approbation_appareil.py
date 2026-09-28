@@ -6,18 +6,11 @@ prouve dans `tests/test_approbations_appareil.py` du socle, par ces mêmes outil
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
+from m9_strategic_intelligence.outils import outils
+from m9_strategic_intelligence.registre import RegistreSnapshots
 
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from m9_strategic_intelligence.outils import outils  # noqa: E402
-from m9_strategic_intelligence.registre import RegistreSnapshots  # noqa: E402
-from opsys.outils import Autonomie, Niveau, executer  # noqa: E402
+from opsys.outils import Autonomie, Niveau, executer
 
 LISTER = "m9_lister_demandes_approbation"
 DECIDER = "m9_decider_demande_approbation"
