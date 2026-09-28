@@ -7,6 +7,12 @@ Fonctions :
 Constantes :
     ACTIONS, TYPE_POINTAGE, TYPE_DEMANDE_REVUE, TYPE_REVUE_ANOMALIE,
     CAUSES_NEUTRES
+
+PLAN T1.4-d (R12 §4, docs/architecture/IDEMPOTENCE.md §5) : ``horodatage_arg`` FAIT TOUJOURS FOI
+ici et en aval (durée réelle, brouillon de paie ``temps.py``/``outbox.py``) ; ``horodatage_appareil``
+(optionnel) n'est JAMAIS consulté pour un calcul, seulement porté pour l'affichage. Ce module reste
+pur (aucune horloge, aucun import ``opsys``) : c'est ``outils.py`` seul qui décide, pendant un
+appel d'appareil, de faire foi de l'heure de RÉCEPTION DU SERVEUR plutôt que de l'argument fourni.
 """
 
 import math
@@ -63,6 +69,7 @@ def enregistrer_pointage(
     ville,
     sel,
     registre_cible,
+    horodatage_appareil=None,
 ):
     """Enregistre un pointage horodaté et géolocalisé.
 
@@ -72,11 +79,30 @@ def enregistrer_pointage(
 
     Les données de localisation ne sont jamais conservées dans les verdicts
     de rejet (Loi 25 / CA-M4-19).
+
+    Args:
+        horodatage_arg: horodatage RFC 3339 avec fuseau qui FAIT FOI pour tout calcul en aval
+            (fenêtre de travail, cohérence GPS, ordre CA-M4-07, et — via ``outbox``, à la
+            complétion — la durée réelle du brouillon de paie, T1.4-d). Ce module ne consulte
+            AUCUNE horloge : d'où vient cette valeur (l'appelant, ou — pendant un appel
+            d'appareil, R12 §4 — l'heure de RÉCEPTION DU SERVEUR) est une décision de
+            ``outils.py`` (l'adaptateur), jamais de ce module pur.
+        horodatage_appareil: T1.4-d (R12 §4), optionnel — l'heure de l'appareil, DISPLAY
+            SEULEMENT (« pointé à 14 h 32 »), jamais utilisée pour un calcul ci-dessous ni en
+            aval : une horloge d'appareil peut dériver. ``None`` (défaut) hors d'un appel
+            d'appareil — comportement strictement inchangé, la clé n'apparaît alors ni sur le
+            maillon ni sur l'accusé.
     """
     # -- 1. action valide
     if action not in ACTIONS:
         return (None, verdicts.construire_verdict("REJ-ENUM-INVALIDE",
                                                    detail=f"action={action}"))
+
+    # -- 1 bis. horodatage_appareil : forme seulement (T1.4-d) — ce module ne le CONSULTE jamais
+    # pour un calcul, il le porte tel quel pour l'affichage.
+    if horodatage_appareil is not None and not isinstance(horodatage_appareil, str):
+        return (None, verdicts.construire_verdict("REJ-CONTRAT-INVALIDE",
+                                                   detail="horodatage_appareil doit être une chaîne ou null"))
 
     # -- 2. horodatage valide (fuseau obligatoire)
     try:
@@ -258,6 +284,11 @@ def enregistrer_pointage(
         "ville_tokenisee": token_ville,
         "gps_coherent": coherent,
     }
+    if horodatage_appareil is not None:
+        # T1.4-d : DISPLAY seulement, jamais relu par calculer_duree_reelle/calculer_minutes_*
+        # (outbox.py) ni par statut_courant/fenêtre/cohérence GPS ci-dessus — tous restent sur
+        # horodatage_arg, qui fait foi.
+        maillon_pointage["horodatage_appareil"] = horodatage_appareil
     ligne_id = registre_cible.ajouter(maillon_pointage)
 
     # 13. Suite d'état selon la table ratifiée
@@ -319,6 +350,8 @@ def enregistrer_pointage(
         "demande_id": demande_id,
         "tete_chaine": tete_chaine,
     }
+    if horodatage_appareil is not None:
+        accuse["horodatage_appareil"] = horodatage_appareil  # T1.4-d : lisible, jamais un calcul
     return (accuse, None)
 
 

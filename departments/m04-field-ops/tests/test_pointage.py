@@ -664,3 +664,56 @@ def test_arrivee_incoherente_puis_reprise_apres_arbitrage():
     assert etats_mod.statut_courant(reg, i_id) == "sur_site"
     assert reg.valider_chaine() is True
 
+
+# ==================================================================================
+# PLAN T1.4-d — horodatage_appareil : DISPLAY seulement, jamais un calcul (module pur, sans
+# opsys.contexte). La décision « pendant un appel d'appareil, quelle valeur devient
+# horodatage_arg » appartient à outils.py — voir test_paie_horloge_appareil.py.
+# ==================================================================================
+def test_horodatage_appareil_absent_par_defaut_rien_sur_accuse_ni_maillon():
+    """Comportement inchangé (T1.4-d) : sans l'argument, ni l'accusé ni le maillon ne portent
+    `horodatage_appareil` — l'ensemble exact de clés reste celui d'avant T1.4-d."""
+    reg, i_id = _registre_en_route()
+    accusé, verdict = pointage_mod.enregistrer_pointage(
+        i_id, "T1", "arrivee", H_VALIDE3,
+        GPS_PROCHE, ATTESTATION, ASSIGNATION(i_id), FENETRE, REFERENTIEL, VILLE, SEL, reg,
+    )
+    assert accusé is not None, f"enregistrement échoué : {verdict}"
+    assert "horodatage_appareil" not in accusé
+    maillon = next(m for m in reg.lire() if m["ligne_id"] == accusé["ligne_id"])
+    assert "horodatage_appareil" not in maillon
+
+
+def test_horodatage_appareil_fourni_porte_sur_accuse_et_maillon_sans_toucher_au_calcul():
+    """Fourni, `horodatage_appareil` apparaît TEL QUEL sur l'accusé et le maillon — mais
+    `horodatage` (qui pilote fenêtre, cohérence GPS, statut) reste `horodatage_arg`, jamais
+    l'heure d'appareil : les deux valeurs peuvent même diverger fortement sans que rien d'autre
+    ne change (elle n'est JAMAIS consultée pour un calcul dans ce module)."""
+    reg, i_id = _registre_en_route()
+    horo_appareil = "2000-01-01T00:00:00+00:00"  # délibérément aberrante, hors FENETRE
+    accusé, verdict = pointage_mod.enregistrer_pointage(
+        i_id, "T1", "arrivee", H_VALIDE3,
+        GPS_PROCHE, ATTESTATION, ASSIGNATION(i_id), FENETRE, REFERENTIEL, VILLE, SEL, reg,
+        horodatage_appareil=horo_appareil,
+    )
+    assert accusé is not None, f"enregistrement échoué : {verdict}"
+    assert accusé["horodatage"] == H_VALIDE3
+    assert accusé["horodatage_appareil"] == horo_appareil
+    assert accusé["gps_coherent"] is True  # inchangé : le calcul ignore horodatage_appareil
+    maillon = next(m for m in reg.lire() if m["ligne_id"] == accusé["ligne_id"])
+    assert maillon["horodatage"] == H_VALIDE3
+    assert maillon["horodatage_appareil"] == horo_appareil
+
+
+def test_horodatage_appareil_type_invalide_refuse_rien_ecrit():
+    reg, i_id = _registre_en_route()
+    taille_avant = len(reg.lire())
+    accusé, verdict = pointage_mod.enregistrer_pointage(
+        i_id, "T1", "arrivee", H_VALIDE3,
+        GPS_PROCHE, ATTESTATION, ASSIGNATION(i_id), FENETRE, REFERENTIEL, VILLE, SEL, reg,
+        horodatage_appareil=12345,
+    )
+    assert accusé is None
+    assert verdict["code"] == "REJ-CONTRAT-INVALIDE"
+    assert len(reg.lire()) == taille_avant
+

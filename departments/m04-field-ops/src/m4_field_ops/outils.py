@@ -133,10 +133,26 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
         fix_gps: dict[str, Any], attestation: dict[str, Any], fenetre_travail: dict[str, Any],
         referentiel_villes: dict[str, Any], ville: str, sel: str,
     ) -> dict[str, Any]:
+        # T1.4-d (R12 §4, docs/architecture/IDEMPOTENCE.md §5) : pendant un appel d'appareil,
+        # l'heure de RÉCEPTION DU SERVEUR fait foi pour la paie — jamais l'horloge de l'appareil
+        # (potentiellement déréglée), ni la valeur `horodatage` fournie par l'appelant. L'heure de
+        # l'appareil reste lisible À CÔTÉ (affichage seulement, jamais un calcul — pointage.py ne
+        # la consulte jamais). Hors appel d'appareil (agent, console) : comportement inchangé,
+        # `horodatage` fait foi comme avant T1.4-b. Aucune horloge n'est consultée ici : ces deux
+        # valeurs sont déjà celles que la plateforme a fixées (contexte.receptionne_de), jamais le
+        # modèle.
+        horodatage_appareil_ctx = contexte.horodatage_reception()
+        if horodatage_appareil_ctx is not None:
+            horodatage_faisant_foi = horodatage_appareil_ctx.recu_le.isoformat()
+            horodatage_appareil = horodatage_appareil_ctx.horodatage_appareil.isoformat()
+        else:
+            horodatage_faisant_foi = horodatage
+            horodatage_appareil = None
         return depuis_couple(pointage.enregistrer_pointage(
-            intervention_id, technicien_id, action, horodatage, fix_gps, attestation,
+            intervention_id, technicien_id, action, horodatage_faisant_foi, fix_gps, attestation,
             {"intervention_id": intervention_id, "technicien_id": technicien_id},
             fenetre_travail, referentiel_villes, ville, sel, registre_courant(),
+            horodatage_appareil=horodatage_appareil,
         ))
 
     def creer_demande_ecart(
@@ -355,7 +371,10 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
                 "Enregistre un pointage terrain (arrivee/depart) horodaté et géolocalisé. "
                 "Vérifie la cohérence GPS contre le référentiel des villes ET l'assignation "
                 "contre celle réellement envoyée en_route (registre) — jamais la seule "
-                "déclaration de l'appelant. Route automatiquement vers sur_site ou en_revue."
+                "déclaration de l'appelant. Route automatiquement vers sur_site ou en_revue. "
+                "Pendant un appel d'appareil (T1.4-d) : l'heure de réception du serveur fait foi "
+                "pour la paie, quelle que soit la valeur de horodatage fournie ; l'heure de "
+                "l'appareil reste lisible mais n'est jamais utilisée pour un calcul."
             ),
             parametres={
                 "type": "object",
@@ -594,7 +613,10 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             description=(
                 "Brouillon de temps agrégé par intervention complétée, pour une période "
                 "(minutes travaillées, déplacement, pause) — aucun taux ni montant, M5 validera "
-                "la paie. Signale un dépassement d'heures par technicien si seuil_minutes est fourni."
+                "la paie. Signale un dépassement d'heures par technicien si seuil_minutes est fourni. "
+                "Calcule depuis l'heure qui fait foi de chaque pointage (T1.4-d) : quand un "
+                "pointage a été reçu pendant un appel d'appareil, c'est l'heure de réception du "
+                "serveur, jamais l'horloge de l'appareil, qui a déjà été retenue à l'écriture."
             ),
             parametres={
                 "type": "object",
