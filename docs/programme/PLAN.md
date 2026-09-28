@@ -96,6 +96,18 @@ identifiants du propriétaire, repli livré en attendant.
       verifier OK.
 - [ ] T0.10 Superviseur : le core lance et surveille le moteur métier Python (via `uv`), santé et
       journaux unifiés, une seule authentification.
+      Livré (096512f, 533f6a6), à cocher quand le job `tests-opsys` du core sera vert :
+      - réutilise `ProcessSupervisor` (lancement, sortie relayée, arrêt de l'arbre) et
+        `RetrySupervisor` du fork ; désactivé par défaut (`opsys/metier.json`, `"actif": true`) ;
+      - `uv run opsys-mcp --http` sur 127.0.0.1 ; sonde `GET /sante` (sans jeton ni donnée
+        métier) ; relance avec recul borné, `failed` après dix relances ; état `opsysMetier` dans
+        les RPC `health` et `status` ; journaux sous `opsys-metier`, lignes masquées ;
+      - jeton `OPSYS_MCP_JETON` lu ou généré, passé par l'environnement de l'enfant seulement ;
+        l'enfant ne reçoit ni `OPENCLAW_*` ni les clés de fournisseurs ;
+      - socle 548 (dont 14 pour `/sante` sur un vrai uvicorn), ruff, verifier.
+
+      Limite : `${OPSYS_MCP_JETON}` doit exister dans l'environnement ou le `.env` de
+      l'installation (T0.11) ; un jeton généré ne sert qu'au moteur.
 - [x] T0.12 M3 : l'outillage de mutation (`tests/outils_preuve/muter_*.py`) travaille sur une copie
       temporaire, jamais sur la vraie source. Une exécution tuée avait laissé une mutation dans
       `blocage_prix.py`, et elle a été commitée par erreur (899bbad). Elle est corrigée par 7ad0377.
