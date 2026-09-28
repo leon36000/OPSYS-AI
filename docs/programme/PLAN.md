@@ -883,8 +883,23 @@ météo et GPS M4, vision M3, conseil d'agents M9…
         versionné (patron T4.2), `m4_proposer_localisation` et `m4_confirmer_localisation` (rôle
         `admin`) ; aucune coordonnée n'entre au solveur sans confirmation humaine ; aucun accès
         réseau.
-  - [ ] T4.1-b Matrice : `distances.py` (haversine entier, détour, vitesse et marge fournis par
+  - [x] T4.1-b Matrice : `distances.py` (haversine entier, détour, vitesse et marge fournis par
         l'entreprise, sinon verdict), port `FournisseurMatrice`, adaptateur OSRM optionnel.
+        Preuve (4ad01f6) :
+        - haversine en virgule fixe sur entiers (séries, `isqrt`) : indépendante de la `libm`,
+          identique à une référence `Decimal` à 90 chiffres sur 100 paires, et à
+          `pointage.distance_km` à 1 m près ; aucun flottant ni `/` dans le code (test AST) ;
+        - détour, vitesse et marge obligatoires et bornés, sinon verdict ; matrice triée,
+          `mode_distance`, `mode_bride`, empreinte SHA-256 qui couvre les paramètres ;
+          `verifier_matrice` refuse toute falsification ;
+        - adaptateur OSRM (`distances_osrm.py`) : URL locale seulement, sans redirection ni
+          mandataire, délai et taille bornés ; panne → repli explicite sur le palier 0, inscrit
+          dans l'empreinte ; trajet introuvable → verdict, jamais de route inventée ;
+        - M4 1083 (+231), ruff, gate BMAD, verifier ; 100 points en 0,07 s.
+
+        Reste pour T4.1-d : inscrire au catalogue de verdicts les trois codes propres à la
+        matrice ; aucun vrai sidecar OSRM essayé ; la fixture d'étalonnage est fictive (30 paires
+        réelles à mesurer avant de fixer le détour).
   - [ ] T4.1-c Solveur et validateur : `tournees.py`, adaptateur PyVRP (extra `tournees`), DP exact
         de repli et oracle, `verifier_plan`, raisons de non-cédule calculées par notre code ;
         mêmes octets d'une exécution à l'autre.
