@@ -946,3 +946,93 @@ def test_duree_du_premier_arrivee_au_dernier_depart():
     assert acc is not None, f"complétion refusée : {verd}"
     assert acc["duree_reelle_minutes"] == 160
 
+# ------------------------------------------------------------------ 15. confirmer_verification (PLAN T1.2, point 4)
+def _intervention_en_pending_review():
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    acc, verd = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=True)
+    assert acc is not None, f"complétion refusée : {verd}"
+    assert acc["statut"] == "completed_pending_review"
+    return reg, i_id
+
+
+def test_confirmer_verification_nominal_passe_a_completed_verified():
+    reg, i_id = _intervention_en_pending_review()
+    acc, verd = outbox_mod.confirmer_verification(
+        i_id, H_COMPLETION, reg, evenement_id_variance="m6-variance-abc",
+    )
+    assert acc is not None, f"confirmation refusée : {verd}"
+    assert acc["statut"] == "completed_verified"
+    assert acc["deja_verifie"] is False
+    assert acc["evenement_id_variance"] == "m6-variance-abc"
+    assert etats_mod.statut_courant(reg, i_id) == "completed_verified"
+
+
+def test_confirmer_verification_ne_porte_jamais_de_wct():
+    """Le WCT vit déjà sur le premier maillon (complétion) : la confirmation n'en écrit
+    jamais un second (garde_ecriture_unique le vérifie statiquement)."""
+    reg, i_id = _intervention_en_pending_review()
+    outbox_mod.confirmer_verification(i_id, H_COMPLETION, reg, evenement_id_variance="m6-variance-abc")
+    maillon_confirmation = reg.lire()[-1]
+    assert outbox_mod.CLE_WCT not in maillon_confirmation
+    assert maillon_confirmation["statut"] == "completed_verified"
+    assert maillon_confirmation["statut_precedent"] == "completed_pending_review"
+
+
+def test_confirmer_verification_idempotente_redelivrance_ne_change_rien():
+    reg, i_id = _intervention_en_pending_review()
+    acc1, _ = outbox_mod.confirmer_verification(i_id, H_COMPLETION, reg, evenement_id_variance="m6-variance-abc")
+    taille_apres_premiere = reg.taille()
+    tete_apres_premiere = reg.tete()
+
+    acc2, verd2 = outbox_mod.confirmer_verification(
+        i_id, H_COMPLETION, reg, evenement_id_variance="m6-variance-abc-second-envoi",
+    )
+    assert verd2 is None, f"une redélivrance ne doit jamais être un refus : {verd2}"
+    assert acc2["deja_verifie"] is True
+    assert acc2["statut"] == "completed_verified"
+    assert reg.taille() == taille_apres_premiere, "une redélivrance n'écrit rien de plus"
+    assert reg.tete() == tete_apres_premiere
+    assert acc1["statut"] == acc2["statut"]
+
+
+def test_confirmer_verification_refuse_hors_pending_review():
+    reg, i_id = _intervention_sur_site_avec_pointages()   # encore sur_site, jamais complétée
+    acc, verd = outbox_mod.confirmer_verification(i_id, H_COMPLETION, reg, evenement_id_variance="m6-variance-x")
+    assert acc is None
+    assert verd["code"] == "REJ-TRANSITION-ILLEGALE"
+    assert etats_mod.statut_courant(reg, i_id) == "sur_site"
+
+
+def test_confirmer_verification_evenement_id_variance_requis():
+    reg, i_id = _intervention_en_pending_review()
+    with pytest.raises(TypeError):
+        outbox_mod.confirmer_verification(i_id, H_COMPLETION, reg)  # mot-clé obligatoire, aucun défaut
+
+
+def test_verifier_invariants_outbox_sain_apres_confirmation():
+    reg, i_id = _intervention_en_pending_review()
+    outbox_mod.confirmer_verification(i_id, H_COMPLETION, reg, evenement_id_variance="m6-variance-abc")
+    ok, msg = outbox_mod.verifier_invariants_outbox(reg)
+    assert ok, msg
+
+
+def test_garde_ecriture_unique_reel_couvre_confirmer_verification():
+    """La garde réelle (aucun chemin_source fourni) reste verte MAINTENANT que
+    confirmer_verification écrit, elle aussi, un maillon `statut=completed_verified`."""
+    ok, msg = outbox_mod.garde_ecriture_unique()
+    assert ok, msg
+
+
+def test_garde_ecriture_unique_violation_statut_hors_fonctions_autorisees(tmp_path):
+    """Un TROISIÈME chemin d'écriture (hors completer_intervention/confirmer_verification)
+    qui pose directement `statut="completed_verified"` doit être détecté."""
+    fake = tmp_path / "fake4.py"
+    fake.write_text(
+        'def autre_fonction(registre):\n'
+        '    registre.ajouter({"type_entree": "transition_statut", "statut": "completed_verified"})\n',
+        encoding="utf-8",
+    )
+    ok, msg = outbox_mod.garde_ecriture_unique(chemin_source=str(tmp_path))
+    assert not ok
+    assert "completed_verified" in msg
+

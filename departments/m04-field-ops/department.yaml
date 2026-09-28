@@ -32,3 +32,6 @@ kpis:
     description: Part des pointages produisant une anomalie de cohérence GPS (CA-M4-08).
   - id: delai_moyen_resolution_revue
     description: Délai moyen entre l'ouverture d'une demande de revue et sa résolution.
+evenements:                        # ADR-0009 §3, PLAN T1.2-b
+  publie: [m4.travaux_termines]    # même transaction que le WCT (outbox.completer_intervention)
+  consomme: [m6.variance_chantier] # confirme completed_verified (outbox.confirmer_verification)

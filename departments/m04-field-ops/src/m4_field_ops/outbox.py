@@ -375,6 +375,95 @@ def completer_intervention(intervention_id, horodatage_arg, registre_cible, *, e
     return accuse, None
 
 
+def confirmer_verification(intervention_id, horodatage_arg, registre_cible, *, evenement_id_variance):
+    """
+    Deuxième et DERNIER chemin d'écriture d'un statut de complétion (avec
+    ``completer_intervention``) : fait passer une intervention de
+    ``completed_pending_review`` à ``completed_verified`` — PLAN T1.2, point 4.
+
+    Le code calcule, jamais un agent (T1.1-b) : cette fonction n'est appelée que par le
+    consommateur de ``m6.variance_chantier`` (``outils.py``), jamais par un outil d'agent.
+    Elle n'écrit RIEN d'autre que ce seul statut : les preuves de complétion
+    (PreuvesCompletion) sont déjà garanties par ``completer_intervention`` (T1.1-b#3, la
+    complétion n'existe pas sans elles) — aucune re-vérification à faire ici.
+
+    Contrairement à ``completer_intervention``, cette transition n'émet PAS de WCT (le WCT
+    existe déjà, écrit à la complétion) : le maillon de transition ne porte jamais la clé
+    ``CLE_WCT`` — ``garde_ecriture_unique`` le vérifie. Elle bypasse volontairement
+    ``etats.transitionner`` (qui refuse ``completed_verified`` comme cible, CA-M4-11) pour
+    la même raison que ``completer_intervention`` le bypasse déjà : la table des
+    transitions dit ce qui est LÉGAL, ce module seul dit qui ÉCRIT.
+
+    Args:
+        intervention_id: identifiant de l'intervention à vérifier.
+        horodatage_arg: horodatage RFC 3339 avec fuseau — TOUJOURS celui du WCT d'origine
+            (``m6.variance_chantier.horodatage_completion``, porté tel quel depuis
+            ``m4.travaux_termines``), jamais une horloge consultée ici (``garde_absence_horloge``
+            interdit tout appel d'horloge dans ce paquet) : la vérification date le MÊME
+            instant que la complétion qu'elle confirme, elle ne crée pas un nouveau fait.
+        registre_cible: instance de Registre.
+        evenement_id_variance: ``evenement_id`` de l'événement ``m6.variance_chantier`` qui
+            justifie la décision (mot-clé obligatoire, jamais None) — tracé sur le maillon
+            pour que l'audit retrouve la base exacte de la transition (PLAN T1.2, point 4).
+
+    Returns:
+        (accusé, None) ou (None, verdict). Idempotent : si l'intervention est DÉJÀ
+        ``completed_verified`` (redélivrance du même événement, ou concurrence), AUCUNE
+        écriture n'a lieu — l'accusé porte ``deja_verifie=True``, ce n'est jamais un refus
+        (une redélivrance n'est pas une erreur, CA-M4-11 / PLAN T1.2).
+    """
+    if not isinstance(evenement_id_variance, str) or not evenement_id_variance:
+        return None, verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE", detail="evenement_id_variance requis"
+        )
+
+    courant = etats.statut_courant(registre_cible, intervention_id)
+
+    # Idempotence AVANT toute autre validation : une redélivrance du même événement ne doit
+    # jamais dépendre de la fraîcheur de l'horodatage rejoué ni de quoi que ce soit d'autre.
+    if courant == "completed_verified":
+        return {
+            "intervention_id": intervention_id,
+            "statut": "completed_verified",
+            "deja_verifie": True,
+            "tete_chaine": registre_cible.tete(),
+        }, None
+
+    if courant != "completed_pending_review":
+        return None, verdicts.construire_verdict(
+            "REJ-TRANSITION-ILLEGALE",
+            statut=courant,
+            detail=(
+                "confirmer_verification n'accepte que completed_pending_review -> "
+                "completed_verified"
+            ),
+        )
+
+    try:
+        horodatage.valider_horodatage(horodatage_arg)
+    except ValueError:
+        return None, verdicts.construire_verdict("REJ-HORODATAGE-INVALIDE")
+
+    maillon = {
+        "type_entree": etats.TYPE_TRANSITION,
+        "intervention_id": intervention_id,
+        "statut": "completed_verified",
+        "statut_precedent": courant,
+        "horodatage": horodatage_arg,
+        "evenement_id_variance": evenement_id_variance,
+    }
+    ligne_id = registre_cible.ajouter(maillon)
+
+    return {
+        "intervention_id": intervention_id,
+        "statut": "completed_verified",
+        "deja_verifie": False,
+        "ligne_id": ligne_id,
+        "evenement_id_variance": evenement_id_variance,
+        "tete_chaine": registre_cible.tete(),
+    }, None
+
+
 def lire_outbox(registre_cible, depuis_index=0):
     """
     Lit les WCT émis depuis un certain index (inclus) du registre.
@@ -403,16 +492,39 @@ def lire_outbox(registre_cible, depuis_index=0):
 
 def verifier_invariants_outbox(registre_cible):
     """
-    Vérifie l'intégrité des WCT présents dans le registre.
+    Vérifie l'intégrité des WCT présents dans le registre, PLUS (PLAN T1.2, point 4) la
+    cohérence de la confirmation ``completed_pending_review -> completed_verified`` écrite
+    par ``confirmer_verification``.
+
+    Depuis PLAN T1.2, un maillon de statut ``completed_verified`` peut être :
+    - la PREMIÈRE complétion (``statut_precedent`` hors ``STATUTS_COMPLETION``, ex.
+      ``sur_site``) : porte le wct, exactement comme avant (contrôles inchangés) ;
+    - une CONFIRMATION (``statut_precedent == "completed_pending_review"``, écrite par
+      ``confirmer_verification``) : ne porte JAMAIS de wct — il vit déjà sur le premier
+      maillon de cette même intervention — et ne peut viser que ``completed_verified``
+      depuis ``completed_pending_review`` (la seule paire que ``confirmer_verification``
+      écrit).
 
     Returns:
         (True, "") ou (False, message) en cas d'incohérence.
     """
     for maillon in registre_cible.lire():
         statut = maillon.get("statut")
+        statut_precedent = maillon.get("statut_precedent")
         wct = maillon.get(CLE_WCT)
+        confirmation = statut in STATUTS_COMPLETION and statut_precedent in STATUTS_COMPLETION
 
-        # Tout maillon complété (l'une des deux issues T1.1-b#2) doit porter un wct
+        if confirmation:
+            if wct is not None:
+                return False, "maillon de confirmation porte un wct (devrait vivre sur le premier)"
+            if statut != "completed_verified" or statut_precedent != "completed_pending_review":
+                return False, (
+                    f"confirmation illégale : {statut_precedent} -> {statut} "
+                    "(seule completed_pending_review -> completed_verified est permise)"
+                )
+            continue
+
+        # Première complétion (l'une des deux issues T1.1-b#2) : doit porter un wct.
         if statut in STATUTS_COMPLETION:
             if wct is None:
                 return False, f"maillon {statut} sans wct (index implicite)"
@@ -441,14 +553,35 @@ def verifier_invariants_outbox(registre_cible):
     return True, ""
 
 
+#: Fonctions autorisées à écrire, chacune, LEUR forme précise de maillon de complétion
+#: (PLAN T1.2, point 4) : ``completer_intervention`` écrit le maillon composite avec wct
+#: (première complétion, T1.1-b#2/CA-M4-11) ; ``confirmer_verification`` écrit SEULEMENT le
+#: maillon de confirmation sans wct (``completed_pending_review -> completed_verified``,
+#: PLAN T1.2). Aucune autre fonction, dans ce fichier ou ailleurs, ne peut écrire l'un ou
+#: l'autre : c'est exactement ce que ``garde_ecriture_unique`` vérifie ci-dessous.
+_FONCTIONS_AUTORISEES_STATUT_COMPLETION = ("completer_intervention", "confirmer_verification")
+
+
 def garde_ecriture_unique(chemin_source=None):
     """
-    Vérification statique (par AST) qu'aucun autre module n'écrit le wct
-    et que ``completer_intervention`` n'appelle ``ajouter`` qu'une fois.
+    Vérification statique (par AST) qu'aucun autre module n'écrit un statut de complétion.
 
-    Limite connue : un appel indirect (getattr, alias) échapperait à la garde.
-    Le refus au runtime de ``transitionner(..., "completed_pending_review"/
-    "completed_verified", ...)`` constitue la défense en profondeur.
+    Trois contrôles :
+    1. Seul ``completer_intervention`` écrit un maillon portant la clé ``CLE_WCT`` (le WCT).
+    2. Seuls ``completer_intervention`` et ``confirmer_verification`` (PLAN T1.2, point 4)
+       écrivent, par ``ajouter(...)``, un maillon dont la clé ``"statut"`` littérale vaut
+       ``completed_pending_review`` ou ``completed_verified`` — ce qui couvre le maillon
+       composite de ``completer_intervention`` ET le maillon de confirmation, sans wct, de
+       ``confirmer_verification`` : les deux SEULS chemins d'écriture de ces statuts.
+    3. Chacune de ces deux fonctions n'appelle ``ajouter`` qu'une fois (textuellement).
+
+    Limite connue : un appel indirect (getattr, alias) échapperait à la garde, de même
+    qu'une valeur ``statut`` construite dynamiquement (variable plutôt que littéral) —
+    ``completer_intervention`` y échappe déjà ainsi (``statut_cible`` est une variable), sans
+    conséquence puisque cette fonction reste de toute façon autorisée. Le refus au runtime de
+    ``transitionner(..., "completed_pending_review"/"completed_verified", ...)`` et le rejet
+    de ``confirmer_verification`` en dehors de ``completed_pending_review`` constituent la
+    défense en profondeur.
 
     Args:
         chemin_source: dossier des sources à analyser (défaut : dossier du module).
@@ -470,7 +603,7 @@ def garde_ecriture_unique(chemin_source=None):
         except SyntaxError:
             continue
 
-        # Parcours avec pile de fonctions pour savoir si on est dans completer_intervention
+        # Parcours avec pile de fonctions pour savoir dans quelle fonction on se trouve
         pile_fonctions = []
 
         class Visitor(ast.NodeVisitor):
@@ -480,27 +613,36 @@ def garde_ecriture_unique(chemin_source=None):
                 pile_fonctions.pop()
 
             def visit_Call(self, node):
-                # Vérification des appels à ajouter(...) avec dict contenant CLE_WCT
+                # 1. Appels à ajouter(...) avec un dict littéral contenant CLE_WCT ou
+                # "statut": <completed_pending_review|completed_verified> littéral.
                 if isinstance(node.func, ast.Attribute) and node.func.attr == "ajouter":
                     for arg in node.args:
-                        if isinstance(arg, ast.Dict):
-                            for key in arg.keys:
-                                if isinstance(key, ast.Constant) and key.value == CLE_WCT:
-                                    # Où sommes-nous ?
-                                    if "completer_intervention" in pile_fonctions:
-                                        # On comptera les appels plus tard, pour l'instant on note l'appel
-                                        # On ne peut pas compter directement ici car on veut vérifier
-                                        # le nombre total d'appels dans la fonction.
-                                        pass
-                                    else:
-                                        violations.append(
-                                            f"{path.name}: appel à ajouter avec clé {CLE_WCT} "
-                                            f"hors de completer_intervention"
-                                        )
+                        if not isinstance(arg, ast.Dict):
+                            continue
+                        porte_wct = any(
+                            isinstance(key, ast.Constant) and key.value == CLE_WCT
+                            for key in arg.keys
+                        )
+                        if porte_wct and "completer_intervention" not in pile_fonctions:
+                            violations.append(
+                                f"{path.name}: appel à ajouter avec clé {CLE_WCT} "
+                                f"hors de completer_intervention"
+                            )
+                        for key, valeur in zip(arg.keys, arg.values, strict=True):
+                            if not (isinstance(key, ast.Constant) and key.value == "statut"):
+                                continue
+                            if not (isinstance(valeur, ast.Constant) and valeur.value in STATUTS_COMPLETION):
+                                continue
+                            if not any(f in pile_fonctions for f in _FONCTIONS_AUTORISEES_STATUT_COMPLETION):
+                                violations.append(
+                                    f"{path.name}: appel à ajouter avec statut={valeur.value!r} "
+                                    f"hors de {_FONCTIONS_AUTORISEES_STATUT_COMPLETION}"
+                                )
 
-                # Vérification des appels à transitionner(..., "completed_pending_review"
+                # 2. Appels à transitionner(..., "completed_pending_review"
                 # / "completed_verified", ...) — les deux SEULES cibles de complétion
-                # (T1.1-b#2, ex-"terminee").
+                # (T1.1-b#2, ex-"terminee"), interdites à transitionner quel que soit
+                # l'appelant (elle-même les refuse déjà au runtime, défense en profondeur).
                 nom_fonc = None
                 if isinstance(node.func, ast.Attribute):
                     nom_fonc = node.func.attr
@@ -529,22 +671,18 @@ def garde_ecriture_unique(chemin_source=None):
 
         Visitor().visit(arbre)
 
-    # Vérification additionnelle du nombre d'appels à ajouter dans completer_intervention
-    # On a besoin de re-parcourir le fichier outbox.py (ou tout fichier contenant la fonction)
-    # On va spécifiquement ouvrir le fichier outbox.py pour compter les appels à ajouter.
+    # Vérification additionnelle : completer_intervention ET confirmer_verification
+    # n'appellent ajouter qu'une seule fois (textuellement) chacune. On rouvre spécifiquement
+    # outbox.py, qui les contient toutes les deux.
     own_path = Path(__file__) if chemin_source is None else None
-    # Si chemin_source est fourni, trouver le fichier qui contient completer_intervention
     if own_path is None:
-        # On cherche outbox.py dans le dossier source
         own_path = Path(chemin_source) / "outbox.py"
     if own_path.exists():
         own_arbre = ast.parse(own_path.read_text(encoding="utf-8"))
-        nb_ajout = 0
 
         class CompteurAjout(ast.NodeVisitor):
             def visit_FunctionDef(self, node):
-                if node.name == "completer_intervention":
-                    # Compter les appels à ajouter dans cette fonction
+                if node.name in _FONCTIONS_AUTORISEES_STATUT_COMPLETION:
                     compteur = 0
 
                     class LocalVisitor(ast.NodeVisitor):
@@ -555,17 +693,14 @@ def garde_ecriture_unique(chemin_source=None):
                             self.generic_visit(inner_node)
 
                     LocalVisitor().visit(node)
-                    nonlocal nb_ajout
-                    nb_ajout = compteur
+                    if compteur != 1:
+                        violations.append(
+                            f"outbox.py: {node.name} contient {compteur} appel(s) à ajouter (attendu: 1)"
+                        )
                 else:
                     self.generic_visit(node)
 
         CompteurAjout().visit(own_arbre)
-
-        if nb_ajout != 1:
-            violations.append(
-                f"outbox.py: completer_intervention contient {nb_ajout} appel(s) à ajouter (attendu: 1)"
-            )
 
     if violations:
         return False, "; ".join(violations)
@@ -622,6 +757,7 @@ __all__ = [
     "calculer_minutes_deplacement",
     "calculer_duree_reelle",
     "completer_intervention",
+    "confirmer_verification",
     "lire_outbox",
     "verifier_invariants_outbox",
     "garde_ecriture_unique",

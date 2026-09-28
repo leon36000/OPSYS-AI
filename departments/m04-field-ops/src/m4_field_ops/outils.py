@@ -28,12 +28,16 @@ pour les cas où seule une étape est nécessaire (ex. un pointage isolé).
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
-from opsys import stockage
+from opsys import evenements, stockage
 from opsys.outils import Autonomie, Outil, depuis_couple
 
 from . import cedule, digest, ecarts, etats, outbox, pointage, preuves, registre, temps
+
+_DEPARTEMENT = "m04-field-ops"
+_NOM_REGISTRE = "principal"
 
 _CONTRAT = {"type": "object", "description": "LeadQualifie M2 : sept clés gelées (lead_id, "
             "conversation_id, type_travaux, ville, canal, contact, urgence_declaree)."}
@@ -64,7 +68,7 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
         def registre_courant() -> registre.Registre:
             # Neuf à chaque usage : relu depuis la base dans la transaction de l'appel, il ne
             # garde jamais l'empreinte d'un état qu'un autre processus a depuis prolongé.
-            return registre.Registre(stockage.maillons("m04-field-ops", "principal"))
+            return registre.Registre(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE))
     else:
         def registre_courant() -> registre.Registre:
             return registre_cible
@@ -163,9 +167,32 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
         # Un agent ne peut pas affirmer l'absence d'écart : le matériel n'est pas encore comparé
         # au prévu à ce stade. La complétion reste donc à revoir ; completed_verified viendra du
         # code (variance M6 et preuves, PLAN T1.2) ou d'une décision humaine (T1.3).
-        return depuis_couple(outbox.completer_intervention(
-            intervention_id, horodatage, registre_courant(), ecart_detecte=True,
-        ))
+        reg = registre_courant()
+        accuse, verdict = outbox.completer_intervention(
+            intervention_id, horodatage, reg, ecart_detecte=True,
+        )
+        if verdict is not None:
+            return {"accepte": False, "verdict": verdict}
+        # T1.2-b : publie m4.travaux_termines DANS LA MÊME TRANSACTION que le WCT qui vient
+        # d'être écrit ci-dessus — `evenements.publier` ouvre un POINT DE SAUVEGARDE sur la
+        # transaction déjà ouverte par `executer_atomique` (ADR-0009), jamais une transaction
+        # indépendante ; un refus plus loin dans l'appelant annule les deux écritures ensemble.
+        # Gardé par `stockage.connexion_courante() is not None` (même garde que
+        # `m6_material_control.outils._registre_de_l_appel`) : seule la production (registre
+        # durable, appel enveloppé par `executer_atomique`/`Capacites.appeler`) publie ; les
+        # tests unitaires de ce fichier, qui injectent un `registre.Registre()` EN MÉMOIRE et
+        # appellent `executer()` sans transaction, ne touchent jamais la base — publier quand
+        # même y ouvrirait une transaction hors de propos pour un WCT qui n'existe que dans un
+        # objet Python local, jamais dans `evenements_sortants`.
+        if stockage.connexion_courante() is not None:
+            wct = next(
+                m[outbox.CLE_WCT] for m in reg.lire()
+                if m.get("ligne_id") == accuse["ligne_id"]
+            )
+            evenements.publier(
+                "m4.travaux_termines", _DEPARTEMENT, wct, evenement_id=wct["wct_id"],
+            )
+        return {"accepte": True, "resultat": accuse}
 
     def lire_outbox(depuis_index: int = 0) -> list[dict[str, Any]]:
         return [{"index": i, "wct": w} for i, w in outbox.lire_outbox(registre_courant(), depuis_index)]
@@ -466,3 +493,55 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             autonomie=Autonomie.T0,
         ),
     )
+
+
+# ---------------------------------------------------------------------------------------------
+# Consommateurs d'événements (ADR-0009 §3, PLAN T1.2, point 4)
+# ---------------------------------------------------------------------------------------------
+# Même module que `outils()` (docs/architecture/DEPARTEMENTS.md) : seul cet adaptateur connaît
+# `opsys`/`opsys.evenements` ; toute la logique de décision reste dans `outbox.confirmer_verification`
+# (module pur, gardé par l'AST comme le WCT). Le répartiteur (`opsys.evenements.repartir`) n'appelle
+# ces fonctions que dans une transaction déjà ouverte : le registre durable fait donc TOUJOURS
+# autorité ici, sans le mode « en mémoire » des tests unitaires de `outils()` ci-dessus.
+def _recevoir_variance_chantier(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme `m6.variance_chantier` : SEUL chemin qui fait passer une intervention de
+    `completed_pending_review` à `completed_verified` (PLAN T1.2, point 4). DÉTERMINISTE :
+    applique tel quel le verdict déjà calculé par M6 (statut_variance, signal_critique),
+    n'invente rien. Les preuves de complétion sont déjà garanties par
+    `m4_completer_intervention` (T1.1-b#3) : cette fonction n'a rien à revérifier de ce côté,
+    la complétion n'existe pas sans elles.
+
+    Idempotente à deux niveaux : le bus ne livre jamais deux fois le même `evenement_id`
+    (`evenements_recus`, ADR-0009 §3) et, en plus, `confirmer_verification` lui-même est un
+    no-op si l'intervention est déjà `completed_verified` — une redélivrance ou un second
+    événement pour le même WCT ne change jamais rien.
+    """
+    reg = registre.Registre(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE))
+    intervention_id = charge["intervention_id"]
+
+    # Seul le code décide : `evaluee` + `signal_critique` explicitement faux, rien d'autre
+    # (jamais une absence de signal traitée comme faux — le schéma du catalogue impose déjà
+    # `signal_critique` non nul seulement quand `statut_variance == "evaluee"`).
+    if charge["statut_variance"] != "evaluee" or charge["signal_critique"] is not False:
+        return {
+            "traite": True, "verifie": False,
+            "intervention_id": intervention_id, "raison": charge["statut_variance"],
+        }
+
+    accuse, verdict = outbox.confirmer_verification(
+        intervention_id, charge["horodatage_completion"], reg,
+        evenement_id_variance=charge["evenement_id"],
+    )
+    if verdict is not None:
+        return {
+            "traite": True, "verifie": False,
+            "intervention_id": intervention_id, "raison": verdict["code"],
+        }
+    return {
+        "traite": True, "verifie": not accuse["deja_verifie"],
+        "intervention_id": intervention_id, "statut": accuse["statut"],
+    }
+
+
+def consommateurs() -> dict[str, Callable[[dict], dict]]:
+    return {"m6.variance_chantier": _recevoir_variance_chantier}
