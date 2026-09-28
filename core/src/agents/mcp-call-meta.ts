@@ -6,8 +6,16 @@
 // a tool argument a model could forge, omit, or read back, and never threaded as an extra
 // parameter through `AnyAgentTool.execute` or `ServerMcpRuntime.callTool`, which stay unchanged.
 import { AsyncLocalStorage } from "node:async_hooks";
+import { resolveGlobalSingleton } from "../shared/global-singleton.js";
 
-const mcpCallMetaStorage = new AsyncLocalStorage<Record<string, unknown>>();
+// One storage per process, same pattern as `shared/async-work-scope.ts`: a module loaded twice
+// (duplicated build chunks, a reset test module registry) must still share the slot, or the
+// `/tools/invoke` side and the MCP runtime side would read two different stores and `_meta`
+// would silently never reach the wire.
+const mcpCallMetaStorage = resolveGlobalSingleton(
+  Symbol.for("opsys.mcpCallMeta"),
+  () => new AsyncLocalStorage<Record<string, unknown>>(),
+);
 
 /** Runs `run` with `meta` as the ambient MCP `_meta` for any `tools/call` it triggers. */
 export async function withMcpCallMeta<T>(
