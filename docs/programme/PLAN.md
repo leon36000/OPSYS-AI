@@ -291,6 +291,9 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
   - [ ] T1.4-c Core, après T0.5 (CI du core verte) :
     - rôles d'opérateur nommés (`admin`, `employee`, `seller`) sur le jeton d'appareil ;
     - portées d'outils par rôle ;
+    - le rôle d'une projection vient de l'identité authentifiée, jamais d'un paramètre de l'appelant.
+      Exemple : `m3_lire_devis(role=...)` retire coût, marge et prix pour un employé, mais c'est
+      aujourd'hui l'appelant qui choisit le rôle ;
     - appairage mobile, avec l'algorithme de signature lu dans le fork.
   - [ ] T1.4-d `punch.tsx` (M4.4) de bout en bout par la file sortante (R12 §5, étape 2).
   - [ ] T1.4-e Chantier du jour, transitions, checklist, photos et signature (étapes 3 et 4).

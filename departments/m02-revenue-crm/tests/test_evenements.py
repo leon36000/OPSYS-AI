@@ -103,6 +103,15 @@ def _registre():
     return outils._obtenir_registre()
 
 
+def _deps_bus():
+    """Seuls M2 et M10 reçoivent les événements de ces tests : les comptes de `repartir()` sont
+    globaux, et chaque nouveau consommateur de `m4.travaux_termines` (M6, M7, M8…) ou de ce qu'il
+    publie en retour (`m6.variance_chantier` vers M4) les changerait. M10 reste inclus parce que
+    la relivraison vérifie aussi qu'aucun maillon M10 ne s'ajoute."""
+    tous = charger_departements()
+    return {nom: tous[nom] for nom in ("m02-revenue-crm", "m10-memoire")}
+
+
 class TestManifeste:
     def test_m2_declare_consommer_travaux_termines(self):
         dep = charger_departements()["m02-revenue-crm"]
@@ -138,7 +147,7 @@ class TestNominal:
             charge["client_satisfait"] = client_satisfait
         evenements.publier("m4.travaux_termines", "m04-field-ops", charge)
 
-        resume = evenements.repartir(charger_departements(), maintenant="2026-09-15T14:05:00-04:00")
+        resume = evenements.repartir(_deps_bus(), maintenant="2026-09-15T14:05:00-04:00")
         assert resume["echecs"] == 0 and resume["quarantaines"] == 0, resume
 
         assert statuts.statut_courant(_registre(), lead_id) == "facture"
@@ -169,7 +178,7 @@ class TestLeadIntrouvable:
         evenements.publier("m4.travaux_termines", "m04-field-ops", charge)
 
         taille_avant = _registre().taille()
-        deps = charger_departements()
+        deps = _deps_bus()
         t = dt.datetime(2026, 9, 15, 14, 5, tzinfo=dt.UTC)
         resume = None
         for _ in range(5):
@@ -200,7 +209,7 @@ class TestStatutIncompatible:
         charge = _wct(lead_id, "2026-09-15T14:00:00-04:00")
         evenements.publier("m4.travaux_termines", "m04-field-ops", charge)
 
-        deps = charger_departements()
+        deps = _deps_bus()
         t = dt.datetime(2026, 9, 15, 14, 5, tzinfo=dt.UTC)
         resume = None
         for _ in range(5):
@@ -223,10 +232,8 @@ class TestRedelivraison:
         charge = _wct(lead_id, "2026-09-15T14:00:00-04:00", client_satisfait=True)
         evenements.publier("m4.travaux_termines", "m04-field-ops", charge, evenement_id="evt-redelivre-1")
 
-        deps = charger_departements()
+        deps = _deps_bus()
         resume1 = evenements.repartir(deps, maintenant="2026-09-15T14:05:00-04:00")
-        # Le nombre total de consommateurs dépend des autres départements : on vérifie seulement
-        # qu'aucun n'a échoué et que le reçu de M2 est traité.
         assert resume1["echecs"] == 0 and resume1["quarantaines"] == 0, resume1
         with stockage.transaction() as cnx:
             statut_recu = cnx.execute(select(EVENEMENTS_RECUS.c.statut).where(

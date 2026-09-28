@@ -57,6 +57,13 @@ def _registre_evenements():
     return stockage.maillons("m10-memoire", "evenements")
 
 
+def _deps_bus():
+    """Seul M10 reçoit les événements de ces tests : les comptes de `repartir()` sont globaux, et
+    chaque autre consommateur de `m4.travaux_termines` (M2, M6, M7, M8…) ou de ce qu'il publie en
+    retour (`m6.variance_chantier` vers M4) les changerait."""
+    return {"m10-memoire": charger_departements()["m10-memoire"]}
+
+
 def _quarantaine_m10():
     return [ligne for ligne in evenements.etat()["quarantaine"] if ligne["consommateur"] == "m10-memoire"]
 
@@ -74,7 +81,7 @@ class TestNominal:
         charge = _wct(wct_id)
         evenements.publier("m4.travaux_termines", "m04-field-ops", charge)
 
-        deps = charger_departements()
+        deps = _deps_bus()
         evenements.repartir(deps, maintenant="2026-09-15T14:05:00-04:00")
 
         maillons_wct = [m for m in _registre_evenements() if m.get("wct_id") == wct_id]
@@ -105,7 +112,7 @@ class TestWctRefuse:
         evenements.publier("m4.travaux_termines", "m04-field-ops", charge)
 
         taille_avant = len(_registre_evenements())
-        deps = charger_departements()
+        deps = _deps_bus()
         t = dt.datetime(2026, 9, 15, 14, 5, tzinfo=dt.UTC)
         for _ in range(5):
             evenements.repartir(deps, maintenant=t.isoformat())
