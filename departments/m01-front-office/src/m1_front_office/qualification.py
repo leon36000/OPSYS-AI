@@ -50,7 +50,7 @@ _PHONE_REGEX = re.compile(
 #   - la partie locale se lit jusqu'au « @ », lettres accentuées comprises (`\w` Unicode, `.`, `%`, `+`, `'`, `-`) ;
 #   - elle ne commence jamais juste après un caractère qui peut faire partie d'un mot ou d'une adresse : une lettre, un
 #     chiffre, `_`, `.`, `%`, `+`, `'`, `-`, `@`, les autres caractères permis par la RFC 5322 (`!#$&*/=?^`{|}~`),
-#     ni (`_dans_un_mot`) un accent combinant, un caractère de format, l'apostrophe typographique, le point médian ou
+#     ni (`dans_un_mot`) un accent combinant, un caractère de format, l'apostrophe typographique, le point médian ou
 #     un trait d'union Unicode : « o’neil@x.ca » et « jean&marie@x.ca » ne donnent rien, jamais « neil@x.ca » ni
 #     « marie@x.ca » ;
 #   - les signes qui ouvrent la suite (`.`, `%`, `+`, `'`, `-`) sont sautés : « -abc@x.ca » donne « abc@x.ca » ;
@@ -69,7 +69,7 @@ _EMAIL_REGEX = re.compile(
 _AUSSI_DANS_UN_MOT = "\u2010\u2011\u2019\u00b7"
 
 
-def _dans_un_mot(caractere: str) -> bool:
+def dans_un_mot(caractere: str) -> bool:
     """Vrai si `caractere` peut faire partie d'un mot : lettre, chiffre, marque (accent combinant), `_` et autres
     liaisons, caractère de format (trait d'union conditionnel, liant sans chasse) ou `_AUSSI_DANS_UN_MOT`."""
     categorie = unicodedata.category(caractere)
@@ -81,7 +81,7 @@ def _courriel_du_texte(contenu: str) -> str | None:
     texte = unicodedata.normalize("NFC", contenu)
     for trouve in _EMAIL_REGEX.finditer(texte):
         debut = trouve.start()
-        if debut and _dans_un_mot(texte[debut - 1]):
+        if debut and dans_un_mot(texte[debut - 1]):
             continue  # la fin d'un mot ou d'une adresse plus longue : jamais un courriel tronqué
         return trouve.group("courriel")
     return None

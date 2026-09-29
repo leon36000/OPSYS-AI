@@ -1,18 +1,20 @@
 """Temps linéaire des trois motifs de M1 hors du garde-fou du socle (PLAN T4.17-g) : un texte hostile ne bloque rien.
 
-`qualification._EMAIL_REGEX` lit le texte du client sans plafond. `contrats._PRIX_REGEX` et `transferts._COURRIEL`
+`qualification._EMAIL_REGEX` lit le texte du client sans plafond. `contrats._PRIX_REGEX` et le courriel de `transferts`
 lisent des textes plafonnés par leur contrat (500 et 1 200 caractères), mais les motifs eux-mêmes ne le sont pas. Avant
 T4.17-g, chacun relisait la même suite de caractères à chaque départ (temps de calcul pour 20 000 caractères) : 0,5 s
 au courriel du client (11 s pour 100 000), plus d'une minute au prix, de 1,1 à 1,5 s au courriel d'un résumé. Ce
 fichier prouve quatre choses.
 
-1. Le sens. Le prix et le courriel d'un résumé n'ont pas changé : les motifs d'avant (recopiés ici, tels quels, comme
-   oracle) et ceux de M1 donnent le même verdict sur toutes les suites de jetons jusqu'à une longueur donnée, sur les
-   textes de la fixture de M1, sur des textes tirés au hasard (graine fixe) et sur une table de cas nommés. Le courriel
-   du client, lui, a changé de sens exprès (PLAN T4.17-g2) : il se lit en entier, lettres accentuées comprises, ou pas
-   du tout, jamais tronqué (le lead le garde et M2 en tire le `client_id`). Son oracle est une référence écrite lettre
-   à lettre, lente et évidente (`_courriel_de_reference`), comparée sur les mêmes textes ; la table de cas nommés dit,
-   pour chacun, ce que l'ancien motif lisait et ce que M1 lit maintenant.
+1. Le sens. Le prix n'a pas changé : le motif d'avant (recopié ici, tel quel, comme oracle) et celui de M1 donnent le
+   même verdict sur toutes les suites de jetons jusqu'à une longueur donnée, sur les textes de la fixture de M1, sur
+   des textes tirés au hasard (graine fixe) et sur une table de cas nommés. Les deux courriels ont changé de sens
+   exprès. Celui du client (PLAN T4.17-g2) se lit en entier, lettres accentuées comprises, ou pas du tout, jamais
+   tronqué (le lead le garde et M2 en tire le `client_id`). Celui d'un résumé (T4.17-g3) se reconnaît aussi derrière un
+   accent combinant ou un autre caractère qui peut faire partie d'une adresse : le garde-fou refuse plus, jamais moins
+   que l'ancien motif. Chacun a pour oracle une référence écrite lettre à lettre, lente et évidente
+   (`_courriel_de_reference`, `_coordonnee_de_reference`), comparée sur les mêmes textes ; les tables de cas nommés
+   disent ce que l'ancien motif lisait et ce que M1 lit maintenant.
 2. Le temps croît comme le texte : les textes hostiles de 20 000 et de 100 000 caractères passent sous une borne
    absolue généreuse, et le rapport des temps reste loin du carré (25 pour cinq fois plus de texte).
 3. Les fonctions de M1 qui lisent ces motifs (contact du texte du client, coordonnées d'un résumé) le font aussi.
@@ -146,6 +148,34 @@ def _courriel_de_reference(texte: str) -> str | None:
     return None
 
 
+def _domaine_d_un_resume(texte: str, debut: int) -> bool:
+    """Un domaine commence à `debut`, selon le garde-fou d'un résumé : des segments de lettres, chiffres, `_` ou `-`
+    séparés par des points, le premier non vide, puis un segment qui commence par deux lettres ASCII avant tout segment
+    vide (aucune fin de mot n'est exigée)."""
+    fin = debut
+    while fin < len(texte) and (_mot(texte[fin]) or texte[fin] in ".-"):
+        fin += 1
+    premier, *suivants = texte[debut:fin].split(".")
+    if not premier:
+        return False
+    for segment in suivants:
+        if len(segment) >= 2 and segment[0] in _LETTRES_ASCII and segment[1] in _LETTRES_ASCII:
+            return True
+        if not segment:
+            return False
+    return False
+
+
+def _coordonnee_de_reference(texte: str) -> bool:
+    """Le garde-fou d'un résumé depuis T4.17-g3 : un « @ » suivi d'un domaine, avec devant lui un caractère qui peut
+    faire partie d'une adresse ou d'un mot (un autre « @ » n'en est pas un)."""
+    return any(
+        texte[i] == "@" and i > 0 and texte[i - 1] != "@" and _peut_prolonger(texte[i - 1])
+        and _domaine_d_un_resume(texte, i + 1)
+        for i in range(len(texte))
+    )
+
+
 def _prix_avant(texte: str) -> bool:
     return PRIX_AVANT.search(texte) is not None
 
@@ -159,7 +189,7 @@ def _coordonnee_avant(texte: str) -> bool:
 
 
 def _coordonnee_apres(texte: str) -> bool:
-    return transferts._COURRIEL.search(texte) is not None
+    return transferts._courriel_present(texte)
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -176,11 +206,13 @@ JETONS_COURRIEL_CLIENT = {
     "dans_un_mot": (["a", "\u2019", "'", "\u0301", "e", "@", "x.ca", "\u00b7", "\u200b", " ", "\u2011"], 6, ""),
     "caracteres_rfc_et_delimiteurs": (["a", "&", "/", "*", "=", "@", "x.ca", "<", ":", " "], 6, ""),
 }
-# Courriel d'un résumé : `\w` (lettres accentuées, chiffres, soulignement) et l'apostrophe devant le « @ ».
+# Courriel d'un résumé : ce qui précède le « @ » (lettres accentuées, chiffres, soulignement, apostrophes, accent
+# combinant, caractères de format et signes de la RFC), puis le domaine.
 JETONS_COURRIEL_RESUME = {
     "caracteres_et_domaine": (["a", ".", "-", "_", "@", "é", "'", "x.ca", "%", "+", "1"], 5, ""),
     "lettre_accentuee_et_domaines": (["é", "a", ".", "@", "x.ca", "-", "_", "b"], 6, ""),
     "domaines": (["a", ".", "-", "_", "1", "cd", "C", "é", " ", "'", "@"], 5, "a@"),
+    "accents_combinants_et_signes": (["a", "\u0301", "\u2019", "!", "@", "x.ca", " ", "\u200b", "«", "."], 5, ""),
 }
 # Prix : un chiffre que touche une devise, un taux ou un mot ; la fourchette lit deux nombres et un tiret.
 JETONS_PRIX = {
@@ -214,17 +246,20 @@ def test_le_courriel_du_client_donne_le_texte_de_la_reference_sur_toutes_les_sui
 
 
 @pytest.mark.parametrize("jeu", JETONS_COURRIEL_RESUME)
-def test_le_courriel_d_un_resume_donne_le_meme_verdict_que_l_ancien_motif_sur_toutes_les_suites_de_jetons(jeu):
-    ecarts = []
+def test_le_courriel_d_un_resume_suit_la_reference_et_ne_refuse_jamais_moins_qu_avant_sur_toutes_les_suites(jeu):
+    ecarts, en_moins = [], []
     total = trouves = 0
     for texte in _suites(*JETONS_COURRIEL_RESUME[jeu]):
-        avant, apres = _coordonnee_avant(texte), _coordonnee_apres(texte)
+        attendu, apres = _coordonnee_de_reference(texte), _coordonnee_apres(texte)
         total += 1
-        trouves += avant
-        if avant != apres:
-            ecarts.append((texte, avant, apres))
+        trouves += attendu
+        if attendu != apres:
+            ecarts.append((texte, attendu, apres))
+        if _coordonnee_avant(texte) and not apres:
+            en_moins.append(texte)
     assert not ecarts[:5], f"{len(ecarts)} écarts sur {total} textes, dont {ecarts[:5]}"
-    assert trouves > 1000, "l'oracle doit trouver assez de courriels pour que la comparaison prouve quelque chose"
+    assert not en_moins[:5], f"{len(en_moins)} textes que l'ancien motif refusait ne le sont plus, dont {en_moins[:5]}"
+    assert trouves > 1000, "la référence doit trouver assez de courriels pour que la comparaison prouve quelque chose"
 
 
 @pytest.mark.parametrize("jeu", JETONS_PRIX)
@@ -242,17 +277,19 @@ def test_le_prix_d_un_chiffrage_donne_le_meme_verdict_que_l_ancien_motif_sur_tou
 
 
 def _ecarts_des_trois_motifs(textes) -> tuple[list[tuple[str, str]], int]:
-    """Les textes où M1 s'écarte de son oracle (la référence pour le courriel du client, le motif d'avant pour les deux
-    autres), et combien de textes les oracles ont trouvés."""
+    """Les textes où M1 s'écarte de son oracle (la référence pour les deux courriels, le motif d'avant pour le prix) ou
+    refuse un résumé que l'ancien motif refusait, et combien de textes les oracles ont trouvés."""
     ecarts = []
     positifs = 0
     for texte in textes:
-        client, resume, prix = _courriel_de_reference(texte), _coordonnee_avant(texte), _prix_avant(texte)
+        client, resume, prix = _courriel_de_reference(texte), _coordonnee_de_reference(texte), _prix_avant(texte)
         positifs += (client is not None) + resume + prix
         if client != _courriel_apres(texte):
             ecarts.append(("courriel du client", texte))
         if resume != _coordonnee_apres(texte):
             ecarts.append(("courriel d'un résumé", texte))
+        if _coordonnee_avant(texte) and not _coordonnee_apres(texte):
+            ecarts.append(("courriel d'un résumé que l'ancien motif refusait", texte))
         if prix != _prix_apres(texte):
             ecarts.append(("prix", texte))
     return ecarts, positifs
@@ -513,6 +550,20 @@ COORDONNEES_D_UN_RESUME_NON_REFUSEES = [
     "jean@exemple.c1",
     "jean@-",
     "jean@exemple.",
+    "«@exemple.ca»",  # aucune partie locale devant le « @ »
+    "@@exemple.ca",
+]
+
+# T4.17-g3 : l'ancien motif ne les voyait pas ; le garde-fou d'un résumé les refuse maintenant.
+COORDONNEES_D_UN_RESUME_REFUSEES_DEPUIS_T4_17_G3 = [
+    "rene\u0301@exemple.ca",  # accent tapé en deux caractères juste devant le « @ »
+    "q\u0301@exemple.ca",  # accent combinant sans forme composée
+    "o\u2019@exemple.ca",  # apostrophe typographique
+    "jean!@exemple.ca",  # signe permis par la RFC 5322
+    "a&@exemple.ca",
+    "\u200b@exemple.ca",  # caractère de format
+    "col\u00b7@exemple.ca",  # point médian
+    "jean\u2011@exemple.ca",  # trait d'union insécable
 ]
 
 
@@ -526,8 +577,17 @@ def test_un_courriel_dans_un_resume_est_refuse_comme_avant(texte):
 @pytest.mark.parametrize("texte", COORDONNEES_D_UN_RESUME_NON_REFUSEES)
 def test_ce_que_le_courriel_d_un_resume_ne_reconnaissait_pas_n_est_toujours_pas_reconnu(texte):
     assert not _coordonnee_avant(texte), "l'oracle (l'ancien motif) ne reconnaissait pas ce texte"
+    assert not _coordonnee_de_reference(texte)
     assert not _coordonnee_apres(texte)
     assert transferts.contient_coordonnees(texte) is False
+
+
+@pytest.mark.parametrize("texte", COORDONNEES_D_UN_RESUME_REFUSEES_DEPUIS_T4_17_G3)
+def test_un_courriel_derriere_un_caractere_qui_prolonge_une_adresse_est_refuse_dans_un_resume(texte):
+    assert not _coordonnee_avant(texte), "l'ancien motif (recopié) ne voyait pas ce courriel"
+    assert _coordonnee_de_reference(texte)
+    assert _coordonnee_apres(texte)
+    assert transferts.contient_coordonnees(texte) is True
 
 
 PRIX_REFUSES = [
@@ -742,11 +802,9 @@ def test_le_courriel_du_client_reste_lineaire_sur_un_texte_hostile(nom):
 
 
 # Le courriel d'un résumé n'exige pas une fin de mot : une suite de lettres suivie d'un « 1 » finit un domaine valide.
-# Il ne regarde pas non plus ce qui précède : là où le courriel du client ne lit rien plutôt qu'une adresse tronquée, le
-# garde-fou du résumé refuse. Il lit le texte tel quel : un accent combinant juste devant le « @ » le cache (T4.17-g3).
+# Là où le courriel du client ne lit rien plutôt qu'une adresse tronquée, le garde-fou du résumé refuse.
 COORDONNEE_A_PART = {
     "arobase_puis_domaine_sans_fin": True,
-    "accents_combinants_puis_courriel": False,
     "accents_sans_forme_composee": True,
     "apostrophes_typographiques": True,
     "caracteres_rfc": True,
@@ -759,7 +817,7 @@ def test_le_courriel_d_un_resume_reste_lineaire_sur_un_texte_hostile(nom):
     fabrique = TEXTES_HOSTILES_COURRIEL[nom][0]
     attendu = COORDONNEE_A_PART.get(nom, _courriel_attendu(nom, PETIT) is not None)
     assert _coordonnee_apres(fabrique(PETIT)) is attendu
-    _lineaire(lambda texte: transferts._COURRIEL.search(texte), fabrique)
+    _lineaire(transferts._courriel_present, fabrique)
 
 
 TEXTES_HOSTILES_PRIX = {
@@ -908,7 +966,7 @@ def test_aucun_motif_de_m1_ne_ralentit_sur_un_texte_hostile_de_la_taille_maximal
     motif lent."""
     motifs = _motifs_de_m1()
     noms = {nom for nom, _ in motifs}
-    assert {"qualification._EMAIL_REGEX", "contrats._PRIX_REGEX", "transferts._COURRIEL"} <= noms
+    assert {"qualification._EMAIL_REGEX", "contrats._PRIX_REGEX", "transferts._ARROBASE_ET_DOMAINE"} <= noms
     assert len(motifs) >= 25, "le balayage doit voir les motifs des modules de M1"
     lents = []
     for nom, motif in motifs:

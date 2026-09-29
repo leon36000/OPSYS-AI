@@ -40,7 +40,7 @@ from typing import Any
 
 from opsys import taxonomie
 
-from . import conversation, garde_fou, plaintes, provenance, verdicts
+from . import conversation, garde_fou, plaintes, provenance, qualification, verdicts
 from . import horodatage as controle_horodatage
 
 TYPE_ENTREE = "transfert"
@@ -82,13 +82,16 @@ TYPE_D_ATTENTE_GENERAL = "transfert_humain"
 
 ACTION_PROPOSEE = "lire (m1_lire_transfert), agir auprès du client, puis clore (m1_clore_transfert)"
 
-# Temps linéaire (PLAN T4.17-g). Un courriel se reconnaît à son « @ » : un caractère permis devant, un domaine derrière.
-# `search` ne rend que « oui » ou « non » : la partie locale n'a pas à être lue en entier. L'ancien `[\w.%+'-]+@…` la
-# relisait à chaque départ (une suite de lettres, de points ou de chiffres sans « @ » : de 1,1 à 1,5 s de calcul pour
-# 20 000 caractères).
-# Même verdict. `tests/test_motifs_lineaires.py` compare ce motif à l'ancien (recopié) et mesure des textes de 20 000 et
-# de 100 000 caractères.
-_COURRIEL = re.compile(r"[\w.%+'-]@[\w-]+(?:\.[\w-]+)*\.[A-Za-z]{2,}")
+# Un courriel dans un résumé (PLAN T4.17-g3) : un « @ », un domaine derrière et, juste devant, un caractère qui peut
+# faire partie d'une adresse ou d'un mot : lettre, chiffre, `_`, signe permis par la RFC 5322, et aussi un accent
+# combinant, un caractère de format, l'apostrophe typographique, un trait d'union Unicode ou le point médian
+# (`qualification.dans_un_mot`). L'ancien `[\w.%+'-]@…` ne voyait pas « rene\u0301@x.ca », un accent tapé en deux
+# caractères juste devant le « @ ». Ce garde-fou ne peut que refuser plus que lui : jamais moins.
+# Temps linéaire (T4.17-g) : un seul départ par « @ », et un domaine ne contient pas de « @ ». La partie locale n'a pas
+# à être lue : le verdict est « oui » ou « non ». `tests/test_motifs_lineaires.py` compare ce verdict à une référence
+# écrite lettre à lettre et à l'ancien motif (recopié), et mesure des textes de 20 000 et de 100 000 caractères.
+_ARROBASE_ET_DOMAINE = re.compile(r"@[\w-]+(?:\.[\w-]+)*\.[A-Za-z]{2,}")
+_SIGNES_D_UNE_ADRESSE = ".%+'-!#$&*/=?^`{|}~"
 _DATE_ISO = re.compile(r"\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:\d{2})?)?")
 _SUITE_DE_CHIFFRES = re.compile(r"\+?\d[\d\s().\-]{5,}\d")
 _CHIFFRES_D_UN_TELEPHONE = 7
@@ -200,10 +203,19 @@ def retire(lignes: Iterable[Mapping[str, Any]], conversation_id: str) -> bool:
 # ---------------------------------------------------------------------------------------------------------------
 
 
+def _courriel_present(texte: str) -> bool:
+    """Vrai si un « @ » suivi d'un domaine a devant lui un caractère qui peut faire partie d'une adresse ou d'un mot."""
+    for trouve in _ARROBASE_ET_DOMAINE.finditer(texte):
+        debut = trouve.start()
+        if debut and (qualification.dans_un_mot(texte[debut - 1]) or texte[debut - 1] in _SIGNES_D_UNE_ADRESSE):
+            return True
+    return False
+
+
 def contient_coordonnees(texte: str) -> bool:
     """Vrai si le texte porte un courriel ou un numéro de téléphone (une suite d'au moins sept chiffres, séparateurs
     admis ; une date ou une heure ISO n'en est pas une). Une adresse postale n'est pas reconnue : limite documentée."""
-    if _COURRIEL.search(texte):
+    if _courriel_present(texte):
         return True
     sans_date = _DATE_ISO.sub(" ", texte)
     return any(
