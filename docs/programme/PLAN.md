@@ -518,7 +518,7 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
     - changement requis dans le core documenté (`IDEMPOTENCE.md` §7) ;
     - socle 275.
 
-  - [ ] T1.4-c Core, après T0.5 (CI du core verte) :
+  - [x] T1.4-c Core, après T0.5 (CI du core verte) (c1 à c6 cochées sur la CI du core) :
     - rôles d'opérateur nommés (`admin`, `employee`, `seller`) sur le jeton d'appareil ;
     - portées d'outils par rôle ;
     - le rôle d'une projection vient de l'identité authentifiée, jamais d'un paramètre de l'appelant.
@@ -616,7 +616,7 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
           `node:sqlite`.
           Limites : raison du 403 lue dans le texte du message du core (un champ `reason`
           structuré serait plus sûr) ; la quarantaine n'a pas d'écran de gestion.
-      - [x] T1.4-c6 Core et mobile : noms d'outils de bout en bout.
+    - [x] T1.4-c6 Core et mobile : noms d'outils de bout en bout.
           Preuve CI : core 23 (71471f9), job `tests-opsys` vert, 30 fichiers ciblés sur 30,
           dont `opsys-device-mcp-target` 16 tests, `tools-invoke-http.opsys-device-mcp` 9,
           `opsys-roles` 22, `device-token-auth` 8, `opsys-device-roles` 11. Revue externe : liste
@@ -644,7 +644,7 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
           portée sur un seul nom ; test du core qui appelle un vrai outil MCP d'un département par
           un jeton d'appareil. Tant que ce n'est pas prouvé, aucun écran mobile n'est réputé
           fonctionner de bout en bout.
-  - [x] T1.4-c3 Mobile : client d'appairage (QR ou code, défi signé selon l'algorithme du
+    - [x] T1.4-c3 Mobile : client d'appairage (QR ou code, défi signé selon l'algorithme du
           fork, jeton dans `expo-secure-store`), testé contre le protocole lu dans le core.
 
           Preuve (c171a2a) :
