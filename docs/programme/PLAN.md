@@ -1664,7 +1664,7 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       Limites : matériel et météo non vérifiables tant que T4.14 n'est pas lu par M4 et que T4.13
       manque : aucune intervention née du bus ne sort de `a_planifier` en vrai ; `jour` numéroté,
       sans calendrier ; l'app ne connaît pas `a_planifier`.
-- [ ] T4.13 M4 : météo bloquante et report proposé (M4.10, M4.21).
+- [x] T4.13 M4 : météo bloquante et report proposé (M4.10, M4.21).
       Écart (§7 M4.10 ; audit M4 M4.10 « ABSENT » ; R7 §2) : `meteo` n'est qu'un motif de report.
       - port `FournisseurMeteo` (patron `FournisseurMatrice`) ; adaptateurs MSC GeoMet, Open-Meteo
         et saisie manuelle ; `meteo.py` pur : règles par service lues de la configuration ; sortie
@@ -1675,6 +1675,22 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       proposé, l'admin l'applique (N3) ; panne du fournisseur : `inconnu`, jamais `ok`.
       Dépend de : T4.10, T4.12. GATE NATHAN : seuils météo par service ; forfait d'Open-Meteo
       (gratuit = non commercial) ; licence de MSC GeoMet à lire.
+      Preuve (4d1066e) :
+      - profil météo (`opsys.meteo`, `opsys meteo lister|declarer`, écriture signée) : seuils par
+        service à deux niveaux (`validation`, `blocage`) ou risque sans objet, aucune valeur par
+        défaut ; `meteo.py` pur (port `FournisseurMeteo`) : `bloquant`, `validation_requise`, `ok`
+        ou `inconnu`, prévision, source et heure d'émission citées ; une panne donne `inconnu` ;
+      - fournisseurs fermés par défaut : saisie de l'admin (prioritaire), MSC GeoMet (licence ECCC
+        v2.1.1, usage commercial permis, attribution rendue), Open-Meteo (fermé sans forfait
+        commercial ET clé) ; seule la position générale (0,1°) quitte le serveur ;
+      - `m4_verifier_meteo_creneau` (T0, admin, lecture seule) : report proposé et cédule relancée
+        au même `plan_id`, jamais appliqués (N3) ; réponse résumée puis refusée avec `jours`, jamais
+        tronquée ; plan périmé écarté ;
+      - E2E `tests/e2e/test_meteo_bloquante_appareil.py` (vent fort, report proposé, cédule relancée
+        appliquée par l'admin, panne : `inconnu`) ; tests sans réseau ; M4 2488, M6 1108, gate BMAD
+        M4, verifier 159 outils (81 déclarés) ; 53 mutations tuées.
+      Limites : pas de calendrier (argument) ; GeoMet sans rafales, pluie ni verglas (saisie de
+      l'admin) ; pas de replanification outillée après un report ; alertes ECCC non reproduites.
 - [x] T4.14 M6 : réservation par chantier, emplacements et « matériel prêt » (M6.8, M6.9, M6.4).
       Écart (§6 flux des matériaux ; audit M6 M6.8, M6.9 « ABSENT ») : rien ne réserve le matériel
       d'un chantier, et M4 ne sait pas si l'équipe part avec ce qu'il faut.
@@ -1702,9 +1718,12 @@ météo et GPS M4, vision M3, conseil d'agents M9…
         (79 déclarés) ; 52 mutations tuées.
       Limites : le stock ne déclare pas d'unité ; les sorties de stock ne disent pas d'où elles
       sortent ; prévu vide = rien réservé (pas de repli sur l'estimation, à confirmer).
-- [ ] T4.14-b M4 lit `m6.materiel_pret` dans `preparation.py` (volet « matériel ») : par devis, la
+- [x] T4.14-b M4 lit `m6.materiel_pret` dans `preparation.py` (volet « matériel ») : par devis, la
       charge de plus grande `revision` ; « prêt » = `pret` ET `reservation_active` ET aucune ligne
       manquante ; aucune charge : « non vérifiable ».
+      Preuve (b03dc6d) : consommateur `m6.materiel_pret` sans import de M6 ; la plus grande révision
+      par devis, quel que soit l'ordre ; `chantier_id` ni lu ni gardé ; bus réel avec le vrai M6
+      (`a_commander`, `partiel`, `pret`, libération) ; 27 mutations tuées.
 - [x] T4.15 M6 et M5 : comptes à payer depuis les réceptions (M5.2, M6.16).
       Écart (§7 M5.2, M6.16 ; audit M5 M5.2 « ABSENT » ; audit M6 M6.16 « PARTIEL ») : M5 ne sait pas
       ce que l'entreprise doit aux fournisseurs.
@@ -1982,6 +2001,8 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
   d'exercice ; statut de particulier en affaires ; date de la dernière remise ; paies, DAS, dettes
   et réserves (source et date). Le CPA valide les dates du calendrier, les crédits de taxes à
   100 % et l'absence de compensation TPS/TVQ (T3).
+- **Météo (T4.13)** : seuils par service ; forfait commercial Open-Meteo ou rester sur MSC GeoMet
+  et la saisie de l'admin ; relecture juridique de la licence ECCC (lue en documentation).
 - **Lien automatique session → affaire (T2.1-b)** : aujourd'hui, un humain lie la session d'un
   client à son lead (`m10_lier_session_affaire`, N3). Faut-il qu'une règle écrite le fasse à la
   création du lead ? La clé de session contient le numéro du client : elle ne voyage jamais dans
