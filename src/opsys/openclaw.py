@@ -12,7 +12,8 @@ Globalement (ADR-0010, cloisonnement et mémoire native des agents) :
 - `memory.search` : fournisseur d'embeddings local partagé avec la Couche B (`opsys.memoire`) ;
 - `plugins.entries.memory-core.config.dreaming` : consolidation nocturne de la Couche A.
 
-OPSYS n'écrit que ses propres fragments, inclus par `$include` depuis `openclaw.json`. Les
+OPSYS n'écrit que ses propres fragments, inclus par `$include` depuis le fichier racine du core (`openclaw.json` ;
+`opsys.json` dans le dossier d'instance, T0.7 lot 3 : voir `fichier_racine`). Les
 réglages faits par l'utilisateur (canaux, authentification, Control UI) ne sont donc jamais
 écrasés. Surfaces amont utilisées : `agents.entries`, `models.providers` (api
 openai-completions, `models` obligatoire), `mcp.servers` (streamable-http, headers), `tools`,
@@ -71,6 +72,15 @@ from .outils import Autonomie
 from .passerelle import alias_palier
 from .politiques import approbation_requise_niveau
 from .profils import REGLES_COMMUNES, rendre_soul
+
+# Le fichier racine du core. `openclaw.json` reste le nom de tout le core (profil par défaut, autres profils, Docker).
+# Le profil `opsys` (dossier d'instance `~/.opsys/core`, T0.7 lot 3) le nomme `opsys.json` et lit encore un
+# `openclaw.json` qui existe déjà : `opsys.json` l'emporte si les deux sont là. Même ordre que le core
+# (`core/src/config/opsys-instance.ts::resolveOpsysConfigPath`) ; `tests/test_instance.py` relit les deux noms dans
+# le fork.
+NOM_RACINE = "openclaw.json"
+NOM_RACINE_INSTANCE = "opsys.json"
+NOMS_RACINE = (NOM_RACINE_INSTANCE, NOM_RACINE)
 
 FICHIER_RACINE_MODELE = {
     "models": {"$include": ["./opsys/models.json"]},
@@ -445,7 +455,7 @@ def generer(
     if problemes_canaux:
         raise ValueError("canaux du public invalides, rien n'est écrit :\n  - " + "\n  - ".join(problemes_canaux))
     # Un canal n'est jamais actif si le squelette existant n'inclut pas tous ses fragments (`canaux.configuration`).
-    sans_include = includes_de_canaux_manquants(dossier_config) if (dossier_config / "openclaw.json").exists() else []
+    sans_include = includes_de_canaux_manquants(dossier_config) if fichier_racine(dossier_config).exists() else []
     env_canaux = os.environ if environ is None else environ
     configuration_canaux = canaux.configuration(departements, env_canaux, sans_include)
     base = dossier_config / "opsys"
@@ -569,9 +579,24 @@ def generer(
     return fichiers
 
 
-def racine_si_absente(dossier_config: Path) -> Path | None:
-    """Crée `openclaw.json` avec les `$include` OPSYS s'il n'existe pas. Ne l'écrase jamais."""
-    racine = dossier_config / "openclaw.json"
+def fichier_racine(dossier_config: Path, *, nom_creation: str = NOM_RACINE) -> Path:
+    """Le fichier racine du core dans `dossier_config` : `opsys.json` s'il existe, sinon `openclaw.json` s'il existe,
+    sinon `nom_creation` (`openclaw.json` par défaut : Docker et tout dossier qui n'est pas l'instance ne changent pas).
+
+    Le fichier qui existe est toujours celui qu'on lit et qu'on complète : jamais renommé ici, jamais doublé.
+    """
+    for nom in NOMS_RACINE:
+        if (dossier_config / nom).exists():
+            return dossier_config / nom
+    return dossier_config / nom_creation
+
+
+def racine_si_absente(dossier_config: Path, *, nom_creation: str = NOM_RACINE) -> Path | None:
+    """Crée le fichier racine avec les `$include` OPSYS s'il n'en existe aucun (`fichier_racine`). Ne l'écrase jamais.
+
+    Rend le chemin créé, ou `None` si un fichier racine existait déjà (`opsys.json` ou `openclaw.json`).
+    """
+    racine = fichier_racine(dossier_config, nom_creation=nom_creation)
     if racine.exists():
         return None
     _ecrire_json(racine, FICHIER_RACINE_MODELE)
@@ -579,13 +604,13 @@ def racine_si_absente(dossier_config: Path) -> Path | None:
 
 
 def includes_manquants(dossier_config: Path) -> list[str]:
-    """Clés du squelette OPSYS (`FICHIER_RACINE_MODELE`) dont l'`$include` manque à `openclaw.json`.
+    """Clés du squelette OPSYS (`FICHIER_RACINE_MODELE`) dont l'`$include` manque au fichier racine (`fichier_racine`).
 
-    `racine_si_absente` ne réécrit jamais un `openclaw.json` existant : une installation antérieure à un
+    `racine_si_absente` ne réécrit jamais un fichier racine existant : une installation antérieure à un
     fragment ne l'inclut pas, et le core ignorerait alors son contenu sans rien dire. Le texte du fichier est
-    cherché tel quel (le fichier peut être du JSON5 que `json.loads` refuserait). Sans `openclaw.json`, tout manque.
+    cherché tel quel (le fichier peut être du JSON5 que `json.loads` refuserait). Sans fichier racine, tout manque.
     """
-    racine = dossier_config / "openclaw.json"
+    racine = fichier_racine(dossier_config)
     if not racine.exists():
         return sorted(FICHIER_RACINE_MODELE)
     texte = racine.read_text(encoding="utf-8")
@@ -600,7 +625,7 @@ def includes_manquants(dossier_config: Path) -> list[str]:
 
 
 def includes_de_canaux_manquants(dossier_config: Path) -> list[str]:
-    """Parmi `canaux.CLES_RACINE`, celles que `openclaw.json` n'inclut pas."""
+    """Parmi `canaux.CLES_RACINE`, celles que le fichier racine (`openclaw.json` ou `opsys.json`) n'inclut pas."""
     return [cle for cle in includes_manquants(dossier_config) if cle in canaux.CLES_RACINE]
 
 

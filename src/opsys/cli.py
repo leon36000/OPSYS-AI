@@ -272,12 +272,17 @@ def _source_du_logiciel(source: str | None) -> Path:
 def cmd_instance(args: argparse.Namespace) -> int:
     """Instance locale (PLAN T0.11) : préparation par l'installateur, export et restauration. Voir `opsys.instance`
     et `opsys.exportation`. Le code de sortie 3 de `initialiser` veut dire : installé, mais il manque une décision.
-    `dossier` écrit le dossier d'état du core (profil `opsys`, PLAN T0.11-b) : un chemin, sans rien d'autre."""
+    `dossier` écrit le dossier d'état du core (profil `opsys`, `~/.opsys/core`, PLAN T0.11-b et T0.7 lot 3) et
+    `fichier-config` son fichier de configuration (`opsys.json`, ou l'`openclaw.json` qui existe déjà) : un chemin,
+    sans rien d'autre."""
     home = stockage.dossier_opsys()
     par = args.par or f"poste:{getpass.getuser()}"
     try:
         if args.action == "dossier":
             print(instance.dossier_core())
+            return 0
+        if args.action == "fichier-config":
+            print(instance.fichier_config(instance.dossier_core()))
             return 0
         if args.action == "initialiser":
             resultat = instance.initialiser(
@@ -485,7 +490,8 @@ def cmd_openclaw(args: argparse.Namespace) -> int:
     racine = openclaw.racine_si_absente(dossier)
     for nom, chemin in fichiers.items():
         print(f"{nom}: {chemin}")
-    print(f"openclaw.json : {'créé avec les $include OPSYS' if racine else 'existant, non modifié'}")
+    print(f"{openclaw.fichier_racine(dossier).name} : "
+          f"{'créé avec les $include OPSYS' if racine else 'existant, non modifié'}")
     manquants = openclaw.includes_de_canaux_manquants(dossier)
     etat_canaux = canaux.configuration(deps, os.environ, manquants).etat
     for ligne in canaux.lignes_d_etat(etat_canaux):
@@ -684,8 +690,9 @@ def construire_parseur() -> argparse.ArgumentParser:
 
     ins = sous.add_parser(
         "instance", help="instance locale : initialisation (installateur), export et restauration (PLAN T0.11)")
-    ins.add_argument("action", choices=["initialiser", "exporter", "restaurer", "dossier"],
-                     help="dossier : écrit le dossier d'état du core (profil opsys), pour --config-dir")
+    ins.add_argument("action", choices=["initialiser", "exporter", "restaurer", "dossier", "fichier-config"],
+                     help="dossier : écrit le dossier d'état du core (profil opsys), pour --config-dir ; "
+                          "fichier-config : écrit son fichier de configuration (opsys.json ou openclaw.json)")
     ins.add_argument("archive", nargs="?", help="restaurer : archive produite par `exporter`")
     ins.add_argument("--sortie", help="exporter : archive à écrire (défaut : ./opsys-export-<horodatage>.tar.gz)")
     ins.add_argument("--par", help="exporter, restaurer : qui agit, pour le journal d'audit (défaut : poste:<compte>)")
