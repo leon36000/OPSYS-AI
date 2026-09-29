@@ -21,6 +21,13 @@ BRAND_VALIDE = {
     "langue": "fr",
 }
 
+# La preuve d'un consentement, posée par M4 (qui, quand, quel texte) : sans elle, le consentement n'est pas documenté.
+PREUVE = {
+    "consentement_recueilli_par": "etienne",
+    "consentement_recueilli_le": "2026-09-28T18:05:00+00:00",
+    "consentement_version_texte": "consentement-client-fr-CA-v1",
+}
+
 _WCT_BASE = {
     "wct_id": "wct-demo-1",
     "intervention_id": "int-1",
@@ -28,6 +35,7 @@ _WCT_BASE = {
     "ville": "Repentigny",
     "type_travaux": "gouttières",
     "consentement_marketing": True,
+    **PREUVE,
 }
 
 
@@ -53,9 +61,8 @@ _PHOTOS_UNE_PHOTO = [("chantier-apres.jpg", _image_unie())]
 
 
 # ---------------------------------------------------------------------------
-# Consentement : absent ou faux -> refus nommé, fail-closed. Pas de notion de « retrait » ici :
-# aucune source de vérité n'existe pour ça aujourd'hui (voir docstring du module,
-# README.md/SOUL.md) — seul l'état tel que reçu du WCT fait foi.
+# Consentement : absent, faux ou sans sa preuve -> refus nommé, fail-closed. Le retrait est un registre à part
+# (`usine.retrait`), consulté par l'adaptateur avant ce module : voir `tests/usine/test_service_usine.py`.
 # ---------------------------------------------------------------------------
 def test_consentement_absent_refuse():
     charge = {k: v for k, v in _WCT_BASE.items() if k != "consentement_marketing"}
@@ -65,6 +72,41 @@ def test_consentement_absent_refuse():
     )
     assert brouillon is None
     assert motif == contenu_public.REFUS_CONSENTEMENT_ABSENT
+
+
+def test_le_consentement_est_strictement_vrai_jamais_une_valeur_qui_y_ressemble():
+    """Un fait de consentement n'est ni « oui », ni « true », ni 1 : seul le booléen vrai du WCT consent."""
+    for pas_un_consentement in ("oui", "true", "True", 1, ["x"], {"a": 1}):
+        charge = _wct(consentement_marketing=pas_un_consentement)
+        assert contenu_public.verifier_consentement(charge) == contenu_public.REFUS_CONSENTEMENT_FAUX, (
+            pas_un_consentement)
+    assert contenu_public.verifier_consentement(_wct(consentement_marketing=True)) is None
+
+
+def test_consentement_sans_preuve_refuse():
+    """Un consentement que personne ne peut relire (qui, quand, quel texte) n'est pas documenté : fail-closed,
+    même si `consentement_marketing` est vrai."""
+    for cle in PREUVE:
+        charge = {k: v for k, v in _WCT_BASE.items() if k != cle}
+        brouillon, motif = contenu_public.preparer_brouillon_contenu_public(
+            charge, _PHOTOS_UNE_PHOTO, BRAND_VALIDE, _DetecteurFixe(), seuil_confiance=0.8
+        )
+        assert brouillon is None, cle
+        assert motif == contenu_public.REFUS_PREUVE_ABSENTE, cle
+    vide = _wct(consentement_recueilli_par="  ")
+    assert contenu_public.verifier_consentement(vide) == contenu_public.REFUS_PREUVE_ABSENTE
+
+
+def test_le_brouillon_porte_la_preuve_du_consentement():
+    brouillon, motif = contenu_public.preparer_brouillon_contenu_public(
+        _wct(), _PHOTOS_UNE_PHOTO, BRAND_VALIDE, _DetecteurFixe(), seuil_confiance=0.8
+    )
+    assert motif is None
+    assert brouillon["preuve_consentement"] == {
+        "consentement_marketing": True, "recueilli_par": "etienne",
+        "recueilli_le": "2026-09-28T18:05:00+00:00", "version_texte": "consentement-client-fr-CA-v1",
+        "source": "wct_m4_travaux_termines", "wct_id": "wct-demo-1",
+    }
 
 
 def test_consentement_faux_refuse():

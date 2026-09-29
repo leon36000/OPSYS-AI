@@ -10,6 +10,12 @@ sur le patron déjà établi par M3 (`m3_estimer_projet`).
 Autonomie (voir `opsys.outils.Autonomie` et `docs/architecture/DEPARTEMENTS.md`) :
   T0 lecture/analyse/calcul pur ; T1 génération de brouillon (jamais publié) ;
   T2 action externe réversible ; T3 publication publique / envoi (frontière humaine).
+
+Usine à contenu d'un chantier (PLAN T4.17) : les six outils `m7_*_chantier`, `m7_decider_contenu`,
+`m7_exporter_paquet_manuel` et `m7_enregistrer_retrait_consentement_marketing` sont des enveloppes minces
+sur `usine.service` ; la logique vit dans les modules purs de `usine/`. Le consommateur `m4.travaux_termines`
+propose aussi les cinq contenus d'un chantier terminé (gabarits du code, jamais un modèle), et `attentes()`
+montre au propriétaire, dans « À voir », les contenus qui attendent sa décision.
 """
 
 from __future__ import annotations
@@ -20,7 +26,7 @@ from typing import Any
 import yaml
 
 from opsys import stockage, taxonomie
-from opsys.outils import Autonomie, Outil
+from opsys.outils import Autonomie, Niveau, Outil
 
 from .ads import intelligence as ads_intelligence
 from .aeo import aeo_engine
@@ -47,6 +53,11 @@ from .social.postiz_adapter import (
     PostizAdapter,
     SocialPost,
 )
+from .usine import decision as usine_decision
+from .usine import plateformes as usine_plateformes
+from .usine import registre as usine_registre
+from .usine import retrait as usine_retrait
+from .usine import service as usine_service
 from .utm import utm_engine
 from .workflows import campagne_saisonniere as campagne_saisonniere_workflow
 
@@ -95,6 +106,16 @@ _PHOTO = {
     "type": "object",
     "properties": {"reference": {"type": "string"}, "image": _IMAGE_SYNTHETIQUE},
     "required": ["reference", "image"],
+    "additionalProperties": False,
+}
+_HORODATAGE = {"type": "string", "description": "ISO 8601 avec fuseau (l'heure du serveur fait foi)."}
+_TEXTES_PAR_PLATEFORME = {
+    "type": "object",
+    "description": (
+        "Texte rédigé par toi, par plateforme (facultatif : sans lui, le gabarit du code). Chaque texte est "
+        "contrôlé en code et refusé en nommant la règle (m7_lire_matiere_chantier les liste)."
+    ),
+    "properties": {code: {"type": "string"} for code in usine_plateformes.CODES_PLATEFORMES},
     "additionalProperties": False,
 }
 
@@ -253,10 +274,7 @@ def _image_depuis_dict(donnees: dict[str, Any]) -> ImageSynthetique:
 def _wct_recu(wct_id: str) -> dict[str, Any] | None:
     """Le WCT `m4.travaux_termines` déjà reçu pour `wct_id` (registre `wct_recus`, alimenté
     uniquement par `_recevoir_travaux_termines`, jamais par un argument d'outil), ou `None`."""
-    for enregistrement in stockage.maillons(*_REGISTRE_WCT_RECUS):
-        if enregistrement.get("wct_id") == wct_id:
-            return enregistrement
-    return None
+    return usine_service.wct_recu(wct_id)
 
 
 def preparer_contenu_public(
@@ -288,6 +306,15 @@ def preparer_contenu_public(
             "brouillon": None,
             "statut": STATUT_WCT_INCONNU,
             "motif": f"wct_id inconnu : {wct_id!r} — aucun m4.travaux_termines reçu pour ce wct_id",
+        }
+
+    # Un retrait du consentement marketing (Loi 25) bloque toute tâche de contenu de ce chantier, avant tout,
+    # y compris le brouillon déjà déposé : on ne le rend plus, on dit pourquoi (PLAN T4.17).
+    bloquant = usine_service.retrait_bloquant(charge)
+    if bloquant is not None:
+        return {
+            "brouillon": None, "statut": "consentement_retire",
+            "motif": f"consentement marketing retiré par le client (retrait {bloquant['retrait_id']}) : aucun contenu",
         }
 
     registre = stockage.maillons(*_REGISTRE_CONTENU_PUBLIC)
@@ -414,6 +441,9 @@ def publier_post_social(
 # Bus d'événements (ADR-0009 §3, PLAN T1.2-c) : consommateur de m4.travaux_termines
 # ---------------------------------------------------------------------------
 _REGISTRE_DEMANDES_AVIS = ("m07-marketing", "demandes_avis")
+# Les statuts d'une plateforme qui n'a PAS de contenu à la fin de la préparation (texte refusé par le contrôle,
+# ou rejeté par le propriétaire et à récrire) : le résumé du consommateur les nomme, `contenus` les détaille.
+_ITEMS_BLOQUES = ("refuse", "texte_requis")
 
 
 def _enregistrer_wct_recu(charge: dict[str, Any]) -> None:
@@ -457,9 +487,35 @@ def _libelle_du_service(charge: dict[str, Any]) -> tuple[str | None, str | None]
 def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
     """Consommateur `m4.travaux_termines` (ADR-0009 §3, DEPARTEMENTS.md « Événements ») :
     enregistre d'abord le WCT reçu (`_enregistrer_wct_recu`, inconditionnel), puis prépare une
-    demande d'avis EN BROUILLON (écriture interne au registre du département, jamais un envoi —
-    voir `reputation.demande_avis`). L'envoi réel reste une action externe derrière une
-    décision humaine (T3), hors de ce consommateur et de tout outil exposé ici.
+    demande d'avis EN BROUILLON (`_demande_avis_du_chantier`), puis, si le client a consenti à l'usage de
+    son chantier en contenu public, propose les cinq contenus du chantier (`usine.service`, PLAN T4.17 :
+    gabarits du code, jamais un modèle ; rien sans consentement prouvé, rien après un retrait). Toute écriture
+    est interne au registre du département, jamais un envoi ni une publication : la décision et la
+    publication restent humaines, hors de ce consommateur et de tout outil exposé ici.
+
+    Le résumé rendu garde les clés de la demande d'avis (`brouillon_cree`, `deja_enregistre`, ...) et ajoute
+    `contenus` : `{statut, motif, crees, deja_la, refuses}`, sans texte (les textes se lisent avec
+    `m7_lister_contenus_chantier`). Un refus de contenu (profil non configuré, consentement absent) est un
+    statut, jamais une exception : il ne fait ni échouer ni rejouer la livraison.
+    """
+    _enregistrer_wct_recu(charge)
+    resume = _demande_avis_du_chantier(charge)
+    contenus = usine_service.proposer_pour_charge(charge, None, usine_service.ORIGINE_BUS)
+    statuts = [item["statut"] for item in contenus["contenus"]]
+    return {
+        **resume,
+        "contenus": {
+            "statut": contenus["statut"],
+            "motif": contenus["motif"],
+            "crees": statuts.count("propose"),
+            "deja_la": statuts.count("deja_propose"),
+            "refuses": [item["plateforme"] for item in contenus["contenus"] if item["statut"] in _ITEMS_BLOQUES],
+        },
+    }
+
+
+def _demande_avis_du_chantier(charge: dict[str, Any]) -> dict[str, Any]:
+    """La demande d'avis d'un chantier reçu (PLAN T1.2-c, T1.5-d), séparée du reste du consommateur.
 
     PLAN T1.5-d : le brouillon naît du consentement du client à une demande d'avis
     (`consentement_demande_avis`, recueilli par l'employé dans l'app « Terminer », prouvé par M4 : qui,
@@ -473,9 +529,10 @@ def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
     Idempotent par `wct_id` : un brouillon déjà déposé pour ce wct_id (relivraison de
     l'événement, ou `repartir()` rejoué) n'est jamais dupliqué — no-op qui rend
     `deja_enregistre=True`.
-    """
-    _enregistrer_wct_recu(charge)
 
+    PLAN T1.5-d, décision écrite (inchangée par T4.17) : cette demande naît de `consentement_demande_avis`,
+    un consentement DISTINCT de `consentement_marketing` ; le retrait de ce dernier ne la touche pas.
+    """
     wct_id = charge["wct_id"]
     registre_demandes = stockage.maillons(*_REGISTRE_DEMANDES_AVIS)
     for brouillon_existant in registre_demandes:
@@ -531,6 +588,16 @@ def consommateurs() -> dict[str, Any]:
     """Types d'événements consommés par M7 (ADR-0009 §3) — voir `department.yaml:evenements.consomme`
     et `docs/architecture/DEPARTEMENTS.md` § Événements."""
     return {"m4.travaux_termines": _recevoir_travaux_termines}
+
+
+# Même mécanisme de découverte que `consommateurs()` (`opsys.departements.Departement.charger_attentes`) :
+# fonction module-level, sans argument, appelée par `approbations.file_proprietaire` et par
+# `m9_lister_demandes_approbation` (section « À voir » de l'app admin) DANS une transaction déjà ouverte.
+def attentes() -> list[dict[str, Any]]:
+    """Ce qui attend le propriétaire chez M7 (PLAN T4.17) : un contenu de chantier `PROPOSE` par ligne, niveau
+    N3, que `m7_decider_contenu` approuve ou rejette. Lecture seule : ne décide ni n'exporte rien. Un contenu
+    dont le client a retiré son consentement n'y figure plus."""
+    return usine_service.attentes()
 
 
 # ---------------------------------------------------------------------------
@@ -741,6 +808,145 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=preparer_contenu_public,
             autonomie=Autonomie.T1,
+        ),
+        Outil(
+            nom="m7_lire_matiere_chantier",
+            description=(
+                "Ce qu'il faut pour rédiger les contenus d'un chantier terminé : marque, accroche, nature des "
+                "travaux, ville, note du chantier (si elle passe le contrôle), mots-clics, plateformes et leurs "
+                "plafonds, règles du contrôle. Mêmes refus que m7_proposer_contenus_chantier."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"wct_id": {"type": "string", "description": "WCT m4.travaux_termines déjà reçu."}},
+                "required": ["wct_id"],
+                "additionalProperties": False,
+            },
+            fonction=usine_service.lire_matiere_chantier,
+        ),
+        Outil(
+            nom="m7_proposer_contenus_chantier",
+            description=(
+                "Propose les cinq contenus d'un chantier terminé (Facebook, Instagram, fiche Google, script de "
+                "vidéo courte, demande de témoignage) depuis le WCT reçu du bus et le profil de marque : gabarit "
+                "du code, ou `textes` rédigés par toi. Chaque texte passe un contrôle en code qui refuse en "
+                "nommant la règle (adresse, nom du client, prix, chiffre, garantie non validée, date promise, "
+                "exagération, lien). Rien sans consentement marketing prouvé ni après un retrait. Jamais publié : "
+                "le propriétaire décide dans « À voir »."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "wct_id": {"type": "string", "description": "WCT m4.travaux_termines déjà reçu."},
+                    "textes": _TEXTES_PAR_PLATEFORME,
+                },
+                "required": ["wct_id"],
+                "additionalProperties": False,
+            },
+            fonction=usine_service.proposer_contenus_chantier,
+            # Un brouillon (N1, ADR-0009 §4) : le consommateur du bus les crée déjà sans approbation ; la
+            # décision humaine est celle de m7_decider_contenu.
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N1,
+        ),
+        Outil(
+            nom="m7_lister_contenus_chantier",
+            description=(
+                "Les contenus de chantier du moment (dernière révision par plateforme), les plus récents d'abord : "
+                "statut, texte entier, décision, preuve du consentement. Lecture seule, bornée (huit au plus, "
+                "`suivant` pour la page suivante)."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "wct_id": {"type": "string", "description": "Un seul chantier."},
+                    "statut": {"type": "string", "enum": list(usine_registre.STATUTS)},
+                    "limite": {
+                        "type": "integer", "minimum": 1, "maximum": usine_service.LIMITE_LISTE_MAX,
+                        "description": f"Contenus montrés (défaut {usine_service.LIMITE_LISTE_DEFAUT}).",
+                    },
+                    "decalage": {"type": "integer", "minimum": 0, "description": "Rang de départ (`suivant`)."},
+                },
+                "required": [],
+                "additionalProperties": False,
+            },
+            fonction=usine_service.lister_contenus_chantier,
+            # §9.5 M7 (contenus à approuver) : le propriétaire lit le texte entier avant de décider.
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m7_decider_contenu",
+            description=(
+                "DÉCISION HUMAINE (N3, « À voir ») : le propriétaire approuve ou rejette un contenu de chantier "
+                "proposé. Un agent ne peut pas la prendre seul : depuis l'app admin (la personne doit être le "
+                "propriétaire), ou en attente d'approbation dans la console. Refuse un consentement retiré, un "
+                "contenu déjà tranché ou périmé, un texte qui ne passe plus le contrôle. Un rejet dit pourquoi."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "contenu_id": {"type": "string"},
+                    "decision": {"type": "string", "enum": list(usine_decision.DECISIONS)},
+                    "horodatage": _HORODATAGE,
+                    "motif": {"type": "string", "description": "Obligatoire pour un rejet : ce qu'il faut corriger."},
+                },
+                "required": ["contenu_id", "decision", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=usine_service.decider_contenu,
+            autonomie=Autonomie.T1,
+            # §9.5 M7 (contenus à approuver), N3 : la personne authentifiée qui agit tient lieu de validation
+            # au départ (ADR-0009 §4, T1.4-h), à condition d'être le propriétaire.
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m7_exporter_paquet_manuel",
+            description=(
+                "Paquet manuel d'un contenu APPROUVÉ : texte, mots-clics, lien de suivi, médias (« à flouter à la "
+                "main »), heure suggérée du profil de marque, instructions. Ne publie rien, n'appelle aucune API : "
+                "le propriétaire publie lui-même. Refuse un contenu non approuvé ou dont le consentement est retiré."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "contenu_id": {"type": "string"},
+                    "horodatage": _HORODATAGE,
+                },
+                "required": ["contenu_id", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=usine_service.exporter_paquet_manuel,
+            # Une tâche interne (N2) : la décision humaine est déjà prise (m7_decider_contenu) ; le paquet ne
+            # sort de M7 que vers celui qui le demande.
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N2,
+            # §9.5 M7 (contenus approuvés) : le propriétaire prend le paquet sur son téléphone.
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m7_enregistrer_retrait_consentement_marketing",
+            description=(
+                "Le client retire son consentement à l'usage de son chantier en contenu public (Loi 25) : bloque "
+                "aussitôt toute tâche de contenu de ce chantier, paquet déjà proposé compris ; ne se lève pas. "
+                "Aucun texte libre : canal, personne et heure seulement. Dit ce qui, déjà exporté, se retire à la main."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "wct_id": {"type": "string"},
+                    "canal": {"type": "string", "enum": list(usine_retrait.CANAUX_RETRAIT)},
+                    "horodatage": _HORODATAGE,
+                },
+                "required": ["wct_id", "canal", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=usine_service.enregistrer_retrait_consentement_marketing,
+            # N2 : un retrait ne restreint que (rien n'est publié, rien n'est envoyé) et doit prendre effet à
+            # l'instant, sans attendre une approbation (Loi 25).
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N2,
+            # Loi 25 : la personne qui reçoit la demande du client (le propriétaire ou son gestionnaire).
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m7_planifier_campagne_saisonniere",

@@ -11,11 +11,13 @@ Doctrine :
     déduit — et `charge` elle-même vient exclusivement du WCT `m4.travaux_termines` déjà reçu par
     le bus (registre durable `wct_recus`, `outils.py`), jamais d'un argument fourni par
     l'appelant/le modèle (AGENTS.md « le LLM orchestre, il ne fournit jamais un fait »).
-  - PAS de mécanisme de retrait de consentement : le catalogue `m4.travaux_termines.json` ne
-    porte aucun champ de retrait, et aucun registre de retrait de consentement marketing n'existe
-    aujourd'hui dans le dépôt (Loi 25, gestion des droits — à construire, voir `SOUL.md`/
-    `README.md`). Ce module ne prétend donc PAS savoir si un consentement autrefois accordé a été
-    retiré depuis — seul `consentement_marketing` du WCT reçu fait foi, tel quel.
+  - Le consentement vient AVEC SA PREUVE (PLAN T4.17) : `consentement_marketing` vrai ne suffit plus,
+    M4 y joint qui l'a recueilli, quand, et quel texte a été présenté (`consentement_recueilli_par`,
+    `consentement_recueilli_le`, `consentement_version_texte`, posés par le serveur). Sans elle, un
+    consentement que personne ne peut relire n'est pas documenté : refus.
+  - Le RETRAIT du consentement (Loi 25) est un registre à part (`usine.retrait`), que l'adaptateur
+    consulte AVANT ce module : un retrait bloque tout contenu de ce chantier. Ce module-ci ne connaît que
+    le WCT ; il ne voit jamais un retrait, et ne prétend donc jamais qu'aucun n'existe.
   - Floutage déterministe obligatoire (`moderation.floutage`) pour chaque photo AVANT toute mise
     en file : toute détection sous le seuil de confiance fourni force `revue_humaine_requise`,
     jamais une publication automatique sur un doute de détection.
@@ -37,26 +39,39 @@ from ..brand.profil_client import verifier_profil_configure
 from ..moderation.detection import Detecteur
 from ..moderation.floutage import flouter_photo
 from ..moderation.image import ImageSynthetique
+from ..reputation.demande_avis import CLES_PREUVE
 
 REFUS_CONSENTEMENT_ABSENT = "consentement_marketing absent (fail-closed) : aucun contenu public"
 REFUS_CONSENTEMENT_FAUX = "consentement_marketing = false : le client n'a pas consenti au contenu public"
+REFUS_PREUVE_ABSENTE = (
+    "preuve du consentement marketing absente (fail-closed) : aucun contenu public sans qui l'a recueilli, "
+    "quand, et quel texte a été présenté au client"
+)
 REFUS_AUCUNE_PHOTO = "aucune photo fournie : rien à préparer"
 REFUS_WCT_ID_ABSENT = "wct_id absent de la charge (fail-closed) : identifiant de brouillon impossible"
 
 
-def verifier_consentement(charge: Mapping[str, Any]) -> str | None:
-    """Fail-closed : `consentement_marketing` absent ou pas strictement `True` refuse (`None` si
-    accordé). Aucune notion de « retrait » ici — pas de source de vérité pour ça aujourd'hui (voir
-    docstring du module) : seul l'état tel que reçu du WCT fait foi.
+def _texte_non_vide(valeur: Any) -> bool:
+    return isinstance(valeur, str) and valeur.strip() != ""
 
-    Exposée (pas de `_` initial) pour que l'adaptateur (`outils.py`) puisse refuser tôt, AVANT de
-    résoudre un profil de marque ou un détecteur, sur le motif le plus fondamental — mais
-    `preparer_brouillon_contenu_public` ci-dessous la rappelle aussi elle-même : jamais de
-    confiance aveugle en un appelant qui aurait sauté l'étape."""
+
+def verifier_consentement(charge: Mapping[str, Any]) -> str | None:
+    """Fail-closed : `consentement_marketing` absent ou pas strictement `True` refuse, et un consentement
+    sans sa PREUVE (les trois clés posées par M4) refuse aussi (`None` si accordé et prouvé). Le retrait du
+    consentement n'est pas vu ici : le registre de retrait (`usine.retrait`) est consulté par l'adaptateur,
+    avant ce module (voir docstring du module).
+
+    Exposée (pas de `_` initial) pour que l'adaptateur (`outils.py`) et l'usine à contenu de chantier
+    (`usine.chantier`) refusent tôt, AVANT de résoudre un profil de marque ou un détecteur, sur le motif le
+    plus fondamental — mais `preparer_brouillon_contenu_public` ci-dessous la rappelle aussi elle-même :
+    jamais de confiance aveugle en un appelant qui aurait sauté l'étape. Une seule règle de consentement
+    pour tout le contenu public de M7."""
     if "consentement_marketing" not in charge:
         return REFUS_CONSENTEMENT_ABSENT
     if charge["consentement_marketing"] is not True:
         return REFUS_CONSENTEMENT_FAUX
+    if not all(_texte_non_vide(charge.get(cle)) for cle in CLES_PREUVE):
+        return REFUS_PREUVE_ABSENTE
     return None
 
 
@@ -134,6 +149,9 @@ def preparer_brouillon_contenu_public(
         "photos": photos_traitees,
         "preuve_consentement": {
             "consentement_marketing": charge.get("consentement_marketing"),
+            "recueilli_par": charge["consentement_recueilli_par"],
+            "recueilli_le": charge["consentement_recueilli_le"],
+            "version_texte": charge["consentement_version_texte"],
             "source": "wct_m4_travaux_termines",
             "wct_id": wct_id,
         },

@@ -53,6 +53,9 @@ ADMIN_SEUL = frozenset({
     "m6_annuler_po", "m6_approuver_po", "m6_evaluer_variance_chantier", "m6_produire_digest",
     "m6_receptionner_commande", "m6_soumettre_comptage",
     "m7_lister_file_approbation", "m7_lister_demandes_avis",  # avis à relire avant d'écrire au client (T1.5-d)
+    # usine à contenu (T4.17) : le propriétaire lit, décide, prend le paquet à publier, enregistre un retrait
+    "m7_lister_contenus_chantier", "m7_decider_contenu", "m7_exporter_paquet_manuel",
+    "m7_enregistrer_retrait_consentement_marketing",
     "m8_lire_mesures_chantier", "m8_performance_equipe",
     "m9_decider_demande_approbation", "m9_lire_alertes_m8", "m9_lire_etat_consolide", "m9_lire_suite_briefing",
     "m9_lister_demandes_approbation", "m9_produire_briefing_matin", "m9_produire_lecture_strategique",
@@ -60,6 +63,15 @@ ADMIN_SEUL = frozenset({
     "m10_lister_signaux", "m10_prendre_en_compte_signal", "m10_clore_signal", "m10_lier_session_affaire",
 })
 ADMIN = EMPLOYE | VENDEUR | ADMIN_SEUL
+
+# Outils de l'usine à contenu (T4.17) : jamais l'employé ni le vendeur (le contenu du propriétaire, ses décisions,
+# le retrait d'un consentement) ; `m7_proposer_contenus_chantier` et `m7_lire_matiere_chantier` sont ceux de l'agent
+# seulement (aucun appareil : le brouillon naît du bus, la matière sert le modèle qui rédige).
+USINE_A_CONTENU_ADMIN = frozenset({
+    "m7_lister_contenus_chantier", "m7_decider_contenu", "m7_exporter_paquet_manuel",
+    "m7_enregistrer_retrait_consentement_marketing",
+})
+USINE_A_CONTENU_AGENT = frozenset({"m7_proposer_contenus_chantier", "m7_lire_matiere_chantier"})
 
 # Outils qu'AUCUN appareil ne peut appeler, avec la raison. Ils restent appelables par les agents
 # (serveur MCP du département) : seule la voie du jeton d'appareil les refuse.
@@ -108,6 +120,16 @@ def test_table_du_vendeur_epinglee(roles_reels):
 
 def test_table_de_l_admin_epinglee(roles_reels):
     assert set(roles_reels["admin"]) == ADMIN
+
+
+def test_l_usine_a_contenu_est_au_proprietaire_et_l_agent_seul_ecrit_les_brouillons(roles_reels, departements_reels):
+    assert set(roles_reels["admin"]) >= USINE_A_CONTENU_ADMIN
+    for role in ("employee", "seller"):
+        assert not (USINE_A_CONTENU_ADMIN | USINE_A_CONTENU_AGENT) & set(roles_reels[role])
+    assert not USINE_A_CONTENU_AGENT & set(roles_reels["admin"])
+    index = tous_les_outils(departements_reels.values())
+    assert set(index) >= (USINE_A_CONTENU_ADMIN | USINE_A_CONTENU_AGENT)
+    assert not index["m7_decider_contenu"][1].frontiere_humaine  # N3 : la validation au départ suffit au propriétaire
 
 
 def test_les_trois_roles_d_appareil_sont_les_seules_cles(roles_reels):

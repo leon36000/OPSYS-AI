@@ -14,12 +14,13 @@ dependances: [m02-revenue-crm, m04-field-ops]
 modeles:
   defaut: standard
   extraction: rapide
-skills: [audit-seo-local, plan-de-contenu-saisonnier, reponse-aux-avis]
+skills: [audit-seo-local, plan-de-contenu-saisonnier, reponse-aux-avis, contenu-de-chantier]
 planifications:
   - nom: digest-marketing
     cron: "0 7 * * 1-5"
     consigne: >-
-      Résume en 5 lignes la veille marketing : contenus proposés (file d'approbation),
+      Résume en 5 lignes la veille marketing : contenus proposés (file d'approbation) et
+      contenus de chantier en attente de décision du propriétaire (m7_lister_contenus_chantier),
       avis nécessitant une réponse, alertes ROI (donnees_insuffisantes par canal).
       Aucune publication, aucune nouvelle proposition.
 budget:
@@ -38,3 +39,7 @@ kpis:
     description: Proportion d'avis ayant reçu au moins une réponse PROPOSÉE (jamais auto-publiée).
   - id: m7_part_non_attribuables
     description: Part des leads CRM sans visitor_id ou hors fenêtre d'attribution de 30 jours.
+approbations:                      # ADR-0009 §5, PLAN T4.17 : qui décide un N3 de M7 dans la file du socle.
+  # N3 : approuver ou rejeter un contenu public de chantier (m7_decider_contenu). Le propriétaire
+  # seulement, comme le défaut fail-closed : la marque parle en son nom.
+  n3: [nathan_owner]

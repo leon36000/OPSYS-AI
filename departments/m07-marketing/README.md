@@ -4,7 +4,8 @@ Marketing & Croissance IA — PREMIER MODULE (D-008)
 
 Statut: PARTIAL (mode ombre : le pilote M7-S000 a été suivi des vagues 2 et 3 — site Quadruple A,
 content factory, données saisonnières, competitive engine, grille AEO/GEO, convention UTM,
-attribution, ROI. 432 tests. Le statut du registre est la source de vérité, gate statut_lint.)
+attribution, ROI, puis l'usine à contenu de chantier de T4.17. 889 tests (dossier `tests/` de M7). Le
+statut du registre est la source de vérité, gate statut_lint.)
 
 ## M7-S000 — Brand Core minimal
 
@@ -98,14 +99,107 @@ versionné).
   passage silencieux. Jamais une publication : la publication réelle reste N5 (approbation
   signée du socle), hors de ce module.
 
-  **Trou documenté, jamais caché — retrait de consentement (Loi 25)** : le catalogue
-  `src/opsys/evenements/catalogue/m4.travaux_termines.json` ne porte aucun champ de retrait, et
-  **aucun registre de retrait de consentement marketing n'existe aujourd'hui** dans ce dépôt
-  (ni côté M1/M2 où un client pourrait le signaler, ni côté M7). Ce module ne prétend donc jamais
-  savoir qu'un consentement autrefois accordé a été retiré depuis — seul l'état
-  `consentement_marketing` tel que reçu du WCT fait foi. Construire un registre de retrait
-  (source de vérité, canal de signalement, effet rétroactif sur un brouillon déjà préparé) reste
-  un travail à faire, hors périmètre de ce correctif.
+  **Retrait de consentement (Loi 25)** : depuis T4.17, le registre `retraits_consentement_marketing`
+  existe (voir « Usine à contenu » ci-dessous). `m7_preparer_contenu_public` le consulte avant tout, y compris
+  avant de rendre un brouillon déjà déposé (`statut: "consentement_retire"`). Le consentement exige aussi sa
+  **preuve** (`consentement_recueilli_par`, `consentement_recueilli_le`, `consentement_version_texte`, posées par M4) :
+  `consentement_marketing` vrai sans preuve refuse (`REFUS_PREUVE_ABSENTE`), pour cet outil comme pour l'usine.
+
+## Usine à contenu : un chantier terminé donne cinq contenus et un paquet manuel (PLAN T4.17)
+
+DEFINITION-PRODUIT §7 M7.3 (chantier → contenu) et M7.2 (« paquet manuel : texte, mots-clics, média, heure,
+instructions »). Code : `src/m7_marketing/usine/` ; outils : `outils.py` (enveloppes minces sur `usine.service`).
+
+**D'où naissent les contenus.** Du WCT `m4.travaux_termines` déjà reçu par le bus (registre `wct_recus`) et du profil de
+marque du client (`brand/profile.yaml`, fail-closed tant que le nom porte « À CONFIGURER »). Jamais d'un fait fourni
+par l'appelant : `m7_proposer_contenus_chantier(wct_id, textes?)` ne prend ni consentement, ni marque, ni ville.
+Le consommateur du bus les propose lui-même à la réception du WCT ; l'outil sert à relancer (profil configuré après
+coup) ou à proposer des textes rédigés par le modèle.
+
+**Cinq contenus, un par plateforme** (`plateformes.py`) : publication Facebook, publication Instagram, mise à jour de
+la fiche Google, script de vidéo courte, demande de témoignage (message privé au client). Chacun est `PROPOSE`, jamais
+publié, avec la preuve du consentement (qui, quand, quel texte), ses mots-clics (termes du service, ville du WCT,
+mots-clics du profil) et **son lien de suivi UTM** (`utm_source`/`utm_medium` de l'énuméré gelé du contrat S012 ;
+`utm_campaign = contenu-<service>-<année>`, `utm_content = <plateforme>-<empreinte du chantier>` : aucun identifiant
+interne dans une URL publique). Sans `site_url` au profil, ou avec un site non HTTPS, le contenu est proposé sans lien
+et `avertissements` le dit ; la vidéo courte prend `tiktok`, seule source vidéo de l'énuméré ; la demande de témoignage
+n'a pas de lien.
+
+**Le code compose ou le modèle rédige, le code contrôle toujours.** Par défaut, les gabarits fixes du code
+(`gabarits.py`) : la marque, l'accroche du profil, la nature des travaux, la ville seulement si le WCT en porte une.
+`textes` (facultatif, par plateforme) : le texte rédigé par le modèle, après `m7_lire_matiere_chantier` (marque,
+accroche, nature, ville, note du chantier si elle passe le contrôle, plafonds, règles). Dans les deux cas, chaque
+texte passe `controle_texte.controler_texte` et un texte refusé n'est **jamais enregistré** ; le refus nomme la règle :
+
+| Règle | Refuse |
+|---|---|
+| `REJ-ADRESSE` | numéro civique + voie, voie nommée, code postal, coordonnées GPS, unité |
+| `REJ-COORDONNEES` | courriel, téléphone |
+| `REJ-NOM-CLIENT` | civilité + nom, « la famille X », « chez X Y », « client : X », @mention, noms fournis |
+| `REJ-IDENTIFIANT-INTERNE` | les identifiants du WCT (chantier, intervention, lead, devis, technicien) |
+| `REJ-PRIX` | montant, tarif, prix, rabais, « gratuit », financement |
+| `REJ-CHIFFRE-NON-SOURCE` | tout chiffre avec unité (pieds, heures, jours, ans, %) : les chiffres viennent d'un outil |
+| `REJ-GARANTIE-NON-VALIDEE` | « garanti », « à vie », « satisfait ou remboursé »… sauf un énoncé de `garanties_validees` au profil, mot pour mot |
+| `REJ-PROMESSE-DE-DATE` | date, « demain », « d'ici », « dans N jours », « au plus tard »… |
+| `REJ-EXAGERATION` | « meilleur », « numéro 1 », « imbattable », « 100 % »… |
+| `REJ-LIEN`, `REJ-LONGUEUR`, `REJ-TEXTE-VIDE` | lien dans le texte (le code ajoute le sien), plafond de la plateforme, texte vide |
+
+Le nom de marque est masqué pour la garantie et l'exagération (une marque peut contenir « Garantie »). **Limites,
+jamais cachées** : le WCT ne porte pas le nom du client, le contrôle reconnaît donc les FORMES qui désignent un client
+(un prénom seul dans une phrase ordinaire n'est pas détectable) : la revue du propriétaire (N3) reste la dernière
+barrière. Un motif ne comprend pas le sens (« meilleur » est refusé même dans une phrase inoffensive). Le garde-fou
+de M1 (`garde_fou`) couvre d'autres familles (messages à un client) et n'est pas importé (aucun import entre
+départements) : un module du socle qui réunirait les deux est une évolution possible.
+
+**Refus de départ, RIEN d'écrit** (dans cet ordre) : un retrait du consentement de ce chantier ; le consentement
+marketing absent, faux ou sans preuve ; un client insatisfait (`client_satisfait = false`) ; la nature des travaux
+inconnue (un lead v2 dont le service n'est pas déclaré à l'entreprise : `opsys.taxonomie`, jamais recopiée) ; le
+profil de marque non configuré. Sans consentement : aucun contenu, la demande d'avis (un autre consentement) est
+inchangée.
+
+**Sans ville, sans invention.** M4 ne publie pas la ville dans le WCT (`ville_tokenisee`, Loi 25) : les contenus
+d'un chantier réel n'ont donc pas d'ancrage local, et chacun le dit (`avertissements`). Décision à prendre (rapport de
+T4.17) : que M4 publie une ville au niveau municipal avec le consentement marketing.
+
+**Approbation du propriétaire par « À voir » (N3).** `attentes()` déclare un `contenu_a_approuver` (N3) par contenu
+`PROPOSE` ; l'app du propriétaire le lit (`m9_lister_demandes_approbation`), lit le texte entier
+(`m7_lister_contenus_chantier`) puis décide (`m7_decider_contenu`, `approuver` ou `rejeter` avec son motif). La
+décision est celle d'un HUMAIN identifié, jamais du modèle : l'identité d'un jeton d'appareil confirmée en base, la
+PERSONNE portant `nathan_owner` (un gestionnaire `admin` est refusé) ; ou l'exécution d'une demande que le propriétaire
+vient d'approuver dans la file du socle. Un agent sans propriétaire reçoit `REJ-HUMAIN-REQUIS`. La décision porte
+l'empreinte du texte décidé, et le contrôle du texte est rejoué à l'approbation. Un contenu rejeté n'est pas rouvert :
+un nouveau texte (`textes`) crée une révision, l'ancienne reste au registre.
+
+**Le paquet manuel** (`m7_exporter_paquet_manuel`, seulement pour un contenu approuvé) : texte, mots-clics, lien de
+suivi, `texte_a_copier`, médias, heure suggérée, instructions de publication de la plateforme, `approuve_par`.
+M7 ne publie jamais et n'appelle aucune API de plateforme (l'adaptateur Postiz est refusé par les tests). **Sans
+détecteur réel** de visages et de plaques (OpenCV absent), tout média est `a_flouter_a_la_main` : aucun fichier flouté
+n'existe (le floutage de T4.3 rend un rapport, pas un fichier), le rapport du détecteur est joint à titre
+d'information avec sa réserve, et le paquet ne dit jamais « flouté » ni « sûr ». L'heure vient du profil de marque
+(`heures_publication`) ; sans elle, `a_configurer` le dit et aucune heure n'est inventée. La demande de témoignage
+dit `contact_client.autorise` : elle ne s'envoie que si le client a consenti à être contacté (`consentement_demande_avis`,
+preuve à l'appui).
+
+**Retrait du consentement marketing (Loi 25)** : `m7_enregistrer_retrait_consentement_marketing(wct_id, canal,
+horodatage)`, registre `retraits_consentement_marketing` (append-only, durable). Le retrait est un fait, sans texte libre
+(canal, personne, heure) ; il prend effet à l'instant (N2) et bloque, pour ce chantier et pour tout autre chantier du même
+lead, **toute tâche de contenu** : proposer, décider, exporter, `m7_preparer_contenu_public` ; un contenu déjà proposé,
+approuvé ou exporté devient `CONSENTEMENT_RETIRE`, et la réponse liste les paquets déjà exportés à retirer à la main. Un
+retrait précède parfois son WCT : il est enregistré quand même (`wct_connu: false`) et bloque le WCT à sa réception. Il ne
+se lève pas ; un client qui consent de nouveau le fait par un nouveau « Terminer ». Canal de signalement aujourd'hui : le
+propriétaire ou son gestionnaire, depuis l'app admin ; le STOP de M1 sur le bus reste à faire (rapport de T4.17).
+
+**Profil de marque** : champs optionnels, tolérés par le contrat gelé v1 (champs supplémentaires JSON), à fournir par
+le client : `site_url` (lien de suivi), `hashtags`, `garanties_validees` (énoncés approuvés, recopiés mot pour mot),
+`heures_publication` (`{plateforme: "HH:MM"}`).
+
+**Registres** (`m07-marketing`) : `contenus_chantier` (propositions, une par contenu et par révision),
+`decisions_contenu`, `exports_paquet`, `retraits_consentement_marketing`. L'état d'un contenu est le pliage de ces
+maillons ; le retrait l'emporte sur tout.
+
+**Preuve.** `tests/usine/` (contrôle, gabarits, registre, décision, chantier, paquet, service sur base durable) et
+`tests/e2e/test_usine_contenu_appareil.py` (moteur réel, porte d'appareil) : « Terminer » avec consentement, cinq
+contenus en attente, texte avec prix refusé, approbation, paquet exporté, sans consentement rien, retrait bloqué.
 
 ## Contrat gelé v1
 

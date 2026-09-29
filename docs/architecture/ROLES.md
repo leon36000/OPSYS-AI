@@ -67,7 +67,7 @@ qui travaille sur un toit, un gestionnaire qui reprend un dossier).
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 66 outils sur 140 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 70 outils sur 146 sont déclarés.
 
 ### `employee` (11 outils) : §9.3, le terrain
 
@@ -107,7 +107,7 @@ M10.
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (66 outils) : §9.5 + employé + vendeur
+### `admin` (70 outils) : §9.5 + employé + vendeur
 
 Les 11 outils de l'employé, les 9 du vendeur, et :
 
@@ -129,6 +129,7 @@ Les 11 outils de l'employé, les 9 du vendeur, et :
 | M6 | `m6_produire_digest`, `m6_evaluer_variance_chantier` | §9.5 « stock critique », « rapport de pertes et bris », « écarts de chantier ». |
 | M7 | `m7_lister_file_approbation` | §9.5 M7 : contenus et réponses aux avis à approuver. |
 | M7 | `m7_lister_demandes_avis` (T0) | §9.5 M7 « avis à répondre » et §6 « travaux terminés » (T1.5-d) : le brouillon de demande d'avis né d'un « Terminer » avec le consentement du client, avec la preuve de ce consentement (qui, quand, quel texte). Lecture seule, bornée à huit brouillons (`Capacites` tronque à 6 000 caractères) : rien n'est envoyé, l'envoi au client reste une décision humaine. Ni l'employé (il recueille le consentement, il ne lit pas ce que le propriétaire décide d'en faire) ni le vendeur. |
+| M7 | `m7_lister_contenus_chantier` (T0), `m7_decider_contenu` (N3), `m7_exporter_paquet_manuel` (N2), `m7_enregistrer_retrait_consentement_marketing` (N2) | §7 M7 « usine à contenu » et M7.2 « paquet manuel » (T4.17) : le propriétaire lit les cinq contenus d'un chantier terminé en entier, décide (approuver ou rejeter), prend le paquet à publier LUI-MÊME et enregistre le retrait du consentement d'un client. Règles plus bas (« L'usine à contenu de M7 »). Ni l'employé (il recueille le consentement, il ne voit pas ce qu'on en fait) ni le vendeur. |
 | M9 | `m9_produire_briefing_matin`, `m9_lire_alertes_m8`, `m9_lire_etat_consolide` | §7 M9 mobile : « Admin/Nathan seulement ». |
 | M9 | `m9_lister_demandes_approbation` (T0), `m9_decider_demande_approbation` (T1, N2) | §9.2 « le propriétaire approuve tout depuis le téléphone », §9.5 « Approbations » (T1.4-f). Règles ci-dessous : `admin` ouvre l'outil, la PERSONNE doit être le propriétaire. |
 | M10 | `m10_statut_decision`, `m10_statut_revision`, `m10_arbitrer_revision`, `m10_paquet_contexte_affaire` | §7 M10 mobile : décisions à valider, contradictions, recherche dans la mémoire. |
@@ -149,6 +150,25 @@ mode `supervise` ou `autonome`, où un N3 s'exécute sans file, est donc refusé
 personne, sa voie (`appareil` ou `approbation`), son rôle et son motif ; l'heure de réception du serveur fait
 foi pour un appel d'appareil. `m10_affaire_de_la_session` (lecture du lien) reste fermé à tous les appareils :
 le moteur de contexte du core est son seul appelant.
+
+### L'usine à contenu de M7 (T4.17)
+
+Un chantier terminé avec le consentement du client à l'usage de son chantier donne cinq contenus (Facebook,
+Instagram, fiche Google, script de vidéo courte, demande de témoignage), que M7 propose et que le PROPRIÉTAIRE décide.
+Deux outils n'ont aucune portée d'appareil : `m7_proposer_contenus_chantier` (brouillon N1, que le consommateur du bus
+crée déjà sans approbation, ou l'agent avec des textes qu'il rédige) et `m7_lire_matiere_chantier` (ce dont le modèle a
+besoin pour rédiger). Les quatre autres sont ouverts à `admin` seulement.
+
+| Déclaration ou garde | Pourquoi |
+|---|---|
+| `m7_decider_contenu` : T1, **N3** (le défaut), `roles_appareil = {"admin"}` | La décision d'approuver un contenu public est du propriétaire. N3 : la personne authentifiée qui agit tient lieu de validation au départ (ADR-0009 §4, T1.4-h), tracée par le socle (`approbations`, `motif_decision` de la validation au départ). En mode `ombre`, l'appel d'un agent attend dans la file. |
+| **Le propriétaire, pas seulement `admin`** | Comme l'app d'approbation (plus bas), le rôle du jeton ne prouve pas qui est le propriétaire : l'outil exige que la PERSONNE porte `nathan_owner`. Un gestionnaire `admin` reçoit `REJ-HUMAIN-ROLE-INSUFFISANT`, et sa tentative est tracée par le socle (`resultat.accepte` faux). |
+| Deux voies, jamais une troisième (patron M10) | (1) un appel d'appareil dont l'identité est confirmée en base ; (2) l'exécution d'une demande que le propriétaire vient d'approuver dans la file (`en_cours`, mêmes `contenu_id`, `decision` et `horodatage`). Un agent en mode `supervise` ou `autonome`, où un N3 s'exécute sans file, reçoit `REJ-HUMAIN-REQUIS` : il n'approuve jamais son propre contenu. |
+| La décision porte l'empreinte du texte décidé ; le contrôle est rejoué | Approuver comme exporter refusent un texte qui n'est plus celui qui a été approuvé ou qui ne passe plus le contrôle en code (`REJ-CONTENU-MODIFIE-APRES-APPROBATION`, `REJ-TEXTE-NON-CONFORME`). Le contenu vient de la file de M7, jamais d'un argument. |
+| `m7_exporter_paquet_manuel` : T1, **N2**, `admin` | Une tâche interne : la décision humaine est déjà prise. Il ne publie rien et n'appelle aucune API de plateforme : le paquet (texte, mots-clics, lien de suivi, médias « à flouter à la main », heure du profil, instructions) est remis à celui qui le demande. |
+| `m7_enregistrer_retrait_consentement_marketing` : T1, **N2**, `admin` | Loi 25 : un retrait ne restreint que et doit prendre effet à l'instant, sans attendre une approbation. Aucun texte libre (canal, personne, heure). Il ne se lève pas : aucun outil ne le défait. L'employé et le vendeur relaient la demande du client à l'`admin`. |
+| `m7_lister_contenus_chantier` : T0, `admin`, bornée | Le propriétaire lit le texte ENTIER avant de décider. Huit contenus au plus par appel et 4 500 caractères (`Capacites` tronque à 6 000) ; `suivant` donne le rang de la page suivante. |
+| Aucune approbation de publication, jamais | Le contenu approuvé n'est pas publié : M7 n'a aucun outil de publication réelle (`m7_publier_post_social` est T3, refusé en écriture réelle). Le propriétaire publie à la main avec le paquet. |
 
 ### Les deux outils d'approbation de l'app (T1.4-f, étape 6)
 
@@ -216,6 +236,7 @@ Les plus sensibles :
 | `m6_enregistrer_prix`, `m6_enregistrer_fournisseur`, `m6_enregistrer_besoins_prevus`, `m6_marquer_po_envoye` | Livre de prix, courriel de commande d'un fournisseur, prévu issu du devis accepté, engagement externe (N4). |
 | `m8_rapport_metriques`, `m9_etat_consolide` | Ingèrent un snapshot fourni par l'appelant dans le registre de vérité. |
 | `m7_auditer_seo_site`, `m7_calculer_roi` | Chemins de fichiers du serveur. |
+| `m7_proposer_contenus_chantier`, `m7_lire_matiere_chantier` | Brouillons N1 nés du bus (le consommateur de M7 les crée déjà) et matière du modèle qui rédige : le propriétaire lit et décide (`m7_lister_contenus_chantier`, `m7_decider_contenu`), il ne fait pas écrire de textes depuis son téléphone. |
 
 ## Contrôle d'accès par personne et par intervention (T1.4-k, M4 et M6)
 

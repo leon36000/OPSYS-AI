@@ -36,6 +36,12 @@ BRAND_VALIDE = {
     "langue": "fr",
 }
 
+PREUVE = {
+    "consentement_recueilli_par": "etienne",
+    "consentement_recueilli_le": "2026-09-28T18:05:00+00:00",
+    "consentement_version_texte": "consentement-client-fr-CA-v1",
+}
+
 _CHARGE = {
     "wct_id": "wct-outil-1",
     "intervention_id": "int-1",
@@ -43,6 +49,7 @@ _CHARGE = {
     "ville": "Repentigny",
     "type_travaux": "gouttières",
     "consentement_marketing": True,
+    **PREUVE,
 }
 
 _PHOTO = {
@@ -66,6 +73,7 @@ _WCT_BASE_EVENEMENT = {
     "statut": "completed_verified",
     "ville": "Repentigny",
     "type_travaux": "gouttières",
+    **PREUVE,
 }
 
 
@@ -119,6 +127,16 @@ def test_consentement_faux_dans_le_wct_recu_refuse(base_durable, brand_configure
     assert resultat["brouillon"] is None
     assert resultat["statut"] == "refuse"
     assert "consentement_marketing" in resultat["motif"]
+
+
+def test_consentement_sans_preuve_dans_le_wct_recu_refuse(base_durable, brand_configure):
+    """Vrai sans preuve (qui, quand, quel texte) : le consentement n'est pas documenté, refus nommé."""
+    charge = {k: v for k, v in _CHARGE.items() if k != "consentement_recueilli_par"}
+    stockage.maillons("m07-marketing", "wct_recus").append(charge)
+    resultat = outils.preparer_contenu_public(wct_id="wct-outil-1", photos=[_PHOTO], seuil_confiance=0.8)
+    assert resultat["brouillon"] is None
+    assert resultat["statut"] == "refuse"
+    assert "preuve" in resultat["motif"]
 
 
 def test_consentement_absent_du_wct_recu_refuse(base_durable, brand_configure):
