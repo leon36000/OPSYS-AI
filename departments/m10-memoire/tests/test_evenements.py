@@ -87,15 +87,14 @@ def _quarantaine_m10():
 
 
 class TestManifeste:
-    def test_m10_declare_consommer_travaux_termines_variance_et_rentabilite(self):
+    def test_m10_declare_consommer_le_chantier_et_l_amont_de_l_affaire(self):
         dep = charger_departements()["m10-memoire"]
         assert dep.evenements_consomme == (
             "m4.travaux_termines", "m6.variance_chantier", "m5.rentabilite_chantier",
+            "m1.lead_qualifie", "m2.client_associe", "m3.devis_accepte", "m3.devis_sans_reponse",
         )
         consommateurs = dep.charger_consommateurs()
-        assert "m4.travaux_termines" in consommateurs
-        assert "m6.variance_chantier" in consommateurs
-        assert "m5.rentabilite_chantier" in consommateurs
+        assert set(consommateurs) == set(dep.evenements_consomme)
 
 
 class TestNominal:

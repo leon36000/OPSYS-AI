@@ -25,6 +25,17 @@ PLAN T1.5-d ajoute la consommation de la rentabilité d'un chantier de M5 (`m5.r
 telle quelle, au niveau `FINANCIAL` — elle ne sort dans aucun paquet de contexte. Un coût réel partiel de M5
 n'y porte aucune marge, et M10 n'en calcule jamais.
 
+PLAN T4.18 ajoute l'AMONT d'une affaire, du lead au devis (`etapes.py`, `amont.py`) : M10 consomme
+`m1.lead_qualifie`, `m2.client_associe`, `m3.devis_accepte` et `m3.devis_sans_reponse` et les garde au même registre
+Événements. Il ne garde que des identifiants et des faits d'étape, extraits un par un de la charge : jamais le
+contact du lead, la ville, les empreintes du correspondant, les lignes d'un devis ni un texte de client (Loi 25).
+Le client associé est `CLIENT_PRIVATE` (M1 et M2 seulement) ; le prix et le coût d'un devis accepté sont un maillon
+compagnon `FINANCIAL`, absent de tout paquet. L'instant de chaque fait est celui de l'événement. Un rejeu ne crée
+rien ; un fait reçu avant celui qui le précède est gardé sans bloquer l'autre ; un lead inconnu n'est jamais inventé
+(le reçu du fait dit `origine_recue` et `verdict`). Le paquet montre l'historique (source, heure), la consolidation
+nocturne et l'audit « non-oubli » couvrent ces faits. `m3.devis_envoye` (T4.7) s'ajoute par une entrée de la table de
+`etapes.py` et une ligne du manifeste.
+
 PLAN T3.3-suite ajoute le dépôt POSTFLIGHT (`faits_candidats.py`, `m10_deposer_faits_candidats`) : après
 un tour d'agent, le core transmet ce que les OUTILS ont fait (outil, résultat ok ou refus, code), jamais
 ce que le modèle a écrit. Chaque fait devient un maillon `fait_candidat` du registre Affaires, en statut
@@ -53,7 +64,7 @@ fermés ; le paquet compte ce qu'il retient sans le montrer.
   jamais interrompre l'appelant), `m10_paquet_contexte_affaire`, `m10_consolider_affaire`,
   `m10_auditer_non_oubli` (PLAN T3.3), `m10_deposer_faits_candidats` (PLAN T3.3-suite), + outils unitaires (WCT, révision, statuts, vérification
   de référence). Seul ce module touche `opsys` (stockage, bus) : `classification.py`,
-  `variance.py`, `rentabilite.py`, `consolidation.py`, `paquets.py`, `faits_candidats.py` et `audit.py` restent purs (DA-M10-08).
+  `variance.py`, `rentabilite.py`, `etapes.py`, `amont.py`, `consolidation.py`, `paquets.py`, `faits_candidats.py` et `audit.py` restent purs (DA-M10-08).
 - Correctifs de fiabilité (TDD, tests dans `tests/`) :
   - `revision.py` — l'arbitrage d'une révision qui n'a jamais été signalée était accepté ;
     refusé nommément désormais (`REJ-REVISION-SIGNALEMENT-INTROUVABLE`).

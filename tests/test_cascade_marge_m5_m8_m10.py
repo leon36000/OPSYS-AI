@@ -390,6 +390,15 @@ def _m10_rentabilites() -> list[dict]:
                       key=lambda m: m["sequence"])
 
 
+def _retenus_attendus(agent) -> int:
+    """Ce que M10 retient d'un paquet pour cet agent : chaque élément FINANCIAL (les leçons de marge de M5, et depuis
+    T4.18 le prix et le coût du devis accepté), et le client associé (CLIENT_PRIVATE) sauf pour M1 et M2."""
+    with stockage.transaction():
+        niveaux = [m.get("confidentialite") for m in stockage.maillons("m10-memoire", "evenements")]
+    prives_admis = agent in ("m01-front-office", "m02-revenue-crm")
+    return niveaux.count("FINANCIAL") + (0 if prives_admis else niveaux.count("CLIENT_PRIVATE"))
+
+
 def _m10(deps, nom: str, **arguments) -> dict:
     reponse = executer_atomique(_outils(deps, "m10-memoire")[nom], arguments)
     assert reponse["ok"] is True, reponse
@@ -496,7 +505,8 @@ def test_la_marge_reelle_de_m5_atteint_m8_qui_la_mesure_et_m10_qui_la_memorise_s
             arguments["agent"] = agent
         paquet = _m10(deps, "m10_paquet_contexte_affaire", **arguments)
         texte = json.dumps(paquet, ensure_ascii=False)
-        assert paquet["confidentialite"]["nb_retenus"] == len(lecons), agent  # retenues, seulement comptées
+        # Retenues, seulement comptées.
+        assert paquet["confidentialite"]["nb_retenus"] == _retenus_attendus(agent), agent
         assert not [m for m in MONTANTS_M5 if m in texte], (agent, texte)
         assert final["evenement_id"] not in texte
 

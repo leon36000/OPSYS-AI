@@ -6,7 +6,9 @@ Assemble un paquet en QUATRE couches ORDONNÉES pour une affaire (``lead_id``) :
                               statut connu, ``decisions.decisions_par_statut``) ;
 2. ``faits_affaire``       — faits durables de l'affaire, produits par la consolidation nocturne
                               (``consolidation.py``) ;
-3. ``evenements_recents``  — événements bruts de l'affaire (WCT, variance) au registre Événements ;
+3. ``evenements_recents``  — événements bruts de l'affaire au registre Événements : les faits de l'amont (lead
+                              qualifié, client associé, devis accepté, devis sans réponse, PLAN T4.18), le WCT, la
+                              variance. Chacun porte l'heure de l'ÉVÉNEMENT, jamais celle de M10 ;
 4. ``signaux_non_resolus`` — signaux critiques de l'affaire avec leur cycle de vie (``signaux.py``) :
                               les OUVERTS d'abord, puis les pris en compte, puis les derniers CLOS avec
                               qui les a clos et pourquoi. Un signal ne sort de « ouvert » que par un humain
@@ -36,7 +38,7 @@ import json
 from datetime import datetime
 from typing import Any
 
-from . import classification, confidentialite, consolidation, decisions, signaux
+from . import classification, confidentialite, consolidation, decisions, etapes, signaux
 
 BUDGET_CARACTERES_DEFAUT = 4000
 NB_FAITS_MAX_PAR_COUCHE_DEFAUT = 5
@@ -140,7 +142,8 @@ def _resume_evenement(maillon: dict, type_evenement: str | None, identifiant: st
         # Jamais un montant : l'entrée est FINANCIAL et ne sort dans aucun paquet ; ce résumé n'en porte pas
         # non plus, pour qu'un marquage manquant ne puisse pas devenir une fuite.
         return f"Rentabilité {identifiant} : {maillon.get('verdict')}"
-    return "événement non classifié"
+    # Un fait de l'amont (PLAN T4.18) : son résumé est écrit dans `etapes.py`, sans montant ni texte libre.
+    return etapes.resume(maillon) or "événement non classifié"
 
 
 def _fait_evenement(maillon: dict) -> dict[str, str]:

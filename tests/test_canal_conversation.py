@@ -260,7 +260,9 @@ def test_un_lead_que_m2_refuse_est_reessaye_puis_mis_en_quarantaine_sans_rien_ec
     taxonomie.enregistrer_services(["reparation"])  # entre la qualification et la livraison, « gouttieres » est retiré
 
     resume = _drainer(deps)
-    assert resume["traites"] == 0 and resume["echecs"] == 4 and resume["quarantaines"] == 1, resume
+    # Un seul reçu traité : celui de M10, qui garde le lead qualifié dans l'historique de l'affaire (T4.18). M2, lui,
+    # refuse : quatre échecs puis la quarantaine.
+    assert resume["traites"] == 1 and resume["echecs"] == 4 and resume["quarantaines"] == 1, resume
     assert _maillons_m2() == []
     (ligne,) = [q for q in evenements.etat()["quarantaine"] if q["consommateur"] == "m02-revenue-crm"]
     assert ligne["evenement_id"] == f"m1-lead-qualifie-{lead['lead_id']}" and ligne["tentatives"] == 5

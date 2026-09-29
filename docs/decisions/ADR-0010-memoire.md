@@ -219,3 +219,31 @@ département ne voit pas le serveur MCP de M10, seul le moteur du core appelle l
 un paquet dont le bloc de confidentialité ne nomme pas cet agent, ou dont un fait porte un niveau fermé. Une décision
 peut être marquée (`m10_journaliser_decision`, clé sœur `confidentialite`, contrat v1 intact) ; aucun autre producteur
 ne marque encore : les événements du bus, dont le catalogue est fermé, n'en portent pas.
+
+### T4.18 : l'amont d'une affaire, du lead au devis (M10 `etapes.py`, `amont.py`)
+
+Faite le 2026-09-29. M10 consomme `m1.lead_qualifie`, `m2.client_associe`, `m3.devis_accepte` et
+`m3.devis_sans_reponse` (DEFINITION-PRODUIT §6 : « M10 reçoit des événements de tous les départements à chaque
+étape »). `m3.devis_envoye` n'existe pas encore au catalogue (T4.7).
+- **Ce qui est gardé.** Des identifiants et des faits d'étape, extraits un par un de la charge (liste blanche, formes
+  fermées) : jamais le contact du lead, la ville, `conversation_id` ni `signal_id` (empreintes du correspondant), les
+  lignes d'un devis, ni un texte de client. Un champ hors de sa forme est refusé (quarantaine du répartiteur), et le
+  refus nomme le champ, jamais la valeur. L'instant d'un fait est celui de l'événement.
+- **Niveaux posés par M10 sur les faits du bus** (après la rentabilité `FINANCIAL` de T1.5-d ; le catalogue, lui,
+  reste fermé et n'en porte pas). Le client associé est `CLIENT_PRIVATE` (son `client_id` est une
+  empreinte du contact : sur un numéro de téléphone, elle se retrouve par essais) ; le prix et le coût d'un devis
+  accepté sont un maillon compagnon `FINANCIAL`. Le maillon de l'étape « devis accepté » ne porte aucun montant, pour
+  que l'étape figure à l'historique. La table de `confidentialite.py` ne change pas : `CLIENT_PRIVATE` sort vers M1 et
+  M2 seulement, dans `faits_affaire` et `evenements_recents`.
+- **Idempotence et ordre.** Par type et par clé publique (`lead_id`, `devis_id`), jamais par `lead_id` seul : un rejeu,
+  même sous un autre `evenement_id`, ne crée rien ; un fait reçu avant celui qui le précède est gardé et ne bloque
+  pas l'autre (même défaut que T1.5-d pour le WCT). Un lead inconnu n'est jamais inventé : le fait de l'amont d'un
+  lead dont M10 n'a pas reçu le `m1.lead_qualifie` est gardé sous son `lead_id`, et le reçu du répartiteur dit
+  `origine_recue: false` et `verdict: AMONT-ORIGINE-NON-RECUE`. Le paquet, lui, ne porte pas ce verdict : sa forme est
+  épinglée contre les fixtures du core (`tests/test_openclaw_contexte.py`), qui se modifient en CI seulement.
+- **Lecture.** Les faits de l'amont sont dans la couche `evenements_recents` : les quatre couches et leur ordre ne
+  changent pas (le core les valide). Le paquet garde son budget : avec cinq faits ou plus, le plus ancien sort et
+  `nb_omis` le dit ; la consolidation nocturne (`faits_affaire`) garde le compte par jour.
+- **Audit.** `m10_auditer_non_oubli` attend un fait de l'amont par sa clé publique. Un consommateur retiré de
+  `evenements.consomme` se voit à la trace absente d'un fait que le bus a publié ; `opsys verifier` le voit aussi
+  (fonction orpheline).

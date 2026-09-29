@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from . import classification
+from . import classification, etapes
 
 TYPE_ENTREE_FAIT = "fait_consolide"
 
@@ -53,7 +53,13 @@ def _resumer(evenements_du_jour: list[dict]) -> str:
         1 for e in evenements_du_jour if classification.type_evenement(e) == classification.TYPE_RENTABILITE
     )
 
+    # L'amont d'abord, dans l'ordre de l'entonnoir (PLAN T4.18) : un COMPTE par étape, jamais un identifiant, un
+    # montant ni un contact. Le maillon compagnon FINANCIAL d'un devis n'est pas une étape de plus : pas compté.
     segments = []
+    for etape in etapes.etapes_de_l_amont():
+        nb_etape = sum(1 for e in evenements_du_jour if classification.type_evenement(e) == etape.type_evenement)
+        if nb_etape:
+            segments.append(f"{nb_etape} {etape.libelle}")
     if nb_wct:
         segments.append(f"{nb_wct} travaux terminés")
     if nb_variance:

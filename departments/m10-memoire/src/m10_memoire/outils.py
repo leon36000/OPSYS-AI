@@ -10,6 +10,11 @@ idempotente, `consolidation.py`) et `m10_auditer_non_oubli` (audit « non-oubli 
 la consommation de `m6.variance_chantier` (`variance.py`, même registre Événements que le WCT).
 PLAN T1.5-d ajoute la consommation de `m5.rentabilite_chantier` (`rentabilite.py`, même registre, entrée marquée
 `FINANCIAL` : la marge d'un chantier ne sort dans aucun paquet de contexte).
+PLAN T4.18 ajoute la consommation de l'AMONT d'une affaire (`amont.py`, `etapes.py`) : `m1.lead_qualifie`,
+`m2.client_associe`, `m3.devis_accepte` et `m3.devis_sans_reponse`, mémorisés au même registre Événements (identifiants
+et faits d'étape seulement ; le contact du lead n'est jamais copié ; le prix et le coût d'un devis accepté vont dans un
+maillon `FINANCIAL`, le client associé est `CLIENT_PRIVATE`). Les consommateurs sont produits par la table de
+`etapes.py` : une étape de plus (`m3.devis_envoye`) est une entrée de cette table et une ligne du manifeste.
 PLAN T3.3-suite ajoute `m10_deposer_faits_candidats` (`faits_candidats.py`) : le POSTFLIGHT du moteur de
 contexte du core y dépose ce que les outils ont fait pendant un tour d'agent ; `m10_paquet_contexte_affaire`
 en est la lecture (PREFLIGHT).
@@ -44,11 +49,14 @@ from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 from opsys.stockage.schema import APPROBATIONS
 
 from . import (
+    amont,
     audit,
+    classification,
     consolidation,
     contexte,
     contrats,
     decisions,
+    etapes,
     faits_candidats,
     humain,
     liaison,
@@ -126,13 +134,13 @@ _FAIT_CANDIDAT = {
 _IDENTIFIANT_ATTENDU = {
     "type": "object",
     "properties": {
-        "type_evenement": {
-            "type": "string",
-            "enum": ["m4.travaux_termines", "m6.variance_chantier", "m5.rentabilite_chantier"],
-        },
+        "type_evenement": {"type": "string", "enum": list(audit.types_audites())},
         "identifiant": {
             "type": "string",
-            "description": "wct_id (WCT) ou evenement_id (variance, rentabilité).",
+            "description": (
+                "wct_id (WCT), evenement_id (variance, rentabilité), lead_id (m1.lead_qualifie, "
+                "m2.client_associe) ou devis_id (m3.devis_accepte, m3.devis_sans_reponse)."
+            ),
         },
     },
     "required": ["type_evenement", "identifiant"],
@@ -301,12 +309,52 @@ def _recevoir_rentabilite_chantier(charge: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------
+# Consommateurs d'événements (ADR-0009 §3, PLAN T4.18) : l'amont d'une affaire
+# ---------------------------------------------------------------------------
+class AmontRefuse(ValueError):
+    """Un fait de l'amont est refusé par `amont.memoriser` : champ absent, hors de sa forme fermée, instant sans
+    fuseau. Incohérence entre le catalogue du socle et ce que M10 accepte de garder, jamais un refus métier normal :
+    le répartiteur réessaie puis met en quarantaine (ADR-0009 §3), visible par un humain. Le message nomme le CHAMP,
+    jamais sa valeur (elle pourrait être une donnée personnelle)."""
+
+
+def _consommateur_amont(type_evenement: str) -> Callable[[dict], dict]:
+    """Le consommateur d'un type de l'amont, tiré de la table de `etapes.py`. Mémorise par la clé du fait
+    (`amont.memoriser`) : idempotent, sans ordre imposé, sans affaire inventée. Le résultat, gardé par le répartiteur
+    au reçu de l'événement, dit si le fait était déjà là (`deja_memorise`), s'il portait les mêmes faits
+    (`identique`) et si l'origine de l'affaire (`m1.lead_qualifie`) est connue (`origine_recue`, `verdict`)."""
+    producteur = etapes.etape(type_evenement).producteur
+
+    def recevoir(charge: dict[str, Any]) -> dict[str, Any]:
+        resultat, verdict = amont.memoriser(type_evenement, dict(charge), _REGISTRE_EVENEMENTS)
+        if resultat is None:
+            raise AmontRefuse(f"{type_evenement} : fait refusé par M10 : {verdict['code']} ({verdict['detail']})")
+        maillon = resultat["maillon"]
+        return {
+            "memorise": True,
+            "type_evenement": type_evenement,
+            "identifiant": classification.identifiant(maillon),
+            "lead_id": maillon["lead_id"],
+            "ligne_id": maillon["ligne_id"],
+            "producteur": producteur,
+            "deja_memorise": resultat["deja_memorise"],
+            "identique": resultat["identique"],
+            "origine_recue": resultat["affaire"]["origine_recue"],
+            "verdict": resultat["affaire"]["verdict"],
+        }
+
+    recevoir.__name__ = "recevoir_" + type_evenement.replace(".", "_")
+    return recevoir
+
+
 def consommateurs() -> dict[str, Callable[[dict], dict]]:
     """Types d'événements consommés par M10 (ADR-0009 §3) — voir `department.yaml/evenements`."""
     return {
         "m4.travaux_termines": _recevoir_travaux_termines,
         "m6.variance_chantier": _recevoir_variance_chantier,
         "m5.rentabilite_chantier": _recevoir_rentabilite_chantier,
+        **{type_evenement: _consommateur_amont(type_evenement) for type_evenement in etapes.types_consommes()},
     }
 
 
@@ -674,8 +722,9 @@ def outils() -> tuple[Outil, ...]:
             nom="m10_paquet_contexte_affaire",
             description=(
                 "Paquet de contexte en 4 couches ORDONNÉES pour une affaire (lead/chantier) : "
-                "règles de l'entreprise → faits durables de l'affaire → événements récents → "
-                "signaux critiques (ouverts d'abord, puis les derniers clos avec qui et pourquoi). "
+                "règles de l'entreprise → faits durables de l'affaire → événements récents (lead qualifié, "
+                "client associé, devis accepté, devis sans réponse, travaux terminés, avec leur heure et leur "
+                "provenance) → signaux critiques (ouverts d'abord, puis les derniers clos avec qui et pourquoi). "
                 "Budget de caractères et troncature calculés par le code ; une couche vide est "
                 "déclarée vide, jamais absente en silence ; les éléments CLIENT_PRIVATE ne sortent "
                 "que vers les agents qui en ont besoin, et sont comptés quand ils sont retenus."
@@ -853,7 +902,8 @@ def outils() -> tuple[Outil, ...]:
             nom="m10_auditer_non_oubli",
             description=(
                 "Audit « non-oubli » : intégrité des deux chaînes (registre.valider_chaine) et, "
-                "pour chaque fait ATTENDU fourni (WCT, variance ou rentabilité), vérifie sa trace au registre "
+                "pour chaque fait ATTENDU fourni (WCT, variance, rentabilité, ou fait de l'amont : lead qualifié, "
+                "client associé, devis accepté, devis sans réponse), vérifie sa trace au registre "
                 "Événements. Rend une liste compacte des oublis, jamais une valeur par défaut."
             ),
             parametres={

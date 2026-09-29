@@ -8,6 +8,12 @@ bus d'événements (``opsys.evenements``) pour deviner tout seul ce qui aurait d
 serait l'inverse du fail-closed (AGENTS.md : « une donnée manquante produit un verdict qui dit quoi
 demander, jamais une valeur par défaut inventée »).
 
+Un fait de l'AMONT (PLAN T4.18) s'attend par sa clé publique : ``lead_id`` pour ``m1.lead_qualifie`` et
+``m2.client_associe``, ``devis_id`` pour ``m3.devis_accepte`` et ``m3.devis_sans_reponse``. L'attendu vient de
+l'appelant, jamais du manifeste de M10 : c'est ce qui fait voir un consommateur retiré de ``evenements.consomme``.
+Une liste bâtie depuis le manifeste perdrait avec lui ce qu'elle devait attendre ; une liste bâtie depuis ce que le
+bus a publié montre la trace absente.
+
 Produit une liste COMPACTE des oublis ; ``total_attendus == 0`` est un rapport honnête (rien n'a
 été vérifié), jamais un « tout va bien » implicite.
 
@@ -19,12 +25,23 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from . import classification
+from . import classification, etapes
 
 REJ_AUDIT_TYPE_INCONNU = "REJ-AUDIT-TYPE-INCONNU"
 REJ_AUDIT_TRACE_ABSENTE = "REJ-AUDIT-TRACE-ABSENTE"
 
-_TYPES_EVENEMENT_AUDITES = (classification.TYPE_WCT, classification.TYPE_VARIANCE, classification.TYPE_RENTABILITE)
+_TYPES_EVENEMENT_HORS_AMONT = (
+    classification.TYPE_WCT,
+    classification.TYPE_VARIANCE,
+    classification.TYPE_RENTABILITE,
+)
+
+
+def types_audites() -> tuple[str, ...]:
+    """Les types dont on peut attendre la trace : le WCT, la variance, la rentabilité, puis chaque étape de l'amont
+    (PLAN T4.18, dans l'ordre de l'entonnoir). Lu à l'appel : une étape ajoutée à ``etapes.py`` est auditée sans
+    autre changement. Le compagnon FINANCIAL d'un devis n'est pas un fait attendu à part : il naît avec le devis."""
+    return (*_TYPES_EVENEMENT_HORS_AMONT, *etapes.types_consommes())
 
 
 def _presents(registre_evenements: Any) -> set[tuple[str, str]]:
@@ -59,7 +76,7 @@ def auditer_non_oubli(
     for entree in identifiants_attendus:
         type_evenement = entree.get("type_evenement")
         identifiant = entree.get("identifiant")
-        if type_evenement not in _TYPES_EVENEMENT_AUDITES:
+        if type_evenement not in types_audites():
             oublis.append(
                 {"type_evenement": type_evenement, "identifiant": identifiant, "verdict": REJ_AUDIT_TYPE_INCONNU}
             )

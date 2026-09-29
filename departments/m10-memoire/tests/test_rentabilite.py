@@ -292,7 +292,9 @@ def test_l_audit_non_oubli_verifie_la_trace_d_une_rentabilite_attendue(registres
 def test_l_outil_d_audit_accepte_le_type_rentabilite_dans_son_schema():
     outil = next(o for o in outils_mod.outils() if o.nom == "m10_auditer_non_oubli")
     enum = outil.parametres["properties"]["identifiants_attendus"]["items"]["properties"]["type_evenement"]["enum"]
-    assert enum == ["m4.travaux_termines", "m6.variance_chantier", "m5.rentabilite_chantier"]
+    # Les trois d'abord ; l'amont de l'affaire (T4.18) ensuite, dans l'ordre de l'entonnoir.
+    assert enum[:3] == ["m4.travaux_termines", "m6.variance_chantier", "m5.rentabilite_chantier"]
+    assert enum[3:] == ["m1.lead_qualifie", "m2.client_associe", "m3.devis_accepte", "m3.devis_sans_reponse"]
 
 
 # =========================================================================================

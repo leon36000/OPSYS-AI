@@ -11,12 +11,19 @@ structurellement propre à chacun (jamais un tag ajouté a posteriori) : le WCT 
 d'un événement : directe pour un WCT, par ``wct_id`` pour une variance ou une rentabilité — qui ne portent pas
 de ``lead_id`` propre (``chantier_id`` est un concept distinct, M6-audit.md).
 
+Les faits de l'AMONT (PLAN T4.18 : lead qualifié, client associé, devis accepté, devis sans réponse) sont écrits par
+``amont.py`` selon ``etapes.py`` : M10 en garde une liste blanche, il en est donc l'auteur et les marque du type du bus
+qui les a produits (``type_evenement``). Ils portent tous leur ``lead_id`` : l'affaire est directe, jamais devinée. Le
+prix et le coût d'un devis accepté sont un maillon compagnon, d'un type à part (``etapes.type_montants``).
+
 Module pur (DA-M10-08) : aucun import d'``opsys``.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable
+
+from . import etapes
 
 TYPE_WCT = "m4.travaux_termines"
 TYPE_VARIANCE = "m6.variance_chantier"
@@ -42,16 +49,19 @@ def type_evenement(maillon: dict) -> str | None:
         return TYPE_WCT
     if _CLE_DISCRIMINANTE[TYPE_RENTABILITE] in maillon:
         return TYPE_RENTABILITE
-    return None
+    return etapes.type_du_maillon(maillon)
 
 
 def identifiant(maillon: dict) -> str | None:
     """La clé PUBLIQUE par laquelle un producteur (ou un audit) désigne ce fait — ``wct_id`` pour
-    un WCT, ``evenement_id`` pour une variance ou une rentabilité — jamais ``ligne_id``, interne au registre."""
+    un WCT, ``evenement_id`` pour une variance ou une rentabilité, ``lead_id`` ou ``devis_id`` pour un fait de
+    l'amont — jamais ``ligne_id``, interne au registre."""
     type_ = type_evenement(maillon)
     if type_ is None:
         return None
-    return maillon.get(_CLE_IDENTIFIANT[type_])
+    if type_ in _CLE_IDENTIFIANT:
+        return maillon.get(_CLE_IDENTIFIANT[type_])
+    return etapes.cle_du_maillon(maillon)
 
 
 def index_lead_id_par_wct_id(maillons: Iterable[dict]) -> dict[str, str]:
@@ -68,11 +78,11 @@ def index_lead_id_par_wct_id(maillons: Iterable[dict]) -> dict[str, str]:
 
 
 def lead_id(maillon: dict, index_wct: dict[str, str]) -> str | None:
-    """L'affaire (``lead_id``) d'un événement : directe pour un WCT, résolue via ``wct_id`` pour
-    une variance ou une rentabilité ; ``None`` si non résolvable (événement reçu avant son WCT, ou
+    """L'affaire (``lead_id``) d'un événement : directe pour un WCT et pour un fait de l'amont, résolue via
+    ``wct_id`` pour une variance ou une rentabilité ; ``None`` si non résolvable (événement reçu avant son WCT, ou
     WCT jamais mémorisé) — jamais deviné."""
     type_ = type_evenement(maillon)
-    if type_ == TYPE_WCT:
+    if type_ == TYPE_WCT or etapes.type_du_maillon(maillon) is not None:
         return maillon.get("lead_id")
     if type_ in (TYPE_VARIANCE, TYPE_RENTABILITE):
         return index_wct.get(maillon.get("wct_id"))
@@ -80,7 +90,7 @@ def lead_id(maillon: dict, index_wct: dict[str, str]) -> str | None:
 
 
 def evenements_de_laffaire(affaire_id: str, maillons: Iterable[dict]) -> list[dict]:
-    """Tous les événements (WCT, variance, rentabilité) d'une affaire, dans l'ordre du registre reçu."""
+    """Tous les événements (amont, WCT, variance, rentabilité) d'une affaire, dans l'ordre du registre reçu."""
     maillons = list(maillons)
     index_wct = index_lead_id_par_wct_id(maillons)
     return [m for m in maillons if lead_id(m, index_wct) == affaire_id]
