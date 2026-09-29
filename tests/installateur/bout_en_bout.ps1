@@ -610,11 +610,13 @@ function Remove-DossierInstanceVide {
 # Le service d'avant le lot 3 : sa definition nomme %USERPROFILE%\.openclaw-opsys. On le reconstitue avec le vrai core (l'etat
 # remis a l'ancien emplacement, ou le core le lit encore : `gateway install --force` y installe le service), puis on suit la
 # marche a suivre : arreter le service (Windows garde ses fichiers ouverts), Doctor deplace l'etat, l'installateur est relance et
-# reinstalle le service. La tache garde son nom et la definition nomme alors le nouvel etat.
+# reinstalle le service. La tache garde son nom et la definition nomme alors le nouvel etat. `gateway stop` porte
+# `--force` : hors d'un terminal interactif (la CI), le core refuse d'arreter le service de l'operateur sans lui
+# (core/src/cli/terminal-interactivity.ts) ; un humain a son terminal n'en a pas besoin.
 function Invoke-ServiceDAvantLeLot3 {
     Write-Etape "5 bis. Service d'avant le lot 3 : sa definition nomme %USERPROFILE%\.openclaw-opsys ; apres Doctor et la relance de l'installateur, elle nomme %USERPROFILE%\.opsys\core (meme nom de tache)"
-    $arret = Invoke-Opsys @('gateway', 'stop')
-    if ($arret.Code -ne 0) { Write-Host $arret.Sortie; Stop-Preuve "opsys gateway stop a echoue (code $($arret.Code))" }
+    $arret = Invoke-Opsys @('gateway', 'stop', '--force')
+    if ($arret.Code -ne 0) { Write-Host $arret.Sortie; Stop-Preuve "opsys gateway stop --force a echoue (code $($arret.Code))" }
     Wait-Arret "http://127.0.0.1:$($script:PortGateway)/startupz" 60 'le Gateway apres opsys gateway stop'
     Wait-Arret "http://127.0.0.1:$($script:PortMoteur)/sante" 60 'le moteur apres opsys gateway stop'
     if ((Test-Path -LiteralPath $script:AncienProfil) -or (Test-LienDeDossier $script:AncienProfil)) {
@@ -639,8 +641,8 @@ function Invoke-ServiceDAvantLeLot3 {
     Wait-Http "http://127.0.0.1:$($script:PortGateway)/startupz" 240 "Gateway (service nomme sur l'ancien dossier)"
     Wait-Http "http://127.0.0.1:$($script:PortMoteur)/sante" 240 "moteur (service nomme sur l'ancien dossier)"
     Add-Constat "service d'avant le lot 3 : sa definition nomme $($script:AncienProfil), le core y lit l'etat en place, le Gateway et le moteur repondent"
-    $arret = Invoke-Opsys @('gateway', 'stop')
-    if ($arret.Code -ne 0) { Write-Host $arret.Sortie; Stop-Preuve "opsys gateway stop a echoue (code $($arret.Code))" }
+    $arret = Invoke-Opsys @('gateway', 'stop', '--force')
+    if ($arret.Code -ne 0) { Write-Host $arret.Sortie; Stop-Preuve "opsys gateway stop --force a echoue (code $($arret.Code))" }
     Wait-Arret "http://127.0.0.1:$($script:PortGateway)/startupz" 60 'le Gateway avant le deplacement'
     Wait-Arret "http://127.0.0.1:$($script:PortMoteur)/sante" 60 'le moteur avant le deplacement'
     $listeAvant = @(Get-ListeDeLEtat $script:AncienProfil)

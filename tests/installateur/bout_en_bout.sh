@@ -444,11 +444,13 @@ doctor_deplace_l_etat() { # journal de sortie de Doctor
 # Le service d'avant le lot 3 : sa définition nomme ~/.openclaw-opsys. On le reconstitue avec le vrai core (l'état remis à
 # l'ancien emplacement, où le core le lit encore : `gateway install --force` y installe le service), puis on suit la marche
 # à suivre : arrêter le service, Doctor déplace l'état, l'installateur est relancé et réinstalle le service. Le service
-# garde son nom et nomme alors le nouvel état.
+# garde son nom et nomme alors le nouvel état. `gateway stop` porte `--force` : hors d'un terminal interactif (la CI), le
+# core refuse d'arrêter le service de l'opérateur sans lui (core/src/cli/terminal-interactivity.ts) ; un humain à son
+# terminal n'en a pas besoin.
 migrer_le_service_d_avant_le_lot_3() {
     local liste_avant empreinte_avant definition
     etape "5 bis. Service d'avant le lot 3 : sa définition nomme ~/.openclaw-opsys ; après Doctor et la relance de l'installateur, elle nomme ~/.opsys/core (même nom de service)"
-    opsys gateway stop >"$TRAVAIL/service-arret-1.log" 2>&1 || { cat "$TRAVAIL/service-arret-1.log"; echec "opsys gateway stop a échoué"; }
+    opsys gateway stop --force >"$TRAVAIL/service-arret-1.log" 2>&1 || { cat "$TRAVAIL/service-arret-1.log"; echec "opsys gateway stop --force a échoué"; }
     attendre_arret "http://127.0.0.1:$PORT_GATEWAY/startupz" 60 "le Gateway après opsys gateway stop"
     attendre_arret "http://127.0.0.1:$PORT_MOTEUR/sante" 60 "le moteur après opsys gateway stop"
     { [ ! -e "$ANCIEN_PROFIL" ] && [ ! -L "$ANCIEN_PROFIL" ]; } ||
@@ -466,7 +468,7 @@ migrer_le_service_d_avant_le_lot_3() {
     attendre_http "http://127.0.0.1:$PORT_GATEWAY/startupz" 240 "Gateway (service nommé sur l'ancien dossier)"
     attendre_http "http://127.0.0.1:$PORT_MOTEUR/sante" 240 "moteur (service nommé sur l'ancien dossier)"
     constat "service d'avant le lot 3 : sa définition nomme $ANCIEN_PROFIL, le core y lit l'état en place, le Gateway et le moteur répondent"
-    opsys gateway stop >"$TRAVAIL/service-arret-2.log" 2>&1 || { cat "$TRAVAIL/service-arret-2.log"; echec "opsys gateway stop a échoué"; }
+    opsys gateway stop --force >"$TRAVAIL/service-arret-2.log" 2>&1 || { cat "$TRAVAIL/service-arret-2.log"; echec "opsys gateway stop --force a échoué"; }
     attendre_arret "http://127.0.0.1:$PORT_GATEWAY/startupz" 60 "le Gateway avant le déplacement"
     attendre_arret "http://127.0.0.1:$PORT_MOTEUR/sante" 60 "le moteur avant le déplacement"
     liste_avant="$(liste_de_l_etat "$ANCIEN_PROFIL")"
