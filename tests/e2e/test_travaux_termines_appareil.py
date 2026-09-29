@@ -20,6 +20,13 @@ session MCP TypeScript) ; il reste à prouver en CI du core ou contre un core r�
 
 Le lead est un LeadQualifie v1 (contrat gelé, `type_travaux`), comme T1.2-e : il ne dépend pas du profil
 d'entreprise de T0.13, réservé au contrat v2.
+
+PLAN T1.5-d (M6, stock bas) : la cascade « travaux terminés » ne s'arrête pas à la variance. Quand la
+déclaration de matériaux sort du stock, M6 évalue chaque article touché contre SON seuil de
+réapprovisionnement (`department.yaml/configuration/reapprovisionnement`, remplacé ici par `reappro`) : sous
+le seuil, un besoin de commande dans la file de l'admin (C et E) ; sans seuil, un signal « seuil non
+configuré » (D). Jamais un bon de commande créé seul. A et B, eux, configurent un seuil que le stock ne
+franchit pas : M6 n'a rien à dire, et les assertions d'origine tiennent.
 """
 
 from __future__ import annotations
@@ -32,7 +39,9 @@ from typing import Any
 import m2_revenue_crm.outils as m2_outils
 import m5_financecore.facturation as m5_facturation
 import m5_financecore.outils as m5_outils
+import m6_material_control.outils as m6_outils
 import pytest
+import yaml
 from harnais_e2e import Moteur, Reponse, iso
 from harnais_e2e_chantier import (
     FIX_GPS,
@@ -146,6 +155,35 @@ def _mesure(nom: str, s: _Scenario) -> dict[str, Any]:
     return bilan
 
 
+# Seuil que le stock de A (158) et de B (144) ne franchit pas : M6 n'a rien à signaler.
+SEUIL_CONFORTABLE = {MATERIAU_ID: {"seuil_reapprovisionnement": 100, "quantite_cible": 300}}
+# Seuil que le stock d'un chantier terminé sans histoire (158) franchit : 200 reçus - 42 utilisés < 160.
+SEUIL_FRANCHI_PAR_A = {MATERIAU_ID: {"seuil_reapprovisionnement": 160, "quantite_cible": 300}}
+# Seuil que le stock de B (144, écart de 40 %) franchit aussi.
+SEUIL_FRANCHI_PAR_B = {MATERIAU_ID: {"seuil_reapprovisionnement": 150, "quantite_cible": 300}}
+
+
+@pytest.fixture
+def reappro(monkeypatch, tmp_path):
+    """Le `department.yaml` de M6 dont seul le bloc de réapprovisionnement change (`articles`) : M6 le relit à
+    chaque appel, donc un test peut le renseigner en cours de route, comme Nathan le ferait. Le moteur tourne
+    dans ce processus : le même module `m6_material_control.outils` sert le test et le serveur."""
+    reel = yaml.safe_load(m6_outils._MANIFESTE.read_text(encoding="utf-8"))
+
+    def configurer(articles: dict[str, Any]) -> None:
+        manifeste = {**reel, "configuration": {**reel["configuration"], "reapprovisionnement": {"articles": articles}}}
+        chemin = tmp_path / "department-m6-e2e.yaml"
+        chemin.write_text(yaml.safe_dump(manifeste, allow_unicode=True, sort_keys=False), encoding="utf-8")
+        monkeypatch.setattr(m6_outils, "_MANIFESTE", chemin)
+
+    return configurer
+
+
+def _registre_m6(nom: str) -> list[dict[str, Any]]:
+    with stockage.transaction():
+        return list(stockage.maillons("m06-material-control", nom))
+
+
 class _Scenario:
     """Le décor commun : chantier prêt, matériel reçu par l'admin, bus au repos."""
 
@@ -186,13 +224,33 @@ class _Scenario:
 
 
 @pytest.fixture
-def scenario_a(moteur, equipe):
+def scenario_a(moteur, equipe, reappro):
+    reappro(SEUIL_CONFORTABLE)
     return _Scenario(moteur, equipe, "A-NORMAL", 15)
 
 
 @pytest.fixture
-def scenario_b(moteur, equipe):
+def scenario_b(moteur, equipe, reappro):
+    reappro(SEUIL_CONFORTABLE)
     return _Scenario(moteur, equipe, "B-ECART", 16)
+
+
+@pytest.fixture
+def scenario_c(moteur, equipe, reappro):
+    reappro(SEUIL_FRANCHI_PAR_A)
+    return _Scenario(moteur, equipe, "C-STOCK-BAS", 17)
+
+
+@pytest.fixture
+def scenario_d(moteur, equipe, reappro):
+    reappro({})  # l'état réel du manifeste : aucun article n'a de seuil
+    return _Scenario(moteur, equipe, "D-SANS-SEUIL", 18)
+
+
+@pytest.fixture
+def scenario_e(moteur, equipe, reappro):
+    reappro(SEUIL_FRANCHI_PAR_B)
+    return _Scenario(moteur, equipe, "E-ECART-ET-STOCK-BAS", 21)
 
 
 # =============================================================================================
@@ -255,6 +313,8 @@ def test_a_travaux_termines_normaux_par_la_porte_d_appareil(moteur, scenario_a):
 
     # -- M6 : les sorties sont écrites, le stock de chantier est ajusté (200 reçus - 42 utilisés) --------
     assert _stock_m6(ch) == 158.0
+    # Au-dessus du seuil de l'article (100) : M6 n'a rien à signaler (T1.5-d), ni constat ni attente.
+    assert _registre_m6("besoins_commande") == []
 
     # -- M5 : facture brouillon exacte (prix du devis), prête à envoyer, à valider par un humain ---------
     facture = _facture_active(ch.devis_id)
@@ -473,6 +533,154 @@ def test_b_l_admin_traite_l_alerte_depuis_son_telephone_et_la_completion_est_ver
     apres = _attentes_du_telephone(s.admin)
     assert "completion_en_revue" not in {a["type"] for a in apres["attentes"]}
     assert apres["total_en_attente"] == 0
+
+
+# =============================================================================================
+# C, D, E. Stock bas à « travaux terminés » (PLAN T1.5-d, DEFINITION-PRODUIT §6, ligne M6).
+# =============================================================================================
+def _constat_du_besoin(chantier: Chantier, wct_id: str) -> dict[str, Any]:
+    (constat,) = _registre_m6("besoins_commande")
+    assert constat["evenement_declencheur"] == wct_id and constat["chantier_id"] == chantier.chantier_id
+    assert constat["materiau_id"] == MATERIAU_ID and constat["unite"] == "pi"
+    return constat
+
+
+def _rien_de_commande_n_a_ete_cree() -> None:
+    """Constater un besoin n'est pas acheter : aucun bon de commande, fournisseur ni prix, aucune demande
+    d'approbation (un PO reste un brouillon demandé, puis approuvé, T2.4)."""
+    for registre in ("bons_commande", "fournisseurs", "livre_prix"):
+        assert _registre_m6(registre) == [], registre
+    assert _demandes("en_attente") == []
+    assert not {d["outil"] for d in _demandes()} & {"m6_creer_po_brouillon", "m6_approuver_po", "m6_marquer_po_envoye"}
+
+
+def test_c_stock_sous_le_seuil_l_admin_voit_le_besoin_de_commande_sans_bon_de_commande(moteur, scenario_c):
+    s = scenario_c
+    ch = s.chantier
+
+    completion, declaration = s.terminer_puis_declarer(42.0)  # +5 % : chantier normal ; stock 158 < seuil 160
+    wct_id = completion.resultat["wct_id"]
+
+    # -- le chantier normal reste normal : le stock bas est un autre signal, il ne bloque rien ----------------
+    assert declaration.metier["accepte"] is True and _stock_m6(ch) == 158.0
+    assert s.app.statut().resultat["statut"] == "completed_verified"
+    assert _statuts_recus_non_traites() == []
+    assert "seuil" not in json.dumps(declaration.resultat) and "besoin" not in json.dumps(declaration.resultat)
+
+    # -- le besoin est un fait du registre de M6, calculé par le code : cible 300 - stock 158 -----------------
+    constat = _constat_du_besoin(ch, wct_id)
+    assert constat["type_entree"] == "besoin_commande" and constat["stock_negatif"] is False
+    assert (constat["stock_theorique"], constat["seuil_reapprovisionnement"], constat["quantite_cible"],
+            constat["quantite_a_commander"]) == ("158.0", "160", "300", "142.0")
+    assert constat["horodatage"] == _evenements("m4.travaux_termines")[0]["horodatage_completion"]
+    _rien_de_commande_n_a_ete_cree()
+
+    # -- l'admin le lit là où son app lit déjà ses alertes (section « À voir ») -----------------------------
+    telephone = _attentes_du_telephone(s.admin)
+    par_type = {a["type"]: a for a in telephone["attentes"]}
+    assert set(par_type) == {"facture_brouillon", "besoin_commande"}  # ni écart, ni revue : le chantier est vérifié
+    assert all(set(a) == {"type", "id", "departement", "departement_nom", "resume", "niveau", "depuis",
+                          "action_proposee"} for a in telephone["attentes"])
+    besoin = par_type["besoin_commande"]
+    assert besoin["departement"] == "m06-material-control" and besoin["niveau"] == "N2"
+    assert besoin["id"] == f"besoin_commande:{MATERIAU_ID}"
+    assert besoin["depuis"] == constat["horodatage"]
+    assert besoin["resume"] == (
+        f"Stock bas : {MATERIAU_ID} — 158.0 pi en main, sous le seuil de 160 pi ; besoin de commande : "
+        f"142.0 pi pour atteindre 300 pi (chantier {ch.chantier_id})")
+    assert "jamais seul" in besoin["action_proposee"]
+    assert (telephone["total_attentes"], telephone["attentes_affichees"], telephone["attentes_reste"]) == (2, 2, 0)
+    assert telephone["attentes_illisibles"] == [] and telephone["total_en_attente"] == 0
+    briefing = s.admin.appeler("m9_produire_briefing_matin", {"maintenant": iso(moteur.horloge.maintenant)})
+    assert {i["type"] for i in briefing.resultat["sections"]["decisions_en_attente"]["items"]} == set(par_type)
+
+    # -- l'employé ne le voit pas (portée du rôle) --------------------------------------------------------
+    refus = s.employe.appeler("m9_lister_demandes_approbation", {})
+    assert refus.statut == 403 and "tool_out_of_scope" in refus.corps["error"]["message"]
+
+    # -- l'admin réapprovisionne (réception au dépôt) : le stock d'aujourd'hui fait foi, le besoin s'efface ---
+    args = receptionner_materiel_args(ch, quantite=200.0)
+    for cle in ("bon_demande", "reception_po"):
+        args[cle] = {**args[cle], "po_id": f"PO-DEPOT-{ch.devis_id}", "chantier_id": "DEPOT-C-fictif"}
+    reception = s.admin.appeler("m6_receptionner_commande", args, cle="mut-reception-depot-C",
+                                horodatage_appareil=iso(moteur.horloge.maintenant))
+    assert reception.metier["accepte"] is True
+    apres = _attentes_du_telephone(s.admin)
+    assert [a["type"] for a in apres["attentes"]] == ["facture_brouillon"]
+    assert _constat_du_besoin(ch, wct_id) == constat  # le constat, lui, ne s'efface pas (audit)
+    assert _registre_m6("bons_commande") == []
+
+
+@SQLITE_SEULEMENT
+def test_d_sans_seuil_configure_l_admin_voit_un_signal_a_configurer_puis_le_besoin(moteur, scenario_d, reappro):
+    s = scenario_d
+    ch = s.chantier
+
+    completion, _ = s.terminer_puis_declarer(42.0)  # le manifeste réel : aucun article n'a de seuil
+    wct_id = completion.resultat["wct_id"]
+
+    # -- M6 ne devine pas de seuil : un constat « seuil non configuré », aucun nombre de stock bas ---------------
+    assert s.app.statut().resultat["statut"] == "completed_verified"  # l'employé n'est jamais bloqué
+    constat = _constat_du_besoin(ch, wct_id)
+    assert (constat["type_entree"], constat["motif"], constat["code"]) == ("seuil_a_configurer", "seuil_absent", None)
+    assert "seuil_reapprovisionnement" not in constat and "quantite_a_commander" not in constat
+    _rien_de_commande_n_a_ete_cree()
+
+    telephone = _attentes_du_telephone(s.admin)
+    par_type = {a["type"]: a for a in telephone["attentes"]}
+    assert set(par_type) == {"facture_brouillon", "seuil_a_configurer"}
+    a_configurer = par_type["seuil_a_configurer"]
+    assert a_configurer["departement"] == "m06-material-control" and a_configurer["id"] == "seuils-reapprovisionnement"
+    assert a_configurer["resume"] == (
+        f"Seuil de réapprovisionnement non configuré : {MATERIAU_ID}. Le stock bas de cet article n'est pas évalué.")
+    assert "department.yaml" in a_configurer["action_proposee"] and "quantite_cible" in a_configurer["action_proposee"]
+    assert telephone["attentes_illisibles"] == []
+
+    # -- Nathan renseigne le seuil : l'attente est recalculée, elle devient le besoin de commande -----------------
+    reappro(SEUIL_FRANCHI_PAR_A)
+    apres = _attentes_du_telephone(s.admin)
+    par_type = {a["type"]: a for a in apres["attentes"]}
+    assert set(par_type) == {"facture_brouillon", "besoin_commande"}
+    assert "142.0 pi pour atteindre 300 pi" in par_type["besoin_commande"]["resume"]
+    assert len(_registre_m6("besoins_commande")) == 1  # lire les attentes n'écrit rien
+    _rien_de_commande_n_a_ete_cree()
+
+
+@SQLITE_SEULEMENT
+def test_e_ecart_de_quarante_pour_cent_et_stock_bas_quatre_alertes_dont_le_telephone_compte_ce_qu_il_coupe(
+    moteur, scenario_e
+):
+    """Le cas de §6 : l'écart est important ET le stock est bas. La file du propriétaire (console) et le briefing
+    du matin portent les quatre alertes ; la complétion reste en revue (M4) et le besoin n'y change rien.
+    Constat de cette mesure : la liste de l'app (`m9_lister_demandes_approbation`) borne les attentes à
+    `BUDGET_ATTENTES` (1500 caractères) et n'en pagine aucune ; les trois premières y tiennent, la quatrième est
+    COMPTÉE (`attentes_reste`), jamais perdue en silence, mais l'admin ne la lit pas sur cet écran."""
+    s = scenario_e
+    ch = s.chantier
+
+    completion, _ = s.terminer_puis_declarer(56.0)  # +40 % ; stock 144 < seuil 150
+    wct_id = completion.resultat["wct_id"]
+
+    assert s.app.statut().resultat["statut"] == "completed_pending_review"
+    assert _constat_du_besoin(ch, wct_id)["quantite_a_commander"] == "156.0"
+    _rien_de_commande_n_a_ete_cree()
+    tous = {"completion_en_revue", "facture_brouillon", "chantier_a_reviser", "besoin_commande"}
+
+    # -- la file du propriétaire (console) et le briefing du matin de M9 : les quatre ------------------------------
+    with stockage.transaction() as cnx:
+        file, illisibles = approbations.attentes_departements(cnx, moteur.departements)
+    assert illisibles == [] and {a["type"] for a in file} == tous
+    (besoin,) = (a for a in file if a["type"] == "besoin_commande")
+    assert besoin["departement"] == "m06-material-control" and "156.0 pi pour atteindre 300 pi" in besoin["resume"]
+    briefing = s.admin.appeler("m9_produire_briefing_matin", {"maintenant": iso(moteur.horloge.maintenant)})
+    assert {i["type"] for i in briefing.resultat["sections"]["decisions_en_attente"]["items"]} == tous
+
+    # -- la liste de l'app : bornée, mais honnête sur ce qu'elle ne montre pas -----------------------------------
+    telephone = _attentes_du_telephone(s.admin)
+    montrees = {a["type"] for a in telephone["attentes"]}
+    assert montrees <= tous and telephone["total_attentes"] == 4
+    assert telephone["attentes_affichees"] + telephone["attentes_reste"] == 4
+    assert telephone["attentes_illisibles"] == []
 
 
 # =============================================================================================
