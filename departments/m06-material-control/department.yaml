@@ -50,7 +50,11 @@ evenements:                        # ADR-0009 §3, PLAN T1.2-b/T1.2-d
   consomme: [m4.travaux_termines, m3.devis_accepte, m3.besoins_materiaux]  # le réel (WCT), le prévu définitif (devis accepté) et provisoire (estimation, T2.3-e)
   # PLAN T4.15 : m6.reception_enregistree (M6.16) : ce qui est arrivé d'un PO persisté, dans la transaction de la
   # réception ; M5 en tire ce qu'il doit attendre de payer. Aucun montant calculé, aucune unité convertie.
-  publie: [m6.variance_chantier, m6.reception_enregistree]   # types au catalogue, M6 en est propriétaire
+  # PLAN T4.14 : m6.materiel_pret (M6.4, M6.8) : la réservation du matériel d'un devis accepté change (elle naît, se
+  # complète, cède du stock, est libérée) ; `pret`, `partiel` ou `a_commander`, avec les lignes manquantes. M4 le lit
+  # (`preparation.py`). Publié dans la transaction du fait de réservation ; jamais pour un prévu vide, jamais un bon de
+  # commande.
+  publie: [m6.variance_chantier, m6.reception_enregistree, m6.materiel_pret]   # types au catalogue, M6 en est propriétaire
 configuration:
   # Seuil de criticité de la variance de CHANTIER (m6.variance_chantier, distinct du seuil de
   # variance d'INVENTAIRE physique qui reste fourni par l'appelant de m6_soumettre_comptage).

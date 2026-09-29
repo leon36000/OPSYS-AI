@@ -74,8 +74,7 @@ négatif : signalé sans quantité. `outils.attentes()` rend à l'admin (`m9_lis
 « À voir », file du propriétaire, briefing du matin) l'état d'AUJOURD'HUI : un besoin par article encore sous son
 seuil, une attente unique « seuil non configuré » pour les articles sans paramètres. Aucun bon de commande n'est
 jamais créé par ce chemin (DA-M6-13, DA-M6-17). `m6_consommer_materiaux` (WCT fourni par l'appelant) n'évalue pas
-le stock bas. Limites : pas de réservation par chantier (M6.8) ni d'emplacements (M6.9), donc « en main » et
-non « disponible » ; le digest quotidien et `m6_receptionner_commande` gardent leurs seuils fournis par
+le stock bas. Limites : [levée par T4.14 : le seuil se compare au DISPONIBLE quand du stock est réservé] ; le digest quotidien et `m6_receptionner_commande` gardent leurs seuils fournis par
 l'appelant ; aucun événement de besoin de commande vers M8/M9 encore.
 
 PLAN T4.15 — pont finance vers M5 (M6.16) : `m6_receptionner_commande`, pour un bon de commande PERSISTÉ, publie
@@ -115,6 +114,55 @@ un PO dont une réception d'AVANT T4.15-b n'a pas gardé sa livraison (le stock 
 son cumul : `fiable` est faux, le verdict reste celui de la livraison seule. Enfin, une quantité négative ou non
 finie est refusée avant toute écriture aussi pour une réception ÉPHÉMÈRE (`REJ-RECEPTION-QUANTITE-INVALIDE`) ;
 l'horodatage sans fuseau reste permis hors PO persisté.
+
+PLAN T4.14 — réservation par chantier, emplacements et « matériel prêt » (M6.8, M6.9, M6.4).
+
+*Réservation* (`reservations.py`, pur ; registre durable `reservations`, un instantané par fait). Le consommateur de
+`m3.devis_accepte` réserve, dans la MÊME transaction que le prévu, ce qui est disponible pour le devis : pour chaque
+ligne, `min(besoin, disponible)`, jamais plus. Une estimation (`m3.besoins_materiaux`, prévu provisoire) ne réserve jamais ; un
+prévu vide ne réserve rien et ne dit rien (jamais « prêt » par défaut) ; un devis dont les matériaux sont déjà déclarés
+non plus. Pas de double réservation : un devis a au plus une réservation active, et le total réservé d'un article ne
+dépasse jamais son en main. `disponible = en main - réservé`, où `en main = stock théorique tous lieux - hors main`
+(`stock.deriver_disponibilite`) ; il alimente le réapprovisionnement (`reapprovisionnement.evaluer(..., reserve=)` : le
+seuil se compare au disponible, `quantite_a_commander = cible - disponible`, sans réservation rien ne change). Le stock
+n'est jamais négatif : réception, déclaration des matériaux, transfert hors main et libération réconcilient les
+réservations (`reservations.reconcilier`, les plus récentes cèdent d'abord quand l'en main baisse, les plus anciennes se
+complètent d'abord quand il monte). La déclaration des matériaux d'un chantier CLÔT sa réservation. Libération :
+`m6_liberer_reservation` (N2, motif requis, rejeu sans effet) ; le bus ne re-réserve jamais ce qu'un humain a libéré,
+`m6_reserver_materiel` le peut.
+
+*`m6.materiel_pret`* (catalogue `src/opsys/evenements/catalogue/m6.materiel_pret.json`, schéma fermé, toutes propriétés
+requises) : `pret` (chaque ligne réservée en entier), `a_commander` (rien n'est réservé) ou `partiel`, avec `lignes` et
+`lignes_manquantes` (quantités en texte décimal canonique, unité du prévu recopiée sans conversion), `reservation_active`,
+`declencheur` et l'horodatage du fait (M6 n'a pas d'horloge). Identifiant déterministe
+`m6-materiel-pret-<devis_id>-<revision>` : une révision par changement (création, ajustement, libération), donc un retour à
+un état déjà vu n'est jamais confondu avec le premier. Publié dans la transaction du fait de réservation. Après une
+libération : `a_commander`, `reservation_active` faux. **Ce que M4 doit lire** : pour l'intervention née d'un devis, la
+charge de plus grande `revision` de son `devis_id` ; `statut == "pret"` avec `reservation_active` vrai est le SEUL état
+« prêt » ; aucune charge pour ce devis n'est PAS « prêt » (M6 n'a rien vérifié : prévu vide, estimation, ou devis pas
+encore reçu). Aucun bon de commande n'est jamais créé seul : `a_commander` dit ce qui manque, le brouillon de PO se
+demande (`m6_creer_po_brouillon`, qui commande alors ce qui MANQUE à la réservation, pas l'écart au stock du chantier),
+puis s'approuve.
+
+*Emplacements* (`emplacements.py`, pur ; registre durable `emplacements`, hash-chaîné). Liste FERMÉE : dépôt, camion,
+remorque, chantier, employé, fournisseur, retour, rebut, inconnu (référence requise pour camion, remorque, employé,
+chantier, fournisseur). `m6_transferer_stock` déplace du stock, AUDITÉ : acteur (l'identité d'appareil confirmée, ou
+`agent`), motif requis, horodatage, quantité, avant et après des deux extrémités ; idempotent par `transfert_id` ;
+aucune quantité par emplacement n'est jamais négative ; le stock non localisé (tout celui d'avant T4.14) est à
+`inconnu`, un résidu. Fournisseur, retour et rebut ne sont pas en main. **La chaîne de mouvements (`registre.py`) n'est
+pas modifiée** : aucun champ de plus, aucun hachage qui bouge (empreintes figées dans `test_emplacements.py`, calculées
+avant T4.14). Lecture : `m6_lire_disponibilite` (T0). Quatre outils, `admin` seulement (`docs/architecture/ROLES.md`) : la
+portée d'appareil ET le code (`REJ-IDENTITE-APPAREIL-INVALIDE` pour tout autre rôle, la lecture T0 comprise).
+
+Limites connues : (1) le stock ne déclare pas d'unité : M6 ne convertit rien ; (2) les sorties de stock ne disent pas d'où
+elles sortent : la répartition par emplacement ne suit que les transferts, et une sortie non localisée qui dépasse le
+stock localisé bloque les transferts jusqu'à régularisation (`REJ-TRANSFERT-STOCK-LOCALISE-INCOHERENT`) ; (3) « ajustement
+si l'estimation change » (M6.8) : le prévu définitif d'un devis ne change plus après l'acceptation ; (4) le facteur de
+perte du prévu provisoire n'est pas appliqué ; (5) les seuils de réapprovisionnement restent GATE NATHAN : vides,
+« seuil non configuré » ; (6) M4 ne lit pas encore l'événement (`preparation.py`, autre agent) ; (7) si les matériaux d'un
+chantier sont déclarés avant que M6 ait reçu son WCT (`m4.travaux_termines`) et que `m3.devis_accepte` arrive ensuite,
+la réservation créée reste active ; les événements étant livrés dans l'ordre de création (devis avant travaux), le cas
+n'est pas observé.
 
 Bugs corrigés (test rouge → vert) lors de cette passe :
 - `materiel.py` n'exposait que `consommer_materiaux`. `enregistrer_reception`

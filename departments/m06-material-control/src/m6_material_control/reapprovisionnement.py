@@ -33,8 +33,10 @@ reconstitue le stock, ou un seuil renseigné, fait donc disparaître ou apparaî
 prochain chantier — même principe que DA-M6-09 (« tout dérivé du registre, jamais un état caché »).
 
 Le stock est celui de l'ARTICLE, tous lieux confondus (`stock.deriver_stock_articles`) : le seuil est
-par article. Sans réservation par chantier (M6.8) ni emplacements (M6.9), c'est la quantité théorique en
-main, pas la quantité disponible.
+par article. PLAN T4.14 : c'est l'EN MAIN (le stock théorique moins ce qui est chez le fournisseur, en retour ou au
+rebut, `emplacements.py`), et quand des réservations retiennent une partie de ce stock pour des chantiers
+(`reservations.py`, M6.8), c'est le DISPONIBLE (en main - réservé) qui est comparé au seuil : du stock mis de côté
+pour un chantier n'est pas du stock qu'on a pour le suivant. Sans réservation, rien ne change.
 
 Module pur (AGENTS.md, ADR-0009) : aucun import `opsys`, aucune horloge (les horodatages sont ceux du
 WCT), aucun aléa, aucun réseau. `outils.py` fait les entrées-sorties.
@@ -132,21 +134,31 @@ def lire_parametres(articles: Mapping[str, Any] | None, materiau_id: str) -> dic
     return {"statut": STATUT_CONFIGURE, "seuil": seuil, "quantite_cible": cible}
 
 
-def evaluer(materiau_id: str, stock_article: Decimal, articles: Mapping[str, Any] | None) -> dict[str, Any]:
+def evaluer(
+    materiau_id: str, stock_article: Decimal, articles: Mapping[str, Any] | None, reserve: Decimal | None = None
+) -> dict[str, Any]:
     """Le verdict de l'article : `stock_bas`, `stock_suffisant`, ou ce qui manque (`seuil_absent`,
     `configuration_invalide`). « Sous le seuil » est strict : un stock égal au seuil n'est pas bas.
 
     `stock_bas` porte les nombres de l'instant (stock, seuil, cible en texte décimal) et
     `quantite_a_commander` = cible - stock, sauf si le stock théorique est négatif (`stock_negatif`), où elle
     vaut `None` : commander « cible + le manque » validerait une erreur de livre.
+
+    `reserve` (PLAN T4.14, M6.8) : ce que les réservations actives mettent de côté pour des chantiers. Absent (`None`),
+    tout est comme avant. Présent, `stock_article` est l'EN MAIN et c'est le DISPONIBLE (en main - réservé) qui est
+    comparé au seuil et qui sert à `quantite_a_commander` : du stock mis de côté pour un chantier n'est pas du stock
+    qu'on a pour le suivant. Le verdict porte alors `stock_reserve` et `stock_disponible` en plus.
     """
     parametres = lire_parametres(articles, materiau_id)
     if parametres["statut"] != STATUT_CONFIGURE:
         return {"materiau_id": materiau_id, **parametres}
     seuil, cible = parametres["seuil"], parametres["quantite_cible"]
-    if stock_article >= seuil:
+    disponible = stock_article if reserve is None else stock_article - reserve
+    supplement = {} if reserve is None else {"stock_reserve": _texte(reserve), "stock_disponible": _texte(disponible)}
+    if disponible >= seuil:
         return {
             "materiau_id": materiau_id, "statut": STATUT_STOCK_SUFFISANT, "stock_theorique": _texte(stock_article),
+            **supplement,
         }
     negatif = stock_article < 0
     return {
@@ -155,8 +167,9 @@ def evaluer(materiau_id: str, stock_article: Decimal, articles: Mapping[str, Any
         "stock_theorique": _texte(stock_article),
         "seuil_reapprovisionnement": _texte(seuil),
         "quantite_cible": _texte(cible),
-        "quantite_a_commander": None if negatif else _texte(cible - stock_article),
+        "quantite_a_commander": None if negatif else _texte(cible - disponible),
         "stock_negatif": negatif,
+        **supplement,
     }
 
 
@@ -187,6 +200,9 @@ def construire_constat(
             "stock_negatif",
         ):
             constat[cle] = verdict[cle]
+        for cle in ("stock_reserve", "stock_disponible"):  # T4.14 : seulement quand du stock est réservé
+            if cle in verdict:
+                constat[cle] = verdict[cle]
     else:
         constat["motif"] = statut
         constat["code"] = verdict.get("code")
@@ -209,7 +225,17 @@ def _attente_besoin(dernier: Mapping[str, Any], verdict: Mapping[str, Any]) -> d
     materiau_id = verdict["materiau_id"]
     stock_en_main = _avec_unite(verdict["stock_theorique"], unite)
     seuil = _avec_unite(verdict["seuil_reapprovisionnement"], unite)
-    if verdict["stock_negatif"]:
+    if "stock_reserve" in verdict and not verdict["stock_negatif"]:
+        reserve = _avec_unite(verdict["stock_reserve"], unite)
+        disponible = _avec_unite(verdict["stock_disponible"], unite)
+        a_commander = _avec_unite(verdict["quantite_a_commander"], unite)
+        cible = _avec_unite(verdict["quantite_cible"], unite)
+        resume = (
+            f"Stock bas : {materiau_id} — {stock_en_main} en main dont {reserve} réservé(s) pour des chantiers, "
+            f"{disponible} disponible(s), sous le seuil de {seuil} ; besoin de commande : {a_commander} pour "
+            f"atteindre {cible} (chantier {dernier.get('chantier_id')})"
+        )
+    elif verdict["stock_negatif"]:
         resume = (
             f"Stock bas : {materiau_id} — stock théorique négatif ({stock_en_main}), à vérifier avant de "
             f"commander ; seuil {seuil}"
@@ -267,6 +293,8 @@ def _attente_a_configurer(a_configurer: list[tuple[str, Mapping[str, Any], str]]
 def attentes(
     constats: Iterable[Mapping[str, Any]], mouvements: Iterable[Mapping[str, Any]],
     articles: Mapping[str, Any] | None,
+    reserves: Mapping[str, Decimal] | None = None,
+    hors_main: Mapping[str, Decimal] | None = None,
 ) -> list[dict[str, Any]]:
     """Les attentes de M6 pour la file de l'admin (forme `opsys.approbations.CHAMPS_ATTENTE`).
 
@@ -289,7 +317,9 @@ def attentes(
     a_configurer: list[tuple[str, Mapping[str, Any], str]] = []
     for materiau_id in sorted(dernier_par_article):
         dernier = dernier_par_article[materiau_id]
-        verdict = evaluer(materiau_id, stocks[materiau_id], articles)
+        en_main = stocks[materiau_id] - (hors_main or {}).get(materiau_id, Decimal(0))
+        reserve = (reserves or {}).get(materiau_id)
+        verdict = evaluer(materiau_id, en_main, articles, reserve=reserve if reserve else None)
         if verdict["statut"] == STATUT_STOCK_BAS:
             besoins.append(_attente_besoin(dernier, verdict))
         elif verdict["statut"] != STATUT_STOCK_SUFFISANT:

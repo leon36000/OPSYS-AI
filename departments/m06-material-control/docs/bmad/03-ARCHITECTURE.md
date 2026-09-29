@@ -49,6 +49,8 @@ M6 porte QUATRE parcours d'écriture distincts, là où M3 et M4 n'en portent qu
 | `variance.py` | Comparaison stock théorique (via `stock.py`) ↔ comptage déclaré, classification `VerdictVarianceStock` neutre (R-020), `INDETERMINE` si aucun mouvement préalable. Construit `SignalVarianceStock` avec `note_investigation = null` par construction. | Isolé pour prouver qu'AUCUNE fonction de calcul ne remplit un champ de cause (CA-M6-15, inspection statique). |
 | `reorder.py` | Après un mouvement, comparaison du stock localisé résultant au seuil fourni ; émission `SignalReorder` avec `quantite_suggeree = seuil - stock` ; **silence** si aucun seuil fourni pour le couple. | Isolé pour éprouver la contrainte de silence ET la garde AST « aucun chemin ne relie ce signal à la création d'un PO ou à un paiement » (CA-M6-18, §DA-M6-13). |
 | `reapprovisionnement.py` (PLAN T1.5-d) | Stock bas à « travaux terminés » (M6.15) : la règle écrite une fois — stock théorique de l'ARTICLE (tous lieux, `stock.deriver_stock_articles`, somme décimale exacte) sous son seuil ⇒ besoin de commande de `quantite_cible - stock` ; seuil et cible lus PAR ARTICLE dans `department.yaml/configuration/reapprovisionnement/articles` ; article sans paramètres ou aux paramètres invalides ⇒ « seuil non configuré » (`seuil_a_configurer`), jamais un seuil deviné ; stock négatif ⇒ signalé sans quantité. Constats `besoin_commande` et `seuil_a_configurer` idempotents par article ET événement déclencheur, dans le registre durable `besoins_commande` ; attentes de l'admin recalculées à l'état d'AUJOURD'HUI. Module pur, aucun import de `bons_commande`. | Voir DA-M6-17. Distinct de `reorder.py` (seuil par chantier fourni par l'appelant, inchangé) : ici le seuil est par article et vient de la configuration. |
+| `reservations.py` (PLAN T4.14) | Réservation du matériel par chantier (M6.8) et « matériel prêt » (M6.4) : un devis ACCEPTÉ met de côté `min(besoin, disponible)` par ligne (jamais une estimation), sans double réservation ; `pret` / `partiel` / `a_commander` calculés sur les lignes ; libération, clôture à la déclaration des matériaux, `reconcilier` qui rétablit `réservé <= en main` (les plus récentes cèdent d'abord, les plus anciennes se complètent d'abord) ; charge de `m6.materiel_pret`, une révision par changement. Registre durable `reservations`, un instantané par fait. Module pur, aucun import de `bons_commande` ni de `opsys`. | Voir DA-M6-18. Dit ce qui manque ; commander reste un geste humain (DA-M6-13). |
+| `emplacements.py` (PLAN T4.14) | Emplacements de stock (M6.9) : liste FERMÉE (dépôt, camion, remorque, chantier, employé, fournisseur, retour, rebut, inconnu), transferts AUDITÉS (acteur, motif, avant, après) dans un registre durable `emplacements` hash-chaîné, stock par emplacement dérivé (`inconnu` = résidu), aucune quantité négative. Module pur. | Voir DA-M6-19. La chaîne de mouvements (`registre.py`) n'est pas touchée : ses hachages ne changent pas. |
 | `contrats_sortie.py` | Assemblage des contrats de sortie PAR DESTINATAIRE et **garde terrain** : `ConfirmationConsommationTerrain` scannée contre l'ensemble de clés de coût #2 (§DA-M6-03) avant émission. | La séparation par audience est la spécificité de M6. Garde isolée ici ET éprouvée bout en bout depuis `materiel.py` en S007 (un test de fonction isolée masquerait un assemblage réel différent). |
 | `registre.py` | Journal append-only hash-chaîné des `MaillonMateriel` (§2.10). API : `ajouter(mouvement)`, `ajouter_lot(mouvements)` **atomique tout-ou-rien** (§DA-M6-08), `lire()`, `hash_tete()`, `valider_chaine()`. | Copie-adaptation de `m3_estimation/registre.py` et `m4_field_ops/registre.py`, avec les champs gelés `index`/`hash_precedent`/`hash_maillon`. `ajouter_lot` est l'extension qui rend l'atomicité multi-lignes une propriété du registre, pas une convention. |
 | `digest.py` | Digest quotidien déterministe vers Nathan : variances depuis les maillons `VARIANCE_INVENTAIRE`, reorders RECALCULÉS depuis le stock dérivé vs seuils fournis ; `hash_digest = empreinte(contenu canonique)`. Horodatages reproduits tels quels. | Copie-adaptation de `m3_estimation/digest.py` : « mêmes maillons + mêmes arguments → mêmes octets », sans normaliser les chaînes d'entrée (le module ne répare rien). |
@@ -586,9 +588,59 @@ réception qui reconstitue le stock laisserait une alerte périmée jusqu'au pro
 DA-M6-09 : tout dérivé du registre, jamais un état caché). Le constat ne crée AUCUN bon de commande, ne réserve
 rien, n'écrit aucun mouvement et ne publie aucun événement (DA-M6-13) : un PO reste un brouillon demandé
 explicitement puis approuvé (DA-M6-12 révisée). Le stock est celui de l'article, tous lieux confondus, parce que
-le seuil est par article ; sans réservation par chantier (M6.8) ni emplacements (M6.9), c'est la quantité
-théorique en main, pas la quantité disponible. `m6_consommer_materiaux` (contrat historique, WCT fourni par
+le seuil est par article ; avant DA-M6-18 c'était la quantité théorique en main, pas la quantité disponible :
+depuis T4.14, c'est le disponible (en main - réservé) quand du stock est réservé (DA-M6-18, DA-M6-19). `m6_consommer_materiaux` (contrat historique, WCT fourni par
 l'appelant) n'évalue pas le stock bas.
+
+### DA-M6-18 — Une réservation est un prévu définitif mis de côté ; le disponible est l'en main moins le réservé
+
+**Décision** : (1) le consommateur de `m3.devis_accepte` réserve, dans la MÊME transaction que le prévu, ce qui est
+disponible pour le devis (`reservations.py`), et publie `m6.materiel_pret` : `pret` (chaque ligne réservée en
+entier), `a_commander` (rien n'est réservé) ou `partiel`, avec les lignes manquantes. Une estimation
+(`estimation_m3`, prévu provisoire) ne réserve jamais ; un prévu vide ne réserve rien et ne dit rien (jamais
+« prêt » par défaut). (2) `disponible = en main - réservé`, où `en main = stock théorique tous lieux - hors main`
+(fournisseur, retour, rebut, DA-M6-19). Une réservation met de côté `min(besoin, disponible)` : jamais plus que le
+disponible, donc jamais deux chantiers sur la même unité, et jamais deux réservations actives pour un même devis.
+(3) Le stock n'est jamais négatif : chaque changement de l'en main (réception, déclaration des matériaux, transfert
+hors main, libération) réconcilie les réservations, les plus récentes cédant d'abord quand l'en main baisse et les
+plus anciennes se complétant d'abord quand il monte ; ordre total par rang de création, sans horloge. (4) La
+libération (`m6_liberer_reservation`, N2) remet le stock au disponible, garde son motif, et publie `a_commander` avec
+`reservation_active` faux : M4 ne lit jamais un « prêt » périmé. Le bus ne re-réserve pas ce qu'un humain a libéré ;
+l'outil `m6_reserver_materiel` le peut. À la déclaration des matériaux d'un chantier, sa réservation est clôturée.
+(5) Le réapprovisionnement compare le DISPONIBLE au seuil quand du stock est réservé (DA-M6-17 révisée) ; sans
+réservation rien ne change. (6) Le brouillon de PO d'un devis réservé commande ce qui MANQUE à sa réservation, pas
+l'écart au stock du chantier.
+
+**Justification** : sans (1) M4 ne sait pas si l'équipe part avec ce qu'il faut (§7 M6 « fournit à M4 : matériel
+prêt ou à commander ») ; sans (2) et (3), du stock mis de côté pour un chantier se compterait pour le suivant et le
+disponible pourrait devenir négatif ; sans (4), une annulation laisserait M4 sur un état périmé. Chaque
+changement est une RÉVISION du devis (`m6-materiel-pret-<devis_id>-<révision>`) : rejouer un fait est un no-op du
+bus, et un retour à un état déjà vu n'est jamais confondu avec le premier. M6 ne crée AUCUN bon de commande : un
+brouillon se demande (`m6_creer_po_brouillon`) puis s'approuve (DA-M6-13). Limites connues : le stock ne déclare pas
+d'unité (M6 ne convertit rien) ; le facteur de perte du prévu provisoire n'est pas appliqué ; un prévu définitif ne
+change plus après l'acceptation (« ajustement si l'estimation change », M6.8, reste à faire).
+
+### DA-M6-19 — Les emplacements sont une liste fermée, et leurs transferts un registre audité à part
+
+**Décision** : (1) neuf emplacements, liste FERMÉE : dépôt, camion, remorque, chantier, employé, fournisseur,
+retour, rebut, inconnu ; une référence (lequel) est requise pour camion, remorque, employé, chantier et
+fournisseur, interdite pour les autres. (2) Un transfert (`m6_transferer_stock`) DÉPLACE du stock d'un emplacement
+à un autre, il n'en crée ni n'en détruit : le stock non encore localisé, donc tout le stock d'avant T4.14, est à
+`inconnu`, un RÉSIDU (`stock en main - somme des emplacements nommés`) ; « ranger au dépôt » est un transfert depuis
+`inconnu`. Après un transfert, aucune quantité par emplacement n'est négative, `inconnu` compris. (3) Chaque
+transfert garde son acteur, son motif (requis), son horodatage, sa quantité et l'avant et l'après de ses deux
+extrémités, dans le registre durable `emplacements`, HASH-CHAÎNÉ (`hash_precedent`, `hash_maillon`) : le retoucher
+après coup se voit (`emplacements.valider_chaine`). Idempotent par `transfert_id`. (4) Fournisseur, retour et rebut
+ne sont pas en main. (5) Le registre de mouvements de stock (`registre.py`) n'est PAS modifié : aucun champ de plus,
+aucun hachage qui bouge ; une chaîne écrite avant se valide encore, bit à bit (empreintes figées dans les tests).
+
+**Justification** : ajouter un champ d'emplacement aux maillons de stock aurait ou changé les hachages existants, ou
+demandé un second régime de hachage sur un même registre ; un registre à part, chaîné à son tour, garde l'audit sans
+toucher au contrat gelé. Une sortie de stock non localisée (consommation, perte) diminue le total, donc le résidu :
+si elle dépasse le stock localisé, le résidu devient négatif et tout transfert est refusé
+(`REJ-TRANSFERT-STOCK-LOCALISE-INCOHERENT`) jusqu'à régularisation humaine (transfert vers `inconnu`) — jamais une
+quantité devinée. Limite connue : les sorties de stock (déclaration des matériaux) ne disent pas d'où elles sortent ;
+la répartition par emplacement ne suit donc que les transferts.
 
 ---
 

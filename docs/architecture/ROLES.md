@@ -68,7 +68,7 @@ qui travaille sur un toit, un gestionnaire qui reprend un dossier).
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 75 outils sur 153 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 79 outils sur 157 sont déclarés.
 
 ### `employee` (11 outils) : §9.3, le terrain
 
@@ -109,7 +109,7 @@ M10.
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (75 outils) : §9.5 + employé + vendeur
+### `admin` (79 outils) : §9.5 + employé + vendeur
 
 Les 11 outils de l'employé, les 10 du vendeur, et :
 
@@ -131,6 +131,7 @@ Les 11 outils de l'employé, les 10 du vendeur, et :
 | M6 | `m6_approuver_po`, `m6_annuler_po` | §9.2 « le propriétaire approuve les bons de commande » ; §9.5 « PO à approuver ». |
 | M6 | `m6_receptionner_commande`, `m6_soumettre_comptage` | §9.5 « réception rapide » ; §9 « inventaire ». |
 | M6 | `m6_produire_digest`, `m6_evaluer_variance_chantier` | §9.5 « stock critique », « rapport de pertes et bris », « écarts de chantier ». |
+| M6 | `m6_reserver_materiel` (N2), `m6_liberer_reservation` (N2), `m6_transferer_stock` (T1, N3), `m6_lire_disponibilite` (T0) | §7 M6.8 « réservation par chantier », M6.9 « emplacements de stock », §9.5 tableau de bord « stock réservé et disponible », « chantiers sans matériel prêt » (T4.14). L'admin réserve le matériel d'un devis accepté (le bus le fait déjà à l'acceptation ; l'outil sert au prévu saisi à la main et à re-réserver), libère une réservation (annulation : N2, rien n'est dépensé ni supprimé, la trace reste), déplace du stock entre emplacements (audité : acteur, motif, avant et après ; N3 par défaut, l'humain qui agit lui-même n'attend rien) et lit ce qui est en main, réservé et disponible, et où. Fermés à l'employé : un transfert vers le rebut ou le fournisseur retire du stock de ce qu'on peut réserver, et la lecture porte des quantités sur tous les chantiers. Les quatre refusent aussi, dans le code, tout rôle d'appareil autre qu'`admin` (`REJ-IDENTITE-APPAREIL-INVALIDE`) : le socle n'applique pas `roles_appareil` à la lecture (T0) hors du core. Aucun ne crée de bon de commande. |
 | M7 | `m7_lister_file_approbation` | §9.5 M7 : contenus et réponses aux avis à approuver. |
 | M7 | `m7_lister_demandes_avis` (T0) | §9.5 M7 « avis à répondre » et §6 « travaux terminés » (T1.5-d) : le brouillon de demande d'avis né d'un « Terminer » avec le consentement du client, avec la preuve de ce consentement (qui, quand, quel texte). Lecture seule, bornée à huit brouillons (`Capacites` tronque à 6 000 caractères) : rien n'est envoyé, l'envoi au client reste une décision humaine. Ni l'employé (il recueille le consentement, il ne lit pas ce que le propriétaire décide d'en faire) ni le vendeur. |
 | M7 | `m7_lister_contenus_chantier` (T0), `m7_decider_contenu` (N3), `m7_exporter_paquet_manuel` (N2), `m7_enregistrer_retrait_consentement_marketing` (N2) | §7 M7 « usine à contenu » et M7.2 « paquet manuel » (T4.17) : le propriétaire lit les cinq contenus d'un chantier terminé en entier, décide (approuver ou rejeter), prend le paquet à publier LUI-MÊME et enregistre le retrait du consentement d'un client. Règles plus bas (« L'usine à contenu de M7 »). Ni l'employé (il recueille le consentement, il ne voit pas ce qu'on en fait) ni le vendeur. |

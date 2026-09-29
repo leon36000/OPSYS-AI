@@ -51,6 +51,18 @@ par article dans `department.yaml/configuration`) : un besoin de commande si le 
 signal « seuil non configuré » si l'article n'a pas de paramètres utilisables — jamais un seuil deviné, jamais
 un bon de commande créé seul. `attentes()` rend l'état COURANT de ces constats à la file de l'admin.
 
+PLAN T4.14 (M6.8, M6.9, M6.4) : réservation par chantier, emplacements et « matériel prêt ». Le consommateur de
+`m3.devis_accepte` réserve, dans la MÊME transaction que le prévu, ce qui est disponible pour le devis
+(`reservations.py`) et publie `m6.materiel_pret` (`pret`, `partiel` ou `a_commander`, avec les lignes manquantes) : M4
+le lit. `disponible = en main - réservé` (`stock.deriver_disponibilite`) alimente le réapprovisionnement. Tout ce qui
+change l'en main (réception, déclaration des matériaux, transfert hors main, libération) réconcilie les réservations
+(`_reconcilier_reservations`) : le réservé ne dépasse jamais l'en main, le stock n'est jamais négatif. Les emplacements
+et leurs transferts audités (`emplacements.py`) vivent dans un registre à part : la chaîne de mouvements ne change
+pas d'un octet. Aucun bon de commande n'est créé seul : `a_commander` dit ce qui manque, commander reste le geste
+d'un humain (`m6_creer_po_brouillon`, puis approbation). Quatre outils : `m6_reserver_materiel`,
+`m6_liberer_reservation` (N2), `m6_transferer_stock`, `m6_lire_disponibilite` (T0) ; ils ne fonctionnent que dans la
+transaction de l'outil (registres durables).
+
 PLAN T4.15 (M6.16, pont finance vers M5) : `receptionner_commande`, pour un PO PERSISTÉ, publie
 `m6.reception_enregistree` dans la MÊME transaction que le stock et la transition du PO
 (`evenement_reception.py` construit la charge ; ici, la publication, seule). Une réception qui n'apparie aucune
@@ -63,13 +75,14 @@ et ne paie rien ; il ne convertit aucune unité (le livre de prix n'en déclare 
 from __future__ import annotations
 
 from collections.abc import Callable
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 import yaml
 
 from opsys import approbations, contexte, evenements, stockage
-from opsys.outils import Autonomie, Outil
+from opsys.outils import Autonomie, Niveau, Outil
 
 from . import (
     acces,
@@ -77,12 +90,14 @@ from . import (
     besoins_prevus,
     bons_commande,
     digest,
+    emplacements,
     evenement_reception,
     fournisseurs,
     livre_prix,
     materiel,
     reapprovisionnement,
     reception,
+    reservations,
     stock,
     validation,
     variance_chantier,
@@ -100,6 +115,8 @@ _NOM_REGISTRE_FOURNISSEURS = "fournisseurs"
 _NOM_REGISTRE_LIVRE_PRIX = "livre_prix"
 _NOM_REGISTRE_BONS_COMMANDE = "bons_commande"
 _NOM_REGISTRE_BESOINS_COMMANDE = "besoins_commande"
+_NOM_REGISTRE_RESERVATIONS = "reservations"
+_NOM_REGISTRE_EMPLACEMENTS = "emplacements"
 _MANIFESTE = Path(__file__).resolve().parents[2] / "department.yaml"
 _TYPE_EVENEMENT_WCT = "m4.travaux_termines"
 
@@ -257,6 +274,21 @@ _BONS_COMMANDE_HISTORIQUE = {
     "description": "À omettre : le registre des PO est durable et relu par l'outil.",
 }
 _CATEGORIES_VENDUES = {"type": ["array", "null"], "items": {"type": "string"}}
+
+
+_EMPLACEMENT = {
+    "type": "object",
+    "description": (
+        "Un emplacement de la liste fermée. `reference` (lequel) est requise pour camion, remorque, employe, "
+        "chantier et fournisseur, et interdite pour depot, retour, rebut et inconnu."
+    ),
+    "properties": {
+        "type": {"type": "string", "enum": sorted(emplacements.EMPLACEMENTS)},
+        "reference": {"type": ["string", "null"]},
+    },
+    "required": ["type"],
+    "additionalProperties": False,
+}
 
 
 def _rejouer_registre(historique: list[dict[str, Any]] | None) -> registre_module.Registre:
@@ -596,6 +628,156 @@ def _reevaluer_si_wct_connu_par_devis_id(devis_id: str) -> None:
         _evaluer_et_publier_variance(wct_recu)
 
 
+# ---------------------------------------------------------------------------------------------- T4.14
+# Réservation par chantier (M6.8), emplacements (M6.9), « matériel prêt » (M6.4). Règles pures : `reservations.py`
+# et `emplacements.py`. Ici, seulement les entrées-sorties, et seulement DANS la transaction de l'outil : les
+# registres durables `reservations` et `emplacements` n'ont pas de mode « historique en mémoire ».
+def _hors_transaction() -> dict[str, Any] | None:
+    """Le refus quand aucun registre durable n'est joignable (appel direct, hors transaction) : rien n'est réservé,
+    déplacé ni lu à moitié. `None` dans une transaction."""
+    if stockage.connexion_courante() is not None:
+        return None
+    return {"accepte": False, "verdict": verdicts.construire_verdict(
+        "REJ-M6-TRANSACTION-REQUISE",
+        detail=(
+            "cet outil lit et écrit les registres durables de M6 : il ne fonctionne que dans la transaction de l'outil"
+        ),
+    )}
+
+
+def _acteur_admin_ou_agent() -> tuple[str | None, dict[str, Any] | None]:
+    """Qui appelle un outil de T4.14, pour la piste d'audit : la personne dont l'identité d'appareil est CONFIRMÉE en
+    base, ou `agent` pour un appel sans identité d'appareil (voie des agents, console), comme partout dans M6. Jamais
+    un argument. Un rôle d'appareil autre qu'`admin` est refusé ICI aussi (`REJ-IDENTITE-APPAREIL-INVALIDE`) : le
+    socle n'applique pas `roles_appareil` à un outil de lecture (T0) hors du core, et ces quatre outils portent des
+    quantités sur tous les chantiers (docs/architecture/ROLES.md)."""
+    acteur, verdict = _declarant_appareil()
+    if verdict is not None:
+        return None, verdict
+    if acteur is not None and acteur.role != acces.ROLE_ADMIN:
+        return None, verdicts.construire_verdict(
+            "REJ-IDENTITE-APPAREIL-INVALIDE", detail="réservation, transfert et disponibilité : réservés à l'admin"
+        )
+    return (acteur.personne if acteur is not None else "agent"), None
+
+
+def _disponibilite(materiaux: Any) -> dict[str, dict[str, Decimal]]:
+    """Stock théorique, hors main, en main, réservé et disponible de chaque article demandé, lus aux registres
+    durables (`stock.deriver_disponibilite`). Dans la transaction seulement."""
+    return stock.deriver_disponibilite(
+        materiaux,
+        stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE),
+        emplacements.hors_main_par_article(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_EMPLACEMENTS)),
+        reservations.reserve_par_article(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RESERVATIONS)),
+    )
+
+
+def _en_main(materiaux: Any) -> dict[str, Decimal]:
+    return {materiau_id: chiffres["en_main"] for materiau_id, chiffres in _disponibilite(materiaux).items()}
+
+
+def _ecrire_faits_reservation(faits: list[dict[str, Any]]) -> list[str]:
+    """Range chaque fait de réservation au registre et publie son `m6.materiel_pret`, dans la transaction courante :
+    le fait et son événement réussissent ou échouent ensemble. Rend les `evenement_id` publiés. La CLÔTURE n'en publie
+    aucun (le chantier est terminé). LÈVE si le catalogue refuse la charge (`ChargeInvalide`) : un défaut du code,
+    jamais une entrée, et mieux vaut annuler que ranger une réservation que M4 ne verra pas."""
+    registre = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RESERVATIONS)
+    publies = []
+    for fait in faits:
+        registre.append(fait)
+        if fait["evenement"] == "cloturee":
+            continue
+        charge = reservations.charge_materiel_pret(fait)
+        evenements.publier(
+            reservations.TYPE_EVENEMENT_MATERIEL_PRET, _DEPARTEMENT, charge, evenement_id=charge["evenement_id"]
+        )
+        publies.append(charge["evenement_id"])
+    return publies
+
+
+def _reconcilier_reservations(materiaux: Any, horodatage: Any) -> list[str]:
+    """Rétablit `réservé <= en main` pour ces articles après un changement de l'en main (réception, sortie de stock,
+    transfert hors main, libération) et complète les réservations auxquelles du stock est devenu disponible
+    (`reservations.reconcilier`) ; publie `m6.materiel_pret` de chaque réservation qui change. Rend les identifiants
+    publiés. Rien à faire, et rien de lu, quand aucune réservation n'est active : le comportement d'avant tout
+    changement. Hors transaction : rien (aucun registre durable où écrire), comme `_reevaluer_si_wct_connu_*`."""
+    if stockage.connexion_courante() is None or not isinstance(horodatage, str) or not horodatage.strip():
+        return []
+    if not reservations.actives(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RESERVATIONS)):
+        return []
+    articles = sorted({materiau_id for materiau_id in materiaux if isinstance(materiau_id, str)})
+    faits = reservations.reconcilier(
+        articles, _en_main(articles), stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RESERVATIONS), horodatage
+    )
+    return _ecrire_faits_reservation(faits)
+
+
+def _cloturer_et_reconcilier(devis_id: Any, wct_id: str, horodatage: Any, materiaux: Any) -> list[str]:
+    """À la déclaration des matériaux d'un chantier : clôture la réservation active de son devis (ce qu'elle
+    retenait redevient disponible ; la sortie de stock est déjà au registre de mouvements), puis réconcilie les
+    articles touchés — par la déclaration ET par la réservation clôturée — pour les autres chantiers. Dans la
+    transaction seulement."""
+    if stockage.connexion_courante() is None:
+        return []
+    registre = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RESERVATIONS)
+    articles = set(materiaux)
+    fait = reservations.cloturer(devis_id, wct_id, horodatage, registre)
+    if fait is not None:
+        articles |= {ligne["materiau_id"] for ligne in fait["lignes"]}
+        _ecrire_faits_reservation([fait])
+    return _reconcilier_reservations(articles, horodatage)
+
+
+def _vue_reservation(fait: dict[str, Any]) -> dict[str, Any]:
+    """Ce que la réponse d'un outil dit d'une réservation : sa charge `m6.materiel_pret` (statut, lignes, ce qui
+    manque), sans l'identifiant d'événement qui n'y a pas de sens."""
+    charge = reservations.charge_materiel_pret(fait)
+    return {cle: valeur for cle, valeur in charge.items() if cle != "evenement_id"}
+
+
+def _chantier_deja_declare(devis_id: str) -> bool:
+    """Vrai si le WCT de ce devis est déjà reçu ET ses matériaux déjà déclarés : le chantier est fait, rien ne se
+    réserve plus pour lui. Le cas se présente quand `m3.devis_accepte` arrive APRÈS la déclaration (ordre inversé du
+    bus) : sans ce garde, une réservation resterait active à jamais pour un chantier terminé."""
+    wct_recu = wct_recus.pour_devis_id(devis_id, stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_WCT_RECUS))
+    if wct_recu is None:
+        return False
+    return any(m.get("wct_id") == wct_recu["wct_id"] for m in stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE))
+
+
+def _reserver_pour_devis(
+    devis_id: Any, horodatage: Any, declencheur: str, *, acteur: str | None = None, re_reservation: bool = False
+) -> dict[str, Any]:
+    """Cœur partagé par le consommateur de `m3.devis_accepte` et l'outil `m6_reserver_materiel` : réserve ce qui est
+    disponible pour ce devis à partir de son prévu DÉFINITIF (`besoins_prevus.pour_devis`), range le fait et publie
+    `m6.materiel_pret`. Dans la transaction seulement. Jamais de bon de commande : `a_commander` dit ce qui manque.
+
+    Statut rendu (`statut`) : `creee`, `deja_reservee` (aucun double), `deja_traitee` (libérée ou clôturée, et
+    `re_reservation` faux), `aucun_besoin_connu` (prévu vide : rien n'est dit, jamais « prêt » par défaut),
+    `chantier_deja_declare` ; ou un verdict de refus."""
+    if isinstance(devis_id, str) and devis_id and _chantier_deja_declare(devis_id):
+        return {"accepte": True, "statut": "chantier_deja_declare"}
+    prevu = besoins_prevus.pour_devis(devis_id, stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_BESOINS_PREVUS))
+    materiaux = [ligne["materiau_id"] for ligne in prevu["lignes"]] if prevu is not None else []
+    registre = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RESERVATIONS)
+    resultat, verdict = reservations.reserver(
+        devis_id, prevu, horodatage, declencheur, registre, _en_main(materiaux),
+        acteur=acteur, re_reservation=re_reservation,
+    )
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    reponse: dict[str, Any] = {"accepte": True, "statut": resultat["statut"]}
+    fait = resultat["fait"]
+    if fait is not None:
+        (reponse["evenement_materiel_pret_id"],) = _ecrire_faits_reservation([fait])
+        reponse["reservation"] = _vue_reservation(fait)
+    else:
+        courant = reservations.etat(devis_id, registre)
+        if courant is not None:
+            reponse["reservation"] = _vue_reservation(courant)
+    return reponse
+
+
 def _constater_stock_des_articles(
     wct_id: str, horodatage: Any, chantier_id: str, lignes: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
@@ -603,7 +785,8 @@ def _constater_stock_des_articles(
     commande ») : évalue le stock de chaque article que cette sortie de stock vient de toucher, et range un
     constat dans le registre durable `besoins_commande` quand il y a quelque chose à dire.
 
-    - stock théorique de l'article (tous lieux, mouvements déjà écrits par la transaction en cours) sous son
+    - stock de l'article EN MAIN (tous lieux moins le hors main, mouvements déjà écrits par la transaction en
+      cours ; DISPONIBLE, en main - réservé, quand des réservations retiennent du stock : T4.14) sous son
       seuil : constat `besoin_commande` (quantité cible - stock) ;
     - article sans paramètres, ou aux paramètres invalides : constat `seuil_a_configurer`, jamais un seuil
       deviné ;
@@ -621,12 +804,17 @@ def _constater_stock_des_articles(
     unites: dict[str, Any] = {}
     for ligne in lignes:
         unites.setdefault(ligne["materiau_id"], ligne.get("unite"))
-    stocks = stock.deriver_stock_articles(unites, stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE))
+    disponibilite = _disponibilite(unites)
     articles = _articles_reapprovisionnement()
     constats = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_BESOINS_COMMANDE)
     ecrits: list[dict[str, Any]] = []
     for materiau_id in sorted(unites):
-        verdict = reapprovisionnement.evaluer(materiau_id, stocks[materiau_id], articles)
+        chiffres = disponibilite[materiau_id]
+        # T4.14 : c'est le DISPONIBLE qui est comparé au seuil quand des réservations retiennent du stock ; sans
+        # réservation (`reserve` nul), exactement le comportement d'avant.
+        verdict = reapprovisionnement.evaluer(
+            materiau_id, chiffres["en_main"], articles, reserve=chiffres["reserve"] if chiffres["reserve"] else None
+        )
         constat = reapprovisionnement.construire_constat(
             verdict, evenement_declencheur=wct_id, horodatage=horodatage, chantier_id=chantier_id,
             unite=unites[materiau_id],
@@ -731,6 +919,13 @@ def receptionner_commande(
     if code is not None:
         return {"accepte": False, "verdict": {"code": code}}
     reponse = {"accepte": True, "resultat": resultat, **_etat_registre(registre_cible)}
+    # T4.14 : du stock vient d'entrer, PO persisté ou non : les réservations auxquelles il manquait quelque chose
+    # se complètent (les plus anciennes d'abord), et `m6.materiel_pret` le dit à M4.
+    publies = _reconcilier_reservations(
+        [ligne["materiau_id"] for ligne in resultat["accuse_reception"]["lignes"]], reception_po.get("horodatage")
+    )
+    if publies:
+        reponse["evenements_materiel_pret"] = publies
 
     if po_existant is not None:
         accuse = resultat["accuse_reception"]
@@ -837,6 +1032,11 @@ def consommer_materiaux(
     resultat, code = materiel.consommer_materiaux(wct, formulaire, registre_cible)
     if code is not None:
         return {"accepte": False, "verdict": {"code": code}}
+    # T4.14 : du stock vient de sortir ; le WCT (fourni par l'appelant, comme avant) clôt la réservation de son devis.
+    _cloturer_et_reconcilier(
+        wct.get("devis_id"), wct["wct_id"], wct["horodatage_completion"],
+        [ligne["materiau_id"] for ligne in formulaire["lignes_consommees"]],
+    )
     return {"accepte": True, "resultat": resultat, **_etat_registre(registre_cible)}
 
 
@@ -937,6 +1137,13 @@ def declarer_materiaux_utilises(wct_id: str, formulaire: dict[str, Any]) -> dict
     if code is not None:
         return {"accepte": False, "verdict": {"code": code}}
     _reevaluer_si_wct_connu_par_wct_id(wct_id)
+    # T4.14 : les matériaux du chantier sont déclarés. La réservation de son devis est clôturée (ce qu'elle retenait
+    # redevient disponible), et celles des autres chantiers se réconcilient avec le stock qui reste : AVANT le
+    # constat du stock bas, qui compare le DISPONIBLE au seuil.
+    _cloturer_et_reconcilier(
+        wct.get("devis_id"), wct_id, wct["horodatage_completion"],
+        [ligne["materiau_id"] for ligne in formulaire["lignes_materiaux"]],
+    )
     _constater_stock_des_articles(
         wct_id, wct["horodatage_completion"], formulaire["chantier_id"], formulaire["lignes_materiaux"]
     )
@@ -1095,7 +1302,21 @@ def creer_po_brouillon(
         return {"accepte": False, "verdict": {"code": "REJ-PO-CHANTIER-INCONNU"}}
 
     mouvements_registre = _registre_de_l_appel(registre_historique)
-    lignes = bons_commande.calculer_lignes_a_commander(besoin["lignes"], chantier_id, mouvements_registre)
+    # T4.14 : quand une réservation ACTIVE existe pour ce devis, ce qu'on commande est ce qui lui MANQUE (besoin -
+    # réservé), pas l'écart au stock du chantier : le stock du dépôt mis de côté pour ce devis est déjà couvert, et
+    # celui qui est réservé pour un autre ne l'est pas. Sans réservation, l'écart d'avant.
+    reservation = (
+        reservations.etat(devis_id, stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RESERVATIONS))
+        if stockage.connexion_courante() is not None else None
+    )
+    depuis_reservation = reservation is not None and reservation["actif"]
+    if depuis_reservation:
+        lignes = [
+            {"materiau_id": ligne["materiau_id"], "quantite_demandee": float(Decimal(ligne["quantite_manquante"]))}
+            for ligne in reservations.lignes_manquantes(reservation["lignes"])
+        ]
+    else:
+        lignes = bons_commande.calculer_lignes_a_commander(besoin["lignes"], chantier_id, mouvements_registre)
     if not lignes:
         return {"accepte": True, "po": None, "statut": "aucun_achat_requis"}
 
@@ -1107,7 +1328,10 @@ def creer_po_brouillon(
     )
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
-    return _reponse_po(resultat, bons_registre)
+    reponse = _reponse_po(resultat, bons_registre)
+    if depuis_reservation:
+        reponse["quantites_depuis"] = "reservation"
+    return reponse
 
 
 def approuver_po(
@@ -1158,6 +1382,153 @@ def marquer_po_envoye(
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
     return _reponse_po(resultat, registre_cible)
+
+
+# ---------------------------------------------------------------------------------------------- T4.14
+def reserver_materiel(devis_id: str, horodatage: str) -> dict[str, Any]:
+    """Réserve le matériel d'un devis ACCEPTÉ (M6.8) : ce qui est disponible, jamais plus, sans double réservation ;
+    publie `m6.materiel_pret`. Le bus le fait déjà à l'acceptation du devis (`_recevoir_devis_accepte`) ; cet outil
+    sert au prévu saisi à la main (`m6_enregistrer_besoins_prevus`) et à RÉSERVER DE NOUVEAU après une libération
+    (le bus, lui, ne défait jamais ce qu'un humain a libéré). Un devis dont les matériaux sont déclarés ne se réserve
+    plus. Aucun bon de commande."""
+    refus = _hors_transaction()
+    if refus is not None:
+        return refus
+    acteur, verdict = _acteur_admin_ou_agent()
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    return _reserver_pour_devis(devis_id, horodatage, "reservation_manuelle", acteur=acteur, re_reservation=True)
+
+
+def liberer_reservation(devis_id: str, motif: str, horodatage: str) -> dict[str, Any]:
+    """Libère la réservation ACTIVE d'un devis (annulation du chantier, M6.8, N2) : ce qu'elle retenait redevient
+    disponible, les autres réservations auxquelles il manquait quelque chose se complètent (les plus anciennes
+    d'abord), et `m6.materiel_pret` dit à M4 que ce devis n'est plus prêt (`a_commander`, `reservation_active` faux).
+    Le motif est requis et gardé (M6.14) ; rejouer la libération d'une réservation déjà libérée n'écrit rien."""
+    refus = _hors_transaction()
+    if refus is not None:
+        return refus
+    acteur, verdict = _acteur_admin_ou_agent()
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    registre = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RESERVATIONS)
+    resultat, verdict = reservations.liberer(devis_id, motif, acteur, horodatage, registre)
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    fait = resultat["fait"]
+    if fait is None:
+        return {"accepte": True, "statut": resultat["statut"], "reservation": _vue_reservation(
+            reservations.etat(devis_id, registre))}
+    publies = _ecrire_faits_reservation([fait])
+    publies += _reconcilier_reservations([ligne["materiau_id"] for ligne in fait["lignes"]], horodatage)
+    return {
+        "accepte": True, "statut": resultat["statut"], "reservation": _vue_reservation(fait),
+        "liberees": fait["liberees"], "evenements_materiel_pret": publies,
+    }
+
+
+def transferer_stock(
+    transfert_id: str, materiau_id: str, quantite: float, de: dict[str, Any], vers: dict[str, Any], motif: str,
+    horodatage: str,
+) -> dict[str, Any]:
+    """Transfère du stock d'un emplacement à un autre (M6.9), AUDITÉ : acteur, motif, horodatage, quantité et l'avant
+    et l'après des deux extrémités, dans une chaîne hash-chaînée. Un transfert déplace, il ne crée ni ne détruit :
+    aucune quantité par emplacement ne devient négative, et le stock non localisé est à `inconnu`. Idempotent par
+    `transfert_id`. Sortir du stock de la main (vers fournisseur, retour ou rebut) ou l'y remettre réconcilie les
+    réservations : le réservé ne dépasse jamais l'en main. La chaîne de mouvements de stock ne change pas."""
+    refus = _hors_transaction()
+    if refus is not None:
+        return refus
+    acteur, verdict = _acteur_admin_ou_agent()
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    registre = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_EMPLACEMENTS)
+    stock_total = (
+        stock.deriver_stock_articles([materiau_id], stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE))[materiau_id]
+        if isinstance(materiau_id, str) and materiau_id.strip() else Decimal(0)
+    )
+    resultat, verdict = emplacements.construire_transfert(
+        transfert_id, materiau_id, quantite, de, vers, acteur, motif, horodatage, stock_total, registre
+    )
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    maillon = resultat["maillon"]
+    reponse: dict[str, Any] = {
+        "accepte": True,
+        "statut": "deja_enregistre" if resultat["deja_enregistre"] else "enregistre",
+        "transfert": {cle: maillon[cle] for cle in (
+            "transfert_id", "materiau_id", "quantite", "de", "vers", "avant", "apres", "hash_maillon")},
+    }
+    if resultat["deja_enregistre"]:
+        return reponse
+    registre.append(maillon)
+    variation = emplacements.variation_en_main(maillon["de"], maillon["vers"])
+    publies = _reconcilier_reservations([materiau_id], horodatage) if variation else []
+    reponse["evenements_materiel_pret"] = publies
+    reponse["repartition"] = {
+        emplacement: stock.texte_canonique(quantite_emplacement)
+        for emplacement, quantite_emplacement in emplacements.repartition(materiau_id, stock_total, registre).items()
+    }
+    return reponse
+
+
+_LIMITE_ARTICLES_LUS = 15
+_LIMITE_RESERVATIONS_LUES = 10
+
+
+def lire_disponibilite(materiau_ids: list[str] | None = None) -> dict[str, Any]:
+    """Lecture seule (M6.8, M6.9) : pour chaque article, le stock théorique, ce qui est hors main, l'EN MAIN, le
+    RÉSERVÉ, le DISPONIBLE (en main - réservé), où il est (par emplacement, `inconnu` = non localisé), et les
+    réservations actives qui le touchent avec ce qui leur manque. Sans `materiau_ids`, les articles connus des
+    registres, dans l'ordre, par pages de quinze (`tronque`). Quantités en texte décimal ; aucun prix."""
+    refus = _hors_transaction()
+    if refus is not None:
+        return refus
+    _, verdict = _acteur_admin_ou_agent()
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    mouvements = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE)
+    transferts = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_EMPLACEMENTS)
+    faits = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RESERVATIONS)
+    en_cours = reservations.actives(faits)
+    if materiau_ids is None:
+        connus = {m["materiau_id"] for m in mouvements if isinstance(m.get("materiau_id"), str)}
+        connus |= {t["materiau_id"] for t in transferts if t.get("type_entree") == emplacements.TYPE_TRANSFERT}
+        connus |= {ligne["materiau_id"] for e in en_cours for ligne in e["lignes"]}
+    else:
+        connus = {m for m in materiau_ids if isinstance(m, str) and m.strip()}
+    choisis = sorted(connus)[:_LIMITE_ARTICLES_LUS]
+    chiffres = stock.deriver_disponibilite(
+        choisis, mouvements, emplacements.hors_main_par_article(transferts), reservations.reserve_par_article(faits)
+    )
+    articles = [
+        {
+            "materiau_id": materiau_id,
+            **{cle: stock.texte_canonique(valeur) for cle, valeur in chiffres[materiau_id].items()},
+            "par_emplacement": {
+                emplacement: stock.texte_canonique(quantite)
+                for emplacement, quantite in emplacements.repartition(
+                    materiau_id, chiffres[materiau_id]["stock_theorique"], transferts).items()
+            },
+        }
+        for materiau_id in choisis
+    ]
+    touchees = [
+        e for e in en_cours if any(ligne["materiau_id"] in set(choisis) for ligne in e["lignes"])
+    ]
+    return {"accepte": True, "resultat": {
+        "articles": articles,
+        "tronque": len(connus) > len(choisis),
+        "reservations_actives": [
+            {
+                "devis_id": e["devis_id"], "chantier_id": e["chantier_id"],
+                "statut": reservations.statut_pret(e["lignes"]),
+                "lignes_manquantes": reservations.lignes_manquantes(e["lignes"]),
+            }
+            for e in touchees[:_LIMITE_RESERVATIONS_LUES]
+        ],
+        "reservations_tronquees": len(touchees) > _LIMITE_RESERVATIONS_LUES,
+    }}
 
 
 def outils() -> tuple[Outil, ...]:
@@ -1562,6 +1933,104 @@ def outils() -> tuple[Outil, ...]:
             fonction=marquer_po_envoye,
             autonomie=Autonomie.T2,
         ),
+        # ----------------------------------------------------------------------------------- T4.14
+        Outil(
+            nom="m6_reserver_materiel",
+            description=(
+                "Réserve le matériel d'un devis ACCEPTÉ depuis son prévu définitif (M6.8) : met de côté "
+                "min(besoin, disponible) par ligne, jamais plus que le disponible (en main - réservé), sans double "
+                "réservation ; un prévu vide ne réserve rien. Rend pret, partiel ou a_commander avec les lignes "
+                "manquantes et publie m6.materiel_pret (M4 le lit). Ne crée aucun bon de commande. Le bus le fait "
+                "déjà à l'acceptation du devis ; cet outil sert au prévu saisi à la main ou à re-réserver après une "
+                "libération."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"devis_id": {"type": "string"}, "horodatage": {"type": "string"}},
+                "required": ["devis_id", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=reserver_materiel,
+            autonomie=Autonomie.T1,
+            # N2 : une réservation est une tâche interne (rien de dépensé, rien d'envoyé, réversible par libération).
+            niveau=Niveau.N2,
+            # §9.5 M6 (chantiers sans matériel prêt) : l'admin réserve ou relance depuis son téléphone.
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m6_liberer_reservation",
+            description=(
+                "Libère la réservation active d'un devis (annulation du chantier, M6.8) : le stock retenu redevient "
+                "disponible, les autres réservations auxquelles il manquait quelque chose se complètent, et "
+                "m6.materiel_pret dit à M4 que ce devis n'est plus prêt. Motif requis et gardé. Rejouer une "
+                "libération n'écrit rien. Ne supprime aucun historique."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "devis_id": {"type": "string"}, "motif": {"type": "string"}, "horodatage": {"type": "string"},
+                },
+                "required": ["devis_id", "motif", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=liberer_reservation,
+            autonomie=Autonomie.T1,
+            # N2 (DEFINITION-PRODUIT §5) : libérer ne dépense, n'envoie ni ne supprime rien ; elle remet du stock au
+            # disponible, et la trace reste. L'annulation d'un PO, elle, engage (m6_annuler_po).
+            niveau=Niveau.N2,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m6_transferer_stock",
+            description=(
+                "Transfère du stock entre emplacements (M6.9 : depot, camion, remorque, chantier, employe, "
+                "fournisseur, retour, rebut, inconnu ; reference requise pour camion, remorque, employe, chantier, "
+                "fournisseur). AUDITÉ : acteur, motif requis, horodatage, quantité, avant et après des deux "
+                "extrémités, chaîne hash-chaînée. Un transfert déplace, il ne crée ni ne détruit : aucune quantité "
+                "par emplacement ne devient négative ; le stock non localisé est à inconnu. Idempotent par "
+                "transfert_id. Sortir du stock de la main (fournisseur, retour, rebut) réconcilie les réservations. "
+                "La chaîne de mouvements de stock ne change pas."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "transfert_id": {"type": "string"},
+                    "materiau_id": {"type": "string"},
+                    "quantite": {"type": "number"},
+                    "de": _EMPLACEMENT,
+                    "vers": _EMPLACEMENT,
+                    "motif": {"type": "string"},
+                    "horodatage": {"type": "string"},
+                },
+                "required": ["transfert_id", "materiau_id", "quantite", "de", "vers", "motif", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=transferer_stock,
+            autonomie=Autonomie.T1,
+            # §9.5 M6 (stock critique, réception rapide) : l'admin déplace le stock. Pas `employee` : un transfert
+            # vers le rebut ou le fournisseur retire du stock de ce qu'on peut réserver, et le stock non localisé
+            # d'aujourd'hui est tout entier à `inconnu`.
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m6_lire_disponibilite",
+            description=(
+                "Lit, par article (quinze au plus), le stock théorique, le hors main, l'en main, le réservé, le "
+                "disponible (en main - réservé) et sa répartition par emplacement (inconnu = non localisé), avec les "
+                "réservations actives qui le touchent et ce qui leur manque. Sans materiau_ids : les articles connus. "
+                "Lecture seule, quantités en texte décimal, aucun prix."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"materiau_ids": {"type": ["array", "null"], "items": {"type": "string"}}},
+                "required": [],
+                "additionalProperties": False,
+            },
+            fonction=lire_disponibilite,
+            autonomie=Autonomie.T0,
+            # §7 M6 tableau de bord : « stock réservé et disponible », « chantiers sans matériel prêt ».
+            roles_appareil=frozenset({"admin"}),
+        ),
     )
 
 
@@ -1632,7 +2101,16 @@ def _recevoir_devis_accepte(charge: dict[str, Any]) -> dict[str, Any]:
         for ligne in charge["lignes"]
         if ligne.get("reference_besoin_materiau") is not None
     ]
-    return enregistrer_besoins_prevus(charge["chantier_id"], charge["devis_id"], lignes)
+    reponse = enregistrer_besoins_prevus(charge["chantier_id"], charge["devis_id"], lignes)
+    # T4.14 : le prévu est le devis ACCEPTÉ : M6 réserve ce qui est disponible et dit à M4 si le matériel est prêt,
+    # partiel ou à commander (`m6.materiel_pret`), dans la MÊME transaction. Même quand le prévu était déjà rangé
+    # (par l'outil manuel, ou un rejeu) : la réservation est idempotente par devis, et jamais refaite après une
+    # libération. Un prévu vide ne réserve rien et ne dit rien. Jamais de bon de commande.
+    if stockage.connexion_courante() is not None:
+        reponse["reservation"] = _reserver_pour_devis(
+            charge["devis_id"], charge["horodatage_acceptation"], "devis_accepte"
+        )
+    return reponse
 
 
 def _recevoir_besoins_materiaux(charge: dict[str, Any]) -> dict[str, Any]:
@@ -1709,4 +2187,6 @@ def attentes() -> list[dict[str, Any]]:
         stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_BESOINS_COMMANDE),
         stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE),
         _articles_reapprovisionnement(),
+        reserves=reservations.reserve_par_article(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RESERVATIONS)),
+        hors_main=emplacements.hors_main_par_article(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_EMPLACEMENTS)),
     )
