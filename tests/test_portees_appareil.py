@@ -43,6 +43,7 @@ VENDEUR = frozenset({
 # ou son gestionnaire décide ou consulte depuis son téléphone.
 ADMIN_SEUL = frozenset({
     "m1_produire_digest",
+    "m1_lire_transfert", "m1_clore_transfert",  # transferts à un humain : lire, clore en personne (T4.5)
     "m2_arbitrer_doublon", "m2_detecter_doublons", "m2_produire_digest", "m2_signaler_doublon",
     "m4_appliquer_cedule", "m4_confirmer_localisation", "m4_lire_position_gps", "m4_lister_pending_review",
     "m4_produire_brouillon_temps", "m4_produire_digest", "m4_proposer_cedule", "m4_proposer_localisation",
@@ -91,6 +92,8 @@ FERMES_A_TOUS = {
     "m6_marquer_po_envoye": "engagement externe (N4) : passe par la file d'approbation",
     "m5_creer_facture_brouillon": "étape de la cascade §6 (M5), pas une action de téléphone",
     "m5_envoyer_facture": "engagement client (N4) : passe par la file d'approbation",
+    "m1_transferer": "jugement de l'agent dans la session d'un client (N2) ; l'employé qui signale : à faire",
+    "m1_escalader_plainte": "jugement de l'agent dans la session d'un client (N2) ; les règles l'ouvrent déjà",
     "m2_ingerer_lead": "ingestion du contrat M1 -> M2, pas une saisie de téléphone",
     "m2_marquer_chantier_termine": "écrit par la cascade « travaux terminés » (auteur system:m4)",
     "m8_rapport_metriques": "ingère un snapshot fourni par l'appelant dans le registre de vérité chiffrée",

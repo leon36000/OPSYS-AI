@@ -31,6 +31,7 @@ TYPE_SUIVI = "suivi_conversation"
 STATUT_OUVERTE = "ouverte"
 STATUT_CLOSE = "close"
 MOTIF_RETRAIT = "retrait_consentement"
+MOTIF_TRANSFERT = "transfert_humain"  # une personne a la conversation (PLAN T4.5) : plus « à suivre » par M1
 MOTIF_RIEN_A_DEMANDER = "rien_a_demander"
 
 ACTION_DEMANDER_PRECISIONS = "demander_precisions"

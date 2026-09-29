@@ -211,6 +211,13 @@ def _extraire_contact(contenu: str) -> dict | None:
     return contact if contact else None
 
 
+def contact_du_texte(contenu_filtre: str) -> dict | None:
+    """Le téléphone et/ou le courriel que le client a ÉCRITS dans un contenu filtré, ou `None`. Mêmes règles que
+    celles du lead : un transfert à un humain garde ce contact quand aucun canal n'a vérifié l'identité du
+    correspondant (voix transcrite, formulaire, saisie)."""
+    return _extraire_contact(_clean(contenu_filtre))
+
+
 def _materiau_lead_id(conversation_id: str, contenu: str, identite: str | None = None) -> str:
     """Encodage canonique INJECTIF (préfixage par longueur) : deux couples différents
     ne peuvent pas produire le même matériau, contrairement à une concaténation directe.

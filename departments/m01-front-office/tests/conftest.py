@@ -10,6 +10,7 @@ import yaml
 FIXTURE_QUALIFICATION = (
     Path(__file__).resolve().parents[1] / "fixtures" / "qualification" / "profil-fictif.v1.yaml"
 )
+FIXTURE_PLAINTES = Path(__file__).resolve().parents[1] / "fixtures" / "plaintes" / "plaintes.v1.yaml"
 
 
 @pytest.fixture
@@ -51,3 +52,31 @@ def politique_photos(monkeypatch):
         monkeypatch.setattr(outils, "_politique_photos_texte", lambda: f"STATUT_VALIDATION: {statut}\n")
 
     return _fixer
+
+
+@pytest.fixture(scope="session")
+def corpus_plaintes() -> dict:
+    """Le vocabulaire, la table de destinataires et les messages FICTIFS des plaintes (PLAN T4.5, `fictif: true`)."""
+    donnees = yaml.safe_load(FIXTURE_PLAINTES.read_text(encoding="utf-8"))
+    assert donnees["fictif"] is True, "fixture non marquée fictive : refusée"
+    return donnees
+
+
+@pytest.fixture
+def declarer_plaintes(corpus_plaintes):
+    """Fabrique : écrit dans le profil de l'instance de test le vocabulaire des plaintes et/ou la table de destinataires
+    de la fixture fictive.
+
+    Sans cet appel, l'instance de test n'a ni mot ni destinataire : c'est le cas « à configurer » que le code doit dire,
+    jamais combler."""
+
+    def _declarer(*, vocabulaire: bool = True, destinataires: bool = False) -> dict:
+        from opsys import taxonomie
+
+        if vocabulaire:
+            taxonomie.enregistrer_signaux_plainte(corpus_plaintes["signaux_plainte"])
+        if destinataires:
+            taxonomie.enregistrer_destinataires_transfert(corpus_plaintes["destinataires_transfert"])
+        return corpus_plaintes
+
+    return _declarer
