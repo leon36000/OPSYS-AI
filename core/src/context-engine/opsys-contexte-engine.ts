@@ -17,10 +17,20 @@
 // keep the native memory of ADR-0010 layer A whatever `contexte.json` says.
 //
 // Fail-closed AND never blocking. Whatever goes wrong (engine unreachable, too slow, invalid or
-// oversized packet, no case in the request), the turn continues WITHOUT a packet, carries an
-// explicit "contexte d'entreprise indisponible" marker, and leaves one journal line. A packet is
-// never invented, repaired or shortened, and every call to the engine is bounded by `delai_ms`.
-// `assemble()` and `afterTurn()` never throw: the registry would quarantine an engine that does.
+// oversized packet, no case in the request, a session no human linked to a case), the turn continues
+// WITHOUT a packet, carries an explicit "contexte d'entreprise indisponible" marker, and leaves one
+// journal line. A packet is never invented, repaired or shortened, and every call to the engine is
+// bounded by `delai_ms`. `assemble()` and `afterTurn()` never throw: the registry would quarantine an
+// engine that does.
+//
+// Where the case of a turn comes from. For an agent that only receives internal requests, the line
+// `affaire_id: <lead_id>` of the request. For an agent on a client channel (`"affaire": "session"` in
+// `contexte.json`), the SESSION KEY, through M10 (`m10_affaire_de_la_session`): the text of the request is
+// then the client's and is never read, so a client cannot name another client's case.
+//
+// The engine does not block a tool call (a context engine has no such hook) but it records, for each turn,
+// what its PREFLIGHT found (`opsys-contexte-garde.ts`): the guard reads it to refuse an N3+ tool call when
+// the packet was unavailable or holds an open critical signal.
 //
 // Transparent by default: without `opsys/contexte.json` carrying `"actif": true`, or for an agent
 // the file does not name, the engine behaves exactly like the legacy one.
@@ -40,11 +50,14 @@ import {
   type OpsysContexteConfigResult,
 } from "./opsys-contexte-config.js";
 import { collectDepositFacts, collectUserText, type OpsysDepositFact } from "./opsys-contexte-depot.js";
+import { opsysContexteGuardStore, type OpsysContexteGuardStore } from "./opsys-contexte-garde.js";
 import {
   extractAffaireId,
+  parseAffaireEnvelope,
   parsePaquetEnvelope,
   renderPaquet,
   renderUnavailable,
+  type OpsysAffaireOfSession,
 } from "./opsys-contexte-paquet.js";
 import { CONTEXT_ENGINE_HOST_PARAMS } from "./registry-contract.js";
 import type { AssembleResult, ContextEngine, ContextEngineInfo } from "./types.js";
@@ -81,6 +94,8 @@ export type OpsysContexteEngineDeps = {
   startTimer?: (ms: number, onExpire: () => void) => () => void;
   nowMs?: () => number;
   log?: OpsysContexteLog;
+  /** Where the PREFLIGHT outcome of each session is recorded for the guard. */
+  guardStore?: OpsysContexteGuardStore;
 };
 
 type Assemble = ContextEngine["assemble"];
@@ -132,6 +147,7 @@ export class OpsysContextEngine implements ContextEngine {
   private readonly startTimer: (ms: number, onExpire: () => void) => () => void;
   private readonly nowMs: () => number;
   private readonly log: OpsysContexteLog;
+  private readonly guardStore: OpsysContexteGuardStore;
 
   constructor(config: OpenClawConfig | undefined, deps: OpsysContexteEngineDeps = {}) {
     this.config = config;
@@ -140,6 +156,7 @@ export class OpsysContextEngine implements ContextEngine {
     this.startTimer = deps.startTimer ?? startRealTimer;
     this.nowMs = deps.nowMs ?? Date.now;
     this.log = deps.log ?? createSubsystemLogger(OPSYS_CONTEXTE_LOG_SUBSYSTEM);
+    this.guardStore = deps.guardStore ?? opsysContexteGuardStore;
   }
 
   ingest(params: Parameters<ContextEngine["ingest"]>[0]) {
@@ -153,9 +170,17 @@ export class OpsysContextEngine implements ContextEngine {
     try {
       packet = await this.composeAddition(params);
     } catch (error) {
-      // Unreachable by construction; kept so no failure can ever cost the turn its assembly.
+      // Unreachable by construction; kept so no failure can ever cost the turn its assembly. The guard
+      // is told there is no usable context: an engine that failed cannot vouch for the case.
       this.log.warn(`opsys-contexte: unexpected failure in assemble: ${describeError(error)}`);
       packet = renderUnavailable("erreur interne du moteur de contexte");
+      if (params.sessionKey !== undefined && params.prompt !== undefined) {
+        this.guardStore.set(params.sessionKey, {
+          kind: "unavailable",
+          reason: "erreur interne du moteur de contexte",
+          atMs: this.nowMs(),
+        });
+      }
     }
     const addition = [memory, packet].filter((part) => part !== undefined).join("\n\n");
     return addition === "" ? assembled : { ...assembled, systemPromptAddition: addition };
@@ -233,10 +258,67 @@ export class OpsysContextEngine implements ContextEngine {
     }
   }
 
-  private unavailable(agentId: string, affaireId: string | undefined, reason: string): string {
+  /**
+   * The marker a turn carries when the packet could not be loaded. With a `sessionKey` it also records,
+   * for the guard, that this session has no usable context.
+   */
+  private unavailable(
+    agentId: string,
+    affaireId: string | undefined,
+    reason: string,
+    sessionKey?: string,
+  ): string {
     const scope = affaireId === undefined ? agentId : `${agentId}, affaire ${affaireId}`;
     this.log.warn(`opsys-contexte: contexte d'entreprise indisponible (${scope}) : ${reason}`);
+    if (sessionKey !== undefined) {
+      this.guardStore.set(sessionKey, { kind: "unavailable", reason, atMs: this.nowMs() });
+    }
     return renderUnavailable(reason);
+  }
+
+  /**
+   * The case of a turn. `"demande"`: the line of the request. `"session"`: what M10 says is linked to the
+   * session key; the text is never read, and no link means no case (never a guess).
+   */
+  private async resolveAffaire(
+    config: OpsysContexteConfig,
+    agentId: string,
+    sessionKey: string | undefined,
+    requestText: string | undefined,
+  ): Promise<OpsysAffaireOfSession> {
+    if (!config.affaireFromSession.has(agentId)) {
+      const lookup = extractAffaireId(requestText);
+      if (lookup.kind === "found") {
+        return { kind: "found", affaireId: lookup.affaireId };
+      }
+      return {
+        kind: "unresolved",
+        reason:
+          lookup.kind === "none"
+            ? "aucune affaire (ligne « affaire_id: ... ») dans la demande"
+            : "plusieurs affaires dans la demande",
+      };
+    }
+    if (sessionKey === undefined) {
+      return { kind: "unresolved", reason: "aucune clé de session : l'affaire ne peut pas en être lue" };
+    }
+    let envelope: unknown;
+    try {
+      envelope = await this.bounded(config.timeoutMs, (signal) =>
+        this.callTool({
+          tool: config.affaireTool,
+          args: { cle_session: sessionKey },
+          timeoutMs: config.timeoutMs,
+          signal,
+        }),
+      );
+    } catch (error) {
+      return {
+        kind: "unresolved",
+        reason: `moteur métier injoignable ou trop lent pour lire l'affaire de la session (${describeError(error)})`,
+      };
+    }
+    return parseAffaireEnvelope(envelope);
   }
 
   private async composeAddition(params: Parameters<Assemble>[0]): Promise<string | undefined> {
@@ -254,32 +336,42 @@ export class OpsysContextEngine implements ContextEngine {
     if (agentId === undefined || !config.agents.has(agentId)) {
       return undefined;
     }
-    const lookup = extractAffaireId(params.prompt);
-    if (lookup.kind !== "found") {
-      const why =
-        lookup.kind === "none"
-          ? "aucune affaire (ligne « affaire_id: ... ») dans la demande"
-          : "plusieurs affaires dans la demande";
-      return this.unavailable(agentId, undefined, why);
+    // The runner re-assembles the context after each tool result, without the prompt, and only keeps the
+    // messages of that call: there is nothing to compose there, and it must not overwrite what the turn's
+    // own assembly recorded for the guard.
+    if (params.prompt === undefined) {
+      return undefined;
     }
-    const { affaireId } = lookup;
+    const { sessionKey } = params;
+    const resolution = await this.resolveAffaire(config, agentId, sessionKey, params.prompt);
+    if (resolution.kind !== "found") {
+      return this.unavailable(agentId, undefined, resolution.reason, sessionKey);
+    }
+    const { affaireId } = resolution;
 
     let envelope: unknown;
     try {
       envelope = await this.bounded(config.timeoutMs, (signal) =>
         this.callTool({
           tool: config.packetTool,
-          args: { affaire_id: affaireId, horodatage: this.horodatage() },
+          // `agent` is the department read in the session key, never a word of the request: M10 filters
+          // the packet for it (`confidentialite.py`) and the core checks that it says so.
+          args: { affaire_id: affaireId, horodatage: this.horodatage(), agent: agentId },
           timeoutMs: config.timeoutMs,
           signal,
         }),
       );
     } catch (error) {
-      return this.unavailable(agentId, affaireId, `moteur métier injoignable ou trop lent (${describeError(error)})`);
+      return this.unavailable(
+        agentId,
+        affaireId,
+        `moteur métier injoignable ou trop lent (${describeError(error)})`,
+        sessionKey,
+      );
     }
-    const parsed = parsePaquetEnvelope(envelope, affaireId);
+    const parsed = parsePaquetEnvelope(envelope, affaireId, agentId);
     if (!parsed.ok) {
-      return this.unavailable(agentId, affaireId, `paquet inutilisable (${parsed.reason})`);
+      return this.unavailable(agentId, affaireId, `paquet inutilisable (${parsed.reason})`, sessionKey);
     }
     const rendered = renderPaquet(parsed.paquet);
     // M10 computed the budget; the core does not shorten the packet to fit, it refuses it.
@@ -288,6 +380,7 @@ export class OpsysContextEngine implements ContextEngine {
         agentId,
         affaireId,
         `paquet hors du budget de M10 (${String(rendered.bodyChars)} sur ${String(parsed.paquet.budgetCaracteres)} caractères), non tronqué`,
+        sessionKey,
       );
     }
     const tokenBudget = params.tokenBudget;
@@ -296,7 +389,21 @@ export class OpsysContextEngine implements ContextEngine {
       Number.isFinite(tokenBudget) &&
       estimateTokensFromChars(rendered.text.length) > tokenBudget
     ) {
-      return this.unavailable(agentId, affaireId, "paquet plus grand que le budget de contexte disponible, non tronqué");
+      return this.unavailable(
+        agentId,
+        affaireId,
+        "paquet plus grand que le budget de contexte disponible, non tronqué",
+        sessionKey,
+      );
+    }
+    // The packet is in the turn: record for the guard how many critical signals of the case are still open.
+    if (sessionKey !== undefined) {
+      this.guardStore.set(sessionKey, {
+        kind: "ready",
+        affaireId,
+        nbOuverts: parsed.paquet.signaux.nbOuverts,
+        atMs: this.nowMs(),
+      });
     }
     this.log.debug(
       `opsys-contexte: paquet injecté (${agentId}, affaire ${affaireId}, ${String(parsed.paquet.caracteresUtilises)} caractères)`,
@@ -327,15 +434,20 @@ export class OpsysContextEngine implements ContextEngine {
     if (facts.length === 0) {
       return;
     }
-    const lookup = extractAffaireId(collectUserText(turnMessages));
-    if (lookup.kind !== "found") {
+    const resolution = await this.resolveAffaire(
+      config,
+      agentId,
+      params.sessionKey,
+      collectUserText(turnMessages),
+    );
+    if (resolution.kind !== "found") {
       this.log.warn(
-        `opsys-contexte: POSTFLIGHT sans affaire identifiable (${agentId}) : ${String(facts.length)} fait(s) non déposé(s)`,
+        `opsys-contexte: POSTFLIGHT sans affaire identifiable (${agentId}) : ${String(facts.length)} fait(s) non déposé(s) (${resolution.reason})`,
       );
       return;
     }
     for (let start = 0; start < facts.length; start += DEPOSIT_BATCH_SIZE) {
-      await this.depositBatch(config, agentId, lookup.affaireId, facts.slice(start, start + DEPOSIT_BATCH_SIZE));
+      await this.depositBatch(config, agentId, resolution.affaireId, facts.slice(start, start + DEPOSIT_BATCH_SIZE));
     }
   }
 

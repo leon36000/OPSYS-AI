@@ -17,6 +17,8 @@ function writeConfig(dir: string, content: string): void {
 }
 
 const M3 = { "m03-estimation": { depot: ["m3_estimer_projet"] } };
+// Levels N of the OPSYS tools, as `openclaw.py` generates them: required once the engine is active.
+const NIVEAUX = { m3_estimer_projet: "N3", m3_lire_devis: "N0" };
 
 describe("readOpsysContexteConfig", () => {
   it("is off when there is no contexte.json", () => {
@@ -33,7 +35,7 @@ describe("readOpsysContexteConfig", () => {
 
   it("reads the enabled configuration from the file", () => {
     const dir = tempDirs.make("opsys-contexte-config-");
-    writeConfig(dir, JSON.stringify({ actif: true, agents: M3 }));
+    writeConfig(dir, JSON.stringify({ actif: true, agents: M3, niveaux: NIVEAUX }));
 
     const result = readOpsysContexteConfig({ dir });
 
@@ -73,7 +75,7 @@ describe("parseOpsysContexteConfig", () => {
   });
 
   it("applies the documented defaults to a minimal enabled configuration", () => {
-    const result = parseOpsysContexteConfig({ actif: true, agents: M3 });
+    const result = parseOpsysContexteConfig({ actif: true, agents: M3, niveaux: NIVEAUX });
 
     expect(result).toStrictEqual({
       kind: "enabled",
@@ -81,8 +83,14 @@ describe("parseOpsysContexteConfig", () => {
         server: "opsys_m10",
         packetTool: "m10_paquet_contexte_affaire",
         depositTool: "m10_deposer_faits_candidats",
+        affaireTool: "m10_affaire_de_la_session",
         timeoutMs: 4_000,
         agents: new Map([["m03-estimation", ["m3_estimer_projet"]]]),
+        affaireFromSession: new Set(),
+        levels: new Map([
+          ["m3_estimer_projet", "N3"],
+          ["m3_lire_devis", "N0"],
+        ]),
       },
     });
   });
@@ -93,11 +101,13 @@ describe("parseOpsysContexteConfig", () => {
       serveur: "opsys_memoire",
       outil_paquet: "m10_paquet_contexte_affaire",
       outil_depot: "m10_deposer_faits_candidats",
+      outil_affaire: "m10_affaire_de_la_session",
       delai_ms: 1_500,
       agents: {
         "m03-estimation": { depot: ["m3_estimer_projet", "m3_estimer_projet", "m3_qualifier_photos"] },
         "m04-field-ops": {},
       },
+      niveaux: NIVEAUX,
     });
 
     expect(result).toStrictEqual({
@@ -106,10 +116,16 @@ describe("parseOpsysContexteConfig", () => {
         server: "opsys_memoire",
         packetTool: "m10_paquet_contexte_affaire",
         depositTool: "m10_deposer_faits_candidats",
+        affaireTool: "m10_affaire_de_la_session",
         timeoutMs: 1_500,
         agents: new Map([
           ["m03-estimation", ["m3_estimer_projet", "m3_qualifier_photos"]],
           ["m04-field-ops", []],
+        ]),
+        affaireFromSession: new Set(),
+        levels: new Map([
+          ["m3_estimer_projet", "N3"],
+          ["m3_lire_devis", "N0"],
         ]),
       },
     });
@@ -162,6 +178,97 @@ describe("parseOpsysContexteConfig", () => {
     expect(parseOpsysContexteConfig(raw)).toMatchObject({
       kind: "invalid",
       reason: expect.stringContaining(reason),
+    });
+  });
+});
+
+describe("parseOpsysContexteConfig: where the case comes from, and the levels of the tools", () => {
+  it("takes the case from the request for an agent that does not say otherwise, and from the session when told", () => {
+    const result = parseOpsysContexteConfig({
+      actif: true,
+      agents: {
+        "m03-estimation": { depot: ["m3_estimer_projet"] },
+        "m04-field-ops": { affaire: "demande" },
+        "m01-front-office": { affaire: "session" },
+      },
+      niveaux: NIVEAUX,
+    });
+
+    expect(result).toMatchObject({ kind: "enabled" });
+    if (result.kind === "enabled") {
+      expect([...result.config.affaireFromSession]).toStrictEqual(["m01-front-office"]);
+      expect(result.config.affaireTool).toBe("m10_affaire_de_la_session");
+    }
+  });
+
+  it("keeps the levels exactly as OPSYS generated them", () => {
+    const result = parseOpsysContexteConfig({
+      actif: true,
+      agents: M3,
+      niveaux: { m3_estimer_projet: "N3", m4_notifier_client_completion: "N4", m5_enregistrer_mouvement: "N5", m4_pointer: "N2" },
+    });
+
+    expect(result).toMatchObject({ kind: "enabled" });
+    if (result.kind === "enabled") {
+      expect(Object.fromEntries(result.config.levels)).toStrictEqual({
+        m3_estimer_projet: "N3",
+        m4_notifier_client_completion: "N4",
+        m5_enregistrer_mouvement: "N5",
+        m4_pointer: "N2",
+      });
+    }
+  });
+
+  it.each([
+    {
+      title: "an agent whose case source is not one of the two",
+      raw: { actif: true, agents: { "m03-estimation": { affaire: "texte" } }, niveaux: NIVEAUX },
+      reason: '"agents.m03-estimation.affaire"',
+    },
+    {
+      title: "an agent whose case source is not text",
+      raw: { actif: true, agents: { "m03-estimation": { affaire: true } }, niveaux: NIVEAUX },
+      reason: '"agents.m03-estimation.affaire"',
+    },
+    {
+      title: "a session-reading tool that is not a department tool",
+      raw: { actif: true, outil_affaire: "lire l'affaire", agents: M3, niveaux: NIVEAUX },
+      reason: '"outil_affaire"',
+    },
+    { title: "no levels", raw: { actif: true, agents: M3 }, reason: '"niveaux"' },
+    { title: "an empty levels map", raw: { actif: true, agents: M3, niveaux: {} }, reason: '"niveaux"' },
+    { title: "levels as a list", raw: { actif: true, agents: M3, niveaux: ["N3"] }, reason: '"niveaux"' },
+    {
+      title: "a level that is not N0 to N5",
+      raw: { actif: true, agents: M3, niveaux: { m3_estimer_projet: "N6" } },
+      reason: "bad entry",
+    },
+    {
+      title: "a level in lower case",
+      raw: { actif: true, agents: M3, niveaux: { m3_estimer_projet: "n3" } },
+      reason: "bad entry",
+    },
+    {
+      title: "a level that is not text",
+      raw: { actif: true, agents: M3, niveaux: { m3_estimer_projet: 3 } },
+      reason: "bad entry",
+    },
+    {
+      title: "a tool name that is not an OPSYS department tool",
+      raw: { actif: true, agents: M3, niveaux: { "lire tout": "N0" } },
+      reason: "bad entry",
+    },
+  ])("is invalid, and says which key to fix, for $title", ({ raw, reason }) => {
+    expect(parseOpsysContexteConfig(raw)).toMatchObject({
+      kind: "invalid",
+      reason: expect.stringContaining(reason),
+    });
+  });
+
+  it("says to regenerate the file when the levels are missing, as an old contexte.json has none", () => {
+    expect(parseOpsysContexteConfig({ actif: true, agents: M3 })).toMatchObject({
+      kind: "invalid",
+      reason: expect.stringContaining("opsys openclaw configurer"),
     });
   });
 });

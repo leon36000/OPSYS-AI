@@ -24,6 +24,11 @@ des faits d'outils) du core (`core/src/context-engine/opsys-contexte-*.ts`). Dé
 argument, `opsys/contexte.json` porte `{"actif": false}` et `plugins.json` ne choisit aucun moteur. Activé, le
 même appel écrit `contexte.json` ET `plugins.slots.contextEngine: "opsys"` : un seul interrupteur, deux fichiers
 toujours d'accord.
+PLAN T3.3-suite-b : `contexte.json` porte aussi `niveaux` (le niveau N de chaque outil des départements, tiré de
+`Outil.niveau_effectif`, jamais du modèle) que le garde `before_tool_call` du core lit pour savoir quels appels
+exigent un contexte utilisable (N3 ou plus), et, par agent, `affaire` : `"demande"` (la ligne `affaire_id` de la
+demande, pour un agent qui ne reçoit que des demandes internes) ou `"session"` (l'affaire liée à la clé de
+session par un humain, `generer(affaire_par_session=...)`, jamais le texte d'un client).
 
 Deux fragments supplémentaires (T1.4-c2, `docs/architecture/IDEMPOTENCE.md` §7 bis) ne sont PAS
 `$include`s dans `openclaw.json` — comme `automatisations.sh` ci-dessous, ce sont des fichiers annexes
@@ -72,6 +77,9 @@ MOTEUR_CONTEXTE = "opsys"
 DEPARTEMENT_MEMOIRE = "m10-memoire"
 OUTIL_PAQUET_CONTEXTE = "m10_paquet_contexte_affaire"
 OUTIL_DEPOT_FAITS = "m10_deposer_faits_candidats"
+OUTIL_AFFAIRE_SESSION = "m10_affaire_de_la_session"
+AFFAIRE_DEMANDE = "demande"
+AFFAIRE_SESSION = "session"
 
 INSTRUCTIONS = """\
 # Instructions d'exploitation OPSYS
@@ -196,11 +204,15 @@ def _configuration_plugins(fuseau: str, contexte_actif: bool = False) -> dict[st
 def _configuration_contexte(
     departements: Mapping[str, Departement],
     contexte_entreprise: Mapping[str, Sequence[str]] | None,
+    affaire_par_session: Sequence[str] = (),
 ) -> dict[str, Any] | None:
     """Contenu de `opsys/contexte.json` quand le moteur de contexte est demandé, sinon `None` (désactivé).
 
     `contexte_entreprise` : agent (id de département) -> outils de CE département dont les résultats sont
     remis à M10 après le tour (POSTFLIGHT) ; une liste vide donne seulement le paquet avant le tour.
+    `affaire_par_session` (PLAN T3.3-suite-b) : les agents dont l'affaire vient de la clé de session (lien écrit
+    par un humain, `m10_lier_session_affaire`) et non de la ligne `affaire_id` de la demande ; ce sont les agents
+    d'un canal client (M1) : le texte de la demande est celui du client et n'est jamais lu.
 
     Fail-closed avant toute écriture : le moteur ne s'active jamais à moitié. Refusé si M10 est absent, si
     l'un de ses deux outils manque, si la lecture du paquet n'est pas T0, si le dépôt exigerait une approbation
@@ -228,6 +240,21 @@ def _configuration_contexte(
             f"contexte d'entreprise : {OUTIL_DEPOT_FAITS} ({depot[1].niveau_effectif.value}) exigerait une "
             f"approbation en mode {memoire.mode} : le core ne pourrait jamais y déposer"
         )
+    sessions = sorted(set(affaire_par_session))
+    for agent in sessions:
+        if agent not in contexte_entreprise:
+            raise ValueError(
+                f"contexte d'entreprise : {agent!r} lit son affaire dans la session mais n'active pas le moteur "
+                "de contexte (--contexte-entreprise)"
+            )
+    if sessions:
+        lecture_session = index.get(OUTIL_AFFAIRE_SESSION)
+        if lecture_session is None or lecture_session[0].id != DEPARTEMENT_MEMOIRE:
+            raise ValueError(
+                f"contexte d'entreprise : l'outil {OUTIL_AFFAIRE_SESSION} manque au département {DEPARTEMENT_MEMOIRE}"
+            )
+        if lecture_session[1].autonomie is not Autonomie.T0:
+            raise ValueError(f"contexte d'entreprise : {OUTIL_AFFAIRE_SESSION} doit être une lecture (T0)")
     agents: dict[str, Any] = {}
     for agent in sorted(contexte_entreprise):
         if agent not in departements:
@@ -239,12 +266,20 @@ def _configuration_contexte(
                 raise ValueError(f"contexte d'entreprise : {nom!r} n'est pas un outil du département {agent}")
             if nom not in outils_agent:
                 outils_agent.append(nom)
-        agents[agent] = {"depot": outils_agent}
+        agents[agent] = {
+            "depot": outils_agent,
+            "affaire": AFFAIRE_SESSION if agent in sessions else AFFAIRE_DEMANDE,
+        }
     return {
         "actif": True,
         "serveur": serveur_mcp(memoire),
         "outil_paquet": OUTIL_PAQUET_CONTEXTE,
         "outil_depot": OUTIL_DEPOT_FAITS,
+        "outil_affaire": OUTIL_AFFAIRE_SESSION,
+        # Le niveau N de chaque outil des départements, tel que le manifeste et le code le fixent : le garde
+        # `before_tool_call` du core bloque un appel de niveau N3 ou plus quand le contexte est inutilisable.
+        # Jamais un niveau déclaré par le modèle ni par le core.
+        "niveaux": {nom: outil.niveau_effectif.value for nom, (_dep, outil) in sorted(index.items())},
         "agents": agents,
     }
 
@@ -342,6 +377,7 @@ def generer(
     fuseau: str = "America/Toronto",
     environ: Mapping[str, str] | None = None,
     contexte_entreprise: Mapping[str, Sequence[str]] | None = None,
+    affaire_par_session: Sequence[str] = (),
 ) -> dict[str, Path]:
     """Écrit les fragments et les espaces de travail dans `<dossier_config>/opsys/`.
 
@@ -350,6 +386,7 @@ def generer(
     Couche A ; validé avant l'écriture des fragments (fail-closed, voir `_configuration_memoire`).
     `contexte_entreprise` (PLAN T3.3-suite) active le moteur de contexte pour les agents nommés :
     voir `_configuration_contexte`. Absent (défaut) : désactivé, rien ne change pour les agents.
+    `affaire_par_session` (PLAN T3.3-suite-b) : ceux de ces agents dont l'affaire vient de la session.
     """
     # Fail-closed avant toute écriture : une portée d'appareil invalide (rôle inconnu, outil T3/N5
     # déclaré) n'est jamais écrite dans `roles.json`, pas même partiellement (T1.4-j).
@@ -360,7 +397,7 @@ def generer(
             + "\n  - ".join(problemes_portees)
         )
     # Même règle pour le moteur de contexte : un état incohérent n'est jamais écrit, même en partie.
-    contexte = _configuration_contexte(departements, contexte_entreprise)
+    contexte = _configuration_contexte(departements, contexte_entreprise, affaire_par_session)
     base = dossier_config / "opsys"
     espaces = base / "espaces"
     if espaces.exists():

@@ -1,4 +1,4 @@
-# Tests des zones du core modifiées par OPSYS (T1.4-c1, T1.4-c2, T1.4-c4, T1.4-c5, T1.4-c6, T0.10, T3.3-suite).
+# Tests des zones du core modifiées par OPSYS (T1.4-c1, T1.4-c2, T1.4-c4, T1.4-c5, T1.4-c6, T0.10, T3.3-suite, T3.3-suite-b).
 #
 # `pnpm test:fast` (les six morceaux de la CI) exclut `src/gateway/**`, `src/agents/**` et
 # `packages/gateway-protocol/**` : ces tests appartiennent à d'autres projets vitest. Le job
@@ -62,7 +62,9 @@ src/gateway/opsys-metier-supervisor.test.ts
 src/gateway/server-lifetime-sidecars.test.ts
 src/gateway/server-methods/health.owner-routing.test.ts
 
-# T3.3-suite : moteur de contexte OPSYS (src/context-engine/opsys-contexte*.ts, enregistré par init.ts).
+# T3.3-suite et T3.3-suite-b : moteur de contexte OPSYS (src/context-engine/opsys-contexte*.ts, enregistré par
+# init.ts). T3.3-suite-b ajoute le garde `before_tool_call` (opsys-contexte-garde.test.ts), l'affaire lue dans la
+# session et le filtre de confidentialité du paquet (config, paquet et moteur).
 # Ces fichiers ne sont pas candidats « unit-fast » (src/context-engine n'est pas dans
 # unitFastCandidatePatterns, seul context-engine.test.ts y est forcé) : `pnpm test <fichier>` les route
 # vers test/vitest/vitest.unit.config.ts (sorte « default »), la même configuration que `test:fast`.
@@ -73,3 +75,4 @@ src/context-engine/opsys-contexte-depot.test.ts
 src/context-engine/opsys-contexte-engine.test.ts
 src/context-engine/opsys-contexte.registration.test.ts
 src/context-engine/opsys-contexte-mcp.wire.test.ts
+src/context-engine/opsys-contexte-garde.test.ts

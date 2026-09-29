@@ -295,7 +295,8 @@ def cmd_openclaw(args: argparse.Namespace) -> int:
     fichiers = openclaw.generer(deps, dossier, modeles.charger_paliers(), url_mcp=args.url_mcp,
                                 url_passerelle=args.url_passerelle, racine_espaces=args.espaces,
                                 fuseau=args.fuseau,
-                                contexte_entreprise=_contexte_entreprise(args.contexte_entreprise) or None)
+                                contexte_entreprise=_contexte_entreprise(args.contexte_entreprise) or None,
+                                affaire_par_session=args.affaire_par_session or ())
     racine = openclaw.racine_si_absente(dossier)
     for nom, chemin in fichiers.items():
         print(f"{nom}: {chemin}")
@@ -454,6 +455,10 @@ def construire_parseur() -> argparse.ArgumentParser:
         "--contexte-entreprise", action="append", metavar="AGENT[:OUTIL,OUTIL]", type=_specification_contexte,
         help="active le moteur de contexte du core pour cet agent : paquet de M10 avant le tour, et dépôt "
              "des résultats des outils listés après (répétable ; absent : désactivé, comportement inchangé)")
+    oc.add_argument(
+        "--affaire-par-session", action="append", metavar="AGENT",
+        help="cet agent (déjà nommé par --contexte-entreprise) lit son affaire dans la clé de session, liée par un "
+             "humain, et jamais dans la demande : pour un agent d'un canal client (répétable)")
     oc.set_defaults(fn=cmd_openclaw)
 
     ap = sous.add_parser(
