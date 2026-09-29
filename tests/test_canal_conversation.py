@@ -109,6 +109,14 @@ def _recu(evenement_id: str) -> dict | None:
     return None if ligne is None else dict(ligne)
 
 
+def _consommateurs_traites(evenement_id: str) -> list[str]:
+    """Les départements qui ont traité cet événement (reçu au statut `traite`), par ordre alphabétique."""
+    with stockage.transaction() as cnx:
+        return sorted(cnx.execute(select(EVENEMENTS_RECUS.c.consommateur).where(
+            (EVENEMENTS_RECUS.c.evenement_id == evenement_id) & (EVENEMENTS_RECUS.c.statut == "traite")
+        )).scalars())
+
+
 def _livraisons_a_m2() -> int:
     """Nombre de livraisons de `m1.lead_qualifie` à M2 (les autres consommateurs du bus, M5 par exemple, reçoivent
     `m2.client_associe` que M2 publie à son tour : ils ne comptent pas ici)."""
@@ -260,12 +268,15 @@ def test_un_lead_que_m2_refuse_est_reessaye_puis_mis_en_quarantaine_sans_rien_ec
     taxonomie.enregistrer_services(["reparation"])  # entre la qualification et la livraison, « gouttieres » est retiré
 
     resume = _drainer(deps)
-    # Un seul reçu traité : celui de M10, qui garde le lead qualifié dans l'historique de l'affaire (T4.18). M2, lui,
-    # refuse : quatre échecs puis la quarantaine.
-    assert resume["traites"] == 1 and resume["echecs"] == 4 and resume["quarantaines"] == 1, resume
+    # Deux reçus traités : celui de M10, qui garde le lead qualifié dans l'historique de l'affaire (T4.18), et celui de
+    # M8, qui garde le lead et sa clé `utm_content` pour la mesure par contenu (T4.17-e). M2, lui, refuse : quatre
+    # échecs puis la quarantaine.
+    assert resume["traites"] == 2 and resume["echecs"] == 4 and resume["quarantaines"] == 1, resume
+    evenement_id = f"m1-lead-qualifie-{lead['lead_id']}"
+    assert _consommateurs_traites(evenement_id) == ["m08-analytics", "m10-memoire"]
     assert _maillons_m2() == []
     (ligne,) = [q for q in evenements.etat()["quarantaine"] if q["consommateur"] == "m02-revenue-crm"]
-    assert ligne["evenement_id"] == f"m1-lead-qualifie-{lead['lead_id']}" and ligne["tentatives"] == 5
+    assert ligne["evenement_id"] == evenement_id and ligne["tentatives"] == 5
     assert "LeadRefuse" in ligne["derniere_erreur"] and "REJ-SERVICE-INCONNU" in ligne["derniere_erreur"]
     assert _recu(ligne["evenement_id"])["statut"] == "quarantaine"
 
