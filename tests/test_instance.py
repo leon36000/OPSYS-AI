@@ -528,7 +528,7 @@ def test_le_profil_ne_se_projette_que_par_l_option_racine_et_pas_par_la_seule_va
 
     assert "OPENCLAW_PROFILE" not in etat
     assert "env.OPENCLAW_STATE_DIR = stateDir;" in profil
-    assert "env.OPENCLAW_CONFIG_PATH = path.join(stateDir, \"openclaw.json\");" in profil
+    assert "env.OPENCLAW_CONFIG_PATH = resolveProfileConfigPath(profile, stateDir);" in profil
     assert "applyCliProfileEnv({ profile: earlyProfile.profile });" in entree
     assert 'resolveProfileStateDir(env.OPENCLAW_PROFILE ?? "default", env, homedir)' in chemins
     assert "resolveStateDir(env, envHomedir(env))" in chemins

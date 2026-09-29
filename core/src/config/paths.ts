@@ -3,7 +3,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { normalizeHomeDirValue } from "@openclaw/normalization-core/home-dir";
-import { normalizeProfileName, resolveProfileStateDir } from "../cli/profile-utils.js";
+import {
+  listCanonicalProfileConfigPaths,
+  normalizeProfileName,
+  resolveProfileStateDir,
+} from "../cli/profile-utils.js";
 import { resolveGatewayNativeServiceIdentityConflict } from "../daemon/constants.js";
 import { resolveHomeRelativePath, resolveRequiredHomeDir } from "../infra/home-dir.js";
 import { parseTcpPort } from "../infra/tcp-port.js";
@@ -145,9 +149,12 @@ export function isDefaultInstallIdentity(
   if (!isNamedProfile(env) && !env.OPENCLAW_CONFIG_PATH?.trim()) {
     return true;
   }
-  return (
-    normalizePathForComparison(resolveConfigPathCandidate(env, envHomedir(env))) ===
-    normalizePathForComparison(path.join(canonicalStateDir, CONFIG_FILENAME))
+  const activeConfigPath = normalizePathForComparison(
+    resolveConfigPathCandidate(env, envHomedir(env)),
+  );
+  // The `opsys` profile accepts its former config file name next to the canonical one.
+  return listCanonicalProfileConfigPaths(env.OPENCLAW_PROFILE ?? "default", canonicalStateDir).some(
+    (canonicalConfigPath) => normalizePathForComparison(canonicalConfigPath) === activeConfigPath,
   );
 }
 

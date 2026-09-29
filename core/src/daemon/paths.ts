@@ -1,6 +1,7 @@
 /** Resolves daemon state, home, and generated task-script paths. */
 import path from "node:path";
 import { normalizeOptionalString } from "@openclaw/normalization-core/string-coerce";
+import { isOpsysProfile, resolveOpsysProfileStateDir } from "../config/opsys-instance.js";
 import { resolveGatewayProfileSuffix } from "./constants.js";
 
 const windowsAbsolutePath = /^[a-zA-Z]:[\\/]/;
@@ -43,6 +44,10 @@ export function resolveGatewayStateDir(env: Record<string, string | undefined>):
     return resolveUserPathWithHome(override, home);
   }
   const home = resolveDaemonHomeDir(env);
+  if (isOpsysProfile(env.OPENCLAW_PROFILE)) {
+    // The OPSYS instance directory (`~/.opsys/core`), or its former profile directory until Doctor moves it.
+    return resolveOpsysProfileStateDir(home);
+  }
   const suffix = resolveGatewayProfileSuffix(env.OPENCLAW_PROFILE);
   // Profile suffixes isolate managed service files while preserving the default
   // historical ~/.openclaw state path.

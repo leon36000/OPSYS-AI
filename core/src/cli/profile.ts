@@ -1,6 +1,5 @@
 // Root --profile/--dev parsing and environment projection for profile-specific state.
 import os from "node:os";
-import path from "node:path";
 import { normalizeOptionalString } from "@openclaw/normalization-core/string-coerce";
 import {
   GATEWAY_SERVICE_SELECTOR_ENV_KEYS,
@@ -11,7 +10,12 @@ import {
 } from "../daemon/constants.js";
 import { resolveHomeRelativePath } from "../infra/home-dir.js";
 import { resolveCliArgvInvocation } from "./argv-invocation.js";
-import { isValidProfileName, resolveProfileStateDir } from "./profile-utils.js";
+import {
+  isValidProfileName,
+  listCanonicalProfileConfigPaths,
+  resolveProfileConfigPath,
+  resolveProfileStateDir,
+} from "./profile-utils.js";
 import { scanCliRootOptions } from "./root-option-scan.js";
 import { takeCliRootOptionValue } from "./root-option-value.js";
 
@@ -111,10 +115,12 @@ export function applyCliProfileEnv(params: {
     switchesInheritedProfile &&
     (!existingStateDir || switchesInheritedProfileState) &&
     existingConfigPath &&
-    resolveHomeRelativePath(existingConfigPath, {
-      env: env as NodeJS.ProcessEnv,
-      homedir,
-    }) === path.join(inheritedProfileStateDir, "openclaw.json"),
+    listCanonicalProfileConfigPaths(inheritedProfile, inheritedProfileStateDir).includes(
+      resolveHomeRelativePath(existingConfigPath, {
+        env: env as NodeJS.ProcessEnv,
+        homedir,
+      }),
+    ),
   );
   const inheritedManagedServiceSelectors =
     switchesInheritedProfile &&
@@ -143,7 +149,7 @@ export function applyCliProfileEnv(params: {
     !inheritedManagedServiceSelectors &&
     (!existingConfigPath || replacesInheritedProfileConfig)
   ) {
-    env.OPENCLAW_CONFIG_PATH = path.join(stateDir, "openclaw.json");
+    env.OPENCLAW_CONFIG_PATH = resolveProfileConfigPath(profile, stateDir);
   }
 
   if (switchesInheritedProfile && !inheritedManagedServiceSelectors) {

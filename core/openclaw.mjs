@@ -399,7 +399,12 @@ const resolveLauncherConfigPaths = () => {
   const stateOverride = process.env.OPENCLAW_STATE_DIR?.trim();
   if (stateOverride) {
     const stateDir = resolveLauncherUserPath(stateOverride);
-    return [path.join(stateDir, "openclaw.json"), path.join(stateDir, "clawdbot.json")];
+    // `opsys.json` is the config file of the OPSYS instance state directory (~/.opsys/core).
+    return [
+      path.join(stateDir, "opsys.json"),
+      path.join(stateDir, "openclaw.json"),
+      path.join(stateDir, "clawdbot.json"),
+    ];
   }
   const homeDir = resolveLauncherHomeDir();
   return [
