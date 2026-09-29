@@ -190,11 +190,16 @@ def _vue_projection_effective(role_demande: str | None) -> dict[str, Any]:
         NOMMÉ (`REJ-ROLE-ELARGI`) — jamais élargi, jamais rabattu silencieusement sur la vue
         autorisée (un appelant qui se trompe de rôle doit le savoir, pas être corrigé en silence).
 
-    Rend toujours `{"accepte": True, "role": <vue>}` ou `{"accepte": False, "verdict": <verdict>}`
-    — jamais une exception."""
+    Rend toujours `{"accepte": True, "role": <vue>, "personne": ..., "role_appareil": ...}` ou
+    `{"accepte": False, "verdict": <verdict>}` — jamais une exception. `personne` et `role_appareil` sont
+    ceux de l'identité CONFIRMÉE (None hors appel d'appareil) : PLAN T1.4-k2, ils servent au filtre par
+    propriétaire de lead (`_hors_portee_du_vendeur`), qui ne relit jamais l'identité lui-même."""
     identite_dispositif = contexte.identite_appelante()
     if identite_dispositif is None:
-        return {"accepte": True, "role": role_demande if role_demande is not None else "interne"}
+        return {
+            "accepte": True, "role": role_demande if role_demande is not None else "interne",
+            "personne": None, "role_appareil": None,
+        }
 
     cnx = stockage.connexion_courante()
     personne = identite.personne_active(cnx, identite_dispositif.personne) if cnx is not None else None
@@ -219,10 +224,11 @@ def _vue_projection_effective(role_demande: str | None) -> dict[str, Any]:
                 detail=f"rôle d'appareil {identite_dispositif.role!r} sans vue M3 connue",
             ),
         }
+    confirmee = {"personne": personne.identifiant, "role_appareil": identite_dispositif.role}
     if role_demande is None:
-        return {"accepte": True, "role": vue_autorisee}
+        return {"accepte": True, "role": vue_autorisee, **confirmee}
     if vue_autorisee == "interne" or role_demande == vue_autorisee:
-        return {"accepte": True, "role": role_demande}
+        return {"accepte": True, "role": role_demande, **confirmee}
     return {
         "accepte": False,
         "verdict": verdicts.construire_verdict(
@@ -234,6 +240,46 @@ def _vue_projection_effective(role_demande: str | None) -> dict[str, Any]:
             ),
         ),
     }
+
+
+# -- propriétaire d'un lead (PLAN T1.4-k2) --------------------------------------------------------
+#
+# Un vendeur ne lit que les devis des leads dont il est le PROPRIÉTAIRE. Le propriétaire d'un lead est
+# une donnée de M2 (`owner` de la qualification) : M3 ne la reçoit jamais de l'appelant et n'en tient
+# aucune copie. Elle est relue à la source du bus (`evenements.charge_publiee`, comme M6 relit le WCT de
+# M4, T1.4-i) dans le fait `m2.lead_assigne` que M2 publie dans la transaction de la qualification. Aucun
+# import de M2 (#109). L'identifiant d'événement est une convention du contrat du catalogue
+# (`m2.lead_assigne.json`) ; `tests/test_acces_par_proprietaire.py` du socle la prouve de bout en bout.
+_TYPE_EVENEMENT_LEAD_ASSIGNE = "m2.lead_assigne"
+_ROLE_VENDEUR = identite.Role.SELLER.value
+_ROLES_SOUMISSION = frozenset({_ROLE_VENDEUR, identite.Role.ADMIN.value})
+
+
+def _proprietaire_du_lead(lead_id: Any) -> str | None:
+    """Le propriétaire du lead tel que M2 l'a publié, ou None : lead sans fait de propriété (jamais
+    qualifié, inconnu de M2, ou qualifié avant T1.4-k2), `lead_id` invalide, ou aucune transaction (rien
+    n'est joignable hors d'un appel d'outil : fail-closed, jamais un propriétaire supposé)."""
+    if stockage.connexion_courante() is None or not isinstance(lead_id, str) or not lead_id:
+        return None
+    charge = evenements.charge_publiee(_TYPE_EVENEMENT_LEAD_ASSIGNE, f"m2-lead-assigne-{lead_id}")
+    if charge is None or charge.get("lead_id") != lead_id:
+        return None
+    return charge.get("proprietaire")
+
+
+def _hors_portee_du_vendeur(vue: dict[str, Any], devis: dict[str, Any]) -> bool:
+    """Vrai si l'appelant est un vendeur (appareil authentifié et confirmé) dont ce devis n'est pas celui
+    d'un de SES leads. Admin, employé (qui ne voit ni coût, ni marge, ni prix : T2.3-d) et appel sans
+    appareil : faux, aucun filtre par propriétaire."""
+    if vue.get("role_appareil") != _ROLE_VENDEUR:
+        return False
+    return _proprietaire_du_lead(devis.get("lead_id")) != vue["personne"]
+
+
+def _devis_inconnu(devis_id: str) -> dict[str, Any]:
+    """Le refus d'un devis absent du registre (même code et même détail que `devis_durable.lire_devis`),
+    rendu aussi à un vendeur pour le devis d'un autre : les deux cas sont indiscernables."""
+    return verdicts.construire_verdict("REJ-DEVIS-INTROUVABLE", detail=f"devis inconnu : {devis_id!r}")
 
 
 def _projeter_estimation_employe(reponse: dict[str, Any]) -> dict[str, Any]:
@@ -413,13 +459,20 @@ def lire_devis(devis_id: str, role: str | None = None) -> dict[str, Any]:
     `_vue_projection_effective`) plutôt que par le seul choix de l'appelant — voir sa docstring
     pour la table rôle d'appareil -> vue et la règle « role ne peut que restreindre ». La
     résolution de vue précède la lecture du registre : un refus d'identité ne révèle même pas si
-    `devis_id` existe."""
+    `devis_id` existe.
+
+    PLAN T1.4-k2 : un vendeur ne lit que le devis d'un lead dont il est le propriétaire (M2, relu à la
+    source : `_proprietaire_du_lead`). Le devis d'un autre, celui d'un lead sans propriétaire connu et un
+    devis inconnu donnent le MÊME refus (`REJ-DEVIS-INTROUVABLE`) : rien ne dit à un vendeur quels devis
+    existent. Admin, employé (toujours sans coût, marge ni prix) et agent : aucun filtre."""
     vue = _vue_projection_effective(role)
     if not vue["accepte"]:
         return {"accepte": False, "verdict": vue["verdict"]}
     devis, verdict = devis_durable.lire_devis(registre_devis_production(), devis_id)
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
+    if _hors_portee_du_vendeur(vue, devis):
+        return {"accepte": False, "verdict": _devis_inconnu(devis_id)}
     return depuis_couple(devis_durable.projeter_devis(devis, vue["role"]))
 
 
@@ -528,10 +581,25 @@ def detecter_devis_sans_reponse(horodatage_reference: str, delai_relance_jours: 
 def generer_soumission_brouillon(devis_id: str) -> dict[str, Any]:
     """Lit le devis durable par `devis_id` et rend un brouillon HTML lisible pour le client
     (PLAN T2.3, `soumission.py`) — jamais un envoi (SOUL.md, T1.3 : l'envoi reste derrière les
-    approbations du socle)."""
+    approbations du socle).
+
+    PLAN T1.4-k2 : pendant un appel d'appareil, l'identité est confirmée en base, le rôle doit être dans la
+    portée de l'outil (vendeur ou admin : le brouillon porte les prix, jamais montrés à l'employé) et un
+    vendeur n'obtient que le brouillon d'un lead dont il est le propriétaire (même refus que `lire_devis`
+    pour le devis d'un autre et pour un devis inconnu). Agent : comme avant."""
+    vue = _vue_projection_effective(None)
+    if not vue["accepte"]:
+        return {"accepte": False, "verdict": vue["verdict"]}
+    if vue["role_appareil"] is not None and vue["role_appareil"] not in _ROLES_SOUMISSION:
+        return {"accepte": False, "verdict": verdicts.construire_verdict(
+            "REJ-IDENTITE-APPAREIL-INVALIDE",
+            detail=f"rôle d'appareil {vue['role_appareil']!r} sans portée sur le brouillon de soumission",
+        )}
     devis, verdict = devis_durable.lire_devis(registre_devis_production(), devis_id)
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
+    if _hors_portee_du_vendeur(vue, devis):
+        return {"accepte": False, "verdict": _devis_inconnu(devis_id)}
     return depuis_couple(soumission.generer_brouillon_html(devis))
 
 
@@ -715,7 +783,8 @@ def outils() -> tuple[Outil, ...]:
                 "-> employe, admin/seller -> interne — et role ne peut que RESTREINDRE cette vue, "
                 "jamais l'élargir (une demande plus large est un refus nommé). Hors appel "
                 "d'appareil, role choisit librement la vue (défaut : interne, comportement "
-                "historique)."
+                "historique). Un vendeur authentifié ne lit que les devis des leads dont il est le "
+                "propriétaire (M2) ; le devis d'un autre et un devis inconnu donnent le même refus."
             ),
             parametres={
                 "type": "object",
@@ -809,7 +878,8 @@ def outils() -> tuple[Outil, ...]:
                 "Génère un brouillon de soumission HTML lisible pour le client depuis un devis "
                 "durable existant (description, quantités, prix par ligne, prix total — jamais "
                 "coût ni marge). Brouillon seulement : aucun envoi, aucune approbation requise "
-                "pour le générer (l'envoi reste derrière les approbations du socle, T1.3)."
+                "pour le générer (l'envoi reste derrière les approbations du socle, T1.3). Un vendeur "
+                "authentifié n'obtient que le brouillon d'un devis dont le lead lui appartient (M2)."
             ),
             parametres={
                 "type": "object",
@@ -819,7 +889,8 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=generer_soumission_brouillon,
             autonomie=Autonomie.T0,
-            # §9.4 (vendeur : soumissions de ses leads) ; ne porte jamais coût ni marge.
+            # §9.4 (vendeur : soumissions de ses leads, T1.4-k2 : filtre par propriétaire) ; ne porte jamais
+            # coût ni marge.
             roles_appareil=frozenset({"seller", "admin"}),
         ),
         Outil(

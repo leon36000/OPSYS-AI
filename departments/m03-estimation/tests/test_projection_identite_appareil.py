@@ -27,7 +27,7 @@ if str(_SRC) not in sys.path:
 
 from m3_estimation.outils import outils  # noqa: E402
 
-from opsys import contexte, identite, stockage  # noqa: E402
+from opsys import contexte, evenements, identite, stockage  # noqa: E402
 from opsys.outils import executer_atomique  # noqa: E402
 
 _HORODATAGE = "2026-09-28T14:00:00-04:00"
@@ -79,6 +79,17 @@ def _creer_devis(devis_id, **surcharges):
     reponse = _appeler("m3_creer_devis", arguments)
     assert reponse["ok"] is True, reponse
     return reponse
+
+
+def _lead_assigne(lead_id="lead-001", proprietaire="vendeur.un"):
+    """M2 a qualifié `lead_id` avec ce propriétaire (PLAN T1.4-k2) : le fait que M3 relit à la source du
+    bus pour ne rendre à un vendeur que les devis de SES leads (`m2.lead_assigne`)."""
+    with stockage.transaction():
+        evenements.publier(
+            "m2.lead_assigne", "m02-revenue-crm",
+            {"lead_id": lead_id, "proprietaire": proprietaire, "horodatage_assignation": _HORODATAGE},
+            evenement_id=f"m2-lead-assigne-{lead_id}",
+        )
 
 
 def _contrat(**surcharges):
@@ -199,6 +210,7 @@ def test_appareil_seller_sans_role_demande_recoit_la_vue_interne(personnes):
     """DEFINITION-PRODUIT.md §9.4 : le vendeur voit risques, marge et prix de sa soumission —
     aucune restriction par défaut."""
     _creer_devis("M3-DEVIS-id-005")
+    _lead_assigne()  # T1.4-k2 : un vendeur ne lit que les devis des leads dont il est propriétaire
     lu = _appeler_en_tant_quappareil(
         "vendeur.un", "seller", "m3_lire_devis", {"devis_id": "M3-DEVIS-id-005"}
     )
@@ -210,6 +222,7 @@ def test_appareil_seller_peut_se_restreindre_a_employe(personnes):
     """Restriction explicite plus ÉTROITE que la vue autorisée : toujours honorée, à la discrétion
     de l'appelant."""
     _creer_devis("M3-DEVIS-id-006")
+    _lead_assigne()  # T1.4-k2 : un vendeur ne lit que les devis des leads dont il est propriétaire
     lu = _appeler_en_tant_quappareil(
         "vendeur.un", "seller", "m3_lire_devis", {"devis_id": "M3-DEVIS-id-006", "role": "employe"}
     )
