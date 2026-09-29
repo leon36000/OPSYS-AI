@@ -61,6 +61,7 @@ from m6_material_control import stock as m6_stock
 from sqlalchemy import select
 
 from opsys import approbations, stockage
+from opsys.capacites import Capacites
 from opsys.outils import executer_atomique
 from opsys.stockage import codec
 from opsys.stockage.schema import (
@@ -773,3 +774,195 @@ def test_la_porte_refuse_ce_que_le_role_ne_permet_pas_avant_d_atteindre_le_moteu
     assert inconnu.statut == 403 and "device_unknown" in inconnu.corps["error"]["message"]
     assert moteur.empreinte_etat() == avant
     assert all(m.requetes_http == 0 for m in moteur.mesures[mesures_avant:])
+
+
+# =============================================================================================
+# C. PLAN T1.5-d : M5 calcule le coût réel et la rentabilité du chantier (DEFINITION-PRODUIT §6).
+#    Les sources sont lues, jamais fournies : le WCT et le devis reçus du bus, la variance de M6 livrée par le
+#    bus, le livre de prix de M6 (lecture seule), le taux horaire configuré. L'admin lit le résultat sur son
+#    téléphone ; rien n'est écrit en comptabilité.
+# =============================================================================================
+LECTURES_FINANCE_ADMIN = ("m5_lire_rentabilite_chantier", "m5_lire_comptes_a_recevoir")
+
+
+def _prix_au_livre_de_m6(moteur: Moteur, prix: float = 8.0) -> None:
+    """M6 saisit un prix fournisseur (outil réservé aux agents : `m6_enregistrer_prix` n'a aucune portée d'appareil)."""
+    m6 = {o.nom: o for o in moteur.departements["m06-material-control"].charger_outils()}
+    reponse = executer_atomique(m6["m6_enregistrer_prix"], {
+        "materiau_id": MATERIAU_ID, "fournisseur_id": "gentek-fictif", "prix_unitaire": prix, "devise": "CAD",
+        "date_effet": "2026-09-01", "source_document": None})
+    assert reponse["ok"] and reponse["resultat"]["accepte"], reponse
+
+
+def _taux_horaire(tmp_path, monkeypatch, taux: str = "50.00") -> None:
+    """Nathan configure le taux horaire dans `department.yaml/configuration` (le manifeste livré n'en porte pas)."""
+    manifeste = tmp_path / "department-m5.yaml"
+    manifeste.write_text(yaml.safe_dump({"configuration": {"taux_horaire_main_d_oeuvre": taux}}), encoding="utf-8")
+    monkeypatch.setattr(m5_outils, "_MANIFESTE", manifeste)
+
+
+def _rentabilite(admin, **arguments) -> Reponse:
+    return admin.appeler("m5_lire_rentabilite_chantier", arguments)
+
+
+def _traces_de_rentabilite(devis_id: str) -> list[dict[str, Any]]:
+    return [m for m in stockage.maillons("m05-financecore", "rentabilite") if m["devis_id"] == devis_id]
+
+
+def test_c_scenario_a_le_cout_reel_et_la_marge_sont_calcules_a_partir_de_sources_lues(
+        moteur, equipe, tmp_path, monkeypatch):
+    _prix_au_livre_de_m6(moteur)
+    _taux_horaire(tmp_path, monkeypatch)
+    s = _Scenario(moteur, equipe, "A-NORMAL", 15)
+    ch = s.chantier
+
+    completion, _ = s.terminer_puis_declarer(42.0)  # prévu 40 : +5 %, comme le scénario A
+
+    # -- les pièces que M5 a reçues du bus sont celles du scénario, pas des valeurs du test ------------------
+    wct = _evenements("m4.travaux_termines")[0]
+    assert wct["wct_id"] == completion.resultat["wct_id"] and wct["duree_reelle_minutes"] == 180  # 3 h pointées
+    devis = _evenements("m3.devis_accepte")[0]
+    assert (devis["cout_total"], devis["prix_total"], devis["taux_marge"]) == ("480.00", "600.00", "0.25")
+    assert _evenements("m6.variance_chantier")[-1]["lignes"][0]["quantite_reelle"] == "42.0"
+
+    # -- ce que l'admin lit sur son téléphone : coût réel, marge réelle contre marge prévue ------------------
+    avant = moteur.empreinte_etat()
+    lecture = _rentabilite(s.admin, chantier_id=ch.chantier_id)
+    assert moteur.empreinte_etat() == avant  # une lecture n'écrit rien
+    assert lecture.statut == 200 and lecture.mesure.tronque is False and lecture.mesure.octets_texte < LIMITE_TRONCATURE
+    assert lecture.resultat["role"] == "admin" and lecture.resultat["nombre"] == 1
+    (chantier,) = lecture.resultat["chantiers"]
+    assert (chantier["devis_id"], chantier["chantier_id"], chantier["statut"]) == (
+        ch.devis_id, ch.chantier_id, "calculee")
+    r = chantier["rentabilite"]
+    assert r["verdict"] == "CALCULEE" and r["manque"] == []
+    assert r["cout_reel"]["materiaux"]["lignes"][0]["cout"] == "336.00"  # 42 pi x 8,00 $ (livre de prix de M6)
+    assert r["cout_reel"]["main_d_oeuvre"]["cout"] == "150.00"  # 180 min x 50,00 $/h (taux configuré)
+    assert r["cout_reel"]["cout_total"] == "486.00" and r["cout_reel"]["complet"] is True
+    assert (r["statut_facture"], r["prix_definitif"], r["prix_facture"]) == ("BROUILLON", False, "600.00")
+    assert r["marge_reelle"] == "114.00" and r["marge_reelle_pct_du_prix"] == "0.1900"
+    assert r["marge_prevue"] == "120.00" and r["marge_prevue_pct_du_prix"] == "0.2000"
+    assert r["ecart_marge"] == "-6.00" and r["en_perte"] is False
+    assert chantier["trace"]["a_jour"] is True
+
+    # -- l'état a été tracé par la cascade, une fois par version des entrées, sans rien écrire en comptabilité --
+    traces = _traces_de_rentabilite(ch.devis_id)
+    assert len(traces) >= 2 and traces[-1]["verdict"] == "CALCULEE"
+    assert len({t["version_entrees"] for t in traces}) == len(traces)
+    assert traces[-1]["version_entrees"] == chantier["trace"]["version_entrees"]
+    assert list(stockage.maillons("m05-financecore", "principal")) == []  # le grand livre : aucun mouvement
+    assert [m["type_entree"] for m in stockage.maillons("m05-financecore", "factures")] == ["facture_creee"]
+    assert _facture_active(ch.devis_id)["statut"] == "BROUILLON"
+
+    # -- la liste (sans filtre) tient en une ligne par chantier ----------------------------------------------
+    liste = _rentabilite(s.admin).resultat["chantiers"]
+    assert [(c["devis_id"], c["rentabilite"]["marge_reelle"]) for c in liste] == [(ch.devis_id, "114.00")]
+
+    # -- l'employé n'y a aucun accès : refusé à la porte, sans atteindre le moteur ---------------------------
+    for outil in LECTURES_FINANCE_ADMIN:
+        refus = s.employe.appeler(outil, {})
+        assert refus.statut == 403 and refus.corps["error"]["type"] == "tool_call_blocked", outil
+        assert "tool_out_of_scope" in refus.corps["error"]["message"] and refus.mesure.requetes_http == 0
+    assert moteur.empreinte_etat() == avant
+
+
+@SQLITE_SEULEMENT
+def test_c_scenario_a_sans_prix_ni_taux_le_cout_est_partiel_et_dit_ce_qui_manque(moteur, equipe):
+    s = _Scenario(moteur, equipe, "A-PARTIEL", 15)  # ni prix au livre de M6, ni taux dans le manifeste livré
+    ch = s.chantier
+    s.terminer_puis_declarer(42.0)
+
+    (chantier,) = _rentabilite(s.admin, devis_id=ch.devis_id).resultat["chantiers"]
+
+    r = chantier["rentabilite"]
+    assert r["verdict"] == "PARTIELLE" and r["cout_reel"]["complet"] is False
+    assert [(e["code"], e.get("materiau")) for e in r["manque"]] == [
+        ("REJ-COUT-PRIX-NON-DISPONIBLE", MATERIAU_ID), ("REJ-COUT-TAUX-HORAIRE-A-CONFIGURER", None)]
+    assert r["cout_reel"]["materiaux"]["lignes"][0]["statut"] == "PRIX_NON_DISPONIBLE"
+    assert r["cout_reel"]["materiaux"]["lignes"][0]["prix_unitaire"] is None  # jamais un prix inventé
+    assert r["cout_reel"]["main_d_oeuvre"]["cout"] is None and r["cout_reel"]["main_d_oeuvre"]["minutes"] == 180
+    assert r["cout_reel"]["cout_total"] is None and r["cout_reel"]["cout_total_connu"] == "0"
+    assert r["marge_reelle"] is None and r["marge_reelle_pct_du_prix"] is None and r["ecart_marge"] is None
+    assert r["prix_facture"] == "600.00" and r["marge_prevue"] == "120.00"  # ce qui est connu reste dit
+    traces = _traces_de_rentabilite(ch.devis_id)
+    assert traces and all(t["verdict"] == "PARTIELLE" for t in traces)  # la cascade a tracé un état partiel, dit tel
+
+
+@SQLITE_SEULEMENT
+def test_c_aucune_ecriture_sur_un_refus_de_lecture(moteur, equipe, tmp_path, monkeypatch):
+    _prix_au_livre_de_m6(moteur)
+    _taux_horaire(tmp_path, monkeypatch)
+    s = _Scenario(moteur, equipe, "A-REFUS", 15)
+    s.terminer_puis_declarer(42.0)
+    avant = moteur.empreinte_etat()
+
+    inconnu = _rentabilite(s.admin, chantier_id="CH-INCONNU-fictif")
+    assert inconnu.statut == 200 and inconnu.metier["accepte"] is False
+    assert inconnu.metier["verdict"]["code"] == "REJ-RENTABILITE-CHANTIER-INCONNU"
+    for arguments in ({"cout_total": "1.00"}, {"taux_horaire": 1}, {"prix_facture": "9999.00"}, {"lignes": []}):
+        injecte = _rentabilite(s.admin, **arguments)  # rien du calcul ne se passe en argument
+        assert injecte.enveloppe["ok"] is False and injecte.enveloppe["erreur"] == "arguments_invalides", arguments
+    elargi = _rentabilite(s.admin, role="employee")
+    assert elargi.metier["verdict"]["code"] == "REJ-IDENTITE-FOURNIE-DIFFERENTE"
+    sans_montant = _rentabilite(s.admin, devis_id=s.chantier.devis_id, autorise_couts=False).resultat
+    assert sans_montant["chantiers"][0]["rentabilite"]["montants_masques"] is True
+    assert "486.00" not in json.dumps(sans_montant)
+
+    assert moteur.empreinte_etat() == avant
+
+
+@SQLITE_SEULEMENT
+def test_c_scenario_b_un_ecart_de_quarante_pour_cent_mange_la_marge_et_reste_signale(
+        moteur, equipe, tmp_path, monkeypatch):
+    _prix_au_livre_de_m6(moteur)
+    _taux_horaire(tmp_path, monkeypatch)
+    s = _Scenario(moteur, equipe, "B-ECART", 16)
+    s.terminer_puis_declarer(56.0)  # prévu 40 : +40 %, signal critique de M6
+
+    (chantier,) = _rentabilite(s.admin, chantier_id=s.chantier.chantier_id).resultat["chantiers"]
+
+    r = chantier["rentabilite"]
+    assert r["cout_reel"]["materiaux"]["source_quantites"]["signal_critique"] is True  # le coût dit son origine
+    assert r["cout_reel"]["materiaux"]["lignes"][0]["cout"] == "448.00"  # 56 pi x 8,00 $
+    assert r["cout_reel"]["cout_total"] == "598.00" and r["marge_reelle"] == "2.00"
+    assert r["marge_reelle_pct_du_prix"] == "0.0033" and r["marge_prevue"] == "120.00"
+    assert r["ecart_marge"] == "-118.00" and r["en_perte"] is False
+
+
+@SQLITE_SEULEMENT
+def test_c_comptes_a_recevoir_seule_la_facture_envoyee_apres_validation_humaine_y_entre(
+        moteur, equipe, tmp_path, monkeypatch):
+    _prix_au_livre_de_m6(moteur)
+    _taux_horaire(tmp_path, monkeypatch)
+    s = _Scenario(moteur, equipe, "A-CREANCES", 15)
+    ch = s.chantier
+    s.terminer_puis_declarer(42.0)
+
+    # La cascade a créé une facture BROUILLON : elle n'est pas due, l'admin le voit.
+    assert s.admin.appeler("m5_lire_comptes_a_recevoir", {}).resultat["nombre"] == 0
+    assert _facture_active(ch.devis_id)["statut"] == "BROUILLON"
+
+    # L'agent propose l'envoi (N4) ; la demande attend Nathan, et la facture n'est toujours pas due.
+    capacites = Capacites(moteur.departements, stockage.transaction)
+    demande = capacites.appeler("m5_envoyer_facture", {
+        "facture_id": f"fac-{ch.devis_id}", "horodatage": iso(moteur.horloge.maintenant)})
+    assert demande["statut"] == "en_attente_approbation"
+    assert s.admin.appeler("m5_lire_comptes_a_recevoir", {}).resultat["nombre"] == 0
+
+    # Nathan signe depuis son téléphone : la facture est ENVOYEE, donc à recevoir.
+    decision = s.admin.appeler("m9_decider_demande_approbation", {
+        "demande_id": demande["demande_id"], "decision": "approuver", "motif": "Facture vérifiée (fictif)."},
+        cle="mut-decision-envoi-creances", horodatage_appareil=iso(moteur.horloge.maintenant))
+    assert decision.resultat["statut"] == "executee" and decision.resultat["role"] == "nathan_owner"
+    creances = s.admin.appeler("m5_lire_comptes_a_recevoir", {"aujourd_hui": "2026-09-16"}).resultat
+    assert creances["nombre"] == 1 and creances["total_a_recevoir"] == "689.85" and creances["total_complet"] is True
+    (facture,) = creances["factures"]
+    assert facture["facture_id"] == f"fac-{ch.devis_id}" and facture["chantier_id"] == ch.chantier_id
+    assert facture["montant_apres_taxes"] == "689.85" and facture["date_envoi"] is not None
+    assert creances["age"]["tranches"]["0-30"][0]["age_jours"] == 1
+
+    # La rentabilité suit : le prix facturé est maintenant définitif. Aucun mouvement n'a été écrit au grand livre.
+    (chantier,) = _rentabilite(s.admin, devis_id=ch.devis_id).resultat["chantiers"]
+    assert (chantier["rentabilite"]["statut_facture"], chantier["rentabilite"]["prix_definitif"]) == ("ENVOYEE", True)
+    assert chantier["rentabilite"]["marge_reelle"] == "114.00"
+    assert list(stockage.maillons("m05-financecore", "principal")) == []
