@@ -1598,7 +1598,7 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       revue externe (argent).
       Dépend de : T4.15. GATE NATHAN : fréquence de production TPS/TVQ, acomptes, réserves. T3 :
       validation du calendrier par le CPA ; aucune remise ni déclaration.
-- [ ] T4.17 M7 : usine à contenu, un chantier donne cinq contenus et un paquet manuel (M7.3, M7.2).
+- [x] T4.17 M7 : usine à contenu, un chantier donne cinq contenus et un paquet manuel (M7.3, M7.2).
       Écart (§7 M7.3, M7.2 et E2E « gouttières à Repentigny → 5 contenus → approbation → export →
       mesure » ; audit M7 §2.8) : un seul brouillon ; aucun paquet manuel ; aucun registre de
       retrait du consentement (reste de T4.3, Loi 25).
@@ -1613,6 +1613,22 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       prix refusé, approbation, paquet exporté ; sans consentement : rien.
       Dépend de : rien. GATE NATHAN : nom commercial, voix de marque, énoncés de consentement. T3 :
       jamais de publication par M7 ; export manuel.
+      Preuve (5042ea6) :
+      - `usine/` (10 modules) : matière du chantier = WCT reçu + profil de marque, jamais un
+        argument ; cinq variantes `PROPOSE` avec lien UTM validé (contrat S012) ; gabarits du code ou
+        textes du modèle, tous contrôlés en code (adresse, coordonnées, nom de client, identifiant
+        interne, prix, chiffre non sourcé, garantie non validée, date promise, exagération, lien) ;
+        un texte refusé n'est jamais écrit ; contrôle rejoué à l'approbation et à l'export ;
+      - consentement marketing avec sa preuve (aussi pour T4.3) ; retrait
+        (`retraits_consentement_marketing`, N2, ne se lève pas, vaut pour le lead) : bloque
+        proposer, décider, exporter, y compris un paquet déjà exporté ;
+      - « À voir » : `attentes()` N3 ; `m7_decider_contenu` au propriétaire seulement ; paquet
+        manuel exporté, rien publié (adaptateur Postiz bloqué par test) ; tout média « à flouter à
+        la main » ;
+      - E2E `tests/e2e/test_usine_contenu_appareil.py` (9) ; M7 889 (625 avant), M4 1817, socle
+        1133 (43 sautés), verifier 146 outils (70 déclarés) ; 24 mutations tuées.
+      Limites : le WCT ne porte pas la ville (M4, Loi 25) : aucun ancrage local ; « mesure » non
+      bouclée ; un prénom seul n'est pas reconnu (la revue du propriétaire reste la barrière).
 - [ ] T4.18 M10 : dossier d'affaire de l'amont, du lead au devis (P4 ; §6 « M10 reçoit de tous »).
       Écart (§6, P4 ; audit M10 §1) : avant le chantier, l'affaire n'a rien en mémoire.
       - M10 consomme `m1.lead_qualifie`, `m3.devis_envoye`, `m3.devis_accepte`,
@@ -1630,6 +1646,15 @@ météo et GPS M4, vision M3, conseil d'agents M9…
         cash libre de T4.16 (sinon « manque ») ; M8 ne recalcule jamais M5.
       Preuve : pytest M8 et gate BMAD ; `tests/test_cascade_mesure_m8_m9.py` étendu.
       Dépend de : T4.7 ; T4.16 (non bloquant). GATE NATHAN : seuils de l'entonnoir.
+
+- [ ] T4.17-b M4 puis M7 : ville au niveau municipal dans le WCT, seulement avec le consentement
+      marketing, pour un ancrage local des contenus. GATE NATHAN (Loi 25 : granularité publiée).
+- [ ] T4.17-c Socle, M1 et M7 : garde-fou de texte partagé dans le socle (M1 et M7 ont chacun le
+      leur) ; STOP de M1 publié comme retrait de consentement que M7 consomme.
+- [ ] T4.17-d M7 : détecteur réel de visages et de plaques et stockage du média flouté (OpenCV,
+      politique « photos » validée d'abord).
+- [ ] T4.17-e M7 et M8 : boucle de mesure par `utm_content` (impressions, clics, leads par
+      contenu).
 
 Non détaillé (porte fermée ou décision manquante) : voix M1 au-delà de T2.1-d (politique
 d'enregistrement d'appels), GPS continu et ETA client (politique GPS), vision M3 et détecteur M7
@@ -1730,6 +1755,9 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
   lead ; validation de la politique « photos » ; règle « un message qui ne nomme qu'un service est
   le choix du client » (e40a0ea) ; délai de relance d'une conversation (aujourd'hui : fin de la
   fenêtre).
+- **Usine à contenu (T4.17, M7)** : `site_url` du profil (sans lui, aucun lien) ;
+  `garanties_validees` ; `heures_publication` ; un client insatisfait ne donne aucun contenu (choix
+  de l'agent, à confirmer) ; approbation réservée à `nathan_owner`.
 - **Lien automatique session → affaire (T2.1-b)** : aujourd'hui, un humain lie la session d'un
   client à son lead (`m10_lier_session_affaire`, N3). Faut-il qu'une règle écrite le fasse à la
   création du lead ? La clé de session contient le numéro du client : elle ne voyage jamais dans
