@@ -119,6 +119,21 @@ main-d'œuvre). Trois issues, jamais une quatrième inventée :
     donnée fournie DE TRAVERS est signalée, jamais silencieusement ignorée.
   - ``taux_marge`` valide : ``prix_recommande = {borne_basse, borne_haute}``, chaque borne dérivée
     de la borne de COÛT correspondante par ``devis_durable.prix_depuis_cout``.
+
+Besoins matériaux vers M6 (PLAN T2.3-e, ``besoins_materiaux.py`` : contrat ``BesoinsMateriauxM3``) :
+quand le poste du barème porte une liste OPTIONNELLE ``materiaux`` (quantité de matériau par unité
+d'ouvrage, ``facteur_perte`` facultatif), la voie NON bloquée en tire les besoins (quantité x
+quantité par unité, Decimal, calculée par le code) et les dépose sous deux formes, jamais dans
+``EstimationV1`` (gelé) : (1) dans la charge du registre, clé ``besoins_materiaux`` — le
+``hash_maillon`` qui en résulte couvre donc les quantités et sert de ``estimation_id`` (la VERSION de
+l'estimation) ; (2) dans la réponse, clé sœur ``besoins_materiaux`` (le contrat complet, prêt à
+publier — ``outils.py``, seul, publie ``m3.besoins_materiaux``). ``None`` sur la voie bloquée (des
+photos faibles ne donnent pas de quantités défendables) et quand le poste ne porte pas de
+``materiaux`` : aucune nomenclature n'est inventée. Un bloc ``materiaux`` malformé est un rejet nommé
+(étape ``besoins_materiaux``), AVANT toute écriture au registre : le contrat est assemblé une première
+fois à blanc (empreinte et rang fictifs) pour que sa validation stricte précède l'inscription. Un
+``facteur_perte`` absent du barème reste absent du contrat et est signalé (``facteurs_perte_absents``,
+et une note dans ``elements_manquants``), jamais inventé.
 """
 
 from __future__ import annotations
@@ -129,6 +144,7 @@ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any
 
 from . import (
+    besoins_materiaux,
     blocage_prix,
     contrats,
     devis,
@@ -173,6 +189,9 @@ _NIVEAUX_SANS_REFERENCE_ALERTABLES = (
 )
 
 _CENT = Decimal("0.01")
+
+# Empreinte fictive de la première assemblée « à blanc » du contrat de besoins (voir docstring).
+_EMPREINTE_A_BLANC = "0" * 64
 
 
 def arrondir_au_cent(valeur: float) -> float:
@@ -311,6 +330,7 @@ def orchestrer_estimation(
     prix_recommande: dict[str, float] | None = None
     elements_manquants_prix: list[str] = []
     signal_relance_m2: dict[str, Any] | None = None
+    besoins_calcules: dict[str, Any] | None = None
     niveau_confiance_numerique = NIVEAUX_STATISTIQUES_PAR_CONFIANCE.get(
         niveau_hierarchie, blocage_prix.NIVEAU_CONFIANCE_NOMINAL
     )
@@ -366,6 +386,26 @@ def orchestrer_estimation(
                 "taux_marge non fourni : aucun prix recommandé calculé (coût seulement disponible)"
             )
 
+        # Besoins matériaux (PLAN T2.3-e) : voie NON bloquée seulement, comme la durée et le prix.
+        # Le contrat est assemblé une première fois à blanc, AVANT le registre : sa validation
+        # stricte ne doit jamais suivre une écriture qu'elle aurait dû empêcher.
+        besoins_calcules, verdict = besoins_materiaux.calculer_lignes(bareme, type_travaux, quantite)
+        if verdict is not None:
+            return {"etape": "besoins_materiaux", "accepte": False, "verdict": verdict}
+        if besoins_calcules is not None:
+            _, verdict = besoins_materiaux.assembler_besoins_materiaux(
+                devis_id, lead_id, _EMPREINTE_A_BLANC, 0, bareme_version, niveau_confiance_numerique,
+                besoins_calcules["lignes"], besoins_calcules["facteurs_perte_absents"],
+            )
+            if verdict is not None:
+                return {"etape": "besoins_materiaux", "accepte": False, "verdict": verdict}
+            if besoins_calcules["facteurs_perte_absents"]:
+                elements_manquants_prix.append(
+                    "facteur_perte non fourni par le barème pour : "
+                    + ", ".join(besoins_calcules["facteurs_perte_absents"])
+                    + " (besoins publiés sans majoration de perte)"
+                )
+
     charge: dict[str, Any] = {
         "devis_id": devis_id,
         "lead_id": lead_id,
@@ -376,6 +416,8 @@ def orchestrer_estimation(
     }
     if duree_estimee_minutes is not None:
         charge["duree_estimee_minutes"] = duree_estimee_minutes
+    if besoins_calcules is not None:
+        charge["besoins_materiaux"] = besoins_calcules
 
     maillon, verdict = registre_cible.ajouter(charge)
     if verdict is not None:
@@ -397,6 +439,15 @@ def orchestrer_estimation(
     if verdict is not None:
         return {"etape": "assemblage", "accepte": False, "verdict": verdict}
 
+    contrat_besoins: dict[str, Any] | None = None
+    if besoins_calcules is not None:
+        contrat_besoins, verdict = besoins_materiaux.assembler_besoins_materiaux(
+            devis_id, lead_id, maillon["hash_maillon"], maillon["rang"], bareme_version,
+            niveau_confiance_numerique, besoins_calcules["lignes"], besoins_calcules["facteurs_perte_absents"],
+        )
+        if verdict is not None:
+            return {"etape": "besoins_materiaux", "accepte": False, "verdict": verdict}
+
     return {
         "etape": "complet",
         "accepte": True,
@@ -407,9 +458,9 @@ def orchestrer_estimation(
         # SOUL.md : « quand le prix est bloqué, tu expliques simplement au client ce qui manque »
         # — liste EXPLICITE (jamais seulement la phrase composée de raison_blocage) sur la voie
         # bloquée (reprise directe de qualite_photos.qualifier_photos, jamais recalculée ici) ;
-        # sur la voie NON bloquée, ne porte que la note taux_marge absent le cas échéant (jamais
-        # les deux à la fois : les deux causes de blocage/incomplétude sont mutuellement
-        # exclusives par construction — voir _prix_recommande_depuis_intervalle ci-dessus).
+        # sur la voie NON bloquée, ne porte que les notes d'incomplétude (taux_marge absent,
+        # facteur_perte absent du barème) — jamais mêlées à la liste de blocage : ces causes sont
+        # mutuellement exclusives par construction (voir _prix_recommande_depuis_intervalle).
         "elements_manquants": elements_manquants if prix_bloque else elements_manquants_prix,
         # Séparation coût/prix (PLAN T2.3, reste de T2.3-b) : dérivé de intervalle_confiance par
         # taux_marge, jamais dans EstimationV1 (champ gelé, inchangé). None sur la voie bloquée ou
@@ -418,4 +469,9 @@ def orchestrer_estimation(
         # Signal de relance M2 (signaux.py, DEMANDE_ENTREES_VISUELLES) : None sauf sur la qualité
         # photo insuffisante — voir la docstring du module pour la justification du câblage exact.
         "signal_relance_m2": signal_relance_m2,
+        # Besoins matériaux vers M6 (BesoinsMateriauxM3, besoins_materiaux.py) : le contrat complet,
+        # ``estimation_id`` = hash_maillon du maillon qui porte ces quantités. None sur la voie
+        # bloquée ou quand le poste du barème ne porte pas de ``materiaux`` — voir la docstring du
+        # module. ``outils.py`` le publie sur le bus ; ce module reste pur.
+        "besoins_materiaux": contrat_besoins,
     }

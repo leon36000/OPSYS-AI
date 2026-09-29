@@ -21,4 +21,7 @@ description: Procédure pour estimer un projet de rénovation extérieure à par
    - `prix_bloque: true` → rédige une demande courte au client avec `elements_manquants`.
    - `alerte_plancher: true` → signale à un humain que le projet est sous le seuil de rentabilité.
    - sinon → présente l'intervalle `borne_basse`–`borne_haute` en CAD, avant taxes.
-5. Toute réponse `accepte: false` contient un `verdict` : corrige l'entrée indiquée ou escalade.
+5. Si `besoins_materiaux` n'est pas nul, M6 les a déjà reçus (quantités nettes calculées par le code) :
+   ne les recalcule ni ne les répète. Si `besoins_materiaux.facteurs_perte_absents` n'est pas vide, dis-le à un humain :
+   le barème ne fournit pas leur facteur de perte, ne le devine pas.
+6. Toute réponse `accepte: false` contient un `verdict` : corrige l'entrée indiquée ou escalade.

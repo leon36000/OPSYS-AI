@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m3.besoins_materiaux",
+  "title": "M3 — Besoins matériaux d'une estimation",
+  "description": "Émis par M3 (departments/m03-estimation/src/m3_estimation/outils.py::estimer_projet, outil m3_estimer_projet, contrat BesoinsMateriauxM3 : besoins_materiaux.py, PLAN T2.3-e) quand une estimation NON bloquée produit des quantités de matériaux (le poste du barème porte `materiaux`), donc avant le devis et avant son acceptation (m3.devis_accepte, lui, ne vient qu'à l'acceptation). Publié dans la MÊME transaction que l'inscription de l'estimation au registre de M3, sous un evenement_id déterministe (f\"m3-besoins-materiaux-{devis_id}-{estimation_id[:16]}\") : la même version d'estimation d'un devis republiée est un no-op du bus, une nouvelle estimation du même devis est une nouvelle version. M6 le consomme pour ses besoins prévus (departments/m06-material-control, m6_material_control/besoins_materiaux_recus.py) : il valide indépendamment, enregistre le prévu du devis, refuse en quarantaine ce qui est invalide, et ne crée jamais de bon de commande. AUCUN prix ni coût ni marge ni intervalle de coût : M6 a son propre livre de prix, et la séparation coût/prix (docs/departements/M3-audit.md §2.1) tient aussi pour ce canal. Quantités NETTES en texte décimal (jamais un nombre JSON) ; facteur_perte est une fraction de la quantité nette, absent de la ligne (et signalé dans facteurs_perte_absents) quand le barème ne le fournit pas, jamais inventé.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "devis_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifiant du devis M3 (EstimationV1.devis_id, dérivé du lead et de l'empreinte du marqueur de readiness M2). Clé du prévu côté M6."
+    },
+    "lead_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Lead M2 d'origine."
+    },
+    "estimation_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "hash_maillon du maillon du registre M3 qui porte ces besoins (le même que EstimationV1.hash_maillon) : la VERSION de l'estimation. Ce hash couvre les quantités elles-mêmes."
+    },
+    "rang_registre": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Rang de ce maillon dans le registre des estimations de M3 : ordre total et monotone des versions. Le récepteur s'en sert pour ignorer une version périmée arrivée en retard."
+    },
+    "bareme_version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Version du barème utilisé (EstimationV1.bareme_version, jamais nulle ici : le barème a été fourni et couvre le type de travaux)."
+    },
+    "niveau_confiance": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "exclusiveMaximum": 1,
+      "description": "Reprend la forme du CODE : le nombre (niveau statistique du Monte Carlo) qu'EstimationV1.niveau_confiance porte déjà, pas la chaîne REFERENCE_ECHELLE/MULTI_VUES/... du PRD. Divergence code/PRD non tranchée (PLAN T2.3, question ouverte)."
+    },
+    "lignes": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Une ligne par matériau ; un matériau (ou SKU) n'y figure qu'une fois.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "materiau": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Désignation du matériau côté M3 (libellé du barème). Identifiant du matériau pour M6 quand `sku` est absent."
+          },
+          "sku": {
+            "type": "string",
+            "minLength": 1,
+            "description": "OPTIONNEL — SKU du catalogue M6, quand le barème le connaît. Absent : jamais deviné."
+          },
+          "quantite_estimee": {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+)?$",
+            "description": "Texte décimal strictement positif, quantité NETTE (avant perte) dans `unite`. Calculée par le code (quantité de l'ouvrage x quantité par unité du barème), jamais par un modèle."
+          },
+          "unite": {
+            "type": "string",
+            "minLength": 1
+          },
+          "facteur_perte": {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+)?$",
+            "description": "OPTIONNEL — fraction de la quantité nette (0.10 = 10 %), 0 <= f < 1. Absent quand le barème ne le fournit pas ; le matériau figure alors dans facteurs_perte_absents."
+          }
+        },
+        "required": ["materiau", "quantite_estimee", "unite"]
+      }
+    },
+    "facteurs_perte_absents": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "`materiau` des lignes sans facteur_perte, dans l'ordre des lignes : l'absence est signalée, jamais tue. Vide quand toutes les lignes portent un facteur_perte."
+    }
+  },
+  "required": [
+    "devis_id",
+    "lead_id",
+    "estimation_id",
+    "rang_registre",
+    "bareme_version",
+    "niveau_confiance",
+    "lignes",
+    "facteurs_perte_absents"
+  ]
+}

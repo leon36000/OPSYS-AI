@@ -40,4 +40,4 @@ kpis:
     description: Part des demandes dont le prix est bloqué faute d'entrées suffisantes.
 evenements:
   consomme: [m4.travaux_termines, m6.variance_chantier]  # PLAN T1.2-d, estimé vs réel en second ordre
-  publie: [m3.devis_accepte, m3.devis_sans_reponse]  # PLAN T2.3 : signal de relance vers M2
+  publie: [m3.devis_accepte, m3.devis_sans_reponse, m3.besoins_materiaux]  # PLAN T2.3 : relance vers M2 ; T2.3-e : besoins matériaux vers M6

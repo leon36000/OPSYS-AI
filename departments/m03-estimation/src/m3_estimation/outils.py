@@ -16,6 +16,7 @@ from opsys import contexte, evenements, identite, stockage, taxonomie
 from opsys.outils import Autonomie, Outil, depuis_couple
 
 from . import (
+    besoins_materiaux,
     contrats,
     devis_durable,
     devis_relance,
@@ -69,7 +70,9 @@ _BAREME = {
         "{version, unite, postes: {service (lead v2) ou type_travaux (lead v1) : {cout_unitaire_min, "
         "cout_unitaire_max, "
         "duree_minutes_par_unite (optionnel — minutes de main-d'œuvre par unité de quantite ; "
-        "absent : aucune durée n'est calculée)}}}"
+        "absent : aucune durée n'est calculée), materiaux (optionnel — liste de {materiau, sku "
+        "(optionnel), quantite_par_unite (texte décimal), unite, facteur_perte (optionnel, texte "
+        "décimal 0 <= f < 1)} ; absent : aucun besoin matériau n'est publié)}}}"
     ),
 }
 # Type de travaux v1 (énuméré gelé) OU code de service v2 (taxonomie du socle, profil d'entreprise) :
@@ -320,7 +323,13 @@ def estimer_projet(
     AVANT tout appel à l'orchestrateur, pour qu'une identité d'appareil périmée n'écrive jamais au
     registre durable (aucun effet de bord avant un refus). Vue "employe" : la réponse retire coût
     et prix (`_projeter_estimation_employe`) — hors appel d'appareil, ou appareil admin/vendeur,
-    comportement inchangé (PLAN T2.3-b)."""
+    comportement inchangé (PLAN T2.3-b).
+
+    Besoins matériaux (PLAN T2.3-e) : quand l'estimation produit des quantités (le poste du barème
+    porte `materiaux`, prix non bloqué), le contrat `BesoinsMateriauxM3` est publié sur le bus
+    (`m3.besoins_materiaux`) DANS la même transaction que l'inscription au registre : les deux
+    réussissent ou échouent ensemble. Publié tel quel, sans projection : il ne porte ni coût, ni
+    prix, ni marge."""
     vue = _vue_projection_effective(None)
     if not vue["accepte"]:
         return {"etape": "identite_appareil", "accepte": False, "verdict": vue["verdict"]}
@@ -328,9 +337,24 @@ def estimer_projet(
         contrat, marqueur, photos, seuils, bareme, quantite, plancher_rentable,
         registre_production(), graine, taux_marge,
     )
+    if resultat.get("accepte") is True and resultat.get("besoins_materiaux") is not None:
+        _publier_besoins_materiaux(resultat["besoins_materiaux"])
     if vue["role"] == "employe" and resultat.get("accepte") is True:
         return _projeter_estimation_employe(resultat)
     return resultat
+
+
+def _publier_besoins_materiaux(contrat: dict[str, Any]) -> str:
+    """Publie `m3.besoins_materiaux` sous un `evenement_id` déterministe (devis + version
+    d'estimation) : republier la même version est un no-op du bus, jamais un second événement.
+    Lève `ChargeInvalide` si le contrat ne respecte pas le schéma du catalogue — un défaut de
+    programmation, que le bus refuse sans rien écrire."""
+    return evenements.publier(
+        besoins_materiaux.TYPE_EVENEMENT_BESOINS_MATERIAUX,
+        "m03-estimation",
+        contrat,
+        evenement_id=besoins_materiaux.identifiant_evenement(contrat),
+    )
 
 
 def registre_production() -> registre.Registre:
@@ -548,19 +572,19 @@ def outils() -> tuple[Outil, ...]:
         Outil(
             nom="m3_estimer_projet",
             description=(
-                "Estime un projet de bout en bout (PLAN T2.3) : compose validation du contrat "
-                "LeadQualifie et du marqueur de readiness M2, qualité des photos, hiérarchie "
-                "d'échelle, blocage anti-précision-inventée, Monte Carlo, plancher de rentabilité "
-                "et assemble le contrat gelé EstimationV1 (devis_id stable), inscrit au registre "
-                "durable des estimations. Bloque le prix si les photos ou la référence d'échelle "
-                "sont insuffisantes et liste alors les éléments manquants ; émet signal_relance_m2 "
-                "(DEMANDE_ENTREES_VISUELLES) dans ce cas. Signale sans bloquer l'absence de "
-                "référence d'échelle en confiance MULTI_VUES/MONO_VUE_BORNES_LARGES "
-                "(REFERENCE_ECHELLE_ABSENTE). Calcule la durée de main-d'œuvre si le barème porte "
-                "duree_minutes_par_unite. Si taux_marge est fourni (texte décimal, ex. \"0.35\" — "
-                "jamais codé en dur), calcule aussi prix_recommande depuis le coût ; absent, aucun "
-                "prix n'est calculé et elements_manquants le dit. Pendant un appel d'appareil "
-                "authentifié en rôle employee, coût et prix sont toujours retirés de la réponse."
+                "Estime un projet de bout en bout (PLAN T2.3) : valide le contrat LeadQualifie et le "
+                "marqueur de readiness M2, qualité des photos, hiérarchie d'échelle, blocage "
+                "anti-précision-inventée, Monte Carlo, plancher de rentabilité ; assemble le contrat "
+                "gelé EstimationV1, inscrit au registre durable. Bloque le prix si "
+                "photos ou référence d'échelle insuffisantes, liste ce qui manque et émet "
+                "signal_relance_m2. Signale sans bloquer REFERENCE_ECHELLE_ABSENTE. Calcule la durée de "
+                "main-d'œuvre si le barème porte duree_minutes_par_unite, et prix_recommande depuis le "
+                "coût si taux_marge est fourni (jamais codé en dur ; absent, elements_manquants le "
+                "dit). Si le poste du barème porte materiaux et que le prix n'est pas bloqué, calcule "
+                "les besoins matériaux (quantités nettes en texte décimal, sans prix ni coût), les rend "
+                "sous besoins_materiaux et les publie à M6 (m3.besoins_materiaux) ; un facteur_perte "
+                "absent reste absent et est signalé, jamais inventé. Rôle employee (appareil "
+                "authentifié) : coût et prix toujours retirés."
             ),
             parametres={
                 "type": "object",

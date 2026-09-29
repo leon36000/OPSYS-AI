@@ -87,6 +87,9 @@ CODES_M3_LIST = [
     # l'adaptateur outils.py, jamais utilisés dans un module pur du paquet.
     "REJ-IDENTITE-APPAREIL-INVALIDE",
     "REJ-ROLE-ELARGI",
+    # PLAN T2.3-e (besoins matériaux M3 -> M6) : code du module besoins_materiaux.py, dont le
+    # ``detail`` nomme la faute (bloc ``materiaux`` du barème, ou contrat de sortie).
+    "REJ-BESOINS-MATERIAUX-INVALIDE",
 ]
 CODES_M3 = set(CODES_M3_LIST)
 
