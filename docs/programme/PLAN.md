@@ -131,7 +131,7 @@ identifiants du propriétaire, repli livré en attendant.
 - [ ] T0.11 Installateur en une commande (dérivé de `install.sh` / `install.ps1`), désinstallation
       et export documentés ; Docker Compose en option serveur.
 
-- [ ] T0.13 Taxonomie métier partagée : M1, M2 et M3 utilisent un même `TYPES_TRAVAUX` qui ne
+- [x] T0.13 Taxonomie métier partagée : M1, M2 et M3 utilisent un même `TYPES_TRAVAUX` qui ne
       contient aucun des 4 services réels (gouttières, revêtement, soffite-fascia, réparation). Une
       seule taxonomie, dans le socle, paramétrable par le profil d'entreprise (audits M1, M2, M3).
   - [x] T0.13-a Socle, M1, M2, M3.
@@ -151,7 +151,14 @@ identifiants du propriétaire, repli livré en attendant.
 
         Choix : plusieurs services évoqués dans une demande → M1 ne qualifie pas et demande
         lequel (la précédence est une décision du propriétaire).
-  - [ ] T0.13-b M4 et M7 : `cedule.py` et `contrats.py` de M4 portent encore la copie v1 de
+  - [x] T0.13-b M4 et M7 (7e81d88) : M4 accepte v1 et v2 (règle unique `etats.travaux_de`,
+        jamais l'un déduit de l'autre), `service` en clé additive du WCT et de
+        `m4.travaux_termines` ; cédule par tournées avec `durees_par_service` pour un lot v2 ;
+        `chantier_social.py` de M7 accepte v1 et v2 ; l'app garde les interventions v2 ; E2E v2
+        par la porte d'appareil jusqu'à `completed_verified` ; M4 1667, M7 585, E2E 11,
+        Jest 992. Reste : M7 lit encore `type_travaux` pour ses demandes d'avis (textes sans
+        type pour un lead v2) ; `m1-demande-chiffrage.v1.yaml` reste en v1. Énoncé d'origine :
+        `cedule.py` et `contrats.py` de M4 portent encore la copie v1 de
         `TYPES_TRAVAUX` et refusent un lead v2 ; l'événement `m4.travaux_termines` porte
         `type_travaux` (version avec `service` à décider) ; `chantier_social.py` de M7 valide les
         types v1 ; `m1-demande-chiffrage.v1.yaml` reste en v1. Une fois migrés, les ajouter à
@@ -840,7 +847,10 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         prouvé dans la base du moteur, rejeu, conflit, refus hors portée ; latence de chaque appel dans le
         journal et le résumé du job. Répété sans core (`tests/e2e_core/test_repetition_sans_core.py`,
         passerelle factice) : ce test prouve le script, pas le core. À cocher quand la CI du core est verte.
-  - [ ] T1.5-c M4, défauts trouvés par l'E2E : `m4_completer_intervention` date avec l'heure de
+  - [x] T1.5-c M4, défauts trouvés par l'E2E (65c8bc4 : heure de réception du serveur à la
+        complétion, `wct_id` indépendant du téléphone ; `ecart_signale` vrai seulement si une
+        demande d'écart métier est ouverte ; attente « formulaire de matériaux à venir » au lieu
+        d'une revue à trancher) : `m4_completer_intervention` date avec l'heure de
         l'appareil (le `wct_id` en dépend) au lieu de l'heure de réception du serveur, contrairement
         à `m4_pointer` ; `ecart_signale` vaut toujours vrai pour un WCT venu de l'appareil ; entre
         « Terminer » et le formulaire, la complétion paraît déjà « en revue » chez l'admin.
