@@ -150,6 +150,7 @@ def test_declaration_module_consommateurs():
         "m3.devis_accepte",
         "m4.travaux_termines",
         "m6.variance_chantier",
+        "m6.reception_enregistree",  # PLAN T4.15
     }
 
 
@@ -157,6 +158,7 @@ def test_m5_declare_consommer_devis_accepte_et_travaux_termines():
     dep = charger_departements()["m05-financecore"]
     assert dep.evenements_consomme == (
         "m2.client_associe", "m3.devis_accepte", "m4.travaux_termines", "m6.variance_chantier",
+        "m6.reception_enregistree",  # PLAN T4.15
     )
     fonctions = dep.charger_consommateurs()
     assert "m2.client_associe" in fonctions

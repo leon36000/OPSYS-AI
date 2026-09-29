@@ -12,7 +12,9 @@ tout champ de cause ou de responsabilité dans un littéral `dict`. `verifier_ar
 `rounding=` explicite : sans lui, `Decimal.quantize` prend le mode par défaut du module `decimal`
 (ROUND_HALF_EVEN, « arrondi du banquier ») plutôt que le ROUND_HALF_UP exigé par la loi pour les
 taxes (`taxes.py` — Agence du revenu du Canada, Revenu Québec) et par cohérence avec M3 pour les
-montants de ligne (`facturation.py`). Aucune de ces quatre gardes ne prouve l'absence de
+montants de ligne (`facturation.py`). `verifier_aucun_decaissement` (PLAN T4.15) prouve que le code des
+comptes à payer n'écrit jamais au registre des MOUVEMENTS : aucun DECAISSEMENT, aucune PROVISION, aucun
+ENCAISSEMENT n'en naît (payer un fournisseur est N5). Aucune de ces cinq gardes ne prouve l'absence de
 comportement dynamique, les imports construits à l'exécution, ni les coûts masqués sous des noms
 neutres.
 
@@ -807,6 +809,106 @@ def verifier_aucune_cause_signalee(repertoire: str | Path) -> tuple[bool, str]:
                     and cle.value in cles_interdites
                 ):
                     violations.append(f"{fichier}: clé interdite {cle.value}")
+
+    if violations:
+        return False, "; ".join(violations)
+    return True, ""
+
+
+# PLAN T4.15 : ce que la garde surveille. `None` : le fichier ENTIER ; sinon, ces fonctions seulement (leur absence est
+# elle-même une violation : renommer une fonction ne doit pas désarmer la garde en silence). Les fonctions d'`outils.py`
+# sont celles du chemin des comptes à payer : consommateur du bus, saisie, lecture, et l'établissement de l'acteur
+# humain.
+_SURVEILLE_SANS_DECAISSEMENT: dict[str, tuple[str, ...] | None] = {
+    "comptes_a_payer": None,
+    "outils": (
+        "_registre_comptes_a_payer",
+        "_recevoir_reception_enregistree",
+        "_acteur_humain_saisie",
+        "_decision_approuvee_en_cours",
+        "saisir_facture_fournisseur",
+        "lister_comptes_a_payer",
+    ),
+}
+# Tout ce qui écrit ou nomme le registre des mouvements : sa fonction d'écriture, son adaptateur et son nom durable
+# (« principal »), les types de mouvement et la clé qui les porte.
+_NOMS_MOUVEMENTS_INTERDITS = frozenset(
+    {"enregistrer_mouvement", "_registre_mouvements", "_etat_mouvements", "_NOM_REGISTRE_MOUVEMENTS"}
+)
+_TEXTES_MOUVEMENTS_INTERDITS = frozenset(
+    {
+        "DECAISSEMENT", "ENCAISSEMENT", "PROVISION", "AJUSTEMENT", "mouvement_enregistre", "type_mouvement",
+        "principal",
+    }
+)
+
+
+def _violations_decaissement(portee: ast.AST, fichier: str, contexte: str) -> list[str]:
+    violations: list[str] = []
+    for noeud in ast.walk(portee):
+        ligne = getattr(noeud, "lineno", 0)
+        if isinstance(noeud, ast.ImportFrom):
+            noms = {alias.name for alias in noeud.names}
+            if "registre" in noms or (noeud.module or "").split(".")[-1] == "registre":
+                violations.append(f"{fichier}:{ligne}: {contexte} importe registre.py (registre des mouvements)")
+        elif isinstance(noeud, ast.Import):
+            if any(alias.name.split(".")[-1] == "registre" for alias in noeud.names):
+                violations.append(f"{fichier}:{ligne}: {contexte} importe registre.py (registre des mouvements)")
+        elif isinstance(noeud, ast.Name) and noeud.id in _NOMS_MOUVEMENTS_INTERDITS:
+            violations.append(f"{fichier}:{ligne}: {contexte} nomme {noeud.id} (registre des mouvements)")
+        elif isinstance(noeud, ast.Attribute) and noeud.attr in _NOMS_MOUVEMENTS_INTERDITS:
+            violations.append(f"{fichier}:{ligne}: {contexte} nomme {noeud.attr} (registre des mouvements)")
+        elif (
+            isinstance(noeud, ast.Constant)
+            and isinstance(noeud.value, str)
+            and noeud.value in _TEXTES_MOUVEMENTS_INTERDITS
+        ):
+            violations.append(f"{fichier}:{ligne}: {contexte} porte le texte {noeud.value!r} (mouvement financier)")
+    return violations
+
+
+def verifier_aucun_decaissement(
+    repertoire: str | Path, surveille: dict[str, tuple[str, ...] | None] | None = None
+) -> tuple[bool, str]:
+    """Vérifie que le code des comptes à payer n'écrit jamais au registre des mouvements (PLAN T4.15).
+
+    Payer un fournisseur est de l'argent réel (N5, Nathan ET le CPA, ADR-0009 §5) : aucun chemin des comptes à payer
+    ne doit créer de DECAISSEMENT, ni de PROVISION ou d'ENCAISSEMENT. Garde purement syntaxique (AST, même patron
+    que `verifier_aucun_import_domaine`), sur ce que `_SURVEILLE_SANS_DECAISSEMENT` désigne : le module
+    `comptes_a_payer.py` en entier, et les fonctions d'`outils.py` de ce chemin. Est une violation, dans ces portées :
+    - importer `registre.py` (le module qui écrit les mouvements) ;
+    - nommer `enregistrer_mouvement`, l'adaptateur `_registre_mouvements`, `_etat_mouvements`, ou le nom durable du
+      registre (`_NOM_REGISTRE_MOUVEMENTS`, le texte « principal ») ;
+    - porter le texte d'un type de mouvement (DECAISSEMENT, ENCAISSEMENT, PROVISION, AJUSTEMENT), la clé
+      `type_mouvement` ou le type d'entrée `mouvement_enregistre` ;
+    - une fonction surveillée qui n'existe plus (la garde ne se désarme pas par un renommage).
+    Un texte plus long qui MENTIONNE ces mots (un docstring, un commentaire) n'est pas une violation : seule
+    l'égalité exacte d'une constante compte. Elle ne prouve pas l'absence d'écriture construite à l'exécution ni
+    passée par un autre module ; le test du registre des mouvements inchangé (base réelle) la complète."""
+    racine = Path(repertoire)
+    cibles = _SURVEILLE_SANS_DECAISSEMENT if surveille is None else surveille
+    violations: list[str] = []
+    for module in sorted(cibles):
+        chemin = racine / f"{module}.py"
+        try:
+            arbre = ast.parse(chemin.read_text(encoding="utf-8"), filename=str(chemin))
+        except (OSError, UnicodeError, SyntaxError) as erreur:
+            violations.append(f"{module}.py: module surveillé illisible ({erreur})")
+            continue
+        fonctions = cibles[module]
+        if fonctions is None:
+            violations.extend(_violations_decaissement(arbre, f"{module}.py", "le module"))
+            continue
+        definies = {
+            noeud.name: noeud
+            for noeud in ast.walk(arbre)
+            if isinstance(noeud, (ast.FunctionDef, ast.AsyncFunctionDef))
+        }
+        for nom in fonctions:
+            if nom not in definies:
+                violations.append(f"{module}.py: fonction surveillée introuvable : {nom}")
+                continue
+            violations.extend(_violations_decaissement(definies[nom], f"{module}.py", f"{nom}()"))
 
     if violations:
         return False, "; ".join(violations)

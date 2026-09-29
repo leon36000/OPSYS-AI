@@ -27,6 +27,10 @@ _TYPE_ENTREE_VALIDES = {
     # avant d'appeler `ajouter`.
     "facture_creee",
     "transition_facture",
+    # M5.2 comptes à payer (PLAN T4.15) : quatrième famille, sur son propre registre. `comptes_a_payer.py` valide
+    # avant d'appeler `ajouter`, comme facturation.py. Aucun de ces deux types n'est un mouvement financier.
+    "reception_recue",
+    "facture_fournisseur_saisie",
 }
 
 _CHAMPS_MOUVEMENT = (

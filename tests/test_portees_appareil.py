@@ -50,6 +50,7 @@ ADMIN_SEUL = frozenset({
     "m4_volumetrie_pending_review",
     "m5_etat_tresorerie", "m5_lister_attentes_facturation",
     "m5_lire_rentabilite_chantier", "m5_lire_comptes_a_recevoir",  # coût réel, marge, créances (T1.5-d)
+    "m5_lister_comptes_a_payer", "m5_saisir_facture_fournisseur",  # comptes à payer, saisie par un humain (T4.15)
     "m6_annuler_po", "m6_approuver_po", "m6_evaluer_variance_chantier", "m6_produire_digest",
     "m6_receptionner_commande", "m6_soumettre_comptage",
     "m7_lister_file_approbation", "m7_lister_demandes_avis",  # avis à relire avant d'écrire au client (T1.5-d)

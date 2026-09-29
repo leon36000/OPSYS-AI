@@ -202,7 +202,8 @@ def test_l_outil_ne_declare_que_l_admin_comme_role_d_appareil(par_nom):
     """Fermé par défaut pour `employee` et `seller` (T1.4-j) : c'est la déclaration que le core applique
     (`opsys/roles.json`) ; le socle en projette le même contenu (tests/test_acces_tresorerie.py)."""
     lectures = {"m5_etat_tresorerie", "m5_lister_attentes_facturation",
-                "m5_lire_rentabilite_chantier", "m5_lire_comptes_a_recevoir"}  # les deux derniers : T1.5-d
+                "m5_lire_rentabilite_chantier", "m5_lire_comptes_a_recevoir",  # les deux précédents : T1.5-d
+                "m5_lister_comptes_a_payer", "m5_saisir_facture_fournisseur"}  # les deux derniers : T4.15
     for nom in lectures:
         assert par_nom[nom].roles_appareil == frozenset({"admin"}), nom
     assert {nom for nom, o in par_nom.items() if o.roles_appareil} == lectures

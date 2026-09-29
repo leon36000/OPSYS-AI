@@ -70,3 +70,44 @@ L'état est tracé dans le registre dérivé `rentabilite`, une fois par version
 ni les factures ne sont touchés. Les comptes à recevoir sont une vue des factures ENVOYEE
 (`facturation.comptes_a_recevoir`). L'admin lit le tout par `m5_lire_rentabilite_chantier` et
 `m5_lire_comptes_a_recevoir` (portée `admin` seulement, même règle d'accès que `m5_etat_tresorerie`).
+
+PLAN T4.15 (comptes à payer, M5.2 « comptes à payer » et M6.16 « pont finance », `comptes_a_payer.py`) : M5 sait maintenant
+ce que l'entreprise doit à ses fournisseurs. Un registre DÉDIÉ, `comptes_a_payer`, garde deux choses. (1) Chaque réception
+que M6 publie (`m6.reception_enregistree`, consommée par `outils._recevoir_reception_enregistree`) : quantité reçue x prix
+unitaire du PO, arrondie au cent par ligne, donne l'« à payer ATTENDU » du PO ; une réception partielle donne un attendu
+partiel, les livraisons d'un même PO se cumulent, une redélivrance ne double rien (idempotent par `evenement_id`). (2) Chaque
+facture fournisseur SAISIE (`m5_saisir_facture_fournisseur`, T1, N3, `admin`) : tapée par un HUMAIN (identité de jeton
+d'appareil confirmée en base, ou demande approuvée par `finance` ou le propriétaire ; un agent seul est refusé,
+`REJ-AP-HUMAIN-REQUIS`), contre un PO déjà reçu et au fournisseur de ce PO. L'OCR est fermé : la saisie manuelle est le repli.
+
+Montants : `Decimal`, en texte dans les échanges, jamais un float. Les taxes TPS/TVQ sont RECALCULÉES depuis le montant avant
+taxes avec les taux versionnés (`contracts/taux_fiscaux.v1.yaml`, version citée dans chaque facture et dans la liste) ; le total
+imprimé sur la facture, s'il est fourni, doit concorder au cent près. Arrondi : `ROUND_HALF_UP`, la règle déjà en place
+(`taxes.py` : ARC RC4022 « Arrondir les montants fractionnaires », Revenu Québec « Calcul des taxes » ; même mode que
+`facturation.py`, `cout_reel.py` et M3) ; sur 300.00 $, la TVQ de 29.925 $ devient 29.93 $ (le mode par défaut de `decimal`
+donnerait 29.92 $). Le produit quantité x prix est calculé en précision étendue avant l'arrondi. Aucune tolérance n'est inventée :
+un écart d'un cent est un écart. Un doublon (même fournisseur, même numéro, espaces et casse ignorés, même montant) est refusé ;
+même fournisseur et même numéro avec un autre montant passe avec l'avertissement `REJ-AP-FACTURE-NUMERO-REPETE`.
+
+Le rapprochement PO, réception et facture est PROPOSÉ avec ses écarts (`CONCORDANT`, `ECART` et son sens, `SANS_FACTURE`,
+`INCOMPLET`), recalculé à chaque lecture, jamais stocké : il n'existe aucun état « rapproché » ni « approuvé », donc rien qui
+l'applique seul. `m5_lister_comptes_a_payer` (T0, portée `admin`, même règle d'accès que `m5_etat_tresorerie`) le rend PAR PO,
+par pages sous la limite de sortie de `Capacites` (6 000 caractères, mesurés : `depart`, `prochain_depart`, `totaux` sur TOUS les
+PO). Une pièce absente (prix du PO, devise autre que CAD) rend l'attendu « non calculable » avec son manque, jamais zéro ; le
+total `a_payer_apres_taxes` est alors nul et `a_payer_connu_apres_taxes` n'est qu'un plancher.
+
+AUCUN DÉCAISSEMENT. Payer un fournisseur est de l'argent réel : N5, Nathan ET le CPA (ADR-0009 §5). Rien, dans les comptes à payer,
+n'écrit au registre des mouvements ni aux factures clients : `conformite.verifier_aucun_decaissement` (garde AST : aucun import de
+`registre.py`, aucun `enregistrer_mouvement`, aucun type de mouvement) le prouve sur le vrai paquet et sur des fichiers piégés ;
+un test sur base réelle montre le registre des mouvements inchangé (même tête, même taille) après tout le parcours. Les seuls
+outils T3 de M5 sont les deux d'avant.
+
+Limites connues : (1) l'unité des prix du livre de prix de M6 n'est pas déclarée (GATE NATHAN) : M5 ne convertit rien, suppose un
+prix par unité de la quantité reçue, le DIT (`hypotheses` de la liste) et porte la réserve `REJ-AP-UNITE-PRIX-NON-CONFIRMEE` sur
+tout attendu et tout rapprochement, même concordant ; elle ne se retire que par une décision de Nathan et un changement de code ;
+(2) l'attendu vient du prix du PO ; l'écart avec le prix de réception (`ecart_prix_unitaire`, `ecart_prix_critique`) est gardé
+pour l'audit sans le changer ; (3) les taxes de l'attendu sont calculées une fois sur le cumul du PO, celles d'une facture à sa
+saisie : un cent de différence entre les deux, dû à l'arrondi de chaque facture, n'est pas un écart (le verdict se juge avant
+taxes) ; (4) ni correction ni annulation d'une facture saisie, ni facture sans PO reçu ; (5) rien n'est payé, donc rien n'est
+retranché du « à payer » : c'est dû tant qu'un paiement N5 n'est pas enregistré (à construire) ; (6) le solde et l'argent
+disponible ne retranchent pas encore les comptes à payer (T4.16, cash libre réel).

@@ -62,3 +62,21 @@ description: Procédure pour consulter l'état financier (solde, argent disponib
 Appelle `m5_lire_comptes_a_recevoir` : les factures ENVOYEE seulement (une BROUILLON n'est pas due, une
 PAYEE non plus). Fournis `aujourd_hui` (AAAA-MM-JJ) seulement si tu la tiens d'une source sûre : sans elle,
 l'outil ne calcule pas l'âge, il ne devine pas la date.
+
+## Consulter les comptes à payer et saisir une facture fournisseur
+
+1. Lis ce que l'entreprise doit avec `m5_lister_comptes_a_payer` : un PO reçu par M6 par ligne, avec l'« à payer attendu »
+   (ce qui est arrivé x le prix du PO, taxes recalculées), les factures saisies et le rapprochement PROPOSÉ. Les pages se
+   suivent par `prochain_depart` ; `po_id` donne le détail d'un PO. Tu ne fournis AUCUN montant, prix, taux ni quantité.
+2. Présente le verdict du rapprochement tel quel : `CONCORDANT` (facturé = reçu avant taxes), `ECART` (avec son sens :
+   facture supérieure ou inférieure au reçu), `SANS_FACTURE` (à payer attendu seulement), `INCOMPLET` (un prix du PO ou une
+   devise manque : « non calculable, manque X », jamais zéro). Un écart d'un cent est un écart. Dis toujours la réserve
+   `REJ-AP-UNITE-PRIX-NON-CONFIRMEE` : l'unité des prix du livre de prix n'est pas déclarée, aucun montant n'est certain.
+3. Une facture fournisseur se saisit avec `m5_saisir_facture_fournisseur`, par un HUMAIN : telle qu'imprimée (numéro, date,
+   total avant taxes, et le total après taxes en contrôle si l'humain l'a). Tu n'appelles jamais l'outil avec des chiffres que
+   personne ne t'a donnés, et tu ne saisis pas une facture lue d'une image : l'OCR est fermé, la saisie est manuelle.
+   Depuis l'app, la personne s'identifie ; sinon ta demande attend l'approbation de la finance ou du propriétaire (ne la
+   présente pas comme saisie). Les taxes sont recalculées : si le total imprimé ne concorde pas au cent près, la saisie est
+   refusée avec les deux chiffres, vérifie ce qui a été tapé.
+4. Un doublon (même fournisseur, numéro, montant) est refusé ; un PO jamais reçu par M6 aussi (enregistre d'abord la réception
+   dans M6). Aucun outil ne paie un fournisseur : c'est N5, Nathan et le CPA.

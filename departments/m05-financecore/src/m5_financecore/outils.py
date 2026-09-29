@@ -108,23 +108,42 @@ nouvelle version des entrées), il publie `m5.rentabilite_chantier` dans la MÊM
 `cout_reel.charge_evenement`) : le coût réel (ou, s'il est partiel, ce qui manque), la marge réelle et prévue en
 texte décimal, `wct_id`, `devis_id` ; jamais un prix unitaire, un taux ni une donnée de client, et jamais une marge
 pour un coût partiel. C'est le seul événement que M5 publie. Aucune écriture comptable n'en découle.
+
+PLAN T4.15 (comptes à payer, `comptes_a_payer.py`, M5.2 et M6.16) : `consommateurs()` abonne en plus
+`_recevoir_reception_enregistree` (`m6.reception_enregistree`) sur un sixième registre durable, DÉDIÉ,
+`comptes_a_payer` : il garde chaque réception reçue (l'« à payer ATTENDU » d'un PO, cumulé sur ses livraisons) et
+chaque facture fournisseur SAISIE.
+`m5_saisir_facture_fournisseur` (T1, N3, `admin`) est une écriture interne non finale qu'un HUMAIN fait :
+identité de jeton d'appareil confirmée en base, ou exécution d'une demande qu'un humain vient d'approuver (mêmes deux
+voies que les écritures humaines de M10) ; un appel d'agent qui n'a pas passé par l'approbation (mode `supervise` ou
+`autonome`, où un N3 s'exécute sans file) est refusé (`REJ-AP-HUMAIN-REQUIS`). Les taxes sont recalculées avec les
+taux versionnés (`taxes.calculer_taxes`, `ROUND_HALF_UP`), un doublon est refusé, le rapprochement PO, réception et
+facture est PROPOSÉ avec ses écarts et n'est jamais appliqué. `m5_lister_comptes_a_payer` (T0, `admin`, même
+règle d'accès que les autres lectures financières) le rend par pages sous la limite de sortie de `Capacites`.
+AUCUNE écriture au registre des mouvements : payer un fournisseur est N5 (Nathan ET le CPA) et n'existe pas ici ;
+`conformite.verifier_aucun_decaissement` le prouve par l'AST. L'unité des prix du livre de prix de M6 n'est pas
+déclarée (GATE NATHAN) : aucune conversion, et chaque attendu porte la réserve `REJ-AP-UNITE-PRIX-NON-CONFIRMEE`.
 """
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Mapping
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
 import yaml
+from sqlalchemy import select
 
-from opsys import approbations, contexte, evenements, stockage
+from opsys import approbations, contexte, evenements, identite, jetons, stockage
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
+from opsys.stockage.schema import APPROBATIONS
 
 from . import (
     acces,
     clients_recus,
+    comptes_a_payer,
     cout_reel,
     devis_recus,
     etat_financier,
@@ -147,6 +166,14 @@ _NOM_REGISTRE_WCT_RECUS = "wct_recus"
 _NOM_REGISTRE_VARIANCE_RECUE = "variance_recue"
 _NOM_REGISTRE_CLIENTS_RECUS = "clients_recus"
 _NOM_REGISTRE_RENTABILITE = "rentabilite"
+# PLAN T4.15 : registre DÉDIÉ des comptes à payer (réceptions reçues de M6, factures fournisseur saisies). Toujours
+# durable, comme `devis_recus` ou `rentabilite` : pas de mode « en mémoire » (rien à simuler, l'état vient du bus).
+_NOM_REGISTRE_COMPTES_A_PAYER = "comptes_a_payer"
+# `Capacites._tronquer` mesure `{"ok": true, "resultat": {"accepte": true, "resultat": {"role": ..., <la page>}}}` : une
+# centaine de caractères d'enveloppe, plus une marge. Le budget d'une page est la limite du socle moins cette réserve :
+# sous elle, jamais tronquée.
+_RESERVE_ENVELOPPE = 300
+BUDGET_SORTIE = jetons.LIMITE_SORTIE_DEFAUT - _RESERVE_ENVELOPPE
 # PLAN T1.5-d : le livre de prix de M6, lu en LECTURE SEULE à la source (le prix de chaque matériau utilisé
 # ne vient ni de l'appelant ni d'un événement). Le seul endroit du département qui nomme un autre département
 # ; il n'importe aucun de ses modules (DA-M5-04) et ne fait qu'itérer ses maillons, jamais `append`.
@@ -781,6 +808,203 @@ def lister_attentes_facturation_appareil() -> dict[str, Any]:
     return lister_attentes_facturation()
 
 
+# --------------------------------------------------------------------------------- comptes à payer (T4.15)
+def _registre_comptes_a_payer() -> registre_module.Registre:
+    """Le registre DÉDIÉ des comptes à payer (`comptes_a_payer.py`), sur le stockage durable de l'instance, relu à
+    chaque appel (jamais de cache : même principe que `_registre_mouvements`). Ni le registre des mouvements, ni celui
+    des factures clients : `conformite.verifier_aucun_decaissement` garde cette frontière."""
+    return registre_module.Registre(maillons=stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_COMPTES_A_PAYER))
+
+
+def _dictionnaire_taux() -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Les taux fiscaux versionnés, ou le refus nommé d'un fichier illisible (même verdict que les autres outils)."""
+    dictionnaire, erreurs = taux_fiscaux.charger_taux_fiscaux(_CHEMIN_TAUX_FISCAUX)
+    if erreurs:
+        return None, {"code": "REJ-TAUX-FICHIER-INVALIDE", "detail": "; ".join(erreurs)}
+    return dictionnaire, None
+
+
+def _recevoir_reception_enregistree(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme `m6.reception_enregistree` (PLAN T4.15) : range la réception au registre des comptes à payer, une
+    seule fois par `evenement_id`. C'est ce qui donne à M5 son « à payer ATTENDU » par PO reçu, cumulé sur les
+    livraisons.
+
+    LÈVE si la charge ne tient pas debout (`REJ-AP-RECEPTION-INVALIDE`) ou si le PO est déjà connu sous un autre
+    fournisseur ou un autre chantier (`REJ-AP-PO-INCOHERENT`) : le répartiteur réessaie puis met en quarantaine,
+    visible d'un humain, plutôt que de devoir de l'argent à un fournisseur mal compris. Un prix du PO absent ou une
+    devise autre que CAD ne lève PAS : c'est un `manque` de la réception, dont le montant attendu reste « non
+    calculable ». N'écrit JAMAIS au registre des mouvements : rien ne sort de la caisse."""
+    entree, verdict = comptes_a_payer.construire_reception(charge)
+    if verdict is not None:
+        raise ValueError(f"m6.reception_enregistree refusée : {verdict['code']} : {verdict['detail']}")
+    resultat, verdict = comptes_a_payer.enregistrer_reception(entree, _registre_comptes_a_payer())
+    if verdict is not None:
+        raise ValueError(f"m6.reception_enregistree refusée : {verdict['code']} : {verdict['detail']}")
+    maillon, deja_recue = resultat
+    return {
+        "traite": True,
+        "evenement_id": maillon["evenement_id"],
+        "po_id": maillon["po_id"],
+        "statut": "deja_recue" if deja_recue else "recue",
+        "attendu_complet": maillon["montant_avant_taxes"] is not None,
+        "manque": list(maillon["manque"]),
+    }
+
+
+# Rôles qui peuvent avoir APPROUVÉ une saisie de facture fournisseur dans la file (`department.yaml/approbations.n3`,
+# plus l'admin, dont l'appareil exécute lui-même) : la personne doit être ACTIVE et porter ce rôle à l'instant de
+# l'appel.
+_ROLES_APPROBATEURS_SAISIE = frozenset({"finance", "nathan_owner", acces.ROLE_ADMIN})
+_OUTIL_SAISIE_FACTURE = "m5_saisir_facture_fournisseur"
+
+
+def _decision_approuvee_en_cours(cnx: Any, nom_outil: str, arguments: dict[str, Any]) -> tuple[str, str] | None:
+    """`(personne, rôle)` de l'humain qui a APPROUVÉ la demande que cet appel exécute, sinon `None`. Lecture seule.
+
+    `approbations.decider` réserve la demande (`en_attente` -> `en_cours`, avec `decide_par` et `decide_role` : une
+    personne active portant un rôle autorisé pour ce niveau dans ce département) puis exécute l'outil avec les
+    arguments EXACTS enregistrés, dans la même transaction. Cet appel EST donc une décision humaine si et seulement si
+    une demande `en_cours` de cet outil, de ce département, porte exactement ces arguments et un approbateur de rôle
+    humain toujours actif. Un agent ne peut pas fabriquer une telle ligne : il ne peut que créer une demande
+    `en_attente`. Le socle n'expose pas l'approbateur à l'outil : cette lecture de sa table en tient lieu (même patron
+    que M10, `_decision_approuvee_en_cours`)."""
+    if cnx is None:
+        return None
+    lignes = cnx.execute(
+        select(APPROBATIONS.c.arguments, APPROBATIONS.c.decide_par, APPROBATIONS.c.decide_role).where(
+            APPROBATIONS.c.statut == "en_cours",
+            APPROBATIONS.c.outil == nom_outil,
+            APPROBATIONS.c.departement == _DEPARTEMENT,
+        )
+    ).all()
+    for arguments_enregistres, decide_par, decide_role in lignes:
+        if not decide_par or decide_role not in _ROLES_APPROBATEURS_SAISIE:
+            continue
+        if json.loads(arguments_enregistres) != arguments:
+            continue
+        personne = identite.personne_active(cnx, decide_par)
+        if personne is not None and decide_role in personne.roles:
+            return decide_par, decide_role
+    return None
+
+
+def _acteur_humain_saisie(arguments: dict[str, Any]) -> tuple[dict[str, str] | None, dict[str, Any] | None]:
+    """Qui saisit : `({par, role, voie}, None)` si c'est un humain identifié, sinon `(None, verdict)`.
+
+    Deux voies, jamais une troisième, et jamais un texte de modèle ni un argument :
+    1. un appel d'appareil dont l'identité (posée par le core d'après un jeton vérifié, `_meta`) est CONFIRMÉE en base à
+       l'instant même et de rôle `admin` (`_acteur_appareil`) ;
+    2. l'exécution d'une demande qu'un humain vient d'approuver dans la file (`_decision_approuvee_en_cours`).
+    Tout le reste est refusé : un appel d'agent qui n'a pas passé par l'approbation (un département en mode `supervise`
+    ou `autonome` exécute un N3 sans file), un appel en ligne de commande, un appel hors transaction où rien n'est
+    vérifiable. Une identité d'appareil invalide ou hors portée est le refus de `_acteur_appareil`, jamais un repli
+    sur la voie 2. Ne lit JAMAIS les arguments comme identité."""
+    acteur, refus = _acteur_appareil()
+    if refus is not None:
+        return None, refus
+    if acteur is not None:
+        return {"par": acteur.personne, "role": acteur.role, "voie": "appareil"}, None
+    approbateur = _decision_approuvee_en_cours(stockage.connexion_courante(), _OUTIL_SAISIE_FACTURE, arguments)
+    if approbateur is not None:
+        return {"par": approbateur[0], "role": approbateur[1], "voie": "approbation"}, None
+    return None, validation.construire_verdict(
+        "REJ-AP-HUMAIN-REQUIS",
+        detail=(
+            "une facture fournisseur est saisie par un humain : depuis l'app admin (jeton d'appareil), ou proposée "
+            "puis approuvée dans la file OPSYS (finance ou propriétaire). Un agent ne la saisit pas seul ; ne la "
+            "présente pas comme saisie."
+        ),
+    )
+
+
+def saisir_facture_fournisseur(
+    po_id: str,
+    fournisseur_id: str,
+    numero_facture: str,
+    date_facture: str,
+    montant_avant_taxes: str,
+    total_facture: str | None,
+    horodatage: str,
+) -> dict[str, Any]:
+    """L'outil `m5_saisir_facture_fournisseur` (T1, N3, `admin`) : range une facture fournisseur SAISIE par un humain
+    contre un PO déjà reçu (`comptes_a_payer.saisir_facture_fournisseur`), et rend la facture, ses avertissements et
+    le rapprochement PROPOSÉ du PO.
+
+    Tous les paramètres sont requis (`total_facture` peut être nul) : la demande approuvée rejoue les arguments EXACTS
+    enregistrés, et `_decision_approuvee_en_cours` les compare tels quels. Les taxes et le total après taxes ne sont
+    JAMAIS des arguments : ils sont recalculés (taux versionnés). Pendant un appel d'appareil idempotent, l'heure de
+    RÉCEPTION du serveur fait foi, jamais l'`horodatage` fourni (même patron que M10).
+
+    N'écrit qu'au registre des comptes à payer. Aucun DECAISSEMENT, aucune écriture aux mouvements : payer est N5."""
+    arguments = {
+        "po_id": po_id, "fournisseur_id": fournisseur_id, "numero_facture": numero_facture,
+        "date_facture": date_facture, "montant_avant_taxes": montant_avant_taxes, "total_facture": total_facture,
+        "horodatage": horodatage,
+    }
+    acteur, refus = _acteur_humain_saisie(arguments)
+    if acteur is None:
+        return _refus(refus)
+    dictionnaire_taux, refus_taux = _dictionnaire_taux()
+    if refus_taux is not None:
+        return _refus(refus_taux)
+    reception = contexte.horodatage_reception()
+    registre_cible = _registre_comptes_a_payer()
+    resultat, verdict = comptes_a_payer.saisir_facture_fournisseur(
+        po_id=po_id, fournisseur_id=fournisseur_id, numero_facture=numero_facture, date_facture=date_facture,
+        montant_avant_taxes=montant_avant_taxes, total_facture=total_facture, saisi_par=acteur["par"],
+        voie=acteur["voie"], horodatage=reception.recu_le.isoformat() if reception is not None else horodatage,
+        dictionnaire_taux=dictionnaire_taux, registre_cible=registre_cible,
+    )
+    if verdict is not None:
+        return _refus(verdict)
+    rapprochement, verdict = comptes_a_payer.proposer_rapprochement(
+        registre_cible, dictionnaire_taux, resultat["facture"]["po_id"]
+    )
+    if verdict is not None:  # les taux ont déjà servi à la saisie : un refus ici trahirait une incohérence interne
+        raise RuntimeError(f"rapprochement impossible pour une facture déjà saisie : {verdict}")
+    return {"accepte": True, "resultat": {
+        "facture": comptes_a_payer.vue_facture(resultat["facture"]),
+        "avertissements": resultat["avertissements"],
+        "rapprochement": rapprochement,
+    }}
+
+
+def lister_comptes_a_payer(
+    po_id: str | None = None,
+    depart: int | None = None,
+    role: str | None = None,
+    autorise_couts: bool | None = None,
+) -> dict[str, Any]:
+    """L'outil `m5_lister_comptes_a_payer` (T0, `admin`) : ce que l'entreprise doit aux fournisseurs, PAR PO reçu, avec
+    l'attendu, le facturé, le « à payer » et le rapprochement PROPOSÉ (`comptes_a_payer.lister`).
+
+    Même contrôle d'accès que `lire_comptes_a_recevoir` : pour un appel d'appareil, l'identité confirmée en base
+    (`admin` seulement), la vue vient du rôle authentifié, un argument ne peut que la restreindre ; refus AVANT toute
+    lecture. Sans le droit de voir les coûts : le nombre de PO seulement. Sans appareil (agent, console),
+    `autorise_couts` reste obligatoire et explicite. Aucun montant, prix, taux ni quantité ne se passe en argument :
+    tout est lu du registre. Paginé par rang (`depart`, `prochain_depart`) sous `BUDGET_SORTIE` : jamais tronqué.
+    N'écrit rien."""
+    acteur, refus = _acteur_appareil()
+    if refus is not None:
+        return _refus(refus)
+    vue, verdict = acces.resoudre_vue(acteur, role, autorise_couts)
+    if verdict is not None:
+        return _refus(verdict)
+    dictionnaire_taux, refus_taux = _dictionnaire_taux()
+    if refus_taux is not None:
+        return _refus(refus_taux)
+    page, verdict = comptes_a_payer.lister(
+        _registre_comptes_a_payer(), dictionnaire_taux, depart=0 if depart is None else depart,
+        budget_caracteres=BUDGET_SORTIE, po_id=po_id,
+    )
+    if verdict is not None:
+        return _refus(verdict)
+    if not vue["autorise_couts"]:
+        masquee = {"role": vue["role"], "nombre_po": page["total"], "montants_masques": True}
+        return {"accepte": True, "resultat": masquee}
+    return {"accepte": True, "resultat": {"role": vue["role"], **page}}
+
+
 def _recevoir_variance_chantier(charge: dict[str, Any]) -> dict[str, Any]:
     """Consomme `m6.variance_chantier` (PLAN T1.3-c point 4, catalogue existant, M6 en est
     propriétaire) : garde le DERNIER signal connu par wct_id (`variance_recus.py`) — jamais un
@@ -830,6 +1054,7 @@ def consommateurs() -> dict[str, Callable[[dict], dict]]:
         "m3.devis_accepte": _recevoir_devis_accepte,
         "m4.travaux_termines": _recevoir_travaux_termines,
         "m6.variance_chantier": _recevoir_variance_chantier,
+        comptes_a_payer.TYPE_EVENEMENT_RECEPTION: _recevoir_reception_enregistree,
     }
 
 
@@ -1258,6 +1483,95 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=lire_comptes_a_recevoir,
+            autonomie=Autonomie.T0,
+            roles_appareil=_ROLES_APPAREIL_FINANCE,
+        ),
+        Outil(
+            nom="m5_saisir_facture_fournisseur",
+            description=(
+                "Saisit une facture FOURNISSEUR (M5.2, comptes à payer) contre un PO déjà reçu par M6, tapée par un "
+                "HUMAIN : app admin, ou demande approuvée dans la file. Un agent ne la saisit pas seul "
+                "(REJ-AP-HUMAIN-REQUIS). "
+                "Les taxes TPS/TVQ et le total sont RECALCULÉS (taux versionnés, arrondi ROUND_HALF_UP) ; "
+                "total_facture, "
+                "le total imprimé, sert de contrôle (nul si absent) et doit concorder au cent près. Refuse un doublon "
+                "(même fournisseur, numéro, montant), un PO sans réception, un autre fournisseur que celui du PO. "
+                "Rend la "
+                "facture et le rapprochement PO, réception, facture PROPOSÉ avec ses écarts : jamais appliqué. N'écrit "
+                "jamais aux mouvements : payer un fournisseur est N5 (Nathan et CPA)."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "po_id": {"type": "string", "description": "Bon de commande de M6 déjà reçu, au moins en partie."},
+                    "fournisseur_id": {
+                        "type": "string", "description": "Fournisseur imprimé sur la facture : celui du PO.",
+                    },
+                    "numero_facture": {"type": "string", "description": "Numéro TEL QU'IMPRIMÉ sur la facture."},
+                    "date_facture": {"type": "string", "description": "AAAA-MM-JJ, telle qu'imprimée sur la facture."},
+                    "montant_avant_taxes": {
+                        "type": "string",
+                        "description": (
+                            "Total avant taxes de la facture, texte décimal à 2 décimales au plus, ex. \"1234.50\"."
+                        ),
+                    },
+                    "total_facture": {
+                        "type": ["string", "null"],
+                        "description": (
+                            "Total imprimé APRÈS taxes, texte décimal ; nul si tu ne l'as pas. Fourni, il doit égaler "
+                            "le "
+                            "total recalculé, sinon la saisie est refusée."
+                        ),
+                    },
+                    "horodatage": {"type": "string", "description": "ISO 8601 avec fuseau, moment de la saisie."},
+                },
+                "required": [
+                    "po_id", "fournisseur_id", "numero_facture", "date_facture", "montant_avant_taxes", "total_facture",
+                    "horodatage",
+                ],
+                "additionalProperties": False,
+            },
+            fonction=saisir_facture_fournisseur,
+            # T1 -> N3 (par défaut) : écriture interne non finale, sur un registre dédié ; n'engage rien et ne touche
+            # jamais
+            # les mouvements. Un appel d'appareil `admin` confirmé en base s'exécute (validation humaine au départ,
+            # ADR-0009 §4) ; un appel d'agent part en file d'approbation (`n3` : finance ou propriétaire).
+            autonomie=Autonomie.T1,
+            # §9.5 M5 (dépenses à valider) : le repli documenté de l'OCR fermé est la saisie manuelle, par un humain
+            # sur son téléphone. Admin seulement : ni l'employé (§9.2) ni le vendeur (§9.4) ne touchent aux finances.
+            roles_appareil=_ROLES_APPAREIL_FINANCE,
+        ),
+        Outil(
+            nom="m5_lister_comptes_a_payer",
+            description=(
+                "Comptes à payer (M5.2), pour l'admin : PAR PO reçu de M6, l'« à payer attendu » (quantités reçues x "
+                "prix du "
+                "PO, cumulé sur les livraisons, taxes recalculées), les factures fournisseur saisies, le « à payer » "
+                "et le "
+                "rapprochement PO, réception, facture PROPOSÉ avec ses écarts (jamais appliqué). Un attendu incomplet "
+                "est "
+                "dit non calculable avec son manque, jamais zéro. Réserve sur tout montant : l'unité des prix du "
+                "livre de "
+                "prix n'est pas déclarée. Par pages (depart, prochain_depart), jamais tronqué ; po_id donne le détail "
+                "d'un PO. "
+                "Lecture pure. Même règle d'accès que m5_etat_tresorerie : admin seulement ; autorise_couts ne peut "
+                "que "
+                "restreindre (sans droit : le nombre de PO seulement)."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "po_id": {"type": ["string", "null"], "description": "Filtre : le détail de ce PO seulement."},
+                    "depart": {
+                        "type": ["integer", "null"], "minimum": 0,
+                        "description": "Rang du premier PO rendu (0 par défaut) ; reprendre à prochain_depart.",
+                    },
+                    "role": _ROLE_DE_LECTURE,
+                    "autorise_couts": _AUTORISE_COUTS_DE_LECTURE,
+                },
+                "additionalProperties": False,
+            },
+            fonction=lister_comptes_a_payer,
             autonomie=Autonomie.T0,
             roles_appareil=_ROLES_APPAREIL_FINANCE,
         ),

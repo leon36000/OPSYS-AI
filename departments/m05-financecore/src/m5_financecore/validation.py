@@ -75,6 +75,33 @@ CODES_M5_LIST = [
     # PLAN T1.5-d (facturation.comptes_a_recevoir) : une facture ENVOYEE dont le montant dû est illisible
     # n'entre jamais au total à recevoir avec un montant inventé.
     "REJ-CREANCES-MONTANT-ILLISIBLE",
+    # PLAN T4.15 (comptes_a_payer.py, M5.2 « comptes à payer », M6.16) : ce que l'entreprise doit aux fournisseurs.
+    # Réception reçue de M6 : un refus LÈVE côté consommateur (réessais puis quarantaine) ; un `manque` dit ce qui
+    # empêche de chiffrer (jamais zéro à la place).
+    "REJ-AP-RECEPTION-INVALIDE",
+    "REJ-AP-PO-INCOHERENT",
+    "REJ-AP-PRIX-PO-ABSENT",
+    "REJ-AP-DEVISE-NON-CAD",
+    "REJ-AP-MONTANT-ILLISIBLE",
+    # Réserve sur TOUT attendu et TOUT rapprochement : l'unité des prix du livre de prix n'est pas déclarée.
+    # GATE NATHAN.
+    "REJ-AP-UNITE-PRIX-NON-CONFIRMEE",
+    # Facture fournisseur SAISIE par un humain : champs, humain identifié, dates, montants, PO, doublon.
+    "REJ-AP-FACTURE-CHAMP-INVALIDE",
+    "REJ-AP-HUMAIN-REQUIS",
+    "REJ-AP-FACTURE-HORODATAGE-INVALIDE",
+    "REJ-AP-FACTURE-DATE-INVALIDE",
+    "REJ-AP-FACTURE-DATE-FUTURE",
+    "REJ-AP-FACTURE-MONTANT-INVALIDE",
+    "REJ-AP-FACTURE-TOTAL-INCOHERENT",
+    "REJ-AP-FACTURE-PO-SANS-RECEPTION",
+    "REJ-AP-FACTURE-FOURNISSEUR-DIFFERENT-DU-PO",
+    "REJ-AP-FACTURE-DOUBLON",
+    "REJ-AP-FACTURE-NUMERO-REPETE",
+    # Lecture paginée des comptes à payer.
+    "REJ-AP-LISTE-DEPART-INVALIDE",
+    "REJ-AP-LISTE-LIGNE-TROP-GROSSE",
+    "REJ-AP-PO-INCONNU",
 ]
 CODES_M5 = set(CODES_M5_LIST)
 
