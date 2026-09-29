@@ -216,22 +216,41 @@ function Assert-SansSecret {
     }
 }
 
-# Un fichier ou un dossier qui porte des secrets (ou l'archive d'export) n'est accessible qu'a l'utilisateur : toutes les
-# entrees d'ACL sont les siennes. Avec -SansHeritage, l'ACL est en plus propre au chemin (icacls /inheritance:r /grant:r,
-# src/opsys/instance.py) : .env, l'archive d'export et le dossier d'etat ; gateway.cmd, lui, herite de ce dossier.
+# Un fichier ou un dossier qui porte des secrets (ou l'archive d'export) n'est accessible qu'a l'utilisateur. Avec
+# -SansHeritage, l'ACL est en plus propre au chemin (icacls /inheritance:r /grant:r, src/opsys/instance.py) : .env,
+# l'archive d'export et le dossier d'etat ; gateway.cmd, lui, herite de ce dossier.
+# Seuls restent admis, comme root sous Unix derriere un 0700, les comptes que Windows garde sur tout dossier prive et
+# que la politique du core tient deja pour surs (core/src/snapshot/local-repository-directory-policy.ts) : LocalSystem
+# (S-1-5-18), les Administrateurs (S-1-5-32-544) et OWNER RIGHTS (S-1-3-4), qui designe le proprietaire du chemin,
+# lui-meme verifie (l'utilisateur, ou les Administrateurs quand le compte en est membre). Compares par SID : les noms
+# changent avec la langue du poste. Tout autre compte (Users, Authenticated Users, Everyone...) est un echec.
+$script:SidsSysteme = @('S-1-5-18', 'S-1-5-32-544', 'S-1-3-4')
+
+function Get-NomDuSid {
+    param([string]$Sid)
+    try { return ([System.Security.Principal.SecurityIdentifier]::new($Sid)).Translate([System.Security.Principal.NTAccount]).Value }
+    catch { return $Sid }
+}
+
 function Assert-AclPrivee {
     param([string]$Chemin, [string]$Libelle, [switch]$SansHeritage)
     $acl = Get-Acl -LiteralPath $Chemin
     if ($SansHeritage -and (-not $acl.AreAccessRulesProtected)) {
         Stop-Preuve "$Libelle herite des droits de son dossier : l'ACL n'est pas reservee a l'utilisateur ($Chemin)"
     }
-    $regles = @($acl.Access)
-    $utilisateur = [Environment]::GetEnvironmentVariable('USERNAME')
-    $autres = @($regles | Where-Object { -not ($_.IdentityReference.Value -like "*\$utilisateur" -or $_.IdentityReference.Value -eq $utilisateur) })
-    if ($autres.Count -gt 0) {
-        Stop-Preuve "$Libelle est accessible a d'autres comptes : $((($autres | ForEach-Object { $_.IdentityReference.Value }) -join ', ')) ($Chemin)"
+    $sidUtilisateur = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    $proprietaire = $acl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value
+    if ($proprietaire -ne $sidUtilisateur -and $proprietaire -notin @('S-1-5-18', 'S-1-5-32-544')) {
+        Stop-Preuve "$Libelle appartient a un autre compte : $(Get-NomDuSid $proprietaire) ($Chemin)"
     }
-    if ($regles.Count -eq 0) { Stop-Preuve "$Libelle n'a aucune entree d'ACL ($Chemin)" }
+    $regles = @($acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier]))
+    $autres = @($regles | Where-Object { $_.IdentityReference.Value -ne $sidUtilisateur -and $script:SidsSysteme -notcontains $_.IdentityReference.Value })
+    if ($autres.Count -gt 0) {
+        Stop-Preuve "$Libelle est accessible a d'autres comptes : $((($autres | ForEach-Object { Get-NomDuSid $_.IdentityReference.Value }) -join ', ')) ($Chemin)"
+    }
+    if (@($regles | Where-Object { $_.IdentityReference.Value -eq $sidUtilisateur }).Count -eq 0) {
+        Stop-Preuve "$Libelle n'a aucune entree d'ACL pour l'utilisateur ($Chemin)"
+    }
 }
 
 # -- Empreintes ------------------------------------------------------------------------------------------------------------
