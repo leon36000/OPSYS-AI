@@ -68,7 +68,7 @@ def test_la_matrice_ci_couvre_exactement_les_departements():
 
 def test_gates_exige_le_succes_de_chaque_job_requis():
     gates = _ci()["jobs"]["gates"]
-    assert set(gates["needs"]) == {"socle", "departement"}
+    assert set(gates["needs"]) == {"socle", "departement", "m03-preuves"}
     assert gates["if"] == "always()"
     commandes = "\n".join(etape.get("run", "") for etape in gates["steps"])
     for job in gates["needs"]:
@@ -121,3 +121,17 @@ def test_le_controle_ruff_detecte_un_avertissement(tmp_path):
     resultat = _ruff_check(sale)
     assert resultat.returncode != 0
     assert "F401" in resultat.stdout
+
+
+def test_les_outils_de_preuve_de_m3_tournent_une_fois_et_une_seule():
+    """Le job de M3 les écarte, `m03-preuves` les exécute : aucun des deux fichiers n'est oublié ni joué deux fois."""
+    ci = _ci()
+    fichiers = ci["jobs"]["m03-preuves"]["strategy"]["matrix"]["fichier"]
+    assert sorted(fichiers) == ["test_gardes_des_outils.py", "test_outils_de_preuve.py"]
+    for fichier in fichiers:
+        assert (RACINE / "departments" / "m03-estimation" / "tests" / fichier).is_file()
+    nom = "Tests du département ${{ matrix.dossier }}"
+    etape = next(e for e in ci["jobs"]["departement"]["steps"] if e.get("name") == nom)
+    for fichier in fichiers:
+        assert f"departments/m03-estimation/tests/{fichier}" in etape["run"]
+    assert "matrix.dossier == 'm03-estimation'" in etape["run"]
