@@ -34,14 +34,15 @@ Le paquet `m3_estimation` est autonome. Il réutilise le patron prouvé des modu
 | `qualite_photos.py` | Qualification binaire de la qualité des entrées visuelles à partir des métadonnées photo. | Logique isolée car elle détermine le branchement fail-closed / estimation. |
 | `hierarchie_echelle.py` | Application de la hiérarchie ratifiée comme logique de décision pure : référence > multi-vues > mono-vue à bornes larges > indéterminé. | Séparé pour garantir qu'aucun modèle d'inférence ne puisse s'y glisser en v1. |
 | `blocage_prix.py` | Garde anti-précision-inventée : décide du blocage du prix à partir du niveau de confiance et de la qualification des photos, et construit la `raison_blocage` comme un CONSTAT (R-020). Bornes toujours nulles — ce module ne calcule aucun prix. | Isolé pour que la promesse « aucun chiffre ne quitte M3 quand le prix est bloqué » soit éprouvable seule, sans traverser l'orchestrateur. |
-| `monte_carlo.py` | Simulation Monte Carlo déterministe à graine fournie par l'appelant, production de l'intervalle de confiance. | Isolé pour garantir l'auditabilité du déterminisme (CA-M3-10, CA-M3-11, CA-M3-20). |
+| `monte_carlo.py` | Simulation Monte Carlo déterministe à graine fournie par l'appelant : intervalle de confiance ET quantiles du coût (P50, P80, PLAN T4.11) lus sur le MÊME échantillon trié ; tirage uniforme, ou PERT quand le poste du barème porte `cout_unitaire_mode`. | Isolé pour garantir l'auditabilité du déterminisme (CA-M3-10, CA-M3-11, CA-M3-20). Un seul endroit tire : l'intervalle et P50/P80 ne peuvent pas se contredire. |
 | `plancher.py` | Confrontation de la borne basse au plancher rentable, émission de l'alerte rouge. | Logique simple mais métier-critique, isolée pour testabilité directe. |
 | `devis.py` | Dérivation du `devis_id` par encodage canonique injectif (préfixage par longueur + sha256). | Copie-adaptation du patron d'encodage canonique prouvé dans les modules voisins. |
 | `registre.py` | Registre append-only hash-chaîné des estimations émises ; API ajouter / lire / valider chaîne. | Copie-adaptation du patron de registre hash-chaîné prouvé dans M2. |
 | `digest.py` | Production du digest quotidien déterministe des estimations bloquées et des alertes de plancher vers Nathan. | Isolé car consommateur en lecture seule du registre, sans effet sur l'estimation. |
 | `signaux.py` | Émission du signal de relance structuré vers M2 sur photos faibles (max 1 par estimation). Câblé par `estimation.py` (PLAN T2.3, DA-M3-12 et suivants) quand la qualité photo est insuffisante — plus un module orphelin. | Isolé pour garantir la contrainte de fréquence et l'absence de boucle. |
 | `besoins_materiaux.py` (PLAN T2.3-e) | Contrat de sortie `BesoinsMateriauxM3` (§2.9) : calcul des lignes de besoins depuis la liste OPTIONNELLE `materiaux` du poste du barème (`quantite` x `quantite_par_unite`, Decimal, texte), validation STRICTE côté émetteur (clés fermées, décimaux ASCII stricts, doublons, signal des pertes absentes, aucune clé de prix ni de coût), `identifiant_evenement` (idempotence par devis et version d'estimation). Le récepteur (M6) refait SA validation, indépendamment. | Un contrat inter-départements a deux propriétaires de validation, jamais un : l'émetteur ne publie rien qu'il ne saurait refuser, le récepteur ne croit rien parce que le producteur est M3. Module pur : c'est `outils.py`, seul, qui publie sur le bus. |
-| `estimation.py` | Orchestrateur principal : séquence validation du lead → **validation du barème** → qualité → hiérarchie → Monte Carlo → plancher → signal de relance M2 (`signaux.py`, qualité insuffisante) → prix recommandé (`taux_marge` fourni, formule réutilisée de `devis_durable.py`, DA-M3-12) → durée main-d'œuvre → besoins matériaux (`besoins_materiaux.py`, voie non bloquée, validés AVANT l'écriture) → contrat de sortie → registre. La validation du barème précède TOUTE production de bornes (CA-M3-21) : un tirage sans bornes de coût produirait des valeurs arbitraires. | Un seul orchestrateur garantit que l'ordre des étapes ne peut être altéré. |
+| `scenarios.py` (PLAN T4.11) | Les trois clés sœurs du §2.10 : P50 et P80 du coût (`Decimal` au cent), loi de chaque poste (PERT ou uniforme, dite poste par poste), facteurs dominants (part de variance exacte de chaque poste), trois scénarios de prix (prudent, normal, agressif = coût de base x (1 + taux fourni), confrontés au minimum rentable par les motifs de la revue de T4.7, `revue_devis.py`). Sans taux : aucun prix, un verdict qui dit où le déclarer. | Le calcul s'éprouve seul, sans base : module pur (aucun fichier, aucun import `opsys`). C'est `outils.py`, seul, qui lit `department.yaml` et lui passe les taux et les seuils (DA-M3-14). |
+| `estimation.py` | Orchestrateur principal : séquence validation du lead → **validation du barème** → qualité → hiérarchie → Monte Carlo → plancher → signal de relance M2 (`signaux.py`, qualité insuffisante) → prix recommandé (`taux_marge` fourni, formule réutilisée de `devis_durable.py`, DA-M3-12) → durée main-d'œuvre → P50, P80, facteurs dominants et scénarios de prix (`scenarios.py`, DA-M3-14, voie non bloquée, AVANT l'écriture au registre) → besoins matériaux (`besoins_materiaux.py`, voie non bloquée, validés AVANT l'écriture) → contrat de sortie → registre. La validation du barème précède TOUTE production de bornes (CA-M3-21) : un tirage sans bornes de coût produirait des valeurs arbitraires. | Un seul orchestrateur garantit que l'ordre des étapes ne peut être altéré. |
 
 ---
 
@@ -258,6 +259,13 @@ BaremeCouts:
 Validation fail-closed : barème absent, `postes` vide, type_travaux non couvert, bornes
 non numériques ou `min > max` -> estimation bloquée avec `INDETERMINE`.
 
+Clés OPTIONNELLES d'un poste, hors du bloc ci-dessus (absentes, elles ne produisent ni erreur ni valeur par
+défaut ; présentes, elles sont validées, jamais ignorées) : `duree_minutes_par_unite` (PLAN T2.3, durée de
+main-d'œuvre), `materiaux` (PLAN T2.3-e, §2.9) et `cout_unitaire_mode` (PLAN T4.11, DA-M3-14) : le coût unitaire
+le plus probable du poste, entre `cout_unitaire_min` et `cout_unitaire_max` bornes comprises. Avec un mode, le
+poste est tiré en PERT (moyenne = (min + 4 x mode + max) / 6) ; sans mode, en loi uniforme. Un mode hors des
+bornes, non numérique ou nul (`null`) est refusé (`REJ-CONTRAT-INVALIDE`), jamais retombé sur l'uniforme.
+
 ---
 
 ### 2.4 Contrat d'entrée gelé — `SeuilsQualite` (fourni par l'appelant)
@@ -472,6 +480,47 @@ un gate peut lire la source d'un module voisin, le code de production non).
    aucun n'est codé en dur ici.
 5. La borne `facteur_perte < 1` est une garde de saisie choisie ici, pas une donnée du produit.
 
+### 2.10 Clés sœurs de l'estimation : P50, P80, facteurs dominants et scénarios de prix
+
+Ce que la réponse de l'orchestrateur porte À CÔTÉ du contrat gelé (décrit en 2.2), depuis PLAN T4.11
+(DEFINITION-PRODUIT §7 M3.11 et M3.12). Le calcul est dans `scenarios.py` ; la décision, DA-M3-14. Ces trois clés
+ne sont JAMAIS dans le contrat gelé ni dans la charge du registre : le contrat garde ses douze clés, ses valeurs et
+son `hash_maillon`, que des scénarios soient demandés ou non.
+
+| Objet | Clés |
+|---|---|
+| `reponse` | `distribution_cout`, `facteurs_dominants`, `scenarios_prix` |
+| `distribution_cout` | `tirages`, `graine`, `p50`, `p80`, `postes` |
+| `distribution_cout.postes[]` | `poste`, `loi`, `mode`, `raison` |
+| `facteurs_dominants[]` | `rang`, `poste`, `amplitude`, `part_variance` |
+| `scenarios_prix` | `scenarios`, `alerte_rouge`, `non_evaluables` |
+| `scenarios_prix.scenarios[]` | `scenario`, `base_cout`, `cout`, `taux_marge`, `source_taux`, `prix`, `alerte_rouge`, `motifs`, `verdict` |
+
+Listes FERMÉES : aucune clé en plus, aucune en moins ; le gate confronte ce tableau aux constantes `CHAMPS_*` de
+`scenarios.py` et exige qu'aucune clé sœur ne porte le nom d'une clé du contrat gelé.
+
+- **Voie non bloquée seulement.** Des photos faibles bloquent le prix : les trois clés valent alors `null`, jamais
+  un montant sans intervalle qui le porte.
+- **Mêmes tirages que l'intervalle.** `p50` et `p80` sont lus dans l'échantillon dont l'intervalle lit ses bornes
+  (`monte_carlo.simuler_quantiles`) : `p80` est la borne haute de l'intervalle à 60 %. Mêmes entrées, mêmes montants,
+  bit à bit. Tout montant est un `Decimal` au cent, `ROUND_HALF_UP` (du texte décimal dans le JSON d'un outil).
+- **La loi est dite poste par poste** (`loi` : `PERT` avec un `mode` du barème, sinon `uniforme`, avec sa `raison`).
+- **Facteurs dominants exacts.** `part_variance` est la part de la variance totale d'un poste (postes indépendants,
+  1/12 pour l'uniforme, a x b / ((a + b)² x (a + b + 1)) pour la bêta PERT) ; `amplitude` est quantité x étendue.
+  Classement par part décroissante, puis par nom. Aucun seuil de « dominance » n'est inventé. `part_variance` vaut
+  `null` quand aucun poste ne varie. Un ouvrage porte un poste aujourd'hui : la part du poste demandé vaut 1.
+- **Scénarios.** Prix = coût de base x (1 + taux), `devis_durable.prix_depuis_cout` (la formule du paquet). Base de
+  coût : P80 pour le prudent, P50 pour le normal et l'agressif. Le taux est FOURNI : l'appel d'abord, puis
+  `department.yaml` (`configuration.scenarios_prix.taux_marge`), scénario par scénario. Sans taux valide, `prix`,
+  `taux_marge` et `source_taux` valent `null` et `verdict` dit quoi déclarer (`REJ-SCENARIOS-TAUX-ABSENT` ou
+  `REJ-SCENARIOS-TAUX-INVALIDE`) ; jamais un prix. Un taux négatif est invalide (vendre sous le coût n'est pas un
+  scénario).
+- **Minimum rentable.** Chaque prix est confronté au minimum de la revue de T4.7 (`configuration.revue_devis.
+  minimum_rentable_cad`) par `revue_devis.evaluer_revue`, appelée telle quelle : sous le minimum, `alerte_rouge` vaut
+  `true` et `motifs` porte le motif que la revue N4 montrera à l'envoi du devis. Minimum vide ou invalide,
+  `alerte_rouge` vaut `null` (non évaluable, jamais `false`) et `non_evaluables` dit quoi déclarer, une seule fois.
+- **Vue employé.** Les trois clés sont retirées (P50 est un coût, un scénario un prix et une marge).
+
 ---
 
 ## 3. INTERFACES ET CONTRATS
@@ -517,6 +566,13 @@ produit des quantités, dans la même transaction que l'inscription au registre.
 (`besoins_materiaux_recus.py`), le range comme prévu PROVISOIRE du devis dans son registre des besoins
 prévus existant, et ne crée jamais de bon de commande : un PO reste un brouillon calculé à la demande et
 soumis à approbation (PLAN T2.4/T2.5). Le prévu DÉFINITIF reste celui du devis accepté (`m3.devis_accepte`).
+
+### 3.7 Interface de sortie — incertitude et scénarios de prix vers l'agent
+
+Les clés sœurs du §2.10 ne vont qu'à l'agent qui a appelé `m3_estimer_projet` : aucun événement n'est publié, rien
+n'est écrit au registre, et la vue employé les retire. Elles sont proposées, jamais engagées : le prix d'un devis reste
+un engagement N4 (`m3_demander_envoi_devis`), et le propriétaire relit à l'envoi la même alerte que le scénario a
+levée.
 
 ---
 
@@ -673,6 +729,36 @@ le gate), et ajouter une clé à un contrat gelé le dégèle. Piège écarté :
 durable à sa création — les lignes d'un devis sont fournies par l'appelant, sans barème, sans facteur de
 perte, sans niveau de confiance ; le contrat serait resté vide de ce que M6.4 demande.
 
+### DA-M3-14 — P50, P80, facteurs dominants et scénarios de prix : des clés sœurs, sur le tirage de l'intervalle
+
+**Constat** (audit M3, M3.11 et M3.12) : l'estimation ne disait qu'un intervalle de coût et, depuis DA-M3-12, un
+seul prix. Ni P50, ni P80, ni facteur dominant ; un tirage uniforme seulement ; jamais trois scénarios.
+
+**Décision** : trois clés sœurs de la réponse de l'orchestrateur (§2.10), calculées par `scenarios.py` sur la voie non
+bloquée. `EstimationV1` reste GELÉ (P5, même choix que DA-M3-12 et DA-M3-13).
+1. Un seul tirage. `monte_carlo.simuler_quantiles` lit P50 et P80 dans l'échantillon trié dont
+   `simuler_intervalle` lit les bornes : même générateur local, même graine, même loi, même rang de quantile.
+2. PERT seulement si le barème fournit `cout_unitaire_mode` pour le poste ; sinon uniforme. La loi du tirage change
+   pour l'intervalle ET pour P50/P80 : ils ne se contredisent jamais. La sortie dit la loi de chaque poste.
+3. Facteurs dominants par sensibilité de premier ordre, calcul exact (variance de chaque poste, postes indépendants),
+   sans bruit de tirage. Le classement est un fait (rang, part), pas un seuil.
+4. Scénarios prudent (base P80), normal et agressif (base P50) : coût de base x (1 + taux). Les taux sont FOURNIS
+   (appel, puis configuration, `null` = absent) ; sans taux, aucun prix et un verdict qui dit où le déclarer.
+5. Chaque prix est confronté au minimum rentable par la revue de T4.7, appelée telle quelle : le scénario et la revue
+   N4 du devis réel disent donc la même chose (même code, même gravité, même donnée, même seuil).
+
+**Justification** : le propriétaire lit un prix avec son risque (P80, alerte rouge), pas un chiffre seul (§5 P2). Un
+seul tirage rend la cohérence structurelle plutôt que vérifiée après coup ; un seul mécanisme de motifs évite deux
+alertes qui pourraient diverger. Les taux, la base de coût et le minimum sont des décisions de Nathan (GATE) : rien
+n'en est inventé.
+
+**Pièges écartés** : une seconde simulation dans `scenarios.py` (elle aurait pu dériver de l'intervalle) ; un PERT
+réservé à P50/P80 pendant que l'intervalle restait uniforme (deux lois dans une même réponse) ; un taux par défaut
+pour « ne pas laisser de trou » (une marge inventée) ; un taux négatif (un prix sous le coût proposé par le système) ;
+écrire les scénarios au registre (les taux rejoués changeraient l'`estimation_id` d'une estimation qui n'a pas
+bougé) ; un outil séparé (il aurait rappelé le barème et contourné la garde des photos, alors que l'extension de
+`m3_estimer_projet` garde l'appel unique).
+
 ## 5. CE QUE CHAQUE STORY PROUVE
 
 | Story | Ce qu'elle prouve |
@@ -700,6 +786,9 @@ perte, sans niveau de confiance ; le contrat serait resté vide de ce que M6.4 d
 | `nb_iterations_monte_carlo` | Nombre d'itérations de la simulation Monte Carlo. | Défini par le PM. |
 | `bareme_couts` | Contrat gelé `BaremeCouts` (2.3) : versions, unité, postes par type de travaux. | **Fourni par l'appelant à chaque estimation. Aucune valeur par défaut : un barème par défaut serait un coût inventé.** |
 | `taux_marge` | Taux de marge appliqué au COÛT (intervalle Monte Carlo) pour dériver `prix_recommande` (PLAN T2.3, reste de T2.3-b — voir DA-M3-12). Texte décimal, ex. `"0.35"` pour 35 %. | **Fourni par l'appelant à chaque estimation (paramètre optionnel de `m3_estimer_projet`). Aucune valeur par défaut : absent, aucun prix recommandé n'est calculé (le coût seul reste exploitable) — jamais une marge inventée.** |
+| `cout_unitaire_mode` (par poste du `bareme_couts`) | Coût unitaire le plus probable du poste, entre ses bornes : le poste est tiré en PERT (moyenne = (min + 4 x mode + max) / 6) — PLAN T4.11, DA-M3-14, §2.3. | **Fourni par l'appelant dans le barème. Aucune valeur par défaut : absent, tirage uniforme ; fourni de travers, refusé — jamais un mode déduit.** |
+| `taux_marge_scenarios` (`prudent`, `normal`, `agressif`) | Taux de marge des trois scénarios de prix (PLAN T4.11, §2.10) : prix = coût de base x (1 + taux). Texte décimal, zéro ou plus. | **Fourni par l'appelant (argument de `m3_estimer_projet`) ou déclaré dans `department.yaml` (`configuration.scenarios_prix.taux_marge`). VIDE à dessein : sans taux, aucun prix et un verdict qui dit où le déclarer — jamais une marge inventée.** |
+| `minimum_rentable_cad` (`department.yaml`, `configuration.revue_devis`, PLAN T4.7) | Prix total sous lequel un devis n'est pas rentable : la revue N4 et chaque scénario de prix le confrontent (alerte rouge). | **VIDE à dessein : vide ou invalide, la confrontation est « non évaluable » — jamais « pas d'alerte ».** |
 | `materiaux` (par poste du `bareme_couts`) | Liste OPTIONNELLE de besoins matériaux par unité d'ouvrage (`materiau`, `sku` optionnel, `quantite_par_unite` texte décimal > 0, `unite`, `facteur_perte` optionnel, texte décimal, 0 <= f < 1) — PLAN T2.3-e, §2.9. | **Fournie par l'appelant dans le barème. Aucune valeur par défaut : absente, aucun besoin n'est publié ; un facteur de perte absent reste absent et est signalé — jamais inventé.** |
 
 ---
@@ -720,6 +809,7 @@ perte, sans niveau de confiance ; le contrat serait resté vide de ce que M6.4 d
 | Signal de relance vers M2 | `signaux.py` |
 | Digest des estimations bloquées | `digest.py` |
 | Besoins matériaux vers M6 (`BesoinsMateriauxM3`) | `besoins_materiaux.py`, `estimation.py`, `outils.py` |
+| P50, P80, facteurs dominants et scénarios de prix (clés sœurs, §2.10) | `monte_carlo.py`, `scenarios.py`, `estimation.py`, `outils.py` |
 
 **Stack technique** : stdlib Python + PyYAML, zéro réseau, zéro horloge interne, zéro LLM.
 

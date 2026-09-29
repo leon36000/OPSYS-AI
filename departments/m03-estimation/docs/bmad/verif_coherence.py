@@ -414,7 +414,12 @@ def verifier_cles_du_contrat_gele(prd: str, archi: str) -> List[str]:
 
 
 def _cles_contrat(texte: str, motif_section: str) -> set:
-    """Clés de premier niveau du bloc YAML du contrat gelé, ou ensemble vide."""
+    """Clés de premier niveau du bloc YAML du contrat gelé, ou ensemble vide.
+
+    Un nom de clé peut porter des chiffres après sa première lettre (`empreinte_marqueur_m2`) : l'extracteur les
+    lit. Avant PLAN T4.11 il s'arrêtait au premier chiffre et ne voyait que ONZE des douze clés, des DEUX côtés du
+    contrôle 11 : une clé au nom chiffré pouvait dériver sans que le gate le dise. Le contrôle 22, qui confronte
+    ces clés au code, l'a mesuré."""
     m = re.search(motif_section, texte, re.MULTILINE)
     if not m:
         return set()
@@ -423,7 +428,7 @@ def _cles_contrat(texte: str, motif_section: str) -> set:
         return set()
     cles = set()
     for ligne in bloc.group(1).splitlines():
-        m2 = re.match(r"^  ([a-z_]+):", ligne)
+        m2 = re.match(r"^  ([a-z_][a-z0-9_]*):", ligne)
         if m2:
             cles.add(m2.group(1))
     return cles
@@ -1171,6 +1176,114 @@ def verifier_contrat_besoins_materiaux(
     if not ferme:
         erreurs.append("Le schéma du catalogue m3.besoins_materiaux n'est pas fermé (additionalProperties "
                        "doit valoir false au premier niveau ET dans les lignes) : une clé de prix passerait.")
+    return erreurs
+
+
+def verifier_cles_soeurs_estimation(
+        archi: str,
+        chemin_source_scenarios: Path | None = None,
+        chemin_source_contrats: Path | None = None) -> list[str]:
+    """Contrôle 22 (PLAN T4.11) : les clés SŒURS du contrat gelé (P50, P80, facteurs dominants, scénarios de prix)
+    sont les MÊMES dans le tableau de l'architecture (§2.10) et dans les constantes `CHAMPS_*` de `scenarios.py`, et
+    ADDITIVES : aucune ne porte le nom d'une clé d'`EstimationV1`, dont les douze clés sont elles-mêmes les mêmes
+    dans l'architecture (§2.2) et dans `contrats.CHAMPS_ESTIMATION_V1`.
+
+    Un contrat gelé qu'on enrichit par une clé « sœur » sans rien confronter se dégèle en silence : ce contrôle ferme
+    les trois portes — une clé sœur documentée mais absente du code (ou l'inverse), une clé sœur qui prend le nom
+    d'une clé gelée, une clé gelée qui change d'un seul côté. Les objets imbriqués (la loi d'un poste, un facteur, un
+    scénario) sont confrontés un à un : leur forme est celle que lit l'agent.
+
+    LIMITE DÉCLARÉE : le contrôle confronte des NOMS de clés, jamais leurs types ni leurs valeurs (ce que prouvent
+    `test_scenarios.py` et `test_estimation_scenarios.py`), et ne prouve pas que l'orchestrateur les émet (ce que
+    prouve `test_estimation_scenarios.py`). Lire la source d'un module voisin depuis un GATE n'est pas un import
+    (DA-M3-10). Tout repli est fail-closed : source absente, illisible ou constante introuvable produisent une erreur
+    explicite, jamais un vert par vacuité.
+    """
+    depot = Path(__file__).resolve().parents[4]
+    dossier_src = depot / "departments" / "m03-estimation" / "src" / "m3_estimation"
+    sources = {
+        "scenarios.py": Path(chemin_source_scenarios) if chemin_source_scenarios is not None
+        else dossier_src / "scenarios.py",
+        "contrats.py": Path(chemin_source_contrats) if chemin_source_contrats is not None
+        else dossier_src / "contrats.py",
+    }
+    textes = {}
+    for nom, chemin in sources.items():
+        if not chemin.is_file():
+            return [f"Source {nom} introuvable ({chemin}) — contrôle non probant, jamais silencieusement vert."]
+        try:
+            textes[nom] = chemin.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            return [f"Source {nom} illisible ({chemin}) : {exc} — contrôle non probant, jamais silencieusement vert."]
+
+    # objet du tableau de l'architecture -> constante de scenarios.py qui le décrit
+    correspondance = {
+        "reponse": "CHAMPS_SOEURS_ESTIMATION",
+        "distribution_cout": "CHAMPS_DISTRIBUTION_COUT",
+        "distribution_cout.postes[]": "CHAMPS_LOI_DU_POSTE",
+        "facteurs_dominants[]": "CHAMPS_FACTEUR_DOMINANT",
+        "scenarios_prix": "CHAMPS_SCENARIOS_PRIX",
+        "scenarios_prix.scenarios[]": "CHAMPS_SCENARIO",
+    }
+    constantes = {
+        objet: _constante_de_module(textes["scenarios.py"], nom) for objet, nom in correspondance.items()
+    }
+    manquantes = sorted(nom for objet, nom in correspondance.items() if not constantes[objet])
+    if manquantes:
+        return [f"Constante(s) {manquantes} introuvable(s) ou vide(s) dans scenarios.py — "
+                "extracteur vide, contrôle non probant."]
+    gelees = _constante_de_module(textes["contrats.py"], "CHAMPS_ESTIMATION_V1")
+    if not gelees:
+        return ["Constante CHAMPS_ESTIMATION_V1 introuvable ou vide dans contrats.py — "
+                "extracteur vide, contrôle non probant."]
+
+    titre = re.search(r"^#+\s*2\.\d+\s+Clés sœurs de l['’]estimation[^\n]*$", archi, re.MULTILINE)
+    if not titre:
+        return ["Section des clés sœurs (§2.10) introuvable dans l'architecture M3 — contrôle non probant."]
+    reste = archi[titre.end():]
+    suivant = re.search(r"^#{1,3}\s", reste, re.MULTILINE)
+    section = reste[:suivant.start()] if suivant else reste
+
+    tableau: dict[str, set[str]] = {}
+    erreurs: list[str] = []
+    for ligne in section.splitlines():
+        cellules = re.match(r"^\|\s*`([^`]+)`\s*\|(.+)\|\s*$", ligne)
+        if cellules is None:
+            continue
+        objet = cellules.group(1)
+        if objet in tableau:
+            erreurs.append(f"Objet « {objet} » décrit deux fois dans le tableau des clés sœurs de l'architecture.")
+        tableau[objet] = set(re.findall(r"`([a-z_][a-z0-9_]*)`", cellules.group(2)))
+    if not tableau:
+        return ["Tableau des clés sœurs introuvable ou vide dans l'architecture M3 — "
+                "extracteur vide, contrôle non probant."]
+
+    inconnus = sorted(set(tableau) - set(correspondance))
+    absents = sorted(set(correspondance) - set(tableau))
+    if inconnus:
+        erreurs.append(f"Objet(s) {inconnus} du tableau des clés sœurs sans constante dans scenarios.py.")
+    if absents:
+        erreurs.append(f"Objet(s) {absents} décrit(s) par scenarios.py mais absent(s) du tableau de l'architecture.")
+    for objet, nom in correspondance.items():
+        if objet in tableau and tableau[objet] != constantes[objet]:
+            ecart = sorted(tableau[objet] ^ constantes[objet])
+            erreurs.append(
+                f"Clés de « {objet} » dans l'architecture {sorted(tableau[objet])} DIFFÈRENT de {nom} "
+                f"(scenarios.py) {sorted(constantes[objet])} — écart {ecart}. Ce que l'agent lit n'est pas ce "
+                "que le document promet.")
+
+    collision = sorted(constantes["reponse"] & gelees)
+    if collision:
+        erreurs.append(f"Clé(s) sœur(s) {collision} portant le nom d'une clé du contrat gelé : une clé sœur est "
+                       "ADDITIVE, jamais une clé gelée qui change de sens (P5).")
+    cles_gelees_document = _cles_contrat(archi, r"^#+\s*2\.2\s+Contrat de sortie.*$")
+    if not cles_gelees_document:
+        erreurs.append("Clés du contrat gelé introuvables dans l'architecture (§2.2) — extracteur vide.")
+    elif cles_gelees_document != gelees:
+        erreurs.append(
+            f"Clés du contrat gelé dans l'architecture {sorted(cles_gelees_document)} DIFFÈRENT de "
+            f"CHAMPS_ESTIMATION_V1 (contrats.py) {sorted(gelees)} — écart "
+            f"{sorted(cles_gelees_document ^ gelees)}. Un contrat gelé change d'un seul côté n'est plus gelé.")
     return erreurs
 
 
@@ -2299,6 +2412,17 @@ def main(dossier_str: str = None) -> int:
         print("OK : Le contrat BesoinsMateriauxM3 est identique dans le bloc de l'architecture, "
               "la constante de l'émetteur M3, la copie épinglée du récepteur M6 et le catalogue du "
               "bus — clés, clés OPTIONNELLES, clés de prix et de coût interdites.")
+
+    errs = verifier_cles_soeurs_estimation(archi)
+    if errs:
+        erreurs.extend(errs)
+        for e in errs:
+            print(f"ECHEC : {e}")
+    else:
+        print("OK : Les clés sœurs d'EstimationV1 (P50, P80, facteurs dominants, scénarios de prix) sont "
+              "identiques dans le tableau de l'architecture et les constantes de scenarios.py, n'entrent en "
+              "collision avec aucune clé du contrat gelé, et les clés du contrat gelé sont les mêmes dans "
+              "l'architecture et dans le code.")
 
     errs = verifier_ca_cites_existent(prd)
     if errs:
