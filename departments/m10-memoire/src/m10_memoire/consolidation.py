@@ -49,6 +49,10 @@ def _resumer(evenements_du_jour: list[dict]) -> str:
         if classification.type_evenement(e) == classification.TYPE_VARIANCE and e.get("signal_critique") is True
     )
 
+    nb_rentabilite = sum(
+        1 for e in evenements_du_jour if classification.type_evenement(e) == classification.TYPE_RENTABILITE
+    )
+
     segments = []
     if nb_wct:
         segments.append(f"{nb_wct} travaux terminés")
@@ -57,6 +61,9 @@ def _resumer(evenements_du_jour: list[dict]) -> str:
         if nb_variance_critique:
             segment += f" dont {nb_variance_critique} critique(s)"
         segments.append(segment)
+    if nb_rentabilite:
+        # Un COMPTE seulement : le fait consolidé n'est pas FINANCIAL, aucun montant n'y entre.
+        segments.append(f"{nb_rentabilite} rentabilité(s) de chantier")
     return ", ".join(segments) if segments else "aucun événement classifié"
 
 

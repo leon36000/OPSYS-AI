@@ -56,5 +56,9 @@ kpis:
 # (variance.py, distinguée du WCT à la lecture par classification.py) — alimente les paquets de
 # contexte en couches (paquets.py), la consolidation nocturne (consolidation.py) et l'audit
 # « non-oubli » (audit.py).
+# PLAN T1.5-d : M10 consomme aussi la rentabilité d'un chantier de M5 (catalogue socle :
+# src/opsys/evenements/catalogue/m5.rentabilite_chantier.json), mémorisée au même registre Événements
+# (rentabilite.py) au niveau FINANCIAL : la leçon « marge réelle contre marge prévue » se lit ici et chez M5,
+# et ne sort dans aucun paquet de contexte (confidentialite.py).
 evenements:
-  consomme: [m4.travaux_termines, m6.variance_chantier]
+  consomme: [m4.travaux_termines, m6.variance_chantier, m5.rentabilite_chantier]

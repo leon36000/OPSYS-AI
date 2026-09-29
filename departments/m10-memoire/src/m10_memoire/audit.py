@@ -24,7 +24,7 @@ from . import classification
 REJ_AUDIT_TYPE_INCONNU = "REJ-AUDIT-TYPE-INCONNU"
 REJ_AUDIT_TRACE_ABSENTE = "REJ-AUDIT-TRACE-ABSENTE"
 
-_TYPES_EVENEMENT_AUDITES = (classification.TYPE_WCT, classification.TYPE_VARIANCE)
+_TYPES_EVENEMENT_AUDITES = (classification.TYPE_WCT, classification.TYPE_VARIANCE, classification.TYPE_RENTABILITE)
 
 
 def _presents(registre_evenements: Any) -> set[tuple[str, str]]:

@@ -1,14 +1,15 @@
 """Classification des maillons du registre Événements de M10 (PLAN T3.3).
 
-Le Work Completion Trigger de M4 (``m4.travaux_termines``) et la variance matériaux de M6
-(``m6.variance_chantier``) vivent dans le MÊME registre, sous le MÊME ``type_entree``
-(``evenement_memorise``) — ce sont tous deux des événements opérationnels reçus du bus (ADR-0009
-§3). Ce module les distingue à la LECTURE par un champ structurellement propre à chacun (jamais un
-tag ajouté a posteriori) : le WCT porte ``duree_reelle_minutes`` (``contrats.CHAMPS_WCT``, figé par
-M4) ; la variance porte ``statut_variance`` (catalogue socle
-``m6.variance_chantier.json``). Fournit aussi la résolution de l'affaire (``lead_id``) d'un
-événement : directe pour un WCT, par ``wct_id`` pour une variance — qui ne porte pas de ``lead_id``
-propre (``chantier_id`` de M6 est un concept distinct, M6-audit.md).
+Le Work Completion Trigger de M4 (``m4.travaux_termines``), la variance matériaux de M6
+(``m6.variance_chantier``) et la rentabilité d'un chantier de M5 (``m5.rentabilite_chantier``, PLAN T1.5-d)
+vivent dans le MÊME registre, sous le MÊME ``type_entree`` (``evenement_memorise``) — ce sont tous des
+événements opérationnels reçus du bus (ADR-0009 §3). Ce module les distingue à la LECTURE par un champ
+structurellement propre à chacun (jamais un tag ajouté a posteriori) : le WCT porte ``duree_reelle_minutes``
+(``contrats.CHAMPS_WCT``, figé par M4) ; la variance porte ``statut_variance`` (catalogue socle
+``m6.variance_chantier.json``) ; la rentabilité porte ``marge_reelle_cad`` (catalogue socle
+``m5.rentabilite_chantier.json``, requis même nul). Fournit aussi la résolution de l'affaire (``lead_id``)
+d'un événement : directe pour un WCT, par ``wct_id`` pour une variance ou une rentabilité — qui ne portent pas
+de ``lead_id`` propre (``chantier_id`` est un concept distinct, M6-audit.md).
 
 Module pur (DA-M10-08) : aucun import d'``opsys``.
 """
@@ -19,10 +20,15 @@ from collections.abc import Iterable
 
 TYPE_WCT = "m4.travaux_termines"
 TYPE_VARIANCE = "m6.variance_chantier"
+TYPE_RENTABILITE = "m5.rentabilite_chantier"
 
 _TYPE_ENTREE_EVENEMENT = "evenement_memorise"
-_CLE_DISCRIMINANTE = {TYPE_VARIANCE: "statut_variance", TYPE_WCT: "duree_reelle_minutes"}
-_CLE_IDENTIFIANT = {TYPE_WCT: "wct_id", TYPE_VARIANCE: "evenement_id"}
+_CLE_DISCRIMINANTE = {
+    TYPE_VARIANCE: "statut_variance",
+    TYPE_WCT: "duree_reelle_minutes",
+    TYPE_RENTABILITE: "marge_reelle_cad",
+}
+_CLE_IDENTIFIANT = {TYPE_WCT: "wct_id", TYPE_VARIANCE: "evenement_id", TYPE_RENTABILITE: "evenement_id"}
 
 
 def type_evenement(maillon: dict) -> str | None:
@@ -34,12 +40,14 @@ def type_evenement(maillon: dict) -> str | None:
         return TYPE_VARIANCE
     if _CLE_DISCRIMINANTE[TYPE_WCT] in maillon:
         return TYPE_WCT
+    if _CLE_DISCRIMINANTE[TYPE_RENTABILITE] in maillon:
+        return TYPE_RENTABILITE
     return None
 
 
 def identifiant(maillon: dict) -> str | None:
     """La clé PUBLIQUE par laquelle un producteur (ou un audit) désigne ce fait — ``wct_id`` pour
-    un WCT, ``evenement_id`` pour une variance — jamais ``ligne_id``, interne au registre."""
+    un WCT, ``evenement_id`` pour une variance ou une rentabilité — jamais ``ligne_id``, interne au registre."""
     type_ = type_evenement(maillon)
     if type_ is None:
         return None
@@ -61,18 +69,18 @@ def index_lead_id_par_wct_id(maillons: Iterable[dict]) -> dict[str, str]:
 
 def lead_id(maillon: dict, index_wct: dict[str, str]) -> str | None:
     """L'affaire (``lead_id``) d'un événement : directe pour un WCT, résolue via ``wct_id`` pour
-    une variance ; ``None`` si non résolvable (variance reçue avant son WCT, ou WCT jamais
-    mémorisé) — jamais deviné."""
+    une variance ou une rentabilité ; ``None`` si non résolvable (événement reçu avant son WCT, ou
+    WCT jamais mémorisé) — jamais deviné."""
     type_ = type_evenement(maillon)
     if type_ == TYPE_WCT:
         return maillon.get("lead_id")
-    if type_ == TYPE_VARIANCE:
+    if type_ in (TYPE_VARIANCE, TYPE_RENTABILITE):
         return index_wct.get(maillon.get("wct_id"))
     return None
 
 
 def evenements_de_laffaire(affaire_id: str, maillons: Iterable[dict]) -> list[dict]:
-    """Tous les événements (WCT + variance) d'une affaire, dans l'ordre du registre reçu."""
+    """Tous les événements (WCT, variance, rentabilité) d'une affaire, dans l'ordre du registre reçu."""
     maillons = list(maillons)
     index_wct = index_lead_id_par_wct_id(maillons)
     return [m for m in maillons if lead_id(m, index_wct) == affaire_id]

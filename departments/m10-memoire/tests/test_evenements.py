@@ -87,12 +87,15 @@ def _quarantaine_m10():
 
 
 class TestManifeste:
-    def test_m10_declare_consommer_travaux_termines_et_variance(self):
+    def test_m10_declare_consommer_travaux_termines_variance_et_rentabilite(self):
         dep = charger_departements()["m10-memoire"]
-        assert dep.evenements_consomme == ("m4.travaux_termines", "m6.variance_chantier")
+        assert dep.evenements_consomme == (
+            "m4.travaux_termines", "m6.variance_chantier", "m5.rentabilite_chantier",
+        )
         consommateurs = dep.charger_consommateurs()
         assert "m4.travaux_termines" in consommateurs
         assert "m6.variance_chantier" in consommateurs
+        assert "m5.rentabilite_chantier" in consommateurs
 
 
 class TestNominal:

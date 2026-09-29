@@ -136,6 +136,10 @@ def _resume_evenement(maillon: dict, type_evenement: str | None, identifiant: st
         if maillon.get("signal_critique"):
             resume += ", signal critique"
         return resume
+    if type_evenement == classification.TYPE_RENTABILITE:
+        # Jamais un montant : l'entrée est FINANCIAL et ne sort dans aucun paquet ; ce résumé n'en porte pas
+        # non plus, pour qu'un marquage manquant ne puisse pas devenir une fuite.
+        return f"Rentabilité {identifiant} : {maillon.get('verdict')}"
     return "événement non classifié"
 
 

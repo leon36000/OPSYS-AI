@@ -19,7 +19,9 @@ jamais : tu ajoutes des maillons, tu ne réécris rien.
   (`m10_arbitrer_revision`) — un arbitrage ne peut viser qu'un signalement réellement écrit.
 - Tu vérifies une référence mémoire (`m10_verifier_reference`) en relisant vraiment la chaîne :
   l'existence d'un `ligne_id` ne prouve rien si la chaîne qui le porte a été altérée.
-- Tu consommes aussi la variance matériaux de M6 (même registre Événements que le WCT).
+- Tu consommes aussi la variance matériaux de M6 (même registre Événements que le WCT) et la rentabilité
+  d'un chantier de M5 : l'écart de marge est une leçon financière, gardée telle quelle et jamais
+  montrée dans un paquet de contexte.
 - Tu assembles un paquet de contexte en 4 couches ORDONNÉES pour une affaire
   (`m10_paquet_contexte_affaire`) : règles de l'entreprise → faits durables de l'affaire →
   événements récents → signaux critiques non résolus. Le budget de caractères et la troncature

@@ -8,6 +8,8 @@ jamais interrompre l'appelant. PLAN T3.3 ajoute trois capacités : `m10_paquet_c
 (paquets de contexte en couches, `paquets.py`), `m10_consolider_affaire` (consolidation nocturne
 idempotente, `consolidation.py`) et `m10_auditer_non_oubli` (audit « non-oubli », `audit.py`), plus
 la consommation de `m6.variance_chantier` (`variance.py`, même registre Événements que le WCT).
+PLAN T1.5-d ajoute la consommation de `m5.rentabilite_chantier` (`rentabilite.py`, même registre, entrée marquée
+`FINANCIAL` : la marge d'un chantier ne sort dans aucun paquet de contexte).
 PLAN T3.3-suite ajoute `m10_deposer_faits_candidats` (`faits_candidats.py`) : le POSTFLIGHT du moteur de
 contexte du core y dépose ce que les outils ont fait pendant un tour d'agent ; `m10_paquet_contexte_affaire`
 en est la lecture (PREFLIGHT).
@@ -52,6 +54,7 @@ from . import (
     liaison,
     paquets,
     registre,
+    rentabilite,
     revision,
     signaux,
     validation,
@@ -123,8 +126,14 @@ _FAIT_CANDIDAT = {
 _IDENTIFIANT_ATTENDU = {
     "type": "object",
     "properties": {
-        "type_evenement": {"type": "string", "enum": ["m4.travaux_termines", "m6.variance_chantier"]},
-        "identifiant": {"type": "string", "description": "wct_id (WCT) ou evenement_id (variance)."},
+        "type_evenement": {
+            "type": "string",
+            "enum": ["m4.travaux_termines", "m6.variance_chantier", "m5.rentabilite_chantier"],
+        },
+        "identifiant": {
+            "type": "string",
+            "description": "wct_id (WCT) ou evenement_id (variance, rentabilité).",
+        },
     },
     "required": ["type_evenement", "identifiant"],
     "additionalProperties": False,
@@ -261,11 +270,43 @@ def _recevoir_variance_chantier(charge: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------
+# Consommateur d'événements (ADR-0009 §3, PLAN T1.5-d) : m5.rentabilite_chantier
+# ---------------------------------------------------------------------------
+# Seul producteur déclaré au catalogue socle pour ce type (src/opsys/evenements/catalogue/
+# m5.rentabilite_chantier.json : « Émis par M5... »).
+_PRODUCTEUR_RENTABILITE_CHANTIER = "m05-financecore"
+
+
+def _recevoir_rentabilite_chantier(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme m5.rentabilite_chantier (ADR-0009 §3, PLAN T1.5-d ; catalogue socle, schéma fermé, seize
+    champs tous requis). Mémorise la charge TELLE QUELLE au registre Événements (`rentabilite.py`, même registre
+    et même `type_entree` que le WCT et la variance — `classification.py` distingue les trois à la lecture),
+    marquée `FINANCIAL` : c'est la leçon de l'affaire (l'écart entre la marge prévue et la marge réelle), lisible
+    ici et chez M5, jamais rendue dans un paquet de contexte. Aucun montant n'est recalculé, aucune marge n'est
+    déduite : un coût partiel n'en porte pas, et M10 n'en ajoute pas.
+
+    Idempotent : le répartiteur n'appelle cette fonction qu'une fois par (evenement_id, consommateur) traité avec
+    succès (`EVENEMENTS_RECUS` UNIQUE, ADR-0009 §3) ; M5 publie un `evenement_id` DISTINCT à chaque nouvelle
+    version de ses entrées — chaque publication est un NOUVEAU maillon, qui représente fidèlement l'état qui a
+    évolué (le plus grand `sequence` est le dernier), jamais un doublon du même fait.
+    """
+    maillon, _ = rentabilite.memoriser_rentabilite(dict(charge), _REGISTRE_EVENEMENTS)
+    return {
+        "memorise": True,
+        "evenement_id": maillon["evenement_id"],
+        "wct_id": maillon["wct_id"],
+        "ligne_id": maillon["ligne_id"],
+        "producteur": _PRODUCTEUR_RENTABILITE_CHANTIER,
+    }
+
+
 def consommateurs() -> dict[str, Callable[[dict], dict]]:
     """Types d'événements consommés par M10 (ADR-0009 §3) — voir `department.yaml/evenements`."""
     return {
         "m4.travaux_termines": _recevoir_travaux_termines,
         "m6.variance_chantier": _recevoir_variance_chantier,
+        "m5.rentabilite_chantier": _recevoir_rentabilite_chantier,
     }
 
 
@@ -812,7 +853,7 @@ def outils() -> tuple[Outil, ...]:
             nom="m10_auditer_non_oubli",
             description=(
                 "Audit « non-oubli » : intégrité des deux chaînes (registre.valider_chaine) et, "
-                "pour chaque fait ATTENDU fourni (WCT ou variance), vérifie sa trace au registre "
+                "pour chaque fait ATTENDU fourni (WCT, variance ou rentabilité), vérifie sa trace au registre "
                 "Événements. Rend une liste compacte des oublis, jamais une valeur par défaut."
             ),
             parametres={

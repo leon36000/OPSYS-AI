@@ -1,4 +1,4 @@
-from . import contrats
+from . import classification, contrats
 
 REJ_WCT_CHAMP_MANQUANT = "REJ-WCT-CHAMP-MANQUANT"
 REJ_WCT_CHAMP_INATTENDU = "REJ-WCT-CHAMP-INATTENDU"
@@ -33,14 +33,18 @@ def memoriser_wct(wct_recu, registre_cible):
     protège pas contre une relivraison du MÊME fait sous un evenement_id DIFFÉRENT (producteur en
     défaut, rejeu manuel) : sans elle, un second appel écrirait un second maillon pour le même
     wct_id — un doublon mémoire, contrairement à `wct_recus.py` (M5/M6) et aux registres
-    d'idempotence de M7/M8, qui vérifient déjà tous le wct_id avant d'écrire."""
+    d'idempotence de M7/M8, qui vérifient déjà tous le wct_id avant d'écrire.
+
+    Seul un maillon WCT compte pour ce doublon (`classification.type_evenement`) : la variance de M6 et la
+    rentabilité de M5 portent aussi le `wct_id`, et l'une d'elles reçue AVANT le WCT ne doit pas le faire passer
+    pour déjà mémorisé (le WCT ne serait alors jamais écrit)."""
     valide, code = valider_wct(wct_recu)
     if not valide:
         return None, code
 
     wct_id = wct_recu["wct_id"]
     for maillon in registre_cible.lire():
-        if maillon.get("type_entree") == "evenement_memorise" and maillon.get("wct_id") == wct_id:
+        if classification.type_evenement(maillon) == classification.TYPE_WCT and maillon.get("wct_id") == wct_id:
             return maillon, None
 
     entree = {

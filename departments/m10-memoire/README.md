@@ -20,6 +20,11 @@ par un modèle, provenance sur chaque fait ; consolidation nocturne idempotente 
 fait durable citant ses sources ; audit « non-oubli » (`audit.py`, `m10_auditer_non_oubli`) qui
 vérifie l'intégrité des deux chaînes et la trace de chaque fait attendu (WCT, variance).
 
+PLAN T1.5-d ajoute la consommation de la rentabilité d'un chantier de M5 (`m5.rentabilite_chantier`,
+`rentabilite.py`, même registre Événements) : la leçon « marge réelle contre marge prévue » de l'affaire, garde
+telle quelle, au niveau `FINANCIAL` — elle ne sort dans aucun paquet de contexte. Un coût réel partiel de M5
+n'y porte aucune marge, et M10 n'en calcule jamais.
+
 PLAN T3.3-suite ajoute le dépôt POSTFLIGHT (`faits_candidats.py`, `m10_deposer_faits_candidats`) : après
 un tour d'agent, le core transmet ce que les OUTILS ont fait (outil, résultat ok ou refus, code), jamais
 ce que le modèle a écrit. Chaque fait devient un maillon `fait_candidat` du registre Affaires, en statut
@@ -48,7 +53,7 @@ fermés ; le paquet compte ce qu'il retient sans le montrer.
   jamais interrompre l'appelant), `m10_paquet_contexte_affaire`, `m10_consolider_affaire`,
   `m10_auditer_non_oubli` (PLAN T3.3), `m10_deposer_faits_candidats` (PLAN T3.3-suite), + outils unitaires (WCT, révision, statuts, vérification
   de référence). Seul ce module touche `opsys` (stockage, bus) : `classification.py`,
-  `variance.py`, `consolidation.py`, `paquets.py`, `faits_candidats.py` et `audit.py` restent purs (DA-M10-08).
+  `variance.py`, `rentabilite.py`, `consolidation.py`, `paquets.py`, `faits_candidats.py` et `audit.py` restent purs (DA-M10-08).
 - Correctifs de fiabilité (TDD, tests dans `tests/`) :
   - `revision.py` — l'arbitrage d'une révision qui n'a jamais été signalée était accepté ;
     refusé nommément désormais (`REJ-REVISION-SIGNALEMENT-INTROUVABLE`).
