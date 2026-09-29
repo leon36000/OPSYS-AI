@@ -28,6 +28,11 @@ Et la FENÊTRE DE CONVERSATION (`fenetre_conversation_minutes`, PLAN T2.1-b) : l
 rassemble les messages d'un même client pour qualifier une demande écrite en plusieurs messages. Aucune durée
 n'est inventée : sans elle, M1 qualifie message par message et le verdict le dit.
 
+Enfin, ce que M1 demande et note pour qualifier un lead (PLAN T4.4) : les QUESTIONS OBLIGATOIRES PAR SERVICE
+(`questions_qualification`, écrites par le propriétaire : aucune n'est dans le code) et les POIDS du score de lead
+(`poids_score_lead`). Sans questions déclarées, le verdict le dit et M1 n'en invente aucune ; sans poids, il n'y a
+pas de score (« poids à configurer »).
+
 Ce module est pur (fichier YAML et journal d'audit seulement) : il ne connaît ni M1, ni M2, ni M3.
 Les verdicts sont des dict `{"code", "detail"}` ; chaque département les traduit dans son propre
 catalogue de codes et garde le `detail`, qui porte la consigne de configuration.
@@ -50,6 +55,8 @@ NOM_FICHIER_PROFIL = "entreprise.yaml"
 CLE_SERVICES = "services"
 CLE_ZONE = "zone_desservie"
 CLE_FENETRE_CONVERSATION = "fenetre_conversation_minutes"
+CLE_QUESTIONS_QUALIFICATION = "questions_qualification"
+CLE_POIDS_SCORE_LEAD = "poids_score_lead"
 
 # Codes de verdict émis par ce module (jamais un booléen nu : le détail dit quoi corriger).
 VERDICT_SERVICE_NON_CONFIGURE = "REJ-SERVICE-NON-CONFIGURE"
@@ -58,6 +65,8 @@ VERDICT_SERVICE_INVALIDE = "REJ-SERVICE-INVALIDE"
 VERDICT_PROFIL_INVALIDE = "REJ-PROFIL-INVALIDE"
 VERDICT_ZONE_NON_CONFIGUREE = "REJ-ZONE-NON-CONFIGUREE"
 VERDICT_FENETRE_NON_CONFIGUREE = "REJ-FENETRE-NON-CONFIGUREE"
+VERDICT_QUESTIONS_NON_CONFIGUREES = "REJ-QUESTIONS-NON-CONFIGUREES"
+VERDICT_POIDS_SCORE_NON_CONFIGURES = "REJ-POIDS-SCORE-NON-CONFIGURES"
 
 _FORME_CODE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 _LIBELLE_MAX = 120
@@ -66,6 +75,12 @@ _VILLES_MAX = 300
 _VILLE_MAX = 80
 # Garde contre une faute de frappe (« 30000 » pour « 30 »), pas une valeur par défaut : sept jours.
 FENETRE_CONVERSATION_MAX_MINUTES = 7 * 24 * 60
+# Les critères du score de lead sont les règles du code (M1 `score.py`) ; leurs POIDS sont ceux du propriétaire.
+CRITERES_SCORE_LEAD = ("urgence", "completude", "zone")
+POIDS_SCORE_LEAD_MAX = 1000
+_QUESTION_MAX = 300
+_QUESTIONS_PAR_SERVICE_MAX = 10
+_CARACTERE_DE_CONTROLE = re.compile(r"[\x00-\x1f\x7f]")
 
 
 class ProfilInvalide(ValueError):
@@ -80,6 +95,22 @@ class Service:
     code: str
     libelle: str
     mots_cles: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class QuestionQualification:
+    """Une question obligatoire d'un service, écrite par le propriétaire dans le profil (PLAN T4.4).
+
+    `question` : le texte que M1 propose au client (un brouillon, jamais envoyé par M1). `mots_cles` : les termes qui
+    montrent que le client y a répondu (mêmes règles que ceux d'un service : mot entier, pluriel admis, accents et
+    casse ignorés) ; sans eux, le code ne pourrait jamais reconnaître la réponse. `photos` : la question demande des
+    photos ; le texte du client ne la « répond » pas, et M1 ne la propose que si la politique « photos » est validée.
+    """
+
+    code: str
+    question: str
+    mots_cles: tuple[str, ...] = ()
+    photos: bool = False
 
 
 # Les quatre services réels du premier client (DEFINITION-PRODUIT §1 ; M1.3 ; M3.8 ; M6.1).
@@ -464,16 +495,261 @@ def enregistrer_fenetre_conversation(minutes: Any, chemin: Path | None = None, p
                                  {"minutes": propre})
 
 
+def _valeur_du_profil(cle: str, fichier: Path) -> Any:
+    """La valeur brute de `cle` dans le profil, ou `None` si le fichier, sa racine vide ou la clé est absent.
+
+    Lève `ProfilInvalide` si le fichier est illisible ou n'a pas d'objet YAML à la racine : un profil cassé n'est
+    jamais lu comme un profil vide.
+    """
+    if not fichier.is_file():
+        return None
+    try:
+        donnees = yaml.safe_load(fichier.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
+        raise ProfilInvalide(f"{fichier} illisible : {exc}") from exc
+    if donnees is None:
+        return None
+    if not isinstance(donnees, dict):
+        raise ProfilInvalide(f"{fichier} : un objet YAML est attendu à la racine")
+    return donnees.get(cle)
+
+
+def _normaliser_question(entree: Any, contexte: str) -> QuestionQualification:
+    if isinstance(entree, QuestionQualification):
+        entree = {"code": entree.code, "question": entree.question, "mots_cles": list(entree.mots_cles),
+                  "photos": entree.photos}
+    if not isinstance(entree, Mapping):
+        raise ProfilInvalide(f"{contexte} : un objet {{code, question, mots_cles}} est attendu")
+    inconnues = sorted(set(entree) - {"code", "question", "mots_cles", "photos"})
+    if inconnues:
+        raise ProfilInvalide(f"{contexte} : clés inconnues {inconnues} (attendu : code, question, mots_cles, photos)")
+    code = _valider_code(entree.get("code"), contexte)
+    question = entree.get("question")
+    if (
+        not isinstance(question, str) or not question.strip() or len(question.strip()) > _QUESTION_MAX
+        or _CARACTERE_DE_CONTROLE.search(question)
+    ):
+        raise ProfilInvalide(
+            f"{contexte} : 'question' doit être un texte d'une ligne, non vide, d'au plus {_QUESTION_MAX} caractères "
+            "(c'est ce que M1 propose au client)"
+        )
+    photos = entree.get("photos", False)
+    if not isinstance(photos, bool):
+        raise ProfilInvalide(f"{contexte} : 'photos' doit valoir true ou false")
+    mots_cles = _valider_mots_cles(entree.get("mots_cles"), contexte)
+    if photos and mots_cles:
+        raise ProfilInvalide(
+            f"{contexte} : une question de photos ne se reconnaît pas par des mots-clés (le texte du client ne "
+            "remplace pas une photo) ; retire 'mots_cles'"
+        )
+    if not photos and not mots_cles:
+        raise ProfilInvalide(
+            f"{contexte} : 'mots_cles' requis (les termes qui montrent que le client a répondu) ; sans eux, le code "
+            "ne pourrait jamais reconnaître la réponse et la question resterait posée indéfiniment"
+        )
+    return QuestionQualification(code, question.strip(), mots_cles, photos)
+
+
+def normaliser_questions_qualification(brut: Any) -> dict[str, tuple[QuestionQualification, ...]]:
+    """Valide les questions obligatoires : `{code_du_service: [questions]}`, chaque question `{code, question,
+    mots_cles}` (ou `photos: true`). Refuse la déclaration vide, la liste vide, le doublon de code et la question
+    dont le code ne pourrait jamais être reconnu : une déclaration vide n'est pas une déclaration."""
+    if not isinstance(brut, Mapping):
+        raise ProfilInvalide(f"'{CLE_QUESTIONS_QUALIFICATION}' doit être un objet {{code_du_service: [questions]}}")
+    if not brut:
+        raise ProfilInvalide(f"'{CLE_QUESTIONS_QUALIFICATION}' est vide : déclare au moins une question")
+    propres: dict[str, tuple[QuestionQualification, ...]] = {}
+    for service, liste in brut.items():
+        contexte = f"{CLE_QUESTIONS_QUALIFICATION}[{service!r}]"
+        _valider_code(service, contexte)
+        if isinstance(liste, (str, bytes, Mapping)) or not isinstance(liste, Iterable):
+            raise ProfilInvalide(f"{contexte} : une liste de questions est attendue")
+        questions = tuple(_normaliser_question(q, f"{contexte}[{i}]") for i, q in enumerate(liste))
+        if not questions:
+            raise ProfilInvalide(f"{contexte} est vide : déclare au moins une question, ou retire ce service")
+        if len(questions) > _QUESTIONS_PAR_SERVICE_MAX:
+            raise ProfilInvalide(f"{contexte} : {_QUESTIONS_PAR_SERVICE_MAX} questions au plus par service")
+        codes = [q.code for q in questions]
+        doublons = sorted({c for c in codes if codes.count(c) > 1})
+        if doublons:
+            raise ProfilInvalide(f"{contexte} : questions déclarées en double : {doublons}")
+        propres[service] = questions
+    return propres
+
+
+def lire_questions_qualification(chemin: Path | None = None) -> dict[str, tuple[QuestionQualification, ...]]:
+    """Questions déclarées par le profil de l'instance ; `{}` si le fichier ou la clé est absent ou vide.
+
+    Lève `ProfilInvalide` si des questions sont écrites mais ne respectent pas le schéma (même règle que la zone :
+    une valeur cassée n'est jamais lue comme absente)."""
+    fichier = chemin or fichier_profil()
+    valeur = _valeur_du_profil(CLE_QUESTIONS_QUALIFICATION, fichier)
+    if valeur is None or valeur == {}:
+        return {}
+    try:
+        return normaliser_questions_qualification(valeur)
+    except ProfilInvalide as exc:
+        raise ProfilInvalide(f"{fichier} : {exc}") from exc
+
+
+def _verdict_questions_absentes(chemin: Path, service: str | None) -> dict[str, str]:
+    pour = "" if service is None else f" pour le service {service!r}"
+    return _verdict(
+        VERDICT_QUESTIONS_NON_CONFIGUREES,
+        f"aucune question de qualification déclarée{pour} : écris, par service, les questions obligatoires dans "
+        f"{chemin} (clé '{CLE_QUESTIONS_QUALIFICATION}') ; M1 ne pose que ce que l'entreprise déclare, jamais une "
+        "liste par défaut",
+    )
+
+
+def charger_questions_qualification() -> tuple[dict[str, tuple[QuestionQualification, ...]], dict[str, str] | None]:
+    """`(questions, None)` si l'instance en déclare, sinon `({}, verdict)` qui dit où les déclarer.
+    Ne lève jamais : une valeur illisible est un verdict `REJ-PROFIL-INVALIDE`, distinct de l'absence."""
+    chemin = fichier_profil()
+    try:
+        questions = lire_questions_qualification(chemin)
+    except ProfilInvalide as exc:
+        return {}, _verdict(VERDICT_PROFIL_INVALIDE, f"profil d'entreprise invalide : {exc}")
+    if not questions:
+        return {}, _verdict_questions_absentes(chemin, None)
+    return questions, None
+
+
+def charger_questions_du_service(service: str) -> tuple[tuple[QuestionQualification, ...], dict[str, str] | None]:
+    """Les questions obligatoires d'UN service : `(questions, None)`, ou `((), verdict)` quand le profil n'en déclare
+    aucune pour lui (`REJ-QUESTIONS-NON-CONFIGUREES`, qui nomme le service) ou qu'il est invalide
+    (`REJ-PROFIL-INVALIDE`). Aucune question n'est jamais inventée pour un service sans déclaration."""
+    questions, verdict = charger_questions_qualification()
+    if verdict is not None and verdict["code"] != VERDICT_QUESTIONS_NON_CONFIGUREES:
+        return (), verdict
+    if service not in questions:
+        return (), _verdict_questions_absentes(fichier_profil(), service)
+    return questions[service], None
+
+
+def _serialiser_questions(
+    questions: Mapping[str, tuple[QuestionQualification, ...]],
+) -> dict[str, list[dict[str, Any]]]:
+    serialisees: dict[str, list[dict[str, Any]]] = {}
+    for service, liste in questions.items():
+        objets = []
+        for q in liste:
+            objet: dict[str, Any] = {"code": q.code, "question": q.question}
+            if q.mots_cles:
+                objet["mots_cles"] = list(q.mots_cles)
+            if q.photos:
+                objet["photos"] = True
+            objets.append(objet)
+        serialisees[service] = objets
+    return serialisees
+
+
+def enregistrer_questions_qualification(questions: Any, chemin: Path | None = None, par: str | None = None) -> Path:
+    """Écrit les questions validées dans le profil, sans toucher aux autres clés (services, zone, fenêtre, poids).
+    Signées par `par`, elles sont inscrites au journal d'audit (le nombre de questions par service, pas leur texte)."""
+    propres = normaliser_questions_qualification(questions)
+    return _ecrire_cle_du_profil(
+        CLE_QUESTIONS_QUALIFICATION, _serialiser_questions(propres), chemin, par, "entreprise.questions_qualification",
+        {"questions_par_service": {service: len(liste) for service, liste in propres.items()}},
+    )
+
+
+def normaliser_poids_score_lead(brut: Any) -> dict[str, int]:
+    """Valide les poids du score de lead : un entier de 0 à `POIDS_SCORE_LEAD_MAX` pour CHAQUE critère, au moins un
+    positif. Refuse le critère inconnu, le poids manquant (0 l'écarte, explicitement), le texte, le décimal et le
+    booléen : un poids mal écrit n'est jamais arrondi ni deviné."""
+    if not isinstance(brut, Mapping):
+        raise ProfilInvalide(f"'{CLE_POIDS_SCORE_LEAD}' doit être un objet {{critère: poids}}")
+    inconnus = sorted(str(c) for c in set(brut) - set(CRITERES_SCORE_LEAD))
+    if inconnus:
+        raise ProfilInvalide(
+            f"'{CLE_POIDS_SCORE_LEAD}' : critères inconnus {inconnus} (attendu : {', '.join(CRITERES_SCORE_LEAD)})"
+        )
+    manquants = [c for c in CRITERES_SCORE_LEAD if c not in brut]
+    if manquants:
+        raise ProfilInvalide(
+            f"'{CLE_POIDS_SCORE_LEAD}' : poids manquants {manquants} ; donne un poids entier à chaque critère "
+            "(0 pour en écarter un)"
+        )
+    poids: dict[str, int] = {}
+    for critere in CRITERES_SCORE_LEAD:
+        valeur = brut[critere]
+        if isinstance(valeur, bool) or not isinstance(valeur, int) or not 0 <= valeur <= POIDS_SCORE_LEAD_MAX:
+            raise ProfilInvalide(
+                f"'{CLE_POIDS_SCORE_LEAD}.{critere}' : un entier de 0 à {POIDS_SCORE_LEAD_MAX} est attendu "
+                f"(reçu {valeur!r})"
+            )
+        poids[critere] = valeur
+    if not any(poids.values()):
+        raise ProfilInvalide(f"'{CLE_POIDS_SCORE_LEAD}' : au moins un poids doit être positif")
+    return poids
+
+
+def lire_poids_score_lead(chemin: Path | None = None) -> dict[str, int] | None:
+    """Poids déclarés par le profil de l'instance ; `None` s'ils sont absents ou vides (« à configurer »).
+
+    Lève `ProfilInvalide` si des poids sont écrits mais invalides : jamais lus comme absents."""
+    fichier = chemin or fichier_profil()
+    valeur = _valeur_du_profil(CLE_POIDS_SCORE_LEAD, fichier)
+    if valeur is None or valeur == {}:
+        return None
+    try:
+        return normaliser_poids_score_lead(valeur)
+    except ProfilInvalide as exc:
+        raise ProfilInvalide(f"{fichier} : {exc}") from exc
+
+
+def charger_poids_score_lead() -> tuple[dict[str, int] | None, dict[str, str] | None]:
+    """`(poids, None)` si l'instance déclare ses poids, sinon `(None, verdict)` : « poids à configurer », et aucun
+    score n'est calculé. Ne lève jamais : des poids invalides sont un verdict `REJ-PROFIL-INVALIDE`."""
+    chemin = fichier_profil()
+    try:
+        poids = lire_poids_score_lead(chemin)
+    except ProfilInvalide as exc:
+        return None, _verdict(VERDICT_PROFIL_INVALIDE, f"profil d'entreprise invalide : {exc}")
+    if poids is None:
+        return None, _verdict(
+            VERDICT_POIDS_SCORE_NON_CONFIGURES,
+            f"poids à configurer : donne un poids entier (de 0 à {POIDS_SCORE_LEAD_MAX}) à chacun des critères "
+            f"{', '.join(CRITERES_SCORE_LEAD)} dans {chemin} (clé '{CLE_POIDS_SCORE_LEAD}') ; tant qu'ils sont "
+            "absents, aucun score de lead n'est calculé",
+        )
+    return poids, None
+
+
+def enregistrer_poids_score_lead(poids: Any, chemin: Path | None = None, par: str | None = None) -> Path:
+    """Écrit les poids validés dans le profil, sans toucher aux autres clés. Signés par `par`, ils sont inscrits au
+    journal d'audit."""
+    propres = normaliser_poids_score_lead(poids)
+    return _ecrire_cle_du_profil(CLE_POIDS_SCORE_LEAD, propres, chemin, par, "entreprise.poids_score_lead",
+                                 {"poids": propres})
+
+
 def verifier_profil() -> list[str]:
     """`opsys verifier` : un profil présent doit être valide. Un profil absent n'est pas une erreur
     (l'instance n'a simplement encore déclaré aucun service, et tout service est alors refusé)."""
     problemes: list[str] = []
-    for lecture in (lire_services, lire_zone_desservie, lire_fenetre_conversation):
+    lectures = (
+        lire_services, lire_zone_desservie, lire_fenetre_conversation, lire_questions_qualification,
+        lire_poids_score_lead,
+    )
+    for lecture in lectures:
         try:
             lecture()
         except ProfilInvalide as exc:
             if str(exc) not in problemes:  # un fichier illisible échoue à chaque lecture : un seul message
                 problemes.append(str(exc))
+    try:
+        services, questions = lire_services(), lire_questions_qualification()
+    except ProfilInvalide:
+        return problemes  # déjà signalé ci-dessus
+    if services:
+        declares = {s.code for s in services}
+        for service in sorted(set(questions) - declares):
+            problemes.append(
+                f"{fichier_profil()} : '{CLE_QUESTIONS_QUALIFICATION}' porte des questions pour '{service}', "
+                f"que l'entreprise ne déclare pas (services déclarés : {', '.join(sorted(declares))})"
+            )
     return problemes
 
 

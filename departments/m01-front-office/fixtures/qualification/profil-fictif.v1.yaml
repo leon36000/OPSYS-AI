@@ -1,0 +1,38 @@
+fictif: true
+description: >-
+  Profil de qualification FICTIF, pour les tests de M1 (PLAN T4.4). Ces questions et ces poids ne sont pas ceux
+  de l'entreprise : le propriétaire les écrit lui-même dans son profil (`entreprise.yaml`, clés
+  `questions_qualification` et `poids_score_lead`). Le code n'en porte aucun, ni par défaut ni en repli.
+questions_qualification:
+  gouttieres:
+    - code: longueur
+      question: "Quelle est la longueur approximative de gouttières à remplacer, en pieds ou en mètres?"
+      mots_cles: [pied, mètre, pouce]
+    - code: etages
+      question: "Combien d'étages a la maison?"
+      mots_cles: [étage, plain-pied, bungalow]
+    - code: photo_facade
+      question: "Pouvez-vous nous envoyer une photo de la façade concernée?"
+      photos: true
+  revetement:
+    - code: revetement_actuel
+      question: "De quel matériau est le revêtement actuel (vinyle, aluminium, bois, brique)?"
+      mots_cles: [vinyle, aluminium, bois, brique, canexel]
+    - code: surface
+      question: "Quelle est la surface approximative à couvrir, en pieds carrés?"
+      mots_cles: [pied carré, mètre carré]
+  soffite_fascia:
+    - code: materiau
+      question: "De quel matériau sont le soffite et le fascia actuels?"
+      mots_cles: [aluminium, vinyle, bois]
+  reparation:
+    - code: dommage
+      question: "Pouvez-vous décrire le dommage (trou, fissure, pièce arrachée, matériau pourri)?"
+      mots_cles: [trou, fissure, arraché, pourri, brisé, percé]
+    - code: photo_dommage
+      question: "Une photo du dommage nous aiderait beaucoup, si vous pouvez nous l'envoyer."
+      photos: true
+poids_score_lead:
+  urgence: 30
+  completude: 50
+  zone: 20

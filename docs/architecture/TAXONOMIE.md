@@ -107,6 +107,38 @@ rassemble les messages d'un même client pour qualifier une demande écrite en p
 formée est refusée (`REJ-PROFIL-INVALIDE`), jamais lue comme absente ; `opsys verifier` la signale. Détail des règles :
 [M1-canaux](../departements/M1-canaux.md) §8.
 
+## Questions obligatoires par service et poids du score (PLAN T4.4)
+
+Le même profil porte ce que M1 demande au client pour qualifier un lead, et comment il le note. **Rien de cela n'est
+dans le code** : le propriétaire l'écrit (GATE NATHAN), et `opsys.taxonomie` le lit et l'écrit comme la zone et la
+fenêtre (`enregistrer_*(…, par="nom")` signe au journal d'audit).
+
+```yaml
+questions_qualification:        # par code de service ; l'ordre écrit est l'ordre posé
+  gouttieres:
+    - code: longueur            # stable, unique dans le service
+      question: "Quelle est la longueur approximative à remplacer, en pieds ou en mètres?"   # une ligne, 300 car. au plus
+      mots_cles: [pied, mètre]  # les termes qui montrent que le client a répondu (mots entiers, pluriel admis)
+    - code: photo_facade
+      question: "Pouvez-vous nous envoyer une photo de la façade concernée?"
+      photos: true              # demande de photos : sans mots_cles, et fermée tant que la politique n'est pas validée
+poids_score_lead:               # un entier de 0 à 1000 pour CHAQUE critère ; 0 écarte un critère
+  urgence: 30
+  completude: 50
+  zone: 20
+```
+
+| Situation | Verdict |
+|---|---|
+| Aucune question déclarée (clé absente ou vide) | `REJ-QUESTIONS-NON-CONFIGUREES`, qui dit où les écrire. Aucune liste par défaut. |
+| Des questions déclarées, mais aucune pour ce service | Le même code, qui nomme le service (`charger_questions_du_service`). |
+| Poids absents ou vides | `REJ-POIDS-SCORE-NON-CONFIGURES` : « poids à configurer ». Aucun score n'est calculé. |
+| Valeur écrite mais invalide (liste vide, question sans `mots_cles`, poids décimal, critère inconnu, tous les poids à 0…) | `REJ-PROFIL-INVALIDE` avec la raison, **jamais lue comme absente** ; `opsys verifier` la signale. |
+
+`opsys verifier` signale aussi des questions écrites pour un service que l'entreprise ne déclare pas. Les questions et les
+poids d'un test sont fictifs : `departments/m01-front-office/fixtures/qualification/profil-fictif.v1.yaml`
+(`fictif: true`). Comment M1 les utilise : [M1-canaux](../departements/M1-canaux.md) §9.
+
 ## Garde de dérive
 
 - `opsys verifier` : profil valide s'il existe ; aucune source de département ni du socle ne recopie
