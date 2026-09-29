@@ -102,6 +102,31 @@ CODES_M5_LIST = [
     "REJ-AP-LISTE-DEPART-INVALIDE",
     "REJ-AP-LISTE-LIGNE-TROP-GROSSE",
     "REJ-AP-PO-INCONNU",
+    # PLAN T4.16 (calendrier_fiscal.py, M5.5) : le calendrier fiscal versionné. Une année absente est refusée ; la
+    # fréquence de production, la fin d'exercice, le statut d'inscrit et la date jusqu'à laquelle les taxes sont
+    # remises sont des décisions ou des faits du propriétaire (GATE NATHAN) : « à déclarer » dit quoi fournir, et rien
+    # n'est supposé à leur place.
+    "REJ-TAUX-FICHIER-INVALIDE",
+    "REJ-CALENDRIER-INVALIDE",
+    "REJ-CALENDRIER-ANNEE-NON-DECLAREE",
+    "REJ-FISCAL-DATE-INVALIDE",
+    "REJ-FISCAL-FREQUENCE-A-DECLARER",
+    "REJ-FISCAL-FIN-EXERCICE-A-DECLARER",
+    "REJ-FISCAL-STATUT-INSCRIT-A-DECLARER",
+    "REJ-FISCAL-CONFIGURATION-INVALIDE",
+    "REJ-FISCAL-REMISE-A-DECLARER",
+    "REJ-FISCAL-REMISE-HORS-PERIODE",
+    "REJ-FISCAL-LIMITE-INVALIDE",
+    # PLAN T4.16 (cash_libre.py, M5.5 et M5.14) : le cash libre réel. Chacun est un manque porté par une composante,
+    # jamais une valeur de remplacement : une composante inconnue est « non calculable », jamais zéro.
+    "REJ-CASH-SOLDE-ABSENT",
+    "REJ-CASH-FACTURE-ILLISIBLE",
+    "REJ-CASH-COMPTES-A-PAYER-INCOMPLETS",
+    "REJ-CASH-PAIE-A-DECLARER",
+    "REJ-CASH-DAS-A-DECLARER",
+    "REJ-CASH-DETTES-A-DECLARER",
+    "REJ-CASH-RESERVES-A-DECLARER",
+    "REJ-CASH-DECLARATION-INVALIDE",
 ]
 CODES_M5 = set(CODES_M5_LIST)
 
