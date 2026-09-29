@@ -8,6 +8,14 @@ donner un montant, une date de chantier, une promesse ferme ni reconnaître un t
 Ordre d'évaluation, fixé par le catalogue : prix, date, engagement, aveu. Les motifs lisent le texte dont seule
 l'apostrophe courbe est remplacée (`Formes.droit`) : la casse et les accents comptent pour les motifs.
 
+Temps linéaire (PLAN T4.17-f). Le texte d'un client n'a pas de plafond ici, et un motif à retour arrière relit ce
+qu'il a déjà lu : 20 000 chiffres coûtaient 27 s. Deux écritures sont bannies :
+  - un motif relancé à chaque caractère d'une même suite, qui relit la suite (un nombre décrit par groupes de
+    milliers, des blancs facultatifs en tête de motif) : chaque motif part du seul caractère qui peut le faire réussir ;
+  - « déclencheur, puis n'importe quoi, puis cible », qui relit la fin de la ligne à chaque déclencheur :
+    `_apres_sur_la_meme_ligne` borne l'écart.
+`tests/test_garde_fou_texte.py` mesure le temps sur des textes hostiles de 20 000 et de 100 000 caractères.
+
 Module pur : aucune entrée-sortie, aucune horloge, aucun modèle.
 """
 
@@ -17,10 +25,18 @@ import re
 
 from ._types import Contexte, Formes
 
-# ----------------------------------------------------------------------
-# Séparateur d'espace étendu (normale + insécables) – corrigé pour re.VERBOSE
-# ----------------------------------------------------------------------
-_SEP = r'[\x20\u00A0\u202F]'   # espace ASCII + fine insécable + espace insécable
+
+def _apres_sur_la_meme_ligne(declencheur: str, cible: str) -> str:
+    """Motif « `declencheur`, puis plus loin sur la même ligne, `cible` », lu en temps linéaire.
+
+    L'écriture « déclencheur, n'importe quoi, cible » relit toute la fin de la ligne à chaque déclencheur :
+    « nous assumons » répété mille fois, sans « responsabilité », coûte mille lectures de la ligne. Ici l'écart ne
+    recouvre jamais un autre déclencheur : la cible qui suit le dernier déclencheur est trouvée par lui, et chaque
+    caractère de l'écart est lu par un seul déclencheur. Le verdict est celui de l'ancienne écriture : un couple
+    déclencheur-cible sur une ligne (l'écart ne franchit pas le saut de ligne ; le déclencheur, lui, peut en contenir
+    un entre ses mots)."""
+    return rf"{declencheur}(?:(?!{declencheur})[^\n])*?{cible}"
+
 
 # ----------------------------------------------------------------------
 # Détection de la famille PRIX
@@ -29,19 +45,23 @@ PRIX_MOT_CLE = re.compile(
     r'\b(?:tarif|budget|fourchette|coûtera|coût|prix|coûte)\b',
     re.IGNORECASE
 )
+# Un montant est un chiffre suivi d'une devise (`\d(?:[.,]\d+)?\s*devise`), quelle que soit la façon d'écrire le
+# nombre : « 12500 $ », « 12 500 $ » (espace, insécable ou fine insécable), « 9 999,99 $ », « 3 $ ». L'ancien motif
+# décrivait le nombre en groupes de milliers, relancé à chaque chiffre : il relisait la suite de chiffres à chaque
+# départ (quadratique) sans jamais changer le verdict, puisqu'un nombre finit par un chiffre que la décimale ou la
+# devise suit, et que ce dernier chiffre suffit. Pour « $ 4 500 » et les deux nombres d'une fourchette, seule la fin
+# de la suite de chiffres compte (`\b`), pas sa forme.
 MONTANT_MONETAIRE = re.compile(
-    rf'''
-    (?:{_SEP}*|\b)\d{{1,3}}(?:{_SEP}{{0,1}}\d{{3}})*(?:[.,]\d+)?\s*
-    (?:\$|€|(?:CAD|dollars?|euros?)\b)
+    r"""
+    \d(?:[.,]\d+)?\s*(?:\$|€|(?:CAD|dollars?|euros?)\b)
     |
-    \$\s*\d{{1,3}}(?:{_SEP}{{0,1}}\d{{3}})*(?:[.,]\d+)?\b
+    \$\s*\d+\b
     |
     \b\d+\s*(?:\$|CAD|€|dollars?|euros?)\s*/\s*(?:h|heure|pied\s+carré|m²)\b
     |
     \b(?:deux\s+mille|mille)\s+(?:dollars?|CAD|\$|€|euros?)\b
     |
-    \bfourchette\b.*\b\d{{1,3}}(?:{_SEP}{{0,1}}\d{{3}})*(?:[.,]\d+)?\s*(?:à|et)\s*\d{{1,3}}(?:{_SEP}{{0,1}}\d{{3}})*(?:[.,]\d+)?\b
-    ''',
+    """ + _apres_sur_la_meme_ligne(r"\bfourchette\b", r"\b\d+(?:[.,]\d+)?\s*(?:à|et)\s*\d+\b"),
     re.IGNORECASE | re.VERBOSE
 )
 GRAND_NOMBRE = re.compile(r'\b\d{1,3}(?:\s?\d{3})*\b')
@@ -173,31 +193,19 @@ VERBES_EXECUTION = re.compile(
 )
 
 
+# Un séparateur est UN caractère : ponctuation forte ou saut de ligne. Les blancs qui l'entourent partent au nettoyage
+# de chaque segment, pas du motif : un motif qui les absorbe (blancs, ponctuation, blancs) relit chaque suite de blancs
+# à chaque départ, et 20 000 espaces coûtaient plusieurs secondes.
+_SEPARATEUR_DE_SEGMENTS = re.compile(r"[.!?;\n]")
+
+
 def decouper_segments(texte: str) -> list[str]:
     """
     Sépare le texte en segments indépendants sur la base de la ponctuation forte :
     . ! ? ; et des sauts de ligne.
-    Chaque segment résultant est nettoyé des espaces superflus.
+    Chaque segment résultant est nettoyé des espaces superflus ; un segment vide disparaît.
     """
-    separateur = re.compile(
-        r'''
-        \s*                     # éventuels espaces avant le séparateur
-        (?:
-            [.!?;]              # ponctuation forte
-            |                   # OU
-            \n                  # saut de ligne
-        )
-        \s*                     # éventuels espaces après
-        ''',
-        re.VERBOSE
-    )
-    parties = separateur.split(texte)
-    segments = []
-    for p in parties:
-        p = p.strip()
-        if p:
-            segments.append(p)
-    return segments
+    return [segment for partie in _SEPARATEUR_DE_SEGMENTS.split(texte) if (segment := partie.strip())]
 
 
 def _detecter_date(texte: str) -> bool:
@@ -253,10 +261,11 @@ AVEU = re.compile(
     \ble\s+vice\s+est\s+dû?\s+à\s+notre\b|
     \bde\s+notre\s+fait\b|
     \bentièrement\s+de\s+notre\s+fait\b|
-    \bnous\s+reconnaissons\s+que\b.*\berreur\b|
-    \bnous\s+sommes\s+responsables\b.*\bdégâts\b|
-    \bnous\s+assumons\b.*\bresponsabilité\b
-    ''',
+    ''' + '|'.join((
+        _apres_sur_la_meme_ligne(r'\bnous\s+reconnaissons\s+que\b', r'\berreur\b'),
+        _apres_sur_la_meme_ligne(r'\bnous\s+sommes\s+responsables\b', r'\bdégâts\b'),
+        _apres_sur_la_meme_ligne(r'\bnous\s+assumons\b', r'\bresponsabilité\b'),
+    )),
     re.IGNORECASE | re.VERBOSE
 )
 
