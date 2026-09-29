@@ -4,8 +4,9 @@ Public : opérateur qui installe OPSYS sur un VPS neuf. Architecture détaillée
 [`docs/architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.md), décision Core :
 [ADR-0007](../decisions/ADR-0007-core-openclaw.md), remplacée par le fork
 [ADR-0008](../decisions/ADR-0008-fork-openclaw-opsys-core.md). Provenance du fork :
-[`core/PROVENANCE.md`](../../core/PROVENANCE.md). Tant que l'installateur OPSYS (PLAN T0.11)
-n'est pas livré, ce guide déploie l'image officielle épinglée de la release d'origine.
+[`core/PROVENANCE.md`](../../core/PROVENANCE.md). Ce guide est l'option serveur : Docker Compose, image officielle
+épinglée de la release d'origine. Pour un poste ou un serveur sans Docker, l'installateur une commande
+(PLAN T0.11) est décrit dans [`../exploitation/INSTALLATION.md`](../exploitation/INSTALLATION.md).
 
 ## 1. Prérequis
 

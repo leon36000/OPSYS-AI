@@ -81,6 +81,7 @@
 | **Caddy** (profil minimal) | Apache-2.0 | Alternative plus simple si une seule interface est exposée | Service sidecar docker | Phase 2 (alternative) | R5 |
 | **SQLAlchemy 2.1** (Core) + **Alembic 1.20** | MIT (les deux, fichiers LICENSE vérifiés le 2026-09-28) | Base de l'instance : même code pour SQLite (défaut) et PostgreSQL (option), migrations versionnées | Dépendances directes (`pyproject.toml`), paquet `opsys.stockage` | Adopté (ADR-0009) | R13 |
 | **PostgreSQL 17** + **pgvector** | PostgreSQL License (les deux) | Base relationnelle métier + RAG, déjà la stack visée (psycopg) | Image officielle `pgvector/pgvector:pg17` | Phase 2 (dépendance `psycopg` déclarée en optionnelle dans `pyproject.toml`, mais aucun service déployé) | R5 |
+| **uv** (Astral) | MIT ou Apache-2.0 (fichiers `LICENSE-MIT` et `LICENSE-APACHE` de la roue 0.8.17, vérifiés le 2026-09-29) | Installe le moteur Python 3.11+ dans un environnement dédié (Python géré au besoin) pour l'installateur une commande | Prérequis externe de `install/install.sh` et `install.ps1` : vérifié, jamais vendorisé, aucune dépendance Python ; installé par `pip` dans le job `installateur` | Intégré | PLAN T0.11 |
 | **Valkey** (jamais Redis) | BSD-3-Clause | Cache + files + pub/sub, protocole compatible Redis | Image officielle sidecar | Phase 2 | R5 |
 | **pgBackRest** | MIT | Sauvegarde Postgres parallèle/incrémentale par bloc, multi-repo S3 | Sidecar/cron docker + repo S3 canadien | Phase 2 | R5 |
 | **restic** | BSD-2-Clause | Sauvegarde chiffrée des volumes non-SQL (ClickHouse Langfuse, Uptime Kuma, secrets) | Sidecar/cron docker | Phase 2 | R5 |
@@ -320,7 +321,7 @@ hors périmètre strict de R10 ») et documente en plus, pour M10 spécifiquemen
 - **Core** : 2 retenues (2 intégrées — OpenClaw comme core par défaut, Hermes Agent comme adaptateur optionnel, ADR-0007) + 1 refusée.
 - **Modèles/tokens** : 9 retenues (2 intégrées, 6 phase 2, 1 référence) + 6 refusées.
 - **Mémoire/RAG** : 16 retenues (14 phase 2/optionnelles, 2 référence) + 6 refusées.
-- **Déploiement/observabilité** : 18 retenues (16 phase 2, 2 référence — WAL-G, et le trio Coolify/Dokploy/Supabase en une seule ligne) + 2 refusées.
+- **Déploiement/observabilité** : 19 retenues (1 intégrée — uv, installateur de PLAN T0.11 —, 16 phase 2, 2 référence — WAL-G, et le trio Coolify/Dokploy/Supabase en une seule ligne) + 2 refusées.
 - **Mobile** : 23 retenues (23 intégrées — squelette Expo Router de PLAN T1.4-a, +4 pour le
   client d'appairage de PLAN T1.4-c3 : `expo-secure-store`, `@noble/curves`, `@noble/hashes`,
   `@types/node`, +4 pour le chantier du jour/checklist/photos/signature de PLAN T1.4-e :

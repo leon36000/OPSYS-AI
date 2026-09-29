@@ -61,6 +61,7 @@ non audités ici au-delà de leur existence) :
 |---|---|
 | [`../core/PROVENANCE.md`](../core/PROVENANCE.md) | Provenance du fork dur OPSYS-CORE (release et commit OpenClaw d'origine, élagage reproductible, veille de sécurité — ADR-0008) et surfaces de configuration consommées par la couche Python. |
 | [`../core/patches/README.md`](../core/patches/README.md) | Patchs pnpm de dépendances tierces du core, hérités de la release d'origine (texte d'origine en anglais). |
+| [`exploitation/INSTALLATION.md`](exploitation/INSTALLATION.md) | Installation locale sans Docker (`install/install.sh`, `install.ps1`) : prérequis, mise à jour, export et restauration de l'instance, désinstallation sans perte de données, ce que la CI prouve. |
 | `ops/INSTALLATION-VPS.md` | Installation sur un VPS neuf (public : opérateur), renvoie à `ARCHITECTURE.md` et ADR-0007. |
 | `ops/EXPLOITATION.md` | Commandes d'exploitation courantes depuis `deploy/` (`docker compose logs`, etc.), suite d'INSTALLATION-VPS.md. |
 | `../deploy/` (hors `docs/`) | `docker-compose.yml`, `Dockerfile`, `install.sh`, `backup.sh`/`restore.sh`, `Caddyfile`, `.env.example` — plus câblé que ce que R5 anticipait comme entièrement prévu. |

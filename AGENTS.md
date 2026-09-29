@@ -22,7 +22,8 @@ Revêtements Synergy (rénovation extérieure, Québec) ; ensuite, SaaS pour PME
 | `src/opsys/` | Couche OPSYS : contrat d'outil, manifestes, politiques, capacités MCP (stdio/HTTP), approbations, tokens, paliers, passerelle LiteLLM, configuration OpenClaw, console, mémoire, CLI (adaptateur Hermes optionnel) |
 | `departments/mNN-*/` | Départements : `department.yaml`, `SOUL.md`, `skills/`, `src/`, `tests/` (guide : `docs/architecture/DEPARTEMENTS.md`) |
 | `core/` | OPSYS-CORE (TypeScript) : fork dur d'OpenClaw v2026.9.6, provenance `core/PROVENANCE.md` ; construit et testé en CI (`core.yml`) |
-| `deploy/` | Image, docker compose, `install.sh`, sauvegardes |
+| `install/` | Installateur une commande (`install.sh`, `install.ps1`), désinstallation ; `docs/exploitation/INSTALLATION.md` |
+| `deploy/` | Image, docker compose, `install.sh`, sauvegardes (option serveur) |
 | `docs/` | Architecture, décisions, recherche (ingrédients), mémoire/RAG, exploitation, conformité Loi 25, plan maître |
 | `tests/` | Tests du socle `opsys` |
 

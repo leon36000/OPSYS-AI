@@ -22,9 +22,14 @@ M8 Analytique, M9 Stratégie, M10 Mémoire.
   Paiements et engagements ne sont jamais autonomes.
 - **Mémoire d'entreprise** : PostgreSQL + pgvector (conception : `docs/memory/RAG-PREMIUM.md`).
 
-## Installation (VPS Ubuntu/Debian, 4 vCPU, 8–16 Go)
+## Installation
 
-Voir [`docs/ops/INSTALLATION-VPS.md`](docs/ops/INSTALLATION-VPS.md).
+- **Poste ou serveur, sans Docker** (Linux, macOS, Windows) : `install/install.sh` ou `install/install.ps1`, une commande
+  qui construit le core, installe le moteur et le service, puis `install/uninstall.sh` (les données ne sont jamais
+  supprimées) et `opsys instance exporter` / `restaurer`. Voir
+  [`docs/exploitation/INSTALLATION.md`](docs/exploitation/INSTALLATION.md).
+- **VPS Ubuntu/Debian avec Docker Compose** (4 vCPU, 8–16 Go) : voir
+  [`docs/ops/INSTALLATION-VPS.md`](docs/ops/INSTALLATION-VPS.md).
 
 ## Développement
 

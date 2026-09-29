@@ -70,8 +70,11 @@ La greffe est dans `core/` (liste : `core/PROVENANCE.md`, « Greffes OPSYS »).
   le donne au moteur par l'environnement de l'enfant, et ne l'écrit dans aucun journal. Un jeton
   généré ne sert qu'aux lectures ultérieures de la configuration : la première lecture de
   `${OPSYS_MCP_JETON}` exige que la variable existe déjà (fichier `.env` posé par l'installateur).
-- **Docker Compose.** Inchangé pour l'instant : `deploy/` lance encore le moteur et le core dans
-  deux conteneurs. Il passera à ce mode quand l'installateur unique (T0.x) sera livré.
+- **Installateur.** `install/install.sh` et `install/install.ps1` (PLAN T0.11) posent ce mode sur un poste : secrets
+  dans `$OPSYS_HOME/core/.env`, `opsys/metier.json`, service du Gateway. Voir
+  [`INSTALLATION.md`](../exploitation/INSTALLATION.md).
+- **Docker Compose.** Reste l'option serveur, inchangée : `deploy/` lance encore le moteur et le core dans deux
+  conteneurs. Son passage au superviseur est une décision séparée.
 
 ## Moteur de contexte (PLAN T3.3-suite)
 

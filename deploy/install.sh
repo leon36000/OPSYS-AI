@@ -6,6 +6,10 @@
 # Debian 12/13, 4 vCPU / 8-16 Go RAM, sans GPU.
 #
 # Usage : sudo bash deploy/install.sh
+#
+# C'est l'option serveur (Docker Compose). Pour un poste ou un serveur sans Docker, l'installateur une commande est
+# `install/install.sh` (PLAN T0.11, docs/exploitation/INSTALLATION.md) : même enchaînement de mise en route (base migrée,
+# `opsys openclaw configurer`, bloc `gateway`, validation, Gateway), avec le moteur lancé par le superviseur du core.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
