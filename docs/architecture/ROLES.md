@@ -348,8 +348,15 @@ pour un appel d'appareil ; sans identité d'appareil, la liste, comme avant. La 
   T1.4-h, seulement en mode `ombre`).
 - **`decision_admin`** : le motif de report réservé à l'admin n'est pas refusé à un employé par le code.
 - **Droit d'accès de l'employé à SES positions** (§7) : aucun outil ; `m4_lire_position_gps` reste à l'admin.
-- **L'app ne connaît pas la personne appairée** : l'employé saisit encore son identifiant à la main
-  (`punch.tsx`, `job/[id]`, `consent.tsx`) ; le serveur le confronte à l'identité authentifiée.
+- **L'app apprend sa personne et son rôle (T1.4-c5)** : elle ne demande plus son identifiant à l'employé
+  (`punch.tsx`, `job/[id]`, `consent.tsx`). Elle lit `GET /opsys/identite` avec son jeton d'appareil, qui
+  rend la personne et le rôle nommé de `opsys/appareils.json`, par le même code que la porte d'outils ; le
+  serveur confronte toujours l'identifiant envoyé à l'identité authentifiée (un autre est refusé). Ce n'est
+  pas un outil : aucune portée à déclarer dans `roles_appareil`, aucune ligne de la table ci-dessus. Un
+  appareil sans attribution, ou avec un rôle que `roles.json` ne déclare pas, n'a aucune identité et
+  n'ouvre aucun profil (`docs/architecture/MOBILE.md`, « Identité de l'appareil »). Hors ligne, l'app garde
+  la dernière identité confirmée, marquée « à reconfirmer » : une mutation créée alors porte la personne
+  gardée, et le serveur la refuse si l'appareil a été réattribué entre-temps.
 - **Localisation d'un chantier (T4.1-a).** `m4_confirmer_localisation` est N3 : en mode `ombre`, l'appel d'un
   agent attend une personne ; en `supervise` et `autonome`, un N3 s'exécute sans file, et « une personne a
   confirmé » ne repose plus que sur `confirme_par`, que rien ne prouve pour un appel sans identité d'appareil.

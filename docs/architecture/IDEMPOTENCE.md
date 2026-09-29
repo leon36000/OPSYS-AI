@@ -329,12 +329,13 @@ d'autres routes HTTP (lecture Control UI, routes de plugin) :
 - **Identifiant de client OPSYS.** `GATEWAY_CLIENT_IDS.OPSYS_MOBILE` (`opsys-mobile`) ajouté au
   registre fermé du fork (`core/packages/gateway-protocol/src/client-info.ts`) — vérifié par
   lecture qu'aucun switch exhaustif ni schéma séparé n'en dépend (le schéma de poignée de main
-  `Type.Enum(GATEWAY_CLIENT_IDS)` dérive directement de cet objet). **Non câblé** : le mobile
-  continue d'emprunter `openclaw-ios`/`openclaw-android` (`mobile/src/appairage/clientInfo.ts`,
-  limite documentée dans `MOBILE.md` « Appairage ») et `isNativeAppUiClient`
-  (`handshake-auth-helpers.ts`) ne reconnaît pas encore le nouvel identifiant — un changement de
-  classification de confiance à l'appairage, hors de portée d'une tranche core-seule non exécutée
-  dans ce bac à sable.
+  `Type.Enum(GATEWAY_CLIENT_IDS)` dérive directement de cet objet). **Câblé par T1.4-c5** : le mobile
+  envoie `opsys-mobile` (`mobile/src/appairage/clientInfo.ts`), et `isNativeAppUiClient`
+  (`handshake-auth-helpers.ts`) ne le reconnaît PAS, volontairement : la classe « app native » ouvre des
+  voies d'approbation silencieuse qu'un téléphone OPSYS n'a pas à avoir. Décision, lecture du fork et test
+  qui l'épingle : `MOBILE.md`, « Identifiant de client ». La même tranche donne à l'app sa personne et son
+  rôle nommé par `GET /opsys/identite`, lus par le même code que cette porte d'outils
+  (`resolveOpsysDeviceIdentity`, `opsys-device-roles.ts`) : `MOBILE.md`, « Identité de l'appareil ».
 - **Preuve.** Tests vitest ajoutés (la CI `core.yml` les exécute, jamais ce bac à sable) :
   `tools-invoke-http.device-token-auth.test.ts` (bout en bout, appairage/jeton réels via
   `requestDevicePairing`/`approveDevicePairing`/`revokeDeviceToken`, contre un `OPENCLAW_HOME`

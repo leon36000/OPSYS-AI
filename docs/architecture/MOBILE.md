@@ -13,8 +13,9 @@
 et client protocole en logique pure) sans écran métier. T1.4-d a livré `punch.tsx` (M4.4) et le
 « vidangeur » qui relie `src/outbox` à `src/protocole` (R12 §5 étape 2). T1.4-c3 a livré le
 **CLIENT D'APPAIRAGE réel** (`src/appairage/`, voir « Appairage » ci-dessous). **Précision
-(T1.4-c4) :** le rôle *reçu par la poignée de main* (`hello.auth.role`, ce que la garde de routes
-regarde) reste le rôle de transport générique du fork (`"operator"`) même après T1.4-c2/T1.4-c4 ;
+(T1.4-c4) :** le rôle *reçu par la poignée de main* (`hello.auth.role`, que la garde de routes
+regardait avant T1.4-c5) reste le rôle de transport générique du fork (`"operator"`) même après
+T1.4-c2/T1.4-c4 ;
 ces deux tranches livrent le rôle OPSYS nommé (`admin`/`employee`/`seller`) résolu et appliqué à
 CHAQUE appel `/tools/invoke`, indépendamment de la poignée de main (« Idempotence et identité
 d'appareil de bout en bout » ci-dessous). T1.4-e a livré R12 §5 étapes 3 et 4 : `today.tsx`
@@ -41,6 +42,15 @@ appareil → core → moteur reste à prouver (T1.5). **T1.4-c6 a corrigé un d�
 ne voyait aucun outil MCP de département, quel que soit le nom, et l'app n'aurait reçu que des 404 ou
 des 400. Le core a maintenant une porte d'appareil vers le serveur du département — voir « Nom d'un
 outil de l'app au moteur » ci-dessous.
+
+**T1.4-c5 : l'app apprend sa personne et son rôle nommé.** Le rôle de la poignée de main reste
+`"operator"`, mais ce n'est plus lui que la garde de routes regarde : après l'appairage, à chaque
+démarrage, à chaque retour au premier plan et à chaque retour du réseau, l'app lit
+`GET /opsys/identite` avec son jeton d'appareil. Le core répond avec la personne et le rôle
+(`admin`, `employee`, `seller`) que `opsys/appareils.json` attribue à cet appareil, par le même code
+que la porte d'outils. L'app affiche cette identité, choisit son profil d'après le rôle NOMMÉ, envoie la
+personne comme technicien (elle ne la demande plus à l'employé) et n'ouvre aucun profil sans identité :
+voir « Identité de l'appareil » ci-dessous.
 
 ## Pile (R12 §3 — versions et licences vérifiées)
 
@@ -88,13 +98,15 @@ inscrire dans `docs/research/INGREDIENTS.md`.
 
 Quatre profils (DEFINITION-PRODUIT §9) = quatre groupes Expo Router : `(employee)`, `(seller)`,
 `(admin)`, `(client)`. `src/roles/garde.ts` exporte `evaluerGarde(session, groupeCible)`, une
-fonction **pure** : rôle du jeton d'appareil → groupe autorisé (mappage un-à-un, R12 §6), fail-
-closed (session absente, rôle inconnu et rôle valide mais différent du groupe visé refusent
-tous les trois, vers `/pairing`). Chaque `_layout.tsx` de groupe appelle cette garde avant de
-rendre quoi que ce soit — un jeton `employee` n'atteint donc jamais `(admin)`, y compris par URL
-directe. `src/roles/contexte.tsx` porte l'état de session en React Context ; il démarre toujours
-`{ presente: false }` au premier rendu (`app/_layout.tsx` la restaure ensuite depuis
-`expo-secure-store` si une session persistée existe — voir « Appairage » ci-dessous). 446 tests
+fonction **pure** : rôle NOMMÉ de l'appareil (confirmé par le serveur, voir « Identité de l'appareil »)
+→ groupe autorisé (mappage un-à-un, R12 §6), fail-closed (session absente, rôle inconnu et rôle valide
+mais différent du groupe visé refusent tous les trois, vers `/`, l'aiguilleur `app/index.tsx` qui choisit
+d'après l'état de l'app : appairage, écran d'erreur d'identité ou groupe du rôle). Chaque `_layout.tsx` de
+groupe appelle cette garde avant de rendre quoi que ce soit — un appareil `employee` n'atteint donc
+jamais `(admin)`, y compris par URL directe. `src/roles/contexte.tsx` porte l'état de l'app en React
+Context ; il démarre toujours en `restauration` au premier rendu (`app/_layout.tsx` relit ensuite
+`expo-secure-store` — voir « Appairage » ci-dessous), et la session que la garde regarde en est dérivée :
+un profil n'existe que si une identité existe (`src/identite/etat.ts`). 446 tests
 Jest (PLAN T1.4-e ; 312 à T1.4-c3) couvrent la garde (matrice rôle × groupe complète, session
 absente, rôles inconnus), la file sortante, le vidangeur (faux transport), le contrat
 `m4_pointer`, les déclencheurs, la logique de `punch.tsx`, le client d'appairage
@@ -213,6 +225,9 @@ faire adopter le véritable identifiant OPSYS au mobile, et éventuellement ense
 confiance à l'appairage que cette tranche, core-seule et jamais exécutée dans ce bac à sable, ne
 peut pas vérifier de bout en bout — laissé à une tranche dédiée, mobile ET core ensemble.
 
+**Levée par T1.4-c5** : l'app envoie `opsys-mobile`, et le core ne le classe PAS comme app native. Voir
+« Identifiant de client » plus bas.
+
 ### Ce que fait l'écran (`app/pairing/index.tsx`)
 
 Saisie du **code seulement** (pas de lecture QR — `expo-camera` alourdirait cette tranche pour un
@@ -223,12 +238,13 @@ suivantes : relit la même identité — le `deviceId` reste stable pour l'histo
 côté propriétaire) → `appairerAppareil` (`src/appairage/client.ts`, la machine à états décrite
 ci-dessus, avec recul exponentiel réutilisé tel quel de `src/outbox/recul.ts` entre les
 tentatives pendant l'attente d'approbation) → au succès, `sauvegarderSession` (jeton, rôle, URL,
-`appareilId`) dans `expo-secure-store`, `definirConfigurationAppel` (`src/protocole
-/configuration.ts`) et `definirSession` (`src/roles/contexte.tsx`) sont appelés, puis
-`router.replace("/")` laisse `app/index.tsx` rediriger vers le bon groupe (ou revenir à
-`/pairing` si le rôle reste inconnu — voir plus bas). `app/_layout.tsx` restaure la même session
-au démarrage (`RestaurationSession`, lit `expo-secure-store` une fois) sans repasser par un
-nouvel appairage. Écran non testé en rendu (même limite que `punch.tsx`, pas de
+`appareilId`) dans `expo-secure-store` et `definirConfigurationAppel` (`src/protocole
+/configuration.ts`) sont appelés, puis `apresAppairage` (`src/identite/hooks.ts`) met l'état de l'app
+en « lecture de l'identité » et lit l'identité auprès du serveur, et `router.replace("/")` laisse
+`app/index.tsx` attendre cette lecture, puis ouvrir le groupe du rôle nommé ou l'écran d'erreur
+d'identité (voir « Identité de l'appareil »). `app/_layout.tsx` restaure la même session au démarrage
+(`CycleIdentiteApp`, lit `expo-secure-store` puis relit l'identité) sans repasser par un nouvel
+appairage. Écran non testé en rendu (même limite que `punch.tsx`, pas de
 `@testing-library/react-native`) ; toute la logique sous-jacente l'est, exhaustivement.
 
 ### Rôle reçu -> garde de routes existante, et ce que T1.4-c2/T1.4-c4 livrent EN RÉALITÉ
@@ -259,6 +275,153 @@ CORRECT en attendant (P2, fail-closed) : mieux vaut un appareil apparié mais bl
 qu'un rôle deviné. Rien côté mobile n'a besoin de changer quand une future tranche livrera un rôle
 nommé sur la poignée de main : le chemin
 `hello.auth.role → SessionAppareil.role → evaluerGarde` est déjà générique.
+
+**Levé par T1.4-c5, autrement que prévu.** Ce n'est pas la poignée de main qui porte le rôle nommé, c'est un
+appel dédié authentifié par le jeton d'appareil (`GET /opsys/identite`, section suivante). `hello.auth.role`
+reste `"operator"` et n'entre plus dans la session : `SessionAppairee.role`, gardé dans le coffre, est le rôle
+de TRANSPORT, sans autre usage. La garde de routes regarde le rôle nommé confirmé par le serveur.
+
+## Identité de l'appareil (PLAN T1.4-c5)
+
+### Constat (lu dans le fork, base 1bd1cca)
+
+Après l'appairage, le core ne donnait à l'app que le rôle de transport `operator`, que la garde refuse. Il
+attribue bien une personne et un rôle nommé à chaque appareil (`opsys/appareils.json`, T1.4-c2 et c4), mais
+il ne le disait qu'au moteur, dans le `_meta` de chaque appel d'outil. L'app ne savait donc ni qui elle
+représentait ni quel profil ouvrir, d'où l'identifiant d'employé saisi à la main sur `punch.tsx`,
+`job/[id]/index.tsx` et `consent.tsx`, que le serveur confrontait de toute façon (T1.4-k1).
+
+### Décision : un appel dédié authentifié par le jeton, pas la poignée de main
+
+`GET /opsys/identite` (`core/src/gateway/opsys-device-identity-http.ts`, monté par `server-http.ts`).
+Quatre raisons, toutes vérifiées par lecture :
+
+1. **L'attribution vient après.** Elle est faite par `opsys appareils appairer`, APRÈS l'approbation native du
+   propriétaire (deux temps, T1.4-c4). Le `hello-ok` part à l'approbation : il ne peut pas porter une
+   identité que l'appareil n'a pas encore. Seul un appel fait plus tard, et répété, le peut.
+2. **L'app ne se reconnecte pas en WebSocket.** Elle ferme la socket dès qu'elle a le jeton, puis ne parle
+   plus qu'en HTTP. « À chaque reconnexion » veut dire à chaque démarrage, retour au premier plan et retour
+   du réseau : un appel HTTP avec le jeton qu'elle garde déjà, sans refaire toute la poignée de main.
+3. **Une révocation ou une réattribution se voit.** Le prochain appel donne un refus ou une autre personne.
+4. **`hello-ok` est une trame gelée** (Wire v4, `HelloOkSchema`, schéma strict), commune à tous les clients
+   de la passerelle. Une route neuve est plus petite et plus sûre qu'un champ de plus dans cette trame.
+
+### Ce que le core lit, et ce qu'il ne lit jamais
+
+- Le `deviceId` vient du jeton d'appareil VÉRIFIÉ, par la même chaîne que `/tools/invoke`
+  (`authorizeScopedGatewayHttpRequestOrReply` avec `allowDeviceToken`, portée `operator.read` : méthode
+  `health`). Rien de ce que l'app envoie n'est lu : ni requête, ni en-tête, ni corps ne peuvent nommer un
+  autre appareil ou une autre personne.
+- La personne et le rôle viennent de `opsys/appareils.json`, par `resolveOpsysDeviceIdentity`
+  (`opsys-device-roles.ts`), le même code que `authorizeOpsysDeviceTool` (la porte d'outils) : ce que l'app
+  apprend d'elle-même est ce que la porte applique.
+- Le secret partagé n'est pas un appareil : il reçoit 403 `device_required`, jamais une identité.
+- Un jeton révoqué ou inconnu reçoit 401. Un appareil sans attribution (jamais attribuée, ou révoquée) reçoit
+  403 `device_unknown`, un rôle que `roles.json` ne déclare pas 403 `role_unknown` : jamais une identité par
+  défaut.
+
+Réponse : `200 { ok: true, identite: { appareilId, personne, role } }`, ou
+`403 { ok: false, error: { type: "forbidden", reason, message } }`. `Cache-Control: no-store`. GET seulement.
+
+### Côté app (`src/identite/`)
+
+| Module | Rôle |
+|---|---|
+| `contrat.ts` | types, rôles nommés (`admin`, `employee`, `seller`, comparés strictement), `interpreterReponseIdentite` (pure) |
+| `client.ts` | `lireIdentiteServeur` : le GET, avec le seul jeton ; ne lève jamais |
+| `etat.ts` | l'état de l'app et sa décision, pures : `restaurerEtat`, `decider`, `sessionDepuisEtat` |
+| `stockage.ts` | dernière identité confirmée, dans `expo-secure-store` (même coffre que le jeton) |
+| `service.ts` | restauration du coffre, lecture, écriture de la dernière identité confirmée |
+| `hooks.ts` | `useCycleIdentite` : une seule lecture à la fois par session, résultat jeté si la session a changé |
+| `BandeauIdentite.tsx` | affiche la personne, le rôle, et « à reconfirmer » |
+
+États (`EtatIdentite`) et ce que chacun ouvre :
+
+| État | Profil ouvert |
+|---|---|
+| `restauration`, `en_lecture` | aucun (l'aiguilleur attend) |
+| `non_appairee` | aucun (`/pairing`) |
+| `confirmee` | le groupe du rôle nommé |
+| `a_reconfirmer` | le groupe du rôle gardé (serveur injoignable) |
+| `erreur` | aucun (`/identite`) |
+
+Règles, toutes testées (Jest) :
+- **Fail-closed.** Seule une identité complète, d'un rôle nommé connu et DE CET appareil, est confirmée. Un
+  rôle inconnu (`operator`, `ADMIN`, `client`, vide), une personne vide, un rôle absent ou l'identité d'un autre
+  appareil sont refusés. Jamais un profil par défaut, jamais le rôle de transport.
+- **Un refus retire le profil.** Tout ce que le serveur refuse ou rend de travers (401, 403, autre 4xx, corps
+  JSON qui n'est pas une identité) efface l'identité gardée : un appareil révoqué ne garde pas son profil.
+- **Hors ligne.** Réseau coupé, délai, 408, 429, 5xx ou corps illisible (portail captif) ne disent rien de
+  l'attribution : la dernière identité confirmée sert, marquée « à reconfirmer », et le bandeau le dit. Sans
+  identité gardée, c'est une erreur (`hors_ligne_sans_memoire`).
+- **Un nouvel appairage repart de zéro.** L'identité gardée est effacée, la lecture recommence.
+- **Coffre illisible.** Ce n'est pas « non appairé » : erreur `stockage_illisible`, avec « Réessayer ». La
+  configuration déjà en mémoire n'est pas retirée.
+- **Démarrage à froid.** Avant T1.4-c5, l'aiguilleur redirigeait vers `/pairing` avant que le coffre soit
+  relu, et une session restaurée restait sur l'écran d'appairage. L'aiguilleur attend maintenant la
+  restauration.
+
+### Écrans
+
+- `app/index.tsx` : l'aiguilleur unique. Toute garde de groupe qui refuse renvoie à `/` (avant : `/pairing`).
+- `app/identite/index.tsx` : l'erreur, avec le texte du motif, l'identifiant de l'appareil (que le propriétaire
+  donne à `opsys appareils appairer`), « Réessayer » et « Appairer de nouveau ».
+- `punch.tsx`, `job/[id]/index.tsx`, `consent.tsx` : plus de champ « technicien ». Ils envoient la personne
+  confirmée (`usePersonneAppairee`) et refusent d'agir sans elle. Le serveur la confronte toujours à
+  l'identité authentifiée du jeton (T1.4-k1) : un identifiant qui n'est pas celui de la personne est refusé.
+  Une mutation créée hors ligne porte la personne gardée ; si l'appareil est réattribué entre-temps, le
+  serveur la refuse et le verdict s'affiche.
+- Les trois accueils affichent le bandeau d'identité.
+
+### Preuve et limites
+
+Jest et `tsc` (`mobile/`) ; côté core, vitest de CI seulement (`core/test/opsys-tests-cibles.txt`) :
+`opsys-device-roles.test.ts`, `opsys-device-identity-http.test.ts` (appairage réel, vrais fragments),
+`server-http.opsys-device-identity.test.ts` (route montée), `opsys-mobile-trust.test.ts`. Les écrans ne sont
+pas testés en rendu (pas de bibliothèque de test de rendu) ; des gardes lisent leur source
+(`ecransSansSaisie.test.ts`) pour empêcher le retour de la saisie à la main.
+
+- Le trajet réel (appareil → core → moteur) reste à prouver (T1.5) : rien de tout cela n'a tourné contre un
+  core réel.
+- Un core plus ancien, sans la route, répond 404 : refus (`refus_inattendu`), jamais un profil.
+- `personne` est l'identifiant OPSYS (`jdupont`), pas un nom d'affichage : `appareils.json` ne porte pas le
+  nom. Un nom complet demanderait une clé sœur additive dans ce fragment.
+- La lecture n'a pas de contre-mesure au martelage autre que le limiteur d'authentification de la passerelle.
+- `src/outbox/service.ts` garde son vidangeur (avec le jeton du moment) sans le refaire quand la session
+  change : après un nouvel appairage, il faut redémarrer l'app pour que la file sortante utilise le nouveau
+  jeton. Défaut antérieur à T1.4-c5, que « Appairer de nouveau » rend plus visible.
+
+## Identifiant de client (PLAN T1.4-c5)
+
+L'app se présente au core sous `opsys-mobile` (`GATEWAY_CLIENT_IDS.OPSYS_MOBILE`, ajouté par T1.4-c4), sur
+iOS comme sur Android (la plateforme voyage dans `client.platform`). Avant, elle empruntait `openclaw-ios` et
+`openclaw-android`.
+
+**Décision : `opsys-mobile` n'entre PAS dans `isNativeAppUiClient`.** Ce que cette classe ouvre, lu dans le
+fork :
+- le rafraîchissement silencieux des métadonnées d'un appareil, seulement pour une connexion locale directe
+  (`shouldAllowSilentLocalPairing`, raison `metadata-upgrade`) ;
+- l'approbation automatique par proxy de confiance, seulement si `trustedProxy.deviceAutoApprove` est
+  configuré (`resolvePairingApprovalPlan`).
+
+Un téléphone n'est pas une connexion locale directe, et OPSYS ne configure pas de proxy de confiance : la
+classe n'apporterait rien, et élargirait la confiance. Un téléphone s'appaire par l'approbation explicite du
+propriétaire, et son identité OPSYS vient d'une attribution explicite.
+
+Ce que l'app perd en quittant `openclaw-ios` et `openclaw-android`, lu dans le fork, et pourquoi cela ne
+compte pas :
+- l'admission d'appairage par code de configuration ne reconnaît ces identifiants que pour le rôle `node`
+  (`isMobileNodeBootstrapConnect`), que l'app OPSYS n'utilise pas : elle se connecte en `operator` ;
+- `resolvePinnedClientMetadata` accepte en silence un changement de version d'OS pour ces deux
+  identifiants (`ios 17.1` devenu `ios 17.2`). L'app envoie une plateforme fixe, `ios` ou `android`, sans
+  version : aucune dérive à absorber ;
+- la livraison des approbations d'exécution (`EXEC_APPROVAL_CLIENT_IDS`) passe par une socket ouverte, que
+  l'app ferme dès qu'elle a son jeton ;
+- l'épinglage d'identifiant de client ne concerne que le copilote de navigateur.
+
+Épinglé par `core/src/gateway/opsys-mobile-trust.test.ts` : la trame `connect` de l'app est valide avec cet
+identifiant, et `isNativeAppUiClient` le refuse. Si quelqu'un l'ajoute à la classe, ce test échoue et
+demande une décision. Cette décision est à confirmer par la revue externe (code d'admission critique).
 
 ## File sortante (`src/outbox/`, R12 §4)
 
@@ -376,17 +539,14 @@ impose aujourd'hui (« mode ombre uniquement », `outils.py` `_ATTESTATION`) :
 - `fenetre_travail`/`referentiel_villes`/`ville`/`sel` : aucune route serveur ne les expose
   encore au mobile — l'appairage (T1.4-c3) fournit désormais une connexion authentifiée, mais
   ces données de cédule/référentiel arrivent avec `today.tsx` (R12 §5 étape 3), pas avant ;
-- `technicien_id`/`intervention_id` NE sont PAS dans ce contexte provisoire : ce sont les deux
-  seuls champs que l'employé saisit lui-même à l'écran (`job/[id]/index.tsx`, depuis T1.4-e,
-  connaît `intervention_id` automatiquement — voir « Écran `job/[id]/index.tsx` » ; `technicien_id`
-  reste saisi à la main des deux côtés, aucune identité employé/technicien n'est encore exposée
-  par le serveur au mobile, limite reportée telle quelle, pas résolue par cette tranche). **Depuis
-  T1.4-k**, ce champ n'est plus libre côté serveur : pour un appel d'appareil d'un employé,
-  `technicien_id` DOIT être l'identifiant OPSYS de la personne authentifiée (l'identifiant de
-  technicien EST celui de la personne), sinon `REJ-IDENTITE-FOURNIE-DIFFERENTE` (jamais remplacé en
-  silence), et l'intervention doit lui être assignée (`REJ-INTERVENTION-NON-ASSIGNEE`). L'employé
-  saisit donc SON identifiant ; le remplacer par l'identité de la session appairée exige que le
-  serveur la donne à l'app (réponse d'appairage), ce que rien ne fait encore.
+- `technicien_id`/`intervention_id` NE sont PAS dans ce contexte provisoire (`job/[id]/index.tsx`,
+  depuis T1.4-e, connaît `intervention_id` automatiquement — voir « Écran `job/[id]/index.tsx` »).
+  **Depuis T1.4-k**, `technicien_id` n'est pas libre côté serveur : pour un appel d'appareil d'un employé,
+  il DOIT être l'identifiant OPSYS de la personne authentifiée (l'identifiant de technicien EST celui de
+  la personne), sinon `REJ-IDENTITE-FOURNIE-DIFFERENTE` (jamais remplacé en silence), et l'intervention
+  doit lui être assignée (`REJ-INTERVENTION-NON-ASSIGNEE`). **Depuis T1.4-c5**, l'employé ne saisit plus
+  son identifiant : le serveur donne sa personne à l'app (« Identité de l'appareil »), et l'écran envoie
+  cette personne (`usePersonneAppairee`), sans jamais créer de mutation s'il n'en a pas.
 
 **CONVERGENCE FAITE (PLAN T1.4-e, mission item 3) : un seul identifiant d'appareil dans toute
 l'app.** Avant cette tranche, `appareil_id`/`deviceId` (le champ `attestation.appareil_id` de
@@ -504,9 +664,9 @@ l'écran en pause par lui-même (`phaseDepuisStatutServeur`, `sur_site -> sur_pl
 
 Mutations : « En route » crée un `job_status_change` (nouveau descripteur
 `src/outbox/descripteurs.ts`, `-> m4_demarrer_route`, testé) ; « Arrivé »/« Pause » créent des
-`punch_in`/`punch_out` (descripteurs T1.4-d inchangés, réutilisés tels quels). `technicien_id`
-reste saisi à la main (même limite que `punch.tsx`, non résolue ici) ; `appareilId` vient de la
-VRAIE session appairée (voir « Écran `punch.tsx` » ci-dessus). Verdict serveur affiché sur un
+`punch_in`/`punch_out` (descripteurs T1.4-d inchangés, réutilisés tels quels). `technicien_id` est la
+personne que le serveur a confirmée pour l'appareil (T1.4-c5, comme `punch.tsx`) ; `appareilId` vient de
+la VRAIE session appairée (voir « Écran `punch.tsx` » ci-dessus). Verdict serveur affiché sur un
 échec définitif — même patron que `punch.tsx` (`RapportVidange.echecsPermanents`).
 
 **`job_status_change` : une seule direction aujourd'hui.** `DescripteurTypeMutation` associe UN
@@ -949,8 +1109,8 @@ Détail des contrôles : [`ROLES.md`](ROLES.md).
   l'explication des finalités et la case à cocher (POLITIQUE §4), que rien ne présente encore ; le
   serveur accepte déjà `donne` pour la propre personne de l'employé, et `consentementGps.ts`
   construit les deux actions ;
-- `technicien` est saisi à la main (comme `punch.tsx`) : l'app ne connaît pas encore la personne
-  appairée ; le serveur, lui, le confronte à l'identité authentifiée ;
+- `technicien` n'est plus saisi (T1.4-c5) : c'est la personne que le serveur a confirmée pour l'appareil,
+  que le serveur confronte de toute façon à l'identité authentifiée ;
 - `preuve` reste `{fictif: true, reference}` (`consentement.py` refuse toute preuve réelle en mode
   ombre) et `version_politique` nomme la PROPOSITION P0-7, que Nathan n'a pas encore validée
   (`VERSION_POLITIQUE_GEOLOCALISATION`) : à remplacer quand la politique sera publiée ;
@@ -1129,7 +1289,8 @@ fonctionnait.
     bloqué à `/pairing` pour tout appareil réel tant qu'une tranche séparée n'apprend pas à la
     poignée de main elle-même à rendre un rôle nommé (ou que l'app n'obtient son rôle OPSYS par un
     autre moyen que `hello.auth.role`) — un problème d'UX/routage distinct du trou de sécurité que
-    T1.4-c4 ferme, non traité ici.
+    T1.4-c4 ferme, non traité ici. **Traité par T1.4-c5** : l'app obtient son rôle nommé par un appel dédié
+    (« Identité de l'appareil »).
 
 ## Sécurité
 
@@ -1177,17 +1338,10 @@ demandes d'approbation du socle. La logique est dans `src/ecrans/approvals.ts` e
 
 **Côté core (hors périmètre de ce dépôt mobile, lecture seule) :** la poignée de main WebSocket
 d'appairage (`connect`/`hello-ok`) ne rend toujours que le rôle de transport générique du fork
-(`"operator"`), jamais un rôle nommé OPSYS — `evaluerGarde` bloque donc toujours tout accès métier
-(fail-closed, voir « Appairage » et « Idempotence et identité d'appareil de bout en bout »
-ci-dessus) même si `/tools/invoke` authentifie désormais correctement l'appareil et résout
-`admin`/`employee`/`seller` pour CHAQUE appel d'outil (T1.4-c2 + T1.4-c4). Combler cet écart
-(faire porter un rôle nommé par la poignée de main elle-même, ou donner à l'app un autre moyen
-d'apprendre son rôle OPSYS) reste une tranche core séparée, non commencée.
-`GATEWAY_CLIENT_IDS.OPSYS_MOBILE` (`"opsys-mobile"`) a été enregistré (T1.4-c4,
-`core/packages/gateway-protocol/src/client-info.ts`), mais **non câblé** :
-`src/appairage/clientInfo.ts` emprunte toujours `openclaw-ios`/`openclaw-android`, et
-`isNativeAppUiClient` (classification de confiance à l'appairage, `handshake-auth-helpers.ts`) ne
-reconnaît pas encore le nouvel identifiant — une tranche dédiée, mobile ET core ensemble.
+(`"operator"`). L'écart avec les rôles nommés est comblé par T1.4-c5, autrement : l'app lit sa personne et
+son rôle nommé par `GET /opsys/identite` (voir « Identité de l'appareil »), et
+`GATEWAY_CLIENT_IDS.OPSYS_MOBILE` est câblé dans l'app, sans entrer dans la classe « app native » du core
+(voir « Identifiant de client »). Ni l'un ni l'autre n'a tourné contre un core réel (T1.5).
 T1.4-c4 refuse (403) tout `deviceId` de corps qui diffère de l'appareil authentifié par le jeton :
 depuis T1.4-e, `punch.tsx` et `job/[id]/index.tsx` envoient l'identité d'appairage réelle
 (`obtenirConfigurationAppel().appareilId`, le `deviceId` calculé par le client d'appairage), qui
@@ -1244,11 +1398,10 @@ réception côté propriétaire ne ferme pas la boucle », R12 §5) : l'alerte d
 encore une carte de cet écran ; pas de tests E2E Maestro contre
 un core/moteur réels (R12 §5 étape 7 — le scénario exact, « travaux terminés normaux ; écart de
 40 % -> `completed_pending_review` + alerte mobile admin », PLAN.md T1.5, reste à exécuter, voir
-la remarque ci-dessus sur la conformité non vérifiée du contrat fichiers) ; `technicien_id` reste
-saisi à la main sur `punch.tsx`/`job/[id]/index.tsx`/`consent.tsx` (aucune identité employé/technicien
-exposée par le serveur au mobile — pas résolu, contrairement à `appareilId` qui, lui, converge
-maintenant — voir « Écran `punch.tsx` » ; depuis T1.4-k, le serveur exige que ce soit l'identifiant de
-la personne authentifiée) ; pas de suppression/reprise de photo une fois
+la remarque ci-dessus sur la conformité non vérifiée du contrat fichiers) ; `technicien_id` n'est
+plus saisi sur `punch.tsx`/`job/[id]/index.tsx`/`consent.tsx` depuis T1.4-c5 : c'est la personne que le
+serveur a confirmée pour l'appareil (« Identité de l'appareil ») ; depuis T1.4-k, le serveur exige que ce
+soit l'identifiant de la personne authentifiée ; pas de suppression/reprise de photo une fois
 capturée (`DepotOutbox` n'expose aucune méthode de suppression, volontairement non étendue ici
 pour ne pas risquer une régression sur `punch.tsx` déjà en production — une photo capturée par
 erreur ne peut être « annulée » qu'en ne la déposant jamais, ce que rien n'empêche aujourd'hui) ;
