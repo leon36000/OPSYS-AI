@@ -237,6 +237,12 @@ corps HTTP de `/tools/invoke`, y compris l'absence de `idempotencyKey` et l'abse
 
 Ce que T1.4-c1 ne fait PAS : rien côté rôles nommés ni portée d'outil — voir §7 bis (T1.4-c2).
 
+**Correction (T1.4-c6).** La lecture ci-dessus supposait que `/tools/invoke` trouvait un outil MCP dans
+la liste d'outils de l'agent. Ce n'est pas le cas : cette liste ne contient que des outils du core, de
+plugins et de canaux. Le `_meta` de T1.4-c1 n'était atteignable que par un tour d'agent. Un appareil
+appairé passe maintenant par une porte dédiée, qui appelle le serveur MCP du département sous le nom nu
+de l'outil, avec ce même `_meta` : voir [MOBILE.md](MOBILE.md), « Nom d'un outil de l'app au moteur ».
+
 ## 7 bis. OPSYS-CORE : rôles nommés et portée d'outil (T1.4-c2, durci par T1.4-c4)
 
 Voir `docs/architecture/MOBILE.md` (section rôles) pour le contrat complet (jeton d'appareil,

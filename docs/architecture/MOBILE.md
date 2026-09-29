@@ -37,7 +37,10 @@ d'approbation N3 et N4 (voir « Écran `approvals.tsx` »). Reste l'E2E Maestro 
 « Ce qui n'est PAS encore fait ». T1.4-b (idempotence côté socle) et T1.4-c1 (le core transmet la clé,
 l'appareil et son heure dans le `_meta` MCP) sont faits côté serveur — voir
 [`IDEMPOTENCE.md`](IDEMPOTENCE.md) et la section « `/tools/invoke` » ci-dessous ; le trajet réel
-appareil → core → moteur reste à prouver (T1.5).
+appareil → core → moteur reste à prouver (T1.5). **T1.4-c6 a corrigé un défaut de fond** : `/tools/invoke`
+ne voyait aucun outil MCP de département, quel que soit le nom, et l'app n'aurait reçu que des 404 ou
+des 400. Le core a maintenant une porte d'appareil vers le serveur du département — voir « Nom d'un
+outil de l'app au moteur » ci-dessous.
 
 ## Pile (R12 §3 — versions et licences vérifiées)
 
@@ -988,6 +991,99 @@ T1.4-c4, `/tools/invoke` n'acceptait donc en pratique QUE le secret partagé, et
 d'appareil y était refusé (401). C'est corrigé : `/tools/invoke` réutilise désormais ce même
 mécanisme pour de vrai — voir [`IDEMPOTENCE.md`](IDEMPOTENCE.md) §7 bis, « `/tools/invoke`
 authentifie l'appareil par son propre jeton ».
+
+## Nom d'un outil de l'app au moteur (PLAN T1.4-c6)
+
+Un seul nom circule de l'app au moteur : le **nom nu** de l'outil OPSYS (`m4_pointer`). L'app
+l'envoie, `roles.json` le compare, et le serveur du département le connaît sous ce nom. Le nom
+matérialisé du moteur d'agents (`opsys_m4__m4_pointer`) n'entre nulle part.
+
+### Constat (lecture du fork, base 1797f56)
+
+L'hypothèse du plan (« le core matérialise `serveur__outil`, l'app envoie le nom nu ») était fausse
+par le haut : le nom n'était pas le seul problème. Pour un appel d'appareil, aucun nom ne
+fonctionnait.
+
+1. **`/tools/invoke` ne voit aucun outil MCP.** `invokeGatewayTool` cherche l'outil dans
+   `resolveGatewayScopedTools` (`core/src/gateway/tools-invoke-shared.ts:432-469`). Cette liste vient de
+   `createOpenClawTools` (`tool-resolution.ts:312`) : outils du core, de plugins et de canaux
+   (`openclaw-tools.ts:675`). Les outils d'un serveur `mcp.servers` ne sont matérialisés que pour un tour
+   d'agent (`embedded-agent-runner/run/attempt-bundle-tools.ts:144`) ou une sonde de diagnostic. Nom nu ou
+   nom matérialisé : même réponse, 404 « Tool not available » (`tools-invoke-shared.ts:475`).
+2. **Pas d'agent, pas de session.** `sessionKey` vaut `main` par défaut (`tools-invoke-shared.ts:97`). Avec
+   les dix agents de départements et aucun marqué par défaut, `resolveRequestedSessionAgentId` n'infère
+   aucun propriétaire et répond 400 « Multiple agents are configured… Pass agentId »
+   (`session-request-agent.ts:198-210`, `agent-roster.ts:124-141`), avant toute résolution d'outil. L'app
+   n'envoie ni `agentId` ni `sessionKey`. Ce point est établi par la lecture ; le test
+   `tools-invoke-http.opsys-roles.test.ts` (« does not need an owning agent ») le fait constater par la CI.
+3. **Les `tools.deny` par agent ne touchent pas l'appareil.** Les globs `opsys_mN__*` de `openclaw.py`
+   filtrent la liste core et plugins d'un agent (`tool-resolution.ts:257-262`, `:626`) ou les outils MCP d'un
+   tour d'agent. Ils ne s'appliquent à aucun appel de `/tools/invoke` par jeton d'appareil, ni avant ni
+   après ce correctif : la portée d'un appareil est son rôle, pas la politique d'un modèle.
+4. **Les tests de T1.4-c1, c2 et c4 masquaient l'écart.** Ils remplaçaient `createOpenClawTools` ou
+   `resolveGatewayScopedTools` par un faux outil, avec la mention « comme les vrais outils matérialisés »,
+   fausse. Le `_meta` de T1.4-c1 n'était atteignable que par un tour d'agent.
+5. **La forme de la réponse comptait aussi.** Le serveur du département répond un bloc texte qui contient
+   l'enveloppe `{ok, resultat | erreur, rejoue}` (`src/opsys/serveur_mcp.py`), et l'app lit cette enveloppe
+   (`mobile/src/m4/pointage.ts`). La projection d'un outil d'agent (`{content: [{type: "text"}], details}`)
+   serait lue comme un succès sans accusé (lecture défensive de l'app) : tout rejet métier passerait
+   inaperçu.
+
+### Décision : le core appelle le serveur nommé par `roles.json`, sous le nom nu (option b)
+
+- **Sécurité.** Aucune ambiguïté avec un outil natif : la porte d'appareil ne consulte jamais la liste
+  d'outils du core. Le serveur est fixé par `roles.json`, jamais par la requête ; l'outil d'un autre
+  serveur ne peut pas être appelé, même s'il porte le même nom.
+- **Stabilité.** `buildSafeToolName` tronque à 64 caractères et suffixe (`-2`) en cas de collision
+  (`agent-bundle-mcp-names.ts:81`) : un JSON généré d'avance ne peut pas s'y fier. Le nom nu est celui que
+  le serveur du département publie (`tools/list`) ; il ne change que par un renommage d'outil, que
+  `opsys verifier` et les tests d'épinglage voient.
+- **Un seul contrôle, une seule exécution.** La portée est comparée au nom qui est ensuite appelé : c'est
+  la même chaîne, lue dans le même fichier (option a écartée : elle aurait couplé l'app à la règle de
+  nommage du moteur d'agents).
+
+### Ce qui est livré
+
+- `src/opsys/openclaw.py` : `serveurs_outils`. `roles.json` porte, à côté de `roles`, la clé `serveurs`
+  (nom d'outil nu -> clé de `mcp.servers`), pour les seuls outils qu'un rôle peut appeler. Clé sœur
+  additive : `roles` ne change pas.
+- `core/src/gateway/opsys-device-roles.ts` : `authorizeOpsysDeviceTool` rend aussi `serveur`. Un outil dans
+  la portée mais sans entrée `serveurs` est refusé (`server_unknown`) : le core ne devine rien.
+- `core/src/agents/opsys-device-mcp-target.ts` (nouveau) : ouvre une session MCP privée qui ne contient
+  QUE ce serveur (`includeServerNames`), vérifie que le serveur liste l'outil, l'appelle sous son nom brut
+  avec le `_meta` ambiant, et rend l'enveloppe OPSYS telle quelle. La session est fermée après l'appel.
+- `core/src/gateway/tools-invoke-shared.ts` : un appareil autorisé prend cette porte
+  (`invokeOpsysDeviceTool`) au lieu de la liste d'outils. Le chemin des autres appelants (secret partagé,
+  CLI, tableau de bord) est inchangé, y compris ses `tools.deny`.
+- App : **aucun changement**. Les noms de `mobile/` étaient déjà les bons. Le test
+  `tests/test_portees_appareil.py` épingle que chaque nom d'outil des sources de l'app est l'outil d'un
+  département, permis à un rôle, avec son serveur dans `roles.json`.
+
+### Règles de la porte d'appareil
+
+| Règle | Pourquoi |
+|---|---|
+| Ni agent, ni session, ni liste d'outils. `agentId` et `sessionKey` du corps sont ignorés. | Avec plusieurs départements et aucun agent par défaut, ils feraient un 400 ; un appel d'appareil ne touche aucune session. |
+| Le serveur vient de `roles.json`, jamais du corps. | Un appareil ne choisit pas le département. |
+| Session MCP à ce seul serveur, vérification de l'outil dans son catalogue, appel sous le nom brut. | Un autre serveur n'est ni démarré ni joignable ; un outil absent du catalogue est un 404. |
+| `gateway.tools.deny` s'applique, au nom nu et à la forme `serveur__outil` (globs `opsys_m4__*` compris). | Interrupteur de l'exploitant, déjà valable pour tout `/tools/invoke`. |
+| Le hook `before_tool_call` s'exécute (nom nu). | Les politiques de plugin et les approbations gardent leur place. |
+| Serveur injoignable : 500 (réessayable par l'app, même clé d'idempotence). Outil absent : 404. Refus : 403. | Règle de `src/protocole/classification.ts` : 408, 429 et 5xx se réessaient, les autres 4xx non. |
+| Réponse illisible (pas une enveloppe OPSYS) : 500 générique, détail au journal du core. | Le core n'invente aucun verdict. |
+
+### Preuve et limites
+
+- Vitest (à faire juger par la CI, `tests-opsys`) : `tools-invoke-http.opsys-device-mcp.test.ts` (jeton
+  d'appareil réel, fragments réels, porte réelle, transport MCP simulé), `opsys-device-mcp-target.test.ts`
+  (deux vrais serveurs stdio, le second porte le même nom d'outil et ne démarre jamais),
+  `opsys-device-roles.test.ts`, `tools-invoke-http.opsys-roles.test.ts`,
+  `tools-invoke-http.device-token-auth.test.ts`.
+- **Une session MCP par appel.** Simple et sans état partagé, mais chaque appel refait la poignée de main
+  MCP. À mesurer en T1.5 ; si la latence gêne, réutiliser le gestionnaire de sessions (`acquireSessionMcpRuntime`).
+- **Une réponse illisible se réessaie.** Un 500 est réessayé par l'app ; un défaut permanent du serveur
+  (version incompatible) bouclerait jusqu'à la limite d'essais de la file sortante.
+- **`action` du corps est ignoré** pour un appareil : les outils OPSYS n'ont pas de paramètre `action`.
+- Non prouvé : le trajet contre un core et un moteur réels (T1.5).
 
 ## Idempotence et identité d'appareil de bout en bout (T1.4-b, T1.4-c1, T1.4-c2, T1.4-c4)
 

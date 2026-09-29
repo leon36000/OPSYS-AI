@@ -30,7 +30,9 @@ Outil(
   (`capacites.py`, mémoire) n'ont pas de déclaration et restent fermés aux appareils.
 - **Source unique.** `opsys.openclaw.roles_outils` projette les déclarations en `opsys/roles.json`
   (`opsys openclaw configurer`), que `core/src/gateway/opsys-device-roles.ts` lit. Le core n'a rien
-  à changer.
+  à changer. Depuis T1.4-c6, le même fichier porte `serveurs` (`openclaw.serveurs_outils`) : le
+  serveur MCP de chaque outil permis, sous le même nom nu. Le core compare la portée au nom nu, puis
+  appelle CE serveur sous CE nom ([MOBILE.md](MOBILE.md), « Nom d'un outil de l'app au moteur »).
 - **T3/N5 jamais.** Un outil T3 ou de niveau N5 (`Outil.frontiere_humaine`) n'est projeté dans aucun
   rôle, quoi que déclare l'outil. Ces gestes restent à `nathan_owner` et à l'attestation du
   professionnel (ADR-0009 §5).
