@@ -92,7 +92,7 @@ Rien qui lise les données des autres (`m4_lire_outbox`, `m4_lire_position_gps`,
 `m4_resoudre_revue_completion`, `m6_approuver_po`, `m6_annuler_po`), ni aucun outil M5, M7, M8, M9,
 M10.
 
-### `seller` (10 outils) : §9.4, ses leads et ses soumissions
+### `seller` (11 outils) : §9.4, ses leads et ses soumissions
 
 | Outil | Pourquoi |
 |---|---|
