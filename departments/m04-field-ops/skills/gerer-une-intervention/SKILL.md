@@ -11,6 +11,9 @@ description: Procédure pour planifier une intervention terrain depuis un lead M
    équipe, matériel, météo). Un volet `non_verifiable` n'est pas prêt ; ne dis jamais qu'une intervention est
    prête tant que le verdict n'est pas `pret`, et ne promets ni date ni créneau au client (c'est M4 qui confirme).
    Un lead saisi directement dans M2, sans passer par M1, n'a pas d'intervention née du devis : passe par l'étape 1.
+   La liste est longue ? Lis-la par pages : `taille_page` (1 à 50), puis `curseur` = le `curseur_suivant` de la page
+   précédente, jusqu'à `reste` égal à 0. Sans ces deux clés, la réponse est coupée au-delà d'une vingtaine
+   d'interventions : ne conclus jamais sur une liste dont `tronque` vaut vrai.
 1. Vérifie que le lead vient de M2 avec un marqueur de readiness et le contrat gelé (sept clés).
    Sinon : demande-le, stop. N'invente jamais un champ manquant.
 2. Rassemble les techniciens et fenêtres horaires disponibles ce jour-là, puis appelle
@@ -33,3 +36,7 @@ description: Procédure pour planifier une intervention terrain depuis un lead M
    une action externe, elle reste en attente d'approbation humaine en mode ombre.
 7. Toute réponse `accepte: false` contient un `verdict` nommant la faute : corrige ou escalade,
    ne réessaie jamais en devinant une autre valeur.
+8. Pour dire à l'admin ce qui va mal, appelle `m4_lire_retards_incidents` avec l'heure de l'appareil
+   (`horodatage_reference`) : les reports en cours et les demandes de revue ouvertes, avec leur âge ; « bloquée » dès
+   24 h. `retard_sur_cedule` est `non_mesurable` : dis-le, ne dis jamais « aucun retard ». Une liste coupée (`reste`
+   plus grand que 0) se lit avec l'outil que `suite` nomme.

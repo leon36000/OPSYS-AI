@@ -7,7 +7,13 @@ mission: >-
   horodaté et géolocalisé, écarts arbitrés, Work Completion Trigger — sans jamais porter
   de prix, de date ferme imposée par le client ou de scoring des techniciens. Reçoit le devis
   accepté (une intervention à planifier) et dit, volet par volet, ce qui manque avant de la cédule.
+  Lit pour le propriétaire, sans rien écrire : la météo du créneau d'une intervention, ses retards et
+  incidents (le retard sur la cédule n'est pas mesurable : il le dit) et sa liste par pages.
 outils: m4_field_ops.outils
+# PLAN T4.27-a : trois lectures pures (T0), réservées à l'admin sauf la liste (aussi celle de l'employé, qui ne voit que
+# ses interventions) : `m4_lister_interventions` par pages (clés sœurs `curseur` et `taille_page`, contrat v1 gelé),
+# `m4_lire_meteo_intervention` (le créneau du dernier plan appliqué, sans `plan_id`, même évaluation que T4.13) et
+# `m4_lire_retards_incidents` (reports en cours et demandes de revue ouvertes, avec leur âge). Voir le README.
 mode: ombre
 # m01-front-office : M4 relit à la source du bus le `m1.lead_qualifie` du lead d'un devis accepté (service, ville,
 # urgence du chantier) ; m03-estimation : il consomme `m3.devis_accepte` ; m06-material-control : il consomme

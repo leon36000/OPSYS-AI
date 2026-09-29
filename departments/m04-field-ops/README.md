@@ -415,3 +415,58 @@ reproduites ; la licence MSC GeoMet a été lue dans la documentation en ligne d
 relecture juridique ; la transition `reportee → planifiee` existe dans la machine à états, mais aucun outil ni aucune cédule ne la porte
 (un report appliqué n'a pas de replanification outillée) ; le report d'une `a_planifier` n'a pas de geste (le jour est retiré de sa fenêtre dans la nouvelle proposition) ;
 un client déjà informé d'un créneau se prévient par M1, jamais d'ici (frontière T3).
+
+## Lectures pures du propriétaire (PLAN T4.27-a)
+
+DEFINITION-PRODUIT §9.5 (l'app du propriétaire : dispatch du jour, météo, ce qui va mal). Trois lectures, toutes T0 :
+aucun maillon, événement, approbation ni entrée de journal n'est écrit. Deux modules purs (`pagination_interventions.py`,
+`retards.py`) et une fonction de plus dans `meteo_creneaux.py`, tous gardés par analyse du code (ni `opsys`, ni horloge, ni
+aléa, ni réseau, ni flottant).
+
+- **`m4_lister_interventions` par pages.** Le contrat v1 de la liste est gelé : `curseur` et `taille_page` sont des clés
+  SŒURS additives. Ni l'une ni l'autre : la liste v1, telle qu'avant (le socle la coupe à 6 000 caractères, environ vingt
+  interventions ; la réponse coupée est alors `{ok, tronque: true, apercu}`, pas une liste). L'une des deux, même nulle :
+  une page `{interventions, page}`. `interventions` porte les mêmes lignes que la liste v1. Ordre stable : `intervention_id`
+  croissant. `curseur` : le `curseur_suivant` de la page précédente (64 caractères hexadécimaux minuscules ; `null` ou
+  absent pour la première). `taille_page` : de 1 à 50, sinon la plus grande page qui tient. La page ne dépasse jamais la
+  borne du socle : le code la mesure (au moins une intervention par page ; une seule qui ne tiendrait pas est refusée,
+  jamais coupée). `page` : `ordre`, `curseur`, `taille_demandee`, `taille`, `total` (toutes les interventions visibles),
+  `reste` (celles qui viennent APRÈS la page), `curseur_suivant` (`null` quand `reste` vaut 0) et `borne_atteinte` (la page
+  a été raccourcie par la borne, non par `taille_page`). Même contrôle d'accès que la liste v1 : le statut demandé, puis ce
+  que l'appelant a le droit de voir (l'employé : ses interventions et celles de ses équipes) filtrent AVANT la pagination ;
+  `total`, `reste` et `curseur_suivant` ne comptent jamais celles des autres, et un curseur pris ailleurs ne révèle rien.
+- **`m4_lire_meteo_intervention`** (admin seulement ; `intervention_id`, `date` AAAA-MM-JJ facultative,
+  `previsions_saisies` facultatif) : la météo du créneau d'UNE intervention, sans `plan_id`. Le créneau est celui que le
+  dernier plan APPLIQUÉ qui la place lui donne, tant qu'elle est `planifiee` ou `en_route` ; l'évaluation est celle de
+  `m4_verifier_meteo_creneau` (`meteo_creneaux._creneau`, T4.13), la même, pas une seconde ; la source des prévisions se
+  choisit de la même façon (saisie de l'admin d'abord, sinon le fournisseur que le profil ouvre). Réponse : `intervention_id`,
+  `statut_intervention`, `statut` (`bloquant`, `validation_requise`, `ok` ou `inconnu`), `plan_id` (celui du plan qui la
+  tient, sinon `null`), `cause` (pourquoi il n'y a aucun créneau, sinon `null`), `attributions` et `creneaux` (zéro ou un :
+  équipe, jour, date, minutes, service, règles `{risque, statut, detail}` qui citent la valeur, l'heure et le seuil, et la
+  citation de la prévision : source, heure d'émission, auteur d'une saisie). Donnée absente = `inconnu`, jamais `ok` :
+  intervention `a_planifier` ou `reportee`, planifiée sans plan appliqué, jour sans `date`, prévision ou seuil absent,
+  fournisseur en panne. Aucun report ni aucune cédule n'est proposé (`m4_verifier_meteo_creneau` le fait, avec un
+  `plan_id`). Une intervention inconnue, ou dans un statut où la météo n'a plus de sens (`sur_site`, `en_revue`,
+  terminée, annulée), est refusée (`REJ-TRANSITION-ILLEGALE`) ; une date impossible aussi (`REJ-CONTRAT-INVALIDE`).
+- **`m4_lire_retards_incidents`** (admin seulement ; `horodatage_reference` requis, l'heure de l'appareil : M4 n'a pas
+  d'horloge) : ce que le registre enregistre déjà. Les REPORTS en cours (`reportee` : motif `client_absent`, `meteo` ou
+  `decision_admin`, depuis quand) et les INCIDENTS ouverts (les demandes de revue sans résolution : écart métier ou anomalie
+  de pointage), chacun avec son âge en heures pleines ; « bloquée » dès 24 h, le seuil du digest (jamais un second). Chaque
+  liste est bornée à 8, du plus ancien au plus récent ; `reste` compte les autres et `suite` dit où les lire
+  (`m4_lister_interventions`, `m4_lister_pending_review`). **`retard_sur_cedule` vaut `non_mesurable`** avec la raison :
+  le plan d'une cédule numérote ses jours sans date civile et le registre ne garde aucune fenêtre planifiée ; « aucun
+  retard » n'est jamais écrit. Aucun texte libre du terrain, aucun contact.
+
+Preuve : `tests/test_pagination_interventions.py` et `tests/test_retards.py` (modules purs, analyse du code),
+`tests/test_meteo_intervention.py` (fonction pure : même créneau que `verifier`, `meteo.evaluer_creneau` appelée avec
+les mêmes arguments), `tests/test_lister_interventions_pages.py`, `tests/test_meteo_intervention_outil.py` et
+`tests/test_retards_outil.py` (vrais outils, base migrée, vraies personnes, borne du vrai socle),
+`tests/e2e/test_lectures_admin_m4_appareil.py` (par la porte d'appareil : 200 sans rien écrire pour l'admin, 403 pour
+l'employé et le vendeur sur la météo et les retards, 45 interventions par pages sans troncature alors que la liste v1 est
+coupée, l'employé ne voit que les siennes). Les fixtures sont FICTIVES (`fictif: true`).
+
+Limites connues : le retard sur la cédule n'est pas mesurable (M4 ne tient aucun calendrier) ; une intervention
+planifiée par `m4_planifier_intervention` n'a aucune fenêtre au registre, donc aucun créneau à juger ; l'heure d'un report
+et d'une demande d'écart est celle que l'appelant a écrite (le serveur ne garde pas son heure de réception pour ces deux
+gestes : contrairement au pointage, au départ et à la complétion), l'âge d'un retard en hérite ; la liste v1 sans clé reste
+coupée par le socle.

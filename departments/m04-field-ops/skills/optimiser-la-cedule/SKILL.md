@@ -70,6 +70,11 @@ journée dès que les chantiers ont des coordonnées confirmées.
      `m4_signaler_report` et `m4_appliquer_cedule` sont N3. Le report d'un chantier déjà confirmé au client se
      prévient par M1, jamais d'ici.
    - `plan_perime` : un autre plan appliqué tient déjà l'intervention (`perimes`, `tenu_par`) : vérifie ce plan-là.
+   - Pour UNE intervention déjà planifiée, sans plan sous la main, appelle `m4_lire_meteo_intervention`
+     (`intervention_id`, la `date` du jour de son créneau que l'admin te donne, et `previsions_saisies` au besoin) : c'est le
+     créneau du dernier plan appliqué, jugé comme ci-dessus. Aucun `plan_id` à fournir, aucun report ni aucune cédule
+     proposés. Une intervention `a_planifier` ou `reportee`, ou planifiée sans plan appliqué, n'a aucun créneau : la réponse
+     est `inconnu` avec sa `cause`, jamais `ok`.
    - `detail_reduit` : la réponse a été résumée pour tenir dans un appareil ; refusée pour sa taille, redemande un
      jour à la fois avec `jours`.
 7. Un refus nomme la faute : corrige la saisie ou demande à l'humain, ne réessaie pas en changeant une valeur au

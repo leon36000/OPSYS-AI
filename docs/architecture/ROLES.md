@@ -636,6 +636,17 @@ pour un appel d'appareil ; sans identité d'appareil, la liste, comme avant. La 
   autre plan appliqué la tient) ne compte ni dans le statut, ni dans les reports.
   Les surcharges d'arguments de `m4_proposer_cedule` sont tracées (`provenance`) mais permises : le profil reste juge de
   l'équipe qui reçoit une intervention sortant de `a_planifier` (`REJ-TOURNEES-PLAN-INVALIDE` sinon).
+- **Lectures pures du propriétaire (T4.27-a).** `m4_lire_meteo_intervention` et `m4_lire_retards_incidents` sont T0 et
+  réservés à l'admin (refusés aussi, dans le code, à tout autre rôle d'appareil) ; `m4_lister_interventions` gagne les
+  clés sœurs `curseur` et `taille_page` (contrat v1 gelé : sans clé, la liste ne change pas ; l'employé ne voit que ses
+  interventions, la pagination se fait APRÈS ce filtre). Limites connues : (1) le créneau d'une intervention est celui du
+  dernier plan APPLIQUÉ qui la place ; une intervention planifiée par `m4_planifier_intervention` n'a aucune fenêtre au
+  registre, donc aucun créneau à juger (`inconnu`, avec la cause). (2) L'heure d'un report (`m4_signaler_report`) et
+  d'une demande d'écart (`m4_creer_demande_ecart`) est celle que l'appelant écrit ; l'heure de réception du serveur ne
+  fait foi que pour le pointage, le départ et la complétion. L'âge d'un retard ou d'un incident en hérite : le
+  corriger est un changement d'écriture de ces deux outils (lire `recu_le`), pas de lecture. (3) Le retard sur la cédule
+  n'est pas mesuré (M4 ne tient aucun calendrier) : le relevé le dit (`non_mesurable`). (4) La liste v1 (sans clé) reste
+  coupée par le socle à 6 000 caractères : l'app doit lire par pages.
 - **Voie des agents.** Le secret partagé de la passerelle garde l'accès complet aux outils (documenté,
   voulu) : seule la voie du jeton d'appareil passe par `roles.json`, donc par ces contrôles.
 - **Approbation différée.** Un appel d'appareil dont l'identité n'est pas valide part en file (T1.4-h) ; une

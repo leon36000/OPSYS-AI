@@ -146,3 +146,30 @@ procédure qui réapplique les purges après toute restauration, à partir d'un 
 hors des sauvegardes. Le chiffrement lui-même (flux HMAC-SHA256, nonce déterministe par pointage,
 sans authentification) protège la confidentialité ; l'intégrité est assurée par la chaîne du
 registre. Il relève du code critique et demande une revue externe avant la mise en service.
+
+## 7. Lectures pures du propriétaire (PLAN T4.27-a)
+
+Trois lectures servent l'app du propriétaire sans rien écrire au registre : la liste des interventions par pages, la
+météo du créneau d'une intervention et le relevé des reports et des incidents. Chacune est un outil de lecture (T0).
+L'adaptateur impur (outils.py) lit l'identité de l'appareil, la fait confirmer par la base, puis délègue à un module pur.
+Les deux dernières sont réservées à l'administrateur, refusées dans le code à tout autre rôle d'appareil.
+
+Le module pagination_interventions coupe la liste dans l'ordre de l'identifiant d'intervention. Le curseur est
+l'identifiant de la dernière intervention de la page : il ne dépend d'aucun rang, donc une intervention qui naît entre
+deux pages ne fait ni sauter ni répéter une ligne déjà lue. La page est la plus grande qui tient sous la borne d'une
+réponse d'appareil, mesurée par le code et jamais estimée, avec au moins une intervention par page. Le contrat gelé de la
+liste ne change pas : curseur et taille_page sont des clés sœurs additives, et sans elles la liste est rendue comme avant.
+La pagination suit le filtre de visibilité : un employé ne compte jamais les interventions des autres.
+
+La fonction verifier_intervention du module meteo_creneaux trouve le créneau que le dernier plan appliqué donne à une
+intervention, puis délègue à la même évaluation que la vérification d'un plan : il n'existe pas de seconde évaluation. Une
+donnée absente (créneau, date, prévision, seuil, fournisseur en panne) donne inconnu, jamais ok. La lecture ne propose ni
+report ni nouvelle cédule.
+
+Le module retards relève, à partir de l'heure de référence que l'appelant fournit (aucune horloge), les reports en cours et
+les demandes de revue ouvertes, avec leur âge, au seuil de blocage du digest. Le retard sur la cédule n'est pas mesurable :
+le plan numérote ses jours sans date civile et le registre ne garde aucune fenêtre planifiée. Le relevé le dit au lieu de
+l'inventer.
+
+Les modules restent purs : aucun import du socle, aucune horloge, aucun aléa, aucun réseau, aucun flottant, ce que des
+tests vérifient par analyse du code. Aucun ne porte de coordonnée, de contact ni de champ financier.
