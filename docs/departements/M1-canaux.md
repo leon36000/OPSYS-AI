@@ -11,7 +11,8 @@ service lues du profil, demande de photos fermée, score de lead explicable, pro
 une attente lisible dans « À voir », un gabarit de réponse empathique en brouillon (§10).
 **Suite (T4.17-c, 2026-09-29) :** le garde-fou de texte vit dans le socle (`opsys.garde_fou_texte`, familles nommées que chaque
 département choisit) ; l'avis légal y est vérifié partout, pas seulement sur le gabarit de plainte (§11) ; le STOP d'un client est
-publié au bus (`m1.retrait_consentement`) et M7 en tire le retrait de son consentement marketing (§12).
+publié au bus (`m1.retrait_consentement`) : M7 en tire le retrait de son consentement marketing, et M2 celui du consentement
+de contact de ses relances, SMS et courriel (§12, T4.9).
 **Références :** `DEFINITION-PRODUIT` §5, §6, §7 (M1.1, M1.3, M1.4, M1.7, M1.8, M1.12), `M1-audit.md`, ADR-0010 (T3.3-suite-b).
 **Le core ne s'exécute pas dans ce bac à sable.** Tout ce qui suit sur le core vient de la lecture de ses sources
 (`fichier:ligne` donnés) ; la CI (`e2e-core`, `openclaw config validate`) est l'autorité.

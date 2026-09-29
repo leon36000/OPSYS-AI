@@ -1647,7 +1647,7 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       viennent que des segments `won_pending_schedule` et `quote_stale`) ; `resume` d'une
       interaction borné côté serveur ; la règle `doublon_en_attente` ne suggère plus au vendeur un
       arbitrage réservé à l'admin ; l'écran `quotes` suit la décision sur la marge du vendeur.
-- [ ] T4.9 M2 : relances dues, avec consentement et fréquence limitée (M2.7, M2.13).
+- [x] T4.9 M2 : relances dues, avec consentement et fréquence limitée (M2.7, M2.13).
       Écart (§7 M2.7, M2.13 ; audit M2 §1.3, §5 point 3 ; reste de T2.3-c) : les relances ne sont
       visibles qu'au Client 360, sans consentement modélisé.
       - M2 consomme `m3.devis_envoye` (T4.7) : l'échéance de relance part de l'envoi réel ;
@@ -1663,6 +1663,29 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       doublon.
       Dépend de : T4.6, T4.7, T4.4, T4.5. GATE NATHAN : délais, fréquence, validation de
       `POLITIQUE-consentement-sms.md`. T3 : l'envoi est T2.1-c (N4).
+      Preuve (66db687, b586d39, 84ad047, 9b1031e, cb97587, 8bb237e) :
+      - M2 consomme `m3.devis_envoye` (le délai d'une relance de devis part de l'envoi publié par M3,
+        idempotent par devis) et `m1.retrait_consentement` (un retrait par lead, jamais le numéro ; un
+        STOP arrivé avant le lead est rangé quand même) ;
+      - modules purs `relances.py`, `consentements.py`, `gabarits_relance.py` ; registre durable de
+        consentement de contact (canal, énoncé versionné, source, preuve sans numéro, qui, retrait) ; un
+        retrait prime sur tout consentement, vaut pour la personne (tous ses leads) et pour SMS et
+        courriel, et aucun outil ne le lève ; sans consentement actif : « appel seulement » ;
+      - `m2_lister_relances` (T0, paginé), `m2_preparer_relance` et `m2_enregistrer_consentement_contact`
+        (T1, N3), vendeur et admin seulement (le vendeur : ses leads, propriétaire courant) ; texte =
+        gabarit fixe, `envoye: false`, aucune sortie réseau ; le consentement est refusé à un agent seul ;
+      - fréquence et délais tirés de `department.yaml` (vides à dessein) : `REJ-RELANCES-A-CONFIGURER`
+        ou « seuil à configurer », jamais un défaut ;
+      - M2 1793 verts, gate BMAD M2 ; `tests/test_cascade_relances.py` (7 : vrai M1, vrai M3 avec N4, vrai
+        bus ; STOP, plus de SMS, appel permis ; rejeux sans doublon) ; `tests/e2e/test_relances_vendeur_appareil.py`
+        (13) ; 188 mutants, 188 tués (8 survivants d'une première passe fermés par 23 tests).
+      Limites : `m3.devis_envoye` date l'APPROBATION de l'envoi, pas la livraison (le délai en part,
+      avec un avertissement dans chaque relance de devis) ; aucun écran mobile ne lit encore ces outils ;
+      un appel d'appareil sans clé d'idempotence n'a pas d'heure de réception (limite commune à M1, M5, M10).
+      GATE NATHAN : `jours_soumission_perimee`, `jours_inactivite_dormant`, `jours_entre_relances` ;
+      validation de `POLITIQUE-consentement-sms.md` (STOP qui couvre SMS et courriel, levée d'un retrait,
+      énoncé du consentement, identification de l'expéditeur (LCAP), plafond de relances par devis) ;
+      départ du délai à l'approbation plutôt qu'à la livraison.
 - [x] T4.10 M2 et M4 : « soumission acceptée → M4 planifie » enfin câblé (M2.8, M4.5, M4.6).
       Écart (§6 flux principal ; audit M4 M4.5 « PARTIEL », M4.6 « ABSENT » ; audit M2 M2.8) :
       `m3.devis_accepte` est consommé par M5, M6 et M8, pas par M2 ni par M4. Le lead reste
