@@ -1259,7 +1259,7 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
 
 - [ ] T5.1 Lint des départements : `ruff` ne couvre aujourd'hui que le socle (`src`, `tests`) ; l'audit M1
       relève 122 avertissements dans M1. Étendre la CI aux départements après correction.
-      Avancement, partiel (T5.1 reste ouverte : M2 et M3 à corriger) :
+      Avancement, partiel (T5.1 reste ouverte : M3 à corriger) :
       - M5 à zéro (20 avertissements avant, dont 14 `sys.path.insert` de tests), M5 321 verts, gate
         BMAD de M5 vert ; ajoutée à `DEPARTEMENTS_LINT` ;
       - M7 à M10 passent `ruff check` à zéro (M7 257, M8 18, M9 22, M10 46 avertissements avant) ;
@@ -1291,8 +1291,26 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
         coupée entre deux littéraux adjacents, sans saut de ligne dans la chaîne) ; `outils.py`
         (descriptions d'outils) a un AST identique. Seuls des docstrings (`contrats.py`, 4 tests) sont
         reformatés sur plusieurs lignes.
+      - M2 (140 avertissements avant) passe `ruff check` à zéro ; M2 817 verts (mêmes effectif et
+        mêmes identifiants de test qu'avant), gate BMAD de M2 à sortie identique à l'avant (TOUT VERT),
+        deux scripts `preuve_*.py` à sortie identique ; ajoutée à `DEPARTEMENTS_LINT`. Le contournement
+        `sys.path.insert` de 14 tests est retiré (`pythonpath` de `pyproject.toml` suffit ; les
+        sous-processus de test gardent le leur, la garde `test_aucun_sys_path_insert_vise_le_paquet`
+        reste verte) ; les deux scripts `preuve_*.py`, qui tournent hors pytest, gardent l'insertion et
+        importent le paquet par `importlib` après elle. Sans `noqa`, sans changement de configuration.
+        `verdicts.py` et `horodatage.py` (gelés par empreinte SHA-256, CA-M2-13) n'avaient aucun
+        avertissement et restent octet pour octet ; `acces.py` (T1.4-k2) et `outils.py` ne sont pas
+        touchés. Hors tests, la logique ne bouge pas : imports triés, `datetime.UTC`, un import mort
+        retiré (`statuts.py`), un `if` imbriqué fusionné (`digest.py`), un if/else en ternaire
+        (`readiness.py`), le mode `"r"` redondant de `open` retiré (`fixtures_garde.py`) ; `verif_coherence.py` remonte son import et renomme `l`. Preuve de valeur
+        identique : toutes les constantes de module et les chaînes des fonctions de `src/` sont égales
+        avant/après (seul `"r"` disparaît), les descriptions, paramètres, autonomies et rôles des 12
+        outils aussi ; l'AST de chaque module est identique hors imports, sauf ces trois fichiers.
+        Dans les tests : quatre variables mortes retirées, `pytest.raises(CodeVerdictInconnu)` au lieu
+        de `Exception`, `zip(strict=True)`, un if/else en ternaire, trois docstrings recoupés sur deux
+        lignes, les messages d'assertion coupés entre littéraux adjacents (valeurs identiques).
       - CI : l'étape « Lint du département » du job `departement` ne tourne que pour les dossiers de
-        `DEPARTEMENTS_LINT` (M1 et M4 à M10). Pour étendre : corriger un département, puis ajouter son
+        `DEPARTEMENTS_LINT` (M1, M2 et M4 à M10). Pour étendre : corriger un département, puis ajouter son
         dossier à cette liste unique ; `tests/test_ci_departements.py` vérifie qu'il est propre.
 
 ## Décisions attendues de Nathan (GATE NATHAN, ne bloquent pas la boucle)
