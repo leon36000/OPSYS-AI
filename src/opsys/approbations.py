@@ -362,14 +362,25 @@ def _valider_attente(departement_id: str, brute: Mapping[str, Any]) -> dict[str,
     return {champ: brute[champ] for champ in CHAMPS_ATTENTE}
 
 
-def ordre_attente(attente: Mapping[str, Any]) -> tuple[str, str, str, str]:
-    """Clé de l'ordre stable des attentes : la plus ancienne d'abord (`depuis`, comparé comme texte : c'est
-    l'ordre du briefing du matin de M9, `(depuis, id)`), puis `id`, `departement` et `type` pour départager
-    deux attentes du même instant. Une attente est désignée par (`departement`, `type`, `id`) : deux
-    attentes de même désignation sont la même, et le tri stable garde alors l'ordre du département. Un champ
-    qui n'est pas un texte est lu par sa représentation, sans lever : une attente au `depuis` illisible reste
-    triée et montrée, elle n'interrompt pas la file."""
+def _rang_niveau(niveau: Any) -> int:
+    """Rang de tri d'un niveau d'attente : le plus élevé d'abord (N5 avant N4…). Un niveau illisible passe
+    EN TÊTE (rang le plus fort) : une attente mal formée ne doit pas être enterrée sous les rappels."""
+    texte = str(niveau)
+    if len(texte) == 2 and texte[0] == "N" and texte[1].isdigit():
+        return -int(texte[1])
+    return -99
+
+
+def ordre_attente(attente: Mapping[str, Any]) -> tuple[int, str, str, str, str]:
+    """Clé de l'ordre stable des attentes : le NIVEAU le plus élevé d'abord (une revue N4 avec écart
+    critique passe devant un rappel « seuil à configurer », E2E T1.5-f), puis la plus ancienne
+    (`depuis`, comparé comme texte), puis `id`, `departement` et `type` pour départager deux attentes du
+    même instant. Une attente est désignée par (`departement`, `type`, `id`) : deux attentes de même
+    désignation sont la même, et le tri stable garde alors l'ordre du département. Un champ qui n'est pas
+    un texte est lu par sa représentation, sans lever : une attente au `depuis` illisible reste triée et
+    montrée, elle n'interrompt pas la file."""
     return (
+        _rang_niveau(attente.get("niveau")),
         str(attente["depuis"]), str(attente["id"]), str(attente["departement"]), str(attente["type"]),
     )
 

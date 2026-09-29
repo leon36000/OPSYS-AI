@@ -71,7 +71,8 @@ QUANTITE_DECLAREE = 56.0  # prévu : 40 pi. +40 %, au-delà du seuil de 30 % de 
 ROLE_SIGNATAIRE = "nathan_owner"
 # Les noms de clés que lit l'app (`mobile/src/approbations/contrat.ts`), épinglés aussi par `tests/e2e/`.
 CLES_ECRAN = {"demandes", "total_en_attente", "affichees", "reste", "proprietaire",
-              "attentes", "total_attentes", "attentes_affichees", "attentes_reste", "attentes_illisibles"}
+              "attentes", "total_attentes", "attentes_affichees", "attentes_reste", "attentes_illisibles",
+              "attentes_decalage", "attentes_suivant"}  # pagination de « À voir » (T1.5-e)
 CLES_ATTENTE = {"type", "id", "departement", "departement_nom", "resume", "niveau", "depuis", "action_proposee"}
 
 
