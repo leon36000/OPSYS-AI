@@ -444,7 +444,10 @@ def test_sans_les_volets_futurs_la_porte_reste_fermee_et_dit_ce_qui_manque():
         assert iid in verdict["detail"]
     for morceau in ("materiel", "meteo", "m4_verifier_preparation"):
         assert morceau in verdict["detail"], morceau
-    assert verdict["detail"].count("materiel : ") == 1, "ce que l'entreprise doit fournir n'est dit qu'une fois"
+    # Ce que l'entreprise doit fournir (météo) n'est dit qu'une fois ; le matériel se lit PAR DEVIS (T4.14-b) : il est
+    # nommé pour chaque intervention, son détail (lignes manquantes) est celui de m4_verifier_preparation.
+    assert verdict["detail"].count("meteo : ") == 1, "ce que l'entreprise doit fournir n'est dit qu'une fois"
+    assert verdict["detail"].count("materiel : ") == 0 and verdict["detail"].count("materiel") == len(ids)
     demande = _refuse(_proposer(registre, positions, intervention_ids=[ids["ch-01"]]),
                       "REJ-CEDULE-PREPARATION-NON-PRETE", ids["ch-01"])
     assert "m4_verifier_preparation" in demande["detail"]

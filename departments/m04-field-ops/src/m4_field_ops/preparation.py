@@ -23,11 +23,14 @@ acceptée, matériel connu, équipe admissible, météo »)
                     équipes de l'entreprise (PLAN T4.12) : elle détient toutes les compétences du service et a un
                     quart assez long pour sa durée. Sans profil, ou sans durée pour ce service : ``manque``, et le
                     volet dit quoi déclarer. Un lead v1 (``type_travaux``) n'a pas de service : ``non_verifiable`` ;
-    ``materiel``    non vérifiable : M4 ne lit pas encore ``m6.materiel_pret`` — PLAN T4.14 ;
+    ``materiel``    la charge ``m6.materiel_pret`` la plus récente du devis, reçue par le bus et rangée par M4
+                    (``materiel.py``, PLAN T4.14-b) : ``ok`` seulement si M6 dit ``pret`` ET que la réservation est
+                    active ET qu'aucune ligne ne manque ; sinon ``manque`` (``partiel`` ou ``a_commander``, avec les
+                    lignes manquantes) ; aucune charge reçue : ``non_verifiable`` (M6 n'a rien vérifié) ;
     ``meteo``       non vérifiable : aucun fournisseur météo ni règle par service — PLAN T4.13.
-Chacun des deux derniers deviendra un volet vérifié quand sa tâche livrera sa source : il suffit de remplacer sa
-fonction dans ``_VOLETS``, la forme du verdict ne change pas. Tant que l'un des deux est ``non_verifiable``, aucun
-verdict n'est ``pret`` : la porte ``a_planifier -> planifiee`` reste fermée, et c'est voulu.
+Le dernier deviendra un volet vérifié quand sa tâche livrera sa source : il suffit de remplacer sa fonction dans
+``_VOLETS``, la forme du verdict ne change pas. Tant qu'il est ``non_verifiable``, aucun verdict n'est ``pret`` : la
+porte ``a_planifier -> planifiee`` reste fermée, et c'est voulu.
 
 Ce module ne promet aucune date ni aucun créneau : il ne parle pas du calendrier (frontière T3 du produit).
 Il ne lit ni ne rend aucune coordonnée, aucun contact, aucun prix.
@@ -35,7 +38,7 @@ Il ne lit ni ne rend aucune coordonnée, aucun contact, aucun prix.
 
 from __future__ import annotations
 
-from . import admissibilite, etats, verdicts
+from . import admissibilite, etats, materiel, verdicts
 
 # « ok » et « pret » sont définis par la machine à états (`etats.py`), qui refuse un passage à planifiee sans eux :
 # une seule source pour le mot que les deux modules doivent partager.
@@ -122,10 +125,38 @@ def _volet_equipe(_registre, inscription, _lire_position, lire_equipes):
     return _volet(STATUT_OK, detail=f"équipes admissibles pour {service} : {', '.join(resultat['admissibles'])}")
 
 
-def _volet_materiel(_registre, _inscription, _lire_position, _lire_equipes):
+def _volet_materiel(registre_cible, inscription, _lire_position, _lire_equipes):
+    devis_id = inscription.get("devis_id")
+    if not isinstance(devis_id, str) or devis_id == "":
+        return _volet(
+            STATUT_NON_VERIFIABLE,
+            manque=(
+                "matériel : M6 réserve par devis accepté et cette intervention n'en a pas (devis_id absent de "
+                "l'inscription) : rien à lire"
+            ),
+        )
+    charge = materiel.charge_retenue(registre_cible, devis_id)
+    if charge is None:
+        return _volet(
+            STATUT_NON_VERIFIABLE,
+            manque=(
+                f"matériel : M4 n'a reçu aucun état « matériel prêt » (m6.materiel_pret) pour le devis {devis_id} ; "
+                "M6 ne dit rien d'un prévu vide, et un matériel que personne n'a vérifié n'est pas prêt"
+            ),
+        )
+    etat = materiel.etat_du_materiel(charge)
+    revision = charge["revision"]
+    if etat == materiel.ETAT_PRET:
+        return _volet(STATUT_OK, detail=f"matériel prêt et réservé (M6, révision {revision})")
+    lignes = materiel.lignes_manquantes_en_texte(charge["lignes_manquantes"])
     return _volet(
-        STATUT_NON_VERIFIABLE,
-        manque="état « matériel prêt » de M6 pour ce chantier : M4 ne le reçoit pas encore",
+        STATUT_MANQUE,
+        manque=(
+            f"matériel {etat} selon M6 (révision {revision})"
+            + (f" : {lignes}" if lignes else "")
+            + " ; M6 ne crée aucun bon de commande seul (l'admin le demande à M6)"
+        ),
+        detail=etat,
     )
 
 

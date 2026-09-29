@@ -498,11 +498,12 @@ pour un appel d'appareil ; sans identité d'appareil, la liste, comme avant. La 
   décision : ils empêchent d'appliquer un plan périmé, pas un plan qu'un agent aurait mal paramétré.
 - **Sortie de `a_planifier` (T4.12).** `m4_appliquer_cedule` (N3) fait aussi passer `a_planifier -> planifiee` chaque
   intervention que le plan place, avec un verdict de préparation « prêt » recalculé à l'application (la porte
-  d'empreinte de T4.10 : `etats.transitionner`). Tant que les volets matériel et météo de `preparation` sont non
-  vérifiables (T4.14, T4.13), aucun verdict n'est « prêt » : la porte est câblée et reste fermée, aucune intervention
-  née du bus ne peut en sortir, et `m4_planifier_intervention` refuse désormais le devis dont l'intervention existe
-  déjà (un devis n'a qu'une intervention). Décision à prendre par le propriétaire si l'exploitation ne peut pas
-  attendre ces deux tâches : une attestation humaine nommée et motivée d'un volet non vérifiable (aucune n'existe).
+  d'empreinte de T4.10 : `etats.transitionner`). Tant que le volet météo de `preparation` est non vérifiable (T4.13 ;
+  le matériel se lit depuis T4.14-b, `m6.materiel_pret`), aucun verdict n'est « prêt » : la porte est câblée et reste
+  fermée, aucune intervention née du bus ne peut en sortir, et `m4_planifier_intervention` refuse désormais le devis dont
+  l'intervention existe déjà (un devis n'a qu'une intervention). Décision à prendre par le propriétaire si
+  l'exploitation ne peut pas attendre cette tâche : une attestation humaine nommée et motivée d'un volet non
+  vérifiable (aucune n'existe).
   Les surcharges d'arguments de `m4_proposer_cedule` sont tracées (`provenance`) mais permises : le profil reste juge de
   l'équipe qui reçoit une intervention sortant de `a_planifier` (`REJ-TOURNEES-PLAN-INVALIDE` sinon).
 - **Voie des agents.** Le secret partagé de la passerelle garde l'accès complet aux outils (documenté,

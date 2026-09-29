@@ -181,14 +181,15 @@ def _refus(reponse):
 class TestManifeste:
     def test_la_fonction_est_branchee_au_vrai_manifeste_sans_import_entre_departements(self):
         dep = charger_departements()[M4]
-        assert dep.evenements_consomme == ("m6.variance_chantier", "m3.devis_accepte")
+        assert dep.evenements_consomme == ("m6.variance_chantier", "m3.devis_accepte", "m6.materiel_pret")
         assert dep.evenements_publie == ("m4.travaux_termines",)
         assert dep.charger_consommateurs()["m3.devis_accepte"].__name__ == "_recevoir_devis_accepte"
         assert set(dep.evenements_consomme) == set(dep.charger_consommateurs())
         assert evenements.verifier_coherence(charger_departements()) == []
 
     def test_les_dependances_disent_ce_que_m4_lit(self):
-        assert set(charger_departements()[M4].dependances) == {"m01-front-office", "m03-estimation"}
+        assert set(charger_departements()[M4].dependances) == {
+            "m01-front-office", "m03-estimation", "m06-material-control"}
 
 
 class TestNominal:

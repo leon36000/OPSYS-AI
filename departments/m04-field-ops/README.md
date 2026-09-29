@@ -245,10 +245,10 @@ DEFINITION-PRODUIT §6 (« soumission acceptée → M4 planifie ») et §7 M4.5,
   admin seulement, lecture seule). Le verdict est une liste de volets : `soumission` (le devis qui a fait naître
   l'intervention), `adresse` (coordonnées CONFIRMÉES, lues comme la cédule les lit : le chantier est le `lead_id`),
   `equipe`, `materiel`, `meteo`. Chaque volet est `ok` (lu à sa source), `manque` (attendu et absent : le champ `manque`
-  dit quoi fournir) ou `non_verifiable` (M4 n'a pas encore de quoi le lire). **Matériel et météo sont `non_verifiable`
-  aujourd'hui** (`m6.materiel_pret` : T4.14 ; météo : T4.13 ; l'équipe l'était avant T4.12) : le
+  dit quoi fournir) ou `non_verifiable` (M4 n'a pas encore de quoi le lire). **La météo est `non_verifiable`
+  aujourd'hui** (T4.13 ; l'équipe l'était avant T4.12, le matériel avant T4.14-b) : le
   verdict d'ensemble est `pret` SEULEMENT si tous les volets sont `ok`, sinon `bloque` ou `non_verifiable`, donc aucune
-  intervention n'est `pret` avant ces deux tâches et la porte `a_planifier → planifiee` reste fermée. Le verdict ne rend ni
+  intervention n'est `pret` avant T4.13 et la porte `a_planifier → planifiee` reste fermée. Le verdict ne rend ni
   coordonnée, ni contact, ni prix.
 
 Preuve : `tests/test_consommer_devis_accepte.py` (bus réel, M4 seul), `tests/test_etats_a_planifier.py`,
@@ -276,7 +276,8 @@ dépôt, quarts et durées à chaque cédule. Quatre pièces :
   pourquoi. C'est une condition nécessaire : le solveur ajoute trajets, fenêtre du client et charge des journées. Elle
   devient le volet `equipe` de `preparation.py` : `ok` (les équipes admissibles sont nommées), `manque` (sans profil, avec
   un profil invalide, sans durée pour ce service, sans équipe admissible : le volet dit quoi déclarer ou ajuster), ou
-  `non_verifiable` pour un lead v1 (le profil est par service). Matériel et météo restent `non_verifiable`.
+  `non_verifiable` pour un lead v1 (le profil est par service). Le matériel se lit depuis T4.14-b (section suivante) ;
+  la météo reste `non_verifiable`.
 - **`m4_proposer_cedule` lit le profil sans argument.** Un argument donné REMPLACE la clé entière du profil (jamais une
   fusion) : c'est une surcharge, tracée (`provenance` : `profil` ou `surcharge`, par clé et, pour `chantiers`, par
   intervention ; `empreinte_profil` au maillon). Une intervention `a_planifier` sans entrée dans `chantiers` prend la
@@ -312,12 +313,43 @@ mêmes octets de plan que les mêmes valeurs en arguments, y compris sur une sec
 Le fixture `tests/fixtures/equipes_repentigny_joliette.json` est FICTIF (`fictif: true`) et un test vérifie qu'aucun
 chiffre n'a dérivé du scénario de T4.1-d.
 
-Limites connues : **matériel et météo restent non vérifiables (T4.14, T4.13) : aucune intervention n'est « prête » en
-vrai, donc aucune intervention née du bus ne sort de `a_planifier` aujourd'hui** ; les tests de sortie SIMULENT ces deux
-volets pour prouver la plomberie, un test prouve que la porte reste fermée sans eux. Et comme un devis n'a qu'une
+Limites connues : **la météo reste non vérifiable (T4.13) : aucune intervention n'est « prête » en vrai, donc aucune
+intervention née du bus ne sort de `a_planifier` aujourd'hui** (le matériel se lit depuis T4.14-b) ; les tests de sortie
+SIMULENT ce volet pour prouver la plomberie, un test prouve que la porte reste fermée sans lui. Et comme un devis n'a qu'une
 intervention, le repli `m4_planifier_intervention` est fermé pour un devis dont l'intervention existe : le propriétaire
 tranche s'il veut une attestation humaine d'un volet non vérifiable (aucune n'existe). `jour` est le numéro de journée du
 solveur : pas de calendrier, pas de quarts par jour de la semaine ; les bornes des réglages de la cédule sont vérifiées par
 M4 à l'usage, pas à la déclaration ; une planification à la main SANS `devis_id`, faite avant le devis accepté du même lead,
 n'est pas reconnue par le bus (deux interventions : test épinglé) ; un membre n'est que d'une équipe ; le plan proposé avec des arguments complets ne lit pas le profil, donc un
 changement du profil ne le périme pas (l'admissibilité, elle, reste jugée à l'application).
+
+## Matériel prêt de M6 (PLAN T4.14-b)
+
+DEFINITION-PRODUIT §7 M6 (« fournit à M4 : matériel prêt ou à commander ») et M4.6 (« matériel connu »). Avant, le volet
+`materiel` de la préparation était `non_verifiable` : M4 ne recevait rien de M6. Trois pièces :
+
+- **M4 consomme `m6.materiel_pret`** (`department.yaml`, `evenements.consomme` ; fonction `_recevoir_materiel_pret` dans
+  `consommateurs()`), sans importer M6 ni lire son stock (un test le prouve par analyse du code). Le catalogue est celui de
+  `src/opsys/evenements/catalogue/m6.materiel_pret.json` : une **révision** par changement de la réservation d'un devis
+  accepté. Par `devis_id`, M4 retient la charge de **plus grande révision**, quel que soit l'ordre d'arrivée : une révision
+  plus petite ou égale à celle déjà retenue n'écrit rien (`ignoree`), la même révision sous un autre `evenement_id` non
+  plus. La charge peut arriver avant le devis (ordre inversé) : la préparation la relit à l'inscription. Le maillon
+  `materiel_pret_recu` garde le `devis_id`, la révision, le statut, `reservation_active`, le déclencheur, les
+  `lignes_manquantes` et l'heure du fait de M6 (jamais une horloge de M4) ; `chantier_id` (nullable) n'est **ni lu ni
+  gardé**, et le détail des lignes reste chez M6.
+- **`materiel.py`** (pur, gardé par analyse du code) : `charge_retenue`, `etat_du_materiel`, `lignes_manquantes_en_texte`.
+  « Prêt » = `statut == "pret"` ET `reservation_active` ET `lignes_manquantes` vide ; un « pret » que le reste de la charge
+  contredit (réservation libérée, ligne manquante) n'est jamais prêt.
+- **Le volet `materiel` de `preparation.py`** : `ok` si prêt (« matériel prêt et réservé (M6, révision N) ») ; `manque`
+  sinon, avec `detail` = `partiel` ou `a_commander` et les lignes manquantes (« matériau : quantité unité manquantes sur
+  besoin ») ; aucune charge reçue, ou une intervention sans `devis_id` : `non_verifiable`. Aucun prix, aucun coût. M6 ne
+  crée jamais de bon de commande seul : l'admin le demande à M6.
+
+Preuve : `tests/test_materiel.py` (module pur : ordres d'arrivée, table d'états, analyse du code),
+`tests/test_preparation.py` (`TestVoletMateriel`), `tests/test_materiel_pret_recu.py` (bus réel : M4 seul avec des charges
+fictives, puis M4 et le VRAI M6 : devis accepté → `a_commander`, réception partielle → `partiel`, réception qui complète →
+`pret`, libération → `a_commander` ; le volet suit chaque révision).
+
+Limites connues : le stock de M6 ne déclare pas d'unité (M6 recopie celle du prévu) ; un prévu vide ne publie rien (M6
+« ne dit rien plutôt que prêt ») donc le volet reste `non_verifiable` ; M4 ne re-publie ni ne demande jamais l'état à M6 : une
+charge perdue reste perdue jusqu'à la prochaine révision.

@@ -1,9 +1,10 @@
 """PLAN T4.10-b (M4.6) : `preparation.py`, pur, sur un registre EN MÉMOIRE et une lecture de position injectée.
 
 Le verdict NOMME ce qui manque, volet par volet, et n'est « prêt » que si TOUS les volets sont vérifiés. Le volet
-équipe est vérifié depuis le profil des équipes (PLAN T4.12) : une équipe admissible, calculée par le code. Les volets
-matériel et météo n'ont pas encore de source dans M4 (PLAN T4.14, T4.13) : ils sont « non vérifiables », jamais
-« prêts ». Données fictives.
+équipe est vérifié depuis le profil des équipes (PLAN T4.12) : une équipe admissible, calculée par le code. Le volet
+matériel est vérifié depuis la charge `m6.materiel_pret` la plus récente du devis (PLAN T4.14-b) ; sans charge, il reste
+« non vérifiable ». Le volet météo n'a pas encore de source dans M4 (PLAN T4.13) : « non vérifiable », jamais « prêt ».
+Données fictives.
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ import json
 from pathlib import Path
 
 import pytest
-from m4_field_ops import etats, preparation, registre, verdicts
+from m4_field_ops import etats, materiel, preparation, registre, verdicts
 
 _SRC = Path(preparation.__file__).resolve()
 
@@ -142,13 +143,14 @@ def _lecteur(profil=None, verdict=None):
 
 
 def _volets_futurs_ok(monkeypatch):
-    """Simule ce que T4.14 (matériel) et T4.13 (météo) livreront : deux volets vérifiés. Ne sert qu'à prouver la
-    plomberie ; aucun verdict réel n'est « prêt » tant que ces tâches n'existent pas."""
+    """Simule ce que T4.13 (météo) livrera : un volet vérifié. Ne sert qu'à prouver la plomberie ; aucun verdict réel
+    n'est « prêt » tant que cette tâche n'existe pas. Le matériel (T4.14-b) n'est PAS simulé : il se lit d'une vraie
+    charge."""
     def ok(_registre, _inscription, _lire_position, _lire_equipes):
         return {"statut": "ok", "manque": None, "detail": "simulé par le test"}
 
     monkeypatch.setattr(preparation, "_VOLETS", tuple(
-        (nom, ok if nom in ("materiel", "meteo") else fonction) for nom, fonction in preparation._VOLETS))
+        (nom, ok if nom == "meteo" else fonction) for nom, fonction in preparation._VOLETS))
 
 
 class TestVoletEquipe:
@@ -251,7 +253,11 @@ class TestVoletEquipe:
         reg, iid = intervention
         # aujourd'hui : le profil ne suffit pas
         assert preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(_profil()))[0]["pret"] is False
-        _volets_futurs_ok(monkeypatch)  # T4.14 et T4.13 simulés : la plomberie prouvée, pas le produit
+        _volets_futurs_ok(monkeypatch)  # T4.13 simulé : la plomberie prouvée, pas le produit
+        # sans charge de M6, le matériel n'est pas vérifiable : jamais prêt, même avec la météo simulée
+        sans_materiel, _ = preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(_profil()))
+        assert sans_materiel["pret"] is False and [f["volet"] for f in sans_materiel["a_fournir"]] == ["materiel"]
+        _recevoir(reg, _charge_materiel(3, "pret"))  # T4.14-b : une vraie charge, pas une simulation
         pret, _ = preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(_profil()))
         assert pret["pret"] is True and pret["statut"] == preparation.VERDICT_PRET and pret["a_fournir"] == []
         # sans profil, ou avec une adresse non confirmée, ou sans équipe admissible : jamais prêt, même ainsi
@@ -264,6 +270,158 @@ class TestVoletEquipe:
         # le verdict prêt ouvre la porte de la machine à états (l'empreinte est celle de son contenu)
         accuse, verdict = etats.transitionner(iid, "planifiee", reg, "2026-09-29T12:00:00-04:00", preparation=pret)
         assert verdict is None and accuse["statut"] == "planifiee"
+
+
+def _charge_materiel(revision, statut, active=True, devis="DEVIS-PREP-1", manquantes=None):
+    lignes = [{"materiau_id": "gouttiere-5po-fictif", "unite": "pi", "quantite_besoin": "100",
+               "quantite_reservee": "100" if statut == "pret" else "40", "quantite_manquante":
+               "0" if statut == "pret" else "60"}]
+    if manquantes is None:
+        manquantes = [] if statut == "pret" else lignes
+    return {
+        "evenement_id": f"m6-materiel-pret-{devis}-{revision}", "devis_id": devis, "chantier_id": None,
+        "revision": revision, "statut": statut, "reservation_active": active, "declencheur": "devis_accepte",
+        "horodatage": f"2026-09-30T10:{revision:02d}:00-04:00", "lignes": lignes, "lignes_manquantes": manquantes,
+    }
+
+
+def _recevoir(reg, *charges):
+    for charge in charges:
+        reg.ajouter(materiel.maillon_de_la_charge(charge))
+
+
+class TestVoletMateriel:
+    """PLAN T4.14-b : le volet matériel lit la charge `m6.materiel_pret` la plus récente du devis de l'intervention."""
+
+    def _materiel(self, reg, iid):
+        verdict, refus = preparation.evaluer(reg, iid, _lire_position_ok)
+        assert refus is None
+        return _volets(verdict)["materiel"], verdict
+
+    def test_aucune_charge_recue_le_volet_est_non_verifiable_jamais_ok(self, intervention):
+        reg, iid = intervention
+        volet, verdict = self._materiel(reg, iid)
+        assert volet["statut"] == preparation.STATUT_NON_VERIFIABLE
+        assert "aucun état « matériel prêt »" in volet["manque"] and "DEVIS-PREP-1" in volet["manque"]
+        assert "un matériel que personne n'a vérifié n'est pas prêt" in volet["manque"]
+        assert verdict["pret"] is False
+
+    def test_pret_reservation_active_et_aucune_ligne_manquante_rend_le_volet_ok(self, intervention):
+        reg, iid = intervention
+        _recevoir(reg, _charge_materiel(3, "pret"))
+        volet, _ = self._materiel(reg, iid)
+        assert volet == {"statut": preparation.STATUT_OK, "manque": None,
+                         "detail": "matériel prêt et réservé (M6, révision 3)"}
+
+    def test_a_commander_manque_avec_les_lignes_manquantes(self, intervention):
+        reg, iid = intervention
+        _recevoir(reg, _charge_materiel(1, "a_commander"))
+        volet, verdict = self._materiel(reg, iid)
+        assert volet["statut"] == preparation.STATUT_MANQUE and volet["detail"] == "a_commander"
+        assert "matériel a_commander selon M6 (révision 1)" in volet["manque"]
+        assert "gouttiere-5po-fictif : 60 pi manquantes sur 100" in volet["manque"]
+        assert "aucun bon de commande seul" in volet["manque"]
+        assert verdict["statut"] == preparation.VERDICT_BLOQUE
+
+    def test_partiel_manque_avec_les_lignes_manquantes(self, intervention):
+        reg, iid = intervention
+        _recevoir(reg, _charge_materiel(2, "partiel"))
+        volet, _ = self._materiel(reg, iid)
+        assert volet["statut"] == preparation.STATUT_MANQUE and volet["detail"] == "partiel"
+        assert "matériel partiel selon M6 (révision 2)" in volet["manque"]
+        assert "60 pi manquantes sur 100" in volet["manque"]
+
+    def test_un_pret_dont_la_reservation_est_liberee_manque(self, intervention):
+        reg, iid = intervention
+        _recevoir(reg, _charge_materiel(4, "pret", active=False))
+        volet, _ = self._materiel(reg, iid)
+        assert volet["statut"] == preparation.STATUT_MANQUE and volet["detail"] == "a_commander"
+
+    def test_un_pret_qui_a_encore_une_ligne_manquante_manque(self, intervention):
+        reg, iid = intervention
+        ligne = {"materiau_id": "vis-fictif", "unite": "boite", "quantite_besoin": "20", "quantite_reservee": "19",
+                 "quantite_manquante": "1"}
+        _recevoir(reg, _charge_materiel(4, "pret", manquantes=[ligne]))
+        volet, _ = self._materiel(reg, iid)
+        assert volet["statut"] == preparation.STATUT_MANQUE and volet["detail"] == "partiel"
+        assert "vis-fictif : 1 boite manquantes sur 20" in volet["manque"]
+
+    def test_le_volet_suit_les_revisions_a_commander_partiel_pret_puis_libere(self, intervention):
+        reg, iid = intervention
+        suite = []
+        for charge in (_charge_materiel(1, "a_commander"), _charge_materiel(2, "partiel"), _charge_materiel(3, "pret"),
+                       _charge_materiel(4, "a_commander", active=False)):
+            _recevoir(reg, charge)
+            volet, _ = self._materiel(reg, iid)
+            suite.append((volet["statut"], volet["detail"]))
+        assert suite == [("manque", "a_commander"), ("manque", "partiel"),
+                         ("ok", "matériel prêt et réservé (M6, révision 3)"), ("manque", "a_commander")]
+
+    def test_l_ordre_d_arrivee_ne_change_rien_la_plus_grande_revision_fait_foi(self, intervention):
+        reg, iid = intervention
+        _recevoir(reg, _charge_materiel(3, "pret"), _charge_materiel(1, "a_commander"), _charge_materiel(2, "partiel"))
+        volet, _ = self._materiel(reg, iid)
+        assert volet["statut"] == preparation.STATUT_OK and "révision 3" in volet["detail"]
+
+    def test_la_charge_d_un_autre_devis_ne_compte_pas(self, intervention):
+        reg, iid = intervention
+        _recevoir(reg, _charge_materiel(3, "pret", devis="DEVIS-AUTRE"))
+        volet, _ = self._materiel(reg, iid)
+        assert volet["statut"] == preparation.STATUT_NON_VERIFIABLE
+
+    def test_le_chantier_id_de_la_charge_n_est_jamais_lu(self, intervention):
+        reg, iid = intervention
+        charge = _charge_materiel(3, "pret")
+        charge["chantier_id"] = "CHANTIER-QUI-NE-DOIT-RIEN-CHANGER"
+        _recevoir(reg, charge)
+        avec, _ = preparation.evaluer(reg, iid, _lire_position_ok)
+        assert "CHANTIER-QUI-NE-DOIT-RIEN-CHANGER" not in json.dumps(avec) + json.dumps(reg.lire())
+        assert _volets(avec)["materiel"]["statut"] == preparation.STATUT_OK
+
+    def test_une_intervention_sans_devis_n_a_rien_a_lire(self, declarer_services):
+        declarer_services()
+        reg = registre.Registre()
+        contrat = {
+            "lead_id": "L-SANS-DEVIS", "conversation_id": "C1", "type_travaux": "renovation_totale",
+            "ville": "Montreal", "canal": "telephone", "contact": {"nom": "Dupont", "telephone": "0102030405"},
+            "urgence_declaree": False,
+        }
+        marqueur = {"readiness_ok": True, "lead_id": "L-SANS-DEVIS", "hash_tete_registre": None,
+                    "horodatage": "2025-06-01T12:00:00+00:00", "empreinte": "ab" * 32}
+        accuse, verdict = etats.inscrire_intervention(contrat, marqueur, reg, "2025-06-02T08:00:00+00:00", SEL)
+        assert verdict is None
+        _recevoir(reg, _charge_materiel(3, "pret", devis=""))  # sans devis : ne compte pour personne
+        volet, _ = self._materiel(reg, accuse["intervention_id"])
+        assert volet["statut"] == preparation.STATUT_NON_VERIFIABLE and "devis_id absent" in volet["manque"]
+
+    def test_le_verdict_ne_porte_ni_prix_ni_montant_ni_cout(self, intervention):
+        reg, iid = intervention
+        _recevoir(reg, _charge_materiel(2, "partiel"))
+        texte = json.dumps(preparation.evaluer(reg, iid, _lire_position_ok)[0], ensure_ascii=False).lower()
+        for interdit in ("prix", "montant", "cout", "coût", "marge"):
+            assert interdit not in texte, interdit
+
+    def test_l_empreinte_du_verdict_suit_la_revision_du_materiel(self, intervention):
+        reg, iid = intervention
+        _recevoir(reg, _charge_materiel(1, "a_commander"))
+        un, _ = preparation.evaluer(reg, iid, _lire_position_ok)
+        _recevoir(reg, _charge_materiel(2, "partiel"))
+        deux, _ = preparation.evaluer(reg, iid, _lire_position_ok)
+        assert un["empreinte"] != deux["empreinte"]
+
+    def test_lire_le_materiel_n_ecrit_rien(self, intervention):
+        reg, iid = intervention
+        _recevoir(reg, _charge_materiel(1, "a_commander"))
+        avant = copy.deepcopy(reg.lire())
+        preparation.evaluer(reg, iid, _lire_position_ok)
+        assert reg.lire() == avant
+
+    def test_pret_avec_le_materiel_ok_reste_conditionne_a_la_meteo_et_a_l_equipe(self, intervention, monkeypatch):
+        reg, iid = intervention
+        _recevoir(reg, _charge_materiel(3, "pret"))
+        verdict, _ = preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(_profil()))
+        assert _volets(verdict)["materiel"]["statut"] == preparation.STATUT_OK
+        assert verdict["pret"] is False and [f["volet"] for f in verdict["a_fournir"]] == ["meteo"]
 
 
 class TestAgregation:
@@ -364,7 +522,7 @@ def test_le_module_est_pur_sans_opsys_ni_horloge_ni_alea():
         if isinstance(noeud, ast.ImportFrom):
             assert noeud.module in autorises or noeud.level == 1, (noeud.module, noeud.level)
             if noeud.level == 1:
-                assert {a.name for a in noeud.names} <= {"admissibilite", "etats", "verdicts"}
+                assert {a.name for a in noeud.names} <= {"admissibilite", "etats", "materiel", "verdicts"}
         if isinstance(noeud, ast.Attribute):
             assert noeud.attr not in {"now", "utcnow", "today", "time", "random", "urandom", "monotonic"}
         if isinstance(noeud, ast.Name):

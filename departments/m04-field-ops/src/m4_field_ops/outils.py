@@ -46,6 +46,7 @@ from . import (
     ecarts,
     etats,
     localisation,
+    materiel,
     outbox,
     pointage,
     preparation,
@@ -1738,9 +1739,12 @@ def outils(
                 "Lecture seule (M4.6) : dit si une intervention peut être planifiée, VOLET PAR VOLET, et NOMME ce "
                 "qui manque. Volets : soumission (devis accepté), adresse (coordonnées CONFIRMÉES), équipe "
                 "admissible (calculée depuis le profil des équipes : compétences du service et quart assez long ; "
-                "sans profil, manque dit quoi déclarer), matériel, météo. Chaque volet est ok (lu à sa source), "
-                "manque (attendu et absent) ou non_verifiable (matériel et météo aujourd'hui : aucune intervention "
-                "n'est encore prête). pret SEULEMENT si tous les volets sont ok, jamais par défaut. Ne rend ni "
+                "sans profil, manque dit quoi déclarer), matériel (état « matériel prêt » de M6 reçu par le bus : ok "
+                "seulement si M6 dit pret, réservation active et aucune ligne manquante ; sinon manque, partiel ou "
+                "a_commander avec les lignes manquantes ; aucune charge reçue : non_verifiable), météo. Chaque volet "
+                "est ok (lu à sa source), manque (attendu et absent) ou non_verifiable (météo aujourd'hui : aucune "
+                "intervention n'est encore prête). pret SEULEMENT si tous les volets sont ok, jamais par défaut. "
+                "Ne rend ni "
                 "coordonnée, ni contact, ni prix, et ne promet aucune date. Refus (REJ-TRANSITION-ILLEGALE) : "
                 "intervention inconnue, ou hors de a_planifier, planifiee et reportee. Réservé à l'admin."
             ),
@@ -2003,10 +2007,44 @@ def _recevoir_devis_accepte(charge: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------------------------
+# Consommateur `m6.materiel_pret` (ADR-0009 §3, PLAN T4.14-b) : le volet « matériel » de la préparation
+# ---------------------------------------------------------------------------------------------
+# DEFINITION-PRODUIT §7 M6 « fournit à M4 : matériel prêt ou à commander » et M4.6 « matériel connu ». M6 publie une
+# charge par changement de la réservation d'un devis accepté (révisions 1, 2, 3 ...) ; M4 n'importe rien de M6 et ne lit
+# pas son stock : il range, par `devis_id`, la charge de PLUS GRANDE révision (`materiel.py`), et `preparation.py` la
+# lit.
+def _recevoir_materiel_pret(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme `m6.materiel_pret` : garde la charge de plus grande `revision` du devis, quel que soit l'ordre de
+    livraison. Une charge de révision plus petite ou égale à celle déjà retenue n'écrit rien (`ignoree`).
+
+    Idempotent à deux niveaux : le répartiteur n'appelle cette fonction qu'une fois par (evenement_id, consommateur)
+    traité, et la même révision reçue sous un autre `evenement_id` est ignorée. Aucune intervention n'est exigée : la
+    charge peut arriver avant le devis (ordre inversé), la préparation la relit à l'inscription. `chantier_id` n'est
+    ni lu ni gardé. Un fait mal formé (révision qui n'est pas un entier) lève : le répartiteur réessaie, puis met en
+    quarantaine, visible d'un humain, sans rien écrire."""
+    reg = registre.Registre(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE))
+    devis_id = charge["devis_id"]
+    revision = charge["revision"]
+    maillon = materiel.maillon_de_la_charge(charge)
+    retenue = materiel.charge_retenue(reg, devis_id)
+    if retenue is not None and retenue["revision"] >= revision:
+        return {
+            "traite": True, "devis_id": devis_id, "revision": revision, "ignoree": True,
+            "revision_retenue": retenue["revision"],
+        }
+    reg.ajouter(maillon)
+    return {
+        "traite": True, "devis_id": devis_id, "revision": revision, "ignoree": False, "revision_retenue": revision,
+        "statut": materiel.etat_du_materiel(maillon),
+    }
+
+
 def consommateurs() -> dict[str, Callable[[dict], dict]]:
     return {
         "m6.variance_chantier": _recevoir_variance_chantier,
         "m3.devis_accepte": _recevoir_devis_accepte,
+        "m6.materiel_pret": _recevoir_materiel_pret,
     }
 
 

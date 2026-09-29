@@ -325,8 +325,9 @@ def _variance_charge(**overrides):
 
 
 def test_declaration_module_consommateurs():
-    # PLAN T4.10-b : M4 consomme aussi `m3.devis_accepte` (test_consommer_devis_accepte.py).
-    assert set(consommateurs()) == {"m6.variance_chantier", "m3.devis_accepte"}
+    # PLAN T4.10-b : M4 consomme aussi `m3.devis_accepte` (test_consommer_devis_accepte.py) ; PLAN T4.14-b :
+    # `m6.materiel_pret` (test_materiel_pret_recu.py).
+    assert set(consommateurs()) == {"m6.variance_chantier", "m3.devis_accepte", "m6.materiel_pret"}
 
 
 def test_recevoir_variance_chantier_evaluee_sans_signal_passe_a_completed_verified(base_durable, deposer_photo_test):

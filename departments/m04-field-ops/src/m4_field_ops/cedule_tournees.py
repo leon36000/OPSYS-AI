@@ -50,8 +50,8 @@ SORTIE DE ``a_planifier`` (T4.12) : appliquer un plan fait passer ``a_planifier 
 qu'il place, par ``etats.transitionner`` et le verdict de préparation « prêt » recalculé au moment de l'application
 (la porte d'empreinte de T4.10 : aucun verdict truqué ni périmé ne passe), puis l'assigne. Une intervention non prête
 n'entre jamais dans le plan ; elle est rendue avec ce qui lui manque (``non_pretes``). Une intervention que le plan
-laisse de côté reste ``a_planifier``. Tant que les volets matériel et météo de ``preparation`` ne sont pas vérifiables
-(T4.14, T4.13), aucune n'est prête : la porte est câblée, elle reste fermée.
+laisse de côté reste ``a_planifier``. Tant que le volet météo de ``preparation`` n'est pas vérifiable (T4.13 ; le
+matériel se lit depuis T4.14-b), aucune n'est prête : la porte est câblée, elle reste fermée.
 
 Limites : ``jour`` est un numéro choisi par l'appelant (M4 ne tient pas encore de calendrier) ; le jour et
 l'heure d'une visite restent dans le maillon du plan, ils ne sont pas encore lus par l'écran « chantiers du
@@ -265,8 +265,9 @@ def _non_prete(identifiant, verdict_preparation):
 
 
 # Volets qui ne dépendent pas d'un chantier : leur « à fournir » est le même pour toutes les interventions, on ne le dit
-# qu'une fois (l'adresse et la soumission, propres à chaque chantier, sont seulement nommées).
-_VOLETS_D_ENTREPRISE = ("equipe", "materiel", "meteo")
+# qu'une fois (l'adresse, la soumission et, depuis T4.14-b, le matériel, propres à un chantier ou à un devis, sont
+# seulement nommés : m4_verifier_preparation dit ce qui manque, lignes de matériel comprises).
+_VOLETS_D_ENTREPRISE = ("equipe", "meteo")
 
 
 def _resume_non_pretes(non_pretes):

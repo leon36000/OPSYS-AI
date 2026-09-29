@@ -309,6 +309,7 @@ def test_enumere_des_types_est_fige():
         "localisation_chantier",  # PLAN T4.1-a : localisation.confirmer (coordonnées chiffrées)
         "cedule_proposee",  # PLAN T4.1-d : cedule_tournees.proposer (plan stocké, jamais une vérité)
         "cedule_appliquee",  # PLAN T4.1-d : cedule_tournees.appliquer (via etats.assigner_technicien)
+        "materiel_pret_recu",  # PLAN T4.14-b : la charge m6.materiel_pret la plus récente d'un devis (materiel.py)
     }
     assert set(registre_mod._TYPE_ENTREE_VALIDES) == attendu, (
         f"énuméré modifié sans ratification : {set(registre_mod._TYPE_ENTREE_VALIDES) ^ attendu}"
