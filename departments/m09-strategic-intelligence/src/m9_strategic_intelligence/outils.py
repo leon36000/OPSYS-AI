@@ -24,7 +24,9 @@ PLAN T1.5-d : le briefing est BORNÉ par le code sous la limite de sortie de `Ca
 (`jetons.LIMITE_SORTIE_DEFAUT`) — ce qui ne tient pas est compté (« N autres éléments non affichés ») et
 se lit par `m9_lire_suite_briefing`, jamais une troncature silencieuse. `m9_produire_lecture_strategique`
 lit les alertes de mesure de M8 (chantier terminé : temps réel contre prévu, marge, matériaux) et cite
-leurs preuves sans décider : la décision revient au propriétaire.
+leurs preuves sans décider : la décision revient au propriétaire. `m9_lire_alertes_m8` est borné de la même
+façon (`lecture_alertes.lire_alertes_m8` : `depart`, `prochain_depart`, sous `BUDGET_SORTIE`) ; sa réponse est
+un objet (`alertes`, `total`, `prochain_depart`…), non plus la liste nue d'avant la borne.
 
 Registre de production (ADR-0009) : par défaut, `outils()` adosse le registre de snapshots au
 stockage durable de l'instance (`opsys.stockage.maillons`, dans la transaction que
@@ -48,7 +50,15 @@ from opsys import approbations, approbations_appareil, contexte, jetons, stockag
 from opsys.departements import charger_departements
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
-from . import briefing_matin, contrats, lecture_strategique, rapport_strategique, registre, validation
+from . import (
+    briefing_matin,
+    contrats,
+    lecture_alertes,
+    lecture_strategique,
+    rapport_strategique,
+    registre,
+    validation,
+)
 from . import etat_consolide as etat_consolide_module
 
 _SNAPSHOT = {
@@ -166,10 +176,13 @@ def outils(
         etat = etat_consolide_module.construire_etat_consolide(registre_cible)
         return {"etape": "complet", "accepte": True, "etat_consolide": etat}
 
-    def lire_alertes_m8() -> list[dict[str, Any]]:
+    def lire_alertes_m8(depart: int = 0) -> dict[str, Any]:
         """Alertes M8 déjà reçues (`m8.alerte_proposee`), sans filtre — relecture pure, n'ingère
-        rien de nouveau (même esprit que `lire_etat_consolide`)."""
-        return [dict(alerte) for alerte in alertes_cible]
+        rien de nouveau (même esprit que `lire_etat_consolide`). BORNÉE (T1.5-d) : une page à la fois, le
+        plus récent d'abord, sous la limite de sortie du socle ; `depart` reprend à `prochain_depart`."""
+        return lecture_alertes.lire_alertes_m8(
+            [dict(alerte) for alerte in alertes_cible], depart, budget_caracteres=BUDGET_SORTIE,
+        )
 
     def sources_du_briefing() -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
         """Les trois sources déjà à jour, relues sans rien écrire : file du propriétaire, alertes M8 reçues
@@ -295,10 +308,24 @@ def outils(
         Outil(
             nom="m9_lire_alertes_m8",
             description=(
-                "Alertes de qualité proposées par M8 déjà reçues via le bus (m8.alerte_proposee), "
-                "sans filtre — relecture pure du registre durable des alertes M9, n'ingère rien."
+                "Alertes proposées par M8 déjà reçues via le bus (m8.alerte_proposee), sans filtre de date — "
+                "relecture pure du registre durable des alertes M9, n'ingère rien. Le plus récent d'abord "
+                "(à instant égal, par identifiant d'événement). Bornée : rend autant d'alertes que la limite "
+                "de sortie en laisse tenir, avec `total`, `reste` et `prochain_depart` (nul à la fin) ; quand "
+                "`prochain_depart` n'est pas nul, rappeler avec `depart` égal à cette valeur. Un `depart` "
+                "qui n'est pas un entier ≥ 0, ou au-delà de la fin, est refusé : reprendre à 0."
             ),
-            parametres={"type": "object", "properties": {}, "additionalProperties": False},
+            parametres={
+                "type": "object",
+                "properties": {
+                    "depart": {
+                        "type": "integer", "minimum": 0,
+                        "description": "Rang de la première alerte rendue (0 = la plus récente, défaut) : "
+                                       "reprendre à la valeur de `prochain_depart` de la page précédente.",
+                    },
+                },
+                "additionalProperties": False,
+            },
             fonction=lire_alertes_m8,
             # §7 M9 mobile : « Admin/Nathan seulement » (alertes critiques).
             roles_appareil=frozenset({"admin"}),

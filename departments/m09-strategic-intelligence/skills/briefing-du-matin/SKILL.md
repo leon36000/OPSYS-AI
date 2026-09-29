@@ -32,7 +32,11 @@ description: Procédure pour produire le briefing du matin (décisions en attent
    chaque entrée de `affichage.lire_la_suite` (maintenant, section, depart), puis avec
    `prochain_depart` jusqu'à ce qu'il soit nul. Les éléments viennent du plus ancien au plus récent.
 6. Pour consulter uniquement les alertes M8 déjà reçues (sans assembler le briefing complet),
-   appelle `m9_lire_alertes_m8` à la place.
+   appelle `m9_lire_alertes_m8` à la place. Elle est BORNÉE et sans filtre de date : elles viennent du plus
+   récent au plus ancien (à instant égal, par `evenement_id`), et la réponse porte `total`, `reste` et
+   `prochain_depart`. Si `prochain_depart` n'est pas nul, dis-le tel quel (`message`) et rappelle l'outil avec
+   `depart` égal à cette valeur, jusqu'à ce qu'il soit nul : n'écris JAMAIS que la page reçue est toute la liste.
+   Un `depart` refusé (au-delà de la fin, ou négatif) se corrige en reprenant à 0.
 
 # Lire les alertes de mesure de M8
 

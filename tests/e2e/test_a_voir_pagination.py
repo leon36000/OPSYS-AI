@@ -14,10 +14,15 @@ journée de l'employé, bus livré) :
 - le stock de l'article passe sous son seuil : un besoin de commande (M6, un par article).
 
 Huit attentes, de trois départements. Ce que ces tests ne prouvent PAS : l'écran (Jest, `mobile/`) ni le core.
+
+Suite (PLAN T1.5-d) : `m9_lire_alertes_m8` (`admin`) rendait TOUTES les alertes de M8 reçues, sans limite. Il est
+borné comme le reste : ce fichier prouve, par la même porte d'appareil, que l'admin lit les alertes page par page
+(`depart`, `prochain_depart`), sans troncature, doublon ni écriture, et que l'employé n'y entre pas.
 """
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 from typing import Any
 
@@ -35,7 +40,7 @@ from harnais_e2e_chantier import (
     receptionner_materiel_args,
 )
 
-from opsys import approbations, stockage
+from opsys import approbations, evenements, stockage
 from opsys.approbations_appareil import BUDGET_ATTENTES
 
 SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite"], indirect=True)
@@ -255,3 +260,144 @@ def _chantier_du_depot(moteur: Moteur) -> Chantier:
     return Chantier(lead_id="LEAD-DEPOT-AV-fictif", devis_id="DEVIS-DEPOT-AV-fictif",
                     chantier_id="DEPOT-AV-fictif", intervention_id="", technicien="etienne",
                     debut=moteur.horloge.maintenant)
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# PLAN T1.5-d : les alertes de M8 reçues par M9 se lisent par pages, par la porte d'appareil (rôle `admin`)
+# ---------------------------------------------------------------------------------------------------------------
+LIRE_ALERTES = "m9_lire_alertes_m8"
+NB_ALERTES = 20
+_DEBUT_ALERTES = dt.datetime(2026, 9, 20, 12, 0, tzinfo=dt.UTC)
+
+
+def _alerte_fictive(numero: int) -> dict[str, Any]:
+    """Une alerte `m8.alerte_proposee` fictive (métrique `m8_metrique_fictive_NN`), valide contre le catalogue.
+    Les numéros 7 et 8 ont le MÊME instant (départage par identifiant) ; le 13 est écrit en heure du Québec."""
+    instant = _DEBUT_ALERTES + dt.timedelta(hours=7 if numero == 8 else numero)
+    texte = instant.isoformat().replace("+00:00", "Z")
+    if numero == 13:
+        texte = instant.astimezone(dt.timezone(dt.timedelta(hours=-4))).isoformat()
+    metrique = f"m8_metrique_fictive_{numero:02d}"
+    return {
+        "evenement_id": f"m8-alerte-{metrique}-REJ-QUALITE-DONNEE-PERIMEE-{texte}",
+        "metric_id": metrique, "type_alerte": "REJ-QUALITE-DONNEE-PERIMEE",
+        "quoi": f"Valeur périmée pour {metrique} (donnée fictive).", "a_qui": "m04-field-ops",
+        "pourquoi": "âge observé 10.00 jours > fraîcheur attendue 2 jours. " + "Règle de fraîcheur fictive. " * 6,
+        "preuve": {"metric_id": metrique, "fraicheur_jours": 10.0, "fraicheur_attendue_jours": 2},
+        "action_proposee": "Rafraîchir la donnée à la source (action fictive proposée par M8, jamais exécutée).",
+        "source": "source fictive de la définition de la métrique", "horodatage_reference": texte,
+    }
+
+
+def _instant_alerte(alerte: dict[str, Any]) -> dt.datetime:
+    return dt.datetime.fromisoformat(alerte["horodatage_reference"].replace("Z", "+00:00"))
+
+
+def _alertes_de_m9() -> list[dict[str, Any]]:
+    return [dict(m) for m in stockage.maillons("m09-strategic-intelligence", "alertes_m8")]
+
+
+def _page_alertes(admin, depart: int | None = None) -> dict[str, Any]:
+    """Un appel de l'écran : la première page sans argument, la suivante avec le seul `depart`."""
+    reponse = admin.appeler(LIRE_ALERTES, {} if depart is None else {"depart": depart})
+    assert reponse.statut == 200 and reponse.enveloppe["ok"] is True, reponse.corps
+    assert reponse.mesure.tronque is False and reponse.mesure.octets_texte < LIMITE_TRONCATURE
+    return reponse.resultat
+
+
+def _lire_toutes_les_alertes(admin) -> list[dict[str, Any]]:
+    pages = [_page_alertes(admin)]
+    while pages[-1]["prochain_depart"] is not None:
+        pages.append(_page_alertes(admin, pages[-1]["prochain_depart"]))
+        assert len(pages) <= 20, "la lecture ne progresse pas"
+    return pages
+
+
+@SQLITE_SEULEMENT
+def test_l_admin_lit_les_alertes_de_m8_page_par_page_chacune_une_seule_fois(moteur, equipe):
+    admin = equipe["admin"]
+
+    # -- aucune alerte reçue : une page vide, qui le dit --------------------------------------------------------
+    vide = _page_alertes(admin)
+    assert vide["alertes"] == [] and vide["total"] == 0 and vide["prochain_depart"] is None
+
+    # -- vingt alertes livrées par le vrai bus (validées contre le catalogue, reçues par le consommateur de M9) ----
+    for numero in range(NB_ALERTES):
+        alerte = _alerte_fictive(numero)
+        evenements.publier("m8.alerte_proposee", "m08-analytics", alerte, evenement_id=alerte["evenement_id"])
+    moteur.drainer_bus(moteur.horloge.maintenant)
+    registre = _alertes_de_m9()
+    assert len(registre) == NB_ALERTES
+    assert len(json.dumps({"ok": True, "resultat": registre}, ensure_ascii=False)) > LIMITE_TRONCATURE  # avant la borne
+
+    # -- ce que l'écran doit lire : le plus récent d'abord, à instant égal par identifiant ---------------------
+    verite = sorted(registre, key=lambda a: (-_instant_alerte(a).timestamp(), a["evenement_id"]))
+    sept, huit = (a for a in registre if a["metric_id"] in ("m8_metrique_fictive_07", "m8_metrique_fictive_08"))
+    assert _instant_alerte(sept) == _instant_alerte(huit)  # le départage par identifiant est bien exercé
+
+    empreinte = moteur.empreinte_etat()
+    pages = _lire_toutes_les_alertes(admin)
+    assert moteur.empreinte_etat() == empreinte  # lire n'écrit rien : ni approbation, ni journal, ni registre
+
+    print("MESURE-ALERTES-M8 " + json.dumps({
+        "alertes": NB_ALERTES, "pages": len(pages), "par_page": [p["affichees"] for p in pages],
+        "octets_texte": [m.octets_texte for m in moteur.mesures if m.outil == LIRE_ALERTES][-len(pages):],
+    }))
+    assert len(pages) > 2
+    lues = [a for page in pages for a in page["alertes"]]
+    assert [a["evenement_id"] for a in lues] == [a["evenement_id"] for a in verite]  # toutes, une fois, dans l'ordre
+    assert len({a["evenement_id"] for a in lues}) == NB_ALERTES
+    assert lues == verite  # et telles que reçues : aucun champ retiré ni ajouté
+    rang = 0
+    for page in pages:
+        assert page["type"] == "ALERTES_M8" and page["total"] == NB_ALERTES and page["depart"] == rang
+        assert page["affichees"] == len(page["alertes"]) >= 1
+        rang += page["affichees"]
+        assert page["reste"] == NB_ALERTES - rang
+        assert page["prochain_depart"] == (rang if rang < NB_ALERTES else None)
+    assert pages[-1]["reste"] == 0 and pages[-1]["message"] is None and pages[0]["message"] is not None
+
+
+@SQLITE_SEULEMENT
+def test_les_alertes_reelles_de_m8_sont_lues_par_l_admin_dans_l_ordre_du_plus_recent(moteur, equipe, semaine_chargee):
+    """Les alertes que M8 publie vraiment (trois chantiers terminés, un rappel « seuil à configurer » par jour de
+    chantier) passent la validation stricte de l'outil : aucune n'est refusée ni retirée."""
+    registre = _alertes_de_m9()
+    assert len(registre) == 3 and {a["type_alerte"] for a in registre} == {"MESURE-SEUIL-A-CONFIGURER"}
+
+    page = _page_alertes(equipe["admin"])
+
+    assert page["total"] == 3 and page["affichees"] == 3 and page["prochain_depart"] is None
+    assert [a["horodatage_reference"] for a in page["alertes"]] == sorted(
+        (a["horodatage_reference"] for a in registre), reverse=True)  # des instants d'un même fuseau : reste 23, 22, 21
+    assert sorted(a["evenement_id"] for a in page["alertes"]) == sorted(a["evenement_id"] for a in registre)
+
+
+@SQLITE_SEULEMENT
+def test_la_porte_refuse_l_employe_et_les_depart_invalides(moteur, equipe):
+    for numero in range(3):
+        alerte = _alerte_fictive(numero)
+        evenements.publier("m8.alerte_proposee", "m08-analytics", alerte, evenement_id=alerte["evenement_id"])
+    moteur.drainer_bus(moteur.horloge.maintenant)
+
+    # L'employé n'a pas la portée de l'outil : le core (sa règle, refaite ici) le refuse, page 0 comme page 2.
+    for args in ({}, {"depart": 2}):
+        refus = equipe["employe"].appeler(LIRE_ALERTES, args)
+        assert refus.statut == 403 and "tool_out_of_scope" in refus.corps["error"]["message"]
+
+    admin = equipe["admin"]
+    # Au-delà de la fin, ou négatif : un refus métier qui dit quoi corriger, jamais une page inventée.
+    au_dela = admin.appeler(LIRE_ALERTES, {"depart": 4})
+    assert au_dela.statut == 200 and au_dela.enveloppe["ok"] is False and au_dela.enveloppe["erreur"] == "refus_metier"
+    assert "depart=0" in au_dela.enveloppe["details"]
+    negatif = admin.appeler(LIRE_ALERTES, {"depart": -1})
+    assert negatif.enveloppe["ok"] is False and negatif.enveloppe["erreur"] == "refus_metier"
+    assert "entier supérieur ou égal à 0" in negatif.enveloppe["details"]
+    # `depart` égal au total : la fin, une page vide.
+    fin = _page_alertes(admin, 3)
+    assert fin["alertes"] == [] and fin["total"] == 3 and fin["prochain_depart"] is None
+
+    # Ni un texte ni un paramètre inconnu : l'erreur d'arguments du socle.
+    for args in ({"depart": "1"}, {"depart": 1.5}, {"depart": 0, "limite": 5}, {"depart": 0, "personne": "nathan"}):
+        refuse = admin.appeler(LIRE_ALERTES, args)
+        assert refuse.enveloppe["ok"] is False and refuse.enveloppe["erreur"] == "arguments_invalides", args

@@ -188,14 +188,18 @@ def test_lire_alertes_m8_relecture_pure_sans_filtre():
     reponse = _appeler(par_nom, "m9_lire_alertes_m8")
 
     assert reponse["ok"] is True
-    assert reponse["resultat"] == alertes_memoire
+    page = reponse["resultat"]
+    # Depuis la borne (T1.5-d) : un objet, la liste est sous `alertes`. Ici une seule page, tout y tient.
+    assert page["alertes"] == alertes_memoire
+    assert page["total"] == 1 and page["reste"] == 0 and page["prochain_depart"] is None
     # Relecture pure : n'a rien ingéré, la liste source n'a pas grossi.
     assert len(alertes_memoire) == 1
 
 
 def test_lire_alertes_m8_vide_par_defaut():
     par_nom = _outils_par_nom()
-    assert _appeler(par_nom, "m9_lire_alertes_m8")["resultat"] == []
+    page = _appeler(par_nom, "m9_lire_alertes_m8")["resultat"]
+    assert page["alertes"] == [] and page["total"] == 0 and page["prochain_depart"] is None
 
 
 def test_manifeste_et_outils_incluent_le_briefing_du_matin():
