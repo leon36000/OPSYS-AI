@@ -80,13 +80,28 @@ function codeDeLErreur(enveloppe: Record<string, unknown>): string {
 }
 
 /**
- * Cette réponse est-elle un refus de la REQUÊTE elle-même (l'appareil, son rôle, son identité confirmée ou ses arguments :
- * `ok: false` qui n'est pas une panne passagère), plutôt qu'un verdict métier sur ce qu'on lit (`accepte: false`) ? Un
- * verdict métier peut faire partie de ce qu'un écran montre (un lead clos n'a pas de suggestion, mais son historique se
- * lit) ; un refus de la requête ne montre rien, et aucun cache ne le remplace.
+ * Le verdict que TOUS les départements rendent quand la base ne confirme plus l'identité du jeton : la personne a été
+ * désactivée, ou elle ne porte plus le rôle de l'appareil (`REJ-IDENTITE-APPAREIL-INVALIDE`, `_acteur_appareil` de M2,
+ * M3, M4, M5, M6, M8). Selon l'outil, il arrive en verdict métier (`accepte: false`, M2 et M3) ou en refus technique
+ * (`ok: false`, `refus_metier`, M4) : l'un comme l'autre est un refus de la REQUÊTE.
+ */
+export const CODE_IDENTITE_INVALIDE = "REJ-IDENTITE-APPAREIL-INVALIDE";
+
+/**
+ * Cette réponse est-elle un refus de la REQUÊTE elle-même (l'appareil, son rôle, son identité confirmée ou ses arguments),
+ * plutôt qu'un verdict métier sur ce qu'on lit ? Deux formes : `ok: false` qui n'est pas une panne passagère, ou le verdict
+ * d'identité (`CODE_IDENTITE_INVALIDE`). Un verdict métier peut faire partie de ce qu'un écran montre (un lead clos n'a pas
+ * de suggestion, mais son historique se lit) ; un refus de la requête ne montre rien, et aucun cache ne le remplace.
  */
 export function estRefusDeRequete(resultatBrut: unknown): boolean {
-  return estObjet(resultatBrut) && resultatBrut.ok === false && !ERREURS_PASSAGERES.includes(codeDeLErreur(resultatBrut));
+  if (!estObjet(resultatBrut)) {
+    return false;
+  }
+  if (resultatBrut.ok === false) {
+    return !ERREURS_PASSAGERES.includes(codeDeLErreur(resultatBrut));
+  }
+  const metier = estObjet(resultatBrut.resultat) ? resultatBrut.resultat : null;
+  return metier?.accepte === false && estObjet(metier.verdict) && metier.verdict.code === CODE_IDENTITE_INVALIDE;
 }
 
 /** Ouvre l'enveloppe et rend `R` (`valeur`) d'une réponse acceptée, ou l'échec et son genre. */

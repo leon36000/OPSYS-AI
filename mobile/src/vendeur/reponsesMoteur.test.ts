@@ -1,10 +1,24 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { interpreterResultatClient360, interpreterResultatClientDeLead, interpreterResultatSuggestion } from "../m2/client360";
+import {
+  interpreterResultatClient360,
+  interpreterResultatClientDeLead,
+  interpreterResultatSuggestion,
+  OUTIL_OBTENIR_CLIENT_360,
+  OUTIL_SUGGERER_PROCHAINE_ACTION,
+  OUTIL_TROUVER_CLIENT_DE_LEAD,
+} from "../m2/client360";
 import { interpreterResultatEnregistrerInteraction } from "../m2/interaction";
-import { interpreterResultatListerLeads } from "../m2/listeLeads";
-import { interpreterResultatLireDevis } from "../m3/devis";
+import { interpreterResultatListerLeads, OUTIL_LISTER_LEADS } from "../m2/listeLeads";
+import { interpreterResultatLireDevis, OUTIL_LIRE_DEVIS } from "../m3/devis";
+import { estRefusDeRequete } from "../protocole/enveloppeOutil";
+import { DepotCleValeurMemoire } from "../stockage/depotCleValeur";
+import type { ConfigurationChargeurVendeur } from "./appel";
+import { creerChargeurDevis } from "./chargeurDevis";
+import { creerChargeurFiche } from "./chargeurFiche";
+import { creerChargeurLeads } from "./chargeurLeads";
+import { fauxTransport } from "./donneesDeTest";
 import { devisCitesParLeads } from "./devisConnus";
 import { historiqueDuLead } from "./fiche";
 
@@ -31,9 +45,9 @@ const reponse = (nom: string): unknown => {
 };
 
 describe("la fixture des réponses du moteur", () => {
-  test("est marquée fictive, avec ses quinze réponses", () => {
+  test("est marquée fictive, avec ses vingt réponses", () => {
     expect(fixture.fictif).toBe(true);
-    expect(Object.keys(fixture.reponses)).toHaveLength(15);
+    expect(Object.keys(fixture.reponses)).toHaveLength(20);
   });
 });
 
@@ -194,5 +208,130 @@ describe("m2_enregistrer_interaction, tel que le moteur le rend", () => {
       accepte: false,
       verdict: { code: "REJ-LEAD-NON-ASSIGNE", detail: "ce lead n'est pas assigné à la personne authentifiée (ou est inconnu)" },
     });
+  });
+});
+
+/**
+ * PLAN T1.4-n : l'admin désactive le vendeur A. Ce que le VRAI moteur répond alors à ses cinq lectures est enregistré dans
+ * la fixture (`refus_identite_*`) : HTTP 200 et un verdict `REJ-IDENTITE-APPAREIL-INVALIDE`. Les chargeurs de l'app le lisent
+ * comme un REFUS, pas comme une panne : le cache que l'appareil a gardé n'est ni relu ni remplacé.
+ */
+describe("une personne désactivée, telle que le vrai moteur la refuse : jamais le cache gardé (PLAN T1.4-n)", () => {
+  const HORLOGE = { maintenant: new Date("2026-09-29T18:03:22.000Z"), decalageMinutesUTC: -240 };
+  const REFUS = [
+    "refus_identite_page_des_leads",
+    "refus_identite_suggestion",
+    "refus_identite_client_du_lead",
+    "refus_identite_client_360",
+    "refus_identite_devis",
+  ] as const;
+
+  function config(appelerOutil: jest.Mock, depot: DepotCleValeurMemoire): ConfigurationChargeurVendeur {
+    return {
+      depot,
+      appelerOutil,
+      fetchImpl: jest.fn() as unknown as typeof fetch,
+      urlBase: "https://grs.exemple.ca",
+      jeton: "jeton-vendeur-a",
+      personne: "vendeur.a",
+      horloge: () => HORLOGE,
+    };
+  }
+
+  /** Ce que le serveur rendait quand le vendeur A était actif : la liste, la fiche du lead-a-1 et les devis. */
+  const SERVEUR_ACTIF = {
+    [OUTIL_LISTER_LEADS]: (args: Record<string, unknown>) =>
+      args.segment === "won_pending_schedule" ? reponse("page_du_segment_converti") : reponse("page_des_leads"),
+    [OUTIL_SUGGERER_PROCHAINE_ACTION]: () => reponse("suggestion_doublon"),
+    [OUTIL_TROUVER_CLIENT_DE_LEAD]: () => reponse("client_du_lead"),
+    [OUTIL_OBTENIR_CLIENT_360]: () => reponse("client_360"),
+    [OUTIL_LIRE_DEVIS]: () => reponse("devis_interne"),
+  };
+
+  /** Ce que le serveur rend depuis la désactivation : ses vraies réponses. */
+  const SERVEUR_REFUSE = {
+    [OUTIL_LISTER_LEADS]: () => reponse("refus_identite_page_des_leads"),
+    [OUTIL_SUGGERER_PROCHAINE_ACTION]: () => reponse("refus_identite_suggestion"),
+    [OUTIL_TROUVER_CLIENT_DE_LEAD]: () => reponse("refus_identite_client_du_lead"),
+    [OUTIL_OBTENIR_CLIENT_360]: () => reponse("refus_identite_client_360"),
+    [OUTIL_LIRE_DEVIS]: () => reponse("refus_identite_devis"),
+  };
+
+  async function depotAvecTout(): Promise<DepotCleValeurMemoire> {
+    const depot = new DepotCleValeurMemoire();
+    const transport = fauxTransport(SERVEUR_ACTIF);
+    const auto = { statut: null, segment: null };
+    await creerChargeurLeads(config(transport, depot)).chargerLeads(auto);
+    await creerChargeurFiche(config(transport, depot)).chargerFiche("lead-a-1");
+    await creerChargeurDevis(config(transport, depot)).chargerDevis();
+    // Ce que l'appareil a gardé, sous la personne : la liste, la fiche, le devis, les numéros connus.
+    expect(depot.cles().filter((cle) => cle.startsWith("vendeur:vendeur.a:")).length).toBeGreaterThanOrEqual(4);
+    return depot;
+  }
+
+  test("les cinq réponses réelles sont des refus de la REQUÊTE, jamais des données", () => {
+    for (const nom of REFUS) {
+      expect({ nom, refus: estRefusDeRequete(reponse(nom)) }).toEqual({ nom, refus: true });
+    }
+    expect(interpreterResultatListerLeads(reponse("refus_identite_page_des_leads"))).toMatchObject({ ok: false, genre: "refus" });
+    expect(interpreterResultatLireDevis(reponse("refus_identite_devis"))).toMatchObject({ ok: false, genre: "refus" });
+  });
+
+  test("la liste des leads : refus de la requête, la liste gardée n'est ni relue ni remplacée", async () => {
+    const depot = await depotAvecTout();
+    const gardes = depot.cles();
+    const lire = jest.spyOn(depot, "lire");
+    const ecrire = jest.spyOn(depot, "ecrire");
+
+    const resultat = await creerChargeurLeads(config(fauxTransport(SERVEUR_REFUSE), depot)).chargerLeads({ statut: null, segment: null });
+
+    expect(resultat).toMatchObject({ source: "refus", requete: true, verdict: { code: "REJ-IDENTITE-APPAREIL-INVALIDE" } });
+    expect(lire).not.toHaveBeenCalled();
+    expect(ecrire).not.toHaveBeenCalled();
+    expect(depot.cles()).toEqual(gardes);
+  });
+
+  test("la fiche : UN refus (pas deux cartes de verdict), la fiche gardée n'est ni relue ni remplacée", async () => {
+    const depot = await depotAvecTout();
+    const gardes = depot.cles();
+    const lire = jest.spyOn(depot, "lire");
+    const ecrire = jest.spyOn(depot, "ecrire");
+    const transport = fauxTransport(SERVEUR_REFUSE);
+
+    const resultat = await creerChargeurFiche(config(transport, depot)).chargerFiche("lead-a-1");
+
+    expect(resultat).toMatchObject({ source: "refus", verdict: { code: "REJ-IDENTITE-APPAREIL-INVALIDE" } });
+    expect(transport).toHaveBeenCalledTimes(1);
+    expect(lire).not.toHaveBeenCalled();
+    expect(ecrire).not.toHaveBeenCalled();
+    expect(depot.cles()).toEqual(gardes);
+  });
+
+  test("les devis : aucun devis ni numéro gardé n'est montré, le devis gardé n'est ni relu ni remplacé", async () => {
+    const depot = await depotAvecTout();
+    const gardes = depot.cles();
+    const lire = jest.spyOn(depot, "lire");
+    const ecrire = jest.spyOn(depot, "ecrire");
+    const transport = fauxTransport(SERVEUR_REFUSE);
+
+    const resultat = await creerChargeurDevis(config(transport, depot)).chargerDevis();
+
+    expect(resultat.entrees).toEqual([]);
+    expect(resultat.sources.map((source) => source.etat)).toEqual([
+      { genre: "echouee", verdict: expect.objectContaining({ code: "REJ-IDENTITE-APPAREIL-INVALIDE" }), refuse: true },
+      { genre: "echouee", verdict: expect.objectContaining({ code: "REJ-IDENTITE-APPAREIL-INVALIDE" }), refuse: true },
+    ]);
+    expect(transport.mock.calls.map((appel) => appel[0].requete.tool)).toEqual(["m2_lister_leads", "m2_lister_leads"]);
+    expect(lire).not.toHaveBeenCalled();
+    expect(ecrire).not.toHaveBeenCalled();
+    expect(depot.cles()).toEqual(gardes);
+  });
+
+  test("un devis ouvert par son numéro : refus, jamais le devis gardé, jamais ajouté aux numéros connus", async () => {
+    const depot = await depotAvecTout();
+    const ecrire = jest.spyOn(depot, "ecrire");
+    const entree = await creerChargeurDevis(config(fauxTransport(SERVEUR_REFUSE), depot)).ouvrirParNumero("devis-a-2");
+    expect(entree?.etat).toMatchObject({ genre: "refus", verdict: { code: "REJ-IDENTITE-APPAREIL-INVALIDE" } });
+    expect(ecrire).not.toHaveBeenCalled();
   });
 });

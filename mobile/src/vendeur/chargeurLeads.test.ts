@@ -252,11 +252,11 @@ describe("chargerLeads — le refus du serveur n'est ni un cache ni une liste vi
     expect(resultat).toEqual({ source: "refus", verdict: { code: "REJ-SEGMENT-NON-CALCULABLE", detail } });
   });
 
-  test("identité invalide (rôle retiré) : refus, pas de cache", async () => {
+  test("identité invalide (rôle retiré) : refus de la REQUÊTE (`requete`), pas de cache", async () => {
     const resultat = await creerChargeurLeads(
       config(fauxTransport({ [OUTIL_LISTER_LEADS]: () => enveloppeRefusee("REJ-IDENTITE-APPAREIL-INVALIDE", "rôle retiré") })),
     ).chargerLeads(AUCUN);
-    expect(resultat).toMatchObject({ source: "refus", verdict: { code: "REJ-IDENTITE-APPAREIL-INVALIDE" } });
+    expect(resultat).toMatchObject({ source: "refus", requete: true, verdict: { code: "REJ-IDENTITE-APPAREIL-INVALIDE" } });
   });
 
   test("le serveur répond pour un autre filtre que celui demandé : ce n'est pas la liste demandée", async () => {
@@ -326,7 +326,7 @@ describe("chargerLeads — un appareil refusé ne relit JAMAIS ses leads gardés
     expect(await depot.lire(CLE)).toBe(avant);
   });
 
-  test("un verdict métier (identité invalide, segment non calculable) est un refus SANS `requete` : le filtre est refusé, pas la requête", async () => {
+  test("un verdict métier (segment non calculable) est un refus SANS `requete` : le filtre est refusé, pas la requête", async () => {
     const { depot, lire, ecrire } = await avecCacheEspionne();
     const resultat = await creerChargeurLeads(
       config(fauxTransport({ [OUTIL_LISTER_LEADS]: () => enveloppeRefusee(CODE_SEGMENT_NON_CALCULABLE, "manque X") }), depot),

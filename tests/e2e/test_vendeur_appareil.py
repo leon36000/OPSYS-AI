@@ -38,9 +38,10 @@ import pytest
 from harnais_e2e import Moteur, PorteAppareil, Reponse, iso
 from m2_revenue_crm import segments as segments_m2
 from m2_revenue_crm import statuts as statuts_m2
+from m2_revenue_crm import verdicts as verdicts_m2
 from m3_estimation import devis_durable
 
-from opsys import openclaw
+from opsys import cli, idempotence, openclaw
 from opsys.departements import charger_departements
 from opsys.outils import executer_atomique
 
@@ -489,6 +490,13 @@ def test_les_catalogues_et_les_noms_d_outils_de_l_app_sont_ceux_du_serveur():
     assert 'CODE_SEGMENT_NON_CALCULABLE = "REJ-SEGMENT-NON-CALCULABLE"' in _source("m2/listeLeads.ts")
     assert segments_m2.CHEMIN_SEUILS == "configuration.segments"
 
+    # PLAN T1.4-n : le verdict d'identité (personne désactivée, rôle retiré) est reconnu par son code, celui des
+    # départements, et les pannes passagères du socle (jamais un refus) sont celles du serveur.
+    assert 'CODE_IDENTITE_INVALIDE = "REJ-IDENTITE-APPAREIL-INVALIDE"' in _source("protocole/enveloppeOutil.ts")
+    assert "REJ-IDENTITE-APPAREIL-INVALIDE" in verdicts_m2.CODES_M2
+    passageres = set(_liste_ts(_source("protocole/enveloppeOutil.ts"), "ERREURS_PASSAGERES"))
+    assert passageres == set(idempotence.ERREURS_PASSAGERES)
+
 
 def _forme(valeur: Any) -> Any:
     """La FORME d'une réponse : ses clés et le type de chaque valeur, jamais les valeurs elles-mêmes (une liste est
@@ -535,6 +543,17 @@ def _reponses_du_scenario(moteur: Moteur, vente: dict[str, PorteAppareil]) -> di
     garder("note_rejouee", _note(moteur, a, "lead-a-3", "Rappel fait (fictif)", "e2e-fixture-note"))
     garder("note_conflit", _note(moteur, a, "lead-a-3", "Autre contenu", "e2e-fixture-note"))
     garder("note_refusee", _note(moteur, a, "lead-b-1", "Note chez un autre vendeur", "e2e-fixture-refus"))
+
+    # PLAN T1.4-n : l'admin désactive le vendeur A. Son jeton reste valide pour la porte du core (`appareils.json`),
+    # mais chaque outil revérifie l'identité en base : la personne est refusée. C'est ce que l'app doit lire comme un
+    # REFUS (jamais un cache), sur les cinq lectures des écrans.
+    assert cli.main(["personnes", "desactiver", "vendeur.a"]) == 0
+    garder("refus_identite_page_des_leads", a.appeler("m2_lister_leads", {"horodatage": HORODATAGE}))
+    garder("refus_identite_suggestion",
+           a.appeler("m2_suggerer_prochaine_action", {"lead_id": "lead-a-1", "horodatage": HORODATAGE}))
+    garder("refus_identite_client_du_lead", a.appeler("m2_trouver_client_de_lead", {"lead_id": "lead-a-1"}))
+    garder("refus_identite_client_360", a.appeler("m2_obtenir_client_360", {"client_id": lien.resultat["client_id"]}))
+    garder("refus_identite_devis", a.appeler("m3_lire_devis", {"devis_id": "devis-a-2"}))
     return reponses
 
 
@@ -554,7 +573,7 @@ def test_les_reponses_du_moteur_ont_la_forme_de_la_fixture_que_l_app_lit(moteur,
     assert set(fixture["reponses"]) == set(reponses)
     for nom, vivante in reponses.items():
         assert _forme(vivante) == _forme(fixture["reponses"][nom]), f"{nom} : la forme du moteur a changé"
-    assert len(reponses) == 15
+    assert len(reponses) == 20
 
 
 @SQLITE_SEULEMENT

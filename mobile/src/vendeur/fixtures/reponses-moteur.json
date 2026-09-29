@@ -440,6 +440,60 @@
     }
    },
    "rejoue": false
+  },
+  "refus_identite_page_des_leads": {
+   "ok": true,
+   "resultat": {
+    "accepte": false,
+    "verdict": {
+     "code": "REJ-IDENTITE-APPAREIL-INVALIDE",
+     "statut": "",
+     "detail": "personne 'vendeur.a' inconnue, inactive, ou ne porte plus le rôle 'seller' porté par le jeton d'appareil (ou identité non vérifiable hors transaction)"
+    }
+   }
+  },
+  "refus_identite_suggestion": {
+   "ok": true,
+   "resultat": {
+    "accepte": false,
+    "verdict": {
+     "code": "REJ-IDENTITE-APPAREIL-INVALIDE",
+     "statut": "",
+     "detail": "personne 'vendeur.a' inconnue, inactive, ou ne porte plus le rôle 'seller' porté par le jeton d'appareil (ou identité non vérifiable hors transaction)"
+    }
+   }
+  },
+  "refus_identite_client_du_lead": {
+   "ok": true,
+   "resultat": {
+    "accepte": false,
+    "verdict": {
+     "code": "REJ-IDENTITE-APPAREIL-INVALIDE",
+     "statut": "",
+     "detail": "personne 'vendeur.a' inconnue, inactive, ou ne porte plus le rôle 'seller' porté par le jeton d'appareil (ou identité non vérifiable hors transaction)"
+    }
+   }
+  },
+  "refus_identite_client_360": {
+   "ok": true,
+   "resultat": {
+    "accepte": false,
+    "verdict": {
+     "code": "REJ-IDENTITE-APPAREIL-INVALIDE",
+     "statut": "",
+     "detail": "personne 'vendeur.a' inconnue, inactive, ou ne porte plus le rôle 'seller' porté par le jeton d'appareil (ou identité non vérifiable hors transaction)"
+    }
+   }
+  },
+  "refus_identite_devis": {
+   "ok": true,
+   "resultat": {
+    "accepte": false,
+    "verdict": {
+     "code": "REJ-IDENTITE-APPAREIL-INVALIDE",
+     "detail": "personne 'vendeur.a' inconnue, inactive, ou ne porte plus le rôle 'seller' porté par le jeton d'appareil"
+    }
+   }
   }
  }
 }

@@ -1,4 +1,5 @@
 import {
+  CODE_IDENTITE_INVALIDE,
   ERREURS_PASSAGERES,
   VERDICT_REPONSE_ILLISIBLE,
   VERDICT_REPONSE_TRONQUEE,
@@ -112,6 +113,23 @@ describe("estRefusDeRequete : le refus de la requête, distinct d'un verdict mé
 
   test("un verdict métier (`accepte: false`) n'est pas un refus de la requête : il fait partie de ce qu'on lit", () => {
     expect(estRefusDeRequete({ ok: true, resultat: { accepte: false, verdict: { code: "REJ-CONVERSATION-CLOSE", detail: "" } } })).toBe(false);
+    expect(estRefusDeRequete({ ok: true, resultat: { accepte: false, verdict: { code: "REJ-LEAD-NON-ASSIGNE", detail: "" } } })).toBe(false);
+    expect(estRefusDeRequete({ ok: true, resultat: { accepte: false } })).toBe(false);
+  });
+
+  test("le verdict d'identité (personne désactivée, rôle retiré) est un refus de la requête, en verdict comme en refus technique", () => {
+    expect(CODE_IDENTITE_INVALIDE).toBe("REJ-IDENTITE-APPAREIL-INVALIDE");
+    // M2 et M3 : un verdict métier.
+    expect(
+      estRefusDeRequete({
+        ok: true,
+        resultat: { accepte: false, verdict: { code: CODE_IDENTITE_INVALIDE, statut: "", detail: "personne 'sophie' inactive" } },
+      }),
+    ).toBe(true);
+    // M4 : une ValueError du socle (`refus_metier`).
+    expect(estRefusDeRequete({ ok: false, erreur: "refus_metier", details: `${CODE_IDENTITE_INVALIDE} : personne 'sophie' inactive` })).toBe(true);
+    // Un autre verdict, même voisin, n'en est pas un.
+    expect(estRefusDeRequete({ ok: true, resultat: { accepte: false, verdict: { code: "REJ-IDENTITE-FOURNIE-DIFFERENTE", detail: "" } } })).toBe(false);
   });
 
   test.each([
