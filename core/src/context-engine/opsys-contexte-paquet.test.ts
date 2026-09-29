@@ -733,7 +733,7 @@ describe("parsePaquet: the days to consolidate", () => {
   });
 
   const LEFT_OUT_TWO = PAQUET_M10_HISTORIQUE_TRONQUE;
-  const day = (jour: string, affaireId = AFFAIRE_M10_HISTORIQUE_TRONQUE) => ({
+  const day = (jour: string, affaireId: string = AFFAIRE_M10_HISTORIQUE_TRONQUE) => ({
     affaire_id: affaireId,
     jour,
   });
