@@ -313,10 +313,15 @@ def test_une_version_livree_dans_le_desordre_n_ecrase_pas_la_plus_recente(base_d
     exemple) : l'ordre de livraison du bus ne décide pas du prévu, le rang de version le fait."""
     v1 = _estimer(deps, quantite=40)["besoins_materiaux"]
     v2 = _estimer(deps, quantite=50)["besoins_materiaux"]
+    # La version 1 est repoussée d'un jour APRÈS la version 2, dont l'heure est celle du bus (horloge réelle) :
+    # une date fixe cesserait d'être « après » dès que l'horloge la dépasse.
     with stockage.transaction() as cnx:
+        cree_v2 = cnx.execute(select(EVENEMENTS_SORTANTS.c.cree_le)
+                              .where(EVENEMENTS_SORTANTS.c.evenement_id == _identifiant_besoins(v2))).scalar_one()
+        plus_tard = (dt.datetime.fromisoformat(cree_v2) + dt.timedelta(days=1)).isoformat()
         cnx.execute(update(EVENEMENTS_SORTANTS)
                     .where(EVENEMENTS_SORTANTS.c.evenement_id == _identifiant_besoins(v1))
-                    .values(cree_le=_iso(86400)))
+                    .values(cree_le=plus_tard))
 
     assert _drainer(deps)["traites"] == 2
     assert _resume_du_recu(_identifiant_besoins(v2))["statut"] == "enregistre"
