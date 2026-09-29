@@ -1,14 +1,13 @@
-import sys, hashlib
+import hashlib
 from pathlib import Path
+
 import pytest
 import yaml
+from m1_front_office import contrats, verdicts
+
+from opsys import taxonomie
 
 _M1 = Path(__file__).resolve().parents[1]
-_SRC = _M1 / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-from m1_front_office import registre, contrats, verdicts, horodatage  # noqa: E402
-from opsys import taxonomie  # noqa: E402
 
 # Sha256 fictifs (à geler plus tard)
 SHA256_LEAD_V1 = "30f5acf271cdce065440ca96e103d4d3206b475b11839ba2e75acea255845f36"  # GEL 2026-07-26 (D-015)
@@ -31,7 +30,10 @@ def _lead_conforme():
 
 def _chiffrage_conforme():
     base = _lead_conforme()
-    base["description_factuelle"] = "Remplacement complet de la toiture en bardeaux d'asphalte, incluant ventilation et solins, sur une surface d'environ 200 mètres carrés."
+    base["description_factuelle"] = (
+        "Remplacement complet de la toiture en bardeaux d'asphalte, incluant ventilation et solins, "
+        "sur une surface d'environ 200 mètres carrés."
+    )
     return base
 
 class TestContratsGeles:
@@ -192,7 +194,8 @@ def services_declares(declarer_services):
 
 class TestContratV2Gele:
     def test_sha256_lead_v2(self):
-        assert hashlib.sha256((_M1 / "contracts" / "m1-lead-qualifie.v2.yaml").read_bytes()).hexdigest() == SHA256_LEAD_V2
+        empreinte = hashlib.sha256((_M1 / "contracts" / "m1-lead-qualifie.v2.yaml").read_bytes()).hexdigest()
+        assert empreinte == SHA256_LEAD_V2
 
     def test_hash_contrat_v2_est_distinct_de_la_v1_et_la_v1_reste_intacte(self):
         assert contrats.hash_contrat("m1-lead-qualifie.v2.yaml") == SHA256_LEAD_V2

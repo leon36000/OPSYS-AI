@@ -1,16 +1,12 @@
-import sys
-from pathlib import Path
-import yaml
 import inspect
+from pathlib import Path
+
 import pytest
+import yaml
+from m1_front_office import garde_fou
+from m1_front_office.registre import Registre
 
 _RACINE = Path(__file__).resolve().parents[1]
-_SRC = _RACINE / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-from m1_front_office import garde_fou  # noqa: E402
-from m1_front_office import verdicts  # noqa: E402
-from m1_front_office.registre import Registre  # noqa: E402
 
 _FIXTURES = _RACINE / "fixtures" / "interdits"
 
@@ -291,7 +287,10 @@ def test_date_iso_non_decoupee_par_segmentation():
     for interdit in ("2026", "08", "14"):
         assert interdit not in segments, f"Segments: {segments}"
     assert any("2026-08-14" in s for s in segments)
-    assert garde_fou.verifier_sortie("Un conseiller vous recontacte dans 2 jours ; installation prévue le 2026-08-14.")["code"] == "REJ-INTERDIT-DATE"
+    verdict = garde_fou.verifier_sortie(
+        "Un conseiller vous recontacte dans 2 jours ; installation prévue le 2026-08-14."
+    )
+    assert verdict["code"] == "REJ-INTERDIT-DATE"
 
 
 @pytest.mark.parametrize("texte", [

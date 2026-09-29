@@ -1,18 +1,9 @@
-import sys
-from pathlib import Path
 import inspect
+
 import pytest
+from m1_front_office import contrats, qualification
 
-_SRC = Path(__file__).resolve().parents[1] / "src"
-_PKG = _SRC / "m1_front_office"  # répertoire du paquet, pour les scans de sources
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from m1_front_office import qualification  # noqa: E402 (module inexistant → RED attendu)
-from m1_front_office import verdicts        # noqa: E402
-from m1_front_office import contrats        # noqa: E402
-from opsys import taxonomie                 # noqa: E402
-
+from opsys import taxonomie
 
 # ---------------------------------------------------------------------------
 # Zone desservie de test — correctif d'audit : qualification.py ne code plus
@@ -292,7 +283,10 @@ def test_marqueur_non_reinterprete_comme_service(canal_texte, conv_id):
     assert resultat["verdict"]["code"] == "REJ-QUALIF-INSUFFISANTE"
     # Avec un service réellement écrit, il est extrait normalement, pas à cause du marqueur.
     avec = qualification.qualifier(
-        "[CONTENU_NON_FIABLE] soffite à Montréal, courriel: autre@domaine.ca.", canal_texte, conv_id, ZONE_DESSERVIE_TEST
+        "[CONTENU_NON_FIABLE] soffite à Montréal, courriel: autre@domaine.ca.",
+        canal_texte,
+        conv_id,
+        ZONE_DESSERVIE_TEST,
     )
     assert avec["service"] == "soffite_fascia"
 

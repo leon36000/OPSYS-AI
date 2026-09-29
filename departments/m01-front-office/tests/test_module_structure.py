@@ -1,5 +1,4 @@
 import ast
-import pytest
 from pathlib import Path
 
 _NOM_PAQUET = "m1_front_office"

@@ -1,16 +1,14 @@
-import sys
-from pathlib import Path
+import hashlib
+import hmac
 import json
+from pathlib import Path
+
 import pytest
+from m1_front_office import consentement
+from m1_front_office.registre import Registre
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
 _PKG = _SRC / "m1_front_office"  # répertoire du paquet, pour les scans de sources
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from m1_front_office import consentement  # noqa: E402
-from m1_front_office import verdicts      # noqa: E402
-from m1_front_office.registre import Registre  # noqa: E402
 
 
 # ----------------------------------------------------------------------
@@ -109,7 +107,12 @@ def test_blocage_aucun_contenu_conserve(fonction):
     if fonction == "verifier_consentement":
         verdict = consentement.verifier_consentement(conv, registre=registre, horodatage=horodatage)
     else:
-        verdict = consentement.conserver_enregistrement(conv, contenu_secret, registre=registre, horodatage=horodatage)  # proof:allow — fixture de test, aucun secret réel
+        verdict = consentement.conserver_enregistrement(
+            conv,
+            contenu_secret,  # proof:allow — fixture de test, aucun secret réel
+            registre=registre,
+            horodatage=horodatage,
+        )
 
     # Le verdict lui-même ne doit pas contenir le contenu
     verdict_str = json.dumps(verdict, default=str)
@@ -219,22 +222,6 @@ Garanties:
 - Chaîne d'audit valide après ajout.
 """
 
-import hashlib
-import json
-import sys
-from pathlib import Path
-
-import pytest
-
-# Ajustement du PATH pour trouver les modules src
-_SRC = Path(__file__).resolve().parents[1] / "src"
-_PKG = _SRC / "m1_front_office"  # répertoire du paquet, pour les scans de sources
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from m1_front_office import consentement
-from m1_front_office.registre import Registre
-
 
 def test_registre_ne_contient_jamais_le_contenu():
     """Lorsque le consentement est ACCORDÉ, le contenu secret n'est pas présent
@@ -262,14 +249,18 @@ def test_registre_ne_contient_jamais_le_contenu():
     assert entree["marqueur"] == "conservation_acceptee"
     # Le JSON complet ne doit contenir nulle part le secret en clair
     serialized = json.dumps(reg.lire())
-    assert secret not in serialized, "Le contenu secret ne doit pas apparaître dans le registre"  # proof:allow — fixture de test
+    assert secret not in serialized, (  # proof:allow — fixture de test
+        "Le contenu secret ne doit pas apparaître dans le registre"
+    )
     # Aucune empreinte (ni SHA-256 nu, ni autre) sans clé
     payload = entree["payload"]
     assert "empreinte_contenu" not in payload, (
         "Sans cle_empreinte, le payload ne doit pas contenir d'empreinte_contenu"
     )
     # Métadonnées attendues
-    assert payload["longueur_contenu"] == len(secret.encode("utf-8"))  # proof:allow — fixture de test, aucun secret réel
+    assert payload["longueur_contenu"] == len(
+        secret.encode("utf-8")  # proof:allow — fixture de test, aucun secret réel
+    )
     assert payload["conversation_id"] == "abc-123"
 
 
@@ -299,20 +290,6 @@ def test_registre_ne_contient_pas_le_contenu_sur_refus():
 
 
 """Tests additionnels pour le module consentement (M1-S006)."""
-import sys
-from pathlib import Path
-import json
-import hashlib
-import hmac
-
-import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-_PKG = _SRC / "m1_front_office"  # répertoire du paquet, pour les scans de sources
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from m1_front_office import consentement  # noqa: E402
 
 
 # ----------------------------------------------------------------------

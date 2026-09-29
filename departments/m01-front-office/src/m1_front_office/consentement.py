@@ -4,9 +4,9 @@ FAIL-CLOSED : toute absence ou valeur non explicitement "accorde" est refusée.
 Aucune horloge ni réseau n'est utilisé.
 """
 
-from typing import Any
 import hashlib
 import hmac
+from typing import Any
 
 # ----------------------------------------------------------------------
 # helpers

@@ -9,19 +9,12 @@ TypeError pour tout le reste — et prouvent le déterminisme inter-processus.
 
 import subprocess
 import sys
-from pathlib import Path
-from decimal import Decimal
 from datetime import date, datetime, time
+from decimal import Decimal
+from pathlib import Path
 from uuid import UUID
 
 import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-_PKG = _SRC / "m1_front_office"  # répertoire du paquet, pour les scans de sources
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from m1_front_office import adaptateurs  # noqa: E402
 
 
 class TestNormalisationDeterministe:
@@ -29,18 +22,20 @@ class TestNormalisationDeterministe:
 
     def test_types_tagues_normalises(self):
         """Chaque type supporté produit la forme balisée attendue."""
+        from datetime import datetime
+
         from m1_front_office.adaptateurs import _normaliser_objet_deterministe
-        from decimal import Decimal
-        from datetime import date, datetime, time
-        from uuid import UUID
-        import pytest
 
         cas = [
             (Decimal("10.5"), {"__decimal__": "10.5"}, "Decimal"),
             (datetime(2023, 8, 15, 14, 30, 45), {"__datetime__": "2023-08-15T14:30:45"}, "datetime"),
             (date(2023, 8, 15), {"__date__": "2023-08-15"}, "date"),
             (time(14, 30, 45), {"__time__": "14:30:45"}, "time"),
-            (UUID("12345678-1234-5678-1234-567812345678"), {"__uuid__": "12345678-1234-5678-1234-567812345678"}, "UUID"),
+            (
+                UUID("12345678-1234-5678-1234-567812345678"),
+                {"__uuid__": "12345678-1234-5678-1234-567812345678"},
+                "UUID",
+            ),
             (b"hello", {"__bytes__": "68656c6c6f"}, "bytes"),
             (bytearray(b"world"), {"__bytearray__": "776f726c64"}, "bytearray"),
             (complex(1, 2), {"__complex__": ["1.0", "2.0"]}, "complex"),
@@ -52,7 +47,6 @@ class TestNormalisationDeterministe:
     def test_datetime_avant_date(self):
         """Un datetime NE doit PAS être traité comme une date (clé __datetime__ et heure conservée)."""
         from m1_front_office.adaptateurs import _normaliser_objet_deterministe
-        from datetime import datetime
         obj = datetime(2023, 8, 15, 14, 30, 45)
         res = _normaliser_objet_deterministe(obj)
         assert "__datetime__" in res, "La clé __datetime__ est absente"
@@ -60,9 +54,9 @@ class TestNormalisationDeterministe:
 
     def test_type_non_supporte_leve_typeerror(self):
         """Sans ce refus, repr() mettrait l'adresse mémoire dans l'identifiant."""
-        from m1_front_office.adaptateurs import _normaliser_objet_deterministe
-        import pytest
         import math
+
+        from m1_front_office.adaptateurs import _normaliser_objet_deterministe
         types_refuses = [
             object(),
             len,
@@ -75,10 +69,6 @@ class TestNormalisationDeterministe:
 
     def test_determinisme_inter_processus(self, tmp_path):
         """Trois processus avec des PYTHONHASHSEED différents produisent la même normalisation."""
-        import subprocess
-        import json
-        import sys
-        from pathlib import Path
 
         # Construire le chemin absolu du répertoire src contenant adaptateurs.py
         src_dir = Path(__file__).resolve().parents[1] / "src" / "m1_front_office"
@@ -118,9 +108,9 @@ class TestNormalisationDeterministe:
 
     def test_identifiant_stable_pour_objet_taguable(self):
         """Deux appels à proposer sur une valeur composite équivalente donnent le même identifiant."""
-        from m1_front_office.adaptateurs import _ApprovalEngine
-        from decimal import Decimal
         from datetime import datetime
+
+        from m1_front_office.adaptateurs import _ApprovalEngine
         eng = _ApprovalEngine(mode_ombre=True)
         valeur = {
             "meta": {"set": {1, 2}, "list": [Decimal("1.1"), datetime(2023,1,1,12,0,0)]},

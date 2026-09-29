@@ -3,11 +3,7 @@ Tests TDD pour M1-S005 — Filtre de provenance anti-injection (R-015).
 
 Commit RED : ces tests doivent ÉCHOUER avant l'implémentation de provenance.py.
 """
-import importlib
-import os
 import re
-import sys
-import unicodedata
 from pathlib import Path
 
 import pytest
@@ -18,18 +14,14 @@ import yaml
 # ---------------------------------------------------------------------------
 MODULE_DIR = Path(__file__).parent.parent
 # DEUX chemins, DEUX rôles distincts — les confondre casse l'un des deux :
-#   _SRC  = src/, PARENT du paquet : c'est lui qui va dans sys.path et qui rend
-#           « from m1_front_office import ... » résoluble ;
+#   _SRC  = src/, PARENT du paquet : le `pythonpath` de pyproject.toml le met dans
+#           sys.path, ce qui rend « from m1_front_office import ... » résoluble ;
 #   SRC_DIR = le paquet lui-même : c'est lui qu'on scanne pour lire les sources.
-# Mesuré : avec le paquet dans sys.path, ce fichier exécuté SEUL échouait, et ne
-# passait dans la suite complète que parce qu'un autre fichier avait inséré src/
-# avant lui — une dépendance à l'ordre de collecte, précisément ce que la mise en
-# paquet doit supprimer.
+# Aucun test n'insère de chemin dans sys.path : la résolution ne dépend donc pas de
+# l'ordre de collecte (garde : test_module_structure.py).
 _SRC = MODULE_DIR / "src"
 SRC_DIR = _SRC / "m1_front_office"
 FIXTURES_DIR = MODULE_DIR / "fixtures" / "provenance"
-
-sys.path.insert(0, str(_SRC))
 
 
 # ---------------------------------------------------------------------------
@@ -505,14 +497,16 @@ class TestInvariantsStructurels:
             ("time", "clock"),
         }
         for node in _ast.walk(tree):
-            if isinstance(node, _ast.Call):
+            if (
+                isinstance(node, _ast.Call)
+                and isinstance(node.func, _ast.Attribute)
+                and isinstance(node.func.value, _ast.Name)
+            ):
                 func = node.func
-                if isinstance(func, _ast.Attribute):
-                    if isinstance(func.value, _ast.Name):
-                        paire = (func.value.id, func.attr)
-                        assert paire not in appels_interdits, (
-                            f"provenance.py ne doit pas appeler {paire[0]}.{paire[1]}()."
-                        )
+                paire = (func.value.id, func.attr)
+                assert paire not in appels_interdits, (
+                    f"provenance.py ne doit pas appeler {paire[0]}.{paire[1]}()."
+                )
 
 
 @pytest.mark.parametrize("contenu", [

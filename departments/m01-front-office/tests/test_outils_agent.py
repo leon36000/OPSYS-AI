@@ -14,7 +14,6 @@ from pathlib import Path
 
 import pytest
 from m1_front_office import contrats
-from opsys import taxonomie
 from m1_front_office.outils import (
     _obtenir_registre,
     abandonner_conversation,
@@ -31,6 +30,7 @@ from m1_front_office.outils import (
     verifier_garde_fou,
 )
 
+from opsys import taxonomie
 from opsys.departements import lire_manifeste
 from opsys.outils import executer
 

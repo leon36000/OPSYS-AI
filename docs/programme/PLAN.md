@@ -1059,7 +1059,7 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
 
 - [ ] T5.1 Lint des départements : `ruff` ne couvre aujourd'hui que le socle (`src`, `tests`) ; l'audit M1
       relève 122 avertissements dans M1. Étendre la CI aux départements après correction.
-      Avancement, partiel (T5.1 reste ouverte : M1 à M3 à corriger) :
+      Avancement, partiel (T5.1 reste ouverte : M2 et M3 à corriger) :
       - M5 à zéro (20 avertissements avant, dont 14 `sys.path.insert` de tests), M5 321 verts, gate
         BMAD de M5 vert ; ajoutée à `DEPARTEMENTS_LINT` ;
       - M7 à M10 passent `ruff check` à zéro (M7 257, M8 18, M9 22, M10 46 avertissements avant) ;
@@ -1076,8 +1076,23 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
         gardes (`digest.py`, `outbox.py` de M4 ; `conformite.py` de M6) reçoivent leur état par le
         constructeur au lieu d'une fermeture sur la variable de boucle (B023). Le contrôle d'accès par
         intervention (T1.4-k1, `acces.py`) n'est pas touché.
+      - M1 (118 avertissements avant) passe `ruff check` à zéro ; M1 414 verts (même effectif qu'avant,
+        même répartition par fichier). M1 n'a pas de gate BMAD (`docs/bmad` ne porte que les trois
+        artefacts de cadrage) ; ajoutée à `DEPARTEMENTS_LINT`. Le contournement `sys.path.insert` de
+        9 tests est retiré (`pythonpath` de `pyproject.toml` suffit ; la garde
+        `test_aucun_sys_path_insert_vise_le_paquet` reste verte) et les 2 blocs d'imports collés au
+        milieu de `test_consentement.py` sont remontés en tête. Sans `noqa`, sans changement de
+        configuration, aucune logique touchée : imports triés, annotations `X | Y`, deux
+        `.format` passés en f-string (`garde_fou.py`), un `if` final et une boucle réduits à
+        `return`/`any` ; trois variables mortes de tests retirées, `zip(strict=True)`, `contextlib.suppress` et
+        un `if` fusionné dans trois tests. Preuve de valeur identique : les 27
+        motifs compilés de M1 (`pattern` et drapeaux) et toutes les constantes de module sont égaux
+        avant/après (dont `MONTANT_MONETAIRE` et `VERBES_EXECUTION`, où la ligne de 230 caractères est
+        coupée entre deux littéraux adjacents, sans saut de ligne dans la chaîne) ; `outils.py`
+        (descriptions d'outils) a un AST identique. Seuls des docstrings (`contrats.py`, 4 tests) sont
+        reformatés sur plusieurs lignes.
       - CI : l'étape « Lint du département » du job `departement` ne tourne que pour les dossiers de
-        `DEPARTEMENTS_LINT` (M4 à M10). Pour étendre : corriger un département, puis ajouter son
+        `DEPARTEMENTS_LINT` (M1 et M4 à M10). Pour étendre : corriger un département, puis ajouter son
         dossier à cette liste unique ; `tests/test_ci_departements.py` vérifie qu'il est propre.
 
 ## Décisions attendues de Nathan (GATE NATHAN, ne bloquent pas la boucle)

@@ -1,7 +1,6 @@
 import re
-import unicodedata
+
 from . import verdicts
-from .registre import Registre
 
 __all__ = ["verifier_sortie"]
 
@@ -28,18 +27,18 @@ PRIX_MOT_CLE = re.compile(
     re.IGNORECASE
 )
 MONTANT_MONETAIRE = re.compile(
-    r'''
-    (?:{sep}*|\b)\d{{1,3}}(?:{sep}{{0,1}}\d{{3}})*(?:[.,]\d+)?\s*
+    rf'''
+    (?:{_SEP}*|\b)\d{{1,3}}(?:{_SEP}{{0,1}}\d{{3}})*(?:[.,]\d+)?\s*
     (?:\$|€|(?:CAD|dollars?|euros?)\b)
     |
-    \$\s*\d{{1,3}}(?:{sep}{{0,1}}\d{{3}})*(?:[.,]\d+)?\b
+    \$\s*\d{{1,3}}(?:{_SEP}{{0,1}}\d{{3}})*(?:[.,]\d+)?\b
     |
     \b\d+\s*(?:\$|CAD|€|dollars?|euros?)\s*/\s*(?:h|heure|pied\s+carré|m²)\b
     |
     \b(?:deux\s+mille|mille)\s+(?:dollars?|CAD|\$|€|euros?)\b
     |
-    \bfourchette\b.*\b\d{{1,3}}(?:{sep}{{0,1}}\d{{3}})*(?:[.,]\d+)?\s*(?:à|et)\s*\d{{1,3}}(?:{sep}{{0,1}}\d{{3}})*(?:[.,]\d+)?\b
-    '''.format(sep=_SEP),
+    \bfourchette\b.*\b\d{{1,3}}(?:{_SEP}{{0,1}}\d{{3}})*(?:[.,]\d+)?\s*(?:à|et)\s*\d{{1,3}}(?:{_SEP}{{0,1}}\d{{3}})*(?:[.,]\d+)?\b
+    ''',
     re.IGNORECASE | re.VERBOSE
 )
 GRAND_NOMBRE = re.compile(r'\b\d{1,3}(?:\s?\d{3})*\b')
@@ -50,9 +49,7 @@ def _detecter_prix(texte: str) -> bool:
     if MONTANT_MONETAIRE.search(texte):
         return True
     # Mot-clé combiné à un grand nombre (tarif/budget/... + nombre)
-    if PRIX_MOT_CLE.search(texte) and GRAND_NOMBRE.search(texte):
-        return True
-    return False
+    return bool(PRIX_MOT_CLE.search(texte) and GRAND_NOMBRE.search(texte))
 
 
 # ----------------------------------------------------------------------
@@ -127,7 +124,7 @@ _AUX_ETRE = r'''(?:sera|seront|est|sont|était|étaient|serait|seraient|
 # + noms d'action (livraison, pose, début/fin des travaux, etc.)
 VERBES_EXECUTION = re.compile(
     r'''
-    \b(?:''' + r'''
+    \b(?:''' + rf'''
     # Formes actives (infinitif, présent, futur…) pour la plupart des verbes du 1er groupe
     termin(?:er|era|eras|erons|erez|eront|é|ée|és|ées|e|es|ons|ez|ent?)\b|
     fin(?:ir|ira|irons|irez|iront|i|ie|is|ies?|is?t?|issons|issez|issent?)\b|
@@ -160,11 +157,13 @@ VERBES_EXECUTION = re.compile(
     début\s+(?:des\s+travaux|du\s+chantier)\b|
     fin\s+(?:des\s+travaux|du\s+chantier)\b|
     commencement\b|
-    (?:intervention|livraison|visite\ technique|chantier|pose|installation|réfection|rénovation|travaux)\b\s+(?:\w+\s+){{0,2}}(?:programmé(?:e)?(?:s)?|planifié(?:e)?(?:s)?|prévu(?:e)?(?:s)?|fixé(?:e)?(?:s)?|cédulé(?:e)?(?:s)?)\b |
+    (?:intervention|livraison|visite\ technique|chantier|pose|installation|réfection|rénovation|travaux)'''
+    rf'''\b\s+(?:\w+\s+){{0,2}}'''
+    rf'''(?:programmé(?:e)?(?:s)?|planifié(?:e)?(?:s)?|prévu(?:e)?(?:s)?|fixé(?:e)?(?:s)?|cédulé(?:e)?(?:s)?)\b |
     installation\b |
     # Passif générique : auxiliaire être + participe passé d'exécution
-    {aux}\s+{part}\b
-    '''.format(aux=_AUX_ETRE, part=_PART_EXEC) + r'''
+    {_AUX_ETRE}\s+{_PART_EXEC}\b
+    ''' + r'''
     )\b
     ''',
     re.IGNORECASE | re.VERBOSE
@@ -217,12 +216,9 @@ def _detecter_date(texte: str) -> bool:
     que ce segment, sauf si un verbe d'exécution est également présent.
     """
     segments = _decouper_segments(texte)
-    for seg in segments:
-        # Un segment est suspect si REF_TEMPORELLE et VERBES_EXECUTION sont présents,
-        # indépendamment de VERBES_CONTACT (l'exécution l'emporte).
-        if REF_TEMPORELLE.search(seg) and VERBES_EXECUTION.search(seg):
-            return True
-    return False
+    # Un segment est suspect si REF_TEMPORELLE et VERBES_EXECUTION sont présents,
+    # indépendamment de VERBES_CONTACT (l'exécution l'emporte).
+    return any(REF_TEMPORELLE.search(seg) and VERBES_EXECUTION.search(seg) for seg in segments)
 
 
 # ----------------------------------------------------------------------

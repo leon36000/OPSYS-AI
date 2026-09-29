@@ -1,5 +1,5 @@
-import re
 import hashlib
+import re
 import unicodedata
 
 from opsys import taxonomie

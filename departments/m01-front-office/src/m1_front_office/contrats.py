@@ -1,5 +1,5 @@
-import re
 import hashlib
+import re
 from pathlib import Path
 
 from opsys import taxonomie
@@ -188,7 +188,10 @@ def _valider_lead_v2(lead: dict, services) -> dict:
 
 
 def valider_chiffrage(demande: dict) -> dict:
-    """Valide une demande de chiffrage conforme au contrat M1-M3. Retourne un verdict structuré avec code 'EVT-CONTRAT-VALIDE' ou lève ValueError."""
+    """Valide une demande de chiffrage conforme au contrat M1-M3.
+
+    Retourne un verdict structuré avec code 'EVT-CONTRAT-VALIDE' ou lève ValueError.
+    """
     # Valide d'abord la partie lead commune. La demande de chiffrage v1 (M1→M3, gelée) porte
     # `type_travaux` : elle se valide TOUJOURS contre le lead v1, quelle que soit la version du
     # lead émis à M2 (la demande de chiffrage v2 reste à faire, hors périmètre de T0.13).

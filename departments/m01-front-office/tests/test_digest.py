@@ -1,23 +1,13 @@
-import json
-import os
-import subprocess
-import random
-import sys
-from pathlib import Path
 import hashlib
 import inspect
+import json
+import os
+import random
+import subprocess
+import sys
+
 import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-_PKG = _SRC / "m1_front_office"  # répertoire du paquet, pour les scans de sources
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from m1_front_office import digest  # noqa: E402
-from m1_front_office import adaptateurs  # noqa: E402
-from m1_front_office import garde_fou  # noqa: E402
-from m1_front_office import verdicts  # noqa: E402
-
+from m1_front_office import adaptateurs, digest, garde_fou
 
 # ------------------------------------------------------------------ #
 # helpers & fixtures statiques
@@ -155,7 +145,7 @@ print(engine.proposer(objet, "testeur"))
             assert result.returncode == 0, f"seed={seed} stderr: {result.stderr}"
             ids.append(result.stdout.strip())
 
-        assert len(set(ids)) == 1, f"IDs divergents selon PYTHONHASHSEED: {list(zip(seeds, ids))}"
+        assert len(set(ids)) == 1, f"IDs divergents selon PYTHONHASHSEED: {list(zip(seeds, ids, strict=True))}"
         assert id_local == ids[0]
 
 

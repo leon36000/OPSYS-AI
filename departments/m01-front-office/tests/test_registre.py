@@ -1,19 +1,11 @@
-import sys
-import hashlib
 import inspect
-import copy
 from pathlib import Path
+
 import pytest
 import yaml
+from m1_front_office import horodatage, registre
 
-# Adapter le path pour importer les sources
 _M1 = Path(__file__).resolve().parents[1]
-_SRC = _M1 / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-from m1_front_office import registre
-from m1_front_office import horodatage
-from m1_front_office import verdicts
 
 # Fixture pour charger les signaux réels
 @pytest.fixture
@@ -68,7 +60,7 @@ class TestRegistre:
 
         id1 = r.ajouter(e1)
         id2 = r.ajouter(e2)
-        id3 = r.ajouter(e3)
+        r.ajouter(e3)
 
         chaine = r.lire(depuis=id1)
         assert len(chaine) == 3
@@ -244,7 +236,7 @@ signaux:
         e2 = _entree_signal("id2")
         e3 = _entree_signal("id3")
         id1 = r.ajouter(e1)
-        id2 = r.ajouter(e2)
+        r.ajouter(e2)
         id3 = r.ajouter(e3)
 
         # Ancre AVANT attaque
@@ -297,7 +289,8 @@ def test_ingestion_immuable():
 
 
 def test_id_depend_du_predecesseur():
-    """Propriété de chaîne : le même contenu ajouté deux fois dans un même registre produit des ids différents car le prédécesseur change."""
+    """Propriété de chaîne : le même contenu ajouté deux fois dans un même registre produit des ids
+    différents car le prédécesseur change."""
     r = registre.Registre()
     entree = _entree_signal()
     id1 = r.ajouter(entree)
@@ -305,7 +298,8 @@ def test_id_depend_du_predecesseur():
     assert id1 != id2
 
 def test_reproductibilite_sequence():
-    """Déterminisme réel : deux registres neufs alimentés avec la même séquence de 3 entrées génèrent des ligne_id identiques deux à deux et la même tête."""
+    """Déterminisme réel : deux registres neufs alimentés avec la même séquence de 3 entrées
+    génèrent des ligne_id identiques deux à deux et la même tête."""
     sequence = [_entree_signal(), _entree_signal(), _entree_signal()]
     r1 = registre.Registre()
     r2 = registre.Registre()

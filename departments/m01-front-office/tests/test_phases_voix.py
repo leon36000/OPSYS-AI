@@ -1,15 +1,10 @@
-import sys
-from pathlib import Path
-_SRC = Path(__file__).resolve().parents[1] / "src"
-_PKG = _SRC / "m1_front_office"  # répertoire du paquet, pour les scans de sources
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-from m1_front_office import phases_voix  # noqa: E402
-from m1_front_office import verdicts  # noqa: E402
-from m1_front_office.registre import Registre  # noqa: E402
-import pytest
-import random
+import contextlib
 import inspect
+import random
+
+import pytest
+from m1_front_office import phases_voix, verdicts
+from m1_front_office.registre import Registre
 
 
 def test_ouvrir_conversation_phase0_ouverte():
@@ -117,7 +112,8 @@ def test_transition_reussie_ecrit_entree_chainee():
 
 
 def test_abandon_depuis_phase_0():
-    """Règle 9a : abandon depuis phase 0 ferme la phase 0 en close_abandon et crée la phase 5 close_abandon, sans phases intermédiaires."""
+    """Règle 9a : abandon depuis phase 0 ferme la phase 0 en close_abandon et crée la phase 5
+    close_abandon, sans phases intermédiaires."""
     registre = Registre()
     conv = phases_voix.ouvrir_conversation("signal-9a", "2026-07-26T12:00:00Z", registre)
     verdict = phases_voix.abandonner(conv, "2026-07-26T12:01:00Z", registre)
@@ -133,7 +129,8 @@ def test_abandon_depuis_phase_0():
 
 
 def test_abandon_depuis_phase_2():
-    """Règle 9b : abandon après avoir atteint la phase 2 ferme 2 en close_abandon et saute à 5 close_abandon, sans phases 3,4."""
+    """Règle 9b : abandon après avoir atteint la phase 2 ferme 2 en close_abandon et saute à 5
+    close_abandon, sans phases 3,4."""
     registre = Registre()
     conv = phases_voix.ouvrir_conversation("signal-9b", "2026-07-26T12:00:00Z", registre)
     phases_voix.transitionner(conv, 1, "2026-07-26T12:01:00Z", registre)
@@ -321,7 +318,6 @@ def test_abandon_apres_completion_refuse():
 
     nb_phases_avant = len(conv["phases"])
     nb_registre_avant = len(registre.lire(None))
-    numeros_avant = [p["numero"] for p in conv["phases"]]
 
     verdict = phases_voix.abandonner(conv, "2026-07-26T12:02:00Z", registre)
     assert verdict["code"] == "REJ-CONVERSATION-CLOSE"
@@ -359,10 +355,8 @@ def test_aucun_doublon_de_phase():
     phases_voix.abandonner(conv, "2026-07-26T12:02:00Z", registre)
 
     # Tentative de transition supplémentaire (doit lever une exception ou être bloquée)
-    try:
+    with contextlib.suppress(phases_voix.TransitionInterdite):
         phases_voix.transitionner(conv, 6, "2026-07-26T12:03:00Z", registre)
-    except phases_voix.TransitionInterdite:
-        pass
 
     numeros = [p["numero"] for p in conv["phases"]]
     assert len(numeros) == len(set(numeros)), f"Doublons détectés : {numeros}"

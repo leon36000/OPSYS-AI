@@ -2,11 +2,11 @@
 
 import hashlib
 import json
-from . import verdicts
-from typing import Union
-from decimal import Decimal
 from datetime import date, datetime, time
+from decimal import Decimal
 from uuid import UUID
+
+from . import verdicts
 
 
 def _derive_id(*parts: str) -> str:
@@ -56,7 +56,7 @@ class _ApprovalEngine:
         self._mode_ombre = mode_ombre
         self._store: dict[str, str] = {}
 
-    def proposer(self, objet, acteur: str) -> Union[str, dict]:
+    def proposer(self, objet, acteur: str) -> str | dict:
         if not self._mode_ombre:
             return verdicts.construire_verdict("REJ-ADAPTATEUR-INDISPONIBLE")
         normalise = _normaliser_objet_deterministe(objet)
@@ -65,7 +65,7 @@ class _ApprovalEngine:
         self._store[id_] = "proposé"
         return id_
 
-    def statut(self, id_: str) -> Union[str, dict]:
+    def statut(self, id_: str) -> str | dict:
         if not self._mode_ombre:
             return verdicts.construire_verdict("REJ-ADAPTATEUR-INDISPONIBLE")
         if id_ in self._store:
@@ -77,7 +77,7 @@ class _NotificationBus:
     def __init__(self, mode_ombre: bool):
         self._mode_ombre = mode_ombre
 
-    def emettre(self, canal: str, message: str) -> Union[str, dict]:
+    def emettre(self, canal: str, message: str) -> str | dict:
         if not self._mode_ombre:
             return verdicts.construire_verdict("REJ-ADAPTATEUR-INDISPONIBLE")
         return _derive_id(canal, message)
