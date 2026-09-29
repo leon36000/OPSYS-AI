@@ -219,6 +219,18 @@ def test_un_secret_est_masque_pour_github_et_caviarde_partout_ailleurs(monkeypat
     assert scenario.caviarder("le jeton secret-e2e-fictif-0123 fuit") == "le jeton *** fuit"
 
 
+def test_le_scenario_range_l_etat_du_core_dans_son_dossier_de_travail_hors_du_profil_opsys(tmp_path):
+    """T0.7 lot 3 : `~/.opsys/core` et la migration de Doctor sont ceux du profil `opsys` ; cet E2E n'y passe pas."""
+    instance = scenario.creer_instance(tmp_path / "t", scenario.RACINE / "core")
+
+    assert instance.env["OPENCLAW_STATE_DIR"] == str(tmp_path / "t" / "core-etat") == str(instance.dossier_core)
+    assert instance.dossier_core.parent == instance.travail  # un dossier de travail, jamais sous le dossier personnel
+    assert "OPENCLAW_CONFIG_PATH" not in instance.env  # la configuration est l'openclaw.json de ce dossier
+    source = (ICI / "scenario.py").read_text(encoding="utf-8")
+    code = "\n".join(ligne for ligne in source.splitlines() if not ligne.lstrip().startswith("#"))
+    assert "--profile" not in code and "OPENCLAW_PROFILE" not in code
+
+
 def test_le_script_refuse_un_core_non_construit(tmp_path, capsys):
     assert scenario.main(["--core", str(tmp_path), "--travail", str(tmp_path / "t")]) == 1
     assert "introuvable" in capsys.readouterr().err

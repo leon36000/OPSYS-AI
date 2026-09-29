@@ -14,7 +14,8 @@ défini (`isDefaultInstallIdentity`, chemins réels comparés) ; le nom du servi
 installateur qui pose OPENCLAW_STATE_DIR à la main est donc refusé ici comme il l'est par le vrai core.
 
 Ce que ces tests prouvent : l'enchaînement des étapes et leur ordre, le fail-closed (prérequis, étape en échec,
-fichier étranger, décision manquante, ancienne disposition), l'idempotence (secrets et configuration inchangés),
+fichier étranger, décision manquante, ancienne disposition, état resté dans `~/.openclaw-opsys` puis repris après
+Doctor : secrets gardés, service réécrit vers `~/.opsys/core`), l'idempotence (secrets et configuration inchangés),
 qu'aucun secret n'est affiché ni journalisé même quand une commande le crache, l'installation à distance depuis un
 dépôt git (y compris par `bash < script`, comme `curl | bash`), que le core tourne toujours sous le profil `opsys`
 quel que soit l'environnement de l'appelant, que le service du core d'origine n'est jamais touché, et que la

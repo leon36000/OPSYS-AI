@@ -569,7 +569,8 @@ existante.
   `src/daemon/paths.opsys.test.ts`, `src/infra/state-migrations.opsys-instance.test.ts` (déplacement, idempotence, conflit,
   échecs injectés : rename, lien, vérification, repli en jonction) ; les voisins d'origine des fichiers touchés rejoignent
   `test/opsys-tests-cibles.txt`. Côté Python : `tests/test_instance.py` et la preuve de l'installateur avec le vrai core
-  (`tests/installateur/bout_en_bout.sh` et `.ps1`, étape « 1 quinquies »).
+  (`tests/installateur/bout_en_bout.sh` et `.ps1`, étapes « 1 quinquies » : l'état d'avant, refusé puis déplacé par Doctor, et
+  deux états ; « 5 bis » : le service d'avant le lot, réécrit par la relance de l'installateur).
 
 ## Sécurité
 

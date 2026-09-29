@@ -29,6 +29,11 @@ Le core n'est pas modifié par ce script. Une seule différence avec un vrai té
 de 127.0.0.1, que le core approuverait en silence ; `gateway.nodes.pairing.autoApproveLocal=false` impose
 l'approbation explicite, celle d'un téléphone distant.
 
+Ce scénario ne passe ni par l'installateur ni par le profil `opsys` : l'état du core est un dossier de travail
+explicite (`OPENCLAW_STATE_DIR`, `openclaw.json`), jamais `~/.opsys/core` (T0.7 lot 3). Ni la projection du profil ni la
+migration de Doctor ne le concernent ; `test_repetition_sans_core.py` le garde. Le trajet du dossier d'instance a sa
+propre preuve : `tests/installateur/bout_en_bout.sh` et `.ps1`.
+
 Prérequis : `pip install -e ".[dev]"`, Node 24 et le core construit (`cd core && pnpm install && pnpm build`).
 Code de sortie : 0 tout est vrai, 1 un constat est faux ou un processus a échoué.
 """
