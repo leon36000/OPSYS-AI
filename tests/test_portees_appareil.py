@@ -48,6 +48,7 @@ ADMIN_SEUL = frozenset({
     "m4_produire_brouillon_temps", "m4_produire_digest", "m4_proposer_cedule", "m4_proposer_localisation",
     "m4_resoudre_demande", "m4_resoudre_revue_completion", "m4_volumetrie_pending_review",
     "m5_etat_tresorerie", "m5_lister_attentes_facturation",
+    "m5_lire_rentabilite_chantier", "m5_lire_comptes_a_recevoir",  # coût réel, marge, créances (T1.5-d)
     "m6_annuler_po", "m6_approuver_po", "m6_evaluer_variance_chantier", "m6_produire_digest",
     "m6_receptionner_commande", "m6_soumettre_comptage",
     "m7_lister_file_approbation",

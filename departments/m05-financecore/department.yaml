@@ -17,6 +17,15 @@ approbations:                                         # ADR-0009 §5, PLAN T1.3-
   n4: [finance, nathan_owner]                        # envoi de facture (m5_envoyer_facture)
   # N5 (paiement, m5_enregistrer_paiement_facture) ne se déclare pas : nathan_owner seul, fixé par
   # le socle (ADR-0009 §5).
+# PLAN T1.5-d : coût réel d'un chantier. Le taux horaire de la main-d'oeuvre est un chiffre de l'entreprise,
+# que M5 ne devine pas : il est donc ABSENT ici, et le coût réel dit « taux horaire à configurer »
+# (REJ-COUT-TAUX-HORAIRE-A-CONFIGURER) tant que Nathan ne l'a pas écrit. Pour l'activer, ajouter ce bloc (dollars
+# CAD par heure sur site, entre guillemets pour garder les décimales exactes ; le WCT ne porte pas l'effectif :
+# c'est le taux de l'ÉQUIPE intervenante, par heure de durée pointée) :
+#
+#   configuration:
+#     taux_horaire_main_d_oeuvre: "0.00"
+#
 modeles:
   defaut: standard
   extraction: rapide

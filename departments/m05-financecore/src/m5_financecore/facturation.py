@@ -229,6 +229,18 @@ def facture_active_pour_devis(registre_cible: Any, devis_id: str) -> dict[str, A
     )
 
 
+def factures_actives_par_devis(registre_cible: Any) -> dict[str, dict[str, Any]]:
+    """La facture ACTIVE (statut != ANNULEE) de chaque devis, en UNE relecture du registre : la même règle que
+    `facture_active_pour_devis` (la première trouvée), pour un appelant qui lit beaucoup de devis (PLAN T1.5-d) et
+    ne doit pas relire (et copier) tout le registre des factures à chaque devis."""
+    actives: dict[str, dict[str, Any]] = {}
+    for etat in _etats_courants(registre_cible).values():
+        devis_id = etat.get("devis_id")
+        if devis_id is not None and etat.get("statut") != "ANNULEE" and devis_id not in actives:
+            actives[devis_id] = etat
+    return actives
+
+
 def factures_par_statut(registre_cible: Any, statut: str) -> tuple[dict[str, Any], ...]:
     """Toutes les factures actuellement à ce statut (état courant, PLAN T1.3-c), triées par
     `facture_id` pour un ordre stable. Même patron que `facture_active_pour_devis` : fonction
@@ -544,4 +556,67 @@ def calculer_age_creances(registre_factures: Any, aujourd_hui: str) -> tuple[dic
         "tranches": tranches,
         "total_par_tranche": total_par_tranche,
         "exclues": exclues,
+    }, None
+
+
+def comptes_a_recevoir(
+    registre_factures: Any, aujourd_hui: str | None = None
+) -> tuple[dict[str, Any] | None, dict | None]:
+    """Les comptes à recevoir (PLAN T1.5-d, DEFINITION-PRODUIT §6 « travaux terminés ») : les factures
+    actuellement ENVOYEE, et seulement elles.
+
+    Il n'y a AUCUNE écriture à faire pour « mettre à jour » les comptes à recevoir : ils sont une VUE de
+    l'état courant du registre des factures, donc toujours à jour. Une BROUILLON n'a pas été envoyée
+    (l'envoi est la décision humaine N4 du socle, `m5_envoyer_facture`) et n'est pas due ; une PAYEE
+    ou une ANNULEE ne l'est plus. C'est la même règle que `calculer_age_creances`, dont on réutilise
+    l'âge quand la date du jour est fournie.
+
+    `aujourd_hui` est optionnel : M5 n'a pas d'horloge (DA-M5-06) et ne devine jamais la date. Absent,
+    on rend la liste et le total sans âge (`age` est `None`, `age_non_calcule` le dit) ; invalide, c'est
+    le verdict de `calculer_age_creances`, sans rien rendre. Un montant dû illisible n'entre JAMAIS au
+    total (`REJ-CREANCES-MONTANT-ILLISIBLE` dans `illisibles`, `total_complet` faux)."""
+    age = None
+    if aujourd_hui is not None:
+        age, verdict = calculer_age_creances(registre_factures, aujourd_hui)
+        if verdict is not None:
+            return None, verdict
+
+    factures: list[dict[str, Any]] = []
+    illisibles: list[dict[str, Any]] = []
+    total = Decimal("0")
+    for etat in sorted(_etats_courants(registre_factures).values(), key=lambda e: e["facture_id"]):
+        if etat.get("statut") != "ENVOYEE":
+            continue
+        montant_du = etat.get("montant_apres_taxes")
+        if not isinstance(montant_du, Decimal) or not montant_du.is_finite():
+            illisibles.append(
+                {
+                    "facture_id": etat["facture_id"],
+                    "verdict": validation.construire_verdict(
+                        "REJ-CREANCES-MONTANT-ILLISIBLE",
+                        detail=f"facture {etat['facture_id']!r} envoyée dont le montant dû est illisible",
+                    ),
+                }
+            )
+            continue
+        total += montant_du
+        factures.append(
+            {
+                "facture_id": etat["facture_id"],
+                "chantier_id": etat.get("chantier_id"),
+                "devis_id": etat.get("devis_id"),
+                "client_id": etat.get("client_id"),
+                "montant_apres_taxes": montant_du,
+                "date_envoi": etat.get("date_envoi"),
+            }
+        )
+
+    return {
+        "factures": factures,
+        "nombre": len(factures),
+        "total_a_recevoir": total,
+        "total_complet": not illisibles,
+        "illisibles": illisibles,
+        "age": age,
+        "age_non_calcule": "aujourd_hui absent : la date du jour n'est jamais devinée" if age is None else None,
     }, None

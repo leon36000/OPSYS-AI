@@ -92,14 +92,26 @@ d'appareil, `m5_etat_tresorerie` ne croit plus `role` ni `autorise_couts` — la
 personne authentifiée, confirmée en base à chaque appel (`_acteur_appareil`) ; un argument ne peut que
 restreindre. `m5_lister_attentes_facturation` exige la même identité confirmée. Sans identité d'appareil
 (agent, console), comportement d'avant, sans contrôle de personne (« voie des agents »).
+
+PLAN T1.5-d (coût réel et rentabilité, DEFINITION-PRODUIT §6 « travaux terminés », `cout_reel.py`,
+DA-M5-10) : les consommateurs qui apportent une pièce (devis accepté, WCT, variance M6) appellent
+`_essayer_cout_reel`, qui calcule le coût réel du chantier et sa rentabilité depuis des pièces LUES À LA SOURCE
+(`_etat_chantier`) et les trace dans un cinquième registre durable, DÉRIVÉ (`rentabilite`, une trace par version
+des entrées) : ni le grand livre, ni le registre des factures, ni les comptes à recevoir (une vue de ces
+factures) ne sont écrits. Le livre de prix de M6 est lu en lecture seule (`_livre_de_prix_m6`) : le seul endroit du
+département qui nomme un autre département. `m5_lire_rentabilite_chantier` et `m5_lire_comptes_a_recevoir` (T0,
+`admin` seulement, même contrôle d'identité et de droit de voir les coûts que `m5_etat_tresorerie`) les rendent
+à l'admin ; aucun montant, prix, taux, durée ni quantité ne se passe en argument.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
+
+import yaml
 
 from opsys import approbations, contexte, stockage
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
@@ -107,6 +119,7 @@ from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 from . import (
     acces,
     clients_recus,
+    cout_reel,
     devis_recus,
     etat_financier,
     facturation,
@@ -127,6 +140,16 @@ _NOM_REGISTRE_DEVIS_RECUS = "devis_recus"
 _NOM_REGISTRE_WCT_RECUS = "wct_recus"
 _NOM_REGISTRE_VARIANCE_RECUE = "variance_recue"
 _NOM_REGISTRE_CLIENTS_RECUS = "clients_recus"
+_NOM_REGISTRE_RENTABILITE = "rentabilite"
+# PLAN T1.5-d : le livre de prix de M6, lu en LECTURE SEULE à la source (le prix de chaque matériau utilisé
+# ne vient ni de l'appelant ni d'un événement). Le seul endroit du département qui nomme un autre département
+# ; il n'importe aucun de ses modules (DA-M5-04) et ne fait qu'itérer ses maillons, jamais `append`.
+_DEPARTEMENT_LIVRE_DE_PRIX = "m06-material-control"
+_NOM_REGISTRE_LIVRE_DE_PRIX = "livre_prix"
+# `department.yaml/configuration.taux_horaire_main_d_oeuvre` : même source de configuration que M6
+# (`seuil_variance_chantier_pourcentage`). ABSENT du manifeste livré : c'est un chiffre de l'entreprise, que
+# M5 ne devine pas (le coût réel dit alors « taux horaire à configurer »).
+_MANIFESTE = Path(__file__).resolve().parents[2] / "department.yaml"
 
 # Correspondance F -> N (ADR-0009 §4), établie en UN SEUL endroit pour M5 (PLAN T1.3-c point 3) :
 # F0-F2 automatique (N0-N2, le choix exact ne change aucun comportement d'approbation, même
@@ -288,6 +311,24 @@ def _vers_montant_decimal(montant_texte: str) -> Decimal:
 # par `Outil.roles_appareil` (plus bas) et par le contrôle de `_acteur_appareil`. §9.5 (M5, trésorerie et
 # factures à approuver) : l'admin seul ; ni l'employé (§9.2) ni le vendeur (§9.4) ne voient les finances.
 _ROLES_APPAREIL_FINANCE = frozenset({acces.ROLE_ADMIN})
+
+# Les deux arguments de vue des outils de lecture financière ajoutés en T1.5-d (mêmes règles que ceux de
+# `m5_etat_tresorerie`, T1.4-k2 : un argument ne peut que restreindre la vue).
+_LIMITE_LECTURE_DEFAUT = 8
+_LIMITE_LECTURE_MAX = 12
+_ROLE_DE_LECTURE = {
+    "type": ["string", "null"],
+    "description": (
+        "Appel d'appareil : omis, ou égal au rôle authentifié (sinon REJ-IDENTITE-FOURNIE-DIFFERENTE)."
+    ),
+}
+_AUTORISE_COUTS_DE_LECTURE = {
+    "type": ["boolean", "null"],
+    "description": (
+        "Appel d'appareil : omis, il vaut le droit du rôle ; faux restreint (aucun montant) ; vrai sans ce "
+        "droit est refusé (REJ-ROLE-ELARGI). Sans appareil (agent, console) : obligatoire et explicite."
+    ),
+}
 
 
 def _acteur_appareil() -> tuple[acces.Acteur | None, dict[str, Any] | None]:
@@ -502,6 +543,115 @@ def _essayer_facture_brouillon(devis_id: str) -> dict[str, Any]:
     }
 
 
+def _taux_horaire_configure() -> Any:
+    """`department.yaml/configuration.taux_horaire_main_d_oeuvre` tel que l'entreprise l'a écrit, ou `None`.
+
+    Relu à chaque appel (comme M6 pour ses seuils) : Nathan change le taux sans redémarrer. Un manifeste
+    illisible ou sans ce champ rend `None` : `cout_reel.valider_taux_horaire` en fait le verdict « taux
+    horaire à configurer », jamais un taux par défaut. La valeur brute est rendue (validée plus loin)."""
+    try:
+        donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError):
+        return None
+    configuration = donnees.get("configuration") if isinstance(donnees, dict) else None
+    return configuration.get("taux_horaire_main_d_oeuvre") if isinstance(configuration, dict) else None
+
+
+def _livre_de_prix_m6() -> tuple[dict[str, Any], ...]:
+    """Les entrées du livre de prix de M6, en LECTURE SEULE (copie ; aucun `append`, aucune écriture)."""
+    maillons = stockage.maillons(_DEPARTEMENT_LIVRE_DE_PRIX, _NOM_REGISTRE_LIVRE_DE_PRIX)
+    return tuple(dict(entree) for entree in maillons if isinstance(entree, Mapping))
+
+
+def _sources_cout_reel() -> dict[str, Any]:
+    """Lit UNE fois chaque source du coût réel (PLAN T1.5-d) : les registres reçus (devis, WCT, variance), la
+    facture ACTIVE de chaque devis, le livre de prix de M6, le taux horaire configuré et le dernier état tracé de
+    chaque devis. Lire une fois (et non à chaque devis) garde une liste de chantiers linéaire, pas quadratique."""
+    traces: dict[str, dict[str, Any]] = {}
+    for maillon in stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RENTABILITE):
+        traces[maillon.get("devis_id")] = maillon  # le dernier écrit fait foi
+    return {
+        "devis": list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_DEVIS_RECUS)),
+        "wct": list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_WCT_RECUS)),
+        "variance": list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_VARIANCE_RECUE)),
+        "factures": facturation.factures_actives_par_devis(_registre_factures(None)),
+        "livre": _livre_de_prix_m6(),
+        "taux": _taux_horaire_configure(),
+        "traces": traces,
+    }
+
+
+def _etat_chantier(devis_id: str, sources: dict[str, Any] | None = None) -> dict[str, Any]:
+    """L'état de coût réel et de rentabilité d'un devis, CALCULÉ à l'instant depuis les pièces lues à la
+    source (PLAN T1.5-d) : le devis accepté et le WCT reçus du bus, le dernier signal de variance de M6,
+    la facture active du devis, le livre de prix de M6 et le taux horaire configuré. N'écrit RIEN.
+
+    Fonction UNIQUE, partagée par la cascade (`_essayer_cout_reel`, qui trace) et par l'outil de lecture (qui
+    ne trace pas) : les deux ne peuvent pas diverger. Sans devis reçu ou sans WCT reçu, il n'y a rien à
+    calculer : un statut d'attente nommé (mêmes noms que `lister_attentes_facturation`), jamais une valeur."""
+    sources = _sources_cout_reel() if sources is None else sources
+    devis_recu = devis_recus.pour_devis_id(devis_id, sources["devis"])
+    if devis_recu is None:
+        return {"statut": "en_attente_devis_accepte", "devis_id": devis_id, "chantier_id": None}
+    chantier_devis = devis_recu.get("chantier_id")
+    wct_recu = wct_recus.pour_devis_id(devis_id, sources["wct"])
+    if wct_recu is None:
+        return {
+            "statut": "en_attente_travaux_termines", "devis_id": devis_id,
+            "chantier_id": chantier_devis or None,
+        }
+    autres_wct = {m.get("wct_id") for m in sources["wct"]
+                  if m.get("devis_id") == devis_id and m.get("wct_id") not in (None, wct_recu["wct_id"])}
+    signal = variance_recus.signal_retenu_pour_wct_id(wct_recu["wct_id"], sources["variance"])
+    cout = cout_reel.calculer_cout_reel(wct_recu, signal, sources["livre"], sources["taux"], autres_wct)
+    chantier_id = chantier_devis or (signal.get("chantier_id") if signal is not None else None) or None
+    rentabilite = cout_reel.calculer_rentabilite(
+        cout, sources["factures"].get(devis_id), devis_recu, devis_id=devis_id, chantier_id=chantier_id
+    )
+    return {
+        "statut": "calculee", "devis_id": devis_id, "chantier_id": chantier_id, "rentabilite": rentabilite,
+        "horodatage": wct_recu["horodatage_completion"],
+    }
+
+
+def _essayer_cout_reel(devis_id: str) -> dict[str, Any]:
+    """Étape de la cascade « travaux terminés » (DEFINITION-PRODUIT §6, M5 « calcule le coût réel [...] et la
+    rentabilité du chantier ») : calcule l'état de ce devis et le TRACE dans le registre `rentabilite`.
+
+    Appelée par les consommateurs qui apportent une pièce (devis accepté, WCT, variance M6), dans la
+    transaction du répartiteur, quel que soit l'ordre d'arrivée : la dernière pièce à arriver produit l'état
+    complet. Écrit UNIQUEMENT dans le registre dérivé `rentabilite` (append-only) : ni le grand livre, ni le
+    registre des factures, ni les comptes à recevoir (une vue). Idempotente par devis ET version des entrées :
+    un rejeu, ou une pièce qui ne change aucune entrée du calcul, n'ajoute aucun maillon ; une entrée qui change
+    (prix du livre, taux, facture envoyée...) en ajoute un, l'historique restant intact.
+
+    Ne lève pas sur une pièce mal formée (elle devient un manque du coût, voir `cout_reel.py`) : la création de
+    la facture, faite dans la même transaction, ne dépend jamais de ce calcul."""
+    sources = _sources_cout_reel()
+    etat = _etat_chantier(devis_id, sources)
+    if etat["statut"] != "calculee":
+        return {"statut": etat["statut"]}
+    rentabilite = etat["rentabilite"]
+    trace = sources["traces"].get(devis_id)
+    if trace is not None and trace.get("version_entrees") == rentabilite["version_entrees"]:
+        return {"statut": "deja_tracee"}
+    stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RENTABILITE).append(
+        cout_reel.construire_trace(rentabilite, etat["horodatage"])
+    )
+    return {"statut": "tracee"}
+
+
+def _essayer_cout_reel_pour_wct(wct_id: str) -> dict[str, Any]:
+    """Comme `_essayer_cout_reel`, depuis un `wct_id` (le signal de variance ne connaît que lui) : le WCT
+    reçu donne le `devis_id`. WCT inconnu ou sans devis : un statut d'attente nommé, rien n'est tracé."""
+    wct_recu = wct_recus.pour_wct_id(wct_id, stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_WCT_RECUS))
+    if wct_recu is None:
+        return {"statut": "en_attente_travaux_termines"}
+    if wct_recu["devis_id"] is None:
+        return {"statut": "wct_sans_devis_id"}
+    return _essayer_cout_reel(wct_recu["devis_id"])
+
+
 def _recevoir_devis_accepte(charge: dict[str, Any]) -> dict[str, Any]:
     """Consomme `m3.devis_accepte` : garde ce que M5 a reçu de ce devis (`devis_recus.py`,
     idempotent par devis_id), puis délègue toute la décision de facturer à
@@ -517,9 +667,12 @@ def _recevoir_devis_accepte(charge: dict[str, Any]) -> dict[str, Any]:
                 lignes=charge["lignes"],
                 prix_total=charge["prix_total"],
                 horodatage_acceptation=charge["horodatage_acceptation"],
+                cout_total=charge.get("cout_total"),
+                taux_marge=charge.get("taux_marge"),
             )
         )
-    return _essayer_facture_brouillon(devis_id)
+    resultat = _essayer_facture_brouillon(devis_id)
+    return {**resultat, "cout_reel": _essayer_cout_reel(devis_id)["statut"]}
 
 
 def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
@@ -537,11 +690,13 @@ def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
             intervention_id=charge["intervention_id"],
             devis_id=charge.get("devis_id"),
             horodatage_completion=charge["horodatage_completion"],
+            duree_reelle_minutes=charge.get("duree_reelle_minutes"),
         )
         registre.append(wct_recu)
     if wct_recu["devis_id"] is None:
         return {"traite": True, "wct_id": wct_id, "statut": "wct_sans_devis_id"}
-    return _essayer_facture_brouillon(wct_recu["devis_id"])
+    resultat = _essayer_facture_brouillon(wct_recu["devis_id"])
+    return {**resultat, "cout_reel": _essayer_cout_reel(wct_recu["devis_id"])["statut"]}
 
 
 def lister_attentes_facturation() -> dict[str, Any]:
@@ -609,9 +764,15 @@ def _recevoir_variance_chantier(charge: dict[str, Any]) -> dict[str, Any]:
             statut_variance=charge["statut_variance"],
             signal_critique=charge["signal_critique"],
             horodatage_completion=charge["horodatage_completion"],
+            lignes=charge.get("lignes"),
         )
     )
-    return {"traite": True, "wct_id": charge["wct_id"], "statut_variance": charge["statut_variance"]}
+    return {
+        "traite": True,
+        "wct_id": charge["wct_id"],
+        "statut_variance": charge["statut_variance"],
+        "cout_reel": _essayer_cout_reel_pour_wct(charge["wct_id"])["statut"],
+    }
 
 
 def _recevoir_client_associe(charge: dict[str, Any]) -> dict[str, Any]:
@@ -768,6 +929,115 @@ def attentes() -> list[dict[str, Any]]:
     return items
 
 
+def _vue_chantier(etat: dict[str, Any], sources: dict[str, Any], autorise_couts: bool, detail: bool) -> dict[str, Any]:
+    """Ce que l'outil de lecture rend pour un devis : un statut d'attente (aucun montant), ou l'état calculé.
+
+    Sans droit de voir les coûts (`autorise_couts` faux) : identifiants, verdict et codes de manque
+    seulement (`cout_reel.masquer_montants`). Avec le droit : le détail (lignes de matériaux, sources de prix,
+    hypothèses) pour un chantier précis, une ligne (`cout_reel.resumer`) pour une liste. `trace.a_jour` dit si le
+    dernier état tracé par la cascade correspond aux pièces d'AUJOURD'HUI (faux : un prix, le taux ou la
+    facture ont changé depuis ; le calcul rendu est, lui, toujours celui d'aujourd'hui)."""
+    if etat["statut"] != "calculee":
+        return {"devis_id": etat["devis_id"], "chantier_id": etat["chantier_id"], "statut": etat["statut"]}
+    rentabilite = etat["rentabilite"]
+    trace = sources["traces"].get(etat["devis_id"])
+    if not autorise_couts:
+        contenu = cout_reel.masquer_montants(rentabilite)
+    elif detail:
+        contenu = {cle: valeur for cle, valeur in rentabilite.items() if cle != "version_entrees"}
+    else:
+        contenu = cout_reel.resumer(rentabilite)
+    trace_vue = {"a_jour": trace is not None and trace.get("version_entrees") == rentabilite["version_entrees"]}
+    if detail:  # l'empreinte de 64 caractères n'a d'intérêt que pour un chantier précis
+        trace_vue = {"version_entrees": rentabilite["version_entrees"], **trace_vue}
+    return {
+        "devis_id": etat["devis_id"],
+        "chantier_id": etat["chantier_id"],
+        "statut": "calculee",
+        "rentabilite": contenu,
+        "trace": trace_vue,
+    }
+
+
+def lire_rentabilite_chantier(
+    chantier_id: str | None = None,
+    devis_id: str | None = None,
+    limite: int | None = None,
+    role: str | None = None,
+    autorise_couts: bool | None = None,
+) -> dict[str, Any]:
+    """Outil T0 (PLAN T1.5-d) : le coût réel et la rentabilité des chantiers, pour l'admin.
+
+    Même contrôle d'accès que `m5_etat_tresorerie` (PLAN T1.4-k2) : pour un appel d'appareil, l'identité
+    confirmée en base (`admin` seulement) ; la vue vient du rôle authentifié, un argument ne peut que la
+    restreindre ; refus AVANT toute lecture, sans écriture. Sans appareil, `autorise_couts` reste obligatoire.
+
+    Aucun montant, prix, taux, durée ni quantité ne se passe en argument : tout est lu à la source
+    (`_etat_chantier`). `chantier_id` et `devis_id` ne servent qu'à CHOISIR quels chantiers lire ; un filtre
+    sans résultat est `REJ-RENTABILITE-CHANTIER-INCONNU`. Les devis sont pris du plus récemment reçu au plus
+    ancien, au plus `limite` (8 par défaut, 12 au plus : la réponse d'un outil est tronquée au-delà de 6 000
+    caractères) ; `nombre` est le total qui correspond, `reste` ce qui n'est pas affiché."""
+    acteur, refus = _acteur_appareil()
+    if refus is not None:
+        return _refus(refus)
+    vue, verdict = acces.resoudre_vue(acteur, role, autorise_couts)
+    if verdict is not None:
+        return _refus(verdict)
+
+    plafond = _LIMITE_LECTURE_DEFAUT if limite is None else limite
+    if isinstance(plafond, bool) or not isinstance(plafond, int) or not 1 <= plafond <= _LIMITE_LECTURE_MAX:
+        return _refus(validation.construire_verdict(
+            "REJ-RENTABILITE-LIMITE-INVALIDE",
+            detail=f"limite doit être un entier de 1 à {_LIMITE_LECTURE_MAX}",
+        ))
+    sources = _sources_cout_reel()
+    filtre = devis_id is not None or chantier_id is not None
+    recus = list(dict.fromkeys(  # ordre de réception, sans doublon
+        m["devis_id"] for m in sources["devis"] if isinstance(m.get("devis_id"), str)))
+    etats = []
+    for candidat in reversed(recus):  # le plus récemment reçu d'abord
+        if devis_id is not None and candidat != devis_id:
+            continue
+        etat = _etat_chantier(candidat, sources)
+        if chantier_id is not None and etat["chantier_id"] != chantier_id:
+            continue
+        etats.append(etat)
+    if filtre and not etats:
+        return _refus(validation.construire_verdict(
+            "REJ-RENTABILITE-CHANTIER-INCONNU",
+            detail="aucun devis accepté reçu ne correspond à ce devis_id / chantier_id",
+        ))
+    affiches = etats[:plafond]
+    return {"accepte": True, "resultat": {
+        "role": vue["role"], "nombre": len(etats), "affichees": len(affiches), "reste": len(etats) - len(affiches),
+        "chantiers": [_vue_chantier(e, sources, vue["autorise_couts"], detail=filtre) for e in affiches],
+    }}
+
+
+def lire_comptes_a_recevoir(
+    aujourd_hui: str | None = None,
+    role: str | None = None,
+    autorise_couts: bool | None = None,
+) -> dict[str, Any]:
+    """Outil T0 (PLAN T1.5-d) : les comptes à recevoir, c'est-à-dire les factures ENVOYEE (et seulement
+    elles), avec leur âge quand la date du jour est fournie. Même contrôle d'accès que
+    `lire_rentabilite_chantier` (admin authentifié ; sans droit de voir les coûts : le nombre seulement).
+    Ne lit que le registre des factures, n'écrit rien."""
+    acteur, refus = _acteur_appareil()
+    if refus is not None:
+        return _refus(refus)
+    vue, verdict = acces.resoudre_vue(acteur, role, autorise_couts)
+    if verdict is not None:
+        return _refus(verdict)
+    resultat, verdict = facturation.comptes_a_recevoir(_registre_factures(None), aujourd_hui)
+    if verdict is not None:
+        return _refus(verdict)
+    if not vue["autorise_couts"]:
+        return {"accepte": True, "resultat": {
+            "role": vue["role"], "nombre": resultat["nombre"], "montants_masques": True}}
+    return {"accepte": True, "resultat": {"role": vue["role"], **resultat}}
+
+
 def outils() -> tuple[Outil, ...]:
     return (
         Outil(
@@ -899,6 +1169,66 @@ def outils() -> tuple[Outil, ...]:
             fonction=lister_attentes_facturation_appareil,
             autonomie=Autonomie.T0,
             # §9.5 M5 (factures à préparer et à approuver). Identité confirmée en base (T1.4-k2).
+            roles_appareil=_ROLES_APPAREIL_FINANCE,
+        ),
+        Outil(
+            nom="m5_lire_rentabilite_chantier",
+            description=(
+                "Coût réel et rentabilité des chantiers (PLAN T1.5-d), pour l'admin : matériaux réellement "
+                "utilisés (variance M6) x prix du livre de prix M6, main-d'oeuvre pointée (WCT) x taux horaire "
+                "configuré ; prix facturé avant taxes moins coût réel ; marge réelle contre marge prévue du "
+                "devis. Tout est lu à la source, rien ne se passe en argument. Un coût partiel est dit partiel, "
+                "avec la liste `manque` (prix non disponible, taux à configurer, temps absent...) : jamais un "
+                "chiffre inventé. Avec devis_id ou chantier_id : le détail ; sans : une ligne par devis "
+                "(limite, 8 récents). Lecture pure, aucune écriture comptable. Même règle d'accès que "
+                "m5_etat_tresorerie : admin "
+                "seulement ; autorise_couts ne peut que restreindre (sans droit : aucun montant)."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "chantier_id": {"type": ["string", "null"], "description": "Filtre : lire ce chantier."},
+                    "devis_id": {"type": ["string", "null"], "description": "Filtre : lire ce devis."},
+                    "limite": {
+                        "type": ["integer", "null"], "minimum": 1, "maximum": _LIMITE_LECTURE_MAX,
+                        "description": (
+                            f"Nombre de devis rendus, du plus récent au plus ancien (défaut {_LIMITE_LECTURE_DEFAUT}, "
+                            f"au plus {_LIMITE_LECTURE_MAX}) ; `reste` dit ce qui n'est pas affiché."
+                        ),
+                    },
+                    "role": _ROLE_DE_LECTURE,
+                    "autorise_couts": _AUTORISE_COUTS_DE_LECTURE,
+                },
+                "additionalProperties": False,
+            },
+            fonction=lire_rentabilite_chantier,
+            autonomie=Autonomie.T0,
+            roles_appareil=_ROLES_APPAREIL_FINANCE,
+        ),
+        Outil(
+            nom="m5_lire_comptes_a_recevoir",
+            description=(
+                "Comptes à recevoir (PLAN T1.5-d), pour l'admin : les factures ENVOYEE, et seulement elles (une "
+                "BROUILLON n'est pas due, une PAYEE ou ANNULEE non plus), avec le total et, si aujourd_hui "
+                "(AAAA-MM-JJ) est fourni, l'âge par tranche (0-30, 31-60, 61-90, 90+). Sans aujourd_hui : pas "
+                "d'âge, la date du jour n'est jamais devinée. Vue de l'état des factures : rien à mettre à "
+                "jour, aucune écriture. Même règle d'accès que m5_etat_tresorerie : admin seulement ; "
+                "autorise_couts ne peut que restreindre (sans droit : le nombre de factures seulement)."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "aujourd_hui": {
+                        "type": ["string", "null"],
+                        "description": "Date du jour ISO 8601 (AAAA-MM-JJ), pour l'âge des créances. Optionnelle.",
+                    },
+                    "role": _ROLE_DE_LECTURE,
+                    "autorise_couts": _AUTORISE_COUTS_DE_LECTURE,
+                },
+                "additionalProperties": False,
+            },
+            fonction=lire_comptes_a_recevoir,
+            autonomie=Autonomie.T0,
             roles_appareil=_ROLES_APPAREIL_FINANCE,
         ),
         Outil(

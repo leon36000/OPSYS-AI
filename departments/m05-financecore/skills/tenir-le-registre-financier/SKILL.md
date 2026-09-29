@@ -38,3 +38,27 @@ description: Procédure pour consulter l'état financier (solde, argent disponib
    signe contredit le type) : corrige l'entrée, ne force jamais le passage.
 4. Conserve `mouvements_historique` renvoyé pour le prochain appel — c'est la
    continuité du registre entre deux appels.
+
+## Lire le coût réel et la rentabilité d'un chantier
+
+1. Appelle `m5_lire_rentabilite_chantier` avec `chantier_id` ou `devis_id` (sans filtre : une ligne
+   par devis). Tu ne fournis AUCUN montant, prix, taux, durée ni quantité : le code les lit à la
+   source (variance de M6, temps pointé de M4, livre de prix de M6, taux configuré, facture, devis).
+   Un argument de ce genre est refusé.
+2. Un verdict `CALCULEE` donne le coût réel complet, la marge réelle et son écart à la marge prévue
+   (en dollars et en points de pourcentage du prix). Présente-les tels quels, avec leurs sources.
+3. Un verdict `PARTIELLE` n'est PAS une marge : dis « coût partiel » et cite la liste `manque` (prix
+   non disponible ou ambigu, taux horaire à configurer, temps pointé absent, facture absente...).
+   `marge_partielle_plafond` est un plafond, jamais la marge. Ne remplace jamais un manque par une
+   estimation de ta part : demande la pièce (au propriétaire, à M6) et relis.
+4. `prix_definitif` faux veut dire que le prix vient d'une facture BROUILLON, pas encore envoyée.
+   `trace.a_jour` faux : une pièce a changé depuis la dernière trace de la cascade ; le calcul rendu
+   est déjà celui d'aujourd'hui.
+5. C'est une lecture : rien n'est écrit en comptabilité. Sans droit de voir les coûts, tu n'as que le
+   verdict et les codes de manque.
+
+## Consulter les comptes à recevoir
+
+Appelle `m5_lire_comptes_a_recevoir` : les factures ENVOYEE seulement (une BROUILLON n'est pas due, une
+PAYEE non plus). Fournis `aujourd_hui` (AAAA-MM-JJ) seulement si tu la tiens d'une source sûre : sans elle,
+l'outil ne calcule pas l'âge, il ne devine pas la date.

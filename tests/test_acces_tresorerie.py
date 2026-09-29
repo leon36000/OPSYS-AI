@@ -36,7 +36,8 @@ ADMIN = contexte.IdentiteAppelante(personne="admin.fictif", role="admin")
 MARC = contexte.IdentiteAppelante(personne="marc.fictif", role="employee")
 VENDEUR = contexte.IdentiteAppelante(personne="vendeur.fictif", role="seller")
 
-OUTILS_DE_LECTURE_FINANCE = {"m5_etat_tresorerie", "m5_lister_attentes_facturation"}
+OUTILS_DE_LECTURE_FINANCE = {"m5_etat_tresorerie", "m5_lister_attentes_facturation",
+                             "m5_lire_rentabilite_chantier", "m5_lire_comptes_a_recevoir"}  # les deux derniers : T1.5-d
 CODE_INVALIDE = "REJ-IDENTITE-APPAREIL-INVALIDE"
 CODE_DIFFERENTE = "REJ-IDENTITE-FOURNIE-DIFFERENTE"
 CODE_REQUIS = "REJ-AUTORISE-COUTS-REQUIS"
@@ -122,6 +123,8 @@ def test_un_employe_ou_un_vendeur_n_obtient_aucun_montant_meme_en_le_demandant(
         assert _code(reponse) == CODE_INVALIDE
         assert "500.00" not in json.dumps(reponse) and "420.00" not in json.dumps(reponse)
     assert _code(_appeler(capacites, "m5_lister_attentes_facturation", {}, appelante)) == CODE_INVALIDE
+    for nom in ("m5_lire_rentabilite_chantier", "m5_lire_comptes_a_recevoir"):  # T1.5-d : même règle
+        assert _code(_appeler(capacites, nom, {}, appelante)) == CODE_INVALIDE, nom
     assert _instantane_base() == avant
 
 

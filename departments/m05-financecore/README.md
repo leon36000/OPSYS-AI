@@ -54,3 +54,19 @@ registre et sans aucune écriture. `m5_lister_attentes_facturation` exige la mê
 Sans identité d'appareil (agent, console) : comportement d'avant, `autorise_couts` obligatoire et
 explicite (son absence est maintenant le verdict `REJ-AUTORISE-COUTS-REQUIS`, autrefois un refus de
 schéma). Détail, cas et limites : `docs/architecture/ROLES.md`, section « La vue financière de M5 ».
+
+PLAN T1.5-d (coût réel et rentabilité, DEFINITION-PRODUIT §6 « travaux terminés ») : la cascade calcule le
+coût réel d'un chantier et sa rentabilité (`cout_reel.py`, module pur ; `outils._essayer_cout_reel`, appelé
+par les consommateurs de `m3.devis_accepte`, `m4.travaux_termines` et `m6.variance_chantier`, quel que soit
+l'ordre d'arrivée). Les sources sont lues, jamais fournies : les matériaux réellement utilisés (`lignes` du
+signal de variance de M6, gardées par `variance_recus.py`), multipliés par le prix du livre de prix de M6 (lu
+en lecture seule par `outils._livre_de_prix_m6` ; prix absent : ligne « prix non disponible », deux
+fournisseurs à prix différents : « prix ambigu ») ; la main-d'oeuvre (durée pointée du WCT, gardée par
+`wct_recus.py`) multipliée par `department.yaml/configuration.taux_horaire_main_d_oeuvre`, absent du manifeste
+livré (verdict « taux horaire à configurer »). Un coût partiel est dit partiel, avec la liste `manque`. La
+rentabilité est le prix facturé avant taxes (facture BROUILLON, ENVOYEE ou PAYEE) moins le coût réel, contre la
+marge prévue du devis (`cout_total` et `prix_total` de `m3.devis_accepte`). Tout est en Decimal, `ROUND_HALF_UP`.
+L'état est tracé dans le registre dérivé `rentabilite`, une fois par version des entrées : ni le grand livre
+ni les factures ne sont touchés. Les comptes à recevoir sont une vue des factures ENVOYEE
+(`facturation.comptes_a_recevoir`). L'admin lit le tout par `m5_lire_rentabilite_chantier` et
+`m5_lire_comptes_a_recevoir` (portée `admin` seulement, même règle d'accès que `m5_etat_tresorerie`).

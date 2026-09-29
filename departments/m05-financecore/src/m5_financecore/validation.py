@@ -58,6 +58,23 @@ CODES_M5_LIST = [
     "REJ-IDENTITE-FOURNIE-DIFFERENTE",
     "REJ-ROLE-ELARGI",
     "REJ-AUTORISE-COUTS-REQUIS",
+    # PLAN T1.5-d (cout_reel.py, M5.9) : coût réel et rentabilité d'un chantier. Ce sont des verdicts
+    # qui DISENT QUOI DEMANDER (jamais une valeur de remplacement) : chacun est un manque, porté par la
+    # liste `manque` d'un coût partiel, ou un refus de l'outil de lecture.
+    "REJ-COUT-TAUX-HORAIRE-A-CONFIGURER",
+    "REJ-COUT-TEMPS-POINTE-ABSENT",
+    "REJ-COUT-PLUSIEURS-WCT",
+    "REJ-COUT-MATERIAUX-REELS-ABSENTS",
+    "REJ-COUT-PRIX-NON-DISPONIBLE",
+    "REJ-COUT-PRIX-AMBIGU",
+    "REJ-COUT-LIGNE-INDETERMINEE",
+    "REJ-RENTABILITE-FACTURE-ABSENTE",
+    "REJ-RENTABILITE-MARGE-PREVUE-ABSENTE",
+    "REJ-RENTABILITE-CHANTIER-INCONNU",
+    "REJ-RENTABILITE-LIMITE-INVALIDE",
+    # PLAN T1.5-d (facturation.comptes_a_recevoir) : une facture ENVOYEE dont le montant dû est illisible
+    # n'entre jamais au total à recevoir avec un montant inventé.
+    "REJ-CREANCES-MONTANT-ILLISIBLE",
 ]
 CODES_M5 = set(CODES_M5_LIST)
 

@@ -35,9 +35,16 @@ def construire(
     lignes: Any,
     prix_total: Any,
     horodatage_acceptation: Any,
+    cout_total: Any = None,
+    taux_marge: Any = None,
 ) -> dict[str, Any]:
     """Le maillon devis reçu — construction pure, sans écriture (l'appelant, `outils.py`, vérifie
-    d'abord `pour_devis_id` et n'ajoute que si absent : l'idempotence vit là, pas ici)."""
+    d'abord `pour_devis_id` et n'ajoute que si absent : l'idempotence vit là, pas ici).
+
+    `cout_total` et `taux_marge` (PLAN T1.5-d) : le coût prévu et la majoration du devis, recopiés
+    tels que M3 les a publiés (`m3.devis_accepte`, champs requis du catalogue) : la SEULE source de la
+    marge prévue (`cout_reel.py`). Un maillon écrit avant ce changement ne les porte pas : `.get()`
+    rend alors `None`, et la rentabilité dit « marge prévue absente » au lieu d'en recalculer une."""
     return {
         "devis_id": devis_id,
         "lead_id": lead_id,
@@ -45,6 +52,8 @@ def construire(
         "lignes": lignes,
         "prix_total": prix_total,
         "horodatage_acceptation": horodatage_acceptation,
+        "cout_total": cout_total,
+        "taux_marge": taux_marge,
     }
 
 

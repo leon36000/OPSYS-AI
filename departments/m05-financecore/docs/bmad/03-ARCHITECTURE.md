@@ -54,6 +54,7 @@ seulement les contrats génériques (`MouvementFinancier`) que l'appelant lui fo
 | `taux_fiscaux.py` | Charge et valide `contracts/taux_fiscaux.v1.yaml` ; recherche par identifiant ; blocage nommé (verdict de `validation.py`) si absent de la version courante. | S004 |
 | `approbation.py` | `RegistreApprobations` (instanciation de la classe générique `registre.Registre`) ; `creer_demande`, `approuver`, `refuser`, `statut_courant` — patron `m2_revenue_crm/statuts.py` EXACT, garde F6/F7 intégrée à `approuver`. | S005 |
 | `etat_financier.py` | Assemble `EtatFinancier` (solde, argent disponible, taux utilisés, `etat_id`) ; **foyer UNIQUE du filtrage par rôle** (DA-M5-03) — binaire, jamais une liste fine comme M8. | S006 |
+| `cout_reel.py` | Coût réel et rentabilité d'un chantier (PLAN T1.5-d, DA-M5-10) : module pur, Decimal, `ROUND_HALF_UP`, manques nommés ; `facturation.comptes_a_recevoir` (vue des factures ENVOYEE) l'accompagne. | — |
 | `conformite.py` | Contrôle statique AST transversal : copie-adaptation de `m8_analytics/conformite.py` + garde littéral de taux + garde anti-cause (R-020). | S007 |
 
 Aucun fichier `materiel.py`/orchestrateur unique équivalent à M6 : M5 a DEUX points d'écriture
@@ -297,6 +298,30 @@ mouvement invalide ne produit AUCUNE écriture, quel que soit le chemin public e
 **Justification** : patron déjà appliqué trois fois (DA-M6-08, DA-M8-06) — « valider toutes les
 clés avant la première écriture » ; M5 n'a pas de notion de lot multi-lignes en v1 (un mouvement =
 un maillon), donc l'atomicité se limite à un seul maillon, comme M8.
+
+### DA-M5-10 — Coût réel et rentabilité : pièces lues à la source, un seul point de lecture inter-département
+
+**Décision** (PLAN T1.5-d) : `cout_reel.py` est un module pur (aucun import `opsys`, aucun import de domaine,
+aucune horloge) qui calcule le coût réel d'un chantier et sa rentabilité à partir de pièces déjà lues par
+`outils.py` : le WCT et le devis accepté reçus du bus, le signal `m6.variance_chantier` (matériaux réellement
+utilisés), le livre de prix de M6, le taux horaire de `department.yaml/configuration`, la facture du devis. Aucun
+montant, prix, taux, durée ni quantité n'est un argument d'outil. Le SEUL point où M5 lit l'état d'un autre
+département est `outils._livre_de_prix_m6` (lecture seule, par le stockage de l'instance, sans importer aucun
+module `mX_*` : la garde de DA-M5-04 reste intacte) ; M6 ne publie aucun événement de prix, et une lecture
+à la source vaut mieux qu'un prix fourni par l'appelant.
+
+**Fail-closed** : une pièce absente ou illisible devient une entrée de `manque` (verdicts `REJ-COUT-*` et
+`REJ-RENTABILITE-*`, foyer unique `validation.py`), le coût est PARTIEL, la marge réelle reste `None`. Pas de prix
+inventé, pas de taux par défaut (le manifeste livré n'en porte pas), pas de moyenne de prix de fournisseurs.
+
+**Arrondi** : `ROUND_HALF_UP` partout (gardé par `verifier_arrondi_monetaire_explicite`), documenté dans chaque
+résultat. **État** : tracé une fois par version des entrées dans le registre dérivé `rentabilite` (ni le grand
+livre, ni les factures) ; les comptes à recevoir sont une vue des factures ENVOYEE.
+
+**Justification** : DEFINITION-PRODUIT §6 (« M5 [...] calcule le coût réel [...] et la rentabilité du
+chantier », « M5 reçoit le coût réel ») ; principe « le code calcule, le LLM orchestre » ; P2 (aucun chiffre
+inventé). Limites dites dans chaque résultat (`hypotheses`) : le livre de prix M6 ne porte pas d'unité, et le WCT
+ne porte pas l'effectif.
 
 ## 5. CE QUE CHAQUE STORY PROUVE
 

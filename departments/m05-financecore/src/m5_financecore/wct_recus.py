@@ -22,14 +22,26 @@ from typing import Any
 __all__ = ["construire", "pour_wct_id", "pour_devis_id"]
 
 
-def construire(wct_id: Any, intervention_id: Any, devis_id: Any, horodatage_completion: Any) -> dict[str, Any]:
+def construire(
+    wct_id: Any,
+    intervention_id: Any,
+    devis_id: Any,
+    horodatage_completion: Any,
+    duree_reelle_minutes: Any = None,
+) -> dict[str, Any]:
     """Le maillon WCT reçu — construction pure, sans écriture (l'appelant, `outils.py`, vérifie
-    d'abord `pour_wct_id` et n'ajoute que si absent : l'idempotence vit là, pas ici)."""
+    d'abord `pour_wct_id` et n'ajoute que si absent : l'idempotence vit là, pas ici).
+
+    `duree_reelle_minutes` (PLAN T1.5-d) : la durée pointée du chantier, recopiée telle que M4 l'a
+    calculée (premier arrivé au dernier départ, pauses déduites) : la SEULE source de la main-d'oeuvre
+    réelle (`cout_reel.py`). Un maillon écrit avant ce changement ne la porte pas : `.get()` rend alors
+    `None`, et le coût réel dit « temps pointé absent » au lieu d'en deviner un."""
     return {
         "wct_id": wct_id,
         "intervention_id": intervention_id,
         "devis_id": devis_id,
         "horodatage_completion": horodatage_completion,
+        "duree_reelle_minutes": duree_reelle_minutes,
     }
 
 
