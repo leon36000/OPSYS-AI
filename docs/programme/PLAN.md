@@ -769,7 +769,7 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
     à ligne dans `docs/architecture/ROLES.md` ; `m4_lire_outbox`, `m6_consommer_materiaux` et
     `m6_approuver_po` (admin seulement) hors de portée de l'employé ; socle 491, tous les
     départements verts.
-  - [ ] T1.4-k Contrôle d'accès par intervention : M4 lie la personne authentifiée au pointage et
+  - [x] T1.4-k Contrôle d'accès par intervention : M4 lie la personne authentifiée au pointage et
     à la complétion ; M6 et M4 refusent une action sur l'intervention d'un autre technicien, sauf
     rôle `admin` ; `chantier_id` et `intervention_id` du formulaire des matériaux confrontés au
     WCT. Même travail pour les champs encore fournis par l'appelant : `technicien_id`, `auteur`
@@ -799,7 +799,7 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       la personne appairée (saisie à la main, confrontée par le serveur : T1.4-c5) ; aucun
       rattachement fichier → intervention ; le motif `decision_admin` n'est pas refusé à un
       employé par le code ; l'employé n'accède pas encore à ses propres positions.
-    - [ ] T1.4-k2 M2 (`auteur` de `m2_enregistrer_interaction`, leads filtrés par propriétaire),
+    - [x] T1.4-k2 M2 (`auteur` de `m2_enregistrer_interaction`, leads filtrés par propriétaire),
       M3 (filtre par propriétaire de lead) et M5 (`role` et `autorise_couts` de
       `m5_etat_tresorerie` tirés de l'identité authentifiée).
       Avancement, M5 fait (1ef9499, 688b199) :
@@ -811,12 +811,23 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         un verdict `REJ-AUTORISE-COUTS-REQUIS` au lieu d'`arguments_invalides`) ;
       - M5 395, gate BMAD vert, socle 636, 18 mutations détectées.
 
-      Reste : M2 et M3 (après T0.13). À revoir en externe : la règle « `admin` voit les coûts »
+      M2 et M3 faits (17ea2f3, 18940a6, bd80cf1 intégrés) : la propriété d'un lead existait
+      (`owner` de la qualification) ; pour un appel d'appareil, `owner` est l'identifiant d'une
+      personne active vendeur ou admin ; `auteur` vient de la personne confirmée (différent →
+      refus) ; le vendeur n'agit que sur ses leads (lead d'un autre, sans propriétaire ou inconnu
+      → même refus) ; M2 publie `m2.lead_assigne` dans la transaction de la qualification, que
+      M3 relit à la source pour ne rendre au vendeur que les devis de ses leads ; M2 817, M3 1200
+      (rapide ; 935 complet chez l'agent), socle 811, E2E 16, gates BMAD de M2 et M3, 20
+      mutations détectées. Suite : T1.4-m. À revoir en externe : la règle « `admin` voit les coûts »
       (un `admin` n'est pas toujours Nathan) ; l'`approbateur` de
       `m5_enregistrer_paiement_facture` vient de la demande, pas du décideur (le socle ne
       transmet pas l'identité du décideur à l'outil) ; `mouvements_historique` encore accepté
       d'un appareil. `_acteur_appareil` est dupliqué dans M3, M4, M5 et M6 : un seul helper du
       socle serait plus sûr.
+  - [ ] T1.4-m Suites de T1.4-k : réassignation d'un lead (outil d'admin, fait `m2.lead_assigne`
+        versionné) ; republication du fait pour les leads qualifiés avant T1.4-k2 (leurs devis
+        sont aujourd'hui refusés au vendeur) ; un seul contrôle d'identité d'appareil dans le socle
+        au lieu de cinq copies (M2, M3, M4, M5, M6).
 - [x] T1.5 E2E : travaux terminés normaux ; écart de 40 % → `completed_pending_review` et alerte
       sur le mobile de l'admin.
       Preuve (19de4bb, 16cd96f, 08d0b29 intégrés ; `tests/e2e/`, 7 verts, PostgreSQL sauté sans
