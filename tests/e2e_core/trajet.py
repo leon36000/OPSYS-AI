@@ -18,6 +18,7 @@ Ce que `jouer` vérifie, dans l'ordre :
 - un outil hors de la portée du rôle donne 403, sans jamais atteindre le moteur.
 
 Chaque appel HTTP est chronométré ; les mesures sont la latence réelle de l'app, du Gateway et du moteur.
+La suite de la journée (fichiers, « Terminer », matériaux, propriétaire) est dans `journee.py`.
 """
 
 from __future__ import annotations
@@ -75,10 +76,11 @@ class Appareil:
 class Passerelle:
     """`GET /opsys/identite` et `POST /tools/invoke`, chronométrés. Aucun mandataire : c'est du local."""
 
-    def __init__(self, url: str, jeton: str) -> None:
+    def __init__(self, url: str, jeton: str, mesures: list[dict[str, Any]] | None = None) -> None:
         self.url = url.rstrip("/")
         self.jeton = jeton
-        self.mesures: list[dict[str, Any]] = []
+        # Deux appareils peuvent partager la même liste : le tableau des latences garde l'ordre des appels.
+        self.mesures: list[dict[str, Any]] = mesures if mesures is not None else []
         self.prefixe_etape = ""  # p. ex. « rejeu : », devant le nom de l'outil dans le journal des latences
         self._ouvreur = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
@@ -248,9 +250,11 @@ def _sans_rejoue(enveloppe: dict[str, Any]) -> dict[str, Any]:
 
 def jouer(
     passerelle: Passerelle, appareil: Appareil, chantier: Chantier, base: EtatDuMoteur, direct: LectureDirecte,
-    *, secret_partage: str,
+    *, secret_partage: str, app: AppEmploye | None = None,
 ) -> list[dict[str, Any]]:
-    """Le trajet complet ; rend les mesures de latence de chaque appel. Lève `EchecE2E` au premier constat faux."""
+    """Le trajet complet ; rend les mesures de latence de chaque appel. Lève `EchecE2E` au premier constat faux.
+    `app` : l'app de l'employé, si l'appelant la garde pour la suite de la journée (`journee.py`) ; les clés
+    d'idempotence déjà employées ne sont alors jamais réutilisées."""
     # -- l'identité que l'app apprend -------------------------------------------------------------------
     statut, contenu = passerelle.identite()
     exiger(statut == 200 and contenu.get("ok") is True and contenu.get("identite") == {
@@ -265,7 +269,7 @@ def jouer(
            "le secret partagé n'a aucune identité d'appareil (403 device_required)", statut=refus, corps=corps)
 
     # -- une lecture, reçue telle quelle --------------------------------------------------------------------
-    app = AppEmploye(_Ecran(), PorteHttp(passerelle, appareil.identifiant), chantier)
+    app = app or AppEmploye(_Ecran(), PorteHttp(passerelle, appareil.identifiant), chantier)
     lecture = app.chantiers_du_jour()
     exiger(lecture.statut == 200 and lecture.ok and lecture.enveloppe.get("ok") is True,
            "m4_lister_interventions doit répondre 200 avec une enveloppe OPSYS ok", statut=lecture.statut,

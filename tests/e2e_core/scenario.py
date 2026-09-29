@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""E2E « app -> core -> moteur » avec le VRAI core (PLAN T1.5-b) : `python tests/e2e_core/scenario.py`.
+"""E2E « app -> core -> moteur » avec le VRAI core (PLAN T1.5-b, T1.5-f) : `python tests/e2e_core/scenario.py`.
 
 `tests/e2e/` prouve le moteur, avec la règle de la porte d'appareil du core refaite en Python. Ce scénario prouve
 le trajet réel : un Gateway OPSYS-CORE construit (`pnpm build`), la configuration que `opsys openclaw configurer`
@@ -8,7 +8,8 @@ génère, le moteur métier, un appareil qui s'appaire comme l'app, et les appel
 Étapes (chacune échoue franchement, avec les journaux du Gateway et du moteur) :
  1. configuration : `opsys base migrer`, `opsys paliers definir`, `opsys openclaw configurer` (les vrais fragments
     `roles.json`, `mcp.json`, ...), puis `openclaw.json` complété du bloc `gateway` (le seul réglage que le socle
-    n'écrit pas) et, avec `--moteur superviseur`, `opsys/metier.json` ; une personne (`opsys personnes creer`) ;
+    n'écrit pas) et, avec `--moteur superviseur`, `opsys/metier.json` ; deux personnes (`opsys personnes creer`) :
+    l'employée et le propriétaire (`nathan_owner`, `admin`) ;
  2. donnée : un chantier assigné à cette personne, par les vrais outils (`executer_atomique`) ;
  3. démarrage : `openclaw config validate` (le core accepte la configuration générée), puis le Gateway
     (`openclaw gateway run`), qui lance et surveille le moteur (superviseur T0.10) ou, avec `--moteur direct`, un
@@ -18,7 +19,10 @@ génère, le moteur métier, un appareil qui s'appaire comme l'app, et les appel
     reçoit son jeton ; avant l'attribution, le core ne lui donne ni identité ni outil ;
  5. attribution : `opsys appareils appairer <deviceId> --personne ... --role employee` ;
  6. trajet : `trajet.jouer` (identité, lecture, écritures avec `idempotencyKey`, `_meta` arrivé au moteur, rejeu,
-    refus hors portée), chaque appel chronométré.
+    refus hors portée), chaque appel chronométré ;
+ 7. le propriétaire : un second appareil s'appaire de la même façon ; sa personne est `nathan`, son rôle `admin` ;
+ 8. la journée : `journee.jouer_la_journee` (photo par blocs, « Terminer », formulaire des matériaux avec un écart de
+    40 %, alerte dans « À voir », décision du propriétaire signée et au journal, rejeu, 403 pour l'employé).
 
 Le core n'est pas modifié par ce script. Une seule différence avec un vrai téléphone, voulue : la connexion vient
 de 127.0.0.1, que le core approuverait en silence ; `gateway.nodes.pairing.autoApproveLocal=false` impose
@@ -50,7 +54,7 @@ import time
 import traceback
 import urllib.error
 import urllib.request
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -59,10 +63,11 @@ ICI = Path(__file__).resolve().parent
 if str(ICI) not in sys.path:
     sys.path.insert(0, str(ICI))
 
+from harnais_e2e_chantier import MATERIAU_ID  # noqa: E402
+from journee import EtatDeLaJournee, creer_app_employe, jouer_la_journee  # noqa: E402
 from trajet import (  # noqa: E402
     Appareil,
     EchecE2E,
-    EtatDuMoteur,
     LectureDirecte,
     Passerelle,
     exiger,
@@ -74,6 +79,10 @@ from trajet import (  # noqa: E402
 PERSONNE = "sylvie-fictif"
 NOM_PERSONNE = "Sylvie Tremblay (fictif)"
 ROLE = "employee"
+PROPRIETAIRE = "nathan"
+NOM_PROPRIETAIRE = "Nathan St-Louis (fictif)"
+ENV_M6 = "OPSYS_E2E_M6_MANIFESTE"  # lu par `moteur_e2e.py`
+ROLE_PROPRIETAIRE = "admin"  # rôle du jeton ; la personne porte aussi `nathan_owner` (`opsys.appareils`)
 MOT_DE_PASSE = "mot-de-passe-e2e-core-fictif-1234"
 DEPARTEMENT_TERRAIN = "m04-field-ops"
 ID_CLIENT_APP = "opsys-mobile"
@@ -112,6 +121,7 @@ class Instance:
     jeton_mcp: str
     jeton_gateway: str
     env: dict[str, str]
+    attribues: dict[str, dict[str, str]] = dataclasses.field(default_factory=dict)  # appareil -> personne, rôle
 
     @property
     def dossier_core(self) -> Path:
@@ -230,8 +240,30 @@ def json_de_sortie(texte: str, quoi: str) -> Any:
 
 
 # -- 1. configuration et personne --------------------------------------------------------------------------------
-def preparer_configuration(instance: Instance) -> None:
-    """Les vraies commandes du socle, puis les deux réglages du core que le socle n'écrit pas."""
+def commande_du_moteur(instance: Instance) -> list[str]:
+    """`opsys-mcp --http` par `moteur_e2e.py` : le même moteur, avec le seuil de M6 du scénario (voir ce fichier)."""
+    return [sys.executable, str(ICI / "moteur_e2e.py"), "--http", "--hote", "127.0.0.1", "--port",
+            str(instance.port_moteur)]
+
+
+def ecrire_manifeste_m6(instance: Instance) -> Path:
+    """Copie du manifeste de M6 où l'article du chantier a un seuil (100 pi) que son stock ne franchit pas (144 pi) :
+    M6 n'a alors rien à signaler et n'ajoute aucune attente. Le manifeste du dépôt n'est pas modifié."""
+    import m6_material_control.outils as m6_outils
+    import yaml
+
+    reel = yaml.safe_load(m6_outils._MANIFESTE.read_text(encoding="utf-8"))
+    articles = {MATERIAU_ID: {"seuil_reapprovisionnement": 100, "quantite_cible": 300}}
+    manifeste = {**reel, "configuration": {**reel["configuration"], "reapprovisionnement": {"articles": articles}}}
+    chemin = instance.travail / "m6-department-e2e.yaml"
+    chemin.write_text(yaml.safe_dump(manifeste, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    instance.env[ENV_M6] = str(chemin)
+    return chemin
+
+
+def preparer_configuration(instance: Instance, pile: contextlib.ExitStack) -> None:
+    """Les vraies commandes du socle, puis les deux réglages du core que le socle n'écrit pas, puis le seuil de M6.
+    `pile` rétablit ce que cette étape a remplacé dans ce processus."""
     opsys(instance, "base", "migrer")
     opsys(instance, "paliers", "definir", "standard", "--provider", "anthropic", "--model", "claude-sonnet-5")
     opsys(instance, "openclaw", "configurer", "--config-dir", str(instance.dossier_core), "--url-mcp", instance.url_mcp,
@@ -263,18 +295,27 @@ def preparer_configuration(instance: Instance) -> None:
         for nom in re.findall(r"\$\{([A-Z_][A-Z0-9_]*)\}", fichier.read_text(encoding="utf-8")):
             instance.env.setdefault(nom, f"fictif-{nom.lower()}-e2e-core")
 
+    # Le seuil de M6 : lu par le moteur (`moteur_e2e.py`) ET par ce processus, qui livre le bus (M6 consomme la
+    # complétion ici) ; le chemin d'origine est rétabli à la sortie.
+    import m6_material_control.outils as m6_outils
+
+    manifeste_d_origine = m6_outils._MANIFESTE
+    m6_outils._MANIFESTE = ecrire_manifeste_m6(instance)
+    pile.callback(setattr, m6_outils, "_MANIFESTE", manifeste_d_origine)
+
     if instance.superviseur:
         metier = {
             "actif": True, "dossier": str(RACINE), "hote": "127.0.0.1", "port": instance.port_moteur,
-            "commande": [sys.executable, "-m", "opsys.serveur_mcp", "--http", "--hote", "127.0.0.1",
-                         "--port", str(instance.port_moteur)],
-            "env": {cle: instance.env[cle] for cle in ("OPSYS_HOME", "OPSYS_BASE_URL", "PYTHONPATH")
+            "commande": commande_du_moteur(instance),
+            "env": {cle: instance.env[cle] for cle in ("OPSYS_HOME", "OPSYS_BASE_URL", "PYTHONPATH", ENV_M6)
                     } | {"OPSYS_EVENEMENTS_REPARTITEUR": "0"},
             "delai_pret_ms": 180_000,
         }
         (instance.dossier_opsys / "metier.json").write_text(json.dumps(metier, indent=2) + "\n", encoding="utf-8")
 
     opsys(instance, "personnes", "creer", PERSONNE, "--nom", NOM_PERSONNE, "--role", ROLE)
+    opsys(instance, "personnes", "creer", PROPRIETAIRE, "--nom", NOM_PROPRIETAIRE, "--role", "nathan_owner",
+          "--role", ROLE_PROPRIETAIRE)
 
 
 # -- 2. la donnée --------------------------------------------------------------------------------------------------
@@ -352,9 +393,7 @@ def attendre_http(url: str, quoi: str, delai_s: float, surveiller: list[Processu
 
 
 def demarrer_moteur_direct(instance: Instance, pile: contextlib.ExitStack) -> Processus:
-    moteur = Processus(
-        "moteur", [sys.executable, "-m", "opsys.serveur_mcp", "--http", "--hote", "127.0.0.1", "--port",
-                   str(instance.port_moteur)], instance.env, RACINE, instance.journaux / "moteur.log")
+    moteur = Processus("moteur", commande_du_moteur(instance), instance.env, RACINE, instance.journaux / "moteur.log")
     pile.callback(moteur.arreter)
     attendre_http(f"http://127.0.0.1:{instance.port_moteur}/sante", "le moteur répond à /sante", 120, [moteur])
     return moteur
@@ -466,13 +505,51 @@ def appairer_comme_l_app(instance: Instance) -> tuple[str, str]:
         app.wait()
 
 
-def attribuer(instance: Instance, device_id: str) -> None:
+def attribuer(instance: Instance, device_id: str, personne: str = PERSONNE, role: str = ROLE) -> None:
     """Deuxième temps de l'appairage (ADR-0009 §5) : la personne et le rôle OPSYS de l'appareil approuvé."""
-    opsys(instance, "appareils", "appairer", device_id, "--personne", PERSONNE, "--role", ROLE,
+    opsys(instance, "appareils", "appairer", device_id, "--personne", personne, "--role", role,
           "--config-dir", str(instance.dossier_core))
+    instance.attribues[device_id] = {"personne": personne, "role": role}
     fragment = json.loads((instance.dossier_opsys / "appareils.json").read_text(encoding="utf-8"))
-    exiger(fragment == {"appareils": {device_id: {"personne": PERSONNE, "role": ROLE}}},
-           "appareils.json doit attribuer l'appareil à la personne et au rôle", fragment=fragment)
+    exiger(fragment == {"appareils": instance.attribues},
+           "appareils.json doit attribuer chaque appareil à sa personne et à son rôle, et rien d'autre",
+           fragment=fragment)
+
+
+def derouler(
+    instance: Instance, chantier: Any, appairer: Callable[[], tuple[str, str]], departements: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    """Tout ce qui suit le démarrage : l'employé, puis le propriétaire sur un second appareil. `appairer` rend
+    (deviceId, jeton d'appareil) : la vraie poignée de main (`appairer_comme_l_app`), ou celle de la répétition
+    sans core. Rend les latences de tous les appels, dans l'ordre où l'app les a faits."""
+    mesures: list[dict[str, Any]] = []
+    direct = LectureDirecte(f"{instance.url_mcp}/{DEPARTEMENT_TERRAIN}", instance.jeton_mcp)
+    base = EtatDeLaJournee()
+
+    etape("4. appairage de l'employée comme l'app, approbation par la CLI du core")
+    device_id, jeton = appairer()
+    employe = Appareil(device_id, jeton, PERSONNE, ROLE)
+    passerelle_employe = Passerelle(instance.url_gateway, jeton, mesures)
+    etape("   avant l'attribution : ni identité ni outil")
+    verifier_avant_attribution(passerelle_employe)
+    etape("5. attribution : opsys appareils appairer")
+    attribuer(instance, device_id)
+    etape("6. trajet de l'employée par la porte du core")
+    app = creer_app_employe(passerelle_employe, employe, chantier)
+    jouer(passerelle_employe, employe, chantier, base, direct, secret_partage=instance.jeton_gateway, app=app)
+
+    etape("7. le propriétaire : second appareil, rôle admin, personne nathan_owner")
+    device_id2, jeton2 = appairer()
+    proprietaire = Appareil(device_id2, jeton2, PROPRIETAIRE, ROLE_PROPRIETAIRE)
+    passerelle_proprietaire = Passerelle(instance.url_gateway, jeton2, mesures)
+    passerelle_proprietaire.prefixe_etape = "propriétaire : "
+    exiger(device_id2 != device_id, "le second appareil doit avoir sa propre identité")
+    verifier_avant_attribution(passerelle_proprietaire)
+    attribuer(instance, device_id2, PROPRIETAIRE, ROLE_PROPRIETAIRE)
+    etape("8. la journée : « Terminer », matériaux (+40 %), alerte, décision du propriétaire")
+    jouer_la_journee(passerelle_employe, employe, app, passerelle_proprietaire, proprietaire, chantier, base,
+                     departements)
+    return mesures
 
 
 # -- sortie ----------------------------------------------------------------------------------------------------------
@@ -510,9 +587,10 @@ def executer(travail: Path, core: Path, *, moteur: str, commande_core: list[str]
     try:
         with environnement_du_processus(instance.env), contextlib.ExitStack() as pile:
             etape("1. configuration : commandes du socle, bloc gateway, personne")
-            preparer_configuration(instance)
+            preparer_configuration(instance, pile)
             etape("2. donnée : un chantier assigné à la personne")
             from opsys import stockage
+            from opsys.departements import charger_departements
 
             chantier = semer_chantier()
             pile.callback(stockage.liberer)
@@ -522,18 +600,7 @@ def executer(travail: Path, core: Path, *, moteur: str, commande_core: list[str]
             if not instance.superviseur:
                 demarrer_moteur_direct(instance, pile)
             demarrer_gateway(instance, pile, delai_gateway_s)
-            etape("4. appairage comme l'app, approbation par la CLI du core")
-            device_id, jeton = appairer_comme_l_app(instance)
-            passerelle = Passerelle(instance.url_gateway, jeton)
-            etape("   avant l'attribution : ni identité ni outil")
-            verifier_avant_attribution(passerelle)
-            etape("5. attribution : opsys appareils appairer")
-            attribuer(instance, device_id)
-            etape("6. trajet de l'employé par la porte du core")
-            mesures = jouer(
-                passerelle, Appareil(device_id, jeton, PERSONNE, ROLE), chantier, EtatDuMoteur(),
-                LectureDirecte(f"{instance.url_mcp}/{DEPARTEMENT_TERRAIN}", instance.jeton_mcp),
-                secret_partage=instance.jeton_gateway)
+            mesures = derouler(instance, chantier, lambda: appairer_comme_l_app(instance), charger_departements())
             publier_mesures(travail, mesures)
     except Exception as erreur:  # toute faute du script est un échec, avec les journaux
         detail = str(erreur) if isinstance(erreur, EchecE2E) else caviarder(traceback.format_exc())

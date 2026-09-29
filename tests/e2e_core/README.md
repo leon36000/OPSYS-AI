@@ -1,10 +1,12 @@
-# E2E avec le vrai core (PLAN T1.5-b)
+# E2E avec le vrai core (PLAN T1.5-b, T1.5-f)
 
 `tests/e2e/` prouve le moteur, avec la porte d'appareil du core refaite en Python. Ici, le trajet est réel :
 **app → Gateway OPSYS-CORE → moteur métier**. Le script génère la configuration du core par `opsys openclaw
 configurer`, démarre le Gateway (qui lance le moteur par le superviseur T0.10), appaire un appareil de test comme
 l'app le fait (défi signé Ed25519, approbation par la CLI du core), puis appelle `GET /opsys/identite` et
-`POST /tools/invoke` avec son jeton, en chronométrant chaque appel.
+`POST /tools/invoke` avec son jeton, en chronométrant chaque appel. La suite (T1.5-f) joue la journée de
+l'employée jusqu'à la décision du propriétaire, depuis un second appareil : photo déposée par blocs, « Terminer »,
+formulaire des matériaux (écart de 40 %), alerte dans « À voir », décision N4 signée et au journal, rejeu, 403.
 
 ## Lancer
 
@@ -35,8 +37,10 @@ sinon le message dit lequel, et le script imprime la fin des journaux du Gateway
 
 | Fichier | Rôle |
 |---|---|
-| `scenario.py` | Orchestration : configuration, donnée, processus, appairage, attribution, trajet. |
-| `trajet.py` | Ce que l'app appelle par HTTP, et ce que le moteur en garde (base lue). |
+| `scenario.py` | Orchestration : configuration, donnée, processus, appairage, attribution ; `derouler` enchaîne les deux appareils. |
+| `trajet.py` | Ce que l'app appelle par HTTP (identité, lecture, gestes, rejeu, refus), et ce que le moteur en garde (base lue). |
+| `journee.py` | La suite de la journée : fichiers par blocs, « Terminer », matériaux, alerte d'écart, décision du propriétaire. |
+| `moteur_e2e.py` | `opsys-mcp` avec le seuil de réapprovisionnement de M6 du scénario (voir ci-dessous). |
 | `appairer.mjs` | Poignée de main de l'app, en Node sans dépendance. `--autotest` : vecteurs de la charge v3. |
 | `test_repetition_sans_core.py` | `pytest` : le script joué sans le core (passerelle factice). |
 
@@ -45,6 +49,11 @@ sinon le message dit lequel, et le script imprime la fin des journaux du Gateway
 - La connexion vient de 127.0.0.1, que le core approuverait en silence : `gateway.nodes.pairing.autoApproveLocal`
   est à `false`, ce qui impose l'approbation explicite d'un téléphone distant.
 - L'identité de l'appareil est neuve à chaque exécution ; l'attente entre deux tentatives est pilotée par le script.
+- Le seuil de réapprovisionnement de M6 est renseigné pour l'article du chantier (copie du manifeste lue par le moteur
+  et par le script, le dépôt n'est pas modifié), comme dans `tests/e2e/`. Sans seuil, M6 ajoute une attente « seuil à
+  configurer » et l'alerte d'écart sort du budget de l'écran du propriétaire (`BUDGET_ATTENTES`) : elle est comptée dans
+  `attentes_reste`, mais l'admin ne la lit pas. C'est un constat de T1.5-f, pas un choix du scénario.
+- Le bus est livré par le script (`evenements.repartir`) : le répartiteur de fond du moteur est éteint.
 - Le fournisseur de modèles et les embeddings pointent vers un port fermé : aucun tour d'agent n'est joué, seule la
   porte d'appareil est exercée.
 

@@ -877,6 +877,16 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         passerelle factice) : ce test prouve le script, pas le core. À cocher quand la CI du core est verte.
   - [ ] T1.5-f Étendre `e2e-core` (vrai core) à « Terminer », au formulaire des matériaux et à la
         décision du propriétaire depuis un second appareil `admin`/`nathan_owner`.
+        Avancement (non coché : la CI du core n'a pas encore exécuté la suite) : `tests/e2e_core/journee.py`
+        et `moteur_e2e.py`. Un second appareil s'appaire pour `nathan` (`nathan_owner`, rôle `admin`) ; la
+        photo est déposée en deux blocs, « Terminer » est daté par le serveur, le formulaire déclare 56 pi
+        pour 40 prévus (+40 %), l'alerte est lue dans « À voir », la revue N4 est décidée avec une clé, la
+        base dit que la personne authentifiée signe et que l'appareil est au journal, le rejeu est sans effet,
+        l'employé reçoit 403. Répété sans core, moteur réel : 43 appels chronométrés.
+        Constat : avec le manifeste réel de M6 (aucun seuil), l'attente « seuil à configurer » pousse l'alerte
+        d'écart hors de `m9_lister_demandes_approbation` (`BUDGET_ATTENTES` 1500, tri par `depuis`) : 4 attentes,
+        3 montrées, l'alerte comptée dans `attentes_reste` mais illisible sur l'écran. Le scénario renseigne
+        le seuil (comme `tests/e2e/`) ; l'ordre des attentes par gravité reste à trancher.
   - [x] T1.5-c M4, défauts trouvés par l'E2E (65c8bc4 : heure de réception du serveur à la
         complétion, `wct_id` indépendant du téléphone ; `ecart_signale` vrai seulement si une
         demande d'écart métier est ouverte ; attente « formulaire de matériaux à venir » au lieu

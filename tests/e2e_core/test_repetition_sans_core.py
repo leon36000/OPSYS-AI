@@ -22,6 +22,7 @@ import hashlib
 import http.server
 import json
 import secrets
+import struct
 import sys
 import threading
 from pathlib import Path
@@ -33,13 +34,13 @@ ICI = Path(__file__).resolve().parent
 if str(ICI) not in sys.path:
     sys.path.insert(0, str(ICI))
 
+import journee  # noqa: E402
 import scenario  # noqa: E402
 import trajet  # noqa: E402
 from harnais_e2e import JETON_MCP, Moteur  # noqa: E402
 
-from opsys import stockage  # noqa: E402
-
-SECRET_PARTAGE = "secret-partage-du-gateway-factice-0123456789"
+from opsys import fichiers, stockage  # noqa: E402
+from opsys.departements import charger_departements  # noqa: E402
 
 
 class PasserelleFactice:
@@ -49,9 +50,10 @@ class PasserelleFactice:
     `tools-invoke-shared.ts`) ; l'autorisation et l'appel du moteur sont `Moteur.invoquer`, la règle du fork
     refaite en Python par T1.5."""
 
-    def __init__(self, moteur: Moteur, appareils_par_jeton: dict[str, str]) -> None:
+    def __init__(self, moteur: Moteur, secret_partage: str) -> None:
         self.moteur = moteur
-        self.appareils_par_jeton = appareils_par_jeton
+        self.secret_partage = secret_partage
+        self.appareils_par_jeton: dict[str, str] = {}  # jeton d'appareil -> deviceId, ajoutés à l'appairage
         passerelle = self
 
         class Gestionnaire(http.server.BaseHTTPRequestHandler):
@@ -72,7 +74,7 @@ class PasserelleFactice:
                 jeton = entete.removeprefix("Bearer ") if entete.startswith("Bearer ") else None
                 if jeton in passerelle.appareils_par_jeton:
                     return "appareil", passerelle.appareils_par_jeton[jeton]
-                return ("secret", None) if jeton == SECRET_PARTAGE else (None, None)
+                return ("secret", None) if jeton == passerelle.secret_partage else (None, None)
 
             def do_GET(self) -> None:
                 if self.path != "/opsys/identite":
@@ -114,7 +116,8 @@ class PasserelleFactice:
                 self._repondre(reponse.statut, reponse.corps)
 
         self._serveur = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Gestionnaire)
-        self.url = f"http://127.0.0.1:{self._serveur.server_address[1]}"
+        self.port = self._serveur.server_address[1]
+        self.url = f"http://127.0.0.1:{self.port}"
         self._fil = threading.Thread(target=self._serveur.serve_forever, daemon=True)
 
     def __enter__(self) -> PasserelleFactice:
@@ -135,33 +138,39 @@ def _instance(tmp_path: Path, *, superviseur: bool) -> scenario.Instance:
 def test_le_scenario_joue_de_bout_en_bout_sauf_le_core(tmp_path):
     instance = _instance(tmp_path, superviseur=False)
     with scenario.environnement_du_processus(instance.env), contextlib.ExitStack() as pile:
-        scenario.preparer_configuration(instance)
+        scenario.preparer_configuration(instance, pile)
         assert not (instance.dossier_opsys / "metier.json").exists()  # `--moteur direct` : pas de superviseur
         pile.callback(stockage.liberer)
         chantier = scenario.semer_chantier()
         scenario.demarrer_moteur_direct(instance, pile)
 
-        # Un appareil « approuvé par le core » : son identifiant et son jeton viennent de la répétition, l'attribution
-        # est la vraie commande du socle.
-        appareil_id = hashlib.sha256(b"appareil-repetition-e2e-core-fictif").hexdigest()
-        jeton = f"jeton-appareil-factice-{secrets.token_hex(8)}"
         moteur = Moteur(tmp_path, instance.env["OPSYS_BASE_URL"])
         moteur.config_dir = instance.dossier_core
-        with PasserelleFactice(moteur, {jeton: appareil_id}) as faux:
-            passerelle = trajet.Passerelle(faux.url, jeton)
-            trajet.verifier_avant_attribution(passerelle)
-            scenario.attribuer(instance, appareil_id)
-            mesures = trajet.jouer(
-                passerelle, trajet.Appareil(appareil_id, jeton, scenario.PERSONNE, scenario.ROLE), chantier,
-                trajet.EtatDuMoteur(),
-                trajet.LectureDirecte(f"{instance.url_mcp}/{scenario.DEPARTEMENT_TERRAIN}", instance.jeton_mcp),
-                secret_partage=SECRET_PARTAGE)
+        with PasserelleFactice(moteur, instance.jeton_gateway) as faux:
+            instance.port_gateway = faux.port
 
-    assert [m["statut"] for m in mesures].count(200) >= 10
-    assert {m["statut"] for m in mesures} == {200, 401, 403}
+            def appairer_factice() -> tuple[str, str]:
+                """Un appareil « approuvé par le core » : identifiant et jeton viennent de la répétition ; l'attribution
+                qui suit (`scenario.attribuer`) est la vraie commande du socle."""
+                appareil_id = hashlib.sha256(secrets.token_bytes(16)).hexdigest()
+                jeton = f"jeton-appareil-factice-{secrets.token_hex(8)}"
+                faux.appareils_par_jeton[jeton] = appareil_id
+                return appareil_id, jeton
+
+            mesures = scenario.derouler(instance, chantier, appairer_factice, charger_departements())
+
+    etapes = [m["etape"] for m in mesures]
+    assert len(mesures) >= 40 and {m["statut"] for m in mesures} == {200, 401, 403}
     assert all(m["ms"] > 0 for m in mesures)
+    assert etapes.count("m4_deposer_fichier") == 3  # la photo en deux blocs, la signature en un
+    for attendue in ("m4_completer_intervention", "m6_declarer_materiaux_utilises", "propriétaire : identité",
+                     "propriétaire : m9_lister_demandes_approbation", "propriétaire : m9_decider_demande_approbation",
+                     "rejeu : m9_decider_demande_approbation", "employé hors portée : m9_decider_demande_approbation"):
+        assert attendue in etapes, attendue
     tableau = trajet.resume_latences(mesures)
     assert tableau.count("\n") >= len(mesures) + 2 and "m4_pointer" in tableau
+    assert instance.attribues.keys() and {a["personne"] for a in instance.attribues.values()} == {
+        scenario.PERSONNE, scenario.PROPRIETAIRE}
 
 
 def test_le_superviseur_du_core_saurait_lancer_le_moteur(tmp_path):
@@ -169,7 +178,7 @@ def test_le_superviseur_du_core_saurait_lancer_le_moteur(tmp_path):
     ici exactement cette commande, comme le superviseur (T0.10), avec le jeton que le Gateway lui passerait."""
     instance = _instance(tmp_path, superviseur=True)
     with scenario.environnement_du_processus(instance.env), contextlib.ExitStack() as pile:
-        scenario.preparer_configuration(instance)
+        scenario.preparer_configuration(instance, pile)
         metier = json.loads((instance.dossier_opsys / "metier.json").read_text(encoding="utf-8"))
         assert metier["actif"] is True and Path(metier["dossier"]).is_dir() and metier["port"] == instance.port_moteur
         assert "OPSYS_MCP_JETON" not in metier["env"]  # le Gateway seul possède le jeton du moteur
@@ -221,3 +230,13 @@ def test_un_dossier_de_travail_deja_utilise_est_refuse(tmp_path):
     (tmp_path / "reste-d-une-execution").write_text("x", encoding="utf-8")
     with pytest.raises(trajet.EchecE2E, match="doit être neuf"):
         scenario.creer_instance(tmp_path, scenario.RACINE / "core")
+
+
+def test_le_fichier_de_l_essai_tient_en_plusieurs_blocs_et_reste_un_png_valide():
+    contenu = journee.png_volumineux(fichiers.TAILLE_BLOC_OCTETS + 20_000)
+    assert contenu == journee.png_volumineux(fichiers.TAILLE_BLOC_OCTETS + 20_000)  # même graine, mêmes octets
+    assert contenu.startswith(b"\x89PNG\r\n\x1a\n") and contenu.endswith(b"IEND\xaeB`\x82")
+    assert -(-len(contenu) // fichiers.TAILLE_BLOC_OCTETS) == 2
+    assert len(contenu) % fichiers.TAILLE_BLOC_OCTETS != 0  # le dernier bloc est plus court
+    ihdr = struct.unpack(">II", contenu[16:24])
+    assert ihdr == ((fichiers.TAILLE_BLOC_OCTETS + 20_000) // 3 + 1, 1)  # largeur et hauteur du PNG
