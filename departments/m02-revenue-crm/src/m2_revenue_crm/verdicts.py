@@ -47,6 +47,11 @@ CODES_M2_LIST = [
     "REJ-IDENTITE-FOURNIE-DIFFERENTE",
     "REJ-LEAD-NON-ASSIGNE",
     "REJ-OWNER-INCONNU",
+    # Groupe 6 — PLAN T4.6 : liste des leads et segments (M2.11). Un segment sans la donnée qui le calcule
+    # est refusé avec ce qui manque (jamais une liste vide qui se lirait « aucun lead ») ; un décalage ou
+    # une limite de page invalide dit quoi corriger.
+    "REJ-SEGMENT-NON-CALCULABLE",
+    "REJ-PAGINATION-INVALIDE",
 ]
 CODES_M2 = set(CODES_M2_LIST)
 

@@ -181,3 +181,15 @@ Le fait est publié. La qualification publie `m2.lead_assigne` dans la même tra
 Catalogue de verdicts. Quatre identifiants s'ajoutent en groupe 5, à la suite : REJ-IDENTITE-APPAREIL-INVALIDE et REJ-IDENTITE-FOURNIE-DIFFERENTE, repris tels quels de M4 et de M5, puis REJ-LEAD-NON-ASSIGNE et REJ-OWNER-INCONNU, propres à M2. Justification : même faute, même nom, pour que les refus restent comparables entre modules. Le refus REJ-LEAD-NON-ASSIGNE est le même pour un lead d'un autre, sans propriétaire ou inconnu, pour qu'un vendeur ne puisse pas sonder les leads existants.
 
 Gel resscellé. L'empreinte sha256 de verdicts.py, épinglée au titre de CA-M2-13, a été mise à jour une seconde fois. Justification : le gel a rempli sa fonction, il a forcé cette modification à devenir une décision explicite et journalisée.
+
+## Addendum PLAN T4.6 — liste des leads et segments M2.11 (2026-09-29)
+
+Décision. M2 expose la liste de ses leads par statut et par segment (`m2_lister_leads`, lecture pure) : le vendeur lit ses leads, l'admin tous. Justification : DEFINITION-PRODUIT §9.4 (« ses leads ») et §9.5 (« pipeline, leads chauds ») n'avaient aucun outil, donc aucun écran vendeur ni pipeline. Le contrôle d'accès est celui de T1.4-k2 : un lead d'un autre vendeur n'est ni listé ni compté ni cité dans une règle.
+
+Segments. Huit des quatorze segments de M2.11 se calculent des faits que M2 tient déjà, chacun avec sa règle citée et la donnée qui le déclenche (`segments.py`, module pur). Les six autres rendent « non calculable, manque X » pour tous les leads : la donnée n'atteint pas M2, et aucun segment n'est deviné. Justification : une liste vide se lirait « aucun lead », un faux vert.
+
+Seuils. Les seuils d'inactivité et de soumission périmée sont dans `department.yaml`, vides : « seuil à configurer ». Justification : même patron que M6 et M8, aucune valeur inventée.
+
+Catalogue de verdicts. Deux identifiants s'ajoutent en groupe 6, à la suite : REJ-SEGMENT-NON-CALCULABLE (un filtre sur un segment sans donnée ou sans seuil, avec ce qui manque) et REJ-PAGINATION-INVALIDE (décalage ou limite de page invalide). Justification : aucun code existant ne dit qu'une donnée manque pour calculer un segment, et un décalage n'est pas une énumération.
+
+Gel resscellé. L'empreinte sha256 de verdicts.py, épinglée au titre de CA-M2-13, a été mise à jour une troisième fois. Justification : le gel a rempli sa fonction, il a forcé cette modification à devenir une décision explicite et journalisée.

@@ -6,7 +6,8 @@
 > La table ci-dessous est épinglée par `tests/test_portees_appareil.py` ; le contrôle d'accès par personne
 > et par intervention (T1.4-k) par `tests/test_acces_par_intervention.py` et les tests de M4 et de M6 ; la
 > vue financière de M5 (T1.4-k2) par `tests/test_acces_tresorerie.py` et les tests de M5 ; les leads de M2 et
-> les devis de M3 (T1.4-k2) par `tests/test_acces_par_proprietaire.py` et les tests de M2 et de M3.
+> les devis de M3 (T1.4-k2) par `tests/test_acces_par_proprietaire.py` et les tests de M2 et de M3 ; la liste des
+> leads du vendeur (T4.6) par `tests/e2e/test_liste_leads_vendeur.py` (la vraie porte d'appareil) et les tests de M2.
 
 ## La règle
 
@@ -67,7 +68,7 @@ qui travaille sur un toit, un gestionnaire qui reprend un dossier).
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 72 outils sur 148 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 73 outils sur 149 sont déclarés.
 
 ### `employee` (11 outils) : §9.3, le terrain
 
@@ -91,10 +92,11 @@ Rien qui lise les données des autres (`m4_lire_outbox`, `m4_lire_position_gps`,
 `m4_resoudre_revue_completion`, `m6_approuver_po`, `m6_annuler_po`), ni aucun outil M5, M7, M8, M9,
 M10.
 
-### `seller` (9 outils) : §9.4, ses leads et ses soumissions
+### `seller` (10 outils) : §9.4, ses leads et ses soumissions
 
 | Outil | Pourquoi |
 |---|---|
+| `m2_lister_leads` (T0) | §9.4 « ses leads », « pipeline personnel », priorité (T4.6, M2.11). La liste de SES leads seulement, filtrable par statut et par segment (14, la règle citée avec la donnée qui la déclenche ; « non calculable, manque X » sinon), paginée (`decalage`, `suivant`), sans montant ni contact. Un vendeur ne compte jamais les leads des autres dans `total`. |
 | `m2_obtenir_client_360`, `m2_trouver_client_de_lead` | §9.4 « Client 360 ». Ses leads seulement (T1.4-k2, plus bas). |
 | `m2_suggerer_prochaine_action` | §9.4 « prochaine meilleure action ». Ses leads seulement. |
 | `m2_evaluer_readiness` | §9.4 M3 « lead prêt pour l'estimation ». Ses leads seulement. |
@@ -107,9 +109,9 @@ M10.
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (72 outils) : §9.5 + employé + vendeur
+### `admin` (73 outils) : §9.5 + employé + vendeur
 
-Les 11 outils de l'employé, les 9 du vendeur, et :
+Les 11 outils de l'employé, les 10 du vendeur, et :
 
 | Département | Outils réservés à l'admin | Pourquoi |
 |---|---|---|
@@ -500,6 +502,7 @@ jamais déduit d'un autre champ (ni l'`auteur` des notes, ni le statut, ni l'ord
 | Outil (appel d'appareil) | `seller` | `admin` |
 |---|---|---|
 | `m2_transitionner_statut`, `m2_trouver_client_de_lead`, `m2_evaluer_readiness`, `m2_suggerer_prochaine_action` | son lead | tous |
+| `m2_lister_leads` (T4.6) | la liste de ses leads ; un lead d'un autre, un lead sans propriétaire et un lead inconnu ne sont ni listés ni comptés ni cités (aucun refus à lire : ils n'existent pas pour lui) ; `past_customer` ne lit que ses opportunités du client | tous les leads (pipeline, leads chauds) |
 | `m2_enregistrer_interaction` | son lead, `auteur` = sa personne | tous les leads, `auteur` = sa personne |
 | `m2_obtenir_client_360` | ses opportunités du client | toutes |
 | `m2_produire_digest`, `m2_detecter_doublons`, `m2_signaler_doublon`, `m2_arbitrer_doublon` | hors portée : refusés aussi dans l'outil | oui |
@@ -507,6 +510,34 @@ jamais déduit d'un autre champ (ni l'`auteur` des notes, ni le statut, ni l'ord
 Ordre des contrôles : identité confirmée et rôle dans la portée, puis `auteur`, puis propriété du lead, puis
 `owner` (qualification seulement), toujours AVANT toute écriture. Chaque refus est prouvé sans écriture (toutes
 les tables de la base comparées avant et après).
+
+### La liste des leads et les segments (T4.6)
+
+`m2_lister_leads` est la lecture du pipeline : `seller` (ses leads) et `admin` (tous). Même contrôle que le reste
+de M2, même identité confirmée en base à chaque appel, aucun paramètre qui désigne une personne. Ce qu'il ajoute :
+
+- **Un lead invisible n'existe pas pour le vendeur.** Il n'est ni listé, ni compté dans `total`, ni cité dans une
+  règle. Il n'y a donc pas de refus à lire : la page d'un vendeur sans lead est vide. Un lead `nouveau` (sans
+  propriétaire) ou dont `owner` est un nom libre n'est à aucun vendeur.
+- **`past_customer` respecte cette portée** : le segment ne lit que les opportunités du client que l'appelant voit
+  (comme le Client 360). Pour un même lead, l'admin peut donc voir `past_customer` (un autre vendeur a vendu ce
+  client) là où le vendeur ne le voit pas : voulu, fail-closed.
+- **Ordre stable, documenté** (`ordre` dans chaque page) : le plus ancien lead ingéré d'abord (instants comparés en
+  UTC), puis `lead_id`. Un lead qui reçoit une note ne change pas de rang ; un lead ingéré pendant la lecture
+  s'ajoute à la fin.
+- **Pages** : `decalage` (rang du premier lead) et `suivant`, comme `attentes_decalage` (T1.5-e) et
+  `m9_lire_suite_briefing`. La page tient sous la limite de sortie du socle (6 000 caractères, mesurés par le code) et
+  porte toujours un lead au moins. Un décalage au-delà de la fin rend une page vide, jamais une erreur.
+- **Aucun montant, aucun contact.** `high_value_customer` est non calculable : M2 n'a pas les montants de M3 ni de M5.
+- **Les seuils** des segments `dormant_lead` et `quote_stale` sont dans `department.yaml`
+  (`configuration.segments`), vides : « seuil à configurer ». Un filtre sur un segment non calculable est refusé
+  (`REJ-SEGMENT-NON-CALCULABLE`, avec ce qui manque), jamais une liste vide.
+- **`horodatage`** est un argument (l'instant de référence des deux segments datés) : c'est M2, pas l'appareil, qui
+  décide quoi en faire, et un appareil qui le falsifie ne change que SA propre vue.
+
+Limites : l'ordre est un rang, pas un curseur (un lead qui change de statut ou de segment entre deux pages d'un
+filtre peut manquer ou se répéter : l'appelant relit depuis 0) ; le propriétaire lu est celui de la qualification,
+la réassignation d'un lead (T1.4-m) n'existant pas encore.
 
 ### `auteur` d'une interaction
 

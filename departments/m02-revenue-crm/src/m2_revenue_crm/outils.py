@@ -24,14 +24,22 @@ arguments) et les fait confirmer en base à chaque appel. `auteur` d'une interac
 personne ; un vendeur ne voit et n'agit que sur les leads dont il est le propriétaire (`owner` de la
 transition `nouveau -> qualifie`), l'admin sur tous. Chaque refus précède toute écriture. Sans identité
 d'appareil (agent, console, consommateur d'événement) : comportement d'avant, aucun contrôle de personne.
+
+Liste des leads (PLAN T4.6, `liste_leads.py`, `segments.py`) : `m2_lister_leads` lit le registre UNE fois, ne
+rend au vendeur que ses leads (`acces.leads_visibles`, même contrôle que le reste), et cite pour chaque
+segment sa règle et la donnée qui le déclenche. Les seuils des segments viennent de `department.yaml`
+(`configuration.segments`, vides : « seuil à configurer »), relus à chaque appel comme M6 et M8.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
-from opsys import approbations, contexte, evenements, identite, stockage
+import yaml
+
+from opsys import approbations, contexte, evenements, identite, jetons, stockage
 from opsys.outils import Autonomie, Outil
 
 from . import (
@@ -43,7 +51,9 @@ from . import (
     encodage,
     ingestion,
     interactions,
+    liste_leads,
     readiness,
+    segments,
     statuts,
     suggestions,
     verdicts,
@@ -63,6 +73,14 @@ _NOM_REGISTRE_RELANCES_DEVIS_RECUES = "relances_devis_recues"
 # republié sous un autre evenement_id est un « déjà appliqué », jamais une seconde conversion ni une quarantaine.
 _NOM_REGISTRE_DEVIS_ACCEPTES_RECUS = "devis_acceptes_recus"
 _NOM_REGISTRE = "principal"
+# `department.yaml` : source des seuils de segmentation (`configuration.segments`), relue à chaque appel comme
+# M6 et M8 relisent la leur (l'admin l'édite sans toucher au code ; un test la remplace).
+_MANIFESTE = Path(__file__).resolve().parents[2] / "department.yaml"
+# `Capacites._tronquer` mesure `{"ok": true, "resultat": ...}` : l'enveloppe et le `{"accepte": true, ...}` de
+# M2 tiennent dans cette réserve. Sous ce budget, une page de `m2_lister_leads` n'est jamais tronquée (même
+# calcul que M8 et M9).
+_RESERVE_ENVELOPPE = 100
+BUDGET_SORTIE = jetons.LIMITE_SORTIE_DEFAUT - _RESERVE_ENVELOPPE
 
 _registre_memoire = Registre()
 _stockage_durable_actif = True
@@ -409,6 +427,66 @@ def suggerer_prochaine_action(lead_id: str, horodatage: str) -> dict[str, Any]:
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
     return {"accepte": True, "resultat": suggestion}
+
+
+def _seuils_segments() -> dict[str, dict[str, Any]]:
+    """Les seuils de segmentation de `department.yaml/configuration.segments`, relus à chaque appel (patron de
+    M6 et de M8). Bloc absent ou vide : « seuil à configurer » ; illisible : « seuil invalide ». Jamais une valeur
+    par défaut (`segments.lire_seuils`)."""
+    donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8"))
+    configuration = donnees.get("configuration") if isinstance(donnees, dict) else None
+    if configuration is None or isinstance(configuration, dict):
+        bloc = configuration.get("segments") if isinstance(configuration, dict) else None
+    else:
+        bloc = configuration
+    return segments.lire_seuils(bloc)
+
+
+def _devis_sans_reponse_recus() -> list[dict[str, Any]] | None:
+    """Les faits `m3.devis_sans_reponse` déjà reçus (registre `relances_devis_recues`, celui que remplit
+    `_recevoir_devis_sans_reponse`). `None` quand le registre de M2 est en mémoire (tests unitaires sans base) :
+    la source n'existe pas, `quote_stale` est alors non calculable, jamais « aucun devis en retard »."""
+    if not _stockage_durable_actif:
+        return None
+    return list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RELANCES_DEVIS_RECUES))
+
+
+def lister_leads(
+    horodatage: str,
+    statut: str | None = None,
+    segment: str | None = None,
+    decalage: int = 0,
+    limite: int = liste_leads.LIMITE_DEFAUT,
+) -> dict[str, Any]:
+    """PLAN T4.6 (M2.11) : les leads que l'appelant peut voir, par statut et par segment, une page à la fois.
+    Lecture pure, aucune écriture.
+
+    Appel d'appareil : identité confirmée en base, puis un vendeur ne voit que SES leads (`acces.leads_visibles`,
+    le même contrôle que les autres outils de lecture), l'admin tous ; un employé est refusé
+    (`REJ-IDENTITE-APPAREIL-INVALIDE`). Un lead d'un autre n'est ni listé ni compté. Sans identité d'appareil
+    (agent, console) : tous les leads, comme avant T1.4-k2. Le registre est lu une seule fois. La règle des
+    segments et l'ordre de la liste sont ceux de `segments.py` et de `liste_leads.py`."""
+    acteur, verdict_acteur = _acteur_appareil(acces.ROLES_LEADS)
+    if verdict_acteur is not None:
+        return _refus(verdict_acteur)
+    maillons = _obtenir_registre().lire()
+    visibles = acces.leads_visibles(
+        liste_leads.Vue(maillons), liste_leads.identifiants_des_leads(maillons), acteur)
+    page, verdict = liste_leads.lister(
+        maillons,
+        visibles=visibles,
+        relances_devis=_devis_sans_reponse_recus(),
+        seuils=_seuils_segments(),
+        horodatage=horodatage,
+        statut=statut,
+        segment=segment,
+        decalage=decalage,
+        limite=limite,
+        budget_caracteres=BUDGET_SORTIE,
+    )
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    return {"accepte": True, "resultat": page}
 
 
 def marquer_chantier_termine(
@@ -1281,6 +1359,55 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=obtenir_client_360,
             # §9.4 (vendeur : Client 360).
+            roles_appareil=acces.ROLES_LEADS,
+        ),
+        Outil(
+            nom="m2_lister_leads",
+            description=(
+                "PLAN T4.6 (M2.11) : liste les leads que l'appelant peut voir, filtrés par statut et par "
+                "segment, une page à la fois (decalage, suivant). Un vendeur ne voit que SES leads, l'admin "
+                "tous. Chaque lead porte ses segments, avec la règle citée et la donnée qui la déclenche ; "
+                "un segment non calculable dit « non calculable, manque X » et un filtre sur lui est refusé "
+                "(seuils à configurer dans department.yaml). Ordre : le plus ancien lead d'abord. Aucun "
+                "montant. Lecture pure. Pour lire la suite, rappeler avec decalage = suivant."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "statut": {
+                        "type": ["string", "null"],
+                        "enum": [*statuts.STATUTS, None],
+                        "description": "Facultatif : ne garder que les leads de ce statut.",
+                    },
+                    "segment": {
+                        "type": ["string", "null"],
+                        "enum": [*segments.SEGMENTS, None],
+                        "description": "Facultatif : ne garder que les leads de ce segment (M2.11).",
+                    },
+                    "decalage": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": (
+                            "Rang du premier lead rendu (0 par défaut) : la valeur `suivant` de la page précédente."
+                        ),
+                    },
+                    "limite": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": liste_leads.LIMITE_MAX,
+                        "description": (
+                            f"Leads par page au plus (défaut {liste_leads.LIMITE_DEFAUT}) ; "
+                            "la taille de la sortie les borne aussi."
+                        ),
+                    },
+                    "horodatage": _HORODATAGE,
+                },
+                "required": ["horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=lister_leads,
+            # §9.4 (vendeur : « ses leads », pipeline personnel) et §9.5 (admin : pipeline, leads chauds). Le
+            # vendeur ne voit que les siens (`acces.leads_visibles`, T1.4-k2) ; l'employé n'a aucune portée.
             roles_appareil=acces.ROLES_LEADS,
         ),
         Outil(

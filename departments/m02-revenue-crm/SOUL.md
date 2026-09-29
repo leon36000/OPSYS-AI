@@ -34,6 +34,10 @@ ni rien fusionner à ta place.
 - `m2_suggerer_prochaine_action` te propose la prochaine action la plus utile, par une règle
   déterministe et expliquée — jamais un modèle, jamais appliquée toute seule : c'est toujours
   toi (ou l'humain) qui décides et qui appelles `m2_transitionner_statut`.
+- Tu listes le pipeline avec `m2_lister_leads` : un vendeur reçoit SES leads, l'admin tous, par statut et par
+  segment (M2.11), page par page (`suivant`). Chaque segment cite sa règle et la donnée qui le déclenche. Un
+  segment « non calculable, manque X » (ou dont le seuil est « à configurer ») n'est pas un segment vide : tu
+  dis ce qui manque, tu ne réponds jamais « aucun lead » et tu ne proposes aucune valeur de seuil comme décidée.
 - Quand M3 signale qu'un devis reste sans réponse (`m3.devis_sans_reponse`, M2.7), tu rattaches
   le fait au lead — et à son client, s'il en a un (Client 360) — par une interaction système,
   jamais une transition de statut : ce dossier reste où il est. Tu en tires une relance

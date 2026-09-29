@@ -26,7 +26,7 @@ mode: ombre
 dependances: [m01-front-office, m03-estimation, m04-field-ops]
 modeles:
   defaut: standard
-skills: [ingerer-un-lead, faire-progresser-vers-m3, arbitrer-un-doublon]
+skills: [ingerer-un-lead, faire-progresser-vers-m3, arbitrer-un-doublon, lister-les-leads]
 planifications:
   - nom: digest-commercial
     cron: "0 7 * * 1-5"
@@ -73,3 +73,17 @@ kpis:
 evenements:
   consomme: [m4.travaux_termines, m3.devis_sans_reponse, m1.lead_qualifie, m3.devis_accepte]
   publie: [m2.client_associe, m2.lead_assigne]
+configuration:
+  # Seuils de segmentation des leads (PLAN T4.6 ; DEFINITION-PRODUIT.md §7 M2.11 ; §13 point 11 « seuils non
+  # chiffrés : chaque département doit les définir »). VIDES à dessein : aucun seuil n'est inventé. Tant qu'un
+  # seuil est absent ou invalide, le segment qui en dépend est « non calculable, manque le seuil » (seuil à
+  # configurer), jamais évalué avec une valeur devinée, et `m2_lister_leads` refuse un filtre sur lui. Même
+  # patron que M8 (`seuils_alerte`) et M6 (`reapprovisionnement`). Relu à chaque appel : aucun redémarrage.
+  # Les deux clés sont un entier de jours, au moins 1 :
+  #   jours_inactivite_dormant: <jours sans activité humaine d'un lead ouvert (nouveau ou qualifie) pour dormant_lead>
+  #   jours_soumission_perimee: <jours depuis l'envoi d'un devis resté sans réponse pour quote_stale>
+  # Exemple (à recopier sous `segments:`, avec de vraies valeurs, décidées par Nathan) :
+  #   segments:
+  #     jours_inactivite_dormant: 30
+  #     jours_soumission_perimee: 14
+  segments: {}

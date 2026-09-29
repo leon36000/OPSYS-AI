@@ -56,3 +56,46 @@ financière). `statuts.transitionner` accepte désormais, sans l'exiger, une `pr
 elle le maillon reste celui d'avant, octet pour octet. Preuve : `tests/test_consommer_devis_accepte.py` (22 tests, dont
 le rejeu, l'ordre inversé et l'atomicité) et, avec M4, M5, M6 et M8 par le même bus, `tests/test_cascade_devis_accepte.py`
 du socle.
+
+## La liste des leads et les 14 segments (PLAN T4.6)
+
+`m2_lister_leads` (T0, lecture pure) liste les leads que l'appelant peut voir, par statut et par segment, une page à la
+fois (`liste_leads.py` ; règles des segments : `segments.py`, purs). DEFINITION-PRODUIT §9.4 « ses leads », §9.5
+« pipeline, leads chauds », §7 M2.11.
+- **Qui voit quoi** : un vendeur (appareil `seller`) ne voit que SES leads, par l'identité confirmée en base, comme le
+  reste de M2 (T1.4-k2) ; l'admin voit tout ; un employé est refusé. Un lead d'un autre vendeur, un lead `nouveau` et un
+  lead sans propriétaire ne sont ni listés, ni comptés dans `total`, ni cités dans une règle. Aucun paramètre ne désigne
+  une personne. Déclaré dans `ROLES.md`.
+- **Ordre stable** : le plus ancien lead ingéré d'abord (instants comparés en UTC), puis `lead_id`. **Pages** : même
+  mécanisme que `attentes_decalage` du socle et `m9_lire_suite_briefing` : `decalage` (rang), `suivant` (`None` à la
+  fin), `reste`, sous la limite de sortie du socle (mesurée), au moins un lead par page ; hors de la fin, une page vide.
+- **Aucun montant, aucun contact.** Un item : lead, statut, propriétaire, travaux, ville, urgence déclarée, deux dates,
+  prochaine action, segments.
+- **Segments** (l'ordre de §7 M2.11). Chaque segment appliqué cite sa règle (`regle`, énoncé dans `regles`) et la
+  donnée qui le déclenche (`donnee`). Ces définitions sont celles du code ; à valider par le propriétaire.
+
+  | Segment | Règle |
+  |---|---|
+  | `hot_lead` | urgence déclarée à l'ingestion, lead ouvert (`nouveau` ou `qualifie`) |
+  | `estimate_ready` | `qualifie` et `readiness.evaluer` satisfaite (pas recalculée) |
+  | `quote_stale` | `qualifie` et un devis `envoye` sans réponse (`m3.devis_sans_reponse`) depuis au moins `jours_soumission_perimee` jours |
+  | `won_pending_schedule` | `converti` (règle `planifier_chantier`) |
+  | `active_job` | `cedule` ou `chantier` |
+  | `invoice_pending` | `facture` ou `paiement` (paiement non confirmé) |
+  | `past_customer` | le client a une opportunité VISIBLE de l'appelant au statut `avis` (chantier payé) |
+  | `dormant_lead` | lead ouvert sans activité humaine depuis au moins `jours_inactivite_dormant` jours |
+
+  Les six autres (`needs_photos`, `quote_sent`, `high_value_customer`, `referral_candidate`, `complaint_risk`,
+  `seasonal_opportunity`) reposent sur une donnée qui n'atteint pas M2 : « non calculable, manque X », pour tous les
+  leads, jamais devinés. Un filtre sur un segment non calculable est REFUSÉ (`REJ-SEGMENT-NON-CALCULABLE`, avec ce qui
+  manque) : une liste vide se lirait « aucun lead ».
+- **Seuils** : `configuration.segments` de `department.yaml`, VIDES à dessein (patron de M8 et de M6). Sans seuil,
+  `dormant_lead` et `quote_stale` sont « non calculables, seuil à configurer » ; un seuil invalide est dit « invalide ».
+  Relus à chaque appel. `horodatage` (l'instant de référence) est un argument : aucune horloge dans le code.
+- **Limites** : `quote_stale` ne voit que les devis que M3 a signalés `envoye` sans réponse ; M3 publie un fait par devis
+  (identifiant déterministe), donc un devis d'abord signalé `brouillon` n'est pas signalé de nouveau une fois envoyé, et
+  aucun outil n'envoie encore un devis (T4.7, `m3.devis_envoye`, fermera cet écart et rendra `quote_sent` calculable).
+  `past_customer` diffère selon l'appelant (l'admin voit les opportunités de tous les vendeurs) : voulu. Un décalage est
+  un rang : un lead qui change de statut ou de segment entre deux pages d'un filtre peut manquer ou se répéter.
+  Preuve : `tests/test_segments.py`, `tests/test_liste_leads.py`, `tests/test_lister_leads_outil.py` et, par la vraie porte
+  d'appareil, `tests/e2e/test_liste_leads_vendeur.py` du socle.

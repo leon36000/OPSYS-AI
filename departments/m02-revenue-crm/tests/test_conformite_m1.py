@@ -23,7 +23,11 @@ SHA256_HORODATAGE_ATTENDU = "7168dc81de0d37f0e7160b96e9df14c9a1bf5ef594a791f2574
 # quatre identifiants ajoutés au catalogue (groupe 5) — REJ-IDENTITE-APPAREIL-INVALIDE et
 # REJ-IDENTITE-FOURNIE-DIFFERENTE repris de M4 et de M5, REJ-LEAD-NON-ASSIGNE et REJ-OWNER-INCONNU propres à
 # M2. Décision journalisée dans docs/bmad/03-ARCHITECTURE.md (addendum T1.4-k2).
-SHA256_VERDICTS_ATTENDU = "a2c98764cb2becdd577768276f4b5fbf00ce8548a7bd0df5dfe0d86319b436e2"
+# Gel RESCELLÉ une troisième fois le 2026-09-29 (PLAN T4.6, liste des leads et segments M2.11) : deux identifiants
+# ajoutés au catalogue (groupe 6) — REJ-SEGMENT-NON-CALCULABLE (un filtre sur un segment sans donnée ou sans seuil,
+# avec ce qui manque) et REJ-PAGINATION-INVALIDE (décalage ou limite de page). Décision journalisée dans
+# docs/bmad/03-ARCHITECTURE.md (addendum T4.6).
+SHA256_VERDICTS_ATTENDU = "1d3f7d2127bf309b94b65431e2f3eb8b4052a2264b65b57230d04921a19bd271"
 
 
 class TestCA_M2_13_Empreintes:

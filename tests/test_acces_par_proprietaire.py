@@ -48,7 +48,7 @@ CODE_INVALIDE = "REJ-IDENTITE-APPAREIL-INVALIDE"
 CODE_INTROUVABLE = "REJ-DEVIS-INTROUVABLE"
 
 OUTILS_M2_DU_VENDEUR = {
-    "m2_obtenir_client_360", "m2_trouver_client_de_lead", "m2_suggerer_prochaine_action",
+    "m2_obtenir_client_360", "m2_trouver_client_de_lead", "m2_suggerer_prochaine_action", "m2_lister_leads",
     "m2_evaluer_readiness", "m2_transitionner_statut", "m2_enregistrer_interaction",
 }
 OUTILS_M3_DU_VENDEUR = {"m3_lire_devis", "m3_generer_soumission_brouillon", "m3_qualifier_photos"}

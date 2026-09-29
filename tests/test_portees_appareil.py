@@ -34,7 +34,7 @@ EMPLOYE = frozenset({
 # §9.4 (profil vendeur) : ses leads, le Client 360, les soumissions de ses leads (M2, M3). Aucun outil
 # M4, M5, M6, M7, M8, M9 ni M10 : ni finances, ni prix fournisseurs, ni coûts réels.
 VENDEUR = frozenset({
-    "m2_enregistrer_interaction", "m2_evaluer_readiness", "m2_obtenir_client_360",
+    "m2_enregistrer_interaction", "m2_evaluer_readiness", "m2_lister_leads", "m2_obtenir_client_360",
     "m2_suggerer_prochaine_action", "m2_transitionner_statut", "m2_trouver_client_de_lead",
     "m3_generer_soumission_brouillon", "m3_lire_devis", "m3_qualifier_photos",
 })
