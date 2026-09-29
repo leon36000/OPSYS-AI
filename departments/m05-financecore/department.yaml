@@ -19,7 +19,8 @@ evenements:                                          # ADR-0009 §3, PLAN T1.2-d
   publie: [m5.rentabilite_chantier]
 approbations:                                         # ADR-0009 §5, PLAN T1.3-c point 5
   n3: [finance, nathan_owner]
-  n4: [finance, nathan_owner]                        # envoi de facture (m5_envoyer_facture)
+  n4: [finance, nathan_owner]                        # envoi de facture (m5_envoyer_facture), correction et annulation d'une
+                                                     # facture fournisseur (m5_corriger_..., m5_annuler_..., T4.15-c)
   # N5 (paiement, m5_enregistrer_paiement_facture) ne se déclare pas : nathan_owner seul, fixé par
   # le socle (ADR-0009 §5).
 # PLAN T1.5-d : coût réel d'un chantier. Le taux horaire de la main-d'oeuvre est un chiffre de l'entreprise,
@@ -51,6 +52,14 @@ approbations:                                         # ADR-0009 §5, PLAN T1.3-
 #
 # Un « 0.00 » déclaré est un zéro CONNU (avec sa source et sa date) ; une composante absente n'est jamais zéro. Le calendrier
 # fiscal lui-même est dans contracts/calendrier_fiscal.v1.yaml (sources officielles citées, à valider par le CPA).
+#
+# PLAN T4.15-c : factures fournisseur SANS PO (carburant, outils : une dépense que M6 n'a pas commandée). La catégorie de dépense
+# est une liste FERMÉE que le propriétaire décide (GATE NATHAN) : ABSENTE ici, la saisie d'une facture sans PO dit « catégories à
+# configurer » (REJ-AP-CATEGORIES-A-CONFIGURER) et n'en suppose aucune. Relue à chaque appel. Forme, sous la même clé
+# `configuration` (des noms en minuscules, sans espace, de 2 à 32 caractères ; lettres, chiffres et _ ; pas de répétition) :
+#
+#   configuration:
+#     categories_depense_sans_po: [carburant, outils]   # ce sont des EXEMPLES de forme : la liste est celle de Nathan
 #
 modeles:
   defaut: standard

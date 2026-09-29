@@ -68,7 +68,9 @@ def test_chaque_outil_de_m5_est_classe_analyse_ou_hors_analyse_avec_sa_raison():
 def test_les_outils_qui_calculent_ou_proposent_sont_des_analyses():
     attendues = {
         "m5_etat_tresorerie", "m5_lire_echeances_fiscales", "m5_lire_rentabilite_chantier",
-        "m5_lister_comptes_a_payer", "m5_saisir_facture_fournisseur"}
+        "m5_lister_comptes_a_payer", "m5_saisir_facture_fournisseur",
+        # T4.15-c : chacun rend ce que le PO (ou les factures sans PO) doit à cet état, PROPOSÉ, jamais appliqué
+        "m5_saisir_facture_sans_po", "m5_corriger_facture_fournisseur", "m5_annuler_facture_fournisseur"}
     assert set(analyse.SORTIES_D_ANALYSE) == attendues
     assert "m5_envoyer_facture" in analyse.SORTIES_HORS_ANALYSE
     assert "m5_enregistrer_paiement_facture" in analyse.SORTIES_HORS_ANALYSE
@@ -82,10 +84,13 @@ def base_durable(tmp_path, monkeypatch):
     stockage.migrer(url)
     m5_outils.utiliser_stockage_durable()
     with stockage.transaction() as cnx:
-        identite.creer_personne(cnx, "admin.fictif", "Admin Fictive", "mot-de-passe-admin-12345", ["admin"])
+        # le propriétaire : corriger et annuler sont N4, la voie directe est celle du propriétaire
+        identite.creer_personne(cnx, "admin.fictif", "Admin Fictive", "mot-de-passe-admin-12345",
+                                ["admin", "nathan_owner"])
     manifeste = tmp_path / "department.yaml"
-    manifeste.write_text(yaml.safe_dump({"configuration": {"fiscal": {
-        "frequence_tps_tvq": "trimestrielle", "mois_fin_exercice": 12}}}), encoding="utf-8")
+    manifeste.write_text(yaml.safe_dump({"configuration": {
+        "fiscal": {"frequence_tps_tvq": "trimestrielle", "mois_fin_exercice": 12},
+        "categories_depense_sans_po": ["carburant", "outils"]}}), encoding="utf-8")
     monkeypatch.setattr(m5_outils, "_MANIFESTE", manifeste)
     yield url
     stockage.liberer()
@@ -122,8 +127,17 @@ def _preparer_un_po():
         m5_outils._recevoir_reception_enregistree(charge)
 
 
-def _appels():
-    """Un appel ACCEPTÉ par outil d'analyse : `(nom, arguments)`."""
+def _preparer_une_facture(par_nom):
+    """Une facture de 10.00 $ (PO-1), cible de la correction et de l'annulation : son identifiant."""
+    reponse = _appeler(par_nom, "m5_saisir_facture_fournisseur", {
+        "po_id": "PO-1", "fournisseur_id": "gentek", "numero_facture": "F-0", "date_facture": "2026-09-14",
+        "montant_avant_taxes": "10.00", "total_facture": None, "horodatage": "2026-09-20T10:00:00-04:00"})
+    assert reponse["resultat"]["accepte"] is True, reponse
+    return reponse["resultat"]["resultat"]["facture"]["facture_fournisseur_id"]
+
+
+def _appels(ident):
+    """Un appel ACCEPTÉ par outil d'analyse : `(nom, arguments)`. `ident` : la facture que M5 a déjà saisie."""
     return {
         "m5_etat_tresorerie": {},
         "m5_lire_echeances_fiscales": {"aujourd_hui": "2026-09-29"},
@@ -132,6 +146,17 @@ def _appels():
         "m5_saisir_facture_fournisseur": {
             "po_id": "PO-1", "fournisseur_id": "gentek", "numero_facture": "F-1", "date_facture": "2026-09-14",
             "montant_avant_taxes": "300.00", "total_facture": None, "horodatage": "2026-09-20T10:00:00-04:00"},
+        "m5_saisir_facture_sans_po": {
+            "fournisseur_id": "Pétro-Nord (fictif)", "categorie": "carburant", "numero_facture": "C-1",
+            "date_facture": "2026-09-14", "montant_avant_taxes": "100.00", "total_facture": None,
+            "horodatage": "2026-09-20T10:00:00-04:00"},
+        "m5_corriger_facture_fournisseur": {
+            "facture_fournisseur_id": ident, "motif": "montant tapé de travers (fictif)", "numero_facture": None,
+            "date_facture": None, "montant_avant_taxes": "20.00", "total_facture": None,
+            "horodatage": "2026-09-21T10:00:00-04:00"},
+        "m5_annuler_facture_fournisseur": {
+            "facture_fournisseur_id": ident, "motif": "saisie sous le mauvais PO (fictif)",
+            "horodatage": "2026-09-21T10:00:00-04:00"},
     }
 
 
@@ -149,8 +174,9 @@ def _la_mention(reponse, nom):
 @pytest.mark.parametrize("nom", sorted(analyse.SORTIES_D_ANALYSE))
 def test_chaque_sortie_acceptee_d_un_outil_d_analyse_porte_la_mention(par_nom, nom):
     _preparer_un_po()
+    ident = _preparer_une_facture(par_nom)
 
-    reponse = _appeler(par_nom, nom, _appels()[nom])
+    reponse = _appeler(par_nom, nom, _appels(ident)[nom])
 
     corps = _la_mention(reponse, nom)
     assert corps["mention"] == MENTION, nom
@@ -161,7 +187,7 @@ def test_chaque_sortie_acceptee_d_un_outil_d_analyse_porte_la_mention(par_nom, n
 def test_la_vue_masquee_porte_aussi_la_mention(par_nom, nom):
     _preparer_un_po()
 
-    reponse = _appeler(par_nom, nom, {**_appels()[nom], "autorise_couts": False})
+    reponse = _appeler(par_nom, nom, {**_appels("apf-inutile")[nom], "autorise_couts": False})
 
     assert _la_mention(reponse, nom)["mention"] == MENTION, nom
 

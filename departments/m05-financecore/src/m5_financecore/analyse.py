@@ -30,6 +30,9 @@ SORTIES_D_ANALYSE = frozenset({
     "m5_lire_rentabilite_chantier",  # coût réel et marge : une lecture de rentabilité
     "m5_lister_comptes_a_payer",  # « à payer attendu » et rapprochement PROPOSÉ
     "m5_saisir_facture_fournisseur",  # rend le rapprochement PROPOSÉ du PO
+    "m5_saisir_facture_sans_po",  # rend la facture recalculée et ce que valent les factures sans PO : un calcul
+    "m5_corriger_facture_fournisseur",  # rend le rapprochement PROPOSÉ du PO (ou le total sans PO) au nouvel état
+    "m5_annuler_facture_fournisseur",  # idem : ce que le PO doit après l'annulation, PROPOSÉ, jamais appliqué
 })
 
 # Les autres outils de M5, chacun avec la raison pour laquelle sa sortie n'est pas une analyse.

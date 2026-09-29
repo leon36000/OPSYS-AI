@@ -816,10 +816,11 @@ def verifier_aucune_cause_signalee(repertoire: str | Path) -> tuple[bool, str]:
 
 # PLAN T4.15 : ce que la garde surveille. `None` : le fichier ENTIER ; sinon, ces fonctions seulement (leur absence
 # est elle-même une violation : renommer une fonction ne doit pas désarmer la garde en silence). Les fonctions
-# d'`outils.py` sont celles du chemin des comptes à payer : consommateur du bus, saisie, lecture, et l'établissement
-# de l'acteur humain. PLAN T4.16 y ajoute, en STRICT, le calendrier fiscal (ni `calendrier_fiscal.py`, ni
-# `cash_libre.py`, ni `analyse.py` n'ont de raison de toucher au registre des mouvements : le solde leur est apporté
-# déjà calculé) et les fonctions d'`outils.py` qui lisent le calendrier et les registres autres que celui des
+# d'`outils.py` sont celles du chemin des comptes à payer : consommateur du bus, saisie (avec ou sans PO), correction
+# et annulation (T4.15-c : des pièces de plus au registre des comptes à payer, jamais un mouvement), lecture, et
+# l'établissement de l'acteur humain. PLAN T4.16 y ajoute, en STRICT, le calendrier fiscal (ni `calendrier_fiscal.py`,
+# ni `cash_libre.py`, ni `analyse.py` n'ont de raison de toucher au registre des mouvements : le solde leur est
+# apporté déjà calculé) et les fonctions d'`outils.py` qui lisent le calendrier et les registres autres que celui des
 # mouvements.
 _SURVEILLE_SANS_DECAISSEMENT: dict[str, tuple[str, ...] | None] = {
     "comptes_a_payer": None,
@@ -829,9 +830,15 @@ _SURVEILLE_SANS_DECAISSEMENT: dict[str, tuple[str, ...] | None] = {
     "outils": (
         "_registre_comptes_a_payer",
         "_recevoir_reception_enregistree",
-        "_acteur_humain_saisie",
-        "_decision_approuvee_en_cours",
+        "_acteur_humain",
+        "_horodatage_faisant_foi",
+        "_suite_de_la_facture",
+        "_reponse_facture",
         "saisir_facture_fournisseur",
+        "_categories_depense_sans_po",
+        "saisir_facture_sans_po",
+        "corriger_facture_fournisseur",
+        "annuler_facture_fournisseur",
         "lister_comptes_a_payer",
         "_configuration_manifeste",
         "_calendrier_fiscal",

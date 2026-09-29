@@ -389,43 +389,45 @@ def test_un_agent_en_mode_supervise_est_refuse_par_l_outil_lui_meme(dep, par_nom
     assert len(_registre_ap()) == 1
 
 
-# -- `_decision_approuvee_en_cours` : ce qui compte comme une décision humaine -----------------------------------------
-def _decision(cnx, arguments):
-    return m5_outils._decision_approuvee_en_cours(cnx, "m5_saisir_facture_fournisseur", arguments)
-
-
-def test_une_demande_en_cours_approuvee_par_la_finance_est_une_decision_humaine(personnes):
+# -- ce qui compte comme une décision humaine : le SOCLE le dit (`approbations.approbateur_en_cours`, T4.15-c) --------
+# Le socle pose l'approbateur pendant que `decider` exécute l'outil : la matrice de ce qui compte (autre outil, autre
+# département, personne inactive, sans le rôle, rôle d'agent, contexte contrefait) est testée dans
+# `tests/test_approbateur_en_cours.py`. Ici : ce que M5 en fait.
+def test_une_ligne_en_cours_ecrite_a_la_main_ne_donne_pas_le_droit_de_saisir(dep, par_nom):
+    """Ce que M5 acceptait avant T4.15-c (une demande `en_cours` aux mêmes arguments, de rôle humain) ne vaut plus rien
+    sans que `decider` soit en train d'exécuter."""
+    _recevoir(dep)
     arguments = _facture_args()
     with stockage.transaction() as cnx:
         _ecrire_demande(cnx, arguments, "financeuse", "finance")
-        assert _decision(cnx, arguments) == ("financeuse", "finance")
+    avant = _instantane_base()
+
+    reponse = _saisir(par_nom, identite_appelante=None)
+
+    assert _code(reponse) == "REJ-AP-HUMAIN-REQUIS" and _instantane_base() == avant
 
 
-@pytest.mark.parametrize("cas", [
-    dict(nom="autres_arguments", arguments=_facture_args(montant_avant_taxes="999.00")),
-    dict(nom="un_argument_de_moins", arguments={k: v for k, v in _facture_args().items() if k != "total_facture"}),
-    dict(nom="pas_en_cours", statut="en_attente"),
-    dict(nom="deja_executee", statut="executee"),
-    dict(nom="autre_outil", outil="m5_envoyer_facture"),
-    dict(nom="autre_departement", departement="m06-material-control"),
-    dict(nom="role_non_humain", decide_role="employee", decide_par="marc.fictif"),
-    dict(nom="personne_inactive", decide_role="admin", decide_par="ancien.fictif"),
-    dict(nom="personne_sans_ce_role", decide_role="finance", decide_par="marc.fictif"),
-    dict(nom="sans_decideur", decide_role="finance", decide_par=None),
-    dict(nom="decideur_inconnu", decide_role="finance", decide_par="inconnu.fictif"),
-], ids=lambda cas: cas["nom"])
-def test_ce_qui_ne_compte_pas_comme_une_decision_humaine(personnes, cas):
-    arguments = _facture_args()
-    ecrite = {"decide_par": "financeuse", "decide_role": "finance", "statut": "en_cours"}
-    ecrite.update({k: v for k, v in cas.items() if k in ("decide_par", "decide_role", "statut")})
+def test_un_role_admis_par_le_departement_mais_hors_de_la_liste_de_l_outil_ne_saisit_pas(dep, par_nom):
+    """`manager` peut décider un N3 dans ce département de démonstration ; l'outil n'accepte que la finance, le
+    propriétaire et l'admin : il peut être plus strict que la politique."""
+    _recevoir(dep)
     with stockage.transaction() as cnx:
-        _ecrire_demande(cnx, arguments, ecrite["decide_par"], ecrite["decide_role"], statut=ecrite["statut"],
-                        **{k: v for k, v in cas.items() if k in ("outil", "departement")})
-        assert _decision(cnx, cas.get("arguments", arguments)) is None
+        identite.creer_personne(cnx, "gestion", "Gestionnaire (fictive)", "mot-de-passe-gestion-123", ["manager"])
+    permissif = dataclasses.replace(dep, politique_approbation=dataclasses.replace(
+        dep.politique_approbation, roles={**dep.politique_approbation.roles, Niveau.N3: frozenset({"manager"})}))
+    capacites = Capacites({DEPARTEMENT: permissif}, stockage.transaction)
+    demande = capacites.appeler("m5_saisir_facture_fournisseur", _facture_args())
+    avant = len(_registre_ap())
 
+    with stockage.transaction() as cnx:
+        decision = opsys_approbations.decider(
+            cnx, demande["demande_id"], True, "gestion", outils_executables({DEPARTEMENT: permissif},
+                                                                            stockage.transaction),
+            {DEPARTEMENT: permissif}, role="manager")
 
-def test_sans_connexion_aucune_decision_n_est_reconnue():
-    assert m5_outils._decision_approuvee_en_cours(None, "m5_saisir_facture_fournisseur", _facture_args()) is None
+    assert decision["reponse"]["resultat"]["accepte"] is False
+    assert decision["reponse"]["resultat"]["verdict"]["code"] == "REJ-AP-HUMAIN-REQUIS"
+    assert len(_registre_ap()) == avant
 
 
 # -- heure : le serveur fait foi pendant un appel d'appareil idempotent ------------------------------------------------

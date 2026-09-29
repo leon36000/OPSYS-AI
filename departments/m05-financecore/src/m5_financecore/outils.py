@@ -124,6 +124,24 @@ AUCUNE écriture au registre des mouvements : payer un fournisseur est N5 (Natha
 `conformite.verifier_aucun_decaissement` le prouve par l'AST. L'unité des prix du livre de prix de M6 n'est pas
 déclarée (GATE NATHAN) : aucune conversion, et chaque attendu porte la réserve `REJ-AP-UNITE-PRIX-NON-CONFIRMEE`.
 
+PLAN T4.15-c (correction, annulation, factures sans PO ; `comptes_a_payer.py`) : trois outils de plus, tous refusés à
+un agent seul. `m5_corriger_facture_fournisseur` et `m5_annuler_facture_fournisseur` sont T2/N4 (engagement : écriture
+finale sur une dépense, ADR-0009 §4) : depuis le téléphone de l'admin comme pour un agent, l'appel ATTEND dans la file
+du propriétaire (mode `ombre` ou `supervise`), et ne s'exécute qu'après la décision de `finance` ou du propriétaire,
+aux arguments exacts enregistrés ; ils AJOUTENT une pièce de correction ou d'annulation au registre des comptes à
+payer, motif obligatoire, sans jamais modifier la facture d'origine. `m5_saisir_facture_sans_po` est T1/N3 comme la
+saisie d'une facture de PO : une dépense sans PO, avec une catégorie de la liste fermée
+`department.yaml/configuration.categories_depense_sans_po` (vide : « catégories à configurer »). Les trois exigent un
+HUMAIN, par les deux voies de `_acteur_humain` : l'identité de jeton d'appareil confirmée en base (pour un N4, la
+PERSONNE doit porter `nathan_owner` ou `finance` : le rôle `admin` du jeton ne dit pas qui est le propriétaire) ou
+l'approbateur que le SOCLE dit (`opsys.approbations.approbateur_en_cours`, posé par `decider` autour de l'outil et
+revérifié en base : il remplace la lecture de la table des approbations que M5 recopiait de M10 ; M1 et M10 n'y sont
+pas encore passés). En mode `autonome`, où un N4 s'exécute sans file, c'est l'outil qui refuse l'agent.
+`m5_lister_comptes_a_payer` lit l'état courant, factures sans PO comprises (`sans_po` les liste, avec l'identifiant
+que la correction demande) ; le cash libre aussi : une annulée ne donne aucun crédit de taxes ni aucune dette, une
+corrigée vaut sa correction, une facture sans PO est une dette ferme. Aucun DECAISSEMENT :
+`conformite.verifier_aucun_decaissement` couvre le nouveau code.
+
 PLAN T4.16 (cash libre réel et calendrier fiscal, `cash_libre.py`, `calendrier_fiscal.py`, `analyse.py`, M5.5, M5.14) :
 `m5_etat_tresorerie` AJOUTE, sans rien changer à l'état financier gelé (mêmes clés, même `etat_id`), le cash libre réel
 (`_cash_libre`) : le solde moins la TPS/TVQ à remettre, les paies, les DAS, les comptes à payer, les dettes et les
@@ -149,11 +167,9 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from sqlalchemy import select
 
 from opsys import approbations, contexte, evenements, identite, jetons, stockage
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
-from opsys.stockage.schema import APPROBATIONS
 
 from . import (
     acces,
@@ -912,66 +928,104 @@ def _recevoir_reception_enregistree(charge: dict[str, Any]) -> dict[str, Any]:
 # plus l'admin, dont l'appareil exécute lui-même) : la personne doit être ACTIVE et porter ce rôle à l'instant de
 # l'appel.
 _ROLES_APPROBATEURS_SAISIE = frozenset({"finance", "nathan_owner", acces.ROLE_ADMIN})
+# PLAN T4.15-c : corriger ou annuler une facture fournisseur est un N4 (engagement : écriture finale sur une dépense,
+# ADR-0009 §4), décidé par les rôles de `department.yaml/approbations.n4`. Le code les répète ici (un test les lie au
+# manifeste) : la voie de l'appareil n'est JAMAIS plus large que la file. Un `admin` qui n'est ni le propriétaire ni
+# la finance ne corrige ni n'annule rien, même par la voie directe (mode `autonome`, où un N4 s'exécute sans file).
+_ROLES_APPROBATEURS_N4 = frozenset({"finance", "nathan_owner"})
+NIVEAU_CORRECTION_FACTURE_FOURNISSEUR = Niveau.N4
 _OUTIL_SAISIE_FACTURE = "m5_saisir_facture_fournisseur"
+_OUTIL_SAISIE_SANS_PO = "m5_saisir_facture_sans_po"
+_OUTIL_CORRECTION_FACTURE = "m5_corriger_facture_fournisseur"
+_OUTIL_ANNULATION_FACTURE = "m5_annuler_facture_fournisseur"
+_REFUS_HUMAIN_SAISIE = (
+    "une facture fournisseur est saisie par un humain : depuis l'app admin (jeton d'appareil), ou proposée puis "
+    "approuvée dans la file OPSYS (finance ou propriétaire). Un agent ne la saisit pas seul ; ne la présente pas comme "
+    "saisie."
+)
+_REFUS_HUMAIN_SAISIE_SANS_PO = (
+    "une facture fournisseur sans PO est saisie par un humain : depuis l'app admin (jeton d'appareil), ou proposée "
+    "puis approuvée dans la file OPSYS (finance ou propriétaire). Un agent ne la saisit pas seul ; ne la présente pas "
+    "comme saisie."
+)
+_REFUS_HUMAIN_N4 = (
+    "corriger ou annuler une facture fournisseur est un engagement (N4) fait par un humain : proposé puis approuvé "
+    "dans la file OPSYS (finance ou propriétaire), ou fait depuis l'app par une personne de rôle propriétaire ou "
+    "finance (jeton d'appareil). Un agent ne le fait pas seul ; ne le présente pas comme fait."
+)
 
 
-def _decision_approuvee_en_cours(cnx: Any, nom_outil: str, arguments: dict[str, Any]) -> tuple[str, str] | None:
-    """`(personne, rôle)` de l'humain qui a APPROUVÉ la demande que cet appel exécute, sinon `None`. Lecture seule.
-
-    `approbations.decider` réserve la demande (`en_attente` -> `en_cours`, avec `decide_par` et `decide_role` : une
-    personne active portant un rôle autorisé pour ce niveau dans ce département) puis exécute l'outil avec les
-    arguments EXACTS enregistrés, dans la même transaction. Cet appel EST donc une décision humaine si et seulement si
-    une demande `en_cours` de cet outil, de ce département, porte exactement ces arguments et un approbateur de rôle
-    humain toujours actif. Un agent ne peut pas fabriquer une telle ligne : il ne peut que créer une demande
-    `en_attente`. Le socle n'expose pas l'approbateur à l'outil : cette lecture de sa table en tient lieu (même patron
-    que M10, `_decision_approuvee_en_cours`)."""
-    if cnx is None:
-        return None
-    lignes = cnx.execute(
-        select(APPROBATIONS.c.arguments, APPROBATIONS.c.decide_par, APPROBATIONS.c.decide_role).where(
-            APPROBATIONS.c.statut == "en_cours",
-            APPROBATIONS.c.outil == nom_outil,
-            APPROBATIONS.c.departement == _DEPARTEMENT,
-        )
-    ).all()
-    for arguments_enregistres, decide_par, decide_role in lignes:
-        if not decide_par or decide_role not in _ROLES_APPROBATEURS_SAISIE:
-            continue
-        if json.loads(arguments_enregistres) != arguments:
-            continue
-        personne = identite.personne_active(cnx, decide_par)
-        if personne is not None and decide_role in personne.roles:
-            return decide_par, decide_role
-    return None
-
-
-def _acteur_humain_saisie(arguments: dict[str, Any]) -> tuple[dict[str, str] | None, dict[str, Any] | None]:
-    """Qui saisit : `({par, role, voie}, None)` si c'est un humain identifié, sinon `(None, verdict)`.
+def _acteur_humain(
+    nom_outil: str, refus_humain: str, *, roles_approbateurs: frozenset[str],
+    personne_doit_porter: frozenset[str] | None = None,
+) -> tuple[dict[str, str] | None, dict[str, Any] | None]:
+    """Qui agit : `({par, role, voie}, None)` si c'est un humain identifié, sinon `(None, verdict)`.
 
     Deux voies, jamais une troisième, et jamais un texte de modèle ni un argument :
     1. un appel d'appareil dont l'identité (posée par le core d'après un jeton vérifié, `_meta`) est CONFIRMÉE en base à
-       l'instant même et de rôle `admin` (`_acteur_appareil`) ;
-    2. l'exécution d'une demande qu'un humain vient d'approuver dans la file (`_decision_approuvee_en_cours`).
-    Tout le reste est refusé : un appel d'agent qui n'a pas passé par l'approbation (un département en mode `supervise`
-    ou `autonome` exécute un N3 sans file), un appel en ligne de commande, un appel hors transaction où rien n'est
-    vérifiable. Une identité d'appareil invalide ou hors portée est le refus de `_acteur_appareil`, jamais un repli
-    sur la voie 2. Ne lit JAMAIS les arguments comme identité."""
+       l'instant même et de rôle `admin` (`_acteur_appareil`). `personne_doit_porter` (les outils N4) exige en plus que
+       la PERSONNE porte l'un de ces rôles (`REJ-AP-APPROBATEUR-REQUIS` sinon) : le rôle du jeton ne dit pas qui est le
+       propriétaire (un gestionnaire porte aussi `admin`) ;
+    2. l'exécution d'une demande qu'un humain vient d'approuver dans la file : le SOCLE dit qui l'a approuvée
+       (`approbations.approbateur_en_cours`, revérifié en base : personne active portant encore ce rôle, jamais celui
+       d'un agent), et `roles_approbateurs` peut être plus strict que la politique du département.
+    Tout le reste est refusé (`refus_humain`) : un appel d'agent qui n'a pas passé par l'approbation (un département en
+    mode `supervise` ou `autonome` exécute un N3, ou un N4 en `autonome`, sans file), un appel en ligne de commande,
+    un appel hors transaction où rien n'est vérifiable. Une identité d'appareil invalide ou hors portée est le refus de
+    `_acteur_appareil`, jamais un repli sur la voie 2. Ne lit JAMAIS les arguments comme identité."""
     acteur, refus = _acteur_appareil()
     if refus is not None:
         return None, refus
+    cnx = stockage.connexion_courante()
     if acteur is not None:
+        if personne_doit_porter is not None:
+            personne = identite.personne_active(cnx, acteur.personne) if cnx is not None else None
+            if personne is None or not personne.roles & personne_doit_porter:
+                return None, validation.construire_verdict(
+                    "REJ-AP-APPROBATEUR-REQUIS",
+                    detail=(
+                        f"{acteur.personne!r} n'est ni propriétaire ni finance : ce geste engage l'entreprise (N4) et "
+                        f"se décide par {' ou '.join(sorted(personne_doit_porter))}. Proposer la demande : elle attend "
+                        "dans la file OPSYS."
+                    ),
+                )
         return {"par": acteur.personne, "role": acteur.role, "voie": "appareil"}, None
-    approbateur = _decision_approuvee_en_cours(stockage.connexion_courante(), _OUTIL_SAISIE_FACTURE, arguments)
+    approbateur = approbations.approbateur_en_cours(cnx, nom_outil, _DEPARTEMENT, roles=roles_approbateurs)
     if approbateur is not None:
-        return {"par": approbateur[0], "role": approbateur[1], "voie": "approbation"}, None
-    return None, validation.construire_verdict(
-        "REJ-AP-HUMAIN-REQUIS",
-        detail=(
-            "une facture fournisseur est saisie par un humain : depuis l'app admin (jeton d'appareil), ou proposée "
-            "puis approuvée dans la file OPSYS (finance ou propriétaire). Un agent ne la saisit pas seul ; ne la "
-            "présente pas comme saisie."
-        ),
-    )
+        return {"par": approbateur.personne, "role": approbateur.role, "voie": "approbation"}, None
+    return None, validation.construire_verdict("REJ-AP-HUMAIN-REQUIS", detail=refus_humain)
+
+
+def _horodatage_faisant_foi(horodatage: str) -> str:
+    """Pendant un appel d'appareil idempotent, l'heure de RÉCEPTION du serveur fait foi, jamais l'horloge de l'appareil
+    ni l'`horodatage` fourni (même patron que M10 et `m4_pointer`). Par la file d'approbation, il n'y a pas d'appel
+    d'appareil à l'exécution : l'`horodatage` enregistré avec la demande sert."""
+    reception = contexte.horodatage_reception()
+    return reception.recu_le.isoformat() if reception is not None else horodatage
+
+
+def _suite_de_la_facture(
+    facture: Mapping[str, Any], registre_cible: registre_module.Registre, dictionnaire_taux: dict[str, Any]
+) -> dict[str, Any]:
+    """Ce que la réponse d'une écriture sur une facture ajoute à la facture elle-même : pour une facture d'un PO, le
+    rapprochement PROPOSÉ de ce PO (jamais appliqué) ; pour une facture sans PO, ce que les factures sans PO valent en
+    tout. Les taux ont déjà servi à l'écriture : un refus ici trahirait une incohérence interne."""
+    if facture["po_id"] is None:
+        return {"sans_po": comptes_a_payer.totaux_sans_po(registre_cible)}
+    rapprochement, verdict = comptes_a_payer.proposer_rapprochement(registre_cible, dictionnaire_taux, facture["po_id"])
+    if verdict is not None:
+        raise RuntimeError(f"rapprochement impossible pour une facture déjà écrite : {verdict}")
+    return {"rapprochement": rapprochement}
+
+
+def _reponse_facture(
+    resultat: dict[str, Any], registre_cible: registre_module.Registre, dictionnaire_taux: dict[str, Any]
+) -> dict[str, Any]:
+    return {"accepte": True, "resultat": analyse.avec_mention({
+        "facture": comptes_a_payer.vue_facture(resultat["facture"]),
+        "avertissements": resultat["avertissements"],
+        **_suite_de_la_facture(resultat["facture"], registre_cible, dictionnaire_taux),
+    })}
 
 
 def saisir_facture_fournisseur(
@@ -988,42 +1042,140 @@ def saisir_facture_fournisseur(
     le rapprochement PROPOSÉ du PO.
 
     Tous les paramètres sont requis (`total_facture` peut être nul) : la demande approuvée rejoue les arguments EXACTS
-    enregistrés, et `_decision_approuvee_en_cours` les compare tels quels. Les taxes et le total après taxes ne sont
-    JAMAIS des arguments : ils sont recalculés (taux versionnés). Pendant un appel d'appareil idempotent, l'heure de
-    RÉCEPTION du serveur fait foi, jamais l'`horodatage` fourni (même patron que M10).
+    enregistrés. Les taxes et le total après taxes ne sont JAMAIS des arguments : ils sont recalculés (taux
+    versionnés). Pendant un appel d'appareil idempotent, l'heure de RÉCEPTION du serveur fait foi, jamais l'`horodatage`
+    fourni (même patron que M10).
 
     N'écrit qu'au registre des comptes à payer. Aucun DECAISSEMENT, aucune écriture aux mouvements : payer est N5."""
-    arguments = {
-        "po_id": po_id, "fournisseur_id": fournisseur_id, "numero_facture": numero_facture,
-        "date_facture": date_facture, "montant_avant_taxes": montant_avant_taxes, "total_facture": total_facture,
-        "horodatage": horodatage,
-    }
-    acteur, refus = _acteur_humain_saisie(arguments)
+    acteur, refus = _acteur_humain(
+        _OUTIL_SAISIE_FACTURE, _REFUS_HUMAIN_SAISIE, roles_approbateurs=_ROLES_APPROBATEURS_SAISIE)
     if acteur is None:
         return _refus(refus)
     dictionnaire_taux, refus_taux = _dictionnaire_taux()
     if refus_taux is not None:
         return _refus(refus_taux)
-    reception = contexte.horodatage_reception()
     registre_cible = _registre_comptes_a_payer()
     resultat, verdict = comptes_a_payer.saisir_facture_fournisseur(
         po_id=po_id, fournisseur_id=fournisseur_id, numero_facture=numero_facture, date_facture=date_facture,
         montant_avant_taxes=montant_avant_taxes, total_facture=total_facture, saisi_par=acteur["par"],
-        voie=acteur["voie"], horodatage=reception.recu_le.isoformat() if reception is not None else horodatage,
-        dictionnaire_taux=dictionnaire_taux, registre_cible=registre_cible,
+        voie=acteur["voie"], horodatage=_horodatage_faisant_foi(horodatage), dictionnaire_taux=dictionnaire_taux,
+        registre_cible=registre_cible,
     )
     if verdict is not None:
         return _refus(verdict)
-    rapprochement, verdict = comptes_a_payer.proposer_rapprochement(
-        registre_cible, dictionnaire_taux, resultat["facture"]["po_id"]
+    return _reponse_facture(resultat, registre_cible, dictionnaire_taux)
+
+
+def _categories_depense_sans_po() -> Any:
+    """`department.yaml/configuration.categories_depense_sans_po` tel que le propriétaire l'a écrit, ou `None` : relu à
+    chaque appel (pas de redémarrage pour ajouter une catégorie). Absent : la saisie sans PO dit « catégories à
+    configurer » (`comptes_a_payer.lire_categories_depense`), jamais une catégorie par défaut. Lecture seule."""
+    return _configuration_manifeste().get("categories_depense_sans_po")
+
+
+def saisir_facture_sans_po(
+    fournisseur_id: str,
+    categorie: str,
+    numero_facture: str,
+    date_facture: str,
+    montant_avant_taxes: str,
+    total_facture: str | None,
+    horodatage: str,
+) -> dict[str, Any]:
+    """L'outil `m5_saisir_facture_sans_po` (T1, N3, `admin`) : range une facture fournisseur SANS PO (carburant, outils)
+    saisie par un humain (`comptes_a_payer.saisir_facture_sans_po`), et rend la facture, ses avertissements et ce que
+    les factures sans PO valent en tout.
+
+    Mêmes gardes que `saisir_facture_fournisseur` : humain identifié (les deux mêmes voies), taxes et total recalculés,
+    doublon refusé, tous les paramètres requis. La catégorie est de la liste fermée que le propriétaire déclare dans
+    `department.yaml` (`configuration.categories_depense_sans_po`) ; vide ou absente, la saisie dit « catégories à
+    configurer ». La facture entre en entier dans les comptes à payer et dans le cash libre. N'écrit qu'au registre des
+    comptes à payer : aucun DECAISSEMENT, payer est N5."""
+    acteur, refus = _acteur_humain(
+        _OUTIL_SAISIE_SANS_PO, _REFUS_HUMAIN_SAISIE_SANS_PO, roles_approbateurs=_ROLES_APPROBATEURS_SAISIE)
+    if acteur is None:
+        return _refus(refus)
+    dictionnaire_taux, refus_taux = _dictionnaire_taux()
+    if refus_taux is not None:
+        return _refus(refus_taux)
+    registre_cible = _registre_comptes_a_payer()
+    resultat, verdict = comptes_a_payer.saisir_facture_sans_po(
+        fournisseur_id=fournisseur_id, categorie=categorie, numero_facture=numero_facture,
+        date_facture=date_facture, montant_avant_taxes=montant_avant_taxes, total_facture=total_facture,
+        saisi_par=acteur["par"], voie=acteur["voie"], horodatage=_horodatage_faisant_foi(horodatage),
+        dictionnaire_taux=dictionnaire_taux, categories_configurees=_categories_depense_sans_po(),
+        registre_cible=registre_cible,
     )
-    if verdict is not None:  # les taux ont déjà servi à la saisie : un refus ici trahirait une incohérence interne
-        raise RuntimeError(f"rapprochement impossible pour une facture déjà saisie : {verdict}")
-    return {"accepte": True, "resultat": analyse.avec_mention({
-        "facture": comptes_a_payer.vue_facture(resultat["facture"]),
-        "avertissements": resultat["avertissements"],
-        "rapprochement": rapprochement,
-    })}
+    if verdict is not None:
+        return _refus(verdict)
+    return _reponse_facture(resultat, registre_cible, dictionnaire_taux)
+
+
+def corriger_facture_fournisseur(
+    facture_fournisseur_id: str,
+    motif: str,
+    numero_facture: str | None,
+    date_facture: str | None,
+    montant_avant_taxes: str | None,
+    total_facture: str | None,
+    horodatage: str,
+) -> dict[str, Any]:
+    """L'outil `m5_corriger_facture_fournisseur` (T2, N4, `admin`) : corrige une facture fournisseur saisie en AJOUTANT
+    une pièce de correction chaînée au registre (`comptes_a_payer.corriger_facture_fournisseur`) ; la facture d'origine
+    n'est jamais modifiée. Rend la facture à son état courant et le rapprochement PROPOSÉ de son PO (ou le total sans
+    PO), qui lisent ce nouvel état, comme le cash libre.
+
+    N4 : un engagement. Le socle met l'appel dans la file du propriétaire (mode `ombre` ou `supervise`) : l'outil ne
+    s'exécute qu'après la décision d'un humain (finance ou propriétaire), aux arguments EXACTS enregistrés. Il refuse
+    lui-même tout appel qui n'est pas d'un humain (`_acteur_humain`), y compris en mode `autonome` où un N4 s'exécute
+    sans file. Motif obligatoire ; numéro, date et montant nuls sont inchangés ; taxes et total recalculés. N'écrit
+    qu'au registre des comptes à payer : aucun DECAISSEMENT."""
+    acteur, refus = _acteur_humain(
+        _OUTIL_CORRECTION_FACTURE, _REFUS_HUMAIN_N4, roles_approbateurs=_ROLES_APPROBATEURS_N4,
+        personne_doit_porter=_ROLES_APPROBATEURS_N4)
+    if acteur is None:
+        return _refus(refus)
+    dictionnaire_taux, refus_taux = _dictionnaire_taux()
+    if refus_taux is not None:
+        return _refus(refus_taux)
+    registre_cible = _registre_comptes_a_payer()
+    resultat, verdict = comptes_a_payer.corriger_facture_fournisseur(
+        facture_fournisseur_id=facture_fournisseur_id, motif=motif, numero_facture=numero_facture,
+        date_facture=date_facture, montant_avant_taxes=montant_avant_taxes, total_facture=total_facture,
+        corrige_par=acteur["par"], role=acteur["role"], voie=acteur["voie"],
+        horodatage=_horodatage_faisant_foi(horodatage), dictionnaire_taux=dictionnaire_taux,
+        registre_cible=registre_cible,
+    )
+    if verdict is not None:
+        return _refus(verdict)
+    return _reponse_facture(resultat, registre_cible, dictionnaire_taux)
+
+
+def annuler_facture_fournisseur(facture_fournisseur_id: str, motif: str, horodatage: str) -> dict[str, Any]:
+    """L'outil `m5_annuler_facture_fournisseur` (T2, N4, `admin`) : annule une facture fournisseur saisie en AJOUTANT
+    une pièce d'annulation chaînée au registre (`comptes_a_payer.annuler_facture_fournisseur`) ; la facture d'origine
+    n'est jamais modifiée ni effacée, elle reste au registre au statut `ANNULEE`. Rend la facture annulée et le
+    rapprochement PROPOSÉ de son PO (ou le total sans PO), qui ne la comptent plus, comme le cash libre.
+
+    Mêmes gardes que `corriger_facture_fournisseur` (N4, humain exigé par l'outil, motif obligatoire, arguments exacts
+    rejoués). Annuler ne paie rien et n'efface pas la dette : un PO reçu et non facturé redevient un « à payer
+    attendu ». N'écrit qu'au registre des comptes à payer : aucun DECAISSEMENT."""
+    acteur, refus = _acteur_humain(
+        _OUTIL_ANNULATION_FACTURE, _REFUS_HUMAIN_N4, roles_approbateurs=_ROLES_APPROBATEURS_N4,
+        personne_doit_porter=_ROLES_APPROBATEURS_N4)
+    if acteur is None:
+        return _refus(refus)
+    dictionnaire_taux, refus_taux = _dictionnaire_taux()
+    if refus_taux is not None:
+        return _refus(refus_taux)
+    registre_cible = _registre_comptes_a_payer()
+    resultat, verdict = comptes_a_payer.annuler_facture_fournisseur(
+        facture_fournisseur_id=facture_fournisseur_id, motif=motif, annule_par=acteur["par"], role=acteur["role"],
+        voie=acteur["voie"], horodatage=_horodatage_faisant_foi(horodatage), registre_cible=registre_cible,
+    )
+    if verdict is not None:
+        return _refus(verdict)
+    return _reponse_facture(resultat, registre_cible, dictionnaire_taux)
 
 
 def lister_comptes_a_payer(
@@ -1031,22 +1183,42 @@ def lister_comptes_a_payer(
     depart: int | None = None,
     role: str | None = None,
     autorise_couts: bool | None = None,
+    sans_po: bool | None = None,
 ) -> dict[str, Any]:
     """L'outil `m5_lister_comptes_a_payer` (T0, `admin`) : ce que l'entreprise doit aux fournisseurs, PAR PO reçu, avec
-    l'attendu, le facturé, le « à payer » et le rapprochement PROPOSÉ (`comptes_a_payer.lister`).
+    l'attendu, le facturé, le « à payer » et le rapprochement PROPOSÉ (`comptes_a_payer.lister`), les factures sans PO
+    comprises dans les totaux ; `sans_po` vrai rend plutôt les factures SANS PO, une par ligne, avec leur identifiant
+    (`comptes_a_payer.lister_sans_po`). Les factures s'y lisent à leur ÉTAT COURANT : une corrigée vaut sa correction,
+    une annulée ne compte nulle part.
 
     Même contrôle d'accès que `lire_comptes_a_recevoir` : pour un appel d'appareil, l'identité confirmée en base
     (`admin` seulement), la vue vient du rôle authentifié, un argument ne peut que la restreindre ; refus AVANT toute
-    lecture. Sans le droit de voir les coûts : le nombre de PO seulement. Sans appareil (agent, console),
-    `autorise_couts` reste obligatoire et explicite. Aucun montant, prix, taux ni quantité ne se passe en argument :
-    tout est lu du registre. Paginé par rang (`depart`, `prochain_depart`) sous `BUDGET_SORTIE` : jamais tronqué.
-    N'écrit rien."""
+    lecture. Sans le droit de voir les coûts : le nombre de PO (ou de factures sans PO) seulement. Sans appareil
+    (agent, console), `autorise_couts` reste obligatoire et explicite. Aucun montant, prix, taux ni quantité ne se
+    passe en argument : tout est lu du registre. Paginé par rang (`depart`, `prochain_depart`) sous `BUDGET_SORTIE` :
+    jamais tronqué. N'écrit rien."""
     acteur, refus = _acteur_appareil()
     if refus is not None:
         return _refus(refus)
     vue, verdict = acces.resoudre_vue(acteur, role, autorise_couts)
     if verdict is not None:
         return _refus(verdict)
+    if sans_po is not None and not isinstance(sans_po, bool):
+        return _refus(validation.construire_verdict(
+            "REJ-AP-LISTE-FILTRE-INVALIDE", detail="sans_po : vrai, faux ou nul"))
+    if sans_po and po_id is not None:
+        return _refus(validation.construire_verdict(
+            "REJ-AP-LISTE-FILTRE-INVALIDE",
+            detail="sans_po et po_id ne vont pas ensemble : une facture sans PO n'est d'aucun PO"))
+    if sans_po:
+        page, verdict = comptes_a_payer.lister_sans_po(
+            _registre_comptes_a_payer(), depart=0 if depart is None else depart, budget_caracteres=BUDGET_SORTIE)
+        if verdict is not None:
+            return _refus(verdict)
+        if not vue["autorise_couts"]:
+            masquee = {"role": vue["role"], "nombre_factures_sans_po": page["total"], "montants_masques": True}
+            return {"accepte": True, "resultat": analyse.avec_mention(masquee)}
+        return {"accepte": True, "resultat": {"role": vue["role"], **page}}
     dictionnaire_taux, refus_taux = _dictionnaire_taux()
     if refus_taux is not None:
         return _refus(refus_taux)
@@ -1755,6 +1927,125 @@ def outils() -> tuple[Outil, ...]:
             roles_appareil=_ROLES_APPAREIL_FINANCE,
         ),
         Outil(
+            nom="m5_saisir_facture_sans_po",
+            description=(
+                "Saisit une facture FOURNISSEUR SANS PO (carburant, outils : une dépense que M6 n'a pas commandée), "
+                "tapée par un HUMAIN : app admin, ou demande approuvée dans la file. Un agent ne la saisit pas seul "
+                "(REJ-AP-HUMAIN-REQUIS). categorie : de la liste fermée que le propriétaire déclare (department.yaml, "
+                "configuration.categories_depense_sans_po) ; sinon refus « catégories à configurer ». TPS/TVQ et total "
+                "RECALCULÉS (taux versionnés) ; total_facture, le total imprimé, sert de contrôle. Refuse un doublon "
+                "(même fournisseur, numéro, montant). La facture est une dette dès sa saisie : elle entre en entier "
+                "dans les comptes à payer et dans le cash libre. N'écrit jamais aux mouvements : payer est N5."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "fournisseur_id": {"type": "string", "description": "Nom du fournisseur, tel qu'imprimé."},
+                    "categorie": {
+                        "type": "string",
+                        "description": "Catégorie de dépense, de la liste configurée ; hors liste : refusée.",
+                    },
+                    "numero_facture": {"type": "string", "description": "Numéro TEL QU'IMPRIMÉ sur la facture."},
+                    "date_facture": {"type": "string", "description": "AAAA-MM-JJ, telle qu'imprimée sur la facture."},
+                    "montant_avant_taxes": {
+                        "type": "string",
+                        "description": "Total avant taxes, texte décimal à 2 décimales au plus, ex. \"84.50\".",
+                    },
+                    "total_facture": {
+                        "type": ["string", "null"],
+                        "description": (
+                            "Total imprimé APRÈS taxes, texte décimal ; nul si tu ne l'as pas. Fourni, il doit égaler "
+                            "le total recalculé."
+                        ),
+                    },
+                    "horodatage": {"type": "string", "description": "ISO 8601 avec fuseau, moment de la saisie."},
+                },
+                "required": [
+                    "fournisseur_id", "categorie", "numero_facture", "date_facture", "montant_avant_taxes",
+                    "total_facture", "horodatage",
+                ],
+                "additionalProperties": False,
+            },
+            fonction=saisir_facture_sans_po,
+            # T1 -> N3 (par défaut) : comme la saisie d'une facture de PO, une écriture interne non finale sur le
+            # registre dédié ; ne touche jamais les mouvements. Même règle d'humain exigé par l'outil.
+            autonomie=Autonomie.T1,
+            roles_appareil=_ROLES_APPAREIL_FINANCE,
+        ),
+        Outil(
+            nom="m5_corriger_facture_fournisseur",
+            description=(
+                "Corrige une facture FOURNISSEUR saisie (numéro, date ou montant avant taxes ; nul = inchangé) en "
+                "AJOUTANT une pièce de correction au registre : la facture d'origine n'est jamais modifiée. MOTIF "
+                "OBLIGATOIRE. N4 (engagement) : l'appel attend dans la file du propriétaire, et l'outil n'agit que "
+                "pour un HUMAIN (finance ou propriétaire) : REJ-AP-HUMAIN-REQUIS sinon. TPS/TVQ et total recalculés ; "
+                "total_facture contrôle. Le rapprochement du PO, les totaux et le cash libre lisent le nouvel état. "
+                "Refuse : facture inconnue ou annulée, rien ne change (un rejeu), doublon. Le PO et le fournisseur ne "
+                "se corrigent pas : annuler puis ressaisir. Jamais de paiement."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "facture_fournisseur_id": {
+                        "type": "string", "description": "Identifiant lu dans les comptes à payer (apf-...).",
+                    },
+                    "motif": {"type": "string", "description": "Pourquoi : une ligne, 300 caractères au plus."},
+                    "numero_facture": {"type": ["string", "null"], "description": "Nouveau numéro ; nul : inchangé."},
+                    "date_facture": {
+                        "type": ["string", "null"], "description": "Nouvelle date AAAA-MM-JJ ; nul : inchangée.",
+                    },
+                    "montant_avant_taxes": {
+                        "type": ["string", "null"],
+                        "description": "Nouveau total avant taxes, texte décimal (2 décimales max) ; nul : inchangé.",
+                    },
+                    "total_facture": {
+                        "type": ["string", "null"],
+                        "description": "Total imprimé APRÈS taxes, contrôle optionnel du total recalculé.",
+                    },
+                    "horodatage": {"type": "string", "description": "ISO 8601 avec fuseau, moment de la correction."},
+                },
+                "required": [
+                    "facture_fournisseur_id", "motif", "numero_facture", "date_facture", "montant_avant_taxes",
+                    "total_facture", "horodatage",
+                ],
+                "additionalProperties": False,
+            },
+            fonction=corriger_facture_fournisseur,
+            # T2 -> N4 : modifier une dépense saisie est une écriture finale. Le socle met l'appel en file (ombre et
+            # supervise), l'outil exige un humain (autonome : un N4 s'exécute sans file). `admin` peut PROPOSER depuis
+            # son téléphone ; la décision est du propriétaire ou de la finance.
+            autonomie=Autonomie.T2,
+            niveau=NIVEAU_CORRECTION_FACTURE_FOURNISSEUR,
+            roles_appareil=_ROLES_APPAREIL_FINANCE,
+        ),
+        Outil(
+            nom="m5_annuler_facture_fournisseur",
+            description=(
+                "Annule une facture FOURNISSEUR saisie en AJOUTANT une pièce d'annulation au registre : la facture "
+                "n'est ni modifiée ni effacée, elle reste au statut ANNULEE. MOTIF OBLIGATOIRE. N4 (engagement) : "
+                "l'appel attend dans la file du propriétaire, et l'outil n'agit que pour un HUMAIN (finance ou "
+                "propriétaire) : REJ-AP-HUMAIN-REQUIS sinon. Une annulée ne compte plus (facturé, à payer, "
+                "rapprochement, doublon, crédits de taxes du cash libre) ; un PO reçu et non facturé redevient un « à "
+                "payer attendu ». Refuse : facture inconnue, déjà annulée (un rejeu). Jamais de paiement."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "facture_fournisseur_id": {
+                        "type": "string", "description": "Identifiant lu dans les comptes à payer (apf-...).",
+                    },
+                    "motif": {"type": "string", "description": "Pourquoi : une ligne, 300 caractères au plus."},
+                    "horodatage": {"type": "string", "description": "ISO 8601 avec fuseau, moment de l'annulation."},
+                },
+                "required": ["facture_fournisseur_id", "motif", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=annuler_facture_fournisseur,
+            autonomie=Autonomie.T2,
+            niveau=NIVEAU_CORRECTION_FACTURE_FOURNISSEUR,
+            roles_appareil=_ROLES_APPAREIL_FINANCE,
+        ),
+        Outil(
             nom="m5_lister_comptes_a_payer",
             description=(
                 "Comptes à payer (M5.2), pour l'admin : PAR PO reçu de M6, l'« à payer attendu » (quantités reçues x "
@@ -1769,7 +2060,10 @@ def outils() -> tuple[Outil, ...]:
                 "d'un PO. "
                 "Lecture pure. Même règle d'accès que m5_etat_tresorerie : admin seulement ; autorise_couts ne peut "
                 "que "
-                "restreindre (sans droit : le nombre de PO seulement)."
+                "restreindre (sans droit : le nombre de PO seulement). Les factures SANS PO entrent dans les totaux ; "
+                "sans_po=true les liste (une par ligne, avec l'identifiant que la correction et l'annulation "
+                "demandent). Les factures y sont à leur état courant : une corrigée vaut sa correction, une annulée ne "
+                "compte nulle part."
             ),
             parametres={
                 "type": "object",
@@ -1777,7 +2071,14 @@ def outils() -> tuple[Outil, ...]:
                     "po_id": {"type": ["string", "null"], "description": "Filtre : le détail de ce PO seulement."},
                     "depart": {
                         "type": ["integer", "null"], "minimum": 0,
-                        "description": "Rang du premier PO rendu (0 par défaut) ; reprendre à prochain_depart.",
+                        "description": (
+                            "Rang du premier PO (ou de la première facture) rendu (0 par défaut) ; reprendre à "
+                            "prochain_depart."
+                        ),
+                    },
+                    "sans_po": {
+                        "type": ["boolean", "null"],
+                        "description": "Vrai : lister les factures SANS PO (avec leur identifiant) plutôt que les PO.",
                     },
                     "role": _ROLE_DE_LECTURE,
                     "autorise_couts": _AUTORISE_COUTS_DE_LECTURE,

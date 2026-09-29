@@ -42,7 +42,11 @@ VENDEUR = contexte.IdentiteAppelante(personne="vendeur.fictif", role="seller")
 OUTILS_DE_LECTURE_FINANCE = {"m5_etat_tresorerie", "m5_lister_attentes_facturation",
                              "m5_lire_rentabilite_chantier", "m5_lire_comptes_a_recevoir",
                              "m5_lister_comptes_a_payer", "m5_saisir_facture_fournisseur",
-                             "m5_lire_echeances_fiscales"}
+                             "m5_lire_echeances_fiscales",
+                             # T4.15-c : facture sans PO (N3), correction et annulation d'une facture saisie (N4 :
+                             # l'appel attend le propriétaire ou la finance, voir test_correction_outils.py)
+                             "m5_saisir_facture_sans_po", "m5_corriger_facture_fournisseur",
+                             "m5_annuler_facture_fournisseur"}
 CODE_INVALIDE = "REJ-IDENTITE-APPAREIL-INVALIDE"
 CODE_DIFFERENTE = "REJ-IDENTITE-FOURNIE-DIFFERENTE"
 CODE_REQUIS = "REJ-AUTORISE-COUTS-REQUIS"

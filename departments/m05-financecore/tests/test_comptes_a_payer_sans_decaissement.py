@@ -21,6 +21,7 @@ from pathlib import Path
 
 import m5_financecore.outils as m5_outils
 import pytest
+import yaml
 from m5_financecore import conformite
 
 from opsys import contexte, evenements, identite, stockage
@@ -161,6 +162,58 @@ def test_un_decaissement_glisse_dans_le_vrai_consommateur_est_attrape(tmp_path):
     assert conforme is False and "_recevoir_reception_enregistree()" in detail and "_registre_mouvements" in detail
 
 
+@pytest.mark.parametrize("fonction, appel", [
+    ("corriger_facture_fournisseur", "    resultat, verdict = comptes_a_payer.corriger_facture_fournisseur("),
+    ("annuler_facture_fournisseur", "    resultat, verdict = comptes_a_payer.annuler_facture_fournisseur("),
+    ("saisir_facture_sans_po", "    resultat, verdict = comptes_a_payer.saisir_facture_sans_po("),
+], ids=["corriger", "annuler", "sans_po"])
+def test_un_decaissement_glisse_dans_les_vrais_outils_de_correction_d_annulation_et_de_facture_sans_po_est_attrape(
+        tmp_path, fonction, appel):
+    """T4.15-c : la garde couvre les trois nouveaux outils, comme la saisie d'une facture de PO."""
+    def modifier(nom, texte):
+        if nom != "outils":
+            return texte
+        assert appel in texte
+        piege = "    registre_module.enregistrer_mouvement({}, registre_module.Registre())\n"
+        return texte.replace(appel, piege + appel, 1)
+
+    conforme, detail = _sur_les_vrais_fichiers(tmp_path, modifier)
+
+    assert conforme is False and f"{fonction}()" in detail and "enregistrer_mouvement" in detail
+
+
+@pytest.mark.parametrize("fonction", [
+    "_acteur_humain", "_suite_de_la_facture", "_reponse_facture", "_categories_depense_sans_po",
+    "_horodatage_faisant_foi"])
+def test_un_type_de_mouvement_glisse_dans_un_assistant_des_nouveaux_outils_est_attrape(tmp_path, fonction):
+    def modifier(nom, texte):
+        if nom != "outils":
+            return texte
+        ancre = f"def {fonction}("
+        debut = texte.index(ancre)
+        fin_signature = texte.index(":\n", debut) + 2
+        return texte[:fin_signature] + '    _piege = "DECAISSEMENT"\n' + texte[fin_signature:]
+
+    conforme, detail = _sur_les_vrais_fichiers(tmp_path, modifier)
+
+    assert conforme is False and f"{fonction}()" in detail and "DECAISSEMENT" in detail
+
+
+@pytest.mark.parametrize("piege, attendu", [
+    ("\n\ndef _piege():\n    return registre.enregistrer_mouvement({}, None)\n", "enregistrer_mouvement"),
+    ("\n\ndef _piege():\n    return {'type_entree': 'mouvement_enregistre'}\n", "mouvement_enregistre"),
+    ("\n\ndef _piege():\n    return 'PROVISION'\n", "PROVISION"),
+])
+def test_un_piege_glisse_n_importe_ou_dans_le_module_des_comptes_a_payer_est_attrape_aussi_pour_le_nouveau_code(
+        tmp_path, piege, attendu):
+    def modifier(nom, texte):
+        return texte + piege if nom == "comptes_a_payer" else texte
+
+    conforme, detail = _sur_les_vrais_fichiers(tmp_path, modifier)
+
+    assert conforme is False and attendu in detail and "comptes_a_payer.py" in detail
+
+
 def test_un_import_du_registre_des_mouvements_dans_le_vrai_module_est_attrape(tmp_path):
     def modifier(nom, texte):
         if nom != "comptes_a_payer":
@@ -191,7 +244,8 @@ def test_les_seuls_outils_t3_de_m5_sont_les_deux_d_avant_aucun_ne_paie_un_fourni
 
     assert {nom for nom, o in par_nom.items() if o.autonomie is Autonomie.T3} == {
         "m5_enregistrer_mouvement", "m5_enregistrer_paiement_facture"}
-    for nom in ("m5_saisir_facture_fournisseur", "m5_lister_comptes_a_payer"):
+    for nom in ("m5_saisir_facture_fournisseur", "m5_lister_comptes_a_payer", "m5_saisir_facture_sans_po",
+                "m5_corriger_facture_fournisseur", "m5_annuler_facture_fournisseur"):
         assert par_nom[nom].autonomie is not Autonomie.T3 and not par_nom[nom].frontiere_humaine, nom
     parlent_d_argent = {nom for nom in par_nom if re.search(r"(paye|paiement|decaisse|virement|rembours)", nom)}
     assert parlent_d_argent == {"m5_enregistrer_paiement_facture", "m5_lister_comptes_a_payer"}, (
@@ -275,3 +329,68 @@ def test_tout_le_parcours_laisse_les_mouvements_et_les_factures_clients_exacteme
     # écrire
     a_payer = next(c for c in etat["cash_libre"]["composantes"] if c["id"] == "comptes_a_payer")
     assert a_payer["montant"] == "643.87" and etat["cash_libre"]["cash_libre"] is None
+
+
+def test_correction_annulation_et_facture_sans_po_laissent_les_mouvements_et_les_factures_clients_intacts(
+        base_durable, monkeypatch, tmp_path):
+    """T4.15-c : le parcours des trois nouveaux outils (par les vrais outils, base réelle, registre des mouvements DÉJÀ
+    garni) n'écrit que des pièces au registre des comptes à payer. Aucun mouvement, aucun DECAISSEMENT, aucune facture
+    cliente : la dette envers le fournisseur ne se paie pas ici (N5)."""
+    manifeste = tmp_path / "department.yaml"
+    manifeste.write_text(yaml.safe_dump({"configuration": {"categories_depense_sans_po": ["carburant"]}}),
+                         encoding="utf-8")
+    monkeypatch.setattr(m5_outils, "_MANIFESTE", manifeste)
+    with stockage.transaction() as cnx:
+        identite.creer_personne(cnx, "nathan", "Nathan (fictif)", "mot-de-passe-nathan-1234",
+                                ["nathan_owner", "admin"])
+    dep = lire_manifeste(_RACINE_M5)
+    par_nom = {o.nom: o for o in m5_outils.outils()}
+    ecrit = executer_atomique(par_nom["m5_enregistrer_mouvement"], {
+        "montant": "500.00", "type_mouvement": "ENCAISSEMENT", "horodatage": HORODATAGE,
+        "classe_retention": "STANDARD", "source": "test-fictif"})
+    assert ecrit["ok"] and ecrit["resultat"]["accepte"], ecrit
+    charge = _charge("evt-1", "PO-1", "60", "0")
+    with stockage.transaction():
+        evenements.publier("m6.reception_enregistree", "m06-material-control", charge,
+                           evenement_id=charge["evenement_id"])
+    assert evenements.repartir({DEPARTEMENT: dep}, maintenant="2026-09-29T12:00:00+00:00")["traites"] == 1
+    avant = _etat_des_registres()
+
+    with contexte.appele_par_appareil(contexte.IdentiteAppelante(personne="nathan", role="admin")):
+        facture = executer_atomique(par_nom["m5_saisir_facture_fournisseur"], {
+            "po_id": "PO-1", "fournisseur_id": "gentek", "numero_facture": "F-1", "date_facture": "2026-10-01",
+            "montant_avant_taxes": "300.00", "total_facture": None, "horodatage": HORODATAGE})
+        ident = facture["resultat"]["resultat"]["facture"]["facture_fournisseur_id"]
+        sans_po = executer_atomique(par_nom["m5_saisir_facture_sans_po"], {
+            "fournisseur_id": "Pétro-Nord (fictif)", "categorie": "carburant", "numero_facture": "C-1",
+            "date_facture": "2026-10-01", "montant_avant_taxes": "100.00", "total_facture": None,
+            "horodatage": HORODATAGE})
+        ident_sans_po = sans_po["resultat"]["resultat"]["facture"]["facture_fournisseur_id"]
+        for outil, arguments in (
+            ("m5_corriger_facture_fournisseur", {
+                "facture_fournisseur_id": ident, "motif": "montant tapé de travers (fictif)", "numero_facture": None,
+                "date_facture": None, "montant_avant_taxes": "310.00", "total_facture": None,
+                "horodatage": HORODATAGE}),
+            ("m5_corriger_facture_fournisseur", {
+                "facture_fournisseur_id": ident_sans_po, "motif": "montant tapé de travers (fictif)",
+                "numero_facture": None, "date_facture": None, "montant_avant_taxes": "120.00",
+                "total_facture": None, "horodatage": HORODATAGE}),
+            ("m5_annuler_facture_fournisseur", {
+                "facture_fournisseur_id": ident, "motif": "mauvais PO (fictif)", "horodatage": HORODATAGE}),
+            ("m5_annuler_facture_fournisseur", {
+                "facture_fournisseur_id": ident, "motif": "rejeu (fictif)", "horodatage": HORODATAGE}),
+        ):
+            reponse = executer_atomique(par_nom[outil], arguments)
+            assert reponse["ok"] is True, reponse
+        lecture = executer_atomique(par_nom["m5_lister_comptes_a_payer"], {"sans_po": True})
+        assert lecture["resultat"]["accepte"] is True
+
+    assert _etat_des_registres() == avant, "ni tête de chaîne ni taille : aucun mouvement, aucune facture cliente"
+    with stockage.transaction():
+        maillons = list(stockage.maillons(DEPARTEMENT, "comptes_a_payer"))
+    assert {m["type_entree"] for m in maillons} == {
+        "reception_recue", "facture_fournisseur_saisie", "correction_facture_fournisseur",
+        "annulation_facture_fournisseur"}
+    assert "DECAISSEMENT" not in str(maillons) and "mouvement_enregistre" not in str(maillons)
+    etat = executer_atomique(par_nom["m5_etat_tresorerie"], {"autorise_couts": True})["resultat"]
+    assert etat["solde"] == "500.00" and etat["argent_disponible"] == "500.00", "le solde ne bouge pas : rien décaissé"

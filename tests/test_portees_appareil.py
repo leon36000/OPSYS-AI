@@ -54,6 +54,9 @@ ADMIN_SEUL = frozenset({
     "m5_etat_tresorerie", "m5_lister_attentes_facturation",
     "m5_lire_rentabilite_chantier", "m5_lire_comptes_a_recevoir",  # coût réel, marge, créances (T1.5-d)
     "m5_lister_comptes_a_payer", "m5_saisir_facture_fournisseur",  # comptes à payer, saisie par un humain (T4.15)
+    # T4.15-c : facture sans PO (N3), correction et annulation d'une facture saisie (N4 : l'appel de l'admin attend le
+    # propriétaire ou la finance ; par la voie directe, la PERSONNE doit porter nathan_owner ou finance)
+    "m5_saisir_facture_sans_po", "m5_corriger_facture_fournisseur", "m5_annuler_facture_fournisseur",
     "m5_lire_echeances_fiscales",  # calendrier fiscal vivant, TPS/TVQ (T4.16)
     "m6_annuler_po", "m6_approuver_po", "m6_evaluer_variance_chantier", "m6_produire_digest",
     "m6_receptionner_commande", "m6_soumettre_comptage",
