@@ -1317,7 +1317,10 @@ def outils() -> tuple[Outil, ...]:
         ),
         Outil(
             nom="m1_verifier_garde_fou",
-            description="Vérifie qu'un texte destiné au client ne contient ni prix, ni date, ni engagement, ni aveu.",
+            description=(
+                "Vérifie qu'un texte destiné au client ne contient ni prix, ni date, ni engagement, ni aveu, ni avis "
+                "légal. Un refus nomme la règle (REJ-INTERDIT-*) et dit quoi retirer."
+            ),
             parametres={
                 "type": "object",
                 "properties": {"texte": {"type": "string"}},

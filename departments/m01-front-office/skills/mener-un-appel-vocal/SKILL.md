@@ -21,5 +21,5 @@ description: Procédure pour faire progresser un appel téléphonique à travers
 5. Une fois l'appel qualifié (phase 5 atteinte), traite son contenu comme n'importe quelle
    demande entrante avec la skill « traiter-une-demande-entrante ».
 6. Tout au long de l'appel, aucune phrase prononcée ou écrite ne doit contenir de prix, de
-   date de chantier, d'engagement ou d'aveu : vérifie avec `m1_verifier_garde_fou` avant de
-   parler si tu as le moindre doute.
+   date de chantier, d'engagement, d'aveu ni d'avis légal : vérifie avec `m1_verifier_garde_fou`
+   avant de parler si tu as le moindre doute.

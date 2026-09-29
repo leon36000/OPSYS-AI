@@ -95,6 +95,31 @@ réparation, ou ceux d'une autre PME) ne recopie jamais la liste : il valide un 
 tout service est refusé avec un verdict qui dit quoi configurer. `opsys verifier` échoue si une
 source recopie le catalogue. Voir [TAXONOMIE](TAXONOMIE.md).
 
+## Garde-fou de texte partagé (PLAN T4.17-c, `opsys.garde_fou_texte`)
+
+Un département qui contrôle un texte destiné à un client ou au public (M1 : réponse à un client ; M7 : contenu public) n'écrit
+pas ses propres motifs : le code partagé vit dans le socle, et **aucun département n'importe un autre**. Le module est pur
+(aucune entrée-sortie, aucune horloge, aucun modèle).
+
+- **Un catalogue de familles nommées** (`FAMILLES`) : `texte_vide`, `longueur`, `lien`, `adresse`, `coordonnees`, `nom_client`,
+  `identifiant_interne`, `prix_montant`, `prix_offre`, `chiffre_non_source`, `garantie_non_validee`, `date_execution`,
+  `promesse_de_date`, `exageration`, `engagement`, `aveu`, `avis_legal`. Chacune a un code de refus stable (un par famille : il
+  nomme la règle) et un libellé. Un refus dit toujours quoi retirer (`Violation.detail`).
+- **Chaque département choisit ses familles** : `garde_fou_texte.profil("m1_reponse_client", (…noms de familles…))`, au chargement du
+  module. Un nom inconnu, une famille citée deux fois ou un `texte_max` sans la famille `longueur` lèvent `ValueError` : une
+  règle n'est jamais écartée en silence. Un texte public n'a pas les mêmes règles qu'une réponse (« nous étudions votre budget »
+  est permis à M1, refusé à M7) ; le prix et la date existent donc à deux niveaux (`prix_montant`/`prix_offre`,
+  `date_execution`/`promesse_de_date`).
+- **Ordre fixe** : les familles d'un profil sont lues dans l'ordre du catalogue, quel que soit l'ordre cité. `controler` rend toutes
+  les violations, `premiere_violation` s'arrête à la première (M1 rend un seul verdict).
+- **Le contexte vient du département, jamais de l'appelant** (`Contexte` : garanties validées, noms de marque, noms de clients,
+  identifiants internes, longueur maximale).
+- **Ajouter une famille** : un détecteur `(Formes, Contexte) -> détail | None` dans le module du sujet, une ligne du catalogue (nom,
+  code de refus unique, libellé), un cas de refus et un cas accepté dans `tests/test_garde_fou_texte.py`. Les codes de refus
+  existants ne changent pas : les corpus des départements en dépendent.
+- **Aujourd'hui** : M1 (`garde_fou.py`, cinq familles, verdict `REJ-INTERDIT-*`) et M7 (`usine/controle_texte.py`, douze familles,
+  `REJ-*`). Un troisième département qui parle au public prend le même chemin.
+
 ## Canaux du public (PLAN T2.1-a, `opsys.canaux`)
 
 Un département qui reçoit le public par un canal du core (aujourd'hui `sms`) le déclare dans `canaux:`.

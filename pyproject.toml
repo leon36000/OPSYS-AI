@@ -39,6 +39,7 @@ packages = [
     "opsys",
     "opsys.console",
     "opsys.evenements",
+    "opsys.garde_fou_texte",
     "opsys.memoire", "opsys.stockage", "opsys.stockage.migrations", "opsys.stockage.migrations.versions",
     "m1_front_office",
     "m2_revenue_crm",

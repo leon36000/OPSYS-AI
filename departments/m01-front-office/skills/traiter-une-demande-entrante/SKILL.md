@@ -28,7 +28,8 @@ Cette procédure reste celle d'une voix transcrite ou d'une saisie manuelle.
      propriétaire quoi configurer (le message de l'outil l'indique) et arrête.
    - `qualifie: true` → le lead (contrat v2, avec son `service`) est transmis à M2 (`decision: "TRANSMETTRE_M2"`). Confirme au
      client que sa demande est prise en charge, sans donner de prix ni de date.
-4. Avant d'envoyer tout message au client, fais-le vérifier par `m1_verifier_garde_fou`. Si le
-   verdict n'est pas `OK`, réécris le message : ne l'envoie jamais tel quel.
+4. Avant d'envoyer tout message au client, fais-le vérifier par `m1_verifier_garde_fou` (prix, date,
+   engagement, aveu, avis légal). Si le verdict n'est pas `OK`, il nomme la règle (`REJ-INTERDIT-*`) et
+   dit quoi retirer : réécris le message, ne l'envoie jamais tel quel.
 5. L'envoi effectif du message est une action externe (T2) : en mode ombre, elle attend une
    approbation humaine. Ne dis jamais au client que c'est fait avant que ce soit confirmé.

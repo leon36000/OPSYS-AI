@@ -145,10 +145,11 @@ def test_le_bloc_de_detection_dit_les_termes_reconnus_par_categorie(fixture, sig
 # -- Le gabarit de réponse : un brouillon, jamais envoyé, sans tort ni promesse ni droit -----------------------------
 
 
-def test_les_deux_gabarits_passent_le_garde_fou_et_la_verification_de_l_avis_legal():
+def test_les_deux_gabarits_passent_le_garde_fou_qui_porte_l_avis_legal():
+    """Une seule vérification : le garde-fou de M1 applique ses cinq familles, l'avis légal compris (T4.17-c)."""
+    assert "avis_legal" in garde_fou.PROFIL_REPONSE_CLIENT
     for texte in (plaintes.GABARIT_PLAINTE, plaintes.GABARIT_URGENCE):
         assert garde_fou.verifier_sortie(texte)["code"] == "OK"
-        assert plaintes.verifier_brouillon(texte)["code"] == "OK"
 
 
 @pytest.mark.parametrize("type_transfert, texte", [
@@ -209,21 +210,23 @@ def test_le_corpus_adversarial_du_garde_fou_est_refuse_comme_gabarit(adversariau
     "La responsabilité civile de l'entreprise est engagée.",
     "La Loi sur la protection du consommateur s'applique.",
 ])
-def test_un_avis_legal_dans_le_gabarit_est_refuse_meme_si_le_garde_fou_le_laisse_passer(avis, monkeypatch):
-    assert garde_fou.verifier_sortie(f"Bonjour. {avis}")["code"] in ("OK", "REJ-INTERDIT-ENGAGEMENT"), (
-        "ce test cible ce que le garde-fou laisse passer")
-    assert plaintes.verifier_brouillon(f"Bonjour. {avis}")["code"] != "OK"
+def test_un_avis_legal_dans_le_gabarit_est_refuse_par_le_garde_fou_lui_meme(avis, monkeypatch):
+    """L'avis légal n'est plus une vérification locale au gabarit : c'est le garde-fou qui le refuse. Une garantie
+    (« la garantie est de cinq ans ») est arrêtée avant, par l'engagement : l'ordre du catalogue est fixe."""
+    code = garde_fou.verifier_sortie(f"Bonjour. {avis}")["code"]
+    assert code in ("REJ-INTERDIT-AVIS-LEGAL", "REJ-INTERDIT-ENGAGEMENT"), code
     monkeypatch.setattr(plaintes, "GABARIT_PLAINTE", f"Bonjour. {avis}")
     resultat = plaintes.brouillon("plainte", (), retire=False)
-    assert resultat["brouillon_reponse"] is None and resultat["sans_brouillon"].startswith("REJ-INTERDIT-")
+    assert resultat["brouillon_reponse"] is None and resultat["sans_brouillon"] == code
 
 
-def test_le_garde_fou_seul_ne_couvre_pas_l_avis_legal_ce_que_la_verification_ajoutee_couvre():
-    """Constat écrit : `garde_fou.verifier_sortie` ne porte que prix, date, engagement, aveu."""
+def test_le_garde_fou_couvre_l_avis_legal_partout_pas_seulement_le_gabarit():
+    """Constat de T4.5 renversé (T4.17-c) : `garde_fou.verifier_sortie` ne portait que prix, date, engagement, aveu ;
+    il porte aussi l'avis légal, donc chaque texte de M1 qui le traverse."""
     texte = "Bonjour. Vous avez le droit de refuser de payer."
-    assert garde_fou.verifier_sortie(texte)["code"] == "OK"
-    verdict = plaintes.verifier_brouillon(texte)
+    verdict = garde_fou.verifier_sortie(texte)
     assert verdict["code"] == "REJ-INTERDIT-AVIS-LEGAL"
+    assert "droit" in verdict["detail"]
 
 
 def test_une_menace_juridique_n_a_pas_de_brouillon_la_reponse_est_humaine():

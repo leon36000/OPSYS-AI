@@ -16,8 +16,9 @@ humain. Ce module le reconnaît, PAR DES RÈGLES, sur le texte déjà filtré pa
   d'intervention. Ce n'est pas M1 qui la traite, c'est une personne.
 
 Le gabarit de réponse est un BROUILLON de ton empathique (`brouillon`) : il ne reconnaît aucun tort, ne promet rien,
-ne dit rien du droit. Il passe par `garde_fou.verifier_sortie` (prix, date, engagement, aveu) et par une vérification
-de l'avis légal, que le garde-fou ne porte pas. Il n'est JAMAIS envoyé ici : l'envoi est `m1_emettre_notification`
+ne dit rien du droit. Il passe par `garde_fou.verifier_sortie` (prix, date, engagement, aveu, avis légal : le socle
+porte les cinq familles, T4.17-c ; l'avis légal n'est plus une vérification locale à ce gabarit). Il n'est JAMAIS
+envoyé ici : l'envoi est `m1_emettre_notification`
 (N4, approbation). Une menace juridique n'a pas de brouillon : la réponse est humaine. Le ton du gabarit est une
 PROPOSITION que Nathan valide (GATE).
 
@@ -26,14 +27,13 @@ Module pur : aucune horloge, aucun accès à la base ni au réseau.
 
 from __future__ import annotations
 
-import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
 from opsys import taxonomie
 
-from . import garde_fou, qualification, verdicts
+from . import garde_fou, qualification
 
 CATEGORIES = taxonomie.CATEGORIES_SIGNAL_PLAINTE
 CATEGORIE_URGENCE = "securite"
@@ -70,20 +70,6 @@ GABARIT_URGENCE = "Bonjour, merci de votre message. Nous l'avons signalé à une
 SANS_BROUILLON_RETRAIT = "retrait_consentement"
 SANS_BROUILLON_JURIDIQUE = "sujet_legal_reponse_humaine"
 SANS_BROUILLON_AUCUN_TYPE = "type_sans_gabarit"
-
-# Ce qu'un texte destiné au client ne doit jamais dire du droit (« M1 ne doit jamais donner un avis légal »). Le
-# garde-fou ne couvre que le prix, la date, l'engagement et l'aveu : cette vérification est ajoutée ici, pour le gabarit
-# seulement. Lecture en minuscules, accents conservés (les formes avec et sans accent sont listées).
-_AVIS_LEGAL = re.compile(
-    r"\b(?:"
-    r"vous\s+avez\s+(?:le\s+)?droit|vos\s+droits?|selon\s+la\s+loi|en\s+vertu\s+(?:de|du)|"
-    r"l[ée]gal(?:e|es|ement)?|ill[ée]gal(?:e|es|ement)?|juridique(?:s|ment)?|tribunal|tribunaux|poursuite(?:s)?|poursuivre|"
-    r"recours|mise\s+en\s+demeure|avocat(?:e|s|es)?|code\s+civil|protection\s+du\s+consommateur|"
-    r"responsabilit[ée]\s+(?:civile|l[ée]gale|contractuelle)|contractuel(?:le|s|les|lement)?|prescription"
-    r")\b",
-    re.IGNORECASE,
-)
-
 
 @dataclass(frozen=True)
 class Detection:
@@ -159,23 +145,6 @@ def detecter(
     )
 
 
-def _avis_legal(texte: str) -> bool:
-    return _AVIS_LEGAL.search(texte) is not None
-
-
-def verifier_brouillon(texte: str) -> dict[str, str]:
-    """Le verdict d'un texte destiné au client : le garde-fou des interdits (prix, date, engagement, aveu), puis l'avis
-    légal, que le garde-fou ne porte pas (`REJ-INTERDIT-AVIS-LEGAL`). `OK` seulement si les deux laissent passer."""
-    verdict = garde_fou.verifier_sortie(texte)
-    if verdict["code"] != "OK":
-        return verdict
-    if _avis_legal(texte):
-        return verdicts.construire_verdict(
-            "REJ-INTERDIT-AVIS-LEGAL", detail="le texte parle de droit : M1 ne donne jamais d'avis légal"
-        )
-    return verdict
-
-
 def brouillon(type_transfert: str, categories: Sequence[str], retire: bool) -> dict[str, Any]:
     """Le brouillon de réponse d'une plainte ou d'une urgence : `{brouillon_reponse, envoye: False, gabarit, ...}`.
 
@@ -183,8 +152,8 @@ def brouillon(type_transfert: str, categories: Sequence[str], retire: bool) -> d
     - le client s'est retiré des messages (STOP) : rien ne lui est proposé ;
     - une menace juridique est reconnue : la réponse est humaine, jamais un gabarit ;
     - le type n'a pas de gabarit (seules la plainte et l'urgence en ont un) ;
-    - le garde-fou, ou la vérification de l'avis légal, refuse le gabarit (un texte modifié ne doit pas glisser un
-      prix, une date, une promesse, un aveu ou un avis légal) : le code du verdict est alors la raison.
+    - le garde-fou refuse le gabarit (un texte modifié ne doit pas glisser un prix, une date, une promesse, un aveu
+      ou un avis légal) : le code du verdict est alors la raison.
 
     `envoye` vaut TOUJOURS `False` : le brouillon ne part que par `m1_emettre_notification` (N4), après l'approbation
     d'une personne. Le gabarit est une proposition dont Nathan valide le ton.
@@ -202,7 +171,7 @@ def brouillon(type_transfert: str, categories: Sequence[str], retire: bool) -> d
     elif gabarit is None:
         resultat["sans_brouillon"] = SANS_BROUILLON_AUCUN_TYPE
     else:
-        verdict = verifier_brouillon(gabarit)
+        verdict = garde_fou.verifier_sortie(gabarit)
         if verdict["code"] == "OK":
             resultat["brouillon_reponse"] = gabarit
         else:
