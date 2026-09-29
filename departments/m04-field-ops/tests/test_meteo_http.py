@@ -114,6 +114,20 @@ class TestLireJson:
         assert donnees is None and verdict["code"] == meteo.CODE_REPONSE_INVALIDE
         assert "JSON invalide" in verdict["detail"] and CLE not in _texte(verdict)
 
+    def test_la_profondeur_maximale_exacte_passe_et_un_niveau_de_plus_est_refuse(self):
+        limite = meteo_http.PROFONDEUR_MAX_JSON
+        donnees, _, verdict = _lire(_transport(b"[" * limite + b"]" * limite))
+        assert verdict is None and donnees is not None
+        donnees, _, verdict = _lire(_transport(b"[" * (limite + 1) + b"]" * (limite + 1)))
+        assert donnees is None and verdict["code"] == meteo.CODE_REPONSE_INVALIDE
+        assert f"plus de {limite} niveaux" in verdict["detail"]
+
+    def test_les_crochets_d_une_chaine_ne_comptent_pas_dans_la_profondeur(self):
+        chaine = "[{" * (meteo_http.PROFONDEUR_MAX_JSON + 10) + '\\"'  # finit par un guillemet échappé
+        corps = ('{"a": "' + chaine + '"}').encode()
+        donnees, _, verdict = _lire(_transport(corps))
+        assert verdict is None and donnees["a"] == "[{" * (meteo_http.PROFONDEUR_MAX_JSON + 10) + '"'
+
     def test_une_reponse_trop_grosse_est_refusee(self):
         gros = b" " * (meteo_http.TAILLE_MAX_REPONSE + 1)
         _, _, verdict = _lire(_transport(gros))

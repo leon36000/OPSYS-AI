@@ -1,7 +1,7 @@
 """Transport HTTP des adaptateurs météo (PLAN T4.13, M4.10).
 
 Avec ``distances_osrm.py``, le seul module de M4 qui ouvre une connexion réseau, et seulement quand un fournisseur météo
-a été OUVERT par la configuration de l'entreprise (`opsys meteo declarer`, clé ``fournisseur``). Il est séparé de
+a été OUVERT par la configuration de l'entreprise (`opsys-metier meteo declarer`, clé ``fournisseur``). Il est séparé de
 ``meteo.py`` pour que celui-ci reste sans entrée-sortie (un test le prouve par analyse du code) et pour que les tests
 n'ouvrent jamais un socket : chaque adaptateur reçoit un ``transport`` (une fonction ``(url, delai) -> (corps,
 entetes)``), et les tests lui en donnent un qui rend des réponses FICTIVES.
@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import http.client
 import json
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -39,6 +40,12 @@ DELAI_MIN_S = 1
 DELAI_MAX_S = 30
 DELAI_DEFAUT_S = 5
 TAILLE_MAX_REPONSE = 4 * 1024 * 1024
+# Imbrication JSON maximale acceptée. Les réponses des fournisseurs en ont moins de dix ; au-delà, c'est une réponse
+# invalide. Posée en clair : la limite de récursion de `json` change avec la version de Python (3.11 refuse 5 000
+# niveaux, 3.12 les accepte), et un verdict ne doit pas en dépendre.
+PROFONDEUR_MAX_JSON = 64
+_CHAINE_JSON = re.compile(r'"(?:[^"\\]|\\.)*"', re.DOTALL)
+_OUVRANT_OU_FERMANT = re.compile(r"[\[\]{}]")
 
 HOTE_MSC_GEOMET = "api.weather.gc.ca"
 HOTE_OPEN_METEO_COMMERCIAL = "customer-api.open-meteo.com"
@@ -51,6 +58,7 @@ __all__ = [
     "DELAI_MAX_S",
     "DELAI_DEFAUT_S",
     "TAILLE_MAX_REPONSE",
+    "PROFONDEUR_MAX_JSON",
     "HOTE_MSC_GEOMET",
     "HOTE_OPEN_METEO_COMMERCIAL",
     "HOTES_PERMIS",
@@ -115,6 +123,20 @@ def _refuser_constante(nom):
     raise ValueError(f"constante JSON refusée : {nom}")
 
 
+def _trop_imbrique(texte):
+    """Vrai si l'imbrication de ``texte`` dépasse ``PROFONDEUR_MAX_JSON``, sans rien décoder : les chaînes sont
+    retirées, puis les crochets et accolades comptés. Une chaîne mal fermée compte trop, jamais trop peu."""
+    profondeur = 0
+    for signe in _OUVRANT_OU_FERMANT.finditer(_CHAINE_JSON.sub("", texte)):
+        if signe.group() in "[{":
+            profondeur += 1
+            if profondeur > PROFONDEUR_MAX_JSON:
+                return True
+        else:
+            profondeur -= 1
+    return False
+
+
 def lire_json(transport, url, delai_secondes, fournisseur):
     """``(objet JSON, entetes, None)`` ou ``(None, None, verdict)``. Ne lève rien.
 
@@ -139,7 +161,11 @@ def lire_json(transport, url, delai_secondes, fournisseur):
     if len(corps) > TAILLE_MAX_REPONSE:
         return None, None, _reponse_invalide(f"réponse de {fournisseur} de plus de {TAILLE_MAX_REPONSE} octets")
     try:
-        donnees = json.loads(bytes(corps).decode("utf-8"), parse_float=Decimal, parse_constant=_refuser_constante)
+        texte = bytes(corps).decode("utf-8")
+        if _trop_imbrique(texte):
+            return None, None, _reponse_invalide(
+                f"réponse de {fournisseur} : JSON invalide (imbriqué sur plus de {PROFONDEUR_MAX_JSON} niveaux)")
+        donnees = json.loads(texte, parse_float=Decimal, parse_constant=_refuser_constante)
     except (UnicodeDecodeError, ValueError, RecursionError):
         return None, None, _reponse_invalide(f"réponse de {fournisseur} : JSON invalide")
     return donnees, {str(nom).lower(): valeur for nom, valeur in entetes.items()}, None
