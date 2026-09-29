@@ -950,9 +950,21 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
           Reste pour M8 : M3 ne publie pas `duree_estimee_minutes` dans `m3.devis_accepte` (temps
           prévu « non calculable ») ; aucun événement de M5 ne porte la marge réelle vers M8 ;
           `m9_lire_alertes_m8` n'est pas borné.
-    - [ ] Reste : M7 ne reçoit jamais de demande d'avis depuis l'app (les champs client ne sont
-        pas envoyés par `mobile/src/m4/completion.ts`, et M4 les refuse hors appareil) ; la
-        marge réelle de M5 vers M8 et M10 (agent en cours). M5, M6, M8 et M9 : faits ci-dessus.
+    - [x] M7 : demande d'avis depuis l'app (531d704, 358d2cc, 34b5f91, f69359e).
+        - Deux consentements distincts (Loi 25) : `consentement_demande_avis` à côté de
+          `consentement_marketing` (photos), clés additives de `m4.travaux_termines` ; M6 les admet
+          (`CHAMPS_WCT_OPTIONNELS`).
+        - M4 : l'appareil envoie le choix et la version du texte ; le serveur pose seul la preuve
+          (personne du jeton, heure du serveur) ; hors appareil, toujours refusé.
+        - M7 : brouillon `PROPOSE` seulement si consentement ET preuve ; jamais envoyé ;
+          `m7_lister_demandes_avis` (T0, `admin`).
+        - Mobile : deux cases non cochées par défaut, énoncés fr-CA versionnés
+          (`consentement-client-fr-CA-v1`, empreinte épinglée par un test).
+        - Preuve : E2E `tests/e2e/test_demande_d_avis_appareil.py` (7 tests, vraie porte
+          d'appareil) ; M4 1711, M6 717, M7 625, socle 991 (43 sautés), Jest 1058, tsc OK, gate
+          BMAD de M4 vert, verifier 139 outils (65 déclarés).
+    - [ ] Reste : la marge réelle de M5 vers M8 et M10 (agent en cours). M5, M6, M7, M8 et M9 :
+        faits ci-dessus.
   - [x] T1.5-e App du propriétaire : la section « À voir » est bornée à 1 500 caractères
         (`BUDGET_ATTENTES`, `approbations_appareil.py`) sans pagination : au-delà de trois alertes,
         les suivantes ne sont que comptées (`attentes_reste`). Paginer (décalage demandé par
@@ -1388,6 +1400,13 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
   de chaque prix du livre de prix M6 ; seuils de réapprovisionnement par article (M6).
 - **Confidentialité du contexte (T3.3-suite-b)** : `CLIENT_PRIVATE` visible de M1 et M2 seulement
   (choix par défaut à valider).
+- **Demande d'avis (T1.5-d, M7)** :
+  - un client insatisfait (`client_satisfait=false`) ne reçoit pas de demande d'avis (règle de
+    T1.2-c) ; or les plateformes d'avis interdisent de ne solliciter que les clients satisfaits
+    (P9) ; garder ou retirer ?
+  - les énoncés de consentement `consentement-client-fr-CA-v1` sont une proposition, à valider
+    par Nathan ou un juriste (T3) ;
+  - le retrait d'un consentement n'a encore aucun mécanisme dans le moteur.
 - **Lien automatique session → affaire (T2.1-b)** : aujourd'hui, un humain lie la session d'un
   client à son lead (`m10_lier_session_affaire`, N3). Faut-il qu'une règle écrite le fasse à la
   création du lead ? La clé de session contient le numéro du client : elle ne voyage jamais dans
