@@ -11,11 +11,11 @@ préalable arrondi monétaire) interdit tout appel `.quantize(` sans argument `r
 le ROUND_HALF_UP exigé par la loi pour les taxes (`taxes.py` — Agence du revenu du Canada, Revenu Québec) et par
 cohérence avec M3 pour les montants de ligne (`facturation.py`). `verifier_aucun_decaissement` (PLAN T4.15) prouve que
 le code des comptes à payer n'écrit jamais au registre des MOUVEMENTS : aucun DECAISSEMENT, aucune PROVISION, aucun
-ENCAISSEMENT n'en naît (payer un fournisseur est N5). PLAN T4.16 l'étend au calendrier fiscal et au cash libre : en
-STRICT (jamais un mot de mouvement) pour le code qui n'a aucune raison de lire le registre des mouvements, et en
-LECTURE SEULE (le registre se lit pour le solde, jamais aucune écriture, aucun paiement, aucune remise) pour le code
-qui le lit. Aucune de ces cinq gardes ne prouve l'absence de comportement dynamique, les imports construits à
-l'exécution, ni les coûts masqués sous des noms neutres.
+ENCAISSEMENT n'en naît (payer un fournisseur est N5). PLAN T4.16 l'étend au calendrier fiscal et au cash libre, PLAN
+T4.16-d à la prévision de trésorerie : en STRICT (jamais un mot de mouvement) pour le code qui n'a aucune raison de
+lire le registre des mouvements, et en LECTURE SEULE (le registre se lit pour le solde, jamais aucune écriture, aucun
+paiement, aucune remise) pour le code qui le lit. Aucune de ces cinq gardes ne prouve l'absence de comportement
+dynamique, les imports construits à l'exécution, ni les coûts masqués sous des noms neutres.
 
 Les constantes ``CHAMPS_*`` sont volontairement exclues des énumérés de domaine :
 elles décrivent des noms de propriétés de contrat et non des valeurs métier parmi
@@ -821,11 +821,13 @@ def verifier_aucune_cause_signalee(repertoire: str | Path) -> tuple[bool, str]:
 # l'établissement de l'acteur humain. PLAN T4.16 y ajoute, en STRICT, le calendrier fiscal (ni `calendrier_fiscal.py`,
 # ni `cash_libre.py`, ni `analyse.py` n'ont de raison de toucher au registre des mouvements : le solde leur est
 # apporté déjà calculé) et les fonctions d'`outils.py` qui lisent le calendrier et les registres autres que celui des
-# mouvements.
+# mouvements. PLAN T4.16-d y ajoute, en STRICT, la prévision de trésorerie (`prevision.py`, pur : le solde lui est
+# apporté déjà calculé) et les aides d'`outils.py` qui lisent les registres pour elle et pour le cash libre.
 _SURVEILLE_SANS_DECAISSEMENT: dict[str, tuple[str, ...] | None] = {
     "comptes_a_payer": None,
     "calendrier_fiscal": None,
     "cash_libre": None,
+    "prevision": None,
     "analyse": None,
     "outils": (
         "_registre_comptes_a_payer",
@@ -844,18 +846,24 @@ _SURVEILLE_SANS_DECAISSEMENT: dict[str, tuple[str, ...] | None] = {
         "_calendrier_fiscal",
         "_taxes_par_echeance",
         "lire_echeances_fiscales",
+        "_lectures_finance",
+        "_resultat_cash_libre",
         "_cash_libre",
+        "_dettes_fournisseurs",
+        "_reglages_prevision",
+        "_page_prevision",
     ),
 }
 # PLAN T4.16 : LECTURE SEULE. Le cash libre part du solde : le code qui OUVRE le registre des mouvements pour en tirer
 # le solde (`etat_tresorerie` et son adaptateur `_registre_mouvements`, `soldes.py`, `etat_financier.py`) le lit. Lire
 # n'est pas écrire : dans ces portées, le registre peut être nommé et lu, mais aucune fonction d'écriture ni de
 # transition de l'argent ne peut l'être (voir `_NOMS_ECRITURE_INTERDITS_EN_LECTURE`). `_cash_libre`, lui, reçoit le
-# registre déjà ouvert : il est en STRICT, plus haut.
+# registre déjà ouvert : il est en STRICT, plus haut. PLAN T4.16-d : `prevoir_tresorerie` ouvre le registre des
+# mouvements comme `etat_tresorerie` (pour le solde) : lecture seule aussi ; toutes ses aides sont en STRICT.
 _SURVEILLE_EN_LECTURE_SEULE: dict[str, tuple[str, ...] | None] = {
     "soldes": None,
     "etat_financier": None,
-    "outils": ("etat_tresorerie",),
+    "outils": ("etat_tresorerie", "prevoir_tresorerie"),
 }
 # Tout ce qui écrit ou nomme le registre des mouvements : sa fonction d'écriture, son adaptateur et son nom durable
 # (« principal »), les types de mouvement et la clé qui les porte.
@@ -962,7 +970,7 @@ def verifier_aucun_decaissement(
     syntaxique (AST, même patron que `verifier_aucun_import_domaine`), en deux régimes :
 
     STRICT, sur ce que `_SURVEILLE_SANS_DECAISSEMENT` désigne (le module `comptes_a_payer.py` en entier, le calendrier
-    fiscal, le cash libre, la mention, et les fonctions d'`outils.py` de ces chemins) : est une violation
+    fiscal, le cash libre, la prévision, la mention, et les fonctions d'`outils.py` de ces chemins) : est une violation
     - importer `registre.py` (le module qui écrit les mouvements) ;
     - nommer `enregistrer_mouvement`, l'adaptateur `_registre_mouvements`, `_etat_mouvements`, ou le nom durable du
       registre (`_NOM_REGISTRE_MOUVEMENTS`, le texte « principal ») ;
@@ -971,10 +979,11 @@ def verifier_aucun_decaissement(
     - une fonction surveillée qui n'existe plus (la garde ne se désarme pas par un renommage).
 
     LECTURE SEULE, sur ce que `_SURVEILLE_EN_LECTURE_SEULE` désigne (le solde et sa lecture : `soldes.py`,
-    `etat_financier.py` et `etat_tresorerie` d'`outils.py`) : le registre des mouvements peut être lu, mais est une
-    violation de nommer une écriture ou un mouvement d'argent (`_NOMS_ECRITURE_INTERDITS_EN_LECTURE` :
-    l'enregistrement d'un mouvement, d'un paiement, d'une facture, d'une réception, `ajouter`, `append`, `extend`,
-    `insert`, `_chain`), et une fonction surveillée qui n'existe plus l'est aussi.
+    `etat_financier.py`, `etat_tresorerie` et `prevoir_tresorerie` d'`outils.py`) : le registre des mouvements peut
+    être lu, mais est une violation de nommer une écriture ou un mouvement d'argent
+    (`_NOMS_ECRITURE_INTERDITS_EN_LECTURE` : l'enregistrement d'un mouvement, d'un paiement, d'une facture, d'une
+    réception, `ajouter`, `append`, `extend`, `insert`, `_chain`), et une fonction surveillée qui n'existe plus l'est
+    aussi.
 
     Un texte plus long qui MENTIONNE ces mots (un docstring, un commentaire) n'est pas une violation : seule l'égalité
     exacte d'une constante compte. Elle ne prouve pas l'absence d'écriture construite à l'exécution ni passée par un

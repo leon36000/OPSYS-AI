@@ -50,23 +50,31 @@ def test_le_nouveau_code_est_dans_la_portee_de_la_garde():
         assert strict[module] is None and (_PAQUET / f"{module}.py").is_file(), f"{module} : le module entier"
     assert {"lire_echeances_fiscales", "_taxes_par_echeance", "_calendrier_fiscal", "_configuration_manifeste",
             "_cash_libre"} <= set(strict["outils"])
-    assert set(lecture["outils"]) == {"etat_tresorerie"}
+    # T4.16-d : la prévision ouvre elle aussi le registre des mouvements pour en tirer le solde (lecture seule)
+    assert set(lecture["outils"]) == {"etat_tresorerie", "prevoir_tresorerie"}
     assert lecture["soldes"] is None and lecture["etat_financier"] is None
 
 
-def test_seul_etat_tresorerie_ouvre_le_registre_des_mouvements_le_reste_du_nouveau_code_ne_le_nomme_pas():
-    """Ce qui justifie deux régimes : `etat_tresorerie` nomme l'adaptateur des mouvements (il ouvre le registre pour
-    en tirer le solde) et le passe à `_cash_libre` ; ni `_cash_libre`, ni le module pur du cash libre, ni celui du
-    calendrier ne le nomment (le solde leur est apporté déjà calculé)."""
+def test_seuls_etat_tresorerie_et_prevoir_tresorerie_ouvrent_le_registre_des_mouvements_le_reste_ne_le_nomme_pas():
+    """Ce qui justifie deux régimes : `etat_tresorerie` et (T4.16-d) `prevoir_tresorerie` nomment l'adaptateur des
+    mouvements (ils ouvrent le registre pour en tirer le solde) et le passent à `_cash_libre` ou `_page_prevision` ; ni
+    ces aides, ni le module pur du cash libre, ni ceux du calendrier et de la prévision ne le nomment (le solde leur est
+    apporté déjà calculé)."""
     outils = (_PAQUET / "outils.py").read_text(encoding="utf-8")
     corps_etat = outils[outils.index("def etat_tresorerie("):outils.index("def calculer_taxes_tps_tvq(")]
-    corps_cash = outils[outils.index("def _cash_libre("):outils.index("def _taxes_par_echeance(")]
+    debut_lectures = outils.index("def _lectures_finance(")
+    corps_cash = outils[debut_lectures:outils.index("def _taxes_par_echeance(")]
+    debut_prevision = outils.index("def _reglages_prevision(")
+    corps_prevision = outils[debut_prevision:outils.index("def prevoir_tresorerie(")]
+    corps_outil = outils[outils.index("def prevoir_tresorerie("):outils.index("def _recevoir_variance_chantier(")]
     assert "_registre_mouvements(mouvements_historique)" in corps_etat
-    assert "_registre_mouvements" not in corps_cash and "principal" not in corps_cash
-    for module in ("cash_libre", "calendrier_fiscal", "analyse"):
+    assert "_registre_mouvements(None)" in corps_outil
+    for corps in (corps_cash, corps_prevision):
+        assert "_registre_mouvements" not in corps and "principal" not in corps
+    for module in ("cash_libre", "calendrier_fiscal", "analyse", "prevision"):
         texte = (_PAQUET / f"{module}.py").read_text(encoding="utf-8")
         assert not re.search(r"^\s*(from|import)\b.*\bregistre\b", texte, re.MULTILINE), module
-    for module in ("cash_libre", "calendrier_fiscal"):
+    for module in ("cash_libre", "calendrier_fiscal", "prevision"):
         texte = (_PAQUET / f"{module}.py").read_text(encoding="utf-8")
         assert "enregistrer_mouvement" not in texte and "_registre_mouvements" not in texte, module
 
@@ -175,7 +183,8 @@ def test_un_appel_qui_ne_donne_que_surveille_ne_controle_que_le_regime_strict(tm
 
 
 # ---------------------------------------------------------------- 4. sur des copies des VRAIS fichiers
-_FICHIERS = ("comptes_a_payer", "calendrier_fiscal", "cash_libre", "analyse", "outils", "soldes", "etat_financier")
+_FICHIERS = ("comptes_a_payer", "calendrier_fiscal", "cash_libre", "prevision", "analyse", "outils", "soldes",
+             "etat_financier")
 
 
 def _sur_les_vrais_fichiers(tmp_path, modifier, **portees):
@@ -227,9 +236,10 @@ def test_l_import_du_registre_dans_le_vrai_calendrier_est_attrape(tmp_path):
     assert conforme is False and "calendrier_fiscal.py" in detail and "importe registre.py" in detail
 
 
-def test_une_ecriture_glissee_dans_le_vrai_cash_libre_de_l_adaptateur_est_attrapee(tmp_path):
+def test_une_ecriture_glissee_dans_la_vraie_lecture_des_registres_du_cash_libre_est_attrapee(tmp_path):
+    """T4.16-d : `_lectures_finance` lit les registres pour le cash libre ET pour la prévision (le même instantané)."""
     def modifier(nom, texte):
-        ancre = "    solde = soldes.calculer_solde(mouvements)\n"
+        ancre = "    provisions, nombre_provisions, derniere_provision = soldes.calculer_provisions(mouvements)\n"
         if nom != "outils":
             return texte
         assert ancre in texte
@@ -237,7 +247,7 @@ def test_une_ecriture_glissee_dans_le_vrai_cash_libre_de_l_adaptateur_est_attrap
 
     conforme, detail = _sur_les_vrais_fichiers(tmp_path, modifier)
 
-    assert conforme is False and "_cash_libre()" in detail and "enregistrer_mouvement" in detail
+    assert conforme is False and "_lectures_finance()" in detail and "enregistrer_mouvement" in detail
 
 
 def test_un_paiement_glisse_dans_le_vrai_etat_de_tresorerie_est_attrape(tmp_path):

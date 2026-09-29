@@ -155,7 +155,18 @@ chaque période. Toute sortie acceptée d'un outil d'analyse porte la mention ob
 aucune déclaration, aucun paiement : `conformite.verifier_aucun_decaissement` couvre le nouveau code (strict pour
 `_cash_libre` et le calendrier, lecture seule pour `etat_tresorerie`, qui ouvre le registre des mouvements). La réponse
 de `m5_etat_tresorerie` est bornée (`_borner_etat`) : le socle tronque au-delà de 6 000 caractères.
-"""
+
+PLAN T4.16-d (prévision de trésorerie, `prevision.py`, M5.7) : `m5_prevoir_tresorerie` (T0, `admin`) rend, semaine par
+semaine, ce que le solde devient avec les seuls flux CONNUS et DATÉS : les factures clientes envoyées, les factures
+fournisseurs et l'attendu non facturé de chaque PO, les échéances TPS/TVQ du calendrier fiscal, les paies, DAS et
+dettes déclarées. Aucune projection, aucune vente future. `_lectures_finance` lit chaque registre UNE fois (le cash
+libre et la prévision partent du MÊME instantané) ; `_resultat_cash_libre` en tire le cash libre (T4.16, inchangé) ;
+`_page_prevision` dit les flux (`prevision.flux_*`), assemble et rend la page sous `BUDGET_SORTIE`. L'horizon, le
+seuil d'alerte, les délais de paiement des clients et des fournisseurs et la date de sortie des paies, DAS et dettes
+sont au propriétaire (`configuration.prevision` de `department.yaml`, GATE NATHAN, relue à chaque appel) : absents, la
+réponse dit quoi déclarer. `prevoir_tresorerie` ouvre le registre des mouvements pour en tirer le solde, comme
+`etat_tresorerie` : la garde anti-décaissement la surveille en lecture seule, ses aides en strict. Aucune remise,
+aucune déclaration, aucun paiement."""
 
 from __future__ import annotations
 
@@ -182,6 +193,7 @@ from . import (
     devis_recus,
     etat_financier,
     facturation,
+    prevision,
     soldes,
     taux_fiscaux,
     taxes,
@@ -1256,39 +1268,34 @@ def _calendrier_fiscal() -> tuple[dict[int, dict[str, Any]] | None, dict[str, An
     return calendrier, None
 
 
-def _cash_libre(registre_mouvements: registre_module.Registre) -> dict[str, Any]:
-    """Le cash libre réel de l'instance, en vue JSON (`cash_libre.vue_cash_libre`) : le solde du registre des
-    mouvements moins la TPS/TVQ à remettre, les paies, les DAS, les comptes à payer, les dettes et les réserves
-    critiques.
-
-    Lecture pure : chaque registre est lu UNE fois (un instantané, donc des composantes cohérentes entre elles) et
-    rien n'est écrit nulle part. Chaque composante dit sa source et sa fraîcheur ; une composante inconnue est « non
-    calculable, manque X », jamais zéro (voir `cash_libre.py`). La fréquence de production, la fin d'exercice, la date
-    de dernière remise de taxes et les montants que rien ne calcule encore (paies, DAS, dettes) viennent de
-    `configuration.fiscal` et `configuration.obligations_declarees` de `department.yaml` : absents, ils sont « à
-    déclarer »."""
-    configuration = _configuration_manifeste()
-    fiscal = configuration.get("fiscal")
+def _lectures_finance(
+    registre_mouvements: registre_module.Registre, configuration: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Tout ce que le cash libre (T4.16) et la prévision de trésorerie (T4.16-d) lisent, lu UNE fois : un instantané,
+    donc des chiffres cohérents entre eux. Le registre des mouvements arrive déjà ouvert (la lecture seule de son
+    solde est faite par l'outil) ; les factures clientes, les comptes à payer, le calendrier, les taux et la
+    configuration sont lus ici. `configuration` : celle que l'appelant a déjà lue (`_configuration_manifeste`), pour
+    que tout parte de la même version du manifeste ; absente, elle est lue ici. Lecture pure : rien n'est écrit nulle
+    part."""
+    if configuration is None:
+        configuration = _configuration_manifeste()
     declarees = configuration.get("obligations_declarees")
     declarees = declarees if isinstance(declarees, dict) else {}
 
     maillons_mouvements = registre_mouvements.lire()
     mouvements = registre_module.Registre(maillons=maillons_mouvements)
-    solde = soldes.calculer_solde(mouvements)
-    decrit = soldes.decrire_mouvements(mouvements)
     provisions, nombre_provisions, derniere_provision = soldes.calculer_provisions(mouvements)
 
     maillons_factures = _registre_factures(None).lire()
     factures = registre_module.Registre(maillons=maillons_factures)
-    clients = [
-        *facturation.factures_par_statut(factures, "ENVOYEE"), *facturation.factures_par_statut(factures, "PAYEE"),
-    ]
+    envoyees = facturation.factures_par_statut(factures, "ENVOYEE")
     maillons_a_payer = _registre_comptes_a_payer().lire()
     a_payer = registre_module.Registre(maillons=maillons_a_payer)
-    fournisseurs = comptes_a_payer.factures_saisies(a_payer)
 
-    calendrier, verdict_remise = _calendrier_fiscal()
+    fiscal = configuration.get("fiscal")
+    calendrier, verdict_calendrier = _calendrier_fiscal()
     remises = None
+    verdict_remise = verdict_calendrier
     if verdict_remise is None:
         configuration_fiscale, verdict_remise = calendrier_fiscal.lire_configuration_fiscale(fiscal)
         if verdict_remise is None:
@@ -1301,26 +1308,60 @@ def _cash_libre(registre_mouvements: registre_module.Registre) -> dict[str, Any]
     else:
         resume, verdict_a_payer = comptes_a_payer.resume_a_payer(a_payer, dictionnaire_taux)
 
-    registres_taxes = [
-        cash_libre.registre_lu("factures", maillons_factures),
-        cash_libre.registre_lu("comptes_a_payer", maillons_a_payer),
-    ]
-    resultat = cash_libre.calculer_cash_libre(
-        cash_libre.composante_solde(solde, decrit),
+    return {
+        "fiscal": fiscal, "declarees": declarees,
+        "solde": soldes.calculer_solde(mouvements), "decrit": soldes.decrire_mouvements(mouvements),
+        "provisions": (provisions, nombre_provisions, derniere_provision),
+        "envoyees": envoyees, "clients": [*envoyees, *facturation.factures_par_statut(factures, "PAYEE")],
+        "fournisseurs": comptes_a_payer.factures_saisies(a_payer), "a_payer": a_payer,
+        "calendrier": calendrier, "verdict_calendrier": verdict_calendrier,
+        "remises": remises, "verdict_remise": verdict_remise,
+        "dictionnaire_taux": dictionnaire_taux, "resume": resume, "verdict_a_payer": verdict_a_payer,
+        "registres_taxes": [
+            cash_libre.registre_lu("factures", maillons_factures),
+            cash_libre.registre_lu("comptes_a_payer", maillons_a_payer),
+        ],
+    }
+
+
+def _resultat_cash_libre(lectures: dict[str, Any]) -> dict[str, Any]:
+    """Le cash libre réel (`cash_libre.calculer_cash_libre`), en `Decimal`, depuis `_lectures_finance` : le solde
+    moins la TPS/TVQ à remettre, les paies, les DAS, les comptes à payer, les dettes et les réserves critiques, chaque
+    composante avec sa source et sa fraîcheur ; une composante inconnue est « non calculable, manque X », jamais zéro
+    (voir `cash_libre.py`). La fréquence de production, la fin d'exercice, la date de dernière remise de taxes et les
+    montants que rien ne calcule encore (paies, DAS, dettes) viennent de `configuration.fiscal` et
+    `configuration.obligations_declarees` de `department.yaml` : absents, ils sont « à déclarer »."""
+    declarees = lectures["declarees"]
+    provisions, nombre_provisions, derniere_provision = lectures["provisions"]
+    return cash_libre.calculer_cash_libre(
+        cash_libre.composante_solde(lectures["solde"], lectures["decrit"]),
         [
-            cash_libre.composante_taxes(clients, fournisseurs, remises, verdict_remise, registres_taxes),
+            cash_libre.composante_taxes(
+                lectures["clients"], lectures["fournisseurs"], lectures["remises"], lectures["verdict_remise"],
+                lectures["registres_taxes"],
+            ),
             cash_libre.composante_declaree("paies", declarees.get("paies")),
             cash_libre.composante_declaree("das", declarees.get("das")),
             cash_libre.composante_comptes_a_payer(
-                resume, verdict_a_payer, [cash_libre.registre_lu("comptes_a_payer", maillons_a_payer)]
+                lectures["resume"], lectures["verdict_a_payer"], lectures["registres_taxes"][1:]
             ),
             cash_libre.composante_declaree("dettes", declarees.get("dettes")),
             cash_libre.composante_reserves(
-                provisions, nombre_provisions, derniere_provision, decrit, declarees.get("reserves")
+                provisions, nombre_provisions, derniere_provision, lectures["decrit"], declarees.get("reserves")
             ),
         ],
     )
-    return cash_libre.vue_cash_libre(resultat)
+
+
+def _cash_libre(registre_mouvements: registre_module.Registre) -> dict[str, Any]:
+    """Le cash libre réel de l'instance, en vue JSON (`cash_libre.vue_cash_libre`) : le solde du registre des
+    mouvements moins la TPS/TVQ à remettre, les paies, les DAS, les comptes à payer, les dettes et les réserves
+    critiques.
+
+    Lecture pure : chaque registre est lu UNE fois (`_lectures_finance` : un instantané, donc des composantes
+    cohérentes entre elles) et rien n'est écrit nulle part. Chaque composante dit sa source et sa fraîcheur ; une
+    composante inconnue est « non calculable, manque X », jamais zéro (voir `cash_libre.py`)."""
+    return cash_libre.vue_cash_libre(_resultat_cash_libre(_lectures_finance(registre_mouvements)))
 
 
 def _taxes_par_echeance(resultat: dict[str, Any]) -> None:
@@ -1386,6 +1427,124 @@ def lire_echeances_fiscales(
     if vue["autorise_couts"]:
         _taxes_par_echeance(resultat)
     return {"accepte": True, "resultat": {"role": vue["role"], **resultat}}
+
+
+# --------------------------------------------------------------------- prévision de trésorerie (T4.16-d)
+def _reglages_prevision(
+    aujourd_hui: Any, horizon_semaines: Any, semaine: Any, depart: Any
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Ce que la prévision demande, avant de lire le moindre registre : `(réglages, None)` ou `(None, verdict)`.
+
+    `aujourd_hui` (AAAA-MM-JJ) est requis : M5 n'a pas d'horloge. L'horizon est l'argument, ou celui que le
+    propriétaire a déclaré (`configuration.prevision.horizon_semaines`) ; ni l'un ni l'autre :
+    `REJ-PREVISION-HORIZON-A-CONFIGURER`, aucun horizon n'est supposé. `configuration.prevision` est relue à chaque
+    appel ; une clé inconnue est refusée (`REJ-PREVISION-CONFIGURATION-INVALIDE`). `semaine` et `depart` sont validés
+    avec la page qu'ils choisissent. La configuration lue est celle dont toute la prévision part (un seul instantané
+    du manifeste)."""
+    jour, verdict = prevision.lire_jour(aujourd_hui)
+    if verdict is not None:
+        return None, verdict
+    configuration = _configuration_manifeste()
+    prevu, verdict = prevision.lire_reglages(configuration.get("prevision"))
+    if verdict is not None:
+        return None, verdict
+    horizon, verdict = prevision.lire_horizon(
+        prevu.get("horizon_semaines") if horizon_semaines is None else horizon_semaines)
+    if verdict is not None:
+        return None, verdict
+    return {
+        "aujourd_hui": jour, "horizon": horizon, "semaine": semaine, "depart": 0 if depart is None else depart,
+        "configuration": configuration, "prevu": prevu,
+    }, None
+
+
+def _dettes_fournisseurs(lectures: dict[str, Any]) -> tuple[list[dict[str, Any]] | None, dict[str, Any] | None]:
+    """Les dettes fournisseurs une à une (`comptes_a_payer.dettes_datables`), ou le verdict qui empêche de les chiffrer
+    (le fichier des taux illisible, un taux manquant) : le même que celui du cash libre."""
+    if lectures["dictionnaire_taux"] is None:
+        return None, lectures["verdict_a_payer"]
+    return comptes_a_payer.dettes_datables(lectures["a_payer"], lectures["dictionnaire_taux"])
+
+
+def _page_prevision(
+    registre_mouvements: registre_module.Registre, reglages: dict[str, Any]
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """La prévision de trésorerie, en une page JSON sous `BUDGET_SORTIE` (jamais tronquée par le socle) : `(page,
+    None)` ou `(None, verdict)`. Sans `semaine`, la série (page de semaines, `depart` en rang de semaine) ; avec, les
+    lignes de cette semaine (`depart` en rang de ligne), chacune avec sa source.
+
+    Lecture pure. Tout part du même instantané (`_lectures_finance`) : le solde et le cash libre de T4.16, les
+    factures clientes envoyées (encaissements), les dettes fournisseurs, les périodes de taxes du calendrier fiscal,
+    les paies, DAS et dettes déclarées. Ce que le propriétaire décide (`configuration.prevision` : seuil d'alerte,
+    délais de paiement, date de sortie des obligations déclarées) est dit à `prevision.py`, qui date chaque flux, le
+    place, additionne et dit ce qui manque : ici, rien n'est calculé."""
+    lectures = _lectures_finance(registre_mouvements, reglages["configuration"])
+    cash = _resultat_cash_libre(lectures)
+    prevu = reglages["prevu"]
+    seuil, verdict_seuil = prevision.lire_seuil(prevu.get("seuil_alerte"))
+    delai_clients, verdict_clients = prevision.lire_delai(
+        prevu.get("delai_encaissement_clients_jours"), "delai_encaissement_clients_jours",
+        "REJ-PREVISION-DELAI-CLIENTS-A-DECLARER")
+    delai_fournisseurs, verdict_fournisseurs = prevision.lire_delai(
+        prevu.get("delai_paiement_fournisseurs_jours"), "delai_paiement_fournisseurs_jours",
+        "REJ-PREVISION-DELAI-FOURNISSEURS-A-DECLARER")
+    dettes, verdict_dettes = _dettes_fournisseurs(lectures)
+    flux = [
+        *prevision.flux_clients(lectures["envoyees"], delai_clients, verdict_clients),
+        *prevision.flux_fournisseurs(dettes, delai_fournisseurs, verdict_fournisseurs, verdict_dettes),
+        *prevision.flux_taxes(
+            lectures["clients"], lectures["fournisseurs"], lectures["calendrier"], lectures["verdict_calendrier"],
+            lectures["fiscal"], reglages["aujourd_hui"]),
+        *prevision.flux_obligations(
+            {c["id"]: c for c in cash["composantes"]},
+            prevision.lire_echeances_obligations(prevu.get("echeances_obligations"))),
+    ]
+    resultat = prevision.assembler(
+        reglages["aujourd_hui"], reglages["horizon"], cash["solde"], flux, seuil=seuil, verdict_seuil=verdict_seuil,
+        cash_libre_resultat=cash)
+    if reglages["semaine"] is not None:
+        return prevision.vue_semaine(
+            resultat, reglages["semaine"], depart=reglages["depart"], budget_caracteres=BUDGET_SORTIE)
+    return prevision.vue_prevision(resultat, depart=reglages["depart"], budget_caracteres=BUDGET_SORTIE)
+
+
+def prevoir_tresorerie(
+    aujourd_hui: str,
+    horizon_semaines: int | None = None,
+    semaine: int | None = None,
+    depart: int | None = None,
+    role: str | None = None,
+    autorise_couts: bool | None = None,
+) -> dict[str, Any]:
+    """L'outil `m5_prevoir_tresorerie` (T0, `admin`) : la prévision de trésorerie des flux CONNUS et DATÉS
+    (`prevision.py`), semaine par semaine sur `horizon_semaines` semaines de 7 jours à partir d'`aujourd_hui`.
+
+    Même contrôle d'accès que les autres lectures financières : pour un appel d'appareil, l'identité confirmée en base
+    (`admin` seulement), la vue vient du rôle authentifié, un argument ne peut que la restreindre ; refus AVANT toute
+    lecture. Sans droit de voir les coûts : l'horizon seulement, aucun montant, aucune alerte. Sans appareil (agent,
+    console), `autorise_couts` reste obligatoire et explicite.
+
+    `aujourd_hui` est requis (M5 n'a pas d'horloge) ; l'horizon est l'argument ou celui du propriétaire, sinon refus
+    nommé (aucun horizon n'est supposé). Aucun montant, date ni délai ne se passe en argument : tout est lu à la
+    source ou déclaré par le propriétaire (`configuration.prevision`). Une donnée inconnue rend les semaines
+    concernées « non calculables », avec ce qui manque : ce n'est pas un refus. Ni paiement, ni remise, ni
+    déclaration, ni écriture : la prévision PROPOSE, à valider par le propriétaire et le CPA."""
+    acteur, refus = _acteur_appareil()
+    if refus is not None:
+        return _refus(refus)
+    vue, verdict = acces.resoudre_vue(acteur, role, autorise_couts)
+    if verdict is not None:
+        return _refus(verdict)
+    reglages, verdict = _reglages_prevision(aujourd_hui, horizon_semaines, semaine, depart)
+    if verdict is not None:
+        return _refus(verdict)
+    if not vue["autorise_couts"]:
+        masquee = {"role": vue["role"], "montants_masques": True, "horizon_semaines": reglages["horizon"]}
+        return {"accepte": True, "resultat": analyse.avec_mention(masquee)}
+    page, verdict = _page_prevision(_registre_mouvements(None), reglages)
+    if verdict is not None:
+        return _refus(verdict)
+    return {"accepte": True, "resultat": {"role": vue["role"], **page}}
 
 
 def _recevoir_variance_chantier(charge: dict[str, Any]) -> dict[str, Any]:
@@ -2120,6 +2279,56 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=lire_echeances_fiscales,
             autonomie=Autonomie.T0,
+            roles_appareil=_ROLES_APPAREIL_FINANCE,
+        ),
+        Outil(
+            nom="m5_prevoir_tresorerie",
+            description=(
+                "Prévision de trésorerie (M5.7), pour l'admin : semaine par semaine (7 jours dès aujourd_hui), le "
+                "solde qui suit des SEULS flux connus et datés : factures clientes envoyées, factures fournisseurs et "
+                "attendu non facturé, échéances TPS/TVQ du calendrier, paies, DAS et dettes déclarées. Aucune "
+                "projection, aucune vente future. Chaque ligne porte sa source (semaine=k les liste). Inconnu : « non "
+                "calculable à partir de la semaine X, manque Y », jamais zéro ; un encaissement échu ou sans date "
+                "n'est pas compté. Alerte si le solde de fin de semaine passe sous le seuil du propriétaire (« seuil à "
+                "configurer » sinon). Horizon, seuil, délais de paiement : au propriétaire (GATE NATHAN), absents ils "
+                "sont dits. Analyse préparatoire : mention obligatoire. Lecture pure. Même règle d'accès que "
+                "m5_etat_tresorerie : admin seulement ; autorise_couts ne peut que restreindre (sans droit : aucun "
+                "montant)."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "aujourd_hui": {
+                        "type": "string",
+                        "description": "Jour de départ, AAAA-MM-JJ (jamais deviné : M5 n'a pas d'horloge).",
+                    },
+                    "horizon_semaines": {
+                        "type": ["integer", "null"], "minimum": 1, "maximum": prevision.HORIZON_MAX,
+                        "description": (
+                            f"Nombre de semaines (1 à {prevision.HORIZON_MAX}). Omis : celui du propriétaire "
+                            "(configuration.prevision.horizon_semaines) ; absent aussi : refus, jamais supposé."
+                        ),
+                    },
+                    "semaine": {
+                        "type": ["integer", "null"], "minimum": 1, "maximum": prevision.HORIZON_MAX,
+                        "description": "Rend les LIGNES (avec leur source) de cette semaine plutôt que la série.",
+                    },
+                    "depart": {
+                        "type": ["integer", "null"], "minimum": 0,
+                        "description": (
+                            "Rang du premier élément rendu (semaine de la série, ou ligne de la semaine) ; reprendre à "
+                            "prochain_depart."
+                        ),
+                    },
+                    "role": _ROLE_DE_LECTURE,
+                    "autorise_couts": _AUTORISE_COUTS_DE_LECTURE,
+                },
+                "required": ["aujourd_hui"],
+                "additionalProperties": False,
+            },
+            fonction=prevoir_tresorerie,
+            autonomie=Autonomie.T0,
+            # §9.5 M5 (trésorerie) : l'admin seul, comme le cash libre. L'identité est confirmée en base (T1.4-k2).
             roles_appareil=_ROLES_APPAREIL_FINANCE,
         ),
         Outil(

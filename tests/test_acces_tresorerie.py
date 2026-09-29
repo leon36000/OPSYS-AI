@@ -46,7 +46,9 @@ OUTILS_DE_LECTURE_FINANCE = {"m5_etat_tresorerie", "m5_lister_attentes_facturati
                              # T4.15-c : facture sans PO (N3), correction et annulation d'une facture saisie (N4 :
                              # l'appel attend le propriétaire ou la finance, voir test_correction_outils.py)
                              "m5_saisir_facture_sans_po", "m5_corriger_facture_fournisseur",
-                             "m5_annuler_facture_fournisseur"}
+                             "m5_annuler_facture_fournisseur",
+                             # T4.16-d : la prévision de trésorerie (lecture pure, même règle d'accès)
+                             "m5_prevoir_tresorerie"}
 CODE_INVALIDE = "REJ-IDENTITE-APPAREIL-INVALIDE"
 CODE_DIFFERENTE = "REJ-IDENTITE-FOURNIE-DIFFERENTE"
 CODE_REQUIS = "REJ-AUTORISE-COUTS-REQUIS"

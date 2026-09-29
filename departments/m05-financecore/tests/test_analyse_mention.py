@@ -70,7 +70,9 @@ def test_les_outils_qui_calculent_ou_proposent_sont_des_analyses():
         "m5_etat_tresorerie", "m5_lire_echeances_fiscales", "m5_lire_rentabilite_chantier",
         "m5_lister_comptes_a_payer", "m5_saisir_facture_fournisseur",
         # T4.15-c : chacun rend ce que le PO (ou les factures sans PO) doit à cet état, PROPOSÉ, jamais appliqué
-        "m5_saisir_facture_sans_po", "m5_corriger_facture_fournisseur", "m5_annuler_facture_fournisseur"}
+        "m5_saisir_facture_sans_po", "m5_corriger_facture_fournisseur", "m5_annuler_facture_fournisseur",
+        # T4.16-d : la prévision des flux connus et datés, sous seuil et délais déclarés
+        "m5_prevoir_tresorerie"}
     assert set(analyse.SORTIES_D_ANALYSE) == attendues
     assert "m5_envoyer_facture" in analyse.SORTIES_HORS_ANALYSE
     assert "m5_enregistrer_paiement_facture" in analyse.SORTIES_HORS_ANALYSE
@@ -143,6 +145,7 @@ def _appels(ident):
         "m5_lire_echeances_fiscales": {"aujourd_hui": "2026-09-29"},
         "m5_lire_rentabilite_chantier": {},
         "m5_lister_comptes_a_payer": {},
+        "m5_prevoir_tresorerie": {"aujourd_hui": "2026-09-29", "horizon_semaines": 4},
         "m5_saisir_facture_fournisseur": {
             "po_id": "PO-1", "fournisseur_id": "gentek", "numero_facture": "F-1", "date_facture": "2026-09-14",
             "montant_avant_taxes": "300.00", "total_facture": None, "horodatage": "2026-09-20T10:00:00-04:00"},
@@ -183,7 +186,7 @@ def test_chaque_sortie_acceptee_d_un_outil_d_analyse_porte_la_mention(par_nom, n
 
 
 @pytest.mark.parametrize("nom", ["m5_etat_tresorerie", "m5_lire_echeances_fiscales", "m5_lister_comptes_a_payer",
-                                 "m5_lire_rentabilite_chantier"])
+                                 "m5_lire_rentabilite_chantier", "m5_prevoir_tresorerie"])
 def test_la_vue_masquee_porte_aussi_la_mention(par_nom, nom):
     _preparer_un_po()
 

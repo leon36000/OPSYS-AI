@@ -60,6 +60,7 @@ ADMIN_SEUL = frozenset({
     # propriétaire ou la finance ; par la voie directe, la PERSONNE doit porter nathan_owner ou finance)
     "m5_saisir_facture_sans_po", "m5_corriger_facture_fournisseur", "m5_annuler_facture_fournisseur",
     "m5_lire_echeances_fiscales",  # calendrier fiscal vivant, TPS/TVQ (T4.16)
+    "m5_prevoir_tresorerie",  # prévision de trésorerie des flux connus et datés, lecture pure (T4.16-d)
     "m6_annuler_po", "m6_approuver_po", "m6_evaluer_variance_chantier", "m6_produire_digest",
     "m6_receptionner_commande", "m6_soumettre_comptage",
     # réservation, emplacements, disponibilité : l'admin seulement (T4.14) ; jamais l'employé ni le vendeur
