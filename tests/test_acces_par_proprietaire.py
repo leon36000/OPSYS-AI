@@ -55,7 +55,10 @@ OUTILS_M3_DU_VENDEUR = {
     "m3_lire_devis", "m3_generer_soumission_brouillon", "m3_qualifier_photos",
     "m3_demander_envoi_devis",  # DEMANDE l'envoi (N4, T4.7) : le propriétaire décide dans la file
 }
-OUTILS_M2_DE_L_ADMIN = {"m2_produire_digest", "m2_detecter_doublons", "m2_signaler_doublon", "m2_arbitrer_doublon"}
+OUTILS_M2_DE_L_ADMIN = {
+    "m2_produire_digest", "m2_detecter_doublons", "m2_signaler_doublon", "m2_arbitrer_doublon",
+    "m2_reassigner_lead", "m2_republier_assignations",  # T1.4-m
+}
 
 
 # -- installation ------------------------------------------------------------------------------------

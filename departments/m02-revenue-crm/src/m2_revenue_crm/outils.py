@@ -33,17 +33,21 @@ segment sa règle et la donnée qui le déclenche. Les seuils des segments vienn
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import yaml
+from sqlalchemy import select
 
 from opsys import approbations, contexte, evenements, identite, jetons, stockage
-from opsys.outils import Autonomie, Outil
+from opsys.outils import Autonomie, Niveau, Outil
+from opsys.stockage.schema import APPROBATIONS
 
 from . import (
     acces,
+    assignation,
     clients,
     contrats,
     digest,
@@ -125,9 +129,10 @@ def _publier_si_durable(type_evenement: str, charge: dict[str, Any], evenement_i
         evenements.publier(type_evenement, _DEPARTEMENT, charge, evenement_id=evenement_id)
 
 
-# Événement publié à chaque qualification d'un lead (PLAN T1.4-k2) : le propriétaire tel que M2 le tient,
-# lisible par un autre département à la source du bus (`evenements.charge_publiee`) sans importer M2.
-_TYPE_EVENEMENT_LEAD_ASSIGNE = "m2.lead_assigne"
+# Événement publié à chaque qualification d'un lead (PLAN T1.4-k2) et à chaque réassignation (T1.4-m, rang 2 et
+# suivants) : le propriétaire tel que M2 le tient, lisible par un autre département à la source du bus
+# (`evenements.charge_publiee`) sans importer M2. Voir `assignation.py` pour le versionnement du fait.
+_TYPE_EVENEMENT_LEAD_ASSIGNE = assignation.TYPE_EVENEMENT
 
 
 def _acteur_appareil(
@@ -309,13 +314,192 @@ def transitionner_statut(
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
     if statut_cible == "qualifie" and accuse["statut_precedent"] == "nouveau":
-        # `owner` est ici une chaîne non vide : sans quoi `statuts.transitionner` aurait refusé.
-        _publier_si_durable(
-            _TYPE_EVENEMENT_LEAD_ASSIGNE,
-            {"lead_id": lead_id, "proprietaire": owner.strip(), "horodatage_assignation": accuse["horodatage"]},
-            f"m2-lead-assigne-{lead_id}",
-        )
+        # `owner` est ici une chaîne non vide : sans quoi `statuts.transitionner` aurait refusé. Le fait de rang 1
+        # (la qualification) est celui de T1.4-k2, octet pour octet : `assignation.fait_assigne` en est l'unique
+        # construction, pour la republication comme pour la réassignation (rang 2 et suivants).
+        evenement_id, charge = assignation.fait_assigne(lead_id, owner.strip(), accuse["horodatage"])
+        _publier_si_durable(_TYPE_EVENEMENT_LEAD_ASSIGNE, charge, evenement_id)
     return {"accepte": True, "resultat": accuse}
+
+
+# ---------------------------------------------------------------------------
+# Réassignation d'un lead et republication du fait (PLAN T1.4-m)
+# ---------------------------------------------------------------------------
+# Avant T1.4-m, `owner` n'était consigné qu'une fois, à la qualification : un vendeur qui part, ou un `owner` saisi
+# de travers, laissait le lead sans recours. `m2_reassigner_lead` le confie à un autre vendeur. C'est une DÉCISION
+# HUMAINE (même patron que `m1_clore_transfert`, `m5_saisir_facture_fournisseur` et `m10_clore_signal`) : elle décide
+# qui voit un dossier de client et ses devis, et un agent qui la prendrait seul, en `supervise` ou `autonome` où un N3
+# s'exécute sans file, changerait ces droits sans que personne le sache.
+_OUTIL_REASSIGNATION = "m2_reassigner_lead"
+# `m2_republier_assignations` cite au plus ce nombre de leads republiés (et moins si la sortie dépasserait
+# `BUDGET_SORTIE`) : la réponse compte tous les faits, elle n'en énumère pas un nombre non borné.
+_LEADS_CITES_MAX = 50
+_VOIE_APPAREIL = assignation.VOIE_APPAREIL
+_VOIE_APPROBATION = assignation.VOIE_APPROBATION
+
+
+def _decision_approuvee_en_cours(cnx: Any, nom_outil: str, arguments: dict[str, Any]) -> tuple[str, str] | None:
+    """`(personne, rôle)` de l'humain qui a APPROUVÉ la demande que cet appel exécute, sinon `None`. Lecture seule.
+
+    `approbations.decider` réserve la demande (`en_attente` -> `en_cours`, avec `decide_par` et `decide_role`) puis
+    exécute l'outil avec les arguments EXACTS enregistrés, dans la même transaction : cet appel EST une décision
+    humaine si et seulement si une demande `en_cours` de cet outil, de ce département, porte exactement ces arguments
+    et un approbateur de rôle humain toujours actif. Un agent ne peut pas fabriquer une telle ligne : il ne peut que
+    créer une demande `en_attente`. Même garde que M1 et M10 (le socle n'expose pas l'approbateur à l'outil)."""
+    if cnx is None:
+        return None
+    lignes = cnx.execute(
+        select(APPROBATIONS.c.arguments, APPROBATIONS.c.decide_par, APPROBATIONS.c.decide_role).where(
+            APPROBATIONS.c.statut == "en_cours",
+            APPROBATIONS.c.outil == nom_outil,
+            APPROBATIONS.c.departement == _DEPARTEMENT,
+        )
+    ).all()
+    for arguments_enregistres, decide_par, decide_role in lignes:
+        if not decide_par or decide_role not in assignation.ROLES_HUMAINS:
+            continue
+        if json.loads(arguments_enregistres) != arguments:
+            continue
+        personne = identite.personne_active(cnx, decide_par)
+        if personne is not None and decide_role in personne.roles:
+            return decide_par, decide_role
+    return None
+
+
+def _acteur_humain(arguments: dict[str, Any]) -> tuple[dict[str, str] | None, dict[str, Any] | None]:
+    """Qui décide : `({par, role, voie}, None)` si c'est un humain identifié, sinon `(None, verdict)`.
+
+    Deux voies, jamais une troisième, jamais un texte de modèle ni un argument :
+    1. un appel d'appareil dont l'identité (posée par le core d'après un jeton vérifié) est CONFIRMÉE en base à
+       l'instant même, de rôle `admin` (`_acteur_appareil`) ;
+    2. l'exécution d'une demande qu'un humain vient d'approuver dans la file d'approbation.
+    Une identité d'appareil invalide ou hors portée est le refus de `_acteur_appareil`, jamais un repli sur la voie 2.
+    Tout le reste est refusé : un appel d'agent qui n'a pas passé par l'approbation, un appel hors transaction où
+    rien n'est vérifiable."""
+    acteur, refus = _acteur_appareil(acces.ROLES_ADMIN)
+    if refus is not None:
+        return None, refus
+    if acteur is not None:
+        return {"par": acteur.personne, "role": acteur.role, "voie": _VOIE_APPAREIL}, None
+    approbateur = _decision_approuvee_en_cours(stockage.connexion_courante(), _OUTIL_REASSIGNATION, arguments)
+    if approbateur is not None:
+        return {"par": approbateur[0], "role": approbateur[1], "voie": _VOIE_APPROBATION}, None
+    return None, verdicts.construire_verdict(
+        "REJ-HUMAIN-REQUIS",
+        detail=(
+            "réassigner un lead est une décision humaine : un agent ne peut pas la prendre seul. Fais-la depuis "
+            "l'app admin (jeton d'appareil), ou propose-la et attends qu'une personne approuve la demande dans la "
+            "console OPSYS. Ne la présente pas comme faite."
+        ),
+    )
+
+
+def _horodatage_faisant_foi(horodatage: str) -> str:
+    """Pendant un appel d'appareil idempotent, l'heure de RÉCEPTION du serveur fait foi, jamais l'horloge de l'appareil
+    ni l'`horodatage` fourni (même patron que M1, M5 et M10)."""
+    reception_serveur = contexte.horodatage_reception()
+    return reception_serveur.recu_le.isoformat() if reception_serveur is not None else horodatage
+
+
+def _vendeur_cible(cible: Any) -> tuple[str | None, dict[str, Any] | None]:
+    """``(identifiant, None)`` si ``cible`` est l'identifiant d'une personne ACTIVE de rôle ``seller``, sinon
+    ``(None, verdict)``. Hors transaction : refus fermé, rien n'est vérifiable. Un lead ne se réassigne qu'à une
+    personne qui peut le voir : ni un employé, ni un nom, ni une personne désactivée."""
+    cnx = stockage.connexion_courante()
+    personne = identite.personne_active(cnx, cible.strip()) if cnx is not None and isinstance(cible, str) else None
+    if personne is None or not personne.roles & acces.ROLES_CIBLES_REASSIGNATION:
+        return None, verdicts.construire_verdict(
+            "REJ-OWNER-INCONNU",
+            detail=(
+                "nouveau_proprietaire doit être l'identifiant d'une personne OPSYS active portant le rôle seller "
+                "(c'est cet identifiant qui rend le lead visible à son vendeur)"
+            ),
+        )
+    return personne.identifiant, None
+
+
+def reassigner_lead(lead_id: str, nouveau_proprietaire: str, motif: str, horodatage: str) -> dict[str, Any]:
+    """L'outil `m2_reassigner_lead` (T1, N3, `admin`) : une PERSONNE confie un lead à un autre vendeur, avec son motif.
+
+    Le nouveau vendeur voit le lead et ses devis, l'ancien ne les voit plus ; rien n'est modifié ni supprimé, le
+    maillon de qualification reste et un maillon `reassignation` s'ajoute (qui décide, par quelle voie, pourquoi, de qui
+    à qui, à quel rang). Le fait `m2.lead_assigne` de ce rang est publié dans la MÊME transaction : sans lui, M3
+    montrerait encore les devis à l'ancien vendeur.
+
+    Ordre des contrôles, tous AVANT toute écriture : décideur humain, cible (personne active, `seller`), puis les
+    contrôles du module pur (horodatage, motif de 10 à 500 caractères, lead connu, lead avec un propriétaire,
+    propriétaire différent). Tous les paramètres sont requis : la demande approuvée rejoue les arguments EXACTS
+    enregistrés (`_decision_approuvee_en_cours`). Pendant un appel d'appareil, l'heure de RÉCEPTION du serveur fait
+    foi (`_horodatage_faisant_foi`), jamais l'`horodatage` fourni."""
+    arguments = {
+        "lead_id": lead_id, "nouveau_proprietaire": nouveau_proprietaire, "motif": motif, "horodatage": horodatage,
+    }
+    acteur, refus = _acteur_humain(arguments)
+    if acteur is None:
+        return _refus(refus)
+    cible, verdict_cible = _vendeur_cible(nouveau_proprietaire)
+    if verdict_cible is not None:
+        return _refus(verdict_cible)
+    accuse, verdict = assignation.reassigner(
+        _obtenir_registre(), lead_id, cible, motif, _horodatage_faisant_foi(horodatage),
+        acteur["par"], acteur["role"], acteur["voie"],
+    )
+    if verdict is not None:
+        return _refus(verdict)
+    evenement_id, charge = assignation.fait_assigne(
+        lead_id, accuse["nouveau_proprietaire"], accuse["horodatage"], accuse["rang"], accuse["proprietaire_precedent"],
+    )
+    _publier_si_durable(_TYPE_EVENEMENT_LEAD_ASSIGNE, charge, evenement_id)
+    return {"accepte": True, "resultat": {**accuse, "evenement_id": evenement_id}}
+
+
+def republier_assignations() -> dict[str, Any]:
+    """L'outil `m2_republier_assignations` (T1, N3, `admin`) : republie le fait `m2.lead_assigne` de chaque lead qui
+    ne l'a pas, à partir du registre (la source de vérité).
+
+    Un lead qualifié avant T1.4-k2 n'a jamais publié son fait : M3 ne le reconnaît pas, donc son vendeur ne voit
+    pas ses devis (fail-closed). Cet outil remet au bus, pour chaque assignation du registre (la qualification, rang 1,
+    puis chaque réassignation), le fait qui aurait dû y être, avec les MÊMES identifiant et charge que la publication
+    d'origine (`assignation.fait_assigne`). Idempotent : un fait déjà publié est compté et laissé tel quel, un second
+    appel ne publie rien. Il n'invente ni ne corrige aucun propriétaire (celui du registre, tel quel : un `owner` en
+    texte libre reste un texte libre, qui n'est à aucun vendeur) et ne touche jamais au registre.
+
+    Refusé hors stockage durable (`REJ-BUS-INDISPONIBLE`) : il n'y a alors aucun bus où publier, et un succès
+    silencieux serait un faux vert. La réponse compte les FAITS republiés et déjà publiés (un lead réassigné en a
+    un par rang), et cite au plus 50 leads republiés (sous la limite de sortie du socle)."""
+    _, verdict_acteur = _acteur_appareil(acces.ROLES_ADMIN)
+    if verdict_acteur is not None:
+        return _refus(verdict_acteur)
+    if not _stockage_durable_actif:
+        return _refus(verdicts.construire_verdict(
+            "REJ-BUS-INDISPONIBLE",
+            detail="le registre de M2 n'est pas adossé au stockage durable : aucun bus où republier les faits",
+        ))
+    republies: list[str] = []
+    deja_publies = 0
+    for fait in assignation.assignations(_obtenir_registre()):
+        evenement_id, charge = assignation.fait_assigne(
+            fait["lead_id"], fait["proprietaire"], fait["horodatage"], fait["rang"], fait["precedent"],
+        )
+        if evenements.deja_publie(evenement_id):
+            deja_publies += 1
+            continue
+        evenements.publier(_TYPE_EVENEMENT_LEAD_ASSIGNE, _DEPARTEMENT, charge, evenement_id=evenement_id)
+        republies.append(fait["lead_id"])
+    resultat: dict[str, Any] = {
+        "faits_republies": len(republies), "faits_deja_publies": deja_publies,
+        "leads_republies": [], "leads_tronques": False,
+    }
+    for lead_id in dict.fromkeys(republies):
+        essai = {**resultat, "leads_republies": [*resultat["leads_republies"], lead_id]}
+        if (
+            len(resultat["leads_republies"]) >= _LEADS_CITES_MAX
+            or len(json.dumps(essai, ensure_ascii=False)) > BUDGET_SORTIE
+        ):
+            resultat["leads_tronques"] = True
+            break
+        resultat = essai
+    return {"accepte": True, "resultat": resultat}
 
 
 def detecter_doublons(lead_id: str) -> list[str]:
@@ -1245,6 +1429,62 @@ def outils() -> tuple[Outil, ...]:
             # §9.4 (vendeur : pipeline personnel, perdu avec motif). Le vendeur agit seul en N3 (T1.4-h),
             # sur SES leads (T1.4-k2).
             roles_appareil=acces.ROLES_LEADS,
+        ),
+        Outil(
+            nom="m2_reassigner_lead",
+            description=(
+                "Une PERSONNE confie un lead à un autre vendeur, avec son motif (10 à 500 caractères) : le nouveau "
+                "vendeur voit le lead et ses devis, l'ancien ne les voit plus. Décision humaine : refusée à un agent "
+                "seul (REJ-HUMAIN-REQUIS). La cible est l'identifiant d'une personne active de rôle seller ; le lead "
+                "doit déjà avoir un propriétaire (un lead nouveau s'assigne en le qualifiant). L'heure est celle du "
+                "serveur pour un appel d'appareil."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "lead_id": {"type": "string"},
+                    "nouveau_proprietaire": {
+                        "type": "string",
+                        "description": "Identifiant OPSYS du vendeur (ex. vendeur.un), jamais son nom.",
+                    },
+                    "motif": {
+                        "type": "string",
+                        "description": "Pourquoi le lead change de vendeur, 10 à 500 caractères.",
+                    },
+                    "horodatage": _HORODATAGE,
+                },
+                "required": ["lead_id", "nouveau_proprietaire", "motif", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=reassigner_lead,
+            autonomie=Autonomie.T1,
+            # N3, choisi et non subi (ADR-0009 §4) : écriture interne non finale (le maillon de qualification reste,
+            # une nouvelle réassignation défait la précédente, rien n'est supprimé), sans argent, sans prix, sans
+            # message au client. Pas N2 : elle décide qui voit le dossier et les devis d'un client, une personne doit
+            # la prendre. Pas N4 : aucun engagement externe. Un appel d'appareil `admin` s'exécute « au départ »
+            # (T1.4-h) ; un agent attend une personne en `ombre`, et l'outil refuse lui-même tout appel qui n'est pas
+            # une décision humaine (`_acteur_humain`), même en `supervise`, où un N3 s'exécute sans file.
+            niveau=Niveau.N3,
+            # §9.5 (le propriétaire ou son gestionnaire reprend le dossier d'un vendeur). Ni le vendeur (il ne
+            # « prend » ni ne « cède » un lead) ni l'employé.
+            roles_appareil=acces.ROLES_ADMIN,
+        ),
+        Outil(
+            nom="m2_republier_assignations",
+            description=(
+                "Republie le fait m2.lead_assigne de chaque lead qui ne l'a pas (leads qualifiés avant T1.4-k2, dont "
+                "M3 refuse les devis au vendeur), à partir du registre. Idempotent : un fait déjà publié est laissé "
+                "tel quel. Ne corrige ni n'invente aucun propriétaire et n'écrit pas au registre. Refusé hors "
+                "stockage durable."
+            ),
+            parametres={"type": "object", "properties": {}, "additionalProperties": False},
+            fonction=republier_assignations,
+            autonomie=Autonomie.T1,
+            # N3 (le défaut de T1) : n'écrit que des faits au bus, dérivés du registre, sous des identifiants
+            # déterministes ; idempotent. Outil de mise en service, lancé par l'admin (§9.5) : sans lui il faudrait un
+            # accès terminal à la base.
+            niveau=Niveau.N3,
+            roles_appareil=acces.ROLES_ADMIN,
         ),
         Outil(
             nom="m2_detecter_doublons",

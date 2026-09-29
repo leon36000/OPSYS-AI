@@ -27,7 +27,12 @@ SHA256_HORODATAGE_ATTENDU = "7168dc81de0d37f0e7160b96e9df14c9a1bf5ef594a791f2574
 # ajoutés au catalogue (groupe 6) — REJ-SEGMENT-NON-CALCULABLE (un filtre sur un segment sans donnée ou sans seuil,
 # avec ce qui manque) et REJ-PAGINATION-INVALIDE (décalage ou limite de page). Décision journalisée dans
 # docs/bmad/03-ARCHITECTURE.md (addendum T4.6).
-SHA256_VERDICTS_ATTENDU = "1d3f7d2127bf309b94b65431e2f3eb8b4052a2264b65b57230d04921a19bd271"
+# Gel RESCELLÉ une quatrième fois le 2026-09-29 (PLAN T1.4-m, réassignation d'un lead et republication du fait
+# m2.lead_assigne) : cinq identifiants ajoutés au catalogue (groupe 7) — REJ-HUMAIN-REQUIS (la réassignation est une
+# décision de personne), REJ-MOTIF-INVALIDE (motif de 10 à 500 caractères), REJ-LEAD-INCONNU,
+# REJ-PROPRIETAIRE-INCHANGE et REJ-BUS-INDISPONIBLE (republier hors stockage durable). Décision journalisée dans
+# docs/bmad/03-ARCHITECTURE.md (addendum T1.4-m).
+SHA256_VERDICTS_ATTENDU = "f928a33a3d5d9888f506626360f6143e608dc3ae3b9eab4d95a1bc3fadbbddb3"
 
 
 class TestCA_M2_13_Empreintes:

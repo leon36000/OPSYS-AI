@@ -62,6 +62,9 @@ kpis:
 # PLAN T1.4-k2 : M2 publie aussi m2.lead_assigne à chaque qualification (le propriétaire du lead, dans la
 # même transaction) — catalogue src/opsys/evenements/catalogue/m2.lead_assigne.json. M3 le relit à la
 # source du bus pour ne rendre à un vendeur que les devis de SES leads (sans importer M2, #109).
+# PLAN T1.4-m : le fait est versionné, de façon additive (clés optionnelles `rang` et `proprietaire_precedent`) : la
+# qualification est le rang 1, chaque réassignation (m2_reassigner_lead, décision humaine) publie un rang n >= 2 dans la
+# même transaction que son maillon, et m2_republier_assignations remet au bus le fait des leads qualifiés avant T1.4-k2.
 # PLAN T2.1-b : M2 consomme m1.lead_qualifie, le lead que M1 qualifie à partir d'un message de canal du core (SMS) — voir
 # _recevoir_lead_qualifie dans outils.py : ingestion complète, idempotente, un refus lève (réessais, puis quarantaine).
 # Catalogue : src/opsys/evenements/catalogue/m1.lead_qualifie.json.

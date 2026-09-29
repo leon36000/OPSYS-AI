@@ -16,6 +16,7 @@ from datetime import datetime
 
 from opsys import taxonomie
 
+from . import assignation
 from . import horodatage as _horodatage
 from .contrats import TYPES_TRAVAUX, VERSION_CONTRAT_V2
 from .encodage import encoder_canonique
@@ -77,11 +78,12 @@ def _extraire_conditions(registre_cible, lead_id):
     travaux = contrat.get(cle_travaux, "").strip()
     ville = contrat.get("ville", "").strip()
 
-    # Dernier changement de statut vers qualifié (contient l'owner)
+    # Dernier changement de statut vers qualifié (son horodatage date la qualification). L'owner est le
+    # propriétaire COURANT (PLAN T1.4-m) : celui de la qualification, ou de la dernière réassignation.
     trans = _dernier_maillon_transition_qualifie(registre_cible, lead_id)
     if trans is None:
         return None
-    owner = trans.get("owner", "").strip()
+    owner = assignation.proprietaire_du_lead(registre_cible, lead_id) or ""
     horodatage_trans = trans.get("horodatage")
     if not horodatage_trans:
         return None
@@ -139,7 +141,7 @@ def evaluer(registre_cible, lead_id):
 
     PRÉ-REQUIS : le statut courant doit être "qualifie" (sinon False).
     Conditions (conjointes) :
-    - owner non vide (extrait du dernier transition_statut qualifie)
+    - owner non vide (le propriétaire courant : qualification, ou dernière réassignation)
     - type_travaux dans l'énumération fermée (v1), ou service déclaré par le profil d'entreprise (v2)
     - ville non vide
     - au moins une interaction postérieure ou égale à la transition qualifie.

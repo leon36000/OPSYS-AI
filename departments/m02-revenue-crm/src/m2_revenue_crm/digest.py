@@ -106,7 +106,7 @@ def produire_digest(registre_cible, date_jour, horodatage):
     # encore survenu au moment visé par ce digest.
     for maillon in registre_cible.lire():
         type_entree = maillon.get('type_entree')
-        if type_entree in ('lead_ingere', 'transition_statut', 'doublon_signale'):
+        if type_entree in ('lead_ingere', 'transition_statut', 'doublon_signale', 'reassignation'):
             horo_maillon = maillon.get('horodatage')
             if horo_maillon and _normaliser_utc(horo_maillon).date() > date_cible:
                 continue
@@ -122,6 +122,10 @@ def produire_digest(registre_cible, date_jour, horodatage):
             lead_statut[lead_id] = statut
             if statut == 'qualifie' and 'owner' in maillon:
                 lead_owner[lead_id] = maillon['owner']
+        elif type_entree == 'reassignation':
+            # PLAN T1.4-m : le propriétaire affiché est le courant, celui de la dernière réassignation
+            # (horodatée au plus tard à date_jour, comme le reste de ce parcours).
+            lead_owner[maillon['lead_id']] = maillon['nouveau_proprietaire']
         elif type_entree == 'doublon_signale':
             sid = maillon['signalement_id']
             arbitrage = maillon.get('arbitrage', _ARBITRAGE_EN_ATTENTE)

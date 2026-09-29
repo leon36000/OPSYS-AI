@@ -52,6 +52,14 @@ CODES_M2_LIST = [
     # une limite de page invalide dit quoi corriger.
     "REJ-SEGMENT-NON-CALCULABLE",
     "REJ-PAGINATION-INVALIDE",
+    # Groupe 7 — PLAN T1.4-m : réassignation d'un lead (décision humaine, motif obligatoire) et republication du
+    # fait m2.lead_assigne. REJ-OWNER-ABSENT, REJ-OWNER-INCONNU, REJ-MOTIF-ABSENT et REJ-HORODATAGE-INVALIDE
+    # servent aussi, avec leur détail propre : aucun doublon de sens n'est ajouté.
+    "REJ-HUMAIN-REQUIS",
+    "REJ-MOTIF-INVALIDE",
+    "REJ-LEAD-INCONNU",
+    "REJ-PROPRIETAIRE-INCHANGE",
+    "REJ-BUS-INDISPONIBLE",
 ]
 CODES_M2 = set(CODES_M2_LIST)
 

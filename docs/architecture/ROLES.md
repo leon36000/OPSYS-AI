@@ -7,7 +7,9 @@
 > et par intervention (T1.4-k) par `tests/test_acces_par_intervention.py` et les tests de M4 et de M6 ; la
 > vue financière de M5 (T1.4-k2) par `tests/test_acces_tresorerie.py` et les tests de M5 ; les leads de M2 et
 > les devis de M3 (T1.4-k2) par `tests/test_acces_par_proprietaire.py` et les tests de M2 et de M3 ; la liste des
-> leads du vendeur (T4.6) par `tests/e2e/test_liste_leads_vendeur.py` (la vraie porte d'appareil) et les tests de M2.
+> leads du vendeur (T4.6) par `tests/e2e/test_liste_leads_vendeur.py` (la vraie porte d'appareil) et les tests de M2 ;
+> la réassignation d'un lead et la republication de son fait (T1.4-m) par `tests/e2e/test_reassignation_lead_appareil.py`
+> (la vraie porte d'appareil), `tests/test_republication_devis_vendeur.py` (M2, bus, M3) et les tests de M2.
 
 ## La règle
 
@@ -68,7 +70,7 @@ qui travaille sur un toit, un gestionnaire qui reprend un dossier).
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 85 outils sur 163 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 87 outils sur 165 sont déclarés.
 
 ### `employee` (11 outils) : §9.3, le terrain
 
@@ -110,7 +112,7 @@ M10.
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (85 outils) : §9.5 + employé + vendeur
+### `admin` (87 outils) : §9.5 + employé + vendeur
 
 Les 11 outils de l'employé, les 10 du vendeur, et :
 
@@ -119,6 +121,7 @@ Les 11 outils de l'employé, les 10 du vendeur, et :
 | M1 | `m1_produire_digest` | §9.5 M1 : appels manqués, rappels, messages urgents. |
 | M1 | `m1_lire_transfert` (T0), `m1_clore_transfert` (N3) | §7 M1.8, M1.12 et §9.5 M1 « plaintes, transferts, prendre en charge » (T4.5) : l'admin lit le contexte d'une plainte, d'une urgence de sécurité ou d'un transfert (résumé, contact, messages du client) puis le clôt. La clôture est une décision HUMAINE : voir « Les transferts à un humain de M1 » plus bas. Ni l'employé ni le vendeur : le contact et les mots d'un client qui se plaint sont pour le propriétaire. |
 | M2 | `m2_produire_digest`, `m2_detecter_doublons`, `m2_signaler_doublon`, `m2_arbitrer_doublon` | §9.5 M2 : pipeline, leads chauds, doublons. |
+| M2 | `m2_reassigner_lead` (N3), `m2_republier_assignations` (N3) | §9.5 (le propriétaire ou son gestionnaire reprend le dossier d'un vendeur ; T1.4-m). La réassignation est une décision HUMAINE : voir « La réassignation d'un lead » plus bas. La republication remet au bus le fait de propriété que les leads qualifiés avant T1.4-k2 n'ont jamais publié ; outil de mise en service, idempotent, dérivé du registre. Ni l'employé ni le vendeur (un vendeur ne « prend » ni ne « cède » un lead). |
 | M4 | `m4_lister_pending_review`, `m4_volumetrie_pending_review`, `m4_produire_digest` | §9.5 M4 : dispatch du jour, file de complétion. |
 | M4 | `m4_resoudre_demande`, `m4_resoudre_revue_completion` (N4) | §9.5 M4 : approbation des complétions. |
 | M4 | `m4_produire_brouillon_temps` | §9.3 : brouillon de feuille de temps envoyé à M5. |
@@ -598,7 +601,9 @@ jamais déduit d'un autre champ (ni l'`auteur` des notes, ni le statut, ni l'ord
   consignes de M2 disent de passer l'identifiant, pas le nom.
 - **La qualification publie `m2.lead_assigne`** (`{lead_id, proprietaire, horodatage_assignation}`), dans la même
   transaction, avec l'`evenement_id` déterministe `m2-lead-assigne-<lead_id>` (un lead ne se qualifie qu'une
-  fois). C'est ce fait que M3 relit.
+  fois). C'est ce fait que M3 relit. **Depuis T1.4-m**, le propriétaire courant est celui de la DERNIÈRE assignation
+  (la qualification, puis les réassignations), lue en un seul endroit (`assignation.proprietaires`) : voir
+  « La réassignation d'un lead » plus bas.
 
 ### M2 : qui peut quoi (appel d'appareil)
 
@@ -616,6 +621,7 @@ jamais déduit d'un autre champ (ni l'`auteur` des notes, ni le statut, ni l'ord
 | `m2_enregistrer_interaction` | son lead, `auteur` = sa personne | tous les leads, `auteur` = sa personne |
 | `m2_obtenir_client_360` | ses opportunités du client | toutes |
 | `m2_produire_digest`, `m2_detecter_doublons`, `m2_signaler_doublon`, `m2_arbitrer_doublon` | hors portée : refusés aussi dans l'outil | oui |
+| `m2_reassigner_lead`, `m2_republier_assignations` (T1.4-m) | hors portée : refusés aussi dans l'outil (`REJ-IDENTITE-APPAREIL-INVALIDE`) | oui (la réassignation exige en plus une décision humaine) |
 
 Ordre des contrôles : identité confirmée et rôle dans la portée, puis `auteur`, puis propriété du lead, puis
 `owner` (qualification seulement), toujours AVANT toute écriture. Chaque refus est prouvé sans écriture (toutes
@@ -646,8 +652,8 @@ de M2, même identité confirmée en base à chaque appel, aucun paramètre qui 
   décide quoi en faire, et un appareil qui le falsifie ne change que SA propre vue.
 
 Limites : l'ordre est un rang, pas un curseur (un lead qui change de statut ou de segment entre deux pages d'un
-filtre peut manquer ou se répéter : l'appelant relit depuis 0) ; le propriétaire lu est celui de la qualification,
-la réassignation d'un lead (T1.4-m) n'existant pas encore.
+filtre peut manquer ou se répéter : l'appelant relit depuis 0) ; le propriétaire lu est le courant : celui de la
+qualification, ou de la dernière réassignation (T1.4-m).
 
 ### `auteur` d'une interaction
 
@@ -681,15 +687,78 @@ WCT de M4 (T1.4-i), sans importer M2 (décision #109).
 `m3_lire_devis` garde le `role` restreignable de T2.3-c : il ne peut que restreindre. Le filtre par propriétaire
 s'ajoute, il ne remplace pas la vue. Un vendeur qui se restreint à `employe` sur son lead obtient la vue sans prix.
 
+### La réassignation d'un lead (T1.4-m)
+
+Avant T1.4-m, `owner` n'était consigné qu'une fois, à la qualification : un vendeur qui part, ou un `owner` saisi de
+travers, laissait le lead sans recours. `m2_reassigner_lead(lead_id, nouveau_proprietaire, motif, horodatage)` le confie à
+un autre vendeur. T1, **N3**, `admin` seulement. C'est une décision HUMAINE, du même patron que la clôture d'un
+transfert de M1, la saisie d'une facture fournisseur de M5 et les écritures humaines de M10 : elle décide qui voit le
+dossier et les devis d'un client.
+
+| Règle | Détail |
+|---|---|
+| Décideur | Deux voies, jamais une troisième : (1) un appel d'appareil dont l'identité est CONFIRMÉE en base à l'instant même (personne active portant encore le rôle `admin`) ; (2) l'exécution d'une demande qu'une personne (`admin` ou `nathan_owner`, active et portant ce rôle) vient d'approuver, aux arguments EXACTS enregistrés. Tout le reste est `REJ-HUMAIN-REQUIS` : un appel d'agent dans un département en mode `supervise` ou `autonome`, où un N3 s'exécute sans file, ne réassigne rien ; une demande seulement `en_attente` n'autorise rien. Un vendeur ou un employé confirmé en base reçoit `REJ-IDENTITE-APPAREIL-INVALIDE`. La politique de M2 ne déclare pas de rôles pour N3 : le défaut le plus restrictif s'applique, seul `nathan_owner` approuve la proposition d'un agent (comme M1 et M10). |
+| Pourquoi N3 (ADR-0009 §4) | Écriture interne non finale : le maillon de qualification reste, une nouvelle réassignation défait la précédente, rien n'est supprimé. Sans argent, sans prix, sans message au client. Pas N2 : une tâche interne automatique laisserait un agent décider qui voit un dossier de client. Pas N4 : aucun engagement externe. Un appel d'appareil `admin` s'exécute « au départ » (T1.4-h) avec sa trace (`approbations` : N3, `executee`, `decide_par`) ; un agent propose et attend. |
+| Motif | Obligatoire, de 10 à 500 caractères (espaces de tête et de queue retirés) : `REJ-MOTIF-ABSENT` s'il manque, `REJ-MOTIF-INVALIDE` s'il est hors bornes. Il est consigné au maillon, pas au bus. |
+| Cible | L'identifiant OPSYS d'une personne ACTIVE de rôle `seller`, sinon `REJ-OWNER-INCONNU` : ni un employé, ni un admin ou un propriétaire qui n'est pas vendeur (il voit déjà tous les leads), ni un nom, ni une personne désactivée. Une personne `admin` ET `seller` est acceptée. |
+| Lead | Connu (`REJ-LEAD-INCONNU`) et qui a déjà un propriétaire (`REJ-OWNER-ABSENT` : un lead `nouveau` s'assigne en le qualifiant). Tous les statuts, `perdu` compris (le dossier clos suit son vendeur, ses devis aussi). Un `owner` en texte libre, saisi par un agent, se réassigne : c'est le recours qui manquait. Un propriétaire identique est `REJ-PROPRIETAIRE-INCHANGE`. |
+| Ordre des contrôles | Décideur, cible, horodatage, motif, lead connu, lead avec un propriétaire, propriétaire différent : tous AVANT l'unique écriture. Chaque refus est prouvé sans aucune écriture. `additionalProperties: false` refuse `par`, `role`, `decide_par`, `voie`, `rang` : la personne vient du jeton, jamais des arguments. |
+| Heure | Pour un appel d'appareil, l'heure de RÉCEPTION du serveur fait foi, jamais l'horloge de l'appareil ni l'argument `horodatage` (même patron que M1, M5 et M10). |
+| Trace | Un maillon `reassignation` s'ajoute au registre, append-only : `rang`, `proprietaire_precedent`, `nouveau_proprietaire`, `motif`, `decide_par`, `decide_role`, `voie` (`appareil` ou `approbation`). Le maillon de qualification n'est jamais modifié. |
+| Lecture unique | Le propriétaire courant est celui de la DERNIÈRE assignation, lue en un seul endroit (`assignation.proprietaires`). `acces.py` (qui voit quoi), la readiness (l'`owner` du marqueur) et le digest s'y alignent : un lead réassigné n'a jamais deux propriétaires selon l'endroit où on le lit. |
+| Rejeu | Même clé d'idempotence : la réponse est rejouée, aucune écriture (E2E : l'empreinte de l'état ne change pas). Autre clé, même cible : `REJ-PROPRIETAIRE-INCHANGE`, sans écriture. |
+
+**Le fait `m2.lead_assigne` est versionné, de façon additive** (`src/opsys/evenements/catalogue/m2.lead_assigne.json` ;
+toute charge valide avant reste valide) :
+
+| Rang | Quand | Identifiant | Charge |
+|---|---|---|---|
+| 1 | la qualification (T1.4-k2) | `m2-lead-assigne-<lead_id>` | `{lead_id, proprietaire, horodatage_assignation}`, sans `rang` : octet pour octet ce qui se publie depuis T1.4-k2 |
+| n >= 2 | la n-1e réassignation, dans la MÊME transaction que son maillon | `m2-lead-reassigne-<n>-<lead_id>` | les trois mêmes clés, plus `rang` (>= 2) et `proprietaire_precedent` |
+
+Les deux familles d'identifiants ne peuvent pas se confondre, quel que soit le `lead_id` (une chaîne libre) : `m2-lead-assigne-`
+et `m2-lead-reassigne-` diffèrent avant tout `lead_id`, et le rang, en chiffres, précède le premier tiret. Le propriétaire
+COURANT est celui du plus grand rang publié. Un fait déjà publié ne change jamais.
+
+**Ce que M3 doit faire (à intégrer AVEC ce changement).** M3 (`_proprietaire_du_lead`, `m3_estimation/outils.py`) ne
+lit que le rang 1. Sans changement de sa part, après une réassignation il montre encore les devis à l'ancien vendeur et les
+refuse au nouveau. Il doit lire le rang 1, puis les rangs 2, 3... jusqu'au premier absent (un rang 1 absent n'arrête pas la
+lecture), toujours sans importer M2 (#109). Le changement de M3, sa preuve et la preuve de la chaîne M2, bus, M3 sont livrés
+à part (rapport de T1.4-m) : tant qu'il n'est pas intégré, n'ouvrir `m2_reassigner_lead` à aucun appareil.
+
+### La republication du fait de propriété (T1.4-m)
+
+`m2_republier_assignations()` (T1, N3, `admin`, sans argument) ferme le trou que T1.4-k2 avait laissé : un lead qualifié
+avant T1.4-k2 n'a jamais publié `m2.lead_assigne`, donc M3 ne reconnaît pas son vendeur et lui refuse ses devis
+(fail-closed), alors que M2 lui montre le lead. L'outil parcourt les assignations du registre (la source de vérité) et remet
+au bus, pour chacune dont le fait est absent, le MÊME identifiant et la MÊME charge que la publication d'origine
+(`assignation.fait_assigne`, l'unique construction de la charge).
+
+- **Idempotent.** Un fait déjà publié est compté (`faits_deja_publies`) et laissé tel quel ; un second appel ne publie rien.
+  Il couvre aussi un lead réassigné avant la republication : son rang 1 manquant est publié, son rang 2 existe déjà.
+- **Il n'invente ni ne corrige rien.** Le propriétaire est celui du registre, tel quel : un `owner` en texte libre reste un
+  texte libre, qui n'est à aucun vendeur (`m2_reassigner_lead` est le recours). Il n'écrit jamais au registre.
+- **Refusé hors stockage durable** (`REJ-BUS-INDISPONIBLE`) : il n'y a alors aucun bus, et un succès silencieux serait un
+  faux vert. Réservé à `admin` (aussi dans l'outil) ; un agent peut le proposer (validation au départ en `ombre`).
+- **Sortie bornée** : les faits sont comptés (`faits_republies`, `faits_deja_publies`), et la réponse cite au plus 50 leads
+  republiés (`leads_tronques`), sous la limite de sortie du socle.
+- **À la mise en service** : le lancer une fois, depuis l'app admin, avant d'ouvrir les devis aux vendeurs. Preuve de bout en
+  bout : `tests/test_republication_devis_vendeur.py` (le vendeur qui se voyait refuser les devis de ses leads d'avant les lit),
+  `tests/e2e/test_reassignation_lead_appareil.py` (la porte d'appareil : 403 pour l'employé et le vendeur, rejeu sans effet).
+
+Limites de T1.4-m : un lead par appel (aucune réassignation en lot) ; aucun message n'est envoyé à l'ancien ni au nouveau
+vendeur ; désactiver une personne ne réassigne pas ses leads (ils restent à elle, donc invisibles à tout vendeur actif : c'est
+l'admin qui les réassigne, un à un) ; une réassignation approuvée après coup s'exécute sans identité d'appareil, la décision de
+l'approbateur la couvre ; un devis déjà envoyé au client ne change pas (M3 n'est pas contacté).
+
 ### Ce que T1.4-k2 laisse ouvert (M2 et M3)
 
-- **Aucune réassignation.** `owner` est consigné une seule fois, à la qualification ; si un vendeur part, ses leads
-  ne se reprennent pas. Il faudrait un outil d'admin (maillon d'assignation) et un fait `m2.lead_assigne`
-  versionné (l'`evenement_id` déterministe ne porte aujourd'hui qu'un propriétaire par lead).
-- **À connaître avant la mise en service : les leads qualifiés avant T1.4-k2 n'ont pas de fait
-  `m2.lead_assigne`.** M2 les montre à leur vendeur si `owner` est l'identifiant de sa personne, mais M3 ne les
-  reconnaît pas (fail-closed : le vendeur ne voit pas leurs devis) jusqu'à ce que le fait soit republié. Aucun
-  outil ne le fait aujourd'hui. Même chose pour un `owner` en texte libre (un nom) : il n'est à aucun vendeur.
+- **Réassignation : faite (T1.4-m, plus haut).** `owner` reste consigné à la qualification, mais un maillon `reassignation`
+  et un fait de rang 2 et plus confient le lead à un autre vendeur ; la dépendance de M3 y est dite.
+- **Leads qualifiés avant T1.4-k2 : republication faite (T1.4-m, plus haut).** Ces leads n'avaient pas de fait
+  `m2.lead_assigne` : M2 les montrait à leur vendeur, mais M3 ne les reconnaissait pas (fail-closed) et lui refusait ses
+  devis. `m2_republier_assignations` les remet au bus ; à lancer une fois à la mise en service. Un `owner` en texte libre
+  (un nom) reste à aucun vendeur : `m2_reassigner_lead` le confie à un vendeur.
 - **Un lead réouvert (affaire répétée, M2.14) naît `nouveau`**, donc sans propriétaire : l'admin doit l'assigner
   avant que le vendeur le voie.
 - **`m2_ingerer_lead`, `m2_marquer_chantier_termine` et les consommateurs d'événements** n'ont pas de portée

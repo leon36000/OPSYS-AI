@@ -16,8 +16,35 @@ sur ses leads (`owner` de la qualification ; Client 360 limité à ses opportuni
 `REJ-LEAD-NON-ASSIGNE`, pour un lead d'un autre, sans propriétaire ou inconnu). L'admin voit tout. La
 qualification depuis un appareil exige que `owner` soit l'identifiant d'une personne active (seller ou
 admin) et publie `m2.lead_assigne`, que M3 relit. Sans identité d'appareil (agent, console, consommateurs
-d'événements) : comportement d'avant, `owner` en texte libre. Voir « Ce que T1.4-k2 laisse ouvert »
-(pas de réassignation, leads qualifiés avant ce changement).
+d'événements) : comportement d'avant, `owner` en texte libre. Voir « Ce que T1.4-k2 laisse ouvert » ; la
+réassignation et la republication du fait, qui en fermaient deux, sont plus bas (PLAN T1.4-m).
+
+## Réassigner un lead, republier le fait de propriété (PLAN T1.4-m)
+
+Deux outils d'admin (`m2_reassigner_lead`, `m2_republier_assignations`, T1, N3, `admin` seulement ; ROLES.md, « La
+réassignation d'un lead » et « La republication du fait de propriété »). `assignation.py` (module pur) tient la propriété
+dans le temps ; le propriétaire courant est celui de la DERNIÈRE assignation, lue en un seul endroit, sur lequel `acces.py`,
+la readiness et le digest s'alignent.
+- **Réassigner** (`m2_reassigner_lead(lead_id, nouveau_proprietaire, motif, horodatage)`) : une décision HUMAINE, patron de
+  `m1_clore_transfert`, `m5_saisir_facture_fournisseur` et `m10_clore_signal`. Décideur : jeton d'appareil `admin` confirmé
+  en base, ou demande qu'une personne vient d'approuver ; sinon `REJ-HUMAIN-REQUIS`, même en `supervise` ou `autonome`.
+  Motif de 10 à 500 caractères. Cible : personne active de rôle `seller`, sinon `REJ-OWNER-INCONNU`. Le lead doit avoir un
+  propriétaire (`REJ-OWNER-ABSENT` : un lead `nouveau` se qualifie), différent de la cible (`REJ-PROPRIETAIRE-INCHANGE`) ;
+  tous les statuts, `perdu` compris. Résultat : le nouveau vendeur voit le lead, l'ancien non (liste, total, Client 360, notes).
+  Un maillon `reassignation` s'ajoute (qui, pourquoi, de qui à qui, rang, voie) ; la qualification n'est jamais modifiée. Le
+  fait `m2.lead_assigne` de rang n >= 2 (additif : `rang`, `proprietaire_precedent`) est publié dans la MÊME transaction.
+  **M3 doit lire le plus grand rang** : sinon il montre encore les devis à l'ancien vendeur (ROLES.md).
+- **Republier** (`m2_republier_assignations()`) : pour chaque assignation du registre dont le fait manque au bus (les leads
+  qualifiés avant T1.4-k2), publie le MÊME fait que la publication d'origine. Idempotent, n'écrit pas au registre,
+  n'invente aucun propriétaire ; refusé hors stockage durable (`REJ-BUS-INDISPONIBLE`). À lancer une fois à la mise en
+  service.
+- Cinq identifiants de verdict s'ajoutent (groupe 7 : `REJ-HUMAIN-REQUIS`, `REJ-MOTIF-INVALIDE`, `REJ-LEAD-INCONNU`,
+  `REJ-PROPRIETAIRE-INCHANGE`, `REJ-BUS-INDISPONIBLE`) ; le gel de `verdicts.py` est rescellé (addendum T1.4-m de
+  `docs/bmad/03-ARCHITECTURE.md`).
+- Preuve : `tests/test_assignation.py` (module pur), `tests/test_reassignation.py` (l'outil réel, la file d'approbation, l'idempotence),
+  `tests/test_republication_assignations.py` (une base qui contient des leads d'avant T1.4-k2) et, du socle,
+  `tests/e2e/test_reassignation_lead_appareil.py` (la vraie porte d'appareil) et `tests/test_republication_devis_vendeur.py`
+  (M2, bus, M3 : le vendeur lit enfin les devis de ses leads d'avant).
 
 ## Le lead d'un canal arrive par le bus (PLAN T2.1-b)
 

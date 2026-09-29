@@ -8,8 +8,10 @@ dans les arguments d'un outil.
 
 LA PROPRIÉTÉ D'UN LEAD EXISTAIT DÉJÀ. C'est le champ ``owner`` que la transition ``nouveau -> qualifie``
 exige (``REJ-OWNER-ABSENT``, ``statuts.py``) et consigne dans son maillon, que la readiness et le digest
-lisent déjà. Rien n'est ajouté au registre, et rien n'est déduit d'un autre champ (ni ``auteur`` d'une
-interaction, ni statut, ni ordre d'ingestion) : ``proprietaire_du_lead`` relit ce seul maillon.
+lisent déjà. Rien n'est déduit d'un autre champ (ni ``auteur`` d'une interaction, ni statut, ni ordre
+d'ingestion). Depuis T1.4-m, une réassignation (``m2_reassigner_lead``) écrit un maillon ``reassignation`` : le
+propriétaire courant est celui de la DERNIÈRE assignation, lue en un seul endroit (``assignation.proprietaires``,
+que ``proprietaire_du_lead`` et ``proprietaires`` appellent), jamais recomposée ici.
   - Un lead ``nouveau`` n'a pas de propriétaire : seul l'``admin`` (ou l'agent) le voit et le qualifie.
   - ``owner`` est du texte libre pour un appel sans jeton d'appareil (comportement d'avant, voulu). Il
     ne rend un lead visible à un vendeur que si c'est l'identifiant de sa personne OPSYS
@@ -37,8 +39,7 @@ from __future__ import annotations
 
 import dataclasses
 
-from . import verdicts
-from .statuts import TYPE_ENTREE as _TYPE_TRANSITION
+from . import assignation, verdicts
 
 ROLE_ADMIN = "admin"
 ROLE_VENDEUR = "seller"
@@ -51,9 +52,13 @@ ROLES_ADMIN = frozenset({ROLE_ADMIN})
 # Qui peut être propriétaire d'un lead (DEFINITION-PRODUIT §9.4 : le vendeur ; §9.5 : le propriétaire de
 # l'entreprise qui travaille lui-même un dossier). Jamais un employé, un client ou un agent.
 ROLES_PROPRIETAIRES = frozenset({ROLE_VENDEUR, ROLE_ADMIN})
+# Qui peut RECEVOIR un lead par réassignation (PLAN T1.4-m) : le vendeur seulement. La réassignation remet un
+# dossier à une personne dont c'est le métier (§9.4) ; l'admin voit déjà tous les leads sans en être propriétaire.
+ROLES_CIBLES_REASSIGNATION = frozenset({ROLE_VENDEUR})
 
 __all__ = [
     "ROLES_ADMIN",
+    "ROLES_CIBLES_REASSIGNATION",
     "ROLES_LEADS",
     "ROLES_PROPRIETAIRES",
     "ROLE_ADMIN",
@@ -92,22 +97,16 @@ def acteur_de(personne, role, roles_permis):
 
 
 def proprietaires(registre_cible):
-    """``{lead_id: propriétaire}`` : l'``owner`` du DERNIER maillon ``nouveau -> qualifie`` de chaque lead
-    qui en a un. Un lead sans owner non vide n'est pas dans le dictionnaire (fail-closed : il n'a pas de
-    propriétaire). Une seule lecture du registre, pour tous les leads."""
-    resultat = {}
-    for maillon in registre_cible.lire():
-        if maillon.get("type_entree") != _TYPE_TRANSITION or maillon.get("statut") != "qualifie":
-            continue
-        owner = maillon.get("owner")
-        if isinstance(owner, str) and owner.strip():
-            resultat[maillon.get("lead_id")] = owner.strip()
-    return resultat
+    """``{lead_id: propriétaire courant}`` : le propriétaire de la DERNIÈRE assignation de chaque lead qui en a
+    une (la qualification, puis les réassignations : ``assignation.proprietaires``). Un lead sans owner non vide
+    n'est pas dans le dictionnaire (fail-closed : il n'a pas de propriétaire). Une seule lecture du registre,
+    pour tous les leads."""
+    return assignation.proprietaires(registre_cible)
 
 
 def proprietaire_du_lead(registre_cible, lead_id):
-    """Le propriétaire du lead, ou ``None`` (lead inconnu, ``nouveau``, ou jamais qualifié avec un owner)."""
-    return proprietaires(registre_cible).get(lead_id)
+    """Le propriétaire courant du lead, ou ``None`` (lead inconnu, ``nouveau``, ou jamais qualifié avec un owner)."""
+    return assignation.proprietaire_du_lead(registre_cible, lead_id)
 
 
 def _voit_tout(acteur):
