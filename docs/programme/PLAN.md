@@ -917,6 +917,28 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       - M10 263, verifier 93 outils.
   - [ ] T3.3-suite : greffe du moteur de contexte dans le core (PREFLIGHT et POSTFLIGHT) ;
         résolution des signaux critiques ; paquet injecté avant une estimation M3.
+        Livré (8c745c7, f6435ef, 5bbe527, c1db4ad), à cocher sur le job `tests-opsys` du core :
+        - point d'extension natif du fork (`plugins.slots.contextEngine`, contrat
+          `ContextEngine`) ; moteur `opsys` dans `core/src/context-engine/` : `assemble()`
+          demande à M10 le paquet de l'affaire par MCP (jamais la base) et l'ajoute au prompt
+          système ; `afterTurn()` dépose les faits des outils listés, lus dans leur réponse
+          structurée, jamais dans le texte du modèle ; délai borné (4 s) ; moteur injoignable,
+          lent, paquet invalide ou hors budget → marqueur « contexte d'entreprise
+          indisponible », jamais de paquet tronqué ni de tour bloqué ; ne lève jamais ;
+          la mémoire native des agents est gardée ;
+        - M10 : `m10_deposer_faits_candidats` (N2, idempotent, lot refusé en entier) ; un
+          candidat n'entre ni au paquet ni à la consolidation ;
+        - désactivé par défaut ; `opsys openclaw configurer --contexte-entreprise
+          m03-estimation:m3_estimer_projet` écrit `contexte.json` et le slot ensemble ;
+        - socle 727, M10 301, verifier 124 outils ; TypeScript relu, `tsc` sur stubs et
+          132 tests sur un banc maison : la CI seule fait foi.
+
+        Reste (ADR-0010, « Mise en œuvre ») : blocage `before_tool_call` d'un N3 si le contexte
+        est insuffisant ; résolution des signaux critiques (affichés seulement) ; affaire lue
+        dans une ligne de la demande (à lier à la session avant d'activer M1) ; consolidation des
+        candidats ; une connexion MCP par appel ; aucun filtre `CLIENT_PRIVATE` ; l'installation
+        n'active rien. Emplacement `core/src/context-engine/` au lieu d'une extension (raison dans
+        PROVENANCE.md).
 
 ## T4 — Profondeur des départements
 
