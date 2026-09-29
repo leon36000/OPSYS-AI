@@ -38,6 +38,7 @@ from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 from . import (
     acces,
     cedule,
+    cedule_tournees,
     consentement,
     digest,
     ecarts,
@@ -49,6 +50,7 @@ from . import (
     registre,
     retention,
     temps,
+    tournees,
     verdicts,
 )
 
@@ -152,12 +154,19 @@ def _refus(verdict: dict[str, Any]) -> dict[str, Any]:
     return {"accepte": False, "verdict": verdict}
 
 
-def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]:
+def outils(
+    registre_cible: registre.Registre | None = None, fournisseur_matrice: Any = None,
+) -> tuple[Outil, ...]:
     """Capacités exposées aux agents, qui partagent le registre du département.
 
     `registre_cible` : `None` (défaut, utilisé par `charger_outils()` en production) adosse le
     registre au stockage durable de l'instance ; un `registre.Registre()` explicite (tests) reste
     en mémoire, jamais touché à la base.
+
+    `fournisseur_matrice` : port `distances.FournisseurMatrice` (palier 1, routage) que la cédule par
+    tournées consulte ; `None` (défaut, production tant qu'aucun sidecar de routage n'est déployé) donne le
+    palier 0, distances approximatives affichées « mode bridé ». Jamais un argument d'outil : l'adresse du
+    service ne vient pas d'un agent.
     """
     if registre_cible is None:
         def registre_courant() -> registre.Registre:
@@ -711,6 +720,57 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
         finally:
             if index is not None:
                 index.fermer()
+        if reception is not None and reponse["accepte"]:
+            reponse["resultat"]["horodatage_appareil"] = reception.horodatage_appareil.isoformat()
+        return reponse
+
+    def proposer_cedule(
+        horodatage: str, equipes: list[dict[str, Any]], durees_par_type_travaux: dict[str, Any],
+        competences_par_type_travaux: dict[str, Any], chantiers: list[dict[str, Any]],
+        parametres: dict[str, Any], intervention_ids: list[str] | None = None, moteur: str = "auto",
+    ) -> dict[str, Any]:
+        """Propose un plan de tournées et le range au registre (maillon ``cedule_proposee``) : un brouillon,
+        aucune assignation. Tout ce que M4 ne sait pas encore est un argument ou un verdict « à fournir »."""
+        acteur, verdict_acteur = _acteur_appareil()
+        if verdict_acteur is not None:
+            return _refus(verdict_acteur)
+        verdict_role = acces.controler_administrateur(acteur)
+        if verdict_role is not None:
+            return _refus(verdict_role)
+        # Même patron que m4_confirmer_localisation : l'heure de RÉCEPTION DU SERVEUR fait foi.
+        reception = contexte.horodatage_reception()
+        horodatage_faisant_foi = reception.recu_le.isoformat() if reception is not None else horodatage
+        reponse = depuis_couple(cedule_tournees.proposer(
+            registre_courant(),
+            {
+                "equipes": equipes, "durees_par_type_travaux": durees_par_type_travaux,
+                "competences_par_type_travaux": competences_par_type_travaux, "chantiers": chantiers,
+                "parametres": parametres, "intervention_ids": intervention_ids,
+            },
+            lire_localisation_confirmee, horodatage_faisant_foi,
+            propose_par=None if acteur is None else acteur.personne,
+            fournisseur=fournisseur_matrice, moteur=moteur,
+        ))
+        if reception is not None and reponse["accepte"]:
+            reponse["resultat"]["horodatage_appareil"] = reception.horodatage_appareil.isoformat()
+        return reponse
+
+    def appliquer_cedule(plan_id: str, horodatage: str, confirme_par: str) -> dict[str, Any]:
+        """Applique un plan PROPOSÉ par ``etats.assigner_technicien``, après avoir revérifié l'état, les
+        coordonnées d'aujourd'hui et ``tournees.verifier_plan``. Toutes les vérifications précèdent la
+        première écriture ; un refus ne laisse rien."""
+        acteur, verdict_acteur = _acteur_appareil()
+        if verdict_acteur is not None:
+            return _refus(verdict_acteur)
+        verdict_acces = acces.controler_administrateur(acteur) or acces.controler_confirmant(acteur, confirme_par)
+        if verdict_acces is not None:
+            return _refus(verdict_acces)
+        reception = contexte.horodatage_reception()
+        horodatage_faisant_foi = reception.recu_le.isoformat() if reception is not None else horodatage
+        reponse = depuis_couple(cedule_tournees.appliquer(
+            registre_courant(), plan_id, lire_localisation_confirmee, horodatage_faisant_foi, confirme_par,
+            fournisseur=fournisseur_matrice,
+        ))
         if reception is not None and reponse["accepte"]:
             reponse["resultat"]["horodatage_appareil"] = reception.horodatage_appareil.isoformat()
         return reponse
@@ -1365,6 +1425,112 @@ def outils(registre_cible: registre.Registre | None = None) -> tuple[Outil, ...]
             # corrige (`retiree`), il n'engage rien hors de l'entreprise. Limite : en `supervise` et `autonome`,
             # un N3 s'exécute sans file (ROLES.md, « Ce qui reste »).
             # §9.5 (dispatch) : réservé à l'admin ; l'employé ne confirme pas une adresse de client.
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_proposer_cedule",
+            description=(
+                "Propose une cédule par tournées (PyVRP, ou repli exact jusqu'à 12 chantiers) : regroupe les "
+                "chantiers proches, respecte fenêtres du client, quarts, durées, compétences et créneaux déjà "
+                "confirmés au client. Range le plan PROPOSÉ au registre : un brouillon, aucune assignation, "
+                "aucune vérité écrite. Lit les interventions planifiees, leur urgence_declaree (règle écrite : "
+                "vrai vaut 1, sinon 0) et les coordonnées CONFIRMÉES ; un chantier sans coordonnées sort « "
+                "coordonnées manquantes : à confirmer ». Ce que M4 ne sait pas est un ARGUMENT, sinon un seul "
+                "verdict REJ-CHAMP-MANQUANT qui liste quoi fournir : jamais une valeur par défaut. Rend plan_id, "
+                "mode_distance, mode_bride (« mode bridé » : distances approximatives), les non_cedulees et "
+                "leurs raisons. Pour appliquer : m4_appliquer_cedule."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "horodatage": {"type": "string"},
+                    "equipes": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "description": (
+                            "[{id (= technicien_id de l'assignation), competences: [string], depot: {id, "
+                            "latitude_microdegres, longitude_microdegres} (lieu de l'entreprise), quarts: "
+                            "[{jour, debut_min, fin_min}]}]. jour : numéro choisi par l'appelant."
+                        ),
+                    },
+                    "durees_par_type_travaux": {
+                        "type": "object",
+                        "description": "{type_travaux: minutes entières}, un pour chaque type à planifier.",
+                    },
+                    "competences_par_type_travaux": {
+                        "type": "object",
+                        "description": "{type_travaux: [compétence]}, liste vide si aucune, pour chaque type.",
+                    },
+                    "chantiers": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "description": (
+                            "Une entrée par intervention à planifier : {intervention_id, fenetre: {jours: [int], "
+                            "debut_min, fin_min}, creneau_fige: null si aucun, sinon {equipe, jour, debut_min} "
+                            "(créneau déjà confirmé au client : jamais déplacé)}."
+                        ),
+                    },
+                    "parametres": {
+                        "type": "object",
+                        "description": (
+                            "Paramètres d'entreprise, tous obligatoires : facteur_detour_milliemes (1300 pour "
+                            "1,3), vitesse_moyenne_kmh, marge_par_trajet_secondes, iterations, "
+                            "cout_non_cedule_m. graine optionnelle (réglage technique)."
+                        ),
+                    },
+                    "intervention_ids": {
+                        "type": ["array", "null"],
+                        "items": {"type": "string"},
+                        "description": "Restreint aux interventions nommées ; omis : toutes les planifiees.",
+                    },
+                    "moteur": {"type": "string", "enum": list(tournees.MOTEURS)},
+                },
+                "required": ["horodatage", "equipes", "durees_par_type_travaux",
+                             "competences_par_type_travaux", "chantiers", "parametres"],
+                "additionalProperties": False,
+            },
+            fonction=proposer_cedule,
+            autonomie=Autonomie.T1,
+            # N1 « brouillon » (ADR-0009 §4, automatique) et non le défaut T1 -> N3 : la proposition ne change
+            # aucune vérité (aucune assignation, aucun statut) ; c'est son application qui est N3. En N3, le
+            # mode ombre mettrait chaque simulation de l'admin en attente d'une approbation.
+            niveau=Niveau.N1,
+            # §9.5 (dispatch du jour) : l'admin voit la proposition depuis son téléphone. Les tournées
+            # regroupent des chantiers de clients : jamais l'employé ni le vendeur, qui n'écrivent pas au
+            # registre de cédule.
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_appliquer_cedule",
+            description=(
+                "APPLIQUE un plan proposé (plan_id de m4_proposer_cedule) : assigne chaque technicien par le "
+                "maillon assignation_technicien. Refuse, sans rien écrire, si l'état des interventions ou une "
+                "coordonnée confirmée a changé depuis la proposition (REJ-CEDULE-ENTREE-CHANGEE : proposer de "
+                "nouveau), ou si le plan ne repasse pas verifier_plan (REJ-TOURNEES-PLAN-INVALIDE). Un créneau "
+                "déjà confirmé au client n'est jamais déplacé. Idempotent : le même plan_id deux fois n'écrit "
+                "rien de plus ; un technicien déjà assigné n'est pas ré-assigné ; une non cédulée garde son "
+                "assignation antérieure. Pour un appel d'appareil, confirme_par doit être la personne "
+                "authentifiée (REJ-IDENTITE-FOURNIE-DIFFERENTE sinon)."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "plan_id": {"type": "string", "description": "Identifiant rendu par m4_proposer_cedule."},
+                    "horodatage": {"type": "string"},
+                    "confirme_par": {"type": "string", "description": "Personne qui applique, nommément."},
+                },
+                "required": ["plan_id", "horodatage", "confirme_par"],
+                "additionalProperties": False,
+            },
+            fonction=appliquer_cedule,
+            autonomie=Autonomie.T1,
+            # Niveau : N3, le défaut de T1 (ADR-0009 §4, « modification interne non finale, validation humaine
+            # au départ »), laissé implicite comme m4_confirmer_localisation. Ce n'est pas N4 : une assignation
+            # ne s'engage pas hors de l'entreprise (le client n'est pas averti ici) et se corrige par une
+            # nouvelle proposition. En N3, un appel d'agent en mode ombre part en file ; l'admin qui applique
+            # depuis son téléphone valide « au départ » (T1.4-h) et `confirme_par` porte son nom. Limite : en
+            # `supervise` et `autonome`, un N3 s'exécute sans file (ROLES.md, « Ce qui reste »).
+            # §9.5 (dispatch du jour) : réservé à l'admin ; l'employé ne dispatche pas.
             roles_appareil=frozenset({"admin"}),
         ),
     )

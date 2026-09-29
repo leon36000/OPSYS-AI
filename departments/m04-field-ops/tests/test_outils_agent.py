@@ -72,6 +72,7 @@ def test_autonomie_attendue_par_outil():
         "m4_annuler_intervention", "m4_pointer", "m4_creer_demande_ecart",
         "m4_resoudre_demande", "m4_completer_intervention", "m4_resoudre_revue_completion",
         "m4_confirmer_localisation",  # PLAN T4.1-a : N3 implicite (test_localisation_outils.py)
+        "m4_appliquer_cedule",  # PLAN T4.1-d : N3 implicite (test_cedule_tournees_outils.py)
     ]
     lectures_t0 = [
         "m4_statut_intervention", "m4_lister_pending_review",
@@ -80,6 +81,10 @@ def test_autonomie_attendue_par_outil():
     ]
     for nom in ecritures_t1:
         assert par_nom[nom].autonomie == Autonomie.T1, nom
+    # PLAN T4.1-d : la proposition de cédule est un brouillon (T1, N1 explicite, automatique) ; c'est son
+    # application (m4_appliquer_cedule, ci-dessus) qui reste en N3.
+    assert par_nom["m4_proposer_cedule"].autonomie == Autonomie.T1
+    assert par_nom["m4_proposer_cedule"].niveau_effectif is Niveau.N1
     for nom in lectures_t0:
         assert par_nom[nom].autonomie == Autonomie.T0, nom
     assert par_nom["m4_notifier_client_completion"].autonomie == Autonomie.T2

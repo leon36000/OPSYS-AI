@@ -1,0 +1,797 @@
+"""Cédule par tournées : proposition stockée, puis application sous approbation (PLAN T4.1-d, R15 §4).
+
+Module pur (stdlib ; aucun import ``opsys``, aucune horloge, aucun aléa, aucun flottant, aucun accès réseau ;
+un test le vérifie par analyse du code). Il assemble l'entrée du solveur de tournées (``tournees.py``) à partir
+de ce que M4 SAIT, le fait résoudre, et range le plan PROPOSÉ au registre. Le solveur propose, il n'écrit pas la
+vérité : seule ``appliquer`` fait assigner des techniciens, par ``etats.assigner_technicien``.
+
+Ce que M4 sait (lu au registre, jamais fourni par l'appelant)
+    * les interventions à planifier : celles au statut ``planifiee`` (``etats.statut_courant``), leur type de
+      travaux, leur ``lead_id``, leur ``urgence_declaree``, le technicien déjà assigné ;
+    * les coordonnées CONFIRMÉES de chaque chantier (maillon ``localisation_chantier``, lues par
+      ``lire_position``, que l'adaptateur relie à ``outils.lire_localisation_confirmee``).
+
+Ce que M4 ne sait pas encore (ARGUMENT explicite de l'appelant, ou un verdict « à fournir » qui liste tout)
+    équipes (compétences, dépôt, quarts), durée et compétences requises par type de travaux, fenêtre du client
+    et créneau déjà confirmé au client pour chaque intervention, paramètres d'entreprise (détour, vitesse,
+    marge, itérations, coût de non-cédule). Aucune valeur par défaut : un champ absent est un verdict.
+    Seule exception, technique et non métier : la ``graine`` du solveur, ``GRAINE_TECHNIQUE`` si elle est
+    omise (PyVRP est de toute façon amorcé par l'empreinte de l'entrée, ``tournees._graine_derivee``).
+
+L'urgence (``urgence_depuis_declaration``) : ``urgence_declaree`` est un booléen ; le solveur veut un entier
+de 0 à 3. La règle est écrite ci-dessous (``REGLE_URGENCE``), pas devinée.
+
+Ce qui rend une application sûre
+    1. ``cedule_proposee`` garde le plan complet, l'entrée du solveur SANS la matrice (aucune coordonnée de
+       chantier n'est jamais copiée : les positions se relisent chiffrées), l'état des interventions au moment
+       de la proposition et trois empreintes : entrée, sortie, état.
+    2. ``appliquer`` relit l'état ACTUEL des mêmes interventions (statut, type, urgence, technicien assigné,
+       version de la localisation confirmée) et refuse tout écart (``REJ-CEDULE-ENTREE-CHANGEE``) ; puis
+       reconstruit l'entrée du solveur avec les coordonnées d'AUJOURD'HUI et refuse si son empreinte n'est plus
+       celle de la proposition ; puis repasse ``tournees.verifier_plan`` (créneaux figés, fenêtres, quarts,
+       compétences) et refuse un plan qui échoue (``REJ-TOURNEES-PLAN-INVALIDE``).
+    3. Toutes les vérifications précèdent la première écriture. Appliquer deux fois le même plan n'écrit rien
+       de plus (``deja_appliquee``) ; un technicien déjà assigné à la bonne intervention n'est pas ré-assigné.
+
+Limites : ``jour`` est un numéro choisi par l'appelant (M4 ne tient pas encore de calendrier) ; le jour et
+l'heure d'une visite restent dans le maillon du plan, ils ne sont pas encore lus par l'écran « chantiers du
+jour » ; une intervention non cédulée garde l'assignation qu'elle avait (aucun outil de désassignation) ; une
+adresse modifiée après la confirmation des coordonnées n'est pas vue ici (M4 ne connaît pas l'adresse).
+"""
+
+from __future__ import annotations
+
+import copy
+
+from . import cedule, distances, encodage, etats, horodatage, localisation, tournees, verdicts
+
+# ---------------------------------------------------------------------------
+# Constantes publiques
+# ---------------------------------------------------------------------------
+TYPE_PROPOSEE = "cedule_proposee"
+TYPE_APPLIQUEE = "cedule_appliquee"
+VERSION_PROPOSITION = "cedule-proposee-v1"
+
+STATUT_PLANIFIABLE = "planifiee"
+GRAINE_TECHNIQUE = 0
+
+EFFET_ASSIGNEE = "assignee"
+EFFET_DEJA_ASSIGNEE = "deja_assignee"
+
+# Règle de conversion de l'urgence (PLAN T4.1-d ; l'échelle du solveur est ``tournees.BORNE_URGENCE``).
+URGENCE_NORMALE = 0
+URGENCE_DECLAREE = 1
+REGLE_URGENCE = (
+    "urgence_declaree (booléen du LeadQualifie, conservé tel quel à l'inscription) vaut 1 s'il est vrai et 0 "
+    "sinon. Le solveur mesure l'urgence par le coût d'un chantier laissé de côté, cout_non_cedule_m x "
+    "(1 + urgence) : un chantier urgent coûte le double à laisser. Un booléen ne distingue que deux cas, donc "
+    "on prend le premier cran au-dessus de la normale ; les crans 2 et 3 restent libres pour une source plus "
+    "fine (score d'urgence de M1, M2.4), jamais inventés. Sources : DEFINITION-PRODUIT M4.7 (l'urgence est un "
+    "critère de la cédule), audit M4 risque 10 (champ mort avant T4.1-d), contrats.py (booléen strict), "
+    "R15 §4 (urgence, entrée du solveur), tournees.py (échelle 0 à 3, coût x (1 + urgence))."
+)
+
+AVERTISSEMENT_MODE_BRIDE = (
+    "mode bridé : distances approximatives (ligne droite x détour), pas des routes réelles"
+)
+
+CLES_PARAMETRES_DISTANCE = tuple(distances.BORNES_PARAMETRES)
+CLES_PARAMETRES_SOLVEUR = ("iterations", "cout_non_cedule_m")
+CLES_PARAMETRES_REQUISES = CLES_PARAMETRES_DISTANCE + CLES_PARAMETRES_SOLVEUR
+CLES_PARAMETRES_OPTIONNELLES = ("graine",)
+
+__all__ = [
+    "TYPE_PROPOSEE",
+    "TYPE_APPLIQUEE",
+    "VERSION_PROPOSITION",
+    "STATUT_PLANIFIABLE",
+    "GRAINE_TECHNIQUE",
+    "EFFET_ASSIGNEE",
+    "EFFET_DEJA_ASSIGNEE",
+    "URGENCE_NORMALE",
+    "URGENCE_DECLAREE",
+    "REGLE_URGENCE",
+    "AVERTISSEMENT_MODE_BRIDE",
+    "CLES_PARAMETRES_REQUISES",
+    "urgence_depuis_declaration",
+    "proposer",
+    "appliquer",
+]
+
+_CLES_ARGUMENTS = (
+    "equipes", "durees_par_type_travaux", "competences_par_type_travaux", "chantiers", "parametres",
+)
+_CLES_ARGUMENTS_OPTIONNELLES = ("intervention_ids",)
+_CLES_EQUIPE = ("id", "competences", "depot", "quarts")
+_CLES_DEPOT = ("id", "latitude_microdegres", "longitude_microdegres")
+_CLES_CHANTIER = ("intervention_id", "fenetre", "creneau_fige")
+
+_AIDE = {
+    "equipes": "liste des équipes (id, competences, depot, quarts) ; l'id de l'équipe EST le technicien_id "
+               "de l'assignation",
+    "durees_par_type_travaux": "durée en minutes entières de chaque type de travaux à planifier, fournie par "
+                               "l'entreprise",
+    "competences_par_type_travaux": "compétences requises par chaque type de travaux à planifier, liste vide "
+                                    "s'il n'y en a aucune",
+    "chantiers": "une entrée par intervention à planifier : intervention_id, fenetre du client "
+                 "(jours, debut_min, fin_min) et creneau_fige (null, ou {equipe, jour, debut_min} si le créneau "
+                 "est déjà confirmé au client)",
+    "parametres": "paramètres d'entreprise : facteur_detour_milliemes, vitesse_moyenne_kmh, "
+                  "marge_par_trajet_secondes, iterations, cout_non_cedule_m",
+    "id": "identifiant non vide",
+    "competences": "compétences de l'équipe, liste vide s'il n'y en a aucune",
+    "depot": "lieu de l'entreprise où l'équipe commence et finit sa journée : id, latitude_microdegres, "
+             "longitude_microdegres (degrés x 1 000 000, entiers)",
+    "quarts": "quarts de l'équipe (jour, debut_min, fin_min), au moins un",
+    "latitude_microdegres": "latitude en degrés x 1 000 000, entier",
+    "longitude_microdegres": "longitude en degrés x 1 000 000, entier",
+    "intervention_id": "identifiant de l'intervention",
+    "fenetre": "fenêtre du client : jours (liste d'entiers), debut_min, fin_min (minutes depuis minuit)",
+    "creneau_fige": "null si aucun créneau n'est confirmé au client, sinon {equipe, jour, debut_min}",
+}
+_MAX_PROBLEMES = 20
+
+
+# ---------------------------------------------------------------------------
+# Règle de l'urgence
+# ---------------------------------------------------------------------------
+def urgence_depuis_declaration(urgence_declaree):
+    """Niveau d'urgence du solveur pour ``urgence_declaree`` : ``(niveau, None)`` ou ``(None, verdict)``.
+
+    Vrai vaut ``URGENCE_DECLAREE`` (1), faux ``URGENCE_NORMALE`` (0) : voir ``REGLE_URGENCE``. Une source
+    absente (``None``) ou qui n'est pas un booléen strict est un verdict, jamais un 0 supposé."""
+    if urgence_declaree is True:
+        return URGENCE_DECLAREE, None
+    if urgence_declaree is False:
+        return URGENCE_NORMALE, None
+    if urgence_declaree is None:
+        return None, verdicts.construire_verdict(
+            "REJ-CHAMP-MANQUANT",
+            detail="urgence_declaree absente du registre : le niveau d'urgence ne se devine pas",
+        )
+    return None, verdicts.construire_verdict(
+        "REJ-CONTRAT-INVALIDE",
+        detail=f"urgence_declaree : booléen attendu, type reçu {type(urgence_declaree).__name__}",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Lecture du registre (une seule copie profonde pour tout le calcul)
+# ---------------------------------------------------------------------------
+class _Instantane:
+    """Copie de lecture du registre : ``lire()`` rend toujours la même liste, sans recopier la chaîne."""
+
+    def __init__(self, maillons):
+        self._maillons = maillons
+
+    def lire(self, depuis=None):
+        return self._maillons
+
+
+def _inscriptions(instantane):
+    """``{intervention_id: maillon d'inscription}`` (la première inscription fait foi, comme ``etats``)."""
+    resultat = {}
+    for maillon in instantane.lire():
+        if maillon["type_entree"] == etats.TYPE_INSCRIPTION:
+            resultat.setdefault(maillon["intervention_id"], maillon)
+    return resultat
+
+
+def _reference_localisation(instantane, lead_id):
+    """Version, action et ``ligne_id`` de la dernière localisation du chantier (jamais une coordonnée)."""
+    resume = localisation.confirmation_courante(instantane, lead_id)
+    if resume is None:
+        return None
+    return {"version": resume["version"], "action": resume["action"], "ligne_id": resume["ligne_id"]}
+
+
+def _etat_intervention(instantane, inscription):
+    """Ce dont la validité d'un plan dépend, pour une intervention, sans donnée personnelle."""
+    identifiant = inscription["intervention_id"]
+    return {
+        "intervention_id": identifiant,
+        "lead_id": inscription["lead_id"],
+        "type_travaux": inscription["type_travaux"],
+        "urgence_declaree": inscription.get("urgence_declaree"),
+        "statut": etats.statut_courant(instantane, identifiant),
+        "technicien_assigne": etats.technicien_assigne(instantane, identifiant),
+        "localisation": _reference_localisation(instantane, inscription["lead_id"]),
+    }
+
+
+def _verdict(code, detail):
+    return verdicts.construire_verdict(code, detail=detail)
+
+
+def _interventions_a_planifier(instantane, inscriptions, demandees):
+    """Interventions à planifier, triées : ``(liste d'inscriptions, None)`` ou ``(None, verdict)``."""
+    if demandees is None:
+        identifiants = sorted(
+            iid for iid in inscriptions if etats.statut_courant(instantane, iid) == STATUT_PLANIFIABLE
+        )
+    else:
+        if (
+            not isinstance(demandees, list)
+            or not demandees
+            or not all(isinstance(iid, str) and iid for iid in demandees)
+        ):
+            return None, _verdict(
+                "REJ-CONTRAT-INVALIDE",
+                "intervention_ids : liste non vide d'identifiants non vides, ou absent pour toutes les "
+                "interventions planifiees",
+            )
+        if len(set(demandees)) != len(demandees):
+            return None, _verdict("REJ-CONTRAT-INVALIDE", "intervention_ids : identifiant en double")
+        refusees = [
+            iid for iid in sorted(demandees)
+            if iid not in inscriptions or etats.statut_courant(instantane, iid) != STATUT_PLANIFIABLE
+        ]
+        if refusees:
+            return None, _verdict(
+                "REJ-CEDULE-INTERVENTION-NON-PLANIFIABLE",
+                "intervention inconnue ou plus au statut planifiee : " + ", ".join(repr(iid) for iid in refusees),
+            )
+        identifiants = sorted(demandees)
+    if not identifiants:
+        return None, _verdict(
+            "REJ-CEDULE-RIEN-A-PLANIFIER", "aucune intervention au statut planifiee : rien à céduler",
+        )
+    return [inscriptions[iid] for iid in identifiants], None
+
+
+# ---------------------------------------------------------------------------
+# Lecture des arguments : tout ce que M4 ne sait pas encore
+# ---------------------------------------------------------------------------
+class _Problemes:
+    """Problèmes d'arguments, rapportés TOUS ensemble : le verdict dit tout ce qu'il faut fournir."""
+
+    def __init__(self):
+        self.absents = []
+        self.invalides = []
+
+    def verdict(self):
+        tous = self.absents + self.invalides
+        if not tous:
+            return None
+        detail = " ; ".join(tous[:_MAX_PROBLEMES])
+        if len(tous) > _MAX_PROBLEMES:
+            detail += f" ; … et {len(tous) - _MAX_PROBLEMES} autres"
+        return _verdict("REJ-CHAMP-MANQUANT" if self.absents else "REJ-CONTRAT-INVALIDE", detail)
+
+
+def _est_entier(valeur):
+    return type(valeur) is int
+
+
+def _objet(valeur, chemin, cles, problemes, nullables=()):
+    """L'objet si toutes ses clés y sont (sinon ``None``) ; clés absentes et inconnues rapportées."""
+    if not isinstance(valeur, dict):
+        problemes.invalides.append(f"{chemin} : un objet est attendu ({', '.join(cles)})")
+        return None
+    manquantes = [cle for cle in cles if cle not in valeur or (valeur[cle] is None and cle not in nullables)]
+    for cle in manquantes:
+        problemes.absents.append(f"{chemin}.{cle} manquant : {_AIDE[cle]}")
+    en_trop = sorted(str(cle) for cle in valeur if cle not in cles)
+    if en_trop:
+        problemes.invalides.append(f"{chemin} : clés inconnues : {', '.join(en_trop)}")
+    return None if manquantes else valeur
+
+
+def _lire_depot(brut, chemin, problemes):
+    """``(id, latitude, longitude)`` du dépôt, ou ``None`` (problèmes rapportés)."""
+    objet = _objet(brut, chemin, _CLES_DEPOT, problemes)
+    if objet is None:
+        return None
+    bon = True
+    if not isinstance(objet["id"], str) or not objet["id"]:
+        problemes.invalides.append(f"{chemin}.id : chaîne non vide requise")
+        bon = False
+    for cle in ("latitude_microdegres", "longitude_microdegres"):
+        if not _est_entier(objet[cle]):
+            problemes.invalides.append(
+                f"{chemin}.{cle} : entier requis ({_AIDE[cle]}), type reçu {type(objet[cle]).__name__}",
+            )
+            bon = False
+    if not bon:
+        return None
+    return objet["id"], objet["latitude_microdegres"], objet["longitude_microdegres"]
+
+
+def _lire_equipes(brut, problemes):
+    """``(équipes du solveur, dépôts {id: (lat, lon)})`` ; ``None`` si l'argument est inutilisable."""
+    if not isinstance(brut, list):
+        problemes.invalides.append("equipes : une liste est attendue")
+        return None
+    if not brut:
+        problemes.absents.append(f"equipes manquantes : fournir au moins une équipe, {_AIDE['equipes']}")
+        return None
+    equipes = []
+    depots = {}
+    bon = True
+    for position, equipe in enumerate(brut):
+        identifiant = equipe.get("id") if isinstance(equipe, dict) else None
+        nom = f"equipes[{position}] {identifiant!r}" if isinstance(identifiant, str) and identifiant \
+            else f"equipes[{position}]"
+        objet = _objet(equipe, nom, _CLES_EQUIPE, problemes)
+        if objet is None:
+            bon = False
+            continue
+        depot = _lire_depot(objet["depot"], f"{nom}.depot", problemes)
+        if depot is None:
+            bon = False
+            continue
+        depot_id, latitude, longitude = depot
+        if depots.setdefault(depot_id, (latitude, longitude)) != (latitude, longitude):
+            problemes.invalides.append(f"{nom}.depot : le dépôt {depot_id!r} a deux positions différentes")
+            bon = False
+            continue
+        equipes.append({
+            "id": objet["id"], "competences": copy.deepcopy(objet["competences"]),
+            "depot": depot_id, "quarts": copy.deepcopy(objet["quarts"]),
+        })
+    return (equipes, depots) if bon else None
+
+
+def _lire_par_type(brut, cle, types_requis, valeur_valide, aide_valeur, problemes):
+    """``{type_travaux: valeur}`` pour les types requis ; les types inconnus ou absents sont rapportés."""
+    if not isinstance(brut, dict):
+        problemes.invalides.append(f"{cle} : un objet est attendu (un type de travaux par clé)")
+        return None
+    inconnus = sorted(str(type_travaux) for type_travaux in brut if type_travaux not in cedule.TYPES_TRAVAUX)
+    if inconnus:
+        problemes.invalides.append(
+            f"{cle} : types de travaux inconnus : {', '.join(inconnus)} (attendus : "
+            f"{', '.join(cedule.TYPES_TRAVAUX)})",
+        )
+    resultat = {}
+    for type_travaux in types_requis:
+        valeur = brut.get(type_travaux)
+        if valeur is None:
+            problemes.absents.append(f"{cle}.{type_travaux} manquant : {aide_valeur}")
+        elif not valeur_valide(valeur):
+            problemes.invalides.append(f"{cle}.{type_travaux} : {aide_valeur}")
+        else:
+            resultat[type_travaux] = valeur
+    return resultat
+
+
+def _liste_de_textes(valeur):
+    return isinstance(valeur, list) and all(isinstance(element, str) and element for element in valeur)
+
+
+def _lire_chantiers(brut, identifiants_requis, problemes):
+    """``{intervention_id: entrée}`` : une entrée complète par intervention à planifier."""
+    if not isinstance(brut, list):
+        problemes.invalides.append("chantiers : une liste est attendue")
+        return None
+    par_id = {}
+    mentionnes = set()
+    for position, entree in enumerate(brut):
+        identifiant = entree.get("intervention_id") if isinstance(entree, dict) else None
+        nom = f"chantiers[{position}] {identifiant!r}" if isinstance(identifiant, str) and identifiant \
+            else f"chantiers[{position}]"
+        objet = _objet(entree, nom, _CLES_CHANTIER, problemes, nullables=("creneau_fige",))
+        if isinstance(identifiant, str) and identifiant:
+            if identifiant in mentionnes:
+                problemes.invalides.append(f"{nom} : intervention en double")
+                continue
+            mentionnes.add(identifiant)
+            if identifiant not in identifiants_requis:
+                problemes.invalides.append(
+                    f"{nom} : intervention inconnue, plus au statut planifiee, ou hors de intervention_ids",
+                )
+                continue
+        elif objet is not None:
+            problemes.invalides.append(f"{nom}.intervention_id : chaîne non vide requise")
+            continue
+        if objet is not None:
+            par_id[identifiant] = objet
+    for identifiant in identifiants_requis:
+        if identifiant not in mentionnes:
+            problemes.absents.append(
+                f"chantiers : entrée de l'intervention {identifiant!r} manquante ({_AIDE['chantiers']})",
+            )
+    return par_id
+
+
+def _lire_parametres(brut, problemes):
+    """``(paramètres de distance, paramètres du solveur)`` ; ``None`` si l'argument est inutilisable."""
+    if not isinstance(brut, dict):
+        problemes.invalides.append("parametres : un objet est attendu")
+        return None
+    bon = True
+    for cle in CLES_PARAMETRES_REQUISES:
+        if brut.get(cle) is None:
+            aide = distances.BORNES_PARAMETRES.get(cle)
+            precision = f", entre {aide[0]} et {aide[1]}" if aide is not None else ""
+            problemes.absents.append(f"parametres.{cle} manquant : paramètre d'entreprise{precision}")
+            bon = False
+    connues = CLES_PARAMETRES_REQUISES + CLES_PARAMETRES_OPTIONNELLES
+    en_trop = sorted(str(cle) for cle in brut if cle not in connues)
+    if en_trop:
+        problemes.invalides.append(f"parametres : clés inconnues : {', '.join(en_trop)}")
+        bon = False
+    if not bon:
+        return None
+    distance = {cle: brut[cle] for cle in CLES_PARAMETRES_DISTANCE}
+    solveur = {
+        "graine": GRAINE_TECHNIQUE if brut.get("graine") is None else brut["graine"],
+        "iterations": brut["iterations"],
+        "cout_non_cedule_m": brut["cout_non_cedule_m"],
+    }
+    return distance, solveur
+
+
+def _lire_arguments(arguments, inscriptions_a_planifier):
+    """Assemble les chantiers et les équipes du solveur. ``(dict, None)`` ou ``(None, verdict)``."""
+    problemes = _Problemes()
+    en_trop = sorted(
+        str(cle) for cle in arguments if cle not in _CLES_ARGUMENTS + _CLES_ARGUMENTS_OPTIONNELLES
+    )
+    if en_trop:
+        problemes.invalides.append(f"arguments : clés inconnues : {', '.join(en_trop)}")
+    presents = {}
+    for cle in _CLES_ARGUMENTS:
+        if arguments.get(cle) is None:
+            problemes.absents.append(f"{cle} manquant : {_AIDE[cle]}")
+        else:
+            presents[cle] = arguments[cle]
+
+    identifiants = [inscription["intervention_id"] for inscription in inscriptions_a_planifier]
+    types_requis = sorted({inscription["type_travaux"] for inscription in inscriptions_a_planifier})
+    equipes = _lire_equipes(presents["equipes"], problemes) if "equipes" in presents else None
+    durees = competences = fiches = parametres = None
+    if "durees_par_type_travaux" in presents:
+        durees = _lire_par_type(
+            presents["durees_par_type_travaux"], "durees_par_type_travaux", types_requis, _est_entier,
+            _AIDE["durees_par_type_travaux"], problemes,
+        )
+    if "competences_par_type_travaux" in presents:
+        competences = _lire_par_type(
+            presents["competences_par_type_travaux"], "competences_par_type_travaux", types_requis,
+            _liste_de_textes, _AIDE["competences_par_type_travaux"], problemes,
+        )
+    if "chantiers" in presents:
+        fiches = _lire_chantiers(presents["chantiers"], set(identifiants), problemes)
+    if "parametres" in presents:
+        parametres = _lire_parametres(presents["parametres"], problemes)
+    verdict = problemes.verdict()
+    if verdict is not None:
+        return None, verdict
+
+    chantiers = []
+    urgences = {}
+    for inscription in inscriptions_a_planifier:
+        identifiant = inscription["intervention_id"]
+        urgence, verdict = urgence_depuis_declaration(inscription.get("urgence_declaree"))
+        if verdict is not None:
+            return None, _verdict(verdict["code"], f"intervention {identifiant!r} : {verdict['detail']}")
+        urgences[identifiant] = urgence
+        fiche = fiches[identifiant]
+        type_travaux = inscription["type_travaux"]
+        chantiers.append({
+            "id": identifiant,
+            "duree_min": durees[type_travaux],
+            "fenetre": copy.deepcopy(fiche["fenetre"]),
+            "competences_requises": list(competences[type_travaux]),
+            "urgence": urgence,
+            "creneau_fige": copy.deepcopy(fiche["creneau_fige"]),
+        })
+    equipes_solveur, depots = equipes
+    parametres_distance, parametres_solveur = parametres
+    return {
+        "equipes": equipes_solveur, "depots": depots, "chantiers": chantiers, "urgences": urgences,
+        "parametres_distance": parametres_distance, "parametres_solveur": parametres_solveur,
+    }, None
+
+
+# ---------------------------------------------------------------------------
+# Entrée du solveur
+# ---------------------------------------------------------------------------
+def _entree_solveur(preparation, leads, instantane, lire_position, fournisseur):
+    """Entrée complète du solveur avec les coordonnées CONFIRMÉES d'aujourd'hui.
+
+    ``preparation`` : équipes, dépôts (``{id: (latitude, longitude)}``), chantiers du solveur, paramètres.
+    ``leads`` : ``{intervention_id: lead_id}``. Un chantier sans position lisible (jamais confirmée, retirée,
+    clé détruite) n'entre pas dans la matrice : le solveur le rend « coordonnées manquantes : à confirmer »,
+    jamais placé au centre d'une ville."""
+    positions = {}
+    for lead_id in sorted(set(leads.values())):
+        position, verdict = lire_position(instantane, lead_id)
+        positions[lead_id] = position if verdict is None else None
+    points = [
+        {"id": depot_id, "latitude_microdeg": latitude, "longitude_microdeg": longitude}
+        for depot_id, (latitude, longitude) in sorted(preparation["depots"].items())
+    ]
+    for chantier in preparation["chantiers"]:
+        position = positions[leads[chantier["id"]]]
+        if position is not None:
+            points.append({
+                "id": chantier["id"],
+                "latitude_microdeg": position["latitude_microdegres"],
+                "longitude_microdeg": position["longitude_microdegres"],
+            })
+    matrice, verdict = distances.obtenir_matrice(points, preparation["parametres_distance"], fournisseur)
+    if verdict is not None:
+        return None, verdict
+    return {
+        "version": tournees.VERSION_ENTREE,
+        "equipes": copy.deepcopy(preparation["equipes"]),
+        "chantiers": copy.deepcopy(preparation["chantiers"]),
+        "matrice": matrice,
+        "parametres": dict(preparation["parametres_solveur"]),
+    }, None
+
+
+def _preparation_depuis_maillon(proposee):
+    """Reconstruit ``preparation`` à partir de l'entrée sans matrice rangée dans le maillon du plan."""
+    entree = proposee["entree"]
+    equipes = []
+    depots = {}
+    for equipe in entree["equipes"]:
+        depot = equipe["depot"]
+        depots[depot["id"]] = (depot["latitude_microdegres"], depot["longitude_microdegres"])
+        equipes.append({
+            "id": equipe["id"], "competences": copy.deepcopy(equipe["competences"]),
+            "depot": depot["id"], "quarts": copy.deepcopy(equipe["quarts"]),
+        })
+    return {
+        "equipes": equipes, "depots": depots, "chantiers": copy.deepcopy(entree["chantiers"]),
+        "parametres_distance": dict(entree["parametres_distance"]),
+        "parametres_solveur": dict(entree["parametres"]),
+    }
+
+
+def _entree_stockee(preparation):
+    """Ce que le maillon du plan garde de l'entrée : tout sauf la matrice (donc aucune coordonnée de chantier)."""
+    equipes = []
+    for equipe in preparation["equipes"]:
+        latitude, longitude = preparation["depots"][equipe["depot"]]
+        equipes.append({
+            "id": equipe["id"], "competences": copy.deepcopy(equipe["competences"]),
+            "depot": {"id": equipe["depot"], "latitude_microdegres": latitude, "longitude_microdegres": longitude},
+            "quarts": copy.deepcopy(equipe["quarts"]),
+        })
+    return {
+        "equipes": equipes,
+        "chantiers": copy.deepcopy(preparation["chantiers"]),
+        "parametres_distance": dict(preparation["parametres_distance"]),
+        "parametres": dict(preparation["parametres_solveur"]),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Maillons du plan
+# ---------------------------------------------------------------------------
+def _maillon_du_plan(instantane, type_entree, plan_id):
+    for maillon in instantane.lire():
+        if maillon["type_entree"] == type_entree and maillon.get("plan_id") == plan_id:
+            return maillon
+    return None
+
+
+def _avertissement(mode_bride):
+    return AVERTISSEMENT_MODE_BRIDE if mode_bride else None
+
+
+def _resultat_proposition(maillon, deja):
+    sortie = maillon["sortie"]
+    meta = sortie["meta"]
+    return {
+        "plan_id": maillon["plan_id"],
+        "deja_proposee": deja,
+        "mode_distance": meta["mode_distance"],
+        "mode_bride": meta["mode_bride"],
+        "avertissement": _avertissement(meta["mode_bride"]),
+        "solveur": meta["solveur"],
+        "version_solveur": meta["version_solveur"],
+        "empreinte_entree": maillon["empreinte_entree"],
+        "empreinte_sortie": maillon["empreinte_sortie"],
+        "empreinte_etat": maillon["empreinte_etat"],
+        "urgences": {chantier["id"]: chantier["urgence"] for chantier in maillon["entree"]["chantiers"]},
+        "regle_urgence": REGLE_URGENCE,
+        "totaux": copy.deepcopy(sortie["totaux"]),
+        "plan": copy.deepcopy(sortie["plan"]),
+        "non_cedulees": copy.deepcopy(sortie["non_cedulees"]),
+        "horodatage": maillon["horodatage"],
+        "propose_par": maillon["propose_par"],
+        "a_appliquer_par": "m4_appliquer_cedule (N3, admin) avec ce plan_id ; rien n'est assigné avant",
+    }
+
+
+def proposer(
+    registre_cible, arguments, lire_position, horodatage_arg, propose_par=None, fournisseur=None, moteur="auto",
+):
+    """Propose un plan de tournées et le range au registre. Retourne ``(résultat, None)`` ou ``(None, verdict)``.
+
+    Aucune vérité n'est écrite : le maillon ``cedule_proposee`` est un brouillon que ``appliquer`` peut
+    transformer en assignations. Les arguments (``equipes``, ``durees_par_type_travaux``,
+    ``competences_par_type_travaux``, ``chantiers``, ``parametres``, ``intervention_ids`` optionnel) sont
+    décrits dans l'en-tête du module ; tout ce qui manque est rapporté en UN verdict. ``lire_position(
+    registre, lead_id)`` rend ``(position, None)`` ou ``(None, verdict)`` comme
+    ``outils.lire_localisation_confirmee``. ``fournisseur`` : port ``distances.FournisseurMatrice`` ou ``None``
+    (palier 0). Même entrées : même plan, même ``plan_id`` ; une proposition identique n'écrit rien de plus."""
+    try:
+        horodatage.valider_horodatage(horodatage_arg)
+    except ValueError:
+        return None, verdicts.construire_verdict("REJ-HORODATAGE-INVALIDE")
+    if not isinstance(arguments, dict):
+        return None, _verdict("REJ-CONTRAT-INVALIDE", "arguments : un objet est attendu")
+    if propose_par is not None and (not isinstance(propose_par, str) or not propose_par):
+        return None, _verdict("REJ-CONTRAT-INVALIDE", "propose_par : chaîne non vide ou null")
+
+    instantane = _Instantane(registre_cible.lire())
+    inscriptions = _inscriptions(instantane)
+    a_planifier, verdict = _interventions_a_planifier(instantane, inscriptions, arguments.get("intervention_ids"))
+    if verdict is not None:
+        return None, verdict
+    preparation, verdict = _lire_arguments(arguments, a_planifier)
+    if verdict is not None:
+        return None, verdict
+    leads = {inscription["intervention_id"]: inscription["lead_id"] for inscription in a_planifier}
+    entree, verdict = _entree_solveur(preparation, leads, instantane, lire_position, fournisseur)
+    if verdict is not None:
+        return None, verdict
+    sortie, verdict = tournees.resoudre(entree, moteur)
+    if verdict is not None:
+        return None, verdict
+
+    etat = [_etat_intervention(instantane, inscription) for inscription in a_planifier]
+    meta = sortie["meta"]
+    empreinte_etat = encodage.empreinte(etat)
+    plan_id = encodage.empreinte(
+        VERSION_PROPOSITION, meta["empreinte_entree"], meta["empreinte_sortie"], empreinte_etat,
+    )
+    existant = _maillon_du_plan(instantane, TYPE_PROPOSEE, plan_id)
+    if existant is not None:
+        return _resultat_proposition(existant, True), None
+
+    maillon = {
+        "type_entree": TYPE_PROPOSEE,
+        "horodatage": horodatage_arg,
+        "version": VERSION_PROPOSITION,
+        "plan_id": plan_id,
+        "propose_par": propose_par,
+        "moteur": moteur,
+        "entree": _entree_stockee(preparation),
+        "etat": etat,
+        "empreinte_entree": meta["empreinte_entree"],
+        "empreinte_sortie": meta["empreinte_sortie"],
+        "empreinte_etat": empreinte_etat,
+        "sortie": sortie,
+    }
+    registre_cible.ajouter(maillon)
+    return _resultat_proposition(maillon, False), None
+
+
+# ---------------------------------------------------------------------------
+# Application
+# ---------------------------------------------------------------------------
+def _differences(avant, apres):
+    """Ce qui a changé entre l'état de la proposition et l'état actuel, une phrase par écart."""
+    lignes = []
+    for ancien, actuel in zip(avant, apres, strict=True):
+        if ancien == actuel:
+            continue
+        champs = sorted(cle for cle in ancien if ancien[cle] != actuel.get(cle))
+        details = ", ".join(f"{cle} : {ancien[cle]!r} devenu {actuel.get(cle)!r}" for cle in champs)
+        lignes.append(f"intervention {ancien['intervention_id']!r} : {details}")
+    return lignes
+
+
+def _resultat_application(marqueur, proposee, deja):
+    meta = proposee["sortie"]["meta"]
+    conservees = {ligne["chantier"]: ligne["technicien_assigne"] for ligne in marqueur["non_cedulees"]}
+    return {
+        "plan_id": marqueur["plan_id"],
+        "deja_appliquee": deja,
+        "appliquee_par": marqueur["appliquee_par"],
+        "horodatage": marqueur["horodatage"],
+        "mode_distance": meta["mode_distance"],
+        "mode_bride": meta["mode_bride"],
+        "avertissement": _avertissement(meta["mode_bride"]),
+        "assignations": copy.deepcopy(marqueur["assignations"]),
+        "non_cedulees": [
+            {**ligne, "assignation_conservee": conservees.get(ligne["chantier"])}
+            for ligne in proposee["sortie"]["non_cedulees"]
+        ],
+    }
+
+
+def appliquer(registre_cible, plan_id, lire_position, horodatage_arg, appliquee_par, fournisseur=None):
+    """Applique un plan PROPOSÉ : assigne les techniciens. Retourne ``(résultat, None)`` ou ``(None, verdict)``.
+
+    Refus, sans rien écrire : plan inconnu (``REJ-CEDULE-PLAN-INTROUVABLE``) ; état des interventions ou
+    entrée du solveur changés depuis la proposition (``REJ-CEDULE-ENTREE-CHANGEE``) ; plan qui échoue à
+    ``tournees.verifier_plan`` (``REJ-TOURNEES-PLAN-INVALIDE``) ; plan sans visite
+    (``REJ-CEDULE-RIEN-A-PLANIFIER``). Un plan déjà appliqué rend son application enregistrée
+    (``deja_appliquee``) sans rien écrire. Un créneau figé qui ne serait pas tenu est un plan invalide : il
+    n'est jamais déplacé. ``appliquee_par`` : la personne qui applique (nommément)."""
+    try:
+        horodatage.valider_horodatage(horodatage_arg)
+    except ValueError:
+        return None, verdicts.construire_verdict("REJ-HORODATAGE-INVALIDE")
+    if not isinstance(plan_id, str) or not plan_id:
+        return None, _verdict("REJ-CHAMP-VIDE", "plan_id : identifiant du plan proposé requis")
+    if not isinstance(appliquee_par, str) or not appliquee_par:
+        return None, _verdict("REJ-CHAMP-VIDE", "appliquee_par : nom de la personne qui applique requis")
+
+    instantane = _Instantane(registre_cible.lire())
+    proposee = _maillon_du_plan(instantane, TYPE_PROPOSEE, plan_id)
+    if proposee is None:
+        return None, _verdict("REJ-CEDULE-PLAN-INTROUVABLE", f"aucun plan proposé sous l'identifiant {plan_id!r}")
+    deja = _maillon_du_plan(instantane, TYPE_APPLIQUEE, plan_id)
+    if deja is not None:
+        return _resultat_application(deja, proposee, True), None
+
+    inscriptions = _inscriptions(instantane)
+    avant = proposee["etat"]
+    apres = [_etat_intervention(instantane, inscriptions[ligne["intervention_id"]]) for ligne in avant]
+    if apres != avant:
+        return None, _verdict(
+            "REJ-CEDULE-ENTREE-CHANGEE",
+            "l'état des interventions a changé depuis la proposition, proposer de nouveau : "
+            + " ; ".join(_differences(avant, apres)[:_MAX_PROBLEMES]),
+        )
+
+    preparation = _preparation_depuis_maillon(proposee)
+    leads = {ligne["intervention_id"]: ligne["lead_id"] for ligne in avant}
+    entree, verdict = _entree_solveur(preparation, leads, instantane, lire_position, fournisseur)
+    if verdict is not None:
+        return None, verdict
+    empreinte, verdict = tournees.empreinte_entree(entree)
+    if verdict is not None:
+        return None, verdict
+    sortie = proposee["sortie"]
+    if empreinte != proposee["empreinte_entree"]:
+        return None, _verdict(
+            "REJ-CEDULE-ENTREE-CHANGEE",
+            "les coordonnées confirmées, les distances ou les équipes ne donnent plus la même entrée du "
+            "solveur que lors de la proposition : proposer de nouveau",
+        )
+    if sortie["meta"]["empreinte_sortie"] != proposee["empreinte_sortie"]:
+        return None, _verdict(
+            "REJ-TOURNEES-PLAN-INVALIDE", "l'empreinte de sortie du maillon ne correspond pas au plan qu'il porte",
+        )
+    valide, violations = tournees.verifier_plan(entree, sortie)
+    if not valide:
+        return None, tournees.verdict_tournees(
+            tournees.CODE_PLAN_INVALIDE, " ; ".join(violations[:_MAX_PROBLEMES]),
+        )
+
+    visites = [
+        (visite["chantier"], route["equipe"]) for route in sortie["plan"] for visite in route["visites"]
+    ]
+    if not visites:
+        return None, _verdict(
+            "REJ-CEDULE-RIEN-A-PLANIFIER", "le plan ne place aucun chantier : rien à appliquer",
+        )
+
+    assignations = []
+    for chantier, equipe in visites:
+        if etats.technicien_assigne(instantane, chantier) == equipe:
+            effet = EFFET_DEJA_ASSIGNEE
+        else:
+            _, verdict = etats.assigner_technicien(chantier, equipe, registre_cible, horodatage_arg)
+            if verdict is not None:
+                # Contrôlé plus haut (statut, technicien non vide) : un refus trahirait une incohérence
+                # interne. On lève pour que l'appel atomique annule les assignations déjà écrites.
+                raise RuntimeError(f"assignation refusée après un contrôle valide : {verdict['code']}")
+            effet = EFFET_ASSIGNEE
+        assignations.append({"intervention_id": chantier, "technicien_id": equipe, "effet": effet})
+    conservees = {ligne["intervention_id"]: ligne["technicien_assigne"] for ligne in avant}
+    marqueur = {
+        "type_entree": TYPE_APPLIQUEE,
+        "horodatage": horodatage_arg,
+        "plan_id": plan_id,
+        "appliquee_par": appliquee_par,
+        "empreinte_entree": proposee["empreinte_entree"],
+        "empreinte_sortie": proposee["empreinte_sortie"],
+        "assignations": assignations,
+        "non_cedulees": [
+            {"chantier": ligne["chantier"], "technicien_assigne": conservees[ligne["chantier"]]}
+            for ligne in sortie["non_cedulees"]
+        ],
+    }
+    registre_cible.ajouter(marqueur)
+    return _resultat_application(marqueur, proposee, False), None

@@ -1,0 +1,120 @@
+{
+  "fictif": true,
+  "avertissement": "Données FICTIVES (T4.1-d) : leads, adresses, équipes, durées et paramètres inventés ; coordonnées APPROXIMATIVES (centres de municipalités de Repentigny à Joliette), reprises de tournees_repentigny_joliette.json. Le coût de non-cédule et les durées sont des choix d'essai, pas des valeurs d'entreprise.",
+  "sel_tourniquet": "sel-fictif-t4-1-d",
+  "parametres": {
+    "facteur_detour_milliemes": 1300,
+    "vitesse_moyenne_kmh": 50,
+    "marge_par_trajet_secondes": 600,
+    "iterations": 500,
+    "cout_non_cedule_m": 500000
+  },
+  "durees_par_type_travaux": {
+    "ravalement": 120,
+    "autre": 90,
+    "extension": 150,
+    "isolation_thermique": 100,
+    "renovation_totale": 180
+  },
+  "competences_par_type_travaux": {
+    "ravalement": [
+      "revetement"
+    ],
+    "autre": [
+      "gouttieres"
+    ],
+    "extension": [],
+    "isolation_thermique": [],
+    "renovation_totale": []
+  },
+  "depots": {
+    "depot-repentigny": {
+      "latitude_microdegres": 45735000,
+      "longitude_microdegres": -73455000
+    },
+    "depot-joliette": {
+      "latitude_microdegres": 46015000,
+      "longitude_microdegres": -73445000
+    }
+  },
+  "equipes": [
+    {
+      "id": "eq-a",
+      "competences": [
+        "gouttieres",
+        "revetement"
+      ],
+      "depot": "depot-repentigny"
+    },
+    {
+      "id": "eq-b",
+      "competences": [
+        "gouttieres",
+        "revetement"
+      ],
+      "depot": "depot-joliette"
+    }
+  ],
+  "quart": {
+    "jour": 0,
+    "debut_min": 480,
+    "fin_min": 1020
+  },
+  "fenetre_client": {
+    "jours": [
+      0
+    ],
+    "debut_min": 480,
+    "fin_min": 1020
+  },
+  "leads": [
+    {
+      "lead_id": "L-E2E-01",
+      "secteur": "Repentigny",
+      "type_travaux": "ravalement",
+      "urgence_declaree": false,
+      "latitude_microdegres": 45742000,
+      "longitude_microdegres": -73450000
+    },
+    {
+      "lead_id": "L-E2E-02",
+      "secteur": "Le Gardeur",
+      "type_travaux": "autre",
+      "urgence_declaree": false,
+      "latitude_microdegres": 45753000,
+      "longitude_microdegres": -73468000
+    },
+    {
+      "lead_id": "L-E2E-03",
+      "secteur": "Charlemagne",
+      "type_travaux": "extension",
+      "urgence_declaree": false,
+      "latitude_microdegres": 45720000,
+      "longitude_microdegres": -73480000
+    },
+    {
+      "lead_id": "L-E2E-10",
+      "secteur": "Joliette",
+      "type_travaux": "ravalement",
+      "urgence_declaree": false,
+      "latitude_microdegres": 46020000,
+      "longitude_microdegres": -73440000
+    },
+    {
+      "lead_id": "L-E2E-11",
+      "secteur": "Notre-Dame-des-Prairies",
+      "type_travaux": "isolation_thermique",
+      "urgence_declaree": true,
+      "latitude_microdegres": 46050000,
+      "longitude_microdegres": -73430000
+    },
+    {
+      "lead_id": "L-E2E-12",
+      "secteur": "Crabtree",
+      "type_travaux": "renovation_totale",
+      "urgence_declaree": false,
+      "latitude_microdegres": 46050000,
+      "longitude_microdegres": -73470000
+    }
+  ]
+}

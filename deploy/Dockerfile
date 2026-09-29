@@ -40,9 +40,12 @@ COPY . /opt/opsys
 # image officielle scellée) : mcp>=2.0.0,<3 déclaré dans pyproject.toml, compatibilité amont documentée
 # dans core/UPSTREAM.md. Extra "console" obligatoire ici (fastapi/uvicorn) : sans elle,
 # `opsys-console` refuse de démarrer (exit 2, "dépendance absente" — src/opsys/console/__init__.py).
+# Extra "tournees" (PyVRP 0.14.0, MIT, PLAN T4.1-d) : le solveur de tournées de M4 (m4_proposer_cedule).
+# Sans lui, M4 se replie sur son solveur exact jusqu'à 12 chantiers et refuse au-delà (« installer l'extra
+# tournees ») : la cédule d'une vraie semaine n'a donc pas de sens dans une image qui ne l'a pas.
 RUN python3 -m venv /opt/opsys-venv && \
     /opt/opsys-venv/bin/python -m pip install --no-input --no-cache-dir --upgrade pip && \
-    /opt/opsys-venv/bin/python -m pip install --no-input --no-cache-dir -e "/opt/opsys[postgres,console]"
+    /opt/opsys-venv/bin/python -m pip install --no-input --no-cache-dir -e "/opt/opsys[postgres,console,tournees]"
 
 # Le Core n'est jamais construit ici. Un premier patch amont (core/patches/) imposera une image
 # dérivée distincte, deploy/Dockerfile.core : voir core/UPSTREAM.md.
