@@ -29,12 +29,12 @@ from opsys.garde_fou_texte import confidentialite, engagements, promesses
 
 FICTIF = True
 
-NBSP, NNBSP = " ", " "
+NBSP, NNBSP = "\u00a0", "\u202f"
 
 # ----------------------------------------------------------------------------------------------------------------------
 # L'oracle : les motifs et le découpage tels qu'ils étaient avant T4.17-f (recopiés, jamais importés du socle).
 # ----------------------------------------------------------------------------------------------------------------------
-_SEP = r"[\x20  ]"
+_SEP = r"[\x20\u00A0\u202F]"
 MONTANT_AVANT = re.compile(
     rf"""
     (?:{_SEP}*|\b)\d{{1,3}}(?:{_SEP}{{0,1}}\d{{3}})*(?:[.,]\d+)?\s*
@@ -318,7 +318,7 @@ def test_les_segments_gardent_les_dates_iso_et_ne_cassent_pas_sur_les_blancs():
         "installation prévue le 2026-08-14", "Merci", "Bonjour", "à demain"]
     assert engagements.decouper_segments("  a  .  ; \n\n  b\r\n c ") == ["a", "b", "c"]
     assert engagements.decouper_segments("") == [] and engagements.decouper_segments(" \n . ; ") == []
-    assert engagements.decouper_segments("un deux") == ["un deux"]
+    assert engagements.decouper_segments("un\u00a0deux") == ["un\u00a0deux"]
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -491,6 +491,8 @@ TEXTES_HOSTILES_DU_CATALOGUE = {
     "mots": lambda n: "mot " * (n // 4),
     "majuscules": lambda n: "Ab " * (n // 3),
     "coordonnees_gps": lambda n: "1.1234 " * (n // 7),
+    # le texte plié réduit les blancs : le motif des coordonnées GPS n'en voit qu'un
+    "coordonnees_gps_puis_blancs": lambda n: "1.1234" + " " * n,
     "chez": lambda n: "chez Ab " * (n // 8),
     "garantie": lambda n: "garantie " * (n // 9),
 }
