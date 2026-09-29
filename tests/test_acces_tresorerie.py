@@ -37,10 +37,12 @@ MARC = contexte.IdentiteAppelante(personne="marc.fictif", role="employee")
 VENDEUR = contexte.IdentiteAppelante(personne="vendeur.fictif", role="seller")
 
 # Les outils M5 de la portée `admin` : quatre lectures (dont deux de T1.5-d), la lecture des comptes à payer et la
-# saisie d'une facture fournisseur par un humain (T4.15, une écriture : voir test_comptes_a_payer_outils.py).
+# saisie d'une facture fournisseur par un humain (T4.15, une écriture : voir test_comptes_a_payer_outils.py), et le
+# calendrier fiscal (T4.16, lecture pure).
 OUTILS_DE_LECTURE_FINANCE = {"m5_etat_tresorerie", "m5_lister_attentes_facturation",
                              "m5_lire_rentabilite_chantier", "m5_lire_comptes_a_recevoir",
-                             "m5_lister_comptes_a_payer", "m5_saisir_facture_fournisseur"}
+                             "m5_lister_comptes_a_payer", "m5_saisir_facture_fournisseur",
+                             "m5_lire_echeances_fiscales"}
 CODE_INVALIDE = "REJ-IDENTITE-APPAREIL-INVALIDE"
 CODE_DIFFERENTE = "REJ-IDENTITE-FOURNIE-DIFFERENTE"
 CODE_REQUIS = "REJ-AUTORISE-COUTS-REQUIS"

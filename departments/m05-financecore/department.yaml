@@ -3,8 +3,8 @@ id: m05-financecore
 code: M5
 nom: FinanceCore
 mission: >-
-  Tenir le registre financier de l'entreprise — mouvements, solde, argent disponible,
-  taxes TPS/TVQ, approbations F0-F7 — sans jamais engager, payer ou approuver de
+  Tenir le registre financier de l'entreprise — mouvements, solde, cash libre réel,
+  taxes TPS/TVQ et leurs échéances, approbations F0-F7 — sans jamais engager, payer ou approuver de
   lui-même : toute écriture financière et toute décision d'approbation restent une
   proposition tant qu'un humain ne les a pas validées sur pièces.
 outils: m5_financecore.outils
@@ -31,6 +31,27 @@ approbations:                                         # ADR-0009 §5, PLAN T1.3-
 #   configuration:
 #     taux_horaire_main_d_oeuvre: "0.00"
 #
+# PLAN T4.16 : cash libre réel et calendrier fiscal. Les DÉCISIONS et les FAITS du propriétaire que M5 ne devine
+# jamais sont ABSENTS ici (GATE NATHAN) ; chacun, absent, est « à déclarer » : le cash libre dit « non calculable, manque
+# X » et le calendrier fiscal refuse de nommer une échéance. Relu à chaque appel : pas de redémarrage. Forme, sous la
+# même clé `configuration` (dates entre guillemets : une date sans guillemets est refusée, jamais réinterprétée) :
+#
+#   configuration:
+#     fiscal:
+#       frequence_tps_tvq: "trimestrielle"     # mensuelle, trimestrielle ou annuelle : celle de la confirmation d'inscription
+#       mois_fin_exercice: 12                  # 1 à 12 ; exigé pour trimestrielle et annuelle
+#       particulier_en_affaires: false         # exigé seulement pour annuelle avec exercice au 31 décembre (30 avril / 15 juin)
+#       taxes_remises_jusqu_au: "2026-06-30"   # fin de la dernière période de TPS/TVQ REMISE (fait établi avec le CPA) ;
+#                                              # à avancer après chaque remise ; doit être la fin d'une période du calendrier
+#     obligations_declarees:                   # ce que rien ne calcule encore (paie, DAS et dettes : M5.4 est absent)
+#       paies:    {montant: "0.00", source: "d'où vient le chiffre", au: "2026-09-25"}
+#       das:      {montant: "0.00", source: "d'où vient le chiffre", au: "2026-09-25"}
+#       dettes:   {montant: "0.00", source: "d'où vient le chiffre", au: "2026-09-25"}
+#       reserves: {montant: "0.00", source: "décision de Nathan", au: "2026-09-25"}   # seulement si aucune PROVISION n'est posée
+#
+# Un « 0.00 » déclaré est un zéro CONNU (avec sa source et sa date) ; une composante absente n'est jamais zéro. Le calendrier
+# fiscal lui-même est dans contracts/calendrier_fiscal.v1.yaml (sources officielles citées, à valider par le CPA).
+#
 modeles:
   defaut: standard
   extraction: rapide
@@ -39,15 +60,16 @@ planifications:
   - nom: digest-financier
     cron: "0 7 * * 1-5"
     consigne: >-
-      Résume en 5 lignes l'état financier de la veille : solde, argent disponible,
-      demandes d'approbation en attente par palier. Aucune écriture nouvelle,
+      Résume en 5 lignes l'état financier de la veille : solde, cash libre réel (avec ce
+      qui manque pour le calculer), demandes d'approbation en attente par palier. Ne
+      présente jamais l'argent disponible sans le cash libre. Aucune écriture nouvelle,
       aucune approbation.
 budget:
   tokens_jour: 200000
   tokens_mois: 3000000
   alerte_pct: 80
 memoire:
-  lecture: [mouvements, approbations, taux_fiscaux]
+  lecture: [mouvements, approbations, taux_fiscaux, calendrier_fiscal]
   ecriture: [mouvements, approbations]
 kpis:
   - id: delai_moyen_approbation_f6_f7

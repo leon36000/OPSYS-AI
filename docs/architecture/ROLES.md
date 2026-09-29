@@ -68,7 +68,7 @@ qui travaille sur un toit, un gestionnaire qui reprend un dossier).
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 79 outils sur 157 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 80 outils sur 158 sont déclarés.
 
 ### `employee` (11 outils) : §9.3, le terrain
 
@@ -109,7 +109,7 @@ M10.
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (79 outils) : §9.5 + employé + vendeur
+### `admin` (80 outils) : §9.5 + employé + vendeur
 
 Les 11 outils de l'employé, les 10 du vendeur, et :
 
@@ -125,7 +125,8 @@ Les 11 outils de l'employé, les 10 du vendeur, et :
 | M4 | `m4_proposer_localisation`, `m4_confirmer_localisation` (N3) | §9.5 M4 « dispatch du jour » (T4.1-a, R15 §3) : l'admin voit la proposition de coordonnées d'un chantier (index RQA local) puis la confirme ; `confirme_par` doit être sa propre personne. Réservés à l'admin : c'est l'adresse d'un client, et une coordonnée confirmée décide d'une tournée. L'employé n'a aucun besoin de géocoder une adresse ; le vendeur non plus. Les deux outils refusent aussi, dans le code, tout rôle d'appareil autre qu'`admin`. |
 | M4 | `m4_proposer_cedule` (N1), `m4_appliquer_cedule` (N3) | §9.5 M4 « dispatch du jour » (T4.1-d, R15 §4 ; T4.12) : l'admin fait proposer une cédule par tournées depuis son téléphone (brouillon : aucune assignation, aucune vérité écrite), la lit (mode bridé, non cédulées et leurs raisons, provenance de chaque valeur : profil des équipes ou surcharge) puis l'applique ; appliquer fait sortir de `a_planifier` les interventions prêtes que le plan place ; `confirme_par` doit être sa propre personne. Réservés à l'admin : une tournée regroupe des chantiers de clients (adresses, coordonnées confirmées), et l'application décide qui voit quelles interventions. Le brouillon lui-même écrit un maillon au registre : l'ouvrir à l'employé ou au vendeur permettrait d'y déposer des plans à volonté. Les deux outils refusent aussi, dans le code, tout rôle d'appareil autre qu'`admin`. |
 | M4 | `m4_verifier_preparation` (T0) | §9.5 M4 « dispatch du jour » (T4.10-b, M4.6) : l'admin lit, pour une intervention née d'un devis accepté, si elle peut être planifiée, volet par volet, et ce qui manque (soumission, adresse confirmée, équipe, matériel, météo). Lecture pure : rien n'est écrit, aucun volet non vérifiable n'est présenté comme prêt, aucune date ni aucun créneau n'est promis. Réservé à l'admin : c'est l'état d'un chantier de client (adresse confirmée ou non). L'outil refuse aussi, dans le code, tout rôle d'appareil autre qu'`admin`. |
-| M5 | `m5_etat_tresorerie`, `m5_lister_attentes_facturation` | §9.5 M5 : trésorerie, cash libre réel, factures à approuver. Identité confirmée en base ; la vue vient du rôle authentifié, jamais des arguments (T1.4-k2, plus bas). |
+| M5 | `m5_etat_tresorerie`, `m5_lister_attentes_facturation` | §9.5 M5 : trésorerie, cash libre réel, factures à approuver. Identité confirmée en base ; la vue vient du rôle authentifié, jamais des arguments (T1.4-k2, plus bas). T4.16 : `m5_etat_tresorerie` AJOUTE `cash_libre` (avec sa décomposition), `argent_disponible_note` et `mention` sans changer ses clés d'avant ; le cash libre suit la même vue : un rôle sans droit de voir les coûts ne le voit pas. |
+| M5 | `m5_lire_echeances_fiscales` (T0) | §7 M5.5 « calendrier fiscal vivant » (T4.16) : les prochaines échéances TPS/TVQ, les retards et la taxe nette de chaque période. Lecture pure, même règle d'accès que la trésorerie (identité confirmée en base, la vue vient du rôle, `autorise_couts` ne peut que restreindre : sans droit, les dates sans aucun montant). La fréquence de production, la fin d'exercice et la date de dernière remise sont au propriétaire (`department.yaml`, GATE NATHAN) : absentes, refus nommé qui dit quoi déclarer ; une année non déclarée au calendrier est refusée. `aujourd_hui` est un argument requis (M5 n'a pas d'horloge) ; aucun montant ni date limite ne se passe en argument. Ni remise, ni déclaration, ni paiement : le calendrier propose (N5, Nathan et le CPA). |
 | M5 | `m5_lire_rentabilite_chantier`, `m5_lire_comptes_a_recevoir` | §6 « travaux terminés », §9.5 M5 : coût réel et marge par chantier, comptes à recevoir (factures envoyées). Lecture pure, même règle d'accès que la trésorerie (T1.5-d) : coûts, marges et créances sont des finances, jamais pour l'employé ni le vendeur (§9.2, §9.4) ; aucun montant, prix ni taux ne se passe en argument. |
 | M5 | `m5_lister_comptes_a_payer` (T0), `m5_saisir_facture_fournisseur` (T1, N3) | §7 M5.2 « comptes à payer », M6.16, §9.5 M5 « dépenses à valider » (T4.15) : ce que l'entreprise doit aux fournisseurs, par PO reçu (l'« à payer attendu » de ce que M6 a réceptionné, le facturé, le rapprochement PROPOSÉ avec ses écarts), et la saisie d'une facture fournisseur, repli documenté de l'OCR fermé. Finances : jamais pour l'employé ni le vendeur (§9.2, §9.4). La lecture a la même règle d'accès que la trésorerie et rend des pages sous la limite de 6 000 caractères ; la saisie exige un HUMAIN (section plus bas). Aucun outil ne paie un fournisseur : c'est N5, Nathan et le CPA. |
 | M6 | `m6_approuver_po`, `m6_annuler_po` | §9.2 « le propriétaire approuve les bons de commande » ; §9.5 « PO à approuver ». |
@@ -383,8 +384,10 @@ droit de voir : un appel d'appareil pouvait se déclarer autorisé aux coûts. L
 `outils.py` la lit dans `contexte.identite_appelante()` et la fait confirmer en base à chaque appel
 (`approbations.signataire_valide`, la règle de T1.4-h et de M4).
 
-**La règle écrite : rôle -> droit de voir solde, argent disponible et taux.** Fermée par défaut (un rôle
-absent de la table ne voit rien).
+**La règle écrite : rôle -> droit de voir solde, argent disponible, cash libre et taux.** Fermée par défaut (un
+rôle absent de la table ne voit rien). T4.16 : le cash libre réel (`cash_libre`, `argent_disponible_note`,
+`mention`) est une clé sœur de l'état financier : il suit exactement la même vue, `argent_disponible` n'est jamais
+affiché sans lui, et `m5_lire_echeances_fiscales` applique la même règle (sans droit : les dates, jamais un montant).
 
 | Rôle du jeton | Voit les coûts | Source |
 |---|---|---|
@@ -450,7 +453,9 @@ pour un appel d'appareil ; sans identité d'appareil, la liste, comme avant. La 
   l'outil exécuté après approbation : hors de cette tranche.
 - **`mouvements_historique`** (simulation en mémoire) reste accepté pour un appel d'appareil : il ne
   révèle rien qui ne vienne de l'appelant, mais l'écran « cash libre réel » de l'admin devrait lire le
-  registre de production, pas un historique fourni. À fermer quand l'app appellera l'outil.
+  registre de production, pas un historique fourni (T4.16 : avec un historique fourni, le solde et les
+  réserves viennent de lui, les taxes, les comptes à payer et les déclarations du propriétaire viennent
+  toujours des registres et du manifeste). À fermer quand l'app appellera l'outil.
 - **`m5_enregistrer_mouvement(source)`, `m5_creer_facture_brouillon(client_id...)`** : étiquettes ou
   références de l'appelant, mais aucun appareil (T3, ou cascade §6).
 

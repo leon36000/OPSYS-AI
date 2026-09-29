@@ -17,6 +17,7 @@ import m5_financecore.outils as m5_outils
 import pytest
 import yaml
 from m5_financecore import validation
+from m5_financecore.analyse import MENTION_ANALYSE_PREPARATOIRE as MENTION
 from sqlalchemy import select
 
 from opsys import contexte, evenements, identite, stockage
@@ -215,7 +216,8 @@ def test_sans_filtre_une_ligne_par_devis_et_les_attentes_sans_aucun_montant(par_
 
 
 def test_sans_aucun_devis_recu_la_liste_est_vide(par_nom):
-    assert _lire(par_nom) == {"role": "admin", "nombre": 0, "affichees": 0, "reste": 0, "chantiers": []}
+    assert _lire(par_nom) == {
+        "role": "admin", "nombre": 0, "affichees": 0, "reste": 0, "chantiers": [], "mention": MENTION}
 
 
 def _cinq_devis_en_attente_de_travaux():

@@ -123,12 +123,27 @@ règle d'accès que les autres lectures financières) le rend par pages sous la 
 AUCUNE écriture au registre des mouvements : payer un fournisseur est N5 (Nathan ET le CPA) et n'existe pas ici ;
 `conformite.verifier_aucun_decaissement` le prouve par l'AST. L'unité des prix du livre de prix de M6 n'est pas
 déclarée (GATE NATHAN) : aucune conversion, et chaque attendu porte la réserve `REJ-AP-UNITE-PRIX-NON-CONFIRMEE`.
+
+PLAN T4.16 (cash libre réel et calendrier fiscal, `cash_libre.py`, `calendrier_fiscal.py`, `analyse.py`, M5.5, M5.14) :
+`m5_etat_tresorerie` AJOUTE, sans rien changer à l'état financier gelé (mêmes clés, même `etat_id`), le cash libre réel
+(`_cash_libre`) : le solde moins la TPS/TVQ à remettre, les paies, les DAS, les comptes à payer, les dettes et les
+réserves, chaque composante avec sa source et sa fraîcheur ; une composante inconnue est « non calculable, manque X »,
+jamais zéro. `_cash_libre` lit chaque registre UNE fois (solde et réserves : mouvements ; taxes : factures clients
+`ENVOYEE` et `PAYEE`, factures fournisseur saisies ; comptes à payer : T4.15) et ne fait qu'assembler : aucun calcul de
+taxe ici. Ce que le propriétaire décide ou constate (fréquence de production, fin d'exercice, date de dernière remise,
+paies, DAS, dettes) vient de `department.yaml/configuration` (`_configuration_manifeste`, relu à chaque appel, absent :
+« à déclarer »). `m5_lire_echeances_fiscales` (T0, `admin`) rend les prochaines échéances TPS/TVQ et la taxe nette de
+chaque période. Toute sortie acceptée d'un outil d'analyse porte la mention obligatoire (`analyse.py`). Aucune remise,
+aucune déclaration, aucun paiement : `conformite.verifier_aucun_decaissement` couvre le nouveau code (strict pour
+`_cash_libre` et le calendrier, lecture seule pour `etat_tresorerie`, qui ouvre le registre des mouvements). La réponse
+de `m5_etat_tresorerie` est bornée (`_borner_etat`) : le socle tronque au-delà de 6 000 caractères.
 """
 
 from __future__ import annotations
 
 import json
 from collections.abc import Callable, Mapping
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
@@ -142,12 +157,16 @@ from opsys.stockage.schema import APPROBATIONS
 
 from . import (
     acces,
+    analyse,
+    calendrier_fiscal,
+    cash_libre,
     clients_recus,
     comptes_a_payer,
     cout_reel,
     devis_recus,
     etat_financier,
     facturation,
+    soldes,
     taux_fiscaux,
     taxes,
     validation,
@@ -157,6 +176,8 @@ from . import (
 from . import registre as registre_module
 
 _CHEMIN_TAUX_FISCAUX = Path(__file__).resolve().parents[2] / "contracts" / "taux_fiscaux.v1.yaml"
+# PLAN T4.16 : le calendrier fiscal versionné (années déclarées, sources citées), lu à chaque appel.
+_CHEMIN_CALENDRIER_FISCAL = Path(__file__).resolve().parents[2] / "contracts" / "calendrier_fiscal.v1.yaml"
 
 _DEPARTEMENT = "m05-financecore"
 _NOM_REGISTRE_MOUVEMENTS = "principal"
@@ -396,14 +417,45 @@ def _refus(verdict: dict[str, Any]) -> dict[str, Any]:
     return {"accepte": False, "verdict": verdict}
 
 
+_NOTE_ARGENT_DISPONIBLE = "solde moins les réserves posées seulement : ce n'est PAS le cash libre, lire cash_libre"
+# La réponse de `m5_etat_tresorerie` est tronquée par le socle au-delà de 6 000 caractères (`jetons`) : un cash libre
+# coupé au milieu serait pire qu'un cash libre plus court. Au-delà de ce budget (enveloppe et marge déduites), la
+# réponse perd d'abord ses hypothèses (fixes, dites dans la description de l'outil, le SKILL et le SOUL de M5), puis
+# le détail des composantes ; jamais un montant, une source, une fraîcheur, un manque ni la mention.
+_BUDGET_ETAT_TRESORERIE = BUDGET_SORTIE - 500
+
+
+def _borner_etat(etat: dict[str, Any]) -> dict[str, Any]:
+    """`etat` tel quel s'il tient sous `_BUDGET_ETAT_TRESORERIE` ; sinon sans les hypothèses (`hypotheses_omises` dit
+    combien), puis sans le détail des composantes (`detail_omis`). Ne touche à rien d'autre."""
+    def taille(candidat: dict[str, Any]) -> int:
+        return len(json.dumps(candidat, ensure_ascii=False, default=str))
+
+    cash = etat.get("cash_libre")
+    if cash is None or taille(etat) <= _BUDGET_ETAT_TRESORERIE:
+        return etat
+    cash = {**cash, "hypotheses": [], "hypotheses_omises": len(cash["hypotheses"])}
+    reduit = {**etat, "cash_libre": cash}
+    if taille(reduit) <= _BUDGET_ETAT_TRESORERIE:
+        return reduit
+    composantes = [{cle: valeur for cle, valeur in c.items() if cle != "detail"} for c in cash["composantes"]]
+    return {**etat, "cash_libre": {**cash, "composantes": composantes, "detail_omis": True}}
+
+
 def etat_tresorerie(
     role: str | None = None,
     autorise_couts: bool | None = None,
     mouvements_historique: list[dict[str, Any]] | None = None,
     taux_utilises: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Composé de bout en bout : obtient le registre des mouvements (§`_registre_mouvements`),
-    calcule solde + argent disponible réel, filtre par rôle.
+    """Composé de bout en bout : obtient le registre des mouvements (§`_registre_mouvements`), calcule solde + argent
+    disponible (solde moins réserves) et, PLAN T4.16, le CASH LIBRE RÉEL avec sa décomposition, filtre par rôle.
+
+    `argent_disponible` garde son sens (CA-M5-06 : solde moins les réserves) et sa place, mais il n'est plus jamais
+    affiché seul : `cash_libre` l'accompagne à chaque fois qu'un montant est montré (`_cash_libre`, `cash_libre.py`),
+    et `argent_disponible_note` dit que ce n'est pas le cash libre. Un rôle sans droit de voir les coûts ne voit ni
+    l'un ni l'autre (`cash_libre` est `None`). Ajout ADDITIF : aucune clé de l'état financier gelé n'est changée,
+    `etat_id` non plus. La mention obligatoire des analyses est portée par la réponse.
 
     Pour un appel d'appareil (PLAN T1.4-k2), la vue vient du rôle authentifié et CONFIRMÉ en base
     (`_acteur_appareil`, `acces.resoudre_vue`) : `autorise_couts` est dérivé du rôle, un argument
@@ -421,9 +473,14 @@ def etat_tresorerie(
     if verdict is not None:
         return _refus(verdict)
     registre_cible = _registre_mouvements(mouvements_historique)
-    return etat_financier.construire_etat_financier(
+    etat = etat_financier.construire_etat_financier(
         registre_cible, taux_utilises or [], role=vue["role"], autorise_couts=vue["autorise_couts"]
     )
+    if vue["autorise_couts"]:
+        etat = {**etat, "argent_disponible_note": _NOTE_ARGENT_DISPONIBLE, "cash_libre": _cash_libre(registre_cible)}
+    else:
+        etat = {**etat, "cash_libre": None}
+    return _borner_etat(analyse.avec_mention(etat))
 
 
 def calculer_taxes_tps_tvq(montant_avant_taxes: str) -> dict[str, Any]:
@@ -962,11 +1019,11 @@ def saisir_facture_fournisseur(
     )
     if verdict is not None:  # les taux ont déjà servi à la saisie : un refus ici trahirait une incohérence interne
         raise RuntimeError(f"rapprochement impossible pour une facture déjà saisie : {verdict}")
-    return {"accepte": True, "resultat": {
+    return {"accepte": True, "resultat": analyse.avec_mention({
         "facture": comptes_a_payer.vue_facture(resultat["facture"]),
         "avertissements": resultat["avertissements"],
         "rapprochement": rapprochement,
-    }}
+    })}
 
 
 def lister_comptes_a_payer(
@@ -1001,8 +1058,162 @@ def lister_comptes_a_payer(
         return _refus(verdict)
     if not vue["autorise_couts"]:
         masquee = {"role": vue["role"], "nombre_po": page["total"], "montants_masques": True}
-        return {"accepte": True, "resultat": masquee}
+        return {"accepte": True, "resultat": analyse.avec_mention(masquee)}
     return {"accepte": True, "resultat": {"role": vue["role"], **page}}
+
+
+# ----------------------------------------------------------- cash libre réel et calendrier fiscal (T4.16)
+def _configuration_manifeste() -> dict[str, Any]:
+    """`department.yaml/configuration` tel que l'entreprise l'a écrit, ou `{}` : relu à chaque appel (comme le taux
+    horaire), pour que Nathan ou le CPA change une déclaration sans redémarrer. Un manifeste illisible donne `{}` :
+    tout ce qui en dépend devient « à déclarer », jamais une valeur par défaut. Lecture seule."""
+    try:
+        donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError):
+        return {}
+    configuration = donnees.get("configuration") if isinstance(donnees, dict) else None
+    return configuration if isinstance(configuration, dict) else {}
+
+
+def _calendrier_fiscal() -> tuple[dict[int, dict[str, Any]] | None, dict[str, Any] | None]:
+    """Le calendrier fiscal versionné, ou le refus nommé d'un fichier illisible ou incohérent : jamais un calendrier à
+    moitié lu (`REJ-CALENDRIER-INVALIDE`)."""
+    calendrier, erreurs = calendrier_fiscal.charger_calendrier_fiscal(_CHEMIN_CALENDRIER_FISCAL)
+    if erreurs:
+        return None, validation.construire_verdict("REJ-CALENDRIER-INVALIDE", detail="; ".join(erreurs))
+    return calendrier, None
+
+
+def _cash_libre(registre_mouvements: registre_module.Registre) -> dict[str, Any]:
+    """Le cash libre réel de l'instance, en vue JSON (`cash_libre.vue_cash_libre`) : le solde du registre des
+    mouvements moins la TPS/TVQ à remettre, les paies, les DAS, les comptes à payer, les dettes et les réserves
+    critiques.
+
+    Lecture pure : chaque registre est lu UNE fois (un instantané, donc des composantes cohérentes entre elles) et
+    rien n'est écrit nulle part. Chaque composante dit sa source et sa fraîcheur ; une composante inconnue est « non
+    calculable, manque X », jamais zéro (voir `cash_libre.py`). La fréquence de production, la fin d'exercice, la date
+    de dernière remise de taxes et les montants que rien ne calcule encore (paies, DAS, dettes) viennent de
+    `configuration.fiscal` et `configuration.obligations_declarees` de `department.yaml` : absents, ils sont « à
+    déclarer »."""
+    configuration = _configuration_manifeste()
+    fiscal = configuration.get("fiscal")
+    declarees = configuration.get("obligations_declarees")
+    declarees = declarees if isinstance(declarees, dict) else {}
+
+    maillons_mouvements = registre_mouvements.lire()
+    mouvements = registre_module.Registre(maillons=maillons_mouvements)
+    solde = soldes.calculer_solde(mouvements)
+    decrit = soldes.decrire_mouvements(mouvements)
+    provisions, nombre_provisions, derniere_provision = soldes.calculer_provisions(mouvements)
+
+    maillons_factures = _registre_factures(None).lire()
+    factures = registre_module.Registre(maillons=maillons_factures)
+    clients = [
+        *facturation.factures_par_statut(factures, "ENVOYEE"), *facturation.factures_par_statut(factures, "PAYEE"),
+    ]
+    maillons_a_payer = _registre_comptes_a_payer().lire()
+    a_payer = registre_module.Registre(maillons=maillons_a_payer)
+    fournisseurs = comptes_a_payer.factures_saisies(a_payer)
+
+    calendrier, verdict_remise = _calendrier_fiscal()
+    remises = None
+    if verdict_remise is None:
+        configuration_fiscale, verdict_remise = calendrier_fiscal.lire_configuration_fiscale(fiscal)
+        if verdict_remise is None:
+            remises, verdict_remise = calendrier_fiscal.lire_taxes_remises(fiscal, calendrier, configuration_fiscale)
+
+    dictionnaire_taux, refus_taux = _dictionnaire_taux()
+    resume = verdict_a_payer = None
+    if refus_taux is not None:
+        verdict_a_payer = validation.construire_verdict(refus_taux["code"], detail=refus_taux["detail"])
+    else:
+        resume, verdict_a_payer = comptes_a_payer.resume_a_payer(a_payer, dictionnaire_taux)
+
+    registres_taxes = [
+        cash_libre.registre_lu("factures", maillons_factures),
+        cash_libre.registre_lu("comptes_a_payer", maillons_a_payer),
+    ]
+    resultat = cash_libre.calculer_cash_libre(
+        cash_libre.composante_solde(solde, decrit),
+        [
+            cash_libre.composante_taxes(clients, fournisseurs, remises, verdict_remise, registres_taxes),
+            cash_libre.composante_declaree("paies", declarees.get("paies")),
+            cash_libre.composante_declaree("das", declarees.get("das")),
+            cash_libre.composante_comptes_a_payer(
+                resume, verdict_a_payer, [cash_libre.registre_lu("comptes_a_payer", maillons_a_payer)]
+            ),
+            cash_libre.composante_declaree("dettes", declarees.get("dettes")),
+            cash_libre.composante_reserves(
+                provisions, nombre_provisions, derniere_provision, decrit, declarees.get("reserves")
+            ),
+        ],
+    )
+    return cash_libre.vue_cash_libre(resultat)
+
+
+def _taxes_par_echeance(resultat: dict[str, Any]) -> None:
+    """Ajoute à chaque échéance nommée ce que les registres disent de la TPS/TVQ NETTE de sa période (`taxes_nettes`),
+    quand la date de dernière remise est déclarée (sinon on ne sait pas quelles factures sont déjà remises : rien
+    n'est chiffré). Une période encore ouverte est PARTIELLE (`periode_terminee` faux) ; une facture illisible rend le
+    chiffre « non calculable » (`taxes_nettes` nul avec son manque). Lecture pure."""
+    if resultat["taxes_remises_jusqu_au"] is None or not resultat["echeances"]:
+        return
+    remises = date.fromisoformat(resultat["taxes_remises_jusqu_au"])
+    factures = registre_module.Registre(maillons=_registre_factures(None).lire())
+    clients = [
+        *facturation.factures_par_statut(factures, "ENVOYEE"), *facturation.factures_par_statut(factures, "PAYEE"),
+    ]
+    a_payer = registre_module.Registre(maillons=_registre_comptes_a_payer().lire())
+    fournisseurs = comptes_a_payer.factures_saisies(a_payer)
+    for echeance in resultat["echeances"]:
+        debut, fin = date.fromisoformat(echeance["periode_debut"]), date.fromisoformat(echeance["periode_fin"])
+        taxes_nettes = cash_libre.calculer_taxes_nettes(
+            clients, fournisseurs, apres=max(remises, debut - timedelta(days=1)), jusqu_a=fin
+        )
+        if taxes_nettes["illisibles"]:
+            echeance["taxes_nettes"] = None
+            echeance["manque"] = [validation.construire_verdict(
+                "REJ-CASH-FACTURE-ILLISIBLE", detail=f"{len(taxes_nettes['illisibles'])} facture(s) illisible(s)"
+            )]
+        else:
+            echeance["taxes_nettes"] = cash_libre.vue_taxes_nettes(taxes_nettes)
+
+
+def lire_echeances_fiscales(
+    aujourd_hui: str,
+    limite: int | None = None,
+    role: str | None = None,
+    autorise_couts: bool | None = None,
+) -> dict[str, Any]:
+    """L'outil `m5_lire_echeances_fiscales` (T0, `admin`) : les prochaines échéances de production et de paiement de
+    la TPS et de la TVQ de l'entreprise (`calendrier_fiscal.prochaines_echeances`), avec pour chacune la TPS/TVQ NETTE
+    de sa période que les registres portent.
+
+    Même contrôle d'accès que les autres lectures financières : pour un appel d'appareil, l'identité confirmée en base
+    (`admin` seulement) ; refus AVANT toute lecture. Sans droit de voir les coûts : les échéances sans aucun montant.
+    Sans appareil (agent, console), `autorise_couts` reste obligatoire et explicite.
+
+    `aujourd_hui` (`AAAA-MM-JJ`) est requis : M5 n'a pas d'horloge et ne devine jamais la date. La fréquence de
+    production, le mois de fin d'exercice et la date de dernière remise sont ceux du propriétaire
+    (`configuration.fiscal` de `department.yaml`) : absents, la réponse est un refus nommé qui dit quoi déclarer. Une
+    année non déclarée au calendrier est refusée. Ni remise, ni déclaration, ni paiement, ni écriture : le calendrier
+    PROPOSE des dates, à valider par le CPA."""
+    acteur, refus = _acteur_appareil()
+    if refus is not None:
+        return _refus(refus)
+    vue, verdict = acces.resoudre_vue(acteur, role, autorise_couts)
+    if verdict is not None:
+        return _refus(verdict)
+    calendrier, refus_calendrier = _calendrier_fiscal()
+    if refus_calendrier is not None:
+        return _refus(refus_calendrier)
+    fiscal = _configuration_manifeste().get("fiscal")
+    resultat, verdict = calendrier_fiscal.prochaines_echeances(calendrier, aujourd_hui, fiscal, limite=limite)
+    if verdict is not None:
+        return _refus(verdict)
+    if vue["autorise_couts"]:
+        _taxes_par_echeance(resultat)
+    return {"accepte": True, "resultat": {"role": vue["role"], **resultat}}
 
 
 def _recevoir_variance_chantier(charge: dict[str, Any]) -> dict[str, Any]:
@@ -1263,10 +1474,10 @@ def lire_rentabilite_chantier(
             detail="aucun devis accepté reçu ne correspond à ce devis_id / chantier_id",
         ))
     affiches = etats[:plafond]
-    return {"accepte": True, "resultat": {
+    return {"accepte": True, "resultat": analyse.avec_mention({
         "role": vue["role"], "nombre": len(etats), "affichees": len(affiches), "reste": len(etats) - len(affiches),
         "chantiers": [_vue_chantier(e, sources, vue["autorise_couts"], detail=filtre) for e in affiches],
-    }}
+    })}
 
 
 def lire_comptes_a_recevoir(
@@ -1298,14 +1509,16 @@ def outils() -> tuple[Outil, ...]:
         Outil(
             nom="m5_etat_tresorerie",
             description=(
-                "État financier de bout en bout : solde et argent disponible réel (solde moins "
-                "provisions), filtrés par rôle. Sans montant (ni solde, ni argent disponible, ni taux) "
-                "sauf autorisation. Pendant un appel d'appareil authentifié (PLAN T1.4-k2), la vue "
-                "vient du rôle authentifié — admin : montants ; les autres n'ont pas accès — et "
-                "autorise_couts ne peut que la RESTREINDRE (faux), jamais l'élargir (refus nommé "
-                "REJ-ROLE-ELARGI) ; role, s'il est fourni, doit être celui du jeton. Hors appel "
-                "d'appareil (agent), autorise_couts est obligatoire et explicite : vrai pour voir un "
-                "montant, faux pour l'état sans montant."
+                "État financier de bout en bout : solde, argent disponible (solde moins réserves) et CASH LIBRE RÉEL "
+                "avec sa décomposition (solde moins TPS/TVQ à remettre, paies, DAS, comptes à payer, dettes, réserves "
+                "critiques ; chaque composante dit sa source et sa fraîcheur, une composante inconnue est « non "
+                "calculable, manque X », jamais zéro). Ne présente jamais argent_disponible sans cash_libre. Filtrés "
+                "par rôle : sans montant (ni solde, ni argent disponible, ni cash libre, ni taux) sauf autorisation. "
+                "Analyse préparatoire : porte la mention obligatoire. Pendant un appel d'appareil authentifié (PLAN "
+                "T1.4-k2), la vue vient du rôle authentifié — admin : montants ; les autres n'ont pas accès — et "
+                "autorise_couts ne peut que la RESTREINDRE (faux), jamais l'élargir (refus nommé REJ-ROLE-ELARGI) ; "
+                "role, s'il est fourni, doit être celui du jeton. Hors appel d'appareil (agent), autorise_couts est "
+                "obligatoire et explicite : vrai pour voir un montant, faux pour l'état sans montant."
             ),
             parametres={
                 "type": "object",
@@ -1572,6 +1785,39 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=lister_comptes_a_payer,
+            autonomie=Autonomie.T0,
+            roles_appareil=_ROLES_APPAREIL_FINANCE,
+        ),
+        Outil(
+            nom="m5_lire_echeances_fiscales",
+            description=(
+                "Calendrier fiscal vivant (M5.5), pour l'admin : les prochaines échéances de production et de "
+                "paiement de la TPS et de la TVQ, avec la TPS/TVQ nette de chaque période et les retards. La "
+                "fréquence de production, la fin d'exercice et la date de dernière remise sont celles du propriétaire "
+                "(GATE NATHAN) : absentes, refus nommé qui dit quoi déclarer, rien n'est supposé. Une année non "
+                "déclarée au calendrier est refusée. Sources officielles citées ; dates à valider par le CPA. Ni "
+                "remise, ni déclaration, ni paiement : le calendrier propose. Lecture pure ; aujourd_hui est requis "
+                "(M5 n'a pas d'horloge). Même règle d'accès que m5_etat_tresorerie : admin seulement ; autorise_couts "
+                "ne peut que restreindre (sans droit : aucun montant)."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "aujourd_hui": {
+                        "type": "string",
+                        "description": "Jour de référence, AAAA-MM-JJ (jamais deviné : M5 n'a pas d'horloge).",
+                    },
+                    "limite": {
+                        "type": ["integer", "null"], "minimum": 1, "maximum": 12,
+                        "description": "Nombre maximal d'échéances rendues (4 par défaut, 12 au plus).",
+                    },
+                    "role": _ROLE_DE_LECTURE,
+                    "autorise_couts": _AUTORISE_COUTS_DE_LECTURE,
+                },
+                "required": ["aujourd_hui"],
+                "additionalProperties": False,
+            },
+            fonction=lire_echeances_fiscales,
             autonomie=Autonomie.T0,
             roles_appareil=_ROLES_APPAREIL_FINANCE,
         ),

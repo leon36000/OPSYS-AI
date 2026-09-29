@@ -18,6 +18,7 @@ from pathlib import Path
 
 import m5_financecore.outils as m5_outils
 import pytest
+from m5_financecore.analyse import MENTION_ANALYSE_PREPARATOIRE as MENTION
 from sqlalchemy import select, update
 
 from opsys import approbations as opsys_approbations
@@ -500,7 +501,7 @@ def test_l_admin_ne_peut_que_restreindre_la_vue(dep, par_nom):
     assert _code(elargie) == "REJ-IDENTITE-FOURNIE-DIFFERENTE"
 
     masquee = _liste(par_nom, {"autorise_couts": False})
-    assert masquee == {"role": "admin", "nombre_po": 1, "montants_masques": True}
+    assert masquee == {"role": "admin", "nombre_po": 1, "montants_masques": True, "mention": MENTION}
     assert "344.93" not in json.dumps(masquee)
 
 

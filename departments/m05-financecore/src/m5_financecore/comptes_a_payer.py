@@ -49,7 +49,7 @@ from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Context, Decimal
 from typing import Any
 
-from . import encodage, taxes, validation
+from . import analyse, encodage, taxes, validation
 
 __all__ = [
     "CODE_UNITE_PRIX",
@@ -844,6 +844,7 @@ def lister(
         reste = total - fin
         return {
             "type": "COMPTES_A_PAYER",
+            "mention": analyse.MENTION_ANALYSE_PREPARATOIRE,
             "ordre": _ORDRE,
             "hypotheses": [HYPOTHESE_UNITE_PRIX, _HYPOTHESE_TAXES],
             "taxes_versions": versions,

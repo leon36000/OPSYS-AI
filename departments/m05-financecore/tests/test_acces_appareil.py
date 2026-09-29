@@ -130,7 +130,10 @@ def test_l_admin_authentifie_voit_les_montants_sans_rien_fournir(par_nom, regist
 
     assert etat["solde"] == "500.00" and etat["argent_disponible"] == "420.00"
     assert etat["role"] == "admin"  # celui du jeton, pas une étiquette de l'appelant
-    assert set(etat) == {"type", "role", "solde", "argent_disponible", "taux_utilises", "etat_id"}
+    # Le contrat gelé de l'état financier (ETAT_FINANCIER v1) n'a pas bougé : mêmes clés, même empreinte. T4.16 n'y
+    # ajoute que des clés SŒURS : le cash libre et sa note, la mention obligatoire des analyses.
+    assert set(etat) == {"type", "role", "solde", "argent_disponible", "taux_utilises", "etat_id",
+                         "cash_libre", "argent_disponible_note", "mention"}
 
 
 def test_la_reponse_de_l_admin_est_celle_qu_un_agent_obtient_pour_le_meme_role(par_nom, registre_garni):
@@ -203,7 +206,8 @@ def test_l_outil_ne_declare_que_l_admin_comme_role_d_appareil(par_nom):
     (`opsys/roles.json`) ; le socle en projette le même contenu (tests/test_acces_tresorerie.py)."""
     lectures = {"m5_etat_tresorerie", "m5_lister_attentes_facturation",
                 "m5_lire_rentabilite_chantier", "m5_lire_comptes_a_recevoir",  # les deux précédents : T1.5-d
-                "m5_lister_comptes_a_payer", "m5_saisir_facture_fournisseur"}  # les deux derniers : T4.15
+                "m5_lister_comptes_a_payer", "m5_saisir_facture_fournisseur",  # les deux précédents : T4.15
+                "m5_lire_echeances_fiscales"}  # le calendrier fiscal : T4.16
     for nom in lectures:
         assert par_nom[nom].roles_appareil == frozenset({"admin"}), nom
     assert {nom for nom, o in par_nom.items() if o.roles_appareil} == lectures

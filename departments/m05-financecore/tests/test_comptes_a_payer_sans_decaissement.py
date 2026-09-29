@@ -162,9 +162,9 @@ def test_un_import_du_registre_des_mouvements_dans_le_vrai_module_est_attrape(tm
     def modifier(nom, texte):
         if nom != "comptes_a_payer":
             return texte
-        ancre = "from . import encodage, taxes, validation"
+        ancre = "from . import analyse, encodage, taxes, validation"
         assert ancre in texte
-        return texte.replace(ancre, "from . import encodage, registre, taxes, validation")
+        return texte.replace(ancre, "from . import analyse, encodage, registre, taxes, validation")
 
     conforme, detail = _sur_les_vrais_fichiers(tmp_path, modifier)
 
@@ -267,4 +267,8 @@ def test_tout_le_parcours_laisse_les_mouvements_et_les_factures_clients_exacteme
     assert "DECAISSEMENT" not in str(maillons) and "mouvement_enregistre" not in str(maillons)
     etat = executer_atomique(par_nom["m5_etat_tresorerie"], {"autorise_couts": True})["resultat"]
     assert etat["solde"] == "500.00" and etat["argent_disponible"] == "500.00", (
-        "le solde ne bouge pas : les comptes à payer se LISENT, ils ne se déduisent pas du solde ici (T4.16)")
+        "le solde et l'argent disponible ne bougent pas : payer un fournisseur est N5, et rien n'a été décaissé")
+    # T4.16 : le CASH LIBRE, lui, retranche ce qui est dû aux fournisseurs (à payer : 344.93 + 298.94), sans rien
+    # écrire
+    a_payer = next(c for c in etat["cash_libre"]["composantes"] if c["id"] == "comptes_a_payer")
+    assert a_payer["montant"] == "643.87" and etat["cash_libre"]["cash_libre"] is None
