@@ -85,6 +85,19 @@ identifiants du propriétaire, repli livré en attendant.
           ne doit changer que `generatedAt`.
   - [ ] Lot 2 : une seule commande `opsys` (le core, alias `openclaw`), `opsys metier` pour le moteur
         Python (renommé `opsys-metier`) ; AGENTS.md et CI mis à jour.
+        Livré, à cocher au premier vert de `core.yml` (vitest `tests-opsys`, `pnpm build`), de
+        `installateur` (3 systèmes, vrai core) et de `e2e-core` : ff6b501 (core), a0d5b50 (moteur,
+        installateurs, conteneur, CI), 601746e (docs), e2ff5eb, puis l'intégration (`meteo`, arrivé
+        après la base de l'agent, ajouté aux anciennes commandes du core et du faux core ; citations
+        de l'ancienne forme retirées de `departments/` et des docs).
+        - `opsys metier` lit `commande_cli` dans `opsys/metier.json` (écrit par
+          `opsys-metier instance initialiser`) ; ancienne forme (`opsys personnes …`) : message qui
+          donne la nouvelle, code 2, rien d'exécuté ; même réponse dans l'image Docker (script sous
+          `/usr/local/bin/opsys`, le core n'y est pas).
+        - `opsys metier` est refusé au shell de l'agent (`OPENCLAW_SHELL=exec`) : sinon un agent
+          piloterait l'instance par le moteur. GATE NATHAN : confirmer (veto possible).
+        - Restent (lot 4 ou suivi) : `CLI_NAME`, `process.title`, indices `formatCliCommand`,
+          préfixes `openclaw:` du lanceur, noms de service.
   - [ ] Lot 3 : dossier d'instance `~/.opsys` (état du core dans `core/`), `opsys.json`, anciens noms
         relus par la migration Doctor existante.
         Depuis T0.11-b, l'installateur utilise le profil `opsys` (`~/.openclaw-opsys`) : ce lot
@@ -201,6 +214,13 @@ identifiants du propriétaire, repli livré en attendant.
             appelant (`opsys.cmd`), ACL de l'état et de l'export sous Windows (`icacls`). Socle 1377
             (101 sautés sans `pwsh`), tests de l'installateur 231 avec `pwsh`. Constat du core : sous
             Windows, `gateway.cmd` porte les valeurs de `.env` en clair (ACL propriétaire seul).
+            Premier passage (installateur 8, 7d9d976) : `installation-macos` VERT (LaunchAgent,
+            vrai core) ; `installation-windows` rouge sur la preuve elle-même : l'ACL du dossier
+            d'état gardait LocalSystem, Administrateurs et OWNER RIGHTS, que Windows pose sur tout
+            dossier privé et que la politique du core tient pour sûrs
+            (`local-repository-directory-policy.ts`), comme root derrière un 0700. La preuve compare
+            désormais par SID (noms localisés) et n'admet que ces trois comptes, plus un
+            propriétaire vérifié ; tout autre compte (Users, Everyone…) reste un échec.
       Reste ensuite : macOS et Windows (T0.11-d) ; LiteLLM, PostgreSQL et console restent à
       Docker Compose.
 
