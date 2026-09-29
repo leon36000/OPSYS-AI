@@ -15,6 +15,7 @@ import { declencherVidange, obtenirDepot } from "@/outbox/service";
 import { obtenirConfigurationAppel } from "@/protocole/configuration";
 import { usePersonneAppairee } from "@/roles/contexte";
 import { obtenirStatutChantier } from "@/today/service";
+import { statutAffichable } from "@/today/statut";
 import type { ResultatStatutChantier } from "@/today/statut";
 
 /**
@@ -52,8 +53,8 @@ export default function EcranChantier() {
     try {
       const resultat = await obtenirStatutChantier(interventionId);
       setResultatStatut(resultat);
-      const statut = resultat && resultat.source !== "aucune" ? resultat.statut : null;
-      setPhase(phaseDepuisStatutServeur(statut));
+      // Un refus du serveur ou l'absence de lecture ne donne aucun statut : aucun bouton de transition n'est proposé.
+      setPhase(phaseDepuisStatutServeur(statutAffichable(resultat)));
     } finally {
       setChargementStatut(false);
     }
@@ -133,7 +134,7 @@ export default function EcranChantier() {
   );
 
   const actions = phase !== null ? actionsDisponiblesJob(phase) : [];
-  const statutAffiche = resultatStatut && resultatStatut.source !== "aucune" ? resultatStatut.statut : null;
+  const statutAffiche = statutAffichable(resultatStatut);
 
   return (
     <View style={styles.conteneur}>
@@ -147,6 +148,11 @@ export default function EcranChantier() {
       </Text>
       {resultatStatut?.source === "cache" ? <Text style={styles.avis}>{t("job.source.cache")}</Text> : null}
       {resultatStatut?.source === "aucune" ? <Text style={styles.avis}>{t("job.source.aucune")}</Text> : null}
+      {resultatStatut?.source === "refus" ? (
+        <Text style={styles.erreur}>
+          {t("job.source.refus", { code: resultatStatut.verdict.code, detail: resultatStatut.verdict.detail })}
+        </Text>
+      ) : null}
 
       {erreurIdentite ? <Text style={styles.erreur}>{t("identite.absente")}</Text> : null}
       {erreurAppareil ? <Text style={styles.erreur}>{t("job.appareilNonAppaire")}</Text> : null}

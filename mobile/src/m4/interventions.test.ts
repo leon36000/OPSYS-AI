@@ -1,10 +1,35 @@
+import { VERDICT_REPONSE_ILLISIBLE, VERDICT_REPONSE_TRONQUEE } from "../protocole/enveloppeOutil";
 import {
+  ETATS_INTERVENTION_M4,
+  ETATS_TERMINAUX_M4,
   construireArgumentsDemarrerRoute,
   estInterventionM4,
   interpreterResultatDemarrerRoute,
   interpreterResultatListerInterventions,
   interpreterResultatStatutIntervention,
 } from "./interventions";
+
+describe("les statuts d'une intervention (etats.py, ETATS)", () => {
+  test("neuf statuts, dans l'ordre du serveur, `a_planifier` en dernier (additif, PLAN T4.10-b)", () => {
+    expect(ETATS_INTERVENTION_M4).toEqual([
+      "planifiee",
+      "en_route",
+      "sur_site",
+      "en_revue",
+      "reportee",
+      "completed_pending_review",
+      "completed_verified",
+      "annulee",
+      "a_planifier",
+    ]);
+    expect(new Set(ETATS_INTERVENTION_M4).size).toBe(ETATS_INTERVENTION_M4.length);
+  });
+
+  test("une intervention à planifier est une intervention lisible ; elle n'est pas un état terminal", () => {
+    expect(estInterventionM4({ intervention_id: "I1", statut: "a_planifier", lead_id: "L1", service: "gouttieres", devis_id: "D1" })).toBe(true);
+    expect(ETATS_TERMINAUX_M4).not.toContain("a_planifier");
+  });
+});
 
 describe("estInterventionM4 : nature des travaux selon la version du lead (PLAN T0.13-b)", () => {
   const base = { intervention_id: "I1", statut: "planifiee", lead_id: "L1", devis_id: null };
@@ -70,18 +95,13 @@ describe("interpreterResultatListerInterventions", () => {
     }
   });
 
-  test("resultat qui n'est pas un tableau -> liste vide, jamais un plantage", () => {
-    const resultat = interpreterResultatListerInterventions({ ok: true, resultat: null });
-    expect(resultat).toEqual({ ok: true, interventions: [] });
-  });
-
-  test("échec technique (ok:false, ex. statut hors énuméré) -> verdict, jamais une liste inventée", () => {
+  test("échec technique (ok:false, ex. statut hors énuméré) -> un refus, son verdict, jamais une liste inventée", () => {
     const resultat = interpreterResultatListerInterventions({
       ok: false,
       erreur: "refus_metier",
       details: "statut inconnu",
     });
-    expect(resultat).toEqual({ ok: false, verdict: { code: "refus_metier", detail: "statut inconnu" } });
+    expect(resultat).toEqual({ ok: false, genre: "refus", verdict: { code: "refus_metier", detail: "statut inconnu" } });
   });
 
   test("details sous forme de tableau (arguments_invalides) sont joints en une chaîne lisible", () => {
@@ -92,13 +112,59 @@ describe("interpreterResultatListerInterventions", () => {
     });
     expect(resultat).toEqual({
       ok: false,
+      genre: "refus",
       verdict: { code: "arguments_invalides", detail: "champ manquant : statut; type invalide" },
     });
   });
 
-  test("entrée totalement inattendue (pas un objet) -> liste vide plutôt qu'un plantage", () => {
-    expect(interpreterResultatListerInterventions(undefined)).toEqual({ ok: true, interventions: [] });
-    expect(interpreterResultatListerInterventions("texte")).toEqual({ ok: true, interventions: [] });
+  test("l'état passager de l'instance (outil pas déployé, budget) est une panne, pas un refus : un cache peut servir", () => {
+    for (const code of ["outil_inconnu", "departement_appelant_inconnu", "budget_epuise"]) {
+      expect(interpreterResultatListerInterventions({ ok: false, erreur: code, details: "instance" })).toEqual({
+        ok: false,
+        genre: "technique",
+        verdict: { code, detail: "instance" },
+      });
+    }
+  });
+});
+
+describe("interpreterResultatListerInterventions : une réponse tronquée n'est ni une liste vide ni une liste complète (PLAN T1.4-n)", () => {
+  // La forme exacte de `Capacites._tronquer` : `ok` de la réponse, `tronque`, un aperçu — et PAS de `resultat`.
+  const TRONQUEE = { ok: true, tronque: true, apercu: '[{"intervention_id": "b933c5c55afdb2c1e903895188cb89e6ee59439a045e27b83f9201a81c4438f6", "statut"' };
+
+  test("la réponse coupée par le socle : un échec `tronquee`, jamais `interventions: []`", () => {
+    const resultat = interpreterResultatListerInterventions(TRONQUEE);
+    expect(resultat).toEqual({ ok: false, genre: "tronquee", verdict: VERDICT_REPONSE_TRONQUEE });
+    expect(resultat).not.toHaveProperty("interventions");
+  });
+
+  test("l'aperçu n'est JAMAIS lu comme la liste, même s'il ressemble à une liste bien formée", () => {
+    const apercuBienForme = { ok: true, tronque: true, apercu: JSON.stringify([{ intervention_id: "I1" }]), resultat: [{ intervention_id: "I1", statut: "planifiee", lead_id: "L1", type_travaux: "x", devis_id: null }] };
+    expect(interpreterResultatListerInterventions(apercuBienForme)).toMatchObject({ ok: false, genre: "tronquee" });
+  });
+
+  test("`tronque` faux ou absent : la liste se lit normalement", () => {
+    const liste = [{ intervention_id: "I1", statut: "planifiee", lead_id: "L1", type_travaux: "x", devis_id: null }];
+    expect(interpreterResultatListerInterventions({ ok: true, tronque: false, resultat: liste })).toEqual({ ok: true, interventions: liste });
+  });
+
+  test.each([
+    ["un résultat nul", { ok: true, resultat: null }],
+    ["un résultat absent", { ok: true }],
+    ["un résultat qui est un objet", { ok: true, resultat: { intervention_id: "I1" } }],
+    ["un résultat qui est un texte", { ok: true, resultat: "aucune" }],
+    ["une enveloppe sans `ok`", { resultat: [] }],
+    ["une enveloppe dont `ok` n'est pas un booléen", { ok: "oui", resultat: [] }],
+    ["une enveloppe qui est une liste", []],
+    ["une enveloppe nulle", null],
+    ["une enveloppe absente", undefined],
+    ["une enveloppe qui est un texte", "texte"],
+  ])("%s : forme inconnue, `illisible` — jamais « aucune intervention »", (_nom, brut) => {
+    expect(interpreterResultatListerInterventions(brut)).toEqual({ ok: false, genre: "illisible", verdict: VERDICT_REPONSE_ILLISIBLE });
+  });
+
+  test("une liste vraiment vide est une liste vide : le serveur dit qu'il n'y a rien", () => {
+    expect(interpreterResultatListerInterventions({ ok: true, resultat: [] })).toEqual({ ok: true, interventions: [] });
   });
 });
 
@@ -119,7 +185,7 @@ describe("interpreterResultatStatutIntervention", () => {
     expect(resultat).toEqual({ ok: true, intervention_id: "I-inconnue", statut: null });
   });
 
-  test("échec technique -> verdict", () => {
+  test("échec technique -> un refus, avec son verdict", () => {
     const resultat = interpreterResultatStatutIntervention({
       ok: false,
       erreur: "arguments_invalides",
@@ -127,7 +193,18 @@ describe("interpreterResultatStatutIntervention", () => {
     });
     expect(resultat).toEqual({
       ok: false,
+      genre: "refus",
       verdict: { code: "arguments_invalides", detail: "intervention_id manquant" },
+    });
+  });
+
+  test("l'identité que la base ne confirme plus est un refus ; l'état passager de l'instance est une panne", () => {
+    expect(
+      interpreterResultatStatutIntervention({ ok: false, erreur: "refus_metier", details: "REJ-IDENTITE-APPAREIL-INVALIDE : rôle retiré" }),
+    ).toMatchObject({ ok: false, genre: "refus" });
+    expect(interpreterResultatStatutIntervention({ ok: false, erreur: "budget_epuise", details: "trop" })).toMatchObject({
+      ok: false,
+      genre: "technique",
     });
   });
 });

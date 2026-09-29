@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 
-import type { InterventionM4 } from "@/m4/interventions";
+import { vueChantiers } from "@/ecrans/today";
 import type { ResultatChargementChantiers } from "@/today/orchestrateur";
 import { chargerChantiersAujourdhui } from "@/today/service";
 
@@ -14,6 +14,10 @@ import { chargerChantiersAujourdhui } from "@/today/service";
  * `m4_lister_interventions` ne renvoie ni date ni technicien assigné — « chantiers du jour » est
  * donc un PROXY assumé (statuts actifs, `src/today/selection.ts`), documenté là et dans
  * MOBILE.md, pas une vraie cédule datée.
+ *
+ * Ce que l'écran dit d'une lecture (PLAN T1.4-n, `src/ecrans/today.ts`) : la liste gardée est marquée comme telle ; une
+ * liste que le socle a coupée est dite INCOMPLÈTE ; un refus du serveur (jeton révoqué, personne désactivée, rôle
+ * retiré) est dit, sans jamais montrer la liste gardée ; « aucun chantier » n'est dit que si une lecture le dit.
  *
  * Écran non testé en rendu (`@testing-library/react-native` absent de la pile, même limite que
  * `punch.tsx`/l'écran d'appairage) : toute la logique sous-jacente (sélection, cache, décision
@@ -41,7 +45,7 @@ export default function EcranChantiersAujourdhui() {
     void charger();
   }, [charger]);
 
-  const items: readonly InterventionM4[] = resultat && resultat.source !== "aucune" ? resultat.items : [];
+  const vue = vueChantiers(resultat, premierChargementFait);
 
   return (
     <View style={styles.conteneur}>
@@ -52,17 +56,27 @@ export default function EcranChantiersAujourdhui() {
         </Pressable>
       </View>
 
-      {resultat?.source === "cache" ? (
-        <Text style={styles.avis}>{t("today.source.cache", { heure: formaterHeureAffichage(resultat.misAJourLe) })}</Text>
+      {vue.avis?.genre === "cache" ? (
+        <Text style={styles.avis}>{t("today.source.cache", { heure: formaterHeureAffichage(vue.avis.misAJourLe) })}</Text>
       ) : null}
-      {resultat?.source === "aucune" ? <Text style={styles.avis}>{t("today.source.aucune")}</Text> : null}
+      {vue.avis?.genre === "aucune" ? <Text style={styles.avis}>{t("today.source.aucune")}</Text> : null}
+      {vue.avis?.genre === "refus" ? (
+        <Text style={styles.erreur}>
+          {t("today.source.refus", { code: vue.avis.verdict.code, detail: vue.avis.verdict.detail })}
+        </Text>
+      ) : null}
+      {vue.avis?.genre === "incomplet" ? (
+        <Text style={styles.erreur}>
+          {t("today.source.incomplet", { statuts: vue.avis.statuts.map((statut) => t(`today.statut.${statut}`)).join(", ") })}
+        </Text>
+      ) : null}
 
       {chargement && !premierChargementFait ? <ActivityIndicator /> : null}
 
-      {premierChargementFait && items.length === 0 ? <Text style={styles.vide}>{t("today.aucunChantier")}</Text> : null}
+      {vue.aucunChantier ? <Text style={styles.vide}>{t("today.aucunChantier")}</Text> : null}
 
       <FlatList
-        data={items}
+        data={vue.items}
         keyExtractor={(item) => item.intervention_id}
         renderItem={({ item }) => (
           <Pressable
@@ -91,6 +105,7 @@ const styles = StyleSheet.create({
   titre: { fontSize: 20, fontWeight: "600" },
   rafraichir: { color: "#1c6f5c", fontWeight: "600" },
   avis: { color: "#666", fontSize: 13 },
+  erreur: { color: "#b00020", fontSize: 13 },
   vide: { color: "#666", marginTop: 16, textAlign: "center" },
   ligne: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#eee" },
   ligneTitre: { fontSize: 16, fontWeight: "600" },

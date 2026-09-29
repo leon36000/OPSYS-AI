@@ -110,6 +110,8 @@ export interface RessourcesCommunes {
     source: {
       cache: string;
       aucune: string;
+      refus: string;
+      incomplet: string;
     };
     statut: {
       planifiee: string;
@@ -120,6 +122,7 @@ export interface RessourcesCommunes {
       completed_pending_review: string;
       completed_verified: string;
       annulee: string;
+      a_planifier: string;
     };
   };
   job: {
@@ -129,6 +132,7 @@ export interface RessourcesCommunes {
     source: {
       cache: string;
       aucune: string;
+      refus: string;
     };
     boutons: {
       enRoute: string;
@@ -585,6 +589,10 @@ const frCA: RessourcesCommunes = {
     source: {
       cache: "Hors ligne — dernières données reçues à {{heure}}",
       aucune: "Aucune donnée locale disponible hors ligne.",
+      refus: "Le serveur refuse cette lecture ({{code}}) : {{detail}} Aucune liste gardée n'est montrée à sa place.",
+      incomplet:
+        "Liste incomplète : le serveur n'a pas pu donner en entier les chantiers suivants : {{statuts}}. Les chantiers " +
+        "montrés ne sont peut-être pas tous vos chantiers.",
     },
     statut: {
       planifiee: "Planifié",
@@ -595,6 +603,7 @@ const frCA: RessourcesCommunes = {
       completed_pending_review: "Terminé — en revue",
       completed_verified: "Terminé — vérifié",
       annulee: "Annulée",
+      a_planifier: "À planifier",
     },
   },
   job: {
@@ -604,6 +613,7 @@ const frCA: RessourcesCommunes = {
     source: {
       cache: "Hors ligne — dernier statut connu",
       aucune: "Aucun statut connu localement.",
+      refus: "Le serveur refuse cette lecture ({{code}}) : {{detail}} Aucun statut gardé n'est montré à sa place.",
     },
     boutons: {
       enRoute: "En route",

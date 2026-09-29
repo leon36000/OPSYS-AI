@@ -123,6 +123,10 @@ const enCA: RessourcesCommunes = {
     source: {
       cache: "Offline — last data received at {{heure}}",
       aucune: "No local data available offline.",
+      refus: "The server refuses this read ({{code}}): {{detail}} No saved list is shown in its place.",
+      incomplet:
+        "Incomplete list: the server could not give the following jobs in full: {{statuts}}. The jobs shown may not " +
+        "be all of your jobs.",
     },
     statut: {
       planifiee: "Scheduled",
@@ -133,6 +137,7 @@ const enCA: RessourcesCommunes = {
       completed_pending_review: "Completed — under review",
       completed_verified: "Completed — verified",
       annulee: "Cancelled",
+      a_planifier: "To schedule",
     },
   },
   job: {
@@ -142,6 +147,7 @@ const enCA: RessourcesCommunes = {
     source: {
       cache: "Offline — last known status",
       aucune: "No status known locally.",
+      refus: "The server refuses this read ({{code}}): {{detail}} No saved status is shown in its place.",
     },
     boutons: {
       enRoute: "On my way",

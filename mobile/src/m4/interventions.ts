@@ -24,6 +24,10 @@
  *    `{"accepte": true, "resultat": AccuseTransitionM4} | {"accepte": false, "verdict": VerdictServeurM4}`
  *    — même patron que `m4_pointer` (`src/m4/pointage.ts`, `interpreterResultatPointage`).
  *
+ * Depuis PLAN T1.4-n, une réponse que le socle a TRONQUÉE (au-delà de 6 000 caractères : `{ok: true, tronque: true,
+ * apercu}`, sans `resultat`) n'est ni une liste vide ni une liste complète : c'est un échec qui le dit, et qui n'écrase
+ * jamais le cache. Une forme inconnue non plus n'est pas « aucune intervention ».
+ *
  * `VerdictServeurM4`/les petits utilitaires de lecture défensive (`estObjet`/`texteOu`) sont
  * délibérément RÉÉCRITS ici plutôt qu'importés de `src/m4/pointage.ts` : ce dernier est déjà
  * testé et utilisé en production par `punch.tsx` (T1.4-d) — le risque de régression d'un
@@ -31,7 +35,11 @@
  * tokens, mais jamais au prix de casser un écran qui fonctionne déjà).
  */
 
-/** `etats.py`, `ETATS` — catalogue fermé, jamais une valeur inventée côté mobile. */
+import { ERREURS_PASSAGERES, VERDICT_REPONSE_ILLISIBLE, VERDICT_REPONSE_TRONQUEE } from "../protocole/enveloppeOutil";
+
+/** `etats.py`, `ETATS` — catalogue fermé, jamais une valeur inventée côté mobile. `a_planifier` (PLAN T4.10-b) est
+ * l'état d'une intervention née d'un devis accepté, avant sa cédule : le serveur ne la montre à aucun employé (elle n'est
+ * à personne), mais l'app connaît le mot, comme l'admin. */
 export type StatutInterventionM4 =
   | "planifiee"
   | "en_route"
@@ -40,8 +48,10 @@ export type StatutInterventionM4 =
   | "reportee"
   | "completed_pending_review"
   | "completed_verified"
-  | "annulee";
+  | "annulee"
+  | "a_planifier";
 
+/** Dans l'ordre de `etats.ETATS` : épinglé au serveur par `tests/e2e/test_admin_appareil.py`. */
 export const ETATS_INTERVENTION_M4: readonly StatutInterventionM4[] = [
   "planifiee",
   "en_route",
@@ -51,6 +61,7 @@ export const ETATS_INTERVENTION_M4: readonly StatutInterventionM4[] = [
   "completed_pending_review",
   "completed_verified",
   "annulee",
+  "a_planifier",
 ];
 
 /** `etats.py`, `ETATS_TERMINAUX` — aucune transition ni pointage n'est légal depuis un de ces
@@ -97,6 +108,11 @@ function estObjet(valeur: unknown): valeur is Record<string, unknown> {
   return typeof valeur === "object" && valeur !== null;
 }
 
+/** Un objet, jamais une liste : une enveloppe qui serait un tableau n'est pas celle du socle. */
+function estObjetStrict(valeur: unknown): valeur is Record<string, unknown> {
+  return estObjet(valeur) && !Array.isArray(valeur);
+}
+
 function texteOu(valeur: unknown, repli: string): string {
   return typeof valeur === "string" ? valeur : repli;
 }
@@ -113,23 +129,45 @@ function verdictDepuisErreurTechnique(enveloppe: Record<string, unknown>): Verdi
   };
 }
 
+/**
+ * Ce que l'app lit d'une liste d'interventions (`m4_lister_interventions`) : la liste, ou POURQUOI elle n'a pas pu
+ * être lue. Quatre genres d'échec, que l'appelant ne confond jamais (c'est ce qui décide si un cache peut servir, et si
+ * une lecture peut l'écraser) :
+ *  - `refus` : le serveur a répondu non à la requête (`ok: false` qui n'est pas une panne passagère : identité que la
+ *    base ne confirme plus, rôle retiré, statut refusé). Aucun cache ne le remplace ;
+ *  - `technique` : panne passagère de l'instance (`ERREURS_PASSAGERES`) : un cache, marqué comme tel, peut servir ;
+ *  - `tronquee` : le socle a coupé la réponse (6 000 caractères) : la liste n'est PAS là, ni vide ni complète. Jamais
+ *    écrite au cache ; l'écran dit que la liste est incomplète ;
+ *  - `illisible` : la réponse n'a pas la forme d'une liste : jamais « aucune intervention ».
+ */
 export type ResultatListerInterventions =
   | { readonly ok: true; readonly interventions: readonly InterventionM4[] }
-  | { readonly ok: false; readonly verdict: VerdictServeurM4 };
+  | {
+      readonly ok: false;
+      readonly genre: "refus" | "technique" | "tronquee" | "illisible";
+      readonly verdict: VerdictServeurM4;
+    };
 
-/** Lecture défensive (même esprit que `interpreterResultatPointage`) : une forme non reconnue
- * (ex. `resultat` n'est pas un tableau) est traitée comme une liste VIDE plutôt qu'un blocage —
- * `today.tsx` retombe alors sur son cache local (R12 §4), jamais un écran cassé. */
+/**
+ * Lecture défensive : une entrée mal formée est écartée plutôt que de bloquer l'écran. Mais une réponse dont la FORME
+ * n'est pas celle d'une liste, ou que le socle a tronquée, n'est jamais lue comme une liste vide : c'est ce qui écrivait
+ * un cache vide par-dessus la vraie liste (PLAN T1.4-n).
+ */
 export function interpreterResultatListerInterventions(resultatBrut: unknown): ResultatListerInterventions {
-  const enveloppe = estObjet(resultatBrut) ? resultatBrut : {};
-  if (enveloppe.ok === false) {
-    return { ok: false, verdict: verdictDepuisErreurTechnique(enveloppe) };
+  if (!estObjetStrict(resultatBrut)) {
+    return { ok: false, genre: "illisible", verdict: VERDICT_REPONSE_ILLISIBLE };
   }
-  const resultat = enveloppe.resultat;
-  if (!Array.isArray(resultat)) {
-    return { ok: true, interventions: [] };
+  if (resultatBrut.ok === false) {
+    const verdict = verdictDepuisErreurTechnique(resultatBrut);
+    return { ok: false, genre: ERREURS_PASSAGERES.includes(verdict.code) ? "technique" : "refus", verdict };
   }
-  return { ok: true, interventions: resultat.filter(estInterventionM4) };
+  if (resultatBrut.tronque === true) {
+    return { ok: false, genre: "tronquee", verdict: VERDICT_REPONSE_TRONQUEE };
+  }
+  if (resultatBrut.ok !== true || !Array.isArray(resultatBrut.resultat)) {
+    return { ok: false, genre: "illisible", verdict: VERDICT_REPONSE_ILLISIBLE };
+  }
+  return { ok: true, interventions: resultatBrut.resultat.filter(estInterventionM4) };
 }
 
 /** Garde de type exportée pour être réutilisée par `src/today/cache.ts` (validation du cache
@@ -149,7 +187,9 @@ export function estInterventionM4(valeur: unknown): valeur is InterventionM4 {
 
 export type ResultatStatutIntervention =
   | { readonly ok: true; readonly intervention_id: string; readonly statut: StatutInterventionM4 | null }
-  | { readonly ok: false; readonly verdict: VerdictServeurM4 };
+  /** `refus` : le serveur dit non à la requête (aucun cache ne le remplace) ; `technique` : panne passagère de
+   * l'instance (un cache, marqué, peut servir). */
+  | { readonly ok: false; readonly genre: "refus" | "technique"; readonly verdict: VerdictServeurM4 };
 
 /** `m4_statut_intervention` : `statut: null` (intervention inconnue) N'EST PAS une erreur — le
  * distinguer d'un échec technique est la seule raison d'être de cette fonction plutôt qu'une
@@ -157,7 +197,8 @@ export type ResultatStatutIntervention =
 export function interpreterResultatStatutIntervention(resultatBrut: unknown): ResultatStatutIntervention {
   const enveloppe = estObjet(resultatBrut) ? resultatBrut : {};
   if (enveloppe.ok === false) {
-    return { ok: false, verdict: verdictDepuisErreurTechnique(enveloppe) };
+    const verdict = verdictDepuisErreurTechnique(enveloppe);
+    return { ok: false, genre: ERREURS_PASSAGERES.includes(verdict.code) ? "technique" : "refus", verdict };
   }
   const resultat = estObjet(enveloppe.resultat) ? enveloppe.resultat : {};
   const interventionId = texteOu(resultat.intervention_id, "");

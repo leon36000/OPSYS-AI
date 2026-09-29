@@ -88,9 +88,9 @@ describe("les noms, les catalogues et les arguments", () => {
     }
   });
 
-  test("les statuts du dispatch sont des statuts connus de l'app pour l'employé, sauf `a_planifier`, que seul le dispatch connaît", () => {
+  test("les statuts du dispatch sont tous des statuts connus de l'app pour l'employé, `a_planifier` compris (PLAN T1.4-n)", () => {
     const inconnus = STATUTS_DU_DISPATCH.filter((s) => !(ETATS_INTERVENTION_M4 as readonly string[]).includes(s));
-    expect(inconnus).toEqual(["a_planifier"]);
+    expect(inconnus).toEqual([]);
   });
 });
 

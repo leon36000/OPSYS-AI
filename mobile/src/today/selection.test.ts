@@ -19,6 +19,10 @@ describe("filtrerChantiersActifs", () => {
     expect(filtrerChantiersActifs([intervention("I1", "reportee")])).toEqual([]);
   });
 
+  test("exclut a_planifier : née d'un devis accepté, pas encore cédulée, elle n'est à personne (le serveur ne la donne pas à l'employé)", () => {
+    expect(filtrerChantiersActifs([intervention("I1", "a_planifier")])).toEqual([]);
+  });
+
   test("retient exactement les quatre statuts actifs documentés", () => {
     expect(ETATS_ACTIFS_AUJOURDHUI).toEqual(["en_route", "sur_site", "en_revue", "planifiee"]);
   });

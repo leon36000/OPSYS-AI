@@ -36,6 +36,8 @@ const PRIORITE_AFFICHAGE: Readonly<Record<StatutInterventionM4, number>> = {
   completed_pending_review: 5,
   completed_verified: 6,
   annulee: 7,
+  // Jamais montrée (hors de `ETATS_ACTIFS_AUJOURDHUI`) : le serveur ne la donne à aucun employé, elle n'est à personne.
+  a_planifier: 8,
 };
 
 export function filtrerChantiersActifs(interventions: readonly InterventionM4[]): InterventionM4[] {
