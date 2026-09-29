@@ -346,12 +346,12 @@ def simuler_quantiles(bareme, type_travaux, quantite, graine, probabilites, serv
     # --- Probabilités ----------------------------------------------------
     # Empêche : une liste vide (aucune réponse, présentée comme un succès), une probabilité à 0 ou à 1 (le minimum
     # ou le maximum du barème présenté comme un quantile), hors de ]0, 1[, NaN, booléenne ou entière (même règle
-    # que le niveau de l'intervalle : un entier ne se confond pas avec un flottant), et un scalaire ou un texte
+    # que le niveau de l'intervalle : ni un booléen ni un entier n'est un flottant), et un scalaire ou un texte
     # pris pour une liste de probabilités.
     if (
         not isinstance(probabilites, (list, tuple))
         or not probabilites
-        or any(isinstance(p, bool) or not isinstance(p, float) or not 0.0 < p < 1.0 for p in probabilites)
+        or any(not isinstance(p, float) or not 0.0 < p < 1.0 for p in probabilites)
     ):
         return None, verdicts.construire_verdict(
             "REJ-CONTRAT-INVALIDE",

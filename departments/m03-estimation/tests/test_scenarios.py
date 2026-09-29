@@ -187,6 +187,24 @@ def test_un_poste_absent_du_bareme_est_un_verdict():
     assert "gouttieres" in verdict["detail"]
 
 
+def test_le_mode_dit_est_arrondi_au_cent_sur_sa_representation_decimale_pas_binaire():
+    """2,675 se code 2,67499999... en binaire : lu par son codage, le mode donnerait 2,67. M3 lit ce qui est écrit."""
+    bareme = _bareme(cout_unitaire_min=1.0, cout_unitaire_max=5.0, cout_unitaire_mode=2.675)
+    (loi,) = _distribution(bareme, quantite=10)["postes"]
+    assert loi["mode"] == Decimal("2.68")
+
+
+def test_un_poste_refuse_n_est_jamais_simule(monkeypatch):
+    """Le poste est lu AVANT tout tirage : un refus ne coûte pas dix mille tirages, et n'en laisse aucun partir."""
+    def _interdit(*args, **kwargs):
+        raise AssertionError("aucun tirage ne doit partir pour un poste refusé")
+
+    monkeypatch.setattr(scenarios.monte_carlo, "simuler_quantiles", _interdit)
+    distribution, verdict = scenarios.distribution_du_cout(_bareme(), "gouttieres", 1200, 42, services=("gouttieres",))
+    assert distribution is None
+    assert "gouttieres" in verdict["detail"]
+
+
 # ====================================================================================== facteurs dominants
 def _facteurs(quantites, bareme=None, services=SERVICES_A_TROIS_POSTES):
     facteurs, verdict = scenarios.facteurs_dominants(bareme or BAREME_A_TROIS_POSTES, quantites, services=services)
@@ -274,6 +292,18 @@ def test_a_egalite_le_nom_du_poste_departage_et_les_rangs_restent_distincts():
     assert [f["part_variance"] for f in facteurs] == [Decimal("0.5000"), Decimal("0.5000")]
 
 
+def test_a_egalite_le_nom_departage_dans_l_ordre_alphabetique_pas_selon_sa_longueur():
+    """Deux postes indiscernables : « fascia » (le plus court) précède « toiture_complete » parce qu'il vient avant
+    dans l'alphabet, non parce qu'il est plus court ou plus long."""
+    bareme = {
+        "version": "fictif", "unite": "u",
+        "postes": {"toiture_complete": {"cout_unitaire_min": 1.0, "cout_unitaire_max": 3.0},
+                   "fascia": {"cout_unitaire_min": 1.0, "cout_unitaire_max": 3.0}},
+    }
+    facteurs = _facteurs({"toiture_complete": 5, "fascia": 5}, bareme, services=("toiture_complete", "fascia"))
+    assert [f["poste"] for f in facteurs] == ["fascia", "toiture_complete"]
+
+
 def test_l_ordre_des_quantites_fournies_ne_change_rien():
     a = _facteurs({"gouttieres": 100, "revetement": 50, "soffite_fascia": 10})
     b = _facteurs({"soffite_fascia": 10, "revetement": 50, "gouttieres": 100})
@@ -299,8 +329,10 @@ def test_les_cles_d_un_facteur_dominant_sont_fermees():
 @pytest.mark.parametrize(
     "quantites",
     [None, {}, [("revetement", 1)], {"revetement": 0}, {"revetement": -3}, {"revetement": True},
-     {"revetement": "50"}, {"revetement": float("nan")}, {"inconnu": 5}, {"revetement": 50, "inconnu": 5}],
-    ids=["none", "vide", "liste", "zero", "negative", "booleenne", "texte", "nan", "poste_absent", "un_poste_absent"],
+     {"revetement": "50"}, {"revetement": float("nan")}, {"revetement": float("inf")}, {"inconnu": 5},
+     {"revetement": 50, "inconnu": 5}],
+    ids=["none", "vide", "liste", "zero", "negative", "booleenne", "texte", "nan", "infinie", "poste_absent",
+         "un_poste_absent"],
 )
 def test_des_quantites_inutilisables_sont_un_verdict(quantites):
     facteurs, verdict = scenarios.facteurs_dominants(
@@ -427,6 +459,29 @@ def test_un_taux_d_appel_fourni_de_travers_ne_donne_jamais_de_prix(taux):
     assert "normal" in entree["verdict"]["detail"] and "appel" in entree["verdict"]["detail"]
 
 
+@pytest.mark.parametrize(
+    "taux", ["abc", "", " ", "0,30", "NaN", "Infinity", 0.3, 1, True, ["0.3"], {"taux": "0.3"}],
+    ids=["texte", "vide", "espace", "virgule", "nan", "infini", "flottant_json", "entier", "booleen", "liste", "objet"],
+)
+def test_le_verdict_d_un_taux_invalide_dit_pourquoi_avec_les_mots_du_devis(taux):
+    """La raison est celle de `devis_durable.texte_vers_taux_marge` (même validation que `taux_marge`), pas un
+    « invalide » muet : le propriétaire sait quoi corriger."""
+    taux_lu, refus = devis_durable.texte_vers_taux_marge(taux)
+    assert taux_lu is None
+    entree = _par_nom(_scenarios(taux_appel={"normal": taux}))["normal"]
+    assert refus["detail"] in entree["verdict"]["detail"]
+
+
+@pytest.mark.parametrize("taux", ["-0.05", "-0.5"])
+def test_un_taux_negatif_valide_pour_un_devis_est_refuse_ici_en_disant_pourquoi(taux):
+    """Entre -1 et 0, `taux_marge` d'un devis l'accepte ; un scénario, non : vendre sous le coût est une décision."""
+    entree = _par_nom(_scenarios(taux_appel={"prudent": taux}))["prudent"]
+    assert entree["prix"] is None
+    assert entree["verdict"]["code"] == "REJ-SCENARIOS-TAUX-INVALIDE"
+    assert f"négatif ({Decimal(taux)})" in entree["verdict"]["detail"]
+    assert "n'est pas un scénario" in entree["verdict"]["detail"]
+
+
 @pytest.mark.parametrize("taux", ["abc", -0.05, "-1", True, [0.3], float("nan")],
                          ids=["texte", "negatif", "moins_un", "booleen", "liste", "nan"])
 def test_un_taux_configure_de_travers_ne_donne_jamais_de_prix_et_nomme_la_configuration(taux):
@@ -540,6 +595,25 @@ def test_le_motif_est_exactement_celui_que_la_revue_n4_de_t4_7_montrera_pour_ce_
     assert entree["motifs"] == [m for m in revue["motifs"] if m["code"] == ROUGE]
 
 
+def test_la_revue_juge_un_devis_fictif_au_prix_et_au_taux_de_chaque_scenario(monkeypatch):
+    """Ce que T4.7 reçoit : l'identifiant du devis, le prix ET le taux du scénario, aucun contexte, les seuils tels
+    quels."""
+    reelle = revue_devis.evaluer_revue
+    appels = []
+
+    def _espion(devis, contexte, seuils):
+        appels.append((dict(devis), contexte, seuils))
+        return reelle(devis, contexte, seuils)
+
+    monkeypatch.setattr(revue_devis, "evaluer_revue", _espion)
+    seuils = {"minimum_rentable_cad": 1}
+    entrees = _par_nom(_scenarios(taux_appel=TAUX, seuils=seuils))
+    assert [devis for devis, _, _ in appels] == [
+        {"devis_id": DEVIS_ID, "prix_total": entrees[nom]["prix"], "taux_marge": entrees[nom]["taux_marge"]}
+        for nom in ("prudent", "normal", "agressif")]
+    assert all(contexte is None and vus == seuils for _, contexte, vus in appels)
+
+
 def test_le_seul_critere_juge_par_scenario_est_le_minimum_rentable():
     """Le montant maximal et la marge minimale se jugent sur le devis réel, à l'envoi (T4.7) : pas ici."""
     seuils = {"minimum_rentable_cad": 10**9, "montant_maximal_cad": 1, "marge_minimale": 0.99}
@@ -589,6 +663,22 @@ def test_l_alerte_de_la_section_est_vraie_des_qu_un_scenario_est_rouge_meme_si_u
     assert _par_nom(section)["agressif"]["alerte_rouge"] is True
     assert _par_nom(section)["prudent"]["alerte_rouge"] is None
     assert section["alerte_rouge"] is True
+
+
+def test_l_alerte_de_la_section_est_fausse_quand_tous_les_scenarios_chiffres_sont_juges_sans_alerte():
+    """Le scénario sans taux n'a aucun prix à juger : il dit ce qu'il faut déclarer, il ne rend pas la section
+    incertaine."""
+    section = _scenarios(taux_appel={"prudent": "0.40", "normal": "0.30"}, seuils={"minimum_rentable_cad": 1})
+    entrees = _par_nom(section)
+    assert entrees["prudent"]["alerte_rouge"] is False and entrees["normal"]["alerte_rouge"] is False
+    assert entrees["agressif"]["prix"] is None and entrees["agressif"]["alerte_rouge"] is None
+    assert section["alerte_rouge"] is False
+
+
+def test_l_alerte_de_la_section_reste_inconnue_si_un_scenario_chiffre_n_a_pas_pu_etre_juge():
+    section = _scenarios(taux_appel={"prudent": "0.40"}, seuils=None)
+    assert _par_nom(section)["prudent"]["prix"] is not None
+    assert section["alerte_rouge"] is None
 
 
 # ===================================================================================== forme de la sortie
@@ -663,6 +753,17 @@ def test_evaluer_refuse_ce_que_le_monte_carlo_refuse(bareme, quantite, graine):
     resultat, verdict = scenarios.evaluer(bareme, SERVICE, quantite, graine, DEVIS_ID, services=(SERVICE,))
     assert resultat is None
     assert verdict["code"] == "REJ-CONTRAT-INVALIDE"
+
+
+@pytest.mark.parametrize("etape", ["distribution_du_cout", "facteurs_dominants", "scenarios_de_prix"])
+def test_evaluer_relaie_le_refus_de_chacune_de_ses_etapes_sans_rien_rendre_d_autre(monkeypatch, etape):
+    """Fail-closed : une étape qui refuse ne laisse jamais une clé sœur à `None` dans une réponse qui a l'air
+    complète."""
+    refus = verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", f"refus fictif de {etape}")
+    monkeypatch.setattr(scenarios, etape, lambda *args, **kwargs: (None, refus))
+    resultat, verdict = scenarios.evaluer(_bareme(), SERVICE, 1200, 42, DEVIS_ID, services=(SERVICE,))
+    assert resultat is None
+    assert verdict == refus
 
 
 def test_un_refus_de_taux_mal_forme_remonte_par_evaluer():

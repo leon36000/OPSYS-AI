@@ -249,14 +249,14 @@ def _lire_taux(brut: Any, tolere_un_nombre: bool) -> tuple[Decimal | None, str |
     return taux, None
 
 
-def _declarer(nom: str, brut: Any, source: str) -> tuple[Decimal | None, dict | None]:
-    """``(taux, None)`` ou ``(None, verdict)`` pour UN taux déclaré par ``source``."""
+def _declarer(nom: str, brut: Any, source: str) -> tuple[Decimal | None, str | None, dict | None]:
+    """``(taux, source, None)`` ou ``(None, None, verdict)`` pour UN taux déclaré par ``source``."""
     taux, probleme = _lire_taux(brut, tolere_un_nombre=source == _SOURCE_CONFIGURATION)
     if probleme is not None:
-        return None, verdicts.construire_verdict(
+        return None, None, verdicts.construire_verdict(
             "REJ-SCENARIOS-TAUX-INVALIDE", f"scénario « {nom} » ({source}) : {probleme}"
         )
-    return taux, None
+    return taux, source, None
 
 
 def _resoudre_taux(
@@ -268,16 +268,14 @@ def _resoudre_taux(
     dite, scénario par scénario, sans empêcher l'estimation ni les scénarios que l'appel a déclarés."""
     brut = None if taux_appel is None else taux_appel.get(nom)
     if brut is not None:
-        taux, verdict = _declarer(nom, brut, _SOURCE_APPEL)
-        return taux, (_SOURCE_APPEL if verdict is None else None), verdict
+        return _declarer(nom, brut, _SOURCE_APPEL)
     if probleme_configuration is not None:
         return None, None, verdicts.construire_verdict(
             "REJ-SCENARIOS-TAUX-INVALIDE", f"scénario « {nom} » ({_SOURCE_CONFIGURATION}) : {probleme_configuration}"
         )
     brut = None if taux_configures is None else taux_configures.get(nom)
     if brut is not None:
-        taux, verdict = _declarer(nom, brut, _SOURCE_CONFIGURATION)
-        return taux, (_SOURCE_CONFIGURATION if verdict is None else None), verdict
+        return _declarer(nom, brut, _SOURCE_CONFIGURATION)
     return None, None, verdicts.construire_verdict(
         "REJ-SCENARIOS-TAUX-ABSENT",
         f"taux de marge non déclaré : {_ARGUMENT_TAUX}.{nom} ou department.yaml {_CLE_TAUX_CONFIGURATION}.{nom}",

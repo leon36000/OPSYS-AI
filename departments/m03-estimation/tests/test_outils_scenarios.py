@@ -175,6 +175,18 @@ def test_un_manifeste_illisible_donne_le_marqueur_d_illisibilite_aux_deux_lectur
     assert outils_m3._taux_scenarios_configures() == outils_m3._CONFIGURATION_ILLISIBLE
 
 
+@pytest.mark.parametrize(
+    "configuration", [["revue_devis"], "texte", 12, "illisible", None],
+    ids=["liste", "texte", "nombre", "mot_du_marqueur", "nulle"],
+)
+def test_une_configuration_qui_n_est_pas_un_objet_ne_donne_ni_seuils_ni_taux(tmp_path, monkeypatch, configuration):
+    """Ni plantage, ni marqueur d'illisibilité : le mot « illisible » écrit dans le fichier reste une valeur du fichier,
+    pas le signe que le manifeste n'a pas pu être lu."""
+    _manifeste_jetable(tmp_path, monkeypatch, configuration)
+    assert outils_m3._taux_scenarios_configures() is None
+    assert outils_m3._seuils_revue() is None
+
+
 def test_la_lecture_des_seuils_de_la_revue_est_celle_de_t4_7_apres_le_partage_de_la_lecture(tmp_path, monkeypatch):
     assert outils_m3._seuils_revue() == {
         "confiance_minimale": None, "montant_maximal_cad": None, "marge_minimale": None,

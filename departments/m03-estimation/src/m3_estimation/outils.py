@@ -753,8 +753,9 @@ _CONTEXTE_REVUE = {
 
 def _configuration_du_manifeste() -> Any:
     """`configuration` de `department.yaml`, telle quelle : un objet, `None` (absente ou d'une autre forme), ou
-    `_CONFIGURATION_ILLISIBLE` (manifeste illisible). Lue à chaque appel, jamais mise en cache : le propriétaire peut
-    l'éditer, et les tests la remplacent par un manifeste jetable (`_MANIFESTE`)."""
+    `_CONFIGURATION_ILLISIBLE` (manifeste illisible). Une `configuration` qui n'est pas un objet vaut `None` : le
+    marqueur (un texte) ne se confond jamais avec une valeur du fichier. Lue à chaque appel, jamais mise en cache :
+    le propriétaire peut l'éditer, et les tests la remplacent par un manifeste jetable (`_MANIFESTE`)."""
     try:
         donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8")) or {}
     except (OSError, yaml.YAMLError):
@@ -770,9 +771,9 @@ def _seuils_revue() -> Any:
     « seuil invalide », jamais une valeur par défaut. Un manifeste illisible rend `_CONFIGURATION_ILLISIBLE`
     (que `revue_devis` refuse de lire comme des seuils) : la revue le dit, elle ne tombe pas."""
     configuration = _configuration_du_manifeste()
-    if configuration == _CONFIGURATION_ILLISIBLE:
-        return _CONFIGURATION_ILLISIBLE
-    return configuration.get("revue_devis") if isinstance(configuration, dict) else None
+    if configuration is None or configuration == _CONFIGURATION_ILLISIBLE:
+        return configuration
+    return configuration.get("revue_devis")
 
 
 def _taux_scenarios_configures() -> Any:
@@ -781,9 +782,9 @@ def _taux_scenarios_configures() -> Any:
     taux vide est un taux à déclarer (verdict `REJ-SCENARIOS-TAUX-ABSENT`), jamais une marge inventée. Un manifeste
     illisible rend `_CONFIGURATION_ILLISIBLE` (que `scenarios` refuse de lire comme des taux, scénario par scénario)."""
     configuration = _configuration_du_manifeste()
-    if configuration == _CONFIGURATION_ILLISIBLE:
-        return _CONFIGURATION_ILLISIBLE
-    scenarios_prix = configuration.get("scenarios_prix") if isinstance(configuration, dict) else None
+    if configuration is None or configuration == _CONFIGURATION_ILLISIBLE:
+        return configuration
+    scenarios_prix = configuration.get("scenarios_prix")
     return scenarios_prix.get("taux_marge") if isinstance(scenarios_prix, dict) else None
 
 
