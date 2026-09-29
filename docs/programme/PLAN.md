@@ -1469,7 +1469,7 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       `opsys verifier`.
       Dépend de : T4.4 (même `outils.py`). GATE NATHAN : qui reçoit chaque type de transfert ;
       ton du gabarit. T3 : l'envoi de la réponse est T2.1-c (N4).
-- [ ] T4.6 M2 : liste des leads par vendeur et 14 segments (M2.11 ; score M2.4 hors tâche).
+- [x] T4.6 M2 : liste des leads par vendeur et 14 segments (M2.11 ; score M2.4 hors tâche).
       Écart (§7 M2.11 ; audit M2 §1.3 « 0/14 », reste de T2.2 ; §9.4-9.5 « ses leads », « leads
       chauds ») : aucun outil ne liste les leads, donc ni écran vendeur ni pipeline pour l'admin.
       - `segments.py` pur : `segmenter(lead, faits, seuils)` rend les segments avec la règle citée.
@@ -1483,6 +1483,19 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       Preuve : pytest M2 avec cas négatifs et mutations ; E2E : le vendeur A ne voit pas le lead de
       B, pagination stable ; outil déclaré dans `ROLES.md` ; `opsys verifier`.
       Dépend de : T4.10-a (même `outils.py` de M2). GATE NATHAN : seuils ; poids du score M2.4.
+      Preuve (9b3c4e1) :
+      - `m2_lister_leads` (T0, `seller` et `admin`, employé refusé) : statut et segment en filtres,
+        sans montant ni contact ; le vendeur ne voit que ses leads (identité confirmée en base), un
+        lead d'un autre n'est ni listé, ni compté, ni cité ; paginé (mécanisme d'`attentes_decalage`,
+        borne mesurée) ; ordre par ingestion (instants UTC, puis `lead_id`) ;
+      - `segments.py` pur : huit segments calculés avec règle citée et donnée déclenchante ; les six
+        autres « non calculable, manque X » et un filtre sur eux refusé ; seuils vides : « seuil à
+        configurer » ; gel de `verdicts.py` rescellé (deux codes, addendum BMAD) ;
+      - E2E `tests/e2e/test_liste_leads_vendeur.py` (vendeur A ne voit rien de B, pages recollées) ;
+        M2 1169 (855 avant), M1 740, socle 1156 (49 sautés), gate BMAD M2, verifier 149 outils (73
+        déclarés) ; 55 mutations tuées sur 56 (une équivalente).
+      Limites : `quote_stale` attend `m3.devis_envoye` (T4.7) ; pagination par rang ; l'app ne
+      l'utilise pas encore (T4.8).
 - [ ] T4.7 M3 : revue et envoi de la soumission par approbation N4 (M3.14).
       Écart (§7 M3.14 ; audit M3 §1) : `marquer_devis_envoye` existe mais aucun outil ne l'expose.
       Un devis reste `brouillon`, aucun événement « devis envoyé », et la relance de M2 (T2.3-c)
@@ -1825,6 +1838,9 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
 - **Licence à relire (T2.3-f)** : la roue ReportLab embarque une police GPL-2+ avec exception de
   police (`DarkGarden.pfb`), ni utilisée ni modifiée (agrégation, INGREDIENTS.md) ; AGENTS.md
   demande une décision humaine pour tout ce qui touche la GPL.
+- **Segments de M2 (T4.6)** : seuils `jours_inactivite_dormant` et `jours_soumission_perimee` ;
+  définitions (`hot_lead` inclut `nouveau` et `qualifie`, `past_customer` = opportunité au statut
+  `avis`, `dormant_lead` ignore les interactions `system:*`).
 - **Lien automatique session → affaire (T2.1-b)** : aujourd'hui, un humain lie la session d'un
   client à son lead (`m10_lier_session_affaire`, N3). Faut-il qu'une règle écrite le fasse à la
   création du lead ? La clé de session contient le numéro du client : elle ne voyage jamais dans
