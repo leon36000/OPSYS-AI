@@ -7,6 +7,7 @@ import { chargerDemandesApprobation } from "@/approbations/service";
 import type { AccuseDecision, AttentesDepartements, DecisionApprobation, DemandeApprobation, ListeApprobations, VerdictServeurApprobation } from "@/approbations/contrat";
 import {
   accuseDepuisResume,
+  chargerSuiteAttentes,
   decisionsEnFile,
   creerMutationDecision,
   evaluerOffre,
@@ -16,7 +17,7 @@ import {
   MOTIF_LONGUEUR_MAX,
   vueAttentes,
 } from "@/ecrans/approvals";
-import type { DecisionEnFile, RaisonLectureSeule } from "@/ecrans/approvals";
+import type { DecisionEnFile, RaisonLectureSeule, RaisonRelecture } from "@/ecrans/approvals";
 import { demarrerDeclencheursVidange } from "@/outbox/declencheurs";
 import { genererMutationId } from "@/outbox/id";
 import { declencherVidange, obtenirDepot } from "@/outbox/service";
@@ -41,6 +42,14 @@ type EtatListe =
   | { readonly genre: "erreur"; readonly verdict: VerdictServeurApprobation }
   | { readonly genre: "pret"; readonly liste: ListeApprobations };
 
+/** La lecture de la suite des attentes (« Voir plus », PLAN T1.5-e). Le message d'un échec ou d'une relecture reste
+ * affiché jusqu'au prochain chargement de la liste. */
+type EtatSuiteAttentes =
+  | { readonly genre: "repos" }
+  | { readonly genre: "chargement" }
+  | { readonly genre: "echec"; readonly verdict: VerdictServeurApprobation }
+  | { readonly genre: "relue"; readonly raison: RaisonRelecture };
+
 type ResultatSession =
   | { readonly genre: "accuse"; readonly accuse: AccuseDecision }
   | { readonly genre: "echec"; readonly verdict: VerdictServeurApprobation }
@@ -55,11 +64,14 @@ export default function EcranApprobations() {
   const [resultats, setResultats] = useState<Readonly<Record<string, ResultatSession>>>({});
   const [enTraitement, setEnTraitement] = useState<string | null>(null);
   const [erreurAppareil, setErreurAppareil] = useState(false);
+  const [suite, setSuite] = useState<EtatSuiteAttentes>({ genre: "repos" });
 
   const charger = useCallback(async () => {
     const depot = await obtenirDepot();
     setEnFile(decisionsEnFile(await depot.lister()));
     const resultat = await chargerDemandesApprobation();
+    // Une liste rechargée repart de la première page d'attentes : le message de la suite n'a plus d'objet.
+    setSuite({ genre: "repos" });
     if (resultat === null) {
       setEtat({ genre: "sans_appairage" });
     } else if (resultat.source === "serveur") {
@@ -68,6 +80,33 @@ export default function EcranApprobations() {
       setEtat({ genre: "erreur", verdict: resultat.raison });
     }
   }, []);
+
+  // « Voir plus » : la page suivante des attentes, à la demande, sans cache. Toute la décision (recoller, relire,
+  // dire l'échec) est dans `chargerSuiteAttentes` ; ici, seulement l'état de l'écran.
+  const voirPlusAttentes = useCallback(
+    async (liste: ListeApprobations) => {
+      if (liste.attentes === null) {
+        return;
+      }
+      setSuite({ genre: "chargement" });
+      const issue = await chargerSuiteAttentes(liste.attentes, chargerDemandesApprobation);
+      if (issue.genre === "fusionnee") {
+        setEtat((courant) => (courant.genre === "pret" ? { genre: "pret", liste: { ...courant.liste, attentes: issue.attentes } } : courant));
+        setSuite({ genre: "repos" });
+      } else if (issue.genre === "a_relire") {
+        await charger();
+        setSuite({ genre: "relue", raison: issue.raison });
+      } else if (issue.genre === "echec") {
+        setSuite({ genre: "echec", verdict: issue.verdict });
+      } else if (issue.genre === "sans_appairage") {
+        setEtat({ genre: "sans_appairage" });
+        setSuite({ genre: "repos" });
+      } else {
+        setSuite({ genre: "repos" });
+      }
+    },
+    [charger],
+  );
 
   const rafraichir = useCallback(async () => {
     setEtat({ genre: "chargement" });
@@ -151,7 +190,12 @@ export default function EcranApprobations() {
       {etat.genre === "pret" ? (
         <>
           {!etat.liste.proprietaire ? <Text style={styles.avis}>{t("approvals.lectureSeuleProprietaire")}</Text> : null}
-          <SectionAttentes attentes={etat.liste.attentes} decalageMinutesUTC={decalageMinutesUTC} />
+          <SectionAttentes
+            attentes={etat.liste.attentes}
+            decalageMinutesUTC={decalageMinutesUTC}
+            suite={suite}
+            onVoirPlus={() => void voirPlusAttentes(etat.liste)}
+          />
           <Text style={styles.compte}>{t("approvals.enAttente", { total: etat.liste.totalEnAttente })}</Text>
           {etat.liste.demandes.length === 0 && etat.liste.illisibles === 0 ? (
             <Text style={styles.vide}>{t("approvals.aucuneDemande")}</Text>
@@ -187,12 +231,14 @@ export default function EcranApprobations() {
 interface ProprietesAttentes {
   readonly attentes: AttentesDepartements | null;
   readonly decalageMinutesUTC: number;
+  readonly suite: EtatSuiteAttentes;
+  readonly onVoirPlus: () => void;
 }
 
 /** Les attentes des départements (PLAN T1.5) : l'alerte d'écart de matériaux, la facture prête, le chantier à
  * réviser. Pour information, sans bouton : ce que le département a écrit est montré tel quel, et le geste qu'il
  * propose est dit, jamais offert. Un département muet ou une attente illisible est dit, jamais tu. */
-function SectionAttentes({ attentes, decalageMinutesUTC }: ProprietesAttentes) {
+function SectionAttentes({ attentes, decalageMinutesUTC, suite, onVoirPlus }: ProprietesAttentes) {
   const { t } = useTranslation();
   const vue = vueAttentes(attentes);
   if (vue.genre === "inconnues") {
@@ -217,7 +263,28 @@ function SectionAttentes({ attentes, decalageMinutesUTC }: ProprietesAttentes) {
           {attente.actionProposee ? <Text style={styles.description}>{t("approvals.attentes.geste", { geste: attente.actionProposee })}</Text> : null}
         </View>
       ))}
-      {vue.reste > 0 ? <Text style={styles.avis}>{t("approvals.attentes.reste", { nombre: vue.reste })}</Text> : null}
+      {vue.suivant !== null ? (
+        <Pressable
+          style={styles.boutonSecondaire}
+          disabled={suite.genre === "chargement"}
+          onPress={onVoirPlus}
+          accessibilityRole="button"
+        >
+          <Text style={styles.boutonSecondaireTexte}>
+            {suite.genre === "chargement" ? t("approvals.attentes.chargementSuite") : t("approvals.attentes.voirPlus", { nombre: vue.reste })}
+          </Text>
+        </Pressable>
+      ) : vue.reste > 0 ? (
+        <Text style={styles.avis}>{t("approvals.attentes.reste", { nombre: vue.reste })}</Text>
+      ) : null}
+      {suite.genre === "echec" ? (
+        <Text style={styles.erreur}>
+          {t("approvals.attentes.echecSuite", { code: suite.verdict.code, detail: suite.verdict.detail })}
+        </Text>
+      ) : null}
+      {suite.genre === "relue" ? (
+        <Text style={styles.avis}>{t(suite.raison === "liste_changee" ? "approvals.attentes.listeChangee" : "approvals.attentes.pageIncoherente")}</Text>
+      ) : null}
       {vue.illisibles > 0 ? <Text style={styles.avis}>{t("approvals.attentes.illisibles", { nombre: vue.illisibles })}</Text> : null}
       {vue.departementsIllisibles.length > 0 ? (
         <Text style={styles.erreur}>

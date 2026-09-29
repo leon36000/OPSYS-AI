@@ -1,5 +1,5 @@
 import { creerChargeurApprobations } from "./chargeur";
-import type { ResultatChargementApprobations } from "./chargeur";
+import type { OptionsChargementApprobations, ResultatChargementApprobations } from "./chargeur";
 import { invoquerOutil } from "../protocole/client";
 import { obtenirConfigurationAppel } from "../protocole/configuration";
 
@@ -8,7 +8,9 @@ import { obtenirConfigurationAppel } from "../protocole/configuration";
  * connexion de la session appairée. Même philosophie que `src/today/service.ts` : `null` tant
  * qu'aucun appairage n'a eu lieu — jamais une liste inventée.
  */
-export async function chargerDemandesApprobation(): Promise<ResultatChargementApprobations | null> {
+export async function chargerDemandesApprobation(
+  options?: OptionsChargementApprobations,
+): Promise<ResultatChargementApprobations | null> {
   const configuration = obtenirConfigurationAppel();
   if (!configuration) {
     return null;
@@ -18,5 +20,5 @@ export async function chargerDemandesApprobation(): Promise<ResultatChargementAp
     fetchImpl: fetch,
     urlBase: configuration.urlBase,
     jeton: configuration.jeton,
-  }).chargerDemandes();
+  }).chargerDemandes(options);
 }

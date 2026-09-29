@@ -163,6 +163,34 @@ describe("interpreterResultatListerDemandes", () => {
       });
     });
 
+    test("la page lue dit son rang et le rang de la suivante (T1.5-e)", () => {
+      const resultat = interpreterResultatListerDemandes(
+        avecAttentes({ total_attentes: 9, attentes_reste: 4, attentes_decalage: 2, attentes_suivant: 5 }),
+      );
+      expect(resultat).toMatchObject({
+        ok: true,
+        liste: { attentes: { total: 9, reste: 4, decalage: 2, suivant: 5 } },
+      });
+    });
+
+    test("rien ne suit : suivant est nul, et un moteur qui ne pagine pas n'en dit rien (rang 0, pas de suite)", () => {
+      const derniere = interpreterResultatListerDemandes(avecAttentes({ attentes_decalage: 6, attentes_suivant: null }));
+      expect(derniere).toMatchObject({ ok: true, liste: { attentes: { decalage: 6, suivant: null } } });
+
+      const ancien = interpreterResultatListerDemandes(avecAttentes());
+      expect(ancien).toMatchObject({ ok: true, liste: { attentes: { decalage: 0, suivant: null } } });
+    });
+
+    test("une page vide au-delà de la fin est une page vide, pas une erreur : rien n'est inventé", () => {
+      const resultat = interpreterResultatListerDemandes(
+        avecAttentes({ attentes: [], total_attentes: 3, attentes_affichees: 0, attentes_reste: 0, attentes_decalage: 40, attentes_suivant: null }),
+      );
+      expect(resultat).toMatchObject({
+        ok: true,
+        liste: { attentes: { items: [], total: 3, reste: 0, decalage: 40, suivant: null } },
+      });
+    });
+
     test("le reste et les départements illisibles sont conservés", () => {
       const resultat = interpreterResultatListerDemandes(
         avecAttentes({ total_attentes: 5, attentes_reste: 2, attentes_illisibles: ["m05-financecore"] }),
@@ -206,6 +234,13 @@ describe("interpreterResultatListerDemandes", () => {
       ["attentes_reste fractionnaire", { attentes_reste: 1.5 }],
       ["attentes_illisibles n'est pas une liste", { attentes_illisibles: "m05" }],
       ["attentes_illisibles contient autre chose que du texte", { attentes_illisibles: [3] }],
+      ["attentes_suivant est un texte", { attentes_suivant: "3" }],
+      ["attentes_suivant est négatif", { attentes_suivant: -1 }],
+      ["attentes_suivant est fractionnaire", { attentes_suivant: 2.5 }],
+      ["attentes_suivant est un booléen", { attentes_suivant: true }],
+      ["attentes_decalage est un texte", { attentes_decalage: "0" }],
+      ["attentes_decalage est négatif", { attentes_decalage: -3 }],
+      ["attentes_decalage est nul (null)", { attentes_decalage: null }],
     ])("réponse illisible, jamais « aucune attente » : %s", (_nom, surcharge) => {
       const resultat = interpreterResultatListerDemandes(avecAttentes(surcharge));
       expect(resultat).toEqual({ ok: false, verdict: expect.objectContaining({ code: "reponse_illisible" }) });

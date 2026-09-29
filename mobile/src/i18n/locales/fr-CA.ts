@@ -269,6 +269,11 @@ export interface RessourcesCommunes {
       informatif: string;
       geste: string;
       reste: string;
+      voirPlus: string;
+      chargementSuite: string;
+      echecSuite: string;
+      listeChangee: string;
+      pageIncoherente: string;
       illisibles: string;
       departementsIllisibles: string;
     };
@@ -594,6 +599,11 @@ const frCA: RessourcesCommunes = {
       informatif: "Pour information : cela ne se décide pas ici.",
       geste: "Geste proposé : {{geste}}",
       reste: "{{nombre}} autre(s) attente(s) non affichée(s) : à voir à la console.",
+      voirPlus: "Voir plus ({{nombre}} autre(s) attente(s))",
+      chargementSuite: "Chargement de la suite…",
+      echecSuite: "Impossible de charger la suite ({{code}}) : {{detail}}",
+      listeChangee: "Des attentes ont changé pendant la lecture : la liste a été relue depuis le début.",
+      pageIncoherente: "Réponse incohérente du serveur : la liste a été relue depuis le début.",
       illisibles: "{{nombre}} attente(s) illisible(s) pour cette version de l'app : à voir à la console.",
       departementsIllisibles:
         "Attentes illisibles pour : {{departements}}. L'absence d'alerte de ces départements n'est pas confirmée.",

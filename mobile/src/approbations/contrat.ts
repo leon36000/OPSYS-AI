@@ -72,8 +72,13 @@ export interface AttenteDepartement {
 export interface AttentesDepartements {
   readonly items: readonly AttenteDepartement[];
   readonly total: number;
-  /** Attentes que le serveur n'a pas montrées (taille de la réponse). */
+  /** Attentes qui viennent APRÈS cette page dans l'ordre du serveur (la plus ancienne d'abord) : pas encore lues. */
   readonly reste: number;
+  /** Rang, dans cet ordre, de la première attente de cette page (`attentes_decalage`) ; 0 pour un moteur plus ancien. */
+  readonly decalage: number;
+  /** Rang à demander pour la page suivante (`decalage_attentes`) ; `null` : rien ne suit, ou le moteur ne pagine
+   * pas encore (plus ancien) : l'écran ne sait alors que compter `reste`, comme avant. */
+  readonly suivant: number | null;
   /** Éléments de la réponse que ce client n'a pas su lire : comptés, jamais devinés ni cachés. */
   readonly illisibles: number;
   /** Départements dont le serveur n'a pas pu lire les attentes : leur silence n'est pas « rien à signaler ». */
@@ -242,18 +247,26 @@ function lireAttente(brut: unknown): AttenteDepartement | null {
 }
 
 /** `undefined` : le moteur ne donne pas d'attentes. `null` : il en donne, mais la forme est illisible (la réponse
- * entière l'est alors : on ne dit jamais « aucune attente » sur la foi d'une réponse qu'on ne comprend pas). */
+ * entière l'est alors : on ne dit jamais « aucune attente » sur la foi d'une réponse qu'on ne comprend pas).
+ * PLAN T1.5-e : `attentes_decalage` et `attentes_suivant` disent quelle page c'est et laquelle demander ensuite. */
 function lireAttentes(corps: Record<string, unknown>): AttentesDepartements | null | undefined {
   if (corps.attentes === undefined) {
     return undefined;
   }
   const total = entierPositifOuNull(corps.total_attentes);
   const reste = entierPositifOuNull(corps.attentes_reste);
+  // Un moteur plus ancien ne pagine pas : ni `attentes_decalage` ni `attentes_suivant`. Présentes, elles doivent
+  // être lisibles (entier ≥ 0, `null` pour « rien ne suit »), sinon la réponse entière l'est.
+  const decalage = corps.attentes_decalage === undefined ? 0 : entierPositifOuNull(corps.attentes_decalage);
+  const suivantDit = corps.attentes_suivant !== undefined && corps.attentes_suivant !== null;
+  const suivant = suivantDit ? entierPositifOuNull(corps.attentes_suivant) : null;
   const departements = corps.attentes_illisibles;
   if (
     !Array.isArray(corps.attentes) ||
     total === null ||
     reste === null ||
+    decalage === null ||
+    (suivantDit && suivant === null) ||
     !Array.isArray(departements) ||
     !departements.every((d): d is string => typeof d === "string")
   ) {
@@ -261,7 +274,7 @@ function lireAttentes(corps: Record<string, unknown>): AttentesDepartements | nu
   }
   const lues = corps.attentes.map(lireAttente);
   const items = lues.filter((a): a is AttenteDepartement => a !== null);
-  return { items, total, reste, illisibles: lues.length - items.length, departementsIllisibles: departements };
+  return { items, total, reste, decalage, suivant, illisibles: lues.length - items.length, departementsIllisibles: departements };
 }
 
 /**

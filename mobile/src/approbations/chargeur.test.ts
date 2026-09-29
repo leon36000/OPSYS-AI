@@ -36,6 +36,49 @@ describe("chargeur des demandes d'approbation", () => {
     expect(params.requete.idempotencyKey).toBeUndefined();
   });
 
+  test("la page suivante des attentes n'envoie que le rang, sans clé d'idempotence ni personne", async () => {
+    const { chargeur, appelerOutil } = creer(async () => ({ ok: true, result: RESULTAT_LISTE }));
+
+    await chargeur.chargerDemandes({ decalageAttentes: 3 });
+
+    const params = appelerOutil.mock.calls[0][0];
+    expect(params.requete).toEqual({ tool: OUTIL_LISTER_DEMANDES, args: { decalage_attentes: 3 } });
+    expect(params.requete.idempotencyKey).toBeUndefined();
+    expect(Object.keys(params.requete.args ?? {})).toEqual(["decalage_attentes"]);
+  });
+
+  test.each([[undefined], [0]])("le rang %s est la première page : aucun argument, comme avant", async (decalage) => {
+    const { chargeur, appelerOutil } = creer(async () => ({ ok: true, result: RESULTAT_LISTE }));
+
+    await chargeur.chargerDemandes({ decalageAttentes: decalage });
+
+    expect(appelerOutil.mock.calls[0][0].requete.args).toEqual({});
+  });
+
+  test.each([[-1], [1.5], [Number.NaN], [Number.POSITIVE_INFINITY]])(
+    "le rang %s n'est pas envoyé : verdict decalage_invalide, aucun appel réseau",
+    async (decalage) => {
+      const { chargeur, appelerOutil } = creer(async () => ({ ok: true, result: RESULTAT_LISTE }));
+
+      const resultat = await chargeur.chargerDemandes({ decalageAttentes: decalage });
+
+      expect(resultat).toMatchObject({ source: "aucune", raison: { code: "decalage_invalide" } });
+      expect(appelerOutil).not.toHaveBeenCalled();
+    },
+  );
+
+  test("la page suivante sans réseau : aucune page (pas de cache), le verdict dit pourquoi", async () => {
+    const { chargeur } = creer(async () => ({
+      ok: false,
+      echec: { origine: "reseau", reessayable: true, message: "Network request failed" },
+    }));
+
+    expect(await chargeur.chargerDemandes({ decalageAttentes: 3 })).toEqual({
+      source: "aucune",
+      raison: { code: "erreur_reseau", detail: "Network request failed" },
+    });
+  });
+
   test("hors ligne : aucune liste (pas de cache, fail-closed), le verdict dit pourquoi", async () => {
     const { chargeur } = creer(async () => ({
       ok: false,

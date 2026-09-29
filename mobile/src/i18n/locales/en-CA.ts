@@ -285,6 +285,11 @@ const enCA: RessourcesCommunes = {
       informatif: "For information: this is not decided here.",
       geste: "Suggested action: {{geste}}",
       reste: "{{nombre}} more wait(s) not shown: see the console.",
+      voirPlus: "Show more ({{nombre}} more wait(s))",
+      chargementSuite: "Loading more…",
+      echecSuite: "Cannot load more ({{code}}): {{detail}}",
+      listeChangee: "Some waits changed while reading: the list was reloaded from the start.",
+      pageIncoherente: "Inconsistent server response: the list was reloaded from the start.",
       illisibles: "{{nombre}} wait(s) unreadable in this app version: see the console.",
       departementsIllisibles:
         "Waits unreadable for: {{departements}}. The absence of an alert from these departments is not confirmed.",

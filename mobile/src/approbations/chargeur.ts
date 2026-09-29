@@ -25,9 +25,18 @@ export type ResultatChargementApprobations =
   | { readonly source: "serveur"; readonly liste: ListeApprobations }
   | { readonly source: "aucune"; readonly raison: VerdictServeurApprobation };
 
+export interface OptionsChargementApprobations {
+  /**
+   * Rang de la première attente demandée (`decalage_attentes`, PLAN T1.5-e) : la valeur de `attentes.suivant` de la
+   * page précédente. Absent ou 0 : la première page, sans argument, comme avant. Ce n'est qu'un rang : aucune
+   * personne, aucun rôle (le serveur les tient du jeton d'appareil).
+   */
+  readonly decalageAttentes?: number;
+}
+
 export interface ChargeurApprobations {
   /** Ne lève jamais pour une raison réseau ou HTTP : elle devient `{source: "aucune", raison}`. */
-  chargerDemandes(): Promise<ResultatChargementApprobations>;
+  chargerDemandes(options?: OptionsChargementApprobations): Promise<ResultatChargementApprobations>;
 }
 
 export const OUTIL_LISTER_DEMANDES = "m9_lister_demandes_approbation";
@@ -42,14 +51,27 @@ function verdictDepuisEchecAppel(echec: {
   return { code: "erreur_reseau", detail: echec.message };
 }
 
+/** Les args EXACTS de `m9_lister_demandes_approbation` : `{}` pour la première page, sinon le seul rang. */
+export function construireArgumentsListerDemandes(decalageAttentes: number | undefined): Record<string, number> {
+  return decalageAttentes === undefined || decalageAttentes === 0 ? {} : { decalage_attentes: decalageAttentes };
+}
+
 export function creerChargeurApprobations(config: ConfigurationChargeurApprobations): ChargeurApprobations {
   return {
-    async chargerDemandes(): Promise<ResultatChargementApprobations> {
+    async chargerDemandes(options?: OptionsChargementApprobations): Promise<ResultatChargementApprobations> {
+      const decalage = options?.decalageAttentes;
+      if (decalage !== undefined && (!Number.isInteger(decalage) || decalage < 0)) {
+        // Un rang qui n'est pas un entier ≥ 0 ne part jamais : le serveur le refuserait, l'app ne l'envoie pas.
+        return {
+          source: "aucune",
+          raison: { code: "decalage_invalide", detail: "decalage_attentes : un entier supérieur ou égal à 0 est attendu." },
+        };
+      }
       const resultatAppel = await config.appelerOutil({
         fetchImpl: config.fetchImpl,
         urlBase: config.urlBase,
         jeton: config.jeton,
-        requete: { tool: OUTIL_LISTER_DEMANDES, args: {} },
+        requete: { tool: OUTIL_LISTER_DEMANDES, args: construireArgumentsListerDemandes(decalage) },
       });
       if (!resultatAppel.ok) {
         return { source: "aucune", raison: verdictDepuisEchecAppel(resultatAppel.echec) };

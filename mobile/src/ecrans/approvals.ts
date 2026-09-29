@@ -7,6 +7,7 @@ import type {
   DemandeApprobation,
   VerdictServeurApprobation,
 } from "../approbations/contrat";
+import type { OptionsChargementApprobations, ResultatChargementApprobations } from "../approbations/chargeur";
 import { creerMutation, soumettreMutation } from "../outbox/mutation";
 import type { HorlogeAppareil } from "../outbox/mutation";
 import type { MutationOutbox } from "../outbox/types";
@@ -82,8 +83,11 @@ export type VueAttentes =
   | {
       readonly genre: "presentes";
       readonly items: readonly AttenteDepartement[];
-      /** Attentes que le serveur n'a pas montrées. */
+      /** Attentes que le serveur n'a pas encore montrées (elles suivent celles-ci). */
       readonly reste: number;
+      /** Rang à demander pour lire la suite (« Voir plus ») ; `null` : rien à demander (rien ne suit, ou moteur plus
+       * ancien qui ne pagine pas : `reste` n'est alors qu'un compte, à voir à la console). */
+      readonly suivant: number | null;
       /** Éléments que ce client n'a pas su lire. */
       readonly illisibles: number;
       /** Départements dont les attentes n'ont pas pu être lues : leur silence n'est pas « rien à signaler ». */
@@ -106,9 +110,97 @@ export function vueAttentes(attentes: AttentesDepartements | null): VueAttentes 
     genre: "presentes",
     items: attentes.items,
     reste: attentes.reste,
+    suivant: attentes.suivant,
     illisibles: attentes.illisibles,
     departementsIllisibles: attentes.departementsIllisibles,
   };
+}
+
+/** Identité d'une attente d'un département : celle que le serveur donne (`departement`, `type`, `id`). */
+export function cleAttente(attente: AttenteDepartement): string {
+  return `${attente.departement}:${attente.type}:${attente.id}`;
+}
+
+/** Pourquoi la liste est relue depuis le début plutôt que prolongée par la page reçue. */
+export type RaisonRelecture = "liste_changee" | "incoherente";
+
+export type FusionAttentes =
+  | { readonly genre: "fusionnee"; readonly attentes: AttentesDepartements }
+  | { readonly genre: "a_relire"; readonly raison: RaisonRelecture };
+
+/**
+ * Prolonge les attentes déjà lues par la page que le serveur vient de rendre (PLAN T1.5-e). Le serveur pagine par
+ * RANG dans un ordre stable (la plus ancienne d'abord) : si une attente est apparue ou a été traitée entre deux
+ * pages, les rangs ont glissé et une attente aurait pu manquer ou se répéter. L'écran ne recolle donc une page que
+ * si tout s'accorde, et relit sinon depuis le début (jamais une liste qui aurait l'air complète sans l'être) :
+ *
+ * - la page est celle qu'on a demandée (`decalage` = `suivant` des attentes lues) ;
+ * - le total n'a pas changé ;
+ * - aucune attente de la page n'est déjà affichée ;
+ * - la page fait progresser la lecture (`suivant` au-delà de son rang, ou nul) : un serveur qui répondrait toujours
+ *   la même page ne fait pas tourner « Voir plus » en rond.
+ */
+export function fusionnerPageAttentes(
+  lues: AttentesDepartements,
+  page: AttentesDepartements | null,
+): FusionAttentes {
+  if (page === null || lues.suivant === null || page.decalage !== lues.suivant) {
+    return { genre: "a_relire", raison: "incoherente" };
+  }
+  if (page.suivant !== null && page.suivant <= page.decalage) {
+    return { genre: "a_relire", raison: "incoherente" };
+  }
+  if (page.total !== lues.total) {
+    return { genre: "a_relire", raison: "liste_changee" };
+  }
+  const deja = new Set(lues.items.map(cleAttente));
+  if (page.items.some((attente) => deja.has(cleAttente(attente)))) {
+    return { genre: "a_relire", raison: "liste_changee" };
+  }
+  return {
+    genre: "fusionnee",
+    attentes: {
+      items: [...lues.items, ...page.items],
+      total: page.total,
+      reste: page.reste,
+      decalage: lues.decalage,
+      suivant: page.suivant,
+      illisibles: lues.illisibles + page.illisibles,
+      departementsIllisibles: [...new Set([...lues.departementsIllisibles, ...page.departementsIllisibles])],
+    },
+  };
+}
+
+/** Ce que devient la section « À voir » après « Voir plus ». */
+export type SuiteAttentes =
+  | { readonly genre: "fusionnee"; readonly attentes: AttentesDepartements }
+  | { readonly genre: "a_relire"; readonly raison: RaisonRelecture }
+  /** Le serveur n'a pas pu être lu (hors ligne, refus) : ce qui est affiché reste, et le verdict est dit. */
+  | { readonly genre: "echec"; readonly verdict: VerdictServeurApprobation }
+  | { readonly genre: "sans_appairage" }
+  /** Rien à demander : rien ne suit. */
+  | { readonly genre: "sans_suite" };
+
+/**
+ * « Voir plus » : demande au serveur la page qui suit les attentes lues, puis la recolle (`fusionnerPageAttentes`).
+ * Sans cache, comme la liste : hors ligne, la suite n'est pas inventée, l'échec est dit et les attentes déjà lues
+ * restent affichées. `chargerDemandes` est injecté (le chargeur réel, ou un faux dans les tests).
+ */
+export async function chargerSuiteAttentes(
+  lues: AttentesDepartements,
+  chargerDemandes: (options: OptionsChargementApprobations) => Promise<ResultatChargementApprobations | null>,
+): Promise<SuiteAttentes> {
+  if (lues.suivant === null) {
+    return { genre: "sans_suite" };
+  }
+  const resultat = await chargerDemandes({ decalageAttentes: lues.suivant });
+  if (resultat === null) {
+    return { genre: "sans_appairage" };
+  }
+  if (resultat.source === "aucune") {
+    return { genre: "echec", verdict: resultat.raison };
+  }
+  return fusionnerPageAttentes(lues, resultat.liste.attentes);
 }
 
 /** Une décision déjà partie en file (pas encore acceptée par le serveur) pour une demande. */
