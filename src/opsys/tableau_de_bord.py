@@ -19,7 +19,7 @@ from typing import Any
 
 from sqlalchemy import Connection
 
-from . import approbations, jetons, modeles
+from . import approbations, canaux, jetons, modeles
 from .capacites import outils_executables
 from .departements import PALIERS, Departement, dependances_manquantes
 from .outils import Autonomie, Outil, vers_json
@@ -90,6 +90,9 @@ def changer_mode(
     """Fixe le mode d'autonomie d'un département ; la signature est exigée par le socle."""
     if ident not in departements:
         raise KeyError(f"département inconnu : {ident}")
+    refus = canaux.mode_refuse(departements[ident], mode)
+    if refus:
+        raise ValueError(refus)
     approbations.fixer_mode(cnx, ident, mode, par)
     logger.info("mode de %s fixé à %s par %s", ident, mode, par)
     return {"departement": ident, "mode": approbations.mode_effectif(cnx, ident, departements[ident].mode),

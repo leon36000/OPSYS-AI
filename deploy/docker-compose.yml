@@ -159,6 +159,13 @@ services:
       OPSYS_CLE_M8: ${OPSYS_CLE_M8:?OPSYS_CLE_M8 manquant dans .env}
       OPSYS_CLE_M9: ${OPSYS_CLE_M9:?OPSYS_CLE_M9 manquant dans .env}
       OPSYS_CLE_M10: ${OPSYS_CLE_M10:?OPSYS_CLE_M10 manquant dans .env}
+      # Canal SMS de M1 (T2.1-a, docs/departements/M1-canaux.md) : vides = canal désactivé. `opsys openclaw
+      # configurer` ne l'active que si les cinq sont fournies ; les identifiants Twilio sont des secrets de production.
+      OPSYS_SMS_COMPTE_SID: ${OPSYS_SMS_COMPTE_SID:-}
+      OPSYS_SMS_JETON: ${OPSYS_SMS_JETON:-}
+      OPSYS_SMS_NUMERO: ${OPSYS_SMS_NUMERO:-}
+      OPSYS_SMS_URL_PUBLIQUE: ${OPSYS_SMS_URL_PUBLIQUE:-}
+      OPSYS_SMS_POLITIQUES_VALIDEES: ${OPSYS_SMS_POLITIQUES_VALIDEES:-}
     volumes:
       - opsys_data:/opt/data
       - openclaw_config:/openclaw-config
@@ -248,6 +255,11 @@ services:
       OPSYS_CLE_M8: ${OPSYS_CLE_M8:?OPSYS_CLE_M8 manquant dans .env}
       OPSYS_CLE_M9: ${OPSYS_CLE_M9:?OPSYS_CLE_M9 manquant dans .env}
       OPSYS_CLE_M10: ${OPSYS_CLE_M10:?OPSYS_CLE_M10 manquant dans .env}
+      # Canal SMS de M1 (voir le service opsys) : résolvent les ${...} de opsys/channels.json.
+      OPSYS_SMS_COMPTE_SID: ${OPSYS_SMS_COMPTE_SID:-}
+      OPSYS_SMS_JETON: ${OPSYS_SMS_JETON:-}
+      OPSYS_SMS_NUMERO: ${OPSYS_SMS_NUMERO:-}
+      OPSYS_SMS_URL_PUBLIQUE: ${OPSYS_SMS_URL_PUBLIQUE:-}
       TZ: ${TZ:-America/Toronto}
     volumes:
       - openclaw_config:/home/node/.openclaw

@@ -30,6 +30,16 @@ exigent un contexte utilisable (N3 ou plus), et, par agent, `affaire` : `"demand
 demande, pour un agent qui ne reçoit que des demandes internes) ou `"session"` (l'affaire liée à la clé de
 session par un humain, `generer(affaire_par_session=...)`, jamais le texte d'un client).
 
+Canaux du public (PLAN T2.1-a, `opsys.canaux`, `docs/departements/M1-canaux.md`) : un département qui déclare
+`canaux: [sms]` reçoit le canal correspondant du core. `generer()` écrit alors `channels.json` (le canal, désactivé
+tant que ses variables d'environnement ne sont pas toutes fournies, références `${...}` seulement), `bindings.json`
+(canal -> agent, une session par correspondant), `session.json` (`dmScope`, `sendPolicy` : aucune réponse
+automatique à un client) et `plugins.entries.<extension>.enabled`. L'agent d'un tel département n'appelle que les
+outils de son serveur MCP et n'a pas l'outil `message` du core. Sans département à canaux, ces trois fragments
+sont vides. Surfaces amont : `channels.sms` (`core/extensions/sms/src/config-schema.ts`), `bindings`
+(`core/src/config/zod-schema.agents.ts`), `session.dmScope` et `session.sendPolicy`
+(`core/src/config/zod-schema.session-config.ts`).
+
 Deux fragments supplémentaires (T1.4-c2, `docs/architecture/IDEMPOTENCE.md` §7 bis) ne sont PAS
 `$include`s dans `openclaw.json` — comme `automatisations.sh` ci-dessous, ce sont des fichiers annexes
 qu'OPSYS-CORE lit lui-même directement (`core/src/gateway/opsys-device-roles.ts`), jamais à travers
@@ -45,6 +55,7 @@ le déclencher automatiquement). `contexte.json` (moteur de contexte, ci-dessus)
 from __future__ import annotations
 
 import json
+import os
 import shlex
 import shutil
 from collections.abc import Mapping, Sequence
@@ -53,7 +64,7 @@ from typing import Any
 
 from sqlalchemy import Connection
 
-from . import appareils
+from . import appareils, canaux
 from .departements import PALIERS, Departement, tous_les_outils, verifier_portees
 from .memoire.embeddings import ENV_CLE, ENV_MODELE, ENV_URL, ClientEmbeddings
 from .outils import Autonomie
@@ -68,6 +79,10 @@ FICHIER_RACINE_MODELE = {
     "tools": {"$include": ["./opsys/tools.json"]},
     "memory": {"$include": ["./opsys/memory.json"]},
     "plugins": {"$include": ["./opsys/plugins.json"]},
+    # Canaux du public (T2.1-a). `bindings` est une liste : inclusion d'un seul fichier, pas d'une liste de fichiers.
+    "channels": {"$include": ["./opsys/channels.json"]},
+    "bindings": {"$include": "./opsys/bindings.json"},
+    "session": {"$include": ["./opsys/session.json"]},
 }
 
 # Moteur de contexte du core (PLAN T3.3-suite) : identifiant sous lequel il est enregistré
@@ -125,6 +140,25 @@ def fournisseur_departement(
     }
 
 
+def _outils_de_l_agent(
+    dep: Departement, departements: Mapping[str, Departement], expose: bool
+) -> dict[str, Any]:
+    """`agents.entries.<id>.tools` : les serveurs des autres départements sont refusés (ADR-0010, cloisonnement).
+
+    Un agent qui reçoit le public (`expose`, PLAN T2.1-a) a en plus une boîte à outils FERMÉE : `allow` ne
+    laisse passer que les outils de son propre serveur MCP (`<serveur>__*`), et `deny` retire l'outil `message`
+    du core, qui enverrait un texte au correspondant sans passer par la file d'approbation. Le refus l'emporte
+    toujours sur l'autorisation (`core/src/agents/tool-policy-match.ts`, `createToolPolicyMatcher`).
+    """
+    refus = sorted(f"{serveur_mcp(autre)}__*" for autre in departements.values() if autre.id != dep.id)
+    if not expose:
+        return {"deny": refus}
+    return {
+        "allow": [f"{serveur_mcp(dep)}__*"],
+        "deny": [*refus, *canaux.OUTILS_MESSAGERIE_REFUSES],
+    }
+
+
 def _configuration_outils() -> dict[str, Any]:
     """Cloisonnement inter-agents (ADR-0010, décision 6) : `tools.agentToAgent.enabled`
     (`core/src/config/zod-schema.agent-runtime.ts:791-802`, défaut `true`) désactivé, et
@@ -179,7 +213,9 @@ def _configuration_memoire(environ: Mapping[str, str] | None = None) -> dict[str
     return {"search": recherche}
 
 
-def _configuration_plugins(fuseau: str, contexte_actif: bool = False) -> dict[str, Any]:
+def _configuration_plugins(
+    fuseau: str, contexte_actif: bool = False, extensions_de_canal: Mapping[str, Any] | None = None
+) -> dict[str, Any]:
     """« Dreaming » du plugin `memory-core` (ADR-0010, décision 1) : activé, fuseau aligné sur
     celui des automatisations OPSYS (même paramètre `fuseau` que `--tz` plus bas — un seul réglage
     d'horaire pour tout OPSYS, rien d'inventé). Clés vérifiées contre `configSchema` de
@@ -190,10 +226,15 @@ def _configuration_plugins(fuseau: str, contexte_actif: bool = False) -> dict[st
     `contexte_actif` (PLAN T3.3-suite) : choisit le moteur de contexte OPSYS dans `plugins.slots.contextEngine`
     (`core/src/config/zod-schema.root-shape.ts`, clé `slots.contextEngine`). Sans lui, aucune clé `slots` : le
     moteur par défaut (« legacy ») reste en place, comme avant.
+
+    `extensions_de_canal` (PLAN T2.1-a) : `{extension: {"enabled": bool}}` pour les extensions de canal des
+    départements à canaux (`PluginEntrySchema.enabled`, même fichier `zod-schema.root-support.ts`) : l'extension
+    est désactivée explicitement tant que le canal l'est.
     """
     fragment: dict[str, Any] = {
         "entries": {
             "memory-core": {"config": {"dreaming": {"enabled": True, "timezone": fuseau}}},
+            **{nom: dict(entree) for nom, entree in (extensions_de_canal or {}).items()},
         }
     }
     if contexte_actif:
@@ -383,7 +424,8 @@ def generer(
 
     `racine_espaces` est le chemin vu par la passerelle OpenClaw, relatif au dossier de config.
     `environ` (défaut `os.environ`) fournit `OPSYS_EMBEDDINGS_{URL,MODELE,CLE}` pour la mémoire
-    Couche A ; validé avant l'écriture des fragments (fail-closed, voir `_configuration_memoire`).
+    Couche A ; validé avant l'écriture des fragments (fail-closed, voir `_configuration_memoire`). Il dit aussi
+    quels canaux du public sont actifs (`opsys.canaux` : toutes leurs variables fournies, sinon désactivés).
     `contexte_entreprise` (PLAN T3.3-suite) active le moteur de contexte pour les agents nommés :
     voir `_configuration_contexte`. Absent (défaut) : désactivé, rien ne change pour les agents.
     `affaire_par_session` (PLAN T3.3-suite-b) : ceux de ces agents dont l'affaire vient de la session.
@@ -398,6 +440,14 @@ def generer(
         )
     # Même règle pour le moteur de contexte : un état incohérent n'est jamais écrit, même en partie.
     contexte = _configuration_contexte(departements, contexte_entreprise, affaire_par_session)
+    # Et pour les canaux du public : une déclaration incohérente n'écrit rien (outil d'accueil absent, canal double).
+    problemes_canaux = canaux.verifier_declarations(departements)
+    if problemes_canaux:
+        raise ValueError("canaux du public invalides, rien n'est écrit :\n  - " + "\n  - ".join(problemes_canaux))
+    # Un canal n'est jamais actif si le squelette existant n'inclut pas tous ses fragments (`canaux.configuration`).
+    sans_include = includes_de_canaux_manquants(dossier_config) if (dossier_config / "openclaw.json").exists() else []
+    env_canaux = os.environ if environ is None else environ
+    configuration_canaux = canaux.configuration(departements, env_canaux, sans_include)
     base = dossier_config / "opsys"
     espaces = base / "espaces"
     if espaces.exists():
@@ -427,9 +477,9 @@ def generer(
             "name": f"{dep.code} · {dep.nom}",
             "workspace": f"{racine_espaces}/{dep.id}",
             "model": f"{nom_fournisseur}/{alias_palier(dep.modeles['defaut'])}",
-            # Chaque agent ne voit que le serveur MCP de SON département (outils `<serveur>__<outil>`).
-            "tools": {"deny": sorted(f"{serveur_mcp(autre)}__*" for autre in departements.values()
-                                     if autre.id != dep.id)},
+            # Chaque agent ne voit que le serveur MCP de SON département (outils `<serveur>__<outil>`) ;
+            # celui qui reçoit le public n'a de plus aucun outil de messagerie du core (T2.1-a).
+            "tools": _outils_de_l_agent(dep, departements, expose=dep.id in configuration_canaux.agents_exposes),
         }
         for plan in dep.planifications:
             automatisations.append(" ".join([
@@ -453,6 +503,10 @@ def generer(
         "tools": base / "tools.json",
         "memory": base / "memory.json",
         "plugins": base / "plugins.json",
+        # Canaux du public (T2.1-a) : vides sans département à canaux.
+        "channels": base / "channels.json",
+        "bindings": base / "bindings.json",
+        "session": base / "session.json",
         "automatisations": base / "automatisations.sh",
         # Lu directement par OPSYS-CORE (PLAN T3.3-suite, moteur de contexte), pas via `$include`.
         "contexte": base / "contexte.json",
@@ -484,7 +538,11 @@ def generer(
     }})
     _ecrire_json(fichiers["tools"], _configuration_outils())
     _ecrire_json(fichiers["memory"], memoire_config)
-    _ecrire_json(fichiers["plugins"], _configuration_plugins(fuseau, contexte_actif=contexte is not None))
+    _ecrire_json(fichiers["plugins"], _configuration_plugins(
+        fuseau, contexte_actif=contexte is not None, extensions_de_canal=configuration_canaux.plugins))
+    _ecrire_json(fichiers["channels"], configuration_canaux.canaux)
+    _ecrire_json(fichiers["bindings"], configuration_canaux.liaisons)
+    _ecrire_json(fichiers["session"], configuration_canaux.session)
     _ecrire_json(fichiers["contexte"], contexte if contexte is not None else {"actif": False})
     _ecrire_json(fichiers["roles"], {
         "roles": roles_outils(departements),
@@ -506,6 +564,32 @@ def racine_si_absente(dossier_config: Path) -> Path | None:
         return None
     _ecrire_json(racine, FICHIER_RACINE_MODELE)
     return racine
+
+
+def includes_manquants(dossier_config: Path) -> list[str]:
+    """Clés du squelette OPSYS (`FICHIER_RACINE_MODELE`) dont l'`$include` manque à `openclaw.json`.
+
+    `racine_si_absente` ne réécrit jamais un `openclaw.json` existant : une installation antérieure à un
+    fragment ne l'inclut pas, et le core ignorerait alors son contenu sans rien dire. Le texte du fichier est
+    cherché tel quel (le fichier peut être du JSON5 que `json.loads` refuserait). Sans `openclaw.json`, tout manque.
+    """
+    racine = dossier_config / "openclaw.json"
+    if not racine.exists():
+        return sorted(FICHIER_RACINE_MODELE)
+    texte = racine.read_text(encoding="utf-8")
+    manquants = []
+    for cle, inclusion in FICHIER_RACINE_MODELE.items():
+        cibles = inclusion["$include"]
+        for cible in [cibles] if isinstance(cibles, str) else cibles:
+            if cible not in texte:
+                manquants.append(cle)
+                break
+    return manquants
+
+
+def includes_de_canaux_manquants(dossier_config: Path) -> list[str]:
+    """Parmi `canaux.CLES_RACINE`, celles que `openclaw.json` n'inclut pas."""
+    return [cle for cle in includes_manquants(dossier_config) if cle in canaux.CLES_RACINE]
 
 
 def _ecrire_json(chemin: Path, donnees: Any) -> None:

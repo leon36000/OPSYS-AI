@@ -49,6 +49,7 @@ kpis:
   - {id: ecart_estime_reel_pct, description: "…"}
 evenements:                   # optionnel (ADR-0009 §3) — voir « Événements » ci-dessous
   consomme: [m4.travaux_termines]   # types du catalogue src/opsys/evenements/catalogue/*.json
+canaux: [sms]                 # optionnel (T2.1-a) : canaux du core par lesquels il reçoit le public
 ```
 
 `opsys verifier` valide tous les manifestes, l'unicité des outils, les dépendances et la cohérence
@@ -93,6 +94,15 @@ réparation, ou ceux d'une autre PME) ne recopie jamais la liste : il valide un 
 `opsys.taxonomie.valider_service` (profil d'entreprise `$OPSYS_HOME/entreprise.yaml`). Sans profil,
 tout service est refusé avec un verdict qui dit quoi configurer. `opsys verifier` échoue si une
 source recopie le catalogue. Voir [TAXONOMIE](TAXONOMIE.md).
+
+## Canaux du public (PLAN T2.1-a, `opsys.canaux`)
+
+Un département qui reçoit le public par un canal du core (aujourd'hui `sms`) le déclare dans `canaux:`.
+`opsys openclaw configurer` en tire le canal (désactivé tant que ses variables d'environnement ne sont pas
+toutes fournies), sa liaison à l'agent, une session par correspondant, l'interdiction d'une réponse
+automatique et une boîte à outils fermée pour l'agent. Le département doit fournir l'outil d'accueil du canal
+(`m1_recevoir_message_canal` pour `sms`), de niveau N2 au plus, et ne peut pas être en mode `autonome`.
+`opsys verifier` contrôle ces règles. Voir [M1-canaux](../departements/M1-canaux.md).
 
 ## Événements (ADR-0009 §3, bus dans `opsys.evenements`)
 

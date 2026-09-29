@@ -17,6 +17,7 @@ from . import (
     __version__,
     appareils,
     approbations,
+    canaux,
     etat,
     evenements,
     identite,
@@ -83,6 +84,12 @@ def cmd_verifier(args: argparse.Namespace) -> int:
         for probleme in problemes_portees:
             print(f"  - {probleme}", file=sys.stderr)
         return 1
+    problemes_canaux = canaux.verifier_declarations(deps)
+    if problemes_canaux:
+        print("ERREUR : canaux du public invalides (department.yaml, clé canaux) :", file=sys.stderr)
+        for probleme in problemes_canaux:
+            print(f"  - {probleme}", file=sys.stderr)
+        return 1
     problemes_taxonomie = taxonomie.verifier_profil() + taxonomie.copies_locales_du_catalogue(
         [Path(__file__).resolve().parent, *(dep.racine / "src" for dep in deps.values())]
     )
@@ -92,6 +99,16 @@ def cmd_verifier(args: argparse.Namespace) -> int:
         for probleme in problemes_taxonomie:
             print(f"  - {probleme}", file=sys.stderr)
         return 1
+    etat_canaux = canaux.configuration(deps, os.environ).etat
+    for ligne in canaux.lignes_d_etat(etat_canaux):
+        print(ligne)
+    if args.config_dir:
+        problemes_config = _verifier_config_canaux(deps, Path(args.config_dir), bool(etat_canaux))
+        if problemes_config:
+            print("ERREUR : la configuration OpenClaw ne suit pas les canaux du public :", file=sys.stderr)
+            for probleme in problemes_config:
+                print(f"  - {probleme}", file=sys.stderr)
+            return 1
     avec_portee = sum(1 for _dep, outil in index.values() if outil.roles_appareil)
     print(f"OK : {len(deps)} départements, {len(index)} outils, noms uniques, manifestes valides, "
           f"événements cohérents, portées d'appareil valides ({avec_portee} outils déclarés, "
@@ -104,6 +121,28 @@ def cmd_verifier(args: argparse.Namespace) -> int:
             return 1
         print(f"OK : paliers configurés ({', '.join(sorted(paliers))}).")
     return 0
+
+
+def _verifier_config_canaux(deps: dict, dossier: Path, avec_canaux: bool) -> list[str]:
+    """`opsys verifier --config-dir` : les fragments écrits par `opsys openclaw configurer` suivent l'environnement
+    (canal actif ou non) et `openclaw.json` les inclut. Sans canal déclaré, il n'y a rien à suivre."""
+    if not avec_canaux:
+        return []
+    fichier = dossier / "opsys" / "channels.json"
+    ecrit = None
+    if fichier.is_file():
+        try:
+            ecrit = {"channels": json.loads(fichier.read_text(encoding="utf-8"))}
+        except (OSError, ValueError) as exc:
+            return [f"{fichier} illisible : {exc}"]
+    manquants = openclaw.includes_de_canaux_manquants(dossier)
+    problemes = canaux.verifier_configuration(deps, os.environ, ecrit, manquants)
+    if manquants:
+        problemes.append(
+            f"openclaw.json n'inclut pas {', '.join(manquants)} : ajoute "
+            + ", ".join(f'"{cle}": {json.dumps(openclaw.FICHIER_RACINE_MODELE[cle])}' for cle in manquants)
+        )
+    return problemes
 
 
 def cmd_profils(args: argparse.Namespace) -> int:
@@ -220,6 +259,10 @@ def cmd_mode(args: argparse.Namespace) -> int:
     if args.departement not in deps:
         print(f"département inconnu : {args.departement}", file=sys.stderr)
         return 1
+    refus = canaux.mode_refuse(deps[args.departement], args.mode)
+    if refus:
+        print(refus, file=sys.stderr)
+        return 1
     with etat.session() as cnx:
         approbations.fixer_mode(cnx, args.departement, args.mode, args.par)
     print(f"{args.departement} → {args.mode}")
@@ -301,6 +344,13 @@ def cmd_openclaw(args: argparse.Namespace) -> int:
     for nom, chemin in fichiers.items():
         print(f"{nom}: {chemin}")
     print(f"openclaw.json : {'créé avec les $include OPSYS' if racine else 'existant, non modifié'}")
+    manquants = openclaw.includes_de_canaux_manquants(dossier)
+    etat_canaux = canaux.configuration(deps, os.environ, manquants).etat
+    for ligne in canaux.lignes_d_etat(etat_canaux):
+        print(ligne)
+    if etat_canaux and manquants:
+        print(f"ATTENTION : openclaw.json n'inclut pas {', '.join(manquants)} : le core ignore ces fragments, "
+              "les canaux restent inactifs (voir `opsys verifier --config-dir`)", file=sys.stderr)
     return 0
 
 
@@ -385,6 +435,8 @@ def construire_parseur() -> argparse.ArgumentParser:
 
     v = sous.add_parser("verifier", help="valider manifestes et outils (CI)")
     v.add_argument("--paliers", action="store_true", help="exiger aussi la configuration des paliers")
+    v.add_argument("--config-dir", help="dossier de openclaw.json : vérifier aussi que les canaux du public y sont "
+                                        "configurés comme l'environnement le dit")
     v.set_defaults(fn=cmd_verifier)
 
     g = sous.add_parser("profils", help="générer les distributions de profils Hermes")
