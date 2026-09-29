@@ -2034,9 +2034,31 @@ météo et GPS M4, vision M3, conseil d'agents M9…
         5 contenus, approbation, export, STOP, tout bloqué) ; 112 mutations tuées.
       Limites : un autre numéro est un autre correspondant ; les STOP d'avant n'ont pas d'événement ;
       la demande d'avis de M7 (consentement distinct) n'est pas touchée par le STOP.
-- [ ] T4.17-f M1 : `MONTANT_MONETAIRE` du garde-fou est quadratique sur une longue suite de
+- [x] T4.17-f M1 : `MONTANT_MONETAIRE` du garde-fou est quadratique sur une longue suite de
       chiffres (27 s pour 20 000) : le durcir comme le prix de M7, avec le comparateur de 60 000
-      textes comme filet ; rattrapage des STOP inscrits avant T4.17-c (décision du propriétaire).
+      textes comme filet. (Le rattrapage des STOP d'avant T4.17-c devient T4.17-f2.)
+      Preuve (a21fa2c, 79f329d, 8f3cc6c, 8c6b9c6, d4e159d, 56103e7, 90949af, ff60949, 330f45c,
+      3e5fd9b, 9dc5c91) :
+      - `src/opsys/garde_fou_texte/` en temps linéaire : le montant se lit « un chiffre, puis une
+        devise » (plus de grammaire du nombre qui relançait la lecture à chaque chiffre) ; « déclencheur
+        … cible » (fourchette, aveux) s'arrête au déclencheur suivant au lieu de `.*` ; découpage des
+        dates sans `\s*` en tête ; le courriel et le prix des textes publics de M7, trouvés en
+        balayant les 15 familles, lus d'un seul départ ;
+      - 20 000 caractères : 29,2 s → 4,6 ms (chiffres), 13,6 s → 15 ms (milliers), 5,8 s → 1,1 ms
+        (espaces), 0,72 s → 0,4 ms (courriel) ; corpus de M1 sans régression ;
+      - même sens : comparateur différentiel sur 1 414 548 textes (3.11) et 1 374 548 (3.12), aucun
+        écart ; 176 298 891 suites de jetons exhaustives, aucun écart ;
+      - `tests/test_garde_fou_texte_lineaire.py` (136 : oracle d'avant, `.*` interdit, textes hostiles
+        de 20 000 et 100 000 caractères, borne de temps et rapport de croissance) et 8 tests de M1 ;
+        49 mutants, 43 tués, 6 équivalents ; socle, M1 1089, M7 913 verts ; règle écrite dans
+        `DEPARTEMENTS.md` pour toute nouvelle famille.
+- [ ] T4.17-f2 M1 et M7 : rattrapage des STOP inscrits avant T4.17-c (ils n'ont pas d'événement de
+      retrait). GATE NATHAN : le rattrapage et sa forme.
+- [ ] T4.17-g M1 : trois expressions hors du garde-fou encore quadratiques, trouvées par T4.17-f :
+      `qualification._EMAIL_REGEX` sur le texte du client, non plafonné (0,9 s pour 20 000
+      caractères) ; `contrats._PRIX_REGEX` (105 s pour 20 000 chiffres) et `transferts._COURRIEL`,
+      plafonnés (500 et 1 200 caractères) mais à durcir de la même façon (départ restreint,
+      comparateur différentiel comme filet).
 - [ ] T4.17-d M7 : détecteur réel de visages et de plaques et stockage du média flouté (OpenCV,
       politique « photos » validée d'abord).
 - [ ] T4.17-e M7 et M8 : boucle de mesure par `utm_content` (impressions, clics, leads par
