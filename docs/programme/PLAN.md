@@ -1493,7 +1493,7 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       doublon.
       Dépend de : T4.6, T4.7, T4.4, T4.5. GATE NATHAN : délais, fréquence, validation de
       `POLITIQUE-consentement-sms.md`. T3 : l'envoi est T2.1-c (N4).
-- [ ] T4.10 M2 et M4 : « soumission acceptée → M4 planifie » enfin câblé (M2.8, M4.5, M4.6).
+- [x] T4.10 M2 et M4 : « soumission acceptée → M4 planifie » enfin câblé (M2.8, M4.5, M4.6).
       Écart (§6 flux principal ; audit M4 M4.5 « PARTIEL », M4.6 « ABSENT » ; audit M2 M2.8) :
       `m3.devis_accepte` est consommé par M5, M6 et M8, pas par M2 ni par M4. Le lead reste
       `qualifie` ; M4 n'a aucun état avant `planifiee`.
@@ -1508,6 +1508,23 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       `a_planifier`, M5, M6 et M8 comme avant) ; rejeu et ordre inversé sans doublon ; cascade
       « travaux terminés » inchangée ; `opsys verifier`.
       Dépend de : rien. T3 : aucune date ni créneau promis au client.
+      Preuve (c9a9f10) :
+      - (a) M2 consomme `m3.devis_accepte` : `qualifie → converti` (`reference_devis_m3`, heure de
+        l'acceptation), prochaine action « planifier le chantier » (règle citée, sans date),
+        activité `system:m3` ; déjà converti par ce devis : intact ; perdu : `lead_clos` ; inconnu
+        ou converti par un autre devis : quarantaine sans écriture ;
+      - (b) M4 : état `a_planifier` additif (16 couples d'avant intacts, table balayée) ;
+        intervention née du devis, service, ville et urgence relus à la source (`m1.lead_qualifie`),
+        ville tokenisée (sel au coffre) ; un devis = une intervention ; `preparation.py` et
+        `m4_verifier_preparation` (T0, admin) nomment ce qui manque ; `a_planifier → planifiee`
+        exige un verdict « prêt » (porte fermée tant que T4.12 à T4.14 manquent) ;
+      - `tests/test_cascade_devis_accepte.py` par le vrai bus (rejeu et ordre inversé sans doublon) ;
+        M1 740, M2 855, M4 1817, M5 613, M6 717, M8 367, socle 1123 (43 sautés), gate BMAD M4,
+        verifier 140 outils (66 déclarés), 24 mutations tuées.
+      Limites : un lead saisi dans M2 sans M1 part en quarantaine chez M4 (repli :
+      `m4_planifier_intervention`) ; `m4_planifier_intervention` ne détecte pas l'intervention née du
+      bus pour le même devis (doublon possible, à fermer en T4.12) ; l'app ne connaît pas
+      `a_planifier` (l'employé n'en voit jamais).
 - [ ] T4.11 M3 : P50, P80, facteurs dominants et trois scénarios de prix (M3.11, M3.12).
       Écart (§7 M3.11, M3.12 ; audit M3 §1 « PARTIEL ») : un seul intervalle, tirage uniforme, ni
       P50 ni facteur dominant, un seul scénario de prix.
@@ -1529,8 +1546,10 @@ météo et GPS M4, vision M3, conseil d'agents M9…
         équipe calculée par le code ; sans profil, verdict qui dit quoi déclarer.
       Preuve : pytest socle et M4 ; la démonstration Repentigny-Joliette de T4.1-d rejouée depuis le
       profil seul donne les mêmes octets ; profil retiré : verdict, jamais un repli.
-      Dépend de : T4.10-b (même `outils.py` de M4). GATE NATHAN : équipes, quarts, compétences,
-      dépôt, durées. T3 : aucune donnée de santé ni évaluation d'employé.
+      - sortie de `a_planifier` : `m4_appliquer_cedule` la prend (ou un outil dédié), et
+        `m4_planifier_intervention` refuse un devis qui a déjà son intervention née du bus.
+      Dépend de : T4.10 (fait). GATE NATHAN : équipes, quarts, compétences, dépôt, durées. T3 :
+      aucune donnée de santé ni évaluation d'employé.
 - [ ] T4.13 M4 : météo bloquante et report proposé (M4.10, M4.21).
       Écart (§7 M4.10 ; audit M4 M4.10 « ABSENT » ; R7 §2) : `meteo` n'est qu'un motif de report.
       - port `FournisseurMeteo` (patron `FournisseurMatrice`) ; adaptateurs MSC GeoMet, Open-Meteo
