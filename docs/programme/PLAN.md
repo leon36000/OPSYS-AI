@@ -150,8 +150,15 @@ identifiants du propriétaire, repli livré en attendant.
         régénéré ni affiché ; exit 3 et quoi fournir si un palier ou le service d'embeddings manque.
       - Export en liste blanche avec manifeste SHA-256 (sans `.env`) ; restauration vérifiée avant
         toute écriture ; désinstallation sans jamais toucher aux données.
-      Reste : job `installateur` vert (le core lit-il `core/.env` ? unité `systemd --user` sans
-      secret ?), puis macOS et Windows par une exécution manuelle ; LiteLLM, PostgreSQL et console
+      CI installateur 1 (9d0db7b) : scripts contre de fausses commandes verts ; avec le vrai core,
+      construction, `initialiser` et `openclaw config validate` passent (seules les variables SMS
+      manquent : le jeton du moteur est bien lu) ; échec à `gateway install` : le core n'installe
+      un service que pour le dossier d'état canonique d'un profil (`isDefaultInstallIdentity`),
+      et l'installateur pose `OPENCLAW_STATE_DIR=$OPSYS_HOME/core`.
+      - [ ] T0.11-b Service par le profil `opsys` du core (`OPENCLAW_PROFILE`) : dossier d'état
+            canonique du profil, nom de service distinct du core d'origine ; export, restauration
+            et désinstallation suivent ce dossier ; job `installateur` vert.
+      Reste ensuite : macOS et Windows par une exécution manuelle ; LiteLLM, PostgreSQL et console
       restent à Docker Compose.
 
 - [x] T0.13 Taxonomie métier partagée : M1, M2 et M3 utilisent un même `TYPES_TRAVAUX` qui ne
@@ -898,8 +905,13 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         prouvé dans la base du moteur, rejeu, conflit, refus hors portée ; latence de chaque appel dans le
         journal et le résumé du job. Répété sans core (`tests/e2e_core/test_repetition_sans_core.py`,
         passerelle factice) : ce test prouve le script, pas le core. À cocher quand la CI du core est verte.
-  - [ ] T1.5-f Étendre `e2e-core` (vrai core) à « Terminer », au formulaire des matériaux et à la
+  - [x] T1.5-f Étendre `e2e-core` (vrai core) à « Terminer », au formulaire des matériaux et à la
         décision du propriétaire depuis un second appareil `admin`/`nathan_owner`.
+        Preuve finale : e2e-core 13 (8a6a0b2) et 14 (13f05e1) verts, après la correction de
+        l'import du harnais (68c703b, test `tests/e2e_core/test_script_autonome.py`) : 43 appels
+        par le vrai Gateway (photo en deux blocs, pointage, « Terminer », matériaux, revue de
+        complétion, décision du propriétaire, employé refusé en 403, rejeu), médiane 25,6 ms,
+        « E2E avec le vrai core : tout est vrai ».
         Livré (1972a6d intégré), à cocher sur `e2e-core` vert : photo en deux blocs, signature,
         départ et « Terminer » datés par le serveur, matériaux +40 % (écart critique), second
         appareil pour `nathan` qui lit l'alerte dans « À voir », ouvre la revue N4 et la décide ;
@@ -1211,13 +1223,14 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         candidats ; une connexion MCP par appel ; aucun filtre `CLIENT_PRIVATE` ; l'installation
         n'active rien. Emplacement `core/src/context-engine/` au lieu d'une extension (raison dans
         PROVENANCE.md).
-  - [ ] T3.3-suite-b : résolution des signaux critiques (M10 ne sait pas les clore ; le core les
+  - [x] T3.3-suite-b : résolution des signaux critiques (M10 ne sait pas les clore ; le core les
         affiche seulement) ; blocage `before_tool_call` d'une action N3 ou plus quand le contexte
         est insuffisant ; affaire liée à la session avant d'activer M1 ; filtre `CLIENT_PRIVATE`.
         Livré (b1206c3, 33e1789, 4ad239c, 3378650, a5b9537 intégrés, plus la greffe du garde dans
         `runBeforeToolCallHook` et son test direct 9b0772e : vraie chaîne, vrai `contexte.json`,
-        chaque cas « laisse passer » doublé d'un contrôle refusé), à cocher sur le job
-        `tests-opsys` du core :
+        chaque cas « laisse passer » doublé d'un contrôle refusé). Preuve finale : CI core 27
+        (9d0db7b) verte ; job `tests-opsys` : les 23 cas du test de la greffe réussis, aucun échec
+        sur les fichiers ciblés :
         - M10 : cycle ouvert → pris en compte → clos ; `m10_prendre_en_compte_signal` et
           `m10_clore_signal` (N3, `admin`, motif) refusent tout appel qui n'est ni un humain
           authentifié ni l'exécution d'une demande qu'un humain vient d'approuver ; le paquet
