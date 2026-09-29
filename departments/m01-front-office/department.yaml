@@ -14,7 +14,11 @@ dependances: []
 modeles:
   defaut: standard
   redaction: rapide
-skills: [traiter-une-demande-entrante, mener-un-appel-vocal, recevoir-un-message-de-canal]
+skills:
+  - traiter-une-demande-entrante
+  - mener-un-appel-vocal
+  - recevoir-un-message-de-canal
+  - transferer-a-un-humain
 # PLAN T2.1-a : M1 reçoit le public par le canal SMS du core (extension `sms`). Le socle en tire la configuration
 # d'OPSYS-CORE (`opsys openclaw configurer`) : canal désactivé tant que ses identifiants et la validation écrite des
 # politiques ne sont pas fournis, une session par client, aucune réponse automatique, outils fermés. Conception :

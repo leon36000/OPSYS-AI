@@ -68,7 +68,7 @@ qui travaille sur un toit, un gestionnaire qui reprend un dossier).
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 73 outils sur 149 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 75 outils sur 153 sont déclarés.
 
 ### `employee` (11 outils) : §9.3, le terrain
 
@@ -109,13 +109,14 @@ M10.
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (73 outils) : §9.5 + employé + vendeur
+### `admin` (75 outils) : §9.5 + employé + vendeur
 
 Les 11 outils de l'employé, les 10 du vendeur, et :
 
 | Département | Outils réservés à l'admin | Pourquoi |
 |---|---|---|
 | M1 | `m1_produire_digest` | §9.5 M1 : appels manqués, rappels, messages urgents. |
+| M1 | `m1_lire_transfert` (T0), `m1_clore_transfert` (N3) | §7 M1.8, M1.12 et §9.5 M1 « plaintes, transferts, prendre en charge » (T4.5) : l'admin lit le contexte d'une plainte, d'une urgence de sécurité ou d'un transfert (résumé, contact, messages du client) puis le clôt. La clôture est une décision HUMAINE : voir « Les transferts à un humain de M1 » plus bas. Ni l'employé ni le vendeur : le contact et les mots d'un client qui se plaint sont pour le propriétaire. |
 | M2 | `m2_produire_digest`, `m2_detecter_doublons`, `m2_signaler_doublon`, `m2_arbitrer_doublon` | §9.5 M2 : pipeline, leads chauds, doublons. |
 | M4 | `m4_lister_pending_review`, `m4_volumetrie_pending_review`, `m4_produire_digest` | §9.5 M4 : dispatch du jour, file de complétion. |
 | M4 | `m4_resoudre_demande`, `m4_resoudre_revue_completion` (N4) | §9.5 M4 : approbation des complétions. |
@@ -188,6 +189,23 @@ Limites : ni correction ni annulation d'une facture saisie (un même numéro ave
 avertissement, l'écart se voit au rapprochement) ; toute facture est saisie contre un PO déjà reçu, au moins en
 partie ; l'unité des prix du livre de prix de M6 n'est pas déclarée (GATE NATHAN), donc chaque montant attendu porte la
 réserve `REJ-AP-UNITE-PRIX-NON-CONFIRMEE`.
+
+### Les transferts à un humain de M1 (T4.5)
+
+`m1_lire_transfert` et `m1_clore_transfert` sont ouverts à `admin` et à personne d'autre. `m1_transferer` et
+`m1_escalader_plainte` ne sont ouverts à aucun appareil : c'est le jugement de l'agent dans la session d'un client (l'employé
+qui signale une plainte du terrain, §9.3, est un autre outil, à faire). Le transfert lui-même n'a pas besoin d'un appareil : les
+règles de M1 l'ouvrent à la réception du message (`attentes()` de M1, section « À voir » de l'app).
+
+| Déclaration ou garde | Pourquoi |
+|---|---|
+| `m1_transferer`, `m1_escalader_plainte` : T1 mais **N2** | Ouvrir un transfert est une tâche interne : rien n'est externe, personne n'est engagé. En N3, le mode `ombre` mettrait la création de l'alerte d'une plainte en attente d'approbation, et le garde du core (N3+ exige une affaire liée à la session, ADR-0010) refuserait l'appel dans la session d'un client inconnu : la plainte serait perdue. Même choix que `m1_recevoir_message_canal`. |
+| `m1_clore_transfert` : T1, **N3** (le défaut) | Écriture interne non finale. Un appel d'appareil `admin` s'exécute « au départ » (T1.4-h) avec sa trace ; un agent qui la propose attend une personne. |
+| `m1_clore_transfert` refuse tout appel qui n'est pas une décision humaine | Sans elle, un agent viderait lui-même la file « À voir » de ce qu'il devrait faire lire. Deux voies seulement : identité d'appareil `admin` confirmée en base, ou exécution d'une demande qu'une personne vient d'approuver (`REJ-HUMAIN-REQUIS`, même garde que `m10_clore_signal`). Un agent en `supervise` ou `autonome`, où un N3 s'exécute sans file, est donc refusé. |
+| L'heure d'une clôture d'appareil est celle de réception du serveur | Jamais l'horloge de l'appareil ni l'argument `horodatage` (même patron que M10). |
+| L'identité vient de `contexte.identite_appelante()`, relue en base | Jamais un argument : `additionalProperties: false` refuse `par` et `role`. |
+| L'attente n'a ni contact ni texte du client | Les attentes sont des résumés (section « Pages d'attentes ») : le contexte se lit avec `m1_lire_transfert`, outil admin. La lecture est bornée pour rester sous les 6 000 caractères de `Capacites` (quatre messages couverts et quatre suivants au plus, 350 caractères chacun, résumé de 1 200 au plus ; le plus gros cas tient sous 6 000 : `test_outils_transfert.py`). |
+| `employee` reçoit 403 sur la liste, la lecture et la clôture | `tool_out_of_scope` à la porte d'appareil (E2E `tests/e2e/test_plainte_urgence_appareil.py`). |
 
 ### Les deux outils d'approbation de l'app (T1.4-f, étape 6)
 

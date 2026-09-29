@@ -46,3 +46,27 @@ Une conversation ne meurt plus à la porte, et rien n'est envoyé ni décidé pa
 
 Fixtures fictives (`fictif: true`) : `fixtures/qualification/profil-fictif.v1.yaml`. Conception, limites et décisions de Nathan :
 [M1-canaux](../../docs/departements/M1-canaux.md) §9.
+
+## Plaintes, urgences et transfert humain (PLAN T4.5)
+
+Une plainte ou une urgence de sécurité n'est jamais un lead. Rien n'est envoyé, et aucun contrat n'a changé :
+
+- **Détection par règles** (`plaintes.py`), avant la qualification, sur le texte filtré. Les mots sont ceux du propriétaire,
+  dans son profil d'entreprise (`signaux_plainte`, cinq catégories : insatisfaction, dégât, garantie, avocat, sécurité) ;
+  sans eux, le verdict dit « vocabulaire à configurer » et rien n'est reconnu. **La plainte prime** : un tel message n'ouvre
+  jamais de lead. Une urgence de sécurité est escaladée tout de suite, sans conseil de sécurité ni promesse d'intervention.
+- **Transfert humain** (`transferts.py`) : type fermé (ventes, estimation, admin, finance, plainte, urgence, technique,
+  propriétaire), **résumé obligatoire** (composé par le code, ou fourni par l'agent puis contrôlé : non vide, sans contact,
+  garde-fou), destinataire lu de `destinataires_transfert` (vide par défaut : « destinataire à configurer »). Outils :
+  `m1_transferer`, `m1_escalader_plainte` (N2, tâche interne), `m1_lire_transfert` (admin), `m1_clore_transfert` (admin, décision
+  humaine : un agent ne clôt jamais seul).
+- **« À voir »** : `attentes()` rend une attente par transfert ouvert, sans donnée personnelle, triée par niveau (N5 urgence de
+  sécurité et menace juridique, N4 plainte, N3 le reste) puis ancienneté. L'admin la voit, l'employé reçoit 403. Elle disparaît
+  quand une personne clôt le transfert.
+- **Gabarit empathique** : un brouillon (`envoye: false`), sans excuse, promesse, conseil ni avis légal, passé par le garde-fou
+  des interdits et une vérification de l'avis légal ; l'envoi reste `m1_emettre_notification` (N4).
+
+Fixtures fictives (`fictif: true`) : `fixtures/plaintes/plaintes.v1.yaml` (48 plaintes et urgences, 12 demandes ordinaires, 4
+limites documentées). Conception, niveaux N, limites et décisions de Nathan :
+[M1-canaux](../../docs/departements/M1-canaux.md) §10.
+

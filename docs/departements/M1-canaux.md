@@ -7,7 +7,9 @@ courriel a son outil (même chemin) mais pas sa configuration ; la voix vient ap
 dans un message et la ville dans le suivant donne un lead complet, par du code (§8).
 **Suite (T4.4, 2026-09-29) :** qualification complète : verdict qui nomme chaque champ manquant, questions obligatoires par
 service lues du profil, demande de photos fermée, score de lead explicable, prochaine action datée au registre (§9).
-**Références :** `DEFINITION-PRODUIT` §5, §6, §7 (M1.1, M1.3, M1.4, M1.7), `M1-audit.md`, ADR-0010 (T3.3-suite-b).
+**Suite (T4.5, 2026-09-29) :** plaintes, urgences de sécurité et transfert humain avec résumé : la plainte prime (jamais de lead),
+une attente lisible dans « À voir », un gabarit de réponse empathique en brouillon (§10).
+**Références :** `DEFINITION-PRODUIT` §5, §6, §7 (M1.1, M1.3, M1.4, M1.7, M1.8, M1.12), `M1-audit.md`, ADR-0010 (T3.3-suite-b).
 **Le core ne s'exécute pas dans ce bac à sable.** Tout ce qui suit sur le core vient de la lecture de ses sources
 (`fichier:ligne` donnés) ; la CI (`e2e-core`, `openclaw config validate`) est l'autorité.
 
@@ -402,4 +404,161 @@ Rien de ceci n'a de valeur par défaut dans le code : sans décision, le systèm
 5. **Le délai de relance.** L'échéance d'une conversation est la fin de sa fenêtre ; un délai plus court (par exemple répondre
    dans les 15 minutes) est une décision, pas un calcul.
 Les questions et les poids des tests sont fictifs : `departments/m01-front-office/fixtures/qualification/profil-fictif.v1.yaml`
+(`fictif: true`).
+
+## 10. Plaintes, urgences et transfert humain (T4.5)
+
+Un client qui se plaint, ou qui signale un danger, n'est pas un lead : c'est une personne qu'il faut mettre devant un humain.
+Rien n'est envoyé au client et aucun contrat n'a changé (`LeadQualifie` v2 et `m1.lead_qualifie` sont intacts). Ce que le
+code fait (`plaintes.py`, `transferts.py`, `outils.py`) ; le modèle orchestre, il ne décide ni du type, ni du niveau, ni du
+destinataire.
+
+```
+message reçu -> provenance (filtre) -> détection par règles (mots de l'entreprise) --reconnu--> TRANSFERT ouvert (registre)
+                                             |                                                   |  attente « À voir » (N5/N4/N3)
+                                             |                                                   |  brouillon empathique (jamais envoyé)
+                                             +--rien de reconnu, aucun transfert ouvert--> qualification (§8, §9)
+message d'une conversation dont un transfert est ouvert --> rattaché au transfert, jamais qualifié
+```
+
+### 10.1 Détection : par règles, avant la qualification, sur le texte filtré
+
+- **Les mots ne sont pas dans le code.** Le propriétaire les écrit, par catégorie, dans le **profil d'entreprise**
+  (`entreprise.yaml`, clé `signaux_plainte`, format dans [TAXONOMIE](../architecture/TAXONOMIE.md)). Cinq catégories, un
+  ensemble fermé que le code connaît : `insatisfaction`, `degat`, `garantie`, `avocat` (plaintes) et `securite` (urgence).
+  Les lectures sont celles des mots-clés d'un service : mot entier, pluriel admis, accents et casse ignorés, plusieurs mots =
+  une expression.
+- **Pourquoi le profil et non le `department.yaml` de M1.** (1) Chaque PME a ses mots et ses services : le manifeste est le
+  même pour toutes les installations, le profil est par instance (SaaS, une base par instance). (2) Les questions, les poids et
+  la fenêtre de M1 (T4.4, T2.1-b) y vivent déjà : une seule source de configuration métier de M1. (3) Il s'écrit avec un nom
+  signé au journal d'audit (`enregistrer_signaux_plainte(…, par="nom")`), ce que demande une décision de Nathan ; un
+  changement du manifeste passe par une PR. (4) `opsys verifier` signale un profil invalide.
+- **Sans vocabulaire, le verdict le dit** : `REJ-SIGNAUX-PLAINTE-NON-CONFIGURES` (« vocabulaire des plaintes à configurer »), et
+  la réponse porte `plainte.statut: vocabulaire_a_configurer` : rien n'est reconnu, jamais un mot par défaut. Un vocabulaire
+  invalide donne `profil_invalide` (`REJ-PROFIL-INVALIDE`), jamais lu comme absent, et **n'arrête pas la réception** (un lead ne
+  se perd pas pour une faute de frappe). Une catégorie sans terme est nommée (`categories_non_configurees`).
+- **La plainte prime.** Un message reconnu n'ouvre jamais de lead, même avec service, ville et contact. Il en va de même de
+  tout message d'une conversation dont un transfert est encore **ouvert** : il est inscrit et rattaché, jamais qualifié. Une
+  fois le transfert clos, ses messages ne se rassemblent plus dans la fenêtre de conversation (`transferts.signaux_exclus`) : les
+  mots de la plainte n'ouvriront pas un lead plus tard.
+- **Une urgence de sécurité est escaladée tout de suite** (type `urgence`, elle prime sur la plainte dans un même message).
+  Aucun conseil de sécurité, aucune promesse d'intervention : ni dans le brouillon, ni dans la consigne à l'agent.
+- **Mesures sur les fixtures fictives** (`fixtures/plaintes/plaintes.v1.yaml`, `fictif: true`) : **48 plaintes et urgences sur
+  48 escaladées (100 %)**, avec exactement leurs catégories (36 plaintes, 12 urgences ; 6 messages mêlent deux catégories) ; **11 demandes ordinaires sur 12 passent** sans escalade ; la douzième (« ma voisine est avocate ») est un faux positif
+  connu, escaladé : une personne lit, rien n'est perdu ; **4 plaintes sur 4 dites sans un mot du vocabulaire ne sont pas
+  reconnues** (ironie, formulation indirecte, anglais absent du vocabulaire) : c'est la limite du code, qui lit des mots et pas
+  le sens. Elle est couverte par le jugement de l'agent (`m1_escalader_plainte`, 4 sur 4 escaladées dans les tests).
+
+### 10.2 Le transfert : type fermé, résumé obligatoire, destinataire à configurer
+
+Un transfert est une suite de lignes `transfert` du registre anti-perte (append-only, jamais modifiées) : `ouvert`, puis `clos`
+quand une PERSONNE le clôt. Ouvert, il est une attente ; les messages arrivés depuis sont rattachés (`rattache_au_transfert`).
+
+| Point | Règle |
+|---|---|
+| Type | Ensemble fermé de la définition du produit (§7 M1.12) : `ventes`, `estimation`, `admin`, `finance`, `plainte`, `urgence`, `technique`, `proprietaire`. Un autre est refusé par le schéma. |
+| Résumé | **Obligatoire, refus si vide.** Absent, le code le compose : type, termes reconnus, canal, nombre et heures des messages, lead déjà transmis ou non, origine du contact. **Aucun texte du client, aucun contact** (la file « À voir » ne porte aucune donnée personnelle). Fourni par l'agent (`resume`), il est **contrôlé** : non vide (`REJ-TRANSFERT-RESUME-VIDE`), 1 200 caractères au plus, passé par le filtre de provenance, **sans donnée de contact brute** (téléphone d'au moins sept chiffres, courriel : `REJ-TRANSFERT-RESUME-CONTACT`), puis par `garde_fou.verifier_sortie` (prix, date, engagement, aveu : `REJ-INTERDIT-*`). Un refus n'écrit rien. |
+| Contact | Porté **à part**, jamais dans le résumé : l'identité que la plateforme a vérifiée (SMS, courriel), sinon ce que le client a écrit (voix, formulaire), sinon rien. |
+| Destinataire | Un **rôle**, lu de la table `destinataires_transfert` du profil (« type -> rôle », vide par défaut). Absent : `destinataire: null` et le verdict `REJ-DESTINATAIRE-NON-CONFIGURE` (« destinataire à configurer », qui nomme le type). **Le code ne choisit jamais une personne.** Le transfert est ouvert quand même : une plainte ne se perd pas pour une configuration manquante. Le rôle est affiché, pas appliqué : les attentes ne sont visibles que de l'admin (T1.5). |
+| Idempotence | Un message rejoué ne crée ni second transfert ni seconde ligne. Deux appels de l'agent pour la même conversation et le même type rendent le transfert ouvert (`deja_ouvert`). |
+| Date | L'heure de réception du message déclencheur (celle de la plateforme). Ouvert par l'agent : celle du dernier message du client. Jamais une horloge. |
+
+**Les outils.** `m1_transferer(type_transfert, canal, expediteur, resume?)` et `m1_escalader_plainte(raison, canal, expediteur,
+resume?)` ouvrent le même transfert que les règles, par le jugement de l'agent (`raison` : les cinq catégories ou `autre`).
+L'agent recopie le canal et l'expéditeur comme pour un message reçu ; une conversation sans aucun message est refusée
+(`REJ-TRANSFERT-CONVERSATION-INCONNUE`). **On ne sous-classe jamais un danger** : une plainte dont le texte évoque une urgence de
+sécurité devient une `urgence`. `m1_lire_transfert(transfert_id)` rend le contexte complet (admin) ; `m1_clore_transfert(
+transfert_id, motif, horodatage)` le clôt (admin, décision humaine).
+
+### 10.3 Niveaux N : celui des outils, celui de l'attente
+
+**Outils (ADR-0009 §4).**
+
+| Outil | T / N | Pourquoi |
+|---|---|---|
+| `m1_transferer`, `m1_escalader_plainte` | T1 / **N2** | Ouvrir un transfert ne fait rien d'externe et n'engage personne : c'est une tâche interne (N2), pas une action externe à faible risque (N3). Trois raisons : en N3, le mode `ombre` mettrait la **création** de l'alerte d'une plainte en attente d'approbation (elle serait invisible avant qu'on approuve qu'elle existe) ; et le garde du core (ADR-0010, N3+ exige une affaire liée à la session) **refuserait l'appel** dans la session d'un client dont l'affaire n'est pas liée : la plainte d'un client inconnu serait perdue. Même choix que `m1_recevoir_message_canal`. |
+| `m1_lire_transfert` | T0 / N0 | Lecture. Admin. |
+| `m1_clore_transfert` | T1 / **N3** (défaut) | Modification interne non finale : en `ombre`, un agent qui la propose attend une personne ; un appel d'appareil `admin` s'exécute « au départ » (addendum T1.4-h). **L'outil refuse lui-même tout appel qui n'est pas une décision humaine** (`REJ-HUMAIN-REQUIS`, même garde que `m10_clore_signal`) : jeton d'appareil `admin` confirmé en base, ou exécution d'une demande qu'une personne vient d'approuver. Un agent ne clôt jamais seul, même en `supervise` ou `autonome`. |
+| `m1_emettre_notification` | T2 / N4 | Inchangé : seul outil qui écrit à un client. Le brouillon d'une plainte n'y part qu'après approbation. |
+
+**Attente (`niveau` dans « À voir »).** Seul l'ordre compte : `approbations.ordre_attente` trie par niveau, puis ancienneté.
+**N5** : urgence de sécurité, et plainte avec menace juridique (le sujet est légal, DEFINITION-PRODUIT §5) ; **N4** : plainte,
+transfert au propriétaire (la réponse engage l'entreprise) ; **N3** : ventes, estimation, admin, finance, technique (une tâche à
+prendre). L'urgence passe devant une plainte plus ancienne (prouvé, E2E). C'est un ordre de lecture, pas une approbation : le
+niveau d'une attente n'ouvre aucune décision N5 (l'attestation du professionnel reste celle de l'ADR).
+
+### 10.4 « À voir » : l'attente naît à l'ouverture, une personne la clôt
+
+`attentes()` (même mécanisme que M4, M5 et M6) rend une attente par transfert ouvert : `type` (`plainte_escaladee`,
+`urgence_escaladee`, `transfert_humain`), `id` (le transfert), `resume` d'une ligne **sans donnée personnelle** (type,
+catégories, canal, nombre de messages, destinataire ou « à configurer »), `niveau`, `depuis`, `action_proposee`. L'admin la lit
+par `m9_lister_demandes_approbation` ; l'employé reçoit 403 (E2E). Elle disparaît quand une personne clôt le transfert avec
+`m1_clore_transfert` : **sans cet outil, la file ne se viderait jamais**. Le contexte (résumé, contact, messages du client,
+brouillon) se lit avec `m1_lire_transfert`. Le digest de M1 compte les transferts ouverts (dont urgences et plaintes) au jour de
+référence.
+
+### 10.5 Le gabarit de réponse empathique : un brouillon, jamais envoyé
+
+| Type | Texte (proposition v1, ton à valider par Nathan) |
+|---|---|
+| plainte | « Bonjour, merci de nous avoir écrit. Nous comprenons que la situation que vous décrivez vous préoccupe. Votre message a été transmis à une personne de l'équipe. » |
+| urgence | « Bonjour, merci de votre message. Nous l'avons signalé à une personne de l'équipe. » |
+
+- **Aucune excuse** (« désolé » reconnaît un tort), **aucune promesse ni délai**, **aucun conseil de sécurité** (pas même « appelez
+  le 9-1-1 » : décision de Nathan), **rien sur le droit**. Un fait passé seulement : le message a été transmis.
+- Le brouillon passe par `garde_fou.verifier_sortie` (prix, date, engagement, aveu) **et** par une vérification de l'avis légal,
+  ajoutée ici : **le garde-fou ne porte pas de famille « avis légal »** (constat, prouvé par un test : « Vous avez le droit de
+  refuser de payer » passe le garde-fou). Le corpus adversarial (44 textes) est inchangé et rejoué contre le gabarit : 44 sur 44
+  retirés. Si le gabarit était modifié pour contenir un texte interdit, `brouillon_reponse` vaut `null` et `sans_brouillon` dit le
+  code.
+- **Pas de brouillon** pour une menace juridique (`sujet_legal_reponse_humaine` : la réponse est humaine), ni pour un client qui
+  s'est retiré (STOP : `retrait_consentement`, la plainte est escaladée quand même). `envoye` vaut toujours `false` ; l'envoi est
+  `m1_emettre_notification` (N4, approbation).
+
+### 10.6 Forme de la réponse de `m1_recevoir_message_canal` pour une plainte ou une urgence
+
+| Clé | Contenu |
+|---|---|
+| `decision` | `ESCALADE_PLAINTE`, `ESCALADE_URGENCE` (transfert ouvert par ce message) ou `TRANSFERT_EN_COURS` (rattaché à un transfert ouvert) ; `qualifie: false`, jamais de `lead` |
+| `plainte` | `statut`, `categories`, `termes` reconnus (et `verdict` quand le vocabulaire est à configurer ou invalide : présent aussi sur une réponse ordinaire dans ce cas) |
+| `transfert` | `transfert_id`, `type_transfert`, `niveau`, `statut`, `nouveau`, `destinataire`, `verdict_destinataire` (détail complet à l'ouverture seulement) |
+| `brouillon_reponse`, `envoye`, `gabarit`, `sans_brouillon` | à l'ouverture d'une plainte ou d'une urgence ; `envoye` vaut toujours `false` |
+| `consigne` | ce que l'agent ne fait pas (écrire au client, conseiller, promettre) et ce qu'il dit à une personne |
+
+### 10.7 Limites connues
+
+- Le code lit des mots, pas le sens : faux positifs (« ma voisine est avocate ») et faux négatifs (ironie, langue absente du
+  vocabulaire). Le vocabulaire est celui du propriétaire ; des **expressions** (« après vos travaux ») réduisent les faux positifs.
+- Un transfert reste ouvert tant qu'une personne ne le clôt pas : un client qui écrit une demande ordinaire pendant ce temps est
+  rattaché à la plainte, jamais qualifié. C'est voulu (une personne lit) ; le prix est un lead qui attend cette lecture.
+- Le rôle destinataire est affiché, pas appliqué : la visibilité par rôle des attentes (au-delà de l'admin) est à faire.
+- Les canaux vocal et formulaire passent par `m1_traiter_demande_entrante` (même détection, même transfert) ; les outils de
+  l'agent (`m1_transferer`, `m1_escalader_plainte`) ne prennent que les canaux du core (`sms`, `courriel`).
+- Une adresse postale dans un résumé fourni par l'agent n'est pas reconnue (seuls le téléphone et le courriel le sont).
+- Aucun outil de M1 n'écrit encore une tâche dans M2 ni un signal dans M10 pour un transfert : la file « À voir » est la seule
+  sortie (le lien vers M2 d'un lead déjà transmis est dit dans le résumé).
+- Le jugement de l'agent (`m1_escalader_plainte`) n'est pas vérifié par du code : escalader à tort coûte une lecture.
+- Une instance qui n'a déclaré ni ses services ni sa zone refuse tout message de canal (comportement de T2.1-a, rien n'est
+  écrit) : une plainte comprise. L'agent le dit ; le message reste dans la session du core. Le vocabulaire des plaintes, lui,
+  ne conditionne pas la réception.
+- Aucun outil de configuration : le vocabulaire et la table de destinataires s'écrivent dans `entreprise.yaml` ou par
+  `opsys.taxonomie.enregistrer_signaux_plainte` et `enregistrer_destinataires_transfert` (signés au journal), comme les
+  questions et les poids de T4.4. Ni la console ni l'app n'ont encore d'écran pour cela.
+- Un transfert couvre au plus six messages de la conversation ouverte (fenêtre du profil) ou, sans fenêtre, le seul
+  message déclencheur ; les messages suivants sont rattachés et la lecture en montre quatre au plus (le reste est compté).
+
+### 10.8 Ce que Nathan décide (GATE NATHAN)
+
+Rien de ceci n'a de valeur par défaut dans le code : sans décision, le système le dit.
+1. **Le vocabulaire des plaintes** (`signaux_plainte`, cinq catégories). Sans lui : « vocabulaire à configurer », aucune plainte
+   reconnue par le code. Les mots de la fixture sont fictifs.
+2. **Qui reçoit chaque type de transfert** (`destinataires_transfert`, type -> rôle : `nathan_owner`, `admin`, `finance`,
+   `manager`, `seller`, `employee`). Sans lui : « destinataire à configurer », pour chaque type.
+3. **Le ton du gabarit** (§10.5) : proposition, à valider. À trancher explicitement : une excuse, oui ou non ; un renvoi aux
+   services d'urgence dans le brouillon d'urgence (aujourd'hui non : c'est un conseil de sécurité) ; une réponse pour une menace
+   juridique (aujourd'hui aucune : elle est humaine).
+4. **Les niveaux de l'attente** (§10.3) : N5 pour l'urgence de sécurité et la menace juridique, N4 pour la plainte, N3 pour les
+   autres transferts.
+5. **La règle « la plainte prime tant qu'elle est ouverte »** : garder, ou limiter le rattachement dans le temps.
+Les vocabulaires, rôles et messages des tests sont fictifs : `departments/m01-front-office/fixtures/plaintes/plaintes.v1.yaml`
 (`fictif: true`).
