@@ -83,7 +83,7 @@ identifiants du propriétaire, repli livré en attendant.
           `config-baseline.sha256`, ligne de licence, identifiants internes.
         - À faire relire : les textes fr-CA par un locuteur québécois ; `pnpm ui:i18n:sync --write`
           ne doit changer que `generatedAt`.
-  - [ ] Lot 2 : une seule commande `opsys` (le core, alias `openclaw`), `opsys metier` pour le moteur
+  - [x] Lot 2 : une seule commande `opsys` (le core, alias `openclaw`), `opsys metier` pour le moteur
         Python (renommé `opsys-metier`) ; AGENTS.md et CI mis à jour.
         Livré, à cocher au premier vert de `core.yml` (vitest `tests-opsys`, `pnpm build`), de
         `installateur` (3 systèmes, vrai core) et de `e2e-core` : ff6b501 (core), a0d5b50 (moteur,
@@ -102,8 +102,10 @@ identifiants du propriétaire, repli livré en attendant.
           `tests-opsys`) ; `e2e-core` VERT (run 34) ; `installateur` macOS VERT avec le vrai core,
           Windows vert jusqu'à l'étape 4 (dont `opsys`, `opsys metier`, l'ancienne forme et le refus
           au shell de l'agent) ; Linux rouge sur un test du lot que le bac à sable ne pouvait pas
-          jouer (lecture texte d'un `.cmd` en `\r\n`, corrigé en d828427). À cocher au premier vert
-          de Linux et de Windows.
+          jouer (lecture texte d'un `.cmd` en `\r\n`, corrigé en d828427). Coché sur l'installateur
+          10 (b684e36) : Linux, macOS et Windows verts avec le vrai core, dont l'étape « une seule
+          commande » (`opsys` est le core, `opsys metier` le moteur, l'ancienne forme dit la
+          nouvelle en code 2, `opsys metier` refusé au shell de l'agent).
   - [ ] Lot 3 : dossier d'instance `~/.opsys` (état du core dans `core/`), `opsys.json`, anciens noms
         relus par la migration Doctor existante.
         Depuis T0.11-b, l'installateur utilise le profil `opsys` (`~/.openclaw-opsys`) : ce lot
@@ -167,9 +169,10 @@ identifiants du propriétaire, repli livré en attendant.
           dynamique (SHA-256 de `src/` et `tests/` identique après une épreuve) ;
         - épreuve tuée par `SIGKILL` : `git status` de M3 inchangé, suite suivante verte ;
         - M3 823 (outils de mutation compris).
-- [ ] T0.11 Installateur en une commande (dérivé de `install.sh` / `install.ps1`), désinstallation
+- [x] T0.11 Installateur en une commande (dérivé de `install.sh` / `install.ps1`), désinstallation
       et export documentés ; Docker Compose en option serveur.
-      Avancement (non coché : le job `installateur` n'a pas encore tourné en CI) :
+      Coché sur l'installateur 10 (b684e36) : Linux, macOS et Windows verts avec le vrai core
+      (T0.11-b, T0.11-c, T0.11-d). Historique :
       a045b08 (`opsys instance initialiser|exporter|restaurer`), be22f0c (`configurer` ne supprime
       plus l'espace de travail des agents : `MEMORY.md` et `memory/` survivaient mal au rejeu de
       300 s du VPS), bcdc611 (`install/install.sh` et `.ps1`, désinstallation, job `installateur`),
@@ -207,7 +210,7 @@ identifiants du propriétaire, repli livré en attendant.
             (SHA-256, 0600, sans secret) et restauration ; service `openclaw-gateway-opsys.service`
             actif, moteur supervisé, aucun secret dans l'unité ni le journal ; désinstallation
             relançable, données intactes.
-      - [ ] T0.11-d Jobs `installateur` sur les exécuteurs macOS (launchd) et Windows (`pwsh`) de
+      - [x] T0.11-d Jobs `installateur` sur les exécuteurs macOS (launchd) et Windows (`pwsh`) de
             GitHub Actions : aujourd'hui, `install.ps1` n'a que l'analyse syntaxique et macOS n'est
             exécuté nulle part.
             Livré (0d60059, 4a7031c, b6ff671), à cocher au premier vert des deux jobs : `installation-macos`
@@ -232,6 +235,13 @@ identifiants du propriétaire, repli livré en attendant.
             restauration, Gateway qui supervise le moteur) et échoue à l'étape 5 sur la preuve : elle
             cherchait « LeastPrivilege » dans le XML de la tâche, que le Planificateur omet (niveau par
             défaut). Corrigé en aa6a03e (HighestAvailable refusé, niveau effectif lu : Limited).
+            Preuve finale : installateur 10 (b684e36), les quatre jobs VERTS. Windows « Tout est
+            vrai » (Windows Server 2025, pwsh 7.6 et Windows PowerShell) : installation (ACL
+            réservées), une seule commande `opsys`, `opsys metier`, relance identique, export SHA-256
+            et restauration, Gateway qui supervise le moteur, service en TÂCHE PLANIFIÉE lancée par le
+            Planificateur au niveau Limited, aucun secret dans le XML de la tâche ni dans les
+            journaux, désinstallation relançable qui garde les données. macOS (LaunchAgent) et Linux
+            (systemd utilisateur) aussi, avec le vrai core.
       Reste ensuite : macOS et Windows (T0.11-d) ; LiteLLM, PostgreSQL et console restent à
       Docker Compose.
 
