@@ -128,7 +128,11 @@ class Poste:
 
     @property
     def etat_core(self) -> Path:
-        return self.hote / ".openclaw-opsys"
+        return self.hote / ".opsys" / "core"
+
+    @property
+    def ancien_profil(self) -> Path:
+        return self.hote / ".openclaw-opsys"  # où le profil rangeait son état avant T0.7 lot 3
 
     @property
     def plist(self) -> Path:
@@ -202,12 +206,18 @@ def test_macos_la_preuve_entiere_passe_avec_le_service_launchd(macos):
     sortie = _sortie(resultat)
     assert resultat.returncode == 0, sortie
     assert "== Tout est vrai" in resultat.stdout
-    for etape in ("0. Poste", "1. Installation (sans service)", "2. Gateway au premier plan", "3. Relance",
-                  f"5. Service utilisateur ({ETIQUETTE})", "6. Désinstallation"):
+    for etape in ("0. Poste", "1. Installation (sans service)", "1 quinquies. Installation d'avant le lot 3",
+                  "2. Gateway au premier plan", "3. Relance", f"5. Service utilisateur ({ETIQUETTE})",
+                  "5 bis. Service d'avant le lot 3", "6. Désinstallation"):
         assert f"::group::{etape}" in resultat.stdout, etape  # une étape = un groupe repliable
     assert resultat.stdout.count("::group::") == resultat.stdout.count("::endgroup::")
     assert "OK  poste neuf (Darwin)" in resultat.stdout
     assert f"OK  le service {ETIQUETTE} tourne dans launchd" in resultat.stdout
+    # T0.7 lot 3 : l'état d'avant (~/.openclaw-opsys) est refusé, lu en place, puis déplacé par Doctor ; le service suit
+    assert "OK  état d'avant le lot 3 : refusé par le moteur avec la marche à suivre" in resultat.stdout
+    assert "OK  deux états : Doctor ne déplace, ne fusionne ni ne supprime rien" in resultat.stdout
+    assert "OK  service d'avant le lot 3 : sa définition nomme" in resultat.stdout
+    assert "OK  service d'avant le lot 3 : Doctor a déplacé l'état" in resultat.stdout
     assert "SHA-256 vérifié (shasum)" in resultat.stdout  # shasum de macOS, pas sha256sum
     resume = macos.resume.read_text(encoding="utf-8")
     assert "### Installateur avec le vrai core (Darwin)" in resume
@@ -219,6 +229,9 @@ def test_macos_la_preuve_entiere_passe_avec_le_service_launchd(macos):
     # la désinstallation a rangé le plist, comme le core (dans la corbeille) ; l'état du core est resté
     assert not macos.plist.exists() and (macos.hote / ".Trash" / f"{ETIQUETTE}.plist").is_file()
     assert (macos.etat_core / ".env").is_file()
+    # le lien que Doctor a laissé à l'ancien chemin est intact
+    assert macos.ancien_profil.is_symlink() and macos.ancien_profil.resolve() == macos.etat_core.resolve()
+    assert not (macos.hote / ".openclaw-opsys.old").exists()  # le seul reste du script est retiré par lui
     assert not (macos.hote / "Library" / "LaunchAgents" / "ai.openclaw.gateway.plist").exists()
 
 
@@ -229,6 +242,13 @@ def test_linux_la_preuve_sans_service_passe_avec_les_commandes_gnu(linux):
     assert resultat.returncode == 0, sortie
     assert "== Tout est vrai" in resultat.stdout
     assert "OK  poste neuf (Linux)" in resultat.stdout
+    # T0.7 lot 3 : la migration de l'état d'avant se prouve sans service ; l'étape du service d'avant saute avec lui
+    assert "::group::1 quinquies. Installation d'avant le lot 3" in resultat.stdout
+    assert "OK  état d'avant le lot 3 : refusé par le moteur avec la marche à suivre" in resultat.stdout
+    assert "5 bis." not in resultat.stdout
+    # la preuve du conflit a mis de côté, puis retiré, le faux ancien état qu'elle avait fabriqué : plus rien là
+    assert not linux.ancien_profil.exists() and not linux.ancien_profil.is_symlink()
+    assert not (linux.hote / ".openclaw-opsys.old").exists()
     # T0.7 lot 2 : `opsys` est le core, `opsys metier` le moteur par le core, l'ancienne forme dit la nouvelle
     assert "::group::1 bis bis. Une seule commande" in resultat.stdout
     assert "OK  opsys est le core (OPSYS <version>, alias openclaw identique) ; opsys metier lance le moteur" \
@@ -264,7 +284,7 @@ def monde_launchd(poste: Poste, **fautes: str) -> dict[str, str]:
     Un seul port : le faux Gateway répond aussi à /sante (FAUX_SANTE), ce qui tient lieu de moteur.
     """
     poste.travail.mkdir(exist_ok=True)
-    poste.etat_core.mkdir(mode=0o700)
+    poste.etat_core.mkdir(mode=0o700, parents=True)
     (poste.etat_core / ".env").write_text(
         f"OPSYS_MCP_JETON={JETON}\nOPSYS_CLE_M01={CLE}\nOPSYS_EMBEDDINGS_MODELE=bge-m3\n", encoding="utf-8")
     (poste.etat_core / ".env").chmod(0o600)
@@ -331,6 +351,66 @@ def test_un_secret_n_est_jamais_imprime_meme_quand_le_controle_le_trouve(macos):
     assert JETON not in _sans_masque(_sortie(resultat))
     assert CLE not in _sans_masque(_sortie(resultat))
     assert f"::add-mask::{JETON}" in resultat.stdout  # l'échec déclare d'abord les secrets au masque de GitHub
+
+
+# -- les contrôles de la migration de l'état d'avant le lot 3, un à un (contrôles négatifs) ----------------------------
+FAUTES_DE_MIGRATION = {
+    "un core qui ne replie pas sur l'ancien dossier tant qu'il est seul à porter un état": (
+        {"FAUX_SANS_REPLI": "1"}, "l'état resté à l'ancien emplacement n'est pas signalé"),
+    "un Doctor qui ne fait rien": ({"FAUX_DOCTOR_INACTIF": "1"}, "Doctor n'a pas déplacé l'état de"),
+    "un Doctor qui copie au lieu de déplacer": ({"FAUX_DOCTOR_COPIE": "1"}, "Doctor n'a pas déplacé l'état de"),
+    "un Doctor qui ne laisse pas de lien": ({"FAUX_DOCTOR_SANS_LIEN": "1"}, "en laissant un lien à l'ancien chemin"),
+    "un Doctor qui perd un fichier": ({"FAUX_DOCTOR_PERD_UN_FICHIER": "1"}, "Doctor a perdu ./opsys/tools.json"),
+    "un Doctor qui modifie un secret": (
+        {"FAUX_DOCTOR_ALTERE_UN_SECRET": "1"}, "les secrets ou les fragments ont changé pendant le déplacement"),
+    "un Doctor qui renomme la configuration": (  # un renommage est une perte de l'ancien nom : le nom est vérifié
+        {"FAUX_DOCTOR_RENOMME_LA_CONFIG": "1"}, "Doctor a perdu ./openclaw.json"),
+    "un Doctor qui fusionne deux états": (
+        {"FAUX_DOCTOR_FUSIONNE": "1"}, "Doctor a touché à l'ancien état malgré le conflit"),
+}
+
+
+@pytest.mark.parametrize("faute", sorted(FAUTES_DE_MIGRATION))
+def test_chaque_controle_de_la_migration_attrape_sa_faute(linux, faute):
+    injection, message = FAUTES_DE_MIGRATION[faute]
+
+    resultat = linux.jouer(OPSYS_SANS_SERVICE="1", **injection)
+
+    assert resultat.returncode == 1, f"la faute « {faute} » n'a pas été attrapée : {_sortie(resultat)}"
+    assert message in resultat.stderr, resultat.stderr
+    assert "== Tout est vrai" not in resultat.stdout
+    assert "== 1 quinquies." in resultat.stdout  # arrêté à l'étape de la migration, pas avant ni après
+    assert "== 2. Gateway au premier plan" not in resultat.stdout
+
+
+FAUTES_DU_SERVICE_D_AVANT = {
+    "un service dont la définition nomme toujours l'ancien dossier": (
+        {"FAUX_SERVICE_GARDE_L": "1"}, "le service désigne l'ancien dossier du profil"),
+    "un service qui ne suit pas l'état lu à l'ancien emplacement": (
+        {"FAUX_SERVICE_NOMME_LE_NOUVEAU": "1"}, "ne nomme pas"),
+}
+
+
+@pytest.mark.parametrize("faute", sorted(FAUTES_DU_SERVICE_D_AVANT))
+def test_chaque_controle_du_service_d_avant_le_lot_3_attrape_sa_faute(macos, faute):
+    injection, message = FAUTES_DU_SERVICE_D_AVANT[faute]
+
+    resultat = macos.jouer(OPSYS_SERVICE_REQUIS="1", **injection)
+
+    assert resultat.returncode == 1, f"la faute « {faute} » n'a pas été attrapée : {_sortie(resultat)}"
+    assert message in resultat.stderr, resultat.stderr
+    assert "== Tout est vrai" not in resultat.stdout
+
+
+def test_un_ancien_dossier_du_profil_deja_la_arrete_la_preuve_avant_de_toucher_a_quoi_que_ce_soit(linux):
+    linux.ancien_profil.mkdir(parents=True)
+    (linux.ancien_profil / ".env").write_text("MARQUEUR=poste-reel-fictif\n", encoding="utf-8")
+
+    resultat = linux.jouer(OPSYS_SANS_SERVICE="1")
+
+    assert resultat.returncode == 1 and f"{linux.ancien_profil} existe déjà" in resultat.stderr
+    assert (linux.ancien_profil / ".env").read_text(encoding="utf-8") == "MARQUEUR=poste-reel-fictif\n"
+    assert not linux.etat_core.exists()
 
 
 # -- les aides du script ---------------------------------------------------------------------------------------------
@@ -437,7 +517,7 @@ def test_hors_github_aucun_marqueur_de_groupe_n_est_imprime(macos):
 
 def test_un_fichier_qui_porte_un_secret_doit_etre_prive(macos):
     monde = macos.etat_core
-    monde.mkdir(mode=0o700)
+    monde.mkdir(mode=0o700, parents=True)
     (monde / ".env").write_text(f"OPSYS_MCP_JETON={JETON}\n", encoding="utf-8")
     dossier = macos.hote / "Library" / "LaunchAgents"
     dossier.mkdir(parents=True)
@@ -484,7 +564,7 @@ def test_macos_une_desinstallation_qui_laisse_le_plist_est_un_echec(macos):
 
 # -- diagnostic.sh ---------------------------------------------------------------------------------------------------
 def _monde_du_diagnostic(poste: Poste) -> None:
-    poste.etat_core.mkdir(mode=0o700)
+    poste.etat_core.mkdir(mode=0o700, parents=True)
     (poste.etat_core / ".env").write_text(
         f"OPSYS_MCP_JETON={JETON}\nOPSYS_CLE_M01={CLE}\nRIEN=ceci\n", encoding="utf-8")
     (poste.etat_core / "openclaw.json").write_text("{}", encoding="utf-8")
@@ -513,7 +593,7 @@ def test_le_diagnostic_imprime_les_journaux_sans_jamais_un_secret_ni_le_contenu_
     assert "RIEN=ceci" not in imprime and "OPSYS_MCP_JETON" not in imprime  # jamais le contenu de .env
     assert "::group::" in resultat.stdout
     assert resultat.stdout.count("::group::") == resultat.stdout.count("::endgroup::")
-    assert ".openclaw-opsys/.env" in imprime  # le NOM du fichier et son mode, oui
+    assert ".opsys/core/.env" in imprime  # le NOM du fichier et son mode, oui
     if systeme == "macos":
         assert "ligne du service" in imprime and "jeton=***" in imprime  # le journal du service, filtré
 

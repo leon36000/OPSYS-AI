@@ -6,7 +6,9 @@
 #
 # Aucun secret : les valeurs secrètes de <état du core>/.env (jetons, clés) sont d'abord déclarées au masque de GitHub
 # (::add-mask::), puis remplacées par *** dans tout ce qui est imprimé, même hors de GitHub. Le contenu de .env n'est
-# jamais imprimé, ni celui de fichiers qui portent des secrets : seulement des noms et des modes.
+# jamais imprimé, ni celui de fichiers qui portent des secrets : seulement des noms et des modes. L'état du core est
+# dans ~/.opsys/core (T0.7 lot 3) ; l'ancien ~/.openclaw-opsys est lu aussi, pour les secrets et pour dire ce qu'il est
+# (dossier, ou lien laissé par Doctor).
 #
 # Sortie : un groupe repliable (::group::) par sujet sous GitHub Actions, des titres « == sujet » ailleurs.
 # Variables : OPSYS_TRAVAIL (dossier de travail de bout_en_bout.sh), OPSYS_LOGICIEL (défaut : <travail>/logiciel),
@@ -16,7 +18,8 @@ set -uo pipefail
 SYSTEME="$(uname -s)"
 TRAVAIL="${OPSYS_TRAVAIL:-}"
 LOGICIEL="${OPSYS_LOGICIEL:-${TRAVAIL:+$TRAVAIL/logiciel}}"
-ETAT_CORE="${HOME:-/nonexistent}/.openclaw-opsys"
+ETAT_CORE="${HOME:-/nonexistent}/.opsys/core"
+ANCIEN_PROFIL="${HOME:-/nonexistent}/.openclaw-opsys"
 PORT_GATEWAY="${OPSYS_PORT_GATEWAY:-18789}"
 PORT_MOTEUR="${OPSYS_PORT_MOTEUR:-8765}"
 LIGNES="${OPSYS_DIAGNOSTIC_LIGNES:-300}"
@@ -24,9 +27,12 @@ FILTRE=""
 trap '[ -z "$FILTRE" ] || rm -f "$FILTRE"' EXIT
 
 valeurs_secretes() {
-    [ -f "$ETAT_CORE/.env" ] || return 0
-    sed -n -E 's/^[[:space:]]*(export[[:space:]]+)?[A-Z0-9_]*(JETON|TOKEN|_CLE|SECRET|PASSWORD)[A-Z0-9_]*=(.{12,})$/\3/p' \
-        "$ETAT_CORE/.env"
+    local env
+    for env in "$ETAT_CORE/.env" "$ANCIEN_PROFIL/.env"; do
+        [ -f "$env" ] || continue
+        sed -n -E 's/^[[:space:]]*(export[[:space:]]+)?[A-Z0-9_]*(JETON|TOKEN|_CLE|SECRET|PASSWORD)[A-Z0-9_]*=(.{12,})$/\3/p' \
+            "$env"
+    done
 }
 
 # Masque GitHub pour toutes les valeurs, et un script sed pour celles dont les caractères sont sûrs dans une
@@ -112,6 +118,16 @@ esac
 # L'état du core : les noms et les modes seulement, jamais le contenu (.env : secrets en clair).
 sujet "état du core ($ETAT_CORE : noms et modes seulement)"
 noms_et_modes "$ETAT_CORE" 3
+fin_sujet
+
+# L'ancien emplacement : absent, dossier (état d'avant le lot 3 pas encore déplacé) ou lien (laissé par Doctor).
+sujet "ancien emplacement de l'état ($ANCIEN_PROFIL : nature, noms et modes seulement)"
+if [ -e "$ANCIEN_PROFIL" ] || [ -L "$ANCIEN_PROFIL" ]; then
+    ls -ld "$ANCIEN_PROFIL" 2>&1
+    if [ -d "$ANCIEN_PROFIL" ] && [ ! -L "$ANCIEN_PROFIL" ]; then noms_et_modes "$ANCIEN_PROFIL" 2; fi
+else
+    echo "absent"
+fi
 fin_sujet
 
 sujet "santé du Gateway et du moteur"

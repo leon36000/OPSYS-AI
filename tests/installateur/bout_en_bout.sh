@@ -16,7 +16,11 @@
 #
 # Le core tourne sous son profil « opsys » (PLAN T0.11-b). Ses attentes sont écrites ICI, en dur, d'après le code du
 # fork, et confrontées à ce que le vrai core et le moteur Python répondent :
-#   - dossier d'état : ~/.openclaw-opsys (core/src/cli/profile-utils.ts, resolveProfileStateDir) ;
+#   - dossier d'état : ~/.opsys/core, configuration opsys.json (PLAN T0.7 lot 3 : core/src/config/opsys-instance.ts,
+#     lu par core/src/cli/profile-utils.ts, resolveProfileStateDir). Avant le lot 3, l'état était dans
+#     ~/.openclaw-opsys avec openclaw.json : le core l'y lit encore tant qu'il est seul à porter un état, et Doctor
+#     (`opsys doctor --non-interactive`) le DÉPLACE vers ~/.opsys/core en laissant un lien à l'ancien chemin. Les étapes
+#     « 1 quinquies » (sans service) et « 5 bis » (avec le service) en font la preuve avec le vrai core ;
 #   - Linux : service systemd utilisateur openclaw-gateway-opsys.service (core/src/daemon/constants.ts), distinct de
 #     openclaw-gateway.service, celui du core d'origine ;
 #   - macOS : LaunchAgent ai.openclaw.opsys, distinct de ai.openclaw.gateway. Le plist est écrit dans
@@ -24,8 +28,10 @@
 #     <état du core>/service-env/<étiquette>.env (0600) ; le journal du service est ~/Library/Logs/openclaw/
 #     (core/src/daemon/launchd-service-files.ts, restart-logs.ts). La désinstallation du service range le plist
 #     dans ~/.Trash (core/src/daemon/launchd-install.ts).
-# Ce script INSTALLE puis DÉSINSTALLE : il refuse de tourner sur un poste qui a déjà un état du core d'OPSYS ou son
-# service (ne l'exécutez pas sur un poste réel ; la CI l'exécute sur une machine neuve).
+# Ce script INSTALLE puis DÉSINSTALLE : il refuse de tourner sur un poste qui a déjà un état du core d'OPSYS (dans
+# ~/.opsys/core ou dans l'ancien ~/.openclaw-opsys) ou son service (ne l'exécutez pas sur un poste réel ; la CI
+# l'exécute sur une machine neuve). Il ne supprime que ce qu'il a lui-même fabriqué (un faux ancien état de quelques
+# octets, pour prouver le conflit).
 #
 # Différences macOS (BSD) prises en compte : `shasum -a 256` pour `sha256sum`, `stat -f '%Lp'` pour `stat -c '%a'`,
 # bash 3.2 (ni tableau associatif, ni mapfile, ni tableau vide sous `set -u`), pas de journalctl.
@@ -63,7 +69,8 @@ export HOME="${HOME:?}"
 PORT_GATEWAY="${OPSYS_PORT_GATEWAY:-18789}"
 PORT_MOTEUR="${OPSYS_PORT_MOTEUR:-8765}"
 export OPSYS_PORT_GATEWAY="$PORT_GATEWAY" OPSYS_PORT_MOTEUR="$PORT_MOTEUR"
-ETAT_CORE="$HOME/.openclaw-opsys"
+ETAT_CORE="$HOME/.opsys/core"
+ANCIEN_PROFIL="$HOME/.openclaw-opsys"
 UNITE_ATTENDUE="openclaw-gateway-opsys.service"
 UNITE_DU_CORE_D_ORIGINE="openclaw-gateway.service"
 ETIQUETTE_ATTENDUE="ai.openclaw.opsys"
@@ -107,7 +114,7 @@ constat() {
 # résumé du job, puis arrête. Les secrets de .env, s'ils existent déjà, sont d'abord déclarés au masque de GitHub.
 echec() {
     local message="$*" numero annotation
-    if [ -f "$ETAT_CORE/.env" ]; then masquer_les_secrets || true; fi
+    if [ -f "$(env_du_core)" ]; then masquer_les_secrets || true; fi
     fin_groupe
     printf 'ÉCHEC : %s\n' "$message" >&2
     if [ -n "${GITHUB_ACTIONS:-}" ]; then
@@ -170,9 +177,15 @@ mode_de() { # chemin -> mode octal (600, 700...) ; `stat` de BSD (macOS) et de G
     esac
 }
 
+# Le .env du core : dans l'état canonique, ou dans l'ancien dossier du profil tant que la preuve de la migration l'y a remis.
+env_du_core() {
+    if [ -f "$ETAT_CORE/.env" ]; then printf '%s' "$ETAT_CORE/.env"; else printf '%s' "$ANCIEN_PROFIL/.env"; fi
+}
+
 valeurs_secretes() {
+    [ -f "$(env_du_core)" ] || return 0
     sed -n -E 's/^[[:space:]]*(export[[:space:]]+)?[A-Z0-9_]*(JETON|TOKEN|_CLE|SECRET|PASSWORD)[A-Z0-9_]*=(.{12,})$/\3/p' \
-        "$ETAT_CORE/.env"
+        "$(env_du_core)"
 }
 
 masquer_les_secrets() {
@@ -211,13 +224,69 @@ exiger_secrets_prives_au_repos() { # dossiers...
     done < <(valeurs_secretes)
 }
 
+# Le fichier de configuration que le core lit dans un dossier d'état : opsys.json, sinon l'openclaw.json qui existe (un
+# état d'avant le lot 3 le porte ; il n'est jamais renommé), comme core/src/config/opsys-instance.ts.
+config_de() { # dossier d'état
+    if [ -f "$1/opsys.json" ]; then printf '%s' "$1/opsys.json"; else printf '%s' "$1/openclaw.json"; fi
+}
+
 # Les fichiers que l'installateur écrit ou garde : secrets, configuration du core, fragments OPSYS, réglages. Pas l'état
 # que le Gateway écrit lui-même (sessions, espaces de travail des agents).
 empreinte_des_fichiers_geres() {
     {
-        printf '%s\0' "$ETAT_CORE/.env" "$ETAT_CORE/openclaw.json" "$OPSYS_HOME/paliers.yaml"
+        printf '%s\0' "$ETAT_CORE/.env" "$(config_de "$ETAT_CORE")" "$OPSYS_HOME/paliers.yaml"
         find "$ETAT_CORE/opsys" -maxdepth 1 -name '*.json' -print0
     } | xargs -0 "${SHA256[@]}" | sort | "${SHA256[@]}"
+}
+
+# Les secrets et les fragments d'un dossier d'état, par nom RELATIF : la même empreinte avant et après un déplacement de
+# dossier. La configuration n'y est pas : Doctor peut la normaliser, on vérifie seulement qu'elle est là, sous son nom.
+empreinte_de_l_etat() { # dossier d'état
+    local fichier
+    {
+        printf '%s  %s\n' "$(empreinte "$1/.env")" ".env"
+        for fichier in "$1"/opsys/*.json; do
+            printf '%s  opsys/%s\n' "$(empreinte "$fichier")" "$(basename "$fichier")"
+        done
+    } | sort | "${SHA256[@]}" | awk '{print $1}'
+}
+
+liste_de_l_etat() { # dossier d'état -> chaque fichier, par nom relatif, un par ligne
+    (cd "$1" && find . -type f | LC_ALL=C sort)
+}
+
+# Rien de ce que le dossier d'état portait avant le déplacement n'a disparu.
+exiger_rien_de_perdu() { # liste d'avant, dossier d'état d'après
+    local fichier
+    while IFS= read -r fichier; do
+        [ -f "$2/$fichier" ] || echec "Doctor a perdu $fichier en déplaçant l'état vers $2"
+    done <<<"$1"
+}
+
+dossier_reel() { (cd "$1" && pwd -P); }
+
+# Ce que le gestionnaire de service a retenu de l'état du core (Linux : l'unité ; macOS : le plist et le fichier
+# d'environnement, qui vit dans l'état) : un service installé avant le lot 3 nomme l'ancien dossier, la réinstallation
+# le remplace par le nouveau.
+contenu_de_la_definition_du_service() { # dossier d'état où vit le fichier d'environnement (macOS)
+    case "$SYSTEME" in
+        Darwin) cat "$PLIST" "$1/service-env/$ETIQUETTE_ATTENDUE.env" 2>/dev/null || true ;;
+        *) cat "$HOME/.config/systemd/user/$UNITE_ATTENDUE" 2>/dev/null || true ;;
+    esac
+}
+
+# La définition du service désigne-t-elle CE dossier comme état (OPENCLAW_STATE_DIR) ? Seule cette variable compte : le plist
+# nomme aussi le fichier d'environnement, qui est dans l'état où il a été écrit. Les formes du core : systemd
+# `Environment=OPENCLAW_STATE_DIR=/chemin`, launchd `export OPENCLAW_STATE_DIR='/chemin'` (core/src/daemon/systemd-unit.ts,
+# launchd-plist.ts), ou une clé de plist. Le contenu est donné sans espaces.
+etat_nomme_par_le_service() { # contenu sans espaces, dossier d'état
+    case "$1" in
+        *"OPENCLAW_STATE_DIR='$2'"*) return 0 ;;
+        *"OPENCLAW_STATE_DIR=\"$2\""*) return 0 ;;
+        *"OPENCLAW_STATE_DIR=$2"*) return 0 ;;
+        *"<key>OPENCLAW_STATE_DIR</key><string>$2</string>"*) return 0 ;;
+        *) return 1 ;;
+    esac
 }
 
 installer() { # journal de sortie, options...
@@ -272,7 +341,8 @@ verifier_service_systemd() {
     grep -qF "$ETAT_CORE" "$HOME/.config/systemd/user/$UNITE" ||
         echec "l'unité ne désigne pas le dossier d'état canonique du profil ($ETAT_CORE)"
     grep -qF "OPENCLAW_PROFILE=opsys" "$HOME/.config/systemd/user/$UNITE" || echec "l'unité ne porte pas le profil opsys"
-    ! grep -qF "$OPSYS_HOME/core" "$HOME/.config/systemd/user/$UNITE" || echec "l'unité désigne l'ancien état du core"
+    ! grep -qF "$ANCIEN_PROFIL" "$HOME/.config/systemd/user/$UNITE" ||
+        echec "l'unité désigne l'ancien dossier du profil ($ANCIEN_PROFIL), pas $ETAT_CORE"
     [ "$(code_http "http://127.0.0.1:$PORT_MOTEUR/sante")" = "200" ] || echec "le moteur ne répond pas sous le service"
     journalctl --user -u "$UNITE" --no-pager >"$TRAVAIL/journal-service.log" 2>&1 || true
     exiger_sans_secret "journal du service" "$TRAVAIL/journal-service.log"
@@ -327,7 +397,7 @@ verifier_service_launchd() {
         *) echec "ni le plist ni $FICHIER_ENV_LAUNCHD ne portent le profil opsys" ;;
     esac
     case "$contenu" in
-        *"$OPSYS_HOME/core"*) echec "le service désigne l'ancien état du core" ;;
+        *"$ANCIEN_PROFIL"*) echec "le service désigne l'ancien dossier du profil ($ANCIEN_PROFIL), pas $ETAT_CORE" ;;
         *) ;;
     esac
     [ "$(code_http "http://127.0.0.1:$PORT_MOTEUR/sante")" = "200" ] || echec "le moteur ne répond pas sous le service"
@@ -356,6 +426,69 @@ raison_service_indisponible() {
     fi
 }
 
+# `opsys doctor --non-interactive` avec le vrai core : l'ancien état est DÉPLACÉ, jamais copié. Le code de sortie de Doctor
+# n'est pas jugé (il peut relever autre chose que l'état) : ce sont les EFFETS qui font foi.
+doctor_deplace_l_etat() { # journal de sortie de Doctor
+    local code=0
+    opsys doctor --non-interactive >"$1" 2>&1 </dev/null || code=$?
+    echo "opsys doctor --non-interactive : code de sortie $code (jugé sur ses effets)"
+    exiger_sans_secret "sortie de Doctor" "$1"
+    if [ ! -d "$ETAT_CORE" ] || [ -L "$ETAT_CORE" ] || [ ! -L "$ANCIEN_PROFIL" ]; then
+        cat "$1"
+        echec "Doctor n'a pas déplacé l'état de $ANCIEN_PROFIL vers $ETAT_CORE en laissant un lien à l'ancien chemin (code $code)"
+    fi
+    [ "$(dossier_reel "$ANCIEN_PROFIL")" = "$(dossier_reel "$ETAT_CORE")" ] ||
+        echec "le lien laissé à $ANCIEN_PROFIL ne mène pas à $ETAT_CORE"
+}
+
+# Le service d'avant le lot 3 : sa définition nomme ~/.openclaw-opsys. On le reconstitue avec le vrai core (l'état remis à
+# l'ancien emplacement, où le core le lit encore : `gateway install --force` y installe le service), puis on suit la marche
+# à suivre : arrêter le service, Doctor déplace l'état, l'installateur est relancé et réinstalle le service. Le service
+# garde son nom et nomme alors le nouvel état.
+migrer_le_service_d_avant_le_lot_3() {
+    local liste_avant empreinte_avant definition
+    etape "5 bis. Service d'avant le lot 3 : sa définition nomme ~/.openclaw-opsys ; après Doctor et la relance de l'installateur, elle nomme ~/.opsys/core (même nom de service)"
+    opsys gateway stop >"$TRAVAIL/service-arret-1.log" 2>&1 || { cat "$TRAVAIL/service-arret-1.log"; echec "opsys gateway stop a échoué"; }
+    attendre_arret "http://127.0.0.1:$PORT_GATEWAY/startupz" 60 "le Gateway après opsys gateway stop"
+    attendre_arret "http://127.0.0.1:$PORT_MOTEUR/sante" 60 "le moteur après opsys gateway stop"
+    { [ ! -e "$ANCIEN_PROFIL" ] && [ ! -L "$ANCIEN_PROFIL" ]; } ||
+        echec "$ANCIEN_PROFIL existe : la preuve du service d'avant le lot 3 part d'un poste où seul $ETAT_CORE porte l'état"
+    mv "$ETAT_CORE" "$ANCIEN_PROFIL"
+    rmdir "$(dirname "$ETAT_CORE")" 2>/dev/null || true
+    if ! opsys gateway install --force --port "$PORT_GATEWAY" >"$TRAVAIL/service-d-avant.log" 2>&1; then
+        cat "$TRAVAIL/service-d-avant.log"
+        echec "opsys gateway install a échoué avec l'état à l'ancien emplacement (le core doit l'y lire et y installer le service)"
+    fi
+    exiger_sans_secret "sortie de gateway install (état à l'ancien emplacement)" "$TRAVAIL/service-d-avant.log"
+    definition="$(contenu_de_la_definition_du_service "$ANCIEN_PROFIL" | tr -d '[:space:]')"
+    etat_nomme_par_le_service "$definition" "$ANCIEN_PROFIL" ||
+        echec "la définition du service ne nomme pas $ANCIEN_PROFIL (OPENCLAW_STATE_DIR) alors que l'état y est : le core n'a pas lu l'ancien état en place"
+    attendre_http "http://127.0.0.1:$PORT_GATEWAY/startupz" 240 "Gateway (service nommé sur l'ancien dossier)"
+    attendre_http "http://127.0.0.1:$PORT_MOTEUR/sante" 240 "moteur (service nommé sur l'ancien dossier)"
+    constat "service d'avant le lot 3 : sa définition nomme $ANCIEN_PROFIL, le core y lit l'état en place, le Gateway et le moteur répondent"
+    opsys gateway stop >"$TRAVAIL/service-arret-2.log" 2>&1 || { cat "$TRAVAIL/service-arret-2.log"; echec "opsys gateway stop a échoué"; }
+    attendre_arret "http://127.0.0.1:$PORT_GATEWAY/startupz" 60 "le Gateway avant le déplacement"
+    attendre_arret "http://127.0.0.1:$PORT_MOTEUR/sante" 60 "le moteur avant le déplacement"
+    liste_avant="$(liste_de_l_etat "$ANCIEN_PROFIL")"
+    empreinte_avant="$(empreinte_de_l_etat "$ANCIEN_PROFIL")"
+    doctor_deplace_l_etat "$TRAVAIL/doctor-service.log"
+    exiger_rien_de_perdu "$liste_avant" "$ETAT_CORE"
+    [ "$(empreinte_de_l_etat "$ETAT_CORE")" = "$empreinte_avant" ] || echec "les secrets ou les fragments ont changé pendant le déplacement"
+    installer "$TRAVAIL/installation-4.log"
+    definition="$(contenu_de_la_definition_du_service "$ETAT_CORE" | tr -d '[:space:]')"
+    etat_nomme_par_le_service "$definition" "$ETAT_CORE" ||
+        echec "après la relance de l'installateur, la définition du service ne nomme pas $ETAT_CORE (OPENCLAW_STATE_DIR)"
+    if etat_nomme_par_le_service "$definition" "$ANCIEN_PROFIL"; then
+        echec "après la relance de l'installateur, la définition du service nomme encore l'ancien dossier $ANCIEN_PROFIL"
+    fi
+    case "$SYSTEME" in
+        Darwin) verifier_service_launchd ;;
+        *) verifier_service_systemd ;;
+    esac
+    [ "$(empreinte_de_l_etat "$ETAT_CORE")" = "$empreinte_avant" ] || echec "la relance de l'installateur a changé un secret ou un fragment"
+    constat "service d'avant le lot 3 : Doctor a déplacé l'état vers $ETAT_CORE, la relance de l'installateur a réécrit la définition du service (même nom, $ETAT_CORE au lieu de $ANCIEN_PROFIL), le service répond, les secrets et les fragments sont ceux d'avant"
+}
+
 # Chargement pour les tests (tests/test_installateur_bout_en_bout.py) : les fonctions seules, sans jouer la preuve.
 if [ "${OPSYS_BOUT_EN_BOUT_FONCTIONS_SEULEMENT:-0}" = "1" ]; then
     # shellcheck disable=SC2317
@@ -366,6 +499,10 @@ fi
 etape "0. Poste : ni état du core d'OPSYS ni son service ne doivent déjà exister (ce script installe puis désinstalle)"
 [ ! -e "$ETAT_CORE" ] ||
     echec "$ETAT_CORE existe déjà : ce script installe puis désinstalle, il ne s'exécute pas sur un poste qui porte une instance OPSYS. Déplacez ce dossier, ou prenez un poste neuf."
+{ [ ! -e "$ANCIEN_PROFIL" ] && [ ! -L "$ANCIEN_PROFIL" ]; } ||
+    echec "$ANCIEN_PROFIL existe déjà : c'est l'ancien dossier d'état du profil opsys. Ce script ne s'exécute pas sur un poste qui porte une instance OPSYS : déplacez ce dossier, ou prenez un poste neuf."
+INSTANCE_EXISTAIT=0 # le dossier d'instance (~/.opsys) : le script ne retire que celui qu'il a fait naître
+[ ! -e "$(dirname "$ETAT_CORE")" ] || INSTANCE_EXISTAIT=1
 if [ "$SYSTEME" = "Darwin" ]; then
     NOM_SERVICE="$ETIQUETTE_ATTENDUE"
     [ ! -e "$PLIST" ] || echec "le plist $PLIST existe déjà sur ce poste : ce script ne s'exécute pas sur un poste qui porte une instance OPSYS."
@@ -378,7 +515,7 @@ else
         echec "le service $UNITE_ATTENDUE existe déjà sur ce poste : ce script ne s'exécute pas sur un poste qui porte une instance OPSYS."
     fi
 fi
-constat "poste neuf ($SYSTEME) : aucun état du core d'OPSYS ($ETAT_CORE) ni service $NOM_SERVICE"
+constat "poste neuf ($SYSTEME) : aucun état du core d'OPSYS ($ETAT_CORE, ni l'ancien $ANCIEN_PROFIL) ni service $NOM_SERVICE"
 
 etape "0 bis. Décision préalable : un palier de modèles (comme après une restauration ou un premier réglage)"
 mkdir -p "$OPSYS_HOME"
@@ -393,30 +530,39 @@ for commande in openclaw opsys opsys-metier; do
 done
 [ "$(mode_de "$ETAT_CORE/.env")" = "600" ] || echec ".env n'est pas en 0600"
 [ "$(mode_de "$ETAT_CORE")" = "700" ] || echec "le dossier d'état du core n'est pas en 0700"
+if [ "$INSTANCE_EXISTAIT" = "0" ] && [ "$(mode_de "$(dirname "$ETAT_CORE")")" != "700" ]; then
+    echec "le dossier d'instance $(dirname "$ETAT_CORE") n'est pas en 0700"
+fi
 [ -f "$ETAT_CORE/opsys/metier.json" ] || echec "opsys/metier.json absent de $ETAT_CORE"
+{ [ -f "$ETAT_CORE/opsys.json" ] && [ ! -e "$ETAT_CORE/openclaw.json" ]; } ||
+    echec "l'instance neuve doit porter opsys.json seul (opsys.json : $([ -f "$ETAT_CORE/opsys.json" ] && echo présent || echo absent), openclaw.json : $([ -e "$ETAT_CORE/openclaw.json" ] && echo présent || echo absent))"
 [ ! -e "$OPSYS_HOME/core" ] || echec "un dossier core est apparu sous OPSYS_HOME : l'état du core ne vit plus là (T0.11-b)"
 if [ ! -f "$OPSYS_HOME/opsys.db" ] || [ ! -f "$OPSYS_HOME/paliers.yaml" ]; then echec "les données métier ne sont plus sous OPSYS_HOME"; fi
-exiger_sans_secret "configuration du core" "$ETAT_CORE/openclaw.json" "$ETAT_CORE"/opsys/*.json
-constat "installation terminée : état du core dans $ETAT_CORE (0700, .env en 0600), données dans OPSYS_HOME, aucun secret dans la configuration, la sortie ni le journal de l'installateur"
+exiger_sans_secret "configuration du core" "$(config_de "$ETAT_CORE")" "$ETAT_CORE"/opsys/*.json
+constat "installation terminée : état du core dans $ETAT_CORE (0700, .env en 0600, configuration opsys.json), données dans OPSYS_HOME, aucun secret dans la configuration, la sortie ni le journal de l'installateur"
 
 etape "1 bis. Le dossier d'état : le moteur Python (par le core), le core et les attentes écrites d'après le fork s'accordent"
 [ "$(opsys metier instance dossier)" = "$ETAT_CORE" ] ||
     echec "opsys metier instance dossier répond '$(opsys metier instance dossier)' au lieu de $ETAT_CORE"
 [ "$(opsys-metier instance dossier)" = "$ETAT_CORE" ] ||
     echec "opsys-metier instance dossier répond '$(opsys-metier instance dossier)' au lieu de $ETAT_CORE"
-[ "$(opsys config file | tail -n 1)" = "$ETAT_CORE/openclaw.json" ] ||
-    echec "le core cherche sa configuration dans '$(opsys config file | tail -n 1)' au lieu de $ETAT_CORE/openclaw.json"
-[ "$(openclaw config file | tail -n 1)" = "$ETAT_CORE/openclaw.json" ] ||
+[ "$(opsys-metier instance fichier-config)" = "$ETAT_CORE/opsys.json" ] ||
+    echec "opsys-metier instance fichier-config répond '$(opsys-metier instance fichier-config)' au lieu de $ETAT_CORE/opsys.json"
+[ "$(opsys metier instance fichier-config)" = "$ETAT_CORE/opsys.json" ] ||
+    echec "opsys metier instance fichier-config répond '$(opsys metier instance fichier-config)' au lieu de $ETAT_CORE/opsys.json"
+[ "$(opsys config file | tail -n 1)" = "$ETAT_CORE/opsys.json" ] ||
+    echec "le core cherche sa configuration dans '$(opsys config file | tail -n 1)' au lieu de $ETAT_CORE/opsys.json"
+[ "$(openclaw config file | tail -n 1)" = "$ETAT_CORE/opsys.json" ] ||
     echec "l'alias openclaw ne répond pas comme opsys : '$(openclaw config file | tail -n 1)'"
 polluee="$(OPENCLAW_STATE_DIR="$TRAVAIL/ailleurs" OPENCLAW_CONFIG_PATH="$TRAVAIL/ailleurs/openclaw.json" \
     OPENCLAW_HOME="$TRAVAIL/home-du-core" OPENCLAW_PROFILE=autre opsys config file | tail -n 1)"
-[ "$polluee" = "$ETAT_CORE/openclaw.json" ] ||
+[ "$polluee" = "$ETAT_CORE/opsys.json" ] ||
     echec "un environnement OPENCLAW_* a déplacé le core : il lit '$polluee' (la commande installée doit l'écarter)"
 polluee_moteur="$(OPENCLAW_STATE_DIR="$TRAVAIL/ailleurs" OPENCLAW_HOME="$TRAVAIL/home-du-core" opsys metier instance dossier)"
 [ "$polluee_moteur" = "$ETAT_CORE" ] ||
     echec "un environnement OPENCLAW_* a déplacé le moteur lancé par le core : il répond '$polluee_moteur'"
 if [ -e "$TRAVAIL/ailleurs" ] || [ -e "$TRAVAIL/home-du-core" ]; then echec "un dossier a été créé d'après l'environnement de l'appelant"; fi
-constat "opsys metier instance dossier, opsys-metier instance dossier, opsys config file (et son alias openclaw) et l'attente écrite d'après le fork donnent tous $ETAT_CORE ; l'environnement de l'appelant n'y change rien"
+constat "opsys metier instance dossier, opsys-metier instance dossier, opsys config file (et son alias openclaw) et l'attente écrite d'après le fork donnent tous $ETAT_CORE, et la configuration que le moteur annonce (instance fichier-config) est celle que le core lit ($ETAT_CORE/opsys.json) ; l'environnement de l'appelant n'y change rien"
 
 etape "1 bis bis. Une seule commande : opsys est le core, opsys metier le moteur, l'ancienne forme dit la nouvelle"
 version_core="$(opsys --version)"
@@ -476,6 +622,72 @@ opsys metier instance initialiser --port-gateway "$PORT_GATEWAY" --port-moteur "
 [ "$(empreinte "$OPSYS_HOME/core.ancien/.env")" = "$ancien_avant" ] || echec "l'ancien état mis de côté a été modifié"
 constat "l'ancienne disposition est refusée avec la marche à suivre, sans rien modifier ; mise de côté, l'instance se réinitialise sans changer un secret"
 
+etape "1 quinquies. Installation d'avant le lot 3 (état dans ~/.openclaw-opsys) : refusée avec la marche à suivre, puis déplacée par Doctor (un renommage, un lien), jamais copiée ni perdue"
+# L'état tel qu'une installation faite depuis T0.11-b le laissait : dans l'ancien dossier du profil, configuration openclaw.json.
+mv "$ETAT_CORE" "$ANCIEN_PROFIL"
+mv "$ANCIEN_PROFIL/opsys.json" "$ANCIEN_PROFIL/openclaw.json"
+if [ "$INSTANCE_EXISTAIT" = "0" ]; then rmdir "$(dirname "$ETAT_CORE")" 2>/dev/null || true; fi
+liste_avant="$(liste_de_l_etat "$ANCIEN_PROFIL")"
+empreinte_avant="$(empreinte_de_l_etat "$ANCIEN_PROFIL")"
+# 1. Le moteur refuse d'écrire tant que l'état est resté à l'ancien emplacement, dit quoi faire et ne modifie rien. Le core,
+# lui, lit l'ancien dossier en place : la commande `opsys metier` et un service encore lancé parlent du même état.
+code=0
+opsys metier instance initialiser --port-gateway "$PORT_GATEWAY" --port-moteur "$PORT_MOTEUR" >"$TRAVAIL/ancien-emplacement.json" 2>"$TRAVAIL/ancien-emplacement.err" || code=$?
+[ "$code" = "1" ] ||
+    echec "opsys metier instance initialiser a rendu le code $code au lieu de refuser (1) l'état resté dans $ANCIEN_PROFIL : $(cat "$TRAVAIL/ancien-emplacement.err")"
+grep -q "ancien emplacement détecté" "$TRAVAIL/ancien-emplacement.err" ||
+    echec "l'état resté à l'ancien emplacement n'est pas signalé : $(cat "$TRAVAIL/ancien-emplacement.err")"
+grep -qF "opsys doctor --non-interactive" "$TRAVAIL/ancien-emplacement.err" || echec "le message ne dit pas de lancer Doctor"
+grep -qF "$ANCIEN_PROFIL" "$TRAVAIL/ancien-emplacement.err" || echec "le message ne nomme pas l'ancien dossier"
+grep -qF "$ETAT_CORE" "$TRAVAIL/ancien-emplacement.err" || echec "le message ne nomme pas le dossier d'état du core"
+[ "$(empreinte_de_l_etat "$ANCIEN_PROFIL")" = "$empreinte_avant" ] || echec "le refus a modifié l'ancien état"
+[ ! -e "$ETAT_CORE" ] || echec "le refus a créé $ETAT_CORE"
+[ "$(opsys config file | tail -n 1)" = "$ANCIEN_PROFIL/openclaw.json" ] ||
+    echec "avant le déplacement, le core devait lire l'ancien état en place ($ANCIEN_PROFIL/openclaw.json) : il lit '$(opsys config file | tail -n 1)'"
+# 2. Doctor du core déplace l'état ; ce sont ses effets qui font foi.
+doctor_deplace_l_etat "$TRAVAIL/doctor-deplacement.log"
+exiger_rien_de_perdu "$liste_avant" "$ETAT_CORE"
+[ "$(empreinte_de_l_etat "$ETAT_CORE")" = "$empreinte_avant" ] || echec "les secrets ou les fragments ont changé pendant le déplacement"
+{ [ -f "$ETAT_CORE/openclaw.json" ] && [ ! -e "$ETAT_CORE/opsys.json" ]; } ||
+    echec "Doctor a renommé la configuration : l'openclaw.json d'avant devait rester lu en place, sous son nom"
+[ "$(mode_de "$ETAT_CORE")" = "700" ] || echec "le dossier d'état n'est plus en 0700 après le déplacement"
+[ "$(mode_de "$ETAT_CORE/.env")" = "600" ] || echec ".env n'est plus en 0600 après le déplacement"
+[ "$(opsys config file | tail -n 1)" = "$ETAT_CORE/openclaw.json" ] ||
+    echec "après le déplacement, le core doit lire $ETAT_CORE/openclaw.json : il lit '$(opsys config file | tail -n 1)'"
+opsys config validate
+# 3. Le moteur ne refuse plus, garde les secrets, n'invente pas d'opsys.json à côté de l'openclaw.json d'avant.
+opsys metier instance initialiser --port-gateway "$PORT_GATEWAY" --port-moteur "$PORT_MOTEUR" >/dev/null
+[ "$(empreinte_de_l_etat "$ETAT_CORE")" = "$empreinte_avant" ] || echec "la réinitialisation a changé un secret ou un fragment"
+[ "$(opsys-metier instance fichier-config)" = "$ETAT_CORE/openclaw.json" ] ||
+    echec "opsys-metier instance fichier-config répond '$(opsys-metier instance fichier-config)' au lieu de $ETAT_CORE/openclaw.json"
+[ ! -e "$ETAT_CORE/opsys.json" ] || echec "opsys.json a été créé à côté de l'openclaw.json d'avant"
+constat "état d'avant le lot 3 : refusé par le moteur avec la marche à suivre, lu en place par le core ($ANCIEN_PROFIL/openclaw.json), déplacé par Doctor vers $ETAT_CORE (lien à l'ancien chemin, secrets et fragments identiques, rien de perdu, openclaw.json gardé, 0700 et 0600 conservés)"
+# 4. Deux états : Doctor ne fusionne rien et ne supprime rien, le moteur refuse et laisse la décision à un humain.
+rm -- "$ANCIEN_PROFIL" # le lien seul
+mkdir "$ANCIEN_PROFIL"
+printf 'MARQUEUR=etat-d-avant-fictif\n' >"$ANCIEN_PROFIL/.env"
+neuf_avant="$(empreinte_de_l_etat "$ETAT_CORE")"
+code=0
+opsys doctor --non-interactive >"$TRAVAIL/doctor-conflit.log" 2>&1 </dev/null || code=$?
+if [ ! -d "$ANCIEN_PROFIL" ] || [ -L "$ANCIEN_PROFIL" ] || [ "$(cat "$ANCIEN_PROFIL/.env")" != "MARQUEUR=etat-d-avant-fictif" ]; then
+    cat "$TRAVAIL/doctor-conflit.log"
+    echec "Doctor a touché à l'ancien état malgré le conflit (code $code)"
+fi
+[ "$(ls -A "$ANCIEN_PROFIL")" = ".env" ] || echec "Doctor a ajouté des fichiers à l'ancien état malgré le conflit"
+[ "$(empreinte_de_l_etat "$ETAT_CORE")" = "$neuf_avant" ] || echec "Doctor a modifié l'état neuf malgré le conflit"
+{ [ ! -e "$ANCIEN_PROFIL.old" ] && [ ! -e "$ETAT_CORE.old" ]; } || echec "Doctor a mis un dossier de côté à la place de l'humain"
+code=0
+opsys metier instance initialiser --port-gateway "$PORT_GATEWAY" --port-moteur "$PORT_MOTEUR" >/dev/null 2>"$TRAVAIL/conflit.err" || code=$?
+{ [ "$code" = "1" ] && grep -q "ancien emplacement en conflit" "$TRAVAIL/conflit.err"; } ||
+    echec "le moteur devait refuser le conflit (code 1, « ancien emplacement en conflit ») : code $code, $(cat "$TRAVAIL/conflit.err")"
+grep -qF "$ANCIEN_PROFIL.old" "$TRAVAIL/conflit.err" || echec "le message du conflit ne dit pas de mettre l'un des deux de côté (.old)"
+mv "$ANCIEN_PROFIL" "$ANCIEN_PROFIL.old" # la décision humaine : garder l'état neuf
+opsys doctor --non-interactive >/dev/null 2>&1 </dev/null || true
+{ [ ! -e "$ANCIEN_PROFIL" ] && [ ! -L "$ANCIEN_PROFIL" ]; } || echec "Doctor a recréé $ANCIEN_PROFIL alors qu'il n'y a plus d'ancien état à déplacer"
+opsys metier instance initialiser --port-gateway "$PORT_GATEWAY" --port-moteur "$PORT_MOTEUR" >/dev/null
+[ "$(empreinte_de_l_etat "$ETAT_CORE")" = "$neuf_avant" ] || echec "la reprise après le conflit a changé un secret ou un fragment"
+constat "deux états : Doctor ne déplace, ne fusionne ni ne supprime rien, le moteur refuse et dit la décision humaine (.old) ; l'ancien état mis de côté, tout reprend sans changer un secret"
+
 # -- 2. Gateway au premier plan et moteur supervisé ---------------------------------------------------------------------------
 etape "2. Gateway au premier plan : il lance le moteur (superviseur T0.10) avec le jeton de .env"
 opsys gateway run --bind loopback --port "$PORT_GATEWAY" >"$TRAVAIL/gateway-premier-plan.log" 2>&1 &
@@ -524,8 +736,10 @@ membres="$(tar -tzf "$TRAVAIL/export.tar.gz" | sort | tr '\n' ' ')"
 mkdir -p "$TRAVAIL/decompose"
 tar -xzf "$TRAVAIL/export.tar.gz" -C "$TRAVAIL/decompose"
 exiger_sans_secret "archive d'export" "$TRAVAIL"/decompose/opsys-export/*
-grep -qF '"~/.openclaw-opsys/.env"' "$TRAVAIL/decompose/opsys-export/manifeste.json" ||
-    echec "le manifeste ne nomme pas l'état du core (~/.openclaw-opsys) parmi les fichiers exclus"
+grep -qF '"~/.opsys/core/.env"' "$TRAVAIL/decompose/opsys-export/manifeste.json" ||
+    echec "le manifeste ne nomme pas l'état du core (~/.opsys/core) parmi les fichiers exclus"
+grep -qF '"~/.openclaw-opsys/"' "$TRAVAIL/decompose/opsys-export/manifeste.json" ||
+    echec "le manifeste ne nomme pas l'ancien emplacement de l'état du core (~/.openclaw-opsys) parmi les exclusions"
 ! grep -qF "$HOME" "$TRAVAIL/decompose/opsys-export/manifeste.json" || echec "le manifeste porte le dossier personnel du poste"
 [ -f "$TRAVAIL/export.tar.gz" ] || echec "l'export à chemin relatif n'est pas dans le dossier courant de l'appelant"
 constat "export : membres = liste blanche, SHA-256 vérifié (${SHA256[0]}), 0600, aucun secret de .env, état du core nommé parmi les exclus ; chemin relatif résolu depuis le dossier de l'appelant"
@@ -550,6 +764,7 @@ elif service_disponible; then
         *) verifier_service_systemd ;;
     esac
     SERVICE_PROUVE="oui"
+    migrer_le_service_d_avant_le_lot_3
 elif [ "${OPSYS_SERVICE_REQUIS:-0}" = "1" ]; then
     echec "le service utilisateur est indisponible sur ce poste ($SYSTEME) et OPSYS_SERVICE_REQUIS=1 : $(raison_service_indisponible). Relancez avec sans_service=1 pour prouver le reste sans le service."
 else
@@ -565,7 +780,7 @@ fi
 # -- 6. Désinstallation sans perte de données -----------------------------------------------------------------------------------------
 etape "6. Désinstallation avec export préalable : le logiciel part, les données restent"
 env_avant="$(empreinte "$ETAT_CORE/.env")"
-config_avant="$(empreinte "$ETAT_CORE/openclaw.json")"
+config_avant="$(empreinte "$(config_de "$ETAT_CORE")")"
 geres_avant_desinstallation="$(empreinte_des_fichiers_geres)"
 paliers_avant="$(empreinte "$OPSYS_HOME/paliers.yaml")"
 if ! bash "$RACINE/install/uninstall.sh" --exporter-avant "$TRAVAIL/avant-desinstallation.tar.gz" >"$TRAVAIL/desinstallation.log" 2>&1; then
@@ -577,7 +792,12 @@ if [ -e "$OPSYS_BIN/openclaw" ] || [ -e "$OPSYS_BIN/opsys" ] || [ -e "$OPSYS_BIN
 [ ! -e "$OPSYS_LOGICIEL" ] || echec "le logiciel est encore là : $(ls -A "$OPSYS_LOGICIEL")"
 [ -f "$RACINE/core/openclaw.mjs" ] || echec "le dépôt de l'utilisateur a été touché"
 [ "$(empreinte "$ETAT_CORE/.env")" = "$env_avant" ] || echec ".env a changé pendant la désinstallation"
-[ "$(empreinte "$ETAT_CORE/openclaw.json")" = "$config_avant" ] || echec "openclaw.json a changé pendant la désinstallation"
+[ "$(empreinte "$(config_de "$ETAT_CORE")")" = "$config_avant" ] ||
+    echec "la configuration du core ($(config_de "$ETAT_CORE")) a changé pendant la désinstallation"
+if [ -L "$ANCIEN_PROFIL" ]; then
+    [ "$(dossier_reel "$ANCIEN_PROFIL")" = "$(dossier_reel "$ETAT_CORE")" ] ||
+        echec "le lien laissé par Doctor à $ANCIEN_PROFIL a changé pendant la désinstallation"
+fi
 [ "$(empreinte_des_fichiers_geres)" = "$geres_avant_desinstallation" ] || echec "un fichier géré a changé pendant la désinstallation"
 [ "$(empreinte "$OPSYS_HOME/core.ancien/.env")" = "$ancien_avant" ] || echec "l'ancien état mis de côté a changé pendant la désinstallation"
 grep -q "État du core conservé : $ETAT_CORE" "$TRAVAIL/desinstallation.log" ||
@@ -610,6 +830,11 @@ fi
 constat "désinstallation : service, logiciel et commandes retirés ; .env, configuration, réglages, base, état du core et ancien état mis de côté intacts ; export vérifié"
 bash "$RACINE/install/uninstall.sh" >"$TRAVAIL/desinstallation-2.log" 2>&1 || echec "la désinstallation n'est pas relançable"
 constat "la désinstallation est relançable"
+# Le seul reste du script : le faux ancien état de l'étape « 1 quinquies » (un fichier de quelques octets qu'il a lui-même écrit).
+if [ -d "$ANCIEN_PROFIL.old" ]; then
+    rm -f -- "$ANCIEN_PROFIL.old/.env"
+    rmdir "$ANCIEN_PROFIL.old" 2>/dev/null || echo "::warning::$ANCIEN_PROFIL.old n'est pas vide : laissé en place"
+fi
 
 # -- Résumé ---------------------------------------------------------------------------------------------------------------------------
 etape "Tout est vrai"

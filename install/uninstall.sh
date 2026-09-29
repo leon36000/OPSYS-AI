@@ -14,8 +14,9 @@
 #      (OPSYS_SOURCE, ou celui d'où vous avez lancé l'installateur) n'est jamais touché.
 #
 # Ce script ne supprime JAMAIS les données de l'instance : $OPSYS_HOME (base, paliers, profil d'entreprise) ni l'état du
-# core (dossier du profil « opsys », ~/.openclaw-opsys : secrets .env, état du Gateway). La suppression définitive est
-# une décision humaine, hors de ce script (docs/exploitation/INSTALLATION.md).
+# core (dossier du profil « opsys », ~/.opsys/core : secrets .env, état du Gateway ; avant T0.7 lot 3, ~/.openclaw-opsys,
+# et le lien que Doctor y laisse). La suppression définitive est une décision humaine, hors de ce script
+# (docs/exploitation/INSTALLATION.md).
 # Il est relançable : retirer ce qui est déjà retiré ne fait rien.
 #
 # Variables : OPSYS_HOME, OPSYS_LOGICIEL, OPSYS_BIN (mêmes défauts que l'installateur ; à défaut, la dernière
@@ -117,24 +118,28 @@ agir() {
 }
 
 # Un dossier qui est ou contient les données de l'instance ou l'état du core, la racine ou le dossier personnel ne se
-# supprime jamais.
+# supprime jamais. L'état du core est protégé là où l'installation l'a noté ET là où il est aujourd'hui (~/.opsys/core) ou
+# était avant T0.7 lot 3 (~/.openclaw-opsys) : une installation d'avant le lot 3 a noté l'ancien chemin.
 garde_dossier() {
-    local dossier="${1%/}"
+    local dossier="${1%/}" etat
     case "$dossier" in
         '' | "$HOME" | "$OPSYS_HOME") die "refus de supprimer '$dossier' : c'est le dossier personnel ou celui des données. Rien n'a été retiré." ;;
         *) ;;
     esac
-    if [ -n "$ENR_DOSSIER_CORE" ] && [ "$dossier" = "$ENR_DOSSIER_CORE" ]; then
-        die "refus de supprimer '$dossier' : c'est l'état du core (secrets, état du Gateway). Rien n'a été retiré."
-    fi
     case "$OPSYS_HOME/" in
         "$dossier"/*) die "refus de supprimer '$dossier' : il contient les données de l'instance ($OPSYS_HOME). Rien n'a été retiré." ;;
         *) ;;
     esac
-    case "${ENR_DOSSIER_CORE:-/}/" in
-        "$dossier"/*) die "refus de supprimer '$dossier' : il contient l'état du core ($ENR_DOSSIER_CORE). Rien n'a été retiré." ;;
-        *) ;;
-    esac
+    for etat in "$ENR_DOSSIER_CORE" "$HOME/.opsys/core" "$HOME/.openclaw-opsys"; do
+        [ -n "$etat" ] || continue
+        if [ "$dossier" = "$etat" ]; then
+            die "refus de supprimer '$dossier' : c'est l'état du core (secrets, état du Gateway). Rien n'a été retiré."
+        fi
+        case "$etat/" in
+            "$dossier"/*) die "refus de supprimer '$dossier' : il contient l'état du core ($etat). Rien n'a été retiré." ;;
+            *) ;;
+        esac
+    done
 }
 
 supprimer_dossier() {
@@ -235,7 +240,7 @@ main() {
     retirer_logiciel
     printf '\n%s\n' "OPSYS est retiré."
     printf '  %s\n' "Données conservées : $OPSYS_HOME (base, paliers, profil d'entreprise)."
-    printf '  %s\n' "État du core conservé : ${ENR_DOSSIER_CORE:-le dossier .openclaw-$PROFIL_CORE de votre dossier personnel} (secrets .env, état du Gateway)."
+    printf '  %s\n' "État du core conservé : ${ENR_DOSSIER_CORE:-le dossier .opsys/core de votre dossier personnel} (secrets .env, état du Gateway)."
     if [ -z "$ARCHIVE" ]; then
         printf '  %s\n' "Aucun export demandé (--exporter-avant). Pour en faire un maintenant : réinstallez OPSYS, puis opsys metier instance exporter."
     fi

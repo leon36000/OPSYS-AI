@@ -6,9 +6,11 @@ est le vrai (l'interpréteur « de l'environnement » est l'interpréteur des te
 dans un dossier temporaire.
 
 Le faux `node` joue le rôle du core sur ce qui a fait échouer la première exécution de la CI (PLAN T0.11-b) : il
-applique la règle du fork. `--profile <p>` est une option racine qui projette l'état canonique `~/.openclaw-<p>`
-(`applyCliProfileEnv`) ; `gateway install|uninstall` est refusé si l'état n'est pas ce dossier canonique ou si
-OPENCLAW_HOME est défini (`isDefaultInstallIdentity`) ; le nom du service vient du profil (`constants.ts`). Un
+applique la règle du fork. `--profile <p>` est une option racine qui projette l'état canonique du profil
+(`applyCliProfileEnv`) : `~/.opsys/core` et `opsys.json` pour le profil `opsys` (T0.7 lot 3 : un `openclaw.json` qui
+existe reste lu, et l'ancien `~/.openclaw-opsys` sert tant qu'il est seul à porter un état), `~/.openclaw-<p>` pour
+les autres ; `gateway install|uninstall` est refusé si l'état n'est pas ce dossier canonique ou si OPENCLAW_HOME est
+défini (`isDefaultInstallIdentity`, chemins réels comparés) ; le nom du service vient du profil (`constants.ts`). Un
 installateur qui pose OPENCLAW_STATE_DIR à la main est donc refusé ici comme il l'est par le vrai core.
 
 Ce que ces tests prouvent : l'enchaînement des étapes et leur ordre, le fail-closed (prérequis, étape en échec,
@@ -62,11 +64,29 @@ if [[ "${1:-}" == *openclaw.mjs ]]; then
     appel="openclaw $*"
     # Option racine `--profile` : le core pose l'état et la configuration canoniques du profil, sauf si un état est
     # déjà posé dans l'environnement (core/src/cli/profile.ts, applyCliProfileEnv).
+    plein() { [ -n "$(ls -A "$1" 2>/dev/null)" ]; }
     if [ "${1:-}" = "--profile" ]; then
         export OPENCLAW_PROFILE="$2"
         shift 2
-        export OPENCLAW_STATE_DIR="${OPENCLAW_STATE_DIR:-$HOME/.openclaw-$OPENCLAW_PROFILE}"
-        export OPENCLAW_CONFIG_PATH="${OPENCLAW_CONFIG_PATH:-$OPENCLAW_STATE_DIR/openclaw.json}"
+        # core/src/config/opsys-instance.ts : l'état du profil `opsys` est ~/.opsys/core ; tant que seul l'ancien
+        # ~/.openclaw-opsys porte un état, le core l'utilise en place (Doctor le déplace ensuite).
+        if [ "$OPENCLAW_PROFILE" = "opsys" ]; then
+            defaut="$HOME/.opsys/core"
+            if ! plein "$defaut" && plein "$HOME/.openclaw-opsys"; then defaut="$HOME/.openclaw-opsys"; fi
+        else
+            defaut="$HOME/.openclaw-$OPENCLAW_PROFILE"
+        fi
+        export OPENCLAW_STATE_DIR="${OPENCLAW_STATE_DIR:-$defaut}"
+        if [ -z "${OPENCLAW_CONFIG_PATH:-}" ]; then
+            config="$OPENCLAW_STATE_DIR/openclaw.json"
+            # profil `opsys` : opsys.json, sauf si seul un openclaw.json existe (lu en place, jamais renommé)
+            if [ "$OPENCLAW_PROFILE" = "opsys" ]; then
+                if [ -e "$OPENCLAW_STATE_DIR/opsys.json" ] || [ ! -e "$config" ]; then
+                    config="$OPENCLAW_STATE_DIR/opsys.json"
+                fi
+            fi
+            export OPENCLAW_CONFIG_PATH="$config"
+        fi
     fi
     echo "$appel" >>"$FAUX_JOURNAL"
     echo "etat=${OPENCLAW_STATE_DIR:-} profil=${OPENCLAW_PROFILE:-} home=${OPENCLAW_HOME:-}" \
@@ -78,10 +98,28 @@ if [[ "${1:-}" == *openclaw.mjs ]]; then
         exit 0
     fi
     if [ "$1" = "gateway" ] && { [ "${2:-}" = "install" ] || [ "${2:-}" = "uninstall" ]; }; then
-        # core/src/config/paths.ts, isDefaultInstallIdentity : l'état doit être le dossier canonique du profil.
-        canonique="$HOME/.openclaw${OPENCLAW_PROFILE:+-$OPENCLAW_PROFILE}"
-        if [ -n "${OPENCLAW_HOME:-}" ] || [ "${OPENCLAW_STATE_DIR:-$HOME/.openclaw}" != "$canonique" ] ||
-            { [ -n "${OPENCLAW_CONFIG_PATH:-}" ] && [ "$OPENCLAW_CONFIG_PATH" != "$canonique/openclaw.json" ]; }; then
+        # core/src/config/paths.ts, isDefaultInstallIdentity : l'état doit être le dossier canonique du profil (chemin
+        # réel : un lien laissé par Doctor à l'ancien chemin désigne le même dossier), la configuration un de ses noms.
+        reel() { (cd "$1" 2>/dev/null && pwd -P) || printf '%s' "$1"; }
+        if [ "${OPENCLAW_PROFILE:-}" = "opsys" ]; then
+            canonique="$HOME/.opsys/core"
+            if ! plein "$canonique" && plein "$HOME/.openclaw-opsys"; then canonique="$HOME/.openclaw-opsys"; fi
+            noms="opsys.json openclaw.json"
+        else
+            canonique="$HOME/.openclaw${OPENCLAW_PROFILE:+-$OPENCLAW_PROFILE}"
+            noms="openclaw.json"
+        fi
+        config_canonique=0
+        if [ -z "${OPENCLAW_CONFIG_PATH:-}" ]; then config_canonique=1; fi
+        canonique_reel="$(reel "$canonique")"
+        for nom in $noms; do
+            if [ -n "${OPENCLAW_CONFIG_PATH:-}" ]; then
+                actif="$(reel "$(dirname "$OPENCLAW_CONFIG_PATH")")/$(basename "$OPENCLAW_CONFIG_PATH")"
+                if [ "$actif" = "$canonique_reel/$nom" ]; then config_canonique=1; fi
+            fi
+        done
+        etat_reel="$(reel "${OPENCLAW_STATE_DIR:-$HOME/.openclaw}")"
+        if [ -n "${OPENCLAW_HOME:-}" ] || [ "$etat_reel" != "$canonique_reel" ] || [ "$config_canonique" -ne 1 ]; then
             echo "Gateway $2 blocked: Error: service management skipped: non-default state dir or config path." >&2
             exit 1
         fi
@@ -136,7 +174,8 @@ class Bac:
         self.journal = tmp_path / "appels.log"
         self.etats = tmp_path / "etats.log"
         self.depot = tmp_path / "depot"
-        self.etat_core = self.hote / ".openclaw-opsys"  # le dossier canonique du profil `opsys`, sous HOME
+        self.etat_core = self.hote / ".opsys" / "core"  # le dossier canonique du profil `opsys`, sous HOME
+        self.ancien_profil = self.hote / ".openclaw-opsys"  # où le profil rangeait son état avant T0.7 lot 3
         self.hote.mkdir()
         self.faux.mkdir()
         for nom, corps in (("node", FAUX_NODE), ("pnpm", FAUX_PNPM), ("uv", FAUX_UV), ("curl", FAUX_CURL)):
@@ -218,8 +257,8 @@ class Bac:
             "paliers: {standard: {provider: anthropic, model: claude-sonnet-5}}\n", encoding="utf-8")
         self.env_supplementaire.update(EMBEDDINGS)
 
-    def secrets(self) -> list[str]:
-        env = (self.etat_core / ".env").read_text(encoding="utf-8")
+    def secrets(self, dossier: Path | None = None) -> list[str]:
+        env = ((dossier or self.etat_core) / ".env").read_text(encoding="utf-8")
         return [v for k, v in re.findall(r"^([A-Z0-9_]+)=(.*)$", env, flags=re.MULTILINE)
                 if re.search(r"JETON|TOKEN|CLE", k) and len(v) >= 12]
 
@@ -289,8 +328,9 @@ def test_installation_complete_dans_l_ordre_avec_les_bons_arguments(bac):
     assert moteur in appels
     assert f"openclaw {PROFIL} gateway install --force --port 18789" in appels
     assert all(a.startswith(f"openclaw {PROFIL} ") for a in appels if a.startswith("openclaw "))  # jamais sans profil
-    config = json.loads((bac.etat_core / "openclaw.json").read_text(encoding="utf-8"))
+    config = json.loads((bac.etat_core / "opsys.json").read_text(encoding="utf-8"))
     assert config["gateway"]["port"] == 18789
+    assert not (bac.etat_core / "openclaw.json").exists()  # l'instance neuve n'a que le nom canonique
     metier = json.loads((bac.etat_core / "opsys" / "metier.json").read_text(encoding="utf-8"))
     assert metier["actif"] is True and metier["dossier"] == str(bac.depot) and metier["port"] == 8765
     enregistrement = (bac.logiciel / "installation.env").read_text(encoding="utf-8")
@@ -340,7 +380,7 @@ def test_relancer_l_installateur_ne_change_ni_secret_ni_configuration_ni_donnee(
     second = bac.installer()
 
     assert second.returncode == 0, _sortie(second)
-    assert bac.empreinte_du_dossier(bac.etat_core) == avant_core  # .env, openclaw.json, fragments, metier.json
+    assert bac.empreinte_du_dossier(bac.etat_core) == avant_core  # .env, opsys.json, fragments, metier.json
     assert (bac.home / "paliers.yaml").read_bytes() == avant_paliers
     installation_du_service = f"openclaw {PROFIL} gateway install --force --port 18789"
     assert bac.appels().count(installation_du_service) == 2  # le Gateway est redémarré
@@ -408,7 +448,7 @@ def test_sans_paliers_ni_embeddings_l_installation_s_arrete_en_attente_avec_le_c
     assert f"openclaw {PROFIL} config file" in appels  # la vérification du dossier d'état a lieu même en attente
     for commande in ("opsys", "openclaw", "opsys-metier"):  # de quoi fournir les décisions
         assert (bac.bin / commande).exists(), commande
-    assert (bac.etat_core / ".env").is_file() and not (bac.etat_core / "openclaw.json").exists()
+    assert (bac.etat_core / ".env").is_file() and not (bac.etat_core / "opsys.json").exists()
 
     bac.preparer_decisions()
     reprise = bac.installer()  # la même commande, décisions fournies : tout se termine
@@ -581,8 +621,8 @@ def test_le_core_recoit_toujours_le_profil_opsys_et_son_etat_est_le_dossier_cano
     appels_du_core = bac.etats_du_core()
     assert len(appels_du_core) >= 4  # --version, config file, config validate, gateway install
     assert {a["profil"] for a in appels_du_core} == {"opsys"} and {a.get("home", "") for a in appels_du_core} == {""}
-    assert {a["config"] for a in appels_du_core} == {str(bac.etat_core / "openclaw.json")}
-    assert (bac.etat_core / ".env").is_file() and (bac.etat_core / "openclaw.json").is_file()
+    assert {a["config"] for a in appels_du_core} == {str(bac.etat_core / "opsys.json")}
+    assert (bac.etat_core / ".env").is_file() and (bac.etat_core / "opsys.json").is_file()
     assert (bac.etat_core / "opsys" / "metier.json").is_file()
     assert not (bac.home / "core").exists()  # rien de l'état du core sous OPSYS_HOME
     assert stat.S_IMODE(bac.etat_core.stat().st_mode) == 0o700
@@ -610,7 +650,7 @@ def test_un_environnement_qui_sortirait_l_etat_du_dossier_canonique_est_ecarte(b
     env = {k: v for k, v in bac.env().items() if k != "OPSYS_HOME"} | pollue
     coeur = subprocess.run([str(bac.bin / "openclaw"), "config", "file"], env=env, capture_output=True, text=True,
                            check=False)
-    assert coeur.returncode == 0 and coeur.stdout.strip() == str(bac.etat_core / "openclaw.json")
+    assert coeur.returncode == 0 and coeur.stdout.strip() == str(bac.etat_core / "opsys.json")
     assert bac.etats_vus_par_le_core() == {str(bac.etat_core)}
     assert {a["profil"] for a in bac.etats_du_core()} == {"opsys"}
     assert {a.get("home", "") for a in bac.etats_du_core()} == {""}
@@ -620,11 +660,11 @@ def test_le_core_qui_cherche_sa_configuration_ailleurs_arrete_tout_avant_le_serv
     """Si la règle de profil du fork change, l'installateur s'arrête : pas de Gateway sans la configuration générée."""
     bac.preparer_decisions()
 
-    resultat = bac.installer(FAUX_CONFIG_AILLEURS="/ailleurs/openclaw.json")
+    resultat = bac.installer(FAUX_CONFIG_AILLEURS="/ailleurs/opsys.json")
 
     assert resultat.returncode == 1
-    assert "/ailleurs/openclaw.json" in resultat.stderr and f"{bac.etat_core}/openclaw.json" in resultat.stderr
-    assert "core/src/cli/profile-utils.ts" in resultat.stderr and "rien n'est démarré" in resultat.stderr
+    assert "/ailleurs/opsys.json" in resultat.stderr and f"{bac.etat_core}/opsys.json" in resultat.stderr
+    assert "core/src/config/opsys-instance.ts" in resultat.stderr and "rien n'est démarré" in resultat.stderr
     assert not [a for a in bac.appels() if "gateway install" in a or "config validate" in a]
     assert not (bac.bin / "openclaw").exists()  # arrêt avant l'installation des commandes
 
@@ -674,6 +714,119 @@ def test_une_installation_a_l_ancienne_disposition_est_signalee_et_rien_n_est_mi
     apres = bac.installer()
     assert apres.returncode == 0, _sortie(apres)
     assert bac.empreinte_du_dossier(bac.home / "core.ancien") == avant and (bac.etat_core / ".env").is_file()
+
+
+# -- l'état d'avant le lot 3 (~/.openclaw-opsys) : refusé tant que Doctor ne l'a pas déplacé ------------------------
+def _etat_d_une_installation_d_avant_le_lot_3(bac: Bac) -> Path:
+    """Ce qu'une installation faite depuis T0.11-b laisse : l'état dans ~/.openclaw-opsys (configuration
+    `openclaw.json`), un service qui nomme ce dossier, et un enregistrement qui le note. On installe, puis on défait
+    ce que le lot 3 a changé."""
+    bac.preparer_decisions()
+    assert bac.installer().returncode == 0
+    shutil.move(str(bac.etat_core), str(bac.ancien_profil))
+    (bac.ancien_profil / "opsys.json").rename(bac.ancien_profil / "openclaw.json")
+    (bac.hote / ".opsys").rmdir()  # le dossier d'instance n'existait pas encore (OPSYS_HOME est ailleurs, ici)
+    for fichier in (_unite_du_core(bac), bac.logiciel / "installation.env"):
+        fichier.write_text(fichier.read_text(encoding="utf-8").replace(str(bac.etat_core), str(bac.ancien_profil)),
+                           encoding="utf-8")
+    return bac.ancien_profil
+
+
+def _deplacer_comme_doctor(bac: Bac) -> None:
+    """Ce que fait Doctor (`core/src/infra/state-migrations.opsys-instance.ts`) : un renommage, puis un lien."""
+    bac.etat_core.parent.mkdir(parents=True, exist_ok=True)
+    bac.ancien_profil.rename(bac.etat_core)
+    bac.ancien_profil.symlink_to(bac.etat_core, target_is_directory=True)
+
+
+def test_le_faux_core_applique_la_resolution_du_lot_3_pour_le_profil_opsys(bac):
+    """Garde de l'outil de test : la règle qu'il prête au core est celle de `core/src/config/opsys-instance.ts`
+    (que vitest et le job `installateur` prouvent pour de vrai)."""
+    def config_du_core(profil: str = "opsys") -> str:
+        sortie = subprocess.run([str(bac.faux / "node"), "core/openclaw.mjs", "--profile", profil, "config", "file"],
+                                env=bac.env(), capture_output=True, text=True, check=True).stdout
+        return sortie.strip()
+
+    assert config_du_core() == str(bac.etat_core / "opsys.json")  # poste neuf
+    assert config_du_core("autre") == str(bac.hote / ".openclaw-autre" / "openclaw.json")  # autres profils : inchangés
+
+    (bac.ancien_profil).mkdir()
+    (bac.ancien_profil / "openclaw.json").write_text("{}\n", encoding="utf-8")
+    assert config_du_core() == str(bac.ancien_profil / "openclaw.json")  # seul l'ancien porte un état : lu en place
+
+    bac.etat_core.mkdir(parents=True)
+    (bac.etat_core / "openclaw.json").write_text("{}\n", encoding="utf-8")
+    assert config_du_core() == str(bac.etat_core / "openclaw.json")  # le canonique gagne dès qu'il porte un état
+    (bac.etat_core / "opsys.json").write_text("{}\n", encoding="utf-8")
+    assert config_du_core() == str(bac.etat_core / "opsys.json")  # et opsys.json l'emporte sur openclaw.json
+
+    shutil.rmtree(bac.ancien_profil)
+    bac.ancien_profil.symlink_to(bac.etat_core, target_is_directory=True)  # le lien de Doctor
+    (bac.etat_core / ".env").write_text("OPSYS_MCP_JETON=fictif-0123456789abcdef\n", encoding="utf-8")
+    via_le_lien = subprocess.run(  # un service qui nomme encore l'ancien chemin reste géré : mêmes chemins réels
+        [str(bac.faux / "node"), "core/openclaw.mjs", "gateway", "install"],
+        env={**bac.env(), "OPENCLAW_PROFILE": "opsys", "OPENCLAW_STATE_DIR": str(bac.ancien_profil),
+             "OPENCLAW_CONFIG_PATH": str(bac.ancien_profil / "opsys.json")},
+        capture_output=True, text=True, check=False)
+    assert via_le_lien.returncode == 0, via_le_lien.stderr
+
+
+def test_un_etat_reste_dans_l_ancien_dossier_du_profil_arrete_l_installation_avec_la_marche_a_suivre(bac):
+    ancien = _etat_d_une_installation_d_avant_le_lot_3(bac)
+    secrets = bac.secrets(ancien)
+    avant = bac.empreinte_du_dossier(ancien)
+    appels_avant = len(bac.appels())
+
+    resultat = bac.installer()
+
+    assert resultat.returncode == 1
+    assert "ancien emplacement détecté" in resultat.stderr and str(ancien) in resultat.stderr
+    assert str(bac.etat_core) in resultat.stderr and "Rien n'a été modifié" in resultat.stderr
+    assert "opsys gateway stop" in resultat.stderr and "opsys doctor --non-interactive" in resultat.stderr
+    assert bac.empreinte_du_dossier(ancien) == avant and not bac.etat_core.exists()  # rien n'a bougé, rien n'est copié
+    assert not ancien.is_symlink()
+    assert not [a for a in bac.appels()[appels_avant:] if " gateway " in a or "config validate" in a]
+    assert not any(secret in _sortie(resultat) for secret in secrets)  # jamais un secret dans un message
+
+
+def test_apres_le_deplacement_par_doctor_la_relance_garde_les_secrets_et_repointe_le_service(bac):
+    ancien = _etat_d_une_installation_d_avant_le_lot_3(bac)
+    secrets = bac.secrets(ancien)
+    assert bac.installer().returncode == 1  # le refus, puis la marche à suivre
+    assert f"OPENCLAW_STATE_DIR={ancien}" in _unite_du_core(bac).read_text(encoding="utf-8")
+
+    _deplacer_comme_doctor(bac)
+    reprise = bac.installer()
+
+    assert reprise.returncode == 0, _sortie(reprise)
+    assert bac.secrets() == secrets  # les secrets sont ceux d'avant : rien n'a été régénéré
+    assert (bac.etat_core / "openclaw.json").is_file() and not (bac.etat_core / "opsys.json").exists()
+    assert ancien.is_symlink()  # le lien de Doctor n'est pas touché
+    unite = _unite_du_core(bac).read_text(encoding="utf-8")
+    assert f"OPENCLAW_STATE_DIR={bac.etat_core}" in unite and str(ancien) not in unite  # le service suit le nouvel état
+    assert bac.etats_du_core()[-1]["config"] == str(bac.etat_core / "openclaw.json")  # la configuration d'avant, lue
+    enregistrement = (bac.logiciel / "installation.env").read_text(encoding="utf-8").splitlines()
+    assert f"DOSSIER_CORE={bac.etat_core}" in enregistrement
+    avant = bac.empreinte_du_dossier(bac.etat_core)
+    assert bac.installer().returncode == 0 and bac.empreinte_du_dossier(bac.etat_core) == avant  # relançable
+
+
+def test_deux_etats_l_ancien_et_le_nouveau_arretent_l_installation_sans_rien_fusionner(bac):
+    bac.preparer_decisions()
+    assert bac.installer().returncode == 0
+    (bac.ancien_profil / "opsys").mkdir(parents=True)
+    (bac.ancien_profil / ".env").write_text("OPSYS_MCP_JETON=jeton-de-l-ancien-etat-fictif-0123456789\n",
+                                            encoding="utf-8")
+    avant_ancien, avant_neuf = bac.empreinte_du_dossier(bac.ancien_profil), bac.empreinte_du_dossier(bac.etat_core)
+
+    resultat = bac.installer()
+
+    assert resultat.returncode == 1 and "ancien emplacement en conflit" in resultat.stderr
+    assert f"{bac.ancien_profil}.old" in resultat.stderr and f"{bac.etat_core}.old" in resultat.stderr
+    assert "décision humaine" in resultat.stderr and "jeton-de-l-ancien-etat-fictif" not in _sortie(resultat)
+    assert bac.empreinte_du_dossier(bac.ancien_profil) == avant_ancien
+    assert bac.empreinte_du_dossier(bac.etat_core) == avant_neuf
+    assert bac.appels().count(f"openclaw {PROFIL} gateway install --force --port 18789") == 1  # celui de la 1re fois
 
 
 # -- installation à distance : clone d'un dépôt git, y compris `bash < script` (comme `curl | bash`) ---------
@@ -897,6 +1050,39 @@ def test_la_desinstallation_refuse_de_supprimer_un_dossier_qui_contient_l_etat_d
 
     assert resultat.returncode == 1 and "contient l'état du core" in resultat.stderr
     assert (dedans / ".env").is_file() and (bac.bin / "opsys").exists()  # le refus vient AVANT tout retrait
+
+
+def test_la_desinstallation_protege_l_etat_du_core_la_ou_il_est_meme_si_l_enregistrement_nomme_l_ancien_chemin(bac):
+    """Une installation d'avant le lot 3 a noté `~/.openclaw-opsys` ; l'état est maintenant dans `~/.opsys/core`."""
+    bac.preparer_decisions()
+    assert bac.installer("--sans-service").returncode == 0
+    enregistrement = bac.logiciel / "installation.env"
+    enregistrement.write_text(enregistrement.read_text(encoding="utf-8").replace(
+        f"DOSSIER_CORE={bac.etat_core}", f"DOSSIER_CORE={bac.ancien_profil}"), encoding="utf-8")
+    poste = bac.logiciel / "venv" / "poste"  # un dossier personnel rangé DANS un dossier que le script supprime
+    etat = poste / ".opsys" / "core"
+    etat.mkdir(parents=True)
+    (etat / ".env").write_text("OPSYS_MCP_JETON=jeton-fictif-0123456789abcdef\n", encoding="utf-8")
+
+    resultat = bac.lancer(UNINSTALL, HOME=str(poste))
+
+    assert resultat.returncode == 1 and "contient l'état du core" in resultat.stderr and str(etat) in resultat.stderr
+    assert (etat / ".env").is_file() and (bac.bin / "opsys").exists()  # le refus vient AVANT tout retrait
+
+
+def test_la_desinstallation_laisse_l_etat_et_le_lien_de_doctor_intacts(bac):
+    ancien = _etat_d_une_installation_d_avant_le_lot_3(bac)
+    _deplacer_comme_doctor(bac)
+    assert bac.installer().returncode == 0
+    etat_avant = bac.empreinte_du_dossier(bac.etat_core)
+
+    resultat = bac.lancer(UNINSTALL)
+
+    assert resultat.returncode == 0, _sortie(resultat)
+    assert bac.empreinte_du_dossier(bac.etat_core) == etat_avant
+    assert ancien.is_symlink() and ancien.resolve() == bac.etat_core.resolve()
+    assert not _unite_du_core(bac).exists() and not bac.logiciel.exists()  # le service et le logiciel sont partis
+    assert "État du core conservé" in resultat.stdout and str(bac.etat_core) in resultat.stdout
 
 
 # -- les constantes que l'installateur recopie du fork -------------------------------------------------------

@@ -17,10 +17,14 @@
 #
 # Le core tourne sous son profil « opsys » (PLAN T0.11-b) : toute commande du core passe `--profile opsys`, jamais
 # OPENCLAW_STATE_DIR, OPENCLAW_CONFIG_PATH ni OPENCLAW_HOME. Son état est alors le dossier canonique du profil
-# (~/.openclaw-opsys), le seul pour lequel le core accepte d'installer un service (core/src/config/paths.ts,
-# isDefaultInstallIdentity), et le service porte un nom distinct de celui du core d'origine (Linux :
-# openclaw-gateway-opsys ; macOS : ai.openclaw.opsys). `opsys metier instance dossier` donne ce dossier. Une installation
-# faite avec l'ancienne disposition ($OPSYS_HOME/core) est signalée, avec la marche à suivre, jamais migrée en silence.
+# (~/.opsys/core depuis T0.7 lot 3 ; avant, ~/.openclaw-opsys), le seul pour lequel le core accepte d'installer un
+# service (core/src/config/paths.ts, isDefaultInstallIdentity), et le service porte un nom distinct de celui du core
+# d'origine (Linux : openclaw-gateway-opsys ; macOS : ai.openclaw.opsys). `opsys metier instance dossier` donne ce
+# dossier, `opsys metier instance fichier-config` la configuration qu'il porte (opsys.json, ou l'openclaw.json d'une
+# installation antérieure, lu en place et jamais renommé). Une installation faite avec l'ancienne disposition
+# ($OPSYS_HOME/core) ou dont l'état est resté dans ~/.openclaw-opsys est refusée avec la marche à suivre, jamais
+# migrée en silence par ce script : le déplacement est celui de Doctor (opsys doctor --non-interactive), puis on
+# relance ce script, qui réinstalle aussi le service vers le nouvel emplacement.
 #
 # Pourquoi construire depuis le dépôt et non installer une archive : aucune version n'est publiée (la publication est
 # une décision humaine, T3), et le paquet npm `openclaw` est le logiciel d'origine, pas ce fork. Le code du core et
@@ -447,11 +451,15 @@ initialiser_instance() {
 }
 
 # Le dossier que l'installateur a préparé doit être celui que le core lira : le core dit lui-même où est sa configuration
-# (`opsys config file`). Si la règle de profil du fork change, on s'arrête ici, avant de démarrer un Gateway qui
-# ignorerait la configuration générée.
+# (`opsys config file`). Le fichier attendu est celui que dit le moteur (`instance fichier-config` : opsys.json, ou
+# l'openclaw.json qui existe déjà), lu après l'initialisation. Si la règle de profil du fork change, on s'arrête ici,
+# avant de démarrer un Gateway qui ignorerait la configuration générée.
 verifier_dossier_du_core() {
-    local sortie="" erreurs annonce code=0
+    local sortie="" erreurs annonce attendu code=0
     info "Vérification du dossier d'état du core (opsys config file)..."
+    attendu="$(moteur_opsys instance fichier-config </dev/null)" ||
+        die "le fichier de configuration du core est indéterminé (voir ci-dessus)."
+    chemin_absolu "le fichier de configuration du core" "$attendu"
     erreurs="$(mktemp "${TMPDIR:-/tmp}/opsys-erreurs.XXXXXX")"
     NETTOYAGE+=("$erreurs")
     sortie="$(noyau config file 2>"$erreurs" </dev/null)" || code=$?
@@ -462,8 +470,8 @@ verifier_dossier_du_core() {
         die "opsys config file a échoué (code $code). Journal complet : $JOURNAL"
     fi
     annonce="$(printf '%s\n' "$sortie" | awk 'NF { ligne = $0 } END { print ligne }')"
-    [ "$annonce" = "$DOSSIER_CORE/openclaw.json" ] ||
-        die "le core cherche sa configuration dans '$annonce', mais l'installateur a préparé '$DOSSIER_CORE/openclaw.json'. La règle du profil « $PROFIL_CORE » a changé dans le core (core/src/cli/profile-utils.ts) : rien n'est démarré. Journal : $JOURNAL"
+    [ "$annonce" = "$attendu" ] ||
+        die "le core cherche sa configuration dans '$annonce', mais l'installateur a préparé '$attendu'. La règle du profil « $PROFIL_CORE » a changé dans le core (core/src/config/opsys-instance.ts) : rien n'est démarré. Journal : $JOURNAL"
 }
 
 # -- Commandes `opsys` et `openclaw` (core), `opsys-metier` (moteur) ----------------------------------------------------------
