@@ -61,6 +61,7 @@ from typing import Any
 from . import devis_durable, verdicts
 
 __all__ = [
+    "avec_duree_estimee",
     "ecart_relatif",
     "enregistrer_travaux_termines",
     "enregistrer_variance_chantier",
@@ -176,6 +177,25 @@ def _duree_estimee_minutes(
             f"(trouvée={estimation is not None}) ne portent duree_estimee_minutes"
         ),
     )
+
+
+def avec_duree_estimee(
+    charge_devis_accepte: dict[str, Any], devis_id: str, registre_devis: Any, maillons_estimations: Iterable[Any]
+) -> dict[str, Any]:
+    """Copie de la charge de ``m3.devis_accepte`` avec la clé OPTIONNELLE ``duree_estimee_minutes`` (PLAN T1.5-d),
+    quand l'estimation d'origine du devis la porte : M8 la compare à la durée réelle du WCT (temps prévu contre
+    réel). Même règle que la comparaison main-d'œuvre (``_duree_estimee_minutes``) : une seule lecture de la
+    durée estimée pour tout le paquet.
+
+    Texte décimal strictement positif (``format(..., "f")`` : jamais d'exposant, jamais un nombre JSON). Fail-closed :
+    aucune estimation d'origine pour ce devis, durée absente ou illisible -> la clé est OMISE (jamais une durée
+    par défaut, jamais zéro) et M8 répond « non calculable, manque duree_estimee_minutes ». Ne lit que ;
+    n'écrit rien."""
+    duree, verdict = _duree_estimee_minutes(devis_id, registre_devis, maillons_estimations)
+    charge = dict(charge_devis_accepte)
+    if verdict is None:
+        charge["duree_estimee_minutes"] = format(duree, "f")
+    return charge
 
 
 def _comparer_main_doeuvre(

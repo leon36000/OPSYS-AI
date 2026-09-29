@@ -492,12 +492,13 @@ def marquer_devis_accepte(devis_id: str, approbateur: str, horodatage: str) -> d
     )
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
-    evenements.publier(
-        "m3.devis_accepte",
-        "m03-estimation",
+    charge = estime_vs_reel.avec_duree_estimee(  # PLAN T1.5-d : durée estimée du devis, si l'estimation la porte
         devis_durable.charge_evenement_devis_accepte(devis),
-        evenement_id=f"m3-devis-accepte-{devis_id}",
+        devis_id,
+        registre_devis_production(),
+        registre_production().lire(),
     )
+    evenements.publier("m3.devis_accepte", "m03-estimation", charge, evenement_id=f"m3-devis-accepte-{devis_id}")
     return {"accepte": True, "resultat": devis}
 
 
