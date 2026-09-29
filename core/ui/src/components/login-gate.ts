@@ -365,7 +365,7 @@ function renderLoginGate(props: LoginGateProps, refreshAction: RefreshAction) {
                 >`
               : html`<img class="login-gate__logo" src=${faviconSrc} alt="" />`
           }
-          <span class="login-gate__brand-name">OpenClaw</span>
+          <span class="login-gate__brand-name">OPSYS</span>
         </header>
         ${body}
         ${

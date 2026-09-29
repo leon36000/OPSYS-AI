@@ -278,6 +278,48 @@ le bac à sable de développement : la CI (`tests` et `tests-opsys`) fait foi.
   M10 (`signaux.py`, `liaison.py`, `confidentialite.py`, `humain.py`).
 - Surface consommée : `opsys/contexte.json` porte en plus `niveaux`, `outil_affaire` et, par agent, `affaire`.
 
+## Renommage, lot 1 : la marque visible devient OPSYS (T0.7)
+
+Décisions : [R14](../docs/research/R14-renommage-core.md). On renomme ce que l'utilisateur voit, jamais l'API interne
+du fork (`openclaw/plugin-sdk/*`, `@openclaw/*`, `OPENCLAW_*`, `openclaw.plugin.json`). Le nom de la commande
+(`openclaw`), le dossier `~/.openclaw` et les services système restent pour les lots 2 à 4. `LICENSE`, `NOTICE`,
+`THIRD_PARTY_NOTICES.md` et ce fichier ne changent pas (avis MIT). Rien ne s'exécute dans le bac à sable : la CI
+(`tests` et `tests-opsys`) fait foi. Le lot se livre en trois commits.
+
+### Commit 1 : interface et locales
+
+- Modifiés : `ui/index.html` (titre « OPSYS Control », écran de secours), `ui/public/manifest.webmanifest`, les 114
+  lignes de valeurs anglaises de `ui/src/i18n/locales/en*.ts` (les clés ne bougent pas) et les libellés en dur de la
+  coque : barre du haut, écran de connexion, badge du profil, nom d'espace par défaut, nom d'assistant par défaut du
+  compositeur, étiquette du moteur `openclaw` du sélecteur de modèle, suffixe du titre de fenêtre
+  (`app-navigation.ts`), message d'installation des notifications (`web-push.runtime.ts`).
+- Laissés tels quels, faute de pouvoir les régénérer ou parce qu'ils désignent l'amont : la ligne de licence de la page
+  À propos (© OpenClaw Foundation), la carte de la communauté Discord d'OpenClaw et les liens de la page À propos, le
+  lien de dépannage `docs.openclaw.ai` de l'écran de secours, et les textes d'aide de la configuration (`configHints.*`,
+  qui viennent de `src/config/schema.*.ts` et que fige `docs/.generated/config-baseline.sha256`).
+- **`fr-CA`** : locale neuve, dérivée de `fr` (`ui/src/i18n/locales/fr-CA.ts`, `.i18n/fr-CA.{tm.jsonl,meta.json}`,
+  glossaire). Seuls les écarts québécois sont ajustés : « courriel » pour « e-mail », pas d'espace avant `?`, `!` et
+  `;` (316 segments), et les étiquettes de langue. Les autres écarts possibles (infonuagique, fermer la session) sont
+  à faire relire par un locuteur québécois.
+- **`fr-CA` par défaut** : `PRODUCT_DEFAULT_LOCALE` (`ui/src/i18n/lib/registry.ts`). `en` reste le catalogue source,
+  embarqué et repli de toute clé manquante : un catalogue français embarqué ferait exploser le budget de démarrage.
+  `fr-CA` se charge à la demande comme les 20 autres locales, donc aucun octet de plus au démarrage. Langue du
+  navigateur : `fr`, `fr-CA` et tout `fr-*` sauf `fr-FR`, `fr-BE`, `fr-CH`, `fr-LU`, `fr-MC` donnent `fr-CA` ; ces cinq
+  donnent `fr` ; `en*` donne `en` ; une langue sans catalogue (ou vide) donne `fr-CA`.
+- **Mémoires de traduction** : les 20 locales existantes ont été mises à jour à la main (108 entrées chacune : `text`,
+  `text_hash`, `cache_key`, traduction avec OPSYS) et reçoivent la nouvelle clé `languages.frCA`. Le script Python qui
+  les a réécrites reproduit l'algorithme de `scripts/control-ui-i18n.ts` (hachage, clé de cache, ordre) : vérifié sans
+  écart sur les 174 616 entrées d'origine, et `sourceHash` sur l'ancienne valeur. `sourceHash`, `totalKeys` (9 841) et
+  `catalog-fallbacks.json` sont à jour. Sur un poste Node, `pnpm ui:i18n:sync --write` ne doit rien changer d'autre que
+  `generatedAt`, et aucun fournisseur de traduction n'est nécessaire.
+- **Glossaires** : `OPSYS → OPSYS` remplace `OpenClaw → OpenClaw` dans les 21 glossaires existants (dont `sv`, sans locale),
+  copié pour `fr-CA`, et dans `DEFAULT_GLOSSARY` de `scripts/control-ui-i18n.ts`. Le pipeline ne réinjecte donc plus la marque amont.
+- **Correctif de chaîne de construction** : le chunk `fr-CA-<hash>.js` satisfaisait aussi le motif `fr-` de la locale
+  `fr` (`ui/vite.config.ts`, `scripts/check-control-ui-performance.mts`). On teste maintenant la locale la plus longue
+  d'abord, sinon le contrôle de performance comptait deux chunks pour `fr`.
+- Le contrôle `<title>OPSYS Control</title>` des fumées inter-OS (`scripts/lib/cross-os-release-checks`,
+  `scripts/e2e/parallels/macos-smoke.ts`) et le test qui le fige suivent le nouveau titre.
+
 ## Sécurité
 
 Il n'y a plus de mises à jour automatiques. Une veille mensuelle des avis de sécurité d'OpenClaw

@@ -124,7 +124,7 @@ function renderSidebarAgentCard(host: AppSidebarRenderHost) {
 }
 
 function renderSidebarWorkspaceHeader(host: AppSidebarRenderHost) {
-  const name = readSidebarNativeGateway()?.name.trim() || "OpenClaw";
+  const name = readSidebarNativeGateway()?.name.trim() || "OPSYS";
   const menuOpen = host.sidebarMenus.agentMenuPosition !== null;
   return html`
     <div class="sidebar-workspace-header">

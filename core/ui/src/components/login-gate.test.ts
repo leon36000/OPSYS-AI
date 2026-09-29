@@ -51,7 +51,7 @@ describe("login gate failure recovery", () => {
   it("explains a pasted setup code before connecting and clears the hint when replaced", async () => {
     const element = await mountFailure("", null, setupCode);
     const hint = element.querySelector("#login-gate-secret-hint");
-    expect(hint?.textContent).toContain("device setup code for the OpenClaw mobile app");
+    expect(hint?.textContent).toContain("device setup code for the OPSYS mobile app");
     expect(hint?.textContent).toContain("openclaw gateway auth-token --show");
     expect(element.querySelector("#login-gate-credential")?.getAttribute("aria-describedby")).toBe(
       hint?.id,

@@ -125,14 +125,14 @@
       "kind": "html-attribute",
       "name": "aria-label",
       "path": "ui/src/components/app-topbar.ts",
-      "text": "OpenClaw"
+      "text": "OPSYS"
     },
     {
       "count": 1,
       "kind": "html-text",
       "name": "text",
       "path": "ui/src/components/app-topbar.ts",
-      "text": "OpenClaw"
+      "text": "OPSYS"
     },
     {
       "count": 1,
@@ -209,7 +209,7 @@
       "kind": "html-text",
       "name": "text",
       "path": "ui/src/components/login-gate.ts",
-      "text": "OpenClaw"
+      "text": "OPSYS"
     },
     {
       "count": 1,
@@ -615,7 +615,7 @@
       "kind": "html-text",
       "name": "text",
       "path": "ui/src/pages/profile/profile-hero.ts",
-      "text": "OpenClaw"
+      "text": "OPSYS"
     },
     {
       "count": 1,

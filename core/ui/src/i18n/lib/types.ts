@@ -11,6 +11,7 @@ export type Locale =
   | "ja-JP"
   | "ko"
   | "fr"
+  | "fr-CA"
   | "hi"
   | "ar"
   | "it"

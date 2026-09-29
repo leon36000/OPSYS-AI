@@ -221,6 +221,22 @@ describe("Control UI Vite config", () => {
     ).toBe(nestedTarget);
   });
 
+  it("tells Canadian French chunks apart from the plain French locale", () => {
+    const context = { hostId: "assets/control-ui-core-Ab12Cd34.js", hostType: "js" } as const;
+    const deps = [
+      "assets/locale-config-hints-fr-D1.js",
+      "assets/locale-config-hints-fr-CA-D2.js",
+      "assets/styles.css",
+    ];
+
+    expect(
+      resolveControlUiModulePreloadDependencies("assets/fr-CA-Qr78St90.js", deps, context),
+    ).toEqual(["assets/locale-config-hints-fr-D1.js", "assets/styles.css"]);
+    expect(
+      resolveControlUiModulePreloadDependencies("assets/fr-Qr78St90.js", deps, context),
+    ).toEqual(["assets/locale-config-hints-fr-CA-D2.js", "assets/styles.css"]);
+  });
+
   it("embeds one canonical artifact identity from explicit build inputs", () => {
     const readGitCommit = vi.fn(() => "f".repeat(40));
     const readGitCommitTimestamp = vi.fn(() => "2026-07-10T10:11:12.000Z");

@@ -284,7 +284,7 @@ describe("chat model runtime choices", () => {
         expect(rows().map((row) => row.getAttribute("aria-selected"))).toEqual(
           initialRuntime === "codex" ? ["false", "true"] : ["true", "false"],
         );
-        expect(rows()[0]?.textContent).toContain("1M · OpenClaw");
+        expect(rows()[0]?.textContent).toContain("1M · OPSYS");
         expect(rows()[1]?.textContent).toContain("200k · Codex");
         rows()[1]!.click();
         await selection;

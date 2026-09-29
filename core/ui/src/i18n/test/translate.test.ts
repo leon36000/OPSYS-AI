@@ -12,6 +12,7 @@ import { en } from "../locales/en.ts";
 import { es } from "../locales/es.ts";
 import { fa } from "../locales/fa.ts";
 import { fr } from "../locales/fr.ts";
+import { fr_CA } from "../locales/fr-CA.ts";
 import { hi } from "../locales/hi.ts";
 import { id } from "../locales/id.ts";
 import { it as itLocale } from "../locales/it.ts";
@@ -34,6 +35,7 @@ const shippedLocales = {
   es,
   fa,
   fr,
+  fr_CA,
   hi,
   id,
   it: itLocale,
@@ -163,6 +165,49 @@ describe("i18n", () => {
     expect(localStorage.getItem("openclaw.i18n.locale")).toBeNull();
   });
 
+  it.each([
+    ["fr-CA", "fr-CA"],
+    ["fr", "fr-CA"],
+    ["fr-FR", "fr"],
+    ["sv-SE", "fr-CA"],
+  ] as const)(
+    "starts a fresh browser language %s in the %s locale",
+    async (browserLanguage, expectedLocale) => {
+      const documentElement = stubDocumentLocaleMetadata();
+      vi.stubGlobal("navigator", { language: browserLanguage } as Navigator);
+      localStorage.removeItem("openclaw.i18n.locale");
+
+      const fresh = await importFreshTranslate();
+
+      await vi.waitFor(() => expect(fresh.i18n.getLocale()).toBe(expectedLocale));
+      expect(documentElement).toEqual({ lang: expectedLocale, dir: "ltr" });
+      expect(fresh.t("common.health")).toBe(
+        readTranslationString(expectedLocale === "fr" ? fr : fr_CA, "common.health"),
+      );
+      expect(localStorage.getItem("openclaw.i18n.locale")).toBeNull();
+    },
+  );
+
+  it("keeps an English browser in English and never opens French on its own", async () => {
+    vi.stubGlobal("navigator", { language: "en-CA" } as Navigator);
+    localStorage.removeItem("openclaw.i18n.locale");
+
+    const fresh = await importFreshTranslate();
+
+    expect(fresh.i18n.getLocale()).toBe("en");
+    expect(fresh.t("common.health")).toBe("Health");
+  });
+
+  it("names the OPSYS brand, not the upstream product, in the shipped catalogs", () => {
+    const brandKeys = ["approvalPage.brandName", "aboutPage.productName", "custodian.title"];
+    for (const key of brandKeys) {
+      expect(readTranslationString(en, key), `en:${key}`).toBe("OPSYS");
+      for (const [locale, value] of Object.entries(shippedLocales)) {
+        expect(readTranslationString(value, key), `${locale}:${key}`).toBe("OPSYS");
+      }
+    }
+  });
+
   it("clears an explicit locale when returning to the system language", async () => {
     vi.stubGlobal("navigator", { language: "de-DE" } as Navigator);
     await translate.i18n.setLocale("fr");
@@ -256,6 +301,7 @@ describe("i18n", () => {
       es,
       fa,
       fr,
+      fr_CA,
       hi,
       id,
       it: itLocale,

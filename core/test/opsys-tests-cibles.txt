@@ -1,4 +1,4 @@
-# Tests des zones du core modifiées par OPSYS (T1.4-c1, T1.4-c2, T1.4-c4, T1.4-c5, T1.4-c6, T0.10, T3.3-suite, T3.3-suite-b).
+# Tests des zones du core modifiées par OPSYS (T1.4-c1, T1.4-c2, T1.4-c4, T1.4-c5, T1.4-c6, T0.10, T3.3-suite, T3.3-suite-b, T0.7 lot 1).
 #
 # `pnpm test:fast` (les six morceaux de la CI) exclut `src/gateway/**`, `src/agents/**` et
 # `packages/gateway-protocol/**` : ces tests appartiennent à d'autres projets vitest. Le job
@@ -85,3 +85,39 @@ src/agents/agent-tools.before-tool-call.decision.test.ts
 src/agents/agent-tools.before-tool-call.e2e.test.ts
 src/agents/agent-tools.before-tool-call.embedded-mode.test.ts
 src/agents/agent-tools.before-tool-call.opsys-contexte.test.ts
+
+# T0.7 lot 1, interface et locales : la marque visible devient OPSYS et fr-CA s'ajoute aux locales.
+# `test:fast` ne couvre ni `ui/` (projet vitest « ui », jsdom, avec le greffon de locales de Vite) ni `test/`.
+# Les tests `*.e2e.test.ts` et `*.browser.test.ts` du lot (Playwright, Chromium) ne sont pas listés ici : le job
+# n'installe pas de navigateur. Ils sont mis à jour avec les mêmes chaînes.
+ui/src/i18n/lib/registry.test.ts
+ui/src/i18n/test/translate.test.ts
+ui/src/i18n/apps-loading.test.ts
+ui/src/app/vite-config.node.test.ts
+ui/src/app-navigation.test.ts
+ui/src/app/app-host.document-title.test.ts
+ui/src/app/control-ui-environment.test.ts
+ui/src/app/update-overlay-helpers.test.ts
+ui/src/components/assistant-panel.test.ts
+ui/src/components/command-palette.test.ts
+ui/src/components/login-gate.test.ts
+ui/src/components/session-organizer-batch-mutations.test.ts
+ui/src/components/settings-sidebar.test.ts
+ui/src/components/sidebar-attention.test.ts
+ui/src/components/app-sidebar.people.test.ts
+ui/src/lib/sessions/worktree-preservation.test.ts
+ui/src/pages/about/view.test.ts
+ui/src/pages/apps/view.test.ts
+ui/src/pages/chat/chat-model-runtime.test.ts
+ui/src/pages/chat/chat-view.test.ts
+ui/src/pages/config/memory-page.test.ts
+ui/src/pages/config/memory.test.ts
+ui/src/pages/connection/view.render.test.ts
+ui/src/pages/cron/view.test.ts
+ui/src/pages/custodian/custodian-page.channel-onboarding.test.ts
+ui/src/pages/device/device-pages.test.ts
+ui/src/pages/model-providers/profiles-view.test.ts
+ui/src/pages/model-setup/view.test.ts
+ui/src/pages/plugins/catalog-detail.test.ts
+test/scripts/control-ui-performance.test.ts
+test/scripts/openclaw-cross-os-release-checks.test.ts

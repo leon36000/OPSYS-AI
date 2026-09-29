@@ -3167,7 +3167,7 @@ describe("chat voice controls", () => {
   it.each([
     ["connecting", "Connecting voice input..."],
     ["listening", "Listening..."],
-    ["thinking", "Asking OpenClaw..."],
+    ["thinking", "Asking OPSYS..."],
   ] as const)("renders %s voice activity with the appropriate status region", (status, label) => {
     const inputLevel = new RealtimeTalkLevelSignal();
     inputLevel.set(0.64);
@@ -7540,7 +7540,7 @@ describe("chat model controls", () => {
     );
 
     expect(modelOption?.querySelector(".chat-controls__model-option-meta")?.textContent).toBe(
-      "1M active · 1M max · OpenClaw",
+      "1M active · 1M max · OPSYS",
     );
     expect(modelOption?.textContent).not.toContain("700k");
     expect(getChatModelSelect(container).querySelector(".chat-controls__trigger-meta")).toBeNull();

@@ -1,6 +1,6 @@
 {
-  "name": "OpenClaw Control",
-  "short_name": "OpenClaw",
+  "name": "OPSYS Control",
+  "short_name": "OPSYS",
   "description": "Multi-channel AI gateway control panel",
   "start_url": "./",
   "display": "standalone",

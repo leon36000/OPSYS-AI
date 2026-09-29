@@ -97,7 +97,11 @@ function escapeControlUiAssetRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
 
-const controlUiLocaleAssetPatterns = CONTROL_UI_LOCALE_ENTRIES.map(({ locale }) => ({
+// Longest locale first: "fr-CA-<hash>.js" also satisfies the looser "fr-" pattern, and
+// the lookup below keeps the first match.
+const controlUiLocaleAssetPatterns = CONTROL_UI_LOCALE_ENTRIES.toSorted(
+  (left, right) => right.locale.length - left.locale.length,
+).map(({ locale }) => ({
   locale,
   base: new RegExp(`^assets/${escapeControlUiAssetRegExp(locale)}-[^/]+\\.js$`, "u"),
   configHints: new RegExp(

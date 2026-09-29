@@ -26,14 +26,14 @@ const enModelSetup = {
     },
     nativeDiscovery: {
       title: "Discover existing conversations",
-      body: "Show native assistant conversations from this Gateway host in OpenClaw. This is discovery, not an import or copy.",
+      body: "Show native assistant conversations from this Gateway host in OPSYS. This is discovery, not an import or copy.",
       enable: "Show existing native conversations",
       decline:
         "Leave unchecked to keep native session catalogs off when you connect your AI provider. Existing installations are not changed.",
     },
     success: {
       title: "Connection verified",
-      body: "OpenClaw received a real reply from {modelRef}. You can start chatting now.",
+      body: "OPSYS received a real reply from {modelRef}. You can start chatting now.",
       activeModel: "Active model",
       latency: "Verified in {latencyMs} ms",
       openChat: "Start chatting",
@@ -43,13 +43,13 @@ const enModelSetup = {
     },
     utility: {
       role: "Setup & utility",
-      hint: "Helps set up OpenClaw and handles lightweight tasks. Regular chats need a primary model.",
+      hint: "Helps set up OPSYS and handles lightweight tasks. Regular chats need a primary model.",
       useSetup: "Use for setup",
       useUtility: "Use as utility",
       ready: "Setup & utility model ready",
       configured: "Setup & utility model",
       verified:
-        "OpenClaw received a real reply from {modelRef}. This model is ready for setup and lightweight tasks.",
+        "OPSYS received a real reply from {modelRef}. This model is ready for setup and lightweight tasks.",
       model: "Utility model",
       choosePrimary:
         "Choose a primary model below for regular chats. Your setup assistant remains available.",

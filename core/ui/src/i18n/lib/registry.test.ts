@@ -3,6 +3,8 @@
 import { describe, expect, it } from "vitest";
 import { de } from "../locales/de.ts";
 import { es } from "../locales/es.ts";
+import { fr } from "../locales/fr.ts";
+import { fr_CA } from "../locales/fr-CA.ts";
 import { hi } from "../locales/hi.ts";
 import { pt_BR } from "../locales/pt-BR.ts";
 import { ru } from "../locales/ru.ts";
@@ -11,6 +13,7 @@ import { zh_CN } from "../locales/zh-CN.ts";
 import {
   DEFAULT_LOCALE,
   loadLazyLocaleTranslation,
+  PRODUCT_DEFAULT_LOCALE,
   resolveNavigatorLocale,
   SUPPORTED_LOCALES,
 } from "./registry.ts";
@@ -42,7 +45,14 @@ describe("resolveNavigatorLocale", () => {
     ["es-MX", "es"],
     ["ja-JP", "ja-JP"],
     ["ko-KR", "ko"],
-    ["fr-CA", "fr"],
+    ["fr-CA", "fr-CA"],
+    ["FR-ca", "fr-CA"],
+    ["fr", "fr-CA"],
+    ["fr-FR", "fr"],
+    ["fr-BE", "fr"],
+    ["fr-CH", "fr"],
+    ["fr-Latn-FR", "fr"],
+    ["fr-Latn", "fr-CA"],
     ["hi-IN", "hi"],
     ["ar-EG", "ar"],
     ["it-IT", "it"],
@@ -55,17 +65,26 @@ describe("resolveNavigatorLocale", () => {
     ["nl-NL", "nl"],
     ["fa-IR", "fa"],
     ["ru-RU", "ru"],
-    ["sv-SE", "en"],
-    ["", "en"],
+    ["en", "en"],
+    ["en-CA", "en"],
+    ["EN-gb", "en"],
+    ["sv-SE", "fr-CA"],
+    ["", "fr-CA"],
   ] as const)("maps browser language %s to %s", (browserLanguage, expectedLocale) => {
     expect(resolveNavigatorLocale(browserLanguage)).toBe(expectedLocale);
   });
 });
 
 describe("lazy locale registry", () => {
-  it("keeps English as the default and materializes every registered foreign catalog", async () => {
+  it("keeps English as the source catalog and Quebec French as the product default", () => {
     expect(DEFAULT_LOCALE).toBe("en");
-    expect(SUPPORTED_LOCALES).toHaveLength(21);
+    expect(PRODUCT_DEFAULT_LOCALE).toBe("fr-CA");
+    expect(SUPPORTED_LOCALES).toContain(PRODUCT_DEFAULT_LOCALE);
+    expect(SUPPORTED_LOCALES.indexOf("fr-CA")).toBe(SUPPORTED_LOCALES.indexOf("fr") + 1);
+  });
+
+  it("materializes every registered foreign catalog", async () => {
+    expect(SUPPORTED_LOCALES).toHaveLength(22);
     expect(await loadLazyLocaleTranslation("en")).toBeNull();
 
     const catalogs = await Promise.all(
@@ -80,6 +99,8 @@ describe("lazy locale registry", () => {
     for (const [locale, expected] of Object.entries({
       de,
       es,
+      fr,
+      "fr-CA": fr_CA,
       "pt-BR": pt_BR,
       "zh-CN": zh_CN,
       hi,

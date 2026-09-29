@@ -142,7 +142,7 @@ suite.define(() => {
       const codex = picker.locator('[data-chat-model-runtime="codex"]');
       const embedded = picker.locator('[data-chat-model-runtime="openclaw"]');
       expect(await codex.textContent()).toContain("200k · Codex");
-      expect(await embedded.textContent()).toContain("1M · OpenClaw");
+      expect(await embedded.textContent()).toContain("1M · OPSYS");
       await selectChatModelOption(codex);
       if (route === "new") {
         await expect.poll(() => codex.getAttribute("aria-selected")).toBe("true");

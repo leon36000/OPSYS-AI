@@ -80,7 +80,7 @@ suite.define(() => {
           .poll(async () =>
             (await engineGroup.locator("wa-radio").allTextContents()).map((label) => label.trim()),
           )
-          .toEqual(["OpenClaw Memory", "Memory LanceDB", "Off"]);
+          .toEqual(["OPSYS Memory", "Memory LanceDB", "Off"]);
 
         await gateway.deferNext("config.set");
         await gateway.deferNext("plugins.setEnabled");
@@ -88,7 +88,7 @@ suite.define(() => {
         // Click again immediately, before the 800 ms autosave debounce. The
         // write barrier must flush Off first instead of letting the plugin RPC
         // race a still-scheduled config.set.
-        await engineGroup.getByRole("radio", { name: "OpenClaw Memory", exact: true }).click();
+        await engineGroup.getByRole("radio", { name: "OPSYS Memory", exact: true }).click();
         expect(await gateway.getRequests("plugins.setEnabled")).toHaveLength(0);
 
         const pendingOffSave = await gateway.waitForRequest("config.set");
@@ -114,7 +114,7 @@ suite.define(() => {
         });
 
         const selected = engineGroup.getByRole("radio", {
-          name: "OpenClaw Memory",
+          name: "OPSYS Memory",
           exact: true,
         });
         await expect.poll(() => selected.getAttribute("aria-checked")).toBe("true");
@@ -249,11 +249,11 @@ suite.define(() => {
           .poll(async () =>
             (await engineGroup.locator("wa-radio").allTextContents()).map((label) => label.trim()),
           )
-          .toEqual(["OpenClaw Memory (Unavailable)", "Memory LanceDB", "Off"]);
+          .toEqual(["OPSYS Memory (Unavailable)", "Memory LanceDB", "Off"]);
         await expect
           .poll(() =>
             engineGroup
-              .getByRole("radio", { name: "OpenClaw Memory (Unavailable)", exact: true })
+              .getByRole("radio", { name: "OPSYS Memory (Unavailable)", exact: true })
               .getAttribute("aria-checked"),
           )
           .toBe("true");

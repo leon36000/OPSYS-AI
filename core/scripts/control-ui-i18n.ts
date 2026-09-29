@@ -106,7 +106,7 @@ const TRANSLATION_PROVIDER_DEFAULTS: Record<TranslationProvider, Omit<Model, "id
 const LOCALE_ENTRIES: readonly LocaleEntry[] = CONTROL_UI_LOCALE_ENTRIES;
 
 const DEFAULT_GLOSSARY: readonly GlossaryEntry[] = [
-  { source: "OpenClaw", target: "OpenClaw" },
+  { source: "OPSYS", target: "OPSYS" },
   { source: "Gateway", target: "Gateway" },
   { source: "Control UI", target: "Control UI" },
   { source: "Skills", target: "Skills" },
@@ -205,6 +205,8 @@ function prettyLanguageLabel(locale: string): string {
       return "Korean";
     case "fr":
       return "French";
+    case "fr-CA":
+      return "Canadian French (Québec)";
     case "hi":
       return "Hindi";
     case "ar":

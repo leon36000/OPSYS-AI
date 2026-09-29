@@ -228,7 +228,7 @@ describeControlUiE2e("plugin install button progress", () => {
           await page.getByRole("button", { name: "Disable Calendar Plus", exact: true }).waitFor();
           expect(await page.locator(".plugin-install-progress").count()).toBe(0);
           expect(await page.locator(".plugin-catalog-detail__actions").textContent()).toContain(
-            "Ask OpenClaw",
+            "Ask OPSYS",
           );
           expect(await page.locator(".plugin-install-action__button").count()).toBe(0);
           await page.screenshot({ path: `${evidence}/after.png` });

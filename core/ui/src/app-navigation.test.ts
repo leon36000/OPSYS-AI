@@ -170,23 +170,23 @@ describe("settingsSearchTextMatches", () => {
 
 describe("formatDocumentTitle", () => {
   it("does not duplicate a context ending in the brand", () => {
-    expect(formatDocumentTitle({ context: "Ask OpenClaw" })).toBe("Ask OpenClaw");
-    expect(formatDocumentTitle({ context: "OpenClaw" })).toBe("OpenClaw");
+    expect(formatDocumentTitle({ context: "Ask OPSYS" })).toBe("Ask OPSYS");
+    expect(formatDocumentTitle({ context: "OPSYS" })).toBe("OPSYS");
   });
 
   it("names the disconnected gateway without implying internet loss", () => {
     expect(formatDocumentTitle({ context: "Usage", gatewayDisconnected: true })).toBe(
-      "(Disconnected) Usage — OpenClaw",
+      "(Disconnected) Usage — OPSYS",
     );
   });
 
   it("shows attention separately from the disconnected state", () => {
     expect(formatDocumentTitle({ context: "Usage", attentionCount: 3 })).toBe(
-      "(3) Usage — OpenClaw",
+      "(3) Usage — OPSYS",
     );
     expect(
       formatDocumentTitle({ context: "Usage", attentionCount: 3, gatewayDisconnected: true }),
-    ).toBe("(Disconnected) Usage — OpenClaw");
+    ).toBe("(Disconnected) Usage — OPSYS");
   });
 });
 
@@ -206,7 +206,7 @@ describe("titleForRoute", () => {
       Object.fromEntries(ALL_ROUTES.map((routeId) => [routeId, titleForRoute(routeId)])),
     ).toEqual({
       chat: "Chat",
-      custodian: "OpenClaw",
+      custodian: "OPSYS",
       activity: "Activity",
       meetings: "Meetings",
       apps: "Apps",

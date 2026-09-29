@@ -31,7 +31,11 @@ const MERMAID_RENDERER_ASSET = /^assets\/mermaid\.min-[\w-]+\.js$/u;
 const MERMAID_RENDERER_GZIP_BYTES = 960 * KIB;
 // Locale catalogs are named Vite chunks loaded only after a language selection.
 // Base and config-hint chunks share one budget because they activate atomically.
-const CONTROL_UI_LOCALE_ASSET_PATTERNS = CONTROL_UI_LOCALE_ENTRIES.flatMap(({ locale }) => [
+// Longest locale first: "fr-CA-<hash>.js" also satisfies the looser "fr-" pattern, and
+// the lookup keeps the first match.
+const CONTROL_UI_LOCALE_ASSET_PATTERNS = CONTROL_UI_LOCALE_ENTRIES.toSorted(
+  (left, right) => right.locale.length - left.locale.length,
+).flatMap(({ locale }) => [
   {
     locale,
     kind: "base" as const,

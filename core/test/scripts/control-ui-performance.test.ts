@@ -417,6 +417,30 @@ describe("Control UI performance budgets", () => {
     },
   );
 
+  it("counts Canadian French chunks against fr-CA, not against the plain French locale", () => {
+    const { distDir, writeAsset } = createDistFixture();
+    fs.writeFileSync(
+      path.join(distDir, "index.html"),
+      '<script type="module" src="./assets/index-a.js"></script>\n' +
+        '<link rel="stylesheet" href="./assets/index-c.css">\n',
+    );
+    writeAsset("index-a.js", { rawBytes: 100, gzipBytes: 40, brotliBytes: 30 });
+    writeAsset("index-c.css", { rawBytes: 50, gzipBytes: 15, brotliBytes: 12 });
+    for (const name of [
+      "fr-a.js",
+      "locale-config-hints-fr-a.js",
+      "fr-CA-a.js",
+      "locale-config-hints-fr-CA-a.js",
+    ]) {
+      writeAsset(name, { rawBytes: 200, gzipBytes: 50_000, brotliBytes: 100 });
+    }
+
+    const metrics = collectControlUiPerformanceMetrics(distDir);
+
+    expect(metrics.localeCatalogs).toHaveLength(4);
+    expect(evaluateControlUiPerformanceBudgets(metrics).map((entry) => entry.metric)).toEqual([]);
+  });
+
   it("includes exact bytes when rounded violation values collide", () => {
     const metrics = createMetrics(43_009);
     const budgets = {

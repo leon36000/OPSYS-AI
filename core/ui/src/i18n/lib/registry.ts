@@ -4,7 +4,14 @@ import type { Locale, TranslationMap } from "./types.ts";
 type LazyLocale = Exclude<Locale, "en">;
 type LocaleModule = Record<string, TranslationMap>;
 
+// English is the source catalog: it ships in the startup bundle and answers every missing key.
 export const DEFAULT_LOCALE: Locale = "en";
+// OPSYS ships in Quebec French. It loads on demand like every other catalog, so it costs the
+// startup bundle nothing; it applies when the browser language names no supported locale.
+export const PRODUCT_DEFAULT_LOCALE: Locale = "fr-CA";
+// Region subtags (France, Belgium, Switzerland, Luxembourg, Monaco) that keep the plain French
+// catalog. Bare "fr", "fr-CA" and every other French tag get Quebec French.
+const EUROPEAN_FRENCH_REGIONS: ReadonlySet<string> = new Set(["fr", "be", "ch", "lu", "mc"]);
 
 const LAZY_LOCALE_REGISTRY: Record<LazyLocale, () => Promise<LocaleModule>> = {
   "zh-CN": () => import("../locales/zh-CN.ts"),
@@ -15,6 +22,7 @@ const LAZY_LOCALE_REGISTRY: Record<LazyLocale, () => Promise<LocaleModule>> = {
   "ja-JP": () => import("../locales/ja-JP.ts"),
   ko: () => import("../locales/ko.ts"),
   fr: () => import("../locales/fr.ts"),
+  "fr-CA": () => import("../locales/fr-CA.ts"),
   hi: () => import("../locales/hi.ts"),
   ar: () => import("../locales/ar.ts"),
   it: () => import("../locales/it.ts"),
@@ -55,9 +63,16 @@ export function resolveNavigatorLocale(browserLanguage: string): Locale {
       ? "zh-TW"
       : "zh-CN";
   }
+  if (navLang === "fr" || navLang.startsWith("fr-")) {
+    const [, ...subtags] = navLang.split("-");
+    return subtags.some((subtag) => EUROPEAN_FRENCH_REGIONS.has(subtag)) ? "fr" : "fr-CA";
+  }
+  if (navLang === "en" || navLang.startsWith("en-")) {
+    return DEFAULT_LOCALE;
+  }
   return (
     LAZY_LOCALES.find((locale) => navLang.startsWith(locale.split("-")[0]!.toLowerCase())) ??
-    DEFAULT_LOCALE
+    PRODUCT_DEFAULT_LOCALE
   );
 }
 
