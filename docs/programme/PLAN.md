@@ -164,7 +164,7 @@ identifiants du propriétaire, repli livré en attendant.
             `$script:ExtrasMoteur` ; test qui confronte les deux scripts aux extras de
             `pyproject.toml` (hors `postgres`, `console`, `dev`) ; tests des scripts 50 verts,
             shellcheck OK. Le job `installateur` l'exerce avec le vrai PyPI.
-      - [ ] T0.11-b Service par le profil `opsys` du core : livré (b02f7a4, a0f3c95), à cocher sur le job
+      - [x] T0.11-b Service par le profil `opsys` du core : livré (b02f7a4, a0f3c95), à cocher sur le job
             `installateur`. Le core tourne sous l'option racine `--profile opsys` (la variable seule
             ne projette pas l'état : seul `applyCliProfileEnv` le fait) ; état canonique
             `~/.openclaw-opsys` ; service `openclaw-gateway-opsys` (Linux), `ai.openclaw.opsys`
@@ -174,8 +174,19 @@ identifiants du propriétaire, repli livré en attendant.
             Écart assumé à R14 (décision 4) : l'état du core sort d'`OPSYS_HOME`, imposé par le
             core ; le lot 3 de T0.7 rendra le dossier d'OPSYS canonique. Port 18789 partagé avec le
             core d'origine : `OPSYS_PORT_GATEWAY` pour coexister.
-      Reste ensuite : macOS et Windows par une exécution manuelle ; LiteLLM, PostgreSQL et console
-      restent à Docker Compose.
+            Preuve finale : CI installateur 2 (4889005) verte, « Tout est vrai » : poste neuf ;
+            installation (état 0700, `.env` 0600, aucun secret) ; le moteur Python, le core et le
+            fork s'accordent sur `~/.openclaw-opsys` ; `config validate` avec le jeton lu dans
+            `.env` ; ancienne disposition refusée ; Gateway au premier plan qui lance le moteur
+            (un seul jeton, arrêt commun, aucun secret au journal) ; relance identique ; export
+            (SHA-256, 0600, sans secret) et restauration ; service `openclaw-gateway-opsys.service`
+            actif, moteur supervisé, aucun secret dans l'unité ni le journal ; désinstallation
+            relançable, données intactes.
+      - [ ] T0.11-d Jobs `installateur` sur les exécuteurs macOS (launchd) et Windows (`pwsh`) de
+            GitHub Actions : aujourd'hui, `install.ps1` n'a que l'analyse syntaxique et macOS n'est
+            exécuté nulle part.
+      Reste ensuite : macOS et Windows (T0.11-d) ; LiteLLM, PostgreSQL et console restent à
+      Docker Compose.
 
 - [x] T0.13 Taxonomie métier partagée : M1, M2 et M3 utilisent un même `TYPES_TRAVAUX` qui ne
       contient aucun des 4 services réels (gouttières, revêtement, soffite-fascia, réparation). Une
