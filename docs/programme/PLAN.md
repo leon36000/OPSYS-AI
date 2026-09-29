@@ -977,7 +977,8 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       - consommation de `m6.variance_chantier` ;
       - M10 263, verifier 93 outils.
   - [x] T3.3-suite : greffe du moteur de contexte dans le core (PREFLIGHT et POSTFLIGHT) ;
-        résolution des signaux critiques ; paquet injecté avant une estimation M3.
+        paquet injecté avant une estimation M3 (la résolution des signaux critiques, d'abord
+        incluse ici, devient T3.3-suite-b).
         Preuve CI : core 24 (f6cd858), job `tests-opsys` vert, 36 fichiers ciblés sur 36, dont
         les 6 du moteur de contexte (config 25, dépôt 19, moteur 44, paquet 44, fil MCP réel 5,
         enregistrement 3). La résolution des signaux critiques reste à faire (ci-dessous).
@@ -1003,6 +1004,9 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         candidats ; une connexion MCP par appel ; aucun filtre `CLIENT_PRIVATE` ; l'installation
         n'active rien. Emplacement `core/src/context-engine/` au lieu d'une extension (raison dans
         PROVENANCE.md).
+  - [ ] T3.3-suite-b : résolution des signaux critiques (M10 ne sait pas les clore ; le core les
+        affiche seulement) ; blocage `before_tool_call` d'une action N3 ou plus quand le contexte
+        est insuffisant ; affaire liée à la session avant d'activer M1 ; filtre `CLIENT_PRIVATE`.
 
 ## T4 — Profondeur des départements
 
