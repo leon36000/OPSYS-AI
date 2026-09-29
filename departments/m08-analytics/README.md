@@ -59,7 +59,8 @@ filtrés par rôle, conformité statique et digest quotidien.
   d'appareil) rend les métriques, une ligne par contenu et les manques, par pages sous la limite du socle
   (`depart`). Limites : tous les faits reçus comptent (aucune fenêtre de période) ; l'attribution est à la clé, sans
   première ni dernière touche ; le trajet physique lien, formulaire, M1 n'est pas bouclé (le site n'a pas de
-  formulaire qui recopie `utm_*`, et le canal SMS de M1 n'accepte pas `utm`).
+  formulaire qui recopie `utm_*`, et le canal SMS de M1 n'accepte pas `utm`) ; le compte est une borne basse (un client
+  qui appelle ou écrit sans passer par le lien ne porte aucune clé : son lead n'est attribué à aucun contenu).
 
 DuckDB/Parquet, MMM (PyMC-Marketing) et l'orchestrateur horaire réel restent GATED (hors
 périmètre v1, cf. `docs/bmad/02-PRD-PM.md` §3.2).

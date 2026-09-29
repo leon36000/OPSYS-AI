@@ -861,6 +861,24 @@ def test_l_export_annonce_le_contenu_au_bus_une_seule_fois_avec_sa_cle_son_chant
     assert len(_faits_contenu_exporte()) == 1 and len(_lire("exports_paquet")) == 1
 
 
+def test_le_fait_du_bus_porte_l_heure_de_reception_du_serveur_comme_la_trace_d_export(
+    base_durable, brand_configure, proprietaire, charge,
+):
+    """Ni l'heure du téléphone ni l'argument : l'instant annoncé à M8 est celui de la trace d'export du serveur."""
+    contenu_id = _contenu_propose(charge)
+    _approuver(contenu_id)
+    recu_le = dt.datetime(2026, 9, 29, 15, 0, tzinfo=dt.UTC)
+    reception = contexte.HorodatageAppareil("appareil-fictif", recu_le - dt.timedelta(hours=3), recu_le)
+
+    with contexte.receptionne_de(reception):
+        _metier(_appeler("m7_exporter_paquet_manuel", appareil=("nathan", "admin"), contenu_id=contenu_id,
+                         horodatage="2020-01-01T00:00:00-04:00"))
+
+    ((_, _, fait),) = _faits_contenu_exporte()
+    (export,) = _lire("exports_paquet")
+    assert export["horodatage"] == fait["exporte_le"] == recu_le.isoformat()
+
+
 def test_le_fait_du_bus_n_emporte_aucun_renseignement_personnel(base_durable, brand_configure, proprietaire, charge):
     contenu_id = _contenu_propose(charge)
     _approuver(contenu_id)

@@ -18,6 +18,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
+from m7_marketing.attribution import attribution_engine
 from m7_marketing.usine import chantier, mesure, plateformes, verdicts
 from m7_marketing.utm import utm_engine
 
@@ -173,6 +174,27 @@ def test_un_lien_qui_ne_porte_pas_utm_content_est_refuse_aucun_lead_ne_serait_co
     cle, verdict = mesure.identifiant_de_mesure({**proposition, "lien_utm": sans})
     assert cle is None and verdict["code"] == verdicts.REJ_UTM_CONTENT_INCOHERENT
     assert "ne porte pas utm_content" in verdict["detail"]
+
+
+def test_les_parametres_du_lien_sont_ceux_que_l_attribution_de_m7_compte_deja(charge, profil, nature):
+    """« Cohérent avec l'attribution existante » : source, support et campagne du lien sont les clés que
+    `attribution_engine.attribuer` agrège (par canal et par campagne) ; la clé `utm_content` s'y ajoute sans les
+    toucher."""
+    proposition = _proposition(charge, profil, nature)
+    lien = proposition["lien_utm"]
+    requete = {cle: valeurs[0] for cle, valeurs in parse_qs(urlsplit(lien).query).items()}
+    visites = [{
+        "visitor_id": "visiteur-1", "date": "2026-09-30", "utm_source": requete["utm_source"],
+        "utm_medium": requete["utm_medium"], "utm_campaign": requete["utm_campaign"], "landing": "/",
+    }]
+    leads = [{"lead_id": "lead-1", "date": "2026-10-01", "source_declaree": "Facebook", "visitor_id": "visiteur-1"}]
+
+    rapport = attribution_engine.attribuer(visites, leads)
+
+    assert rapport["par_canal"]["facebook"]["leads_derniere_touche"] == 1
+    assert rapport["par_campagne"][requete["utm_campaign"]]["leads_premiere_touche"] == 1
+    assert rapport["divergences"] == [] and rapport["non_attribuables"] == 0
+    assert requete["utm_campaign"] == "contenu-gouttieres-et-descentes-2026" and "utm_content" in requete
 
 
 def test_utm_content_du_lien_lit_le_parametre_et_rien_d_autre():

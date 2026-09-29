@@ -4,7 +4,7 @@ Marketing & Croissance IA — PREMIER MODULE (D-008)
 
 Statut: PARTIAL (mode ombre : le pilote M7-S000 a été suivi des vagues 2 et 3 — site Quadruple A,
 content factory, données saisonnières, competitive engine, grille AEO/GEO, convention UTM,
-attribution, ROI, puis l'usine à contenu de chantier de T4.17. 889 tests (dossier `tests/` de M7). Le
+attribution, ROI, puis l'usine à contenu de chantier de T4.17. 992 tests (dossier `tests/` de M7). Le
 statut du registre est la source de vérité, gate statut_lint.)
 
 ## M7-S000 — Brand Core minimal
@@ -254,7 +254,8 @@ plateformes) ; M8 dit « non calculable », jamais un zéro ; le connecteur rest
 dernière touche par clé : un client qui revient par une opportunité rouverte par M2 (`<lead>~opp~<wct_id>`) n'est pas
 attribué à son contenu d'origine. (4) L'énuméré UTM gelé n'a aucune source YouTube et une seule source vidéo (`tiktok`) : la
 vidéo courte est comptée comme TikTok, où que le propriétaire la publie. GATE NATHAN, avec les canaux et les conventions
-de nommage des campagnes.
+de nommage des campagnes. (5) Le compte par contenu est une borne basse : un client qui appelle ou écrit sans passer par
+le lien ne porte aucune clé, et son lead n'est attribué à aucun contenu.
 
 ## Contrat gelé v1
 
