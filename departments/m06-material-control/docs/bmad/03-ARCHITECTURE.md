@@ -48,6 +48,7 @@ M6 porte QUATRE parcours d'écriture distincts, là où M3 et M4 n'en portent qu
 | `stock.py` | Dérivation PURE du stock théorique d'un couple `(chantier_id, materiau_id)` : somme signée des `quantite` des maillons `RECEPTION` et `CONSOMMATION` jusqu'à la tête, **`VARIANCE_INVENTAIRE` exclue** (§DA-M6-09). Vérification de disponibilité pour la consommation, avec cumul des lignes d'un même matériau. Aucun cache. | « Pas d'état caché, tout dérivé du registre » — patron mesuré de `m4_field_ops.outbox.calculer_duree_reelle`/`statut_courant` qui re-dérivent à chaque appel. Un cache serait une seconde vérité divergente. |
 | `variance.py` | Comparaison stock théorique (via `stock.py`) ↔ comptage déclaré, classification `VerdictVarianceStock` neutre (R-020), `INDETERMINE` si aucun mouvement préalable. Construit `SignalVarianceStock` avec `note_investigation = null` par construction. | Isolé pour prouver qu'AUCUNE fonction de calcul ne remplit un champ de cause (CA-M6-15, inspection statique). |
 | `reorder.py` | Après un mouvement, comparaison du stock localisé résultant au seuil fourni ; émission `SignalReorder` avec `quantite_suggeree = seuil - stock` ; **silence** si aucun seuil fourni pour le couple. | Isolé pour éprouver la contrainte de silence ET la garde AST « aucun chemin ne relie ce signal à la création d'un PO ou à un paiement » (CA-M6-18, §DA-M6-13). |
+| `reapprovisionnement.py` (PLAN T1.5-d) | Stock bas à « travaux terminés » (M6.15) : la règle écrite une fois — stock théorique de l'ARTICLE (tous lieux, `stock.deriver_stock_articles`, somme décimale exacte) sous son seuil ⇒ besoin de commande de `quantite_cible - stock` ; seuil et cible lus PAR ARTICLE dans `department.yaml/configuration/reapprovisionnement/articles` ; article sans paramètres ou aux paramètres invalides ⇒ « seuil non configuré » (`seuil_a_configurer`), jamais un seuil deviné ; stock négatif ⇒ signalé sans quantité. Constats `besoin_commande` et `seuil_a_configurer` idempotents par article ET événement déclencheur, dans le registre durable `besoins_commande` ; attentes de l'admin recalculées à l'état d'AUJOURD'HUI. Module pur, aucun import de `bons_commande`. | Voir DA-M6-17. Distinct de `reorder.py` (seuil par chantier fourni par l'appelant, inchangé) : ici le seuil est par article et vient de la configuration. |
 | `contrats_sortie.py` | Assemblage des contrats de sortie PAR DESTINATAIRE et **garde terrain** : `ConfirmationConsommationTerrain` scannée contre l'ensemble de clés de coût #2 (§DA-M6-03) avant émission. | La séparation par audience est la spécificité de M6. Garde isolée ici ET éprouvée bout en bout depuis `materiel.py` en S007 (un test de fonction isolée masquerait un assemblage réel différent). |
 | `registre.py` | Journal append-only hash-chaîné des `MaillonMateriel` (§2.10). API : `ajouter(mouvement)`, `ajouter_lot(mouvements)` **atomique tout-ou-rien** (§DA-M6-08), `lire()`, `hash_tete()`, `valider_chaine()`. | Copie-adaptation de `m3_estimation/registre.py` et `m4_field_ops/registre.py`, avec les champs gelés `index`/`hash_precedent`/`hash_maillon`. `ajouter_lot` est l'extension qui rend l'atomicité multi-lignes une propriété du registre, pas une convention. |
 | `digest.py` | Digest quotidien déterministe vers Nathan : variances depuis les maillons `VARIANCE_INVENTAIRE`, reorders RECALCULÉS depuis le stock dérivé vs seuils fournis ; `hash_digest = empreinte(contenu canonique)`. Horodatages reproduits tels quels. | Copie-adaptation de `m3_estimation/digest.py` : « mêmes maillons + mêmes arguments → mêmes octets », sans normaliser les chaînes d'entrée (le module ne répare rien). |
@@ -563,6 +564,32 @@ déclaration, et un PO exige un chantier (`REJ-PO-CHANTIER-INCONNU`). M6 conserv
 reçu sans l'appliquer : la quantité du prévu reste la quantité NETTE de M3, et majorer une quantité à
 commander est une décision d'achat.
 
+### DA-M6-17 — Le stock bas se constate à la sortie de stock, par article, et se signale sans jamais commander
+
+**Décision** : à « travaux terminés », quand `m6_declarer_materiaux_utilises` a sorti du stock, M6 évalue le
+stock de chaque article touché contre SON seuil (`reapprovisionnement.py`). (1) Le seuil de réapprovisionnement
+et la quantité cible vivent par article dans `department.yaml`, bloc `configuration.reapprovisionnement.
+articles` : le seul endroit que M6 offre à un non-développeur (comme le seuil de variance). Le bloc est vide à
+dessein. Quand le catalogue M6.1 sera persisté, ces deux champs iront dans la fiche de l'article, à un seul
+endroit à la fois. (2) Stock théorique de l'article strictement sous son seuil : constat `besoin_commande`
+(quantité à commander = cible - stock) au registre durable `besoins_commande`, idempotent par article ET
+événement déclencheur (le WCT). (3) Article sans paramètres, ou aux paramètres invalides : constat
+`seuil_a_configurer`, jamais un seuil deviné ; la déclaration de l'employé n'en est jamais refusée. (4) Stock
+théorique négatif : signalé sans quantité, une erreur de livre ne se commande pas. (5) `attentes()` rend la file
+de l'admin : une attente `besoin_commande` par article constaté dont le stock est ENCORE sous le seuil, une
+seule attente `seuil_a_configurer` pour tous les articles sans paramètres utilisables. Elles sont recalculées à
+l'état d'aujourd'hui (stock et configuration), jamais figées au constat.
+
+**Justification** : sans (1), le seuil viendrait de l'appelant à chaque appel, donc de personne ; sans (3), un
+article sans seuil resterait silencieux, et le silence se lirait « stock suffisant » (fail-closed) ; sans (5), une
+réception qui reconstitue le stock laisserait une alerte périmée jusqu'au prochain chantier (même principe que
+DA-M6-09 : tout dérivé du registre, jamais un état caché). Le constat ne crée AUCUN bon de commande, ne réserve
+rien, n'écrit aucun mouvement et ne publie aucun événement (DA-M6-13) : un PO reste un brouillon demandé
+explicitement puis approuvé (DA-M6-12 révisée). Le stock est celui de l'article, tous lieux confondus, parce que
+le seuil est par article ; sans réservation par chantier (M6.8) ni emplacements (M6.9), c'est la quantité
+théorique en main, pas la quantité disponible. `m6_consommer_materiaux` (contrat historique, WCT fourni par
+l'appelant) n'évalue pas le stock bas.
+
 ---
 
 ## 5. CE QUE CHAQUE STORY PROUVE
@@ -587,6 +614,7 @@ commander est une décision d'achat.
 |---|---|---|
 | `catalogue_materiaux` | Contrat gelé `CatalogueMateriaux` (§2.3) : version, unité monétaire, postes par matériau. | **Fourni par l'appelant à chaque résolution. Aucune valeur par défaut : un catalogue par défaut serait un coût inventé.** |
 | `seuils_reorder` | Contrat gelé `SeuilReorder` (§2.5), par couple chantier/matériau. | **Fourni par l'appelant. Absence = silence (pas de suggestion), jamais un seuil deviné.** |
+| `reapprovisionnement.articles` | Par article (`materiau_id`) : `seuil_reapprovisionnement` (> 0) et `quantite_cible` (>= seuil), dans `department.yaml/configuration` (DA-M6-17). | **Vide à dessein : aucun article n'a de seuil tant que l'admin n'en a pas décidé. Absence ou valeur invalide = « seuil non configuré » visible dans la file de l'admin, jamais un seuil deviné.** |
 | `ancre_tete_registre` | Empreinte de tête à épingler hors du registre pour détecter une réécriture complète de chaîne. | Facultatif ; fourni par la couche d'intégration (le registre expose `hash_tete()` mais ne peut appliquer une ancre située hors de son instance). |
 
 > Aucun seuil de bruit de comptage en v1 (PRD §0.2) : toute variance, même minime, est enregistrée et remontée. Le seuil de filtrage est un paramètre de roadmap, activable sans réécriture.

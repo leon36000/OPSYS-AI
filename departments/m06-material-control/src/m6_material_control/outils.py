@@ -44,6 +44,12 @@ PLAN T2.3-e : `_recevoir_besoins_materiaux` consomme `m3.besoins_materiaux` (les
 avant le devis) et les range comme prévu PROVISOIRE dans le registre `besoins_prevus` existant, après
 une validation propre à M6 (`besoins_materiaux_recus.py`). Un contrat invalide lève : réessais puis
 quarantaine. Recevoir n'est jamais acheter — aucun PO, aucune réservation, aucun mouvement de stock.
+
+PLAN T1.5-d : `declarer_materiaux_utilises`, qui sort du stock, évalue ensuite le stock bas de chaque article
+touché (`_constater_stock_des_articles`, règle écrite dans `reapprovisionnement.py`, seuil et quantité cible
+par article dans `department.yaml/configuration`) : un besoin de commande si le stock est sous le seuil, un
+signal « seuil non configuré » si l'article n'a pas de paramètres utilisables — jamais un seuil deviné, jamais
+un bon de commande créé seul. `attentes()` rend l'état COURANT de ces constats à la file de l'admin.
 """
 
 from __future__ import annotations
@@ -66,6 +72,8 @@ from . import (
     fournisseurs,
     livre_prix,
     materiel,
+    reapprovisionnement,
+    stock,
     validation,
     variance_chantier,
     verdicts,
@@ -81,6 +89,7 @@ _NOM_REGISTRE_WCT_RECUS = "wct_recus"
 _NOM_REGISTRE_FOURNISSEURS = "fournisseurs"
 _NOM_REGISTRE_LIVRE_PRIX = "livre_prix"
 _NOM_REGISTRE_BONS_COMMANDE = "bons_commande"
+_NOM_REGISTRE_BESOINS_COMMANDE = "besoins_commande"
 _MANIFESTE = Path(__file__).resolve().parents[2] / "department.yaml"
 _TYPE_EVENEMENT_WCT = "m4.travaux_termines"
 
@@ -370,6 +379,27 @@ def _seuil_ecart_prix_reception() -> float | None:
     return seuil if ok else None
 
 
+def _articles_reapprovisionnement() -> dict[str, Any] | None:
+    """Seuil de réapprovisionnement et quantité cible PAR ARTICLE (M6.15, PLAN T1.5-d) : le bloc
+    `configuration.reapprovisionnement.articles` de `department.yaml`, même source et même discipline
+    fail-closed que `_seuil_variance_chantier`. Aucun défaut n'est fourni : un bloc absent est `{}`, donc
+    chaque article touché est signalé « seuil non configuré » (`reapprovisionnement.lire_parametres`).
+    `None` dit que le bloc existe mais n'est pas un dictionnaire (illisible) : c'est aussi visible, jamais
+    lu comme « rien à configurer ». La validité de chaque article est jugée article par article, à
+    l'évaluation : un article mal écrit ne rend pas les autres inutilisables."""
+    donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8")) or {}
+    configuration = donnees.get("configuration") or {}
+    section = configuration.get("reapprovisionnement")
+    if section is None:
+        return {}
+    if not isinstance(section, dict):
+        return None
+    articles = section.get("articles")
+    if articles is None:
+        return {}
+    return articles if isinstance(articles, dict) else None
+
+
 # --------------------------------------------------------------------------------- correctif T1.2-b
 # WCT reçus (garde le trou du flux réel — voir wct_recus.py) + la fonction UNIQUE d'évaluation et
 # de publication de m6.variance_chantier, partagée par les TROIS déclencheurs : le consommateur de
@@ -554,6 +584,48 @@ def _reevaluer_si_wct_connu_par_devis_id(devis_id: str) -> None:
     wct_recu = wct_recus.pour_devis_id(devis_id, stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_WCT_RECUS))
     if wct_recu is not None:
         _evaluer_et_publier_variance(wct_recu)
+
+
+def _constater_stock_des_articles(
+    wct_id: str, horodatage: Any, chantier_id: str, lignes: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """PLAN T1.5-d (DEFINITION-PRODUIT.md §6, ligne M6 : « signale le stock bas, crée le besoin de
+    commande ») : évalue le stock de chaque article que cette sortie de stock vient de toucher, et range un
+    constat dans le registre durable `besoins_commande` quand il y a quelque chose à dire.
+
+    - stock théorique de l'article (tous lieux, mouvements déjà écrits par la transaction en cours) sous son
+      seuil : constat `besoin_commande` (quantité cible - stock) ;
+    - article sans paramètres, ou aux paramètres invalides : constat `seuil_a_configurer`, jamais un seuil
+      deviné ;
+    - stock suffisant : rien (le silence n'est pas un fait).
+    Idempotent par article ET événement déclencheur (`wct_id`) : un article déjà constaté pour ce WCT n'est
+    pas réécrit. Rend les constats ÉCRITS par cet appel.
+
+    Ne crée JAMAIS de bon de commande, ne réserve rien, n'écrit aucun mouvement, ne publie aucun événement,
+    et ne peut pas faire échouer la déclaration : une configuration mauvaise donne un constat, pas une
+    exception. Hors transaction (aucun registre durable où écrire) : rien, comme `_reevaluer_si_wct_connu_*`.
+    `horodatage` est celui du WCT (jamais une horloge consultée ici).
+    """
+    if stockage.connexion_courante() is None:
+        return []
+    unites: dict[str, Any] = {}
+    for ligne in lignes:
+        unites.setdefault(ligne["materiau_id"], ligne.get("unite"))
+    stocks = stock.deriver_stock_articles(unites, stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE))
+    articles = _articles_reapprovisionnement()
+    constats = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_BESOINS_COMMANDE)
+    ecrits: list[dict[str, Any]] = []
+    for materiau_id in sorted(unites):
+        verdict = reapprovisionnement.evaluer(materiau_id, stocks[materiau_id], articles)
+        constat = reapprovisionnement.construire_constat(
+            verdict, evenement_declencheur=wct_id, horodatage=horodatage, chantier_id=chantier_id,
+            unite=unites[materiau_id],
+        )
+        if constat is None or reapprovisionnement.constat_deja_range(constat, constats):
+            continue
+        constats.append(constat)
+        ecrits.append(constat)
+    return ecrits
 
 
 def enregistrer_besoins_prevus(
@@ -745,6 +817,9 @@ def declarer_materiaux_utilises(wct_id: str, formulaire: dict[str, Any]) -> dict
     if code is not None:
         return {"accepte": False, "verdict": {"code": code}}
     _reevaluer_si_wct_connu_par_wct_id(wct_id)
+    _constater_stock_des_articles(
+        wct_id, wct["horodatage_completion"], formulaire["chantier_id"], formulaire["lignes_materiaux"]
+    )
     return {"accepte": True, "resultat": resultat, **_etat_registre(registre_cible)}
 
 
@@ -1497,3 +1572,21 @@ def consommateurs() -> dict[str, Callable[[dict], dict]]:
         "m3.devis_accepte": _recevoir_devis_accepte,
         "m3.besoins_materiaux": _recevoir_besoins_materiaux,
     }
+
+
+# ---------------------------------------------------------------------------------------------
+# Attentes de l'admin (ADR-0009 §5, PLAN T1.5-d)
+# ---------------------------------------------------------------------------------------------
+# Même mécanisme de découverte que `consommateurs()` (`opsys.departements.Departement.charger_attentes`) :
+# fonction module-level, sans argument, appelée par `approbations.file_proprietaire` et par
+# `m9_lister_demandes_approbation` (section « À voir » de l'app admin) DANS une transaction déjà ouverte.
+def attentes() -> list[dict[str, Any]]:
+    """Le stock bas et les seuils à configurer, tels qu'ils sont AUJOURD'HUI (`reapprovisionnement.attentes`) :
+    une attente `besoin_commande` par article constaté dont le stock est encore sous le seuil, et une seule
+    attente `seuil_a_configurer` pour les articles sans paramètres utilisables. Lecture seule : ne crée ni
+    bon de commande, ni mouvement, ni constat. Sans constat au registre, aucune attente."""
+    return reapprovisionnement.attentes(
+        stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_BESOINS_COMMANDE),
+        stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE),
+        _articles_reapprovisionnement(),
+    )

@@ -16,6 +16,9 @@ toujours localisé par chantier — jamais un pool global anonyme.
   responsable à un écart.
 - Un réapprovisionnement est une SUGGESTION (`SignalReorder`) quand le stock passe
   sous un seuil fourni — jamais un achat que tu déclenches toi-même.
+- À « travaux terminés », quand la déclaration de matériaux fait passer un article sous son seuil, tu constates
+  un besoin de commande et l'admin le voit dans ses alertes. Sans seuil configuré pour l'article, tu dis
+  « seuil non configuré » : tu n'en devines jamais un.
 - Une clé interdite (paiement, date d'intervention, prix de vente) glissée
   n'importe où dans une entrée est un refus immédiat, pas une donnée que tu
   transmets silencieusement.

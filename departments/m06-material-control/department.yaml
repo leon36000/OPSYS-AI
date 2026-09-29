@@ -71,3 +71,17 @@ configuration:
   # (aucun exemple chiffré dans DEFINITION-PRODUIT.md §7 M6.7, contrairement au 40 % de M6.12) —
   # à ajuster par Nathan/l'admin sans toucher au code.
   seuil_ecart_prix_reception_pourcentage: 0.15
+  # Réapprovisionnement par article (M6.15, PLAN T1.5-d) : à « travaux terminés », M6 compare le stock
+  # théorique de chaque article touché à SON seuil ; sous le seuil, il signale un besoin de commande
+  # (quantité cible - stock) à l'admin, jamais un bon de commande. Un article absent de cette liste, ou aux
+  # paramètres invalides, est signalé « seuil non configuré » : M6 ne devine jamais un seuil. Liste vide à
+  # dessein : aucun article n'a de seuil tant que Nathan ou l'admin n'en a pas décidé. Clé = le `materiau_id`
+  # des lignes de matériaux (SKU du catalogue, sinon désignation de M3). Quantités dans l'unité de l'article.
+  # Exemple (à recopier sous `articles:`, avec de vraies valeurs) :
+  #   articles:
+  #     <materiau_id>:
+  #       seuil_reapprovisionnement: <stock sous lequel on signale un besoin de commande, > 0>
+  #       quantite_cible: <stock à atteindre en commandant, >= seuil>
+  # Quand le catalogue M6.1 sera persisté, ces deux champs iront dans la fiche de l'article (un seul endroit).
+  reapprovisionnement:
+    articles: {}

@@ -63,6 +63,21 @@ d'appareil (agent, console) : aucun contrôle de personne, comme avant. Pour TOU
 le connaisse, un employé doit envoyer l'`intervention_id` du WCT (un chantier de M4 EST une
 intervention), un admin ou un agent restent libres, rien n'est deviné.
 
+PLAN T1.5-d — stock bas et besoin de commande à « travaux terminés » (DEFINITION-PRODUIT.md §6, ligne M6).
+`m6_declarer_materiaux_utilises` évalue, après avoir sorti du stock, chaque article touché contre SON seuil
+(`reapprovisionnement.py`, règle pure : stock théorique de l'article, tous lieux, strictement sous le seuil ⇒
+besoin de `quantite_cible - stock`). Seuil et quantité cible : `department.yaml`, bloc
+`configuration.reapprovisionnement.articles`, par `materiau_id` — vide à dessein. Sous le seuil : constat
+`besoin_commande` au registre durable `besoins_commande` (idempotent par article et WCT). Sans paramètres
+utilisables : constat `seuil_a_configurer`, jamais un seuil deviné, et la déclaration n'est jamais refusée. Stock
+négatif : signalé sans quantité. `outils.attentes()` rend à l'admin (`m9_lister_demandes_approbation`, section
+« À voir », file du propriétaire, briefing du matin) l'état d'AUJOURD'HUI : un besoin par article encore sous son
+seuil, une attente unique « seuil non configuré » pour les articles sans paramètres. Aucun bon de commande n'est
+jamais créé par ce chemin (DA-M6-13, DA-M6-17). `m6_consommer_materiaux` (WCT fourni par l'appelant) n'évalue pas
+le stock bas. Limites : pas de réservation par chantier (M6.8) ni d'emplacements (M6.9), donc « en main » et
+non « disponible » ; le digest quotidien et `m6_receptionner_commande` gardent leurs seuils fournis par
+l'appelant ; aucun événement de besoin de commande vers M8/M9 encore.
+
 Bugs corrigés (test rouge → vert) lors de cette passe :
 - `materiel.py` n'exposait que `consommer_materiaux`. `enregistrer_reception`
   et `soumettre_comptage`, prescrits par `docs/bmad/03-ARCHITECTURE.md`
