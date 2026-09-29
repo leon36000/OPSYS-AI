@@ -56,9 +56,14 @@ from harnais_e2e_chantier import (
     preparer_chantier,
     receptionner_materiel_args,
 )
-from m5_financecore import facturation, taux_fiscaux
+from m4_field_ops import ecarts as ecarts_m4
+from m4_field_ops import etats as etats_m4
+from m4_field_ops import preparation as preparation_m4
+from m5_financecore import calendrier_fiscal, cash_libre, facturation, taux_fiscaux
+from m8_analytics import mesures_chantier, nombres
 
-from opsys import cli, evenements, stockage
+from opsys import cli, evenements, idempotence, openclaw, stockage
+from opsys.departements import charger_departements
 from opsys.outils import executer_atomique
 
 FICTIF = True
@@ -69,15 +74,39 @@ FIXTURE_APP = MOBILE_SRC / "admin" / "fixtures" / "reponses-moteur.json"
 ENV_REGENERER = "OPSYS_REGENERER_FIXTURES_MOBILE"
 LIMITE_TRONCATURE = 6000  # `jetons.LIMITE_SORTIE_DEFAUT`
 
+
+# -- ce que l'app lit dans son propre code ---------------------------------------------------------------------------
+def _source(relatif: str) -> str:
+    return (MOBILE_SRC / relatif).read_text(encoding="utf-8")
+
+
+def _liste_ts(source: str, nom: str) -> list[str]:
+    trouve = re.search(rf"export const {nom}: readonly string\[\] = \[(.*?)\];", source, re.DOTALL)
+    assert trouve is not None, f"{nom} n'est plus dans l'app"
+    return re.findall(r'"([^"]+)"', trouve.group(1))
+
+
+def _constante_ts(source: str, nom: str) -> str:
+    trouve = re.search(rf'export const {nom} = "([^"]+)";', source)
+    assert trouve is not None, f"{nom} n'est plus dans l'app"
+    return trouve.group(1)
+
+
+def _outils_de_l_app() -> dict[str, str]:
+    outils: dict[str, str] = {}
+    for relatif in FICHIERS_DES_OUTILS:
+        outils.update(re.findall(r'export const (OUTIL_[A-Z_0-9]+) = "([^"]+)"', _source(relatif)))
+    return outils
+
+
 AUJOURD_HUI = "2026-09-29"  # le jour de référence que l'app passe à M5 (l'heure de l'appareil)
 JOUR_DU_DIGEST = "2026-09-21"  # le jour où A se termine
 REFERENCE_DU_DIGEST = "2026-09-21T18:00:00-04:00"
 SEUIL_DE_STOCK = {MATERIAU_ID: {"seuil_reapprovisionnement": 450, "quantite_cible": 600}}
 # Les statuts que « Chantiers du jour » demande, un appel chacun (`m4_lister_interventions` ne se pagine pas et sa
 # réponse est tronquée au-delà de 6 000 caractères : un appel par statut borne chaque groupe, et l'historique
-# terminé ou annulé n'est jamais demandé).
-STATUTS_DU_DISPATCH = (
-    "en_route", "sur_site", "en_revue", "planifiee", "a_planifier", "reportee", "completed_pending_review")
+# terminé ou annulé n'est jamais demandé). LUS DANS L'APP : le scénario demande exactement ce que l'écran demande.
+STATUTS_DU_DISPATCH = tuple(_liste_ts(_source("m4/dispatch.ts"), "STATUTS_DU_DISPATCH"))
 _CHEMIN_DE_TEST = re.compile(r"/tmp/pytest-of-[^/]+/pytest-\d+/[^/]+/opsys-home")
 
 PO = "PO-E2E-ADM-1"
@@ -104,18 +133,6 @@ OUTILS_ATTENDUS = {
 }
 # Les seuls outils que l'app admin partage avec un autre rôle : l'employé lit SES interventions.
 PARTAGE_AVEC_L_EMPLOYE = {"m4_lister_interventions"}
-
-
-# -- ce que l'app lit dans son propre code ---------------------------------------------------------------------------
-def _source(relatif: str) -> str:
-    return (MOBILE_SRC / relatif).read_text(encoding="utf-8")
-
-
-def _outils_de_l_app() -> dict[str, str]:
-    outils: dict[str, str] = {}
-    for relatif in FICHIERS_DES_OUTILS:
-        outils.update(re.findall(r'export const (OUTIL_[A-Z_0-9]+) = "([^"]+)"', _source(relatif)))
-    return outils
 
 
 # -- les gestes de l'amont (hors porte d'appareil : aucun n'est un geste de l'app admin) ------------------------------
@@ -430,9 +447,173 @@ def test_les_reponses_du_moteur_ont_la_forme_de_la_fixture_que_l_app_lit(
         FIXTURE_APP.write_text(json.dumps(
             {"fictif": True, "appels": enr.appels, "reponses": enr.reponses}, ensure_ascii=False, indent=1) + "\n",
             encoding="utf-8")
+    # Chacun des huit outils de l'app a été appelé, sous son nom nu, et a répondu à l'appareil admin.
+    assert {appel["outil"] for appel in enr.appels.values()} == OUTILS_ATTENDUS
     fixture = json.loads(FIXTURE_APP.read_text(encoding="utf-8"))
     assert fixture["fictif"] is True
     assert set(fixture["reponses"]) == set(enr.reponses) and set(fixture["appels"]) == set(enr.appels)
     for nom, vivante in enr.reponses.items():
         assert _forme(vivante) == _forme(fixture["reponses"][nom]), f"{nom} : la forme du moteur a changé"
         assert enr.appels[nom] == fixture["appels"][nom], nom
+
+
+# ---------------------------------------------------------------------------------------------------------
+# 403 : l'employé et le vendeur n'ont pas les outils du propriétaire ; le nom nu
+# ---------------------------------------------------------------------------------------------------------
+ARGUMENTS_DES_OUTILS = {
+    "m9_lister_demandes_approbation": {},
+    "m8_lire_vue_executive": {},
+    "m5_etat_tresorerie": {},
+    "m5_prevoir_tresorerie": {"aujourd_hui": AUJOURD_HUI},
+    "m5_lire_echeances_fiscales": {"aujourd_hui": AUJOURD_HUI},
+    "m4_lister_interventions": {"statut": "planifiee"},
+    "m4_produire_digest": {"date_cible": JOUR_DU_DIGEST, "horodatage_reference": REFERENCE_DU_DIGEST},
+    "m4_verifier_preparation": {"intervention_id": "intervention-fantome"},
+}
+
+
+def _refus_de_la_porte(reponse: Reponse) -> bool:
+    message = reponse.corps["error"]["message"]
+    return (reponse.statut == 403 and reponse.corps["ok"] is False
+            and reponse.corps["error"]["type"] == "tool_call_blocked"
+            and ("tool_out_of_scope" in message or "server_unknown" in message))
+
+
+@SQLITE_SEULEMENT
+def test_403_pour_l_employe_et_le_vendeur_sur_les_outils_du_proprietaire_et_pour_tout_nom_qui_n_est_pas_nu(
+        moteur, equipe, monkeypatch):
+    assert set(ARGUMENTS_DES_OUTILS) == OUTILS_ATTENDUS
+    moteur.creer_personne("vendeur.adm", "Vendeur (fictif)", ["seller"], monkeypatch)
+    vendeur = moteur.appairer("vendeur.adm", "seller")
+    employe = equipe["employe"]
+    admin = equipe["admin"]
+    avant = moteur.empreinte_etat()
+
+    for outil, args in ARGUMENTS_DES_OUTILS.items():
+        assert _refus_de_la_porte(vendeur.appeler(outil, args)), f"le vendeur n'a pas droit à {outil}"
+        reponse_employe = employe.appeler(outil, args)
+        if outil in PARTAGE_AVEC_L_EMPLOYE:
+            assert reponse_employe.statut == 200, outil
+        else:
+            assert _refus_de_la_porte(reponse_employe), f"l'employé n'a pas droit à {outil}"
+        assert admin.appeler(outil, args).statut == 200, f"l'admin passe la porte pour {outil}"
+
+    # La règle est le nom NU (`opsys/roles.json`) : un outil permis, nommé avec son serveur, est refusé, même à l'admin.
+    for prefixe in ("m05-financecore.", "m05-financecore__", "mcp__m05-financecore__"):
+        for porte in (admin, vendeur, employe):
+            refus = porte.appeler(f"{prefixe}m5_etat_tresorerie", {})
+            assert _refus_de_la_porte(refus), (prefixe, refus.corps)
+    assert _refus_de_la_porte(admin.appeler("M5_ETAT_TRESORERIE", {}))
+    # Ni un outil du même département hors de la portée de l'admin (le geste de décision se prend à l'écran des
+    # approbations, jamais depuis les écrans de lecture) n'est ouvert par erreur : il n'est pas dans cette liste.
+    assert "m9_decider_demande_approbation" not in ARGUMENTS_DES_OUTILS
+    assert moteur.empreinte_etat() == avant, "un refus de la porte n'écrit rien, et une lecture non plus"
+
+
+@SQLITE_SEULEMENT
+def test_l_employe_ne_lit_que_ses_interventions_et_l_admin_toutes(moteur, equipe, monkeypatch, declarer_services):
+    """`m4_lister_interventions` est le seul outil de l'app admin qui soit aussi celui de l'employé : le serveur le
+    filtre à SES interventions (jamais élargi, jamais tronqué). Un autre employé n'en voit aucune."""
+    declarer_services()
+    chantier = _chantier_planifie(moteur, "ADM-F", 23, version_lead=2)
+    moteur.creer_personne("employe.bis", "Employé bis (fictif)", ["employee"], monkeypatch)
+    autre = moteur.appairer("employe.bis", "employee")
+    args = {"statut": "planifiee"}
+
+    admin = equipe["admin"].appeler("m4_lister_interventions", args)
+    assert admin.statut == 200
+    assert [i["intervention_id"] for i in admin.resultat] == [chantier.intervention_id]
+    lui = equipe["employe"].appeler("m4_lister_interventions", args)
+    assert lui.statut == 200
+    assert [i["intervention_id"] for i in lui.resultat] == [chantier.intervention_id]
+    ailleurs = autre.appeler("m4_lister_interventions", args)
+    assert ailleurs.statut == 200 and ailleurs.resultat == []
+    assert ailleurs.mesure.tronque is False
+
+
+# ---------------------------------------------------------------------------------------------------------
+# L'app et le serveur parlent la même langue
+# ---------------------------------------------------------------------------------------------------------
+def _fixture_des_reponses() -> dict[str, Any]:
+    return json.loads(FIXTURE_APP.read_text(encoding="utf-8"))["reponses"]
+
+
+def _valeurs_observees(motif: str, chemin: str) -> set[str]:
+    """Les valeurs qu'une clé prend dans les réponses ENREGISTRÉES dont le nom commence par `motif` (`a.b.c` : un chemin
+    depuis l'enveloppe, où un outil « couple » ajoute un `resultat` de plus ; `*` : chaque élément d'une liste)."""
+    trouvees: set[str] = set()
+
+    def descendre(noeud: Any, morceaux: list[str]) -> None:
+        if not morceaux:
+            if isinstance(noeud, str):
+                trouvees.add(noeud)
+            return
+        tete, reste = morceaux[0], morceaux[1:]
+        if tete == "*":
+            for element in noeud if isinstance(noeud, list) else []:
+                descendre(element, reste)
+        elif isinstance(noeud, dict) and tete in noeud:
+            descendre(noeud[tete], reste)
+
+    for nom, enveloppe in _fixture_des_reponses().items():
+        if nom.startswith(motif):
+            descendre(enveloppe, chemin.split("."))
+    return trouvees
+
+
+def test_les_catalogues_et_les_noms_d_outils_de_l_app_sont_ceux_du_serveur():
+    # -- les outils : huit, sous leur nom nu, tous dans la portée `admin` ---------------------------------------
+    outils = _outils_de_l_app()
+    assert set(outils.values()) == OUTILS_ATTENDUS
+    portee_admin = set(openclaw.roles_outils(charger_departements())["admin"])
+    assert set(outils.values()) <= portee_admin, "l'app appelle un outil hors de la portée de l'admin"
+    assert not any(outil.startswith(("mcp", "M")) or "." in outil or "__" in outil for outil in outils.values())
+    # Rien de ce qui décide ou écrit : l'app ne peut pas, faute de les nommer.
+    assert not any(mot in outil for outil in outils.values() for mot in ("decider", "resoudre", "proposer", "appliquer",
+                                                                          "creer", "enregistrer", "signaler"))
+
+    # -- M4 : le dispatch et la préparation ---------------------------------------------------------------------
+    dispatch = _source("m4/dispatch.ts")
+    statuts = _liste_ts(dispatch, "STATUTS_DU_DISPATCH")
+    assert set(statuts) <= set(etats_m4.ETATS), "un statut du dispatch que le serveur ne connaît pas"
+    assert "completed_verified" not in statuts and "annulee" not in statuts, "l'historique n'est jamais demandé"
+    assert _liste_ts(dispatch, "STATUTS_PREPARABLES") == list(preparation_m4.STATUTS_PREPARABLES)
+    assert _liste_ts(dispatch, "VOLETS_DE_PREPARATION") == list(preparation_m4.VOLETS)
+    assert _liste_ts(dispatch, "STATUTS_DE_VOLET") == [
+        preparation_m4.STATUT_OK, preparation_m4.STATUT_MANQUE, preparation_m4.STATUT_NON_VERIFIABLE]
+    assert _liste_ts(dispatch, "VERDICTS_DE_PREPARATION") == [
+        preparation_m4.VERDICT_PRET, preparation_m4.VERDICT_BLOQUE, preparation_m4.VERDICT_NON_VERIFIABLE]
+    assert _liste_ts(dispatch, "TYPES_DE_DEMANDE_DE_REVUE") == list(ecarts_m4.TYPES_DEMANDE)
+
+    # -- M5 : trésorerie, prévision, échéances -------------------------------------------------------------------
+    tresorerie = _source("m5/tresorerie.ts")
+    assert _liste_ts(tresorerie, "COMPOSANTES_DU_CASH_LIBRE") == list(cash_libre._ORDRE_COMPOSANTES)
+    assert _liste_ts(tresorerie, "FREQUENCES_FISCALES") == list(calendrier_fiscal._FREQUENCES)
+    assert _liste_ts(tresorerie, "VALIDATIONS_CPA") == list(calendrier_fiscal._VALIDATIONS_CPA)
+    # Les statuts sans constante dans le serveur (chaînes du code) : le scénario enregistré les produit tous.
+    alertes = _valeurs_observees("prevision", "resultat.resultat.alerte.statut")
+    assert set(_liste_ts(tresorerie, "STATUTS_ALERTE_PREVISION")) == alertes
+    echeances = _valeurs_observees("echeances", "resultat.resultat.echeances.*.statut")
+    assert set(_liste_ts(tresorerie, "STATUTS_ECHEANCE")) == echeances
+    statuts_composante = {_constante_ts(tresorerie, "STATUT_COMPOSANTE_CALCULEE"),
+                          _constante_ts(tresorerie, "STATUT_COMPOSANTE_NON_CALCULABLE")}
+    assert statuts_composante == _valeurs_observees("tresorerie", "resultat.cash_libre.composantes.*.statut")
+    statuts_semaine = _valeurs_observees("prevision", "resultat.resultat.semaines.*.statut")
+    assert statuts_semaine <= {"CALCULE", "NON_CALCULABLE"}
+
+    # -- M8 : l'entonnoir ----------------------------------------------------------------------------------------
+    vue = _source("m8/vueExecutive.ts")
+    assert _constante_ts(vue, "STATUT_MESURE_CALCULEE") == mesures_chantier.STATUT_CALCULEE
+    assert _constante_ts(vue, "STATUT_MESURE_NON_CALCULABLE") == mesures_chantier.STATUT_NON_CALCULABLE
+    assert _liste_ts(vue, "STATUTS_SEUIL_EVALUE") == [
+        mesures_chantier.SEUIL_FRANCHI, mesures_chantier.SEUIL_NON_FRANCHI]
+    assert _liste_ts(vue, "SENS_DE_SEUIL") == [nombres.SENS_AU_DESSUS, nombres.SENS_AU_DESSOUS]
+    metriques = yaml.safe_load(
+        (RACINE / "departments" / "m08-analytics" / "metrics" / "m8-entonnoir.v1.yaml").read_text(encoding="utf-8"))
+    unites = set(_liste_ts(vue, "UNITES_CONNUES"))
+    assert unites == {metrique["unite"] for metrique in metriques["metrics"]}
+    assert _valeurs_observees("vue_executive", "resultat.entonnoir.mesures.*.unite") <= unites
+
+    # -- le socle : les pannes passagères ne sont jamais un refus -----------------------------------------------------
+    assert set(_liste_ts(_source("admin/enveloppe.ts"), "ERREURS_PASSAGERES")) == set(idempotence.ERREURS_PASSAGERES)
+
