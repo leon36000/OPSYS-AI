@@ -1,4 +1,4 @@
-"""CLI `opsys` : vérifier, générer les profils, piloter approbations, modes, budgets, paliers, services,
+"""CLI `opsys` : vérifier, générer les profils, piloter approbations, modes, budgets, paliers, services, équipes,
 identité."""
 
 from __future__ import annotations
@@ -12,12 +12,14 @@ from pathlib import Path
 
 from sqlalchemy import func, select
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import SQLAlchemyError
 
 from . import (
     __version__,
     appareils,
     approbations,
     canaux,
+    equipes,
     etat,
     evenements,
     exportation,
@@ -92,11 +94,16 @@ def cmd_verifier(args: argparse.Namespace) -> int:
         for probleme in problemes_canaux:
             print(f"  - {probleme}", file=sys.stderr)
         return 1
-    problemes_taxonomie = taxonomie.verifier_profil() + taxonomie.copies_locales_du_catalogue(
-        [Path(__file__).resolve().parent, *(dep.racine / "src" for dep in deps.values())]
-    )
+    # Un fichier illisible échoue à chaque lecture du profil : le même message ne s'affiche qu'une fois.
+    problemes_taxonomie = list(dict.fromkeys(
+        taxonomie.verifier_profil()
+        + equipes.verifier_profil()
+        + taxonomie.copies_locales_du_catalogue(
+            [Path(__file__).resolve().parent, *(dep.racine / "src" for dep in deps.values())]
+        )
+    ))
     if problemes_taxonomie:
-        print("ERREUR : taxonomie métier incohérente (profil d'entreprise, copie locale du catalogue) :",
+        print("ERREUR : taxonomie métier incohérente (profil d'entreprise, équipes, copie locale du catalogue) :",
               file=sys.stderr)
         for probleme in problemes_taxonomie:
             print(f"  - {probleme}", file=sys.stderr)
@@ -345,6 +352,57 @@ def cmd_services(args: argparse.Namespace) -> int:
     return 0
 
 
+def _lire_declaration_equipes(chemin: str) -> object:
+    """Contenu YAML (ou JSON, qui en est un sous-ensemble) du fichier à déclarer ; lève `OSError` ou `ValueError`."""
+    import yaml
+
+    try:
+        return yaml.safe_load(Path(chemin).read_text(encoding="utf-8"))
+    except (UnicodeDecodeError, yaml.YAMLError) as exc:
+        raise ValueError(f"{chemin} illisible : {exc}") from exc
+
+
+def cmd_equipes(args: argparse.Namespace) -> int:
+    """Profil d'entreprise (PLAN T4.12) : les équipes, le dépôt, les quarts et les durées que M4 utilise pour céduler.
+
+    `lister` montre le fichier, le profil déclaré et ce qui reste à déclarer. `declarer --depuis FICHIER --par NOM`
+    REMPLACE la clé `equipes` par le contenu validé du fichier, signée au journal d'audit ; les membres doivent être des
+    personnes OPSYS existantes et actives (`opsys personnes lister`). Aucune donnée de ressources humaines.
+    """
+    if args.action == "declarer":
+        try:
+            propre = equipes.normaliser_equipes(_lire_declaration_equipes(args.depuis))
+            with etat.session() as cnx:
+                problemes = equipes.verifier_personnes(propre, cnx)
+            if problemes:
+                for probleme in problemes:
+                    print(f"ERREUR : {probleme}", file=sys.stderr)
+                return 1
+            fichier = equipes.enregistrer_equipes(propre, par=args.par)
+        except (OSError, ValueError) as exc:  # `ProfilInvalide` est une `ValueError`
+            print(f"ERREUR : {exc}", file=sys.stderr)
+            return 1
+        except SQLAlchemyError as exc:
+            print(f"ERREUR : base de l'instance inaccessible ({type(exc).__name__}) : `opsys base migrer` ?",
+                  file=sys.stderr)
+            return 1
+        print(fichier)
+        return 0
+    try:
+        profil = equipes.lire_equipes()
+        declares = [service.code for service in taxonomie.lire_services()]
+    except taxonomie.ProfilInvalide as exc:
+        print(f"ERREUR : {exc}", file=sys.stderr)
+        return 1
+    _afficher({
+        "fichier": str(taxonomie.fichier_profil()),
+        "declare": profil is not None,
+        "profil": profil,
+        "a_declarer": equipes.a_declarer(profil, declares),
+    })
+    return 0
+
+
 def cmd_paliers(args: argparse.Namespace) -> int:
     paliers = modeles.charger_paliers()
     if args.action == "lister":
@@ -530,6 +588,12 @@ def construire_parseur() -> argparse.ArgumentParser:
     sv.add_argument("codes", nargs="*", help="codes du catalogue de référence à déclarer")
     sv.add_argument("--par", help="qui déclare (journal d'audit)")
     sv.set_defaults(fn=cmd_services)
+    eq = sous.add_parser(
+        "equipes", help="profil d'entreprise : équipes, dépôt, quarts et durées que M4 utilise pour céduler")
+    eq.add_argument("action", choices=["lister", "declarer"])
+    eq.add_argument("--depuis", help="declarer : fichier YAML ou JSON du profil (clés liste, services, cedule, ...)")
+    eq.add_argument("--par", help="declarer : qui déclare (journal d'audit)")
+    eq.set_defaults(fn=cmd_equipes)
     pa = sous.add_parser("paliers", help="associer les paliers de modèles à des fournisseurs")
     pa.add_argument("action", choices=["lister", "definir"])
     pa.add_argument("palier", nargs="?", choices=["local", "rapide", "standard", "fort"])
@@ -599,6 +663,9 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     if args.commande == "services" and args.action == "declarer" and not (args.codes and args.par):
         print("au moins un code de service et --par requis", file=sys.stderr)
+        return 2
+    if args.commande == "equipes" and args.action == "declarer" and not (args.depuis and args.par):
+        print("--depuis (fichier du profil) et --par requis", file=sys.stderr)
         return 2
     if args.commande == "instance" and args.action == "restaurer" and not args.archive:
         print("archive requise : opsys instance restaurer <archive.tar.gz>", file=sys.stderr)

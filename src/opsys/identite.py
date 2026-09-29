@@ -64,6 +64,13 @@ def _maintenant() -> str:
     return dt.datetime.now(dt.UTC).isoformat(timespec="seconds")
 
 
+def identifiant_valide(identifiant: object) -> bool:
+    """Vrai si `identifiant` a la forme d'un identifiant de personne OPSYS (la base n'est pas consultée).
+
+    Le profil des équipes (`opsys.equipes`) s'en sert pour ne pas recopier la règle."""
+    return isinstance(identifiant, str) and _IDENTIFIANT.match(identifiant) is not None
+
+
 def _valider_identifiant(identifiant: str) -> str:
     if not isinstance(identifiant, str) or not _IDENTIFIANT.match(identifiant):
         raise ValueError(
