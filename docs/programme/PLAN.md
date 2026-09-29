@@ -2073,8 +2073,34 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       comparateur différentiel comme filet).
 - [ ] T4.17-d M7 : détecteur réel de visages et de plaques et stockage du média flouté (OpenCV,
       politique « photos » validée d'abord).
-- [ ] T4.17-e M7 et M8 : boucle de mesure par `utm_content` (impressions, clics, leads par
+- [x] T4.17-e M7 et M8 : boucle de mesure par `utm_content` (impressions, clics, leads par
       contenu).
+      Preuve (234813f, 41252c2, 60b86c5, 806e01c, f9138a9, puis l'intégration) :
+      - M7 : chaque contenu exporté porte `utm_content` = `<plateforme>-<16 hex du SHA-256 de
+        l'identifiant du contenu>` (module pur, ni hasard, ni horloge, ni donnée de client), dans le
+        lien, le paquet et la trace d'export ; recalculée et comparée à l'export
+        (`REJ-UTM-CONTENT-INCOHERENT`, `REJ-CONTENU-SANS-IDENTIFIANT-DE-MESURE`) ; M7 publie
+        `m7.contenu_exporte` (schéma fermé : contenu, chantier, canal, clé, instant ; aucun texte ni
+        contact), dans la transaction de la trace, un par contenu ;
+      - M8 : six métriques gouvernées (`metrics/m8-contenus.v1.yaml`) : contenus exportés, leads,
+        devis envoyés et acceptés par contenu (égalité stricte de la clé ; un lead sans clé, à clé
+        inconnue ou disputée n'est attribué à aucun contenu, compté à part), impressions et clics
+        « non calculable, manque : source des impressions et des clics » ; `m8_lire_mesures_contenus`
+        (T0, admin, paginée) ;
+      - M7 992, M8 571, gate BMAD M8 ; E2E par le vrai bus `tests/test_boucle_de_mesure_par_contenu.py`
+        (9 : contenu exporté, lead qualifié par M1 avec la clé, chaîne M1, M2, M3, M8, rejeu sans
+        effet) ; 53 mutants, 52 tués, 1 équivalent justifié.
+      Limites : le compte par contenu est une borne basse (un client qui appelle sans passer par le
+      lien ne porte aucune clé) ; les opportunités `~opp~` ne sont pas attribuées ; aucune fenêtre de
+      période ; un contenu proposé avant T4.17-e est refusé à l'export (le reproposer).
+      GATE NATHAN : canaux (l'énuméré UTM gelé n'a ni YouTube ni autre source vidéo que TikTok) et
+      conventions de nommage des campagnes (M7 émet `contenu-<service>-<année>`).
+- [ ] T4.17-e2 M7 et M8 : impressions et clics par contenu, par un connecteur à décider (Matomo, ou
+      statistiques de Meta, Google Business Profile, TikTok). GATE NATHAN : le connecteur et sa
+      licence ou ses conditions.
+- [ ] T4.17-e3 M1 : le trajet lien → formulaire → M1 porte les `utm_*` jusqu'au lead (aujourd'hui
+      aucun formulaire de site ne les recopie, et `m1_recevoir_message_canal` n'accepte pas `utm` ;
+      seul `m1_traiter_demande_entrante` le porte).
 
 Non détaillé (porte fermée ou décision manquante) : voix M1 au-delà de T2.1-d (politique
 d'enregistrement d'appels), GPS continu et ETA client (politique GPS), vision M3 et détecteur M7
