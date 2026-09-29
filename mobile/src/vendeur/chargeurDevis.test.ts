@@ -6,12 +6,16 @@ import type { ConfigurationChargeurVendeur } from "./appel";
 import { lireCacheDevis, lireDevisConnus } from "./cache";
 import { MAX_PAGES_DECOUVERTE, creerChargeurDevis } from "./chargeurDevis";
 import {
+  ECHECS_QUI_SONT_UN_REFUS,
+  ECHECS_QUI_SONT_UNE_PANNE,
   devisInterneBrut,
+  echecHttp,
   enveloppeAcceptee,
   enveloppeRefusee,
   fauxTransport,
   leadBrut,
   pageBrute,
+  transportEnEchec,
   transportHorsLigne,
 } from "./donneesDeTest";
 
@@ -314,5 +318,119 @@ describe("ouvrirParNumero — le numéro d'une soumission que le vendeur a en ma
     const entree = await creerChargeurDevis(config(transportHorsLigne(), depot)).ouvrirParNumero("devis-9");
     expect(entree?.etat).toEqual({ genre: "indisponible", raison: { code: "erreur_reseau", detail: "Network request failed" } });
     expect(await lireDevisConnus(depot, "vendeur.a")).toEqual([]);
+  });
+});
+
+describe("chargerDevis — un appareil refusé ne relit JAMAIS ses devis gardés (PLAN T1.4-n)", () => {
+  const CLE_DEVIS = "vendeur:vendeur.a:devis:devis-1_v1";
+  const CLE_CONNUS = "vendeur:vendeur.a:devis_connus_v1";
+
+  async function avecCache() {
+    const depot = new DepotCleValeurMemoire();
+    await creerChargeurDevis(
+      config(
+        fauxTransport(
+          serveur({ converti: [leadBrut("lead-1", { segments: [SEGMENT_CONVERTI("devis-1")] })], perime: [], devis: { "devis-1": D1 } }),
+        ),
+        depot,
+      ),
+    ).chargerDevis();
+    const devis = await depot.lire(CLE_DEVIS);
+    const connus = await depot.lire(CLE_CONNUS);
+    expect(devis).not.toBeNull();
+    expect(connus).not.toBeNull();
+    return { depot, devis, connus, lire: jest.spyOn(depot, "lire"), ecrire: jest.spyOn(depot, "ecrire") };
+  }
+
+  test.each(ECHECS_QUI_SONT_UN_REFUS)(
+    "%s (partout) : aucun devis, aucun numéro gardé n'est montré, rien n'est lu ni écrit ; les deux segments le disent",
+    async (_nom, status, type, code) => {
+      const { depot, devis, connus, lire, ecrire } = await avecCache();
+      const transport = transportEnEchec(status, type, "refusé");
+
+      const resultat = await creerChargeurDevis(config(transport, depot)).chargerDevis();
+
+      expect(resultat.entrees).toEqual([]);
+      expect(resultat.sources).toEqual([
+        { segment: "won_pending_schedule", etat: { genre: "echouee", verdict: { code, detail: "refusé" }, refuse: true } },
+        { segment: "quote_stale", etat: { genre: "echouee", verdict: { code, detail: "refusé" }, refuse: true } },
+      ]);
+      // Aucune requête de devis n'est faite pour un appareil refusé : les deux lectures de leads suffisent à le savoir.
+      expect(transport).toHaveBeenCalledTimes(2);
+      expect(lire).not.toHaveBeenCalled();
+      expect(ecrire).not.toHaveBeenCalled();
+      expect(await depot.lire(CLE_DEVIS)).toBe(devis);
+      expect(await depot.lire(CLE_CONNUS)).toBe(connus);
+    },
+  );
+
+  test("un refus de la requête dit par un refus technique (identité que la base ne confirme plus) : même arrêt", async () => {
+    const { depot, lire } = await avecCache();
+    const transport = fauxTransport({
+      [OUTIL_LISTER_LEADS]: () => ({ ok: false, erreur: "refus_metier", details: "REJ-IDENTITE-APPAREIL-INVALIDE : rôle retiré" }),
+    });
+    const resultat = await creerChargeurDevis(config(transport, depot)).chargerDevis();
+    expect(resultat.entrees).toEqual([]);
+    expect(resultat.sources.map((s) => s.etat)).toEqual([
+      { genre: "echouee", verdict: { code: "refus_metier", detail: "REJ-IDENTITE-APPAREIL-INVALIDE : rôle retiré" }, refuse: true },
+      { genre: "echouee", verdict: { code: "refus_metier", detail: "REJ-IDENTITE-APPAREIL-INVALIDE : rôle retiré" }, refuse: true },
+    ]);
+    expect(lire).not.toHaveBeenCalled();
+  });
+
+  test.each(ECHECS_QUI_SONT_UNE_PANNE)(
+    "%s (partout) : le serveur n'a pas pu répondre, les devis gardés sont servis, marqués",
+    async (_nom, status, type, code) => {
+      const { depot } = await avecCache();
+      const resultat = await creerChargeurDevis(config(transportEnEchec(status, type), depot)).chargerDevis();
+      expect(resultat.entrees.map((e) => e.etat.genre)).toEqual(["cache"]);
+      expect(resultat.entrees[0].etat.genre === "cache" && resultat.entrees[0].etat.raisonHorsLigne.code).toBe(code);
+      expect(resultat.sources.map((s) => s.etat.genre === "lue" && s.etat.depuisCache?.code)).toEqual([code, code]);
+    },
+  );
+
+  test("un segment refusé pour une raison métier autre que « non calculable » n'arrête pas la lecture des devis connus", async () => {
+    const { depot } = await avecCache();
+    const transport = fauxTransport({
+      [OUTIL_LISTER_LEADS]: () => enveloppeRefusee("REJ-SEGMENT-INCONNU", "segment inconnu"),
+      [OUTIL_LIRE_DEVIS]: () => enveloppeAcceptee(D1),
+    });
+    const resultat = await creerChargeurDevis(config(transport, depot)).chargerDevis();
+    expect(resultat.sources.map((s) => s.etat)).toEqual([
+      { genre: "echouee", verdict: { code: "REJ-SEGMENT-INCONNU", detail: "segment inconnu" }, refuse: false },
+      { genre: "echouee", verdict: { code: "REJ-SEGMENT-INCONNU", detail: "segment inconnu" }, refuse: false },
+    ]);
+    expect(resultat.entrees.map((e) => [e.connu.devisId, e.etat.genre])).toEqual([["devis-1", "serveur"]]);
+  });
+
+  test("un devis dont la lecture est refusée (403 sur m3_lire_devis seulement) : refus, le devis gardé n'est ni lu ni remplacé", async () => {
+    const { depot, devis, ecrire } = await avecCache();
+    const donnees = serveur({ converti: [leadBrut("lead-1", { segments: [SEGMENT_CONVERTI("devis-1")] })], perime: [], devis: { "devis-1": D1 } });
+    const transport = jest.fn(async (params: { requete: { tool: string; args?: Record<string, unknown> } }) =>
+      params.requete.tool === OUTIL_LIRE_DEVIS
+        ? echecHttp(403, "tool_call_blocked", "hors portée")
+        : { ok: true, result: donnees[OUTIL_LISTER_LEADS](params.requete.args ?? {}) },
+    );
+    const lireDevis = jest.spyOn(depot, "lire");
+
+    const resultat = await creerChargeurDevis(config(transport, depot)).chargerDevis();
+
+    expect(resultat.entrees.map((e) => e.etat)).toEqual([
+      { genre: "refus", verdict: { code: "tool_call_blocked", detail: "hors portée" } },
+    ]);
+    expect(lireDevis.mock.calls.map((c) => c[0])).not.toContain(CLE_DEVIS);
+    expect(ecrire).not.toHaveBeenCalledWith(CLE_DEVIS, expect.anything());
+    expect(await depot.lire(CLE_DEVIS)).toBe(devis);
+  });
+
+  test.each(ECHECS_QUI_SONT_UN_REFUS)("ouvrirParNumero, %s : refus, rien n'est lu, écrit ni ajouté aux numéros connus", async (_nom, status, type, code) => {
+    const { depot, connus, lire, ecrire } = await avecCache();
+
+    const entree = await creerChargeurDevis(config(transportEnEchec(status, type, "refusé"), depot)).ouvrirParNumero("devis-1");
+
+    expect(entree?.etat).toEqual({ genre: "refus", verdict: { code, detail: "refusé" } });
+    expect(lire).not.toHaveBeenCalled();
+    expect(ecrire).not.toHaveBeenCalled();
+    expect(await depot.lire(CLE_CONNUS)).toBe(connus);
   });
 });

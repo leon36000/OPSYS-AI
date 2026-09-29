@@ -9,11 +9,15 @@ import type { ConfigurationChargeurVendeur } from "./appel";
 import { creerChargeurFiche } from "./chargeurFiche";
 import {
   CLIENT_DE_LEAD_BRUT,
+  ECHECS_QUI_SONT_UN_REFUS,
+  ECHECS_QUI_SONT_UNE_PANNE,
   SUGGESTION_BRUTE,
   client360Brut,
+  echecHttp,
   enveloppeAcceptee,
   enveloppeRefusee,
   fauxTransport,
+  transportEnEchec,
   transportHorsLigne,
 } from "./donneesDeTest";
 
@@ -164,10 +168,20 @@ describe("chargerFiche — hors ligne et pannes", () => {
     });
   });
 
-  test("la passerelle refuse un outil (403) et rien n'est gardé : aucune, avec la raison", async () => {
+  test("la passerelle refuse un outil (403) : refus, avec la raison ; rien n'est gardé, rien n'est écrit", async () => {
     const depot = new DepotCleValeurMemoire();
+    const ecrire = jest.spyOn(depot, "ecrire");
     const sans = await creerChargeurFiche(config(fauxTransport({}), depot)).chargerFiche("lead-a-01");
-    expect(sans).toMatchObject({ source: "aucune", raison: { code: "tool_call_blocked" } });
+    expect(sans).toMatchObject({ source: "refus", verdict: { code: "tool_call_blocked" } });
+    expect(ecrire).not.toHaveBeenCalled();
+  });
+
+  test.each(ECHECS_QUI_SONT_UNE_PANNE)("%s : le serveur n'a pas pu répondre, la fiche gardée est servie, marquée", async (_nom, status, type, code) => {
+    const depot = new DepotCleValeurMemoire();
+    await creerChargeurFiche(config(fauxTransport(SERVEUR_COMPLET), depot)).chargerFiche("lead-a-01");
+    const resultat = await creerChargeurFiche(config(transportEnEchec(status, type), depot)).chargerFiche("lead-a-01");
+    expect(resultat.source).toBe("cache");
+    expect(resultat.source === "cache" && resultat.raisonHorsLigne.code).toBe(code);
   });
 
   test("l'écriture du cache qui échoue ne cache pas une fiche lue", async () => {
@@ -181,5 +195,131 @@ describe("chargerFiche — hors ligne et pannes", () => {
     const resultat = await creerChargeurFiche(config(fauxTransport(SERVEUR_COMPLET), depot)).chargerFiche("lead-a-01");
     expect(resultat.source).toBe("serveur");
     espion.mockRestore();
+  });
+});
+
+describe("chargerFiche — un appareil refusé ne relit JAMAIS la fiche gardée (PLAN T1.4-n)", () => {
+  const CLE = "vendeur:vendeur.a:fiche:lead-a-01_v1";
+
+  async function avecFicheGardee() {
+    const depot = new DepotCleValeurMemoire();
+    await creerChargeurFiche(config(fauxTransport(SERVEUR_COMPLET), depot)).chargerFiche("lead-a-01");
+    const avant = await depot.lire(CLE);
+    expect(avant).not.toBeNull();
+    return { depot, avant, lire: jest.spyOn(depot, "lire"), ecrire: jest.spyOn(depot, "ecrire") };
+  }
+
+  test.each(ECHECS_QUI_SONT_UN_REFUS)(
+    "%s : refus, la fiche gardée n'est ni lue ni remplacée, rien n'est écrit, une seule requête",
+    async (_nom, status, type, code) => {
+      const { depot, avant, lire, ecrire } = await avecFicheGardee();
+      const transport = transportEnEchec(status, type, "refusé");
+
+      const resultat = await creerChargeurFiche(config(transport, depot)).chargerFiche("lead-a-01");
+
+      expect(resultat).toEqual({ source: "refus", verdict: { code, detail: "refusé" } });
+      expect(lire).not.toHaveBeenCalled();
+      expect(ecrire).not.toHaveBeenCalled();
+      expect(await depot.lire(CLE)).toBe(avant);
+      expect(transport).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  // Le refus vient de la 2e ou de la 3e lecture : la première a réussi, mais la fiche n'est pas un mélange de lectures
+  // fraîches et gardées, ni une fiche à moitié montrée : tout est refusé.
+  test.each([
+    ["la deuxième lecture (le client du lead)", OUTIL_TROUVER_CLIENT_DE_LEAD, 2],
+    ["la troisième lecture (le Client 360)", OUTIL_OBTENIR_CLIENT_360, 3],
+  ])("le refus arrive à %s : toute la fiche est refusée, rien n'est écrit", async (_nom, outilRefuse, appelsAttendus) => {
+    const { depot, avant, lire, ecrire } = await avecFicheGardee();
+    const transport = jest.fn(async (params: { requete: { tool: string; args?: Record<string, unknown> } }) =>
+      params.requete.tool === outilRefuse
+        ? echecHttp(403, "tool_call_blocked", "device_unknown")
+        : { ok: true, result: SERVEUR_COMPLET[params.requete.tool as keyof typeof SERVEUR_COMPLET]() },
+    );
+
+    const resultat = await creerChargeurFiche(config(transport, depot)).chargerFiche("lead-a-01");
+
+    expect(resultat).toEqual({ source: "refus", verdict: { code: "tool_call_blocked", detail: "device_unknown" } });
+    expect(transport).toHaveBeenCalledTimes(appelsAttendus);
+    expect(lire).not.toHaveBeenCalled();
+    expect(ecrire).not.toHaveBeenCalled();
+    expect(await depot.lire(CLE)).toBe(avant);
+  });
+
+  // « Personne désactivée, rôle retiré » : 200, mais par un refus technique (`ok: false`).
+  test.each([
+    ["l'identité que la base ne confirme plus", { ok: false, erreur: "refus_metier", details: "REJ-IDENTITE-APPAREIL-INVALIDE : personne 'sophie' inactive" }],
+    ["l'outil hors de la portée du rôle", { ok: false, erreur: "hors_portee_role", details: "seller" }],
+  ])("%s (refus technique) : toute la fiche est refusée, la fiche gardée n'est pas lue", async (_nom, brut) => {
+    const { depot, lire, ecrire } = await avecFicheGardee();
+    const transport = fauxTransport({ ...SERVEUR_COMPLET, [OUTIL_SUGGERER_PROCHAINE_ACTION]: () => brut });
+
+    const resultat = await creerChargeurFiche(config(transport, depot)).chargerFiche("lead-a-01");
+
+    expect(resultat).toMatchObject({ source: "refus", verdict: { code: (brut as { erreur: string }).erreur } });
+    expect(lire).not.toHaveBeenCalled();
+    expect(ecrire).not.toHaveBeenCalled();
+    expect(transport).toHaveBeenCalledTimes(1);
+  });
+
+  test("l'état passager de l'instance (budget épuisé) n'est pas un refus : la fiche gardée est servie, avec la raison", async () => {
+    const { depot } = await avecFicheGardee();
+    const transport = fauxTransport({ ...SERVEUR_COMPLET, [OUTIL_SUGGERER_PROCHAINE_ACTION]: () => ({ ok: false, erreur: "budget_epuise", details: "trop" }) });
+    const resultat = await creerChargeurFiche(config(transport, depot)).chargerFiche("lead-a-01");
+    expect(resultat.source).toBe("cache");
+    expect(resultat.source === "cache" && resultat.raisonHorsLigne.code).toBe("budget_epuise");
+  });
+});
+
+describe("chargerFiche — le cache ne garde pas une fiche faite de verdicts (PLAN T1.4-n)", () => {
+  test("le lead d'un autre vendeur : la fiche du serveur (deux verdicts), rien n'est écrit, la fiche gardée d'avant n'est pas servie", async () => {
+    const depot = new DepotCleValeurMemoire();
+    // Le lead était à ce vendeur : sa fiche est gardée.
+    await creerChargeurFiche(config(fauxTransport(SERVEUR_COMPLET), depot)).chargerFiche("lead-a-01");
+    const avant = await depot.lire("vendeur:vendeur.a:fiche:lead-a-01_v1");
+    const ecrire = jest.spyOn(depot, "ecrire");
+    const refus = () => enveloppeRefusee("REJ-LEAD-NON-ASSIGNE", "lead lead-a-01 non assigné");
+    const transport = fauxTransport({
+      [OUTIL_SUGGERER_PROCHAINE_ACTION]: refus,
+      [OUTIL_TROUVER_CLIENT_DE_LEAD]: refus,
+    });
+
+    const resultat = await creerChargeurFiche(config(transport, depot)).chargerFiche("lead-a-01");
+
+    expect(resultat.source).toBe("serveur");
+    expect(resultat.source === "serveur" && resultat.fiche.client).toEqual({
+      genre: "verdict",
+      verdict: { code: "REJ-LEAD-NON-ASSIGNE", detail: "lead lead-a-01 non assigné" },
+    });
+    expect(ecrire).not.toHaveBeenCalled();
+    expect(await depot.lire("vendeur:vendeur.a:fiche:lead-a-01_v1")).toBe(avant);
+  });
+
+  test("un lead clos : le Client 360 est lu, la fiche est gardée (son historique se lit hors ligne)", async () => {
+    const depot = new DepotCleValeurMemoire();
+    const transport = fauxTransport({
+      ...SERVEUR_COMPLET,
+      [OUTIL_SUGGERER_PROCHAINE_ACTION]: () => enveloppeRefusee("REJ-CONVERSATION-CLOSE", "lead clos (statut=perdu)"),
+    });
+    await creerChargeurFiche(config(transport, depot)).chargerFiche("lead-a-01");
+
+    const hors = await creerChargeurFiche(config(transportHorsLigne(), depot)).chargerFiche("lead-a-01");
+
+    expect(hors.source).toBe("cache");
+    expect(hors.source === "cache" && hors.fiche.client.genre).toBe("lue");
+    expect(hors.source === "cache" && hors.fiche.suggestion.genre).toBe("verdict");
+  });
+
+  test("un client dont la réponse est illisible (pas de Client 360 lu) : la fiche est montrée, rien n'est écrit", async () => {
+    const depot = new DepotCleValeurMemoire();
+    const ecrire = jest.spyOn(depot, "ecrire");
+    const transport = fauxTransport({
+      ...SERVEUR_COMPLET,
+      [OUTIL_TROUVER_CLIENT_DE_LEAD]: () => enveloppeAcceptee({ lead_id: "lead-a-01" }),
+    });
+    const resultat = await creerChargeurFiche(config(transport, depot)).chargerFiche("lead-a-01");
+    expect(resultat.source).toBe("serveur");
+    expect(ecrire).not.toHaveBeenCalled();
   });
 });

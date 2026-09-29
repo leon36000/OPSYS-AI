@@ -31,7 +31,8 @@ import type { DevisConnu } from "./devisConnus";
  *
  * Par devis, quatre états : `serveur` (lu à l'instant, cache écrit), `cache` (le serveur n'a pas pu répondre : devis
  * gardé, avec sa date et la raison), `refus` (le serveur dit non : `REJ-DEVIS-INTROUVABLE`, le même refus pour un devis
- * inconnu et celui d'un autre vendeur ; le cache ne le remplace jamais) et `indisponible` (ni serveur ni cache).
+ * inconnu et celui d'un autre vendeur, ou un 401 ou 403 de la porte d'appareil ; le cache ne le remplace jamais et rien
+ * n'est écrit) et `indisponible` (ni serveur ni cache).
  */
 
 /** Pages de leads lues au plus par segment : la découverte ne tourne pas sans fin sur un très gros pipeline. */
@@ -65,8 +66,9 @@ export type EtatSourceDevis =
     }
   /** M2 dit qu'il ne peut pas calculer ce segment (seuil à configurer...) : son « manque X », tel quel. */
   | { readonly genre: "non_calculable"; readonly verdict: VerdictServeur }
-  /** Ni serveur ni cache : les devis de ce segment n'ont pas été découverts. */
-  | { readonly genre: "echouee"; readonly verdict: VerdictServeur };
+  /** Les devis de ce segment n'ont pas été découverts : ni serveur ni cache, ou le serveur a refusé la REQUÊTE (401, 403,
+   * identité que la base ne confirme plus : `refuse`). */
+  | { readonly genre: "echouee"; readonly verdict: VerdictServeur; readonly refuse: boolean };
 
 export interface SourceDevis {
   readonly segment: string;
@@ -106,6 +108,10 @@ export function creerChargeurDevis(
 
   async function lireUnDevis(connu: DevisConnu): Promise<EntreeDevis> {
     const appel = await appelerLecture(config, OUTIL_LIRE_DEVIS, { ...construireArgumentsLireDevis(connu.devisId) });
+    if (appel.genre === "refuse") {
+      // 401, 403 : l'appareil est refusé. Le devis gardé n'est pas montré, et rien n'est écrit (PLAN T1.4-n).
+      return { connu, etat: { genre: "refus", verdict: appel.verdict } };
+    }
     if (appel.genre === "injoignable") {
       return depuisCache(connu, appel.verdict);
     }
@@ -137,13 +143,13 @@ export function creerChargeurDevis(
           etat:
             lecture.verdict.code === CODE_SEGMENT_NON_CALCULABLE
               ? { genre: "non_calculable", verdict: lecture.verdict }
-              : { genre: "echouee", verdict: lecture.verdict },
+              : { genre: "echouee", verdict: lecture.verdict, refuse: lecture.requete === true },
         },
         cites: [],
       };
     }
     if (lecture.source === "aucune") {
-      return { source: { segment, etat: { genre: "echouee", verdict: lecture.raison } }, cites: [] };
+      return { source: { segment, etat: { genre: "echouee", verdict: lecture.raison, refuse: false } }, cites: [] };
     }
     let lus = lecture.lus;
     if (lecture.source === "serveur") {
@@ -172,7 +178,6 @@ export function creerChargeurDevis(
 
   return {
     async chargerDevis(): Promise<ResultatDevis> {
-      const gardes = await lireDevisConnus(config.depot, config.personne);
       const sources: SourceDevis[] = [];
       let decouverts: readonly DevisConnu[] = [];
       for (const segment of SEGMENTS_DECOUVERTE) {
@@ -180,6 +185,12 @@ export function creerChargeurDevis(
         sources.push(source);
         decouverts = fusionnerDevisConnus(decouverts, cites);
       }
+      // Le serveur refuse la REQUÊTE (jeton révoqué, personne désactivée, rôle retiré) : les numéros gardés sont du cache,
+      // qu'un refus ne remplace jamais ; aucun devis n'est demandé ni montré, rien n'est écrit (PLAN T1.4-n).
+      if (sources.some((source) => source.etat.genre === "echouee" && source.etat.refuse)) {
+        return { entrees: [], sources };
+      }
+      const gardes = await lireDevisConnus(config.depot, config.personne);
       const connus = fusionnerDevisConnus(gardes, decouverts);
       if (!memesDevisConnus(connus, gardes)) {
         await ecrireSansEchouer(() => ecrireDevisConnus(config.depot, config.personne, connus));

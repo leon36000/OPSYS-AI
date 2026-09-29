@@ -6,12 +6,15 @@ import { lireCacheLeads } from "./cache";
 import { creerChargeurLeads } from "./chargeurLeads";
 import type { ConfigurationChargeurVendeur } from "./appel";
 import {
+  ECHECS_QUI_SONT_UN_REFUS,
+  ECHECS_QUI_SONT_UNE_PANNE,
   NON_CALCULABLES_FICTIFS,
   enveloppeAcceptee,
   enveloppeRefusee,
   fauxTransport,
   leadBrut,
   pageBrute,
+  transportEnEchec,
   transportHorsLigne,
 } from "./donneesDeTest";
 
@@ -213,11 +216,15 @@ describe("chargerLeads — hors ligne : le cache est un cache, dit comme tel", (
     }
   });
 
-  test("la passerelle refuse l'outil (403) : la raison est dite, le cache éventuel est montré comme cache", async () => {
-    const depot = await avecCache();
-    const resultat = await creerChargeurLeads(config(fauxTransport({}), depot)).chargerLeads(AUCUN);
-    expect(resultat.source === "cache" && resultat.raisonHorsLigne.code).toBe("tool_call_blocked");
-  });
+  test.each(ECHECS_QUI_SONT_UNE_PANNE)(
+    "%s : le serveur n'a pas pu répondre, le cache est servi, marqué, avec la raison",
+    async (_nom, status, type, code) => {
+      const depot = await avecCache();
+      const resultat = await creerChargeurLeads(config(transportEnEchec(status, type), depot)).chargerLeads(AUCUN);
+      expect(resultat.source).toBe("cache");
+      expect(resultat.source === "cache" && resultat.raisonHorsLigne.code).toBe(code);
+    },
+  );
 
   test("un cache abîmé n'est pas servi : aucune", async () => {
     const depot = new DepotCleValeurMemoire();
@@ -266,6 +273,92 @@ describe("chargerLeads — le refus du serveur n'est ni un cache ni une liste vi
     });
     const resultat = await creerChargeurLeads(config(transport)).chargerLeads(AUCUN);
     expect(resultat.source === "serveur" && resultat.lus.segmentsNonCalculables).toEqual(NON_CALCULABLES_FICTIFS);
+  });
+});
+
+describe("chargerLeads — un appareil refusé ne relit JAMAIS ses leads gardés (PLAN T1.4-n)", () => {
+  const CLE = "vendeur:vendeur.a:leads:*|*_v1";
+
+  async function avecCacheEspionne() {
+    const depot = new DepotCleValeurMemoire();
+    await creerChargeurLeads(config(fauxTransport({ [OUTIL_LISTER_LEADS]: serveurParPages() }), depot)).chargerLeads(AUCUN);
+    const avant = await depot.lire(CLE);
+    expect(avant).not.toBeNull();
+    return { depot, avant, lire: jest.spyOn(depot, "lire"), ecrire: jest.spyOn(depot, "ecrire") };
+  }
+
+  test.each(ECHECS_QUI_SONT_UN_REFUS)(
+    "%s : refus, le cache gardé n'est ni lu ni remplacé, rien n'est écrit",
+    async (_nom, status, type, code) => {
+      const { depot, avant, lire, ecrire } = await avecCacheEspionne();
+
+      const resultat = await creerChargeurLeads(config(transportEnEchec(status, type, "refusé"), depot)).chargerLeads(AUCUN);
+
+      expect(resultat).toEqual({ source: "refus", verdict: { code, detail: "refusé" }, requete: true });
+      expect(lire).not.toHaveBeenCalled();
+      expect(ecrire).not.toHaveBeenCalled();
+      expect(await depot.lire(CLE)).toBe(avant);
+    },
+  );
+
+  test("une porte qui refuse l'outil (aucun gestionnaire : 403 tool_call_blocked) est un refus, jamais le cache", async () => {
+    const { depot, lire } = await avecCacheEspionne();
+    const resultat = await creerChargeurLeads(config(fauxTransport({}), depot)).chargerLeads(AUCUN);
+    expect(resultat).toMatchObject({ source: "refus", requete: true, verdict: { code: "tool_call_blocked" } });
+    expect(lire).not.toHaveBeenCalled();
+  });
+
+  // « Personne désactivée, rôle retiré » : le serveur répond 200, mais par un refus technique (`ok: false`, `refus_metier`).
+  test.each([
+    [
+      "l'identité que la base ne confirme plus (refus technique)",
+      { ok: false, erreur: "refus_metier", details: "REJ-IDENTITE-APPAREIL-INVALIDE : personne 'sophie' inconnue, inactive, ou ne porte plus le rôle 'seller'" },
+      "refus_metier",
+    ],
+    ["l'outil hors de la portée du rôle", { ok: false, erreur: "hors_portee_role", details: "seller" }, "hors_portee_role"],
+    ["des arguments refusés", { ok: false, erreur: "arguments_invalides", details: ["paramètre inconnu : owner"] }, "arguments_invalides"],
+  ])("%s : refus de la requête, le cache n'est ni lu ni remplacé", async (_nom, brut, code) => {
+    const { depot, avant, lire, ecrire } = await avecCacheEspionne();
+    const resultat = await creerChargeurLeads(config(fauxTransport({ [OUTIL_LISTER_LEADS]: () => brut }), depot)).chargerLeads(AUCUN);
+    expect(resultat).toMatchObject({ source: "refus", requete: true, verdict: { code } });
+    expect(lire).not.toHaveBeenCalled();
+    expect(ecrire).not.toHaveBeenCalled();
+    expect(await depot.lire(CLE)).toBe(avant);
+  });
+
+  test("un verdict métier (identité invalide, segment non calculable) est un refus SANS `requete` : le filtre est refusé, pas la requête", async () => {
+    const { depot, lire, ecrire } = await avecCacheEspionne();
+    const resultat = await creerChargeurLeads(
+      config(fauxTransport({ [OUTIL_LISTER_LEADS]: () => enveloppeRefusee(CODE_SEGMENT_NON_CALCULABLE, "manque X") }), depot),
+    ).chargerLeads(AUCUN);
+    expect(resultat).toEqual({ source: "refus", verdict: { code: CODE_SEGMENT_NON_CALCULABLE, detail: "manque X" } });
+    expect(lire).not.toHaveBeenCalled();
+    expect(ecrire).not.toHaveBeenCalled();
+  });
+
+  test("un refus n'écrit rien même sans cache : ni page, ni verdict", async () => {
+    const depot = new DepotCleValeurMemoire();
+    const ecrire = jest.spyOn(depot, "ecrire");
+    const resultat = await creerChargeurLeads(config(transportEnEchec(403, "tool_call_blocked", "device_unknown"), depot)).chargerLeads(AUCUN);
+    expect(resultat.source).toBe("refus");
+    expect(ecrire).not.toHaveBeenCalled();
+  });
+
+  test("« Voir plus » refusé : échec avec le verdict, le cache n'est pas touché", async () => {
+    const depot = new DepotCleValeurMemoire();
+    const chargeur = creerChargeurLeads(config(fauxTransport({ [OUTIL_LISTER_LEADS]: serveurParPages() }), depot));
+    const premiere = await chargeur.chargerLeads(AUCUN);
+    if (premiere.source !== "serveur") {
+      throw new Error("première page attendue en ligne");
+    }
+    const avant = await depot.lire(CLE);
+    const ecrire = jest.spyOn(depot, "ecrire");
+
+    const suite = await creerChargeurLeads(config(transportEnEchec(401, undefined, "jeton révoqué"), depot)).chargerSuite(premiere.lus);
+
+    expect(suite).toEqual({ genre: "echec", verdict: { code: "http_401", detail: "jeton révoqué" } });
+    expect(ecrire).not.toHaveBeenCalled();
+    expect(await depot.lire(CLE)).toBe(avant);
   });
 });
 

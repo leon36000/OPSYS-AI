@@ -1,10 +1,15 @@
 import type { VerdictServeur } from "../outbox/vidangeur";
 import {
+  ERREURS_PASSAGERES,
   estObjet,
   lireVerdict,
   VERDICT_REPONSE_ILLISIBLE,
   VERDICT_REPONSE_TRONQUEE,
 } from "../protocole/enveloppeOutil";
+
+// La liste des pannes passagères est celle du socle, écrite une fois dans `src/protocole/enveloppeOutil.ts` : le vendeur
+// suit la même règle (PLAN T1.4-n). Elle reste importable d'ici.
+export { ERREURS_PASSAGERES };
 
 /**
  * Ouverture de l'enveloppe OPSYS d'un outil de lecture du profil admin (PLAN T4.20). Un appel réussi de
@@ -29,14 +34,6 @@ export type LectureSection<T> =
   | { readonly ok: false; readonly genre: "refus" | "technique" | "illisible"; readonly verdict: VerdictServeur };
 
 export type FormeReponse = "couple" | "directe";
-
-/**
- * Les refus du socle qui ne disent rien de la requête : l'état de l'instance au moment de l'appel (outil pas encore
- * déployé, point d'accès mal configuré, budget de jetons). `src/opsys/idempotence.py` (`ERREURS_PASSAGERES`) les nomme
- * de la même façon et ne les enregistre jamais : un renvoi réessaie. L'E2E (`tests/e2e/test_admin_appareil.py`) épingle
- * cette liste à celle du serveur.
- */
-export const ERREURS_PASSAGERES: readonly string[] = ["outil_inconnu", "departement_appelant_inconnu", "budget_epuise"];
 
 /** `details` d'un refus technique : un texte, ou une liste (`arguments_invalides`) mise bout à bout. */
 function detailsEnTexte(details: unknown): string {

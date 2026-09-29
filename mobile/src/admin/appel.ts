@@ -1,13 +1,18 @@
 import type { HorlogeAppareil } from "../outbox/mutation";
 import type { VerdictServeur } from "../outbox/vidangeur";
-import type { EchecAppelOutil, ParametresAppelOutil, ResultatAppelOutil } from "../protocole/client";
+import type { ParametresAppelOutil, ResultatAppelOutil } from "../protocole/client";
+import { classerEchec, verdictDepuisEchec } from "../protocole/echec";
 import type { DepotCleValeur } from "../stockage/depotCleValeur";
+
+// La règle « le serveur a-t-il dit non, ou n'a-t-il pas pu répondre ? » vit dans `src/protocole/echec.ts` : le vendeur
+// et l'employé la suivent aussi (PLAN T1.4-n). Elle reste importable d'ici.
+export { classerEchec, verdictDepuisEchec };
 
 /**
  * Ce que tout chargeur du profil admin reçoit (PLAN T4.20) : le dépôt de cache, le transport, la session et l'horloge,
  * TOUT injecté (aucune horloge, aucun réseau, aucun stockage en dur). `src/admin/service.ts` fournit le câblage réel ;
- * les tests, un faux transport et un dépôt mémoire. Même patron que `src/vendeur/appel.ts`, recopié plutôt que partagé :
- * le profil vendeur (T4.8) reste intact, et chaque profil garde ses propres règles de cache.
+ * les tests, un faux transport et un dépôt mémoire. Même patron que `src/vendeur/appel.ts` ; la règle « refus ou
+ * panne » est partagée (`src/protocole/echec.ts`), chaque profil garde ses propres règles de cache.
  *
  * `personne` est celle que le serveur a confirmée pour ce jeton (`obtenirSessionEnvoi`) : elle préfixe chaque clé du
  * cache, et n'est JAMAIS envoyée au serveur (il la tient du jeton d'appareil).
@@ -35,36 +40,6 @@ export type AppelLecture =
   | { readonly genre: "reponse"; readonly resultat: unknown }
   | { readonly genre: "injoignable"; readonly verdict: VerdictServeur }
   | { readonly genre: "refuse"; readonly verdict: VerdictServeur };
-
-/**
- * Le serveur a-t-il dit non, ou n'a-t-il pas pu répondre ? Fail-closed du côté du cache :
- *  - réseau et délai : injoignable ;
- *  - 408, 429 et 5xx (`reessayable`) : injoignable ;
- *  - 401 et 403 : refus, quel que soit le corps (la porte d'appareil dit non à cet appareil, ou l'outil est hors de sa
- *    portée : montrer des chiffres gardés à un appareil qu'on vient de refuser serait pire qu'un écran vide) ;
- *  - autre 4xx : refus SEULEMENT si le corps est celui du core (`erreur` structurée) ; sinon la réponse n'est pas du
- *    core (une page de connexion d'un réseau d'hôtel, un mandataire) : injoignable.
- */
-export function classerEchec(echec: EchecAppelOutil): "refuse" | "injoignable" {
-  if (echec.origine !== "http" || echec.reessayable) {
-    return "injoignable";
-  }
-  if (echec.status === 401 || echec.status === 403) {
-    return "refuse";
-  }
-  return echec.erreur !== undefined ? "refuse" : "injoignable";
-}
-
-/** Le verdict d'un échec d'appel : le mot du core quand il en a un, sinon le fait (HTTP, délai, réseau). */
-export function verdictDepuisEchec(echec: EchecAppelOutil): VerdictServeur {
-  if (echec.erreur) {
-    return { code: echec.erreur.type, detail: echec.erreur.message };
-  }
-  if (echec.status !== undefined) {
-    return { code: `http_${echec.status}`, detail: echec.message };
-  }
-  return { code: echec.origine === "delai" ? "delai_depasse" : "erreur_reseau", detail: echec.message };
-}
 
 /**
  * UNE lecture (`/tools/invoke`), sans clé d'idempotence : rien n'est écrit. Ne lève jamais pour une raison réseau ou

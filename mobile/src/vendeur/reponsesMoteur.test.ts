@@ -87,10 +87,10 @@ describe("m2_lister_leads, tel que le moteur le rend", () => {
     expect(!lecture.ok && lecture.verdict.detail).toContain("non calculable, manque");
   });
 
-  test("un argument inconnu : refus technique du socle, lu comme tel (jamais un succès)", () => {
+  test("un argument inconnu : refus technique du socle, lu comme un refus de la requête (jamais un succès, jamais un cache)", () => {
     expect(interpreterResultatListerLeads(reponse("arguments_invalides"))).toEqual({
       ok: false,
-      genre: "technique",
+      genre: "refus",
       verdict: { code: "arguments_invalides", detail: "paramètre inconnu : owner" },
     });
   });

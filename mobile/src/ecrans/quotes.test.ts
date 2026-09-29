@@ -154,7 +154,7 @@ describe("avisDesSources — la liste ne paraît jamais complète quand elle ne 
   test("une lecture en échec, partielle ou venue du cache : dite, avec ce qu'il faut savoir", () => {
     const sources: SourceDevis[] = [
       { segment: "won_pending_schedule", etat: { genre: "lue", leadsLus: 20, reste: 3, depuisCache: raison } },
-      { segment: "quote_stale", etat: { genre: "echouee", verdict: raison } },
+      { segment: "quote_stale", etat: { genre: "echouee", verdict: raison, refuse: false } },
     ];
     expect(avisDesSources(sources)).toEqual([
       { genre: "depuis_cache", segment: "won_pending_schedule", raison },

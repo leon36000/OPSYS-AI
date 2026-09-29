@@ -615,5 +615,7 @@ def test_les_catalogues_et_les_noms_d_outils_de_l_app_sont_ceux_du_serveur():
     assert _valeurs_observees("vue_executive", "resultat.entonnoir.mesures.*.unite") <= unites
 
     # -- le socle : les pannes passagères ne sont jamais un refus -----------------------------------------------------
-    assert set(_liste_ts(_source("admin/enveloppe.ts"), "ERREURS_PASSAGERES")) == set(idempotence.ERREURS_PASSAGERES)
+    # La liste est écrite une fois (`protocole/enveloppeOutil.ts`), lue par l'admin ET par le vendeur (PLAN T1.4-n).
+    passageres = set(_liste_ts(_source("protocole/enveloppeOutil.ts"), "ERREURS_PASSAGERES"))
+    assert passageres == set(idempotence.ERREURS_PASSAGERES)
 

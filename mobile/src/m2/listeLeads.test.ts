@@ -185,7 +185,12 @@ describe("lecture d'une page de leads", () => {
       ok: false,
       genre: "refus",
     });
+    // Un refus technique qui n'est pas une panne passagère est un refus de la requête (PLAN T1.4-n), pas une panne.
     expect(interpreterResultatListerLeads({ ok: false, erreur: "arguments_invalides", details: ["x"] })).toMatchObject({
+      ok: false,
+      genre: "refus",
+    });
+    expect(interpreterResultatListerLeads({ ok: false, erreur: "budget_epuise", details: "trop" })).toMatchObject({
       ok: false,
       genre: "technique",
     });

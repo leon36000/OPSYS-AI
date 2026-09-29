@@ -200,3 +200,43 @@ export function transportHorsLigne(): jest.Mock {
     echec: { origine: "reseau", reessayable: true, message: "Network request failed" },
   }));
 }
+
+/** Un échec HTTP tel que `invoquerOutil` le classe : le corps du core (`erreur`) quand il y en a un. */
+export function echecHttp(status: number, type?: string, message = `réponse HTTP ${status} inattendue`) {
+  const reessayable = status === 408 || status === 429 || (status >= 500 && status <= 599);
+  return {
+    ok: false,
+    echec: {
+      origine: "http",
+      reessayable,
+      message,
+      status,
+      ...(type === undefined ? {} : { erreur: { type, message } }),
+    },
+  };
+}
+
+/** Le serveur répond par cet échec HTTP, quel que soit l'outil. */
+export function transportEnEchec(status: number, type?: string, message?: string): jest.Mock {
+  return jest.fn(async () => echecHttp(status, type, message));
+}
+
+/** Les échecs où le serveur DIT NON à l'appareil ou à la requête : jeton révoqué (401), porte d'appareil (403, avec ou
+ * sans le corps du core), refus du core (400, 404). Un cache ne les remplace jamais (PLAN T1.4-n). */
+export const ECHECS_QUI_SONT_UN_REFUS: readonly (readonly [string, number, string | undefined, string])[] = [
+  ["401 : jeton inconnu ou révoqué", 401, undefined, "http_401"],
+  ["403 : la porte d'appareil refuse (device_unknown)", 403, "tool_call_blocked", "tool_call_blocked"],
+  ["403 sans le corps du core", 403, undefined, "http_403"],
+  ["400 du core", 400, "invalid_request", "invalid_request"],
+  ["404 du core", 404, "not_found", "not_found"],
+];
+
+/** Les échecs où le serveur n'a PAS pu répondre : un cache, marqué comme tel, peut servir. */
+export const ECHECS_QUI_SONT_UNE_PANNE: readonly (readonly [string, number, string | undefined, string])[] = [
+  ["500 : panne d'outil du core", 500, "tool_error", "tool_error"],
+  ["502 : passerelle", 502, undefined, "http_502"],
+  ["503 : indisponible", 503, undefined, "http_503"],
+  ["408 : délai côté serveur", 408, undefined, "http_408"],
+  ["429 : débit", 429, "tool_call_blocked", "tool_call_blocked"],
+  ["404 qui n'est pas du core (mandataire, page de connexion)", 404, undefined, "http_404"],
+];

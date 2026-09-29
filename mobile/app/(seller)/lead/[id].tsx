@@ -133,6 +133,9 @@ export default function EcranLead() {
 
       {chargement ? <ActivityIndicator /> : null}
       {vue?.genre === "sans_appairage" ? <Text style={styles.erreur}>{t("vendeur.commun.sansSession")}</Text> : null}
+      {vue?.genre === "refus" ? (
+        <Text style={styles.erreur}>{t("vendeur.commun.refus", { code: vue.verdict.code, detail: vue.verdict.detail })}</Text>
+      ) : null}
       {vue?.genre === "aucune" ? (
         <Text style={styles.erreur}>{t("vendeur.commun.echecLecture", { code: vue.raison.code, detail: vue.raison.detail })}</Text>
       ) : null}

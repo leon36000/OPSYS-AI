@@ -17,6 +17,8 @@ import type { LigneDonnee } from "./leads";
 
 export type VueFiche =
   | { readonly genre: "sans_appairage" }
+  /** Le serveur refuse la requête (jeton révoqué, personne désactivée, rôle retiré) : son verdict, jamais une fiche gardée. */
+  | { readonly genre: "refus"; readonly verdict: VerdictServeur }
   | { readonly genre: "aucune"; readonly raison: VerdictServeur }
   | {
       readonly genre: "fiche";
@@ -38,6 +40,8 @@ export function vueFiche(resultat: ResultatFiche | null): VueFiche {
         fiche: resultat.fiche,
         cache: { misAJourLe: resultat.fiche.misAJourLe, raison: resultat.raisonHorsLigne },
       };
+    case "refus":
+      return { genre: "refus", verdict: resultat.verdict };
     case "aucune":
       return { genre: "aucune", raison: resultat.raison };
   }

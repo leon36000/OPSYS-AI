@@ -2,7 +2,7 @@ import { construireArgumentsListerLeads, lirePageLeads, OUTIL_LISTER_LEADS } fro
 import type { FiltreLeads } from "../m2/listeLeads";
 import { formaterHorodatageLocal } from "../outbox/mutation";
 import type { VerdictServeur } from "../outbox/vidangeur";
-import { lireEnveloppeMetier, VERDICT_REPONSE_ILLISIBLE } from "../protocole/enveloppeOutil";
+import { estRefusDeRequete, lireEnveloppeMetier, VERDICT_REPONSE_ILLISIBLE } from "../protocole/enveloppeOutil";
 import { appelerLecture, ecrireSansEchouer } from "./appel";
 import type { ConfigurationChargeurVendeur } from "./appel";
 import { ecrireCacheLeads, lireCacheLeads } from "./cache";
@@ -18,14 +18,17 @@ import type { LeadsLus, RaisonRelecture } from "./lectureLeads";
  *  - `serveur` : la lecture a réussi ; le cache est écrit ;
  *  - `cache` : le serveur n'a pas pu répondre (réseau, délai, sortie tronquée, réponse illisible) et un cache de CE
  *    filtre existe pour CETTE personne : il est rendu avec sa date et la raison, l'écran le dit ;
- *  - `refus` : le serveur a répondu et dit non (un segment non calculable, une identité invalide). Le cache ne remplace
- *    JAMAIS un refus : un cache ne dit pas ce que le serveur refuse aujourd'hui ;
+ *  - `refus` : le serveur a répondu et dit non : 401 ou 403 de la porte d'appareil (jeton révoqué, personne désactivée,
+ *    rôle retiré), un segment non calculable, une identité invalide. Le cache ne remplace JAMAIS un refus, et rien
+ *    n'est écrit : un cache ne dit pas ce que le serveur refuse aujourd'hui (PLAN T1.4-n) ;
  *  - `aucune` : ni serveur ni cache. Jamais une liste inventée.
  */
 export type ResultatLeads =
   | { readonly source: "serveur"; readonly lus: LeadsLus }
   | { readonly source: "cache"; readonly lus: LeadsLus; readonly raisonHorsLigne: VerdictServeur }
-  | { readonly source: "refus"; readonly verdict: VerdictServeur }
+  /** `requete: true` : le serveur refuse la REQUÊTE (l'appareil, son rôle, son identité, ses arguments : 401, 403, refus
+   * technique), pas seulement ce filtre (un segment non calculable est un verdict métier : `requete` absent). */
+  | { readonly source: "refus"; readonly verdict: VerdictServeur; readonly requete?: true }
   | { readonly source: "aucune"; readonly raison: VerdictServeur };
 
 /** Ce que devient la liste après « Voir plus ». */
@@ -46,7 +49,7 @@ export interface ChargeurLeads {
 
 type LecturePage =
   | { readonly genre: "page"; readonly page: NonNullable<ReturnType<typeof lirePageLeads>>; readonly brute: unknown }
-  | { readonly genre: "refus"; readonly verdict: VerdictServeur }
+  | { readonly genre: "refus"; readonly verdict: VerdictServeur; readonly requete: boolean }
   | { readonly genre: "indisponible"; readonly verdict: VerdictServeur };
 
 export function creerChargeurLeads(config: ConfigurationChargeurVendeur): ChargeurLeads {
@@ -57,13 +60,16 @@ export function creerChargeurLeads(config: ConfigurationChargeurVendeur): Charge
       OUTIL_LISTER_LEADS,
       construireArgumentsListerLeads(formaterHorodatageLocal(config.horloge()), filtre, decalage),
     );
+    if (appel.genre === "refuse") {
+      return { genre: "refus", verdict: appel.verdict, requete: true };
+    }
     if (appel.genre === "injoignable") {
       return { genre: "indisponible", verdict: appel.verdict };
     }
     const lecture = lireEnveloppeMetier(appel.resultat);
     if (!lecture.ok) {
       return lecture.genre === "refus"
-        ? { genre: "refus", verdict: lecture.verdict }
+        ? { genre: "refus", verdict: lecture.verdict, requete: estRefusDeRequete(appel.resultat) }
         : { genre: "indisponible", verdict: lecture.verdict };
     }
     const page = lirePageLeads(lecture.valeur);
@@ -81,7 +87,9 @@ export function creerChargeurLeads(config: ConfigurationChargeurVendeur): Charge
     async chargerLeads(filtre: FiltreLeads): Promise<ResultatLeads> {
       const lecture = await lirePage(filtre, 0);
       if (lecture.genre === "refus") {
-        return { source: "refus", verdict: lecture.verdict };
+        return lecture.requete
+          ? { source: "refus", verdict: lecture.verdict, requete: true }
+          : { source: "refus", verdict: lecture.verdict };
       }
       if (lecture.genre === "indisponible") {
         return depuisCache(filtre, lecture.verdict);
