@@ -1,20 +1,12 @@
-import sys
-import copy
-import inspect
 import ast
+import inspect
 from pathlib import Path
+
 import pytest
+from m2_revenue_crm import doublons, ingestion, registre
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
 _PKG = _SRC / "m2_revenue_crm"  # répertoire du paquet, pour les scans de sources
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from m2_revenue_crm import encodage  # noqa: E402
-from m2_revenue_crm import verdicts  # noqa: E402
-from m2_revenue_crm import registre  # noqa: E402
-from m2_revenue_crm import ingestion  # noqa: E402
-from m2_revenue_crm import doublons  # noqa: E402
 
 
 # ------------------------------------------------------------------- helpers
@@ -77,7 +69,9 @@ class TestDetectionCritere:
         ingerer_lead(reg, "C2", h, ville="Nice", type_travaux="isolation_thermique",
                      contact={"nom": "Y", "telephone": "99", "courriel": ""})
         resultat = doublons.detecter(reg, "C2")
-        assert resultat == [], "La conjonction ville+travaux n'étant pas satisfaite, aucun doublon ne doit être retourné."
+        assert resultat == [], (
+            "La conjonction ville+travaux n'étant pas satisfaite, aucun doublon ne doit être retourné."
+        )
 
     def test_travaux_identique_ville_differente_non_detecte(self):
         """Même type de travaux mais ville différente -> pas de détection."""
@@ -125,7 +119,10 @@ class TestDetectionCritere:
         """Prouve que detecter retourne une liste vide lorsque le lead cible est inexistant dans le reg."""
         reg = registre.Registre()
         horodatage = "2025-01-15T12:00:00+01:00"
-        ingerer_lead(reg, "real-lead", horodatage, contact={"nom": "Client", "telephone": "", "courriel": "hello@test.com"})
+        ingerer_lead(
+            reg, "real-lead", horodatage,
+            contact={"nom": "Client", "telephone": "", "courriel": "hello@test.com"},
+        )
         result = doublons.detecter(reg, "INCONNU")
         assert result == []
 
@@ -352,8 +349,16 @@ class TestSignalementSansFusion:
         horodatage = "2025-01-15T10:30:00+01:00"
         lead1_id = "lead-1"
         lead2_id = "lead-2"
-        ingerer_lead(reg, lead1_id, horodatage, contact={"nom": "Client", "telephone": "", "courriel": "a@b.com"}, type_travaux="isolation_thermique", ville="Paris")
-        ingerer_lead(reg, lead2_id, horodatage, contact={"nom": "Client", "telephone": "", "courriel": "a@b.com"}, type_travaux="ravalement", ville="Lyon")
+        ingerer_lead(
+            reg, lead1_id, horodatage,
+            contact={"nom": "Client", "telephone": "", "courriel": "a@b.com"},
+            type_travaux="isolation_thermique", ville="Paris",
+        )
+        ingerer_lead(
+            reg, lead2_id, horodatage,
+            contact={"nom": "Client", "telephone": "", "courriel": "a@b.com"},
+            type_travaux="ravalement", ville="Lyon",
+        )
         taille_avant = reg.taille()
         signalement, verdict = doublons.signaler(reg, lead1_id, lead2_id, horodatage)
         assert verdict is None
@@ -364,13 +369,22 @@ class TestSignalementSansFusion:
         assert reg.taille() == taille_avant + 1, "un signalement réussi écrit un maillon"
 
     def test_signaler_deux_leads_non_similaires_rejete(self):
-        """Prouve que signaler rejette deux leads sans similarité avec le verdict REJ-TRANSITION-ILLEGALE sans modifier le reg."""
+        """Prouve que signaler rejette deux leads sans similarité avec le verdict
+        REJ-TRANSITION-ILLEGALE sans modifier le reg."""
         reg = registre.Registre()
         horodatage = "2025-01-15T11:00:00+01:00"
         lead1_id = "lead-a"
         lead2_id = "lead-b"
-        ingerer_lead(reg, lead1_id, horodatage, contact={"nom": "Client", "telephone": "", "courriel": "x@y.com"}, type_travaux="renovation_totale", ville="Bordeaux")
-        ingerer_lead(reg, lead2_id, horodatage, contact={"nom": "Client", "telephone": "", "courriel": "z@w.com"}, type_travaux="autre", ville="Marseille")
+        ingerer_lead(
+            reg, lead1_id, horodatage,
+            contact={"nom": "Client", "telephone": "", "courriel": "x@y.com"},
+            type_travaux="renovation_totale", ville="Bordeaux",
+        )
+        ingerer_lead(
+            reg, lead2_id, horodatage,
+            contact={"nom": "Client", "telephone": "", "courriel": "z@w.com"},
+            type_travaux="autre", ville="Marseille",
+        )
         taille_avant = reg.taille()
         signalement, verdict = doublons.signaler(reg, lead1_id, lead2_id, horodatage)
         assert signalement is None
@@ -507,7 +521,7 @@ class TestAntiFusionArchitecturale:
         - lambda assignée à une variable (le nom de la cible d'assignation) ;
         - import ... as nom (le nom local de l'alias).
         """
-        with open(fichier_py, "r", encoding="utf-8") as f:
+        with open(fichier_py, encoding="utf-8") as f:
             arbre = ast.parse(f.read())
         noms = []
         for node in ast.walk(arbre):

@@ -4,16 +4,8 @@ Module testé (`clients.py`) est PUR : ces tests n'importent que des modules pur
 (jamais `outils.py`/`opsys`), même patron que `test_doublons.py`/`test_ingestion.py`.
 """
 
-import sys
-from pathlib import Path
-
 import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from m2_revenue_crm import clients, ingestion, interactions, registre, statuts, verdicts  # noqa: E402
+from m2_revenue_crm import clients, ingestion, interactions, registre, statuts, verdicts
 
 
 def _contrat_base():

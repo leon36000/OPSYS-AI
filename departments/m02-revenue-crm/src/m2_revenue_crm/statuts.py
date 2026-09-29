@@ -1,8 +1,7 @@
 import copy
+
+from . import encodage, verdicts
 from . import horodatage as _horodatage
-from . import registre
-from . import verdicts
-from . import encodage
 
 # Cycle de vie couvert par M2 (DEFINITION-PRODUIT §7 M2, « Cycle de vie couvert ») : lead →
 # qualification → dossier client → estimation → soumission → relance → acceptation → cédule →

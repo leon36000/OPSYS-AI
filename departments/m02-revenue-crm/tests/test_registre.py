@@ -1,14 +1,13 @@
-import sys
-from pathlib import Path
-import pytest
 import inspect
 import re
+from pathlib import Path
+
+import pytest
+from m2_revenue_crm import registre
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
 _PKG = _SRC / "m2_revenue_crm"  # répertoire du paquet, pour les scans de sources
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-from m2_revenue_crm import registre  # noqa: E402
+
 
 # ---------------------------------------------------------------------------
 # Constantes pour les tests
@@ -84,7 +83,7 @@ class TestAppendOnly:
 
     def test_chainage_ligne_id(self, registre_vide):
         """Les entrées portent ligne_id et precedent_ligne_id chaînés."""
-        hash1 = registre_vide.ajouter(ENTREE_VALIDE)
+        registre_vide.ajouter(ENTREE_VALIDE)
         hash2 = registre_vide.ajouter(ENTREE_VALIDE2)
         contenu = registre_vide.lire()
         # Première entrée

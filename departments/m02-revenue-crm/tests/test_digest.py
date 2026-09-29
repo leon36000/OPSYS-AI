@@ -1,21 +1,13 @@
-import sys
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
+from m2_revenue_crm import digest, doublons, ingestion, registre, statuts
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
 _PKG = _SRC / "m2_revenue_crm"  # répertoire du paquet, pour les scans de sources
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from m2_revenue_crm import encodage  # noqa: E402
-from m2_revenue_crm import registre  # noqa: E402
-from m2_revenue_crm import ingestion  # noqa: E402
-from m2_revenue_crm import statuts  # noqa: E402
-from m2_revenue_crm import doublons  # noqa: E402
-from m2_revenue_crm import digest  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -241,7 +233,7 @@ class TestExhaustivite:
         d = digest.produire_digest(reg, "2026-03-04", "2026-03-04T12:00:00+00:00")
         lignes = _lignes_section(d, "[EN_ATTENTE]")
         # Extraction du lead_id (premier token de chaque ligne)
-        ids = [l.split()[0] for l in lignes]
+        ids = [ligne.split()[0] for ligne in lignes]
         assert ids == ["Aa", "Zz", "Mm"]
 
 

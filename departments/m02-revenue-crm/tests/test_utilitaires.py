@@ -1,21 +1,17 @@
-import sys
-import os
 import importlib
 import inspect
+import os
 import subprocess
+import sys
+from datetime import UTC
 from pathlib import Path
+
 import pytest
 import yaml
+from m2_revenue_crm import encodage, fixtures_garde, horodatage, verdicts
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
 _PKG = _SRC / "m2_revenue_crm"  # répertoire du paquet, pour les scans de sources
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from m2_revenue_crm import encodage  # noqa: E402
-from m2_revenue_crm import horodatage  # noqa: E402
-from m2_revenue_crm import verdicts  # noqa: E402
-from m2_revenue_crm import fixtures_garde  # noqa: E402
 
 
 # ----------------------------------------------------------------------
@@ -150,11 +146,11 @@ class TestVerdictsConstruireVerdict:
 
     @pytest.mark.parametrize("code", CODES_HORS_M2)
     def test_construire_verdict_leve_sur_codes_hors_m2(self, code):
-        with pytest.raises(Exception):
+        with pytest.raises(verdicts.CodeVerdictInconnu):
             verdicts.construire_verdict(code, "statut", "detail")
 
     def test_construire_verdict_leve_sur_code_inconnu(self):
-        with pytest.raises(Exception):
+        with pytest.raises(verdicts.CodeVerdictInconnu):
             verdicts.construire_verdict("INCONNU", "statut", "detail")
 
 
@@ -291,16 +287,6 @@ class TestModulesSansReseauNiHorlogeNiLLM:
             )
 
 
-import os
-import subprocess
-import sys
-from pathlib import Path
-
-import pytest
-
-from m2_revenue_crm import encodage
-
-
 # 1. Conteneurs vides de types différents : empreintes toutes distinctes
 @pytest.mark.parametrize("c1,c2", [
     (set(), frozenset()),
@@ -356,7 +342,7 @@ def test_determinisme_inter_processus_structure_imbriquee():
     assert sorties, "Aucune sortie collectée (garde-fou de non-vacuité)"
     unique = set(sorties)
     assert len(unique) == 1, (
-        f"Les empreintes diffèrent selon PYTHONHASHSEED : {dict(zip(graines, sorties))}"
+        f"Les empreintes diffèrent selon PYTHONHASHSEED : {dict(zip(graines, sorties, strict=True))}"
     )
 
 
@@ -439,8 +425,8 @@ class TestEncodageTypesStandards:
     )
     def test_types_standards_acceptes(self, nom_type):
         """Chacun des 8 types standards supportés produit une empreinte hexadécimale de 64 caractères."""
-        from decimal import Decimal
         from datetime import date, datetime, time
+        from decimal import Decimal
         from uuid import UUID
         valeurs = {
             "decimal": Decimal("1.5"),
@@ -463,8 +449,8 @@ class TestEncodageTypesStandards:
     def test_injectivite_contre_la_chaine_equivalente(self):
         """La collision de l'ancien repli repr() ne doit plus exister : la valeur typée
         ne partage son empreinte ni avec la chaîne repr(valeur) ni avec la chaîne str(valeur)."""
-        from decimal import Decimal
         from datetime import datetime
+        from decimal import Decimal
         from uuid import UUID
         valeurs = [
             Decimal("1.5"),
@@ -519,8 +505,8 @@ class TestEncodageTypesStandards:
     def test_determinisme_inter_processus_types_standards(self):
         """Une structure contenant Decimal, datetime, UUID et bytes produit la même empreinte
         dans tous les processus, quel que soit PYTHONHASHSEED, et dans le processus courant."""
-        from decimal import Decimal
         from datetime import datetime
+        from decimal import Decimal
         from uuid import UUID
         src = Path(__file__).resolve().parents[1] / "src" / "m2_revenue_crm"
         script = (
@@ -587,7 +573,8 @@ class TestInjectiviteExhaustive:
             ("decimal", "1.5", "__decimal__", "1.5", "liste"),
             ("bytes", b"\xab", "__bytes__", "ab", "liste"),
             ("bytearray", b"\xab", "__bytearray__", "ab", "liste"),
-            ("uuid", "12345678-1234-5678-1234-567812345678", "__uuid__", "12345678-1234-5678-1234-567812345678", "liste"),
+            ("uuid", "12345678-1234-5678-1234-567812345678", "__uuid__",
+             "12345678-1234-5678-1234-567812345678", "liste"),
             ("date", (2026, 7, 29), "__date__", "2026-07-29", "liste"),
             ("datetime", (2026, 7, 29, 12, 30, 0), "__datetime__", "2026-07-29T12:30:00+00:00", "liste"),
             ("time", (9, 15, 0), "__time__", "09:15:00", "liste"),
@@ -624,9 +611,9 @@ class TestInjectiviteExhaustive:
         scalaires, et une séquence pour ``complex`` dont la forme canonique est
         ``[repr(partie_reelle), repr(partie_imaginaire)]``.
         """
+        from datetime import date, datetime, time
         from decimal import Decimal
         from uuid import UUID
-        from datetime import date, datetime, time, timezone
 
         if type_cible == "decimal":
             valeur_typee = Decimal(argument_brut)
@@ -639,7 +626,7 @@ class TestInjectiviteExhaustive:
         elif type_cible == "date":
             valeur_typee = date(*argument_brut)
         elif type_cible == "datetime":
-            valeur_typee = datetime(*argument_brut, tzinfo=timezone.utc)
+            valeur_typee = datetime(*argument_brut, tzinfo=UTC)
         elif type_cible == "time":
             valeur_typee = time(*argument_brut)
         elif type_cible == "complex":
@@ -680,9 +667,9 @@ class TestInjectiviteExhaustive:
         """Aucune paire distincte du panel hétérogène ne doit produire la même
         empreinte ; le nombre de paires comparées doit valoir n*(n-1)/2."""
         import itertools
+        from datetime import date, datetime, time
         from decimal import Decimal
         from uuid import UUID
-        from datetime import date, datetime, time, timezone
 
         panel = {
             "entier_un": 1,
@@ -700,7 +687,7 @@ class TestInjectiviteExhaustive:
             "chaine_hex_ab": "ab",
             "date_fixe": date(2026, 7, 29),
             "datetime_minuit_naif": datetime(2026, 7, 29, 0, 0, 0),
-            "datetime_utc_apres_midi": datetime(2026, 7, 29, 12, 30, 0, tzinfo=timezone.utc),
+            "datetime_utc_apres_midi": datetime(2026, 7, 29, 12, 30, 0, tzinfo=UTC),
             "time_minuit": time(0, 0, 0),
             "uuid_fixe": UUID("12345678-1234-5678-1234-567812345678"),
             "chaine_uuid": "12345678-1234-5678-1234-567812345678",
@@ -859,13 +846,13 @@ class TestBalisesDisjointes:
         produire une liste dont le premier élément est exactement la balise
         attendue, laquelle ne doit jamais être une balise de conteneur.
         """
-        from datetime import date, datetime, time, timezone
+        from datetime import date, datetime, time
         from decimal import Decimal
         from uuid import UUID
 
         fabriques = {
             "decimal": lambda: Decimal(argument_brut),
-            "datetime": lambda: datetime(*argument_brut, tzinfo=timezone.utc),
+            "datetime": lambda: datetime(*argument_brut, tzinfo=UTC),
             "date": lambda: date(*argument_brut),
             "time": lambda: time(*argument_brut),
             "uuid": lambda: UUID(argument_brut),
@@ -892,7 +879,7 @@ class TestBalisesDisjointes:
         13 valeurs écrites en dur, une par balise ; toute balise jamais produite
         est nommée dans le message d'échec.
         """
-        from datetime import date, datetime, time, timezone
+        from datetime import date, datetime, time
         from decimal import Decimal
         from uuid import UUID
 
@@ -903,7 +890,7 @@ class TestBalisesDisjointes:
             ["element"],
             ("element",),
             Decimal("1.5"),
-            datetime(2026, 7, 29, 12, 30, 0, tzinfo=timezone.utc),
+            datetime(2026, 7, 29, 12, 30, 0, tzinfo=UTC),
             date(2026, 7, 29),
             time(9, 15, 0),
             UUID("12345678-1234-5678-1234-567812345678"),

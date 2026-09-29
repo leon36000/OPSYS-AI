@@ -1,14 +1,20 @@
-# -*- coding: utf-8 -*-
 """Preuves de M2-S001 (fichier dédié : accents préservés, rejouable)."""
+import importlib
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 # Chemin déduit du fichier, jamais absolu : le dépôt doit rester déplaçable.
 RACINE = Path(__file__).resolve().parents[1]
+# Ce script tourne seul, hors pytest : le `pythonpath` de pyproject.toml ne s'y applique pas.
+# Les imports du paquet passent donc par `importlib`, après l'insertion.
 sys.path.insert(0, str(RACINE / "src"))
-from m2_revenue_crm import encodage, horodatage, verdicts, fixtures_garde  # noqa: E402
+encodage = importlib.import_module("m2_revenue_crm.encodage")
+fixtures_garde = importlib.import_module("m2_revenue_crm.fixtures_garde")
+horodatage = importlib.import_module("m2_revenue_crm.horodatage")
+verdicts = importlib.import_module("m2_revenue_crm.verdicts")
 
 print("=== injectivité (les collisions mesurées dans M1 ne se reproduisent pas) ===")
 for a, b in ((("AB", "X"), ("A", "BX")), (("A", " BC"), ("A ", "BC"))):
@@ -16,9 +22,8 @@ for a, b in ((("AB", "X"), ("A", "BX")), (("A", " BC"), ("A ", "BC"))):
 
 print("\n=== déterminisme INTER-PROCESSUS (PYTHONHASHSEED) ===")
 code = (
-    "import sys; sys.path.insert(0, %r); from m2_revenue_crm import encodage; "
+    "import sys; sys.path.insert(0, " + repr(str(RACINE / "src")) + "); from m2_revenue_crm import encodage; "
     "print(encodage.encoder_canonique({'x': {'a','b','c','d','e'}, 'y': [3,1,2]}, 'acteur'))"
-    % str(RACINE / "src")
 )
 sorties = []
 for graine in ("0", "1", "42", "1337"):
@@ -48,7 +53,6 @@ except Exception as e:
     print("  construire_verdict hors catalogue ->", type(e).__name__)
 
 print("\n=== fixtures : fail-closed sur le marqueur fictif ===")
-import tempfile
 with tempfile.TemporaryDirectory() as d:
     for val, libelle in (("true", "fictif: true"), ("false", "fictif: false"),
                          ('"true"', 'fictif: "true"'), ("1", "fictif: 1"), (None, "champ absent")):

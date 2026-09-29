@@ -1,5 +1,5 @@
-# -*- coding: utf-8 -*-
 """Vérification des cas limites soulevés au round 2 : conteneurs vides et imbriqués."""
+import importlib
 import os
 import subprocess
 import sys
@@ -8,8 +8,10 @@ from pathlib import Path
 SRC = Path(__file__).resolve().parents[1] / "src"
 # sys.path reçoit src/, PARENT du paquet : c'est lui qui rend
 # « from m2_revenue_crm import ... » résoluble, ici comme dans les sous-processus.
+# Ce script tourne seul, hors pytest : le `pythonpath` de pyproject.toml ne s'y applique pas.
+# L'import passe donc par `importlib`, après l'insertion.
 sys.path.insert(0, str(SRC))
-from m2_revenue_crm import encodage as e  # noqa: E402
+e = importlib.import_module("m2_revenue_crm.encodage")
 
 print("=== (a) conteneurs VIDES de types différents ===")
 vides = [("set()", set()), ("frozenset()", frozenset()), ("list []", []),
@@ -23,9 +25,9 @@ print("  COLLISIONS entre vides :", collisions or "aucune")
 print("\n=== (b) conteneurs IMBRIQUÉS hétérogènes ===")
 imbrique = {"x": {"a", "b", "c", "d", "e"}, "y": [3, 1, 2], "z": ({"k": {1, 2}}, frozenset(["q"]))}
 code = (
-    "import sys; sys.path.insert(0, %r); from m2_revenue_crm import encodage; "
+    "import sys; sys.path.insert(0, " + repr(str(SRC)) + "); from m2_revenue_crm import encodage; "
     "print(encodage.empreinte({'x': {'a','b','c','d','e'}, 'y': [3,1,2], "
-    "'z': ({'k': {1,2}}, frozenset(['q']))}))" % str(SRC)
+    "'z': ({'k': {1,2}}, frozenset(['q']))}))"
 )
 sorties = []
 for graine in ("0", "1", "42", "1337", "99991"):

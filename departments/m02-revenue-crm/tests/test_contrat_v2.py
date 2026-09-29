@@ -1,23 +1,26 @@
 """Contrat LeadQualifie v2 côté M2 (PLAN T0.13) : `service` de la taxonomie du socle, version
 explicite. La v1 (gelée, `type_travaux`) reste acceptée telle quelle ; rien n'est deviné."""
 
-import sys
-from pathlib import Path
-
 import pytest
-
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from m2_revenue_crm import (  # noqa: E402
-    clients, contrats, doublons, encodage, ingestion, interactions, readiness, registre, statuts,
+from m2_revenue_crm import (
+    clients,
+    contrats,
+    doublons,
+    encodage,
+    ingestion,
+    interactions,
+    readiness,
+    registre,
+    statuts,
 )
-from m2_revenue_crm.outils import (  # noqa: E402
-    ingerer_lead, outils, reinitialiser_registre,
+from m2_revenue_crm.outils import (
+    ingerer_lead,
+    outils,
+    reinitialiser_registre,
 )
-from opsys import taxonomie  # noqa: E402
-from opsys.outils import executer  # noqa: E402
+
+from opsys import taxonomie
+from opsys.outils import executer
 
 H_INGESTION = "2026-03-01T09:00:00+02:00"
 

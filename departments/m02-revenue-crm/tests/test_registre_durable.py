@@ -14,20 +14,14 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
+from m2_revenue_crm import outils, registre
 from sqlalchemy import update
 
-_SRC = Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from m2_revenue_crm import outils, registre  # noqa: E402
-
-from opsys import stockage  # noqa: E402
-from opsys.stockage import codec  # noqa: E402
-from opsys.stockage.schema import REGISTRES  # noqa: E402
+from opsys import stockage
+from opsys.stockage import codec
+from opsys.stockage.schema import REGISTRES
 
 _DEPARTEMENT = "m02-revenue-crm"
 _NOM_REGISTRE = "principal"

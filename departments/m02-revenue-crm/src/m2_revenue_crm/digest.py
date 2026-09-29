@@ -6,8 +6,7 @@ qui garantit une sortie byte-identique à entrées égales, indépendante
 de l'ordre d'ingestion et du fuseau horaire de la machine.
 """
 
-from datetime import datetime, timedelta, timezone
-
+from datetime import UTC, datetime, timedelta
 
 # Seuil ratifié : un lead « nouveau » sans owner n'est déclaré orphelin
 # qu'au-delà de 48 heures STRICTES, afin que la frontière soit univoque
@@ -46,7 +45,7 @@ def _normaliser_utc(valeur):
             "la sortie dépendrait du fuseau local de la machine "
             f"(reçu {valeur!r})"
         )
-    return instant.astimezone(timezone.utc)
+    return instant.astimezone(UTC)
 
 
 def _est_en_attente(arbitrage):
@@ -156,9 +155,8 @@ def produire_digest(registre_cible, date_jour, horodatage):
     seuil = timedelta(hours=SEUIL_ORPHELIN_HEURES)
     orphelins = []
     for lead_id, statut, _, ingestion_dt, owner_str in leads_en_attente:
-        if statut == "nouveau" and owner_str == "-":
-            if (prod_dt - ingestion_dt) > seuil:
-                orphelins.append(lead_id)
+        if statut == "nouveau" and owner_str == "-" and (prod_dt - ingestion_dt) > seuil:
+            orphelins.append(lead_id)
     orphelins.sort()
     lignes.append("[ORPHELINS]")
     for lead_id in orphelins:

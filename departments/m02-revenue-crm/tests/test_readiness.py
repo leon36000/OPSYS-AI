@@ -1,24 +1,19 @@
-import sys
 import copy
-import inspect
 from pathlib import Path
-import pytest
 
-# noinspection PyUnresolvedReferences
+import pytest
+from m2_revenue_crm import (
+    encodage,
+    ingestion,
+    interactions,
+    readiness,
+    registre,
+    statuts,
+    verdicts,
+)
+
 _SRC = Path(__file__).resolve().parents[1] / "src"
 _PKG = _SRC / "m2_revenue_crm"  # répertoire du paquet, pour les scans de sources
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-# Les imports suivants échoueront en phase RED car les modules n'existent pas encore.
-# C'est le comportement attendu pour ces tests.
-from m2_revenue_crm import encodage
-from m2_revenue_crm import verdicts
-from m2_revenue_crm import registre
-from m2_revenue_crm import ingestion
-from m2_revenue_crm import statuts
-from m2_revenue_crm import interactions  # Fichier manquant → ImportError attendu
-from m2_revenue_crm import readiness  # Fichier manquant → ImportError attendu
 
 
 # ------------------------------------------------------------------ helpers de module
@@ -135,12 +130,7 @@ class TestInteractions:
         h2 = "2026-03-01T11:30:00+02:00"
         interactions.enregistrer("L1", "Alice", "Note 1", reg, h1)
         interactions.enregistrer("L1", "Alice", "Note 2", reg, h2)
-        # Ajouter un second lead et une interaction sur lui
-        reg2 = registre_qualifie(lead_id="L2",
-                                 horodatage_transition="2026-03-01T10:30:00+02:00")
-        # On ne peut pas utiliser le même registre, on crée un registre combiné ?
-        # On va fusionner en ajoutant manuellement les maillons de reg2 dans reg ?
-        # Pour simplifier, on recrée un registre avec les deux leads.
+        # Un même registre doit porter les deux leads : on en recrée un avec les deux.
         # On va plutôt construire un registre avec L1 déjà qualifié, L2 qualifié,
         # et des interactions sur chacun.
         reg_final = registre.Registre()
@@ -258,7 +248,8 @@ class TestInteractions:
         assert reg.taille() == taille_avant
 
     def test_maillon_interaction_porte_auteur_et_resume(self):
-        """sans ce test, renommer ou omettre auteur/resume dans le maillon ne rend aucun test rouge, et l'audit trail perd sa valeur probante."""
+        """sans ce test, renommer ou omettre auteur/resume dans le maillon ne rend aucun test rouge,
+        et l'audit trail perd sa valeur probante."""
         reg = registre_qualifie(lead_id="L-mail")
         accusé = interactions.enregistrer("L-mail", "Bob", "Appel de suivi", reg, "2026-03-01T11:00:00+02:00")
         assert accusé is not None, "l'enregistrement de l'interaction doit réussir"
@@ -462,12 +453,19 @@ class TestGatePrerequis:
         # La gate doit être vraie avec les quatre conditions remplies.
         accusé = interactions.enregistrer("L-iso", "Bob", "Appel", reg, "2026-03-01T11:00:00+02:00")
         assert accusé is not None, "l'enregistrement de l'interaction doit réussir"
-        assert readiness.evaluer(reg, "L-iso") is True, "pré-condition du test : la gate doit être vraie avant la clôture"
+        assert readiness.evaluer(reg, "L-iso") is True, (
+            "pré-condition du test : la gate doit être vraie avant la clôture"
+        )
         # Transition vers converti
-        accusé_transition = statuts.transitionner("L-iso", "converti", reg, "2026-03-01T12:00:00+02:00", reference_devis_m3="DEV-1")
+        accusé_transition = statuts.transitionner(
+            "L-iso", "converti", reg, "2026-03-01T12:00:00+02:00", reference_devis_m3="DEV-1"
+        )
         assert accusé_transition is not None, "la transition vers converti doit réussir"
         # La gate doit maintenant être fausse, bien que les quatre conditions soient toujours dans les maillons
-        assert readiness.evaluer(reg, "L-iso") is False, "seul le pré-requis peut rendre faux ici : les quatre conditions restent satisfaites dans les maillons"
+        assert readiness.evaluer(reg, "L-iso") is False, (
+            "seul le pré-requis peut rendre faux ici : "
+            "les quatre conditions restent satisfaites dans les maillons"
+        )
 
 
 # ----------------------------------------------------------- TestGateQuatreConditions
@@ -520,8 +518,6 @@ class TestGateQuatreConditions:
                 "Interaction antérieure ne doit pas suffire"
         elif condition_testee == "interaction_autre_lead":
             reg = registre_qualifie(lead_id="L-principal")
-            # Ajouter un autre lead qualifié
-            reg2 = registre_qualifie(lead_id="L-secondaire")
             # Impossible d'avoir deux registres, il faut un seul registre.
             # On va créer directement un registre avec deux leads.
             reg = registre.Registre()
@@ -584,7 +580,9 @@ class TestGateQuatreConditions:
         reg = registre_qualifie(lead_id="LF")
         accusé = interactions.enregistrer("LF", "Bob", "ok", reg, "2026-03-01T11:00:00+02:00")
         assert accusé is not None, "l'enregistrement de l'interaction doit réussir"
-        assert readiness.evaluer(reg, "LF") is True, "pré-condition du test : la gate doit être vraie avant falsification"
+        assert readiness.evaluer(reg, "LF") is True, (
+            "pré-condition du test : la gate doit être vraie avant falsification"
+        )
         # Falsification directe du maillon (inaccessible par l'API publique, qui refuse
         # les horodatages naïfs) pour tester la robustesse de la gate face à un état
         # qu'elle ne contrôle pas.
@@ -612,7 +610,8 @@ class TestGateQuatreConditions:
         ("ville_falsifiee", "ville"),
     ], ids=["owner_falsifie", "type_travaux_falsifie", "ville_falsifiee"])
     def test_chaque_condition_metier_en_echec_isole(self, cas, cible):
-        """chaque condition doit être LE facteur isolé d'échec ; sans ce test, forcer les trois conditions à vrai ne rend aucun test rouge."""
+        """chaque condition doit être LE facteur isolé d'échec ; sans ce test, forcer les trois
+        conditions à vrai ne rend aucun test rouge."""
         lead_id = f"L-cond-{cible}"
         reg = registre_qualifie(lead_id=lead_id)
         accusé = interactions.enregistrer(lead_id, "Bob", "Appel", reg, "2026-03-02T11:00:00+02:00")
@@ -762,7 +761,6 @@ class TestMarqueur:
         Ce test fixe le contrat de recalcul.
         """
         reg = registre_qualifie(lead_id="L-recal")
-        horodatage_transition = "2026-03-01T10:00:00+02:00"
         # Ajouter une interaction postérieure
         horodatage_interaction = "2026-03-01T11:00:00+02:00"
         interactions.enregistrer("L-recal", "Alice", "Appel",

@@ -3,8 +3,7 @@ import hashlib
 import json
 from typing import Protocol, runtime_checkable
 
-from . import encodage
-from . import verdicts
+from . import encodage, verdicts
 from . import horodatage as _horodatage
 
 MODE_OMBRE = "ombre"

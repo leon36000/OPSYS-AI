@@ -5,8 +5,8 @@ Fonctions : enregistrer (avec contrôle d'état) et lister.
 """
 
 from . import horodatage as _horodatage
+from .statuts import STATUTS_TERMINAUX, statut_courant
 from .verdicts import construire_verdict
-from .statuts import statut_courant, STATUTS_TERMINAUX
 
 TYPE_ENTREE = "interaction"  # Identifiant canonique du type d'écriture
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Mesures de cohérence du cadrage BMAD M2.
 
 Durci après la revue round 5 : la version précédente ne cherchait QUE ce que
@@ -7,6 +6,7 @@ bégaiement). Elle cherche désormais aussi les ANOMALIES de forme.
 """
 import re
 import sys
+from collections import Counter
 from pathlib import Path
 
 # Chemin RELATIF au fichier lui-meme : rejouable en CI et sur tout poste
@@ -46,14 +46,14 @@ verifie("l'architecte n'a livré aucun code", arch.count("```") == 0)
 
 # --- anomalies de FORME (ce que la version précédente ne voyait pas) ---------
 for nom, txt in DOCS.items():
-    titres = [re.sub(r"^#+\s*", "", l).strip().lower()
-              for l in txt.splitlines() if re.match(r"^#{1,3} ", l)]
+    titres = [re.sub(r"^#+\s*", "", ligne).strip().lower()
+              for ligne in txt.splitlines() if re.match(r"^#{1,3} ", ligne)]
     dupes = {t for t in titres if titres.count(t) > 1}
     verifie(f"{nom} : aucun titre dupliqué", not dupes, str(dupes) if dupes else "")
 
-    brut = [l.strip() for l in txt.splitlines()
-            if re.match(r"^\d\.\s+\w", l) and not l.startswith("#")]
-    md = {re.sub(r"^#+\s*", "", l).strip() for l in txt.splitlines() if re.match(r"^#{1,3} \d\.", l)}
+    brut = [ligne.strip() for ligne in txt.splitlines()
+            if re.match(r"^\d\.\s+\w", ligne) and not ligne.startswith("#")]
+    md = {re.sub(r"^#+\s*", "", ligne).strip() for ligne in txt.splitlines() if re.match(r"^#{1,3} \d\.", ligne)}
     collision = [b for b in brut if b in md]
     verifie(f"{nom} : aucun en-tête en double forme (brut + markdown)", not collision, str(collision))
 
@@ -71,7 +71,6 @@ verifie("chaque critère listé commence sa propre ligne DANS §6",
 
 # Les ENSEMBLES dédupliquent : sans ce contrôle, un critère écrit deux fois
 # passerait inaperçu (objection de revue round 7, fondée).
-from collections import Counter
 # ANGLE MORT CORRIGE (objection round 8, fondee) : « ^CA-M2-NN : » ne voyait QUE
 # les definitions en debut de ligne. Une definition CONCATENEE en fin d'une autre
 # ligne restait invisible — et j'avais refute l'objection en utilisant ce meme

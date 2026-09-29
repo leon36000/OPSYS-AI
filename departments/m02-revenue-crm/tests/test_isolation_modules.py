@@ -1,21 +1,16 @@
 import ast
+import inspect
 import sys
 from pathlib import Path
-import inspect
+
 import pytest
+from m2_revenue_crm import encodage, fixtures_garde, horodatage, registre, verdicts
 
 # ---------------------------------------------------------------------------
-# Configuration du chemin d'import (identique au patron M2 existant)
+# Racine des sources du paquet (lue par les contrôles de structure ; l'import du paquet
+# passe par le `pythonpath` de pyproject.toml, aucun sys.path.insert n'est requis)
 # ---------------------------------------------------------------------------
 _SRC = Path(__file__).resolve().parent.parent / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from m2_revenue_crm import encodage  # noqa: E402
-from m2_revenue_crm import horodatage  # noqa: E402
-from m2_revenue_crm import verdicts  # noqa: E402
-from m2_revenue_crm import fixtures_garde  # noqa: E402
-from m2_revenue_crm import registre  # noqa: E402
 
 _NOM_PAQUET = "m2_revenue_crm"
 

@@ -19,8 +19,8 @@ from opsys import taxonomie
 from . import horodatage as _horodatage
 from .contrats import TYPES_TRAVAUX, VERSION_CONTRAT_V2
 from .encodage import encoder_canonique
-from .verdicts import construire_verdict
 from .statuts import statut_courant
+from .verdicts import construire_verdict
 
 # Types de travaux autorisés en v1 (énumération fermée) : UNE seule copie, celle de contrats.py.
 # En v2, le service est validé contre le profil d'entreprise de l'instance (opsys.taxonomie).
@@ -117,10 +117,9 @@ def _extraire_conditions(registre_cible, lead_id):
 
     # v2 : le service doit être déclaré par le profil d'entreprise AU MOMENT de la readiness
     # (fail-closed : un profil retiré ou cassé depuis l'ingestion rend le lead non prêt).
-    if est_v2:
-        travaux_valide = taxonomie.valider_service(travaux)[1] is None
-    else:
-        travaux_valide = travaux in TYPES_TRAVAUX
+    travaux_valide = (
+        taxonomie.valider_service(travaux)[1] is None if est_v2 else travaux in TYPES_TRAVAUX
+    )
 
     return {
         "owner": owner,

@@ -23,7 +23,7 @@ def charger_fixture(chemin):
     place : document non-dict, marqueur absent, ou valeur effective du
     marqueur telle qu'elle apparaît, avec son type.
     """
-    with open(chemin, "r", encoding="utf-8") as f:
+    with open(chemin, encoding="utf-8") as f:
         data = yaml.safe_load(f)
     if not isinstance(data, dict):
         raise FixtureNonFictive(

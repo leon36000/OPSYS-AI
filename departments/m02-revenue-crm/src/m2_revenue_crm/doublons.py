@@ -8,11 +8,10 @@ d'arbitrage existants sont ``en_attente`` et ``distincts_confirmes``.
 """
 
 import copy
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from . import encodage
+from . import encodage, verdicts
 from . import horodatage as _horodatage
-from . import verdicts
 
 CRITERES = ("contact_identique", "ville_et_travaux")
 ARBITRAGES = ("en_attente", "distincts_confirmes")
@@ -42,8 +41,8 @@ def _dans_fenetre(horodatage_a: str, horodatage_b: str) -> bool:
     dans deux fuseaux différents donne la même date calendaire, évitant un
     biais inter-fuseau dans le décompte des jours.
     """
-    date_a = datetime.fromisoformat(horodatage_a).astimezone(timezone.utc).date()
-    date_b = datetime.fromisoformat(horodatage_b).astimezone(timezone.utc).date()
+    date_a = datetime.fromisoformat(horodatage_a).astimezone(UTC).date()
+    date_b = datetime.fromisoformat(horodatage_b).astimezone(UTC).date()
     return abs((date_b - date_a).days) <= FENETRE_JOURS
 
 

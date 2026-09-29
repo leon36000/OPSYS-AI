@@ -1,24 +1,17 @@
-import sys
-import os
 import copy
-import inspect
+import os
 import subprocess
+import sys
 from pathlib import Path
+
 import pytest
+from m2_revenue_crm import contrats, doublons, encodage, frontieres, ingestion, registre, verdicts
+
 import opsys
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
 _PKG = _SRC / "m2_revenue_crm"  # répertoire du paquet, pour les scans de sources
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
 
-from m2_revenue_crm import encodage  # noqa: E402
-from m2_revenue_crm import verdicts  # noqa: E402
-from m2_revenue_crm import registre  # noqa: E402
-from m2_revenue_crm import contrats  # noqa: E402
-from m2_revenue_crm import frontieres  # noqa: E402
-from m2_revenue_crm import ingestion  # noqa: E402
-from m2_revenue_crm import doublons  # noqa: E402
 
 SUPPRIMER = object()
 
@@ -400,7 +393,10 @@ class TestFrontieresSurLesValeurs:
     def test_terme_execution_seul_ou_date_seule_sont_acceptes(self, texte):
         """Prouve que seul l’apparition conjointe d’un terme d’exécution et d’une date déclenche la détection."""
         est_saine, _ = frontieres.inspecter_valeur(texte)
-        assert est_saine, f"Le texte '{texte}' doit être accepté car un seul élément (terme seul ou date seule) ne constitue pas une co-occurrence interdite"
+        assert est_saine, (
+            f"Le texte '{texte}' doit être accepté car un seul élément (terme seul ou date seule) "
+            "ne constitue pas une co-occurrence interdite"
+        )
 
 
 class TestIngestionNominale:
@@ -470,7 +466,9 @@ class TestIngestionNominale:
         acc_a, _ = ingestion.ingerer(contrat_a, registre_neuf, "2026-06-15T10:00:00+02:00")
         acc_b, _ = ingestion.ingerer(contrat_b, registre_neuf, "2026-06-15T11:00:00+02:00")
         assert registre_neuf.taille() == 2
-        assert acc_a["ligne_id"] != acc_b["ligne_id"], "Deux ingestions distinctes doivent produire deux ligne_id différents"
+        assert acc_a["ligne_id"] != acc_b["ligne_id"], (
+            "Deux ingestions distinctes doivent produire deux ligne_id différents"
+        )
         assert registre_neuf.valider_chaine(), "La chaîne de 2 maillons doit rester valide"
 
 
@@ -591,7 +589,9 @@ class TestDoublonsDetectesAIngestion:
         contact = {"nom": "Marc Petit", "telephone": "0655554444", "courriel": "marc@example.test"}
         ingestion.ingerer(contrat_valide(lead_id="e1", contact=contact), reg, "2026-06-01T08:00:00+00:00")
         taille_avant = reg.taille()
-        acc, verdict = ingestion.ingerer(contrat_valide(lead_id="e2", contact=contact), reg, "2026-06-02T08:00:00+00:00")
+        acc, verdict = ingestion.ingerer(
+            contrat_valide(lead_id="e2", contact=contact), reg, "2026-06-02T08:00:00+00:00"
+        )
         assert verdict is None
         assert acc["doublons_detectes"] == ["e1"]
         assert reg.taille() == taille_avant + 1, (
@@ -608,15 +608,33 @@ class TestIngestionRejets:
 
     CAS_REJET = [
         pytest.param(
-            {"modif": {"lead_id": None}, "horodatage": _SENTINELLE_HRDT, "pre_ingere": False, "code": None, "description": "structure"},
+            {
+                "modif": {"lead_id": None},
+                "horodatage": _SENTINELLE_HRDT,
+                "pre_ingere": False,
+                "code": None,
+                "description": "structure",
+            },
             id="structure_fault"
         ),
         pytest.param(
-            {"modif": {"ville": "Lille, devis 4500 €"}, "horodatage": _SENTINELLE_HRDT, "pre_ingere": False, "code": "REJ-FRONTIERE-VIOLEE", "description": "frontiere"},
+            {
+                "modif": {"ville": "Lille, devis 4500 €"},
+                "horodatage": _SENTINELLE_HRDT,
+                "pre_ingere": False,
+                "code": "REJ-FRONTIERE-VIOLEE",
+                "description": "frontiere",
+            },
             id="frontiere_fault"
         ),
         pytest.param(
-            {"modif": {"lead_id": "unicite_dup"}, "horodatage": _SENTINELLE_HRDT, "pre_ingere": True, "code": "REJ-LEAD-DEJA-INGERE", "description": "unicite"},
+            {
+                "modif": {"lead_id": "unicite_dup"},
+                "horodatage": _SENTINELLE_HRDT,
+                "pre_ingere": True,
+                "code": "REJ-LEAD-DEJA-INGERE",
+                "description": "unicite",
+            },
             id="unicite_fault"
         ),
         pytest.param(
@@ -624,11 +642,23 @@ class TestIngestionRejets:
             id="horodatage_invalide_1"
         ),
         pytest.param(
-            {"modif": {}, "horodatage": "", "pre_ingere": False, "code": "REJ-HORODATAGE-INVALIDE", "description": "horodatage"},
+            {
+                "modif": {},
+                "horodatage": "",
+                "pre_ingere": False,
+                "code": "REJ-HORODATAGE-INVALIDE",
+                "description": "horodatage",
+            },
             id="horodatage_invalide_2"
         ),
         pytest.param(
-            {"modif": {}, "horodatage": None, "pre_ingere": False, "code": "REJ-HORODATAGE-INVALIDE", "description": "horodatage"},
+            {
+                "modif": {},
+                "horodatage": None,
+                "pre_ingere": False,
+                "code": "REJ-HORODATAGE-INVALIDE",
+                "description": "horodatage",
+            },
             id="horodatage_invalide_3"
         ),
         pytest.param(
@@ -636,11 +666,23 @@ class TestIngestionRejets:
             id="horodatage_invalide_4"
         ),
         pytest.param(
-            {"modif": {"lead_id": "", "ville": "Lille, devis 4500 €"}, "horodatage": _SENTINELLE_HRDT, "pre_ingere": False, "code": None, "description": "structure+frontiere"},
+            {
+                "modif": {"lead_id": "", "ville": "Lille, devis 4500 €"},
+                "horodatage": _SENTINELLE_HRDT,
+                "pre_ingere": False,
+                "code": None,
+                "description": "structure+frontiere",
+            },
             id="order_structure_frontiere"
         ),
         pytest.param(
-            {"modif": {"ville": "Lille, devis 4500 €", "lead_id": "front_dup"}, "horodatage": _SENTINELLE_HRDT, "pre_ingere": True, "code": "REJ-FRONTIERE-VIOLEE", "description": "frontiere+reingestion"},
+            {
+                "modif": {"ville": "Lille, devis 4500 €", "lead_id": "front_dup"},
+                "horodatage": _SENTINELLE_HRDT,
+                "pre_ingere": True,
+                "code": "REJ-FRONTIERE-VIOLEE",
+                "description": "frontiere+reingestion",
+            },
             id="order_frontiere_reingestion"
         ),
     ]
@@ -668,10 +710,9 @@ class TestIngestionRejets:
         taille_avant = registre_neuf.taille()
 
         contrat_test = contrat_valide(**modif)
-        if horodatage_test is not _SENTINELLE_HRDT:
-            arg_horodatage = horodatage_test
-        else:
-            arg_horodatage = "2026-06-15T14:30:00+02:00"
+        arg_horodatage = (
+            horodatage_test if horodatage_test is not _SENTINELLE_HRDT else "2026-06-15T14:30:00+02:00"
+        )
 
         accuse, verdict = ingestion.ingerer(contrat_test, registre_neuf, arg_horodatage)
 

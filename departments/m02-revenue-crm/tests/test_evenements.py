@@ -29,9 +29,9 @@ from m2_revenue_crm import clients, ingestion, outils, statuts
 # Cross-département (TestDevisSansReponseBoutEnBout seulement) : PYTHONPATH inclut déjà
 # departments/*/src (AGENTS.md), même mécanisme que opsys.departements.charger_departements()
 # pour charger le module outils d'un département depuis son department.yaml.
-from m3_estimation import devis_durable  # noqa: E402
-from m3_estimation.outils import outils as _outils_m3  # noqa: E402
-from m3_estimation.outils import registre_devis_production as _registre_devis_m3  # noqa: E402
+from m3_estimation import devis_durable
+from m3_estimation.outils import outils as _outils_m3
+from m3_estimation.outils import registre_devis_production as _registre_devis_m3
 from sqlalchemy import select
 
 from opsys import evenements, stockage

@@ -3,12 +3,8 @@
 #   horodatage → structure → frontières → unicité → écriture → dédoublonnage → accusé.
 import copy
 
-from . import encodage
+from . import contrats, doublons, encodage, frontieres, verdicts
 from . import horodatage as _horodatage
-from . import verdicts
-from . import contrats
-from . import doublons
-from . import frontieres
 
 STATUT_INITIAL = "nouveau"
 TYPE_ENTREE = "lead_ingere"
