@@ -66,6 +66,17 @@ identifiants du propriétaire, repli livré en attendant.
       du fork (`openclaw/plugin-sdk/*`, `@openclaw/*`, `OPENCLAW_*`) reste telle quelle (R14, décision 2).
   - [ ] Lot 1 : marque visible (interface, locales `fr-CA` par défaut et glossaires, invites système,
         bannière, notifications) et les 539 assertions qui la figent.
+        Livré, à cocher sur la CI du core (`tests`, `tests-opsys`, `construction`) : 38a3463, efdd019, 2bbbcff
+        (276 fichiers sous `core/`).
+        - Interface : titre, manifeste PWA, 114 valeurs `en*.ts` ; `fr-CA` créée depuis `fr` et
+          langue par défaut, chargée à la demande (aucun octet de plus au démarrage).
+        - Invites système, voix, bannière et `--version` (`OPSYS <version> (<commit>)`),
+          notifications, pages de partage, nom Bonjour ; les lecteurs de la bannière acceptent
+          `OpenClaw` et `OPSYS`.
+        - Gardés exprès (PROVENANCE.md) : marqueurs de protocole, textes d'aide figés par
+          `config-baseline.sha256`, ligne de licence, identifiants internes.
+        - À faire relire : les textes fr-CA par un locuteur québécois ; `pnpm ui:i18n:sync --write`
+          ne doit changer que `generatedAt`.
   - [ ] Lot 2 : une seule commande `opsys` (le core, alias `openclaw`), `opsys metier` pour le moteur
         Python (renommé `opsys-metier`) ; AGENTS.md et CI mis à jour.
   - [ ] Lot 3 : dossier d'instance `~/.opsys` (état du core dans `core/`), `opsys.json`, anciens noms
