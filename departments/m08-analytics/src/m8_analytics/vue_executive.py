@@ -131,7 +131,7 @@ def _raison_marge_absente(rentabilite: dict[str, Any] | None) -> str:
     return f"M5 n'a pas chiffré la marge réelle (verdict {rentabilite.get('verdict')})"
 
 
-def _rang_recent(ligne: dict[str, Any]) -> tuple[int, float, str]:
+def _rang_recent(ligne: dict[str, Any]) -> tuple[Any, ...]:
     """Le plus récent d'abord ; un instant illisible passe en dernier, l'identifiant départage : jamais l'ordre de
     réception."""
     instant = entonnoir.instant_lu(ligne["horodatage_completion"])
@@ -161,7 +161,7 @@ def section_marge_reelle(faits_chantier: list[dict[str, Any]], limite: int = _LI
             ligne["raison"] = _raison_marge_absente(rentabilite)
         lignes.append(ligne)
     lignes.sort(key=_rang_recent)
-    connues = sum(1 for ligne in lignes if ligne["marge_reelle_cad"] is not None)
+    connues = len([ligne for ligne in lignes if ligne["marge_reelle_cad"] is not None])
     return {
         "source": "M5 (m5.rentabilite_chantier), reprise sans aucun calcul",
         "n_chantiers": len(lignes), "n_marge_connue": connues, "n_non_calculable": len(lignes) - connues,
