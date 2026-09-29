@@ -339,8 +339,18 @@ def _enregistrer_la_journee(moteur: Moteur, equipe: dict[str, Any], tmp_path: Pa
     enr.lire("tresorerie_sans_paies", "m5_etat_tresorerie")
     enr.lire("prevision_sans_paies", "m5_prevoir_tresorerie", arguments_m5)
 
-    _declarer_m5(tmp_path, monkeypatch, {**CONFIGURATION_M5, "prevision": {**CONFIGURATION_M5["prevision"],
-                                                                            "horizon_semaines": 26}})
+    prevision = CONFIGURATION_M5["prevision"]
+    sans_seuil = {**CONFIGURATION_M5, "prevision": {cle: v for cle, v in prevision.items() if cle != "seuil_alerte"}}
+    _declarer_m5(tmp_path, monkeypatch, sans_seuil)
+    enr.lire("prevision_sans_seuil", "m5_prevoir_tresorerie", arguments_m5)
+    seuil_bas = {"montant": "1000.00", "source": "décision de Nathan (fictive)", "au": "2026-09-25"}
+    _declarer_m5(tmp_path, monkeypatch, {**CONFIGURATION_M5, "prevision": {**prevision, "seuil_alerte": seuil_bas}})
+    enr.lire("prevision_sans_alerte", "m5_prevoir_tresorerie", arguments_m5)
+    remises_anciennes = {**CONFIGURATION_M5["fiscal"], "taxes_remises_jusqu_au": "2026-03-31"}
+    _declarer_m5(tmp_path, monkeypatch, {**CONFIGURATION_M5, "fiscal": remises_anciennes})
+    enr.lire("echeances_en_retard", "m5_lire_echeances_fiscales", arguments_m5)
+
+    _declarer_m5(tmp_path, monkeypatch, {**CONFIGURATION_M5, "prevision": {**prevision, "horizon_semaines": 26}})
     enr.lire("prevision_longue_page_1", "m5_prevoir_tresorerie", arguments_m5)
     depart = enr.reponses["prevision_longue_page_1"]["resultat"]["resultat"]["prochain_depart"]
     if depart is not None:

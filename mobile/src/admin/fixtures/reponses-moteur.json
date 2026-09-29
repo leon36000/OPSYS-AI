@@ -70,6 +70,24 @@
     "aujourd_hui": "2026-09-29"
    }
   },
+  "prevision_sans_seuil": {
+   "outil": "m5_prevoir_tresorerie",
+   "args": {
+    "aujourd_hui": "2026-09-29"
+   }
+  },
+  "prevision_sans_alerte": {
+   "outil": "m5_prevoir_tresorerie",
+   "args": {
+    "aujourd_hui": "2026-09-29"
+   }
+  },
+  "echeances_en_retard": {
+   "outil": "m5_lire_echeances_fiscales",
+   "args": {
+    "aujourd_hui": "2026-09-29"
+   }
+  },
   "prevision_longue_page_1": {
    "outil": "m5_prevoir_tresorerie",
    "args": {
@@ -1429,6 +1447,435 @@
     }
    }
   },
+  "prevision_sans_seuil": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "role": "admin",
+     "type": "PREVISION_TRESORERIE",
+     "lecture": "Solde prévu : 20000.00 $ aujourd'hui, 20355.07 $ à la fin de la semaine 6 ; le plus bas : 17000.00 $ (semaine 2). Seuil à configurer : aucune alerte n'est évaluée.",
+     "aujourd_hui": "2026-09-29",
+     "horizon_semaines": 6,
+     "fin_horizon": "2026-11-09",
+     "calculable": true,
+     "non_calculable_a_partir_de": null,
+     "manque": [],
+     "alerte": {
+      "statut": "SEUIL_A_CONFIGURER",
+      "seuil": null,
+      "manque": {
+       "code": "REJ-PREVISION-SEUIL-A-CONFIGURER",
+       "detail": "seuil à configurer : le seuil d'alerte est une décision du propriétaire (GATE NATHAN), à déclarer dans configuration.prevision.seuil_alerte (montant, source, a…"
+      }
+     },
+     "plus_bas": {
+      "semaine": 2,
+      "solde": "17000.00"
+     },
+     "premiere_semaine_en_deficit": null,
+     "solde_initial": {
+      "montant": "20000.00",
+      "source": "registre des mouvements de M5 (somme signée, hors réserves)",
+      "registres": [
+       {
+        "registre": "mouvements",
+        "taille": 2,
+        "tete": "cad4e1ad78b60f60"
+       }
+      ],
+      "fraicheur": {
+       "derniere_piece": "2026-09-10T12:00:00-04:00",
+       "pieces": 2
+      }
+     },
+     "cash_libre_aujourd_hui": {
+      "montant": "14106.32",
+      "manque": []
+     },
+     "au_dela_de_l_horizon": {
+      "entrees": {
+       "nombre": 0,
+       "total": "0.00"
+      },
+      "sorties": {
+       "nombre": 0,
+       "total": "0.00"
+      }
+     },
+     "encaissements_non_comptes": [],
+     "reserves": [
+      "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
+     ],
+     "prevision_id": "c1bea1686a2341696910e1b5677362817e7fadbff95c2c811b0f84760be0933b",
+     "limites": [
+      "seuls les flux connus et datés sont placés : aucune vente, dépense, paie ni taxe future n'est prévue, et aucune projection statistique n'est faite",
+      "le solde de départ est celui du registre des mouvements (T4.16) : un paiement ou un encaissement que le registre ignore n'y est pas",
+      "un encaissement est placé à son échéance, sans retard de paiement du client ; un encaissement échu ou sans date n'est pas compté (prudent)",
+      "un décaissement échu est placé en semaine 1 : le registre ne constate aucun paiement (prudent)",
+      "aucune échéance n'est enregistrée sur les factures : leur date vient d'un délai déclaré par le propriétaire",
+      "la taxe d'une période non terminée est celle des factures déjà émises ; un remboursement de taxes n'est jamais compté ; les dates du calendrier fiscal sont à valider par le CPA ; acomptes provisionnels et CNESST hors calendrier",
+      "le solde d'une semaine est celui de sa fin : un creux au milieu d'une semaine n'est pas vu"
+     ],
+     "total": 6,
+     "depart": 0,
+     "affichees": 6,
+     "reste": 0,
+     "prochain_depart": null,
+     "message": null,
+     "semaines": [
+      {
+       "semaine": 1,
+       "du": "2026-09-29",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20000.00",
+       "cash_libre_prevu": "14106.32",
+       "lignes": 0
+      },
+      {
+       "semaine": 2,
+       "du": "2026-10-06",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "3000.00",
+       "solde_fin": "17000.00",
+       "cash_libre_prevu": "14106.32",
+       "lignes": 1
+      },
+      {
+       "semaine": 3,
+       "du": "2026-10-13",
+       "statut": "CALCULE",
+       "entrees": "5748.75",
+       "sorties": "1244.93",
+       "solde_fin": "21503.82",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 3
+      },
+      {
+       "semaine": 4,
+       "du": "2026-10-20",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "21503.82",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      },
+      {
+       "semaine": 5,
+       "du": "2026-10-27",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "1148.75",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 2
+      },
+      {
+       "semaine": 6,
+       "du": "2026-11-03",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      }
+     ],
+     "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+    }
+   }
+  },
+  "prevision_sans_alerte": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "role": "admin",
+     "type": "PREVISION_TRESORERIE",
+     "lecture": "Solde prévu : 20000.00 $ aujourd'hui, 20355.07 $ à la fin de la semaine 6 ; le plus bas : 17000.00 $ (semaine 2).",
+     "aujourd_hui": "2026-09-29",
+     "horizon_semaines": 6,
+     "fin_horizon": "2026-11-09",
+     "calculable": true,
+     "non_calculable_a_partir_de": null,
+     "manque": [],
+     "alerte": {
+      "statut": "AUCUNE",
+      "seuil": "1000.00",
+      "source_du_seuil": {
+       "source": "décision de Nathan (fictive)",
+       "au": "2026-09-25"
+      }
+     },
+     "plus_bas": {
+      "semaine": 2,
+      "solde": "17000.00"
+     },
+     "premiere_semaine_en_deficit": null,
+     "solde_initial": {
+      "montant": "20000.00",
+      "source": "registre des mouvements de M5 (somme signée, hors réserves)",
+      "registres": [
+       {
+        "registre": "mouvements",
+        "taille": 2,
+        "tete": "cad4e1ad78b60f60"
+       }
+      ],
+      "fraicheur": {
+       "derniere_piece": "2026-09-10T12:00:00-04:00",
+       "pieces": 2
+      }
+     },
+     "cash_libre_aujourd_hui": {
+      "montant": "14106.32",
+      "manque": []
+     },
+     "au_dela_de_l_horizon": {
+      "entrees": {
+       "nombre": 0,
+       "total": "0.00"
+      },
+      "sorties": {
+       "nombre": 0,
+       "total": "0.00"
+      }
+     },
+     "encaissements_non_comptes": [],
+     "reserves": [
+      "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
+     ],
+     "prevision_id": "fdffdaa9e7c79f28ede98dbc57a29028303aa57bccae95e4276dcede114707a6",
+     "limites": [
+      "seuls les flux connus et datés sont placés : aucune vente, dépense, paie ni taxe future n'est prévue, et aucune projection statistique n'est faite",
+      "le solde de départ est celui du registre des mouvements (T4.16) : un paiement ou un encaissement que le registre ignore n'y est pas",
+      "un encaissement est placé à son échéance, sans retard de paiement du client ; un encaissement échu ou sans date n'est pas compté (prudent)",
+      "un décaissement échu est placé en semaine 1 : le registre ne constate aucun paiement (prudent)",
+      "aucune échéance n'est enregistrée sur les factures : leur date vient d'un délai déclaré par le propriétaire",
+      "la taxe d'une période non terminée est celle des factures déjà émises ; un remboursement de taxes n'est jamais compté ; les dates du calendrier fiscal sont à valider par le CPA ; acomptes provisionnels et CNESST hors calendrier",
+      "le solde d'une semaine est celui de sa fin : un creux au milieu d'une semaine n'est pas vu"
+     ],
+     "total": 6,
+     "depart": 0,
+     "affichees": 6,
+     "reste": 0,
+     "prochain_depart": null,
+     "message": null,
+     "semaines": [
+      {
+       "semaine": 1,
+       "du": "2026-09-29",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20000.00",
+       "cash_libre_prevu": "14106.32",
+       "lignes": 0
+      },
+      {
+       "semaine": 2,
+       "du": "2026-10-06",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "3000.00",
+       "solde_fin": "17000.00",
+       "cash_libre_prevu": "14106.32",
+       "lignes": 1
+      },
+      {
+       "semaine": 3,
+       "du": "2026-10-13",
+       "statut": "CALCULE",
+       "entrees": "5748.75",
+       "sorties": "1244.93",
+       "solde_fin": "21503.82",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 3
+      },
+      {
+       "semaine": 4,
+       "du": "2026-10-20",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "21503.82",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      },
+      {
+       "semaine": 5,
+       "du": "2026-10-27",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "1148.75",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 2
+      },
+      {
+       "semaine": 6,
+       "du": "2026-11-03",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      }
+     ],
+     "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+    }
+   }
+  },
+  "echeances_en_retard": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "role": "admin",
+     "type": "ECHEANCES_FISCALES",
+     "aujourd_hui": "2026-09-29",
+     "frequence": "trimestrielle",
+     "mois_fin_exercice": 12,
+     "particulier_en_affaires": null,
+     "taxes_remises_jusqu_au": "2026-03-31",
+     "echeances": [
+      {
+       "periode_debut": "2026-04-01",
+       "periode_fin": "2026-06-30",
+       "periode_terminee": true,
+       "limite_paiement": "2026-07-31",
+       "limite_production": "2026-07-31",
+       "jours_avant_paiement": -60,
+       "jours_avant_production": -60,
+       "statut": "EN_RETARD",
+       "taxes_nettes": {
+        "a_remettre": "0.00",
+        "tps": {
+         "collectee": "0.00",
+         "credits_intrants": "0.00",
+         "nette": "0.00",
+         "a_remettre": "0.00"
+        },
+        "tvq": {
+         "collectee": "0.00",
+         "credits_intrants": "0.00",
+         "nette": "0.00",
+         "a_remettre": "0.00"
+        },
+        "factures_clients": 0,
+        "factures_fournisseurs": 0
+       }
+      },
+      {
+       "periode_debut": "2026-07-01",
+       "periode_fin": "2026-09-30",
+       "periode_terminee": false,
+       "limite_paiement": "2026-11-02",
+       "limite_production": "2026-11-02",
+       "jours_avant_paiement": 34,
+       "jours_avant_production": 34,
+       "statut": "A_VENIR",
+       "taxes_nettes": {
+        "a_remettre": "748.75",
+        "tps": {
+         "collectee": "250.00",
+         "credits_intrants": "0.00",
+         "nette": "250.00",
+         "a_remettre": "250.00"
+        },
+        "tvq": {
+         "collectee": "498.75",
+         "credits_intrants": "0.00",
+         "nette": "498.75",
+         "a_remettre": "498.75"
+        },
+        "factures_clients": 1,
+        "factures_fournisseurs": 0
+       }
+      },
+      {
+       "periode_debut": "2026-10-01",
+       "periode_fin": "2026-12-31",
+       "periode_terminee": false,
+       "limite_paiement": "2027-02-01",
+       "limite_production": "2027-02-01",
+       "jours_avant_paiement": 125,
+       "jours_avant_production": 125,
+       "statut": "A_VENIR",
+       "taxes_nettes": {
+        "a_remettre": "0.00",
+        "tps": {
+         "collectee": "0.00",
+         "credits_intrants": "0.00",
+         "nette": "0.00",
+         "a_remettre": "0.00"
+        },
+        "tvq": {
+         "collectee": "0.00",
+         "credits_intrants": "0.00",
+         "nette": "0.00",
+         "a_remettre": "0.00"
+        },
+        "factures_clients": 0,
+        "factures_fournisseurs": 0
+       }
+      }
+     ],
+     "non_affichees": 0,
+     "manque": [],
+     "annees_declarees": [
+      2025,
+      2026
+     ],
+     "connu_jusqu_au": "2027-02-01",
+     "avertissement_couverture": "aucune échéance n'est connue après le 2027-02-01 : l'année 2027 n'est pas déclarée dans le calendrier",
+     "versions": {
+      "2025": "2025-v1",
+      "2026": "2026-v1"
+     },
+     "validation_cpa": {
+      "2025": "A_VALIDER",
+      "2026": "A_VALIDER"
+     },
+     "sources": [
+      {
+       "organisme": "Revenu Québec",
+       "titre": "Calendriers TVQ et TPS/TVH (dates limites de paiement, périodes mensuelles, trimestrielles et annuelles)",
+       "url": "https://www.revenuquebec.ca/fr/calendriers-tvq-et-tpstvh-taxe-sur-les-primes-dassurance-taxe-sur-les-boissons-alcooliques-et-pneus-neufs/",
+       "consulte_le": "2026-09-29"
+      },
+      {
+       "organisme": "Revenu Québec",
+       "titre": "Périodes de déclaration (TPS/TVH et TVQ) : un mois après la période pour la fréquence mensuelle ou trimestrielle, trois mois pour l'annuelle, 30 avril et 15 juin pour un particulier en affaires",
+       "url": "https://www.revenuquebec.ca/fr/entreprises/taxes/tpstvh-et-tvq/declaration-de-la-tps-et-de-la-tvq/periodes-de-declaration/",
+       "consulte_le": "2026-09-29"
+      },
+      {
+       "organisme": "Agence du revenu du Canada",
+       "titre": "Reporting requirements and deadlines, File your GST/HST return (échéance reportée au jour ouvrable suivant un samedi, un dimanche ou un jour férié)",
+       "url": "https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/gst-hst-businesses/file-gst-hst-return/reporting-requirements-deadlines.html",
+       "consulte_le": "2026-09-29"
+      },
+      {
+       "organisme": "Agence du revenu du Canada",
+       "titre": "Remit (pay) the GST/HST you collected (la taxe d'une facture incluse dans la déclaration se remet même si elle n'est pas encore payée)",
+       "url": "https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/gst-hst-businesses/remit-pay-gst-hst-collected.html",
+       "consulte_le": "2026-09-29"
+      }
+     ],
+     "hors_perimetre": [
+      "acomptes provisionnels de TPS/TVQ d'un inscrit à période annuelle (quatre versements) : dates et montants à confirmer par le CPA",
+      "acomptes provisionnels d'impôt, DAS, T4, RL-1 et CNESST : aucune date n'est déclarée ici"
+     ],
+     "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+    }
+   }
+  },
   "prevision_longue_page_1": {
    "ok": true,
    "resultat": {
@@ -1934,7 +2381,7 @@
     "resultat": {
      "date_cible": "2026-09-21",
      "horodatage_reference": "2026-09-21T18:00:00-04:00",
-     "ancre_registre": "69e9818f58732566b778d0a758f16a1deae058e74ba5d64487ae6aebbde6a276",
+     "ancre_registre": "fb032ad013302ca80aa583a371e7c1c27774015b51b973b852a2503585c3bf36",
      "interventions_terminees": [
       {
        "intervention_id": "b1903e5166860713cd4116bf5905c4520e9bb99f17274c8f0026ff6b4e6330f7",
@@ -1950,7 +2397,7 @@
       "anomalie_pointage": 0
      },
      "interventions_bloquees_en_revue": [],
-     "empreinte": "5542e4846454a868f7321590b33292526d2edff81eddeed04d99d58218416c47"
+     "empreinte": "457f5c91831e6d5b0b33ac9a1d90ca09dbd5c48aec598e9dc99ce4f1d947187b"
     }
    }
   },
@@ -2007,7 +2454,7 @@
        "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)"
       }
      ],
-     "empreinte": "2a4a6ae349a073acce84f6160dae8a4e4e5b13ce9825f7db441a961ed81ae71b"
+     "empreinte": "2b131a0242ccfb26407a82eaa953dbbb074e8aa98c9b256b2b6f1cc1b64e7dd5"
     }
    }
   },
@@ -2064,7 +2511,7 @@
        "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)"
       }
      ],
-     "empreinte": "6d0c4350943f2ebf28e17965b60fcc34ab59ebf23b8daf6e0d3b3b1a2698534c"
+     "empreinte": "0c215bca2e5c97f70845d5bcc22574ef9e0966763659d1f34958b8c98493b2a1"
     }
    }
   },
@@ -2121,7 +2568,7 @@
        "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)"
       }
      ],
-     "empreinte": "e38597727e36b21f70bb1552a74cafc1e335031736dcec5a3157024f38c75571"
+     "empreinte": "1189b475824fa1255e391c7a1c2a6db4a1ec87f2f7e2b71f091291b584aee72b"
     }
    }
   },
@@ -2194,13 +2641,13 @@
     "resultat": {
      "demandes": [
       {
-       "id": "2c7ef7d0cffe",
+       "id": "0d2570487ea4",
        "departement": "m04-field-ops",
        "departement_nom": "Field Ops",
        "outil": "m4_resoudre_revue_completion",
        "description_outil": "Revue HUMAINE d'une complétion completed_pending_review (PLAN T1.3-b), jamais un agent seul : decision=verifiee confirme (-> completed_verified, comme le ferait un signal M6 sans dépassement, mais dé…",
        "niveau": "N4",
-       "depuis": "2026-09-29T13:30:11+00:00",
+       "depuis": "2026-09-29T13:42:46+00:00",
        "motif_demande": null,
        "arguments": {
         "intervention_id": "b1903e5166860713cd4116bf5905c4520e9bb99f17274c8f0026ff6b4e6330f7",
