@@ -82,6 +82,7 @@
 | **SQLAlchemy 2.1** (Core) + **Alembic 1.20** | MIT (les deux, fichiers LICENSE vérifiés le 2026-09-28) | Base de l'instance : même code pour SQLite (défaut) et PostgreSQL (option), migrations versionnées | Dépendances directes (`pyproject.toml`), paquet `opsys.stockage` | Adopté (ADR-0009) | R13 |
 | **PostgreSQL 17** + **pgvector** | PostgreSQL License (les deux) | Base relationnelle métier + RAG, déjà la stack visée (psycopg) | Image officielle `pgvector/pgvector:pg17` | Phase 2 (dépendance `psycopg` déclarée en optionnelle dans `pyproject.toml`, mais aucun service déployé) | R5 |
 | **uv** (Astral) | MIT ou Apache-2.0 (fichiers `LICENSE-MIT` et `LICENSE-APACHE` de la roue 0.8.17, vérifiés le 2026-09-29) | Installe le moteur Python 3.11+ dans un environnement dédié (Python géré au besoin) pour l'installateur une commande | Prérequis externe de `install/install.sh` et `install.ps1` : vérifié, jamais vendorisé, aucune dépendance Python ; installé par `pip` dans le job `installateur` | Intégré | PLAN T0.11 |
+| **actionlint** (rhysd) | MIT (`LICENSE.txt` de l'archive 1.7.7, « the MIT License », vérifié le 2026-09-29) | Contrôle le workflow `installateur.yml` avant tout lancement : contextes disponibles par niveau (`runner` n'existe pas dans le `env` d'un job), expressions, noms d'entrées ; relit les `run` par shellcheck | Binaire téléchargé par le job `analyse` à version et empreinte SHA-256 épinglées, jamais vendorisé | Intégré | PLAN T0.11-d |
 | **Valkey** (jamais Redis) | BSD-3-Clause | Cache + files + pub/sub, protocole compatible Redis | Image officielle sidecar | Phase 2 | R5 |
 | **pgBackRest** | MIT | Sauvegarde Postgres parallèle/incrémentale par bloc, multi-repo S3 | Sidecar/cron docker + repo S3 canadien | Phase 2 | R5 |
 | **restic** | BSD-2-Clause | Sauvegarde chiffrée des volumes non-SQL (ClickHouse Langfuse, Uptime Kuma, secrets) | Sidecar/cron docker | Phase 2 | R5 |
@@ -324,7 +325,7 @@ hors périmètre strict de R10 ») et documente en plus, pour M10 spécifiquemen
 - **Core** : 2 retenues (2 intégrées — OpenClaw comme core par défaut, Hermes Agent comme adaptateur optionnel, ADR-0007) + 1 refusée.
 - **Modèles/tokens** : 9 retenues (2 intégrées, 6 phase 2, 1 référence) + 6 refusées.
 - **Mémoire/RAG** : 16 retenues (14 phase 2/optionnelles, 2 référence) + 6 refusées.
-- **Déploiement/observabilité** : 19 retenues (1 intégrée — uv, installateur de PLAN T0.11 —, 16 phase 2, 2 référence — WAL-G, et le trio Coolify/Dokploy/Supabase en une seule ligne) + 2 refusées.
+- **Déploiement/observabilité** : 20 retenues (2 intégrées — uv, installateur de PLAN T0.11, et actionlint, contrôle du workflow de PLAN T0.11-d —, 16 phase 2, 2 référence — WAL-G, et le trio Coolify/Dokploy/Supabase en une seule ligne) + 2 refusées.
 - **Mobile** : 23 retenues (23 intégrées — squelette Expo Router de PLAN T1.4-a, +4 pour le
   client d'appairage de PLAN T1.4-c3 : `expo-secure-store`, `@noble/curves`, `@noble/hashes`,
   `@types/node`, +4 pour le chantier du jour/checklist/photos/signature de PLAN T1.4-e :
@@ -341,7 +342,7 @@ hors périmètre strict de R10 ») et documente en plus, pour M10 spécifiquemen
 - **M9** : 13 retenues (2 intégrées — format Agent Skills et patron `civ_review.py` —, 11 phase 2) + 4 refusées.
 - **M10** : renvoie au domaine Mémoire/RAG + 2 éléments propres (1 intégrée — modèle Département —, 1 phase 2).
 
-**Total : 142 briques/patrons retenus** (dont 34 déjà intégrés au code ou à la méthode : **OpenClaw**
+**Total : 143 briques/patrons retenus** (dont 35 déjà intégrés au code ou à la méthode : **OpenClaw**
 comme core par défaut, **Hermes Agent** comme adaptateur/runtime optionnel, **LiteLLM** comme
 passerelle de modèles par défaut, la discipline de cache-boundary (désormais native au runtime
 OpenClaw), `garde_fou.py` M1 conservé, le format Agent Skills, le patron
@@ -353,7 +354,7 @@ TypeScript — et les 4 briques du client d'appairage mobile — PLAN T1.4-c3 :
 `expo-secure-store`, `@noble/curves`, `@noble/hashes`, `@types/node` — et les 4 briques du
 chantier du jour/checklist/photos/signature — PLAN T1.4-e : `expo-camera`, `expo-file-system`,
 `react-native-signature-canvas`, `react-native-webview` — et PyVRP, le solveur de tournées de M4 —
-PLAN T4.1-c — et ReportLab, le rendu PDF de la soumission de M3, avec pypdf qui le relit dans les tests — PLAN T2.3-f) **et 41 refusées
+PLAN T4.1-c — et ReportLab, le rendu PDF de la soumission de M3, avec pypdf qui le relit dans les tests — PLAN T2.3-f — et actionlint, qui contrôle le workflow de l'installateur — PLAN T0.11-d) **et 41 refusées
 explicitement**, sur les 10 rapports `docs/research/R1`–`R10` et
 R12 ; mise à jour du choix de core par
 [ADR-0007](../decisions/ADR-0007-core-openclaw.md), vérifiée directement dans le code, les tests et le

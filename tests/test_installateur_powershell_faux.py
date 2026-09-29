@@ -1,0 +1,471 @@
+"""`install.ps1` et `uninstall.ps1` EXÉCUTÉS (PowerShell 7 sous Linux) contre de fausses commandes et un faux core.
+
+`test_installateur_powershell.py` ne lit que le texte des scripts ; `test_installateur_windows.py` en exécute les
+fonctions. Ici, les DEUX scripts tournent en entier, comme `test_installateur_scripts.py` le fait pour `install.sh` :
+Node,
+pnpm, uv et curl sont de faux programmes (le moteur Python est le vrai), le core est `tests/installateur/faux_core.py`,
+qui émule la tâche planifiée (`FAUX_PLATEFORME=windows`). PowerShell sous Linux convertit les `\\` des chemins de
+`Join-Path` : `Scripts\\python.exe` devient `Scripts/python.exe`, ce qui permet de jouer le script sans Windows.
+
+Ce que ces tests prouvent : l'enchaînement des étapes de `install.ps1` et de `uninstall.ps1` sous un vrai PowerShell
+(paramètres, `Invoke-Capture`, masque des secrets, codes de sortie 0, 1 et 3, journal, enveloppes `.cmd`,
+enregistrement de l'installation), l'environnement de l'appelant rendu intact, l'idempotence, et que la désinstallation
+ne touche à aucune donnée.
+
+Ce qu'ils ne prouvent PAS, et que seul le job `installation-windows` de la CI prouve : tout ce qui est propre à Windows
+(chemins avec lettre de lecteur, `.cmd`, `curl.exe`, `icacls`, tâche planifiée réelle, Windows PowerShell 5.1) et le
+vrai core.
+"""
+
+from __future__ import annotations
+
+import contextlib
+import hashlib
+import json
+import os
+import re
+import shutil
+import socket
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+FICTIF = True  # aucune valeur ci-dessous n'est réelle (AGENTS.md)
+
+RACINE = Path(__file__).resolve().parents[1]
+INSTALL_PS1 = RACINE / "install" / "install.ps1"
+UNINSTALL_PS1 = RACINE / "install" / "uninstall.ps1"
+FAUX_CORE = RACINE / "tests" / "installateur" / "faux_core.py"
+PWSH = shutil.which("pwsh")
+PNPM = "12.4.0"
+EMBEDDINGS = {"OPSYS_EMBEDDINGS_URL": "http://127.0.0.1:11434/v1", "OPSYS_EMBEDDINGS_MODELE": "bge-m3"}
+
+pytestmark = pytest.mark.skipif(
+    PWSH is None or os.name == "nt" or shutil.which("curl") is None or shutil.which("git") is None,
+    reason="pwsh, curl et git sous Linux ou macOS : les scripts s'exécutent sous Windows en CI")
+
+FAUX_NODE = '#!/usr/bin/env bash\nexec "$FAUX_PYTHON" "$FAUX_CORE" "$@"\n'
+FAUX_PNPM = '''#!/usr/bin/env bash
+if [ "${1:-}" = "--version" ]; then echo "$FAUX_PNPM_VERSION"; exit 0; fi
+echo "pnpm $*" >>"$FAUX_JOURNAL"
+if [ "${FAUX_ECHEC:-}" = "pnpm $*" ]; then
+    echo "echec simule de : pnpm $* jeton=$(sed -n 's/^OPSYS_MCP_JETON=//p' "$FAUX_ETAT/.env" 2>/dev/null)" >&2
+    exit 1
+fi
+exit 0
+'''
+FAUX_UV = '''#!/usr/bin/env bash
+echo "uv $*" >>"$FAUX_JOURNAL"
+if [ "$1 ${2:-}" = "venv --clear" ]; then
+    for dossier; do :; done  # le dernier argument (portable : bash 3.2 de macOS compris)
+    mkdir -p "$dossier/Scripts"
+    printf '#!/bin/sh\\nexec %s "$@"\\n' "$FAUX_PYTHON" >"$dossier/Scripts/python.exe"
+    chmod +x "$dossier/Scripts/python.exe"
+fi
+exit 0
+'''
+# `-o NUL` (Windows) devient `-o /dev/null` : le reste est le vrai curl
+FAUX_CURL_EXE = '''#!/usr/bin/env bash
+args=()
+while [ $# -gt 0 ]; do
+    if [ "$1" = "-o" ] && [ "${2:-}" = "NUL" ]; then args+=(-o /dev/null); shift 2; else args+=("$1"); shift; fi
+done
+exec curl "${args[@]}"
+'''
+
+
+def _port_libre() -> int:
+    with socket.socket() as prise:
+        prise.bind(("127.0.0.1", 0))
+        return prise.getsockname()[1]
+
+
+class Poste:
+    """Un poste Windows fictif, joué par PowerShell sous Linux."""
+
+    def __init__(self, tmp_path: Path) -> None:
+        self.racine = tmp_path
+        self.hote = tmp_path / "hote"
+        self.home = tmp_path / "instance"
+        self.logiciel = tmp_path / "logiciel"
+        self.bin = tmp_path / "commandes"
+        self.faux = tmp_path / "faux"
+        self.depot = tmp_path / "depot"
+        self.journal = tmp_path / "appels.log"
+        self.export = tmp_path / "export"
+        self.port_gateway, self.port_moteur = _port_libre(), _port_libre()
+        for dossier in (self.hote, self.faux, self.export):
+            dossier.mkdir()
+        for nom, corps in (("node", FAUX_NODE), ("pnpm", FAUX_PNPM), ("uv", FAUX_UV), ("curl.exe", FAUX_CURL_EXE)):
+            chemin = self.faux / nom
+            chemin.write_text(corps, encoding="utf-8")
+            chemin.chmod(0o755)
+        self.journal.write_text("", encoding="utf-8")
+        self.env_supplementaire: dict[str, str] = {}
+        self._fabriquer_depot()
+
+    @property
+    def etat_core(self) -> Path:
+        return self.hote / ".openclaw-opsys"
+
+    def _fabriquer_depot(self) -> None:
+        (self.depot / "core").mkdir(parents=True)
+        (self.depot / "departments").mkdir()
+        (self.depot / "core" / "openclaw.mjs").write_text("// faux core\n", encoding="utf-8")
+        (self.depot / "core" / "node-version.mjs").write_text("// faux\n", encoding="utf-8")
+        (self.depot / "core" / "package.json").write_text(
+            json.dumps({"packageManager": f"pnpm@{PNPM}+sha512.0123456789abcdef"}), encoding="utf-8")
+        (self.depot / "pyproject.toml").write_text('[project]\nname = "faux-opsys"\n', encoding="utf-8")
+        (self.depot / "departments" / "LISEZMOI").write_text("faux\n", encoding="utf-8")
+        git = ["git", "-C", str(self.depot)]
+        env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.org",
+               "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.org"}
+        for commande in (["init", "-q", "-b", "main"], ["add", "-A"], ["commit", "-q", "-m", "premier"]):
+            subprocess.run([*git, *commande], env=env, check=True, capture_output=True)
+
+    def preparer_decisions(self) -> None:
+        """Les décisions que l'installateur n'invente pas : un palier de modèles et le service d'embeddings."""
+        self.home.mkdir(parents=True, exist_ok=True)
+        (self.home / "paliers.yaml").write_text(
+            "paliers: {standard: {provider: anthropic, model: claude-sonnet-5}}\n", encoding="utf-8")
+        self.env_supplementaire.update(EMBEDDINGS)
+
+    def env(self, **supplement: str) -> dict[str, str]:
+        env = {cle: valeur for cle, valeur in os.environ.items()
+               if not cle.startswith(("OPSYS_", "OPENCLAW_", "FAUX_", "GITHUB_", "CI"))}
+        chemins_python = [str(RACINE / "src"), *sorted(str(p) for p in RACINE.glob("departments/*/src"))]
+        env.update({
+            "HOME": str(self.hote), "USERPROFILE": str(self.hote), "LOCALAPPDATA": str(self.hote / "AppData" / "Local"),
+            "APPDATA": str(self.hote / "AppData" / "Roaming"), "PATH": f"{self.faux}:/usr/bin:/bin",
+            "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT": "1", "NO_COLOR": "1",
+            "PYTHONPATH": os.pathsep.join(chemins_python),
+            "OPSYS_HOME": str(self.home), "OPSYS_LOGICIEL": str(self.logiciel), "OPSYS_BIN": str(self.bin),
+            "OPSYS_PORT_GATEWAY": str(self.port_gateway), "OPSYS_PORT_MOTEUR": str(self.port_moteur),
+            "FAUX_PYTHON": sys.executable, "FAUX_CORE": str(FAUX_CORE), "FAUX_JOURNAL": str(self.journal),
+            "FAUX_PNPM_VERSION": PNPM, "FAUX_PLATEFORME": "windows", "FAUX_ETAT": str(self.etat_core),
+            "FAUX_TACHES": str(self.hote / ".faux-taches"),
+        })
+        env.update(self.env_supplementaire)
+        env.update(supplement)
+        return env
+
+    def pwsh(self, script: Path, *arguments: str, commande: str | None = None, timeout: int = 300,
+             **env: str) -> subprocess.CompletedProcess[str]:
+        assert PWSH is not None
+        if commande is None:
+            appel = [PWSH, "-NoProfile", "-NonInteractive", "-File", str(script), *arguments]
+        else:
+            appel = [PWSH, "-NoProfile", "-NonInteractive", "-Command", commande]
+        return subprocess.run(appel, env=self.env(**env), capture_output=True, text=True, timeout=timeout, check=False,
+                              cwd=self.racine)
+
+    def installer(self, *options: str, **env: str) -> subprocess.CompletedProcess[str]:
+        return self.pwsh(INSTALL_PS1, "-Source", str(self.depot), *options, **env)
+
+    def desinstaller(self, *options: str, **env: str) -> subprocess.CompletedProcess[str]:
+        return self.pwsh(UNINSTALL_PS1, *options, **env)
+
+    def appels(self) -> list[str]:
+        return self.journal.read_text(encoding="utf-8").splitlines()
+
+    def secrets(self) -> list[str]:
+        env = (self.etat_core / ".env").read_text(encoding="utf-8")
+        return [v for k, v in re.findall(r"^([A-Z0-9_]+)=(.*)$", env, flags=re.MULTILINE)
+                if re.search(r"JETON|TOKEN|CLE", k) and len(v) >= 12]
+
+    def enregistrement(self) -> dict[str, str]:
+        lignes = (self.logiciel / "installation.env").read_text(encoding="utf-8").splitlines()
+        return dict(ligne.split("=", 1) for ligne in lignes if "=" in ligne)
+
+    def empreintes(self, dossier: Path) -> dict[str, str]:
+        return {str(p.relative_to(dossier)): hashlib.sha256(p.read_bytes()).hexdigest()
+                for p in sorted(dossier.rglob("*")) if p.is_file()}
+
+    def arreter_les_services(self) -> None:
+        taches = self.hote / ".faux-taches"
+        for fichier in taches.glob("*.pid") if taches.is_dir() else ():
+            with contextlib.suppress(OSError, ValueError):
+                os.kill(int(fichier.read_text(encoding="utf-8")), 15)
+
+
+def _sortie(resultat: subprocess.CompletedProcess[str]) -> str:
+    return resultat.stdout + resultat.stderr
+
+
+@pytest.fixture
+def poste(tmp_path: Path):
+    poste = Poste(tmp_path)
+    yield poste
+    poste.arreter_les_services()
+
+
+@pytest.fixture
+def pret(poste: Poste) -> Poste:
+    poste.preparer_decisions()
+    return poste
+
+
+# -- install.ps1 -------------------------------------------------------------------------------------------------------
+def test_installation_sans_service_dans_l_ordre_avec_les_bons_arguments(pret):
+    resultat = pret.installer("-SansService")
+
+    assert resultat.returncode == 0, _sortie(resultat)
+    assert "OPSYS est installe." in resultat.stdout
+    appels = pret.appels()
+    attendu = ["pnpm install --frozen-lockfile", "pnpm build"]
+    assert [a for a in appels if a in attendu] == attendu
+    assert f"uv venv --clear --python >=3.11 {pret.logiciel / 'venv'}" in appels
+    python = pret.logiciel / "venv" / "Scripts" / "python.exe"
+    moteur = f"uv pip install --python {python} --editable {pret.depot}[tournees,soumission]"
+    assert moteur in appels
+    config = json.loads((pret.etat_core / "openclaw.json").read_text(encoding="utf-8"))
+    assert config["gateway"]["port"] == pret.port_gateway or config["gateway"]["port"] == 18789
+    metier = json.loads((pret.etat_core / "opsys" / "metier.json").read_text(encoding="utf-8"))
+    assert metier["actif"] is True and metier["dossier"] == str(pret.depot) and metier["port"] == pret.port_moteur
+    enregistrement = pret.enregistrement()
+    assert enregistrement["SERVICE"] == "0" and enregistrement["PROFIL_CORE"] == "opsys"
+    assert enregistrement["DOSSIER_CORE"] == str(pret.etat_core) and enregistrement["SOURCE_GEREE"] == "0"
+    assert enregistrement["PORT_GATEWAY"] == str(pret.port_gateway)
+    assert enregistrement["PORT_MOTEUR"] == str(pret.port_moteur)
+    assert re.fullmatch(r"[0-9a-f]{40}", enregistrement["SOURCE_COMMIT"])
+
+
+def test_les_commandes_installees_sont_des_enveloppes_cmd_qui_ecartent_l_environnement_du_core(pret):
+    resultat = pret.installer("-SansService")
+
+    assert resultat.returncode == 0, _sortie(resultat)
+    core = (pret.bin / "openclaw.cmd").read_bytes().decode("ascii")
+    moteur = (pret.bin / "opsys.cmd").read_bytes().decode("ascii")
+    assert "\r\n" in core and "\r\n" in moteur  # fins de ligne de cmd.exe
+    assert "--profile opsys %*" in core and "setlocal" in core
+    ecartees = ("OPENCLAW_STATE_DIR", "OPENCLAW_CONFIG_PATH", "OPENCLAW_HOME", "OPENCLAW_PROFILE",
+                "OPENCLAW_LAUNCHD_LABEL", "OPENCLAW_SYSTEMD_UNIT", "OPENCLAW_WINDOWS_TASK_NAME")
+    for nom in ecartees:
+        assert f'set "{nom}="' in core  # écartées : le core viserait sinon un autre dossier
+    assert "OPSYS-INSTALLATEUR" in core and "OPSYS-INSTALLATEUR" in moteur
+    # `setlocal` : les secrets de .env que la commande lit ne restent pas dans le cmd.exe de l'appelant
+    assert "setlocal" in moteur and moteur.index("setlocal") < moteur.index("DOSSIER_CORE")
+    assert 'set "PYTHONUTF8=1"' in moteur and "-m opsys.cli %*" in moteur
+    assert moteur.index("PYTHONUTF8") < moteur.index("-m opsys.cli")
+    assert str(pret.etat_core) in moteur  # le .env que la commande lit vit dans l'état du core
+
+
+def test_l_installateur_rend_a_l_appelant_l_environnement_qu_il_a_pose_ou_retire(pret):
+    """Lancé depuis une session (`.\\install.ps1`), le script n'y laisse ni CI=true, ni PYTHONUTF8, ni PATH allongé."""
+    commande = (
+        "$env:CI = $null; $env:PYTHONUTF8 = $null; $env:OPENCLAW_STATE_DIR = 'etat-de-l-appelant'; "
+        "$env:Path = 'chemin-de-l-appelant'; $avant = $env:Path; "
+        f"& '{INSTALL_PS1}' -SansService -Source '{pret.depot}'; "
+        "\"code=$LASTEXITCODE\"; \"CI=[$($env:CI)]\"; \"PYTHONUTF8=[$($env:PYTHONUTF8)]\"; "
+        "\"COREPACK=[$($env:COREPACK_ENABLE_DOWNLOAD_PROMPT)]\"; \"ETAT=[$($env:OPENCLAW_STATE_DIR)]\"; "
+        f"\"OPSYS_HOME=[$($env:OPSYS_HOME)]\"; \"CHEMIN=[$($env:Path)]\"")
+
+    resultat = pret.pwsh(INSTALL_PS1, commande=commande)
+
+    lignes = resultat.stdout.splitlines()
+    assert resultat.returncode == 0, _sortie(resultat)
+    assert "code=0" in lignes and "CI=[]" in lignes and "COREPACK=[]" in lignes
+    assert "ETAT=[etat-de-l-appelant]" in lignes  # retiré pour le core, rendu ensuite
+    assert f"OPSYS_HOME=[{pret.home}]" in lignes and "PYTHONUTF8=[]" in lignes
+    # le PATH de pnpm n'y est plus ; seul y reste le dossier des commandes, ajouté pour qu'on s'en serve tout de suite
+    assert f"CHEMIN=[chemin-de-l-appelant;{pret.bin}]" in lignes
+
+
+def test_les_secrets_sont_prives_jamais_affiches_et_masques_meme_quand_une_commande_les_crache(pret):
+    pret.env_supplementaire["FAUX_CRACHE_LE_JETON"] = "1"
+
+    resultat = pret.installer(OPSYS_VERBOSE="1")
+
+    assert resultat.returncode == 0, _sortie(resultat)
+    secrets = pret.secrets()
+    assert len(secrets) >= 12
+    journal = (pret.logiciel / "journaux" / "installation.log").read_text(encoding="utf-8")
+    for secret in secrets:
+        assert secret not in _sortie(resultat), "un secret est affiché"
+        assert secret not in journal, "un secret est journalisé"
+    assert "jeton du moteur : ***" in journal  # le faux core l'a craché, le masque l'a couvert
+
+
+def test_une_relance_ne_change_ni_secret_ni_configuration_ni_donnee(pret):
+    premiere = pret.installer("-SansService")
+    avant = pret.empreintes(pret.etat_core)
+    donnees_avant = pret.empreintes(pret.home)
+
+    seconde = pret.installer("-SansService")
+
+    assert premiere.returncode == 0 and seconde.returncode == 0, _sortie(seconde)
+    assert pret.empreintes(pret.etat_core) == avant, "la relance a modifié l'état du core (secrets, configuration)"
+    assert {k: v for k, v in pret.empreintes(pret.home).items() if k != "opsys.db"} == \
+        {k: v for k, v in donnees_avant.items() if k != "opsys.db"}
+
+
+def test_les_ports_de_la_derniere_installation_sont_repris_sans_qu_on_les_redonne(pret):
+    pret.installer("-SansService")
+
+    relance = pret.pwsh(INSTALL_PS1, "-Source", str(pret.depot), "-SansService",
+                        OPSYS_PORT_GATEWAY="", OPSYS_PORT_MOTEUR="")
+
+    assert relance.returncode == 0, _sortie(relance)
+    assert pret.enregistrement()["PORT_GATEWAY"] == str(pret.port_gateway)
+    assert pret.enregistrement()["PORT_MOTEUR"] == str(pret.port_moteur)
+
+
+def test_sans_decision_l_installateur_sort_en_3_et_dit_quoi_fournir(poste):
+    resultat = poste.installer("-SansService")  # ni paliers.yaml ni service d'embeddings
+
+    assert resultat.returncode == 3, _sortie(resultat)
+    assert "il manque les decisions listees ci-dessus" in resultat.stdout
+    assert not (poste.etat_core / "openclaw.json").exists()  # fail-closed : rien d'autre n'est écrit
+    assert (poste.etat_core / ".env").is_file()  # mais les secrets existent, pour la relance
+
+
+def test_un_echec_d_etape_arrete_tout_dit_ou_regarder_et_ne_montre_aucun_secret(pret):
+    pret.installer("-SansService")  # pour que .env existe : le faux pnpm en crache le premier secret
+    resultat = pret.installer("-SansService", FAUX_ECHEC="pnpm build")
+
+    assert resultat.returncode == 1, _sortie(resultat)
+    assert "Construction du core (pnpm build, plusieurs minutes) : echec (code 1)" in resultat.stdout
+    assert "Journal complet :" in resultat.stdout and "Le journal donne la cause" in resultat.stdout
+    for secret in pret.secrets():
+        assert secret not in _sortie(resultat)
+    assert "OPSYS est installe." not in resultat.stdout
+
+
+def test_l_ancienne_disposition_est_refusee_avec_la_marche_a_suivre_sans_rien_modifier(pret):
+    (pret.home / "core").mkdir(parents=True)
+    (pret.home / "core" / ".env").write_text("MARQUEUR=ancien-etat-fictif\n", encoding="utf-8")
+    avant = pret.empreintes(pret.home / "core")
+
+    resultat = pret.installer("-SansService")
+
+    assert resultat.returncode == 1, _sortie(resultat)
+    assert "ancienne disposition d" in _sortie(resultat) and str(pret.home / "core") in _sortie(resultat)
+    assert pret.empreintes(pret.home / "core") == avant and not (pret.etat_core / "openclaw.json").exists()
+
+
+def test_une_option_ou_un_prerequis_manquant_est_refuse_avant_toute_ecriture(pret):
+    (pret.faux / "uv").unlink()
+
+    sans_uv = pret.installer("-SansService")
+    inconnue = pret.pwsh(INSTALL_PS1, "-Source", str(pret.depot), "-Nimporte")
+
+    assert sans_uv.returncode == 1 and "uv est introuvable" in sans_uv.stdout and "astral.sh/uv" in sans_uv.stdout
+    assert inconnue.returncode != 0
+    assert not pret.etat_core.exists() and not pret.bin.exists()
+
+
+def test_aide_ne_fait_rien(pret):
+    resultat = pret.pwsh(INSTALL_PS1, "-Aide")
+
+    assert resultat.returncode == 0 and "install.ps1 : installe OPSYS" in resultat.stdout
+    assert not pret.logiciel.exists() and not pret.etat_core.exists()
+
+
+# -- le service (tâche planifiée émulée) et uninstall.ps1 ------------------------------------------------------------
+def test_le_service_est_installe_par_le_profil_opsys_sans_secret_puis_retire_par_uninstall(pret):
+    installation = pret.installer()
+
+    assert installation.returncode == 0, _sortie(installation)
+    assert "Gateway et moteur repondent." in installation.stdout
+    assert pret.enregistrement()["SERVICE"] == "1"
+    script = (pret.etat_core / "gateway.cmd").read_text(encoding="utf-8")
+    assert 'set "OPENCLAW_PROFILE=opsys"' in script and str(pret.etat_core) in script
+    for secret in pret.secrets():
+        assert secret not in script and secret not in _sortie(installation)
+    tache = pret.hote / ".faux-taches" / "OpenClaw Gateway (opsys).tache"
+    assert tache.is_file()
+    donnees = pret.empreintes(pret.etat_core)
+    donnees.pop("gateway.cmd", None)
+
+    retrait = pret.desinstaller("-ExporterAvant", str(pret.export / "avant.tar.gz"))
+
+    assert retrait.returncode == 0, _sortie(retrait)
+    assert not tache.exists() and not (pret.etat_core / "gateway.cmd").exists()  # le service et son script sont retirés
+    assert (pret.export / "avant.tar.gz").is_file() and (pret.export / "avant.tar.gz.sha256").is_file()
+    apres = {k: v for k, v in pret.empreintes(pret.etat_core).items() if not k.startswith("logs")}
+    assert {k: v for k, v in donnees.items() if not k.startswith("logs")} == apres  # l'état du core est intact
+    assert not pret.logiciel.exists() and not pret.bin.exists()  # le logiciel et les commandes sont partis
+    assert (pret.home / "opsys.db").is_file() and (pret.home / "paliers.yaml").is_file()
+    assert "Etat du core conserve" in retrait.stdout and str(pret.etat_core) in retrait.stdout
+
+
+def test_la_desinstallation_est_relancable_et_ne_touche_pas_au_depot(pret):
+    pret.installer("-SansService")
+
+    premiere = pret.desinstaller()
+    seconde = pret.desinstaller()
+
+    assert premiere.returncode == 0 and seconde.returncode == 0, _sortie(seconde)
+    assert (pret.depot / "core" / "openclaw.mjs").is_file()  # un dépôt à soi n'est jamais touché
+    assert "le depot" in premiere.stdout and "n'est pas gere par l'installateur" in premiere.stdout
+
+
+def test_la_simulation_ne_retire_rien(pret):
+    pret.installer("-SansService")
+    avant = pret.empreintes(pret.logiciel / "venv") if (pret.logiciel / "venv").is_dir() else {}
+
+    resultat = pret.desinstaller("-Simuler")
+
+    assert resultat.returncode == 0 and "[simulation]" in resultat.stdout, _sortie(resultat)
+    assert (pret.bin / "openclaw.cmd").is_file() and (pret.bin / "opsys.cmd").is_file()
+    assert pret.empreintes(pret.logiciel / "venv") == avant
+
+
+def test_un_export_qui_echoue_empeche_tout_retrait(pret):
+    pret.installer("-SansService")
+    (pret.export / "existe.tar.gz").write_text("deja la", encoding="utf-8")  # un export n'écrase jamais un fichier
+
+    resultat = pret.desinstaller("-ExporterAvant", str(pret.export / "existe.tar.gz"))
+
+    assert resultat.returncode == 1, _sortie(resultat)
+    assert "RIEN n'a ete retire" in _sortie(resultat)
+    assert (pret.bin / "opsys.cmd").is_file() and (pret.logiciel / "venv").is_dir()
+
+
+def test_la_desinstallation_refuse_de_supprimer_un_dossier_qui_contient_les_donnees(pret):
+    pret.installer("-SansService")
+    piege = pret.racine / "gros-dossier"
+    piege.mkdir()
+    shutil.move(str(pret.logiciel / "venv"), str(piege / "venv"))
+    shutil.move(str(pret.logiciel / "installation.env"), str(piege / "installation.env"))
+    instance_dedans = piege / "venv" / "instance"
+    shutil.move(str(pret.home), str(instance_dedans))
+
+    resultat = pret.desinstaller(OPSYS_LOGICIEL=str(piege), OPSYS_HOME=str(instance_dedans))
+
+    assert resultat.returncode == 1, _sortie(resultat)
+    assert "il contient les donnees de l'instance" in _sortie(resultat) and "Rien n'a ete retire" in _sortie(resultat)
+    # le refus vient AVANT tout retrait
+    assert (instance_dedans / "opsys.db").is_file() and (pret.bin / "opsys.cmd").is_file()
+
+
+def test_la_desinstallation_refuse_de_supprimer_un_dossier_qui_contient_l_etat_du_core(pret):
+    pret.installer("-SansService")
+    dedans = pret.logiciel / "venv" / "etat-du-core"  # un état du core rangé DANS un dossier que le script supprime
+    shutil.move(str(pret.etat_core), str(dedans))
+    enregistrement = pret.logiciel / "installation.env"
+    enregistrement.write_text(enregistrement.read_text(encoding="utf-8").replace(
+        f"DOSSIER_CORE={pret.etat_core}", f"DOSSIER_CORE={dedans}"), encoding="utf-8")
+
+    resultat = pret.desinstaller()
+
+    assert resultat.returncode == 1, _sortie(resultat)
+    assert "c'est l'etat du core ou il le contient" in _sortie(resultat)
+    assert (dedans / ".env").is_file() and (pret.bin / "opsys.cmd").is_file()  # le refus vient AVANT tout retrait
+
+
+def test_uninstall_ps1_rend_l_environnement_de_l_appelant(pret):
+    pret.installer("-SansService")
+    commande = (
+        "$env:PYTHONUTF8 = $null; $env:OPENCLAW_PROFILE = 'autre'; $env:OPENCLAW_STATE_DIR = 'etat-de-l-appelant'; "
+        f"& '{UNINSTALL_PS1}'; \"code=$LASTEXITCODE\"; \"PYTHONUTF8=[$($env:PYTHONUTF8)]\"; "
+        "\"PROFIL=[$($env:OPENCLAW_PROFILE)]\"; \"ETAT=[$($env:OPENCLAW_STATE_DIR)]\"")
+
+    resultat = pret.pwsh(UNINSTALL_PS1, commande=commande)
+
+    lignes = resultat.stdout.splitlines()
+    assert resultat.returncode == 0, _sortie(resultat)
+    assert "code=0" in lignes and "PYTHONUTF8=[]" in lignes  # posé par le script pour l'export, rendu ensuite
+    assert "PROFIL=[autre]" in lignes and "ETAT=[etat-de-l-appelant]" in lignes  # retirés pour le core, rendus ensuite
