@@ -196,6 +196,16 @@ def test_un_mode_de_travers_refuse_l_estimation_comme_l_intervalle_le_refusait()
     assert "cout_unitaire_mode" in reponse["verdict"]["detail"]
 
 
+def test_sans_graine_fournie_p50_et_p80_suivent_la_graine_stable_de_l_estimation():
+    """Sans `graine`, l'estimation en dérive une, stable, de ses entrées ; P50 et P80 lisent la MÊME, pas une autre."""
+    reponse = _orchestrer(graine=None)
+    graine = reponse["estimation"]["graine_monte_carlo"]
+    assert graine == estimation.graine_stable(BAREME, "ravalement", 1200)
+    assert reponse["distribution_cout"]["graine"] == graine
+    soixante, _ = monte_carlo.simuler_intervalle(BAREME, "ravalement", 1200, graine, 0.6)
+    assert reponse["distribution_cout"]["p80"] == _arrondi(soixante["borne_haute"])
+
+
 def test_le_facteur_dominant_d_une_estimation_est_son_unique_poste():
     (facteur,) = _orchestrer()["facteurs_dominants"]
     assert facteur["poste"] == "ravalement"
