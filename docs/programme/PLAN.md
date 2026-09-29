@@ -1529,7 +1529,7 @@ météo et GPS M4, vision M3, conseil d'agents M9…
         déclarés) ; 55 mutations tuées sur 56 (une équivalente).
       Limites : `quote_stale` attend `m3.devis_envoye` (T4.7) ; pagination par rang ; l'app ne
       l'utilise pas encore (T4.8).
-- [ ] T4.7 M3 : revue et envoi de la soumission par approbation N4 (M3.14).
+- [x] T4.7 M3 : revue et envoi de la soumission par approbation N4 (M3.14).
       Écart (§7 M3.14 ; audit M3 §1) : `marquer_devis_envoye` existe mais aucun outil ne l'expose.
       Un devis reste `brouillon`, aucun événement « devis envoyé », et la relance de M2 (T2.3-c)
       dit encore « envoyer ou abandonner ».
@@ -1546,6 +1546,21 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       JSON Schema.
       Dépend de : T2.3-f (même `outils.py`). GATE NATHAN : seuils de revue, minimum rentable.
       T3 : envoi réel (T2.1-c).
+      Preuve (d39780a, 8fd15ce, 0509b27) :
+      - `revue_devis.py` pur : onze critères (les dix motifs de §7 M3 et l'alerte de plancher),
+        chaque motif cite sa donnée et sa source ; seuils dans `configuration/revue_devis`, vides :
+        « seuil à configurer » ; fait absent : « non évaluable » ; rouge : prix sous le minimum
+        rentable et alerte de plancher (ils éclairent, ils ne bloquent pas) ;
+      - `m3_demander_envoi_devis` (T2, N4, `seller` et `admin`) : la demande attend la file, le devis
+        reste `brouillon` ; seul `nathan_owner` décide (console et app) ; approuvé, `envoye` une seule
+        fois à l'instant du socle, avec l'approbateur et la synthèse de la revue ; `m3.devis_envoye`
+        publié (schéma fermé, sans coût, marge ni prix) ; l'outil refuse hors d'une décision
+        approuvée, mode `autonome` compris ; `attentes()` porte les motifs (240 caractères) ;
+      - M3 1533 (suite complète, deux tranches, zéro échec), gate BMAD M3, verifier 163 outils après
+        fusion ; 75 mutations tuées.
+      Limites : un vendeur peut demander l'envoi du devis d'un lead qui n'est pas le sien (le
+      propriétaire voit tout avant d'approuver ; le fermer demande un garde d'appel du socle) ; les
+      faits de revue (confiance, distance, client à risque) viennent de l'appelant, non persistés.
 - [x] T4.8 Mobile : profil vendeur, leads, Client 360 et soumissions (§9.4 ; M2.2, M3.17).
       Écart (§9.4 ; audit M2 §2.5 « vendeur ABSENT ») : `mobile/app/(seller)/seller.tsx` est un
       gabarit ; le vendeur ne voit rien de ses leads ni de ses soumissions.
@@ -1763,9 +1778,24 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       (`REJ-RECEPTION-DEJA-ENREGISTREE`) ; PO d'avant sans détail : cumul « non fiable » ; quantité
       négative ou non finie refusée aussi hors PO persisté ; M6 892 (837 avant) ; 17 mutations
       tuées.
-- [ ] T4.15-c M5 : correction ou annulation d'une facture fournisseur saisie (N4, motif, trace) ;
+- [x] T4.15-c M5 : correction ou annulation d'une facture fournisseur saisie (N4, motif, trace) ;
       factures sans PO (carburant, outils) ; le socle expose l'approbateur d'une demande à l'outil
       (`_decision_approuvee_en_cours` est copiée dans M5 et M10).
+      Preuve (01c336d, fae0521, 2a5b3ba, 78004d9) :
+      - socle : `approbations.approbateur_en_cours(cnx, outil, departement, roles=)`, posé par
+        `decider` et lu en base (personne active qui porte encore le rôle) ; M5 l'utilise ;
+      - pièces de correction et d'annulation (motif, personne, rôle, voie, avant, après) ; la facture
+        d'origine n'est jamais modifiée ; l'état courant alimente le facturé, l'à payer, le
+        rapprochement, le doublon et les crédits de taxes du cash libre ; annuler n'efface pas la
+        dette d'un PO reçu ;
+      - `m5_corriger_facture_fournisseur` et `m5_annuler_facture_fournisseur` (N4 : voie directe
+        réservée à `nathan_owner` ou `finance`), `m5_saisir_facture_sans_po` (N3, catégorie d'une liste
+        fermée, vide : « catégories à configurer ») ; garde AST étendue ;
+      - E2E `tests/e2e/test_correction_facture_appareil.py` (cash libre suivi à la cent près) ; M5
+        1448 (1262 avant), gate BMAD M5 ; 95 mutations tuées.
+- [ ] T4.15-d M1, M7, M10 : remplacer leur copie de la lecture de l'approbateur par
+      `approbations.approbateur_en_cours` (les tests qui forgent une ligne `en_cours` passent par
+      `decider`).
 - [x] T4.16 M5 : cash libre réel et calendrier fiscal vivant (M5.5, M5.14 ; M5.7 : T4.16-d).
       Écart (§7 M5 « solde bancaire ≠ argent disponible » ; audit M5 M5.5, M5.14 « PARTIEL »,
       M5.7 « ABSENT ») : `soldes.py` ne retranche que les `PROVISION` ; aucun échéancier TPS/TVQ.
@@ -2022,6 +2052,11 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
 - **STOP et avis légal (T4.17-c)** : un résumé de transfert fourni par l'agent ne peut plus nommer
   un avocat (le code compose alors le sien) ; le STOP retire-t-il aussi la demande d'avis de M7 ? ;
   rattraper les STOP inscrits avant la livraison ?
+- **Revue d'un devis (T4.7)** : les cinq seuils (confiance minimale, montant maximal, marge
+  minimale, distance maximale, minimum rentable) ; persister les faits de revue à l'estimation.
+- **Factures sans PO (T4.15-c)** : catégories de dépense ; crédits de taxes des dépenses sans PO
+  (tout le carburant n'est pas récupérable : CPA) ; voie directe d'un N4 réservée à `nathan_owner`
+  ou `finance`.
 - **Lien automatique session → affaire (T2.1-b)** : aujourd'hui, un humain lie la session d'un
   client à son lead (`m10_lier_session_affaire`, N3). Faut-il qu'une règle écrite le fasse à la
   création du lead ? La clé de session contient le numéro du client : elle ne voyage jamais dans
@@ -2043,6 +2078,8 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
     coût réel et rentabilité (T1.5-d) : b217aea ; marge réelle publiée vers M8 et M10 : 80aa355 ;
   - comptes à payer et facture fournisseur saisie (T4.15) : d1697f6, a21b3c8, 7bfbe68 ;
   - cash libre et calendrier fiscal (T4.16) : c507161, c74eb4a, 659aa64, 40b2470 ;
+  - approbateur exposé par le socle, correction et annulation de facture (T4.15-c) : 01c336d, fae0521, 2a5b3ba ;
+  - envoi d'un devis par approbation N4 (T4.7) : 8fd15ce ;
   - clôture d'un transfert réservée à un humain (M1, T4.5) : dd56449 ;
   - canaux de M1 (politique d'approbation d'un message de client) : `src/opsys/canaux.py`, fc80869 ;
   - consentement du client et sa preuve posée par le serveur (M4, T1.5-d) : 358d2cc ;
