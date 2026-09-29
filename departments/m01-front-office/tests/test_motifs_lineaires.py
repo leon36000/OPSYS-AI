@@ -582,6 +582,16 @@ def test_ce_que_le_courriel_d_un_resume_ne_reconnaissait_pas_n_est_toujours_pas_
     assert transferts.contient_coordonnees(texte) is False
 
 
+@pytest.mark.parametrize("signe", sorted(_AUTRES_CARACTERES_RFC))
+def test_un_signe_permis_par_la_rfc_devant_le_arobase_fait_refuser_un_resume(signe):
+    """« jean#@x.ca » peut être une adresse : l'ancien motif ne la voyait pas, le garde-fou la refuse."""
+    texte = f"Rappeler jean{signe}@exemple.ca demain"
+    assert not _coordonnee_avant(texte), "l'ancien motif (recopié) ne voyait pas ce courriel"
+    assert _coordonnee_de_reference(texte)
+    assert _coordonnee_apres(texte)
+    assert transferts.contient_coordonnees(texte) is True
+
+
 @pytest.mark.parametrize("texte", COORDONNEES_D_UN_RESUME_REFUSEES_DEPUIS_T4_17_G3)
 def test_un_courriel_derriere_un_caractere_qui_prolonge_une_adresse_est_refuse_dans_un_resume(texte):
     assert not _coordonnee_avant(texte), "l'ancien motif (recopié) ne voyait pas ce courriel"
