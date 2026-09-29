@@ -2016,6 +2016,18 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       (la livraison n'est pas un fait du bus), « sans réponse » = constat de M3.
 - [ ] T4.19-b M5 et M8 : M5 publie le cash libre (événement au catalogue, montants de M5 seulement)
       et M8 l'affiche dans la vue exécutive au lieu de « manque ». Code critique (argent).
+- [ ] T4.20 Mobile : profil admin du propriétaire, au-delà des approbations (§9.5).
+      Écart (§9.5) : le groupe `(admin)` de l'app n'a que l'accueil et les approbations ; la vue
+      exécutive (T4.19), la trésorerie et sa prévision (T4.16, T4.16-d), le dispatch du jour (M4) et
+      « À voir » existent côté serveur, jamais sur le téléphone du propriétaire.
+      - accueil « À voir » (demandes en attente, alertes) ; écran « Chiffres » (vue exécutive de M8,
+        cash libre et prévision de M5, échéances fiscales) ; écran « Chantiers du jour » (M4) ;
+      - lecture d'abord, cache SQLite hors ligne marqué (date, raison), un refus du serveur n'est
+        jamais remplacé par le cache ; aucun montant calculé par l'app (affiché tel que rendu) ;
+        la mention « Analyse préparatoire IA » de M5 suit la donnée.
+      Preuve : Jest et `tsc` ; E2E moteur avec un appareil `admin` (chaque outil répond ; employé et
+      vendeur reçoivent 403 ; forme des réponses = fixture lue par Jest) ; CI `mobile`.
+      T3 : diffusion de l'app hors de l'équipe.
 
 - [ ] T4.17-b M4 puis M7 : ville au niveau municipal dans le WCT, seulement avec le consentement
       marketing, pour un ancrage local des contenus. GATE NATHAN (Loi 25 : granularité publiée).
