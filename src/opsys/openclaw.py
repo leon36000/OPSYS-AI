@@ -18,6 +18,13 @@ réglages faits par l'utilisateur (canaux, authentification, Control UI) ne sont
 openai-completions, `models` obligatoire), `mcp.servers` (streamable-http, headers), `tools`,
 `memory.search`, `plugins.entries.*.config`, `$include` (`core/src/config/zod-schema.*.ts`).
 
+Moteur de contexte (PLAN T3.3-suite, ADR-0010 décisions 3 et 4) : `generer(contexte_entreprise=...)` active,
+pour les agents nommés, le PREFLIGHT (paquet de contexte de M10 injecté avant le tour) et le POSTFLIGHT (dépôt
+des faits d'outils) du core (`core/src/context-engine/opsys-contexte-*.ts`). Désactivé par défaut : sans
+argument, `opsys/contexte.json` porte `{"actif": false}` et `plugins.json` ne choisit aucun moteur. Activé, le
+même appel écrit `contexte.json` ET `plugins.slots.contextEngine: "opsys"` : un seul interrupteur, deux fichiers
+toujours d'accord.
+
 Deux fragments supplémentaires (T1.4-c2, `docs/architecture/IDEMPOTENCE.md` §7 bis) ne sont PAS
 `$include`s dans `openclaw.json` — comme `automatisations.sh` ci-dessous, ce sont des fichiers annexes
 qu'OPSYS-CORE lit lui-même directement (`core/src/gateway/opsys-device-roles.ts`), jamais à travers
@@ -26,7 +33,8 @@ la configuration validée par son schéma Zod strict : `roles.json` (`roles_outi
 (T1.4-c6) ; écrit par `generer()`, aucune dépendance à la base) et
 `appareils.json` (`ecrire_appareils`, lit la table `appareils`, ADR-0009 §5 — appelé séparément, PAS
 par `generer()`/`opsys openclaw configurer`, tant qu'aucune surface d'appairage n'existe encore pour
-le déclencher automatiquement).
+le déclencher automatiquement). `contexte.json` (moteur de contexte, ci-dessus) est lu de la même façon par
+`core/src/context-engine/opsys-contexte-config.ts`.
 """
 
 from __future__ import annotations
@@ -34,7 +42,7 @@ from __future__ import annotations
 import json
 import shlex
 import shutil
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -43,7 +51,9 @@ from sqlalchemy import Connection
 from . import appareils
 from .departements import PALIERS, Departement, tous_les_outils, verifier_portees
 from .memoire.embeddings import ENV_CLE, ENV_MODELE, ENV_URL, ClientEmbeddings
+from .outils import Autonomie
 from .passerelle import alias_palier
+from .politiques import approbation_requise_niveau
 from .profils import REGLES_COMMUNES, rendre_soul
 
 FICHIER_RACINE_MODELE = {
@@ -54,6 +64,14 @@ FICHIER_RACINE_MODELE = {
     "memory": {"$include": ["./opsys/memory.json"]},
     "plugins": {"$include": ["./opsys/plugins.json"]},
 }
+
+# Moteur de contexte du core (PLAN T3.3-suite) : identifiant sous lequel il est enregistré
+# (`core/src/context-engine/opsys-contexte-engine.ts`, OPSYS_CONTEXT_ENGINE_ID) et choisi dans
+# `plugins.slots.contextEngine`, département et outils de M10 qu'il appelle par le serveur MCP existant.
+MOTEUR_CONTEXTE = "opsys"
+DEPARTEMENT_MEMOIRE = "m10-memoire"
+OUTIL_PAQUET_CONTEXTE = "m10_paquet_contexte_affaire"
+OUTIL_DEPOT_FAITS = "m10_deposer_faits_candidats"
 
 INSTRUCTIONS = """\
 # Instructions d'exploitation OPSYS
@@ -153,18 +171,81 @@ def _configuration_memoire(environ: Mapping[str, str] | None = None) -> dict[str
     return {"search": recherche}
 
 
-def _configuration_plugins(fuseau: str) -> dict[str, Any]:
+def _configuration_plugins(fuseau: str, contexte_actif: bool = False) -> dict[str, Any]:
     """« Dreaming » du plugin `memory-core` (ADR-0010, décision 1) : activé, fuseau aligné sur
     celui des automatisations OPSYS (même paramètre `fuseau` que `--tz` plus bas — un seul réglage
     d'horaire pour tout OPSYS, rien d'inventé). Clés vérifiées contre `configSchema` de
     `core/extensions/memory-core/openclaw.plugin.json` (`dreaming.enabled`, défaut `true` ;
     `dreaming.timezone`), lui-même accroché à `plugins.entries.<id>.config`
     (`core/src/config/zod-schema.root-support.ts::PluginEntrySchema`).
+
+    `contexte_actif` (PLAN T3.3-suite) : choisit le moteur de contexte OPSYS dans `plugins.slots.contextEngine`
+    (`core/src/config/zod-schema.root-shape.ts`, clé `slots.contextEngine`). Sans lui, aucune clé `slots` : le
+    moteur par défaut (« legacy ») reste en place, comme avant.
     """
-    return {
+    fragment: dict[str, Any] = {
         "entries": {
             "memory-core": {"config": {"dreaming": {"enabled": True, "timezone": fuseau}}},
         }
+    }
+    if contexte_actif:
+        fragment["slots"] = {"contextEngine": MOTEUR_CONTEXTE}
+    return fragment
+
+
+def _configuration_contexte(
+    departements: Mapping[str, Departement],
+    contexte_entreprise: Mapping[str, Sequence[str]] | None,
+) -> dict[str, Any] | None:
+    """Contenu de `opsys/contexte.json` quand le moteur de contexte est demandé, sinon `None` (désactivé).
+
+    `contexte_entreprise` : agent (id de département) -> outils de CE département dont les résultats sont
+    remis à M10 après le tour (POSTFLIGHT) ; une liste vide donne seulement le paquet avant le tour.
+
+    Fail-closed avant toute écriture : le moteur ne s'active jamais à moitié. Refusé si M10 est absent, si
+    l'un de ses deux outils manque, si la lecture du paquet n'est pas T0, si le dépôt exigerait une approbation
+    dans le mode de M10 (le core ne pourrait jamais déposer), si un agent est inconnu ou si un outil cité
+    n'appartient pas à son département. Le nom du serveur MCP vient de la même fonction que `mcp.json`
+    (`serveur_mcp`) : le core appelle M10 par la voie existante, jeton `${OPSYS_MCP_JETON}` compris.
+    """
+    if not contexte_entreprise:
+        return None
+    memoire = departements.get(DEPARTEMENT_MEMOIRE)
+    if memoire is None:
+        raise ValueError(f"contexte d'entreprise : le département {DEPARTEMENT_MEMOIRE} est absent")
+    index = tous_les_outils(departements.values())
+    paquet = index.get(OUTIL_PAQUET_CONTEXTE)
+    depot = index.get(OUTIL_DEPOT_FAITS)
+    for nom, entree in ((OUTIL_PAQUET_CONTEXTE, paquet), (OUTIL_DEPOT_FAITS, depot)):
+        if entree is None or entree[0].id != DEPARTEMENT_MEMOIRE:
+            raise ValueError(f"contexte d'entreprise : l'outil {nom} manque au département {DEPARTEMENT_MEMOIRE}")
+    if paquet is not None and paquet[1].autonomie is not Autonomie.T0:
+        raise ValueError(f"contexte d'entreprise : {OUTIL_PAQUET_CONTEXTE} doit être une lecture (T0)")
+    if depot is not None and (
+        depot[1].frontiere_humaine or approbation_requise_niveau(depot[1].niveau_effectif, memoire.mode)
+    ):
+        raise ValueError(
+            f"contexte d'entreprise : {OUTIL_DEPOT_FAITS} ({depot[1].niveau_effectif.value}) exigerait une "
+            f"approbation en mode {memoire.mode} : le core ne pourrait jamais y déposer"
+        )
+    agents: dict[str, Any] = {}
+    for agent in sorted(contexte_entreprise):
+        if agent not in departements:
+            raise ValueError(f"contexte d'entreprise : agent inconnu {agent!r}")
+        outils_agent: list[str] = []
+        for nom in contexte_entreprise[agent]:
+            entree = index.get(nom)
+            if entree is None or entree[0].id != agent:
+                raise ValueError(f"contexte d'entreprise : {nom!r} n'est pas un outil du département {agent}")
+            if nom not in outils_agent:
+                outils_agent.append(nom)
+        agents[agent] = {"depot": outils_agent}
+    return {
+        "actif": True,
+        "serveur": serveur_mcp(memoire),
+        "outil_paquet": OUTIL_PAQUET_CONTEXTE,
+        "outil_depot": OUTIL_DEPOT_FAITS,
+        "agents": agents,
     }
 
 
@@ -260,12 +341,15 @@ def generer(
     racine_espaces: str = "./opsys/espaces",
     fuseau: str = "America/Toronto",
     environ: Mapping[str, str] | None = None,
+    contexte_entreprise: Mapping[str, Sequence[str]] | None = None,
 ) -> dict[str, Path]:
     """Écrit les fragments et les espaces de travail dans `<dossier_config>/opsys/`.
 
     `racine_espaces` est le chemin vu par la passerelle OpenClaw, relatif au dossier de config.
     `environ` (défaut `os.environ`) fournit `OPSYS_EMBEDDINGS_{URL,MODELE,CLE}` pour la mémoire
     Couche A ; validé avant l'écriture des fragments (fail-closed, voir `_configuration_memoire`).
+    `contexte_entreprise` (PLAN T3.3-suite) active le moteur de contexte pour les agents nommés :
+    voir `_configuration_contexte`. Absent (défaut) : désactivé, rien ne change pour les agents.
     """
     # Fail-closed avant toute écriture : une portée d'appareil invalide (rôle inconnu, outil T3/N5
     # déclaré) n'est jamais écrite dans `roles.json`, pas même partiellement (T1.4-j).
@@ -275,6 +359,8 @@ def generer(
             "portée d'appareil invalide (Outil.roles_appareil), rien n'est écrit :\n  - "
             + "\n  - ".join(problemes_portees)
         )
+    # Même règle pour le moteur de contexte : un état incohérent n'est jamais écrit, même en partie.
+    contexte = _configuration_contexte(departements, contexte_entreprise)
     base = dossier_config / "opsys"
     espaces = base / "espaces"
     if espaces.exists():
@@ -331,6 +417,8 @@ def generer(
         "memory": base / "memory.json",
         "plugins": base / "plugins.json",
         "automatisations": base / "automatisations.sh",
+        # Lu directement par OPSYS-CORE (PLAN T3.3-suite, moteur de contexte), pas via `$include`.
+        "contexte": base / "contexte.json",
         # Lu directement par OPSYS-CORE (T1.4-c2), pas via `$include` — voir la note de tête de ce
         # fichier.
         "roles": base / "roles.json",
@@ -354,7 +442,8 @@ def generer(
     }})
     _ecrire_json(fichiers["tools"], _configuration_outils())
     _ecrire_json(fichiers["memory"], memoire_config)
-    _ecrire_json(fichiers["plugins"], _configuration_plugins(fuseau))
+    _ecrire_json(fichiers["plugins"], _configuration_plugins(fuseau, contexte_actif=contexte is not None))
+    _ecrire_json(fichiers["contexte"], contexte if contexte is not None else {"actif": False})
     _ecrire_json(fichiers["roles"], {
         "roles": roles_outils(departements),
         "serveurs": serveurs_outils(departements),

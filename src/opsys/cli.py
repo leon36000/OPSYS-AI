@@ -274,12 +274,28 @@ def cmd_paliers(args: argparse.Namespace) -> int:
     return 0
 
 
+def _specification_contexte(texte: str) -> tuple[str, list[str]]:
+    """`AGENT` ou `AGENT:OUTIL,OUTIL` (option `--contexte-entreprise`) -> (agent, outils déposés)."""
+    agent, _, reste = texte.partition(":")
+    if not agent:
+        raise argparse.ArgumentTypeError(f"agent manquant dans {texte!r} (attendu AGENT ou AGENT:OUTIL,OUTIL)")
+    return agent, [outil for outil in reste.split(",") if outil]
+
+
+def _contexte_entreprise(specifications: list[tuple[str, list[str]]] | None) -> dict[str, list[str]]:
+    contexte: dict[str, list[str]] = {}
+    for agent, outils in specifications or []:
+        contexte.setdefault(agent, []).extend(outils)
+    return contexte
+
+
 def cmd_openclaw(args: argparse.Namespace) -> int:
     deps = charger_departements()
     dossier = Path(args.config_dir)
     fichiers = openclaw.generer(deps, dossier, modeles.charger_paliers(), url_mcp=args.url_mcp,
                                 url_passerelle=args.url_passerelle, racine_espaces=args.espaces,
-                                fuseau=args.fuseau)
+                                fuseau=args.fuseau,
+                                contexte_entreprise=_contexte_entreprise(args.contexte_entreprise) or None)
     racine = openclaw.racine_si_absente(dossier)
     for nom, chemin in fichiers.items():
         print(f"{nom}: {chemin}")
@@ -434,6 +450,10 @@ def construire_parseur() -> argparse.ArgumentParser:
     oc.add_argument("--url-passerelle", default="http://litellm:4000/v1")
     oc.add_argument("--espaces", default="./opsys/espaces", help="chemin des espaces vu par OpenClaw")
     oc.add_argument("--fuseau", default="America/Toronto")
+    oc.add_argument(
+        "--contexte-entreprise", action="append", metavar="AGENT[:OUTIL,OUTIL]", type=_specification_contexte,
+        help="active le moteur de contexte du core pour cet agent : paquet de M10 avant le tour, et dépôt "
+             "des résultats des outils listés après (répétable ; absent : désactivé, comportement inchangé)")
     oc.set_defaults(fn=cmd_openclaw)
 
     ap = sous.add_parser(

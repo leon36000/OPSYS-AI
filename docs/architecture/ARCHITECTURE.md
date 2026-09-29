@@ -73,6 +73,29 @@ La greffe est dans `core/` (liste : `core/PROVENANCE.md`, « Greffes OPSYS »).
 - **Docker Compose.** Inchangé pour l'instant : `deploy/` lance encore le moteur et le core dans
   deux conteneurs. Il passera à ce mode quand l'installateur unique (T0.x) sera livré.
 
+## Moteur de contexte (PLAN T3.3-suite)
+
+La « RAM » d'ADR-0010 : un moteur de contexte du core (`core/src/context-engine/opsys-contexte-*.ts`, liste :
+`core/PROVENANCE.md`), choisi par `plugins.slots.contextEngine: "opsys"`.
+
+```
+ tour d'un agent de département ──► assemble()  ──► M10 : m10_paquet_contexte_affaire (T0)
+        (ligne « affaire_id: … »)       │                 MCP HTTP /mcp/m10-memoire, jeton OPSYS_MCP_JETON
+                                        └─► systemPromptAddition : le paquet, ou « contexte d'entreprise indisponible »
+ fin du tour ────────────────────► afterTurn() ──► M10 : m10_deposer_faits_candidats (T1, N2)
+                                                      ce que les outils ont fait, jamais le texte du modèle
+```
+
+- **Activation.** Désactivé par défaut. `opsys openclaw configurer --contexte-entreprise
+  m03-estimation:m3_estimer_projet` écrit `opsys/contexte.json` (`"actif": true`, agents et outils déposés) et
+  `plugins.slots.contextEngine` ensemble. Sans l'option, le moteur n'est pas choisi.
+- **Le code calcule.** M10 calcule le paquet, son budget et sa troncature. Le core ne fait que le valider et
+  le rendre ; il ne le tronque jamais.
+- **Fail-closed, sans blocage.** Moteur injoignable, trop lent (`delai_ms`), paquet invalide, aucune affaire :
+  le tour continue sans paquet, avec le marqueur dans le contexte et une ligne du journal `opsys-contexte`.
+- **Ce qui manque** est listé dans ADR-0010, « Mise en œuvre » (blocage `before_tool_call`, clôture des signaux
+  critiques, affaire liée à la session, consolidation des candidats).
+
 ## Couches
 
 | Couche | Rôle | Où |
