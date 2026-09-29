@@ -158,8 +158,10 @@ validation humaine au départ), §9.4 « relances autorisées ». Déclarés dan
   relances sont à décider. **T3** : l'envoi lui-même.
 - **Limites** : aucun envoi réel n'existe pour dater la fréquence ; pas de règle pour l'ancien client, l'avis, la
   référence ni le saisonnier (leur donnée n'atteint pas M2) ; aucun outil humain ne retire un consentement (le retrait
-  vient du STOP par le bus) ; la fréquence n'est pas plafonnée en nombre de relances par devis.
+  vient du STOP par le bus) ; la fréquence n'est pas plafonnée en nombre de relances par devis ; un appel d'appareil
+  sans clé d'idempotence n'a pas d'heure de réception : l'`horodatage` fourni fait alors foi (même limite que M1, M5 et
+  M10).
   Preuve : `tests/test_relances.py`, `test_consentements.py`, `test_gabarits_relance.py`, `test_evaluer_leads.py`,
-  `test_consommer_devis_envoye.py`, `test_consommer_retrait_consentement.py`, `test_relances_outils.py` (470 tests) et,
+  `test_consommer_devis_envoye.py`, `test_consommer_retrait_consentement.py`, `test_relances_outils.py` (493 tests) et,
   du socle, `tests/test_cascade_relances.py` (le vrai M1, le vrai M3, le vrai bus) et
   `tests/e2e/test_relances_vendeur_appareil.py` (la vraie porte d'appareil).

@@ -739,7 +739,10 @@ SES leads, `admin` sur tous, employé refusé) :
 
 Limites : la fréquence ne compte pas d'envoi réel (aucun n'existe) ; le plafond du nombre de relances d'un même devis
 n'est pas fixé (à décider par Nathan) ; aucune règle pour l'ancien client, l'avis ou la référence (leur donnée
-n'atteint pas M2) ; aucun outil humain ne retire un consentement (le retrait vient du STOP par le bus).
+n'atteint pas M2) ; aucun outil humain ne retire un consentement (le retrait vient du STOP par le bus) ; un appel
+d'appareil SANS clé d'idempotence n'a pas d'heure de réception, et l'`horodatage` fourni fait alors foi, comme pour M1,
+M5 et M10 (l'écriture par la file sortante de l'app porte toujours une clé) : ce qu'un appareil falsifierait ainsi ne
+touche que des relances préparées, jamais un envoi.
 
 ### `auteur` d'une interaction
 
