@@ -3,8 +3,8 @@
 `qualification._EMAIL_REGEX` lit le texte du client sans plafond. `contrats._PRIX_REGEX` et `transferts._COURRIEL`
 lisent des textes plafonnés par leur contrat (500 et 1 200 caractères), mais les motifs eux-mêmes ne le sont pas. Avant
 T4.17-g, chacun relisait la même suite de caractères à chaque départ : 20 000 « a. » coûtaient 0,7 s au courriel du
-client (100 000 : 15 s), 20 000 chiffres plus de 100 s au prix, 20 000 lettres 2,7 s au courriel d'un résumé. Ce fichier
-prouve quatre choses.
+client (100 000 : 15 s), 20 000 chiffres plus de 100 s au prix, jusqu'à 2,7 s pour 20 000 caractères au courriel d'un
+résumé. Ce fichier prouve quatre choses.
 
 1. Le sens n'a pas changé. Les motifs d'avant (recopiés ici, tels quels, comme oracle) et ceux de M1 donnent le même
    verdict (et, pour le courriel du client, le même texte trouvé, car le lead le garde) sur toutes les suites de jetons
@@ -37,7 +37,7 @@ from m1_front_office import contrats, qualification, reception, transferts
 
 FICTIF = True
 
-NBSP, NNBSP = " ", " "
+NBSP, NNBSP = "\u00a0", "\u202f"
 _FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -550,7 +550,9 @@ def _lineaire(fonction, fabrique, essais: tuple[int, int] = (5, 3)) -> tuple[flo
 
     Le meilleur de plusieurs essais écarte le bruit de la machine (ordonnanceur, ramasse-miettes). Si le rapport
     dépasse la limite, une seconde série remesure avant de conclure. Sous 20 ms, le petit texte ne dit rien du rapport
-    (le bruit domine) : la limite se calcule alors sur 20 ms, et la borne absolue juge seule les cas plus rapides."""
+    (le bruit domine) : la limite se calcule alors sur 20 ms, et la borne absolue juge seule les cas plus rapides.
+    Une première mesure, sur PILOTE caractères, arrête tôt un motif quadratique : 20 000 chiffres coûtaient plus de
+    100 s à l'ancien prix, et ce test n'a pas à les attendre pour échouer."""
     pilote = _meilleur_temps(fonction, fabrique(PILOTE), 1)
     assert pilote < BORNE_PILOTE, f"{PILOTE} caractères : {pilote:.2f} s"
     petit = _meilleur_temps(fonction, fabrique(PETIT), essais[0])
