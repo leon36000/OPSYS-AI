@@ -18,6 +18,12 @@ file, et son mobile est réservé à l'admin, §7 M9) ; la logique est dans `ops
 qui décide par le chemin de la console. Ce ne sont pas des outils de l'agent M9, qui ne décide jamais :
 sans l'identité authentifiée d'un appareil, ils refusent.
 
+PLAN T1.5-d : le briefing est BORNÉ par le code sous la limite de sortie de `Capacites`
+(`jetons.LIMITE_SORTIE_DEFAUT`) — ce qui ne tient pas est compté (« N autres éléments non affichés ») et
+se lit par `m9_lire_suite_briefing`, jamais une troncature silencieuse. `m9_produire_lecture_strategique`
+lit les alertes de mesure de M8 (chantier terminé : temps réel contre prévu, marge, matériaux) et cite
+leurs preuves sans décider : la décision revient au propriétaire.
+
 Registre de production (ADR-0009) : par défaut, `outils()` adosse le registre de snapshots au
 stockage durable de l'instance (`opsys.stockage.maillons`, dans la transaction que
 `Capacites.appeler` ouvre pour chaque appel d'outil) — même convention que
@@ -31,13 +37,16 @@ suit le même patron pour le registre durable des alertes M8 reçues (T3.2).
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
-from opsys import approbations, approbations_appareil, contexte, stockage
+import yaml
+
+from opsys import approbations, approbations_appareil, contexte, jetons, stockage
 from opsys.departements import charger_departements
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
-from . import briefing_matin, contrats, rapport_strategique, registre, validation
+from . import briefing_matin, contrats, lecture_strategique, rapport_strategique, registre, validation
 from . import etat_consolide as etat_consolide_module
 
 _SNAPSHOT = {
@@ -58,6 +67,25 @@ _MAINTENANT = {
     "type": "string",
     "description": "Instant de référence RFC 3339 (M9 n'a pas d'horloge) — jamais l'instant réel.",
 }
+
+_MANIFESTE = Path(__file__).resolve().parents[2] / "department.yaml"
+# `Capacites._tronquer` mesure `{"ok": true, "resultat": ...}` : 25 caractères d'enveloppe, plus une marge.
+# Le budget d'un outil de lecture est la limite du socle moins cette réserve : sous elle, jamais tronqué.
+_RESERVE_ENVELOPPE = 100
+BUDGET_SORTIE = jetons.LIMITE_SORTIE_DEFAUT - _RESERVE_ENVELOPPE
+_SECTIONS_DU_BRIEFING = ["decisions_en_attente", "alertes_m8", "faits_veille"]
+
+
+def _fenetre_alertes_jours() -> int:
+    """`department.yaml/configuration.fenetre_alertes_jours` : nombre de jours d'alertes M8 relus par le
+    briefing (une alerte de mesure porte l'instant du chantier, pas celui du matin). Absente ou invalide :
+    0, le jour même — le comportement d'avant, jamais une fenêtre devinée."""
+    donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8")) or {}
+    configuration = donnees.get("configuration")
+    fenetre = configuration.get("fenetre_alertes_jours") if isinstance(configuration, dict) else None
+    if isinstance(fenetre, bool) or not isinstance(fenetre, int) or fenetre < 0:
+        return 0
+    return fenetre
 
 
 def valider_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
@@ -141,20 +169,49 @@ def outils(
         rien de nouveau (même esprit que `lire_etat_consolide`)."""
         return [dict(alerte) for alerte in alertes_cible]
 
-    def produire_briefing_matin(maintenant: str) -> dict[str, Any]:
-        """Assemble le briefing du matin pour `maintenant` (RFC 3339, fourni par l'appelant —
-        jamais l'horloge, T3.2) : file du propriétaire (`opsys.approbations.file_proprietaire`,
-        TOUS les départements installés), alertes M8 déjà reçues par le bus, faits déjà consolidés
-        par M9 pour la veille — relecture pure des trois sources, aucune ingestion, aucune
-        écriture (T0). `stockage.transaction()` réutilise la transaction déjà ouverte par
-        `executer_atomique` (ADR-0009) ou en ouvre une nouvelle si appelée hors de tout outil
-        (tests avec une base durable montée) : jamais une lecture sans transaction cohérente.
-        """
+    def sources_du_briefing() -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+        """Les trois sources déjà à jour, relues sans rien écrire : file du propriétaire, alertes M8 reçues
+        par le bus, faits consolidés par M9. `stockage.transaction()` réutilise la transaction déjà ouverte
+        par `executer_atomique` (ADR-0009) ou en ouvre une nouvelle si appelée hors de tout outil.
+
+        La file est lue EN ENTIER : `file_proprietaire` borne par défaut à 100 demandes, les plus récentes,
+        ce qui aurait écarté en silence les plus anciennes — les plus urgentes — au-delà de 100."""
         with stockage.transaction() as cnx:
-            decisions = approbations.file_proprietaire(cnx, charger_departements())
+            en_attente = approbations.compter(cnx, "en_attente")
+            decisions = approbations.file_proprietaire(cnx, charger_departements(), limite=max(en_attente, 1))
         alertes = [dict(alerte) for alerte in alertes_cible]
-        faits = registre_cible.lire()
-        return briefing_matin.assembler_briefing_matin(maintenant, decisions, alertes, faits)
+        return decisions, alertes, registre_cible.lire()
+
+    def produire_briefing_matin(maintenant: str) -> dict[str, Any]:
+        """Assemble le briefing du matin pour `maintenant` (RFC 3339, fourni par l'appelant — jamais
+        l'horloge, T3.2) : file du propriétaire (`opsys.approbations.file_proprietaire`, TOUS les
+        départements installés), alertes M8 déjà reçues par le bus, faits déjà consolidés par M9 pour la
+        veille — relecture pure des trois sources, aucune ingestion, aucune écriture (T0).
+
+        Borné sous la limite de sortie du socle (T1.5-d) : ce qui ne tient pas est compté dans `affichage`
+        et se lit par `m9_lire_suite_briefing`."""
+        decisions, alertes, faits = sources_du_briefing()
+        return briefing_matin.assembler_briefing_matin(
+            maintenant, decisions, alertes, faits,
+            budget_caracteres=BUDGET_SORTIE, fenetre_alertes_jours=_fenetre_alertes_jours(),
+        )
+
+    def lire_suite_briefing(maintenant: str, section: str, depart: int = 0) -> dict[str, Any]:
+        """La suite d'une section du briefing à partir de `depart` (T1.5-d) : mêmes sources, même filtre,
+        même ordre que `produire_briefing_matin`, une page bornée à la fois."""
+        decisions, alertes, faits = sources_du_briefing()
+        return briefing_matin.lire_suite_section(
+            maintenant, section, depart, decisions, alertes, faits,
+            budget_caracteres=BUDGET_SORTIE, fenetre_alertes_jours=_fenetre_alertes_jours(),
+        )
+
+    def produire_lecture_strategique(maintenant: str, depart: int = 0) -> dict[str, Any]:
+        """Lecture stratégique des alertes de mesure de M8 (T1.5-d) : preuves citées, décision au
+        propriétaire, jamais prise par M9. Relecture pure du registre d'alertes reçues (T0)."""
+        return lecture_strategique.assembler_lecture_strategique(
+            maintenant, [dict(alerte) for alerte in alertes_cible],
+            fenetre_alertes_jours=_fenetre_alertes_jours(), depart=depart, budget_caracteres=BUDGET_SORTIE,
+        )
 
     def lister_demandes_approbation(limite: int = approbations_appareil.LIMITE_LISTE_DEFAUT) -> dict[str, Any]:
         """Demandes d'approbation en attente, pour l'app du propriétaire (T1.4-f). L'identité vient du
@@ -257,6 +314,49 @@ def outils(
             },
             fonction=produire_briefing_matin,
             # §7 M9 mobile : « Admin/Nathan seulement » (briefing du matin).
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m9_lire_suite_briefing",
+            description=(
+                "Lit la suite d'une section du briefing du matin quand celui-ci annonce « N autres éléments non "
+                "affichés » : reprend à `depart` (indice dans la section, donné par `lire_la_suite`), autant "
+                "d'éléments que la limite de sortie en laisse tenir, et rend `prochain_depart` (nul à la fin). "
+                "Mêmes sources et même ordre que `m9_produire_briefing_matin` ; relecture pure, rien n'est écrit."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "maintenant": _MAINTENANT,
+                    "section": {"type": "string", "enum": _SECTIONS_DU_BRIEFING},
+                    "depart": {"type": "integer", "description": "Indice de départ dans la section (0 = début)."},
+                },
+                "required": ["maintenant", "section"],
+                "additionalProperties": False,
+            },
+            fonction=lire_suite_briefing,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m9_produire_lecture_strategique",
+            description=(
+                "Lecture stratégique des alertes de mesure de chantier terminé proposées par M8 (temps réel contre "
+                "prévu, marge, matériaux) reçues dans la fenêtre du briefing : chaque lecture cite ses preuves "
+                "(métrique M8, version de sa définition, chantier, valeur, seuil, événement) et l'action que M8 "
+                "propose. M9 ne décide pas : `decision.prise_par_m9` est faux, la décision revient au propriétaire. "
+                "Les seuils à configurer sont des manques. Bornée ; `depart` reprend à la lecture suivante. "
+                "Relecture pure."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "maintenant": _MAINTENANT,
+                    "depart": {"type": "integer", "description": "Indice de la première lecture rendue (0 = début)."},
+                },
+                "required": ["maintenant"],
+                "additionalProperties": False,
+            },
+            fonction=produire_lecture_strategique,
             roles_appareil=frozenset({"admin"}),
         ),
         Outil(

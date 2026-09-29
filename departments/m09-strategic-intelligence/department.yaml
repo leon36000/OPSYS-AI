@@ -10,7 +10,10 @@ mission: >-
   chiffre, sans jamais recommander ni décider (v1 est un harnais pur, zéro contenu
   délibératif). Assemble aussi, pour un instant de référence fourni, le briefing du matin
   (décisions en attente de la file du propriétaire, alertes proposées par M8 reçues du bus,
-  faits de la veille, manques) : un gabarit déterministe et sourcé, jamais une rédaction.
+  faits de la veille, manques) : un gabarit déterministe et sourcé, jamais une rédaction, borné
+  sous la limite de sortie du socle (« N autres éléments non affichés », et comment les lire).
+  Lit les alertes de mesure de chantier de M8 et en donne une lecture qui cite ses preuves
+  (identifiants des métriques) sans jamais décider : la décision revient au propriétaire.
 outils: m9_strategic_intelligence.outils
 mode: ombre
 dependances: [m08-analytics, m10-memoire]
@@ -34,6 +37,12 @@ memoire:
   ecriture: [snapshots_modules, etat_consolide]
 evenements:
   consomme: [m8.alerte_proposee]
+configuration:
+  # Jours d'alertes M8 relus par le briefing du matin, jour du briefing compris (PLAN T1.5-d). Une alerte
+  # de mesure de chantier porte l'instant du chantier : fini le vendredi à 15 h, il doit encore paraître le
+  # lundi à 7 h (3 jours couvrent la fin de semaine). 0 : le jour même seulement. Réglage d'affichage, pas
+  # un seuil d'affaires ; absent ou invalide, le briefing retombe sur 0.
+  fenetre_alertes_jours: 3
 kpis:
   - id: taux_contradictions_non_arbitrees
     description: Part des contradictions internes détectées sans arbitrage humain consigné dans M10.
