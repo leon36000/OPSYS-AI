@@ -21,11 +21,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from sqlalchemy import select
-
 from opsys import approbations, identite, stockage, taxonomie
 from opsys import contexte as contexte_appel
-from opsys.stockage.schema import APPROBATIONS
 
 from ..brand import profil_client as brand_profil_client
 from . import chantier, paquet, plateformes, registre, retrait, verdicts
@@ -33,6 +30,9 @@ from . import decision as regle_decision
 from .controle_texte import LIBELLES_REGLES, controler_texte
 
 DEPARTEMENT = "m07-marketing"
+# Le seul rôle qu'`m7_decider_contenu` reconnaît à un approbateur de la file (plus strict que la politique du
+# département, qui peut s'élargir) : la décision d'un contenu public est celle du propriétaire.
+ROLES_QUI_DECIDENT = frozenset({regle_decision.ROLE_DECIDEUR})
 REGISTRE_WCT_RECUS = (DEPARTEMENT, "wct_recus")
 REGISTRE_CONTENU_PUBLIC = (DEPARTEMENT, "contenu_public")
 REGISTRE_CONTENUS_CHANTIER = (DEPARTEMENT, "contenus_chantier")
@@ -95,46 +95,18 @@ def _qui_appelle() -> tuple[str, str]:
     return confirmee.personne, regle_decision.SOURCE_APPAREIL
 
 
-def _approbateur_de_la_demande_en_cours(cnx: Any, nom_outil: str, cles: dict[str, Any]) -> str | None:
-    """La personne qui vient d'APPROUVER la demande que cet appel exécute, sinon `None`.
-
-    `approbations.decider` réserve la demande (`en_attente` -> `en_cours`, avec `decide_par` et `decide_role` :
-    une personne active portant un rôle autorisé pour ce niveau dans ce département) puis exécute l'outil avec
-    les arguments enregistrés, dans la même transaction. Cet appel EST donc une décision humaine si et
-    seulement si une demande `en_cours` de cet outil, de ce département, porte ces mêmes `cles` et un
-    approbateur propriétaire toujours actif. Un agent ne peut pas fabriquer une telle ligne : il ne peut que
-    créer une demande `en_attente`. Le motif n'est pas comparé (il ne change pas ce qui est décidé). Lecture
-    seule. Même patron que M10 (`_decision_approuvee_en_cours`), copié : aucun import entre départements."""
-    if cnx is None:
-        return None
-    lignes = cnx.execute(
-        select(APPROBATIONS.c.arguments, APPROBATIONS.c.decide_par, APPROBATIONS.c.decide_role).where(
-            APPROBATIONS.c.statut == "en_cours", APPROBATIONS.c.outil == nom_outil,
-            APPROBATIONS.c.departement == DEPARTEMENT,
-        )
-    ).all()
-    for arguments_enregistres, decide_par, decide_role in lignes:
-        if not decide_par or decide_role != regle_decision.ROLE_DECIDEUR:
-            continue
-        enregistres = json.loads(arguments_enregistres)
-        if any(enregistres.get(cle) != valeur for cle, valeur in cles.items()):
-            continue
-        personne = identite.personne_active(cnx, decide_par)
-        if personne is not None and decide_role in personne.roles:
-            return decide_par
-    return None
-
-
-def _proprietaire_qui_decide(
-    nom_outil: str, cles: dict[str, Any],
-) -> tuple[dict[str, str] | None, dict[str, Any] | None]:
+def _proprietaire_qui_decide(nom_outil: str) -> tuple[dict[str, str] | None, dict[str, Any] | None]:
     """Qui décide : `({par, role, source}, None)` si c'est le propriétaire, sinon `(None, verdict de refus)`.
 
     Deux voies, jamais une troisième, et jamais un texte de modèle ni un argument :
     1. un appel d'appareil dont l'identité (posée par le core d'après un jeton vérifié) est CONFIRMÉE en base,
        de rôle `admin`, et dont la PERSONNE porte `nathan_owner` (même plafond que l'app d'approbation du
        socle : un gestionnaire `admin` ne décide pas à la place du propriétaire) ;
-    2. l'exécution d'une demande que le propriétaire vient d'approuver dans la file d'approbation.
+    2. l'exécution d'une demande que le propriétaire vient d'approuver dans la file d'approbation : le SOCLE dit qui
+       l'a approuvée (`approbations.approbateur_en_cours`, PLAN T4.15-d ; demande relue en base, personne active
+       portant encore son rôle), et seul `nathan_owner` compte, même si la politique du département s'élargit. Les
+       arguments ne sont pas comparés : `decider` rejoue les arguments EXACTS enregistrés et lui seul pose la
+       demande en cours.
     Tout le reste est refusé : un appel d'agent qui n'a pas passé par l'approbation (un département en mode
     `supervise` ou `autonome` exécute un N3 sans file), un appel hors transaction où rien n'est vérifiable."""
     cnx = stockage.connexion_courante()
@@ -157,10 +129,10 @@ def _proprietaire_qui_decide(
         return {
             "par": confirmee.personne, "role": regle_decision.ROLE_DECIDEUR, "source": regle_decision.SOURCE_APPAREIL,
         }, None
-    approbateur = _approbateur_de_la_demande_en_cours(cnx, nom_outil, cles)
+    approbateur = approbations.approbateur_en_cours(cnx, nom_outil, DEPARTEMENT, roles=ROLES_QUI_DECIDENT)
     if approbateur is not None:
         return {
-            "par": approbateur, "role": regle_decision.ROLE_DECIDEUR, "source": regle_decision.SOURCE_APPROBATION,
+            "par": approbateur.personne, "role": approbateur.role, "source": regle_decision.SOURCE_APPROBATION,
         }, None
     return None, verdicts.verdict(
         verdicts.REJ_HUMAIN_REQUIS,
@@ -378,9 +350,7 @@ def decider_contenu(contenu_id: str, decision: str, horodatage: str, motif: str 
     Ordre (chaque refus intervient avant toute écriture) : qui décide (un humain, le propriétaire) ; le contenu
     existe ; son consentement n'est pas retiré ; c'est la dernière révision ; il est encore `PROPOSE` ; pour une
     approbation, son texte passe encore le contrôle. La décision porte l'empreinte du texte décidé."""
-    acteur, refus = _proprietaire_qui_decide(
-        "m7_decider_contenu", {"contenu_id": contenu_id, "decision": decision, "horodatage": horodatage},
-    )
+    acteur, refus = _proprietaire_qui_decide("m7_decider_contenu")
     if acteur is None:
         return _refus(refus or verdicts.verdict(verdicts.REJ_HUMAIN_REQUIS, "acteur humain introuvable"))
     propositions = _lire(REGISTRE_CONTENUS_CHANTIER)

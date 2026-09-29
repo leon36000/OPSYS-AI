@@ -7,6 +7,7 @@ pose (`contexte.appele_par_appareil`), les personnes sont créées par `opsys.id
 
 from __future__ import annotations
 
+import dataclasses
 import datetime as dt
 import json
 from pathlib import Path
@@ -22,7 +23,7 @@ from sqlalchemy import update
 
 from opsys import approbations, contexte, identite, stockage
 from opsys.approbations_appareil import LIMITE_RESUME_ATTENTE
-from opsys.departements import lire_manifeste
+from opsys.departements import PolitiqueApprobation, lire_manifeste
 from opsys.outils import Niveau, executer_atomique
 from opsys.stockage import codec
 from opsys.stockage.schema import APPROBATIONS, REGISTRES
@@ -565,11 +566,16 @@ def test_approuver_sans_profil_de_marque_configure_refuse(
     assert resultat["verdict"]["code"] == "REJ-PROFIL-MARQUE-NON-CONFIGURE"
 
 
-def _decider_par_la_file(arguments, personne="nathan"):
+def _decider_par_la_file(arguments, personne="nathan", *, roles_n3=None):
     """Le chemin de l'agent en mode `ombre` : la demande attend, le propriétaire l'approuve dans la file du socle,
-    qui exécute l'outil avec les arguments exacts enregistrés."""
+    qui exécute l'outil avec les arguments exacts enregistrés. `roles_n3` élargit la politique N3 du département
+    (le manifeste ne déclare que `nathan_owner`) : la file accepte alors ces rôles."""
     index = dict(_OUTILS)
-    departements = {"m07-marketing": lire_manifeste(_RACINE_M7)}
+    departement = lire_manifeste(_RACINE_M7)
+    if roles_n3 is not None:
+        departement = dataclasses.replace(
+            departement, politique_approbation=PolitiqueApprobation(roles={Niveau.N3: frozenset(roles_n3)}))
+    departements = {"m07-marketing": departement}
     with stockage.transaction() as cnx:
         ident = approbations.creer_demande(cnx, "m07-marketing", "m7_decider_contenu", arguments, niveau=Niveau.N3)
     with stockage.transaction() as cnx:
@@ -586,6 +592,24 @@ def test_la_decision_passe_aussi_par_la_file_d_approbation_du_socle(
     assert (decision["par"], decision["role"], decision["source"]) == ("nathan", "nathan_owner", "approbation")
 
 
+def test_la_decision_par_la_file_porte_le_nom_de_la_personne_que_le_socle_dit_pas_un_nom_fixe(
+    base_durable, brand_configure, proprietaire, charge,
+):
+    with stockage.transaction() as cnx:
+        identite.creer_personne(
+            cnx, "adjointe.proprietaire", "Adjointe propriétaire fictive", "mot-de-passe-de-test-1234",
+            ["nathan_owner"])
+    contenu_id = _contenu_propose(charge)
+
+    sortie = _decider_par_la_file(
+        {"contenu_id": contenu_id, "decision": "approuver", "horodatage": HORODATAGE}, personne="adjointe.proprietaire")
+
+    assert sortie["statut"] == "executee" and sortie["reponse"]["resultat"]["accepte"] is True
+    (decision,) = _lire("decisions_contenu")
+    assert (decision["par"], decision["role"], decision["source"]) == (
+        "adjointe.proprietaire", "nathan_owner", "approbation")
+
+
 def test_la_file_du_socle_refuse_d_approuver_par_un_autre_que_le_proprietaire(
     base_durable, brand_configure, proprietaire, charge,
 ):
@@ -596,25 +620,59 @@ def test_la_file_du_socle_refuse_d_approuver_par_un_autre_que_le_proprietaire(
     assert _lire("decisions_contenu") == []
 
 
-def test_une_demande_approuvee_pour_un_contenu_n_autorise_pas_la_decision_d_un_autre(
+def test_une_demande_approuvee_pour_un_contenu_ne_decide_que_ce_contenu_et_une_seule_fois(
     base_durable, brand_configure, proprietaire, charge,
 ):
-    """Le pont de la file compare le contenu, la décision et l'heure de la demande approuvée : un agent qui
-    appelle l'outil pendant qu'une AUTRE demande est en cours ne récupère pas cette approbation."""
+    """Le socle ne dit qui a approuvé que PENDANT `decider` (T4.15-d) : un agent qui appelle l'outil ensuite, pour un
+    AUTRE contenu ou pour une autre décision du même contenu, ne récupère pas cette approbation."""
     _recevoir(charge)
     facebook, instagram = _id("facebook"), _id("instagram")
+
+    sortie = _decider_par_la_file({"contenu_id": facebook, "decision": "approuver", "horodatage": HORODATAGE})
+    assert sortie["statut"] == "executee" and sortie["reponse"]["resultat"]["accepte"] is True
+    with stockage.transaction():
+        pris = service.decider_contenu(instagram, "approuver", HORODATAGE)
+        autre_decision = service.decider_contenu(facebook, "rejeter", HORODATAGE, "non")
+
+    assert pris["verdict"]["code"] == "REJ-HUMAIN-REQUIS"
+    assert autre_decision["verdict"]["code"] == "REJ-HUMAIN-REQUIS"
+    assert [d["contenu_id"] for d in _lire("decisions_contenu")] == [facebook]
+
+
+def test_une_ligne_en_cours_ecrite_a_la_main_ne_donne_aucun_droit_meme_bien_formee(
+    base_durable, brand_configure, proprietaire, charge,
+):
+    """Ce que M7 acceptait avant T4.15-d (une demande `en_cours` de cet outil, aux mêmes contenu, décision et heure,
+    du propriétaire actif) ne vaut plus rien sans que `decider` soit en train d'exécuter."""
+    _recevoir(charge)
+    facebook = _id("facebook")
     with stockage.transaction() as cnx:
         ident = approbations.creer_demande(
             cnx, "m07-marketing", "m7_decider_contenu",
             {"contenu_id": facebook, "decision": "approuver", "horodatage": HORODATAGE}, niveau=Niveau.N3)
         cnx.execute(update(APPROBATIONS).where(APPROBATIONS.c.id == ident).values(
             statut="en_cours", decide_par="nathan", decide_role="nathan_owner"))
-        pris = service.decider_contenu(instagram, "approuver", HORODATAGE)
-        legitime = service.decider_contenu(facebook, "approuver", HORODATAGE)
-        autre_decision = service.decider_contenu(facebook, "rejeter", HORODATAGE, "non")
-    assert pris["verdict"]["code"] == "REJ-HUMAIN-REQUIS"
-    assert autre_decision["verdict"]["code"] == "REJ-HUMAIN-REQUIS"
-    assert legitime["accepte"] is True
+        forgee = service.decider_contenu(facebook, "approuver", HORODATAGE)
+
+    assert forgee["verdict"]["code"] == "REJ-HUMAIN-REQUIS"
+    assert _lire("decisions_contenu") == []
+
+
+def test_un_role_que_la_file_admet_mais_que_l_outil_ne_reconnait_pas_ne_decide_rien(
+    base_durable, brand_configure, proprietaire, charge,
+):
+    """Le manifeste peut élargir la politique N3 de M7 : la file exécute alors la demande d'une gestionnaire `admin`,
+    mais l'outil ne reconnaît que le propriétaire (`nathan_owner`) pour un contenu public."""
+    contenu_id = _contenu_propose(charge)
+
+    sortie = _decider_par_la_file(
+        {"contenu_id": contenu_id, "decision": "approuver", "horodatage": HORODATAGE},
+        personne="gestionnaire", roles_n3={"admin", "nathan_owner"})
+
+    assert sortie["statut"] == "executee", sortie
+    assert sortie["reponse"]["resultat"]["accepte"] is False
+    assert sortie["reponse"]["resultat"]["verdict"]["code"] == "REJ-HUMAIN-REQUIS"
+    assert _lire("decisions_contenu") == []
 
 
 # =============================================================================================================
