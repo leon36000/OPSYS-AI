@@ -40,11 +40,11 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from datetime import datetime
-from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from . import dictionnaire, encodage
+from . import dictionnaire, encodage, nombres
 
 MODULE_DEFINITIONS = "m08-analytics"
 METRIQUE_EQUIPE = "m8_ecart_duree_technicien_pct"
@@ -60,11 +60,10 @@ SEUIL_NON_FRANCHI = "non_franchi"
 SEUIL_A_CONFIGURER = "seuil_a_configurer"
 SEUIL_INVALIDE = "seuil_invalide"
 
-SENS_AU_DESSUS = "au_dessus"
-SENS_AU_DESSOUS = "au_dessous"
+SENS_AU_DESSUS = nombres.SENS_AU_DESSUS
+SENS_AU_DESSOUS = nombres.SENS_AU_DESSOUS
 
 _CHEMIN_METRIQUES = Path(__file__).resolve().parents[2] / "metrics" / "m8-metrics.v1.yaml"
-_CENTIEME = Decimal("0.01")
 _CENT = Decimal("100")
 _ZERO = Decimal("0")
 
@@ -226,28 +225,8 @@ def assembler_faits(wct_id: str, entrees: list[dict[str, Any]]) -> dict[str, Any
 
 
 # ---------------------------------------------------------------------------
-# Arithmétique : Decimal partout, texte à la sortie
+# Arithmétique : Decimal partout, texte à la sortie (`nombres.py`, partagé avec l'entonnoir)
 # ---------------------------------------------------------------------------
-def _decimal(valeur: Any) -> Decimal | None:
-    """Décimal fini lu d'un nombre ou d'un texte décimal ; ``None`` sinon (un booléen n'est pas un
-    nombre). Jamais une valeur par défaut."""
-    if valeur is None or isinstance(valeur, bool):
-        return None
-    try:
-        lu = Decimal(str(valeur).strip())
-    except InvalidOperation:
-        return None
-    return lu if lu.is_finite() else None
-
-
-def _texte(valeur: Decimal) -> str:
-    """Texte décimal à deux décimales (ROUND_HALF_UP), sans « -0.00 »."""
-    arrondi = valeur.quantize(_CENTIEME, rounding=ROUND_HALF_UP)
-    if arrondi == 0:
-        arrondi = arrondi.copy_abs()
-    return format(arrondi, "f")
-
-
 def _afficher(valeur: str, unite: str) -> str:
     return f"{valeur} {_UNITES_AFFICHEES.get(unite, unite)}"
 
@@ -292,7 +271,7 @@ def _lire_entrees(
         if brute is None:
             manque.append({"champ": champ, "source": source, "raison": _raison_valeur_absente(fait, nom_fait)})
             continue
-        lue = _decimal(brute)
+        lue = nombres.decimal_lu(brute)
         if lue is None:
             manque.append({"champ": champ, "source": source, "raison": f"valeur illisible : {brute!r}"})
             continue
@@ -372,7 +351,7 @@ def _ecart_materiaux_max_pct(faits: dict[str, Any]) -> Resultat:
         }]
     definis = []
     for ligne in variance["lignes"] or []:
-        ecart = _decimal(ligne.get("ecart_pourcentage"))
+        ecart = nombres.decimal_lu(ligne.get("ecart_pourcentage"))
         if ecart is not None:
             definis.append((ecart, ligne))
     if not definis:
@@ -407,7 +386,7 @@ def _detail_manque(manque: list[dict[str, str]]) -> str:
 
 
 def _entrees_en_texte(entrees: dict[str, Any]) -> dict[str, Any]:
-    return {cle: (_texte(v) if isinstance(v, Decimal) else v) for cle, v in entrees.items()}
+    return {cle: (nombres.texte_decimal(v) if isinstance(v, Decimal) else v) for cle, v in entrees.items()}
 
 
 def mesurer_chantier(faits: dict[str, Any], definitions: dict[str, dict[str, str]]) -> list[dict[str, Any]]:
@@ -433,7 +412,7 @@ def mesurer_chantier(faits: dict[str, Any], definitions: dict[str, dict[str, str
             "nom": definition["nom"],
             "unite": definition["unite"],
             "statut": STATUT_CALCULEE if calculee else STATUT_NON_CALCULABLE,
-            "valeur": _texte(valeur) if valeur is not None else None,
+            "valeur": nombres.texte_decimal(valeur) if valeur is not None else None,
             "manque": [] if calculee else manque,
             "detail": None if calculee else _detail_manque(manque),
             "entrees": _entrees_en_texte(entrees),
@@ -473,18 +452,6 @@ def compacter(mesures: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list
 # ---------------------------------------------------------------------------
 # Seuils : configurés ou pas d'alerte, et un signal qui dit quoi configurer
 # ---------------------------------------------------------------------------
-def _seuil_valide(brut: Any) -> dict[str, Any] | None:
-    if not isinstance(brut, dict) or set(brut) != {"sens", "valeur"}:
-        return None
-    if brut["sens"] not in (SENS_AU_DESSUS, SENS_AU_DESSOUS):
-        return None
-    valeur = brut["valeur"]
-    if isinstance(valeur, bool) or not isinstance(valeur, (int, float)):
-        return None
-    lue = _decimal(valeur)
-    return None if lue is None else {"sens": brut["sens"], "valeur": lue}
-
-
 def evaluer_seuils(mesures: list[dict[str, Any]], seuils: Any) -> list[dict[str, Any]]:
     """Situation de chaque mesure CALCULÉE et surveillée face à son seuil configuré. Une mesure non
     calculable n'est pas évaluée (elle dit déjà ce qui manque). Sans seuil, ou avec un seuil
@@ -503,7 +470,7 @@ def evaluer_seuils(mesures: list[dict[str, Any]], seuils: Any) -> list[dict[str,
         }
         brut = configures.get(metric_id)
         if brut is not None:
-            seuil = _seuil_valide(brut)
+            seuil = nombres.seuil_valide(brut)
             if seuil is None:
                 evaluation["statut"] = SEUIL_INVALIDE
             else:
@@ -511,7 +478,7 @@ def evaluer_seuils(mesures: list[dict[str, Any]], seuils: Any) -> list[dict[str,
                 atteint = valeur >= seuil["valeur"] if seuil["sens"] == SENS_AU_DESSUS else valeur <= seuil["valeur"]
                 evaluation.update({
                     "statut": SEUIL_FRANCHI if atteint else SEUIL_NON_FRANCHI,
-                    "sens": seuil["sens"], "seuil": _texte(seuil["valeur"]),
+                    "sens": seuil["sens"], "seuil": nombres.texte_decimal(seuil["valeur"]),
                 })
         evaluations.append(evaluation)
     return evaluations
@@ -603,9 +570,9 @@ def _ligne_equipe(n: int, sans_prevu: int, reel: Decimal, estime: Decimal, minim
     return {
         "n_chantiers_mesures": n,
         "n_chantiers_sans_temps_prevu": sans_prevu,
-        "duree_reelle_totale_minutes": _texte(reel),
-        "duree_estimee_totale_minutes": _texte(estime),
-        "ecart_pct": _texte((reel - estime) / estime * _CENT) if n > 0 and estime > 0 else None,
+        "duree_reelle_totale_minutes": nombres.texte_decimal(reel),
+        "duree_estimee_totale_minutes": nombres.texte_decimal(estime),
+        "ecart_pct": nombres.texte_decimal((reel - estime) / estime * _CENT) if n > 0 and estime > 0 else None,
         "suffisant": None if minimum is None else n >= minimum,
     }
 
@@ -643,8 +610,8 @@ def performance_equipe(entrees: list[dict[str, Any]], chantiers_minimum: Any) ->
             wct["technicien_id"], {"n": 0, "sans_prevu": 0, "reel": _ZERO, "estime": _ZERO}
         )
         devis = devis_par_id.get(wct.get("devis_id"))
-        reel = _decimal(wct.get("duree_reelle_minutes"))
-        estime = _decimal(devis.get("duree_estimee_minutes")) if devis is not None else None
+        reel = nombres.decimal_lu(wct.get("duree_reelle_minutes"))
+        estime = nombres.decimal_lu(devis.get("duree_estimee_minutes")) if devis is not None else None
         if reel is None or estime is None or estime <= 0:
             cumul["sans_prevu"] += 1
             continue
