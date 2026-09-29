@@ -29,6 +29,14 @@ absente donne « non calculable, manque X ». Un seuil franchi (`department.yaml
 `configuration.seuils_alerte`) publie `m8.alerte_proposee` pour M9 ; sans seuil, un signal « seuil à
 configurer ». `m8_lire_mesures_chantier` et `m8_performance_equipe` sont T0 et réservés au rôle
 admin : marges et détail par technicien ne vont jamais à un employé.
+
+Entonnoir commercial et vue exécutive (PLAN T4.19, `entonnoir.py`, `vue_executive.py`) : M8 reçoit aussi les faits de
+M2 (`m2.client_associe`, `m2.lead_assigne`) et de M3 (`m3.devis_envoye`, `m3.devis_accepte`, `m3.devis_sans_reponse`),
+les range dans le registre `faits_entonnoir` (idempotent, un fait par lead ou par devis) et mesure l'entonnoir au moment
+de la lecture, jamais à l'arrivée : c'est un état du moment, pas un chantier. `m8_lire_vue_executive` (T0, admin) y
+ajoute la marge réelle que M5 a publiée, le stock à commander que M6 met à la file du propriétaire et le cash libre
+(que M5 ne publie pas : « manque »). M8 ne recalcule aucun montant de M5 ; un rôle d'appareil autre qu'`admin` est
+refusé dans le code, en plus de la portée du core.
 """
 
 from __future__ import annotations
@@ -38,11 +46,13 @@ from typing import Any
 
 import yaml
 
-from opsys import contexte, evenements, identite, jetons, stockage
+from opsys import approbations, contexte, evenements, identite, jetons, stockage
+from opsys.departements import charger_departements
 from opsys.outils import Autonomie, Outil, depuis_couple
 
 from . import (
     alertes,
+    entonnoir,
     mesures_chantier,
     qualite,
     rapports,
@@ -50,6 +60,7 @@ from . import (
     registre_metriques,
     semantique,
     validation,
+    vue_executive,
     xmr,
 )
 from . import dictionnaire as dictionnaire_module
@@ -167,6 +178,8 @@ def _valeurs_travaux_termines(charge: dict[str, Any]) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 _MANIFESTE = Path(__file__).resolve().parents[2] / "department.yaml"
 _NOM_REGISTRE_FAITS = "faits_chantier"
+_NOM_REGISTRE_ENTONNOIR = "faits_entonnoir"
+_M6 = "m06-material-control"
 # `Capacites._tronquer` mesure `{"ok": true, "resultat": ...}` : 25 caractères d'enveloppe, plus une marge.
 # Sous ce budget (la limite de sortie du socle moins cette réserve), une réponse n'est jamais tronquée.
 BUDGET_SORTIE = jetons.LIMITE_SORTIE_DEFAUT - 100
@@ -188,11 +201,65 @@ def _seuils_alerte() -> dict[str, Any]:
     return seuils if isinstance(seuils, dict) else {}
 
 
+def _seuils_entonnoir() -> dict[str, Any]:
+    """Seuils de l'entonnoir configurés, `{metric_id: {sens, valeur}}` ; vide tant qu'aucun n'est fixé (GATE
+    NATHAN : `entonnoir.evaluer_seuils` répond alors « seuil à configurer », jamais une valeur par défaut)."""
+    seuils = _configuration().get("seuils_entonnoir")
+    return seuils if isinstance(seuils, dict) else {}
+
+
 def _chantiers_minimum() -> Any:
     """Nombre minimal de chantiers mesurés pour qu'un écart par technicien soit dit suffisant ;
     `None` tant qu'il n'est pas configuré (jamais un minimum supposé)."""
     equipe = _configuration().get("performance_equipe")
     return equipe.get("chantiers_minimum") if isinstance(equipe, dict) else None
+
+
+def _admin_authentifie() -> bool:
+    """Vrai seulement pour un appel d'appareil dont l'identité authentifiée est celle d'une
+    personne active portant encore le rôle `admin` (revérifiée en base, comme M3 pour sa vue par
+    rôle). Sans identité (agent, console, test) ou avec un autre rôle : faux, donc aucun détail
+    nominatif — fail-closed."""
+    appelante = contexte.identite_appelante()
+    if appelante is None or appelante.role != _ROLE_ADMIN:
+        return False
+    cnx = stockage.connexion_courante()
+    if cnx is None:
+        return False
+    personne = identite.personne_active(cnx, appelante.personne)
+    return personne is not None and appelante.role in personne.roles
+
+
+def _exiger_admin_pour_appareil() -> None:
+    """Refuse, AVANT toute lecture, tout appel d'appareil qui n'est pas celui d'un `admin` authentifié : le socle
+    n'applique pas `Outil.roles_appareil` à un outil de lecture (T0) hors du core, et la vue exécutive porte marges,
+    stock et carnet de toute l'entreprise (§8.16 : un employé ne voit ni marges, ni finances globales). Sans identité
+    d'appareil (un agent, la console : la voie des agents), rien à refuser ici ; avec une identité, le rôle du jeton
+    est REVÉRIFIÉ en base (personne active, rôle encore porté), jamais cru sur parole : hors transaction, refus."""
+    if contexte.identite_appelante() is None:
+        return
+    if not _admin_authentifie():
+        raise ValueError(
+            "REJ-IDENTITE-APPAREIL-INVALIDE : la vue exécutive est réservée à l'admin authentifié "
+            "(personne active portant encore le rôle admin) ; aucun autre rôle d'appareil n'y a accès"
+        )
+
+
+def _lire_attentes_m6() -> tuple[list[dict[str, Any]] | None, str | None]:
+    """Ce que M6 met à la file du propriétaire (`attentes()`, PLAN T1.5-d) : `(attentes, None)`, ou `(None, raison)`
+    quand M6 ne peut pas être lu. C'est le mécanisme du socle (`approbations.attentes_departements`, celui de M9), pas
+    un import de M6 : M8 ne connaît ni son registre, ni ses seuils, ni ses quantités. Seul M6 est appelé. Dans la
+    transaction de l'outil seulement."""
+    cnx = stockage.connexion_courante()
+    if cnx is None:
+        return None, "aucune base jointe : les attentes de M6 ne se lisent que dans la transaction d'un outil"
+    m6 = charger_departements().get(_M6)
+    if m6 is None:
+        return None, f"{_M6} n'est pas installé sur cette instance"
+    attentes, illisibles = approbations.attentes_departements(cnx, {_M6: m6})
+    if illisibles:
+        return None, f"les attentes de {_M6} n'ont pas pu être lues (voir le journal du moteur)"
+    return attentes, None
 
 
 def _ajouter_fait_si_nouveau(faits_cible: Any, fait: dict[str, Any], cles: tuple[str, ...]) -> bool:
@@ -305,7 +372,9 @@ def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
 def _recevoir_devis_accepte(charge: dict[str, Any]) -> dict[str, Any]:
     """Consommateur `m3.devis_accepte` : le prévu du chantier (prix et coût arrêtés par M3, et la
     durée estimée si M3 la fournit). Le devis précède normalement le chantier, mais le bus ne le
-    garantit pas : chaque chantier déjà terminé qui pointe vers ce devis est remesuré."""
+    garantit pas : chaque chantier déjà terminé qui pointe vers ce devis est remesuré. Le même événement
+    porte aussi le devis accepté de l'entonnoir (T4.19 : le prix total seulement, jamais le coût), rangé au
+    registre `faits_entonnoir` : une seule fonction par type consommé."""
     devis_id = charge["devis_id"]
     faits_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_FAITS)
     enregistre = _ajouter_fait_si_nouveau(faits_cible, mesures_chantier.fait_devis(charge), ("devis_id",))
@@ -313,7 +382,11 @@ def _recevoir_devis_accepte(charge: dict[str, Any]) -> dict[str, Any]:
         _mesurer_et_publier(wct_id, faits_cible)
         for wct_id in mesures_chantier.wcts_du_devis(list(faits_cible), devis_id)
     ]
-    return {"enregistre": enregistre, "deja_enregistre": not enregistre, "devis_id": devis_id, "chantiers": chantiers}
+    dans_entonnoir = _ranger_fait_entonnoir(entonnoir.fait_devis_accepte(charge))
+    return {
+        "enregistre": enregistre, "deja_enregistre": not enregistre, "devis_id": devis_id, "chantiers": chantiers,
+        "entonnoir": {"enregistre": dans_entonnoir, "deja_enregistre": not dans_entonnoir},
+    }
 
 
 def _recevoir_variance_chantier(charge: dict[str, Any]) -> dict[str, Any]:
@@ -354,6 +427,45 @@ def _recevoir_rentabilite_chantier(charge: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _ranger_fait_entonnoir(fait: dict[str, Any]) -> bool:
+    """Range un fait de l'entonnoir au registre `faits_entonnoir` s'il n'y est pas déjà : un fait par lead ou par devis
+    (`entonnoir.cles_unicite`). Une relivraison de l'événement, ou un rejeu du répartiteur, n'ajoute jamais un second
+    fait. Rend vrai s'il vient d'être ajouté."""
+    return _ajouter_fait_si_nouveau(
+        stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_ENTONNOIR), fait, entonnoir.cles_unicite(fait["type_entree"])
+    )
+
+
+def _recevoir_fait_entonnoir(fait: dict[str, Any]) -> dict[str, Any]:
+    """Range le fait et rend le petit résumé du reçu du bus : jamais un contact, un prix ou un nom, seulement
+    l'identifiant du lead ou du devis et si le fait était déjà connu."""
+    cle = entonnoir.cles_unicite(fait["type_entree"])[0]
+    enregistre = _ranger_fait_entonnoir(fait)
+    return {"enregistre": enregistre, "deja_enregistre": not enregistre, cle: fait[cle]}
+
+
+def _recevoir_client_associe(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consommateur `m2.client_associe` (PLAN T4.19) : le lead existe chez M2 depuis cet instant, ce qui fait l'arrivée
+    d'où part le délai jusqu'à l'acceptation. Le `client_id` (empreinte du contact) n'est pas gardé."""
+    return _recevoir_fait_entonnoir(entonnoir.fait_lead_recu(charge))
+
+
+def _recevoir_lead_assigne(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consommateur `m2.lead_assigne` (PLAN T4.19) : M2 a qualifié le lead. Le propriétaire du lead n'est pas gardé."""
+    return _recevoir_fait_entonnoir(entonnoir.fait_lead_qualifie(charge))
+
+
+def _recevoir_devis_envoye(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consommateur `m3.devis_envoye` (PLAN T4.19) : le propriétaire a approuvé l'envoi (jamais un montant)."""
+    return _recevoir_fait_entonnoir(entonnoir.fait_devis_envoye(charge))
+
+
+def _recevoir_devis_sans_reponse(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consommateur `m3.devis_sans_reponse` (PLAN T4.19) : le constat de M3, repris tel quel, sans recalculer son
+    délai de relance ni sa date."""
+    return _recevoir_fait_entonnoir(entonnoir.fait_devis_sans_reponse(charge))
+
+
 def consommateurs() -> dict[str, Any]:
     """Types d'événements consommés par M8 (ADR-0009 §3) — voir `department.yaml:evenements.consomme`
     et `docs/architecture/DEPARTEMENTS.md` § Événements."""
@@ -362,6 +474,10 @@ def consommateurs() -> dict[str, Any]:
         "m3.devis_accepte": _recevoir_devis_accepte,
         "m6.variance_chantier": _recevoir_variance_chantier,
         "m5.rentabilite_chantier": _recevoir_rentabilite_chantier,
+        "m2.client_associe": _recevoir_client_associe,
+        "m2.lead_assigne": _recevoir_lead_assigne,
+        "m3.devis_envoye": _recevoir_devis_envoye,
+        "m3.devis_sans_reponse": _recevoir_devis_sans_reponse,
     }
 
 
@@ -437,6 +553,7 @@ def outils(
     registre_cible: registre.RegistreSnapshots | None = None,
     definitions_cible: Any = None,
     faits_cible: Any = None,
+    faits_entonnoir_cible: Any = None,
 ) -> tuple[Outil, ...]:
     """Capacités exposées aux agents. Une instance de RegistreSnapshots par installation.
 
@@ -451,9 +568,15 @@ def outils(
     `faits_cible` (T1.5-d) : même patron pour le registre `faits_chantier` (faits reçus par le bus,
     lus par `m8_lire_mesures_chantier` et `m8_performance_equipe`) — `None` (défaut) l'adosse à
     `opsys.stockage.maillons("m08-analytics", "faits_chantier")`.
+
+    `faits_entonnoir_cible` (T4.19) : même patron pour le registre `faits_entonnoir` (faits de M2 et de M3 reçus par
+    le bus, lus par `m8_lire_vue_executive`) — `None` (défaut) l'adosse à
+    `opsys.stockage.maillons("m08-analytics", "faits_entonnoir")`.
     """
     if faits_cible is None:
         faits_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_FAITS)
+    if faits_entonnoir_cible is None:
+        faits_entonnoir_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_ENTONNOIR)
     if registre_cible is None:
         registre_cible = registre.RegistreSnapshots(maillons=stockage.maillons("m08-analytics", "snapshots"))
     if definitions_cible is None:
@@ -699,20 +822,6 @@ def outils(
             ],
         }
 
-    def admin_authentifie() -> bool:
-        """Vrai seulement pour un appel d'appareil dont l'identité authentifiée est celle d'une
-        personne active portant encore le rôle `admin` (revérifiée en base, comme M3 pour sa vue par
-        rôle). Sans identité (agent, console, test) ou avec un autre rôle : faux, donc aucun détail
-        nominatif — fail-closed."""
-        appelante = contexte.identite_appelante()
-        if appelante is None or appelante.role != _ROLE_ADMIN:
-            return False
-        cnx = stockage.connexion_courante()
-        if cnx is None:
-            return False
-        personne = identite.personne_active(cnx, appelante.personne)
-        return personne is not None and appelante.role in personne.roles
-
     def performance_equipe(depart: int = 0) -> dict[str, Any]:
         """Écart de temps par technicien (T1.5-d), la plus petite métrique honnête : anonyme pour
         l'équipe, nominatif seulement pour l'admin authentifié, jamais classé, jamais une alerte.
@@ -721,7 +830,7 @@ def outils(
         identifiant, tiennent page par page (`depart`, `affichage.prochain_depart`), jamais tronqués."""
         resultat = mesures_chantier.performance_equipe(list(faits_cible), _chantiers_minimum())
         definition = mesures_chantier.charger_definitions()[mesures_chantier.METRIQUE_EQUIPE]
-        nominatif = admin_authentifie()
+        nominatif = _admin_authentifie()
         socle: dict[str, Any] = {
             "metric_id": resultat["metric_id"],
             "unite": definition["unite"],
@@ -753,6 +862,22 @@ def outils(
             }
 
         return mesures_chantier.page_bornee(techniciens, depart, BUDGET_SORTIE, construire)
+
+    def lire_vue_executive() -> dict[str, Any]:
+        """La vue exécutive du propriétaire (T4.19, M8.6) : l'entonnoir mesuré par le code d'après les faits de M2 et
+        de M3, la marge réelle que M5 a publiée, le stock à commander que M6 met à la file du propriétaire, et le cash
+        libre (M5 ne le publie pas : « manque »). Lecture pure (T0) : rien n'est écrit, rien n'est publié, et aucun
+        montant de M5 n'est recalculé. Un appareil qui n'est pas celui d'un admin authentifié est refusé ICI, avant
+        toute lecture ; la réponse est bornée sous la limite du socle, ce qui n'y tient pas est compté."""
+        _exiger_admin_pour_appareil()
+        faits_chantier = list(faits_cible)
+        situation = entonnoir.situation(
+            list(faits_entonnoir_cible), faits_chantier, entonnoir.charger_definitions(), _seuils_entonnoir()
+        )
+        attentes_m6, raison_m6 = _lire_attentes_m6()
+        return vue_executive.assembler(
+            situation, faits_chantier, attentes_m6, raison_m6, budget_caracteres=BUDGET_SORTIE
+        )
 
     return (
         Outil(
@@ -1010,6 +1135,22 @@ def outils(
                 "additionalProperties": False,
             },
             fonction=performance_equipe,
+            roles_appareil=frozenset({_ROLE_ADMIN}),
+        ),
+        Outil(
+            nom="m8_lire_vue_executive",
+            description=(
+                "Vue exécutive du propriétaire, lecture pure : l'entonnoir commercial (leads reçus et qualifiés, "
+                "devis envoyés, acceptés et sans réponse, taux d'acceptation, délai lead-acceptation, carnet signé) "
+                "mesuré par le code d'après les faits de M2 et de M3, avec la version et le propriétaire de chaque "
+                "définition ; la marge réelle des chantiers telle que M5 l'a publiée ; le stock à commander tel que "
+                "M6 le publie ; le cash libre, ou ce qui manque. Une donnée absente est « non calculable, manque X », "
+                "jamais un zéro ; aucun montant de M5 n'est recalculé. Réservé à l'admin."
+            ),
+            parametres={"type": "object", "properties": {}, "additionalProperties": False},
+            fonction=lire_vue_executive,
+            # §9.5 (profil admin) : « tableau de bord exécutif, alertes et wallboard » (M8). Marges, stock et carnet de
+            # toute l'entreprise : ni l'employé ni le vendeur (§8.16, §9.2, §9.4) ; refusé aussi dans le code.
             roles_appareil=frozenset({_ROLE_ADMIN}),
         ),
     )

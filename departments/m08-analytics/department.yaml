@@ -11,10 +11,13 @@ mission: >-
   mesure le chantier (temps réel contre prévu, marge prévue contre réelle, écart de matériaux,
   écart de temps par technicien pour l'admin) avec des métriques gouvernées : une donnée absente
   donne « non calculable, manque X », jamais une valeur inventée ; un seuil franchi propose une
-  alerte à M9, qui lit sans décider.
+  alerte à M9, qui lit sans décider. Mesure aussi l'entonnoir commercial (leads, devis envoyés,
+  acceptés et sans réponse, taux d'acceptation, délai, carnet signé) d'après les faits de M2 et de
+  M3, et remet au propriétaire une vue exécutive : entonnoir, marge réelle que M5 a publiée, stock
+  à commander que M6 publie, cash libre ou ce qui en manque — sans jamais recalculer un montant de M5.
 outils: m8_analytics.outils
 mode: ombre
-dependances: [m03-estimation, m04-field-ops, m05-financecore, m06-material-control, m07-marketing]
+dependances: [m02-revenue-crm, m03-estimation, m04-field-ops, m05-financecore, m06-material-control, m07-marketing]
 modeles:
   defaut: standard
   digest: rapide
@@ -32,14 +35,27 @@ budget:
   tokens_mois: 4000000
   alerte_pct: 80
 memoire:
-  lecture: [dictionnaire_metriques, snapshots_modules, definitions_metriques, faits_chantier]
-  ecriture: [snapshots_modules, definitions_metriques, faits_chantier]
+  lecture: [dictionnaire_metriques, snapshots_modules, definitions_metriques, faits_chantier, faits_entonnoir]
+  ecriture: [snapshots_modules, definitions_metriques, faits_chantier, faits_entonnoir]
 evenements:
   # PLAN T1.5-d : le WCT (durée réelle, technicien), le devis accepté (prix, coût, durée estimée si
   # M3 la fournit), la variance de matériaux de M6 (verdict repris sans recalcul) et la marge réelle de
   # M5 (reprise sans recalcul ; absente tant que le coût réel de M5 est partiel). Catalogue :
   # src/opsys/evenements/catalogue/*.json.
-  consomme: [m4.travaux_termines, m3.devis_accepte, m6.variance_chantier, m5.rentabilite_chantier]
+  # PLAN T4.19 : l'entonnoir commercial. M2 publie le lead reçu (`m2.client_associe`) et qualifié
+  # (`m2.lead_assigne`) ; M3 le devis envoyé (`m3.devis_envoye`, approuvé par le propriétaire), accepté
+  # (`m3.devis_accepte`, déjà consommé ci-dessus pour la mesure d'un chantier) et sans réponse
+  # (`m3.devis_sans_reponse`). Identifiants et instants seulement, plus le prix total d'un devis accepté :
+  # jamais un contact, le propriétaire d'un lead, ni un coût (Loi 25).
+  consomme:
+    - m4.travaux_termines
+    - m3.devis_accepte
+    - m6.variance_chantier
+    - m5.rentabilite_chantier
+    - m2.client_associe
+    - m2.lead_assigne
+    - m3.devis_envoye
+    - m3.devis_sans_reponse
   publie: [m8.alerte_proposee]
 configuration:
   # Seuils d'alerte des mesures d'un chantier terminé (PLAN T1.5-d ; DEFINITION-PRODUIT.md §13 point 11
@@ -56,6 +72,16 @@ configuration:
   # pour que l'écart d'un technicien soit dit suffisant. Absent : `suffisant` reste nul. Jamais une
   # alerte ni un classement, quel que soit ce nombre.
   performance_equipe: {}
+  # Seuils de l'entonnoir commercial (PLAN T4.19, GATE NATHAN : DEFINITION-PRODUIT.md §13 point 11). VIDES à
+  # dessein : aucun seuil n'est inventé. Tant qu'une métrique surveillée n'a pas de seuil valide, la vue exécutive
+  # (m8_lire_vue_executive) la dit « seuil à configurer » et ne signale aucun franchissement. Même forme que
+  # `seuils_alerte`, pour les quatre métriques surveillées :
+  #   m8_taux_acceptation_pct: {sens: au_dessous, valeur: <nombre, en %>}          # atteint ou passe sous
+  #   m8_delai_lead_acceptation_jours: {sens: au_dessus, valeur: <nombre, en jours>}
+  #   m8_devis_sans_reponse: {sens: au_dessus, valeur: <nombre de devis>}
+  #   m8_carnet_signe_cad: {sens: au_dessous, valeur: <nombre, en CAD avant taxes>}
+  # Les comptages cumulés (leads, devis envoyés ou acceptés) ne se surveillent pas : ils ne font que croître.
+  seuils_entonnoir: {}
 kpis:
   - id: taux_snapshots_rejetes
     description: Part des snapshots reçus rejetés par la validation d'entrée (structure, devise, valeurs non texte).
@@ -77,3 +103,8 @@ kpis:
     description: >-
       Nombre d'alertes de mesure de chantier proposées à M9 (seuil franchi, ou seuil à configurer)
       sur la période — jamais exécutées, seulement proposées.
+  - id: nb_metriques_entonnoir_non_calculables
+    description: >-
+      Nombre de métriques de l'entonnoir rendues « non calculable » (aucun fait reçu de M2 ou de M3, rapport sans
+      dénominateur, prix illisible) dans la dernière vue exécutive : mesure la complétude des sources, jamais
+      remplie par une valeur inventée.

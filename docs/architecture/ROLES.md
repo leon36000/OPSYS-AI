@@ -70,7 +70,7 @@ qui travaille sur un toit, un gestionnaire qui reprend un dossier).
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 87 outils sur 165 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 88 outils sur 166 sont déclarés.
 
 ### `employee` (11 outils) : §9.3, le terrain
 
@@ -112,9 +112,9 @@ M10.
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (87 outils) : §9.5 + employé + vendeur
+### `admin` (88 outils) : §9.5 + employé + vendeur
 
-Les 11 outils de l'employé, les 10 du vendeur, et :
+Les 11 outils de l'employé, les 11 du vendeur, et :
 
 | Département | Outils réservés à l'admin | Pourquoi |
 |---|---|---|
@@ -142,13 +142,16 @@ Les 11 outils de l'employé, les 10 du vendeur, et :
 | M7 | `m7_lister_file_approbation` | §9.5 M7 : contenus et réponses aux avis à approuver. |
 | M7 | `m7_lister_demandes_avis` (T0) | §9.5 M7 « avis à répondre » et §6 « travaux terminés » (T1.5-d) : le brouillon de demande d'avis né d'un « Terminer » avec le consentement du client, avec la preuve de ce consentement (qui, quand, quel texte). Lecture seule, bornée à huit brouillons (`Capacites` tronque à 6 000 caractères) : rien n'est envoyé, l'envoi au client reste une décision humaine. Ni l'employé (il recueille le consentement, il ne lit pas ce que le propriétaire décide d'en faire) ni le vendeur. |
 | M7 | `m7_lister_contenus_chantier` (T0), `m7_decider_contenu` (N3), `m7_exporter_paquet_manuel` (N2), `m7_enregistrer_retrait_consentement_marketing` (N2) | §7 M7 « usine à contenu » et M7.2 « paquet manuel » (T4.17) : le propriétaire lit les cinq contenus d'un chantier terminé en entier, décide (approuver ou rejeter), prend le paquet à publier LUI-MÊME et enregistre le retrait du consentement d'un client. Règles plus bas (« L'usine à contenu de M7 »). Ni l'employé (il recueille le consentement, il ne voit pas ce qu'on en fait) ni le vendeur. |
+| M8 | `m8_lire_mesures_chantier` (T0), `m8_performance_equipe` (T0) | §6 « travaux terminés » (T1.5-d) : les mesures d'un chantier (temps réel contre prévu, marge prévue contre réelle, écart de matériaux) et l'écart de temps de l'équipe, nominatif pour l'admin authentifié seulement, sans classement. Marges et coûts : jamais l'employé ni le vendeur (§9.2, §9.4). |
+| M8 | `m8_lire_vue_executive` (T0) | §9.5 M8 « tableau de bord exécutif » (T4.19) : l'entonnoir commercial, la marge réelle que M5 a publiée, le stock à commander que M6 publie, le cash libre ou ce qui en manque. Règles plus bas (« La vue exécutive de M8 »). |
 | M9 | `m9_produire_briefing_matin`, `m9_lire_alertes_m8`, `m9_lire_etat_consolide` | §7 M9 mobile : « Admin/Nathan seulement ». |
 | M9 | `m9_lister_demandes_approbation` (T0), `m9_decider_demande_approbation` (T1, N2) | §9.2 « le propriétaire approuve tout depuis le téléphone », §9.5 « Approbations » (T1.4-f). Règles ci-dessous : `admin` ouvre l'outil, la PERSONNE doit être le propriétaire. |
 | M10 | `m10_statut_decision`, `m10_statut_revision`, `m10_arbitrer_revision`, `m10_paquet_contexte_affaire` | §7 M10 mobile : décisions à valider, contradictions, recherche dans la mémoire. |
 | M10 | `m10_lister_signaux` (T0), `m10_prendre_en_compte_signal`, `m10_clore_signal`, `m10_lier_session_affaire` (N3) | §9.5 « alertes critiques » (T3.3-suite-b). Les trois écritures sont des décisions HUMAINES : voir « Les écritures humaines de M10 » plus bas. |
 
-M8 n'a aucun outil d'appareil : ses outils ingèrent ou calculent à partir de données que l'appelant
-fournit ; aucun ne rend de valeurs pour le tableau de bord exécutif (§9.5).
+Les outils de M8 qui ingèrent un snapshot ou une définition fournis par l'appelant (`m8_rapport_metriques`,
+`m8_enregistrer_definition_metrique`...) restent fermés aux appareils ; ceux qui lisent des faits déjà reçus du bus
+(les trois ci-dessus) sont pour l'admin seul.
 
 ### Les écritures humaines de M10 (T3.3-suite-b)
 
@@ -313,6 +316,21 @@ vendeur : le socle ne peut donc pas y filtrer par propriétaire du lead (T1.4-k2
 du devis d'un lead qui n'est pas le sien ; il n'apprend rien (aucune lecture, aucune existence révélée) et le
 propriétaire lit le devis, la revue et les faits avant d'approuver. Il faudrait un contrôle à la demande dans le socle
 (`Outil` avec un garde d'appel), qui n'existe pas.
+
+### La vue exécutive de M8 (T4.19)
+
+`m8_lire_vue_executive` porte les marges des chantiers, le carnet signé et le stock de toute l'entreprise : §9.5 la
+donne au propriétaire et à son gestionnaire, §8.16 la refuse à l'employé (« ni marges, ni coûts sensibles, ni
+finances globales ») et §9.4 au vendeur.
+
+| Déclaration ou garde | Pourquoi |
+|---|---|
+| `roles_appareil = {"admin"}`, T0, aucun paramètre | Ni l'employé ni le vendeur. Aucun argument ne peut élargir ou restreindre la vue : il n'y en a pas. |
+| Refus dans le code de tout autre rôle d'appareil (`REJ-IDENTITE-APPAREIL-INVALIDE`, refus métier) | Le socle n'applique pas `roles_appareil` à un outil de lecture (T0) hors du core. Le rôle du jeton est REVÉRIFIÉ en base (personne active qui porte encore `admin`) avant toute lecture ; un employé, un vendeur, une personne désactivée ou inconnue, un jeton qui prétend un rôle que la personne n'a pas, ou une identité non vérifiable (hors transaction) sont refusés. Sans identité d'appareil (un agent, la console), la voie des agents reste ouverte, comme pour les autres outils de lecture de M8. |
+| Lecture pure | Rien n'est écrit et aucun événement n'est publié (test). La réponse est bornée sous la limite de `Capacites` : ce qui n'y tient pas est compté (`reste`), jamais coupé au milieu. |
+| M8 lit, il ne recalcule pas (P13, §8) | **Marge réelle** : la charge de `m5.rentabilite_chantier`, en texte décimal, reprise sans calcul (aucune somme, aucun arrondi, aucun écart) ; un chantier que M5 n'a pas chiffré dit pourquoi, avec les codes de M5. **Stock à commander** : les `besoin_commande` de `attentes()` de M6, lus par le mécanisme du socle (`approbations.attentes_departements`, M6 seul), sans importer M6 ; M6 illisible ou absent : « manque ». **Cash libre** (T4.16) : M5 le calcule à chaque lecture de `m5_etat_tresorerie` et ne le publie sur aucun événement du bus : la vue dit « manque » et renvoie à cet outil de l'admin. Elle n'en calcule jamais un chiffre. |
+| L'entonnoir est mesuré par le code | Huit métriques gouvernées (`metrics/m8-entonnoir.v1.yaml`, avec source, unité, propriétaire et version de définition) d'après les faits de M2 et de M3 reçus du bus. Sans aucun fait reçu : « non calculable », jamais un zéro. Les seuils (GATE NATHAN) sont vides : « seuil à configurer ». |
+| Aucune donnée de client dans les faits | Identifiants de lead et de devis, instants, et le prix total d'un devis accepté (arrêté par M3) : ni contact, ni propriétaire du lead, ni `client_id`, ni coût. |
 
 ### Fermés à tous les appareils
 
@@ -787,7 +805,7 @@ Pas de déclaration possible sans outil : réception de stock par un employé as
 réponse porte des prix), photo de reçu et achat imprévu (§9.3, M5), note de chantier et « chose à ne
 pas oublier » (§9.3, M10), lancer l'estimation, annoter une photo, ajouter une mesure manuelle
 (§9.4 M3 : le barème doit rester sur le serveur), statut de paiement d'un client (§9.4 M5), analytique
-de ses ventes (§9.4 M8), tableau de bord exécutif (§9.5 M8), incident (§9.3, M4).
+de ses ventes (§9.4 M8), wallboard (§9.5 M8), incident (§9.3, M4).
 
 ## Ajouter ou élargir une portée
 

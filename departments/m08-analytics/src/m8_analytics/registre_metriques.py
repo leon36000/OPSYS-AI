@@ -55,6 +55,12 @@ _DEPARTEMENTS_CONNUS = frozenset({
 })
 
 
+def departement_connu(identifiant: Any) -> bool:
+    """Vrai si ``identifiant`` est celui d'un département de l'entreprise : la seule liste que M8 en tient, que le
+    registre durable (``departement_proprietaire``) et l'entonnoir (``proprietaires``) consultent tous deux."""
+    return isinstance(identifiant, str) and identifiant in _DEPARTEMENTS_CONNUS
+
+
 def _nombre_valide(valeur: Any) -> bool:
     return not isinstance(valeur, bool) and isinstance(valeur, (int, float))
 
