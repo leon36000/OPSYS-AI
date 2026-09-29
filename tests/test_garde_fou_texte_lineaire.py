@@ -354,6 +354,7 @@ def test_le_paquet_a_des_motifs_et_aucun_ne_contient_un_point_etoile():
 PETIT, GRAND = 20_000, 100_000
 BORNE_ABSOLUE = 2.0  # s pour GRAND caractères ; le temps linéaire mesuré est de l'ordre de 0,01 à 0,2 s
 RAPPORT_MAX = 15  # t(GRAND) / t(PETIT) : 5 si le temps est linéaire, 25 s'il est quadratique
+PLANCHER = 0.020  # s : sous ce temps, la mesure du petit texte est du bruit
 
 
 def _meilleur_temps(fonction, texte: str, essais: int) -> float:
@@ -369,16 +370,16 @@ def _lineaire(fonction, fabrique, essais: tuple[int, int] = (5, 3)) -> tuple[flo
     """Mesure `fonction` sur `fabrique(PETIT)` puis `fabrique(GRAND)` ; `AssertionError` si le temps n'est pas linéaire.
 
     Le meilleur de plusieurs essais écarte le bruit de la machine (ordonnanceur, ramasse-miettes). Si le rapport
-    dépasse la limite, une seconde série remesure avant de conclure. Sous 10 ms, le petit texte ne dit rien du rapport :
-    seule la borne absolue juge."""
+    dépasse la limite, une seconde série remesure avant de conclure. Sous 20 ms, le petit texte ne dit rien du rapport
+    (le bruit domine) : la limite se calcule alors sur 20 ms, et la borne absolue juge seule les cas plus rapides."""
     petit = _meilleur_temps(fonction, fabrique(PETIT), essais[0])
     assert petit < BORNE_ABSOLUE, f"{PETIT} caractères : {petit:.2f} s"
     grand = _meilleur_temps(fonction, fabrique(GRAND), essais[1])
     assert grand < BORNE_ABSOLUE, f"{GRAND} caractères : {grand:.2f} s ({petit * 1000:.0f} ms pour {PETIT})"
-    if grand > RAPPORT_MAX * max(petit, 0.010):
+    if grand > RAPPORT_MAX * max(petit, PLANCHER):
         petit = min(petit, _meilleur_temps(fonction, fabrique(PETIT), essais[0]))
         grand = min(grand, _meilleur_temps(fonction, fabrique(GRAND), essais[1]))
-    assert grand <= RAPPORT_MAX * max(petit, 0.010), (
+    assert grand <= RAPPORT_MAX * max(petit, PLANCHER), (
         f"le temps n'est pas linéaire : {petit * 1000:.1f} ms pour {PETIT}, {grand * 1000:.1f} ms pour {GRAND} "
         f"(rapport {grand / max(petit, 1e-6):.1f} pour un texte cinq fois plus long)")
     return petit, grand

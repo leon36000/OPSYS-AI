@@ -14,7 +14,7 @@ qu'il a déjà lu : 20 000 chiffres coûtaient 27 s. Deux écritures sont bannie
     milliers, des blancs facultatifs en tête de motif) : chaque motif part du seul caractère qui peut le faire réussir ;
   - « déclencheur, puis n'importe quoi, puis cible », qui relit la fin de la ligne à chaque déclencheur :
     `_apres_sur_la_meme_ligne` borne l'écart.
-`tests/test_garde_fou_texte.py` mesure le temps sur des textes hostiles de 20 000 et de 100 000 caractères.
+`tests/test_garde_fou_texte_lineaire.py` mesure le temps sur des textes hostiles de 20 000 et de 100 000 caractères.
 
 Module pur : aucune entrée-sortie, aucune horloge, aucun modèle.
 """
