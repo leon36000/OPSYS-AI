@@ -52,6 +52,14 @@ que la porte d'outils. L'app affiche cette identité, choisit son profil d'aprè
 personne comme technicien (elle ne la demande plus à l'employé) et n'ouvre aucun profil sans identité :
 voir « Identité de l'appareil » ci-dessous.
 
+**T1.4-l : la file sortante suit le jeton courant et la personne.** Avant, le vidangeur gardait le jeton du
+moment de sa construction jusqu'au redémarrage, un 401 marquait chaque mutation `echec_permanent`, et rien
+ne disait à qui appartenait une mutation en file. Maintenant : le jeton est relu avant chaque envoi ; chaque
+mutation porte sa personne ; après un nouvel appairage pour la MÊME personne elle part avec le nouveau
+jeton, pour une AUTRE personne elle reste en quarantaine visible (jamais envoyée, jamais supprimée) ; un
+refus d'appareil (401, attribution retirée) arrête la vidange et renvoie l'app à l'écran d'identité : voir
+« La file suit le jeton et la personne » ci-dessous.
+
 ## Pile (R12 §3 — versions et licences vérifiées)
 
 Expo SDK 57 (`expo` 57.0.25) + Expo Router 57.0.23 + TypeScript strict, React Native 0.86.3.
@@ -387,9 +395,9 @@ pas testés en rendu (pas de bibliothèque de test de rendu) ; des gardes lisent
 - `personne` est l'identifiant OPSYS (`jdupont`), pas un nom d'affichage : `appareils.json` ne porte pas le
   nom. Un nom complet demanderait une clé sœur additive dans ce fragment.
 - La lecture n'a pas de contre-mesure au martelage autre que le limiteur d'authentification de la passerelle.
-- `src/outbox/service.ts` garde son vidangeur (avec le jeton du moment) sans le refaire quand la session
-  change : après un nouvel appairage, il faut redémarrer l'app pour que la file sortante utilise le nouveau
-  jeton. Défaut antérieur à T1.4-c5, que « Appairer de nouveau » rend plus visible.
+- Avant T1.4-l, `src/outbox/service.ts` gardait son vidangeur (avec le jeton du moment) sans le refaire quand
+  la session changeait : après un nouvel appairage, la file gardait l'ancien jeton jusqu'au redémarrage.
+  Corrigé : la file relit la session avant chaque envoi, voir « La file suit le jeton et la personne ».
 
 ## Identifiant de client (PLAN T1.4-c5)
 
@@ -437,8 +445,10 @@ Logique pure, séparée du stockage :
   voir « mutations bloquées » ci-dessous) ; une ligne retrouvée `envoi` au démarrage est
   resélectionnée avec le même id (reprise, jamais recréée), sans attendre son recul.
 - `depot.ts` (interface `DepotOutbox` + implémentation mémoire, utilisée par les tests) et
-  `depot.sqlite.ts` (adaptateur réel, DDL de la table `outbox`) — non exercé par les tests
-  unitaires (pas de SQLite natif sous Jest), seulement par une future vérification sur appareil.
+  `depot.sqlite.ts` (adaptateur réel, DDL de la table `outbox`). Le pont natif d'`expo-sqlite` n'existe pas
+  sous Jest, mais depuis T1.4-l le SQL de l'adaptateur (DDL, migration, insertion, lecture) est exercé sur
+  un vrai moteur SQLite (`node:sqlite`) par `depot.sqlite.test.ts`. Seul le pont natif reste à vérifier
+  sur appareil.
 
 **Trois corrections (relecture post-T1.4-a, avant que T1.4-d/punch ne s'appuie dessus) :**
 
@@ -471,11 +481,12 @@ Logique pure, séparée du stockage :
 
 Le branchement qui manquait entre `src/outbox` (file) et `src/protocole` (client
 `/tools/invoke`) est maintenant écrit. `creerVidangeur(config)` : logique pure d'orchestration
-(rien n'est lu en dur — dépôt, `fetch`, URL, jeton, identité d'appareil, horloge sont tous
-injectés dans `ConfigurationVidangeur`), donc entièrement testable avec un faux transport
+(rien n'est lu en dur — dépôt, `fetch`, session d'envoi, horloge sont tous injectés dans
+`ConfigurationVidangeur`), donc entièrement testable avec un faux transport
 (`src/outbox/vidangeur.test.ts`, faux `fetch`). `src/outbox/service.ts` fournit la configuration
-réelle (SQLite via `expo-sqlite`, `fetch` global) — non testé unitairement, même raison que
-`depot.sqlite.ts` (pas de SQLite natif sous Jest).
+réelle (SQLite via `expo-sqlite`, `fetch` global) — non testé unitairement (pas de SQLite natif sous
+Jest). **Depuis T1.4-l** le jeton, l'URL et l'identifiant d'appareil ne sont plus des champs de la
+configuration : `session()` est relue avant CHAQUE envoi (voir la section suivante).
 
 Séquence par mutation envoyable (`selectionnerProchainesEnvoyables`, `maintenant` injecté) :
 `envoi` (ou reprise si déjà `envoi` — jamais retransitionnée, R12 §4) → appel
@@ -506,6 +517,103 @@ arrière-plan est journalisée (`console.error`) et n'atteint jamais l'écran.
 appeler et à l'interprète de sa réponse business. Seuls `punch_in`/`punch_out` sont enregistrés
 dans cette tranche (→ `m4_pointer`) ; les tranches suivantes y ajoutent les leurs
 (`materials_submit` → `m6_soumettre_materiaux_utilises`, etc.) sans toucher à `vidangeur.ts`.
+
+## La file suit le jeton et la personne (PLAN T1.4-l)
+
+### Constat
+
+Trois défauts, lus dans le code d'avant :
+1. `service.ts` construisait le vidangeur UNE fois, avec le jeton du moment, et le gardait jusqu'au
+   redémarrage. Après « Appairer de nouveau », la file envoyait avec l'ancien jeton.
+2. Un jeton révoqué recevait 401, classé « refus définitif » (4xx non réessayable) : chaque mutation en
+   file devenait `echec_permanent`, donc perdue pour toujours, alors que rien n'était faux dans la mutation.
+3. Rien ne disait à qui appartenait une mutation en file. Un appareil appairé pour quelqu'un d'autre
+   aurait envoyé les mutations de la première personne sous l'identité de la seconde. Le serveur ne le voit
+   pas toujours : une décision d'approbation ou un bloc de fichier ne nomment pas la personne.
+
+### Décisions
+
+**Le jeton se relit à chaque envoi.** `ConfigurationVidangeur.session()` remplace `urlBase`, `jeton` et
+`appareilId`. Le vidangeur est construit une seule fois (un seul verrou pour toute l'app) et ne garde
+aucun jeton. La session est lue au dernier moment, juste avant l'appel : le jeton envoyé est le jeton
+courant, et il vient du même instantané que la personne (jamais deux lectures).
+
+**La session d'envoi est liée au jeton.** `obtenirSessionEnvoi()` (`src/protocole/configuration.ts`) rend
+la configuration ET la personne, seulement si la personne confirmée l'a été POUR CE JETON et cet appareil
+(`PersonneConfirmee`). Après un nouvel appairage, il n'y a donc aucune session tant que le serveur n'a pas
+dit qui est cette personne pour le NOUVEAU jeton : rien ne part avec l'ancien jeton, rien avec le nouveau
+avant confirmation. Le cycle d'identité (`src/identite/hooks.ts`) la tient à jour à chaque changement
+d'état (`synchroniserPersonneConfirmee`, pure). Hors ligne, la dernière identité gardée (« à
+reconfirmer ») suffit, comme pour ouvrir le profil ; un coffre illisible ne retire pas ce qui est déjà en
+mémoire.
+
+**Chaque mutation porte sa personne.** Colonne `proprietaire` de la table `outbox` : la personne confirmée
+par le serveur à l'instant de l'insertion, posée par `avecProprietaire` (`src/outbox/proprietaire.ts`,
+enveloppe du dépôt que rend `obtenirDepot()`), jamais modifiée ensuite. Les écrans et services n'ont rien
+à passer. Sans personne confirmée, l'insertion échoue : jamais une mutation orpheline. Migration SQLite :
+`ALTER TABLE ... ADD COLUMN` au démarrage, une seule fois (`initialiserSchemaOutbox`) ; les lignes
+d'avant T1.4-l gardent `NULL`.
+
+**Ce que deviennent les mutations en attente** (`en_attente` et `envoi`) :
+
+| Situation | Décision |
+|---|---|
+| Même personne, nouveau jeton | Elles partent avec le nouveau jeton. Même `id`, donc même clé d'idempotence : le serveur rejoue, jamais deux applications. |
+| Autre personne | **Quarantaine.** Conservées à l'identique (statut, tentatives, `id`), jamais envoyées sous la nouvelle identité, jamais supprimées. Comptées dans `RapportVidange.quarantaine` et montrées dans le bandeau d'identité (« N envoi(s) en attente appartiennent à une autre personne »). Elles repartent d'elles-mêmes si l'appareil est de nouveau appairé pour leur personne. |
+| Propriétaire inconnu (`NULL`, lignes d'avant T1.4-l) | Même quarantaine, fail-closed : on ne devine pas une identité. |
+| Appareil réattribué sans nouvel appairage | Même règle : la relecture de l'identité donne une autre personne, la file ne lui envoie que ses propres mutations. |
+
+La quarantaine n'est ni une suppression, ni un export, ni un transfert vers la nouvelle personne. La
+suppression définitive de données est une frontière humaine (T3, AGENTS.md) : sortir une mutation de la
+quarantaine autrement que par le retour de sa personne se décidera avec le propriétaire, dans une tranche
+dédiée. Les `brouillon` (enregistrements locaux pas encore soumis) ne sont pas comptés : ils n'attendent
+aucun envoi.
+
+**Un refus d'appareil arrête la vidange.** `estRefusAppareil` (`src/protocole/classification.ts`), lu dans le
+fork : 401 (jeton inconnu ou révoqué) ; 403 `tool_call_blocked` dont le message nomme `device_unknown`
+(attribution retirée) ou `role_unknown`. Tout autre 4xx reste un refus de LA mutation (`tool_out_of_scope`,
+`server_unknown`, `deviceId` du corps, 400, 404) : traiter ceux-là comme un refus d'appareil bloquerait
+toute la file derrière une seule mutation refusée pour son outil. Sur un refus d'appareil :
+1. la mutation redevient `en_attente`, sans tentative comptée ni recul (`remettreEnAttenteSansFaute`,
+   uniquement depuis `envoi`) : pas sa faute, elle repartira avec la même `id` ;
+2. la passe s'arrête tout de suite (`RapportVidange.arret = appareil_refuse`), sans toucher au reste de la
+   file ; un essai par passe, jamais une boucle de réessais ;
+3. `creerDeclencheurVidange` (`declenchement.ts`) signale le refus UNE fois (`refusAppareil.ts`) ; la racine
+   (`app/_layout.tsx`) relit alors l'identité (`GET /opsys/identite`) SANS relancer de vidange ;
+4. le jeton révoqué y reçoit 401 : état `erreur` (`jeton_refuse`), la personne confirmée est retirée (plus
+   rien ne part), l'aiguilleur renvoie à `/identite`, qui dit que les envois en attente sont conservés et
+   propose « Appairer de nouveau ». Si le serveur confirme l'identité malgré le refus (refus passager),
+   rien de plus : le prochain déclencheur ordinaire réessaie.
+
+Un refus qui arrive APRÈS un nouvel appairage vise l'ancien jeton, pas l'appareil tel qu'il est : la passe
+s'arrête (`session_changee`), aucun signal.
+
+**La file repart après l'identité.** La racine fait `rafraichir()` puis `declencherVidange()` au démarrage,
+au premier plan et au retour du réseau ; l'écran d'appairage lance une vidange une fois l'identité lue. Le
+signal de refus ne relance jamais de vidange (sinon vidange, refus, lecture, vidange... en boucle si le
+serveur refusait les outils mais confirmait l'identité).
+
+### Preuve et limites
+
+Jest et `tsc` (`mobile/`), 987 tests dans 66 fichiers (892 dans 60 avant T1.4-l). `vidangeur.test.ts` : jeton relu à chaque envoi
+(changement en cours de passe), réappairage de la même personne (même clé d'idempotence), autre personne
+(zéro appel réseau, file identique, quarantaine), propriétaire inconnu, personne qui change en cours de
+passe, révocation 401 et 403, arrêt au premier refus, refus d'un ancien jeton. `suiviDuJeton.test.ts` :
+le câblage réel (configuration, personne confirmée, dépôt propriétaire, vidangeur, signal) à travers
+plusieurs appairages. `depot.sqlite.test.ts` : le vrai SQL, dont la migration d'une base d'avant T1.4-l.
+
+- Jamais exécuté contre un core réel (T1.5), ni le pont natif d'`expo-sqlite`.
+- La raison d'un 403 d'appareil se lit dans le TEXTE du message du core (`(device_unknown)`), faute de
+  champ structuré sur `/tools/invoke` (contrairement à `/opsys/identite`, qui porte `reason`). Si le core
+  change ce texte, ce 403 redevient un refus de mutation (`echec_permanent`) : à corriger côté core en
+  ajoutant un `reason` structuré, ce que cette tranche (mobile seulement) ne fait pas. Un 403 « missing
+  scope » (jeton sans portée) n'est pas lu comme un refus d'appareil.
+- Les écrans ne filtrent pas les `brouillon` d'une autre personne (photos, signature locales) : ils ne
+  partent jamais, mais un écran de la nouvelle personne peut les voir.
+- Une mutation de la nouvelle personne qui dépend (`dependsOn`) d'une mutation en quarantaine attend
+  sans être signalée dans `bloquees` (cas rare : un fichier d'une personne, la complétion d'une autre).
+- La quarantaine n'a pas d'écran de gestion : elle se voit (bandeau) et se résout par le retour de sa
+  personne.
 
 ## Écran `punch.tsx` (M4.4, T1.4-d)
 
@@ -1400,8 +1508,9 @@ ligne `outbox` (limite documentée dans « Écran `punch.tsx` », même limite a
 n'a encore aucun appelant réel (la reprise au démarrage passe directement par
 `selectionnerProchainesEnvoyables`, qui inclut déjà les `envoi` — cette fonction reste utile pour
 une future traçabilité/journalisation dédiée, R12 §4 P3) ; pas de notifications push ; pas de
-rotation/révocation de jeton d'appareil câblée côté app (`device.token.rotate/revoke`, R12 §1.3 —
-l'app n'appelle jamais ces méthodes, seulement `connect`) ; pas de tests E2E Maestro ; pas de
+rotation/révocation de jeton d'appareil COMMANDÉE par l'app (`device.token.rotate/revoke`, R12 §1.3 —
+l'app n'appelle jamais ces méthodes, seulement `connect`) ; elle SUBIT une révocation depuis T1.4-l (arrêt
+de la vidange, écran d'identité, voir « La file suit le jeton et la personne ») ; pas de tests E2E Maestro ; pas de
 build EAS ni de publication store (frontière humaine T3, R12 §3). **Nouveau depuis T1.4-f :**
 `complete.tsx` ne capture aucun des quatre champs client optionnels de `m4_completer_intervention`
 (`photos`, `description_factuelle`, `consentement_marketing`, `client_satisfait` — faits du
