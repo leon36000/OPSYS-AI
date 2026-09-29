@@ -6,6 +6,9 @@ import {
   obtenirConfigurationAppel,
   type ConfigurationAppel,
 } from "../protocole/configuration";
+import { obtenirDepotLocal } from "../stockage/service";
+import { appliquerLecture } from "./appliquerLecture";
+import { synchroniserCachesSansEchouer } from "./caches";
 import type { EtatIdentite } from "./etat";
 import { lireEtMemoriserIdentite, oublierIdentiteMemorisee, restaurerSession } from "./service";
 import { synchroniserPersonneConfirmee } from "./sessionEnvoi";
@@ -67,9 +70,13 @@ export function useCycleIdentite(): CycleIdentite {
         await existante.promesse;
       }
       const etat = await lireEtMemoriserIdentite({ configuration });
-      if (memeSession(obtenirConfigurationAppel(), configuration)) {
-        definirEtat(etat, configuration);
-      }
+      // Révocation ou autre personne : les caches de l'ancienne identité sont effacés AVANT que le profil change (PLAN
+      // T1.4-n, `src/identite/caches.ts`). Un résultat d'une session qui n'est plus la courante est jeté.
+      await appliquerLecture(etat, configuration, {
+        configurationCourante: obtenirConfigurationAppel,
+        synchroniserCaches: (nouvelEtat) => synchroniserCachesSansEchouer(obtenirDepotLocal, nouvelEtat),
+        definirEtat,
+      });
     })();
     const lecture: LectureEnCours = { configuration, promesse };
     enCours.current = lecture;

@@ -25,6 +25,25 @@ const MOTIFS: Record<MotifErreurIdentite, true> = {
 
 export const MOTIFS_ERREUR_IDENTITE = Object.keys(MOTIFS) as readonly MotifErreurIdentite[];
 
+// Un `Record` exhaustif, lui aussi : ajouter un motif sans dire s'il est un REFUS DU SERVEUR est une erreur de compilation.
+// Un refus (401, 403, autre 4xx, corps qui n'est pas une identité) est le serveur qui dit non à cet appareil : c'est ce
+// qu'apprend l'app quand le jeton est révoqué, l'attribution retirée ou le rôle retiré. Les deux autres motifs sont des
+// pannes que seule l'app voit (pas de réseau ni de mémoire, coffre illisible) : ils ne disent rien de l'attribution.
+const MOTIF_EST_UN_REFUS: Record<MotifErreurIdentite, boolean> = {
+  appareil_non_attribue: true,
+  role_inconnu: true,
+  jeton_refuse: true,
+  refus_inattendu: true,
+  reponse_invalide: true,
+  hors_ligne_sans_memoire: false,
+  stockage_illisible: false,
+};
+
+/** Ce motif est-il le serveur qui refuse l'appareil (et non une panne locale) ? */
+export function estRefusDuServeur(motif: MotifErreurIdentite): boolean {
+  return MOTIF_EST_UN_REFUS[motif];
+}
+
 export type EtatIdentite =
   /** Lecture du coffre en cours : on ne sait pas encore si l'appareil est apparié. */
   | { readonly genre: "restauration" }

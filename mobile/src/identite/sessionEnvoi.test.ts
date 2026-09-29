@@ -89,10 +89,31 @@ describe("le cycle d'identité ne change jamais d'état sans le dire à la file 
   });
 
   test("chaque changement d'état du cycle passe la configuration à laquelle il se rapporte", () => {
+    // Deux appels directs (le démarrage, le nouvel appairage) ; le troisième, la lecture qui aboutit, passe par
+    // `appliquerLecture` (PLAN T1.4-n : les caches de l'ancienne identité sont effacés avant le changement de profil).
     const appels = source.match(/definirEtat\((?!etat: EtatIdentite)[^;]*;/g) ?? [];
-    expect(appels).toHaveLength(3);
+    expect(appels).toHaveLength(2);
     for (const appel of appels) {
       expect(appel).toMatch(/,\s*(configuration|obtenirConfigurationAppel\(\))\)/);
     }
+  });
+
+  test("la lecture qui aboutit passe par `appliquerLecture`, avec le `definirEtat` qui synchronise la file (jamais `definirEtatApp`)", () => {
+    expect(source.match(/appliquerLecture\(/g)).toHaveLength(1);
+    expect(source).toMatch(/appliquerLecture\(etat, configuration, \{[^}]*\bdefinirEtat,?[^}]*\}\)/s);
+    const appliquer = fs.readFileSync(path.join(__dirname, "appliquerLecture.ts"), "utf8");
+    expect(appliquer.match(/dependances\.definirEtat\(etat, configuration\)/g)).toHaveLength(1);
+    expect(appliquer).not.toContain("definirEtatApp");
+  });
+
+  test("les caches de l'ancienne identité sont effacés AVANT le changement d'état, et jamais pour un résultat jeté", () => {
+    const appliquer = fs.readFileSync(path.join(__dirname, "appliquerLecture.ts"), "utf8");
+    const jete = appliquer.indexOf("return false;");
+    const purge = appliquer.indexOf("dependances.synchroniserCaches(etat)");
+    const etat = appliquer.indexOf("dependances.definirEtat(etat, configuration)");
+    expect(jete).toBeGreaterThan(-1);
+    expect(purge).toBeGreaterThan(jete);
+    expect(etat).toBeGreaterThan(purge);
+    expect(source).toContain("synchroniserCachesSansEchouer(obtenirDepotLocal, nouvelEtat)");
   });
 });
