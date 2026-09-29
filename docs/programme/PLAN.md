@@ -1951,7 +1951,7 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       `m10_dossier_affaire` ; budget de la couche des événements ; liste des (affaire, jour) à
       consolider ; forme d'affaire commune au core et à M10 qui admet l'opportunité de M2. Touche
       `core/` (CI).
-- [ ] T4.19 M8 : entonnoir commercial et vue exécutive (M8.6, M8.10).
+- [x] T4.19 M8 : entonnoir commercial et vue exécutive (M8.6, M8.10).
       Écart (§7 M8.6, M8.10 ; audit M8 « ABSENT ») : M8 ne mesure que les chantiers terminés.
       - métriques gouvernées : leads qualifiés, devis envoyés, acceptés, sans réponse, taux
         d'acceptation, carnet signé, délai lead → acceptation ; donnée absente : « non calculable » ;
@@ -1959,6 +1959,29 @@ météo et GPS M4, vision M3, conseil d'agents M9…
         cash libre de T4.16 (sinon « manque ») ; M8 ne recalcule jamais M5.
       Preuve : pytest M8 et gate BMAD ; `tests/test_cascade_mesure_m8_m9.py` étendu.
       Dépend de : T4.7 ; T4.16 (non bloquant). GATE NATHAN : seuils de l'entonnoir.
+      Preuve (b7c4e58, 6af2051, d2a63c1, 9f6cd2f, 1665dce, puis l'intégration) :
+      - 8 métriques gouvernées (`metrics/m8-entonnoir.v1.yaml`, contrat v1 intact, propriétaire en clé
+        sœur refusée si absente) : leads reçus et qualifiés, devis envoyés, acceptés, sans réponse, taux
+        d'acceptation, carnet signé, délai lead → acceptation ; sans fait : « non calculable », ce qui
+        manque nommé ; M8 consomme `m2.client_associe`, `m2.lead_assigne`, `m3.devis_envoye`,
+        `m3.devis_sans_reponse` (en plus de ses quatre types) ;
+      - `m8_lire_vue_executive` (T0, admin seulement, refus dans le code) : entonnoir, marge réelle de
+        M5 telle que publiée, stock à commander de M6 (`attentes()`), cash libre ; aucun montant
+        recalculé (garde statique : ni `Decimal`, ni `float`, ni `round`, ni `sum` dans la vue) ; réponse
+        bornée à 5 900 caractères ;
+      - intégration avec T1.4-m : un fait `m2.lead_assigne` de rang 2 ou plus (réassignation) n'est
+        jamais une qualification ; il est ignoré même s'il arrive avant le rang 1 (test ; la mutation
+        qui le compterait est tuée) ;
+      - M8 500 verts, gate BMAD M8, `tests/test_cascade_mesure_m8_m9.py` (3e scénario par le vrai bus :
+        lead qualifié, deux devis envoyés par N4, un accepté, la vue le montre), 21 mutations tuées.
+      Limites : le cash libre de T4.16 n'est pas publié par M5 (calculé à la demande) : la vue dit
+      « manque » (T4.19-b) ; aucune fenêtre de période (tous les faits reçus comptent) ; les alertes de
+      l'entonnoir restent dans la vue (pas publiées à M9, types de `m8.alerte_proposee` fixés).
+      GATE NATHAN : seuils (`configuration.seuils_entonnoir`, vide = « à configurer »), période, et
+      trois définitions : « lead qualifié » = qualification de M2, « devis envoyé » = envoi approuvé
+      (la livraison n'est pas un fait du bus), « sans réponse » = constat de M3.
+- [ ] T4.19-b M5 et M8 : M5 publie le cash libre (événement au catalogue, montants de M5 seulement)
+      et M8 l'affiche dans la vue exécutive au lieu de « manque ». Code critique (argent).
 
 - [ ] T4.17-b M4 puis M7 : ville au niveau municipal dans le WCT, seulement avec le consentement
       marketing, pour un ancrage local des contenus. GATE NATHAN (Loi 25 : granularité publiée).
