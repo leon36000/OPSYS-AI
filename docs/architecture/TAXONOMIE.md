@@ -135,6 +135,8 @@ poids_score_lead:               # un entier de 0 à 1000 pour CHAQUE critère ; 
 | Poids absents ou vides | `REJ-POIDS-SCORE-NON-CONFIGURES` : « poids à configurer ». Aucun score n'est calculé. |
 | Valeur écrite mais invalide (liste vide, question sans `mots_cles`, poids décimal, critère inconnu, tous les poids à 0…) | `REJ-PROFIL-INVALIDE` avec la raison, **jamais lue comme absente** ; `opsys verifier` la signale. |
 
+Des questions ou des poids invalides n'arrêtent pas la réception d'un lead (contrairement aux services, à la zone et à la
+fenêtre, qui la conditionnent) : M1 reçoit, qualifie, et dit `REJ-PROFIL-INVALIDE` dans le bloc concerné de sa réponse.
 `opsys verifier` signale aussi des questions écrites pour un service que l'entreprise ne déclare pas. Les questions et les
 poids d'un test sont fictifs : `departments/m01-front-office/fixtures/qualification/profil-fictif.v1.yaml`
 (`fictif: true`). Comment M1 les utilise : [M1-canaux](../departements/M1-canaux.md) §9.

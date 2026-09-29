@@ -17,8 +17,9 @@ Cette procédure reste celle d'une voix transcrite ou d'une saisie manuelle.
    filtre la provenance, inscrit le signal au registre anti-perte, vérifie le consentement si
    le canal est `telephone`, puis qualifie par règles déterministes.
 3. Lis la réponse :
-   - `qualifie: false` → un `verdict_qualification` explique ce qui manque (service, ville
-     dans la zone desservie, ou coordonnées de contact). Le service est UN des services
+   - `qualifie: false` → `champs_manquants` nomme chaque champ qui manque (`service`, `ville`
+     dans la zone desservie, `contact`) et `verdict_qualification` dit quoi demander pour
+     chacun. Le service est UN des services
      déclarés par l'entreprise : si la demande en évoque plusieurs ou aucun, le détail du
      verdict le dit, et tu demandes lequel traiter. Rédige une demande de précision courte
      et polie ; ne présente jamais cela comme un refus définitif.

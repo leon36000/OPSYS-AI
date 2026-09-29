@@ -25,3 +25,24 @@ par conversation ouverte. Un message rejoué ne compte pas deux fois ; STOP ferm
 n'est plus rassemblée. Sans fenêtre déclarée, la qualification reste message par message et la réponse le dit
 (`conversation.verdict`). Ce qui est demandé au client est un brouillon (`brouillon_reponse`, `envoye: false`) : il ne part que
 par `m1_emettre_notification` (N4), après approbation. Règles et limites : [M1-canaux](../../docs/departements/M1-canaux.md) §8.
+
+## Qualification complète (PLAN T4.4)
+
+Une conversation ne meurt plus à la porte, et rien n'est envoyé ni décidé par le modèle :
+
+- **Le verdict nomme chaque champ manquant** (`service`, `ville`, `contact`) et la conversation cumule le contact et l'urgence
+  comme le service et la ville (`qualification.py`, `conversation.py`).
+- **Questions obligatoires par service** (`questions.py`) : écrites par le propriétaire dans `entreprise.yaml`
+  (`questions_qualification`, lu par `opsys.taxonomie`), jamais dans le code. Sans elles, le verdict le dit et rien n'est inventé.
+  Une question est répondue quand un de ses mots-clés figure dans la conversation ; chacune passe seule au garde-fou.
+- **Demande de photos fermée** (`photos.py`) tant que `POLITIQUE-photos-non-contractuelles.md` n'est pas marquée
+  `STATUT_VALIDATION: valide` (même lecture que M3).
+- **Score de lead** (`score.py`) : urgence, complétude, zone, pondérés par les poids du profil (`poids_score_lead`), en
+  fractions exactes, explicable critère par critère ; sans poids, « poids à configurer » et aucun score. Il reste au registre de
+  M1 : le contrat `LeadQualifie` v2 n'a pas changé (le passer à M2 est une v3).
+- **Prochaine action datée** (`suivi.py`) : une ligne `suivi_conversation` au registre par message reçu, datée de l'heure de la
+  plateforme et de la fin de la fenêtre du profil (jamais d'une horloge) ; le digest en tire les conversations sans suivi.
+- **Le client qui répond « lequel des services ? » lève l'ambiguïté** (`conversation.services_retenus`).
+
+Fixtures fictives (`fictif: true`) : `fixtures/qualification/profil-fictif.v1.yaml`. Conception, limites et décisions de Nathan :
+[M1-canaux](../../docs/departements/M1-canaux.md) §9.

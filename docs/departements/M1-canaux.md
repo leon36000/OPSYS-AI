@@ -5,6 +5,8 @@ core, est qualifié par le code, et devient un lead v2 que M2 recevra par le bus
 courriel a son outil (même chemin) mais pas sa configuration ; la voix vient après.
 **Suite (T2.1-b, partie 1, 2026-09-29) :** M2 consomme vraiment `m1.lead_qualifie` (§7), et un client qui écrit le service
 dans un message et la ville dans le suivant donne un lead complet, par du code (§8).
+**Suite (T4.4, 2026-09-29) :** qualification complète : verdict qui nomme chaque champ manquant, questions obligatoires par
+service lues du profil, demande de photos fermée, score de lead explicable, prochaine action datée au registre (§9).
 **Références :** `DEFINITION-PRODUIT` §5, §6, §7 (M1.1, M1.3, M1.4, M1.7), `M1-audit.md`, ADR-0010 (T3.3-suite-b).
 **Le core ne s'exécute pas dans ce bac à sable.** Tout ce qui suit sur le core vient de la lecture de ses sources
 (`fichier:ligne` donnés) ; la CI (`e2e-core`, `openclaw config validate`) est l'autorité.
@@ -53,7 +55,7 @@ pas dans cette tranche.
 | `source` du lead | le canal du core (`sms`) | jamais lue dans le texte |
 | Service | la taxonomie du profil d'entreprise (4 services réels du premier client) | `opsys.taxonomie` ; plusieurs services ou aucun : on demande lequel |
 | Zone desservie | `zone_desservie` du profil d'entreprise (`$OPSYS_HOME/entreprise.yaml`) | l'agent ne la fournit pas ; absente : refus qui dit où la déclarer |
-| Ce qu'on demande au client | un brouillon que le code compose (§8) | garde-fou des interdits appliqué par le code ; il ne part que par `m1_emettre_notification` (N4), après approbation |
+| Ce qu'on demande au client | un brouillon que le code compose (§8, §9) ; les questions du service viennent du profil d'entreprise, jamais du code | garde-fou des interdits appliqué par le code, question par question ; il ne part que par `m1_emettre_notification` (N4), après approbation |
 | Prix, dates, engagements | jamais produits | `m1_verifier_garde_fou` avant toute proposition de message |
 | Le texte du client | donnée non fiable | filtre de provenance (`[CONTENU_NON_FIABLE]`), jamais une consigne |
 
@@ -246,7 +248,8 @@ exemple : le propriétaire choisit.
   complète d'après reste qualifiée.
 
 **Ce qui est demandé au client est un brouillon.** Quand le lead n'est pas complet, la réponse porte `a_demander`
-(`["service"]`, `["ville"]` ou les deux), `conversation.connu` (ce qui est établi), et `brouillon_reponse` : une question
+(chaque champ du lead qui manque : `service`, `ville`, `contact`), `conversation.connu` (ce qui est établi, §9.1), et
+`brouillon_reponse` : une question
 courte composée par le code (services demandés lus dans le profil, jamais dans une liste locale), passée au garde-fou des
 interdits. Si le garde-fou la refuse (un libellé de service déclaré ne doit pas glisser un prix), il n'y a pas de brouillon
 (`sans_brouillon` dit pourquoi). `envoye` vaut toujours `false` : le brouillon ne part que par `m1_emettre_notification`
@@ -263,5 +266,140 @@ interdits. Si le garde-fou la refuse (un libellé de service déclaré ne doit p
   façon (le courriel n'a pas encore sa configuration, §7).
 - Sans fenêtre, deux messages de texte identique d'un même client donnent le même `lead_id`, donc un seul événement : M2 ne
   voit pas le second. Non modifié (les `lead_id` déjà émis gardent leur identité) ; la fenêtre, elle, n'a pas ce défaut.
+- L'urgence se cumule sur toute la conversation, avant et après le lead (§9.1) ; le lead, lui, est gelé.
 - L'agent doit relayer `complement.*` à une personne : aucun outil de tâche n'existe encore côté M1 pour l'écrire ailleurs
   que dans sa réponse.
+
+## 9. Qualification complète (T4.4)
+
+Tranche suivante de M1.3 : une conversation ne meurt plus à la porte. Aucun message n'est envoyé, aucun contrat n'a changé.
+Ce que le code fait, par des règles (`qualification.py`, `questions.py`, `photos.py`, `score.py`, `suivi.py`) ; le modèle
+orchestre, il ne note ni ne devine rien.
+
+### 9.1 Un verdict qui nomme chaque champ manquant, et un cumul qui couvre tout
+
+- **Le rejet nomme chaque champ.** `verdict_qualification.detail` commence par `champs manquants (service, ville, contact)` et
+  dit quoi demander pour chacun ; la réponse porte `champs_manquants` (même sans fenêtre de conversation). Le code du verdict
+  reste `REJ-QUALIF-INSUFFISANTE`, et les phrases d'avant (`aucun service…`, `plusieurs services évoqués (a, b)…`) sont gardées.
+- **Trois champs font le lead :** `service`, `ville`, `contact`. Pour un message de canal, le contact est l'expéditeur que la
+  plateforme a vérifié (§2) : il ne manque jamais, et le texte du client n'y ajoute rien. Pour une demande dont le contact vient
+  du texte (voix transcrite, saisie), un téléphone ou un courriel écrit dans un message suivant complète le lead.
+- **`conversation.connu`** dit ce que tous les messages rassemblés établissent : `service`, `ville`, `contact` (`canal`, `texte`
+  ou `null`) et `urgence_declaree` (vraie dès qu'un message la déclare, jamais inférée du ton).
+- **L'urgence se cumule aussi après le lead.** Le lead est gelé (v2) : `complement.urgence_declaree` dit ce que la conversation
+  déclare et que le lead transmis ne porte pas, même si l'urgence a été écrite deux messages plus tôt.
+
+### 9.2 Questions obligatoires par service : du profil, jamais du code
+
+Le propriétaire écrit, par service, les questions qu'il veut poser (GATE NATHAN) dans `entreprise.yaml`
+(`questions_qualification`, format et verdicts : [TAXONOMIE](../architecture/TAXONOMIE.md)). Une fois le lead complet, la
+réponse porte un bloc `questions` :
+
+| `questions.statut` | Sens | Brouillon |
+|---|---|---|
+| `service_a_preciser` | le service n'est pas établi : on ne sait pas quoi demander | (le lead d'abord) |
+| `non_configurees` | le profil n'a aucune question pour ce service ; `verdict` (`REJ-QUESTIONS-NON-CONFIGUREES`) dit où les écrire | aucun : rien n'est inventé |
+| `profil_invalide` | des questions sont écrites mais invalides ; `verdict` (`REJ-PROFIL-INVALIDE`) dit la raison | aucun ; **la réception du lead continue** |
+| `a_poser` | des questions n'ont pas de réponse (`restantes`, dans l'ordre écrit) | oui |
+| `aucune_restante` | le client a tout répondu (`repondues`) | aucun |
+
+- **Une question est répondue** quand un de ses `mots_cles` (écrits par le propriétaire) figure dans les messages rassemblés :
+  mot entier, pluriel admis, accents et casse ignorés, comme les mots-clés d'un service. Les réponses données avant le lead
+  comptent.
+- **Ordre du brouillon :** d'abord ce qui manque au lead, une seule question à la fois (service, ville, contact) ; ensuite les
+  questions du service ; ensuite les photos (§9.3). Le lead n'attend pas les questions : il part chez M2 dès qu'il est complet.
+- **Chaque question du profil passe seule au garde-fou** (aucun prix, aucune date, aucun engagement, aucun aveu). Celle qui est
+  refusée est retirée et nommée (`questions_refusees`) ; les autres partent quand même, pour qu'une question mal écrite ne
+  laisse pas le client sans réponse. Si toutes sont refusées : pas de brouillon, `sans_brouillon` dit le code. Le corpus
+  adversarial du garde-fou est inchangé.
+- **Limites.** (1) Le code reconnaît des mots, pas le sens : « pas de vinyle » répond à une question dont un mot-clé est
+  « vinyle ». (2) Deux questions dont les mots-clés se recouvrent se répondent l'une l'autre (« plain-pied » contient le mot
+  « pied ») : le propriétaire choisit des termes qui n'appartiennent qu'à une réponse. (3) Un profil invalide n'arrête pas la
+  réception (un lead ne se perd pas pour une faute de frappe) ; `opsys verifier` le signale.
+
+### 9.3 Demande de photos : fermée tant que la politique n'est pas validée
+
+Une question `photos: true` du profil est une demande de photos. Elle ne se propose **jamais** tant que
+`POLITIQUE-photos-non-contractuelles.md` ne porte pas la ligne exacte `STATUT_VALIDATION: valide` (T3 : Nathan ou un juriste).
+C'est la même lecture que M3 (`m3_estimation.politique_photos`) ; `tests/test_politique_photos_derive.py` confronte les deux sur
+les mêmes textes et sur le document réel. Toute autre valeur (`proposition`, l'état actuel), un marqueur absent ou dupliqué, un
+fichier illisible : fermée. Le bloc `photos` dit `fermee` (avec le verdict `REJ-PHOTO-POLITIQUE-NON-VALIDEE`) ou `ouverte`.
+Ouverte, la demande s'ajoute au brouillon des questions, au message qui qualifie le lead ou avec une question encore posée.
+M1 ne lit pas les pièces jointes (MMS) : il ne sait pas si les photos sont arrivées, et une personne le voit.
+
+### 9.4 Score de lead : des règles, des poids du profil, jamais un modèle
+
+| Critère | Valeur (0 à 1) |
+|---|---|
+| `urgence` | 1 si un message de la conversation déclare une urgence explicite, sinon 0 |
+| `completude` | éléments établis ÷ éléments attendus : service, ville, contact, et les questions de texte du service |
+| `zone` | 1 si une ville de la zone desservie est reconnue, sinon 0 |
+
+`score = 100 × Σ (poids × valeur) ÷ Σ poids`, en fractions exactes, arrondi à l'entier (demi vers le haut). Chaque critère rend
+son poids, sa valeur (`"2/5"`), ses points (au centième) et une phrase qui dit ce qui a été constaté. **Les poids sont ceux du
+propriétaire** (`poids_score_lead`, un entier par critère, 0 écarte un critère). **Sans poids, pas de score** :
+`score.statut = poids_a_configurer` et le verdict `REJ-POIDS-SCORE-NON-CONFIGURES` dit où les écrire ; des poids invalides
+donnent `profil_invalide`, jamais « à configurer ».
+
+Exemple (profil fictif de test : poids 30 / 50 / 20, quatre services, questions de la fixture) : « mes gouttières débordent,
+c'est urgent » (service et contact connus, urgence) donne 50 ; « à Laval » (le lead naît, ville de la zone) donne 80 ; « environ
+40 pieds, deux étages » (les deux questions répondues) donne 100.
+
+Le score **reste dans le registre de M1** (ligne `suivi_conversation`). Le passer à M2 exige un `LeadQualifie` v3 (P5), hors
+tâche : le contrat v2, le lead et l'événement `m1.lead_qualifie` n'ont pas changé, et un test le prouve par le vrai bus.
+
+### 9.5 Prochaine action datée au registre
+
+Chaque message reçu (jamais un rejeu) d'une conversation à fenêtre ajoute au registre une ligne `suivi_conversation` : ce que la
+conversation établit, ce qui manque, les questions restantes, le score, et la **prochaine action** :
+
+| Action | Quand |
+|---|---|
+| `demander_precisions` | il manque un champ du lead |
+| `poser_les_questions_du_service` | le lead est complet, des questions restent sans réponse |
+| `decision_humaine_apres_retrait` | l'une ou l'autre reste à demander, mais le client s'est retiré (STOP) |
+| (aucune, ligne `close`) | rien à demander, ou STOP a fermé la conversation |
+
+**Les dates ne viennent jamais de l'horloge du modèle ni du système.** `inscrite_le` est l'heure de réception que la plateforme a
+livrée avec le message (ou l'instant fourni) ; `a_faire_avant` est la fin de la fenêtre de la conversation (ouverture + fenêtre
+du profil), l'échéance réelle : passé ce moment, les messages suivants ne se rejoignent plus. Aucun délai de relance n'est
+inventé. La ligne ne garde aucun texte du client.
+
+Le **digest** (M1.11) relit ces lignes et ajoute, seulement si le registre en porte : « conversations ouvertes à suivre » (écrites
+ce jour, dernière ligne encore ouverte) et « conversations sans suivi à l'échéance de leur fenêtre » (la fenêtre se termine ce
+jour et la dernière ligne demande toujours une action : une conversation n'y figure que le jour de son échéance). Il ne dit pas
+encore les leads sans suivi côté M2 ni les documents manquants.
+
+### 9.6 La réponse du client à « lequel des services ? »
+
+Quand le client cite plusieurs services, le brouillon lui demande par lequel commencer. Le texte rassemblé les évoquait toujours
+tous : sa réponse ne changeait rien, la question revenait, la conversation restait bloquée jusqu'à l'expiration de la fenêtre.
+**Règle** (`conversation.services_retenus`, isolée dans son commit, hors de la spécification de T4.4) : quand plusieurs services
+sont en jeu, un message qui n'en nomme qu'un est le choix du client ; un service de plus s'ajoute et on redemande ; un message sans
+service ne choisit rien. Ce que le choix écarte est dit (`conversation.services_ecartes`, ligne `lead_emis` du registre).
+**Limite :** « aussi le soffite », écrit après « gouttières et soffite », lit un choix du soffite ; `services_ecartes` le dit à
+une personne. À confirmer avec la décision de précédence entre services (encore ouverte, TAXONOMIE.md).
+
+### 9.7 Forme de la réponse de `m1_recevoir_message_canal` (fenêtre déclarée)
+
+| Clé | Présente | Contenu |
+|---|---|---|
+| `champs_manquants` | lead incomplet (aussi sans fenêtre) | `service`, `ville`, `contact` qui manquent |
+| `a_demander`, `brouillon_reponse`, `envoye`, `sans_brouillon`, `questions_refusees` | il y a quelque chose à proposer | `envoye` vaut toujours `false` |
+| `questions` | toujours | §9.2 |
+| `photos` | le service déclare une demande de photos | §9.3 |
+| `score` | toujours | §9.4 |
+| `prochaine_action`, `suivi_ligne_id` | toujours (`null` si rien à demander) | §9.5 |
+| `conversation.connu`, `conversation.services_ecartes` | toujours, si un service est écarté | §9.1, §9.6 |
+
+### 9.8 Ce que Nathan décide (GATE NATHAN)
+
+Rien de ceci n'a de valeur par défaut dans le code : sans décision, le système le dit.
+1. **Les questions par service et leurs mots-clés** (`questions_qualification`). Sans elles : `REJ-QUESTIONS-NON-CONFIGUREES`.
+2. **Les poids du score** (`poids_score_lead`). Sans eux : « poids à configurer ».
+3. **La validation de la politique « photos »** (`STATUT_VALIDATION: valide`). Sans elle : demande fermée.
+4. **La règle du choix du service** (§9.6) : la garder, la retirer, ou la remplacer par la précédence entre services.
+5. **Le délai de relance.** L'échéance d'une conversation est la fin de sa fenêtre ; un délai plus court (par exemple répondre
+   dans les 15 minutes) est une décision, pas un calcul.
+Les questions et les poids des tests sont fictifs : `departments/m01-front-office/fixtures/qualification/profil-fictif.v1.yaml`
+(`fictif: true`).

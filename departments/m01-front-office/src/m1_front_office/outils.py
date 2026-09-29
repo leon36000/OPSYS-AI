@@ -31,6 +31,13 @@ Qualification par conversation (PLAN T2.1-b, `conversation.py`) : quand le profi
 lead naît quand service et ville sont connus, un seul par conversation ouverte. Sans fenêtre déclarée, la
 qualification reste message par message et la réponse le dit (`conversation.verdict`). Ce qui est demandé au client
 est un brouillon (`brouillon_reponse`) : il ne part que par `m1_emettre_notification` (N4), après approbation.
+
+Qualification complète (PLAN T4.4, `docs/departements/M1-canaux.md` §9) : le rejet nomme chaque champ manquant
+(`champs_manquants`) ; les questions obligatoires du service viennent du profil d'entreprise (`questions.py`, jamais du
+code) ; la demande de photos reste fermée tant que la politique « photos » n'est pas validée (`photos.py`) ; le score de
+lead est calculé par règles avec les poids du profil (`score.py`) et reste au registre de M1, le contrat v2 est intact ;
+une conversation ouverte a une prochaine action datée au registre (`suivi.py`), de l'heure de la plateforme et de la fin
+de la fenêtre, jamais d'une horloge.
 """
 
 from __future__ import annotations
@@ -755,12 +762,13 @@ def outils() -> tuple[Outil, ...]:
             description=(
                 "Reçoit un message qu'un canal du core (sms, courriel) livre à cet agent : recopie tel quel le canal, "
                 "l'expéditeur, l'identifiant et l'heure de réception que la plateforme donne, et le texte du client. "
-                "L'outil filtre la provenance, inscrit le signal au registre anti-perte (une ligne par message, un "
-                "message rejoué ne s'ajoute pas), reconnaît un retrait (STOP), qualifie par règles (service déclaré, "
-                "ville de la zone de l'entreprise, expéditeur comme contact) et transmet le lead à M2 par le bus. "
-                "Si l'entreprise a déclaré une fenêtre de conversation, les messages du même client dans cette "
-                "fenêtre se rassemblent (le service dans un message, la ville dans le suivant) : un seul lead par "
-                "conversation ; ce qu'il reste à demander est un brouillon, jamais envoyé."
+                "L'outil filtre la provenance, inscrit le signal au registre anti-perte (un message rejoué ne s'ajoute "
+                "pas), reconnaît un retrait (STOP), qualifie par règles (service, ville de la zone, expéditeur comme "
+                "contact) et transmet le lead à M2 par le bus. Avec une fenêtre de conversation déclarée, les messages "
+                "du même client se rassemblent : un seul lead par conversation. Le code ajoute, sans modèle : les "
+                "champs manquants, les questions du service écrites par l'entreprise, la demande de photos (fermée "
+                "sans politique validée), le score (poids de l'entreprise, sinon « poids à configurer »), la "
+                "prochaine action datée au registre, et un brouillon de ce qu'il reste à demander, jamais envoyé."
             ),
             parametres={
                 "type": "object",
