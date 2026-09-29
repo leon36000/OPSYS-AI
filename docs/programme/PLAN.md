@@ -1546,7 +1546,7 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       JSON Schema.
       Dépend de : T2.3-f (même `outils.py`). GATE NATHAN : seuils de revue, minimum rentable.
       T3 : envoi réel (T2.1-c).
-- [ ] T4.8 Mobile : profil vendeur, leads, Client 360 et soumissions (§9.4 ; M2.2, M3.17).
+- [x] T4.8 Mobile : profil vendeur, leads, Client 360 et soumissions (§9.4 ; M2.2, M3.17).
       Écart (§9.4 ; audit M2 §2.5 « vendeur ABSENT ») : `mobile/app/(seller)/seller.tsx` est un
       gabarit ; le vendeur ne voit rien de ses leads ni de ses soumissions.
       - écrans `leads` (liste paginée, filtre par segment), `lead/[id]` (Client 360, prochaine
@@ -1557,6 +1557,23 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       leads seulement, 403 sur les outils admin, rejeu sans effet ; CI `mobile`.
       Dépend de : T4.6 ; T4.7 pour le statut « envoyé ». GATE NATHAN : vue de devis du vendeur avec
       ou sans coût et marge. T3 : diffusion de l'app hors de l'équipe.
+      Preuve (6a4c64a) :
+      - écrans `leads` (`m2_lister_leads` paginé, filtres statut et segment, règle citée, segment non
+        calculable dit « manque X »), `lead/[id]` (suggestion et sa règle, Client 360, historique,
+        note par la file sortante avec clé d'idempotence, 300 caractères) et `quotes`
+        (`m3_lire_devis` : statut et prix) ; six outils, nom nu, portée `seller` ;
+      - cache SQLite hors ligne marqué (date, raison), une clé par personne ; un refus du serveur
+        n'est jamais remplacé par le cache ;
+      - Jest 1469 (1058 avant), tsc OK ; E2E `tests/e2e/test_vendeur_appareil.py` (14 : ses leads
+        seulement, 403 sur les outils de l'admin, rejeu d'une note sans double effet, forme des
+        réponses = fixture lue par Jest) ; socle 1398 (101 sautés) ; 15 mutations Jest tuées.
+      Écart à trancher : l'app n'affiche ni coût ni marge du devis (ma consigne), alors que §9.4 dit
+      que le vendeur voit « risques et marge » de SES soumissions et que M3 lui rend la vue interne
+      (décision déjà attendue : « Portées des rôles d'appareil » ci-dessous).
+- [ ] T4.8-b M2 et M3 : outil « devis de mes leads » pour le vendeur (aujourd'hui, les numéros ne
+      viennent que des segments `won_pending_schedule` et `quote_stale`) ; `resume` d'une
+      interaction borné côté serveur ; la règle `doublon_en_attente` ne suggère plus au vendeur un
+      arbitrage réservé à l'admin ; l'écran `quotes` suit la décision sur la marge du vendeur.
 - [ ] T4.9 M2 : relances dues, avec consentement et fréquence limitée (M2.7, M2.13).
       Écart (§7 M2.7, M2.13 ; audit M2 §1.3, §5 point 3 ; reste de T2.3-c) : les relances ne sont
       visibles qu'au Client 360, sans consentement modélisé.
