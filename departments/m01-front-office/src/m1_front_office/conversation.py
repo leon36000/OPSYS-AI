@@ -121,14 +121,41 @@ def expiration(ouverture: str, fenetre_minutes: int) -> str:
     return (_instant(ouverture) + dt.timedelta(minutes=fenetre_minutes)).isoformat()
 
 
+def services_retenus(contenus: Sequence[str], services: Sequence[Any]) -> tuple[Any, ...]:
+    """Les services que la conversation retient, lus message après message (`contenus` : les messages rassemblés, le
+    courant en dernier, déjà filtrés). Sans cette règle, la question « lequel des services ? » n'aurait jamais de
+    réponse : le texte rassemblé évoquerait toujours les deux, et la conversation resterait bloquée jusqu'à
+    l'expiration de la fenêtre.
+
+    Règle, dans l'ordre des messages : un message qui évoque des services les ajoute ; SAUF quand plusieurs services
+    étaient en jeu et qu'un message n'en nomme qu'UN : le client a choisi, ce service remplace les autres. Un service
+    de plus évoqué après un premier reste en jeu avec lui (deux services : on demande lequel). Aucun service évoqué :
+    tous les services déclarés, rien n'est retenu.
+
+    Ce que la conversation a évoqué et que ce choix écarte n'est pas perdu : l'appelant le dit (`services_ecartes`)."""
+    retenus: set[str] = set()
+    for contenu in contenus:
+        evoques = set(qualification.services_evoques(contenu, services))
+        if not evoques:
+            continue
+        if len(retenus) >= 2 and len(evoques) == 1:
+            retenus = evoques
+        else:
+            retenus |= evoques
+    gardes = tuple(service for service in services if service.code in retenus)
+    return gardes or tuple(services)
+
+
 def decrire(
     conversation: ConversationOuverte, horodatage: str, fenetre_minutes: int, signaux: Sequence[str],
-    diagnostic: dict[str, Any] | None = None,
+    diagnostic: dict[str, Any] | None = None, services_ecartes: Sequence[str] = (),
 ) -> dict[str, Any]:
     """Le bloc `conversation` de la réponse de l'outil : la fenêtre, ce qui est rassemblé, ce qui est connu.
 
     Les heures sont calculées ici, par du code : ouverture (le premier message rassemblé, ou celui-ci) et
     expiration (ouverture + fenêtre). `diagnostic` (de `qualification.diagnostiquer`) ajoute ce qui est connu.
+    `services_ecartes` : les services que la conversation a évoqués et que le choix du client a écartés
+    (`services_retenus`), pour qu'une personne le voie.
     """
     ouverture = conversation.ouverture or horodatage
     bloc: dict[str, Any] = {
@@ -142,6 +169,8 @@ def decrire(
     }
     if diagnostic is not None:
         bloc["connu"] = connu(diagnostic)
+    if services_ecartes:
+        bloc["services_ecartes"] = list(services_ecartes)
     return bloc
 
 

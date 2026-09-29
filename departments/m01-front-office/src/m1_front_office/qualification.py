@@ -103,6 +103,11 @@ def _services_evoques(contenu: str, services) -> list[str]:
     return evoques
 
 
+def services_evoques(contenu_filtre: str, services) -> list[str]:
+    """Codes des services déclarés qu'un contenu filtré évoque, dans l'ordre de la déclaration."""
+    return _services_evoques(_clean(contenu_filtre), services)
+
+
 def _extraire_ville(contenu: str, zone_desservie):
     """Retourne la première ville de la zone desservie reconnue, ou None.
 

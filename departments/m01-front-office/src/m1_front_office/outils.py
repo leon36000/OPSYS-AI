@@ -390,14 +390,20 @@ def _traiter(
     #    tous les messages de la conversation ouverte (le lead naît quand service et ville sont connus) ; sinon, sur
     #    ce message seul.
     contenu_a_qualifier, identite_lead, signaux, diagnostic = contenu_filtre, None, [signal_id], None
+    services_lus, ecartes = services, []
     if ouverte is not None:
         contenu_a_qualifier = conversation.contenu_rassemble(ouverte, contenu_filtre)
         signaux = conversation.signaux_rassembles(ouverte, signal_id)
         identite_lead = signaux[0]  # deux conversations de même texte n'ont pas le même lead
-        diagnostic = qualification.diagnostiquer(contenu_a_qualifier, zone_desservie, services, contact_canal)
+        # Le client qui répond « lequel ? » choisit : le service qu'il nomme seul remplace ceux qu'il avait listés.
+        services_lus = conversation.services_retenus(
+            [m["contenu_filtre"] for m in ouverte.messages] + [contenu_filtre], services)
+        retenus = {un.code for un in services_lus}
+        ecartes = [c for c in qualification.services_evoques(contenu_a_qualifier, services) if c not in retenus]
+        diagnostic = qualification.diagnostiquer(contenu_a_qualifier, zone_desservie, services_lus, contact_canal)
     resultat_qualif = qualification.qualifier(
         contenu_a_qualifier, canal, conversation_id, zone_desservie,
-        services=services, source=source, utm=utm, campagne=campagne, contact_canal=contact_canal,
+        services=services_lus, source=source, utm=utm, campagne=campagne, contact_canal=contact_canal,
         identite_lead=identite_lead,
     )
     if "verdict" in resultat_qualif:
@@ -414,7 +420,7 @@ def _traiter(
         }
         if ouverte is not None:
             reponse_precisions["conversation"] = conversation.decrire(
-                ouverte, horodatage, fenetre_minutes, signaux, diagnostic)
+                ouverte, horodatage, fenetre_minutes, signaux, diagnostic, ecartes)
             reponse_precisions.update(_qualifier_la_conversation(
                 reg, ouverte=ouverte, fenetre_minutes=fenetre_minutes, canal=canal, source=source,
                 conversation_id=conversation_id, signal_id=signal_id, horodatage=horodatage, etabli=diagnostic,
@@ -439,6 +445,8 @@ def _traiter(
         lead_emis["cle_session"] = cle_session
     if ouverte is not None:
         lead_emis["signaux_rassembles"] = signaux
+        if ecartes:
+            lead_emis["services_ecartes"] = ecartes
     ligne_id_lead = reg.ajouter(lead_emis)
     _publier_lead(resultat_qualif, horodatage, signal_id)
 
@@ -456,7 +464,8 @@ def _traiter(
     if cle_session is not None:
         reponse["cle_session"] = cle_session
     if ouverte is not None:
-        reponse["conversation"] = conversation.decrire(ouverte, horodatage, fenetre_minutes, signaux, diagnostic)
+        reponse["conversation"] = conversation.decrire(
+            ouverte, horodatage, fenetre_minutes, signaux, diagnostic, ecartes)
         # Le lead est complet et part chez M2 ; ce que le service demande encore est un brouillon, jamais envoyé.
         reponse.update(_qualifier_la_conversation(
             reg, ouverte=ouverte, fenetre_minutes=fenetre_minutes, canal=canal, source=source,
