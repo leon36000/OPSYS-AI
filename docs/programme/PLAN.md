@@ -158,6 +158,9 @@ identifiants du propriétaire, repli livré en attendant.
       manquent : le jeton du moteur est bien lu) ; échec à `gateway install` : le core n'installe
       un service que pour le dossier d'état canonique d'un profil (`isDefaultInstallIdentity`),
       et l'installateur pose `OPENCLAW_STATE_DIR=$OPSYS_HOME/core`.
+      - [ ] T0.11-c Les installateurs installent les extras `tournees` (PyVRP) et `soumission`
+            (ReportLab) : sans eux, la cédule VRP et le PDF échouent fermés sur une installation
+            locale (`install.sh`, `install.ps1`).
       - [ ] T0.11-b Service par le profil `opsys` du core : livré (b02f7a4, a0f3c95), à cocher sur le job
             `installateur`. Le core tourne sous l'option racine `--profile opsys` (la variable seule
             ne projette pas l'état : seul `applyCliProfileEnv` le fait) ; état canonique
@@ -1097,9 +1100,26 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         - M3 821 (outils de mutation compris, correction e3b910c incluse) ; socle, M5 et M6
           verts.
 
-        Reste de T2.3 : PDF de la soumission ; `niveau_confiance` est un nombre dans le code et
-        une chaîne dans le PRD (à trancher : v2 ou clé sœur). Coût et prix séparés, et
+        Reste de T2.3 : PDF de la soumission (T2.3-f, fait) ; `niveau_confiance` : la clé sœur
+        `niveau_confiance_hierarchie` porte déjà le libellé du PRD de M3 (GATE NATHAN ci-dessous) ;
+        approbation d'envoi de la soumission : T4.7. Coût et prix séparés, et
         `signaux.py` branché : T2.3-d. Contrat `BesoinsMateriauxM3` : T2.3-e.
+  - [x] T2.3-f Soumission brouillon en PDF.
+        Preuve (5258a04, 946ef33) :
+        - brique : ReportLab 4.5.1 (BSD-3-Clause, Python pur), extra `soumission` épinglé, import
+          paresseux, version vérifiée ; job M3 et image Docker l'installent ; pypdf 6.19.0
+          (BSD-3-Clause, extra `dev`) relit les PDF ; fpdf2 écartée (« œ », « — » hors Latin-1) ;
+        - `soumission.contenu_client` (liste blanche, ni coût ni marge) est la seule porte vers le
+          HTML (inchangé octet pour octet) et le PDF ; montants Decimal sans arrondi, texte échappé
+          (`<img src=...>` testé), caractères contrôlés, BROUILLON sur toute page, mêmes octets pour
+          les mêmes entrées ;
+        - fail-closed : six codes `REJ-SOUMISSION-PDF-*` ; au-delà de la sortie d'un outil (6000
+          caractères), refus plutôt qu'un PDF tronqué ; aucun outil d'envoi ;
+        - M3 1357 (suite complète, avant fusion), 1351 rapides après fusion ; socle 1141 ; gate BMAD
+          M3 ; 5 mutations tuées.
+        Reste : livrer un PDF plus gros que la sortie d'un outil (le dépôt de fichiers du socle
+        n'accepte que jpeg et png) ; en-tête d'entreprise, TPS/TVQ, exclusions, hypothèses, délai
+        (M3.13) faute de donnée ; les installateurs n'installent pas les extras (T0.11-c).
   - [x] T2.3-e Contrat `BesoinsMateriauxM3` (M3 → M6).
         Preuve (f2e40bc, b6d5add, e8b9d40, 92a09ca intégrés) :
         - module pur `besoins_materiaux.py` : lignes calculées par le code (quantité de l'ouvrage
@@ -1785,6 +1805,12 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
 - **Comptes à payer (T4.15)** : doublon refusé sur (fournisseur, numéro, montant) ; même numéro
   avec un autre montant accepté avec avertissement ; aucune tolérance d'écart (un cent est un
   écart) ; unité des prix du livre de prix M6 (déjà attendue).
+- **Niveau de confiance de M3 (T2.3)** : garder la clé sœur `niveau_confiance_hierarchie` (sans
+  v2) ; seuils de résolution et d'éclairage des photos (« défini par le PM ») ; quels libellés
+  rendent la validation humaine obligatoire ; persister le libellé pour M2 ?
+- **Licence à relire (T2.3-f)** : la roue ReportLab embarque une police GPL-2+ avec exception de
+  police (`DarkGarden.pfb`), ni utilisée ni modifiée (agrégation, INGREDIENTS.md) ; AGENTS.md
+  demande une décision humaine pour tout ce qui touche la GPL.
 - **Lien automatique session → affaire (T2.1-b)** : aujourd'hui, un humain lie la session d'un
   client à son lead (`m10_lier_session_affaire`, N3). Faut-il qu'une règle écrite le fasse à la
   création du lead ? La clé de session contient le numéro du client : elle ne voyage jamais dans
