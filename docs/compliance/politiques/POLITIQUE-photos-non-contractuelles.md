@@ -67,6 +67,11 @@ tâche 10, pas après ». Une garde de code (`src/m3_estimation/politique_photos
 - **Comment il sera documenté** : [À CONCEVOIR — la table de consentement dédiée n'existe pas
   encore dans le socle ; à construire sur le même patron que `employee_consent_location`
   (`POLITIQUE-geolocalisation.md` §4) avant l'activation de la collecte réelle.]
+- **Consentement à l'usage marketing d'un chantier terminé (PLAN T1.5-d)** : distinct de celui de la demande
+  d'avis (`consentement_demande_avis`), il est recueilli par l'employé auprès du client à « Terminer » dans l'app
+  (case non cochée par défaut, texte fr-CA versionné) et documenté dans le WCT de M4, écrit dans son registre
+  immuable : la personne qui l'a recueilli, l'heure de réception du serveur et la version du texte présenté.
+  Absent = non consenti. Les énoncés restent une proposition, à valider (T3) avec cette politique.
 - **Comment il pourra être retiré** : le client peut demander la suppression des photos
   transmises à tout moment ; le retrait n'affecte pas une estimation déjà produite (l'estimation
   reste un fait daté, mais les images source sont détruites).

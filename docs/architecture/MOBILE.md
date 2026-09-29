@@ -1051,17 +1051,37 @@ signature EST requise mais n'a pas pu être obtenue), l'écran demande un choix 
 (oui/non, AUCUN par défaut — `signatureRequise: boolean | null`) avant de laisser « Terminer »
 avancer, même patron fail-closed que le champ technicien de `job/[id]/index.tsx`.
 
-**Portée volontairement réduite du schéma `m4_completer_intervention`.** Seuls `intervention_id`,
-`horodatage`, `preuves_completion`, `signature_requise` sont envoyés
-(`src/m4/completion.ts::construireArgumentsCompleterIntervention`) — `photos`,
-`description_factuelle`, `consentement_marketing`, `client_satisfait` (des FAITS DU CLIENT, Loi
-25, T1.2-f) restent `NON_FOURNI` côté serveur : aucun écran de capture de consentement client
-n'existe dans cette tranche ni dans l'ordre de livraison R12 §5 pour T1 — les envoyer sans
-capture réelle serait une donnée inventée (AGENTS.md). Une tranche future (rattachée à M7,
-DEFINITION-PRODUIT.md §9.3) devra ajouter cet écran avant de les fournir. **`m4_completer_intervention`
+**Portée volontairement réduite du schéma `m4_completer_intervention`.** Sont envoyés `intervention_id`,
+`horodatage`, `preuves_completion`, `signature_requise`
+(`src/m4/completion.ts::construireArgumentsCompleterIntervention`) et, depuis PLAN T1.5-d, ce que l'employé a
+recueilli auprès du client (voir « Consentements du client à « Terminer » » ci-dessous). `photos` et
+`description_factuelle` (Loi 25, T1.2-f) restent `NON_FOURNI` côté serveur : ce ne sont pas des paroles du
+client, et aucune désignation photo par photo n'existe — les envoyer serait une donnée inventée (AGENTS.md).
+**`m4_completer_intervention`
 n'a PAS de champ « temps réel »** : `duree_reelle_minutes` est calculée PAR LE SERVEUR depuis les
 pointages déjà envoyés (`outbox.py::calculer_duree_reelle`, lu) — l'écran n'a donc rien à
 transmettre ni à calculer pour §9.7 « temps réel ».
+
+**Consentements du client à « Terminer » (PLAN T1.5-d).** DEFINITION-PRODUIT §6 : à « travaux terminés », M7
+« propose une demande d'avis et, avec consentement, du contenu avant/après ». L'écran recueille, AUPRÈS DU
+CLIENT et de façon explicite (l'employé lit chaque énoncé au client ou le lui montre, `complete.consentements.consigne`) :
+
+- deux consentements DISTINCTS (Loi 25, `POLITIQUE-photos-non-contractuelles.md` §3) : être contacté pour laisser
+  un avis (`consentement_demande_avis`) et l'usage de photos du chantier (`consentement_marketing`) ;
+- la satisfaction du client, si l'employé a relevé sa réponse (`client_satisfait`, sans réponse : pas de clé).
+
+Règles (`src/m4/consentementClient.ts`, testé là) : les cases sont **non cochées par défaut** ; une case non
+cochée n'envoie **rien** (ni `false`, ni valeur par défaut : absence = non consenti) ; `consentement_version_texte`
+accompagne tout consentement envoyé (le serveur l'exige, et le refuse sans consentement). Le texte des deux
+énoncés est en fr-CA quelle que soit la langue de l'interface, **versionné** (`consentement-client-fr-CA-v1`) : un
+test épingle l'empreinte SHA-256 du texte à sa version, modifier un mot exige donc une nouvelle version. Les choix
+se verrouillent dès que la complétion est en file ou partie (`choixClientVerrouilles`) ; un rejet définitif les
+libère. **L'appareil ne dit pas qui a recueilli le consentement ni quand** : le schéma de l'outil ne connaît pas
+`consentement_recueilli_par` ni `consentement_recueilli_le`, M4 les pose (la personne du jeton confirmée en base,
+l'heure de réception du serveur), et le WCT les porte avec le consentement (catalogue `m4.travaux_termines`, clés
+additives). Limites dites : les énoncés sont une PROPOSITION à faire valider par Nathan ou un juriste (T3) ; le
+retrait du consentement n'a pas de mécanisme dans le moteur (à la demande, par une personne) ; l'écran n'est pas
+testé en rendu (comme les autres), sa logique l'est.
 
 **L'accusé direct de `m4_completer_intervention` n'est pas le WCT complet, et n'a pas à l'être
 (PLAN T1.4-i).** `outbox.py::completer_intervention` (étape 13) renvoie un résumé de 8 clés
@@ -1533,10 +1553,9 @@ rotation/révocation de jeton d'appareil COMMANDÉE par l'app (`device.token.rot
 l'app n'appelle jamais ces méthodes, seulement `connect`) ; elle SUBIT une révocation depuis T1.4-l (arrêt
 de la vidange, écran d'identité, voir « La file suit le jeton et la personne ») ; pas de tests E2E Maestro ; pas de
 build EAS ni de publication store (frontière humaine T3, R12 §3). **Nouveau depuis T1.4-f :**
-`complete.tsx` ne capture aucun des quatre champs client optionnels de `m4_completer_intervention`
-(`photos`, `description_factuelle`, `consentement_marketing`, `client_satisfait` — faits du
-client, Loi 25, T1.2-f) faute d'écran dédié (rattaché à M7, DEFINITION-PRODUIT.md §9.3, hors
-ordre de livraison R12 §5 pour T1) ; `materials.tsx` ne pré-remplit aucune ligne « prévue »
+`complete.tsx` ne capturait aucun des champs client optionnels de `m4_completer_intervention` ; depuis
+PLAN T1.5-d il recueille les consentements du client et sa satisfaction (`photos` et `description_factuelle`
+restent non envoyés, voir plus haut) ; `materials.tsx` ne pré-remplit aucune ligne « prévue »
 depuis M3/M6 (aucune route de lecture confirmée pour le mobile, voir plus haut) — l'employé
 compose chaque ligne à la main ; l'envoi de fichiers ne démarre qu'à l'arrivée sur `complete.tsx`
 (montage + « Terminer »), pas dès la capture dans `photos.tsx`/`signature.tsx` (décision

@@ -85,9 +85,11 @@ du lead, lue à l'inscription ; une intervention porte exactement l'une des deux
 - Le WCT ne porte jamais les deux clés (`outbox.verifier_invariants_outbox` le refuse). Ses treize clés
   requises ne changent pas ; `service` s'ajoute au catalogue du socle et à `CHAMPS_WCT_OPTIONNELS` de M4 et
   de M6 (qui refuse toute clé inconnue). M10 n'en extrait que les douze clés de son contrat.
-- Limite connue : M7 lit encore `type_travaux` dans `m4.travaux_termines` pour ses demandes d'avis et son
-  contenu public ; pour un lead v2, ces textes n'ont donc pas de type de travaux tant que M7 ne lit pas
-  `service`.
+- M7 lit `type_travaux` (lead v1) ou `service` (lead v2) dans `m4.travaux_termines` (PLAN T1.5-d) : la demande
+  d'avis dit `type_travaux` pour un v1 et le libellé du service déclaré (`taxonomie.valider_service`) pour un v2 ;
+  un service non déclaré donne un texte générique et un avertissement au brouillon, jamais le code brut. Un WCT
+  qui porte les deux clés est refusé. Le brouillon de contenu public garde `type_travaux` et `service` tels
+  quels, sans texte qui en dépende.
 
 ## Zone desservie (PLAN T2.1-a)
 
@@ -109,8 +111,6 @@ mal formé (liste vide, ville en double) est refusé, jamais lu comme absent ; `
 
 ## Reste à faire
 
-- M7 : lire `service` dans `m4.travaux_termines` (demandes d'avis, contenu public) : elles ne lisent
-  que `type_travaux`.
 - Demande de chiffrage M1→M3 (`m1-demande-chiffrage.v1.yaml`) : v2 à publier.
 - Règle de précédence entre services (« réparation de gouttières ») : décision du propriétaire (T2.1).
 - Barèmes et estimateurs par service (T2.3, M3.8).
