@@ -1,3 +1,4 @@
+import adminEnCA from "./admin.en-CA";
 import type { RessourcesCommunes } from "./fr-CA";
 
 /** Réserve (R12 §3) — même forme que fr-CA (`RessourcesCommunes`), valeurs différentes. */
@@ -500,6 +501,7 @@ const enCA: RessourcesCommunes = {
       indisponible: "Quote {{id}}: cannot read it ({{code}}) and no copy is kept.",
     },
   },
+  admin: adminEnCA,
 };
 
 export default enCA;

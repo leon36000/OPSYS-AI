@@ -1,0 +1,84 @@
+import type { EcheancesFiscales, EtatTresorerie, PrevisionLue, PrevisionTresorerie } from "../m5/tresorerie";
+import type { DigestDuJour, Preparation } from "../m4/dispatch";
+import type { VueExecutive } from "../m8/vueExecutive";
+import type { ListeApprobations } from "../approbations/contrat";
+import { invoquerOutil } from "../protocole/client";
+import { obtenirSessionEnvoi } from "../protocole/configuration";
+import { obtenirDepotLocal } from "../stockage/service";
+import type { ConfigurationChargeurAdmin } from "./appel";
+import { creerChargeurAVoir } from "./aVoir";
+import { creerChargeurChantiers } from "./chantiers";
+import type { GroupeInterventions } from "./chantiers";
+import { creerChargeurChiffres } from "./chiffres";
+import type { SuitePrevision } from "./chiffres";
+import type { ResultatSection } from "./lecture";
+
+/**
+ * Câblage RÉEL des chargeurs du profil admin (`(admin)/admin.tsx`, `chiffres.tsx`, `chantiers.tsx`, PLAN T4.20) :
+ * `fetch`, le dépôt clé/valeur local (`expo-sqlite`) et la session de l'appareil. Même philosophie que
+ * `src/vendeur/service.ts` : `null` tant qu'aucune session n'existe — jamais une lecture inventée. Non testé (pas de
+ * SQLite natif ni de réseau sous Jest) : tout ce qu'il assemble est testé dans `src/admin/*.test.ts`.
+ *
+ * La session est `obtenirSessionEnvoi` : le jeton COURANT et la personne que le serveur a confirmée POUR CE JETON. Elle
+ * est relue à chaque appel (jamais gardée) : après un nouvel appairage, le cache d'une autre personne n'est plus lu.
+ */
+async function configuration(): Promise<ConfigurationChargeurAdmin | null> {
+  const session = obtenirSessionEnvoi();
+  if (!session) {
+    return null;
+  }
+  return {
+    depot: await obtenirDepotLocal(),
+    appelerOutil: invoquerOutil,
+    fetchImpl: fetch,
+    urlBase: session.urlBase,
+    jeton: session.jeton,
+    personne: session.personne,
+    horloge: () => ({ maintenant: new Date(), decalageMinutesUTC: -new Date().getTimezoneOffset() }),
+  };
+}
+
+export async function chargerAVoir(): Promise<ResultatSection<ListeApprobations> | null> {
+  const config = await configuration();
+  return config ? creerChargeurAVoir(config).chargerAVoir() : null;
+}
+
+export async function chargerVueExecutive(): Promise<ResultatSection<VueExecutive> | null> {
+  const config = await configuration();
+  return config ? creerChargeurChiffres(config).chargerVueExecutive() : null;
+}
+
+export async function chargerTresorerie(): Promise<ResultatSection<EtatTresorerie> | null> {
+  const config = await configuration();
+  return config ? creerChargeurChiffres(config).chargerTresorerie() : null;
+}
+
+export async function chargerPrevision(): Promise<ResultatSection<PrevisionLue> | null> {
+  const config = await configuration();
+  return config ? creerChargeurChiffres(config).chargerPrevision() : null;
+}
+
+export async function chargerEcheances(): Promise<ResultatSection<EcheancesFiscales> | null> {
+  const config = await configuration();
+  return config ? creerChargeurChiffres(config).chargerEcheances() : null;
+}
+
+export async function chargerSuitePrevision(lue: PrevisionTresorerie): Promise<SuitePrevision | null> {
+  const config = await configuration();
+  return config ? creerChargeurChiffres(config).chargerSuitePrevision(lue) : null;
+}
+
+export async function chargerGroupesDeChantiers(): Promise<readonly GroupeInterventions[] | null> {
+  const config = await configuration();
+  return config ? creerChargeurChantiers(config).chargerGroupes() : null;
+}
+
+export async function chargerDigestDuJour(): Promise<ResultatSection<DigestDuJour> | null> {
+  const config = await configuration();
+  return config ? creerChargeurChantiers(config).chargerDigest() : null;
+}
+
+export async function chargerPreparation(interventionId: string): Promise<ResultatSection<Preparation> | null> {
+  const config = await configuration();
+  return config ? creerChargeurChantiers(config).chargerPreparation(interventionId) : null;
+}

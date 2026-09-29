@@ -41,6 +41,8 @@ export const STATUT_MESURE_CALCULEE = "calculee";
 export const STATUT_MESURE_NON_CALCULABLE = "non_calculable";
 /** `mesures_chantier.py` (`SEUIL_FRANCHI`, `SEUIL_NON_FRANCHI`). */
 export const STATUTS_SEUIL_EVALUE: readonly string[] = ["franchi", "non_franchi"];
+/** `nombres.py` (`SENS_AU_DESSUS`, `SENS_AU_DESSOUS`) : de quel côté d'un seuil la mesure est en alerte. */
+export const SENS_DE_SEUIL: readonly string[] = ["au_dessus", "au_dessous"];
 /** `metrics/m8-entonnoir.v1.yaml` : les unités que l'app sait mettre en forme ; toute autre est montrée telle quelle. */
 export const UNITES_CONNUES: readonly string[] = ["leads", "devis", "pourcentage", "jours", "CAD"];
 

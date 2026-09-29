@@ -677,6 +677,10 @@ export function lirePrevisionTresorerie(brut: unknown): PrevisionLue | null {
 // ---------------------------------------------------------------------------------------------------------------------
 /** `calendrier_fiscal.py` (`_echeance`) : les statuts d'une échéance. */
 export const STATUTS_ECHEANCE: readonly string[] = ["A_VENIR", "EN_RETARD"];
+/** `calendrier_fiscal.py` (`_FREQUENCES`) : les fréquences de production TPS/TVQ. */
+export const FREQUENCES_FISCALES: readonly string[] = ["mensuelle", "trimestrielle", "annuelle"];
+/** `calendrier_fiscal.py` (`_VALIDATIONS_CPA`) : où en est la validation du calendrier d'une année par le CPA. */
+export const VALIDATIONS_CPA: readonly string[] = ["A_VALIDER", "VALIDE_PAR_LE_CPA"];
 
 export interface DetailTaxe {
   readonly collectee: string;

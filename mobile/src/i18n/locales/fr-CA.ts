@@ -1,3 +1,6 @@
+import adminFrCA from "./admin.fr-CA";
+import type { RessourcesAdmin } from "./admin.fr-CA";
+
 /** Forme des ressources i18n communes, partagée par toutes les langues (fr-CA.ts, en-CA.ts) —
  * un champ oublié dans une traduction est une erreur TypeScript, jamais un texte manquant
  * silencieux à l'exécution. */
@@ -450,6 +453,8 @@ export interface RessourcesCommunes {
       indisponible: string;
     };
   };
+  /** Le profil admin (PLAN T4.20) : sa forme est celle de `admin.fr-CA.ts`. */
+  admin: RessourcesAdmin;
 }
 
 /**
@@ -959,6 +964,7 @@ const frCA: RessourcesCommunes = {
       indisponible: "Soumission {{id}} : impossible de la lire ({{code}}) et aucune copie n'est gardée.",
     },
   },
+  admin: adminFrCA,
 };
 
 export default frCA;
