@@ -1,9 +1,10 @@
 import inspect
+import time
 from pathlib import Path
 
 import pytest
 import yaml
-from m1_front_office import garde_fou
+from m1_front_office import garde_fou, reception
 from m1_front_office.registre import Registre
 
 _RACINE = Path(__file__).resolve().parents[1]
@@ -307,3 +308,35 @@ def test_virgule_et_conjonctions_ne_cassent_pas_le_lien_verbe_date(texte):
         f"Texte: '{texte}' => verdict attendu 'REJ-INTERDIT-DATE', "
         f"mais le verdict obtenu est '{verdict}'."
     )
+
+
+# ---------------------------------------------------------------------------
+# T4.17-f — le garde-fou lit sans plafond le texte d'un client : le temps reste linéaire
+# Un client pouvait bloquer la réception avec un seul message (20 000 chiffres : 27 s, déni de service par expression
+# régulière). Le détail (100 000 caractères, tous les motifs) est prouvé dans `tests/test_garde_fou_texte_lineaire.py`.
+# ---------------------------------------------------------------------------
+
+_TAILLE_MAXIMALE = reception.TAILLE_MAX_TEXTE  # ce que la réception accepte d'un client : 20 000 octets
+
+
+@pytest.mark.parametrize(
+    ("texte", "code"),
+    [
+        pytest.param("1" * _TAILLE_MAXIMALE, "OK", id="chiffres"),
+        pytest.param("1" + " 111" * (_TAILLE_MAXIMALE // 4), "OK", id="groupes-de-milliers"),
+        pytest.param(" " * _TAILLE_MAXIMALE, "OK", id="espaces"),
+        pytest.param(" " * _TAILLE_MAXIMALE, "OK", id="espaces-insecables"),
+        pytest.param("fourchette " * (_TAILLE_MAXIMALE // 11), "OK", id="fourchette-repetee"),
+        pytest.param("nous assumons " * (_TAILLE_MAXIMALE // 14), "OK", id="declencheur-d-aveu-repete"),
+        pytest.param("1 111 " * 3000 + "et un total de 5 $", "REJ-INTERDIT-PRIX", id="montant-au-bout-de-chiffres"),
+        pytest.param(
+            "nous assumons " * 1400 + "la responsabilité", "REJ-INTERDIT-AVEU", id="aveu-au-bout-d-une-repetition"
+        ),
+    ],
+)
+def test_un_texte_hostile_de_la_taille_maximale_de_la_reception_ne_bloque_pas_le_garde_fou(texte, code):
+    debut = time.perf_counter()
+    verdict = garde_fou.verifier_sortie(texte)
+    duree = time.perf_counter() - debut
+    assert verdict["code"] == code
+    assert duree < 2.0, f"{len(texte)} caractères lus en {duree:.1f} s : le temps n'est plus linéaire"
