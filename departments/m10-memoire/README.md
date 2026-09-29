@@ -60,8 +60,8 @@ PLAN T4.18-b ajoute une forme d'affaire COMMUNE et deux blocs au paquet, sans to
    client revient. Forme bornée (64 + 5 + 128 = 197 caractères, lettres, chiffres et `._:-`), écrite mot pour mot dans M10 et dans le
    core (`AFFAIRE_ID` et `AFFAIRE_LINE`, `opsys-contexte-paquet.ts`) ; le core (vitest) et M10 (pytest) rejouent la MÊME liste de cas
    (`core/src/context-engine/opsys-contexte.affaires.json`). Le lien de session, le dépôt POSTFLIGHT, le paquet et les faits de
-   l'amont la partagent ; M1 garde la forme du lead seul (il ne publie jamais d'opportunité). Limite : une chaîne d'opportunités
-   (`<lead>~opp~a~opp~b`, que M2 pourrait suffixer à partir d'une opportunité) n'est pas admise ; le correctif est chez M2.
+   l'amont la partagent ; M1 garde la forme du lead seul (il ne publie jamais d'opportunité). Une chaîne d'opportunités
+   (`<lead>~opp~a~opp~b`) n'est pas admise : M2 rattache toute opportunité au lead racine (PLAN T4.18-c).
 2. **Le bloc `affaire`** du paquet : `{connue, origine_recue, origine, verdict}`. Une affaire dont M10 n'a reçu aucun fait est dite
    INCONNUE (`AMONT-AFFAIRE-INCONNUE`) au lieu de quatre couches vides ; une affaire dont l'étape qui l'ouvre manque est dite sans origine
    (`AMONT-ORIGINE-NON-RECUE`). L'étape qui ouvre un lead est le lead qualifié de M1, celle qui ouvre une opportunité le client associé de

@@ -267,10 +267,10 @@ l'opportunité `<lead>~opp~<wct_id>` que M2 ouvre quand un client revient n'avai
   vitest (`opsys-contexte-affaire.test.ts`) et pytest (`test_affaire.py`) lisent tous deux. Côté M10, le lien de session, le
   dépôt POSTFLIGHT, le paquet et les faits de l'amont (M2, M3) la partagent ; M1 garde la forme du lead seul, car il ne
   publie jamais d'opportunité. Les anciennes copies (64 caractères, sans tilde) sont un sous-ensemble de la forme actuelle.
-- **Limite dite : un seul niveau d'opportunité.** M2 suffixe le lead du WCT (`_ouvrir_nouvelle_opportunite_pour_wct`), qui peut
-  déjà être une opportunité : `<lead>~opp~<wct 1>~opp~<wct 2>` serait refusée par M10 (quarantaine visible du consommateur) et
-  le core ne demanderait aucun paquet pour elle. Le cas est dans la liste partagée, parmi les refus. Le correctif est chez M2
-  (suffixer le lead d'origine), hors de cette tâche ; élargir la forme est l'autre issue, à décider.
+- **Un seul niveau d'opportunité.** M2 rattache toute nouvelle opportunité au lead RACINE
+  (`_ouvrir_nouvelle_opportunite_pour_wct`, PLAN T4.18-c) : un second WCT sur `<lead>~opp~<wct 1>` ouvre `<lead>~opp~<wct 2>`,
+  jamais une chaîne, que M10 et le core refusent (le cas reste dans la liste partagée, parmi les refus). L'opportunité
+  d'origine reste nommée dans l'interaction système de M2.
 - **Le bloc `affaire`, additif dans le paquet.** `{connue, origine_recue, origine, verdict}` (`amont.situation`, déjà la
   réponse du consommateur au reçu de chaque fait) : une affaire dont M10 n'a reçu aucun fait est INCONNUE
   (`AMONT-AFFAIRE-INCONNUE`), au lieu de quatre couches vides qu'on lirait comme « rien à signaler » ; une affaire dont
@@ -316,5 +316,5 @@ l'opportunité `<lead>~opp~<wct_id>` que M2 ouvre quand un client revient n'avai
   Gateway et moteur sans aucun tour d'agent : il n'exerce pas le moteur de contexte et ne verrait qu'une rupture de la
   construction. Ici, le core est relu à la main, sa logique transcrite en Python, et les fixtures sont
   comparées clé par clé à la sortie réelle de M10 (`tests/test_openclaw_contexte.py`).
-- **Reste.** Décider si une affaire inconnue bloque les actions N3 ou plus ; la chaîne d'opportunités (chez M2) ; un consommateur
+- **Reste.** Décider si une affaire inconnue bloque les actions N3 ou plus ; un consommateur
   du bloc `consolidation` qui consolide sans lecture humaine ; le rattrapage des affaires d'avant T4.18.

@@ -2026,9 +2026,12 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       À prouver en CI : `core.yml` (construction et les trois fichiers vitest du paquet).
       GATE NATHAN : une affaire inconnue ne bloque pas les outils N3 et plus (bloquer arrêterait les
       affaires d'avant T4.18, sans rattrapage) ; à trancher.
-- [ ] T4.18-c M2 : une opportunité ouverte sur un WCT dont le lead est déjà une opportunité donne une
+- [x] T4.18-c M2 : une opportunité ouverte sur un WCT dont le lead est déjà une opportunité donne une
       chaîne (`L~opp~a~opp~b`) que M10 et le core refusent ; M2 doit suffixer le lead d'origine.
-      Après T4.9 (qui travaille dans M2).
+      Preuve : `_ouvrir_nouvelle_opportunite_pour_wct` rattache au lead racine (`L~opp~b`), l'opportunité
+      d'origine reste nommée dans l'interaction système ; test du cycle complet (L, opportunité A menée
+      jusqu'à la facture, second WCT : `L~opp~b`, aucune chaîne) qui échoue si l'on remet l'ancien
+      suffixe ; M2 et les tests d'opportunité du socle verts ; ADR-0010 et README de M10 à jour.
 - [x] T4.19 M8 : entonnoir commercial et vue exécutive (M8.6, M8.10).
       Écart (§7 M8.6, M8.10 ; audit M8 « ABSENT ») : M8 ne mesure que les chantiers terminés.
       - métriques gouvernées : leads qualifiés, devis envoyés, acceptés, sans réponse, taux

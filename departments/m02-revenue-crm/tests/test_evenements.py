@@ -482,6 +482,51 @@ class TestNouvelleOpportuniteAuLieuDeQuarantaine:
         ]
         assert lignes_quarantaine == [], "au lieu d'une quarantaine (relevé T1.2-e)"
 
+    def test_l_opportunite_d_une_opportunite_se_rattache_au_lead_racine(self, base_durable):
+        """PLAN T4.18-c : un second WCT pour une opportunité déjà au bout de son cycle ouvre `<lead>~opp~<wct>` sur
+        le lead RACINE, jamais une chaîne `<lead>~opp~<a>~opp~<b>` que M10 et le core refusent."""
+        lead_id = "SOLO-RACINE"
+        _amener_a(lead_id, "facture", contact={"nom": "Client Racine", "telephone": "418-555-7777"})
+        wct_a, wct_b = "wct-racine-a", "wct-racine-b"
+        deps = _deps_bus()
+        evenements.publier(
+            "m4.travaux_termines", "m04-field-ops", _wct(lead_id, "2026-09-20T14:00:00-04:00", wct_id=wct_a)
+        )
+        evenements.repartir(deps, maintenant="2026-09-20T14:05:00-04:00")
+        opportunite_a = f"{lead_id}~opp~{wct_a}"
+        assert statuts.statut_courant(_registre(), opportunite_a) == "nouveau"
+
+        # L'opportunité A fait tout son cycle, jusqu'à la facture, par les outils composés de M2.
+        outils.transitionner_statut(
+            opportunite_a, "qualifie", "2026-09-21T09:05:00-04:00",
+            owner="Alice", prochaine_action={"description": "Appeler", "echeance": "2026-09-25T09:00:00-04:00"},
+        )
+        outils.transitionner_statut(
+            opportunite_a, "converti", "2026-09-21T09:10:00-04:00", reference_devis_m3="DEVIS-FICTIF-2"
+        )
+        outils.transitionner_statut(opportunite_a, "cedule", "2026-09-21T09:15:00-04:00")
+        outils.transitionner_statut(opportunite_a, "chantier", "2026-09-21T09:20:00-04:00")
+        outils.marquer_chantier_termine(
+            opportunite_a, "2026-09-21T09:25:00-04:00",
+            prochaine_action={"description": "Facturer", "echeance": "2026-09-25T09:00:00-04:00"},
+        )
+        assert statuts.statut_courant(_registre(), opportunite_a) == "facture"
+
+        evenements.publier(
+            "m4.travaux_termines", "m04-field-ops", _wct(opportunite_a, "2026-09-22T14:00:00-04:00", wct_id=wct_b)
+        )
+        resume = evenements.repartir(deps, maintenant="2026-09-22T14:05:00-04:00")
+        assert resume["echecs"] == 0 and resume["quarantaines"] == 0, resume
+
+        opportunite_b = f"{lead_id}~opp~{wct_b}"
+        assert statuts.statut_courant(_registre(), opportunite_b) == "nouveau"
+        leads = {m["lead_id"] for m in _registre().lire() if m.get("type_entree") == "lead_ingere"}
+        assert not any(lead.count("~opp~") > 1 for lead in leads), leads
+        interaction = next(
+            m for m in _registre().lire() if m["type_entree"] == "interaction" and m["lead_id"] == opportunite_b
+        )
+        assert opportunite_a in interaction["resume"] and wct_b in interaction["resume"]  # la lignée reste dite
+
     def test_redelivrance_du_meme_wct_apres_ouverture_est_un_no_op(self, base_durable):
         """Un même WCT republié sous un autre evenement_id (rejeu du producteur) ne rouvre pas
         une SECONDE opportunité : reconnu par son wct_id (même patron que le chemin nominal)."""

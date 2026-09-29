@@ -1153,7 +1153,11 @@ def _ouvrir_nouvelle_opportunite_pour_wct(
             f"m4.travaux_termines : contrat introuvable pour le lead d'origine {lead_id_origine!r}"
         )
 
-    nouveau_lead_id = f"{lead_id_origine}~opp~{wct_id}"
+    # Une opportunité se rattache toujours au lead RACINE (PLAN T4.18-c) : `<lead>~opp~<wct_id>`, jamais
+    # `<lead>~opp~<a>~opp~<b>`, que M10 et le core refusent (forme d'affaire commune, T4.18-b). Le WCT, unique, garde
+    # l'identifiant frais ; l'opportunité d'origine reste nommée dans l'interaction système ci-dessous.
+    lead_racine = lead_id_origine.split("~opp~", 1)[0]
+    nouveau_lead_id = f"{lead_racine}~opp~{wct_id}"
     nouveau_contrat = dict(contrat_origine, lead_id=nouveau_lead_id)
     _accuse, verdict = _ingerer_et_lier(nouveau_contrat, horodatage, reg)
     if verdict is not None:
