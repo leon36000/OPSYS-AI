@@ -45,15 +45,16 @@ PRIX_MOT_CLE = re.compile(
     r'\b(?:tarif|budget|fourchette|coûtera|coût|prix|coûte)\b',
     re.IGNORECASE
 )
-# Un montant est un chiffre suivi d'une devise (`\d(?:[.,]\d+)?\s*devise`), quelle que soit la façon d'écrire le
-# nombre : « 12500 $ », « 12 500 $ » (espace, insécable ou fine insécable), « 9 999,99 $ », « 3 $ ». L'ancien motif
-# décrivait le nombre en groupes de milliers, relancé à chaque chiffre : il relisait la suite de chiffres à chaque
-# départ (quadratique) sans jamais changer le verdict, puisqu'un nombre finit par un chiffre que la décimale ou la
-# devise suit, et que ce dernier chiffre suffit. Pour « $ 4 500 » et les deux nombres d'une fourchette, seule la fin
-# de la suite de chiffres compte (`\b`), pas sa forme.
+# Un montant est un chiffre suivi d'une devise (`\d\s*devise`) : le nombre n'a aucune forme à respecter. « 12500 $ »,
+# « 12 500 $ » (espace, insécable ou fine insécable), « 9 999,99 $ » et « 3 $ » finissent tous par un chiffre que la
+# devise suit. L'ancien motif décrivait le nombre (groupes de milliers, décimales) et le relançait à chaque chiffre : il
+# relisait la suite de chiffres à chaque départ (quadratique) sans jamais changer le verdict. Même chose pour
+# « $ 4 500 » et pour les deux nombres d'une fourchette : seule la fin de la suite de chiffres compte (`\b`), pas
+# sa forme ; et un nombre décimal se lit par la suite de chiffres de sa décimale, qu'un point ou une virgule précède.
+# Le troisième cas (« 89 $/heure ») est déjà couvert par le premier ; il reste pour nommer le tarif horaire.
 MONTANT_MONETAIRE = re.compile(
     r"""
-    \d(?:[.,]\d+)?\s*(?:\$|€|(?:CAD|dollars?|euros?)\b)
+    \d\s*(?:\$|€|(?:CAD|dollars?|euros?)\b)
     |
     \$\s*\d+\b
     |
@@ -61,7 +62,7 @@ MONTANT_MONETAIRE = re.compile(
     |
     \b(?:deux\s+mille|mille)\s+(?:dollars?|CAD|\$|€|euros?)\b
     |
-    """ + _apres_sur_la_meme_ligne(r"\bfourchette\b", r"\b\d+(?:[.,]\d+)?\s*(?:à|et)\s*\d+\b"),
+    """ + _apres_sur_la_meme_ligne(r"\bfourchette\b", r"\b\d+\s*(?:à|et)\s*\d+\b"),
     re.IGNORECASE | re.VERBOSE
 )
 GRAND_NOMBRE = re.compile(r'\b\d{1,3}(?:\s?\d{3})*\b')
