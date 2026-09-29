@@ -10,6 +10,11 @@
 - Fondé sur : la [définition produit](../produit/DEFINITION-PRODUIT.md) (§ 1, § 5 P1 P8 P9 P10, § 7 M1, § 9, § 10), la
   lecture du fork (chaque `fichier:ligne` ci-dessous a été lu dans ce dépôt, pas retenu de mémoire),
   [`POLITIQUE-consentement-sms`](../compliance/politiques/POLITIQUE-consentement-sms.md), PLAN T2.1 et T4.17-e3/e4.
+- Convention de citation : `webhook.ts`, `twilio.ts`, `send.ts`, `channel.ts`, `inbound.ts`, `ingress-spool.ts`,
+  `delivery-observations.ts`, `public-webhook-url.ts` et `accounts.ts` seuls sont ceux de `core/extensions/sms/src/` ;
+  `outils.py`, `reception.py`, `transferts.py` et `adaptateurs.py` seuls sont ceux de
+  `departments/m01-front-office/src/m1_front_office/`. Tout autre fichier se cite en chemin complet, et un nom court repris juste après son chemin complet désigne le même fichier ;
+  le `send.ts` du Gateway est toujours en chemin complet.
 
 ## Contexte
 
@@ -50,7 +55,7 @@ propriétaire et de messages de gouttières (M1.4, M1.7, M1.8, M1.12 ; P1, P8, P
 4. **Envoi en deux outils.** `m1_proposer_reponse(texte)` (N2) écrit une proposition liée à la conversation de la session.
    `m1_envoyer_reponse(envoi_id, texte, destinataire_masque)` (N4) est approuvé par une personne ; il ne fait qu'inscrire
    l'approbation. Aucun outil du modèle ne prend un numéro, une adresse ou un canal.
-5. **Le moteur tient le grand livre, le core exécute.** Le grand livre est fait de lignes `envoi` du registre de M1
+5. **Le moteur tient le registre des envois, le core exécute.** Ce registre est fait de lignes `envoi` du registre de M1
    (ajout seul, chaîne de hash). Le core vient chercher les envois approuvés (sondage toutes les 3 s, par l'appel MCP qu'il
    fait déjà), envoie le texte exact par un chemin qui ne le réécrit pas, et rend l'issue. Aucun appel du moteur vers le core,
    aucun secret de plus.
@@ -61,7 +66,7 @@ propriétaire et de messages de gouttières (M1.4, M1.7, M1.8, M1.12 ; P1, P8, P
    l'approbation et à la réservation. Un message plus récent du client périme la proposition.
 8. **Porte fermée = repli manuel.** Canal inactif : l'envoi approuvé va tout de suite à « À voir » avec son texte. Une
    personne l'envoie à la main, puis le clôt (DEFINITION-PRODUIT § 5 P6 et § 10).
-9. **Courriel plus tard, même grand livre.** Le fork n'envoie aucun courriel. L'exécuteur SMTP est une tranche à part.
+9. **Courriel plus tard, même registre des envois.** Le fork n'envoie aucun courriel. L'exécuteur SMTP est une tranche à part.
 10. **T3 et propriétaire.** Activer Twilio, attester les politiques, mettre en ligne, faire le premier envoi réel : humain
     seul. Les valeurs du profil, l'approbateur, la mention de retrait et la voie du formulaire : GATE NATHAN.
 
@@ -197,3 +202,197 @@ au plus d'observation.
   est connue de confiance. Il reste une décision de confidentialité du propriétaire (M1-canaux § 3) ; cet ADR ne la prend pas.
 - Le core envoie la clé réelle ; le moteur la compare à `canaux.cle_session` (`src/opsys/canaux.py:110-124`) et refuse une
   divergence (`REJ-CLE-SESSION-DIVERGENTE`). Cela ferme la réserve « non vérifié ici » de M1-canaux § 7.
+
+## Question 2 — Envoi réel après approbation N4
+
+### Ce que le fork et le socle offrent (et ce qu'ils n'offrent pas)
+
+| Pièce | Où | Ce qu'elle garantit, ou pas |
+|---|---|---|
+| Outil actuel | `outils.py:1636-1653`, `outils.py:394-402`, `adaptateurs.py:76-83` | N4, mais faux bus ; ni destinataire, ni conversation |
+| Approbation | `src/opsys/approbations.py:243-244` ; `:288-325` | une décision exécute l'outil avec les arguments **exacts** enregistrés ; `approbateur_en_cours` dit qui a approuvé, en base, jamais par un argument |
+| Modes | `src/opsys/politiques.py:28-32` ; `src/opsys/canaux.py:236-247` | `ombre` : N3 et plus attendent ; `supervise` : N4 et plus ; `autonome` : N5 seulement, donc refusé à un département à canaux |
+| Réécriture du texte | `core/extensions/sms/src/send.ts:94-104`, `:124-130` ; `core/extensions/sms/src/channel.ts:560` | avant l'envoi, le core retire le balisage markdown, ramène trois sauts de ligne à deux, rogne les blancs, et coupe au-delà de `textChunkLimit` (1 500 par défaut, `core/extensions/sms/src/accounts.ts:27`) : le texte envoyé n'est **pas** toujours le texte donné |
+| Requête Twilio | `core/extensions/sms/src/twilio.ts:621-636` | `To`, `Body`, `From`, `StatusCallback` : **aucune clé d'idempotence** côté fournisseur ; 1 600 caractères au plus (`:32`, `:607-611`) ; délai de 30 s (`:26`) |
+| Marqueur avant la requête | `twilio.ts:644` ; `send.ts:132-165` | `onPlatformSendDispatch` s'exécute juste avant le POST. Une erreur avant lui est « prouvée non envoyée » ; après lui, l'issue est incertaine (`send.ts:139-162`) |
+| RPC `send` du Gateway | `core/src/gateway/server-methods/send.ts:1401-1431` ; `core/src/gateway/server-connection-state.ts:197` ; `core/src/gateway/methods/core-descriptors.ts:338` | portée `operator.write` ; déduplication dans une `Map` du processus (`server-maintenance.ts:336-410` la purge) ; aucune intention d'envoi durable |
+| File d'envoi durable du core | `core/src/infra/outbound/deliver-queue.ts:331-364`, `:425-449` ; `core/src/infra/outbound/delivery-queue-recovery.ts:711-804` | écrit avant d'envoyer, refuse de rejouer à l'aveugle un envoi ambigu ; mais exige une réconciliation que l'adaptateur SMS n'a pas (`core/extensions/sms/src/channel.ts:348-385` ; seul Slack l'implémente, `core/extensions/slack/src/channel.ts:546-547`) |
+| Accusés de livraison | `core/extensions/sms/src/webhook.ts:196-235` ; `core/extensions/sms/src/delivery-observations.ts:6-9,112-126` | états `delivered`, `undelivered`, `failed`, `canceled` reçus et gardés, mais « état récent borné, pas un registre d'audit » (30 jours, 5 000 messages, on évince les plus vieux) ; personne n'en avertit le moteur |
+| Retour des rappels | `core/extensions/sms/src/public-webhook-url.ts:94-139` | le rappel est réessayé si le core répond 5xx, une fois par défaut (`rc`, `:122-127`, et `:129-131`) : on peut répondre 5xx tant que le moteur n'a pas la nouvelle, mais le moteur doit pouvoir perdre un accusé sans perdre l'envoi |
+| Secrets | `core/src/gateway/opsys-metier-env.ts:50-52,82-86` ; `deploy/docker-compose.yml:164-168` | le moteur ne devrait pas avoir les jetons de canal ; mais le préfixe `OPSYS_` laisse passer `OPSYS_SMS_JETON` jusqu'à son environnement (voir Conséquences) |
+| Courriel | `core/extensions/imap/src/` | lecture seulement : aucune extension du fork n'envoie de courriel (recherche de `smtp`, `nodemailer`, `sendMail` sans résultat dans `core/extensions`, hors tests) |
+
+### Exigences et décisions
+
+| Exigence | Décision |
+|---|---|
+| **Le destinataire est lié à la conversation et à l'approbation. Jamais un numéro que l'agent choisit.** | Aucun outil du modèle ne prend un numéro, une adresse ou un canal. `m1_proposer_reponse` tire la conversation de la clé de session de confiance (`_meta["opsys/cleSession"]`, posé par l'hôte) et vérifie qu'un message de ce correspondant est au registre. Le numéro est chiffré avec une clé destructible (`src/opsys/cles_chiffrement.py:1-36`, comme la position d'un pointage de M4). Le modèle et l'approbateur n'en voient qu'un masque (quatre derniers chiffres). `envoi_id` = empreinte de (conversation, message répondu, texte). |
+| **Le texte envoyé est exactement le texte approuvé.** | Le texte approuvé est celui des arguments de `m1_envoyer_reponse`, que l'outil compare, caractère pour caractère (NFC), à celui du registre des envois. Le moteur rend au core le texte et son empreinte SHA-256 ; le core la recalcule, puis envoie par un chemin qui **ne réécrit pas** : `sendSmsExactText` (nouveau, dans `send.ts`), sans `toSmsPlainText`, sans découpage, qui refuse tout texte de plus de `min(textChunkLimit, 1 600)`. Tout ce qui doit figurer (mention de retrait, nom de l'entreprise) est ajouté par le **moteur** à la proposition, donc vu et approuvé : le core n'ajoute rien. |
+| **Un seul envoi.** | Voir « Au plus une fois » ci-dessous : proposition idempotente, une seule proposition ouverte par conversation, approbation exécutée une fois (`approbations.py:232-239`), réservation à un seul gagnant, marqueur avant la requête, issue inconnue jamais rejouée. |
+| **Consentement et STOP (CASL, `m1.retrait_consentement`).** | Voir « Garde d'envoi ». |
+| **Accusé de livraison, échec.** | Voir « Échecs, essais, À voir ». |
+| **Trace de ce qui est parti.** | Les lignes `envoi` du registre de M1 (ajout seul, chaîne de hash vérifiable), qui portent l'approbateur (`approbateur_en_cours`), l'empreinte, le `MessageSid`, chaque tentative et chaque accusé. Plus la ligne de `approbations` et le journal d'audit du socle. |
+| **Où vit le code, quel appel authentifié.** | Voir « Où vit le code ». |
+
+### Où vit le code
+
+| Option | Ce qu'elle fait | Verdict |
+|---|---|---|
+| O1. Le moteur envoie lui-même à Twilio | Python appelle l'API Twilio après l'approbation | Écartée. Le jeton n'est pas censé être dans le moteur (`opsys-metier-env.ts:50-52`). Il faudrait recopier en Python le garde SSRF, les bornes de réponse et le cycle de vie des identifiants de `twilio.ts`. Les rappels d'état arrivent au core de toute façon (`webhook.ts:196-235`). Si le répartiteur du bus porte l'envoi, il attend le réseau dans la transaction du moteur (`src/opsys/evenements/repartiteur.py:100-143`, jusqu'à 30 s). |
+| O2. Le moteur appelle le RPC `send` du Gateway | après l'approbation, appel WebSocket ou HTTP | Écartée. Il faudrait donner au moteur une portée `operator.write`, qui écrit à n'importe quel numéro. Déduplication en mémoire (`server-connection-state.ts:197`), pas d'intention durable (`server-methods/send.ts:1401-1431`), texte réécrit (`core/extensions/sms/src/channel.ts:560`). |
+| **O3. Le core vient chercher (recommandée)** | un sidecar du Gateway interroge le moteur par le MCP qu'il utilise déjà, envoie, puis rend l'issue | Le core est un exécuteur **sans état** : la vérité est au registre des envois. Il ne faut ni nouveau secret, ni route entrante, ni appel du moteur vers le core. |
+| O4. File d'envoi durable du core, alimentée par le moteur | `deliveryIntentId`, `queuePolicy: "required"` | Écartée pour la v1. Deux registres à réconcilier ; la reprise du core refuse de rejouer un envoi ambigu et exige une réconciliation que le SMS n'a pas (`delivery-queue-recovery.ts:711-804`) ; texte réécrit. À reprendre si le registre du moteur devait déléguer la reprise. |
+
+**Appels authentifiés.**
+- Core → moteur : MCP en HTTP, `Authorization: Bearer ${OPSYS_MCP_JETON}` (`serveur_mcp.py:143-164`), point d'accès
+  `/mcp/m01-front-office`, avec un marqueur `_meta["opsys/origine"] = "envoi"`. C'est l'appel que `callOpsysMcpTool` fait déjà
+  (`opsys-contexte-mcp.ts:49-95`).
+- Moteur → core : **aucun**.
+- Twilio → core : webhook signé (`webhook.ts:167-185`). Core → Twilio : API REST avec le jeton, que seul le core est censé porter.
+
+**Où s'accroche le code du core.**
+- Le sidecar s'ajoute à `core/src/gateway/server-lifetime-sidecars.ts:134-142`, à côté de `startOpsysMetierSidecar`
+  (`core/src/gateway/opsys-metier-supervisor.ts:487-500`) ; fichiers neufs `core/src/gateway/opsys-envoi*.ts`.
+- Une extension n'importe pas `core/src/**` (`core/extensions/AGENTS.md:29`) mais le core peut prendre ce qu'elle exporte par son
+  `api.ts`. L'extension `sms` exporte donc `sendSmsExactText`, la résolution du compte, et un observateur d'accusés de livraison
+  (`setSmsDeliveryObserver`) que `webhook.ts` appelle après `deliveryRecorder.record` (`core/extensions/sms/src/webhook.ts:224`), avant de répondre 200 (5xx si
+  l'observateur échoue : Twilio réessaie).
+- Le sondage suit la cadence du répartiteur du bus : 3 s (`serveur_mcp.py:34`, `:179-186`). Un client MCP reste ouvert pour la
+  boucle, au lieu d'une connexion par sondage.
+
+### Le parcours d'un envoi
+
+```
+agent M1   m1_proposer_reponse(texte)         N2   moteur : destinataire tiré de la session de confiance, garde-fou,
+                                                   STOP, base et plage vérifiés ; ligne « propose »
+                                                   rend envoi_id, empreinte, masque du destinataire, origine du texte
+agent M1   m1_envoyer_reponse(envoi_id, texte, destinataire_masque)   N4   -> file d'approbation (nathan_owner)
+personne   approuve (console ou app)          approbations.decider exécute l'outil avec les arguments exacts
+                                              l'outil : approbateur_en_cours, correspondance avec le registre,
+                                              garde repassée ; ligne « approuve » (qui, quand)
+core       m1_reserver_envoi   (toutes les 3 s)   moteur : garde repassée, plage ; ligne « reserve » (tentative n)
+core       vérifie l'empreinte, la longueur, le compte ; m1_noter_envoi(en_route)   [marqueur]
+core       POST Twilio (texte exact)  ->  m1_noter_envoi(poste | rejete | inconnu)
+Twilio     rappel d'état (signé) -> core -> m1_noter_livraison   ligne « livraison »
+```
+
+L'agent lit le résultat au tour suivant par `m1_lire_reception`, qui rend aussi l'état du dernier envoi. Le texte parti n'a pas
+besoin d'être recopié dans la session du core : le registre des envois est la mémoire (P4).
+
+**Ce que le modèle propose : le brouillon du code, ou son propre texte.** La proposition garde l'origine du texte
+(`brouillon_du_code` si le texte est celui que la réception a composé et fait passer au garde-fou, `texte_de_l_agent` sinon).
+Elle figure dans les arguments de l'approbation : la personne sait ce qu'elle lit.
+
+**Les états** (lignes `envoi` du registre ; l'état est le repli des lignes, comme `transferts.lire`) :
+
+| État | Écrit par | Sorties permises |
+|---|---|---|
+| `propose` | `m1_proposer_reponse` | `approuve`, `annule` |
+| `approuve` | `m1_envoyer_reponse`, après une décision humaine | `reserve`, `annule` |
+| `reserve` (tentative n) | `m1_reserver_envoi`, le core | `en_route` ; `non_poste` ; retour à `approuve` si la réservation est périmée (2 min, valeur proposée) **sans** marqueur |
+| `en_route` (n) | `m1_noter_envoi`, le core, **avant** la requête | `poste`, `rejete`, `inconnu` |
+| `poste` (n, `MessageSid`) | `m1_noter_envoi` | lignes `livraison` (`livre`, `non_livre`) |
+| `non_poste` | le core : échec **prouvé** avant la requête | retour à `approuve` (essai suivant) ou `abandon` |
+| `rejete` | le core : réponse 4xx du fournisseur | « À voir » (429 : compté comme un essai) |
+| `inconnu` | le core, ou le moteur (marqueur sans issue au bout de 2 min) | « À voir », jamais de renvoi automatique |
+| `annule` | STOP, refus, fenêtre dépassée, message plus récent, personne | final |
+| `abandon` | le moteur, après les essais | « À voir » |
+
+### Au plus une fois
+
+1. La proposition est idempotente : `envoi_id` est déterministe. Une seule proposition est ouverte par conversation
+   (`REJ-ENVOI-DEJA-OUVERT`).
+2. Une approbation s'exécute une fois (`approbations.py:232-239`). L'outil est de plus idempotent sur l'état : une seconde
+   approbation du même `envoi_id` ne change rien.
+3. `m1_reserver_envoi` inscrit la réservation dans une transaction : deux appels concurrents ont un seul gagnant.
+4. Le marqueur précède la requête. Une réservation sans marqueur est **prouvée non partie** : elle revient à `approuve`. Un
+   marqueur sans issue est **inconnu** : jamais rejoué.
+5. Le fournisseur n'a pas de clé d'idempotence (`twilio.ts:621-636`) : la garantie est « au plus une fois », pas « au moins une
+   fois ». Un client qui reçoit deux fois le même message est pire qu'une personne qui renvoie à la main.
+6. `m1_resoudre_envoi(envoi_id, issue, motif)` (N3, humain seul, sur le patron de `m1_clore_transfert` et de `_acteur_humain`,
+   `outils.py:926-962`) clôt un envoi « à vérifier » : `parti_a_la_main`, `pas_parti` ou `annule`. Aucune issue ne renvoie
+   toute seule ; `pas_parti` permet une **nouvelle** proposition, donc une nouvelle approbation.
+7. La vérification d'une issue inconnue chez Twilio (`listTwilioMessages`, `twilio.ts:566-593` : `body`, `dateCreated`,
+   `status`) est une aide pour la personne, jamais une preuve.
+
+### Garde d'envoi : consentement, STOP, base, plages
+
+- **STOP ne se lève jamais.** `transferts.retire` (`departments/m01-front-office/src/m1_front_office/transferts.py:192-198`)
+  est lu à la proposition, à l'approbation et à la réservation. `_enregistrer_retrait` (`outils.py:1137-1196`) annule, dans la
+  même transaction que la ligne du STOP, tout envoi non final de la conversation. La politique dit « appliqué dans les 48 heures »
+  (POLITIQUE-consentement-sms § 4) : le code l'applique tout de suite, ce qui est plus sévère.
+- **Base d'envoi, fenêtre, plages, mention : le profil d'entreprise, sans valeur par défaut** (même patron que
+  `fenetre_conversation_minutes`, M1-canaux § 8). Absent, le verdict dit où le déclarer et rien ne part. Les valeurs ci-dessous
+  sont des **exemples** :
+
+  ```yaml
+  # $OPSYS_HOME/entreprise.yaml
+  envoi_client:
+    base: reponse_a_un_message                  # ensemble fermé que le code connaît ; absent : aucun envoi
+    fenetre_heures: 48                          # entier ; la réponse doit suivre un message du client de moins de 48 h
+    plages: [{jours: [lun, mar, mer, jeu, ven], de: "08:00", a: "20:00"}]
+    mention_retrait: "Répondez STOP pour ne plus recevoir de messages."
+  ```
+- **Une réponse, pas un premier contact.** `m1_proposer_reponse` exige un message reçu de cette conversation. Un envoi qui
+  commence la conversation (rappel après appel manqué, digest, relance de M2) est hors de cet ADR : il exige un consentement
+  actif (POLITIQUE § 4, « missed-call rescue »), tenu par M2 (`departments/m02-revenue-crm/src/m2_revenue_crm/consentements.py:1-36`)
+  et lu par un événement à créer. La table `consent_sms` de M1-canaux § 5 n'est donc **pas** créée.
+- **Une proposition meurt avec un message plus récent** du client : la réponse ne répondrait plus à ce qu'il a dit. Elle passe à
+  `annule` (`perime`) ; l'agent en propose une autre.
+- **La fenêtre** se vérifie aux trois moments ; **les plages** se jouent à la réservation : hors plage, l'envoi approuvé attend la
+  prochaine ; hors fenêtre, il est annulé.
+- **La mention de retrait**, si le propriétaire en déclare une, est ajoutée par le moteur à chaque proposition (donc approuvée avec le texte).
+- **La preuve de la base** est écrite à la réservation : heure du dernier message reçu, fenêtre, absence de retrait. C'est
+  la trace « consentement documenté » (P8).
+- Le CASL est nommé par la mission ; **son contenu n'est pas jugé ici** : POLITIQUE-consentement-sms § 8.1 dit « à vérifier par le
+  juriste ». Le code ne fait qu'appliquer ce que le propriétaire et le juriste déclarent.
+
+### Échecs, essais, « À voir »
+
+Valeurs proposées (GATE NATHAN) : trois essais, à une minute puis cinq minutes ; réservation périmée après deux minutes.
+
+| Situation | Ce qui se passe |
+|---|---|
+| Moteur injoignable au sondage | rien ne part ; le core réessaie au sondage suivant |
+| Moteur injoignable au marqueur | le callback lève : rien n'est parti (`core/extensions/sms/src/send.ts:154-162`). Le core tente de dire `non_poste` ; sinon la réservation se périme sans marqueur, donc prouvée non partie, et revient à `approuve` |
+| Le moteur a inscrit le marqueur, mais sa réponse s'est perdue | le core ne poste pas (le callback lève), le moteur croit `en_route` → `inconnu` au bout de 2 min : le coût est une vérification par une personne, jamais un doublon |
+| Core arrêté après la réservation, avant le marqueur | réservation périmée → **prouvée non partie** → `approuve` (un essai de plus) |
+| Core arrêté après le marqueur, sans issue | `inconnu` → « À voir » ; **jamais rejoué** |
+| Réponse 4xx de Twilio (`TwilioSmsApiError`, `twilio.ts:173-190`) | `rejete`, avec le statut HTTP et le code du fournisseur → « À voir » ; 429 : essai suivant |
+| 5xx, coupure, délai de 30 s, réponse sans SID (`twilio.ts:655-659`) | `inconnu` : le message est peut-être parti |
+| Trois échecs prouvés non partis | `abandon` → « À voir » |
+| Accusé `undelivered`, `failed` ou `canceled` | ligne `livraison` + « À voir » : le client n'a pas reçu le message |
+| Accusé perdu, ou `sent` sans `delivered` | l'état reste `poste` ; ce n'est pas une alerte |
+| Accusé arrivé avant l'issue du POST | gardé « orphelin » par `MessageSid`, rattaché quand `poste` arrive |
+| STOP entre l'approbation et l'envoi | `annule` (retrait) ; aucune requête |
+| Canal inactif (porte fermée, DEFINITION-PRODUIT § 10) | **repli manuel** : pas d'essai, « À voir » avec le texte (`m1_lire_envoi`, admin) ; la personne écrit à la main, puis `m1_resoudre_envoi(parti_a_la_main)` |
+| Compte SMS désactivé ou sans numéro d'envoi | même repli |
+
+Une attente « À voir » (`attentes()`, forme de `CHAMPS_ATTENTE`, `approbations.py:62`) porte `type` `envoi_a_verifier`, un résumé sans
+donnée personnelle, le niveau N4 et l'action proposée. La lecture du texte et du numéro est un outil d'admin, journalisé
+(POLITIQUE § 6).
+
+### Qui peut appeler quoi (envoi)
+
+| Appelant | Peut | Ne peut pas |
+|---|---|---|
+| Modèle de l'agent M1 | `m1_proposer_reponse` (N2), `m1_envoyer_reponse` (N4, attend une personne), `m1_lire_reception` (T0) | fournir un destinataire, un numéro ou un canal ; appeler les outils réservés au core ; utiliser l'outil `message` du core (refusé, `core/src/agents/tool-policy-match.ts:58`) |
+| Propriétaire (`nathan_owner`, défaut de `DEFAUT_ROLES_NIVEAU`) | décider `m1_envoyer_reponse` | — |
+| Admin | lire un envoi, clore un envoi « à vérifier » | approuver un N4 (sauf si `approbations.n4` de M1 le dit) |
+| Core (sidecar, noyau) | `m1_reserver_envoi`, `m1_noter_envoi`, `m1_noter_livraison`, `m1_recevoir_message_canal` | choisir un texte ou un destinataire : il envoie ce que le moteur remet, l'empreinte vérifiée |
+| Moteur | écrire le registre des envois | appeler Twilio ou le core |
+
+Les outils « réservés au core » portent un drapeau du manifeste (`Outil.reserve_au_core`). `openclaw.py` les retire de la boîte de
+l'agent (`src/opsys/openclaw.py:153-170`), et chacun exige le marqueur d'origine de l'hôte. `m1_envoyer_reponse` refuse de lui-même
+tout appel qui n'est pas l'exécution d'une demande qu'une personne vient d'approuver (`approbateur_en_cours`) : il reste sûr même
+si quelqu'un forçait le mode `autonome`, ce que la case ouverte « Mode autonome et N4 » du PLAN laisse aujourd'hui possible.
+
+### Courriel (ensuite)
+
+- Même registre des envois, même garde. Le fork n'envoie aucun courriel : il faut une extension d'envoi (SMTP) ou un adaptateur du moteur.
+  C'est une tranche à part, avec ses décisions : fournisseur SMTP, DKIM, SPF et DMARC (T3), fil de la conversation (`In-Reply-To`
+  du courriel reçu, donc le `Message-ID` à inscrire à la réception).
+- La session d'un courriel est celle du message (`hook:imap:<clé>`, `core/extensions/imap/src/watcher.ts:340`) : le destinataire
+  se lie à ce message, par la même clé de confiance.
+- Les bons de commande de M6 vers un fournisseur (DEFINITION-PRODUIT § 10, « Envoi réel d'une commande à un fournisseur ») suivront le
+  même rail avec un autre lien de destinataire (le fournisseur de M6, pas une session). Hors de cet ADR.
