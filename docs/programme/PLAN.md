@@ -2188,10 +2188,31 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       M5 : paiements reçus, anomalies, dossier CPA, rapport du contrôleur. M6 : pertes et bris,
       alertes matériaux. M10 : recherche dans la mémoire et contradictions pour l'admin
       (`opsys_memoire_chercher` est refusé à tout appareil).
-- [ ] T1.4-n Mobile : les constats de T4.20 hors de son périmètre (vendeur : un 401 ou un 403
+- [x] T1.4-n Mobile : les constats de T4.20 hors de son périmètre (vendeur : un 401 ou un 403
       retombe sur le cache ; employé : une réponse tronquée lue comme une liste vide, `a_planifier`
       absent des statuts ; caches par personne non purgés à la révocation ni au ré-appairage ;
       manques de M4 montrés avec un chemin du serveur).
+      Preuve (79c79eb à 8a8111a) :
+      - une règle pour les trois profils (`src/protocole/echec.ts`) : une panne (réseau, délai, 408,
+        429, 5xx) peut montrer le cache marqué ; un refus (401, 403, `refus_metier`, personne
+        désactivée) ne le montre jamais et n'écrit rien (mesuré sur le vrai moteur : M2, M3 et M5
+        rendent 200 avec un verdict, M4 et M8 `refus_metier`) ;
+      - l'employé lit `m4_lister_interventions` un statut à la fois ; une réponse coupée par le socle
+        est « incomplète », jamais vide ni complète, et n'écrase pas le cache ; `a_planifier` ajouté ;
+        le service relit la session à chaque appel (jeton périmé gardé avant) ;
+      - un marqueur `proprietaire_des_caches_v1` compare chaque identité confirmée : à la révocation
+        ou au changement de personne, les caches de l'ancienne sont effacés avant l'état (jamais la
+        file sortante, sa quarantaine, les brouillons ni le coffre) ;
+      - les manques de M4 se disent en mots simples (15 codes, fr-CA et en-CA) ; un code inconnu dit
+        « à configurer côté serveur (code …) » ; un détail qui cite un chemin ou une commande est tu ;
+        un E2E épingle la table aux sorties réelles de M4 dans les deux sens ; un défaut trouvé ainsi
+        est corrigé (un manque sans code se disait « à configurer côté serveur ») ;
+      - `tsc` propre, Jest 117 suites et 2 578 tests sur l'état intégré ; E2E admin, vendeur, manques
+        de M4, liste de l'employé et portées : 109 passés ; socle 1 914 passés (worktree) ; mutations
+        Jest 82 : 80 tuées d'emblée, 2 tuées par deux tests ajoutés.
+      Limites (MOBILE.md) : une lecture refusée ne relit pas l'identité (la purge vient au prochain
+      cycle) ; les brouillons ne sont pas purgés ; les textes de refus du vendeur et de l'employé sont
+      dits tels que le serveur les écrit.
 
 - [ ] T4.17-b M4 puis M7 : ville au niveau municipal dans le WCT, seulement avec le consentement
       marketing, pour un ancrage local des contenus. GATE NATHAN (Loi 25 : granularité publiée).
