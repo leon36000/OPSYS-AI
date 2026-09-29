@@ -163,16 +163,20 @@ def _deps_bus():
 
 
 class TestManifeste:
-    def test_m2_declare_consommer_travaux_termines_devis_sans_reponse_lead_qualifie_et_devis_accepte(self):
+    def test_m2_declare_consommer_les_six_faits_qui_l_atteignent(self):
         dep = charger_departements()["m02-revenue-crm"]
         assert dep.evenements_consomme == (
             "m4.travaux_termines", "m3.devis_sans_reponse", "m1.lead_qualifie", "m3.devis_accepte",
+            "m3.devis_envoye", "m1.retrait_consentement",
         )
         consommateurs = dep.charger_consommateurs()
         assert "m4.travaux_termines" in consommateurs
         assert "m3.devis_sans_reponse" in consommateurs
         assert "m1.lead_qualifie" in consommateurs, "PLAN T2.1-b : le lead d'un canal arrive vraiment dans M2"
         assert "m3.devis_accepte" in consommateurs, "PLAN T4.10-a : une soumission acceptée arrive vraiment dans M2"
+        assert "m3.devis_envoye" in consommateurs, "PLAN T4.9 : l'envoi d'un devis fait partir le délai d'une relance"
+        assert "m1.retrait_consentement" in consommateurs, "PLAN T4.9 : le STOP d'un client arrive vraiment dans M2"
+        assert set(dep.evenements_consomme) == set(consommateurs)
 
     def test_m2_declare_publier_client_associe_et_lead_assigne(self):
         """PLAN T2.2 (Client 360), puis PLAN T1.4-k2 (propriétaire du lead, lu par M3)."""

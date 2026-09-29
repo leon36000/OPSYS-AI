@@ -36,6 +36,8 @@ EMPLOYE = frozenset({
 VENDEUR = frozenset({
     "m2_enregistrer_interaction", "m2_evaluer_readiness", "m2_lister_leads", "m2_obtenir_client_360",
     "m2_suggerer_prochaine_action", "m2_transitionner_statut", "m2_trouver_client_de_lead",
+    # relances autorisées (§9.4, T4.9) : SES relances, le consentement qu'il a recueilli, une relance préparée
+    "m2_lister_relances", "m2_preparer_relance", "m2_enregistrer_consentement_contact",
     "m3_generer_soumission_brouillon", "m3_lire_devis", "m3_qualifier_photos",
     "m3_demander_envoi_devis",  # DEMANDE l'envoi d'un devis (N4, T4.7) : le propriétaire décide dans la file
 })

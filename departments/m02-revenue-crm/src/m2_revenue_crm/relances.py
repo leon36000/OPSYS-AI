@@ -75,6 +75,7 @@ __all__ = [
     "preparer",
     "valider_demande",
     "verifier_configuration",
+    "verifier_instant",
 ]
 
 REGLE_DEVIS = "relance_devis_sans_reponse"
@@ -332,6 +333,17 @@ def calculer(
 # ---------------------------------------------------------------------------------------------------------
 # La liste, page par page
 # ---------------------------------------------------------------------------------------------------------
+def verifier_instant(maintenant: Any) -> dict[str, Any] | None:
+    """Un verdict `REJ-HORODATAGE-INVALIDE` si l'instant de référence n'est pas un ISO-8601 avec fuseau, sinon `None` :
+    le calcul refuse un instant sans fuseau, il ne prend jamais celui de la machine."""
+    try:
+        _horodatage.valider_horodatage(maintenant)
+    except ValueError:
+        return verdicts.construire_verdict(
+            "REJ-HORODATAGE-INVALIDE", detail="horodatage : ISO-8601 avec fuseau attendu")
+    return None
+
+
 def valider_demande(
     regle: Any, permises_seulement: Any, decalage: Any, limite: Any, maintenant: Any,
 ) -> dict[str, Any] | None:
@@ -348,12 +360,7 @@ def valider_demande(
     if isinstance(limite, bool) or not isinstance(limite, int) or not 1 <= limite <= LIMITE_MAX:
         return verdicts.construire_verdict(
             "REJ-PAGINATION-INVALIDE", detail=f"limite : un entier de 1 à {LIMITE_MAX} est attendu")
-    try:
-        _horodatage.valider_horodatage(maintenant)
-    except ValueError:
-        return verdicts.construire_verdict(
-            "REJ-HORODATAGE-INVALIDE", detail="horodatage : ISO-8601 avec fuseau attendu")
-    return None
+    return verifier_instant(maintenant)
 
 
 def _taille(objet: Any) -> int:
@@ -450,9 +457,9 @@ def preparer(
 
     `calcul` : `calculer(...)` pour CE lead. Les contrôles se font dans cet ordre, tous AVANT la moindre écriture (c'est
     l'adaptateur qui écrit `entree`) : la règle et le canal existent ; la règle est calculable ; la relance est due pour
-    ce lead (`REJ-RELANCE-NON-DUE`) ; la fréquence la permet (`REJ-RELANCE-TROP-PROCHE`, avec la prochaine date permise)
-    ; le canal est permis (`REJ-CONSENTEMENT-RETIRE` ou `REJ-CONSENTEMENT-ABSENT` pour un message sans consentement
-    actif). Un seul verdict, le premier.
+    ce lead (`REJ-RELANCE-NON-DUE`) ; la fréquence la permet (`REJ-RELANCE-TROP-PROCHE`, avec la prochaine date
+    permise) ; le canal est permis (`REJ-CONSENTEMENT-RETIRE` ou `REJ-CONSENTEMENT-ABSENT` pour un message sans
+    consentement actif). Un seul verdict, le premier.
 
     Le texte est le gabarit FIXE de (règle, canal) : rien n'y est composé. Le résultat dit `envoye: False` : rien n'est
     envoyé, l'envoi réel est une décision humaine (T2.1-c, N4). `prepare_par` et `voie` sont déjà établis (jamais lus

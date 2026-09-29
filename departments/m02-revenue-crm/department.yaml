@@ -16,6 +16,9 @@ mission: >-
   au-delà du délai de relance, en propose la suite (M2.7) — jamais appliquée seule. Quand M3
   annonce un devis accepté, le lead qualifié devient converti (référence du devis, prochaine
   action « planifier le chantier », activité au Client 360) sans promettre de date au client.
+  Liste les relances dues (M2.7, M2.13), tirées des segments, avec leur règle, leur dernière relance
+  et leur prochaine date permise ; sans consentement actif d'un canal, la relance est « appel
+  seulement », et le texte préparé est un gabarit fixe : rien ne part.
 outils: m2_revenue_crm.outils
 mode: ombre
 # m04-field-ops : M2 consomme le signal de fin de chantier de M4 (DEFINITION-PRODUIT §6,
@@ -26,7 +29,7 @@ mode: ombre
 dependances: [m01-front-office, m03-estimation, m04-field-ops]
 modeles:
   defaut: standard
-skills: [ingerer-un-lead, faire-progresser-vers-m3, arbitrer-un-doublon, lister-les-leads]
+skills: [ingerer-un-lead, faire-progresser-vers-m3, arbitrer-un-doublon, lister-les-leads, preparer-une-relance]
 planifications:
   - nom: digest-commercial
     cron: "0 7 * * 1-5"
@@ -73,8 +76,14 @@ kpis:
 # chantier » (règle citée) et activité au Client 360 ; lead perdu : gardé sans conversion (lead_clos) ; lead inconnu,
 # jamais qualifié ou déjà converti par un autre devis : erreur nommée (réessais, puis quarantaine). Catalogue :
 # src/opsys/evenements/catalogue/m3.devis_accepte.json.
+# PLAN T4.9 : M2 consomme m3.devis_envoye (l'envoi approuvé d'un devis : l'instant fait partir le délai d'une relance de
+# devis, jamais une date supposée ; ce fait date l'approbation, pas la livraison au client, T2.1-c) et
+# m1.retrait_consentement (le STOP d'un client, par lead_id, jamais son numéro : plus aucune relance SMS ni courriel pour
+# cette personne, un retrait ne se lève pas) — voir _recevoir_devis_envoye et _recevoir_retrait_consentement dans outils.py.
+# Catalogue : src/opsys/evenements/catalogue/m3.devis_envoye.json et m1.retrait_consentement.json.
 evenements:
-  consomme: [m4.travaux_termines, m3.devis_sans_reponse, m1.lead_qualifie, m3.devis_accepte]
+  consomme: [m4.travaux_termines, m3.devis_sans_reponse, m1.lead_qualifie, m3.devis_accepte, m3.devis_envoye,
+             m1.retrait_consentement]
   publie: [m2.client_associe, m2.lead_assigne]
 configuration:
   # Seuils de segmentation des leads (PLAN T4.6 ; DEFINITION-PRODUIT.md §7 M2.11 ; §13 point 11 « seuils non
@@ -90,3 +99,15 @@ configuration:
   #     jours_inactivite_dormant: 30
   #     jours_soumission_perimee: 14
   segments: {}
+  # Fréquence maximale des relances (PLAN T4.9 ; DEFINITION-PRODUIT.md §7 M2, règles dures « fréquence limitée » ; M2.7,
+  # M2.13). VIDE à dessein, comme les seuils ci-dessus : aucune fréquence n'est inventée. Tant qu'elle est absente ou
+  # invalide, m2_lister_relances et m2_preparer_relance refusent avec REJ-RELANCES-A-CONFIGURER (fréquence à configurer),
+  # jamais avec une valeur devinée. Relue à chaque appel : aucun redémarrage. Les DÉLAIS des relances sont les seuils de
+  # `segments` ci-dessus (jours_soumission_perimee pour un devis envoyé, jours_inactivite_dormant pour un lead dormant).
+  # La clé est un entier de jours, au moins 1 : le nombre MINIMAL de jours entre deux relances d'une même PERSONNE (les
+  # leads d'un même client comptent ensemble).
+  #   jours_entre_relances: <jours minimum entre deux relances d'un même client>
+  # Exemple (à recopier sous `relances:`, avec une vraie valeur, décidée par Nathan) :
+  #   relances:
+  #     jours_entre_relances: 7
+  relances: {}

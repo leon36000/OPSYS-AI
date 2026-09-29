@@ -29,7 +29,14 @@ Liste des leads (PLAN T4.6, `liste_leads.py`, `segments.py`) : `m2_lister_leads`
 rend au vendeur que ses leads (`acces.leads_visibles`, même contrôle que le reste), et cite pour chaque
 segment sa règle et la donnée qui le déclenche. Les seuils des segments viennent de `department.yaml`
 (`configuration.segments`, vides : « seuil à configurer »), relus à chaque appel comme M6 et M8.
-"""
+
+Relances (PLAN T4.9, `relances.py`, `consentements.py`, `gabarits_relance.py`) : `m2_lister_relances` (lecture) rend les
+relances dues tirées des segments, avec leur règle, leur dernière relance, leur prochaine date permise et les canaux
+permis ; `m2_preparer_relance` écrit UNE relance préparée (texte FIXE, rien d'envoyé) ;
+`m2_enregistrer_consentement_contact` inscrit le consentement d'un client, par une personne. M2 consomme
+`m3.devis_envoye` (le départ du délai d'une relance de devis) et `m1.retrait_consentement` (le STOP d'un client : jamais
+son numéro). Sans consentement actif : « appel seulement ». La fréquence maximale vient de `configuration.relances` de
+`department.yaml`, vide : « à configurer ». """
 
 from __future__ import annotations
 
@@ -49,6 +56,7 @@ from . import (
     acces,
     assignation,
     clients,
+    consentements,
     contrats,
     digest,
     doublons,
@@ -57,6 +65,7 @@ from . import (
     interactions,
     liste_leads,
     readiness,
+    relances,
     segments,
     statuts,
     suggestions,
@@ -76,6 +85,17 @@ _NOM_REGISTRE_RELANCES_DEVIS_RECUES = "relances_devis_recues"
 # Faits m3.devis_accepte déjà appliqués (clé métier : devis_id, PLAN T4.10-a) : même patron — un même devis
 # republié sous un autre evenement_id est un « déjà appliqué », jamais une seconde conversion ni une quarantaine.
 _NOM_REGISTRE_DEVIS_ACCEPTES_RECUS = "devis_acceptes_recus"
+# Faits m3.devis_envoye déjà reçus (clé métier : devis_id, PLAN T4.9) : l'envoi approuvé d'un devis, dont l'instant fait
+# partir le délai d'une relance. Même patron : un même devis republié sous un autre evenement_id est un « déjà
+# appliqué ».
+_NOM_REGISTRE_DEVIS_ENVOYES_RECUS = "devis_envoyes_recus"
+# Consentements de contact ET retraits (STOP), dans l'ordre d'écriture (PLAN T4.9, `consentements.py`). Jamais un
+# numéro.
+_NOM_REGISTRE_CONSENTEMENTS = "consentements_contact"
+# Relances préparées (PLAN T4.9) : la dernière fait foi pour la fréquence. Aucun envoi n'existe : c'est le seul fait
+# daté.
+_NOM_REGISTRE_RELANCES_PREPAREES = "relances_preparees"
+_OUTIL_CONSENTEMENT = "m2_enregistrer_consentement_contact"
 _NOM_REGISTRE = "principal"
 # `department.yaml` : source des seuils de segmentation (`configuration.segments`), relue à chaque appel comme
 # M6 et M8 relisent la leur (l'admin l'édite sans toucher au code ; un test la remplace).
@@ -613,17 +633,28 @@ def suggerer_prochaine_action(lead_id: str, horodatage: str) -> dict[str, Any]:
     return {"accepte": True, "resultat": suggestion}
 
 
+def _bloc_configuration(cle: str) -> Any:
+    """Le bloc `configuration.<cle>` de `department.yaml`, relu à chaque appel (patron de M6 et de M8). Absent : `None`.
+    Une `configuration` illisible (ni vide ni dictionnaire) est rendue telle quelle, pour que la lecture du bloc dise
+    « invalide » au lieu de deviner."""
+    donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8"))
+    configuration = donnees.get("configuration") if isinstance(donnees, dict) else None
+    if configuration is None or isinstance(configuration, dict):
+        return configuration.get(cle) if isinstance(configuration, dict) else None
+    return configuration
+
+
 def _seuils_segments() -> dict[str, dict[str, Any]]:
     """Les seuils de segmentation de `department.yaml/configuration.segments`, relus à chaque appel (patron de
     M6 et de M8). Bloc absent ou vide : « seuil à configurer » ; illisible : « seuil invalide ». Jamais une valeur
     par défaut (`segments.lire_seuils`)."""
-    donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8"))
-    configuration = donnees.get("configuration") if isinstance(donnees, dict) else None
-    if configuration is None or isinstance(configuration, dict):
-        bloc = configuration.get("segments") if isinstance(configuration, dict) else None
-    else:
-        bloc = configuration
-    return segments.lire_seuils(bloc)
+    return segments.lire_seuils(_bloc_configuration("segments"))
+
+
+def _configuration_relances() -> dict[str, dict[str, Any]]:
+    """La fréquence maximale de `department.yaml/configuration.relances`, relue à chaque appel (PLAN T4.9). Absente :
+    « à configurer » ; illisible : « invalide ». Jamais une valeur par défaut (`relances.lire_configuration`)."""
+    return relances.lire_configuration(_bloc_configuration("relances"))
 
 
 def _devis_sans_reponse_recus() -> list[dict[str, Any]] | None:
@@ -633,6 +664,25 @@ def _devis_sans_reponse_recus() -> list[dict[str, Any]] | None:
     if not _stockage_durable_actif:
         return None
     return list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RELANCES_DEVIS_RECUES))
+
+
+def _devis_envoyes_recus() -> list[dict[str, Any]] | None:
+    """Les faits `m3.devis_envoye` déjà reçus (registre `devis_envoyes_recus`, celui que remplit
+    `_recevoir_devis_envoye`). `None` quand le registre de M2 est en mémoire (tests unitaires sans base)."""
+    if not _stockage_durable_actif:
+        return None
+    return list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_DEVIS_ENVOYES_RECUS))
+
+
+def _devis_connus() -> list[dict[str, Any]] | None:
+    """Les devis envoyés que M2 connaît, un par `devis_id` : l'envoi publié par M3 (`m3.devis_envoye`, l'instant de
+    l'approbation) l'emporte sur le constat de M3 (`m3.devis_sans_reponse`) ; sans l'envoi, le constat reste tel quel
+    (`relances.devis_connus`). `None` : l'une des deux sources est illisible (registre en mémoire), donc `quote_stale`
+    est non calculable, jamais « aucun devis en retard »."""
+    sans_reponse, envoyes = _devis_sans_reponse_recus(), _devis_envoyes_recus()
+    if sans_reponse is None or envoyes is None:
+        return None
+    return relances.devis_connus(sans_reponse, envoyes)
 
 
 def lister_leads(
@@ -659,7 +709,7 @@ def lister_leads(
     page, verdict = liste_leads.lister(
         maillons,
         visibles=visibles,
-        relances_devis=_devis_sans_reponse_recus(),
+        relances_devis=_devis_connus(),
         seuils=_seuils_segments(),
         horodatage=horodatage,
         statut=statut,
@@ -671,6 +721,243 @@ def lister_leads(
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
     return {"accepte": True, "resultat": page}
+
+
+# ---------------------------------------------------------------------------------------------------------
+# Relances dues, consentement de contact, fréquence limitée (PLAN T4.9 ; M2.7, M2.13)
+# ---------------------------------------------------------------------------------------------------------
+# Trois outils, un même contrôle d'accès (celui de T1.4-k2 : un vendeur ne voit et n'agit que sur SES leads,
+# propriétaire courant de T1.4-m ; l'admin sur tous) : `m2_lister_relances` (lecture), `m2_preparer_relance` (une
+# relance PRÉPARÉE, texte fixe, rien d'envoyé) et `m2_enregistrer_consentement_contact` (une PERSONNE inscrit un
+# consentement). Le calcul est dans `relances.py` et `consentements.py` (purs) ; ici, seuls l'identité, le registre et
+# `department.yaml` sont lus.
+
+
+def _refus_stockage_indisponible() -> dict[str, Any]:
+    """Sans stockage durable, ni les consentements, ni les relances déjà préparées, ni les faits de M3 ne sont
+    lisibles. Refuser est fermé : laisser passer serait une fréquence et un consentement inventés."""
+    return _refus(verdicts.construire_verdict(
+        "REJ-BUS-INDISPONIBLE",
+        detail=(
+            "le registre de M2 n'est pas adossé au stockage durable : ni les consentements, ni les relances déjà "
+            "préparées, ni les faits de M3 ne sont lisibles, donc aucune relance n'est calculée"
+        ),
+    ))
+
+
+def _registres_de_relance() -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """`(consentements, retraits, relances préparées)`, lus UNE fois, dans l'ordre d'écriture."""
+    journal = list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_CONSENTEMENTS))
+    preparees = list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RELANCES_PREPAREES))
+    return (
+        [m for m in journal if m.get("type_entree") == consentements.TYPE_CONSENTEMENT],
+        [m for m in journal if m.get("type_entree") == consentements.TYPE_RETRAIT],
+        [m for m in preparees if m.get("type_entree") == relances.TYPE_ENTREE],
+    )
+
+
+def lister_relances(
+    horodatage: str,
+    regle: str | None = None,
+    permises_seulement: bool = False,
+    decalage: int = 0,
+    limite: int = relances.LIMITE_DEFAUT,
+) -> dict[str, Any]:
+    """PLAN T4.9 (M2.7, M2.13 ; §9.4 « relances autorisées ») : les relances dues, une page à la fois. Lecture pure.
+
+    Appel d'appareil : identité confirmée en base, puis un vendeur ne voit que les relances de SES leads
+    (`acces.leads_visibles`, propriétaire courant compris), l'admin toutes ; un employé est refusé
+    (`REJ-IDENTITE-APPAREIL-INVALIDE`). Sans identité d'appareil (agent, console) : toutes, comme le reste de M2.
+
+    Ordre des contrôles, tous AVANT toute lecture du calcul : identité, arguments, stockage durable, fréquence maximale
+    (`REJ-RELANCES-A-CONFIGURER` : la liste vide se lirait « aucune relance due »). Les délais sont les seuils des
+    segments (`configuration.segments`) : un seuil absent rend la règle « non calculable » (`regles_non_calculables`),
+    les autres règles suivent leur cours. `horodatage` est l'instant de référence, fourni par l'appelant : aucune
+    horloge ici."""
+    acteur, verdict_acteur = _acteur_appareil(acces.ROLES_LEADS)
+    if verdict_acteur is not None:
+        return _refus(verdict_acteur)
+    verdict = relances.valider_demande(regle, permises_seulement, decalage, limite, horodatage)
+    if verdict is not None:
+        return _refus(verdict)
+    if not _stockage_durable_actif:
+        return _refus_stockage_indisponible()
+    configuration = _configuration_relances()
+    verdict = relances.verifier_configuration(configuration)
+    if verdict is not None:
+        return _refus(verdict)
+    maillons = _obtenir_registre().lire()
+    visibles = acces.leads_visibles(liste_leads.Vue(maillons), liste_leads.identifiants_des_leads(maillons), acteur)
+    devis = _devis_connus()
+    evaluation, verdict = liste_leads.evaluer(
+        maillons, visibles=visibles, relances_devis=devis, seuils=_seuils_segments(), horodatage=horodatage,
+        statuts_retenus=relances.STATUTS_A_RELANCER,
+    )
+    if verdict is not None:
+        return _refus(verdict)
+    consentements_contact, retraits, preparees = _registres_de_relance()
+    calcul = relances.calculer(
+        evaluation, maintenant=horodatage, configuration=configuration, devis=devis,
+        consentements_contact=consentements_contact, retraits=retraits, preparees=preparees,
+    )
+    page, verdict = relances.lister(
+        calcul, regle=regle, permises_seulement=permises_seulement, decalage=decalage, limite=limite,
+        budget_caracteres=BUDGET_SORTIE,
+    )
+    if verdict is not None:
+        return _refus(verdict)
+    return {"accepte": True, "resultat": page}
+
+
+def preparer_relance(lead_id: str, regle: str, canal: str, horodatage: str) -> dict[str, Any]:
+    """PLAN T4.9 : prépare UNE relance due, à partir d'un gabarit FIXE. N'ENVOIE RIEN, aucune sortie réseau : l'envoi
+    réel est T2.1-c (N4, humain). Écrit une relance préparée au registre `relances_preparees` : c'est elle qui date la
+    fréquence.
+
+    Ordre des contrôles, tous AVANT l'unique écriture : identité, propriété du lead (un vendeur ne prépare que pour
+    SES leads, `REJ-LEAD-NON-ASSIGNE` sinon), lead connu, stockage durable, instant, fréquence maximale configurée, puis
+    ceux de `relances.preparer` (la relance est due, la fréquence la permet, le canal est permis : jamais un SMS ni un
+    courriel sans consentement actif ni après un STOP, l'appel reste permis). Pendant un appel d'appareil idempotent,
+    l'heure de RÉCEPTION du serveur fait foi (`_horodatage_faisant_foi`), jamais l'`horodatage` fourni : un appareil ne
+    peut pas avancer l'heure pour contourner la fréquence."""
+    acteur, verdict_acteur = _acteur_appareil(acces.ROLES_LEADS)
+    if verdict_acteur is not None:
+        return _refus(verdict_acteur)
+    reg = _obtenir_registre()
+    verdict_lead = acces.controler_lead(reg, lead_id, acteur)
+    if verdict_lead is not None:
+        return _refus(verdict_lead)
+    if statuts.statut_courant(reg, lead_id) is None:
+        return _refus(verdicts.construire_verdict("REJ-LEAD-INCONNU", detail=f"aucun lead {lead_id!r} au registre"))
+    if not _stockage_durable_actif:
+        return _refus_stockage_indisponible()
+    maintenant = _horodatage_faisant_foi(horodatage)
+    verdict = relances.verifier_instant(maintenant)
+    if verdict is not None:
+        return _refus(verdict)
+    configuration = _configuration_relances()
+    verdict = relances.verifier_configuration(configuration)
+    if verdict is not None:
+        return _refus(verdict)
+    devis = _devis_connus()
+    evaluation, verdict = liste_leads.evaluer(
+        reg.lire(), visibles={lead_id}, relances_devis=devis, seuils=_seuils_segments(), horodatage=maintenant,
+        statuts_retenus=relances.STATUTS_A_RELANCER,
+    )
+    if verdict is not None:
+        return _refus(verdict)
+    consentements_contact, retraits, preparees = _registres_de_relance()
+    calcul = relances.calculer(
+        evaluation, maintenant=maintenant, configuration=configuration, devis=devis,
+        consentements_contact=consentements_contact, retraits=retraits, preparees=preparees,
+    )
+    preparation, verdict = relances.preparer(
+        calcul, lead_id=lead_id, client_id=clients.client_de_lead(reg, lead_id), regle=regle, canal=canal,
+        maintenant=maintenant, prepare_par=acteur.personne if acteur is not None else "agent",
+        voie=consentements.VOIE_APPAREIL if acteur is not None else "agent",
+    )
+    if verdict is not None:
+        return _refus(verdict)
+    stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RELANCES_PREPAREES).append(preparation["entree"])
+    return {"accepte": True, "resultat": preparation["resultat"]}
+
+
+def _decideur_humain_des_leads(
+    nom_outil: str,
+) -> tuple[acces.Acteur | None, dict[str, str] | None, dict[str, Any] | None]:
+    """Qui inscrit : `(acteur, {par, role, voie}, None)` ou `(None, {par, role, voie}, None)` si c'est un humain
+    identifié, sinon `(None, None, verdict)`. Deux voies, jamais une troisième, jamais un texte de modèle ni un
+    argument :
+    1. un appel d'appareil dont l'identité (posée par le core d'après un jeton vérifié) est CONFIRMÉE en base à
+       l'instant même, de rôle `seller` ou `admin` (`_acteur_appareil`) : l'acteur est rendu, pour que le vendeur ne
+       touche qu'à ses leads ;
+    2. l'exécution d'une demande qu'un humain (`admin` ou `nathan_owner`) vient d'approuver dans la file d'approbation
+       (`approbations.approbateur_en_cours`, lu en base).
+    Une identité d'appareil invalide ou hors portée est le refus de `_acteur_appareil`, jamais un repli sur la voie 2.
+    Tout le reste est `REJ-HUMAIN-REQUIS` : un appel d'agent qui n'a pas passé par l'approbation, un appel hors
+    transaction."""
+    acteur, refus = _acteur_appareil(acces.ROLES_LEADS)
+    if refus is not None:
+        return None, None, refus
+    if acteur is not None:
+        return acteur, {"par": acteur.personne, "role": acteur.role, "voie": consentements.VOIE_APPAREIL}, None
+    approbateur = approbations.approbateur_en_cours(
+        stockage.connexion_courante(), nom_outil, _DEPARTEMENT, roles=assignation.ROLES_HUMAINS)
+    if approbateur is not None:
+        return None, {
+            "par": approbateur.personne, "role": approbateur.role, "voie": consentements.VOIE_APPROBATION}, None
+    return None, None, verdicts.construire_verdict(
+        "REJ-HUMAIN-REQUIS",
+        detail=(
+            "un consentement de contact est inscrit par une personne : un agent ne peut pas l'inscrire seul. Fais-le "
+            "depuis l'app (jeton d'appareil vendeur ou admin), ou propose-le et attends qu'une personne approuve la "
+            "demande dans la console OPSYS. Ne le présente pas comme inscrit."
+        ),
+    )
+
+
+def _perimetre_du_lead(reg: Registre, lead_id: str) -> frozenset[str]:
+    """Les leads de la personne de ce lead (Client 360) : lus au registre, jamais recopiés."""
+    client_id = clients.client_de_lead(reg, lead_id)
+    opportunites = {client_id: clients.opportunites_du_client(reg, client_id)} if client_id is not None else {}
+    return consentements.perimetre(lead_id, {lead_id: client_id}, opportunites)
+
+
+def enregistrer_consentement_contact(
+    lead_id: str,
+    canal: str,
+    enonce_version: str,
+    source: str,
+    preuve: dict[str, Any],
+    recueilli_le: str,
+    horodatage: str,
+) -> dict[str, Any]:
+    """PLAN T4.9 (POLITIQUE-consentement-sms §3 et §4) : une PERSONNE inscrit le consentement d'un client pour un canal
+    écrit. Décision humaine : refusée à un agent seul (`REJ-HUMAIN-REQUIS`), même en `supervise` ou `autonome`.
+
+    Le consentement est celui de la PERSONNE (les leads d'un même client) ; il ouvre le canal aux relances sans rien
+    envoyer. Ordre des contrôles, tous AVANT l'unique écriture : décideur humain, propriété du lead (un vendeur inscrit
+    pour SES leads), lead connu, stockage durable, saisie (`consentements.construire_consentement` : canal écrit, énoncé
+    versionné, source, preuve sans numéro, instants, `recueilli_le` non postérieur à l'inscription), puis un retrait
+    (STOP) : `REJ-CONSENTEMENT-RETIRE`, un retrait ne se lève jamais. Le même consentement (même lead, canal, énoncé et
+    instant) n'est écrit qu'une fois : le rejeu rend `deja_enregistre`. `enregistre_par` est la personne établie, jamais
+    un argument ; pendant un appel d'appareil idempotent, l'heure de RÉCEPTION du serveur fait foi."""
+    acteur, humain, refus = _decideur_humain_des_leads(_OUTIL_CONSENTEMENT)
+    if humain is None:
+        return _refus(refus)
+    reg = _obtenir_registre()
+    verdict_lead = acces.controler_lead(reg, lead_id, acteur)
+    if verdict_lead is not None:
+        return _refus(verdict_lead)
+    if statuts.statut_courant(reg, lead_id) is None:
+        return _refus(verdicts.construire_verdict("REJ-LEAD-INCONNU", detail=f"aucun lead {lead_id!r} au registre"))
+    if not _stockage_durable_actif:
+        return _refus_stockage_indisponible()
+    entree, verdict = consentements.construire_consentement(
+        lead_id, clients.client_de_lead(reg, lead_id), canal, enonce_version, source, preuve, recueilli_le,
+        _horodatage_faisant_foi(horodatage), humain["par"], humain["voie"],
+    )
+    if verdict is not None:
+        return _refus(verdict)
+    journal = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_CONSENTEMENTS)
+    lus = list(journal)
+    retraits = [m for m in lus if m.get("type_entree") == consentements.TYPE_RETRAIT]
+    etat = consentements.etat_du_canal(canal, _perimetre_du_lead(reg, lead_id), [], retraits)
+    if etat["etat"] == consentements.ETAT_RETIRE:
+        return _refus(verdicts.construire_verdict(
+            "REJ-CONSENTEMENT-RETIRE",
+            detail=(
+                f"le client s'est retiré (STOP, {etat['retire_le']}) : un retrait ne se lève pas, aucun consentement "
+                "ne peut être inscrit. Seul le propriétaire peut en décider."
+            ),
+        ))
+    deja = any(m.get("consentement_id") == entree["consentement_id"] for m in lus)
+    if not deja:
+        journal.append(entree)
+    resume = {cle: entree[cle] for cle in (
+        "consentement_id", "lead_id", "canal", "enonce_version", "source", "preuve", "recueilli_le", "enregistre_le",
+        "enregistre_par", "voie")}
+    return {"accepte": True, "resultat": {**resume, "etat": consentements.ETAT_ACTIF, "deja_enregistre": deja}}
 
 
 def marquer_chantier_termine(
@@ -1284,6 +1571,121 @@ def _recevoir_devis_accepte(charge: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------------------------------------
+# Consommateur d'événements (ADR-0009 §3, PLAN T4.9) : m3.devis_envoye
+# ---------------------------------------------------------------------------------------------------------
+# DEFINITION-PRODUIT §6, flux principal : « M3 estime et rédige la soumission → M2 suit la soumission (relances) » ; §7
+# M2.7. M3 publie ce fait quand le propriétaire approuve l'envoi d'un devis (`m3_demander_envoi_devis`, N4, PLAN T4.7).
+# M2 en tire le DÉPART du délai d'une relance de devis : l'instant publié par M3, jamais une date supposée. Ce fait date
+# l'approbation de l'envoi, PAS la livraison au client (M1, T2.1-c, qui n'existe pas encore) : `relances.py` le dit dans
+# chaque relance de devis. Le fait ne fait avancer aucun statut et n'écrit aucune interaction : la relance est PROPOSÉE
+# (`m2_lister_relances`), jamais appliquée seule (§7 M2).
+
+
+class DevisEnvoyeIncoherent(ValueError):
+    """m3.devis_envoye : le fait ne peut pas être rangé tel quel : son heure d'envoi est illisible (ISO-8601 avec fuseau
+    attendu), ou le même devis est déjà connu avec un AUTRE lead ou une AUTRE heure. Jamais rangé de travers : le
+    répartiteur réessaie, puis met l'événement en quarantaine, visible d'un humain (`opsys-metier evenements etat`),
+    sans écriture."""
+
+
+def _recevoir_devis_envoye(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme m3.devis_envoye (ADR-0009 §3, PLAN T4.9) : range l'envoi approuvé d'un devis, à l'instant que M3 publie.
+
+    - lead inconnu : `LeadIntrouvable` (même erreur nommée que les autres consommateurs de M2 : incohérence de
+      données) ;
+    - lead `perdu` : le fait est gardé (`ignore: "lead_clos"`), aucune relance n'est due ;
+    - sinon : le fait est rangé au registre `devis_envoyes_recus` (`devis_id`, `lead_id`, `chantier_id`,
+      `horodatage_envoi`, `client_id`). Aucun montant : le fait n'en porte pas et M2 n'est pas la source de vérité
+      financière.
+
+    Idempotent à deux niveaux, même patron que `_recevoir_devis_accepte` : le répartiteur n'appelle cette fonction
+    qu'une fois par (evenement_id, consommateur) traité avec succès ; et un même devis republié sous un autre
+    `evenement_id` est reconnu par son `devis_id` : rien ne s'écrit une seconde fois, aucune quarantaine. Le même
+    `devis_id` avec un autre lead ou une autre heure est une incohérence (`DevisEnvoyeIncoherent`), jamais une seconde
+    entrée."""
+    devis_id, lead_id, envoye_le = charge["devis_id"], charge["lead_id"], charge["horodatage_envoi"]
+    try:
+        segments.instant_utc(envoye_le)
+    except (ValueError, TypeError) as exc:
+        raise DevisEnvoyeIncoherent(
+            f"m3.devis_envoye : l'heure d'envoi {envoye_le!r} du devis {devis_id!r} est illisible "
+            "(ISO-8601 avec fuseau attendu) : aucun délai de relance ne part d'une date supposée."
+        ) from exc
+    recus = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_DEVIS_ENVOYES_RECUS)
+    connu = next((recu for recu in recus if recu.get("devis_id") == devis_id), None)
+    if connu is not None:
+        if (connu.get("lead_id"), connu.get("horodatage_envoi")) != (lead_id, envoye_le):
+            raise DevisEnvoyeIncoherent(
+                f"m3.devis_envoye : le devis {devis_id!r} est déjà connu avec le lead {connu.get('lead_id')!r} et "
+                f"l'envoi du {connu.get('horodatage_envoi')!r} ; ce fait dit {lead_id!r} et {envoye_le!r} : "
+                "incohérence, aucune écriture (décision humaine requise)."
+            )
+        return {"traite": True, "lead_id": lead_id, "devis_id": devis_id, "deja_applique": True}
+    reg = _obtenir_registre()
+    statut = statuts.statut_courant(reg, lead_id)
+    if statut is None:
+        raise LeadIntrouvable(f"m3.devis_envoye : lead {lead_id!r} introuvable au registre M2")
+    client_id = clients.client_de_lead(reg, lead_id)
+    fait = {
+        "devis_id": devis_id, "lead_id": lead_id, "chantier_id": charge.get("chantier_id"),
+        "horodatage_envoi": envoye_le, "client_id": client_id,
+    }
+    if statut in statuts.STATUTS_TERMINAUX:
+        recus.append({**fait, "ignore": "lead_clos"})
+        return {
+            "traite": True, "lead_id": lead_id, "devis_id": devis_id, "client_id": client_id,
+            "motif": f"lead {lead_id!r} au statut {statut!r} : dossier clos, aucune relance",
+        }
+    recus.append(fait)
+    return {
+        "traite": True, "lead_id": lead_id, "devis_id": devis_id, "client_id": client_id,
+        "horodatage_envoi": envoye_le,
+    }
+
+
+# ---------------------------------------------------------------------------------------------------------
+# Consommateur d'événements (ADR-0009 §3, PLAN T4.9) : m1.retrait_consentement
+# ---------------------------------------------------------------------------------------------------------
+# Un client qui écrit STOP à M1 se retire des messages (POLITIQUE-consentement-sms §4). M1 le dit au bus avec les
+# `lead_id` qu'il a ouverts pour lui, jamais son numéro (`m1.retrait_consentement`). M2 range UN retrait par lead au
+# registre `consentements_contact` : plus aucune relance SMS ni courriel pour cette PERSONNE (les leads d'un même client
+# comptent ensemble, résolus à la lecture), l'appel reste permis. Un retrait ne se lève jamais.
+
+
+class RetraitIllisible(ValueError):
+    """m1.retrait_consentement : la charge ne peut pas être rangée (aucun lead, canal ou signal illisible, heure sans
+    fuseau). Un retrait n'est JAMAIS ignoré en silence : le répartiteur réessaie, puis met l'événement en quarantaine,
+    visible d'un humain, sans écriture."""
+
+
+def _recevoir_retrait_consentement(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme m1.retrait_consentement (ADR-0009 §3, PLAN T4.9) : range un retrait par lead, sans jamais stocker un
+    numéro ni un courriel (`consentements.construire_retrait` : le lead, le canal du core, l'identifiant du signal et
+    l'heure du STOP, fournie par la plateforme).
+
+    Tout est validé AVANT la première écriture : un lead illisible ne laisse pas les autres à moitié rangés. Un lead que
+    M2 ne connaît pas encore est rangé quand même : la résolution se fait à la lecture, un retrait n'attend pas
+    l'ingestion du lead. Idempotent : un identifiant déterministe par (lead, signal) ; une relivraison, ou le même STOP
+    sous un autre `evenement_id`, n'écrit rien. Le résumé ne porte que des comptes."""
+    lead_ids = charge.get("lead_ids")
+    if not isinstance(lead_ids, list) or not lead_ids:
+        raise RetraitIllisible("m1.retrait_consentement : lead_ids : au moins un lead est attendu")
+    maillons: dict[str, dict[str, Any]] = {}
+    for lead_id in lead_ids:
+        maillon, verdict = consentements.construire_retrait(
+            lead_id, charge.get("canal"), charge.get("signal_id"), charge.get("horodatage"))
+        if verdict is not None:
+            raise RetraitIllisible(f"m1.retrait_consentement : {verdict['code']} : {verdict['detail']}")
+        maillons.setdefault(maillon["retrait_id"], maillon)
+    journal = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_CONSENTEMENTS)
+    connus = {m.get("retrait_id") for m in journal if m.get("type_entree") == consentements.TYPE_RETRAIT}
+    ecrits = [m for retrait_id, m in maillons.items() if retrait_id not in connus]
+    for maillon in ecrits:
+        journal.append(maillon)
+    return {"traite": True, "retraits_ecrits": len(ecrits), "deja_enregistres": len(maillons) - len(ecrits)}
+
+
 def consommateurs() -> dict[str, Callable[[dict], dict]]:
     """Types d'événements consommés par M2 (ADR-0009 §3) — voir `department.yaml/evenements`."""
     return {
@@ -1291,6 +1693,8 @@ def consommateurs() -> dict[str, Callable[[dict], dict]]:
         "m3.devis_sans_reponse": _recevoir_devis_sans_reponse,
         "m1.lead_qualifie": _recevoir_lead_qualifie,
         "m3.devis_accepte": _recevoir_devis_accepte,
+        "m3.devis_envoye": _recevoir_devis_envoye,
+        "m1.retrait_consentement": _recevoir_retrait_consentement,
     }
 
 
@@ -1648,6 +2052,156 @@ def outils() -> tuple[Outil, ...]:
             fonction=lister_leads,
             # §9.4 (vendeur : « ses leads », pipeline personnel) et §9.5 (admin : pipeline, leads chauds). Le
             # vendeur ne voit que les siens (`acces.leads_visibles`, T1.4-k2) ; l'employé n'a aucune portée.
+            roles_appareil=acces.ROLES_LEADS,
+        ),
+        Outil(
+            nom="m2_lister_relances",
+            description=(
+                "PLAN T4.9 (M2.7, M2.13) : liste les relances DUES, une page à la fois (decalage, suivant), tirées "
+                "des segments de T4.6 : règle citée, départ (l'envoi publié par M3), dernière relance, prochaine date "
+                "permise (fréquence limitée), canaux permis. L'appel est toujours permis ; un SMS ou un courriel "
+                "seulement avec un consentement actif, jamais après un STOP (« appel seulement »). Un vendeur ne voit "
+                "que les relances de SES leads, l'admin toutes. Fréquence absente : « à configurer » "
+                "(department.yaml). Lecture pure. Pour lire la suite, rappeler avec decalage = suivant."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "regle": {
+                        "type": ["string", "null"],
+                        "enum": [*relances.REGLES, None],
+                        "description": "Facultatif : ne garder que cette règle de relance.",
+                    },
+                    "permises_seulement": {
+                        "type": "boolean",
+                        "description": (
+                            "Vrai : ne garder que les relances qu'on peut préparer maintenant (fréquence respectée). "
+                            "Faux par défaut."
+                        ),
+                    },
+                    "decalage": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": (
+                            "Rang de la première relance rendue (0 par défaut) : la valeur `suivant` de la page "
+                            "précédente."
+                        ),
+                    },
+                    "limite": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": relances.LIMITE_MAX,
+                        "description": (
+                            f"Relances par page au plus (défaut {relances.LIMITE_DEFAUT}) ; "
+                            "la taille de la sortie les borne aussi."
+                        ),
+                    },
+                    "horodatage": _HORODATAGE,
+                },
+                "required": ["horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=lister_relances,
+            # §9.4 M2 (vendeur : « relances autorisées ») et §9.5 M2 (admin : « relances »). Le vendeur ne voit que les
+            # relances de SES leads (`acces.leads_visibles`, propriétaire courant, T1.4-k2 et T1.4-m) ; l'employé n'a
+            # aucune portée. Ni contact, ni montant, ni le lead d'un autre.
+            roles_appareil=acces.ROLES_LEADS,
+        ),
+        Outil(
+            nom="m2_preparer_relance",
+            description=(
+                "PLAN T4.9 : prépare UNE relance due, à partir d'un gabarit FIXE (points d'appel, SMS ou courriel). "
+                "N'ENVOIE RIEN, aucune sortie réseau : l'envoi réel est T2.1-c (N4, humain). Refuse une relance non "
+                "due, trop proche de la précédente (fréquence limitée) ou par un canal sans consentement actif (STOP "
+                "compris) ; l'appel reste possible. Un vendeur ne prépare que pour SES leads. L'heure est celle du "
+                "serveur pour un appel d'appareil."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "lead_id": {"type": "string"},
+                    "regle": {"type": "string", "enum": list(relances.REGLES)},
+                    "canal": {
+                        "type": "string",
+                        "enum": list(consentements.CANAUX_RELANCE),
+                        "description": (
+                            "appel (toujours permis) ; sms ou courriel seulement avec un consentement actif."
+                        ),
+                    },
+                    "horodatage": _HORODATAGE,
+                },
+                "required": ["lead_id", "regle", "canal", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=preparer_relance,
+            autonomie=Autonomie.T1,
+            # N3, choisi et non subi (ADR-0009 §4) : écriture interne non finale (une relance préparée date la
+            # fréquence, rien n'est envoyé, rien n'est supprimé), sans argent ni prix. La règle dure de M2 est
+            # « validation humaine au départ » : un agent en `ombre` attend une personne ; un vendeur ou un admin
+            # authentifié l'exécute lui-même (T1.4-h), avec sa trace. Pas N4 : aucun engagement externe, l'envoi est une
+            # autre décision (T2.1-c).
+            niveau=Niveau.N3,
+            # §9.4 M2 (vendeur : « relances autorisées ») et §9.5 M2 (admin : « relances »), sur SES leads pour le
+            # vendeur.
+            roles_appareil=acces.ROLES_LEADS,
+        ),
+        Outil(
+            nom=_OUTIL_CONSENTEMENT,
+            description=(
+                "PLAN T4.9 : une PERSONNE inscrit le consentement d'un client pour un canal écrit (sms ou courriel) : "
+                "énoncé versionné, source, preuve (type et référence, jamais un numéro). Refusée à un agent seul "
+                "(REJ-HUMAIN-REQUIS) et après un STOP (un retrait ne se lève pas). Sans consentement actif, la "
+                "relance reste « appel seulement ». Un vendeur inscrit pour SES leads. L'heure est celle du serveur "
+                "pour un appel d'appareil."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "lead_id": {"type": "string"},
+                    "canal": {"type": "string", "enum": list(consentements.CANAUX_ECRITS)},
+                    "enonce_version": {
+                        "type": "string",
+                        "description": (
+                            "Identifiant de version de l'énoncé que la personne a lu (lettres, chiffres, . _ -, 64 au "
+                            "plus), POLITIQUE-consentement-sms §4."
+                        ),
+                    },
+                    "source": {"type": "string", "enum": list(consentements.SOURCES_CONSENTEMENT)},
+                    "preuve": {
+                        "type": "object",
+                        "properties": {
+                            "type": {"type": "string", "enum": list(consentements.TYPES_PREUVE)},
+                            "reference": {
+                                "type": "string",
+                                "description": (
+                                    "Identifiant du document qui prouve le consentement (formulaire, note d'appel) : "
+                                    "jamais un numéro de téléphone ni un courriel."
+                                ),
+                            },
+                        },
+                        "required": ["type", "reference"],
+                        "additionalProperties": False,
+                    },
+                    "recueilli_le": {
+                        "type": "string",
+                        "description": (
+                            "Instant du consentement (ISO-8601 avec fuseau), pas postérieur à l'inscription."
+                        ),
+                    },
+                    "horodatage": _HORODATAGE,
+                },
+                "required": ["lead_id", "canal", "enonce_version", "source", "preuve", "recueilli_le", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=enregistrer_consentement_contact,
+            autonomie=Autonomie.T1,
+            # N3, choisi et non subi (ADR-0009 §4) : écriture interne qui OUVRE un canal aux relances (rien n'est
+            # envoyé, rien n'est supprimé). Pas N2 : un consentement fabriqué par un agent violerait « opt-in
+            # respecté ». L'outil exige lui-même une PERSONNE (`_decideur_humain_des_leads`), même en `supervise` où un
+            # N3 s'exécute sans file. Pas N4 : aucun engagement externe.
+            niveau=Niveau.N3,
+            # §9.4 M2 (vendeur : « relances autorisées » : c'est lui qui a parlé au client) et §9.5 (l'admin), sur SES
+            # leads pour le vendeur. Jamais l'employé. La personne qui inscrit est celle du jeton, jamais un argument.
             roles_appareil=acces.ROLES_LEADS,
         ),
         Outil(
