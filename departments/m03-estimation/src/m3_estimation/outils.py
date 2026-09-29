@@ -266,15 +266,28 @@ _ROLES_SOUMISSION = frozenset({_ROLE_VENDEUR, identite.Role.ADMIN.value})
 
 
 def _proprietaire_du_lead(lead_id: Any) -> str | None:
-    """Le propriétaire du lead tel que M2 l'a publié, ou None : lead sans fait de propriété (jamais
-    qualifié, inconnu de M2, ou qualifié avant T1.4-k2), `lead_id` invalide, ou aucune transaction (rien
-    n'est joignable hors d'un appel d'outil : fail-closed, jamais un propriétaire supposé)."""
+    """Le propriétaire COURANT du lead tel que M2 l'a publié, ou None : lead sans fait de propriété (jamais
+    qualifié, inconnu de M2, ou qualifié avant T1.4-k2 et jamais republié), `lead_id` invalide, ou aucune
+    transaction (rien n'est joignable hors d'un appel d'outil : fail-closed, jamais un propriétaire supposé).
+
+    Le fait est versionné par un rang (PLAN T1.4-m, `m2.lead_assigne.json`) : la qualification est le rang 1
+    (`m2-lead-assigne-<lead_id>`), chaque réassignation un rang n >= 2 (`m2-lead-reassigne-<n>-<lead_id>`, qui
+    porte `rang: n`). Le propriétaire courant est celui du plus grand rang publié : on lit le rang 1, puis les
+    rangs 2, 3... jusqu'au premier absent. Un rang 1 absent n'arrête pas la lecture (un lead réassigné avant
+    la republication de son fait)."""
     if stockage.connexion_courante() is None or not isinstance(lead_id, str) or not lead_id:
         return None
+    proprietaire = None
     charge = evenements.charge_publiee(_TYPE_EVENEMENT_LEAD_ASSIGNE, f"m2-lead-assigne-{lead_id}")
-    if charge is None or charge.get("lead_id") != lead_id:
-        return None
-    return charge.get("proprietaire")
+    if charge is not None and charge.get("lead_id") == lead_id:
+        proprietaire = charge.get("proprietaire")
+    rang = 2
+    while True:
+        charge = evenements.charge_publiee(_TYPE_EVENEMENT_LEAD_ASSIGNE, f"m2-lead-reassigne-{rang}-{lead_id}")
+        if charge is None or charge.get("lead_id") != lead_id or charge.get("rang") != rang:
+            return proprietaire
+        proprietaire = charge.get("proprietaire")
+        rang += 1
 
 
 def _hors_portee_du_vendeur(vue: dict[str, Any], devis: dict[str, Any]) -> bool:

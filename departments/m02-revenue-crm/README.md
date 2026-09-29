@@ -33,7 +33,7 @@ la readiness et le digest s'alignent.
   tous les statuts, `perdu` compris. Résultat : le nouveau vendeur voit le lead, l'ancien non (liste, total, Client 360, notes).
   Un maillon `reassignation` s'ajoute (qui, pourquoi, de qui à qui, rang, voie) ; la qualification n'est jamais modifiée. Le
   fait `m2.lead_assigne` de rang n >= 2 (additif : `rang`, `proprietaire_precedent`) est publié dans la MÊME transaction.
-  **M3 doit lire le plus grand rang** : sinon il montre encore les devis à l'ancien vendeur (ROLES.md).
+  M3 lit le plus grand rang publié : le devis suit le lead (ROLES.md, `tests/test_reassignation_suit_m3.py`).
 - **Republier** (`m2_republier_assignations()`) : pour chaque assignation du registre dont le fait manque au bus (les leads
   qualifiés avant T1.4-k2), publie le MÊME fait que la publication d'origine. Idempotent, n'écrit pas au registre,
   n'invente aucun propriétaire ; refusé hors stockage durable (`REJ-BUS-INDISPONIBLE`). À lancer une fois à la mise en

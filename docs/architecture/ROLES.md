@@ -720,11 +720,11 @@ Les deux familles d'identifiants ne peuvent pas se confondre, quel que soit le `
 et `m2-lead-reassigne-` diffèrent avant tout `lead_id`, et le rang, en chiffres, précède le premier tiret. Le propriétaire
 COURANT est celui du plus grand rang publié. Un fait déjà publié ne change jamais.
 
-**Ce que M3 doit faire (à intégrer AVEC ce changement).** M3 (`_proprietaire_du_lead`, `m3_estimation/outils.py`) ne
-lit que le rang 1. Sans changement de sa part, après une réassignation il montre encore les devis à l'ancien vendeur et les
-refuse au nouveau. Il doit lire le rang 1, puis les rangs 2, 3... jusqu'au premier absent (un rang 1 absent n'arrête pas la
-lecture), toujours sans importer M2 (#109). Le changement de M3, sa preuve et la preuve de la chaîne M2, bus, M3 sont livrés
-à part (rapport de T1.4-m) : tant qu'il n'est pas intégré, n'ouvrir `m2_reassigner_lead` à aucun appareil.
+**Ce que M3 fait (intégré avec ce changement).** M3 (`_proprietaire_du_lead`, `m3_estimation/outils.py`) lit le rang 1,
+puis les rangs 2, 3... jusqu'au premier absent (un rang 1 absent n'arrête pas la lecture), toujours sans importer M2
+(#109). Un fait n'est retenu que s'il nomme le bon lead et le rang de son identifiant. Après une réassignation, le devis
+suit donc le lead : le nouveau vendeur le voit, l'ancien non. Preuve : `m03-estimation/tests/test_proprietaire_reassigne.py`
+(lecture par rang) et `tests/test_reassignation_suit_m3.py` (chaîne réelle M2, bus, M3).
 
 ### La republication du fait de propriété (T1.4-m)
 
