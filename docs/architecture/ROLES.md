@@ -68,7 +68,7 @@ qui travaille sur un toit, un gestionnaire qui reprend un dossier).
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 82 outils sur 160 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 85 outils sur 163 sont déclarés.
 
 ### `employee` (11 outils) : §9.3, le terrain
 
@@ -110,7 +110,7 @@ M10.
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (82 outils) : §9.5 + employé + vendeur
+### `admin` (85 outils) : §9.5 + employé + vendeur
 
 Les 11 outils de l'employé, les 10 du vendeur, et :
 
@@ -130,7 +130,8 @@ Les 11 outils de l'employé, les 10 du vendeur, et :
 | M5 | `m5_etat_tresorerie`, `m5_lister_attentes_facturation` | §9.5 M5 : trésorerie, cash libre réel, factures à approuver. Identité confirmée en base ; la vue vient du rôle authentifié, jamais des arguments (T1.4-k2, plus bas). T4.16 : `m5_etat_tresorerie` AJOUTE `cash_libre` (avec sa décomposition), `argent_disponible_note` et `mention` sans changer ses clés d'avant ; le cash libre suit la même vue : un rôle sans droit de voir les coûts ne le voit pas. |
 | M5 | `m5_lire_echeances_fiscales` (T0) | §7 M5.5 « calendrier fiscal vivant » (T4.16) : les prochaines échéances TPS/TVQ, les retards et la taxe nette de chaque période. Lecture pure, même règle d'accès que la trésorerie (identité confirmée en base, la vue vient du rôle, `autorise_couts` ne peut que restreindre : sans droit, les dates sans aucun montant). La fréquence de production, la fin d'exercice et la date de dernière remise sont au propriétaire (`department.yaml`, GATE NATHAN) : absentes, refus nommé qui dit quoi déclarer ; une année non déclarée au calendrier est refusée. `aujourd_hui` est un argument requis (M5 n'a pas d'horloge) ; aucun montant ni date limite ne se passe en argument. Ni remise, ni déclaration, ni paiement : le calendrier propose (N5, Nathan et le CPA). |
 | M5 | `m5_lire_rentabilite_chantier`, `m5_lire_comptes_a_recevoir` | §6 « travaux terminés », §9.5 M5 : coût réel et marge par chantier, comptes à recevoir (factures envoyées). Lecture pure, même règle d'accès que la trésorerie (T1.5-d) : coûts, marges et créances sont des finances, jamais pour l'employé ni le vendeur (§9.2, §9.4) ; aucun montant, prix ni taux ne se passe en argument. |
-| M5 | `m5_lister_comptes_a_payer` (T0), `m5_saisir_facture_fournisseur` (T1, N3) | §7 M5.2 « comptes à payer », M6.16, §9.5 M5 « dépenses à valider » (T4.15) : ce que l'entreprise doit aux fournisseurs, par PO reçu (l'« à payer attendu » de ce que M6 a réceptionné, le facturé, le rapprochement PROPOSÉ avec ses écarts), et la saisie d'une facture fournisseur, repli documenté de l'OCR fermé. Finances : jamais pour l'employé ni le vendeur (§9.2, §9.4). La lecture a la même règle d'accès que la trésorerie et rend des pages sous la limite de 6 000 caractères ; la saisie exige un HUMAIN (section plus bas). Aucun outil ne paie un fournisseur : c'est N5, Nathan et le CPA. |
+| M5 | `m5_lister_comptes_a_payer` (T0), `m5_saisir_facture_fournisseur` (T1, N3) | §7 M5.2 « comptes à payer », M6.16, §9.5 M5 « dépenses à valider » (T4.15) : ce que l'entreprise doit aux fournisseurs, par PO reçu (l'« à payer attendu » de ce que M6 a réceptionné, le facturé, le rapprochement PROPOSÉ avec ses écarts), et la saisie d'une facture fournisseur, repli documenté de l'OCR fermé. Finances : jamais pour l'employé ni le vendeur (§9.2, §9.4). La lecture a la même règle d'accès que la trésorerie et rend des pages sous la limite de 6 000 caractères ; la saisie exige un HUMAIN (section plus bas). Depuis T4.15-c, la lecture rend l'état COURANT des factures et compte les factures sans PO ; `sans_po=true` les liste une à une. Aucun outil ne paie un fournisseur : c'est N5, Nathan et le CPA. |
+| M5 | `m5_saisir_facture_sans_po` (T1, N3), `m5_corriger_facture_fournisseur` (T2, **N4**), `m5_annuler_facture_fournisseur` (T2, **N4**) | §7 M5.2 et §9.5 M5 « dépenses à valider » (T4.15-c) : une dépense que M6 n'a pas commandée (carburant, outils), et la correction ou l'annulation d'une facture fournisseur saisie, sans jamais modifier la facture d'origine (une pièce s'ajoute au registre, motif obligatoire). Finances : jamais pour l'employé ni le vendeur. Les trois exigent un HUMAIN, et les deux N4 attendent la décision du propriétaire ou de la finance : section « Corriger, annuler et saisir sans PO » plus bas. |
 | M6 | `m6_approuver_po`, `m6_annuler_po` | §9.2 « le propriétaire approuve les bons de commande » ; §9.5 « PO à approuver ». |
 | M6 | `m6_receptionner_commande`, `m6_soumettre_comptage` | §9.5 « réception rapide » ; §9 « inventaire ». |
 | M6 | `m6_produire_digest`, `m6_evaluer_variance_chantier` | §9.5 « stock critique », « rapport de pertes et bris », « écarts de chantier ». |
@@ -183,16 +184,39 @@ besoin pour rédiger). Les quatre autres sont ouverts à `admin` seulement.
 `m5_saisir_facture_fournisseur` est ouvert à `admin` et ne s'exécute que pour un HUMAIN identifié, comme les
 écritures de M10, avec les mêmes deux voies : (1) un appel d'appareil dont l'identité est confirmée en base
 (personne active, rôle `admin`) ; (2) l'exécution d'une demande qu'un humain (`finance` ou `nathan_owner`, actif et
-portant ce rôle) vient d'approuver dans la file, aux arguments EXACTS enregistrés. Tout le reste est refusé par l'outil
+portant ce rôle) vient d'approuver dans la file, aux arguments EXACTS enregistrés. Depuis T4.15-c, c'est le SOCLE qui dit
+qui a approuvé (`approbations.approbateur_en_cours`) : voir plus bas. Tout le reste est refusé par l'outil
 lui-même (`REJ-AP-HUMAIN-REQUIS`) : un appel d'agent dans un département en mode `supervise` ou `autonome`, où un N3
 s'exécute sans file, ne saisit rien ; une demande seulement `en_attente` n'autorise rien. La facture porte `saisi_par`
 et `voie`. Elle n'a qu'un statut, `SAISIE` : ni approuvée, ni payée. Le rapprochement PO, réception, facture est une
 PROPOSITION recalculée à chaque lecture, jamais stockée ni appliquée.
 
-Limites : ni correction ni annulation d'une facture saisie (un même numéro avec un autre montant passe avec un
-avertissement, l'écart se voit au rapprochement) ; toute facture est saisie contre un PO déjà reçu, au moins en
-partie ; l'unité des prix du livre de prix de M6 n'est pas déclarée (GATE NATHAN), donc chaque montant attendu porte la
-réserve `REJ-AP-UNITE-PRIX-NON-CONFIRMEE`.
+Limites : une facture de PO est saisie contre un PO déjà reçu, au moins en partie (une facture SANS PO a son outil,
+T4.15-c) ; la corriger ou l'annuler est un N4 (section suivante) ; l'unité des prix du livre de prix de M6 n'est pas
+déclarée (GATE NATHAN), donc chaque montant attendu porte la réserve `REJ-AP-UNITE-PRIX-NON-CONFIRMEE`.
+
+### Corriger, annuler et saisir sans PO (T4.15-c)
+
+La facture d'origine n'est JAMAIS modifiée : corriger et annuler AJOUTENT une pièce au registre des comptes à payer
+(chaînée, avec le motif, la personne, son rôle, la voie, l'avant et l'après), et l'état courant de la facture se relit de ses
+pièces. Le rapprochement, les totaux, le doublon et le cash libre lisent cet état : une annulée ne compte plus, une corrigée
+vaut sa correction.
+
+| Déclaration ou garde | Pourquoi |
+|---|---|
+| `m5_corriger_facture_fournisseur`, `m5_annuler_facture_fournisseur` : T2, **N4**, `roles_appareil = {"admin"}` | Modifier une dépense saisie est une écriture finale (ADR-0009 §4). Le socle ne valide au départ que N3 au plus : depuis le téléphone de l'admin comme pour un agent, l'appel ATTEND dans la file du propriétaire (`ombre`, `supervise`) et ne s'exécute qu'après la décision de `finance` ou du propriétaire, aux arguments exacts. `admin` PROPOSE ; il ne décide pas. |
+| `m5_saisir_facture_sans_po` : T1, **N3** (le défaut), `admin` | Comme la saisie d'une facture de PO : une écriture interne non finale, validée au départ par l'humain qui agit. La catégorie est de la liste fermée `configuration.categories_depense_sans_po` (`department.yaml`, GATE NATHAN) ; vide, elle dit « catégories à configurer ». |
+| Deux voies, jamais une troisième | (1) un appel d'appareil dont l'identité est confirmée en base (personne active portant ce rôle) ; (2) l'exécution d'une demande qu'un humain vient d'approuver dans la file. Un appel d'agent qui n'a passé par aucune des deux (mode `supervise` ou `autonome` pour un N3 ; mode `autonome` pour un N4, où il s'exécute sans file) reçoit `REJ-AP-HUMAIN-REQUIS` : la file n'est pas la seule barrière. |
+| **Le propriétaire ou la finance, pas seulement `admin`** (N4) | Le rôle du jeton ne dit pas qui est le propriétaire (un gestionnaire porte aussi `admin`) : par la voie directe, l'outil exige que la PERSONNE porte `nathan_owner` ou `finance`, les rôles de `department.yaml/approbations.n4` (un test lie le code au manifeste). Sinon `REJ-AP-APPROBATEUR-REQUIS`. La voie directe n'est jamais plus large que la file. |
+| Le socle dit qui a approuvé (`approbations.approbateur_en_cours`) | `decider` pose l'identifiant de la demande qu'il exécute (`contexte.executer_demande_approuvee`) autour de l'outil ; l'outil demande, avec son propre nom et son département, qui a approuvé, et le socle lit la demande EN BASE : `en_cours`, de cet outil et de ce département, rôle ni d'agent ni de client (et, si l'outil le demande, dans sa liste), personne active portant encore ce rôle. La personne et le rôle viennent de la ligne que `decider` a réservée, jamais du contexte ni d'un argument. Une ligne `en_cours` écrite à la main ne vaut rien sans `decider` en cours d'exécution ; un pointeur contrefait non plus (demande `en_attente`, déjà décidée ou inconnue). Remplace la lecture de la table des approbations que M5 recopiait de M10 (M1 et M10 n'y sont pas encore passés). |
+| Motif obligatoire, pièce sans effet si rejouée | Une ligne, 300 caractères au plus. Rejouer la même correction (`REJ-AP-CORRECTION-SANS-CHANGEMENT`), la même annulation (`REJ-AP-FACTURE-DEJA-ANNULEE`) ou corriger une annulée (`REJ-AP-FACTURE-ANNULEE`) est refusé sans rien écrire. Un appel d'appareil rejoué avec la même clé rend la réponse enregistrée (idempotence du socle). |
+| Aucun paiement | Annuler n'efface pas la dette (un PO reçu et non facturé redevient un « à payer attendu »). Aucune écriture aux mouvements : la garde AST couvre les trois outils (`conformite.verifier_aucun_decaissement`). |
+
+L'heure de réception du serveur fait foi pour un appel d'appareil direct (la saisie sans PO) ; par la file, l'`horodatage`
+enregistré avec la demande sert. Limites : la correction ne change ni le PO, ni le fournisseur, ni la catégorie (annuler puis
+ressaisir) ; le cash libre suppose les crédits de taxes récupérables à 100 %, factures sans PO comprises (à valider par le CPA,
+tout le carburant ne l'est pas) ; le fournisseur d'une facture sans PO, tapé à la main, se compare sans égard à la casse ni aux
+espaces, pas aux variantes de nom.
 
 ### Les transferts à un humain de M1 (T4.5)
 

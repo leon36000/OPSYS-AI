@@ -108,7 +108,7 @@ tout attendu et tout rapprochement, même concordant ; elle ne se retire que par
 (2) l'attendu vient du prix du PO ; l'écart avec le prix de réception (`ecart_prix_unitaire`, `ecart_prix_critique`) est gardé
 pour l'audit sans le changer ; (3) les taxes de l'attendu sont calculées une fois sur le cumul du PO, celles d'une facture à sa
 saisie : un cent de différence entre les deux, dû à l'arrondi de chaque facture, n'est pas un écart (le verdict se juge avant
-taxes) ; (4) ni correction ni annulation d'une facture saisie, ni facture sans PO reçu ; (5) rien n'est payé, donc rien n'est
+taxes) ; (4) ni correction ni annulation d'une facture saisie, ni facture sans PO reçu (levé par T4.15-c, ci-dessous) ; (5) rien n'est payé, donc rien n'est
 retranché du « à payer » : c'est dû tant qu'un paiement N5 n'est pas enregistré (à construire) ; (6) le solde et l'argent
 disponible restent ceux d'avant (CA-M5-05, CA-M5-06) ; c'est le cash libre réel (T4.16, plus bas) qui retranche les comptes à
 payer.
@@ -142,7 +142,8 @@ et ne suppose rien. Hors du calendrier, faute de donnée : acomptes provisionnel
 Mention obligatoire (`analyse.py`) : « Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision
 officielle ou action réelle. » (DEFINITION-PRODUIT §7 M5, §13.3) est portée par toute sortie acceptée d'un outil d'analyse
 (`m5_etat_tresorerie`, `m5_lire_echeances_fiscales`, `m5_lire_rentabilite_chantier`, `m5_lister_comptes_a_payer`,
-`m5_saisir_facture_fournisseur`) ; un test ferme le monde (chaque outil est classé) et lit la mention dans le document produit.
+`m5_saisir_facture_fournisseur`, et depuis T4.15-c `m5_saisir_facture_sans_po`, `m5_corriger_facture_fournisseur`,
+`m5_annuler_facture_fournisseur`) ; un test ferme le monde (chaque outil est classé) et lit la mention dans le document produit.
 
 AUCUNE REMISE, AUCUNE DÉCLARATION, AUCUN PAIEMENT. Le calendrier propose des dates ; remettre une taxe est N5 (Nathan ET le
 CPA). `conformite.verifier_aucun_decaissement` couvre le nouveau code : en régime strict (aucun mot de mouvement) pour le
@@ -159,3 +160,51 @@ par l'appelant (M5 n'a pas d'horloge, DA-M5-06) ; (6) la fréquence de productio
 manifeste livré : tant que Nathan ne les déclare pas, le cash libre est « non calculable » et le calendrier refuse de nommer une
 échéance ; (7) la prévision de trésorerie (M5.7 : projection, scénarios, tests de stress) n'est PAS livrée : le cash libre est
 l'état d'aujourd'hui, jamais une projection ; les catégories de réserve (M5.14, stratégie d'épargne) non plus.
+
+PLAN T4.15-c (correction, annulation et factures sans PO, `comptes_a_payer.py`, M5.2) : trois outils de plus, tous refusés à un
+agent seul.
+
+La FACTURE D'ORIGINE N'EST JAMAIS MODIFIÉE. `m5_corriger_facture_fournisseur` (numéro, date ou montant avant taxes ; nul =
+inchangé ; taxes et total recalculés, total imprimé en contrôle) et `m5_annuler_facture_fournisseur` AJOUTENT une pièce
+(`correction_facture_fournisseur`, `annulation_facture_fournisseur`) au registre des comptes à payer, chaînée à la précédente (la
+chaîne de hash reste valide) : motif OBLIGATOIRE (une ligne, 300 caractères au plus), personne, rôle, voie, avant et après. L'état
+courant d'une facture (`SAISIE`, `CORRIGEE`, `ANNULEE`) est relu de ses pièces (`_etats_factures`, le seul endroit où une facture se
+lit) : c'est de lui que partent le facturé, l'« à payer », le rapprochement PROPOSÉ, le doublon et les crédits de taxes du cash
+libre. Une annulée n'y compte plus (mais un PO reçu et non facturé redevient un « à payer attendu » : annuler n'efface pas la
+dette) ; ressaisir la même facture est permis (son identifiant prend le rang suivant, il reste unique). Le PO, le fournisseur et la
+catégorie ne se corrigent pas : annuler puis ressaisir. Un REJEU n'a aucun effet : la même correction (`REJ-AP-CORRECTION-SANS-
+CHANGEMENT`), la même annulation (`REJ-AP-FACTURE-DEJA-ANNULEE`), une correction d'une annulée (`REJ-AP-FACTURE-ANNULEE`) sont
+refusées sans écrire une pièce de plus ; et un registre où une pièce vise une facture absente ou annulée LÈVE (jamais un chiffre à
+demi lu). L'avertissement `REJ-AP-FACTURE-NUMERO-REPETE` se relit sur les factures vivantes : corriger ou annuler l'une des deux le
+lève.
+
+Corriger et annuler sont N4 (T2, engagement : écriture finale sur une dépense, ADR-0009 §4) : depuis le téléphone de l'admin comme
+pour un agent, l'appel ATTEND dans la file du propriétaire (le socle ne valide au départ que N3 au plus), et l'outil ne s'exécute
+qu'après la décision de `finance` ou du propriétaire, aux arguments exacts enregistrés. L'outil exige aussi un HUMAIN par lui-même,
+comme la saisie, par deux voies : (1) l'identité de jeton d'appareil confirmée en base, avec, pour un N4, une PERSONNE qui porte
+`nathan_owner` ou `finance` (le rôle `admin` du jeton ne dit pas qui est le propriétaire : un gestionnaire `admin` reçoit
+`REJ-AP-APPROBATEUR-REQUIS`) ; (2) l'approbateur que le SOCLE dit, `opsys.approbations.approbateur_en_cours` (posé par `decider`
+autour de l'outil, revérifié en base : demande `en_cours` de cet outil et de ce département, personne active portant encore ce rôle,
+jamais un rôle d'agent ou de client). Cette fonction remplace la lecture de la table des approbations que M5 recopiait de M10 (M1 et
+M10 n'y sont pas encore passés). En mode `autonome`, où un N4 s'exécute sans file, c'est l'outil qui refuse l'agent
+(`REJ-AP-HUMAIN-REQUIS`).
+
+`m5_saisir_facture_sans_po` (T1, N3, `admin`, comme la saisie d'une facture de PO) : une dépense que M6 n'a pas commandée (carburant,
+outils). Même règle d'humain exigé, mêmes taxes recalculées, même doublon refusé (fournisseur, numéro, montant : parmi TOUTES les
+factures vivantes, PO ou non ; le fournisseur, tapé à la main, se compare sans égard à la casse ni aux espaces). La catégorie est de
+la liste FERMÉE `configuration.categories_depense_sans_po` de `department.yaml` (GATE NATHAN, relue à chaque appel) ; absente ou
+vide : « catégories à configurer » (`REJ-AP-CATEGORIES-A-CONFIGURER`), illisible : `REJ-AP-CATEGORIES-INVALIDES`, hors liste :
+`REJ-AP-CATEGORIE-INCONNUE` (avec la liste). Le manifeste livré n'en déclare aucune : rien n'est supposé. La facture est une DETTE
+ferme dès sa saisie, sans réception ni rapprochement : elle entre EN ENTIER dans les totaux de `m5_lister_comptes_a_payer` (bloc
+`sans_po`, par catégorie ; `sans_po=true` les liste une à une avec l'identifiant que la correction demande), dans le résumé et dans
+le cash libre (composante « comptes à payer », détail `factures_sans_po`), et ses crédits de taxes dans la TPS/TVQ à remettre.
+
+Aucun DÉCAISSEMENT : la garde AST couvre le nouveau code (les trois outils et leurs assistants d'`outils.py`, le module entier) ; un
+test sur base réelle montre le registre des mouvements et celui des factures clients intacts après tout le parcours.
+
+Limites : (1) le cash libre suppose les crédits de taxes sur intrants récupérables à 100 %, factures sans PO comprises : le carburant
+et l'outillage ne sont pas tous entièrement récupérables (à valider par le CPA) ; (2) la liste des catégories est celle de Nathan :
+tant qu'elle est vide, aucune facture sans PO ne se saisit ; (3) un même fournisseur d'essence saisi de deux façons (« Pétro » et
+« Petro-Canada ») reste deux fournisseurs : seule la casse et les espaces se comparent ; (4) la date d'une correction se lit avec
+l'`horodatage` de la demande par la file (l'heure de réception du serveur ne fait foi que pour un appel d'appareil direct) ; (5) la
+correction ne change ni le PO, ni le fournisseur, ni la catégorie ; (6) aucun paiement fournisseur n'existe (N5).

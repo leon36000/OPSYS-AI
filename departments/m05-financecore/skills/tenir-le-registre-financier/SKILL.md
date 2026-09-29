@@ -106,3 +106,13 @@ l'outil ne calcule pas l'âge, il ne devine pas la date.
    refusée avec les deux chiffres, vérifie ce qui a été tapé.
 4. Un doublon (même fournisseur, numéro, montant) est refusé ; un PO jamais reçu par M6 aussi (enregistre d'abord la réception
    dans M6). Aucun outil ne paie un fournisseur : c'est N5, Nathan et le CPA.
+5. Corriger ou annuler une facture saisie : `m5_corriger_facture_fournisseur` (numéro, date ou montant avant taxes ; nul =
+   inchangé) et `m5_annuler_facture_fournisseur`, avec un MOTIF que l'humain te donne (obligatoire, une ligne : tu ne
+   l'inventes pas). Ce sont des N4 : ta demande attend la décision du propriétaire ou de la finance, ne la présente pas comme
+   faite. L'identifiant (`facture_fournisseur_id`) se lit dans `m5_lister_comptes_a_payer` (détail d'un PO, ou `sans_po=true`).
+   La facture d'origine ne change jamais : une pièce s'ajoute, et les comptes à payer, le rapprochement et le cash libre lisent
+   l'état courant (une annulée ne compte plus ; le PO reçu et non facturé redevient un « à payer attendu »). Le PO et le
+   fournisseur ne se corrigent pas : annuler puis ressaisir. Redemander une correction déjà faite est refusé, sans effet.
+6. Une dépense sans PO (carburant, outils) se saisit avec `m5_saisir_facture_sans_po`, par un humain, telle qu'imprimée. La
+   catégorie est de la liste que le propriétaire a déclarée : si l'outil répond « catégories à configurer », dis-le à Nathan,
+   n'en choisis aucune. La facture est une dette dès sa saisie : elle entre en entier dans les comptes à payer et le cash libre.
