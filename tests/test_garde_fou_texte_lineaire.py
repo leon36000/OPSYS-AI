@@ -488,6 +488,9 @@ TOUT_SANS_PLAFOND = gft.profil(
     "tout_sans_plafond", [n for n in gft.FAMILLES if n not in (gft.TEXTE_VIDE, gft.LONGUEUR)])
 TEXTES_HOSTILES_DU_CATALOGUE = {
     "lettres": lambda n: "a" * n,
+    "chiffres": lambda n: "1" * n,
+    # tous les caractères d'une partie locale de courriel, sans « @ » : chaque départ possible doit être écarté
+    "caracteres_d_un_courriel_sans_arobase": lambda n: "a.b_c%d+e-f0" * (n // 12),
     "chiffres_a_deux_espaces": lambda n: "1  " * (n // 3),
     "chiffres_separes_par_une_marque": lambda n: "1 Synergy " * (n // 10),  # le masque de marque laisse trois espaces
     "lettres_puis_arobase": lambda n: "a" * n + "@",
