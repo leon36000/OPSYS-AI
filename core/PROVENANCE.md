@@ -150,6 +150,56 @@ secrets du Gateway (`OPENCLAW_*`, clés de fournisseurs) : liste blanche dans
   journal d'accès d'uvicorn ignore cette sonde.
 - Surface consommée ajoutée au tableau ci-dessous : `opsys/metier.json`.
 
+### T3.3-suite : moteur de contexte OPSYS (PREFLIGHT et POSTFLIGHT)
+
+Un `ContextEngine` du fork, choisi par `plugins.slots.contextEngine: "opsys"`. Il n'ajoute que deux
+choses au tour d'un agent de département :
+- **PREFLIGHT**, dans `assemble()` : il demande à M10 le paquet de l'affaire
+  (`m10_paquet_contexte_affaire`, T0, budget calculé par M10) et le rend en `systemPromptAddition`, que le
+  lanceur préfixe déjà au prompt système. L'affaire est la ligne `affaire_id: <lead_id>` de la demande ;
+- **POSTFLIGHT**, dans `afterTurn()` : il remet à M10 ce que les outils listés ont fait pendant le tour
+  (`m10_deposer_faits_candidats`, T1 en N2) : outil, résultat, code. Jamais le texte du modèle.
+
+**Désactivé par défaut** : sans `<dossier de config>/opsys/contexte.json` portant `"actif": true`, le moteur
+est transparent (comportement du moteur « legacy »). Le fichier est lu hors du schéma Zod, comme `roles.json` et
+`metier.json`, et généré par `src/opsys/openclaw.py` (`opsys openclaw configurer --contexte-entreprise
+AGENT[:OUTIL,OUTIL]`), qui écrit dans le même appel `plugins.slots.contextEngine`. Format : commentaire
+d'en-tête de `src/context-engine/opsys-contexte-config.ts`.
+
+Fail-closed et sans blocage. Moteur injoignable, plus lent que `delai_ms`, paquet invalide ou hors budget,
+aucune affaire dans la demande : le tour continue SANS paquet, porte le marqueur « contexte d'entreprise
+indisponible » et laisse une ligne du journal (sous-système `opsys-contexte`). Un paquet n'est jamais
+inventé, réparé ni tronqué : il est refusé en entier. `assemble()` et `afterTurn()` ne lèvent jamais, car le
+registre mettrait en quarantaine un moteur qui lève.
+
+Réutilisé plutôt que réécrit :
+- `LegacyContextEngine` (`legacy.ts`) : l'assemblage des messages et l'ingestion restent les siens ;
+- `delegateCompactionToRuntime` (`delegate.ts`) : la compaction reste celle du lanceur ;
+- `resolveMcpTransport`, `connectMcpClient`, `disposeMcpClient` (`src/agents/mcp-*.ts`) : un appel MCP borné,
+  avec l'URL et l'en-tête `Bearer ${OPSYS_MCP_JETON}` de `mcp.servers.opsys_m10` ;
+- le mécanisme d'enregistrement `registerContextEngineForOwner` et le fournisseur de session
+  `parseAgentSessionKey` ; le journal `createSubsystemLogger`.
+
+Pourquoi `src/context-engine/` et non `extensions/opsys-context-engine` (l'ordre de `AGENTS.md` préfère une
+extension, l'ADR-0010 la nommait) : une extension n'importe que `openclaw/plugin-sdk/*`, qui n'expose aucun
+client MCP ; elle aurait embarqué le sien (dépendance propre, donc un importeur neuf dans `pnpm-lock.yaml`) ou
+réécrit le transport. Chaque extension figure de plus dans des inventaires tenus à la main que le bac à sable
+ne peut pas régénérer (`extensions/ICON_SOURCES.md`, `test/vitest/vitest.extension-misc-paths.mjs`,
+`pnpm-lock.yaml`). La greffe est isolée (six fichiers neufs et une ligne dans `init.ts`) : elle passe en
+extension avec les mêmes fichiers quand un client MCP entre dans le SDK.
+
+- Ajoutés : `src/context-engine/opsys-contexte-{config,paquet,depot,mcp,engine}.ts`,
+  `src/context-engine/opsys-contexte.registration.ts`, et leurs tests
+  `src/context-engine/opsys-contexte-{config,paquet,depot,engine}.test.ts`,
+  `src/context-engine/opsys-contexte-mcp.wire.test.ts`, `src/context-engine/opsys-contexte.registration.test.ts`
+  (fixtures : `src/context-engine/opsys-contexte.test-support.ts`, dont le paquet est la sortie réelle de M10).
+- Modifiés : `src/context-engine/init.ts` (`ensureContextEnginesInitialized` enregistre aussi le moteur, sous
+  l'identifiant `opsys`, propriétaire « core » ; sans le slot, rien ne le choisit) et
+  `test/opsys-tests-cibles.txt`.
+- Côté Python : `m10_paquet_contexte_affaire` (T0, existait) et `m10_deposer_faits_candidats` (T1 en N2, fermé
+  aux appareils), `openclaw.generer(contexte_entreprise=...)`.
+- Surfaces consommées ajoutées au tableau ci-dessous : `opsys/contexte.json`, `plugins.slots.contextEngine`.
+
 ## Sécurité
 
 Il n'y a plus de mises à jour automatiques. Une veille mensuelle des avis de sécurité d'OpenClaw
@@ -177,3 +227,5 @@ jour `src/opsys/openclaw.py` et ses tests dans le même commit.
 | `opsys/metier.json` (hors schéma Zod) | active et règle le superviseur du moteur métier (T0.10) ; `openclaw.py` ne l'écrit pas encore | `src/gateway/opsys-metier-config.ts` |
 | `opsys/roles.json` (hors schéma Zod) | `roles` : outils permis par rôle d'appareil ; `serveurs` : le serveur MCP de chacun (T1.4-c6). Noms d'outils nus | `src/gateway/opsys-device-roles.ts` |
 | `opsys/appareils.json` (hors schéma Zod) | appareil -> personne et rôle OPSYS (T1.4-c2, c4) | `src/gateway/opsys-device-roles.ts` |
+| `opsys/contexte.json` (hors schéma Zod) | active et règle le moteur de contexte OPSYS (T3.3-suite) ; écrit par `openclaw.py` (`contexte_entreprise`) | `src/context-engine/opsys-contexte-config.ts` |
+| `plugins.slots.contextEngine` | choisit le moteur `opsys` quand `contexte.json` est actif ; absent sinon (moteur « legacy ») | `src/config/zod-schema.root-shape.ts`, `src/context-engine/registry-selection.ts` |
