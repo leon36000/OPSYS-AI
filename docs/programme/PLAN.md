@@ -976,9 +976,12 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       - audit des faits attendus et des deux chaînes de hachage ;
       - consommation de `m6.variance_chantier` ;
       - M10 263, verifier 93 outils.
-  - [ ] T3.3-suite : greffe du moteur de contexte dans le core (PREFLIGHT et POSTFLIGHT) ;
+  - [x] T3.3-suite : greffe du moteur de contexte dans le core (PREFLIGHT et POSTFLIGHT) ;
         résolution des signaux critiques ; paquet injecté avant une estimation M3.
-        Livré (8c745c7, f6435ef, 5bbe527, c1db4ad), à cocher sur le job `tests-opsys` du core :
+        Preuve CI : core 24 (f6cd858), job `tests-opsys` vert, 36 fichiers ciblés sur 36, dont
+        les 6 du moteur de contexte (config 25, dépôt 19, moteur 44, paquet 44, fil MCP réel 5,
+        enregistrement 3). La résolution des signaux critiques reste à faire (ci-dessous).
+        Livré (8c745c7, f6435ef, 5bbe527, c1db4ad) :
         - point d'extension natif du fork (`plugins.slots.contextEngine`, contrat
           `ContextEngine`) ; moteur `opsys` dans `core/src/context-engine/` : `assemble()`
           demande à M10 le paquet de l'affaire par MCP (jamais la base) et l'ajoute au prompt
