@@ -95,7 +95,8 @@ def test_trois_messages_service_bruit_puis_ville_donnent_un_lead_qui_compte_les_
 def test_un_message_qui_manque_de_ville_dit_ce_qui_est_connu_ce_qui_manque_et_propose_un_brouillon_non_envoye():
     _fenetre()
     reponse = _recevoir("Bonjour, mes gouttières fuient.", "SM-1", 0)
-    assert reponse["conversation"]["connu"] == {"service": "gouttieres", "ville": None}
+    assert reponse["conversation"]["connu"] == {
+        "service": "gouttieres", "ville": None, "contact": "canal", "urgence_declaree": False}
     assert reponse["a_demander"] == ["ville"]
     assert reponse["brouillon_reponse"] == "Bonjour, merci de votre message. Dans quelle ville se trouve la propriété?"
     assert reponse["envoye"] is False
@@ -310,9 +311,10 @@ def test_le_diagnostic_dit_ce_qui_est_connu_avec_les_memes_regles_que_la_qualifi
     services, _ = taxonomie.charger_services()
     zone = ["Laval", "Québec"]
     assert qualification.diagnostiquer("Gouttières à Laval, urgent.", zone, services) == {
-        "services_evoques": ["gouttieres"], "service": "gouttieres", "ville": "Laval", "urgence_declaree": True}
+        "services_evoques": ["gouttieres"], "service": "gouttieres", "ville": "Laval", "contact": None,
+        "urgence_declaree": True}
     assert qualification.diagnostiquer("Gouttières et soffite.", zone, services) == {
-        "services_evoques": ["gouttieres", "soffite_fascia"], "service": None, "ville": None,
+        "services_evoques": ["gouttieres", "soffite_fascia"], "service": None, "ville": None, "contact": None,
         "urgence_declaree": False}
     assert qualification.diagnostiquer("Bonjour à Rimouski.", zone, services)["ville"] is None
     with pytest.raises(ValueError, match="zone_desservie requise"):

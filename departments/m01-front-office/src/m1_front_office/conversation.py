@@ -31,7 +31,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from . import garde_fou
+from . import garde_fou, qualification
 
 TYPE_LEAD = "lead_emis"
 TYPE_SIGNAL = "signal"
@@ -127,18 +127,25 @@ def decrire(
         "hors_fenetre": conversation.hors_fenetre,
     }
     if diagnostic is not None:
-        bloc["connu"] = {"service": diagnostic["service"], "ville": diagnostic["ville"]}
+        bloc["connu"] = connu(diagnostic)
     return bloc
 
 
+def connu(diagnostic: dict[str, Any]) -> dict[str, Any]:
+    """Ce que la conversation établit, cumulé sur tous ses messages : le service et la ville (ou `None`), la source du
+    contact (`canal` : l'identité que la plateforme a vérifiée ; `texte` : écrit par le client ; ou `None`), et
+    l'urgence, vraie dès qu'UN message la déclare."""
+    return {
+        "service": diagnostic["service"],
+        "ville": diagnostic["ville"],
+        "contact": diagnostic["contact"],
+        "urgence_declaree": diagnostic["urgence_declaree"],
+    }
+
+
 def ce_qui_manque(diagnostic: dict[str, Any]) -> list[str]:
-    """`["service"]`, `["ville"]` ou les deux, selon ce que `qualification.diagnostiquer` a établi."""
-    manque = []
-    if diagnostic["service"] is None:
-        manque.append("service")
-    if diagnostic["ville"] is None:
-        manque.append("ville")
-    return manque
+    """Chaque champ du lead que la conversation n'établit pas (`service`, `ville`, `contact`), dans cet ordre."""
+    return qualification.champs_manquants(diagnostic)
 
 
 def _liste_ou(libelles: Sequence[str]) -> str:
@@ -148,19 +155,29 @@ def _liste_ou(libelles: Sequence[str]) -> str:
     return f"{', '.join(libelles[:-1])} ou {libelles[-1]}"
 
 
+_PIECE_VILLE = "dans quelle ville se trouve la propriété"
+_PIECE_CONTACT = "à quel numéro de téléphone ou à quelle adresse courriel pouvons-nous vous joindre"
+
+
 def _demande(diagnostic: dict[str, Any], libelles: dict[str, str]) -> str:
-    """La question, selon ce qui manque : un service (aucun ou plusieurs évoqués), une ville, ou les deux."""
+    """La question, selon ce qui manque : un service (aucun ou plusieurs évoqués), une ville, un contact, ou plusieurs.
+    """
     evoques = diagnostic["services_evoques"]
-    manque = ce_qui_manque(diagnostic)
-    ville = "dans quelle ville se trouve la propriété"
-    if manque == ["ville"]:
-        return "Dans quelle ville se trouve la propriété?"
-    if len(evoques) > 1:
-        choix = ", ".join(libelles[code] for code in evoques)
-        service = f"Vous parlez de plusieurs services : {choix}. Par lequel souhaitez-vous commencer"
-    else:
-        service = f"Quel service vous intéresse ({_liste_ou(list(libelles.values()))})"
-    return f"{service}?" if manque == ["service"] else f"{service}, et {ville}?"
+    pieces = []
+    for champ in ce_qui_manque(diagnostic):
+        if champ == "ville":
+            pieces.append(_PIECE_VILLE)
+        elif champ == "contact":
+            pieces.append(_PIECE_CONTACT)
+        elif len(evoques) > 1:
+            choix = ", ".join(libelles[code] for code in evoques)
+            pieces.append(f"Vous parlez de plusieurs services : {choix}. Par lequel souhaitez-vous commencer")
+        else:
+            pieces.append(f"Quel service vous intéresse ({_liste_ou(list(libelles.values()))})")
+    pieces[0] = pieces[0][0].upper() + pieces[0][1:]
+    if len(pieces) == 1:
+        return f"{pieces[0]}?"
+    return f"{', '.join(pieces[:-1])}, et {pieces[-1]}?"
 
 
 def proposer_precisions(

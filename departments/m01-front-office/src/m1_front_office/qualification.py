@@ -46,9 +46,12 @@ _PHONE_REGEX = re.compile(
 _EMAIL_REGEX = re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b')
 
 
-def _rejet(detail: str | None = None):
-    """Verdict de rejet normalisé."""
-    return {"verdict": verdicts.construire_verdict("REJ-QUALIF-INSUFFISANTE", detail=detail)}
+def _rejet(detail: str | None = None, champs_manquants: list[str] | None = None):
+    """Verdict de rejet normalisé. `champs_manquants` nomme CHAQUE champ du lead que le contenu n'établit pas."""
+    rejet: dict = {"verdict": verdicts.construire_verdict("REJ-QUALIF-INSUFFISANTE", detail=detail)}
+    if champs_manquants is not None:
+        rejet["champs_manquants"] = champs_manquants
+    return rejet
 
 
 def _clean(contenu_filtre: str) -> str:
@@ -62,21 +65,26 @@ def _sans_accent(texte: str) -> str:
     return "".join(c for c in decompose if not unicodedata.combining(c))
 
 
-_MOTIFS_SERVICE_CACHE = {}
+_MOTIFS_CACHE = {}
 
 
-def _motif_service(service: taxonomie.Service):
-    """Regex du service : un de ses mots-clés, mot entier, pluriel admis, accents et casse ignorés."""
-    cle = (service.code, service.mots_cles)
-    if cle not in _MOTIFS_SERVICE_CACHE:
+def motif_de_termes(termes):
+    """Regex qui reconnaît un des termes, mot entier, pluriel admis, accents et casse ignorés (à chercher dans un texte
+    passé par `sans_accent`). Sert aux mots-clés d'un service et à ceux de la réponse à une question du profil : une
+    seule règle de lecture. `None` sans terme : rien n'est alors reconnu."""
+    termes = tuple(termes)
+    if termes not in _MOTIFS_CACHE:
         alternatives = []
-        for terme in service.mots_cles:
+        for terme in termes:
             mots = [re.escape(m) + "s?" for m in _sans_accent(terme).split()]
             alternatives.append(r"\s+".join(mots))
-        _MOTIFS_SERVICE_CACHE[cle] = (
-            re.compile(r"\b(?:" + "|".join(alternatives) + r")\b") if alternatives else None
-        )
-    return _MOTIFS_SERVICE_CACHE[cle]
+        _MOTIFS_CACHE[termes] = re.compile(r"\b(?:" + "|".join(alternatives) + r")\b") if alternatives else None
+    return _MOTIFS_CACHE[termes]
+
+
+def sans_accent(texte: str) -> str:
+    """Le texte tel que `motif_de_termes` le veut : minuscules, sans accent, apostrophe droite."""
+    return _sans_accent(texte)
 
 
 def _services_evoques(contenu: str, services) -> list[str]:
@@ -84,27 +92,10 @@ def _services_evoques(contenu: str, services) -> list[str]:
     texte = _sans_accent(contenu)
     evoques = []
     for service in services:
-        motif = _motif_service(service)
+        motif = motif_de_termes(service.mots_cles)
         if motif is not None and motif.search(texte):
             evoques.append(service.code)
     return evoques
-
-
-def _extraire_service(contenu: str, services):
-    """Retourne `(code, None)` si UN SEUL service déclaré est évoqué, sinon `(None, raison)`.
-
-    Le lead porte un seul `service` : un signal qui en évoque plusieurs, ou aucun, n'est pas
-    qualifié (fail-closed, jamais un choix arbitraire). L'agent demande alors lequel. La règle de
-    précédence (p. ex. « réparation de gouttières ») reste une décision du propriétaire (T2.1).
-    """
-    evoques = _services_evoques(contenu, services)
-    if len(evoques) == 1:
-        return evoques[0], None
-    if not evoques:
-        return None, "aucun service déclaré n'est reconnu dans la demande : demander quel service est visé"
-    return None, (
-        f"plusieurs services évoqués ({', '.join(evoques)}) : demander lequel traiter en premier"
-    )
 
 
 def _extraire_ville(contenu: str, zone_desservie):
@@ -124,13 +115,40 @@ def _extraire_ville(contenu: str, zone_desservie):
     return None
 
 
-def diagnostiquer(contenu_filtre: str, zone_desservie, services=None) -> dict:
+def _source_du_contact(contenu: str, contact_canal: dict | None) -> str | None:
+    """`canal` si la plateforme a vérifié l'identité du correspondant, `texte` si le client l'écrit, sinon `None`."""
+    if contact_canal:
+        return "canal"
+    return "texte" if _extraire_contact(contenu) is not None else None
+
+
+def _diagnostic(contenu: str, zone_desservie, services, contact_canal: dict | None) -> dict:
+    """Le diagnostic d'un contenu déjà nettoyé, zone et services déjà validés.
+
+    Le lead porte un seul `service` : un contenu qui en évoque plusieurs, ou aucun, ne l'établit pas (fail-closed,
+    jamais un choix arbitraire ; l'agent demande alors lequel). La règle de précédence (p. ex. « réparation de
+    gouttières ») reste une décision du propriétaire (T2.1).
+    """
+    evoques = _services_evoques(contenu, services)
+    return {
+        "services_evoques": evoques,
+        "service": evoques[0] if len(evoques) == 1 else None,
+        "ville": _extraire_ville(contenu, zone_desservie),
+        "contact": _source_du_contact(contenu, contact_canal),
+        "urgence_declaree": _extraire_urgence(contenu),
+    }
+
+
+def diagnostiquer(contenu_filtre: str, zone_desservie, services=None, contact_canal: dict | None = None) -> dict:
     """Ce que le contenu établit déjà, pour dire ce qu'il reste à demander (jamais pour qualifier).
 
-    Retourne `{"services_evoques": [codes], "service": code | None, "ville": ville | None, "urgence_declaree": bool}` :
-    `service` n'est posé que si UN SEUL service déclaré est évoqué (même règle que `qualifier`), `ville` que si une
-    ville de `zone_desservie` est reconnue. Mêmes règles, mêmes sources : ce qui est « connu » ici est exactement ce
-    que `qualifier` accepte, jamais davantage.
+    Retourne `{"services_evoques": [codes], "service": code | None, "ville": ville | None, "contact": "canal" |
+    "texte" | None, "urgence_declaree": bool}` : `service` n'est posé que si UN SEUL service déclaré est évoqué (même
+    règle que `qualifier`), `ville` que si une ville de `zone_desservie` est reconnue, `contact` que si la plateforme
+    a fourni l'identité du correspondant (`contact_canal` : « canal ») ou que le texte donne un téléphone ou un
+    courriel (« texte »). Mêmes règles, mêmes sources : ce qui est « connu » ici est exactement ce que `qualifier`
+    accepte, jamais davantage. Le contenu est celui de TOUS les messages rassemblés d'une conversation : le service
+    dans l'un, la ville dans l'autre, le contact et l'urgence où ils sont écrits.
     """
     if not zone_desservie:
         raise ValueError(
@@ -141,14 +159,27 @@ def diagnostiquer(contenu_filtre: str, zone_desservie, services=None) -> dict:
         services, verdict_profil = taxonomie.charger_services()
         if verdict_profil is not None:
             raise ValueError(f"{verdict_profil['code']}: {verdict_profil['detail']}")
-    contenu = _clean(contenu_filtre)
-    evoques = _services_evoques(contenu, services)
-    return {
-        "services_evoques": evoques,
-        "service": evoques[0] if len(evoques) == 1 else None,
-        "ville": _extraire_ville(contenu, zone_desservie),
-        "urgence_declaree": _extraire_urgence(contenu),
-    }
+    return _diagnostic(_clean(contenu_filtre), zone_desservie, services, contact_canal)
+
+
+CHAMPS_DU_LEAD = ("service", "ville", "contact")
+
+
+def champs_manquants(diagnostic: dict) -> list[str]:
+    """Chaque champ du lead que le diagnostic n'établit pas, dans l'ordre `service`, `ville`, `contact`."""
+    return [champ for champ in CHAMPS_DU_LEAD if diagnostic[champ] is None]
+
+
+def _raison_du_champ(champ: str, diagnostic: dict) -> str:
+    """Ce qu'il faut demander pour un champ manquant (le détail du verdict de rejet)."""
+    if champ == "service":
+        evoques = diagnostic["services_evoques"]
+        if evoques:
+            return f"plusieurs services évoqués ({', '.join(evoques)}) : demander lequel traiter en premier"
+        return "aucun service déclaré n'est reconnu dans la demande : demander quel service est visé"
+    if champ == "ville":
+        return "aucune ville de la zone desservie n'est reconnue : demander la ville de la propriété"
+    return "aucun téléphone ni courriel : demander comment joindre le client"
 
 
 def _extraire_urgence(contenu: str) -> bool:
@@ -225,25 +256,15 @@ def qualifier(
         if verdict_profil is not None:
             raise ValueError(f"{verdict_profil['code']}: {verdict_profil['detail']}")
     contenu = _clean(contenu_filtre)
-    if not contenu:
-        return _rejet()
+    diagnostic = _diagnostic(contenu, zone_desservie, services, contact_canal)
+    manque = champs_manquants(diagnostic)
+    if manque:
+        # Le rejet nomme CHAQUE champ manquant (pas seulement le premier) et dit quoi demander pour chacun.
+        raisons = " ; ".join(f"{champ} : {_raison_du_champ(champ, diagnostic)}" for champ in manque)
+        return _rejet(f"champs manquants ({', '.join(manque)}) — {raisons}", manque)
 
-    service, raison = _extraire_service(contenu, services)
-    if service is None:
-        return _rejet(raison)
-
-    ville = _extraire_ville(contenu, zone_desservie)
-    if ville is None:
-        return _rejet()
-
-    urgence = _extraire_urgence(contenu)
-
-    if contact_canal:
-        contact = dict(contact_canal)
-    else:
-        contact = _extraire_contact(contenu)
-        if contact is None:
-            return _rejet()
+    service, ville, urgence = diagnostic["service"], diagnostic["ville"], diagnostic["urgence_declaree"]
+    contact = dict(contact_canal) if contact_canal else _extraire_contact(contenu)
 
     materiau = _materiau_lead_id(conversation_id, contenu, identite_lead)
     lead_id = hashlib.sha256(materiau.encode("utf-8")).hexdigest()

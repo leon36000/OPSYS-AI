@@ -274,7 +274,7 @@ def _traiter(
     if ouverte is not None and ouverte.lead is not None:
         return _complement_de_conversation(
             ouverte, fenetre_minutes, ligne_id_signal, sain, contenu_filtre, signal_id, horodatage,
-            zone_desservie, services,
+            zone_desservie, services, contact_canal,
         )
 
     # 3. Consentement : uniquement pertinent pour un canal vocal (M1-R-07).
@@ -289,11 +289,12 @@ def _traiter(
     # 4. Qualification par règles déterministes, zéro LLM, zéro ville inventée. Avec une fenêtre, elle porte sur
     #    tous les messages de la conversation ouverte (le lead naît quand service et ville sont connus) ; sinon, sur
     #    ce message seul.
-    contenu_a_qualifier, identite_lead, signaux = contenu_filtre, None, [signal_id]
+    contenu_a_qualifier, identite_lead, signaux, diagnostic = contenu_filtre, None, [signal_id], None
     if ouverte is not None:
         contenu_a_qualifier = conversation.contenu_rassemble(ouverte, contenu_filtre)
         signaux = conversation.signaux_rassembles(ouverte, signal_id)
         identite_lead = signaux[0]  # deux conversations de même texte n'ont pas le même lead
+        diagnostic = qualification.diagnostiquer(contenu_a_qualifier, zone_desservie, services, contact_canal)
     resultat_qualif = qualification.qualifier(
         contenu_a_qualifier, canal, conversation_id, zone_desservie,
         services=services, source=source, utm=utm, campagne=campagne, contact_canal=contact_canal,
@@ -308,10 +309,10 @@ def _traiter(
             "consentement": verdict_consentement,
             "qualifie": False,
             "verdict_qualification": resultat_qualif["verdict"],
+            "champs_manquants": resultat_qualif["champs_manquants"],
             "decision": "DEMANDER_PRECISIONS",
         }
         if ouverte is not None:
-            diagnostic = qualification.diagnostiquer(contenu_a_qualifier, zone_desservie, services)
             reponse_precisions["conversation"] = conversation.decrire(
                 ouverte, horodatage, fenetre_minutes, signaux, diagnostic)
             reponse_precisions.update(conversation.proposer_precisions(
@@ -352,7 +353,7 @@ def _traiter(
     if cle_session is not None:
         reponse["cle_session"] = cle_session
     if ouverte is not None:
-        reponse["conversation"] = conversation.decrire(ouverte, horodatage, fenetre_minutes, signaux)
+        reponse["conversation"] = conversation.decrire(ouverte, horodatage, fenetre_minutes, signaux, diagnostic)
     return reponse
 
 
@@ -366,11 +367,18 @@ def _complement_de_conversation(
     horodatage: str,
     zone_desservie: list[str],
     services,
+    contact_canal: dict[str, str] | None,
 ) -> dict[str, Any]:
     """Un message qui arrive dans une conversation DÉJÀ qualifiée : aucun second lead. Ce que le lead transmis à M2
-    ne porte pas (une urgence, un autre service évoqué) est dit dans la réponse, pour qu'une personne le voie."""
+    ne porte pas (une urgence, un autre service évoqué) est dit dans la réponse, pour qu'une personne le voie.
+
+    L'urgence se cumule sur TOUS les messages de la conversation, avant et après le lead : `complement.urgence_declaree`
+    est vraie quand la conversation la déclare et que le lead transmis ne la porte pas (le contrat v2 est gelé, il ne
+    se met pas à jour). `services_evoques` et `autre_service_evoque` disent ce que CE message évoque."""
     ligne_lead = ouverte.lead
     diagnostic = qualification.diagnostiquer(contenu_filtre, zone_desservie, services)
+    cumul = qualification.diagnostiquer(
+        conversation.contenu_rassemble(ouverte, contenu_filtre), zone_desservie, services, contact_canal)
     autres = [code for code in diagnostic["services_evoques"] if code != ligne_lead["lead"]["service"]]
     return {
         "etape": "conversation",
@@ -384,12 +392,12 @@ def _complement_de_conversation(
         "lead_ligne_id": ligne_lead["ligne_id"],
         "decision": "CONVERSATION_DEJA_QUALIFIEE",
         "complement": {
-            "urgence_declaree": diagnostic["urgence_declaree"],
+            "urgence_declaree": cumul["urgence_declaree"] and not ligne_lead["lead"]["urgence_declaree"],
             "services_evoques": diagnostic["services_evoques"],
             "autre_service_evoque": bool(autres),
         },
         "conversation": conversation.decrire(
-            ouverte, horodatage, fenetre_minutes, conversation.signaux_rassembles(ouverte, signal_id)),
+            ouverte, horodatage, fenetre_minutes, conversation.signaux_rassembles(ouverte, signal_id), cumul),
         "consigne": (
             "La conversation est déjà qualifiée : ce message est inscrit et rattaché à son lead, aucun second lead "
             "n'est créé. Si `complement.urgence_declaree` ou `complement.autre_service_evoque` est vrai, dis-le à "
