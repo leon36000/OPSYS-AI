@@ -392,13 +392,17 @@ moteur_python_utilisable() {
     [ -x "$VENV_PY" ] && "$VENV_PY" -c 'import sys; sys.exit(sys.version_info < (3, 11))' >/dev/null 2>&1
 }
 
+# Extras d'exécution du moteur (pyproject.toml) : sans eux, la cédule par tournées de M4 (PyVRP) et la soumission
+# en PDF de M3 (ReportLab) échouent fermées. `postgres` et `console` restent à Docker Compose, `dev` aux contributeurs.
+EXTRAS_MOTEUR="tournees,soumission"
+
 installer_moteur() {
     if ! moteur_python_utilisable; then
         CONSEIL="Il faut Python 3.11 ou plus : installez-le, ou laissez uv le télécharger (accès réseau)." \
             etape "Création de l'environnement Python (uv venv)" uv venv --clear --python '>=3.11' "$VENV"
     fi
     CONSEIL="Vérifiez l'accès réseau (PyPI), puis relancez." \
-        etape "Installation du moteur métier (uv pip install)" uv pip install --python "$VENV_PY" --editable "$SOURCE"
+        etape "Installation du moteur métier (uv pip install)" uv pip install --python "$VENV_PY" --editable "${SOURCE}[${EXTRAS_MOTEUR}]"
 }
 
 # -- 4. L'instance -----------------------------------------------------------------------------------------------------------

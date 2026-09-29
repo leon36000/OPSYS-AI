@@ -158,9 +158,12 @@ identifiants du propriétaire, repli livré en attendant.
       manquent : le jeton du moteur est bien lu) ; échec à `gateway install` : le core n'installe
       un service que pour le dossier d'état canonique d'un profil (`isDefaultInstallIdentity`),
       et l'installateur pose `OPENCLAW_STATE_DIR=$OPSYS_HOME/core`.
-      - [ ] T0.11-c Les installateurs installent les extras `tournees` (PyVRP) et `soumission`
+      - [x] T0.11-c Les installateurs installent les extras `tournees` (PyVRP) et `soumission`
             (ReportLab) : sans eux, la cédule VRP et le PDF échouent fermés sur une installation
-            locale (`install.sh`, `install.ps1`).
+            locale (`install.sh`, `install.ps1`). Preuve : `EXTRAS_MOTEUR` et
+            `$script:ExtrasMoteur` ; test qui confronte les deux scripts aux extras de
+            `pyproject.toml` (hors `postgres`, `console`, `dev`) ; tests des scripts 50 verts,
+            shellcheck OK. Le job `installateur` l'exerce avec le vrai PyPI.
       - [ ] T0.11-b Service par le profil `opsys` du core : livré (b02f7a4, a0f3c95), à cocher sur le job
             `installateur`. Le core tourne sous l'option racine `--profile opsys` (la variable seule
             ne projette pas l'état : seul `applyCliProfileEnv` le fait) ; état canonique

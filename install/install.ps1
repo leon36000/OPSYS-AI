@@ -381,11 +381,15 @@ function Test-MoteurPython {
     return ($r.Code -eq 0)
 }
 
+# Extras d'execution du moteur (pyproject.toml) : sans eux, la cedule par tournees de M4 (PyVRP) et la soumission
+# en PDF de M3 (ReportLab) echouent fermees. `postgres` et `console` restent a Docker Compose, `dev` aux contributeurs.
+$script:ExtrasMoteur = 'tournees,soumission'
+
 function Install-Moteur {
     if (-not (Test-MoteurPython)) {
         Invoke-Etape "Creation de l'environnement Python (uv venv)" { & uv venv --clear --python '>=3.11' $script:Venv } -Conseil "Il faut Python 3.11 ou plus : installez-le, ou laissez uv le telecharger (acces reseau)."
     }
-    Invoke-Etape "Installation du moteur metier (uv pip install)" { & uv pip install --python $script:VenvPy --editable $script:Depot } -Conseil "Verifiez l'acces reseau (PyPI), puis relancez."
+    Invoke-Etape "Installation du moteur metier (uv pip install)" { & uv pip install --python $script:VenvPy --editable "$($script:Depot)[$($script:ExtrasMoteur)]" } -Conseil "Verifiez l'acces reseau (PyPI), puis relancez."
 }
 
 # -- L'instance -----------------------------------------------------------------------------------------------------------------

@@ -284,7 +284,8 @@ def test_installation_complete_dans_l_ordre_avec_les_bons_arguments(bac):
         f"openclaw {PROFIL} config file", f"openclaw {PROFIL} config validate", f"openclaw {PROFIL} gateway install")]
     assert ordre == sorted(ordre)
     assert f"uv venv --clear --python >=3.11 {bac.logiciel}/venv" in appels
-    assert f"uv pip install --python {bac.logiciel}/venv/bin/python --editable {bac.depot}" in appels
+    moteur = f"uv pip install --python {bac.logiciel}/venv/bin/python --editable {bac.depot}[tournees,soumission]"
+    assert moteur in appels
     assert f"openclaw {PROFIL} gateway install --force --port 18789" in appels
     assert all(a.startswith(f"openclaw {PROFIL} ") for a in appels if a.startswith("openclaw "))  # jamais sans profil
     config = json.loads((bac.etat_core / "openclaw.json").read_text(encoding="utf-8"))
@@ -614,7 +615,8 @@ def test_installation_a_distance_par_curl_pipe_bash_puis_mise_a_jour_par_relance
         ["git", "-C", str(clone), "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
     enregistrement = (bac.logiciel / "installation.env").read_text(encoding="utf-8").splitlines()
     assert f"SOURCE={clone}" in enregistrement and "SOURCE_GEREE=1" in enregistrement
-    assert f"uv pip install --python {bac.logiciel}/venv/bin/python --editable {clone}" in bac.appels()
+    moteur = f"uv pip install --python {bac.logiciel}/venv/bin/python --editable {clone}[tournees,soumission]"
+    assert moteur in bac.appels()
 
     nouveau = bac.commit("deuxième")
     seconde = bac.lancer(INSTALL, entree=script, **_a_distance(bac))  # main : la mise à jour
@@ -843,3 +845,22 @@ def test_les_scripts_sont_executables_et_sans_faute_de_syntaxe():
                                   capture_output=True, text=True, check=False,
                                   env={**os.environ, "LC_ALL": "C.UTF-8"})
         assert resultat.returncode == 0, resultat.stdout
+
+
+# Les extras qui ne servent qu'à Docker Compose (`postgres`, `console`) ou aux contributeurs (`dev`) ; tout autre extra
+# de pyproject.toml est une dépendance d'exécution du moteur que les deux installateurs doivent poser (T0.11-c).
+EXTRAS_HORS_INSTALLATEUR = {"postgres", "console", "dev"}
+
+
+def test_les_installateurs_posent_tous_les_extras_d_execution_du_moteur() -> None:
+    import tomllib
+
+    projet = tomllib.loads((RACINE / "pyproject.toml").read_text(encoding="utf-8"))
+    attendus = set(projet["project"]["optional-dependencies"]) - EXTRAS_HORS_INSTALLATEUR
+    assert attendus >= {"tournees", "soumission"}
+    sh = re.search(r'^EXTRAS_MOTEUR="([a-z,_-]+)"$', INSTALL.read_text(encoding="utf-8"), re.MULTILINE)
+    ps1 = re.search(r"^\$script:ExtrasMoteur = '([a-z,_-]+)'$",
+                    (RACINE / "install" / "install.ps1").read_text(encoding="utf-8"), re.MULTILINE)
+    assert sh is not None and ps1 is not None
+    assert set(sh.group(1).split(",")) == attendus
+    assert set(ps1.group(1).split(",")) == attendus
