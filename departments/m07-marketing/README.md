@@ -120,8 +120,8 @@ coup) ou à proposer des textes rédigés par le modèle.
 la fiche Google, script de vidéo courte, demande de témoignage (message privé au client). Chacun est `PROPOSE`, jamais
 publié, avec la preuve du consentement (qui, quand, quel texte), ses mots-clics (termes du service, ville du WCT,
 mots-clics du profil) et **son lien de suivi UTM** (`utm_source`/`utm_medium` de l'énuméré gelé du contrat S012 ;
-`utm_campaign = contenu-<service>-<année>`, `utm_content = <plateforme>-<empreinte du chantier>` : aucun identifiant
-interne dans une URL publique). Sans `site_url` au profil, ou avec un site non HTTPS, le contenu est proposé sans lien
+`utm_campaign = contenu-<service>-<année>`, `utm_content = <plateforme>-<empreinte du contenu>`, voir « Mesure par
+contenu » : aucun identifiant interne dans une URL publique). Sans `site_url` au profil, ou avec un site non HTTPS, le contenu est proposé sans lien
 et `avertissements` le dit ; la vidéo courte prend `tiktok`, seule source vidéo de l'énuméré ; la demande de témoignage
 n'a pas de lien.
 
@@ -219,6 +219,42 @@ maillons ; le retrait l'emporte sur tout.
 contenus en attente, texte avec prix refusé, approbation, paquet exporté, sans consentement rien, retrait bloqué. Le STOP de
 M1 par le vrai bus : `tests/usine/test_retrait_du_bus.py` (M7 seul) et `tests/test_stop_retire_consentement_marketing.py` à la
 racine du dépôt (SMS, lead, « Terminer », approbation, export, STOP : tout est bloqué).
+
+## Mesure par contenu : la clé `utm_content` (PLAN T4.17-e)
+
+DEFINITION-PRODUIT §7 M7.3 (« mesure ») et §6 (« M7 attire → M1 capte »). Pour savoir quel contenu a amené quel lead,
+chaque contenu porte une **clé de mesure**, `utm_content`, qui voyage du paquet au lead. Code : `usine/mesure.py`.
+
+- **Déterministe.** `utm_content = <plateforme>-<16 premiers chiffres du SHA-256 du contenu_id>`, tirée du seul
+  identifiant du contenu (lui-même dérivé du chantier, de la plateforme et de la révision). Aucun hasard, aucune horloge :
+  le même contenu donne toujours la même clé, une révision une autre. Alphabet et longueur du contrat UTM gelé
+  (`utm-convention.v1`).
+- **Sans renseignement personnel.** L'empreinte n'est pas réversible : ni nom de client, ni adresse, ni `wct_id`, ni
+  identifiant de lead dans une URL publique. Une clé d'avant, ou altérée, qui n'est pas celle de l'identifiant est refusée.
+- **Fail-closed.** Un contenu sans identifiant stable n'a pas de clé : `REJ-CONTENU-SANS-IDENTIFIANT-DE-MESURE`, jamais un
+  identifiant inventé. Un contenu proposé avant T4.17-e, dont le lien porte l'ancienne clé (empreinte du chantier), est
+  refusé à l'export (`REJ-UTM-CONTENT-INCOHERENT`) : le rejeter et proposer un nouveau texte refait un lien conforme.
+- **Où elle voyage.** La proposition (`utm_content`, `utm.content`), le lien de suivi (`utm_source`, `utm_medium`,
+  `utm_campaign` de l'énuméré gelé, plus `utm_content`), le paquet exporté (`utm_content` et `lien_utm`), la trace d'export
+  (`exports_paquet`) et le fait au bus. Sans `site_url` au profil, ou pour la demande de témoignage (message privé), la clé
+  existe mais aucun lien ne la porte : `lien_utm` vaut `None`, le fait dit `lien_de_suivi: false` et M8 répond « non
+  mesurable », jamais zéro.
+- **Le fait `m7.contenu_exporte`** (catalogue `src/opsys/evenements/catalogue/m7.contenu_exporte.json`) : `m7_exporter_paquet_manuel`
+  l'annonce au bus dans la transaction de l'export, avec `contenu_id`, `wct_id` (le chantier), `canal`, `utm_content`,
+  `lien_de_suivi` et `exporte_le`. AUCUN texte, ville, lead ni contact. Identifiant déterministe (`m7-contenu-exporte-<contenu_id>`) :
+  un export rejoué n'annonce rien de plus ; ré-exporter un paquet exporté avant T4.17-e l'annonce (`mesure.statut`).
+  Si l'annonce est refusée, la trace d'export n'est pas écrite : jamais un paquet que M8 ne connaîtrait pas.
+- **M8 compte** (`m8_lire_mesures_contenus`) les leads de M1 (`m1.lead_qualifie`, `lead.utm.utm_content`, égalité stricte)
+  puis les devis de M3 par contenu ; un lead sans clé n'est attribué à aucun contenu.
+
+**Limites, jamais cachées.** (1) Le trajet physique n'est pas bouclé : le site généré n'a pas de formulaire qui recopie
+`utm_*` vers M1, et le canal SMS de M1 (`m1_recevoir_message_canal`) n'accepte pas `utm` ; seul `m1_traiter_demande_entrante`
+le porte aujourd'hui. (2) Impressions et clics : aucune source (ni le bus, ni Matomo, ni les statistiques des
+plateformes) ; M8 dit « non calculable », jamais un zéro ; le connecteur reste à décider. (3) L'attribution est à la
+dernière touche par clé : un client qui revient par une opportunité rouverte par M2 (`<lead>~opp~<wct_id>`) n'est pas
+attribué à son contenu d'origine. (4) L'énuméré UTM gelé n'a aucune source YouTube et une seule source vidéo (`tiktok`) : la
+vidéo courte est comptée comme TikTok, où que le propriétaire la publie. GATE NATHAN, avec les canaux et les conventions
+de nommage des campagnes.
 
 ## Contrat gelé v1
 

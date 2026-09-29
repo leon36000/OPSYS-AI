@@ -16,6 +16,10 @@ Usine à contenu d'un chantier (PLAN T4.17) : les six outils `m7_*_chantier`, `m
 sur `usine.service` ; la logique vit dans les modules purs de `usine/`. Le consommateur `m4.travaux_termines`
 propose aussi les cinq contenus d'un chantier terminé (gabarits du code, jamais un modèle), et `attentes()`
 montre au propriétaire, dans « À voir », les contenus qui attendent sa décision.
+
+Mesure par contenu (PLAN T4.17-e, `usine/mesure.py`) : chaque contenu porte une clé `utm_content` déterministe, tirée de
+son identifiant ; le lien de suivi du paquet la porte, et `m7_exporter_paquet_manuel` annonce au bus le fait
+`m7.contenu_exporte` (clé, chantier, canal ; rien de personnel) pour que M8 compte les leads par contenu.
 """
 
 from __future__ import annotations
@@ -912,9 +916,10 @@ def outils() -> tuple[Outil, ...]:
         Outil(
             nom="m7_exporter_paquet_manuel",
             description=(
-                "Paquet manuel d'un contenu APPROUVÉ : texte, mots-clics, lien de suivi, médias (« à flouter à la "
-                "main »), heure suggérée du profil de marque, instructions. Ne publie rien, n'appelle aucune API : "
-                "le propriétaire publie lui-même. Refuse un contenu non approuvé ou dont le consentement est retiré."
+                "Paquet manuel d'un contenu APPROUVÉ : texte, mots-clics, lien de suivi et sa clé utm_content, médias "
+                "(« à flouter à la main »), heure suggérée, instructions. Ne publie rien : le propriétaire publie "
+                "lui-même ; annonce au bus le contenu exporté (clé, chantier, canal), sans renseignement personnel. "
+                "Refuse un contenu non approuvé, sans clé de mesure ou au consentement retiré."
             ),
             parametres={
                 "type": "object",

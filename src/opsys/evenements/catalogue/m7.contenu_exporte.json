@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m7.contenu_exporte",
+  "title": "M7 — Contenu exporté",
+  "description": "Émis par M7 (departments/m07-marketing/src/m7_marketing/usine/service.py::exporter_paquet_manuel, outil m7_exporter_paquet_manuel, PLAN T4.17-e) quand le propriétaire prend le paquet manuel d'un contenu de chantier approuvé, dans la MÊME transaction que la trace de l'export. Dit à M8 quels contenus existent et par quelle clé de mesure (`utm_content`) un lead qui l'a suivi se reconnaît : M1 rapporte cette clé dans `m1.lead_qualifie` (`lead.utm.utm_content`) et M8 compte les leads par contenu. `utm_content` est DÉTERMINISTE, tiré du seul `contenu_id` (`<canal>-<empreinte SHA-256 du contenu_id>`, alphabet et longueur du contrat gelé utm-convention.v1) : jamais un hasard, jamais le nom d'un client ni une adresse. AUCUN renseignement personnel : ni texte du contenu, ni ville, ni lead_id, ni contact, ni nom de client ; `wct_id` est l'identifiant interne du chantier terminé que M4 publie déjà (`m4.travaux_termines`). `lien_de_suivi` dit si le paquet portait un lien qui contient `utm_content` : sans lien (site_url absent du profil de marque, ou message privé au client), aucun lead ne peut porter la clé, et M8 répond « non mesurable » au lieu d'un zéro. evenement_id déterministe (f\"m7-contenu-exporte-{contenu_id}\") : un export rejoué republie le même identifiant, un no-op de l'outbox, jamais un second contenu. Un contenu rejeté puis récrit est une autre révision, donc un autre contenu_id et une autre clé. Consommateur visé : M8 (registre faits_contenus, mesures par contenu) ; ajouter le type à evenements.consomme de M8 et sa fonction dans consommateurs().",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "contenu_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifiant du contenu chez M7 (UUID dérivé du chantier, de la plateforme et de la révision) : la clé de l'idempotence côté consommateur."
+    },
+    "wct_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Le chantier terminé dont le contenu est tiré (WCT de m4.travaux_termines)."
+    },
+    "canal": {
+      "enum": ["facebook", "instagram", "fiche_google", "video_courte", "demande_temoignage"],
+      "description": "La plateforme du contenu (M7.2, code de m7_marketing.usine.plateformes) : où le propriétaire le publie, ou le message privé qu'il envoie."
+    },
+    "utm_content": {
+      "type": "string",
+      "pattern": "^[a-z0-9_-]{1,80}$",
+      "description": "La clé de mesure du contenu : celle que son lien de suivi porte en `utm_content` et que le lead rapporte à M1. Alphabet et longueur du contrat gelé utm-convention.v1."
+    },
+    "lien_de_suivi": {
+      "type": "boolean",
+      "description": "Vrai si le paquet exporté portait un lien de suivi qui contient utm_content. Faux : aucun lead ne peut porter la clé (site_url absent du profil de marque, ou message privé sans lien)."
+    },
+    "exporte_le": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Instant de l'export du paquet, RFC 3339 avec fuseau : celui de la trace d'export (l'heure de réception du serveur pour un appel d'appareil), jamais une horloge de M7 en dehors de cette trace."
+    }
+  },
+  "required": ["contenu_id", "wct_id", "canal", "utm_content", "lien_de_suivi", "exporte_le"]
+}

@@ -16,6 +16,11 @@ Ce que le paquet dit, sans jamais le présenter comme plus sûr qu'il n'est :
     paquet le dit et ne propose aucune heure : aucun « meilleur moment » n'est inventé.
   - La demande de témoignage est un message privé au client : elle ne s'envoie que si le client a consenti à
     être contacté (`consentement_demande_avis` prouvé), et le paquet dit ce qu'il en est.
+  - Chaque contenu porte sa clé de mesure, `utm_content` (`mesure.py`, PLAN T4.17-e) : celle que son lien de suivi
+    contient et que M8 compte. Sans lien (site du profil absent, message privé), la clé existe mais aucun lead ne peut
+    la porter : `lien_utm` vaut `None` et le paquet ne prétend pas que le contenu sera mesuré. Le reste du suivi
+    (source, support, campagne) est dans le lien lui-même : le paquet ne le répète pas (la réponse d'un outil est
+    bornée à 6 000 caractères).
 
 Module pur : aucune entrée-sortie, aucun import `opsys`.
 """
@@ -97,7 +102,10 @@ def composer_paquet(
     contenu: Mapping[str, Any], charge: Mapping[str, Any], brouillons_contenu_public: Iterable[Mapping[str, Any]],
     profil: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Le paquet manuel d'un contenu APPROUVÉ (`contenu` : la vue de `registre.vue`, avec sa décision)."""
+    """Le paquet manuel d'un contenu APPROUVÉ (`contenu` : la vue de `registre.vue`, avec sa décision).
+
+    `contenu["utm_content"]` est la clé de mesure DÉJÀ vérifiée (`mesure.identifiant_de_mesure`) : ce module ne la
+    calcule pas, il la remet. Absente, c'est une erreur de programmation (`KeyError`), jamais une clé inventée."""
     plateforme = plateformes.plateforme(contenu["plateforme"])
     decision = contenu["decision"]
     copie = [contenu["texte"]]
@@ -117,6 +125,7 @@ def composer_paquet(
         "texte": contenu["texte"],
         "mots_clics": contenu["mots_clics"],
         "lien_utm": contenu["lien_utm"],
+        "utm_content": contenu["utm_content"],
         "texte_a_copier": "\n\n".join(copie),
         "medias": medias_du_contenu(contenu, brouillons_contenu_public) if plateforme.public else [],
         "heure_suggeree": heure,
@@ -138,7 +147,8 @@ def construire_export(
     contenu: Mapping[str, Any], exporte_par: str, horodatage: Any,
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     """`(maillon d'export, None)` ou `(None, verdict)` : la trace qu'un paquet a été remis au propriétaire
-    (l'étape « mesure » de M7.3 sait ainsi ce qui est sorti). Un export par contenu, jamais un doublon."""
+    (l'étape « mesure » de M7.3 sait ainsi ce qui est sorti, et sous quelle clé `utm_content`). Un export par contenu,
+    jamais un doublon. `contenu["utm_content"]` est la clé déjà vérifiée (`mesure.identifiant_de_mesure`)."""
     if not retrait.horodatage_valide(horodatage):
         return None, verdicts.verdict(verdicts.REJ_HORODATAGE_INVALIDE, "horodatage ISO 8601 avec fuseau requis")
     canonique = json.dumps({"contenu_id": contenu["contenu_id"], "type": "export_paquet"}, sort_keys=True)
@@ -148,6 +158,7 @@ def construire_export(
         "wct_id": contenu["wct_id"],
         "plateforme": contenu["plateforme"],
         "empreinte_texte": contenu["empreinte_texte"],
+        "utm_content": contenu["utm_content"],
         "exporte_par": exporte_par,
         "horodatage": horodatage,
     }, None

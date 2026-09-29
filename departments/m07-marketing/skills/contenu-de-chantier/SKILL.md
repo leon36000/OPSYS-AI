@@ -28,6 +28,11 @@ description: Procédure pour proposer les cinq contenus d'un chantier terminé (
    lui-même. Chaque média est « à flouter à la main » : aucun détecteur réel de visages et de plaques n'est
    installé, ne présente jamais une photo comme sûre. L'heure suggérée vient du profil de marque ; sans elle, dis
    qu'il n'y en a pas.
+   Le paquet porte `utm_content`, la clé de mesure du contenu, que son lien de suivi contient : à l'export, M7 annonce
+   au bus le contenu (clé, chantier, canal ; rien de personnel) et M8 compte les leads qui portent cette clé. Si
+   `lien_utm` est vide (site du profil absent, ou message privé), aucun lead ne pourra porter la clé : dis-le, ne promets
+   aucune mesure. Un refus `REJ-UTM-CONTENT-INCOHERENT` veut dire que le lien du contenu date d'avant la convention :
+   propose-en un nouveau texte (révision) après le rejet du propriétaire.
 7. **La demande de témoignage** est un message privé au client : elle ne s'envoie que si le paquet dit
    `contact_client.autorise` (le client a consenti à être contacté, preuve à l'appui).
 8. **Retrait du consentement (Loi 25).** Si le client dit qu'il retire son consentement, enregistre-le tout de suite

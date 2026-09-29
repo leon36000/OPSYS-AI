@@ -32,8 +32,12 @@ memoire:
   ecriture: [contenus_proposes, roi_snapshots]
 # PLAN T4.17-c : M7 consomme le STOP de M1 (`m1.retrait_consentement`, les leads que le client avait ouverts, par leur
 # `lead_id`) et l'inscrit comme retrait du consentement marketing. Catalogue : src/opsys/evenements/catalogue/.
+# PLAN T4.17-e : M7 publie `m7.contenu_exporte` quand le propriétaire prend le paquet manuel d'un contenu (dans la
+# transaction de l'export) : la clé de mesure `utm_content` du contenu, son chantier (`wct_id`) et son canal, jamais un
+# texte, une ville, un lead ni un contact. M8 en tire les contenus qui existent et compte les leads par `utm_content`.
 evenements:
   consomme: [m4.travaux_termines, m1.retrait_consentement]
+  publie: [m7.contenu_exporte]
 kpis:
   - id: m7_cout_par_lead_global
     description: Coût publicitaire joignable divisé par les leads attribués aux canaux correspondants (CAD/lead).

@@ -10,10 +10,12 @@ Registres (`m07-marketing`, append-only, durables) :
   - `wct_recus`                        les WCT `m4.travaux_termines` reçus (source unique des faits d'un chantier) ;
   - `contenus_chantier`                les propositions : un maillon par contenu et par révision ;
   - `decisions_contenu`                la décision humaine sur un contenu ;
-  - `exports_paquet`                   la trace qu'un paquet manuel a été remis ;
+  - `exports_paquet`                   la trace qu'un paquet manuel a été remis (avec sa clé `utm_content`) ;
   - `retraits_consentement_marketing`  le retrait du consentement d'un client, jamais effacé.
 
-Aucun outil de ce service ne publie, n'envoie ni ne programme quoi que ce soit : la publication est manuelle.
+Aucun outil de ce service ne publie, n'envoie ni ne programme quoi que ce soit : la publication est manuelle. Un
+paquet exporté annonce seulement au bus le fait `m7.contenu_exporte` (PLAN T4.17-e : la clé de mesure du contenu, son
+chantier, son canal), pour que M8 compte les leads par contenu ; rien de personnel n'y voyage.
 """
 
 from __future__ import annotations
@@ -21,11 +23,11 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from opsys import approbations, identite, stockage, taxonomie
+from opsys import approbations, evenements, identite, stockage, taxonomie
 from opsys import contexte as contexte_appel
 
 from ..brand import profil_client as brand_profil_client
-from . import chantier, paquet, plateformes, registre, retrait, verdicts
+from . import chantier, mesure, paquet, plateformes, registre, retrait, verdicts
 from . import decision as regle_decision
 from .controle_texte import LIBELLES_REGLES, controler_texte
 
@@ -41,6 +43,8 @@ REGISTRE_EXPORTS_PAQUET = (DEPARTEMENT, "exports_paquet")
 REGISTRE_RETRAITS = (DEPARTEMENT, "retraits_consentement_marketing")
 
 STATUT_WCT_INCONNU = "wct_inconnu"
+STATUT_ANNONCE = "annonce"
+STATUT_DEJA_ANNONCE = "deja_annonce"
 STATUT_PROFIL_MARQUE_NON_CONFIGURE = "profil_marque_non_configure"
 STATUT_OK = "ok"
 
@@ -419,17 +423,39 @@ def exporter_paquet_manuel(contenu_id: str, horodatage: str) -> dict[str, Any]:
     refus_texte = _refus_texte(proposition)
     if refus_texte is not None:
         return refus_texte
+    utm_content, refus_mesure = mesure.identifiant_de_mesure(proposition)
+    if utm_content is None:
+        return _refus(refus_mesure or verdicts.verdict(verdicts.REJ_CONTENU_SANS_IDENTIFIANT, "clé de mesure absente"))
+    contenu = {**contenu, "utm_content": utm_content}
     profil, _ = brand_profil_client.charger_profil_client()
     charge = wct_recu(proposition["wct_id"]) or {}
     composition = paquet.composer_paquet(contenu, charge, _lire(REGISTRE_CONTENU_PUBLIC), profil or {})
-    deja_exporte = registre.export_de(contenu_id, exports) is not None
-    if not deja_exporte:
+    export = registre.export_de(contenu_id, exports)
+    deja_exporte = export is not None
+    if export is None:
         personne, _source = _qui_appelle()
-        maillon, verdict = paquet.construire_export(proposition, personne, _horodatage_faisant_foi(horodatage))
+        maillon, verdict = paquet.construire_export(contenu, personne, _horodatage_faisant_foi(horodatage))
         if verdict is not None:
             return _refus(verdict)
         stockage.maillons(*REGISTRE_EXPORTS_PAQUET).append(maillon)
-    return {"accepte": True, "resultat": {**composition, "deja_exporte": deja_exporte}}
+        export = maillon
+    return {"accepte": True, "resultat": {
+        **composition, "deja_exporte": deja_exporte,
+        "mesure": _annoncer_contenu_exporte(proposition, utm_content, export["horodatage"]),
+    }}
+
+
+def _annoncer_contenu_exporte(proposition: dict[str, Any], utm_content: str, exporte_le: str) -> dict[str, str]:
+    """Annonce au bus `m7.contenu_exporte`, dans la transaction de l'export (PLAN T4.17-e). L'identifiant du fait est
+    celui du contenu : un export rejoué republie le même, un no-op de l'outbox. Republier à chaque appel rattrape un
+    paquet exporté avant l'existence du fait (le ré-exporter, c'est l'annoncer), sans jamais annoncer deux fois."""
+    evenement_id = mesure.evenement_id(proposition["contenu_id"])
+    deja_annonce = evenements.deja_publie(evenement_id)
+    evenements.publier(
+        mesure.TYPE_EVENEMENT, DEPARTEMENT, mesure.charge_contenu_exporte(proposition, utm_content, exporte_le),
+        evenement_id=evenement_id,
+    )
+    return {"fait": mesure.TYPE_EVENEMENT, "statut": STATUT_DEJA_ANNONCE if deja_annonce else STATUT_ANNONCE}
 
 
 # -- retirer le consentement ----------------------------------------------------------------------------------

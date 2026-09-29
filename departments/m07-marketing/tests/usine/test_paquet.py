@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from urllib.parse import parse_qs, urlsplit
+
 import pytest
 from m7_marketing.usine import chantier, paquet, plateformes, registre, verdicts
 
@@ -121,3 +123,45 @@ def test_la_trace_d_export_est_deterministe_et_valide_l_horodatage(charge, profi
         contenu["contenu_id"], "nathan", contenu["empreinte_texte"])
     rate, verdict = paquet.construire_export(contenu, "nathan", "bientôt")
     assert rate is None and verdict["code"] == verdicts.REJ_HORODATAGE_INVALIDE
+
+
+# -- la clé de mesure du paquet (PLAN T4.17-e) ------------------------------------------------------------------
+@pytest.mark.parametrize("code", ["facebook", "instagram", "fiche_google", "video_courte"])
+def test_chaque_paquet_public_porte_sa_cle_de_mesure_et_son_lien_la_contient(code, charge, profil, nature):
+    contenu = _contenu(charge, profil, nature, code)
+    resultat = paquet.composer_paquet(contenu, charge, [], profil)
+    assert resultat["utm_content"] == contenu["utm_content"] and resultat["utm_content"].startswith(f"{code}-")
+    requete = parse_qs(urlsplit(resultat["lien_utm"]).query)
+    assert requete["utm_content"] == [resultat["utm_content"]]
+    assert requete["utm_source"] == [plateformes.plateforme(code).source_utm]
+    assert requete["utm_medium"] == [plateformes.plateforme(code).medium_utm]
+    assert requete["utm_campaign"] == ["contenu-gouttieres-et-descentes-2026"]
+    assert "utm" not in resultat  # le lien dit tout : le paquet ne le répète pas (réponse bornée à 6 000 caractères)
+
+
+def test_le_message_prive_a_une_cle_mais_aucun_lien_et_ne_pretend_pas_etre_mesure(charge, profil, nature):
+    resultat = paquet.composer_paquet(_contenu(charge, profil, nature, "demande_temoignage"), charge, [], profil)
+    assert resultat["utm_content"].startswith("demande_temoignage-")
+    assert resultat["lien_utm"] is None
+
+
+def test_sans_site_le_paquet_a_sa_cle_sans_lien_et_l_avertissement_du_manque(charge, profil, nature):
+    del profil["site_url"]
+    contenu = _contenu(charge, profil, nature, "facebook")
+    resultat = paquet.composer_paquet(contenu, charge, [], profil)
+    assert resultat["utm_content"] == contenu["utm_content"]
+    assert resultat["lien_utm"] is None
+    assert any("site_url" in avertissement for avertissement in resultat["avertissements"])
+
+
+def test_le_paquet_ne_calcule_pas_la_cle_il_remet_celle_qui_a_ete_verifiee(charge, profil, nature):
+    contenu = _contenu(charge, profil, nature, "facebook")
+    del contenu["utm_content"]
+    with pytest.raises(KeyError, match="utm_content"):
+        paquet.composer_paquet(contenu, charge, [], profil)
+
+
+def test_la_trace_d_export_garde_la_cle_annoncee(charge, profil, nature):
+    contenu = _contenu(charge, profil, nature, "instagram")
+    trace, _ = paquet.construire_export(contenu, "nathan", HORODATAGE)
+    assert trace["utm_content"] == contenu["utm_content"]

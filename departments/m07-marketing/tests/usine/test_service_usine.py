@@ -19,14 +19,14 @@ from m7_marketing.moderation.detection import Detection
 from m7_marketing.moderation.image import Boite
 from m7_marketing.social import postiz_adapter
 from m7_marketing.usine import chantier, plateformes, registre, service
-from sqlalchemy import update
+from sqlalchemy import delete, select, update
 
-from opsys import approbations, contexte, identite, stockage
+from opsys import approbations, contexte, evenements, identite, stockage
 from opsys.approbations_appareil import LIMITE_RESUME_ATTENTE
 from opsys.departements import PolitiqueApprobation, lire_manifeste
 from opsys.outils import Niveau, executer_atomique
 from opsys.stockage import codec
-from opsys.stockage.schema import APPROBATIONS, REGISTRES
+from opsys.stockage.schema import APPROBATIONS, EVENEMENTS_SORTANTS, REGISTRES
 
 FICTIF = True
 HORODATAGE = "2026-09-29T10:00:00-04:00"
@@ -806,6 +806,202 @@ def test_la_demande_de_temoignage_dit_si_le_client_peut_etre_contacte(
         paquet = exporte["resultat"]
         assert paquet["public"] is False and paquet["contact_client"]["autorise"] is autorise
         assert paquet["medias"] == [] and paquet["lien_utm"] is None
+
+
+# =============================================================================================================
+# Mesure par contenu (PLAN T4.17-e) : la clé `utm_content` du paquet et le fait « contenu exporté » au bus
+# =============================================================================================================
+def _faits_contenu_exporte():
+    """Les événements `m7.contenu_exporte` du bus, `(evenement_id, producteur, charge)`, dans l'ordre de publication."""
+    with stockage.transaction() as cnx:
+        lignes = cnx.execute(select(EVENEMENTS_SORTANTS).where(
+            EVENEMENTS_SORTANTS.c.type_evenement == "m7.contenu_exporte"
+        ).order_by(EVENEMENTS_SORTANTS.c.cree_le, EVENEMENTS_SORTANTS.c.evenement_id)).mappings().all()
+    return [(ligne["evenement_id"], ligne["producteur"], codec.decoder(ligne["charge"])) for ligne in lignes]
+
+
+def _exporter(contenu_id, *, appareil=("nathan", "admin")):
+    return _metier(_appeler("m7_exporter_paquet_manuel", appareil=appareil, contenu_id=contenu_id,
+                            horodatage=HORODATAGE))
+
+
+def _alterer_proposition(contenu_id, **surcharges):
+    """Réécrit UN maillon de proposition, comme un contenu proposé avant la convention ou un registre trafiqué."""
+    with stockage.transaction() as cnx:
+        maillons = list(stockage.maillons("m07-marketing", "contenus_chantier"))
+        rang = next(i for i, m in enumerate(maillons) if m["contenu_id"] == contenu_id)
+        cnx.execute(update(REGISTRES).where(
+            (REGISTRES.c.departement == "m07-marketing") & (REGISTRES.c.registre == "contenus_chantier")
+            & (REGISTRES.c.rang == rang)
+        ).values(maillon=codec.encoder({**maillons[rang], **surcharges})))
+
+
+def test_l_export_annonce_le_contenu_au_bus_une_seule_fois_avec_sa_cle_son_chantier_et_son_canal(
+    base_durable, brand_configure, proprietaire, charge,
+):
+    contenu_id = _contenu_propose(charge)
+    _approuver(contenu_id)
+    assert _faits_contenu_exporte() == []  # approuvé n'est pas exporté : rien n'est annoncé
+
+    paquet = _exporter(contenu_id)["resultat"]
+    (export,) = _lire("exports_paquet")
+    evenement_id = f"m7-contenu-exporte-{contenu_id}"
+    assert paquet["mesure"] == {"fait": "m7.contenu_exporte", "statut": "annonce"}
+    assert _faits_contenu_exporte() == [(evenement_id, "m07-marketing", {
+        "contenu_id": contenu_id, "wct_id": "wct-usine-1", "canal": "facebook", "utm_content": paquet["utm_content"],
+        "lien_de_suivi": True, "exporte_le": export["horodatage"],
+    })]
+    # La clé annoncée est celle du paquet, de son lien de suivi et de la trace d'export.
+    assert f"utm_content={paquet['utm_content']}" in paquet["lien_utm"]
+    assert export["utm_content"] == paquet["utm_content"]
+
+    # Un export rejoué rend le même paquet et n'annonce rien de plus.
+    encore = _exporter(contenu_id)["resultat"]
+    assert encore["deja_exporte"] is True and encore["mesure"]["statut"] == "deja_annonce"
+    assert len(_faits_contenu_exporte()) == 1 and len(_lire("exports_paquet")) == 1
+
+
+def test_le_fait_du_bus_n_emporte_aucun_renseignement_personnel(base_durable, brand_configure, proprietaire, charge):
+    contenu_id = _contenu_propose(charge)
+    _approuver(contenu_id)
+    _exporter(contenu_id)
+    ((_, _, fait),) = _faits_contenu_exporte()
+    assert set(fait) == {"contenu_id", "wct_id", "canal", "utm_content", "lien_de_suivi", "exporte_le"}
+    lu = json.dumps(fait, ensure_ascii=False)
+    for interdit in ("lead-usine-1", "Repentigny", "int-usine-1", "etienne", "Toitures", "devis-usine-1", "photo-"):
+        assert interdit not in lu, interdit
+
+
+@pytest.mark.parametrize("plateforme", list(plateformes.CODES_PLATEFORMES))
+def test_les_cinq_contenus_ont_chacun_leur_cle_et_leur_fait(
+    base_durable, brand_configure, proprietaire, charge, plateforme,
+):
+    _recevoir(charge)
+    contenu_id = _id(plateforme)
+    _approuver(contenu_id)
+    paquet = _exporter(contenu_id)["resultat"]
+    ((_, _, fait),) = _faits_contenu_exporte()
+    assert fait["canal"] == plateforme and fait["utm_content"] == paquet["utm_content"]
+    assert fait["utm_content"].startswith(f"{plateforme}-")
+    assert fait["lien_de_suivi"] is (plateforme != "demande_temoignage")
+    assert (paquet["lien_utm"] is not None) is fait["lien_de_suivi"]
+
+
+def test_deux_contenus_du_meme_chantier_annoncent_deux_faits_de_cles_differentes(
+    base_durable, brand_configure, proprietaire, charge,
+):
+    _recevoir(charge)
+    for plateforme in ("facebook", "instagram"):
+        contenu_id = _id(plateforme)
+        _approuver(contenu_id)
+        _exporter(contenu_id)
+    faits = [fait for _, _, fait in _faits_contenu_exporte()]
+    assert {f["canal"] for f in faits} == {"facebook", "instagram"} and {f["wct_id"] for f in faits} == {"wct-usine-1"}
+    assert len({f["utm_content"] for f in faits}) == 2 and len({f["contenu_id"] for f in faits}) == 2
+
+
+def test_sans_site_dans_le_profil_le_contenu_s_exporte_sans_lien_et_le_fait_le_dit(
+    base_durable, brand_configure, proprietaire, charge, profil,
+):
+    del profil["site_url"]
+    contenu_id = _contenu_propose(charge)
+    _approuver(contenu_id)
+    paquet = _exporter(contenu_id)["resultat"]
+    assert paquet["lien_utm"] is None and paquet["utm_content"].startswith("facebook-")
+    ((_, _, fait),) = _faits_contenu_exporte()
+    assert fait["lien_de_suivi"] is False and fait["utm_content"] == paquet["utm_content"]
+
+
+def test_un_paquet_exporte_avant_le_fait_est_annonce_quand_on_le_reexporte(
+    base_durable, brand_configure, proprietaire, charge,
+):
+    contenu_id = _contenu_propose(charge)
+    _approuver(contenu_id)
+    premier = _exporter(contenu_id)["resultat"]
+    with stockage.transaction() as cnx:  # comme un export d'avant l'existence du fait : la trace est là, le fait non
+        cnx.execute(delete(EVENEMENTS_SORTANTS).where(EVENEMENTS_SORTANTS.c.type_evenement == "m7.contenu_exporte"))
+    assert _faits_contenu_exporte() == []
+
+    rattrape = _exporter(contenu_id)["resultat"]
+    assert rattrape["deja_exporte"] is True and rattrape["mesure"]["statut"] == "annonce"
+    ((_, _, fait),) = _faits_contenu_exporte()
+    (export,) = _lire("exports_paquet")
+    assert fait["utm_content"] == premier["utm_content"] and fait["exporte_le"] == export["horodatage"]
+    assert len(_lire("exports_paquet")) == 1  # la trace n'a pas été réécrite
+
+
+def test_un_lien_d_avant_la_convention_bloque_l_export_sans_rien_ecrire_ni_annoncer(
+    base_durable, brand_configure, proprietaire, charge,
+):
+    contenu_id = _contenu_propose(charge)
+    propose = next(p for p in _lire("contenus_chantier") if p["contenu_id"] == contenu_id)
+    ancienne = "facebook-3f2a9c1d"  # l'ancienne clé : 8 chiffres de l'empreinte du chantier
+    _alterer_proposition(
+        contenu_id, utm={**propose["utm"], "content": ancienne}, utm_content=None,
+        lien_utm=propose["lien_utm"].replace(propose["utm_content"], ancienne),
+    )
+    _approuver(contenu_id)
+    resultat = _metier(_appeler("m7_exporter_paquet_manuel", contenu_id=contenu_id, horodatage=HORODATAGE))
+    assert resultat["accepte"] is False and resultat["verdict"]["code"] == "REJ-UTM-CONTENT-INCOHERENT"
+    assert "nouveau texte" in resultat["verdict"]["detail"]
+    assert _lire("exports_paquet") == [] and _faits_contenu_exporte() == []
+
+
+def test_un_contenu_sans_lien_n_a_rien_a_contredire_mais_un_lien_sans_la_cle_est_refuse(
+    base_durable, brand_configure, proprietaire, charge,
+):
+    contenu_id = _contenu_propose(charge)
+    propose = next(p for p in _lire("contenus_chantier") if p["contenu_id"] == contenu_id)
+    _alterer_proposition(contenu_id, lien_utm=propose["lien_utm"].split("&utm_content=")[0])
+    _approuver(contenu_id)
+    resultat = _metier(_appeler("m7_exporter_paquet_manuel", contenu_id=contenu_id, horodatage=HORODATAGE))
+    assert resultat["accepte"] is False and resultat["verdict"]["code"] == "REJ-UTM-CONTENT-INCOHERENT"
+    assert "ne porte pas utm_content" in resultat["verdict"]["detail"] and _faits_contenu_exporte() == []
+
+
+def test_une_proposition_d_avant_la_convention_sans_cle_ecrite_mais_au_lien_conforme_s_exporte(
+    base_durable, brand_configure, proprietaire, charge,
+):
+    """Le champ `utm_content` du maillon est nouveau : son absence ne bloque pas ; la clé est recalculée."""
+    contenu_id = _contenu_propose(charge)
+    propose = next(p for p in _lire("contenus_chantier") if p["contenu_id"] == contenu_id)
+    _alterer_proposition(contenu_id, utm_content=None)
+    _approuver(contenu_id)
+    paquet = _exporter(contenu_id)["resultat"]
+    assert paquet["utm_content"] == propose["utm_content"]
+    assert [f["utm_content"] for _, _, f in _faits_contenu_exporte()] == [propose["utm_content"]]
+
+
+def test_un_contenu_non_approuve_ou_au_consentement_retire_n_annonce_rien(
+    base_durable, brand_configure, proprietaire, charge,
+):
+    contenu_id = _contenu_propose(charge)
+    non_approuve = _metier(_appeler("m7_exporter_paquet_manuel", contenu_id=contenu_id, horodatage=HORODATAGE))
+    assert non_approuve["accepte"] is False and _faits_contenu_exporte() == []
+    _approuver(contenu_id)
+    _metier(_appeler("m7_enregistrer_retrait_consentement_marketing", wct_id="wct-usine-1", canal="courriel",
+                     horodatage=HORODATAGE))
+    resultat = _metier(_appeler("m7_exporter_paquet_manuel", contenu_id=contenu_id, horodatage=HORODATAGE))
+    assert resultat["verdict"]["code"] == "REJ-CONSENTEMENT-RETIRE" and _faits_contenu_exporte() == []
+
+
+def test_l_export_est_atomique_un_fait_refuse_par_le_catalogue_annule_aussi_la_trace(
+    base_durable, brand_configure, proprietaire, charge, monkeypatch,
+):
+    """Si l'annonce échoue, la trace de l'export n'est pas écrite : jamais un paquet que M8 ne connaîtrait pas."""
+    contenu_id = _contenu_propose(charge)
+    _approuver(contenu_id)
+    monkeypatch.setattr(service.mesure, "charge_contenu_exporte", lambda *a, **k: {"contenu_id": "seul"})
+    reponse = _appeler("m7_exporter_paquet_manuel", appareil=("nathan", "admin"), contenu_id=contenu_id,
+                       horodatage=HORODATAGE)
+    assert reponse["ok"] is False
+    assert _lire("exports_paquet") == [] and _faits_contenu_exporte() == []
+
+
+def test_le_manifeste_declare_le_type_publie_et_le_catalogue_le_connait(base_durable):
+    manifeste = lire_manifeste(_RACINE_M7)
+    assert manifeste.evenements_publie == ("m7.contenu_exporte",)
+    assert "m7.contenu_exporte" in evenements.types_connus()
 
 
 # =============================================================================================================

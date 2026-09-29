@@ -11,7 +11,7 @@ import re
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
-from m7_marketing.usine import chantier, plateformes, registre, verdicts
+from m7_marketing.usine import chantier, mesure, plateformes, registre, verdicts
 from m7_marketing.usine.chantier import Nature
 from m7_marketing.usine.controle_texte import controler_texte
 from m7_marketing.utm import utm_engine
@@ -130,11 +130,15 @@ def test_la_note_du_chantier_n_est_montree_que_si_elle_passe_le_controle(profil,
 
 
 # -- lien de suivi ---------------------------------------------------------------------------------------------------
+CLE = "facebook-0123456789abcdef"
+
+
 def test_le_lien_de_suivi_est_conforme_et_propre_a_chaque_variante(profil, nature, fabriquer_charge):
     charge = fabriquer_charge()
     liens = {}
     for plateforme in plateformes.PLATEFORMES:
-        lien, utm, avertissement = chantier.lien_utm(plateforme, charge, profil, nature)
+        cle = mesure.utm_content_de(f"contenu-{plateforme.code}", plateforme.code)
+        lien, utm, avertissement = chantier.lien_utm(plateforme, charge, profil, nature, cle)
         assert avertissement is None
         if plateforme.source_utm is None:
             assert (lien, utm) == (None, None)
@@ -144,35 +148,78 @@ def test_le_lien_de_suivi_est_conforme_et_propre_a_chaque_variante(profil, natur
         requete = parse_qs(urlsplit(lien).query)
         assert requete["utm_source"] == [plateforme.source_utm] and requete["utm_medium"] == [plateforme.medium_utm]
         assert requete["utm_campaign"] == ["contenu-gouttieres-et-descentes-2026"]
-        assert requete["utm_content"][0].startswith(f"{plateforme.code}-")
+        assert requete["utm_content"] == [cle] and utm["content"] == cle  # la clé du CONTENU, telle quelle
         assert urlsplit(lien).netloc == "exemple-fictif.ca"
     assert len(set(liens.values())) == 4  # un lien par variante
 
 
+def test_chaque_proposition_porte_sa_cle_de_mesure_tiree_de_son_identifiant_et_son_lien_la_porte(
+        charge, profil, nature):
+    for proposition in _preparer(charge, profil, nature).nouvelles:
+        cle = mesure.utm_content_de(proposition["contenu_id"], proposition["plateforme"])
+        assert proposition["utm_content"] == cle
+        assert cle.startswith(f"{proposition['plateforme']}-")
+        if proposition["plateforme"] == "demande_temoignage":  # message privé : une clé, mais aucun lien pour la porter
+            assert proposition["lien_utm"] is None and proposition["utm"] is None
+            continue
+        assert proposition["utm"]["content"] == cle
+        assert parse_qs(urlsplit(proposition["lien_utm"]).query)["utm_content"] == [cle]
+
+
+def test_les_cles_de_mesure_des_cinq_contenus_d_un_chantier_sont_toutes_differentes(charge, profil, nature):
+    cles = [p["utm_content"] for p in _preparer(charge, profil, nature).nouvelles]
+    assert len(cles) == 5 and len(set(cles)) == 5
+
+
+def test_une_revision_a_sa_propre_cle_et_la_meme_proposition_rejouee_garde_la_sienne(charge, profil, nature):
+    premiere = _preparer(charge, profil, nature)
+    facebook = next(p for p in premiere.nouvelles if p["plateforme"] == "facebook")
+    rejet = {"contenu_id": facebook["contenu_id"], "decision": registre.STATUT_REJETE}
+    seconde = _preparer(
+        charge, profil, nature, {"facebook": "Nouvelle publication sans rien de personnel."}, [facebook], [rejet],
+    )
+    revision = next(p for p in seconde.nouvelles if p["plateforme"] == "facebook")
+    assert revision["revision"] == 2 and revision["contenu_id"] != facebook["contenu_id"]
+    assert revision["utm_content"] != facebook["utm_content"]  # une autre révision, une autre clé
+    rejouee = next(p for p in _preparer(charge, profil, nature).nouvelles if p["plateforme"] == "facebook")
+    assert rejouee["utm_content"] == facebook["utm_content"]  # déterministe : même chantier, même clé
+
+
 def test_le_lien_ne_laisse_pas_fuir_l_identifiant_du_chantier(profil, nature, fabriquer_charge):
-    charge = fabriquer_charge(wct_id="wct-secret-abcdef")
-    lien, utm, _ = chantier.lien_utm(plateformes.plateforme("facebook"), charge, profil, nature)
-    assert "secret" not in lien and "wct-" not in lien
-    empreinte = hashlib.sha256(b"wct-secret-abcdef").hexdigest()[:8]
-    assert utm["content"] == f"facebook-{empreinte}"
+    charge = fabriquer_charge(wct_id="wct-secret-abcdef", lead_id="lead-secret-abcdef")
+    facebook = next(p for p in _preparer(charge, profil, nature).nouvelles if p["plateforme"] == "facebook")
+    for lu in (facebook["lien_utm"], facebook["utm_content"], str(facebook["utm"])):
+        assert "secret" not in lu and "wct-" not in lu and "lead-" not in lu and "abcdef" not in lu
 
 
-def test_sans_site_url_pas_de_lien_et_le_manque_est_dit(profil, nature, fabriquer_charge):
+def test_sans_site_url_pas_de_lien_mais_la_cle_de_mesure_existe_quand_meme(profil, nature, fabriquer_charge):
     del profil["site_url"]
-    lien, utm, avertissement = chantier.lien_utm(plateformes.plateforme("facebook"), fabriquer_charge(), profil, nature)
+    plateforme_facebook = plateformes.plateforme("facebook")
+    lien, utm, avertissement = chantier.lien_utm(plateforme_facebook, fabriquer_charge(), profil, nature, CLE)
     assert (lien, utm) == (None, None) and "site_url" in avertissement
+    facebook = next(p for p in _preparer(fabriquer_charge(), profil, nature).nouvelles if p["plateforme"] == "facebook")
+    assert facebook["lien_utm"] is None and facebook["utm"] is None
+    assert facebook["utm_content"].startswith("facebook-")  # le contenu a sa clé ; aucun lien ne la porte
 
 
 def test_un_site_non_https_donne_un_lien_non_conforme_donc_aucun_lien(profil, nature, fabriquer_charge):
     profil["site_url"] = "http://exemple-fictif.ca/"
-    lien, utm, avertissement = chantier.lien_utm(plateformes.plateforme("facebook"), fabriquer_charge(), profil, nature)
+    facebook = plateformes.plateforme("facebook")
+    lien, utm, avertissement = chantier.lien_utm(facebook, fabriquer_charge(), profil, nature, CLE)
     assert (lien, utm) == (None, None) and "U-01" in avertissement
 
 
 def test_une_annee_illisible_donne_aucun_lien(profil, nature, fabriquer_charge):
     charge = fabriquer_charge(horodatage_completion="hier soir")
-    lien, _, avertissement = chantier.lien_utm(plateformes.plateforme("facebook"), charge, profil, nature)
+    lien, _, avertissement = chantier.lien_utm(plateformes.plateforme("facebook"), charge, profil, nature, CLE)
     assert lien is None and "année" in avertissement
+
+
+def test_une_cle_hors_contrat_donne_aucun_lien_jamais_un_lien_que_le_contrat_refuse(profil, nature, fabriquer_charge):
+    lien, utm, avertissement = chantier.lien_utm(
+        plateformes.plateforme("facebook"), fabriquer_charge(), profil, nature, "Facebook Chez Mme Tremblay",
+    )
+    assert (lien, utm) == (None, None) and "U-07" in avertissement
 
 
 # -- préparation ----------------------------------------------------------------------------------------------

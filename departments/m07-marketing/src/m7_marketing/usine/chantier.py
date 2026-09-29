@@ -32,7 +32,7 @@ from typing import Any
 
 from ..content.contenu_public import verifier_consentement
 from ..utm import utm_engine
-from . import gabarits, plateformes, registre, retrait, verdicts
+from . import gabarits, mesure, plateformes, registre, retrait, verdicts
 from .controle_texte import ContexteControle, controler_texte
 from .plateformes import Plateforme
 
@@ -189,10 +189,13 @@ def description_utilisable(charge: Mapping[str, Any], profil: Mapping[str, Any])
 
 # -- lien de suivi ---------------------------------------------------------------------------------------------
 def lien_utm(
-    plateforme: Plateforme, charge: Mapping[str, Any], profil: Mapping[str, Any], nature: Nature,
+    plateforme: Plateforme, charge: Mapping[str, Any], profil: Mapping[str, Any], nature: Nature, utm_content: str,
 ) -> tuple[str | None, dict[str, str] | None, str | None]:
     """`(lien, utm, avertissement)` : le lien de suivi de cette variante, validé contre le contrat gelé
-    (U-01 à U-12), ou `(None, None, ce qu'il faut configurer)`. Jamais un domaine par défaut."""
+    (U-01 à U-12), ou `(None, None, ce qu'il faut configurer)`. Jamais un domaine par défaut.
+
+    `utm_content` est la clé de mesure du CONTENU (`mesure.utm_content_de`, tirée de son `contenu_id`) : le lien la
+    porte telle quelle, pour que le lead qui le suit se reconnaisse (PLAN T4.17-e)."""
     if plateforme.source_utm is None or plateforme.medium_utm is None:
         return None, None, None
     site = _chaine(profil, "site_url")
@@ -203,14 +206,13 @@ def lien_utm(
         campagne = utm_engine.construire_campaign("contenu", nature.libelle, annee)
     except (KeyError, ValueError):
         return None, None, "lien de suivi impossible : année du chantier ou nature des travaux illisible"
-    contenu = f"{plateforme.code}-{hashlib.sha256(str(charge['wct_id']).encode('utf-8')).hexdigest()[:8]}"
-    lien = utm_engine.generer_lien_utm(site, plateforme.source_utm, plateforme.medium_utm, campagne, contenu)
+    lien = utm_engine.generer_lien_utm(site, plateforme.source_utm, plateforme.medium_utm, campagne, utm_content)
     verdicts_utm = utm_engine.valider_lien_utm(lien)
     echecs = [f"{regle} {detail}".strip() for regle, verdict, detail in verdicts_utm if verdict == "fail"]
     if echecs:
         return None, None, f"lien de suivi non conforme au contrat UTM ({'; '.join(echecs)}) : site_url du profil ?"
     return lien, {
-        "source": plateforme.source_utm, "medium": plateforme.medium_utm, "campaign": campagne, "content": contenu,
+        "source": plateforme.source_utm, "medium": plateforme.medium_utm, "campaign": campagne, "content": utm_content,
     }, None
 
 
@@ -228,13 +230,15 @@ def _proposition(
     nature: Nature, matiere: gabarits.Matiere, profil: Mapping[str, Any], avertissements: list[str], origine: str,
 ) -> dict[str, Any]:
     photos = [p for p in (charge.get("photos") or []) if isinstance(p, str)]
-    lien, utm, avertissement_lien = lien_utm(plateforme, charge, profil, nature)
     canonique = json.dumps(
         {"wct_id": charge["wct_id"], "plateforme": plateforme.code, "revision": revision, "type": "contenu_chantier"},
         sort_keys=True,
     )
+    contenu_id = str(uuid.uuid5(uuid.NAMESPACE_URL, canonique))
+    utm_content = mesure.utm_content_de(contenu_id, plateforme.code)  # la clé de mesure du contenu (PLAN T4.17-e)
+    lien, utm, avertissement_lien = lien_utm(plateforme, charge, profil, nature, utm_content)
     return {
-        "contenu_id": str(uuid.uuid5(uuid.NAMESPACE_URL, canonique)),
+        "contenu_id": contenu_id,
         "type": "contenu_chantier",
         "wct_id": charge["wct_id"],
         "lead_id": charge.get("lead_id"),
@@ -247,6 +251,7 @@ def _proposition(
         "origine_texte": origine_texte,
         "empreinte_texte": hashlib.sha256(texte.encode("utf-8")).hexdigest(),
         "mots_clics": list(mots_clics(nature, matiere.ville, profil)) if plateforme.public else [],
+        "utm_content": utm_content,
         "lien_utm": lien,
         "utm": utm,
         "photos": photos,
