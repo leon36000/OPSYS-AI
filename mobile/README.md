@@ -25,7 +25,7 @@ logique vit dans `src/`, en fonctions pures, testées.
 |---|---|---|
 | Employé | `today`, `job/[id]` (statut, checklist, photos, signature, matériaux, terminer), `punch`, `consent` | `m4_*`, `m6_declarer_materiaux_utilises` |
 | Vendeur | `leads`, `lead/[id]`, `quotes` | `m2_lister_leads`, `m2_suggerer_prochaine_action`, `m2_trouver_client_de_lead`, `m2_obtenir_client_360`, `m2_enregistrer_interaction`, `m3_lire_devis` |
-| Admin | `approvals` | `m9_lister_demandes_approbation`, `m9_decider_demande_approbation` |
+| Admin | `admin` (« À voir »), `approvals`, `chiffres`, `chantiers` | `m9_lister_demandes_approbation`, `m9_decider_demande_approbation`, `m8_lire_vue_executive`, `m5_etat_tresorerie`, `m5_prevoir_tresorerie`, `m5_lire_echeances_fiscales`, `m4_lister_interventions`, `m4_verifier_preparation`, `m4_produire_digest` |
 
 ### Vendeur (PLAN T4.8, §9.4)
 
@@ -37,6 +37,32 @@ logique vit dans `src/`, en fonctions pures, testées.
 - **`quotes`** : statut et prix de ses soumissions (`m3_lire_devis`), jamais le coût ni la marge. Aucun outil ne liste les
   soumissions d'un vendeur : la liste montre celles que ses leads citent, et une autre s'ouvre par son numéro.
 - **Hors ligne** : lecture d'abord ; le cache SQLite (une clé par personne) est rendu marqué comme cache, avec sa date.
+
+### Admin, le propriétaire (PLAN T4.20, §9.5)
+
+Trois écrans de **lecture seule** au-delà des approbations (seul `approvals` décide, par la file sortante) :
+
+- **`admin` (« À voir »)** : les demandes d'approbation en attente et les attentes des départements (complétion en revue avec
+  écart de matériaux critique, facture prête, chantier à réviser, besoin de commande), avec le lien vers `approvals`, `chiffres`
+  et `chantiers`. Ni arguments, ni motif, ni description d'outil (le cache non plus : Loi 25). « Rien à voir » n'est dit que
+  si le serveur le dit : des attentes que le moteur ne donne pas, ou qu'un département n'a pas su dire, ne sont pas « aucune ».
+- **`chiffres`** : trésorerie et cash libre (le solde de l'app est celui du cash libre : le « 0 » gelé d'un registre vide n'est
+  jamais montré), prévision semaine par semaine (« Voir plus » ne prolonge qu'une lecture faite à l'instant, jamais une copie ;
+  les pages ne se recollent que si `prevision_id` est le même), échéances TPS/TVQ, vue d'ensemble de M8. Chaque section se charge
+  pour elle-même. Un « non calculable » ou un « à configurer » dit ce qui manque avec les mots du serveur, jamais un zéro ; la
+  mention « Analyse préparatoire IA » de M5 est montrée avec la donnée.
+- **`chantiers`** : les interventions par statut (un appel par statut : la réponse de `m4_lister_interventions` n'a pas de
+  pagination et le socle la tronque à 6 000 caractères), le digest du jour, la préparation d'une intervention à la demande, volet
+  par volet. **La météo d'un créneau n'est pas lue** : aucun outil ne la rend sans écrire (`m4_verifier_meteo_creneau` exige un
+  `plan_id` de `m4_proposer_cedule`) ; le volet « météo » de la préparation ne dit que si les RÈGLES météo sont déclarées, et
+  l'écran le dit.
+- **Hors ligne** : lecture d'abord ; le cache SQLite (une clé par personne, `admin:<personne>:<section>_v1`) est rendu marqué
+  (date et raison). Un refus du serveur (403, personne désactivée, « à déclarer ») n'est **jamais** remplacé par le cache, et
+  n'écrit rien. Le jour de référence de M5 et de M4 est celui de l'heure locale de l'appareil.
+- **Preuves** : `tests/e2e/test_admin_appareil.py` appelle les huit outils par la vraie porte d'appareil (200 pour `admin`,
+  403 pour `seller` et `employee`, sans rien écrire) et enregistre les vraies réponses dans `src/admin/fixtures/` ; Jest les
+  fait passer par les lecteurs, les chargeurs et les modèles de vue. Régénération :
+  `OPSYS_REGENERER_FIXTURES_MOBILE=1 pytest tests/e2e/test_admin_appareil.py -k fixture`.
 
 ## Règles de l'app
 
@@ -55,5 +81,8 @@ logique vit dans `src/`, en fonctions pures, testées.
 `roles/` garde de routes · `appairage/`, `identite/` appairage et identité · `protocole/` client `/tools/invoke` ·
 `outbox/` file sortante et vidangeur · `stockage/` dépôt clé/valeur · `m2/`, `m3/`, `m4/`, `m6/`, `approbations/` contrats
 des outils · `vendeur/` chargeurs, cache et fusion de pages du profil vendeur (`fixtures/` : vraies réponses du moteur) ·
-`today/`, `checklist/`, `photos/`, `signature/`, `fichiers/` profil employé · `ecrans/` logique pure des écrans ·
-`i18n/` textes.
+`admin/` chargeurs, cache, lecteurs et câblage (`service.ts`) du profil admin, `composants.tsx` et `vuesChiffres.tsx` rendu
+(`fixtures/` : vraies réponses du moteur) · `m4/dispatch`, `m5/tresorerie`, `m5/pagesPrevision`, `m8/` lecteurs des outils du
+propriétaire · `today/`, `checklist/`, `photos/`, `signature/`, `fichiers/` profil employé · `ecrans/` logique pure des écrans
+(`admin`, `chiffres`, `vueExecutive`, `chantiers` : modèles de vue dont chaque texte à variables est un `Message`, clé i18n et
+variables) · `i18n/` textes (`locales/admin.*.ts` : le profil admin).
