@@ -13,7 +13,7 @@ c'est `PLAN.md` qui avance.
    indépendants (fichiers distincts). TDD : le test d'abord, puis le code. Le code calcule, le LLM
    orchestre. Les briques sont des ingrédients : licence vérifiée et inscrite dans
    `docs/research/INGREDIENTS.md`.
-4. **Prouver** : exécuter les gates du dépôt (`pytest`, `ruff check src tests`, `opsys verifier`,
+4. **Prouver** : exécuter les gates du dépôt (`pytest`, `ruff check src tests`, `opsys-metier verifier`,
    plus les tests du département touché, et la CI du core si `core/` change). Aucun faux vert : une
    porte fermée devient « PARTIEL — GATE NATHAN » avec son repli implémenté.
 5. **Mettre à jour `PLAN.md`** : cocher la tâche avec une ligne de preuve (commande et résultat),

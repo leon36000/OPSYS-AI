@@ -34,9 +34,13 @@ python -m venv .venv && . .venv/bin/activate && pip install -e ".[dev,postgres]"
 pytest                               # socle (tests/)
 pytest departments/m03-estimation    # un département
 ruff check src tests                 # lint du socle
-opsys verifier                       # manifestes, outils, dépendances
-opsys openclaw configurer --config-dir /tmp/oc   # fragments OpenClaw des départements
+opsys-metier verifier                                    # manifestes, outils, dépendances
+opsys-metier openclaw configurer --config-dir /tmp/oc   # fragments OpenClaw des départements
 ```
+
+`opsys` est la commande du **core** (T0.7 lot 2, `openclaw` en est l'alias) ; la CLI du moteur Python est `opsys-metier`,
+et `opsys metier <commande>` la lance depuis le core. Ne jamais redonner le nom `opsys` à un point d'entrée Python.
+Une ancienne invocation (`opsys verifier`) ne fait rien : elle dit la nouvelle (`opsys metier verifier`).
 
 ## Principes (PROOF allégé)
 
@@ -46,7 +50,7 @@ opsys openclaw configurer --config-dir /tmp/oc   # fragments OpenClaw des dépar
   modèle. Toujours par un outil déterministe testé.
 - **Fail-closed.** Une donnée manquante produit un verdict qui dit quoi demander, jamais une valeur
   par défaut inventée.
-- **La CI est l'autorité.** Tests, lint, `opsys verifier`. Revue de PR par un humain ou par un
+- **La CI est l'autorité.** Tests, lint, `opsys-metier verifier`. Revue de PR par un humain ou par un
   modèle d'un autre fournisseur que l'auteur pour le code critique (M5, politiques, approbations).
 - **Frontières humaines (T3).** Paiements, secrets de production, suppression définitive de
   données, publication ou déploiement public, engagements externes : humain seul.

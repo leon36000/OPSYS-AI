@@ -339,7 +339,7 @@ syntaxe. Validation du `schema_json` par le validateur JSON Schema **déjà écr
 (`opsys.outils.valider_arguments`) — pas de nouvelle dépendance (Pydantic reste possible au cas par
 cas pour un département qui en a l'usage, jamais imposé). Versionnage additif : un champ optionnel
 en plus reste en version courante ; un changement cassant crée une nouvelle `version`, les deux
-coexistent le temps que tous les consommateurs déclarés migrent (`opsys verifier` étendu refuse un
+coexistent le temps que tous les consommateurs déclarés migrent (`opsys-metier verifier` étendu refuse un
 événement publié hors catalogue ou contre un schéma qui ne valide pas).
 
 ### 5.2 La cascade « travaux terminés », étape par étape
@@ -387,7 +387,7 @@ qui la prouve (jamais de faux vert).
 | 0.1 | `src/opsys/bd.py` : moteur SQLAlchemy 2 + `session()`, extra `pyproject.toml` `db` | test unitaire, SQLite mémoire, sans toucher Postgres |
 | 0.2 | Envelopper `memoire/schema.sql` en migration Alembic `0001` (baseline, contenu inchangé) | `alembic upgrade head` sur base vide == état actuel (diff nul) |
 | 0.3 | Migration `0002` : schéma `audit` (`audit.trace`) | insertion + lecture d'une trace |
-| 0.4 | Migration `0003` : schéma `evenements` (catalogue) + validation JSON Schema au chargement | `opsys verifier` refuse un catalogue mal formé |
+| 0.4 | Migration `0003` : schéma `evenements` (catalogue) + validation JSON Schema au chargement | `opsys-metier verifier` refuse un catalogue mal formé |
 | 1.1 | Porter `Registre`/`etats.py` de **M4** vers `m4.registre` (Postgres), même contrat de hash | rejouer les fixtures existantes : hash identiques mémoire vs Postgres |
 | 1.2 | `m4.evenements_sortants`, écrite dans la même transaction que le maillon `terminee` | test d'interruption simulée entre les deux écritures : impossible par construction (une seule requête) |
 | 1.3 | `opsys-repartiteur` (poll + `LISTEN/NOTIFY`) | tests contre le service Postgres du compose de test (patron `avec_docker` déjà utilisé par `tests/test_memoire_store.py`) : livraison idempotente, résiste à un redémarrage |
@@ -395,7 +395,7 @@ qui la prouve (jamais de faux vert).
 | 2.1 | Répéter 1.4 pour M5, M2, M7, M8, M10 (une PR par département) | un E2E par département, isolé |
 | 2.2 | `materials.variance_detected` (M6→M3) et paquet de preuves (M8→M9) | E2E cascade complet (les 13 étapes du §5.2) |
 | 3.1 | `personnes`/`roles` dans `etat.py` ; `securite.py` exige un nom connu | test : nom inconnu refusé à la connexion |
-| 3.2 | `roles_eligibles` optionnel dans `department.yaml` ; `approbations.decider` le vérifie | test : décision refusée si rôle hors liste, `opsys verifier` accepte l'absence du champ (rétrocompatible) |
+| 3.2 | `roles_eligibles` optionnel dans `department.yaml` ; `approbations.decider` le vérifie | test : décision refusée si rôle hors liste, `opsys-metier verifier` accepte l'absence du champ (rétrocompatible) |
 | 3.3 | `Capacites.appeler` écrit `audit.trace` après chaque exécution T1+ | test : ligne présente avec `confiance`/`risque` repris du résultat quand disponibles |
 | 3.4 | Console : page Journal fusionnant `etat.journal` + `audit.trace` | test manuel documenté + capture |
 | 4.1 | OpenTelemetry sur `capacites.py`/`serveur_mcp.py`, export OTLP | spans visibles sur un collecteur local de test |
@@ -442,6 +442,6 @@ PREUVE:
   externes » ci-dessus ; aucune affirmation de version/licence non recoupée par au moins une source.
 - Contrainte respectée : un seul fichier écrit (`docs/research/R13-socle-metier.md`), aucun autre
   fichier du dépôt modifié, aucun paquet installé, aucun code tiers exécuté. `pytest`/`ruff check`/
-  `opsys verifier` non exécutés volontairement : cette livraison ne touche ni `src/` ni `tests/`
+  `opsys-metier verifier` non exécutés volontairement : cette livraison ne touche ni `src/` ni `tests/`
   (uniquement `docs/research/`), donc rien à régresser — les exécuter n'aurait rien prouvé de plus
   que « le dépôt était déjà vert avant ce fichier ».

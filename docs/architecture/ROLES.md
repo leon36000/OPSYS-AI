@@ -31,14 +31,14 @@ Outil(
   tant que quelqu'un n'a pas écrit, en relecture, qui le peut. Les outils communs `opsys_*`
   (`capacites.py`, mémoire) n'ont pas de déclaration et restent fermés aux appareils.
 - **Source unique.** `opsys.openclaw.roles_outils` projette les déclarations en `opsys/roles.json`
-  (`opsys openclaw configurer`), que `core/src/gateway/opsys-device-roles.ts` lit. Le core n'a rien
+  (`opsys-metier openclaw configurer`), que `core/src/gateway/opsys-device-roles.ts` lit. Le core n'a rien
   à changer. Depuis T1.4-c6, le même fichier porte `serveurs` (`openclaw.serveurs_outils`) : le
   serveur MCP de chaque outil permis, sous le même nom nu. Le core compare la portée au nom nu, puis
   appelle CE serveur sous CE nom ([MOBILE.md](MOBILE.md), « Nom d'un outil de l'app au moteur »).
 - **T3/N5 jamais.** Un outil T3 ou de niveau N5 (`Outil.frontiere_humaine`) n'est projeté dans aucun
   rôle, quoi que déclare l'outil. Ces gestes restent à `nathan_owner` et à l'attestation du
   professionnel (ADR-0009 §5).
-- **Contrôle.** `opsys verifier` échoue si une déclaration cite un rôle qui n'est pas un rôle
+- **Contrôle.** `opsys-metier verifier` échoue si une déclaration cite un rôle qui n'est pas un rôle
   d'appareil (inconnu, `client`, `nathan_owner`...) ou si un outil T3/N5 en déclare une.
   `openclaw.generer` refuse de même, avant d'écrire quoi que ce soit.
 
@@ -46,7 +46,7 @@ Outil(
 
 Le client (§9.6) passe par un lien tokenisé et expirant, jamais par un appareil apparié
 (`appareils.ROLES_APPAREIL`, R12 §6) : `client` n'a pas d'entrée dans `roles.json`, donc le core le
-refuse en `role_unknown`, et une déclaration qui le cite est refusée par `opsys verifier`. L'appareil
+refuse en `role_unknown`, et une déclaration qui le cite est refusée par `opsys-metier verifier`. L'appareil
 du propriétaire est appairé `admin` ; sa portée N5 dépend de la PERSONNE, jamais du rôle du jeton.
 
 ### Pourquoi `admin` déclare aussi, outil par outil
@@ -244,7 +244,7 @@ ligne dit ce qui est déclaré et pourquoi.
 | Déclaration ou garde | Pourquoi |
 |---|---|
 | `roles_appareil = {"admin"}` sur les deux | §9.5 : l'admin est le profil qui voit les approbations. Ni `employee` ni `seller` : la file contient des prix, des factures, des bons de commande. |
-| Hébergés par M9, pas par le socle | `roles_outils` et `opsys verifier` ne lisent que les outils de département. Un outil commun `opsys_*` serait absent de `roles.json` (donc injoignable) et présent sur les dix serveurs à la fois (`Capacites` les liste tous). M9 lit déjà cette file (`m9_produire_briefing_matin`) et son mobile est « Admin/Nathan seulement » (§7). La logique reste au socle ; M9 ne décide rien. |
+| Hébergés par M9, pas par le socle | `roles_outils` et `opsys-metier verifier` ne lisent que les outils de département. Un outil commun `opsys_*` serait absent de `roles.json` (donc injoignable) et présent sur les dix serveurs à la fois (`Capacites` les liste tous). M9 lit déjà cette file (`m9_produire_briefing_matin`) et son mobile est « Admin/Nathan seulement » (§7). La logique reste au socle ; M9 ne décide rien. |
 | Liste : T0, pas d'écriture | Lecture pure : `N0`, aucune approbation. |
 | Les attentes des départements suivent la liste (T1.5) | `m9_lister_demandes_approbation` rend aussi l'autre moitié de la file du propriétaire (`approbations.attentes_departements`) : complétion en revue avec écart de matériaux critique (M4), facture prête à envoyer, chantier à réviser (M5). Toute personne de rôle `admin` les voit, comme le briefing du matin de M9 (`m9_produire_briefing_matin`, déjà de portée `admin`) : ce sont des résumés sans argument ni donnée personnelle, et elles ne se décident pas ici (`m9_decider_demande_approbation` ne s'y applique pas). Un département dont les attentes n'ont pas pu être lues est nommé (`attentes_illisibles`). |
 | Décision : T1 mais **N2**, pas le N3 par défaut | L'outil EST la décision humaine. En mode `ombre`, N3 le renverrait dans la file qu'il sert à vider (circulaire). Sa garde est ailleurs (lignes suivantes). Même choix que `m4_deposer_fichier`. |
@@ -393,7 +393,7 @@ le profil par l'adaptateur, jamais dans un argument) :
 - profil absent ou invalide : aucune équipe, donc aucun accès par équipe (fail-closed, jamais davantage de droits) ;
   un retrait du profil retire l'accès à la lecture suivante ;
 - le profil refuse qu'une personne soit membre de deux équipes et qu'une équipe porte l'identifiant d'une personne
-  qui n'en est pas membre (`opsys equipes declarer` vérifie aussi que chaque membre est une personne OPSYS existante
+  qui n'en est pas membre (`opsys-metier equipes declarer` vérifie aussi que chaque membre est une personne OPSYS existante
   et active) : aucune équipe ne donne accès à quelqu'un qui n'en est pas membre ;
 - aucune donnée de ressources humaines, de santé ni d'évaluation dans le profil : le schéma est fermé.
 
@@ -724,7 +724,7 @@ de ses ventes (§9.4 M8), tableau de bord exécutif (§9.5 M8), incident (§9.3,
 1. Écrire `roles_appareil=frozenset({...})` sur l'outil, avec en commentaire la ligne de §9 qui le
    justifie.
 2. Ajouter l'outil à la table épinglée de `tests/test_portees_appareil.py` et à ce document.
-3. `opsys verifier` et `pytest tests` doivent rester verts.
+3. `opsys-metier verifier` et `pytest tests` doivent rester verts.
 
 Demander à la relecture, pour tout outil ouvert à `employee` ou `seller` : lit-il des données d'un
 autre, prend-il une identité, un prix, un rôle ou un chemin dans ses arguments, approuve-t-il, est-il

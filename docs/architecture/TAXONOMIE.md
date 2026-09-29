@@ -30,8 +30,8 @@ services:
     mots_cles: [pergola]
 ```
 
-En ligne de commande : `opsys services lister` (fichier, services déclarés, catalogue) et
-`opsys services declarer gouttieres revetement --par nathan` (codes du catalogue, signé au journal
+En ligne de commande : `opsys-metier services lister` (fichier, services déclarés, catalogue) et
+`opsys-metier services declarer gouttieres revetement --par nathan` (codes du catalogue, signé au journal
 d'audit). Un service propre se déclare en éditant le fichier.
 
 Règles : un code du catalogue se déclare par son seul code ; un code propre ne reprend jamais un
@@ -97,7 +97,7 @@ du lead, lue à l'inscription ; une intervention porte exactement l'une des deux
 Le même profil (`$OPSYS_HOME/entreprise.yaml`) porte `zone_desservie` : la liste des villes où l'entreprise
 intervient. `opsys.taxonomie.charger_zone_desservie` la lit ; sans zone, aucune ville n'est reconnue et le verdict
 `REJ-ZONE-NON-CONFIGUREE` dit où la déclarer. M1 la lit pour un message de canal : l'agent ne la fournit pas. Un profil
-mal formé (liste vide, ville en double) est refusé, jamais lu comme absent ; `opsys verifier` le signale.
+mal formé (liste vide, ville en double) est refusé, jamais lu comme absent ; `opsys-metier verifier` le signale.
 
 ## Fenêtre de conversation (PLAN T2.1-b)
 
@@ -105,7 +105,7 @@ Le même profil porte `fenetre_conversation_minutes` : la durée, en minutes ent
 rassemble les messages d'un même client pour qualifier une demande écrite en plusieurs messages.
 `opsys.taxonomie.charger_fenetre_conversation` la lit. **Aucune durée n'est inventée** : absente, elle donne le verdict
 `REJ-FENETRE-NON-CONFIGUREE` (qui dit où la déclarer), et M1 qualifie message par message comme avant. Une valeur mal
-formée est refusée (`REJ-PROFIL-INVALIDE`), jamais lue comme absente ; `opsys verifier` la signale. Détail des règles :
+formée est refusée (`REJ-PROFIL-INVALIDE`), jamais lue comme absente ; `opsys-metier verifier` la signale. Détail des règles :
 [M1-canaux](../departements/M1-canaux.md) §8.
 
 ## Questions obligatoires par service et poids du score (PLAN T4.4)
@@ -134,11 +134,11 @@ poids_score_lead:               # un entier de 0 à 1000 pour CHAQUE critère ; 
 | Aucune question déclarée (clé absente ou vide) | `REJ-QUESTIONS-NON-CONFIGUREES`, qui dit où les écrire. Aucune liste par défaut. |
 | Des questions déclarées, mais aucune pour ce service | Le même code, qui nomme le service (`charger_questions_du_service`). |
 | Poids absents ou vides | `REJ-POIDS-SCORE-NON-CONFIGURES` : « poids à configurer ». Aucun score n'est calculé. |
-| Valeur écrite mais invalide (liste vide, question sans `mots_cles`, poids décimal, critère inconnu, tous les poids à 0…) | `REJ-PROFIL-INVALIDE` avec la raison, **jamais lue comme absente** ; `opsys verifier` la signale. |
+| Valeur écrite mais invalide (liste vide, question sans `mots_cles`, poids décimal, critère inconnu, tous les poids à 0…) | `REJ-PROFIL-INVALIDE` avec la raison, **jamais lue comme absente** ; `opsys-metier verifier` la signale. |
 
 Des questions ou des poids invalides n'arrêtent pas la réception d'un lead (contrairement aux services, à la zone et à la
 fenêtre, qui la conditionnent) : M1 reçoit, qualifie, et dit `REJ-PROFIL-INVALIDE` dans le bloc concerné de sa réponse.
-`opsys verifier` signale aussi des questions écrites pour un service que l'entreprise ne déclare pas. Les questions et les
+`opsys-metier verifier` signale aussi des questions écrites pour un service que l'entreprise ne déclare pas. Les questions et les
 poids d'un test sont fictifs : `departments/m01-front-office/fixtures/qualification/profil-fictif.v1.yaml`
 (`fictif: true`). Comment M1 les utilise : [M1-canaux](../departements/M1-canaux.md) §9.
 
@@ -164,7 +164,7 @@ destinataires_transfert:        # type de transfert -> rôle ; une table partiel
 |---|---|
 | Aucun vocabulaire (clé absente ou vide) | `REJ-SIGNAUX-PLAINTE-NON-CONFIGURES` : « vocabulaire des plaintes à configurer ». M1 ne reconnaît aucune plainte et le dit dans chaque réponse. Aucun mot par défaut. |
 | Aucun destinataire pour ce type de transfert | `REJ-DESTINATAIRE-NON-CONFIGURE` : « destinataire à configurer pour le transfert de type … ». Le transfert est ouvert quand même ; M1 ne choisit jamais une personne. |
-| Valeur écrite mais invalide (catégorie ou type inconnu, terme de moins de 3 caractères, doublon, rôle inconnu, `client` ou `system_agent`, déclaration vide…) | `REJ-PROFIL-INVALIDE` avec la raison, **jamais lue comme absente** ; `opsys verifier` la signale. |
+| Valeur écrite mais invalide (catégorie ou type inconnu, terme de moins de 3 caractères, doublon, rôle inconnu, `client` ou `system_agent`, déclaration vide…) | `REJ-PROFIL-INVALIDE` avec la raison, **jamais lue comme absente** ; `opsys-metier verifier` la signale. |
 
 Un terme suit les règles de lecture des mots-clés d'un service : mot entier, pluriel admis, accents et casse ignorés (le féminin
 s'écrit à part : « déçu », « déçue »). Les types de transfert sont ceux de la définition du produit (§7 M1.12) : un test de dérive
@@ -173,7 +173,7 @@ d'un message. Ce que M1 en fait : [M1-canaux](../departements/M1-canaux.md) §10
 
 ## Garde de dérive
 
-- `opsys verifier` : profil valide s'il existe ; aucune source de département ni du socle ne recopie
+- `opsys-metier verifier` : profil valide s'il existe ; aucune source de département ni du socle ne recopie
   le catalogue (`taxonomie.copies_locales_du_catalogue`).
 - `tests/test_taxonomie_derive.py` : le YAML v2, M1, M2, M3 et M4 portent les mêmes clés, la même
   version et les mêmes sous-clés `utm` ; les copies de l'énuméré v1 de M1, M2, M3 et M4 sont celles du
@@ -192,7 +192,7 @@ et quarts à chaque cédule. **Rien de cela n'est dans le code** : le propriéta
 equipes:
   liste:                        # l'id d'une équipe EST le technicien_id de son assignation
     - id: eq-repentigny
-      membres: [alice, bruno]   # identifiants de PERSONNES OPSYS (opsys personnes lister), rien d'autre
+      membres: [alice, bruno]   # identifiants de PERSONNES OPSYS (opsys-metier personnes lister), rien d'autre
       competences: [gouttieres, revetement]                  # des codes que le propriétaire choisit
       depot: {id: depot-repentigny, latitude_microdegres: 45735000, longitude_microdegres: -73455000}
       quarts: [{jour: 0, debut_min: 480, fin_min: 1020}]     # jour : numéro de journée de la cédule
@@ -205,7 +205,7 @@ equipes:
     {jours: [0], debut_min: 480, fin_min: 1020}
 ```
 
-`opsys equipes lister` montre le fichier, le profil canonique et ce qu'il reste à déclarer ; `opsys equipes declarer
+`opsys-metier equipes lister` montre le fichier, le profil canonique et ce qu'il reste à déclarer ; `opsys-metier equipes declarer
 --depuis equipes.yaml --par nathan` REMPLACE la clé entière par le contenu validé du fichier (YAML ou JSON), signée au
 journal (identifiants d'équipe, nombre de membres, services, empreinte : jamais le nom d'un membre). Les membres doivent
 être des personnes OPSYS existantes et actives ; une personne n'est membre que d'une équipe ; l'identifiant d'une équipe
@@ -215,8 +215,8 @@ manque, M4 le dit au moment d'en avoir besoin.
 | Situation | Verdict |
 |---|---|
 | Aucun profil (clé absente ou vide) | `REJ-EQUIPES-NON-CONFIGUREES` : dit quoi déclarer et la commande. Aucune équipe, aucun dépôt, aucun quart ni aucune durée n'est inventé. |
-| Profil écrit mais invalide (équipe sans membre, quart mal formé, clé inconnue comme `salaire`, personne dans deux équipes…) | `REJ-PROFIL-INVALIDE` avec la raison, **jamais lu comme absent** ; `opsys verifier` le signale. Le schéma est FERMÉ : aucune donnée de ressources humaines, de santé ni d'évaluation. |
-| Durée pour un service que l'entreprise ne déclare pas | `opsys verifier` la signale. |
+| Profil écrit mais invalide (équipe sans membre, quart mal formé, clé inconnue comme `salaire`, personne dans deux équipes…) | `REJ-PROFIL-INVALIDE` avec la raison, **jamais lu comme absent** ; `opsys-metier verifier` le signale. Le schéma est FERMÉ : aucune donnée de ressources humaines, de santé ni d'évaluation. |
+| Durée pour un service que l'entreprise ne déclare pas | `opsys-metier verifier` la signale. |
 
 M4 s'en sert de trois façons : `m4_proposer_cedule` lit équipes, durées, compétences, réglages et fenêtre par défaut sans
 argument (un argument donné est une SURCHARGE, tracée : la provenance de chaque valeur est rendue et gardée au maillon

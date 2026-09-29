@@ -367,5 +367,5 @@ fiscales officielles confirmées par lecture directe : ARC T4032QC (en vigueur 2
 Québec TP-1015.TI et TP-1015.G (version 2026-01). Recherche croisée confirmant l'absence de
 bibliothèque de paie QC/Canada open source mature.
 
-Non exécuté, hors permission de cette mission : `opsys verifier`, `ruff check`, toute invocation
+Non exécuté, hors permission de cette mission : `opsys-metier verifier`, `ruff check`, toute invocation
 `pytest` autre que celle explicitement autorisée ci-dessus.

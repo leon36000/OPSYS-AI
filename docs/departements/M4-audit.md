@@ -12,7 +12,7 @@ fichiers `LICENSE` bruts), `departments/m03-estimation/` comme référence de fo
 `/opt/opsys-venv/bin/python -m pytest departments/m04-field-ops/tests -q --import-mode=importlib -p no:cacheprovider`
 → code de sortie 0, aucun `F`/`E`. Cette configuration (`-q`) n'affiche pas la ligne de résumé ;
 la même commande sans `-q` l'a confirmée : **451 passed in 1.04s**, 0 échec. Ni `ruff` ni
-`opsys verifier` n'ont été exécutés : hors du périmètre explicitement autorisé par cette mission.
+`opsys-metier verifier` n'ont été exécutés : hors du périmètre explicitement autorisé par cette mission.
 
 ## Résumé
 
@@ -266,7 +266,7 @@ Entités Équipe/Véhicule/Équipement et admissibilité (M4.2–M4.3) ; score d
    fichier produit faisant foi.
 6. **Dépendance manifeste non exercée.** `department.yaml` déclare `dependances: [m03-estimation]`
    alors qu'aucun code M4 n'importe ni ne consomme M3 (`devis_id` toujours `null`) — à corriger ou
-   à justifier avant qu'`opsys verifier` ne la prenne pour argent comptant.
+   à justifier avant qu'`opsys-metier verifier` ne la prenne pour argent comptant.
 7. **Terminologie.** Le code parle d'« intervention »/« technicien » là où le produit et les autres
    départements parlent de « job »/« employé »/« équipe » — un mapping explicite est nécessaire
    avant intégration inter-départements (risque de confusion M4/M6 déjà noté en §13 du produit).

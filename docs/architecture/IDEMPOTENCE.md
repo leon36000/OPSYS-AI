@@ -262,18 +262,18 @@ département ne les lit encore pour signer ou projeter (M3 restera à adapter da
 séparée), mais la mise en garde « non authentifié » a été retirée de
 `opsys.contexte.identite_appelante()` — voir plus bas pourquoi c'est sûr.
 
-### `opsys appareils` : attribuer une personne et un rôle (T1.4-c4, fait)
+### `opsys-metier appareils` : attribuer une personne et un rôle (T1.4-c4, fait)
 
 `opsys.appareils.appairer` (T1.4-c2) et `opsys.openclaw.ecrire_appareils` existaient déjà, mais
 sans surface pour les enchaîner (« aucune surface d'appairage n'existe encore côté console/CLI/app »,
-T1.4-c2). `opsys appareils appairer <deviceId> --personne <p> --role <r> --config-dir <dossier>`
+T1.4-c2). `opsys-metier appareils appairer <deviceId> --personne <p> --role <r> --config-dir <dossier>`
 comble ce trou : il attribue la personne et le rôle (fail-closed, `appareils.appairer` — la
 personne doit déjà porter elle-même ce rôle, ADR-0009 §5), PUIS régénère
 `opsys/appareils.json` (`ecrire_appareils`) dans la même commande, pour qu'`opsys-device-roles.ts`
-voie l'attribution au prochain appel. `opsys appareils lister`/`revoquer` complètent le trio,
+voie l'attribution au prochain appel. `opsys-metier appareils lister`/`revoquer` complètent le trio,
 `revoquer` régénérant lui aussi le fragment. **Deux temps distincts, jamais fusionnés** : (1)
 l'approbation NATIVE de l'appairage, faite par le propriétaire côté OPSYS-CORE — hors de portée
-d'`opsys`, c'est elle qui scelle le jeton d'appareil (R12 §1.3) ; (2) `opsys appareils appairer`,
+d'`opsys`, c'est elle qui scelle le jeton d'appareil (R12 §1.3) ; (2) `opsys-metier appareils appairer`,
 qui attribue la personne/le rôle OPSYS au `deviceId` déjà approuvé. Une attribution pour un
 `deviceId` jamais approuvé côté core reste sans effet concret, par construction : sans jeton
 d'appareil valide émis par une approbation native, `/tools/invoke` ne laisse jamais ce `deviceId`

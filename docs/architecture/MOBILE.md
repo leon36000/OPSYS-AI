@@ -271,7 +271,7 @@ T1.4-c4 livrent, en lisant leur code réel : les deux portent sur `/tools/invoke
 de l'appareil, résolution `deviceId` → personne/rôle → portée d'outil à CHAQUE appel), jamais sur
 la poignée de main `connect`/`hello-ok` — voir « Idempotence et identité d'appareil de bout en
 bout » ci-dessous pour le détail exact livré. `hello.auth.role` reste donc `"operator"` même pour
-un appareil dont l'attribution OPSYS existe (`opsys appareils appairer`, T1.4-c4) et dont
+un appareil dont l'attribution OPSYS existe (`opsys-metier appareils appairer`, T1.4-c4) et dont
 `/tools/invoke` résout correctement `admin`/`employee`/`seller`. `"operator"` n'est PAS un profil
 connu de `src/roles/types.ts` (`PROFILS = admin|employee|seller|client`), donc `evaluerGarde` le
 refuse déjà correctement (`role_inconnu`, fail-closed, testé exhaustivement dans `garde.test.ts`,
@@ -305,7 +305,7 @@ représentait ni quel profil ouvrir, d'où l'identifiant d'employé saisi à la 
 `GET /opsys/identite` (`core/src/gateway/opsys-device-identity-http.ts`, monté par `server-http.ts`).
 Quatre raisons, toutes vérifiées par lecture :
 
-1. **L'attribution vient après.** Elle est faite par `opsys appareils appairer`, APRÈS l'approbation native du
+1. **L'attribution vient après.** Elle est faite par `opsys-metier appareils appairer`, APRÈS l'approbation native du
    propriétaire (deux temps, T1.4-c4). Le `hello-ok` part à l'approbation : il ne peut pas porter une
    identité que l'appareil n'a pas encore. Seul un appel fait plus tard, et répété, le peut.
 2. **L'app ne se reconnecte pas en WebSocket.** Elle ferme la socket dès qu'elle a le jeton, puis ne parle
@@ -374,7 +374,7 @@ Règles, toutes testées (Jest) :
 
 - `app/index.tsx` : l'aiguilleur unique. Toute garde de groupe qui refuse renvoie à `/` (avant : `/pairing`).
 - `app/identite/index.tsx` : l'erreur, avec le texte du motif, l'identifiant de l'appareil (que le propriétaire
-  donne à `opsys appareils appairer`), « Réessayer » et « Appairer de nouveau ».
+  donne à `opsys-metier appareils appairer`), « Réessayer » et « Appairer de nouveau ».
 - `punch.tsx`, `job/[id]/index.tsx`, `consent.tsx` : plus de champ « technicien ». Ils envoient la personne
   confirmée (`usePersonneAppairee`) et refusent d'agir sans elle. Le serveur la confronte toujours à
   l'identité authentifiée du jeton (T1.4-k1) : un identifiant qui n'est pas celui de la personne est refusé.
@@ -1328,7 +1328,7 @@ fonctionnait.
 - **Stabilité.** `buildSafeToolName` tronque à 64 caractères et suffixe (`-2`) en cas de collision
   (`agent-bundle-mcp-names.ts:81`) : un JSON généré d'avance ne peut pas s'y fier. Le nom nu est celui que
   le serveur du département publie (`tools/list`) ; il ne change que par un renommage d'outil, que
-  `opsys verifier` et les tests d'épinglage voient.
+  `opsys-metier verifier` et les tests d'épinglage voient.
 - **Un seul contrôle, une seule exécution.** La portée est comparée au nom qui est ensuite appelé : c'est
   la même chaîne, lue dans le même fichier (option a écartée : elle aurait couplé l'app à la règle de
   nommage du moteur d'agents).
@@ -1404,7 +1404,7 @@ fonctionnait.
   - OPSYS génère deux fragments : `opsys/roles.json` (outils permis par rôle) et
     `opsys/appareils.json` (appareil → personne et rôle `admin`, `employee` ou `seller` ; jamais
     `client`, qui passe par un lien tokenisé),
-    ce dernier régénéré par `opsys appareils appairer <deviceId> --personne <p> --role <r>
+    ce dernier régénéré par `opsys-metier appareils appairer <deviceId> --personne <p> --role <r>
     --config-dir <dossier>` (T1.4-c4 : la surface d'attribution manquante en T1.4-c2, deux temps —
     approbation native de l'appairage côté core, puis attribution OPSYS de la personne et du rôle) ;
   - le core refuse d'office un outil hors de la portée du rôle ;

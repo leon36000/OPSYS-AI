@@ -99,7 +99,7 @@ Ce qui existe (activable pour tout agent nommé ; le cas visé est M3, avant `m3
   sans paquet, avec le marqueur « contexte d'entreprise indisponible » dans le contexte et une ligne du
   journal `opsys-contexte`.
 - **Désactivé par défaut.** `opsys/contexte.json` (`"actif": true`) et `plugins.slots.contextEngine: "opsys"`
-  s'écrivent ensemble par `opsys openclaw configurer --contexte-entreprise AGENT[:OUTIL,OUTIL]`. Sans l'option,
+  s'écrivent ensemble par `opsys-metier openclaw configurer --contexte-entreprise AGENT[:OUTIL,OUTIL]`. Sans l'option,
   le fichier porte `{"actif": false}` et aucun moteur n'est choisi.
 - **Mémoire native conservée.** Le lanceur retire du prompt système la section mémoire de `memory-core` pour
   tout moteur autre que « legacy ». Le moteur `opsys` la rajoute (`buildMemorySystemPromptAddition`) même
@@ -129,7 +129,7 @@ Reste après T3.3-suite (les points 1, 2, 3 et la moitié du 6 sont traités par
    Le paquet par type de travaux (`paquet_contexte_estimation`, estimé contre réel) n'existe pas encore.
 6. **Réutilisation de la connexion MCP** d'un tour à l'autre (quatre allers-retours HTTP par appel ; cinq pour un
    agent dont l'affaire vient de la session). Le filtre `CLIENT_PRIVATE` est fait.
-7. **Déploiement.** `deploy/entrypoint.sh` et `deploy/install.sh` appellent `opsys openclaw configurer` sans
+7. **Déploiement.** `deploy/entrypoint.sh` et `deploy/install.sh` appellent `opsys-metier openclaw configurer` sans
    l'option : rien n'est activé à l'installation. Le choix du propriétaire (quels agents, quels outils, quels
    agents lisent leur affaire dans la session) reste à brancher.
 8. **Preuve en réel.** Les tests du core tournent en CI seulement ; aucun tour d'agent n'a encore été
@@ -192,7 +192,7 @@ humain, ou réessayer quand le contexte est disponible).
 
 **Affaire de la session (M10 `liaison.py`, core).** Sur un canal client, le texte de la demande est celui du client :
 une ligne `affaire_id: ...` qu'il écrit ne prouve rien. Pour un agent réglé `"affaire": "session"` dans
-`contexte.json` (`opsys openclaw configurer --affaire-par-session AGENT`), le moteur demande à M10 l'affaire liée à
+`contexte.json` (`opsys-metier openclaw configurer --affaire-par-session AGENT`), le moteur demande à M10 l'affaire liée à
 la clé de session (`m10_affaire_de_la_session`, T0, fermé aux appareils), pour le paquet comme pour le dépôt
 POSTFLIGHT, et ne lit jamais le texte. Un humain écrit le lien (`m10_lier_session_affaire`, mêmes règles que
 ci-dessus) ; le dernier fait foi ; la session principale d'un agent, partagée par tous ses correspondants, n'est
@@ -246,5 +246,5 @@ Faite le 2026-09-29. M10 consomme `m1.lead_qualifie`, `m2.client_associe`, `m3.d
   changent pas (le core les valide). Le paquet garde son budget : avec cinq faits ou plus, le plus ancien sort et
   `nb_omis` le dit ; la consolidation nocturne (`faits_affaire`) garde le compte par jour.
 - **Audit.** `m10_auditer_non_oubli` attend un fait de l'amont par sa clé publique. Un consommateur retiré de
-  `evenements.consomme` se voit à la trace absente d'un fait que le bus a publié ; `opsys verifier` le voit aussi
+  `evenements.consomme` se voit à la trace absente d'un fait que le bus a publié ; `opsys-metier verifier` le voit aussi
   (fonction orpheline).

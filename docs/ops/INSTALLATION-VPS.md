@@ -80,6 +80,10 @@ des images officielles `ghcr.io/openclaw/openclaw` et `ghcr.io/berriai/litellm-d
 
 ## 5. Première configuration des modèles
 
+Dans le conteneur `opsys`, la CLI du moteur s'appelle **`opsys-metier`** (PLAN T0.7 lot 2 : `opsys` est la commande du
+core, qui n'est pas dans cette image). Une ancienne commande `opsys personnes creer ...` répond par un message qui donne
+la nouvelle et sort avec le code 2.
+
 OPSYS ne peut générer la configuration des agents OpenClaw tant qu'aucun **palier de modèle**
 n'est associé à un fournisseur — c'est un choix délibéré (fail-closed) : mieux vaut un message
 clair « configurez les modèles » qu'un agent pointant vers un modèle inexistant.
@@ -88,10 +92,10 @@ clair « configurez les modèles » qu'un agent pointant vers un modèle inexist
    sien) — créez la première personne, `nathan_owner` :
    ```
    docker compose -f deploy/docker-compose.yml exec opsys \
-     opsys personnes creer nathan --nom "Nathan" --role nathan_owner
+     opsys-metier personnes creer nathan --nom "Nathan" --role nathan_owner
    ```
    Le mot de passe est demandé sans écho (jamais en argument de ligne de commande) ; gardez-le en
-   lieu sûr avec l'identifiant (`nathan`). D'autres personnes et rôles ensuite : `opsys personnes
+   lieu sûr avec l'identifiant (`nathan`). D'autres personnes et rôles ensuite : `opsys-metier personnes
    creer <identifiant> --nom "…" --role <rôle>` (rôles : `nathan_owner`, `admin`, `finance`,
    `manager`, `seller`, `employee`, `client`, `system_agent` — ADR-0009 §5).
 2. Ouvrez `https://console.<OPSYS_DOMAINE>` (console OPSYS, sous-domaine dédié — voir §1) et
@@ -113,7 +117,7 @@ immédiatement :
 
 ```bash
 docker compose -f deploy/docker-compose.yml exec opsys sh -c \
-  'opsys passerelle cles --url http://litellm:4000 && opsys openclaw configurer --config-dir /openclaw-config'
+  'opsys-metier passerelle cles --url http://litellm:4000 && opsys-metier openclaw configurer --config-dir /openclaw-config'
 ```
 
 ## 6. Se connecter au Control UI OpenClaw

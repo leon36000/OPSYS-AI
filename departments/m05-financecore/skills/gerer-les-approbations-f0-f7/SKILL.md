@@ -9,7 +9,7 @@ Depuis PLAN T1.3-c, il n'existe plus de registre d'approbation F0-F7 « libre »
 M5 : les deux seules actions que ce département engage réellement (envoyer une
 facture, constater un paiement) sont des outils dédiés, gardés par le socle. Tu ne
 décides jamais toi-même — tu proposes, un humain autorisé décide dans la console ou
-la CLI OPSYS (`opsys approbations`).
+la CLI OPSYS (`opsys-metier approbations`).
 
 ## Envoyer une facture (N4)
 

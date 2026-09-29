@@ -47,7 +47,7 @@ après l'acceptation. Maintenant, sans qu'un humain l'écrive :
   `m3.devis_sans_reponse`) ;
 - lead inconnu : `LeadIntrouvable` ; lead jamais qualifié (`nouveau`), ou déjà converti par UN AUTRE devis :
   `AcceptationIncompatible`. Le répartiteur réessaie, puis met l'événement en quarantaine, sans écriture, visible d'un
-  humain (`opsys evenements etat`) : aucune transition n'est fabriquée sans propriétaire ni décision.
+  humain (`opsys-metier evenements etat`) : aucune transition n'est fabriquée sans propriétaire ni décision.
 
 Un événement rejoué, ou le même devis sous un autre identifiant d'événement, ne convertit pas deux fois
 (registre `devis_acceptes_recus`, clé `devis_id`). La conversion et son activité sont dans la même transaction : si

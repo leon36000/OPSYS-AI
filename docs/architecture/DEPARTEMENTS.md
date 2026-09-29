@@ -52,7 +52,7 @@ evenements:                   # optionnel (ADR-0009 §3) — voir « Événement
 canaux: [sms]                 # optionnel (T2.1-a) : canaux du core par lesquels il reçoit le public
 ```
 
-`opsys verifier` valide tous les manifestes, l'unicité des outils, les dépendances et la cohérence
+`opsys-metier verifier` (ou `opsys metier verifier` depuis le core ; `opsys` seul est le core depuis T0.7 lot 2) valide tous les manifestes, l'unicité des outils, les dépendances et la cohérence
 des événements (types déclarés au catalogue, fonction présente pour chaque type consommé, aucune
 fonction orpheline). Il tourne en CI.
 
@@ -92,7 +92,7 @@ Règles :
 Un département qui parle des services de l'entreprise (gouttières, revêtement, soffite/fascia,
 réparation, ou ceux d'une autre PME) ne recopie jamais la liste : il valide un code avec
 `opsys.taxonomie.valider_service` (profil d'entreprise `$OPSYS_HOME/entreprise.yaml`). Sans profil,
-tout service est refusé avec un verdict qui dit quoi configurer. `opsys verifier` échoue si une
+tout service est refusé avec un verdict qui dit quoi configurer. `opsys-metier verifier` échoue si une
 source recopie le catalogue. Voir [TAXONOMIE](TAXONOMIE.md).
 
 ## Garde-fou de texte partagé (PLAN T4.17-c, `opsys.garde_fou_texte`)
@@ -123,11 +123,11 @@ pas ses propres motifs : le code partagé vit dans le socle, et **aucun départe
 ## Canaux du public (PLAN T2.1-a, `opsys.canaux`)
 
 Un département qui reçoit le public par un canal du core (aujourd'hui `sms`) le déclare dans `canaux:`.
-`opsys openclaw configurer` en tire le canal (désactivé tant que ses variables d'environnement ne sont pas
+`opsys-metier openclaw configurer` en tire le canal (désactivé tant que ses variables d'environnement ne sont pas
 toutes fournies), sa liaison à l'agent, une session par correspondant, l'interdiction d'une réponse
 automatique et une boîte à outils fermée pour l'agent. Le département doit fournir l'outil d'accueil du canal
 (`m1_recevoir_message_canal` pour `sms`), de niveau N2 au plus, et ne peut pas être en mode `autonome`.
-`opsys verifier` contrôle ces règles. Voir [M1-canaux](../departements/M1-canaux.md).
+`opsys-metier verifier` contrôle ces règles. Voir [M1-canaux](../departements/M1-canaux.md).
 
 ## Événements (ADR-0009 §3, bus dans `opsys.evenements`)
 
@@ -153,7 +153,7 @@ Un département qui ne consomme aucun événement n'a pas besoin de définir `co
 répartiteur (`opsys.evenements.repartir`) l'appelle avec la charge déjà validée contre son schéma ;
 un échec annule ses écritures (point de sauvegarde), garde le reçu en échec avec un backoff
 exponentiel, et passe en quarantaine après 5 échecs — sans jamais bloquer les autres consommateurs
-du même événement ni les événements suivants. `opsys verifier` vérifie que chaque type publié ou
+du même événement ni les événements suivants. `opsys-metier verifier` vérifie que chaque type publié ou
 consommé existe au catalogue, que chaque type consommé a sa fonction, et qu'aucune fonction de
 `consommateurs()` n'est orpheline (absente de `evenements.consomme`).
 
@@ -167,7 +167,7 @@ consommé existe au catalogue, que chaque type consommé a sa fonction, et qu'au
 | T3 | frontière humaine : paiement, écriture financière, publication, engagement, suppression | approbation | approbation | **approbation** |
 
 Un nouveau département démarre en `ombre`. Le propriétaire le promeut depuis le dashboard ou avec
-`opsys mode <id> supervise --par <nom>`.
+`opsys-metier mode <id> supervise --par <nom>`.
 
 ## Niveaux N et politique d'approbation par département (ADR-0009 §4/§5)
 
@@ -210,12 +210,12 @@ Un outil n'est appelable par un jeton d'appareil (`employee`, `seller`, `admin`)
 déclare : `roles_appareil=frozenset({"employee", "admin"})` sur l'`Outil`, avec en commentaire la
 ligne de la définition produit §9 qui le justifie. **Défaut : vide, donc fermé à tous les appareils**
 (les agents gardent leur accès par le serveur MCP). T3/N5 n'est jamais projeté, quoi qu'il déclare ;
-`opsys verifier` refuse un rôle qui n'est pas un rôle d'appareil et un outil T3/N5 qui en déclare un.
+`opsys-metier verifier` refuse un rôle qui n'est pas un rôle d'appareil et un outil T3/N5 qui en déclare un.
 Règle, table et questions de relecture : [ROLES.md](ROLES.md).
 
 ## File du propriétaire (ADR-0009 §5)
 
-`opsys.approbations.file_proprietaire` (CLI `opsys approbations file`, API `GET
+`opsys.approbations.file_proprietaire` (CLI `opsys-metier approbations file`, API `GET
 /api/approbations/file` de la console) rassemble, de façon compacte, les demandes d'approbation du
 socle en attente et les « attentes » que chaque département déclare lui-même — mêmes chantiers en
 révision, mêmes bons de commande à approuver, mais pas encore une demande formelle du socle. Un
@@ -228,7 +228,7 @@ def attentes() -> list[dict]:                         # optionnel, même mécani
 ```
 
 Forme commune de chaque élément : `type`, `id`, `resume`, `niveau`, `depuis`, `action_proposee`
-(plus `departement`, ajouté par `file_proprietaire`). `opsys verifier` vérifie que `attentes()`, si
+(plus `departement`, ajouté par `file_proprietaire`). `opsys-metier verifier` vérifie que `attentes()`, si
 présent, se charge (`opsys.departements.verifier_attentes`) ; un département dont l'appel échoue à
 l'usage est journalisé et sauté, jamais bloquant pour les autres. M1 (plaintes, urgences de sécurité et transferts à un humain
 ouverts, PLAN T4.5), M4 (complétions en revue), M5 (factures prêtes à envoyer, écarts) et M6 (besoins de commande, seuils à
@@ -244,7 +244,7 @@ mécanisme.
 
 Une page maximum : identité, ce que l'agent fait, ce qu'il ne fait jamais. Les capacités et les
 règles communes (économie de tokens, Loi 25, approbations) sont ajoutées automatiquement à la
-génération de l'espace de travail de l'agent (`opsys openclaw configurer`). Ne pas les recopier.
+génération de l'espace de travail de l'agent (`opsys-metier openclaw configurer`). Ne pas les recopier.
 
 ## Skills
 

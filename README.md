@@ -26,8 +26,11 @@ M8 Analytique, M9 Stratégie, M10 Mémoire.
 
 - **Poste ou serveur, sans Docker** (Linux, macOS, Windows) : `install/install.sh` ou `install/install.ps1`, une commande
   qui construit le core, installe le moteur et le service, puis `install/uninstall.sh` (les données ne sont jamais
-  supprimées) et `opsys instance exporter` / `restaurer`. Voir
+  supprimées) et `opsys metier instance exporter` / `restaurer`. Voir
   [`docs/exploitation/INSTALLATION.md`](docs/exploitation/INSTALLATION.md).
+- **Une seule commande, `opsys`** (T0.7 lot 2) : c'est le core (`openclaw` en est l'alias). Le moteur métier se lance par
+  `opsys metier <commande>`, ou seul par `opsys-metier <commande>` (Docker Compose, développement). Détail : §« Une seule
+  commande » de [`docs/exploitation/INSTALLATION.md`](docs/exploitation/INSTALLATION.md).
 - **VPS Ubuntu/Debian avec Docker Compose** (4 vCPU, 8–16 Go) : voir
   [`docs/ops/INSTALLATION-VPS.md`](docs/ops/INSTALLATION-VPS.md).
 
@@ -35,7 +38,7 @@ M8 Analytique, M9 Stratégie, M10 Mémoire.
 
 ```bash
 python -m venv .venv && . .venv/bin/activate && pip install -e ".[dev,postgres]"
-pytest && ruff check src tests && opsys verifier
+pytest && ruff check src tests && opsys-metier verifier
 ```
 
 Architecture : [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) · Décisions :

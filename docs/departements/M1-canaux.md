@@ -80,7 +80,7 @@ décrite au §7 (crochet `message_received` du core).
 - **Conséquence voulue** (garde du core, ADR-0010) : tant que la session n'est pas liée, l'agent n'appelle que des
   outils N2 ou moins. C'est pourquoi l'outil d'accueil est N2 : en N3 le premier message d'un client, dont la session n'a
   pas d'affaire, serait refusé. Proposer une réponse (`m1_emettre_notification`, N4) attend le lien.
-- Pour activer la lecture par la session : `opsys openclaw configurer --contexte-entreprise m01-front-office
+- Pour activer la lecture par la session : `opsys-metier openclaw configurer --contexte-entreprise m01-front-office
   --affaire-par-session m01-front-office` (aucun outil de M1 n'est déposé au POSTFLIGHT). Testé.
 - **Règle écrite (à faire, décision du propriétaire).** Le lien automatique à la création d'un lead demande trois choses : la clé de
   session côté core (le crochet du §7 la donne), un producteur déterministe (un consommateur de `m1.lead_qualifie` dans
@@ -88,7 +88,7 @@ décrite au §7 (crochet `message_received` du core).
   une décision de confidentialité du propriétaire : la clé contient le numéro, donc elle ne voyage pas dans l'événement
   (le schéma ne la porte pas exprès).
 
-## 4. Configuration générée (`opsys openclaw configurer`)
+## 4. Configuration générée (`opsys-metier openclaw configurer`)
 
 Un département déclare `canaux: [sms]` dans `department.yaml` (M1 le fait). `openclaw.generer` écrit alors, sous
 `opsys/` : `channels.json`, `bindings.json`, `session.json` ; `plugins.json` gagne `entries.sms.enabled` ; l'entrée de
@@ -117,13 +117,13 @@ conteneur `opsys`, qui calcule l'activation, et les quatre identifiants à `open
 | `OPSYS_SMS_URL_PUBLIQUE` | URL publique du webhook, telle que Twilio la signe (`https://…/webhooks/sms`) |
 | `OPSYS_SMS_POLITIQUES_VALIDEES` | référence de la validation écrite de Nathan des politiques SMS et photos (elles sont des PROPOSITIONS) |
 
-Le canal est actif si et seulement si les cinq sont non vides au moment de `opsys openclaw configurer` **et** si un
+Le canal est actif si et seulement si les cinq sont non vides au moment de `opsys-metier openclaw configurer` **et** si un
 `openclaw.json` déjà présent inclut `channels`, `bindings` et `session` (sans `session.sendPolicy`, le core répondrait aux
 clients sans approbation : le canal reste alors éteint, avec ce message). La commande tourne à chaque cycle de
 synchronisation du conteneur `opsys` (`deploy/entrypoint.sh`), donc retirer une variable désactive le canal au cycle suivant. Un identifiant manquant dans le core ne fait pas planter le Gateway (avertissement,
 `core/src/config/io.read-helpers.ts:269`), et `enabled` est faux de toute façon.
 
-**`opsys verifier`** imprime l'état de chaque canal (`INACTIF, variables à fournir : …` ou `ACTIF`) sans échouer, et
+**`opsys-metier verifier`** imprime l'état de chaque canal (`INACTIF, variables à fournir : …` ou `ACTIF`) sans échouer, et
 échoue si un manifeste déclare un canal inconnu, un canal sans son outil d'accueil, un outil d'accueil de niveau N3+,
 un canal partagé par deux départements, ou le mode `autonome`. Avec `--config-dir`, il échoue aussi si les fragments
 écrits ne suivent pas l'environnement ou si `openclaw.json` n'inclut pas `channels`, `bindings`, `session` (un
@@ -133,7 +133,7 @@ un canal partagé par deux départements, ou le mode `autonome`. Avec `--config-
 
 - **Aucun envoi sans approbation (T3).** Trois verrous : `sendPolicy` retient la réponse automatique (aussi pour les
   commandes texte) ; l'outil `message` du core est retiré à l'agent ; `m1_emettre_notification` est N4 (approbation du
-  propriétaire en `ombre` et en `supervise`). `opsys mode … autonome` est refusé à un département à canaux (CLI et
+  propriétaire en `ombre` et en `supervise`). `opsys-metier mode … autonome` est refusé à un département à canaux (CLI et
   console), parce que ce mode enverrait sans approbation. **Cette tranche n'envoie rien** : l'envoi réel après
   approbation reste à faire (T2.1-c) et refusera, hors d'une exécution approuvée, quel que soit le mode.
 - **Commandes texte.** Un correspondant inconnu ne peut pas en lancer : sans propriétaire déclaré
@@ -171,7 +171,7 @@ un canal partagé par deux départements, ou le mode `autonome`. Avec `--config-
   signalés, Client 360, événement `m2.client_associe`. L'heure d'ingestion est celle de réception de la plateforme.
   - **Refus** : un lead que M2 refuse (service retiré du profil depuis la qualification, contrat invalide) lève
     `LeadRefuse`, avec le code et le détail du verdict. Le répartiteur réessaie (cinq fois, délai croissant), puis met
-    l'événement en quarantaine (`opsys evenements etat`), sans aucune écriture chez M2. Jamais d'acceptation silencieuse.
+    l'événement en quarantaine (`opsys-metier evenements etat`), sans aucune écriture chez M2. Jamais d'acceptation silencieuse.
     Le lead reste au registre de M1 : rien n'est perdu.
   - **Idempotence** : le répartiteur livre une fois par (événement, consommateur). En plus, un lead déjà ingéré (même
     `lead_id`, même empreinte de contrat) est reconnu (`deja_applique`) : ni second lead, ni seconde opportunité, ni
@@ -228,7 +228,7 @@ exemple : le propriétaire choisit.
 | Situation | Comportement |
 |---|---|
 | Fenêtre **absente** | Comportement d'avant : chaque message est qualifié seul. Chaque réponse porte `conversation: {mode: "message_par_message", verdict: {code: "REJ-FENETRE-NON-CONFIGUREE", detail: <où la déclarer>}}`. |
-| Fenêtre **déclarée mais invalide** (0, texte, décimal, plus de sept jours) | Refus avant toute écriture (`REJ-PROFIL-INVALIDE`), jamais lue comme absente ; `opsys verifier` la signale. |
+| Fenêtre **déclarée mais invalide** (0, texte, décimal, plus de sept jours) | Refus avant toute écriture (`REJ-PROFIL-INVALIDE`), jamais lue comme absente ; `opsys-metier verifier` la signale. |
 | Fenêtre déclarée | Voir ci-dessous. |
 
 **Règles avec fenêtre** (le registre anti-perte est la seule mémoire ; rien n'est gardé entre deux appels) :
@@ -322,7 +322,7 @@ réponse porte un bloc `questions` :
 - **Limites.** (1) Le code reconnaît des mots, pas le sens : « pas de vinyle » répond à une question dont un mot-clé est
   « vinyle ». (2) Deux questions dont les mots-clés se recouvrent se répondent l'une l'autre (« plain-pied » contient le mot
   « pied ») : le propriétaire choisit des termes qui n'appartiennent qu'à une réponse. (3) Un profil invalide n'arrête pas la
-  réception (un lead ne se perd pas pour une faute de frappe) ; `opsys verifier` le signale.
+  réception (un lead ne se perd pas pour une faute de frappe) ; `opsys-metier verifier` le signale.
 
 ### 9.3 Demande de photos : fermée tant que la politique n'est pas validée
 
@@ -437,7 +437,7 @@ message d'une conversation dont un transfert est ouvert --> rattaché au transfe
   même pour toutes les installations, le profil est par instance (SaaS, une base par instance). (2) Les questions, les poids et
   la fenêtre de M1 (T4.4, T2.1-b) y vivent déjà : une seule source de configuration métier de M1. (3) Il s'écrit avec un nom
   signé au journal d'audit (`enregistrer_signaux_plainte(…, par="nom")`), ce que demande une décision de Nathan ; un
-  changement du manifeste passe par une PR. (4) `opsys verifier` signale un profil invalide.
+  changement du manifeste passe par une PR. (4) `opsys-metier verifier` signale un profil invalide.
 - **Sans vocabulaire, le verdict le dit** : `REJ-SIGNAUX-PLAINTE-NON-CONFIGURES` (« vocabulaire des plaintes à configurer »), et
   la réponse porte `plainte.statut: vocabulaire_a_configurer` : rien n'est reconnu, jamais un mot par défaut. Un vocabulaire
   invalide donne `profil_invalide` (`REJ-PROFIL-INVALIDE`), jamais lu comme absent, et **n'arrête pas la réception** (un lead ne

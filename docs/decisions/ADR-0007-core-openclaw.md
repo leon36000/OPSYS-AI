@@ -49,7 +49,7 @@ d'impact sur le métier.
 1. **OPSYS-CORE = OpenClaw épinglé.** Release `v2026.9.6` (commit `ce5bbdc2`), image
    `ghcr.io/openclaw/openclaw:2026.9.6@sha256:0a5ff5e6…`. Aucun fork profond : on passe par les
    interfaces publiques. Voir `core/UPSTREAM.md`.
-2. **Départements = agents OpenClaw** générés par `opsys openclaw configurer`. Chacun reçoit :
+2. **Départements = agents OpenClaw** générés par `opsys-metier openclaw configurer`. Chacun reçoit :
    - un espace de travail (`SOUL.md`, `AGENTS.md`, `skills/`) ;
    - un fournisseur de modèles dédié ;
    - des automatisations.

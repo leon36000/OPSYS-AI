@@ -26,7 +26,7 @@
 | 5 | Troncature des sorties + artefacts relisibles | **Implémenté**, indépendant du runtime (stdio ou HTTP) | `src/opsys/jetons.py`, `src/opsys/capacites.py::_tronquer` |
 | 6 | Budgets par département (alerte, épuisé) — **deux couches** | **Implémenté** (SQLite OPSYS) + **Implémenté** (plafond dur LiteLLM `tpd_limit`), **testé** | `src/opsys/jetons.py::etat_budget`, `src/opsys/capacites.py::appeler` ; `src/opsys/passerelle.py::ClientLiteLLM` |
 | 7 | Paliers local/rapide/standard/fort | **Implémenté** (mécanisme, + alias LiteLLM) ; routage par difficulté = **règle de conception manuelle** | `src/opsys/modeles.py`, `src/opsys/departements.py`, `src/opsys/passerelle.py::alias_palier` |
-| 8 | Passerelle LiteLLM — **par défaut** (ADR-0007) | **Implémenté et testé** (9 tests verts, dont un aller-retour MCP réel) | `src/opsys/passerelle.py`, CLI `opsys passerelle {config,cles}` |
+| 8 | Passerelle LiteLLM — **par défaut** (ADR-0007) | **Implémenté et testé** (9 tests verts, dont un aller-retour MCP réel) | `src/opsys/passerelle.py`, CLI `opsys-metier passerelle {config,cles}` |
 | 9 | Métriques visibles au dashboard | **Implémenté** (natif OpenClaw : `/status`, `/usage`, Control UI → Usage) + **Implémenté en CLI/MCP côté OPSYS** ; **console OPSYS dédiée (départements/budgets/approbations) = en cours ailleurs, non vérifiée ici** | Control UI OpenClaw ; `src/opsys/cli.py::cmd_budgets`, outil `opsys_etat_budget` |
 | 10 | Règles d'écriture des descriptions d'outils, SOUL, skills | **Implémenté** (partiellement gaté par le code) | `src/opsys/outils.py::Outil.__post_init__`, `src/opsys/profils.py::REGLES_COMMUNES`, `src/opsys/openclaw.py::INSTRUCTIONS` |
 
@@ -261,13 +261,13 @@ lui-même, côté réseau, avant même qu'une requête atteigne un fournisseur. 
 `max_budget`/`budget_duration: "30d"` ajoute un plafond en **dollars** sur 30 jours. Contrairement à la
 couche SQLite ci-dessus, ce plafond ne distingue pas T0/T1+ : c'est un coupe-circuit dur, pas une
 dégradation graduée — les deux couches sont complémentaires (soft+gradué côté OPSYS, hard côté
-passerelle), pas redondantes. Câblé par la CLI `opsys passerelle cles` (lit `OPSYS_CLE_<CODE>` par
+passerelle), pas redondantes. Câblé par la CLI `opsys-metier passerelle cles` (lit `OPSYS_CLE_<CODE>` par
 département dans l'environnement) ; **testé** (`tests/test_openclaw_passerelle.py::
 test_cle_departement_creee_puis_mise_a_jour`, contre un faux serveur LiteLLM local — vérifie
 notamment que la clé brute ne transite jamais dans l'URL, seulement son empreinte sha256).
 
 **Comment le mesurer** :
-- `opsys budgets` (CLI, `src/opsys/cli.py::cmd_budgets`) : affiche `etat_budget()` de chaque
+- `opsys-metier budgets` (CLI, `src/opsys/cli.py::cmd_budgets`) : affiche `etat_budget()` de chaque
   département en JSON (niveau, jour, mois, limites, pourcentages).
 - Outil `opsys_etat_budget` (`capacites.py::_outils_communs`) : le même état, consultable par l'agent
   lui-même en cours de session.
@@ -296,7 +296,7 @@ modeles:
 **Où c'est configuré** : les paliers eux-mêmes (quel fournisseur/modèle concret derrière `standard`,
 etc.) vivent **hors** des départements, dans `$OPSYS_HOME/paliers.yaml`
 (`src/opsys/modeles.py::charger_paliers`/`enregistrer_paliers`), éditable depuis une console OPSYS
-(en cours ailleurs, non vérifiée ici — §9) ou la CLI (`opsys paliers definir <palier> --provider …
+(en cours ailleurs, non vérifiée ici — §9) ou la CLI (`opsys-metier paliers definir <palier> --provider …
 --model … [--base-url …]`). Un fournisseur `"custom"` (Ollama/vLLM/llama.cpp) **exige** `base_url`
 (`modeles.py::valider_palier`). **Deux traductions distinctes du même palier existent maintenant** :
 `profils.py::section_modele_hermes()` (runtime Hermes optionnel, section `model:` d'un `config.yaml`)
@@ -310,13 +310,13 @@ runtime actif.
 paliers.yaml ») et `openclaw.py::fournisseur_departement()` (OpenClaw) fait de même — `ValueError` si
 `dep.modeles["defaut"]` n'est pas dans les paliers configurés, **testé**
 (`test_palier_par_defaut_manquant`). Ni l'un ni l'autre ne retombe sur un modèle par défaut inventé.
-`opsys verifier --paliers` (CLI) fait de cette vérification un gate CI : échoue si un palier déclaré
+`opsys-metier verifier --paliers` (CLI) fait de cette vérification un gate CI : échoue si un palier déclaré
 par un département n'est pas configuré.
 
 **Quel usage va où — mécanisme vs politique** : l'assignation d'un palier à un usage est **une
 décision éditoriale par département**, écrite à la main dans `department.yaml` — il n'existe **aucun
 classifieur automatique de difficulté** dans le code (le concept RouteLLM cité par R3 §2/§8 reste au
-stade « à réimplémenter maison », non fait). `opsys verifier --paliers` vérifie que les noms de
+stade « à réimplémenter maison », non fait). `opsys-metier verifier --paliers` vérifie que les noms de
 paliers référencés existent et sont configurés, **pas** que l'assignation est économiquement
 pertinente. La politique recommandée par R3 §8 (à appliquer manuellement en écrivant chaque
 `department.yaml`) :
@@ -328,7 +328,7 @@ pertinente. La politique recommandée par R3 §8 (à appliquer manuellement en �
 | `standard` | Raisonnement principal du tour, qualification, rédaction | M3 `defaut` |
 | `fort` | Stratégique/critique — M9 conseil, synthèse M3 (Monte Carlo + narratif), M5 finance | (réservé, override dashboard toujours possible) |
 
-**Comment le mesurer** : `opsys paliers lister` affiche la table palier→{provider, model} actuelle.
+**Comment le mesurer** : `opsys-metier paliers lister` affiche la table palier→{provider, model} actuelle.
 **Limite actuelle** : la colonne `modele` de `usage_tokens` enregistre le nom de modèle littéral
 renvoyé par le fournisseur (`response_model`/`model` du payload d'usage), **pas** le nom du palier —
 calculer une consommation **par palier** exige de croiser `usage_tokens.modele` avec `paliers.yaml`
@@ -353,13 +353,13 @@ retenu : `src/opsys/passerelle.py` (131 lignes), câblé dans la CLI, exercé pa
    (`"cache_params": {"type": "redis", "host": "valkey", "port": 6379}` — nom d'hôte Valkey déjà choisi
    par convention, service pas encore présent dans un `docker-compose.yml`), clé maître et URL de base
    de données lues depuis l'environnement (`master_key`, `database_url`). Exposé par
-   `opsys passerelle config --sortie litellm.yaml`.
+   `opsys-metier passerelle config --sortie litellm.yaml`.
 2. **`passerelle.py::ClientLiteLLM`** — client d'administration minimal (`urllib`, stdlib, pas de
    dépendance HTTP tierce) pour les clés virtuelles par département : `enregistrer_departement()`
    (§6) est idempotent (`GET /key/info` avant d'appeler `POST /key/generate` ou `/key/update`),
    refuse une clé de moins de 24 caractères, et **ne transmet jamais la clé brute dans l'URL** —
    seulement son empreinte sha256 (`empreinte_cle()`), comportement documenté comme recommandation
-   LiteLLM dans le docstring du module. Exposé par `opsys passerelle cles [--budget-usd-mois N]`.
+   LiteLLM dans le docstring du module. Exposé par `opsys-metier passerelle cles [--budget-usd-mois N]`.
 
 **Ce que ça ajoute par rapport à la couche SQLite OPSYS (§6)** — deux couches complémentaires :
 
@@ -372,11 +372,11 @@ retenu : `src/opsys/passerelle.py` (131 lignes), câblé dans la CLI, exercé pa
 
 **Ce qui reste prévu, pas implémenté** : le service LiteLLM lui-même dans un `docker-compose.yml`
 (`deploy/` existe désormais — `Dockerfile`, `entrypoint.sh`, `postgres-init/` — mais sans compose ni
-service LiteLLM/Valkey à ce jour) ; l'appel automatique de `opsys passerelle cles` au déploiement
+service LiteLLM/Valkey à ce jour) ; l'appel automatique de `opsys-metier passerelle cles` au déploiement
 (aujourd'hui une commande manuelle, clés lues depuis `OPSYS_CLE_<CODE>` dans l'environnement).
 
 **Comment le mesurer** : `ClientLiteLLM.info(cle)` (`GET /key/info`, §6) pour la dépense d'un
-département ; `opsys passerelle config` pour relire la configuration effective ; Langfuse (toujours
+département ; `opsys-metier passerelle config` pour relire la configuration effective ; Langfuse (toujours
 prévu, non câblé) pour des traces coût/latence par appel au-delà de ce que LiteLLM expose lui-même.
 
 ---
@@ -393,9 +393,9 @@ la page « coûts par département » demandée par l'exigence dure #3 du propri
 plutôt qu'à construire.
 
 **Propre à OPSYS, déjà visible sans dashboard graphique** :
-- **CLI** : `opsys budgets` (état de chaque département) ; `opsys approbations lister [--statut …]`
-  (file d'approbation T1+, cf. `src/opsys/approbations.py`) ; `opsys paliers lister` (mapping
-  palier→fournisseur) ; `opsys passerelle config`/`cles` (§8).
+- **CLI** : `opsys-metier budgets` (état de chaque département) ; `opsys-metier approbations lister [--statut …]`
+  (file d'approbation T1+, cf. `src/opsys/approbations.py`) ; `opsys-metier paliers lister` (mapping
+  palier→fournisseur) ; `opsys-metier passerelle config`/`cles` (§8).
 - **MCP, en session** : outils communs de `capacites.py::_outils_communs` — `opsys_etat_budget`,
   `opsys_demandes_approbation`, `opsys_lire_artefact` — un agent peut interroger son propre état sans
   passer par un humain.
@@ -469,6 +469,6 @@ sessions × départements ; c'est le levier structurellement le plus rentable de
 d'économie de tokens.
 
 **Comment le mesurer** : longueur (caractères) de chaque `SOUL.md` généré et de chaque description
-d'outil — mesurable par simple inspection des distributions produites par `opsys profils`
+d'outil — mesurable par simple inspection des distributions produites par `opsys-metier profils`
 (`src/opsys/cli.py::cmd_profils`) ; aucun rapport agrégé n'existe encore (ex. un CI qui liste les N
 plus longues descriptions par département) au-delà du blocage dur à 1024 caractères déjà en place.

@@ -20,7 +20,7 @@ skills:
   - recevoir-un-message-de-canal
   - transferer-a-un-humain
 # PLAN T2.1-a : M1 reçoit le public par le canal SMS du core (extension `sms`). Le socle en tire la configuration
-# d'OPSYS-CORE (`opsys openclaw configurer`) : canal désactivé tant que ses identifiants et la validation écrite des
+# d'OPSYS-CORE (`opsys-metier openclaw configurer`) : canal désactivé tant que ses identifiants et la validation écrite des
 # politiques ne sont pas fournis, une session par client, aucune réponse automatique, outils fermés. Conception :
 # docs/departements/M1-canaux.md. Outil d'accueil exigé : m1_recevoir_message_canal (N2 au plus).
 canaux: [sms]

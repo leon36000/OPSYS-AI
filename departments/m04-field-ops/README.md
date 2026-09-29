@@ -237,7 +237,7 @@ DEFINITION-PRODUIT §6 (« soumission acceptée → M4 planifie ») et §7 M4.5,
   (`opsys.cles_chiffrement`, portée `m04-field-ops/sel-ville`). Aucun contact, aucune ville en clair, aucun identifiant
   de conversation, aucun prix, aucune date ni aucun créneau n'entrent au registre. Idempotent : une intervention qui porte
   déjà ce `devis_id` (rejeu, autre `evenement_id`, ou intervention planifiée à la main avant) est reconnue avant toute
-  lecture, `deja_applique`. Un fait absent lève, le répartiteur réessaie puis met en quarantaine (`opsys evenements etat`) :
+  lecture, `deja_applique`. Un fait absent lève, le répartiteur réessaie puis met en quarantaine (`opsys-metier evenements etat`) :
   `FaitDeLeadManquant` (aucun `m1.lead_qualifie` pour ce lead : un lead saisi directement dans M2 se planifie par
   `m4_planifier_intervention`, avec son contrat complet) ou `InscriptionDevisRefusee` (service retiré du profil, horodatage
   invalide). Un lead qui arrive après le devis (ordre inversé) est repris au réessai, sans doublon.
@@ -266,7 +266,7 @@ dépôt, quarts et durées à chaque cédule. Quatre pièces :
 
 - **Le profil des équipes** (`opsys.equipes`, socle ; clé `equipes` de `$OPSYS_HOME/entreprise.yaml`, même mécanisme et
   même signature au journal d'audit que les services et la zone desservie ; forme et règles dans
-  `docs/architecture/TAXONOMIE.md`). `opsys equipes lister` et `opsys equipes declarer --depuis equipes.yaml --par
+  `docs/architecture/TAXONOMIE.md`). `opsys-metier equipes lister` et `opsys-metier equipes declarer --depuis equipes.yaml --par
   nathan`. Équipes (membres = personnes OPSYS existantes, compétences, dépôt, quarts), durée et compétences par service,
   réglages de la cédule, fenêtre par défaut d'un chantier `a_planifier`. Aucune donnée de ressources humaines, de santé
   ni d'évaluation : le schéma est fermé. Sans profil : verdict qui dit quoi déclarer, jamais un repli ; profil invalide :

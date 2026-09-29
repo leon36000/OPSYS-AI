@@ -14,7 +14,7 @@ journée dès que les chantiers ont des coordonnées confirmées.
    confirmer » : ne propose jamais le centre d'une ville, demande la confirmation.
 2. Ne fournis rien que le profil des équipes de l'entreprise sait déjà. Équipes (membres, compétences, dépôt, quarts),
    durée et compétences par service, réglages de la cédule et fenêtre par défaut d'un chantier à planifier se
-   déclarent UNE fois (`opsys equipes declarer`, le propriétaire) et `m4_proposer_cedule` les lit seul : appelle-le avec
+   déclarent UNE fois (`opsys-metier equipes declarer`, le propriétaire) et `m4_proposer_cedule` les lit seul : appelle-le avec
    le seul `horodatage`. Un argument REMPLACE la clé entière du profil (surcharge, tracée dans `provenance`) : ne
    surcharge que sur demande de l'admin, jamais « pour voir », et ne reprends pas un ancien chiffre. Sans profil, le
    verdict dit quoi déclarer : dis-le à l'admin, ne devine ni équipe, ni durée, ni quart.

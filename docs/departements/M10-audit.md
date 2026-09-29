@@ -231,7 +231,7 @@ Objectif : un seul chemin réel, testé de bout en bout, sans toucher aux hooks 
    tracé comme dégradation, pas une erreur.
 7. **Démonstration bout en bout** scriptée, fixtures `fictif: true` : un WCT → décision M10 avec
    raison → paquet lu par l'estimation suivante du même `type_travaux`. `pytest` (M3 + M10) et
-   `opsys verifier` verts.
+   `opsys-metier verifier` verts.
 8. **Documentation** : `SOUL.md`/`README.md` des deux départements, contrat de l'outil et forme du
    paquet.
 
@@ -293,7 +293,7 @@ Objectif : un seul chemin réel, testé de bout en bout, sans toucher aux hooks 
 - **ADR-0009 non tranché.** Le choix SQLite/PostgreSQL pour tout le moteur métier attend l'étude R13
   (pas encore écrite à la date de cet audit). La recommandation §2.4 est spécifique à la mémoire et ne
   doit pas être décidée en silo si ADR-0009 choisit l'inverse pour le reste du moteur métier.
-- **`opsys openclaw configurer` et `core/UPSTREAM.md` obsolètes par construction** (ADR-0008), donc
+- **`opsys-metier openclaw configurer` et `core/UPSTREAM.md` obsolètes par construction** (ADR-0008), donc
   toute tâche de phase 2 qui les modifierait doit plutôt créer leur remplaçant natif — pas prolonger un
   mécanisme que l'ADR déclare sortant.
 

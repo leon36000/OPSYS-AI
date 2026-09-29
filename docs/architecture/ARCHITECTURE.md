@@ -90,7 +90,7 @@ La « RAM » d'ADR-0010 : un moteur de contexte du core (`core/src/context-engin
                                                       ce que les outils ont fait, jamais le texte du modèle
 ```
 
-- **Activation.** Désactivé par défaut. `opsys openclaw configurer --contexte-entreprise
+- **Activation.** Désactivé par défaut. `opsys-metier openclaw configurer --contexte-entreprise
   m03-estimation:m3_estimer_projet` écrit `opsys/contexte.json` (`"actif": true`, agents et outils déposés) et
   `plugins.slots.contextEngine` ensemble. Sans l'option, le moteur n'est pas choisi.
 - **Le code calcule.** M10 calcule le paquet, son budget et sa troncature. Le core ne fait que le valider et
