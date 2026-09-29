@@ -798,8 +798,35 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       transmet pas l'identité du décideur à l'outil) ; `mouvements_historique` encore accepté
       d'un appareil. `_acteur_appareil` est dupliqué dans M3, M4, M5 et M6 : un seul helper du
       socle serait plus sûr.
-- [ ] T1.5 E2E : travaux terminés normaux ; écart de 40 % → `completed_pending_review` et alerte
+- [x] T1.5 E2E : travaux terminés normaux ; écart de 40 % → `completed_pending_review` et alerte
       sur le mobile de l'admin.
+      Preuve (19de4bb, 16cd96f, 08d0b29 intégrés ; `tests/e2e/`, 7 verts, PostgreSQL sauté sans
+      Docker) : vraie application HTTP MCP du moteur sur un vrai uvicorn, dix départements, client
+      MCP HTTP réel ; chaque geste de l'app passe par la règle de la porte d'appareil du core
+      refaite en Python (nom nu, serveur de `roles.json`, `_meta` de `buildOpsysMcpCallMeta`) ;
+      personnes et appareils créés par la CLI.
+      - A (+5 %) : trajet complet de l'employé (consentement, en route, arrivée, 2 fichiers,
+        « Terminer », matériaux) ; `completed_verified` après la variance livrée par le bus ;
+        stock 158 ; facture brouillon 689,85 $ (TPS et TVQ) ; aucune approbation en attente
+        (validation au départ) ; heure du serveur au pointage ; rejeu des 10 appels 6 h plus
+        tard : `rejoue`, empreinte de la base identique ;
+      - B (+40 %) : `completed_pending_review`, signal critique ; l'alerte est visible par l'outil
+        de l'app admin (`m9_lister_demandes_approbation`, section « À voir », ajoutée : elle n'y
+        était pas), l'employé reçoit 403 ; boucle complète jusqu'à `completed_verified` après
+        décision du propriétaire ;
+      - journée de l'employé : 9 appels, 0,8 à 1,1 s en local ; aucune troncature.
+  - [ ] T1.5-b E2E avec le vrai core en CI : construire le core, démarrer le Gateway et le moteur
+        (superviseur T0.10), appairer un appareil de test (signature Ed25519), appeler
+        `/tools/invoke` et `GET /opsys/identite` avec son jeton ; mesurer la latence réelle.
+  - [ ] T1.5-c M4, défauts trouvés par l'E2E : `m4_completer_intervention` date avec l'heure de
+        l'appareil (le `wct_id` en dépend) au lieu de l'heure de réception du serveur, contrairement
+        à `m4_pointer` ; `ecart_signale` vaut toujours vrai pour un WCT venu de l'appareil ; entre
+        « Terminer » et le formulaire, la complétion paraît déjà « en revue » chez l'admin.
+  - [ ] T1.5-d Écarts à §6 dans la cascade : M6 ne déclenche ni stock bas ni besoin de commande à
+        « travaux terminés » ; M5 ne calcule ni coût réel, ni rentabilité, ni compte à recevoir ;
+        M7 ne reçoit jamais de demande d'avis depuis l'app (les champs client ne sont pas
+        envoyés) ; M8 ne garde ni prévu ni marge ; M9 ne réagit pas ; le briefing M9 est tronqué
+        au-delà de 22 décisions en attente.
 
 ## T2 — Du lead à la soumission (§6, flux principal)
 
