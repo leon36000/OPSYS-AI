@@ -1,0 +1,603 @@
+"""PLAN T1.5-d — la marge réelle de M5 atteint M8 et M10 (DEFINITION-PRODUIT §6 « travaux terminés » : « M5
+calcule le coût réel [...] et la rentabilité ; M8 : temps réel vs prévu, marge prévue vs réelle ; M10 : rien
+n'est oublié »), par le VRAI bus, sur les VRAIS départements, sans doublure.
+
+Devis accepté (M3, avec la durée estimée de son estimation) → travaux terminés (M4, vrais outils : planification,
+pointage, complétion) → variance de matériaux (M6) → M5 calcule le coût réel et la marge (prix du livre de prix M6,
+taux horaire configuré, durée pointée) et publie `m5.rentabilite_chantier` → M8 mesure la marge réelle et le
+temps prévu contre réel → M10 mémorise l'écart de marge, sans qu'aucun montant ne sorte dans un paquet.
+
+Trois scénarios, chacun sur une base SQLite temporaire migrée :
+
+1. coût complet (taux configuré, prix au livre) : marge réelle, écart de marge, temps prévu, alerte de marge
+   (seuil configuré à -20 %), leçon mémorisée par M10 au niveau FINANCIAL ;
+2. coût PARTIEL (état de livraison : ni taux, ni prix) : aucune marge ne part de M5, M8 dit « non calculable,
+   manque marge_reelle_cad » avec les codes de M5, M10 garde un état sans marge ;
+3. le prix arrive après coup : le partiel est remplacé par l'état complet, à tous les étages.
+
+Fichier NOUVEAU : le patron des helpers est celui de `test_cascade_mesure_m8_m9.py`, recopié pour ne pas dépendre
+d'un fichier que d'autres agents modifient. Identifiants, personnes et montants fictifs.
+"""
+
+from __future__ import annotations
+
+import base64
+import datetime as dt
+import hashlib
+import json
+import struct
+import zlib
+from decimal import Decimal
+
+import m2_revenue_crm.outils as m2_outils
+import m3_estimation.outils as m3_outils
+import m5_financecore.outils as m5_outils
+import pytest
+import yaml
+from m4_field_ops import cedule
+from m8_analytics import outils as m8_outils
+from sqlalchemy import select
+
+from opsys import evenements, stockage
+from opsys.departements import charger_departements
+from opsys.outils import executer_atomique
+from opsys.stockage import codec
+from opsys.stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS
+
+DT_TZ = dt.timezone(dt.timedelta(hours=-4))  # Québec, heure avancée
+VILLE = "Repentigny"
+MATERIAU_ID = "gouttiere-alu-5po-fictif"
+SEL = "sel-t15d-fictif"
+FIX_GPS = {"latitude": 45.7392, "longitude": -73.4536}
+ATTESTATION = {"fictif": True, "appareil_id": "APP-T15D-FICTIF"}
+TECHNICIEN = "TECH-T15D-fictif"
+
+
+@pytest.fixture
+def base_durable(tmp_path, monkeypatch):
+    url = f"sqlite:///{tmp_path / 'opsys-t15d-marge.db'}"
+    monkeypatch.setenv(stockage.ENV_URL, url)
+    stockage.migrer(url)
+    m2_outils.utiliser_stockage_durable()
+    m5_outils.utiliser_stockage_durable()
+    try:
+        yield url
+    finally:
+        m2_outils.reinitialiser_registre()
+        stockage.liberer()
+
+
+@pytest.fixture
+def seuils_m8(tmp_path, monkeypatch):
+    """Pose les seuils de M8 dans un `department.yaml` temporaire (le vrai n'en fixe aucun)."""
+    def poser(seuils_alerte):
+        manifeste = tmp_path / "department-m8.yaml"
+        manifeste.write_text(yaml.safe_dump({"configuration": {"seuils_alerte": seuils_alerte}}), encoding="utf-8")
+        monkeypatch.setattr(m8_outils, "_MANIFESTE", manifeste)
+    return poser
+
+
+@pytest.fixture
+def taux_m5(tmp_path, monkeypatch):
+    """Nathan configure le taux horaire de la main-d'oeuvre (50,00 $/h) : le manifeste livré de M5 n'en porte pas."""
+    def poser(taux="50.00"):
+        manifeste = tmp_path / "department-m5.yaml"
+        manifeste.write_text(yaml.safe_dump({"configuration": {"taux_horaire_main_d_oeuvre": taux}}), encoding="utf-8")
+        monkeypatch.setattr(m5_outils, "_MANIFESTE", manifeste)
+    return poser
+
+
+
+
+# -------------------------------------------------------------------------------------------
+# Petits outils de test
+# -------------------------------------------------------------------------------------------
+def _iso(base: dt.datetime, offset_s: int) -> str:
+    return (base + dt.timedelta(seconds=offset_s)).isoformat()
+
+
+def _outils(deps, dep_id):
+    return {o.nom: o for o in deps[dep_id].charger_outils()}
+
+
+def _contrat(lead_id: str) -> dict:
+    return {
+        "lead_id": lead_id, "conversation_id": f"conv-{lead_id}",
+        "contact": {"nom": "Client Fictif", "telephone": "418-555-0100", "courriel": f"{lead_id}@exemple-fictif.test"},
+        "type_travaux": "renovation_totale", "ville": VILLE, "urgence_declaree": False, "canal": "telephone",
+    }
+
+
+def _fenetre(base: dt.datetime) -> dict:
+    return {"debut": _iso(base, 0), "fin": _iso(base, 12 * 3600)}
+
+
+def _drainer(deps, base: dt.datetime, *, max_tours: int = 15, pas_s: int = 90) -> dict:
+    """Draine le bus jusqu'à quiescence (`evenements.repartir` sur TOUS les départements), boucle bornée :
+    l'alerte que M8 publie en consommant le WCT n'est livrée à M9 qu'au tour suivant."""
+    t = base
+    total = {"livres": 0, "traites": 0, "echecs": 0, "quarantaines": 0, "ignores": 0}
+    for _ in range(max_tours):
+        resume = evenements.repartir(deps, maintenant=_iso(t, 0))
+        for cle in total:
+            total[cle] += resume[cle]
+        if resume["livres"] == 0:
+            return total
+        t = t + dt.timedelta(seconds=pas_s)
+    raise AssertionError(f"le bus n'a pas atteint la quiescence après {max_tours} tours : {total}")
+
+
+def _recu(evenement_id: str, consommateur: str) -> dict | None:
+    with stockage.transaction() as cnx:
+        ligne = cnx.execute(select(EVENEMENTS_RECUS).where(
+            EVENEMENTS_RECUS.c.evenement_id == evenement_id, EVENEMENTS_RECUS.c.consommateur == consommateur,
+        )).mappings().first()
+    return dict(ligne) if ligne else None
+
+
+def _alertes_publiees() -> list[dict]:
+    """Charges des `m8.alerte_proposee` publiées par M8, dans l'ordre de publication."""
+    with stockage.transaction() as cnx:
+        lignes = cnx.execute(
+            select(EVENEMENTS_SORTANTS).where(EVENEMENTS_SORTANTS.c.type_evenement == "m8.alerte_proposee")
+            .order_by(EVENEMENTS_SORTANTS.c.cree_le, EVENEMENTS_SORTANTS.c.evenement_id)
+        ).mappings().all()
+    return [codec.decoder(ligne["charge"]) for ligne in lignes]
+
+
+# -------------------------------------------------------------------------------------------
+# Étapes de la chaîne — chacune un VRAI appel d'outil (`executer_atomique`), comme en production
+# -------------------------------------------------------------------------------------------
+def _m2_amener_pret_pour_readiness(m2, lead_id: str, base: dt.datetime) -> dict:
+    r = executer_atomique(m2["m2_ingerer_lead"], {"contrat": _contrat(lead_id), "horodatage": _iso(base, 0)})
+    assert r["ok"] and r["resultat"]["accepte"], r
+    r = executer_atomique(m2["m2_transitionner_statut"], {
+        "lead_id": lead_id, "statut_cible": "qualifie", "horodatage": _iso(base, 60),
+        "owner": "Alice Vendeuse (fictif)",
+        "prochaine_action": {"description": "Planifier la visite technique (fictif)", "echeance": _iso(base, 3600)},
+    })
+    assert r["ok"] and r["resultat"]["accepte"], r
+    r = executer_atomique(m2["m2_enregistrer_interaction"], {
+        "lead_id": lead_id, "auteur": "Alice Vendeuse (fictif)",
+        "resume": "Appel de qualification effectué (fictif).", "horodatage": _iso(base, 120),
+    })
+    assert r["ok"] and r["resultat"]["accepte"], r
+    r = executer_atomique(m2["m2_evaluer_readiness"], {"lead_id": lead_id, "horodatage": _iso(base, 180)})
+    assert r["ok"] and r["resultat"]["accepte"], r
+    return r["resultat"]["resultat"]
+
+
+def _m3_creer_devis(m3, devis_id: str, lead_id: str, chantier_id: str, base: dt.datetime) -> None:
+    """Devis fictif : 40 pi de gouttière (8.00 $/pi) + main d'oeuvre forfaitaire (160.00 $), marge 25 % :
+    coût total 480.00 $, prix total 600.00 $, donc marge prévue 120.00 $."""
+    lignes = [
+        {"description": "Gouttières 5po aluminium (fictif)", "quantite": "40", "unite": "pi",
+         "cout_unitaire": "8.00", "reference_besoin_materiau": MATERIAU_ID},
+        {"description": "Main d'oeuvre installation (fictif)", "quantite": "1", "unite": "forfait",
+         "cout_unitaire": "160.00", "reference_besoin_materiau": None},
+    ]
+    r = executer_atomique(m3["m3_creer_devis"], {
+        "devis_id": devis_id, "lead_id": lead_id, "chantier_id": chantier_id, "lignes": lignes,
+        "taux_marge": "0.25", "horodatage": _iso(base, 200), "prix_total": "600.00",
+    })
+    assert r["ok"] and r["resultat"]["accepte"], r
+
+
+def _m3_accepter_devis(m3, devis_id: str, base: dt.datetime, offset: int = 600) -> None:
+    # T3 (frontière humaine) : appelé directement ; la décision humaine est prouvée ailleurs.
+    r = executer_atomique(m3["m3_marquer_devis_accepte"], {
+        "devis_id": devis_id, "approbateur": "Nathan Proprietaire (fictif, T3)", "horodatage": _iso(base, offset),
+    })
+    assert r["ok"] and r["resultat"]["accepte"], r
+
+
+def _m2_transitionner(m2, lead_id: str, statut_cible: str, base: dt.datetime, offset: int, **kw) -> None:
+    r = executer_atomique(m2["m2_transitionner_statut"], {
+        "lead_id": lead_id, "statut_cible": statut_cible, "horodatage": _iso(base, offset), **kw,
+    })
+    assert r["ok"] and r["resultat"]["accepte"], r
+
+
+def _m4_planifier_router_pointer(m4, contrat: dict, marqueur: dict, devis_id: str, base: dt.datetime) -> str:
+    plan = executer_atomique(m4["m4_planifier_intervention"], {
+        "contrat": contrat, "marqueur": marqueur, "horodatage": _iso(base, 900), "sel": SEL,
+        "techniciens_disponibles": [TECHNICIEN], "fenetres_disponibles": [_fenetre(base)], "devis_id": devis_id,
+    })
+    assert plan["ok"] and plan["resultat"]["accepte"], plan
+    intervention_id = plan["resultat"]["intervention_id"]
+    consentement = executer_atomique(m4["m4_definir_consentement_gps"], {
+        "technicien_id": TECHNICIEN, "action": "donne", "horodatage": _iso(base, 0),
+        "version_politique": "POLITIQUE-geolocalisation-v1-test",
+        "preuve": {"fictif": True, "reference": "consentement-test"},
+    })
+    assert consentement["ok"] and consentement["resultat"]["accepte"], consentement
+    depart = executer_atomique(m4["m4_demarrer_route"], {
+        "intervention_id": intervention_id, "technicien_id": TECHNICIEN, "horodatage": _iso(base, 1800),
+    })
+    assert depart["ok"] and depart["resultat"]["accepte"], depart
+    token = cedule.tokeniser_ville(SEL, VILLE)
+    referentiel = {token: {"latitude": FIX_GPS["latitude"], "longitude": FIX_GPS["longitude"], "rayon_km": 25.0}}
+    for action, offset in (("arrivee", 3600), ("depart", 10800)):
+        r = executer_atomique(m4["m4_pointer"], {
+            "intervention_id": intervention_id, "technicien_id": TECHNICIEN, "action": action,
+            "horodatage": _iso(base, offset), "fix_gps": FIX_GPS, "attestation": ATTESTATION,
+            "fenetre_travail": _fenetre(base), "referentiel_villes": referentiel, "ville": VILLE, "sel": SEL,
+        })
+        assert r["ok"] and r["resultat"]["accepte"], r
+    return intervention_id
+
+
+def _m6_receptionner(m6, chantier_id: str, materiau_id: str, quantite: float, po_id: str, base: dt.datetime) -> None:
+    r = executer_atomique(m6["m6_receptionner_commande"], {
+        "bon_demande": {
+            "po_id": po_id, "chantier_id": chantier_id,
+            "lignes_demandees": [{"materiau_id": materiau_id, "quantite_demandee": quantite}],
+            "horodatage": _iso(base, -3600),
+        },
+        "reception_po": {
+            "po_id": po_id, "chantier_id": chantier_id,
+            "lignes_recues": [{"materiau_id": materiau_id, "quantite_recue": quantite}],
+            "horodatage": _iso(base, -1800),
+        },
+        "catalogue_materiaux": {
+            "version": "v1-fictif", "unite_monetaire": "CAD",
+            "postes": {materiau_id: {"cout_unitaire": 8.0, "libelle": "Gouttière 5po alu (fictif)"}},
+        },
+    })
+    assert r["ok"] and r["resultat"]["accepte"], r
+
+
+def _png_minimal() -> bytes:
+    def chunk(tag: bytes, donnees: bytes) -> bytes:
+        return struct.pack(">I", len(donnees)) + tag + donnees + struct.pack(">I", zlib.crc32(tag + donnees))
+
+    ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
+    idat = zlib.compress(b"\x00\xff\xff\xff", 9)
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr) + chunk(b"IDAT", idat) + chunk(b"IEND", b"")
+
+
+def _deposer_photo_test(m4) -> str:
+    contenu = _png_minimal()
+    r = executer_atomique(m4["m4_deposer_fichier"], {
+        "empreinte_sha256": hashlib.sha256(contenu).hexdigest(), "taille_octets": len(contenu),
+        "type_mime": "image/png", "index_bloc": 0, "nombre_blocs": 1,
+        "bloc_base64": base64.b64encode(contenu).decode("ascii"),
+    })
+    assert r["ok"] and r["resultat"]["accepte"] and r["resultat"]["resultat"]["complet"], r
+    return r["resultat"]["resultat"]["reference"]
+
+
+def _m4_completer(m4, intervention_id: str, base: dt.datetime, offset: int = 11400) -> dict:
+    preuves = {
+        "checklist_complete": True, "photos_apres": [_deposer_photo_test(m4)],
+        "notes": "Installation terminée sans incident (fictif).", "signature": None,
+    }
+    r = executer_atomique(m4["m4_completer_intervention"], {
+        "intervention_id": intervention_id, "horodatage": _iso(base, offset), "preuves_completion": preuves,
+    })
+    assert r["ok"] and r["resultat"]["accepte"], r
+    return r["resultat"]["resultat"]
+
+
+def _m6_declarer(m6, wct_id: str, chantier_id: str, materiau_id: str, quantite_declaree: float) -> None:
+    intervention_id = _charge_publiee("m4.travaux_termines", wct_id)["intervention_id"]
+    r = executer_atomique(m6["m6_declarer_materiaux_utilises"], {
+        "wct_id": wct_id,
+        "formulaire": {
+            "wct_id": wct_id, "intervention_id": intervention_id, "chantier_id": chantier_id,
+            "lignes_materiaux": [{
+                "type_ligne": "prevu", "materiau_id": materiau_id, "quantite": quantite_declaree,
+                "unite": "pi", "quantite_estimee": quantite_declaree,
+            }],
+        },
+    })
+    assert r["ok"] and r["resultat"]["accepte"], r
+
+
+def _charge_publiee(type_evenement: str, evenement_id: str) -> dict:
+    with stockage.transaction() as cnx:
+        ligne = cnx.execute(select(EVENEMENTS_SORTANTS).where(
+            EVENEMENTS_SORTANTS.c.type_evenement == type_evenement,
+            EVENEMENTS_SORTANTS.c.evenement_id == evenement_id,
+        )).mappings().one()
+    return codec.decoder(ligne["charge"])
+
+
+def _mesures_de_m8(deps, wct_id: str) -> dict:
+    reponse = executer_atomique(_outils(deps, "m08-analytics")["m8_lire_mesures_chantier"], {"wct_id": wct_id})
+    assert reponse["ok"] is True, reponse
+    assert reponse["resultat"]["trouve"] is True
+    return reponse["resultat"]
+
+
+# -------------------------------------------------------------------------------------------
+# Ce que la chaîne ajoute à ce fichier : M5 (livre de prix, taux), estimation de M3, lecture de M5/M8/M10
+# -------------------------------------------------------------------------------------------
+DUREE_ESTIMEE = "90"  # minutes, portée par l'estimation du devis puis par m3.devis_accepte
+TYPE_M5 = "m5.rentabilite_chantier"
+MONTANTS_M5 = ("52.00", "-68.00", "548.00", "120.00")  # marge réelle, écart, coût réel, marge prévue du scénario 1
+
+
+def _m3_ecrire_estimation(devis_id: str, lead_id: str, duree_estimee_minutes: str) -> None:
+    """L'estimation d'origine du devis (registre « principal » de M3), telle que l'orchestrateur l'écrit : c'est
+    d'elle que `m3_marquer_devis_accepte` tire la durée estimée qu'il publie."""
+    with stockage.transaction():
+        _, verdict = m3_outils.registre_production().ajouter({
+            "devis_id": devis_id, "lead_id": lead_id, "empreinte_marqueur_m2": "e" * 64, "niveau_confiance": 0.9,
+            "bareme_version": "v1-fictif", "graine_monte_carlo": 7, "duree_estimee_minutes": duree_estimee_minutes,
+        })
+    assert verdict is None, verdict
+
+
+def _m6_prix_au_livre(m6, prix: float = 8.0) -> None:
+    r = executer_atomique(m6["m6_enregistrer_prix"], {
+        "materiau_id": MATERIAU_ID, "fournisseur_id": "gentek-fictif", "prix_unitaire": prix, "devise": "CAD",
+        "date_effet": "2026-09-01", "source_document": None})
+    assert r["ok"] and r["resultat"]["accepte"], r
+
+
+def _chantier_termine(deps, base: dt.datetime, lead_id: str, devis_id: str, chantier_id: str,
+                      quantite_declaree: float, *, duree_estimee: str | None = DUREE_ESTIMEE) -> tuple[str, str]:
+    """Du lead au chantier terminé, avec les vrais outils : rend `(wct_id, intervention_id)`. Le bus n'est pas
+    encore livré : chaque test le draine quand il le veut."""
+    m2, m3, m4, m6 = (_outils(deps, d) for d in
+                       ("m02-revenue-crm", "m03-estimation", "m04-field-ops", "m06-material-control"))
+    marqueur = _m2_amener_pret_pour_readiness(m2, lead_id, base)
+    _m3_creer_devis(m3, devis_id, lead_id, chantier_id, base)
+    if duree_estimee is not None:
+        _m3_ecrire_estimation(devis_id, lead_id, duree_estimee)
+    _m2_transitionner(m2, lead_id, "converti", base, 300, reference_devis_m3=devis_id)
+    _m3_accepter_devis(m3, devis_id, base)
+    _m2_transitionner(m2, lead_id, "cedule", base, 660)
+    intervention_id = _m4_planifier_router_pointer(m4, _contrat(lead_id), marqueur, devis_id, base)
+    _m2_transitionner(m2, lead_id, "chantier", base, 840)
+    _m6_receptionner(m6, chantier_id, MATERIAU_ID, 200.0, f"PO-{devis_id}", base)
+    wct_id = _m4_completer(m4, intervention_id, base)["wct_id"]
+    _m6_declarer(m6, wct_id, chantier_id, MATERIAU_ID, quantite_declaree)
+    return wct_id, intervention_id
+
+
+def _publies_m5() -> list[dict]:
+    """Les `m5.rentabilite_chantier` publiées, par ordre de trace."""
+    with stockage.transaction() as cnx:
+        lignes = cnx.execute(select(EVENEMENTS_SORTANTS.c.charge, EVENEMENTS_SORTANTS.c.producteur).where(
+            EVENEMENTS_SORTANTS.c.type_evenement == TYPE_M5)).all()
+    charges = [codec.decoder(ligne.charge) for ligne in lignes]
+    assert {ligne.producteur for ligne in lignes} <= {"m05-financecore"}
+    return sorted(charges, key=lambda charge: charge["sequence"])
+
+
+def _alertes_publiees() -> list[dict]:
+    with stockage.transaction() as cnx:
+        lignes = cnx.execute(
+            select(EVENEMENTS_SORTANTS).where(EVENEMENTS_SORTANTS.c.type_evenement == "m8.alerte_proposee")
+            .order_by(EVENEMENTS_SORTANTS.c.cree_le, EVENEMENTS_SORTANTS.c.evenement_id)
+        ).mappings().all()
+    return [codec.decoder(ligne["charge"]) for ligne in lignes]
+
+
+def _recu(evenement_id: str, consommateur: str) -> dict | None:
+    with stockage.transaction() as cnx:
+        ligne = cnx.execute(select(EVENEMENTS_RECUS).where(
+            EVENEMENTS_RECUS.c.evenement_id == evenement_id, EVENEMENTS_RECUS.c.consommateur == consommateur,
+        )).mappings().first()
+    return dict(ligne) if ligne else None
+
+
+def _m10_rentabilites() -> list[dict]:
+    with stockage.transaction():
+        return sorted((m for m in stockage.maillons("m10-memoire", "evenements") if "marge_reelle_cad" in m),
+                      key=lambda m: m["sequence"])
+
+
+def _m10(deps, nom: str, **arguments) -> dict:
+    reponse = executer_atomique(_outils(deps, "m10-memoire")[nom], arguments)
+    assert reponse["ok"] is True, reponse
+    return reponse["resultat"]
+
+
+def _compte_des_ecritures() -> tuple[int, int, int]:
+    """Événements de M5 publiés, leçons de M10 et faits de M8 : ce qu'un second passage du bus ne doit pas changer."""
+    with stockage.transaction():
+        faits_m8 = len(list(stockage.maillons("m08-analytics", "faits_chantier")))
+    return len(_publies_m5()), len(_m10_rentabilites()), faits_m8
+
+
+def _drainer_sans_echec(deps, base: dt.datetime) -> dict:
+    total = _drainer(deps, base)
+    assert total["echecs"] == 0 and total["quarantaines"] == 0, total
+    return total
+
+
+# =============================================================================================
+# 1. Coût complet : M5 chiffre la marge -> M8 la mesure (et le temps prévu) -> M10 la mémorise
+# =============================================================================================
+def test_la_marge_reelle_de_m5_atteint_m8_qui_la_mesure_et_m10_qui_la_memorise_sans_la_montrer(
+        base_durable, seuils_m8, taux_m5):
+    seuils_m8({"m8_ecart_marge_pct": {"sens": "au_dessous", "valeur": -20}})
+    taux_m5("50.00")
+    deps = charger_departements()
+    base = dt.datetime(2026, 9, 16, 7, 0, 0, tzinfo=DT_TZ)
+    lead_id, devis_id, chantier_id = "LEAD-T15D-M-1-fictif", "DEVIS-T15D-M-1-fictif", "CH-T15D-M-1-fictif"
+    _m6_prix_au_livre(_outils(deps, "m06-material-control"), 8.0)
+    wct_id, _ = _chantier_termine(deps, base, lead_id, devis_id, chantier_id, 56.0)  # prévu 40 : +40 %
+
+    _drainer_sans_echec(deps, base + dt.timedelta(hours=1))
+
+    # -- M3 : le devis accepté porte la durée estimée de son estimation ----------------------------------
+    devis = _charge_publiee("m3.devis_accepte", f"m3-devis-accepte-{devis_id}")
+    assert devis["duree_estimee_minutes"] == DUREE_ESTIMEE
+    assert (devis["cout_total"], devis["prix_total"]) == ("480.00", "600.00")
+    wct = _charge_publiee("m4.travaux_termines", wct_id)
+    assert wct["duree_reelle_minutes"] == 120  # de 1 h à 3 h de pointage sur site
+
+    # -- M5 : le coût réel, calculé à la source, puis publié (une fois par version des entrées) -------------
+    publies = _publies_m5()
+    assert publies, "M5 publie la rentabilité de chaque nouvelle version du coût réel"
+    assert [p["sequence"] for p in publies] == list(range(1, len(publies) + 1))
+    final = publies[-1]
+    assert (final["devis_id"], final["chantier_id"], final["wct_id"]) == (devis_id, chantier_id, wct_id)
+    assert final["verdict"] == "CALCULEE" and final["cout_reel_complet"] is True
+    # 56 pi x 8,00 $ + 120 min x 50,00 $/h = 448,00 + 100,00
+    assert (final["cout_reel_cad"], final["marge_reelle_cad"]) == ("548.00", "52.00")
+    assert (final["marge_prevue_cad"], final["ecart_marge_cad"]) == ("120.00", "-68.00")
+    assert final["manque"] == []
+    for publie in publies[:-1]:  # les versions intermédiaires (pièces arrivées une à une) ne mentent pas non plus
+        assert publie["verdict"] == "PARTIELLE" or publie["marge_reelle_cad"] == final["marge_reelle_cad"]
+        if publie["verdict"] == "PARTIELLE":
+            assert publie["marge_reelle_cad"] is None and publie["ecart_marge_cad"] is None
+    texte_m5 = json.dumps(final)
+    for interdit in (MATERIAU_ID, "gentek-fictif", "prix_unitaire", "taux", lead_id, "Client Fictif"):
+        assert interdit not in texte_m5, interdit
+    assert list(stockage.maillons("m05-financecore", "principal")) == []  # aucune écriture comptable
+
+    # -- M8 : la marge réelle et ses écarts sont calculables ; le temps prévu aussi --------------------------
+    resultat = _mesures_de_m8(deps, wct_id)
+    mesures = {m["metric_id"]: m for m in resultat["mesures"]}
+    assert mesures["m8_marge_reelle_cad"]["valeur"] == "52.00"
+    assert mesures["m8_marge_prevue_cad"]["valeur"] == "120.00"
+    assert mesures["m8_ecart_marge_cad"]["valeur"] == "-68.00"
+    assert mesures["m8_ecart_marge_pct"]["valeur"] == "-56.67"  # -68 / 120
+    assert mesures["m8_ecart_duree_minutes"]["valeur"] == "30.00"  # 120 réelles - 90 estimées
+    assert mesures["m8_ecart_duree_pct"]["valeur"] == "33.33"
+    assert mesures["m8_ecart_materiaux_max_pct"]["valeur"] == "40.00"
+    assert {m["statut"] for m in mesures.values()} == {"calculee"}  # plus rien de « non calculable »
+    assert resultat["manques"] == []
+    (fait,) = [f for f in stockage.maillons("m08-analytics", "faits_chantier")
+               if f["type_entree"] == "rentabilite" and f["sequence"] == final["sequence"]]
+    assert fait["marge_reelle_cad"] == "52.00"
+
+    # -- M8 : seuil configuré (-20 %) franchi -> alerte proposée avec preuve chiffrée ------------------------
+    franchis = [a for a in _alertes_publiees() if a["type_alerte"] == "MESURE-SEUIL-FRANCHI"
+                and a["metric_id"] == "m8_ecart_marge_pct"]
+    assert len(franchis) == 1
+    assert franchis[0]["a_qui"] == "m05-financecore"
+    assert (franchis[0]["preuve"]["valeur"], franchis[0]["preuve"]["seuil"]) == ("-56.67", "-20.00")
+    assert franchis[0]["preuve"]["wct_id"] == wct_id
+
+    # -- M10 : l'écart de marge est mémorisé (FINANCIAL), un maillon par version publiée par M5 --------------
+    lecons = _m10_rentabilites()
+    assert [m["sequence"] for m in lecons] == [p["sequence"] for p in publies]
+    derniere = lecons[-1]
+    assert derniere["confidentialite"] == "FINANCIAL" and derniere["type_entree"] == "evenement_memorise"
+    assert (derniere["marge_reelle_cad"], derniere["ecart_marge_cad"]) == ("52.00", "-68.00")
+    assert derniere["wct_id"] == wct_id and derniere["horodatage"] == wct["horodatage_completion"]
+
+    # -- chaque étage a reçu chaque publication de M5, sans échec ni quarantaine ----------------------------------
+    for charge in publies:
+        for consommateur in ("m08-analytics", "m10-memoire"):
+            recu = _recu(charge["evenement_id"], consommateur)
+            assert recu is not None and recu["statut"] == "traite", (charge["evenement_id"], consommateur, recu)
+
+    # -- M10 : la marge ne sort dans AUCUN paquet de contexte, pour aucun agent ---------------------------------
+    for agent in (None, "m01-front-office", "m02-revenue-crm", "m05-financecore", "m08-analytics"):
+        arguments = {"affaire_id": lead_id, "horodatage": _iso(base, 24 * 3600)}
+        if agent is not None:
+            arguments["agent"] = agent
+        paquet = _m10(deps, "m10_paquet_contexte_affaire", **arguments)
+        texte = json.dumps(paquet, ensure_ascii=False)
+        assert paquet["confidentialite"]["nb_retenus"] == len(lecons), agent  # retenues, seulement comptées
+        assert not [m for m in MONTANTS_M5 if m in texte], (agent, texte)
+        assert final["evenement_id"] not in texte
+
+    # -- M10 : la consolidation compte, sans montant ; l'audit prouve que rien n'est oublié -------------------------
+    jour = _iso(base, 11400)[:10]
+    consolide = _m10(deps, "m10_consolider_affaire", affaire_id=lead_id, jour=jour, horodatage=_iso(base, 25 * 3600))
+    assert consolide["ecrit"] is True
+    assert f"{len(lecons)} rentabilité(s) de chantier" in consolide["fait"]["resume"]
+    assert not [m for m in MONTANTS_M5 if m in json.dumps(consolide, ensure_ascii=False)]
+    rapport = _m10(deps, "m10_auditer_non_oubli", identifiants_attendus=[
+        {"type_evenement": TYPE_M5, "identifiant": final["evenement_id"]},
+        {"type_evenement": "m4.travaux_termines", "identifiant": wct_id},
+    ])
+    assert rapport["nb_oublis"] == 0 and rapport["chaine_evenements_intacte"] is True
+
+    # -- rien de plus n'est publié ni écrit si le bus est repassé --------------------------------------------------
+    avant = _compte_des_ecritures()
+    assert _drainer_sans_echec(deps, base + dt.timedelta(hours=8))["livres"] == 0
+    assert _compte_des_ecritures() == avant
+
+
+# =============================================================================================
+# 2. Coût PARTIEL (l'état de livraison : ni taux ni prix) : aucune marge ne part, M8 dit ce qui manque
+# =============================================================================================
+def test_un_cout_partiel_ne_porte_aucune_marge_de_m5_a_m8_et_m10_et_le_dit(base_durable, seuils_m8):
+    seuils_m8({"m8_ecart_marge_pct": {"sens": "au_dessous", "valeur": -20}})
+    assert m5_outils._taux_horaire_configure() is None  # le vrai manifeste de M5 : aucun taux
+    deps = charger_departements()
+    base = dt.datetime(2026, 9, 19, 7, 0, 0, tzinfo=DT_TZ)
+    lead_id, devis_id, chantier_id = "LEAD-T15D-M-2-fictif", "DEVIS-T15D-M-2-fictif", "CH-T15D-M-2-fictif"
+    wct_id, _ = _chantier_termine(deps, base, lead_id, devis_id, chantier_id, 56.0)  # aucun prix au livre de M6
+
+    _drainer_sans_echec(deps, base + dt.timedelta(hours=1))
+
+    # -- M5 : jamais de marge, seulement ce qui manque ---------------------------------------------------------------
+    publies = _publies_m5()
+    assert publies
+    for charge in publies:
+        assert charge["verdict"] == "PARTIELLE" and charge["cout_reel_complet"] is False
+        assert charge["marge_reelle_cad"] is None and charge["ecart_marge_cad"] is None
+        assert charge["cout_reel_cad"] is None
+    final = publies[-1]
+    assert final["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TAUX-HORAIRE-A-CONFIGURER"]
+    assert final["marge_prevue_cad"] == "120.00"  # la marge prévue de M3 reste dite
+
+    # -- M8 : « non calculable, manque marge_reelle_cad », avec la raison de M5 ; le reste est mesuré -----------------
+    resultat = _mesures_de_m8(deps, wct_id)
+    mesures = {m["metric_id"]: m for m in resultat["mesures"]}
+    for metric_id in ("m8_marge_reelle_cad", "m8_ecart_marge_cad", "m8_ecart_marge_pct"):
+        assert mesures[metric_id]["statut"] == "non_calculable" and mesures[metric_id]["valeur"] is None
+        assert mesures[metric_id]["manque"] == ["marge_reelle_cad"]
+    (manque,) = [m for m in resultat["manques"] if m["champ"] == "marge_reelle_cad"]
+    assert manque["source"].startswith("M5")
+    assert manque["raison"] == (
+        "M5 n'a pas chiffré la marge réelle : REJ-COUT-PRIX-NON-DISPONIBLE, REJ-COUT-TAUX-HORAIRE-A-CONFIGURER")
+    assert mesures["m8_marge_prevue_cad"]["valeur"] == "120.00"
+    assert mesures["m8_ecart_duree_minutes"]["valeur"] == "30.00"  # le temps prévu, lui, est calculé
+    assert mesures["m8_ecart_materiaux_max_pct"]["valeur"] == "40.00"
+    assert [a for a in _alertes_publiees() if a["metric_id"] == "m8_ecart_marge_pct"] == []  # rien à alerter
+
+    # -- M10 : l'état partiel est mémorisé tel quel, sans aucune marge -------------------------------------------------
+    lecons = _m10_rentabilites()
+    assert [m["sequence"] for m in lecons] == [p["sequence"] for p in publies]
+    assert all(m["marge_reelle_cad"] is None and m["ecart_marge_cad"] is None for m in lecons)
+    assert all(m["confidentialite"] == "FINANCIAL" for m in lecons)
+    assert lecons[-1]["manque"] == final["manque"]
+
+
+# =============================================================================================
+# 3. Le prix arrive après coup : le partiel est remplacé par l'état complet, à tous les étages
+# =============================================================================================
+def test_le_prix_ajoute_apres_coup_remplace_le_partiel_par_la_marge_a_tous_les_etages(base_durable, taux_m5):
+    taux_m5("50.00")
+    deps = charger_departements()
+    base = dt.datetime(2026, 9, 22, 7, 0, 0, tzinfo=DT_TZ)
+    lead_id, devis_id, chantier_id = "LEAD-T15D-M-3-fictif", "DEVIS-T15D-M-3-fictif", "CH-T15D-M-3-fictif"
+    wct_id, _ = _chantier_termine(deps, base, lead_id, devis_id, chantier_id, 42.0, duree_estimee=None)  # +5 %
+    _drainer_sans_echec(deps, base + dt.timedelta(hours=1))
+
+    partiel = _publies_m5()[-1]
+    assert partiel["verdict"] == "PARTIELLE" and partiel["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE"]
+    avant = {m["metric_id"]: m for m in _mesures_de_m8(deps, wct_id)["mesures"]}
+    assert avant["m8_marge_reelle_cad"]["statut"] == "non_calculable"
+    assert avant["m8_ecart_duree_pct"]["manque"] == ["duree_estimee_minutes"]  # sans estimation : rien d'inventé
+
+    # M6 saisit le prix ; la facture de M5 change de statut : la prochaine pièce reçue par M5 recalcule.
+    _m6_prix_au_livre(_outils(deps, "m06-material-control"), 8.0)
+    with stockage.transaction():
+        assert m5_outils._essayer_cout_reel(devis_id) == {"statut": "tracee"}
+    _drainer_sans_echec(deps, base + dt.timedelta(hours=3))
+
+    complet = _publies_m5()[-1]
+    assert complet["sequence"] == partiel["sequence"] + 1 and complet["verdict"] == "CALCULEE"
+    assert (complet["cout_reel_cad"], complet["marge_reelle_cad"]) == ("436.00", "164.00")  # 42 x 8,00 + 100,00
+    assert complet["ecart_marge_cad"] == "44.00"  # plus que prévu : moins de main-d'oeuvre que le forfait du devis
+    apres = {m["metric_id"]: m for m in _mesures_de_m8(deps, wct_id)["mesures"]}
+    assert apres["m8_marge_reelle_cad"]["valeur"] == "164.00"
+    assert apres["m8_ecart_marge_cad"]["valeur"] == "44.00" and apres["m8_ecart_marge_pct"]["valeur"] == "36.67"
+    assert apres["m8_ecart_duree_pct"]["manque"] == ["duree_estimee_minutes"]  # la durée reste non calculable
+    lecons = _m10_rentabilites()
+    assert [(m["sequence"], m["marge_reelle_cad"]) for m in lecons][-2:] == [
+        (partiel["sequence"], None), (complet["sequence"], "164.00")]
+    # M8 reprend la marge de M5 sans la recalculer.
+    assert Decimal(complet["marge_reelle_cad"]) == Decimal(apres["m8_marge_reelle_cad"]["valeur"])
