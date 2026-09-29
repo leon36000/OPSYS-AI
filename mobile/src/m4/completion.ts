@@ -1,3 +1,4 @@
+import type { ChampsClientM4 } from "./consentementClient";
 import type { PreuvesCompletionM4 } from "./preuvesCompletion";
 
 /**
@@ -8,14 +9,15 @@ import type { PreuvesCompletionM4 } from "./preuvesCompletion";
  * (lignes 279-486) — jamais exécuté ici (ADR-0008), même discipline que `src/m4/pointage.ts`.
  *
  * **Portée volontairement RÉDUITE par rapport au schéma complet de l'outil.** `outils.py`
- * accepte aussi `photos`, `description_factuelle`, `consentement_marketing`, `client_satisfait`
- * — des FAITS DU CLIENT (Loi 25, T1.2-f) que « un agent ne peut JAMAIS affirmer à sa place »,
- * réservés au flux marketing (M7, DEFINITION-PRODUIT.md §9.3 : « Après le chantier, pour le
- * marketing… autorisation du client, qualité du résultat, client satisfait oui/non »). Aucun de
- * ces quatre champs n'a d'écran dédié dans R12 §5 pour cette tranche (l'ordre de livraison
- * s'arrête à `complete.tsx` -> `materials.tsx`) : `complete.tsx` ne les envoie PAS (ils restent
- * `NON_FOURNI` côté serveur, leur défaut) plutôt que d'inventer une capture de consentement
- * client bâclée. Documenté aussi dans MOBILE.md (« Ce qui n'est pas encore fait »).
+ * accepte aussi `photos`, `description_factuelle`, `consentement_marketing`, `client_satisfait`,
+ * `consentement_demande_avis` et `consentement_version_texte` — des FAITS DU CLIENT (Loi 25,
+ * T1.2-f, T1.5-d) que « un agent ne peut JAMAIS affirmer à sa place ». PLAN T1.5-d : l'écran
+ * « Terminer » recueille, AUPRÈS DU CLIENT, ses deux consentements (être contacté pour un avis ;
+ * l'usage de photos) et, s'il l'a dit, sa satisfaction (`src/m4/consentementClient.ts`) et les envoie
+ * dans `champsClient`, SANS clé pour une case non cochée (absence = non consenti). `photos` et
+ * `description_factuelle` restent non envoyés : ce ne sont pas des paroles du client. Qui a recueilli
+ * le consentement et quand, l'appareil ne peut pas le dire : le serveur les pose (personne du jeton,
+ * heure de réception). Documenté aussi dans MOBILE.md.
  *
  * **L'accusé de `m4_completer_intervention` n'est PAS le WCT complet, et n'a pas à l'être.**
  * `outbox.completer_intervention` (étape 13) renvoie un résumé de 8 clés (`wct_id`,
@@ -32,8 +34,9 @@ import type { PreuvesCompletionM4 } from "./preuvesCompletion";
  * en-tête). `intervention_id`/`horodatage`/`preuves_completion` sont `required` côté serveur ;
  * `signature_requise` a un défaut serveur (`false`) mais est envoyé EXPLICITEMENT ici, jamais
  * omis — `src/ecrans/complete.ts` exige un choix explicite de l'employé avant de construire ces
- * args (fail-closed, jamais un défaut deviné côté mobile, voir sa docstring). */
-export interface ArgumentsM4CompleterIntervention {
+ * args (fail-closed, jamais un défaut deviné côté mobile, voir sa docstring). Les champs client
+ * (`ChampsClientM4`) n'y figurent que s'ils ont été recueillis. */
+export interface ArgumentsM4CompleterIntervention extends ChampsClientM4 {
   readonly intervention_id: string;
   readonly horodatage: string;
   readonly preuves_completion: PreuvesCompletionM4;
@@ -45,12 +48,14 @@ export function construireArgumentsCompleterIntervention(
   horodatage: string,
   preuvesCompletion: PreuvesCompletionM4,
   signatureRequise: boolean,
+  champsClient: ChampsClientM4 = {},
 ): ArgumentsM4CompleterIntervention {
   return {
     intervention_id: interventionId,
     horodatage,
     preuves_completion: preuvesCompletion,
     signature_requise: signatureRequise,
+    ...champsClient,
   };
 }
 

@@ -198,6 +198,21 @@ const enCA: RessourcesCommunes = {
       oui: "Yes, required",
       non: "No, not required",
     },
+    consentements: {
+      titre: "Client consents",
+      consigne:
+        "Read each statement to the client, or show it to them. Tick only if the client agrees, in front of you: " +
+        "never tick on their behalf. With no tick, no consent is recorded and nothing is sent to the client.",
+      noteLangue: "The statements are shown to the client in French, whatever the language of the app.",
+      demandeAvis: "Review request",
+      photos: "Job photos",
+      version: "Text shown: version {{version}}",
+      satisfaction: {
+        question: "Is the client satisfied with the result? (optional, based on their answer)",
+        satisfait: "Satisfied",
+        insatisfait: "Not satisfied",
+      },
+    },
     bouton: "Finish",
     boutonEnCours: "Sending…",
     appareilNonAppaire: "Device not paired: cannot finish right now.",

@@ -12,6 +12,17 @@ import { evaluerPreparationCompletion } from "@/ecrans/complete";
 import type { RaisonBlocageCompletion } from "@/ecrans/complete";
 import { construireArgumentsCompleterIntervention, estAccuseCompletionM4 } from "@/m4/completion";
 import type { VerdictServeurCompletion } from "@/m4/completion";
+import {
+  CHOIX_CLIENT_VIDES,
+  TEXTE_CONSENTEMENT_DEMANDE_AVIS,
+  TEXTE_CONSENTEMENT_PHOTOS,
+  VERSION_TEXTE_CONSENTEMENT_CLIENT,
+  basculerConsentement,
+  choisirSatisfaction,
+  choixClientVerrouilles,
+  construireChampsClient,
+} from "@/m4/consentementClient";
+import type { ChoixClient } from "@/m4/consentementClient";
 import { ecrireWctIdCompletion, lireWctIdCompletion } from "@/m4/wctIdCompletion";
 import { genererMutationId } from "@/outbox/id";
 import { creerMutation, formaterHorodatageLocal, soumettreMutation } from "@/outbox/mutation";
@@ -33,6 +44,13 @@ import { obtenirDepotLocal } from "@/stockage/service";
  * `complete.blocages.fichiers_en_echec` et NE RETENTE JAMAIS automatiquement (reprendre la même
  * photo ne changerait pas l'issue, voir `envoiOrchestrateur.ts`) : l'employé doit retourner à
  * `photos.tsx`/`signature.tsx`.
+ *
+ * **Consentements du client (PLAN T1.5-d).** L'écran recueille, AUPRÈS DU CLIENT, ses deux consentements
+ * (être contacté pour un avis ; l'usage de photos du chantier) et sa satisfaction s'il la dit :
+ * cases NON cochées par défaut, énoncés fr-CA versionnés (`src/m4/consentementClient.ts`, testé là).
+ * Une case décochée n'envoie RIEN (absence = non consenti) ; qui a recueilli le consentement et quand
+ * est posé par le serveur, jamais par l'appareil. Les choix se verrouillent dès que « Terminer » a
+ * mis la complétion en file : ce qui est parti est ce que le client a accepté à cet instant.
  *
  * **Le verdict serveur est affiché TEL QUEL** (mission item 2) : `resultatCompletion.statut`
  * porte `completed_pending_review` ou toute autre valeur renvoyée par le serveur, jamais
@@ -63,6 +81,7 @@ export default function EcranCompletion() {
   const [mutations, setMutations] = useState<MutationOutbox[]>([]);
   const [notes, setNotes] = useState("");
   const [signatureRequise, setSignatureRequise] = useState<boolean | null>(null);
+  const [choixClient, setChoixClient] = useState<ChoixClient>(CHOIX_CLIENT_VIDES);
   const [charge, setCharge] = useState(false);
   const [enTraitement, setEnTraitement] = useState(false);
   const [erreurAppareil, setErreurAppareil] = useState(false);
@@ -149,7 +168,13 @@ export default function EcranCompletion() {
 
       const horloge = { maintenant: new Date(), decalageMinutesUTC: -new Date().getTimezoneOffset() };
       const horodatageLocal = formaterHorodatageLocal(horloge);
-      const args = construireArgumentsCompleterIntervention(interventionId, horodatageLocal, etat.preuves, signatureRequise === true);
+      const args = construireArgumentsCompleterIntervention(
+        interventionId,
+        horodatageLocal,
+        etat.preuves,
+        signatureRequise === true,
+        construireChampsClient(choixClient),
+      );
 
       const brouillon = creerMutation({ type: "job_completion", chantierId: interventionId, payload: { ...args } }, genererMutationId, horloge);
       const enAttente = soumettreMutation(brouillon);
@@ -182,7 +207,7 @@ export default function EcranCompletion() {
     } finally {
       setEnTraitement(false);
     }
-  }, [interventionId, checklistItems, notes, signatureRequise, rafraichirMutations]);
+  }, [interventionId, checklistItems, notes, signatureRequise, choixClient, rafraichirMutations]);
 
   const mutationCompletion = mutations.find((m) => m.type === "job_completion" && m.chantierId === interventionId);
   // `en_attente`/`envoi` seulement : `envoyee`/`echec_permanent` sont des états déjà RÉSOLUS
@@ -200,6 +225,12 @@ export default function EcranCompletion() {
   // deux cas, retenter « Terminer » n'a plus de sens (le serveur refuserait la retransition,
   // REJ-TRANSITION-ILLEGALE, `etats.py`) — le bouton reste désactivé dans les deux cas.
   const completionEnvoyee = resultatCompletion !== null || mutationCompletion?.statut === "envoyee";
+  // Les choix du client ne bougent plus dès que la complétion est en file ou partie (voir l'en-tête).
+  const choixVerrouilles = choixClientVerrouilles({
+    enTraitement,
+    completionEnvoyee,
+    statutMutationCompletion: mutationCompletion?.statut ?? null,
+  });
 
   return (
     <ScrollView contentContainerStyle={styles.conteneur}>
@@ -237,6 +268,72 @@ export default function EcranCompletion() {
           >
             <Text style={signatureRequise === false ? styles.choixSignatureTexteActif : styles.choixSignatureTexte}>
               {t("complete.signatureRequise.non")}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.blocConsentements}>
+        <Text style={styles.libelleSwitch}>{t("complete.consentements.titre")}</Text>
+        <Text style={styles.avis}>{t("complete.consentements.consigne")}</Text>
+        <Text style={styles.avis}>{t("complete.consentements.noteLangue")}</Text>
+
+        <Pressable
+          style={styles.ligneCase}
+          disabled={choixVerrouilles}
+          onPress={() => setChoixClient((actuel) => basculerConsentement(actuel, "consentementDemandeAvis"))}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: choixClient.consentementDemandeAvis, disabled: choixVerrouilles }}
+          accessibilityLabel={`${t("complete.consentements.demandeAvis")} : ${TEXTE_CONSENTEMENT_DEMANDE_AVIS}`}
+        >
+          <Text style={styles.caseCochable}>{choixClient.consentementDemandeAvis ? "☑" : "☐"}</Text>
+          <View style={styles.texteCase}>
+            <Text style={styles.libelleSwitch}>{t("complete.consentements.demandeAvis")}</Text>
+            <Text>{TEXTE_CONSENTEMENT_DEMANDE_AVIS}</Text>
+          </View>
+        </Pressable>
+
+        <Pressable
+          style={styles.ligneCase}
+          disabled={choixVerrouilles}
+          onPress={() => setChoixClient((actuel) => basculerConsentement(actuel, "consentementPhotos"))}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: choixClient.consentementPhotos, disabled: choixVerrouilles }}
+          accessibilityLabel={`${t("complete.consentements.photos")} : ${TEXTE_CONSENTEMENT_PHOTOS}`}
+        >
+          <Text style={styles.caseCochable}>{choixClient.consentementPhotos ? "☑" : "☐"}</Text>
+          <View style={styles.texteCase}>
+            <Text style={styles.libelleSwitch}>{t("complete.consentements.photos")}</Text>
+            <Text>{TEXTE_CONSENTEMENT_PHOTOS}</Text>
+          </View>
+        </Pressable>
+
+        <Text style={styles.identifiant}>
+          {t("complete.consentements.version", { version: VERSION_TEXTE_CONSENTEMENT_CLIENT })}
+        </Text>
+
+        <Text style={styles.libelleSwitch}>{t("complete.consentements.satisfaction.question")}</Text>
+        <View style={styles.boutonsSwitch}>
+          <Pressable
+            style={[styles.choixSignature, choixClient.satisfaction === "satisfait" ? styles.choixSignatureActif : null]}
+            disabled={choixVerrouilles}
+            onPress={() => setChoixClient((actuel) => choisirSatisfaction(actuel, "satisfait"))}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: choixClient.satisfaction === "satisfait", disabled: choixVerrouilles }}
+          >
+            <Text style={choixClient.satisfaction === "satisfait" ? styles.choixSignatureTexteActif : styles.choixSignatureTexte}>
+              {t("complete.consentements.satisfaction.satisfait")}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.choixSignature, choixClient.satisfaction === "insatisfait" ? styles.choixSignatureActif : null]}
+            disabled={choixVerrouilles}
+            onPress={() => setChoixClient((actuel) => choisirSatisfaction(actuel, "insatisfait"))}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: choixClient.satisfaction === "insatisfait", disabled: choixVerrouilles }}
+          >
+            <Text style={choixClient.satisfaction === "insatisfait" ? styles.choixSignatureTexteActif : styles.choixSignatureTexte}>
+              {t("complete.consentements.satisfaction.insatisfait")}
             </Text>
           </Pressable>
         </View>
@@ -289,6 +386,10 @@ const styles = StyleSheet.create({
   choixSignatureActif: { backgroundColor: "#1c6f5c", borderColor: "#1c6f5c" },
   choixSignatureTexte: { color: "#333" },
   choixSignatureTexteActif: { color: "#fff", fontWeight: "600" },
+  blocConsentements: { gap: 8, borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 12 },
+  ligneCase: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
+  caseCochable: { fontSize: 24, lineHeight: 28 },
+  texteCase: { flex: 1, gap: 2 },
   erreur: { color: "#b00020" },
   avis: { color: "#666" },
   succes: { backgroundColor: "#eaf5f1", borderRadius: 8, padding: 12, gap: 4 },

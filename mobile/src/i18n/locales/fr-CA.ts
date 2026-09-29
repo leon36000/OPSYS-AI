@@ -183,6 +183,19 @@ export interface RessourcesCommunes {
       oui: string;
       non: string;
     };
+    consentements: {
+      titre: string;
+      consigne: string;
+      noteLangue: string;
+      demandeAvis: string;
+      photos: string;
+      version: string;
+      satisfaction: {
+        question: string;
+        satisfait: string;
+        insatisfait: string;
+      };
+    };
     bouton: string;
     boutonEnCours: string;
     appareilNonAppaire: string;
@@ -510,6 +523,21 @@ const frCA: RessourcesCommunes = {
       question: "Une signature du client est-elle requise pour ce chantier ?",
       oui: "Oui, requise",
       non: "Non, pas requise",
+    },
+    consentements: {
+      titre: "Consentements du client",
+      consigne:
+        "Lisez chaque énoncé au client, ou montrez-le-lui. Cochez seulement si le client accepte, devant vous : " +
+        "ne cochez jamais à sa place. Sans coche, aucun consentement n'est enregistré, et rien n'est envoyé au client.",
+      noteLangue: "Les énoncés sont présentés au client en français, quelle que soit la langue de l'application.",
+      demandeAvis: "Demande d'avis",
+      photos: "Photos du chantier",
+      version: "Texte présenté : version {{version}}",
+      satisfaction: {
+        question: "Le client est-il satisfait du résultat ? (facultatif, selon sa réponse)",
+        satisfait: "Satisfait",
+        insatisfait: "Insatisfait",
+      },
     },
     bouton: "Terminer",
     boutonEnCours: "Envoi en cours…",
