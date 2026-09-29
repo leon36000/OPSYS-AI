@@ -363,7 +363,8 @@ Règles, toutes testées (Jest) :
 - **Hors ligne.** Réseau coupé, délai, 408, 429, 5xx ou corps illisible (portail captif) ne disent rien de
   l'attribution : la dernière identité confirmée sert, marquée « à reconfirmer », et le bandeau le dit. Sans
   identité gardée, c'est une erreur (`hors_ligne_sans_memoire`).
-- **Un nouvel appairage repart de zéro.** L'identité gardée est effacée, la lecture recommence.
+- **Un nouvel appairage repart de zéro.** L'identité gardée est effacée, la lecture recommence. Les caches de
+  l'ancienne personne aussi, dès que le serveur confirme l'identité (« Lectures des trois profils »).
 - **Coffre illisible.** Ce n'est pas « non appairé » : erreur `stockage_illisible`, avec « Réessayer ». La
   configuration déjà en mémoire n'est pas retirée.
 - **Démarrage à froid.** Avant T1.4-c5, l'aiguilleur redirigeait vers `/pairing` avant que le coffre soit
@@ -616,6 +617,112 @@ plusieurs appairages. `depot.sqlite.test.ts` : le vrai SQL, dont la migration d'
 - La quarantaine n'a pas d'écran de gestion : elle se voit (bandeau) et se résout par le retour de sa
   personne.
 
+## Lectures des trois profils : refus ou panne, liste coupée, caches, textes du serveur (PLAN T1.4-n)
+
+Les trois profils lisent de la même façon : le serveur d'abord, un cache marqué (date et raison) quand il ne répond pas.
+Quatre règles, écrites une seule fois, testées sur les vraies réponses du moteur (`fixtures/`).
+
+### Refus ou panne : une seule règle (`src/protocole/echec.ts`, `enveloppeOutil.ts`)
+
+| Ce que l'app reçoit | Genre | Le cache peut-il servir ? |
+|---|---|---|
+| réseau coupé, délai, 408, 429, 5xx, réponse qui n'est pas celle du core | panne | oui, marqué |
+| `outil_inconnu`, `departement_appelant_inconnu`, `budget_epuise` (`ok: false`) | panne (état de l'instance) | oui, marqué |
+| sortie coupée par le socle, forme illisible | panne | oui, marqué (la liste de l'employé : voir plus bas) |
+| 401, 403 : jeton révoqué, personne ou rôle retiré, outil hors de la portée | **refus** | **non** |
+| autre 4xx dont le corps est celui du core (`erreur` structurée) | **refus** | **non** |
+| tout autre `ok: false` du core (`refus_metier`...) | **refus** | **non** |
+| verdict `REJ-IDENTITE-APPAREIL-INVALIDE` (personne désactivée, rôle retiré) | **refus** de la requête | **non** |
+| autre verdict métier (`accepte: false` : lead clos, segment non calculable) | fait de la lecture, dit tel quel | jamais remplacé par le cache |
+
+- **Un refus ne montre jamais le cache et n'écrit rien.** Un cache ne dit pas ce que le serveur refuse aujourd'hui.
+  Montrer des données gardées à un appareil qu'on vient de refuser serait pire qu'un écran vide.
+- La liste des erreurs passagères est celle du serveur (`idempotence.ERREURS_PASSAGERES`) ; l'E2E l'épingle.
+- Le verdict d'identité arrive en verdict métier (M2, M3, M5 : HTTP 200, `accepte: false`) ou en refus technique
+  (M4, M8 : `ok: false`, `refus_metier`). Mesuré sur le vrai moteur avec une personne désactivée, pour les trois profils.
+- Une fiche vendeur est celle d'UNE lecture (trois appels). Un refus de la requête refuse toute la fiche ; le cache
+  n'est écrit que si le Client 360 a été lu. Les devis suivent : un refus de la découverte des devis n'ouvre pas les
+  devis gardés.
+
+### Liste coupée par le socle (employé, `src/today/`)
+
+`m4_lister_interventions` n'a pas de pagination, et le socle coupe toute réponse de plus de 6 000 caractères :
+`{ok, tronque: true, apercu}`, sans `resultat`. Cette forme n'est **ni une liste vide ni une liste complète**.
+- **Un appel par statut** (`en_route`, `sur_site`, `en_revue`, `planifiee`), comme l'admin : chaque groupe est petit, et
+  l'historique (terminé, annulé) n'est jamais demandé.
+- **Cinq issues, jamais confondues** : `serveur` (les quatre groupes lus en entier, cache écrit) ; `cache` (panne, copie
+  de CETTE personne, marquée) ; `incomplet` (le socle a coupé un groupe : les groupes lus en entier sont montrés,
+  l'écran dit quels statuts manquent, **le cache n'est jamais écrit** par une lecture incomplète) ; `refus` (jamais le
+  cache) ; `aucune`. Précédence : refus, puis panne, puis incomplet.
+- Une forme inconnue est une panne (`illisible`), jamais « aucune intervention ».
+- `a_planifier` est un statut connu de l'app (`ETATS_INTERVENTION_M4`, l'ordre de `etats.ETATS`). Le serveur ne la montre
+  à aucun employé : une intervention non cédulée n'est à personne.
+- L'écran du chantier (`m4_statut_intervention`) suit la même règle : un refus n'est jamais le statut de la copie gardée.
+- Le service relit la session (jeton et personne confirmée POUR CE JETON) à chaque appel, comme la file.
+
+### Caches par personne, effacés quand l'identité change (`src/stockage/cles.ts`, `src/identite/caches.ts`)
+
+Une seule liste de clés (`stockage/cles.ts`) : `admin:<personne>:<section>_v1`, `vendeur:<personne>:<nom>_v1`,
+`employe:<personne>:chantiers_v1` (la personne est encodée dans la clé), et l'ancienne clé `today_chantiers_v1`, qui n'a
+pas de personne. Un marqueur `proprietaire_des_caches_v1` (`{personne, role}`) dit à qui sont les caches.
+
+À chaque identité CONFIRMÉE par le serveur (jamais une identité gardée hors ligne) :
+
+| Situation | Décision |
+|---|---|
+| le marqueur est cette personne et ce rôle | conserver |
+| marqueur absent, ou autre personne, ou autre rôle | effacer tous les caches par personne, puis écrire le marqueur |
+| refus du serveur (`appareil_non_attribue`, `role_inconnu`, `jeton_refuse`, `refus_inattendu`, `reponse_invalide`) | effacer, puis oublier le marqueur |
+| panne (`hors_ligne_sans_memoire`, `stockage_illisible`), `a_reconfirmer`, `en_lecture` | conserver : le serveur n'a rien dit |
+
+- L'app l'apprend par le cycle d'identité (démarrage, premier plan, retour du réseau) et par le signal de refus de la file
+  (« La file suit le jeton et la personne »). Une lecture refusée par un chargeur ne relit pas l'identité : l'écran dit le
+  refus et ne montre aucun cache.
+- Le marqueur est écrit APRÈS l'effacement : si l'effacement échoue, il est retenté à la confirmation suivante.
+- L'effacement passe AVANT que l'état s'applique (aucun écran ne lit le cache d'avant), et le résultat d'une lecture
+  d'une session périmée est jeté (`appliquerLecture`).
+- **Ne sont jamais effacés** : la file sortante et sa quarantaine (règle inchangée, « La file suit le jeton et la
+  personne »), les brouillons locaux (checklist, `wct_id`, photos, signature) et le coffre (jeton, dernière identité).
+  La suppression définitive de données reste une frontière humaine (T3).
+- `supprimerParPrefixe` est `DELETE ... WHERE instr(cle, ?) = 1` : ni `LIKE` (`_` et `%` seraient des jokers), ni préfixe vide.
+
+### Ce que le serveur écrit pour un agent, l'app ne le montre pas (`src/ecrans/manquesM4.ts`, `texteSur.ts`)
+
+Le `manque` d'un volet de `m4_verifier_preparation` est écrit pour un agent : il cite le fichier du serveur
+(`entreprise.yaml`) et les commandes `opsys-metier`. L'écran des chantiers du propriétaire dit quoi faire en mots simples.
+- Une phrase de l'app (fr-CA et en-CA, `admin.chantiers.manques.*`), choisie par le CODE du manque : `MANQUES_CONNUS`
+  associe (volet, statut, code) à un texte. Le code d'un volet est son `detail` quand c'est un jeton (`REJ-…`, `partiel`,
+  `a_commander`) ; un manque sans code (`detail` nul) se dit par son volet et son statut.
+- Un manque inconnu (serveur plus récent) : « à configurer côté serveur (code : … ) », jamais le texte brut. Un `detail`
+  présent qui n'est pas un code n'est pas « aucun code » : il est inconnu. Le code de repli s'écrit `equipe.manque`.
+- Le texte de M4 n'est jamais recopié dans la vue, ni pour « à fournir ». Un volet PRÊT garde le fait que M4 en dit
+  (« devis accepté X ») seulement s'il ne cite ni chemin ni commande.
+- Garde générique (`presenterSection`) : le détail d'un refus ou d'une absence qui cite un chemin ou une commande est tu ;
+  le code seul le dit (`refusSansDetail`, `aucuneSansDetail`). `texteSansChemin` refuse la barre oblique, la barre oblique
+  inverse, l'apostrophe inversée, `~`, `$`, `opsys-metier` et les noms de fichier en `.yaml`, `.yml`, `.json`, `.sqlite`,
+  `.md`, `.py`, `.ts` et `.db` : une barre oblique suffit à taire un texte (prudence : le code dit le reste).
+- `MANQUES_CONNUS` est épinglé aux sorties réelles de M4, dans les deux sens, par `tests/e2e/test_manques_m4_appareil.py`.
+  M4 n'est pas modifié.
+
+### Preuve et limites
+
+Jest et `tsc` ; E2E moteur (appareils réels, base temporaire) : `test_admin_appareil.py`, `test_vendeur_appareil.py`
+(refus d'identité des trois profils, erreurs passagères), `test_liste_employe_appareil.py` (26 chantiers planifiés : la liste
+est coupée, forme exacte ; employé désactivé ; statuts de l'app = `etats.ETATS`), `test_manques_m4_appareil.py` (six
+lectures de préparation, table des manques). Les vraies réponses sont des fixtures que Jest fait passer par les lecteurs
+et les chargeurs : `src/admin/fixtures/manques-m4.json`, `src/today/fixtures/reponses-moteur.json`. Régénération :
+`OPSYS_REGENERER_FIXTURES_MOBILE=1 pytest tests/e2e/<fichier> -k fixture`.
+
+- Les textes de refus des écrans vendeur et employé, et les verdicts d'échec de la file, sont dits tels que le serveur les
+  écrit : aucun détail capturé ne cite de chemin, mais la garde générique ne couvre que les sections du propriétaire.
+- La vue exécutive de M8 dit où déclarer les seuils (`department.yaml de m08-analytics, configuration.seuils_entonnoir`) :
+  c'est une décision de T4.20 (« où les déclarer »), pas un chemin du serveur de M4.
+- La fiche d'un lead réassigné reste en cache, sous la personne qui l'a lue, jusqu'à la révocation ou au changement de
+  personne : le serveur ne dit pas à l'app qu'un lead a changé de main.
+- Les brouillons locaux d'une autre personne ne sont pas effacés (voir plus haut) ; les écrans ne les filtrent pas.
+- Une liste d'interventions dont un élément est mal formé écarte cet élément sans le compter (l'admin le compte).
+- Jamais exécuté contre un core réel (T1.5) : le trajet appareil → core → moteur reste à prouver.
+
 ## Écran `punch.tsx` (M4.4, T1.4-d)
 
 `app/(employee)/punch.tsx` : entrée, sortie, pause — **exactement** ce que l'outil réel accepte
@@ -737,13 +844,14 @@ inconnue (indiscernable) : `interpreterResultatStatutIntervention` le lit déjà
 inconnu, pas comme une erreur. Le mobile n'a rien à filtrer de son côté.
 
 Orchestration : `src/today/orchestrateur.ts::creerChargeurChantiers` (pure, testée avec un faux
-transport et un dépôt mémoire, `orchestrateur.test.ts`) — tente `m4_lister_interventions` en
-ligne, écrit le cache (TOUTES les interventions reçues, le filtrage ne s'applique qu'À LA
-LECTURE) sur un succès, retombe sur le dernier cache écrit (avec la raison de l'échec portée,
-`raisonHorsLigne`) sur un échec réseau/HTTP/technique — jamais une liste inventée si ni le réseau
-ni le cache ne répondent (`source: "aucune"`). `src/today/service.ts` fournit le câblage réel
-(`expo-sqlite`, `fetch`, `obtenirConfigurationAppel()`), non testé, même limite que
-`src/outbox/service.ts`.
+transport et un dépôt mémoire, `orchestrateur.test.ts`, et avec les vraies réponses du moteur,
+`reponsesMoteur.test.ts`) — un appel à `m4_lister_interventions` PAR STATUT actif ; écrit le cache (les
+interventions reçues, le filtrage ne s'applique qu'À LA LECTURE, sous la clé de la personne) quand les quatre
+groupes sont lus en entier ; retombe sur le dernier cache écrit (avec la raison de la panne portée,
+`raisonHorsLigne`) sur une panne réseau/HTTP/technique, jamais sur un refus ; jamais une liste inventée si ni le
+réseau ni le cache ne répondent (`source: "aucune"`). Une liste que le socle a coupée est `incomplet`, sans
+écriture du cache (voir « Lectures des trois profils »). `src/today/service.ts` fournit le câblage réel
+(`expo-sqlite`, `fetch`, la session relue à chaque appel), non testé, même limite que `src/outbox/service.ts`.
 
 ## Écran `job/[id]/index.tsx` (M4.7, R12 §5 étape 3, PLAN T1.4-e)
 
@@ -753,8 +861,8 @@ sortante, verdict serveur affiché — mission item 1.
 **Statut** : lecture directe (PAS mise en file, c'est une lecture pas une mutation) via
 `m4_statut_intervention`, avec repli sur le cache de `today.tsx` hors ligne
 (`src/today/statut.ts::obtenirStatutChantier`, même patron source
-serveur/cache/aucune qu'`orchestrateur.ts`, testé avec un faux transport,
-`statut.test.ts`). `statut: null` (intervention inconnue du serveur) N'EST PAS une erreur — lu et
+serveur/cache/refus/aucune qu'`orchestrateur.ts` : un refus n'est jamais le statut de la copie gardée ; testé avec un
+faux transport, `statut.test.ts`). `statut: null` (intervention inconnue du serveur) N'EST PAS une erreur — lu et
 distingué explicitement (`interpreterResultatStatutIntervention`, `src/m4/interventions.ts`).
 
 **Transitions — DÉCISION DOCUMENTÉE sur « démarrer ».** DEFINITION-PRODUIT.md §9.3 nomme quatre
@@ -1536,8 +1644,9 @@ rendu, comme les autres écrans).
   - le cache garde les MOTS DU SERVEUR (pages brutes, réponses acceptées ou refus) et se relit par les mêmes
     lecteurs que la lecture en ligne : une valeur corrompue ou d'une autre forme est « pas de cache », jamais une
     valeur devinée (clés versionnées `_v1`) ;
-  - **un refus n'est jamais remplacé par le cache** : le serveur a répondu non (segment non calculable, identité
-    invalide, devis introuvable), un cache ne dit pas ce qu'il refuse aujourd'hui ;
+  - **un refus n'est jamais remplacé par le cache** : le serveur a répondu non (401, 403, personne désactivée, segment
+    non calculable, devis introuvable), un cache ne dit pas ce qu'il refuse aujourd'hui ; seule une PANNE (réseau, délai,
+    408, 429, 5xx) le fait servir (« Lectures des trois profils ») ;
   - une fiche est celle d'UNE lecture : si l'une des trois lectures (suggestion, client, Client 360) échoue, c'est la
     fiche gardée en entier, jamais un mélange de lectures fraîches et gardées ;
   - l'écriture du cache est facultative : sa panne ne cache pas une lecture réussie.
