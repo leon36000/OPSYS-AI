@@ -369,6 +369,36 @@ def test_appliquer_fait_sortir_les_six_interventions_de_a_planifier_et_les_assig
     assert rejeu["deja_appliquee"] is True and _etat() == avant
 
 
+def test_les_membres_d_une_equipe_voient_et_prennent_les_chantiers_que_la_cedule_lui_assigne(
+    instance, par_nom, futurs_ok, capsys,
+):
+    """De bout en bout : la cédule assigne à l'ÉQUIPE ; ses membres (personnes OPSYS du profil) voient ses chantiers,
+    pas ceux de l'autre équipe ; celui qui part devient le technicien."""
+    _declarer_le_profil(instance / "a", capsys=capsys)
+    interventions = _naitre()
+    _confirmer_les_positions(par_nom)
+    proposition = _resultat(_proposer_depuis_le_profil(par_nom))
+    _resultat(_appeler(par_nom, "m4_appliquer_cedule", {
+        "plan_id": proposition["plan_id"], "horodatage": HORODATAGE, "confirme_par": "admin.fictif"}))
+    luc = contexte.IdentiteAppelante(personne="luc.fictif", role="employee")
+    nadia = contexte.IdentiteAppelante(personne="nadia.fictif", role="employee")
+    equipe_a = {interventions[k] for k in ("L-E2E-01", "L-E2E-02", "L-E2E-03")}
+    equipe_b = {interventions[k] for k in ("L-E2E-10", "L-E2E-11", "L-E2E-12")}
+    def vues(identite_appelante):
+        reponse = _appeler(par_nom, "m4_lister_interventions", {}, identite_appelante)
+        return {ligne["intervention_id"] for ligne in reponse["resultat"]}
+
+    assert vues(luc) == equipe_a and vues(nadia) == equipe_b
+    depart = _appeler(par_nom, "m4_demarrer_route", {
+        "intervention_id": interventions["L-E2E-01"], "technicien_id": "luc.fictif", "horodatage": HORODATAGE}, luc)
+    assert depart["resultat"]["accepte"] is True, depart
+    assert _technicien(interventions["L-E2E-01"]) == "luc.fictif" and _statut(interventions["L-E2E-01"]) == "en_route"
+    refus = _appeler(par_nom, "m4_demarrer_route", {
+        "intervention_id": interventions["L-E2E-10"], "technicien_id": "luc.fictif", "horodatage": HORODATAGE}, luc)
+    assert refus["resultat"]["accepte"] is False
+    assert refus["resultat"]["verdict"]["code"] == "REJ-INTERVENTION-NON-ASSIGNEE"
+
+
 def test_aujourd_hui_la_porte_reste_fermee_faute_de_materiel_et_de_meteo(instance, par_nom, capsys):
     """Sans les volets futurs simulés : le profil et l'adresse suffisent à ce qu'ils vérifient, pas à « prêt »."""
     _declarer_le_profil(instance / "a", capsys=capsys)

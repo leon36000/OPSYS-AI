@@ -157,7 +157,11 @@ def _acteur_appareil() -> tuple[acces.Acteur | None, dict[str, Any] | None]:
                 "hors transaction)"
             ),
         )
-    return acces.acteur_de(confirmee.personne, confirmee.role)
+    # PLAN T4.12 : les équipes de la personne, lues dans le profil de l'entreprise (jamais dans un argument). Sans
+    # profil valide, aucune : une intervention assignée à une équipe n'est alors visible d'aucun employé (fail-closed).
+    profil, _ = equipes_entreprise.charger_equipes()
+    equipes_de_la_personne = equipes_entreprise.equipes_de(profil, confirmee.personne)
+    return acces.acteur_de(confirmee.personne, confirmee.role, equipes_de_la_personne)
 
 
 def _lecteur_equipes() -> Callable[[], tuple[dict[str, Any] | None, dict[str, Any] | None]]:
