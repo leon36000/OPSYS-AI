@@ -70,7 +70,7 @@ qui travaille sur un toit, un gestionnaire qui reprend un dossier).
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 90 outils sur 168 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 93 outils sur 171 sont déclarés.
 
 ### `employee` (11 outils) : §9.3, le terrain
 
@@ -94,11 +94,14 @@ Rien qui lise les données des autres (`m4_lire_outbox`, `m4_lire_position_gps`,
 `m4_resoudre_revue_completion`, `m6_approuver_po`, `m6_annuler_po`), ni aucun outil M5, M7, M8, M9,
 M10.
 
-### `seller` (11 outils) : §9.4, ses leads et ses soumissions
+### `seller` (14 outils) : §9.4, ses leads, ses relances et ses soumissions
 
 | Outil | Pourquoi |
 |---|---|
 | `m2_lister_leads` (T0) | §9.4 « ses leads », « pipeline personnel », priorité (T4.6, M2.11). La liste de SES leads seulement, filtrable par statut et par segment (14, la règle citée avec la donnée qui la déclenche ; « non calculable, manque X » sinon), paginée (`decalage`, `suivant`), sans montant ni contact. Un vendeur ne compte jamais les leads des autres dans `total`. |
+| `m2_lister_relances` (T0) | §9.4 « relances autorisées » (T4.9, M2.7, M2.13). Les relances DUES de SES leads : la règle citée, le fait qui fait partir le délai, la dernière relance, la prochaine date permise et les canaux permis (« appel seulement » sans consentement actif). Paginée, sans montant ni contact. Voir « Les relances » plus bas. |
+| `m2_preparer_relance` (T1, **N3**) | §9.4 « relances autorisées » (T4.9). Il PRÉPARE une relance due : un texte fixe d'un gabarit, jamais un texte de modèle. Il n'envoie RIEN (l'envoi réel est T2.1-c, N4, une personne) ; il refuse une relance non due, trop proche de la précédente, ou par un canal sans consentement actif. |
+| `m2_enregistrer_consentement_contact` (T1, **N3**) | §9.4 (T4.9) : le vendeur qui a parlé au client inscrit son consentement pour un canal écrit (SMS, courriel), avec l'énoncé lu, sa version et sa preuve. Une décision de PERSONNE : un agent seul ne peut pas l'inscrire. Ses leads seulement. |
 | `m2_obtenir_client_360`, `m2_trouver_client_de_lead` | §9.4 « Client 360 ». Ses leads seulement (T1.4-k2, plus bas). |
 | `m2_suggerer_prochaine_action` | §9.4 « prochaine meilleure action ». Ses leads seulement. |
 | `m2_evaluer_readiness` | §9.4 M3 « lead prêt pour l'estimation ». Ses leads seulement. |
@@ -112,9 +115,9 @@ M10.
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (90 outils) : §9.5 + employé + vendeur
+### `admin` (93 outils) : §9.5 + employé + vendeur
 
-Les 11 outils de l'employé, les 11 du vendeur, et :
+Les 11 outils de l'employé, les 14 du vendeur, et :
 
 | Département | Outils réservés à l'admin | Pourquoi |
 |---|---|---|
@@ -656,6 +659,8 @@ jamais déduit d'un autre champ (ni l'`auteur` des notes, ni le statut, ni l'ord
 |---|---|---|
 | `m2_transitionner_statut`, `m2_trouver_client_de_lead`, `m2_evaluer_readiness`, `m2_suggerer_prochaine_action` | son lead | tous |
 | `m2_lister_leads` (T4.6) | la liste de ses leads ; un lead d'un autre, un lead sans propriétaire et un lead inconnu ne sont ni listés ni comptés ni cités (aucun refus à lire : ils n'existent pas pour lui) ; `past_customer` ne lit que ses opportunités du client | tous les leads (pipeline, leads chauds) |
+| `m2_lister_relances` (T4.9) | les relances de ses leads ; celles d'un autre, d'un lead sans propriétaire ou inconnu ne sont ni listées ni comptées ni citées ; la fréquence et le consentement se lisent pour la PERSONNE, sans rien dire des autres dossiers | toutes les relances |
+| `m2_preparer_relance`, `m2_enregistrer_consentement_contact` (T4.9) | son lead ; un lead d'un autre, sans propriétaire ou inconnu : le MÊME refus, `REJ-LEAD-NON-ASSIGNE` ; la personne qui prépare ou inscrit est celle du jeton, jamais un argument | tous les leads (un lead inconnu : `REJ-LEAD-INCONNU`) |
 | `m2_enregistrer_interaction` | son lead, `auteur` = sa personne | tous les leads, `auteur` = sa personne |
 | `m2_obtenir_client_360` | ses opportunités du client | toutes |
 | `m2_produire_digest`, `m2_detecter_doublons`, `m2_signaler_doublon`, `m2_arbitrer_doublon` | hors portée : refusés aussi dans l'outil | oui |
@@ -692,6 +697,49 @@ de M2, même identité confirmée en base à chaque appel, aucun paramètre qui 
 Limites : l'ordre est un rang, pas un curseur (un lead qui change de statut ou de segment entre deux pages d'un
 filtre peut manquer ou se répéter : l'appelant relit depuis 0) ; le propriétaire lu est le courant : celui de la
 qualification, ou de la dernière réassignation (T1.4-m).
+
+### Les relances : consentement, fréquence, rien d'envoyé (T4.9)
+
+Trois outils, un même contrôle d'accès que la liste des leads (identité confirmée en base à chaque appel, `seller` sur
+SES leads, `admin` sur tous, employé refusé) :
+
+| Outil | Ce qu'il fait | Ce qu'il ne fait pas |
+|---|---|---|
+| `m2_lister_relances` (T0) | les relances dues de la personne, une page à la fois : règle citée, fait de départ, dernière relance, prochaine date permise, canaux permis | rien n'est écrit ; aucun montant, aucun contact |
+| `m2_preparer_relance` (T1, N3) | écrit UNE relance préparée (`relances_preparees`), texte fixe du gabarit de (règle, canal) | n'envoie rien, aucune sortie réseau, n'accepte aucun texte en argument |
+| `m2_enregistrer_consentement_contact` (T1, N3) | inscrit le consentement d'une personne pour `sms` ou `courriel` (énoncé versionné, source, preuve, qui l'a inscrit) | ne lève jamais un retrait ; refusé à un agent seul (`REJ-HUMAIN-REQUIS`) |
+
+- **Les délais et la fréquence sont ceux de l'entreprise, jamais un défaut.** Le délai d'une règle est le seuil de son
+  segment (`configuration.segments` : `jours_soumission_perimee`, `jours_inactivite_dormant`) ; la fréquence est
+  `configuration.relances.jours_entre_relances`. Les deux blocs sont vides à dessein : `REJ-RELANCES-A-CONFIGURER`
+  (fréquence absente ou invalide) ou « non calculable, seuil à configurer » (délai), jamais une relance calculée avec une
+  valeur devinée. **GATE NATHAN** : les vraies valeurs.
+- **Le départ du délai est un fait publié, pas une date supposée.** Un devis se relance à partir de `m3.devis_envoye`
+  (`horodatage_envoi`) ; un lead dormant, à partir de sa dernière activité humaine. Attention : le fait de M3 date
+  l'APPROBATION de l'envoi par le propriétaire, pas la livraison au client (T2.1-c n'existe pas). Chaque relance de devis
+  le dit (`depart.remarque`, `avertissements`).
+- **Le consentement est celui de la PERSONNE** (les leads d'un même client, Client 360), au registre
+  `consentements_contact` : canal, énoncé versionné, source, preuve (un type et une référence de document, jamais un
+  numéro ni un courriel), qui l'a inscrit et par quelle voie. Deux voies pour l'inscrire, jamais une troisième : un
+  appel d'appareil d'un vendeur ou de l'admin, ou une proposition d'agent qu'une personne approuve dans la file. Sans
+  consentement actif pour un canal : « appel seulement ». L'appel n'est pas un canal écrit : il reste permis.
+- **Un STOP prime sur tout.** M2 consomme `m1.retrait_consentement` (le `lead_id` du client, jamais son numéro) et
+  inscrit un retrait par lead. Le retrait vaut pour la personne et pour ses deux canaux écrits (SMS et courriel) ; il
+  l'emporte sur tout consentement, même plus récent, et aucun outil ne le lève (`REJ-CONSENTEMENT-RETIRE`). Le lever est
+  une décision de Nathan, pas de M2. Un STOP arrivé avant que M2 connaisse le lead est rangé quand même.
+- **La fréquence est celle de la PERSONNE.** Une relance préparée date la suivante : refus avant la prochaine date
+  permise (`REJ-RELANCE-TROP-PROCHE`, qui dit la date), permis pile à la date. Le refus ne dit rien d'un autre dossier
+  ni d'un autre vendeur. La « dernière relance » est la dernière relance PRÉPARÉE : aucun envoi réel n'existe pour la
+  dater.
+- **L'heure du serveur fait foi.** Pour un appel d'appareil idempotent, l'heure de RÉCEPTION du serveur date la relance
+  et le consentement : un appareil qui annonce une heure future ou passée n'y gagne rien.
+- **Rien n'est envoyé.** Les six gabarits (relance de devis et lead dormant, par appel, SMS et courriel) sont validés au
+  chargement par le garde-fou de texte : ni prix, ni date promise, ni pression. Un SMS ou un courriel se termine par
+  « répondez STOP ». L'envoi réel est **T3** : T2.1-c, N4, une personne.
+
+Limites : la fréquence ne compte pas d'envoi réel (aucun n'existe) ; le plafond du nombre de relances d'un même devis
+n'est pas fixé (à décider par Nathan) ; aucune règle pour l'ancien client, l'avis ou la référence (leur donnée
+n'atteint pas M2) ; aucun outil humain ne retire un consentement (le retrait vient du STOP par le bus).
 
 ### `auteur` d'une interaction
 

@@ -119,10 +119,47 @@ fois (`liste_leads.py` ; règles des segments : `segments.py`, purs). DEFINITION
 - **Seuils** : `configuration.segments` de `department.yaml`, VIDES à dessein (patron de M8 et de M6). Sans seuil,
   `dormant_lead` et `quote_stale` sont « non calculables, seuil à configurer » ; un seuil invalide est dit « invalide ».
   Relus à chaque appel. `horodatage` (l'instant de référence) est un argument : aucune horloge dans le code.
-- **Limites** : `quote_stale` ne voit que les devis que M3 a signalés `envoye` sans réponse ; M3 publie un fait par devis
-  (identifiant déterministe), donc un devis d'abord signalé `brouillon` n'est pas signalé de nouveau une fois envoyé, et
-  aucun outil n'envoie encore un devis (T4.7, `m3.devis_envoye`, fermera cet écart et rendra `quote_sent` calculable).
-  `past_customer` diffère selon l'appelant (l'admin voit les opportunités de tous les vendeurs) : voulu. Un décalage est
-  un rang : un lead qui change de statut ou de segment entre deux pages d'un filtre peut manquer ou se répéter.
+- **Limites** : `quote_stale` part de l'envoi que M3 publie à l'approbation (`m3.devis_envoye`, PLAN T4.9), ou, à
+  défaut, du constat `m3.devis_sans_reponse` : l'envoi l'emporte, l'instant est celui de l'APPROBATION, pas de la
+  livraison au client (T2.1-c). `quote_sent` reste « non calculable » : le rendre calculable change le message que
+  l'app garde dans ses fixtures Jest, à faire avec le lot mobile. `past_customer` diffère selon l'appelant (l'admin voit
+  les opportunités de tous les vendeurs) : voulu. Un décalage est un rang : un lead qui change de statut ou de segment
+  entre deux pages d'un filtre peut manquer ou se répéter.
   Preuve : `tests/test_segments.py`, `tests/test_liste_leads.py`, `tests/test_lister_leads_outil.py` et, par la vraie porte
   d'appareil, `tests/e2e/test_liste_leads_vendeur.py` du socle.
+
+## Les relances dues, avec consentement et fréquence limitée (PLAN T4.9)
+
+Trois outils (`relances.py`, `consentements.py`, `gabarits_relance.py`, purs ; `outils.py` lit le registre, l'identité et
+`department.yaml`). DEFINITION-PRODUIT §7 M2.7 et M2.13 (règles dures : pas de spam, opt-in respecté, fréquence limitée,
+validation humaine au départ), §9.4 « relances autorisées ». Déclarés dans `ROLES.md` (seller et admin, jamais l'employé).
+- **`m2_lister_relances`** (T0, lecture pure) : les relances DUES, une page à la fois. Deux règles, les seules dont M2
+  tient déjà les faits : `relance_devis_sans_reponse` (segment `quote_stale`) et `relance_lead_dormant` (segment
+  `dormant_lead`). Chaque relance cite sa règle et le fait de départ, dit sa dernière relance, la prochaine date permise
+  et les canaux permis (« appel seulement » ou « appel ou message »). Un vendeur ne voit que les relances de SES leads.
+- **`m2_preparer_relance`** (T1, N3) : prépare UNE relance due avec le texte FIXE du gabarit de (règle, canal). **N'envoie
+  rien** : l'envoi réel est T2.1-c (N4, une personne). Refuse une relance non due, trop proche de la précédente ou par un
+  canal sans consentement actif. Aucun texte ne se passe en argument ; les six gabarits sont validés au chargement par le
+  garde-fou de texte, et un SMS ou un courriel se termine par « répondez STOP ».
+- **`m2_enregistrer_consentement_contact`** (T1, N3) : une PERSONNE inscrit le consentement d'un client pour `sms` ou
+  `courriel` (énoncé versionné, source, preuve sans numéro ni courriel). Refusé à un agent seul (`REJ-HUMAIN-REQUIS`).
+- **Le départ du délai** est un fait publié : `m3.devis_envoye` (`horodatage_envoi`, consommé par
+  `_recevoir_devis_envoye`, idempotent par `devis_id`) ; la dernière activité humaine pour un lead dormant. Le fait de M3
+  date l'APPROBATION de l'envoi, pas sa livraison (T2.1-c) : chaque relance de devis le dit.
+- **Le STOP** : M2 consomme `m1.retrait_consentement` (`_recevoir_retrait_consentement`) : un retrait par lead, le
+  `lead_id` du client et jamais son numéro. Il vaut pour la PERSONNE (les leads d'un même client) et pour ses deux
+  canaux écrits, prime sur tout consentement, et aucun outil ne le lève. L'appel reste permis.
+- **La fréquence** est celle de la personne (`jours_entre_relances`) ; la dernière relance est la dernière PRÉPARÉE.
+  Permis pile à la prochaine date permise. Pour un appel d'appareil idempotent, l'heure du serveur fait foi.
+- **GATE NATHAN** : `configuration.relances.jours_entre_relances` et `configuration.segments` (les délais) sont VIDES à
+  dessein : « à configurer » (`REJ-RELANCES-A-CONFIGURER`), jamais un défaut. La politique de consentement au SMS
+  (`docs/compliance/politiques/POLITIQUE-consentement-sms.md`) attend sa validation ; le STOP couvre le SMS et le
+  courriel ; lever un retrait, le libellé et l'identification de l'expéditeur des gabarits, et un plafond du nombre de
+  relances sont à décider. **T3** : l'envoi lui-même.
+- **Limites** : aucun envoi réel n'existe pour dater la fréquence ; pas de règle pour l'ancien client, l'avis, la
+  référence ni le saisonnier (leur donnée n'atteint pas M2) ; aucun outil humain ne retire un consentement (le retrait
+  vient du STOP par le bus) ; la fréquence n'est pas plafonnée en nombre de relances par devis.
+  Preuve : `tests/test_relances.py`, `test_consentements.py`, `test_gabarits_relance.py`, `test_evaluer_leads.py`,
+  `test_consommer_devis_envoye.py`, `test_consommer_retrait_consentement.py`, `test_relances_outils.py` (470 tests) et,
+  du socle, `tests/test_cascade_relances.py` (le vrai M1, le vrai M3, le vrai bus) et
+  `tests/e2e/test_relances_vendeur_appareil.py` (la vraie porte d'appareil).
