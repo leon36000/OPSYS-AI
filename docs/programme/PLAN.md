@@ -1388,6 +1388,10 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
   de chaque prix du livre de prix M6 ; seuils de réapprovisionnement par article (M6).
 - **Confidentialité du contexte (T3.3-suite-b)** : `CLIENT_PRIVATE` visible de M1 et M2 seulement
   (choix par défaut à valider).
+- **Lien automatique session → affaire (T2.1-b)** : aujourd'hui, un humain lie la session d'un
+  client à son lead (`m10_lier_session_affaire`, N3). Faut-il qu'une règle écrite le fasse à la
+  création du lead ? La clé de session contient le numéro du client : elle ne voyage jamais dans
+  l'événement. Le lien donne à l'agent le paquet de contexte de l'affaire et lève le blocage N3+.
 - **Seuils métier** (définition §13.11) :
   - M6 démarre avec un seuil de variance de chantier de 30 % ;
   - M6 signale un écart de prix à la réception au-delà de 15 % (`department.yaml`) ;
