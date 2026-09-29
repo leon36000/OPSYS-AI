@@ -177,7 +177,7 @@ version réellement installée (toutes vérifiées une à une ci-dessus). Aucun 
 
 | Brique | Licence vérifiée | Rôle dans OPSYS | Intégration | Phase | Rapport source |
 |---|---|---|---|---|---|
-| **PyVRP** | MIT (`LICENSE.md` du dépôt PyVRP/PyVRP, lu le 2026-09-28) | Solveur de tournées avec fenêtres, quarts, flotte hétérogène, clients optionnels ; remplace le tourniquet de `cedule.py`. Compétences par profils de matrice (le natif est réservé à PyVRP Enterprise, non utilisé). Graine explicite, `MaxIterations` seulement | Extra `tournees` (`pyvrp==0.14.0`, numpy) ; roue 1,2 Mo cp311/cp312 x86_64 et arm64 ; toujours derrière `verifier_plan`, avec repli DP exact stdlib | Phase 2 | R15 |
+| **PyVRP** | MIT (`LICENSE.md` du dépôt PyVRP/PyVRP, lu le 2026-09-28) | Solveur de tournées avec fenêtres, quarts, flotte hétérogène, clients optionnels ; remplace le tourniquet de `cedule.py`. Compétences par profils de matrice (le natif est réservé à PyVRP Enterprise, non utilisé). Graine explicite, `MaxIterations` seulement | Extra `tournees` de `pyproject.toml` (`pyvrp==0.14.0`) ; adaptateur `tournees.py` (T4.1-c), import paresseux, version épinglée vérifiée à l'exécution ; roue 1,2 Mo cp311/cp312 x86_64 et arm64 ; dépendances déclarées de la roue, licences lues le 2026-09-29 dans les fichiers installés : numpy (BSD-3-Clause), matplotlib (licence de type PSF, non utilisée par nous), tqdm (MPL-2.0 et MIT), vrplib (MIT) ; toujours derrière `verifier_plan`, avec repli DP exact stdlib jusqu'à 12 chantiers | **Intégré** (extra optionnel ; exercé par les tests de M4 quand il est installé) | R15 |
 | **Google OR-Tools** | Apache-2.0 (`LICENSE`, branche `stable`, lu) ; la roue embarque Cbc/Clp en EPL-2.0 (non listée dans AGENTS.md : décision humaine avant adoption), HiGHS (MIT), SCIP (Apache-2.0) | Alternative documentée si les contraintes de cédule deviennent riches (compétences natives) | Aucune dépendance aujourd'hui ; roue 30 Mo, exige numpy ≥ 2 et pandas | Référence | R15 |
 | **OSRM** | BSD-2-Clause (`LICENSE.TXT`, lu) ; données OSM en ODbL 1.0 (attribution ; graphe dérivé non distribué) | Palier 1 optionnel : matrice routière (`Table`) sur extrait régional épinglé ; le palier 0 est l'haversine × détour, en mode bridé affiché | Sidecar Docker local ; estimé ≈ 2 Go de RAM pour tout le Québec (extrapolation du wiki OSRM), donc extrait régional | Phase 2 | R7 · R15 |
 | **RQA — Référentiel québécois des adresses** | Données CC-BY 4.0 (fiche MRNF et Données Québec, lues 2026-09-28 ; attribution à afficher) | Géocodage local et hors ligne des adresses de chantier ; `qualite_positionnement_geometrique` gouverne « proposée » ou « à confirmer » ; confirmation humaine unique | Import mensuel du CSV (596 Mo) filtré par MRC dans l'index SQLite de l'instance (`<OPSYS_HOME>/rqa/index.sqlite`), livré en T4.1-a : `python -m m4_field_ops.localisation importer --csv … --index … [--mrc …]` ; aucun appel réseau (test aux sockets bloqués). Colonnes lues du guide d'utilisation v1.2 (le CSV réel n'a pas été téléchargé). **Attribution** : champ `attribution` de la réponse de `m4_proposer_localisation`, à afficher par l'écran de confirmation de l'app admin ; « données filtrées par MRC et arrondies au microdegré » y tient lieu de mention de modification | Phase 2 | R15 |
@@ -329,7 +329,7 @@ hors périmètre strict de R10 ») et documente en plus, pour M10 spécifiquemen
 - **M1** : 11 retenues (1 intégrée — code interne conservé —, 10 phase 2) + 2 refusées.
 - **M2** : 4 retenues (phase 2) + 2 refusées.
 - **M3** : 6 retenues (phase 2) + 3 refusées.
-- **M4** : 7 retenues (6 phase 2, dont le patron haversine × détour, et OR-Tools en référence) + 3 refusées (R15).
+- **M4** : 7 retenues (1 intégrée — PyVRP, extra `tournees` —, 6 phase 2 ou référence, dont le patron haversine × détour, et OR-Tools en référence) + 3 refusées (R15).
 - **M5** : 8 retenues (7 phase 2, 1 référence) + 5 refusées.
 - **M6** : 4 retenues (phase 2) + 1 refusée.
 - **M7** : 11 retenues (phase 2) + 4 refusées.
@@ -337,7 +337,7 @@ hors périmètre strict de R10 ») et documente en plus, pour M10 spécifiquemen
 - **M9** : 13 retenues (2 intégrées — format Agent Skills et patron `civ_review.py` —, 11 phase 2) + 4 refusées.
 - **M10** : renvoie au domaine Mémoire/RAG + 2 éléments propres (1 intégrée — modèle Département —, 1 phase 2).
 
-**Total : 140 briques/patrons retenus** (dont 31 déjà intégrés au code ou à la méthode : **OpenClaw**
+**Total : 140 briques/patrons retenus** (dont 32 déjà intégrés au code ou à la méthode : **OpenClaw**
 comme core par défaut, **Hermes Agent** comme adaptateur/runtime optionnel, **LiteLLM** comme
 passerelle de modèles par défaut, la discipline de cache-boundary (désormais native au runtime
 OpenClaw), `garde_fou.py` M1 conservé, le format Agent Skills, le patron
@@ -348,7 +348,8 @@ requises par Expo Router, Jest/jest-expo/babel-preset-expo/@react-native/jest-pr
 TypeScript — et les 4 briques du client d'appairage mobile — PLAN T1.4-c3 :
 `expo-secure-store`, `@noble/curves`, `@noble/hashes`, `@types/node` — et les 4 briques du
 chantier du jour/checklist/photos/signature — PLAN T1.4-e : `expo-camera`, `expo-file-system`,
-`react-native-signature-canvas`, `react-native-webview`) **et 40 refusées
+`react-native-signature-canvas`, `react-native-webview` — et PyVRP, le solveur de tournées de M4 —
+PLAN T4.1-c) **et 40 refusées
 explicitement**, sur les 10 rapports `docs/research/R1`–`R10` et
 R12 ; mise à jour du choix de core par
 [ADR-0007](../decisions/ADR-0007-core-openclaw.md), vérifiée directement dans le code, les tests et le

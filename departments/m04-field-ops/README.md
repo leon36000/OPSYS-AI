@@ -87,3 +87,63 @@ Limites connues : les verdicts `REJ-MATRICE-*` sont hors du catalogue gelé de `
 inscrira) ; l'adaptateur n'a été testé que contre un faux serveur (forme de réponse d'après la documentation
 d'OSRM, à confirmer sur un vrai sidecar) ; la distance entre un point et la route où OSRM l'accroche n'est pas
 contrôlée.
+
+## Tournées
+
+PLAN T4.1-c (conception : `docs/research/R15-cedule-vrp.md` §1 et §4). `tournees.py` (pur, sans horloge ni
+aléa) propose un plan de tournées à partir des équipes, des chantiers et de la matrice de T4.1-b. Le solveur
+PROPOSE ; il n'écrit pas la vérité. Aucun outil MCP ici : T4.1-d ajoutera `m4_proposer_cedule` et
+`m4_appliquer_cedule`. `cedule.py` reste le repli « sans coordonnées ».
+
+- **Interface** : `resoudre(entree, moteur="auto")` rend `(sortie, None)` ou `(None, verdict)`. Tout est entier
+  (minutes depuis minuit, mètres). L'entrée porte `version` (`tournees-entree-v1`), `equipes` (`id`,
+  `competences`, `depot`, `quarts` : `jour`, `debut_min`, `fin_min`), `chantiers` (`id`, `duree_min`,
+  `fenetre` : `jours`, `debut_min`, `fin_min` ; `competences_requises`, `urgence` de 0 à 3, `creneau_fige` :
+  `null` ou `equipe`, `jour`, `debut_min`), `matrice` (celle de `distances.obtenir_matrice`, revérifiée) et
+  `parametres` (`graine`, `iterations`, `cout_non_cedule_m`).
+- **Modèle** : un véhicule est un couple (équipe, jour). La fenêtre du client dit les jours permis et
+  l'intervalle où le chantier doit être ENTIÈREMENT réalisé. Une équipe ne reçoit un chantier que si elle a
+  TOUTES ses compétences. Le trajet est le plafond en minutes des secondes de la matrice (marge comprise).
+  Objectif : mètres parcourus + `cout_non_cedule_m` x (1 + urgence) par chantier laissé de côté.
+- **Fail-closed** : durée par type de travaux, fenêtre, compétences, dépôt, quarts, graine, itérations et coût de
+  non-cédule sont des ENTRÉES. Absents, le verdict liste tout ce qu'il faut fournir (`REJ-CHAMP-MANQUANT`) ; jamais
+  de valeur par défaut. Un chantier sans coordonnées (absent de la matrice) n'entre pas au solveur : il sort en
+  `non_cedulees` avec « coordonnées manquantes : à confirmer ». Exception voulue : un créneau figé sans
+  coordonnées refuse toute l'entrée, car un créneau promis au client ne se perd pas. Un créneau figé intenable
+  (équipe, jour, compétence, fenêtre, quart, ou conflit avec un autre figé) refuse l'entrée
+  (`REJ-TOURNEES-CRENEAU-FIGE-INCOMPATIBLE`) ; un créneau figé n'est jamais déplacé.
+- **Deux moteurs** : PyVRP 0.14.0 (MIT, extra `tournees`, import paresseux, `MaxIterations` seulement, graine
+  dérivée de l'empreinte d'entrée ; compétences et jours par profils de matrice, arêtes interdites) et un DP exact
+  en bibliothèque standard, repli sans dépendance jusqu'à 12 chantiers entrés au solveur et oracle des tests.
+  Sans PyVRP (absent ou autre version que l'épinglée) : le DP jusqu'à 12 chantiers, sinon « solveur de tournées
+  non installé : installer l'extra tournees » (`REJ-TOURNEES-SOLVEUR-ABSENT`). Installation :
+  `pip install -e ".[tournees]"` (la roue de PyVRP tire numpy, matplotlib, tqdm et vrplib, toutes sous licence
+  permissive).
+- **Sortie** : `plan` (une route par équipe et jour : `depart_min`, `retour_min`, `distance_m`, `visites` avec
+  `arrivee_min`, `debut_min`, `fin_min`), `non_cedulees` (`chantier`, `code`, `raison`, `action`), `totaux` et
+  `meta` (solveur et version, graine, itérations, empreintes d'entrée, de sortie et de matrice, `mode_distance`,
+  `mode_bride`). Triée par équipe, jour, heure, puis identifiant : mêmes octets pour la même entrée, quel que
+  soit `PYTHONHASHSEED`.
+- **Raisons de non-cédule** calculées par NOTRE code après la résolution, jamais reprises du solveur :
+  `coordonnees_manquantes`, `competence_indisponible`, `duree_trop_longue`, `fenetre_inatteignable`,
+  `journees_pleines` (aucune insertion valide sans bousculer le plan), `cout_superieur_au_cout_non_cedule` (avec
+  le supplément exact en mètres) et `insertion_possible_non_retenue`.
+- **Validateur** : `verifier_plan(entree, sortie)` rend `(True, [])` ou `(False, violations)`. Il ne reprend rien du
+  solveur et refuse une fenêtre, un quart, une compétence, un jour ou un créneau figé violés, un chantier visité
+  deux fois, inventé, sans coordonnées ou oublié, un trajet ou une distance faux, une raison qui diffère du
+  diagnostic recalculé et une empreinte qui ne correspond plus à la sortie. `resoudre` l'applique à son propre plan
+  avant de le rendre (`REJ-TOURNEES-PLAN-INVALIDE` sinon), et à celui d'un moteur défaillant
+  (`REJ-TOURNEES-SOLVEUR-ECHEC`).
+
+Preuve : sur six instances fictives de 8 à 12 chantiers (Repentigny à Joliette, coordonnées approximatives), PyVRP
+(2 000 itérations) égale le DP exact (écart 0) ; le DP égale une énumération exhaustive indépendante sur douze
+instances aléatoires ; 8 chantiers se résolvent en moins d'une seconde (mesuré : 0,002 s au DP ; PyVRP 0,15 s au
+premier appel, import compris, puis 0,08 s) ; une compétence rare n'est jamais donnée à une équipe non admissible.
+
+Limites connues : les verdicts `REJ-TOURNEES-*` sont hors du catalogue gelé de `verdicts.py` (T4.1-d les y
+inscrira) ; les chantiers de plusieurs jours, la météo, les capacités de véhicule et l'ETA client restent hors
+périmètre (R15 §4) ; la cédule n'est pas encore branchée sur les coordonnées confirmées (T4.1-a) ni sur un outil ;
+PyVRP n'a été exécuté qu'en Python 3.11 sur x86_64 (l'égalité entre plateformes n'est pas vérifiée) ; le DP est
+exponentiel : pire cas mesuré à 12 chantiers de 30 à 45 min sur 8 véhicules, environ 2 s ; au-delà de 12 chantiers,
+PyVRP est requis. La CI (`ci.yml`, job `departement`) n'installe que `.[dev]` : tant que `.[dev,tournees]` n'y figure pas,
+les tests de PyVRP y sont sautés et seul le DP est exercé.
