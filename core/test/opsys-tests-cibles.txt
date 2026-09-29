@@ -76,3 +76,6 @@ src/context-engine/opsys-contexte-engine.test.ts
 src/context-engine/opsys-contexte.registration.test.ts
 src/context-engine/opsys-contexte-mcp.wire.test.ts
 src/context-engine/opsys-contexte-garde.test.ts
+src/agents/agent-tools.before-tool-call.decision.test.ts
+src/agents/agent-tools.before-tool-call.e2e.test.ts
+src/agents/agent-tools.before-tool-call.embedded-mode.test.ts

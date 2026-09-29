@@ -246,18 +246,16 @@ le bac à sable de développement : la CI (`tests` et `tests-opsys`) fait foi.
   décision pour un outil OPSYS de niveau N3 ou plus (niveau lu dans `contexte.json`, `niveaux`) : refusé si le
   contexte était indisponible, jamais évalué, périmé (15 minutes) ou porte un signal ouvert ; jamais rien d'autre.
   Inactif tant que `contexte.json` ne l'est pas.
-- **L'appel du garde n'est pas encore fait, et un moteur de contexte ne peut pas le faire.** `before_tool_call`
-  appartient au lanceur de hooks de plugins et aux politiques d'outils de confiance (`src/agents/
-  agent-tools.before-tool-call.policy.ts`, `runBeforeToolCallHook`, ligne 103) ; `ContextEngine`
-  (`src/context-engine/types.ts`, ligne 353) n'a aucune méthode de ce genre. **Greffe minimale à faire** : dans
-  `runBeforeToolCallHook`, entre l'admission de boucle (fin de bloc, ligne 168) et
-  `const hookRunner = getGlobalHookRunner();` (ligne 170), appeler `checkOpsysContexteToolCall({ toolName,
-  sessionKey: args.ctx?.sessionKey, agentId: args.ctx?.agentId })` et, si `block`, rendre un `HookOutcome`
-  `{ blocked: true, kind: "veto", deniedReason: "plugin-before-tool-call", reason, params }` marqué
-  `markPrivateDecision(outcome, "genericDecision")`, comme l'admission de boucle juste au-dessus. Le fichier
-  `agent-tools.before-tool-call.policy.ts` et ses tests d'origine (`agent-tools.before-tool-call.*.test.ts`)
-  entreront alors dans `test/opsys-tests-cibles.txt`. À vérifier en CI avec cette greffe : `HookContext.sessionKey`
-  est la clé que reçoit `assemble()`.
+- **Appel du garde : greffe dans `runBeforeToolCallHook`.** Un moteur de contexte ne peut pas bloquer un
+  outil : `before_tool_call` appartient au lanceur de hooks de plugins et aux politiques d'outils de confiance
+  (`src/agents/agent-tools.before-tool-call.policy.ts`) ; `ContextEngine` (`src/context-engine/types.ts`) n'a
+  aucune méthode de ce genre. La greffe (une douzaine de lignes, marquée OPSYS) appelle
+  `checkOpsysContexteToolCall({ toolName, sessionKey, agentId })` juste après l'admission de boucle et rend un
+  `HookOutcome` `veto` marqué `genericDecision`, comme elle ; `deniedReason` est omis (champ optionnel) pour ne
+  pas élargir l'union `HookBlockedReason`. Inactif sans `contexte.json` actif (fichier absent → garde
+  inactif). Coût : une lecture synchrone de `contexte.json` par appel d'outil. Les tests d'origine voisins
+  (`agent-tools.before-tool-call.decision`, `.e2e`, `.embedded-mode`) sont dans `test/opsys-tests-cibles.txt`.
+  À vérifier en CI : `HookContext.sessionKey` est la clé que reçoit `assemble()`.
 - **Affaire lue dans la session** (`opsys-contexte-engine.ts`, `opsys-contexte-config.ts`). Un agent réglé
   `"affaire": "session"` dans `contexte.json` demande à M10 l'affaire liée à sa clé de session
   (`m10_affaire_de_la_session`), pour le paquet et pour le dépôt POSTFLIGHT, et ne lit jamais le texte de la demande.

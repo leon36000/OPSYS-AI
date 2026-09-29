@@ -7,6 +7,7 @@
  */
 import type { ToolLoopWarning } from "@openclaw/agent-core";
 import { getRuntimeConfig } from "../config/config.js";
+import { checkOpsysContexteToolCall } from "../context-engine/opsys-contexte-garde.js";
 import { freezeDiagnosticTraceContext } from "../infra/diagnostic-trace-context.js";
 import { getGlobalHookRunnerRegistry } from "../plugins/hook-runner-global-state.js";
 import { getGlobalHookRunner } from "../plugins/hook-runner-global.js";
@@ -165,6 +166,25 @@ export async function runBeforeToolCallHook(args: {
         }
         loopWarning = intervention;
       }
+    }
+
+    // OPSYS (PLAN T3.3-suite-b): an OPSYS tool of level N3 or more is refused when the enterprise
+    // context of this session was unavailable, stale, or carries an open critical signal. Inactive
+    // until `opsys/contexte.json` is active, so upstream behavior is unchanged by default.
+    const opsysContexte = checkOpsysContexteToolCall({
+      toolName,
+      sessionKey: args.ctx?.sessionKey,
+      agentId: args.ctx?.agentId,
+    });
+    if (opsysContexte.block) {
+      const outcome: HookOutcome = {
+        blocked: true,
+        kind: "veto",
+        reason: opsysContexte.reason,
+        params,
+      };
+      markPrivateDecision(outcome, "genericDecision");
+      return outcome;
     }
 
     const hookRunner = getGlobalHookRunner();
