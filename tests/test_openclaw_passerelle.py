@@ -191,3 +191,23 @@ def test_synchronisation_usage_depuis_litellm(departements_demo, session):
         serveur.shutdown()
     assert budget["niveau"] == "epuise"
     assert all("tags=m09-demo" in chemin for chemin in _FauxActivite.vus)
+
+
+def test_regenerer_ne_supprime_jamais_ce_que_le_core_a_ecrit_dans_l_espace_de_travail(departements_demo, tmp_path):
+    # Le core écrit la mémoire d'un agent dans son espace de travail ; `generer` est rejouée à chaque mise à jour.
+    openclaw.generer(departements_demo, tmp_path, PALIERS, environ=ENVIRON_EMBEDDINGS)
+    espace = tmp_path / "opsys" / "espaces" / "m09-demo"
+    (espace / "MEMORY.md").write_text("mémoire de l'agent (fictif)\n", encoding="utf-8")
+    (espace / "memory").mkdir()
+    (espace / "memory" / "2026-09-29.md").write_text("note du jour (fictif)\n", encoding="utf-8")
+    (espace / "SOUL.md").write_text("modifié à la main\n", encoding="utf-8")
+    (espace / "skills" / "procedure-retiree").mkdir()
+    (espace / "skills" / "procedure-retiree" / "SKILL.md").write_text("ancien skill\n", encoding="utf-8")
+
+    openclaw.generer(departements_demo, tmp_path, PALIERS, environ=ENVIRON_EMBEDDINGS)
+
+    assert (espace / "MEMORY.md").read_text(encoding="utf-8") == "mémoire de l'agent (fictif)\n"
+    assert (espace / "memory" / "2026-09-29.md").read_text(encoding="utf-8") == "note du jour (fictif)\n"
+    assert "`m9_payer` (T3)" in (espace / "SOUL.md").read_text(encoding="utf-8")  # ce qui est à OPSYS est réécrit
+    assert (espace / "skills" / "procedure-demo" / "SKILL.md").is_file()
+    assert not (espace / "skills" / "procedure-retiree").exists()  # un skill retiré du manifeste disparaît

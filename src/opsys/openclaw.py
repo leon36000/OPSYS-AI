@@ -450,9 +450,10 @@ def generer(
     configuration_canaux = canaux.configuration(departements, env_canaux, sans_include)
     base = dossier_config / "opsys"
     espaces = base / "espaces"
-    if espaces.exists():
-        shutil.rmtree(espaces)
-    espaces.mkdir(parents=True)
+    # Jamais de `rmtree(espaces)` : le core écrit dans l'espace de travail de chaque agent (`MEMORY.md`, `memory/`,
+    # `USER.md`, ...) et cette fonction est rejouée à chaque mise à jour et toutes les 300 s sur le VPS. On réécrit
+    # seulement ce qui appartient à OPSYS : `SOUL.md`, `AGENTS.md` et les skills déclarés du département.
+    espaces.mkdir(parents=True, exist_ok=True)
 
     fournisseurs: dict[str, Any] = {}
     agents: dict[str, Any] = {}
@@ -461,7 +462,15 @@ def generer(
         outils = [{"nom": o.nom, "autonomie": o.autonomie.value, "description": o.description}
                   for o in dep.charger_outils()]
         espace = espaces / dep.id
-        (espace / "skills").mkdir(parents=True)
+        (espace / "skills").mkdir(parents=True, exist_ok=True)
+        for existant in (espace / "skills").iterdir():
+            if existant.name in dep.skills:
+                continue
+            # un skill retiré du manifeste est une capacité retirée
+            if existant.is_dir():
+                shutil.rmtree(existant)
+            else:
+                existant.unlink()
         (espace / "SOUL.md").write_text(rendre_soul(dep, outils), encoding="utf-8")
         (espace / "AGENTS.md").write_text(
             INSTRUCTIONS.format(code=dep.code, nom=dep.nom, mission=dep.mission, prefixe=dep.prefixe_outils)
@@ -469,7 +478,10 @@ def generer(
             encoding="utf-8",
         )
         for skill in dep.skills:
-            shutil.copytree(dep.racine / "skills" / skill, espace / "skills" / skill)
+            copie = espace / "skills" / skill
+            if copie.exists():
+                shutil.rmtree(copie)
+            shutil.copytree(dep.racine / "skills" / skill, copie)
 
         nom_fournisseur = f"opsys-{dep.prefixe_outils}"
         fournisseurs[nom_fournisseur] = fournisseur_departement(dep, paliers, url_passerelle)
