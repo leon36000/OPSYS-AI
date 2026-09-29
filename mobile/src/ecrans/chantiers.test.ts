@@ -188,6 +188,16 @@ describe("le digest du jour", () => {
     expect(vue.rienASignaler).toBe(false);
   });
 
+  test("une intervention terminée : SON numéro et celui de SON chantier, abrégés, jamais l'un pour l'autre", () => {
+    const brut = reponse("digest").resultat.resultat.interventions_terminees[0];
+    expect(brut.intervention_id).not.toBe(brut.wct_id);
+    const [terminee] = presenterDigest(digestDe("digest"), DECALAGE).terminees;
+    expect(terminee.titre).toEqual({
+      cle: "admin.chantiers.digest.terminee",
+      params: { intervention: `${brut.intervention_id.slice(0, 8)}…`, chantier: `${brut.wct_id.slice(0, 8)}…` },
+    });
+  });
+
   test("le digest d'un jour où rien ne s'est passé le dit ; ce n'est pas déduit d'une lecture partielle", () => {
     const vide = presenterDigest(digestDe("digest_vide"), DECALAGE);
     expect(vide.rienASignaler).toBe(true);

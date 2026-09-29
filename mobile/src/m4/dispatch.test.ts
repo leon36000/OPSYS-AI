@@ -280,6 +280,8 @@ describe("ce que la préparation refuse de lire : jamais un « prêt » supposé
 
   test.each([
     ["« prêt » alors qu'un volet manque", (b: any) => Object.assign(b, { pret: true, statut: "pret" })],
+    // Seuls les volets démentent ce « prêt » : `a_fournir` est vide, `pret` et le verdict s'accordent.
+    ["« prêt » sans rien à fournir, mais un volet manque encore", (b: any) => Object.assign(b, { pret: true, statut: "pret", a_fournir: [] })],
     ["`pret` vrai sous un verdict qui n'est pas « pret »", (b: any) => (b.pret = true)],
     ["verdict « pret » avec `pret` faux", (b: any) => (b.statut = "pret")],
     ["verdict inconnu", (b: any) => (b.statut = "presque")],

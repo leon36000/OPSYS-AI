@@ -440,6 +440,37 @@ describe("la prévision de trésorerie", () => {
     expect(vue.semaines[2]).toMatchObject({ enDeficit: { cle: "admin.chiffres.prevision.enDeficit" }, soldeFin: { params: { montant: n("-250,00 $") } } });
   });
 
+  test("chaque montant d'une semaine vient de SA clé : des entrées, des sorties, un solde et un cash libre tous différents", () => {
+    const brut = reponse("prevision");
+    Object.assign(brut.resultat.resultat.semaines[0], {
+      entrees: "1200.00",
+      sorties: "300.00",
+      solde_fin: "20900.00",
+      cash_libre_prevu: "15006.32",
+      lignes: 4,
+    });
+    const [semaine] = complete(previsionDeBrut(brut)).semaines;
+    expect(semaine).toMatchObject({
+      entrees: { cle: "admin.chiffres.prevision.entrees", params: { montant: n("1 200,00 $") } },
+      sorties: { cle: "admin.chiffres.prevision.sorties", params: { montant: n("300,00 $") } },
+      soldeFin: { cle: "admin.chiffres.prevision.soldeFin", params: { montant: n("20 900,00 $") } },
+      cashLibrePrevu: { cle: "admin.chiffres.prevision.cashLibrePrevu", params: { montant: n("15 006,32 $") } },
+      lignes: { params: { nombre: 4 } },
+    });
+  });
+
+  test("ce qui est au-delà de l'horizon : les entrées et les sorties chacune avec SON nombre, SON total et SES éléments non chiffrés", () => {
+    const brut = reponse("prevision");
+    brut.resultat.resultat.au_dela_de_l_horizon = {
+      entrees: { nombre: 2, total: "1500.00", non_chiffres: 1 },
+      sorties: { nombre: 3, total: "400.00", non_chiffres: 0 },
+    };
+    expect(complete(previsionDeBrut(brut)).auDela).toEqual([
+      { cle: "admin.chiffres.prevision.auDelaEntrees", params: { nombre: 2, montant: n("1 500,00 $"), nonChiffres: 1 } },
+      { cle: "admin.chiffres.prevision.auDelaSorties", params: { nombre: 3, montant: n("400,00 $"), nonChiffres: 0 } },
+    ]);
+  });
+
   test("un statut d'alerte inconnu est dit inconnu, jamais lu comme « aucune alerte »", () => {
     const brut = reponse("prevision_sans_alerte");
     brut.resultat.resultat.alerte.statut = "PRUDENCE";
@@ -549,6 +580,46 @@ describe("les échéances fiscales", () => {
       factures: { cle: "admin.chiffres.echeances.factures", params: { clients: 1, fournisseurs: 0 } },
     });
     expect(premiere.taxesNonChiffrees).toBeNull();
+  });
+
+  test("la limite de paiement et la limite de production sont chacune celle de M5, avec SES jours restants", () => {
+    const brut = reponse("echeances");
+    Object.assign(brut.resultat.resultat.echeances[0], {
+      limite_paiement: "2026-11-02",
+      limite_production: "2026-11-30",
+      jours_avant_paiement: 34,
+      jours_avant_production: 62,
+    });
+    const [premiere] = presenterEcheances(echeancesDeBrut(brut), "fr-CA").echeances;
+    expect(premiere.limitePaiement).toEqual({
+      cle: "admin.chiffres.echeances.limitePaiement",
+      params: { date: "2026-11-02", jours: 34 },
+    });
+    expect(premiere.limiteProduction).toEqual({
+      cle: "admin.chiffres.echeances.limiteProduction",
+      params: { date: "2026-11-30", jours: 62 },
+    });
+  });
+
+  test("chaque montant d'une taxe vient de SA clé : collectée, crédits d'intrants, nette et à remettre tous différents", () => {
+    const brut = reponse("echeances");
+    const taxes = brut.resultat.resultat.echeances[0].taxes_nettes;
+    taxes.tps = { collectee: "250.00", credits_intrants: "40.00", nette: "210.00", a_remettre: "200.00" };
+    taxes.tvq = { collectee: "498.75", credits_intrants: "80.00", nette: "418.75", a_remettre: "410.00" };
+    taxes.factures_clients = 3;
+    taxes.factures_fournisseurs = 5;
+    const [premiere] = presenterEcheances(echeancesDeBrut(brut), "fr-CA").echeances;
+    expect(premiere.taxes?.tps).toEqual({
+      cle: "admin.chiffres.echeances.tps",
+      params: { collectee: n("250,00 $"), credits: n("40,00 $"), nette: n("210,00 $"), aRemettre: n("200,00 $") },
+    });
+    expect(premiere.taxes?.tvq.params).toEqual({
+      collectee: n("498,75 $"),
+      credits: n("80,00 $"),
+      nette: n("418,75 $"),
+      aRemettre: n("410,00 $"),
+    });
+    expect(premiere.taxes?.factures).toEqual({ cle: "admin.chiffres.echeances.factures", params: { clients: 3, fournisseurs: 5 } });
   });
 
   test("une échéance en retard : les jours négatifs de M5 sont montrés tels quels, sans que l'app les recompte", () => {

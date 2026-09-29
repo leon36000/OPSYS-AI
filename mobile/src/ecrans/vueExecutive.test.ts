@@ -186,6 +186,15 @@ describe("la vue d'ensemble : la marge réelle des chantiers (M5), reprise sans 
     });
   });
 
+  test("les comptes de M5 sont dits chacun à sa place : chantiers terminés, marge connue, non calculable", () => {
+    const brut = reponse("vue_executive");
+    Object.assign(brut.resultat.marge_reelle, { n_chantiers: 5, n_marge_connue: 3, n_non_calculable: 2 });
+    expect(presenterVueExecutive(vueDeBrut(brut), "fr-CA", DECALAGE).margeReelle.resume).toEqual({
+      cle: "admin.chiffres.vue.margeResume",
+      params: { n: 5, connue: 3, nonCalculable: 2 },
+    });
+  });
+
   test("un chantier sans devis relié, non daté et sans raison : dit tel quel, jamais une marge de 0", () => {
     const brut = reponse("vue_executive");
     brut.resultat.marge_reelle.chantiers[1] = {
