@@ -8,17 +8,18 @@
 #   1. vérifie les prérequis : Node aux versions du fork, uv (qui fournit Python 3.11+), git (installation à distance)
 #   2. prépare le code : dépôt voisin ou OPSYS_SOURCE tel quel ; sinon clone de OPSYS_REPO_URL à OPSYS_REF
 #   3. construit OPSYS-CORE (pnpm à la version que fixe core/package.json) et installe le moteur Python par uv
-#   4. `opsys instance initialiser` : dossiers privés, base migrée, secrets dans <état du core>/.env (0600, jamais
-#      régénérés, jamais affichés), configuration du core, superviseur du moteur (opsys/metier.json)
-#   5. vérifie que le core lit bien son état où l'on vient de le préparer (`openclaw config file`), `openclaw config
-#      validate`, puis service utilisateur du Gateway (`openclaw gateway install` : systemd --user, launchd), qui
+#   4. `opsys metier instance initialiser` : dossiers privés, base migrée, secrets dans <état du core>/.env (0600,
+#      jamais régénérés, jamais affichés), configuration du core, superviseur du moteur et commande de sa CLI
+#      (opsys/metier.json)
+#   5. vérifie que le core lit bien son état où l'on vient de le préparer (`opsys config file`), `opsys config
+#      validate`, puis service utilisateur du Gateway (`opsys gateway install` : systemd --user, launchd), qui
 #      supervise le moteur ; attend que le Gateway et le moteur répondent
 #
 # Le core tourne sous son profil « opsys » (PLAN T0.11-b) : toute commande du core passe `--profile opsys`, jamais
 # OPENCLAW_STATE_DIR, OPENCLAW_CONFIG_PATH ni OPENCLAW_HOME. Son état est alors le dossier canonique du profil
 # (~/.openclaw-opsys), le seul pour lequel le core accepte d'installer un service (core/src/config/paths.ts,
 # isDefaultInstallIdentity), et le service porte un nom distinct de celui du core d'origine (Linux :
-# openclaw-gateway-opsys ; macOS : ai.openclaw.opsys). `opsys instance dossier` donne ce dossier. Une installation
+# openclaw-gateway-opsys ; macOS : ai.openclaw.opsys). `opsys metier instance dossier` donne ce dossier. Une installation
 # faite avec l'ancienne disposition ($OPSYS_HOME/core) est signalée, avec la marche à suivre, jamais migrée en silence.
 #
 # Pourquoi construire depuis le dépôt et non installer une archive : aucune version n'est publiée (la publication est
@@ -29,7 +30,7 @@
 # l'instance ne sont jamais touchées, le Gateway est redémarré.
 #
 # Options
-#   --sans-service   n'installe pas le service (démarrage à la main : `openclaw gateway run`)
+#   --sans-service   n'installe pas le service (démarrage à la main : `opsys gateway run`)
 #   --source CHEMIN  utilise ce dépôt tel quel, sans clone (comme OPSYS_SOURCE)
 #   --ref REF        branche, étiquette ou commit à installer (comme OPSYS_REF ; défaut : main)
 #   --aide
@@ -37,7 +38,8 @@
 #   OPSYS_HOME       données de l'instance (base, paliers, profil d'entreprise), jamais supprimées par la désinstallation
 #                    (défaut : ~/.opsys). L'état du core est ailleurs (voir plus haut), et lui non plus n'est jamais supprimé.
 #   OPSYS_LOGICIEL   logiciel : clone, environnement Python, journal (défaut : ~/.local/share/opsys)
-#   OPSYS_BIN        commandes `openclaw` et `opsys` (défaut : ~/.local/bin)
+#   OPSYS_BIN        commandes `opsys` (le core), `openclaw` (son alias) et `opsys-metier` (le moteur métier ; `opsys metier
+#                    <commande>` le lance depuis le core) (défaut : ~/.local/bin)
 #   OPSYS_SOURCE, OPSYS_REPO_URL, OPSYS_REF     provenance du code (voir plus haut)
 #   OPSYS_PORT_GATEWAY (défaut : 18789), OPSYS_PORT_MOTEUR (défaut : 8765)
 #   OPSYS_EMBEDDINGS_URL, OPSYS_EMBEDDINGS_MODELE, OPSYS_EMBEDDINGS_CLE   service d'embeddings (gardés dans .env)
@@ -432,7 +434,7 @@ initialiser_instance() {
     info "Initialisation de l'instance ($OPSYS_HOME ; état du core : $DOSSIER_CORE)..."
     sortie="$(moteur_opsys "${args[@]}" 2>"$erreurs" </dev/null)" || code=$?
     preparer_masque
-    { printf '\n== opsys instance initialiser (code %s)\n' "$code"; cat "$erreurs"; printf '%s\n' "$sortie"; } |
+    { printf '\n== opsys metier instance initialiser (code %s)\n' "$code"; cat "$erreurs"; printf '%s\n' "$sortie"; } |
         filtrer_secrets >>"$JOURNAL"
     filtrer_secrets <"$erreurs" >&2
     case "$code" in
@@ -445,26 +447,31 @@ initialiser_instance() {
 }
 
 # Le dossier que l'installateur a préparé doit être celui que le core lira : le core dit lui-même où est sa configuration
-# (`openclaw config file`). Si la règle de profil du fork change, on s'arrête ici, avant de démarrer un Gateway qui
+# (`opsys config file`). Si la règle de profil du fork change, on s'arrête ici, avant de démarrer un Gateway qui
 # ignorerait la configuration générée.
 verifier_dossier_du_core() {
     local sortie="" erreurs annonce code=0
-    info "Vérification du dossier d'état du core (openclaw config file)..."
+    info "Vérification du dossier d'état du core (opsys config file)..."
     erreurs="$(mktemp "${TMPDIR:-/tmp}/opsys-erreurs.XXXXXX")"
     NETTOYAGE+=("$erreurs")
     sortie="$(noyau config file 2>"$erreurs" </dev/null)" || code=$?
-    { printf '\n== openclaw config file (code %s)\n' "$code"; cat "$erreurs"; printf '%s\n' "$sortie"; } |
+    { printf '\n== opsys config file (code %s)\n' "$code"; cat "$erreurs"; printf '%s\n' "$sortie"; } |
         filtrer_secrets >>"$JOURNAL"
     if [ "$code" -ne 0 ]; then
         filtrer_secrets <"$erreurs" >&2
-        die "openclaw config file a échoué (code $code). Journal complet : $JOURNAL"
+        die "opsys config file a échoué (code $code). Journal complet : $JOURNAL"
     fi
     annonce="$(printf '%s\n' "$sortie" | awk 'NF { ligne = $0 } END { print ligne }')"
     [ "$annonce" = "$DOSSIER_CORE/openclaw.json" ] ||
         die "le core cherche sa configuration dans '$annonce', mais l'installateur a préparé '$DOSSIER_CORE/openclaw.json'. La règle du profil « $PROFIL_CORE » a changé dans le core (core/src/cli/profile-utils.ts) : rien n'est démarré. Journal : $JOURNAL"
 }
 
-# -- Commandes `openclaw` (core) et `opsys` (moteur) --------------------------------------------------------------------------
+# -- Commandes `opsys` et `openclaw` (core), `opsys-metier` (moteur) ----------------------------------------------------------
+# PLAN T0.7 lot 2 : `opsys` est la commande du core, `openclaw` son alias (le même fichier, écrit deux fois : aucun lien,
+# donc rien de particulier sous macOS ou sur un volume sans liens) ; le moteur métier, qui s'appelait `opsys`, s'appelle
+# `opsys-metier`, et `opsys metier <commande>` le lance depuis le core (core/src/cli/opsys-metier-cli.ts) à partir de
+# `opsys/metier.json`. Ces trois fichiers portent la marque de l'installateur : les réécrire à chaque installation est
+# permis, y compris l'ancien `opsys` (l'enveloppe du moteur d'avant le lot 2) ; tout autre fichier de ce nom est refusé.
 ecrire_enveloppe() {
     local cible="$1" contenu="$2" temporaire
     if [ -e "$cible" ] && ! grep -qF "$MARQUE" "$cible" 2>/dev/null; then
@@ -487,7 +494,7 @@ contenu_commande_core() {
         "# Le core d'OPSYS tourne sous son profil « $PROFIL_CORE » : son état est le dossier canonique du profil, jamais un autre." \
         "unset ${VARIABLES_ECARTEES[*]}"
     printf 'NODE=%q\n' "$NODE"
-    printf '%s\n' '[ -x "$NODE" ] || { echo "openclaw : Node est introuvable ($NODE) : relancez install.sh." >&2; exit 127; }'
+    printf '%s\n' '[ -x "$NODE" ] || { echo "opsys : Node est introuvable ($NODE) : relancez install.sh." >&2; exit 127; }'
     printf 'exec "$NODE" %q --profile %q "$@"\n' "$SOURCE/core/openclaw.mjs" "$PROFIL_CORE"
 }
 
@@ -507,14 +514,31 @@ contenu_commande_moteur() {
         '        if [ -z "${!cle+x}" ]; then export "$cle=$valeur"; fi' \
         '    done <"$ENV_FILE"' \
         'fi' \
-        '[ -x "$PY" ] || { echo "opsys : environnement Python introuvable ($PY) : relancez install.sh." >&2; exit 127; }' \
+        '[ -x "$PY" ] || { echo "opsys-metier : environnement Python introuvable ($PY) : relancez install.sh." >&2; exit 127; }' \
         'exec "$PY" -m opsys.cli "$@"'
 }
 
+# Le fichier `opsys` que l'installateur avait écrit avant le lot 2 est l'enveloppe du moteur : elle exécute `-m opsys.cli`.
+ancienne_commande_moteur_presente() {
+    [ -f "$OPSYS_BIN/opsys" ] && grep -qF -- '-m opsys.cli' "$OPSYS_BIN/opsys" 2>/dev/null
+}
+
 installer_commandes() {
+    local cible ancien=0
+    # Tout est vérifié avant la première écriture : un fichier étranger ne laisse pas un jeu de commandes à moitié remplacé.
+    for cible in "$OPSYS_BIN/opsys" "$OPSYS_BIN/openclaw" "$OPSYS_BIN/opsys-metier"; do
+        if [ -e "$cible" ] && ! grep -qF "$MARQUE" "$cible" 2>/dev/null; then
+            die "$cible existe déjà et n'a pas été installé par OPSYS : déplacez-le, ou choisissez un autre dossier (OPSYS_BIN=/autre/dossier)."
+        fi
+    done
+    if ancienne_commande_moteur_presente; then ancien=1; fi
+    ecrire_enveloppe "$OPSYS_BIN/opsys" "$(contenu_commande_core)"
     ecrire_enveloppe "$OPSYS_BIN/openclaw" "$(contenu_commande_core)"
-    ecrire_enveloppe "$OPSYS_BIN/opsys" "$(contenu_commande_moteur)"
-    info "commandes installées : $OPSYS_BIN/openclaw et $OPSYS_BIN/opsys"
+    ecrire_enveloppe "$OPSYS_BIN/opsys-metier" "$(contenu_commande_moteur)"
+    info "commandes installées : $OPSYS_BIN/opsys (core), $OPSYS_BIN/openclaw (alias du core) et $OPSYS_BIN/opsys-metier (moteur métier)"
+    if [ "$ancien" -eq 1 ]; then
+        info "« opsys » est maintenant la commande du core : l'ancienne commande du moteur est remplacée. Le moteur se lance par « opsys metier <commande> » (ou « opsys-metier <commande> »)."
+    fi
 }
 
 # -- 5. Configuration valide, service, santé --------------------------------------------------------------------------------
@@ -534,14 +558,14 @@ attendre_http() {
 # le LaunchAgent écrit, core/src/daemon/restart-logs.ts, et l'état que launchd en donne).
 indice_journaux() {
     case "$(uname -s)" in
-        Linux) printf '%s' "journalctl --user -u openclaw-gateway-$PROFIL_CORE -n 100 ; openclaw gateway status --deep" ;;
-        Darwin) printf '%s' "tail -n 100 ~/Library/Logs/openclaw/gateway-$PROFIL_CORE.log ; launchctl print gui/$(id -u)/ai.openclaw.$PROFIL_CORE ; openclaw gateway status --deep" ;;
-        *) printf '%s' "openclaw gateway status --deep ; openclaw logs" ;;
+        Linux) printf '%s' "journalctl --user -u openclaw-gateway-$PROFIL_CORE -n 100 ; opsys gateway status --deep" ;;
+        Darwin) printf '%s' "tail -n 100 ~/Library/Logs/openclaw/gateway-$PROFIL_CORE.log ; launchctl print gui/$(id -u)/ai.openclaw.$PROFIL_CORE ; opsys gateway status --deep" ;;
+        *) printf '%s' "opsys gateway status --deep ; opsys logs" ;;
     esac
 }
 
 installer_service() {
-    CONSEIL="Si systemd --user (Linux) ou launchd (macOS) n'est pas disponible ici, relancez avec --sans-service et démarrez le Gateway à la main : openclaw gateway run." \
+    CONSEIL="Si systemd --user (Linux) ou launchd (macOS) n'est pas disponible ici, relancez avec --sans-service et démarrez le Gateway à la main : opsys gateway run." \
         etape "Installation du service du Gateway (utilisateur)" noyau gateway install --force --port "$PORT_GATEWAY"
     info "attente du Gateway (port $PORT_GATEWAY) et du moteur (port $PORT_MOTEUR)..."
     attendre_http "http://127.0.0.1:$PORT_GATEWAY/startupz" 240 ||
@@ -579,6 +603,18 @@ avertir_si_bin_hors_path() {
     esac
 }
 
+# Un autre `opsys` que celui d'OPSYS passe-t-il avant lui dans le PATH ? Typiquement l'ancien moteur Python installé par
+# `pip install`, `pipx` ou `uv tool install` (son point d'entrée s'appelait `opsys`) : `opsys metier ...` y serait refusé
+# et le core ne serait pas atteint. La commande n'est jamais lancée : seul son chemin est dit, avec quoi faire.
+avertir_si_opsys_masque() {
+    local premier
+    premier="$(command -v opsys 2>/dev/null || true)"
+    if [ -z "$premier" ] || [ "$premier" = "$OPSYS_BIN/opsys" ]; then
+        return 0
+    fi
+    avertir "la commande « opsys » de votre PATH est $premier, pas celle qu'OPSYS vient d'installer ($OPSYS_BIN/opsys). Si c'est l'ancien moteur Python (pip, pipx, uv tool), retirez-le (pip uninstall opsys-ai ; pipx uninstall opsys-ai ; uv tool uninstall opsys-ai) ou mettez $OPSYS_BIN en tête du PATH. Rien n'a été modifié."
+}
+
 afficher_bilan() {
     printf '\n'
     if [ "$EN_ATTENTE" -eq 1 ]; then
@@ -591,19 +627,19 @@ afficher_bilan() {
     printf '  %-22s %s\n' "État du core" "$DOSSIER_CORE  (profil $PROFIL_CORE ; jamais supprimé par la désinstallation)"
     printf '  %-22s %s\n' "Réglages et secrets" "$DOSSIER_CORE/.env  (0600 : ne jamais partager ni versionner)"
     printf '  %-22s %s\n' "Logiciel" "$OPSYS_LOGICIEL  (commit ${SOURCE_COMMIT:0:12})"
-    printf '  %-22s %s\n' "Commandes" "$OPSYS_BIN/openclaw (core), $OPSYS_BIN/opsys (moteur)"
+    printf '  %-22s %s\n' "Commandes" "$OPSYS_BIN/opsys (core ; alias openclaw), $OPSYS_BIN/opsys-metier (moteur : opsys metier <commande>)"
     if [ "$EN_ATTENTE" -eq 0 ]; then
         printf '  %-22s %s\n' "Gateway" "http://127.0.0.1:$PORT_GATEWAY  (moteur : 127.0.0.1:$PORT_MOTEUR)"
         printf '  %-22s %s\n' "Passerelle de modèles" "non installée par ce script : attendue à l'adresse OPSYS_PASSERELLE_URL de .env"
         if [ "$SERVICE_INSTALLE" -eq 1 ]; then
-            printf '  %-22s %s\n' "Service" "installé (utilisateur, profil $PROFIL_CORE) ; état : openclaw gateway status"
+            printf '  %-22s %s\n' "Service" "installé (utilisateur, profil $PROFIL_CORE) ; état : opsys gateway status"
         else
-            printf '  %-22s %s\n' "Service" "non installé (--sans-service) ; démarrage : openclaw gateway run"
+            printf '  %-22s %s\n' "Service" "non installé (--sans-service) ; démarrage : opsys gateway run"
         fi
         printf '\nProchaines étapes :\n'
-        printf '  1. Créer le propriétaire : opsys personnes creer <identifiant> --nom "<Nom>" --role nathan_owner\n'
-        printf '%s\n' "  2. Appairer l'app mobile : openclaw qr, puis openclaw devices approve <demande>"
-        printf '  3. Sauvegarder : opsys instance exporter --sortie <fichier.tar.gz>\n'
+        printf '  1. Créer le propriétaire : opsys metier personnes creer <identifiant> --nom "<Nom>" --role nathan_owner\n'
+        printf '%s\n' "  2. Appairer l'app mobile : opsys qr, puis opsys devices approve <demande>"
+        printf '  3. Sauvegarder : opsys metier instance exporter --sortie <fichier.tar.gz>\n'
     fi
     printf '  Journal de cette installation : %s\n' "$JOURNAL"
 }
@@ -628,17 +664,18 @@ main() {
     installer_moteur
     determiner_dossier_core
     initialiser_instance
-    etape "Vérification du core (openclaw --version)" noyau --version
+    etape "Vérification du core (opsys --version)" noyau --version
     verifier_dossier_du_core
     installer_commandes
     if [ "$EN_ATTENTE" -eq 0 ]; then
-        etape "Validation de la configuration par le core (openclaw config validate)" noyau config validate
+        etape "Validation de la configuration par le core (opsys config validate)" noyau config validate
         if [ "$AVEC_SERVICE" -eq 1 ]; then
             installer_service
         fi
     fi
     ecrire_enregistrement
     avertir_si_bin_hors_path
+    avertir_si_opsys_masque
     afficher_bilan
     if [ "$EN_ATTENTE" -eq 1 ]; then
         exit "$CODE_EN_ATTENTE"

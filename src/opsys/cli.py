@@ -1,5 +1,9 @@
-"""CLI `opsys` : vérifier, générer les profils, piloter approbations, modes, budgets, paliers, services, équipes,
-météo, identité."""
+"""CLI du moteur métier, `opsys-metier` : vérifier, générer les profils, piloter approbations, modes, budgets, paliers,
+services, équipes, météo, identité.
+
+Depuis T0.7 lot 2, `opsys` est la commande du core : celle-ci se lance par `opsys metier <commande>` (le core lit
+`opsys/metier.json`, clé `commande_cli`, que `instance initialiser` écrit) ou directement par `opsys-metier` (Docker,
+développement). Ce module reste le même : `python -m opsys.cli` aussi."""
 
 from __future__ import annotations
 
@@ -137,8 +141,8 @@ def cmd_verifier(args: argparse.Namespace) -> int:
 
 
 def _verifier_config_canaux(deps: dict, dossier: Path, avec_canaux: bool) -> list[str]:
-    """`opsys verifier --config-dir` : les fragments écrits par `opsys openclaw configurer` suivent l'environnement
-    (canal actif ou non) et `openclaw.json` les inclut. Sans canal déclaré, il n'y a rien à suivre."""
+    """`opsys-metier verifier --config-dir` : les fragments écrits par `opsys-metier openclaw configurer` suivent
+    l'environnement (canal actif ou non) et `openclaw.json` les inclut. Sans canal déclaré, il n'y a rien à suivre."""
     if not avec_canaux:
         return []
     fichier = dossier / "opsys" / "channels.json"
@@ -371,7 +375,7 @@ def cmd_equipes(args: argparse.Namespace) -> int:
 
     `lister` montre le fichier, le profil déclaré et ce qui reste à déclarer. `declarer --depuis FICHIER --par NOM`
     REMPLACE la clé `equipes` par le contenu validé du fichier, signée au journal d'audit ; les membres doivent être des
-    personnes OPSYS existantes et actives (`opsys personnes lister`). Aucune donnée de ressources humaines.
+    personnes OPSYS existantes et actives (`opsys-metier personnes lister`). Aucune donnée de ressources humaines.
     """
     if args.action == "declarer":
         try:
@@ -387,7 +391,7 @@ def cmd_equipes(args: argparse.Namespace) -> int:
             print(f"ERREUR : {exc}", file=sys.stderr)
             return 1
         except SQLAlchemyError as exc:
-            print(f"ERREUR : base de l'instance inaccessible ({type(exc).__name__}) : `opsys base migrer` ?",
+            print(f"ERREUR : base de l'instance inaccessible ({type(exc).__name__}) : `opsys-metier base migrer` ?",
                   file=sys.stderr)
             return 1
         print(fichier)
@@ -488,7 +492,7 @@ def cmd_openclaw(args: argparse.Namespace) -> int:
         print(ligne)
     if etat_canaux and manquants:
         print(f"ATTENTION : openclaw.json n'inclut pas {', '.join(manquants)} : le core ignore ces fragments, "
-              "les canaux restent inactifs (voir `opsys verifier --config-dir`)", file=sys.stderr)
+              "les canaux restent inactifs (voir `opsys-metier verifier --config-dir`)", file=sys.stderr)
     return 0
 
 
@@ -497,7 +501,7 @@ def cmd_appareils(args: argparse.Namespace) -> int:
 
     Deux temps distincts, jamais fusionnés ici : (1) l'approbation NATIVE de l'appairage, faite par
     le propriétaire côté OPSYS-CORE — le jeton d'appareil scellé n'existe qu'après cette étape,
-    hors de portée d'`opsys` (R12 §1.3) ; (2) CETTE commande, qui attribue une personne et un rôle
+    hors de portée du moteur (R12 §1.3) ; (2) CETTE commande, qui attribue une personne et un rôle
     OPSYS au `deviceId` déjà approuvé et régénère `opsys/appareils.json`
     (`openclaw.ecrire_appareils`), le fragment que `/tools/invoke` lit directement
     (docs/architecture/IDEMPOTENCE.md §7 bis). Une entrée ici pour un `deviceId` jamais approuvé
@@ -565,8 +569,8 @@ def cmd_passerelle(args: argparse.Namespace) -> int:
 
 
 def construire_parseur() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="opsys", description="OPSYS-AI — pilotage des départements")
-    p.add_argument("--version", action="version", version=f"opsys {__version__}")
+    p = argparse.ArgumentParser(prog="opsys-metier", description="OPSYS-AI — pilotage des départements (moteur métier)")
+    p.add_argument("--version", action="version", version=f"opsys-metier {__version__}")
     sous = p.add_subparsers(dest="commande", required=True)
 
     sous.add_parser("departements", help="lister les départements").set_defaults(fn=cmd_departements)
@@ -718,7 +722,7 @@ def main(argv: list[str] | None = None) -> int:
         print("--depuis (fichier du profil) et --par requis", file=sys.stderr)
         return 2
     if args.commande == "instance" and args.action == "restaurer" and not args.archive:
-        print("archive requise : opsys instance restaurer <archive.tar.gz>", file=sys.stderr)
+        print("archive requise : opsys-metier instance restaurer <archive.tar.gz>", file=sys.stderr)
         return 2
     if args.commande == "paliers" and args.action == "definir" and not (args.palier and args.provider and args.model):
         print("palier, --provider et --model requis", file=sys.stderr)

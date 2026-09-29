@@ -1,7 +1,7 @@
 # E2E avec le vrai core (PLAN T1.5-b, T1.5-f)
 
 `tests/e2e/` prouve le moteur, avec la porte d'appareil du core refaite en Python. Ici, le trajet est réel :
-**app → Gateway OPSYS-CORE → moteur métier**. Le script génère la configuration du core par `opsys openclaw
+**app → Gateway OPSYS-CORE → moteur métier**. Le script génère la configuration du core par `opsys-metier openclaw
 configurer`, démarre le Gateway (qui lance le moteur par le superviseur T0.10), appaire un appareil de test comme
 l'app le fait (défi signé Ed25519, approbation par la CLI du core), puis appelle `GET /opsys/identite` et
 `POST /tools/invoke` avec son jeton, en chronométrant chaque appel. La suite (T1.5-f) joue la journée de

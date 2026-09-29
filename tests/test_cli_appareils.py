@@ -1,4 +1,4 @@
-"""`opsys appareils ...` : attribution personne/rôle d'un appareil déjà approuvé côté core
+"""`opsys-metier appareils ...` : attribution personne/rôle d'un appareil déjà approuvé côté core
 (ADR-0009 §5, PLAN T1.4-c4). Contrat : `docs/architecture/IDEMPOTENCE.md` §7 bis.
 
 Preuve que la commande fait bien les DEUX choses attendues (fixer personne/rôle ET régénérer le

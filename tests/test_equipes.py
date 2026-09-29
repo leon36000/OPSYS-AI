@@ -38,7 +38,7 @@ def test_sans_profil_aucune_equipe_n_est_inventee_et_le_verdict_dit_quoi_declare
     assert profil is None
     assert verdict["code"] == equipes.VERDICT_EQUIPES_NON_CONFIGUREES
     assert str(taxonomie.fichier_profil()) in verdict["detail"]
-    assert "opsys equipes declarer --depuis" in verdict["detail"] and "--par" in verdict["detail"]
+    assert "opsys-metier equipes declarer --depuis" in verdict["detail"] and "--par" in verdict["detail"]
     assert "jamais inventé" in verdict["detail"]
     assert equipes.lire_equipes() is None
 
@@ -330,7 +330,7 @@ def test_a_declarer_dit_ce_qui_manque_et_rien_de_plus():
 
 
 # ---------------------------------------------------------------------------
-# `opsys verifier` : les services du profil des équipes sont des services déclarés
+# `opsys-metier verifier` : les services du profil des équipes sont des services déclarés
 # ---------------------------------------------------------------------------
 def test_verifier_signale_une_duree_pour_un_service_non_declare(opsys_home, declarer_services):
     declarer_services("gouttieres", "revetement")
@@ -365,7 +365,7 @@ def test_un_membre_inconnu_est_refuse(personnes):
     brut = profil_fictif()
     brut["liste"][1]["membres"].append("fantome.fictif")
     problemes = equipes.verifier_personnes(equipes.normaliser_equipes(brut), personnes)
-    assert problemes == ["équipe 'equipe-sud' : personne inconnue 'fantome.fictif' (opsys personnes creer)"]
+    assert problemes == ["équipe 'equipe-sud' : personne inconnue 'fantome.fictif' (opsys-metier personnes creer)"]
 
 
 def test_un_membre_desactive_est_refuse(personnes):

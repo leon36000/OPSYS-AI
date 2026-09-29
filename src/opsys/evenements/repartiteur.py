@@ -169,7 +169,7 @@ def repartir(
 
 
 def etat() -> dict[str, Any]:
-    """Comptes des reçus par statut et liste de quarantaine (`opsys evenements etat`)."""
+    """Comptes des reçus par statut et liste de quarantaine (`opsys-metier evenements etat`)."""
     with transaction() as cnx:
         comptes = dict(cnx.execute(
             select(EVENEMENTS_RECUS.c.statut, func.count()).group_by(EVENEMENTS_RECUS.c.statut)
@@ -191,7 +191,7 @@ def etat() -> dict[str, Any]:
 
 
 def verifier_coherence(departements: Mapping[str, Departement]) -> list[str]:
-    """Cohérence des déclarations `department.yaml/evenements` (`opsys verifier`) :
+    """Cohérence des déclarations `department.yaml/evenements` (`opsys-metier verifier`) :
 
     - chaque type publié ou consommé existe au catalogue ;
     - chaque type consommé a sa fonction dans `consommateurs()` ;
@@ -210,7 +210,7 @@ def verifier_coherence(departements: Mapping[str, Departement]) -> list[str]:
             continue  # département hors du bus d'événements : pas de module à importer pour lui
         try:
             fonctions = dep.charger_consommateurs()
-        except Exception as exc:  # noqa: BLE001 — signalé, jamais une panne de `opsys verifier`
+        except Exception as exc:  # noqa: BLE001 — signalé, jamais une panne de `opsys-metier verifier`
             problemes.append(f"{dep.id} : consommateurs() illisible ({type(exc).__name__}: {exc})")
             continue
         for type_evenement in dep.evenements_consomme:

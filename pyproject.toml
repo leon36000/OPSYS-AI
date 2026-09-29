@@ -27,7 +27,9 @@ dev = [
 ]
 
 [project.scripts]
-opsys = "opsys.cli:main"
+# `opsys` est la commande du core (PLAN T0.7 lot 2) : la CLI du moteur s'appelle `opsys-metier`, et `opsys metier <commande>`
+# la lance depuis le core. Ne pas redonner ce nom à un point d'entrée Python : deux paquets se disputeraient le PATH.
+opsys-metier = "opsys.cli:main"
 opsys-mcp = "opsys.serveur_mcp:main"
 opsys-console = "opsys.console:main"
 

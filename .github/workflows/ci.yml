@@ -29,8 +29,10 @@ jobs:
         run: python -m pip install --quiet -e ".[dev]"
       - name: Lint du socle
         run: ruff check src tests
+      # `opsys` est la commande du core (PLAN T0.7 lot 2) ; la CLI du moteur est `opsys-metier` (`opsys metier` la lance
+      # depuis le core, éprouvé par le job installateur).
       - name: Cohérence des départements (manifestes, outils, dépendances)
-        run: OPSYS_HOME="$RUNNER_TEMP/opsys" opsys verifier
+        run: OPSYS_HOME="$RUNNER_TEMP/opsys" opsys-metier verifier
       - name: Tests du socle
         run: pytest
 

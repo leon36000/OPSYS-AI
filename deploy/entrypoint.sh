@@ -2,9 +2,9 @@
 # deploy/entrypoint.sh — point d'entrée du conteneur "opsys".
 #
 # Un seul conteneur, trois responsabilités (architecture demandée par l'Orchestrateur) :
-#   1. synchronisation idempotente de la config LiteLLM (`opsys passerelle config`), des agents
-#      OpenClaw (`opsys passerelle cles` + `opsys openclaw configurer`) et de la consommation
-#      mesurée par LiteLLM (`opsys passerelle synchroniser`, alimente budgets/alertes OPSYS) —
+#   1. synchronisation idempotente de la config LiteLLM (`opsys-metier passerelle config`), des agents
+#      OpenClaw (`opsys-metier passerelle cles` + `opsys-metier openclaw configurer`) et de la consommation
+#      mesurée par LiteLLM (`opsys-metier passerelle synchroniser`, alimente budgets/alertes OPSYS) —
 #      rejouée périodiquement pour absorber une configuration de modèles faite après coup dans la
 #      console, sans jamais redémarrer le conteneur ;
 #   2. le serveur MCP OPSYS en HTTP streamable (`opsys-mcp --http`) ;
@@ -35,7 +35,7 @@ warn() { echo "[opsys-init] $*" >&2; }
 # sûr à lancer avant lui. C'est la raison d'être de l'ordre postgres -> opsys -> litellm ci-dessous
 # dans docker-compose.yml : LiteLLM lit ce fichier à SON démarrage.
 sync_litellm_config() {
-    if opsys passerelle config --sortie "$LITELLM_CONFIG_DIR/config.yaml"; then
+    if opsys-metier passerelle config --sortie "$LITELLM_CONFIG_DIR/config.yaml"; then
         log "config LiteLLM régénérée : $LITELLM_CONFIG_DIR/config.yaml"
     else
         warn "config LiteLLM NON régénérée — configurez au moins le palier 'standard' dans la console OPSYS (port ${OPSYS_CONSOLE_PORT:-8700}${OPSYS_CONSOLE_PREFIXE:-}), puis le prochain cycle (${SYNC_INTERVAL}s) reprendra automatiquement."
@@ -69,12 +69,12 @@ sync_openclaw() {
         warn "LiteLLM pas encore joignable sur $LITELLM_URL — clés et config OpenClaw reportées au prochain cycle."
         return 0
     fi
-    if opsys passerelle cles --url "$LITELLM_URL"; then
+    if opsys-metier passerelle cles --url "$LITELLM_URL"; then
         log "clés virtuelles LiteLLM synchronisées pour tous les départements."
     else
         warn "au moins une clé virtuelle LiteLLM n'a PAS pu être enregistrée (détail ci-dessus) — nouvel essai au prochain cycle."
     fi
-    if opsys openclaw configurer --config-dir "$OPENCLAW_CONFIG_DIR"; then
+    if opsys-metier openclaw configurer --config-dir "$OPENCLAW_CONFIG_DIR"; then
         log "configuration des agents OpenClaw synchronisée dans $OPENCLAW_CONFIG_DIR/opsys/."
     else
         warn "configuration des agents OpenClaw NON générée — configurez les modèles dans la console OPSYS, puis le prochain cycle (${SYNC_INTERVAL}s) reprendra automatiquement."
@@ -91,7 +91,7 @@ sync_usage() {
         warn "LiteLLM pas encore joignable sur $LITELLM_URL — synchronisation de la consommation reportée au prochain cycle."
         return 0
     fi
-    if opsys passerelle synchroniser --url "$LITELLM_URL" --jours "$SYNC_JOURS"; then
+    if opsys-metier passerelle synchroniser --url "$LITELLM_URL" --jours "$SYNC_JOURS"; then
         log "consommation LiteLLM synchronisée vers les budgets OPSYS."
     else
         warn "synchronisation de la consommation LiteLLM incomplète — nouvel essai au prochain cycle."

@@ -82,7 +82,7 @@ services:
     image: valkey/valkey:8-alpine@sha256:081c2f5cb575efc901aa80ff9cdbd1ec6a301682fd35e1ebb4b0990a4a4a8507
     restart: unless-stopped
     networks: [opsys_internal]
-    # Pas de --requirepass : la config LiteLLM générée par `opsys passerelle config`
+    # Pas de --requirepass : la config LiteLLM générée par `opsys-metier passerelle config`
     # (src/opsys/passerelle.py::config_litellm) se connecte à Valkey sans authentification
     # (cache_params sans mot de passe, vérifié dans le code). La frontière de sécurité est donc
     # purement réseau — jamais de port publié, réseau bridge interne seulement.
@@ -127,7 +127,7 @@ services:
       # Control UI OpenClaw (cookies de session isolés), recommandation sécurité.
       OPSYS_CONSOLE_PREFIXE: ""
       # Pas de mot de passe partagé (ADR-0009 §5) : ce secret signe seulement les sessions, chaque
-      # personne se connecte avec son propre mot de passe (amorçage : `opsys personnes creer`).
+      # personne se connecte avec son propre mot de passe (amorçage : `opsys-metier personnes creer`).
       OPSYS_CONSOLE_SECRET: ${OPSYS_CONSOLE_SECRET:?OPSYS_CONSOLE_SECRET manquant dans .env (>=32 caractères)}
       OPSYS_CONSOLE_COOKIE_SECURISE: "1"
       # uvicorn n'accepte X-Forwarded-For que de Caddy : IP réelle du client dans les journaux.
@@ -148,7 +148,7 @@ services:
       LITELLM_CONFIG_DIR: /shared/litellm-config
       OPSYS_SYNC_INTERVAL_SECONDS: "300"
       TZ: ${TZ:-America/Toronto}
-      # Une clé virtuelle par département (M1..M10) — lues par `opsys passerelle cles`.
+      # Une clé virtuelle par département (M1..M10) — lues par `opsys-metier passerelle cles`.
       OPSYS_CLE_M1: ${OPSYS_CLE_M1:?OPSYS_CLE_M1 manquant dans .env}
       OPSYS_CLE_M2: ${OPSYS_CLE_M2:?OPSYS_CLE_M2 manquant dans .env}
       OPSYS_CLE_M3: ${OPSYS_CLE_M3:?OPSYS_CLE_M3 manquant dans .env}
@@ -159,7 +159,7 @@ services:
       OPSYS_CLE_M8: ${OPSYS_CLE_M8:?OPSYS_CLE_M8 manquant dans .env}
       OPSYS_CLE_M9: ${OPSYS_CLE_M9:?OPSYS_CLE_M9 manquant dans .env}
       OPSYS_CLE_M10: ${OPSYS_CLE_M10:?OPSYS_CLE_M10 manquant dans .env}
-      # Canal SMS de M1 (T2.1-a, docs/departements/M1-canaux.md) : vides = canal désactivé. `opsys openclaw
+      # Canal SMS de M1 (T2.1-a, docs/departements/M1-canaux.md) : vides = canal désactivé. `opsys-metier openclaw
       # configurer` ne l'active que si les cinq sont fournies ; les identifiants Twilio sont des secrets de production.
       OPSYS_SMS_COMPTE_SID: ${OPSYS_SMS_COMPTE_SID:-}
       OPSYS_SMS_JETON: ${OPSYS_SMS_JETON:-}
@@ -242,7 +242,7 @@ services:
       OPENCLAW_GATEWAY_BIND: lan
       OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:?OPENCLAW_GATEWAY_TOKEN manquant dans .env}
       OPENCLAW_DISABLE_BONJOUR: "1"
-      # Résolvent les ${...} des fragments $include générés par `opsys openclaw configurer`
+      # Résolvent les ${...} des fragments $include générés par `opsys-metier openclaw configurer`
       # (opsys/mcp.json, opsys/models.json) — jamais de secret en clair dans ces fichiers.
       OPSYS_MCP_JETON: ${OPSYS_MCP_JETON:?OPSYS_MCP_JETON manquant dans .env}
       OPSYS_CLE_M1: ${OPSYS_CLE_M1:?OPSYS_CLE_M1 manquant dans .env}

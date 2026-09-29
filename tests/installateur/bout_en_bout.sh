@@ -3,11 +3,16 @@
 # (systemd --user) et sur macOS (launchd). Windows a son propre script : bout_en_bout.ps1.
 #
 # `tests/test_installateur_scripts.py` joue install.sh contre de fausses commandes ; ici tout est vrai : le core
-# est construit, le moteur est installé par uv, la configuration passe `openclaw config validate`, le Gateway
+# est construit, le moteur est installé par uv, la configuration passe `opsys config validate`, le Gateway
 # démarre et lance le moteur, le service utilisateur tourne, l'export est cohérent, et la désinstallation retire le
 # logiciel sans perdre une donnée. Chaque constat faux arrête le script, avec quoi regarder. Aucune étape ne tolère
 # l'échec, sauf l'absence de service utilisateur sur le poste (systemd --user, session graphique launchd), signalée
 # en clair et refusée si OPSYS_SERVICE_REQUIS=1.
+#
+# Une seule commande (PLAN T0.7 lot 2) : `opsys` est le core (`openclaw` son alias), `opsys metier <commande>` lance le
+# moteur Python par le core (core/src/cli/opsys-metier-cli.ts, d'après `opsys/metier.json`), `opsys-metier` est le moteur
+# seul, et l'ancienne forme (`opsys instance dossier`) dit la nouvelle sans rien exécuter. Tout cela est éprouvé ici,
+# avec le vrai core : c'est la seule preuve que le core lance bien le moteur.
 #
 # Le core tourne sous son profil « opsys » (PLAN T0.11-b). Ses attentes sont écrites ICI, en dur, d'après le code du
 # fork, et confrontées à ce que le vrai core et le moteur Python répondent :
@@ -383,7 +388,9 @@ printf 'paliers:\n  standard: {provider: anthropic, model: claude-sonnet-5}\n' >
 # -- 1. Installation sans service ----------------------------------------------------------------------------------------
 etape "1. Installation (sans service) : Node, pnpm, uv, construction du core, moteur, instance, configuration"
 installer "$TRAVAIL/installation-1.log" --sans-service
-if [ ! -x "$OPSYS_BIN/openclaw" ] || [ ! -x "$OPSYS_BIN/opsys" ]; then echec "les commandes openclaw et opsys ne sont pas installées"; fi
+for commande in openclaw opsys opsys-metier; do
+    [ -x "$OPSYS_BIN/$commande" ] || echec "la commande $commande n'est pas installée dans $OPSYS_BIN"
+done
 [ "$(mode_de "$ETAT_CORE/.env")" = "600" ] || echec ".env n'est pas en 0600"
 [ "$(mode_de "$ETAT_CORE")" = "700" ] || echec "le dossier d'état du core n'est pas en 0700"
 [ -f "$ETAT_CORE/opsys/metier.json" ] || echec "opsys/metier.json absent de $ETAT_CORE"
@@ -392,21 +399,60 @@ if [ ! -f "$OPSYS_HOME/opsys.db" ] || [ ! -f "$OPSYS_HOME/paliers.yaml" ]; then 
 exiger_sans_secret "configuration du core" "$ETAT_CORE/openclaw.json" "$ETAT_CORE"/opsys/*.json
 constat "installation terminée : état du core dans $ETAT_CORE (0700, .env en 0600), données dans OPSYS_HOME, aucun secret dans la configuration, la sortie ni le journal de l'installateur"
 
-etape "1 bis. Le dossier d'état : le moteur Python, le core et les attentes écrites d'après le fork s'accordent"
-[ "$(opsys instance dossier)" = "$ETAT_CORE" ] ||
-    echec "opsys instance dossier répond '$(opsys instance dossier)' au lieu de $ETAT_CORE"
+etape "1 bis. Le dossier d'état : le moteur Python (par le core), le core et les attentes écrites d'après le fork s'accordent"
+[ "$(opsys metier instance dossier)" = "$ETAT_CORE" ] ||
+    echec "opsys metier instance dossier répond '$(opsys metier instance dossier)' au lieu de $ETAT_CORE"
+[ "$(opsys-metier instance dossier)" = "$ETAT_CORE" ] ||
+    echec "opsys-metier instance dossier répond '$(opsys-metier instance dossier)' au lieu de $ETAT_CORE"
+[ "$(opsys config file | tail -n 1)" = "$ETAT_CORE/openclaw.json" ] ||
+    echec "le core cherche sa configuration dans '$(opsys config file | tail -n 1)' au lieu de $ETAT_CORE/openclaw.json"
 [ "$(openclaw config file | tail -n 1)" = "$ETAT_CORE/openclaw.json" ] ||
-    echec "le core cherche sa configuration dans '$(openclaw config file | tail -n 1)' au lieu de $ETAT_CORE/openclaw.json"
+    echec "l'alias openclaw ne répond pas comme opsys : '$(openclaw config file | tail -n 1)'"
 polluee="$(OPENCLAW_STATE_DIR="$TRAVAIL/ailleurs" OPENCLAW_CONFIG_PATH="$TRAVAIL/ailleurs/openclaw.json" \
-    OPENCLAW_HOME="$TRAVAIL/home-du-core" OPENCLAW_PROFILE=autre openclaw config file | tail -n 1)"
+    OPENCLAW_HOME="$TRAVAIL/home-du-core" OPENCLAW_PROFILE=autre opsys config file | tail -n 1)"
 [ "$polluee" = "$ETAT_CORE/openclaw.json" ] ||
     echec "un environnement OPENCLAW_* a déplacé le core : il lit '$polluee' (la commande installée doit l'écarter)"
+polluee_moteur="$(OPENCLAW_STATE_DIR="$TRAVAIL/ailleurs" OPENCLAW_HOME="$TRAVAIL/home-du-core" opsys metier instance dossier)"
+[ "$polluee_moteur" = "$ETAT_CORE" ] ||
+    echec "un environnement OPENCLAW_* a déplacé le moteur lancé par le core : il répond '$polluee_moteur'"
 if [ -e "$TRAVAIL/ailleurs" ] || [ -e "$TRAVAIL/home-du-core" ]; then echec "un dossier a été créé d'après l'environnement de l'appelant"; fi
-constat "opsys instance dossier, openclaw config file et l'attente écrite d'après le fork donnent tous $ETAT_CORE ; l'environnement de l'appelant n'y change rien"
+constat "opsys metier instance dossier, opsys-metier instance dossier, opsys config file (et son alias openclaw) et l'attente écrite d'après le fork donnent tous $ETAT_CORE ; l'environnement de l'appelant n'y change rien"
+
+etape "1 bis bis. Une seule commande : opsys est le core, opsys metier le moteur, l'ancienne forme dit la nouvelle"
+version_core="$(opsys --version)"
+case "$version_core" in "OPSYS "*) ;; *) echec "opsys --version répond '$version_core' au lieu de « OPSYS <version> »" ;; esac
+[ "$(openclaw --version)" = "$version_core" ] || echec "l'alias openclaw ne répond pas comme opsys --version"
+version_moteur="$(opsys metier --version)"
+case "$version_moteur" in "opsys-metier "*) ;; *) echec "opsys metier --version répond '$version_moteur' au lieu de « opsys-metier <version> »" ;; esac
+[ "$(opsys-metier --version)" = "$version_moteur" ] || echec "opsys-metier et opsys metier ne sont pas le même moteur"
+opsys metier base etat >"$TRAVAIL/base-etat.json"
+grep -q '"revision"' "$TRAVAIL/base-etat.json" || echec "opsys metier base etat ne rend pas l'état de la base : $(cat "$TRAVAIL/base-etat.json")"
+code=0
+opsys metier base >"$TRAVAIL/metier-erreur.out" 2>"$TRAVAIL/metier-erreur.err" || code=$?
+[ "$code" = "2" ] || echec "le code de sortie du moteur n'est pas celui de opsys metier (attendu 2, reçu $code)"
+grep -q "usage: opsys-metier base" "$TRAVAIL/metier-erreur.err" ||
+    echec "la sortie d'erreur du moteur n'est pas relayée par opsys metier : $(cat "$TRAVAIL/metier-erreur.err")"
+code=0
+opsys instance dossier >"$TRAVAIL/ancienne-forme.out" 2>"$TRAVAIL/ancienne-forme.err" || code=$?
+[ "$code" = "2" ] || echec "l'ancienne forme « opsys instance dossier » sort avec le code $code (attendu 2)"
+[ ! -s "$TRAVAIL/ancienne-forme.out" ] || echec "l'ancienne forme a exécuté quelque chose : $(cat "$TRAVAIL/ancienne-forme.out")"
+grep -qF "Utilisez : opsys metier instance dossier" "$TRAVAIL/ancienne-forme.err" ||
+    echec "l'ancienne forme ne dit pas la nouvelle : $(cat "$TRAVAIL/ancienne-forme.err")"
+code=0
+openclaw personnes lister >/dev/null 2>"$TRAVAIL/ancienne-forme-alias.err" || code=$?
+if [ "$code" != "2" ] || ! grep -qF "Utilisez : opsys metier personnes lister" "$TRAVAIL/ancienne-forme-alias.err"; then
+    echec "l'ancienne forme par l'alias openclaw ne dit pas la nouvelle (code $code) : $(cat "$TRAVAIL/ancienne-forme-alias.err")"
+fi
+code=0
+OPENCLAW_SHELL='exec' opsys metier base etat >/dev/null 2>"$TRAVAIL/metier-agent.err" || code=$?
+if [ "$code" != "1" ] || ! grep -q "réservée à l'opérateur" "$TRAVAIL/metier-agent.err"; then
+    echec "opsys metier n'est pas refusée depuis le shell d'un agent (code $code) : $(cat "$TRAVAIL/metier-agent.err")"
+fi
+constat "opsys est le core (OPSYS <version>, alias openclaw identique) ; opsys metier lance le moteur par le core (état de la base, code de sortie et erreurs relayés) ; l'ancienne forme dit la nouvelle sans rien exécuter (code 2) ; opsys metier est refusée depuis le shell d'un agent"
 
 etape "1 ter. Le core accepte la configuration générée"
-openclaw config validate
-constat "openclaw config validate accepte la configuration (dont \${OPSYS_MCP_JETON}, lue dans .env)"
+opsys config validate
+constat "opsys config validate accepte la configuration (dont \${OPSYS_MCP_JETON}, lue dans .env)"
 
 etape "1 quater. Ancienne disposition (\$OPSYS_HOME/core) : signalée avec la marche à suivre, jamais migrée en silence"
 mkdir -p "$OPSYS_HOME/core"
@@ -414,8 +460,8 @@ printf 'MARQUEUR=ancien-etat-fictif\n' >"$OPSYS_HOME/core/.env"
 ancien_avant="$(empreinte "$OPSYS_HOME/core/.env")"
 geres_avant="$(empreinte_des_fichiers_geres)"
 # Les ports de l'installation : sans eux, `initialiser` reviendrait aux ports par défaut et changerait la configuration.
-if opsys instance initialiser --port-gateway "$PORT_GATEWAY" --port-moteur "$PORT_MOTEUR" >"$TRAVAIL/ancienne-disposition.json" 2>"$TRAVAIL/ancienne-disposition.err"; then
-    echec "opsys instance initialiser a accepté l'ancienne disposition"
+if opsys metier instance initialiser --port-gateway "$PORT_GATEWAY" --port-moteur "$PORT_MOTEUR" >"$TRAVAIL/ancienne-disposition.json" 2>"$TRAVAIL/ancienne-disposition.err"; then
+    echec "opsys metier instance initialiser a accepté l'ancienne disposition"
 fi
 grep -q "ancienne disposition détectée" "$TRAVAIL/ancienne-disposition.err" ||
     echec "l'ancienne disposition n'est pas signalée : $(cat "$TRAVAIL/ancienne-disposition.err")"
@@ -425,14 +471,14 @@ grep -q "Rien n'est migré en silence" "$TRAVAIL/ancienne-disposition.err" || ec
 [ "$(empreinte "$OPSYS_HOME/core/.env")" = "$ancien_avant" ] || echec "l'ancien état a été modifié"
 [ "$(empreinte_des_fichiers_geres)" = "$geres_avant" ] || echec "l'état du core a changé pendant le refus"
 mv "$OPSYS_HOME/core" "$OPSYS_HOME/core.ancien" # la marche à suivre : repartir à neuf
-opsys instance initialiser --port-gateway "$PORT_GATEWAY" --port-moteur "$PORT_MOTEUR" >/dev/null
+opsys metier instance initialiser --port-gateway "$PORT_GATEWAY" --port-moteur "$PORT_MOTEUR" >/dev/null
 [ "$(empreinte_des_fichiers_geres)" = "$geres_avant" ] || echec "la réinitialisation a changé un secret ou la configuration"
 [ "$(empreinte "$OPSYS_HOME/core.ancien/.env")" = "$ancien_avant" ] || echec "l'ancien état mis de côté a été modifié"
 constat "l'ancienne disposition est refusée avec la marche à suivre, sans rien modifier ; mise de côté, l'instance se réinitialise sans changer un secret"
 
 # -- 2. Gateway au premier plan et moteur supervisé ---------------------------------------------------------------------------
 etape "2. Gateway au premier plan : il lance le moteur (superviseur T0.10) avec le jeton de .env"
-openclaw gateway run --bind loopback --port "$PORT_GATEWAY" >"$TRAVAIL/gateway-premier-plan.log" 2>&1 &
+opsys gateway run --bind loopback --port "$PORT_GATEWAY" >"$TRAVAIL/gateway-premier-plan.log" 2>&1 &
 GATEWAY_PID=$!
 attendre_http "http://127.0.0.1:$PORT_GATEWAY/startupz" 300 "Gateway"
 attendre_http "http://127.0.0.1:$PORT_MOTEUR/sante" 240 "moteur"
@@ -468,7 +514,8 @@ constat "relancer install.sh laisse .env, la configuration du core et les régla
 
 # -- 4. Export et restauration --------------------------------------------------------------------------------------------------
 etape "4. Export : archive privée, empreinte SHA-256, sans secret ; restauration dans une instance neuve"
-opsys instance exporter --sortie "$TRAVAIL/export.tar.gz" >"$TRAVAIL/export.json"
+# Chemin relatif, depuis un autre dossier : le moteur lancé par le core tourne dans le dossier courant de l'appelant.
+(cd "$TRAVAIL" && opsys metier instance exporter --sortie export.tar.gz >export.json)
 (cd "$TRAVAIL" && "${SHA256[@]}" -c export.tar.gz.sha256)
 [ "$(mode_de "$TRAVAIL/export.tar.gz")" = "600" ] || echec "l'archive d'export n'est pas en 0600"
 membres="$(tar -tzf "$TRAVAIL/export.tar.gz" | sort | tr '\n' ' ')"
@@ -480,11 +527,13 @@ exiger_sans_secret "archive d'export" "$TRAVAIL"/decompose/opsys-export/*
 grep -qF '"~/.openclaw-opsys/.env"' "$TRAVAIL/decompose/opsys-export/manifeste.json" ||
     echec "le manifeste ne nomme pas l'état du core (~/.openclaw-opsys) parmi les fichiers exclus"
 ! grep -qF "$HOME" "$TRAVAIL/decompose/opsys-export/manifeste.json" || echec "le manifeste porte le dossier personnel du poste"
-constat "export : membres = liste blanche, SHA-256 vérifié (${SHA256[0]}), 0600, aucun secret de .env, état du core nommé parmi les exclus"
+[ -f "$TRAVAIL/export.tar.gz" ] || echec "l'export à chemin relatif n'est pas dans le dossier courant de l'appelant"
+constat "export : membres = liste blanche, SHA-256 vérifié (${SHA256[0]}), 0600, aucun secret de .env, état du core nommé parmi les exclus ; chemin relatif résolu depuis le dossier de l'appelant"
 etat_avant_restauration="$(empreinte_des_fichiers_geres)"
-OPSYS_HOME="$TRAVAIL/restaure" opsys instance restaurer "$TRAVAIL/export.tar.gz" >"$TRAVAIL/restauration.json"
-OPSYS_HOME="$TRAVAIL/restaure" opsys base etat >"$TRAVAIL/restaure-etat.json"
-grep -q '"revision"' "$TRAVAIL/restaure-etat.json" || echec "la base restaurée n'est pas lisible par opsys base etat"
+# L'OPSYS_HOME tapé prime sur celui de metier.json : la restauration va dans l'instance neuve, jamais dans l'installée.
+OPSYS_HOME="$TRAVAIL/restaure" opsys metier instance restaurer "$TRAVAIL/export.tar.gz" >"$TRAVAIL/restauration.json"
+OPSYS_HOME="$TRAVAIL/restaure" opsys metier base etat >"$TRAVAIL/restaure-etat.json"
+grep -q '"revision"' "$TRAVAIL/restaure-etat.json" || echec "la base restaurée n'est pas lisible par opsys metier base etat"
 [ ! -e "$TRAVAIL/restaure/core" ] || echec "la restauration a posé un dossier core (secrets) : elle ne doit restaurer que les données"
 [ "$(empreinte_des_fichiers_geres)" = "$etat_avant_restauration" ] || echec "la restauration a touché l'état du core"
 constat "restauration dans une instance neuve : base lisible, aucun secret ni état du Gateway restauré"
@@ -524,7 +573,7 @@ if ! bash "$RACINE/install/uninstall.sh" --exporter-avant "$TRAVAIL/avant-desins
     echec "uninstall.sh a échoué"
 fi
 (cd "$TRAVAIL" && "${SHA256[@]}" -c avant-desinstallation.tar.gz.sha256)
-if [ -e "$OPSYS_BIN/openclaw" ] || [ -e "$OPSYS_BIN/opsys" ]; then echec "les commandes sont encore là"; fi
+if [ -e "$OPSYS_BIN/openclaw" ] || [ -e "$OPSYS_BIN/opsys" ] || [ -e "$OPSYS_BIN/opsys-metier" ]; then echec "les commandes sont encore là"; fi
 [ ! -e "$OPSYS_LOGICIEL" ] || echec "le logiciel est encore là : $(ls -A "$OPSYS_LOGICIEL")"
 [ -f "$RACINE/core/openclaw.mjs" ] || echec "le dépôt de l'utilisateur a été touché"
 [ "$(empreinte "$ETAT_CORE/.env")" = "$env_avant" ] || echec ".env a changé pendant la désinstallation"

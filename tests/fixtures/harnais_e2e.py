@@ -22,9 +22,9 @@ du moteur, par le vrai chemin réseau du moteur.
   Ce n'est PAS le core : c'est sa règle, relue dans le fork, appliquée au vrai moteur. Ce qui reste à
   prouver avec un core réel (poignée de main, jeton d'appareil, `mcp.servers` du core) est dit dans
   `docs/architecture/MOBILE.md`.
-- Les personnes et les appareils sont créés par les commandes réelles du socle (`opsys personnes creer`,
-  `opsys appareils appairer`), jamais par une écriture directe en base ; les fragments de configuration
-  viennent de `opsys.openclaw.generer`, que `opsys openclaw configurer` appelle.
+- Les personnes et les appareils sont créés par les commandes réelles du socle (`opsys-metier personnes creer`,
+  `opsys-metier appareils appairer`), jamais par une écriture directe en base ; les fragments de configuration
+  viennent de `opsys.openclaw.generer`, que `opsys-metier openclaw configurer` appelle.
 - L'heure de réception du serveur (`recu_le`, celle qui fait foi pour la paie) vient d'une horloge de test
   (`Horloge`) : aucun sommeil, aucune dépendance à l'heure réelle quand l'heure métier compte.
 

@@ -85,7 +85,7 @@ def _iso(base: dt.datetime, offset_s: int) -> str:
 def _outils(deps, dep_id):
     """Outils d'un département via son VRAI manifeste (`department.yaml` -> `charger_outils`),
     pas un import direct de son module — pour que le test passe aussi par la même résolution
-    que `opsys verifier`/le serveur MCP en production."""
+    que `opsys-metier verifier`/le serveur MCP en production."""
     return {o.nom: o for o in deps[dep_id].charger_outils()}
 
 

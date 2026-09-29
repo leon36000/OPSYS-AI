@@ -527,10 +527,14 @@ def test_la_suppression_de_dossier_passe_par_les_reprises_apres_la_garde(tmp_pat
     assert "Remove-Item" not in corps
 
 
-def test_opsys_cmd_force_l_utf_8_de_python_pour_qu_une_sortie_redirigee_ne_plante_pas():
-    """Sous Windows, Python encode un tube en cp1252 : la flèche de `opsys mode` fait échouer `print`."""
+def test_opsys_metier_cmd_force_l_utf_8_de_python_pour_qu_une_sortie_redirigee_ne_plante_pas():
+    """Sous Windows, Python encode un tube en cp1252 : la flèche de `opsys-metier mode` fait échouer `print`.
+
+    `opsys metier <commande>` (par le core) reçoit le même réglage du core lui-même
+    (`buildOpsysMetierCliEnv`, PYTHONUTF8 sous win32) ; ici, l'enveloppe du moteur seul.
+    """
     source = INSTALL_PS1.read_text(encoding="utf-8")
-    bloc = source[source.index("Write-Enveloppe (Join-Path $script:Bin 'opsys.cmd')"):]
+    bloc = source[source.index("Write-Enveloppe $cibleMoteur @("):]
     bloc = bloc[:bloc.index("Write-Info \"commandes installees")]
 
     assert "'set \"PYTHONUTF8=1\"'" in bloc

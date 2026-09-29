@@ -1,8 +1,9 @@
 """Scripts `install/install.sh` et `install/uninstall.sh` (PLAN T0.11), joués contre de FAUSSES commandes.
 
 Node, pnpm, uv et curl sont remplacés par de petits scripts qui journalisent leurs appels ; le moteur Python, lui,
-est le vrai (l'interpréteur « de l'environnement » est l'interpréteur des tests), donc `opsys instance initialiser`,
-les secrets, la configuration du core et l'export tournent pour de vrai dans un dossier temporaire.
+est le vrai (l'interpréteur « de l'environnement » est l'interpréteur des tests), donc
+`opsys-metier instance initialiser`, les secrets, la configuration du core et l'export tournent pour de vrai
+dans un dossier temporaire.
 
 Le faux `node` joue le rôle du core sur ce qui a fait échouer la première exécution de la CI (PLAN T0.11-b) : il
 applique la règle du fork. `--profile <p>` est une option racine qui projette l'état canonique `~/.openclaw-<p>`
@@ -18,7 +19,7 @@ quel que soit l'environnement de l'appelant, que le service du core d'origine n'
 désinstallation retire le logiciel sans jamais toucher aux données ni à l'état du core.
 
 Ce qu'ils ne prouvent PAS, et que seul le job `installateur` de la CI prouve : que le vrai core se construit, accepte
-la configuration (`openclaw config validate`), applique bien la règle qu'on lui prête (`openclaw config file`,
+la configuration (`opsys config validate`), applique bien la règle qu'on lui prête (`opsys config file`,
 `gateway install`), démarre par le service et lance le moteur.
 """
 
@@ -354,7 +355,7 @@ def test_avec_l_option_sans_service_le_service_n_est_pas_installe(bac):
     assert not [a for a in bac.appels() if " gateway " in a]
     assert f"openclaw {PROFIL} config validate" in bac.appels()
     assert "SERVICE=0" in (bac.logiciel / "installation.env").read_text(encoding="utf-8").splitlines()
-    assert "openclaw gateway run" in resultat.stdout
+    assert "opsys gateway run" in resultat.stdout
 
 
 def test_les_commandes_installees_portent_l_instance_et_lisent_env_sans_l_evaluer(bac):
@@ -365,25 +366,34 @@ def test_les_commandes_installees_portent_l_instance_et_lisent_env_sans_l_evalue
         (bac.etat_core / ".env").read_text(encoding="utf-8") + f"PIEGE=$(touch {piege})\n", encoding="utf-8")
     env = {k: v for k, v in bac.env().items() if k != "OPSYS_HOME"}  # la commande retrouve l'instance seule
 
-    etat = subprocess.run([str(bac.bin / "opsys"), "base", "etat"], env=env, capture_output=True, text=True,
+    # `opsys-metier` : le moteur seul (T0.7 lot 2), l'ancienne commande `opsys` renommée
+    etat = subprocess.run([str(bac.bin / "opsys-metier"), "base", "etat"], env=env, capture_output=True, text=True,
                           check=False)
-    version = subprocess.run([str(bac.bin / "opsys"), "--version"], env=env, capture_output=True, text=True,
+    version = subprocess.run([str(bac.bin / "opsys-metier"), "--version"], env=env, capture_output=True, text=True,
                              check=False)
 
     assert etat.returncode == 0, etat.stderr
     assert json.loads(etat.stdout)["base"].endswith(str(bac.home / "opsys.db"))
-    assert version.stdout.startswith("opsys ")
+    assert version.stdout.startswith("opsys-metier ")
     assert not piege.exists()  # la ligne du .env a été lue, jamais évaluée
-    coeur = subprocess.run([str(bac.bin / "openclaw"), "config", "validate"], env=env, capture_output=True, text=True,
-                           check=False)
-    assert coeur.returncode == 0 and f"openclaw {PROFIL} config validate" in bac.appels()
-    for commande in ("openclaw", "opsys"):
+    # `opsys` est le core, et `openclaw` son alias : les deux passent par le core, sous le profil `opsys`
+    validation = f"openclaw {PROFIL} config validate"
+    deja = bac.appels().count(validation)  # l'installateur l'a lancée lui-même une fois
+    for commande in ("opsys", "openclaw"):
+        coeur = subprocess.run([str(bac.bin / commande), "config", "validate"], env=env, capture_output=True,
+                               text=True, check=False)
+        assert coeur.returncode == 0, (commande, coeur.stderr)
+    assert bac.appels().count(validation) == deja + 2
+    for commande in ("opsys", "openclaw", "opsys-metier"):
         assert os.access(bac.bin / commande, os.X_OK)
-    enveloppe_core = (bac.bin / "openclaw").read_text(encoding="utf-8")
+    enveloppe_core = (bac.bin / "opsys").read_text(encoding="utf-8")
+    assert (bac.bin / "openclaw").read_text(encoding="utf-8") == enveloppe_core  # l'alias est le même core
     assert f"--profile {instance.PROFIL_CORE} " in enveloppe_core  # le core d'OPSYS tourne sous son profil
     assert "export OPENCLAW_STATE_DIR" not in enveloppe_core  # jamais un état posé à la main
     assert f"unset {' '.join(instance.VARIABLES_ECARTEES)}" in enveloppe_core
-    assert f"DOSSIER_CORE={bac.etat_core}" in (bac.bin / "opsys").read_text(encoding="utf-8")
+    assert "-m opsys.cli" not in enveloppe_core  # `opsys` n'est plus l'enveloppe du moteur
+    enveloppe_moteur = (bac.bin / "opsys-metier").read_text(encoding="utf-8")
+    assert f"DOSSIER_CORE={bac.etat_core}" in enveloppe_moteur and "-m opsys.cli" in enveloppe_moteur
 
 
 # -- fail-closed : décision manquante, étape en échec, fichier étranger --------------------------------------
@@ -396,7 +406,8 @@ def test_sans_paliers_ni_embeddings_l_installation_s_arrete_en_attente_avec_le_c
     appels = bac.appels()
     assert f"openclaw {PROFIL} config validate" not in appels and not [a for a in appels if "gateway install" in a]
     assert f"openclaw {PROFIL} config file" in appels  # la vérification du dossier d'état a lieu même en attente
-    assert (bac.bin / "openclaw").exists() and (bac.bin / "opsys").exists()  # de quoi fournir les décisions
+    for commande in ("opsys", "openclaw", "opsys-metier"):  # de quoi fournir les décisions
+        assert (bac.bin / commande).exists(), commande
     assert (bac.etat_core / ".env").is_file() and not (bac.etat_core / "openclaw.json").exists()
 
     bac.preparer_decisions()
@@ -433,7 +444,7 @@ def test_un_service_impossible_dit_quoi_faire(bac):
     resultat = bac.installer(FAUX_ECHEC=f"openclaw {PROFIL} gateway install --force --port 18789")
 
     assert resultat.returncode == 1
-    assert "--sans-service" in resultat.stderr and "openclaw gateway run" in resultat.stderr
+    assert "--sans-service" in resultat.stderr and "opsys gateway run" in resultat.stderr
 
 
 def test_un_fichier_etranger_n_est_jamais_ecrase(bac):
@@ -446,6 +457,82 @@ def test_un_fichier_etranger_n_est_jamais_ecrase(bac):
 
     assert resultat.returncode == 1 and "n'a pas été installé par OPSYS" in resultat.stderr
     assert etranger.read_text(encoding="utf-8") == "#!/bin/sh\necho openclaw d'origine\n"
+
+
+def test_un_fichier_etranger_opsys_ou_opsys_metier_arrete_avant_toute_ecriture(bac):
+    """Les trois commandes sont vérifiées avant la première écriture : aucun jeu n'est laissé à moitié remplacé."""
+    bac.preparer_decisions()
+    bac.bin.mkdir()
+    for nom in ("opsys", "opsys-metier"):
+        etranger = bac.bin / nom
+        etranger.write_text(f"#!/bin/sh\necho {nom} d'un autre\n", encoding="utf-8")
+
+        resultat = bac.installer()
+
+        assert resultat.returncode == 1, (nom, _sortie(resultat))
+        assert "n'a pas été installé par OPSYS" in resultat.stderr and str(etranger) in resultat.stderr
+        assert etranger.read_text(encoding="utf-8") == f"#!/bin/sh\necho {nom} d'un autre\n"
+        assert [f.name for f in bac.bin.iterdir()] == [nom]  # ni l'alias ni l'autre commande n'ont été écrits
+        etranger.unlink()
+
+
+def _ancienne_enveloppe_du_moteur() -> str:
+    """Le fichier `opsys` que l'installateur écrivait avant le lot 2 : l'enveloppe du moteur, sous la même marque."""
+    marque = re.search(r"^MARQUE='(.*)'$", INSTALL.read_text(encoding="utf-8"), flags=re.MULTILINE)
+    assert marque is not None
+    return f'#!/usr/bin/env bash\n{marque.group(1)}\nPY=/ancien/venv/bin/python\nexec "$PY" -m opsys.cli "$@"\n'
+
+
+def test_une_installation_d_avant_le_lot_2_est_mise_a_jour_sans_perte_et_le_dit(bac):
+    """`opsys` était le moteur : la relance le remplace par le core, rend le moteur à `opsys-metier`, et le dit."""
+    bac.preparer_decisions()
+    assert bac.installer().returncode == 0
+    (bac.bin / "opsys").write_text(_ancienne_enveloppe_du_moteur(), encoding="utf-8")  # l'état d'avant le lot 2
+    (bac.bin / "opsys-metier").unlink()
+    chemin_metier = bac.etat_core / "opsys" / "metier.json"
+    ancien_metier = json.loads(chemin_metier.read_text(encoding="utf-8"))
+    ancien_metier.pop("commande_cli")
+    chemin_metier.write_text(json.dumps(ancien_metier), encoding="utf-8")
+    donnees_avant = bac.empreinte_du_dossier(bac.home)
+
+    mise_a_jour = bac.installer()
+
+    assert mise_a_jour.returncode == 0, _sortie(mise_a_jour)
+    assert "l'ancienne commande du moteur est remplacée" in mise_a_jour.stdout
+    assert "opsys metier <commande>" in mise_a_jour.stdout and "opsys-metier <commande>" in mise_a_jour.stdout
+    remplace = (bac.bin / "opsys").read_text(encoding="utf-8")
+    assert "openclaw.mjs" in remplace and "-m opsys.cli" not in remplace  # le core, plus l'enveloppe du moteur
+    assert "-m opsys.cli" in (bac.bin / "opsys-metier").read_text(encoding="utf-8")
+    metier = json.loads(chemin_metier.read_text(encoding="utf-8"))
+    # la clé que `opsys metier` lit est revenue : le même interpréteur que le serveur que le Gateway supervise
+    assert metier["commande_cli"] == [metier["commande"][0], "-m", "opsys.cli"]
+    assert {n: h for n, h in bac.empreinte_du_dossier(bac.home).items() if not n.startswith("opsys.db")} == \
+           {n: h for n, h in donnees_avant.items() if not n.startswith("opsys.db")}  # les données sont celles d'avant
+    encore = bac.installer()
+    assert encore.returncode == 0 and "l'ancienne commande du moteur est remplacée" not in encore.stdout
+
+
+def test_un_autre_opsys_dans_le_path_est_signale_sans_etre_lance(bac):
+    """Typiquement l'ancien moteur Python (pip, pipx, uv tool) : `opsys metier` n'atteindrait pas le core."""
+    bac.preparer_decisions()
+    marqueur = bac.racine / "autre-opsys-execute"
+    autre = bac.faux / "opsys"
+    autre.write_text(f"#!/bin/sh\ntouch {marqueur}\n", encoding="utf-8")
+    autre.chmod(0o755)
+
+    masque = bac.installer("--sans-service", chemin_path=f"{bac.faux}:{bac.bin}:/usr/bin:/bin")
+
+    assert masque.returncode == 0, _sortie(masque)  # un avertissement, jamais un échec
+    assert "AVERTISSEMENT : la commande « opsys » de votre PATH est " + str(autre) in masque.stderr
+    assert f"pas celle qu'OPSYS vient d'installer ({bac.bin}/opsys)" in masque.stderr
+    assert "pip uninstall opsys-ai" in masque.stderr and "uv tool uninstall opsys-ai" in masque.stderr
+    assert not marqueur.exists()  # le chemin est dit, la commande n'est jamais lancée
+    autre.unlink()
+
+    propre = bac.installer("--sans-service", chemin_path=f"{bac.bin}:{bac.faux}:/usr/bin:/bin")
+
+    assert propre.returncode == 0, _sortie(propre)
+    assert "de votre PATH est" not in propre.stderr  # `opsys` d'OPSYS passe en premier : rien à dire
 
 
 def test_une_url_de_base_dans_l_environnement_est_refusee_avec_la_voie_docker(bac):
@@ -685,7 +772,8 @@ def test_la_desinstallation_retire_le_logiciel_et_ne_touche_jamais_aux_donnees(b
     assert f"openclaw {PROFIL} gateway uninstall" in bac.appels()
     assert not _unite_du_core(bac).exists()  # le service du profil est parti
     assert bac.empreinte_du_dossier(bac.etat_core) == etat_avant  # l'état du core (secrets, Gateway) : jamais touché
-    assert not (bac.bin / "openclaw").exists() and not (bac.bin / "opsys").exists()
+    for commande in ("opsys", "openclaw", "opsys-metier"):
+        assert not (bac.bin / commande).exists(), commande
     assert not bac.logiciel.exists()  # venv, clone géré, journal, enregistrement : tout est parti, dossier compris
     donnees_apres = bac.empreinte_du_dossier(bac.home)
     assert {nom: h for nom, h in donnees_apres.items() if not nom.startswith("opsys.db")} == \
@@ -762,7 +850,21 @@ def test_un_depot_a_soi_et_les_commandes_etrangeres_ne_sont_jamais_retires(bac):
     assert bac.depot.is_dir() and (bac.depot / "core" / "openclaw.mjs").is_file()
     assert (bac.bin / "opsys").read_text(encoding="utf-8") == "#!/bin/sh\necho autre outil\n"
     assert "n'a pas été installé par OPSYS : laissé en place" in resultat.stderr
-    assert not (bac.bin / "openclaw").exists()
+    assert not (bac.bin / "openclaw").exists() and not (bac.bin / "opsys-metier").exists()
+
+
+def test_la_desinstallation_retire_aussi_l_ancienne_enveloppe_du_moteur_et_laisse_un_opsys_metier_etranger(bac):
+    bac.preparer_decisions()
+    assert bac.installer("--sans-service").returncode == 0
+    (bac.bin / "opsys").write_text(_ancienne_enveloppe_du_moteur(), encoding="utf-8")  # installation d'avant le lot 2
+    (bac.bin / "opsys-metier").write_text("#!/bin/sh\necho moteur d'un autre\n", encoding="utf-8")
+
+    resultat = bac.lancer(UNINSTALL)
+
+    assert resultat.returncode == 0, _sortie(resultat)
+    assert not (bac.bin / "opsys").exists() and not (bac.bin / "openclaw").exists()  # la marque les reconnaît
+    assert (bac.bin / "opsys-metier").read_text(encoding="utf-8") == "#!/bin/sh\necho moteur d'un autre\n"
+    assert f"{bac.bin}/opsys-metier n'a pas été installé par OPSYS : laissé en place" in resultat.stderr
 
 
 def test_la_desinstallation_refuse_de_supprimer_un_dossier_qui_contient_les_donnees(bac):
@@ -840,7 +942,7 @@ def test_l_indice_d_ou_regarder_quand_le_gateway_ne_repond_pas_est_celui_du_syst
     restart_logs = (RACINE / "core/src/daemon/restart-logs.ts").read_text(encoding="utf-8")
     assert 'path.posix.join(home, "Library", "Logs", "openclaw")' in restart_logs
     assert "`gateway${resolveGatewayProfileSuffix(env.OPENCLAW_PROFILE)}`" in restart_logs
-    assert indice("FreeBSD").strip() == "openclaw gateway status --deep ; openclaw logs"
+    assert indice("FreeBSD").strip() == "opsys gateway status --deep ; opsys logs"
 
 
 def test_l_installateur_lit_la_version_de_pnpm_dans_le_package_json_reel_du_core():

@@ -1,4 +1,4 @@
-"""Export et restauration de l'instance locale (PLAN T0.11) : `opsys instance exporter` et `restaurer`.
+"""Export et restauration de l'instance locale (PLAN T0.11) : `opsys-metier instance exporter` et `restaurer`.
 
 L'export sert à sauvegarder, à déménager l'instance et à sortir ses données avant une désinstallation. Il
 n'écrit RIEN dans l'instance sauf une ligne du journal d'audit, et ne dépend d'aucun arrêt du moteur.
@@ -163,7 +163,8 @@ def _instantane_sqlite(base: Path, cible: Path) -> str:
     finally:
         source.close()
     if not ligne or not ligne[0]:
-        raise ErreurExportation(f"la base {base} n'est pas migrée : `opsys base migrer`, puis relancez l'export.")
+        raise ErreurExportation(
+            f"la base {base} n'est pas migrée : `opsys-metier base migrer`, puis relancez l'export.")
     return str(ligne[0])
 
 
@@ -191,7 +192,7 @@ def _journaliser(url: str, par: str, action: str, cible: str, details: dict[str,
             etat.journaliser(cnx, par, action, cible, details)
     except SQLAlchemyError as erreur:
         raise ErreurExportation(
-            f"journal d'audit indisponible ({type(erreur).__name__}) : opération annulée. `opsys base migrer` ?"
+            f"journal d'audit indisponible ({type(erreur).__name__}) : opération annulée. `opsys-metier base migrer` ?"
         ) from erreur
 
 

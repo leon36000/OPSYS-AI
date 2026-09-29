@@ -236,8 +236,11 @@ def test_les_commandes_installees_sont_des_enveloppes_cmd_qui_ecartent_l_environ
     resultat = pret.installer("-SansService")
 
     assert resultat.returncode == 0, _sortie(resultat)
-    core = (pret.bin / "openclaw.cmd").read_bytes().decode("ascii")
-    moteur = (pret.bin / "opsys.cmd").read_bytes().decode("ascii")
+    core = (pret.bin / "opsys.cmd").read_bytes().decode("ascii")
+    alias = (pret.bin / "openclaw.cmd").read_bytes().decode("ascii")
+    moteur = (pret.bin / "opsys-metier.cmd").read_bytes().decode("ascii")
+    assert alias == core  # T0.7 lot 2 : `opsys` est le core, `openclaw` son alias (le même contenu)
+    assert "-m opsys.cli" not in core  # `opsys` n'est plus l'enveloppe du moteur
     assert "\r\n" in core and "\r\n" in moteur  # fins de ligne de cmd.exe
     assert "--profile opsys %*" in core and "setlocal" in core
     ecartees = ("OPENCLAW_STATE_DIR", "OPENCLAW_CONFIG_PATH", "OPENCLAW_HOME", "OPENCLAW_PROFILE",
@@ -250,6 +253,45 @@ def test_les_commandes_installees_sont_des_enveloppes_cmd_qui_ecartent_l_environ
     assert 'set "PYTHONUTF8=1"' in moteur and "-m opsys.cli %*" in moteur
     assert moteur.index("PYTHONUTF8") < moteur.index("-m opsys.cli")
     assert str(pret.etat_core) in moteur  # le .env que la commande lit vit dans l'état du core
+
+
+def _ancienne_enveloppe_du_moteur() -> str:
+    """Le `opsys.cmd` que l'installateur écrivait avant le lot 2 : l'enveloppe du moteur, sous la même marque."""
+    marque = re.search(r"^\$script:Marque = '(.*)'$", INSTALL_PS1.read_text(encoding="utf-8"), flags=re.MULTILINE)
+    assert marque is not None
+    return f'@echo off\r\nrem {marque.group(1)}\r\nsetlocal\r\n"C:\\ancien\\python.exe" -m opsys.cli %*\r\n'
+
+
+def test_une_installation_d_avant_le_lot_2_est_mise_a_jour_sans_perte_et_le_dit(pret):
+    """`opsys.cmd` était le moteur : la relance le remplace par le core, rend le moteur à `opsys-metier.cmd`."""
+    assert pret.installer("-SansService").returncode == 0
+    (pret.bin / "opsys.cmd").write_bytes(_ancienne_enveloppe_du_moteur().encode("ascii"))  # l'état d'avant le lot 2
+    (pret.bin / "opsys-metier.cmd").unlink()
+    donnees_avant = {k: v for k, v in pret.empreintes(pret.home).items() if k != "opsys.db"}
+
+    mise_a_jour = pret.installer("-SansService")
+
+    assert mise_a_jour.returncode == 0, _sortie(mise_a_jour)
+    assert "l'ancienne commande du moteur est remplacee" in mise_a_jour.stdout
+    assert "opsys metier <commande>" in mise_a_jour.stdout and "opsys-metier <commande>" in mise_a_jour.stdout
+    assert "-m opsys.cli" not in (pret.bin / "opsys.cmd").read_bytes().decode("ascii")  # le core, plus le moteur
+    assert "-m opsys.cli" in (pret.bin / "opsys-metier.cmd").read_bytes().decode("ascii")
+    assert {k: v for k, v in pret.empreintes(pret.home).items() if k != "opsys.db"} == donnees_avant
+    encore = pret.installer("-SansService")
+    assert encore.returncode == 0 and "l'ancienne commande du moteur est remplacee" not in encore.stdout
+
+
+def test_un_fichier_etranger_opsys_metier_arrete_avant_toute_ecriture(pret):
+    pret.bin.mkdir()
+    etranger = pret.bin / "opsys-metier.cmd"
+    etranger.write_text("@echo moteur d'un autre\r\n", encoding="ascii")
+
+    resultat = pret.installer("-SansService")
+
+    assert resultat.returncode == 1, _sortie(resultat)
+    assert "n'a pas ete installe par OPSYS" in _sortie(resultat) and "opsys-metier.cmd" in _sortie(resultat)
+    assert etranger.read_text(encoding="ascii") == "@echo moteur d'un autre\r\n"
+    assert [f.name for f in pret.bin.iterdir()] == ["opsys-metier.cmd"]  # ni opsys.cmd ni openclaw.cmd n'ont été écrits
 
 
 def test_l_installateur_rend_a_l_appelant_l_environnement_qu_il_a_pose_ou_retire(pret):
@@ -409,7 +451,8 @@ def test_la_simulation_ne_retire_rien(pret):
     resultat = pret.desinstaller("-Simuler")
 
     assert resultat.returncode == 0 and "[simulation]" in resultat.stdout, _sortie(resultat)
-    assert (pret.bin / "openclaw.cmd").is_file() and (pret.bin / "opsys.cmd").is_file()
+    for commande in ("opsys.cmd", "openclaw.cmd", "opsys-metier.cmd"):
+        assert (pret.bin / commande).is_file(), commande
     assert pret.empreintes(pret.logiciel / "venv") == avant
 
 

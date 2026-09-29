@@ -376,7 +376,7 @@ def contenu_modeles(vue: Mapping[str, Any], *, prefixe: str, csrf: str,
         f"une API compatible OpenAI. Fournisseur <code>{e(FOURNISSEUR_COMPATIBLE_OPENAI)}</code> et base_url du "
         "serveur, par exemple <code>http://ollama:11434/v1</code>.</p>"
         '<p class="note">La passerelle LiteLLM lit ces paliers quand sa configuration est régénérée '
-        "(<code>opsys passerelle config</code>), puis au redémarrage du service.</p></div>"
+        "(<code>opsys-metier passerelle config</code>), puis au redémarrage du service.</p></div>"
     )
     manquants = ""
     if vue["manquants"]:

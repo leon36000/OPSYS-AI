@@ -3,11 +3,12 @@
 #   install\uninstall.ps1 [-ExporterAvant <archive.tar.gz>] [-Simuler]
 #
 # Meme comportement que install/uninstall.sh (voir son en-tete) :
-#   1. avec -ExporterAvant : archive d'abord l'instance (`opsys instance exporter`, empreinte SHA-256 incluse) ; si
+#   1. avec -ExporterAvant : archive d'abord l'instance (`opsys metier instance exporter`, empreinte SHA-256 incluse) ; si
 #      l'export echoue, RIEN n'est retire ;
-#   2. arrete et retire le service du Gateway (`openclaw gateway uninstall`, sous le profil "opsys" du core : la tache
+#   2. arrete et retire le service du Gateway (`opsys gateway uninstall`, sous le profil "opsys" du core : la tache
 #      du core d'origine n'est jamais touchee), si l'installateur l'avait installe ;
-#   3. retire openclaw.cmd et opsys.cmd (seulement ceux que l'installateur a ecrits), puis le dossier des commandes
+#   3. retire opsys.cmd, openclaw.cmd et opsys-metier.cmd (seulement ceux que l'installateur a ecrits, l'ancien opsys.cmd
+#      du moteur compris), puis le dossier des commandes
 #      et son entree du PATH de l'utilisateur s'il est vide ;
 #   4. retire le logiciel : environnement Python, journal, et le clone gere par l'installateur. Un depot a vous n'est
 #      jamais touche.
@@ -207,7 +208,7 @@ function Remove-ServiceGateway {
 }
 
 function Remove-Commandes {
-    foreach ($nom in @('openclaw.cmd', 'opsys.cmd')) {
+    foreach ($nom in @('opsys.cmd', 'openclaw.cmd', 'opsys-metier.cmd')) {
         $cible = Join-Path $script:Bin $nom
         if (Test-Path -LiteralPath $cible) {
             if (Select-String -LiteralPath $cible -SimpleMatch -Pattern $script:Marque -Quiet) {
@@ -276,7 +277,7 @@ function Invoke-Desinstallation {
         $etatConserve = [string]$script:Enregistre['DOSSIER_CORE']
         if (-not $etatConserve) { $etatConserve = "le dossier .openclaw-$($script:ProfilCore) de votre dossier personnel" }
         Write-Host "  Etat du core conserve : $etatConserve (secrets .env, etat du Gateway)."
-        if (-not $ExporterAvant) { Write-Host '  Aucun export demande (-ExporterAvant). Pour en faire un maintenant : reinstallez OPSYS, puis opsys instance exporter.' }
+        if (-not $ExporterAvant) { Write-Host '  Aucun export demande (-ExporterAvant). Pour en faire un maintenant : reinstallez OPSYS, puis opsys metier instance exporter.' }
         Write-Host '  Les supprimer definitivement est une decision humaine : voir docs/exploitation/INSTALLATION.md.'
         return 0
     }

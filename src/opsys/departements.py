@@ -380,7 +380,7 @@ def tous_les_outils(departements: Iterable[Departement]) -> dict[str, tuple[Depa
 
 
 def verifier_attentes(departements: Mapping[str, Departement]) -> list[str]:
-    """`opsys verifier` : chaque `attentes()` déclaré (s'il y en a un) doit au moins se charger.
+    """`opsys-metier verifier` : chaque `attentes()` déclaré (s'il y en a un) doit au moins se charger.
 
     Même esprit que `evenements.verifier_coherence` : un département cassé est signalé, jamais une
     panne de la commande. `file_proprietaire` retente le même chargement (et l'appel) à l'usage ;
@@ -390,13 +390,13 @@ def verifier_attentes(departements: Mapping[str, Departement]) -> list[str]:
     for dep in departements.values():
         try:
             dep.charger_attentes()
-        except Exception as exc:  # noqa: BLE001 — signalé, jamais une panne de `opsys verifier`
+        except Exception as exc:  # noqa: BLE001 — signalé, jamais une panne de `opsys-metier verifier`
             problemes.append(f"{dep.id} : attentes() illisible ({type(exc).__name__}: {exc})")
     return problemes
 
 
 def verifier_portees(departements: Mapping[str, Departement]) -> list[str]:
-    """`opsys verifier` : chaque `Outil.roles_appareil` déclaré (T1.4-j) ne cite que des rôles
+    """`opsys-metier verifier` : chaque `Outil.roles_appareil` déclaré (T1.4-j) ne cite que des rôles
     d'appareil (`opsys.appareils.ROLES_APPAREIL`), et aucun outil T3/N5 n'en déclare.
 
     Un rôle hors de `ROLES_APPAREIL` n'accorderait rien (`openclaw.roles_outils` l'ignore) mais serait

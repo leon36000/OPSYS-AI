@@ -17,6 +17,10 @@ on:
       - "src/opsys/cli.py"
       - "core/package.json"
       - "core/pnpm-lock.yaml"
+      # `opsys metier` : le core lance le moteur (T0.7 lot 2), que le trajet de preuve exerce
+      - "core/src/entry.ts"
+      - "core/src/cli/opsys-metier-*.ts"
+      - "core/src/gateway/opsys-metier-*.ts"
       - "pyproject.toml"
       - ".github/workflows/installateur.yml"
   pull_request:
@@ -28,6 +32,10 @@ on:
       - "src/opsys/cli.py"
       - "core/package.json"
       - "core/pnpm-lock.yaml"
+      # `opsys metier` : le core lance le moteur (T0.7 lot 2), que le trajet de preuve exerce
+      - "core/src/entry.ts"
+      - "core/src/cli/opsys-metier-*.ts"
+      - "core/src/gateway/opsys-metier-*.ts"
       - "pyproject.toml"
       - ".github/workflows/installateur.yml"
 
@@ -120,7 +128,7 @@ jobs:
       - name: "Installateur : scripts joués contre de fausses commandes"
         run: |
           python -m pip install --quiet -e ".[dev]"
-          python -m pytest tests/test_installateur_scripts.py tests/test_installateur_powershell.py tests/test_installateur_windows.py tests/test_installateur_powershell_faux.py tests/test_installateur_bout_en_bout.py tests/test_installateur_workflow.py tests/test_instance.py tests/test_exportation.py -q --import-mode=importlib -p no:cacheprovider
+          python -m pytest tests/test_installateur_scripts.py tests/test_installateur_powershell.py tests/test_installateur_windows.py tests/test_installateur_powershell_faux.py tests/test_installateur_bout_en_bout.py tests/test_installateur_workflow.py tests/test_commande_metier.py tests/test_instance.py tests/test_exportation.py -q --import-mode=importlib -p no:cacheprovider
       - name: Installateur avec le vrai core
         env:
           OPSYS_TRAVAIL: ${{ runner.temp }}/installateur

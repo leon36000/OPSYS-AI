@@ -3,7 +3,7 @@
 La table de `docs/architecture/ROLES.md` est épinglée ici en entier pour `employee`, `seller` et
 `admin` : élargir la portée d'un rôle exige de modifier la déclaration de l'outil (`Outil.
 roles_appareil`), ce fichier et ROLES.md ensemble, donc de le faire exprès en relecture. Les
-mécanismes (fermé par défaut, T3 jamais projeté, `opsys verifier`) sont testés sur des départements
+mécanismes (fermé par défaut, T3 jamais projeté, `opsys-metier verifier`) sont testés sur des départements
 fictifs dans `tests/test_openclaw_roles.py`.
 """
 

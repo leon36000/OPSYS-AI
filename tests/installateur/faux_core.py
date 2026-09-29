@@ -12,7 +12,9 @@ attentes, ses branches macOS et Linux, ses échecs (chaque contrôle est essayé
 Appel : `node faux_core.py <arguments de node>` (le faux `node` du test l'exécute). Arguments compris : `-v`,
 `--input-type=module`, le fichier `opsys-node-<guid>.mjs` du contrôle de version de install.ps1, et
 `<...>/openclaw.mjs [--profile <p>] <commande>` pour `--version`, `config file`, `config validate`,
-`gateway run --bind loopback --port <n>`, `gateway install --force --port <n>` et `gateway uninstall`. Le service émulé
+`gateway run --bind loopback --port <n>`, `gateway install --force --port <n>` et `gateway uninstall`, ainsi que
+`metier <arguments>` et les anciens noms des commandes du moteur (PLAN T0.7 lot 2, `core/src/cli/opsys-metier-cli.ts`,
+écrit ici d'après lui). Le service émulé
 est celui de macOS (LaunchAgent) : plist, fichier d'environnement 0600 et enveloppe, comme
 `core/src/daemon/launchd-service-files.ts` ; `launchctl` est un autre faux, qui lit le fichier de pid.
 
@@ -55,6 +57,14 @@ VERSION_NODE = "v24.16.0"
 # nécessaire à Python, jamais OPENCLAW_* ni les clés de fournisseurs.
 PASSAVANT_NOMS = {"HOME", "LANG", "PATH", "TMPDIR", "USER", "LOGNAME", "TZ", "SHELL"}
 PASSAVANT_PREFIXES = ("LC_", "OPSYS_", "PYTHON", "UV_", "XDG_", "FAUX_")
+# `opsys metier` (core/src/cli/opsys-metier-cli.ts) : les mêmes noms que le superviseur, sans FAUX_ (propre à ce faux).
+PASSAVANT_PREFIXES_CLI = ("LC_", "LITELLM_", "OPSYS_", "PYTHON", "UV_", "XDG_")
+# Les anciennes commandes du moteur (core/src/cli/opsys-metier-argv.ts : OPSYS_METIER_MOVED_COMMANDS) ;
+# tests/test_commande_metier.py confronte cette liste à celle du core et au parseur du moteur.
+COMMANDES_DEPLACEES = (
+    "departements", "verifier", "profils", "approbations", "personnes", "base", "evenements", "mode", "budgets",
+    "services", "equipes", "paliers", "openclaw", "appareils", "instance", "passerelle",
+)
 
 
 def lire_env(chemin: Path) -> dict[str, str]:
@@ -308,6 +318,49 @@ def tache_desinstaller(contexte: Contexte) -> int:
     return 0
 
 
+# -- `opsys metier` : le moteur Python par le core ---------------------------------------------------------------------
+def citer(argument: str) -> str:
+    if re.fullmatch(r"[A-Za-z0-9_@%+=:,./-]+", argument):
+        return argument
+    return '"' + re.sub(r'(["\\$`])', r"\\\1", argument) + '"'
+
+
+def ancienne_forme(nom: str, arguments: list[str]) -> int:
+    reste = " ".join(citer(a) for a in [nom, *arguments])
+    sys.stderr.write(
+        f"opsys : « {nom} » n'est plus une commande de opsys. Depuis que « opsys » est la commande du core,\n"
+        f"celles du moteur métier sont sous « opsys metier ».\nUtilisez : opsys metier {reste}\n"
+        f"(Avec le moteur seul, sans le core, par exemple dans un conteneur Docker : opsys-metier {reste})\n")
+    return 2
+
+
+def metier(contexte: Contexte, arguments: list[str]) -> int:
+    """Ce que fait le core : lit `opsys/metier.json` (`commande_cli`), y ajoute les arguments, hérite du terminal et du
+    dossier courant, et rend le code de sortie du moteur ; l'environnement du moteur est celui du superviseur, sans
+    OPENCLAW_*, et l'environnement de l'appelant prime sur la clé `env` du fichier."""
+    if os.environ.get("OPENCLAW_SHELL") == "exec":
+        sys.stderr.write(
+            "opsys metier : commande réservée à l'opérateur, refusée depuis le shell d'un agent "
+            "(OPENCLAW_SHELL=exec).\n")
+        return 1
+    chemin = contexte.etat / "opsys" / "metier.json"
+    if not chemin.is_file():
+        sys.stderr.write(
+            f"opsys metier : le moteur métier n'est pas configuré pour ce core ({chemin} est absent).\n")
+        return 1
+    config = json.loads(chemin.read_text(encoding="utf-8"))
+    commande = config.get("commande_cli")
+    if not commande:
+        sys.stderr.write(
+            "opsys metier : metier.json ne dit pas comment lancer la CLI du moteur (clé « commande_cli »).\n")
+        return 1
+    # le premier gagne : ce que l'appelant a exporté reste
+    appelant = {**lire_env(contexte.etat / ".env"), **os.environ}
+    env = {str(cle): str(valeur) for cle, valeur in (config.get("env") or {}).items()}
+    env.update({n: v for n, v in appelant.items() if n in PASSAVANT_NOMS or n.startswith(PASSAVANT_PREFIXES_CLI)})
+    return subprocess.run([*commande, *arguments], env=env, check=False).returncode
+
+
 # -- point d'entrée ---------------------------------------------------------------------------------------------------
 def option(arguments: list[str], nom: str) -> str | None:
     position = arguments.index(nom) + 1 if nom in arguments else len(arguments)
@@ -320,6 +373,10 @@ def core(entree: str, arguments: list[str]) -> int:
         profil = arguments[1]
         arguments = arguments[2:]
     contexte = Contexte(profil or None)
+    if arguments[:1] == ["metier"]:
+        return metier(contexte, arguments[1:])
+    if arguments[:1] and arguments[0] in COMMANDES_DEPLACEES:
+        return ancienne_forme(arguments[0], arguments[1:])
     if arguments == ["--version"]:
         print("OPSYS 0.0.0 (faux core)")
         return 0

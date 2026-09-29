@@ -179,7 +179,7 @@ class ConfigurationCanaux:
     session: dict[str, Any]  # session
     plugins: dict[str, Any]  # plugins.entries (activation des extensions de canal)
     agents_exposes: tuple[str, ...]  # agents dont la boîte à outils est fermée
-    etat: list[dict[str, Any]]  # ce que `opsys verifier` et `opsys openclaw configurer` affichent
+    etat: list[dict[str, Any]]  # ce que `opsys-metier verifier` et `opsys-metier openclaw configurer` affichent
 
 
 def configuration(
@@ -248,7 +248,7 @@ def mode_refuse(dep: Departement, mode: str) -> str | None:
 
 
 def verifier_declarations(departements: Mapping[str, Departement]) -> list[str]:
-    """`opsys verifier` : chaque canal déclaré est connu, son département a l'outil d'accueil, et cet outil
+    """`opsys-metier verifier` : chaque canal déclaré est connu, son département a l'outil d'accueil, et cet outil
     s'exécute sans approbation de niveau N3 (la session d'un client qui écrit pour la première fois n'a pas
     encore d'affaire liée : le garde du core refuserait un outil de niveau N3 ou plus, ADR-0010).
     """
@@ -261,7 +261,7 @@ def verifier_declarations(departements: Mapping[str, Departement]) -> list[str]:
             problemes.append(str(mode_refuse(dep, "autonome")))
         try:
             outils = {o.nom: o for o in dep.charger_outils()}
-        except Exception as exc:  # noqa: BLE001 — signalé, jamais une panne de `opsys verifier`
+        except Exception as exc:  # noqa: BLE001 — signalé, jamais une panne de `opsys-metier verifier`
             problemes.append(f"{dep.id} : outils illisibles ({type(exc).__name__}: {exc})")
             continue
         for ident in dep.canaux:
@@ -309,28 +309,28 @@ def verifier_configuration(
     config_ecrite: Mapping[str, Any] | None,
     includes_manquants: Sequence[str] = (),
 ) -> list[str]:
-    """`opsys verifier --config-dir` : la configuration écrite dit la même chose que l'environnement.
+    """`opsys-metier verifier --config-dir` : la configuration écrite dit la même chose que l'environnement.
 
     `config_ecrite` : `{"channels": ..., "plugins": ...}` relus des fragments. Un canal écrit actif alors que
     l'environnement n'a plus ses variables, ou écrit inactif alors que tout est fourni, est un écart : il
-    faut relancer `opsys openclaw configurer`. Un fragment absent est un écart, jamais un canal inactif.
+    faut relancer `opsys-metier openclaw configurer`. Un fragment absent est un écart, jamais un canal inactif.
     """
     attendu = configuration(departements, environ, includes_manquants)
     problemes: list[str] = []
     if config_ecrite is None:
-        return ["configuration OpenClaw absente : lance `opsys openclaw configurer --config-dir ...`"]
+        return ["configuration OpenClaw absente : lance `opsys-metier openclaw configurer --config-dir ...`"]
     channels = config_ecrite.get("channels", {})
     for entree in attendu.etat:
         ident = entree["canal"]
         ecrit = channels.get(ident)
         if not isinstance(ecrit, Mapping):
-            problemes.append(f"canal {ident} : absent de channels.json, relance `opsys openclaw configurer`")
+            problemes.append(f"canal {ident} : absent de channels.json, relance `opsys-metier openclaw configurer`")
         elif ecrit.get("enabled") is not entree["actif"]:
             etat_ecrit = "actif" if ecrit.get("enabled") else "inactif"
             etat_reel = "actif" if entree["actif"] else "inactif"
             detail = "" if entree["actif"] else f" ({' ; '.join(_raisons(entree))})"
             problemes.append(
                 f"canal {ident} : écrit {etat_ecrit} mais l'environnement le rend {etat_reel}{detail} ; "
-                "relance `opsys openclaw configurer`"
+                "relance `opsys-metier openclaw configurer`"
             )
     return problemes

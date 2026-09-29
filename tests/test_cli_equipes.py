@@ -1,5 +1,5 @@
-"""`opsys equipes lister|declarer` (PLAN T4.12) : le profil des équipes se déclare depuis un fichier, sous un nom, avec
-des membres qui sont des personnes OPSYS existantes. Fixture FICTIVE (`fictif: true`)."""
+"""`opsys-metier equipes lister|declarer` (PLAN T4.12) : le profil des équipes se déclare depuis un fichier, sous un
+nom, avec des membres qui sont des personnes OPSYS existantes. Fixture FICTIVE (`fictif: true`)."""
 
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ def test_lister_sans_profil_dit_qu_aucun_n_est_declare_et_quoi_declarer(instance
     sortie = json.loads(capsys.readouterr().out)
     assert sortie["declare"] is False and sortie["profil"] is None
     assert sortie["fichier"] == str(taxonomie.fichier_profil())
-    assert len(sortie["a_declarer"]) == 1 and "opsys equipes declarer" in sortie["a_declarer"][0]
+    assert len(sortie["a_declarer"]) == 1 and "opsys-metier equipes declarer" in sortie["a_declarer"][0]
 
 
 def test_declarer_ecrit_le_profil_signe_au_journal_et_lister_le_montre(instance, tmp_path, capsys, declarer_services):
@@ -124,7 +124,7 @@ def test_declarer_accepte_du_json_et_remplace_le_profil(instance, tmp_path):
 def test_sans_base_migree_le_refus_dit_de_migrer(opsys_home, tmp_path, capsys, monkeypatch):
     monkeypatch.setenv("OPSYS_BASE_URL", f"sqlite:///{tmp_path / 'absente' / 'opsys.db'}")
     assert cli.main(["equipes", "declarer", "--depuis", _fichier(tmp_path), "--par", "nathan"]) == 1
-    assert "opsys base migrer" in capsys.readouterr().err
+    assert "opsys-metier base migrer" in capsys.readouterr().err
     assert not taxonomie.fichier_profil().exists()
 
 

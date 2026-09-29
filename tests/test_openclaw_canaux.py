@@ -1,6 +1,6 @@
 """Canaux du public dans la configuration d'OPSYS-CORE (PLAN T2.1-a) : SMS -> agent M1.
 
-Chaque clé et chaque valeur que `opsys openclaw configurer` écrit pour le canal est confrontée au schéma du fork,
+Chaque clé et chaque valeur que `opsys-metier openclaw configurer` écrit pour le canal est confrontée au schéma du fork,
 lu dans ses sources (`tests/fixtures/schema_ts.py` : le core ne s'exécute pas dans ce bac à sable ; le job
 `e2e-core` de la CI passe ensuite le vrai `openclaw config validate` sur la même configuration). Aucun secret :
 les tests fournissent des valeurs reconnaissables et vérifient qu'aucun fichier généré ne les contient.
@@ -463,7 +463,7 @@ def test_cli_verifier_config_dir_detecte_un_ecart_avec_l_environnement(monkeypat
     assert cli.main(["verifier", "--config-dir", str(dossier)]) == 1
     erreur = capsys.readouterr().err
     assert "écrit inactif mais l'environnement le rend actif" in erreur
-    assert "opsys openclaw configurer" in erreur
+    assert "opsys-metier openclaw configurer" in erreur
 
     # Régénérée, elle suit.
     _generer(charger_departements(), dossier, environ=TOUTES_LES_VARIABLES)

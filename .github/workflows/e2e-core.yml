@@ -38,7 +38,7 @@ concurrency:
 jobs:
   # Le trajet RÉEL app -> core -> moteur (PLAN T1.5-b). `tests/e2e/` (job `socle` de ci.yml) prouve le moteur avec la
   # règle de la porte d'appareil refaite en Python ; ce job prouve la porte elle-même : le Gateway construit, la
-  # configuration de `opsys openclaw configurer`, l'appairage d'un appareil, `GET /opsys/identite` et
+  # configuration de `opsys-metier openclaw configurer`, l'appairage d'un appareil, `GET /opsys/identite` et
   # `/tools/invoke`. Aucune étape ne tolère l'échec : un constat faux, un processus arrêté ou un délai fait échouer le job.
   # Il reconstruit le core (comme le job `construction` de core.yml) : un workflow ne peut pas réutiliser le `dist/`
   # d'un autre, et `node_modules` est trop gros pour un artefact.

@@ -2,7 +2,7 @@
 
 L'installateur s'occupe du logiciel : Node, pnpm, uv, construction du core, service. Tout ce qui touche à la
 donnée de l'instance est ici, en Python testé, pour que Linux, macOS et Windows partagent UNE implémentation.
-`opsys instance initialiser` est idempotent : on le relance à chaque mise à jour, et à la main après un
+`opsys-metier instance initialiser` est idempotent : on le relance à chaque mise à jour, et à la main après un
 changement de paliers ou de départements.
 
 Deux dossiers, deux rôles (PLAN T0.11-b) :
@@ -24,7 +24,7 @@ Ce que la commande fait, dans l'ordre :
    une sortie ;
 5. vérifie que le core peut être configuré. Sinon (paliers de modèles, service d'embeddings) : verdict
    `en_attente` qui dit quoi fournir, et RIEN d'autre n'est écrit. Fail-closed : aucune valeur inventée ;
-6. génère la configuration du core (`opsys openclaw configurer`), le bloc `gateway` de `openclaw.json` s'il
+6. génère la configuration du core (`opsys-metier openclaw configurer`), le bloc `gateway` de `openclaw.json` s'il
    manque, et `opsys/metier.json` (le superviseur du core lance alors le moteur, PLAN T0.10).
 
 `<état du core>/.env` est le fichier que le core lit lui-même au démarrage du Gateway, du service et de ses
@@ -69,19 +69,20 @@ ENV_BASE_URL = stockage.ENV_URL
 URL_PASSERELLE_DEFAUT = "http://127.0.0.1:4000/v1"  # port usuel de LiteLLM en local ; l'installateur ne l'installe pas
 PORT_GATEWAY_DEFAUT = 18789  # core/src/config/paths.ts::DEFAULT_GATEWAY_PORT
 PORT_MOTEUR_DEFAUT = 8765  # core/src/gateway/opsys-metier-config.ts::DEFAULT_PORT
+CLE_COMMANDE_CLI = "commande_cli"  # core/src/cli/opsys-metier-cli.ts::OPSYS_METIER_CLI_COMMAND_KEY
 HOTE_LOCAL = "127.0.0.1"
-CODE_EN_ATTENTE = 3  # code de sortie de `opsys instance initialiser` : installé, mais il manque une décision
+CODE_EN_ATTENTE = 3  # code de sortie de `opsys-metier instance initialiser` : installé, mais il manque une décision
 
 # Les seuls réglages que l'installateur accepte de l'environnement et écrit dans `.env`.
 REGLAGES_ACCEPTES = (ENV_URL, ENV_MODELE, ENV_CLE, ENV_LOCAL, ENV_PASSERELLE)
 
 # Alphabet d'une valeur de `.env` : sans espace, guillemet, `$`, `#`, barre oblique inverse ni saut de ligne.
-# Écrite ainsi, une ligne est lue de la même façon par le core (dotenv), par les enveloppes `opsys` (bash, cmd)
+# Écrite ainsi, une ligne est lue de la même façon par le core (dotenv), par les enveloppes `opsys-metier` (bash, cmd)
 # et par `lire_env`, sans aucune règle de guillemets.
 _VALEUR_PERMISE = re.compile(r"^[A-Za-z0-9._:/@%+=,~-]{1,512}$")
 _AFFECTATION = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$")
 _ENTETE_ENV = (
-    "# Réglages et secrets de l'instance OPSYS. Géré par `opsys instance initialiser`.",
+    "# Réglages et secrets de l'instance OPSYS. Géré par `opsys-metier instance initialiser`.",
     "# Ne jamais partager ni versionner ce fichier. Il n'est pas inclus dans l'export de l'instance.",
 )
 
@@ -381,7 +382,7 @@ def _lire_objet_json(chemin: Path) -> dict[str, Any]:
 
 
 def completer_racine(dossier: Path, port_gateway: int | None) -> tuple[bool, int]:
-    """Ajoute à `openclaw.json` le bloc `gateway` que `opsys openclaw configurer` n'écrit pas, s'il manque.
+    """Ajoute à `openclaw.json` le bloc `gateway` que `opsys-metier openclaw configurer` n'écrit pas, s'il manque.
 
     Rend (bloc ajouté, port effectif). Un bloc existant n'est jamais modifié : c'est celui de l'opérateur.
     Le bloc : mode local, boucle locale seulement, authentification par jeton (`OPENCLAW_GATEWAY_TOKEN`, lu dans
@@ -409,6 +410,10 @@ def ecrire_metier(etat_core: Path, *, home: Path, source: Path, python: Path, po
     La commande est l'interpréteur de l'environnement de l'installation, en chemin absolu : aucune résolution de
     dépendances ni accès réseau au démarrage, et `uv` n'a pas à être dans le PATH du service. Le fichier est celui
     de l'installateur : ses clés sont réécrites à chaque exécution, les autres clés sont conservées.
+
+    `commande_cli` (T0.7 lot 2) est la ligne de commande de la CLI du moteur, celle que `opsys metier <commande>` lance
+    en lui ajoutant les arguments (`core/src/cli/opsys-metier-cli.ts`) : le même interpréteur, `-m opsys.cli`. C'est
+    le seul endroit où le core apprend où est le moteur ; il n'en devine aucun autre.
     """
     chemin = etat_core / "opsys" / "metier.json"
     metier = _lire_objet_json(chemin) if chemin.is_file() else {}
@@ -419,6 +424,7 @@ def ecrire_metier(etat_core: Path, *, home: Path, source: Path, python: Path, po
         "hote": HOTE_LOCAL,
         "port": port,
         "commande": [str(python), "-m", "opsys.serveur_mcp", "--http", "--hote", HOTE_LOCAL, "--port", str(port)],
+        CLE_COMMANDE_CLI: [str(python), "-m", "opsys.cli"],
         "env": {**env, "OPSYS_HOME": str(home)},
     })
     metier.setdefault("delai_pret_ms", 120_000)
@@ -434,7 +440,7 @@ def _verifier_port(nom: str, port: int) -> int:
 
 
 def _ce_qui_manque(departements: Mapping[str, Departement], env: Mapping[str, str]) -> tuple[list[str], dict[str, Any]]:
-    """Ce que `opsys openclaw configurer` exige et que l'opérateur n'a pas encore décidé. Rien n'est inventé."""
+    """Ce que `opsys-metier openclaw configurer` exige et que l'opérateur n'a pas encore décidé. Rien n'est inventé."""
     manque: list[str] = []
     try:
         paliers = modeles.charger_paliers()
@@ -444,7 +450,7 @@ def _ce_qui_manque(departements: Mapping[str, Departement], env: Mapping[str, st
     if absents:
         manque.append(
             f"paliers de modèles à choisir ({', '.join(absents)}) : "
-            "`opsys paliers definir <palier> --provider <fournisseur> --model <modèle>`, "
+            "`opsys-metier paliers definir <palier> --provider <fournisseur> --model <modèle>`, "
             f"ou déposez {modeles.fichier_paliers()}"
         )
     try:

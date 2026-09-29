@@ -1,4 +1,5 @@
-"""Export et restauration de l'instance locale (PLAN T0.11) : `opsys.exportation`, `opsys instance exporter|restaurer`.
+"""Export et restauration de l'instance locale (PLAN T0.11) : `opsys.exportation`,
+`opsys-metier instance exporter|restaurer`.
 
 Ce que ces tests prouvent : l'archive ne contient que la liste blanche (jamais le `.env`), la copie de la base est
 cohérente même avec un journal WAL non recopié dans le fichier, l'empreinte est exigée, une archive altérée ou

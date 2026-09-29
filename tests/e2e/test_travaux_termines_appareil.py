@@ -10,8 +10,8 @@ chemin réseau du moteur (`tests/fixtures/harnais_e2e.py`) :
   (`invokeOpsysDeviceTool`) : nom nu autorisé par le rôle, serveur pris dans `roles.json`, session MCP
   privée à ce serveur, `_meta` posé comme `buildOpsysMcpCallMeta`, enveloppe `{ok, resultat|erreur, rejoue}`
   rendue telle quelle ;
-- personnes et appareils créés par les commandes réelles du socle (`opsys personnes creer`,
-  `opsys appareils appairer`), jamais par une écriture en base ;
+- personnes et appareils créés par les commandes réelles du socle (`opsys-metier personnes creer`,
+  `opsys-metier appareils appairer`), jamais par une écriture en base ;
 - le bus est livré à la main (répartiteur réel, tous les départements), l'horloge du serveur est celle du
   test : aucun sommeil, aucune dépendance à l'heure réelle.
 

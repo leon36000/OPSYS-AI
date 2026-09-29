@@ -47,7 +47,7 @@ la configuration validée par son schéma Zod strict : `roles.json` (`roles_outi
 `Outil.roles_appareil` déclarés, et `serveurs_outils`, le serveur MCP qui porte chacun de ces outils
 (T1.4-c6) ; écrit par `generer()`, aucune dépendance à la base) et
 `appareils.json` (`ecrire_appareils`, lit la table `appareils`, ADR-0009 §5 — appelé séparément, PAS
-par `generer()`/`opsys openclaw configurer`, tant qu'aucune surface d'appairage n'existe encore pour
+par `generer()`/`opsys-metier openclaw configurer`, tant qu'aucune surface d'appairage n'existe encore pour
 le déclencher automatiquement). `contexte.json` (moteur de contexte, ci-dessus) est lu de la même façon par
 `core/src/context-engine/opsys-contexte-config.ts`.
 """
@@ -201,7 +201,7 @@ def _configuration_memoire(environ: Mapping[str, str] | None = None) -> dict[str
         raise ValueError(
             f"configuration mémoire (ADR-0010, Couche A) : {ENV_URL} absente — définir {ENV_URL} "
             f"et {ENV_MODELE} (voir deploy/.env.example, service bge-m3 partagé) avant "
-            "`opsys openclaw configurer`"
+            "`opsys-metier openclaw configurer`"
         )
     recherche: dict[str, Any] = {
         "provider": "openai-compatible",
@@ -345,7 +345,7 @@ def roles_outils(departements: Mapping[str, Departement]) -> dict[str, tuple[str
     réservée à `nathan_owner` ET une attestation professionnelle) — un jeton d'appareil ne doit
     jamais pouvoir même *tenter* un outil de ce niveau, en plus du fait qu'`outils.executer` le
     ferait de toute façon passer par une demande d'approbation (défense en profondeur, pas la
-    seule barrière). `opsys verifier` (`departements.verifier_portees`) refuse en plus qu'un outil
+    seule barrière). `opsys-metier verifier` (`departements.verifier_portees`) refuse en plus qu'un outil
     T3/N5 déclare un rôle, pour que l'erreur se voie.
 
     Il n'y a PAS d'entrée `nathan_owner` ni `client` : un jeton d'appareil ne peut jamais porter ces
@@ -358,7 +358,7 @@ def roles_outils(departements: Mapping[str, Departement]) -> dict[str, tuple[str
 
     `ROLES_APPAREIL` (`opsys.appareils`) fixe l'ensemble des clés du résultat, toutes présentes
     même vides : les deux restent en phase par construction, une seule source. Un rôle inconnu dans
-    une déclaration n'accorde rien ici (`generer` le refuse avant d'écrire, `opsys verifier` aussi).
+    une déclaration n'accorde rien ici (`generer` le refuse avant d'écrire, `opsys-metier verifier` aussi).
     """
     index = tous_les_outils(departements.values())
     portees: dict[str, list[str]] = {role: [] for role in sorted(appareils.ROLES_APPAREIL)}
@@ -561,7 +561,7 @@ def generer(
         "serveurs": serveurs_outils(departements),
     })
     fichiers["automatisations"].write_text(
-        "#!/bin/sh\n# Généré par `opsys openclaw configurer` : automatisations des départements.\nset -e\n"
+        "#!/bin/sh\n# Généré par `opsys-metier openclaw configurer` : automatisations des départements.\nset -e\n"
         + "\n".join(automatisations) + "\n",
         encoding="utf-8",
     )

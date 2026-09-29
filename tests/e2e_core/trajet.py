@@ -5,8 +5,8 @@ jeton de l'appareil. Il ne sait pas si le Gateway en face est le vrai (`scenario
 `test_repetition_sans_core.py`, qui ne prouve que le script.
 
 Ce que `jouer` vérifie, dans l'ordre :
-- l'identité de l'appareil est celle que `opsys appareils appairer` a attribuée ; sans jeton, avec un faux jeton ou
-  avec le secret partagé du Gateway, aucune identité ;
+- l'identité de l'appareil est celle que `opsys-metier appareils appairer` a attribuée ; sans jeton, avec un faux
+  jeton ou avec le secret partagé du Gateway, aucune identité ;
 - une lecture (`m4_lister_interventions`) rend la donnée préparée, identique à la même lecture faite directement
   au moteur avec le même `_meta` : le core ne retouche pas l'enveloppe ;
 - trois gestes d'écriture d'un employé (consentement GPS, en route, arrivée) avec `idempotencyKey` : réponse
@@ -231,8 +231,8 @@ class LectureDirecte:
 
 # -- avant l'attribution --------------------------------------------------------------------------------------
 def verifier_avant_attribution(passerelle: Passerelle) -> None:
-    """L'appareil est approuvé par le core (il a un jeton valide) mais `opsys appareils appairer` ne l'a pas encore
-    attribué : le core ne lui donne ni identité ni outil (fermé par défaut)."""
+    """L'appareil est approuvé par le core (il a un jeton valide) mais `opsys-metier appareils appairer` ne l'a pas
+    encore attribué : le core ne lui donne ni identité ni outil (fermé par défaut)."""
     statut, contenu = passerelle.identite(etape="identité avant attribution")
     exiger(statut == 403 and contenu.get("error", {}).get("reason") == "device_unknown",
            "un appareil sans attribution ne doit avoir aucune identité (403 device_unknown)", statut=statut,

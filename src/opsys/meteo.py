@@ -309,7 +309,7 @@ def lire_meteo(chemin: Path | None = None) -> dict[str, Any] | None:
 def _consigne_declaration(chemin: Path) -> str:
     return (
         "déclare les règles météo de l'entreprise : écris un fichier YAML (clés "
-        f"{', '.join(CLES_PROFIL)}) puis `opsys meteo declarer --depuis <fichier> --par <ton nom>` ; "
+        f"{', '.join(CLES_PROFIL)}) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; "
         f"le profil est écrit dans {chemin} (clé '{CLE_METEO}'), voir docs/architecture/TAXONOMIE.md"
     )
 
@@ -380,7 +380,7 @@ def a_declarer(profil: Mapping[str, Any] | None, services_declares: Iterable[str
     `services_declares` : les codes du profil de services (`opsys.taxonomie`) : chacun a besoin de ses seuils. Le
     fournisseur est facultatif (sans lui, la prévision se saisit à la main) : jamais un manque."""
     if profil is None:
-        return [f"le profil météo : {', '.join(CLES_PROFIL)} (`opsys meteo declarer`)"]
+        return [f"le profil météo : {', '.join(CLES_PROFIL)} (`opsys-metier meteo declarer`)"]
     services = profil.get(CLE_SERVICES_METEO, {})
     manques: list[str] = []
     if not services and not list(services_declares):
@@ -396,7 +396,7 @@ def a_declarer(profil: Mapping[str, Any] | None, services_declares: Iterable[str
 
 
 def verifier_profil() -> list[str]:
-    """`opsys verifier` : un profil météo présent doit être valide, et ne parler que de services déclarés. Un profil
+    """`opsys-metier verifier` : un profil météo présent doit être valide, et ne parler que de services déclarés. Un profil
     absent n'est pas une erreur (l'instance n'a simplement pas encore déclaré sa météo)."""
     from . import taxonomie
 

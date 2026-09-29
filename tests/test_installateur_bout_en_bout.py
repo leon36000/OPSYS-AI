@@ -229,6 +229,10 @@ def test_linux_la_preuve_sans_service_passe_avec_les_commandes_gnu(linux):
     assert resultat.returncode == 0, sortie
     assert "== Tout est vrai" in resultat.stdout
     assert "OK  poste neuf (Linux)" in resultat.stdout
+    # T0.7 lot 2 : `opsys` est le core, `opsys metier` le moteur par le core, l'ancienne forme dit la nouvelle
+    assert "::group::1 bis bis. Une seule commande" in resultat.stdout
+    assert "OK  opsys est le core (OPSYS <version>, alias openclaw identique) ; opsys metier lance le moteur" \
+        in resultat.stdout
     assert "SHA-256 vérifié (sha256sum)" in resultat.stdout
     assert "::warning::phase du service sautée (OPSYS_SANS_SERVICE=1)" in resultat.stdout
     resume = linux.resume.read_text(encoding="utf-8")

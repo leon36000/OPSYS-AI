@@ -3,7 +3,7 @@
 Le code de `core/` ne s'exécute pas ici : on ne peut donc pas appeler `openclaw config validate`. Ce module lit
 plutôt les sources des schémas (`core/src/config/zod-schema.*.ts`, `core/extensions/*/src/config-schema.ts`) pour
 en tirer les clés d'un objet et les valeurs d'une énumération, afin que chaque clé et chaque valeur que
-`opsys openclaw configurer` écrit soit confrontée au schéma du fork. Le job `e2e-core` de la CI complète ce
+`opsys-metier openclaw configurer` écrit soit confrontée au schéma du fork. Le job `e2e-core` de la CI complète ce
 contrôle avec le vrai `openclaw config validate`.
 
 La lecture est volontairement étroite : les clés du premier niveau du premier objet `{...}` qui suit une ancre,

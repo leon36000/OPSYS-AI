@@ -195,7 +195,7 @@ EVENEMENTS_SORTANTS = Table(
 # elle-même, donc une relivraison ne peut jamais créer un second reçu « traité » pour la même paire
 # (idempotence effective). `statut` : 'echec' (réessai plus tard selon `prochaine_tentative`,
 # backoff exponentiel), 'traite' (résumé du consommateur dans `resultat`, jamais rejoué), ou
-# 'quarantaine' (5 échecs : plus aucune relivraison automatique, visible dans `opsys evenements etat`).
+# 'quarantaine' (5 échecs : plus aucune relivraison automatique, visible dans `opsys-metier evenements etat`).
 EVENEMENTS_RECUS = Table(
     "evenements_recus",
     META,

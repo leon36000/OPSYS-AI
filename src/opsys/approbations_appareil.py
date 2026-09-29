@@ -6,7 +6,7 @@ Ce module est la LOGIQUE, en fonctions pures de `(cnx, départements, identité)
 l'exposent à `/tools/invoke` sont déclarés par M9 (`m9_lister_demandes_approbation`,
 `m9_decider_demande_approbation`) : c'est le seul département qui lit déjà la file du propriétaire
 (`m9_produire_briefing_matin`) et dont le mobile est réservé à l'admin (§7 M9). `openclaw.roles_outils` et
-`opsys verifier` ne voient que des outils de département : les déclarer ailleurs les laisserait hors de
+`opsys-metier verifier` ne voient que des outils de département : les déclarer ailleurs les laisserait hors de
 `roles.json`, donc injoignables (et présents sur les dix serveurs à la fois).
 
 Ce n'est pas un second chemin de décision. La décision passe par `tableau_de_bord.decider_approbation`,

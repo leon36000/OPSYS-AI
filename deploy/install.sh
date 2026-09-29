@@ -9,7 +9,7 @@
 #
 # C'est l'option serveur (Docker Compose). Pour un poste ou un serveur sans Docker, l'installateur une commande est
 # `install/install.sh` (PLAN T0.11, docs/exploitation/INSTALLATION.md) : même enchaînement de mise en route (base migrée,
-# `opsys openclaw configurer`, bloc `gateway`, validation, Gateway), avec le moteur lancé par le superviseur du core.
+# `opsys-metier openclaw configurer`, bloc `gateway`, validation, Gateway), avec le moteur lancé par le superviseur du core.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -126,7 +126,7 @@ ensure_env() {
     set_if_placeholder POSTGRES_LITELLM_PASSWORD "$(gen_secret 32)"
     # Pas de mot de passe partagé pour la console (ADR-0009 §5) : OPSYS_CONSOLE_SECRET signe
     # seulement les sessions ; chaque personne se connecte avec son propre mot de passe, créé par
-    # `opsys personnes creer` (voir print_summary ci-dessous).
+    # `opsys-metier personnes creer` (voir print_summary ci-dessous).
     set_if_placeholder OPSYS_CONSOLE_SECRET "$(gen_secret 44)"
     for i in 1 2 3 4 5 6 7 8 9 10; do
         set_if_placeholder "OPSYS_CLE_M${i}" "sk-opsys-m${i}-$(gen_secret 28)"
@@ -198,9 +198,9 @@ start_core() {
 
 bootstrap_openclaw() {
     log "synchronisation immédiate des clés virtuelles et de la config des agents OpenClaw..."
-    compose exec -T opsys opsys passerelle cles --url http://litellm:4000 \
+    compose exec -T opsys opsys-metier passerelle cles --url http://litellm:4000 \
         || warn "enregistrement des clés virtuelles incomplet — voir la sortie ci-dessus ; nouvel essai automatique toutes les OPSYS_SYNC_INTERVAL_SECONDS."
-    compose exec -T opsys opsys openclaw configurer --config-dir /openclaw-config \
+    compose exec -T opsys opsys-metier openclaw configurer --config-dir /openclaw-config \
         || warn "génération de la config des agents OpenClaw incomplète (paliers de modèles non configurés ?) — configurez-les dans la console OPSYS, la synchro reprendra automatiquement."
 
     # shellcheck disable=SC1091
@@ -242,7 +242,7 @@ Installation OPSYS terminée.
 Prochaines étapes (docs/ops/INSTALLATION-VPS.md) :
   0. Amorçage (une seule fois, ADR-0009 §5 — la console n'a plus de mot de passe partagé) :
        docker compose -f deploy/docker-compose.yml exec opsys \\
-         opsys personnes creer nathan --nom "Nathan" --role nathan_owner
+         opsys-metier personnes creer nathan --nom "Nathan" --role nathan_owner
      (mot de passe demandé sans écho ; garder l'identifiant et le mot de passe en lieu sûr).
   1. Connectez-vous à la console OPSYS (https://console.${OPSYS_DOMAINE}/) avec cette personne et
      configurez au moins le palier de modèle "standard" (onglet Modèles), puis les départements à
@@ -252,7 +252,7 @@ Prochaines étapes (docs/ops/INSTALLATION-VPS.md) :
      ${OPSYS_SYNC_INTERVAL_SECONDS:-300}s suivant la configuration des modèles (synchro
      automatique) — ou immédiatement avec :
        docker compose -f deploy/docker-compose.yml exec opsys sh -c \\
-         'opsys passerelle cles --url http://litellm:4000 && opsys openclaw configurer --config-dir /openclaw-config'
+         'opsys-metier passerelle cles --url http://litellm:4000 && opsys-metier openclaw configurer --config-dir /openclaw-config'
   4. Si OPSYS_DOMAINE=localhost, le certificat est auto-signé (validation locale
      uniquement) : fixez un vrai domaine DNS avant tout accès distant réel.
 ============================================================================

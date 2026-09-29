@@ -1,4 +1,4 @@
-"""Identité (ADR-0009 §5) : mots de passe, personnes, rôles, CLI `opsys personnes`."""
+"""Identité (ADR-0009 §5) : mots de passe, personnes, rôles, CLI `opsys-metier personnes`."""
 
 from __future__ import annotations
 
@@ -165,7 +165,7 @@ def test_parite_postgresql(monkeypatch):
             stockage.liberer()
 
 
-# -- CLI `opsys personnes` -------------------------------------------------------------------------
+# -- CLI `opsys-metier personnes` -------------------------------------------------------------------------
 
 
 def _sortie(capsys) -> dict:
@@ -219,7 +219,7 @@ def test_cli_roles_personne_inconnue(session, capsys):
 
 
 def test_cli_mot_de_passe_jamais_en_argument():
-    """Aucun `--mot-de-passe` (ou variante) n'existe sur `opsys personnes` : lu par `getpass` ou
+    """Aucun `--mot-de-passe` (ou variante) n'existe sur `opsys-metier personnes` : lu par `getpass` ou
     OPSYS_PERSONNE_MOT_DE_PASSE seulement (jamais en clair dans l'historique du shell)."""
     with pytest.raises(SystemExit):
         cli.construire_parseur().parse_args(["personnes", "creer", "jules", "--nom", "Jules",

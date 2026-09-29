@@ -18,6 +18,10 @@
 #     script ;
 #   - le dossier d'etat est %USERPROFILE%\.openclaw-opsys (profil opsys), reserve a l'utilisateur par une ACL sans
 #     heritage que les fichiers du service heritent ; .env et l'archive d'export ont en plus leur propre ACL.
+# Une seule commande (PLAN T0.7 lot 2) : `opsys` est le core (`openclaw` son alias), `opsys metier <commande>` lance le
+# moteur Python par le core (core/src/cli/opsys-metier-cli.ts, d'apres `opsys\metier.json`), `opsys-metier` est le moteur
+# seul, et l'ancienne forme (`opsys instance dossier`) dit la nouvelle sans rien executer. Tout cela est eprouve ici, avec
+# le vrai core, sous Windows (PYTHONUTF8 pose par le core, chemins et arguments par `spawnSync`, sans shell).
 # Ce script INSTALLE puis DESINSTALLE : il refuse de tourner sur un poste qui a deja un etat du core d'OPSYS ou sa tache
 # (ne l'executez pas sur un poste reel ; la CI l'execute sur une machine neuve).
 #
@@ -262,14 +266,28 @@ function Invoke-Natif {
     return [pscustomobject]@{ Code = $codeRetour; Sortie = ($lignes -join "`n") }
 }
 
+# `opsys` : le core (PLAN T0.7 lot 2).
 function Invoke-Opsys {
     param([string[]]$Arguments)
     return Invoke-Natif { & (Join-Path $script:Bin 'opsys.cmd') @Arguments }
 }
 
+# `openclaw` : l'alias du core.
 function Invoke-Openclaw {
     param([string[]]$Arguments)
     return Invoke-Natif { & (Join-Path $script:Bin 'openclaw.cmd') @Arguments }
+}
+
+# `opsys metier <commande>` : le moteur Python, lance par le core d'apres opsys\metier.json.
+function Invoke-OpsysMetier {
+    param([string[]]$Arguments)
+    return Invoke-Opsys (@('metier') + $Arguments)
+}
+
+# `opsys-metier` : le moteur seul.
+function Invoke-Moteur {
+    param([string[]]$Arguments)
+    return Invoke-Natif { & (Join-Path $script:Bin 'opsys-metier.cmd') @Arguments }
 }
 
 function Get-DerniereLigne {
@@ -470,7 +488,7 @@ function Invoke-Preuve {
     Write-Etape '1. Installation (sans service) : Node, pnpm, uv, construction du core, moteur, instance, configuration'
     $journal = Join-Path $script:Travail 'installation-1.log'
     Assert-Installe 'install.ps1' (Invoke-Installateur $journal @('-SansService')) $journal
-    foreach ($commande in @('openclaw.cmd', 'opsys.cmd')) {
+    foreach ($commande in @('opsys.cmd', 'openclaw.cmd', 'opsys-metier.cmd')) {
         if (-not (Test-Path -LiteralPath (Join-Path $script:Bin $commande))) { Stop-Preuve "la commande $commande n'est pas installee dans $($script:Bin)" }
     }
     Assert-AclPrivee $script:EtatCore "le dossier d'etat du core" -SansHeritage
@@ -484,10 +502,14 @@ function Invoke-Preuve {
     Add-Constat "installation terminee : etat du core dans $($script:EtatCore) (dossier et .env reserves a l'utilisateur par ACL), donnees dans OPSYS_HOME, aucun secret dans la configuration, la sortie ni le journal de l'installateur"
 
     Write-Etape "1 bis. Le dossier d'etat : le moteur Python, le core et les attentes ecrites d'apres le fork s'accordent"
-    $dossier = Get-DerniereLigne (Invoke-Opsys @('instance', 'dossier')).Sortie
-    if (-not [string]::Equals($dossier, $script:EtatCore, [System.StringComparison]::OrdinalIgnoreCase)) { Stop-Preuve "opsys instance dossier repond '$dossier' au lieu de $($script:EtatCore)" }
+    $dossier = Get-DerniereLigne (Invoke-OpsysMetier @('instance', 'dossier')).Sortie
+    if (-not [string]::Equals($dossier, $script:EtatCore, [System.StringComparison]::OrdinalIgnoreCase)) { Stop-Preuve "opsys metier instance dossier repond '$dossier' au lieu de $($script:EtatCore)" }
+    $dossierMoteur = Get-DerniereLigne (Invoke-Moteur @('instance', 'dossier')).Sortie
+    if (-not [string]::Equals($dossierMoteur, $script:EtatCore, [System.StringComparison]::OrdinalIgnoreCase)) { Stop-Preuve "opsys-metier instance dossier repond '$dossierMoteur' au lieu de $($script:EtatCore)" }
     $attendu = Join-Path $script:EtatCore 'openclaw.json'
-    $configCore = Get-DerniereLigne (Invoke-Openclaw @('config', 'file')).Sortie
+    $configCore = Get-DerniereLigne (Invoke-Opsys @('config', 'file')).Sortie
+    $configAlias = Get-DerniereLigne (Invoke-Openclaw @('config', 'file')).Sortie
+    if (-not [string]::Equals($configAlias, $configCore, [System.StringComparison]::OrdinalIgnoreCase)) { Stop-Preuve "l'alias openclaw ne repond pas comme opsys : '$configAlias' au lieu de '$configCore'" }
     if (-not [string]::Equals($configCore, $attendu, [System.StringComparison]::OrdinalIgnoreCase)) { Stop-Preuve "le core cherche sa configuration dans '$configCore' au lieu de $attendu" }
     $ailleurs = Join-Path $script:Travail 'ailleurs'
     $foyerCore = Join-Path $script:Travail 'home-du-core'
@@ -497,19 +519,43 @@ function Invoke-Preuve {
         $env:OPENCLAW_CONFIG_PATH = Join-Path $ailleurs 'openclaw.json'
         $env:OPENCLAW_HOME = $foyerCore
         $env:OPENCLAW_PROFILE = 'autre'
-        $polluee = Get-DerniereLigne (Invoke-Openclaw @('config', 'file')).Sortie
+        $polluee = Get-DerniereLigne (Invoke-Opsys @('config', 'file')).Sortie
+        $polluee = "$polluee|" + (Get-DerniereLigne (Invoke-OpsysMetier @('instance', 'dossier')).Sortie)
     }
     finally {
         foreach ($nom in @('OPENCLAW_STATE_DIR', 'OPENCLAW_CONFIG_PATH', 'OPENCLAW_HOME', 'OPENCLAW_PROFILE')) { Remove-Item -LiteralPath "Env:$nom" -ErrorAction SilentlyContinue }
     }
-    if (-not [string]::Equals($polluee, $attendu, [System.StringComparison]::OrdinalIgnoreCase)) { Stop-Preuve "un environnement OPENCLAW_* a deplace le core : il lit '$polluee' (la commande installee doit l'ecarter)" }
+    if (-not [string]::Equals($polluee, "$attendu|$($script:EtatCore)", [System.StringComparison]::OrdinalIgnoreCase)) { Stop-Preuve "un environnement OPENCLAW_* a deplace le core ou le moteur qu'il lance : ils repondent '$polluee' (la commande installee doit l'ecarter)" }
     if ((Test-Path -LiteralPath $ailleurs) -or (Test-Path -LiteralPath $foyerCore)) { Stop-Preuve "un dossier a ete cree d'apres l'environnement de l'appelant" }
-    Add-Constat "opsys instance dossier, openclaw config file et l'attente ecrite d'apres le fork donnent tous $($script:EtatCore) ; l'environnement de l'appelant n'y change rien"
+    Add-Constat "opsys metier instance dossier, opsys-metier instance dossier, opsys config file (et son alias openclaw) et l'attente ecrite d'apres le fork donnent tous $($script:EtatCore) ; l'environnement de l'appelant n'y change rien"
+
+    Write-Etape "1 bis bis. Une seule commande : opsys est le core, opsys metier le moteur, l'ancienne forme dit la nouvelle"
+    $versionCore = Get-DerniereLigne (Invoke-Opsys @('--version')).Sortie
+    if (-not $versionCore.StartsWith('OPSYS ', [System.StringComparison]::Ordinal)) { Stop-Preuve "opsys --version repond '$versionCore' au lieu de 'OPSYS <version>'" }
+    if ((Get-DerniereLigne (Invoke-Openclaw @('--version')).Sortie) -ne $versionCore) { Stop-Preuve "l'alias openclaw ne repond pas comme opsys --version" }
+    $versionMoteur = Get-DerniereLigne (Invoke-OpsysMetier @('--version')).Sortie
+    if (-not $versionMoteur.StartsWith('opsys-metier ', [System.StringComparison]::Ordinal)) { Stop-Preuve "opsys metier --version repond '$versionMoteur' au lieu de 'opsys-metier <version>'" }
+    if ((Get-DerniereLigne (Invoke-Moteur @('--version')).Sortie) -ne $versionMoteur) { Stop-Preuve "opsys-metier et opsys metier ne sont pas le meme moteur" }
+    $etatBaseMetier = Invoke-OpsysMetier @('base', 'etat')
+    if (($etatBaseMetier.Code -ne 0) -or ($etatBaseMetier.Sortie.IndexOf('"revision"', [System.StringComparison]::Ordinal) -lt 0)) { Stop-Preuve "opsys metier base etat ne rend pas l'etat de la base (code $($etatBaseMetier.Code)) : $($etatBaseMetier.Sortie)" }
+    $erreurMoteur = Invoke-OpsysMetier @('base')
+    if (($erreurMoteur.Code -ne 2) -or ($erreurMoteur.Sortie.IndexOf('usage: opsys-metier base', [System.StringComparison]::Ordinal) -lt 0)) { Stop-Preuve "le code de sortie et l'erreur du moteur ne sont pas relayes par opsys metier (attendu 2, recu $($erreurMoteur.Code)) : $($erreurMoteur.Sortie)" }
+    $ancienneForme = Invoke-Opsys @('instance', 'dossier')
+    if ($ancienneForme.Code -ne 2) { Stop-Preuve "l'ancienne forme 'opsys instance dossier' sort avec le code $($ancienneForme.Code) (attendu 2) : $($ancienneForme.Sortie)" }
+    if ($ancienneForme.Sortie.IndexOf('Utilisez : opsys metier instance dossier', [System.StringComparison]::Ordinal) -lt 0) { Stop-Preuve "l'ancienne forme ne dit pas la nouvelle : $($ancienneForme.Sortie)" }
+    if ($ancienneForme.Sortie.IndexOf($script:EtatCore, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) { Stop-Preuve "l'ancienne forme a execute la commande (le dossier d'etat est dans sa sortie) : $($ancienneForme.Sortie)" }
+    try {
+        $env:OPENCLAW_SHELL = 'exec'
+        $refusAgent = Invoke-OpsysMetier @('base', 'etat')
+    }
+    finally { Remove-Item -LiteralPath 'Env:OPENCLAW_SHELL' -ErrorAction SilentlyContinue }
+    if (($refusAgent.Code -ne 1) -or ($refusAgent.Sortie.IndexOf('OPENCLAW_SHELL=exec', [System.StringComparison]::Ordinal) -lt 0)) { Stop-Preuve "opsys metier n'est pas refusee depuis le shell d'un agent (code $($refusAgent.Code)) : $($refusAgent.Sortie)" }
+    Add-Constat "opsys est le core (OPSYS <version>, alias openclaw identique) ; opsys metier lance le moteur par le core (etat de la base, code de sortie et erreurs relayes) ; l'ancienne forme dit la nouvelle sans rien executer (code 2) ; opsys metier est refusee depuis le shell d'un agent"
 
     Write-Etape '1 ter. Le core accepte la configuration generee'
-    $validation = Invoke-Openclaw @('config', 'validate')
-    if ($validation.Code -ne 0) { Write-Host $validation.Sortie; Stop-Preuve "openclaw config validate refuse la configuration generee (code $($validation.Code))" }
-    Add-Constat 'openclaw config validate accepte la configuration (dont ${OPSYS_MCP_JETON}, lue dans .env)'
+    $validation = Invoke-Opsys @('config', 'validate')
+    if ($validation.Code -ne 0) { Write-Host $validation.Sortie; Stop-Preuve "opsys config validate refuse la configuration generee (code $($validation.Code))" }
+    Add-Constat 'opsys config validate accepte la configuration (dont ${OPSYS_MCP_JETON}, lue dans .env)'
 
     Write-Etape '1 quater. Ancienne disposition ($OPSYS_HOME\core) : signalee avec la marche a suivre, jamais migree en silence'
     $ancien = Join-Path $script:OpsysHome 'core'
@@ -519,8 +565,8 @@ function Invoke-Preuve {
     $geresAvant = Get-EmpreinteDesFichiersGeres
     # Les ports de l'installation : sans eux, `initialiser` reviendrait aux ports par defaut et changerait la configuration.
     $portsOpsys = @('--port-gateway', [string]$script:PortGateway, '--port-moteur', [string]$script:PortMoteur)
-    $refus = Invoke-Opsys (@('instance', 'initialiser') + $portsOpsys)
-    if ($refus.Code -eq 0) { Stop-Preuve "opsys instance initialiser a accepte l'ancienne disposition" }
+    $refus = Invoke-OpsysMetier (@('instance', 'initialiser') + $portsOpsys)
+    if ($refus.Code -eq 0) { Stop-Preuve "opsys metier instance initialiser a accepte l'ancienne disposition" }
     if ($refus.Sortie.IndexOf("ancienne disposition d$($script:EAigu)tect$($script:EAigu)e", [System.StringComparison]::Ordinal) -lt 0) { Stop-Preuve "l'ancienne disposition n'est pas signalee : $($refus.Sortie)" }
     if ($refus.Sortie.IndexOf($ancien, [System.StringComparison]::OrdinalIgnoreCase) -lt 0) { Stop-Preuve "le message ne nomme pas l'ancien dossier" }
     if ($refus.Sortie.IndexOf($script:EtatCore, [System.StringComparison]::OrdinalIgnoreCase) -lt 0) { Stop-Preuve "le message ne nomme pas le dossier d'etat du core" }
@@ -528,8 +574,8 @@ function Invoke-Preuve {
     if ((Get-Empreinte (Join-Path $ancien '.env')) -ne $ancienAvant) { Stop-Preuve "l'ancien etat a ete modifie" }
     if ((Get-EmpreinteDesFichiersGeres) -ne $geresAvant) { Stop-Preuve "l'etat du core a change pendant le refus" }
     Move-Item -LiteralPath $ancien -Destination (Join-Path $script:OpsysHome 'core.ancien')  # la marche a suivre : repartir a neuf
-    $reprise = Invoke-Opsys (@('instance', 'initialiser') + $portsOpsys)
-    if ($reprise.Code -ne 0) { Write-Host $reprise.Sortie; Stop-Preuve "opsys instance initialiser a echoue apres la mise de cote de l'ancien etat (code $($reprise.Code))" }
+    $reprise = Invoke-OpsysMetier (@('instance', 'initialiser') + $portsOpsys)
+    if ($reprise.Code -ne 0) { Write-Host $reprise.Sortie; Stop-Preuve "opsys metier instance initialiser a echoue apres la mise de cote de l'ancien etat (code $($reprise.Code))" }
     if ((Get-EmpreinteDesFichiersGeres) -ne $geresAvant) { Stop-Preuve 'la reinitialisation a change un secret ou la configuration' }
     if ((Get-Empreinte (Join-Path (Join-Path $script:OpsysHome 'core.ancien') '.env')) -ne $ancienAvant) { Stop-Preuve "l'ancien etat mis de cote a ete modifie" }
     Add-Constat "l'ancienne disposition est refusee avec la marche a suivre, sans rien modifier ; mise de cote, l'instance se reinitialise sans changer un secret"
@@ -538,7 +584,7 @@ function Invoke-Preuve {
     Write-Etape '2. Gateway au premier plan : il lance le moteur (superviseur T0.10) avec le jeton de .env'
     $sortieGateway = Join-Path $script:Travail 'gateway-premier-plan.out.log'
     $erreurGateway = Join-Path $script:Travail 'gateway-premier-plan.err.log'
-    $script:GatewayProc = Start-Process -FilePath (Join-Path $script:Bin 'openclaw.cmd') -ArgumentList @('gateway', 'run', '--bind', 'loopback', '--port', [string]$script:PortGateway) `
+    $script:GatewayProc = Start-Process -FilePath (Join-Path $script:Bin 'opsys.cmd') -ArgumentList @('gateway', 'run', '--bind', 'loopback', '--port', [string]$script:PortGateway) `
         -RedirectStandardOutput $sortieGateway -RedirectStandardError $erreurGateway -PassThru -WindowStyle Hidden
     Wait-Http "http://127.0.0.1:$($script:PortGateway)/startupz" 300 'Gateway'
     Wait-Http "http://127.0.0.1:$($script:PortMoteur)/sante" 240 'moteur'
@@ -574,8 +620,8 @@ function Invoke-Preuve {
     # -- 4. Export et restauration --------------------------------------------------------------------------------------
     Write-Etape '4. Export : archive privee, empreinte SHA-256, sans secret ; restauration dans une instance neuve'
     $archive = Join-Path $script:Travail 'export.tar.gz'
-    $export = Invoke-Opsys @('instance', 'exporter', '--sortie', $archive)
-    if ($export.Code -ne 0) { Write-Host $export.Sortie; Stop-Preuve "opsys instance exporter a echoue (code $($export.Code))" }
+    $export = Invoke-OpsysMetier @('instance', 'exporter', '--sortie', $archive)
+    if ($export.Code -ne 0) { Write-Host $export.Sortie; Stop-Preuve "opsys metier instance exporter a echoue (code $($export.Code))" }
     $attendueSha = ([System.IO.File]::ReadAllText("$archive.sha256") -split '\s+')[0].ToLowerInvariant()
     if ((Get-Empreinte $archive) -ne $attendueSha) { Stop-Preuve "l'empreinte SHA-256 de l'archive ne correspond pas a $archive.sha256" }
     Assert-AclPrivee $archive "l'archive d'export" -SansHeritage
@@ -599,12 +645,12 @@ function Invoke-Preuve {
     $restaure = Join-Path $script:Travail 'restaure'
     try {
         $env:OPSYS_HOME = $restaure
-        $restauration = Invoke-Opsys @('instance', 'restaurer', $archive)
-        $etatBase = Invoke-Opsys @('base', 'etat')
+        $restauration = Invoke-OpsysMetier @('instance', 'restaurer', $archive)
+        $etatBase = Invoke-OpsysMetier @('base', 'etat')
     }
     finally { $env:OPSYS_HOME = $script:OpsysHome }
-    if ($restauration.Code -ne 0) { Write-Host $restauration.Sortie; Stop-Preuve "opsys instance restaurer a echoue (code $($restauration.Code))" }
-    if ($etatBase.Sortie.IndexOf('"revision"', [System.StringComparison]::Ordinal) -lt 0) { Stop-Preuve "la base restauree n'est pas lisible par opsys base etat : $($etatBase.Sortie)" }
+    if ($restauration.Code -ne 0) { Write-Host $restauration.Sortie; Stop-Preuve "opsys metier instance restaurer a echoue (code $($restauration.Code))" }
+    if ($etatBase.Sortie.IndexOf('"revision"', [System.StringComparison]::Ordinal) -lt 0) { Stop-Preuve "la base restauree n'est pas lisible par opsys metier base etat : $($etatBase.Sortie)" }
     if (Test-Path -LiteralPath (Join-Path $restaure 'core')) { Stop-Preuve 'la restauration a pose un dossier core (secrets) : elle ne doit restaurer que les donnees' }
     if ((Get-EmpreinteDesFichiersGeres) -ne $etatAvantRestauration) { Stop-Preuve "la restauration a touche l'etat du core" }
     Add-Constat 'restauration dans une instance neuve : base lisible, aucun secret ni etat du Gateway restaure'
@@ -643,7 +689,9 @@ function Invoke-Preuve {
     if ($des.Code -ne 0) { Write-Host $des.Sortie; Stop-Preuve "uninstall.ps1 a echoue (code $($des.Code))" }
     $attendueAvant = ([System.IO.File]::ReadAllText("$archiveAvant.sha256") -split '\s+')[0].ToLowerInvariant()
     if ((Get-Empreinte $archiveAvant) -ne $attendueAvant) { Stop-Preuve "l'empreinte de l'export prealable ne correspond pas a $archiveAvant.sha256" }
-    if ((Test-Path -LiteralPath (Join-Path $script:Bin 'openclaw.cmd')) -or (Test-Path -LiteralPath (Join-Path $script:Bin 'opsys.cmd'))) { Stop-Preuve 'les commandes sont encore la' }
+    foreach ($commande in @('opsys.cmd', 'openclaw.cmd', 'opsys-metier.cmd')) {
+        if (Test-Path -LiteralPath (Join-Path $script:Bin $commande)) { Stop-Preuve "la commande $commande est encore la" }
+    }
     if (Test-Path -LiteralPath $script:Logiciel) { Stop-Preuve "le logiciel est encore la : $((Get-ChildItem -LiteralPath $script:Logiciel -Force | ForEach-Object { $_.Name }) -join ', ')" }
     $cheminUtilisateur = [string][Environment]::GetEnvironmentVariable('Path', 'User')
     if (($cheminUtilisateur -split ';') -contains $script:Bin) { Stop-Preuve "le dossier des commandes est encore dans le PATH de l'utilisateur" }

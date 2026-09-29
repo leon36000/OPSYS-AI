@@ -1,4 +1,5 @@
-"""Préparation de l'instance locale par l'installateur (PLAN T0.11) : `opsys.instance`, `opsys instance initialiser`.
+"""Préparation de l'instance locale par l'installateur (PLAN T0.11) : `opsys.instance`,
+`opsys-metier instance initialiser`.
 
 Ce que ces tests prouvent : le `.env` (0600, secrets jamais régénérés, aucune valeur dans une sortie), le verdict
 fail-closed qui dit quoi fournir, la configuration du core et `metier.json` générés puis relus sans changement.
@@ -178,7 +179,7 @@ def test_sans_paliers_ni_embeddings_le_verdict_dit_quoi_fournir_et_rien_d_autre_
 
     assert resultat.etat == "en_attente"
     assert len(resultat.manque) == 2
-    assert any("opsys paliers definir" in ligne for ligne in resultat.manque)
+    assert any("opsys-metier paliers definir" in ligne for ligne in resultat.manque)
     assert any("OPSYS_EMBEDDINGS_URL" in ligne and "OPSYS_EMBEDDINGS_MODELE" in ligne for ligne in resultat.manque)
     assert (etat_core / ".env").is_file()
     assert not (etat_core / "openclaw.json").exists()
@@ -207,6 +208,8 @@ def test_avec_paliers_et_embeddings_la_configuration_du_core_est_generee(opsys_h
     assert metier["hote"] == "127.0.0.1" and metier["port"] == 8766
     assert metier["commande"] == [sys.executable, "-m", "opsys.serveur_mcp", "--http", "--hote", "127.0.0.1",
                                   "--port", "8766"]
+    # `opsys metier <commande>` (T0.7 lot 2) : le même interpréteur, la CLI du moteur ; le core y ajoute les arguments
+    assert metier["commande_cli"] == [sys.executable, "-m", "opsys.cli"]
     assert metier["env"] == {"OPSYS_HOME": str(opsys_home)}
     env = instance.lire_env(core / ".env")
     assert env["OPSYS_EMBEDDINGS_MODELE"] == "bge-m3" and env["OPSYS_PASSERELLE_URL"] == "http://127.0.0.1:4000/v1"
@@ -279,6 +282,7 @@ def test_metier_json_garde_les_cles_de_l_operateur_et_suit_le_port(opsys_home, e
     assert apres["redemarrages_max"] == 3
     assert apres["env"] == {"OPSYS_HOME": str(opsys_home), "MA_VARIABLE": "x"}
     assert apres["port"] == 8777 and apres["commande"][-1] == "8777"
+    assert apres["commande_cli"] == [sys.executable, "-m", "opsys.cli"]
 
 
 def test_une_url_de_base_dans_l_environnement_est_refusee(opsys_home):
@@ -471,9 +475,12 @@ def test_les_constantes_recopiees_du_core_sont_celles_du_fork():
     metier_ts = (RACINE / "core/src/gateway/opsys-metier-config.ts").read_text(encoding="utf-8")
     chemins_ts = (RACINE / "core/src/config/paths.ts").read_text(encoding="utf-8")
 
+    metier_cli_ts = (RACINE / "core/src/cli/opsys-metier-cli.ts").read_text(encoding="utf-8")
+
     assert f'OPSYS_MCP_TOKEN_ENV = "{instance.ENV_JETON_MCP}"' in metier_ts
     assert f"DEFAULT_PORT = {instance.PORT_MOTEUR_DEFAUT};" in metier_ts
     assert f"DEFAULT_GATEWAY_PORT = {instance.PORT_GATEWAY_DEFAUT};" in chemins_ts
+    assert f'OPSYS_METIER_CLI_COMMAND_KEY = "{instance.CLE_COMMANDE_CLI}"' in metier_cli_ts
 
 
 def test_chaque_cle_de_metier_json_est_documentee_dans_le_fichier_de_config_du_core(opsys_home, etat_core,

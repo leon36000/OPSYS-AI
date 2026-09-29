@@ -2,13 +2,14 @@
 """E2E « app -> core -> moteur » avec le VRAI core (PLAN T1.5-b, T1.5-f) : `python tests/e2e_core/scenario.py`.
 
 `tests/e2e/` prouve le moteur, avec la règle de la porte d'appareil du core refaite en Python. Ce scénario prouve
-le trajet réel : un Gateway OPSYS-CORE construit (`pnpm build`), la configuration que `opsys openclaw configurer`
+le trajet réel : un Gateway OPSYS-CORE construit (`pnpm build`), la configuration que `opsys-metier openclaw configurer`
 génère, le moteur métier, un appareil qui s'appaire comme l'app, et les appels que l'app fait ensuite.
 
 Étapes (chacune échoue franchement, avec les journaux du Gateway et du moteur) :
- 1. configuration : `opsys base migrer`, `opsys paliers definir`, `opsys openclaw configurer` (les vrais fragments
-    `roles.json`, `mcp.json`, ...), puis `openclaw.json` complété du bloc `gateway` (le seul réglage que le socle
-    n'écrit pas) et, avec `--moteur superviseur`, `opsys/metier.json` ; deux personnes (`opsys personnes creer`) :
+ 1. configuration : `opsys-metier base migrer`, `opsys-metier paliers definir`, `opsys-metier openclaw configurer`
+    (les vrais fragments `roles.json`, `mcp.json`, ...), puis `openclaw.json` complété du bloc `gateway` (le seul
+    réglage que le socle n'écrit pas) et, avec `--moteur superviseur`, `opsys/metier.json` ; deux personnes
+    (`opsys-metier personnes creer`) :
     l'employée et le propriétaire (`nathan_owner`, `admin`) ;
  2. donnée : un chantier assigné à cette personne, par les vrais outils (`executer_atomique`) ;
  3. démarrage : `openclaw config validate` (le core accepte la configuration générée), puis le Gateway
@@ -17,7 +18,7 @@ génère, le moteur métier, un appareil qui s'appaire comme l'app, et les appel
  4. appairage : `openclaw qr` (code d'appairage), puis `appairer.mjs` joue la poignée de main de l'app (défi,
     charge v3 signée Ed25519) ; le propriétaire approuve par la CLI du core (`openclaw devices approve`) ; l'appareil
     reçoit son jeton ; avant l'attribution, le core ne lui donne ni identité ni outil ;
- 5. attribution : `opsys appareils appairer <deviceId> --personne ... --role employee` ;
+ 5. attribution : `opsys-metier appareils appairer <deviceId> --personne ... --role employee` ;
  6. trajet : `trajet.jouer` (identité, lecture, écritures avec `idempotencyKey`, `_meta` arrivé au moteur, rejeu,
     refus hors portée), chaque appel chronométré ;
  7. le propriétaire : un second appareil s'appaire de la même façon ; sa personne est `nathan`, son rôle `admin` ;
@@ -274,7 +275,7 @@ def preparer_configuration(instance: Instance, pile: contextlib.ExitStack) -> No
     racine = instance.dossier_core / "openclaw.json"
     config = json.loads(racine.read_text(encoding="utf-8"))
     exiger({"models", "agents", "mcp", "tools", "memory", "plugins"} <= set(config) and "gateway" not in config,
-           "openclaw.json doit venir de `opsys openclaw configurer` : six $include OPSYS, aucun bloc gateway",
+           "openclaw.json doit venir de `opsys-metier openclaw configurer` : six $include OPSYS, aucun bloc gateway",
            cles=sorted(config))
     config["gateway"] = {
         "mode": "local", "port": instance.port_gateway, "bind": "loopback", "auth": {"mode": "token"},
@@ -534,7 +535,7 @@ def derouler(
     passerelle_employe = Passerelle(instance.url_gateway, jeton, mesures)
     etape("   avant l'attribution : ni identité ni outil")
     verifier_avant_attribution(passerelle_employe)
-    etape("5. attribution : opsys appareils appairer")
+    etape("5. attribution : opsys-metier appareils appairer")
     attribuer(instance, device_id)
     etape("6. trajet de l'employée par la porte du core")
     app = creer_app_employe(passerelle_employe, employe, chantier)

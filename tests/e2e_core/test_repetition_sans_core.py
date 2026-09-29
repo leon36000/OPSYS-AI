@@ -4,8 +4,9 @@ Le core (TypeScript) ne tourne pas dans le bac à sable de développement ; sa C
 vrai Gateway (`.github/workflows/e2e-core.yml`). Pour que le script n'échoue pas en CI sur une faute de frappe,
 ce test en joue tout ce qui est Python, pour de vrai :
 
-- les vraies commandes du socle (`opsys base migrer`, `paliers definir`, `openclaw configurer`, `personnes creer`,
-  `appareils appairer`), les vrais fragments de configuration, le vrai chantier semé par les vrais outils ;
+- les vraies commandes du socle (`opsys-metier base migrer`, `paliers definir`, `openclaw configurer`,
+  `personnes creer`, `appareils appairer`), les vrais fragments de configuration, le vrai chantier semé par les vrais
+  outils ;
 - le vrai moteur, dans un processus à part, lancé avec la commande que `opsys/metier.json` donne au superviseur ;
 - le vrai trajet HTTP de `trajet.jouer`, contre une passerelle factice qui applique la règle de la porte d'appareil
   du core telle que `tests/fixtures/harnais_e2e.py` la refait d'après le fork.

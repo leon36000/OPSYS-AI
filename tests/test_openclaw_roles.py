@@ -104,7 +104,7 @@ def test_t3_jamais_projete_dans_aucun_role():
 
 
 def test_roles_outils_ignore_t3_n5_et_roles_inconnus_meme_declares():
-    """Défense en profondeur : même si une déclaration invalide existe (`opsys verifier` la refuse),
+    """Défense en profondeur : même si une déclaration invalide existe (`opsys-metier verifier` la refuse),
     la projection ne l'accorde jamais — ni T3, ni N5 explicite, ni un rôle hors `ROLES_APPAREIL`."""
     roles = openclaw.roles_outils({"m09": _departement("M9", "demo_outils_portee_invalide")})
 
@@ -135,7 +135,7 @@ def test_un_outil_refuse_une_declaration_de_mauvaise_forme(invalide):
         Outil("m9_exemple", "Déclaration mal formée.", _VIDE, lambda: {}, roles_appareil=invalide)
 
 
-# -- `opsys verifier` : rôle inconnu ou outil T3 ------------------------------------------------
+# -- `opsys-metier verifier` : rôle inconnu ou outil T3 ------------------------------------------------
 
 
 def test_verifier_portees_ne_signale_rien_pour_des_declarations_valides():
@@ -231,7 +231,7 @@ def test_generer_refuse_une_portee_invalide_et_n_ecrit_rien(racine_demo, tmp_pat
 
 
 def test_cli_openclaw_configurer_ecrit_roles_json(racine_demo, tmp_path, monkeypatch, capsys):
-    """`opsys openclaw configurer` (la commande réelle) produit le fragment lu par le core."""
+    """`opsys-metier openclaw configurer` (la commande réelle) produit le fragment lu par le core."""
     cible = _racine_avec_outils(racine_demo, tmp_path / "src", "demo_outils_portee_valide")
     monkeypatch.setenv("OPSYS_DEPARTMENTS", str(cible))
     monkeypatch.setenv("OPSYS_EMBEDDINGS_URL", ENVIRON_EMBEDDINGS["OPSYS_EMBEDDINGS_URL"])

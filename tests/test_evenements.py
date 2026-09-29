@@ -449,7 +449,7 @@ def test_verifier_coherence_ignore_departement_hors_du_bus(departements_demo):
     assert evenements.verifier_coherence({base.id: base}) == []
 
 
-# -- CLI : opsys verifier et opsys evenements etat|repartir -------------------------------------
+# -- CLI : opsys-metier verifier et opsys-metier evenements etat|repartir -------------------------------------
 def _manifeste_avec_evenements(racine_demo, tmp_path, evenements_section: dict):
     cible = tmp_path / "departements"
     shutil.copytree(racine_demo, cible)

@@ -11,7 +11,7 @@ avoir besoin) ::
     equipes:
       liste:                          # les équipes ; l'id d'une équipe EST le technicien_id de son assignation
         - id: eq-repentigny
-          membres: [alice, bruno]     # identifiants de PERSONNES OPSYS (opsys personnes lister), rien d'autre
+          membres: [alice, bruno]     # identifiants de PERSONNES OPSYS (opsys-metier personnes lister), rien d'autre
           competences: [gouttieres, revetement]
           depot: {id: depot-repentigny, latitude_microdegres: 45735000, longitude_microdegres: -73455000}
           quarts: [{jour: 0, debut_min: 480, fin_min: 1020}]     # jour : numéro de journée de la cédule
@@ -29,7 +29,7 @@ Une compétence est un code que le propriétaire choisit (« gouttieres »), pas
 
 Fail-closed (AGENTS.md) : sans profil, aucune équipe, aucun dépôt, aucun quart ni aucune durée n'est inventé ; le
 verdict dit quoi déclarer et comment. Un profil invalide n'est jamais lu comme absent (`REJ-PROFIL-INVALIDE`). La
-déclaration REMPLACE la clé entière : pour modifier, `opsys equipes lister`, éditer, puis redéclarer.
+déclaration REMPLACE la clé entière : pour modifier, `opsys-metier equipes lister`, éditer, puis redéclarer.
 
 Les bornes des réglages de la cédule (détour, vitesse, marge, itérations, coût) sont celles du solveur : M4 les vérifie
 au moment de s'en servir et son verdict les cite ; ce module n'exige que des entiers du bon signe.
@@ -332,7 +332,7 @@ def lire_equipes(chemin: Path | None = None) -> dict[str, Any] | None:
 def _consigne_declaration(chemin: Path) -> str:
     return (
         "déclare les équipes de l'entreprise : écris un fichier YAML (clés "
-        f"{', '.join(CLES_PROFIL)}) puis `opsys equipes declarer --depuis <fichier> --par <ton nom>` ; "
+        f"{', '.join(CLES_PROFIL)}) puis `opsys-metier equipes declarer --depuis <fichier> --par <ton nom>` ; "
         f"le profil est écrit dans {chemin} (clé '{CLE_EQUIPES}'), voir docs/architecture/TAXONOMIE.md"
     )
 
@@ -398,7 +398,7 @@ def a_declarer(profil: Mapping[str, Any] | None, services_declares: Iterable[str
     `services_declares` : les codes du profil de services (`opsys.taxonomie`) : chacun a besoin d'une durée et de ses
     compétences. La fenêtre par défaut est facultative (le client peut donner la sienne) : jamais un manque."""
     if profil is None:
-        return [f"le profil des équipes : {', '.join(CLES_PROFIL)} (`opsys equipes declarer`)"]
+        return [f"le profil des équipes : {', '.join(CLES_PROFIL)} (`opsys-metier equipes declarer`)"]
     manques: list[str] = []
     if CLE_LISTE not in profil:
         manques.append(f"les équipes (clé {CLE_EQUIPES}.{CLE_LISTE}) : membres, compétences, dépôt et quarts")
@@ -419,18 +419,19 @@ def a_declarer(profil: Mapping[str, Any] | None, services_declares: Iterable[str
 
 
 def verifier_personnes(profil: Mapping[str, Any], cnx: Any) -> list[str]:
-    """Contrôle du profil contre les personnes OPSYS de la base (`opsys equipes declarer`) : une ligne par problème.
+    """Contrôle du profil contre les personnes OPSYS de la base (`opsys-metier equipes declarer`) : une ligne par
+    problème.
 
-    Un membre doit être une personne existante et active (`opsys personnes lister`). L'identifiant d'une équipe qui est
-    aussi celui d'une personne exige que cette personne en soit membre : sinon elle verrait, par son propre identifiant,
-    les chantiers de l'équipe (l'accès d'un employé se décide sur le technicien assigné)."""
+    Un membre doit être une personne existante et active (`opsys-metier personnes lister`). L'identifiant d'une équipe
+    qui est aussi celui d'une personne exige que cette personne en soit membre : sinon elle verrait, par son propre
+    identifiant, les chantiers de l'équipe (l'accès d'un employé se décide sur le technicien assigné)."""
     problemes: list[str] = []
     for equipe in profil.get(CLE_LISTE, ()):
         for membre in equipe["membres"]:
             trouvee = identite.personne(cnx, membre)
             if trouvee is None:
                 problemes.append(
-                    f"équipe {equipe['id']!r} : personne inconnue {membre!r} (opsys personnes creer)"
+                    f"équipe {equipe['id']!r} : personne inconnue {membre!r} (opsys-metier personnes creer)"
                 )
             elif not trouvee.actif:
                 problemes.append(f"équipe {equipe['id']!r} : la personne {membre!r} est désactivée")
@@ -444,8 +445,8 @@ def verifier_personnes(profil: Mapping[str, Any], cnx: Any) -> list[str]:
 
 
 def verifier_profil() -> list[str]:
-    """`opsys verifier` : un profil des équipes présent doit être valide, et ne parler que de services déclarés. Un
-    profil absent n'est pas une erreur (l'instance n'a simplement pas encore déclaré ses équipes)."""
+    """`opsys-metier verifier` : un profil des équipes présent doit être valide, et ne parler que de services
+    déclarés. Un profil absent n'est pas une erreur (l'instance n'a simplement pas encore déclaré ses équipes)."""
     from . import taxonomie
 
     try:

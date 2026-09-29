@@ -1,5 +1,5 @@
 """Outils d'un département M9 fictif dont les portées d'appareil sont invalides
-(`tests/test_openclaw_roles.py`, T1.4-j) : `opsys verifier` et `openclaw.generer` doivent les refuser,
+(`tests/test_openclaw_roles.py`, T1.4-j) : `opsys-metier verifier` et `openclaw.generer` doivent les refuser,
 et `openclaw.roles_outils` ne doit jamais en tirer une portée de plus que les rôles d'appareil
 connus, ni un outil T3/N5."""
 

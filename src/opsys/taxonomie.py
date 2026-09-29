@@ -919,7 +919,7 @@ def enregistrer_destinataires_transfert(table: Any, chemin: Path | None = None, 
 
 
 def verifier_profil() -> list[str]:
-    """`opsys verifier` : un profil présent doit être valide. Un profil absent n'est pas une erreur
+    """`opsys-metier verifier` : un profil présent doit être valide. Un profil absent n'est pas une erreur
     (l'instance n'a simplement encore déclaré aucun service, et tout service est alors refusé)."""
     problemes: list[str] = []
     lectures = (
@@ -947,7 +947,7 @@ def verifier_profil() -> list[str]:
 
 
 def copies_locales_du_catalogue(racines: Iterable[Path]) -> list[str]:
-    """`opsys verifier` : garde de dérive. Cherche, dans les sources Python sous `racines`, une
+    """`opsys-metier verifier` : garde de dérive. Cherche, dans les sources Python sous `racines`, une
     collection littérale (tuple, liste, ensemble, clés d'un dict) qui porte au moins DEUX codes du
     catalogue de référence : c'est une copie locale de la taxonomie, qui dériverait en silence.
 

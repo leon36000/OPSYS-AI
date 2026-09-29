@@ -4,11 +4,12 @@
 #   install/uninstall.sh [--exporter-avant ARCHIVE.tar.gz] [--simuler]
 #
 # Ce que fait ce script :
-#   1. avec --exporter-avant : archive d'abord l'instance (`opsys instance exporter`, empreinte SHA-256 incluse) ; si
+#   1. avec --exporter-avant : archive d'abord l'instance (`opsys metier instance exporter`, empreinte SHA-256 incluse) ; si
 #      l'export échoue, RIEN n'est retiré ;
-#   2. arrête et retire le service du Gateway (`openclaw gateway uninstall`, sous le profil « opsys » du core : le
+#   2. arrête et retire le service du Gateway (`opsys gateway uninstall`, sous le profil « opsys » du core : le
 #      service du core d'origine n'est jamais touché), si l'installateur l'avait installé ;
-#   3. retire les commandes `openclaw` et `opsys` de OPSYS_BIN (seulement celles que l'installateur a écrites) ;
+#   3. retire les commandes `opsys`, `openclaw` et `opsys-metier` de OPSYS_BIN (seulement celles que l'installateur a
+#      écrites, l'ancienne enveloppe `opsys` du moteur comprise) ;
 #   4. retire le logiciel : environnement Python, journal, et le clone géré par l'installateur. Un dépôt à vous
 #      (OPSYS_SOURCE, ou celui d'où vous avez lancé l'installateur) n'est jamais touché.
 #
@@ -196,7 +197,7 @@ retirer_service() {
 
 retirer_commandes() {
     local cible
-    for cible in "$OPSYS_BIN/openclaw" "$OPSYS_BIN/opsys"; do
+    for cible in "$OPSYS_BIN/opsys" "$OPSYS_BIN/openclaw" "$OPSYS_BIN/opsys-metier"; do
         if [ -e "$cible" ]; then
             if grep -qF "$MARQUE" "$cible" 2>/dev/null; then
                 agir "suppression de la commande $cible" rm -f -- "$cible"
@@ -236,7 +237,7 @@ main() {
     printf '  %s\n' "Données conservées : $OPSYS_HOME (base, paliers, profil d'entreprise)."
     printf '  %s\n' "État du core conservé : ${ENR_DOSSIER_CORE:-le dossier .openclaw-$PROFIL_CORE de votre dossier personnel} (secrets .env, état du Gateway)."
     if [ -z "$ARCHIVE" ]; then
-        printf '  %s\n' "Aucun export demandé (--exporter-avant). Pour en faire un maintenant : réinstallez OPSYS, puis opsys instance exporter."
+        printf '  %s\n' "Aucun export demandé (--exporter-avant). Pour en faire un maintenant : réinstallez OPSYS, puis opsys metier instance exporter."
     fi
     printf '  %s\n' "Les supprimer définitivement est une décision humaine : voir docs/exploitation/INSTALLATION.md."
 }

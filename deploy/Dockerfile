@@ -57,6 +57,12 @@ RUN mkdir -p /opt/data /openclaw-config /shared/litellm-config && \
 
 COPY --chmod=0755 deploy/entrypoint.sh /opt/opsys/deploy/entrypoint.sh
 
+# `opsys` n'est plus la CLI du moteur (PLAN T0.7 lot 2) : elle s'appelle `opsys-metier`, point d'entrée du paquet. Une
+# ancienne invocation (`docker compose exec opsys opsys personnes creer`, un script) reçoit un message qui dit la
+# nouvelle, au lieu de « executable file not found ». Le venv (PATH, plus haut) n'a plus de `opsys` : c'est ce fichier
+# qui répond, et il sort en erreur (2) pour qu'un script ne continue pas sur une commande retirée.
+COPY --chmod=0755 deploy/opsys-ancienne-commande.sh /usr/local/bin/opsys
+
 USER opsys
 WORKDIR /opt/opsys
 EXPOSE 8765 8700

@@ -4,7 +4,7 @@ Trois familles de copies pouvaient diverger en silence ; chacune est maintenant 
 source de vérité :
 
 1. la LISTE DES SERVICES : le catalogue vit dans `opsys.taxonomie`, aucune source de département
-   ne le recopie (`taxonomie.copies_locales_du_catalogue`, aussi lancée par `opsys verifier`) ;
+   ne le recopie (`taxonomie.copies_locales_du_catalogue`, aussi lancée par `opsys-metier verifier`) ;
 2. le CONTRAT v2 : le fichier `m1-lead-qualifie.v2.yaml`, M1 (qui l'émet), M2 (qui l'accepte), M3
    (qui le consomme) et M4 (qui inscrit l'intervention) portent les mêmes clés, la même version et
    les mêmes sous-clés `utm` ;

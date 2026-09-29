@@ -5,7 +5,7 @@ Bibliothèque standard uniquement (hmac, hashlib, secrets) : chaque règle se te
 - Plus de mot de passe partagé (ADR-0009 §5 : « fini le mot de passe partagé ») : la connexion
   authentifie une personne (`opsys.identite.authentifier`, dans `console.application`), pas un
   secret d'administration commun. Amorçage de la toute première personne (`nathan_owner`) : CLI
-  `opsys personnes creer`, avant la première connexion (voir `docs/ops/INSTALLATION-VPS.md`).
+  `opsys-metier personnes creer`, avant la première connexion (voir `docs/ops/INSTALLATION-VPS.md`).
 - Une session sans état côté serveur : cookie `charge.signature`, signé HMAC-SHA256 avec
   OPSYS_CONSOLE_SECRET. Elle porte l'identifiant de la personne connectée, ses rôles (ADR-0009 §5),
   un jeton CSRF et une échéance. Changer le secret ferme toutes les sessions.

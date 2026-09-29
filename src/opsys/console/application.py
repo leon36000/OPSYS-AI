@@ -7,7 +7,7 @@
 Sécurité (voir `securite`) :
 - connexion PAR PERSONNE (identifiant + mot de passe propre, `opsys.identite.authentifier`) — plus
   de mot de passe partagé (ADR-0009 §5). Amorçage de la toute première personne (`nathan_owner`) :
-  CLI `opsys personnes creer`, avant la première connexion.
+  CLI `opsys-metier personnes creer`, avant la première connexion.
 - session par cookie signé (HttpOnly, Secure, SameSite=Strict), limité au préfixe de la console,
   portant l'identifiant de la personne ET ses rôles (`securite.Session`) ;
 - jeton CSRF sur chaque écriture : champ `csrf` des formulaires, en-tête `X-CSRF-Token` de l'API ;

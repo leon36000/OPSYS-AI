@@ -143,7 +143,7 @@ def test_postgresql_se_comporte_comme_sqlite(monkeypatch):
             stockage.liberer()
 
 
-# -- exploitation : opsys base migrer | etat ---------------------------------------------------
+# -- exploitation : opsys-metier base migrer | etat ---------------------------------------------------
 def test_cli_base_migrer_et_etat(tmp_path, monkeypatch, capsys):
     import json
 

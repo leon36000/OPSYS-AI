@@ -87,7 +87,7 @@ class Outil:
     # implicite). La déclaration vit ici, à côté de l'autonomie et des paramètres, pour que la
     # relecture d'un outil montre qui peut l'appeler, et qu'un renommage n'orpheline aucune entrée.
     # `opsys.openclaw.roles_outils` est la seule projection vers le core ; un outil T3/N5 n'est
-    # jamais projeté, quoi que déclare cet attribut (`opsys verifier` le refuse aussi).
+    # jamais projeté, quoi que déclare cet attribut (`opsys-metier verifier` le refuse aussi).
     roles_appareil: frozenset[str] = frozenset()
 
     def __post_init__(self) -> None:
@@ -109,7 +109,7 @@ class Outil:
             raise ValueError(f"{self.nom} : autonomie invalide {self.autonomie!r}")
         if self.niveau is not None and not isinstance(self.niveau, Niveau):
             raise ValueError(f"{self.nom} : niveau invalide {self.niveau!r}")
-        # Forme seulement : le contenu (rôle connu, outil non T3) est contrôlé par `opsys verifier`
+        # Forme seulement : le contenu (rôle connu, outil non T3) est contrôlé par `opsys-metier verifier`
         # (`departements.verifier_portees`) et rejoué par `roles_outils`. Une chaîne nue serait
         # itérée caractère par caractère : refusée d'office.
         if not isinstance(self.roles_appareil, frozenset) or not all(
