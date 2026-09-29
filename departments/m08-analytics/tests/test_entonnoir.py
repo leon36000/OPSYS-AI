@@ -572,12 +572,39 @@ def test_un_comptage_cumule_n_a_pas_de_seuil_meme_configure_et_une_mesure_non_ca
     assert set(sans_devis) == {"m8_devis_sans_reponse", "m8_carnet_signe_cad"}
 
 
+def test_une_cle_de_seuil_qui_ne_surveille_rien_est_dite_jamais_ignoree_en_silence():
+    """Une faute de frappe ou un comptage cumulé : le propriétaire croirait sa surveillance en place."""
+    seuils = {
+        "m8_leads_recus": {"sens": "au_dessous", "valeur": 10},  # un comptage cumulé : ne se surveille pas
+        "m8_taux_acceptation": {"sens": "au_dessous", "valeur": 30},  # « _pct » oublié
+        "m8_taux_acceptation_pct": {"sens": "au_dessous", "valeur": 30},  # celle-ci surveille
+    }
+
+    assert entonnoir.seuils_ignores(seuils) == ["m8_leads_recus", "m8_taux_acceptation"]
+    assert entonnoir.seuils_ignores({}) == [] and entonnoir.seuils_ignores(None) == []
+    assert entonnoir.seuils_ignores("n'importe quoi") == [] and entonnoir.seuils_ignores([1, 2]) == []
+    assert entonnoir.situation(_scenario(), [], entonnoir.charger_definitions(), seuils)["seuils_ignores"] == [
+        "m8_leads_recus", "m8_taux_acceptation",
+    ]
+
+
+def test_chaque_metrique_du_registre_a_son_calcul_et_ses_sources_et_chaque_seuil_vise_une_metrique_du_registre():
+    """Le registre gouverné et le code restent d'accord : une métrique ajoutée au fichier sans calcul serait
+    « non calculable, aucun calcul enregistré » (fail-closed) ; ce garde la fait échouer avant."""
+    definitions = set(entonnoir.charger_definitions())
+
+    types_requis = {t for types in entonnoir._SOURCES_REQUISES.values() for t in types}
+    assert set(entonnoir._CALCULS) == definitions == set(entonnoir._SOURCES_REQUISES)
+    assert definitions >= entonnoir._METRIQUES_SURVEILLEES
+    assert set(entonnoir._EVENEMENT_DE_TYPE) >= types_requis
+
+
 def test_la_situation_assemble_mesures_sources_seuils_et_devis_en_attente():
     situation = entonnoir.situation(_scenario(), [_wct("wct-D3", "D3")], entonnoir.charger_definitions(), {})
 
-    assert set(situation) == {"mesures", "sources", "seuils", "devis"}
+    assert set(situation) == {"mesures", "sources", "seuils", "seuils_ignores", "devis"}
     assert [m["metric_id"] for m in situation["mesures"]] == list(METRIQUES)
-    assert len(situation["sources"]) == 5 and len(situation["seuils"]) == 4
+    assert len(situation["sources"]) == 5 and len(situation["seuils"]) == 4 and situation["seuils_ignores"] == []
     assert situation["devis"] == {"sans_reponse": ["D2"], "brouillons_en_retard": ["D4"]}
 
 

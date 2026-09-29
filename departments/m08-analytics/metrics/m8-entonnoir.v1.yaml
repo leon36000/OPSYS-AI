@@ -26,7 +26,7 @@ proprietaires:
 metrics:
   - id: m8_leads_recus
     nom: "Leads reçus"
-    definition: "Nombre de leads distincts (lead_id) que M2 a ouverts et associés à un client, un fait par lead ingéré. Tous les faits reçus par M8, sans fenêtre de période. Sans aucun fait de l'entonnoir, non calculable : un zéro n'est jamais supposé."
+    definition: "Nombre de leads distincts (lead_id) que M2 a ouverts et associés à un client, un fait par lead ingéré, y compris l'opportunité que M2 ouvre à la fin d'un chantier pour un client déjà connu. Tous les faits reçus par M8, sans fenêtre de période. Sans aucun fait de l'entonnoir, non calculable : un zéro n'est jamais supposé."
     unite: "leads"
     source_donnees: "M2 m2.client_associe (lead_id, horodatage_association)"
     frequence: "à chaque lead ingéré"

@@ -7,11 +7,16 @@ de matériaux → le bus livre le WCT, le devis accepté (M3) et la variance à 
 avec ses métriques gouvernées et publie ses alertes → M9 les reçoit, les lit et les cite dans son
 briefing et sa lecture stratégique, sans rien décider.
 
-Deux scénarios, chacun sur une base SQLite temporaire migrée :
+Trois scénarios, chacun sur une base SQLite temporaire migrée :
 
 1. écart de matériaux de 40 % (seuil de M8 configuré à 30 %) : alerte de mesure, lue par M9 ;
 2. devis accepté APRÈS la complétion, aucun seuil configuré (l'état de livraison) : M8 remesure à
-   l'arrivée du devis, n'alerte pas, dit « seuil à configurer », et M9 en fait un manque.
+   l'arrivée du devis, n'alerte pas, dit « seuil à configurer », et M9 en fait un manque ;
+3. PLAN T4.19 — l'entonnoir et la vue exécutive : lead ingéré et qualifié (M2), deux devis envoyés (M3, par
+   l'approbation N4 du propriétaire), l'un accepté, l'autre sans réponse, puis le chantier terminé (M4, M5, M6) :
+   `m8_lire_vue_executive` montre l'entonnoir, la marge réelle de M5 (le texte que M5 a publié), le stock à
+   commander de M6 (ce que M6 met à la file du propriétaire) et un cash libre « manque » ; un employé et un
+   vendeur en sont refusés.
 
 Ce que M3 ne fournit pas encore reste « non calculable, manque X » : la durée estimée du devis (M3 ne
 la publie pas) et la marge réelle (M5 ne la rapporte pas) — jamais une valeur inventée.
@@ -25,11 +30,14 @@ from __future__ import annotations
 import base64
 import datetime as dt
 import hashlib
+import json
 import struct
 import zlib
 
 import m2_revenue_crm.outils as m2_outils
+import m3_estimation.outils as m3_outils
 import m5_financecore.outils as m5_outils
+import m6_material_control.outils as m6_outils
 import pytest
 import yaml
 from m2_revenue_crm import statuts as m2_statuts
@@ -37,7 +45,9 @@ from m4_field_ops import cedule
 from m8_analytics import outils as m8_outils
 from sqlalchemy import select
 
-from opsys import evenements, stockage
+from opsys import approbations_appareil, contexte, evenements, idempotence, identite, stockage
+from opsys.capacites import Capacites
+from opsys.contexte import IdentiteAppelante
 from opsys.departements import charger_departements
 from opsys.outils import executer_atomique
 from opsys.stockage import codec
@@ -461,3 +471,227 @@ def test_devis_apres_la_completion_m8_remesure_sans_seuil_pas_d_alerte_et_m9_lit
     statut = executer_atomique(m4["m4_statut_intervention"], {"intervention_id": intervention_id})
     assert statut["resultat"]["statut"] == "completed_verified"
     assert m2_statuts.statut_courant(m2_outils._obtenir_registre(), lead_id) == "facture"
+
+
+# =============================================================================================
+# 3. PLAN T4.19 : l'entonnoir et la vue exécutive du propriétaire, par les vrais producteurs
+# =============================================================================================
+MOT_DE_PASSE = "un-mot-de-passe-suffisamment-long"
+VENDEUR = IdentiteAppelante(personne="vendeur.un", role="seller")
+EMPLOYE = IdentiteAppelante(personne="employe.un", role="employee")
+PROPRIETAIRE = IdentiteAppelante(personne="proprio", role="admin")
+CONFIDENCES = ("Client Fictif", "418-555-0100", "exemple-fictif.test", "Alice Vendeuse", "@")
+
+
+@pytest.fixture
+def personnes(base_durable):
+    with stockage.transaction() as cnx:
+        identite.creer_personne(cnx, "vendeur.un", "Vendeur Un (fictif)", MOT_DE_PASSE, ["seller"])
+        identite.creer_personne(cnx, "employe.un", "Employé Un (fictif)", MOT_DE_PASSE, ["employee"])
+        identite.creer_personne(cnx, "proprio", "Propriétaire (fictif)", MOT_DE_PASSE, ["admin", "nathan_owner"])
+
+
+@pytest.fixture
+def configurations(tmp_path, monkeypatch):
+    """Ce que Nathan décide et que les manifestes livrés laissent vide : le taux horaire de M5 (50,00 $/h) et le
+    seuil de réapprovisionnement de M6 (150 pi, cible 300 pi). Aucun seuil de l'entonnoir : M8 le dit à configurer."""
+    manifeste_m5 = tmp_path / "department-m5.yaml"
+    manifeste_m5.write_text(
+        yaml.safe_dump({"configuration": {"taux_horaire_main_d_oeuvre": "50.00"}}), encoding="utf-8"
+    )
+    monkeypatch.setattr(m5_outils, "_MANIFESTE", manifeste_m5)
+    manifeste_m6 = tmp_path / "department-m6.yaml"
+    manifeste_m6.write_text(yaml.safe_dump({"schema": "opsys.departement/v1", "configuration": {
+        "seuil_variance_chantier_pourcentage": 0.3, "seuil_ecart_prix_reception_pourcentage": 0.15,
+        "reapprovisionnement": {"articles": {MATERIAU_ID: {"seuil_reapprovisionnement": 150, "quantite_cible": 300}}},
+    }}, allow_unicode=True), encoding="utf-8")
+    monkeypatch.setattr(m6_outils, "_MANIFESTE", manifeste_m6)
+
+
+def _m3_ecrire_estimation(devis_id: str, lead_id: str, duree_estimee_minutes: str) -> None:
+    """L'estimation d'origine du devis (registre « principal » de M3) : c'est d'elle que `m3_marquer_devis_accepte`
+    tire la durée estimée qu'il publie."""
+    with stockage.transaction():
+        _, verdict = m3_outils.registre_production().ajouter({
+            "devis_id": devis_id, "lead_id": lead_id, "empreinte_marqueur_m2": "e" * 64, "niveau_confiance": 0.9,
+            "bareme_version": "v1-fictif", "graine_monte_carlo": 7, "duree_estimee_minutes": duree_estimee_minutes,
+        })
+    assert verdict is None, verdict
+
+
+def _m6_prix_au_livre(m6, prix: float = 8.0) -> None:
+    r = executer_atomique(m6["m6_enregistrer_prix"], {
+        "materiau_id": MATERIAU_ID, "fournisseur_id": "gentek-fictif", "prix_unitaire": prix, "devise": "CAD",
+        "date_effet": "2026-09-01", "source_document": None})
+    assert r["ok"] and r["resultat"]["accepte"], r
+
+
+def _m3_envoyer_devis(deps, devis_id: str, cle: str) -> None:
+    """Le vendeur DEMANDE l'envoi (N4) depuis son appareil ; le propriétaire l'approuve depuis le sien : c'est à cette
+    décision que M3 passe le devis à `envoye` et publie `m3.devis_envoye` (PLAN T4.7)."""
+    m3 = {"m03-estimation": deps["m03-estimation"]}
+    capacites = Capacites(m3, stockage.transaction, memoire=False)
+    meta = idempotence.Meta(cle=cle, appareil="tel-vendeur-t419", horodatage_appareil="2026-09-21T06:30:00-04:00")
+    with contexte.appele_par_appareil(VENDEUR):
+        demande = capacites.appeler("m3_demander_envoi_devis", {"devis_id": devis_id, "contexte_revue": None}, meta)
+    assert demande["ok"] is True and demande["statut"] == "en_attente_approbation", demande
+    with stockage.transaction() as cnx:
+        decision, verdict = approbations_appareil.decider_demande(
+            cnx, m3, PROPRIETAIRE, demande["demande_id"], "approuver", "", appareil="tel-proprio-t419")
+    assert verdict is None and decision["issue"] == {"ok": True, "accepte": True}, (decision, verdict)
+
+
+def _charges_publiees_du_type(type_evenement: str) -> list[dict]:
+    with stockage.transaction() as cnx:
+        lignes = cnx.execute(select(EVENEMENTS_SORTANTS.c.charge).where(
+            EVENEMENTS_SORTANTS.c.type_evenement == type_evenement)).all()
+    return [codec.decoder(ligne.charge) for ligne in lignes]
+
+
+def _vue_executive_reponse(deps, appelante: IdentiteAppelante) -> dict:
+    """La lecture de l'appareil de cette personne : `executer_atomique`, l'identité posée comme le fait le core."""
+    with contexte.appele_par_appareil(appelante):
+        return executer_atomique(_outils(deps, "m08-analytics")["m8_lire_vue_executive"], {})
+
+
+def _vue_executive(deps, appelante: IdentiteAppelante = PROPRIETAIRE) -> dict:
+    reponse = _vue_executive_reponse(deps, appelante)
+    assert reponse["ok"] is True, reponse
+    return reponse["resultat"]
+
+
+def _types_publies() -> set[str]:
+    with stockage.transaction() as cnx:
+        return {ligne[0] for ligne in cnx.execute(select(EVENEMENTS_SORTANTS.c.type_evenement)).all()}
+
+
+def _ecritures_du_bus() -> tuple[int, int]:
+    with stockage.transaction() as cnx:
+        return (
+            len(cnx.execute(select(EVENEMENTS_SORTANTS.c.evenement_id)).all()),
+            len(cnx.execute(select(EVENEMENTS_RECUS.c.evenement_id)).all()),
+        )
+
+
+def test_du_lead_qualifie_au_chantier_termine_la_vue_executive_montre_l_entonnoir_la_marge_de_m5_et_le_stock_de_m6(
+        base_durable, personnes, configurations):
+    deps = charger_departements()
+    m2, m3, m4, m6 = (_outils(deps, d) for d in
+                       ("m02-revenue-crm", "m03-estimation", "m04-field-ops", "m06-material-control"))
+    base = dt.datetime(2026, 9, 21, 7, 0, 0, tzinfo=DT_TZ)
+    arrivee = base - dt.timedelta(days=3)  # le lead est arrivé trois jours avant le reste du trajet
+    lead_id, devis_a, devis_b = "LEAD-T419-1-fictif", "DEVIS-T419-A-fictif", "DEVIS-T419-B-fictif"
+    chantier_a = "CH-T419-A-fictif"
+
+    # -- M2 ingère et qualifie ; M3 crée deux devis ; le propriétaire approuve l'envoi de chacun -----------------------
+    marqueur = _m2_amener_pret_pour_readiness(m2, lead_id, arrivee)
+    _m6_prix_au_livre(m6)
+    _m3_creer_devis(m3, devis_a, lead_id, chantier_a, base)
+    _m3_creer_devis(m3, devis_b, lead_id, "CH-T419-B-fictif", base)
+    _m3_ecrire_estimation(devis_a, lead_id, "90")
+    _m3_envoyer_devis(deps, devis_a, "cle-envoi-a")
+    _m3_envoyer_devis(deps, devis_b, "cle-envoi-b")
+    # -- le devis A est accepté (T3, un humain) ; le constat de M3 signale B, envoyé et resté sans réponse -------------
+    _m2_transitionner(m2, lead_id, "converti", base, 300, reference_devis_m3=devis_a)
+    _m3_accepter_devis(m3, devis_a, base)
+    detection = executer_atomique(m3["m3_detecter_devis_sans_reponse"], {
+        "horodatage_reference": "2099-01-01T00:00:00-04:00", "delai_relance_jours": 7})
+    assert detection["ok"] is True and detection["resultat"]["relances_publiees"] == [devis_b], detection
+
+    # Le bus est livré à M8 seul : les autres départements lisent à leur rythme (M4 reçoit `m3.devis_accepte` plus
+    # bas, quand son intervention existe déjà, comme dans les deux scénarios précédents).
+    total = _drainer({"m08-analytics": deps["m08-analytics"]}, base + dt.timedelta(hours=1))
+    assert total["echecs"] == 0 and total["quarantaines"] == 0 and total["traites"] == 6, total
+    for evenement_id in (
+        f"m2-client-associe-{lead_id}", f"m2-lead-assigne-{lead_id}", f"m3-devis-envoye-{devis_a}",
+        f"m3-devis-envoye-{devis_b}", f"m3-devis-accepte-{devis_a}", f"m3-devis-sans-reponse-{devis_b}",
+    ):
+        recu = _recu(evenement_id, "m08-analytics")
+        assert recu is not None and recu["statut"] == "traite", (evenement_id, recu)
+
+    # -- 1. la vue de l'admin montre l'entonnoir, mesuré par le code d'après ce que M2 et M3 ont publié ---------------
+    avant = _ecritures_du_bus()
+    vue = _vue_executive(deps)
+    assert _ecritures_du_bus() == avant  # lecture pure : la vue n'écrit rien et ne publie rien au bus
+    lignes = {m["metric_id"]: m for m in vue["entonnoir"]["mesures"]}
+    assert {m: x["valeur"] for m, x in lignes.items()} == {
+        "m8_leads_recus": "1", "m8_leads_qualifies": "1", "m8_devis_envoyes": "2", "m8_devis_acceptes": "1",
+        "m8_devis_sans_reponse": "1", "m8_taux_acceptation_pct": "50.00",
+        "m8_delai_lead_acceptation_jours": "3.01",  # 3 jours et 10 minutes, de l'arrivée du lead à l'acceptation
+        "m8_carnet_signe_cad": "600.00",  # le devis A, accepté, dont le chantier n'est pas encore terminé
+    }
+    assert {x["statut"] for x in lignes.values()} == {"calculee"}
+    assert lignes["m8_taux_acceptation_pct"]["entrees"] == {
+        "n_envoyes": 2, "n_acceptes_parmi_envoyes": 1, "n_acceptes_sans_envoi_recu": 0,
+    }
+    assert [(s["evenement"], s["n"]) for s in vue["entonnoir"]["sources"]] == [
+        ("m2.client_associe", 1), ("m2.lead_assigne", 1), ("m3.devis_envoye", 2), ("m3.devis_accepte", 1),
+        ("m3.devis_sans_reponse", 1),
+    ]
+    assert vue["entonnoir"]["devis_en_attente"]["sans_reponse"] == {"n": 1, "devis": [devis_b], "reste": 0}
+    assert vue["entonnoir"]["seuils"]["a_configurer"] == [  # GATE NATHAN : aucun seuil de l'entonnoir n'est inventé
+        "m8_devis_sans_reponse", "m8_taux_acceptation_pct", "m8_delai_lead_acceptation_jours", "m8_carnet_signe_cad",
+    ] and vue["entonnoir"]["seuils"]["evalues"] == []
+    assert vue["marge_reelle"]["n_chantiers"] == 0  # aucun chantier terminé encore
+    assert vue["stock_a_commander"]["statut"] == "lu" and vue["stock_a_commander"]["n_articles"] == 0
+    assert vue["cash_libre"]["statut"] == "manque" and vue["cash_libre"]["a_lire"].startswith("m5_etat_tresorerie")
+
+    # -- l'employé et le vendeur n'y ont pas accès : refus dans le code, rien de la vue n'est rendu ------------------
+    for appelante in (EMPLOYE, VENDEUR):
+        refus = _vue_executive_reponse(deps, appelante)
+        assert refus["ok"] is False and refus["erreur"] == "refus_metier", (appelante, refus)
+        assert refus["details"].startswith("REJ-IDENTITE-APPAREIL-INVALIDE") and "resultat" not in refus
+
+    # -- le chantier du devis A se termine : M4, M6 (stock sous le seuil), M5 (marge réelle) --------------------------
+    _m2_transitionner(m2, lead_id, "cedule", base, 660)
+    intervention_id = _m4_planifier_router_pointer(m4, _contrat(lead_id), marqueur, devis_a, base)
+    _m2_transitionner(m2, lead_id, "chantier", base, 840)
+    _m6_receptionner(m6, chantier_a, MATERIAU_ID, 200.0, f"PO-{devis_a}", base)
+    wct_id = _m4_completer(m4, intervention_id, base)["wct_id"]
+    _m6_declarer(m6, wct_id, chantier_a, MATERIAU_ID, 56.0)  # 200 - 56 = 144 pi, sous le seuil de 150
+    total = _drainer(deps, base + dt.timedelta(hours=2))
+    assert total["echecs"] == 0 and total["quarantaines"] == 0, total
+
+    vue = _vue_executive(deps)
+    lignes = {m["metric_id"]: m for m in vue["entonnoir"]["mesures"]}
+    assert lignes["m8_carnet_signe_cad"]["valeur"] == "0.00"  # le chantier de A est terminé : il sort du carnet
+    assert lignes["m8_carnet_signe_cad"]["entrees"] == {
+        "n_devis_au_carnet": 0, "n_devis_acceptes": 1, "chantiers_termines_sans_devis_relie": 0,
+    }
+    assert lignes["m8_devis_acceptes"]["valeur"] == "1" and lignes["m8_devis_sans_reponse"]["valeur"] == "1"
+
+    # -- 2. la marge réelle : le texte que M5 a publié, jamais un chiffre de M8 --------------------------------------
+    publies_m5 = sorted(_charges_publiees_du_type("m5.rentabilite_chantier"), key=lambda charge: charge["sequence"])
+    final = publies_m5[-1]
+    assert (final["verdict"], final["marge_reelle_cad"]) == ("CALCULEE", "52.00")  # 600 - (56 x 8,00 + 2 h x 50,00)
+    marge = vue["marge_reelle"]
+    assert (marge["n_chantiers"], marge["n_marge_connue"], marge["n_non_calculable"], marge["reste"]) == (1, 1, 0, 0)
+    assert marge["chantiers"] == [{
+        "wct_id": wct_id, "devis_id": devis_a, "horodatage_completion": _charge_publiee(
+            "m4.travaux_termines", wct_id)["horodatage_completion"],
+        "statut": "calculee", "marge_reelle_cad": final["marge_reelle_cad"],
+    }]
+
+    # -- 3. le stock à commander : ce que M6 met à la file du propriétaire, mot pour mot -----------------------------
+    with stockage.transaction():
+        attentes_m6 = m6_outils.attentes()
+    (besoin,) = [a for a in attentes_m6 if a["type"] == "besoin_commande"]
+    assert besoin["id"] == f"besoin_commande:{MATERIAU_ID}" and "besoin de commande" in besoin["resume"]
+    stock = vue["stock_a_commander"]
+    assert (stock["statut"], stock["n_articles"], stock["reste"], stock["seuils_a_configurer"]) == ("lu", 1, 0, False)
+    assert stock["articles"] == [{cle: besoin[cle] for cle in ("id", "resume", "depuis", "action_proposee")}]
+
+    # -- 4. le cash libre : M5 ne le publie sur aucun événement, la vue le dit et renvoie à l'outil de M5 ------------
+    assert vue["cash_libre"] == {
+        "source": "M5 (m5_etat_tresorerie, T4.16)", "statut": "manque", "manque": ["cash_libre"],
+        "a_lire": "m5_etat_tresorerie (admin), avec la décomposition du cash libre",
+    }
+    assert [champ for champ in (m["champ"] for m in vue["manques"]) if champ == "cash_libre"] == ["cash_libre"]
+    assert not [t for t in _types_publies() if "cash" in t]  # aucun événement de cash libre, ni au bus ni au catalogue
+    assert not [t for t in evenements.types_connus() if "cash" in t]
+
+    # -- la vue tient sous la limite du socle, sans donnée de client ; M8 n'a publié aucune alerte d'entonnoir -------
+    texte = json.dumps(vue, ensure_ascii=False)
+    assert len(texte) < m8_outils.BUDGET_SORTIE
+    assert not [confidence for confidence in CONFIDENCES if confidence in texte]
+    assert not [a for a in _alertes_publiees() if a["metric_id"] in lignes]  # celles de M8 sont d'un chantier

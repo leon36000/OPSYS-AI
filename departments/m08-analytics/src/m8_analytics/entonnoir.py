@@ -1,5 +1,5 @@
 """Entonnoir commercial, du lead au devis accepté (PLAN T4.19 ; DEFINITION-PRODUIT.md §6 « flux principal » : M2 suit
-la soumission jusqu'à l'acceptation ; §7 M8.6 « tableau de bord exécutif » et M8.10 « pipeline »).
+la soumission jusqu'à l'acceptation ; §7 M8.6 « tableau de bord exécutif » et M8.10 « écarts » du pipeline).
 
 Module PUR (ADR-0009) : aucun import d'``opsys``, aucune horloge (les instants viennent des faits reçus).
 ``outils.py``, seul point de contact avec le socle, reçoit les événements, range les faits et lit le registre.
@@ -537,17 +537,27 @@ def evaluer_seuils(mesures: list[dict[str, Any]], seuils: Any) -> list[dict[str,
     return evaluations
 
 
+def seuils_ignores(seuils: Any) -> list[str]:
+    """Les clés de la configuration qui ne sont pas une métrique surveillée : une faute de frappe, ou un comptage
+    cumulé (qui ne fait que croître) auquel un seuil ne dirait rien. Dites au propriétaire, jamais ignorées en
+    silence : il croirait sa surveillance en place."""
+    if not isinstance(seuils, dict):
+        return []
+    return sorted(str(cle) for cle in seuils if cle not in _METRIQUES_SURVEILLEES)
+
+
 def situation(
     entrees: list[dict[str, Any]], faits_chantier: list[dict[str, Any]], definitions: dict[str, dict[str, str]],
     seuils: Any,
 ) -> dict[str, Any]:
-    """L'entonnoir tel que les faits reçus le permettent : mesures, sources, situation face aux seuils et devis qui
-    attendent. Lecture pure : ne publie rien."""
+    """L'entonnoir tel que les faits reçus le permettent : mesures, sources, situation face aux seuils (et les clés
+    de configuration qui ne surveillent rien) et devis qui attendent. Lecture pure : ne publie rien."""
     mesures = mesurer(entrees, faits_chantier, definitions)
     return {
         "mesures": mesures,
         "sources": sources(entrees),
         "seuils": evaluer_seuils(mesures, seuils),
+        "seuils_ignores": seuils_ignores(seuils),
         "devis": etat_des_devis(entrees),
     }
 
@@ -576,6 +586,7 @@ __all__ = [
     "fait_lead_recu",
     "instant_lu",
     "mesurer",
+    "seuils_ignores",
     "situation",
     "sources",
 ]

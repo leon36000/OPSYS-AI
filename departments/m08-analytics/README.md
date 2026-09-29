@@ -30,5 +30,17 @@ filtrés par rôle, conformité statique et digest quotidien.
   le coût réel de M5 est complet ; sinon « non calculable » avec les codes de ce que M5 n'a pas pu chiffrer.
   La durée estimée vient de M3 (`m3.devis_accepte`), quand l'estimation du devis la porte.
 
+- `metrics/m8-entonnoir.v1.yaml`, `src/m8_analytics/entonnoir.py` et `vue_executive.py` (PLAN T4.19) — l'entonnoir
+  commercial et la vue exécutive du propriétaire. M8 consomme les faits de M2 (`m2.client_associe`,
+  `m2.lead_assigne`) et de M3 (`m3.devis_envoye`, `m3.devis_accepte`, `m3.devis_sans_reponse`), les range au
+  registre `faits_entonnoir` (idempotent ; identifiants, instants et prix total arrêté par M3, jamais un contact)
+  et mesure huit métriques gouvernées (définition, source, unité, propriétaire, version) : leads reçus et qualifiés,
+  devis envoyés, acceptés et sans réponse, taux d'acceptation, délai lead-acceptation (médiane), carnet signé. Donnée
+  absente : « non calculable, manque X », jamais un zéro. `m8_lire_vue_executive` (T0, admin, refus dans le code
+  de tout autre rôle d'appareil) y ajoute la marge réelle telle que M5 l'a publiée (texte repris, aucun calcul), le
+  stock à commander tel que M6 le met à la file du propriétaire et le cash libre (M5 ne le publie pas : « manque »,
+  renvoi à `m5_etat_tresorerie`). GATE NATHAN : les seuils de l'entonnoir (`configuration.seuils_entonnoir`, vide)
+  et la période à mesurer (aujourd'hui, tous les faits reçus).
+
 DuckDB/Parquet, MMM (PyMC-Marketing) et l'orchestrateur horaire réel restent GATED (hors
 périmètre v1, cf. `docs/bmad/02-PRD-PM.md` §3.2).

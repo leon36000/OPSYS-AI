@@ -79,7 +79,8 @@ def section_entonnoir(
 ) -> dict[str, Any]:
     """Section « entonnoir » : les mesures (compactes : le détail de ce qui manque va une fois à ``manques``), les
     sources, les devis qui attendent et les seuils. Un seuil non configuré n'est PAS une alerte : c'est un manque
-    dit une fois, avec l'endroit où le définir."""
+    dit une fois, avec l'endroit où le définir ; une clé de configuration qui ne surveille rien est dite
+    (``ignores``)."""
     for mesure in situation["mesures"]:
         if mesure["statut"] == entonnoir.STATUT_NON_CALCULABLE:
             _ajouter_manques(manques, mesure["manque"])
@@ -89,8 +90,11 @@ def section_entonnoir(
         {cle: e[cle] for cle in ("metric_id", "statut", "valeur", "unite", "sens", "seuil")}
         for e in situation["seuils"] if e["statut"] in (entonnoir.SEUIL_FRANCHI, entonnoir.SEUIL_NON_FRANCHI)
     ]
-    seuils: dict[str, Any] = {"a_configurer": a_configurer, "invalides": invalides, "evalues": evalues}
-    if a_configurer or invalides:
+    ignores = list(situation["seuils_ignores"])
+    seuils: dict[str, Any] = {
+        "a_configurer": a_configurer, "invalides": invalides, "ignores": ignores, "evalues": evalues,
+    }
+    if a_configurer or invalides or ignores:
         seuils["configuration"] = _CONFIGURATION_SEUILS
     devis = situation["devis"]
     return {

@@ -378,7 +378,7 @@ def test_les_seuils_vides_du_vrai_manifeste_disent_seuil_a_configurer_et_ou(m6_d
             "m8_devis_sans_reponse", "m8_taux_acceptation_pct", "m8_delai_lead_acceptation_jours",
             "m8_carnet_signe_cad",
         ],
-        "invalides": [], "evalues": [],
+        "invalides": [], "ignores": [], "evalues": [],
         "configuration": "department.yaml de m08-analytics, configuration.seuils_entonnoir",
     }
 
@@ -415,8 +415,28 @@ def test_quand_tous_les_seuils_sont_valides_la_vue_n_a_plus_rien_a_faire_configu
 
     seuils = _vue(_par_nom(_trajet()))["entonnoir"]["seuils"]
 
-    assert seuils["a_configurer"] == [] and seuils["invalides"] == [] and "configuration" not in seuils
+    assert seuils["a_configurer"] == [] and seuils["invalides"] == [] and seuils["ignores"] == []
+    assert "configuration" not in seuils
     assert {e["statut"] for e in seuils["evalues"]} == {"non_franchi"}
+
+
+def test_une_cle_de_seuil_qui_ne_surveille_rien_est_dite_dans_la_vue_avec_l_endroit_ou_la_corriger(
+        m6_de_test, configurer):
+    m6_de_test()
+    configurer({
+        "m8_taux_acceptation_pct": {"sens": "au_dessous", "valeur": 30},
+        "m8_carnet_signe_cad": {"sens": "au_dessous", "valeur": 100},
+        "m8_devis_sans_reponse": {"sens": "au_dessus", "valeur": 5},
+        "m8_delai_lead_acceptation_jours": {"sens": "au_dessus", "valeur": 14},
+        "m8_leads_recus": {"sens": "au_dessous", "valeur": 10},  # un comptage cumulé : rien à surveiller
+        "m8_taux_acceptaton_pct": {"sens": "au_dessous", "valeur": 30},  # faute de frappe
+    })
+
+    seuils = _vue(_par_nom(_trajet()))["entonnoir"]["seuils"]
+
+    assert seuils["ignores"] == ["m8_leads_recus", "m8_taux_acceptaton_pct"]
+    assert seuils["a_configurer"] == [] and seuils["invalides"] == [] and len(seuils["evalues"]) == 4
+    assert seuils["configuration"] == "department.yaml de m08-analytics, configuration.seuils_entonnoir"
 
 
 def test_les_devis_en_attente_sont_plafonnes_du_plus_ancien_au_plus_recent_et_le_reste_est_compte(m6_de_test):

@@ -40,3 +40,24 @@ matériaux (M6) et la rentabilité du chantier (M5), et mesure le chantier à ch
 - `m8_performance_equipe` donne l'écart de temps de l'équipe, et par technicien seulement à l'admin
   authentifié. Présente-le comme un indicateur non punitif : aucun classement, aucune alerte, jamais
   un nom hors du rôle admin.
+
+# Lire la vue exécutive
+
+`m8_lire_vue_executive` (admin seulement, sans paramètre) remet au propriétaire l'entonnoir, la marge réelle des
+chantiers, le stock à commander et le cash libre. M8 reçoit tout seul, par le bus, les faits de M2 (lead reçu et
+qualifié) et de M3 (devis envoyé, accepté, sans réponse). Présente la réponse telle quelle :
+
+- chaque métrique de l'entonnoir porte sa `version_definition` et son `proprietaire` ; une métrique `non_calculable`
+  dit ce qui manque (`manque`, détaillé une fois dans `manques`). Ne la remplace jamais par un zéro, une moyenne ou
+  une estimation de tête. Sans aucun fait reçu (`sources` à zéro), l'entonnoir entier est non calculable : ce n'est
+  pas « aucun lead », c'est « rien reçu » ;
+- `sources` dit combien de faits M8 a reçus par événement et jusqu'à quel instant : c'est la fraîcheur de l'entonnoir ;
+- `marge_reelle` est le texte que M5 a publié, chantier par chantier. N'additionne rien, ne calcule aucune moyenne
+  ni aucun écart : si une marge est `non_calculable`, cite la `raison` (les codes de M5) ;
+- `stock_a_commander` est ce que M6 met à la file du propriétaire, avec son résumé et son action proposée ;
+  `seuils_a_configurer` vrai veut dire que M6 attend des seuils de réapprovisionnement ;
+- `cash_libre` est un manque : M5 ne le publie pas. Dis-le et renvoie à `m5_etat_tresorerie` (admin) ; n'en invente
+  aucun chiffre ;
+- `seuils.a_configurer` nomme les métriques de l'entonnoir sans seuil valide : aucun franchissement n'existe pour
+  elles. N'en fixe jamais un toi-même ; le propriétaire le définit dans `department.yaml` (`seuils_entonnoir`) ;
+- une liste plus courte que son total dit `reste` : ce qui ne tient pas dans la réponse est compté, jamais perdu.

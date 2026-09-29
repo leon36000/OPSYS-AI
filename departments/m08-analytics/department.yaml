@@ -80,7 +80,8 @@ configuration:
   #   m8_delai_lead_acceptation_jours: {sens: au_dessus, valeur: <nombre, en jours>}
   #   m8_devis_sans_reponse: {sens: au_dessus, valeur: <nombre de devis>}
   #   m8_carnet_signe_cad: {sens: au_dessous, valeur: <nombre, en CAD avant taxes>}
-  # Les comptages cumulés (leads, devis envoyés ou acceptés) ne se surveillent pas : ils ne font que croître.
+  # Les comptages cumulés (leads, devis envoyés ou acceptés) ne se surveillent pas : ils ne font que croître. Une
+  # clé qui n'est pas l'une de ces quatre métriques est dite `ignores` dans la vue, jamais ignorée en silence.
   seuils_entonnoir: {}
 kpis:
   - id: taux_snapshots_rejetes
