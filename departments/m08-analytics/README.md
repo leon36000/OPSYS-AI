@@ -26,7 +26,9 @@ filtrés par rôle, conformité statique et digest quotidien.
   écart de matériaux (repris de M6), écart de temps par technicien (admin seulement, sans classement ni
   alerte). Donnée absente : « non calculable, manque X ». Seuil franchi : alerte proposée à M9 ; seuil
   absent : rappel « seuil à configurer », jamais un seuil inventé. Outils : `m8_lire_mesures_chantier`,
-  `m8_performance_equipe`. La marge réelle attend M5 ; la durée estimée attend que M3 la publie.
+  `m8_performance_equipe`. La marge réelle vient de M5 (`m5.rentabilite_chantier`) : elle n'existe que quand
+  le coût réel de M5 est complet ; sinon « non calculable » avec les codes de ce que M5 n'a pas pu chiffrer.
+  La durée estimée vient de M3 (`m3.devis_accepte`), quand l'estimation du devis la porte.
 
 DuckDB/Parquet, MMM (PyMC-Marketing) et l'orchestrateur horaire réel restent GATED (hors
 périmètre v1, cf. `docs/bmad/02-PRD-PM.md` §3.2).

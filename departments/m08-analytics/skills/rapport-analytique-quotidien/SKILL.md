@@ -26,14 +26,15 @@ description: Procédure pour ingérer un snapshot d'un module, dériver ses mét
 
 # Mesurer un chantier terminé
 
-M8 reçoit tout seul, par le bus, le chantier terminé (M4), le devis accepté (M3) et la variance de
-matériaux (M6), et mesure le chantier à chaque arrivée. Pour le lire, appelle
+M8 reçoit tout seul, par le bus, le chantier terminé (M4), le devis accepté (M3), la variance de
+matériaux (M6) et la rentabilité du chantier (M5), et mesure le chantier à chaque arrivée. Pour le lire, appelle
 `m8_lire_mesures_chantier` avec le `wct_id` (admin seulement).
 
 - chaque mesure porte sa `version_definition` ; un chiffre sans elle n'est pas présentable ;
 - une mesure `non_calculable` dit ce qui manque (`manque`, `detail`) et de quelle source : présente-la
   telle quelle. Ne la remplace jamais par un zéro, une moyenne ou une estimation de tête. La marge
-  réelle reste non calculable tant que M5 ne l'a pas rapportée ;
+  réelle reste non calculable tant que M5 ne l'a pas chiffrée (coût réel complet et facture connue) : le
+  `detail` donne alors les codes de ce qui manque chez M5 ;
 - `seuils_a_configurer` nomme les métriques sans seuil valide : aucune alerte n'existe pour elles.
   N'en fixe jamais un toi-même ; signale-le au propriétaire (`department.yaml`, `configuration`) ;
 - `m8_performance_equipe` donne l'écart de temps de l'équipe, et par technicien seulement à l'admin

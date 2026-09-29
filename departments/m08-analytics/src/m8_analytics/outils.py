@@ -21,9 +21,9 @@ Même patron pour le registre DURABLE des définitions de métriques (T3.1, `reg
 `m8_enregistrer_definition_metrique`, `m8_resoudre_definition_metrique` et
 `m8_evaluer_qualite_metrique`.
 
-Mesure d'un chantier terminé (PLAN T1.5-d, `mesures_chantier.py`) : M8 reçoit trois faits par le bus
-(`m4.travaux_termines`, `m3.devis_accepte`, `m6.variance_chantier`), les range dans le registre
-`faits_chantier` (idempotent, un fait par clé) et mesure le chantier à CHAQUE arrivée (l'ordre de
+Mesure d'un chantier terminé (PLAN T1.5-d, `mesures_chantier.py`) : M8 reçoit quatre faits par le bus
+(`m4.travaux_termines`, `m3.devis_accepte`, `m6.variance_chantier`, `m5.rentabilite_chantier`), les range dans
+le registre `faits_chantier` (idempotent, un fait par clé) et mesure le chantier à CHAQUE arrivée (l'ordre de
 livraison n'est pas garanti). Les métriques sont celles de `metrics/m8-metrics.v1.yaml` ; une entrée
 absente donne « non calculable, manque X ». Un seuil franchi (`department.yaml`,
 `configuration.seuils_alerte`) publie `m8.alerte_proposee` pour M9 ; sans seuil, un signal « seuil à
@@ -331,6 +331,29 @@ def _recevoir_variance_chantier(charge: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _recevoir_rentabilite_chantier(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consommateur `m5.rentabilite_chantier` : la marge réelle du chantier, TELLE QUE M5 l'a chiffrée (M8 ne
+    fait pas la comptabilité), rangée dans `faits_chantier` sous la forme que `mesures_chantier.py` attend
+    (`fait_rentabilite`), puis le chantier est remesuré.
+
+    Un fait par (`wct_id`, `sequence`) : une relivraison n'ajoute rien, et le fait de plus grand `sequence` est
+    l'état courant, quel que soit l'ordre de livraison. Coût réel complet et facture connue : la marge réelle
+    (et ses écarts) devient calculable. Sinon M5 n'en porte aucune (le catalogue le refuse) : la mesure reste
+    « non calculable, manque marge_reelle_cad » avec les codes de ce que M5 n'a pas pu chiffrer. Les seuils
+    restent ceux de `department.yaml` (vides par défaut : rappel « seuil à configurer », jamais une alerte
+    inventée)."""
+    wct_id = charge["wct_id"]
+    faits_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_FAITS)
+    enregistre = _ajouter_fait_si_nouveau(
+        faits_cible, mesures_chantier.fait_rentabilite(charge), ("wct_id", "sequence")
+    )
+    return {
+        "enregistre": enregistre, "deja_enregistre": not enregistre, "wct_id": wct_id,
+        "sequence": charge["sequence"], "verdict": charge["verdict"],
+        "mesures": _mesurer_et_publier(wct_id, faits_cible),
+    }
+
+
 def consommateurs() -> dict[str, Any]:
     """Types d'événements consommés par M8 (ADR-0009 §3) — voir `department.yaml:evenements.consomme`
     et `docs/architecture/DEPARTEMENTS.md` § Événements."""
@@ -338,6 +361,7 @@ def consommateurs() -> dict[str, Any]:
         "m4.travaux_termines": _recevoir_travaux_termines,
         "m3.devis_accepte": _recevoir_devis_accepte,
         "m6.variance_chantier": _recevoir_variance_chantier,
+        "m5.rentabilite_chantier": _recevoir_rentabilite_chantier,
     }
 
 

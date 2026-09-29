@@ -331,11 +331,15 @@ def test_m4_termine_m8_mesure_et_alerte_m9_lit_et_cite_les_preuves_sans_decider(
     total = _drainer(deps, base + dt.timedelta(hours=1))
     assert total["echecs"] == 0 and total["quarantaines"] == 0, total
 
-    # -- M8 : les trois faits reçus, jamais un coût par employé --------------------------------
+    # -- M8 : les faits reçus, jamais un coût par employé --------------------------------------
     faits = list(stockage.maillons("m08-analytics", "faits_chantier"))
-    assert sorted(f["type_entree"] for f in faits if f.get("wct_id") == wct_id or f.get("devis_id") == devis_id) == [
+    du_chantier = [f for f in faits if f.get("wct_id") == wct_id or f.get("devis_id") == devis_id]
+    assert sorted({f["type_entree"] for f in du_chantier}) == ["devis", "rentabilite", "variance", "wct"]
+    assert sorted(f["type_entree"] for f in du_chantier if f["type_entree"] != "rentabilite") == [
         "devis", "variance", "wct",
     ]
+    # M5 rapporte aussi son état (PLAN T1.5-d) : ici ni taux ni prix au livre, donc jamais une marge.
+    assert all(f["marge_reelle_cad"] is None for f in du_chantier if f["type_entree"] == "rentabilite")
     assert next(f for f in faits if f["type_entree"] == "wct")["technicien_id"] == TECHNICIEN  # jamais dans une alerte
     for consommateur_evenement in (wct_id, f"m6-variance-{wct_id}-evaluee", f"m3-devis-accepte-{devis_id}"):
         recu = _recu(consommateur_evenement, "m08-analytics")

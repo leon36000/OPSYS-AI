@@ -14,7 +14,7 @@ mission: >-
   alerte à M9, qui lit sans décider.
 outils: m8_analytics.outils
 mode: ombre
-dependances: [m03-estimation, m04-field-ops, m06-material-control, m07-marketing]
+dependances: [m03-estimation, m04-field-ops, m05-financecore, m06-material-control, m07-marketing]
 modeles:
   defaut: standard
   digest: rapide
@@ -36,9 +36,10 @@ memoire:
   ecriture: [snapshots_modules, definitions_metriques, faits_chantier]
 evenements:
   # PLAN T1.5-d : le WCT (durée réelle, technicien), le devis accepté (prix, coût, durée estimée si
-  # M3 la fournit) et la variance de matériaux de M6 (verdict repris sans recalcul). Catalogue :
+  # M3 la fournit), la variance de matériaux de M6 (verdict repris sans recalcul) et la marge réelle de
+  # M5 (reprise sans recalcul ; absente tant que le coût réel de M5 est partiel). Catalogue :
   # src/opsys/evenements/catalogue/*.json.
-  consomme: [m4.travaux_termines, m3.devis_accepte, m6.variance_chantier]
+  consomme: [m4.travaux_termines, m3.devis_accepte, m6.variance_chantier, m5.rentabilite_chantier]
   publie: [m8.alerte_proposee]
 configuration:
   # Seuils d'alerte des mesures d'un chantier terminé (PLAN T1.5-d ; DEFINITION-PRODUIT.md §13 point 11

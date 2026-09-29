@@ -27,9 +27,12 @@ Faits reçus (un dictionnaire par fait, ajoutés en lecture seule au registre ``
 - ``wct``      : ``m4.travaux_termines`` (durée réelle, technicien, devis lié) ;
 - ``devis``    : ``m3.devis_accepte`` (prix total, coût total et, s'il est fourni, durée estimée) ;
 - ``variance`` : ``m6.variance_chantier`` (verdict d'écart de matériaux, ligne par ligne) ;
-- ``rentabilite`` : marge réelle rapportée par M5, ``{type_entree, wct_id, marge_reelle_cad}`` en
-  texte décimal. M5 ne la publie pas encore : tant qu'aucun fait de ce type n'existe, la marge
-  réelle et ses écarts sont « non calculables, manque marge_reelle_cad (M5) ».
+- ``rentabilite`` : la marge réelle rapportée par M5 (``m5.rentabilite_chantier``), ``{type_entree, wct_id,
+  sequence, marge_reelle_cad, manque, ...}``, ``marge_reelle_cad`` en texte décimal. M5 la chiffre seulement
+  quand son coût réel est complet et que la facture existe : sinon la marge est ``None`` et ``manque`` porte
+  les codes de ce que M5 n'a pas pu chiffrer. Tant qu'aucun fait de ce type n'existe, ou tant qu'il porte
+  une marge ``None``, la marge réelle et ses écarts sont « non calculables, manque marge_reelle_cad (M5) »,
+  avec la raison que M5 a donnée. Le fait de plus grand ``sequence`` est l'état courant.
 """
 
 from __future__ import annotations
@@ -150,6 +153,24 @@ def fait_variance(charge: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def fait_rentabilite(charge: dict[str, Any]) -> dict[str, Any]:
+    """Fait tiré de ``m5.rentabilite_chantier`` : la marge réelle TELLE QUE M5 l'a chiffrée (M8 ne fait pas la
+    comptabilité) et, si M5 n'a pas pu la chiffrer, les codes de ce qui manque.
+
+    Fail-closed : la marge n'est retenue que pour un verdict ``CALCULEE`` dont le coût réel est complet. Une
+    charge qui porterait une marge malgré un coût partiel (le catalogue la refuse déjà) n'en garde aucune."""
+    calculee = charge["verdict"] == "CALCULEE" and charge["cout_reel_complet"] is True
+    return {
+        "type_entree": "rentabilite",
+        "wct_id": charge["wct_id"],
+        "devis_id": charge["devis_id"],
+        "sequence": charge["sequence"],
+        "verdict": charge["verdict"],
+        "marge_reelle_cad": charge["marge_reelle_cad"] if calculee else None,
+        "manque": list(charge["manque"]),
+    }
+
+
 def wcts_du_devis(entrees: list[dict[str, Any]], devis_id: str) -> list[str]:
     """Identifiants des chantiers déjà terminés qui pointent vers ce devis (ordre de réception)."""
     vus: list[str] = []
@@ -158,6 +179,11 @@ def wcts_du_devis(entrees: list[dict[str, Any]], devis_id: str) -> list[str]:
         if est_du_devis and entree["wct_id"] not in vus:
             vus.append(entree["wct_id"])
     return vus
+
+
+def _sequence(fait: dict[str, Any]) -> int:
+    rang = fait.get("sequence")
+    return rang if isinstance(rang, int) and not isinstance(rang, bool) else 0
 
 
 def assembler_faits(wct_id: str, entrees: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -177,7 +203,14 @@ def assembler_faits(wct_id: str, entrees: list[dict[str, Any]]) -> dict[str, Any
             devis_par_id[entree["devis_id"]] = entree
         elif type_entree == "variance" and entree.get("wct_id") == wct_id:
             variances.append(entree)
-        elif type_entree == "rentabilite" and entree.get("wct_id") == wct_id:
+        elif (
+            # L'état courant de M5 est le fait de plus grand ``sequence`` : le bus ne garantit pas l'ordre de
+            # livraison (un réessai peut livrer une trace ancienne après une récente). Sans ``sequence``, le
+            # dernier reçu.
+            type_entree == "rentabilite"
+            and entree.get("wct_id") == wct_id
+            and (rentabilite is None or _sequence(entree) >= _sequence(rentabilite))
+        ):
             rentabilite = entree
     if wct is None:
         return None
@@ -231,6 +264,19 @@ def _raison_fait_absent(faits: dict[str, Any], nom_fait: str) -> str:
     return "aucun fait reçu de cette source pour ce chantier"
 
 
+def _raison_valeur_absente(fait: dict[str, Any], nom_fait: str) -> str:
+    """Pourquoi un fait reçu ne porte pas la valeur. Pour M5 : sa raison, en codes (coût réel partiel, facture
+    absente...), plutôt qu'un « absent » muet ; jamais une valeur, jamais une cause de l'écart."""
+    if nom_fait != "rentabilite":
+        return "absent du fait reçu"
+    codes = fait.get("manque")
+    if isinstance(codes, list) and codes:
+        return "M5 n'a pas chiffré la marge réelle : " + ", ".join(str(code) for code in codes)
+    if fait.get("verdict") is None:
+        return "absent du fait reçu"
+    return f"M5 n'a pas chiffré la marge réelle (verdict {fait['verdict']})"
+
+
 def _lire_entrees(
     faits: dict[str, Any], champs: tuple[str, ...]
 ) -> tuple[dict[str, Decimal], list[dict[str, str]]]:
@@ -244,7 +290,7 @@ def _lire_entrees(
             continue
         brute = fait.get(cle)
         if brute is None:
-            manque.append({"champ": champ, "source": source, "raison": "absent du fait reçu"})
+            manque.append({"champ": champ, "source": source, "raison": _raison_valeur_absente(fait, nom_fait)})
             continue
         lue = _decimal(brute)
         if lue is None:
@@ -680,6 +726,7 @@ __all__ = [
     "compacter",
     "evaluer_seuils",
     "fait_devis",
+    "fait_rentabilite",
     "fait_variance",
     "fait_wct",
     "mesurer_chantier",
