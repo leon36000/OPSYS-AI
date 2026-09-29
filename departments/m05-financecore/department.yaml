@@ -4,9 +4,9 @@ code: M5
 nom: FinanceCore
 mission: >-
   Tenir le registre financier de l'entreprise — mouvements, solde, cash libre réel,
-  taxes TPS/TVQ et leurs échéances, approbations F0-F7 — sans jamais engager, payer ou approuver de
-  lui-même : toute écriture financière et toute décision d'approbation restent une
-  proposition tant qu'un humain ne les a pas validées sur pièces.
+  prévision de trésorerie des flux connus et datés, taxes TPS/TVQ et leurs échéances, approbations F0-F7 — sans
+  jamais engager, payer ou approuver de lui-même : toute écriture financière et toute décision d'approbation
+  restent une proposition tant qu'un humain ne les a pas validées sur pièces.
 outils: m5_financecore.outils
 mode: ombre
 dependances: [m02-revenue-crm, m03-estimation, m04-field-ops, m06-material-control]
@@ -60,6 +60,27 @@ approbations:                                         # ADR-0009 §5, PLAN T1.3-
 #
 #   configuration:
 #     categories_depense_sans_po: [carburant, outils]   # ce sont des EXEMPLES de forme : la liste est celle de Nathan
+#
+# PLAN T4.16-d : prévision de trésorerie (M5.7). Aucune échéance de paiement n'est enregistrée sur les factures (clients ni
+# fournisseurs) : la date d'un encaissement ou d'un décaissement est la date de la pièce PLUS un délai que le propriétaire
+# décide (GATE NATHAN). Tout ce qui suit est ABSENT ici, et chaque absence est dite : sans horizon, la prévision est refusée
+# (REJ-PREVISION-HORIZON-A-CONFIGURER) ; sans délai ou sans date de sortie, les flux concernés sont « non calculables à
+# partir de la semaine X, manque Y » ; sans seuil, « seuil à configurer » et aucune alerte. Relu à chaque appel. Forme, sous
+# la même clé `configuration` (dates entre guillemets ; ce sont des EXEMPLES de forme, jamais des valeurs à recopier) :
+#
+#   configuration:
+#     prevision:
+#       horizon_semaines: 13                     # 1 à 26 : la durée de la prévision, décidée par le propriétaire
+#       seuil_alerte: {montant: "0.00", source: "décision de Nathan", au: "2026-09-25"}   # alerte si le solde de fin de semaine passe SOUS
+#       delai_encaissement_clients_jours: 30     # 0 à 365 : jours entre l'envoi d'une facture client et son encaissement
+#       delai_paiement_fournisseurs_jours: 30    # 0 à 365 : jours entre la date d'une facture (ou la première réception d'un PO non
+#                                                # facturé) et son paiement
+#       echeances_obligations:                   # quand sort l'argent des obligations déclarées (obligations_declarees, plus haut)
+#         paies: "2026-10-09"
+#         das: "2026-10-15"
+#         dettes: "2026-10-31"
+#
+# La prévision ne projette rien : ni vente à venir, ni retard de client, ni moyenne. Ce qui n'est pas connu n'y est pas.
 #
 modeles:
   defaut: standard

@@ -1,6 +1,6 @@
 ---
 name: tenir-le-registre-financier
-description: Procédure pour consulter l'état financier (solde, cash libre réel et sa décomposition), lire les échéances TPS/TVQ, calculer les taxes, et enregistrer un mouvement financier — sans jamais inventer un montant, un taux, un solde ou une date.
+description: Procédure pour consulter l'état financier (solde, cash libre réel et sa décomposition), lire les échéances TPS/TVQ, prévoir la trésorerie semaine par semaine à partir des seuls flux connus et datés, calculer les taxes, et enregistrer un mouvement financier — sans jamais inventer un montant, un taux, un solde ou une date.
 ---
 
 # Tenir le registre financier
@@ -45,6 +45,33 @@ description: Procédure pour consulter l'état financier (solde, cash libre rée
    chiffre partiel.
 4. Les dates viennent de Revenu Québec (sources citées) et sont à valider par le CPA. Aucune remise, aucune déclaration :
    c'est N5 (Nathan et le CPA).
+
+## Prévoir la trésorerie (semaine par semaine, T4.16-d)
+
+1. Appelle `m5_prevoir_tresorerie` avec `aujourd_hui` (AAAA-MM-JJ, d'une source sûre : M5 n'a pas d'horloge). Tu ne
+   fournis AUCUN montant, AUCUNE date d'échéance, AUCUN délai ni seuil : ils viennent des registres et de ce que le
+   propriétaire a déclaré. `horizon_semaines` (1 à 26) est facultatif s'il est déclaré au manifeste ; sans horizon nulle
+   part, `REJ-PREVISION-HORIZON-A-CONFIGURER` : demande-le, n'en choisis pas un. Sans droit de voir les coûts, la réponse ne
+   porte que le rôle et l'horizon : c'est le comportement attendu.
+2. La prévision part du SOLDE du registre et ajoute, semaine après semaine, les seuls flux CONNUS et DATÉS : factures
+   clients envoyées (encaissement), factures fournisseurs saisies et attendus non facturés (décaissement), TPS/TVQ nette de
+   chaque période à sa limite de paiement, paies, DAS et dettes déclarées. Chaque ligne (`semaine` = N, `depart` = rang de
+   ligne) porte sa `source` et la règle de sa date. Elle ne projette RIEN : ni vente à venir, ni retard de client, ni
+   moyenne, ni tendance.
+3. Un délai de paiement (clients, fournisseurs) ou la date de sortie des paies, DAS et dettes que le propriétaire n'a pas
+   déclaré n'est pas un refus : la réponse dit `non_calculable_a_partir_de` (la semaine) et `manque` (code, ce qu'il faut
+   déclarer). Une semaine non calculable n'a aucun chiffre : ne la remplace ni par zéro ni par une moyenne, transmets la
+   demande telle quelle. Les semaines avant elle sont exactes.
+4. Un encaissement en retard (`REJ-PREVISION-ENCAISSEMENT-ECHU`) ou sans date connue n'est PAS compté : dis-le
+   (`encaissements_non_comptes`). Un décaissement en retard est compté en semaine 1 (`echu`). Ce qui tombe après l'horizon
+   est résumé (`au_dela_de_l_horizon`), jamais placé dans une semaine.
+5. L'alerte (`alerte.statut`) : `ALERTE` (le solde de fin d'une semaine passe sous le seuil du propriétaire ; cite la
+   première semaine), `AUCUNE`, `NON_EVALUEE` (une semaine non calculable empêche de conclure) ou `SEUIL_A_CONFIGURER` (aucun
+   seuil déclaré, ou illisible : `alerte.manque` dit lequel ; n'en invente aucun). Un solde négatif (`en_deficit`) est un
+   fait, présenté tel quel.
+6. Présente le `plus_bas`, la `premiere_semaine_en_deficit`, le `cash_libre_prevu` de chaque semaine (le cash libre
+   d'aujourd'hui plus les encaissements tombés), et TOUJOURS les `limites` et la `mention` obligatoire. La réponse est
+   bornée : `prochain_depart` te dit où poursuivre. Ni paiement, ni remise, ni déclaration : c'est N5 (Nathan et le CPA).
 
 ## Calculer une taxe TPS/TVQ
 

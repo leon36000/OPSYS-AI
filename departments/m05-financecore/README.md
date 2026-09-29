@@ -141,7 +141,7 @@ et ne suppose rien. Hors du calendrier, faute de donnée : acomptes provisionnel
 
 Mention obligatoire (`analyse.py`) : « Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision
 officielle ou action réelle. » (DEFINITION-PRODUIT §7 M5, §13.3) est portée par toute sortie acceptée d'un outil d'analyse
-(`m5_etat_tresorerie`, `m5_lire_echeances_fiscales`, `m5_lire_rentabilite_chantier`, `m5_lister_comptes_a_payer`,
+(`m5_etat_tresorerie`, `m5_lire_echeances_fiscales`, `m5_prevoir_tresorerie` (T4.16-d), `m5_lire_rentabilite_chantier`, `m5_lister_comptes_a_payer`,
 `m5_saisir_facture_fournisseur`, et depuis T4.15-c `m5_saisir_facture_sans_po`, `m5_corriger_facture_fournisseur`,
 `m5_annuler_facture_fournisseur`) ; un test ferme le monde (chaque outil est classé) et lit la mention dans le document produit.
 
@@ -158,8 +158,61 @@ PROVISION posée pour un autre poste (taxes, paies) compte deux fois : aucune ca
 et dettes sont déclarées à la main dans le manifeste, en attendant M5.4 et un registre des dettes ; (5) `aujourd_hui` est fourni
 par l'appelant (M5 n'a pas d'horloge, DA-M5-06) ; (6) la fréquence de production et les autres décisions sont absentes du
 manifeste livré : tant que Nathan ne les déclare pas, le cash libre est « non calculable » et le calendrier refuse de nommer une
-échéance ; (7) la prévision de trésorerie (M5.7 : projection, scénarios, tests de stress) n'est PAS livrée : le cash libre est
-l'état d'aujourd'hui, jamais une projection ; les catégories de réserve (M5.14, stratégie d'épargne) non plus.
+échéance ; (7) le cash libre est l'état d'aujourd'hui, jamais une projection : la prévision des flux connus et datés vient de
+T4.16-d (plus bas), mais ni projection statistique, ni scénarios, ni tests de stress (M5.7) ne sont livrés ; les catégories de
+réserve (M5.14, stratégie d'épargne) non plus.
+
+PLAN T4.16-d (prévision de trésorerie, M5.7, `prevision.py`) : `m5_prevoir_tresorerie` (T0, lecture, `admin` seulement ; le code refuse
+aussi tout autre rôle d'appareil ; mention « Analyse préparatoire IA ») dit, semaine par semaine sur un horizon de 1 à 26 semaines
+(7 jours chacune, à partir d'`aujourd_hui`), où irait le solde si seuls les flux CONNUS et DATÉS se produisaient. `prevision.py` est
+PUR : aucune entrée-sortie, aucune horloge, `Decimal`, `ROUND_HALF_UP` au cent, une seule fois ; l'adaptateur
+(`outils._page_prevision`) lit chaque registre une fois (le même instantané que le cash libre) et lui passe les faits.
+
+Le point de départ est le SOLDE du registre, pas le cash libre : celui-ci a déjà retranché les taxes, les paies, les DAS, les comptes à
+payer et les dettes ; en partir et faire sortir ces mêmes obligations les compterait deux fois. Le `cash_libre_prevu` de chaque semaine
+est le cash libre d'aujourd'hui plus les encaissements tombés ; quand toutes les obligations sont sorties, solde de fin de semaine moins
+réserves = cash libre prévu.
+
+Les flux, chacun avec sa SOURCE et la règle qui date : (a) les factures clients ENVOYÉES (montant après taxes) : encaissement ; (b) les
+factures fournisseurs vivantes et l'« à payer attendu » des PO reçus et non facturés (`comptes_a_payer.dettes_datables`, les mêmes dettes
+que le cash libre, une à une) : décaissement ; (c) la TPS/TVQ nette de chaque période du calendrier fiscal non remise, à sa limite de
+paiement (une période encore ouverte est `partielle` : les factures déjà émises seulement) ; (d) les paies, DAS et dettes DÉCLARÉES, pour le
+montant de la composante du cash libre, à la date que le propriétaire a déclarée. Aucune échéance de paiement n'est enregistrée sur les
+factures, ni clients ni fournisseurs : la date d'un encaissement ou d'un décaissement est celle de la pièce (envoi d'une facture, date
+d'une facture fournisseur, PREMIÈRE réception d'un PO) plus un délai que le propriétaire déclare (`configuration.prevision`, GATE NATHAN,
+aucune valeur par défaut).
+
+Ce qui est inconnu ne devient jamais un zéro ni une moyenne, et la prudence dépend du sens (règles ASYMÉTRIQUES) : un décaissement inconnu
+(montant illisible, date inconnue, délai non déclaré) rend la prévision « non calculable à partir de la semaine X, manque Y » (X est sa
+semaine, la semaine 1 si sa date est inconnue) : les semaines avant X restent exactes, celles de X en avant n'ont aucun chiffre ; un
+décaissement échu est compté en semaine 1 (`echu`) ; un encaissement inconnu ou échu (le client est en retard : sa date de paiement est
+inconnue) n'est PAS compté et le dit (`encaissements_non_comptes`) ; un flux après l'horizon est agrégé (`au_dela_de_l_horizon`), jamais
+placé dans une semaine.
+
+L'alerte est déterministe : le solde de fin d'une semaine calculée passe STRICTEMENT sous le seuil que le propriétaire a fourni
+(`configuration.prevision.seuil_alerte` : montant, source, date). Absent : « seuil à configurer » (`SEUIL_A_CONFIGURER`), aucun seuil n'est
+supposé ; une semaine non calculable empêche de conclure (`NON_EVALUEE`). Un solde négatif (`en_deficit`) est un fait rendu tel quel, pas
+une alerte. AUCUNE projection statistique : ni moyenne, ni tendance, ni saison, ni vente à venir, ni retard de client (R-009 :
+l'historique est insuffisant, la projection statistique de M5.7 reste reportée, comme le PRD l'a décidé).
+
+La réponse tient dans les 6 000 caractères du socle (pagination mesurée : `depart` ; `semaine` pour les lignes d'une semaine ; les
+`limites` sont retirées avant de refuser, `REJ-PREVISION-REPONSE-TROP-GROSSE`). `prevision_id` est l'empreinte du contenu : la même donnée
+donne la même prévision. Sans droit de voir les coûts : le rôle et l'horizon, aucun montant. Rien n'est écrit, payé, remis ni déclaré :
+`conformite.verifier_aucun_decaissement` couvre `prevision.py` (régime strict : aucun mot de mouvement) et l'outil (lecture seule : il ouvre
+le registre des mouvements pour en tirer le solde). Les seuls outils T3 de M5 restent les deux d'avant.
+
+GATE NATHAN : le seuil d'alerte, l'horizon, les délais de paiement des clients et des fournisseurs et la date de sortie des paies, DAS et
+dettes ne sont PAS dans le manifeste livré (bloc commenté dans `department.yaml`) : tant qu'ils ne sont pas déclarés, la prévision dit ce
+qui manque et ne suppose rien.
+
+Limites connues : (1) rien de futur n'est connu, donc rien n'est prévu : ni vente, ni nouveau chantier, ni dépense non saisie, ni retard de
+client, et aucune statistique ; (2) le point de départ est le solde du REGISTRE des mouvements, pas celui de la banque : un paiement que le
+registre ignore n'y est pas ; (3) un encaissement est placé à son échéance déclarée, sans retard ; échu ou sans date, il n'est pas compté ;
+un décaissement échu est placé en semaine 1 (aucun paiement n'est constaté) ; (4) le délai est unique par sens (clients, fournisseurs) : les
+conditions propres à un client ou à un fournisseur ne sont pas connues ; (5) la taxe d'une période non terminée est celle des factures déjà
+émises ; un remboursement de taxes n'est jamais compté ; les dates du calendrier sont à valider par le CPA ; acomptes provisionnels et CNESST
+hors calendrier ; (6) le solde d'une semaine est celui de sa fin : un creux au milieu d'une semaine n'est pas vu ; (7) le code critique de
+M5 (argent) exige une revue externe (un modèle d'un autre fournisseur ou un humain) avant `main`.
 
 PLAN T4.15-c (correction, annulation et factures sans PO, `comptes_a_payer.py`, M5.2) : trois outils de plus, tous refusés à un
 agent seul.
