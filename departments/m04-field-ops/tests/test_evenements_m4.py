@@ -15,6 +15,7 @@ Import : comme `test_registre_durable.py`, ce fichier ne touche pas `sys.path` (
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 
 import pytest
@@ -23,7 +24,7 @@ from m4_field_ops.outbox import CHAMPS_WCT
 from m4_field_ops.outils import consommateurs, outils
 from sqlalchemy import func, select
 
-from opsys import contexte, evenements, stockage
+from opsys import contexte, evenements, identite, stockage
 from opsys.departements import charger_departements
 from opsys.evenements import schemas
 from opsys.outils import executer, executer_atomique
@@ -412,6 +413,21 @@ _HORODATAGE_APPAREIL_TEST = contexte.HorodatageAppareil(
     horodatage_appareil=dt.datetime(2025, 6, 2, 11, 35, 0, tzinfo=dt.UTC),
     recu_le=dt.datetime(2025, 6, 2, 11, 35, 5, tzinfo=dt.UTC),
 )
+_VERSION_TEXTE = "consentement-client-fr-CA-v1-test"
+_ADMIN_FICTIF = contexte.IdentiteAppelante(personne="admin.fictif", role="admin")
+
+
+@contextlib.contextmanager
+def _appel_d_appareil():
+    """Un appel d'appareil tel que le socle le pose : la personne authentifiée (créée en base, T1.4-k) ET
+    les deux horloges. PLAN T1.5-d : un consentement client dit qui l'a recueilli, donc l'exige."""
+    with stockage.transaction() as cnx:
+        if identite.personne(cnx, _ADMIN_FICTIF.personne) is None:
+            identite.creer_personne(cnx, _ADMIN_FICTIF.personne, "Admin Fictive", "mot-de-passe-admin-12345", ["admin"])
+    with contextlib.ExitStack() as pile:
+        pile.enter_context(contexte.appele_par_appareil(_ADMIN_FICTIF))
+        pile.enter_context(contexte.receptionne_de(_HORODATAGE_APPAREIL_TEST))
+        yield
 
 
 def test_completion_appel_appareil_avec_consentement_porte_les_champs_client_et_publie_valide(
@@ -420,13 +436,14 @@ def test_completion_appel_appareil_avec_consentement_porte_les_champs_client_et_
     par_nom = {o.nom: o for o in outils()}
     i_id = _mener_a_sur_site(par_nom, "L-EVT-APPAREIL-CONSENT")
 
-    with contexte.receptionne_de(_HORODATAGE_APPAREIL_TEST):
+    with _appel_d_appareil():
         completion = executer_atomique(par_nom["m4_completer_intervention"], {
             "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
             "preuves_completion": _preuves_ok(par_nom, deposer_photo_test),
             "photos": ["chantier-apres-1.jpg"],
             "description_factuelle": "Gouttières remplacées, aucun incident.",
             "consentement_marketing": True, "client_satisfait": True,
+            "consentement_version_texte": _VERSION_TEXTE,
         })
     assert completion["ok"] is True and completion["resultat"]["accepte"] is True, completion
     wct_id = completion["resultat"]["resultat"]["wct_id"]
@@ -438,6 +455,11 @@ def test_completion_appel_appareil_avec_consentement_porte_les_champs_client_et_
     assert wct["consentement_marketing"] is True
     assert wct["client_satisfait"] is True
     assert wct["type_travaux"] == "renovation_totale"
+    # PLAN T1.5-d : la preuve du consentement, posée par le serveur (personne et heure de réception).
+    assert wct["consentement_recueilli_par"] == "admin.fictif"
+    assert wct["consentement_recueilli_le"] == "2025-06-02T11:35:05+00:00"
+    assert wct["consentement_version_texte"] == _VERSION_TEXTE
+    assert "consentement_demande_avis" not in wct  # non envoyé : jamais déduit de consentement_marketing
 
     # -- la charge publiée les porte AUSSI, et valide intégralement le schéma JSON du catalogue
     ligne, charge = _charge_publiee("m4.travaux_termines")
@@ -489,11 +511,12 @@ def test_completion_appel_appareil_consentement_et_satisfaction_produit_un_broui
     par_nom = {o.nom: o for o in outils()}
     i_id = _mener_a_sur_site(par_nom, "L-EVT-M7-CONSENT")
 
-    with contexte.receptionne_de(_HORODATAGE_APPAREIL_TEST):
+    with _appel_d_appareil():
         completion = executer_atomique(par_nom["m4_completer_intervention"], {
             "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
             "preuves_completion": _preuves_ok(par_nom, deposer_photo_test),
-            "consentement_marketing": True, "client_satisfait": True,
+            "consentement_demande_avis": True, "client_satisfait": True,
+            "consentement_version_texte": _VERSION_TEXTE,
         })
     assert completion["ok"] is True and completion["resultat"]["accepte"] is True, completion
 

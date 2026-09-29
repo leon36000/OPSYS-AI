@@ -45,8 +45,16 @@ CHAMPS_WCT = (
 #   - ``type_travaux`` (lead v1, contrat gelé) OU ``service`` (lead v2, taxonomie du socle,
 #     PLAN T0.13-b) : tiré de l'inscription, jamais deviné, jamais les deux, jamais l'un déduit de
 #     l'autre — ``etats.travaux_de`` porte la règle ;
-#   - les quatre autres : des faits du CLIENT (Loi 25), acceptés par
-#     ``m4_completer_intervention`` SEULEMENT pendant un appel d'appareil (voir outils.py).
+#   - ``photos``, ``description_factuelle``, ``consentement_marketing`` (usage de photos) et
+#     ``client_satisfait`` : des faits du CLIENT (Loi 25), acceptés par
+#     ``m4_completer_intervention`` SEULEMENT pendant un appel d'appareil (voir outils.py) ;
+#   - PLAN T1.5-d, clés additives : ``consentement_demande_avis`` (consentement DISTINCT à être
+#     contacté pour un avis, jamais déduit de ``consentement_marketing``) et la preuve de ces
+#     consentements : ``consentement_recueilli_par`` (la personne authentifiée),
+#     ``consentement_recueilli_le`` (l'heure de réception du serveur) et
+#     ``consentement_version_texte`` (le texte présenté au client). La preuve est posée par
+#     ``outils.py`` (jamais fournie telle quelle par l'appareil, sauf la version du texte) et
+#     n'existe qu'avec l'un des deux consentements.
 # ``ville`` N'EST PAS dans ce tuple : M4 ne connaît la ville qu'au travers de
 # ``ville_tokenisee`` (registre immuable, Architecture §2 — docs/bmad/03-ARCHITECTURE.md ;
 # invariant testé par test_aucune_ville_en_clair_dans_le_registre). La révéler en clair, même
@@ -54,8 +62,16 @@ CHAMPS_WCT = (
 # structurellement absent, exactement comme le catalogue (optionnel) le permet.
 CHAMPS_WCT_OPTIONNELS = (
     "type_travaux", "service", "photos", "description_factuelle", "consentement_marketing",
-    "client_satisfait",
+    "client_satisfait", "consentement_demande_avis", "consentement_recueilli_par",
+    "consentement_recueilli_le", "consentement_version_texte",
 )
+
+# PLAN T1.5-d : les trois clés de PREUVE d'un consentement client (voir ci-dessus), toujours
+# ensemble, et seulement avec l'un des deux consentements (``CLES_CONSENTEMENT_CLIENT``).
+CLES_PREUVE_CONSENTEMENT = (
+    "consentement_recueilli_par", "consentement_recueilli_le", "consentement_version_texte",
+)
+CLES_CONSENTEMENT_CLIENT = ("consentement_marketing", "consentement_demande_avis")
 
 # Sentinelle interne : distincte de ``None``, qui est une valeur VALIDE pour
 # ``client_satisfait`` (« non recueilli », catalogue). Un paramètre resté à cette valeur par
@@ -278,11 +294,62 @@ def calculer_duree_reelle(registre_cible, intervention_id):
     return minutes, None
 
 
+def _verdict_consentements_client(
+    consentement_marketing, consentement_demande_avis, recueilli_par, recueilli_le, version_texte,
+):
+    """PLAN T1.5-d : la FORME des consentements client et de leur preuve, ou ``None`` si elle est
+    correcte. Les deux consentements sont des booléens stricts (jamais ``"true"`` ni ``1``) ; les
+    trois clés de preuve vont ensemble, ne valent jamais vide, et n'existent qu'avec un
+    consentement : une preuve sans rien à prouver, ou un consentement sans preuve dans CE
+    module, resterait une donnée que personne ne peut relire. (Que le consentement porte une
+    preuve est exigé par ``outils.py`` ; ce module pur ne fait que refuser l'incohérence.)"""
+    if consentement_demande_avis is not NON_FOURNI and type(consentement_demande_avis) is not bool:
+        return verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE",
+            detail="consentement_demande_avis doit être un booléen explicite (jamais déduit)",
+        )
+    preuve = (recueilli_par, recueilli_le, version_texte)
+    fournies = [valeur is not NON_FOURNI for valeur in preuve]
+    if not any(fournies):
+        return None
+    if not all(fournies):
+        return verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE",
+            detail=(
+                "la preuve d'un consentement client va ensemble : consentement_recueilli_par, "
+                "consentement_recueilli_le et consentement_version_texte, ou aucun"
+            ),
+        )
+    if consentement_marketing is NON_FOURNI and consentement_demande_avis is NON_FOURNI:
+        return verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE",
+            detail="une preuve de consentement sans aucun consentement à prouver",
+        )
+    for nom, valeur in (
+        ("consentement_recueilli_par", recueilli_par),
+        ("consentement_version_texte", version_texte),
+    ):
+        if not isinstance(valeur, str) or valeur.strip() == "":
+            return verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE", detail=f"{nom} doit être une chaîne non vide",
+            )
+    try:
+        horodatage.valider_horodatage(recueilli_le)
+    except ValueError:
+        return verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE",
+            detail="consentement_recueilli_le doit être un horodatage RFC 3339 avec fuseau",
+        )
+    return None
+
+
 def completer_intervention(
     intervention_id, horodatage_arg, registre_cible, *, ecart_detecte, revue_id=None,
     verification_en_attente=False,
     photos=NON_FOURNI, description_factuelle=NON_FOURNI,
     consentement_marketing=NON_FOURNI, client_satisfait=NON_FOURNI,
+    consentement_demande_avis=NON_FOURNI, consentement_recueilli_par=NON_FOURNI,
+    consentement_recueilli_le=NON_FOURNI, consentement_version_texte=NON_FOURNI,
 ):
     """
     Réalise la complétion et émet le WCT en une unique écriture.
@@ -324,6 +391,14 @@ def completer_intervention(
             savoir SI l'appelant a le droit de les fournir (appel d'appareil,
             Loi 25) est une décision de ``outils.py`` — ce module reste pur,
             sans import ``opsys``, et ne la prend jamais.
+        consentement_demande_avis, consentement_recueilli_par, consentement_recueilli_le,
+            consentement_version_texte (PLAN T1.5-d, CHAMPS_WCT_OPTIONNELS) : le consentement
+            du client à une demande d'avis (booléen strict, distinct de
+            ``consentement_marketing``) et la PREUVE des consentements (qui, quand, quel texte).
+            Même contrat que ci-dessus : seule leur FORME est vérifiée ici — les trois clés de
+            preuve vont ensemble et n'existent qu'avec un consentement (``REJ-CONTRAT-INVALIDE``
+            sinon) ; qui a le droit de les fournir, et d'où viennent la personne et l'heure, est
+            la décision de ``outils.py``.
 
     Returns:
         (accusé, None) ou (None, verdict).
@@ -377,6 +452,12 @@ def completer_intervention(
             "REJ-CONTRAT-INVALIDE",
             detail="description_factuelle doit être une chaîne",
         )
+    verdict_consentements = _verdict_consentements_client(
+        consentement_marketing, consentement_demande_avis, consentement_recueilli_par,
+        consentement_recueilli_le, consentement_version_texte,
+    )
+    if verdict_consentements is not None:
+        return None, verdict_consentements
 
     # 3. Statut courant
     courant = etats.statut_courant(registre_cible, intervention_id)
@@ -491,6 +572,16 @@ def completer_intervention(
         wct["consentement_marketing"] = consentement_marketing
     if client_satisfait is not NON_FOURNI:
         wct["client_satisfait"] = client_satisfait
+    # PLAN T1.5-d : le consentement à la demande d'avis et la preuve des consentements.
+    if consentement_demande_avis is not NON_FOURNI:
+        wct["consentement_demande_avis"] = consentement_demande_avis
+    for cle, valeur in (
+        ("consentement_recueilli_par", consentement_recueilli_par),
+        ("consentement_recueilli_le", consentement_recueilli_le),
+        ("consentement_version_texte", consentement_version_texte),
+    ):
+        if valeur is not NON_FOURNI:
+            wct[cle] = valeur
 
     # 12. Maillon composite : exactement UN appel à ajouter
     maillon = copy.deepcopy(partie_transition)
@@ -838,6 +929,14 @@ def verifier_invariants_outbox(registre_cible):
                 return False, f"wct avec clés incorrectes: {cles_wct}"
             if "type_travaux" in cles_wct and "service" in cles_wct:
                 return False, "wct porte type_travaux ET service (lead v1 ou v2, jamais les deux)"
+            # PLAN T1.5-d : la preuve d'un consentement client va ensemble et ne vit qu'avec un
+            # consentement (`_verdict_consentements_client` l'exige à l'écriture).
+            preuve_presente = [cle for cle in CLES_PREUVE_CONSENTEMENT if cle in cles_wct]
+            if preuve_presente and (
+                len(preuve_presente) != len(CLES_PREUVE_CONSENTEMENT)
+                or not any(cle in cles_wct for cle in CLES_CONSENTEMENT_CLIENT)
+            ):
+                return False, f"wct avec une preuve de consentement incohérente: {preuve_presente}"
             if wct["consommateurs_cibles"] != list(CONSOMMATEURS_CIBLES):
                 return False, "consommateurs_cibles du wct invalides"
             if wct["intervention_id"] != maillon.get("intervention_id"):
@@ -1071,6 +1170,8 @@ __all__ = [
     "CONSOMMATEURS_CIBLES",
     "CHAMPS_WCT",
     "CHAMPS_WCT_OPTIONNELS",
+    "CLES_PREUVE_CONSENTEMENT",
+    "CLES_CONSENTEMENT_CLIENT",
     "NON_FOURNI",
     "CLE_WCT",
     "STATUTS_COMPLETION",

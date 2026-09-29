@@ -227,6 +227,7 @@ def test_completion_par_l_employe_est_executee_et_tracee(capacites, personnes, s
         "preuves_completion": {"checklist_complete": True, "photos_apres": [photo], "notes": "RAS.",
                                "signature": None},
         "consentement_marketing": False, "description_factuelle": "Gouttière remplacée (fictif).",
+        "consentement_version_texte": "consentement-client-fr-CA-v1-test",  # T1.5-d : tout consentement a son texte
     }, EMPLOYE, cle="mut-completion")
 
     assert reponse["ok"] is True and reponse["resultat"]["accepte"] is True, reponse

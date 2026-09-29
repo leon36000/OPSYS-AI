@@ -1429,3 +1429,140 @@ def test_verifier_invariants_rejette_cle_optionnelle_inconnue():
     assert not ok
     assert msg != ""
 
+
+
+# ==================================================================================
+# 15. PLAN T1.5-d — le consentement du client à une demande d'avis et la preuve des consentements
+# (qui, quand, quel texte). Forme vérifiée ICI (module pur) ; d'où viennent la personne et l'heure,
+# et qui a le droit de les fournir, est la décision de outils.py (test_consentements_client.py).
+# ==================================================================================
+PREUVE_CONSENTEMENT = {
+    "consentement_recueilli_par": "etienne", "consentement_recueilli_le": "2025-06-02T11:35:05+00:00",
+    "consentement_version_texte": "consentement-client-fr-CA-v1-test",
+}
+
+
+def test_consentement_demande_avis_et_sa_preuve_sont_portes_par_le_wct():
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    accuse, verdict = outbox_mod.completer_intervention(
+        i_id, H_COMPLETION, reg, ecart_detecte=False,
+        consentement_demande_avis=True, **PREUVE_CONSENTEMENT,
+    )
+    assert accuse is not None, f"complétion refusée : {verdict}"
+    wct = reg.lire()[-1][outbox_mod.CLE_WCT]
+    assert wct["consentement_demande_avis"] is True
+    assert {cle: wct[cle] for cle in outbox_mod.CLES_PREUVE_CONSENTEMENT} == PREUVE_CONSENTEMENT
+    # Distinct de consentement_marketing : l'un n'est jamais déduit de l'autre.
+    assert "consentement_marketing" not in wct
+    ok, msg = outbox_mod.verifier_invariants_outbox(reg)
+    assert ok, msg
+
+
+def test_consentement_marketing_seul_peut_porter_la_preuve():
+    """La preuve accompagne l'un OU l'autre consentement : refuser la demande d'avis mais accepter les
+    photos est un état réel, et il se prouve tout autant."""
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    accuse, verdict = outbox_mod.completer_intervention(
+        i_id, H_COMPLETION, reg, ecart_detecte=False, consentement_marketing=True, **PREUVE_CONSENTEMENT,
+    )
+    assert accuse is not None, f"complétion refusée : {verdict}"
+    wct = reg.lire()[-1][outbox_mod.CLE_WCT]
+    assert wct["consentement_marketing"] is True and "consentement_demande_avis" not in wct
+    assert wct["consentement_recueilli_par"] == "etienne"
+
+
+def test_champs_de_consentement_et_de_preuve_declares_optionnels_et_alignes_sur_le_catalogue():
+    from opsys import evenements
+
+    for cle in ("consentement_demande_avis", *outbox_mod.CLES_PREUVE_CONSENTEMENT):
+        assert cle in outbox_mod.CHAMPS_WCT_OPTIONNELS and cle not in outbox_mod.CHAMPS_WCT
+    schema = evenements.schema("m4.travaux_termines")
+    optionnels = set(schema["properties"]) - set(schema["required"])
+    # `ville` est au catalogue mais jamais dans le WCT (Loi 25) : tout le reste est aligné.
+    assert set(outbox_mod.CHAMPS_WCT_OPTIONNELS) == optionnels - {"ville"}
+
+
+@pytest.mark.parametrize("champ,mauvaise_valeur", [
+    ("consentement_demande_avis", "true"),
+    ("consentement_demande_avis", 1),
+    ("consentement_demande_avis", None),
+])
+def test_consentement_demande_avis_mal_type_refuse_rien_ecrit(champ, mauvaise_valeur):
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    taille_avant = len(reg.lire())
+    accuse, verdict = outbox_mod.completer_intervention(
+        i_id, H_COMPLETION, reg, ecart_detecte=False, **{champ: mauvaise_valeur}, **PREUVE_CONSENTEMENT,
+    )
+    assert accuse is None
+    assert verdict["code"] == "REJ-CONTRAT-INVALIDE"
+    assert len(reg.lire()) == taille_avant
+
+
+@pytest.mark.parametrize("retire", list(outbox_mod.CLES_PREUVE_CONSENTEMENT))
+def test_la_preuve_d_un_consentement_va_ensemble_sinon_refus(retire):
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    taille_avant = len(reg.lire())
+    preuve = {cle: valeur for cle, valeur in PREUVE_CONSENTEMENT.items() if cle != retire}
+    accuse, verdict = outbox_mod.completer_intervention(
+        i_id, H_COMPLETION, reg, ecart_detecte=False, consentement_demande_avis=True, **preuve,
+    )
+    assert accuse is None
+    assert verdict["code"] == "REJ-CONTRAT-INVALIDE"
+    assert "ensemble" in verdict["detail"]
+    assert len(reg.lire()) == taille_avant
+
+
+def test_une_preuve_sans_consentement_a_prouver_est_refusee():
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    taille_avant = len(reg.lire())
+    accuse, verdict = outbox_mod.completer_intervention(
+        i_id, H_COMPLETION, reg, ecart_detecte=False, **PREUVE_CONSENTEMENT,
+    )
+    assert accuse is None
+    assert verdict["code"] == "REJ-CONTRAT-INVALIDE"
+    assert "aucun consentement" in verdict["detail"]
+    assert len(reg.lire()) == taille_avant
+
+
+@pytest.mark.parametrize("cle,mauvaise_valeur", [
+    ("consentement_recueilli_par", ""),
+    ("consentement_recueilli_par", "  "),
+    ("consentement_recueilli_par", 7),
+    ("consentement_version_texte", ""),
+    ("consentement_version_texte", None),
+    ("consentement_recueilli_le", "hier"),
+    ("consentement_recueilli_le", "2025-06-02T11:35:05"),  # sans fuseau : une heure qu'on ne sait pas situer
+    ("consentement_recueilli_le", 1748864105),
+])
+def test_la_preuve_mal_formee_est_refusee_rien_ecrit(cle, mauvaise_valeur):
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    taille_avant = len(reg.lire())
+    preuve = {**PREUVE_CONSENTEMENT, cle: mauvaise_valeur}
+    accuse, verdict = outbox_mod.completer_intervention(
+        i_id, H_COMPLETION, reg, ecart_detecte=False, consentement_demande_avis=True, **preuve,
+    )
+    assert accuse is None
+    assert verdict["code"] == "REJ-CONTRAT-INVALIDE"
+    assert cle in verdict["detail"]
+    assert len(reg.lire()) == taille_avant
+
+
+def test_sans_consentement_le_wct_ne_porte_aucune_cle_de_consentement_ni_de_preuve():
+    """Non-régression : ni consentement ni preuve ne naissent d'eux-mêmes."""
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    accuse, verdict = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
+    assert accuse is not None, f"complétion refusée : {verdict}"
+    wct = reg.lire()[-1][outbox_mod.CLE_WCT]
+    for cle in ("consentement_demande_avis", "consentement_marketing", *outbox_mod.CLES_PREUVE_CONSENTEMENT):
+        assert cle not in wct
+
+
+def test_verifier_invariants_rejette_une_preuve_de_consentement_incoherente():
+    """Défense en profondeur : une preuve incomplète, ou sans consentement, dans un WCT déjà écrit."""
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
+    wct = reg._chain[-1][outbox_mod.CLE_WCT]
+    wct["consentement_recueilli_par"] = "etienne"  # une seule des trois clés, et aucun consentement
+    ok, msg = outbox_mod.verifier_invariants_outbox(reg)
+    assert not ok
+    assert "preuve de consentement" in msg

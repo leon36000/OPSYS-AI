@@ -28,6 +28,7 @@ pour les cas où seule une étape est nécessaire (ex. un pointage isolé).
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from functools import partial
 from typing import Any
@@ -109,6 +110,11 @@ _EMPREINTE_SHA256 = {
     "description": "SHA-256 (hexadécimal minuscule) du contenu COMPLET du fichier.",
 }
 
+# PLAN T1.5-d : identifiant de la version du texte de consentement que l'app a présenté au client
+# (ex. « consentement-client-fr-CA-v1 ») — une étiquette, jamais le texte lui-même ni une donnée
+# personnelle : caractères sûrs, bornée.
+_FORMAT_VERSION_TEXTE_CONSENTEMENT = r"^[A-Za-z0-9._-]{1,64}$"
+
 # T1.4-e2 : traduction des raisons génériques du dépôt socle (opsys.fichiers, département-
 # agnostique) vers le catalogue de verdicts FERMÉ de M4 — aucun autre module ne connaît ces codes.
 _RAISON_DEPOT_VERS_CODE = {
@@ -150,6 +156,68 @@ def _acteur_appareil() -> tuple[acces.Acteur | None, dict[str, Any] | None]:
             ),
         )
     return acces.acteur_de(confirmee.personne, confirmee.role)
+
+
+def _preuve_consentement_client(
+    acteur: acces.Acteur | None, consentement_marketing: Any, consentement_demande_avis: Any,
+    version_texte: Any,
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    """PLAN T1.5-d : la PREUVE des consentements que l'employé a recueillis auprès du client, ou le
+    verdict qui dit ce qui manque. ``({}, None)`` quand aucun consentement n'est envoyé : rien à
+    prouver, rien n'est posé (ni personne ni heure), et un consentement n'existe jamais par défaut.
+
+    Ces consentements portent la PAROLE DU CLIENT, recueillie par l'employé authentifié : M4 les
+    prend tels qu'envoyés (un agent, lui, ne le peut jamais, voir plus haut), mais ne prend de
+    l'appareil que ce qu'il sait vraiment, la version du texte qu'il a montré. Le reste est posé
+    par le SERVEUR, jamais par les arguments :
+      - ``consentement_recueilli_par`` : la personne du jeton, CONFIRMÉE en base (``acteur``) ;
+      - ``consentement_recueilli_le`` : l'heure de RÉCEPTION du serveur, pas l'horloge du téléphone.
+    Sans personne confirmée, personne n'a recueilli ce consentement : refus (fail-closed), plutôt
+    qu'un consentement dont on ne saurait dire qui l'a obtenu. Sans version du texte, on ne saurait
+    pas dire à quoi le client a consenti : refus aussi. Le WCT est écrit dans le registre de M4
+    (chaîne immuable) : c'est la preuve durable, relue par M7 sur le bus."""
+    consentement_fourni = (
+        consentement_marketing is not outbox.NON_FOURNI
+        or consentement_demande_avis is not outbox.NON_FOURNI
+    )
+    if not consentement_fourni:
+        if version_texte is not outbox.NON_FOURNI:
+            return {}, verdicts.construire_verdict(
+                "REJ-CONSENTEMENT-INVALIDE",
+                detail="consentement_version_texte sans aucun consentement : rien à prouver",
+            )
+        return {}, None
+    if (
+        not isinstance(version_texte, str)
+        or re.fullmatch(_FORMAT_VERSION_TEXTE_CONSENTEMENT, version_texte) is None
+    ):
+        return {}, verdicts.construire_verdict(
+            "REJ-CONSENTEMENT-INVALIDE",
+            detail=(
+                "consentement_version_texte requis avec un consentement client : l'identifiant "
+                "(1 à 64 caractères, lettres, chiffres, point, tiret) de la version du texte "
+                "présentée au client, sans quoi on ne sait pas à quoi il a consenti"
+            ),
+        )
+    if acteur is None:
+        return {}, verdicts.construire_verdict(
+            "REJ-IDENTITE-APPAREIL-INVALIDE",
+            detail=(
+                "un consentement client exige la personne authentifiée qui l'a recueilli : "
+                "aucune identité confirmée pour cet appel"
+            ),
+        )
+    reception = contexte.horodatage_reception()
+    if reception is None:  # déjà refusé plus haut ; défense en profondeur, jamais une heure inventée
+        return {}, verdicts.construire_verdict(
+            "REJ-CHAMPS-CLIENT-HORS-APPAREIL",
+            detail="un consentement client n'est daté que par l'heure de réception d'un appel d'appareil",
+        )
+    return {
+        "consentement_recueilli_par": acteur.personne,
+        "consentement_recueilli_le": reception.recu_le.isoformat(),
+        "consentement_version_texte": version_texte,
+    }, None
 
 
 def _refus(verdict: dict[str, Any]) -> dict[str, Any]:
@@ -540,6 +608,8 @@ def outils(
         preuves_completion: dict[str, Any], signature_requise: bool = False,
         photos: Any = outbox.NON_FOURNI, description_factuelle: Any = outbox.NON_FOURNI,
         consentement_marketing: Any = outbox.NON_FOURNI, client_satisfait: Any = outbox.NON_FOURNI,
+        consentement_demande_avis: Any = outbox.NON_FOURNI,
+        consentement_version_texte: Any = outbox.NON_FOURNI,
     ) -> dict[str, Any]:
         # T1.2-f : photos/description_factuelle/consentement_marketing/client_satisfait sont
         # des faits du CLIENT (Loi 25) — un agent ne peut JAMAIS les affirmer, même principe
@@ -547,6 +617,8 @@ def outils(
         # PENDANT un appel d'appareil (opsys.contexte.horodatage_reception() non None, socle
         # T1.4-b, docs/architecture/IDEMPOTENCE.md) : leur seule PRÉSENCE hors d'un tel appel
         # est un refus nommé — AVANT même de valider les preuves, rien n'est écrit ni publié.
+        # PLAN T1.5-d : il en va de même de consentement_demande_avis (le client accepte qu'on lui
+        # demande un avis) et de consentement_version_texte (le texte que l'app lui a présenté).
         # PLAN T1.4-k : un employé ne termine que SON intervention (avant toute autre lecture).
         acteur, verdict_acteur = _acteur_appareil()
         if verdict_acteur is not None:
@@ -557,7 +629,10 @@ def outils(
 
         champs_client_fournis = any(
             v is not outbox.NON_FOURNI
-            for v in (photos, description_factuelle, consentement_marketing, client_satisfait)
+            for v in (
+                photos, description_factuelle, consentement_marketing, client_satisfait,
+                consentement_demande_avis, consentement_version_texte,
+            )
         )
         if champs_client_fournis and contexte.horodatage_reception() is None:
             return {
@@ -565,12 +640,18 @@ def outils(
                 "verdict": verdicts.construire_verdict(
                     "REJ-CHAMPS-CLIENT-HORS-APPAREIL",
                     detail=(
-                        "photos/description_factuelle/consentement_marketing/client_satisfait "
+                        "photos/description_factuelle/consentement_marketing/client_satisfait/"
+                        "consentement_demande_avis/consentement_version_texte "
                         "ne sont acceptés que pendant un appel d'appareil (Loi 25) : un agent "
                         "ne peut jamais les affirmer à la place du client"
                     ),
                 ),
             }
+        preuve_consentement, verdict_consentement = _preuve_consentement_client(
+            acteur, consentement_marketing, consentement_demande_avis, consentement_version_texte,
+        )
+        if verdict_consentement is not None:
+            return _refus(verdict_consentement)
 
         # Contrat PreuvesCompletion (T1.1-b#3) : validé AVANT tout appel à
         # l'outbox — aucune écriture si le dossier de preuves est incomplet.
@@ -615,6 +696,7 @@ def outils(
             verification_en_attente=True,
             photos=photos, description_factuelle=description_factuelle,
             consentement_marketing=consentement_marketing, client_satisfait=client_satisfait,
+            consentement_demande_avis=consentement_demande_avis, **preuve_consentement,
         )
         if verdict is not None:
             return {"accepte": False, "verdict": verdict}
@@ -1130,18 +1212,17 @@ def outils(
             description=(
                 "Termine une intervention et émet le Work Completion Trigger dans l'outbox, "
                 "en une seule écriture atomique (CA-M4-11). Exige le dossier PreuvesCompletion "
-                "(checklist, photos après, notes, signature si requise, §6/§9.7) ; T1.4-e2 : "
-                "chaque référence photos_apres/signature doit désigner un fichier déposé et "
-                "complet (m4_deposer_fichier), sinon REJ-PREUVE-FICHIER-INTROUVABLE. Statut "
-                "toujours completed_pending_review (vérification ensuite : variance M6, revue) ; "
-                "ecart_signale n'est vrai que si une demande d'écart métier est ouverte. T1.5-c : "
-                "en appel d'appareil, l'heure de réception du serveur date la complétion. Durée "
-                "réelle tirée des pointages, nette des pauses ; refus fail-closed si "
-                "indéterminable. T1.2-f : consentement_marketing, client_satisfait, photos et "
-                "description_factuelle sont des faits CLIENT (Loi 25), jamais affirmés par un "
-                "agent : acceptés SEULEMENT en appel d'appareil (sinon "
-                "REJ-CHAMPS-CLIENT-HORS-APPAREIL). T1.4-k : un employé ne termine que SON "
-                "intervention (REJ-INTERVENTION-NON-ASSIGNEE)."
+                "(checklist, photos après, notes, signature si requise, §6/§9.7) ; chaque "
+                "référence photos_apres/signature doit désigner un fichier déposé et complet "
+                "(m4_deposer_fichier), sinon REJ-PREUVE-FICHIER-INTROUVABLE. Statut toujours "
+                "completed_pending_review (vérification ensuite : variance M6, revue). "
+                "En appel d'appareil, l'heure de réception du serveur date la complétion. Durée "
+                "réelle tirée des pointages, nette des pauses. Faits CLIENT (Loi 25) : "
+                "consentement_marketing, consentement_demande_avis, client_satisfait, photos, "
+                "description_factuelle, consentement_version_texte, acceptés SEULEMENT en appel "
+                "d'appareil (sinon REJ-CHAMPS-CLIENT-HORS-APPAREIL) ; tout consentement exige la "
+                "version du texte, le serveur pose seul qui l'a recueilli et quand. Un employé ne "
+                "termine que SON intervention (REJ-INTERVENTION-NON-ASSIGNEE)."
             ),
             parametres={
                 "type": "object",
@@ -1167,9 +1248,29 @@ def outils(
                     "consentement_marketing": {
                         "type": "boolean",
                         "description": (
-                            "Consentement explicite du client à un usage marketing (Loi 25), "
-                            "jamais déduit. Accepté SEULEMENT pendant un appel d'appareil, "
-                            "jamais fourni ni affirmé par un agent."
+                            "Consentement explicite du client à un usage marketing de photos "
+                            "(Loi 25), jamais déduit. Accepté SEULEMENT pendant un appel "
+                            "d'appareil, jamais fourni ni affirmé par un agent. Exige "
+                            "consentement_version_texte."
+                        ),
+                    },
+                    "consentement_demande_avis": {
+                        "type": "boolean",
+                        "description": (
+                            "Consentement explicite du client à être contacté pour laisser un "
+                            "avis (Loi 25), DISTINCT de consentement_marketing, jamais déduit "
+                            "de l'un ni de l'autre. Accepté SEULEMENT pendant un appel "
+                            "d'appareil. Absent = non consenti. Exige consentement_version_texte."
+                        ),
+                    },
+                    "consentement_version_texte": {
+                        "type": "string",
+                        "pattern": _FORMAT_VERSION_TEXTE_CONSENTEMENT,
+                        "description": (
+                            "Identifiant de la version du texte de consentement présenté au "
+                            "client. Exigé avec tout consentement, refusé sans. Qui l'a recueilli "
+                            "et quand : posés par le serveur (personne authentifiée, heure de "
+                            "réception), jamais fournis ici."
                         ),
                     },
                     "client_satisfait": {
