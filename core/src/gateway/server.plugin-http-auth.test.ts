@@ -401,7 +401,9 @@ describe("gateway plugin HTTP auth boundary", () => {
     expect(adminAllowedResults).toEqual([true]);
   });
 
-  test("allows unauthenticated Mattermost slash callback routes while keeping other channel routes protected", async () => {
+  // OPSYS fork: the Mattermost extension is pruned (42 of 162 extensions kept, PROVENANCE.md). The exemption of its
+  // slash callback lived in that extension, so the fork keeps the route behind gateway auth like any channel route.
+  test("keeps Mattermost slash callback routes protected: the Mattermost extension is not in the fork", async () => {
     const handlePluginRequest = vi.fn(async (req: IncomingMessage, res: ServerResponse) => {
       const pathname = new URL(req.url ?? "/", "http://localhost").pathname;
       if (pathname === "/api/channels/mattermost/command") {
@@ -430,8 +432,8 @@ describe("gateway plugin HTTP auth boundary", () => {
           path: "/api/channels/mattermost/command",
           method: "POST",
         });
-        expect(slashCallback.res.statusCode).toBe(200);
-        expect(slashCallback.getBody()).toBe("ok:mm-callback");
+        expect(slashCallback.res.statusCode).toBe(401);
+        expect(slashCallback.getBody()).toContain("Unauthorized");
 
         const otherChannelUnauthed = await sendRequest(server, {
           path: "/api/channels/nostr/default/profile",

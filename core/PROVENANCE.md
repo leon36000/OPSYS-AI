@@ -292,6 +292,13 @@ lisait `.github/workflows/openclaw-cross-os-release-checks-reusable.yml` et `ope
 de publication de l'amont retirés avec `.github/` à l'élagage (plus haut). Ce cas vérifiait un fichier absent du fork
 et ne pouvait pas passer : il est retiré, les 310 autres restent.
 
+Correction après la CI core 29 : `src/gateway/server.plugin-http-auth.test.ts` entre aussi dans les cibles (titre du
+tableau de bord). Son cas « allows unauthenticated Mattermost slash callback routes » attendait 200 sur la route de
+commande de Mattermost ; il a reçu 401. L'exemption de cette route vivait dans l'extension `mattermost`, retirée à
+l'élagage : aucun code du fork ne lit plus `channels.mattermost.commands.callbackPath`. Le cas vérifie maintenant ce
+que fait le fork (401, la route reste derrière l'authentification du Gateway), en gardant l'assertion sur les autres
+canaux.
+
 ### Commit 1 : interface et locales
 
 - Modifiés : `ui/index.html` (titre « OPSYS Control », écran de secours), `ui/public/manifest.webmanifest`, les 114
