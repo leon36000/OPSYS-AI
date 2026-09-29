@@ -255,8 +255,8 @@ def _faits_de_m8():
 
 def _recus_de_m8():
     with stockage.transaction() as cnx:
-        return cnx.execute(select(EVENEMENTS_RECUS.c.evenement_id, EVENEMENTS_RECUS.c.statut).where(
-            EVENEMENTS_RECUS.c.consommateur == M8)).all()
+        return cnx.execute(select(EVENEMENTS_RECUS.c.evenement_id, EVENEMENTS_RECUS.c.statut,
+                                  EVENEMENTS_RECUS.c.resultat).where(EVENEMENTS_RECUS.c.consommateur == M8)).all()
 
 
 def _instantane_base():
@@ -274,10 +274,15 @@ BASE = dt.datetime(2026, 9, 29, 11, 0, 0, tzinfo=dt.timezone(dt.timedelta(hours=
 def test_m5_constate_le_bus_livre_et_la_vue_de_m8_montre_le_cash_libre_de_m5_tel_quel(cas_fictif, deps):
     corps = _constat_accepte(deps)
     assert (corps["publie"], corps["deja_constate"]) == (True, False)
+    assert corps["mention"] == MENTION, "la réponse de M5 porte la mention obligatoire des analyses"
     total = _drainer(deps, BASE)
     assert total["traites"] == 1 and total["echecs"] == 0 and total["quarantaines"] == 0, total
     ((evenement_id, charge),) = _publies()
-    assert [tuple(r) for r in _recus_de_m8()] == [(evenement_id, "traite")]
+    assert [tuple(r[:2]) for r in _recus_de_m8()] == [(evenement_id, "traite")]
+    resume_du_recu = json.loads(_recus_de_m8()[0].resultat)
+    assert resume_du_recu["enregistre"] is True and resume_du_recu["deja_enregistre"] is False
+    assert "27861.98" not in json.dumps(resume_du_recu) and "cash_libre_cad" not in resume_du_recu, (
+        "le résumé du reçu, que le bus range, ne porte aucun montant")
 
     avant = _instantane_base()
     vue = _vue(deps, "2026-10-02")
@@ -416,6 +421,7 @@ def test_redire_le_constat_ne_publie_rien_et_un_rejeu_du_bus_ne_livre_rien(cas_f
     second = _constat_accepte(deps, cle="cle-2")  # une autre clé d'appareil : la déduplication est celle de M5
 
     assert (second["publie"], second["deja_constate"]) == (False, True)
+    assert second["constat"]["sequence"] == 1 and second["constat"]["evenement_id"] == _publies()[0][0]
     changees = {nom for nom, lignes in _instantane_base().items() if lignes != apres_le_premier[nom]}
     # la clé d'appareil, la validation du N3 et son journal : aucun événement, aucun registre de M5 ni de M8
     assert changees <= {"mutations_appliquees", "approbations", "journal"}, changees

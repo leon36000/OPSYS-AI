@@ -409,6 +409,8 @@ def test_la_section_montre_le_dernier_constat_et_compte_ceux_qu_elle_a_recus():
 
     assert section["n_constats_recus"] == 3 and section["constat"]["sequence"] == 3
     assert section["age"] == {"jours": 8, "aujourd_hui": "2026-10-01"}, "de 2026-09-23 à 2026-10-01"
+    relivre = cash_libre.section([*faits, dict(faits[0])], "2026-10-01", [])
+    assert relivre["n_constats_recus"] == 3, "une relivraison du même événement ne compte pas comme un constat de plus"
 
 
 def test_la_section_ne_modifie_pas_le_fait_range():
