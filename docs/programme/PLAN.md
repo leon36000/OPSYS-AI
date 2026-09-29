@@ -1079,6 +1079,23 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
   - [ ] T3.3-suite-b : résolution des signaux critiques (M10 ne sait pas les clore ; le core les
         affiche seulement) ; blocage `before_tool_call` d'une action N3 ou plus quand le contexte
         est insuffisant ; affaire liée à la session avant d'activer M1 ; filtre `CLIENT_PRIVATE`.
+        Livré (b1206c3, 33e1789, 4ad239c, 3378650, a5b9537 intégrés, plus la greffe du garde dans
+        `runBeforeToolCallHook`), à cocher sur le job `tests-opsys` du core :
+        - M10 : cycle ouvert → pris en compte → clos ; `m10_prendre_en_compte_signal` et
+          `m10_clore_signal` (N3, `admin`, motif) refusent tout appel qui n'est ni un humain
+          authentifié ni l'exécution d'une demande qu'un humain vient d'approuver ; le paquet
+          montre les ouverts et les derniers clos (qui, pourquoi) ;
+        - core : garde (`opsys-contexte-garde.ts`) appelé depuis `runBeforeToolCallHook` : outil
+          OPSYS N3+ refusé si le paquet de la session était indisponible, périmé (15 min) ou porte
+          un signal ouvert ; niveaux lus dans `contexte.json` généré ; inactif par défaut ;
+        - affaire de la session : lien écrit par un humain (`m10_lier_session_affaire`), lu par le
+          moteur sans jamais lire le texte du client ; option `--affaire-par-session` ;
+        - filtre de confidentialité : niveaux fermés jamais dans un paquet ; `CLIENT_PRIVATE`
+          seulement vers M1 et M2 ; éléments retenus comptés, jamais rendus ;
+        - M10 566, socle 802, verifier 137 outils (64 déclarés), 17 mutations tuées.
+        Reste : lien automatique session → affaire à la création d'un lead (M1) ;
+        `session.dmScope: "per-channel-peer"` avant d'activer M1 ; aucun producteur de clôture
+        automatique (M6 ne republie pas une variance résolue).
 
 ## T4 — Profondeur des départements
 
@@ -1268,6 +1285,8 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
   un éventuel géocodeur gouvernemental ; fond de carte pour confirmer sur carte (EFVP §5).
 - **Coût réel (T1.5-d, M5)** : taux horaire de main-d'œuvre (par équipe ou par personne) et unité
   de chaque prix du livre de prix M6 ; seuils de réapprovisionnement par article (M6).
+- **Confidentialité du contexte (T3.3-suite-b)** : `CLIENT_PRIVATE` visible de M1 et M2 seulement
+  (choix par défaut à valider).
 - **Seuils métier** (définition §13.11) :
   - M6 démarre avec un seuil de variance de chantier de 30 % ;
   - M6 signale un écart de prix à la réception au-delà de 15 % (`department.yaml`) ;
