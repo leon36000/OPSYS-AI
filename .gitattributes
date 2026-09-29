@@ -1,0 +1,8 @@
+# Fins de ligne des scripts de l'installateur (PLAN T0.11-d). Git pour Windows convertit les fichiers texte en CRLF a
+# l'extraction (core.autocrlf, actif par defaut sur windows-latest et chez beaucoup de developpeurs) : un script bash en
+# CRLF ne s'execute plus (« $'\r' : command not found »), et les scripts PowerShell de l'installateur doivent rester en
+# LF pour que leurs tests (ASCII pur, LF) passent partout. Regle volontairement etroite : un fichier de donnees d'un
+# departement peut etre en CRLF a dessein (departments/m04-field-ops/tests/data/rqa_fictif.csv). core/ a sa propre regle
+# (core/.gitattributes).
+*.sh text eol=lf
+*.ps1 text eol=lf

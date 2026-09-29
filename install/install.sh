@@ -530,9 +530,12 @@ attendre_http() {
     return 1
 }
 
+# Où regarder quand le Gateway ne répond pas : le journal du service (journalctl sous Linux ; sous macOS, le fichier que
+# le LaunchAgent écrit, core/src/daemon/restart-logs.ts, et l'état que launchd en donne).
 indice_journaux() {
     case "$(uname -s)" in
         Linux) printf '%s' "journalctl --user -u openclaw-gateway-$PROFIL_CORE -n 100 ; openclaw gateway status --deep" ;;
+        Darwin) printf '%s' "tail -n 100 ~/Library/Logs/openclaw/gateway-$PROFIL_CORE.log ; launchctl print gui/$(id -u)/ai.openclaw.$PROFIL_CORE ; openclaw gateway status --deep" ;;
         *) printf '%s' "openclaw gateway status --deep ; openclaw logs" ;;
     esac
 }

@@ -32,8 +32,9 @@
 # modeles, service d'embeddings) : le message dit quoi fournir, puis on relance la meme commande.
 #
 # Ce fichier est volontairement en ASCII pur (messages sans accents) : Windows PowerShell 5.1 lit un script UTF-8 sans
-# BOM comme du texte ANSI, et un BOM casserait l'execution par `iex`. Ce script n'a ete verifie que par analyse
-# syntaxique en CI ; son execution sous Windows reste a prouver (docs/exploitation/INSTALLATION.md).
+# BOM comme du texte ANSI, et un BOM casserait l'execution par `iex`. Il est lu par l'analyseur de PowerShell (job
+# analyse) et joue sous Windows par le job installation-windows de la CI (tests/installateur/bout_en_bout.ps1) ; ce que ce
+# job prouve, et ce qu'il ne prouve pas, est dit dans docs/exploitation/INSTALLATION.md (section 10).
 
 [CmdletBinding(PositionalBinding = $false)]
 param(
@@ -65,6 +66,8 @@ $script:EnAttente = $false
 $script:ProfilCore = 'opsys'
 $script:VariablesEcartees = @('OPENCLAW_STATE_DIR', 'OPENCLAW_CONFIG_PATH', 'OPENCLAW_HOME', 'OPENCLAW_PROFILE', 'OPENCLAW_LAUNCHD_LABEL', 'OPENCLAW_SYSTEMD_UNIT', 'OPENCLAW_WINDOWS_TASK_NAME')
 $script:DossierCore = ''
+$script:BinAjoute = $false
+$script:EnvAvant = $null
 
 function Write-Info {
     param([string]$Message)
@@ -79,6 +82,26 @@ function Write-Avert {
 function Stop-Install {
     param([string]$Message)
     throw "ERREUR : $Message"
+}
+
+# Les variables d'environnement que ce script pose ou retire (CI=true pour pnpm, COREPACK_*, OPSYS_HOME, PYTHONUTF8, le
+# PATH de pnpm, les OPENCLAW_* que Invoke-Noyau ecarte) sont celles du PROCESSUS de l'appelant : lance depuis une session
+# interactive (`.\install.ps1`), le script les y laisserait (CI=true, PATH allonge a chaque appel de pnpm...). Elles sont
+# rendues telles qu'elles etaient a la fin, sauf le dossier des commandes, ajoute au PATH pour qu'on s'en serve tout de suite.
+$script:EnvTouchee = @('CI', 'COREPACK_ENABLE_DOWNLOAD_PROMPT', 'GIT_TERMINAL_PROMPT', 'OPSYS_HOME', 'OPSYS_NODE_VERSION_MJS', 'PYTHONUTF8') + $script:VariablesEcartees
+
+function Save-Environnement {
+    $script:EnvAvant = @{}
+    foreach ($nom in ($script:EnvTouchee + @('Path'))) { $script:EnvAvant[$nom] = [Environment]::GetEnvironmentVariable($nom) }
+}
+
+function Restore-Environnement {
+    if ($null -eq $script:EnvAvant) { return }
+    foreach ($nom in $script:EnvTouchee) { [Environment]::SetEnvironmentVariable($nom, $script:EnvAvant[$nom]) }
+    $chemin = [string]$script:EnvAvant['Path']
+    if ($script:BinAjoute) { $chemin = "$chemin;$($script:Bin)" }
+    [Environment]::SetEnvironmentVariable('Path', $chemin)
+    $script:EnvAvant = $null
 }
 
 function Get-Reglage {
@@ -483,11 +506,15 @@ function Install-Commandes {
     $lignesCore += "`"$($script:Node)`" `"$($script:Depot)\core\openclaw.mjs`" --profile $($script:ProfilCore) %*"
     $lignesCore += 'exit /b %ERRORLEVEL%'
     Write-Enveloppe (Join-Path $script:Bin 'openclaw.cmd') $lignesCore
+    # `setlocal` : sans lui, les secrets de .env lus ci-dessous resteraient dans l'environnement du cmd.exe de l'appelant.
     Write-Enveloppe (Join-Path $script:Bin 'opsys.cmd') @(
         '@echo off',
         "rem $($script:Marque)",
+        'setlocal',
         "if not defined OPSYS_HOME set `"OPSYS_HOME=$($script:OpsysHome)`"",
         "set `"DOSSIER_CORE=$($script:DossierCore)`"",
+        'rem Python ecrit sa sortie en UTF-8 meme redirigee (sinon, en cp1252, un caractere comme la fleche fait echouer print).',
+        'set "PYTHONUTF8=1"',
         'if exist "%DOSSIER_CORE%\.env" (',
         '  for /f "usebackq eol=# tokens=1,* delims==" %%a in ("%DOSSIER_CORE%\.env") do (',
         '    if not defined %%a set "%%a=%%b"',
@@ -500,6 +527,7 @@ function Install-Commandes {
     if (-not $cheminUtilisateur) { $cheminUtilisateur = '' }
     if (-not (($cheminUtilisateur -split ';') -contains $script:Bin)) {
         [Environment]::SetEnvironmentVariable('Path', (($cheminUtilisateur.TrimEnd(';') + ';' + $script:Bin).TrimStart(';')), 'User')
+        $script:BinAjoute = $true
         $env:Path = "$($env:Path);$($script:Bin)"
         Write-Info "$($script:Bin) ajoute au PATH de l'utilisateur (ouvrez un nouveau terminal pour en profiter)."
     }
@@ -585,6 +613,7 @@ function Invoke-Installation {
         return 0
     }
     $encodageConsole = $null
+    Save-Environnement
     try {
         try { $encodageConsole = [Console]::OutputEncoding; [Console]::OutputEncoding = $script:Utf8 } catch { $encodageConsole = $null }
         $script:OpsysHome = Get-Reglage 'OPSYS_HOME' (Join-Path $env:USERPROFILE '.opsys')
@@ -635,6 +664,7 @@ function Invoke-Installation {
     }
     finally {
         foreach ($chemin in $script:Nettoyage) { Remove-Item -LiteralPath $chemin -Recurse -Force -ErrorAction SilentlyContinue }
+        Restore-Environnement
         if ($null -ne $encodageConsole) { try { [Console]::OutputEncoding = $encodageConsole } catch { $null = $_ } }
     }
 }

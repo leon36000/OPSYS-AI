@@ -18,7 +18,8 @@
 # Relancable. Variables : OPSYS_HOME, OPSYS_LOGICIEL, OPSYS_BIN. Code de sortie : 0 fait ; 1 arrete avant tout retrait
 # irreversible, avec quoi faire.
 #
-# ASCII pur, comme install.ps1 (voir la raison dans son en-tete). Verifie en CI par analyse syntaxique seulement.
+# ASCII pur, comme install.ps1 (voir la raison dans son en-tete). Lu par l'analyseur de PowerShell (job analyse) et joue sous
+# Windows par le job installation-windows de la CI (tests/installateur/bout_en_bout.ps1).
 
 [CmdletBinding(PositionalBinding = $false)]
 param(
@@ -33,6 +34,22 @@ $script:Utf8 = New-Object System.Text.UTF8Encoding($false)
 # Comme install.ps1 : le profil du core et les variables qui sortiraient son etat du dossier canonique du profil.
 $script:ProfilCore = 'opsys'
 $script:VariablesEcartees = @('OPENCLAW_STATE_DIR', 'OPENCLAW_CONFIG_PATH', 'OPENCLAW_HOME', 'OPENCLAW_PROFILE', 'OPENCLAW_LAUNCHD_LABEL', 'OPENCLAW_SYSTEMD_UNIT', 'OPENCLAW_WINDOWS_TASK_NAME')
+
+# Les variables d'environnement que ce script pose ou retire (OPSYS_HOME, PYTHONUTF8, les OPENCLAW_* que le core ne doit pas
+# voir) sont celles du PROCESSUS de l'appelant : elles lui sont rendues telles qu'elles etaient (comme install.ps1).
+$script:EnvTouchee = @('OPSYS_HOME', 'PYTHONUTF8') + $script:VariablesEcartees
+$script:EnvAvant = $null
+
+function Save-Environnement {
+    $script:EnvAvant = @{}
+    foreach ($nom in $script:EnvTouchee) { $script:EnvAvant[$nom] = [Environment]::GetEnvironmentVariable($nom) }
+}
+
+function Restore-Environnement {
+    if ($null -eq $script:EnvAvant) { return }
+    foreach ($nom in $script:EnvTouchee) { [Environment]::SetEnvironmentVariable($nom, $script:EnvAvant[$nom]) }
+    $script:EnvAvant = $null
+}
 
 function Write-Info {
     param([string]$Message)
@@ -84,22 +101,24 @@ function Get-CodeSortie {
 }
 
 # Un dossier qui est ou contient les donnees de l'instance ou l'etat du core, ou le dossier personnel, ne se supprime jamais.
+# Le separateur est celui du systeme (\ sous Windows) : la garde se rejoue ainsi sous PowerShell 7 hors de Windows (tests).
 function Test-Garde {
     param([string]$Dossier)
-    $dossierComplet = [System.IO.Path]::GetFullPath($Dossier).TrimEnd('\')
-    $donnees = [System.IO.Path]::GetFullPath($script:OpsysHome).TrimEnd('\')
-    $profil = [System.IO.Path]::GetFullPath($env:USERPROFILE).TrimEnd('\')
+    $sep = [string][System.IO.Path]::DirectorySeparatorChar
+    $dossierComplet = [System.IO.Path]::GetFullPath($Dossier).TrimEnd($sep)
+    $donnees = [System.IO.Path]::GetFullPath($script:OpsysHome).TrimEnd($sep)
+    $profil = [System.IO.Path]::GetFullPath($env:USERPROFILE).TrimEnd($sep)
     $ignorer = [System.StringComparison]::OrdinalIgnoreCase
     if ($dossierComplet -eq '' -or [string]::Equals($dossierComplet, $profil, $ignorer) -or [string]::Equals($dossierComplet, $donnees, $ignorer)) {
         Stop-Desinstall "refus de supprimer '$Dossier' : c'est le dossier personnel ou celui des donnees. Rien n'a ete retire."
     }
-    if (($donnees + '\').StartsWith($dossierComplet + '\', $ignorer)) {
+    if (($donnees + $sep).StartsWith($dossierComplet + $sep, $ignorer)) {
         Stop-Desinstall "refus de supprimer '$Dossier' : il contient les donnees de l'instance ($($script:OpsysHome)). Rien n'a ete retire."
     }
     $etatCore = [string]$script:Enregistre['DOSSIER_CORE']
     if ($etatCore) {
-        $etat = [System.IO.Path]::GetFullPath($etatCore).TrimEnd('\')
-        if (($etat + '\').StartsWith($dossierComplet + '\', $ignorer)) {
+        $etat = [System.IO.Path]::GetFullPath($etatCore).TrimEnd($sep)
+        if (($etat + $sep).StartsWith($dossierComplet + $sep, $ignorer)) {
             Stop-Desinstall "refus de supprimer '$Dossier' : c'est l'etat du core ou il le contient ($etatCore). Rien n'a ete retire."
         }
     }
@@ -123,11 +142,27 @@ function Invoke-Agir {
     & $Action
 }
 
+# Windows refuse de supprimer un fichier que le processus qu'on vient d'arreter tient encore ouvert (python.exe du moteur,
+# node.exe du Gateway) : le retrait est retente pendant vingt secondes avant de conclure a l'echec.
+function Remove-CheminAvecReprises {
+    param([string]$Chemin, [int]$Essais = 10)
+    for ($essai = 1; $essai -le $Essais; $essai++) {
+        try {
+            Remove-Item -LiteralPath $Chemin -Recurse -Force -ErrorAction Stop
+            return
+        }
+        catch {
+            if ($essai -eq $Essais) { throw }
+            Start-Sleep -Seconds 2
+        }
+    }
+}
+
 function Remove-Dossier {
     param([string]$Dossier)
     Test-Garde $Dossier
     if (Test-Path -LiteralPath $Dossier) {
-        Invoke-Agir "suppression de $Dossier" { Remove-Item -LiteralPath $Dossier -Recurse -Force }
+        Invoke-Agir "suppression de $Dossier" { Remove-CheminAvecReprises $Dossier }
     }
 }
 
@@ -219,6 +254,7 @@ function Invoke-Desinstallation {
         Write-Host "Variables : OPSYS_HOME, OPSYS_LOGICIEL, OPSYS_BIN"
         return 0
     }
+    Save-Environnement
     try {
         $script:Logiciel = Get-Reglage 'OPSYS_LOGICIEL' (Join-Path $env:LOCALAPPDATA 'OPSYS')
         $script:Enregistre = Read-Enregistrement (Join-Path $script:Logiciel 'installation.env')
@@ -247,6 +283,9 @@ function Invoke-Desinstallation {
     catch {
         Write-Host "[opsys] $($_.Exception.Message)" -ForegroundColor Red
         return 1
+    }
+    finally {
+        Restore-Environnement
     }
 }
 

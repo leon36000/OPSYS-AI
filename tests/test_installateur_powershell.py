@@ -1,10 +1,12 @@
 """Scripts PowerShell de l'installateur (PLAN T0.11) : garde-fous que le bac à sable peut tenir sans PowerShell.
 
-Ce bac à sable n'a pas `pwsh` et n'exécute jamais `install.ps1` : la seule preuve de syntaxe est l'analyseur de
-PowerShell, joué par le job `installateur` de la CI (`.github/workflows/installateur.yml`). Ces tests attrapent avant
-la CI ce qui s'attrape sans lui : un caractère hors ASCII (Windows PowerShell 5.1 lit un script UTF-8 sans BOM comme
-du texte ANSI, et un BOM casserait `iex`), des accolades ou des guillemets déséquilibrés, et un écart entre le
-comportement de `install.ps1` et celui de `install.sh` qu'il doit refléter.
+Ce fichier ne lit que le TEXTE des scripts, pour ce qui s'attrape sans PowerShell : un caractère hors ASCII (Windows
+PowerShell 5.1 lit un script UTF-8 sans BOM comme du texte ANSI, et un BOM casserait `iex`), des accolades ou des
+guillemets déséquilibrés, et un écart entre le comportement de `install.ps1` et celui de `install.sh` qu'il doit
+refléter. Quand `pwsh` existe (`ubuntu-24.04` l'a), le vrai PowerShell fait le reste : l'analyseur syntaxique et le
+contrôle des variables (`test_installateur_windows.py`), l'exécution des deux scripts contre de fausses commandes
+(`test_installateur_powershell_faux.py`). Sous Windows, le job `installation-windows` de la CI les exécute pour de vrai
+(`.github/workflows/installateur.yml`, `tests/installateur/bout_en_bout.ps1`).
 """
 
 from __future__ import annotations

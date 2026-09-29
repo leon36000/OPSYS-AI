@@ -111,7 +111,7 @@ exit 0
 FAUX_UV = r"""#!/usr/bin/env bash
 echo "uv $*" >>"$FAUX_JOURNAL"
 if [ "$1 ${2:-}" = "venv --clear" ]; then
-    dossier="${*: -1}"
+    for dossier; do :; done  # le dernier argument (portable : bash 3.2 de macOS compris)
     mkdir -p "$dossier/bin"
     printf '#!/bin/sh\nexec %s "$@"\n' "$FAUX_PYTHON" >"$dossier/bin/python"
     chmod +x "$dossier/bin/python"
@@ -822,6 +822,27 @@ def test_le_profil_les_variables_ecartees_et_les_noms_de_service_des_scripts_son
     assert "ai.openclaw.$PROFIL_CORE" in UNINSTALL.read_text(encoding="utf-8")  # macOS : retrait à la main
 
 
+def test_l_indice_d_ou_regarder_quand_le_gateway_ne_repond_pas_est_celui_du_systeme():
+    """Linux : journalctl ; macOS : le journal du LaunchAgent et `launchctl print` (chemins lus dans le fork)."""
+    source = INSTALL.read_text(encoding="utf-8")
+    fonction = re.search(r"^indice_journaux\(\) \{\n(.*?)\n\}$", source, flags=re.MULTILINE | re.DOTALL)
+    assert fonction is not None
+
+    def indice(systeme: str) -> str:
+        programme = f'uname() {{ echo {systeme}; }}; PROFIL_CORE=opsys; {fonction.group(0)}\nindice_journaux'
+        return subprocess.run(["bash", "-c", programme], capture_output=True, text=True, check=True).stdout
+
+    assert "journalctl --user -u openclaw-gateway-opsys" in indice("Linux")
+    macos = indice("Darwin")
+    assert "~/Library/Logs/openclaw/gateway-opsys.log" in macos and "launchctl print gui/" in macos
+    assert "/ai.openclaw.opsys" in macos and "journalctl" not in macos
+    # ces chemins sont ceux du fork : journal des LaunchAgents et étiquette du profil
+    restart_logs = (RACINE / "core/src/daemon/restart-logs.ts").read_text(encoding="utf-8")
+    assert 'path.posix.join(home, "Library", "Logs", "openclaw")' in restart_logs
+    assert "`gateway${resolveGatewayProfileSuffix(env.OPENCLAW_PROFILE)}`" in restart_logs
+    assert indice("FreeBSD").strip() == "openclaw gateway status --deep ; openclaw logs"
+
+
 def test_l_installateur_lit_la_version_de_pnpm_dans_le_package_json_reel_du_core():
     source = INSTALL.read_text(encoding="utf-8")
     fonction = re.search(r"^version_pnpm_du_core\(\) \{\n(.*?)\n\}$", source, flags=re.MULTILINE | re.DOTALL)
@@ -836,12 +857,14 @@ def test_l_installateur_lit_la_version_de_pnpm_dans_le_package_json_reel_du_core
 
 def test_les_scripts_sont_executables_et_sans_faute_de_syntaxe():
     bout_en_bout = RACINE / "tests" / "installateur" / "bout_en_bout.sh"  # joué par la CI avec le vrai core
-    for script in (INSTALL, UNINSTALL, bout_en_bout):
+    diagnostic = RACINE / "tests" / "installateur" / "diagnostic.sh"  # joué par la CI après un échec
+    for script in (INSTALL, UNINSTALL, bout_en_bout, diagnostic):
         assert os.access(script, os.X_OK), f"{script.name} doit être exécutable"
         assert subprocess.run(["bash", "-n", str(script)], capture_output=True, check=False).returncode == 0
     shellcheck = shutil.which("shellcheck")
     if shellcheck:
-        resultat = subprocess.run([shellcheck, "-s", "bash", str(INSTALL), str(UNINSTALL), str(bout_en_bout)],
+        resultat = subprocess.run([shellcheck, "-s", "bash", str(INSTALL), str(UNINSTALL), str(bout_en_bout),
+                                   str(diagnostic)],
                                   capture_output=True, text=True, check=False,
                                   env={**os.environ, "LC_ALL": "C.UTF-8"})
         assert resultat.returncode == 0, resultat.stdout
