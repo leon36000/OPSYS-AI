@@ -276,6 +276,16 @@ const enCA: RessourcesCommunes = {
     motifDemande: "Reason for the request: {{motif}}",
     argumentsTitre: "Exact arguments",
     argumentsNonAffiches: "Arguments not shown.",
+    attentes: {
+      titre: "To review (department waits)",
+      aucune: "No waits reported by the departments.",
+      informatif: "For information: this is not decided here.",
+      geste: "Suggested action: {{geste}}",
+      reste: "{{nombre}} more wait(s) not shown: see the console.",
+      illisibles: "{{nombre}} wait(s) unreadable in this app version: see the console.",
+      departementsIllisibles:
+        "Waits unreadable for: {{departements}}. The absence of an alert from these departments is not confirmed.",
+    },
     lectureSeule: {
       console: "To be decided at the console.",
       non_proprietaire: "Owner only.",

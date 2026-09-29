@@ -1239,11 +1239,22 @@ fonctionnait.
   `opsys-device-roles.test.ts`, `tools-invoke-http.opsys-roles.test.ts`,
   `tools-invoke-http.device-token-auth.test.ts`.
 - **Une session MCP par appel.** Simple et sans état partagé, mais chaque appel refait la poignée de main
-  MCP. À mesurer en T1.5 ; si la latence gêne, réutiliser le gestionnaire de sessions (`acquireSessionMcpRuntime`).
+  MCP. Mesuré en T1.5 (`tests/e2e/`, moteur réel sur un vrai uvicorn, SQLite, ordinateur de développement, porte
+  refaite en Python d'après le fork) : chaque appel de l'app coûte quatre messages JSON-RPC (`initialize`,
+  `notifications/initialized`, `tools/list`, `tools/call`) et six requêtes HTTP (les quatre, le flux serveur, la
+  fermeture de session), soit 70 à 150 ms par appel dont l'essentiel est la session ; une journée d'employé
+  (consentement, en route, arrivée, deux fichiers, départ, « Terminer », formulaire de matériaux) fait 9 appels et
+  environ 0,8 à 1,1 s, plus la livraison du bus. Ce n'est pas la latence d'un core réel (TypeScript, réseau) : à
+  refaire contre lui. Si elle gêne, réutiliser le gestionnaire de sessions (`acquireSessionMcpRuntime`).
 - **Une réponse illisible se réessaie.** Un 500 est réessayé par l'app ; un défaut permanent du serveur
   (version incompatible) bouclerait jusqu'à la limite d'essais de la file sortante.
 - **`action` du corps est ignoré** pour un appareil : les outils OPSYS n'ont pas de paramètre `action`.
-- Non prouvé : le trajet contre un core et un moteur réels (T1.5).
+- Prouvé à partir du moteur (T1.5, `tests/e2e/test_travaux_termines_appareil.py`) : chaque geste de l'employé et
+  de l'admin passe par la vraie application HTTP MCP du moteur, avec le `_meta` que pose `buildOpsysMcpCallMeta`,
+  et l'enveloppe est lue comme le fait `readOpsysEnvelope`. Le test refait la règle de la porte en Python d'après
+  le code du fork : ce n'est pas le core.
+- Non prouvé : le trajet contre un core réel (poignée de main, jeton d'appareil, `mcp.servers` du core, session MCP
+  TypeScript), et PostgreSQL pour ces scénarios tant qu'aucun démon docker ne répond (ils sont sautés, pas verts).
 
 ## Idempotence et identité d'appareil de bout en bout (T1.4-b, T1.4-c1, T1.4-c2, T1.4-c4)
 
@@ -1330,9 +1341,20 @@ demandes d'approbation du socle. La logique est dans `src/ecrans/approvals.ts` e
   même demande reçoit `deja_decidee`. Une décision en file supprime les boutons de sa demande. Le payload est
   exactement `{demande_id, decision, motif?}` : ni personne ni rôle ni appareil.
 - **Confirmation en deux temps** (Approuver puis Confirmer) : une décision ne se reprend pas.
+- **Les attentes des départements (T1.5).** La file du propriétaire n'est pas que les demandes du socle : les
+  départements déclarent aussi des attentes (`attentes()`, ADR-0009 §5) : une complétion en revue avec écart de
+  matériaux critique (M4), une facture prête à envoyer, un chantier à réviser (M5). Elles étaient dans la console
+  et dans le briefing du matin de M9, mais pas dans l'outil que cet écran lit : l'alerte « écart de 40 % »
+  n'atteignait pas le téléphone de l'admin (mesuré par `tests/e2e/`). `m9_lister_demandes_approbation` les rend
+  maintenant (`attentes`, `total_attentes`, `attentes_reste`, `attentes_illisibles`) ; l'écran les montre dans une
+  section « À voir », **pour information, sans bouton** : ce que le département a écrit est affiché tel quel
+  (rien n'est reclassé « critique » ou « urgent » côté app), avec le geste qu'il propose. Une attente illisible est
+  comptée, un département dont les attentes n'ont pas pu être lues est nommé (son silence n'est pas « rien à
+  signaler »), un moteur qui ne donne pas la clé `attentes` n'est pas lu « aucune » (`vueAttentes`).
 - **Limites.** Écran non testé en rendu (comme les autres) ; le trajet réel appareil → core → moteur reste à
-  prouver (T1.4-c5, T1.5) ; les « attentes » des départements qui ne sont pas des demandes du socle
-  (revue de complétion, factures prêtes) ne sont pas encore des cartes de cet écran.
+  prouver contre un core réel (T1.4-c5) ; l'attente d'un département n'a pas de bouton : la revue d'une
+  complétion se fait par `m4_resoudre_revue_completion` (outil N4, décidé ensuite par le propriétaire dans la
+  liste des demandes), sans écran dédié.
 
 ## Ce qui n'est PAS encore fait
 

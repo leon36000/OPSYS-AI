@@ -261,6 +261,15 @@ export interface RessourcesCommunes {
     motifDemande: string;
     argumentsTitre: string;
     argumentsNonAffiches: string;
+    attentes: {
+      titre: string;
+      aucune: string;
+      informatif: string;
+      geste: string;
+      reste: string;
+      illisibles: string;
+      departementsIllisibles: string;
+    };
     lectureSeule: {
       console: string;
       non_proprietaire: string;
@@ -573,6 +582,16 @@ const frCA: RessourcesCommunes = {
     motifDemande: "Motif de la demande : {{motif}}",
     argumentsTitre: "Arguments exacts",
     argumentsNonAffiches: "Arguments non affichés.",
+    attentes: {
+      titre: "À voir (attentes des départements)",
+      aucune: "Aucune attente signalée par les départements.",
+      informatif: "Pour information : cela ne se décide pas ici.",
+      geste: "Geste proposé : {{geste}}",
+      reste: "{{nombre}} autre(s) attente(s) non affichée(s) : à voir à la console.",
+      illisibles: "{{nombre}} attente(s) illisible(s) pour cette version de l'app : à voir à la console.",
+      departementsIllisibles:
+        "Attentes illisibles pour : {{departements}}. L'absence d'alerte de ces départements n'est pas confirmée.",
+    },
     lectureSeule: {
       console: "À décider à la console.",
       non_proprietaire: "Réservé au propriétaire.",

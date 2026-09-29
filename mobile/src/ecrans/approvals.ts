@@ -1,6 +1,8 @@
 import { construireArgumentsDeciderDemande, NIVEAUX_DECIDABLES_DEPUIS_L_APP } from "../approbations/contrat";
 import type {
   AccuseDecision,
+  AttenteDepartement,
+  AttentesDepartements,
   DecisionApprobation,
   DemandeApprobation,
   VerdictServeurApprobation,
@@ -65,6 +67,48 @@ export function evaluerOffre(demande: DemandeApprobation, proprietaire: boolean)
     return { decidable: false, raison: { genre: "incoherente" } };
   }
   return { decidable: true };
+}
+
+/**
+ * Ce que l'écran dit des attentes des départements (complétion en revue avec écart critique, facture prête,
+ * chantier à réviser : PLAN T1.5). Rien n'est reclassé ni interprété ici : ni « critique », ni « urgent »,
+ * ce que le département a écrit est montré tel quel.
+ */
+export type VueAttentes =
+  /** Le moteur n'en donne pas (plus ancien) : l'écran ne dit ni « aucune » ni rien d'autre, il ne sait pas. */
+  | { readonly genre: "inconnues" }
+  /** Le serveur dit qu'il n'y en a aucune, et que tous les départements ont pu répondre. */
+  | { readonly genre: "aucune" }
+  | {
+      readonly genre: "presentes";
+      readonly items: readonly AttenteDepartement[];
+      /** Attentes que le serveur n'a pas montrées. */
+      readonly reste: number;
+      /** Éléments que ce client n'a pas su lire. */
+      readonly illisibles: number;
+      /** Départements dont les attentes n'ont pas pu être lues : leur silence n'est pas « rien à signaler ». */
+      readonly departementsIllisibles: readonly string[];
+    };
+
+export function vueAttentes(attentes: AttentesDepartements | null): VueAttentes {
+  if (attentes === null) {
+    return { genre: "inconnues" };
+  }
+  if (
+    attentes.items.length === 0 &&
+    attentes.reste === 0 &&
+    attentes.illisibles === 0 &&
+    attentes.departementsIllisibles.length === 0
+  ) {
+    return { genre: "aucune" };
+  }
+  return {
+    genre: "presentes",
+    items: attentes.items,
+    reste: attentes.reste,
+    illisibles: attentes.illisibles,
+    departementsIllisibles: attentes.departementsIllisibles,
+  };
 }
 
 /** Une décision déjà partie en file (pas encore acceptée par le serveur) pour une demande. */

@@ -1,4 +1,4 @@
-import type { AccuseDecision, DemandeApprobation } from "../approbations/contrat";
+import type { AccuseDecision, AttenteDepartement, AttentesDepartements, DemandeApprobation } from "../approbations/contrat";
 import { DepotOutboxMemoire } from "../outbox/depot";
 import { DESCRIPTEURS_MUTATION } from "../outbox/descripteurs";
 import { creerMutation, soumettreMutation } from "../outbox/mutation";
@@ -14,6 +14,7 @@ import {
   formaterArguments,
   formaterDepuis,
   issueAffichee,
+  vueAttentes,
 } from "./approvals";
 
 const HORLOGE = { maintenant: new Date("2026-09-28T18:32:00.000Z"), decalageMinutesUTC: -240 };
@@ -349,5 +350,41 @@ describe("cohérence de l'écran avec l'outbox", () => {
   test("une mutation de décision soumise est bien envoyable (pas un brouillon)", () => {
     const brouillon = creerMutation({ type: "approval_decision", chantierId: CHANTIER_ID_APPROBATIONS, payload: {} }, idDeterministe, HORLOGE);
     expect(soumettreMutation(brouillon).statut).toBe("en_attente");
+  });
+});
+
+describe("vueAttentes", () => {
+  const attente: AttenteDepartement = {
+    type: "completion_en_revue",
+    id: "int-1",
+    departement: "m04-field-ops",
+    departementNom: "Field Ops",
+    resume: "Complétion en revue (int-1) — écart matériaux CRITIQUE signalé par M6 (seuil 0.3)",
+    niveau: "N4",
+    depuis: "2026-09-16T11:00:00-04:00",
+    actionProposee: "m4_resoudre_revue_completion : verifiee ou correction",
+  };
+  const vide: AttentesDepartements = { items: [], total: 0, reste: 0, illisibles: 0, departementsIllisibles: [] };
+
+  test("le moteur n'en donne pas : inconnues (l'écran ne dit rien, il ne sait pas)", () => {
+    expect(vueAttentes(null)).toEqual({ genre: "inconnues" });
+  });
+
+  test("le serveur dit aucune et tous les départements ont répondu : aucune", () => {
+    expect(vueAttentes(vide)).toEqual({ genre: "aucune" });
+  });
+
+  test("des attentes : présentes, telles quelles, sans reclassement", () => {
+    const vue = vueAttentes({ ...vide, items: [attente], total: 1 });
+    expect(vue).toEqual({ genre: "presentes", items: [attente], reste: 0, illisibles: 0, departementsIllisibles: [] });
+  });
+
+  test.each([
+    ["des attentes non affichées", { reste: 2, total: 2 }],
+    ["des éléments illisibles", { illisibles: 1, total: 1 }],
+    ["un département dont les attentes sont illisibles", { departementsIllisibles: ["m05-financecore"] }],
+  ])("jamais « aucune » avec %s", (_nom, surcharge) => {
+    const vue = vueAttentes({ ...vide, ...surcharge });
+    expect(vue.genre).toBe("presentes");
   });
 });

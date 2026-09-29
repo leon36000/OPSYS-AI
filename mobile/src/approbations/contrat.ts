@@ -51,6 +51,35 @@ export interface DemandeApprobation {
   readonly lectureSeule: VerdictServeurApprobation | null;
 }
 
+/**
+ * Une attente déclarée par un département (`attentes()` du moteur, PLAN T1.5) : une complétion en revue avec
+ * écart de matériaux critique (M4), une facture prête à envoyer ou un chantier à réviser (M5). Ce n'est PAS
+ * une demande d'approbation : elle n'a ni arguments ni décision ici, l'écran la montre pour qu'on la voie.
+ */
+export interface AttenteDepartement {
+  readonly type: string;
+  readonly id: string;
+  readonly departement: string;
+  readonly departementNom: string | null;
+  readonly resume: string;
+  /** `null` quand le département n'en donne pas : jamais deviné. */
+  readonly niveau: string | null;
+  readonly depuis: string;
+  /** Le geste qui traite l'attente, dit par le département (`m4_resoudre_revue_completion`...). */
+  readonly actionProposee: string | null;
+}
+
+export interface AttentesDepartements {
+  readonly items: readonly AttenteDepartement[];
+  readonly total: number;
+  /** Attentes que le serveur n'a pas montrées (taille de la réponse). */
+  readonly reste: number;
+  /** Éléments de la réponse que ce client n'a pas su lire : comptés, jamais devinés ni cachés. */
+  readonly illisibles: number;
+  /** Départements dont le serveur n'a pas pu lire les attentes : leur silence n'est pas « rien à signaler ». */
+  readonly departementsIllisibles: readonly string[];
+}
+
 export interface ListeApprobations {
   readonly demandes: readonly DemandeApprobation[];
   readonly totalEnAttente: number;
@@ -61,6 +90,9 @@ export interface ListeApprobations {
   readonly proprietaire: boolean;
   /** Éléments de la réponse que ce client n'a pas su lire : comptés, jamais devinés ni cachés. */
   readonly illisibles: number;
+  /** Attentes des départements ; `null` quand le moteur n'en donne pas (moteur plus ancien) : l'écran ne dit
+   * alors ni « aucune » ni rien d'autre, il ne sait pas. */
+  readonly attentes: AttentesDepartements | null;
 }
 
 export type InterpretationListeApprobations =
@@ -182,11 +214,62 @@ function lireDemande(brut: unknown): DemandeApprobation | null {
   };
 }
 
+function lireAttente(brut: unknown): AttenteDepartement | null {
+  if (!estObjet(brut)) {
+    return null;
+  }
+  const type = texteOuNull(brut.type);
+  const id = texteOuNull(brut.id);
+  const departement = texteOuNull(brut.departement);
+  const resume = texteOuNull(brut.resume);
+  const depuis = texteOuNull(brut.depuis);
+  if (!type || !id || !departement || !resume || !depuis) {
+    return null;
+  }
+  if (brut.niveau !== null && brut.niveau !== undefined && typeof brut.niveau !== "string") {
+    return null;
+  }
+  return {
+    type,
+    id,
+    departement,
+    departementNom: texteOuNull(brut.departement_nom),
+    resume,
+    niveau: typeof brut.niveau === "string" ? brut.niveau : null,
+    depuis,
+    actionProposee: texteOuNull(brut.action_proposee),
+  };
+}
+
+/** `undefined` : le moteur ne donne pas d'attentes. `null` : il en donne, mais la forme est illisible (la réponse
+ * entière l'est alors : on ne dit jamais « aucune attente » sur la foi d'une réponse qu'on ne comprend pas). */
+function lireAttentes(corps: Record<string, unknown>): AttentesDepartements | null | undefined {
+  if (corps.attentes === undefined) {
+    return undefined;
+  }
+  const total = entierPositifOuNull(corps.total_attentes);
+  const reste = entierPositifOuNull(corps.attentes_reste);
+  const departements = corps.attentes_illisibles;
+  if (
+    !Array.isArray(corps.attentes) ||
+    total === null ||
+    reste === null ||
+    !Array.isArray(departements) ||
+    !departements.every((d): d is string => typeof d === "string")
+  ) {
+    return null;
+  }
+  const lues = corps.attentes.map(lireAttente);
+  const items = lues.filter((a): a is AttenteDepartement => a !== null);
+  return { items, total, reste, illisibles: lues.length - items.length, departementsIllisibles: departements };
+}
+
 /**
  * Interprète la réponse de `m9_lister_demandes_approbation`. Un élément mal formé n'est pas deviné : il
- * est compté dans `illisibles`. Une réponse dont l'enveloppe est inattendue, ou dont les totaux ne sont
- * pas des entiers, est un verdict `reponse_illisible` (jamais une liste vide, qui dirait « rien à
- * décider »).
+ * est compté dans `illisibles` (demandes) ou `attentes.illisibles` (attentes des départements). Une réponse
+ * dont l'enveloppe est inattendue, ou dont les totaux ne sont pas des entiers, est un verdict
+ * `reponse_illisible` (jamais une liste vide, qui dirait « rien à décider »). Sans clé `attentes` (moteur plus
+ * ancien), `attentes` vaut `null` ; avec une clé illisible, c'est toute la réponse qui l'est.
  */
 export function interpreterResultatListerDemandes(resultatBrut: unknown): InterpretationListeApprobations {
   const enveloppe = estObjet(resultatBrut) ? resultatBrut : {};
@@ -207,6 +290,10 @@ export function interpreterResultatListerDemandes(resultatBrut: unknown): Interp
   if (total === null || affichees === null || reste === null) {
     return { ok: false, verdict: VERDICT_REPONSE_INATTENDUE };
   }
+  const attentes = lireAttentes(corps);
+  if (attentes === null) {
+    return { ok: false, verdict: VERDICT_REPONSE_INATTENDUE };
+  }
   const lues = corps.demandes.map(lireDemande);
   const demandes = lues.filter((d): d is DemandeApprobation => d !== null);
   return {
@@ -218,6 +305,7 @@ export function interpreterResultatListerDemandes(resultatBrut: unknown): Interp
       reste,
       proprietaire: corps.proprietaire,
       illisibles: lues.length - demandes.length,
+      attentes: attentes ?? null,
     },
   };
 }

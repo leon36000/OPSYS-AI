@@ -60,6 +60,7 @@ describe("interpreterResultatListerDemandes", () => {
         reste: 0,
         proprietaire: true,
         illisibles: 0,
+        attentes: null,
       },
     });
   });
@@ -67,6 +68,148 @@ describe("interpreterResultatListerDemandes", () => {
   test("file vide : une liste vide, pas une erreur ; le total et le reste sont conservés", () => {
     const resultat = interpreterResultatListerDemandes(reponseListe({ total_en_attente: 0, reste: 0 }, []));
     expect(resultat).toMatchObject({ ok: true, liste: { demandes: [], totalEnAttente: 0, reste: 0, illisibles: 0 } });
+  });
+
+  describe("attentes des départements (PLAN T1.5)", () => {
+    // Sortie RÉELLE du moteur, relevée par le test E2E `tests/e2e/test_travaux_termines_appareil.py` (scénario B,
+    // écart de matériaux de 40 %) : les trois attentes que voit l'admin, telles que le serveur les a écrites.
+    const ATTENTES_REELLES = [
+      {
+        type: "completion_en_revue",
+        id: "99da0a062b9d9eea1f58bf4fe885a3b01079d82f2d25c1cf5e2d10a357ef2680",
+        departement: "m04-field-ops",
+        departement_nom: "Field Ops",
+        resume:
+          "Complétion en revue (99da0a062b9d9eea1f58bf4fe885a3b01079d82f2d25c1cf5e2d10a357ef2680) — écart matériaux CRITIQUE signalé par M6 (seuil 0.3)",
+        niveau: "N4",
+        depuis: "2026-09-16T11:00:00-04:00",
+        action_proposee: "m4_resoudre_revue_completion : verifiee (confirme) ou correction (nomme le problème)",
+      },
+      {
+        type: "facture_brouillon",
+        id: "fac-DEVIS-SPIKE-fictif",
+        departement: "m05-financecore",
+        departement_nom: "FinanceCore",
+        resume: "Facture fac-DEVIS-SPIKE-fictif prête à envoyer (689.85 $)",
+        niveau: "N4",
+        depuis: "2026-09-16T15:00:00+00:00",
+        action_proposee: "envoyer",
+      },
+      {
+        type: "chantier_a_reviser",
+        id: "variance-a1b6b33cc2eabd5e1d2f753b3911831dfedd879b5fcbe79623cdd555cf22ae6c",
+        departement: "m05-financecore",
+        departement_nom: "FinanceCore",
+        resume:
+          "Écart matériaux critique sur le chantier CH-SPIKE-fictif (wct a1b6b33cc2eabd5e1d2f753b3911831dfedd879b5fcbe79623cdd555cf22ae6c) — facture fac-DEVIS-SPIKE-fictif prête à envoyer quand même",
+        niveau: "N4",
+        depuis: "2026-09-16T15:00:00+00:00",
+        action_proposee: "réviser",
+      },
+    ];
+
+    function avecAttentes(surcharge: Record<string, unknown> = {}): unknown {
+      return reponseListe(
+        {
+          attentes: ATTENTES_REELLES,
+          total_attentes: 3,
+          attentes_affichees: 3,
+          attentes_reste: 0,
+          attentes_illisibles: [],
+          ...surcharge,
+        },
+        [],
+      );
+    }
+
+    test("la sortie réelle du moteur est lue : les trois attentes, mot pour mot", () => {
+      const resultat = interpreterResultatListerDemandes(avecAttentes());
+      expect(resultat.ok).toBe(true);
+      if (!resultat.ok) {
+        return;
+      }
+      const attentes = resultat.liste.attentes;
+      expect(attentes).not.toBeNull();
+      expect(attentes?.total).toBe(3);
+      expect(attentes?.reste).toBe(0);
+      expect(attentes?.illisibles).toBe(0);
+      expect(attentes?.departementsIllisibles).toEqual([]);
+      expect(attentes?.items.map((a) => a.type)).toEqual(["completion_en_revue", "facture_brouillon", "chantier_a_reviser"]);
+      expect(attentes?.items[0]).toEqual({
+        type: "completion_en_revue",
+        id: "99da0a062b9d9eea1f58bf4fe885a3b01079d82f2d25c1cf5e2d10a357ef2680",
+        departement: "m04-field-ops",
+        departementNom: "Field Ops",
+        resume: ATTENTES_REELLES[0]?.resume,
+        niveau: "N4",
+        depuis: "2026-09-16T11:00:00-04:00",
+        actionProposee: "m4_resoudre_revue_completion : verifiee (confirme) ou correction (nomme le problème)",
+      });
+      expect(attentes?.items[0]?.resume).toContain("écart matériaux CRITIQUE signalé par M6");
+    });
+
+    test("le moteur ne donne pas d'attentes : null, ni « aucune » ni une liste vide inventée", () => {
+      const resultat = interpreterResultatListerDemandes(reponseListe());
+      expect(resultat).toMatchObject({ ok: true, liste: { attentes: null } });
+    });
+
+    test("une liste d'attentes vide, dite par le serveur, est vide et connue", () => {
+      const resultat = interpreterResultatListerDemandes(
+        avecAttentes({ attentes: [], total_attentes: 0, attentes_affichees: 0 }),
+      );
+      expect(resultat).toMatchObject({
+        ok: true,
+        liste: { attentes: { items: [], total: 0, reste: 0, illisibles: 0, departementsIllisibles: [] } },
+      });
+    });
+
+    test("le reste et les départements illisibles sont conservés", () => {
+      const resultat = interpreterResultatListerDemandes(
+        avecAttentes({ total_attentes: 5, attentes_reste: 2, attentes_illisibles: ["m05-financecore"] }),
+      );
+      expect(resultat).toMatchObject({
+        ok: true,
+        liste: { attentes: { total: 5, reste: 2, departementsIllisibles: ["m05-financecore"] } },
+      });
+    });
+
+    test("une attente mal formée est comptée dans illisibles, jamais devinée ni supprimée en silence", () => {
+      const mauvaises = [
+        { ...ATTENTES_REELLES[0], id: "" },
+        { ...ATTENTES_REELLES[0], resume: null },
+        { ...ATTENTES_REELLES[0], departement: 4 },
+        { ...ATTENTES_REELLES[0], niveau: 4 },
+        "pas un objet",
+        null,
+      ];
+      const resultat = interpreterResultatListerDemandes(
+        avecAttentes({ attentes: [ATTENTES_REELLES[1], ...mauvaises], total_attentes: 7 }),
+      );
+      expect(resultat).toMatchObject({ ok: true, liste: { attentes: { total: 7, illisibles: mauvaises.length } } });
+      if (resultat.ok) {
+        expect(resultat.liste.attentes?.items).toHaveLength(1);
+      }
+    });
+
+    test("un niveau absent reste null, jamais deviné", () => {
+      const sansNiveau = { ...ATTENTES_REELLES[1], niveau: null, action_proposee: null };
+      const resultat = interpreterResultatListerDemandes(
+        avecAttentes({ attentes: [sansNiveau], total_attentes: 1 }),
+      );
+      expect(resultat).toMatchObject({ ok: true, liste: { attentes: { items: [{ niveau: null, actionProposee: null }] } } });
+    });
+
+    test.each([
+      ["attentes n'est pas une liste", { attentes: "rien" }],
+      ["total_attentes manquant", { total_attentes: undefined }],
+      ["total_attentes négatif", { total_attentes: -1 }],
+      ["attentes_reste fractionnaire", { attentes_reste: 1.5 }],
+      ["attentes_illisibles n'est pas une liste", { attentes_illisibles: "m05" }],
+      ["attentes_illisibles contient autre chose que du texte", { attentes_illisibles: [3] }],
+    ])("réponse illisible, jamais « aucune attente » : %s", (_nom, surcharge) => {
+      const resultat = interpreterResultatListerDemandes(avecAttentes(surcharge));
+      expect(resultat).toEqual({ ok: false, verdict: expect.objectContaining({ code: "reponse_illisible" }) });
+    });
   });
 
   test("N5 : lecture seule et verdict du serveur conservés mot pour mot", () => {

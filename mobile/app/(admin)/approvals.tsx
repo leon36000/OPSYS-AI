@@ -4,7 +4,7 @@ import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 
 import { chargerDemandesApprobation } from "@/approbations/service";
-import type { AccuseDecision, DecisionApprobation, DemandeApprobation, ListeApprobations, VerdictServeurApprobation } from "@/approbations/contrat";
+import type { AccuseDecision, AttentesDepartements, DecisionApprobation, DemandeApprobation, ListeApprobations, VerdictServeurApprobation } from "@/approbations/contrat";
 import {
   accuseDepuisResume,
   decisionsEnFile,
@@ -14,6 +14,7 @@ import {
   formaterDepuis,
   issueAffichee,
   MOTIF_LONGUEUR_MAX,
+  vueAttentes,
 } from "@/ecrans/approvals";
 import type { DecisionEnFile, RaisonLectureSeule } from "@/ecrans/approvals";
 import { demarrerDeclencheursVidange } from "@/outbox/declencheurs";
@@ -150,6 +151,7 @@ export default function EcranApprobations() {
       {etat.genre === "pret" ? (
         <>
           {!etat.liste.proprietaire ? <Text style={styles.avis}>{t("approvals.lectureSeuleProprietaire")}</Text> : null}
+          <SectionAttentes attentes={etat.liste.attentes} decalageMinutesUTC={decalageMinutesUTC} />
           <Text style={styles.compte}>{t("approvals.enAttente", { total: etat.liste.totalEnAttente })}</Text>
           {etat.liste.demandes.length === 0 && etat.liste.illisibles === 0 ? (
             <Text style={styles.vide}>{t("approvals.aucuneDemande")}</Text>
@@ -179,6 +181,50 @@ export default function EcranApprobations() {
         </>
       ) : null}
     </ScrollView>
+  );
+}
+
+interface ProprietesAttentes {
+  readonly attentes: AttentesDepartements | null;
+  readonly decalageMinutesUTC: number;
+}
+
+/** Les attentes des départements (PLAN T1.5) : l'alerte d'écart de matériaux, la facture prête, le chantier à
+ * réviser. Pour information, sans bouton : ce que le département a écrit est montré tel quel, et le geste qu'il
+ * propose est dit, jamais offert. Un département muet ou une attente illisible est dit, jamais tu. */
+function SectionAttentes({ attentes, decalageMinutesUTC }: ProprietesAttentes) {
+  const { t } = useTranslation();
+  const vue = vueAttentes(attentes);
+  if (vue.genre === "inconnues") {
+    return null;
+  }
+  if (vue.genre === "aucune") {
+    return <Text style={styles.vide}>{t("approvals.attentes.aucune")}</Text>;
+  }
+  return (
+    <View style={styles.carte}>
+      <Text style={styles.sousTitre}>{t("approvals.attentes.titre")}</Text>
+      <Text style={styles.meta}>{t("approvals.attentes.informatif")}</Text>
+      {vue.items.map((attente) => (
+        <View key={`${attente.departement}:${attente.type}:${attente.id}`} style={styles.ligneResultat}>
+          <Text style={styles.outil}>{attente.resume}</Text>
+          <Text style={styles.meta}>
+            {attente.departementNom ?? attente.departement}
+            {attente.niveau !== null ? ` · ${t("approvals.niveau", { niveau: attente.niveau })}` : ""}
+            {" · "}
+            {t("approvals.depuis", { date: formaterDepuis(attente.depuis, decalageMinutesUTC) })}
+          </Text>
+          {attente.actionProposee ? <Text style={styles.description}>{t("approvals.attentes.geste", { geste: attente.actionProposee })}</Text> : null}
+        </View>
+      ))}
+      {vue.reste > 0 ? <Text style={styles.avis}>{t("approvals.attentes.reste", { nombre: vue.reste })}</Text> : null}
+      {vue.illisibles > 0 ? <Text style={styles.avis}>{t("approvals.attentes.illisibles", { nombre: vue.illisibles })}</Text> : null}
+      {vue.departementsIllisibles.length > 0 ? (
+        <Text style={styles.erreur}>
+          {t("approvals.attentes.departementsIllisibles", { departements: vue.departementsIllisibles.join(", ") })}
+        </Text>
+      ) : null}
+    </View>
   );
 }
 
