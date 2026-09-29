@@ -1833,7 +1833,7 @@ météo et GPS M4, vision M3, conseil d'agents M9…
 - [x] T4.15-d M1, M7, M10 : remplacer leur copie de la lecture de l'approbateur par
       `approbations.approbateur_en_cours` (les tests qui forgent une ligne `en_cours` passent par
       `decider`).
-      Preuve (2601834, 7f4bc52, ca62c17) :
+      Preuve (b213977, 6cf96d8, 0d87631) :
       - M1 (`_acteur_humain`, rôles `admin` et `nathan_owner`), M7 (`_proprietaire_qui_decide`, `nathan_owner`
         seul) et M10 (`_acteur_humain`, `humain.roles_humains()`) appellent le socle avec leur propre liste de
         rôles ; les trois copies de la lecture de la table `approbations` sont retirées, avec leurs imports et
@@ -1851,6 +1851,9 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       - M1 1081 (1075 avant), M7 913 (910), M10 726 (721), socle 1620 (104 sautés), ruff, `opsys-metier verifier`
         (163 outils), gates BMAD de M1 et de M10 (M7 n'en a pas).
       Limite : M3 garde sa propre lecture de la table (`m3_estimation/outils.py`, hors de cette tâche).
+- [ ] T4.15-e M3 : `m3_demander_envoi_devis` lit l'approbateur par `approbations.approbateur_en_cours`
+      au lieu de sa copie (`_decision_approuvee_en_cours`, qui compare aussi les arguments), comme
+      M1, M5, M7 et M10. Après l'intégration de T4.11 (qui travaille dans M3). Code critique.
 - [x] T4.16 M5 : cash libre réel et calendrier fiscal vivant (M5.5, M5.14 ; M5.7 : T4.16-d).
       Écart (§7 M5 « solde bancaire ≠ argent disponible » ; audit M5 M5.5, M5.14 « PARTIEL »,
       M5.7 « ABSENT ») : `soldes.py` ne retranche que les `PROVISION` ; aucun échéancier TPS/TVQ.
@@ -2135,7 +2138,7 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
   - cash libre et calendrier fiscal (T4.16) : c507161, c74eb4a, 659aa64, 40b2470 ;
   - approbateur exposé par le socle, correction et annulation de facture (T4.15-c) : 01c336d, fae0521, 2a5b3ba ;
   - M1, M7 et M10 lisent l'approbateur par le socle, sans copie de la table des approbations (T4.15-d) :
-    ca62c17, 7f4bc52, 2601834 ;
+    0d87631, 6cf96d8, b213977 ;
   - envoi d'un devis par approbation N4 (T4.7) : 8fd15ce ;
   - clôture d'un transfert réservée à un humain (M1, T4.5) : dd56449 ;
   - canaux de M1 (politique d'approbation d'un message de client) : `src/opsys/canaux.py`, fc80869 ;

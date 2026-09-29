@@ -23,8 +23,8 @@ demande `approbateur_en_cours` (avec son propre nom et son département) : le so
 base et répond si elle tient (`en_cours`, de cet outil et de ce département, rôle ni d'agent ni de
 client, personne active portant encore ce rôle), sinon None. Un agent ne peut pas fabriquer cette
 situation : il ne crée qu'une demande `en_attente`, que seul `decider` fait avancer. Cela remplace
-la lecture de la table `approbations` que des départements recopiaient (M5 l'utilise ; M1 et M10 ont
-encore leur copie).
+la lecture de la table `approbations` que des départements recopiaient (M1, M5, M7 et M10 l'utilisent ;
+M3 garde encore la sienne, PLAN T4.15-e).
 
 Validation humaine au départ (ADR-0009 §4, addendum T1.4-h) : la file ci-dessus sert les actions
 qu'un AGENT propose. Quand la personne authentifiée d'un appareil lance elle-même une action N3, il
