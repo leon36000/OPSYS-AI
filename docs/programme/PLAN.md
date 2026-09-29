@@ -864,6 +864,20 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
           M6 715, E2E moteur 10 (scénarios C, D, E), socle 758, gate BMAD de M6.
           Limite : stock évalué « en main » par article, pas « disponible » (ni dépôt ni
           réservation dans M6).
+    - [x] M5 : coût réel, rentabilité et comptes à recevoir (b217aea, ed001b0) : `cout_reel.py`
+          pur (Decimal, `ROUND_HALF_UP`) ; matériaux réels de la variance M6 × prix du livre de
+          prix M6 lu à la source ; main-d'œuvre = durée réelle du WCT × taux configuré (absent du
+          manifeste livré → « taux à configurer ») ; prix absent ou ambigu → coût PARTIEL, sans
+          marge ; rentabilité = prix facturé avant taxes − coût réel, contre la marge prévue du
+          devis, tracée par devis et version des entrées, sans écriture comptable ; comptes à
+          recevoir = factures envoyées seulement ; `m5_lire_rentabilite_chantier` et
+          `m5_lire_comptes_a_recevoir` (T0, `admin`, identité confirmée) ; E2E : A → coût
+          486,00 $, marge 114,00 $ contre 120,00 $ prévus ; B (+40 %) → marge 2,00 $ ; M5 592,
+          E2E 16, socle 780, 19 mutations détectées. Revue externe (argent) : le livre de prix
+          M6 ne porte pas d'unité ; le WCT ne porte pas l'effectif (taux par équipe ou par
+          personne, à dire par Nathan) ; `admin` voit les coûts ; `aujourd_hui` fourni par
+          l'appelant pour l'âge des créances ; défaut existant de `variance_recus.pour_wct_id`
+          (un réessai `declaration_absente` écrase `evaluee`).
     - [ ] Reste : M5 ne calcule ni coût réel, ni rentabilité, ni compte à recevoir ;
         M7 ne reçoit jamais de demande d'avis depuis l'app (les champs client ne sont pas
         envoyés) ; M8 ne garde ni prévu ni marge ; M9 ne réagit pas ; le briefing M9 est tronqué
@@ -1239,6 +1253,8 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
   « Bâtiment » en v1 (recommandée) ; RAM et disque du VPS pour un sidecar OSRM et l'extrait
   régional ; avis d'un juriste sur le graphe OSRM dérivé (ODbL), l'attribution CC-BY du RQA et
   un éventuel géocodeur gouvernemental ; fond de carte pour confirmer sur carte (EFVP §5).
+- **Coût réel (T1.5-d, M5)** : taux horaire de main-d'œuvre (par équipe ou par personne) et unité
+  de chaque prix du livre de prix M6 ; seuils de réapprovisionnement par article (M6).
 - **Seuils métier** (définition §13.11) :
   - M6 démarre avec un seuil de variance de chantier de 30 % ;
   - M6 signale un écart de prix à la réception au-delà de 15 % (`department.yaml`) ;
@@ -1253,6 +1269,7 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
     N3.
 - **Revue externe du code critique** (AGENTS.md), avant tout passage sur `main` :
   - M5 : 119a594, 23df6eb, T1.3-c ; vue financière d'un appel d'appareil (T1.4-k2) : 1ef9499 ;
+    coût réel et rentabilité (T1.5-d) : b217aea ;
   - idempotence du socle : 764c292, 2474cd1 ;
   - approbations : 718b9bb ; décision depuis l'appareil du propriétaire (T1.4-f étape 6) : ed0af65 ; exécution directe des actions d'un humain authentifié (T1.4-h) :
     688b1a4 ; portées d'outils par rôle d'appareil (T1.4-j) : a0e5150 ;
