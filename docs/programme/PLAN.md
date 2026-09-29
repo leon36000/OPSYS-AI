@@ -64,9 +64,15 @@ identifiants du propriétaire, repli livré en attendant.
       extension conservée ne porte ce contrat. Suivi : `scripts/` orphelins à nettoyer avec T0.7.
 - [ ] T0.7 Renommage OpenClaw → OPSYS en quatre lots (R14), CI verte à chaque lot. L'API interne
       du fork (`openclaw/plugin-sdk/*`, `@openclaw/*`, `OPENCLAW_*`) reste telle quelle (R14, décision 2).
-  - [ ] Lot 1 : marque visible (interface, locales `fr-CA` par défaut et glossaires, invites système,
+  - [x] Lot 1 : marque visible (interface, locales `fr-CA` par défaut et glossaires, invites système,
         bannière, notifications) et les 539 assertions qui la figent.
-        Livré, à cocher sur la CI du core (`tests`, `tests-opsys`, `construction`) : 38a3463, efdd019, 2bbbcff
+        Preuve finale : CI core 31 (1ff6fa3) verte (`construction`, `tests` 1 à 6, `tests-opsys`
+        avec les tests de l'interface). Trois corrections de tests en route, chacune tracée dans
+        `core/PROVENANCE.md` : un cas lisait un workflow de l'amont élagué (retiré) ; un cas
+        supposait l'exemption de l'extension Mattermost élaguée (il vérifie maintenant le 401 du
+        fork) ; la palette cherchait « Ask OPSYS » par « openclaw » (requête corrigée). Reste :
+        `ui:i18n:check` et `pnpm ui:i18n:sync --write` sur un poste Node (non joués en CI).
+        Livré : 38a3463, efdd019, 2bbbcff
         (276 fichiers sous `core/`).
         - Interface : titre, manifeste PWA, 114 valeurs `en*.ts` ; `fr-CA` créée depuis `fr` et
           langue par défaut, chargée à la demande (aucun octet de plus au démarrage).
