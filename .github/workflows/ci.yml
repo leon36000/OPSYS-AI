@@ -105,14 +105,22 @@ jobs:
   # tienne dans son délai. Même installation que le job de M3 (extra `soumission` compris).
   m03-preuves:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # Le plus lourd des cas isolés dure 45 minutes seul (CI 1944) ; 90 laisse la marge d'un exécuteur lent.
+    timeout-minutes: 90
+    env:
+      # Cas qui ont chacun leur exécuteur (entrée `seul` de la matrice), retirés du tourniquet :
+      # `test_aucune_trace_apres_les_epreuves` rejoue toutes les batteries (2 710 s, CI 1944) et faisait
+      # dépasser 60 minutes à la part qui le recevait (CI 1953).
+      CAS_SEULS: "test_aucune_trace_apres_les_epreuves"
     strategy:
       fail-fast: false
       matrix:
         # `test_gardes_des_outils.py` dépassait seul 60 minutes (CI 1936) : ses cas sont répartis en
-        # tourniquet sur `parts` exécuteurs ; chaque cas collecté va à une part et une seule.
+        # tourniquet sur `parts` exécuteurs ; chaque cas collecté va à une part et une seule, sauf les
+        # cas de `CAS_SEULS`, qui ont chacun leur entrée `seul`.
         include:
           - {fichier: test_outils_de_preuve.py, part: 0, parts: 1}
+          - {fichier: test_gardes_des_outils.py, seul: test_aucune_trace_apres_les_epreuves}
           - {fichier: test_gardes_des_outils.py, part: 0, parts: 8}
           - {fichier: test_gardes_des_outils.py, part: 1, parts: 8}
           - {fichier: test_gardes_des_outils.py, part: 2, parts: 8}
@@ -128,19 +136,33 @@ jobs:
           python-version: "3.12"
       - name: Installation (socle + départements, extra soumission)
         run: python -m pip install --quiet -e ".[dev,soumission]"
-      - name: Outils de preuve de M3 (${{ matrix.fichier }}, part ${{ matrix.part }}/${{ matrix.parts }})
+      - name: Outils de preuve de M3 (${{ matrix.fichier }}, ${{ matrix.seul || format('part {0}/{1}', matrix.part, matrix.parts) }})
         shell: bash
+        env:
+          SEUL: ${{ matrix.seul }}
+          PART: ${{ matrix.part }}
+          PARTS: ${{ matrix.parts }}
         run: |
           set -euo pipefail
           fichier="departments/m03-estimation/tests/${{ matrix.fichier }}"
           mapfile -t cas < <(python -m pytest "$fichier" --collect-only | grep "::")
           test "${#cas[@]}" -gt 0
+          read -r -a seuls <<< "$CAS_SEULS"
+          est_seul() { local c="$1" s; for s in "${seuls[@]}"; do [[ "$c" == *"::$s" || "$c" == *"::$s["* ]] && return 0; done; return 1; }
           retenus=()
-          for i in "${!cas[@]}"; do
-            if (( i % ${{ matrix.parts }} == ${{ matrix.part }} )); then retenus+=("${cas[$i]}"); fi
-          done
-          echo "${#retenus[@]} cas sur ${#cas[@]} (part ${{ matrix.part }} sur ${{ matrix.parts }})"
-          if (( ${#retenus[@]} == 0 )); then echo "aucun cas pour cette part"; exit 0; fi
+          if [[ -n "$SEUL" ]]; then
+            for c in "${cas[@]}"; do [[ "$c" == *"::$SEUL" || "$c" == *"::$SEUL["* ]] && retenus+=("$c"); done
+            test "${#retenus[@]}" -gt 0  # un cas isolé qui n'existe plus est une erreur, jamais un succès vide
+            echo "${#retenus[@]} cas isolé(s) : $SEUL"
+          else
+            legers=()
+            for c in "${cas[@]}"; do est_seul "$c" || legers+=("$c"); done
+            for i in "${!legers[@]}"; do
+              if (( i % PARTS == PART )); then retenus+=("${legers[$i]}"); fi
+            done
+            echo "${#retenus[@]} cas sur ${#legers[@]} hors cas isolés (part $PART sur $PARTS)"
+            if (( ${#retenus[@]} == 0 )); then echo "aucun cas pour cette part"; exit 0; fi
+          fi
           python -m pytest "${retenus[@]}" --durations=0
 
   # `gates` est le contexte requis par la protection de branche de `main` : garder ce nom. Il
