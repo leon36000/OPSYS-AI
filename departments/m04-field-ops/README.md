@@ -430,7 +430,7 @@ aléa, ni réseau, ni flottant).
   croissant. `curseur` : le `curseur_suivant` de la page précédente (64 caractères hexadécimaux minuscules ; `null` ou
   absent pour la première). `taille_page` : de 1 à 50, sinon la plus grande page qui tient. La page ne dépasse jamais la
   borne du socle : le code la mesure (au moins une intervention par page ; une seule qui ne tiendrait pas est refusée,
-  jamais coupée). `page` : `ordre`, `curseur`, `taille_demandee`, `taille`, `total` (toutes les interventions visibles),
+  `total` (toutes celles de la liste : le statut demandé et le droit de voir déjà appliqués, avant le curseur),
   `reste` (celles qui viennent APRÈS la page), `curseur_suivant` (`null` quand `reste` vaut 0) et `borne_atteinte` (la page
   a été raccourcie par la borne, non par `taille_page`). Même contrôle d'accès que la liste v1 : le statut demandé, puis ce
   que l'appelant a le droit de voir (l'employé : ses interventions et celles de ses équipes) filtrent AVANT la pagination ;
