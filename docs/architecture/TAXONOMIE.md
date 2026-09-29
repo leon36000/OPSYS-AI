@@ -89,6 +89,13 @@ du lead, lue à l'inscription ; une intervention porte exactement l'une des deux
   contenu public ; pour un lead v2, ces textes n'ont donc pas de type de travaux tant que M7 ne lit pas
   `service`.
 
+## Zone desservie (PLAN T2.1-a)
+
+Le même profil (`$OPSYS_HOME/entreprise.yaml`) porte `zone_desservie` : la liste des villes où l'entreprise
+intervient. `opsys.taxonomie.charger_zone_desservie` la lit ; sans zone, aucune ville n'est reconnue et le verdict
+`REJ-ZONE-NON-CONFIGUREE` dit où la déclarer. M1 la lit pour un message de canal : l'agent ne la fournit pas. Un profil
+mal formé (liste vide, ville en double) est refusé, jamais lu comme absent ; `opsys verifier` le signale.
+
 ## Garde de dérive
 
 - `opsys verifier` : profil valide s'il existe ; aucune source de département ni du socle ne recopie

@@ -20,6 +20,10 @@ Fail-closed (AGENTS.md) : sans profil, ou avec un profil sans service, AUCUN ser
 accepté — pas même ceux du catalogue. Aucun service par défaut n'est inventé pour une entreprise
 qui ne l'a pas déclaré. Le verdict de refus dit quoi configurer et où.
 
+Le même profil porte aussi la ZONE DESSERVIE (`zone_desservie`, les villes où l'entreprise intervient,
+PLAN T2.1) : M1 la lit ici, jamais dans ce qu'un client ou un modèle lui écrit. Sans zone, aucune ville
+n'est reconnue et le verdict dit où la déclarer.
+
 Ce module est pur (fichier YAML et journal d'audit seulement) : il ne connaît ni M1, ni M2, ni M3.
 Les verdicts sont des dict `{"code", "detail"}` ; chaque département les traduit dans son propre
 catalogue de codes et garde le `detail`, qui porte la consigne de configuration.
@@ -40,16 +44,20 @@ from .etat import dossier_opsys
 
 NOM_FICHIER_PROFIL = "entreprise.yaml"
 CLE_SERVICES = "services"
+CLE_ZONE = "zone_desservie"
 
 # Codes de verdict émis par ce module (jamais un booléen nu : le détail dit quoi corriger).
 VERDICT_SERVICE_NON_CONFIGURE = "REJ-SERVICE-NON-CONFIGURE"
 VERDICT_SERVICE_INCONNU = "REJ-SERVICE-INCONNU"
 VERDICT_SERVICE_INVALIDE = "REJ-SERVICE-INVALIDE"
 VERDICT_PROFIL_INVALIDE = "REJ-PROFIL-INVALIDE"
+VERDICT_ZONE_NON_CONFIGUREE = "REJ-ZONE-NON-CONFIGUREE"
 
 _FORME_CODE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 _LIBELLE_MAX = 120
 _MOTS_CLES_MAX = 20
+_VILLES_MAX = 300
+_VILLE_MAX = 80
 
 
 class ProfilInvalide(ValueError):
@@ -281,14 +289,110 @@ def enregistrer_services(
     return fichier
 
 
+def normaliser_zone_desservie(villes: Any) -> tuple[str, ...]:
+    """Valide une zone desservie : une liste non vide de villes (texte, sans doublon à la casse près).
+
+    Refuse la liste vide : une zone vide n'est pas une zone, c'est l'absence de déclaration.
+    """
+    if isinstance(villes, (str, bytes, Mapping)) or not isinstance(villes, Iterable):
+        raise ProfilInvalide(f"'{CLE_ZONE}' doit être une liste de villes")
+    propres: list[str] = []
+    for position, ville in enumerate(villes):
+        if not isinstance(ville, str) or not ville.strip() or len(ville.strip()) > _VILLE_MAX:
+            raise ProfilInvalide(
+                f"{CLE_ZONE}[{position}] : une ville est une chaîne non vide d'au plus {_VILLE_MAX} caractères"
+            )
+        propres.append(ville.strip())
+    if not propres:
+        raise ProfilInvalide(f"'{CLE_ZONE}' est vide : déclare au moins une ville")
+    if len(propres) > _VILLES_MAX:
+        raise ProfilInvalide(f"'{CLE_ZONE}' : {_VILLES_MAX} villes au plus")
+    formes = [v.casefold() for v in propres]
+    doublons = sorted({v for v, forme in zip(propres, formes, strict=True) if formes.count(forme) > 1})
+    if doublons:
+        raise ProfilInvalide(f"'{CLE_ZONE}' : villes déclarées en double : {doublons}")
+    return tuple(propres)
+
+
+def lire_zone_desservie(chemin: Path | None = None) -> tuple[str, ...]:
+    """Villes déclarées par le profil de l'instance ; `()` si le fichier ou la clé est absent.
+
+    Lève `ProfilInvalide` si le fichier existe mais ne respecte pas le schéma (même règle que
+    `lire_services` : un profil cassé n'est jamais lu comme un profil vide).
+    """
+    fichier = chemin or fichier_profil()
+    if not fichier.is_file():
+        return ()
+    try:
+        donnees = yaml.safe_load(fichier.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
+        raise ProfilInvalide(f"{fichier} illisible : {exc}") from exc
+    if donnees is None:
+        return ()
+    if not isinstance(donnees, dict):
+        raise ProfilInvalide(f"{fichier} : un objet YAML est attendu à la racine")
+    if CLE_ZONE not in donnees:
+        return ()
+    try:
+        return normaliser_zone_desservie(donnees[CLE_ZONE])
+    except ProfilInvalide as exc:
+        raise ProfilInvalide(f"{fichier} : {exc}") from exc
+
+
+def charger_zone_desservie() -> tuple[tuple[str, ...], dict[str, str] | None]:
+    """`(villes, None)` si l'instance déclare sa zone, sinon `((), verdict)` qui dit où la déclarer.
+    Ne lève jamais : un profil illisible est un verdict `REJ-PROFIL-INVALIDE`."""
+    chemin = fichier_profil()
+    try:
+        villes = lire_zone_desservie(chemin)
+    except ProfilInvalide as exc:
+        return (), _verdict(VERDICT_PROFIL_INVALIDE, f"profil d'entreprise invalide : {exc}")
+    if not villes:
+        return (), _verdict(
+            VERDICT_ZONE_NON_CONFIGUREE,
+            f"aucune zone desservie déclarée pour cette entreprise : liste les villes où elle intervient "
+            f"dans {chemin} (clé '{CLE_ZONE}') ; aucune ville n'est reconnue tant qu'elle est absente",
+        )
+    return villes, None
+
+
+def enregistrer_zone_desservie(villes: Any, chemin: Path | None = None, par: str | None = None) -> Path:
+    """Écrit la zone validée dans le profil, sans toucher aux autres clés du fichier (services compris).
+
+    Signée par `par`, la modification est inscrite au journal d'audit (même patron que les services).
+    """
+    propres = normaliser_zone_desservie(villes)
+    fichier = chemin or fichier_profil()
+    existant: dict[str, Any] = {}
+    if fichier.is_file():
+        try:
+            lu = yaml.safe_load(fichier.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
+            raise ProfilInvalide(f"{fichier} illisible : {exc} ; corrige-le ou supprime-le avant de déclarer") from exc
+        if isinstance(lu, dict):
+            existant = lu
+    existant[CLE_ZONE] = list(propres)
+    fichier.parent.mkdir(parents=True, exist_ok=True)
+    fichier.write_text(yaml.safe_dump(existant, allow_unicode=True, sort_keys=True), encoding="utf-8")
+    if par:
+        from .etat import journaliser, session
+
+        with session() as cnx:
+            journaliser(cnx, par, "entreprise.zone_desservie", str(fichier), {"villes": list(propres)})
+    return fichier
+
+
 def verifier_profil() -> list[str]:
     """`opsys verifier` : un profil présent doit être valide. Un profil absent n'est pas une erreur
     (l'instance n'a simplement encore déclaré aucun service, et tout service est alors refusé)."""
-    try:
-        lire_services()
-    except ProfilInvalide as exc:
-        return [str(exc)]
-    return []
+    problemes: list[str] = []
+    for lecture in (lire_services, lire_zone_desservie):
+        try:
+            lecture()
+        except ProfilInvalide as exc:
+            if str(exc) not in problemes:  # un fichier illisible échoue aux deux lectures : un seul message
+                problemes.append(str(exc))
+    return problemes
 
 
 def copies_locales_du_catalogue(racines: Iterable[Path]) -> list[str]:
