@@ -219,3 +219,5 @@ src/cli/profile.opsys.test.ts
 src/cli/profile.test.ts
 src/daemon/paths.opsys.test.ts
 src/daemon/service-env.test.ts
+src/infra/state-migrations.opsys-instance.test.ts
+src/infra/state-migrations.state-dir.test.ts

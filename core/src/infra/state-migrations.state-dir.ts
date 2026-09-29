@@ -11,6 +11,10 @@ import { resolveUserPath } from "./home-dir.js";
 import { isWithinDir } from "./path-safety.js";
 import { logStateMigrationResult } from "./state-migrations.messages.js";
 import {
+  migrateLegacyOpsysStateDir,
+  resolveOpsysLegacyStateMigrationPaths,
+} from "./state-migrations.opsys-instance.js";
+import {
   migrateLegacyInstalledPluginIndex,
   preflightLegacyInstalledPluginIndexMigration,
 } from "./state-migrations.plugin-state.js";
@@ -278,7 +282,9 @@ export function resolvePendingLegacyStateDirMigrationPaths(params: {
   const env = params.env ?? process.env;
   const homedir = params.homedir ?? os.homedir;
   if (env.OPENCLAW_STATE_DIR?.trim()) {
-    return undefined;
+    // An explicit state root is authoritative, except for the OPSYS instance profile, whose former
+    // state directory (~/.openclaw-opsys) still has to reach ~/.opsys/core.
+    return resolveOpsysLegacyStateMigrationPaths({ env, homedir });
   }
   const target = resolveNewStateDir(homedir);
   const source = resolveLegacyStateDirs(homedir).find((dir) => fs.existsSync(dir));
@@ -319,6 +325,11 @@ export async function autoMigrateLegacyStateDir(params: {
     notices.push(...(result.notices ?? []));
   };
   if (hasCustomStateDir) {
+    // OPSYS instance profile: move its former state directory before anything else reads the state.
+    const opsysState = migrateLegacyOpsysStateDir({ env, homedir });
+    changes.push(...opsysState.changes);
+    warnings.push(...opsysState.warnings);
+    notices.push(...opsysState.notices);
     await migratePluginInstallIndex();
     return {
       migrated: changes.length > 0,

@@ -507,6 +507,70 @@ l'alias, et la CLI du moteur Python (qui s'appelait `opsys`) est `opsys metier <
 - Les citations de l'ancienne forme dans le core (messages et commentaires de `opsys-contexte-config.ts`,
   `opsys-device-identity-http.ts` et de leurs tests) disent maintenant `opsys metier ...`.
 
+## Renommage, lot 3 : le dossier d'instance `~/.opsys` (T0.7)
+
+Décisions : [R14](../docs/research/R14-renommage-core.md), décision 4 et son addendum « Lot 3 ». Rien ne s'exécute dans le
+bac à sable : la CI (`tests` et `tests-opsys` du job `core`, puis le job `installateur` sur Linux, macOS et Windows avec le vrai
+core) fait foi. Le lot suit la règle de `core/AGENTS.md` : cette section dit comment il se comporte sur une installation
+existante.
+
+- **Disposition.** Le core tourne toujours sous son profil `opsys` (option racine `--profile opsys`, jamais
+  `OPENCLAW_STATE_DIR`). Son état canonique est `<dossier personnel>/.opsys/core` et sa configuration
+  `<état>/opsys.json`. `~/.openclaw-opsys` (installations faites depuis T0.11-b) est l'ancien emplacement. Le dossier
+  personnel est celui du compte, pas `OPSYS_HOME` : le core ne lit pas cette variable, et la définition du service (qui ne la
+  porte pas) doit désigner le même dossier que l'interface en ligne de commande. Avec l'`OPSYS_HOME` par défaut
+  (`~/.opsys`), l'état est bien dans le dossier d'instance ; avec un `OPSYS_HOME` personnalisé, seules les données métier
+  y sont.
+- **Un seul module de vérité** : `src/config/opsys-instance.ts` (nouveau, ne dépend que des modules de Node : il est importé
+  au démarrage de la CLI, avant que le moindre module d'exécution ne dérive un chemin). Il donne les noms, le dossier canonique
+  (`resolveOpsysProfileStateDir`) et le fichier de configuration (`resolveOpsysConfigPath`).
+- **`resolveProfileStateDir("opsys")`** (`cli/profile-utils.ts`, lu par `applyCliProfileEnv`, `isDefaultInstallIdentity`,
+  `resolveDefaultAgentWorkspaceDir` et la migration du profil) rend `~/.opsys/core`. Tant que seul l'ancien dossier porte un état
+  (le canonique est absent ou vide), c'est l'ancien qu'il rend : même repli que celui de `.clawdbot` vers `.openclaw`
+  (`resolveStateDirFromHome`). Sans ce repli, une commande lancée avant la migration (`config set`, `onboard`) créerait un
+  second état dans le dossier canonique, et le service encore lancé sur l'ancien chemin ne parlerait plus du même état que la CLI.
+  `resolveStateDir` ne change pas : il rend `OPENCLAW_STATE_DIR`, que `--profile` a projeté ; la seule variable
+  `OPENCLAW_PROFILE` ne projette toujours rien (`tests/test_instance.py` le vérifie).
+- **Nom de la configuration.** `opsys.json` est le nom canonique du profil `opsys` ; un `openclaw.json` qui existe reste LU sur
+  place (jamais renommé, jamais perdu), et `opsys.json` l'emporte si les deux existent. Le nom est projeté par
+  `applyCliProfileEnv` (`OPENCLAW_CONFIG_PATH`) et accepté par `isDefaultInstallIdentity` (sinon le service serait refusé).
+  Doctor ne renomme pas le fichier : la définition du service installé le nomme, et un service qui redémarre entre le
+  renommage et sa réinstallation partirait sans configuration. Le renommage est laissé au lot 4, qui réécrit de toute façon
+  les services. **Écart à R14** : le nom `openclaw.json` reste celui de tout le reste (profil par défaut, autres profils, Docker,
+  fumées) : `resolveConfigPath` et les 752 fichiers de tests qui écrivent ou lisent `openclaw.json` (1 960 occurrences) n'ont pas
+  été touchés, faute de pouvoir les rejouer ici.
+- **Le service.** `daemon/paths.ts` (`resolveGatewayStateDir`) suit la même règle quand l'environnement porte le profil sans
+  dossier d'état explicite. Le nom du service ne change pas (lot 4). La définition d'un service installé avant le lot nomme
+  l'ancien chemin : elle continue de marcher par le lien que laisse la migration, et `opsys gateway install --force`
+  (l'installateur le fait à chaque relance) la réécrit vers le nouvel état. `isDefaultInstallIdentity` compare des chemins
+  réels : l'ancien chemin, devenu lien, reste le dossier canonique.
+- **Migration par Doctor** (`infra/state-migrations.opsys-instance.ts`, branchée dans `autoMigrateLegacyStateDir` et
+  `resolvePendingLegacyStateDirMigrationPaths`, donc dans l'étape `state-dir` de Doctor et dans le prélude de démarrage). Elle ne
+  s'applique qu'au profil `opsys` dont le dossier d'état est le canonique ou l'ancien ; pour tout autre dossier d'état explicite,
+  rien ne change (test existant). Ce qu'elle garantit :
+  - l'état est DÉPLACÉ (un `rename`, atomique dans un même système de fichiers), jamais copié : deux copies sont le mauvais état
+    que la migration évite, et supprimer l'ancienne serait une décision humaine (frontière T3). Si le déplacement échoue (autre
+    volume, fichiers ouverts sous Windows), rien n'a changé et l'avertissement donne la marche à suivre ;
+  - rien n'est écrasé ni fusionné : si l'ancien ET le nouveau portent un état, elle s'arrête sur un avertissement qui dit quoi
+    faire (`.old`, service arrêté d'abord) ; un dossier canonique vide est remplacé (il ne contient rien), un ancien dossier vide
+    est remplacé par le lien ; un ancien chemin qui est déjà un lien vers ailleurs n'est pas touché ;
+  - l'arbre déplacé est vérifié (ancien chemin absent, chaque nom d'origine présent) avant de poser le lien ; sinon il est remis
+    en place. Le lien (lien de dossier, jonction sous Windows) est posé à l'ancien chemin ; s'il échoue, le déplacement est annulé ;
+  - relançable : chaque interruption laisse « rien de changé » ou « déplacé » ; la relance ne fait rien de plus.
+  - elle ne lit ni n'imprime aucun secret, et ne touche pas au nom de la configuration.
+- **Ordre des opérations** dans l'installateur : le moteur Python (`opsys metier instance initialiser`) refuse d'écrire tant que
+  l'ancien état existe (voir `docs/exploitation/INSTALLATION.md`) ; on lance `opsys doctor --non-interactive`, puis on relance
+  l'installateur.
+- Gardés exprès : `openclaw.mjs` lit aussi `opsys.json` dans un dossier d'état explicite (aide racine) ; `pristine-startup-state.ts`
+  et `config-guard.ts` (`hasLegacyStateMigrationInputs`) ne connaissent pas l'ancien dossier du profil : une commande d'état
+  en lecture (`status`, `tasks`, `plugins list`) ne déclenche donc pas de déplacement ; Doctor, le démarrage du Gateway et les
+  commandes qui migrent déjà l'état le font.
+- Tests neufs : `src/config/opsys-instance.test.ts`, `src/config/paths.opsys.test.ts`, `src/cli/profile.opsys.test.ts`,
+  `src/daemon/paths.opsys.test.ts`, `src/infra/state-migrations.opsys-instance.test.ts` (déplacement, idempotence, conflit,
+  échecs injectés : rename, lien, vérification, repli en jonction) ; les voisins d'origine des fichiers touchés rejoignent
+  `test/opsys-tests-cibles.txt`. Côté Python : `tests/test_instance.py` et la preuve de l'installateur avec le vrai core
+  (`tests/installateur/bout_en_bout.sh` et `.ps1`, étape « 1 quinquies »).
+
 ## Sécurité
 
 Il n'y a plus de mises à jour automatiques. Une veille mensuelle des avis de sécurité d'OpenClaw
