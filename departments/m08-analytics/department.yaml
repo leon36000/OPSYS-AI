@@ -14,7 +14,8 @@ mission: >-
   alerte à M9, qui lit sans décider. Mesure aussi l'entonnoir commercial (leads, devis envoyés,
   acceptés et sans réponse, taux d'acceptation, délai, carnet signé) d'après les faits de M2 et de
   M3, et remet au propriétaire une vue exécutive : entonnoir, marge réelle que M5 a publiée, stock
-  à commander que M6 publie, cash libre ou ce qui en manque — sans jamais recalculer un montant de M5.
+  à commander que M6 publie, cash libre que M5 a constaté (le dernier constat, tel quel, avec son âge) ou ce qui
+  en manque — sans jamais recalculer un montant de M5.
   Mesure enfin, par contenu exporté par M7 (clé utm_content), les leads de M1 puis les devis de M3 qu'il a amenés ;
   impressions et clics : aucune source aujourd'hui, « non calculable », jamais un zéro.
 outils: m8_analytics.outils
@@ -37,8 +38,8 @@ budget:
   tokens_mois: 4000000
   alerte_pct: 80
 memoire:
-  lecture: [dictionnaire_metriques, snapshots_modules, definitions_metriques, faits_chantier, faits_entonnoir, faits_contenus]
-  ecriture: [snapshots_modules, definitions_metriques, faits_chantier, faits_entonnoir, faits_contenus]
+  lecture: [dictionnaire_metriques, snapshots_modules, definitions_metriques, faits_chantier, faits_entonnoir, faits_contenus, faits_cash_libre]
+  ecriture: [snapshots_modules, definitions_metriques, faits_chantier, faits_entonnoir, faits_contenus, faits_cash_libre]
 evenements:
   # PLAN T1.5-d : le WCT (durée réelle, technicien), le devis accepté (prix, coût, durée estimée si
   # M3 la fournit), la variance de matériaux de M6 (verdict repris sans recalcul) et la marge réelle de
@@ -52,6 +53,10 @@ evenements:
   # PLAN T4.17-e : la mesure par contenu. M7 publie le contenu exporté (`m7.contenu_exporte` : clé utm_content, chantier, canal)
   # et M1 le lead qualifié (`m1.lead_qualifie`, dont M8 ne garde que le lead_id, la clé utm_content et l'instant : ni le contact,
   # ni la ville, ni le service). Les devis par contenu se lisent dans les faits de l'entonnoir ci-dessus.
+  # PLAN T4.19-b : le cash libre que M5 a constaté (`m5.cash_libre_constate`, à la demande de l'admin) : les montants
+  # tels que le calcul de M5 les rend, chaque composante avec sa source et sa fraîcheur, ou « non calculable, manque X ».
+  # M8 range chaque constat (`faits_cash_libre`, un fait par événement) et la vue exécutive montre le dernier, tel quel,
+  # avec son âge ; il ne recalcule rien.
   consomme:
     - m4.travaux_termines
     - m3.devis_accepte
@@ -63,6 +68,7 @@ evenements:
     - m3.devis_sans_reponse
     - m7.contenu_exporte
     - m1.lead_qualifie
+    - m5.cash_libre_constate
   publie: [m8.alerte_proposee]
 configuration:
   # Seuils d'alerte des mesures d'un chantier terminé (PLAN T1.5-d ; DEFINITION-PRODUIT.md §13 point 11

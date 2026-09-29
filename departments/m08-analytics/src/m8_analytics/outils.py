@@ -34,9 +34,15 @@ Entonnoir commercial et vue exécutive (PLAN T4.19, `entonnoir.py`, `vue_executi
 M2 (`m2.client_associe`, `m2.lead_assigne`) et de M3 (`m3.devis_envoye`, `m3.devis_accepte`, `m3.devis_sans_reponse`),
 les range dans le registre `faits_entonnoir` (idempotent, un fait par lead ou par devis) et mesure l'entonnoir au moment
 de la lecture, jamais à l'arrivée : c'est un état du moment, pas un chantier. `m8_lire_vue_executive` (T0, admin) y
-ajoute la marge réelle que M5 a publiée, le stock à commander que M6 met à la file du propriétaire et le cash libre
-(que M5 ne publie pas : « manque »). M8 ne recalcule aucun montant de M5 ; un rôle d'appareil autre qu'`admin` est
-refusé dans le code, en plus de la portée du core.
+ajoute la marge réelle que M5 a publiée, le stock à commander que M6 met à la file du propriétaire et le cash libre.
+M8 ne recalcule aucun montant de M5 ; un rôle d'appareil autre qu'`admin` est refusé dans le code, en plus de la portée
+du core.
+
+Cash libre (PLAN T4.19-b, `cash_libre.py`) : M5 publie le cash libre qu'il a constaté (`m5.cash_libre_constate`, à la
+demande de l'admin) ; M8 le consomme, range chaque constat au registre `faits_cash_libre` (idempotent, un fait par
+identifiant d'événement : la charge telle que M5 l'a publiée) et la vue exécutive montre le DERNIER (le plus grand
+`sequence`), tel quel, avec son âge. L'âge se calcule avec l'argument facultatif `aujourd_hui` (AAAA-MM-JJ) : M8 n'a
+pas d'horloge, il ne devine jamais la date ; sans lui, l'âge est « non calculable ». Aucun constat reçu : « manque ».
 
 Mesure par contenu (PLAN T4.17-e, `contenus.py`, `vue_contenus.py`) : M8 reçoit `m7.contenu_exporte` (les contenus
 qui existent, avec leur clé `utm_content`) et `m1.lead_qualifie` (le lead et la clé qu'il portait), les range au
@@ -59,6 +65,7 @@ from opsys.outils import Autonomie, Outil, depuis_couple
 
 from . import (
     alertes,
+    cash_libre,
     contenus,
     entonnoir,
     mesures_chantier,
@@ -189,6 +196,7 @@ _MANIFESTE = Path(__file__).resolve().parents[2] / "department.yaml"
 _NOM_REGISTRE_FAITS = "faits_chantier"
 _NOM_REGISTRE_ENTONNOIR = "faits_entonnoir"
 _NOM_REGISTRE_CONTENUS = "faits_contenus"
+_NOM_REGISTRE_CASH_LIBRE = "faits_cash_libre"
 _M6 = "m06-material-control"
 # `Capacites._tronquer` mesure `{"ok": true, "resultat": ...}` : 25 caractères d'enveloppe, plus une marge.
 # Sous ce budget (la limite de sortie du socle moins cette réserve), une réponse n'est jamais tronquée.
@@ -511,6 +519,25 @@ def _recevoir_lead_qualifie(charge: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _recevoir_cash_libre_constate(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consommateur `m5.cash_libre_constate` (PLAN T4.19-b) : le constat du cash libre, TEL QUE M5 l'a publié (M8 ne
+    fait pas la comptabilité), rangé au registre `faits_cash_libre` (`cash_libre.fait_constat`). Un fait par identifiant
+    d'événement : une relivraison, ou un rejeu du répartiteur, n'ajoute rien ; le DERNIER constat (le plus grand
+    `sequence`) est celui que la vue montre, quel que soit l'ordre de livraison. Un constat « non calculable » est rangé
+    comme les autres : M8 ne le remplace par aucun zéro.
+
+    Le résumé du reçu, que le bus range, ne porte AUCUN montant : l'identifiant, le rang, le jour de référence et le
+    statut seulement."""
+    fait = cash_libre.fait_constat(charge)
+    enregistre = _ajouter_fait_si_nouveau(
+        stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_CASH_LIBRE), fait, cash_libre.cles_unicite()
+    )
+    return {
+        "enregistre": enregistre, "deja_enregistre": not enregistre, "evenement_id": charge["evenement_id"],
+        "sequence": charge["sequence"], "date_reference": charge["date_reference"], "statut": charge["statut"],
+    }
+
+
 def consommateurs() -> dict[str, Any]:
     """Types d'événements consommés par M8 (ADR-0009 §3) — voir `department.yaml:evenements.consomme`
     et `docs/architecture/DEPARTEMENTS.md` § Événements."""
@@ -525,6 +552,7 @@ def consommateurs() -> dict[str, Any]:
         "m3.devis_sans_reponse": _recevoir_devis_sans_reponse,
         "m7.contenu_exporte": _recevoir_contenu_exporte,
         "m1.lead_qualifie": _recevoir_lead_qualifie,
+        cash_libre.EVENEMENT: _recevoir_cash_libre_constate,
     }
 
 
@@ -602,6 +630,7 @@ def outils(
     faits_cible: Any = None,
     faits_entonnoir_cible: Any = None,
     faits_contenus_cible: Any = None,
+    faits_cash_libre_cible: Any = None,
 ) -> tuple[Outil, ...]:
     """Capacités exposées aux agents. Une instance de RegistreSnapshots par installation.
 
@@ -624,6 +653,10 @@ def outils(
     `faits_contenus_cible` (T4.17-e) : même patron pour le registre `faits_contenus` (contenus exportés par M7 et leads
     de M1 reçus par le bus, lus par `m8_lire_mesures_contenus`) — `None` (défaut) l'adosse à
     `opsys.stockage.maillons("m08-analytics", "faits_contenus")`.
+
+    `faits_cash_libre_cible` (T4.19-b) : même patron pour le registre `faits_cash_libre` (constats du cash libre publiés
+    par M5, reçus par le bus, lus par `m8_lire_vue_executive`) — `None` (défaut) l'adosse à
+    `opsys.stockage.maillons("m08-analytics", "faits_cash_libre")`.
     """
     if faits_cible is None:
         faits_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_FAITS)
@@ -631,6 +664,8 @@ def outils(
         faits_entonnoir_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_ENTONNOIR)
     if faits_contenus_cible is None:
         faits_contenus_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_CONTENUS)
+    if faits_cash_libre_cible is None:
+        faits_cash_libre_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_CASH_LIBRE)
     if registre_cible is None:
         registre_cible = registre.RegistreSnapshots(maillons=stockage.maillons("m08-analytics", "snapshots"))
     if definitions_cible is None:
@@ -917,20 +952,27 @@ def outils(
 
         return mesures_chantier.page_bornee(techniciens, depart, BUDGET_SORTIE, construire)
 
-    def lire_vue_executive() -> dict[str, Any]:
+    def lire_vue_executive(aujourd_hui: str | None = None) -> dict[str, Any]:
         """La vue exécutive du propriétaire (T4.19, M8.6) : l'entonnoir mesuré par le code d'après les faits de M2 et
         de M3, la marge réelle que M5 a publiée, le stock à commander que M6 met à la file du propriétaire, et le cash
-        libre (M5 ne le publie pas : « manque »). Lecture pure (T0) : rien n'est écrit, rien n'est publié, et aucun
-        montant de M5 n'est recalculé. Un appareil qui n'est pas celui d'un admin authentifié est refusé ICI, avant
-        toute lecture ; la réponse est bornée sous la limite du socle, ce qui n'y tient pas est compté."""
+        libre : le DERNIER constat que M5 a publié (T4.19-b), tel quel, avec son âge, ou « manque » si M5 n'en a publié
+        aucun. Lecture pure (T0) : rien n'est écrit, rien n'est publié, et aucun montant de M5 n'est recalculé. Un
+        appareil qui n'est pas celui d'un admin authentifié est refusé ICI, avant toute lecture ; la réponse est bornée
+        sous la limite du socle, ce qui n'y tient pas est compté.
+
+        `aujourd_hui` (AAAA-MM-JJ, facultatif) ne sert qu'à dire l'âge du constat du cash libre : M8 n'a pas d'horloge
+        et ne devine jamais la date. Absent : l'âge est « non calculable ». Illisible : refus nommé
+        (`REJ-VUE-AUJOURD-HUI-INVALIDE`), avant toute lecture. Il n'élargit ni ne restreint rien d'autre."""
         _exiger_admin_pour_appareil()
+        jour = cash_libre.lire_aujourd_hui(aujourd_hui)
         faits_chantier = list(faits_cible)
         situation = entonnoir.situation(
             list(faits_entonnoir_cible), faits_chantier, entonnoir.charger_definitions(), _seuils_entonnoir()
         )
         attentes_m6, raison_m6 = _lire_attentes_m6()
         return vue_executive.assembler(
-            situation, faits_chantier, attentes_m6, raison_m6, budget_caracteres=BUDGET_SORTIE
+            situation, faits_chantier, attentes_m6, raison_m6, budget_caracteres=BUDGET_SORTIE,
+            faits_cash_libre=list(faits_cash_libre_cible), aujourd_hui=jour,
         )
 
     def lire_mesures_contenus(depart: int = 0) -> dict[str, Any]:
@@ -1211,10 +1253,24 @@ def outils(
                 "devis envoyés, acceptés et sans réponse, taux d'acceptation, délai lead-acceptation, carnet signé) "
                 "mesuré par le code d'après les faits de M2 et de M3, avec la version et le propriétaire de chaque "
                 "définition ; la marge réelle des chantiers telle que M5 l'a publiée ; le stock à commander tel que "
-                "M6 le publie ; le cash libre, ou ce qui manque. Une donnée absente est « non calculable, manque X », "
-                "jamais un zéro ; aucun montant de M5 n'est recalculé. Réservé à l'admin."
+                "M6 le publie ; le cash libre : le dernier constat de M5, tel quel, avec son âge (aujourd_hui, "
+                "AAAA-MM-JJ, facultatif : M8 n'a pas d'horloge), ou « manque » si M5 n'en a publié aucun. Une donnée "
+                "absente est « non calculable, manque X », jamais un zéro ; aucun montant de M5 n'est recalculé. "
+                "Réservé à l'admin."
             ),
-            parametres={"type": "object", "properties": {}, "additionalProperties": False},
+            parametres={
+                "type": "object",
+                "properties": {
+                    "aujourd_hui": {
+                        "type": ["string", "null"],
+                        "description": (
+                            "Jour de l'appelant, AAAA-MM-JJ : sert seulement à dire l'âge du constat du cash libre. "
+                            "Absent : l'âge est « non calculable » (jamais deviné)."
+                        ),
+                    },
+                },
+                "additionalProperties": False,
+            },
             fonction=lire_vue_executive,
             # §9.5 (profil admin) : « tableau de bord exécutif, alertes et wallboard » (M8). Marges, stock et carnet de
             # toute l'entreprise : ni l'employé ni le vendeur (§8.16, §9.2, §9.4) ; refusé aussi dans le code.

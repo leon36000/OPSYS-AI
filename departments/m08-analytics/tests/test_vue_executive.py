@@ -1,12 +1,14 @@
 """`m8_lire_vue_executive` (PLAN T4.19, M8.6) : la vue exécutive du propriétaire.
 
 Ce que ce fichier prouve :
-- l'outil est T0, sans paramètre, réservé à l'`admin` ; tout autre rôle d'appareil est refusé DANS LE CODE, avant
-  toute lecture (le socle n'applique pas `roles_appareil` à un outil de lecture hors du core) ;
+- l'outil est T0, réservé à l'`admin`, et n'a qu'un paramètre facultatif (`aujourd_hui`, pour l'âge du constat du cash
+  libre) ; tout autre rôle d'appareil est refusé DANS LE CODE, avant toute lecture (le socle n'applique pas
+  `roles_appareil` à un outil de lecture hors du core) ;
 - lecture pure : rien n'est écrit, rien n'est publié ;
 - M8 lit, il ne recalcule pas : la marge réelle de M5 est reprise telle quelle (aucune somme, aucun arrondi, un
   garde statique le verrouille), le stock à commander est ce que M6 met à la file du propriétaire (M6 seul est
-  appelé), le cash libre est un « manque » explicite (M5 ne le publie sur aucun événement) ;
+  appelé), le cash libre est « manque » tant que M5 n'a rien constaté (T4.19-b : le dernier constat, tel quel, avec son
+  âge, est dans `test_vue_executive_cash_libre.py`) ;
 - une donnée absente est un manque nommé, dit une fois, jamais un zéro ;
 - la réponse est bornée sous la limite du socle : ce qui n'y tient pas est compté (`reste`), jamais coupé.
 
@@ -90,12 +92,13 @@ def _marge(wct_id, devis_id, sequence, marge, manque=(), verdict=None):
     })
 
 
-def _par_nom(faits_entonnoir=None, faits_chantier=None):
+def _par_nom(faits_entonnoir=None, faits_chantier=None, faits_cash_libre=None):
     return {
         o.nom: o
         for o in outils(
             RegistreSnapshots(), [], faits_chantier if faits_chantier is not None else [],
             faits_entonnoir if faits_entonnoir is not None else [],
+            faits_cash_libre_cible=faits_cash_libre if faits_cash_libre is not None else [],
         )
     }
 
@@ -194,21 +197,28 @@ def configurer(tmp_path, monkeypatch):
 # ---------------------------------------------------------------------------
 # La déclaration : T0, sans paramètre, admin seulement
 # ---------------------------------------------------------------------------
-def test_l_outil_est_t0_sans_parametre_et_reserve_au_role_admin():
+def test_l_outil_est_t0_reserve_au_role_admin_avec_un_seul_parametre_facultatif_la_date_de_l_appelant():
     outil = _par_nom()["m8_lire_vue_executive"]
 
     assert outil.autonomie == Autonomie.T0 and not outil.frontiere_humaine
     assert outil.roles_appareil == frozenset({"admin"})  # ni employee, ni seller
-    assert outil.parametres == {"type": "object", "properties": {}, "additionalProperties": False}
+    assert set(outil.parametres["properties"]) == {"aujourd_hui"} and "required" not in outil.parametres
+    assert outil.parametres["properties"]["aujourd_hui"]["type"] == ["string", "null"]
+    assert outil.parametres["additionalProperties"] is False and outil.parametres["type"] == "object"
     assert "Réservé à l'admin" in outil.description and len(outil.description) <= 1024
+    assert "aujourd_hui" in outil.description and "M8 n'a pas d'horloge" in outil.description
 
 
-def test_aucun_argument_n_est_accepte_ni_role_ni_montant_ni_periode():
+def test_aucun_argument_n_est_accepte_ni_role_ni_montant_ni_periode_seule_la_date_de_l_appelant_l_est():
     outil = _par_nom()["m8_lire_vue_executive"]
 
-    for argument in ({"role": "admin"}, {"autorise_couts": True}, {"cash_libre": "1000.00"}, {"limite": 50}):
+    for argument in ({"role": "admin"}, {"autorise_couts": True}, {"cash_libre": "1000.00"}, {"limite": 50},
+                     {"aujourd_hui": "2026-10-02", "role": "admin"}, {"aujourd_hui": 20261002},
+                     {"aujourd_hui": ["2026-10-02"]}):
         reponse = executer(outil, argument)
         assert reponse["ok"] is False and reponse["erreur"] == "arguments_invalides", argument
+    for argument in ({}, {"aujourd_hui": None}, {"aujourd_hui": "2026-10-02"}):
+        assert executer(outil, argument)["ok"] is True, argument
 
 
 # ---------------------------------------------------------------------------
@@ -637,29 +647,41 @@ def test_m6_absent_illisible_ou_hors_transaction_est_un_manque_nomme_jamais_rien
 
 
 # ---------------------------------------------------------------------------
-# Le cash libre : M5 ne le publie pas, la vue dit « manque » et où le lire
+# Le cash libre sans constat : la vue dit « manque » et où le lire (avec un constat : test_vue_executive_cash_libre.py)
 # ---------------------------------------------------------------------------
-def test_le_cash_libre_est_un_manque_explicite_qui_renvoie_a_l_outil_de_m5_et_n_appelle_pas_m5(
+def test_sans_constat_de_m5_le_cash_libre_est_un_manque_explicite_qui_renvoie_aux_outils_de_m5_sans_les_appeler(
         base_avec_personnes, m6_de_test):
     m6, m5 = m6_de_test()
 
     vue = _vue(_par_nom([_lead("L1")]), _ADMIN, atomique=True)
 
     assert vue["cash_libre"] == {
-        "source": "M5 (m5_etat_tresorerie, T4.16)", "statut": "manque", "manque": ["cash_libre"],
-        "a_lire": "m5_etat_tresorerie (admin), avec la décomposition du cash libre",
+        "source": "M5 (m5.cash_libre_constate)", "statut": "manque", "manque": ["cash_libre"],
+        "a_lire": "m5_etat_tresorerie (admin), avec la décomposition du cash libre ; "
+                  "m5_constater_cash_libre (admin) le publie à M8",
     }
     (manque,) = [m for m in vue["manques"] if m["champ"] == "cash_libre"]
-    assert "ne le publie sur aucun événement du bus" in manque["raison"]
+    assert manque["source"] == "M5 (m5.cash_libre_constate)"
+    assert "M5 n'a publié aucun constat du cash libre" in manque["raison"]
     assert "ne peut ni le lire ni le recalculer" in manque["raison"]
+    assert "m5_constater_cash_libre" in manque["raison"]
     assert m5.appels == 0  # M5 n'est ni lu ni appelé : `charger_outils()` de M5 lèverait
 
 
-def test_aucun_montant_de_cash_libre_n_existe_dans_la_vue():
+def test_sans_constat_aucun_montant_de_cash_libre_n_existe_dans_la_vue():
     vue = _vue(_par_nom(_trajet()))
 
     assert set(vue["cash_libre"]) == {"source", "statut", "manque", "a_lire"}
     assert "solde" not in json.dumps(vue) and "argent_disponible" not in json.dumps(vue)
+    assert "cash_libre_cad" not in json.dumps(vue)
+
+
+def test_sans_constat_la_date_de_l_appelant_ne_change_rien_a_la_section():
+    sans_date = _vue(_par_nom(_trajet()))["cash_libre"]
+
+    reponse = executer(_par_nom(_trajet())["m8_lire_vue_executive"], {"aujourd_hui": "2026-10-02"})
+
+    assert reponse["ok"] is True and reponse["resultat"]["cash_libre"] == sans_date
 
 
 # ---------------------------------------------------------------------------

@@ -11,8 +11,8 @@ lit les faits et les attentes de M6, puis appelle ``assembler``. Quatre sections
    dit pourquoi, avec les codes de M5 ;
 3. ``stock_a_commander`` — les besoins de commande TELS QUE M6 les publie à la file du propriétaire (``attentes()``),
    avec son résumé et son action proposée : M8 n'a aucun stock, aucun seuil ni aucune quantité à lui ;
-4. ``cash_libre`` — M5 le calcule à la demande et ne le publie sur aucun événement : la section dit « manque », et
-   où le lire. M8 ne le recalcule jamais.
+4. ``cash_libre`` — le DERNIER constat que M5 a publié (``m5.cash_libre_constate``), tel quel, avec son âge
+   (``cash_libre.py``) ; « manque » si M5 n'en a publié aucun, et où le lire. M8 ne le recalcule jamais.
 
 Une donnée absente donne un « manque » nommé (``manques``, une fois, dédoublonné), jamais un zéro ni une valeur par
 défaut. La vue ne décide de rien et ne propose aucune action de son cru : M2 relance déjà les devis sans réponse, M6
@@ -20,7 +20,9 @@ propose sa commande ; M8 rapporte le chiffre (SOUL).
 
 BORNE : la réponse d'un outil est tronquée par ``Capacites`` au-delà de la limite du socle. Chaque liste est
 plafonnée, puis la vue entière est mesurée comme le socle la mesure : ce qui ne tient pas est retiré de la fin de la
-plus longue liste et COMPTÉ (``reste``), jamais perdu en silence ni coupé au milieu.
+plus longue liste et COMPTÉ (``reste``), jamais perdu en silence ni coupé au milieu. Quand il ne reste plus aucune
+liste à raccourcir, la décomposition du cash libre est retirée à son tour (``cash_libre.reduire`` : comptée et dite) ;
+les montants du constat, son statut, ce qui manque, ses réserves et sa mention ne sont jamais retirés.
 """
 
 from __future__ import annotations
@@ -28,24 +30,16 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from . import entonnoir
+from . import cash_libre, entonnoir
 
 _LIMITE_LISTE = 3
 _TYPE_ATTENTE_BESOIN_COMMANDE = "besoin_commande"
 _TYPE_ATTENTE_SEUIL_A_CONFIGURER = "seuil_a_configurer"
 _PORTEE = (
-    "Tous les faits reçus par M8, sans fenêtre de période. M8 calcule l'entonnoir ; la marge réelle (M5) "
-    "et le stock à commander (M6) sont repris tels que ces départements les publient, sans recalcul."
+    "Tous les faits reçus par M8, sans fenêtre de période. M8 calcule l'entonnoir ; la marge réelle et le cash libre "
+    "(M5) et le stock à commander (M6) sont repris tels que ces départements les publient, sans recalcul."
 )
 _CONFIGURATION_SEUILS = "department.yaml de m08-analytics, configuration.seuils_entonnoir"
-_MANQUE_CASH_LIBRE = {
-    "champ": "cash_libre",
-    "source": "M5 (m5_etat_tresorerie, T4.16)",
-    "raison": (
-        "M5 calcule le cash libre à chaque lecture de m5_etat_tresorerie et ne le publie sur aucun événement du bus : "
-        "M8 ne peut ni le lire ni le recalculer, il ne fait pas la comptabilité"
-    ),
-}
 
 
 def _ajouter_manques(manques: list[dict[str, str]], nouveaux: list[dict[str, str]]) -> None:
@@ -209,16 +203,15 @@ def section_stock(
 
 
 # ---------------------------------------------------------------------------
-# 4. Le cash libre : M5 ne le publie pas
+# 4. Le cash libre, tel que M5 l'a constaté
 # ---------------------------------------------------------------------------
-def section_cash_libre(manques: list[dict[str, str]]) -> dict[str, Any]:
-    """Le cash libre réel de M5 (T4.16) n'existe sur aucun événement du bus : M5 le calcule à chaque lecture de
-    `m5_etat_tresorerie`. M8 dit donc « manque » et renvoie à cet outil de l'admin ; jamais un chiffre de M8."""
-    _ajouter_manques(manques, [_MANQUE_CASH_LIBRE])
-    return {
-        "source": _MANQUE_CASH_LIBRE["source"], "statut": "manque", "manque": ["cash_libre"],
-        "a_lire": "m5_etat_tresorerie (admin), avec la décomposition du cash libre",
-    }
+def section_cash_libre(
+    faits_cash_libre: list[dict[str, Any]], aujourd_hui: str | None, manques: list[dict[str, str]]
+) -> dict[str, Any]:
+    """Le cash libre réel de M5 (T4.16) : le DERNIER constat qu'il a publié (``m5.cash_libre_constate``, T4.19-b), tel
+    quel, avec son âge quand l'appelant donne ``aujourd_hui`` ; « manque » si M5 n'en a publié aucun. Un constat « non
+    calculable » est montré comme tel, avec ce qui manque : jamais un chiffre de M8 (``cash_libre.py``)."""
+    return cash_libre.section(faits_cash_libre, aujourd_hui, manques)
 
 
 # ---------------------------------------------------------------------------
@@ -240,13 +233,15 @@ def _listes_bornables(vue: dict[str, Any]) -> list[tuple[dict[str, Any], str]]:
 
 def _borner(vue: dict[str, Any], budget_caracteres: int | None) -> dict[str, Any]:
     """Retire un élément à la fois de la fin de la plus longue liste tant que la vue dépasse la borne, et le COMPTE
-    dans ``reste``. Fail-closed : sans aucune liste à raccourcir, une vue trop grosse est une erreur, jamais une
-    réponse coupée au milieu."""
+    dans ``reste``. Sans aucune liste à raccourcir, retire la décomposition du cash libre (comptée et dite).
+    Fail-closed : si la vue est encore trop grosse, c'est une erreur, jamais une réponse coupée au milieu."""
     if budget_caracteres is None:
         return vue
     while _taille(vue) > budget_caracteres:
         candidates = [(conteneur, cle) for conteneur, cle in _listes_bornables(vue) if conteneur.get(cle)]
         if not candidates:
+            if cash_libre.reduire(vue["cash_libre"]):
+                continue
             raise ValueError(f"la vue exécutive dépasse à elle seule la borne de {budget_caracteres} caractères")
         conteneur, cle = max(candidates, key=lambda paire: len(paire[0][paire[1]]))
         conteneur[cle].pop()
@@ -256,11 +251,13 @@ def _borner(vue: dict[str, Any], budget_caracteres: int | None) -> dict[str, Any
 
 def assembler(
     situation: dict[str, Any], faits_chantier: list[dict[str, Any]], attentes_m6: list[dict[str, Any]] | None,
-    raison_manque_m6: str | None, budget_caracteres: int | None = None,
+    raison_manque_m6: str | None, budget_caracteres: int | None = None, *,
+    faits_cash_libre: list[dict[str, Any]] | None = None, aujourd_hui: str | None = None,
 ) -> dict[str, Any]:
     """La vue exécutive : ``situation`` est celle de ``entonnoir.situation``, ``faits_chantier`` le registre des
-    chantiers terminés (marge réelle de M5), ``attentes_m6`` ce que M6 publie (``None`` s'il n'a pas pu être lu).
-    Lecture pure : rien n'est écrit, rien n'est publié."""
+    chantiers terminés (marge réelle de M5), ``attentes_m6`` ce que M6 publie (``None`` s'il n'a pas pu être lu),
+    ``faits_cash_libre`` le registre des constats du cash libre de M5 (aucun : « manque »), ``aujourd_hui`` (AAAA-MM-JJ,
+    de l'appelant : M8 n'a pas d'horloge) pour l'âge du constat. Lecture pure : rien n'est écrit, rien n'est publié."""
     manques: list[dict[str, str]] = []
     vue = {
         "vue": "executive",
@@ -268,7 +265,7 @@ def assembler(
         "entonnoir": section_entonnoir(situation, manques),
         "marge_reelle": section_marge_reelle(faits_chantier),
         "stock_a_commander": section_stock(attentes_m6, raison_manque_m6, manques),
-        "cash_libre": section_cash_libre(manques),
+        "cash_libre": section_cash_libre(faits_cash_libre or [], aujourd_hui, manques),
         "manques": manques,
     }
     return _borner(vue, budget_caracteres)

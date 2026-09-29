@@ -63,7 +63,7 @@ ADMIN_SEUL = frozenset({
     "m5_saisir_facture_sans_po", "m5_corriger_facture_fournisseur", "m5_annuler_facture_fournisseur",
     "m5_lire_echeances_fiscales",  # calendrier fiscal vivant, TPS/TVQ (T4.16)
     "m5_prevoir_tresorerie",  # prévision de trésorerie des flux connus et datés, lecture pure (T4.16-d)
-    # le cash libre constaté et publié au bus pour M8 : écriture interne (T1, N3), l'admin avec le droit de voir les coûts
+    # le cash libre constaté et publié au bus pour M8 : écriture interne (T1, N3), l'admin qui voit les coûts
     "m5_constater_cash_libre",
     "m6_annuler_po", "m6_approuver_po", "m6_evaluer_variance_chantier", "m6_produire_digest",
     "m6_receptionner_commande", "m6_soumettre_comptage",
