@@ -58,7 +58,9 @@ __all__ = [
     "construire_reception",
     "enregistrer_reception",
     "lister",
+    "factures_saisies",
     "proposer_rapprochement",
+    "resume_a_payer",
     "saisir_facture_fournisseur",
     "synthese_du_po",
     "vue_facture",
@@ -710,6 +712,50 @@ def proposer_rapprochement(
     if verdict is not None:
         return None, verdict
     return _vue_rapprochement(synthese["rapprochement"]), None
+
+
+# ------------------------------------------------------------------- ce que le cash libre en retient
+def factures_saisies(registre_cible: Any) -> list[dict[str, Any]]:
+    """Les factures fournisseur SAISIES du registre, dans l'ordre d'écriture (lecture pure). Le cash libre (T4.16) en
+    tire les crédits de taxes sur intrants : ce qui a été saisi par un humain, jamais ce qui est seulement attendu."""
+    return [maillon for maillon in registre_cible.lire() if maillon.get("type_entree") == _TYPE_FACTURE]
+
+
+def resume_a_payer(
+    registre_cible: Any, dictionnaire_taux: Mapping[str, Mapping[str, Any]]
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Ce que les comptes à payer disent au total, pour le cash libre (T4.16) : `(résumé, None)` ou `(None, verdict)`.
+
+    Le total porte sur TOUS les PO (comme `totaux` de `lister`, dont il reprend le calcul : une seule règle) :
+    `a_payer_apres_taxes` est `None` dès qu'un PO n'est pas calculable (jamais zéro à sa place) et
+    `a_payer_connu_apres_taxes` n'est alors qu'un plancher (les factures déjà saisies, dettes fermes). `reserves`
+    porte l'hypothèse de l'unité des prix dès qu'un PO existe. `pieces`, `derniere_piece` et `tete` disent d'où vient
+    le chiffre (le nombre de maillons du registre, l'horodatage du plus récent, la tête de la chaîne). `(None,
+    verdict)` seulement si un taux fiscal manque : rien n'est alors chiffré à demi."""
+    maillons = registre_cible.lire()
+    syntheses = []
+    ordonnes = sorted(
+        _pos(maillons).values(), key=lambda p: (_instant(p["receptions"][0]["horodatage_reception"]), p["po_id"])
+    )
+    for po in ordonnes:
+        synthese, verdict = synthese_du_po(po, dictionnaire_taux)
+        if verdict is not None:
+            return None, verdict
+        syntheses.append(synthese)
+    totaux = _totaux(syntheses)
+    calculables = totaux["complet"]
+    return {
+        "nombre_po": totaux["nombre_po"],
+        "complet": calculables,
+        "a_payer_apres_taxes": Decimal(totaux["a_payer_apres_taxes"]) if calculables else None,
+        "a_payer_connu_apres_taxes": Decimal(totaux["a_payer_connu_apres_taxes"]),
+        "non_calculables_po": totaux["non_calculables_po"],
+        "non_calculables": totaux["non_calculables"],
+        "reserves": [CODE_UNITE_PRIX] if syntheses else [],
+        "pieces": len(maillons),
+        "derniere_piece": max((m["horodatage"] for m in maillons), key=_instant, default=None),
+        "tete": maillons[-1]["ligne_id"] if maillons else None,
+    }, None
 
 
 # ------------------------------------------------------------------------------------- la liste

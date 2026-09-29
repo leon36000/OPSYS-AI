@@ -125,3 +125,19 @@ def test_un_solde_decimal_ne_subit_pas_d_erreur_binaire():
 
     assert type(solde) is Decimal
     assert solde == Decimal("0.30")
+
+
+def test_decrire_les_mouvements_ne_compte_que_les_mouvements_pas_les_autres_maillons_du_registre():
+    """PLAN T4.16 : la source du solde dit combien de MOUVEMENTS le portent (`nombre`), pas la taille du registre
+    (`taille_registre`) où d'autres familles de maillons peuvent vivre ; la tête est celle de la chaîne entière."""
+    registre_cible = registre.Registre()
+    _ajouter(registre_cible, Decimal("100.00"), "ENCAISSEMENT")
+    registre_cible.ajouter({"type_entree": "demande_creee", "horodatage": "2026-08-04T09:00:00+00:00"})
+    _ajouter(registre_cible, Decimal("20.00"), "PROVISION")
+
+    decrit = soldes.decrire_mouvements(registre_cible)
+
+    assert decrit["nombre"] == 2 and decrit["taille_registre"] == 3
+    assert decrit["derniere_piece"] == HORODATAGE and decrit["tete"] == registre_cible.tete()
+    assert soldes.decrire_mouvements(registre.Registre()) == {
+        "nombre": 0, "derniere_piece": None, "taille_registre": 0, "tete": None}
