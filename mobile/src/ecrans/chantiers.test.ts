@@ -347,6 +347,15 @@ describe("la préparation d'une intervention", () => {
     expect(JSON.stringify(vue)).not.toMatch(/assurance\.yaml|\/srv/);
   });
 
+  test("un volet à fournir SANS volet du même nom, même connu : M4 se contredit, jamais la phrase d'un manque sans code", () => {
+    const brut = reponse("preparation_lead_v2");
+    delete brut.resultat.resultat.volets.equipe;
+    const vue = presenterPreparation(preparationDeBrut(brut));
+    const ligne = vue.aFournir.find((a) => a.volet.cle === "admin.chantiers.volets.equipe");
+    // « equipe:manque: » existe dans la table (aucune équipe admissible), mais ce volet-là n'est pas celui-ci : inconnu.
+    expect(ligne?.manque).toEqual({ cle: "admin.chantiers.manques.inconnu", params: { code: "equipe.manque" } });
+  });
+
   test("un manque dont le détail n'est pas un code (une phrase, un chemin) ne montre que son volet et son statut", () => {
     const brut = reponse("preparation_lead_v2");
     brut.resultat.resultat.volets.meteo.detail = "voir /srv/opsys/entreprise.yaml, clé 'meteo'";

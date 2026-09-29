@@ -78,6 +78,12 @@ describe("texteSansChemin : un texte du serveur que l'app veut bien montrer", ()
     expect(texteSansChemin("un lead et/ou un client")).toBeNull();
   });
 
+  test("une extension n'est reconnue qu'en fin de mot : `a.dbx` et `a.tsx` ne sont pas des fichiers de configuration", () => {
+    expect(texteSansChemin("le champ a.dbx")).toBe("le champ a.dbx");
+    expect(texteSansChemin("le composant a.tsx")).toBe("le composant a.tsx");
+    expect(texteSansChemin("le champ a.db")).toBeNull();
+  });
+
   test("une extension n'est reconnue qu'en fin de mot : « ymlx » et « pyramide » ne sont pas des fichiers", () => {
     expect(texteSansChemin("le format ymlx n'existe pas")).toBe("le format ymlx n'existe pas");
     expect(texteSansChemin("la pyramide des âges")).toBe("la pyramide des âges");
