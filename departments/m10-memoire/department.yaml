@@ -65,7 +65,7 @@ kpis:
 # m3.devis_accepte, m3.devis_sans_reponse), mémorisé au même registre Événements (etapes.py, amont.py) : des
 # identifiants et des faits d'étape, jamais le contact du lead ni un texte de client (Loi 25) ; le client associé
 # est CLIENT_PRIVATE (M1 et M2 seulement) ; le prix et le coût d'un devis accepté sont FINANCIAL, hors de tout
-# paquet. `m3.devis_envoye` n'existe pas encore au catalogue (T4.7) : il s'ajoute ici et dans etapes.py.
+# paquet. `m3.devis_envoye` (T4.7) : l'envoi approuvé par le propriétaire, sans montant.
 evenements:
   consomme:
     - m4.travaux_termines
@@ -73,5 +73,6 @@ evenements:
     - m5.rentabilite_chantier
     - m1.lead_qualifie
     - m2.client_associe
+    - m3.devis_envoye
     - m3.devis_accepte
     - m3.devis_sans_reponse

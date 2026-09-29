@@ -23,7 +23,7 @@ Niveaux de confidentialité (``confidentialite.py``), posés ICI, après la char
 L'instant d'un fait est celui de l'ÉVÉNEMENT (réception du message, association, acceptation, constat), jamais une
 horloge de M10 (``conformite.py::HORLOGE_INTERNE`` le détecterait).
 
-Ajouter une étape (par exemple ``m3.devis_envoye``, quand M3 la publiera) = ajouter UNE entrée à ``_ETAPES`` (son
+Ajouter une étape (comme ``m3.devis_envoye``, T4.7) = ajouter UNE entrée à ``_ETAPES`` (son
 extraction, son résumé, son niveau) et son type à ``evenements.consomme`` de ``department.yaml`` : le consommateur,
 la classification, le paquet, la consolidation et l'audit lisent cette table.
 
@@ -42,6 +42,7 @@ from . import confidentialite, validation
 
 TYPE_LEAD_QUALIFIE = "m1.lead_qualifie"
 TYPE_CLIENT_ASSOCIE = "m2.client_associe"
+TYPE_DEVIS_ENVOYE = "m3.devis_envoye"
 TYPE_DEVIS_ACCEPTE = "m3.devis_accepte"
 TYPE_DEVIS_SANS_REPONSE = "m3.devis_sans_reponse"
 SUFFIXE_MONTANTS = ":montants"
@@ -155,6 +156,16 @@ def _extraire_client_associe(charge: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _extraire_devis_envoye(charge: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "lead_id": _forme(charge, ("lead_id",), _LEAD_M2),
+        "devis_id": _forme(charge, ("devis_id",), _IDENTIFIANT),
+        "chantier_id": _forme_ou_none(charge, ("chantier_id",), _IDENTIFIANT),
+        # L'instant de la décision du propriétaire qui approuve l'envoi (écrit par le socle), pas la livraison.
+        "horodatage": _instant(charge, ("horodatage_envoi",)),
+    }
+
+
 def _extraire_devis_accepte(charge: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "lead_id": _forme(charge, ("lead_id",), _LEAD_M2),
@@ -198,6 +209,13 @@ def _resume_client_associe(maillon: Mapping[str, Any]) -> str:
     return f"Client associé au lead : {maillon.get('client_id')}"
 
 
+def _resume_devis_envoye(maillon: Mapping[str, Any]) -> str:
+    resume = f"Devis {maillon.get('devis_id')} approuvé pour envoi"
+    if maillon.get("chantier_id"):
+        resume += f", chantier {maillon['chantier_id']}"
+    return resume
+
+
 def _resume_devis_accepte(maillon: Mapping[str, Any]) -> str:
     resume = f"Devis {maillon.get('devis_id')} accepté"
     if maillon.get("chantier_id"):
@@ -234,8 +252,8 @@ class Etape:
     resumer_montants: Callable[[Mapping[str, Any]], str] | None = None
 
 
-# Ordre de l'entonnoir : c'est celui de la consolidation. Ni `m3.devis_envoye` (il n'existe pas encore, T4.7) ni
-# aucun autre type : une étape absente d'ici n'est pas consommée.
+# Ordre de l'entonnoir : c'est celui de la consolidation. Une étape absente d'ici n'est pas consommée.
+# `m3.devis_envoye` (T4.7) : l'envoi approuvé par le propriétaire, entre le client associé et l'acceptation.
 _ETAPES = (
     Etape(
         TYPE_LEAD_QUALIFIE, "m01-front-office", "lead_id", "lead(s) qualifié(s)",
@@ -244,6 +262,10 @@ _ETAPES = (
     Etape(
         TYPE_CLIENT_ASSOCIE, "m02-revenue-crm", "lead_id", "client(s) associé(s)",
         confidentialite.NIVEAU_CLIENT_PRIVE, _extraire_client_associe, _resume_client_associe,
+    ),
+    Etape(
+        TYPE_DEVIS_ENVOYE, "m03-estimation", "devis_id", "devis envoyé(s)",
+        confidentialite.NIVEAU_INTERNE, _extraire_devis_envoye, _resume_devis_envoye,
     ),
     Etape(
         TYPE_DEVIS_ACCEPTE, "m03-estimation", "devis_id", "devis accepté(s)",

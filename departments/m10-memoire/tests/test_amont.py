@@ -68,6 +68,9 @@ TYPE_ACCEPTE = etapes.TYPE_DEVIS_ACCEPTE
 TYPE_SANS_REPONSE = etapes.TYPE_DEVIS_SANS_REPONSE
 TYPE_MONTANTS = etapes.TYPE_MONTANTS_DEVIS_ACCEPTE
 TYPES_DE_L_AMONT = (TYPE_LEAD, TYPE_CLIENT, TYPE_ACCEPTE, TYPE_SANS_REPONSE)
+TYPE_ENVOYE = etapes.TYPE_DEVIS_ENVOYE
+# Tout ce que M10 consomme de l'amont, dans l'ordre de l'entonnoir (T4.7 a ajouté l'envoi approuvé).
+TYPES_CONSOMMES = (TYPE_LEAD, TYPE_CLIENT, TYPE_ENVOYE, TYPE_ACCEPTE, TYPE_SANS_REPONSE)
 
 
 def _lead_qualifie(lead_id=LEAD, **surcharges):
@@ -110,9 +113,18 @@ def _devis_sans_reponse(devis_id="DEVIS-B", lead_id=LEAD, **surcharges):
     return charge
 
 
+def _devis_envoye(devis_id="DEVIS-E", lead_id=LEAD, **surcharges):
+    charge = {
+        "devis_id": devis_id, "lead_id": lead_id, "chantier_id": None,
+        "horodatage_envoi": "2026-09-11T09:00:00-04:00",
+    }
+    charge.update(surcharges)
+    return charge
+
+
 CHARGES = {
     TYPE_LEAD: _lead_qualifie, TYPE_CLIENT: _client_associe, TYPE_ACCEPTE: _devis_accepte,
-    TYPE_SANS_REPONSE: _devis_sans_reponse,
+    TYPE_SANS_REPONSE: _devis_sans_reponse, TYPE_ENVOYE: _devis_envoye,
 }
 
 
@@ -160,7 +172,7 @@ def _de_type(registre_evenements, type_maillon):
 # =========================================================================================
 # 1. Les charges de test sont celles du catalogue ; les modules sont purs
 # =========================================================================================
-@pytest.mark.parametrize("type_evenement", TYPES_DE_L_AMONT)
+@pytest.mark.parametrize("type_evenement", TYPES_CONSOMMES)
 def test_les_charges_de_test_sont_conformes_au_catalogue_du_socle(type_evenement):
     assert erreurs_charge(type_evenement, CHARGES[type_evenement]()) == []
 
@@ -168,10 +180,9 @@ def test_les_charges_de_test_sont_conformes_au_catalogue_du_socle(type_evenement
 def test_le_manifeste_et_la_table_disent_la_meme_chose():
     dep = charger_departements()["m10-memoire"]
 
-    assert etapes.types_consommes() == TYPES_DE_L_AMONT
-    assert set(TYPES_DE_L_AMONT) <= set(dep.evenements_consomme)
-    assert "m3.devis_envoye" not in dep.evenements_consomme  # T4.7 ne l'a pas encore publié
-    assert "m3.devis_envoye" not in evenements.types_connus()
+    assert etapes.types_consommes() == TYPES_CONSOMMES
+    assert set(TYPES_CONSOMMES) <= set(dep.evenements_consomme)
+    assert TYPE_ENVOYE in evenements.types_connus()  # publié par M3 depuis T4.7
     assert {etape.producteur for etape in etapes.etapes_de_l_amont()} == {
         "m01-front-office", "m02-revenue-crm", "m03-estimation"}
     for etape in etapes.etapes_de_l_amont():
@@ -366,7 +377,7 @@ def test_un_champ_absent_est_refuse_et_dit_lequel(evenements_m10, type_evenement
 
 
 def test_un_type_inconnu_et_une_charge_qui_n_est_pas_un_objet_sont_refuses(evenements_m10):
-    inconnu, verdict_inconnu = amont.memoriser("m3.devis_envoye", _devis_accepte(), evenements_m10)
+    inconnu, verdict_inconnu = amont.memoriser("m3.type_inexistant", _devis_accepte(), evenements_m10)
     assert inconnu is None and verdict_inconnu["code"] == etapes.REJ_AMONT_TYPE_INCONNU
 
     pas_un_objet, verdict = amont.memoriser(TYPE_CLIENT, ["lead_id", LEAD], evenements_m10)
@@ -758,56 +769,42 @@ def test_l_outil_d_audit_accepte_les_quatre_types_de_l_amont_dans_son_schema():
 # =========================================================================================
 # 9. m3.devis_envoye s'ajoute sans refonte : une entrée de la table, une ligne du manifeste
 # =========================================================================================
-def _extraire_devis_envoye(charge):
-    return {
-        "lead_id": charge["lead_id"], "devis_id": charge["devis_id"], "chantier_id": None,
-        "horodatage": charge["horodatage_envoi"],
-    }
-
-
-@pytest.fixture
-def avec_devis_envoye(monkeypatch):
-    """Ce que T4.7 ajoutera : une étape de plus dans la table, sans toucher aucun autre module."""
-    fictive = etapes.Etape(
-        "m3.devis_envoye", "m03-estimation", "devis_id", "devis envoyé(s)", confidentialite.NIVEAU_INTERNE,
-        _extraire_devis_envoye, lambda m: f"Devis {m.get('devis_id')} envoyé")
-    monkeypatch.setattr(etapes, "_ETAPES", (*etapes.etapes_de_l_amont(), fictive))
-    return fictive
-
-
-def test_une_etape_de_plus_est_lue_par_toute_la_chaine_sans_autre_changement(avec_devis_envoye, registres):
+def test_l_envoi_approuve_est_lu_par_toute_la_chaine(registres):
+    """T4.7 : `m3.devis_envoye` est une entrée de la table, et rien d'autre ne change dans M10."""
     registre_evenements, registre_affaires = registres
-    charge = {"lead_id": LEAD, "devis_id": "DEVIS-E", "horodatage_envoi": "2026-09-11T09:00:00-04:00"}
+    charge = _devis_envoye()
 
-    resultat, verdict = amont.memoriser("m3.devis_envoye", charge, registre_evenements)
+    resultat, verdict = amont.memoriser(TYPE_ENVOYE, charge, registre_evenements)
     assert verdict is None and resultat["maillon"]["confidentialite"] == "INTERNAL"
-    assert amont.memoriser("m3.devis_envoye", charge, registre_evenements)[0]["deja_memorise"] is True
+    assert amont.memoriser(TYPE_ENVOYE, charge, registre_evenements)[0]["deja_memorise"] is True
 
-    assert "m3.devis_envoye" in etapes.types_consommes()
-    assert "m3.devis_envoye" in outils_mod.consommateurs()  # le manifeste, lui, devrait la déclarer
-    assert "m3.devis_envoye" in audit.types_audites()
+    assert TYPE_ENVOYE in etapes.types_consommes()
+    assert TYPE_ENVOYE in outils_mod.consommateurs()
+    assert TYPE_ENVOYE in audit.types_audites()
     maillon = registre_evenements.lire()[0]
-    assert (classification.type_evenement(maillon), classification.identifiant(maillon)) == (
-        "m3.devis_envoye", "DEVIS-E")
+    assert (classification.type_evenement(maillon), classification.identifiant(maillon)) == (TYPE_ENVOYE, "DEVIS-E")
+    assert not any(cle in maillon for cle in ("prix_total", "cout_total", "taux_marge", "lignes"))
     paquet = paquets.assembler_paquet_contexte(
         LEAD, HORODATAGE_PAQUET, registre_evenements, registre_affaires, agent="m03-estimation")
     (fait,) = _faits_recents(paquet)
     assert (fait["source"], fait["resume"], fait["horodatage"]) == (
-        "m3.devis_envoye", "Devis DEVIS-E envoyé", "2026-09-11T09:00:00-04:00")
+        TYPE_ENVOYE, "Devis DEVIS-E approuvé pour envoi", "2026-09-11T09:00:00-04:00")
     consolide = consolidation.consolider_affaire(LEAD, "2026-09-11", HORODATAGE_PAQUET, registre_evenements,
                                                  registre_affaires)
     assert consolide["fait"]["resume"] == "1 devis envoyé(s)"
     rapport = audit.auditer_non_oubli(
-        [{"type_evenement": "m3.devis_envoye", "identifiant": "DEVIS-E"}], registre_evenements, registre_affaires)
+        [{"type_evenement": TYPE_ENVOYE, "identifiant": "DEVIS-E"}], registre_evenements, registre_affaires)
     assert rapport["nb_oublis"] == 0
 
 
-def test_sans_cette_entree_le_type_n_est_pas_consomme(registres):
+def test_sans_son_entree_dans_la_table_le_type_n_est_pas_consomme(registres, monkeypatch):
     registre_evenements, _ = registres
+    monkeypatch.setattr(
+        etapes, "_ETAPES", tuple(e for e in etapes.etapes_de_l_amont() if e.type_evenement != TYPE_ENVOYE))
 
-    assert "m3.devis_envoye" not in outils_mod.consommateurs()
-    assert "m3.devis_envoye" not in audit.types_audites()
-    assert amont.memoriser("m3.devis_envoye", {"lead_id": LEAD}, registre_evenements)[1]["code"] == (
+    assert TYPE_ENVOYE not in outils_mod.consommateurs()
+    assert TYPE_ENVOYE not in audit.types_audites()
+    assert amont.memoriser(TYPE_ENVOYE, _devis_envoye(), registre_evenements)[1]["code"] == (
         etapes.REJ_AMONT_TYPE_INCONNU)
 
 
