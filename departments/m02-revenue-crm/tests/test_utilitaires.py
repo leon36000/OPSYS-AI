@@ -116,8 +116,10 @@ CODES_M2 = {
 # (PRD et architecture) en fait un invariant transversal explicitement repris par M2, donc
 # le classer « hors M2 » encodait une croyance fausse. Le test de cohérence
 # catalogue↔cadrage empêche désormais ce genre d'écart de réapparaître.
+# REJ-CONSENTEMENT-ABSENT a été RETIRÉ de cette liste le 2026-09-29 (PLAN T4.9) : M2 tient désormais un registre de
+# consentement de contact et refuse un message sans consentement actif ; même faute, même nom que le catalogue du module
+# voisin (docs/bmad/03-ARCHITECTURE.md, addendum T4.9). La liste garde un identifiant réellement étranger à M2.
 CODES_HORS_M2 = [
-    "REJ-CONSENTEMENT-ABSENT",
     "REJ-QUALIF-INSUFFISANTE",
 ]
 

@@ -32,7 +32,12 @@ SHA256_HORODATAGE_ATTENDU = "7168dc81de0d37f0e7160b96e9df14c9a1bf5ef594a791f2574
 # décision de personne), REJ-MOTIF-INVALIDE (motif de 10 à 500 caractères), REJ-LEAD-INCONNU,
 # REJ-PROPRIETAIRE-INCHANGE et REJ-BUS-INDISPONIBLE (republier hors stockage durable). Décision journalisée dans
 # docs/bmad/03-ARCHITECTURE.md (addendum T1.4-m).
-SHA256_VERDICTS_ATTENDU = "f928a33a3d5d9888f506626360f6143e608dc3ae3b9eab4d95a1bc3fadbbddb3"
+# Gel RESCELLÉ une cinquième fois le 2026-09-29 (PLAN T4.9, relances dues, consentement de contact et fréquence
+# limitée) : six identifiants ajoutés au catalogue (groupe 8) — REJ-RELANCES-A-CONFIGURER (fréquence maximale absente
+# ou invalide), REJ-RELANCE-NON-DUE, REJ-RELANCE-TROP-PROCHE (fréquence limitée, avec la prochaine date permise),
+# REJ-CONSENTEMENT-ABSENT, REJ-CONSENTEMENT-RETIRE (STOP) et REJ-CONSENTEMENT-INVALIDE. Décision journalisée dans
+# docs/bmad/03-ARCHITECTURE.md (addendum T4.9).
+SHA256_VERDICTS_ATTENDU = "3525f2190a12641b0946567309c1d20d68a2c84b62b745814c550e065418e29f"
 
 
 class TestCA_M2_13_Empreintes:

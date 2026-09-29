@@ -45,6 +45,7 @@ __all__ = [
     "LIMITE_MAX",
     "ORDRE_LEADS",
     "Vue",
+    "evaluer",
     "identifiants_des_leads",
     "lister",
 ]
@@ -220,15 +221,18 @@ def _opportunite_payee(fiche: _Fiche, contexte: _Contexte) -> str | None:
     return None
 
 
-def _segmenter(fiche: _Fiche, contexte: _Contexte) -> dict[str, Any]:
+def _segmenter(fiche: _Fiche, contexte: _Contexte, avec_readiness: bool = True) -> dict[str, Any]:
     devis = None
     if contexte.devis_par_lead is not None:
         devis = contexte.devis_par_lead.get(fiche.lead_id, [])
     faits = {
         "maintenant": contexte.maintenant,
         # `readiness.evaluer` n'est lue que pour un lead qualifié (la règle d'`estimate_ready`) : les autres
-        # statuts n'ont pas besoin de relire le profil d'entreprise.
-        "pret_pour_m3": readiness.evaluer(fiche.vue, fiche.lead_id) if fiche.statut == "qualifie" else None,
+        # statuts n'ont pas besoin de relire le profil d'entreprise. `evaluer` (les relances, PLAN T4.9) n'a pas
+        # besoin d'`estimate_ready` non plus : elle ne la calcule pas, et le segment reste « non calculable ».
+        "pret_pour_m3": (
+            readiness.evaluer(fiche.vue, fiche.lead_id) if avec_readiness and fiche.statut == "qualifie" else None
+        ),
         "devis_sans_reponse": devis,
         "opportunite_payee": _opportunite_payee(fiche, contexte),
     }
@@ -240,6 +244,83 @@ def _segmenter(fiche: _Fiche, contexte: _Contexte) -> dict[str, Any]:
         "reference_devis_m3": fiche.reference_devis_m3,
     }
     return segments.segmenter(lead, faits, contexte.seuils)
+
+
+def _contexte_de(
+    maillons: list[dict[str, Any]],
+    *,
+    visibles: set[str] | None,
+    relances_devis: list[dict[str, Any]] | None,
+    seuils: dict[str, dict[str, Any]],
+    horodatage: str,
+) -> _Contexte:
+    """Le contexte d'une lecture du registre : une fiche par lead, les propriétaires, les opportunités par client, les
+    devis par lead (`None` : illisibles), et les segments non calculables pour tous les leads. Partagé par `lister` et
+    `evaluer` : les deux lisent le registre de la même façon."""
+    devis_par_lead = None
+    if relances_devis is not None:
+        devis_par_lead = {}
+        for fait in relances_devis:
+            devis_par_lead.setdefault(fait.get("lead_id"), []).append(fait)
+    return _Contexte(
+        fiches=_fiches(maillons),
+        proprietaires=acces.proprietaires(Vue(maillons)),
+        opportunites=_opportunites_par_client(maillons),
+        devis_par_lead=devis_par_lead,
+        visibles=visibles,
+        seuils=seuils,
+        maintenant=horodatage,
+        globaux=segments.segments_non_calculables(seuils, relances_devis is not None),
+    )
+
+
+def evaluer(
+    maillons: list[dict[str, Any]],
+    *,
+    visibles: set[str] | None,
+    relances_devis: list[dict[str, Any]] | None,
+    seuils: dict[str, dict[str, Any]],
+    horodatage: str,
+    statuts_retenus: tuple[str, ...] | None = None,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Les segments de chaque lead visible, sans page ni filtre de segment : `(evaluation, None)` ou `(None, verdict)`.
+
+    Sert les relances (`relances.py`, PLAN T4.9), qui tirent leurs relances dues des segments de T4.6 : mêmes fiches,
+    même règle de chaque segment, même ordre (`ORDRE_LEADS`), mêmes `visibles` (un lead hors de cet ensemble n'est ni
+    lu ni cité). `statuts_retenus` : ne garder que les leads de ces statuts (`None` : tous).
+
+    `evaluation` : `leads` (chacun : `lead_id`, `statut`, `proprietaire`, `client_id`, `segments` appliqués avec règle
+    et donnée, `non_calculables`), `non_calculables_globaux` (ce qui manque pour TOUS les leads) et
+    `opportunites_par_client` (TOUS les leads de chaque client, visibles ou non : le consentement et la fréquence sont
+    ceux d'une personne, et seuls des identifiants en sortent, jamais un lead invisible cité). `estimate_ready` n'est
+    pas calculé ici (aucune lecture du profil d'entreprise) : il reste « non calculable » pour un lead qualifié."""
+    try:
+        _horodatage.valider_horodatage(horodatage)
+    except ValueError:
+        return None, verdicts.construire_verdict(
+            "REJ-HORODATAGE-INVALIDE", detail="horodatage : ISO-8601 avec fuseau attendu")
+    contexte = _contexte_de(
+        maillons, visibles=visibles, relances_devis=relances_devis, seuils=seuils, horodatage=horodatage)
+    leads = []
+    for fiche in sorted(contexte.fiches.values(), key=_cle_ordre):
+        if visibles is not None and fiche.lead_id not in visibles:
+            continue
+        if statuts_retenus is not None and fiche.statut not in statuts_retenus:
+            continue
+        segmentation = _segmenter(fiche, contexte, avec_readiness=False)
+        leads.append({
+            "lead_id": fiche.lead_id,
+            "statut": fiche.statut,
+            "proprietaire": contexte.proprietaires.get(fiche.lead_id),
+            "client_id": fiche.client_id,
+            "segments": segmentation["segments"],
+            "non_calculables": segmentation["non_calculables"],
+        })
+    return {
+        "leads": leads,
+        "non_calculables_globaux": contexte.globaux,
+        "opportunites_par_client": contexte.opportunites,
+    }, None
 
 
 def _travaux(contrat: dict[str, Any]) -> Any:
@@ -340,24 +421,9 @@ def lister(
             return None, verdicts.construire_verdict(
                 "REJ-SEGMENT-NON-CALCULABLE", detail=f"segment {segment} : {manque}")
 
-    fiches = _fiches(maillons)
-    devis_par_lead = None
-    if relances_devis is not None:
-        devis_par_lead = {}
-        for fait in relances_devis:
-            devis_par_lead.setdefault(fait.get("lead_id"), []).append(fait)
-    contexte = _Contexte(
-        fiches=fiches,
-        proprietaires=acces.proprietaires(Vue(maillons)),
-        opportunites=_opportunites_par_client(maillons),
-        devis_par_lead=devis_par_lead,
-        visibles=visibles,
-        seuils=seuils,
-        maintenant=horodatage,
-        globaux=segments.segments_non_calculables(seuils, devis_lisibles),
-    )
-
-    ordonnes = sorted(fiches.values(), key=_cle_ordre)
+    contexte = _contexte_de(
+        maillons, visibles=visibles, relances_devis=relances_devis, seuils=seuils, horodatage=horodatage)
+    ordonnes = sorted(contexte.fiches.values(), key=_cle_ordre)
     candidats = [
         f for f in ordonnes
         if (visibles is None or f.lead_id in visibles) and (statut is None or f.statut == statut)

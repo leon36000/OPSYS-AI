@@ -60,6 +60,18 @@ CODES_M2_LIST = [
     "REJ-LEAD-INCONNU",
     "REJ-PROPRIETAIRE-INCHANGE",
     "REJ-BUS-INDISPONIBLE",
+    # Groupe 8 — PLAN T4.9 : relances dues, consentement de contact et fréquence limitée (M2.7, M2.13). Une fréquence
+    # non configurée dit quoi configurer ; une relance non due, ou trop proche de la précédente, dit pourquoi et
+    # quand ; un message sans consentement actif (absent) ou après un STOP (retiré) est refusé, l'appel reste permis ;
+    # une saisie de consentement mal formée dit ce qui manque. REJ-SEGMENT-NON-CALCULABLE, REJ-ENUM-INVALIDE,
+    # REJ-PAGINATION-INVALIDE, REJ-HORODATAGE-INVALIDE, REJ-HUMAIN-REQUIS, REJ-LEAD-INCONNU, REJ-LEAD-NON-ASSIGNE et
+    # REJ-BUS-INDISPONIBLE servent aussi, avec leur détail propre : aucun doublon de sens n'est ajouté.
+    "REJ-RELANCES-A-CONFIGURER",
+    "REJ-RELANCE-NON-DUE",
+    "REJ-RELANCE-TROP-PROCHE",
+    "REJ-CONSENTEMENT-ABSENT",
+    "REJ-CONSENTEMENT-RETIRE",
+    "REJ-CONSENTEMENT-INVALIDE",
 ]
 CODES_M2 = set(CODES_M2_LIST)
 
