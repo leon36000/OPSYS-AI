@@ -33,6 +33,11 @@ Enfin, ce que M1 demande et note pour qualifier un lead (PLAN T4.4) : les QUESTI
 (`poids_score_lead`). Sans questions déclarées, le verdict le dit et M1 n'en invente aucune ; sans poids, il n'y a
 pas de score (« poids à configurer »).
 
+Et ce que M1 reconnaît d'une plainte ou d'une urgence de sécurité, et à qui il transfère (PLAN T4.5) : le
+VOCABULAIRE des plaintes (`signaux_plainte`, par catégorie, écrit par le propriétaire : aucun mot n'est dans le code) et
+la table « type de transfert -> rôle » (`destinataires_transfert`, vide par défaut : le verdict dit « destinataire à
+configurer »). Le profil de l'instance les porte, comme le reste, parce que chaque PME a ses mots et ses gens.
+
 Ce module est pur (fichier YAML et journal d'audit seulement) : il ne connaît ni M1, ni M2, ni M3.
 Les verdicts sont des dict `{"code", "detail"}` ; chaque département les traduit dans son propre
 catalogue de codes et garde le `detail`, qui porte la consigne de configuration.
@@ -50,6 +55,7 @@ from typing import Any
 import yaml
 
 from .etat import dossier_opsys
+from .identite import Role
 
 NOM_FICHIER_PROFIL = "entreprise.yaml"
 CLE_SERVICES = "services"
@@ -57,6 +63,8 @@ CLE_ZONE = "zone_desservie"
 CLE_FENETRE_CONVERSATION = "fenetre_conversation_minutes"
 CLE_QUESTIONS_QUALIFICATION = "questions_qualification"
 CLE_POIDS_SCORE_LEAD = "poids_score_lead"
+CLE_SIGNAUX_PLAINTE = "signaux_plainte"
+CLE_DESTINATAIRES_TRANSFERT = "destinataires_transfert"
 
 # Codes de verdict émis par ce module (jamais un booléen nu : le détail dit quoi corriger).
 VERDICT_SERVICE_NON_CONFIGURE = "REJ-SERVICE-NON-CONFIGURE"
@@ -67,6 +75,8 @@ VERDICT_ZONE_NON_CONFIGUREE = "REJ-ZONE-NON-CONFIGUREE"
 VERDICT_FENETRE_NON_CONFIGUREE = "REJ-FENETRE-NON-CONFIGUREE"
 VERDICT_QUESTIONS_NON_CONFIGUREES = "REJ-QUESTIONS-NON-CONFIGUREES"
 VERDICT_POIDS_SCORE_NON_CONFIGURES = "REJ-POIDS-SCORE-NON-CONFIGURES"
+VERDICT_SIGNAUX_PLAINTE_NON_CONFIGURES = "REJ-SIGNAUX-PLAINTE-NON-CONFIGURES"
+VERDICT_DESTINATAIRE_NON_CONFIGURE = "REJ-DESTINATAIRE-NON-CONFIGURE"
 
 _FORME_CODE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 _LIBELLE_MAX = 120
@@ -81,6 +91,22 @@ POIDS_SCORE_LEAD_MAX = 1000
 _QUESTION_MAX = 300
 _QUESTIONS_PAR_SERVICE_MAX = 10
 _CARACTERE_DE_CONTROLE = re.compile(r"[\x00-\x1f\x7f]")
+
+# Ce que M1 reconnaît d'un message (PLAN T4.5). Les catégories sont un ensemble FERMÉ : le code sait ce que chacune
+# déclenche ; les MOTS de chacune sont ceux du propriétaire. `securite` est une urgence (escaladée tout de suite) ;
+# les quatre autres sont des plaintes (la plainte prime : elle n'ouvre jamais de lead).
+CATEGORIES_SIGNAL_PLAINTE = ("insatisfaction", "degat", "garantie", "avocat", "securite")
+_TERME_SIGNAL_MIN = 3
+_TERME_SIGNAL_MAX = 80
+_TERMES_PAR_CATEGORIE_MAX = 60
+# Types de transfert à un humain (DEFINITION-PRODUIT §7 M1.12) : ensemble fermé, sans accent (codes stables).
+TYPES_TRANSFERT = (
+    "ventes", "estimation", "admin", "finance", "plainte", "urgence", "technique", "proprietaire",
+)
+# Qui peut recevoir un transfert : une PERSONNE de l'entreprise. Ni le client, ni l'agent système.
+ROLES_DESTINATAIRES_TRANSFERT: tuple[str, ...] = tuple(
+    role.value for role in Role if role not in (Role.CLIENT, Role.SYSTEM_AGENT)
+)
 
 
 class ProfilInvalide(ValueError):
@@ -725,13 +751,180 @@ def enregistrer_poids_score_lead(poids: Any, chemin: Path | None = None, par: st
                                  {"poids": propres})
 
 
+def normaliser_signaux_plainte(brut: Any) -> dict[str, tuple[str, ...]]:
+    """Valide le vocabulaire des plaintes : `{catégorie: [termes]}`, catégories de `CATEGORIES_SIGNAL_PLAINTE`.
+
+    Une catégorie déclarée porte au moins un terme ; chaque terme est un texte d'une ligne (de `_TERME_SIGNAL_MIN` à
+    `_TERME_SIGNAL_MAX` caractères : un terme trop court reconnaîtrait n'importe quoi), sans doublon dans sa catégorie.
+    Une catégorie absente n'est pas une erreur : elle ne reconnaît rien, et M1 le dit. Une déclaration vide n'est pas
+    une déclaration. Les termes suivent les mêmes règles de lecture que les mots-clés d'un service (mot entier,
+    pluriel admis, accents et casse ignorés ; plusieurs mots : une expression).
+    """
+    if not isinstance(brut, Mapping):
+        raise ProfilInvalide(f"'{CLE_SIGNAUX_PLAINTE}' doit être un objet {{catégorie: [termes]}}")
+    if not brut:
+        raise ProfilInvalide(f"'{CLE_SIGNAUX_PLAINTE}' est vide : déclare au moins une catégorie de termes")
+    inconnues = sorted(str(c) for c in set(brut) - set(CATEGORIES_SIGNAL_PLAINTE))
+    if inconnues:
+        raise ProfilInvalide(
+            f"'{CLE_SIGNAUX_PLAINTE}' : catégories inconnues {inconnues} "
+            f"(attendu : {', '.join(CATEGORIES_SIGNAL_PLAINTE)})"
+        )
+    propres: dict[str, tuple[str, ...]] = {}
+    for categorie in CATEGORIES_SIGNAL_PLAINTE:
+        if categorie not in brut:
+            continue
+        contexte = f"{CLE_SIGNAUX_PLAINTE}.{categorie}"
+        termes = brut[categorie]
+        if isinstance(termes, (str, bytes, Mapping)) or not isinstance(termes, Iterable):
+            raise ProfilInvalide(f"{contexte} : une liste de termes est attendue")
+        propres_termes: list[str] = []
+        for position, terme in enumerate(termes):
+            if not isinstance(terme, str) or _CARACTERE_DE_CONTROLE.search(terme):
+                raise ProfilInvalide(f"{contexte}[{position}] : un terme d'une ligne (texte) est attendu")
+            nettoye = " ".join(terme.split())
+            if not _TERME_SIGNAL_MIN <= len(nettoye) <= _TERME_SIGNAL_MAX:
+                raise ProfilInvalide(
+                    f"{contexte}[{position}] : un terme de {_TERME_SIGNAL_MIN} à {_TERME_SIGNAL_MAX} caractères est "
+                    f"attendu (reçu {terme!r}) ; un terme trop court reconnaîtrait des mots sans rapport"
+                )
+            propres_termes.append(nettoye)
+        if not propres_termes:
+            raise ProfilInvalide(f"{contexte} est vide : déclare au moins un terme, ou retire cette catégorie")
+        if len(propres_termes) > _TERMES_PAR_CATEGORIE_MAX:
+            raise ProfilInvalide(f"{contexte} : {_TERMES_PAR_CATEGORIE_MAX} termes au plus par catégorie")
+        doublons = sorted({t for t in propres_termes if [x.casefold() for x in propres_termes].count(t.casefold()) > 1})
+        if doublons:
+            raise ProfilInvalide(f"{contexte} : termes déclarés en double : {doublons}")
+        propres[categorie] = tuple(propres_termes)
+    return propres
+
+
+def lire_signaux_plainte(chemin: Path | None = None) -> dict[str, tuple[str, ...]]:
+    """Vocabulaire déclaré par le profil de l'instance ; `{}` si le fichier ou la clé est absent ou vide.
+
+    Lève `ProfilInvalide` si un vocabulaire est écrit mais invalide : jamais lu comme absent."""
+    fichier = chemin or fichier_profil()
+    valeur = _valeur_du_profil(CLE_SIGNAUX_PLAINTE, fichier)
+    if valeur is None or valeur == {}:
+        return {}
+    try:
+        return normaliser_signaux_plainte(valeur)
+    except ProfilInvalide as exc:
+        raise ProfilInvalide(f"{fichier} : {exc}") from exc
+
+
+def charger_signaux_plainte() -> tuple[dict[str, tuple[str, ...]], dict[str, str] | None]:
+    """`(vocabulaire, None)` si l'instance en déclare un, sinon `({}, verdict)` : « vocabulaire à configurer », et M1
+    ne reconnaît alors aucune plainte (il le dit, il n'invente aucun mot). Ne lève jamais : un vocabulaire invalide est
+    un verdict `REJ-PROFIL-INVALIDE`, distinct de l'absence."""
+    chemin = fichier_profil()
+    try:
+        signaux = lire_signaux_plainte(chemin)
+    except ProfilInvalide as exc:
+        return {}, _verdict(VERDICT_PROFIL_INVALIDE, f"profil d'entreprise invalide : {exc}")
+    if not signaux:
+        return {}, _verdict(
+            VERDICT_SIGNAUX_PLAINTE_NON_CONFIGURES,
+            f"vocabulaire des plaintes à configurer : écris, par catégorie ({', '.join(CATEGORIES_SIGNAL_PLAINTE)}), "
+            f"les termes qui signalent une plainte ou une urgence de sécurité dans {chemin} (clé "
+            f"'{CLE_SIGNAUX_PLAINTE}') ; tant qu'ils sont absents, M1 ne reconnaît aucune plainte et n'en invente "
+            "aucun",
+        )
+    return signaux, None
+
+
+def enregistrer_signaux_plainte(signaux: Any, chemin: Path | None = None, par: str | None = None) -> Path:
+    """Écrit le vocabulaire validé dans le profil, sans toucher aux autres clés. Signé par `par`, il est inscrit au
+    journal d'audit (le nombre de termes par catégorie)."""
+    propres = normaliser_signaux_plainte(signaux)
+    return _ecrire_cle_du_profil(
+        CLE_SIGNAUX_PLAINTE, {categorie: list(termes) for categorie, termes in propres.items()}, chemin, par,
+        "entreprise.signaux_plainte", {"termes_par_categorie": {c: len(t) for c, t in propres.items()}},
+    )
+
+
+def normaliser_destinataires_transfert(brut: Any) -> dict[str, str]:
+    """Valide la table « type de transfert -> rôle » : les clés sont des `TYPES_TRANSFERT`, les valeurs des rôles de
+    `ROLES_DESTINATAIRES_TRANSFERT`. Une table partielle est permise (un type sans rôle reste « à configurer »). Une
+    déclaration vide, un type inconnu, un rôle inconnu ou réservé au client ou à l'agent : refusés."""
+    if not isinstance(brut, Mapping):
+        raise ProfilInvalide(f"'{CLE_DESTINATAIRES_TRANSFERT}' doit être un objet {{type de transfert: rôle}}")
+    if not brut:
+        raise ProfilInvalide(f"'{CLE_DESTINATAIRES_TRANSFERT}' est vide : déclare au moins un type de transfert")
+    inconnus = sorted(str(t) for t in set(brut) - set(TYPES_TRANSFERT))
+    if inconnus:
+        raise ProfilInvalide(
+            f"'{CLE_DESTINATAIRES_TRANSFERT}' : types de transfert inconnus {inconnus} (attendu : "
+            f"{', '.join(TYPES_TRANSFERT)})"
+        )
+    propres: dict[str, str] = {}
+    for type_transfert in TYPES_TRANSFERT:
+        if type_transfert not in brut:
+            continue
+        role = brut[type_transfert]
+        if not isinstance(role, str) or role not in ROLES_DESTINATAIRES_TRANSFERT:
+            raise ProfilInvalide(
+                f"'{CLE_DESTINATAIRES_TRANSFERT}.{type_transfert}' : un rôle parmi "
+                f"{', '.join(ROLES_DESTINATAIRES_TRANSFERT)} est attendu (reçu {role!r})"
+            )
+        propres[type_transfert] = role
+    return propres
+
+
+def lire_destinataires_transfert(chemin: Path | None = None) -> dict[str, str]:
+    """Table « type -> rôle » déclarée par le profil ; `{}` si absente ou vide (chaque type est alors « à configurer »).
+
+    Lève `ProfilInvalide` si elle est écrite mais invalide : jamais lue comme absente."""
+    fichier = chemin or fichier_profil()
+    valeur = _valeur_du_profil(CLE_DESTINATAIRES_TRANSFERT, fichier)
+    if valeur is None or valeur == {}:
+        return {}
+    try:
+        return normaliser_destinataires_transfert(valeur)
+    except ProfilInvalide as exc:
+        raise ProfilInvalide(f"{fichier} : {exc}") from exc
+
+
+def charger_destinataire_du_transfert(type_transfert: str) -> tuple[str | None, dict[str, str] | None]:
+    """Le rôle qui reçoit un transfert de ce type : `(rôle, None)`, ou `(None, verdict)` quand le profil n'en déclare
+    aucun pour lui (`REJ-DESTINATAIRE-NON-CONFIGURE` : « destinataire à configurer », qui nomme le type) ou qu'il est
+    invalide (`REJ-PROFIL-INVALIDE`). Aucun destinataire n'est jamais deviné. Un type qui n'est pas de
+    `TYPES_TRANSFERT` est une erreur de l'appelant (`ValueError`)."""
+    if type_transfert not in TYPES_TRANSFERT:
+        raise ValueError(f"type de transfert inconnu {type_transfert!r} (attendu : {', '.join(TYPES_TRANSFERT)})")
+    chemin = fichier_profil()
+    try:
+        table = lire_destinataires_transfert(chemin)
+    except ProfilInvalide as exc:
+        return None, _verdict(VERDICT_PROFIL_INVALIDE, f"profil d'entreprise invalide : {exc}")
+    if type_transfert not in table:
+        return None, _verdict(
+            VERDICT_DESTINATAIRE_NON_CONFIGURE,
+            f"destinataire à configurer pour le transfert de type {type_transfert!r} : déclare le rôle qui le reçoit "
+            f"({', '.join(ROLES_DESTINATAIRES_TRANSFERT)}) dans {chemin} (clé '{CLE_DESTINATAIRES_TRANSFERT}') ; "
+            "M1 ne choisit jamais une personne à la place du propriétaire",
+        )
+    return table[type_transfert], None
+
+
+def enregistrer_destinataires_transfert(table: Any, chemin: Path | None = None, par: str | None = None) -> Path:
+    """Écrit la table validée dans le profil, sans toucher aux autres clés. Signée par `par`, elle est inscrite au
+    journal d'audit (qui reçoit quoi : ce sont des rôles, jamais des noms de personnes)."""
+    propres = normaliser_destinataires_transfert(table)
+    return _ecrire_cle_du_profil(
+        CLE_DESTINATAIRES_TRANSFERT, dict(propres), chemin, par, "entreprise.destinataires_transfert",
+        {"destinataires": dict(propres)},
+    )
+
+
 def verifier_profil() -> list[str]:
     """`opsys verifier` : un profil présent doit être valide. Un profil absent n'est pas une erreur
     (l'instance n'a simplement encore déclaré aucun service, et tout service est alors refusé)."""
     problemes: list[str] = []
     lectures = (
         lire_services, lire_zone_desservie, lire_fenetre_conversation, lire_questions_qualification,
-        lire_poids_score_lead,
+        lire_poids_score_lead, lire_signaux_plainte, lire_destinataires_transfert,
     )
     for lecture in lectures:
         try:

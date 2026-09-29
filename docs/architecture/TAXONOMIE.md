@@ -141,6 +141,35 @@ fenêtre, qui la conditionnent) : M1 reçoit, qualifie, et dit `REJ-PROFIL-INVAL
 poids d'un test sont fictifs : `departments/m01-front-office/fixtures/qualification/profil-fictif.v1.yaml`
 (`fictif: true`). Comment M1 les utilise : [M1-canaux](../departements/M1-canaux.md) §9.
 
+## Vocabulaire des plaintes et destinataires des transferts (PLAN T4.5)
+
+Le même profil porte ce que M1 reconnaît d'une plainte ou d'une urgence de sécurité, et à qui il transfère. **Rien de cela
+n'est dans le code** : le propriétaire l'écrit (GATE NATHAN), `opsys.taxonomie` le lit et l'écrit comme le reste
+(`enregistrer_*(…, par="nom")` signe au journal d'audit).
+
+```yaml
+signaux_plainte:                # par catégorie (ensemble fermé) ; une catégorie absente ne reconnaît rien
+  insatisfaction: [déçu, inacceptable, plainte]        # des mots, ou des expressions de plusieurs mots
+  degat: [après vos travaux, vous avez endommagé]
+  garantie: [sous garantie, malfaçon]
+  avocat: [avocat, mise en demeure]                    # menace juridique : pas de brouillon de réponse
+  securite: [danger, fumée, fil électrique]            # urgence : escaladée tout de suite
+destinataires_transfert:        # type de transfert -> rôle ; une table partielle est permise
+  plainte: nathan_owner         # types : ventes, estimation, admin, finance, plainte, urgence, technique, proprietaire
+  urgence: nathan_owner         # rôles : nathan_owner, admin, finance, manager, seller, employee
+```
+
+| Situation | Verdict |
+|---|---|
+| Aucun vocabulaire (clé absente ou vide) | `REJ-SIGNAUX-PLAINTE-NON-CONFIGURES` : « vocabulaire des plaintes à configurer ». M1 ne reconnaît aucune plainte et le dit dans chaque réponse. Aucun mot par défaut. |
+| Aucun destinataire pour ce type de transfert | `REJ-DESTINATAIRE-NON-CONFIGURE` : « destinataire à configurer pour le transfert de type … ». Le transfert est ouvert quand même ; M1 ne choisit jamais une personne. |
+| Valeur écrite mais invalide (catégorie ou type inconnu, terme de moins de 3 caractères, doublon, rôle inconnu, `client` ou `system_agent`, déclaration vide…) | `REJ-PROFIL-INVALIDE` avec la raison, **jamais lue comme absente** ; `opsys verifier` la signale. |
+
+Un terme suit les règles de lecture des mots-clés d'un service : mot entier, pluriel admis, accents et casse ignorés (le féminin
+s'écrit à part : « déçu », « déçue »). Les types de transfert sont ceux de la définition du produit (§7 M1.12) : un test de dérive
+(`tests/test_taxonomie_plaintes.py`) les compare à ce texte. Un vocabulaire ou une table invalides n'arrêtent pas la réception
+d'un message. Ce que M1 en fait : [M1-canaux](../departements/M1-canaux.md) §10.
+
 ## Garde de dérive
 
 - `opsys verifier` : profil valide s'il existe ; aucune source de département ni du socle ne recopie
