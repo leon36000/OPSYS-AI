@@ -34,7 +34,8 @@ _LIMITE_LISTE = 3
 _TYPE_ATTENTE_BESOIN_COMMANDE = "besoin_commande"
 _TYPE_ATTENTE_SEUIL_A_CONFIGURER = "seuil_a_configurer"
 _PORTEE = (
-    "Tous les faits reçus par M8, sans fenêtre de période. M8 lit ce que M5 et M6 publient : il ne recalcule rien."
+    "Tous les faits reçus par M8, sans fenêtre de période. M8 calcule l'entonnoir ; la marge réelle (M5) "
+    "et le stock à commander (M6) sont repris tels que ces départements les publient, sans recalcul."
 )
 _CONFIGURATION_SEUILS = "department.yaml de m08-analytics, configuration.seuils_entonnoir"
 _MANQUE_CASH_LIBRE = {
