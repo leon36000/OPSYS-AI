@@ -166,7 +166,26 @@ seuil d'alerte, les délais de paiement des clients et des fournisseurs et la da
 sont au propriétaire (`configuration.prevision` de `department.yaml`, GATE NATHAN, relue à chaque appel) : absents, la
 réponse dit quoi déclarer. `prevoir_tresorerie` ouvre le registre des mouvements pour en tirer le solde, comme
 `etat_tresorerie` : la garde anti-décaissement la surveille en lecture seule, ses aides en strict. Aucune remise,
-aucune déclaration, aucun paiement."""
+aucune déclaration, aucun paiement.
+
+PLAN T4.19-b (constat du cash libre, `constat_cash_libre.py`, `m5_constater_cash_libre`) : M5 PUBLIE le cash libre
+au bus (`m5.cash_libre_constate`) pour que M8 l'affiche dans la vue exécutive au lieu de « manque ». Le déclencheur
+est un outil T1 DÉDIÉ, jamais `m5_etat_tresorerie` : un outil de lecture (T0) ne doit rien écrire (la garde
+anti-décaissement le surveille en lecture seule, et un T0 s'exécute sans approbation même en mode `ombre`, ce qui
+ferait partir un événement sans que personne ne l'ait demandé), alors qu'un T1 est une écriture interne : validée au
+départ par l'humain qui agit (l'admin sur son téléphone), en file d'approbation pour un agent en mode `ombre`.
+`aujourd_hui` est requis (M5 n'a pas d'horloge) : c'est la date de référence du constat. `_constater_cash_libre`
+calcule le cash libre depuis le MÊME instantané que `m5_etat_tresorerie` (`_lectures_finance`,
+`_resultat_cash_libre` : aucun calcul de plus), le trace au registre DÉRIVÉ `constats_cash_libre` (un maillon par
+constat, son rang fait le `sequence` de l'événement) et publie `m5.cash_libre_constate` dans la MÊME transaction : la
+trace et l'événement réussissent ou échouent ensemble. Un constat par date de référence et par version des données :
+un appel qui redit le même jour et la même version que le DERNIER constat ne publie rien (`deja_constate`) ; une
+version qui change, ou un jour qui change, publie un nouvel événement. Un cash libre « non calculable, manque X » se
+publie tel quel, avec ses codes de manque : M8 le montre, il ne le remplace par aucun zéro. Rien de libre ni de
+personnel ne part (voir `constat_cash_libre.py`). Aucun paiement, aucune remise, aucune écriture aux mouvements :
+`conformite.verifier_aucun_decaissement` couvre le module et les deux fonctions (lecture seule pour
+`constater_cash_libre`, qui ouvre le registre des mouvements pour le solde ; strict pour `_constater_cash_libre`,
+qui écrit la trace et publie)."""
 
 from __future__ import annotations
 
@@ -189,6 +208,7 @@ from . import (
     cash_libre,
     clients_recus,
     comptes_a_payer,
+    constat_cash_libre,
     cout_reel,
     devis_recus,
     etat_financier,
@@ -218,6 +238,10 @@ _NOM_REGISTRE_RENTABILITE = "rentabilite"
 # PLAN T4.15 : registre DÉDIÉ des comptes à payer (réceptions reçues de M6, factures fournisseur saisies). Toujours
 # durable, comme `devis_recus` ou `rentabilite` : pas de mode « en mémoire » (rien à simuler, l'état vient du bus).
 _NOM_REGISTRE_COMPTES_A_PAYER = "comptes_a_payer"
+# PLAN T4.19-b : registre DÉRIVÉ des constats du cash libre publiés au bus (un maillon par constat : rang, jour,
+# version, statut, identifiant). Toujours durable, comme `rentabilite` : l'état vient des registres lus, la charge
+# complète est au bus.
+_NOM_REGISTRE_CONSTATS = "constats_cash_libre"
 # `Capacites._tronquer` mesure `{"ok": true, "resultat": {"accepte": true, "resultat": {"role": ..., <la page>}}}` : une
 # centaine de caractères d'enveloppe, plus une marge. Le budget d'une page est la limite du socle moins cette réserve :
 # sous elle, jamais tronquée.
@@ -1547,6 +1571,88 @@ def prevoir_tresorerie(
     return {"accepte": True, "resultat": {"role": vue["role"], **page}}
 
 
+# ------------------------------------------------------------ constat du cash libre au bus (T4.19-b)
+def _constater_cash_libre(registre_mouvements: registre_module.Registre, jour: date) -> dict[str, Any]:
+    """Calcule le cash libre, le trace et le publie : `{"deja_constate", "publie", "constat"}`. Écrit, donc jamais
+    appelée par une lecture : seul `constater_cash_libre` l'appelle, après tous ses refus.
+
+    Le cash libre vient du MÊME instantané que celui de `m5_etat_tresorerie` (`_lectures_finance`,
+    `_resultat_cash_libre` : aucun calcul de plus). Le registre des mouvements arrive déjà ouvert : cette fonction ne
+    le nomme pas et n'y écrit rien.
+
+    Un constat par date de référence et par version des données : si le DERNIER constat du registre
+    `constats_cash_libre` porte ce jour et cette version, rien n'est écrit ni publié (`deja_constate`, l'identifiant
+    de ce constat est rendu) ; sinon le constat prend le rang suivant, est tracé, et `m5.cash_libre_constate` part
+    dans la MÊME transaction (une charge qui ne tient pas au catalogue LÈVE : ni trace ni événement, jamais un
+    constat à demi publié). La comparaison est avec le DERNIER constat seulement : un retour à une version
+    antérieure (une déclaration du propriétaire remise à sa valeur d'avant) est un nouveau constat, au rang suivant,
+    que le bus ne peut donc pas avaler comme un doublon. Deux appels simultanés au même rang : le second lève
+    (`EcritureConcurrente`), l'appel est à rejouer."""
+    resultat = _resultat_cash_libre(_lectures_finance(registre_mouvements))
+    constats = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_CONSTATS)
+    rang = len(constats)
+    dernier = constats[-1] if rang else None
+    if dernier is not None and (dernier["date_reference"], dernier["version_donnees"]) == (
+        jour.isoformat(), resultat["cash_libre_id"]
+    ):
+        charge = constat_cash_libre.charge_evenement(resultat, jour, dernier["sequence"])
+        resume = {**constat_cash_libre.resume(charge), "evenement_id": dernier["evenement_id"]}
+        return {"deja_constate": True, "publie": False, "constat": resume}
+    charge = constat_cash_libre.charge_evenement(resultat, jour, rang + 1)
+    constats.append(constat_cash_libre.construire_trace(charge))
+    evenements.publier(
+        constat_cash_libre.TYPE_EVENEMENT_CASH_LIBRE, _DEPARTEMENT, charge, evenement_id=charge["evenement_id"]
+    )
+    return {"deja_constate": False, "publie": True, "constat": constat_cash_libre.resume(charge)}
+
+
+def constater_cash_libre(
+    aujourd_hui: str,
+    role: str | None = None,
+    autorise_couts: bool | None = None,
+) -> dict[str, Any]:
+    """L'outil `m5_constater_cash_libre` (T1, N3, `admin`) : fait constater le cash libre réel du jour et le publie
+    au bus (`m5.cash_libre_constate`), pour que M8 l'affiche dans la vue exécutive (`constat_cash_libre.py`).
+
+    Écriture INTERNE non finale (T1) : le constat et son événement, dans la même transaction. Aucun mouvement, aucune
+    facture, aucun paiement, aucune remise : le registre des mouvements est ouvert pour en tirer le solde, jamais
+    écrit.
+
+    Même contrôle d'accès que les autres lectures financières : pour un appel d'appareil, l'identité confirmée en
+    base (`admin` seulement) ; la vue vient du rôle authentifié. Un constat PUBLIE des montants : sans le droit de
+    voir les coûts (un `autorise_couts` faux, ou un rôle qui ne l'a pas), il est refusé (`REJ-CONSTAT-COUTS-REQUIS`),
+    jamais publié sans montant. Sans appareil (agent, console), `autorise_couts` reste obligatoire et explicite. Tout
+    refus vient AVANT la lecture du moindre registre.
+
+    `aujourd_hui` (`AAAA-MM-JJ`) est requis : M5 n'a pas d'horloge, c'est la date de référence du constat, jamais
+    devinée. Hors du stockage durable, il n'y a ni registre réel ni bus où publier : refusé
+    (`REJ-CONSTAT-STOCKAGE-NON-DURABLE`), jamais un « solde absent » publié pour un registre qui n'a simplement pas
+    été lu."""
+    acteur, refus = _acteur_appareil()
+    if refus is not None:
+        return _refus(refus)
+    vue, verdict = acces.resoudre_vue(acteur, role, autorise_couts)
+    if verdict is not None:
+        return _refus(verdict)
+    if not vue["autorise_couts"]:
+        return _refus(validation.construire_verdict(
+            "REJ-CONSTAT-COUTS-REQUIS",
+            detail="un constat du cash libre publie des montants : il exige le droit de voir les coûts "
+                   "(autorise_couts vrai)",
+        ))
+    jour, verdict = constat_cash_libre.lire_jour(aujourd_hui)
+    if verdict is not None:
+        return _refus(verdict)
+    if not _stockage_durable_actif:
+        return _refus(validation.construire_verdict(
+            "REJ-CONSTAT-STOCKAGE-NON-DURABLE",
+            detail="le registre des mouvements n'est pas adossé au stockage durable : aucun registre réel à "
+                   "constater, aucun bus où publier",
+        ))
+    constat = _constater_cash_libre(_registre_mouvements(None), jour)
+    return {"accepte": True, "resultat": analyse.avec_mention({"role": vue["role"], **constat})}
+
+
 def _recevoir_variance_chantier(charge: dict[str, Any]) -> dict[str, Any]:
     """Consomme `m6.variance_chantier` (PLAN T1.3-c point 4, catalogue existant, M6 en est
     propriétaire) : garde le DERNIER signal connu par wct_id (`variance_recus.py`) — jamais un
@@ -2329,6 +2435,52 @@ def outils() -> tuple[Outil, ...]:
             fonction=prevoir_tresorerie,
             autonomie=Autonomie.T0,
             # §9.5 M5 (trésorerie) : l'admin seul, comme le cash libre. L'identité est confirmée en base (T1.4-k2).
+            roles_appareil=_ROLES_APPAREIL_FINANCE,
+        ),
+        Outil(
+            nom="m5_constater_cash_libre",
+            description=(
+                "Fait CONSTATER le cash libre réel du jour et le publie au bus (m5.cash_libre_constate), pour que M8 "
+                "l'affiche dans la vue exécutive : les montants tels que le calcul les rend, chaque composante avec sa "
+                "source et sa fraîcheur, ou « non calculable, manque X » (jamais zéro, publié tel quel). Un constat "
+                "par jour de référence et par version des données : le redemander sans que rien ait changé ne publie "
+                "rien "
+                "(deja_constate). aujourd_hui (AAAA-MM-JJ) est requis : M5 n'a pas d'horloge. Écriture interne (T1) : "
+                "le constat et l'événement partent dans la même transaction ; aucun paiement, aucune remise, aucune "
+                "écriture aux mouvements. Même règle d'accès que m5_etat_tresorerie : admin seulement, et le droit de "
+                "voir les coûts est requis (un constat publie des montants). Analyse préparatoire : mention "
+                "obligatoire."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "aujourd_hui": {
+                        "type": "string",
+                        "description": (
+                            "Jour de référence du constat, AAAA-MM-JJ (jamais deviné : M5 n'a pas d'horloge)."
+                        ),
+                    },
+                    "role": _ROLE_DE_LECTURE,
+                    "autorise_couts": {
+                        "type": ["boolean", "null"],
+                        "description": (
+                            "Appel d'appareil : omis, il vaut le droit du rôle ; faux est refusé (un constat publie "
+                            "des montants : REJ-CONSTAT-COUTS-REQUIS) ; vrai sans ce droit est refusé "
+                            "(REJ-ROLE-ELARGI). Sans appareil (agent, console) : obligatoire, et vrai."
+                        ),
+                    },
+                },
+                "required": ["aujourd_hui"],
+                "additionalProperties": False,
+            },
+            fonction=constater_cash_libre,
+            # T1 -> N3 (par défaut) : écriture interne non finale, sur un registre dérivé et au bus ; ne touche
+            # jamais les mouvements. Un appel d'appareil `admin` confirmé en base s'exécute (validation humaine au
+            # départ, ADR-0009 §4) ; un appel d'agent part en file d'approbation en mode `ombre` (`n3` : finance ou
+            # propriétaire).
+            autonomie=Autonomie.T1,
+            # §9.5 M5 (trésorerie et cash libre réel) : l'admin seul, comme le cash libre lu. Identité confirmée en
+            # base.
             roles_appareil=_ROLES_APPAREIL_FINANCE,
         ),
         Outil(

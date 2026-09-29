@@ -242,7 +242,8 @@ def test_m5_declare_consommer_le_type_et_le_fournit(dep):
 
     assert TYPE in departement.evenements_consomme
     assert TYPE in departement.charger_consommateurs()
-    assert departement.evenements_publie == ("m5.rentabilite_chantier",), "M5 ne publie rien de plus"
+    # les comptes à payer ne publient rien : M5 publie la marge (T1.5-d) et, depuis T4.19-b, le cash libre constaté
+    assert departement.evenements_publie == ("m5.rentabilite_chantier", "m5.cash_libre_constate")
     assert evenements.verifier_coherence({DEPARTEMENT: departement}) == []
 
 

@@ -70,7 +70,7 @@ qui travaille sur un toit, un gestionnaire qui reprend un dossier).
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 93 outils sur 171 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 94 outils sur 172 sont déclarés.
 
 ### `employee` (11 outils) : §9.3, le terrain
 
@@ -115,7 +115,7 @@ M10.
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (93 outils) : §9.5 + employé + vendeur
+### `admin` (94 outils) : §9.5 + employé + vendeur
 
 Les 11 outils de l'employé, les 14 du vendeur, et :
 
@@ -136,6 +136,7 @@ Les 11 outils de l'employé, les 14 du vendeur, et :
 | M5 | `m5_etat_tresorerie`, `m5_lister_attentes_facturation` | §9.5 M5 : trésorerie, cash libre réel, factures à approuver. Identité confirmée en base ; la vue vient du rôle authentifié, jamais des arguments (T1.4-k2, plus bas). T4.16 : `m5_etat_tresorerie` AJOUTE `cash_libre` (avec sa décomposition), `argent_disponible_note` et `mention` sans changer ses clés d'avant ; le cash libre suit la même vue : un rôle sans droit de voir les coûts ne le voit pas. |
 | M5 | `m5_lire_echeances_fiscales` (T0) | §7 M5.5 « calendrier fiscal vivant » (T4.16) : les prochaines échéances TPS/TVQ, les retards et la taxe nette de chaque période. Lecture pure, même règle d'accès que la trésorerie (identité confirmée en base, la vue vient du rôle, `autorise_couts` ne peut que restreindre : sans droit, les dates sans aucun montant). La fréquence de production, la fin d'exercice et la date de dernière remise sont au propriétaire (`department.yaml`, GATE NATHAN) : absentes, refus nommé qui dit quoi déclarer ; une année non déclarée au calendrier est refusée. `aujourd_hui` est un argument requis (M5 n'a pas d'horloge) ; aucun montant ni date limite ne se passe en argument. Ni remise, ni déclaration, ni paiement : le calendrier propose (N5, Nathan et le CPA). |
 | M5 | `m5_prevoir_tresorerie` (T0) | §7 M5.7 « prévision de trésorerie » (T4.16-d) : semaine par semaine, sur un horizon borné (1 à 26 semaines), à partir du solde du registre et des seuls flux CONNUS et DATÉS (factures clients envoyées, factures et attendus fournisseurs, taxes TPS/TVQ à leur limite de paiement, paies, DAS et dettes déclarées), chaque ligne avec sa source. Un flux inconnu donne « non calculable à partir de la semaine X, manque Y », jamais 0 ni une moyenne ; aucune projection statistique. L'alerte se déclenche sous un seuil que le propriétaire fournit (`department.yaml`, GATE NATHAN) : absent, « seuil à configurer ». L'horizon, les délais de paiement des clients et des fournisseurs et les dates de sortie des paies, DAS et dettes sont au propriétaire aussi (aucune échéance n'existe sur les factures) : sans horizon, refus nommé qui dit quoi déclarer ; sans délai ni date, les flux concernés sont « non calculables », avec ce qu'il faut déclarer, jamais une date supposée. Lecture pure et calcul : rien n'est écrit, ni paiement, ni remise, ni déclaration (la garde anti-décaissement couvre le module). Même règle d'accès que la trésorerie (identité confirmée en base, la vue vient du rôle, `autorise_couts` ne peut que restreindre : sans droit, aucun montant) ; `aujourd_hui` est un argument requis (M5 n'a pas d'horloge) ; aucun montant ni date d'échéance ne se passe en argument. L'outil refuse aussi, dans le code, tout rôle d'appareil autre qu'`admin`. Sortie marquée « Analyse préparatoire IA ». |
+| M5 | `m5_constater_cash_libre` (T1, N3) | §7 M5 « source de vérité financière » et §7 M8 « pour la finance, M8 consomme M5 et ne recalcule pas » (T4.19-b) : l'admin fait constater le cash libre réel du jour ; M5 le calcule (le même calcul que `m5_etat_tresorerie`) et le publie au bus (`m5.cash_libre_constate`) pour la vue exécutive de M8. Écriture INTERNE (T1) : la trace du constat et l'événement partent dans la même transaction ; aucun mouvement, aucun paiement, aucune remise. Règles plus bas (« Le constat du cash libre »). |
 | M5 | `m5_lire_rentabilite_chantier`, `m5_lire_comptes_a_recevoir` | §6 « travaux terminés », §9.5 M5 : coût réel et marge par chantier, comptes à recevoir (factures envoyées). Lecture pure, même règle d'accès que la trésorerie (T1.5-d) : coûts, marges et créances sont des finances, jamais pour l'employé ni le vendeur (§9.2, §9.4) ; aucun montant, prix ni taux ne se passe en argument. |
 | M5 | `m5_lister_comptes_a_payer` (T0), `m5_saisir_facture_fournisseur` (T1, N3) | §7 M5.2 « comptes à payer », M6.16, §9.5 M5 « dépenses à valider » (T4.15) : ce que l'entreprise doit aux fournisseurs, par PO reçu (l'« à payer attendu » de ce que M6 a réceptionné, le facturé, le rapprochement PROPOSÉ avec ses écarts), et la saisie d'une facture fournisseur, repli documenté de l'OCR fermé. Finances : jamais pour l'employé ni le vendeur (§9.2, §9.4). La lecture a la même règle d'accès que la trésorerie et rend des pages sous la limite de 6 000 caractères ; la saisie exige un HUMAIN (section plus bas). Depuis T4.15-c, la lecture rend l'état COURANT des factures et compte les factures sans PO ; `sans_po=true` les liste une à une. Aucun outil ne paie un fournisseur : c'est N5, Nathan et le CPA. |
 | M5 | `m5_saisir_facture_sans_po` (T1, N3), `m5_corriger_facture_fournisseur` (T2, **N4**), `m5_annuler_facture_fournisseur` (T2, **N4**) | §7 M5.2 et §9.5 M5 « dépenses à valider » (T4.15-c) : une dépense que M6 n'a pas commandée (carburant, outils), et la correction ou l'annulation d'une facture fournisseur saisie, sans jamais modifier la facture d'origine (une pièce s'ajoute au registre, motif obligatoire). Finances : jamais pour l'employé ni le vendeur. Les trois exigent un HUMAIN, et les deux N4 attendent la décision du propriétaire ou de la finance : section « Corriger, annuler et saisir sans PO » plus bas. |
@@ -229,6 +230,29 @@ enregistré avec la demande sert. Limites : la correction ne change ni le PO, ni
 ressaisir) ; le cash libre suppose les crédits de taxes récupérables à 100 %, factures sans PO comprises (à valider par le CPA,
 tout le carburant ne l'est pas) ; le fournisseur d'une facture sans PO, tapé à la main, se compare sans égard à la casse ni aux
 espaces, pas aux variantes de nom.
+
+### Le constat du cash libre (T4.19-b)
+
+`m5_constater_cash_libre` fait constater le cash libre réel du jour et le publie au bus (`m5.cash_libre_constate`) : c'est
+ce que la vue exécutive de M8 montre (« M8 consomme M5 et ne recalcule pas », §8). Le déclencheur est un outil DÉDIÉ, jamais
+`m5_etat_tresorerie` : un outil de lecture (T0) ne doit rien écrire, et un T0 s'exécute sans approbation même en mode `ombre`.
+
+| Déclaration ou garde | Pourquoi |
+|---|---|
+| T1, **N3** (le défaut), `roles_appareil = {"admin"}` | Une écriture interne non finale (la trace du constat et l'événement), pas un engagement : l'admin qui la lance lui-même de son téléphone la valide au départ (`_valider_au_depart`, avec sa trace) ; un agent en mode `ombre` attend la décision de `finance` ou du propriétaire (`department.yaml/approbations.n3`). Aucun humain n'est exigé de plus : l'outil ne reçoit aucune donnée d'affaires en argument. |
+| Même règle d'accès que la trésorerie (identité confirmée en base, `admin` seulement, `role` ne peut pas contredire le jeton) | Le cash libre est une finance globale (§8.16, §9.2, §9.4). Un refus vient AVANT la lecture du moindre registre et sans aucune écriture (test). |
+| Le droit de voir les coûts est REQUIS (`REJ-CONSTAT-COUTS-REQUIS`) | Un constat publie des montants : `autorise_couts` faux est refusé, jamais un constat sans montant. Sans appareil (agent, console), `autorise_couts` est obligatoire, explicite et vrai (`REJ-AUTORISE-COUTS-REQUIS`). |
+| `aujourd_hui` requis, `AAAA-MM-JJ` (`REJ-CONSTAT-DATE-INVALIDE`) | M5 n'a pas d'horloge : c'est la date de référence du constat, jamais devinée. L'appelant la donne ; elle est dite dans l'événement, avec l'âge que M8 en tire. |
+| Stockage durable requis (`REJ-CONSTAT-STOCKAGE-NON-DURABLE`) | Sans registre réel ni bus où publier, un « solde absent » serait publié pour un registre qui n'a simplement pas été lu. |
+| Un constat par date de référence et par version des données | La version est l'empreinte du calcul (`cash_libre_id`). Redire le même jour et la même version que le DERNIER constat ne publie rien (`deja_constate`) ; un autre jour, ou une donnée qui change, publie un nouvel événement. Le rang (`sequence`) est dans l'identifiant : un retour à une version antérieure publie un événement DISTINCT que le bus ne peut pas avaler. |
+| La trace et l'événement dans la même transaction | Une charge qui ne tient pas au catalogue (schéma fermé) lève : ni trace ni événement (test). M8 ne peut voir ni un constat que M5 n'a pas tracé, ni l'inverse. |
+| Un cash libre « non calculable, manque X » est publié tel quel | Le statut, les codes de manque et le repère `au_plus_cad` (jamais de l'argent disponible) partent ; jamais un zéro à la place. |
+| Rien de personnel ni de libre ne sort | Le texte que le propriétaire a saisi pour une déclaration (il pourrait nommer un employé) ne part jamais : la source est dite par son origine (registre, déclaration du propriétaire, aucune). Ni détail de verdict, ni détail de composante, ni client, ni fournisseur, ni PO. Le schéma fermé du catalogue le refuse aussi. |
+| Aucun paiement, aucune remise, aucune écriture aux mouvements | Le registre des mouvements est ouvert pour en tirer le solde, jamais écrit ; ni les factures ni les comptes à payer ne bougent. `conformite.verifier_aucun_decaissement` couvre le module pur et les deux fonctions (strict pour celle qui écrit le constat, lecture seule pour l'outil). |
+
+Limites : la date de référence est celle de l'appelant (un agent en mode `supervise` ou `autonome` peut lancer un constat sans
+file, avec la date qu'il donne : la date est dite dans l'événement et M8 en montre l'âge) ; rien ne déclenche le constat tout seul
+(le digest de 7 h ne l'appelle pas : GATE NATHAN) ; deux constats simultanés au même rang : le second lève, l'appel est à rejouer.
 
 ### Les transferts à un humain de M1 (T4.5)
 

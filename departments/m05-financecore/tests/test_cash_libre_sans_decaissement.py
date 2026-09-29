@@ -50,8 +50,9 @@ def test_le_nouveau_code_est_dans_la_portee_de_la_garde():
         assert strict[module] is None and (_PAQUET / f"{module}.py").is_file(), f"{module} : le module entier"
     assert {"lire_echeances_fiscales", "_taxes_par_echeance", "_calendrier_fiscal", "_configuration_manifeste",
             "_cash_libre"} <= set(strict["outils"])
-    # T4.16-d : la prévision ouvre elle aussi le registre des mouvements pour en tirer le solde (lecture seule)
-    assert set(lecture["outils"]) == {"etat_tresorerie", "prevoir_tresorerie"}
+    # T4.16-d : la prévision ouvre elle aussi le registre des mouvements pour en tirer le solde (lecture seule) ;
+    # T4.19-b : le constat aussi (`constater_cash_libre`), qui confie son écriture à une fonction en strict
+    assert set(lecture["outils"]) == {"etat_tresorerie", "prevoir_tresorerie", "constater_cash_libre"}
     assert lecture["soldes"] is None and lecture["etat_financier"] is None
 
 
@@ -183,8 +184,8 @@ def test_un_appel_qui_ne_donne_que_surveille_ne_controle_que_le_regime_strict(tm
 
 
 # ---------------------------------------------------------------- 4. sur des copies des VRAIS fichiers
-_FICHIERS = ("comptes_a_payer", "calendrier_fiscal", "cash_libre", "prevision", "analyse", "outils", "soldes",
-             "etat_financier")
+_FICHIERS = ("comptes_a_payer", "calendrier_fiscal", "cash_libre", "prevision", "constat_cash_libre", "analyse",
+             "outils", "soldes", "etat_financier")
 
 
 def _sur_les_vrais_fichiers(tmp_path, modifier, **portees):

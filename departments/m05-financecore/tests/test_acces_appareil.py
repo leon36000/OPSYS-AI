@@ -210,7 +210,8 @@ def test_l_outil_ne_declare_que_l_admin_comme_role_d_appareil(par_nom):
                 "m5_lire_echeances_fiscales",  # le calendrier fiscal : T4.16
                 "m5_saisir_facture_sans_po", "m5_corriger_facture_fournisseur",  # les trois : T4.15-c
                 "m5_annuler_facture_fournisseur",
-                "m5_prevoir_tresorerie"}  # la prévision de trésorerie : T4.16-d
+                "m5_prevoir_tresorerie",  # la prévision de trésorerie : T4.16-d
+                "m5_constater_cash_libre"}  # le constat du cash libre publié au bus (T1, N3) : T4.19-b
     for nom in lectures:
         assert par_nom[nom].roles_appareil == frozenset({"admin"}), nom
     assert {nom for nom, o in par_nom.items() if o.roles_appareil} == lectures

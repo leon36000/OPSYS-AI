@@ -330,7 +330,8 @@ def _essayer(devis_id="DEVIS-1"):
 
 
 def test_m5_declare_publier_la_rentabilite():
-    assert charger_departements()[_DEPARTEMENT].evenements_publie == (TYPE,)
+    publie = charger_departements()[_DEPARTEMENT].evenements_publie
+    assert publie == (TYPE, "m5.cash_libre_constate"), "la marge (T1.5-d), puis le cash libre constaté (T4.19-b)"
 
 
 def test_une_trace_calculee_publie_la_marge_reelle_dans_la_meme_transaction(base_durable, taux_configure):

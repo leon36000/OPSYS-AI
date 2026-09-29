@@ -3,20 +3,24 @@ id: m05-financecore
 code: M5
 nom: FinanceCore
 mission: >-
-  Tenir le registre financier de l'entreprise — mouvements, solde, cash libre réel,
-  prévision de trésorerie des flux connus et datés, taxes TPS/TVQ et leurs échéances, approbations F0-F7 — sans
-  jamais engager, payer ou approuver de lui-même : toute écriture financière et toute décision d'approbation
-  restent une proposition tant qu'un humain ne les a pas validées sur pièces.
+  Tenir le registre financier de l'entreprise — mouvements, solde, cash libre réel (constaté au bus, pour M8, à la
+  demande de l'admin), prévision de trésorerie des flux connus et datés, taxes TPS/TVQ et leurs échéances,
+  approbations F0-F7 — sans jamais engager, payer ou approuver de lui-même : toute écriture financière et toute
+  décision d'approbation restent une proposition tant qu'un humain ne les a pas validées sur pièces.
 outils: m5_financecore.outils
 mode: ombre
 dependances: [m02-revenue-crm, m03-estimation, m04-field-ops, m06-material-control]
 evenements:                                          # ADR-0009 §3, PLAN T1.2-d/T1.3-c/T2.2
   # client réel + brouillon + signal M6 ; PLAN T4.15 : m6.reception_enregistree, ce qui est arrivé d'un PO (l'« à payer
-  # attendu » des comptes à payer). M5 ne publie rien de plus : les comptes à payer se lisent (m5_lister_comptes_a_payer).
+  # attendu » des comptes à payer). Les comptes à payer se lisent (m5_lister_comptes_a_payer).
   consomme: [m2.client_associe, m3.devis_accepte, m4.travaux_termines, m6.variance_chantier, m6.reception_enregistree]
   # PLAN T1.5-d : la marge réelle du chantier (ou ce qui manque pour la chiffrer) atteint M8 et M10. Jamais
   # un prix unitaire, un taux ni une donnée de client ; jamais une marge pour un coût partiel.
-  publie: [m5.rentabilite_chantier]
+  # PLAN T4.19-b : le cash libre constaté (m5.cash_libre_constate) atteint M8, qui l'affiche dans la vue exécutive. Les
+  # montants tels que le calcul de M5 les rend, chaque composante avec sa source et sa fraîcheur, ou « non calculable,
+  # manque X » avec des codes ; jamais un texte saisi par le propriétaire ni une donnée de client. Il part quand l'admin
+  # fait constater le cash libre (m5_constater_cash_libre, T1), pas à chaque lecture de m5_etat_tresorerie.
+  publie: [m5.rentabilite_chantier, m5.cash_libre_constate]
 approbations:                                         # ADR-0009 §5, PLAN T1.3-c point 5
   n3: [finance, nathan_owner]
   n4: [finance, nathan_owner]                        # envoi de facture (m5_envoyer_facture), correction et annulation d'une

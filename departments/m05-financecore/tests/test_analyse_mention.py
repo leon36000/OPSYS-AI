@@ -72,7 +72,9 @@ def test_les_outils_qui_calculent_ou_proposent_sont_des_analyses():
         # T4.15-c : chacun rend ce que le PO (ou les factures sans PO) doit à cet état, PROPOSÉ, jamais appliqué
         "m5_saisir_facture_sans_po", "m5_corriger_facture_fournisseur", "m5_annuler_facture_fournisseur",
         # T4.16-d : la prévision des flux connus et datés, sous seuil et délais déclarés
-        "m5_prevoir_tresorerie"}
+        "m5_prevoir_tresorerie",
+        # T4.19-b : le cash libre constaté et publié au bus (le même calcul que l'état de trésorerie)
+        "m5_constater_cash_libre"}
     assert set(analyse.SORTIES_D_ANALYSE) == attendues
     assert "m5_envoyer_facture" in analyse.SORTIES_HORS_ANALYSE
     assert "m5_enregistrer_paiement_facture" in analyse.SORTIES_HORS_ANALYSE
@@ -146,6 +148,7 @@ def _appels(ident):
         "m5_lire_rentabilite_chantier": {},
         "m5_lister_comptes_a_payer": {},
         "m5_prevoir_tresorerie": {"aujourd_hui": "2026-09-29", "horizon_semaines": 4},
+        "m5_constater_cash_libre": {"aujourd_hui": "2026-09-29"},
         "m5_saisir_facture_fournisseur": {
             "po_id": "PO-1", "fournisseur_id": "gentek", "numero_facture": "F-1", "date_facture": "2026-09-14",
             "montant_avant_taxes": "300.00", "total_facture": None, "horodatage": "2026-09-20T10:00:00-04:00"},

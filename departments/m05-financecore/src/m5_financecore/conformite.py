@@ -828,6 +828,7 @@ _SURVEILLE_SANS_DECAISSEMENT: dict[str, tuple[str, ...] | None] = {
     "calendrier_fiscal": None,
     "cash_libre": None,
     "prevision": None,
+    "constat_cash_libre": None,
     "analyse": None,
     "outils": (
         "_registre_comptes_a_payer",
@@ -852,6 +853,7 @@ _SURVEILLE_SANS_DECAISSEMENT: dict[str, tuple[str, ...] | None] = {
         "_dettes_fournisseurs",
         "_reglages_prevision",
         "_page_prevision",
+        "_constater_cash_libre",
     ),
 }
 # PLAN T4.16 : LECTURE SEULE. Le cash libre part du solde : le code qui OUVRE le registre des mouvements pour en tirer
@@ -860,10 +862,14 @@ _SURVEILLE_SANS_DECAISSEMENT: dict[str, tuple[str, ...] | None] = {
 # transition de l'argent ne peut l'être (voir `_NOMS_ECRITURE_INTERDITS_EN_LECTURE`). `_cash_libre`, lui, reçoit le
 # registre déjà ouvert : il est en STRICT, plus haut. PLAN T4.16-d : `prevoir_tresorerie` ouvre le registre des
 # mouvements comme `etat_tresorerie` (pour le solde) : lecture seule aussi ; toutes ses aides sont en STRICT.
+# PLAN T4.19-b : `constater_cash_libre` l'ouvre de même (lecture seule : elle ne nomme aucune écriture) et confie
+# l'écriture de la trace et la publication de l'événement à `_constater_cash_libre`, en STRICT : cette fonction
+# reçoit le registre déjà ouvert, ne le nomme pas et n'écrit qu'au registre dérivé des constats et au bus. Le module
+# pur `constat_cash_libre.py` est en STRICT lui aussi.
 _SURVEILLE_EN_LECTURE_SEULE: dict[str, tuple[str, ...] | None] = {
     "soldes": None,
     "etat_financier": None,
-    "outils": ("etat_tresorerie", "prevoir_tresorerie"),
+    "outils": ("etat_tresorerie", "prevoir_tresorerie", "constater_cash_libre"),
 }
 # Tout ce qui écrit ou nomme le registre des mouvements : sa fonction d'écriture, son adaptateur et son nom durable
 # (« principal »), les types de mouvement et la clé qui les porte.

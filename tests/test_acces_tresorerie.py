@@ -48,7 +48,10 @@ OUTILS_DE_LECTURE_FINANCE = {"m5_etat_tresorerie", "m5_lister_attentes_facturati
                              "m5_saisir_facture_sans_po", "m5_corriger_facture_fournisseur",
                              "m5_annuler_facture_fournisseur",
                              # T4.16-d : la prévision de trésorerie (lecture pure, même règle d'accès)
-                             "m5_prevoir_tresorerie"}
+                             "m5_prevoir_tresorerie",
+                             # T4.19-b : le constat du cash libre publié au bus (T1, N3 : l'admin, avec le droit de
+                             # voir les coûts ; voir departments/m05-financecore/tests/test_constat_cash_libre_outils.py)
+                             "m5_constater_cash_libre"}
 CODE_INVALIDE = "REJ-IDENTITE-APPAREIL-INVALIDE"
 CODE_DIFFERENTE = "REJ-IDENTITE-FOURNIE-DIFFERENTE"
 CODE_REQUIS = "REJ-AUTORISE-COUTS-REQUIS"

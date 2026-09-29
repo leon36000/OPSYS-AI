@@ -28,6 +28,7 @@ SORTIES_D_ANALYSE = frozenset({
     "m5_etat_tresorerie",  # le cash libre réel : un calcul qui retranche des obligations, sous hypothèses
     "m5_lire_echeances_fiscales",  # échéances TPS/TVQ : un calendrier à valider par le CPA
     "m5_prevoir_tresorerie",  # prévision des flux connus et datés : un calcul sous hypothèses, seuil et délais déclarés
+    "m5_constater_cash_libre",  # le cash libre constaté et publié au bus (T4.19-b) : le même calcul, sous hypothèses
     "m5_lire_rentabilite_chantier",  # coût réel et marge : une lecture de rentabilité
     "m5_lister_comptes_a_payer",  # « à payer attendu » et rapprochement PROPOSÉ
     "m5_saisir_facture_fournisseur",  # rend le rapprochement PROPOSÉ du PO

@@ -158,6 +158,11 @@ CODES_M5_LIST = [
     "REJ-PREVISION-ECHEANCE-INVALIDE",
     "REJ-PREVISION-ENCAISSEMENT-ECHU",
     "REJ-PREVISION-REPONSE-TROP-GROSSE",
+    # PLAN T4.19-b (constat_cash_libre.py) : M5 publie le cash libre au bus (m5.cash_libre_constate). Un refus dit un
+    # argument ou un droit à corriger, avant toute lecture ; jamais un constat à demi publié.
+    "REJ-CONSTAT-DATE-INVALIDE",
+    "REJ-CONSTAT-COUTS-REQUIS",
+    "REJ-CONSTAT-STOCKAGE-NON-DURABLE",
 ]
 CODES_M5 = set(CODES_M5_LIST)
 

@@ -687,8 +687,8 @@ def test_du_lead_qualifie_au_chantier_termine_la_vue_executive_montre_l_entonnoi
         "a_lire": "m5_etat_tresorerie (admin), avec la décomposition du cash libre",
     }
     assert [champ for champ in (m["champ"] for m in vue["manques"]) if champ == "cash_libre"] == ["cash_libre"]
-    assert not [t for t in _types_publies() if "cash" in t]  # aucun événement de cash libre, ni au bus ni au catalogue
-    assert not [t for t in evenements.types_connus() if "cash" in t]
+    assert not [t for t in _types_publies() if "cash" in t]  # M5 n'a rien constaté ici : aucun constat au bus
+    assert [t for t in evenements.types_connus() if "cash" in t] == ["m5.cash_libre_constate"]  # T4.19-b : au catalogue
 
     # -- la vue tient sous la limite du socle, sans donnée de client ; M8 n'a publié aucune alerte d'entonnoir -------
     texte = json.dumps(vue, ensure_ascii=False)
