@@ -119,25 +119,102 @@ Ce qui existe (activable pour tout agent nommé ; le cas visé est M3, avant `m3
   `before_prompt_build` et `after_tool_call` : ces deux points du moteur de contexte portent déjà la
   permission d'injection et le résultat du tour, sans plugin ni permission de conversation.
 
-Reste (rien de ce qui suit n'est fait) :
-1. **Blocage `before_tool_call`** d'une action N3 ou plus si le contexte est insuffisant : le moteur n'observe
-   que le début et la fin d'un tour.
-2. **Résolution des signaux critiques.** M10 ne sait pas clore un signal : la couche « signaux non résolus »
-   les liste tous, et le core le dit dans son titre sans rien résoudre. Il manque une clôture tracée
-   (outil M10, décision humaine) et la lecture de cette clôture par le paquet.
-3. **Affaire du tour.** Elle vient d'une ligne `affaire_id: <lead_id>` de la demande. Ce n'est acceptable que pour
-   un agent qui ne reçoit que des demandes internes : un canal client direct pourrait nommer l'affaire d'un
-   autre. À remplacer par une affaire liée à la session par l'orchestrateur avant d'activer M1. Les appelants
-   de M3 (M1, M9) doivent écrire cette ligne ; le skill `estimer-un-projet` le dit.
+Reste après T3.3-suite (les points 1, 2, 3 et la moitié du 6 sont traités par T3.3-suite-b, ci-dessous) :
+1. ~~Blocage `before_tool_call`~~ : décision écrite et testée, appel du core à greffer (voir plus bas).
+2. ~~Résolution des signaux critiques~~ : faite.
+3. ~~Affaire du tour~~ : lue dans la session pour un agent de canal client ; le lien automatique attend M1.
 4. **Consolidation des candidats.** La consolidation nocturne ne lit que les événements du bus ; les faits
    candidats attendent une validation puis une intégration à `m10_consolider_affaire` et au paquet.
 5. **Paquet « avant une estimation ».** Le paquet est celui de l'affaire (règles, faits, événements, signaux).
    Le paquet par type de travaux (`paquet_contexte_estimation`, estimé contre réel) n'existe pas encore.
-6. **Réutilisation de la connexion MCP** d'un tour à l'autre (quatre allers-retours HTTP par appel
-   aujourd'hui), et **confidentialité** : le paquet ne porte aujourd'hui aucune donnée `CLIENT_PRIVATE` ; il
-   faudra filtrer par niveau avant d'y en mettre.
+6. **Réutilisation de la connexion MCP** d'un tour à l'autre (quatre allers-retours HTTP par appel ; cinq pour un
+   agent dont l'affaire vient de la session). Le filtre `CLIENT_PRIVATE` est fait.
 7. **Déploiement.** `deploy/entrypoint.sh` et `deploy/install.sh` appellent `opsys openclaw configurer` sans
-   l'option : rien n'est activé à l'installation. Le choix du propriétaire (quels agents, quels outils) reste à
-   brancher.
+   l'option : rien n'est activé à l'installation. Le choix du propriétaire (quels agents, quels outils, quels
+   agents lisent leur affaire dans la session) reste à brancher.
 8. **Preuve en réel.** Les tests du core tournent en CI seulement ; aucun tour d'agent n'a encore été
    exécuté de bout en bout avec un moteur métier lancé.
+
+### T3.3-suite-b : signaux critiques, garde d'action N3+, affaire de la session, confidentialité
+
+Faite le 2026-09-29 ; le core n'a pas été exécuté (la CI fait foi). Détail des fichiers : `core/PROVENANCE.md`.
+
+**Signaux critiques (M10, `signaux.py`).** Un signal est une variance matériaux évaluée au-dessus du seuil,
+identifiée par son `evenement_id`, de l'affaire de son WCT. Trois états, un seul sens :
+`ouvert` -> `pris_en_compte` -> `clos`.
+- L'état se calcule par relecture du registre Affaires (maillons `signal_traite`, append-only), jamais par un
+  champ qu'on positionne. Un maillon forgé hors de l'outil, ou qui saute une étape, ne ferme rien.
+- Un passage est une décision **humaine** : `m10_prendre_en_compte_signal` et `m10_clore_signal`, N3, portée
+  `admin`, avec un motif obligatoire (10 à 500 caractères). L'outil refuse lui-même (`REJ-HUMAIN-REQUIS`) tout
+  appel qui n'est ni un appel d'appareil dont l'identité est confirmée en base (personne active, rôle `admin`), ni
+  l'exécution d'une demande qu'un humain vient d'approuver. Le modèle seul ne clôt donc jamais, y compris dans un
+  département en mode `supervise` ou `autonome`, où un N3 s'exécute sans file. Le maillon garde la personne, son
+  rôle, la voie (`appareil` ou `approbation`), le motif ; pour un appel d'appareil l'heure de réception du
+  serveur fait foi.
+- Lecture de l'approbateur : le socle n'expose pas à l'outil qui a approuvé (`approbations.decider` ne pose aucun
+  contexte). L'outil lit donc, sans écrire, la demande `en_cours` de son propre nom, de son département, aux
+  arguments exacts, avec un approbateur actif de rôle `admin` ou `nathan_owner`. Une contextvar posée par `decider`
+  la remplacerait proprement (changement du socle, non fait ici).
+- Une seule autre cause de clôture, écrite et testée : M6 republie, pour le même `wct_id` et après le signal, une
+  variance évaluée sans dépassement. La clôture se calcule à la lecture. **Elle n'a pas encore de producteur** :
+  M6 traite `evaluee` comme terminal. Aujourd'hui, seul un humain clôt.
+- Le paquet montre les ouverts d'abord, puis les derniers clos, avec qui et pourquoi (dans le résumé), et un bloc
+  `signaux` (`nb_ouverts`, `nb_pris_en_compte`, `nb_clos`) calculé sur tous les signaux : la troncature de la couche
+  ne peut pas en cacher un.
+
+**Garde `before_tool_call` (core, `opsys-contexte-garde.ts`).** Pour un outil OPSYS de niveau N3 ou plus, l'appel
+est refusé si le paquet de l'affaire était indisponible, jamais évalué pour ce tour, périmé (plus de 15 minutes),
+ou s'il porte un signal critique ouvert. Le message dit quoi faire (faire prendre connaissance du signal par un
+humain, ou réessayer quand le contexte est disponible).
+- Le niveau vient de `contexte.json` (`niveaux`, généré par `openclaw.py` depuis `Outil.niveau_effectif`), jamais du
+  modèle. Un outil absent de `niveaux` n'est pas un outil OPSYS connu : jamais bloqué. Les niveaux N0 à N2 ne le
+  sont jamais.
+- Inactif tant que `contexte.json` n'est pas actif, ou s'il est invalide (le moteur le dit déjà à chaque tour), et
+  pour un agent que le fichier ne nomme pas.
+- Le moteur écrit, à chaque tour (`assemble()` avec prompt), l'état de son PREFLIGHT par clé de session (mémoire du
+  processus, 512 sessions). Le réassemblage sans prompt que le lanceur fait après chaque résultat d'outil ne compose
+  rien et n'écrase pas cet état.
+- **Un moteur de contexte ne peut pas bloquer un appel d'outil.** `before_tool_call` appartient au lanceur de hooks
+  de plugins et aux politiques d'outils de confiance, que seuls des plugins enregistrent
+  (`core/src/agents/agent-tools.before-tool-call.policy.ts`, `runBeforeToolCallHook`, ligne 103 ; hooks de plugins
+  ligne 363, `runTrustedToolPolicies` ligne 242 ; sortie rapide sans politique ligne 204) ; l'interface
+  `ContextEngine` n'a aucune méthode de ce genre (`core/src/context-engine/types.ts`, ligne 353). **Greffe
+  minimale, non appliquée** (hors du périmètre demandé) : dans `runBeforeToolCallHook`, après l'admission de
+  boucle (ligne 168) et avant `const hookRunner = getGlobalHookRunner();` (ligne 170), appeler
+  `checkOpsysContexteToolCall({ toolName, sessionKey: args.ctx?.sessionKey, agentId: args.ctx?.agentId })` et, si
+  `block`, rendre un `HookOutcome` bloqué (`kind: "veto"`, `deniedReason: "plugin-before-tool-call"`, `reason`),
+  comme le fait déjà l'admission de boucle. Une douzaine de lignes et un import (`HookBlockedReason` pourrait gagner
+  une valeur `opsys-contexte`, `types.ts` ligne 97). Tant qu'elle n'est pas faite, le garde décide
+  et le core n'applique pas. La CI devra vérifier que `HookContext.sessionKey` est bien la clé que reçoit
+  `assemble()` : sinon le garde ne trouve aucun état et bloque tout N3+ des agents nommés (fail-closed).
+
+**Affaire de la session (M10 `liaison.py`, core).** Sur un canal client, le texte de la demande est celui du client :
+une ligne `affaire_id: ...` qu'il écrit ne prouve rien. Pour un agent réglé `"affaire": "session"` dans
+`contexte.json` (`opsys openclaw configurer --affaire-par-session AGENT`), le moteur demande à M10 l'affaire liée à
+la clé de session (`m10_affaire_de_la_session`, T0, fermé aux appareils), pour le paquet comme pour le dépôt
+POSTFLIGHT, et ne lit jamais le texte. Un humain écrit le lien (`m10_lier_session_affaire`, mêmes règles que
+ci-dessus) ; le dernier fait foi ; la session principale d'un agent, partagée par tous ses correspondants, n'est
+jamais liée. Sans lien : tour sans paquet, marqué, garde fermé pour les N3+.
+- **Ce qui reste, et qui exige M1.** (1) Le lien automatique à la création d'un lead : M1 (ou M2) doit connaître la
+  clé de session de la conversation qui crée le lead et un producteur déterministe (événement du bus) doit
+  l'écrire ; jusque-là c'est un humain (app admin). (2) `session.dmScope: "per-channel-peer"` à écrire dans la
+  configuration avant d'activer M1 : par défaut (`main`) tous les correspondants d'un agent partagent une session,
+  donc un seul lien, que M10 refuse. (3) Un fil (`:thread:...`) a sa propre clé : à lier ou à ramener à sa
+  conversation de base.
+
+**Filtre `CLIENT_PRIVATE` (M10 `confidentialite.py`).** Les sept niveaux de la définition sont la taxonomie
+canonique. Règle écrite et épinglée par test :
+- un élément non marqué est `INTERNAL` ; un marquage inconnu est traité comme `LEGAL_LOCKED` ;
+- `SENSITIVE`, `FINANCIAL`, `SECRET_REF` et `LEGAL_LOCKED` ne sortent jamais dans un paquet ;
+- `CLIENT_PRIVATE` ne sort que dans `faits_affaire` et `evenements_recents`, et seulement vers `m01-front-office` et
+  `m02-revenue-crm` ; jamais dans `regles_entreprise` ni dans `signaux_non_resolus`. **C'est un choix par défaut,
+  à faire valider par le propriétaire** : ajouter un agent ou une couche est une décision de confidentialité, donc
+  une modification de la table, de ses tests et de ce texte ;
+- sans agent nommé, la vue est la plus restrictive ;
+- un élément retenu n'est jamais rendu (ni contenu, ni identifiant) : le paquet compte seulement
+  `confidentialite.nb_retenus`. Le filtre passe avant la troncature.
+L'agent est celui que le core lit dans la clé de session et transmet (`agent`), jamais un texte : un agent de
+département ne voit pas le serveur MCP de M10, seul le moteur du core appelle le paquet en son nom. Le core refuse
+un paquet dont le bloc de confidentialité ne nomme pas cet agent, ou dont un fait porte un niveau fermé. Une décision
+peut être marquée (`m10_journaliser_decision`, clé sœur `confidentialite`, contrat v1 intact) ; aucun autre producteur
+ne marque encore : les événements du bus, dont le catalogue est fermé, n'en portent pas.

@@ -236,6 +236,45 @@ extension avec les mêmes fichiers quand un client MCP entre dans le SDK.
   aux appareils), `openclaw.generer(contexte_entreprise=...)`.
 - Surfaces consommées ajoutées au tableau ci-dessous : `opsys/contexte.json`, `plugins.slots.contextEngine`.
 
+### T3.3-suite-b : garde d'action N3+, affaire de la session, paquet vérifié pour l'agent
+
+Trois ajouts au moteur de contexte ci-dessus, dans les mêmes fichiers plus un nouveau. Rien n'est exécuté dans
+le bac à sable de développement : la CI (`tests` et `tests-opsys`) fait foi.
+- **Garde d'action** (`src/context-engine/opsys-contexte-garde.ts`, nouveau). Le moteur enregistre, par clé de
+  session et à chaque tour (`assemble()` avec prompt), ce que son PREFLIGHT a trouvé : paquet prêt et nombre de
+  signaux critiques ouverts, ou contexte indisponible et pourquoi. `checkOpsysContexteToolCall` en tire la
+  décision pour un outil OPSYS de niveau N3 ou plus (niveau lu dans `contexte.json`, `niveaux`) : refusé si le
+  contexte était indisponible, jamais évalué, périmé (15 minutes) ou porte un signal ouvert ; jamais rien d'autre.
+  Inactif tant que `contexte.json` ne l'est pas.
+- **L'appel du garde n'est pas encore fait, et un moteur de contexte ne peut pas le faire.** `before_tool_call`
+  appartient au lanceur de hooks de plugins et aux politiques d'outils de confiance (`src/agents/
+  agent-tools.before-tool-call.policy.ts`, `runBeforeToolCallHook`, ligne 103) ; `ContextEngine`
+  (`src/context-engine/types.ts`, ligne 353) n'a aucune méthode de ce genre. **Greffe minimale à faire** : dans
+  `runBeforeToolCallHook`, entre l'admission de boucle (fin de bloc, ligne 168) et
+  `const hookRunner = getGlobalHookRunner();` (ligne 170), appeler `checkOpsysContexteToolCall({ toolName,
+  sessionKey: args.ctx?.sessionKey, agentId: args.ctx?.agentId })` et, si `block`, rendre un `HookOutcome`
+  `{ blocked: true, kind: "veto", deniedReason: "plugin-before-tool-call", reason, params }` marqué
+  `markPrivateDecision(outcome, "genericDecision")`, comme l'admission de boucle juste au-dessus. Le fichier
+  `agent-tools.before-tool-call.policy.ts` et ses tests d'origine (`agent-tools.before-tool-call.*.test.ts`)
+  entreront alors dans `test/opsys-tests-cibles.txt`. À vérifier en CI avec cette greffe : `HookContext.sessionKey`
+  est la clé que reçoit `assemble()`.
+- **Affaire lue dans la session** (`opsys-contexte-engine.ts`, `opsys-contexte-config.ts`). Un agent réglé
+  `"affaire": "session"` dans `contexte.json` demande à M10 l'affaire liée à sa clé de session
+  (`m10_affaire_de_la_session`), pour le paquet et pour le dépôt POSTFLIGHT, et ne lit jamais le texte de la demande.
+  Le réassemblage sans prompt que le lanceur fait après chaque résultat d'outil (`installContextEngineLoopHook`,
+  `src/agents/embedded-agent-runner/tool-result-context-guard.ts`) ne compose plus rien.
+- **Paquet vérifié** (`opsys-contexte-paquet.ts`). Le core refuse, sans réparer, un paquet sans décompte des
+  signaux, dont un signal n'a pas un état et un auteur cohérents, dont un fait n'a pas un niveau de
+  confidentialité admissible (jamais un niveau fermé), ou dont le bloc de confidentialité ne nomme pas l'agent
+  demandé. L'agent vient de la clé de session ; M10 filtre le paquet pour lui.
+- Ajoutés : `src/context-engine/opsys-contexte-garde.ts` et `opsys-contexte-garde.test.ts`.
+- Modifiés : `src/context-engine/opsys-contexte-{config,paquet,engine}.ts` et leurs tests,
+  `opsys-contexte.test-support.ts` (les paquets sont la sortie réelle de M10 ; `tests/test_openclaw_contexte.py` le
+  vérifie), `test/opsys-tests-cibles.txt`.
+- Côté Python : `openclaw.generer(affaire_par_session=...)` écrit `niveaux`, `outil_affaire` et `affaire` par agent ;
+  M10 (`signaux.py`, `liaison.py`, `confidentialite.py`, `humain.py`).
+- Surface consommée : `opsys/contexte.json` porte en plus `niveaux`, `outil_affaire` et, par agent, `affaire`.
+
 ## Sécurité
 
 Il n'y a plus de mises à jour automatiques. Une veille mensuelle des avis de sécurité d'OpenClaw
@@ -263,5 +302,5 @@ jour `src/opsys/openclaw.py` et ses tests dans le même commit.
 | `opsys/metier.json` (hors schéma Zod) | active et règle le superviseur du moteur métier (T0.10) ; `openclaw.py` ne l'écrit pas encore | `src/gateway/opsys-metier-config.ts` |
 | `opsys/roles.json` (hors schéma Zod) | `roles` : outils permis par rôle d'appareil ; `serveurs` : le serveur MCP de chacun (T1.4-c6). Noms d'outils nus | `src/gateway/opsys-device-roles.ts` |
 | `opsys/appareils.json` (hors schéma Zod) | appareil -> personne et rôle OPSYS (T1.4-c2, c4) ; rendu aussi à l'appareil par `GET /opsys/identite` (T1.4-c5). Format inchangé | `src/gateway/opsys-device-roles.ts` |
-| `opsys/contexte.json` (hors schéma Zod) | active et règle le moteur de contexte OPSYS (T3.3-suite) ; écrit par `openclaw.py` (`contexte_entreprise`) | `src/context-engine/opsys-contexte-config.ts` |
+| `opsys/contexte.json` (hors schéma Zod) | active et règle le moteur de contexte OPSYS (T3.3-suite) ; écrit par `openclaw.py` (`contexte_entreprise`, `affaire_par_session`) ; porte aussi `niveaux` (niveau N de chaque outil, pour le garde), `outil_affaire` et l'`affaire` de chaque agent (T3.3-suite-b) | `src/context-engine/opsys-contexte-config.ts` |
 | `plugins.slots.contextEngine` | choisit le moteur `opsys` quand `contexte.json` est actif ; absent sinon (moteur « legacy ») | `src/config/zod-schema.root-shape.ts`, `src/context-engine/registry-selection.ts` |
