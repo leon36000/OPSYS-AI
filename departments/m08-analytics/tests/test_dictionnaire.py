@@ -113,14 +113,17 @@ def test_compiler_dictionnaire_reel_depot_contient_les_metriques_de_mesure_de_ch
     resultat, erreurs = dictionnaire.compiler_dictionnaire(_MODULES_M)
 
     assert not [erreur for erreur in erreurs if "m8-metrics" in erreur]
-    # Huit métriques de mesure d'un chantier (m8-metrics.v1.yaml) et, depuis T4.19, huit de l'entonnoir
-    # (m8-entonnoir.v1.yaml, `test_entonnoir.py`) : le même module, deux fichiers.
+    # Huit métriques de mesure d'un chantier (m8-metrics.v1.yaml), depuis T4.19 huit de l'entonnoir
+    # (m8-entonnoir.v1.yaml, `test_entonnoir.py`) et depuis T4.17-e six par contenu (m8-contenus.v1.yaml,
+    # `test_contenus.py`) : le même module, trois fichiers.
     assert set(resultat["m08-analytics"]) == {
         "m8_ecart_duree_minutes", "m8_ecart_duree_pct", "m8_marge_prevue_cad", "m8_marge_reelle_cad",
         "m8_ecart_marge_cad", "m8_ecart_marge_pct", "m8_ecart_materiaux_max_pct",
         "m8_ecart_duree_technicien_pct",
         "m8_leads_recus", "m8_leads_qualifies", "m8_devis_envoyes", "m8_devis_acceptes", "m8_devis_sans_reponse",
         "m8_taux_acceptation_pct", "m8_delai_lead_acceptation_jours", "m8_carnet_signe_cad",
+        "m8_contenus_exportes", "m8_leads_par_contenu", "m8_devis_envoyes_par_contenu",
+        "m8_devis_acceptes_par_contenu", "m8_impressions_par_contenu", "m8_clics_par_contenu",
     }
     assert resultat["m08-analytics"]["m8_marge_prevue_cad"]["unite"] == "CAD"
 

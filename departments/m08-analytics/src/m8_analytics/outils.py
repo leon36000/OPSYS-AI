@@ -37,6 +37,13 @@ de la lecture, jamais à l'arrivée : c'est un état du moment, pas un chantier.
 ajoute la marge réelle que M5 a publiée, le stock à commander que M6 met à la file du propriétaire et le cash libre
 (que M5 ne publie pas : « manque »). M8 ne recalcule aucun montant de M5 ; un rôle d'appareil autre qu'`admin` est
 refusé dans le code, en plus de la portée du core.
+
+Mesure par contenu (PLAN T4.17-e, `contenus.py`, `vue_contenus.py`) : M8 reçoit `m7.contenu_exporte` (les contenus
+qui existent, avec leur clé `utm_content`) et `m1.lead_qualifie` (le lead et la clé qu'il portait), les range au
+registre `faits_contenus` (idempotent, un fait par contenu ou par lead ; jamais un contact, une ville ni un texte)
+et compte, à la lecture, les leads puis les devis (faits de l'entonnoir) par contenu. `m8_lire_mesures_contenus`
+(T0, admin) rend les métriques gouvernées de `metrics/m8-contenus.v1.yaml`, une ligne par contenu, par pages sous
+la limite du socle. Impressions et clics : aucune source, « non calculable » et jamais un zéro.
 """
 
 from __future__ import annotations
@@ -52,6 +59,7 @@ from opsys.outils import Autonomie, Outil, depuis_couple
 
 from . import (
     alertes,
+    contenus,
     entonnoir,
     mesures_chantier,
     qualite,
@@ -60,6 +68,7 @@ from . import (
     registre_metriques,
     semantique,
     validation,
+    vue_contenus,
     vue_executive,
     xmr,
 )
@@ -179,6 +188,7 @@ def _valeurs_travaux_termines(charge: dict[str, Any]) -> dict[str, str]:
 _MANIFESTE = Path(__file__).resolve().parents[2] / "department.yaml"
 _NOM_REGISTRE_FAITS = "faits_chantier"
 _NOM_REGISTRE_ENTONNOIR = "faits_entonnoir"
+_NOM_REGISTRE_CONTENUS = "faits_contenus"
 _M6 = "m06-material-control"
 # `Capacites._tronquer` mesure `{"ok": true, "resultat": ...}` : 25 caractères d'enveloppe, plus une marge.
 # Sous ce budget (la limite de sortie du socle moins cette réserve), une réponse n'est jamais tronquée.
@@ -472,6 +482,35 @@ def _recevoir_devis_sans_reponse(charge: dict[str, Any]) -> dict[str, Any]:
     return _recevoir_fait_entonnoir(entonnoir.fait_devis_sans_reponse(charge))
 
 
+def _ranger_fait_contenu(fait: dict[str, Any]) -> bool:
+    """Range un fait de la mesure par contenu au registre `faits_contenus` s'il n'y est pas déjà : un fait par contenu
+    ou par lead (`contenus.cles_unicite`). Une relivraison de l'événement, ou un rejeu du répartiteur, n'ajoute jamais
+    un second fait. Rend vrai s'il vient d'être ajouté."""
+    return _ajouter_fait_si_nouveau(
+        stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_CONTENUS), fait, contenus.cles_unicite(fait["type_entree"])
+    )
+
+
+def _recevoir_contenu_exporte(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consommateur `m7.contenu_exporte` (PLAN T4.17-e) : ce contenu existe, avec sa clé de mesure, son chantier et son
+    canal. Rien de personnel ne voyage dans cet événement, et rien de plus n'est gardé. Le résumé du reçu ne porte que
+    l'identifiant du contenu et si le fait était déjà connu."""
+    enregistre = _ranger_fait_contenu(contenus.fait_contenu_exporte(charge))
+    return {"enregistre": enregistre, "deja_enregistre": not enregistre, "contenu_id": charge["contenu_id"]}
+
+
+def _recevoir_lead_qualifie(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consommateur `m1.lead_qualifie` (PLAN T4.17-e) : M1 a qualifié ce lead, avec la clé `utm_content` qu'il portait.
+    La charge porte aussi le contact, la ville et le service du lead : M8 n'en garde rien (`contenus.fait_lead_m1`), et
+    le résumé du reçu, que le bus range, ne porte que l'identifiant du lead et si une clé était présente."""
+    fait = contenus.fait_lead_m1(charge)
+    enregistre = _ranger_fait_contenu(fait)
+    return {
+        "enregistre": enregistre, "deja_enregistre": not enregistre, "lead_id": fait["lead_id"],
+        "avec_utm_content": fait["utm_content"] is not None,
+    }
+
+
 def consommateurs() -> dict[str, Any]:
     """Types d'événements consommés par M8 (ADR-0009 §3) — voir `department.yaml:evenements.consomme`
     et `docs/architecture/DEPARTEMENTS.md` § Événements."""
@@ -484,6 +523,8 @@ def consommateurs() -> dict[str, Any]:
         "m2.lead_assigne": _recevoir_lead_assigne,
         "m3.devis_envoye": _recevoir_devis_envoye,
         "m3.devis_sans_reponse": _recevoir_devis_sans_reponse,
+        "m7.contenu_exporte": _recevoir_contenu_exporte,
+        "m1.lead_qualifie": _recevoir_lead_qualifie,
     }
 
 
@@ -560,6 +601,7 @@ def outils(
     definitions_cible: Any = None,
     faits_cible: Any = None,
     faits_entonnoir_cible: Any = None,
+    faits_contenus_cible: Any = None,
 ) -> tuple[Outil, ...]:
     """Capacités exposées aux agents. Une instance de RegistreSnapshots par installation.
 
@@ -578,11 +620,17 @@ def outils(
     `faits_entonnoir_cible` (T4.19) : même patron pour le registre `faits_entonnoir` (faits de M2 et de M3 reçus par
     le bus, lus par `m8_lire_vue_executive`) — `None` (défaut) l'adosse à
     `opsys.stockage.maillons("m08-analytics", "faits_entonnoir")`.
+
+    `faits_contenus_cible` (T4.17-e) : même patron pour le registre `faits_contenus` (contenus exportés par M7 et leads
+    de M1 reçus par le bus, lus par `m8_lire_mesures_contenus`) — `None` (défaut) l'adosse à
+    `opsys.stockage.maillons("m08-analytics", "faits_contenus")`.
     """
     if faits_cible is None:
         faits_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_FAITS)
     if faits_entonnoir_cible is None:
         faits_entonnoir_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_ENTONNOIR)
+    if faits_contenus_cible is None:
+        faits_contenus_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_CONTENUS)
     if registre_cible is None:
         registre_cible = registre.RegistreSnapshots(maillons=stockage.maillons("m08-analytics", "snapshots"))
     if definitions_cible is None:
@@ -885,6 +933,19 @@ def outils(
             situation, faits_chantier, attentes_m6, raison_m6, budget_caracteres=BUDGET_SORTIE
         )
 
+    def lire_mesures_contenus(depart: int = 0) -> dict[str, Any]:
+        """La mesure par contenu (T4.17-e) : quels contenus de M7 amènent des leads, puis des devis. Les métriques sont
+        celles de `metrics/m8-contenus.v1.yaml`, calculées par le code d'après les faits reçus (contenus exportés, leads
+        de M1, devis de l'entonnoir) ; chaque contenu a sa ligne. Une donnée absente est « non calculable, manque X »,
+        jamais un zéro ; les impressions et les clics n'ont aucune source. Lecture pure (T0) : rien n'est écrit, rien
+        n'est publié. Un appareil qui n'est pas celui d'un admin authentifié est refusé ICI, avant toute lecture ; les
+        contenus tiennent page par page sous la limite du socle (`depart`, `affichage.prochain_depart`)."""
+        _exiger_admin_pour_appareil()
+        situation = contenus.situation(
+            list(faits_contenus_cible), list(faits_entonnoir_cible), contenus.charger_definitions()
+        )
+        return vue_contenus.assembler(situation, depart, BUDGET_SORTIE)
+
     return (
         Outil(
             nom="m8_rapport_metriques",
@@ -1157,6 +1218,31 @@ def outils(
             fonction=lire_vue_executive,
             # §9.5 (profil admin) : « tableau de bord exécutif, alertes et wallboard » (M8). Marges, stock et carnet de
             # toute l'entreprise : ni l'employé ni le vendeur (§8.16, §9.2, §9.4) ; refusé aussi dans le code.
+            roles_appareil=frozenset({_ROLE_ADMIN}),
+        ),
+        Outil(
+            nom="m8_lire_mesures_contenus",
+            description=(
+                "Mesure par contenu, lecture pure : leads, devis envoyés et acceptés que chaque contenu exporté "
+                "par M7 a amenés, par sa clé utm_content (leads de M1, devis de M3), avec la version et le "
+                "propriétaire de chaque définition. Un lead sans clé n'est attribué à aucun contenu. Impressions "
+                "et clics : aucune source, « non calculable », jamais un zéro. Par pages de contenus (`depart`). "
+                "Réservé à l'admin."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "depart": {
+                        "type": "integer",
+                        "description": "Indice du premier contenu rendu (0 = début) ; reprendre à prochain_depart.",
+                    },
+                },
+                "additionalProperties": False,
+            },
+            fonction=lire_mesures_contenus,
+            # §9.5 (profil admin) : « tableau de bord exécutif » (M8) et « tableau de bord marketing » (M7, §7 M7
+            # mobile) : le propriétaire lit ce que ses contenus rapportent. Ni l'employé ni le vendeur (§9.4 : « ses
+            # ventes » seulement) ; refusé aussi dans le code.
             roles_appareil=frozenset({_ROLE_ADMIN}),
         ),
     )

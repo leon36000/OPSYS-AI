@@ -61,3 +61,22 @@ qualifié) et de M3 (devis envoyé, accepté, sans réponse). Présente la répo
 - `seuils.a_configurer` nomme les métriques de l'entonnoir sans seuil valide : aucun franchissement n'existe pour
   elles. N'en fixe jamais un toi-même ; le propriétaire le définit dans `department.yaml` (`seuils_entonnoir`) ;
 - une liste plus courte que son total dit `reste` : ce qui ne tient pas dans la réponse est compté, jamais perdu.
+
+# Lire la mesure par contenu
+
+`m8_lire_mesures_contenus` (admin seulement) dit quels contenus de M7 amènent des leads, puis des devis. M8 reçoit tout
+seul, par le bus, les contenus exportés (M7, avec leur clé `utm_content`), les leads qualifiés (M1, avec la clé qu'ils
+portaient) et les devis (M3). Présente la réponse telle quelle :
+
+- `metriques` : six métriques gouvernées, chacune avec sa `version_definition` et son `proprietaire` ; `valeur` est le
+  total sur tous les contenus, et `entrees` dit ce qui l'explique : leads sans clé (`n_leads_sans_utm_content`), clé
+  inconnue, clé ambiguë. Un lead sans clé n'est attribué à aucun contenu : ne le mets jamais sur un contenu ;
+- `contenus` : une ligne par contenu, `suivi` dit comment il se mesure. `sans_lien` (aucun lien de suivi n'a porté sa
+  clé : site absent du profil, ou message privé) et `ambigu` (deux contenus ont la même clé) donnent des décomptes vides :
+  « non mesurable », pas zéro. Le plus utile d'abord ; `affichage.prochain_depart` donne la page suivante (`depart`) ;
+- une métrique `non_calculable` dit ce qui manque (`manque`, détaillé une fois dans `manques`). Sans lead reçu de M1,
+  « zéro lead » serait faux : c'est « rien reçu ». `sources` dit combien de faits M8 a reçus et jusqu'à quand ;
+- **impressions et clics n'ont aucune source** : `m8_impressions_par_contenu` et `m8_clics_par_contenu` sont toujours
+  non calculables, avec « manque source des impressions et des clics ». N'en invente aucun chiffre, ne les estime pas à
+  partir des leads ; dis que le connecteur (statistiques des plateformes, Matomo) reste à décider ;
+- M8 mesure, il ne décide pas : ne recommande pas de publier plus ou moins un contenu à partir d'un compte (M9 décide).

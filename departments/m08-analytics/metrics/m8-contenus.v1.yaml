@@ -1,0 +1,71 @@
+# metrics-as-code v1 : les métriques PAR CONTENU que M8 calcule lui-même (PLAN T4.17-e, DEFINITION-PRODUIT.md §6 « M7 attire →
+# M1 capte », §7 M7.3 « mesure » et M7.8 « marketing → leads → ventes », §7 M8.3 « registre de métriques »). Même patron que
+# `m8-entonnoir.v1.yaml` (T4.19) : compilé par `m8_analytics.dictionnaire.compiler_fichier` (garde de devise CAD comprise) ;
+# `m8_analytics.contenus` refuse de calculer une métrique absente d'ici. Chaque métrique a un calcul déterministe dans le code :
+# le LLM ne calcule jamais. Une entrée absente donne « non calculable, manque X », jamais une valeur inventée.
+#
+# La clé qui relie un lead à un contenu est `utm_content` : M7 la tire de l'identifiant du contenu et la met dans le lien de
+# suivi du paquet manuel ; M1 la rapporte dans le lead qui a suivi ce lien (`m1.lead_qualifie`, `lead.utm.utm_content`) ;
+# M7 annonce les contenus qui existent (`m7.contenu_exporte`). M8 compte ce que les départements ont publié, égalité stricte de la
+# clé : il ne devine aucun contenu. Aucune fenêtre de période dans cette version : tous les faits reçus comptent.
+#
+# Les impressions et les clics n'ont AUCUNE source aujourd'hui (ni le bus, ni un connecteur : statistiques des plateformes,
+# Matomo). Leurs métriques sont définies pour être gouvernées, et rendues « non calculable, manque la source des impressions et
+# des clics » : jamais un zéro, jamais une estimation.
+#
+# `proprietaires` (clé sœur additive du contrat v1, comme pour l'entonnoir) : ici M7 pour toutes, parce que la question posée
+# est celle de M7 (« quel contenu amène des leads ? », §7 M7.8) et que le contenu et son identifiant de mesure sont sa vérité
+# (§8 : « campagnes, SEO, réseaux sociaux, avis, contenu -> M7 »). Les faits sources (M1, M3) sont nommés dans `source_donnees`.
+schema_version: 1
+module: m08-analytics
+owner_calcul: "M8 (le LLM ne calcule jamais)"
+proprietaires:
+  m8_contenus_exportes: m07-marketing
+  m8_leads_par_contenu: m07-marketing
+  m8_devis_envoyes_par_contenu: m07-marketing
+  m8_devis_acceptes_par_contenu: m07-marketing
+  m8_impressions_par_contenu: m07-marketing
+  m8_clics_par_contenu: m07-marketing
+metrics:
+  - id: m8_contenus_exportes
+    nom: "Contenus exportés"
+    definition: "Nombre de contenus distincts (contenu_id) dont M7 a exporté le paquet manuel : un fait par contenu, avec sa clé utm_content, son chantier et son canal. Un contenu proposé ou approuvé mais pas exporté n'y est pas. Tous les faits reçus par M8, sans fenêtre de période. Sans aucun fait reçu, non calculable : un zéro n'est jamais supposé."
+    unite: "contenus"
+    source_donnees: "M7 m7.contenu_exporte (contenu_id, utm_content, wct_id, canal, lien_de_suivi, exporte_le)"
+    frequence: "à chaque paquet exporté"
+    consommateur: "lecture des contenus (m8_lire_mesures_contenus), M7, M9"
+  - id: m8_leads_par_contenu
+    nom: "Leads par contenu"
+    definition: "Nombre de leads distincts (lead_id) que M1 a qualifiés avec un utm_content et qui sont attribués au contenu qui porte cette clé : total sur tous les contenus, détail par contenu dans la lecture. Attribution par la seule clé utm_content, égalité stricte, vers un contenu exporté avec un lien de suivi. Un lead sans utm_content n'est attribué à aucun contenu ; un utm_content que nul contenu exporté ne porte, ou que deux contenus se disputent, n'est attribué à aucun non plus : ils sont comptés à part (n_leads_sans_utm_content, n_leads_utm_content_inconnu, n_leads_utm_content_ambigu), jamais ignorés en silence. Non calculable sans contenu exporté ni sans lead reçu de M1."
+    unite: "leads"
+    source_donnees: "M1 m1.lead_qualifie (lead.lead_id, lead.utm.utm_content) ; M7 m7.contenu_exporte (utm_content, lien_de_suivi)"
+    frequence: "à chaque lead qualifié ou contenu exporté"
+    consommateur: "lecture des contenus (m8_lire_mesures_contenus), M7, M9"
+  - id: m8_devis_envoyes_par_contenu
+    nom: "Devis envoyés par contenu"
+    definition: "Nombre de devis distincts dont le propriétaire a approuvé l'envoi (M3) et dont le lead est attribué à un contenu : le lead_id du devis est celui du lead de M1. La date est celle de l'approbation, pas celle de la livraison au client. Un devis dont le lead n'est pas connu de M1 (par exemple l'opportunité que M2 rouvre pour un client connu) n'est attribué à aucun contenu ; un devis dont le lead est connu de M1, mais sans contenu, non plus. Ils sont comptés à part (n_sans_lead_de_m1, n_lead_sans_contenu), jamais ignorés en silence. Non calculable sans contenu exporté, sans lead reçu de M1 ni sans aucun fait de l'entonnoir."
+    unite: "devis"
+    source_donnees: "M3 m3.devis_envoye (devis_id, lead_id) ; M1 m1.lead_qualifie (lead_id, utm_content) ; M7 m7.contenu_exporte (utm_content)"
+    frequence: "à chaque devis envoyé"
+    consommateur: "lecture des contenus (m8_lire_mesures_contenus), M7, M9"
+  - id: m8_devis_acceptes_par_contenu
+    nom: "Devis acceptés par contenu"
+    definition: "Nombre de devis distincts qu'un humain a marqués acceptés (M3) et dont le lead est attribué à un contenu (lead_id du devis = lead_id de M1). Un devis accepté sans envoi reçu est compté quand même : chaque métrique lit son propre fait. Un devis dont le lead n'est pas connu de M1, ou connu mais sans contenu, n'est attribué à aucun contenu : compté à part (n_sans_lead_de_m1, n_lead_sans_contenu). Non calculable sans contenu exporté, sans lead reçu de M1 ni sans aucun fait de l'entonnoir."
+    unite: "devis"
+    source_donnees: "M3 m3.devis_accepte (devis_id, lead_id) ; M1 m1.lead_qualifie (lead_id, utm_content) ; M7 m7.contenu_exporte (utm_content)"
+    frequence: "à chaque devis accepté"
+    consommateur: "lecture des contenus (m8_lire_mesures_contenus), M7, M9"
+  - id: m8_impressions_par_contenu
+    nom: "Impressions par contenu"
+    definition: "Nombre de fois qu'un contenu a été affiché sur sa plateforme. AUCUNE source aujourd'hui : ni le bus ni un connecteur (statistiques des plateformes, Matomo) ne fournit les impressions d'un contenu, et M7 ne publie rien lui-même (paquet manuel). Non calculable, manque la source des impressions et des clics : jamais un zéro, jamais une estimation. Le connecteur reste à décider."
+    unite: "impressions"
+    source_donnees: "aucune (connecteur à décider : statistiques des plateformes, Matomo)"
+    frequence: "sans objet tant qu'aucune source n'existe"
+    consommateur: "lecture des contenus (m8_lire_mesures_contenus), M7"
+  - id: m8_clics_par_contenu
+    nom: "Clics par contenu"
+    definition: "Nombre de clics sur le lien de suivi d'un contenu (visites qui portent son utm_content). AUCUNE source aujourd'hui : ni le bus ni un connecteur (statistiques des plateformes, Matomo) ne fournit les clics ni les visites d'un contenu. Non calculable, manque la source des impressions et des clics : jamais un zéro, jamais une estimation. Le connecteur reste à décider."
+    unite: "clics"
+    source_donnees: "aucune (connecteur à décider : statistiques des plateformes, Matomo)"
+    frequence: "sans objet tant qu'aucune source n'existe"
+    consommateur: "lecture des contenus (m8_lire_mesures_contenus), M7"

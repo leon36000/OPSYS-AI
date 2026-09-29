@@ -15,9 +15,11 @@ mission: >-
   acceptés et sans réponse, taux d'acceptation, délai, carnet signé) d'après les faits de M2 et de
   M3, et remet au propriétaire une vue exécutive : entonnoir, marge réelle que M5 a publiée, stock
   à commander que M6 publie, cash libre ou ce qui en manque — sans jamais recalculer un montant de M5.
+  Mesure enfin, par contenu exporté par M7 (clé utm_content), les leads de M1 puis les devis de M3 qu'il a amenés ;
+  impressions et clics : aucune source aujourd'hui, « non calculable », jamais un zéro.
 outils: m8_analytics.outils
 mode: ombre
-dependances: [m02-revenue-crm, m03-estimation, m04-field-ops, m05-financecore, m06-material-control, m07-marketing]
+dependances: [m01-front-office, m02-revenue-crm, m03-estimation, m04-field-ops, m05-financecore, m06-material-control, m07-marketing]
 modeles:
   defaut: standard
   digest: rapide
@@ -35,8 +37,8 @@ budget:
   tokens_mois: 4000000
   alerte_pct: 80
 memoire:
-  lecture: [dictionnaire_metriques, snapshots_modules, definitions_metriques, faits_chantier, faits_entonnoir]
-  ecriture: [snapshots_modules, definitions_metriques, faits_chantier, faits_entonnoir]
+  lecture: [dictionnaire_metriques, snapshots_modules, definitions_metriques, faits_chantier, faits_entonnoir, faits_contenus]
+  ecriture: [snapshots_modules, definitions_metriques, faits_chantier, faits_entonnoir, faits_contenus]
 evenements:
   # PLAN T1.5-d : le WCT (durée réelle, technicien), le devis accepté (prix, coût, durée estimée si
   # M3 la fournit), la variance de matériaux de M6 (verdict repris sans recalcul) et la marge réelle de
@@ -47,6 +49,9 @@ evenements:
   # (`m3.devis_accepte`, déjà consommé ci-dessus pour la mesure d'un chantier) et sans réponse
   # (`m3.devis_sans_reponse`). Identifiants et instants seulement, plus le prix total d'un devis accepté :
   # jamais un contact, le propriétaire d'un lead, ni un coût (Loi 25).
+  # PLAN T4.17-e : la mesure par contenu. M7 publie le contenu exporté (`m7.contenu_exporte` : clé utm_content, chantier, canal)
+  # et M1 le lead qualifié (`m1.lead_qualifie`, dont M8 ne garde que le lead_id, la clé utm_content et l'instant : ni le contact,
+  # ni la ville, ni le service). Les devis par contenu se lisent dans les faits de l'entonnoir ci-dessus.
   consomme:
     - m4.travaux_termines
     - m3.devis_accepte
@@ -56,6 +61,8 @@ evenements:
     - m2.lead_assigne
     - m3.devis_envoye
     - m3.devis_sans_reponse
+    - m7.contenu_exporte
+    - m1.lead_qualifie
   publie: [m8.alerte_proposee]
 configuration:
   # Seuils d'alerte des mesures d'un chantier terminé (PLAN T1.5-d ; DEFINITION-PRODUIT.md §13 point 11
@@ -109,3 +116,8 @@ kpis:
       Nombre de métriques de l'entonnoir rendues « non calculable » (aucun fait reçu de M2 ou de M3, rapport sans
       dénominateur, prix illisible) dans la dernière vue exécutive : mesure la complétude des sources, jamais
       remplie par une valeur inventée.
+  - id: nb_metriques_contenus_non_calculables
+    description: >-
+      Nombre de métriques par contenu rendues « non calculable » dans la dernière lecture (aucun contenu exporté reçu de M7,
+      aucun lead reçu de M1, source des impressions et des clics absente) : mesure la complétude des sources, jamais remplie
+      par une valeur inventée.

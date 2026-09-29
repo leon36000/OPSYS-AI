@@ -104,41 +104,46 @@ _METRIQUES_SURVEILLEES = frozenset({
 # ---------------------------------------------------------------------------
 # Registre des définitions gouvernées
 # ---------------------------------------------------------------------------
-def _lire_proprietaires(chemin: Path) -> dict[str, str]:
+def _lire_proprietaires(chemin: Path, registre: str) -> dict[str, str]:
     try:
         contenu = yaml.safe_load(chemin.read_text(encoding="utf-8"))
     except (OSError, yaml.YAMLError) as erreur:
-        raise ValueError(f"registre de l'entonnoir illisible : {chemin} ({erreur})") from erreur
+        raise ValueError(f"registre {registre} illisible : {chemin} ({erreur})") from erreur
     proprietaires = contenu.get("proprietaires") if isinstance(contenu, dict) else None
     if not isinstance(proprietaires, dict):
-        raise ValueError(f"registre de l'entonnoir : `proprietaires` absent ou illisible dans {chemin}")
+        raise ValueError(f"registre {registre} : `proprietaires` absent ou illisible dans {chemin}")
     return proprietaires
 
 
-def charger_definitions(chemin: str | Path | None = None) -> dict[str, dict[str, str]]:
+def charger_definitions(
+    chemin: str | Path | None = None, *, registre: str = "de l'entonnoir"
+) -> dict[str, dict[str, str]]:
     """Définitions de ``metrics/m8-entonnoir.v1.yaml`` : ``{metric_id: définition}``, dans l'ordre du fichier, chacune
     avec son ``proprietaire`` (département qui tient la donnée source). Fail-closed : un fichier invalide (structure,
     devise non CAD, doublon), une métrique sans propriétaire, un propriétaire qui n'est pas un département connu ou un
     propriétaire sans métrique est une erreur, jamais un registre partiel qui laisserait passer une métrique que
-    personne ne garantit."""
+    personne ne garantit.
+
+    ``chemin`` et ``registre`` (le nom qu'un message d'erreur donne au fichier) servent aux registres qui suivent le
+    même patron (``contenus.py``, T4.17-e) : mêmes contrôles, mêmes refus, sans second chargeur."""
     fichier = Path(chemin) if chemin is not None else _CHEMIN_METRIQUES
     compilees, erreurs = dictionnaire.compiler_fichier(fichier)
     if erreurs:
-        raise ValueError(f"registre de l'entonnoir invalide : {'; '.join(erreurs)}")
+        raise ValueError(f"registre {registre} invalide : {'; '.join(erreurs)}")
     definitions = compilees.get(MODULE_DEFINITIONS)
     if not definitions:
-        raise ValueError(f"registre de l'entonnoir vide : aucune métrique du module {MODULE_DEFINITIONS!r}")
-    proprietaires = _lire_proprietaires(fichier)
+        raise ValueError(f"registre {registre} vide : aucune métrique du module {MODULE_DEFINITIONS!r}")
+    proprietaires = _lire_proprietaires(fichier, registre)
     sans_proprietaire = [metric_id for metric_id in definitions if metric_id not in proprietaires]
     if sans_proprietaire:
-        raise ValueError(f"registre de l'entonnoir : métrique(s) sans propriétaire : {', '.join(sans_proprietaire)}")
+        raise ValueError(f"registre {registre} : métrique(s) sans propriétaire : {', '.join(sans_proprietaire)}")
     inconnus = sorted(
         f"{metric_id} : {proprietaire!r}" for metric_id, proprietaire in proprietaires.items()
         if metric_id not in definitions or not registre_metriques.departement_connu(proprietaire)
     )
     if inconnus:
         raise ValueError(
-            f"registre de l'entonnoir : propriétaire inconnu ou sans métrique : {'; '.join(inconnus)}"
+            f"registre {registre} : propriétaire inconnu ou sans métrique : {'; '.join(inconnus)}"
         )
     return {
         metric_id: {**definition, "proprietaire": proprietaires[metric_id]}
@@ -441,13 +446,41 @@ def _manques_entonnoir_vide(metric_id: str) -> list[dict[str, str]]:
     ]
 
 
+def est_vide(entrees: list[dict[str, Any]]) -> bool:
+    """Vrai si ``entrees`` ne porte aucun fait de l'entonnoir : M8 ne peut alors pas dire si l'entreprise n'a rien fait
+    ou si le bus n'a rien livré. La règle de ``mesurer``, offerte aux mesures qui lisent aussi l'entonnoir (T4.17-e)."""
+    return not any(_par_type(entrees).values())
+
+
+def construire_mesure(
+    metric_id: str, definition: dict[str, str], valeur: str | None, entrees: dict[str, Any],
+    manque: list[dict[str, str]],
+) -> dict[str, Any]:
+    """Une mesure gouvernée, de la forme que la vue exécutive et les lectures lisent : ``statut`` (calculée ou non
+    calculable), ``valeur`` en texte (``None`` si non calculable), ``manque`` et ``detail`` (ce qu'il faut fournir, et
+    de qui), ``entrees`` lues, ``proprietaire``, ``source`` et ``version_definition`` (empreinte de la définition
+    gouvernée, propriétaire compris). Une seule forme pour l'entonnoir et pour les contenus."""
+    calculee = valeur is not None
+    return {
+        "metric_id": metric_id,
+        "nom": definition["nom"],
+        "unite": definition["unite"],
+        "statut": STATUT_CALCULEE if calculee else STATUT_NON_CALCULABLE,
+        "valeur": valeur,
+        "manque": [] if calculee else manque,
+        "detail": None if calculee else _detail_manque(manque),
+        "entrees": entrees,
+        "proprietaire": definition["proprietaire"],
+        "source": definition["source_donnees"],
+        "version_definition": encodage.empreinte(definition),
+    }
+
+
 def mesurer(
     entrees: list[dict[str, Any]], faits_chantier: list[dict[str, Any]], definitions: dict[str, dict[str, str]]
 ) -> list[dict[str, Any]]:
-    """Les mesures de l'entonnoir, une par métrique du registre, dans l'ordre du registre. Chaque mesure : ``statut``
-    (calculée ou non calculable), ``valeur`` en texte (``None`` si non calculable), ``manque`` et ``detail`` (ce qu'il
-    faut fournir, et de qui), ``entrees`` lues, ``proprietaire``, ``source`` et ``version_definition`` (empreinte de la
-    définition gouvernée, propriétaire compris).
+    """Les mesures de l'entonnoir, une par métrique du registre, dans l'ordre du registre (forme de
+    ``construire_mesure``).
 
     ``faits_chantier`` est le registre des chantiers terminés (``mesures_chantier``) : seuls ses faits ``wct`` servent,
     pour sortir du carnet un devis dont le chantier est terminé. Sans aucun fait de l'entonnoir, toutes les mesures sont
@@ -467,20 +500,7 @@ def mesurer(
             manque = [{"champ": "calcul", "source": "M8", "raison": "aucun calcul enregistré pour cette métrique"}]
         else:
             valeur, entrees_lues, manque = calcul(par_type, wcts)
-        calculee = valeur is not None
-        mesures.append({
-            "metric_id": metric_id,
-            "nom": definition["nom"],
-            "unite": definition["unite"],
-            "statut": STATUT_CALCULEE if calculee else STATUT_NON_CALCULABLE,
-            "valeur": valeur,
-            "manque": [] if calculee else manque,
-            "detail": None if calculee else _detail_manque(manque),
-            "entrees": entrees_lues,
-            "proprietaire": definition["proprietaire"],
-            "source": definition["source_donnees"],
-            "version_definition": encodage.empreinte(definition),
-        })
+        mesures.append(construire_mesure(metric_id, definition, valeur, entrees_lues, manque))
     return mesures
 
 
@@ -577,6 +597,8 @@ __all__ = [
     "TYPE_LEAD_RECU",
     "charger_definitions",
     "cles_unicite",
+    "construire_mesure",
+    "est_vide",
     "etat_des_devis",
     "evaluer_seuils",
     "fait_devis_accepte",
