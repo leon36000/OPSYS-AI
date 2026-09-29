@@ -426,7 +426,12 @@ def generer(
     _ecrire_json(fichiers["models"], {"mode": "merge", "providers": fournisseurs})
     # Économie de tokens côté Core : après une période d'inactivité, les anciens résultats
     # d'outils sont élagués au lieu d'être remis en cache (docs/reference/prompt-caching.md).
+    # Dix agents de département, aucun agent par défaut : le fork exige alors
+    # `agents.ownership="explicit"` (`zod-schema.agents.ts`), sans quoi `openclaw config validate`
+    # refuse la configuration (E2E T1.5-b). Chaque demande nomme son agent ; un appel d'appareil
+    # passe par la porte d'appareil, sans agent (T1.4-c6).
     _ecrire_json(fichiers["agents"], {
+        "ownership": "explicit",
         "defaults": {"contextPruning": {"mode": "cache-ttl", "ttl": "1h"}},
         "entries": agents,
     })

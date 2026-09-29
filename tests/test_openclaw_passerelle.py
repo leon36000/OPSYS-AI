@@ -32,6 +32,9 @@ def test_fragments_openclaw(departements_demo, tmp_path):
 
     fragment_agents = json.loads(fichiers["agents"].read_text(encoding="utf-8"))
     assert fragment_agents["defaults"]["contextPruning"] == {"mode": "cache-ttl", "ttl": "1h"}
+    # Dix agents sans agent par défaut : le fork exige un roster explicite (E2E T1.5-b).
+    assert fragment_agents["ownership"] == "explicit"
+    assert not any(entree.get("default") for entree in fragment_agents["entries"].values())
     agents = fragment_agents["entries"]
     assert agents["m09-demo"] == {"name": "M9 · Démo", "workspace": "./opsys/espaces/m09-demo",
                                   "model": "opsys-m9/opsys-standard", "tools": {"deny": []}}
