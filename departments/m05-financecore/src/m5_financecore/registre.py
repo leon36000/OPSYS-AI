@@ -31,6 +31,11 @@ _TYPE_ENTREE_VALIDES = {
     # avant d'appeler `ajouter`, comme facturation.py. Aucun de ces deux types n'est un mouvement financier.
     "reception_recue",
     "facture_fournisseur_saisie",
+    # PLAN T4.15-c : la facture d'origine n'est JAMAIS modifiée. Une correction ou une annulation est une pièce de plus,
+    # chaînée au registre, qui porte le motif, la personne et l'avant/après ; l'état courant d'une facture est relu de
+    # ces pièces (`comptes_a_payer._etats_factures`). Aucun de ces types n'est un mouvement financier.
+    "correction_facture_fournisseur",
+    "annulation_facture_fournisseur",
 }
 
 _CHAMPS_MOUVEMENT = (

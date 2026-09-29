@@ -20,8 +20,10 @@ n'est PAS un cash disponible.
 CE QUI VIENT D'OÙ, aujourd'hui (le reste est « à déclarer », jamais deviné) :
 - solde et réserves : le registre des mouvements (le solde ; les mouvements `PROVISION`) ;
 - TPS/TVQ à remettre : la taxe des factures clients envoyées (`ENVOYEE`, `PAYEE`), moins les crédits de taxes sur
-  intrants des factures fournisseur SAISIES (T4.15), depuis la dernière remise déclarée ;
-- comptes à payer : le total de T4.15 (`comptes_a_payer.resume_a_payer`) ;
+  intrants des factures fournisseur SAISIES (T4.15, avec ou sans PO), à leur état courant (une annulée ne donne aucun
+  crédit, une corrigée donne celui de sa correction), depuis la dernière remise déclarée ;
+- comptes à payer : le total de T4.15 (`comptes_a_payer.resume_a_payer`), factures sans PO comprises (T4.15-c), à
+  l'état COURANT des factures (corrigées, sans les annulées) ;
 - paies, DAS, dettes : aucun module ne les porte (M5.4, paie, est absent) : déclarés par le propriétaire, ou « à
   déclarer ».
 
@@ -341,6 +343,10 @@ def composante_comptes_a_payer(
                 "REJ-CASH-COMPTES-A-PAYER-INCOMPLETS", "les comptes à payer n'ont pas pu être lus")],
         )
     detail = {"nombre_po": resume["nombre_po"]}
+    sans_po = resume.get("sans_po")
+    if sans_po is not None and sans_po["nombre"]:
+        # Les factures sans PO (carburant, outils) sont des dettes fermes : elles sont DANS le montant, et dites.
+        detail["factures_sans_po"] = {"nombre": sans_po["nombre"], "apres_taxes": _texte(sans_po["apres_taxes"])}
     if resume["complet"]:
         return _composante(
             "comptes_a_payer", montant=resume["a_payer_apres_taxes"], source=source, registres=registres,

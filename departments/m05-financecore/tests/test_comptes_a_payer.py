@@ -628,7 +628,8 @@ def test_le_doublon_est_refuse_meme_pour_un_autre_po_du_meme_fournisseur(taux):
 
 
 def test_meme_numero_avec_un_autre_montant_passe_avec_un_avertissement(taux):
-    """Ni correction ni annulation n'existent ici : refuser bloquerait la bonne facture. L'écart est montré."""
+    """Refuser bloquerait la bonne facture : l'écart est montré, et la correction ou l'annulation de l'une des deux
+    (T4.15-c, `test_correction_facture.py`) lève l'avertissement."""
     reg = registre.Registre()
     _recevoir(reg)
     _facturer_ok(reg, taux, numero="F-1001", montant="300.00")

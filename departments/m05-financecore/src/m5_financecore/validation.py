@@ -98,6 +98,18 @@ CODES_M5_LIST = [
     "REJ-AP-FACTURE-FOURNISSEUR-DIFFERENT-DU-PO",
     "REJ-AP-FACTURE-DOUBLON",
     "REJ-AP-FACTURE-NUMERO-REPETE",
+    # PLAN T4.15-c : correction et annulation d'une facture fournisseur saisie (N4, motif obligatoire, humain exigé),
+    # et facture SANS PO (catégorie de dépense en liste fermée, lue de la configuration).
+    "REJ-AP-MOTIF-REQUIS",
+    "REJ-AP-APPROBATEUR-REQUIS",
+    "REJ-AP-FACTURE-INCONNUE",
+    "REJ-AP-FACTURE-ANNULEE",
+    "REJ-AP-FACTURE-DEJA-ANNULEE",
+    "REJ-AP-CORRECTION-SANS-CHANGEMENT",
+    "REJ-AP-CATEGORIES-A-CONFIGURER",
+    "REJ-AP-CATEGORIES-INVALIDES",
+    "REJ-AP-CATEGORIE-INCONNUE",
+    "REJ-AP-LISTE-FILTRE-INVALIDE",
     # Lecture paginée des comptes à payer.
     "REJ-AP-LISTE-DEPART-INVALIDE",
     "REJ-AP-LISTE-LIGNE-TROP-GROSSE",
