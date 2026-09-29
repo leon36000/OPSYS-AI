@@ -43,8 +43,8 @@ matériaux (M6) et la rentabilité du chantier (M5), et mesure le chantier à ch
 
 # Lire la vue exécutive
 
-`m8_lire_vue_executive` (admin seulement, sans paramètre) remet au propriétaire l'entonnoir, la marge réelle des
-chantiers, le stock à commander et le cash libre. M8 reçoit tout seul, par le bus, les faits de M2 (lead reçu et
+`m8_lire_vue_executive` (admin seulement, un paramètre facultatif : `aujourd_hui`, AAAA-MM-JJ, la date du jour de
+l'appelant) remet au propriétaire l'entonnoir, la marge réelle des chantiers, le stock à commander et le cash libre. M8 reçoit tout seul, par le bus, les faits de M2 (lead reçu et
 qualifié) et de M3 (devis envoyé, accepté, sans réponse). Présente la réponse telle quelle :
 
 - chaque métrique de l'entonnoir porte sa `version_definition` et son `proprietaire` ; une métrique `non_calculable`
@@ -56,8 +56,15 @@ qualifié) et de M3 (devis envoyé, accepté, sans réponse). Présente la répo
   ni aucun écart : si une marge est `non_calculable`, cite la `raison` (les codes de M5) ;
 - `stock_a_commander` est ce que M6 met à la file du propriétaire, avec son résumé et son action proposée ;
   `seuils_a_configurer` vrai veut dire que M6 attend des seuils de réapprovisionnement ;
-- `cash_libre` est un manque : M5 ne le publie pas. Dis-le et renvoie à `m5_etat_tresorerie` (admin) ; n'en invente
-  aucun chiffre ;
+- `cash_libre` est le DERNIER constat que M5 a publié (`constat`), tel quel : montants en texte, `statut`, `manque`
+  (« composante : code »), `reserves`, `lecture` et `mention` de M5, montant de chaque composante (`null` : M5 n'a pas pu
+  la chiffrer). N'additionne, ne compare et n'arrondis rien. Donne `aujourd_hui` pour avoir l'`age` du constat ; sans
+  lui l'âge est « non calculable » (dis-le, ne devine pas la date). Un `statut` non calculé (M5 dit « non calculable ») se
+  présente comme tel avec ce qui manque, et `au_plus_cad` n'est pas de l'argent disponible. Sans constat (`statut` =
+  `manque`), dis-le, renvoie à `m5_etat_tresorerie` (admin) et propose de faire constater le cash libre
+  (`m5_constater_cash_libre`, décision du propriétaire) ; n'en invente aucun chiffre. `non_repris` dit ce que la vue ne
+  reprend pas (source, fraîcheur, hypothèses) ; `composantes_omises` dit que la décomposition n'a pas tenu dans la
+  réponse : `m5_etat_tresorerie` la rend ;
 - `seuils.a_configurer` nomme les métriques de l'entonnoir sans seuil valide : aucun franchissement n'existe pour
   elles. N'en fixe jamais un toi-même ; le propriétaire le définit dans `department.yaml` (`seuils_entonnoir`) ;
 - une liste plus courte que son total dit `reste` : ce qui ne tient pas dans la réponse est compté, jamais perdu.

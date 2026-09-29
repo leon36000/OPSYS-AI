@@ -261,3 +261,28 @@ tant qu'elle est vide, aucune facture sans PO ne se saisit ; (3) un même fourni
 « Petro-Canada ») reste deux fournisseurs : seule la casse et les espaces se comparent ; (4) la date d'une correction se lit avec
 l'`horodatage` de la demande par la file (l'heure de réception du serveur ne fait foi que pour un appel d'appareil direct) ; (5) la
 correction ne change ni le PO, ni le fournisseur, ni la catégorie ; (6) aucun paiement fournisseur n'existe (N5).
+
+PLAN T4.19-b (constat du cash libre, `constat_cash_libre.py`, `m5_constater_cash_libre`) : M5 PUBLIE le cash libre au bus
+(`m5.cash_libre_constate`, catalogue du socle, schéma fermé) pour que M8 l'affiche dans sa vue exécutive au lieu de « manque ».
+Le déclencheur est un outil T1 DÉDIÉ (N3, `admin` : le propriétaire le lance depuis son téléphone, un agent en mode `ombre`
+attend sa décision) ; `m5_etat_tresorerie` (T0) ne publie rien. `aujourd_hui` est requis : c'est la date de référence du
+constat (M5 n'a pas d'horloge). Le constat est calculé depuis le MÊME instantané que `m5_etat_tresorerie` (aucun second
+calcul), tracé au registre dérivé `constats_cash_libre`, puis publié dans la même transaction : la trace et l'événement
+réussissent ou échouent ensemble. Un constat par date de référence et par version des données : redire le même jour et la
+même version que le dernier ne publie rien (`deja_constate`). L'identifiant porte le rang du constat : un retour à une
+version antérieure des données (une déclaration remise à sa valeur d'avant) est un nouvel événement, jamais un doublon avalé
+par le bus. Un cash libre « non calculable, manque X » se publie tel quel, avec ses codes de manque, jamais un zéro.
+
+Rien de libre ni de personnel ne part : la source d'une déclaration du propriétaire est dite par son origine
+(`DECLARATION_PROPRIETAIRE`), jamais par ses mots (elle pourrait nommer un employé) ; ni le détail d'un verdict, ni un client,
+ni un fournisseur. Le schéma du catalogue est fermé : un champ de plus est refusé à la publication. Refus nommés, tous AVANT la
+lecture des registres : `REJ-CONSTAT-DATE-INVALIDE`, `REJ-CONSTAT-COUTS-REQUIS` (le droit de voir les coûts), et
+`REJ-CONSTAT-STOCKAGE-NON-DURABLE` (sans registres durables, il n'y a ni registre réel ni bus). Aucun paiement, aucune remise,
+aucune écriture aux mouvements : `conformite.verifier_aucun_decaissement` couvre le module et les deux fonctions d'`outils.py`.
+
+Limites : (1) personne ne déclenche le constat seul : le digest de 7 h ne l'appelle pas (GATE NATHAN : qui le déclenche, à
+quelle fréquence, un bouton du profil admin ?) ; (2) la date de référence est celle de l'appelant, et un agent en mode
+`supervise` ou `autonome` exécute ce T1 sans file : le constat ne porte que des montants que M5 a calculés, mais la date qu'il
+porte est celle qu'on lui a donnée ; (3) le constat vieillit : M8 dit son âge, aucun seuil de péremption n'est inventé (GATE
+NATHAN) ; (4) les hypothèses du calcul (crédits de taxes récupérables à 100 %) voyagent avec le constat et restent à valider par
+le CPA ; (5) deux appels simultanés pour le même rang : le second échoue (écriture concurrente) et se rejoue sans dégât.

@@ -38,9 +38,27 @@ filtrés par rôle, conformité statique et digest quotidien.
   devis envoyés, acceptés et sans réponse, taux d'acceptation, délai lead-acceptation (médiane), carnet signé. Donnée
   absente : « non calculable, manque X », jamais un zéro. `m8_lire_vue_executive` (T0, admin, refus dans le code
   de tout autre rôle d'appareil) y ajoute la marge réelle telle que M5 l'a publiée (texte repris, aucun calcul), le
-  stock à commander tel que M6 le met à la file du propriétaire et le cash libre (M5 ne le publie pas : « manque »,
-  renvoi à `m5_etat_tresorerie`). GATE NATHAN : les seuils de l'entonnoir (`configuration.seuils_entonnoir`, vide)
-  et la période à mesurer (aujourd'hui, tous les faits reçus).
+  stock à commander tel que M6 le met à la file du propriétaire et le cash libre (dernier constat de M5, voir
+  plus bas ; « manque » tant que M5 n'a rien constaté). GATE NATHAN : les seuils de l'entonnoir
+  (`configuration.seuils_entonnoir`, vide) et la période à mesurer (aujourd'hui, tous les faits reçus).
+
+- `src/m8_analytics/cash_libre.py` (PLAN T4.19-b) — le cash libre que M5 a constaté, repris tel quel. M5 publie
+  `m5.cash_libre_constate` quand l'admin le lui fait constater (`m5_constater_cash_libre`) ; M8 le consomme, range chaque
+  constat au registre `faits_cash_libre` (idempotent : un fait par identifiant d'événement, la charge telle que M5 l'a
+  publiée ; le résumé du reçu ne porte aucun montant) et `m8_lire_vue_executive` montre le DERNIER, celui de plus grand
+  `sequence` quel que soit l'ordre de livraison du bus. La vue en reprend l'essentiel, valeur pour valeur : statut,
+  montants en texte, ce qui manque (« composante : code »), réserves, la phrase et la mention de M5, le montant de chaque
+  composante (`null` quand M5 n'a pas pu la chiffrer), le rang et le jour du constat. Elle DIT ce qu'elle ne reprend pas
+  (`non_repris` : source et fraîcheur de chaque composante, hypothèses ; `m5_etat_tresorerie` les rend). M5 dit « non
+  calculable, manque X » : la vue le montre tel quel et l'ajoute à ses manques, jamais un zéro. Aucun constat reçu :
+  « manque », comme avant. M8 ne calcule aucun montant : garde statique (ni `Decimal`, ni `float`, ni `round`, ni `sum`,
+  une seule soustraction dans tout le module, celle de deux dates). L'âge du constat vient de `aujourd_hui` (AAAA-MM-JJ,
+  facultatif, donné par l'appelant : M8 n'a pas d'horloge) ; sans lui, l'âge est « non calculable » ; illisible, la vue est
+  refusée avant toute lecture (`REJ-VUE-AUJOURD-HUI-INVALIDE`). La réponse reste sous la borne du socle : les listes
+  raccourcissent d'abord (comptées dans `reste`), la décomposition du cash libre ne part qu'en dernier recours, comptée
+  (`composantes_omises`) et dite ; les montants ne partent jamais. Limites : un seul constat est montré (le dernier) ; aucun
+  seuil de péremption n'est inventé (l'âge est dit, le propriétaire juge : GATE NATHAN) ; le constat n'existe que si
+  quelqu'un l'a demandé à M5 (le digest de 7 h ne le fait pas).
 
 - `metrics/m8-contenus.v1.yaml`, `src/m8_analytics/contenus.py` et `vue_contenus.py` (PLAN T4.17-e) — la mesure par
   contenu : quels contenus de M7 amènent des leads, puis des devis. M8 consomme `m7.contenu_exporte` (un fait par

@@ -1,6 +1,6 @@
 ---
 name: tenir-le-registre-financier
-description: Procédure pour consulter l'état financier (solde, cash libre réel et sa décomposition), lire les échéances TPS/TVQ, prévoir la trésorerie semaine par semaine à partir des seuls flux connus et datés, calculer les taxes, et enregistrer un mouvement financier — sans jamais inventer un montant, un taux, un solde ou une date.
+description: Procédure pour consulter l'état financier (solde, cash libre réel et sa décomposition), faire constater le cash libre à M8, lire les échéances TPS/TVQ, prévoir la trésorerie semaine par semaine à partir des seuls flux connus et datés, calculer les taxes, et enregistrer un mouvement financier — sans jamais inventer un montant, un taux, un solde ou une date.
 ---
 
 # Tenir le registre financier
@@ -30,6 +30,19 @@ description: Procédure pour consulter l'état financier (solde, cash libre rée
    les paies, les DAS et les dettes (déclarés par le propriétaire avec leur source et leur date, aucun module de paie
    n'existe encore). Demande-les ; ne les estime pas.
 7. Toute analyse porte la `mention` obligatoire : ne la retire pas.
+
+## Faire constater le cash libre (pour la vue exécutive de M8)
+
+1. Seulement quand le propriétaire le demande : `m5_constater_cash_libre` (T1, `admin`) publie le cash libre à M8, qui le
+   montre dans sa vue exécutive. Pour LIRE le cash libre, `m5_etat_tresorerie` suffit ; il ne publie rien.
+2. Appelle-le avec `aujourd_hui` (AAAA-MM-JJ, d'une source sûre : M5 n'a pas d'horloge ; c'est la date de référence du
+   constat). Depuis le téléphone de l'admin, il s'exécute ; pour un agent en mode `ombre`, il attend la décision du
+   propriétaire. Un refus le dit : `REJ-CONSTAT-DATE-INVALIDE` (date illisible), `REJ-CONSTAT-COUTS-REQUIS` (le droit de voir
+   les coûts), `REJ-CONSTAT-STOCKAGE-NON-DURABLE` (pas de registres durables).
+3. Lis la réponse : `publie` vrai (un événement est parti) ou `deja_constate` vrai (même jour, mêmes données que le dernier
+   constat : rien n'est parti, dis-le, ne relance pas). Un constat « non calculable » est publié tel quel avec son `manque` :
+   présente ce qu'il faut déclarer, aucun chiffre à la place, `au_plus` n'est jamais de l'argent disponible.
+4. Rien de personnel ne part sur le bus : la source d'une déclaration est dite par son origine, jamais par ses mots.
 
 ## Lire les échéances fiscales (TPS/TVQ)
 

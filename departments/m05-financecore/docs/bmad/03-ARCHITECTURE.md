@@ -56,6 +56,7 @@ seulement les contrats génériques (`MouvementFinancier`) que l'appelant lui fo
 | `etat_financier.py` | Assemble `EtatFinancier` (solde, argent disponible, taux utilisés, `etat_id`) ; **foyer UNIQUE du filtrage par rôle** (DA-M5-03) — binaire, jamais une liste fine comme M8. | S006 |
 | `cout_reel.py` | Coût réel et rentabilité d'un chantier (PLAN T1.5-d, DA-M5-10) : module pur, Decimal, `ROUND_HALF_UP`, manques nommés ; `facturation.comptes_a_recevoir` (vue des factures ENVOYEE) l'accompagne. | — |
 | `cash_libre.py` | Cash libre réel (PLAN T4.16, M5.5, M5.14) : module pur, Decimal, `ROUND_HALF_UP` une fois au résultat ; solde moins TPS/TVQ à remettre, paies, DAS, comptes à payer, dettes, réserves ; chaque composante porte sa source et sa fraîcheur, une composante inconnue est « non calculable, manque X », jamais zéro. Clé sœur de l'état financier gelé (`etat_id` inchangé). | — |
+| `constat_cash_libre.py` | Constat du cash libre publié au bus (PLAN T4.19-b) : module pur, aucune horloge, aucun accès à un registre. Il rend ce que `cash_libre.vue_cash_libre` a rendu, sous la forme du catalogue du socle (`m5.cash_libre_constate`, schéma fermé) : mêmes montants en texte, aucun calcul. Chaque composante dit l'origine de son chiffre (registre lu, ou déclaration du propriétaire, dite par son origine et jamais par ses mots) ; jamais de texte libre ni de renseignement personnel. Identifiant déterministe : rang du constat, jour de référence, début de la version des données. | — |
 | `calendrier_fiscal.py` | Calendrier fiscal versionné (PLAN T4.16, M5.5) : charge `contracts/calendrier_fiscal.v1.yaml` (sources officielles citées, dates transcrites de Revenu Québec, à valider par le CPA) ; année non déclarée refusée ; fréquence de production et dernière remise = décisions du propriétaire, jamais supposées. | — |
 | `prevision.py` | Prévision de trésorerie (PLAN T4.16-d, M5.7) : module pur, aucune entrée-sortie, aucune horloge, Decimal, `ROUND_HALF_UP` une fois ; part du solde du registre (le cash libre a déjà retranché les obligations : en partir les compterait deux fois) et place, semaine par semaine sur 1 à 26 semaines, les seuls flux connus et datés (factures clients envoyées, dettes fournisseurs de `comptes_a_payer.dettes_datables`, taxes à leur limite de paiement, paies, DAS et dettes déclarées), chacun avec sa source ; un flux inconnu rend les semaines concernées « non calculables à partir de la semaine X, manque Y », jamais zéro ni moyenne ; aucune projection statistique ; alerte déterministe sous un seuil fourni par le propriétaire (« seuil à configurer » sinon) ; sortie bornée à la limite du socle (pagination). Outil `m5_prevoir_tresorerie` (T0, `admin`). | — |
 | `analyse.py` | Mention obligatoire des analyses (PLAN T4.16, §13.3) et classement de chaque outil (analyse ou hors analyse). | — |
@@ -176,6 +177,13 @@ financier.
 signal qui route vers Nathan (mécanisme de notification hors périmètre M5 — comme le digest de M8
 est distribué par M1, le routage d'une demande d'approbation est un service d'intégration
 distinct).
+
+**Constat du cash libre vers M8 (PLAN T4.19-b).** `m5_constater_cash_libre` (T1, N3, portée admin) trace le constat au
+registre dérivé `constats_cash_libre` et publie `m5.cash_libre_constate` dans la même transaction ; M8 le consomme et le montre
+dans sa vue exécutive, sans le recalculer. Un constat par date de référence et par version des données ; le rang du constat est
+dans l'identifiant, pour qu'un retour à une version antérieure des données ne soit pas avalé comme un doublon. Un cash libre
+« non calculable, manque X » se publie tel quel, jamais un zéro. Le registre dérivé ne fait pas autorité : c'est la trace de ce
+qui a été publié.
 
 ### 3.3 Ce que M5 émet vers M9 (futur, hors périmètre v1)
 
