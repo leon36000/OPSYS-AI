@@ -32,9 +32,12 @@ TYPE_ENTREE_LIAISON = "session_affaire_liee"
 REJ_LIAISON_CLE_SESSION_INVALIDE = "REJ-LIAISON-CLE-SESSION-INVALIDE"
 REJ_LIAISON_AFFAIRE_INVALIDE = "REJ-LIAISON-AFFAIRE-INVALIDE"
 
-# Clé de session d'un agent, telle que le core la compose (`buildAgentPeerSessionKey`) : `agent:<agent>:` puis
-# le reste (canal, pair, fil), en minuscules. Aucun espace ni caractère de contrôle.
-_CLE_SESSION = re.compile(r"^agent:[a-z0-9][a-z0-9_-]{0,63}:[a-z0-9][a-z0-9._:+@=-]{0,199}$")
+# Clé de session d'un agent, telle que le core la compose (`buildAgentPeerSessionKey`) : `agent:<agent>:` (agent
+# en minuscules) puis le reste (canal, pair, fil), tel quel : le core garde tels quels les identifiants opaques
+# des correspondants (`normalizeSessionKeyPreservingOpaquePeerIds`), majuscules comprises. La clé est comparée
+# à l'identique, jamais normalisée ici : le moteur de contexte envoie celle qu'il a reçue. Aucun espace ni
+# caractère de contrôle.
+_CLE_SESSION = re.compile(r"^agent:[a-z0-9][a-z0-9_-]{0,63}:[^\s\x00-\x1f\x7f]{1,200}$")
 SESSION_PRINCIPALE = "main"
 # Même forme d'identifiant d'affaire que `faits_candidats.py` et le moteur de contexte du core.
 _AFFAIRE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$")
@@ -66,7 +69,7 @@ def lier_session_affaire(
     if not cle_session_valide(cle_session):
         return None, validation.construire_verdict(
             REJ_LIAISON_CLE_SESSION_INVALIDE,
-            "clé de session attendue : agent:<agent>:<canal>:direct:<pair>, en minuscules, telle que le core "
+            "clé de session attendue : agent:<agent>:<canal>:direct:<pair>, telle que le core "
             "la compose ; la session principale d'un agent (agent:<agent>:main) est partagée : jamais liée",
         )
     if not affaire_valide(affaire_id):
@@ -98,7 +101,7 @@ def affaire_de_la_session(cle_session: Any, registre_affaires: Any) -> dict[str,
     """Le lien courant de cette session, ou ``{"lie": False, "affaire_id": None}`` : jamais une affaire
     par défaut. Un maillon dont l'auteur n'a pas la forme d'un humain identifié est ignoré."""
     if not cle_session_valide(cle_session):
-        raise ValueError("cle_session invalide : agent:<agent>:<canal>:direct:<pair>, en minuscules")
+        raise ValueError("cle_session invalide : agent:<agent>:<canal>:direct:<pair>, telle que le core la compose")
     courant = None
     for maillon in registre_affaires.lire():
         if (

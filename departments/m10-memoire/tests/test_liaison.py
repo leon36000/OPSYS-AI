@@ -40,6 +40,29 @@ def test_lier_ecrit_qui_quand_et_pourquoi_et_la_lecture_le_rend(affaires):
         "lie": True, "affaire_id": "LEAD-1", "lie_par": "amina.admin", "lie_le": HORODATAGE}
 
 
+@pytest.mark.parametrize(
+    "cle",
+    [
+        "agent:m01-front-office:matrix:direct:@Client:Example.org",  # identifiant opaque, majuscules comprises
+        "agent:m01-front-office:irc:channel:#Devis",
+        "agent:m01-front-office:main:thread:1234",  # « main » n'est refusé que seul
+        "agent:m01-front-office:whatsapp:default:direct:+15145550101",
+    ],
+)
+def test_la_cle_d_un_correspondant_est_acceptee_telle_que_le_core_la_compose(affaires, cle):
+    maillon, verdict = _lier(affaires, cle=cle)
+
+    assert verdict is None and maillon["cle_session"] == cle
+    assert liaison.affaire_de_la_session(cle, affaires)["affaire_id"] == "LEAD-1"
+
+
+def test_la_cle_est_comparee_a_l_identique_pas_normalisee(affaires):
+    cle = "agent:m01-front-office:matrix:direct:@Client:Example.org"
+    _lier(affaires, cle=cle)
+
+    assert liaison.affaire_de_la_session(cle.lower(), affaires)["lie"] is False
+
+
 def test_le_lien_d_une_session_ne_vaut_pas_pour_une_autre(affaires):
     _lier(affaires)
 
@@ -67,7 +90,8 @@ def test_un_nouveau_lien_remplace_le_precedent_sans_effacer_l_historique(affaire
         "agent:m01-front-office:whatsapp:direct:+1514 555",
         "agent:m01-front-office:whatsapp:direct:+1514\n555",
         "agent:M01:whatsapp:direct:x",
-        "agent:m01-front-office:WhatsApp:direct:x",
+        "agent:m01-front-office:",
+        "agent:m01-front-office:whatsapp:direct:\x00x",
         None,
         12,
     ],

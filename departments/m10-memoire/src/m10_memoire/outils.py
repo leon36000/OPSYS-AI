@@ -780,7 +780,7 @@ def outils() -> tuple[Outil, ...]:
             parametres={
                 "type": "object",
                 "properties": {
-                    "cle_session": {"type": "string", "description": "Clé de session, en minuscules."},
+                    "cle_session": {"type": "string", "description": "Clé de session, telle que le core la compose."},
                     "affaire_id": {"type": "string", "description": "lead_id de l'affaire."},
                     "motif": _MOTIF_HUMAIN,
                     "horodatage": {"type": "string"},
@@ -800,7 +800,9 @@ def outils() -> tuple[Outil, ...]:
             ),
             parametres={
                 "type": "object",
-                "properties": {"cle_session": {"type": "string", "description": "Clé de session, en minuscules."}},
+                "properties": {
+                    "cle_session": {"type": "string", "description": "Clé de session, telle que le core la compose."}
+                },
                 "required": ["cle_session"],
                 "additionalProperties": False,
             },

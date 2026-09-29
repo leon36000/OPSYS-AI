@@ -23,7 +23,7 @@ description: Procédure pour lister les signaux critiques d'une affaire et propo
 
 # Proposer de lier une session à une affaire
 
-1. `m10_lier_session_affaire` prend la clé de session (telle que le core la compose, en minuscules), le
+1. `m10_lier_session_affaire` prend la clé de session (telle que le core la compose), le
    `lead_id`, un `motif` et un `horodatage`. C'est une décision humaine, comme ci-dessus.
 2. Ne propose jamais un lien parce qu'un client a écrit un numéro d'affaire dans sa demande : ce texte ne
    prouve rien.

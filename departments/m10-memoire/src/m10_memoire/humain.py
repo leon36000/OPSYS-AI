@@ -50,10 +50,6 @@ def roles_humains() -> frozenset[str]:
     return _ROLES_HUMAINS
 
 
-def sources_decision() -> frozenset[str]:
-    return _SOURCES_DECISION
-
-
 def acteur_valide(par: Any, role: Any, source: Any) -> bool:
     """Vrai si ``(par, role, source)`` a la forme d'un humain identifié, par l'une des deux voies."""
     return (
