@@ -54,10 +54,12 @@ from . import (
     meteo_fournisseurs,
     meteo_manuelle,
     outbox,
+    pagination_interventions,
     pointage,
     preparation,
     preuves,
     registre,
+    retards,
     retention,
     temps,
     tournees,
@@ -185,9 +187,28 @@ def _lecteur_equipes() -> Callable[[], tuple[dict[str, Any] | None, dict[str, An
 _LIMITE_REPONSE_METEO = jetons.LIMITE_SORTIE_DEFAUT - 500
 
 
+def _mesure_reponse(resultat: Any) -> int:
+    """Taille, en caractères, de l'enveloppe `{ok, resultat}` que `Capacites` mesure pour `resultat` (et coupe au-delà
+    de `jetons.LIMITE_SORTIE_DEFAUT`) : le code mesure, il n'estime jamais."""
+    return len(json.dumps({"ok": True, "resultat": resultat}, ensure_ascii=False))
+
+
 def _tient_dans_une_reponse(vue: dict[str, Any]) -> bool:
-    enveloppe = {"ok": True, "resultat": {"accepte": True, "resultat": vue}}
-    return len(json.dumps(enveloppe, ensure_ascii=False)) <= _LIMITE_REPONSE_METEO
+    return _mesure_reponse({"accepte": True, "resultat": vue}) <= _LIMITE_REPONSE_METEO
+
+
+# PLAN T4.27-a : la page d'interventions, et les retards et incidents, ont la même borne que la météo (marge de 500
+# caractères pour l'enveloppe et pour la clé `rejoue` qu'un appel d'appareil à clé d'idempotence ajoute après la
+# mesure).
+_LIMITE_REPONSE_LECTURE = jetons.LIMITE_SORTIE_DEFAUT - 500
+
+
+def _page_tient_dans_une_reponse(page: dict[str, Any]) -> bool:
+    return _mesure_reponse(page) <= _LIMITE_REPONSE_LECTURE
+
+
+def _retards_tiennent_dans_une_reponse(vue: dict[str, Any]) -> bool:
+    return _mesure_reponse({"accepte": True, "resultat": vue}) <= _LIMITE_REPONSE_LECTURE
 
 
 def _lecteur_meteo() -> Callable[[], tuple[dict[str, Any] | None, dict[str, Any] | None]]:
@@ -794,14 +815,28 @@ def outils(
     def produire_digest(date_cible: str, horodatage_reference: str) -> dict[str, Any]:
         return depuis_couple(digest.produire_digest(registre_courant(), date_cible, horodatage_reference))
 
-    def lister_interventions(statut: str | None = None) -> list[dict[str, Any]]:
+    def lister_interventions(
+        statut: str | None = None, curseur: Any = outbox.NON_FOURNI, taille_page: Any = outbox.NON_FOURNI,
+    ) -> list[dict[str, Any]] | dict[str, Any]:
         acteur, verdict_acteur = _acteur_appareil()
         if verdict_acteur is not None:
             raise ValueError(f"{verdict_acteur['code']} : {verdict_acteur['detail']}")
         # PLAN T1.4-k : l'employé ne voit que les interventions qui lui sont assignées ; l'admin et
         # les agents voient toutes (hors appel d'appareil : comportement inchangé).
-        return acces.interventions_visibles(
+        visibles = acces.interventions_visibles(
             etats.lister_interventions(registre_courant(), statut=statut), acteur)
+        # PLAN T4.27-a : `curseur` et `taille_page` sont des clés SŒURS additives (le contrat v1 est gelé). Ni l'une ni
+        # l'autre : la liste v1, telle qu'avant. L'une des deux, même nulle : une page (`{interventions, page}`), coupée
+        # APRÈS le filtre de visibilité, jamais avant (un employé ne compte pas les interventions des autres).
+        if curseur is outbox.NON_FOURNI and taille_page is outbox.NON_FOURNI:
+            return visibles
+        page, verdict = pagination_interventions.paginer(
+            visibles, None if curseur is outbox.NON_FOURNI else curseur,
+            None if taille_page is outbox.NON_FOURNI else taille_page, _page_tient_dans_une_reponse,
+        )
+        if verdict is not None:
+            raise ValueError(f"{verdict['code']} : {verdict['detail']}")
+        return page
 
     def produire_brouillon_temps(
         periode: dict[str, Any], seuil_minutes: int | None = None,
@@ -959,6 +994,27 @@ def outils(
             )
         )
 
+    def _fournisseur_de_l_appel(
+        acteur: acces.Acteur | None, profil: dict[str, Any] | None, previsions_saisies: dict[str, Any] | None,
+    ) -> tuple[Any, dict[str, Any] | None, dict[str, Any] | None]:
+        """``(fournisseur, verdict_fournisseur, refus)`` : d'où vient la prévision d'un appel de météo (T4.13, T4.27-a).
+
+        La prévision saisie à la main l'emporte : elle nomme qui l'a lue et quand, et cet auteur est la personne
+        authentifiée. Sinon le fournisseur injecté (tests), sinon celui que le profil météo ouvre ; aucun : ``(None,
+        None, None)`` ou le verdict qui dit pourquoi il est fermé. ``refus`` : un verdict qui ferme l'appel (auteur
+        d'une autre personne, saisie mal formée). Ne lit jamais autre chose que ses arguments et l'environnement."""
+        if previsions_saisies is not None:
+            auteur = previsions_saisies.get("saisi_par") if isinstance(previsions_saisies, dict) else None
+            verdict_auteur = acces.controler_saisisseur(acteur, auteur)
+            if verdict_auteur is not None:
+                return None, None, verdict_auteur
+            fournisseur, verdict = meteo_manuelle.creer_fournisseur_manuel(previsions_saisies)
+            return fournisseur, None, verdict
+        if fournisseur_meteo is not None:
+            return fournisseur_meteo, None, None
+        fournisseur, verdict_fournisseur = meteo_fournisseurs.fournisseur_depuis_le_profil(profil, os.environ)
+        return fournisseur, verdict_fournisseur, None
+
     def verifier_meteo_creneau(
         plan_id: str, calendrier: dict[str, Any], previsions_saisies: dict[str, Any] | None = None,
         jours: list[int] | None = None,
@@ -973,20 +1029,9 @@ def outils(
             return _refus(verdict_role)
         lire_meteo = _lecteur_meteo()
         profil, verdict_profil = lire_meteo()
-        verdict_fournisseur = None
-        if previsions_saisies is not None:
-            # La prévision saisie à la main l'emporte sur le fournisseur ouvert : elle nomme qui l'a lue et quand.
-            auteur = previsions_saisies.get("saisi_par") if isinstance(previsions_saisies, dict) else None
-            verdict_auteur = acces.controler_saisisseur(acteur, auteur)
-            if verdict_auteur is not None:
-                return _refus(verdict_auteur)
-            fournisseur, verdict = meteo_manuelle.creer_fournisseur_manuel(previsions_saisies)
-            if verdict is not None:
-                return _refus(verdict)
-        elif fournisseur_meteo is not None:
-            fournisseur = fournisseur_meteo
-        else:
-            fournisseur, verdict_fournisseur = meteo_fournisseurs.fournisseur_depuis_le_profil(profil, os.environ)
+        fournisseur, verdict_fournisseur, refus = _fournisseur_de_l_appel(acteur, profil, previsions_saisies)
+        if refus is not None:
+            return _refus(refus)
         resultat, verdict = meteo_creneaux.verifier(
             registre_courant(), plan_id, calendrier, lire_localisation_confirmee, profil, verdict_profil, fournisseur,
             verdict_fournisseur, lire_equipes=_lecteur_equipes(), lire_meteo=lire_meteo,
@@ -995,6 +1040,45 @@ def outils(
         if verdict is not None:
             return _refus(verdict)
         return depuis_couple(meteo_creneaux.presenter(resultat, _tient_dans_une_reponse))
+
+    def lire_meteo_intervention(
+        intervention_id: str, date: str | None = None, previsions_saisies: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Lecture seule (PLAN T4.27-a) : la météo du créneau d'UNE intervention, sans `plan_id`. Rien n'est écrit,
+        aucun statut ne change, aucune cédule n'est rangée, proposée ni appliquée (T0). Même évaluation que
+        `m4_verifier_meteo_creneau` (`meteo_creneaux._creneau`), même choix de la source des prévisions."""
+        acteur, verdict_acteur = _acteur_appareil()
+        if verdict_acteur is not None:
+            return _refus(verdict_acteur)
+        verdict_role = acces.controler_administrateur(acteur)
+        if verdict_role is not None:
+            return _refus(verdict_role)
+        lire_meteo = _lecteur_meteo()
+        profil, verdict_profil = lire_meteo()
+        fournisseur, verdict_fournisseur, refus = _fournisseur_de_l_appel(acteur, profil, previsions_saisies)
+        if refus is not None:
+            return _refus(refus)
+        resultat, verdict = meteo_creneaux.verifier_intervention(
+            registre_courant(), intervention_id, date, lire_localisation_confirmee, profil, verdict_profil, fournisseur,
+            verdict_fournisseur,
+        )
+        if verdict is not None:
+            return _refus(verdict)
+        return depuis_couple(meteo_creneaux.presenter_intervention(resultat, _tient_dans_une_reponse))
+
+    def lire_retards_incidents(horodatage_reference: str) -> dict[str, Any]:
+        """Lecture seule (PLAN T4.27-a) : les reports en cours et les incidents ouverts que M4 a déjà enregistrés, avec
+        leur âge. Rien n'est écrit (T0). Le retard sur la cédule n'est pas mesuré : le relevé le dit."""
+        acteur, verdict_acteur = _acteur_appareil()
+        if verdict_acteur is not None:
+            return _refus(verdict_acteur)
+        verdict_role = acces.controler_administrateur(acteur)
+        if verdict_role is not None:
+            return _refus(verdict_role)
+        releve, verdict = retards.lire(registre_courant(), horodatage_reference)
+        if verdict is not None:
+            return _refus(verdict)
+        return depuis_couple(retards.presenter(releve, _retards_tiennent_dans_une_reponse))
 
     return (
         Outil(
@@ -1449,12 +1533,33 @@ def outils(
                 "m4_planifier_intervention s'il est plus récent, sinon null) et fenetre_planifiee "
                 "(toujours null aujourd'hui : le registre ne la porte pas encore, jamais inventée). "
                 "T1.4-k, appel d'appareil d'un employé : SEULEMENT les interventions qui lui sont "
-                "assignées ; l'admin (et un agent) voient toutes."
+                "assignées ; l'admin (et un agent) voient toutes. T4.27-a, PAGINATION (clés sœurs : sans elles, la "
+                "liste ci-dessus, entière, que le socle coupe au-delà de 6 000 caractères) : avec `curseur` ou "
+                "`taille_page`, rend {interventions, page} : la plus grande page qui tient dans une réponse, jamais "
+                "coupée, triée par intervention_id ; `page.reste` dit ce qu'il en reste, `page.curseur_suivant` (nul à "
+                "la fin) se redonne tel quel comme `curseur`, avec le même `statut`."
             ),
             parametres={
                 "type": "object",
                 "properties": {
                     "statut": {"type": ["string", "null"], "enum": list(etats.ETATS) + [None]},
+                    "curseur": {
+                        "type": ["string", "null"],
+                        "pattern": pagination_interventions.FORME_CURSEUR,
+                        "description": (
+                            "Pagination : le `page.curseur_suivant` de la page précédente, tel quel ; null ou absent : "
+                            "la première page."
+                        ),
+                    },
+                    "taille_page": {
+                        "type": ["integer", "null"],
+                        "minimum": 1,
+                        "maximum": pagination_interventions.TAILLE_PAGE_MAX,
+                        "description": (
+                            "Pagination : interventions par page au plus (la borne d'une réponse peut la raccourcir : "
+                            "`page.borne_atteinte`) ; null ou absent : la plus grande page qui tient."
+                        ),
+                    },
                 },
                 "additionalProperties": False,
             },
@@ -1883,6 +1988,87 @@ def outils(
             # l'employé ni
             # le vendeur : un plan regroupe des chantiers de clients (adresses confirmées, tournées). Refusé aussi dans
             # l'outil (`acces.controler_administrateur`).
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_lire_meteo_intervention",
+            description=(
+                "Lecture seule (T4.27-a, M4.10) : juge la MÉTÉO du créneau d'UNE intervention, sans plan_id : "
+                "bloquant, validation_requise, ok ou inconnu contre les seuils du service (`opsys-metier meteo "
+                "declarer`), avec la prévision, sa source et son heure d'émission citées. Le créneau est celui du "
+                "dernier plan de cédule APPLIQUÉ qui la place (intervention planifiee ou en_route) ; sans créneau "
+                "(a_planifier, reportee, planifiée à la main) : creneaux vide, `cause`, statut inconnu. `date` : la "
+                "date civile AAAA-MM-JJ du jour de ce créneau (M4 ne tient pas de calendrier) ; sans elle, inconnu. "
+                "inconnu n'est JAMAIS ok (seuil à configurer, prévision absente ou incomplète, date absente, "
+                "fournisseur en panne). Même évaluation que m4_verifier_meteo_creneau, sans report proposé ni cédule "
+                "relancée. N'écrit rien, ne change aucun statut. Réservé à l'admin."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "intervention_id": {"type": "string"},
+                    "date": {
+                        "type": ["string", "null"],
+                        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+                        "description": (
+                            "Date civile AAAA-MM-JJ du jour du créneau de l'intervention (jamais devinée : sans elle, "
+                            "le créneau est jugé inconnu)."
+                        ),
+                    },
+                    "previsions_saisies": {
+                        "type": "object",
+                        "description": (
+                            "Facultatif. Prévision saisie à la main, prioritaire, comme pour "
+                            "m4_verifier_meteo_creneau : {saisi_par (votre nom), source (texte), emise_le (ISO 8601 "
+                            "avec fuseau), points: [{heure AAAA-MM-JJTHH:MM, temperature_c, vent_kmh, rafales_kmh, "
+                            "precipitation_mm_h, probabilite_precipitation_pct, verglas}]}. Une mesure absente vaut "
+                            "null."
+                        ),
+                    },
+                },
+                "required": ["intervention_id"],
+                "additionalProperties": False,
+            },
+            fonction=lire_meteo_intervention,
+            autonomie=Autonomie.T0,
+            # §9.5 M4 « dispatch du jour » : l'admin lit la météo du créneau d'un chantier sans avoir à ranger une
+            # proposition de cédule (`m4_proposer_cedule` écrit un maillon). Ni l'employé ni le vendeur : c'est un
+            # chantier de client (adresse confirmée, créneau). Refusé aussi dans l'outil
+            # (`acces.controler_administrateur`).
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_lire_retards_incidents",
+            description=(
+                "Lecture seule (T4.27-a, §9.5 M4 « retards, incidents ») : ce que M4 a déjà enregistré, avec l'âge en "
+                "heures à partir de `horodatage_reference` (ISO 8601 avec fuseau : l'heure de l'appareil) : les "
+                "REPORTS en cours (intervention reportee : motif client_absent, meteo ou decision_admin, depuis "
+                "quand) et les "
+                f"INCIDENTS ouverts (demandes de revue sans résolution : écart métier ou anomalie de pointage ; "
+                f"`bloquee` dès {retards.SEUIL_BLOCAGE_HEURES} h, comme le digest). Du plus ancien au plus récent, "
+                f"{retards.LIMITE_PAR_LISTE} par liste : `reste` compte le reste, `suite` dit quel outil le rend. Le "
+                "retard sur la cédule n'est PAS mesuré (aucun calendrier) : `retard_sur_cedule` est non_mesurable, "
+                "jamais « aucun retard ». Aucun texte libre du terrain ni contact. N'écrit rien. Réservé à l'admin."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "horodatage_reference": {
+                        "type": "string",
+                        "description": (
+                            "L'instant présent selon l'appareil, ISO 8601 avec fuseau : M4 n'a pas d'horloge. Sert "
+                            "seulement à calculer l'âge ; antérieur à un fait, son âge reste nul (null)."
+                        ),
+                    },
+                },
+                "required": ["horodatage_reference"],
+                "additionalProperties": False,
+            },
+            fonction=lire_retards_incidents,
+            autonomie=Autonomie.T0,
+            # §9.5 M4 « dispatch du jour, retards, incidents » : l'admin lit les reports et les demandes de revue
+            # ouvertes de tous ; jamais l'employé (les incidents des autres) ni le vendeur. Refusé aussi dans l'outil
+            # (`acces.controler_administrateur`).
             roles_appareil=frozenset({"admin"}),
         ),
     )

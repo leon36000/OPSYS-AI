@@ -28,6 +28,11 @@ placée (``cedule_appliquee`` d'un autre ``plan_id``). Son créneau est alors ju
 compte ni dans le statut d'ensemble, ni dans les reports, ni dans les jours que la cédule relancée ferme, car le report
 d'un créneau que plus rien ne tient viserait une intervention qui est ailleurs.
 
+PLAN T4.27-a : ``verifier_intervention`` juge le créneau d'UNE intervention SANS ``plan_id`` : celui que le dernier plan
+APPLIQUÉ qui la place lui donne. C'est la même évaluation (``_creneau``, ``_Previsions``), pas une seconde : seule la
+façon de trouver le créneau change. Elle ne propose ni report ni nouvelle cédule (``verifier`` le fait, avec un
+``plan_id``).
+
 Ne rend ni coordonnée, ni contact, ni prix, et ne promet aucune date au client (frontière T3).
 """
 
@@ -44,6 +49,12 @@ STATUT_RELANCE_RIEN = "rien_a_relancer"
 # Statuts d'intervention pour lesquels `m4_signaler_report` (planifiee -> reportee, en_route -> reportee) existe.
 STATUTS_REPORTABLES = ("planifiee", "en_route")
 
+# PLAN T4.27-a : les statuts d'avant le travail sur place, où la météo du créneau d'une intervention a un sens
+# (`verifier_intervention`) ; et, parmi eux, ceux où un plan appliqué la TIENT encore (une intervention `reportee` a
+# quitté son créneau ; une `a_planifier` n'en a jamais eu). Ni `sur_site`, ni `en_revue`, ni un état terminal.
+STATUTS_METEO = ("a_planifier", "planifiee", "reportee", "en_route")
+STATUTS_A_CRENEAU = ("planifiee", "en_route")
+
 NIVEAU_DETAIL_MAX = 3
 
 __all__ = [
@@ -51,11 +62,15 @@ __all__ = [
     "STATUT_RELANCE_APERCU",
     "STATUT_RELANCE_A_REJOUER",
     "STATUT_RELANCE_RIEN",
+    "STATUTS_A_CRENEAU",
+    "STATUTS_METEO",
     "STATUTS_REPORTABLES",
     "normaliser_calendrier",
     "normaliser_jours",
     "presenter",
+    "presenter_intervention",
     "verifier",
+    "verifier_intervention",
     "vue_compacte",
 ]
 
@@ -206,6 +221,60 @@ def _creneau(base, date, regles, verdict_profil, previsions, verdict_fournisseur
     if verdict is not None:
         return inconnu(_cause(verdict["code"], verdict["detail"]))
     return {**base, "date": date, **meteo.evaluer_creneau(regles, prevision, date, debut, fin)}
+
+
+def _source_des_previsions(fournisseur, verdict_fournisseur):
+    """``(previsions, verdict_fournisseur)`` : la source des prévisions d'une vérification, une par (lieu, date).
+
+    Sans fournisseur, aucune prévision et un verdict qui dit pourquoi (celui que l'appelant a donné, sinon « aucun
+    fournisseur n'est ouvert ») : chaque créneau qui en demande une est alors « inconnu », jamais « ok »."""
+    if fournisseur is None:
+        return None, verdict_fournisseur or _verdict(
+            meteo.CODE_FOURNISSEUR_FERME,
+            "aucun fournisseur météo n'est ouvert : saisir la prévision (previsions_saisies) ou déclarer un "
+            "fournisseur dans le profil météo (`opsys-metier meteo declarer`, clé fournisseur)",
+        )
+    return _Previsions(fournisseur), verdict_fournisseur
+
+
+def _juger_la_visite(
+    instantane,
+    inscription,
+    route,
+    visite,
+    date,
+    profil,
+    verdict_profil,
+    previsions,
+    verdict_fournisseur,
+    lire_position,
+    plan_perime,
+):
+    """``(service, créneau)`` : la visite d'un plan jugée par ``_creneau``, pour ``verifier`` comme pour
+    ``verifier_intervention`` (une seule évaluation). ``service`` est ``None`` pour un lead v1 (``type_travaux``)."""
+    identifiant = visite["chantier"]
+    cle_travaux, nature = etats.travaux_de(inscription)
+    service = nature if cle_travaux == etats.CLE_SERVICE else None
+    base = {
+        "intervention_id": identifiant,
+        "equipe": route["equipe"],
+        "jour": route["jour"],
+        "debut_min": visite["debut_min"],
+        "fin_min": visite["fin_min"],
+        "service": service,
+        "statut_intervention": etats.statut_courant(instantane, identifiant),
+        "plan_perime": plan_perime,
+    }
+    creneau = _creneau(
+        base,
+        date,
+        _regles_du_service(profil, service),
+        verdict_profil,
+        previsions,
+        verdict_fournisseur,
+        partial(lire_position, instantane, inscription["lead_id"]),
+    )
+    return service, creneau
 
 
 def _report_propose(creneau):
@@ -372,15 +441,7 @@ def verifier(
         return None, _verdict("REJ-CEDULE-PLAN-INTROUVABLE", f"aucun plan proposé sous l'identifiant {plan_id!r}")
     inscriptions = cedule_tournees.inscriptions_du_registre(instantane)
     perimes = _plans_perimes(instantane, plan_id)
-    if fournisseur is None:
-        verdict_fournisseur = verdict_fournisseur or _verdict(
-            meteo.CODE_FOURNISSEUR_FERME,
-            "aucun fournisseur météo n'est ouvert : saisir la prévision (previsions_saisies) ou déclarer un "
-            "fournisseur dans le profil météo (`opsys-metier meteo declarer`, clé fournisseur)",
-        )
-        previsions = None
-    else:
-        previsions = _Previsions(fournisseur)
+    previsions, verdict_fournisseur = _source_des_previsions(fournisseur, verdict_fournisseur)
     service_de = {}
     creneaux = []
     for route in plan["sortie"]["plan"]:
@@ -388,31 +449,21 @@ def verifier(
             continue
         for visite in route["visites"]:
             identifiant = visite["chantier"]
-            inscription = inscriptions[identifiant]
-            cle_travaux, nature = etats.travaux_de(inscription)
-            service = nature if cle_travaux == etats.CLE_SERVICE else None
-            service_de[identifiant] = service
-            base = {
-                "intervention_id": identifiant,
-                "equipe": route["equipe"],
-                "jour": route["jour"],
-                "debut_min": visite["debut_min"],
-                "fin_min": visite["fin_min"],
-                "service": service,
-                "statut_intervention": etats.statut_courant(instantane, identifiant),
-                "plan_perime": identifiant in perimes,
-            }
-            creneaux.append(
-                _creneau(
-                    base,
-                    dates.get(route["jour"]),
-                    _regles_du_service(profil, service),
-                    verdict_profil,
-                    previsions,
-                    verdict_fournisseur,
-                    partial(lire_position, instantane, inscription["lead_id"]),
-                )
+            service, creneau = _juger_la_visite(
+                instantane,
+                inscriptions[identifiant],
+                route,
+                visite,
+                dates.get(route["jour"]),
+                profil,
+                verdict_profil,
+                previsions,
+                verdict_fournisseur,
+                lire_position,
+                identifiant in perimes,
             )
+            service_de[identifiant] = service
+            creneaux.append(creneau)
     if jours_juges is not None and not creneaux:
         jours_du_plan = sorted({route["jour"] for route in plan["sortie"]["plan"]})
         return None, _verdict(
@@ -467,6 +518,124 @@ def verifier(
             lire_meteo,
             fournisseur_matrice,
         )
+    return resultat, None
+
+
+def _plan_qui_tient(instantane, intervention_id):
+    """``(plan_id, route, visite)`` du dernier plan APPLIQUÉ qui place l'intervention, ou ``None``.
+
+    Le dernier plan appliqué qui la place est celui qui la tient (même règle que ``_plans_perimes``). Un plan qui n'a
+    été que PROPOSÉ ne tient rien : il n'assigne personne. ``None`` aussi si le plan appliqué n'est plus lisible (jamais
+    un créneau deviné)."""
+    plan_id = None
+    for maillon in instantane.lire():
+        if maillon["type_entree"] == cedule_tournees.TYPE_APPLIQUEE and any(
+            assignation["intervention_id"] == intervention_id for assignation in maillon["assignations"]
+        ):
+            plan_id = maillon["plan_id"]
+    if plan_id is None:
+        return None
+    propose = cedule_tournees.plan_propose(instantane, plan_id)
+    if propose is None:
+        return None
+    for route in propose["sortie"]["plan"]:
+        for visite in route["visites"]:
+            if visite["chantier"] == intervention_id:
+                return plan_id, route, visite
+    return None
+
+
+def _sans_creneau(statut):
+    """Pourquoi une intervention de ce statut n'a aucun créneau que la météo puisse juger."""
+    if statut == "reportee":
+        return (
+            "l'intervention est reportee : elle a quitté son créneau, aucun plan appliqué ne la tient plus ; le "
+            "prochain créneau viendra d'une nouvelle cédule (m4_proposer_cedule, puis m4_appliquer_cedule)"
+        )
+    if statut == "a_planifier":
+        return (
+            "l'intervention est a_planifier : aucune cédule appliquée ne la place, donc aucun créneau ; proposer une "
+            "cédule (m4_proposer_cedule), puis l'appliquer (m4_appliquer_cedule)"
+        )
+    return (
+        f"l'intervention est {statut} mais aucun plan de cédule appliqué ne la place (planifiée par "
+        "m4_planifier_intervention, dont le registre ne garde aucune fenêtre) : aucun créneau à juger"
+    )
+
+
+def verifier_intervention(
+    registre_cible,
+    intervention_id,
+    date,
+    lire_position,
+    profil,
+    verdict_profil,
+    fournisseur,
+    verdict_fournisseur,
+):
+    """``(résultat, None)`` ou ``(None, verdict)`` : la météo du créneau d'UNE intervention, sans ``plan_id`` (T4.27-a).
+
+    Le créneau est celui que le dernier plan APPLIQUÉ qui place l'intervention lui donne (un jour numéroté de cédule et
+    des minutes de début et de fin), tant qu'elle est ``planifiee`` ou ``en_route`` : une intervention ``reportee`` a
+    quitté son créneau, une ``a_planifier`` n'en a jamais eu, une ``planifiee`` par ``m4_planifier_intervention`` n'en a
+    pas au registre. Sans créneau : ``creneaux`` vide, statut ``inconnu`` et une ``cause`` qui dit pourquoi, jamais
+    ``ok``. ``date`` : la date civile ``AAAA-MM-JJ`` du jour de ce créneau (M4 ne tient pas de calendrier : le jour
+    numéroté de la cédule ne se relie à une date que par l'appelant) ; ``None`` : le créneau est jugé ``inconnu``, la
+    date n'est jamais devinée. Le reste (règles, prévision, position confirmée généralisée, fournisseur en panne) est
+    l'évaluation de ``verifier``, la même.
+
+    Refus (rien n'est écrit, la fonction n'écrit jamais) : ``date`` qui n'est pas une date qui existe
+    (``REJ-CONTRAT-INVALIDE``), intervention inconnue ou hors de ``STATUTS_METEO`` (``REJ-TRANSITION-ILLEGALE``).
+    Tout le reste est un RÉSULTAT, y compris une panne de fournisseur."""
+    if date is not None and not meteo.est_date(date):
+        return None, _verdict("REJ-CONTRAT-INVALIDE", f"date : date civile AAAA-MM-JJ attendue (reçu {date!r})")
+    instantane = cedule_tournees.instantane_du_registre(registre_cible)
+    statut = etats.statut_courant(instantane, intervention_id)
+    inscription = cedule_tournees.inscriptions_du_registre(instantane).get(intervention_id)
+    if statut is None or inscription is None:
+        return None, _verdict("REJ-TRANSITION-ILLEGALE", "intervention inexistante")
+    if statut not in STATUTS_METEO:
+        return None, verdicts.construire_verdict(
+            "REJ-TRANSITION-ILLEGALE",
+            statut=statut,
+            detail=f"météo sans objet : l'intervention est {statut} (attendu {', '.join(STATUTS_METEO)})",
+        )
+    resultat = {
+        "intervention_id": intervention_id,
+        "statut_intervention": statut,
+        "statut": meteo.STATUT_INCONNU,
+        "plan_id": None,
+        "creneaux": [],
+        "cause": None,
+        "attributions": [],
+    }
+    tenu = _plan_qui_tient(instantane, intervention_id) if statut in STATUTS_A_CRENEAU else None
+    if tenu is None:
+        resultat["cause"] = _cause("REJ-CHAMP-MANQUANT", _sans_creneau(statut))
+        return resultat, None
+    plan_id, route, visite = tenu
+    previsions, verdict_fournisseur = _source_des_previsions(fournisseur, verdict_fournisseur)
+    _, creneau = _juger_la_visite(
+        instantane,
+        inscription,
+        route,
+        visite,
+        date,
+        profil,
+        verdict_profil,
+        previsions,
+        verdict_fournisseur,
+        lire_position,
+        False,
+    )
+    resultat.update(
+        {
+            "statut": creneau["statut"],
+            "plan_id": plan_id,
+            "creneaux": [creneau],
+            "attributions": _attributions([creneau]),
+        }
+    )
     return resultat, None
 
 
@@ -565,6 +734,24 @@ def vue_compacte(resultat, niveau):
     if _DETAIL_REDUIT[niveau] is not None:
         vue["detail_reduit"] = _DETAIL_REDUIT[niveau]
     return vue
+
+
+def presenter_intervention(resultat, tient):
+    """``(vue, None)`` ou ``(None, verdict)`` : le résultat de ``verifier_intervention`` sous sa forme d'appareil.
+
+    Le créneau est rendu comme ``vue_compacte`` rend le niveau 0 : les règles réduites à risque, statut et détail
+    (qui cite la valeur, l'heure et le seuil), la prévision réduite à sa citation (source, heure d'émission, auteur
+    d'une saisie), jamais les points horaires. ``tient(vue)`` : prédicat de l'appelant, qui mesure la place que la
+    réponse prend. Une vue qui ne tient pas est refusée, jamais tronquée : un créneau ne se résume pas plus court que
+    ses règles."""
+    vue = {cle: valeur for cle, valeur in resultat.items() if cle != "creneaux"}
+    vue["creneaux"] = [_creneau_compact(creneau, 0) for creneau in resultat["creneaux"]]
+    if tient(vue):
+        return vue, None
+    return None, _verdict(
+        "REJ-CONTRAT-INVALIDE",
+        "la réponse est trop grande pour un appareil, même réduite aux règles et à la citation de la prévision",
+    )
 
 
 def presenter(resultat, tient):
