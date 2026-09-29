@@ -362,6 +362,40 @@ def _valider_attente(departement_id: str, brute: Mapping[str, Any]) -> dict[str,
     return {champ: brute[champ] for champ in CHAMPS_ATTENTE}
 
 
+def attentes_departements(
+    cnx: Connection, departements: Mapping[str, Departement]
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Les « attentes » que chaque département déclare par sa fonction `attentes()` optionnelle
+    (forme `CHAMPS_ATTENTE`, plus `departement`, l'origine), triées par `depuis` croissant, ET les
+    identifiants des départements dont `attentes()` n'a pas pu être lue.
+
+    Un département dont `attentes()` échoue ou renvoie une forme invalide est journalisé (avertissement)
+    et sauté : il ne bloque jamais la file. Mais son silence ne veut pas dire « rien à signaler » : il est
+    rendu dans la seconde liste, pour que l'appelant puisse le dire (fail-closed, PLAN T1.5).
+    """
+    items: list[dict[str, Any]] = []
+    illisibles: list[str] = []
+    for dep in departements.values():
+        try:
+            fonction = dep.charger_attentes()
+        except Exception as exc:  # noqa: BLE001 — un département cassé ne bloque jamais la file
+            logger.warning("%s : attentes() illisible (%s: %s)", dep.id, type(exc).__name__, exc)
+            illisibles.append(dep.id)
+            continue
+        if fonction is None:
+            continue
+        try:
+            declarees: Sequence[Mapping[str, Any]] = fonction() or ()
+            valides = [{**_valider_attente(dep.id, brute), "departement": dep.id} for brute in declarees]
+        except Exception as exc:  # noqa: BLE001 — idem : jamais une panne de la file
+            logger.warning("%s : attentes() illisible (%s: %s)", dep.id, type(exc).__name__, exc)
+            illisibles.append(dep.id)
+            continue
+        items.extend(valides)
+    items.sort(key=lambda item: item["depuis"])
+    return items, illisibles
+
+
 def file_proprietaire(
     cnx: Connection, departements: Mapping[str, Departement], limite: int = 100
 ) -> list[dict[str, Any]]:
@@ -374,9 +408,8 @@ def file_proprietaire(
     ancienne attente en premier).
 
     Un département dont `attentes()` échoue ou renvoie une forme invalide est journalisé (avertissement)
-    et sauté : il ne bloque jamais la file. Aucun département de production n'implémente `attentes()`
-    pour l'instant (PLAN T1.3-b/c) ; le mécanisme est exercé par les départements de démonstration
-    des tests du socle.
+    et sauté : il ne bloque jamais la file (voir `attentes_departements`). M4 (complétions en revue) et
+    M5 (factures à envoyer, chantiers à réviser) déclarent les leurs depuis T1.3-b et T1.3-c.
     """
     items: list[dict[str, Any]] = []
     for demande in lister(cnx, "en_attente", limite):
@@ -389,20 +422,6 @@ def file_proprietaire(
             "action_proposee": "approuver ou refuser",
             "departement": demande["departement"],
         })
-    for dep in departements.values():
-        try:
-            fonction = dep.charger_attentes()
-        except Exception as exc:  # noqa: BLE001 — un département cassé ne bloque jamais la file
-            logger.warning("%s : attentes() illisible (%s: %s)", dep.id, type(exc).__name__, exc)
-            continue
-        if fonction is None:
-            continue
-        try:
-            declarees: Sequence[Mapping[str, Any]] = fonction() or ()
-            valides = [{**_valider_attente(dep.id, brute), "departement": dep.id} for brute in declarees]
-        except Exception as exc:  # noqa: BLE001 — idem : jamais une panne de la file
-            logger.warning("%s : attentes() illisible (%s: %s)", dep.id, type(exc).__name__, exc)
-            continue
-        items.extend(valides)
+    items.extend(attentes_departements(cnx, departements)[0])
     items.sort(key=lambda item: item["depuis"])
     return items

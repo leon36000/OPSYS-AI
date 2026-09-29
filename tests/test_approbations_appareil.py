@@ -263,6 +263,131 @@ def test_la_limite_borne_le_nombre_de_demandes_lues(session, personnes, departem
     assert (resultat["total_en_attente"], resultat["affichees"], resultat["reste"]) == (3, 2, 1)
 
 
+# -- les attentes des départements : l'autre moitié de la file du propriétaire (PLAN T1.5) ---------------
+def _attente(ident="wct-1", resume="Écart matériaux critique sur le chantier CH-1", depuis="2026-09-01T00:00:00+00:00",
+             type_="chantier_a_reviser"):
+    return {"type": type_, "id": ident, "resume": resume, "niveau": "N4", "depuis": depuis,
+            "action_proposee": "réviser et approuver"}
+
+
+@pytest.fixture
+def attentes_demo():
+    demo_outils.ATTENTES_DEMO.clear()
+    yield demo_outils.ATTENTES_DEMO
+    demo_outils.ATTENTES_DEMO.clear()
+
+
+def test_la_liste_montre_les_attentes_des_departements_sans_les_confondre_avec_des_demandes(
+    session, personnes, departements_demo, attentes_demo
+):
+    attentes_demo.append(_attente())
+    with session() as cnx:
+        demande = _demande(cnx)
+
+    resultat, verdict = _lister(session, departements_demo)
+
+    assert verdict is None
+    assert [d["id"] for d in resultat["demandes"]] == [demande]
+    assert resultat["attentes"] == [{
+        "type": "chantier_a_reviser", "id": "wct-1", "departement": DEP_DEMO, "departement_nom": "Démo",
+        "resume": "Écart matériaux critique sur le chantier CH-1", "niveau": "N4",
+        "depuis": "2026-09-01T00:00:00+00:00", "action_proposee": "réviser et approuver",
+    }]
+    assert (resultat["total_attentes"], resultat["attentes_affichees"], resultat["attentes_reste"]) == (1, 1, 0)
+    assert resultat["attentes_illisibles"] == []
+    # Une attente n'est pas décidable ici : ni `decidable`, ni arguments, ni compte parmi les demandes.
+    assert "decidable" not in resultat["attentes"][0] and "arguments" not in resultat["attentes"][0]
+    assert resultat["total_en_attente"] == 1
+
+
+def test_sans_attente_la_liste_le_dit(session, personnes, departements_demo, attentes_demo):
+    resultat, verdict = _lister(session, departements_demo)
+
+    assert verdict is None
+    assert resultat["attentes"] == []
+    assert (resultat["total_attentes"], resultat["attentes_affichees"], resultat["attentes_reste"]) == (0, 0, 0)
+    assert resultat["attentes_illisibles"] == []
+
+
+def test_l_admin_qui_n_est_pas_le_proprietaire_voit_aussi_les_attentes(
+    session, personnes, departements_demo, attentes_demo
+):
+    attentes_demo.append(_attente())
+
+    resultat, verdict = _lister(session, departements_demo, GESTIONNAIRE)
+
+    assert verdict is None and resultat["proprietaire"] is False
+    assert [a["id"] for a in resultat["attentes"]] == ["wct-1"]  # comme le briefing du matin de M9
+
+
+def test_un_employe_ne_voit_aucune_attente(session, personnes, departements_demo, attentes_demo):
+    attentes_demo.append(_attente())
+
+    resultat, verdict = _lister(session, departements_demo, EMPLOYE)
+
+    assert resultat is None and verdict["code"] == "role_appareil_insuffisant"
+
+
+def test_les_attentes_les_plus_anciennes_d_abord_et_le_reste_est_compte(
+    session, personnes, departements_demo, attentes_demo
+):
+    for i in range(12):
+        attentes_demo.append(_attente(f"wct-{i:02d}", "x" * 240, f"2026-09-{i + 1:02d}T00:00:00+00:00"))
+
+    resultat, verdict = _lister(session, departements_demo)
+
+    assert verdict is None
+    assert resultat["total_attentes"] == 12
+    assert 0 < resultat["attentes_affichees"] < 12
+    assert resultat["attentes_reste"] == 12 - resultat["attentes_affichees"]
+    assert [a["id"] for a in resultat["attentes"]] == [f"wct-{i:02d}" for i in range(resultat["attentes_affichees"])]
+
+
+def test_la_liste_avec_attentes_reste_sous_la_troncature_des_outils(
+    session, personnes, departements_demo, attentes_demo
+):
+    for i in range(12):
+        attentes_demo.append(_attente(f"wct-{i:02d}", "x" * 400, f"2026-09-{i + 1:02d}T00:00:00+00:00"))
+    with session() as cnx:
+        for i in range(8):
+            _demande(cnx, "m9_pointer", {"appareil": "y" * 1400}, depuis=f"2026-09-0{i + 1}T10:00:00+00:00")
+
+    resultat, verdict = _lister(session, departements_demo)
+
+    assert verdict is None
+    assert len(json.dumps({"ok": True, "resultat": {"accepte": True, "resultat": resultat}},
+                          ensure_ascii=False)) < 6000  # jetons.LIMITE_SORTIE_DEFAUT
+    assert resultat["attentes_affichees"] >= 1 and resultat["affichees"] >= 1
+    assert resultat["attentes_reste"] == resultat["total_attentes"] - resultat["attentes_affichees"]
+    assert resultat["reste"] == resultat["total_en_attente"] - resultat["affichees"]
+
+
+def test_un_departement_dont_les_attentes_sont_illisibles_est_nomme_et_ne_bloque_pas_la_liste(
+    session, personnes, departements_demo, attentes_demo
+):
+    attentes_demo.append({"type": "incomplet"})  # champs manquants : `_valider_attente` refuse
+    with session() as cnx:
+        demande = _demande(cnx)
+
+    resultat, verdict = _lister(session, departements_demo)
+
+    assert verdict is None
+    assert resultat["attentes"] == [] and resultat["total_attentes"] == 0
+    assert resultat["attentes_illisibles"] == [DEP_DEMO]  # son silence n'est pas « rien à signaler »
+    assert [d["id"] for d in resultat["demandes"]] == [demande]
+
+
+def test_la_liste_des_attentes_ne_decide_ni_n_ecrit_rien(session, personnes, departements_demo, attentes_demo):
+    attentes_demo.append(_attente())
+    with session() as cnx:
+        demande = _demande(cnx)
+
+    _lister(session, departements_demo)
+
+    assert _statut(session, demande)["statut"] == "en_attente" and demo_outils.JOURNAL == []
+    assert _journal(session) == []
+
+
 # -- identité : sans elle, rien --------------------------------------------------------------------
 @pytest.mark.parametrize(("appelante", "code"), [
     (None, "identite_absente"),

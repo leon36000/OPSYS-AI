@@ -267,7 +267,10 @@ def outils(
                 "masquée), et si la demande se décide depuis l'app ou seulement à la console (N5, outil "
                 "T3, arguments trop gros). La personne vient de l'identité authentifiée de l'appareil, "
                 "jamais d'un argument ; sans elle, refus. Un `admin` qui n'est pas le propriétaire "
-                "voit la file sans les arguments. Réservé à l'humain : l'agent M9 ne l'appelle pas."
+                "voit la file sans les arguments. Rend aussi les attentes des départements (complétion "
+                "en revue avec écart de matériaux critique, facture prête à envoyer, chantier à "
+                "réviser) : informatives, elles ne se décident pas ici. Réservé à l'humain : l'agent "
+                "M9 ne l'appelle pas."
             ),
             parametres={
                 "type": "object",

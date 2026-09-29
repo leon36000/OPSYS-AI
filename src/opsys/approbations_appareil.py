@@ -82,6 +82,13 @@ LIMITE_ARGUMENTS = 1500
 LIMITE_DESCRIPTION = 200
 LIMITE_MOTIF_DEMANDE = 300
 LIMITE_DETAIL_ISSUE = 300
+# Les « attentes » des départements (PLAN T1.5) : complétion en revue avec écart de matériaux critique (M4),
+# facture prête à envoyer ou chantier à réviser (M5). Elles partagent le budget de caractères de la liste,
+# dans la limite de `BUDGET_ATTENTES` : une alerte ne doit pas être noyée par une pile de demandes, ni
+# pousser la réponse au-delà de la troncature de `Capacites`.
+BUDGET_ATTENTES = 1500
+LIMITE_RESUME_ATTENTE = 240
+LIMITE_ACTION_ATTENTE = 160
 
 # Codes de verdict (l'app les affiche tels quels, avec leur détail).
 IDENTITE_ABSENTE = "identite_absente"
@@ -256,17 +263,43 @@ def _item(
     }
 
 
+def _item_attente(attente: Mapping[str, Any], departements: Mapping[str, Departement]) -> dict[str, Any]:
+    """Une attente d'un département, pour l'écran : ce qu'elle dit, d'où elle vient, quel geste la traite.
+    Ce n'est PAS une demande d'approbation du socle : elle n'a ni `decidable` ni arguments, et la décision
+    de `m9_decider_demande_approbation` ne s'y applique pas."""
+    departement = departements.get(attente["departement"])
+    return {
+        "type": attente["type"],
+        "id": attente["id"],
+        "departement": attente["departement"],
+        "departement_nom": departement.nom if departement is not None else None,
+        "resume": _court(attente["resume"], LIMITE_RESUME_ATTENTE),
+        "niveau": attente["niveau"],
+        "depuis": attente["depuis"],
+        "action_proposee": _court(attente["action_proposee"], LIMITE_ACTION_ATTENTE),
+    }
+
+
 def lister_demandes(
     cnx: Connection, departements: Mapping[str, Departement], appelante: IdentiteAppelante | None,
     *, limite: Any = LIMITE_LISTE_DEFAUT,
 ) -> Reponse:
     """Les demandes EN ATTENTE, la plus ancienne d'abord (comme la file du propriétaire), chacune avec ce
-    que l'app doit afficher et si elle peut la décider. Lecture seule.
+    que l'app doit afficher et si elle peut la décider, puis les attentes déclarées par les départements.
+    Lecture seule.
 
     Rend `(résultat, None)` ou `(None, verdict)`. Le résultat dit combien de demandes existent
     (`total_en_attente`), combien sont montrées (`affichees`) et combien restent (`reste`) : la liste
     est bornée par `limite` et par `BUDGET_LISTE`, et une demande non montrée est comptée, jamais omise
     en silence. `proprietaire` dit si la personne peut décider quoi que ce soit ici.
+
+    Les attentes (`attentes`, `total_attentes`, `attentes_affichees`, `attentes_reste`) sont l'autre moitié
+    de la file du propriétaire (`approbations.file_proprietaire`, ADR-0009 §5), celle que la console montre
+    déjà : sans elles, l'alerte « écart de matériaux critique » d'une complétion en revue existait dans la
+    file mais restait invisible de l'app (PLAN T1.5). Un département dont les attentes n'ont pas pu être
+    lues est nommé dans `attentes_illisibles` : son silence n'est jamais lu « rien à signaler ». Toute
+    personne de rôle `admin` les voit, comme le briefing du matin de M9 : ce sont des résumés, sans
+    argument ni donnée personnelle, et elles ne se décident pas ici.
     """
     if isinstance(limite, bool) or not isinstance(limite, int) or not 1 <= limite <= LIMITE_LISTE_MAX:
         return None, _verdict(LIMITE_INVALIDE, f"limite : un entier de 1 à {LIMITE_LISTE_MAX} est attendu.")
@@ -275,8 +308,17 @@ def lister_demandes(
         return None, verdict
     outils = _outils_par_nom(departements, cnx)
     total = approbations.compter(cnx, "en_attente")
-    items: list[dict[str, Any]] = []
+    attentes, attentes_illisibles = approbations.attentes_departements(cnx, departements)
+    items_attentes: list[dict[str, Any]] = []
     taille = 0
+    for attente in attentes:
+        item_attente = _item_attente(attente, departements)
+        poids = len(json.dumps(item_attente, ensure_ascii=False))
+        if items_attentes and taille + poids > BUDGET_ATTENTES:
+            break
+        items_attentes.append(item_attente)
+        taille += poids
+    items: list[dict[str, Any]] = []
     for demande in approbations.lister(cnx, "en_attente", limite, plus_anciennes_d_abord=True):
         item = _item(demande, signataire, departements, outils)
         poids = len(json.dumps(item, ensure_ascii=False))
@@ -290,6 +332,11 @@ def lister_demandes(
         "affichees": len(items),
         "reste": total - len(items),
         "proprietaire": signataire.proprietaire,
+        "attentes": items_attentes,
+        "total_attentes": len(attentes),
+        "attentes_affichees": len(items_attentes),
+        "attentes_reste": len(attentes) - len(items_attentes),
+        "attentes_illisibles": attentes_illisibles,
     }, None
 
 
