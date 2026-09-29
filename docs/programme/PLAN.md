@@ -1981,10 +1981,31 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       Limites : le paquet garde sa forme (épinglée contre les fixtures du core), donc pas de verdict
       « lead inconnu » dedans ; l'historique se tronque au budget de la couche (`nb_omis`) ; une
       opportunité `~opp~` n'a pas la forme d'une affaire du core (pas de paquet pour elle).
-- [ ] T4.18-b Paquet et core : bloc `affaire` (connue, origine reçue, verdict) ou outil
+- [x] T4.18-b Paquet et core : bloc `affaire` (connue, origine reçue, verdict) ou outil
       `m10_dossier_affaire` ; budget de la couche des événements ; liste des (affaire, jour) à
       consolider ; forme d'affaire commune au core et à M10 qui admet l'opportunité de M2. Touche
       `core/` (CI).
+      Preuve (c225616, 5aa7bc5, 192b888, 0fcb646, 5a45564) :
+      - `affaire.py` : un lead, ou `<lead>~opp~<wct_id>`, 197 caractères au plus, lettres, chiffres et
+        `._:-` ; le même motif mot pour mot dans le core (`AFFAIRE_ID`, `AFFAIRE_LINE`) ; les deux
+        côtés rejouent la même liste de 74 cas fictifs (`opsys-contexte.affaires.json`), et un test du
+        socle compare le texte des deux motifs ;
+      - bloc `affaire` additif du paquet (`connue`, `origine_recue`, `origine`, `verdict`), choisi
+        plutôt qu'un outil (paquet non gelé, un aller-retour MCP de moins par tour), indépendant de la
+        troncature et sans renseignement personnel ; bloc `consolidation` (au plus 10 jours, les plus
+        anciens d'abord), chaque entrée étant l'argument exact de `m10_consolider_affaire` ;
+      - budget chiffré (4 000 caractères, 1 000 par couche, 5 faits) dans le code, le README de M10 et
+        l'ADR-0010, tenus ensemble par un test ; côté core : validation stricte sans réparation,
+        rendu dans les mots du core, `opsys-contexte-affaire.test.ts` ajouté aux tests ciblés ;
+      - M10 854 verts (gate BMAD, `mutation_gate` 8/8) ; `tests/test_cascade_opportunite_m10.py` (vrai
+        bus : M2 ouvre `lead~opp~wct`, M10 le garde, son paquet existe) ; 36 mutations, 35 tuées, 1
+        équivalente ; 20 mutations de la transcription de la logique du core, toutes tuées.
+      À prouver en CI : `core.yml` (construction et les trois fichiers vitest du paquet).
+      GATE NATHAN : une affaire inconnue ne bloque pas les outils N3 et plus (bloquer arrêterait les
+      affaires d'avant T4.18, sans rattrapage) ; à trancher.
+- [ ] T4.18-c M2 : une opportunité ouverte sur un WCT dont le lead est déjà une opportunité donne une
+      chaîne (`L~opp~a~opp~b`) que M10 et le core refusent ; M2 doit suffixer le lead d'origine.
+      Après T4.9 (qui travaille dans M2).
 - [x] T4.19 M8 : entonnoir commercial et vue exécutive (M8.6, M8.10).
       Écart (§7 M8.6, M8.10 ; audit M8 « ABSENT ») : M8 ne mesure que les chantiers terminés.
       - métriques gouvernées : leads qualifiés, devis envoyés, acceptés, sans réponse, taux
