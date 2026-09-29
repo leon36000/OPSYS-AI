@@ -601,6 +601,23 @@ sur le gabarit de plainte. Le code partagé vit maintenant dans le socle : `opsy
   l'ancien code sur 1 414 548 textes et sur 176 millions de suites de jetons, avec un script jetable : aucun écart) ; 5 ms pour
   20 000 chiffres. `tests/test_garde_fou_texte_lineaire.py` et un test de `test_garde_fou.py` (huit textes hostiles de 20 000
   caractères) en gardent la preuve.
+- **Trois motifs de M1, hors du garde-fou, se lisent aussi en temps linéaire** (T4.17-g). Le courriel du texte d'un client
+  (`qualification`, sans plafond), le prix d'un chiffrage (`contrats`, 500 caractères par contrat, mais le motif n'a pas de
+  plafond) et le courriel d'un résumé de transfert (`transferts`, 1 200) relisaient la même suite de caractères à chaque
+  départ. Temps de calcul pour 20 000 caractères hostiles, avant puis après : 0,5 s puis 0,3 ms pour le courriel du client
+  (100 000 « a. » : 11 s), 67 s puis 2 ms pour le prix (20 000 chiffres), de 1,1 à 1,5 s puis 0,4 ms pour le courriel d'un
+  résumé. Le prix se lit « un chiffre, puis une devise, un taux ou un mot » (seule la fourchette lit un nombre entier), le
+  courriel d'un résumé se reconnaît à un caractère permis devant le « @ », et celui du client part du début de sa suite de
+  caractères permis, saute jusqu'à la première frontière de mot, puis se lit d'un seul jet. Mêmes verdicts qu'avant, et même
+  texte de courriel (comparés à l'ancien code sur 22 614 210 textes par version de Python, 3.11, 3.12 et 3.13, avec un
+  script jetable : aucun écart ; les fonctions qui lisent ces motifs le sont aussi, sur 6 194 798 textes).
+  `tests/test_motifs_lineaires.py` en garde la preuve (oracle recopié, textes hostiles de 20 000 et de 100 000 caractères,
+  balayage de tous les motifs de M1).
+- **Limites du courriel écrit par un client, gardées telles quelles** (T4.17-g ; à décider) : derrière une lettre accentuée,
+  la lecture repart du premier point (« andré.tremblay@x.ca » : le lead garde « .tremblay@x.ca », dont M2 tire le
+  `client_id`) ; une partie locale qui suit une lettre accentuée n'est pas reconnue (« françois@x.ca » : le rejet dit
+  « aucun téléphone ni courriel » et l'agent redemande un contact). Changer cela change les contacts que reçoit M2 : c'est
+  une décision, pas un durcissement.
 - **L'avis légal vaut partout où M1 passe un texte** : brouillons de qualification (libellé de service compris), questions du
   profil (retirées et nommées), gabarits de plainte et d'urgence, résumés de transfert, outil `m1_verifier_garde_fou`.
 - **Conséquence connue** : un résumé de transfert fourni par l'agent ne peut pas nommer un avocat ou un tribunal
