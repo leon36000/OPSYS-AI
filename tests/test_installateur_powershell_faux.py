@@ -284,13 +284,13 @@ def test_une_installation_d_avant_le_lot_2_est_mise_a_jour_sans_perte_et_le_dit(
 def test_un_fichier_etranger_opsys_metier_arrete_avant_toute_ecriture(pret):
     pret.bin.mkdir()
     etranger = pret.bin / "opsys-metier.cmd"
-    etranger.write_text("@echo moteur d'un autre\r\n", encoding="ascii")
+    etranger.write_bytes(b"@echo moteur d'un autre\r\n")
 
     resultat = pret.installer("-SansService")
 
     assert resultat.returncode == 1, _sortie(resultat)
     assert "n'a pas ete installe par OPSYS" in _sortie(resultat) and "opsys-metier.cmd" in _sortie(resultat)
-    assert etranger.read_text(encoding="ascii") == "@echo moteur d'un autre\r\n"
+    assert etranger.read_bytes() == b"@echo moteur d'un autre\r\n"  # en octets : la lecture texte avale le \r
     assert [f.name for f in pret.bin.iterdir()] == ["opsys-metier.cmd"]  # ni opsys.cmd ni openclaw.cmd n'ont été écrits
 
 
