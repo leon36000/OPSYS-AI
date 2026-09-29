@@ -358,11 +358,15 @@ PLANCHER = 0.020  # s : sous ce temps, la mesure du petit texte est du bruit
 
 
 def _meilleur_temps(fonction, texte: str, essais: int) -> float:
+    """Le meilleur temps de `essais` lectures. Un temps cinq fois au-dessus de la borne n'est pas du bruit : on s'arrête
+    (un motif quadratique mettrait des minutes à échouer si l'on répétait chaque mesure)."""
     meilleur = float("inf")
     for _ in range(essais):
         debut = time.perf_counter()
         fonction(texte)
         meilleur = min(meilleur, time.perf_counter() - debut)
+        if meilleur > 5 * BORNE_ABSOLUE:
+            break
     return meilleur
 
 
