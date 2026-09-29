@@ -38,6 +38,8 @@ const MODELES_DE_VUE = [
   "src/ecrans/chiffres.ts",
   "src/ecrans/vueExecutive.ts",
   "src/ecrans/chantiers.ts",
+  "src/ecrans/manquesM4.ts",
+  "src/ecrans/texteSur.ts",
 ];
 const CHARGEURS_ET_LECTEURS = [
   "src/admin/appel.ts",
@@ -136,6 +138,32 @@ describe("les écrans : câblage mince, lecture seule", () => {
     const layout = code("app/(admin)/_layout.tsx");
     expect(layout).toContain('evaluerGarde(session, "admin")');
     expect(layout).toContain("<Redirect");
+  });
+});
+
+describe("l'écran des chantiers ne montre jamais le texte de M4 tel quel (PLAN T1.4-n)", () => {
+  // Le `manque` de M4 est écrit pour un agent : il cite le fichier du serveur et les commandes `opsys-metier`. L'écran dit une
+  // phrase de l'app (`src/ecrans/manquesM4.ts`, choisie par le code) ; le détail d'un volet PRÊT est un fait, déjà filtré.
+  test("le manque, son code et ce qu'il faut fournir passent par une phrase de l'app (`Ligne`), jamais par un `<Text>` brut", () => {
+    const source = code("app/(admin)/chantiers.tsx");
+    expect(source).toContain("<Ligne m={volet.manque}");
+    expect(source).toContain("<Ligne m={volet.code}");
+    expect(source).toContain("<Ligne m={entree.manque}");
+    expect(source).not.toMatch(/\.manque\s*\}\s*<\/Text>/);
+    expect(source).not.toMatch(/<Text[^>]*>\s*\{[^}]*\.manque\b/);
+  });
+
+  test("le modèle de vue ne lit jamais `.manque` d'un volet pour le montrer : la phrase vient de `direLeManque`", () => {
+    const source = code("src/ecrans/chantiers.ts");
+    expect(source).toContain("direLeManque(");
+    expect(source).not.toMatch(/manque:\s*(volet|entree)\.manque\b/);
+  });
+
+  test("les deux gardes de texte n'ont ni réseau, ni stockage, ni horloge : des fonctions pures", () => {
+    for (const fichier of ["src/ecrans/manquesM4.ts", "src/ecrans/texteSur.ts"]) {
+      const source = code(fichier);
+      expect(source).not.toMatch(/\bfetch\s*\(|\bDate\b|\bMath\b|localStorage|AsyncStorage|expo-sqlite|react-native/);
+    }
   });
 });
 

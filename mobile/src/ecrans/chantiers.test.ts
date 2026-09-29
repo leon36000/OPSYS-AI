@@ -5,6 +5,7 @@ import { lireDigest, lireInterventions, lirePreparation, STATUTS_DU_DISPATCH, ST
 import type { DigestDuJour, Preparation } from "../m4/dispatch";
 import { presenterDigest, presenterGroupes, presenterPreparation, vueDigest, vuePreparation } from "./chantiers";
 import { digestDe, duCache, duServeur, interventionsDe, preparationDe } from "./donneesDeVue";
+import { texteSansChemin } from "./texteSur";
 
 const DECALAGE = -240;
 
@@ -266,18 +267,22 @@ describe("la préparation d'une intervention", () => {
       "admin.chantiers.volets.meteo",
     ]);
     expect(vue.volets.map((v) => v.ok)).toEqual([true, false, false, true, false]);
+    // Le manque se dit par une phrase de l'app, choisie par le code de M4 ; le code suit, pour le support.
     expect(vue.volets[1]).toEqual({
       nom: { cle: "admin.chantiers.volets.adresse" },
       statut: { cle: "admin.chantiers.statutsDeVolet.manque" },
       ok: false,
-      manque: "coordonnées manquantes : à confirmer. Aucune localisation confirmée.",
-      detail: "REJ-COORDONNEES-A-CONFIRMER",
+      manque: { cle: "admin.chantiers.manques.adresse.aConfirmer" },
+      code: { cle: "admin.chantiers.manques.code", params: { code: "REJ-COORDONNEES-A-CONFIRMER" } },
+      detail: null,
     });
-    expect(vue.volets[0]).toMatchObject({ ok: true, manque: null, detail: "devis accepté DEVIS-ADM-B-fictif" });
-    expect(vue.aFournir.map((a) => a.volet.cle)).toEqual([
-      "admin.chantiers.volets.adresse",
-      "admin.chantiers.volets.equipe",
-      "admin.chantiers.volets.meteo",
+    // Un volet prêt garde ce que M4 dit de lui (un fait) et n'a ni manque ni code.
+    expect(vue.volets[0]).toMatchObject({ ok: true, manque: null, code: null, detail: "devis accepté DEVIS-ADM-B-fictif" });
+    expect(vue.volets[3]).toMatchObject({ ok: true, manque: null, code: null, detail: "matériel prêt et réservé (M6, révision 1)" });
+    expect(vue.aFournir).toEqual([
+      { volet: { cle: "admin.chantiers.volets.adresse" }, manque: { cle: "admin.chantiers.manques.adresse.aConfirmer" } },
+      { volet: { cle: "admin.chantiers.volets.equipe" }, manque: { cle: "admin.chantiers.manques.equipe.nonDeclarees" } },
+      { volet: { cle: "admin.chantiers.volets.meteo" }, manque: { cle: "admin.chantiers.manques.meteo.nonDeclarees" } },
     ]);
   });
 
@@ -285,8 +290,65 @@ describe("la préparation d'une intervention", () => {
     const vue = presenterPreparation(preparationDe("preparation_lead_v2"));
     const meteo = vue.volets[4];
     expect(meteo.nom.cle).toBe("admin.chantiers.volets.meteo");
-    expect(meteo.manque).toContain("aucune règle météo déclarée pour cette entreprise");
-    expect(meteo.detail).toBe("REJ-METEO-NON-CONFIGUREE");
+    expect(meteo.manque).toEqual({ cle: "admin.chantiers.manques.meteo.nonDeclarees" });
+    expect(meteo.code).toEqual({ cle: "admin.chantiers.manques.code", params: { code: "REJ-METEO-NON-CONFIGUREE" } });
+    expect(meteo.detail).toBeNull();
+  });
+
+  test("JAMAIS le texte de M4 : ni le chemin du serveur, ni la commande `opsys-metier`, dans aucune ligne de la vue", () => {
+    for (const nom of ["preparation_lead_v2", "preparation_lead_v1", "preparation_a_planifier"]) {
+      // Le texte brut de M4 cite bien ce que l'écran ne doit pas dire : sans cela, le test ne prouverait rien.
+      const brut = JSON.stringify(reponse(nom).resultat.resultat);
+      expect(brut).toContain("/srv/opsys/entreprise.yaml");
+      expect(brut).toContain("opsys-metier equipes declarer");
+      const vue = JSON.stringify(presenterPreparation(preparationDe(nom)));
+      expect(vue).not.toMatch(/\/srv|entreprise\.yaml|opsys-metier|TAXONOMIE|\.md\b|YAML|--depuis|--par/i);
+      expect(texteSansChemin(vue)).toBe(vue);
+    }
+  });
+
+  test("un manque que l'app ne connaît pas (serveur plus récent) : « à configurer côté serveur » avec son code, jamais son texte", () => {
+    const brut = reponse("preparation_lead_v2");
+    brut.resultat.resultat.volets.equipe = {
+      statut: "manque",
+      manque: "déclare X : écris /srv/opsys/nouveau.yaml puis `opsys-metier nouveau declarer --par <ton nom>`",
+      detail: "REJ-NOUVEAU-MANQUE",
+    };
+    brut.resultat.resultat.a_fournir[1].manque = brut.resultat.resultat.volets.equipe.manque;
+    const vue = presenterPreparation(preparationDeBrut(brut));
+    expect(vue.volets[2].manque).toEqual({ cle: "admin.chantiers.manques.inconnu", params: { code: "REJ-NOUVEAU-MANQUE" } });
+    expect(vue.volets[2].code).toEqual({ cle: "admin.chantiers.manques.code", params: { code: "REJ-NOUVEAU-MANQUE" } });
+    expect(vue.aFournir[1].manque).toEqual({ cle: "admin.chantiers.manques.inconnu", params: { code: "REJ-NOUVEAU-MANQUE" } });
+    expect(JSON.stringify(vue)).not.toMatch(/nouveau\.yaml|opsys-metier|\/srv/);
+  });
+
+  test("un volet à fournir que la liste des volets ne porte pas : M4 se contredit, « à configurer côté serveur » sans deviner", () => {
+    const brut = reponse("preparation_lead_v2");
+    brut.resultat.resultat.a_fournir[1] = { volet: "assurance", statut: "manque", manque: "écris /srv/opsys/assurance.yaml" };
+    const vue = presenterPreparation(preparationDeBrut(brut));
+    expect(vue.aFournir[1]).toEqual({
+      volet: { cle: "admin.commun.inconnu", params: { valeur: "assurance" } },
+      manque: { cle: "admin.chantiers.manques.inconnu", params: { code: "assurance/manque" } },
+    });
+    expect(JSON.stringify(vue)).not.toMatch(/assurance\.yaml|\/srv/);
+  });
+
+  test("un manque dont le détail n'est pas un code (une phrase, un chemin) ne montre que son volet et son statut", () => {
+    const brut = reponse("preparation_lead_v2");
+    brut.resultat.resultat.volets.meteo.detail = "voir /srv/opsys/entreprise.yaml, clé 'meteo'";
+    const vue = presenterPreparation(preparationDeBrut(brut));
+    expect(vue.volets[4].manque).toEqual({ cle: "admin.chantiers.manques.inconnu", params: { code: "meteo/manque" } });
+    expect(vue.volets[4].code).toBeNull();
+    expect(vue.volets[4].detail).toBeNull();
+    expect(JSON.stringify(vue)).not.toMatch(/\/srv|entreprise\.yaml/);
+  });
+
+  test("un volet PRÊT dont le détail cite un chemin n'affiche pas ce détail ; un détail sans chemin reste dit", () => {
+    const brut = reponse("preparation_lead_v2");
+    brut.resultat.resultat.volets.soumission.detail = "devis accepté, lu dans /srv/opsys/devis.sqlite";
+    const vue = presenterPreparation(preparationDeBrut(brut));
+    expect(vue.volets[0]).toMatchObject({ ok: true, manque: null, code: null, detail: null });
+    expect(vue.volets[3].detail).toBe("matériel prêt et réservé (M6, révision 1)");
   });
 
   test("une intervention à planifier : le statut de l'intervention est celui de M4", () => {

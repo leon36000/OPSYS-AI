@@ -22,6 +22,11 @@ const adminFrCA = {
       "Le serveur ne donne pas cette section ({{code}}) : {{detail}} Aucune copie gardée n'est montrée à sa place.",
     aucune:
       "Impossible de lire cette section ({{code}}) : {{detail}} Aucune copie n'est gardée : rien n'est montré plutôt qu'une valeur inventée.",
+    // Le détail du serveur cite un chemin ou une commande de son côté (ou n'existe pas) : il n'est pas montré, le code le dit.
+    refusSansDetail:
+      "Le serveur ne donne pas cette section ({{code}}). Aucune copie gardée n'est montrée à sa place.",
+    aucuneSansDetail:
+      "Impossible de lire cette section ({{code}}). Aucune copie n'est gardée : rien n'est montré plutôt qu'une valeur inventée.",
     inconnu: "{{valeur}} (inconnu de cette version de l'app)",
     manqueLigne: "{{code}} : {{detail}}",
   },
@@ -330,6 +335,39 @@ const adminFrCA = {
       statutEtiquette: "Statut de l'intervention",
       verdictEtiquette: "Verdict de M4",
       aFournirTitre: "À fournir",
+    },
+    // Ce qu'il faut faire, en mots simples, pour chaque manque que M4 sait dire (`src/ecrans/manquesM4.ts`). Jamais le texte de
+    // M4 : il cite le fichier du serveur et les commandes `opsys-metier` destinées à un agent.
+    manques: {
+      code: "Code : {{code}}",
+      inconnu: "À configurer côté serveur (code : {{code}}).",
+      soumission: {
+        absente: "Aucune soumission acceptée n'est rattachée à cette intervention.",
+      },
+      adresse: {
+        aConfirmer: "L'adresse du chantier n'est pas confirmée. Une personne doit confirmer la position avant de planifier.",
+        detruite: "La position confirmée n'est plus lisible. Il faut la confirmer de nouveau.",
+      },
+      equipe: {
+        nonDeclarees: "Les équipes de l'entreprise ne sont pas déclarées. À configurer côté serveur.",
+        profilInvalide: "Le profil des équipes est invalide. À corriger côté serveur.",
+        reglagesIncomplets:
+          "Il manque des réglages d'équipe : la liste des équipes, ou la durée et les compétences du service. À configurer côté serveur.",
+        aucuneAdmissible:
+          "Aucune équipe ne peut faire ce service : compétences ou quarts insuffisants. À ajuster côté serveur.",
+        nonVerifiable: "Les équipes ne peuvent pas être vérifiées pour cette intervention.",
+      },
+      materiel: {
+        partiel: "Le matériel est disponible en partie. Demandez à M6 de compléter la commande.",
+        aCommander: "Le matériel doit être commandé. Demandez un bon de commande à M6.",
+        nonVerifiable: "M6 n'a pas dit si le matériel est prêt : il ne peut pas être vérifié pour l'instant.",
+      },
+      meteo: {
+        nonDeclarees: "Les règles météo de l'entreprise ne sont pas déclarées. À configurer côté serveur.",
+        profilInvalide: "Le profil météo est invalide. À corriger côté serveur.",
+        seuilsIncomplets: "Les seuils météo de ce service ne sont pas tous décidés. À configurer côté serveur.",
+        nonVerifiable: "Les règles météo ne peuvent pas être vérifiées pour cette intervention.",
+      },
     },
   },
 };

@@ -19,6 +19,9 @@ import type { DigestDuJour } from "@/m4/dispatch";
  * à la demande, la préparation d'une intervention (`m4_verifier_preparation`, volet par volet). Que des lectures : aucune
  * cédule n'est proposée ni appliquée, aucune intervention ne change d'état.
  *
+ * Un manque de la préparation se dit en mots simples, par une phrase de l'app choisie d'après son code
+ * (`src/ecrans/manquesM4.ts`) : jamais le texte de M4, qui cite le fichier du serveur et les commandes `opsys-metier`.
+ *
  * La météo n'est pas lue ici, et l'écran le dit : la préparation ne dit que si les RÈGLES météo de l'entreprise sont
  * déclarées ; la prévision d'un créneau se juge par une cédule proposée, qui écrit au registre. Chaque groupe est lu POUR
  * LUI-MÊME : un groupe trop gros, refusé ou hors ligne sans copie dit pourquoi, il ne ressemble jamais à un groupe vide ;
@@ -181,7 +184,8 @@ function PreparationUI({ vue }: { readonly vue: VuePreparation }) {
         <View key={`${index}:${volet.nom.cle}`} style={{ gap: 2 }}>
           <Ligne m={volet.nom} style={styles.petitTitre} />
           <Ligne m={volet.statut} style={volet.ok ? styles.meta : styles.erreur} />
-          {volet.manque !== null ? <Text style={styles.avis}>{volet.manque}</Text> : null}
+          {volet.manque !== null ? <Ligne m={volet.manque} style={styles.avis} /> : null}
+          {volet.code !== null ? <Ligne m={volet.code} style={styles.trace} /> : null}
           {volet.detail !== null ? <Text style={styles.trace}>{volet.detail}</Text> : null}
         </View>
       ))}
@@ -191,7 +195,7 @@ function PreparationUI({ vue }: { readonly vue: VuePreparation }) {
           {vue.aFournir.map((entree, index) => (
             <View key={`${index}:${entree.volet.cle}`}>
               <Ligne m={entree.volet} style={styles.meta} />
-              {entree.manque !== null ? <Text style={styles.avis}>{entree.manque}</Text> : null}
+              <Ligne m={entree.manque} style={styles.avis} />
             </View>
           ))}
         </>

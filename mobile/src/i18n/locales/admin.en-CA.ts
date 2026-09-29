@@ -17,6 +17,10 @@ const adminEnCA: RessourcesAdmin = {
     refus: "The server does not provide this section ({{code}}): {{detail}} No saved copy is shown in its place.",
     aucune:
       "Unable to read this section ({{code}}): {{detail}} No copy is saved: nothing is shown rather than an invented value.",
+    // The server's detail names a path or a command on its side (or is absent): it is not shown, the code says it.
+    refusSansDetail: "The server does not provide this section ({{code}}). No saved copy is shown in its place.",
+    aucuneSansDetail:
+      "Unable to read this section ({{code}}). No copy is saved: nothing is shown rather than an invented value.",
     inconnu: "{{valeur}} (unknown to this version of the app)",
     manqueLigne: "{{code}}: {{detail}}",
   },
@@ -321,6 +325,39 @@ const adminEnCA: RessourcesAdmin = {
       statutEtiquette: "Intervention status",
       verdictEtiquette: "M4's verdict",
       aFournirTitre: "To provide",
+    },
+    // What to do, in plain words, for each shortfall M4 can report (`src/ecrans/manquesM4.ts`). Never M4's own text: it names
+    // the server file and the `opsys-metier` commands meant for an agent.
+    manques: {
+      code: "Code: {{code}}",
+      inconnu: "To be set up on the server (code: {{code}}).",
+      soumission: {
+        absente: "No accepted quote is attached to this job.",
+      },
+      adresse: {
+        aConfirmer: "The job address is not confirmed. Someone must confirm the position before scheduling.",
+        detruite: "The confirmed position can no longer be read. It must be confirmed again.",
+      },
+      equipe: {
+        nonDeclarees: "The company's crews are not declared. To be set up on the server.",
+        profilInvalide: "The crews profile is invalid. To be fixed on the server.",
+        reglagesIncomplets:
+          "Crew settings are missing: the list of crews, or the duration and skills of the service. To be set up on the server.",
+        aucuneAdmissible:
+          "No crew can do this service: not enough skills or long enough shifts. To be adjusted on the server.",
+        nonVerifiable: "Crews cannot be checked for this job.",
+      },
+      materiel: {
+        partiel: "Only part of the material is available. Ask M6 to complete the order.",
+        aCommander: "The material must be ordered. Ask M6 for a purchase order.",
+        nonVerifiable: "M6 has not said whether the material is ready: it cannot be checked for now.",
+      },
+      meteo: {
+        nonDeclarees: "The company's weather rules are not declared. To be set up on the server.",
+        profilInvalide: "The weather profile is invalid. To be fixed on the server.",
+        seuilsIncomplets: "Not all weather thresholds for this service are decided. To be set up on the server.",
+        nonVerifiable: "Weather rules cannot be checked for this job.",
+      },
     },
   },
 };

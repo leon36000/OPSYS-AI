@@ -143,4 +143,48 @@ describe("presenterSection : quatre issues, jamais confondues", () => {
     expect(vue).toEqual({ genre: "aucune", avis: { cle: "admin.commun.aucune", params: raison }, raison });
     expect(presenter).not.toHaveBeenCalled();
   });
+
+  const DETAILS_QUI_CITENT_LE_SERVEUR = [
+    ["un chemin du serveur", "profil invalide : voir /srv/opsys/entreprise.yaml"],
+    ["une commande du serveur", "déclare les équipes avec opsys-metier equipes declarer --par toi"],
+    ["un nom de fichier de configuration", "écris entreprise.yaml"],
+  ] as const;
+
+  test.each(DETAILS_QUI_CITENT_LE_SERVEUR)("refusée, détail avec %s : seul le code est dit, le détail est tu (et absent de la vue)", (_nom, detail) => {
+    const vue = presenterSection({ source: "refus", verdict: { code: "REJ-PROFIL-INVALIDE", detail } }, -240, jest.fn());
+    expect(vue).toEqual({
+      genre: "refus",
+      avis: { cle: "admin.commun.refusSansDetail", params: { code: "REJ-PROFIL-INVALIDE" } },
+      verdict: { code: "REJ-PROFIL-INVALIDE", detail: "" },
+    });
+    expect(JSON.stringify(vue)).not.toContain(detail);
+  });
+
+  test.each(DETAILS_QUI_CITENT_LE_SERVEUR)("sans copie, détail avec %s : seul le code est dit, le détail est tu (et absent de la vue)", (_nom, detail) => {
+    const vue = presenterSection({ source: "aucune", raison: { code: "http_500", detail } }, -240, jest.fn());
+    expect(vue).toEqual({
+      genre: "aucune",
+      avis: { cle: "admin.commun.aucuneSansDetail", params: { code: "http_500" } },
+      raison: { code: "http_500", detail: "" },
+    });
+    expect(JSON.stringify(vue)).not.toContain(detail);
+  });
+
+  test("un détail vide (le serveur n'en donne pas) se dit par le code seul, sans les deux-points d'une phrase vide", () => {
+    expect(presenterSection({ source: "refus", verdict: { code: "REJ-X", detail: "" } }, -240, jest.fn())).toMatchObject({
+      avis: { cle: "admin.commun.refusSansDetail", params: { code: "REJ-X" } },
+    });
+    expect(presenterSection({ source: "aucune", raison: { code: "http_500", detail: "" } }, -240, jest.fn())).toMatchObject({
+      avis: { cle: "admin.commun.aucuneSansDetail", params: { code: "http_500" } },
+    });
+  });
+
+  test("un détail sans chemin reste dit tel quel, avec son code", () => {
+    const verdict = { code: "REJ-TRANSITION-ILLEGALE", detail: "préparation sans objet : l'intervention est completed_pending_review" };
+    expect(presenterSection({ source: "refus", verdict }, -240, jest.fn())).toEqual({
+      genre: "refus",
+      avis: { cle: "admin.commun.refus", params: verdict },
+      verdict,
+    });
+  });
 });

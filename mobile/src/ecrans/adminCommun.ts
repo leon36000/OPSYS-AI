@@ -3,6 +3,7 @@ import type { VerdictServeur } from "../outbox/vidangeur";
 import { formaterDepuis } from "./approvals";
 import { formaterMontant, formaterQuantite } from "./quotes";
 import type { LangueMontant } from "./quotes";
+import { texteSansChemin } from "./texteSur";
 
 /**
  * Ce que les trois écrans du profil admin (`(admin)/admin.tsx`, `chiffres.tsx`, `chantiers.tsx`, PLAN T4.20) ont en
@@ -114,17 +115,35 @@ export function presenterSection<T, C>(
         horsLigne: message("admin.commun.cache", { date, code: resultat.raisonHorsLigne.code }),
       };
     }
-    case "refus":
+    case "refus": {
+      const detail = detailMontrable(resultat.verdict);
       return {
         genre: "refus",
-        avis: message("admin.commun.refus", { code: resultat.verdict.code, detail: resultat.verdict.detail }),
-        verdict: resultat.verdict,
+        avis:
+          detail === ""
+            ? message("admin.commun.refusSansDetail", { code: resultat.verdict.code })
+            : message("admin.commun.refus", { code: resultat.verdict.code, detail }),
+        verdict: { code: resultat.verdict.code, detail },
       };
-    case "aucune":
+    }
+    case "aucune": {
+      const detail = detailMontrable(resultat.raison);
       return {
         genre: "aucune",
-        avis: message("admin.commun.aucune", { code: resultat.raison.code, detail: resultat.raison.detail }),
-        raison: resultat.raison,
+        avis:
+          detail === ""
+            ? message("admin.commun.aucuneSansDetail", { code: resultat.raison.code })
+            : message("admin.commun.aucune", { code: resultat.raison.code, detail }),
+        raison: { code: resultat.raison.code, detail },
       };
+    }
   }
+}
+
+/**
+ * Le détail d'un refus ou d'une absence, tel que le serveur l'a écrit, SAUF s'il cite un chemin du serveur ou une commande
+ * (PLAN T1.4-n : `src/ecrans/texteSur.ts`) : il est alors tu, et le code seul le dit (`refusSansDetail`). Vide : rien à dire.
+ */
+function detailMontrable(verdict: VerdictServeur): string {
+  return texteSansChemin(verdict.detail) ?? "";
 }

@@ -14,6 +14,7 @@ import {
 import { SENS_DE_SEUIL, STATUTS_SEUIL_EVALUE, UNITES_CONNUES } from "../m8/vueExecutive";
 import { presenterAVoir, vueAccueil } from "../ecrans/admin";
 import { message, presenterSection } from "../ecrans/adminCommun";
+import { direLeManque, MANQUES_CONNUS } from "../ecrans/manquesM4";
 import { presenterGroupes, presenterDigest, presenterPreparation } from "../ecrans/chantiers";
 import {
   decisionSuitePrevision,
@@ -124,6 +125,13 @@ describe.each(LANGUES)("textes du profil admin (%s)", (_langue, ressources) => {
     }
     expect(ressources.admin.commun.manqueLigne).toContain("{{code}}");
     expect(ressources.admin.commun.manqueLigne).toContain("{{detail}}");
+  });
+
+  test("quand le détail du serveur cite un chemin ou une commande, le texte ne dit que le code : il n'a pas de place pour le détail", () => {
+    for (const cle of ["refusSansDetail", "aucuneSansDetail"] as const) {
+      expect(ressources.admin.commun[cle]).toContain("{{code}}");
+      expect(ressources.admin.commun[cle]).not.toContain("{{detail}}");
+    }
   });
 
   test("« non calculable » et « à configurer » sont dits en toutes lettres, jamais par un tiret ou un zéro", () => {
@@ -299,6 +307,17 @@ function tousLesMessages(): MessageTrouve[] {
     collecter(decisionSuitePrevision(suite), `suite:${suite.genre}`, sortie);
   }
   collecter(message("admin.commun.inconnu", { valeur: "x" }), "inconnu", sortie);
+  // Chaque manque que M4 sait dire, son code, et un manque inconnu (avec et sans code) : la fixture n'en exerce que trois.
+  for (const cle of Object.keys(MANQUES_CONNUS)) {
+    const [nom, statut, code] = cle.split(":");
+    const dit = direLeManque({ nom, statut, detail: code === "" ? null : code });
+    collecter([dit.texte, dit.code], `manque:${cle}`, sortie);
+  }
+  collecter(direLeManque({ nom: "equipe", statut: "manque", detail: "REJ-NOUVEAU-MANQUE" }).texte, "manque:inconnu", sortie);
+  collecter(direLeManque({ nom: "assurance", statut: "manque", detail: null }).texte, "manque:inconnu-sans-code", sortie);
+  // Un refus ou une absence dont le détail cite le serveur : le code seul.
+  collecter(presenterSection({ source: "refus", verdict: { code: "c", detail: "/srv/x.yaml" } }, -240, () => null), "section:refus-sans-detail", sortie);
+  collecter(presenterSection({ source: "aucune", raison: { code: "c", detail: "/srv/x.yaml" } }, -240, () => null), "section:aucune-sans-detail", sortie);
   return sortie;
 }
 
@@ -364,6 +383,7 @@ const SOURCES_AVEC_TEXTES = [
   "src/ecrans/chiffres.ts",
   "src/ecrans/vueExecutive.ts",
   "src/ecrans/chantiers.ts",
+  "src/ecrans/manquesM4.ts",
   "src/admin/composants.tsx",
   "src/admin/vuesChiffres.tsx",
   "app/(admin)/admin.tsx",

@@ -17,6 +17,8 @@ import type {
 } from "../m4/dispatch";
 import { abreger, formaterDateOuInstant, libelleDeCatalogue, message, presenterSection } from "./adminCommun";
 import type { Message, VueSection } from "./adminCommun";
+import { direLeManque } from "./manquesM4";
+import { texteSansChemin } from "./texteSur";
 
 /**
  * Logique PURE de l'écran « Chantiers du jour » du propriétaire, `(admin)/chantiers.tsx` (PLAN T4.20, §9.5 M4 « dispatch
@@ -27,6 +29,11 @@ import type { Message, VueSection } from "./adminCommun";
  * intervention, n'invente ni date ni créneau, et la fenêtre planifiée, que le registre ne porte pas, n'est montrée que si
  * le serveur en donne une. Un groupe qui n'a pas pu être lu (trop gros, refusé, hors ligne sans copie) ne ressemble
  * jamais à un groupe vide : il dit pourquoi, et le cache d'un groupe est marqué avec sa date.
+ *
+ * **Un manque se dit en mots simples, jamais avec le texte de M4** (PLAN T1.4-n) : le `manque` d'un volet cite le fichier du
+ * serveur et les commandes `opsys-metier` que M4 destine à un agent. L'écran dit quoi faire par une phrase de l'app, choisie
+ * par le code du manque (`manquesM4.ts`), et ne montre jamais un chemin du serveur ; un manque inconnu se dit « à configurer
+ * côté serveur », avec son code.
  *
  * **La météo n'est pas lue ici** : la préparation ne dit que si les RÈGLES météo de l'entreprise sont déclarées (son
  * volet « météo » : `preparation.py`), et la prévision d'un créneau se juge par `m4_verifier_meteo_creneau`, qui exige
@@ -172,9 +179,12 @@ export interface VueVolet {
   readonly nom: Message;
   readonly statut: Message;
   readonly ok: boolean;
-  /** Ce qu'il faut fournir, dit par M4 avec ses mots ; `null` : rien à fournir. */
-  readonly manque: string | null;
-  /** Le détail de M4 (ce qui est prêt, ou le code du manque), tel quel. */
+  /** Ce qu'il faut faire, en mots simples (une phrase de l'app, jamais le texte de M4) ; `null` : le volet est prêt. */
+  readonly manque: Message | null;
+  /** Le code du manque, seulement s'il est un jeton sûr : pour le support ; `null` : aucun. */
+  readonly code: Message | null;
+  /** Ce que M4 dit d'un volet PRÊT (un fait : « devis accepté X »), seulement s'il ne porte ni chemin ni commande ;
+   * `null` : rien à dire, ou rien de montrable. Un volet qui n'est pas prêt n'a pas de détail : son manque le remplace. */
   readonly detail: string | null;
 }
 
@@ -186,16 +196,19 @@ export interface VuePreparation {
   /** « Prête » : SEULEMENT si le serveur le dit et que chaque volet est `ok` (`lirePreparation` l'exige). */
   readonly pret: boolean;
   readonly volets: readonly VueVolet[];
-  readonly aFournir: readonly { readonly volet: Message; readonly manque: string | null }[];
+  readonly aFournir: readonly { readonly volet: Message; readonly manque: Message }[];
 }
 
 function presenterVolet(volet: VoletDePreparation): VueVolet {
+  const ok = volet.statut === "ok";
+  const dit = ok ? null : direLeManque(volet);
   return {
     nom: libelleDeCatalogue("admin.chantiers.volets", volet.nom, VOLETS_DE_PREPARATION),
     statut: libelleDeCatalogue("admin.chantiers.statutsDeVolet", volet.statut, STATUTS_DE_VOLET),
-    ok: volet.statut === "ok",
-    manque: volet.manque,
-    detail: volet.detail,
+    ok,
+    manque: dit === null ? null : dit.texte,
+    code: dit === null ? null : dit.code,
+    detail: ok ? texteSansChemin(volet.detail) : null,
   };
 }
 
@@ -207,9 +220,15 @@ export function presenterPreparation(preparation: Preparation): VuePreparation {
     verdict: libelleDeCatalogue("admin.chantiers.verdicts", preparation.verdict, VERDICTS_DE_PREPARATION),
     pret: preparation.pret,
     volets: preparation.volets.map(presenterVolet),
+    // Un volet à fournir se dit par le code de SON volet (`a_fournir` ne porte que le texte de M4, que l'app ne montre pas).
+    // Sans volet du même nom, M4 se contredit : le détail « vide » (présent, pas un code) fait dire « à configurer côté serveur ».
     aFournir: preparation.aFournir.map((entree) => ({
       volet: libelleDeCatalogue("admin.chantiers.volets", entree.volet, VOLETS_DE_PREPARATION),
-      manque: entree.manque,
+      manque: direLeManque({
+        nom: entree.volet,
+        statut: entree.statut,
+        detail: preparation.volets.find((volet) => volet.nom === entree.volet)?.detail ?? "",
+      }).texte,
     })),
   };
 }
