@@ -9,6 +9,9 @@ dans un message et la ville dans le suivant donne un lead complet, par du code (
 service lues du profil, demande de photos fermée, score de lead explicable, prochaine action datée au registre (§9).
 **Suite (T4.5, 2026-09-29) :** plaintes, urgences de sécurité et transfert humain avec résumé : la plainte prime (jamais de lead),
 une attente lisible dans « À voir », un gabarit de réponse empathique en brouillon (§10).
+**Suite (T4.17-c, 2026-09-29) :** le garde-fou de texte vit dans le socle (`opsys.garde_fou_texte`, familles nommées que chaque
+département choisit) ; l'avis légal y est vérifié partout, pas seulement sur le gabarit de plainte (§11) ; le STOP d'un client est
+publié au bus (`m1.retrait_consentement`) et M7 en tire le retrait de son consentement marketing (§12).
 **Références :** `DEFINITION-PRODUIT` §5, §6, §7 (M1.1, M1.3, M1.4, M1.7, M1.8, M1.12), `M1-audit.md`, ADR-0010 (T3.3-suite-b).
 **Le core ne s'exécute pas dans ce bac à sable.** Tout ce qui suit sur le core vient de la lecture de ses sources
 (`fichier:ligne` donnés) ; la CI (`e2e-core`, `openclaw config validate`) est l'autorité.
@@ -58,7 +61,7 @@ pas dans cette tranche.
 | Service | la taxonomie du profil d'entreprise (4 services réels du premier client) | `opsys.taxonomie` ; plusieurs services ou aucun : on demande lequel |
 | Zone desservie | `zone_desservie` du profil d'entreprise (`$OPSYS_HOME/entreprise.yaml`) | l'agent ne la fournit pas ; absente : refus qui dit où la déclarer |
 | Ce qu'on demande au client | un brouillon que le code compose (§8, §9) ; les questions du service viennent du profil d'entreprise, jamais du code | garde-fou des interdits appliqué par le code, question par question ; il ne part que par `m1_emettre_notification` (N4), après approbation |
-| Prix, dates, engagements | jamais produits | `m1_verifier_garde_fou` avant toute proposition de message |
+| Prix, dates, engagements, aveux, avis légaux | jamais produits | `m1_verifier_garde_fou` avant toute proposition de message |
 | Le texte du client | donnée non fiable | filtre de provenance (`[CONTENU_NON_FIABLE]`), jamais une consigne |
 
 Limite connue de cette tranche : le modèle recopie les champs de la plateforme. La greffe qui les retire du modèle est
@@ -142,7 +145,8 @@ un canal partagé par deux départements, ou le mode `autonome`. Avec `--config-
 - **Retrait de consentement (POLITIQUE-consentement-sms §4).** Un message qui est **entièrement** un mot de retrait
   (STOP, ARRÊT, UNSUBSCRIBE…) est inscrit (signal + alerte `retrait_consentement`), jamais qualifié, et la réponse dit de
   n'écrire à personne. Une phrase qui contient « arrêt » est une demande. Le registre des retraits est l'alerte ; la table
-  `consent_sms` et l'application du retrait à l'envoi (48 h) viennent avec l'envoi réel (T2.1-c).
+  `consent_sms` et l'application du retrait à l'envoi (48 h) viennent avec l'envoi réel (T2.1-c). Le retrait est aussi dit au
+  bus, par le `lead_id` des leads déjà ouverts pour ce correspondant, jamais par son numéro (§12).
 - **Loi 25.** Le canal est inactif tant que Nathan n'a pas validé les politiques SMS et photos (variable d'attestation).
   Les identifiants de conversation sont des empreintes ; la clé de session, qui contient le numéro, reste au registre de M1
   et à M10, pas dans le bus. Le registre de M1 garde le texte filtré du client, comme avant. Les photos (MMS) ne sont pas
@@ -310,7 +314,8 @@ réponse porte un bloc `questions` :
   comptent.
 - **Ordre du brouillon :** d'abord ce qui manque au lead, une seule question à la fois (service, ville, contact) ; ensuite les
   questions du service ; ensuite les photos (§9.3). Le lead n'attend pas les questions : il part chez M2 dès qu'il est complet.
-- **Chaque question du profil passe seule au garde-fou** (aucun prix, aucune date, aucun engagement, aucun aveu). Celle qui est
+- **Chaque question du profil passe seule au garde-fou** (aucun prix, aucune date, aucun engagement, aucun aveu, aucun avis
+  légal : `REJ-INTERDIT-*`, §11). Celle qui est
   refusée est retirée et nommée (`questions_refusees`) ; les autres partent quand même, pour qu'une question mal écrite ne
   laisse pas le client sans réponse. Si toutes sont refusées : pas de brouillon, `sans_brouillon` dit le code. Le corpus
   adversarial du garde-fou est inchangé.
@@ -457,7 +462,7 @@ quand une PERSONNE le clôt. Ouvert, il est une attente ; les messages arrivés 
 | Point | Règle |
 |---|---|
 | Type | Ensemble fermé de la définition du produit (§7 M1.12) : `ventes`, `estimation`, `admin`, `finance`, `plainte`, `urgence`, `technique`, `proprietaire`. Un autre est refusé par le schéma. |
-| Résumé | **Obligatoire, refus si vide.** Absent, le code le compose : type, termes reconnus, canal, nombre et heures des messages, lead déjà transmis ou non, origine du contact. **Aucun texte du client, aucun contact** (la file « À voir » ne porte aucune donnée personnelle). Fourni par l'agent (`resume`), il est **contrôlé** : non vide (`REJ-TRANSFERT-RESUME-VIDE`), 1 200 caractères au plus, passé par le filtre de provenance, **sans donnée de contact brute** (téléphone d'au moins sept chiffres, courriel : `REJ-TRANSFERT-RESUME-CONTACT`), puis par `garde_fou.verifier_sortie` (prix, date, engagement, aveu : `REJ-INTERDIT-*`). Un refus n'écrit rien. |
+| Résumé | **Obligatoire, refus si vide.** Absent, le code le compose : type, termes reconnus, canal, nombre et heures des messages, lead déjà transmis ou non, origine du contact. **Aucun texte du client, aucun contact** (la file « À voir » ne porte aucune donnée personnelle). Fourni par l'agent (`resume`), il est **contrôlé** : non vide (`REJ-TRANSFERT-RESUME-VIDE`), 1 200 caractères au plus, passé par le filtre de provenance, **sans donnée de contact brute** (téléphone d'au moins sept chiffres, courriel : `REJ-TRANSFERT-RESUME-CONTACT`), puis par `garde_fou.verifier_sortie` (prix, date, engagement, aveu, avis légal : `REJ-INTERDIT-*`, §11 : un résumé de l'agent ne peut pas nommer un avocat ou un tribunal ; il omet alors `resume`, le code compose le sien et la menace juridique reste lisible dans « À voir »). Un refus n'écrit rien. |
 | Contact | Porté **à part**, jamais dans le résumé : l'identité que la plateforme a vérifiée (SMS, courriel), sinon ce que le client a écrit (voix, formulaire), sinon rien. |
 | Destinataire | Un **rôle**, lu de la table `destinataires_transfert` du profil (« type -> rôle », vide par défaut). Absent : `destinataire: null` et le verdict `REJ-DESTINATAIRE-NON-CONFIGURE` (« destinataire à configurer », qui nomme le type). **Le code ne choisit jamais une personne.** Le transfert est ouvert quand même : une plainte ne se perd pas pour une configuration manquante. Le rôle est affiché, pas appliqué : les attentes ne sont visibles que de l'admin (T1.5). |
 | Idempotence | Un message rejoué ne crée ni second transfert ni seconde ligne. Deux appels de l'agent pour la même conversation et le même type rendent le transfert ouvert (`deja_ouvert`). |
@@ -506,10 +511,10 @@ référence.
 
 - **Aucune excuse** (« désolé » reconnaît un tort), **aucune promesse ni délai**, **aucun conseil de sécurité** (pas même « appelez
   le 9-1-1 » : décision de Nathan), **rien sur le droit**. Un fait passé seulement : le message a été transmis.
-- Le brouillon passe par `garde_fou.verifier_sortie` (prix, date, engagement, aveu) **et** par une vérification de l'avis légal,
-  ajoutée ici : **le garde-fou ne porte pas de famille « avis légal »** (constat, prouvé par un test : « Vous avez le droit de
-  refuser de payer » passe le garde-fou). Le corpus adversarial (44 textes) est inchangé et rejoué contre le gabarit : 44 sur 44
-  retirés. Si le gabarit était modifié pour contenir un texte interdit, `brouillon_reponse` vaut `null` et `sans_brouillon` dit le
+- Le brouillon passe par `garde_fou.verifier_sortie` (prix, date, engagement, aveu, avis légal). Depuis T4.17-c, l'avis légal est
+  une famille du garde-fou (§11) : la vérification locale au gabarit, que T4.5 avait ajoutée parce que « Vous avez le droit de
+  refuser de payer » passait le garde-fou, n'existe plus. Le corpus adversarial (44 textes) est inchangé et rejoué contre le
+  gabarit : 44 sur 44 retirés. Si le gabarit était modifié pour contenir un texte interdit, `brouillon_reponse` vaut `null` et `sans_brouillon` dit le
   code.
 - **Pas de brouillon** pour une menace juridique (`sujet_legal_reponse_humaine` : la réponse est humaine), ni pour un client qui
   s'est retiré (STOP : `retrait_consentement`, la plainte est escaladée quand même). `envoye` vaut toujours `false` ; l'envoi est
@@ -535,6 +540,8 @@ référence.
 - Les canaux vocal et formulaire passent par `m1_traiter_demande_entrante` (même détection, même transfert) ; les outils de
   l'agent (`m1_transferer`, `m1_escalader_plainte`) ne prennent que les canaux du core (`sms`, `courriel`).
 - Une adresse postale dans un résumé fourni par l'agent n'est pas reconnue (seuls le téléphone et le courriel le sont).
+- Le résumé de l'agent passe l'avis légal comme tout texte de M1 (§11) : il ne peut pas nommer un avocat. C'est le prix de
+  « partout » ; l'exception d'un résumé destiné à un humain est une décision à prendre (§11, GATE).
 - Aucun outil de M1 n'écrit encore une tâche dans M2 ni un signal dans M10 pour un transfert : la file « À voir » est la seule
   sortie (le lien vers M2 d'un lead déjà transmis est dit dans le résumé).
 - Le jugement de l'agent (`m1_escalader_plainte`) n'est pas vérifié par du code : escalader à tort coûte une lecture.
@@ -562,3 +569,69 @@ Rien de ceci n'a de valeur par défaut dans le code : sans décision, le systèm
 5. **La règle « la plainte prime tant qu'elle est ouverte »** : garder, ou limiter le rattachement dans le temps.
 Les vocabulaires, rôles et messages des tests sont fictifs : `departments/m01-front-office/fixtures/plaintes/plaintes.v1.yaml`
 (`fictif: true`).
+
+## 11. Le garde-fou de texte est dans le socle, et l'avis légal y est partout (T4.17-c)
+
+Avant, M1 (`garde_fou.py`) et M7 (`usine/controle_texte.py`) avaient chacun leurs motifs, et l'avis légal n'était vérifié que
+sur le gabarit de plainte. Le code partagé vit maintenant dans le socle : `opsys.garde_fou_texte`
+(`docs/architecture/DEPARTEMENTS.md` § « Garde-fou de texte partagé »). Aucun département n'importe l'autre.
+
+- **Des familles nommées, un refus qui nomme la règle.** Chaque famille a un nom, un code de refus stable et un libellé. Un refus
+  dit toujours quoi retirer.
+- **M1 choisit cinq familles** (`garde_fou.PROFIL_REPONSE_CLIENT`), lues dans l'ordre fixe du catalogue :
+
+| Famille | Code de refus | Ce qu'elle refuse |
+|---|---|---|
+| `prix_montant` | `REJ-INTERDIT-PRIX` | un prix, un montant, une fourchette |
+| `date_execution` | `REJ-INTERDIT-DATE` | une date ou un délai d'exécution des travaux (un rappel n'en est pas un) |
+| `engagement` | `REJ-INTERDIT-ENGAGEMENT` | une promesse ferme, une garantie, une parole donnée |
+| `aveu` | `REJ-INTERDIT-AVEU` | un aveu de faute ou de responsabilité |
+| `avis_legal` | `REJ-INTERDIT-AVIS-LEGAL` | droits, loi, recours, avocat, tribunal, contrat : un avis légal, fiscal ou contractuel |
+
+- **Le verdict est celui de la première famille violée** (prix, date, engagement, aveu, avis légal) : même texte, même code.
+  Le verdict porte un `detail` (jamais muet) ; un texte accepté rend `OK`.
+- **Les corpus de M1 sont inchangés** : 44 textes interdits (100 % bloqués, 100 % de la bonne famille), 22 légitimes (aucun
+  faux positif). Les quatre familles d'origine donnent les mêmes verdicts qu'avant le déplacement (mesuré à la livraison contre l'ancien code,
+  sur 60 341 textes, avec un script jetable : aucun écart) ; seule l'avis légal s'ajoute, sur des textes que M1 laissait passer.
+- **L'avis légal vaut partout où M1 passe un texte** : brouillons de qualification (libellé de service compris), questions du
+  profil (retirées et nommées), gabarits de plainte et d'urgence, résumés de transfert, outil `m1_verifier_garde_fou`.
+- **Conséquence connue** : un résumé de transfert fourni par l'agent ne peut pas nommer un avocat ou un tribunal
+  (`REJ-INTERDIT-AVIS-LEGAL`). L'agent omet `resume` ou retire le terme ; le code compose alors son résumé, qui dit « menace
+  juridique » sans texte du client, et l'attente monte en N5. Un texte fait pour un humain pourrait avoir un profil sans avis
+  légal ; c'est une décision (GATE), pas un défaut du code.
+- **Les motifs lisent des mots, pas le sens** : « Nous consultons notre avocat » est refusé comme « Vous avez droit à un
+  recours ». Le prix du fail-closed est un faux positif possible ; la règle est nommée, donc contournable par une phrase plus
+  sobre.
+
+## 12. Le STOP est publié au bus : `m1.retrait_consentement` (T4.17-c)
+
+Un correspondant qui écrit STOP se retire des messages (§5). Un client qui ne veut plus de messages n'a pas non plus consenti à ce
+que son chantier serve de contenu public : M1 le dit au bus, et M7 en tire ses propres conséquences. M1 n'importe pas M7.
+
+- **Le lien est le `lead_id`, jamais un contact.** M1 crée le `lead_id` (conversation, texte, identité du canal), M2 le reprend tel
+  quel, le WCT de M4 le porte, M7 le connaît. L'événement porte les `lead_ids` que M1 a émis pour le correspondant, le canal
+  du core, l'heure et le signal du STOP. **Ni numéro, ni courriel, ni `conversation_id`** (une empreinte du numéro, qui reste au
+  registre de M1) : le schéma du catalogue est fermé.
+- **Pourquoi pas le `client_id` de M2.** M2 le dérive d'une empreinte du contact entier (`clients.identifiant_client`, préfixe
+  `m2-client-v1`). M1 le connaîtrait seulement en copiant cet algorithme, ce que la séparation des départements interdit, ou en
+  lisant l'événement `m2.client_associe` (une boucle M1 -> M2 -> M1). Le `lead_id` suffit, sans rien exposer.
+- **Une publication par STOP qui a des leads.** Sans lead ouvert, rien n'est publié (un consommateur n'aurait rien à retirer) : la
+  réponse le dit (`retrait_publie: {leads: 0, evenement_id: null}`). L'identifiant est déterministe (signal du STOP + leads) : un
+  STOP rejoué ne publie rien de plus. L'inscription au registre et la publication réussissent ou échouent ensemble.
+- **Un lead ouvert après le STOP est retiré aussi.** Le retrait ne se lève pas (`transferts.retire`) : quand le même correspondant
+  ouvre un nouveau lead, M1 publie un second événement, pour ce lead seul, avec l'heure et le signal du STOP d'origine.
+- **Les opportunités d'un client qui revient.** M2 ouvre `<lead d'origine>~opp~<wct_id>` pour un client dont le lead a fini son
+  cycle ; le WCT du chantier suivant peut porter cet identifiant. M7 reconnaît la forme (comme M10) : le retrait d'un lead vaut
+  pour le lead d'origine et toutes ses opportunités.
+- **Ce que le lien ne couvre pas.** Un même client qui écrit d'un autre numéro ou par un autre canal est un autre correspondant
+  pour M1 : le retrait ne le suit pas. C'est la limite du lien sans contact. Les STOP inscrits AVANT cette livraison n'ont pas
+  d'événement : un lead déjà ouvert pour eux n'est pas retiré chez M7 tant qu'un nouveau STOP ou un nouveau lead ne le publie
+  pas (rattrapage à décider).
+- **Côté M7** : le consommateur inscrit un retrait par lead dans `retraits_consentement_marketing` (sans `wct_id`) ; tout contenu
+  de ces leads est bloqué (proposer, décider, exporter, photo), un paquet déjà exporté compris ; la réponse du consommateur dit
+  quels paquets exportés se retirent à la main. Voir `departments/m07-marketing/README.md`.
+- **Limite documentée** : la demande d'avis de M7 naît d'un consentement distinct (`consentement_demande_avis`, T1.5-d) et le STOP
+  ne la touche pas ; elle reste un brouillon que rien n'envoie sans approbation. À trancher avec Nathan.
+- **Preuve** : `tests/test_stop_retire_consentement_marketing.py` (le vrai bus : STOP, puis tout contenu du client est bloqué,
+  paquet exporté compris, numéro absent), `departments/m01-front-office/tests/test_retrait_publie.py`,
+  `departments/m07-marketing/tests/usine/test_retrait_du_bus.py`.

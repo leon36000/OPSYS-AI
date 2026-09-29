@@ -26,8 +26,10 @@ skills:
 canaux: [sms]
 # M1 publie le lead qualifié ; M2 le consomme (`evenements.consomme` de M2, PLAN T2.1-b : ingestion complète, un refus
 # lève et le répartiteur réessaie puis met en quarantaine).
+# PLAN T4.17-c : M1 publie aussi le STOP d'un correspondant (`m1.retrait_consentement`), par le `lead_id` des leads déjà
+# ouverts pour lui, jamais un contact ; M7 le consomme (registre `retraits_consentement_marketing`).
 evenements:
-  publie: [m1.lead_qualifie]
+  publie: [m1.lead_qualifie, m1.retrait_consentement]
 planifications:
   - nom: digest-front-office
     cron: "0 7 * * 1-5"

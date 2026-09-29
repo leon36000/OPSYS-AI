@@ -52,6 +52,7 @@ d'affaire liée). Aucune réponse n'est envoyée : le gabarit empathique est un 
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -76,6 +77,7 @@ from . import (
     qualification,
     questions,
     reception,
+    retrait,
     score,
     suivi,
     transferts,
@@ -127,10 +129,15 @@ def utiliser_stockage_durable() -> None:
     _stockage_durable_actif = True
 
 
-def _publier_lead(lead: dict[str, Any], horodatage: str, signal_id: str) -> None:
+def _publier_lead(
+    lead: dict[str, Any], horodatage: str, signal_id: str, lignes: Sequence[dict[str, Any]] = ()
+) -> None:
     """Publie le lead qualifié au bus (`m1.lead_qualifie`), dans la transaction courante, SEULEMENT avec le
     registre de production. L'identifiant de l'événement vient du `lead_id` : un lead rejoué ne s'y ajoute pas
-    deux fois (`opsys.evenements.publier`, idempotent)."""
+    deux fois (`opsys.evenements.publier`, idempotent).
+
+    `lignes` : le registre tel qu'il était avant ce message. Si le correspondant s'est déjà retiré (STOP), le retrait
+    de son consentement vaut aussi pour ce lead : il part au bus, pour ce lead seul (`retrait.py`)."""
     if not _stockage_durable_actif:
         return
     evenements.publier(
@@ -139,6 +146,24 @@ def _publier_lead(lead: dict[str, Any], horodatage: str, signal_id: str) -> None
         {"lead": lead, "horodatage": horodatage, "signal_id": signal_id},
         evenement_id=f"m1-lead-qualifie-{lead['lead_id']}",
     )
+    alerte = retrait.alerte_de_retrait(lignes, lead["conversation_id"])
+    if alerte is not None:
+        _publier_retrait(alerte, (lead["lead_id"],))
+
+
+def _publier_retrait(alerte: dict[str, Any], lead_ids: Sequence[str]) -> str | None:
+    """Publie le retrait du consentement (`m1.retrait_consentement`) pour ces leads, dans la transaction courante,
+    SEULEMENT avec le registre de production ; rend l'identifiant de l'événement, ou `None` si rien n'est publié
+    (registre en mémoire, ou aucun lead : sans lead, un consommateur n'a rien à retirer). L'identifiant vient du
+    signal du STOP et des leads : un STOP rejoué ne s'y ajoute pas deux fois. Aucun contact n'est porté
+    (`retrait.py`)."""
+    if not _stockage_durable_actif or not lead_ids:
+        return None
+    identifiant = retrait.identifiant_evenement(alerte["signal_id"], lead_ids)
+    evenements.publier(
+        retrait.TYPE_EVENEMENT, _DEPARTEMENT, retrait.charge(alerte, lead_ids), evenement_id=identifiant
+    )
+    return identifiant
 
 
 def _obtenir_registre() -> Registre:
@@ -492,7 +517,7 @@ def _traiter(
         if ecartes:
             lead_emis["services_ecartes"] = ecartes
     ligne_id_lead = reg.ajouter(lead_emis)
-    _publier_lead(resultat_qualif, horodatage, signal_id)
+    _publier_lead(resultat_qualif, horodatage, signal_id, lignes)
 
     reponse = {
         "etape": "decision",
@@ -1049,7 +1074,7 @@ def _enregistrer_retrait(
         "contenu_filtre": contenu_filtre,
         "provenance_saine": sain,
     })
-    ligne_alerte = reg.ajouter({
+    alerte = {
         "type_entree": "alerte",
         "marqueur": "retrait_consentement",
         "canal": message.canal_contrat,
@@ -1057,7 +1082,10 @@ def _enregistrer_retrait(
         "conversation_id": message.conversation_id,
         "signal_id": message.signal_id,
         "horodatage": message.horodatage,
-    })
+    }
+    leads_du_correspondant = retrait.leads_de_la_conversation(reg.lire(), message.conversation_id)
+    ligne_alerte = reg.ajouter(alerte)
+    evenement_retrait = _publier_retrait(alerte, leads_du_correspondant)
     if ouverte is not None and ouverte.messages:
         # La conversation ouverte se ferme : sans cette ligne, elle resterait « ouverte, à suivre » pour toujours.
         reg.ajouter(suivi.ligne_de_fermeture(
@@ -1073,6 +1101,9 @@ def _enregistrer_retrait(
         "qualifie": False,
         "decision": "RETRAIT_CONSENTEMENT",
         "consigne": "Le client se retire : n'envoie aucun message à ce correspondant, ne propose aucune réponse.",
+        # Le retrait est aussi dit au bus (`m1.retrait_consentement`), par le `lead_id` des leads déjà ouverts pour ce
+        # correspondant : M7 s'en sert pour ne plus rien publier de ses chantiers. Aucun contact n'y est porté.
+        "retrait_publie": {"leads": len(leads_du_correspondant), "evenement_id": evenement_retrait},
     }
     if ouverte is not None:
         reponse["conversation"] = {

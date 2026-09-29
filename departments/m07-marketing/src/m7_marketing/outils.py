@@ -584,10 +584,20 @@ def lister_demandes_avis(limite: int = _LIMITE_DEMANDES_AVIS_DEFAUT) -> dict[str
     return {"total": len(demandes), "demandes": lignes, "reste": len(demandes) - len(lignes)}
 
 
+def _recevoir_retrait_consentement(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consommateur `m1.retrait_consentement` (PLAN T4.17-c, Loi 25) : un client qui a écrit STOP à M1 ne veut plus de
+    contenu de son chantier. Inscrit un retrait par lead au registre `retraits_consentement_marketing` : tout contenu de
+    ces leads est bloqué, y compris un paquet déjà exporté. Voir `usine.service.enregistrer_retrait_de_leads`."""
+    return usine_service.enregistrer_retrait_de_leads(charge)
+
+
 def consommateurs() -> dict[str, Any]:
     """Types d'événements consommés par M7 (ADR-0009 §3) — voir `department.yaml:evenements.consomme`
     et `docs/architecture/DEPARTEMENTS.md` § Événements."""
-    return {"m4.travaux_termines": _recevoir_travaux_termines}
+    return {
+        "m4.travaux_termines": _recevoir_travaux_termines,
+        "m1.retrait_consentement": _recevoir_retrait_consentement,
+    }
 
 
 # Même mécanisme de découverte que `consommateurs()` (`opsys.departements.Departement.charger_attentes`) :

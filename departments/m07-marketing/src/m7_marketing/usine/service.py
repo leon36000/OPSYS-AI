@@ -45,6 +45,7 @@ STATUT_PROFIL_MARQUE_NON_CONFIGURE = "profil_marque_non_configure"
 STATUT_OK = "ok"
 
 ORIGINE_BUS = "bus:m4.travaux_termines"
+ORIGINE_BUS_RETRAIT = "bus:m1.retrait_consentement"
 ORIGINE_AGENT = "agent"
 
 LIMITE_LISTE_DEFAUT = 5
@@ -54,6 +55,7 @@ LIMITE_LISTE_MAX = 8
 BUDGET_LISTE = 4500
 RESUME_ATTENTE_MAX = 200
 ACTION_ATTENTE = "lire (m7_lister_contenus_chantier) puis approuver ou rejeter (m7_decider_contenu)"
+A_FAIRE_PAQUET_EXPORTE = "retirer à la main les publications déjà faites avec ces paquets exportés"
 
 
 # -- lecture des registres ---------------------------------------------------------------------------------------
@@ -479,15 +481,10 @@ def enregistrer_retrait_consentement_marketing(wct_id: str, canal: str, horodata
     if existant is None:
         stockage.maillons(*REGISTRE_RETRAITS).append(maillon)
         existant = maillon
-    concernes = [
-        p for p in registre.dernieres_revisions(_lire(REGISTRE_CONTENUS_CHANTIER))
-        if retrait.retrait_applicable(p["wct_id"], p.get("lead_id"), [existant]) is not None
-    ]
-    exports = _lire(REGISTRE_EXPORTS_PAQUET)
-    deja_exportes = [p["contenu_id"] for p in concernes if registre.export_de(p["contenu_id"], exports) is not None]
+    contenus_bloques, deja_exportes = _contenus_touches_par([existant])
     a_faire = []
     if deja_exportes:
-        a_faire.append("retirer à la main les publications déjà faites avec ces paquets exportés")
+        a_faire.append(A_FAIRE_PAQUET_EXPORTE)
     if charge is None:
         a_faire.append(
             "wct_id inconnu de M7 : le retrait est enregistré et bloquera ce chantier s'il arrive ; vérifier le wct_id"
@@ -495,9 +492,57 @@ def enregistrer_retrait_consentement_marketing(wct_id: str, canal: str, horodata
     return {"accepte": True, "resultat": {
         "retrait_id": existant["retrait_id"], "wct_id": existant["wct_id"], "lead_id": existant["lead_id"],
         "wct_connu": charge is not None, "deja_enregistre": existant is not maillon,
-        "contenus_bloques": [p["contenu_id"] for p in concernes], "contenus_deja_exportes": deja_exportes,
+        "contenus_bloques": contenus_bloques, "contenus_deja_exportes": deja_exportes,
         "a_faire": a_faire,
     }}
+
+
+def _contenus_touches_par(retraits: list[dict[str, Any]]) -> tuple[list[str], list[str]]:
+    """`(contenus bloqués, dont déjà exportés)` : les contenus courants que ces retraits bloquent, par chantier ou
+    par lead. Un paquet exporté a pu être publié à la main : M7 ne publie jamais, il le dit."""
+    concernes = [
+        p for p in registre.dernieres_revisions(_lire(REGISTRE_CONTENUS_CHANTIER))
+        if any(retrait.retrait_applicable(p["wct_id"], p.get("lead_id"), [r]) is not None for r in retraits)
+    ]
+    exports = _lire(REGISTRE_EXPORTS_PAQUET)
+    deja_exportes = [p["contenu_id"] for p in concernes if registre.export_de(p["contenu_id"], exports) is not None]
+    return [p["contenu_id"] for p in concernes], deja_exportes
+
+
+def enregistrer_retrait_de_leads(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consommateur `m1.retrait_consentement` (PLAN T4.17-c) : le client a écrit STOP à M1, qui dit au bus quels leads
+    il avait ouverts pour lui. M7 inscrit UN retrait par lead (`retraits_consentement_marketing`, sans `wct_id`) : tout
+    chantier de ces leads est bloqué, celui déjà reçu comme celui qui arrivera, paquet exporté compris (même
+    registre, mêmes blocages que `m7_enregistrer_retrait_consentement_marketing`).
+
+    Idempotent (un retrait par lead, identifiant déterministe) : une relivraison n'écrit rien. Fail-closed : une charge
+    que M7 ne sait pas lire lève, l'événement est rejoué puis mis en quarantaine, visible ; un retrait n'est jamais
+    ignoré en silence. Le résumé ne porte que des identifiants et des comptes : jamais un contact."""
+    canal, horodatage = charge.get("canal"), charge.get("horodatage")
+    lead_ids = charge.get("lead_ids")
+    if not isinstance(lead_ids, list) or not lead_ids:
+        raise ValueError(f"{verdicts.REJ_RETRAIT_INVALIDE}: lead_ids : au moins un lead est attendu")
+    # Tout est validé avant la première écriture : un lead illisible ne laisse pas les autres à moitié inscrits.
+    maillons: dict[str, dict[str, Any]] = {}
+    for lead_id in lead_ids:
+        maillon, verdict = retrait.construire_retrait_de_lead(
+            lead_id, canal, ORIGINE_BUS_RETRAIT, ORIGINE_BUS_RETRAIT, horodatage,
+        )
+        if verdict is not None:
+            raise ValueError(f"{verdict['code']}: {verdict['detail']}")
+        maillons.setdefault(maillon["retrait_id"], maillon)
+    journal = stockage.maillons(*REGISTRE_RETRAITS)
+    connus = {r["retrait_id"] for r in journal}
+    ecrits = [m for retrait_id, m in maillons.items() if retrait_id not in connus]
+    for maillon in ecrits:
+        journal.append(maillon)
+    deja_enregistres = len(maillons) - len(ecrits)
+    contenus_bloques, deja_exportes = _contenus_touches_par(ecrits)
+    return {
+        "traite": True, "retraits_ecrits": len(ecrits), "deja_enregistres": deja_enregistres,
+        "contenus_bloques": contenus_bloques, "contenus_deja_exportes": deja_exportes,
+        "a_faire": [A_FAIRE_PAQUET_EXPORTE] if deja_exportes else [],
+    }
 
 
 # -- « À voir » ----------------------------------------------------------------------------------------------------

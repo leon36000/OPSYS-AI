@@ -5,6 +5,20 @@ Front Office IA — reception omnicanale, voix 0->5, qualification, adjointe
 Statut: PARTIAL (EPIC E — vague 1 livrée en mode ombre : registre, machine à états des phases
 voix 0->5, garde-fou des interdits absolus, qualification, adaptateurs, digest.)
 
+## Garde-fou des interdits et STOP publié au bus (PLAN T4.17-c)
+
+- **Le garde-fou est celui du socle** (`opsys.garde_fou_texte`) : `garde_fou.py` ne fait plus que choisir les familles de M1
+  (`PROFIL_REPONSE_CLIENT` : `prix_montant`, `date_execution`, `engagement`, `aveu`, `avis_legal`) et rendre le verdict de la
+  première famille violée (`REJ-INTERDIT-*`, avec un `detail`). Un texte public de M7 a d'autres familles ; aucun département
+  n'importe l'autre. Les corpus (44 textes interdits, 22 légitimes) sont inchangés et verts.
+- **L'avis légal est vérifié partout** (`REJ-INTERDIT-AVIS-LEGAL`), pas seulement sur le gabarit de plainte : brouillons, questions
+  du profil, gabarits, résumés de transfert, `m1_verifier_garde_fou`. Un résumé de l'agent ne peut donc pas nommer un avocat : il
+  omet `resume` et le code compose le sien ([M1-canaux](../../docs/departements/M1-canaux.md) §11).
+- **Le STOP d'un client est publié au bus** (`m1.retrait_consentement`, `retrait.py`) : les `lead_id` des leads déjà ouverts pour
+  ce correspondant, le canal, l'heure et le signal du STOP. Jamais un numéro ni un courriel : le lien avec le chantier est le
+  `lead_id`, que M2, M4 et M7 connaissent aussi. Un lead ouvert après le STOP est retiré à son tour. M7 le consomme et bloque tout
+  contenu de ces leads (§12 du même document).
+
 ## Canaux du core (PLAN T2.1-a)
 
 M1 reçoit le public par le canal SMS d'OPSYS-CORE : `m1_recevoir_message_canal` qualifie le message (taxonomie des
@@ -64,7 +78,7 @@ Une plainte ou une urgence de sécurité n'est jamais un lead. Rien n'est envoy�
   sécurité et menace juridique, N4 plainte, N3 le reste) puis ancienneté. L'admin la voit, l'employé reçoit 403. Elle disparaît
   quand une personne clôt le transfert.
 - **Gabarit empathique** : un brouillon (`envoye: false`), sans excuse, promesse, conseil ni avis légal, passé par le garde-fou
-  des interdits et une vérification de l'avis légal ; l'envoi reste `m1_emettre_notification` (N4).
+  des interdits (avis légal compris, depuis T4.17-c) ; l'envoi reste `m1_emettre_notification` (N4).
 
 Fixtures fictives (`fictif: true`) : `fixtures/plaintes/plaintes.v1.yaml` (48 plaintes et urgences, 12 demandes ordinaires, 4
 limites documentées). Conception, niveaux N, limites et décisions de Nathan :

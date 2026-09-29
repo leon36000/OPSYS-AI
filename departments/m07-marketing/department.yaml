@@ -10,7 +10,7 @@ mission: >-
   manquant devient une donnee_insuffisante explicite, jamais un zéro silencieux.
 outils: m7_marketing.outils
 mode: ombre
-dependances: [m02-revenue-crm, m04-field-ops]
+dependances: [m01-front-office, m02-revenue-crm, m04-field-ops]
 modeles:
   defaut: standard
   extraction: rapide
@@ -30,8 +30,10 @@ budget:
 memoire:
   lecture: [clients, chantiers, campagnes, avis]
   ecriture: [contenus_proposes, roi_snapshots]
+# PLAN T4.17-c : M7 consomme le STOP de M1 (`m1.retrait_consentement`, les leads que le client avait ouverts, par leur
+# `lead_id`) et l'inscrit comme retrait du consentement marketing. Catalogue : src/opsys/evenements/catalogue/.
 evenements:
-  consomme: [m4.travaux_termines]
+  consomme: [m4.travaux_termines, m1.retrait_consentement]
 kpis:
   - id: m7_cout_par_lead_global
     description: Coût publicitaire joignable divisé par les leads attribués aux canaux correspondants (CAD/lead).

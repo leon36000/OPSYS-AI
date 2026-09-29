@@ -129,7 +129,11 @@ n'a pas de lien.
 (`gabarits.py`) : la marque, l'accroche du profil, la nature des travaux, la ville seulement si le WCT en porte une.
 `textes` (facultatif, par plateforme) : le texte rédigé par le modèle, après `m7_lire_matiere_chantier` (marque,
 accroche, nature, ville, note du chantier si elle passe le contrôle, plafonds, règles). Dans les deux cas, chaque
-texte passe `controle_texte.controler_texte` et un texte refusé n'est **jamais enregistré** ; le refus nomme la règle :
+texte passe `controle_texte.controler_texte` et un texte refusé n'est **jamais enregistré** ; le refus nomme la règle. Les
+motifs ne sont plus écrits dans M7 (PLAN T4.17-c) : ils vivent dans le socle (`opsys.garde_fou_texte`, familles nommées), avec
+ceux du garde-fou de M1 ; `controle_texte.py` choisit les familles d'un texte public (`PROFIL_TEXTE_PUBLIC`) et garde les noms
+d'avant (`controler_texte`, `ContexteControle`, `REGLE_*`). Les règles d'un texte public (une réponse à un client, chez
+M1, a d'autres familles) :
 
 | Règle | Refuse |
 |---|---|
@@ -186,8 +190,21 @@ horodatage)`, registre `retraits_consentement_marketing` (append-only, durable).
 lead, **toute tâche de contenu** : proposer, décider, exporter, `m7_preparer_contenu_public` ; un contenu déjà proposé,
 approuvé ou exporté devient `CONSENTEMENT_RETIRE`, et la réponse liste les paquets déjà exportés à retirer à la main. Un
 retrait précède parfois son WCT : il est enregistré quand même (`wct_connu: false`) et bloque le WCT à sa réception. Il ne
-se lève pas ; un client qui consent de nouveau le fait par un nouveau « Terminer ». Canal de signalement aujourd'hui : le
-propriétaire ou son gestionnaire, depuis l'app admin ; le STOP de M1 sur le bus reste à faire (rapport de T4.17).
+se lève pas ; un client qui consent de nouveau le fait par un nouveau « Terminer ». Deux voies de signalement : le
+propriétaire ou son gestionnaire, depuis l'app admin (`m7_enregistrer_retrait_consentement_marketing`), et le STOP du client
+à M1 (ci-dessous).
+
+**Le STOP de M1 est un retrait (PLAN T4.17-c).** M7 consomme `m1.retrait_consentement` (`consommateurs()`, `dependances`
+`m01-front-office`) : M1 y dit quels `lead_id` il avait ouverts pour le correspondant qui a écrit STOP. M7 inscrit **un retrait
+par lead** dans `retraits_consentement_marketing`, sans `wct_id` (`retrait.construire_retrait_de_lead`, identifiant déterministe,
+`source` et `enregistre_par` = `bus:m1.retrait_consentement`, canal et heure du STOP). Le lien est le `lead_id`, que le WCT de M4
+porte : **aucun contact n'est lu ni écrit**. Le retrait d'un lead vaut pour ses opportunités (`<lead>~opp~<wct_id>`, que M2 ouvre
+pour un client qui revient : `retrait.lead_d_origine`). Tout chantier de ces leads est bloqué, celui déjà reçu comme celui qui arrivera :
+proposer, décider, exporter, photo ; un paquet approuvé et déjà exporté l'est aussi, et le résumé du consommateur liste ce qui
+se retire à la main (`contenus_deja_exportes`, `a_faire`). Idempotent ; une charge illisible lève (rejeu, puis quarantaine
+visible) : un retrait n'est jamais ignoré en silence. **Limites** : la demande d'avis naît d'un consentement distinct
+(`consentement_demande_avis`, T1.5-d) que le STOP ne touche pas (elle reste un brouillon, jamais envoyé sans approbation) ; un
+même client qui écrit d'un autre numéro est un autre correspondant pour M1.
 
 **Profil de marque** : champs optionnels, tolérés par le contrat gelé v1 (champs supplémentaires JSON), à fournir par
 le client : `site_url` (lien de suivi), `hashtags`, `garanties_validees` (énoncés approuvés, recopiés mot pour mot),
@@ -199,7 +216,9 @@ maillons ; le retrait l'emporte sur tout.
 
 **Preuve.** `tests/usine/` (contrôle, gabarits, registre, décision, chantier, paquet, service sur base durable) et
 `tests/e2e/test_usine_contenu_appareil.py` (moteur réel, porte d'appareil) : « Terminer » avec consentement, cinq
-contenus en attente, texte avec prix refusé, approbation, paquet exporté, sans consentement rien, retrait bloqué.
+contenus en attente, texte avec prix refusé, approbation, paquet exporté, sans consentement rien, retrait bloqué. Le STOP de
+M1 par le vrai bus : `tests/usine/test_retrait_du_bus.py` (M7 seul) et `tests/test_stop_retire_consentement_marketing.py` à la
+racine du dépôt (SMS, lead, « Terminer », approbation, export, STOP : tout est bloqué).
 
 ## Contrat gelé v1
 
