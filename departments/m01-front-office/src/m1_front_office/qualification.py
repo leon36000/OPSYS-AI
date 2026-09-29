@@ -59,6 +59,11 @@ def _clean(contenu_filtre: str) -> str:
     return _MARQUEUR.sub("", contenu_filtre).strip()
 
 
+def contenu_utile(contenu_filtre: str) -> str:
+    """Le contenu sans le marqueur de neutralisation de la provenance : ce que les règles de lecture regardent."""
+    return _clean(contenu_filtre)
+
+
 def _sans_accent(texte: str) -> str:
     """Minuscules sans accents, apostrophe typographique ramenée à l'apostrophe droite."""
     decompose = unicodedata.normalize("NFKD", texte.replace("\u2019", "'").lower())

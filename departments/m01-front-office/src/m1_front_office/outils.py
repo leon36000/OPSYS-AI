@@ -35,6 +35,7 @@ est un brouillon (`brouillon_reponse`) : il ne part que par `m1_emettre_notifica
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from opsys import evenements, stockage, taxonomie
@@ -48,8 +49,10 @@ from . import (
     digest,
     garde_fou,
     phases_voix,
+    photos,
     provenance,
     qualification,
+    questions,
     reception,
 )
 from .phases_voix import TransitionInterdite
@@ -58,6 +61,13 @@ from .registre import Registre
 _CANAUX = ("telephone", "courriel", "formulaire", "texte")
 _DEPARTEMENT = "m01-front-office"
 _NOM_REGISTRE = "principal"
+
+# La politique Loi 25 « photos » (T3), dont M1 lit le statut : dérivé de __file__, jamais du répertoire courant (même
+# discipline que M3). parents[4] depuis src/m1_front_office/outils.py atteint la racine du dépôt.
+_CHEMIN_POLITIQUE_PHOTOS = (
+    Path(__file__).resolve().parents[4]
+    / "docs" / "compliance" / "politiques" / "POLITIQUE-photos-non-contractuelles.md"
+)
 
 
 def _registre_durable() -> Registre:
@@ -107,6 +117,35 @@ def _publier_lead(lead: dict[str, Any], horodatage: str, signal_id: str) -> None
 
 def _obtenir_registre() -> Registre:
     return _registre
+
+
+def _politique_photos_texte() -> str:
+    """Le texte réel de la politique « photos », seul point de M1 à toucher le système de fichiers pour cette garde
+    (`photos.py` reste pur). Un fichier absent ou illisible rend une chaîne vide : statut absent, donc fermée."""
+    try:
+        return _CHEMIN_POLITIQUE_PHOTOS.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+
+
+def _questions_du_service(service: str | None, contenu: str) -> questions.EtatQuestions:
+    """L'état des questions obligatoires du service, lues du profil d'entreprise (jamais dans le code)."""
+    if service is None:
+        return questions.evaluer(None, (), None, contenu)
+    liste, verdict = taxonomie.charger_questions_du_service(service)
+    return questions.evaluer(service, liste, verdict, contenu)
+
+
+def _demandes_de_photos(etat: questions.EtatQuestions) -> tuple[dict[str, Any] | None, tuple[Any, ...]]:
+    """`(bloc photos de la réponse, demandes que M1 peut proposer)`. Une demande de photos déclarée par le profil reste
+    FERMÉE tant que la politique « photos » n'est pas validée : aucune ne sort, le bloc dit pourquoi."""
+    if not etat.photos:
+        return None, ()
+    verdict = photos.verifier_demande_autorisee(_politique_photos_texte())
+    codes = [q.code for q in etat.photos]
+    if verdict is not None:
+        return {"statut": "fermee", "verdict": verdict, "questions": codes}, ()
+    return {"statut": "ouverte", "questions": codes}, etat.photos
 
 
 # ---------------------------------------------------------------------------
@@ -313,10 +352,17 @@ def _traiter(
             "decision": "DEMANDER_PRECISIONS",
         }
         if ouverte is not None:
+            etat_questions = _questions_du_service(diagnostic["service"], contenu_a_qualifier)
+            bloc_photos, photos_ouvertes = _demandes_de_photos(etat_questions)
             reponse_precisions["conversation"] = conversation.decrire(
                 ouverte, horodatage, fenetre_minutes, signaux, diagnostic)
+            reponse_precisions["questions"] = etat_questions.bloc()
+            if bloc_photos is not None:
+                reponse_precisions["photos"] = bloc_photos
+            # Tant qu'il manque un champ du lead, on ne demande que celui-là : les questions du service viennent après.
             reponse_precisions.update(conversation.proposer_precisions(
-                diagnostic, {un.code: un.libelle for un in services}, ouverte.retire))
+                diagnostic, {un.code: un.libelle for un in services}, ouverte.retire,
+                etat_questions.restantes, photos_ouvertes))
         return reponse_precisions
 
     # 5. Décision : lead conforme au contrat gelé M1->M2 v2 (vérification défensive :
@@ -354,6 +400,16 @@ def _traiter(
         reponse["cle_session"] = cle_session
     if ouverte is not None:
         reponse["conversation"] = conversation.decrire(ouverte, horodatage, fenetre_minutes, signaux, diagnostic)
+        etat_questions = _questions_du_service(resultat_qualif["service"], contenu_a_qualifier)
+        bloc_photos, photos_ouvertes = _demandes_de_photos(etat_questions)
+        reponse["questions"] = etat_questions.bloc()
+        if bloc_photos is not None:
+            reponse["photos"] = bloc_photos
+        if etat_questions.restantes or photos_ouvertes:
+            # Le lead est complet et part chez M2 ; ce que le service demande encore est un brouillon, jamais envoyé.
+            reponse.update(conversation.proposer_precisions(
+                diagnostic, {un.code: un.libelle for un in services}, ouverte.retire,
+                etat_questions.restantes, photos_ouvertes))
     return reponse
 
 
@@ -380,7 +436,10 @@ def _complement_de_conversation(
     cumul = qualification.diagnostiquer(
         conversation.contenu_rassemble(ouverte, contenu_filtre), zone_desservie, services, contact_canal)
     autres = [code for code in diagnostic["services_evoques"] if code != ligne_lead["lead"]["service"]]
-    return {
+    etat_questions = _questions_du_service(ligne_lead["lead"]["service"], conversation.contenu_rassemble(
+        ouverte, contenu_filtre))
+    bloc_photos, photos_ouvertes = _demandes_de_photos(etat_questions)
+    reponse = {
         "etape": "conversation",
         "accepte": True,
         "signal_ligne_id": ligne_id_signal,
@@ -403,7 +462,14 @@ def _complement_de_conversation(
             "n'est créé. Si `complement.urgence_declaree` ou `complement.autre_service_evoque` est vrai, dis-le à "
             "une personne dans ta réponse finale : le lead transmis à M2 ne le porte pas."
         ),
+        "questions": etat_questions.bloc(),
     }
+    if bloc_photos is not None:
+        reponse["photos"] = bloc_photos
+    if etat_questions.restantes:
+        reponse.update(conversation.proposer_precisions(
+            cumul, {un.code: un.libelle for un in services}, ouverte.retire, etat_questions.restantes, photos_ouvertes))
+    return reponse
 
 
 def _signal_deja_recu(reg: Registre, signal_id: str) -> dict[str, Any] | None:

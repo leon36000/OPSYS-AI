@@ -16,8 +16,10 @@ l'approbation d'une personne (`approbations.decider`). Données fictives (numér
 from __future__ import annotations
 
 import datetime as dt
+from pathlib import Path
 
 import pytest
+import yaml
 from m1_front_office import outils as m1
 from m2_revenue_crm import outils as m2
 from sqlalchemy import func, select
@@ -30,6 +32,19 @@ from opsys.stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS
 
 DEBUT = dt.datetime(2026, 9, 29, 9, 0, tzinfo=dt.timezone(dt.timedelta(hours=-4)))
 NUMERO = "+15145550142"
+PROFIL_FICTIF = (
+    Path(__file__).resolve().parents[1]
+    / "departments" / "m01-front-office" / "fixtures" / "qualification" / "profil-fictif.v1.yaml"
+)
+
+
+def _declarer_qualification(*, poids: bool = True) -> None:
+    """Questions et poids FICTIFS de la fixture, écrits dans le profil de l'instance comme le ferait Nathan."""
+    donnees = yaml.safe_load(PROFIL_FICTIF.read_text(encoding="utf-8"))
+    assert donnees["fictif"] is True
+    taxonomie.enregistrer_questions_qualification(donnees["questions_qualification"], par="nathan")
+    if poids:
+        taxonomie.enregistrer_poids_score_lead(donnees["poids_score_lead"], par="nathan")
 
 
 def _sms(texte: str, message_id: str, minutes: float = 0) -> dict:
@@ -292,3 +307,76 @@ def test_la_question_au_client_est_un_brouillon_qui_ne_part_qu_apres_l_approbati
                              outils_executables(capacites.departements, stockage.transaction), capacites.departements)
     assert envois == [("sms", brouillon)]
     assert _en_attente() == []
+
+
+# -- Trois SMS, un lead, des questions du profil en brouillon ---------------------------------------------------------
+
+
+def test_trois_sms_donnent_un_lead_v2_complet_et_les_questions_du_profil_restent_un_brouillon(instance, monkeypatch):
+    deps, capacites = instance
+    taxonomie.enregistrer_fenetre_conversation(30)
+    _declarer_qualification()
+    envois: list[tuple[str, str]] = []
+
+    class BusEspion:
+        def emettre(self, canal, message):
+            envois.append((canal, message))
+            return "id-espion"
+
+    monkeypatch.setattr(m1.adaptateurs, "creer_bus", lambda mode_ombre=True: BusEspion())
+
+    premier = capacites.appeler("m1_recevoir_message_canal", _sms("Bonjour, j'ai un problème chez moi.", "SM-1", 0))
+    assert premier["resultat"]["champs_manquants"] == ["service", "ville"]
+    second = capacites.appeler("m1_recevoir_message_canal", _sms("Mes gouttières débordent, c'est urgent.", "SM-2", 2))
+    assert second["resultat"]["champs_manquants"] == ["ville"] and second["resultat"]["a_demander"] == ["ville"]
+    assert _evenements_publies() == 0 and _drainer(deps)["livres"] == 0
+
+    troisieme = capacites.appeler("m1_recevoir_message_canal", _sms("Nous sommes à Laval.", "SM-3", 4))["resultat"]
+    assert troisieme["decision"] == "TRANSMETTRE_M2"
+    lead = troisieme["lead"]
+    assert (lead["schema_version"], lead["service"], lead["ville"], lead["urgence_declaree"]) == (
+        2, "gouttieres", "Laval", True)
+    assert _evenements_publies() == 1 and _drainer(deps)["echecs"] == 0
+    (ingere,) = _leads_ingeres()
+    assert ingere["contrat"] == lead, "M2 reçoit le lead v2 tel quel : le contrat n'a pas changé"
+
+    # Les questions du service (écrites dans le profil, pas dans le code) sont un BROUILLON : rien ne part.
+    assert troisieme["questions"]["statut"] == "a_poser"
+    assert [q["code"] for q in troisieme["questions"]["restantes"]] == ["longueur", "etages"]
+    brouillon = troisieme["brouillon_reponse"]
+    assert brouillon and troisieme["envoye"] is False
+    assert "Quelle est la longueur approximative de gouttières" in brouillon
+    assert envois == [] and _en_attente() == []
+
+    proposition = capacites.appeler("m1_emettre_notification", {"canal": "sms", "message": brouillon})
+    assert proposition["statut"] == "en_attente_approbation" and envois == []
+    with stockage.transaction() as cnx:
+        approbations.decider(cnx, proposition["demande_id"], True, "nathan",
+                             outils_executables(capacites.departements, stockage.transaction), capacites.departements)
+    assert envois == [("sms", brouillon)]
+
+
+def test_une_reponse_aux_questions_ne_cree_ni_lead_ni_evenement_de_plus(instance):
+    deps, capacites = instance
+    taxonomie.enregistrer_fenetre_conversation(30)
+    _declarer_qualification()
+    capacites.appeler("m1_recevoir_message_canal", _sms("Mes gouttières fuient.", "SM-1", 0))
+    capacites.appeler("m1_recevoir_message_canal", _sms("À Laval.", "SM-2", 2))
+    _drainer(deps)
+
+    reponse = capacites.appeler(
+        "m1_recevoir_message_canal", _sms("Environ 40 pieds, la maison a 2 étages.", "SM-3", 5))["resultat"]
+    assert reponse["decision"] == "CONVERSATION_DEJA_QUALIFIEE"
+    assert reponse["questions"]["statut"] == "aucune_restante" and "brouillon_reponse" not in reponse
+    assert _evenements_publies() == 1 and _drainer(deps)["livres"] == 0 and len(_leads_ingeres()) == 1
+
+
+def test_sans_questions_ni_poids_dans_le_profil_la_reception_le_dit_et_n_invente_rien(instance):
+    deps, capacites = instance
+    taxonomie.enregistrer_fenetre_conversation(30)
+    capacites.appeler("m1_recevoir_message_canal", _sms("Mes gouttières fuient.", "SM-1", 0))
+    reponse = capacites.appeler("m1_recevoir_message_canal", _sms("À Laval.", "SM-2", 2))["resultat"]
+    assert reponse["decision"] == "TRANSMETTRE_M2"
+    assert reponse["questions"]["verdict"]["code"] == "REJ-QUESTIONS-NON-CONFIGUREES"
+    assert "brouillon_reponse" not in reponse
+    assert _drainer(deps)["echecs"] == 0 and len(_leads_ingeres()) == 1

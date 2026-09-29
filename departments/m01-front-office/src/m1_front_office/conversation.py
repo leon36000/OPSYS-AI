@@ -31,6 +31,8 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from opsys.taxonomie import QuestionQualification
+
 from . import garde_fou, qualification
 
 TYPE_LEAD = "lead_emis"
@@ -180,13 +182,41 @@ def _demande(diagnostic: dict[str, Any], libelles: dict[str, str]) -> str:
     return f"{', '.join(pieces[:-1])}, et {pieces[-1]}?"
 
 
+_INTRO = "Bonjour, merci de votre message."
+_INTRO_QUESTIONS = "Pour bien préparer votre demande, quelques précisions :"
+
+
+def _passer_le_garde_fou(
+    questions: Sequence[QuestionQualification],
+) -> tuple[list[QuestionQualification], list[dict[str, str]]]:
+    """Sépare les questions du profil que le garde-fou laisse passer de celles qu'il refuse (un texte écrit par le
+    propriétaire ne doit pas glisser un prix, une date ou un engagement). Une question refusée n'est jamais proposée ;
+    elle est nommée pour que le propriétaire la corrige."""
+    retenues, refusees = [], []
+    for question in questions:
+        verdict = garde_fou.verifier_sortie(question.question)
+        if verdict["code"] == "OK":
+            retenues.append(question)
+        else:
+            refusees.append({"code": question.code, "verdict": verdict["code"]})
+    return retenues, refusees
+
+
 def proposer_precisions(
-    diagnostic: dict[str, Any], libelles_services: dict[str, str], retire: bool
+    diagnostic: dict[str, Any], libelles_services: dict[str, str], retire: bool,
+    questions: Sequence[QuestionQualification] = (), photos: Sequence[QuestionQualification] = (),
 ) -> dict[str, Any]:
     """Ce qui reste à demander, et un brouillon pour le demander. Le brouillon est `None` quand :
 
     - le correspondant s'est retiré (STOP) : aucun message ne lui est proposé ;
-    - ou le garde-fou des interdits refuse le texte (un libellé de service déclaré ne doit pas y glisser un prix).
+    - ou le garde-fou des interdits refuse le texte (un libellé de service, ou une question du profil, ne doit pas y
+      glisser un prix, une date ou un engagement).
+
+    L'ordre est fixe : d'abord ce qui manque au LEAD (service, ville, contact), une seule question à la fois ; une fois
+    le lead complet, les `questions` du service (écrites par le propriétaire dans son profil), puis les `photos`
+    (l'appelant ne les passe que si la politique « photos » est validée). Chaque question du profil est passée au
+    garde-fou seule : celle qui est refusée est retirée et nommée (`questions_refusees`), les autres partent quand
+    même, pour qu'une question mal écrite ne laisse pas le client sans réponse.
 
     `libelles_services` : `{code: libellé}` des services déclarés par l'entreprise (jamais une liste locale).
     """
@@ -195,7 +225,17 @@ def proposer_precisions(
     if retire:
         resultat["sans_brouillon"] = "retrait_consentement"
         return resultat
-    texte = f"Bonjour, merci de votre message. {_demande(diagnostic, libelles_services)}"
+    if manque:
+        corps = _demande(diagnostic, libelles_services)
+    else:
+        retenues, refusees = _passer_le_garde_fou([*questions, *photos])
+        if refusees:
+            resultat["questions_refusees"] = refusees
+        if not retenues:
+            resultat["sans_brouillon"] = refusees[0]["verdict"] if refusees else "rien_a_demander"
+            return resultat
+        corps = f"{_INTRO_QUESTIONS} {' '.join(q.question for q in retenues)}"
+    texte = f"{_INTRO} {corps}"
     verdict = garde_fou.verifier_sortie(texte)
     if verdict["code"] != "OK":
         resultat["sans_brouillon"] = verdict["code"]

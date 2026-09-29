@@ -10,7 +10,7 @@ questions_qualification:
       mots_cles: [pied, mètre, pouce]
     - code: etages
       question: "Combien d'étages a la maison?"
-      mots_cles: [étage, plain-pied, bungalow]
+      mots_cles: [étage, bungalow]
     - code: photo_facade
       question: "Pouvez-vous nous envoyer une photo de la façade concernée?"
       photos: true
