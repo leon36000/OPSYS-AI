@@ -50,6 +50,8 @@ CODE_INTROUVABLE = "REJ-DEVIS-INTROUVABLE"
 OUTILS_M2_DU_VENDEUR = {
     "m2_obtenir_client_360", "m2_trouver_client_de_lead", "m2_suggerer_prochaine_action", "m2_lister_leads",
     "m2_evaluer_readiness", "m2_transitionner_statut", "m2_enregistrer_interaction",
+    # T4.9 : « relances autorisées » (§9.4), SES leads seulement ; le consentement est inscrit par une personne
+    "m2_lister_relances", "m2_preparer_relance", "m2_enregistrer_consentement_contact",
 }
 OUTILS_M3_DU_VENDEUR = {
     "m3_lire_devis", "m3_generer_soumission_brouillon", "m3_qualifier_photos",
