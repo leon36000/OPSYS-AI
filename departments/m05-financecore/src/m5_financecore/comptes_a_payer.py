@@ -78,6 +78,7 @@ __all__ = [
     "annuler_facture_fournisseur",
     "construire_reception",
     "corriger_facture_fournisseur",
+    "dettes_datables",
     "enregistrer_reception",
     "lire_categories_depense",
     "lister",
@@ -1287,6 +1288,63 @@ def factures_saisies(registre_cible: Any) -> list[dict[str, Any]]:
     les crédits de taxes sur intrants : ce qui a été saisi par un humain et n'a pas été annulé, jamais ce qui est
     seulement attendu."""
     return [etat for etat in _etats_factures(registre_cible.lire()).values() if etat["statut"] != _STATUT_ANNULEE]
+
+
+def dettes_datables(
+    registre_cible: Any, dictionnaire_taux: Mapping[str, Mapping[str, Any]]
+) -> tuple[list[dict[str, Any]] | None, dict[str, Any] | None]:
+    """Ce que l'entreprise doit aux fournisseurs, UNE DETTE À LA FOIS, pour que la prévision de trésorerie (PLAN
+    T4.16-d, `prevision.py`) date chacune : `(dettes, None)` ou `(None, verdict)`.
+
+    Ce sont les dettes de `resume_a_payer`, séparées (une seule règle : leur somme est son « à payer », plancher
+    compris) :
+    - `FACTURE` : chaque facture fournisseur VIVANTE (avec ou sans PO), à son état courant (une corrigée vaut sa
+      correction, une annulée n'y est pas) ; `date_base` est la date imprimée sur la facture ;
+    - `ATTENDU` : pour chaque PO reçu, ce qui est reçu et pas encore facturé (taxes recalculées sur ce reste) ;
+      `date_base` est la PREMIÈRE réception du PO (la plus ancienne, donc la date de paiement la plus prudente), `id`
+      est le `po_id`. Un attendu que rien ne permet de chiffrer (prix du PO absent, devise autre que CAD) a `montant`
+      `None` et ses codes dans `manque`, jamais zéro ; il porte la réserve de l'unité des prix.
+
+    Chaque dette : `type`, `id`, `po_id` (`None` sans PO), `fournisseur_id`, `numero_facture` (`None` pour un
+    attendu), `date_base` (texte), `montant` (`Decimal` après taxes, ou `None`), `manque` (codes), `reserves` (codes).
+    Ordre stable : les PO par première réception puis `po_id` (leurs factures dans l'ordre de saisie, puis l'attendu),
+    ensuite les factures sans PO dans l'ordre de saisie. Aucun délai de paiement n'existe ici : la facture n'en porte
+    pas, la date d'échéance est l'affaire de `prevision.py` et des règles que le propriétaire déclare. `(None,
+    verdict)` seulement si un taux fiscal manque : rien n'est alors chiffré à demi."""
+    maillons = registre_cible.lire()
+    etats = _etats_factures(maillons)
+    dettes: list[dict[str, Any]] = []
+    ordonnes = sorted(
+        _pos(maillons, etats).values(),
+        key=lambda p: (_instant(p["receptions"][0]["horodatage_reception"]), p["po_id"]),
+    )
+    for po in ordonnes:
+        synthese, verdict = synthese_du_po(po, dictionnaire_taux)
+        if verdict is not None:
+            return None, verdict
+        for facture in synthese["factures"]:
+            dettes.append(_dette_facture(facture))
+        attendu = synthese["a_payer"]["attendu_non_facture_apres_taxes"]
+        if attendu is None or attendu > _ZERO:
+            dettes.append({
+                "type": "ATTENDU", "id": synthese["po_id"], "po_id": synthese["po_id"],
+                "fournisseur_id": synthese["fournisseur_id"], "numero_facture": None,
+                "date_base": synthese["premiere_reception"], "montant": attendu,
+                "manque": list(synthese["attendu"]["manque"]), "reserves": [CODE_UNITE_PRIX],
+            })
+    for etat in etats.values():
+        if etat["po_id"] is None and etat["statut"] != _STATUT_ANNULEE:
+            dettes.append(_dette_facture(etat))
+    return dettes, None
+
+
+def _dette_facture(etat: Mapping[str, Any]) -> dict[str, Any]:
+    """Une facture fournisseur vivante, en dette : son montant après taxes à son état courant."""
+    return {
+        "type": "FACTURE", "id": etat["facture_fournisseur_id"], "po_id": etat["po_id"],
+        "fournisseur_id": etat["fournisseur_id"], "numero_facture": etat["numero_facture"],
+        "date_base": etat["date_facture"], "montant": etat["montant_apres_taxes"], "manque": [], "reserves": [],
+    }
 
 
 def _resume_sans_po(etats: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:

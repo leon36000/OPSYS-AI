@@ -139,6 +139,25 @@ CODES_M5_LIST = [
     "REJ-CASH-DETTES-A-DECLARER",
     "REJ-CASH-RESERVES-A-DECLARER",
     "REJ-CASH-DECLARATION-INVALIDE",
+    # PLAN T4.16-d (prevision.py, M5.7) : la prévision de trésorerie des flux CONNUS et DATÉS. Un refus dit un
+    # argument ou une configuration à corriger (rien n'est rendu) ; un manque dit ce qui rend une semaine « non
+    # calculable » (jamais zéro, jamais une moyenne) ; « à configurer » ou « à déclarer » dit ce que le propriétaire
+    # décide (GATE NATHAN).
+    "REJ-PREVISION-DATE-INVALIDE",
+    "REJ-PREVISION-HORIZON-A-CONFIGURER",
+    "REJ-PREVISION-HORIZON-INVALIDE",
+    "REJ-PREVISION-SEMAINE-INVALIDE",
+    "REJ-PREVISION-DEPART-INVALIDE",
+    "REJ-PREVISION-CONFIGURATION-INVALIDE",
+    "REJ-PREVISION-SEUIL-A-CONFIGURER",
+    "REJ-PREVISION-SEUIL-INVALIDE",
+    "REJ-PREVISION-DELAI-CLIENTS-A-DECLARER",
+    "REJ-PREVISION-DELAI-FOURNISSEURS-A-DECLARER",
+    "REJ-PREVISION-DELAI-INVALIDE",
+    "REJ-PREVISION-ECHEANCE-A-DECLARER",
+    "REJ-PREVISION-ECHEANCE-INVALIDE",
+    "REJ-PREVISION-ENCAISSEMENT-ECHU",
+    "REJ-PREVISION-REPONSE-TROP-GROSSE",
 ]
 CODES_M5 = set(CODES_M5_LIST)
 
