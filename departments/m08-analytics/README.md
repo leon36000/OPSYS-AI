@@ -76,9 +76,11 @@ filtrés par rôle, conformité statique et digest quotidien.
   connecteur reste à décider. `m8_lire_mesures_contenus` (T0, admin, refus dans le code de tout autre rôle
   d'appareil) rend les métriques, une ligne par contenu et les manques, par pages sous la limite du socle
   (`depart`). Limites : tous les faits reçus comptent (aucune fenêtre de période) ; l'attribution est à la clé, sans
-  première ni dernière touche ; le trajet physique lien, formulaire, M1 n'est pas bouclé (le site n'a pas de
-  formulaire qui recopie `utm_*`, et le canal SMS de M1 n'accepte pas `utm`) ; le compte est une borne basse (un client
-  qui appelle ou écrit sans passer par le lien ne porte aucune clé : son lead n'est attribué à aucun contenu).
+  première ni dernière touche ; le trajet lien, formulaire, M1 est bouclé depuis T4.17-e3 (l'extrait de formulaire de
+  M1 recopie les `utm_*` de la page, et le canal `formulaire` de `m1_recevoir_message_canal` les porte jusqu'au lead),
+  mais rien ne reçoit encore le POST du formulaire sur le site (T3, `docs/departements/M1-canaux.md` §13) ; le compte
+  est une borne basse (un client qui appelle ou écrit sans passer par le lien ne porte aucune clé : son lead n'est
+  attribué à aucun contenu).
 
 DuckDB/Parquet, MMM (PyMC-Marketing) et l'orchestrateur horaire réel restent GATED (hors
 périmètre v1, cf. `docs/bmad/02-PRD-PM.md` §3.2).

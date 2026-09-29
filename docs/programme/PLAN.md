@@ -2314,9 +2314,35 @@ météo et GPS M4, vision M3, conseil d'agents M9…
 - [ ] T4.17-e2 M7 et M8 : impressions et clics par contenu, par un connecteur à décider (Matomo, ou
       statistiques de Meta, Google Business Profile, TikTok). GATE NATHAN : le connecteur et sa
       licence ou ses conditions.
-- [ ] T4.17-e3 M1 : le trajet lien → formulaire → M1 porte les `utm_*` jusqu'au lead (aujourd'hui
+- [x] T4.17-e3 M1 : le trajet lien → formulaire → M1 porte les `utm_*` jusqu'au lead (aujourd'hui
       aucun formulaire de site ne les recopie, et `m1_recevoir_message_canal` n'accepte pas `utm` ;
       seul `m1_traiter_demande_entrante` le porte).
+      Preuve (bf9bcea, 76a22d3, 79176ee, 25b8b9d, 0843d36) :
+      - canal `formulaire` dans `m1_recevoir_message_canal` (N2) : l'expéditeur est ce que le visiteur a
+        écrit, jamais « vérifié par le canal » ; `m1_transferer` et `m1_escalader_plainte` l'acceptent ;
+      - `utm` validé par la règle de M2 extraite telle quelle (`contrats.utm_invalide`, mêmes messages),
+        porté tel quel jusqu'au lead ; refus avant toute écriture : `REJ-UTM-INVALIDE`, et
+        `REJ-UTM-CANAL-SANS-SENS` pour un `utm` fourni avec un SMS, un courriel ou un appel (même garde
+        pour `m1_traiter_demande_entrante` et `m1_qualifier_signal`) ; un `utm` fourni n'est jamais
+        perdu en silence (bloc `utm` de la réponse : porté par le lead, ou non porté et pourquoi) ;
+      - extrait `departments/m01-front-office/site/formulaire-demande.html` : un champ caché par
+        `utm_*` présent dans l'adresse de la page, tel quel ; rien de gardé (ni témoin ni stockage),
+        aucun autre site appelé ; sans adresse de récepteur, il refuse de partir ;
+      - bout en bout par le vrai moteur (`tests/e2e/test_formulaire_utm_bout_en_bout.py`) : paquet de
+        M7, lien ouvert, soumission, lead de M1 et Client 360 de M2 avec le même `utm`, M8 compte 1 lead
+        pour ce contenu et 0 pour l'autre ; sans lien, lien falsifié, rejeu, `utm` invalide ou avec un
+        SMS (aucun effet), demande incomplète ; M1 et M2 lisent le `utm` pareil sur plus de 400 entrées
+        (`tests/test_utm_derive_m2.py`) ;
+      - M1 1 550 passés sur l'état intégré, socle touché 124 passés, M7 (retrait du bus) 21, ruff,
+        `verifier` 172 outils ; 59 mutants tués sur 59 (M1, formulaire, trajet, règle du `utm`).
+      Limites : rien ne reçoit encore le POST du formulaire (T4.17-e4) ; aucune borne de longueur sur
+      les valeurs `utm` (comme M2, M3, M4 et M8 : à décider ensemble) ; le lead porte le `utm` du message
+      qui le fait naître ; l'identité d'un formulaire n'est jamais vérifiée.
+- [ ] T4.17-e4 Récepteur du formulaire de site : un point d'accueil HTTP d'OPSYS, sans modèle, qui reçoit
+      le POST de l'extrait et appelle `m1_recevoir_message_canal` (canal `formulaire`), ou un relais vers
+      `hooks` du core (le modèle recopierait alors le `utm`). GATE NATHAN : la voie ; bornes de longueur
+      des valeurs `utm` (M1 à M4 et M8 ensemble) ; anti-abus (débit, pot de miel). T3 : mise en ligne
+      publique du récepteur et du formulaire.
 
 Non détaillé (porte fermée ou décision manquante) : voix M1 au-delà de T2.1-d (politique
 d'enregistrement d'appels), GPS continu et ETA client (politique GPS), vision M3 et détecteur M7
