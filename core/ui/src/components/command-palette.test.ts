@@ -879,7 +879,7 @@ describe("CommandPalette search", () => {
         ),
       );
       palette.custodianAvailable = available;
-      await enterQuery(palette, "openclaw");
+      await enterQuery(palette, "opsys");
       await vi.advanceTimersByTimeAsync(200);
       await palette.updateComplete;
 
@@ -896,7 +896,7 @@ describe("CommandPalette search", () => {
       ),
     );
     palette.custodianAvailable = true;
-    await enterQuery(palette, "openclaw");
+    await enterQuery(palette, "opsys");
     await vi.advanceTimersByTimeAsync(200);
     await palette.updateComplete;
     const events: CustomEvent<CustodianPanelToggleDetail>[] = [];
