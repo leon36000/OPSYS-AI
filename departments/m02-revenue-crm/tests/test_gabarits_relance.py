@@ -5,11 +5,14 @@ Un texte destiné à un client ne porte ni nom, ni identifiant, ni prix, ni date
 PLAN T4.17-c) ; M2 n'écrit pas ses propres motifs. Ce fichier prouve que chaque gabarit livré est propre, que chaque
 couple (règle, canal) en a un, que chaque message porte la mention de retrait (STOP) et que le contrôle mord : un
 gabarit altéré est refusé avec le code de sa règle. Le contrôle se fait aussi au chargement du département
-(`verifier_gabarits`). """
+(`verifier_gabarits`).
+"""
 
 from __future__ import annotations
 
 import re
+import types
+from pathlib import Path
 
 import pytest
 from m2_revenue_crm import consentements, gabarits_relance, relances
@@ -177,3 +180,37 @@ def test_les_defauts_sont_dits_dans_l_ordre_des_gabarits_avec_leur_cle():
     gabarits[("relance_devis_sans_reponse", "sms")]["texte"] = ""
     defauts = gabarits_relance.verifier_gabarits(gabarits)
     assert [d.split(" : ")[0] for d in defauts] == ["relance_devis_sans_reponse/sms", "relance_lead_dormant/sms"]
+
+
+# ---------------------------------------------------------------------------------------------------------
+# Le contrôle au chargement : un gabarit fautif empêche le département de se charger
+# ---------------------------------------------------------------------------------------------------------
+def _charger_avec(ancien: str, nouveau: str):
+    """Exécute le fichier du module avec UN texte changé, comme le ferait un mainteneur qui édite un gabarit : ce que le
+    département refuse de charger se voit ici, au chargement, pas chez un client."""
+    chemin = Path(gabarits_relance.__file__)
+    source = chemin.read_text(encoding="utf-8")
+    assert source.count(ancien) == 1, ancien
+    module = types.ModuleType("m2_revenue_crm.gabarits_relance_essai")
+    module.__package__ = gabarits_relance.__package__
+    module.__file__ = str(chemin)
+    exec(compile(source.replace(ancien, nouveau), str(chemin), "exec"), module.__dict__)
+    return module
+
+
+def test_le_fichier_change_par_un_texte_identique_se_charge_avec_les_memes_gabarits():
+    module = _charger_avec("SMS_MAX_CARACTERES = 320", "SMS_MAX_CARACTERES = 320")
+    assert dict(module.GABARITS) == dict(gabarits_relance.GABARITS)
+
+
+@pytest.mark.parametrize(("ancien", "nouveau", "dit"), [
+    ("Nous serons heureux d'en discuter avec vous.", "Le prix est de 5 000 $, à payer avant vendredi.",
+     "relance_devis_sans_reponse/sms"),
+    ('_MENTION_STOP_SMS = "Pour ne plus recevoir de messages, répondez STOP."',
+     '_MENTION_STOP_SMS = "Pour ne plus recevoir de messages, répondez NON."', "la mention de retrait (STOP) manque"),
+    ("SMS_MAX_CARACTERES = 320", "SMS_MAX_CARACTERES = 100", "caractères, 100 au plus"),
+])
+def test_un_gabarit_fautif_empeche_le_departement_de_se_charger(ancien, nouveau, dit):
+    with pytest.raises(ValueError, match="gabarits de relance refusés") as erreur:
+        _charger_avec(ancien, nouveau)
+    assert dit in str(erreur.value)

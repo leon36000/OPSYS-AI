@@ -5,7 +5,8 @@ la même règle de chaque segment, dans le même ordre et pour les mêmes leads 
 nourrit `evaluer` d'un VRAI registre en mémoire, rempli par les vraies fonctions de M2, et prouve : la forme de
 l'évaluation, l'ordre (un instant, pas du texte), la visibilité (un lead invisible n'est ni évalué ni cité), le filtre
 par statut, l'accord avec `lister` sur les segments, l'absence de lecture de la readiness, et ce qui manque pour tous
-les leads. Données fictives (`fictif: true`). """
+les leads. Données fictives (`fictif: true`).
+"""
 
 from __future__ import annotations
 

@@ -4,7 +4,8 @@ Ce qui est prouvé ici, sans base ni horloge : la construction fail-closed d'un 
 versionné, source, preuve sans numéro, instants) et d'un retrait (STOP, sans contact) ; le périmètre d'une PERSONNE (les
 leads d'un même client) ; l'état d'un canal (`retire` prime sur tout, `actif`, `absent`) ; les canaux permis (l'appel
 toujours, un message seulement avec un consentement actif). Données fictives (`fictif: true`) : aucun vrai numéro, aucun
-vrai client. """
+vrai client.
+"""
 
 from __future__ import annotations
 
@@ -292,6 +293,16 @@ def test_un_stop_par_sms_retire_aussi_le_courriel_mais_pas_l_appel():
     assert consentements.etat_du_canal("courriel", PERSONNE, [courriel], [retrait])["etat"] == "retire"
     permis, etats = consentements.canaux_permis(PERSONNE, [courriel], [retrait])
     assert permis == ["appel"] and etats["sms"]["etat"] == etats["courriel"]["etat"] == "retire"
+
+
+def test_un_retrait_dont_le_canal_n_est_pas_ecrit_ne_fait_taire_aucun_canal():
+    """`construire_retrait` refuse un tel canal ; l'état d'un canal ne s'y fie pas : il relit `canaux_retires`."""
+    etranger = {**_ok(_retrait()), "canal": "appel"}
+    sms = _ok(_consentement(canal="sms"))
+    for canal in consentements.CANAUX_ECRITS:
+        assert consentements.etat_du_canal(canal, PERSONNE, [], [etranger]) == {"etat": "absent"}
+    permis, etats = consentements.canaux_permis(PERSONNE, [sms], [etranger])
+    assert permis == ["appel", "sms"] and etats["sms"]["etat"] == "actif" and etats["courriel"]["etat"] == "absent"
 
 
 def test_le_retrait_d_un_autre_client_ne_touche_pas_cette_personne():

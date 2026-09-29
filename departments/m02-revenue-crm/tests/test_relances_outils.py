@@ -26,14 +26,14 @@ from pathlib import Path
 
 import pytest
 import yaml
-from m2_revenue_crm import acces, consentements, gabarits_relance, outils, relances
-from sqlalchemy import select
+from m2_revenue_crm import acces, consentements, gabarits_relance, liste_leads, outils, relances
+from sqlalchemy import select, update
 
 from opsys import approbations, contexte, idempotence, identite, stockage
 from opsys.capacites import Capacites, outils_executables
 from opsys.departements import lire_manifeste
 from opsys.outils import Autonomie, Niveau, executer_atomique
-from opsys.stockage.schema import META
+from opsys.stockage.schema import APPROBATIONS, META
 
 FICTIF = True
 
@@ -190,11 +190,26 @@ def _preparer(par_nom, lead_id="lead-un", regle="relance_devis_sans_reponse", ca
     return _appeler(par_nom, "m2_preparer_relance", arguments, identite_appelante)
 
 
-def _consentement(lead_id="lead-un", canal="sms", identite_appelante=VENDEUR_UN, **plus):
-    arguments = {
+def _arguments_consentement(lead_id="lead-un", canal="sms", **plus):
+    return {
         "lead_id": lead_id, "canal": canal, "enonce_version": "consentement-sms-v1", "source": "formulaire",
         "preuve": dict(PREUVE), "recueilli_le": RECUEILLI, "horodatage": "2026-09-20T10:05:00-04:00", **plus}
+
+
+def _consentement(lead_id="lead-un", canal="sms", identite_appelante=VENDEUR_UN, **plus):
+    arguments = _arguments_consentement(lead_id, canal, **plus)
     return _appeler(par_nom_global(), "m2_enregistrer_consentement_contact", arguments, identite_appelante)
+
+
+def _forcer_une_decision_en_cours(arguments, *, decide_par="nathan", decide_role="nathan_owner", statut="en_cours",
+                                  departement=DEPARTEMENT, outil="m2_enregistrer_consentement_contact"):
+    """Écrit dans la file la ligne que `approbations.decider` écrit au moment d'exécuter, et rend son identifiant : pour
+    prouver, sans passer par `decider`, ce que l'outil accepte et refuse comme décision d'une personne."""
+    with stockage.transaction() as cnx:
+        ident = approbations.creer_demande(cnx, departement, outil, arguments, niveau=Niveau.N3)
+        cnx.execute(update(APPROBATIONS).where(APPROBATIONS.c.id == ident).values(
+            statut=statut, decide_par=decide_par, decide_role=decide_role))
+    return ident
 
 
 def par_nom_global():
@@ -745,6 +760,16 @@ def test_sans_frequence_configuree_rien_n_est_prepare(par_nom, monde, monkeypatc
     assert _instantane_base() == avant and _preparees() == []
 
 
+def test_l_instant_illisible_est_refuse_avant_la_frequence_configuree(par_nom, monde, monkeypatch, tmp_path):
+    """Ordre documenté de `m2_preparer_relance` : l'instant est contrôlé avant la fréquence maximale configurée."""
+    _installer_configuration(monkeypatch, tmp_path, relances_={})
+    avant = _instantane_base()
+    for mauvais in ("hier", "2026-09-29", "2026-09-29T12:00:00"):
+        assert _verdict(_preparer(par_nom, horodatage=mauvais))["code"] == "REJ-HORODATAGE-INVALIDE", mauvais
+    assert _instantane_base() == avant
+    assert _verdict(_preparer(par_nom))["code"] == "REJ-RELANCES-A-CONFIGURER"
+
+
 def test_un_delai_absent_refuse_la_preparation_de_la_regle_avec_ce_qui_manque(par_nom, monde, monkeypatch, tmp_path):
     _installer_configuration(monkeypatch, tmp_path, segments={"jours_inactivite_dormant": 30})
     avant = _instantane_base()
@@ -970,6 +995,44 @@ def test_seul_le_proprietaire_approuve_le_consentement_propose_par_un_agent(capa
     assert _journal_consentements() == []
 
 
+@pytest.mark.parametrize("cas", [
+    {"statut": "en_attente"}, {"statut": "refusee"}, {"statut": "executee"},
+    {"decide_par": None, "decide_role": None},
+    {"decide_par": "marc.fictif", "decide_role": "employee"},
+    # Un humain qui porte son rôle, mais qui n'est ni l'admin ni le propriétaire : la politique du département peut le
+    # laisser approuver, l'outil est plus strict (`assignation.ROLES_HUMAINS`).
+    {"decide_par": "vendeur.un", "decide_role": "seller"},
+    {"decide_par": "vendeur.un", "decide_role": "system_agent"},
+    {"decide_par": "inconnu.fictif", "decide_role": "nathan_owner"},
+    {"decide_par": "marc.fictif", "decide_role": "nathan_owner"},
+    {"decide_par": "ancien.vendeur", "decide_role": "admin"},
+    {"departement": "m03-estimation"}, {"outil": "m2_preparer_relance"},
+])
+def test_une_ligne_qui_n_est_pas_une_decision_humaine_en_cours_n_inscrit_aucun_consentement(par_nom, monde, cas):
+    ident = _forcer_une_decision_en_cours(_arguments_consentement(), **cas)
+    avant = _instantane_base()
+
+    with contexte.executer_demande_approuvee(ident):
+        reponse = _appeler(par_nom, "m2_enregistrer_consentement_contact", _arguments_consentement(), None)
+
+    assert _verdict(reponse)["code"] == CODE_HUMAIN
+    assert _instantane_base() == avant and _journal_consentements() == []
+
+
+@pytest.mark.parametrize(("decide_par", "decide_role"), [("nathan", "nathan_owner"), ("admin.fictif", "admin")])
+def test_la_decision_en_cours_du_proprietaire_ou_d_un_admin_inscrit_le_consentement_a_son_nom(
+        par_nom, monde, decide_par, decide_role):
+    ident = _forcer_une_decision_en_cours(_arguments_consentement(), decide_par=decide_par, decide_role=decide_role)
+
+    with contexte.executer_demande_approuvee(ident):
+        resultat = _accepte(
+            _appeler(par_nom, "m2_enregistrer_consentement_contact", _arguments_consentement(), None))
+
+    assert (resultat["enregistre_par"], resultat["voie"]) == (decide_par, "approbation")
+    (entree,) = _journal_consentements()
+    assert (entree["enregistre_par"], entree["voie"]) == (decide_par, "approbation")
+
+
 def test_une_demande_seulement_en_attente_ne_donne_aucun_droit(par_nom, monde):
     with stockage.transaction() as cnx:
         approbations.creer_demande(cnx, DEPARTEMENT, "m2_enregistrer_consentement_contact", {"lead_id": "lead-un"},
@@ -1068,6 +1131,32 @@ def test_le_consentement_et_la_relance_par_sms_de_bout_en_bout_par_les_outils(pa
     assert _verdict(_preparer(par_nom, canal="sms", horodatage="2026-10-30T12:00:00-04:00"))["code"] == (
         "REJ-CONSENTEMENT-RETIRE")
     assert _accepte(_preparer(par_nom, canal="appel", horodatage="2026-10-30T12:00:00-04:00"))["canal"] == "appel"
+
+
+@pytest.mark.parametrize("outil", ["lister", "preparer"])
+def test_seuls_les_leads_ouverts_sont_evalues_pour_les_relances(par_nom, monde, monkeypatch, outil):
+    """Une relance ne se calcule que pour un lead ouvert (`quote_stale`, `dormant_lead`) : l'adaptateur ne fait pas
+    évaluer les autres (converti, perdu, chantier...), dont la lecture ne servirait à rien."""
+    evaluer = liste_leads.evaluer
+    appels = []
+
+    def espion(maillons, **kwargs):
+        appels.append(kwargs.get("statuts_retenus"))
+        return evaluer(maillons, **kwargs)
+
+    monkeypatch.setattr(liste_leads, "evaluer", espion)
+    if outil == "lister":
+        _accepte(_lister(par_nom))
+    else:
+        _accepte(_preparer(par_nom))
+
+    assert appels == [("nouveau", "qualifie")] and appels[0] == relances.STATUTS_A_RELANCER
+
+
+def test_le_manifeste_du_departement_declare_les_deux_faits_qu_il_consomme_et_leurs_fonctions(dep):
+    """Lu depuis le dossier du département lui-même (`lire_manifeste`), pas depuis un autre dépôt de manifestes."""
+    assert {"m3.devis_envoye", "m1.retrait_consentement"} <= set(dep.evenements_consomme)
+    assert set(dep.evenements_consomme) == set(dep.charger_consommateurs()), "ni fonction orpheline ni fait sans elle"
 
 
 def test_l_evaluation_des_relances_lit_les_memes_segments_que_la_liste_des_leads(par_nom, monde):

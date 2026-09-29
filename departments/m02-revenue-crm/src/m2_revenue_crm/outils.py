@@ -36,7 +36,8 @@ permis ; `m2_preparer_relance` écrit UNE relance préparée (texte FIXE, rien d
 `m2_enregistrer_consentement_contact` inscrit le consentement d'un client, par une personne. M2 consomme
 `m3.devis_envoye` (le départ du délai d'une relance de devis) et `m1.retrait_consentement` (le STOP d'un client : jamais
 son numéro). Sans consentement actif : « appel seulement ». La fréquence maximale vient de `configuration.relances` de
-`department.yaml`, vide : « à configurer ». """
+`department.yaml`, vide : « à configurer ».
+"""
 
 from __future__ import annotations
 
