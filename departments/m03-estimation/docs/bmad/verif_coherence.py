@@ -1,4 +1,5 @@
 import ast
+import json
 import re
 import sys
 from pathlib import Path
@@ -1003,6 +1004,174 @@ def verifier_marqueur_consomme_existe_vraiment(archi: str) -> List[str]:
                 f"déclarées par M3 : {sorted(cles_m2 - cles_m3)}. Le producteur et le "
                 f"consommateur ne parlent pas du même marqueur."]
     return []
+
+
+def _constante_de_module(texte: str, nom: str) -> set[str] | None:
+    """Ensemble des chaînes de la constante de MODULE `nom` (tuple, liste, ensemble ou
+    `frozenset({...})` littéral), lu sur l'arbre `ast.parse` — jamais par recherche textuelle.
+    `None` si la source n'est pas analysable, si la constante est absente ou si elle n'est pas un
+    littéral de chaînes : un extracteur qui ne trouve rien ne doit jamais rendre le contrôle vide."""
+    try:
+        arbre = ast.parse(texte)
+    except SyntaxError:
+        return None
+    for noeud in arbre.body:
+        est_la_constante = (
+            isinstance(noeud, ast.Assign)
+            and any(isinstance(cible, ast.Name) and cible.id == nom for cible in noeud.targets)
+        ) or (
+            isinstance(noeud, ast.AnnAssign)
+            and isinstance(noeud.target, ast.Name)
+            and noeud.target.id == nom
+            and noeud.value is not None
+        )
+        if not est_la_constante:
+            continue
+        valeur = noeud.value
+        if (isinstance(valeur, ast.Call) and isinstance(valeur.func, ast.Name)
+                and valeur.func.id == "frozenset" and len(valeur.args) == 1):
+            valeur = valeur.args[0]
+        try:
+            litteral = ast.literal_eval(valeur)
+        except (ValueError, SyntaxError):
+            return None
+        if isinstance(litteral, (tuple, list, set, frozenset)) and all(
+                isinstance(element, str) for element in litteral):
+            return set(litteral)
+        return None
+    return None
+
+
+def verifier_contrat_besoins_materiaux(
+        archi: str,
+        chemin_source_m3: Path | None = None,
+        chemin_source_m6: Path | None = None,
+        chemin_catalogue: Path | None = None) -> list[str]:
+    """Contrôle 21 (PLAN T2.3-e) : le contrat `BesoinsMateriauxM3` est le MÊME dans ses quatre
+    descriptions — le bloc yaml de l'architecture (§2.9), la constante de l'ÉMETTEUR (M3,
+    `besoins_materiaux.py`), la copie épinglée du RÉCEPTEUR (M6, `besoins_materiaux_recus.py`) et le
+    schéma du catalogue du bus (`m3.besoins_materiaux.json`).
+
+    Un contrat inter-départements a deux validateurs indépendants (M3 à l'émission, M6 à la
+    réception, décision #109 : aucun import) : sans confrontation, ils dérivent en silence, et un
+    récepteur plus étroit que l'émetteur met en quarantaine des besoins que M3 croit avoir livrés.
+    Sont confrontés : les clés du premier niveau, les clés requises et OPTIONNELLES d'une ligne (une
+    clé optionnelle se déclare par le mot OPTIONNEL dans le commentaire de SA ligne, comme pour
+    `LeadQualifie`), l'ensemble des clés de prix et de coût interdites (identique des deux côtés,
+    absent du bloc), et le schéma du catalogue (`additionalProperties` faux aux deux niveaux).
+
+    Lire la source d'un voisin depuis un GATE n'est pas un import inter-modules (DA-M3-10). Tout
+    repli est fail-closed : source absente, illisible ou constante introuvable produisent une
+    erreur explicite, jamais un vert par vacuité.
+    """
+    depot = Path(__file__).resolve().parents[4]
+    source_m3 = Path(chemin_source_m3) if chemin_source_m3 is not None else (
+        depot / "departments" / "m03-estimation" / "src" / "m3_estimation" / "besoins_materiaux.py")
+    source_m6 = Path(chemin_source_m6) if chemin_source_m6 is not None else (
+        depot / "departments" / "m06-material-control" / "src" / "m6_material_control"
+        / "besoins_materiaux_recus.py")
+    catalogue = Path(chemin_catalogue) if chemin_catalogue is not None else (
+        depot / "src" / "opsys" / "evenements" / "catalogue" / "m3.besoins_materiaux.json")
+
+    textes = {}
+    for etiquette, chemin in (("émetteur M3", source_m3), ("récepteur M6", source_m6),
+                              ("catalogue du bus", catalogue)):
+        if not chemin.is_file():
+            return [f"Source du {etiquette} introuvable ({chemin}) — "
+                    "contrôle non probant, jamais silencieusement vert."]
+        try:
+            textes[etiquette] = chemin.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            return [f"Source du {etiquette} illisible ({chemin}) : {exc} — "
+                    "contrôle non probant, jamais silencieusement vert."]
+
+    m3 = {
+        "haut": _constante_de_module(textes["émetteur M3"], "CHAMPS_BESOINS_MATERIAUX_V1"),
+        "requis": _constante_de_module(textes["émetteur M3"], "CHAMPS_LIGNE_BESOINS_REQUIS"),
+        "optionnel": _constante_de_module(textes["émetteur M3"], "CHAMPS_LIGNE_BESOINS_OPTIONNELS"),
+        "interdit": _constante_de_module(textes["émetteur M3"], "CLES_PRIX_ET_COUT_INTERDITES"),
+    }
+    m6 = {
+        "haut": _constante_de_module(textes["récepteur M6"], "CHAMPS_BESOINS_MATERIAUX_RECUS"),
+        "requis": _constante_de_module(textes["récepteur M6"], "CHAMPS_LIGNE_BESOINS_REQUIS"),
+        "optionnel": _constante_de_module(textes["récepteur M6"], "CHAMPS_LIGNE_BESOINS_OPTIONNELS"),
+        "interdit": _constante_de_module(textes["récepteur M6"], "CLES_PRIX_ET_COUT_INTERDITES"),
+    }
+    for etiquette, constantes in (("émetteur M3", m3), ("récepteur M6", m6)):
+        manquantes = sorted(nom for nom, valeur in constantes.items() if not valeur)
+        if manquantes:
+            return [f"Constante(s) {manquantes} introuvable(s) ou vide(s) dans la source du {etiquette} — "
+                    "extracteur vide, contrôle non probant."]
+
+    titre = re.search(r"^#+\s*2\.\d+\s+Contrat de sortie[^\n`]*`BesoinsMateriauxM3`.*$", archi, re.MULTILINE)
+    if not titre:
+        return ["Section du contrat BesoinsMateriauxM3 introuvable dans l'architecture M3."]
+    bloc = re.search(r"```yaml\s*\n(.*?)\n```", archi[titre.end():], re.DOTALL)
+    if not bloc:
+        return ["Bloc YAML du contrat BesoinsMateriauxM3 introuvable dans l'architecture M3."]
+    corps = bloc.group(1)
+    if not corps.lstrip().startswith("BesoinsMateriauxM3:"):
+        return [f"Bloc YAML capturé n'est pas BesoinsMateriauxM3 mais « {corps.lstrip().splitlines()[0]} » "
+                "— ancrage erroné, contrôle non probant."]
+
+    cles_haut = set(re.findall(r"^  ([a-z_][a-z0-9_]*):", corps, re.MULTILINE))
+    cles_ligne = (set(re.findall(r"^    - ([a-z_][a-z0-9_]*):", corps, re.MULTILINE))
+                  | set(re.findall(r"^      ([a-z_][a-z0-9_]*):", corps, re.MULTILINE)))
+    optionnelles_ligne = set(re.findall(
+        r"^(?:    - |      )([a-z_][a-z0-9_]*):[^\n#]*#[^\n]*\bOPTIONNEL\b", corps, re.MULTILINE))
+    optionnelles_haut = set(re.findall(
+        r"^  ([a-z_][a-z0-9_]*):[^\n#]*#[^\n]*\bOPTIONNEL\b", corps, re.MULTILINE))
+    if not cles_haut or not cles_ligne:
+        return ["Aucune clé extraite du contrat BesoinsMateriauxM3 de M3 — contrôle vide."]
+
+    erreurs: list[str] = []
+
+    def comparer(etiquette: str, decrit: set[str], attendu: set[str], reference: str) -> None:
+        if decrit != attendu:
+            erreurs.append(
+                f"{etiquette} {sorted(decrit)} DIFFÈRE de {reference} {sorted(attendu)} — écart "
+                f"{sorted(decrit ^ attendu)}. Un contrat décrit différemment par ses deux extrémités "
+                "n'est plus un pacte : le récepteur met en quarantaine ce que l'émetteur croit livrer.")
+
+    comparer("Clés du premier niveau du bloc de l'architecture", cles_haut, m3["haut"],
+             "CHAMPS_BESOINS_MATERIAUX_V1 (émetteur M3)")
+    comparer("Clés de ligne du bloc de l'architecture", cles_ligne, m3["requis"] | m3["optionnel"],
+             "clés de ligne requises + optionnelles de l'émetteur M3")
+    comparer("Clés de ligne OPTIONNELLES du bloc de l'architecture", optionnelles_ligne, m3["optionnel"],
+             "CHAMPS_LIGNE_BESOINS_OPTIONNELS (émetteur M3)")
+    if optionnelles_haut:
+        erreurs.append(f"Clés du premier niveau marquées OPTIONNEL dans l'architecture "
+                       f"{sorted(optionnelles_haut)} : le contrat v1 n'en a aucune.")
+    comparer("Clés du premier niveau du récepteur M6", m6["haut"], m3["haut"], "l'émetteur M3")
+    comparer("Clés de ligne requises du récepteur M6", m6["requis"], m3["requis"], "l'émetteur M3")
+    comparer("Clés de ligne OPTIONNELLES du récepteur M6", m6["optionnel"], m3["optionnel"], "l'émetteur M3")
+    comparer("Clés de prix et de coût interdites du récepteur M6", m6["interdit"], m3["interdit"],
+             "l'émetteur M3")
+    fuite = sorted((cles_haut | cles_ligne) & m3["interdit"])
+    if fuite:
+        erreurs.append(f"Le bloc BesoinsMateriauxM3 porte une clé de prix, de coût ou de date {fuite} : "
+                       "ce contrat ne porte aucune donnée financière (M6 a son propre livre de prix).")
+
+    try:
+        schema = json.loads(textes["catalogue du bus"])
+        ligne_schema = schema["properties"]["lignes"]["items"]
+        proprietes_haut = set(schema["properties"])
+        requises_haut = set(schema["required"])
+        proprietes_ligne = set(ligne_schema["properties"])
+        requises_ligne = set(ligne_schema["required"])
+        ferme = schema.get("additionalProperties") is False and ligne_schema.get("additionalProperties") is False
+    except (ValueError, KeyError, TypeError) as exc:
+        return erreurs + [f"Schéma du catalogue m3.besoins_materiaux illisible ou incomplet ({exc!r}) — "
+                          "contrôle non probant."]
+    comparer("Propriétés du premier niveau du catalogue", proprietes_haut, m3["haut"], "l'émetteur M3")
+    comparer("Clés requises du premier niveau du catalogue", requises_haut, m3["haut"], "l'émetteur M3")
+    comparer("Propriétés de ligne du catalogue", proprietes_ligne, m3["requis"] | m3["optionnel"],
+             "l'émetteur M3")
+    comparer("Clés de ligne requises du catalogue", requises_ligne, m3["requis"], "l'émetteur M3")
+    if not ferme:
+        erreurs.append("Le schéma du catalogue m3.besoins_materiaux n'est pas fermé (additionalProperties "
+                       "doit valoir false au premier niveau ET dans les lignes) : une clé de prix passerait.")
+    return erreurs
 
 
 def verifier_ca_cites_existent(prd: str) -> List[str]:
@@ -2120,6 +2289,16 @@ def main(dossier_str: str = None) -> int:
     else:
         print("OK : Le marqueur de readiness consommé correspond à celui que le module "
               "producteur émet.")
+
+    errs = verifier_contrat_besoins_materiaux(archi)
+    if errs:
+        erreurs.extend(errs)
+        for e in errs:
+            print(f"ECHEC : {e}")
+    else:
+        print("OK : Le contrat BesoinsMateriauxM3 est identique dans le bloc de l'architecture, "
+              "la constante de l'émetteur M3, la copie épinglée du récepteur M6 et le catalogue du "
+              "bus — clés, clés OPTIONNELLES, clés de prix et de coût interdites.")
 
     errs = verifier_ca_cites_existent(prd)
     if errs:

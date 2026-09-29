@@ -26,7 +26,9 @@ MUTATIONS = [
         "libelle": "renvoi voir 2.5 vers section inexistante",
         "document": "archi",
         "avant": "voir 2.5",
-        "apres": "voir 2.9",
+        # « 2.99 » et non « 2.9 » : la mutation doit viser une section qui n'existera jamais ; « 2.9 » est
+        # devenue une vraie section (PLAN T2.3-e, contrat BesoinsMateriauxM3) et ne mordait plus.
+        "apres": "voir 2.99",
         "doit_produire_un_message": True,
     },
     {

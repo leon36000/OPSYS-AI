@@ -40,7 +40,8 @@ Le paquet `m3_estimation` est autonome. Il réutilise le patron prouvé des modu
 | `registre.py` | Registre append-only hash-chaîné des estimations émises ; API ajouter / lire / valider chaîne. | Copie-adaptation du patron de registre hash-chaîné prouvé dans M2. |
 | `digest.py` | Production du digest quotidien déterministe des estimations bloquées et des alertes de plancher vers Nathan. | Isolé car consommateur en lecture seule du registre, sans effet sur l'estimation. |
 | `signaux.py` | Émission du signal de relance structuré vers M2 sur photos faibles (max 1 par estimation). Câblé par `estimation.py` (PLAN T2.3, DA-M3-12 et suivants) quand la qualité photo est insuffisante — plus un module orphelin. | Isolé pour garantir la contrainte de fréquence et l'absence de boucle. |
-| `estimation.py` | Orchestrateur principal : séquence validation du lead → **validation du barème** → qualité → hiérarchie → Monte Carlo → plancher → signal de relance M2 (`signaux.py`, qualité insuffisante) → prix recommandé (`taux_marge` fourni, formule réutilisée de `devis_durable.py`, DA-M3-12) → durée main-d'œuvre → contrat de sortie → registre. La validation du barème précède TOUTE production de bornes (CA-M3-21) : un tirage sans bornes de coût produirait des valeurs arbitraires. | Un seul orchestrateur garantit que l'ordre des étapes ne peut être altéré. |
+| `besoins_materiaux.py` (PLAN T2.3-e) | Contrat de sortie `BesoinsMateriauxM3` (§2.9) : calcul des lignes de besoins depuis la liste OPTIONNELLE `materiaux` du poste du barème (`quantite` x `quantite_par_unite`, Decimal, texte), validation STRICTE côté émetteur (clés fermées, décimaux ASCII stricts, doublons, signal des pertes absentes, aucune clé de prix ni de coût), `identifiant_evenement` (idempotence par devis et version d'estimation). Le récepteur (M6) refait SA validation, indépendamment. | Un contrat inter-départements a deux propriétaires de validation, jamais un : l'émetteur ne publie rien qu'il ne saurait refuser, le récepteur ne croit rien parce que le producteur est M3. Module pur : c'est `outils.py`, seul, qui publie sur le bus. |
+| `estimation.py` | Orchestrateur principal : séquence validation du lead → **validation du barème** → qualité → hiérarchie → Monte Carlo → plancher → signal de relance M2 (`signaux.py`, qualité insuffisante) → prix recommandé (`taux_marge` fourni, formule réutilisée de `devis_durable.py`, DA-M3-12) → durée main-d'œuvre → besoins matériaux (`besoins_materiaux.py`, voie non bloquée, validés AVANT l'écriture) → contrat de sortie → registre. La validation du barème précède TOUTE production de bornes (CA-M3-21) : un tirage sans bornes de coût produirait des valeurs arbitraires. | Un seul orchestrateur garantit que l'ordre des étapes ne peut être altéré. |
 
 ---
 
@@ -376,6 +377,101 @@ DigestEstimationsBloquees:
   hash_digest: str          # sha256 déterministe du contenu du digest.
 ```
 
+### 2.9 Contrat de sortie — `BesoinsMateriauxM3` (émis vers M6)
+
+Ce que M3 envoie à M6 quand une estimation produit des quantités de matériaux (DEFINITION-PRODUIT §6,
+flux des matériaux ; §7 M3 « Renvoie ... à M6 (besoins matériaux : items, quantités estimées, facteur
+de perte, confiance) » ; §7 M6.4). Publié sur le bus sous le type `m3.besoins_materiaux` (catalogue du
+socle), APRÈS l'estimation et AVANT le devis : `m3.devis_accepte` porte matériau, quantité et unité, mais
+ni facteur de perte ni confiance, et seulement à l'acceptation — M6 ne pouvait donc rien préparer à partir
+d'une estimation.
+
+```yaml
+BesoinsMateriauxM3:
+  devis_id: str
+    # EstimationV1.devis_id. Clé du prévu côté M6.
+  lead_id: str
+  estimation_id: str
+    # hash_maillon du maillon du registre M3 qui porte ces besoins (le même que
+    # EstimationV1.hash_maillon) : la VERSION de l'estimation. Empreinte sha256, hex minuscule (64).
+  rang_registre: int
+    # Rang de ce maillon dans le registre M3 (>= 0) : ordre total et monotone des versions.
+  bareme_version: str
+    # EstimationV1.bareme_version, jamais nulle ici (barème fourni, poste couvert).
+  niveau_confiance: number
+    # Forme du CODE : le nombre d'EstimationV1.niveau_confiance (niveau statistique, 0 < x < 1).
+  lignes:
+    - materiau: str
+      # Désignation côté M3 ; identifiant du matériau pour M6 quand sku est absent.
+      sku: str                # OPTIONNEL — SKU du catalogue M6, quand le barème le connaît. Jamais deviné.
+      quantite_estimee: str
+      # Texte décimal > 0, quantité NETTE (avant perte), dans `unite`. Calculée par le code.
+      unite: str
+      facteur_perte: str      # OPTIONNEL — fraction de la quantité nette (0.10 = 10 %), 0 <= f < 1. Absent si non fourni.
+  facteurs_perte_absents: list[str]
+    # `materiau` des lignes sans facteur_perte, dans l'ordre des lignes. Vide si toutes en portent un.
+```
+
+**Liste FERMÉE** : huit clés au premier niveau ; trois clés de ligne requises (`materiau`,
+`quantite_estimee`, `unite`) et deux OPTIONNELLES (`sku`, `facteur_perte`). Les deux clés marquées
+OPTIONNEL suivent la discipline de `LeadQualifie` (§2.1) : absentes, elles ne produisent ni erreur ni
+valeur par défaut ; présentes, elles sont validées avec la même rigueur ; toute autre clé est refusée.
+
+- **Aucune donnée de prix, de coût ni de marge.** M6 a son propre livre de prix (PLAN T2.4). Le validateur
+  refuse, à toute profondeur, les clés de prix, de coût, de marge, l'intervalle de coût d'`EstimationV1` et
+  les clés de dates (`CLES_PRIX_ET_COUT_INTERDITES`) : ce canal ne peut pas devenir un second chemin par
+  lequel la marge sort de M3 (séparation coût/prix, audit M3 §2.1).
+- **Le code calcule.** `quantite_estimee` = quantité de l'ouvrage estimé x `quantite_par_unite` du poste du
+  barème, en Decimal, exactement (jamais tronquée en silence), rendue en notation positionnelle sans zéros
+  de fin (`60`, `13.32`). Jamais un nombre JSON, jamais un modèle.
+- **Le barème fournit les nomenclatures.** Chaque poste du `BaremeCouts` (§2.3) PEUT porter une liste
+  `materiaux` (`materiau`, `sku` optionnel, `quantite_par_unite` en texte décimal > 0, `unite`,
+  `facteur_perte` optionnel). Absente : aucun besoin n'est produit, aucune nomenclature n'est inventée.
+  Présente mais malformée : rejet nommé `REJ-BESOINS-MATERIAUX-INVALIDE`, avant toute écriture.
+- **Quantité nette, perte à part.** Le contrat ne porte jamais la quantité brute : une quantité dérivée
+  portée à côté de ses deux facteurs pourrait diverger d'eux. Le récepteur applique `facteur_perte` s'il le
+  décide. Une valeur `>= 1` est refusée : elle trahit presque toujours un pourcentage écrit en entier
+  (`10` au lieu de `0.10`).
+- **Absent est signalé, jamais inventé.** Un `facteur_perte` que le barème ne fournit pas reste ABSENT de la
+  ligne (ni zéro, ni valeur par défaut) ; le matériau figure dans `facteurs_perte_absents` et une note dans
+  `elements_manquants` le dit à l'appelant. Le validateur exige que cette liste soit EXACTEMENT celle des
+  lignes sans `facteur_perte`.
+- **Un matériau n'y figure qu'une fois** : deux lignes de même désignation, de même SKU, ou dont le SKU est
+  la désignation d'une autre (même identité pour M6 : le SKU, sinon la désignation) sont refusées — agréger
+  en silence inventerait une quantité que personne n'a fournie.
+- **Voie non bloquée seulement.** Des photos faibles ne donnent pas de quantités défendables (DA-M3-02) :
+  prix bloqué, aucun besoin.
+- **Version d'estimation et idempotence.** Chaque estimation inscrite au registre est une version :
+  `estimation_id` est son `hash_maillon`, qui couvre les quantités (elles sont déposées dans la charge du
+  maillon, clé `besoins_materiaux`), et `rang_registre` en donne l'ordre. L'`evenement_id` est déterministe,
+  `m3-besoins-materiaux-<devis_id>-<estimation_id[:16]>` : republier la même version est un no-op du bus,
+  une nouvelle estimation du même devis est une nouvelle version. Le récepteur ignore une version périmée
+  arrivée en retard.
+- **`EstimationV1` reste gelé** (§2.2, P5) : les besoins sont une clé sœur de la réponse de l'orchestrateur
+  et un événement séparé, jamais une clé d'`EstimationV1`.
+
+**Deux validateurs, un contrat.** M3 valide à l'émission (`besoins_materiaux.valider_besoins_materiaux`) ;
+M6 valide à la réception avec SA copie (`besoins_materiaux_recus.valider`, décision #109 : aucun import) et
+refuse en quarantaine ce qui est invalide ; le schéma du catalogue (`m3.besoins_materiaux.json`) est la
+première barrière, structurelle. Le gate confronte les quatre descriptions — ce bloc, la constante de M3,
+la copie épinglée de M6 et le catalogue — clés requises, clés optionnelles et clés interdites (DA-M3-10 :
+un gate peut lire la source d'un module voisin, le code de production non).
+
+**Questions ouvertes** (non tranchées ici, à décider par un humain) :
+
+1. `niveau_confiance` est un nombre dans le code (`EstimationV1`, niveau statistique du Monte Carlo) et une
+   chaîne dans le PRD (`REFERENCE_ECHELLE` ... `INDETERMINE`). Le contrat reprend la forme du code ; la
+   chaîne de la hiérarchie existe déjà à part dans la réponse de l'orchestrateur
+   (`niveau_confiance_hierarchie`). Trancher = un contrat v2, ou une clé sœur additive.
+2. M6 conserve `facteur_perte` mais ne majore pas encore la quantité à commander : c'est une décision
+   d'achat (PO, T2.4/T2.5), pas de réception.
+3. M6 ne tient pas de catalogue persisté : il ne peut pas vérifier qu'un `sku` reçu existe. Sans `sku`, la
+   désignation de M3 devient l'identifiant du prévu ; le rattachement au catalogue attend l'enrichissement
+   du catalogue M6 (M6.1).
+4. Les postes du barème qui portent `materiaux` sont à fournir par M6 (livre de prix, T2.4) ou par Nathan ;
+   aucun n'est codé en dur ici.
+5. La borne `facteur_perte < 1` est une garde de saisie choisie ici, pas une donnée du produit.
+
 ---
 
 ## 3. INTERFACES ET CONTRATS
@@ -413,6 +509,14 @@ M3 produit un `DigestEstimationsBloquees` quotidien, déterministe, hash-chaîn�
 ### 3.5 Interface d'entrée future — coût réel (M5/M6)
 
 Le registre append-only est conçu pour recevoir ultérieurement le coût réel (facturé par M5, matériaux déstockés par M6) après complétion de l'intervention. En v1, cette interface est définie mais non connectée.
+
+### 3.6 Interface de sortie — besoins matériaux vers M6
+
+M3 publie `BesoinsMateriauxM3` (§2.9) sous `m3.besoins_materiaux` quand une estimation non bloquée
+produit des quantités, dans la même transaction que l'inscription au registre. M6 le consomme
+(`besoins_materiaux_recus.py`), le range comme prévu PROVISOIRE du devis dans son registre des besoins
+prévus existant, et ne crée jamais de bon de commande : un PO reste un brouillon calculé à la demande et
+soumis à approbation (PLAN T2.4/T2.5). Le prévu DÉFINITIF reste celui du devis accepté (`m3.devis_accepte`).
 
 ---
 
@@ -550,6 +654,25 @@ absente quand elle ne peut pas être calculée honnêtement, ferme cet écart sa
 diverger d'un cent (déjà observé une fois entre `devis_durable.py` T2.3-a et T2.3-b, voir sa
 docstring) — la réutilisation directe rend cette divergence structurellement impossible.
 
+### DA-M3-13 — Les besoins matériaux sont un contrat propre et un événement, jamais un champ du contrat gelé de sortie
+
+**Constat** : M6 ne pouvait pas préparer d'achat à partir d'une estimation. `m3.devis_accepte` porte
+matériau, quantité et unité, mais ni facteur de perte ni confiance, et seulement à l'acceptation ; le flux
+central de DEFINITION-PRODUIT §6 (« M3 finalise l'estimation et envoie les besoins matériaux à M6 ») n'avait
+aucun émetteur.
+
+**Décision** : un contrat séparé, `BesoinsMateriauxM3` (§2.9), publié sur le bus dès qu'une estimation non
+bloquée a des quantités. `EstimationV1` reste GELÉ (P5, même choix que DA-M3-12) : les besoins sont une clé
+sœur de la réponse de l'orchestrateur, déposée aussi dans la charge du registre pour que l'`estimation_id`
+(le `hash_maillon`) couvre les quantités. Les nomenclatures viennent du barème (entrée, jamais donnée du
+module, DA-M3-09) ; les quantités sont calculées par le code. Aucun prix, coût ni marge ne traverse ce canal.
+
+**Justification** : la version d'estimation doit être vérifiable (un hash qui couvre le contenu, pas une
+étiquette), le contrat doit rester exécutable des DEUX côtés (deux validateurs indépendants, confrontés par
+le gate), et ajouter une clé à un contrat gelé le dégèle. Piège écarté : émettre les besoins depuis le devis
+durable à sa création — les lignes d'un devis sont fournies par l'appelant, sans barème, sans facteur de
+perte, sans niveau de confiance ; le contrat serait resté vide de ce que M6.4 demande.
+
 ## 5. CE QUE CHAQUE STORY PROUVE
 
 | Story | Ce qu'elle prouve |
@@ -577,6 +700,7 @@ docstring) — la réutilisation directe rend cette divergence structurellement 
 | `nb_iterations_monte_carlo` | Nombre d'itérations de la simulation Monte Carlo. | Défini par le PM. |
 | `bareme_couts` | Contrat gelé `BaremeCouts` (2.3) : versions, unité, postes par type de travaux. | **Fourni par l'appelant à chaque estimation. Aucune valeur par défaut : un barème par défaut serait un coût inventé.** |
 | `taux_marge` | Taux de marge appliqué au COÛT (intervalle Monte Carlo) pour dériver `prix_recommande` (PLAN T2.3, reste de T2.3-b — voir DA-M3-12). Texte décimal, ex. `"0.35"` pour 35 %. | **Fourni par l'appelant à chaque estimation (paramètre optionnel de `m3_estimer_projet`). Aucune valeur par défaut : absent, aucun prix recommandé n'est calculé (le coût seul reste exploitable) — jamais une marge inventée.** |
+| `materiaux` (par poste du `bareme_couts`) | Liste OPTIONNELLE de besoins matériaux par unité d'ouvrage (`materiau`, `sku` optionnel, `quantite_par_unite` texte décimal > 0, `unite`, `facteur_perte` optionnel, texte décimal, 0 <= f < 1) — PLAN T2.3-e, §2.9. | **Fournie par l'appelant dans le barème. Aucune valeur par défaut : absente, aucun besoin n'est publié ; un facteur de perte absent reste absent et est signalé — jamais inventé.** |
 
 ---
 
@@ -595,6 +719,7 @@ docstring) — la réutilisation directe rend cette divergence structurellement 
 | Contrat gelé de sortie | `contrats.py`, `devis.py` |
 | Signal de relance vers M2 | `signaux.py` |
 | Digest des estimations bloquées | `digest.py` |
+| Besoins matériaux vers M6 (`BesoinsMateriauxM3`) | `besoins_materiaux.py`, `estimation.py`, `outils.py` |
 
 **Stack technique** : stdlib Python + PyYAML, zéro réseau, zéro horloge interne, zéro LLM.
 

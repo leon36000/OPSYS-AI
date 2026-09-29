@@ -41,6 +41,8 @@ M6 porte QUATRE parcours d'écriture distincts, là où M3 et M4 n'en portent qu
 | `catalogue.py` | Résolution du coût unitaire d'un matériau : `PRIX_CATALOGUE` → `PRIX_HISTORIQUE_FALLBACK` (ordre du registre) → `INDETERMINE`. Fonction pure sur `(materiau_id, catalogue, registre)`. | Isolé pour éprouver la garde anti-invention seule (§DA-M6-10). Aucune valeur codée en dur : patron du barème-entrée de M3 (`DA-M3-09`). |
 | `fournisseurs.py` (PLAN T2.5) | Registre des fournisseurs (M6.2) : identité et coordonnées SEULEMENT (`enregistrer_fournisseur`, idempotent/correctible, `lire_fournisseur`, `lister_fournisseurs`). Son propre registre nommé (`opsys.stockage.maillons(dept, "fournisseurs")`), distinct du registre de mouvements. | Corrige le trou mesuré par l'audit M6 (« `BonDeCommandeDemande` n'a aucun champ fournisseur ») : `bons_commande.creer_brouillon` exige un `fournisseur_id` déjà enregistré ici. |
 | `livre_prix.py` (PLAN T2.4) | Livre de prix (M6.3) : prix FOURNIS (jamais inventés), versionnés (append-only), datés, PAR FOURNISSEUR (`enregistrer_prix`, `prix_en_vigueur`, `resoudre_prix_po`). Sélection du prix « en vigueur » par ORDRE D'ÉCRITURE, jamais par comparaison de `date_effet` (même raisonnement que DA-M6-10). Distinct de `catalogue.py` (résolution à la RÉCEPTION, inchangée). | Le prix d'une ligne de PO vient de ce livre EN VIGUEUR ou d'un verdict qui le demande (`PRIX_LIVRE`/`INDETERMINE`, jamais un prix par défaut) — lu par `bons_commande.creer_brouillon`. |
+| `besoins_materiaux_recus.py` (PLAN T2.3-e) | Réception du contrat `BesoinsMateriauxM3` émis par M3 (§2.12) : validation du RÉCEPTEUR, indépendante de celle de l'émetteur (frontières, clés fermées, décimaux ASCII stricts, doublons, signal des pertes absentes), et dérivation du prévu au format interne (`lignes_prevues`, `lignes_detaillees`). Copie épinglée des clés du contrat, jamais un import (#109). | M6 ne croit pas un contrat parce que le producteur est M3 : un contrat invalide est refusé en quarantaine, jamais rangé. Module pur ; l'adaptateur `outils.py::_recevoir_besoins_materiaux` fait les entrées-sorties. |
+| `besoins_prevus.py` (PLAN T1.2-b, T2.3-e) | Le prévu d'un devis, dans SON registre durable (`besoins_prevus`), distinct du registre de mouvements : prévu DÉFINITIF (devis accepté ou outil manuel, un seul par devis) et prévu PROVISOIRE (version d'estimation M3, `enregistrer_estimation`, source `estimation_m3`). `pour_devis` préfère le définitif, sinon la version d'estimation la plus récente. | Voir DA-M6-16 : le prévu reste UNE notion pour tous ses lecteurs (déclaration de matériaux, variance, PO) ; l'estimation n'en crée pas un second. |
 | `bons_commande.py` (DA-M6-12 révisée, PLAN T2.5) | Moteur de PO PERSISTÉ (M6.5) : `creer_brouillon` (besoins prévus + écart de stock, prix résolu par ligne via `livre_prix.py`), `approuver` (refuse fail-closed si un prix reste `INDETERMINE`), `generer_courriel` (M6.6, texte seul), `marquer_envoye` (N4, aucune primitive d'envoi), `enregistrer_reception_po` (attache le verdict déjà calculé par `reception.py`, inchangé), `detecter_ecarts_prix` (M6.7, signal vers M5/M8). Machine à 12 statuts en table figée (`contrats.TRANSITIONS_PO`), même patron append-only que `m3_estimation.devis_durable` (aucun hash-chaînage, copie-adaptation #109). | Voir DA-M6-12 révisée ci-dessous : le type de maillon `PO_DEMANDE` n'existe toujours PAS dans l'énuméré gelé du registre de stock (§2.10) — le PO vit dans SA PROPRE collection nommée, jamais dans le registre de mouvements. |
 | `reception.py` | Rapprochement lignes demandées ↔ reçues, classification `VerdictReception` (conforme / inférieure / supérieure / **mixte** / indéterminé), coût par ligne via `catalogue.py`, `montant_ligne` et `montant_total_estime` avec équivalence stricte null↔INDETERMINE. Construit `AccuseReceptionPO` et, si résolu, `SignalPoAPayer`. Logique PURE (aucune écriture). | Isolé de l'orchestrateur pour tester le verdict et l'équivalence null sans traverser une écriture de registre (leçon #166 et « tester les renderers isolément masque le chemin réel » — d'où AUSSI un test bout en bout en S007). |
 | `stock.py` | Dérivation PURE du stock théorique d'un couple `(chantier_id, materiau_id)` : somme signée des `quantite` des maillons `RECEPTION` et `CONSOMMATION` jusqu'à la tête, **`VARIANCE_INVENTAIRE` exclue** (§DA-M6-09). Vérification de disponibilité pour la consommation, avec cumul des lignes d'un même matériau. Aucun cache. | « Pas d'état caché, tout dérivé du registre » — patron mesuré de `m4_field_ops.outbox.calculer_duree_reelle`/`statut_courant` qui re-dérivent à chaque appel. Un cache serait une seconde vérité divergente. |
@@ -295,6 +297,27 @@ Chaque énuméré porte `INDETERMINE` comme échappatoire D-032 obligatoire (gar
 | `STOCK_SUPERIEUR_AU_THEORIQUE` | Comptée strictement supérieure. Constat chiffré, AUCUNE cause attribuée (R-020). |
 | `INDETERMINE` | **Échappatoire D-032** — aucun mouvement théorique préalable pour ce couple (rien à comparer ; comparer contre zéro fabriquerait un écart). |
 
+### 2.12 Entrée reçue de M3 — `BesoinsMateriauxM3` (PLAN T2.3-e)
+
+Le contrat est DÉFINI par son émetteur (M3, `03-ARCHITECTURE.md` de M3 §2.9, qui en est propriétaire) :
+huit clés au premier niveau (`devis_id`, `lead_id`, `estimation_id`, `rang_registre`, `bareme_version`,
+`niveau_confiance`, `lignes`, `facteurs_perte_absents`) ; par ligne, `materiau`, `quantite_estimee`
+et `unite` requis, `sku` et `facteur_perte` optionnels. M6 en porte une COPIE ÉPINGLÉE
+(`besoins_materiaux_recus.py`, jamais un import, #109), que le gate de cohérence de M3 confronte à
+l'architecture, à la source de l'émetteur et au schéma du catalogue du bus (`m3.besoins_materiaux`).
+
+M6 reçoit des quantités NETTES, en texte décimal, et un facteur de perte OPTIONNEL par ligne. **M6 ne
+reçoit aucun prix ni coût de M3** : il a son propre livre de prix (§1, `livre_prix.py`). Le validateur
+refuse à toute profondeur les clés de prix, de coût, de marge et l'intervalle de coût de l'estimation,
+avant même la structure ; un `facteur_perte` absent est déclaré par M3 dans `facteurs_perte_absents`,
+et M6 vérifie que cette liste est exactement celle des lignes sans facteur — une absence n'est jamais
+tue, jamais remplacée par zéro.
+
+L'identifiant d'un matériau pour M6 est le `sku` quand M3 le connaît, sinon la désignation de M3 : l'une
+des deux valeurs reçues, jamais une valeur devinée. Deux lignes de même identité sont refusées (agréger
+en silence inventerait une quantité). M6 ne tient pas de catalogue persisté : il ne peut pas vérifier
+qu'un `sku` reçu existe (limite déclarée ; l'enrichissement du catalogue est M6.1).
+
 ---
 
 ## 3. INTERFACES ET CONTRATS
@@ -330,6 +353,14 @@ Deux artefacts distincts, jamais fusionnés : le **`WctRecu`** (12 clés, §2.1)
 ### 3.8 État interne faisant autorité
 
 Le registre append-only de `MaillonMateriel` (§2.10) est la **source de vérité unique des quantités**. Le stock théorique en est une **dérivation pure** (§DA-M6-09), jamais un compteur maintenu à part.
+
+### 3.9 Ce que M6 reçoit de M3 — les besoins d'une estimation
+
+Sur le bus, `m3.besoins_materiaux` (§2.12), avant le devis et avant son acceptation. M6 valide, range le
+prévu PROVISOIRE du devis dans son registre des besoins prévus (DA-M6-16), et ne fait rien d'autre :
+**aucun bon de commande n'est créé, aucun stock n'est réservé, aucun mouvement n'est écrit**. Un PO reste
+un brouillon calculé à la demande (`m6_creer_po_brouillon`), soumis à approbation (DA-M6-12 révisée). Un
+contrat invalide lève une erreur : le répartiteur réessaie puis le met en quarantaine (ADR-0009 §3).
 
 ---
 
@@ -512,6 +543,25 @@ la persistance des PO ouverts.
 **Décision** : Restent hors v1, en GATED/T3 : (a) OCR/vision réelle sur factures et bordereaux (poids modèle, GPU, réseau) ; (b) tout parsing de courriel fournisseur par LLM (R-015, défense en profondeur REG-13 obligatoire avant activation) ; (c) toute intégration bancaire ou exécution de paiement réel (frontière, pas seulement séquencement — M6 ne paie jamais).
 
 **Justification** : Incompatible avec le mode ombre v1 (stdlib + PyYAML, zéro réseau, zéro LLM, zéro horloge). La logique déterministe suffit à prouver toutes les gardes en CI.
+
+### DA-M6-16 — Le prévu d'une estimation est PROVISOIRE, dans le registre du prévu existant
+
+**Décision** : les besoins reçus de M3 (§2.12) sont rangés dans le registre `besoins_prevus` qui existe déjà
+(celui que la déclaration de matériaux, la variance de chantier et le brouillon de PO lisent), comme prévu
+PROVISOIRE reconnaissable à `source == "estimation_m3"` — jamais dans un second registre. Le prévu
+DÉFINITIF reste celui du devis accepté ou de l'outil manuel. Trois règles : (1) une estimation ne bloque
+jamais le prévu définitif : le refus « déjà enregistré » ignore les maillons provisoires ; (2) `pour_devis`
+préfère le définitif, sinon la version d'estimation la plus récente : tous les lecteurs passent par lui ;
+(3) les versions d'un même devis s'ajoutent sans rien réécrire : même `estimation_id` = déjà reçue
+(no-op), `rang_registre` non supérieur au dernier = version périmée arrivée en retard (ignorée).
+
+**Justification** : sans (1), l'estimation arrivée la première ferait refuser le devis accepté, qui
+perdrait son `chantier_id` ; sans (2), il y aurait deux vérités du prévu ; sans (3), une réestimation
+serait perdue ou un rejeu doublerait le prévu. Le prévu provisoire n'a jamais de `chantier_id` (M3 ne le
+connaît pas à l'estimation, rien n'est deviné) : il n'impose donc aucune contrainte de chantier à la
+déclaration, et un PO exige un chantier (`REJ-PO-CHANTIER-INCONNU`). M6 conserve le facteur de perte
+reçu sans l'appliquer : la quantité du prévu reste la quantité NETTE de M3, et majorer une quantité à
+commander est une décision d'achat.
 
 ---
 
